@@ -243,20 +243,10 @@ namespace UnrealBuildTool
 			var EngineRoot = UnrealBuildTool.RootDirectory;
 			var AddedFiles = new Dictionary<string, string>();
 			bool PackageFileNeedToBeUpdated = !File.Exists(OutputAppX);
-			bool bUseAssetPackage = false;
 
 			DateTime AppXTime = DateTime.Now;
 
-			ConfigHierarchy EngineIni = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(Receipt.ProjectFile), Receipt.Platform);
-			if (EngineIni != null)
-			{
-				EngineIni.GetBool("/Script/UWPPlatformEditor.UWPTargetSettings", "bUseAssetPackage", out bUseAssetPackage);
-			}
-
-			if (!bUseAssetPackage)
-			{
-				PackageFileNeedToBeUpdated = true;
-			}
+			PackageFileNeedToBeUpdated = true;
 
 			if(!PackageFileNeedToBeUpdated)
 			{
@@ -452,39 +442,7 @@ namespace UnrealBuildTool
 			}
 			File.WriteAllText(MapFilename, AppXRecipeBuiltFiles.ToString(), Encoding.UTF8);
 
-			if (bUseAssetPackage)
-			{
-				string MakeAppXCommandLine = string.Format(@"pack /o /f ""{0}"" /p ""{1}""", MapFilename, OutputAppX);
-
-				var StartInfo = new ProcessStartInfo(MakeAppXPath.FullName, MakeAppXCommandLine);
-				StartInfo.UseShellExecute = false;
-				StartInfo.CreateNoWindow = true;
-				var ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
-				if (ExitCode < 0)
-				{
-					throw new BuildException("Failed to generate AppX file.  See log for details.");
-				}
-
-				if (File.Exists(SigningCertificatePath))
-				{
-					string SignToolCommandLine = string.Format(@"sign /a /f ""{0}"" /fd SHA256 ""{1}""", SigningCertificatePath, OutputAppX);
-					StartInfo = new ProcessStartInfo(SignToolPath.FullName, SignToolCommandLine);
-					StartInfo.UseShellExecute = false;
-					StartInfo.CreateNoWindow = true;
-					ExitCode = Utils.RunLocalProcessAndPrintfOutput(StartInfo);
-					if (ExitCode < 0)
-					{
-						throw new BuildException("Failed to generate AppX file.  See log for details.");
-					}
-				}
-
-				Log.TraceInformation("AppX successfully packaged to \'{0}.appx\'", OutputName);
-				NewReceipt.BuildProducts.Add(new BuildProduct(new FileReference(OutputAppX), BuildProductType.Package));
-			}
-			else
-			{			
-				NewReceipt.BuildProducts.Add(new BuildProduct(new FileReference(MapFilename), BuildProductType.MapFile));
-			}
+			NewReceipt.BuildProducts.Add(new BuildProduct(new FileReference(MapFilename), BuildProductType.MapFile));
 		}
 
 

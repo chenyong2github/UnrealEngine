@@ -46,22 +46,13 @@ public class D3D12RHI : ModuleRules
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-			// @ATG_CHANGE : BEGIN HoloLens support
-			if (Target.Platform == UnrealTargetPlatform.HoloLens)
-			{
-				if (!Target.HoloLensPlatform.bBuildD3D12RHI)
-				{
-					//Log.TraceWarning("D3D12 RHI is being built, but HoloLens build settings indicate that it should not be.  Depending on your Windows SDK environment this may cause build errors.  Check build.cs files for dependencies.");
-				}
-			}
-			else
-			{
+            if (Target.Platform != UnrealTargetPlatform.HoloLens)
+            {
                 AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
             }
-            // @ATG_CHANGE : END
 		}
     }
 }

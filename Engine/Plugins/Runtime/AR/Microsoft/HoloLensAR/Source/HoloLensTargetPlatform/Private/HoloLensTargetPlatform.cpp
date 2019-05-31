@@ -101,17 +101,13 @@ const FPlatformAudioCookOverrides* FHoloLensTargetPlatform::GetAudioCompressionS
 
 void FHoloLensTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray<FName>& OutFormats) const
 {
-	bool bExcludeShaderModel4Support = false;
-	GConfig->GetBool(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("bExcludeShaderModel4Support"), bExcludeShaderModel4Support, GEngineIni);
-	FName TextureFormatName = GetDefaultTextureFormatName(this, InTexture, EngineSettings, bExcludeShaderModel4Support);
+	FName TextureFormatName = GetDefaultTextureFormatName(this, InTexture, EngineSettings, false);
 	OutFormats.Add(TextureFormatName);
 }
 
 void FHoloLensTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
 {
-	bool bExcludeShaderModel4Support = false;
-	GConfig->GetBool(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("bExcludeShaderModel4Support"), bExcludeShaderModel4Support, GEngineIni);
-	GetAllDefaultTextureFormats(this, OutFormats, bExcludeShaderModel4Support);
+	GetAllDefaultTextureFormats(this, OutFormats, false);
 }
 
 static FName NAME_PCD3D_ES3_1(TEXT("PCD3D_ES31"));
@@ -128,14 +124,8 @@ void FHoloLensTargetPlatform::GetAllPossibleShaderFormats(TArray<FName>& OutForm
 void FHoloLensTargetPlatform::GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const
 {
 	OutFormats.AddUnique(NAME_PCD3D_ES3_1);
-	
-	bool bExcludeShaderModel4Support = false;
-	GConfig->GetBool(TEXT("/Script/HoloLensPlatformEditor.HoloLensTargetSettings"), TEXT("bExcludeShaderModel4Support"), bExcludeShaderModel4Support, GEngineIni);
 	OutFormats.AddUnique(NAME_PCD3D_SM5);
-	if (!bExcludeShaderModel4Support)
-	{
-		OutFormats.AddUnique(NAME_PCD3D_SM4);
-	}
+	OutFormats.AddUnique(NAME_PCD3D_SM4);
 }
 
 #endif

@@ -29,11 +29,6 @@ public class RHI : ModuleRules
 				if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 				{
 					DynamicallyLoadedModuleNames.Add("D3D11RHI");
-
-					if (Target.HoloLensPlatform.bBuildD3D12RHI)
-					{
-						DynamicallyLoadedModuleNames.Add("D3D12RHI");
-					}
 				}
 				// @ATG_CHANGE : END
 

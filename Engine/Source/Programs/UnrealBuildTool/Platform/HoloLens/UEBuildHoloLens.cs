@@ -43,12 +43,6 @@ namespace UnrealBuildTool
 		public bool bBuildForRetailWindowsStore = false;
 
 		/// <summary>
-		/// Controls whether the D3D12 RHI should be included in the build.
-		/// </summary>
-		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bBuildD3D12RHI")]
-		public bool bBuildD3D12RHI = true;
-
-		/// <summary>
 		/// Contains the specific version of the Windows 10 SDK that we will build against. If empty, it will be "Latest"
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "Windows10SDKVersion")]
@@ -101,11 +95,6 @@ namespace UnrealBuildTool
 		public bool bBuildForRetailWindowsStore
 		{
 			get { return Inner.bBuildForRetailWindowsStore; }
-		}
-
-		public bool bBuildD3D12RHI
-		{
-			get { return Inner.bBuildD3D12RHI; }
 		}
 
 		public Version Win10SDKVersion
@@ -244,12 +233,6 @@ namespace UnrealBuildTool
 			}
 
 			HoloLensExports.InitWindowsSdkToolPath(Target.HoloLensPlatform.Win10SDKVersion.ToString());
-
-			if (Target.HoloLensPlatform.bBuildD3D12RHI && Target.HoloLensPlatform.Win10SDKVersion < MinimumSDKVersionForD3D12RHI)
-			{
-				Log.TraceWarning("Ignoring HoloLens 'Build with D3D12 support' flag: the D3D12 RHI requires at least the {0} SDK.", MinimumSDKVersionForD3D12RHI);
-				Target.HoloLensPlatform.bBuildD3D12RHI = false;
-			}
 		}
 
 		/// <summary>
@@ -629,14 +612,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.Definitions.Add("USING_RETAIL_WINDOWS_STORE=0");
 			}
 
-			if (Target.HoloLensPlatform.bBuildD3D12RHI)
-			{
-				CompileEnvironment.Definitions.Add("WITH_D3D12_RHI=1");
-			}
-			else
-			{
-				CompileEnvironment.Definitions.Add("WITH_D3D12_RHI=0");
-			}
+			CompileEnvironment.Definitions.Add("WITH_D3D12_RHI=0");
 
 			LinkEnvironment.AdditionalArguments += "/NODEFAULTLIB";
 			//CompileEnvironment.AdditionalArguments += " /showIncludes";

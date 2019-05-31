@@ -37,6 +37,8 @@
 
 TArray<FHoloLensSDKVersion> FHoloLensSDKVersion::GetSDKVersions()
 {
+	bool bFound18362 = false;
+
 	static TArray<FHoloLensSDKVersion> SDKVersions;
 	if (SDKVersions.Num() == 0)
 	{
@@ -62,6 +64,10 @@ TArray<FHoloLensSDKVersion> FHoloLensSDKVersion::GetSDKVersions()
 						{
 							new(SDKVersions) FHoloLensSDKVersion(FString(dwSubKeyNameLen, sSubKeyName), version[0], version[1], version[2], version[3]);
 						}
+						if (version[2] == 18362)
+						{
+							bFound18362 = true;
+						}
 					}
 					dwSubKeyNameLen = _countof(sSubKeyName);
 					dwIndex++;
@@ -69,7 +75,16 @@ TArray<FHoloLensSDKVersion> FHoloLensSDKVersion::GetSDKVersions()
 				RegCloseKey(hKey);
 			}
 		}
+
+		// 18362 is required as the official minimum SDK released by Microsoft for all needed HL2 features to work
+		// If it's not found, we still need it as a hidden SDK version so that we can set MinimumPlatformVersion correctly to
+		// allow the package to run on lower installed firmware revisions
+		if (!bFound18362)
+		{
+			new(SDKVersions) FHoloLensSDKVersion(FString(L"10.0.18362.0"), 10, 0, 18362, 0);
+		}
 	}
+
 	return SDKVersions;
 }
 
@@ -107,9 +122,10 @@ void FHoloLensTargetSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder
 
 	// Add UI for select min/max platform version.
 	TSharedRef<IPropertyHandle> MinVersionProperty = DetailBuilder.GetProperty("MinimumPlatformVersion");
-	AddWidgetForPlatformVersion(DetailBuilder, MinVersionProperty);
+	// 10.0.18362.0 is the minimum 'officially' released SDK from MS that supports all the HoloLens 2 features that are needed
+	AddWidgetForPlatformVersion(DetailBuilder, MinVersionProperty, nullptr, true, FString(L"10.0.18362.0"));
 	TSharedRef<IPropertyHandle> MaxVersionProperty = DetailBuilder.GetProperty("MaximumPlatformVersionTested");
-	AddWidgetForPlatformVersion(DetailBuilder, MaxVersionProperty);
+	AddWidgetForPlatformVersion(DetailBuilder, MaxVersionProperty, nullptr, true);
 
 	// Add UI to select signing certificate
 	IDetailCategoryBuilder& PackagingCategoryBuilder = DetailBuilder.EditCategory(FName("Packaging"));
@@ -315,12 +331,12 @@ FString FHoloLensTargetSettingsCustomization::GetNameForSigningCertificate(const
 	return CertificateName;
 }
 
-void FHoloLensTargetSettingsCustomization::AddWidgetForPlatformVersion(IDetailLayoutBuilder& DetailBuilder, TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<STextComboBox>* OutVersionSelector)
+void FHoloLensTargetSettingsCustomization::AddWidgetForPlatformVersion(IDetailLayoutBuilder& DetailBuilder, TSharedRef<IPropertyHandle> PropertyHandle, TSharedPtr<STextComboBox>* OutVersionSelector, bool bForAdvanced, const FString& SpecificVersionOverrideString)
 {
 	IDetailCategoryBuilder& VersionCategoryBuilder = DetailBuilder.EditCategory(FName(*PropertyHandle->GetMetaData("Category")));
 	DetailBuilder.HideProperty(PropertyHandle);
 
-	FString CurrentSelectedVersion;
+	FString CurrentSelectedVersion = SpecificVersionOverrideString;
 	PropertyHandle->GetValue(CurrentSelectedVersion);
 
 	// Default to latest version when not set explicitly.  With Windows 10 automatic updates
@@ -346,7 +362,7 @@ void FHoloLensTargetSettingsCustomization::AddWidgetForPlatformVersion(IDetailLa
 	TSharedPtr<STextComboBox> Unused;
 	TSharedPtr<STextComboBox>& VersionSelectorRef = OutVersionSelector != nullptr ? *OutVersionSelector : Unused;
 
-	VersionCategoryBuilder.AddCustomRow(PropertyHandle->GetPropertyDisplayName())
+	VersionCategoryBuilder.AddCustomRow(PropertyHandle->GetPropertyDisplayName(), bForAdvanced)
 	.NameContent()
 	[
 		PropertyHandle->CreatePropertyNameWidget()

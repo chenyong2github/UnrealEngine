@@ -3,7 +3,6 @@
 #include "PropertyEditorModule.h"
 #include "HoloLensTargetSettingsCustomization.h"
 #include "HoloLensLocalizedResourcesCustomization.h"
-#include "HoloLensDlcSettingsCustomization.h"
 #include "HoloLensImageResourcesCustomization.h"
 #include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
@@ -59,23 +58,8 @@ public:
 			);
 
 		PropertyModule.RegisterCustomPropertyTypeLayout(
-			"HoloLensDlcLocalizedResources",
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHoloLensLocalizedResourcesCustomization::MakeInstance)
-			);
-
-		PropertyModule.RegisterCustomPropertyTypeLayout(
-			"HoloLensDlcSettings",
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHoloLensDlcSettingsCustomization::MakeInstance)
-			);
-
-		PropertyModule.RegisterCustomPropertyTypeLayout(
 			"HoloLensCorePackageImageResources",
 			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHoloLensCorePackageImagesCustomization::MakeInstance)
-			);
-
-		PropertyModule.RegisterCustomPropertyTypeLayout(
-			"HoloLensDlcImageResources",
-			FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FHoloLensDlcImagesCustomization::MakeInstance)
 			);
 	}
 

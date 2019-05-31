@@ -19,7 +19,7 @@
 #include "DesktopPlatformModule.h"
 #include "HAL/FileManager.h"
 
-#define LOCTEXT_NAMESPACE "HoloLensDlcImagesCustomization"
+#define LOCTEXT_NAMESPACE "HoloLensImagesCustomization"
 
 namespace
 {
@@ -133,28 +133,6 @@ namespace
 				}
 			})
 		];
-	}
-}
-
-TSharedRef<IPropertyTypeCustomization> FHoloLensDlcImagesCustomization::MakeInstance()
-{
-	return MakeShared<FHoloLensDlcImagesCustomization>();
-}
-
-void FHoloLensDlcImagesCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InStructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
-{
-	TSharedRef<IPropertyHandle> PluginNameProperty = InStructPropertyHandle->GetParentHandle()->GetChildHandle(FName("AppliesToDlcPlugin")).ToSharedRef();
-	FString CurrentPluginName;
-	PluginNameProperty->GetValue(CurrentPluginName);
-
-	TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CurrentPluginName);
-	if (Plugin.IsValid())
-	{
-		TSharedRef<IPropertyHandle> CultureIdProperty = InStructPropertyHandle->GetParentHandle()->GetChildHandle(FName("CultureId")).ToSharedRef();
-		FString CultureId;
-		CultureIdProperty->GetValue(CultureId);
-
-		AddWidgetForResourceImage(ChildBuilder, Plugin->GetBaseDir(), CultureId, TEXT("StoreLogo"), LOCTEXT("StoreLogo", "Store Logo"), FVector2D(50.0f, 50.0f));
 	}
 }
 

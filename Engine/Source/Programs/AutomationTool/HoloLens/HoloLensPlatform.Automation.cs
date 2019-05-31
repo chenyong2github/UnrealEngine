@@ -792,24 +792,10 @@ LogWarning("PackagePakFiles intermediate dir {0}", IntermediateDirectory);
 
 			string OutputNameBase = Params.HasDLCName ? Params.DLCFile.GetFileNameWithoutExtension() : Params.ShortProjectName;
 			string OutputAppX = Path.Combine(SC.StageDirectory.FullName, OutputNameBase + ".appxbundle");
-			bool SeparateAssetPackaging = false;
 
-			ConfigHierarchy PlatformEngineConfig = null;
-			if (Params.EngineConfigs.TryGetValue(PlatformType, out PlatformEngineConfig))
-			{
-				PlatformEngineConfig.GetBool("/Script/UWPPlatformEditor.UWPTargetSettings", "bUseAssetPackage", out SeparateAssetPackaging);
-			}
+			UpdateCodePackagesWithData(Params, SC, OutputNameBase);
 
-			if (SeparateAssetPackaging)
-			{
-				PackagePakFiles(Params, SC, OutputNameBase);
-			}
-			else
-			{
-				UpdateCodePackagesWithData(Params, SC, OutputNameBase);
-			}
-
-			MakeBundle(Params, SC, OutputNameBase, SeparateAssetPackaging);
+			MakeBundle(Params, SC, OutputNameBase, false);
 
 			CopyVCLibs(Params, SC);
 
