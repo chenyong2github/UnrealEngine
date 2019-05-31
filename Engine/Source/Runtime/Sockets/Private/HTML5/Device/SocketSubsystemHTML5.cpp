@@ -9,7 +9,7 @@ FSocketSubsystemHTML5* FSocketSubsystemHTML5::SocketSingleton = NULL;
 
 FName CreateSocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule )
 {
- 	FName SubsystemName(TEXT("HTML5"));
+	FName SubsystemName(TEXT("HTML5"));
 	// Create and register our singleton factor with the main online subsystem for easy access
 	FSocketSubsystemHTML5* SocketSubsystem = FSocketSubsystemHTML5::Create();
 	FString Error;
@@ -33,7 +33,7 @@ void DestroySocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule )
 }
 
 /** 
- * Singleton interface for the Android socket subsystem 
+ * Singleton interface for the Android socket subsystem
  * @return the only instance of the Android socket subsystem
  */
 FSocketSubsystemHTML5* FSocketSubsystemHTML5::Create()
@@ -43,7 +43,7 @@ FSocketSubsystemHTML5* FSocketSubsystemHTML5::Create()
 		SocketSingleton = new FSocketSubsystemHTML5();
 	}
 
-	return SocketSingleton; 
+	return SocketSingleton;
 }
 
 /** 

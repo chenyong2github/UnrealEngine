@@ -18,9 +18,6 @@ public:
 
 	~FNiagaraSystemScriptViewModel();
 
-	/** Rebuilds the emitter nodes in the System script due to data changes. */
-	void RebuildEmitterNodes();
-
 	FOnSystemCompiled& OnSystemCompiled();
 
 	void CompileSystem(bool bForce);

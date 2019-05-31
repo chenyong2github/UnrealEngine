@@ -1,7 +1,7 @@
 #! /bin/bash
 
 LLVM_VERSION=7.0.1
-TOOLCHAIN_VERSION=v13
+TOOLCHAIN_VERSION=v14
 
 TARGETS="aarch64-unknown-linux-gnueabi arm-unknown-linux-gnueabihf x86_64-unknown-linux-gnu"
 
@@ -44,6 +44,7 @@ for arch in $TARGETS; do
 	popd
 done
 
+
 # Build clang
 LLVM=llvm-$LLVM_VERSION
 CLANG=cfe-$LLVM_VERSION
@@ -66,7 +67,7 @@ tar -xf $COMPILER_RT.src.tar.xz --strip-components 1 -C llvm/projects/compiler-r
 
 mkdir build-clang
 pushd build-clang
-cmake3 -DCMAKE_INSTALL_PREFIX=../install-clang -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_LIBCXX=1 -DCMAKE_CROSSCOMPILING=True -DLLVM_TARGETS_TO_BUILD="AArch64;ARM;X86" -DLLVM_ENABLE_LIBXML2=OFF -DCMAKE_C_COMPILER=/home/buildmaster/OUTPUT/x86_64-unknown-linux-gnu/bin/x86_64-unknown-linux-gnu-gcc -DCMAKE_C_FLAGS="--sysroot=/home/buildmaster/OUTPUT/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot" -DCMAKE_CXX_COMPILER=/home/buildmaster/OUTPUT/x86_64-unknown-linux-gnu/bin/x86_64-unknown-linux-gnu-g++ -DCMAKE_CXX_FLAGS="--sysroot=/home/buildmaster/OUTPUT/x86_64-unknown-linux-gnu/x86_64-unknown-linux-gnu/sysroot" -G "Unix Makefiles" ../llvm
+cmake3 -DCMAKE_INSTALL_PREFIX=../install-clang -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_LIBCXX=1 -DLLVM_TARGETS_TO_BUILD="AArch64;ARM;X86" -DLLVM_ENABLE_LIBXML2=OFF -G "Unix Makefiles" ../llvm
 make -j$CORES && make install
 popd
 
@@ -108,6 +109,7 @@ for arch in $TARGETS; do
 	cp -L install-clang/bin/lld OUTPUT/$arch/bin/
 	cp -L install-clang/bin/ld.lld OUTPUT/$arch/bin/
 	cp -L install-clang/bin/llvm-ar OUTPUT/$arch/bin/
+	cp -L install-clang/bin/llvm-profdata OUTPUT/$arch/bin/
 
 	if [ "$arch" == "x86_64-unknown-linux-gnu" ]; then
 		cp -r install-clang/lib/clang OUTPUT/$arch/lib/

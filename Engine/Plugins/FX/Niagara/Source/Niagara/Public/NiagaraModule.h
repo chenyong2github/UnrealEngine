@@ -16,6 +16,8 @@ class UNiagaraScript;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
 
+extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
+
 /**
 * Niagara module interface
 */

@@ -238,7 +238,7 @@ void FSequencerTrackNode::UpdateSections()
 	const int32 NumToRemove = Sections.Num() - CurrentSections.Num();
 	if (NumToRemove > 0)
 	{
-		Sections.RemoveAt(Sections.Num()-1-NumToRemove, NumToRemove, true);
+		Sections.RemoveAt(Sections.Num()-NumToRemove, NumToRemove, true);
 	}
 }
 

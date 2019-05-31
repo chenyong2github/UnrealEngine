@@ -81,7 +81,8 @@ void UNiagaraDataInterfaceVector2DCurve::UpdateLUT()
 		ShaderLUT.Add(C.X);
 		ShaderLUT.Add(C.Y);
 	}
-	GPUBufferDirty = true;
+
+	Super::PushToRenderThread();
 }
 
 bool UNiagaraDataInterfaceVector2DCurve::CopyToInternal(UNiagaraDataInterface* Destination) const

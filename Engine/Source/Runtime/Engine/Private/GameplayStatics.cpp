@@ -1179,8 +1179,8 @@ void UGameplayStatics::PlaySound2D(const UObject* WorldContextObject, class USou
 		NewActiveSound.SetSound(Sound);
 		NewActiveSound.SetWorld(ThisWorld);
 
-		NewActiveSound.VolumeMultiplier = VolumeMultiplier;
-		NewActiveSound.PitchMultiplier = PitchMultiplier;
+		NewActiveSound.SetPitch(PitchMultiplier);
+		NewActiveSound.SetVolume(VolumeMultiplier);
 
 		NewActiveSound.RequestedStartTime = FMath::Max(0.f, StartTime);
 
@@ -1214,8 +1214,6 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 		return nullptr;
 	}
 
-	UAudioComponent* AudioComponent;
-
 	FAudioDevice::FCreateComponentParams Params = bPersistAcrossLevelTransition
 		? FAudioDevice::FCreateComponentParams(ThisWorld->GetAudioDevice())
 		: FAudioDevice::FCreateComponentParams(ThisWorld);
@@ -1225,7 +1223,7 @@ UAudioComponent* UGameplayStatics::CreateSound2D(const UObject* WorldContextObje
 		Params.ConcurrencySet.Add(ConcurrencySettings);
 	}
 
-	AudioComponent = FAudioDevice::CreateComponent(Sound, Params);
+	UAudioComponent* AudioComponent = FAudioDevice::CreateComponent(Sound, Params);
 	if (AudioComponent)
 	{
 		AudioComponent->SetVolumeMultiplier(VolumeMultiplier);

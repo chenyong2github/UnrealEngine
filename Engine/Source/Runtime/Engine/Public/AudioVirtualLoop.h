@@ -38,6 +38,11 @@ public:
 	FActiveSound& GetActiveSound();
 
 	/**
+	 * Returns the wait interval being observed before next update
+	 */
+	float GetUpdateInterval() const { return UpdateInterval; }
+
+	/**
 	 * Returns the internally-managed active sound.
 	 */
 	const FActiveSound& GetActiveSound() const;
@@ -57,9 +62,4 @@ public:
 	  * Returns whether or not the sound is ready to be realized.
 	  */
 	bool CanRealize(float DeltaTime);
-
-	/**
-	 * Draws debug info for virtual sound
-	 */
-	void DrawDebugInfo() const;
 };

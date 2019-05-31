@@ -180,6 +180,15 @@ namespace UnrealBuildTool
 			return StringRegistry.HasString(Name);
 		}
 
+		/// <summary>
+		/// Helper that just calls UEBuildPlatform.IsPlatformInGroup
+		/// </summary>
+		/// <param name="Group"></param>
+		/// <returns></returns>
+		public bool IsInGroup(UnrealPlatformGroup Group)
+		{
+			return UEBuildPlatform.IsPlatformInGroup(this, Group);
+		}
 
 		/// <summary>
 		/// 32-bit Windows

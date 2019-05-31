@@ -66,11 +66,14 @@ namespace EMouseCursor
 	};
 }
 
-
-
 class ICursor
 {
 public:
+	/** Creates a hardware cursor from file. Can return nullptr when not availbale. */
+	virtual void* CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D HotSpot) = 0;
+
+	/** Creates a hardware cursor from bitmap data. Can return nullptr when not available. */
+	virtual void* CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, int32 Height, FVector2D InHotSpot) = 0;
 
 	/** The position of the cursor */
 	virtual FVector2D GetPosition() const = 0;

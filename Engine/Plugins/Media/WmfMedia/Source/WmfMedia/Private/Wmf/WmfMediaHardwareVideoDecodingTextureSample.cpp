@@ -53,7 +53,10 @@ void FWmfMediaHardwareVideoDecodingTextureSample::ShutdownPoolable()
 
 	// Correctly release the keyed mutex when the sample is returned to the pool
 	TComPtr<IDXGIResource> OtherResource(nullptr);
-	SourceTexture->QueryInterface(__uuidof(IDXGIResource), (void**)&OtherResource);
+	if (SourceTexture)
+	{
+		SourceTexture->QueryInterface(__uuidof(IDXGIResource), (void**)&OtherResource);
+	}
 
 	if (OtherResource)
 	{

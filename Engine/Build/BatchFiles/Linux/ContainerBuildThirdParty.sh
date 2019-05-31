@@ -383,7 +383,7 @@ UBUNTU_INIT_COMMAND="set -e; if [ -d /sys/fs/selinux ]; then mount -o remount,ro
 CENTOS_INIT_COMMAND="set -e; if [ ! -f /var/.uecontainerinit-$INIT_VERSION ]; then yum install -y wget 1>/dev/null; cd /tmp; wget http://dl.fedoraproject.org/pub/epel/6/x86_64/epel-release-6-8.noarch.rpm 1>/dev/null; rpm -ivh --replacepkgs epel-release-6-8.noarch.rpm 1>/dev/null; yum install -y alsa-lib-devel autoconf bison bzip2 clang cmake coreutils elfutils-libelf-devel expat-devel file flex gcc-c++ gettext git glibc-static gperf help2man libffi-devel libtool libX11-devel libXcursor-devel libXext-devel libXft-devel libXi-devel libXinerama-devel libxml2-devel libXmu-devel libXpm-devel libXrandr-devel libXScrnSaver-devel libxshmfence-devel llvm llvm-devel mesa-libEGL-devel mesa-libGL-devel ncurses-devel patch pkgconfig pulseaudio-libs-devel tar texinfo which xorg-x11-proto-devel xorg-x11-util-macros xz zlib-devel; $WAYLAND_BUILD_SCRIPT; fi; touch /var/.uecontainerinit-$INIT_VERSION; $USER_INIT_COMMAND; set +e;"
 
 # Initial container setup for CentOS 7
-CENTOS7_INIT_COMMAND="set -e; if [ ! -f /var/.uecontainerinit-$INIT_VERSION ]; then yum install -y epel-releas centos-release-scl; yum install -y alsa-lib-devel autoconf bison bzip2  clang cmake3 coreutils elfutils-libelf-devel expat-devel file flex gcc-c++ gettext git glibc-static gperf help2man libffi-devel libtool libX11-devel libXcursor-devel libXext-devel libXft-devel libXi-devel libXinerama-devel libxml2-devel libXmu-devel libXpm-devel libXrandr-devel libXScrnSaver-devel libxshmfence-devel llvm-toolset-7 llvm-toolset-7-llvm-devel make mesa-libEGL-devel mesa-libGL-devel ncurses-devel patch pkgconfig pulseaudio-libs-devel svn tar texinfo wget which xorg-x11-proto-devel xorg-x11-util-macros xz zlib-devel; $WAYLAND_BUILD_SCRIPT; fi; touch /var/.uecontainerinit-$INIT_VERSION; $USER_INIT_COMMAND; set +e;"
+CENTOS7_INIT_COMMAND="set -e; if [ ! -f /var/.uecontainerinit-$INIT_VERSION ]; then yum install -y epel-release centos-release-scl; yum install -y alsa-lib-devel autoconf bison bzip2  clang cmake3 coreutils elfutils-libelf-devel expat-devel file flex gcc-c++ gettext git glibc-static gperf help2man libffi-devel libtool libX11-devel libXcursor-devel libXext-devel libXft-devel libXi-devel libXinerama-devel libxml2-devel libXmu-devel libXpm-devel libXrandr-devel libXScrnSaver-devel libxshmfence-devel llvm-toolset-7 llvm-toolset-7-llvm-devel make mesa-libEGL-devel mesa-libGL-devel ncurses-devel patch pkgconfig pulseaudio-libs-devel svn tar texinfo wget which xorg-x11-proto-devel xorg-x11-util-macros xz zlib-devel; fi; touch /var/.uecontainerinit-$INIT_VERSION; $USER_INIT_COMMAND; set +e;"
 
 InstallPackages
 
@@ -391,7 +391,7 @@ InstallPackages
 BuildThirdParty centos 6 amd64 $CENTOS_INIT_COMMAND
 
 # Newer centos for building compiler-rt
-#BuildThirdParty centos 7 amd64 $CENTOS7_INIT_COMMAND
+# BuildThirdParty centos 7 amd64 $CENTOS7_INIT_COMMAND
 
 # Others...
 #BuildThirdParty centos 6 i386 $CENTOS_INIT_COMMAND

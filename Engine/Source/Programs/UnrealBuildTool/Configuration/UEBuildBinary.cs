@@ -527,7 +527,9 @@ namespace UnrealBuildTool
 			{
 				if (!String.IsNullOrEmpty(DebugExtension) && ToolChain.ShouldAddDebugFileToReceipt(OutputFile, OutputType) && bCreateDebugInfo)
 				{
-					BuildProducts.Add(OutputFile.ChangeExtension(DebugExtension), BuildProductType.SymbolFile);
+					// @todo this could be cleaned up if we replaced Platform.GetDebugExtensions() with ToolChain.GetDebugFiles(OutputFile)
+					// would need care in MacToolchain tho, so too risky for now
+					BuildProducts.Add(ToolChain.GetDebugFile(OutputFile, DebugExtension), BuildProductType.SymbolFile);
 				}
 			}
 		}

@@ -393,13 +393,15 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
 
 			FActiveSound NewActiveSound;
-			NewActiveSound.SetAudioComponent(this);
+			NewActiveSound.SetAudioComponent(*this);
 			NewActiveSound.SetWorld(GetWorld());
 			NewActiveSound.SetSound(Sound);
 			NewActiveSound.SetSoundClass(SoundClassOverride);
 			NewActiveSound.ConcurrencySet = ConcurrencySet;
 
-			NewActiveSound.VolumeMultiplier = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * FMath::SRand())) * VolumeMultiplier;
+			const float Volume = (VolumeModulationMax + ((VolumeModulationMin - VolumeModulationMax) * FMath::SRand())) * VolumeMultiplier;
+			NewActiveSound.SetVolume(Volume);
+
 			// The priority used for the active sound is the audio component's priority scaled with the sound's priority
 			if (bOverridePriority)
 			{
@@ -410,7 +412,9 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 				NewActiveSound.Priority = Sound->Priority;
 			}
 
-			NewActiveSound.PitchMultiplier = (PitchModulationMax + ((PitchModulationMin - PitchModulationMax) * FMath::SRand())) * PitchMultiplier;
+			const float Pitch = (PitchModulationMax + ((PitchModulationMin - PitchModulationMax) * FMath::SRand())) * PitchMultiplier;
+			NewActiveSound.SetPitch(Pitch);
+
 			NewActiveSound.bEnableLowPassFilter = bEnableLowPassFilter;
 			NewActiveSound.LowPassFilterFrequency = LowPassFilterFrequency;
 			NewActiveSound.RequestedStartTime = FMath::Max(0.f, StartTime);
@@ -1046,7 +1050,7 @@ void UAudioComponent::SetVolumeMultiplier(const float NewVolumeMultiplier)
 				FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
 				if (ActiveSound)
 				{
-					ActiveSound->VolumeMultiplier = NewVolumeMultiplier;
+					ActiveSound->SetVolume(NewVolumeMultiplier);
 				}
 			}, GET_STATID(STAT_AudioSetVolumeMultiplier));
 		}
@@ -1070,7 +1074,7 @@ void UAudioComponent::SetPitchMultiplier(const float NewPitchMultiplier)
 				FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
 				if (ActiveSound)
 				{
-					ActiveSound->PitchMultiplier = NewPitchMultiplier;
+					ActiveSound->SetPitch(NewPitchMultiplier);
 				}
 			}, GET_STATID(STAT_AudioSetPitchMultiplier));
 		}

@@ -90,7 +90,7 @@ void UNiagaraDataInterfaceVector4Curve::UpdateLUT()
 		ShaderLUT.Add(C.B);
 		ShaderLUT.Add(C.A);
 	}
-	GPUBufferDirty = true;
+	Super::PushToRenderThread();
 }
 
 bool UNiagaraDataInterfaceVector4Curve::CopyToInternal(UNiagaraDataInterface* Destination) const 

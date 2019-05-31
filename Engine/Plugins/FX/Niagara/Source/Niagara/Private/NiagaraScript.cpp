@@ -26,6 +26,7 @@
 	#include "Interfaces/ITargetPlatform.h"
 #endif
 
+
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 
@@ -113,9 +114,23 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 	if (CompilerVersionID != ReferenceSet.CompilerVersionID ||
 		ScriptUsageType != ReferenceSet.ScriptUsageType || 
 		ScriptUsageTypeID != ReferenceSet.ScriptUsageTypeID ||
-		BaseScriptID != ReferenceSet.BaseScriptID)
+		BaseScriptID != ReferenceSet.BaseScriptID ||
+		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash)
 	{
 		return false;
+	}
+
+	if (ReferencedCompileHashes.Num() != ReferenceSet.ReferencedCompileHashes.Num())
+	{
+		return false;
+	}
+
+	for (int32 ReferencedHashIndex = 0; ReferencedHashIndex < ReferencedCompileHashes.Num(); ReferencedHashIndex++)
+	{
+		if (ReferencedCompileHashes[ReferencedHashIndex] != ReferenceSet.ReferencedCompileHashes[ReferencedHashIndex])
+		{
+			return false;
+		}
 	}
 	
 	if (ReferencedDependencyIds.Num() != ReferenceSet.ReferencedDependencyIds.Num())
@@ -161,6 +176,8 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString) const
 	KeyString += TEXT("_");
 	KeyString += BaseScriptID.ToString();
 	KeyString += TEXT("_");
+	KeyString += BaseScriptCompileHash.ToString();
+	KeyString += TEXT("_");
 
 	for (int32 Idx = 0; Idx < AdditionalDefines.Num(); Idx++)
 	{
@@ -172,6 +189,17 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString) const
 		}
 	}
 	
+	// Add any referenced script compile hashes to the key so that we will recompile when they are changed
+	for (int32 HashIndex = 0; HashIndex < ReferencedCompileHashes.Num(); HashIndex++)
+	{
+		KeyString += ReferencedCompileHashes[HashIndex].ToString();
+
+		if (HashIndex < ReferencedCompileHashes.Num() - 1)
+		{
+			KeyString += TEXT("_");
+		}
+	}
+
 	// Add any referenced functions to the key so that we will recompile when they are changed
 	for (int32 FunctionIndex = 0; FunctionIndex < ReferencedDependencyIds.Num(); FunctionIndex++)
 	{
@@ -431,28 +459,51 @@ void UNiagaraScript::PostLoad()
 	
 	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
+
+#if WITH_EDITORONLY_DATA
+	if (Source != nullptr)
+	{
+		Source->ConditionalPostLoad();
+		if (NiagaraVer < FNiagaraCustomVersion::UseHashesToIdentifyCompileStateOfTopLevelScripts && CachedScriptVMId.CompilerVersionID.IsValid())
+		{
+			FGuid BaseId = Source->GetCompileBaseId(Usage, UsageId);
+			if (BaseId.IsValid() == false)
+			{
+				UE_LOG(LogNiagara, Warning,
+					TEXT("Invalidating compile ids for script %s because it doesn't have a valid base id.  The owning asset will continue to compile on load until it is resaved."),
+					*GetPathName());
+				bool bForceRebuild = true;
+				Source->InvalidateCachedCompileIds();
+				Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
+			}
+			else
+			{
+				FNiagaraCompileHash CompileHash = Source->GetCompileHash(Usage, UsageId);
+				if (CompileHash.IsValid())
+				{
+					CachedScriptVMId.BaseScriptCompileHash = CompileHash;
+				}
+				else
+				{
+					// If the compile hash isn't valid, recompute the entire cached VM Id.
+					bool bForceRebuild = true;
+					Source->ComputeVMCompilationId(CachedScriptVMId, Usage, UsageId, bForceRebuild);
+				}
+			}
+		}
+	}
+#endif
 	
 	// Resources can be processed / registered now that we're back on the main thread
 	ProcessSerializedShaderMaps(this, LoadedScriptResources, ScriptResource, ScriptResourcesByFeatureLevel);
 
-	if (GIsEditor)
-	{
-		
-#if WITH_EDITORONLY_DATA
-		// Since we're about to check the synchronized state, we need to make sure that it has been post-loaded (which 
-		// can affect the results of that call).
-		if (Source != nullptr)
-		{	
-			Source->ConditionalPostLoad();
-		}
-
-#endif
-	}
-
 	// for now, force recompile until we can be sure everything is working
 	//bNeedsRecompile = true;
 #if WITH_EDITORONLY_DATA
-	CacheResourceShadersForRendering(false, bNeedsRecompile);
+	if (CachedScriptVMId.BaseScriptID.IsValid() && CachedScriptVMId.BaseScriptCompileHash.IsValid())
+	{
+		CacheResourceShadersForRendering(false, bNeedsRecompile);
+	}
 #endif
 #if STATS
 	GenerateStatScopeIDs();
@@ -478,7 +529,18 @@ bool UNiagaraScript::IsReadyToRun(ENiagaraSimTarget SimTarget) const
 	return false;
 }
 
-
+bool UNiagaraScript::ShouldCacheShadersForCooking() const
+{
+	if (CanBeRunOnGpu())
+	{
+		UNiagaraEmitter* OwningEmitter = GetTypedOuter<UNiagaraEmitter>();
+		if (OwningEmitter != nullptr && OwningEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 #if STATS
 void UNiagaraScript::GenerateStatScopeIDs()
@@ -531,22 +593,53 @@ bool UNiagaraScript::AreScriptAndSourceSynchronized() const
 		{
 			if (NewId != LastReportedVMId)
 			{
-				if (NewId.BaseScriptID != CachedScriptVMId.BaseScriptID)
+				if (GEnableVerboseNiagaraChangeIdLogging)
 				{
-					UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized base script id's don't match. %s != %s"), *NewId.BaseScriptID.ToString(), *CachedScriptVMId.BaseScriptID.ToString());
-				}
-				if (NewId.ReferencedDependencyIds.Num() != CachedScriptVMId.ReferencedDependencyIds.Num())
-				{
-					UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized num dependencies don't match. %d != %d"), NewId.ReferencedDependencyIds.Num(), CachedScriptVMId.ReferencedDependencyIds.Num());
-				}
-				else
-				{
-					for (int32 i = 0; i < NewId.ReferencedDependencyIds.Num(); i++)
+					if (NewId.BaseScriptID != CachedScriptVMId.BaseScriptID)
 					{
-						if (NewId.ReferencedDependencyIds[i] != CachedScriptVMId.ReferencedDependencyIds[i])
+						UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized base script id's don't match. %s != %s, script %s"),
+							*NewId.BaseScriptID.ToString(), *CachedScriptVMId.BaseScriptID.ToString(), *GetPathName());
+					}
+
+					if (NewId.BaseScriptCompileHash != CachedScriptVMId.BaseScriptCompileHash)
+					{
+						UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized base script compile hashes don't match. %s != %s, script %s"),
+							*NewId.BaseScriptCompileHash.ToString(), *CachedScriptVMId.BaseScriptCompileHash.ToString(), *GetPathName());
+					}
+
+					if (NewId.ReferencedCompileHashes.Num() != CachedScriptVMId.ReferencedCompileHashes.Num())
+					{
+						UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized num referenced compile hashes don't match. %d != %d, script %s"),
+							NewId.ReferencedCompileHashes.Num(), CachedScriptVMId.ReferencedCompileHashes.Num(), *GetPathName());
+					}
+					else
+					{
+						for (int32 i = 0; i < NewId.ReferencedCompileHashes.Num(); i++)
 						{
-							UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized reference id %d doesn't match. %s != %s, source %s"), i, *NewId.ReferencedDependencyIds[i].ToString(), *CachedScriptVMId.ReferencedDependencyIds[i].ToString(),
-								NewId.ReferencedObjects[i] != nullptr ? *NewId.ReferencedObjects[i]->GetPathName() : TEXT("nullptr"));
+							if (NewId.ReferencedCompileHashes[i] != CachedScriptVMId.ReferencedCompileHashes[i])
+							{
+								UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized referenced compile hash %d doesn't match. %s != %s, script %s, source %s"),
+									i, *NewId.ReferencedCompileHashes[i].ToString(), *CachedScriptVMId.ReferencedCompileHashes[i].ToString(), *GetPathName(),
+									NewId.ReferencedObjects[i] != nullptr ? *NewId.ReferencedObjects[i]->GetPathName() : TEXT("nullptr"));
+							}
+						}
+					}
+
+					if (NewId.ReferencedDependencyIds.Num() != CachedScriptVMId.ReferencedDependencyIds.Num())
+					{
+						UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized num dependencies don't match. %d != %d, script %s"),
+							NewId.ReferencedDependencyIds.Num(), CachedScriptVMId.ReferencedDependencyIds.Num(), *GetPathName());
+					}
+					else
+					{
+						for (int32 i = 0; i < NewId.ReferencedDependencyIds.Num(); i++)
+						{
+							if (NewId.ReferencedDependencyIds[i] != CachedScriptVMId.ReferencedDependencyIds[i])
+							{
+								UE_LOG(LogNiagara, Log, TEXT("AreScriptAndSourceSynchronized reference id %d doesn't match. %s != %s, script %s, source %s"),
+									i, *NewId.ReferencedDependencyIds[i].ToString(), *CachedScriptVMId.ReferencedDependencyIds[i].ToString(), *GetPathName(),
+									NewId.ReferencedObjects[i] != nullptr ? *NewId.ReferencedObjects[i]->GetPathName() : TEXT("nullptr"));
+							}
 						}
 					}
 				}
@@ -811,7 +904,16 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	// Now go ahead and trigger the GPU script compile now that we have a compiled GPU hlsl script.
 	if (Usage == ENiagaraScriptUsage::ParticleGPUComputeScript)
 	{
-		CacheResourceShadersForRendering(false, true);
+		if (CachedScriptVMId.CompilerVersionID.IsValid() && CachedScriptVMId.BaseScriptID.IsValid() && CachedScriptVMId.BaseScriptCompileHash.IsValid())
+		{
+			CacheResourceShadersForRendering(false, true);
+		}
+		else
+		{
+			UE_LOG(LogNiagara, Error,
+				TEXT("Failed to cache resource shaders for rendering for script %s because it had an invalid cached script id. This should be fixed by force recompiling the owning asset using the 'Full Rebuild' option and then saving the asset."),
+				*GetPathName());
+		}
 	}
 
 	InvalidateExecutionReadyParameterStores();
@@ -961,7 +1063,7 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 
 void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *TargetPlatform)
 {
-	if (CanBeRunOnGpu())
+	if (ShouldCacheShadersForCooking())
 	{
 		// Commandlets like DerivedDataCacheCommandlet call BeginCacheForCookedPlatformData directly on objects. This may mean that
 		// we have not properly gotten the HLSL script generated by the time that we get here. This does the awkward work of 
@@ -970,6 +1072,14 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 		if (SystemOwner)
 		{
 			SystemOwner->WaitForCompilationComplete();
+		}
+
+		if (CachedScriptVMId.CompilerVersionID.IsValid() == false || CachedScriptVMId.BaseScriptID.IsValid() == false || CachedScriptVMId.BaseScriptCompileHash.IsValid() == false)
+		{
+			UE_LOG(LogNiagara, Error,
+				TEXT("Failed to cache cooked shader for script %s because it had an invalid cached script id.  This should be fixed by running the console command fx.PreventSystemRecompile with the owning system asset path as the argument and then resaving the assets."),
+				*GetPathName());
+			return;
 		}
 
 		TArray<FName> DesiredShaderFormats;
@@ -1000,10 +1110,12 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 			ERHIFeatureLevel::Type TargetFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
 			FNiagaraShaderScript* NewResource = AllocateResource();
-			check(CachedScriptVMId.CompilerVersionID != FGuid());
-			check(CachedScriptVMId.BaseScriptID != FGuid());
+			check(CachedScriptVMId.CompilerVersionID.IsValid());
+			check(CachedScriptVMId.BaseScriptID.IsValid());
+			check(CachedScriptVMId.BaseScriptCompileHash.IsValid());
 
-			NewResource->SetScript(this, (ERHIFeatureLevel::Type)TargetFeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.BaseScriptID, CachedScriptVMId.ReferencedDependencyIds, GetName());
+			NewResource->SetScript(this, (ERHIFeatureLevel::Type)TargetFeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.BaseScriptID,
+				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, CachedScriptVMId.ReferencedDependencyIds, GetFullName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -1067,7 +1179,8 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 		{
 			FNiagaraShaderScript* ResourceToCache;
 			ERHIFeatureLevel::Type CacheFeatureLevel = GMaxRHIFeatureLevel;
-			ScriptResource.SetScript(this, FeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.BaseScriptID, CachedScriptVMId.ReferencedDependencyIds, GetName());
+			ScriptResource.SetScript(this, FeatureLevel, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.BaseScriptID,
+				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, CachedScriptVMId.ReferencedDependencyIds, GetFullName());
 
 			//if (ScriptResourcesByFeatureLevel[FeatureLevel])
 			{

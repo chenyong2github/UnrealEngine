@@ -17,6 +17,7 @@
 #include "Runtime/HeadMountedDisplay/Public/IHeadMountedDisplayModule.h"
 #include "Misc/App.h"
 #include "Sound/AudioSettings.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
 #if WITH_EDITOR
 #include "AudioEditorModule.h"
@@ -30,6 +31,8 @@ FAutoConsoleVariableRef CVarDisableSubmixEQ(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
 namespace Audio
 {
@@ -529,7 +532,7 @@ namespace Audio
 		FMixerSubmixWeakPtr MasterSubmix = GetMasterSubmix();
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixes);
+			CSV_SCOPED_TIMING_STAT(Audio, Submixes);
 
 			FMixerSubmixPtr MasterSubmixPtr = MasterSubmix.Pin();
 			if (MasterSubmixPtr.IsValid())
@@ -573,6 +576,7 @@ namespace Audio
 
 			FAudioThread::RunCommandOnAudioThread([this]()
 			{
+				CSV_SCOPED_TIMING_STAT(Audio, InitSubmix);
 				InitSoundSubmixes();
 			}, GET_STATID(STAT_InitSoundSubmixes));
 			return;
@@ -988,6 +992,7 @@ namespace Audio
 				FMixerDevice* MixerDevice = this;
 				FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix]()
 				{
+					CSV_SCOPED_TIMING_STAT(Audio, RegisterSubmix);
 					MixerDevice->RegisterSoundSubmix(InSoundSubmix);
 				}, GET_STATID(STAT_AudioRegisterSoundSubmix));
 				return;
@@ -1038,6 +1043,7 @@ namespace Audio
 				FMixerDevice* MixerDevice = this;
 				FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix]()
 				{
+					CSV_SCOPED_TIMING_STAT(Audio, UnregisterSubmix);
 					MixerDevice->UnregisterSoundSubmix(InSoundSubmix);
 				}, GET_STATID(STAT_AudioUnregisterSoundSubmix));
 				return;

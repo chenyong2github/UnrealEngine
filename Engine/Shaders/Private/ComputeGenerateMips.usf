@@ -1,0 +1,23 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*==================================================================================================
+	GenericGenerateMips.usf: Standard code for generating mips via the compute shader in realtime
+===================================================================================================*/
+
+#pragma once
+#include "Common.ush"
+
+float2 TexelSize;
+Texture2D MipInSRV;
+RWTexture2D<float4> MipOutUAV;
+SamplerState MipSampler;
+
+[numthreads(8, 8, 1)]
+void MainCS(uint3 DT_ID : SV_DispatchThreadID)
+{
+    float2 UV = TexelSize * (DT_ID.xy + 0.5f);
+
+    float4 outColor = MipInSRV.SampleLevel(MipSampler, UV, 0);
+
+    MipOutUAV[DT_ID.xy] = outColor;
+}

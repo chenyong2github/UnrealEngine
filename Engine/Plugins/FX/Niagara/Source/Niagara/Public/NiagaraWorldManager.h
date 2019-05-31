@@ -9,6 +9,7 @@
 #include "NiagaraDataSet.h"
 #include "NiagaraScriptExecutionContext.h"
 #include "NiagaraSystemSimulation.h"
+#include "NiagaraSystemInstance.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 
@@ -32,26 +33,12 @@ public:
 		ViewUniformBuffer = Params.ViewUniformBuffer;
 		SceneNormalTexture = Params.NormalTexture;
 		SceneTexturesUniformParams = Params.SceneTexturesUniformParams;
-		GlobalDistanceFieldParams = Params.GlobalDistanceFieldParams;
-
-		PreSceneRenderValues = FPreSceneRenderValues();
-	}
-
-	void OnPreSceneRenderCalled(FPreSceneRenderValues& OutValues) const
-	{
-		OutValues.bUsesGlobalDistanceField |= PreSceneRenderValues.bUsesGlobalDistanceField;
-	}
-
-	void SetGlobalDistanceFieldUsage()
-	{
-		PreSceneRenderValues.bUsesGlobalDistanceField = true;
 	}
 
 	FTexture2DRHIParamRef GetSceneDepthTexture() { return SceneDepthTexture; }
 	FTexture2DRHIParamRef GetSceneNormalTexture() { return SceneNormalTexture; }
 	FUniformBufferRHIParamRef GetViewUniformBuffer() { return ViewUniformBuffer; }
 	TUniformBufferRef<FSceneTexturesUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
-	const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameters() { return GlobalDistanceFieldParams; }
 
 	virtual void InitDynamicRHI() override;
 
@@ -61,10 +48,8 @@ private:
 	FTexture2DRHIParamRef SceneDepthTexture;
 	FTexture2DRHIParamRef SceneNormalTexture;
 	FUniformBufferRHIParamRef ViewUniformBuffer;
-	FPreSceneRenderValues PreSceneRenderValues;	
 
 	TUniformBufferRef<FSceneTexturesUniformParameters> SceneTexturesUniformParams;
-	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams;
 	FPostOpaqueRenderDelegate PostOpaqueDelegate;
 };
 
@@ -90,12 +75,16 @@ public:
 	void CleanupParameterCollections();
 	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation(UNiagaraSystem* System);
 	void DestroySystemSimulation(UNiagaraSystem* System);
+	void DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr);
 
 	void Tick(float DeltaSeconds);
 
 	void OnWorldCleanup(bool bSessionEnded, bool bCleanupResources);
 	
 	FORCEINLINE FNDI_SkeletalMesh_GeneratedData& GetSkeletalMeshGeneratedData() { return SkeletalMeshGeneratedData; }
+
+	TArrayView<const FVector> GetCachedPlayerViewLocations() const { return MakeArrayView(CachedPlayerViewLocations); }
+
 private:
 	UWorld* World;
 
@@ -105,7 +94,21 @@ private:
 
 	int32 CachedEffectsQuality;
 
+	TArray<FVector, TInlineAllocator<8> > CachedPlayerViewLocations;
+
 	/** Generated data used by data interfaces*/
 	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
+
+	// Deferred deletion queue for system instances
+	// We need to make sure that any enqueued GPU ticks have been processed before we remove the system instances
+	struct FDeferredDeletionQueue
+	{
+		FRenderCommandFence							Fence;
+		TArray<TUniquePtr<FNiagaraSystemInstance>>	Queue;
+	};
+
+	static constexpr int NumDeferredQueues = 2;
+	int DeferredDeletionQueueIndex = 0;
+	FDeferredDeletionQueue DeferredDeletionQueue[NumDeferredQueues];
 };
 

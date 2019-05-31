@@ -125,20 +125,33 @@ void FDeferredUpdateResource::UpdateResources(FRHICommandListImmediate& RHICmdLi
 			FDeferredUpdateResource* RTResource = *ResourceIt;
 			// iterate to next resource before removing an entry
 			ResourceIt.Next();
+
 			if( RTResource )
 			{
-				// update each resource
-				RTResource->UpdateDeferredResource(RHICmdList);
-				if( RTResource->bOnlyUpdateOnce )
-				{
-					// remove from list if only a single update was requested
-					RTResource->RemoveFromDeferredUpdateList();
-				}
+				RTResource->FlushDeferredResourceUpdate(RHICmdList);
 			}
 		}
 		// since the updates should only occur once globally
 		// then we need to reset this before rendering any viewports
 		bNeedsUpdate = false;
+	}
+}
+
+/**
+ * Performs a deferred resource update on this resource if it exists in the UpdateList.
+ */
+void FDeferredUpdateResource::FlushDeferredResourceUpdate( FRHICommandListImmediate& RHICmdList )
+{
+	if( UpdateListLink.IsLinked() )
+	{
+		checkf(bNeedsUpdate, TEXT("The update list does not need to be updated at this point"));
+
+		UpdateDeferredResource(RHICmdList);
+		if( bOnlyUpdateOnce )
+		{
+			// Remove from list if only a single update was requested
+			RemoveFromDeferredUpdateList();
+		}
 	}
 }
 

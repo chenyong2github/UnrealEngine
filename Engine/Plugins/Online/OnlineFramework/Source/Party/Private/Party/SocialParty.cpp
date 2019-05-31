@@ -262,7 +262,7 @@ bool USocialParty::CanInviteUser(const USocialUser& User) const
 bool USocialParty::CanInviteUserInternal(const USocialUser& User) const
 {
 	// Only users that are online can be invited
-	if (!User.IsOnline())
+	if (!User.IsOnline() && !User.CanReceiveOfflineInvite())
 	{
 		return false;
 	}
@@ -1512,6 +1512,11 @@ void USocialParty::BeginLeavingParty(EMemberExitedReason Reason)
 		CleanupReservationBeacon();
 		OnPartyLeaveBegin().Broadcast(Reason);
 	}
+}
+
+void USocialParty::DisconnectParty()
+{
+		OnPartyDisconnected().Broadcast();
 }
 
 void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)

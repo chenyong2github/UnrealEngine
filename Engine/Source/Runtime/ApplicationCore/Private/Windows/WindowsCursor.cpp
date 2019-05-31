@@ -6,9 +6,11 @@
 #include "Misc/Paths.h"
 #include "Misc/CoreMisc.h"
 #include "Math/Vector2D.h"
+#include "Math/Color.h"
 #include "Windows/WindowsWindow.h"
 #include "Windows/WindowsHWrapper.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/FileHelper.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <Ole2.h>
@@ -142,6 +144,73 @@ FWindowsCursor::~FWindowsCursor()
 			break;
 		}
 	}
+}
+
+void* FWindowsCursor::CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D HotSpot)
+{
+	const FString AniCursor = InPathToCursorWithoutExtension + TEXT(".ani");
+	const FString CurCursor = InPathToCursorWithoutExtension + TEXT(".cur");
+
+	TArray<uint8> CursorFileData;
+	if (FFileHelper::LoadFileToArray(CursorFileData, *AniCursor, FILEREAD_Silent) || FFileHelper::LoadFileToArray(CursorFileData, *CurCursor, FILEREAD_Silent))
+	{
+		//TODO Would be nice to find a way to do this that doesn't involve the temp file copy.
+
+		// The cursors may be in a pak file, if that's the case we need to write it to a temporary file
+		// and then load that file as the cursor.  It's a workaround because there doesn't appear to be
+		// a good way to load a cursor from anything other than a loose file or a resource.
+		FString TempCursorFile = FPaths::CreateTempFilename(FPlatformProcess::UserTempDir(), TEXT("Cursor-"), TEXT(".temp"));
+		if (FFileHelper::SaveArrayToFile(CursorFileData, *TempCursorFile))
+		{
+			HCURSOR CursorHandle = (HCURSOR) LoadImage(NULL,
+				*TempCursorFile,
+				IMAGE_CURSOR,
+				0,
+				0,
+				LR_LOADFROMFILE);
+
+			IFileManager::Get().Delete(*TempCursorFile);
+
+			return CursorHandle;
+		}
+	}
+
+	return nullptr;
+}
+
+void* FWindowsCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, int32 Height, FVector2D InHotSpot)
+{
+	TArray<FColor> BGRAPixels;
+	BGRAPixels.AddUninitialized(Width * Height);
+
+	TArray<uint8> MaskPixels;
+	MaskPixels.AddUninitialized(Width * Height);
+
+	for (int32 Index = 0; Index < BGRAPixels.Num(); Index++)
+	{
+		const FColor& SrcPixel = Pixels[Index];
+		BGRAPixels[Index] = FColor(SrcPixel.B, SrcPixel.G, SrcPixel.R, SrcPixel.A);
+		MaskPixels[Index] = 255;
+	}
+
+	// The bitmap created is already in BGRA format, so we can just hand over the buffer.
+	HBITMAP CursorColor = ::CreateBitmap(Width, Height, 1, 32, BGRAPixels.GetData());
+	// Just create a dummy mask, we're making a full 32bit bitmap with support for alpha, so no need to worry about the mask.
+	HBITMAP CursorMask = ::CreateBitmap(Width, Height, 1, 8, MaskPixels.GetData());
+
+	ICONINFO IconInfo = { 0 };
+	IconInfo.fIcon = Windows::FALSE;
+	IconInfo.xHotspot = FMath::RoundToInt(InHotSpot.X * Width);
+	IconInfo.yHotspot = FMath::RoundToInt(InHotSpot.Y * Height);
+	IconInfo.hbmColor = CursorColor;
+	IconInfo.hbmMask = CursorColor;
+
+	HCURSOR CursorHandle = ::CreateIconIndirect(&IconInfo);
+
+	::DeleteObject(CursorColor);
+	::DeleteObject(CursorMask);
+
+	return CursorHandle;
 }
 
 FVector2D FWindowsCursor::GetPosition() const

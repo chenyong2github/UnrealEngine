@@ -31,6 +31,14 @@ float INiagaraModule::EngineGlobalSpawnCountScale = 1.0f;
 float INiagaraModule::EngineGlobalSystemCountScale = 1.0f;
 int32 INiagaraModule::EngineDetailLevel = 4;
 
+int32 GEnableVerboseNiagaraChangeIdLogging = 0;
+static FAutoConsoleVariableRef CVarEnableVerboseNiagaraChangeIdLogging(
+	TEXT("fx.EnableVerboseNiagaraChangeIdLogging"),
+	GEnableVerboseNiagaraChangeIdLogging,
+	TEXT("If > 0 Verbose change id logging info will be printed. \n"),
+	ECVF_Default
+);
+
 /**
 Detail Level CVar.
 Effectively replaces the DetaiMode feature but allows for a rolling range of new hardware and emitters to target them.
@@ -293,7 +301,15 @@ void INiagaraModule::ShutdownModule()
 
 FNiagaraWorldManager* INiagaraModule::GetWorldManager(UWorld* World)
 {
-	return WorldManagers.FindChecked(World);
+	FNiagaraWorldManager** OutWorld = WorldManagers.Find(World);
+	if (OutWorld == nullptr)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Calling INiagaraModule::GetWorldManager \"%s\", but Niagara has never encountered this world before. "
+			" This means that WorldInit never happened. This may happen in some edge cases in the editor, like saving invisible child levels, "
+			"in which case the calling context needs to be safe against this returning nullptr."), World ? *World->GetName() : TEXT("nullptr"));
+		return nullptr;
+	}
+	return *OutWorld;
 }
 
 void INiagaraModule::DestroyAllSystemSimulations(class UNiagaraSystem* System)

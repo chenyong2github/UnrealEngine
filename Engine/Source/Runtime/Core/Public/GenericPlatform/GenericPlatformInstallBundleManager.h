@@ -8,6 +8,9 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Logging/LogMacros.h"
 #include "Internationalization/Text.h"
+//#include "IAnalyticsProviderET.h"
+
+class IAnalyticsProviderET;
 
 enum class EInstallBundleModuleInitResult : int
 {
@@ -221,6 +224,7 @@ inline const TCHAR* LexToString(EInstallBundleContentState State)
 struct FInstallBundleContentState
 {
 	EInstallBundleContentState State = EInstallBundleContentState::InitializationError;
+	TMap<FName, EInstallBundleContentState> IndividualBundleStates;
 	uint64 DownloadSize = 0;
 	uint64 InstallSize = 0;	
 	uint64 FreeSpace = 0;
@@ -313,6 +317,8 @@ public:
 	virtual bool IsNullInterface() const = 0;
 
 	virtual void SetErrorSimulationCommands(const FString& CommandLine) {}
+
+	virtual TSharedPtr<IAnalyticsProviderET> GetAnalyticsProvider() const { return TSharedPtr<IAnalyticsProviderET>(); }
 };
 
 class IPlatformInstallBundleManagerModule : public IModuleInterface

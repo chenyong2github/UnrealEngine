@@ -234,13 +234,29 @@ public:
 	FORCEINLINE int32 GetMaxNumberOfIndexesPerPoints()const { return HoudiniCSVAsset ? HoudiniCSVAsset->GetMaxNumberOfPointValueIndexes() + 1 : 0; }
 
 	// GPU Buffers accessors
-	FRWBuffer& GetFloatValuesGPUBuffer();
+	/*FRWBuffer& GetFloatValuesGPUBuffer();
 	FRWBuffer& GetSpecialAttributesColumnIndexesGPUBuffer();
 	FRWBuffer& GetSpawnTimesGPUBuffer();
 	FRWBuffer& GetLifeValuesGPUBuffer();
 	FRWBuffer& GetPointTypesGPUBuffer();
-	FRWBuffer& GetPointValueIndexesGPUBuffer();
+	FRWBuffer& GetPointValueIndexesGPUBuffer();*/
 
+protected:
+
+	void PushToRenderThread();
+
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+
+	// Last Spawned PointID
+	UPROPERTY()
+	int32 LastSpawnedPointID;
+	// Last Spawn time
+	UPROPERTY()
+	float LastSpawnTime;
+};
+
+struct FNiagaraDataInterfaceProxyHoudiniCSV : public FNiagaraDataInterfaceProxy
+{
 	// GPU Buffers
 	FRWBuffer FloatValuesGPUBuffer;
 	FRWBuffer SpecialAttributesColumnIndexesGPUBuffer;
@@ -249,28 +265,15 @@ public:
 	FRWBuffer PointTypesGPUBuffer;
 	FRWBuffer PointValueIndexesGPUBuffer;
 
-protected:
+	int32 MaxNumberOfIndexesPerPoint;
+	int32 NumRows;
+	int32 NumColumns;
+	int32 NumPoints;
 
-	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+	void AcceptStaticDataUpdate(struct FNiagaraDIHoudiniCSV_StaticDataPassToRT& Update);
 
-	// Indicates the GPU buffers need to be updated
-	UPROPERTY()
-	bool FloatValuesGPUBufferDirty;
-	UPROPERTY()
-	bool SpecialAttributesColumnIndexesGPUBufferDirty;
-	UPROPERTY()
-	bool SpawnTimesGPUBufferDirty;
-	UPROPERTY()
-	bool LifeValuesGPUBufferDirty;
-	UPROPERTY()
-	bool PointTypesGPUBufferDirty;
-	UPROPERTY()
-	bool PointValueIndexesGPUBufferDirty;
-
-	// Last Spawned PointID
-	UPROPERTY()
-	int32 LastSpawnedPointID;
-	// Last Spawn time
-	UPROPERTY()
-	float LastSpawnTime;
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
 };

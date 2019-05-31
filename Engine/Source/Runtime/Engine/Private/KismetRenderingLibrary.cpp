@@ -113,10 +113,12 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 	{
 		World->SendAllEndOfFrameUpdates();
 
+		FTextureRenderTargetResource* RenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
+
 		UCanvas* Canvas = World->GetCanvasForDrawMaterialToRenderTarget();
 
 		FCanvas RenderCanvas(
-			TextureRenderTarget->GameThread_GetRenderTargetResource(), 
+			RenderTargetResource, 
 			nullptr, 
 			World,
 			World->FeatureLevel);
@@ -124,14 +126,14 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 		Canvas->Init(TextureRenderTarget->SizeX, TextureRenderTarget->SizeY, nullptr, &RenderCanvas);
 		Canvas->Update();
 
-
-
 		TDrawEvent<FRHICommandList>* DrawMaterialToTargetEvent = new TDrawEvent<FRHICommandList>();
 
 		FName RTName = TextureRenderTarget->GetFName();
 		ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-			[RTName, DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
+			[RTName, DrawMaterialToTargetEvent, RenderTargetResource](FRHICommandListImmediate& RHICmdList)
 			{
+				RenderTargetResource->FlushDeferredResourceUpdate(RHICmdList);
+
 				BEGIN_DRAW_EVENTF(
 					RHICmdList, 
 					DrawCanvasToTarget, 
@@ -144,11 +146,11 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 		RenderCanvas.Flush_GameThread();
 		Canvas->Canvas = NULL;
 
-		FTextureRenderTargetResource* RenderTargetResource = TextureRenderTarget->GameThread_GetRenderTargetResource();
+		//UpdateResourceImmediate must be called here to ensure mips are generated.
+		TextureRenderTarget->UpdateResourceImmediate(false);
 		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-			[RenderTargetResource, DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
+			[DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
 			{
-				RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, FResolveParams());
 				STOP_DRAW_EVENT((*DrawMaterialToTargetEvent));
 				delete DrawMaterialToTargetEvent;
 			}

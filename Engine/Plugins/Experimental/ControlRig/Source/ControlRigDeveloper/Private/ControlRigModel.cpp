@@ -490,6 +490,56 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 		PushAction(AddNodeAction);
 	}
 
+	// resize arrays if need be
+	if (bUndo)
+	{
+		const UStruct* Struct = NodeToAdd.UnitStruct();
+		if (Struct)
+		{
+			struct FPinArrayInfo
+			{
+				int32 Size;
+				FString Default;
+				bool bExpanded;
+			};
+			TMap<FString, FPinArrayInfo> PinArraySizes;
+			for (FControlRigModelPin& Pin : AddedNode.Pins)
+			{
+				if (!Pin.IsArray())
+				{
+					continue;
+				}
+
+				FString PinPath = AddedNode.GetPinPath(Pin.Index, false);
+				if (UArrayProperty* Property = Cast<UArrayProperty>(Struct->FindPropertyByName(*PinPath)))
+				{
+					int32 DefaultArraySize = Property->GetINTMetaData(UControlRig::DefaultArraySizeMetaName);
+					if (DefaultArraySize > 0)
+					{
+						FPinArrayInfo Info;
+						Info.Size = DefaultArraySize;
+						Info.Default = Property->GetMetaData(TEXT("Default"));
+						Info.bExpanded = Property->HasMetaData(UControlRig::ExpandPinByDefaultMetaName);
+
+						PinArraySizes.Add(PinPath, Info);
+					}
+				}
+			}
+			for (const TPair<FString, FPinArrayInfo>& Pair : PinArraySizes)
+			{
+				const FControlRigModelPin* Pin = AddedNode.FindPin(*Pair.Key);
+				if (Pin)
+				{
+					SetPinArraySize(Pin->GetPair(), Pair.Value.Size, Pair.Value.Default, bUndo);
+					if (Pair.Value.bExpanded)
+					{
+						Pin = AddedNode.FindPin(*Pair.Key);
+						ExpandPin(AddedNode.Name, Pin->Name, true, true, bUndo);
+					}
+				}
+			}
+		}
+	}
 #endif
 
 	// only hook up the node automatically if we are currently
@@ -1124,6 +1174,14 @@ bool UControlRigModel::MakeLink(int32 InSourceNodeIndex, int32 InSourcePinIndex,
 	ensure(InTargetPinIndex >= 0 && InTargetPinIndex < _Nodes[InTargetNodeIndex].Pins.Num());
 	ensure(CanLink(InSourceNodeIndex, InSourcePinIndex, InTargetNodeIndex, InTargetPinIndex, nullptr));
 
+#if CONTROLRIG_UNDO
+	FAction Action;
+	if (bUndo)
+	{
+		CurrentActions.Add(&Action);
+	}
+#endif
+
 	TArray<int32> PinsToDisconnect;
 	PinsToDisconnect.Add(InTargetPinIndex);
 
@@ -1134,14 +1192,6 @@ bool UControlRigModel::MakeLink(int32 InSourceNodeIndex, int32 InSourcePinIndex,
 			PinsToDisconnect.Add(SubPinIndex);
 		}
 	}
-
-#if CONTROLRIG_UNDO
-	FAction Action;
-	if (bUndo)
-	{
-		CurrentActions.Add(&Action);
-	}
-#endif
 
 	int32 ParentPinIndex = InTargetPinIndex;
 	while (ParentPinIndex != INDEX_NONE)
@@ -1663,10 +1713,11 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 	{
 		FControlRigModelPin PinToAdd = Node.Pins[PinIndex];
 		PinToAdd.Name = *FString::FormatAsNumber(Node.Pins[PinIndex].ArraySize());
+		PinToAdd.DisplayNameText = FText::FromName(PinToAdd.Name);
 		PinToAdd.Index = ++PinIndexAfterArray;
 		PinToAdd.ParentIndex = PinIndex;
 		PinToAdd.Type.ContainerType = EPinContainerType::None;
-		PinToAdd.DefaultValue =  InDefaultValue;
+		PinToAdd.DefaultValue = InDefaultValue;
 
 		Node.Pins[PinIndex].SubPins.Add(PinToAdd.Index);
 		if (PinToAdd.Index == Node.Pins.Num())
@@ -1706,7 +1757,7 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 		// shift all of the links in terms of indices
 		for (int32 LinkIndex = 0; LinkIndex < OtherPin.Links.Num(); LinkIndex++)
 		{
-			FControlRigModelLink& Link = _Links[LinkIndex];
+			FControlRigModelLink& Link = _Links[OtherPin.Links[LinkIndex]];
 			if (Link.Source.Node == Node.Index)
 			{
 				int32* MappedLinkIndex = RemappedIndices.Find(Link.Source.Pin);
@@ -1739,6 +1790,85 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 		for(FControlRigModelPin PinToRemove : RemovedPins)
 		{
 			_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::PinRemoved, &PinToRemove);
+		}
+	}
+
+	if (bUndo)
+	{
+		UScriptStruct* UnitScriptStruct = (UScriptStruct*)Cast<UScriptStruct>(Node.UnitStruct());
+		if (UnitScriptStruct)
+		{
+			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(UnitScriptStruct->FindPropertyByName(*GetPinPath(InPin, false))))
+			{
+				FString DefaultValue = InDefaultValue;
+				TArray<uint8> TempBuffer;
+
+				if (UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProperty->Inner))
+				{
+					if (UScriptStruct* InnerScriptStruct = Cast<UScriptStruct>(InnerStructProp->Struct))
+					{
+						TempBuffer.AddUninitialized(InnerScriptStruct->GetStructureSize());
+						InnerScriptStruct->InitializeDefaultValue(TempBuffer.GetData());
+						if (DefaultValue.IsEmpty())
+						{
+							InnerScriptStruct->ExportText(DefaultValue, TempBuffer.GetData(), nullptr, nullptr, PPF_None, nullptr);
+						}
+						else
+						{
+							InnerScriptStruct->ImportText(*DefaultValue, TempBuffer.GetData(), nullptr, EPropertyPortFlags::PPF_None, nullptr, UnitScriptStruct->GetFName().ToString(), true);
+						}
+					}
+				}
+
+				for (int32 AddedPinIndex : AddedPins)
+				{
+					SetPinDefaultValue(Node.Pins[AddedPinIndex].GetPair(), DefaultValue, bUndo);
+
+					if (UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProperty->Inner))
+					{
+						if (UScriptStruct* InnerScriptStruct = Cast<UScriptStruct>(InnerStructProp->Struct))
+						{
+							if (ArrayProperty->HasMetaData(UControlRig::ExpandPinByDefaultMetaName))
+							{
+								ExpandPin(Node.Name, Node.Pins[AddedPinIndex].Name, true, true, bUndo);
+							}
+
+							TArray<int32> SubPins;
+							SubPins.Append(Node.Pins[AddedPinIndex].SubPins);
+
+							for (int32 SubPinIndex = 0; SubPinIndex < SubPins.Num(); SubPinIndex++)
+							{
+								FControlRigModelPin& SubPin = Node.Pins[SubPins[SubPinIndex]];
+								if (SubPin.Direction != EGPD_Input)
+								{
+									continue;
+								}
+
+								SubPins.Append(SubPin.SubPins);
+
+								FString DefaultValueString;
+								FControlRigModelPin ParentPin = SubPin;
+								FString PinPath = ParentPin.Name.ToString();
+								while (ParentPin.ParentIndex != INDEX_NONE && ParentPin.ParentIndex != AddedPinIndex)
+								{
+									ParentPin = Node.Pins[ParentPin.ParentIndex];
+									PinPath = ParentPin.Name.ToString() + TEXT(".") + PinPath;
+								}
+								FCachedPropertyPath PropertyPath(PinPath);
+								if (PropertyPathHelpers::GetPropertyValueAsString(TempBuffer.GetData(), InnerScriptStruct, PropertyPath, DefaultValueString))
+								{
+									SubPin.DefaultValue = DefaultValueString;
+
+									if (_ModifiedEvent.IsBound())
+									{
+										_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::PinChanged, &SubPin);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1898,7 +2028,7 @@ void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 		for (TFieldIterator<UProperty> It(Struct); It; ++It)
 		{
 			FControlRigModelPin Pin;
-			ConfigurePinFromField(Pin, *It);
+			ConfigurePinFromField(Pin, *It, Node);
 
 			if (It->HasMetaData(UControlRig::InputMetaName))
 			{
@@ -2034,11 +2164,18 @@ void UControlRigModel::SetNodePinDefaultsForParameter(FControlRigModelNode& Node
 	}
 }
 
-void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property)
+void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property, FControlRigModelNode& Node)
 {
 	Pin.Type = GetPinTypeFromField(Property);
 	Pin.Name = Property->GetFName();
 	Pin.DisplayNameText = Property->GetDisplayNameText();
+	if (Pin.ParentIndex != INDEX_NONE)
+	{
+		if (Node.Pins[Pin.ParentIndex].IsArray())
+		{
+			Pin.DisplayNameText = FText::FromName(Pin.Name);
+		}
+	}
 	if (Pin.DisplayNameText.IsEmpty())
 	{
 		Pin.DisplayNameText = FText::FromName(Pin.Name);
@@ -2073,7 +2210,7 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 		Pin.Index = ++LastAddedIndex;
 		Pin.ParentIndex = ParentIndex;
 		Pin.Direction = PinDirection;
-		ConfigurePinFromField(Pin, *It);
+		ConfigurePinFromField(Pin, *It, Node);
 
 		if (Pin.Index == Node.Pins.Num())
 		{
