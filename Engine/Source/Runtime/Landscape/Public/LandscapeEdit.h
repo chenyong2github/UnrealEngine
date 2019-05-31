@@ -50,6 +50,7 @@ public:
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;
+	virtual void OnCanHaveLayersContentChanged() = 0;
 };
 
 struct FLandscapeTextureDataInfo
