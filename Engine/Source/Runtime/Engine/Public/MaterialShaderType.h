@@ -27,11 +27,13 @@ class FShaderCompileJob;
 class FUniformExpressionSet;
 class FVertexFactoryType;
 
+DECLARE_DELEGATE_RetVal_OneParam(FString, FShadingModelToStringDelegate, EMaterialShadingModel)
+
 /** Converts an EMaterialShadingModel to a string description. */
 extern ENGINE_API FString GetShadingModelString(EMaterialShadingModel ShadingModel);
 
-/** Converts an FMaterialShadingModelField to a string description, base on the passed in function. */
-extern ENGINE_API FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels, FString(*ShadingModelToString)(EMaterialShadingModel), const FString& Delimiter = " ");
+/** Converts an FMaterialShadingModelField to a string description, base on the passed in delegate. */
+extern ENGINE_API FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels, const FShadingModelToStringDelegate& Delegate, const FString& Delimiter = " ");
 
 /** Converts an FMaterialShadingModelField to a string description, base on a default function. */
 extern ENGINE_API FString GetShadingModelFieldString(FMaterialShadingModelField ShadingModels);
