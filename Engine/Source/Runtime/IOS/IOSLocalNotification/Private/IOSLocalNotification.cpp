@@ -194,7 +194,6 @@ void FIOSLocalNotificationService::ScheduleLocalNotificationAtTime(const FDateTi
         NSString* NotificationIdentifier = [NSString stringWithFString : NotId];
 		
         UNNotificationRequest *Request = [UNNotificationRequest requestWithIdentifier:NotificationIdentifier content:Content trigger:Trigger];
-		NSLog(@"NOTIFICATION: %@ [%@]", NotificationIdentifier, Request);
 
         [Center addNotificationRequest : Request withCompletionHandler : ^ (NSError * _Nullable error) {
             if (error != nil) {
