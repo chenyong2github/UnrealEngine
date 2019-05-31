@@ -297,8 +297,8 @@ struct FVertexFactoryInterpolantsVSToPS
 	float4 DynamicParameter3	: PARTICLE_DYNAMIC_PARAM3;
 #endif
 
-#if NUM_MATERIAL_TEXCOORDS
-	float4	TexCoords[(NUM_MATERIAL_TEXCOORDS + 1) / 2]	: TEXCOORD3;
+#if NUM_TEX_COORD_INTERPOLATORS
+	float4	TexCoords[(NUM_TEX_COORD_INTERPOLATORS + 1) / 2]	: TEXCOORD3;
 #endif
 
 #if NEEDS_PARTICLE_COLOR
@@ -331,7 +331,7 @@ struct FVertexFactoryInterpolantsVSToPS
 #endif
 };
 
-#if NUM_MATERIAL_TEXCOORDS
+#if NUM_TEX_COORD_INTERPOLATORS
 bool UVIndexUseZW(int UVIndex)
 {
 	#if COMPILER_GLSL_ES2
@@ -427,9 +427,9 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	// GetMaterialPixelParameters is responsible for fully initializing the result
 	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
 
-#if NUM_MATERIAL_TEXCOORDS
+#if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
-	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
 	{
 		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
 	}
@@ -663,11 +663,16 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	FVertexFactoryInterpolantsVSToPS Interpolants;
 	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
 
-#if NUM_MATERIAL_TEXCOORDS
-	float2 UV1 = Intermediates.TexCoord.xy;
-	float2 UV2 = Intermediates.TexCoord.zw;
-	SetUV(Interpolants, 0, UV1);
-	SetUV(Interpolants, 1, UV2);
+#if NUM_TEX_COORD_INTERPOLATORS
+	float2 CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS];
+	GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
+	GetCustomInterpolators(VertexParameters, CustomizedUVs);
+
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+	{
+		SetUV(Interpolants, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
+	}
 #endif
 
 #if NEEDS_PARTICLE_COLOR
