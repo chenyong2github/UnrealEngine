@@ -181,13 +181,40 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent
 	*
 	* @param InstanceIndex			The index of the instance to update
 	* @param NewInstanceTransform	The new transform
-	* @param bWorldSpace			If true, the new transform interpreted as a World Space transform, otherwise it is interpreted as Local Space
+	* @param bWorldSpace			If true, the new transform is interpreted as a World Space transform, otherwise it is interpreted as Local Space
 	* @param bMarkRenderStateDirty	If true, the change should be visible immediately. If you are updating many instances you should only set this to true for the last instance.
 	* @param bTeleport				Whether or not the instance's physics should be moved normally, or teleported (moved instantly, ignoring velocity).
 	* @return						True on success.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
 	virtual bool UpdateInstanceTransform(int32 InstanceIndex, const FTransform& NewInstanceTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+
+    /**
+	* Update the transform for an array of instances.
+	*
+	* @param StartInstanceIndex		The starting index of the instances to update
+	* @param NewInstancesTransforms	The new transforms
+	* @param bWorldSpace			If true, the new transforms are interpreted as a World Space transform, otherwise it is interpreted as Local Space
+	* @param bMarkRenderStateDirty	If true, the change should be visible immediately. If you are updating many instances you should only set this to true for the last instance.
+	* @param bTeleport				Whether or not the instances physics should be moved normally, or teleported (moved instantly, ignoring velocity).
+	* @return						True on success.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	virtual bool BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
+
+	/**
+	* Update the transform for a number of instances.
+	*
+	* @param StartInstanceIndex		The starting index of the instances to update
+	* @param NumInstances			The number of instances to update
+	* @param NewInstancesTransform	The new transform
+	* @param bWorldSpace			If true, the new transform is interpreted as a World Space transform, otherwise it is interpreted as Local Space
+	* @param bMarkRenderStateDirty	If true, the change should be visible immediately. If you are updating many instances you should only set this to true for the last instance.
+	* @param bTeleport				Whether or not the instances physics should be moved normally, or teleported (moved instantly, ignoring velocity).
+	* @return						True on success.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")
+	virtual bool BatchUpdateInstancesTransform(int32 StartInstanceIndex, int32 NumInstances, const FTransform& NewInstancesTransform, bool bWorldSpace=false, bool bMarkRenderStateDirty=false, bool bTeleport=false);
 
 	/** Remove the instance specified. Returns True on success. Note that this will leave the array in order, but may shrink it. */
 	UFUNCTION(BlueprintCallable, Category = "Components|InstancedStaticMesh")

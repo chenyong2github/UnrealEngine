@@ -2253,6 +2253,36 @@ bool UHierarchicalInstancedStaticMeshComponent::UpdateInstanceTransform(int32 In
 	return Result;
 }
 
+bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransforms(int32 StartInstanceIndex, const TArray<FTransform>& NewInstancesTransforms, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	bool BatchResult = true;
+
+	int32 InstanceIndex = StartInstanceIndex;
+	for(const FTransform& NewInstanceTransform : NewInstancesTransforms)
+	{
+		bool Result = UpdateInstanceTransform(InstanceIndex, NewInstanceTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+		BatchResult = BatchResult && Result;
+		
+		InstanceIndex++;
+	}
+
+	return BatchResult;
+}
+
+bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesTransform(int32 StartInstanceIndex, int32 NumInstances, const FTransform& NewInstancesTransform, bool bWorldSpace, bool bMarkRenderStateDirty, bool bTeleport)
+{
+	bool BatchResult = true;
+
+	int32 EndInstanceIndex = StartInstanceIndex + NumInstances;
+	for(int32 InstanceIndex = StartInstanceIndex; InstanceIndex < EndInstanceIndex; ++InstanceIndex)
+	{
+		bool Result = UpdateInstanceTransform(InstanceIndex, NewInstancesTransform, bWorldSpace, bMarkRenderStateDirty, bTeleport);
+		BatchResult = BatchResult && Result;
+	}
+
+	return BatchResult;
+}
+
 void UHierarchicalInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticMeshComponentInstanceData* InstancedMeshData)
 {
 	UInstancedStaticMeshComponent::ApplyComponentInstanceData(InstancedMeshData);
