@@ -3836,6 +3836,15 @@ void ULandscapeInfo::PostponeTextureBaking()
 	});
 }
 
+bool ULandscapeInfo::CanHaveLayersContent() const
+{
+	if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		return Landscape->CanHaveLayersContent();
+	}
+	return false;
+}
+
 namespace
 {
 	inline float AdjustStaticLightingResolution(float StaticLightingResolution, int32 NumSubsections, int32 SubsectionSizeQuads, int32 ComponentSizeQuads)

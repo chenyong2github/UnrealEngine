@@ -4442,6 +4442,11 @@ void ALandscape::InitializeLayers()
 
 void ALandscape::OnPreSave()
 {
+	ForceUpdateLayersContent();
+}
+
+void ALandscape::ForceUpdateLayersContent()
+{
 	const bool bWaitForStreaming = true;
 	UpdateLayersContent(bWaitForStreaming);
 }
@@ -5150,6 +5155,13 @@ void ALandscape::SetEditingLayer(const FGuid& InLayerGuid)
 	}
 
 	EditingLayer = InLayerGuid;
+}
+
+void ALandscape::SetGrassUpdateEnabled(bool bInGrassUpdateEnabled)
+{
+#ifdef WITH_EDITORONLY_DATA
+	bGrassUpdateEnabled = bInGrassUpdateEnabled;
+#endif
 }
 
 const FGuid& ALandscape::GetEditingLayer() const
