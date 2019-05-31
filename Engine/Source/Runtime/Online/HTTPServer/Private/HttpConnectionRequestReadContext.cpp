@@ -242,6 +242,11 @@ TSharedPtr<FHttpServerRequest> FHttpConnectionRequestReadContext::BuildRequest(c
 	{
 		Request->Verb = EHttpServerRequestVerbs::VERB_PATCH;
 	}
+	else if (0 == RequestVerb.Compare(TEXT("OPTIONS"),
+		ESearchCase::IgnoreCase))
+	{
+		Request->Verb = EHttpServerRequestVerbs::VERB_OPTIONS;
+	}
 	else
 	{
 		// Unknown Verb
