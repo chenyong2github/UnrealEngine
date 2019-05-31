@@ -255,6 +255,9 @@ public:
 	const UAISenseConfig* GetSenseConfig(const FAISenseID& SenseID) const;
 	void ConfigureSense(UAISenseConfig& SenseConfig);
 
+	typedef TArray<UAISenseConfig*>::TConstIterator TAISenseConfigConstIterator;
+	TAISenseConfigConstIterator GetSensesConfigIterator() const;
+
 	/** Notifies AIPerceptionSystem to update properties for this "stimuli listener" */
 	UFUNCTION(BlueprintCallable, Category="AI|Perception")
 	void RequestStimuliListenerUpdate();
