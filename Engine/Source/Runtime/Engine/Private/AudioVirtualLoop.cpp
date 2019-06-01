@@ -53,6 +53,14 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, bool bDoRa
 
 bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevice& AudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
 {
+	USoundBase* Sound = InActiveSound.GetSound();
+	check(Sound);
+
+	if (Sound->VirtualizationMode == EVirtualizationMode::Disabled)
+	{
+		return false;
+	}
+
 	if (!bVirtualLoopsEnabledCVar || InActiveSound.bIsPreviewSound || !InActiveSound.IsLooping())
 	{
 		return false;
@@ -136,7 +144,7 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 	}
 	check(AudioDevice);
 
-	if (AudioDevice->PlayWhenSilentEnabled() && InActiveSound.IsPlayWhenSilent())
+	if (InActiveSound.IsPlayWhenSilent())
 	{
 		return true;
 	}

@@ -12,7 +12,7 @@ USoundConcurrency* USoundBase::DefaultSoundConcurrencyObject = nullptr;
 
 USoundBase::USoundBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bIgnoreFocus_DEPRECATED(false)
+	, VirtualizationMode(EVirtualizationMode::Restart)
 	, Priority(1.0f)
 {
 #if WITH_EDITORONLY_DATA
@@ -106,7 +106,7 @@ bool USoundBase::HasConcatenatorNode() const
 
 bool USoundBase::IsPlayWhenSilent() const
 {
-	return bHasPlayWhenSilent;
+	return VirtualizationMode == EVirtualizationMode::PlayWhenSilent;
 }
 
 float USoundBase::GetVolumeMultiplier()
@@ -216,17 +216,8 @@ void USoundBase::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
-	if (Ar.IsLoading() || Ar.IsSaving())
-	{
-		if (bHasVirtualizeWhenSilent_DEPRECATED)
-		{
-			bHasVirtualizeWhenSilent_DEPRECATED = 0;
-			bHasPlayWhenSilent = 1;
-		}
-	}
-
 #if WITH_EDITORONLY_DATA
-	if (Ar.IsLoading())
+	if (Ar.IsLoading() || Ar.IsSaving())
 	{
 		if (SoundConcurrencySettings_DEPRECATED != nullptr)
 		{

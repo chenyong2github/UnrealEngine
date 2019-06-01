@@ -277,7 +277,7 @@ public:
 	bool IsPlayingAudio() const { return bIsPlayingAudio; }
 
 	/** Whether or not sound reference is valid and set to play when silent. */
-	bool IsPlayWhenSilent() const { return Sound && Sound->IsPlayWhenSilent();  }
+	bool IsPlayWhenSilent() const;
 
 	FAudioDevice* AudioDevice;
 
