@@ -5374,6 +5374,25 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 		{
 			Selection.AddToSelection( NodeToSelect );
 		}
+		
+		TSharedPtr<SSequencerTreeView> TreeView = SequencerWidget->GetTreeView();
+		const TSet<TSharedRef<FSequencerDisplayNode>>& OutlinerSelection = GetSelection().GetSelectedOutlinerNodes();
+		if (OutlinerSelection.Num() == 1)
+		{
+			for (auto& Node : OutlinerSelection)
+			{
+				auto Parent = Node->GetParent();
+				while (Parent.IsValid())
+				{
+					TreeView->SetItemExpansion(Parent->AsShared(), true);
+					Parent = Parent->GetParent();
+				}
+
+				TreeView->RequestScrollIntoView(Node);
+				break;
+			}
+		}
+
 		Selection.ResumeBroadcast();
 		Selection.GetOnOutlinerNodeSelectionChanged().Broadcast();
 	}

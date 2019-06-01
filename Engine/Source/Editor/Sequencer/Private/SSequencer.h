@@ -298,9 +298,6 @@ private:
 	/** Handles section selection changes. */
 	void HandleSectionSelectionChanged();
 
-	/** Handles changes to the selected outliner nodes. */
-	void HandleOutlinerNodeSelectionChanged();
-
 	/** Syncs the current node selection to the curve editor. */
 	void SyncCurveEditorToSelection();
 

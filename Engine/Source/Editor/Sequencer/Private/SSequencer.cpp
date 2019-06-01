@@ -810,7 +810,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	InSequencer->GetSelection().GetOnKeySelectionChanged().AddSP(this, &SSequencer::HandleKeySelectionChanged);
 	InSequencer->GetSelection().GetOnSectionSelectionChanged().AddSP(this, &SSequencer::HandleSectionSelectionChanged);
-	InSequencer->GetSelection().GetOnOutlinerNodeSelectionChanged().AddSP(this, &SSequencer::HandleOutlinerNodeSelectionChanged);
 
 	ResetBreadcrumbs();
 }
@@ -955,27 +954,6 @@ EVisibility SSequencer::HandleLabelBrowserVisibility() const
 
 void SSequencer::HandleSectionSelectionChanged()
 {
-}
-
-
-void SSequencer::HandleOutlinerNodeSelectionChanged()
-{
-	const TSet<TSharedRef<FSequencerDisplayNode>>& OutlinerSelection = SequencerPtr.Pin()->GetSelection().GetSelectedOutlinerNodes();
-	if ( OutlinerSelection.Num() == 1 )
-	{
-		for ( auto& Node : OutlinerSelection )
-		{
-			auto Parent = Node->GetParent();
-			while (Parent.IsValid())
-			{
-				TreeView->SetItemExpansion(Parent->AsShared(), true);
-				Parent = Parent->GetParent();
-			}
-
-			TreeView->RequestScrollIntoView( Node );
-			break;
-		}
-	}
 }
 
 TSharedRef<SWidget> SSequencer::MakeAddButton()
