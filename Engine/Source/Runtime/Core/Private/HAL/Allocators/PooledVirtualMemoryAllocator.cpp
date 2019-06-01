@@ -10,7 +10,9 @@
 #include "Templates/AlignmentTemplates.h"
 #include "GenericPlatform/OSAllocationPool.h"
 
-using T64KBAlignedPool = TMemoryPool< FPlatformMemory::MemoryRangeCommit, FPlatformMemory::MemoryRangeDecommit, 65536 >;
+#if PLATFORM_HAS_FPlatformVirtualMemoryBlock
+
+using T64KBAlignedPool = TMemoryPool<65536>;
 
 /** Scale parameter used when growing the pools on allocation (and scaling them back), configurable from the commandline */
 float GVMAPoolScale = 1.4f;
@@ -186,17 +188,19 @@ FPooledVirtualMemoryAllocator::FPoolDescriptorBase* FPooledVirtualMemoryAllocato
 	// now add the main memory requirements
 	TotalSize += AllocationSize * static_cast<SIZE_T>(NumPooledAllocations);
 
-	uint8* RawPtr = static_cast<uint8*>(FPlatformMemory::MemoryRangeReserve(TotalSize));
+	FPlatformMemory::FPlatformVirtualMemoryBlock VMBlock = FPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(Align(TotalSize, FPlatformMemory::FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment()));
+
+	uint8* RawPtr = static_cast<uint8*>(VMBlock.GetVirtualPointer());
 	if (RawPtr == nullptr)
 	{
 		return nullptr;
 	}    
 
 	// Commit the header so we can touch it
-	FPlatformMemory::MemoryRangeCommit(RawPtr, HeaderSize);
+	VMBlock.Commit(0, Align(HeaderSize, FPlatformMemory::FPlatformVirtualMemoryBlock::GetCommitAlignment()));
 	FPoolDescriptor* Ptr = reinterpret_cast<FPoolDescriptor*>(RawPtr);
 	// store the total size to deallocate
-	Ptr->TotalSize = TotalSize;
+	Ptr->VMSizeDivVirtualSizeAlignment = VMBlock.GetActualSizeInPages();
 
 	// find different offsets
 	uint8* PointerToPool = RawPtr + DescriptorSize;
@@ -205,7 +209,7 @@ FPooledVirtualMemoryAllocator::FPoolDescriptorBase* FPooledVirtualMemoryAllocato
 
 	uint8* AlignedMemoryForThePool = Align(MemoryAfterTheHeader, 65536);
 	Ptr->Pool = new (PointerToPool) T64KBAlignedPool(AllocationSize, reinterpret_cast<SIZE_T>(AlignedMemoryForThePool), NumPooledAllocations, 
-		PointerToBookkeepingMemory);
+		PointerToBookkeepingMemory, VMBlock);
 
 	return Ptr;
 }
@@ -219,7 +223,8 @@ void FPooledVirtualMemoryAllocator::DestroyPool(FPoolDescriptorBase* Pool)
 	// allocated with placement new, do not call delete
 	PoolDesc.Pool->~T64KBAlignedPool();
 
-	FPlatformMemory::MemoryRangeFree(Pool, Pool->TotalSize);
+	FPlatformMemory::FPlatformVirtualMemoryBlock VMBlock(Pool, Pool->VMSizeDivVirtualSizeAlignment);
+	VMBlock.FreeVirtual();
 }
 
 void FPooledVirtualMemoryAllocator::FreeAll()
@@ -252,3 +257,4 @@ uint64 FPooledVirtualMemoryAllocator::GetCachedFreeTotal()
 
 	return TotalFree;
 }
+#endif
