@@ -139,7 +139,7 @@ struct FMallocBinned::PoolHashBucket
 #if PLATFORM_IOS
 #define PLAT_PAGE_SIZE_LIMIT 16384
 #define PLAT_BINNED_ALLOC_POOLSIZE 16384
-#define PLAT_SMALL_BLOCK_POOL_SIZE 224
+#define PLAT_SMALL_BLOCK_POOL_SIZE 0
 #else
 #define PLAT_PAGE_SIZE_LIMIT 65536
 #define PLAT_BINNED_ALLOC_POOLSIZE 65536
@@ -935,7 +935,7 @@ void* FMallocBinned::Malloc(SIZE_T Size, uint32 Alignment)
 	BINNED_INCREMENT_STATCOUNTER(CurrentAllocs);
 	BINNED_INCREMENT_STATCOUNTER(TotalAllocs);
 	
-	FFreeMem* Free;
+	FFreeMem* Free = nullptr;
 	bool bUsePools = true;
 	if (Size <= Private::SMALL_BLOCK_POOL_SIZE)
 	{
