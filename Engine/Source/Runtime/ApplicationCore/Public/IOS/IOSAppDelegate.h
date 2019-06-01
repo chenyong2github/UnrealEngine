@@ -195,6 +195,7 @@ APPLICATIONCORE_API
 - (void)InitializeAudioSession;
 - (void)ToggleAudioSession:(bool)bActive force:(bool)bForce;
 - (bool)IsBackgroundAudioPlaying;
+- (bool)HasRecordPermission;
 - (void)EnableVoiceChat:(bool)bEnable;
 - (void)EnableHighQualityVoiceChat:(bool)bEnable;
 - (bool)IsVoiceChatEnabled;
