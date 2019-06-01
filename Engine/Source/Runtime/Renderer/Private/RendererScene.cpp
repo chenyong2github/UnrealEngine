@@ -168,7 +168,7 @@ FSceneViewState::FSceneViewState()
 	// Sets the mipbias to invalid large number.
 	MaterialTextureCachedMipBias = BIG_NUMBER;
 
-	bSequencerIsPaused = false;
+	SequencerState = ESS_None;
 
 	LightPropagationVolume = NULL; 
 

@@ -973,8 +973,8 @@ public:
 	// Is DOFHistoryRT2 set from DepthOfField?
 	bool bDOFHistory2;
 
-	// True when Sequencer has paused
-	bool bSequencerIsPaused;
+	// Sequencer state for view management
+	ESequencerState SequencerState;
 
 	FTemporalLODState TemporalLODState;
 
@@ -1470,14 +1470,14 @@ public:
 
 	virtual SIZE_T GetSizeBytes() const override;
 
-	virtual void SetSequencerState(const bool bIsPaused) override
+	virtual void SetSequencerState(ESequencerState InSequencerState) override
 	{
-		bSequencerIsPaused = bIsPaused;
+		SequencerState = InSequencerState;
 	}
 
-	virtual bool GetSequencerState() override
+	virtual ESequencerState GetSequencerState() override
 	{
-		return bSequencerIsPaused;
+		return SequencerState;
 	}
 
 	/** Information about visibility/occlusion states in past frames for individual primitives. */

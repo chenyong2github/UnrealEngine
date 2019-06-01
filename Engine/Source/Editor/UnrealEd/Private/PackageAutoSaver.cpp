@@ -27,6 +27,7 @@
 #include "ShaderCompiler.h"
 #include "EditorLevelUtils.h"
 #include "IVREditorModule.h"
+#include "LevelEditorViewport.h"
 
 namespace PackageAutoSaverJson
 {
@@ -438,7 +439,17 @@ bool FPackageAutoSaver::CanAutoSave() const
 	const bool bAreShadersCompiling = GShaderCompilingManager->IsCompiling();
 	const bool bIsVREditorActive = IVREditorModule::Get().IsVREditorEnabled();	// @todo vreditor: Eventually we should support this while in VR (modal VR progress, with sufficient early warning)
 
-	return (bAutosaveEnabled && !bSlowTask && !bInterpEditMode && !bPlayWorldValid && !bAnyMenusVisible && !bAutomationTesting && !bIsInteracting && !GIsDemoMode && bHasGameOrProjectLoaded && !bAreShadersCompiling && !bIsVREditorActive);
+	bool bIsSequencerPlaying = false;
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC && LevelVC->AllowsCinematicControl() && LevelVC->ViewState.GetReference()->GetSequencerState() == ESS_Playing)
+		{
+			bIsSequencerPlaying = true;
+			break;
+		}
+	}
+
+	return (bAutosaveEnabled && !bSlowTask && !bInterpEditMode && !bPlayWorldValid && !bAnyMenusVisible && !bAutomationTesting && !bIsInteracting && !GIsDemoMode && bHasGameOrProjectLoaded && !bAreShadersCompiling && !bIsVREditorActive && !bIsSequencerPlaying);
 }
 
 bool FPackageAutoSaver::DoPackagesNeedAutoSave() const

@@ -1721,7 +1721,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				float MaxVelocity = View.FinalPostProcessSettings.MotionBlurMax / 100.0f;
 				float MaxVelocityTiles = MaxVelocity * SizeX * (0.5f / 16.0f);
 				float MaxTileDistGathered = 3.0f;
-				if( MaxVelocityTiles > MaxTileDistGathered || CVarMotionBlurScatter.GetValueOnRenderThread() || (ViewState && ViewState->bSequencerIsPaused) )
+				if( MaxVelocityTiles > MaxTileDistGathered || CVarMotionBlurScatter.GetValueOnRenderThread() || (ViewState && ViewState->GetSequencerState() == ESS_Paused) )
 				{
 					FRenderingCompositePass* VelocityScatterPass = Context.Graph.RegisterPass( new(FMemStack::Get()) FRCPassPostProcessVelocityScatter() );
 					VelocityScatterPass->SetInput( ePId_Input0, MaxTileVelocity );

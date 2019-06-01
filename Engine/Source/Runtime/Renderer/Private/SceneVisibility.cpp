@@ -3318,7 +3318,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	if (MotionBlurTargetFPS <= 0)
 	{
 		// Keep motion vector lengths stable for paused sequencer frames.
-		if (bSequencerIsPaused)
+		if (GetSequencerState() == ESS_Paused)
 		{
 			// Reset the moving average to the current delta time.
 			MotionBlurTargetDeltaTime = DeltaWorldTime;
@@ -3333,7 +3333,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	{
 		// Keep motion vector lengths stable for paused sequencer frames. Assumes a 60 FPS tick.
 		// Tuned for content compatibility with existing content when target is the default 30 FPS.
-		if (bSequencerIsPaused)
+		if (GetSequencerState() == ESS_Paused)
 		{
 			DeltaWorldTime = 1.0f / 60.0f;
 		}
