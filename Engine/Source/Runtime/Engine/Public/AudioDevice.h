@@ -1,12 +1,15 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+#pragma once
 
-#pragma once 
-
-#include "CoreMinimal.h"
-#include "Modules/ModuleInterface.h"
-#include "Engine/Engine.h"
-#include "Components/AudioComponent.h"
 #include "Audio.h"
+#include "AudioDeviceManager.h"
+#include "Components/AudioComponent.h"
+#include "CoreMinimal.h"
+#include "DSP/SpectrumAnalyzer.h"
+#include "Engine/Engine.h"
+#include "EngineGlobals.h"
+#include "IAudioExtensionPlugin.h"
+#include "Modules/ModuleInterface.h"
 #include "AudioDynamicParameter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/AudioVolume.h"
@@ -15,10 +18,8 @@
 #include "Sound/SoundConcurrency.h"
 #include "Sound/SoundMix.h"
 #include "Sound/SoundSourceBus.h"
-#include "AudioDeviceManager.h"
-#include "DSP/SpectrumAnalyzer.h"
-#include "EngineGlobals.h"
 #include "AudioVirtualLoop.h"
+
 
 /**
  * Forward declares
@@ -54,7 +55,7 @@ struct FRotator;
 struct FWaveInstance;
 
 
-/** 
+/**
  * Debug state of the audio system
  */
 enum EDebugState
@@ -67,12 +68,16 @@ enum EDebugState
 	DEBUGSTATE_IsolateReverb,
 	// Force LPF on all sources
 	DEBUGSTATE_TestLPF,
+	// Force LPF on all sources
+	DEBUGSTATE_TestHPF,
 	// Bleed stereo sounds fully to the rear speakers
 	DEBUGSTATE_TestStereoBleed,
 	// Bleed all sounds to the LFE speaker
 	DEBUGSTATE_TestLFEBleed,
 	// Disable any LPF filter effects
 	DEBUGSTATE_DisableLPF,
+	// Disable any LPF filter effects
+	DEBUGSTATE_DisableHPF,
 	// Disable any radio filter effects
 	DEBUGSTATE_DisableRadio,
 	DEBUGSTATE_MAX,
@@ -121,17 +126,7 @@ namespace ESortedActiveWaveGetType
 	};
 }
 
-namespace ERequestedAudioStats
-{
-	static const uint8 SoundWaves = 0x1;
-	static const uint8 SoundCues = 0x2;
-	static const uint8 Sounds = 0x4;
-	static const uint8 SoundMixes = 0x8;
-	static const uint8 DebugSounds = 0x10;
-	static const uint8 LongSoundNames = 0x20;
-};
-
-/** 
+/**
  * Defines the properties of the listener
  */
 struct FListener
@@ -173,7 +168,7 @@ struct FListener
 	 */
 	void UpdateCurrentInteriorSettings();
 
-	/** 
+	/**
 	 * Apply the interior settings to ambient sounds
 	 */
 	void ApplyInteriorSettings(uint32 AudioVolumeID, const FInteriorSettings& Settings);
@@ -199,7 +194,7 @@ private:
 	FListener();
 };
 
-/** 
+/**
  * Structure for collating info about sound classes
  */
 struct FAudioClassInfo
@@ -276,7 +271,7 @@ struct FAttenuationListenerData
 	FTransform ListenerTransform;
 	float AttenuationDistance;
 	float ListenerToSoundDistance;
-	
+
 	// (AudioMixer only)
 	// Non-attenuation distance for calculating surround sound speaker maps for sources w/ spread
 	float ListenerToSoundDistanceForPanning;
@@ -333,49 +328,6 @@ struct FGlobalFocusSettings
 	{}
 };
 
-#if !UE_BUILD_SHIPPING
-struct FAudioStats
-{
-	FAudioStats()
-		: bStale(true)
-	{
-	}
-
-	struct FStatWaveInstanceInfo
-	{
-		FString Description;
-		float ActualVolume;
-		int32 InstanceIndex;
-		FName WaveInstanceName;
-	};
-
-	struct FStatSoundInfo
-	{
-		FString SoundName;
-		FName SoundClassName;
-		float Distance;
-		uint32 AudioComponentID;
-		FTransform Transform;
-		TArray<FStatWaveInstanceInfo> WaveInstanceInfos;
-		TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails> ShapeDetailsMap;
-	};
-
-	struct FStatSoundMix
-	{
-		FString MixName;
-		float InterpValue;
-		int32 RefCount;
-		bool bIsCurrentEQ;
-	};
-
-	uint8 bStale:1;
-	FVector ListenerLocation;
-	TArray<FStatSoundInfo> StatSoundInfos;
-	TArray<FStatSoundMix> StatSoundMixes;
-
-};
-#endif
-
 /** Interface to register a device changed listener to respond to audio device changes. */
 class IDeviceChangedListener
 {
@@ -390,12 +342,12 @@ class ENGINE_API ISubmixBufferListener
 public:
 	/**
 	Called when a new buffer has been rendered for a given submix
-	@param OwningSubmix	The submix object which has renderered a new buffer
+	@param OwningSubmix	The submix object which has rendered a new buffer
 	@param AudioData		Ptr to the audio buffer
 	@param NumSamples		The number of audio samples in the audio buffer
 	@param NumChannels		The number of channels of audio in the buffer (e.g. 2 for stereo, 6 for 5.1, etc)
 	@param SampleRate		The sample rate of the audio buffer
-	@param AudioClock		Double audio clock value, from start of audio rendering. 
+	@param AudioClock		Double audio clock value, from start of audio rendering.
 	*/
 	virtual void OnNewSubmixBuffer(const USoundSubmix* OwningSubmix, float* AudioData, int32 NumSamples, int32 NumChannels, const int32 SampleRate, double AudioClock) = 0;
 };
@@ -441,9 +393,11 @@ private:
 	bool HandleIsolateDryAudioCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleIsolateReverbCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleTestLPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleTestHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleTestStereoBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleTestLFEBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleDisableLPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
+	bool HandleDisableHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleDisableRadioCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleEnableRadioCommand(const TCHAR* Cmd, FOutputDevice& Ar);
 	bool HandleResetSoundStateCommand(const TCHAR* Cmd, FOutputDevice& Ar);
@@ -470,7 +424,7 @@ private:
 	*/
 	void ShowSoundClassHierarchy(FOutputDevice& Ar, USoundClass* SoundClass = nullptr, int32 Indent = 0) const;
 
-	/** 
+	/**
 	* Gets a summary of loaded sound collated by class
 	*/
 	void GetSoundClassInfo(TMap<FName, FAudioClassInfo>& AudioClassInfos);
@@ -590,8 +544,8 @@ public:
 	 */
 	void PrecacheStartupSounds();
 
-	/** 
-	 * Sets the maximum number of channels dynamically. Can't raise the cap over the initial value but can lower it 
+	/**
+	 * Sets the maximum number of channels dynamically. Can't raise the cap over the initial value but can lower it
 	 */
 	void SetMaxChannels(int32 InMaxChannels);
 
@@ -639,7 +593,7 @@ public:
 	*/
 	TAmbisonicsMixerPtr GetAmbisonicsMixer() { return AmbisonicsMixer; };
 
-	/** 
+	/**
 	 * Returns the currently applied reverb effect if there is one.
 	 */
 	UReverbEffect* GetCurrentReverbEffect() const
@@ -674,7 +628,7 @@ public:
 
 		void CommonInit();
 
-		friend class FAudioDevice;
+		friend FAudioDevice;
 	};
 
 	/**
@@ -695,7 +649,7 @@ public:
 
 	static UAudioComponent* CreateComponent(USoundBase* Sound, const FCreateComponentParams& Params = FCreateComponentParams());
 
-	/** 
+	/**
 	 * Plays a sound at the given location without creating an audio component.
 	 * @param   Sound				The USoundBase to play at the location.
 	 * @param   World				The world this sound is playing in.
@@ -766,7 +720,7 @@ public:
 
 	void SetDefaultAudioSettings(UWorld* World, const FReverbSettings& DefaultReverbSettings, const FInteriorSettings& DefaultInteriorSettings);
 
-	/** 
+	/**
 	 * Gets the current audio debug state
 	 */
 	EDebugState GetMixDebugState() const { return((EDebugState)DebugState); }
@@ -808,8 +762,8 @@ public:
 	/** Unregisters the sound submix */
 	virtual void UnregisterSoundSubmix(USoundSubmix* SoundSubmix) {}
 
-	/** 
-	 * Registers the submix buffer listener with the given submix. 
+	/**
+	 * Registers the submix buffer listener with the given submix.
 	 * A nullptr for SoundSubmix will register the listener with the master submix.
 	*/
 	virtual void RegisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr)
@@ -817,8 +771,8 @@ public:
 		UE_LOG(LogAudio, Error, TEXT("Submix buffer listener only works with the audio mixer. Please run with audio mixer enabled."));
 	}
 
-	/** 
-	 * Unregisters the submix buffer listener with the given submix. 
+	/**
+	 * Unregisters the submix buffer listener with the given submix.
 	 * A nullptr for SoundSubmix will unregister the listener with the master submix.
 	*/
 	virtual void UnregisterSubmixBufferListener(ISubmixBufferListener* InSubmixBufferListener, USoundSubmix* SoundSubmix = nullptr)
@@ -863,7 +817,7 @@ public:
 	 */
 	void RemoveSoundMix(USoundMix* SoundMix);
 
-	/** 
+	/**
 	 * Resets all interpolating values to defaults.
 	 */
 	void ResetInterpolation();
@@ -885,7 +839,7 @@ public:
 	 */
 	void PushSoundMixModifier(USoundMix* SoundMix, bool bIsPassive = false, bool bIsRetrigger = false);
 
-	/** 
+	/**
 	 * Sets a sound class override in the given sound mix.
 	 */
 	void SetSoundMixClassOverride(USoundMix* InSoundMix, USoundClass* InSoundClass, float Volume, float Pitch, float FadeInTime, bool bApplyToChildren);
@@ -923,7 +877,7 @@ public:
 	 * @param FadeTime Time before Reverb Effect is fully active
 	 */
 	void ActivateReverbEffect(UReverbEffect* ReverbEffect, FName TagName, float Priority, float Volume, float FadeTime);
-	
+
 	/**
 	 * Deactivates a Reverb Effect not applied by a volume
 	 *
@@ -938,7 +892,7 @@ public:
 
 	/** Whether this device supports realtime decompression of sound waves (i.e. DTYPE_RealTime) */
 	virtual bool SupportsRealtimeDecompression() const
-	{ 
+	{
 		return false;
 	}
 
@@ -959,10 +913,10 @@ public:
 		return true;
 	}
 
-	const TArray<FActiveSound*>& GetActiveSounds() const 
-	{ 
-		check(IsInAudioThread()); 
-		return ActiveSounds; 
+	const TArray<FActiveSound*>& GetActiveSounds() const
+	{
+		check(IsInAudioThread());
+		return ActiveSounds;
 	}
 
 	/** When the set of Audio volumes have changed invalidate the cached values of active sounds */
@@ -970,7 +924,7 @@ public:
 
 	/** Suspend any context related objects */
 	virtual void SuspendContext() {}
-	
+
 	/** Resume any context related objects */
 	virtual void ResumeContext() {}
 
@@ -1104,6 +1058,12 @@ public:
 		return SpatializationPluginInterface;
 	}
 
+	/** Whether or not there's a modulation plugin enabled. */
+	bool IsModulationPluginEnabled() const
+	{
+		return bModulationInterfaceEnabled;
+	}
+
 	/** Whether or not there's an occlusion plugin enabled. */
 	bool IsOcclusionPluginEnabled() const
 	{
@@ -1159,16 +1119,16 @@ public:
 	virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) { return false; }
 
 	/** This is called by a USoundSubmix to start recording a submix instance on this device. */
-	virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration) 
+	virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submix recording only works with the audio mixer. Please run using -audiomixer to or set INI file use submix recording."));
 	}
 
 	/** This is called by a USoundSubmix when we stop recording a submix on this device. */
-	virtual Audio::AlignedFloatBuffer& StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate) 
+	virtual Audio::AlignedFloatBuffer& StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate)
 	{
 		UE_LOG(LogAudio, Error, TEXT("Submix recording only works with the audio mixer. Please run using -audiomixer to or set INI file use submix recording."));
-		
+
 		static Audio::AlignedFloatBuffer InvalidBuffer;
 		return InvalidBuffer;
 	}
@@ -1342,7 +1302,7 @@ private:
 
 	/**
 	 * Recursively apply an adjuster to the passed in sound class and all children of the sound class
-	 * 
+	 *
 	 * @param InAdjuster		The adjuster to apply
 	 * @param InSoundClassName	The name of the sound class to apply the adjuster to.  Also applies to all children of this class
 	 */
@@ -1381,6 +1341,15 @@ public:
 	 * Return the pointer to the sound effects handler
 	 */
 	FAudioEffectsManager* GetEffects()
+	{
+		check(IsInAudioThread());
+		return Effects;
+	}
+
+	/**
+	 * Return the pointer to the sound effects handler
+	 */
+	const FAudioEffectsManager* GetEffects() const
 	{
 		check(IsInAudioThread());
 		return Effects;
@@ -1467,7 +1436,7 @@ public:
 	bool IsPendingStop(FActiveSound* ActiveSound);
 
 	/**
-	* Gets the direction of the given position vector transformed relative to listener.   
+	* Gets the direction of the given position vector transformed relative to listener.
 	* @param Position				Input position vector to transform relative to listener
 	* @param OutDistance			Optional output of distance from position to listener
 	* @return The input position relative to the listener.
@@ -1497,7 +1466,7 @@ public:
 	}
 
 private:
-	/** Processes the set of pending sounds that need to be stopped */ 
+	/** Processes the set of pending sounds that need to be stopped */
 	void ProcessingPendingActiveSoundStops(bool bForceDelete = false);
 
 	/** Stops oldest sound source. */
@@ -1521,22 +1490,6 @@ public:
 
 	void AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop);
 
-#if !UE_BUILD_SHIPPING
-	void DumpActiveSounds() const;
-
-	void RenderStatReverb(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32& Y, const FVector* ViewLocation, const FRotator* ViewRotation) const;
-
-	void UpdateSoundShowFlags(const uint8 OldSoundShowFlags, const uint8 NewSoundShowFlags);
-	void UpdateRequestedStat(const uint8 InRequestedStat);
-	void ResolveDesiredStats(FViewportClient* ViewportClient);
-
-	FAudioStats& GetAudioStats()
-	{
-		check(IsInGameThread());
-		return AudioStats;
-	}
-#endif
-
 	bool AreStartupSoundsPreCached() const { return bStartupSoundsPreCached; }
 
 	float GetTransientMasterVolume() const { check(IsInAudioThread()); return TransientMasterVolume; }
@@ -1552,10 +1505,12 @@ public:
 
 	const FDynamicParameter& GetGlobalPitchScale() const { check(IsInAudioThread()); return GlobalPitchScale; }
 	void SetGlobalPitchModulation(float PitchScale, float TimeSec);
-	float ClampPitch(float InPitchScale);
+	float ClampPitch(float InPitchScale) const;
 
 	float GetPlatformAudioHeadroom() const { check(IsInAudioThread()); return PlatformAudioHeadroom; }
 	void SetPlatformAudioHeadroom(float PlatformHeadRoom);
+
+	const TMap<FName, FActivatedReverb>& GetActiveReverb() const;
 
 	UE_DEPRECATED(4.13, "Direct access of SoundClasses is no longer allowed. Instead you should use the SoundMixClassOverride system")
 	const TMap<USoundClass*, FSoundClassProperties>& GetSoundClassPropertyMap() const
@@ -1564,8 +1519,8 @@ public:
 		return SoundClasses;
 	}
 
-	/** Whether or not virtual sounds are enabled, */
-	bool VirtualSoundsEnabled() const { return bAllowVirtualizedSounds; }
+	/** Whether play when silent is enabled for all sounds associated with this audio device*/
+	bool PlayWhenSilentEnabled() const { return bAllowPlayWhenSilent; }
 
 	bool IsMainAudioDevice()
 	{
@@ -1579,8 +1534,12 @@ public:
 		bUseAttenuationForNonGameWorlds = bInUseAttenuationForNonGameWorlds;
 	}
 
+	const TArray<FWaveInstance*>& GetActiveWaveInstances() const;
+
 	/** Returns the default reverb send level used for sources which have reverb applied but no attenuation settings. */
 	float GetDefaultReverbSendLevel() const { return DefaultReverbSendLevel; }
+
+	const TMap<FWaveInstance*, FSoundSource*>& GetWaveInstanceSourceMap() const;
 
 public:
 
@@ -1603,7 +1562,7 @@ public:
 
 	/** The number of frames to precache. */
 	int32 NumPrecacheFrames;
-	
+
 	/** The amount of memory to reserve for always resident sounds */
 	int32 CommonAudioPoolSize;
 
@@ -1625,6 +1584,9 @@ public:
 	/** 3rd party occlusion interface. */
 	TAudioOcclusionPtr OcclusionInterface;
 
+	/** 3rd party modulation interface */
+	TAudioModulationPtr ModulationInterface;
+
 	/** This devices ambisonics pointer, if one exists */
 	TAmbisonicsMixerPtr AmbisonicsMixer;
 
@@ -1635,7 +1597,6 @@ public:
 	TArray<FTransform> ListenerTransforms;
 
 private:
-
 	uint64 CurrentTick;
 
 	/** An AudioComponent to play test sounds on */
@@ -1656,7 +1617,7 @@ private:
 	/** The global focus settings */
 	FGlobalFocusSettings GlobalFocusSettings;
 	FGlobalFocusSettings GlobalFocusSettings_GameThread;
-	
+
 	/** Timestamp of the last update */
 	double LastUpdateTime;
 
@@ -1753,7 +1714,8 @@ private:
 	uint8 bSpatializationInterfaceEnabled:1;
 	uint8 bOcclusionInterfaceEnabled:1;
 	uint8 bReverbInterfaceEnabled:1;
-	
+	uint8 bModulationInterfaceEnabled:1;
+
 	/** Whether or not we've initialized plugin listeners array. */
 	uint8 bPluginListenersInitialized:1;
 
@@ -1785,20 +1747,16 @@ private:
 	uint8 bHasActivatedReverb:1;
 
 	/** Whether or not we're supporting zero volume wave instances */
-	uint8 bAllowVirtualizedSounds:1;
+	uint8 bAllowPlayWhenSilent:1;
 
 	/** Whether or not we force the use of attenuation for non-game worlds (as by default we only care about game worlds) */
 	uint8 bUseAttenuationForNonGameWorlds:1;
 
-#if !UE_BUILD_SHIPPING
-	uint8 RequestedAudioStats;
-	FAudioStats AudioStats;
-#endif
 	/** The audio thread update delta time for this audio thread update tick. */
-	
+
 
 	TArray<FActiveSound*> ActiveSounds;
-	/** Array of sound waves to add references to avoid GC until gauranteed to be done with precache or decodes. */
+	/** Array of sound waves to add references to avoid GC until guaranteed to be done with precache or decodes. */
 	TArray<USoundWave*> ReferencedSoundWaves;
 	TArray<USoundWave*> PrecachingSoundWaves;
 	TArray<FWaveInstance*> ActiveWaveInstances;

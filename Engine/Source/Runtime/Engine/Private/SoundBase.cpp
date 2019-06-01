@@ -1,9 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "Sound/SoundBase.h"
-#include "Sound/SoundSubmix.h"
-#include "Sound/AudioSettings.h"
+
 #include "EngineDefines.h"
+#include "IAudioExtensionPlugin.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/SoundSubmix.h"
+
 
 USoundClass* USoundBase::DefaultSoundClassObject = nullptr;
 USoundConcurrency* USoundBase::DefaultSoundConcurrencyObject = nullptr;
@@ -54,9 +56,9 @@ bool USoundBase::IsPlayable() const
 	return false;
 }
 
-bool USoundBase::IsAllowedVirtual() const
-{ 
-	return false; 
+bool USoundBase::SupportsSubtitles() const
+{
+	return false;
 }
 
 bool USoundBase::HasAttenuationNode() const
@@ -102,9 +104,9 @@ bool USoundBase::HasConcatenatorNode() const
 	return bHasConcatenatorNode;
 }
 
-bool USoundBase::IsVirtualizeWhenSilent() const
+bool USoundBase::IsPlayWhenSilent() const
 {
-	return bHasVirtualizeWhenSilent;
+	return bHasPlayWhenSilent;
 }
 
 float USoundBase::GetVolumeMultiplier()
@@ -118,8 +120,8 @@ float USoundBase::GetPitchMultiplier()
 }
 
 bool USoundBase::IsLooping()
-{ 
-	return (GetDuration() >= INDEFINITELY_LOOPING_DURATION); 
+{
+	return (GetDuration() >= INDEFINITELY_LOOPING_DURATION);
 }
 
 bool USoundBase::ShouldApplyInteriorVolumes()
@@ -213,6 +215,15 @@ bool USoundBase::CanBeInCluster() const
 void USoundBase::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
+
+	if (Ar.IsLoading() || Ar.IsSaving())
+	{
+		if (bHasVirtualizeWhenSilent_DEPRECATED)
+		{
+			bHasVirtualizeWhenSilent_DEPRECATED = 0;
+			bHasPlayWhenSilent = 1;
+		}
+	}
 
 #if WITH_EDITORONLY_DATA
 	if (Ar.IsLoading())

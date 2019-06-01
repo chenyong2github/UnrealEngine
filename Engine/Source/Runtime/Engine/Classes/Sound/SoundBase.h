@@ -1,29 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
 
-/** 
- * The base class for a playable sound object 
+/**
+ * The base class for a playable sound object
  */
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/Object.h"
 #include "Audio.h"
-#include "Sound/SoundConcurrency.h"
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
+#include "SoundConcurrency.h"
+#include "SoundSourceBusSend.h"
 #include "SoundSubmix.h"
-#include "Sound/SoundSourceBusSend.h"
+#include "IAudioExtensionPlugin.h"
+
 #include "SoundBase.generated.h"
 
-class USoundConcurrency;
+
 class USoundEffectSourcePreset;
-class USoundSubmix;
 class USoundSourceBus;
 class USoundEffectSourcePresetChain;
 
-struct FSoundConcurrencySettings;
-struct FSoundSubmixSendInfo;
-struct FSoundSourceBusSendInfo;
 struct FActiveSound;
 struct FSoundParseParameters;
 
@@ -63,9 +60,12 @@ public:
 	UPROPERTY()
 	uint8 bHasConcatenatorNode : 1;
 
-	/** Whether a sound has virtualize when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
 	UPROPERTY()
-	uint8 bHasVirtualizeWhenSilent:1;
+	uint8 bHasVirtualizeWhenSilent_DEPRECATED:1;
+
+	/** Whether a sound has play when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
+	UPROPERTY()
+	uint8 bHasPlayWhenSilent : 1;
 
 	/** Bypass volume weighting priority upon evaluating whether sound should remain active when max channel count is met (See platform Audio Settings). */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Priority)
@@ -120,8 +120,12 @@ public:
 	UPROPERTY(EditAnywhere, Category=Attenuation)
 	USoundAttenuation* AttenuationSettings;
 
-	/** Sound submix this sound belongs to. 
-	  * Audio will play here and traverse through the submix graph. 
+	/** Modulation for the sound */
+	UPROPERTY(EditAnywhere, Category = Modulation)
+	FSoundModulation Modulation;
+
+	/** Sound submix this sound belongs to.
+	  * Audio will play here and traverse through the submix graph.
 	  * A null entry will make the sound obey the default master effects graph.
 	  */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Sound Submix"))
@@ -143,7 +147,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Effects, meta = (DisplayName = "Pre-Effect Bus Sends"))
 	TArray<FSoundSourceBusSendInfo> PreEffectBusSends;
 
-public:	
+public:
 
 	//~ Begin UObject Interface.
 	virtual void PostInitProperties() override;
@@ -151,13 +155,14 @@ public:
 	virtual bool CanBeClusterRoot() const override;
 	virtual bool CanBeInCluster() const override;
 	virtual void Serialize(FArchive& Ar) override;
+
 	//~ End UObject interface.
 
 	/** Returns whether the sound base is set up in a playable manner */
 	virtual bool IsPlayable() const;
 
-	/** Returns whether a sound is allowed to be virtualized. */
-	virtual bool IsAllowedVirtual() const;
+	/** Returns whether sound supports subtitles. */
+	virtual bool SupportsSubtitles() const;
 
 	/** Returns whether or not this sound base has an attenuation node. */
 	virtual bool HasAttenuationNode() const;
@@ -170,7 +175,7 @@ public:
 	 */
 	virtual float GetMaxDistance() const;
 
-	/** 
+	/**
 	 * Returns the length of the sound
 	 */
 	virtual float GetDuration();
@@ -181,15 +186,15 @@ public:
 	/** Returns whether or not this sound has a sequencer node, which means it's possible for the owning active sound to persist even though it's not generating audio. */
 	bool HasConcatenatorNode() const;
 
-	/** Returns true if any of the sounds in the sound have "virtualize when silent" enabled. */
-	bool IsVirtualizeWhenSilent() const;
+	/** Returns true if any of the sounds in the sound have "play when silent" enabled. */
+	bool IsPlayWhenSilent() const;
 
 	virtual float GetVolumeMultiplier();
 	virtual float GetPitchMultiplier();
 
 	/** Returns the subtitle priority */
 	virtual float GetSubtitlePriority() const { return DEFAULT_SUBTITLE_PRIORITY; };
-	
+
 	/** Returns whether or not any part of this sound wants interior volumes applied to it */
 	virtual bool ShouldApplyInteriorVolumes();
 
