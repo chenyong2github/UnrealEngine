@@ -466,7 +466,7 @@ public:
 	uint8 UserIndex;
 
 	/** Constructor, initializing all member variables. */
-	FWaveInstance(FActiveSound* ActiveSound);
+	FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& ActiveSound);
 
 	/** Stops the wave instance without notifying NotifyWaveInstanceFinishedHook. */
 	void StopWithoutNotification();
