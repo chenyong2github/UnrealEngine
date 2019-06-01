@@ -179,6 +179,7 @@ private:
 
 	/** Wraps the normal blueprint editor's action menu creation callback */
 	FActionMenuContent HandleCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed);
+	void OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged);
 
 	void ToggleExecuteGraph();
 	bool IsExecuteGraphOn() const;
