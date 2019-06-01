@@ -77,7 +77,7 @@ static FAutoConsoleVariableRef CVarInvalidationLayerPadding(
 
 #if SLATE_VERBOSE_NAMED_EVENTS
 
-static int32 ExcessiveInvalidationFrameStreak = 10;
+static int32 ExcessiveInvalidationFrameStreak = 60;
 static FAutoConsoleVariableRef CVarExcessiveInvalidationFrameStreak(
 	TEXT("Slate.ExcessiveInvalidationFrameStreak"),
 	ExcessiveInvalidationFrameStreak,
