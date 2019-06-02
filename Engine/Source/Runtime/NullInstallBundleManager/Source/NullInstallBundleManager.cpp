@@ -64,6 +64,11 @@ class FNullInstallBundleManager : public IPlatformInstallBundleManager
 
 	}
 
+	virtual void CancelRequestRemoveBundleOnNextInit(FName BundleName) override
+	{
+
+	}
+
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) override
 	{
 

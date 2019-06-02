@@ -294,6 +294,8 @@ public:
 
 	virtual void RequestRemoveBundleOnNextInit(FName BundleName) = 0;
 
+	virtual void CancelRequestRemoveBundleOnNextInit(FName BundleName) = 0;
+
 	virtual void CancelBundle(FName BundleName, EInstallBundleCancelFlags Flags) = 0;
 
 	virtual void CancelAllBundles(EInstallBundleCancelFlags Flags) = 0;
