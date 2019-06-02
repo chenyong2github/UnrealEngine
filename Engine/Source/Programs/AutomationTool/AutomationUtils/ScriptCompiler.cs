@@ -17,7 +17,7 @@ namespace AutomationTool
 	/// <summary>
 	/// Exception thrown by PreprocessScriptFile.
 	/// </summary>
-	class CompilationException : AutomationException
+	public class CompilationException : AutomationException
 	{
 		public CompilationException(string Filename, int StartLine, int StartColumn, int EndLine, int EndColumn, string Message, params string[] Args)
 			: base(String.Format("Compilation Failed.\n>{0}({1},{2},{3},{4}): error: {5}", Path.GetFullPath(Filename), StartLine + 1, StartColumn + 1, EndLine + 1, EndColumn + 1,
@@ -29,7 +29,7 @@ namespace AutomationTool
 	/// <summary>
 	/// Compiles and loads script assemblies.
 	/// </summary>
-	class ScriptCompiler
+	public class ScriptCompiler
 	{
 		#region Fields
 				
