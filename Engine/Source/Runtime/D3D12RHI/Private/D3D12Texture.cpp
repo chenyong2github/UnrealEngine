@@ -400,7 +400,7 @@ TD3D12Texture2D<BaseResourceType>::~TD3D12Texture2D()
 		FD3D12TextureStats::D3D12TextureDeleted(*this);
 	}
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	GetParentDevice()->GetOwningRHI()->DestroyVirtualTexture(GetFlags(), GetRawTextureMemory(), GetMemorySize());
+	GetParentDevice()->GetOwningRHI()->DestroyVirtualTexture(GetFlags(), GetRawTextureMemory(), GetRawTextureBlock(), GetMemorySize());
 #endif
 }
 
