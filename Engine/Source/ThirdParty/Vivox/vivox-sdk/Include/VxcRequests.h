@@ -4256,12 +4256,16 @@ VIVOXSDK_DLLEXPORT int vx_req_aux_get_vad_properties_create(vx_req_aux_get_vad_p
 #endif
 
 /**
- * This method is used to set the connector VAD (Voice Activity Detector) properties.
- * It can only be invoked successfully if neither the capture audio thread or the msopenal are active.
- *
- * \see vx_req_aux_set_vad_properties
- * \ingroup devices
- */
+* This method is used to set the connector VAD (Voice Activity Detector) properties.
+* Most properties will update while capture audio is active.
+* Properties that require capture audio restart (i.e. rejoining a voice channel):
+*     vad_noise_floor
+* Properties that update while capture audio is active:
+*     vad_hangover, vad_sensitivity, vad_auto
+*
+* \see vx_req_aux_set_vad_properties
+* \ingroup devices
+*/
 typedef struct vx_req_aux_set_vad_properties {
     /**
      * The common properties for all requests.
@@ -4278,11 +4282,15 @@ typedef struct vx_req_aux_set_vad_properties {
     */
     int vad_sensitivity;
     /**
-    * The 'vad noise floor' - A dimensionless value between 0 and 20000 (default 576) that controls how the vad separates speech from background noise
+    * The 'vad noise floor' - A dimensionless value between 0 and 20000 (default 576) that controls the
+    * maximum level at which the noise floor may be set at by the VAD's noise tracking.
+    * Too low of a value will make noise tracking ineffective (A value of 0 disables noise tracking and the VAD then relies purely on the sensitivity property).
+    * Too high of a value will make long speech classifiable as noise.
     */
     int vad_noise_floor;
     /**
-    * VAD Automatic Parameter Selection - If this mode is 1 (enabled), then vad_hangover, vad_sensitivity, and vad_noise_floor will be ignored and the VAD will optimize parameters automatically
+    * VAD Automatic Parameter Selection - If this mode is 1 (enabled), then vad_hangover, vad_sensitivity,
+    * and vad_noise_floor will be ignored and the VAD will optimize parameters automatically.
     */
     int vad_auto;
 } vx_req_aux_set_vad_properties_t;
