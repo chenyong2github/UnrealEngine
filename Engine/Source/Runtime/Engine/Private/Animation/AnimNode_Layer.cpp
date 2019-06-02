@@ -30,11 +30,14 @@ void FAnimNode_Layer::OnInitializeAnimInstance(const FAnimInstanceProxy* InProxy
 		USkeletalMeshComponent* MeshComp = InAnimInstance->GetSkelMeshComponent();
 		check(MeshComp);
 
+		if(LinkedRoot)
+		{
+			DynamicUnlink(const_cast<UAnimInstance*>(InAnimInstance));
+		}
+
 		// Switch from dynamic external to internal, kill old instance
 		if(CurrentTarget && CurrentTarget != InAnimInstance)
 		{
-			DynamicUnlink(const_cast<UAnimInstance*>(InAnimInstance));
-
 			MeshComp->SubInstances.Remove(CurrentTarget);
 			CurrentTarget->MarkPendingKill();
 			CurrentTarget = nullptr;
