@@ -733,6 +733,9 @@ public:
 	 */
 	bool ConvertPropertyToPinType(const UProperty* Property, /*out*/ FEdGraphPinType& TypeOut) const;
 
+	/** Returns true if the function has wildcard parameters, e.g. uses runtime type information that may require safe failure handling */
+	static bool HasWildcardParams(const UFunction* Function);
+
 	/** Determines if the specified param property is intended to be used as a wildcard (for custom thunk functions, like in our array library, etc.)*/
 	static bool IsWildcardProperty(const UProperty* ParamProperty);
 
