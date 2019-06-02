@@ -438,6 +438,10 @@ void FControlRigEditor::DeleteSelectedNodes()
 				{
 					RigBlueprint->ModelController->RemoveNode(RigNode->PropertyName);
 				}
+				else
+				{
+					Node->GetGraph()->RemoveNode(Node);
+				}
 			}
 		}
 	}
