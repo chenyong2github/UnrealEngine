@@ -12,12 +12,7 @@ void CompositeSkyLightPS(
 )
 {
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	float3 Albedo = ScreenSpaceData.GBuffer.DiffuseColor;
-	if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
-	{
-		Albedo = ScreenSpaceData.GBuffer.StoredBaseColor;
-	}
-
+	float3 Albedo = ScreenSpaceData.GBuffer.StoredBaseColor - ScreenSpaceData.GBuffer.StoredBaseColor * ScreenSpaceData.GBuffer.Metallic;
 	float4 SkyLight = SkyLightTexture.Sample(SkyLightTextureSampler, UV);
 	// Apply albedo after denoising
 	SkyLight.rgb *= Albedo;
