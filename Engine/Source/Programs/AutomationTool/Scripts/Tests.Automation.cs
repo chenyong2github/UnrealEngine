@@ -1240,10 +1240,8 @@ public class UBT : BuildCommand
 		foreach (var ObjParam in Params)
 		{
 			var Param = (string)ObjParam;
-			UnrealBuildTool.UnrealTargetPlatform ParsePlatform;
-			if (Enum.TryParse<UnrealBuildTool.UnrealTargetPlatform>(Param, true, out ParsePlatform))
+			if (!UnrealTargetPlatform.TryParse(Param, out Platform))
 			{
-				Platform = ParsePlatform;
 				continue;
 			}
 			UnrealBuildTool.UnrealTargetConfiguration ParseConfiguration;

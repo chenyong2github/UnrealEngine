@@ -29,4 +29,6 @@ namespace file
 	MemoryFile* Open(const wchar_t* path, OpenMode::Enum openMode);
 	const void* GetData(const MemoryFile* file);
 	void Close(MemoryFile*& file);
+
+	uint64_t GetSizeOnDisk(const MemoryFile* file);
 }

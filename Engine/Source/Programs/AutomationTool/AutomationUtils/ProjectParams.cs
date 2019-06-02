@@ -178,8 +178,8 @@ namespace AutomationTool
                             foreach (var SubPlatformName in SubPlatformNames)
                             {
 								// Need to tolerate cook platform names here, which UFE likes to pass in. (TODO: Not sure if it's right to do that, but it does pass -targetplatform as well)
-                                UnrealTargetPlatform NewPlatformType;
-								if(Enum.TryParse(SubPlatformName, true, out NewPlatformType))
+								UnrealTargetPlatform NewPlatformType;
+								if (UnrealTargetPlatform.TryParse(SubPlatformName, out NewPlatformType))
 								{
 									// generate all valid platform descriptions for this platform type + cook flavors
 									List<TargetPlatformDescriptor> PlatformDescriptors = Platform.GetValidTargetPlatforms(NewPlatformType, CookFlavors);
@@ -194,8 +194,11 @@ namespace AutomationTool
 										}
 
 										// We're a dependent platform so add ourselves to the map, pointing to the first element in the list
-										UnrealTargetPlatform FirstPlatformType = (UnrealTargetPlatform)Enum.Parse(typeof(UnrealTargetPlatform), SubPlatformNames[0], true);
-										DependentPlatformMap.Add(new TargetPlatformDescriptor(NewPlatformType), new TargetPlatformDescriptor(FirstPlatformType));
+										UnrealTargetPlatform SubPlatformType;
+										if (UnrealTargetPlatform.TryParse(SubPlatformNames[0], out SubPlatformType))
+										{
+											DependentPlatformMap.Add(new TargetPlatformDescriptor(NewPlatformType), new TargetPlatformDescriptor(SubPlatformType));
+										}
 									}
 								}
                             }
@@ -205,15 +208,12 @@ namespace AutomationTool
 					{
 						// Look up platform names in the command line: -Platform_1 -Platform_2 ... -Platform_k
 						TargetPlatforms = new List<TargetPlatformDescriptor>();
-						foreach (UnrealTargetPlatform PlatType in Enum.GetValues(typeof(UnrealTargetPlatform)))
+						foreach (UnrealTargetPlatform PlatType in UnrealTargetPlatform.GetValidPlatforms())
 						{
-							if (PlatType != UnrealTargetPlatform.Unknown)
+							if (Command.ParseParam(PlatType.ToString()))
 							{
-								if (Command.ParseParam(PlatType.ToString()))
-								{
-                                    List<TargetPlatformDescriptor> PlatformDescriptors = Platform.GetValidTargetPlatforms(PlatType, CookFlavors);
-                                    TargetPlatforms.AddRange(PlatformDescriptors);
-								}
+                                List<TargetPlatformDescriptor> PlatformDescriptors = Platform.GetValidTargetPlatforms(PlatType, CookFlavors);
+                                TargetPlatforms.AddRange(PlatformDescriptors);
 							}
 						}
 					}
@@ -2115,11 +2115,6 @@ namespace AutomationTool
 				{
 					throw new AutomationException("Editor target not found!");
 				}
-			}
-
-			if (String.IsNullOrEmpty(GameTarget) && Run && !NoClient && (Cook || CookOnTheFly) && CommandUtils.IsNullOrEmpty(ClientCookedTargetsList))
-			{
-				throw new AutomationException("Game target not found. Game target is required with -cook or -cookonthefly");
 			}
 
 			if (EditorTargetsList == null)

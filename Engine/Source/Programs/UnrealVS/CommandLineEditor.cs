@@ -88,7 +88,7 @@ namespace UnrealVS
 		/// </summary>
 		private void OnUpdateCommandLineCombo(Object source, ElapsedEventArgs e)
 		{
-			UpdateCommandLineCombo();
+            ThreadHelper.Generic.BeginInvoke(UpdateCommandLineCombo);
 		}
 
 		/// <summary>

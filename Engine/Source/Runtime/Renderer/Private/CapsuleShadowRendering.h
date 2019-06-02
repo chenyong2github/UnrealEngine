@@ -19,7 +19,8 @@ inline bool DoesPlatformSupportCapsuleShadows(EShaderPlatform Platform)
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || Platform == SP_XBOXONE_D3D12
 		|| IsMetalSM5Platform(Platform)
 		|| IsVulkanSM5Platform(Platform)
-		|| Platform == SP_SWITCH;
+		|| Platform == SP_SWITCH
+		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsCapsuleShadows;
 }
 
 inline bool SupportsCapsuleShadows(ERHIFeatureLevel::Type FeatureLevel, EShaderPlatform ShaderPlatform)

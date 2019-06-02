@@ -26,16 +26,6 @@ public:
 	void Join(void);
 
 private:
-	struct ThreadContext
-	{
-		ClientCommandThread* thisInstance;
-		std::wstring processGroupName;
-		Event* compilationEvent;
-		Event* waitForStartEvent;
-		CriticalSection* pipeAccessCS;
-	};
-
-	static unsigned int __stdcall ThreadProxy(void* context);
 	unsigned int ThreadFunction(const std::wstring& processGroupName, Event* compilationEvent, Event* waitForStartEvent, CriticalSection* pipeAccessCS);
 
 	thread::Handle m_thread;

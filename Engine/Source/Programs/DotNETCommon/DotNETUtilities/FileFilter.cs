@@ -344,17 +344,6 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
-		/// Excludes all confidential folders from the filter
-		/// </summary>
-		public void ExcludeRestrictedFolders()
-		{
-			foreach(string RestrictedFolderName in RestrictedFolders.Names)
-			{
-				AddRule(String.Format(".../{0}/...", RestrictedFolderName), FileFilterType.Exclude);
-			}
-		}
-
-		/// <summary>
 		/// Determines whether the given file matches the filter
 		/// </summary>
 		/// <param name="FileName">File to match</param>

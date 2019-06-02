@@ -150,13 +150,13 @@ namespace UnrealBuildTool
 		/// Constructor
 		/// </summary>
 		public LinuxPlatform(LinuxPlatformSDK InSDK) 
-			: this(UnrealTargetPlatform.Linux, CppPlatform.Linux, InSDK)
+			: this(UnrealTargetPlatform.Linux, InSDK)
 		{
 			SDK = InSDK;
 		}
 
-		public LinuxPlatform(UnrealTargetPlatform UnrealTarget, CppPlatform InCppPlatform, LinuxPlatformSDK InSDK)
-			: base(UnrealTarget, InCppPlatform)
+		public LinuxPlatform(UnrealTargetPlatform UnrealTarget, LinuxPlatformSDK InSDK)
+			: base(UnrealTarget)
 		{
 			SDK = InSDK;
 		}
@@ -552,10 +552,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
-		/// <param name="CppPlatform">The platform to create a toolchain for</param>
 		/// <param name="Target">The target being built</param>
 		/// <returns>New toolchain instance.</returns>
-		public override UEToolChain CreateToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
+		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
 			LinuxToolChainOptions Options = LinuxToolChainOptions.None;
 

@@ -25,14 +25,7 @@ ClientCommandThread::~ClientCommandThread(void)
 unsigned int ClientCommandThread::Start(const std::wstring& processGroupName, Event* compilationEvent, Event* waitForStartEvent, CriticalSection* pipeAccessCS)
 {
 	// spawn a thread that communicates with the server
-	ThreadContext* context = new ThreadContext;
-	context->thisInstance = this;
-	context->processGroupName = processGroupName;
-	context->compilationEvent = compilationEvent;
-	context->waitForStartEvent = waitForStartEvent;
-	context->pipeAccessCS = pipeAccessCS;
-
-	m_thread = thread::Create(128u * 1024u, &ThreadProxy, context);
+	m_thread = thread::Create("Live coding commands", 128u * 1024u, &ClientCommandThread::ThreadFunction, this, processGroupName, compilationEvent, waitForStartEvent, pipeAccessCS);
 
 	return thread::GetId(m_thread);
 }
@@ -45,19 +38,6 @@ void ClientCommandThread::Join(void)
 		thread::Join(m_thread);
 		thread::Close(m_thread);
 	}
-}
-
-
-unsigned int __stdcall ClientCommandThread::ThreadProxy(void* context)
-{
-	thread::SetName("Live coding commands");
-
-	ThreadContext* realContext = static_cast<ThreadContext*>(context);
-	const unsigned int exitCode = realContext->thisInstance->ThreadFunction(realContext->processGroupName, realContext->compilationEvent, realContext->waitForStartEvent, realContext->pipeAccessCS);
-
-	delete realContext;
-
-	return exitCode;
 }
 
 
@@ -101,7 +81,7 @@ unsigned int ClientCommandThread::ThreadFunction(const std::wstring& processGrou
 		// we need to make sure that other threads talking through the pipe don't use it at the same time.
 		CriticalSection::ScopedLock lock(pipeAccessCS);
 
-		m_pipe->SendCommandAndWaitForAck(commands::ReadyForCompilation {});
+		m_pipe->SendCommandAndWaitForAck(commands::ReadyForCompilation {}, nullptr, 0u);
 
 		commandMap.HandleCommands(m_pipe, nullptr);
 	}

@@ -91,12 +91,11 @@ namespace Gauntlet
 	{
 		public static UnrealTargetPlatform GetPlatformFromString(string PlatformName)
 		{
-			UnrealTargetPlatform UnrealPlatform = UnrealTargetPlatform.Unknown;
-
-			if (Enum.TryParse<UnrealTargetPlatform>(PlatformName, true, out UnrealPlatform))
-			{
-				return UnrealPlatform;
-			}
+			UnrealTargetPlatform UnrealPlatform;
+			if (UnrealTargetPlatform.TryParse(PlatformName, out UnrealPlatform))
+            {
+	            return UnrealPlatform;
+            }
 			
 			throw new AutomationException("Unable convert platform {0} into a valid Unreal Platform", PlatformName);
 		}
@@ -229,14 +228,13 @@ namespace Gauntlet
 		internal class ConfigInfo
 		{
 			public UnrealTargetRole 				RoleType;
-			public UnrealTargetPlatform 		Platform;
+			public UnrealTargetPlatform? 		Platform;
 			public UnrealTargetConfiguration 	Configuration;
 			public bool							SharedBuild;
 
 			public ConfigInfo()
 			{
 				RoleType = UnrealTargetRole.Unknown;
-				Platform = UnrealTargetPlatform.Unknown;
 				Configuration = UnrealTargetConfiguration.Unknown;
 			}
 		}
@@ -298,16 +296,11 @@ namespace Gauntlet
 					Config.Configuration = UnrealTargetConfiguration.Development;   // Development has no string
 				}
 
-				if (PlatformName.Length > 0)
+				UnrealTargetPlatform Platform;
+				if (ConfigType.Length > 0 && UnrealTargetPlatform.TryParse(ConfigType, out Platform))
 				{
-					Enum.TryParse(ConfigType, true, out Config.Platform);
+					Config.Platform = Platform;
 				}
-				else
-				{
-					Config.Platform = UnrealTargetPlatform.Unknown;
-				}
-
-				
 			}
 
 			return Config;

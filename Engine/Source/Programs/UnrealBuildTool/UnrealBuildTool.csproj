@@ -139,10 +139,12 @@
     </When>
   </Choose>
   <ItemGroup>
+    <Compile Include="Configuration\ModuleRulesContext.cs" />
     <Compile Include="Executors\HybridExecutor.cs" />
     <Compile Include="Modes\BuildMode.cs" />
     <Compile Include="Modes\CleanMode.cs" />
     <Compile Include="Modes\DeployMode.cs" />
+    <Compile Include="Modes\ExecuteMode.cs" />
     <Compile Include="Modes\JsonExportMode.cs" />
     <Compile Include="Modes\GenerateProjectFilesMode.cs" />
     <Compile Include="Modes\SetupPlatformsMode.cs" />
@@ -185,12 +187,16 @@
     <Compile Include="ProjectFiles\Xcode\XcodeProjectFileGenerator.cs" />
     <Compile Include="System\Action.cs" />
     <Compile Include="System\ActionExecutor.cs" />
+    <Compile Include="Modes\AggregateParsedTimingInfo.cs" />
     <Compile Include="System\Asn.cs" />
     <Compile Include="System\BuildVersion.cs" />
     <Compile Include="System\CppCompileEnvironment.cs" />
     <Compile Include="System\CppDependencyCache.cs" />
     <Compile Include="System\CppIncludeParser.cs" />
     <Compile Include="System\FileMetadataPrefetch.cs" />
+    <Compile Include="Modes\ParseMsvcTimingInfo.cs" />
+    <Compile Include="System\RestrictedFolders.cs" />
+    <Compile Include="System\RulesScope.cs" />
     <Compile Include="System\SourceFileMetadataCache.cs" />
     <Compile Include="System\DataDrivenPlatformInfo.cs" />
     <Compile Include="System\DirectoryItem.cs" />
@@ -229,7 +235,9 @@
     <Compile Include="System\TargetMakefile.cs" />
     <Compile Include="System\TargetReceipt.cs" />
     <Compile Include="System\Timeline.cs" />
+    <Compile Include="System\TimingData.cs" />
     <Compile Include="System\ToolMode.cs" />
+    <Compile Include="System\UniqueStringRegistry.cs" />
     <Compile Include="System\VersionNumber.cs" />
     <Compile Include="System\XmlConfig.cs" />
     <Compile Include="System\XmlConfigData.cs" />
@@ -393,6 +401,19 @@
     <None Include="app.manifest" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
+  <!-- The next two sections allow for GenerateProjectFiles script to hunt down "platform extension" C# files
+       without them needing to be added to this project. If they were compiled in a separate assembly like
+	   rules files, we would need to make a huge amount of classes, etc public, which we definitely do not 
+	   want to do. However, this does require that GenerateProjectFiles is run to create the References file
+	   below. 
+       The PlatformExtensionCompile compile item compiles the files found in the References file. This indirection
+	   is used so that Visual Studio shows these files. (If the References file directly compiled files, the 
+	   files would not be visible in the Solution Explorer).
+  -->
+  <Import Project="..\..\..\Intermediate\ProjectFiles\UnrealBuildTool.csproj.References" Condition="Exists('..\..\..\Intermediate\ProjectFiles\UnrealBuildTool.csproj.References')" />
+  <ItemGroup>
+    <Compile Include="@(PlatformExtensionCompile)" />
+  </ItemGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

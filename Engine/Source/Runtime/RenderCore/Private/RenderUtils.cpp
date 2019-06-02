@@ -935,19 +935,19 @@ static TAutoConsoleVariable<int32> CVarDistanceFields(
 	); 
 
 
-RENDERCORE_API uint32 GForwardShadingPlatformMask = 0;
+RENDERCORE_API uint64 GForwardShadingPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GForwardShadingPlatformMask) * 8, "GForwardShadingPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint32 GDBufferPlatformMask = 0;
+RENDERCORE_API uint64 GDBufferPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDBufferPlatformMask) * 8, "GDBufferPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint32 GBasePassVelocityPlatformMask = 0;
+RENDERCORE_API uint64 GBasePassVelocityPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GBasePassVelocityPlatformMask) * 8, "GBasePassVelocityPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint32 GSelectiveBasePassOutputsPlatformMask = 0;
+RENDERCORE_API uint64 GSelectiveBasePassOutputsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) * 8, "GSelectiveBasePassOutputsPlatformMask must be large enough to support all shader platforms");
 
-RENDERCORE_API uint32 GDistanceFieldsPlatformMask = 0;
+RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
 RENDERCORE_API void RenderUtilsInit()
@@ -992,7 +992,7 @@ RENDERCORE_API void RenderUtilsInit()
 			ITargetPlatform* TargetPlatform = TargetPlatformManager->FindTargetPlatform(PlatformName.ToString());
 			if (TargetPlatform)
 			{
-				uint32 Mask = 1u << ShaderPlatformIndex;
+				uint64 Mask = 1ull << ShaderPlatformIndex;
 
 				if (TargetPlatform->UsesForwardShading())
 				{

@@ -100,17 +100,17 @@ class BuildPhysX : BuildCommand
 		Environment.SetEnvironmentVariable("CMAKE_ROOT", DirectoryReference.Combine(CMakeRootDirectory, "share").ToString());
 		LogInformation("set {0}={1}", "CMAKE_ROOT", Environment.GetEnvironmentVariable("CMAKE_ROOT"));
 
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.HTML5)
 		{
-		case UnrealTargetPlatform.HTML5:
-				return "cmake";
-		case UnrealTargetPlatform.Mac:
-		case UnrealTargetPlatform.IOS:
-		case UnrealTargetPlatform.TVOS:
-			return FileReference.Combine(CMakeRootDirectory, "bin", "cmake").ToString();
-		default:
-			return FileReference.Combine(CMakeRootDirectory, "bin", "cmake.exe").ToString();
+			return "cmake";
 		}
+		if (TargetData.Platform == UnrealTargetPlatform.Mac ||
+			TargetData.Platform == UnrealTargetPlatform.IOS ||
+			TargetData.Platform == UnrealTargetPlatform.TVOS)
+		{
+			return FileReference.Combine(CMakeRootDirectory, "bin", "cmake").ToString();
+		}
+		return FileReference.Combine(CMakeRootDirectory, "bin", "cmake.exe").ToString();
 	}
 
 	private static string GetCMakeTargetDirectoryName(TargetPlatformData TargetData, WindowsCompiler TargetWindowsCompiler)
@@ -125,26 +125,27 @@ class BuildPhysX : BuildCommand
 				throw new AutomationException(String.Format("Non-CMake or unsupported windows compiler '{0}' supplied to GetCMakeTargetDirectoryName", TargetWindowsCompiler));
 		}
 
-		switch (TargetData.Platform)
+		// Note slashes need to be '/' as this gets string-composed in the CMake script with other paths
+		if (TargetData.Platform == UnrealTargetPlatform.Win32)
 		{
-			// Note slashes need to be '/' as this gets string-composed in the CMake script with other paths
-			case UnrealTargetPlatform.Win32:
-				return "Win32/" + VisualStudioDirectoryName;
-			case UnrealTargetPlatform.Win64:
-				return "Win64/" + VisualStudioDirectoryName;
-			case UnrealTargetPlatform.Android:
-				switch (TargetData.Architecture)
-				{
-					default:
-					case "armv7": return "Android/ARMv7";
-					case "arm64": return "Android/ARM64";
-					case "x86": return "Android/x86";
-					case "x64": return "Android/x64";
-				}
-			case UnrealTargetPlatform.HTML5:
-			default:
-				return TargetData.Platform.ToString();
+			return "Win32/" + VisualStudioDirectoryName;
 		}
+		if (TargetData.Platform == UnrealTargetPlatform.Win64)
+		{
+			return "Win64/" + VisualStudioDirectoryName;
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.Android)
+		{
+			switch (TargetData.Architecture)
+			{
+				default:
+				case "armv7": return "Android/ARMv7";
+				case "arm64": return "Android/ARM64";
+				case "x86": return "Android/x86";
+				case "x64": return "Android/x64";
+			}
+		}
+		return TargetData.Platform.ToString();
 	}
 
 	private static DirectoryReference GetProjectDirectory(PhysXTargetLib TargetLib, TargetPlatformData TargetData, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
@@ -204,13 +205,11 @@ class BuildPhysX : BuildCommand
 
 		// Enable response files for platforms that require them.
 		// Response files are used for include paths etc, to fix max command line length issues.
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.PS4 ||
+			TargetData.Platform == UnrealTargetPlatform.Switch ||
+			TargetData.Platform == UnrealTargetPlatform.Linux)
 		{
-			case UnrealTargetPlatform.PS4:
-            case UnrealTargetPlatform.Switch:
-            case UnrealTargetPlatform.Linux:
-				OutputFlags += " -DUSE_RESPONSE_FILES=1";
-				break;
+			OutputFlags += " -DUSE_RESPONSE_FILES=1";
 		}
 
 		string ApexFlags = " -DAPEX_ENABLE_UE4=1";
@@ -218,102 +217,140 @@ class BuildPhysX : BuildCommand
 		{
 			case PhysXTargetLib.PhysX:
 				DirectoryReference PhysXCMakeFiles = DirectoryReference.Combine(PhysX34SourceRootDirectory, "Source", "compiler", "cmake");
-				switch (TargetData.Platform)
+				if (TargetData.Platform == UnrealTargetPlatform.Win32)
 				{
-					case UnrealTargetPlatform.Win32:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags;
-					case UnrealTargetPlatform.Win64:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags;
-					 case UnrealTargetPlatform.PS4:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\ps4\\PS4Toolchain.txt\"" + OutputFlags;
-					case UnrealTargetPlatform.XboxOne:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\xboxone\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=Durango" + OutputFlags;
-					case UnrealTargetPlatform.Android:
-						string NDKDirectory = Environment.GetEnvironmentVariable("NDKROOT");
-
-						// don't register if we don't have an NDKROOT specified
-						if (String.IsNullOrEmpty(NDKDirectory))
-						{
-							throw new AutomationException("NDKROOT is not specified; cannot build Android.");
-						}
-
-						NDKDirectory = NDKDirectory.Replace("\"", "");
-
-						string AndroidAPILevel = "android-19";
-						string AndroidABI = "armeabi-v7a";
-						switch (TargetData.Architecture)
-						{
-							case "armv7": AndroidAPILevel = "android-19"; AndroidABI = "armeabi-v7a"; break;
-							case "arm64": AndroidAPILevel = "android-21"; AndroidABI = "arm64-v8a"; break;
-							case "x86":   AndroidAPILevel = "android-19"; AndroidABI = "x86"; break;
-							case "x64":   AndroidAPILevel = "android-21"; AndroidABI = "x86_64"; break;
-						}
-						return DirectoryReference.Combine(PhysXCMakeFiles, "Android").ToString() + " -G \"MinGW Makefiles\" -DTARGET_BUILD_PLATFORM=android -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\android\\android.toolchain.cmake\" -DANDROID_NDK=\"" + NDKDirectory + "\" -DCMAKE_MAKE_PROGRAM=\"" + NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe\" -DANDROID_NATIVE_API_LEVEL=\"" + AndroidAPILevel + "\" -DANDROID_ABI=\"" + AndroidABI + "\" -DANDROID_STL=gnustl_shared" + OutputFlags;
-					case UnrealTargetPlatform.Linux:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags;
-					case UnrealTargetPlatform.Mac:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags;
-					case UnrealTargetPlatform.IOS:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "IOS").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=ios" + OutputFlags;
-					case UnrealTargetPlatform.TVOS:
-						return DirectoryReference.Combine(PhysXCMakeFiles, "TVOS").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=tvos" + OutputFlags;
-					case UnrealTargetPlatform.Switch:
-                        return DirectoryReference.Combine(PhysXCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags;
-					case UnrealTargetPlatform.HTML5:
-						string CmakeToolchainFile = FileReference.Combine(PhysXSourceRootDirectory, "Externals", "CMakeModules", "HTML5", "Emscripten." + BuildConfig + ".cmake").ToString();
-						return "\"" + DirectoryReference.Combine(PhysXCMakeFiles, "HTML5").ToString() + "\"" +
-							" -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=html5" +
-							" -DPXSHARED_ROOT_DIR=\"" + SharedSourceRootDirectory.ToString() + "\"" +
-							" -DNVTOOLSEXT_INCLUDE_DIRS=\"" + PhysX34SourceRootDirectory + "/externals/nvToolsExt/include\"" +
-							" -DEMSCRIPTEN_GENERATE_BITCODE_STATIC_LIBRARIES=ON " +
-							" -DCMAKE_BUILD_TYPE=\"Release\" -DCMAKE_TOOLCHAIN_FILE=\"" + CmakeToolchainFile + "\"" +
-							OutputFlags;
-					default:
-						throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags;
 				}
+				if (TargetData.Platform == UnrealTargetPlatform.Win64)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.PS4)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\ps4\\PS4Toolchain.txt\"" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\xboxone\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=Durango" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Android)
+				{
+					string NDKDirectory = Environment.GetEnvironmentVariable("NDKROOT");
+
+					// don't register if we don't have an NDKROOT specified
+					if (String.IsNullOrEmpty(NDKDirectory))
+					{
+						throw new AutomationException("NDKROOT is not specified; cannot build Android.");
+					}
+
+					NDKDirectory = NDKDirectory.Replace("\"", "");
+
+					string AndroidAPILevel = "android-19";
+					string AndroidABI = "armeabi-v7a";
+					switch (TargetData.Architecture)
+					{
+						case "armv7": AndroidAPILevel = "android-19"; AndroidABI = "armeabi-v7a"; break;
+						case "arm64": AndroidAPILevel = "android-21"; AndroidABI = "arm64-v8a"; break;
+						case "x86":   AndroidAPILevel = "android-19"; AndroidABI = "x86"; break;
+						case "x64":   AndroidAPILevel = "android-21"; AndroidABI = "x86_64"; break;
+					}
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Android").ToString() + " -G \"MinGW Makefiles\" -DTARGET_BUILD_PLATFORM=android -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\android\\android.toolchain.cmake\" -DANDROID_NDK=\"" + NDKDirectory + "\" -DCMAKE_MAKE_PROGRAM=\"" + NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe\" -DANDROID_NATIVE_API_LEVEL=\"" + AndroidAPILevel + "\" -DANDROID_ABI=\"" + AndroidABI + "\" -DANDROID_STL=gnustl_shared" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Linux)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Mac)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.IOS)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "IOS").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=ios" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.TVOS)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "TVOS").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=tvos" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Switch)
+				{
+					return DirectoryReference.Combine(PhysXCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.HTML5)
+				{
+					string CmakeToolchainFile = FileReference.Combine(PhysXSourceRootDirectory, "Externals", "CMakeModules", "HTML5", "Emscripten." + BuildConfig + ".cmake").ToString();
+					return "\"" + DirectoryReference.Combine(PhysXCMakeFiles, "HTML5").ToString() + "\"" +
+						" -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=html5" +
+						" -DPXSHARED_ROOT_DIR=\"" + SharedSourceRootDirectory.ToString() + "\"" +
+						" -DNVTOOLSEXT_INCLUDE_DIRS=\"" + PhysX34SourceRootDirectory + "/externals/nvToolsExt/include\"" +
+						" -DEMSCRIPTEN_GENERATE_BITCODE_STATIC_LIBRARIES=ON " +
+						" -DCMAKE_BUILD_TYPE=\"Release\" -DCMAKE_TOOLCHAIN_FILE=\"" + CmakeToolchainFile + "\"" +
+						OutputFlags;
+				}
+				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
 			case PhysXTargetLib.APEX:
 				DirectoryReference ApexCMakeFiles = DirectoryReference.Combine(APEX14SourceRootDirectory, "compiler", "cmake");
-				switch (TargetData.Platform)
+				if (TargetData.Platform == UnrealTargetPlatform.Win32)
 				{
-					case UnrealTargetPlatform.Win32:
-						return DirectoryReference.Combine(ApexCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags + ApexFlags;
-					case UnrealTargetPlatform.Win64:
-						return DirectoryReference.Combine(ApexCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags + ApexFlags;
-					case UnrealTargetPlatform.PS4:
-						return DirectoryReference.Combine(ApexCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\ps4\\PS4Toolchain.txt\"" + OutputFlags + ApexFlags;
-					case UnrealTargetPlatform.XboxOne:
-						return DirectoryReference.Combine(ApexCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\xboxone\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=DURANGO" + OutputFlags + ApexFlags;
-					case UnrealTargetPlatform.Switch:
-						return DirectoryReference.Combine(ApexCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags + ApexFlags;
-					case UnrealTargetPlatform.Linux:
-						return DirectoryReference.Combine(ApexCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 -DAPEX_LINUX_SHARED_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags + ApexFlags;
-					case UnrealTargetPlatform.Mac:
-						return DirectoryReference.Combine(ApexCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags + ApexFlags;
-					 default:
-						throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
+					return DirectoryReference.Combine(ApexCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags + ApexFlags;
 				}
+				if (TargetData.Platform == UnrealTargetPlatform.Win64)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows" + OutputFlags + ApexFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.PS4)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\ps4\\PS4Toolchain.txt\"" + OutputFlags + ApexFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\xboxone\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=DURANGO" + OutputFlags + ApexFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Switch)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags + ApexFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Linux)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 -DAPEX_LINUX_SHARED_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags + ApexFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Mac)
+				{
+					return DirectoryReference.Combine(ApexCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags + ApexFlags;
+				}
+				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
             case PhysXTargetLib.NvCloth:
                 DirectoryReference NvClothCMakeFiles = DirectoryReference.Combine(NvClothSourceRootDirectory, "compiler", "cmake");
-                switch (TargetData.Platform)
-                {
-                    case UnrealTargetPlatform.Win32:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
-                    case UnrealTargetPlatform.Win64:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
-                    case UnrealTargetPlatform.PS4:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\PS4\\PS4Toolchain.txt\"" + OutputFlags;
-                    case UnrealTargetPlatform.Switch:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags;
-                    case UnrealTargetPlatform.XboxOne:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\XboxOne\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=DURANGO" + OutputFlags;
-                    case UnrealTargetPlatform.Linux:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags;
-                    case UnrealTargetPlatform.Mac:
-                        return DirectoryReference.Combine(NvClothCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags;
-
-                    default:
-						throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
+				if (TargetData.Platform == UnrealTargetPlatform.Win32)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -AWin32 -DTARGET_BUILD_PLATFORM=windows -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
 				}
+				if (TargetData.Platform == UnrealTargetPlatform.Win64)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "Windows").ToString() + " -G \"" + VisualStudioName + "\" -Ax64 -DTARGET_BUILD_PLATFORM=windows -DNV_CLOTH_ENABLE_CUDA=0 -DNV_CLOTH_ENABLE_DX11=0" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.PS4)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "PS4").ToString() + " -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=ps4 -DCMAKE_BUILD_TYPE=" + BuildConfig + " -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\PS4\\PS4Toolchain.txt\"" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Switch)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "Switch").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=switch -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\switch\\NX64Toolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=NX-NXFP2-a64" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "XboxOne").ToString() + " -G \"Visual Studio 14 2015\" -DTARGET_BUILD_PLATFORM=xboxone -DCMAKE_TOOLCHAIN_FILE=\"" + PhysXSourceRootDirectory + "\\Externals\\CMakeModules\\XboxOne\\XboxOneToolchain.txt\" -DCMAKE_GENERATOR_PLATFORM=DURANGO" + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Linux)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "Linux").ToString() + " --no-warn-unused-cli -G \"Unix Makefiles\" -DTARGET_BUILD_PLATFORM=linux -DPX_STATIC_LIBRARIES=1 " + GetBundledLinuxLibCxxFlags() + " -DCMAKE_BUILD_TYPE=" + BuildConfig + GetLinuxToolchainSettings(TargetData) + OutputFlags;
+				}
+				if (TargetData.Platform == UnrealTargetPlatform.Mac)
+				{
+					return DirectoryReference.Combine(NvClothCMakeFiles, "Mac").ToString() + " -G \"Xcode\" -DTARGET_BUILD_PLATFORM=mac" + OutputFlags;
+				}
+
+				throw new AutomationException(String.Format("Non-CMake or unsupported platform '{0}' supplied to GetCMakeArguments", TargetData.ToString()));
 			default:
 				throw new AutomationException(String.Format("Non-CMake or unsupported lib '{0}' supplied to GetCMakeArguments", TargetLib));
 		}
@@ -321,33 +358,35 @@ class BuildPhysX : BuildCommand
 
 	private static string GetMsDevExe(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32)
 		{
-			case UnrealTargetPlatform.Win32:
-				return MsDev14Exe.ToString();
-			case UnrealTargetPlatform.Win64:
-				return MsDev14Exe.ToString();
-			case UnrealTargetPlatform.XboxOne:
-				return MsDev14Exe.ToString();
-			case UnrealTargetPlatform.Switch:
-				return MsDev14Exe.ToString();
-			default:
-				throw new AutomationException(String.Format("Non-MSBuild or unsupported platform '{0}' supplied to GetMsDevExe", TargetData.ToString()));
+			return MsDev14Exe.ToString();
 		}
+		if (TargetData.Platform == UnrealTargetPlatform.Win64)
+		{
+			return MsDev14Exe.ToString();
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
+		{
+			return MsDev14Exe.ToString();
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.Switch)
+		{
+			return MsDev14Exe.ToString();
+		}
+
+		throw new AutomationException(String.Format("Non-MSBuild or unsupported platform '{0}' supplied to GetMsDevExe", TargetData.ToString()));
 	}
 
 	private static string GetMsBuildExe(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
+			TargetData.Platform == UnrealTargetPlatform.XboxOne || TargetData.Platform == UnrealTargetPlatform.Switch)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.XboxOne:
-			case UnrealTargetPlatform.Switch:
-				return MsBuildExe.ToString();
-			default:
-				throw new AutomationException(String.Format("Non-MSBuild or unsupported platform '{0}' supplied to GetMsBuildExe", TargetData.ToString()));
+			return MsBuildExe.ToString();
 		}
+
+		throw new AutomationException(String.Format("Non-MSBuild or unsupported platform '{0}' supplied to GetMsBuildExe", TargetData.ToString()));
 	}
 
 	private static string GetTargetLibSolutionName(PhysXTargetLib TargetLib)
@@ -373,43 +412,35 @@ class BuildPhysX : BuildCommand
 
 	private static bool DoesPlatformUseMSBuild(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 ||
+			TargetData.Platform == UnrealTargetPlatform.XboxOne || TargetData.Platform == UnrealTargetPlatform.Switch)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.XboxOne:
-			case UnrealTargetPlatform.Switch:
-				return true;
-			default:
-				return false;
+			return true;
 		}
+
+		return false;
 	}
 
 	private static bool DoesPlatformUseMakefiles(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Android || TargetData.Platform == UnrealTargetPlatform.Linux ||
+			TargetData.Platform == UnrealTargetPlatform.HTML5 || TargetData.Platform == UnrealTargetPlatform.PS4)
 		{
-			case UnrealTargetPlatform.Android:
-			case UnrealTargetPlatform.Linux:
-			case UnrealTargetPlatform.HTML5:
-			case UnrealTargetPlatform.PS4:
-				return true;
-			default:
-				return false;
+			return true;
 		}
+
+		return false;
 	}
 
 	private static bool DoesPlatformUseXcode(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Mac || TargetData.Platform == UnrealTargetPlatform.IOS ||
+			TargetData.Platform == UnrealTargetPlatform.TVOS)
 		{
-			case UnrealTargetPlatform.Mac:
-			case UnrealTargetPlatform.IOS:
-			case UnrealTargetPlatform.TVOS:
-				return true;
-			default:
-				return false;
+			return true;
 		}
+
+		return false;
 	}
 
 	private static DirectoryReference GetTargetLibRootDirectory(PhysXTargetLib TargetLib)
@@ -439,31 +470,24 @@ class BuildPhysX : BuildCommand
 			{
 				string[] TargetPlatformAndArch = TargetPlatformName.Split(new char[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
 
-				UnrealTargetPlatform TargetPlatform;
-				if (!Enum.TryParse(TargetPlatformAndArch[0], out TargetPlatform))
+				UnrealTargetPlatform TargetPlatform = UnrealTargetPlatform.Parse(TargetPlatformAndArch[0]);
+				if (TargetPlatformAndArch.Count() == 2)
 				{
-					throw new AutomationException(String.Format("Unknown target platform '{0}' specified on command line", TargetPlatformName));
+					TargetPlatforms.Add(new TargetPlatformData(TargetPlatform, TargetPlatformAndArch[1]));
+				}
+				else if (TargetPlatformAndArch.Count() > 2)
+				{
+					// Linux archs are OS triplets, so have multiple dashes
+					string DashedArch = TargetPlatformAndArch[1];
+					for(int Idx = 2; Idx < TargetPlatformAndArch.Count(); ++Idx)
+					{
+						DashedArch += "-" + TargetPlatformAndArch[Idx];
+					}
+					TargetPlatforms.Add(new TargetPlatformData(TargetPlatform, DashedArch));
 				}
 				else
 				{
-					if (TargetPlatformAndArch.Count() == 2)
-					{
-						TargetPlatforms.Add(new TargetPlatformData(TargetPlatform, TargetPlatformAndArch[1]));
-					}
-					else if (TargetPlatformAndArch.Count() > 2)
-					{
-						// Linux archs are OS triplets, so have multiple dashes
-						string DashedArch = TargetPlatformAndArch[1];
-						for(int Idx = 2; Idx < TargetPlatformAndArch.Count(); ++Idx)
-						{
-							DashedArch += "-" + TargetPlatformAndArch[Idx];
-						}
-						TargetPlatforms.Add(new TargetPlatformData(TargetPlatform, DashedArch));
-					}
-					else
-					{
-						TargetPlatforms.Add(new TargetPlatformData(TargetPlatform));
-					}
+					TargetPlatforms.Add(new TargetPlatformData(TargetPlatform));
 				}
 			}
 		}
@@ -596,182 +620,176 @@ class BuildPhysX : BuildCommand
 
 		string CMakeName = GetCMakeNameAndSetupEnv(TargetData);
 
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-				// for windows platforms we support building against multiple compilers
-				foreach(WindowsCompiler TargetWindowsCompiler in TargetWindowsCompilers)
+			// for windows platforms we support building against multiple compilers
+			foreach (WindowsCompiler TargetWindowsCompiler in TargetWindowsCompilers)
+			{
+				DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData, TargetWindowsCompiler);
+				MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+
+				if (!bCleanOnly)
 				{
-					DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData, TargetWindowsCompiler);
-					MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+					LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
 
-					if(!bCleanOnly)
-					{
-						LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
+					ProcessStartInfo StartInfo = new ProcessStartInfo();
+					StartInfo.FileName = CMakeName;
+					StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
+					StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData, "", TargetWindowsCompiler);
 
-						ProcessStartInfo StartInfo = new ProcessStartInfo();
-						StartInfo.FileName = CMakeName;
-						StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-						StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData, "", TargetWindowsCompiler);
-
-						RunLocalProcessAndLogOutput(StartInfo);
-					}
+					RunLocalProcessAndLogOutput(StartInfo);
 				}
-				break;
-			case UnrealTargetPlatform.Switch:
+			}
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Switch)
+		{
+			DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
+			MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+
+			if (!bCleanOnly)
+			{
+				LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
+
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.FileName = CMakeName;
+				StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
+				StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData, "");
+
+				RunLocalProcessAndLogOutput(StartInfo);
+			}
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.PS4 || TargetData.Platform == UnrealTargetPlatform.Android ||
+			TargetData.Platform == UnrealTargetPlatform.Linux)
+		{
+			foreach (string BuildConfig in TargetConfigurations)
+			{
+				DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
+				CMakeTargetDirectory = DirectoryReference.Combine(CMakeTargetDirectory, BuildConfig);
+				MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+
+				if (!bCleanOnly)
 				{
-					DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
-					MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+					LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
 
-					if (!bCleanOnly)
+					if (TargetData.Platform == UnrealTargetPlatform.Linux)
 					{
-						LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
-
-						ProcessStartInfo StartInfo = new ProcessStartInfo();
-						StartInfo.FileName = CMakeName;
-						StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-						StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData, "");
-
-						RunLocalProcessAndLogOutput(StartInfo);
-					}
-				}
-				break;
-			case UnrealTargetPlatform.PS4:
-			case UnrealTargetPlatform.Android:
-			case UnrealTargetPlatform.Linux:
-				foreach (string BuildConfig in TargetConfigurations)
-				{
-					DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
-					CMakeTargetDirectory = DirectoryReference.Combine(CMakeTargetDirectory, BuildConfig);
-					MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
-
-					if (!bCleanOnly)
-					{
-						LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
-
-						if (TargetData.Platform == UnrealTargetPlatform.Linux)
+						// the libraries are broken when compiled with clang 7.0.1
+						string OriginalToolchainPath = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
+						if (!string.IsNullOrEmpty(OriginalToolchainPath))
 						{
-							// the libraries are broken when compiled with clang 7.0.1
-							string OriginalToolchainPath = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
-							if (!string.IsNullOrEmpty(OriginalToolchainPath))
-							{
-								string ToolchainPathToUse = OriginalToolchainPath.Replace("v13_clang-7.0.1-centos7", "v12_clang-6.0.1-centos7");
-								LogInformation("Working around problems with newer clangs: {0} -> {1}", OriginalToolchainPath, ToolchainPathToUse);
-								Environment.SetEnvironmentVariable("LINUX_MULTIARCH_ROOT", ToolchainPathToUse);
-							}
-							else
-							{
-								LogWarning("LINUX_MULTIARCH_ROOT is not set!");
-							}
+							string ToolchainPathToUse = OriginalToolchainPath.Replace("v13_clang-7.0.1-centos7", "v12_clang-6.0.1-centos7");
+							LogInformation("Working around problems with newer clangs: {0} -> {1}", OriginalToolchainPath, ToolchainPathToUse);
+							Environment.SetEnvironmentVariable("LINUX_MULTIARCH_ROOT", ToolchainPathToUse);
 						}
-
-						ProcessStartInfo StartInfo = new ProcessStartInfo();
-						StartInfo.FileName = CMakeName;
-						StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-						StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData, BuildConfig);
-
-						System.Console.WriteLine("Working in '{0}'", StartInfo.WorkingDirectory);
-						LogInformation("Working in '{0}'", StartInfo.WorkingDirectory);
-
-						System.Console.WriteLine("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
-						LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
-						
-						if (RunLocalProcessAndLogOutput(StartInfo) != 0)
+						else
 						{
-							throw new AutomationException(String.Format("Unable to generate projects for {0}.", TargetLib.ToString() + ", " + TargetData.ToString()));
+							LogWarning("LINUX_MULTIARCH_ROOT is not set!");
 						}
 					}
-				}
-				break;
-			case UnrealTargetPlatform.Mac:
-			case UnrealTargetPlatform.IOS:
-			case UnrealTargetPlatform.TVOS:
-				{
-					DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
-					MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
 
-					if (!bCleanOnly)
+					ProcessStartInfo StartInfo = new ProcessStartInfo();
+					StartInfo.FileName = CMakeName;
+					StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
+					StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData, BuildConfig);
+
+					System.Console.WriteLine("Working in '{0}'", StartInfo.WorkingDirectory);
+					LogInformation("Working in '{0}'", StartInfo.WorkingDirectory);
+
+					System.Console.WriteLine("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
+					LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
+
+					if (RunLocalProcessAndLogOutput(StartInfo) != 0)
 					{
-						LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
-
-						ProcessStartInfo StartInfo = new ProcessStartInfo();
-						StartInfo.FileName = CMakeName;
-						StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-						StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData);
-
-						RunLocalProcessAndLogOutput(StartInfo);
+						throw new AutomationException(String.Format("Unable to generate projects for {0}.", TargetLib.ToString() + ", " + TargetData.ToString()));
 					}
 				}
-				break;
-			case UnrealTargetPlatform.HTML5:
-				// NOTE: HTML5 does not do "debug" - the full text blows out memory
-				//	   instead, HTML5 builds have 4 levels of optimizations
-				// so, MAP BuildConfig to HTML5 optimization levels
-				Dictionary<string, string> BuildMap = new Dictionary<string, string>()
-				{
-					{"debug", "-O0"},
-					{"checked", "-O2"},
-					{"profile", "-Oz"},
-					{"release", "-O3"}
-				};
-				DirectoryReference HTML5CMakeModules = DirectoryReference.Combine(PhysXSourceRootDirectory, "Externals", "CMakeModules", "HTML5");
-				MakeFreshDirectoryIfRequired(HTML5CMakeModules);
+			}
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Mac || TargetData.Platform == UnrealTargetPlatform.IOS ||
+			TargetData.Platform == UnrealTargetPlatform.TVOS)
+		{
+			DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
+			MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+
+			if (!bCleanOnly)
+			{
+				LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
+
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.FileName = CMakeName;
+				StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
+				StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData);
+
+				RunLocalProcessAndLogOutput(StartInfo);
+			}
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.HTML5)
+		{
+			// NOTE: HTML5 does not do "debug" - the full text blows out memory
+			//	   instead, HTML5 builds have 4 levels of optimizations
+			// so, MAP BuildConfig to HTML5 optimization levels
+			Dictionary<string, string> BuildMap = new Dictionary<string, string>()
+			{
+				{"debug", "-O0"},
+				{"checked", "-O2"},
+				{"profile", "-Oz"},
+				{"release", "-O3"}
+			};
+			DirectoryReference HTML5CMakeModules = DirectoryReference.Combine(PhysXSourceRootDirectory, "Externals", "CMakeModules", "HTML5");
+			MakeFreshDirectoryIfRequired(HTML5CMakeModules);
 
 				foreach(string BuildConfig in TargetConfigurations)
+			{
+				DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
+				CMakeTargetDirectory = DirectoryReference.Combine(CMakeTargetDirectory, "BUILD" + BuildMap[BuildConfig]);
+				MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+
+				if (!bCleanOnly)
 				{
-					DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
-					CMakeTargetDirectory = DirectoryReference.Combine(CMakeTargetDirectory, "BUILD" + BuildMap[BuildConfig]);
-					MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+					LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
 
-					if (!bCleanOnly)
+					// CMAKE_TOOLCHAIN_FILE
+					Environment.SetEnvironmentVariable("LIB_SUFFIX", GetConfigurationSuffix(BuildConfig, TargetData)); // only used in HTML5's CMakefiles
+
+					string orig = File.ReadAllText(HTML5SDKInfo.EmscriptenCMakeToolChainFile);
+					string txt = Regex.Replace(orig, "-O2" , BuildMap[BuildConfig] );
+					string CmakeToolchainFile = FileReference.Combine(HTML5CMakeModules, "Emscripten." + BuildConfig + ".cmake").ToString();
+					File.WriteAllText(CmakeToolchainFile, txt);
+
+					// ----------------------------------------
+
+					// CMAKE
+					ProcessStartInfo StartInfo = new ProcessStartInfo();
+					StartInfo.FileName = "python";
+					StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
+					StartInfo.Arguments = "\"" + HTML5SDKInfo.EMSCRIPTEN_ROOT + "\\emcmake\" cmake " + GetCMakeArguments(TargetLib, TargetData, BuildConfig);
+
+					LogInformation("Working in: {0}", StartInfo.WorkingDirectory);
+					LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
+
+					if (RunLocalProcessAndLogOutput(StartInfo) != 0)
 					{
-						LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
-
-						// CMAKE_TOOLCHAIN_FILE
-						Environment.SetEnvironmentVariable("LIB_SUFFIX", GetConfigurationSuffix(BuildConfig, TargetData)); // only used in HTML5's CMakefiles
-
-						string orig = File.ReadAllText(HTML5SDKInfo.EmscriptenCMakeToolChainFile);
-						string txt = Regex.Replace(orig, "-O2" , BuildMap[BuildConfig] );
-						string CmakeToolchainFile = FileReference.Combine(HTML5CMakeModules, "Emscripten." + BuildConfig + ".cmake").ToString();
-						File.WriteAllText(CmakeToolchainFile, txt);
-
-						// ----------------------------------------
-
-						// CMAKE
-						ProcessStartInfo StartInfo = new ProcessStartInfo();
-						StartInfo.FileName = "python";
-						StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-						StartInfo.Arguments = "\"" + HTML5SDKInfo.EMSCRIPTEN_ROOT + "\\emcmake\" cmake " + GetCMakeArguments(TargetLib, TargetData, BuildConfig);
-
-						LogInformation("Working in: {0}", StartInfo.WorkingDirectory);
-						LogInformation("{0} {1}", StartInfo.FileName, StartInfo.Arguments);
-						
-						if (RunLocalProcessAndLogOutput(StartInfo) != 0)
-						{
-							throw new AutomationException(String.Format("Unabled to generate projects for {0}.", TargetLib.ToString() + ", " + TargetData.ToString()));
-						}
+						throw new AutomationException(String.Format("Unabled to generate projects for {0}.", TargetLib.ToString() + ", " + TargetData.ToString()));
 					}
 				}
-				break;
-			default:
-				{
-					DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
-					MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
+			}
+		}
+		else
+		{
+			DirectoryReference CMakeTargetDirectory = GetProjectDirectory(TargetLib, TargetData);
+			MakeFreshDirectoryIfRequired(CMakeTargetDirectory);
 
-					if (!bCleanOnly)
-					{
-						LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
+			if (!bCleanOnly)
+			{
+				LogInformation("Generating projects for lib " + TargetLib.ToString() + ", " + TargetData.ToString());
 
-						ProcessStartInfo StartInfo = new ProcessStartInfo();
-						StartInfo.FileName = CMakeName;
-						StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
-						StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData);
+				ProcessStartInfo StartInfo = new ProcessStartInfo();
+				StartInfo.FileName = CMakeName;
+				StartInfo.WorkingDirectory = CMakeTargetDirectory.ToString();
+				StartInfo.Arguments = GetCMakeArguments(TargetLib, TargetData);
 
-						RunLocalProcessAndLogOutput(StartInfo);
-					}
-				}
-				break;
+				RunLocalProcessAndLogOutput(StartInfo);
+			}
 		}
 	}
 
@@ -1007,40 +1025,33 @@ class BuildPhysX : BuildCommand
 			{"release", "release"}
 		};
 
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Android)
 		{
-			case UnrealTargetPlatform.Android:
-				{
-					// Use make from Android toolchain
-					string NDKDirectory = Environment.GetEnvironmentVariable("NDKROOT");
-		
-					// don't register if we don't have an NDKROOT specified
-					if (String.IsNullOrEmpty(NDKDirectory))
-					{
-						throw new AutomationException("NDKROOT is not specified; cannot build Android.");
-					}
-		
-					NDKDirectory = NDKDirectory.Replace("\"", "");
-		
-					MakeCommand = NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe";
-				}
-				break;
-			case UnrealTargetPlatform.HTML5:
-				{
-					// Use emscripten toolchain
-					MakeCommand = "python";
-					MakeOptions = "\"" + HTML5SDKInfo.EMSCRIPTEN_ROOT + "\\emmake\" make";
-					BuildMap = new Dictionary<string, string>()
-					{
-						{"debug", "Build-O0"},
-						{"checked", "Build-O2"},
-						{"profile", "Build-Oz"},
-						{"release", "Build-O3"}
-					};
-				}
-				break;
-			default:
-				break;
+			// Use make from Android toolchain
+			string NDKDirectory = Environment.GetEnvironmentVariable("NDKROOT");
+	
+			// don't register if we don't have an NDKROOT specified
+			if (String.IsNullOrEmpty(NDKDirectory))
+			{
+				throw new AutomationException("NDKROOT is not specified; cannot build Android.");
+			}
+	
+			NDKDirectory = NDKDirectory.Replace("\"", "");
+	
+			MakeCommand = NDKDirectory + "\\prebuilt\\windows-x86_64\\bin\\make.exe";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.HTML5)
+		{
+			// Use emscripten toolchain
+			MakeCommand = "python";
+			MakeOptions = "\"" + HTML5SDKInfo.EMSCRIPTEN_ROOT + "\\emmake\" make";
+			BuildMap = new Dictionary<string, string>()
+			{
+				{"debug", "Build-O0"},
+				{"checked", "Build-O2"},
+				{"profile", "Build-Oz"},
+				{"release", "Build-O3"}
+			};
 		}
 
 		// makefile build has "projects" for every configuration. However, we abstract away from that by assuming GetProjectDirectory points to the "meta-project"
@@ -1108,25 +1119,25 @@ class BuildPhysX : BuildCommand
 	{
 		if (DoesPlatformUseMSBuild(TargetData))
 		{
-			switch (TargetData.Platform)
+			if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
 			{
-				case UnrealTargetPlatform.Win32:
-				case UnrealTargetPlatform.Win64:
-					// for windows platforms we support building against multiple compilers
-					foreach (WindowsCompiler TargetWindowsCompiler in TargetWindowsCompilers)
-					{
-						BuildMSBuildTarget(TargetLib, TargetData, TargetConfigurations, TargetWindowsCompiler);
-					}
-					break;
-				case UnrealTargetPlatform.XboxOne:
-					BuildXboxTarget(TargetLib, TargetData, TargetConfigurations);
-					break;
-                case UnrealTargetPlatform.Switch:
-                    BuildSwitchTarget(TargetLib, TargetData, TargetConfigurations);
-                    break;
-                default:
-					BuildMSBuildTarget(TargetLib, TargetData, TargetConfigurations);
-					break;
+				// for windows platforms we support building against multiple compilers
+				foreach (WindowsCompiler TargetWindowsCompiler in TargetWindowsCompilers)
+				{
+					BuildMSBuildTarget(TargetLib, TargetData, TargetConfigurations, TargetWindowsCompiler);
+				}
+			}
+			else if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
+			{
+				BuildXboxTarget(TargetLib, TargetData, TargetConfigurations);
+			}
+			else if (TargetData.Platform == UnrealTargetPlatform.Switch)
+			{
+				BuildSwitchTarget(TargetLib, TargetData, TargetConfigurations);
+			}
+			else
+			{
+				BuildMSBuildTarget(TargetLib, TargetData, TargetConfigurations);
 			}
 		}
 		else if (DoesPlatformUseXcode(TargetData))
@@ -1160,22 +1171,25 @@ class BuildPhysX : BuildCommand
 			}
 		}
 
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32)
 		{
-			case UnrealTargetPlatform.Win32:
-				ArchName = "Win32";
-				break;
-			case UnrealTargetPlatform.Win64:
-				ArchName = "Win64";
-				break;
-			case UnrealTargetPlatform.Mac:
-				ArchName = "Mac";
-				break;
-			case UnrealTargetPlatform.Linux:
-				ArchName = "Linux/" + TargetData.Architecture;
-				break;
-			default:
-				throw new AutomationException(String.Format("Unsupported platform '{0}' supplied to GetOutputBinaryDirectory", TargetData.ToString()));
+			ArchName = "Win32";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Win64)
+		{
+			ArchName = "Win64";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Mac)
+		{
+			ArchName = "Mac";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		{
+			ArchName = "Linux/" + TargetData.Architecture;
+		}
+		else
+		{
+			throw new AutomationException(String.Format("Unsupported platform '{0}' supplied to GetOutputBinaryDirectory", TargetData.ToString()));
 		}
 
 		return DirectoryReference.Combine(RootOutputBinaryDirectory, ArchName, VisualStudioName);
@@ -1198,50 +1212,60 @@ class BuildPhysX : BuildCommand
 			}
 		}
 
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32)
 		{
-			case UnrealTargetPlatform.Win32:
-				ArchName = "Win32";
-				break;
-			case UnrealTargetPlatform.Win64:
-				ArchName = "Win64";
-				break;
-			case UnrealTargetPlatform.XboxOne:
-				ArchName = "XboxOne";
-				break;
-			case UnrealTargetPlatform.PS4:
-				ArchName = "PS4";
-				break;
-			case UnrealTargetPlatform.Switch:
-				ArchName = "Switch";
-				break;
-			case UnrealTargetPlatform.Android:
-				switch (TargetData.Architecture)
-				{
-					default:
-					case "arm7": ArchName = "Android/ARMv7"; break;
-					case "arm64": ArchName = "Android/ARM64"; break;
-					case "x86": ArchName = "Android/x86"; break;
-					case "x64": ArchName = "Android/x64"; break;
-				}
-				break;
-			case UnrealTargetPlatform.Linux:
-				ArchName = "Linux/" + TargetData.Architecture;
-				break;
-			case UnrealTargetPlatform.Mac:
-				ArchName = "Mac";
-				break;
-			case UnrealTargetPlatform.HTML5:
-				ArchName = "HTML5";
-				break;
-			case UnrealTargetPlatform.IOS:
-				ArchName = "IOS";
-				break;
-			case UnrealTargetPlatform.TVOS:
-				ArchName = "TVOS";
-				break;
-			default:
-				throw new AutomationException(String.Format("Unsupported platform '{0}' supplied to GetOutputLibDirectory", TargetData.ToString()));
+			ArchName = "Win32";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Win64)
+		{
+			ArchName = "Win64";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.XboxOne)
+		{
+			ArchName = "XboxOne";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.PS4)
+		{
+			ArchName = "PS4";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Switch)
+		{
+			ArchName = "Switch";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Android)
+		{
+			switch (TargetData.Architecture)
+			{
+				default:
+				case "arm7": ArchName = "Android/ARMv7"; break;
+				case "arm64": ArchName = "Android/ARM64"; break;
+				case "x86": ArchName = "Android/x86"; break;
+				case "x64": ArchName = "Android/x64"; break;
+			}
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		{
+			ArchName = "Linux/" + TargetData.Architecture;
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Mac)
+		{
+			ArchName = "Mac";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.HTML5)
+		{
+			ArchName = "HTML5";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.IOS)
+		{
+			ArchName = "IOS";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.TVOS)
+		{
+			ArchName = "TVOS";
+		}
+		else
+		{
+			throw new AutomationException(String.Format("Unsupported platform '{0}' supplied to GetOutputLibDirectory", TargetData.ToString()));
 		}
 
 		return DirectoryReference.Combine(RootOutputLibDirectory, ArchName, VisualStudioName);
@@ -1249,80 +1273,66 @@ class BuildPhysX : BuildCommand
 
 	private static bool PlatformHasBinaries(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
-		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.Mac:
-			case UnrealTargetPlatform.Linux:
-				return true;
-		}
-		return false;
+		return TargetData.Platform == UnrealTargetPlatform.Win32 ||
+			TargetData.Platform == UnrealTargetPlatform.Win64 ||
+			TargetData.Platform == UnrealTargetPlatform.Mac ||
+			TargetData.Platform == UnrealTargetPlatform.Linux;
 	}
 	private static bool PlatformUsesDebugDatabase(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
-		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-//			case UnrealTargetPlatform.Mac:
-			case UnrealTargetPlatform.Linux:
-			case UnrealTargetPlatform.XboxOne:
-				return true;
-		}
-		return false;
+		return TargetData.Platform == UnrealTargetPlatform.Win32 ||
+			TargetData.Platform == UnrealTargetPlatform.Win64 ||
+			// Target.Platform == UnrealTargetPlatform.Mac || 
+			TargetData.Platform == UnrealTargetPlatform.Linux ||
+			TargetData.Platform == UnrealTargetPlatform.XboxOne;
 	}
 	private static string GetPlatformDebugDatabaseExtension(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.XboxOne:
-				return "pdb";
-			case UnrealTargetPlatform.Mac:
-				return "dSYM";
-			case UnrealTargetPlatform.Linux:
-				return "sym";
+			return "pdb";
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.Mac)
+		{
+			return "dSYM";
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.Mac)
+		{
+			return "sym";
 		}
 		throw new AutomationException(String.Format("No debug database extension for platform '{0}'", TargetData.Platform.ToString()));
 	}
 
 	private static string GetPlatformBinaryExtension(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-				return "dll";
-			case UnrealTargetPlatform.Mac:
-				return "dylib";
-			case UnrealTargetPlatform.Linux:
-				return "so";
+			return "dll";
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.Mac)
+		{
+			return "dylib";
+		}
+		if (TargetData.Platform == UnrealTargetPlatform.Linux)
+		{
+			return "so";
 		}
 		throw new AutomationException(String.Format("No binary extension for platform '{0}'", TargetData.Platform.ToString()));
 	}
 
 	private static string GetPlatformLibExtension(TargetPlatformData TargetData)
 	{
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64 || TargetData.Platform == UnrealTargetPlatform.XboxOne)
 		{
-			case UnrealTargetPlatform.Win32:
-			case UnrealTargetPlatform.Win64:
-			case UnrealTargetPlatform.XboxOne:
-				return "lib";
-			case UnrealTargetPlatform.PS4:
-			case UnrealTargetPlatform.Android:
-			case UnrealTargetPlatform.Linux:
-			case UnrealTargetPlatform.Mac:
-			case UnrealTargetPlatform.IOS:
-			case UnrealTargetPlatform.TVOS:
-			case UnrealTargetPlatform.Switch:
-				return "a";
-			case UnrealTargetPlatform.HTML5:
-				return "bc";
+			return "lib";
 		}
-		throw new AutomationException(String.Format("No lib extension for platform '{0}'", TargetData.Platform.ToString()));
+		if (TargetData.Platform == UnrealTargetPlatform.HTML5)
+		{
+			return "bc";
+		}
+
+		// everything else is clang
+		return "a";
 	}
 
     private static bool FileGeneratedByLib(string FileNameUpper, PhysXTargetLib TargetLib)
@@ -1468,14 +1478,13 @@ class BuildPhysX : BuildCommand
 	private static void FindOutputFiles(HashSet<FileReference> OutputFiles, PhysXTargetLib TargetLib, TargetPlatformData TargetData, string TargetConfiguration, WindowsCompiler TargetWindowsCompiler = WindowsCompiler.VisualStudio2015_DEPRECATED)
 	{
 		string SearchSuffix = GetConfigurationSuffix(TargetConfiguration, TargetData).ToUpper();
-		switch (TargetData.Platform)
+		if (TargetData.Platform == UnrealTargetPlatform.Win32)
 		{
-			case UnrealTargetPlatform.Win32:
-				SearchSuffix += "_x86";
-				break;
-			case UnrealTargetPlatform.Win64:
-				SearchSuffix += "_x64";
-				break;
+			SearchSuffix += "_x86";
+		}
+		else if (TargetData.Platform == UnrealTargetPlatform.Win64)
+		{
+			SearchSuffix += "_x64";
 		}
 		string SearchPrefix = "*" + SearchSuffix + ".";
 
@@ -1505,41 +1514,43 @@ class BuildPhysX : BuildCommand
 	{
 		if(TargetLib == PhysXTargetLib.APEX)
 		{
-			switch (TargetData.Platform)
+			if (TargetData.Platform == UnrealTargetPlatform.Win32 ||
+				TargetData.Platform == UnrealTargetPlatform.Win64 ||
+				TargetData.Platform == UnrealTargetPlatform.PS4 ||
+				TargetData.Platform == UnrealTargetPlatform.XboxOne ||
+				TargetData.Platform == UnrealTargetPlatform.Mac ||
+				TargetData.Platform == UnrealTargetPlatform.Switch)
 			{
-				case UnrealTargetPlatform.Win32:
-				case UnrealTargetPlatform.Win64:
-				case UnrealTargetPlatform.PS4:
-				case UnrealTargetPlatform.XboxOne:
-				case UnrealTargetPlatform.Mac:
-				case UnrealTargetPlatform.Switch:
-					return true;
-				case UnrealTargetPlatform.Linux:
-					// only x86_64 Linux supports it.
-					return TargetData.Architecture.StartsWith("x86_64");
-				default:
-					return false;
+				return true;
 			}
+			if (TargetData.Platform == UnrealTargetPlatform.Linux)
+			{
+				// only x86_64 Linux supports it.
+				return TargetData.Architecture.StartsWith("x86_64");
+			}
+
+			return false;
 		}
 
         if(TargetLib == PhysXTargetLib.NvCloth)
         {
-            switch(TargetData.Platform)
-            {
-                case UnrealTargetPlatform.Win32:
-                case UnrealTargetPlatform.Win64:
-                case UnrealTargetPlatform.PS4:
-                case UnrealTargetPlatform.Switch:
-                case UnrealTargetPlatform.XboxOne:
-                case UnrealTargetPlatform.Mac:
-                    return true;
-                case UnrealTargetPlatform.Linux:
-                    // only x86_64 Linux supports it.
-                    return TargetData.Architecture.StartsWith("x86_64");
-                default:
-                    return false;
-            }
-        }
+			if (TargetData.Platform == UnrealTargetPlatform.Win32 ||
+				TargetData.Platform == UnrealTargetPlatform.Win64 ||
+				TargetData.Platform == UnrealTargetPlatform.PS4 ||
+				TargetData.Platform == UnrealTargetPlatform.XboxOne ||
+				TargetData.Platform == UnrealTargetPlatform.Mac ||
+				TargetData.Platform == UnrealTargetPlatform.Switch)
+			{
+				return true;
+			}
+			if (TargetData.Platform == UnrealTargetPlatform.Linux)
+			{
+				// only x86_64 Linux supports it.
+				return TargetData.Architecture.StartsWith("x86_64");
+			}
+
+			return false;
+		}
 
 		return true;
 	}
@@ -1644,18 +1655,16 @@ class BuildPhysX : BuildCommand
 					foreach (string TargetConfiguration in TargetConfigurations)
 					{
 						// Delete output files before building them
-						switch (TargetData.Platform)
+						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
 						{
-							case UnrealTargetPlatform.Win32:
-							case UnrealTargetPlatform.Win64:
-								foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
-								{
-									FindOutputFiles(FilesToDelete, TargetLib, TargetData, TargetConfiguration, TargetCompiler);
-								}
-								break;
-							default:
-								FindOutputFiles(FilesToDelete, TargetLib, TargetData, TargetConfiguration);
-								break;
+							foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
+							{
+								FindOutputFiles(FilesToDelete, TargetLib, TargetData, TargetConfiguration, TargetCompiler);
+							}
+						}
+						else
+						{ 
+							FindOutputFiles(FilesToDelete, TargetLib, TargetData, TargetConfiguration);
 						}
 					}
 					foreach (FileReference FileToDelete in FilesToDelete)
@@ -1718,18 +1727,16 @@ class BuildPhysX : BuildCommand
 						}
 
 
-						switch (TargetData.Platform)
+						if (TargetData.Platform == UnrealTargetPlatform.Win32 || TargetData.Platform == UnrealTargetPlatform.Win64)
 						{
-							case UnrealTargetPlatform.Win32:
-							case UnrealTargetPlatform.Win64:
-								foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
-								{
-									FindOutputFiles(FilesToReconcile, TargetLib, TargetData, TargetConfiguration, TargetCompiler);
-								}
-								break;
-							default:
-								FindOutputFiles(FilesToReconcile, TargetLib, TargetData, TargetConfiguration);
-								break;
+							foreach (WindowsCompiler TargetCompiler in TargetWindowsCompilers)
+							{
+								FindOutputFiles(FilesToReconcile, TargetLib, TargetData, TargetConfiguration, TargetCompiler);
+							}
+						}
+						else
+						{
+							FindOutputFiles(FilesToReconcile, TargetLib, TargetData, TargetConfiguration);
 						}
 					}
 				}

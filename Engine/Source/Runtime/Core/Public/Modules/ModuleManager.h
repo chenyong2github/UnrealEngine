@@ -756,6 +756,21 @@ class FDefaultGameModuleImpl
 #endif
 
 /**
+ * Macros for setting the source directories for live coding builds. This allows locally packaging a target and patching code into it.
+ */
+#ifdef UE_LIVE_CODING_ENGINE_DIR
+	#define IMPLEMENT_LIVE_CODING_ENGINE_DIR() const TCHAR* GLiveCodingEngineDir = TEXT(UE_LIVE_CODING_ENGINE_DIR);
+	#ifdef UE_LIVE_CODING_PROJECT
+		#define IMPLEMENT_LIVE_CODING_PROJECT() const TCHAR* GLiveCodingProject = TEXT(UE_LIVE_CODING_PROJECT);
+	#else
+		#define IMPLEMENT_LIVE_CODING_PROJECT() const TCHAR* GLiveCodingProject = nullptr;
+	#endif
+#else
+	#define IMPLEMENT_LIVE_CODING_ENGINE_DIR()
+	#define IMPLEMENT_LIVE_CODING_PROJECT()
+#endif
+
+/**
  * Macro for passing a list argument to a macro
  */
 #define UE_LIST_ARGUMENT(...) __VA_ARGS__
@@ -816,6 +831,8 @@ class FDefaultGameModuleImpl
 			/* For monolithic builds, we must statically define the game's name string (See Core.h) */ \
 			TCHAR GInternalProjectName[64] = TEXT( GameName ); \
 			IMPLEMENT_FOREIGN_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_PROJECT() \
 			IMPLEMENT_SIGNING_KEY_REGISTRATION() \
 			IMPLEMENT_ENCRYPTION_KEY_REGISTRATION() \
 			IMPLEMENT_GAME_MODULE(FDefaultGameModuleImpl, ModuleName) \
@@ -833,6 +850,8 @@ class FDefaultGameModuleImpl
 					FCString::Strncpy(GInternalProjectName, TEXT( GameName ), ARRAY_COUNT(GInternalProjectName)); \
 				} \
 			} AutoSet##ModuleName; \
+			IMPLEMENT_LIVE_CODING_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_PROJECT() \
 			PER_MODULE_BOILERPLATE \
 			PER_MODULE_BOILERPLATE_ANYLINK(FDefaultGameModuleImpl, ModuleName) \
 			FEngineLoop GEngineLoop;
@@ -852,6 +871,8 @@ class FDefaultGameModuleImpl
 			/* Implement the GIsGameAgnosticExe variable (See Core.h). */ \
 			bool GIsGameAgnosticExe = false; \
 			IMPLEMENT_FOREIGN_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_PROJECT() \
 			IMPLEMENT_SIGNING_KEY_REGISTRATION() \
 			IMPLEMENT_ENCRYPTION_KEY_REGISTRATION() \
 			IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName ) \
@@ -864,6 +885,8 @@ class FDefaultGameModuleImpl
 			TCHAR GInternalProjectName[64] = TEXT( PREPROCESSOR_TO_STRING(UE_PROJECT_NAME) ); \
 			PER_MODULE_BOILERPLATE \
 			IMPLEMENT_FOREIGN_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_ENGINE_DIR() \
+			IMPLEMENT_LIVE_CODING_PROJECT() \
 			IMPLEMENT_SIGNING_KEY_REGISTRATION() \
 			IMPLEMENT_ENCRYPTION_KEY_REGISTRATION() \
 			IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName ) \
