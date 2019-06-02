@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "SColorGradientCurveEditorView.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Layout/SBorder.h"
