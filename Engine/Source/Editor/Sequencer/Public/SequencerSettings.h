@@ -15,20 +15,6 @@ enum class EAllowEditsMode : uint8;
 enum class EKeyGroupMode : uint8;
 enum class EMovieSceneKeyInterpolation : uint8;
 
-
-
-/** Defines visibility states for the curves in the curve editor. */
-UENUM()
-enum class ECurveEditorCurveVisibility : uint8
-{
-	/** All curves should be visible. */
-	AllCurves,
-	/** Only curves from selected nodes should be visible. */
-	SelectedCurves,
-	/** Only curves which have keyframes should be visible. */
-	AnimatedCurves
-};
-
 UENUM()
 enum ESequencerSpawnPosition
 {
@@ -106,7 +92,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE( FOnEvaluateSubSequencesInIsolationChanged );
 	DECLARE_MULTICAST_DELEGATE( FOnShowSelectedNodesOnlyChanged );
 	DECLARE_MULTICAST_DELEGATE_OneParam( FOnAllowEditsModeChanged, EAllowEditsMode );
-	DECLARE_MULTICAST_DELEGATE( FOnCurveEditorCurveVisibilityChanged );
 	DECLARE_MULTICAST_DELEGATE(FOnLoopStateChanged);
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -321,13 +306,6 @@ public:
 
 	uint32 GetTrajectoryPathCap() const { return TrajectoryPathCap; }
 
-	/** Gets the current curve visibility. */
-	ECurveEditorCurveVisibility GetCurveVisibility() const;
-	/** Sets the current curve visibility. */
-	void SetCurveVisibility(ECurveEditorCurveVisibility InCurveVisibility);
-
-	FOnCurveEditorCurveVisibilityChanged& GetOnCurveEditorCurveVisibilityChanged();
-
 	FOnLoopStateChanged& GetOnLoopStateChanged();
 
 	/** What format should we display the UI controls in when representing time in a sequence? */
@@ -503,10 +481,6 @@ protected:
 	UPROPERTY(config, EditAnywhere, Category=General)
 	EFrameNumberDisplayFormats FrameNumberDisplayFormat;
 
-	/** Specifies which curves to show in the curve editor */
-	UPROPERTY(config, EditAnywhere, Category=General)
-	ECurveEditorCurveVisibility CurveVisibility;
-	FOnCurveEditorCurveVisibilityChanged OnCurveEditorCurveVisibilityChanged;
 	FOnEvaluateSubSequencesInIsolationChanged OnEvaluateSubSequencesInIsolationChangedEvent;
 	FOnShowSelectedNodesOnlyChanged OnShowSelectedNodesOnlyChangedEvent;
 	FOnAllowEditsModeChanged OnAllowEditsModeChangedEvent;

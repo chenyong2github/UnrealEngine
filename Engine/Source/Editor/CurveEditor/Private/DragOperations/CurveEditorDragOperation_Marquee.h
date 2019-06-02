@@ -10,18 +10,20 @@
 #include "ICurveEditorDragOperation.h"
 
 class FCurveEditor;
+class SCurveEditorView;
 class SCurveEditorPanel;
 
 class FCurveEditorDragOperation_Marquee : public ICurveEditorDragOperation
 {
 public:
 
-	FCurveEditorDragOperation_Marquee(FCurveEditor* InCurveEditor, const SCurveEditorPanel* InCurveEditorPanel);
+	FCurveEditorDragOperation_Marquee(FCurveEditor* InCurveEditor);
+	FCurveEditorDragOperation_Marquee(FCurveEditor* InCurveEditor, SCurveEditorView*  InLockedToView);
 
 	virtual void OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
 	virtual void OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
 	virtual void OnEndDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
-	virtual int32 OnPaint(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 LayerId) override;
+	virtual void OnPaint(const FGeometry& AllottedGeometry, FSlateWindowElementList& OutDrawElements, int32 PaintOnLayerId) override;
 
 private:
 
@@ -29,6 +31,6 @@ private:
 	FSlateRect Marquee;
 	/** Ptr back to the curve editor */
 	FCurveEditor* CurveEditor;
-	/** Ptr back to the curve editor panel */
-	const SCurveEditorPanel* CurveEditorPanel;
+	/** When valid, marquee selection should only occur inside this view; all geometries are in local space */
+	SCurveEditorView* LockedToView;
 };

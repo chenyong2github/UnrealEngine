@@ -68,8 +68,12 @@ void FFrameNumberDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHan
 FText FFrameNumberDetailsCustomization::OnGetTimeText() const
 {
 	int32 CurrentValue = 0.0;
-	FrameNumberProperty->GetValue(CurrentValue);
+	FPropertyAccess::Result Result = FrameNumberProperty->GetValue(CurrentValue);
 
+	if (Result == FPropertyAccess::MultipleValues)
+	{
+		return LOCTEXT("MultipleValues", "Multiple Values");
+	}
 	return FText::FromString(NumericTypeInterface->ToString(CurrentValue));
 }
 

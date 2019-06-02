@@ -16,7 +16,7 @@ struct FCurvePointHandle;
  * A set of key handles implemented as a sorted array for transparent passing to TArrayView<> APIs.
  * Lookup is achieved via binary search: O(log(n)).
  */
-struct FKeyHandleSet
+struct CURVEEDITOR_API FKeyHandleSet
 {
 	/**
 	 * Add a new key handle to this set
@@ -124,7 +124,6 @@ public:
 	 * Add key handles to this selection, changing the selection type if necessary.
 	 */
 	void Add(FCurveModelID CurveID, ECurvePointType PointType, TArrayView<const FKeyHandle> Keys);
-
 public:
 
 	/**
