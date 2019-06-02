@@ -2038,6 +2038,11 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 {
 	Pin.Type = GetPinTypeFromField(Property);
 	Pin.Name = Property->GetFName();
+	Pin.DisplayNameText = Property->GetDisplayNameText();
+	if (Pin.DisplayNameText.IsEmpty())
+	{
+		Pin.DisplayNameText = FText::FromName(Pin.Name);
+	}
 
 	Pin.bIsConstant = Property->HasMetaData(UControlRig::ConstantMetaName);
 
