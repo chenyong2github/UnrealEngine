@@ -415,7 +415,7 @@ void FAudioDebugger::DumpActiveSounds() const
 		{
 			UE_LOG(LogAudio, Display, TEXT("%s (%.3g) - %s"), *ActiveSound->GetSound()->GetName(), ActiveSound->GetSound()->GetDuration(), *ActiveSound->GetAudioComponentName());
 
-			for (const TPair<UPTRINT, FWaveInstance*>& WaveInstancePair : ActiveSound->WaveInstances)
+			for (const TPair<UPTRINT, FWaveInstance*>& WaveInstancePair : ActiveSound->GetWaveInstances())
 			{
 				const FWaveInstance* WaveInstance = WaveInstancePair.Value;
 				UE_LOG(LogAudio, Display, TEXT("   %s (%.3g) (%d) - %.3g"),
