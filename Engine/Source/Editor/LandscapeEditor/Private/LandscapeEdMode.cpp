@@ -2541,10 +2541,14 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 	}
 
 	// Landscape Layer Editing not available without a loaded Landscape Actor
-	if (CanHaveLandscapeLayersContent() && !CurrentToolTarget.LandscapeInfo->LandscapeActor.IsValid())
+	if (GetLandscape() == nullptr)
 	{
-		LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
-		return false;
+		ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		if (Proxy->HasLayersContent())
+		{
+			LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
+			return false;
+		}
 	}
 
 	return true;
