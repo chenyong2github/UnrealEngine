@@ -260,6 +260,8 @@ TSharedRef<ISlateStyle> FCoreStyle::Create( const FName& InStyleSetName )
 		.SetPressed(FSlateNoResource())
 		.SetNormalPadding(FMargin(0.0f, 0.0f, 0.0f, 1.0f))
 		.SetPressedPadding(FMargin(0.0f, 1.0f, 0.0f, 0.0f));
+
+	// Convenient transparent/invisible elements
 	{
 		Style->Set("NoBrush", new FSlateNoResource());
 		Style->Set("NoBorder", new FSlateNoResource());

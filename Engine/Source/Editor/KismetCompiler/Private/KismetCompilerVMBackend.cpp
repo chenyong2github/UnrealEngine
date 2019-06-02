@@ -1793,6 +1793,13 @@ public:
 
 	void EmitInstrumentation(FKismetCompilerContext& CompilerContext, FKismetFunctionContext& FunctionContext, FBlueprintCompiledStatement& Statement, UEdGraphNode* SourceNode)
 	{
+		// Allows us to turn off instrumentation to clean up the disassembly of functions for comparing the output of different USVM bytecode compilers
+		static const FBoolConfigValueHelper bShouldSupressInstrumentation(TEXT("Kismet"), TEXT("bSuppressInstrumentation"), GEngineIni);
+		if (bShouldSupressInstrumentation)
+		{
+			return;
+		}
+
 		int32 Offset = Writer.ScriptBuffer.Num();
 
 		if (Statement.Type == KCST_DebugSite)

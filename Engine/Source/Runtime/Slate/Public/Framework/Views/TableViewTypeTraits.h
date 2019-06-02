@@ -6,6 +6,9 @@
 #include "UObject/UObjectBase.h"
 #include "UObject/GCObject.h"
 
+class ITableRow;
+struct FSparseItemInfo;
+
 /**
  * Lists/Trees only work with shared pointer types, and UObjbectBase*.
  * Type traits to ensure that the user does not accidentally make a List/Tree of value types.
@@ -95,6 +98,10 @@ template <typename T> struct TListTypeTraits< TSharedPtr<T, ESPMode::NotThreadSa
 public:
 	typedef TSharedPtr<T> NullableType;
 
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::NotThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::NotThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedPtr<T, ESPMode::NotThreadSafe>>;
+
 	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedPtr<T> >&, TSet< TSharedPtr<T> >&  )
 	{
 	}
@@ -127,6 +134,10 @@ template <typename T> struct TListTypeTraits< TSharedPtr<T, ESPMode::ThreadSafe>
 {
 public:
 	typedef TSharedPtr<T, ESPMode::ThreadSafe> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::ThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedPtr<T, ESPMode::ThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedPtr<T, ESPMode::ThreadSafe>>;
 
 	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedPtr<T, ESPMode::ThreadSafe> >&, TSet< TSharedPtr<T, ESPMode::ThreadSafe> >&  )
 	{
@@ -161,6 +172,11 @@ template <typename T> struct TListTypeTraits< TSharedRef<T, ESPMode::NotThreadSa
 public:
 	typedef TSharedPtr<T> NullableType;
 
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::NotThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::NotThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedRef<T, ESPMode::NotThreadSafe>>;
+
+
 	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedRef<T> >&, TSet< TSharedRef<T> >&  )
 	{
 	}
@@ -193,6 +209,10 @@ template <typename T> struct TListTypeTraits< TSharedRef<T, ESPMode::ThreadSafe>
 {
 public:
 	typedef TSharedPtr<T, ESPMode::ThreadSafe> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::ThreadSafe>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TSharedRef<T, ESPMode::ThreadSafe>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<TSharedRef<T, ESPMode::ThreadSafe>>;
 
 	static void AddReferencedObjects( FReferenceCollector&, TArray< TSharedRef<T, ESPMode::ThreadSafe> >&, TSet< TSharedRef<T, ESPMode::ThreadSafe> >&  )
 	{
@@ -229,6 +249,10 @@ template <typename T> struct TListTypeTraits< TWeakObjectPtr<T> >
 {
 public:
 	typedef TWeakObjectPtr<T> NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<TWeakObjectPtr<T>, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<TWeakObjectPtr<T>, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs< TWeakObjectPtr<T> >;
 
 	static void AddReferencedObjects( FReferenceCollector&, TArray< TWeakObjectPtr<T> >&, TSet< TWeakObjectPtr<T> >&  )
 	{
@@ -269,6 +293,10 @@ struct TListTypeTraits<T*, typename TEnableIf<TPointerIsConvertibleFromTo<T, UOb
 public:
 	typedef T* NullableType;
 
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<T*, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<T*, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<T*>;
+
 	static void AddReferencedObjects( FReferenceCollector& Collector, TArray<T*>& ItemsWithGeneratedWidgets, TSet<T*>& SelectedItems )
 	{
 		// Serialize generated items
@@ -294,6 +322,10 @@ struct TListTypeTraits<const T*, typename TEnableIf<TPointerIsConvertibleFromTo<
 {
 public:
 	typedef const T* NullableType;
+
+	using MapKeyFuncs       = TDefaultMapHashableKeyFuncs<const T*, TSharedRef<ITableRow>, false>;
+	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<const T*, FSparseItemInfo, false>;
+	using SetKeyFuncs       = DefaultKeyFuncs<const T*>;
 
 	static void AddReferencedObjects( FReferenceCollector& Collector, TArray<const T*>& ItemsWithGeneratedWidgets, TSet<const T*>& SelectedItems )
 	{
