@@ -456,15 +456,18 @@ private:
 				continue;
 			}
 
-			const FItemInfo& ItemInfo = DenseItemInfos[ItemIndex];
-			int32 ParentIndex = ItemInfo.ParentIndex;
-			while (ParentIndex != INDEX_NONE)
+			if(DenseItemInfos.IsValidIndex(ItemIndex))
 			{
-				const ItemType& ParentItem = this->LinearizedItems[ParentIndex];
-				this->Private_SetItemHighlighted(ParentItem, true);
+				const FItemInfo& ItemInfo = DenseItemInfos[ItemIndex];
+				int32 ParentIndex = ItemInfo.ParentIndex;
+				while (ParentIndex != INDEX_NONE)
+				{
+					const ItemType& ParentItem = this->LinearizedItems[ParentIndex];
+					this->Private_SetItemHighlighted(ParentItem, true);
 
-				const FItemInfo& ParentItemInfo = DenseItemInfos[ParentIndex];
-				ParentIndex = ParentItemInfo.ParentIndex;
+					const FItemInfo& ParentItemInfo = DenseItemInfos[ParentIndex];
+					ParentIndex = ParentItemInfo.ParentIndex;
+				}
 			}
 		}
 	}
