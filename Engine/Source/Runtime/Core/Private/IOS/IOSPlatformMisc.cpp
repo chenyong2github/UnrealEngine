@@ -70,7 +70,7 @@ void (* GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NU
 
 /** global for showing the splash screen */
 bool GShowSplashScreen = true;
-float GOriginalBrightness = 1.0f;
+float GOriginalBrightness = -1.0f;
 
 static int32 GetFreeMemoryMB()
 {
@@ -262,7 +262,10 @@ void FIOSPlatformMisc::SetBrightness(float Brightness)
 
 void FIOSPlatformMisc::ResetBrightness()
 {
-    SetBrightness(GOriginalBrightness);
+	if (GOriginalBrightness >= 0.f)
+	{
+		SetBrightness(GOriginalBrightness);
+	}
 }
 
 bool FIOSPlatformMisc::IsRunningOnBattery()
