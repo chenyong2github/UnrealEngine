@@ -3383,6 +3383,10 @@ namespace VivoxClientApi {
             m_audioInputDeviceList.clear();
             m_audioInputDeviceListPopulated = false;
             m_audioOutputDeviceListPopulated = false;
+            m_currentAudioInputDevicePolicy = AudioDevicePolicy();
+            m_currentAudioOutputDevicePolicy = AudioDevicePolicy();
+            m_desiredAudioInputDevicePolicy = AudioDevicePolicy();
+            m_desiredAudioOutputDevicePolicy = AudioDevicePolicy();
             m_masterAudioInputDeviceVolume = 50;
 			m_masterAudioOutputDeviceVolume = 50;
 			m_masterVadSensitivity = 43;
