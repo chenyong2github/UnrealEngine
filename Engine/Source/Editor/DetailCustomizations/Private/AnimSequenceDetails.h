@@ -9,7 +9,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Input/SComboBox.h"
+#include "SSearchableComboBox.h"
 #include "Animation/Skeleton.h"
 #include "PreviewScene.h"
 #include "IDetailCustomization.h"
@@ -54,7 +54,7 @@ private:
 	// retarget source handler
 	TSharedPtr<IPropertyHandle> RetargetSourceNameHandler;
 
-	TSharedPtr<class SComboBox< TSharedPtr<FString> > > RetargetSourceComboBox;
+	TSharedPtr<class SSearchableComboBox> RetargetSourceComboBox;
 	TArray< TSharedPtr< FString > >						RetargetSourceComboList;
 
 	TSharedRef<SWidget> MakeRetargetSourceComboWidget( TSharedPtr<FString> InItem );
