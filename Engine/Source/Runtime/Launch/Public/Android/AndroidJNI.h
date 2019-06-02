@@ -56,6 +56,7 @@ public:
 	static jmethodID AndroidThunkJava_ShowHiddenAlertDialog;
 	static jmethodID AndroidThunkJava_LocalNotificationScheduleAtTime;
 	static jmethodID AndroidThunkJava_LocalNotificationClearAll;
+	static jmethodID AndroidThunkJava_LocalNotificationExists;
 	static jmethodID AndroidThunkJava_LocalNotificationGetLaunchNotification;
 	static jmethodID AndroidThunkJava_LocalNotificationDestroyIfExists;
 	static jmethodID AndroidThunkJava_GetNetworkConnectionType;
