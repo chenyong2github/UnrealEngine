@@ -46,6 +46,11 @@ static FAutoConsoleVariableRef CVarUseGPUMorphTargets(
 	ECVF_Default
 	);
 
+static bool UseGPUMorphTargets(const EShaderPlatform Platform)
+{
+	return GUseGPUMorphTargets != 0 && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+}
+
 static float GMorphTargetWeightThreshold = SMALL_NUMBER;
 static FAutoConsoleVariableRef CVarMorphTargetWeightThreshold(
 	TEXT("r.MorphTarget.WeightThreshold"),
@@ -68,27 +73,26 @@ void FMorphVertexBuffer::InitDynamicRHI()
 	uint32 Size = LodData.GetNumVertices() * sizeof(FMorphGPUSkinVertex);
 	FRHIResourceCreateInfo CreateInfo;
 
-	bool bSupportsComputeShaders = RHISupportsComputeShaders(GMaxRHIShaderPlatform);
-	bUsesComputeShader = GUseGPUMorphTargets != 0 && bSupportsComputeShaders;
+	const bool bUseGPUMorphTargets = UseGPUMorphTargets(GMaxRHIShaderPlatform);
 
 #if PLATFORM_PS4
 	// PS4 requires non-static buffers in order to be updated on the GPU while the CPU is writing into it
-	EBufferUsageFlags Flags = bUsesComputeShader ? (EBufferUsageFlags)(BUF_Dynamic | BUF_UnorderedAccess) : BUF_Dynamic;
+	EBufferUsageFlags Flags = bUseGPUMorphTargets ? (EBufferUsageFlags)(BUF_Dynamic | BUF_UnorderedAccess) : BUF_Dynamic;
 #else
-	EBufferUsageFlags Flags = bUsesComputeShader ? (EBufferUsageFlags)(BUF_Static | BUF_UnorderedAccess) : BUF_Dynamic;
+	EBufferUsageFlags Flags = bUseGPUMorphTargets ? (EBufferUsageFlags)(BUF_Static | BUF_UnorderedAccess) : BUF_Dynamic;
 #endif
 
 	// BUF_ShaderResource is needed for Morph support of the SkinCache
 	Flags = (EBufferUsageFlags)(Flags | BUF_ShaderResource);
 
 	VertexBufferRHI = RHICreateVertexBuffer(Size, Flags, CreateInfo);
-	bool bUsesSkinCache = bSupportsComputeShaders && IsGPUSkinCacheAvailable() && GEnableGPUSkinCache;
+	bool bUsesSkinCache = RHISupportsComputeShaders(GMaxRHIShaderPlatform) && IsGPUSkinCacheAvailable() && GEnableGPUSkinCache;
 	if (bUsesSkinCache)
 	{
 		SRVValue = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
 	}
 
-	if (!bUsesComputeShader)
+	if (!bUseGPUMorphTargets)
 	{
 		// Lock the buffer.
 		void* BufferData = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FMorphGPUSkinVertex)*LodData.GetNumVertices(), RLM_WriteOnly);
@@ -474,7 +478,7 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(FGPUSkinCache* GPUSki
 		if(bMorphNeedsUpdate)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_FSkeletalMeshObjectGPUSkin_ProcessUpdatedDynamicData_UpdateMorphBuffer);
-			if (GUseGPUMorphTargets && RHISupportsComputeShaders(GMaxRHIShaderPlatform))
+			if (UseGPUMorphTargets(GMaxRHIShaderPlatform))
 			{
 				// update the morph data for the lod (before SkinCache)
 				TArray<float> MorphTargetWeights;
@@ -761,12 +765,13 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 {
 	if (IsValidRef(MorphVertexBuffer.VertexBufferRHI))
 	{
-	SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_Update);
+		SCOPE_CYCLE_COUNTER(STAT_MorphVertexBuffer_Update);
 
 		// LOD of the skel mesh is used to find number of vertices in buffer
 		FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData->LODRenderData[LODIndex];
 
-		MorphVertexBuffer.RecreateResourcesIfRequired(GUseGPUMorphTargets != 0);
+		const bool bUseGPUMorphTargets = UseGPUMorphTargets(GMaxRHIShaderPlatform);
+		MorphVertexBuffer.RecreateResourcesIfRequired(bUseGPUMorphTargets);
 
 		SCOPED_GPU_STAT(RHICmdList, MorphTargets);
 
@@ -932,8 +937,9 @@ void FSkeletalMeshObjectGPUSkin::FSkeletalMeshObjectLOD::UpdateMorphVertexBuffer
 
 		// LOD of the skel mesh is used to find number of vertices in buffer
 		FSkeletalMeshLODRenderData& LodData = SkelMeshRenderData->LODRenderData[LODIndex];
-
-		MorphVertexBuffer.RecreateResourcesIfRequired(GUseGPUMorphTargets != 0);
+		
+		const bool bUseGPUMorphTargets = UseGPUMorphTargets(GMaxRHIShaderPlatform);
+		MorphVertexBuffer.RecreateResourcesIfRequired(bUseGPUMorphTargets);
 
 		uint32 Size = LodData.GetNumVertices() * sizeof(FMorphGPUSkinVertex);
 

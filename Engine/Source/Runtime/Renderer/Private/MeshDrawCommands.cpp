@@ -305,7 +305,8 @@ void UpdateMobileBasePassMeshSortKeys(
 			}
 
 			uint32 PipelineId = Cmd.MeshDrawCommand->CachedPipelineId.GetId();
-			int32 StateBucketId = PointerHash(Cmd.MeshDrawCommand->IndexBuffer);
+			// use state bucket if dynamic instancing is enabled, otherwise identify same meshes by index buffer resource
+			int32 StateBucketId = Cmd.StateBucketId >=0 ? Cmd.StateBucketId : PointerHash(Cmd.MeshDrawCommand->IndexBuffer);
 			Cmd.SortKey.PackedData = GetMobileBasePassSortKey_FrontToBack(bMasked, bBackground, PipelineId, StateBucketId, PrimitiveDistance);
 		}
 	}
@@ -347,8 +348,8 @@ void UpdateMobileBasePassMeshSortKeys(
 			
 			int32 PipelineId = Cmd.MeshDrawCommand->CachedPipelineId.GetId();
 			float PipelineDistance = PipelineDistances.FindRef(PipelineId);
-			// poor man StateID, can't use Cmd.StateBucketId as it is unique for each primitive if platform does not support auto-instancing
-			int32 StateBucketId = PointerHash(Cmd.MeshDrawCommand->IndexBuffer);
+			// use state bucket if dynamic instancing is enabled, otherwise identify same meshes by index buffer resource
+			int32 StateBucketId = Cmd.StateBucketId >=0 ? Cmd.StateBucketId : PointerHash(Cmd.MeshDrawCommand->IndexBuffer);
 			Cmd.SortKey.PackedData = GetMobileBasePassSortKey_ByState(bMasked, bBackground, PipelineId, StateBucketId, PipelineDistance, PrimitiveDistance);
 		}
 	}

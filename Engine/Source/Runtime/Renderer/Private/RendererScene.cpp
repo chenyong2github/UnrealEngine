@@ -869,7 +869,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 		}
 	}
 
-	if (PrimitiveSceneInfo->Proxy->IsMovable())
+	if (PrimitiveSceneInfo->Proxy->IsMovable() && GetFeatureLevel() > ERHIFeatureLevel::ES3_1)
 	{
 		// We must register the initial LocalToWorld with the velocity state. 
 		// In the case of a moving component with MarkRenderStateDirty() called every frame, UpdateTransform will never happen.
@@ -1258,7 +1258,7 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHI
 	// (note that the octree update relies on the bounds not being modified yet).
 	PrimitiveSceneInfo->RemoveFromScene(bUpdateStaticDrawLists);
 
-	if (PrimitiveSceneInfo->Proxy->IsMovable())
+	if (PrimitiveSceneInfo->Proxy->IsMovable() && GetFeatureLevel() > ERHIFeatureLevel::ES3_1)
 	{
 		VelocityData.UpdateTransform(PrimitiveSceneInfo, LocalToWorld, PrimitiveSceneProxy->GetLocalToWorld());
 	}

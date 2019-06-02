@@ -2059,7 +2059,7 @@ KEYWORD(100, 310, RWBUFFER);
 case 97:
 YY_RULE_SETUP
 #line 313 "../../../Source/ThirdParty/hlslcc/hlslcc/src/hlslcc_lib/hlsl_lexer.ll"
-KEYWORD(100, 430, RWSTRUCTUREDBUFFER);
+KEYWORD(100, 310, RWSTRUCTUREDBUFFER);
 	YY_BREAK
 case 98:
 YY_RULE_SETUP
