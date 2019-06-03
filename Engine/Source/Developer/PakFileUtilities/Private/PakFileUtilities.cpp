@@ -1998,7 +1998,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 	}
 
-	FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), Info.IndexHash);
+	FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), Info.IndexHash.Hash);
 
 	if (Info.bEncryptedIndex)
 	{
