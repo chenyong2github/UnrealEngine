@@ -1514,6 +1514,11 @@ void USocialParty::BeginLeavingParty(EMemberExitedReason Reason)
 	}
 }
 
+void USocialParty::DisconnectParty()
+{
+		OnPartyDisconnected().Broadcast();
+}
+
 void USocialParty::FinalizePartyLeave(EMemberExitedReason Reason)
 {
 	UE_LOG(LogParty, Verbose, TEXT("Local player [%s] is no longer in party [%s]. Reason [%s]."), *GetOwningLocalMember().ToDebugString(false), *ToDebugString(), ToString(Reason));
