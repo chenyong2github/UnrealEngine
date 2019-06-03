@@ -344,28 +344,16 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::HandleAcceptDrop(FDra
 	if (DragDropOperation.IsValid())
 	{
 		FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-
-		if (LandscapeEdMode != nullptr)
+		ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+		if (Landscape)
 		{
-			TArray<int8>& BrushOrderStack = LandscapeEdMode->GetBrushesOrderForCurrentLayer(LandscapeEdMode->CurrentToolTarget.TargetType);
-
-			if (BrushOrderStack.IsValidIndex(DragDropOperation->SlotIndexBeingDragged) && BrushOrderStack.IsValidIndex(SlotIndex))
+			int32 StartingLayerIndex = DragDropOperation->SlotIndexBeingDragged;
+			int32 DestinationLayerIndex = SlotIndex;
+			const FScopedTransaction Transaction(LOCTEXT("Landscape_LayerBrushes_Reorder", "Reorder Layer Brush"));
+			if (Landscape->ReorderLayerBrush(LandscapeEdMode->GetCurrentLayerIndex(), LandscapeEdMode->CurrentToolTarget.TargetType, StartingLayerIndex, DestinationLayerIndex))
 			{
-				int32 StartingLayerIndex = DragDropOperation->SlotIndexBeingDragged;
-				int32 DestinationLayerIndex = SlotIndex;
-
-				if (StartingLayerIndex != INDEX_NONE && DestinationLayerIndex != INDEX_NONE)
-				{
-					int8 MovingBrushIndex = BrushOrderStack[StartingLayerIndex];
-					 
-					BrushOrderStack.RemoveAt(StartingLayerIndex);
-					BrushOrderStack.Insert(MovingBrushIndex, DestinationLayerIndex);
-
-					LandscapeEdMode->RefreshDetailPanel();
-					LandscapeEdMode->RequestLayersContentUpdateForceAll();
-
-					return FReply::Handled();
-				}
+				LandscapeEdMode->RefreshDetailPanel();
+				return FReply::Handled();
 			}
 		}
 	}
