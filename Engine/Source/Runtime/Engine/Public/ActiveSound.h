@@ -504,9 +504,9 @@ public:
 
 	void RemoveWaveInstance(const UPTRINT WaveInstanceHash);
 
-	int32 GetWaveInstanceNum() const
+	const TMap<UPTRINT, FWaveInstance*>& GetWaveInstances() const
 	{
-		return WaveInstances.Num();
+		return WaveInstances;
 	}
 
 	/**

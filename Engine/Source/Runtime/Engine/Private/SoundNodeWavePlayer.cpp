@@ -153,7 +153,7 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 						bPlayFailed = 0;
 					}
 
-					const int32 InitActiveSoundWaveInstanceNum = ActiveSound.GetWaveInstanceNum();
+					const int32 InitActiveSoundWaveInstanceNum = ActiveSound.GetWaveInstances().Num();
 					const int32 InitWaveInstancesNum = WaveInstances.Num();
 
 					// Guard against continual parsing if wave instance was created but not added to transient
@@ -165,7 +165,7 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 
 					if (*RequiresInitialization != 0)
 					{
-						if (ActiveSound.GetWaveInstanceNum() == InitActiveSoundWaveInstanceNum)
+						if (ActiveSound.GetWaveInstances().Num() == InitActiveSoundWaveInstanceNum)
 						{
 							if (WaveInstances.Num() == InitWaveInstancesNum)
 							{
