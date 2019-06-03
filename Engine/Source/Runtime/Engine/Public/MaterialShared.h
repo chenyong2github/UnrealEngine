@@ -548,7 +548,8 @@ public:
 		bUsesWorldPositionOffset(false),
 		bUsesGlobalDistanceField(false),
 		bUsesPixelDepthOffset(false),
-		bUsesDistanceCullFade(false)
+		bUsesDistanceCullFade(false),
+		bHasRuntimeVirtualTextureOutput(false)
 	{}
 
 	ENGINE_API void Serialize(FArchive& Ar);
@@ -596,6 +597,9 @@ public:
 
 	/** true if the material uses distance cull fade */
 	uint8 bUsesDistanceCullFade : 1;
+
+	/** true if the material supports virtual texture output */
+	uint8 bHasRuntimeVirtualTextureOutput : 1;
 
 	/** Indicates whether the material uses scene color. */
 	ENGINE_API bool RequiresSceneColorCopy() const { return IsSceneTextureUsed(PPI_SceneColor); }
@@ -1087,6 +1091,7 @@ public:
 	bool UsesSceneDepthLookup() const { return MaterialCompilationOutput.UsesSceneDepthLookup(); }
 	bool UsesVelocitySceneTexture() const { return MaterialCompilationOutput.UsesVelocitySceneTexture(); }
 	bool UsesDistanceCullFade() const { return MaterialCompilationOutput.bUsesDistanceCullFade; }
+	bool HasRuntimeVirtualTextureOutput() const { return MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput; }
 #if WITH_EDITOR
 	uint32 GetNumUsedUVScalars() const { return MaterialCompilationOutput.NumUsedUVScalars; }
 	uint32 GetNumUsedCustomInterpolatorScalars() const { return MaterialCompilationOutput.NumUsedCustomInterpolatorScalars; }
@@ -1587,6 +1592,9 @@ public:
 	/** Does the material use a SceneDepth lookup. */
 	ENGINE_API bool MaterialUsesSceneDepthLookup_RenderThread() const;
 	ENGINE_API bool MaterialUsesSceneDepthLookup_GameThread() const;
+
+	/** Does the material have a runtime virtual texture output node. */
+	ENGINE_API bool HasRuntimeVirtualTextureOutput_RenderThread() const;
 
 	/** Note: This function is only intended for use in deciding whether or not shader permutations are required before material translation occurs. */
 	ENGINE_API bool MaterialMayModifyMeshPosition() const;

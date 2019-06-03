@@ -1326,6 +1326,11 @@ ResourcesString = TEXT("");
 		{
 			OutEnvironment.SetDefine(TEXT("USES_EYE_ADAPTATION"), TEXT("1"));
 		}
+
+		if (MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput)
+		{
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_TEXTURE_OUTPUT"), 1);
+		}
 		
 		// @todo MetalMRT: Remove this hack and implement proper atmospheric-fog solution for Metal MRT...
 		OutEnvironment.SetDefine(TEXT("MATERIAL_ATMOSPHERIC_FOG"), !IsMetalMRTPlatform(InPlatform) ? bUsesAtmosphericFog : 0);
@@ -6517,6 +6522,14 @@ protected:
 		FString ImplementationCode = FString::Printf(TEXT("%s %s%d(FMaterial%sParameters Parameters)\r\n{\r\n%s return %s;\r\n}\r\n"), *OutputTypeString, *Custom->GetFunctionName(), OutputIndex, ShaderFrequency == SF_Vertex ? TEXT("Vertex") : TEXT("Pixel"), *Definitions, *Body);
 		CustomOutputImplementations.Add(ImplementationCode);
 
+		// return value is not used
+		return INDEX_NONE;
+	}
+
+	virtual int32 VirtualTextureOutput() override
+	{
+		MaterialCompilationOutput.bHasRuntimeVirtualTextureOutput = true;
+		
 		// return value is not used
 		return INDEX_NONE;
 	}

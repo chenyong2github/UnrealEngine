@@ -1924,6 +1924,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCom
 		CodeInput = Opacity.IsConnected() ? Opacity.Compile(Compiler) : Compiler->Constant(1.f);
 	}
 
+	Compiler->VirtualTextureOutput();
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
 }
 
