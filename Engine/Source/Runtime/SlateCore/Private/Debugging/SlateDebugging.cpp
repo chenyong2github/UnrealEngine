@@ -33,11 +33,13 @@ FSlateDebuggingNavigationEventArgs::FSlateDebuggingNavigationEventArgs(
 	const FNavigationEvent& InNavigationEvent,
 	const FNavigationReply& InNavigationReply,
 	const FWidgetPath& InNavigationSource,
-	const TSharedPtr<SWidget>& InDestinationWidget)
+	const TSharedPtr<SWidget>& InDestinationWidget,
+	const ESlateDebuggingNavigationMethod InNavigationMethod)
 	: NavigationEvent(InNavigationEvent)
 	, NavigationReply(InNavigationReply)
 	, NavigationSource(InNavigationSource)
 	, DestinationWidget(InDestinationWidget)
+	, NavigationMethod(InNavigationMethod)
 {
 }
 
@@ -79,7 +81,9 @@ FSlateDebugging::FWidgetInputEvent FSlateDebugging::InputEvent;
 
 FSlateDebugging::FWidgetFocusEvent FSlateDebugging::FocusEvent;
 
-FSlateDebugging::FWidgetNavigationEvent FSlateDebugging::NavigationEvent;
+FSlateDebugging::FWidgetAttemptNavigationEvent FSlateDebugging::AttemptNavigationEvent;
+
+FSlateDebugging::FWidgetExecuteNavigationEvent FSlateDebugging::ExecuteNavigationEvent;
 
 FSlateDebugging::FWidgetMouseCaptureEvent FSlateDebugging::MouseCaptureEvent;
 
@@ -134,9 +138,14 @@ void FSlateDebugging::BroadcastFocusReceived(const FFocusEvent& InFocusEvent, co
 	FocusEvent.Broadcast(FSlateDebuggingFocusEventArgs(ESlateDebuggingFocusEvent::FocusReceived, InFocusEvent, InOldFocusedWidgetPath, InOldFocusedWidget, InNewFocusedWidgetPath, InNewFocusedWidget));
 }
 
-void FSlateDebugging::BroadcastAttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget)
+void FSlateDebugging::BroadcastAttemptNavigation(const FNavigationEvent& InNavigationEvent, const FNavigationReply& InNavigationReply, const FWidgetPath& InNavigationSource, const TSharedPtr<SWidget>& InDestinationWidget, ESlateDebuggingNavigationMethod InNavigationMethod)
 {
-	NavigationEvent.Broadcast(FSlateDebuggingNavigationEventArgs(InNavigationEvent, InNavigationReply, InNavigationSource, InDestinationWidget));
+	AttemptNavigationEvent.Broadcast(FSlateDebuggingNavigationEventArgs(InNavigationEvent, InNavigationReply, InNavigationSource, InDestinationWidget, InNavigationMethod));
+}
+
+void FSlateDebugging::BroadcastExecuteNavigation()
+{
+	ExecuteNavigationEvent.Broadcast(FSlateDebuggingExecuteNavigationEventArgs());
 }
 
 void FSlateDebugging::BroadcastMouseCapture(uint32 UserIndex, uint32 PointerIndex, const TSharedPtr<SWidget>& InCapturingWidget)
