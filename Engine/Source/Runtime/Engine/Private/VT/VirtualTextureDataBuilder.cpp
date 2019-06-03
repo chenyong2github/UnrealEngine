@@ -257,6 +257,7 @@ FVirtualTextureDataBuilder::FVirtualTextureDataBuilder(FVirtualTextureBuiltData 
 	, SizeInBlocksY(0)
 	, BlockSizeX(0)
 	, BlockSizeY(0)
+	, BlockSizeScale(1)
 	, SizeX(0)
 	, SizeY(0)
 {
@@ -277,6 +278,8 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 
 	SettingsPerLayer.AddUninitialized(NumLayers);
 	FMemory::Memcpy(&SettingsPerLayer[0], InSettingsPerLayer, sizeof(FTextureBuildSettings) * NumLayers);
+	const FTextureBuildSettings& BuildSettingsLayer0 = SettingsPerLayer[0];
+	const int32 TileSize = BuildSettingsLayer0.VirtualTextureTileSize;
 
 	BlockSizeX = InSourceData.BlockSizeX;
 	BlockSizeY = InSourceData.BlockSizeY;
@@ -301,17 +304,23 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 		break;
 	}
 
-	SizeInBlocksX = InSourceData.SizeInBlocksX;
-	SizeInBlocksY = InSourceData.SizeInBlocksY;
-	SizeX = BlockSizeX * SizeInBlocksX;
-	SizeY = BlockSizeY * SizeInBlocksY;
-
 	// We require VT blocks (UDIM pages) to be PoT, but multi block textures may have full logical dimension that's not PoT
 	check(FMath::IsPowerOfTwo(BlockSizeX));
 	check(FMath::IsPowerOfTwo(BlockSizeY));
 
-	const FTextureBuildSettings& BuildSettingsLayer0 = SettingsPerLayer[0];
-	const int32 TileSize = BuildSettingsLayer0.VirtualTextureTileSize;
+	// Ensure block size is at least 1 tile, while preserving aspect ratio
+	BlockSizeScale = 1;
+	while (BlockSizeX < TileSize || BlockSizeY < TileSize)
+	{
+		BlockSizeX *= 2;
+		BlockSizeY *= 2;
+		BlockSizeScale *= 2;
+	}
+
+	SizeInBlocksX = InSourceData.SizeInBlocksX;
+	SizeInBlocksY = InSourceData.SizeInBlocksY;
+	SizeX = BlockSizeX * SizeInBlocksX;
+	SizeY = BlockSizeY * SizeInBlocksY;
 
 	//NOTE: OutData may point to a previously build data so it is important to
 	//properly initialize all fields and not assume this is a freshly constructed object
@@ -870,14 +879,39 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 
 			// Use the texture compressor module to do all the hard work
 			TArray<FCompressedImage2D> CompressedMips;
-			if (!Compressor->BuildTexture(SourceMips, *CompositeSourceMips, TBSettings, CompressedMips))
+			bool bBuildTextureResult = false;
+			if (BlockSizeScale == 1)
 			{
-				check(false);
+				bBuildTextureResult = Compressor->BuildTexture(SourceMips, *CompositeSourceMips, TBSettings, CompressedMips);
 			}
+			else
+			{
+				TArray<FImage> ScaledSourceMips;
+				TArray<FImage> ScaledCompositeMips;
+				ScaledSourceMips.Reserve(SourceMips.Num());
+				ScaledCompositeMips.Reserve(CompositeSourceMips->Num());
+				for (const FImage& SrcMip : SourceMips)
+				{
+					FImage* ScaledMip = new(ScaledSourceMips) FImage;
+					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * BlockSizeScale, SrcMip.SizeY * BlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
+				}
+
+				for (const FImage& SrcMip : *CompositeSourceMips)
+				{
+					FImage* ScaledMip = new(ScaledCompositeMips) FImage;
+					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * BlockSizeScale, SrcMip.SizeY * BlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
+				}
+
+				bBuildTextureResult = Compressor->BuildTexture(ScaledSourceMips, ScaledCompositeMips, TBSettings, CompressedMips);
+			}
+
+			check(bBuildTextureResult);
 
 			// Get size of block from Compressor output, since it may have been padded/adjusted
 			BlockData.SizeX = CompressedMips[0].SizeX;
 			BlockData.SizeY = CompressedMips[0].SizeY;
+			check(BlockData.SizeX << BlockData.MipBias == BlockSizeX);
+			check(BlockData.SizeY << BlockData.MipBias == BlockSizeY);
 
 			const uint32 BlockSize = FMath::Max(BlockData.SizeX, BlockData.SizeY);
 			if (NumBlocks == 1u)

@@ -89,6 +89,7 @@ private:
 	int32 SizeInBlocksY;
 	int32 BlockSizeX;
 	int32 BlockSizeY;
+	int32 BlockSizeScale;
 	int32 SizeX;
 	int32 SizeY;
 
