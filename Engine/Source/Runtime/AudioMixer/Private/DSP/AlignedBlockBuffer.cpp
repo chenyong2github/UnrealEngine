@@ -6,18 +6,19 @@
 
 using namespace Audio;
 
-FAlignedBlockBuffer::FAlignedBlockBuffer(int32 InSampleCapacity, int32 InMaxNumInspectSamples, uint32 InByteAlignment)
-:	ByteAlignment(InByteAlignment),
-	FloatAlignment(0),
-	InternalBuffer(nullptr),
-	RolloverBuffer(nullptr),
-	ReadPointer(nullptr),
-	WritePointer(nullptr),
-	SampleCapacity(InSampleCapacity),
-	MaxNumInspectSamples(InMaxNumInspectSamples),
-	WriteCount(0),
-	WritePos(0),
-	ReadPos(0)
+FAlignedBlockBuffer::FAlignedBlockBuffer(int32 InSampleCapacity, int32 InMaxNumInspectSamples, uint32 InByteAlignment, uint32 InAllocByteAlignment)
+	:	AllocByteAlignment(InAllocByteAlignment)
+	,	ByteAlignment(InByteAlignment)
+	,	FloatAlignment(0)
+	,	InternalBuffer(nullptr)
+	,	RolloverBuffer(nullptr)
+	,	ReadPointer(nullptr)
+	,	WritePointer(nullptr)
+	,	SampleCapacity(InSampleCapacity)
+	,	MaxNumInspectSamples(InMaxNumInspectSamples)
+	,	WriteCount(0)
+	,	WritePos(0)
+	,	ReadPos(0)
 {
 	FloatAlignment = ByteAlignment / sizeof(float);
 
@@ -297,7 +298,7 @@ void FAlignedBlockBuffer::SetMaxNumInspectSamples(int32 InMax)
 float* FAlignedBlockBuffer::AllocateAlignedFloatArray(int32 InNum) const 
 {
 	int32 Size = InNum * sizeof(float);
-	return (float*)FMemory::Malloc(Size, ByteAlignment);
+	return (float*)FMemory::Malloc(Size, AllocByteAlignment);
 }
 
 void FAlignedBlockBuffer::FreeFloatArray(float*& Array) const
