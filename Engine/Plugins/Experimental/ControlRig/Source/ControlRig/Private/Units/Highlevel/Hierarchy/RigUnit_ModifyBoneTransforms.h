@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Units/RigUnit.h"
+#include "Units/Highlevel/RigUnit_HighlevelBase.h"
 #include "RigUnit_ModifyBoneTransforms.generated.h"
 
 UENUM()
@@ -58,7 +59,7 @@ struct FRigUnit_ModifyBoneTransforms_PerBone
  * SetBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
 USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
-struct FRigUnit_ModifyBoneTransforms : public FRigUnitMutable
+struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
 
