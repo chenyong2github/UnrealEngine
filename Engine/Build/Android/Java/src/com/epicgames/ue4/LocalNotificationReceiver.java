@@ -91,7 +91,11 @@ public class LocalNotificationReceiver extends BroadcastReceiver
 
 	public static int getNotificationIconID(Context context)
 	{
-		int notificationIconID = context.getResources().getIdentifier("ic_notification", "drawable", context.getPackageName());
+		int notificationIconID = context.getResources().getIdentifier("ic_notification_simple", "drawable", context.getPackageName());
+		if (notificationIconID == 0)
+		{
+			notificationIconID = context.getResources().getIdentifier("ic_notification", "drawable", context.getPackageName());
+		}
 		if (notificationIconID == 0)
 		{
 			notificationIconID = context.getResources().getIdentifier("icon", "drawable", context.getPackageName());
