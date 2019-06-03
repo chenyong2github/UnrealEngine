@@ -616,6 +616,7 @@ namespace UnrealBuildTool
 
 				// Find all the modules
 				ModuleRulesContext PluginModuleContext = new ModuleRulesContext(Scope, PluginFileName.Directory);
+				PluginModuleContext.bClassifyAsGameModuleForUHT = !bContainsEngineModules;
 				FindModuleRulesForPlugins(ForeignPlugins, PluginModuleContext, ModuleFiles);
 
 				// Compile the assembly
