@@ -1239,13 +1239,14 @@ bool ULandscapeHeightfieldCollisionComponent::RecreateCollision()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+#if WITH_EDITOR
 		uint32 NewHash = ComputeCollisionHash();
 		if (bPhysicsStateCreated && NewHash == CollisionHash && CollisionHash != 0 && bEnableCollisionHashOptim)
 		{
 			return false;
 		}
 		CollisionHash = NewHash;
-
+#endif
 		HeightfieldRef = NULL;
 		HeightfieldGuid = FGuid();
 
