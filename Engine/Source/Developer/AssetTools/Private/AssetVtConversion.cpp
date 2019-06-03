@@ -169,9 +169,11 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 
 		if (bIsVirtualTextureValid)
 		{
-			// if this is an engine texture, we'll make a copy and update any needed references to point to the new copy
+			// If this is an engine texture, we'll make a copy and update any needed references to point to the new copy
 			// since we're not changing the original texture, we don't need to bring in any additional dependencies
-			if (!Tex2D->GetPathName().StartsWith("/Engine/"))
+			// Non-power-2 textures won't convert to VT, don't bring any dependencies for them
+			if (!Tex2D->GetPathName().StartsWith("/Engine/") &&
+				(Tex2D->Source.IsPowerOfTwo() || Tex2D->PowerOfTwoMode != ETexturePowerOfTwoSetting::None))
 			{
 				// Also get any preview materials that reference the given texture
 				// We need to convert these to ensure any active material editors remain valid

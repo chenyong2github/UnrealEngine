@@ -197,6 +197,7 @@ struct FConversionStatus
 {
 	bool UserSelected = true; // Originally selected by the user
 	bool UnderSized = false; // Too small to convert according to user settings
+	bool NonPowerOf2 = false; // Not a power of 2, can't convert
 	bool InvalidMaterialUsage = false;
 };
 
@@ -427,6 +428,11 @@ private:
 				SeverityIcon = "MessageLog.Error";
 				DetailedInfoText = LOCTEXT("ConvertToVT_ToolTip_InvalidUsage", "The texture could not be converted to VT due to its usage in materials (may be connected to a property that doesn't support VT).");
 			}
+			else if (Status.NonPowerOf2)
+			{
+				SeverityIcon = "MessageLog.Error";
+				DetailedInfoText = LOCTEXT("ConvertToVT_ToolTip_NonPowerOf2", "The texture could not be converted to VT because its size is not a power of 2.");
+			}
 			else if (bEngineAsset)
 			{
 				SeverityIcon = "MessageLog.Note";
@@ -444,6 +450,11 @@ private:
 			{
 				SeverityIcon = "MessageLog.Warning";
 				DetailedInfoText = LOCTEXT("ConvertToVT_ToolTip_InvalidUsageNotSelected", "The texture could not be converted to VT due to its usage in materials (may be connected to a property that doesn't support VT).");
+			}
+			else if (Status.NonPowerOf2)
+			{
+				SeverityIcon = "MessageLog.Warning";
+				DetailedInfoText = LOCTEXT("ConvertToVT_ToolTip_NonPowerOf2NotSelected", "The texture could not be converted to VT because its size is not a power of 2.");
 			}
 			else if (bEngineAsset)
 			{
@@ -646,6 +657,7 @@ private:
 			FConversionStatus* Status = new(AssetStatus) FConversionStatus();
 			Status->UserSelected = Worker.UserTextures.Contains(Texture);
 			Status->UnderSized = (Texture->GetSizeX()*Texture->GetSizeY() < ThresholdValue*ThresholdValue);
+			Status->NonPowerOf2 = !Texture->Source.IsPowerOfTwo() && Texture->PowerOfTwoMode == ETexturePowerOfTwoSetting::None;
 		}
 
 		for (UTexture2D *Texture : Worker.MaterialRejectedTextures)
@@ -654,6 +666,7 @@ private:
 			FConversionStatus* Status = new(AssetStatus) FConversionStatus();
 			Status->UserSelected = Worker.UserTextures.Contains(Texture);
 			Status->UnderSized = (Texture->GetSizeX()*Texture->GetSizeY() < ThresholdValue*ThresholdValue);
+			Status->NonPowerOf2 = !Texture->Source.IsPowerOfTwo() && Texture->PowerOfTwoMode == ETexturePowerOfTwoSetting::None;
 			Status->InvalidMaterialUsage = true;
 		}
 
