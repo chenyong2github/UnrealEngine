@@ -28,6 +28,7 @@ protected:
 private:
 	void OnVoiceChatConnectComplete(const FVoiceChatResult& Result);
 	void OnVoiceChatDisconnectComplete(const FVoiceChatResult& Result);
+	void OnVoiceChatDelayedDisconnectComplete(const FVoiceChatResult& Result);
 
 	void HandleApplicationWillEnterBackground();
 	void HandleApplicationHasEnteredForeground();
@@ -43,4 +44,7 @@ private:
 	bool bShouldReconnect;
 
 	bool bIsRecording;
+
+	float BackgroundDelayedDisconnectTime;
+	NSTimer* DelayedDisconnectTimer;
 };
