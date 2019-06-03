@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 /**
  * A configuration class used by the UAnimationBlueprint Editor to save editor
  * settings across sessions.
