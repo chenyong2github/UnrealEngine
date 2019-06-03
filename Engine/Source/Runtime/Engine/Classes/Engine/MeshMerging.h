@@ -425,7 +425,7 @@ struct FMeshMergingSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Target lightmap resolution */
+	/** The lightmap resolution used both for generating lightmap UV coordinates, and also set on the generated static mesh */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = MeshSettings, meta=(ClampMax = 4096, EditCondition = "!bComputedLightMapResolution", DisplayAfter="bGenerateLightMapUV"))
 	int32 TargetLightMapResolution;
 
@@ -445,6 +445,7 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, Category = MeshSettings, BlueprintReadWrite, meta = (DisplayAfter="LODSelectionType", ClampMin = "0", ClampMax = "7", UIMin = "0", UIMax = "7", EnumCondition = 1))
 	int32 SpecificLOD;
 
+	/** Which selection mode should be used when generating the merged static mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings, meta = (DisplayAfter="bBakeVertexDataToMesh"))
 	EMeshLODSelectionType LODSelectionType;
 
@@ -492,6 +493,7 @@ struct FMeshMergingSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = LandscapeCulling)
 	uint8 bUseLandscapeCulling:1;
 
+	/** Whether or not to include any imposter LODs that are part of the source static meshes */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = MeshSettings)
 	uint8 bIncludeImposters:1;
 
