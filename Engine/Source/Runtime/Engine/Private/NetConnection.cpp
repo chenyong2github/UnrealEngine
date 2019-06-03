@@ -172,6 +172,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 ,	PlayerOnlinePlatformName( NAME_None )
 ,	ClientWorldPackageName( NAME_None )
 ,	LastNotifiedPacketId( -1 )
+,	OutTotalNotifiedPackets(0)
 ,	HasDirtyAcks(0u)
 ,	bHasWarnedAboutChannelLimit(false)
 ,	bConnectionPendingCloseDueToSocketSendFailure(false)
@@ -1769,6 +1770,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 		{
 			// Increase LastNotifiedPacketId, this is a full packet Id
 			++LastNotifiedPacketId;
+			++OutTotalNotifiedPackets;
+			Driver->IncreaseOutTotalNotifiedPackets();
 
 			// Sanity check
 			if (FNetPacketNotify::SequenceNumberT(LastNotifiedPacketId) != AckedSequence)

@@ -1142,6 +1142,11 @@ public:
 	 * @param bWasSaturated		True if we failed to replicate all data because we were saturated.
 	 */
 	ENGINE_API void TrackReplicationForAnalytics(const bool bWasSaturated);
+
+	/**
+	 * Get the current number of sent packets for which we have received a delivery notification
+	 */
+	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
 	
 protected:
 
@@ -1224,6 +1229,9 @@ private:
 
 	/** Full PacketId  of last sent packet that we have received notification for (i.e. we know if it was delivered or not). Related to OutAckPacketId which is tha last successfully delivered PacketId */
 	int32 LastNotifiedPacketId;
+
+	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
+	uint32 OutTotalNotifiedPackets;
 
 	/** Keep old behavior where we send a packet with only acks even if we have no other outgoing data if we got incoming data */
 	uint32 HasDirtyAcks;
