@@ -5,21 +5,21 @@
 #include "CoreMinimal.h"
 #include "Materials/MaterialExpression.h"
 #include "UObject/ObjectMacros.h"
-#include "MaterialExpressionRuntimeVirtualTextureReplace.generated.h"
+#include "MaterialExpressionVirtualTextureFeatureSwitch.generated.h"
 
-/** Material output expression to switch logic for a path that renders to runtime virtual texture pages. */
+/** Material output expression to switch logic according to whether virtual texturing is supported on this project, platform and feature level. */
 UCLASS(collapsecategories, hidecategories = Object)
-class UMaterialExpressionRuntimeVirtualTextureReplace : public UMaterialExpression
+class UMaterialExpressionVirtualTextureFeatureSwitch : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
 
-	/** Used by the default rendering passes. */
+	/** Used if virtual texture is not supported. */
 	UPROPERTY()
-	FExpressionInput Default;
+	FExpressionInput No;
 
-	/** Used by the pass that renders to a runtime virtual texture page. */
+	/** Used if virtual texture is supported. */
 	UPROPERTY()
-	FExpressionInput VirtualTextureOutput;
+	FExpressionInput Yes;
 
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
