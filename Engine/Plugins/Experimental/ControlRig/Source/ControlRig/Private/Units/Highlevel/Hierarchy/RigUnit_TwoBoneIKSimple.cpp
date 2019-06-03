@@ -83,15 +83,16 @@ void FRigUnit_TwoBoneIKSimple::Execute(const FRigUnitContext& Context)
 
 	if (Weight < 1.0f - SMALL_NUMBER)
 	{
-		TransformA = FControlRigMathLibrary::LerpTransform(Hierarchy->GetGlobalTransform(BoneAIndex), TransformA, Weight);
-		TransformB = FControlRigMathLibrary::LerpTransform(Hierarchy->GetGlobalTransform(BoneBIndex), TransformB, Weight);
-		TransformC = FControlRigMathLibrary::LerpTransform(Effector, TransformC, Weight);
+		FVector PositionB = TransformA.InverseTransformPosition(TransformB.GetLocation());
+		FVector PositionC = TransformB.InverseTransformPosition(TransformC.GetLocation());
+		TransformA.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(BoneAIndex).GetRotation(), TransformA.GetRotation(), Weight));
+		TransformB.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(BoneBIndex).GetRotation(), TransformB.GetRotation(), Weight));
+		TransformC.SetRotation(FQuat::Slerp(Hierarchy->GetGlobalTransform(EffectorBoneIndex).GetRotation(), TransformC.GetRotation(), Weight));
+		TransformB.SetLocation(TransformA.TransformPosition(PositionB));
+		TransformC.SetLocation(TransformB.TransformPosition(PositionC));
 	}
 
 	Hierarchy->SetGlobalTransform(BoneAIndex, TransformA, bPropagateToChildren);
 	Hierarchy->SetGlobalTransform(BoneBIndex, TransformB, bPropagateToChildren);
-	if (EffectorBoneIndex != INDEX_NONE)
-	{
-		Hierarchy->SetGlobalTransform(EffectorBoneIndex, TransformC, bPropagateToChildren);
-	}
+	Hierarchy->SetGlobalTransform(EffectorBoneIndex, TransformC, bPropagateToChildren);
 }
