@@ -159,6 +159,7 @@
 #include "Materials/MaterialExpressionRotator.h"
 #include "Materials/MaterialExpressionRound.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureOutput.h"
+#include "Materials/MaterialExpressionRuntimeVirtualTextureReplace.h"
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSample.h"
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSceneColor.h"
@@ -1874,16 +1875,16 @@ UMaterialExpressionRuntimeVirtualTextureOutput::UMaterialExpressionRuntimeVirtua
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Texture;
+		FText NAME_VirtualTexture;
 		FConstructorStatics()
-			: NAME_Texture(LOCTEXT("Texture", "Texture"))
+			: NAME_VirtualTexture(LOCTEXT("VirtualTexture", "VirtualTexture"))
 		{
 		}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Texture);
+	MenuCategories.Add(ConstructorStatics.NAME_VirtualTexture);
 #endif
 
 #if WITH_EDITOR
@@ -1956,16 +1957,16 @@ UMaterialExpressionRuntimeVirtualTextureSample::UMaterialExpressionRuntimeVirtua
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
-		FText NAME_Texture;
+		FText NAME_VirtualTexture;
 		FConstructorStatics()
-			: NAME_Texture(LOCTEXT("Texture", "Texture"))
+			: NAME_VirtualTexture(LOCTEXT("VirtualTexture", "VirtualTexture"))
 		{
 		}
 	};
 	static FConstructorStatics ConstructorStatics;
 
 #if WITH_EDITORONLY_DATA
-	MenuCategories.Add(ConstructorStatics.NAME_Texture);
+	MenuCategories.Add(ConstructorStatics.NAME_VirtualTexture);
 #endif
 
 #if WITH_EDITOR
@@ -2127,6 +2128,51 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 void UMaterialExpressionRuntimeVirtualTextureSample::GetCaption(TArray<FString>& OutCaptions) const
 {
 	OutCaptions.Add(FString(TEXT("Runtime Virtual Texture Sample")));
+}
+
+#endif // WITH_EDITOR
+
+UMaterialExpressionRuntimeVirtualTextureReplace::UMaterialExpressionRuntimeVirtualTextureReplace(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_VirtualTexture;
+		FConstructorStatics()
+			: NAME_VirtualTexture(LOCTEXT("VirtualTexture", "VirtualTexture"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_VirtualTexture);
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionRuntimeVirtualTextureReplace::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Default.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing RuntimeVirtualTextureReplace input 'Default'"));
+	}
+
+	if (!VirtualTextureOutput.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing RuntimeVirtualTextureReplace input 'VirtualTextureOutput'"));
+	}
+
+	int32 Arg1 = Default.Compile(Compiler);
+	int32 Arg2 = VirtualTextureOutput.Compile(Compiler);
+	return Compiler->VirtualTextureOutputReplace(Arg1, Arg2);
+}
+
+void UMaterialExpressionRuntimeVirtualTextureReplace::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("RuntimeVirtualTextureReplace"));
 }
 
 #endif // WITH_EDITOR

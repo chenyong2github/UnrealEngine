@@ -1587,6 +1587,17 @@ bool GetRayTracingQualitySwitch()
 #endif
 }
 
+// Used for the RuntimeVirtualTextureReplace material expression
+// Returns true if rendering to a runtime virtual texture page
+bool GetRuntimeVirtualTextureOutputSwitch()
+{
+#if VIRTUAL_TEXTURE_PAGE_RENDER
+	return true;
+#else
+	return false;
+#endif
+}
+
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 struct FWriteToSliceGeometryOutput
 {
