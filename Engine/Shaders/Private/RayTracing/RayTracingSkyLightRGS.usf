@@ -7,6 +7,7 @@
 #include "../QuasiRandom.ush"
 #include "SkyLightMipTreeCommon.ush"
 #include "RayTracingCommon.ush"
+#include "../SceneTextureParameters.ush"
 
 RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWOcclusionMaskUAV;
@@ -229,33 +230,33 @@ void SkyLightRGS()
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
-	float Depth = ScreenSpaceData.GBuffer.Depth;
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+	float Depth = GBufferData.Depth;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
 	float3 CameraOrigin = View.WorldCameraOrigin;
 	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
-	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
-	float3 Albedo = ScreenSpaceData.GBuffer.DiffuseColor;
+	float3 WorldNormal = GBufferData.WorldNormal;
+	float3 Albedo = GBufferData.DiffuseColor;
 
 	// Recalculate DiffuseColor if subsurface reverted the contribution within the G-Buffer
-	if (UseSubsurfaceProfile(GBuffer.ShadingModelID))
+	if (UseSubsurfaceProfile(GBufferData.ShadingModelID))
 	{
-		Albedo = ScreenSpaceData.GBuffer.StoredBaseColor - ScreenSpaceData.GBuffer.StoredBaseColor * ScreenSpaceData.GBuffer.Metallic;
-		ScreenSpaceData.GBuffer.DiffuseColor = Albedo;
+		Albedo = GBufferData.StoredBaseColor - GBufferData.StoredBaseColor * GBufferData.Metallic;
+		GBufferData.DiffuseColor = Albedo;
 	}
-	float3 SpecularColor = ScreenSpaceData.GBuffer.SpecularColor;
-	float Roughness = ScreenSpaceData.GBuffer.Roughness;
+	float3 SpecularColor = GBufferData.SpecularColor;
+	float Roughness = GBufferData.Roughness;
 
 	float RayDistance = 0.0;
 	float HitCount = 0.0;
 	uint SamplesPerPixel = SkyLight.SamplesPerPixel;
 
 	// Mask out depth values that are infinitely far away
-	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
 	bool bTraceRay = (
 		IsFiniteDepth &&
-		GBuffer.ShadingModelID != SHADINGMODELID_UNLIT);
+		GBufferData.ShadingModelID != SHADINGMODELID_UNLIT);
 	if (!bTraceRay)
 	{
 		SamplesPerPixel = 0.0;
@@ -335,7 +336,7 @@ void SkyLightRGS()
 			half3 L = Ray.Direction;
 			float NoL = dot(WorldNormal, Ray.Direction);
 			FShadowTerms ShadowTerms = { 0.0, 0.0, 0.0 };
-			FDirectLighting LightingSample = EvaluateBxDF(ScreenSpaceData.GBuffer, N, V, L, NoL, ShadowTerms);
+			FDirectLighting LightingSample = EvaluateBxDF(GBufferData, N, V, L, NoL, ShadowTerms);
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;
 
 			float3 IncomingRadiance = EvalSkyLight(Ray.Direction);

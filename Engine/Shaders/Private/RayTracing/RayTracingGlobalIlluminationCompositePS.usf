@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../SceneTextureParameters.ush"
 
 Texture2D<float4> GlobalIlluminationTexture;
 SamplerState GlobalIlluminationSampler;
@@ -12,11 +13,11 @@ void GlobalIlluminationCompositePS(
 	out float OutAmbientOcclusion : SV_Target1
 )
 {
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	float3 DiffuseColor = ScreenSpaceData.GBuffer.DiffuseColor;
-	if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+	float3 DiffuseColor = GBufferData.DiffuseColor;
+	if (UseSubsurfaceProfile(GBufferData.ShadingModelID))
 	{
-		DiffuseColor = ScreenSpaceData.GBuffer.StoredBaseColor;
+		DiffuseColor = GBufferData.StoredBaseColor;
 	}
 	float4 GlobalIllumination = GlobalIlluminationTexture.Sample(GlobalIlluminationSampler, UV);
 	// Apply albedo after denoising

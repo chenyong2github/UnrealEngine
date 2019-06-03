@@ -682,6 +682,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(FRHI
 
 				RenderRayTracingReflections(
 					GraphBuilder,
+					SceneTextures,
 					View,
 					RayTracingConfig.RayCountPerPixel, GRayTracingReflectionsHeightFog, RayTracingConfig.ResolutionFraction,
 					&DenoiserInputs);

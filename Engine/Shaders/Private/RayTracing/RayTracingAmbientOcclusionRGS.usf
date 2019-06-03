@@ -3,6 +3,7 @@
 #include "../Common.ush"
 #include "../Montecarlo.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../SceneTextureParameters.ush"
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "RayTracingCommon.ush"
 
@@ -52,10 +53,10 @@ void AmbientOcclusionRGS()
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	float Depth = ScreenSpaceData.GBuffer.Depth;
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);	
+	float Depth = GBufferData.Depth;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
+	float3 WorldNormal = GBufferData.WorldNormal;
 
 	float RayCount = 0.0;
 	float Visibility = 0.0;
@@ -65,11 +66,9 @@ void AmbientOcclusionRGS()
 	uint SamplesPerPixelLocal = SamplesPerPixel;
 	
 	// Mask out depth values beyond far plane
-	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
-	bool bTraceRay = (
-		IsFiniteDepth &&
-		ScreenSpaceData.GBuffer.ShadingModelID != SHADINGMODELID_UNLIT);
+	bool bTraceRay = (IsFiniteDepth && GBufferData.ShadingModelID != SHADINGMODELID_UNLIT);
 	if (!bTraceRay)
 	{
 		Visibility = 1.0;

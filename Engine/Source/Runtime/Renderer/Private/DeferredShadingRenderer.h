@@ -464,6 +464,7 @@ private:
 
 	void RenderRayTracingReflections(
 		FRDGBuilder& GraphBuilder,
+		const FSceneTextureParameters& SceneTextures,
 		const FViewInfo& View,
 		int32 SamplePerPixel,
 		int32 HeightFog,
