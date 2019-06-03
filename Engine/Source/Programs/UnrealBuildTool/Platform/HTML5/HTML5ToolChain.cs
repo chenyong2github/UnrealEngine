@@ -204,6 +204,7 @@ namespace UnrealBuildTool
 
 			// THESE ARE TEST/DEBUGGING -- TRY NOT TO USE THESE
 //			Environment.SetEnvironmentVariable("EMCC_DEBUG", "1"); // NOTE: try to use -v instead of EMCC_DEBUG
+//			Environment.SetEnvironmentVariable("EMCC_DEBUG_SAVE", "1"); // very useful for compiler bughunts
 //			Environment.SetEnvironmentVariable("EMCC_CORES", "8");
 //			Environment.SetEnvironmentVariable("EMCC_OPTIMIZE_NORMALLY", "1");
 
@@ -632,6 +633,11 @@ namespace UnrealBuildTool
 
 			FileReference ResponseFileName = GetResponseFileName(LinkEnvironment, OutputFile);
 
+			// this is needed when using EMCC_DEBUG_SAVE
+			if (!FileReference.Exists(ResponseFileName))
+			{
+				DirectoryReference.CreateDirectory(ResponseFileName.Directory);
+			}
 			FileItem ResponseFileItem = FileItem.CreateIntermediateTextFile(ResponseFileName, ReponseLines);
 
 			LinkAction.CommandArguments += string.Format(" @\"{0}\"", ResponseFileName);

@@ -1413,7 +1413,10 @@ class Building(object):
   @staticmethod
   def get_multiprocessing_pool():
     if not Building.multiprocessing_pool:
-      cores = Building.get_num_cores()
+# EPIC EDIT start -- nick.shin 2019-05-29 -- UE-75306
+#      cores = Building.get_num_cores()
+      cores = 1
+# EPIC EDIT end -- nick.shin 2019-05-29 -- UE-75306
       if DEBUG:
         # When in EMCC_DEBUG mode, only use a single core in the pool, so that
         # logging is not all jumbled up.
@@ -1717,7 +1720,14 @@ class Building(object):
 
       for i, file in enumerate(files):
         if object_contents[i].returncode != 0:
-          logger.debug('llvm-nm failed on file ' + file + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
+# EPIC EDIT start -- nick.shin 2019-05-29 -- UE-75306
+# epic builds normally have ALL symbols accounted for...
+# even when using -s ERROR_ON_UNDEFINED_SYMBOLS=1 -- emscripten will sometimes not show what's missing
+# changing this to error will help show those missing symbols...
+# this has uncovered a possible race condition in get_multiprocessing_pool() above
+#          logger.debug('llvm-nm failed on file ' + file + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
+          logger.error('llvm-nm failed on file ' + file + ': return code ' + str(object_contents[i].returncode) + ', error: ' + object_contents[i].output)
+# EPIC EDIT end -- nick.shin 2019-05-29 -- UE-75306
         Building.uninternal_nm_cache[file] = object_contents[i]
       return object_contents
 
