@@ -1266,17 +1266,28 @@ void UTexture::GetLayerFormatSettings(int32 LayerIndex, FTextureFormatSettings& 
 void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSettings& InSettings)
 {
 	check(LayerIndex >= 0);
-	if (LayerIndex >= LayerFormatSettings.Num())
+	if (LayerIndex == 0 && LayerFormatSettings.Num() == 0)
 	{
-		FTextureFormatSettings DefaultSettings;
-		GetDefaultFormatSettings(DefaultSettings);
-		LayerFormatSettings.Reserve(LayerIndex + 1);
-		while (LayerIndex >= LayerFormatSettings.Num())
-		{
-			LayerFormatSettings.Add(DefaultSettings);
-		}
+		// Apply layer0 settings directly to texture properties
+		CompressionSettings = InSettings.CompressionSettings;
+		CompressionNone = InSettings.CompressionNone;
+		CompressionNoAlpha = InSettings.CompressionNoAlpha;
+		SRGB = InSettings.SRGB;
 	}
-	LayerFormatSettings[LayerIndex] = InSettings;
+	else
+	{
+		if (LayerIndex >= LayerFormatSettings.Num())
+		{
+			FTextureFormatSettings DefaultSettings;
+			GetDefaultFormatSettings(DefaultSettings);
+			LayerFormatSettings.Reserve(LayerIndex + 1);
+			while (LayerIndex >= LayerFormatSettings.Num())
+			{
+				LayerFormatSettings.Add(DefaultSettings);
+			}
+		}
+		LayerFormatSettings[LayerIndex] = InSettings;
+	}
 }
 
 #endif // #if WITH_EDITOR
