@@ -60,6 +60,7 @@ ADebugCameraController::ADebugCameraController(const FObjectInitializer& ObjectI
 	bEnableBufferVisualization = false;
 	bEnableBufferVisualizationFullMode = false;
 	bIsBufferVisualizationInputSetup = false;
+	bLastDisplayEnabled = true;
 	LastViewModeIndex = VMI_Lit;
 	LastViewModeSettingsIndex = 0;
 }
