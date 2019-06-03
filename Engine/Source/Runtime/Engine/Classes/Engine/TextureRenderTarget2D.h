@@ -107,10 +107,6 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TextureRenderTarget2D, meta=(DisplayName = "Shared"), AssetRegistrySearchable, AdvancedDisplay)
 	uint8 bGPUSharedFlag : 1;
 
-	/** Whether to support Mip maps for this render target texture */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=TextureRenderTarget2D, AssetRegistrySearchable)
-	uint8 bAutoGenerateMips:1;
-
 	/** 
 	 * Format of the texture render target. 
 	 * Data written to the render target will be quantized to this format, which can limit the range and precision.
@@ -119,6 +115,22 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=TextureRenderTarget2D, AssetRegistrySearchable)
 	TEnumAsByte<enum ETextureRenderTargetFormat> RenderTargetFormat;
+
+	/** Whether to support Mip maps for this render target texture */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TextureRenderTarget2D, AssetRegistrySearchable)
+	uint8 bAutoGenerateMips : 1;
+
+	/** Sampler filter type for AutoGenerateMips. Defaults to match texture filter. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TextureRenderTarget2D, AssetRegistrySearchable, meta = (editcondition = "bAutoGenerateMips"))
+	TEnumAsByte<enum TextureFilter> MipsSamplerFilter;
+
+	/**  AutoGenerateMips sampler address mode for U channel. Defaults to clamp. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TextureRenderTarget2D, AssetRegistrySearchable, meta = (editcondition = "bAutoGenerateMips"))
+	TEnumAsByte<enum TextureAddress> MipsAddressU;
+
+	/**  AutoGenerateMips sampler address mode for V channel. Defaults to clamp. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TextureRenderTarget2D, AssetRegistrySearchable, meta = (editcondition = "bAutoGenerateMips"))
+	TEnumAsByte<enum TextureAddress> MipsAddressV;
 
 	/** Normally the format is derived from RenderTargetFormat, this allows code to set the format explicitly. */
 	UPROPERTY()

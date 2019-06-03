@@ -23,7 +23,6 @@
 #include "Widgets/SViewport.h"
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Input/HittestGrid.h"
-#include "Framework/Application/HardwareCursor.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 #include "Framework/Application/IWidgetReflector.h"

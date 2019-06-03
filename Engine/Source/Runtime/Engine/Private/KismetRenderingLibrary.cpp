@@ -146,10 +146,11 @@ void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextOb
 		RenderCanvas.Flush_GameThread();
 		Canvas->Canvas = NULL;
 
+		//UpdateResourceImmediate must be called here to ensure mips are generated.
+		TextureRenderTarget->UpdateResourceImmediate(false);
 		ENQUEUE_RENDER_COMMAND(CanvasRenderTargetResolveCommand)(
-			[RenderTargetResource, DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
+			[DrawMaterialToTargetEvent](FRHICommandList& RHICmdList)
 			{
-				RHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RenderTargetResource->TextureRHI, FResolveParams());
 				STOP_DRAW_EVENT((*DrawMaterialToTargetEvent));
 				delete DrawMaterialToTargetEvent;
 			}

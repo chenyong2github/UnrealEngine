@@ -202,6 +202,9 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderClass* Sha
 		checkSlow(GraphTexture);
 		RHICmdList.SetShaderTexture(ShadeRHI, ParameterBinding.BaseIndex, GraphTexture->GetRHITexture());
 	}
+	
+	// UAVs for compute shaders
+	SetShaderUAVs(RHICmdList, Shader, ShadeRHI, Parameters);	//HACKHACK: Bind UAVs before SRVs as a workaround for D3D11 RHI unbinding SRVs when binding a UAV on the same resource even when the views don't overlap.
 
 	// Graph SRVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.GraphSRVs)
@@ -224,9 +227,6 @@ inline void SetShaderParameters(TRHICmdList& RHICmdList, const TShaderClass* Sha
 		checkSlow(GraphSRV);
 		RHICmdList.SetShaderResourceViewParameter(ShadeRHI, ParameterBinding.BaseIndex, GraphSRV->CachedRHI.SRV);
 	}
-
-	// Graph UAVs for compute shaders
-	SetShaderUAVs(RHICmdList, Shader, ShadeRHI, Parameters);
 
 	// Reference structures
 	for (const FShaderParameterBindings::FParameterStructReference& ParameterBinding : Bindings.ParameterReferences)
