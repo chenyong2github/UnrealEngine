@@ -254,7 +254,7 @@ FNiagaraSpriteUniformBufferRef FNiagaraRendererSprites::CreatePerViewUniformBuff
 	PerViewUniformParameters.RotationDataOffset = RotationOffset;
 	PerViewUniformParameters.SizeDataOffset = SizeOffset;
 	PerViewUniformParameters.ColorDataOffset = ColorOffset;
-	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
+	//PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 	PerViewUniformParameters.MaterialParamDataOffset = MaterialParamOffset;
 	PerViewUniformParameters.MaterialParam1DataOffset = MaterialParamOffset1;
 	PerViewUniformParameters.MaterialParam2DataOffset = MaterialParamOffset2;
