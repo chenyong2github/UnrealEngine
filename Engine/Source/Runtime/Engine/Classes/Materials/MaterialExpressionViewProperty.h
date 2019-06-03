@@ -31,6 +31,10 @@ enum EMaterialExposedViewProperty
 	MEVP_TemporalSampleIndex UMETA(DisplayName = "Temporal Sample Index"),
 	/** Offset of the temporal sample for this frame in pixel size. */
 	MEVP_TemporalSampleOffset UMETA(DisplayName = "Temporal Sample Offset"),
+	/** Mip Level that Runtime Virtual Texture Output is rendering to. */
+	MEVP_RuntimeVirtualTextureOutputLevel UMETA(DisplayName = "Virtual Texture Output Level"),
+	/** World space derivatives for Runtime Virtual Texture Output. */
+	MEVP_RuntimeVirtualTextureOutputDerivative UMETA(DisplayName = "Virtual Texture Output Derivative"),
 
 	MEVP_MAX,
 };
