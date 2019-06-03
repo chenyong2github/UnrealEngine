@@ -2,14 +2,12 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-
 /**
  * Describes a type comparable with another type.
  */
 struct CEqualityComparableWith {
-	template <typename T>
-	auto Requires(bool& Result, const T& A, const T& B) -> decltype(
+	template <typename T, typename U>
+	auto Requires(bool& Result, const T& A, const U& B) -> decltype(
 		Result = A == B,
 		Result = B == A,
 		Result = A != B,
