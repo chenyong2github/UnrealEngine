@@ -1864,30 +1864,23 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			// Determine LOD to use for merging, either user specified or calculated index and ensure we clamp to the maximum LOD index for this adapter 
 			const int32 LODIndex = [&]()
 			{
+				int32 LowestDetailLOD = Adapter.GetNumberOfLODs() - 1;
+				if (Component->bUseMaxLODAsImposter && !InSettings.bIncludeImposters)
+				{
+					LowestDetailLOD = FMath::Max(0, LowestDetailLOD - 1);
+				}
+
 				switch (InSettings.LODSelectionType)
 				{
 				case EMeshLODSelectionType::SpecificLOD:
-					return FMath::Min(Adapter.GetNumberOfLODs() - 1, InSettings.SpecificLOD);
+					return FMath::Min(LowestDetailLOD, InSettings.SpecificLOD);
+
 				case EMeshLODSelectionType::CalculateLOD:
-				  {
-					  int32 Min = Adapter.GetNumberOfLODs() - 1;
-					  if (Component->bUseMaxLODAsImposter && !InSettings.bIncludeImposters)
-					  {
-						  Min = FMath::Max(0, Min - 1);
-					  }
-					  return FMath::Min(Min, Utilities->GetLODLevelForScreenSize(Component, FMath::Clamp(ScreenSize, 0.0f, 1.0f)));
-				  }
-					
-				default:
+					return FMath::Min(LowestDetailLOD, Utilities->GetLODLevelForScreenSize(Component, FMath::Clamp(ScreenSize, 0.0f, 1.0f)));
+
 				case EMeshLODSelectionType::LowestDetailLOD:
-				  {
-					  if (Component->bUseMaxLODAsImposter && (!InSettings.bIncludeImposters))
-					  {						
-						  return FMath::Max(0, Adapter.GetNumberOfLODs() - 2);											
-					  }
-  
-					  return Adapter.GetNumberOfLODs() - 1;
-				  }					
+				default:
+					return LowestDetailLOD;
 				}
 			}();
 
@@ -2607,6 +2600,12 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		OutAssetsToSync.Add(StaticMesh);
 		OutMergedActorLocation = MergedAssetPivot;
 	}
+}
+
+void FMeshMergeUtilities::ExtractImposterToRawMesh(const UStaticMeshComponent* InImposterComponent, FMeshDescription& InImposterMesh) const
+{
+	check(InImposterComponent->bUseMaxLODAsImposter);
+	FMeshMergeHelpers::ExtractImposterToRawMesh(InImposterComponent, InImposterMesh);
 }
 
 void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTracker, const FMeshMergingSettings& InSettings, const TArray<UStaticMeshComponent*>& InStaticMeshComponentsToMerge, const TArray<UMaterialInterface*>& InUniqueMaterials, const TMap<UMaterialInterface*, UMaterialInterface*>& InCollapsedMaterialMap, const TMultiMap<FMeshLODKey, MaterialRemapPair>& InOutputMaterialsMap, bool bInMergeAllLODs, bool bInMergeMaterialData, const FVector& InMergedAssetPivot, TArray<FMeshDescription>& OutMergedRawMeshes) const
