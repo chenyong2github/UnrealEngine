@@ -44,6 +44,10 @@ private:
 	TOptional<int32> GetIntOptionValue() const;
 	void IntOptionValueCommitted(int32 Value, ETextCommit::Type CommitInfo);
 
+	// parameter name option function
+	FText GetParameterNameText() const;
+	void OnParameterNameCommited(const FText& InText, ETextCommit::Type InCommitType);
+
 	TWeakObjectPtr<class UNiagaraNodeStaticSwitch> Node;
 	TArray<TSharedPtr<SwitchDropdownOption>> DropdownOptions;
 	TSharedPtr<SwitchDropdownOption> SelectedDropdownItem;
