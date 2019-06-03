@@ -112,6 +112,9 @@ struct FAdditiveInstance
 
 	/** Actor used for playing the additive animation */
 	FAdditiveAnimationInstance* AdditiveAnimationInstance;
+
+	/** Index into Components array for the current state data which is used for playing the animation*/
+	uint32 UsedPerStateComponentIndex;
 };
 
 /** Structure which holds data about a unique state which is linked to an enumeration value defined by the user. The data is populated from the user exposed FAnimationStateEntry */
