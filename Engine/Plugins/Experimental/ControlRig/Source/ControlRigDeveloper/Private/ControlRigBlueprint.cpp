@@ -3,6 +3,7 @@
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "EdGraph/EdGraph.h"
+#include "EdGraphNode_Comment.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/SkeletalMesh.h"
 #include "BlueprintActionDatabaseRegistrar.h"
@@ -181,6 +182,12 @@ void UControlRigBlueprint::PopulateModelFromGraph(const UControlRigGraph* InGrap
 					}
 				}
 			}
+			else if (const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+			{
+				FVector2D NodePosition = FVector2D((float)CommentNode->NodePosX, (float)CommentNode->NodePosY);
+				FVector2D NodeSize = FVector2D((float)CommentNode->NodeWidth, (float)CommentNode->NodeHeight);
+				ModelController->AddComment(CommentNode->GetFName(), CommentNode->NodeComment, NodePosition, NodeSize, CommentNode->CommentColor, false);
+			}
 		}
 
 		for (const UEdGraphNode* Node : InGraph->Nodes)
@@ -244,26 +251,42 @@ void UControlRigBlueprint::HandleModelModified(const UControlRigModel* InModel, 
 				LastNameFromNotification = NAME_None;
 
 				const FControlRigModelNode* Node = (const FControlRigModelNode*)InPayload;
+				bool bValidNode = false;
 				if (Node != nullptr)
 				{
 					LastNameFromNotification = Node->Name;
-					if (Node->IsParameter())
+					switch (Node->NodeType)
 					{
-						FControlRigBlueprintUtils::AddPropertyMember(this, Node->Pins[0].Type, *Node->Name.ToString());
-						HandleModelModified(InModel, EControlRigModelNotifType::NodeChanged, InPayload);
-					}
-					else
-					{
-						FControlRigBlueprintUtils::AddUnitMember(this, Node->UnitStruct(), Node->Name);
+						case EControlRigModelNodeType::Parameter:
+						{
+							FControlRigBlueprintUtils::AddPropertyMember(this, Node->Pins[0].Type, *Node->Name.ToString());
+							HandleModelModified(InModel, EControlRigModelNotifType::NodeChanged, InPayload);
+							bValidNode = true;
+							break;
+						}
+						case EControlRigModelNodeType::Function:
+						{
+							FControlRigBlueprintUtils::AddUnitMember(this, Node->UnitStruct(), Node->Name);
+							bValidNode = true;
+							break;
+						}
+						default:
+						{
+							break;
+						}
 					}
 				}
-				FBlueprintEditorUtils::MarkBlueprintAsModified(this);
 
-				if (Node != nullptr)
+				if (bValidNode)
 				{
-					if (Node->IsParameter())
+					FBlueprintEditorUtils::MarkBlueprintAsModified(this);
+
+					if (Node != nullptr)
 					{
-						UpdateParametersOnControlRig();
+						if (Node->IsParameter())
+						{
+							UpdateParametersOnControlRig();
+						}
 					}
 				}
 				break;
