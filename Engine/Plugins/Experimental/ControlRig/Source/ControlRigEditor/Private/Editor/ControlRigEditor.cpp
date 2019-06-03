@@ -543,9 +543,14 @@ void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const F
 
 					if (Pin->Direction == EGPD_Input)
 					{
-						if (!Pin->DefaultValue.IsEmpty())
+						FString DefaultValue = Pin->DefaultValue;
+						if (DefaultValue.IsEmpty() && Pin->DefaultObject != nullptr)
 						{
-							RigBlueprint->ModelController->SetPinDefaultValue(*Left, *Right, Pin->DefaultValue, false);
+							DefaultValue = Pin->DefaultObject->GetPathName();
+						}
+						if (!DefaultValue.IsEmpty())
+						{
+							RigBlueprint->ModelController->SetPinDefaultValue(*Left, *Right, DefaultValue, false);
 						}
 					}
 				}
