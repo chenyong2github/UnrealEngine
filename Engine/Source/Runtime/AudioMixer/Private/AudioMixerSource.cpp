@@ -7,6 +7,10 @@
 #include "IAudioExtensionPlugin.h"
 #include "Sound/AudioSettings.h"
 #include "ContentStreaming.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
 static int32 DisableHRTFCvar = 0;
 FAutoConsoleVariableRef CVarDisableHRTF(
@@ -32,7 +36,7 @@ namespace Audio
 		, MixerDevice(static_cast<FMixerDevice*>(InAudioDevice))
 		, MixerBuffer(nullptr)
 		, MixerSourceBuffer(nullptr)
-		, MixerSourceVoice(nullptr)		
+		, MixerSourceVoice(nullptr)
 		, PreviousAzimuth(-1.0f)
 		, InitializationState(EMixerSourceInitializationState::NotInitialized)
 		, bPlayedCachedBuffer(false)
@@ -93,7 +97,7 @@ namespace Audio
 		bIsVorbis = WaveInstance->WaveData->bDecompressedFromOgg;
 
 		bIsStoppingVoicesEnabled = ((FAudioDevice*)MixerDevice)->IsStoppingVoicesEnabled();
-		
+
 		bIsStopping = false;
 		bIsEffectTailsDone = true;
 		bIsDone = false;
@@ -101,7 +105,7 @@ namespace Audio
 		FSoundBuffer* SoundBuffer = static_cast<FSoundBuffer*>(MixerBuffer);
 		if (SoundBuffer->NumChannels > 0)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AudioSourceInitTime);
+			CSV_SCOPED_TIMING_STAT(Audio, InitSources);
 
 			AUDIO_MIXER_CHECK(MixerDevice);
 			MixerSourceVoice = MixerDevice->GetMixerSourceVoice();
@@ -120,6 +124,7 @@ namespace Audio
 			InitParams.SourceVoice = MixerSourceVoice;
 			InitParams.bUseHRTFSpatialization = UseObjectBasedSpatialization();
 			InitParams.bIsAmbisonics = WaveInstance->bIsAmbisonics;
+
 			if (InitParams.bIsAmbisonics)
 			{
 				checkf(InitParams.NumInputChannels == 4, TEXT("Only allow 4 channel source if file is ambisonics format."));
@@ -165,7 +170,7 @@ namespace Audio
 					}
 				}
 
-				// Toggle muting the source if sending only to output bus. 
+				// Toggle muting the source if sending only to output bus.
 				// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
 				InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
 				DynamicBusSendInfos.Reset();
@@ -306,14 +311,17 @@ namespace Audio
 			// Whether or not we're 3D
 			bIs3D = !UseObjectBasedSpatialization() && WaveInstance->GetUseSpatialization() && SoundBuffer->NumChannels < 3;
 
-			// Grab the source's reverb plugin settings 
+			// Grab the source's reverb plugin settings
 			InitParams.SpatializationPluginSettings = UseSpatializationPlugin() ? WaveInstance->SpatializationPluginSettings : nullptr;
 
-			// Grab the source's occlusion plugin settings 
+			// Grab the source's occlusion plugin settings
 			InitParams.OcclusionPluginSettings = UseOcclusionPlugin() ? WaveInstance->OcclusionPluginSettings : nullptr;
 
-			// Grab the source's reverb plugin settings 
+			// Grab the source's reverb plugin settings
 			InitParams.ReverbPluginSettings = UseReverbPlugin() ? WaveInstance->ReverbPluginSettings : nullptr;
+
+			// Grab the source's modulation plugin settings
+			InitParams.ModulationPluginSettings = UseModulationPlugin() ? WaveInstance->ModulationPluginSettings : nullptr;
 
 			// We support reverb
 			SetReverbApplied(true);
@@ -381,7 +389,7 @@ namespace Audio
 
 	void FMixerSource::Update()
 	{
-		SCOPE_CYCLE_COUNTER(STAT_AudioUpdateSources);
+		CSV_SCOPED_TIMING_STAT(Audio, UpdateSources);
 
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
@@ -391,6 +399,8 @@ namespace Audio
 		}
 
 		++TickCount;
+
+		UpdateModulation();
 
 		UpdatePitch();
 
@@ -404,7 +414,9 @@ namespace Audio
 
 		UpdateChannelMaps();
 
-		FSoundSource::DrawDebugInfo();
+#if ENABLE_AUDIO_DEBUG
+		FAudioDebugger::DrawDebugInfo(*this);
+#endif // ENABLE_AUDIO_DEBUG
 	}
 
 	bool FMixerSource::PrepareForInitialization(FWaveInstance* InWaveInstance)
@@ -809,13 +821,25 @@ namespace Audio
 		InitializationState = EMixerSourceInitializationState::NotInitialized;
 	}
 
+	void FMixerSource::UpdateModulation()
+	{
+		check(AudioDevice);
+		check(MixerSourceVoice);
+		check(WaveInstance);
+
+		if (AudioDevice->IsModulationPluginEnabled())
+		{
+			AudioDevice->ModulationInterface->ProcessControls(MixerSourceVoice->GetSourceId(), WaveInstance->SoundModulationControls);
+		}
+	}
+
 	void FMixerSource::UpdatePitch()
 	{
 		AUDIO_MIXER_CHECK(MixerBuffer);
 
 		check(WaveInstance);
 
-		Pitch = WaveInstance->Pitch;
+		Pitch = WaveInstance->GetPitch();
 
 		// Don't apply global pitch scale to UI sounds
 		if (!WaveInstance->bIsUISound)
@@ -838,22 +862,24 @@ namespace Audio
 
 	void FMixerSource::UpdateVolume()
 	{
-		float CurrentVolume;
-		if (AudioDevice->IsAudioDeviceMuted())
-		{
-			CurrentVolume = 0.0f;
-		}
-		else
-		{
-			CurrentVolume = WaveInstance->GetVolume();
-			CurrentVolume *= WaveInstance->GetVolumeApp();
-			CurrentVolume *= AudioDevice->GetPlatformAudioHeadroom();
-			CurrentVolume *= WaveInstance->GetDynamicVolume();
-			CurrentVolume = FMath::Clamp<float>(GetDebugVolume(CurrentVolume), 0.0f, MAX_VOLUME);
-		}
-
-		MixerSourceVoice->SetVolume(CurrentVolume);
 		MixerSourceVoice->SetDistanceAttenuation(WaveInstance->GetDistanceAttenuation());
+
+		float CurrentVolume = 0.0f;
+		if (!AudioDevice->IsAudioDeviceMuted())
+		{
+			// 1. Apply device gain stage(s)
+			CurrentVolume = WaveInstance->ActiveSound->bIsPreviewSound ? 1.0f : AudioDevice->GetMasterVolume();
+			CurrentVolume *= AudioDevice->GetPlatformAudioHeadroom();
+
+			// 2. Apply instance gain stage(s)
+			CurrentVolume *= WaveInstance->GetVolume();
+			CurrentVolume *= WaveInstance->GetDynamicVolume();
+
+			// 3. Apply editor gain stage(s)
+			CurrentVolume = FMath::Clamp<float>(GetDebugVolume(CurrentVolume), 0.0f, MAX_VOLUME);
+			MixerSourceVoice->SetVolume(CurrentVolume);
+		}
+		MixerSourceVoice->SetVolume(CurrentVolume);
 	}
 
 	void FMixerSource::UpdateSpatialization()
@@ -867,7 +893,7 @@ namespace Audio
 
 	void FMixerSource::UpdateEffects()
 	{
-		// Update the default LPF filter frequency 
+		// Update the default LPF filter frequency
 		SetFilterFrequency();
 
 		if (LastLPFFrequency != LPFFrequency)
@@ -917,7 +943,7 @@ namespace Audio
 					MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbPluginSubmix(), ReverbSendLevel);
 				}
 			}
-			else 
+			else
 			{
 				// Send the source audio to the master reverb
 				if (MixerDevice->GetMasterReverbSubmix().IsValid())
@@ -1089,7 +1115,7 @@ namespace Audio
 			{
 				UpdateStereoEmitterPositions();
 			}
-			
+
 			if (!UseObjectBasedSpatialization())
 			{
 				float AzimuthOffset = 0.0f;
@@ -1126,7 +1152,7 @@ namespace Audio
 				return true;
 			}
 		}
-				
+
 		if (!OutChannelMap.Num())
 		{
 			MixerDevice->Get2DChannelMap(bIsVorbis, InSubmixChannelType, 2, WaveInstance->bCenterChannelOnly, OutChannelMap);
@@ -1157,9 +1183,9 @@ namespace Audio
 	bool FMixerSource::UseObjectBasedSpatialization() const
 	{
 		return (Buffer->NumChannels <= MixerDevice->MaxChannelsSupportedBySpatializationPlugin &&
-				AudioDevice->IsSpatializationPluginEnabled() &&
-				DisableHRTFCvar == 0 &&
-				WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
+			AudioDevice->IsSpatializationPluginEnabled() &&
+			DisableHRTFCvar == 0 &&
+			WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
 	}
 
 	bool FMixerSource::UseSpatializationPlugin() const
@@ -1172,15 +1198,20 @@ namespace Audio
 	bool FMixerSource::UseOcclusionPlugin() const
 	{
 		return (Buffer->NumChannels == 1 || Buffer->NumChannels == 2) &&
-				AudioDevice->IsOcclusionPluginEnabled() &&
-				WaveInstance->OcclusionPluginSettings != nullptr;
+			AudioDevice->IsOcclusionPluginEnabled() &&
+			WaveInstance->OcclusionPluginSettings != nullptr;
+	}
+
+	bool FMixerSource::UseModulationPlugin() const
+	{
+		return AudioDevice->IsModulationPluginEnabled() &&
+			WaveInstance->ModulationPluginSettings != nullptr;
 	}
 
 	bool FMixerSource::UseReverbPlugin() const
 	{
 		return (Buffer->NumChannels == 1 || Buffer->NumChannels == 2) &&
-				AudioDevice->IsReverbPluginEnabled() &&
-				WaveInstance->ReverbPluginSettings != nullptr;
+			AudioDevice->IsReverbPluginEnabled() &&
+			WaveInstance->ReverbPluginSettings != nullptr;
 	}
-
 }

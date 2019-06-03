@@ -34,7 +34,7 @@ void USoundNodeWavePlayer::LoadAsset(bool bAddToRoot)
 	{
 		SoundWave = SoundWaveAssetPtr.Get();
 		if (SoundWave && SoundWave->HasAnyFlags(RF_NeedLoad))
-		{			
+		{
 			// This can happen when the owning USoundCue's PostLoad gets called and the SoundWave hasn't been serialized yet
 			// In this case we need to make sure we don't pass the pointer to the SoundNodeWavePlayer too early as the SoundWave
 			// will be serialized on the AsyncLoadingThread shortly and this may lead to strange race conditions / thread safety issues
@@ -147,6 +147,10 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 float USoundNodeWavePlayer::GetDuration()
 {
 	float Duration = 0.f;
+	if (!SoundWave && !IsAsyncLoading())
+	{
+		SoundWave = SoundWaveAssetPtr.LoadSynchronous();
+	}
 	if (SoundWave)
 	{
 		if (bLooping)
@@ -161,11 +165,11 @@ float USoundNodeWavePlayer::GetDuration()
 	return Duration;
 }
 
-bool USoundNodeWavePlayer::IsVirtualizeWhenSilent() const
+bool USoundNodeWavePlayer::IsPlayWhenSilent() const
 {
 	if (SoundWave)
 	{
-		return SoundWave->bVirtualizeWhenSilent;
+		return SoundWave->bPlayWhenSilent;
 	}
 	return false;
 }

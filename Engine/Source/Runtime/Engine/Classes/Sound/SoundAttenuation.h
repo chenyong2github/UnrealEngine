@@ -47,7 +47,7 @@ enum class EReverbSendMethod : uint8
 	// A reverb send based on a supplied curve
 	CustomCurve,
 
-	// A manual reverb send level (Uses the specififed constant send level value. Useful for 2D sounds.)
+	// A manual reverb send level (Uses the specified constant send level value. Useful for 2D sounds.)
 	Manual,
 };
 
@@ -57,15 +57,15 @@ struct ENGINE_API FSoundAttenuationPluginSettings
 {
 	GENERATED_USTRUCT_BODY()
 
-	/** Settings to use with occlusion audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. Note that this is an array so multiple plugins can have settings. */
+	/** Settings to use with occlusion audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. This is an array so multiple plugins can have settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationSpatialization, meta = (DisplayName = "Spatialization Plugin Settings"))
 	TArray<USpatializationPluginSourceSettingsBase*> SpatializationPluginSettingsArray;
 
-	/** Settings to use with occlusion audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. Note that this is an array so multiple plugins can have settings. */
+	/** Settings to use with occlusion audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. This  is an array so multiple plugins can have settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationOcclusion, meta = (DisplayName = "Occlusion Plugin Settings"))
 	TArray<UOcclusionPluginSourceSettingsBase*> OcclusionPluginSettingsArray;
 
-	/** Settings to use with reverb audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. Note that this is an array so multiple plugins can have settings. */
+	/** Settings to use with reverb audio plugin. These are defined by the plugin creator. Not all audio plugins utilize this feature. This  is an array so multiple plugins can have settings. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AttenuationReverbSend, meta = (DisplayName = "Reverb Plugin Settings"))
 	TArray<UReverbPluginSourceSettingsBase*> ReverbPluginSettingsArray;
 };
