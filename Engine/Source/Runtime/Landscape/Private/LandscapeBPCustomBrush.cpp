@@ -78,7 +78,14 @@ void ALandscapeBlueprintCustomBrush::PostEditMove(bool bFinished)
 
 	if (OwningLandscape != nullptr)
 	{
-		OwningLandscape->RequestLayersContentUpdate(bFinished ? ELandscapeLayerUpdateMode::Update_All : ELandscapeLayerUpdateMode::Update_All_Editing);
+		if (bFinished)
+		{
+			OwningLandscape->RequestLayersContentUpdateForceAll();
+		}
+		else
+		{
+			OwningLandscape->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All_Editing);
+		}
 	}
 }
 
