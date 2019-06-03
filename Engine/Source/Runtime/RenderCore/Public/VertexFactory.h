@@ -16,6 +16,7 @@
 #include "Misc/EnumClassFlags.h"
 
 class FMaterial;
+class FMeshDrawSingleShaderBindings;
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack (push,4)

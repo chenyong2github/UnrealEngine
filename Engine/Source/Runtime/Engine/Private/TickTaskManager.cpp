@@ -1188,7 +1188,7 @@ public:
 		DisabledCount += AllDisabledTickFunctions.Num();
 	}
 
-	FORCEINLINE void AddTickFunctionToMap(TSortedMap<FName, int32>& ClassNameToCountMap, FTickFunction* Function, bool bDetailed)
+	FORCEINLINE void AddTickFunctionToMap(TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess>& ClassNameToCountMap, FTickFunction* Function, bool bDetailed)
 	{
 		FName ContextName = Function->DiagnosticContext(bDetailed);
 		// Find entry for this context (or add it if not present)
@@ -1197,7 +1197,7 @@ public:
 		CurrentCount++; 
 	}
 
-	void AddTickFunctionsToMap(TSortedMap<FName, int32>& ClassNameToCountMap, int32& EnabledCount, bool bDetailed)
+	void AddTickFunctionsToMap(TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess>& ClassNameToCountMap, int32& EnabledCount, bool bDetailed)
 	{
 		// Add ticks from AllEnabledTickFunctions
 		for (TSet<FTickFunction*>::TIterator It(AllEnabledTickFunctions); It; ++It)
@@ -1639,7 +1639,7 @@ private:
 
 		if (bGrouped)
 		{
-			TSortedMap<FName, int32> TickContextToCountMap;
+			TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess> TickContextToCountMap;
 			GetEnabledTickFunctionCounts(InWorld, TickContextToCountMap, EnabledCount, true);
 
 			// Build sorted array of tick context by count
@@ -1691,7 +1691,7 @@ private:
 	}
 
 
-	virtual void GetEnabledTickFunctionCounts(UWorld* InWorld, TSortedMap<FName, int32>& TickContextToCountMap, int32& EnabledCount, bool bDetailed)
+	virtual void GetEnabledTickFunctionCounts(UWorld* InWorld, TSortedMap<FName, int32, FDefaultAllocator, FNameFastLess>& TickContextToCountMap, int32& EnabledCount, bool bDetailed)
 	{
 		check(InWorld);
 		check(InWorld->TickTaskLevel);

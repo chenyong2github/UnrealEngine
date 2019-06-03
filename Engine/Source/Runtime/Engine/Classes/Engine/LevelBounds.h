@@ -37,6 +37,9 @@ class ALevelBounds
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
+#if WITH_EDITOR // because of FEditorTickableLevelBounds
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+#endif
 	//~ End UObject Interface
 	
 	//~ Begin AActor Interface.

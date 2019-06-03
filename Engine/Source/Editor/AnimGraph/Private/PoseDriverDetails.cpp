@@ -1064,7 +1064,7 @@ void FPoseDriverDetails::UpdateDrivenNameOptions()
 				{
 					TArray<FName> NameArray;
 					Mapping->FillNameArray(NameArray);
-					NameArray.Sort();
+					NameArray.Sort(FNameLexicalLess());
 
 					for (FName CurveName : NameArray)
 					{

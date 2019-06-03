@@ -978,7 +978,7 @@ void SFilterList::CreateFiltersMenuCategory(FMenuBuilder& MenuBuilder, const TAr
 					FText::Format( LOCTEXT("FilterByTooltipPrefix", "Filter by {0}"), LabelText ),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateSP( this, &SFilterList::FilterByTypeClicked, WeakTypeActions ),
+						FExecuteAction::CreateSP( const_cast<SFilterList*>(this), &SFilterList::FilterByTypeClicked, WeakTypeActions ),
 						FCanExecuteAction(),
 						FIsActionChecked::CreateSP(this, &SFilterList::IsAssetTypeActionsInUse, WeakTypeActions ) ),
 					NAME_None,
@@ -1002,7 +1002,7 @@ void SFilterList::CreateOtherFiltersMenuCategory(FMenuBuilder& MenuBuilder, TSha
 				FrontendFilter->GetToolTipText(),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), FrontendFilter->GetIconName()),
 				FUIAction(
-				FExecuteAction::CreateSP( this, &SFilterList::FrontendFilterClicked, FrontendFilter ),
+				FExecuteAction::CreateSP( const_cast<SFilterList*>(this), &SFilterList::FrontendFilterClicked, FrontendFilter ),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &SFilterList::IsFrontendFilterInUse, FrontendFilter ) ),
 				NAME_None,

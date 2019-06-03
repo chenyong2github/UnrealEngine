@@ -388,7 +388,7 @@ TSharedRef<SDockTab> SVisualLogger::HandleTabManagerSpawnTab(const FSpawnTabArgs
 	}
 	else if (TabIdentifier == MainViewTabId)
 	{
-		TabWidget = SAssignNew(MainView, SVisualLoggerView, CommandList).OnFiltersSearchChanged(this, &SVisualLogger::OnFiltersSearchChanged);
+		TabWidget = SAssignNew(MainView, SVisualLoggerView, CommandList).OnFiltersSearchChanged(const_cast<SVisualLogger*>(this), &SVisualLogger::OnFiltersSearchChanged);
 		AutoSizeTab = false;
 	}
 	else if (TabIdentifier == LogsListTabId)

@@ -20,6 +20,7 @@ public class CoreUObject : ModuleRules
             );
 
 		PublicDependencyModuleNames.Add("Core");
+        PublicDependencyModuleNames.Add("TraceLog");
 
 		PrivateDependencyModuleNames.Add("Projects");
         PrivateDependencyModuleNames.Add("Json");

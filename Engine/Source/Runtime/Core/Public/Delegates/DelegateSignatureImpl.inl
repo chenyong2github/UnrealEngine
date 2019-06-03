@@ -8,14 +8,15 @@
 #pragma once
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
-#include "Templates/TypeWrapper.h"
-#include "Templates/RemoveReference.h"
-#include "Templates/UnrealTemplate.h"
 #include "Misc/Crc.h"
 #include "UObject/NameTypes.h"
-#include "UObject/WeakObjectPtrTemplates.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/ScriptDelegates.h"
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Templates/IsConst.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/TypeWrapper.h"
+#include "Templates/UnrealTemplate.h"
 
 class FDelegateBase;
 class FDelegateHandle;
@@ -158,6 +159,8 @@ public:
 	inline static TBaseDelegate<RetValType, ParamTypes...> CreateRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	FUNCTION_CHECK_RETURN_END
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseRawMethodDelegateInstance<false, UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
 		return Result;
@@ -183,6 +186,8 @@ public:
 	inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	FUNCTION_CHECK_RETURN_END
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseSPMethodDelegateInstance<false, UserClass, ESPMode::Fast, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
 		return Result;
@@ -208,6 +213,8 @@ public:
 	inline static TBaseDelegate<RetValType, ParamTypes...> CreateSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	FUNCTION_CHECK_RETURN_END
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return CreateSP(StaticCastSharedRef<UserClass>(InUserObject->AsShared()), InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -229,6 +236,8 @@ public:
 	inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	FUNCTION_CHECK_RETURN_END
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseSPMethodDelegateInstance<false, UserClass, ESPMode::ThreadSafe, TFuncType, VarTypes...>::Create(Result, InUserObjectRef, InFunc, Vars...);
 		return Result;
@@ -254,6 +263,8 @@ public:
 	inline static TBaseDelegate<RetValType, ParamTypes...> CreateThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	FUNCTION_CHECK_RETURN_END
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return CreateThreadSafeSP(StaticCastSharedRef<UserClass>(InUserObject->AsShared()), InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -291,6 +302,8 @@ public:
 	inline static TBaseDelegate<RetValType, ParamTypes...> CreateUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	FUNCTION_CHECK_RETURN_END
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		TBaseDelegate<RetValType, ParamTypes...> Result;
 		TBaseUObjectMethodDelegateInstance<false, UserClass, TFuncType, VarTypes...>::Create(Result, InUserObject, InFunc, Vars...);
 		return Result;
@@ -439,6 +452,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		*this = CreateRaw(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -453,6 +468,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		*this = CreateSP(InUserObjectRef, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -470,6 +487,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		*this = CreateSP(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -487,6 +506,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		*this = CreateThreadSafeSP(InUserObjectRef, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -504,6 +525,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		*this = CreateThreadSafeSP(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -533,6 +556,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline void BindUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, RetValType (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		*this = CreateUObject(InUserObject, InFunc, Vars...);
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -764,6 +789,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddRaw(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return Add(FDelegate::CreateRaw(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -783,6 +810,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddSP(const TSharedRef<UserClass, ESPMode::Fast>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return Add(FDelegate::CreateSP(InUserObjectRef, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -802,6 +831,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return Add(FDelegate::CreateSP(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -819,6 +850,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddThreadSafeSP(const TSharedRef<UserClass, ESPMode::ThreadSafe>& InUserObjectRef, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return Add(FDelegate::CreateThreadSafeSP(InUserObjectRef, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -838,6 +871,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddThreadSafeSP(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return Add(FDelegate::CreateThreadSafeSP(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -871,6 +906,8 @@ public:
 	template <typename UserClass, typename... VarTypes>
 	inline FDelegateHandle AddUObject(UserClass* InUserObject, typename TMemFunPtrType<false, UserClass, void (ParamTypes..., VarTypes...)>::Type InFunc, VarTypes... Vars)
 	{
+		UE_STATIC_DEPRECATE(4.23, TIsConst<UserClass>::Value, "Binding a delegate with a const object pointer and non-const function is deprecated.");
+
 		return Add(FDelegate::CreateUObject(InUserObject, InFunc, Vars...));
 	}
 	template <typename UserClass, typename... VarTypes>
@@ -887,13 +924,16 @@ public:
 	 * Note that the order of the delegate instances may not be preserved!
 	 *
 	 * @param Handle The handle of the delegate instance to remove.
+	 * @return  true if the delegate was successfully removed.
 	 */
-	void Remove( FDelegateHandle Handle )
+	bool Remove( FDelegateHandle Handle )
 	{
+		bool bResult = false;
 		if (Handle.IsValid())
 		{
-			RemoveDelegateInstance(Handle);
+			bResult = RemoveDelegateInstance(Handle);
 		}
+		return bResult;
 	}
 
 protected:
@@ -992,12 +1032,10 @@ protected:
 	/**
 	 * Removes a function from this multi-cast delegate's invocation list (performance is O(N)).
 	 *
-	 * The function is not actually removed, but deleted and marked as removed.
-	 * It will be removed next time the invocation list is compacted within Broadcast().
-	 *
 	 * @param Handle The handle of the delegate instance to remove.
+	 * @return  true if the delegate was successfully removed.
 	 */
-	void RemoveDelegateInstance( FDelegateHandle Handle )
+	bool RemoveDelegateInstance( FDelegateHandle Handle )
 	{
 		const TInvocationList& LocalInvocationList = Super::GetInvocationList();
 
@@ -1011,12 +1049,12 @@ protected:
 			if ((DelegateInstanceInterface != nullptr) && DelegateInstanceInterface->GetHandle() == Handle)
 			{
 				DelegateBase.Unbind();
-
-				break; // each delegate binding has a unique handle, so once we find it, we can stop
+				Super::CompactInvocationList();
+				return true; // each delegate binding has a unique handle, so once we find it, we can stop
 			}
 		}
 
-		Super::CompactInvocationList();
+		return false;
 	}
 };
 

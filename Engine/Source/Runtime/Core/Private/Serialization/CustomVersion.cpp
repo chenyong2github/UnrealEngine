@@ -6,6 +6,7 @@
 
 #include "Serialization/CustomVersion.h"
 #include "Serialization/StructuredArchiveFromArchive.h"
+#include "Algo/Sort.h"
 
 namespace
 {
@@ -82,6 +83,11 @@ const FCustomVersionContainer& FCustomVersionContainer::GetRegistered()
 void FCustomVersionContainer::Empty()
 {
 	Versions.Empty();
+}
+
+void FCustomVersionContainer::SortByKey()
+{
+	Algo::SortBy(Versions, &FCustomVersion::Key);
 }
 
 FString FCustomVersionContainer::ToString(const FString& Indent) const

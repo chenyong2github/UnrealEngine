@@ -548,7 +548,7 @@ void UK2Node_EaseFunction::GetContextMenuActions(const FGraphNodeContextMenuBuil
 					LOCTEXT("AddPinTooltip", "Resets A, B and Results pins to its default wildcard state"),
 					FSlateIcon(),
 					FUIAction(
-					FExecuteAction::CreateUObject(this, &UK2Node_EaseFunction::ResetToWildcards)
+					FExecuteAction::CreateUObject(const_cast<UK2Node_EaseFunction*>(this), &UK2Node_EaseFunction::ResetToWildcards)
 					)
 				);
 			}

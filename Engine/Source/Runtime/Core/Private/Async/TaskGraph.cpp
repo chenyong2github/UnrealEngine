@@ -28,6 +28,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "ProfilingDebugging/ExternalProfiler.h"
+#include "ProfilingDebugging/MiscTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogTaskGraph, Log, All);
 
@@ -1210,12 +1211,14 @@ public:
 		for (int32 ThreadIndex = LastExternalThread + 1; ThreadIndex < NumThreads; ThreadIndex++)
 		{
 			FString Name;
+			const ANSICHAR* GroupName = "TaskGraphNormal";
 			int32 Priority = ThreadIndexToPriorityIndex(ThreadIndex);
 			EThreadPriority ThreadPri;
 			uint64 Affinity = FPlatformAffinity::GetTaskGraphThreadMask();
 			if (Priority == 1)
 			{
 				Name = FString::Printf(TEXT("TaskGraphThreadHP %d"), ThreadIndex - (LastExternalThread + 1));
+				GroupName = "TaskGraphHigh";
 				ThreadPri = TPri_SlightlyBelowNormal; // we want even hi priority tasks below the normal threads
 
 				// If the platform defines FPlatformAffinity::GetTaskGraphHighPriorityTaskMask then use it
@@ -1227,6 +1230,7 @@ public:
 			else if (Priority == 2)
 			{
 				Name = FString::Printf(TEXT("TaskGraphThreadBP %d"), ThreadIndex - (LastExternalThread + 1));
+				GroupName = "TaskGraphLow";
 				ThreadPri = TPri_Lowest;
 				// If the platform defines FPlatformAffinity::GetTaskGraphBackgroundTaskMask then use it
 				if ( FPlatformAffinity::GetTaskGraphBackgroundTaskMask() != 0xFFFFFFFFFFFFFFFF )
@@ -1248,6 +1252,10 @@ public:
 #endif
 			WorkerThreads[ThreadIndex].RunnableThread = FRunnableThread::Create(&Thread(ThreadIndex), *Name, StackSize, ThreadPri, Affinity); // these are below normal threads so that they sleep when the named threads are active
 			WorkerThreads[ThreadIndex].bAttached = true;
+			if (WorkerThreads[ThreadIndex].RunnableThread)
+			{
+				TRACE_SET_THREAD_GROUP(WorkerThreads[ThreadIndex].RunnableThread->GetThreadID(), GroupName);
+			}
 		}
 	}
 

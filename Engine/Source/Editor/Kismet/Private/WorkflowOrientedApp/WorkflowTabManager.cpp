@@ -199,7 +199,7 @@ TSharedRef<SWidget> FTabInfo::CreateHistoryMenu(bool bInBackHistory) const
 			{
 				MenuBuilder.AddMenuEntry(History[HistoryIdx]->GetHistoryTitle().Get(), FText(), FSlateIcon(), 
 					FUIAction(
-					FExecuteAction::CreateRaw(this, &FTabInfo::GoToHistoryIndex, HistoryIdx)
+					FExecuteAction::CreateRaw(const_cast<FTabInfo*>(this), &FTabInfo::GoToHistoryIndex, HistoryIdx)
 					), 
 					NAME_None, EUserInterfaceActionType::Button);
 			}
@@ -216,7 +216,7 @@ TSharedRef<SWidget> FTabInfo::CreateHistoryMenu(bool bInBackHistory) const
 			{
 				MenuBuilder.AddMenuEntry(History[HistoryIdx]->GetHistoryTitle().Get(), FText(), FSlateIcon(), 
 					FUIAction(
-					FExecuteAction::CreateRaw(this, &FTabInfo::GoToHistoryIndex, HistoryIdx)
+					FExecuteAction::CreateRaw(const_cast<FTabInfo*>(this), &FTabInfo::GoToHistoryIndex, HistoryIdx)
 					), 
 					NAME_None, EUserInterfaceActionType::Button);
 			}

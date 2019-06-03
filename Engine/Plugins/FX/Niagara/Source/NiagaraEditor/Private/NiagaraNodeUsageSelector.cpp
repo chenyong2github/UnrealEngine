@@ -35,7 +35,7 @@ bool UNiagaraNodeUsageSelector::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefi
 void UNiagaraNodeUsageSelector::InsertInputPinsFor(const FNiagaraVariable& Var)
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-	UEnum* ENiagaraScriptGroupEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ENiagaraScriptGroup"), true);
+	UEnum* ENiagaraScriptGroupEnum = StaticEnum<ENiagaraScriptGroup>();
 	int64 GroupCount = (int64)ENiagaraScriptGroup::Max;
 
 	TArray<UEdGraphPin*> OldPins(Pins);

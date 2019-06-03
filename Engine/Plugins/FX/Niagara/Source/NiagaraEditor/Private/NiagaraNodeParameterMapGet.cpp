@@ -515,7 +515,7 @@ void UNiagaraNodeParameterMapGet::GetContextMenuActions(const FGraphNodeContextM
 				[
 					SNew(SEditableTextBox)
 					.Text_UObject(this, &UNiagaraNodeParameterMapBase::GetPinDescriptionText, Pin)
-					.OnTextCommitted_UObject(this, &UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted, Pin)
+					.OnTextCommitted_UObject(const_cast<UNiagaraNodeParameterMapGet*>(this), &UNiagaraNodeParameterMapBase::PinDescriptionTextCommitted, Pin)
 				];
 			Context.MenuBuilder->AddWidget(RenameWidget, LOCTEXT("DescMenuItem", "Description"));
 			Context.MenuBuilder->EndSection();

@@ -38,7 +38,7 @@ void UGatherTextCommandletBase::Initialize( const TSharedRef< FLocTextHelper >& 
 		{
 			SplitPlatforms.Add(*SplitPlatformName, FString::Printf(TEXT("/%s/"), *SplitPlatformName));
 		}
-		SplitPlatforms.KeySort(TLess<FName>());
+		SplitPlatforms.KeySort(FNameLexicalLess());
 	}
 }
 
