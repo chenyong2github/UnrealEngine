@@ -219,7 +219,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				PerViewUniformParameters.TransformDataOffset = TransformOffset;
 				PerViewUniformParameters.ScaleDataOffset = ScaleOffset;
 				PerViewUniformParameters.SizeDataOffset = SizeOffset;
-				PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
+				//PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 				PerViewUniformParameters.MaterialParamDataOffset = MaterialParamOffset;
 				PerViewUniformParameters.MaterialParam1DataOffset = MaterialParamOffset1;
 				PerViewUniformParameters.MaterialParam2DataOffset = MaterialParamOffset2;

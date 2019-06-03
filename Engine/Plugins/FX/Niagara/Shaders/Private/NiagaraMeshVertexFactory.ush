@@ -245,9 +245,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.Particle.Color = Interpolants.ParticleColor;
 #endif
 
-#if (DYNAMIC_PARAMETERS_MASK != 0)
-	Result.Particle.DynamicParameterValidMask = NiagaraMeshVF.MaterialParamValidMask;
-#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Interpolants.DynamicParameter;
 #endif
@@ -328,9 +325,6 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 
 	Result.Particle.Color = Intermediates.ParticleColor;
 
-#if (DYNAMIC_PARAMETERS_MASK != 0)
-	Result.Particle.DynamicParameterValidMask = NiagaraMeshVF.MaterialParamValidMask;
-#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Intermediates.DynamicParameter;
 #endif

@@ -448,9 +448,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 
 	Result.TwoSidedSign = 1;
 
-#if (DYNAMIC_PARAMETERS_MASK != 0)
-	Result.Particle.DynamicParameterValidMask = NiagaraRibbonVF.MaterialParamValidMask;
-#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Interpolants.DynamicParameter;
 #endif
@@ -500,9 +497,6 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.PreSkinnedPosition = Intermediates.Position.xyz;
 	Result.PreSkinnedNormal = TangentToLocal[2].xyz;
 
-#if (DYNAMIC_PARAMETERS_MASK != 0)
-	Result.Particle.DynamicParameterValidMask = NiagaraRibbonVF.MaterialParamValidMask;
-#endif
 #if (DYNAMIC_PARAMETERS_MASK & 1)
 	Result.Particle.DynamicParameter = Intermediates.DynamicParameter;
 #endif
