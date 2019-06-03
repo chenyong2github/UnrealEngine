@@ -191,6 +191,7 @@ void SMeshProxyDialog::CreateSettingsView()
 	DetailsViewArgs.bCustomNameAreaLocation = false;
 	DetailsViewArgs.bCustomFilterAreaLocation = true;
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
+	DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::ENameAreaSettings::HideNameArea;
 
 
 	// Tiny hack to hide this setting, since we have no way / value to go off to 
