@@ -119,15 +119,17 @@ class FNiagaraShaderCompilationManager
 public:
 	FNiagaraShaderCompilationManager();
 
-	NIAGARASHADER_API void Tick(float DeltaSeconds = 0.0f);
+	NIAGARASHADER_API void Tick(float DeltaSeconds = 0.0f, bool bBlock=false);
 	NIAGARASHADER_API void AddJobs(TArray<class FShaderCommonCompileJob*> InNewJobs);
 	NIAGARASHADER_API void ProcessAsyncResults();
 
 	void FinishCompilation(const TCHAR* ScriptName, const TArray<int32>& ShaderMapIdsToFinishCompiling);
 
+	void RunCompileJobs();
+
+	FORCEINLINE bool IsAsyncHackEnabled()const;
 private:
 	void ProcessCompiledNiagaraShaderMaps(TMap<int32, FNiagaraShaderMapFinalizeResults>& CompiledShaderMaps, float TimeBudget);
-	void RunCompileJobs();
 
 	TArray<class FShaderCommonCompileJob*> JobQueue;
 
@@ -138,6 +140,21 @@ private:
 	TMap<int32, FNiagaraShaderMapFinalizeResults> PendingFinalizeNiagaraShaderMaps;
 
 	TArray<struct FNiagaraShaderCompileWorkerInfo*> WorkerInfos;
+
+
+	//////////////////////////////////////////////////////////////////////////
+	// Temp support for pushing this off onto a worker thread. 
+	// Longer term, this should be removed and this whole thing can be moved to shader compiler worker.
+	
+	//Critical section guarding interaction with the shared job queue.
+	FCriticalSection JobQueueCriticalSection;
+
+	//Critical section guarding interaction with the shared results queue.
+	FCriticalSection ResultsQueueCriticalSection;
+
+	//Handle to the last task we kicked off to compile previously.
+	//We can only have one compilation task going at a time as (apparently) the compilation is very non thread-safe
+	FGraphEventRef AsyncWork;
 };
 
 

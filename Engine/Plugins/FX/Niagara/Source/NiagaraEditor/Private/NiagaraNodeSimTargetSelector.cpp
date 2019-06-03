@@ -104,7 +104,7 @@ UEdGraphPin* UNiagaraNodeSimTargetSelector::GetPassThroughPin(const UEdGraphPin*
 	return nullptr;
 }
 
-void UNiagaraNodeSimTargetSelector::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+void UNiagaraNodeSimTargetSelector::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	UNiagaraNode::BuildParameterMapHistory(OutHistory, bRecursive);
 }

@@ -671,10 +671,15 @@ void FNiagaraScriptMergeManager::DiffChangeIds(const TMap<FGuid, FGuid>& InSourc
 		}
 		else if (MatchingSourceChangeId != nullptr && MatchingLastMergedChangeId != nullptr)
 		{
-			// If both had a copy of the node and both agree on the change id, then we should keep the change id of the instance as it will be the most accurate.
-			if (MatchingSourceChangeId->IsValid() && MatchingLastMergedChangeId->IsValid() && (*MatchingSourceChangeId) == (*MatchingLastMergedChangeId))
+			if (*MatchingSourceChangeId == *MatchingLastMergedChangeId)
 			{
+				// If both had a copy of the node and both agree on the change id, then we should keep the change id of the instance as it will be the most accurate.
 				OutChangeIdsToKeepOnInstance.Add(It.Key(), It.Value());
+			}
+			else
+			{
+				// If both had a copy of the node and they're different than the source has changed and it's change id should be used since it's the newer.
+				OutChangeIdsToKeepOnInstance.Add(It.Key(), *MatchingSourceChangeId);
 			}
 		}
 		else if (MatchingLastMergedChangeId != nullptr)
@@ -1998,6 +2003,15 @@ FNiagaraScriptMergeManager::FApplyDiffResults FNiagaraScriptMergeManager::ApplyE
 				Results.bSucceeded &= AddModuleResults.bSucceeded;
 				Results.ErrorMessages.Append(AddModuleResults.ErrorMessages);
 			}
+
+			// Force the base compile id of the new event handler to match the added instance event handler.
+			UNiagaraScriptSource* AddedEventScriptSourceFromDiff = Cast<UNiagaraScriptSource>(AddedEventHandler->GetEventScriptProperties()->Script->GetSource());
+			UNiagaraGraph* AddedEventScriptGraphFromDiff = AddedEventScriptSourceFromDiff->NodeGraph;
+			FGuid ScriptBaseIdFromDiff = AddedEventScriptGraphFromDiff->GetBaseId(ENiagaraScriptUsage::ParticleEventScript, AddedEventHandler->GetUsageId());
+			UNiagaraScriptSource* AddedEventScriptSource = Cast<UNiagaraScriptSource>(AddedEventScriptProperties.Script->GetSource());
+			UNiagaraGraph* AddedEventScriptGraph = AddedEventScriptSource->NodeGraph;
+			AddedEventScriptGraph->ForceBaseId(ENiagaraScriptUsage::ParticleEventScript, AddedEventHandler->GetUsageId(), ScriptBaseIdFromDiff);
+
 			Results.bModifiedGraph = true;
 		}
 	}

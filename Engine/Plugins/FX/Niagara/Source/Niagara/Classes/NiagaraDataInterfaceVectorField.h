@@ -64,9 +64,32 @@ public:
 	FVector GetDimensions() const;
 	FVector GetMinBounds() const;
 	FVector GetMaxBounds() const;
-
 protected:
 	//~ UNiagaraDataInterface interface
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	//~ UNiagaraDataInterface interface END
+
+	void PushToRenderThread();
+};
+
+struct FNiagaraDataInterfaceProxyVectorField : public FNiagaraDataInterfaceProxy
+{
+	FVector Dimensions;
+	FVector MinBounds;
+	FVector MaxBounds;
+	bool bTileX;
+	bool bTileY;
+	bool bTileZ;
+	FTextureRHIRef TextureRHI;
+
+	FVector GetTilingAxes() const
+	{
+		return FVector(float(bTileX), float(bTileY), float(bTileZ));
+	}
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override { check(false); }
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
 };

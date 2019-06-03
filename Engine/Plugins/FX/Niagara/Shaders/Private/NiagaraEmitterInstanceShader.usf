@@ -7,14 +7,14 @@ NiagaraSimulationShader.usf:
 
 #if GPU_SIMULATION
 	#include "/Engine/Public/Platform.ush"
-	#include "Common.ush"
-	#include "GlobalDistanceFieldShared.ush"
+	#include "/Engine/Private/Common.ush"
+	#include "/Engine/Private/GlobalDistanceFieldShared.ush"
 #else
 	const static float PI = 3.1415926535897932f;
 #endif
 	const static float TWO_PI = 3.1415926535897932f*2.0f;
 
-#include "Definitions.usf"
+#include "/Engine/Private/Definitions.usf"
 
 // Most of the vector implementations work this way. This helps us keep proper precision.
 float4 ModuloPrecise(float4 x, float4 y){ return x - y * trunc(x/y); }
@@ -37,7 +37,7 @@ float Reciprocal(float x){ return 1.0f/x; }
  */
 #if GPU_SIMULATION
 
-	#include "SceneTexturesCommon.ush"
+	#include "/Engine/Private/SceneTexturesCommon.ush"
 
 	static uint3 GDispatchThreadId;
 	static uint GCurrentPhase;

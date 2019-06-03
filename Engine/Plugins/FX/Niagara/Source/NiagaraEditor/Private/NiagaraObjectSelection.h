@@ -23,6 +23,9 @@ public:
 	{
 		if (SelectedObjects.Num() == 1 && SelectedObjects.Contains(SelectedObject))
 		{
+			// Refresh the delegate, in case a different object selection has been used in 
+			// a shared panel (but using a different selection, so this selection would not change)
+			OnSelectedObjectsChangedDelegate.Broadcast();
 			return;
 		}
 

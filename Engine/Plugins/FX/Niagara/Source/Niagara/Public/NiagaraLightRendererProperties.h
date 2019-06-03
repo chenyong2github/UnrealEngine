@@ -8,6 +8,8 @@
 #include "NiagaraCommon.h"
 #include "NiagaraLightRendererProperties.generated.h"
 
+class FNiagaraEmitterInstance;
+
 UCLASS(editinlinenew)
 class UNiagaraLightRendererProperties : public UNiagaraRendererProperties
 {
@@ -16,12 +18,15 @@ public:
 
 	UNiagaraLightRendererProperties();
 
+	//UObject Interface
 	virtual void PostInitProperties() override;
+	//UObject Interface END
 
 	static void InitCDOPropertiesAfterModuleStartup();
 
 	//~ UNiagaraRendererProperties interface
-	virtual NiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel) override;
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) override;
+	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override { return nullptr; }
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return (InSimTarget == ENiagaraSimTarget::CPUSim); };
 #if WITH_EDITORONLY_DATA

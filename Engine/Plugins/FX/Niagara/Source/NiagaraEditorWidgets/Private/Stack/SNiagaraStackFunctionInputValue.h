@@ -115,6 +115,8 @@ private:
 
 	EVisibility GetResetButtonVisibility() const;
 
+	EVisibility GetDropdownButtonVisibility() const;
+
 	FReply ResetButtonPressed() const;
 
 	EVisibility GetResetToBaseButtonVisibility() const;

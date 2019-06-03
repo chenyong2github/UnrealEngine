@@ -20,7 +20,7 @@
 
 #define LOCTEXT_NAMESPACE "EmitterHandleViewModel"
 
-FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel(FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance> InSimulation, UNiagaraSystem& InOwningSystem)
+FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel(FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation, UNiagaraSystem& InOwningSystem)
 	: EmitterHandle(InEmitterHandle)
 	, OwningSystem(InOwningSystem)
 	, EmitterViewModel(MakeShareable(new FNiagaraEmitterViewModel((InEmitterHandle ? InEmitterHandle->GetInstance() : nullptr), InSimulation)))
@@ -42,7 +42,7 @@ FNiagaraEmitterHandleViewModel::~FNiagaraEmitterHandleViewModel()
 	Cleanup();
 }
 
-bool FNiagaraEmitterHandleViewModel::Set(FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance> InSimulation, UNiagaraSystem& InOwningSystem)
+bool FNiagaraEmitterHandleViewModel::Set(FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation, UNiagaraSystem& InOwningSystem)
 {
 	if (&OwningSystem != &InOwningSystem)
 	{
@@ -67,7 +67,7 @@ void FNiagaraEmitterHandleViewModel::SetEmitterHandle(FNiagaraEmitterHandle* InE
 	EmitterHandle = InEmitterHandle;
 }
 
-void FNiagaraEmitterHandleViewModel::SetSimulation(TWeakPtr<FNiagaraEmitterInstance> InSimulation)
+void FNiagaraEmitterHandleViewModel::SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
 {
 	check(EmitterViewModel.IsValid());
 	EmitterViewModel->SetSimulation(InSimulation);

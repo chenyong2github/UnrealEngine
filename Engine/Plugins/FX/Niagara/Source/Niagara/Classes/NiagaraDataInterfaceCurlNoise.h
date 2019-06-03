@@ -45,4 +45,22 @@ public:
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+
+	void PushToRenderThread();
+};
+
+struct FNiagaraDataInterfaceProxyCurlNoise : public FNiagaraDataInterfaceProxy
+{
+	FNiagaraDataInterfaceProxyCurlNoise(const FVector& InOffset)
+	{
+		OffsetFromSeed = InOffset;
+	}
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override { check(false); }
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
+
+	FVector OffsetFromSeed;
 };

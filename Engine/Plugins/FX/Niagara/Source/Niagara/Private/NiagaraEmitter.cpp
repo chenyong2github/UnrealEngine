@@ -10,6 +10,7 @@
 #include "UObject/Linker.h"
 #include "NiagaraModule.h"
 #include "NiagaraSystem.h"
+#include "NiagaraStats.h"
 
 #if WITH_EDITOR
 const FName UNiagaraEmitter::PrivateMemberNames::EventHandlerScriptProps = GET_MEMBER_NAME_CHECKED(UNiagaraEmitter, EventHandlerScriptProps);
@@ -116,6 +117,8 @@ void UNiagaraEmitter::PostInitProperties()
 
 	}
 	UniqueEmitterName = TEXT("Emitter");
+
+	GenerateStatID();
 }
 
 #if WITH_EDITORONLY_DATA
@@ -192,7 +195,7 @@ void UNiagaraEmitter::PostLoad()
 #endif
 
 	TArray<UNiagaraScript*> AllScripts;
-	GetScripts(AllScripts, true);
+	GetScripts(AllScripts, false);
 
 	// Post load scripts for use below.
 	for (UNiagaraScript* Script : AllScripts)
@@ -211,7 +214,10 @@ void UNiagaraEmitter::PostLoad()
 		{
 			GraphSource->InvalidateCachedCompileIds();
 			bGenerateNewChangeId = true;
-			UE_LOG(LogNiagara, Log, TEXT("InvalidateCachedCompileIds for %s because GbForceNiagaraCompileOnLoad = %d"), *GetPathName(), GbForceNiagaraCompileOnLoad);
+			if (GEnableVerboseNiagaraChangeIdLogging)
+			{
+				UE_LOG(LogNiagara, Log, TEXT("InvalidateCachedCompileIds for %s because GbForceNiagaraCompileOnLoad = %d"), *GetPathName(), GbForceNiagaraCompileOnLoad);
+			}
 		}
 	}
 	
@@ -219,7 +225,10 @@ void UNiagaraEmitter::PostLoad()
 	{
 		// If the change id is already invalid we need to generate a new one, and can skip checking the owned scripts.
 		bGenerateNewChangeId = true;
-		UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because the ID was invalid."), *GetPathName());
+		if (GEnableVerboseNiagaraChangeIdLogging)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because the ID was invalid."), *GetPathName());
+		}
 	}
 	else
 	{
@@ -228,7 +237,10 @@ void UNiagaraEmitter::PostLoad()
 			if (Script->AreScriptAndSourceSynchronized() == false)
 			{
 				bGenerateNewChangeId = true;
-				//UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because of a change to its script %s"), *GetPathName(), *Script->GetPathName());
+				if (GEnableVerboseNiagaraChangeIdLogging)
+				{
+					UE_LOG(LogNiagara, Log, TEXT("Change ID updated for emitter %s because of a change to its script %s"), *GetPathName(), *Script->GetPathName());
+				}
 			}
 		}
 	}
@@ -344,7 +356,7 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 	}
 
 	ThumbnailImageOutOfDate = true;
-	ChangeId = FGuid::NewGuid();
+	UpdateChangeId();
 	OnPropertiesChangedDelegate.Broadcast();
 }
 
@@ -830,3 +842,41 @@ void UNiagaraEmitter::GraphSourceChanged()
 	UpdateChangeId();
 }
 #endif
+
+TStatId UNiagaraEmitter::GetStatID(bool bGameThread, bool bConcurrent)const
+{
+#if STATS
+	if (bGameThread)
+	{
+		if (bConcurrent)
+		{
+			return StatID_GT;
+		}
+		else
+		{
+			return StatID_GT_CNC;
+		}
+	}
+	else
+	{
+		if (bConcurrent)
+		{
+			return StatID_RT;
+		}
+		else
+		{
+			return StatID_RT_CNC;
+		}
+	}
+#endif
+	return TStatId();
+}
+void UNiagaraEmitter::GenerateStatID()
+{
+#if STATS
+	StatID_GT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[GT]"));
+	StatID_GT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[GT_CNC]"));
+	StatID_RT = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[RT]"));
+	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraEmitters>(GetName() + TEXT("[RT_CNC]"));
+#endif
+}

@@ -13,7 +13,7 @@
 		SORT_CUSTOM_DESCENDING
 ------------------------------------------------------------------------------*/
 
-#include "Common.ush"
+#include "/Engine/Private/Common.ush"
 
 #define NIAGARA_KEYGEN 1
 #include "NiagaraVFParticleAccess.usf"
@@ -34,6 +34,11 @@ RWBuffer<uint> OutKeys;
 /** Output indices buffer. */
 RWBuffer<int> OutParticleIndices;
 
+#if SORT_MAX_PRECISION
+// (SortKeyMask, SortKeyShift, SortKeySignBit)
+uint4 SortKeyParams;
+#endif
+
 [numthreads(THREAD_COUNT,1,1)]
 void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID)
 {
@@ -47,10 +52,19 @@ void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID)
 	const uint SortMode = SortParams.z;
 	const uint SortAttributeOffset = SortParams.w;
 
+#if SORT_MAX_PRECISION
+	const uint SortKeyMask = SortKeyParams.x; 
+	const uint SortKeyShift = SortKeyParams.y;
+	const uint SortKeySignBit = SortKeyParams.z;
+#else
+	const uint SortKeyMask = 0xffff; 
+	const uint SortKeySignBit = 0x8000;
+#endif
+
 	if (ParticleIndex < ParticleCount)
 	{
 		float SortValue = 0;
-		uint SortKey = 0xffff; 
+		uint SortKey = SortKeyMask; 
 
 		if (ParticleIndex < GPUParticleCount)
 		{
@@ -60,23 +74,31 @@ void GenerateParticleSortKeys(uint ParticleIndex : SV_DispatchThreadID)
 				float3 CameraVector = ParticlePosition - CameraPosition;
 				SortValue = SortMode == SORT_VIEW_DEPTH ? dot(CameraVector, CameraDirection) : length(CameraVector);
 				
+#if SORT_MAX_PRECISION
+				SortKey = (asuint(SortValue)) >> SortKeyShift;
+#else
+				SortKey = f32tof16(SortValue);
+#endif
 				// Render far away first, knowing that SortValue > 0
-				SortKey = (~f32tof16(SortValue)) & 0xffff;
+				SortKey =  (~SortKey) & SortKeyMask;
 			}
 			else
 			{
 				SortValue = GetFloat(SortAttributeOffset, ParticleIndex);
 
-				// Convert f32 to uint16. Special handling for negative values.
+#if SORT_MAX_PRECISION
+				SortKey = (asuint(SortValue)) >> SortKeyShift;
+#else
 				SortKey = f32tof16(SortValue);
-				SortKey = SortValue >= 0 ? (SortKey | 0x8000) : ~SortKey;
+#endif
+				// Special handling for negative values.
+				SortKey = SortValue >= 0 ? (SortKey | SortKeySignBit) : ~SortKey;
 
-				SortKey = (SortMode == SORT_CUSTOM_ASCENDING ? SortKey : ~SortKey) & 0xffff;
+				SortKey = (SortMode == SORT_CUSTOM_ASCENDING ? SortKey : ~SortKey) & SortKeyMask;
 			}
 
-
 			// Clamp to max-1 to make sure that out-of-bound indices are at the end.
-			SortKey = min(SortKey, (uint)0xfffe); // Note that some compiler thread 0xfffe as signed.
+			SortKey = min(SortKey , SortKeyMask - 1);
 		}
 
 		SortKey |= EmitterKey;

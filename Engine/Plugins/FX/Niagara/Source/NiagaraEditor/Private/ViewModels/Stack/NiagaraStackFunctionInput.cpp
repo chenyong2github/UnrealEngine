@@ -40,13 +40,13 @@
 #include "ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
 #include "INiagaraEditorTypeUtilities.h"
+#include "ViewModels/Stack/NiagaraStackInputCategory.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackViewModel"
 
 UNiagaraStackFunctionInput::UNiagaraStackFunctionInput()
 	: OwningModuleNode(nullptr)
 	, OwningFunctionCallNode(nullptr)
-	, InputMetaData(nullptr)
 	, bUpdatingGraphDirectly(false)
 	, bUpdatingLocalValueDirectly(false)
 	, bShowEditConditionInline(false)
@@ -121,10 +121,12 @@ void UNiagaraStackFunctionInput::Initialize(
 	UNiagaraNodeFunctionCall& InInputFunctionCallNode,
 	FName InInputParameterHandle,
 	FNiagaraTypeDefinition InInputType,
+	EStackParameterBehavior InParameterBehavior,
 	FString InOwnerStackItemEditorDataKey)
 {
 	checkf(OwningModuleNode.IsValid() == false && OwningFunctionCallNode.IsValid() == false, TEXT("Can only initialize once."));
 	bool bInputIsAdvanced = false;
+	ParameterBehavior = InParameterBehavior;
 	FString InputStackEditorDataKey = FString::Printf(TEXT("%s-Input-%s"), *InInputFunctionCallNode.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens), *InInputParameterHandle.ToString());
 	Super::Initialize(InRequiredEntryData, bInputIsAdvanced, InOwnerStackItemEditorDataKey, InputStackEditorDataKey);
 	OwningModuleNode = &InModuleNode;
@@ -280,10 +282,14 @@ FText UNiagaraStackFunctionInput::GetTooltipText(EValueMode InValueMode) const
 		}
 	}
 
-	const FNiagaraVariableMetaData* MetaData = nullptr;
+	TOptional<FNiagaraVariableMetaData> MetaData;
 	if (FNiagaraConstants::IsNiagaraConstant(ValueVariable))
 	{
-		MetaData = FNiagaraConstants::GetConstantMetaData(ValueVariable);
+		const FNiagaraVariableMetaData* FoundMetaData = FNiagaraConstants::GetConstantMetaData(ValueVariable);
+		if (FoundMetaData)
+		{
+			MetaData = *FoundMetaData;
+		}
 	}
 	else if (NodeGraph != nullptr)
 	{
@@ -291,7 +297,7 @@ FText UNiagaraStackFunctionInput::GetTooltipText(EValueMode InValueMode) const
 	}
 
 	FText Description = FText::GetEmpty();
-	if (MetaData != nullptr)
+	if (MetaData.IsSet())
 	{
 		Description = MetaData->Description;
 	}
@@ -554,7 +560,7 @@ UNiagaraDataInterface* UNiagaraStackFunctionInput::FInputValues::GetDataDefaultV
 
 void UNiagaraStackFunctionInput::RefreshValues()
 {
-	if (ensureMsgf(InputParameterHandle.IsModuleHandle(), TEXT("Function inputs can only be generated for module paramters.")) == false)
+	if (ensureMsgf(IsStaticParameter() || InputParameterHandle.IsModuleHandle(), TEXT("Function inputs can only be generated for module paramters.")) == false)
 	{
 		return;
 	}
@@ -603,7 +609,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 		FNiagaraVariable InputVariable(InputType, InputParameterHandle.GetParameterHandleString());
 		InputMetaData = FunctionGraph->GetMetaData(InputVariable);
 
-		if (InputMetaData != nullptr)
+		if (InputMetaData.IsSet())
 		{
 			SetIsAdvanced(InputMetaData->bAdvancedDisplay);
 
@@ -611,8 +617,8 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData()
 			EditCondition.Refresh(InputMetaData->EditCondition, EditConditionError);
 			if (EditCondition.IsValid() && EditCondition.GetConditionInputType() == FNiagaraTypeDefinition::GetBoolDef())
 			{
-				FNiagaraVariableMetaData* EditConditionInputMetadata = EditCondition.GetConditionInputMetaData();
-				if (EditConditionInputMetadata != nullptr)
+				TOptional<FNiagaraVariableMetaData> EditConditionInputMetadata = EditCondition.GetConditionInputMetaData();
+				if (EditConditionInputMetadata.IsSet())
 				{
 					bShowEditConditionInline = EditConditionInputMetadata->bInlineEditConditionToggle;
 				}
@@ -946,16 +952,34 @@ void UNiagaraStackFunctionInput::NotifyEndLocalValueChange()
 
 bool UNiagaraStackFunctionInput::IsRapidIterationCandidate() const
 {
-	return FNiagaraStackGraphUtilities::IsRapidIterationType(InputType);
+	return !IsStaticParameter() && FNiagaraStackGraphUtilities::IsRapidIterationType(InputType);
 }
 
 void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLocalValue)
 {
 	TGuardValue<bool> UpdateGuard(bUpdatingLocalValueDirectly, true);
 
+	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	UEdGraphPin* DefaultPin = GetDefaultPin();
 	UEdGraphPin* OverridePin = GetOverridePin();
 	UEdGraphPin* ValuePin = DefaultPin;
+
+	// If the parameter we set is from a static switch then we don't want to use an override pin, but directly change the default pin.
+	if (IsStaticParameter())
+	{
+		FNiagaraVariable LocalValueVariable(InputType, NAME_None);
+		LocalValueVariable.SetData(InLocalValue->GetStructMemory());
+		FString PinDefaultValue;
+		if (ensureMsgf(NiagaraSchema->TryGetPinDefaultValueFromNiagaraVariable(LocalValueVariable, PinDefaultValue),
+			TEXT("Could not generate value string for static switch parameter.")))
+		{
+			DefaultPin->Modify();
+			DefaultPin->DefaultValue = PinDefaultValue;
+			Cast<UNiagaraNode>(DefaultPin->GetOwningNode())->MarkNodeRequiresSynchronization(TEXT("Default Value Changed"), true);
+		}
+		RefreshValues();
+		return;
+	}
 	
 	// If the default pin in the function graph is connected internally, rapid iteration parameters can't be used since
 	// the compilation currently won't use them.
@@ -985,7 +1009,6 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 		bGraphWillNeedRelayout = true;
 	}
 
-	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 	if (bCanUseRapidIterationParameter)
 	{
 		for (TWeakObjectPtr<UNiagaraScript> Script : AffectedScripts)
@@ -1037,6 +1060,11 @@ void UNiagaraStackFunctionInput::SetLocalValue(TSharedRef<FStructOnScope> InLoca
 
 bool UNiagaraStackFunctionInput::CanReset() const
 {
+	if (IsStaticParameter())
+	{
+		// Static switch parameters only hold a single value in the default pin, so we disable resetting to prevent a special implementation for them
+		return false;
+	}
 	if (bCanResetCache.IsSet() == false)
 	{
 		bool bNewCanReset;
@@ -1228,6 +1256,11 @@ void UNiagaraStackFunctionInput::Reset()
 		}
 	}
 	RefreshChildren();
+}
+
+bool UNiagaraStackFunctionInput::IsStaticParameter() const
+{
+	return ParameterBehavior == EStackParameterBehavior::Static;
 }
 
 bool UNiagaraStackFunctionInput::CanResetToBase() const
@@ -1650,6 +1683,22 @@ UNiagaraNodeParameterMapSet& UNiagaraStackFunctionInput::GetOrCreateOverrideNode
 
 UEdGraphPin* UNiagaraStackFunctionInput::GetDefaultPin() const
 {
+	// If we have a static switch parameter, we check the pins of the function call node for a matching name,
+	// otherwise we search the parameter map node inside the function for a matching pin
+	if (IsStaticParameter())
+	{
+		const UEdGraphSchema_Niagara* NiagaraSchema = CastChecked<UEdGraphSchema_Niagara>(OwningFunctionCallNode->GetSchema());
+		FName InputName = InputParameterHandle.GetParameterHandleString();
+		for (UEdGraphPin* Pin : OwningFunctionCallNode->Pins)
+		{
+			FNiagaraVariable InputVariable = NiagaraSchema->PinToNiagaraVariable(Pin);
+			if (InputVariable.GetName() == InputName && InputVariable.GetType() == InputType)
+			{
+				return Pin;
+			}
+		}
+		return nullptr;
+	}
 	return OwningFunctionCallNode->FindParameterMapDefaultValuePin(InputParameterHandle.GetParameterHandleString(), SourceScript->GetUsage());
 }
 
