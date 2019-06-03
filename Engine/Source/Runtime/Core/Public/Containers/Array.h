@@ -2872,4 +2872,3 @@ template <typename T,typename Allocator> void* operator new( size_t Size, TArray
 	Array.InsertUninitialized(Index);
 	return &Array[Index];
 }
-
