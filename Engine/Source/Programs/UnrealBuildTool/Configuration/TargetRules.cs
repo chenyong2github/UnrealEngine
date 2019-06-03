@@ -545,6 +545,12 @@ namespace UnrealBuildTool
 		public bool bUseDebugLiveCodingConsole = false;
 
 		/// <summary>
+		/// Whether to enable support for DirectX Math
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bWithDirectXMath = false;
+
+		/// <summary>
 		/// Whether to turn on logging for test/shipping builds.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -1881,6 +1887,11 @@ namespace UnrealBuildTool
 		public bool bUseDebugLiveCodingConsole
 		{
 			get { return Inner.bUseDebugLiveCodingConsole; }
+		}
+
+		public bool bWithDirectXMath
+		{
+			get { return Inner.bWithDirectXMath; }
 		}
 
 		public bool bUseLoggingInShipping

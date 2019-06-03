@@ -171,20 +171,10 @@ public class Core : ModuleRules
 
 		WhitelistRestrictedFolders.Add("Private/NoRedist");
 
-        if (Target.Platform == UnrealTargetPlatform.XboxOne)
+        if (Target.Platform == UnrealTargetPlatform.XboxOne ||
+            (Target.bWithDirectXMath && (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)))
         {
             PublicDefinitions.Add("WITH_DIRECTXMATH=1");
-        }
-        else if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-                (Target.Platform == UnrealTargetPlatform.Win32))
-        {
-			// To enable this requires Win8 SDK
-            PublicDefinitions.Add("WITH_DIRECTXMATH=0");  // Enable to test on Win64/32.
-
-            //PublicDependencyModuleNames.AddRange(  // Enable to test on Win64/32.
-			//    new string[] {
-			//    "DirectXMath"
-            //});
         }
         else
         {
