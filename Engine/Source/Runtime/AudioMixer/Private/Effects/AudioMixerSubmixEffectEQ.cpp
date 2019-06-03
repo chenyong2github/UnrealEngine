@@ -4,7 +4,10 @@
 #include "SubmixEffects/AudioMixerSubmixEffectEQ.h"
 #include "Misc/ScopeLock.h"
 #include "AudioMixer.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
 static bool IsEqual(const FSubmixEffectSubmixEQSettings& Left, const FSubmixEffectSubmixEQSettings& Right)
 {
@@ -89,7 +92,7 @@ void FSubmixEffectSubmixEQ::OnProcessAudio(const FSoundEffectSubmixInputData& In
 {
 	LLM_SCOPE(ELLMTag::AudioMixer);
 
- 	SCOPE_CYCLE_COUNTER(STAT_AudioMixerMasterEQ);
+	CSV_SCOPED_TIMING_STAT(Audio, SubmixEQ);
 
 	// Update parameters that may have been set from game thread
 	UpdateParameters(InData.NumChannels);

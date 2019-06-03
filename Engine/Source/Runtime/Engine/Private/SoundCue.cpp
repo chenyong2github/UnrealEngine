@@ -96,7 +96,7 @@ void USoundCue::CacheAggregateValues()
 
 		bHasDelayNode = FirstNode->HasDelayNode();
 		bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
-		bHasVirtualizeWhenSilent = FirstNode->IsVirtualizeWhenSilent();
+		bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 	}
 }
 
@@ -552,7 +552,7 @@ bool USoundCue::HasCookedAmplitudeEnvelopeData() const
 
 #if WITH_EDITOR
 UEdGraph* USoundCue::GetGraph()
-{ 
+{
 	return SoundCueGraph;
 }
 
@@ -610,6 +610,6 @@ TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
 	{
 	return SoundCueAudioEditor;
 }
-			
+
 
 #endif
