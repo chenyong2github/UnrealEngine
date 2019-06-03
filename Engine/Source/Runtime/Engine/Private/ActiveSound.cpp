@@ -196,6 +196,16 @@ void FActiveSound::SetSoundClass(USoundClass* SoundClass)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
 }
 
+bool FActiveSound::IsPlayWhenSilent() const
+{
+	if (!AudioDevice || !AudioDevice->PlayWhenSilentEnabled())
+	{
+		return false;
+	}
+
+	return Sound && Sound->IsPlayWhenSilent();
+}
+
 void FActiveSound::ClearAudioComponent()
 {
 	AudioComponentID = 0;
