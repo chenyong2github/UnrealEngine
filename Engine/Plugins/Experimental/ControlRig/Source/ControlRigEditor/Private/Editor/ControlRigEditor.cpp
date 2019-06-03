@@ -57,6 +57,7 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "ControlRigObjectVersion.h"
 #include "EdGraphUtilities.h"
+#include "EdGraphNode_Comment.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SNodePanel.h"
 #include "Kismet/Private/SMyBlueprint.h"
@@ -444,9 +445,13 @@ void FControlRigEditor::DeleteSelectedNodes()
 				{
 					RigBlueprint->ModelController->RemoveNode(RigNode->PropertyName);
 				}
+				else if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+				{
+					RigBlueprint->ModelController->RemoveNode(CommentNode->GetFName());
+				}
 				else
 				{
-					Node->GetGraph()->RemoveNode(Node);
+					ensure(false);
 				}
 			}
 		}
@@ -499,8 +504,7 @@ void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const F
 		Node->NodePosY = (Node->NodePosY - AvgNodePosition.Y) + GraphLocation.Y;
 		Node->SnapToGrid(SNodePanel::GetSnapGridSize());
 
-		UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node);
-		if (RigNode != nullptr)
+		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
 		{
 			FVector2D NodePosition = FVector2D(Node->NodePosX, Node->NodePosY);
 			UScriptStruct* ScriptStruct = RigNode->GetUnitScriptStruct();
@@ -555,6 +559,12 @@ void FControlRigEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const F
 					}
 				}
 			}
+		}
+		else if (const UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+		{
+			FVector2D NodePosition = FVector2D((float)CommentNode->NodePosX, (float)CommentNode->NodePosY);
+			FVector2D NodeSize = FVector2D((float)CommentNode->NodeWidth, (float)CommentNode->NodeHeight);
+			RigBlueprint->ModelController->AddComment(CommentNode->GetFName(), CommentNode->NodeComment, NodePosition, NodeSize, CommentNode->CommentColor, false);
 		}
 	}
 
@@ -712,13 +722,11 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 					if (FocusedGraphEdPtr.IsValid())
 					{
 						TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
-						UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph());
-						if (RigGraph != nullptr)
+						if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
 						{
-							UControlRigGraphNode* RigNode = RigGraph->FindNodeFromPropertyName(Node->Name);
-							if (RigNode != nullptr)
+							if (UEdGraphNode* EdNode = RigGraph->FindNodeFromPropertyName(Node->Name))
 							{
-								FocusedGraphEd->SetNodeSelection(RigNode, InType == EControlRigModelNotifType::NodeSelected);
+								FocusedGraphEd->SetNodeSelection(EdNode, InType == EControlRigModelNotifType::NodeSelected);
 							}
 						}
 					}
@@ -730,12 +738,24 @@ void FControlRigEditor::HandleModelModified(const UControlRigModel* InModel, ECo
 					UClass* Class = GetBlueprintObj()->GeneratedClass.Get();
 					if (Class)
 					{
-						UProperty* Property = Class->FindPropertyByName(Node->Name);
-						if (Property)
+						if (UProperty* Property = Class->FindPropertyByName(Node->Name))
 						{
 							TSet<class UObject*> SelectedObjects;
 							SelectedObjects.Add(Property);
 							FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+						}
+						else
+						{
+							TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
+							if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(FocusedGraphEd->GetCurrentGraph()))
+							{
+								if(UEdGraphNode* EdNode = RigGraph->FindNodeFromPropertyName(Node->Name))
+								{
+									TSet<class UObject*> SelectedObjects;
+									SelectedObjects.Add(EdNode);
+									FBlueprintEditor::OnSelectedNodesChangedImpl(SelectedObjects);
+								}
+							}
 						}
 					}
 				}
@@ -780,25 +800,22 @@ void FControlRigEditor::OnSelectedNodesChangedImpl(const TSet<class UObject*>& N
 
 	TGuardValue<bool> SelectingGuard(bIsSelecting, true);
 
-	TArray<UControlRigGraphNode*> SelectedNodes;
-	for(UObject* Object : NewSelection)
-	{
-		UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Object);
-		if(ControlRigGraphNode)
-		{
-			SelectedNodes.Add(ControlRigGraphNode);
-		}
-	}
-
 	UControlRigBlueprint* ControlRigBlueprint = CastChecked<UControlRigBlueprint>(GetBlueprintObj());
 	if (ControlRigBlueprint)
 	{
 		if (ControlRigBlueprint->ModelController)
 		{
 			TArray<FName> NodeNamesToSelect;
-			for (UControlRigGraphNode* SelectedNode : SelectedNodes)
+			for (UObject* Object : NewSelection)
 			{
-				NodeNamesToSelect.Add(SelectedNode->GetPropertyName());
+				if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(Object))
+				{
+					NodeNamesToSelect.Add(ControlRigGraphNode->GetPropertyName());
+				}
+				else if(UEdGraphNode* Node = Cast<UEdGraphNode>(Object))
+				{
+					NodeNamesToSelect.Add(Node->GetFName());
+				}
 			}
 			ControlRigBlueprint->ModelController->SetSelection(NodeNamesToSelect);
 		}
@@ -854,17 +871,19 @@ void FControlRigEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, bool bIs
 		{
 			TSet<class UObject*> SelectedObjects;
 			FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
-			for (UObject* SelecteNode : SelectedNodes)
+			for (UObject* SelectedNode : SelectedNodes)
 			{
-				UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(SelecteNode);
-				if (RigNode == nullptr)
+				if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(SelectedNode))
 				{
-					continue;
+					UProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
+					if (Property)
+					{
+						SelectedObjects.Add(Property);
+					}
 				}
-				UProperty* Property = Class->FindPropertyByName(RigNode->GetPropertyName());
-				if (Property)
+				else
 				{
-					SelectedObjects.Add(Property);
+					SelectedObjects.Add(SelectedNode);
 				}
 			}
 			if (SelectedObjects.Num() > 0)
@@ -1126,12 +1145,28 @@ void FControlRigEditor::SetupGraphEditorEvents(UEdGraph* InGraph, SGraphEditor::
 	FBlueprintEditor::SetupGraphEditorEvents(InGraph, InEvents);
 
 	InEvents.OnCreateActionMenu = SGraphEditor::FOnCreateActionMenu::CreateSP(this, &FControlRigEditor::HandleCreateGraphActionMenu);
+	InEvents.OnTextCommitted = FOnNodeTextCommitted::CreateSP(this, &FControlRigEditor::OnNodeTitleCommitted);
 }
 
 FActionMenuContent FControlRigEditor::HandleCreateGraphActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
 {
 	return FBlueprintEditor::OnCreateGraphActionMenu(InGraph, InNodePosition, InDraggedPins, bAutoExpand, InOnMenuClosed);
 }
+
+void FControlRigEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommit::Type CommitInfo, UEdGraphNode* NodeBeingChanged)
+{
+	if (UEdGraphNode_Comment* CommentBeingChanged = Cast<UEdGraphNode_Comment>(NodeBeingChanged))
+	{
+		if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
+		{
+			if (ControlRigBP->ModelController)
+			{
+				ControlRigBP->ModelController->SetCommentText(CommentBeingChanged->GetFName(), NewText.ToString(), true);
+			}
+		}
+	}
+}
+
 
 void FControlRigEditor::SelectBone(const FName& InBone)
 {
