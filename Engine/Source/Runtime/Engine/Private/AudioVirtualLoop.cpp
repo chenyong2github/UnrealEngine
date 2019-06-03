@@ -51,7 +51,7 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, bool bDoRa
 	return Virtualize(InActiveSound, *AudioDevice, bDoRangeCheck, OutVirtualLoop);
 }
 
-bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevice& AudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
+bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevice& InAudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
 {
 	USoundBase* Sound = InActiveSound.GetSound();
 	check(Sound);
@@ -71,21 +71,12 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 		return false;
 	}
 
-	if (bDoRangeCheck && IsInAudibleRange(InActiveSound, &AudioDevice))
+	if (bDoRangeCheck && IsInAudibleRange(InActiveSound, &InAudioDevice))
 	{
 		return false;
 	}
 
-	FActiveSound* ActiveSound = new FActiveSound(InActiveSound);
-
-	ActiveSound->bAsyncOcclusionPending = false;
-	ActiveSound->AudioDevice = &AudioDevice;
-	ActiveSound->bIsPlayingAudio = false;
-	ActiveSound->ConcurrencyGroupData.Reset();
-	ActiveSound->VolumeConcurrency = 1.0f;
-	ActiveSound->WaveInstances.Reset();
-	ActiveSound->bHasVirtualized = true;
-
+	FActiveSound* ActiveSound = FActiveSound::CreateVirtualCopy(InActiveSound, InAudioDevice);
 	OutVirtualLoop.ActiveSound = ActiveSound;
 	return true;
 }
