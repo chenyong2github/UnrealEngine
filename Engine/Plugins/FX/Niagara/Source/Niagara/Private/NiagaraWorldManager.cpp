@@ -11,6 +11,7 @@
 #include "Scalability.h"
 #include "Misc/ConfigCacheIni.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
+#include "GameFramework/PlayerController.h"
 #include "EngineModule.h"
 #include "NiagaraStats.h"
 
@@ -199,6 +200,26 @@ void FNiagaraWorldManager::Tick(float DeltaSeconds)
 	FNiagaraSharedObject::FlushDeletionList();
 
 	SkeletalMeshGeneratedData.TickGeneratedData(DeltaSeconds);
+
+	// Cache player view locations for all system instances to access
+	CachedPlayerViewLocations.Reset();
+	if (World->GetPlayerControllerIterator())
+	{
+		for ( FConstPlayerControllerIterator Iterator=World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		{
+			APlayerController* PlayerController = Iterator->Get();
+			if (PlayerController && PlayerController->IsLocalPlayerController())
+			{
+				FVector* POVLoc = new(CachedPlayerViewLocations) FVector;
+				FRotator POVRotation;
+				PlayerController->GetPlayerViewPoint(*POVLoc, POVRotation);
+			}
+		}
+	}
+	else
+	{
+		CachedPlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
+	}
 
 	//Tick our collections to push any changes to bound stores.
 	for (TPair<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> CollectionInstPair : ParameterCollections)
