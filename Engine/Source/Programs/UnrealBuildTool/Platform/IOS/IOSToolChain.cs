@@ -1680,7 +1680,7 @@ namespace UnrealBuildTool
 
 			string AppName = Target.TargetName;
 
-			if (!Target.bSkipCrashlytics && !IsCompiledAsFramework(Target.OutputPath.FullName))
+			if (!Target.bSkipCrashlytics)
 			{
 				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName);
 			}
