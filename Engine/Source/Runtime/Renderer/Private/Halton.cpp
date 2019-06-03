@@ -43,21 +43,30 @@ DECLARE_GPU_STAT_NAMED(HaltonSequence, TEXT("Halton Sequence"));
 
 void FHaltonSequenceIteration::InitRHI()
 {
+	struct FSequenceIterationData
+	{
+		float Sequence[3];
+	};
+
 	SCOPED_GPU_STAT(FRHICommandListExecutor::GetImmediateCommandList(), HaltonSequence);
 	InitializeSequence();
 
-	TArray<float> RandomSamples;
-	RandomSamples.SetNum(SequenceCount * IterationCount * DimensionCount);
+	TArray<FSequenceIterationData> RandomSamples;
+	uint32 ElementCount = FMath::DivideAndRoundUp(DimensionCount, 3u);
+	RandomSamples.SetNum(SequenceCount * IterationCount * ElementCount);
 	for (uint32 SequenceIndex = 0; SequenceIndex < SequenceCount; ++SequenceIndex)
 	{
 		uint32 SequenceValue = Sequence[SequenceIndex] + Iteration * IterationCount;
-		uint32 SequenceOffset = SequenceIndex * IterationCount * DimensionCount;
+		uint32 SequenceOffset = SequenceIndex * IterationCount * ElementCount;
 		for (uint32 IterationIndex = 0; IterationIndex < IterationCount; ++IterationIndex)
 		{
-			uint32 IterationOffset = IterationIndex * DimensionCount;
-			for (uint32 DimensionIndex = 0; DimensionIndex < DimensionCount; ++DimensionIndex)
+			uint32 IterationOffset = IterationIndex * ElementCount;
+			for (uint32 ElementIndex = 0; ElementIndex < ElementCount; ++ElementIndex)
 			{
-				RandomSamples[SequenceOffset + IterationOffset + DimensionIndex] = HaltonSequence.Sample(DimensionIndex, SequenceValue + IterationIndex);
+				uint32 DimensionOffset = ElementIndex * 3;
+				RandomSamples[SequenceOffset + IterationOffset + ElementIndex].Sequence[0] = HaltonSequence.Sample(DimensionOffset, SequenceValue + IterationIndex);
+				RandomSamples[SequenceOffset + IterationOffset + ElementIndex].Sequence[1] = HaltonSequence.Sample(DimensionOffset + 1, SequenceValue + IterationIndex);
+				RandomSamples[SequenceOffset + IterationOffset + ElementIndex].Sequence[2] = HaltonSequence.Sample(DimensionOffset + 2, SequenceValue + IterationIndex);
 			}
 		}
 	}
@@ -65,11 +74,11 @@ void FHaltonSequenceIteration::InitRHI()
 	FRHIResourceCreateInfo CreateInfo;
 	{
 		CreateInfo.DebugName = TEXT("HaltonSequenceIteration");
-		SequenceIteration.VertexBufferRHI = RHICreateVertexBuffer(RandomSamples.Num() * sizeof(float), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		SequenceIteration = RHICreateStructuredBuffer(sizeof(FSequenceIterationData), RandomSamples.Num() * sizeof(FSequenceIterationData), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		uint32 Offset = 0;
-		void* BasePtr = RHILockVertexBuffer(SequenceIteration.VertexBufferRHI, 0, RandomSamples.Num() * sizeof(float), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(BasePtr, RandomSamples.GetData(), RandomSamples.Num() * sizeof(float));
-		RHIUnlockVertexBuffer(SequenceIteration.VertexBufferRHI);
+		void* BasePtr = RHILockStructuredBuffer(SequenceIteration, Offset, RandomSamples.Num() * sizeof(FSequenceIterationData), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(BasePtr, RandomSamples.GetData(), RandomSamples.Num() * sizeof(FSequenceIterationData));
+		RHIUnlockStructuredBuffer(SequenceIteration);
 	}
 }
 
@@ -148,11 +157,17 @@ void FHaltonPrimesResource::InitRHI()
 {
 	FRHIResourceCreateInfo CreateInfo;
 	{
+		struct FPrimeData
+		{
+			int Primes[3];
+		};
+
 		CreateInfo.DebugName = TEXT("HaltonPrimes");
-		PrimesBuffer.VertexBufferRHI = RHICreateVertexBuffer(DimensionCount * sizeof(float), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		uint32 ElementCount = FMath::DivideAndRoundUp(DimensionCount, 3u);
+		PrimesBuffer = RHICreateStructuredBuffer(sizeof(FPrimeData), ElementCount * sizeof(FPrimeData), BUF_Transient | BUF_FastVRAM | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		uint32 Offset = 0;
-		void* BasePtr = RHILockVertexBuffer(PrimesBuffer.VertexBufferRHI, Offset, DimensionCount * sizeof(float), RLM_WriteOnly);
-		FPlatformMemory::Memcpy(BasePtr, Primes.GetData(), DimensionCount * sizeof(float));
-		RHIUnlockVertexBuffer(PrimesBuffer.VertexBufferRHI);
+		void* BasePtr = RHILockStructuredBuffer(PrimesBuffer, Offset, ElementCount * sizeof(FPrimeData), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(BasePtr, Primes.GetData(), DimensionCount * sizeof(int));
+		RHIUnlockStructuredBuffer(PrimesBuffer);
 	}
 }

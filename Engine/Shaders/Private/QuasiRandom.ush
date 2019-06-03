@@ -94,19 +94,17 @@ float3 QuasiRandom_Sample3(inout FQuasiRandom QuasiRandom)
 		float3 BlueNoiseShift = EvalBlueNoise(QuasiRandom.BlueNoiseCoord, QuasiRandom.Dimension / 3);
 
 		// Evaluate Halton
-		float3 HaltonSample;
-		HaltonSample.x = HaltonSequence(QuasiRandom.HaltonSequence, QuasiRandom.HaltonIteration, QuasiRandom.Dimension);
-		HaltonSample.y = HaltonSequence(QuasiRandom.HaltonSequence, QuasiRandom.HaltonIteration, QuasiRandom.Dimension + 1);
-		HaltonSample.z = HaltonSequence(QuasiRandom.HaltonSequence, QuasiRandom.HaltonIteration, QuasiRandom.Dimension + 2);
+		float3 HaltonSample = HaltonSequence3(QuasiRandom.HaltonSequence, QuasiRandom.HaltonIteration, QuasiRandom.Dimension / 3);
 
 		// Wrap sum
-		RandomSample = fmod(HaltonSample + BlueNoiseShift, 1.0);
+		RandomSample = fmod(BlueNoiseShift + HaltonSample, 1.0);
 	}
 	else
 	{
-		RandomSample.x = HaltonProcedural(QuasiRandom.PositionSeed + QuasiRandom.TimeSeed, HaltonPrime(QuasiRandom.Dimension));
-		RandomSample.y = HaltonProcedural(QuasiRandom.PositionSeed + QuasiRandom.TimeSeed, HaltonPrime(QuasiRandom.Dimension + 1));
-		RandomSample.z = HaltonProcedural(QuasiRandom.PositionSeed + QuasiRandom.TimeSeed, HaltonPrime(QuasiRandom.Dimension + 2));
+		uint3 Primes = HaltonPrime3(QuasiRandom.Dimension / 3);
+		RandomSample.x = HaltonProcedural(QuasiRandom.PositionSeed + QuasiRandom.TimeSeed, Primes[0]);
+		RandomSample.y = HaltonProcedural(QuasiRandom.PositionSeed + QuasiRandom.TimeSeed, Primes[1]);
+		RandomSample.z = HaltonProcedural(QuasiRandom.PositionSeed + QuasiRandom.TimeSeed, Primes[2]);
 	}
 
 	// Increment dimension

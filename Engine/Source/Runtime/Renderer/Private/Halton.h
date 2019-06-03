@@ -15,7 +15,7 @@ SHADER_PARAMETER(int, Dimensions)
 SHADER_PARAMETER(int, SequenceRowCount)
 SHADER_PARAMETER(int, SequenceColumnCount)
 SHADER_PARAMETER(int, IterationCount)
-SHADER_PARAMETER_SRV(Buffer<float>, SequenceIteration)
+SHADER_PARAMETER_SRV(StructuredBuffer<float3>, SequenceIteration)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -39,7 +39,6 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
-		SequenceIteration.ReleaseRHI();
 	}
 
 	virtual FString GetFriendlyName() const override
@@ -68,7 +67,7 @@ public:
 		return Iteration;
 	}
 
-	FVertexBuffer SequenceIteration;
+	FStructuredBufferRHIRef SequenceIteration;
 
 private:
 	void InitializeSequence();
@@ -84,16 +83,16 @@ private:
 
 inline void InitializeHaltonSequenceIteration(const FHaltonSequenceIteration& HaltonSequenceIteration, FHaltonIteration& HaltonIteration)
 {
-	HaltonIteration.Dimensions = HaltonSequenceIteration.GetDimensionCount();
+	HaltonIteration.Dimensions = HaltonSequenceIteration.GetDimensionCount() / 3u;
 	HaltonIteration.SequenceRowCount = FMath::Sqrt(HaltonSequenceIteration.GetSequenceCount());
 	HaltonIteration.SequenceColumnCount = HaltonSequenceIteration.GetSequenceCount() / HaltonIteration.SequenceRowCount;
 	HaltonIteration.IterationCount = HaltonSequenceIteration.GetIterationCount();
-	HaltonIteration.SequenceIteration = RHICreateShaderResourceView(HaltonSequenceIteration.SequenceIteration.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+	HaltonIteration.SequenceIteration = RHICreateShaderResourceView(HaltonSequenceIteration.SequenceIteration);
 }
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHaltonPrimes, )
 SHADER_PARAMETER(int, Dimensions)
-SHADER_PARAMETER_SRV(Buffer<int>, Primes)
+SHADER_PARAMETER_SRV(StructuredBuffer<uint3>, Primes)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 /**
@@ -110,7 +109,6 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
-		PrimesBuffer.ReleaseRHI();
 	}
 
 	virtual FString GetFriendlyName() const override
@@ -124,7 +122,7 @@ public:
 		return DimensionCount;
 	}
 
-	FVertexBuffer PrimesBuffer;
+	FStructuredBufferRHIRef PrimesBuffer;
 
 private:
 	TArray<int> Primes;
@@ -134,5 +132,5 @@ private:
 inline void InitializeHaltonPrimes(const FHaltonPrimesResource& HaltonPrimeResource, FHaltonPrimes& HaltonPrimes)
 {
 	HaltonPrimes.Dimensions = HaltonPrimeResource.GetDimensionCount();
-	HaltonPrimes.Primes = RHICreateShaderResourceView(HaltonPrimeResource.PrimesBuffer.VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+	HaltonPrimes.Primes = RHICreateShaderResourceView(HaltonPrimeResource.PrimesBuffer);
 }
