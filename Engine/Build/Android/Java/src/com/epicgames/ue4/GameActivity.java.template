@@ -2124,6 +2124,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
+		// Grab a reference to the asset manager
+		AssetManagerReference = this.getAssets();
+
 		_activity = this;
 		super.onCreate(savedInstanceState);
 
@@ -2415,9 +2418,6 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 			}
 		}
 		
-		// Grab a reference to the asset manager
-		AssetManagerReference = this.getAssets();
-
 		// Read metadata from AndroidManifest.xml
 		appPackageName = getPackageName();
 		String ProjectName = getPackageName();
