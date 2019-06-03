@@ -54,6 +54,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 	bLooping = Component->IsLooping();
 	bAlwaysHasVelocity = true;
 	PlaybackSpeed = (Component->IsPlaying()) ? Component->GetPlaybackSpeed() : 0.0f;
+	UpdatedFrameNum = 0;
 
 	// Copy each section
 	const int32 NumTracks = Component->TrackSections.Num();
@@ -324,17 +325,18 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 				&& (TrackProxy->NextFrameMeshData->Positions.Num() == TrackProxy->NextFrameMeshData->MotionVectors.Num());
 
 				if (!bHasMotionVectors)
-				{
-					UserData.MotionBlurDataExtension = FVector::OneVector;
+	            {
+		            const float PreviousPositionScale = (GFrameNumber <= UpdatedFrameNum) ? 1.f : 0.f;
+					UserData.MotionBlurDataExtension = FVector::OneVector * PreviousPositionScale;
 					UserData.MotionBlurDataOrigin = FVector::ZeroVector;
-					UserData.MotionBlurPositionScale = 0.0f;
-				}
-				else
-				{
-					UserData.MotionBlurDataExtension = FVector::OneVector * PlaybackSpeed;
-					UserData.MotionBlurDataOrigin = FVector::ZeroVector;
-					UserData.MotionBlurPositionScale = 1.0f;
-				}
+					UserData.MotionBlurPositionScale = 1.f - PreviousPositionScale;
+	            }
+	            else
+	            {
+		            UserData.MotionBlurDataExtension = FVector::OneVector * PlaybackSpeed;
+		            UserData.MotionBlurDataOrigin = FVector::ZeroVector;
+		            UserData.MotionBlurPositionScale = 1.0f;
+	            }
 
 				if (IsRayTracingEnabled())
 				{
@@ -539,6 +541,7 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 	bLooping = bNewLooping;
 	bIsPlayingBackwards = bNewIsPlayingBackwards;
 	PlaybackSpeed = NewPlaybackSpeed;
+	UpdatedFrameNum = GFrameNumber + 1;
 
 	if (IsRayTracingEnabled())
 	{
@@ -1017,7 +1020,6 @@ void FGeomCacheVertexFactory::Init(const FVertexBuffer* PositionBuffer, const FV
 			{
 			Init_RenderThread(PositionBuffer, MotionBlurDataBuffer, TangentXBuffer, TangentZBuffer, TextureCoordinateBuffer, ColorBuffer);
 		});
-		FlushRenderingCommands();
 	}
 }
 
