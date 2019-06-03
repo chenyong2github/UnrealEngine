@@ -396,9 +396,13 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 		{
 			DeviceType = IOS_IPodTouch5;
 		}
-		else if (Major >= 7)
+		else if (Major == 7)
 		{
 			DeviceType = IOS_IPodTouch6;
+		}
+		else if (Major >= 9)
+		{
+			DeviceType = IOS_IPodTouch7;
 		}
 	}
 	// iPads
