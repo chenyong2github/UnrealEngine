@@ -152,6 +152,8 @@ class FRayTracingTranslucencyRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RayHitDistanceOutput)
 	END_SHADER_PARAMETER_STRUCT()
@@ -391,6 +393,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingTranslucencyView(
 
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->SceneTextureSamplers = SceneTextureSamplers;
+
+	FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
+	PassParameters->SceneColorTexture = SceneColorTexture;
 
 	PassParameters->ReflectionStruct = CreateReflectionUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 	PassParameters->FogUniformParameters = CreateFogUniformBuffer(View, EUniformBufferUsage::UniformBuffer_SingleFrame);

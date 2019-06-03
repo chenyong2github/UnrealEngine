@@ -24,6 +24,7 @@
 #include "../PathTracing/Utilities/PathTracingRandomSequence.ush" 
 #include "../HeightFogCommon.ush"
 #include "../SobolRandom.ush"
+#include "../SceneTextureParameters.ush"
 #include "RayTracingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
 #include "RayTracingDirectionalLight.ush"
@@ -45,6 +46,8 @@ float TranslucencyMaxRayDistance;
 float TranslucencyMaxRoughness;
 uint  TranslucencyRefraction;
 float MaxNormalBias;
+
+Texture2D SceneColorTexture;
 
 RaytracingAccelerationStructure TLAS;
 
@@ -106,8 +109,8 @@ void RayTracingTranslucencyRGS()
 
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	float Depth = ScreenSpaceData.GBuffer.Depth;
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+	float Depth = GBufferData.Depth;
 	float3 CameraOrigin = View.WorldCameraOrigin;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
 	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);	
@@ -258,7 +261,7 @@ void RayTracingTranslucencyRGS()
 	if (!bHasScattered)
 	{
 		// Use the scene radiance for ray that has not been scattered/refracted (no surface or IORin=IORout). Still apply the throughtput in case we have traversed surfaces with opacity>0.
-		PathRadiance += PathThroughput * Texture2DSampleLevel(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, UV, 0).xyz;
+		PathRadiance += PathThroughput * SceneColorTexture.SampleLevel(GlobalPointClampedSampler, UV, 0).xyz;
 	}
 
 #if USE_PREEXPOSURE
