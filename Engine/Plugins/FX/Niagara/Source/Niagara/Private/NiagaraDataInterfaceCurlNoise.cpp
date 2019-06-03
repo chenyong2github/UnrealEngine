@@ -308,6 +308,8 @@ UNiagaraDataInterfaceCurlNoise::UNiagaraDataInterfaceCurlNoise(FObjectInitialize
 	, Seed(0)
 {
 	OffsetFromSeed = FNiagaraUIntVectorToFVector(Rand3DPCG16(FIntVector(Seed, Seed, Seed))) / 100.0;
+
+	Proxy = MakeShared<FNiagaraDataInterfaceProxyCurlNoise, ESPMode::ThreadSafe>(OffsetFromSeed);
 }
 
 void UNiagaraDataInterfaceCurlNoise::PostInitProperties()
@@ -324,6 +326,8 @@ void UNiagaraDataInterfaceCurlNoise::PostLoad()
 {
 	Super::PostLoad();
 	OffsetFromSeed = FNiagaraUIntVectorToFVector(Rand3DPCG16(FIntVector(Seed, Seed, Seed))) / 100.0;
+
+	PushToRenderThread();
 }
 
 #if WITH_EDITOR
@@ -346,6 +350,8 @@ void UNiagaraDataInterfaceCurlNoise::PostEditChangeProperty(struct FPropertyChan
 		// NOTE: Calculate the offset based on the seed on-change instead of on every invocation for every particle...
 		OffsetFromSeed = FNiagaraUIntVectorToFVector(Rand3DPCG16(FIntVector(Seed, Seed, Seed))) / 100.0;
 	}
+
+	PushToRenderThread();
 }
 
 #endif
@@ -359,6 +365,7 @@ bool UNiagaraDataInterfaceCurlNoise::CopyToInternal(UNiagaraDataInterface* Desti
 	UNiagaraDataInterfaceCurlNoise* DestinationCurlNoise = CastChecked<UNiagaraDataInterfaceCurlNoise>(Destination);
 	DestinationCurlNoise->Seed = Seed;
 	DestinationCurlNoise->OffsetFromSeed = OffsetFromSeed;
+	DestinationCurlNoise->PushToRenderThread();
 
 	return true;
 }
@@ -446,6 +453,20 @@ void UNiagaraDataInterfaceCurlNoise::GetParameterDefinitionHLSL(FNiagaraDataInte
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
 }
 
+void UNiagaraDataInterfaceCurlNoise::PushToRenderThread()
+{
+	FNiagaraDataInterfaceProxyCurlNoise* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyCurlNoise>();
+
+	FVector RT_Offset = OffsetFromSeed;
+
+	// Push Updates to Proxy.
+	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
+		[RT_Proxy, RT_Offset](FRHICommandListImmediate& RHICmdList)
+	{
+		RT_Proxy->OffsetFromSeed = RT_Offset;
+	});
+}
+
 struct FNiagaraDataInterfaceParametersCS_CurlNoise : public FNiagaraDataInterfaceParametersCS
 {
 	virtual void Bind(const FNiagaraDataInterfaceParamRef& ParamRef, const class FShaderParameterMap& ParameterMap) override
@@ -458,15 +479,13 @@ struct FNiagaraDataInterfaceParametersCS_CurlNoise : public FNiagaraDataInterfac
 		Ar << OffsetFromSeed;
 	}
 
-	virtual void Set(FRHICommandList& RHICmdList, FNiagaraShader* Shader, class UNiagaraDataInterface* DataInterface, void* PerInstanceData) const override
+	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
 	{
 		check(IsInRenderingThread());
 
 		// Get shader and DI
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Shader->GetComputeShader();
-		UNiagaraDataInterfaceCurlNoise* CNDI = CastChecked<UNiagaraDataInterfaceCurlNoise>(DataInterface);
-
-		// Note: There is a flush in PreEditChange to make sure everything is synced up at this point 
+		const FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FNiagaraDataInterfaceProxyCurlNoise* CNDI = static_cast<FNiagaraDataInterfaceProxyCurlNoise*>(Context.DataInterface);
 
 		// Set parameters
 		SetShaderValue(RHICmdList, ComputeShaderRHI, OffsetFromSeed, CNDI->OffsetFromSeed);

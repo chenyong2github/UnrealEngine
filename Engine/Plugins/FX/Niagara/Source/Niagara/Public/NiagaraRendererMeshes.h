@@ -10,90 +10,46 @@ NiagaraRenderer.h: Base class for Niagara render modules
 
 class FNiagaraDataSet;
 
-
-
-struct FNiagaraDynamicDataMesh : public FNiagaraDynamicDataBase
-{
-	//Direct ptr to the dataset. ONLY FOR USE BE GPU EMITTERS.
-	//TODO: Even this needs to go soon.
-	const FNiagaraDataSet *DataSet;
-};
-
-
-
 /**
 * NiagaraRendererSprites renders an FNiagaraEmitterInstance as sprite particles
 */
-class NIAGARA_API NiagaraRendererMeshes : public NiagaraRenderer
+class NIAGARA_API FNiagaraRendererMeshes : public FNiagaraRenderer
 {
 public:
 
-	explicit NiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, UNiagaraRendererProperties *Props);
-	~NiagaraRendererMeshes()
-	{
-		ReleaseRenderThreadResources();
-	}
-
-
+	FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	
+	//FNiagaraRenderer Interface
+	virtual void CreateRenderThreadResources() override;
 	virtual void ReleaseRenderThreadResources() override;
 
-	// FPrimitiveSceneProxy interface.
-	virtual void CreateRenderThreadResources() override;
-
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
-	virtual bool SetMaterialUsage() override;
+	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
+	virtual int32 GetDynamicDataSize()const override;
 	virtual void TransformChanged() override;
-	/** Update render data buffer from attributes */
-	FNiagaraDynamicDataBase *GenerateVertexData(const FNiagaraSceneProxy* Proxy, FNiagaraDataSet &Data, const ENiagaraSimTarget Target) override;
+	virtual bool IsMaterialValid(UMaterialInterface* Mat)const override;
+	//FNiagaraRenderer Interface END
 
-	virtual void SetDynamicData_RenderThread(FNiagaraDynamicDataBase* NewDynamicData) override;
-	int GetDynamicDataSize() override;
-	bool HasDynamicData() override;
-
-	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)
-	{
-		FPrimitiveViewRelevance Result;
-		bool bHasDynamicData = HasDynamicData();
-		//Always draw so our LastRenderTime is updated. We may not have dynamic data if we're disabled from visibility culling.
-		Result.bDrawRelevance = /*bHasDynamicData && */SceneProxy->IsShown(View) && View->Family->EngineShowFlags.Particles;
-		Result.bShadowRelevance = bHasDynamicData && SceneProxy->IsShadowCast(View);
-		Result.bDynamicRelevance = bHasDynamicData;
-
-		if (bHasDynamicData)
-		{
-			Result.bOpaqueRelevance = MaterialRelevance.bOpaque;
-			Result.bNormalTranslucencyRelevance = MaterialRelevance.bNormalTranslucency;
-			Result.bSeparateTranslucencyRelevance = MaterialRelevance.bSeparateTranslucency;
-			Result.bDistortionRelevance = MaterialRelevance.bDistortion;
-		}
-
-		return Result;
-	}
-
-
-
-
-	UClass *GetPropertiesClass() override { return UNiagaraMeshRendererProperties::StaticClass(); }
-	void SetRendererProperties(UNiagaraRendererProperties *Props) override { Properties = Cast<UNiagaraMeshRendererProperties>(Props); }
-	virtual UNiagaraRendererProperties* GetRendererProperties()  const override {
-		return Properties;
-	}
-#if WITH_EDITORONLY_DATA
-	virtual const TArray<FNiagaraVariable>& GetRequiredAttributes() override;
-	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
-#endif
 	void SetupVertexFactory(FNiagaraMeshVertexFactory *InVertexFactory, const FStaticMeshLODResources& LODResources) const;
 
 private:
-	UNiagaraMeshRendererProperties *Properties;
 	mutable TUniformBuffer<FPrimitiveUniformShaderParameters> WorldSpacePrimitiveUniformBuffer;
 	class FNiagaraMeshVertexFactory* VertexFactory;
+
+	/** Render data of the static mesh we use. */
+	FStaticMeshRenderData* MeshRenderData;
+
+	ENiagaraSortMode SortMode;
+	ENiagaraMeshFacingMode FacingMode;
+	uint32 bOverrideMaterials : 1;
+	uint32 bSortOnlyWhenTranslucent : 1;
 
 	int32 PositionOffset;
 	int32 VelocityOffset;
 	int32 ColorOffset;
 	int32 ScaleOffset;
 	int32 SizeOffset;
+	uint32 MaterialParamValidMask;
 	int32 MaterialParamOffset;
 	int32 MaterialParamOffset1;
 	int32 MaterialParamOffset2;
@@ -102,5 +58,4 @@ private:
 	int32 NormalizedAgeOffset;
 	int32 MaterialRandomOffset;
 	int32 CustomSortingOffset;
-	int32 LastSyncedId;
 };

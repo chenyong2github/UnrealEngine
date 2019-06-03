@@ -117,7 +117,7 @@ void UNiagaraDataInterfaceCurve::UpdateLUT()
 		float C = Curve.Eval(X);
 		ShaderLUT.Add(C);
 	}
-	GPUBufferDirty = true;
+	Super::PushToRenderThread();
 }
 
 // build the shader function HLSL; function name is passed in, as it's defined per-DI; that way, configuration could change

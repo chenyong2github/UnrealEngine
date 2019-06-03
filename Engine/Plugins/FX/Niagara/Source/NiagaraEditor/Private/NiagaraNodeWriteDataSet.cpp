@@ -113,7 +113,7 @@ void UNiagaraNodeWriteDataSet::PostLoad()
 	}
 }
 
-void UNiagaraNodeWriteDataSet::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+void UNiagaraNodeWriteDataSet::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	if (bRecursive)
 	{
