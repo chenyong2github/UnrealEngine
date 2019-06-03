@@ -165,6 +165,12 @@ public:
 	 */
 	FTickableGameObject()
 	{
+		// These are called here only to make sure the function level statics they encapsulate
+		// get destroyed in the correct order at shutdown. This was added to fix UE-75429
+		GetTickableObjects();
+		GetDeletedTickableObjects();
+		GetTickableObjectsCritical();
+
 		GetNewTickableObjects().Push(this);
 	}
 
