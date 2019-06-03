@@ -393,8 +393,6 @@ static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Render
 		(Renderer->EarlyZPassMode != DDM_None || Renderer->bEarlyZPassMovable != 0);
 }
 
-bool ShouldRenderScreenSpaceDiffuseIndirect( const FViewInfo& View );
-
 bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdList)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -1596,8 +1594,6 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			Scene->UniformBuffers.UpdateViewUniformBuffer(Views[ViewIndex]);
 
 			GCompositionLighting.ProcessAfterBasePass(RHICmdList, Views[ViewIndex]);
-			
-			RenderScreenSpaceDiffuseIndirect( RHICmdList, Views[ ViewIndex ], SceneContext.SceneVelocity );
 		}
 		ServiceLocalQueue();
 	}
@@ -1625,6 +1621,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
 
 		GRenderTargetPool.AddPhaseEvent(TEXT("Lighting"));
+
+		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		RenderIndirectCapsuleShadows(

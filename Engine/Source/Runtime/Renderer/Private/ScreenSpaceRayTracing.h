@@ -22,6 +22,8 @@ enum class ESSRQuality
 
 bool ShouldRenderScreenSpaceReflections(const FViewInfo& View);
 
+bool ShouldRenderScreenSpaceDiffuseIndirect(const FViewInfo& View);
+
 void GetSSRQualityForView(const FViewInfo& View, ESSRQuality* OutQuality, IScreenSpaceDenoiser::FReflectionsRayTracingConfig* OutRayTracingConfigs);
 
 bool IsSSRTemporalPassRequired(const FViewInfo& View);
@@ -35,4 +37,9 @@ void RenderScreenSpaceReflections(
 	bool bDenoiser,
 	IScreenSpaceDenoiser::FReflectionsInputs* DenoiserInputs);
 
-void RenderScreenSpaceDiffuseIndirect( FRHICommandListImmediate& RHICmdList, FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT );
+void RenderScreenSpaceDiffuseIndirect(
+	FRDGBuilder& GraphBuilder, 
+	const FSceneTextureParameters& SceneTextures,
+	const FRDGTextureRef SceneColor,
+	const FViewInfo& View,
+	IScreenSpaceDenoiser::FDiffuseIndirectInputs* OutDenoiserInputs);
