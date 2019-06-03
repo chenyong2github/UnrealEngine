@@ -778,7 +778,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 			
 		void PopulateTabSpawnerMenu_Helper( FMenuBuilder& PopulateMe, struct FPopulateTabSpawnerMenu_Args Args );
 
-		void MakeSpawnerMenuEntry( FMenuBuilder &PopulateMe, const TSharedPtr<FTabSpawnerEntry> &SpawnerNode );
+		void MakeSpawnerMenuEntry( FMenuBuilder &PopulateMe, const TSharedPtr<FTabSpawnerEntry> &InSpawnerNode );
 
 		TSharedPtr<SDockTab> InvokeTab_Internal( const FTabId& TabId );
 
