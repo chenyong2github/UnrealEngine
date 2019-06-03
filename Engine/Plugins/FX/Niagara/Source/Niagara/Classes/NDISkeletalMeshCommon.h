@@ -103,6 +103,16 @@ struct FSkinnedPositionAccessorHelper
 	FORCEINLINE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
 		checkf(false, TEXT("Must provide a specialization for this template type"));
+	}	
+	
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		checkf(false, TEXT("Must provide a specialization for this template type"));
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		checkf(false, TEXT("Must provide a specialization for this template type"));
 	}
 };
 
@@ -151,6 +161,16 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 	{
 		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).GetOrigin();
 	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+	}
 };
 
 template<>
@@ -198,6 +218,16 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 	{
 		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetLocation();
 	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+	}
 };
 
 template<>
@@ -244,6 +274,16 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
 		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetLocation();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetRotation();
 	}
 };
 
