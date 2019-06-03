@@ -40,6 +40,9 @@ const FName UControlRig::PrototypeNameMetaName("PrototypeName");
 const FName UControlRig::AnimationInputMetaName("AnimationInput");
 const FName UControlRig::AnimationOutputMetaName("AnimationOutput");
 
+const FName UControlRig::ExpandPinByDefaultMetaName("ExpandByDefault");
+const FName UControlRig::DefaultArraySizeMetaName("DefaultArraySize");
+
 UControlRig::UControlRig()
 	: DeltaTime(0.0f)
 #if WITH_EDITORONLY_DATA
