@@ -752,6 +752,11 @@ static IOSAppDelegate* CachedDelegate = nil;
 	return Session.otherAudioPlaying;
 }
 
+-(bool)HasRecordPermission
+{
+	return [[AVAudioSession sharedInstance] recordPermission] == AVAudioSessionRecordPermissionGranted;
+}
+
 -(void)EnableHighQualityVoiceChat:(bool)bEnable
 {
 	self.bHighQualityVoiceChatEnabled = bEnable;

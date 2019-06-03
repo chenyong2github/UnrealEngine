@@ -53,6 +53,7 @@
 #include "Graph/NodeSpawners/ControlRigPropertyNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigCommentNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -745,6 +746,10 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 		check(NodeSpawner != nullptr);
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	});
+
+	UBlueprintNodeSpawner* CommentNodeSpawner = UControlRigCommentNodeSpawner::Create();
+	check(CommentNodeSpawner != nullptr);
+	ActionRegistrar.AddBlueprintAction(ActionKey, CommentNodeSpawner);
 
 	// Add 'new properties'
 	TArray<FEdGraphPinType> PinTypes;

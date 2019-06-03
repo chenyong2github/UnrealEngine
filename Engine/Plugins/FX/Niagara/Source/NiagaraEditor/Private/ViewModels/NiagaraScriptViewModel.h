@@ -54,7 +54,7 @@ public:
 		const TArray<UNiagaraScript*>& InCompileSources);
 
 	/** Compiles a script that isn't part of an emitter or System. */
-	void CompileStandaloneScript();
+	void CompileStandaloneScript(bool bForceCompile = false);
 
 	/** Get the latest status of this view-model's script compilation.*/
 	ENiagaraScriptCompileStatus GetLatestCompileStatus();
@@ -97,7 +97,7 @@ protected:
 	/** The script which provides the data for this view model. */
 	TArray<TWeakObjectPtr<UNiagaraScript>> Scripts;
 
-	void OnVMScriptCompiled(UNiagaraScript* InScript);
+	virtual void OnVMScriptCompiled(UNiagaraScript* InScript);
 
 	TWeakObjectPtr<UNiagaraScriptSource> Source;
 

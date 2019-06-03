@@ -515,7 +515,7 @@ public:
 	NIAGARA_API void MarkScriptAndSourceDesynchronized(FString Reason);
 	
 	/** Request a synchronous compile for the script, possibly forcing it to compile.*/
-	NIAGARA_API void RequestCompile();
+	NIAGARA_API void RequestCompile(bool bForceCompile = false);
 
 	/** Request an asynchronous compile for the script, possibly forcing it to compile. The output values are the compilation id of the data as well as the async handle to 
 		gather up the results with. bTrulyAsync tells the system whether or not the compile task must be completed on the main thread (mostly used for debugging). The

@@ -20,6 +20,7 @@ class UNiagaraScriptSource;
 class FNiagaraScriptViewModel;
 class FNiagaraObjectSelection;
 struct FEdGraphEditAction;
+class FNiagaraMessageLogViewModel;
 
 /** Viewer/editor for a DataTable */
 class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject
@@ -51,11 +52,6 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-
-	/**
-	* Updates list of Niagara messages in message log
-	*/
-	void UpdateMessageLog();
 
 	/**
 	* Updates list of module info used to show stats
@@ -132,8 +128,8 @@ private:
 	TSharedPtr<FNiagaraObjectSelection> DetailsScriptSelection;
 
 	/** Message log, with the log listing that it reflects */
+	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	TSharedPtr<class SWidget> NiagaraMessageLog;
-	TSharedPtr<class IMessageLogListing> NiagaraMessageLogListing;
 
 	/**	The tab ids for the Niagara editor */
 	static const FName NodeGraphTabId; 

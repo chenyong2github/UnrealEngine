@@ -96,7 +96,7 @@ void USoundCue::CacheAggregateValues()
 
 		bHasDelayNode = FirstNode->HasDelayNode();
 		bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
-		bHasVirtualizeWhenSilent = FirstNode->IsVirtualizeWhenSilent();
+		bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
 	}
 }
 
@@ -466,11 +466,21 @@ bool USoundCue::IsPlayable() const
 	return FirstNode != nullptr;
 }
 
-void USoundCue::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
+bool USoundCue::IsPlayWhenSilent() const
+{
+	if (VirtualizationMode == EVirtualizationMode::PlayWhenSilent)
+	{
+		return true;
+	}
+
+	return bHasPlayWhenSilent;
+}
+
+void USoundCue::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
 	if (FirstNode)
 	{
-		FirstNode->ParseNodes(AudioDevice,(UPTRINT)FirstNode,ActiveSound,ParseParams,WaveInstances);
+		FirstNode->ParseNodes(AudioDevice, (UPTRINT)FirstNode, ActiveSound, ParseParams, WaveInstances);
 	}
 }
 
@@ -552,7 +562,7 @@ bool USoundCue::HasCookedAmplitudeEnvelopeData() const
 
 #if WITH_EDITOR
 UEdGraph* USoundCue::GetGraph()
-{ 
+{
 	return SoundCueGraph;
 }
 
@@ -610,6 +620,6 @@ TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
 	{
 	return SoundCueAudioEditor;
 }
-			
+
 
 #endif

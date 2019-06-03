@@ -93,7 +93,6 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 						if (bDisplayAsDisabled != RigNode->IsDisplayAsDisabledForced())
 						{
 							RigNode->SetForceDisplayAsDisabled(bDisplayAsDisabled);
-							RigNode->Modify();
 							bEncounteredChange = true;
 						}
 					}
@@ -227,7 +226,6 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 										RigNode->ErrorMsg = TEXT("The node is part of a cycle.");
 										RigNode->ErrorType = EMessageSeverity::Error;
 										RigNode->bHasCompilerMessage = true;
-										RigNode->Modify();
 
 										MessageLog.Error(*FString::Printf(TEXT("Node '%s' is part of a cycle."), *Property->GetName()));
 									}
@@ -256,7 +254,6 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 							Node->ErrorMsg.Reset();
 							Node->ErrorType = (int32)EMessageSeverity::Info+1;
 							Node->bHasCompilerMessage = false;
-							Node->Modify();
 						}
 					}
 				}

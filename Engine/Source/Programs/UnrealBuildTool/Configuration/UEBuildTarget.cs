@@ -1594,10 +1594,25 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// If we're just precompiling a plugin, only include output items which are under that directory
+			// If we're just precompiling a plugin, only include output items which are part of it
 			if(ForeignPlugin != null)
 			{
-				Makefile.OutputItems.RemoveAll(x => !x.Location.IsUnderDirectory(ForeignPlugin.Directory));
+				HashSet<FileItem> RetainOutputItems = new HashSet<FileItem>();
+				foreach(UEBuildPlugin Plugin in BuildPlugins)
+				{
+					if(Plugin.File == ForeignPlugin)
+					{
+						foreach (UEBuildModule Module in Plugin.Modules)
+						{
+							FileItem[] ModuleOutputItems;
+							if(Makefile.ModuleNameToOutputItems.TryGetValue(Module.Name, out ModuleOutputItems))
+							{
+								RetainOutputItems.UnionWith(ModuleOutputItems);
+							}
+						}
+					}
+				}
+				Makefile.OutputItems.RemoveAll(x => !RetainOutputItems.Contains(x));
 			}
 
 			// Allow the toolchain to modify the final output items

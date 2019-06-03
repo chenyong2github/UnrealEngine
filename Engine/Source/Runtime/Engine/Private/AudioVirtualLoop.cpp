@@ -2,8 +2,8 @@
 #include "AudioVirtualLoop.h"
 
 #include "ActiveSound.h"
+#include "Audio/AudioDebug.h"
 #include "AudioDevice.h"
-#include "DrawDebugHelpers.h"
 #include "Sound/SoundBase.h"
 
 
@@ -35,13 +35,6 @@ FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMax(
 	TEXT("Sets maximum rate to check if sound becomes audible again (at beyond sound's max audible distance + perf scaling distance).\n"),
 	ECVF_Default);
 
-static int32 VirtualLoopsVisualizeEnabledCVar = 1;
-FAutoConsoleVariableRef CVarAudioVisualizeVirtualLoopsEnabled(
-	TEXT("au.3dVisualize.VirtualLoops"),
-	VirtualLoopsVisualizeEnabledCVar,
-	TEXT("Whether or not virtualized loops are visible when 3d visualize is enabled. \n")
-	TEXT("0: Not Enabled, 1: Enabled"),
-	ECVF_Default);
 
 FAudioVirtualLoop::FAudioVirtualLoop()
 	: TimeSinceLastUpdate(0.0f)
@@ -58,8 +51,16 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, bool bDoRa
 	return Virtualize(InActiveSound, *AudioDevice, bDoRangeCheck, OutVirtualLoop);
 }
 
-bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevice& AudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
+bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevice& InAudioDevice, bool bDoRangeCheck, FAudioVirtualLoop& OutVirtualLoop)
 {
+	USoundBase* Sound = InActiveSound.GetSound();
+	check(Sound);
+
+	if (Sound->VirtualizationMode == EVirtualizationMode::Disabled)
+	{
+		return false;
+	}
+
 	if (!bVirtualLoopsEnabledCVar || InActiveSound.bIsPreviewSound || !InActiveSound.IsLooping())
 	{
 		return false;
@@ -70,21 +71,12 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 		return false;
 	}
 
-	if (bDoRangeCheck && IsInAudibleRange(InActiveSound, &AudioDevice))
+	if (bDoRangeCheck && IsInAudibleRange(InActiveSound, &InAudioDevice))
 	{
 		return false;
 	}
 
-	FActiveSound* ActiveSound = new FActiveSound(InActiveSound);
-
-	ActiveSound->bAsyncOcclusionPending = false;
-	ActiveSound->AudioDevice = &AudioDevice;
-	ActiveSound->bIsPlayingAudio = false;
-	ActiveSound->ConcurrencyGroupData.Reset();
-	ActiveSound->VolumeConcurrency = 1.0f;
-	ActiveSound->WaveInstances.Reset();
-	ActiveSound->bHasVirtualized = true;
-
+	FActiveSound* ActiveSound = FActiveSound::CreateVirtualCopy(InActiveSound, InAudioDevice);
 	OutVirtualLoop.ActiveSound = ActiveSound;
 	return true;
 }
@@ -143,7 +135,7 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 	}
 	check(AudioDevice);
 
-	if (AudioDevice->VirtualSoundsEnabled() && InActiveSound.IsVirtualizeWhenSilent())
+	if (InActiveSound.IsPlayWhenSilent())
 	{
 		return true;
 	}
@@ -178,10 +170,9 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 		TimeSinceLastUpdate = 0.0f;
 	}
 
-	if (VirtualLoopsVisualizeEnabledCVar)
-	{
-		DrawDebugInfo();
-	}
+#if ENABLE_AUDIO_DEBUG
+	FAudioDebugger::DrawDebugInfo(*this);
+#endif // ENABLE_AUDIO_DEBUG
 
 	// If not audible, update when will be checked again and return false
 	if (!IsInAudibleRange(*ActiveSound))
@@ -191,36 +182,4 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 	}
 
 	return true;
-}
-
-void FAudioVirtualLoop::DrawDebugInfo() const
-{
-#if ENABLE_DRAW_DEBUG
-	// Draw 3d Debug information about this source, if enabled
-	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-
-	if (DeviceManager && DeviceManager->IsVisualizeDebug3dEnabled())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.DrawVirtualLoopDebugInfo"), STAT_AudioDrawVirtualLoopDebugInfo, STATGROUP_TaskGraphTasks);
-
-		USoundBase* Sound = ActiveSound->GetSound();
-		check(Sound);
-
-		const FTransform Transform = ActiveSound->Transform;
-		const TWeakObjectPtr<UWorld> World = ActiveSound->GetWeakWorld();
-		const FString Name = Sound->GetName();
-		const float DrawInterval = UpdateInterval;
-		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval]()
-		{
-			if (World.IsValid())
-			{
-				const FString Description = FString::Printf(TEXT("%s [V]"), *Name);
-				FVector Location = Transform.GetLocation();
-				FRotator Rotation = Transform.GetRotation().Rotator();
-				DrawDebugCrosshairs(World.Get(), Location, Rotation, 20.0f, FColor::Blue, false, DrawInterval, SDPG_Foreground);
-				DrawDebugString(World.Get(), Location + FVector(0, 0, 32), *Description, nullptr, FColor::Blue, DrawInterval, false);
-			}
-		}, GET_STATID(STAT_AudioDrawVirtualLoopDebugInfo));
-	}
-#endif // ENABLE_DRAW_DEBUG
 }

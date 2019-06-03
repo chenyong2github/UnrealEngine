@@ -25,6 +25,7 @@
 #include "Math/RandomStream.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "Types/SlateConstants.h"
 
 extern void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShaderParameters);
 
@@ -629,6 +630,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 	const float EngineGamma = GEngine ? GEngine->GetDisplayGamma() : 2.2f;
 	const float DisplayGamma = bGammaCorrect ? EngineGamma : 1.0f;
+	const float DisplayContrast = GSlateContrast;
 
 	int32 ScissorClips = 0;
 	int32 StencilClips = 0;
@@ -1020,7 +1022,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					PixelShader->SetTexture(RHICmdList, TextureRHI, SamplerState);
 					PixelShader->SetShaderParams(RHICmdList, ShaderParams.PixelParams);
 					const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? (1.0f / EngineGamma) : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
-					PixelShader->SetDisplayGammaAndInvertAlpha(RHICmdList, FinalGamma, EnumHasAllFlags(DrawEffects, ESlateDrawEffect::InvertAlpha) ? 1.0f : 0.0f);
+					const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
+					PixelShader->SetDisplayGammaAndInvertAlphaAndContrast(RHICmdList, FinalGamma, EnumHasAllFlags(DrawEffects, ESlateDrawEffect::InvertAlpha) ? 1.0f : 0.0f, FinalContrast);
 				}
 
 				{
@@ -1143,7 +1146,8 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, Material, ShaderParams.PixelParams);
 								const float FinalGamma = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::ReverseGamma) ? 1.0f / EngineGamma : EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1.0f : DisplayGamma;
-								PixelShader->SetDisplayGamma(RHICmdList, FinalGamma);
+								const float FinalContrast = EnumHasAnyFlags(DrawFlags, ESlateBatchDrawFlag::NoGamma) ? 1 : DisplayContrast;
+								PixelShader->SetDisplayGammaAndContrast(RHICmdList, FinalGamma, FinalContrast);
 
 								if (MaskResource)
 								{

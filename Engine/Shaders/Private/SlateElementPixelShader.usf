@@ -5,7 +5,7 @@
 #include "GammaCorrectionCommon.ush"
 #include "SlateShaderCommon.ush"
 
-/** Display gamma x:gamma curve adjustment, y:inverse gamma (1/GEngine->DisplayGamma), z:InvertAlpha */
+/** Display gamma x:gamma curve adjustment, y:inverse gamma (1/GEngine->DisplayGamma), z:InvertAlpha, w:Contrast */
 half4 GammaAndAlphaValues;
 /** Per element params */
 float4 ShaderParams;
@@ -13,6 +13,22 @@ float4 ShaderParams;
 /** Texture for the element */
 Texture2D ElementTexture;
 SamplerState ElementTextureSampler;
+
+/**
+ * Applys a contrast about a midpoint squeezing the colors towards dark or light depending on
+ * the midpoint.  Additionally - it increases the opaqueness of colors to try and seperate them from
+ * the background.
+ */
+half4 ApplyContrast(half4 InColor)
+{
+    FLATTEN if( GammaAndAlphaValues.w != 1.0f )
+    {
+		float ContrastMidpoint = 0.25; //TODO We may want to make the midpoint configurable so that users can pick a different one, based on the overall saturation of their UI.
+	    InColor.rgb = saturate(((InColor.rgb - ContrastMidpoint) * GammaAndAlphaValues.w) + ContrastMidpoint);
+    }
+    
+    return InColor;
+}
 
 half3 GammaCorrect(half3 InColor)
 {
@@ -256,7 +272,10 @@ half4 Main( VertexToPixelInterpolants VIn ) : SV_Target0
 	OutColor.rgb = lerp( OutColor.rgb, Grayish, clamp( distance( OutColor.rgb, Grayish ), 0, .8)  );
 #endif
 
-	// gamma correct
+    // Contrast
+    OutColor = ApplyContrast(OutColor);
+
+	// Gamma Correct
 	OutColor.rgb = GammaCorrect(OutColor.rgb);
 
 #if !USE_MATERIALS
