@@ -2825,7 +2825,10 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 			{
 				Component->UpdateCachedBounds();
 				Component->UpdateComponentToWorld();
-				Component->UpdateCollisionData();
+
+				// Avoid updating height field if we are going to recreate collision in this update
+				bool bUpdateHeightfieldRegion = !Component->IsUpdateFlagEnabledForModes(Component_Update_Recreate_Collision, HeightmapUpdateModes);
+				Component->UpdateCollisionData(bUpdateHeightfieldRegion);
 			}
 		}
 
@@ -4294,24 +4297,24 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 		return;
 	}
 
-	TArray<ULandscapeComponent*> AllLandscapeComponents;
-	GetLandscapeInfo()->ForAllLandscapeProxies([&AllLandscapeComponents](ALandscapeProxy* Proxy)
-	{
-		AllLandscapeComponents.Append(Proxy->LandscapeComponents);
-	});
+		TArray<ULandscapeComponent*> AllLandscapeComponents;
+		GetLandscapeInfo()->ForAllLandscapeProxies([&AllLandscapeComponents](ALandscapeProxy* Proxy)
+		{
+			AllLandscapeComponents.Append(Proxy->LandscapeComponents);
+		});
 
-	int32 ProcessedModes = 0;
-	ProcessedModes |= RegenerateLayersHeightmaps(AllLandscapeComponents, bInWaitForStreaming);
-	ProcessedModes |= RegenerateLayersWeightmaps(AllLandscapeComponents, bInWaitForStreaming);
-	ProcessedModes |= (LayerContentUpdateModes & ELandscapeLayerUpdateMode::Update_Client_Deferred);
-	ProcessedModes |= (LayerContentUpdateModes & ELandscapeLayerUpdateMode::Update_Client_Editing);
-	LayerContentUpdateModes &= ~ProcessedModes;
+		int32 ProcessedModes = 0;
+		ProcessedModes |= RegenerateLayersHeightmaps(AllLandscapeComponents, bInWaitForStreaming);
+		ProcessedModes |= RegenerateLayersWeightmaps(AllLandscapeComponents, bInWaitForStreaming);
+		ProcessedModes |= (LayerContentUpdateModes & ELandscapeLayerUpdateMode::Update_Client_Deferred);
+		ProcessedModes |= (LayerContentUpdateModes & ELandscapeLayerUpdateMode::Update_Client_Editing);
+		LayerContentUpdateModes &= ~ProcessedModes;
 
-	if (!ALandscape::UpdateCollisionAndClients(AllLandscapeComponents, ProcessedModes))
-	{
-		LayerContentUpdateModes |= ELandscapeLayerUpdateMode::Update_Client_Deferred;
+		if (!ALandscape::UpdateCollisionAndClients(AllLandscapeComponents, ProcessedModes))
+		{
+			LayerContentUpdateModes |= ELandscapeLayerUpdateMode::Update_Client_Deferred;
+		}
 	}
-}
 
 bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& InLandscapeComponents, const int32 InContentUpdateModes)
 {
