@@ -185,7 +185,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 		}
 		else
 		{
-			return A.Pin->PinName < B.Pin->PinName;
+			return A.Pin->PinName.LexicalLess(B.Pin->PinName);
 		}
 	});
 

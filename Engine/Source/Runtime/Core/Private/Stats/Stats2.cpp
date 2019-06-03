@@ -602,6 +602,21 @@ public:
 		{
 			Found->AlwaysEnabledNamesInThisGroup.Add( Stat, Result );
 		}
+
+#if CPUPROFILERTRACE_ENABLED
+		if (bCycleStat)
+		{
+			Result->TraceCpuProfilerSpecId = FCpuProfilerTrace::OutputEventType(*StatDescription, CpuProfilerGroup_Stats);
+		}
+#endif
+#if STATSTRACE_ENABLED
+		if (!bCycleStat && (InStatType == EStatDataType::ST_int64 || InStatType == EStatDataType::ST_double))
+		{
+			ANSICHAR NameBuffer[1024];
+			StatShortName.GetPlainANSIString(NameBuffer);
+			FStatsTrace::DeclareStat(Stat, NameBuffer, *StatDescription, InStatType == EStatDataType::ST_double, MemoryRegion != FPlatformMemory::MCR_Invalid, bShouldClearEveryFrame);
+		}
+#endif
 		return TStatId(Result);
 	}
 

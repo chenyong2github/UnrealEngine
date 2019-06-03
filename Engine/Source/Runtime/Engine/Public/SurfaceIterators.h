@@ -70,7 +70,7 @@ public:
 		check( CurrentSurface );
 		return CurrentSurface;
 	}
-	FORCEINLINE operator bool()
+	FORCEINLINE explicit operator bool() const
 	{
 		return !bReachedEnd;
 	}

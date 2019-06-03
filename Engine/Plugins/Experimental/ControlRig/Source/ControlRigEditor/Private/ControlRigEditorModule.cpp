@@ -840,7 +840,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 					LOCTEXT("ClearArray", "Clear"),
 					LOCTEXT("ClearArray_Tooltip", "Clear this array of all of its entries"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->EndSection();
 			}
@@ -856,13 +856,13 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 					LOCTEXT("RemoveArrayElement", "Remove"),
 					LOCTEXT("RemoveArrayElement_Tooltip", "Remove this array element"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->AddMenuEntry(
 					LOCTEXT("InsertArrayElement", "Insert"),
 					LOCTEXT("InsertArrayElement_Tooltip", "Insert an array element after this one"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->EndSection();
 			}

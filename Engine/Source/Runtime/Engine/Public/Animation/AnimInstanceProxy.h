@@ -864,7 +864,7 @@ private:
 	FBoneContainer RequiredBones;
 
 	/** LODLevel used by RequiredBones */
-	int32 LODLevel;
+	int32 LODLevel = 0;
 
 	/** Counter used to control CacheBones recursion behavior - makes sure we cache bones correctly when recursing into different subgraphs */
 	int32 CacheBonesRecursionCounter;

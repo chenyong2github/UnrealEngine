@@ -158,7 +158,7 @@ void UNiagaraGraph::PostLoad()
 	if (bAllZeroes && UniqueNames.Num() > 1)
 	{
 		// Just do the lexicographic sort and assign the call order to their ordered index value.
-		UniqueNames.Sort();
+		UniqueNames.Sort(FNameLexicalLess());
 		for (UNiagaraNodeInput* InputNode : InputNodes)
 		{
 			if (InputNode->Usage == ENiagaraInputNodeUsage::Parameter)

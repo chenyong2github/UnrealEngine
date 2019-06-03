@@ -9,6 +9,10 @@
 #include "UObject/NameTypes.h"
 #include "Containers/Map.h"
 #include "Containers/BitArray.h"
+#include "Concepts/Insertable.h"
+#include "Templates/Models.h"
+
+#if WITH_TEXT_ARCHIVE_SUPPORT
 
 class CORE_API FArchiveFromStructuredArchive : public FArchiveProxy
 {
@@ -66,3 +70,24 @@ private:
 
 	FStructuredArchive::FSlot RootSlot;
 };
+
+#else
+
+class CORE_API FArchiveFromStructuredArchive
+{
+public:
+
+	FArchiveFromStructuredArchive(FStructuredArchive::FSlot InSlot)
+		: Ar(InSlot.GetUnderlyingArchive())
+	{
+
+	}
+
+	operator FArchive& () { return Ar; }
+
+private:
+
+	FArchive& Ar;
+};
+
+#endif

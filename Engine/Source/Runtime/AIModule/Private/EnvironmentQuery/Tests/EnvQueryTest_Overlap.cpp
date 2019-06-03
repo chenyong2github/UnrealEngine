@@ -50,11 +50,11 @@ void UEnvQueryTest_Overlap::RunTest(FEnvQueryInstance& QueryInstance) const
 	FRunOverlapSignature OverlapFunc;
 	if (OverlapData.bOnlyBlockingHits)
 	{
-		OverlapFunc.BindUObject(this, &UEnvQueryTest_Overlap::RunOverlapBlocking);
+		OverlapFunc.BindUObject(const_cast<UEnvQueryTest_Overlap*>(this), &UEnvQueryTest_Overlap::RunOverlapBlocking);
 	}
 	else
 	{
-		OverlapFunc.BindUObject(this, &UEnvQueryTest_Overlap::RunOverlap);
+		OverlapFunc.BindUObject(const_cast<UEnvQueryTest_Overlap*>(this), &UEnvQueryTest_Overlap::RunOverlap);
 	}
 
 	for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)

@@ -83,7 +83,7 @@ struct INPUTCORE_API FKey
 
 	friend bool operator==(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName == KeyB.KeyName; }
 	friend bool operator!=(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName != KeyB.KeyName; }
-	friend bool operator<(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName < KeyB.KeyName; }
+	friend bool operator<(const FKey& KeyA, const FKey& KeyB) { return KeyA.KeyName.LexicalLess(KeyB.KeyName); }
 	friend uint32 GetTypeHash(const FKey& Key) { return GetTypeHash(Key.KeyName); }
 
 	friend struct EKeys;

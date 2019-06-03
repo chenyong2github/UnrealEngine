@@ -431,7 +431,7 @@ TSharedPtr<SWidget> SMorphTargetViewer::OnGetContextMenuContent() const
 		FUIAction Action;
 
 		{
-			Action.ExecuteAction = FExecuteAction::CreateSP(this, &SMorphTargetViewer::OnDeleteMorphTargets);
+			Action.ExecuteAction = FExecuteAction::CreateSP(const_cast<SMorphTargetViewer*>(this), &SMorphTargetViewer::OnDeleteMorphTargets);
 			Action.CanExecuteAction = FCanExecuteAction::CreateSP(this, &SMorphTargetViewer::CanPerformDelete);
 			const FText Label = LOCTEXT("DeleteMorphTargetButtonLabel", "Delete");
 			const FText ToolTipText = LOCTEXT("DeleteMorphTargetButtonTooltip", "Deletes the selected morph targets.");
@@ -439,7 +439,7 @@ TSharedPtr<SWidget> SMorphTargetViewer::OnGetContextMenuContent() const
 		}
 
 		{
-			Action.ExecuteAction = FExecuteAction::CreateSP(this, &SMorphTargetViewer::OnCopyMorphTargetNames);
+			Action.ExecuteAction = FExecuteAction::CreateSP(const_cast<SMorphTargetViewer*>(this), &SMorphTargetViewer::OnCopyMorphTargetNames);
 			Action.CanExecuteAction = nullptr;
 			const FText Label = LOCTEXT("CopyMorphTargetNamesButtonLabel", "Copy Names");
 			const FText ToolTipText = LOCTEXT("CopyMorphTargetNamesButtonTooltip", "Copy the names of selected morph targets to clipboard");

@@ -85,7 +85,7 @@ FString FPerPlatformInt::ToString() const
 #if WITH_EDITORONLY_DATA
 	TArray<FName> SortedPlatforms;
 	PerPlatform.GetKeys(/*out*/ SortedPlatforms);
-	SortedPlatforms.Sort();
+	SortedPlatforms.Sort(FNameLexicalLess());
 
 	for (FName Platform : SortedPlatforms)
 	{

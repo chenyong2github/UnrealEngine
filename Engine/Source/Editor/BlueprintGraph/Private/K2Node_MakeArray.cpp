@@ -89,7 +89,7 @@ void UK2Node_MakeArray::GetContextMenuActions(const FGraphNodeContextMenuBuilder
 					LOCTEXT("RemovePinTooltip", "Remove this array element pin"),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateUObject(this, &UK2Node_MakeArray::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
+						FExecuteAction::CreateUObject(const_cast<UK2Node_MakeArray*>(this), &UK2Node_MakeArray::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
 					)
 				);
 			}
@@ -101,7 +101,7 @@ void UK2Node_MakeArray::GetContextMenuActions(const FGraphNodeContextMenuBuilder
 				LOCTEXT("AddPinTooltip", "Add another array element pin"),
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateUObject(this, &UK2Node_MakeArray::InteractiveAddInputPin)
+					FExecuteAction::CreateUObject(const_cast<UK2Node_MakeArray*>(this), &UK2Node_MakeArray::InteractiveAddInputPin)
 				)
 			);
 		}
@@ -111,7 +111,7 @@ void UK2Node_MakeArray::GetContextMenuActions(const FGraphNodeContextMenuBuilder
 			LOCTEXT("ResetToWildcardTooltip", "Reset the node to have wildcard input/outputs. Requires no pins are connected."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateUObject(this, &UK2Node_MakeArray::ClearPinTypeToWildcard),
+				FExecuteAction::CreateUObject(const_cast<UK2Node_MakeArray*>(this), &UK2Node_MakeArray::ClearPinTypeToWildcard),
 				FCanExecuteAction::CreateUObject(this, &UK2Node_MakeArray::CanResetToWildcard)
 			)
 		);

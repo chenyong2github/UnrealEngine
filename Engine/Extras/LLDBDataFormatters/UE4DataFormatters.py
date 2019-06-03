@@ -62,7 +62,7 @@ def UE4FNameSummaryProvider(valobj,dict):
     if IndexVal >= 4194304:
         return 'name=Invalid'
     else:
-        Expr = '(char*)(((FNameEntry***)GFNameTableForDebuggerVisualizers_MT)['+str(IndexVal)+' / 16384]['+str(IndexVal)+' % 16384])->AnsiName'
+        Expr = '(char*)((FNameEntry&)GNameBlocksDebug['+str(IndexVal)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexVal)+' & FNameDebugVisualizer::OffsetMask)]).AnsiName'
         FNameRef = valobj.CreateValueFromExpression(str(IndexVal), Expr)
         assert FNameRef != None
         Val = FNameRef.GetSummary()
@@ -77,7 +77,7 @@ def UE4FMinimalNameSummaryProvider(valobj,dict):
     if IndexVal >= 4194304:
         return 'name=Invalid'
     else:
-        Expr = '(char*)(((FNameEntry***)GFNameTableForDebuggerVisualizers_MT)['+str(IndexVal)+' / 16384]['+str(IndexVal)+' % 16384])->AnsiName'
+        Expr = '(char*)((FNameEntry&)GNameBlocksDebug['+str(IndexVal)+' >> FNameDebugVisualizer::OffsetBits][FNameDebugVisualizer::EntryStride * ('+str(IndexVal)+' & FNameDebugVisualizer::OffsetMask)]).AnsiName'
         FNameRef = valobj.CreateValueFromExpression(str(IndexVal), Expr)
         assert FNameRef != None
         Val = FNameRef.GetSummary()

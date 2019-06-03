@@ -289,6 +289,10 @@ public:
 	ENGINE_API virtual void BeginDestroy() override;
 	ENGINE_API virtual bool IsReadyForFinishDestroy() override;
 	ENGINE_API virtual void FinishDestroy() override;
+	ENGINE_API virtual bool IsDestructionThreadSafe() const
+	{
+		return false;
+	}
 	//~ End UObject Interface
 
 	/** 

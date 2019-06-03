@@ -139,6 +139,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Sound/AudioSettings.h"
 #include "Streaming/Texture2DUpdate.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "Serialization/LoadTimeTrace.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -4507,17 +4508,19 @@ bool UEngine::HandleCountDisabledParticleItemsCommand( const TCHAR* Cmd, FOutput
 	return true;
 }
 
-// View the last N number of names added to the name table. Useful for tracking down name table bloat
+// View all names or the last N names added to the name table. Useful for tracking down name table bloat
 bool UEngine::HandleViewnamesCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
-	int32 NumNames = 0;
-	if (FParse::Value(Cmd,TEXT("NUM="),NumNames))
+	const TArray<const FNameEntry*> Entries = FName::DebugDump();
+
+	int32 NumLast = 0;
+	int32 BeginIdx = FParse::Value(Cmd, TEXT("NUM="), NumLast) ? FMath::Max(Entries.Num() - NumLast, 0) : 0;
+
+	for (int32 I = BeginIdx; I < Entries.Num(); ++I)
 	{
-		for (int32 NameIndex = FMath::Max<int32>(FName::GetMaxNames() - NumNames, 0); NameIndex < FName::GetMaxNames(); NameIndex++)
-		{
-			Ar.Logf(TEXT("%d->%s"), NameIndex, *FName::SafeString(NameIndex));
-		}
+		Ar.Log(*Entries[I]->GetPlainNameString());	
 	}
+
 	return true;
 }
 
@@ -9303,7 +9306,7 @@ struct FSoundInfo
 
 	bool CompareClass( const FSoundInfo& Other ) const
 	{
-		return ClassName < Other.ClassName;
+		return ClassName.LexicalLess(Other.ClassName);
 	}
 
 	bool CompareWaveInstancesNum( const FSoundInfo& Other ) const
@@ -12075,7 +12078,9 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 
 bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error )
 {
+	TRACE_LOADTIME_LOAD_MAP_SCOPE(*URL.Map);
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "LoadMap - " ) + URL.Map )) );
+	TRACE_BOOKMARK(TEXT("LoadMap - %s"), *URL.Map);
 
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UEngine::LoadMap"), STAT_LoadMap, STATGROUP_LoadTime);
 
@@ -12623,6 +12628,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "LoadMapComplete - " ) + URL.Map )) );
+	TRACE_BOOKMARK(TEXT("LoadMapComplete - %s"), *URL.Map);
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapEnd( URL.Map ); )
 
 		double StopTime = FPlatformTime::Seconds();
@@ -13325,6 +13331,7 @@ static void AsyncMapChangeLevelLoadCompletionCallback(const FName& PackageName, 
 	}
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "PrepareMapChangeComplete - " ) + PackageName.ToString() )) );
+	TRACE_BOOKMARK(TEXT("PrepareMapChangeComplete - %s"), *PackageName.ToString());
 }
 
 
@@ -13370,6 +13377,7 @@ bool UEngine::PrepareMapChange(FWorldContext &Context, const TArray<FName>& Leve
 		for (const FName LevelName : Context.LevelsToLoadForPendingMapChange)
 		{
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "PrepareMapChange - " ) + LevelName.ToString() )) );
+			TRACE_BOOKMARK(TEXT("PrepareMapChange - %s"), *LevelName.ToString());
 			LoadPackageAsync(LevelName.ToString(),
 				FLoadPackageAsyncDelegate::CreateStatic(&AsyncMapChangeLevelLoadCompletionCallback, Context.ContextHandle)
 			);

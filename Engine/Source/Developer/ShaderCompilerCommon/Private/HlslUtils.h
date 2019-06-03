@@ -109,6 +109,8 @@ namespace CrossCompiler
 	class FLinearAllocatorPolicy
 	{
 	public:
+		using SizeType = int32;
+
 		// Unreal allocator magic
 		enum { NeedsElementType = false };
 		enum { RequireRangeCheck = true };
@@ -129,7 +131,7 @@ namespace CrossCompiler
 			{
 				return Data;
 			}
-			void ResizeAllocation(int32 PreviousNumElements, int32 NumElements, int32 NumBytesPerElement)
+			void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
 			{
 				void* OldData = Data;
 				if (NumElements)
@@ -142,30 +144,30 @@ namespace CrossCompiler
 					// If the container previously held elements, copy them into the new allocation.
 					if (OldData && PreviousNumElements)
 					{
-						const int32 NumCopiedElements = FMath::Min(NumElements, PreviousNumElements);
+						const SizeType NumCopiedElements = FMath::Min(NumElements, PreviousNumElements);
 						FMemory::Memcpy(Data, OldData, NumCopiedElements * NumBytesPerElement);
 					}
 				}
 			}
-			int32 CalculateSlackReserve(int32 NumElements, int32 NumBytesPerElement) const
+			SizeType CalculateSlackReserve(SizeType NumElements, SIZE_T NumBytesPerElement) const
 			{
 				return DefaultCalculateSlackReserve(NumElements, NumBytesPerElement, false);
 			}
-			int32 CalculateSlackShrink(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
+			SizeType CalculateSlackShrink(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 			{
 				return DefaultCalculateSlackShrink(NumElements, NumAllocatedElements, NumBytesPerElement, false);
 			}
-			int32 CalculateSlackGrow(int32 NumElements, int32 NumAllocatedElements, int32 NumBytesPerElement) const
+			SizeType CalculateSlackGrow(SizeType NumElements, SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 			{
 				return DefaultCalculateSlackGrow(NumElements, NumAllocatedElements, NumBytesPerElement, false);
 			}
 
-			int32 GetAllocatedSize(int32 NumAllocatedElements, int32 NumBytesPerElement) const
+			SIZE_T GetAllocatedSize(SizeType NumAllocatedElements, SIZE_T NumBytesPerElement) const
 			{
 				return NumAllocatedElements * NumBytesPerElement;
 			}
 
-			bool HasAllocation()
+			bool HasAllocation() const
 			{
 				return !!Data;
 			}

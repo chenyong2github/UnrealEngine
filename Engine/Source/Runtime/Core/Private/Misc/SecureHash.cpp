@@ -605,11 +605,6 @@ FArchive& operator<<( FArchive& Ar, FSHAHash& G )
 	return Ar;
 }
 
-uint32 GetTypeHash(FSHAHash const& InKey)
-{
-	return FCrc::MemCrc32(InKey.Hash, sizeof(InKey.Hash));
-}
-
 FString LexToString(const FSHAHash& InHash)
 {
 	return InHash.ToString();
@@ -832,12 +827,12 @@ void FSHA1::HMACBuffer(const void* Key, uint32 KeySize, const void* Data, uint64
  * Shared hashes.sha reading code (each platform gets a buffer to the data,
  * then passes it to this function for processing)
  */
-void FSHA1::InitializeFileHashesFromBuffer(uint8* Buffer, int32 BufferSize, bool bDuplicateKeyMemory)
+void FSHA1::InitializeFileHashesFromBuffer(uint8* Buffer, uint64 BufferSize, bool bDuplicateKeyMemory)
 {
 	// the start of the file is full file hashes
 	bool bIsDoingFullFileHashes = true;
 	// if it exists, parse it
-	int32 Offset = 0;
+	uint64 Offset = 0;
 	while (Offset < BufferSize)
 	{
 		// format is null terminated string followed by hash

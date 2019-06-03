@@ -483,7 +483,7 @@ void FOneSkyLocalizationServiceProvider::CustomizeTargetToolbar(TSharedRef<FExte
 	const TSharedRef< FUICommandList > CommandList = MakeShareable(new FUICommandList);
 
 	MenuExtender->AddToolBarExtension("LocalizationService", EExtensionHook::First, CommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FOneSkyLocalizationServiceProvider::AddTargetToolbarButtons, LocalizationTarget, CommandList));
+		FToolBarExtensionDelegate::CreateRaw(const_cast<FOneSkyLocalizationServiceProvider*>(this), &FOneSkyLocalizationServiceProvider::AddTargetToolbarButtons, LocalizationTarget, CommandList));
 
 }
 
@@ -506,7 +506,7 @@ void FOneSkyLocalizationServiceProvider::CustomizeTargetSetToolbar(TSharedRef<FE
 	const TSharedRef< FUICommandList > CommandList = MakeShareable(new FUICommandList);
 
 	MenuExtender->AddToolBarExtension("LocalizationService", EExtensionHook::First, CommandList,
-		FToolBarExtensionDelegate::CreateRaw(this, &FOneSkyLocalizationServiceProvider::AddTargetSetToolbarButtons, InLocalizationTargetSet, CommandList));
+		FToolBarExtensionDelegate::CreateRaw(const_cast<FOneSkyLocalizationServiceProvider*>(this), &FOneSkyLocalizationServiceProvider::AddTargetSetToolbarButtons, InLocalizationTargetSet, CommandList));
 
 }
 

@@ -16,7 +16,7 @@
 #include "Misc/OutputDeviceConsole.h"
 #include "Templates/UniquePtr.h"
 
-TCHAR FGenericPlatformOutputDevices::CachedAbsoluteFilename[1024] = { 0 };
+TCHAR FGenericPlatformOutputDevices::CachedAbsoluteFilename[FGenericPlatformOutputDevices::AbsoluteFileNameMaxLength] = { 0 };
 
 void FGenericPlatformOutputDevices::SetupOutputDevices()
 {
@@ -59,9 +59,10 @@ FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 	{
 		FCString::Strcpy(CachedAbsoluteFilename, ARRAY_COUNT(CachedAbsoluteFilename), *FPaths::ProjectLogDir());
 		FString LogFilename;
-		if (!FParse::Value(FCommandLine::Get(), TEXT("LOG="), LogFilename))
+		const bool bShouldStopOnSeparator = false;
+		if (!FParse::Value(FCommandLine::Get(), TEXT("LOG="), LogFilename, bShouldStopOnSeparator))
 		{
-			if (FParse::Value(FCommandLine::Get(), TEXT("ABSLOG="), LogFilename))
+			if (FParse::Value(FCommandLine::Get(), TEXT("ABSLOG="), LogFilename, bShouldStopOnSeparator))
 			{
 				CachedAbsoluteFilename[0] = 0;
 			}

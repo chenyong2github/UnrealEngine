@@ -154,7 +154,7 @@ void UK2Node_DynamicCast::GetContextMenuActions(const FGraphNodeContextMenuBuild
 				MenuEntryTooltip,
 				FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateUObject(this, &UK2Node_DynamicCast::TogglePurity),
+					FExecuteAction::CreateUObject(const_cast<UK2Node_DynamicCast*>(this), &UK2Node_DynamicCast::TogglePurity),
 					FCanExecuteAction::CreateStatic(CanExecutePurityToggle, bCanTogglePurity),
 					FIsActionChecked()
 				)

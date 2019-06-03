@@ -1616,7 +1616,8 @@ bool FRenderAssetStreamingManager::HandleDumpTextureStreamingStatsCommand( const
 }
 #endif // STATS_FAST
 
-#if STATS
+#if !UE_BUILD_SHIPPING
+
 bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	FScopeLock ScopeLock(&CriticalSection);
@@ -1700,9 +1701,6 @@ bool FRenderAssetStreamingManager::HandleListStreamingRenderAssetsCommand( const
 	}
 	return true;
 }
-#endif // STATS
-
-#if !UE_BUILD_SHIPPING
 
 bool FRenderAssetStreamingManager::HandleResetMaxEverRequiredRenderAssetMemoryCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
@@ -2110,14 +2108,12 @@ bool FRenderAssetStreamingManager::Exec( UWorld* InWorld, const TCHAR* Cmd, FOut
 		return HandleDumpTextureStreamingStatsCommand( Cmd, Ar );
 	}
 #endif
-#if STATS
+#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd,TEXT("ListStreamingTextures"))
 		|| FParse::Command(&Cmd, TEXT("ListStreamingRenderAssets")))
 	{
 		return HandleListStreamingRenderAssetsCommand( Cmd, Ar );
 	}
-#endif
-#if !UE_BUILD_SHIPPING
 	if (FParse::Command(&Cmd, TEXT("ResetMaxEverRequiredTextures"))
 		|| FParse::Command(&Cmd, TEXT("ResetMaxEverRequiredRenderAssetMemory")))
 	{

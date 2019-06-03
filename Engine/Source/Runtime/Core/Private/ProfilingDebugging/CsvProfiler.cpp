@@ -923,7 +923,7 @@ public:
 			if (bInIsFName)
 			{
 				check((InStatIDRaw & FNameOrIndexMask) == InStatIDRaw);
-				const FNameEntry* NameEntry = FName::GetEntry(UniqueID.Fields.FNameOrIndex);
+				const FNameEntry* NameEntry = FName::GetEntry(FNameEntryId::FromUnstableInt(UniqueID.Fields.FNameOrIndex));
 				NameStr = NameEntry->GetPlainNameString();
 			}
 			else
@@ -1628,7 +1628,7 @@ public:
 
 private:
 	static CSV_PROFILER_INLINE uint64 GetStatID(const char* StatName) { return uint64(StatName); }
-	static CSV_PROFILER_INLINE uint64 GetStatID(const FName& StatId) { return uint64(StatId.GetComparisonIndex()); }
+	static CSV_PROFILER_INLINE uint64 GetStatID(const FName& StatId) { return StatId.GetComparisonIndex().ToUnstableInt(); }
 
 	static inline FString GenerateThreadName(uint32 ThreadId)
 	{

@@ -73,13 +73,7 @@ typedef FIOSPlatformTypes FPlatformTypes;
 
 #define PLATFORM_GLOBAL_LOG_CATEGORY					LogIOS
 
-#if WITH_SIMULATOR
-	#define PLATFORM_BREAK()							__asm__("int $3")
-#elif PLATFORM_64BITS
-	#define PLATFORM_BREAK()							__asm__("svc 0")
-#else
-	#define PLATFORM_BREAK()							__asm__("trap")
-#endif
+#define PLATFORM_BREAK()                                __builtin_trap()
 
 #define PLATFORM_CODE_SECTION(Name)						__attribute__((section("__TEXT,__" Name ",regular,pure_instructions"))) \
 														__attribute__((aligned(4)))

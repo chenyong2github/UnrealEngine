@@ -181,7 +181,7 @@ struct FInputActionKeyMapping
 	bool operator<(const FInputActionKeyMapping& Other) const
 	{
 		bool bResult = false;
-		if (ActionName < Other.ActionName)
+		if (ActionName.LexicalLess(Other.ActionName))
 		{
 			bResult = true;
 		}
@@ -234,7 +234,7 @@ struct FInputAxisKeyMapping
 	bool operator<(const FInputAxisKeyMapping& Other) const
 	{
 		bool bResult = false;
-		if (AxisName < Other.AxisName)
+		if (AxisName.LexicalLess(Other.AxisName))
 		{
 			bResult = true;
 		}

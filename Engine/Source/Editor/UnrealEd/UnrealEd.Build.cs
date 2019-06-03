@@ -167,7 +167,8 @@ public class UnrealEd : ModuleRules
 				"PIEPreviewDeviceProfileSelector",
 				"PakFileUtilities",
 				"TimeManagement",
-			}
+                "DerivedDataCache",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(

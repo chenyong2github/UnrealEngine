@@ -571,7 +571,7 @@ TSharedRef<SWidget> SEditorViewport::BuildFixedEV100Menu()  const
 				.MinValue(EV100Min)
 				.MaxValue(EV100Max)
 				.Value( this, &SEditorViewport::OnGetFixedEV100Value )
-				.OnValueChanged( this, &SEditorViewport::OnFixedEV100ValueChanged )
+				.OnValueChanged( const_cast<SEditorViewport*>(this), &SEditorViewport::OnFixedEV100ValueChanged )
 				.ToolTipText(LOCTEXT( "EV100ToolTip", "Sets the exposure value of the camera using the specified EV100. Exposure = 1 / (1.2 * 2^EV100)"))
 				.IsEnabled( this, &SEditorViewport::IsFixedEV100Enabled )
 			]

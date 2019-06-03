@@ -3576,8 +3576,8 @@ TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetLODScreenSizeWidget(FName P
 		.MaxValue(WORLD_MAX)
 		.SliderExponent(2.0f)
 		.Value(this, &FLevelOfDetailSettingsLayout::GetLODScreenSize, PlatformGroupName, LODIndex)
-		.OnValueChanged(this, &FLevelOfDetailSettingsLayout::OnLODScreenSizeChanged, PlatformGroupName, LODIndex)
-		.OnValueCommitted(this, &FLevelOfDetailSettingsLayout::OnLODScreenSizeCommitted, PlatformGroupName, LODIndex)
+		.OnValueChanged(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnLODScreenSizeChanged, PlatformGroupName, LODIndex)
+		.OnValueCommitted(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnLODScreenSizeCommitted, PlatformGroupName, LODIndex)
 		.IsEnabled(this, &FLevelOfDetailSettingsLayout::CanChangeLODScreenSize);
 }
 
@@ -3585,7 +3585,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetLODScreenSizePlatformOverrideName
 {
 	TArray<FName> KeyArray;
 	LODScreenSizes[LODIndex].PerPlatform.GenerateKeyArray(KeyArray);
-	KeyArray.Sort();
+	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }
 
@@ -4014,8 +4014,8 @@ TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetMinLODWidget(FName Platform
 	return SNew(SSpinBox<int32>)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Value(this, &FLevelOfDetailSettingsLayout::GetMinLOD, PlatformGroupName)
-		.OnValueChanged(this, &FLevelOfDetailSettingsLayout::OnMinLODChanged, PlatformGroupName)
-		.OnValueCommitted(this, &FLevelOfDetailSettingsLayout::OnMinLODCommitted, PlatformGroupName)
+		.OnValueChanged(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnMinLODChanged, PlatformGroupName)
+		.OnValueCommitted(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnMinLODCommitted, PlatformGroupName)
 		.MinValue(0)
 		.MaxValue(MAX_STATIC_MESH_LODS)
 		.ToolTipText(this, &FLevelOfDetailSettingsLayout::GetMinLODTooltip)
@@ -4058,7 +4058,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetMinLODPlatformOverrideNames() con
 	check(StaticMesh);
 	TArray<FName> KeyArray;
 	StaticMesh->MinLOD.PerPlatform.GenerateKeyArray(KeyArray);
-	KeyArray.Sort();
+	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }
 
@@ -4124,8 +4124,8 @@ TSharedRef<SWidget> FLevelOfDetailSettingsLayout::GetNumStreamedLODsWidget(FName
 	return SNew(SSpinBox<int32>)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Value(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODs, PlatformGroupName)
-		.OnValueChanged(this, &FLevelOfDetailSettingsLayout::OnNumStreamedLODsChanged, PlatformGroupName)
-		.OnValueCommitted(this, &FLevelOfDetailSettingsLayout::OnNumStreamedLODsCommitted, PlatformGroupName)
+		.OnValueChanged(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnNumStreamedLODsChanged, PlatformGroupName)
+		.OnValueCommitted(const_cast<FLevelOfDetailSettingsLayout*>(this), &FLevelOfDetailSettingsLayout::OnNumStreamedLODsCommitted, PlatformGroupName)
 		.MinValue(-1)
 		.MaxValue(MAX_STATIC_MESH_LODS)
 		.ToolTipText(this, &FLevelOfDetailSettingsLayout::GetNumStreamedLODsTooltip)
@@ -4168,7 +4168,7 @@ TArray<FName> FLevelOfDetailSettingsLayout::GetNumStreamedLODsPlatformOverrideNa
 	check(StaticMesh);
 	TArray<FName> KeyArray;
 	StaticMesh->NumStreamedLODs.PerPlatform.GenerateKeyArray(KeyArray);
-	KeyArray.Sort();
+	KeyArray.Sort(FNameLexicalLess());
 	return KeyArray;
 }
 
