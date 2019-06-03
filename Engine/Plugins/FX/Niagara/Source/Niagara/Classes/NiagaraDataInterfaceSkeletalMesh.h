@@ -250,10 +250,10 @@ public:
 	FShaderResourceViewRHIRef GetBufferTriangleMatricesOffsetSRV() const { return BufferTriangleMatricesOffsetSRV; }
 	uint32 GetTriangleCount() const { return TriangleCount; }
 
-	FShaderResourceViewRHIParamRef GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
-	FShaderResourceViewRHIParamRef GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
+	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
+	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
+	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
+	FRHIShaderResourceView* GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
 
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
 
@@ -267,10 +267,10 @@ protected:
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
 
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
-	FShaderResourceViewRHIParamRef MeshVertexBufferSrv;
-	FShaderResourceViewRHIParamRef MeshIndexBufferSrv;
-	FShaderResourceViewRHIParamRef MeshTangentBufferSRV;
-	FShaderResourceViewRHIParamRef MeshTexCoordBufferSrv;
+	FRHIShaderResourceView* MeshVertexBufferSrv;
+	FRHIShaderResourceView* MeshIndexBufferSrv;
+	FRHIShaderResourceView* MeshTangentBufferSRV;
+	FRHIShaderResourceView* MeshTexCoordBufferSrv;
 
 	uint32 NumTexCoord;
 
@@ -369,7 +369,7 @@ struct FNDISkeletalMesh_InstanceData
 	/** True if the mesh we're using allows area weighted sampling on GPU. */
 	uint32 bIsGpuUniformlyDistributedSampling : 1;
 
-	FShaderResourceViewRHIParamRef MeshSkinWeightBufferSrv;
+	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
 	uint32 MeshWeightStrideByte;
 
 	/** Extra mesh data upload to GPU.*/
@@ -650,7 +650,7 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 {
 	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
-	FShaderResourceViewRHIParamRef MeshSkinWeightBufferSrv;
+	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
 
 	bool bIsGpuUniformlyDistributedSampling;
 

@@ -680,7 +680,7 @@ TGlobalResource<FGPUSpriteVertexDeclaration> GGPUSpriteVertexDeclaration;
 struct FGPUSpriteMeshDataUserData  : public FOneFrameResource
 {
 	int32 SortedOffset = 0;
-	FShaderResourceViewRHIParamRef SortedParticleIndicesSRV = nullptr;
+	FRHIShaderResourceView* SortedParticleIndicesSRV = nullptr;
 };
 
 /**
@@ -701,7 +701,7 @@ public:
 	/** Emitter uniform buffer for dynamic parameters. */
 	FUniformBufferRHIRef EmitterDynamicUniformBuffer;
 	/** Buffer containing unsorted particle indices. */
-	FShaderResourceViewRHIParamRef UnsortedParticleIndicesSRV;
+	FRHIShaderResourceView* UnsortedParticleIndicesSRV;
 	/** Texture containing positions for all particles. */
 	FTexture2DRHIParamRef PositionTextureRHI;
 	/** Texture containing velocities for all particles. */
@@ -743,7 +743,7 @@ public:
 	/**
 	 * Set the source vertex buffer that contains particle indices.
 	 */
-	void SetUnsortedParticleIndicesSRV(FShaderResourceViewRHIParamRef VertexBuffer )
+	void SetUnsortedParticleIndicesSRV(FRHIShaderResourceView* VertexBuffer )
 	{
 		UnsortedParticleIndicesSRV = VertexBuffer;
 	}
