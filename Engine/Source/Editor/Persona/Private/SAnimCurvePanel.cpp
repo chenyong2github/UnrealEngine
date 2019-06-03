@@ -855,7 +855,7 @@ void SAnimCurvePanel::UpdatePanel()
 			MetadataNameMap->GetName(A.Name.UID, AName);
 			MetadataNameMap->GetName(B.Name.UID, BName);
 
-			return AName < BName;
+			return AName.LexicalLess(BName);
 		});
 
 		// Store expanded state before clearing the tracks
@@ -1282,14 +1282,14 @@ TSharedRef<SWidget> SAnimCurvePanel::CreateCurveContextMenu(FAnimCurveBaseInterf
 			TypeToggleToolTip = LOCTEXT("TypeToggleToVariableToolTip", "Turns this curve into a variable curve.");
 		}
 
-		NewAction.ExecuteAction.BindSP(this, &SAnimCurvePanel::ToggleCurveTypeMenuCallback, Curve);
+		NewAction.ExecuteAction.BindSP(const_cast<SAnimCurvePanel*>(this), &SAnimCurvePanel::ToggleCurveTypeMenuCallback, Curve);
 		MenuBuilder.AddMenuEntry(
 			TypeToggleLabel,
 			TypeToggleToolTip,
 			FSlateIcon(),
 			NewAction);
 
-		NewAction.ExecuteAction.BindSP(this, &SAnimCurvePanel::DeleteTrack, Curve->CurveUID);
+		NewAction.ExecuteAction.BindSP(const_cast<SAnimCurvePanel*>(this), &SAnimCurvePanel::DeleteTrack, Curve->CurveUID);
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("RemoveTrack", "Remove Track"),
 			LOCTEXT("RemoveTrackTooltip", "Remove this track"),

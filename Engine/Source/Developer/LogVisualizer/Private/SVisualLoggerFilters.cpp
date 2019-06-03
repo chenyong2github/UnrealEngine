@@ -249,7 +249,7 @@ void SVisualLoggerFilters::CreateFiltersMenuCategoryForGraph(FMenuBuilder& MenuB
 			FText::Format(LOCTEXT("FilterByTooltipPrefix", "Filter by {0}"), LabelText),
 			FSlateIcon(),
 			FUIAction(
-			FExecuteAction::CreateSP(this, &SVisualLoggerFilters::FilterByTypeClicked, GraphName, DataName),
+			FExecuteAction::CreateSP(const_cast<SVisualLoggerFilters*>(this), &SVisualLoggerFilters::FilterByTypeClicked, GraphName, DataName),
 			FCanExecuteAction(),
 			FIsActionChecked::CreateSP(this, &SVisualLoggerFilters::IsAssetTypeActionsInUse, GraphName, DataName),
 			FIsActionButtonVisible::CreateLambda([this, LabelText]()->bool{return this->GraphsSearchString.Len() == 0 || LabelText.ToString().Find(this->GraphsSearchString) != INDEX_NONE; })),

@@ -281,14 +281,14 @@ FUIAction FStreamingLevelCustomization::CreateCopyAction(ELevelTransformField::T
 	return
 		FUIAction
 		(
-			FExecuteAction::CreateSP(this, &FStreamingLevelCustomization::OnCopy, TransformField)
+			FExecuteAction::CreateSP(const_cast<FStreamingLevelCustomization*>(this), &FStreamingLevelCustomization::OnCopy, TransformField)
 		);
 }
 
 FUIAction FStreamingLevelCustomization::CreatePasteAction(ELevelTransformField::Type TransformField) const
 {
 	return
-		FUIAction(FExecuteAction::CreateSP(this, &FStreamingLevelCustomization::OnPaste, TransformField));
+		FUIAction(FExecuteAction::CreateSP(const_cast<FStreamingLevelCustomization*>(this), &FStreamingLevelCustomization::OnPaste, TransformField));
 }
 
 void FStreamingLevelCustomization::OnSetLevelPosition( float NewValue, ETextCommit::Type CommitInfo, int32 Axis )

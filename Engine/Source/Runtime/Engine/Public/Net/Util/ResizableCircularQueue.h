@@ -12,8 +12,6 @@
  * an extra element or maintain explicit empty state.
  * Capacity most be power of two and it supports growing
  */
-class FDefaultAllocator;
-
 template<typename T, typename AllocatorT = FDefaultAllocator>
 class TResizableCircularQueue
 {

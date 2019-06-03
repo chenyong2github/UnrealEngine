@@ -4,10 +4,17 @@
 #include "HAL/FileManager.h"
 #include "AssetRegistryPrivate.h"
 
+class FNameTableErrorArchive : public FArchive
+{
+public:
+	FNameTableErrorArchive()
+	{
+		SetError();
+	}
+};
+static FNameTableErrorArchive GNameTableErrorArchive;
+
 FNameTableArchiveReader::FNameTableArchiveReader(int32 SerializationVersion, const FString& Filename)
-	: FArchive()
-	, ProxyAr(nullptr)
-	, FileAr(nullptr)
 {
 	this->SetIsLoading(true);
 
@@ -36,6 +43,7 @@ FNameTableArchiveReader::FNameTableArchiveReader(int32 SerializationVersion, con
 	}
 	
 	// If we got here it failed to load properly
+	ProxyAr = &GNameTableErrorArchive;
 	SetError();
 }
 
@@ -48,17 +56,15 @@ FNameTableArchiveReader::FNameTableArchiveReader(FArchive& WrappedArchive)
 
 	if (!SerializeNameMap())
 	{
+		ProxyAr = &GNameTableErrorArchive;
 		SetError();
 	}
 }
 
 FNameTableArchiveReader::~FNameTableArchiveReader()
 {
-	if (FileAr)
-	{
-		delete FileAr;
-		FileAr = nullptr;
-	}
+	delete FileAr;
+	FileAr = nullptr;
 }
 
 bool FNameTableArchiveReader::SerializeNameMap()
@@ -66,7 +72,7 @@ bool FNameTableArchiveReader::SerializeNameMap()
 	int64 NameOffset = 0;
 	*this << NameOffset;
 
-	if (IsError() || NameOffset > TotalSize())
+	if (NameOffset > TotalSize())
 	{
 		// The file was corrupted. Return false to fail to load the cache an thus regenerate it.
 		return false;
@@ -75,16 +81,12 @@ bool FNameTableArchiveReader::SerializeNameMap()
 	if( NameOffset > 0 )
 	{
 		int64 OriginalOffset = Tell();
-		Seek( NameOffset );
+		ProxyAr->Seek( NameOffset );
 
 		int32 NameCount = 0;
 		*this << NameCount;
-
-		if (IsError())
-		{
-			return false;
-		}
-
+		
+		NameMap.Reserve(NameCount);
 		for ( int32 NameMapIdx = 0; NameMapIdx < NameCount; ++NameMapIdx )
 		{
 			// Read the name entry from the file.
@@ -96,10 +98,10 @@ bool FNameTableArchiveReader::SerializeNameMap()
 				return false;
 			}
 
-			NameMap.Add(FName(NameEntry));
+			NameMap.Add(FName(NameEntry).GetDisplayIndex());
 		}
 
-		Seek( OriginalOffset );
+		ProxyAr->Seek(OriginalOffset);
 	}
 
 	return true;
@@ -107,20 +109,18 @@ bool FNameTableArchiveReader::SerializeNameMap()
 
 void FNameTableArchiveReader::Serialize(void* V, int64 Length)
 {
-	if (ProxyAr && !IsError())
-	{
-		ProxyAr->Serialize(V, Length);
+	ProxyAr->Serialize(V, Length);
 
-		if (ProxyAr->IsError())
-		{
-			SetError();
-		}
+	if (ProxyAr->IsError())
+	{
+		ProxyAr = &GNameTableErrorArchive;
+		SetError();
 	}
 }
 
 bool FNameTableArchiveReader::Precache(int64 PrecacheOffset, int64 PrecacheSize)
 {
-	if (ProxyAr && !IsError())
+	if (!IsError())
 	{
 		return ProxyAr->Precache(PrecacheOffset, PrecacheSize);
 	}
@@ -130,7 +130,7 @@ bool FNameTableArchiveReader::Precache(int64 PrecacheOffset, int64 PrecacheSize)
 
 void FNameTableArchiveReader::Seek(int64 InPos)
 {
-	if (ProxyAr && !IsError())
+	if (!IsError())
 	{
 		ProxyAr->Seek(InPos);
 	}
@@ -138,74 +138,52 @@ void FNameTableArchiveReader::Seek(int64 InPos)
 
 int64 FNameTableArchiveReader::Tell()
 {
-	if (ProxyAr)
-	{
-		return ProxyAr->Tell();
-	}
-
-	return 0;
+	return ProxyAr->Tell();
 }
 
 int64 FNameTableArchiveReader::TotalSize()
 {
-	if (ProxyAr)
-	{
-		return ProxyAr->TotalSize();
-	}
-
-	return 0;
+	return ProxyAr->TotalSize();
 }
 
 const FCustomVersionContainer& FNameTableArchiveReader::GetCustomVersions() const
 {
-	if (ProxyAr)
-	{
-		return ProxyAr->GetCustomVersions();
-	}
-	return FArchive::GetCustomVersions();
+	return ProxyAr->GetCustomVersions();
 }
 
 void FNameTableArchiveReader::SetCustomVersions(const FCustomVersionContainer& NewVersions)
 {
-	if (ProxyAr)
-	{
-		ProxyAr->SetCustomVersions(NewVersions);
-	}
+	ProxyAr->SetCustomVersions(NewVersions);
 }
 
 void FNameTableArchiveReader::ResetCustomVersions()
 {
-	if (ProxyAr)
-	{
-		ProxyAr->ResetCustomVersions();
-	}
+	ProxyAr->ResetCustomVersions();
 }
 
-FArchive& FNameTableArchiveReader::operator<<( FName& Name )
+FArchive& FNameTableArchiveReader::operator<<(FName& OutName)
 {
 	int32 NameIndex;
 	FArchive& Ar = *this;
 	Ar << NameIndex;
 
-	if( !NameMap.IsValidIndex(NameIndex) )
+	if (NameMap.IsValidIndex(NameIndex))
 	{
-		UE_LOG(LogAssetRegistry, Error, TEXT("Bad name index reading cache %i/%i"), NameIndex, NameMap.Num() );
-		SetError();
-	}
+		FNameEntryId MappedName = NameMap[NameIndex];
 
-	const FName& MappedName = NameMap.IsValidIndex(NameIndex) ? NameMap[NameIndex] : NAME_None;
-	if (MappedName.IsNone())
-	{
-		int32 TempNumber;
-		Ar << TempNumber;
-		Name = NAME_None;
+		int32 Number;
+		Ar << Number;
+
+		OutName = FName::CreateFromDisplayId(MappedName, MappedName ? Number : 0);
 	}
 	else
 	{
-		int32 Number;
-		Ar << Number;
-		// simply create the name from the NameMap's name and the serialized instance number
-		Name = FName(MappedName, Number);
+		UE_LOG(LogAssetRegistry, Error, TEXT("Bad name index reading cache %i/%i"), NameIndex, NameMap.Num());
+
+		ProxyAr = &GNameTableErrorArchive;
+		SetError();
+
+		OutName = FName();
 	}
 
 	return *this;
@@ -290,7 +268,7 @@ void FNameTableArchiveWriter::SerializeNameMap()
 		for (auto& Pair : NameMap)
 		{
 			check(NameMapIdx == Pair.Value);
-			Pair.Key.GetDisplayNameEntry()->Write(*this);
+			FName::GetEntry(Pair.Key)->Write(*this);
 			NameMapIdx++;
 		}
 	}
@@ -375,15 +353,12 @@ void FNameTableArchiveWriter::ResetCustomVersions()
 
 FArchive& FNameTableArchiveWriter::operator<<( FName& Name )
 {
-	int32* NameIndexPtr = NameMap.Find(Name);
+	int32* NameIndexPtr = NameMap.Find(Name.GetDisplayIndex());
 	int32 NameIndex = NameIndexPtr ? *NameIndexPtr : INDEX_NONE;
 	if ( NameIndex == INDEX_NONE )
 	{
-		// We need to store the FName without the number, as the number is stored separately and we don't 
-		// want duplicate entries in the name table just because of the number
-		const FName NameNoNumber(Name, 0);
 		NameIndex = NameMap.Num();
-		NameMap.Add(NameNoNumber, NameIndex);
+		NameMap.Add(Name.GetDisplayIndex(), NameIndex);
 	}
 
 	FArchive& Ar = *this;

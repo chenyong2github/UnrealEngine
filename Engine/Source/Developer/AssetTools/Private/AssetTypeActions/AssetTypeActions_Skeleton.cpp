@@ -478,7 +478,7 @@ void FAssetTypeActions_Skeleton::FillCreateMenu(FMenuBuilder& MenuBuilder, TArra
 				LOCTEXT("Skeleton_CreateRigTooltip", "Create Rig from this skeleton."),
 				FSlateIcon(),
 				FUIAction(
-				FExecuteAction::CreateSP(this, &FAssetTypeActions_Skeleton::ExecuteCreateRig, Skeletons),
+				FExecuteAction::CreateSP(const_cast<FAssetTypeActions_Skeleton*>(this), &FAssetTypeActions_Skeleton::ExecuteCreateRig, Skeletons),
 				FCanExecuteAction()
 				)
 				);
@@ -488,7 +488,7 @@ void FAssetTypeActions_Skeleton::FillCreateMenu(FMenuBuilder& MenuBuilder, TArra
 
 	TArray<TWeakObjectPtr<UObject>> Objects;
 	Algo::Transform(Skeletons, Objects, [](const TWeakObjectPtr<USkeleton>& Skeleton) { return Skeleton; });
-	AnimationEditorUtils::FillCreateAssetMenu(MenuBuilder, Objects, FAnimAssetCreated::CreateSP(this, &FAssetTypeActions_Skeleton::OnAssetCreated));
+	AnimationEditorUtils::FillCreateAssetMenu(MenuBuilder, Objects, FAnimAssetCreated::CreateSP(const_cast<FAssetTypeActions_Skeleton*>(this), &FAssetTypeActions_Skeleton::OnAssetCreated));
 }
 
 void FAssetTypeActions_Skeleton::OpenAssetEditor( const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor )

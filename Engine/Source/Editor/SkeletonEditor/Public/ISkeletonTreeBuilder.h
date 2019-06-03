@@ -31,6 +31,18 @@ struct SKELETONEDITOR_API FSkeletonTreeBuilderOutput
 	 * Add an item to the output
 	 * @param	InItem			The item to add
 	 * @param	InParentName	The name of the item's parent
+	 * @param	InParentTypes	The types of items to search. If this is empty all items will be searched.
+	 * @param	bAddToHead		Whether to add the item to the start or end of the parent's children array
+	 */
+	FORCEINLINE void Add(const TSharedPtr<class ISkeletonTreeItem>& InItem, const FName& InParentName, std::initializer_list<FName> InParentTypes, bool bAddToHead = false)
+	{
+		Add(InItem, InParentName, MakeArrayView(InParentTypes), bAddToHead);
+	}
+
+	/** 
+	 * Add an item to the output
+	 * @param	InItem			The item to add
+	 * @param	InParentName	The name of the item's parent
 	 * @param	InParentType	The type of items to search. If this is NAME_None all items will be searched.
 	 * @param	bAddToHead		Whether to add the item to the start or end of the parent's children array
 	 */
@@ -43,6 +55,17 @@ struct SKELETONEDITOR_API FSkeletonTreeBuilderOutput
 	 * @return the item found, or an invalid ptr if it was not found.
 	 */
 	TSharedPtr<class ISkeletonTreeItem> Find(const FName& InName, TArrayView<const FName> InTypes) const;
+
+	/** 
+	 * Find the item with the specified name
+	 * @param	InName	The item's name
+	 * @param	InTypes	The types of items to search. If this is empty all items will be searched.
+	 * @return the item found, or an invalid ptr if it was not found.
+	 */
+	FORCEINLINE TSharedPtr<class ISkeletonTreeItem> Find(const FName& InName, std::initializer_list<FName> InTypes) const
+	{
+		return Find(InName, MakeArrayView(InTypes));
+	}
 
 	/** 
 	 * Find the item with the specified name

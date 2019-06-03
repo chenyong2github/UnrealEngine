@@ -171,7 +171,6 @@ public:
 
 template <> struct TIsPODType<FLazyObjectPtr> { enum { Value = TIsPODType<TPersistentObjectPtr<FUniqueObjectGuid> >::Value }; };
 template <> struct TIsWeakPointerType<FLazyObjectPtr> { enum { Value = TIsWeakPointerType<TPersistentObjectPtr<FUniqueObjectGuid> >::Value }; };
-template <> struct THasGetTypeHash<FLazyObjectPtr> { enum { Value = THasGetTypeHash<TPersistentObjectPtr<FUniqueObjectGuid> >::Value }; };
 
 /**
  * TLazyObjectPtr is templatized version of the generic FLazyObjectPtr

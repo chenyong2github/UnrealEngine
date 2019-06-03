@@ -311,13 +311,14 @@ bool UPackageMap::StaticSerializeName(FArchive& Ar, FName& InName)
 	}
 	else if (Ar.IsSaving())
 	{
-		uint8 bHardcoded = InName.GetComparisonIndex() <= MAX_NETWORKED_HARDCODED_NAME;
+		const EName* InEName = InName.ToEName();
+		uint8 bHardcoded = InEName && ShouldReplicateAsInteger(*InEName);
 		Ar.SerializeBits(&bHardcoded, 1);
-		if (bHardcoded)
+		if (bHardcoded && /* silence static analyzer */ InEName)
 		{
 			// send by hardcoded index
 			checkSlow(InName.GetNumber() <= 0); // hardcoded names should never have a Number
-			uint32 NameIndex = uint32(InName.GetComparisonIndex());
+			uint32 NameIndex = *InEName;
 			Ar.SerializeIntPacked(NameIndex);
 		}
 		else

@@ -71,7 +71,7 @@ protected:
 		uint32 IndexDataStride;
 		void* IndexData;
 
-		operator bool() const { return NumVertices != 0; }
+		explicit operator bool() const { return NumVertices != 0; }
 		void Reset() { FMemory::Memzero(*this); }
 	};
 

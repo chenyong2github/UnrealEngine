@@ -610,7 +610,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 		{
 			int32 BodyIndex = BodyIds.Find(Args.BrickId);
 
-			if (const bool bBrickHasData = Args.Indices.Num() > 0)
+			if (/*const bool bBrickHasData = */Args.Indices.Num() > 0)
 			{
 				bPhysicsStateCreated = true;
 
@@ -693,7 +693,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 					{
 						MRMeshProxy->RenderThread_RemoveSection(Args.BrickId);
 
-						if (const bool bBrickHasData = Args.Indices.Num() > 0)
+						if (/*const bool bBrickHasData = */Args.Indices.Num() > 0)
 						{
 							MRMeshProxy->RenderThread_UploadNewSection(Args);
 						}

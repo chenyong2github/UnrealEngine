@@ -61,7 +61,7 @@ struct FStatsCallstack
 		FString Result;
 		for (const auto& Name : Callstack)
 		{
-			Result += TTypeToString<int32>::ToString( (int32)Name.GetComparisonIndex() );
+			Result += TTypeToString<uint32>::ToString(Name.GetComparisonIndex().ToUnstableInt() );
 			Result += CallstackSeparator;
 		}
 		return Result;
@@ -76,9 +76,10 @@ struct FStatsCallstack
 		// Convert back to FNames
 		for (const auto& It : DecodedCallstack)
 		{
-			NAME_INDEX NameIndex = 0;
-			TTypeFromString<NAME_INDEX>::FromString( NameIndex, *It );
-			const FName LongName = FName( NameIndex, NameIndex, 0 );
+			uint32 NameInt = 0;
+			TTypeFromString<uint32>::FromString(NameInt, *It );
+			FNameEntryId Id = FNameEntryId::FromUnstableInt(NameInt);
+			const FName LongName = FName(Id, Id, 0 );
 
 			out_DecodedCallstack.Add( LongName );
 		}

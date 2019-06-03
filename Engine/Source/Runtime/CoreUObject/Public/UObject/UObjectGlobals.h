@@ -44,6 +44,8 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("FindObjectFast"),STAT_FindObjectFast,STA
 extern COREUOBJECT_API bool					GIsSavingPackage;
 /** This allows loading unversioned cooked content in the editor */
 extern COREUOBJECT_API bool					GAllowUnversionedContentInEditor;
+/** This allows loading cooked content in the editor */
+extern COREUOBJECT_API int32				GAllowCookedDataInEditorBuilds;
 
 /** Enum used in StaticDuplicateObject() and related functions to describe why something is being duplicated */
 namespace EDuplicateMode
@@ -424,6 +426,11 @@ COREUOBJECT_API float GetAsyncLoadPercentage( const FName& PackageName );
 */
 COREUOBJECT_API bool IsGarbageCollecting();
 
+/**
+* Whether we are running on the Garbage Collector Thread
+*/
+COREUOBJECT_API bool IsInGarbageCollectorThread();
+
 /** 
  * Deletes all unreferenced objects, keeping objects that have any of the passed in KeepFlags set. Will wait for other threads to unlock GC.
  *
@@ -463,6 +470,13 @@ COREUOBJECT_API bool IsIncrementalUnhashPending();
  * @return	true if incremental purge needs to be kicked off or is currently in progress, false othwerise.
  */
 COREUOBJECT_API bool IsIncrementalPurgePending();
+
+/**
+ * Gathers unreachable objects for IncrementalPurgeGarbage.
+ *
+ * @param bForceSingleThreaded true to force the process to just one thread
+ */
+COREUOBJECT_API void GatherUnreachableObjects(bool bForceSingleThreaded);
 
 /**
  * Incrementally purge garbage by deleting all unreferenced objects after routing Destroy.
@@ -685,7 +699,7 @@ public:
 		return !!Object && Object != (UObject*)InvalidPtrValue;
 	}
 	/** Convenience operator. Does the same thing as IsValid(). */
-	FORCEINLINE operator bool() const
+	FORCEINLINE explicit operator bool() const
 	{
 		return IsValid();
 	}

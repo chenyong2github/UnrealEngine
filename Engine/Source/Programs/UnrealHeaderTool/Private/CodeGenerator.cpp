@@ -515,7 +515,7 @@ static FString OutputMetaDataCodeForObject(FOutputDevice& OutDeclaration, FOutpu
 
 		// We sort the metadata here so that we can get consistent output across multiple runs
 		// even when metadata is added in a different order
-		Algo::SortBy(KVPs, &KVPType::Key);
+		Algo::SortBy(KVPs, &KVPType::Key, FNameLexicalLess());
 
 		for (const KVPType& KVP : KVPs)
 		{
@@ -2397,7 +2397,7 @@ void FNativeClassHeaderGenerator::ExportNatives(FOutputDevice& Out, FClass* Clas
 			}
 		}
 
-		Algo::SortBy(NamedFunctionsToExport, [](const TTuple<UFunction*, FString>& Pair){ return Pair.Get<0>()->GetFName(); });
+		Algo::SortBy(NamedFunctionsToExport, [](const TTuple<UFunction*, FString>& Pair){ return Pair.Get<0>()->GetFName(); }, FNameLexicalLess());
 
 		if (NamedFunctionsToExport.Num() > 0)
 		{
@@ -6084,11 +6084,6 @@ UClass* ProcessParsedClass(bool bClassIsAnInterface, TArray<FHeaderProvider>& De
 		if (!FHeaderParser::ClassNameHasValidPrefix(BaseClassName, BaseClassNameStripped))
 		{
 			FError::Throwf(TEXT("No prefix or invalid identifier for base class %s.\nClass names must match Unreal prefix specifications (e.g., \"UObject\" or \"AActor\")"), *BaseClassName);
-		}
-
-		if (DependentOn.ContainsByPredicate([&](const FHeaderProvider& Dependency){ FString DependencyStr = Dependency.GetId(); return !DependencyStr.Contains(TEXT(".generated.h")) && FPaths::GetBaseFilename(DependencyStr) == ClassNameStripped; }))
-		{
-			FError::Throwf(TEXT("Class '%s' contains a dependency (#include or base class) to itself"), *ClassName);
 		}
 	}
 
