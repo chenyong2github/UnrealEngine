@@ -248,7 +248,7 @@ void FD3D11DynamicRHI::RHISetViewport(uint32 MinX,uint32 MinY,float MinZ,uint32 
 	if (Viewport.Width > 0 && Viewport.Height > 0)
 	{
 		StateCache.SetViewport(Viewport);
-		SetScissorRectIfRequiredWhenSettingViewport(MinX, MinY, MaxX, MaxY);
+		RHISetScissorRect(true, MinX, MinY, MaxX, MaxY);
 	}
 }
 

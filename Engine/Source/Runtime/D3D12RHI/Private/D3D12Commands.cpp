@@ -456,6 +456,7 @@ void FD3D12CommandContext::RHISetViewport(uint32 MinX, uint32 MinY, float MinZ, 
 	{
 		// Setting a viewport will also set the scissor rect appropriately.
 		StateCache.SetViewport(Viewport);
+		RHISetScissorRect(true, MinX, MinY, MaxX, MaxY);
 	}
 }
 
@@ -468,7 +469,7 @@ void FD3D12CommandContext::RHISetScissorRect(bool bEnable, uint32 MinX, uint32 M
 	}
 	else
 	{
-		const CD3DX12_RECT ScissorRect(0, 0, GetMax2DTextureDimension(), GetMax2DTextureDimension());
+		const CD3DX12_RECT ScissorRect(0, 0, (LONG) StateCache.GetViewport().Width, (LONG) StateCache.GetViewport().Height);
 		StateCache.SetScissorRect(ScissorRect);
 	}
 }
@@ -1625,12 +1626,8 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool bClearColor, int32 NumClearColor
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12ClearMRT);
 
-	uint32 NumViews = 1;
-	D3D12_VIEWPORT Viewport;
-	StateCache.GetViewports(&NumViews, &Viewport);
-
-	D3D12_RECT ScissorRect;
-	StateCache.GetScissorRect(&ScissorRect);
+	const D3D12_VIEWPORT& Viewport = StateCache.GetViewport();
+	const D3D12_RECT& ScissorRect = StateCache.GetScissorRect();
 
 	if (ScissorRect.left >= ScissorRect.right || ScissorRect.top >= ScissorRect.bottom)
 	{

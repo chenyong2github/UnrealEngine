@@ -1003,12 +1003,6 @@ protected:
 			typename TPixelShader::FParameter PixelShaderParameter
 		);
 
-	// Some platforms might want to override this
-	virtual void SetScissorRectIfRequiredWhenSettingViewport(uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY)
-	{
-		RHISetScissorRect(true, MinX, MinY, MaxX, MaxY);
-	}
-
 	/**
 	* Returns a pointer to a texture resource that can be used for CPU reads.
 	* Note: the returned resource could be the original texture or a new temporary texture.
