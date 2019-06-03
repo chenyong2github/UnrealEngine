@@ -9,7 +9,7 @@
 #include "VulkanPlatform.h"
 #include "Engine/RendererSettings.h"
 #include "IHeadMountedDisplayModule.h"
-
+#include "IHeadMountedDisplayVulkanExtensions.h"
 
 int32 GShouldCpuWaitForFence = 1;
 static FAutoConsoleVariableRef CVarCpuWaitForFence(
