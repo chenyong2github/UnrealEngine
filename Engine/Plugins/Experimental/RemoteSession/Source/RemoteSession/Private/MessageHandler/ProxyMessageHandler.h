@@ -5,14 +5,23 @@
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 
+/*
+	Class that can act as a proxy for places where FGenericApplicationMessageHandler is used.
+*/
 class FProxyMessageHandler : public FGenericApplicationMessageHandler
 {
 	
 public:
 
+	FProxyMessageHandler();
+
 	FProxyMessageHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler);
 
 	virtual ~FProxyMessageHandler();
+
+	void SetTargetHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler);
+
+	const TSharedPtr<FGenericApplicationMessageHandler> GetTargetHandler() const;
 
 	virtual bool ShouldProcessUserInputMessages(const TSharedPtr< FGenericWindow >& PlatformWindow) const override;
 
@@ -112,6 +121,6 @@ public:
 
 protected:
 
-	const TSharedPtr<FGenericApplicationMessageHandler> TargetHandler;
+	TSharedPtr<FGenericApplicationMessageHandler> TargetHandler;
 
 };
