@@ -136,7 +136,7 @@ void FHTML5PlatformProcess::LaunchURL(const TCHAR* URL, const TCHAR* Parms, FStr
 	}
 
 	auto TmpURL = StringCast<ANSICHAR>(URL);
-	MAIN_THREAD_EM_ASM({var InUrl = Pointer_stringify($0); console.log("Opening "+InUrl); window.open(InUrl);}, (ANSICHAR*)TmpURL.Get());
+	MAIN_THREAD_EM_ASM({var InUrl = UTF8ToString($0); console.log("Opening "+InUrl); window.open(InUrl);}, (ANSICHAR*)TmpURL.Get());
 }
 
 const TCHAR* FHTML5PlatformProcess::ExecutableName(bool bRemoveExtension)

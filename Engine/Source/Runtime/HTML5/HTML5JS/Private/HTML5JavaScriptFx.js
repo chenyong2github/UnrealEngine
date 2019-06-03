@@ -6,7 +6,7 @@ var UE_JavascriptLibrary = {
     // NOTE: C++ calling this function are written with syncronus logic
     // otherwise, use: UE_MakeHTTPDataRequest() -- see below
 
-    var _url = Pointer_stringify(url);
+    var _url = UTF8ToString(url);
 
     var request = new XMLHttpRequest();
     request.UE_fetch = {
@@ -38,7 +38,7 @@ var UE_JavascriptLibrary = {
   // ================================================================================
 
   UE_SaveGame: function (name, indata, insize) {
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     var gamedata = Module.HEAPU8.subarray(indata, indata + insize);
     // local storage only takes strings, we need to convert string to base64 before storing.
     var b64encoded = base64EncArr(gamedata);
@@ -47,7 +47,7 @@ var UE_JavascriptLibrary = {
   },
 
   UE_LoadGame: function (name, outdataptr, outsizeptr) {
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     // local storage only takes strings, we need to convert string to base64 before storing.
     var b64encoded = $.jStorage.get(_name);
     if (b64encoded === null)
@@ -67,12 +67,12 @@ var UE_JavascriptLibrary = {
   },
 
   UE_DeleteSavedGame: function (name){
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     return $.jStorage.deleteKey(_name);
   },
 
   UE_DoesSaveGameExist: function (name){
-    var _name = Pointer_stringify(name);
+    var _name = UTF8ToString(name);
     var keys = $.jStorage.index();
     for (var i in keys)
     {
@@ -87,7 +87,7 @@ var UE_JavascriptLibrary = {
 
   UE_MessageBox: function (type, message, caption ) {
     // type maps to EAppMsgType::Type
-    var text = Pointer_stringify(message);
+    var text = UTF8ToString(message);
     if (!type) return confirm(text);
     alert(text);
     return 1;
@@ -113,9 +113,9 @@ var UE_JavascriptLibrary = {
   // ================================================================================
 
   UE_MakeHTTPDataRequest: function (ctx, url, verb, payload, payloadsize, headers, async, freeBuffer, onload, onerror, onprogress) {
-    var _url = Pointer_stringify(url);
-    var _verb = Pointer_stringify(verb);
-    var _headers = Pointer_stringify(headers);
+    var _url = UTF8ToString(url);
+    var _verb = UTF8ToString(verb);
+    var _headers = UTF8ToString(headers);
 
     var xhr = new XMLHttpRequest();
     xhr.UE_fetch = {
@@ -157,13 +157,13 @@ var UE_JavascriptLibrary = {
         HEAPU8.set(byteArray, buffer);
 
         if (onload)
-          Runtime.dynCall('viiii', onload, [ctx, buffer, byteArray.length, header_buffer]);
+          dynCall('viiiii', onload, [ctx, buffer, byteArray.length, header_buffer, xhr.status]);
         if (freeBuffer) // seems POST reqeusts keeps the buffer
           _free(buffer);
         _free(header_buffer);
       } else {
         if (onerror)
-          Runtime.dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
+          dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
       }
     });
 
@@ -172,13 +172,13 @@ var UE_JavascriptLibrary = {
       if ( xhr.responseURL == "" )
         console.log('ERROR: Cross-Origin Resource Sharing [CORS] check FAILED'); // common error that's not quite so clear during onerror callbacks
       if (onerror)
-        Runtime.dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
+        dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
     });
 
     // Onprogress event handler
     xhr.addEventListener('progress', function (e) {
       if (onprogress)
-        Runtime.dynCall('viii', onprogress, [ctx, e.loaded, e.lengthComputable || e.lengthComputable === undefined ? e.total : 0]);
+        dynCall('viii', onprogress, [ctx, e.loaded, e.lengthComputable || e.lengthComputable === undefined ? e.total : 0]);
     });
 
     // Ontimeout event handler
@@ -186,7 +186,7 @@ var UE_JavascriptLibrary = {
       if ( ! this.UE_fetch.timeout ) {
       console.log("Fetching " + this.UE_fetch.url + " timed out");
         if (onerror)
-          Runtime.dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
+          dynCall('viii', onerror, [ctx, xhr.status, xhr.statusText]);
         return;
       }
       this.UE_fetch.timeout--;
@@ -299,7 +299,7 @@ var UE_JavascriptLibrary = {
         var contexts = callbacks[0].ctx;
         for ( var y in contexts ) {
           try { // jic
-            Runtime.dynCall('vi', callbacks[x].callback, [contexts[y]]);
+            dynCall('vi', callbacks[x].callback, [contexts[y]]);
           } catch (e) {}
         }
       }
@@ -368,16 +368,16 @@ var UE_JavascriptLibrary = {
 
   UE_GSystemResolution: function( resX, resY ) {
     UE_JSlib.UE_GSystemResolution_ResX = function() {
-      return Runtime.dynCall('i', resX, []);
+      return dynCall('i', resX, []);
     };
     UE_JSlib.UE_GSystemResolution_ResY = function() {
-      return Runtime.dynCall('i', resY, []);
+      return dynCall('i', resY, []);
     };
   },
  
   UE_EngineRegisterCanvasResizeListener: function(listener) {
     UE_JSlib.UE_CanvasSizeChanged = function() {
-      Runtime.dynCall('v', listener);
+      dynCall('v', listener);
     }
   },
 

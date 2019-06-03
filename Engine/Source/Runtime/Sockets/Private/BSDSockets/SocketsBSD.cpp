@@ -8,9 +8,9 @@
 #include "BSDSockets/SocketSubsystemBSD.h"
 //#include "Net/NetworkProfiler.h"
 
-#if PLATFORM_HTML5 
+#if PLATFORM_HTML5
 	typedef unsigned long u_long;
-#endif 
+#endif
 
 
 /* FSocket overrides
@@ -352,22 +352,22 @@ bool FSocketBSD::SetNonBlocking(bool bIsNonBlocking)
 {
 	u_long Value = bIsNonBlocking ? true : false;
 
-#if PLATFORM_HTML5 
+#if PLATFORM_HTML5
 	// can't have blocking sockets.
 	ensureMsgf(bIsNonBlocking, TEXT("Can't have blocking sockets on HTML5"));
     return true;
-#else 
+#else
 
 #if PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS
 	return ioctlsocket(Socket,FIONBIO,&Value) == 0;
-#else 
+#else
 	int Flags = fcntl(Socket, F_GETFL, 0);
 	//Set the flag or clear it, without destroying the other flags.
 	Flags = bIsNonBlocking ? Flags | O_NONBLOCK : Flags ^ (Flags & O_NONBLOCK);
 	int err = fcntl(Socket, F_SETFL, Flags);
 	return (err == 0 ? true : false);
 #endif
-#endif 
+#endif
 }
 
 
@@ -605,7 +605,7 @@ bool FSocketBSD::SetIPv6Only(bool bIPv6Only)
 	}
 
 	return bOk;
-#else 
+#else
 	return false;
 #endif
 }
