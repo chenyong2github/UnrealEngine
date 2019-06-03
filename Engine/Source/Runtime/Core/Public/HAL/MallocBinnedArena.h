@@ -17,6 +17,8 @@
 #include "HAL/PlatformMath.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/MallocBinnedCommon.h"
+#include "Misc/ScopeLock.h"
+
 
 #define BINNEDARENA_MAX_GMallocBinnedArenaMaxBundlesBeforeRecycle (8)
 
