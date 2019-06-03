@@ -19,26 +19,8 @@
 
 void FSkinWeightImportOptionsCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	TSharedRef<IPropertyHandle> FilePathHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightImportOptions, FilePath));
-	TSharedRef<IPropertyHandle> SourceMeshHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightImportOptions, SourceMesh));
 	TSharedPtr<IPropertyHandle> LODIndexHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightImportOptions, LODIndex));
-
-	FString FilePath;
-
-	// In case we are importing from a file do not show the Skeletal Mesh property and vice-versa
-	if (FilePathHandle->GetValue(FilePath) == FPropertyAccess::Success)
-	{
-		if (!FilePath.IsEmpty())
-		{
-			DetailBuilder.HideProperty(SourceMeshHandle);
-		}
-		else
-		{
-			DetailBuilder.HideProperty(FilePathHandle);
-			DetailBuilder.HideProperty(LODIndexHandle);
-		}
-	}
-
+	
 	ProfileNameHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(USkinWeightImportOptions, ProfileName));
 	DetailBuilder.HideProperty(ProfileNameHandle);
 
@@ -164,12 +146,8 @@ void SSkinWeightProfileImportOptions::Construct(const FArguments& InArgs)
 				.OnClicked(this, &SSkinWeightProfileImportOptions::OnImport)
 				.IsEnabled_Lambda([this]() -> bool 
 				{
-					const bool bCopyOperation = ImportSettings->FilePath.IsEmpty();
 					const bool bValidProfileName = DetailsCustomization->IsProfileNameValid(DetailsCustomization->OnGetProfileName().ToString());
-					const bool bValidSkeletalMesh = ImportSettings->SourceMesh != nullptr;
-
-					// Need a valid profile name, and in case we are copying we'll need to have a valid source skeletal mesh as well 
-					return bValidProfileName && (!bCopyOperation || bValidSkeletalMesh);
+					return bValidProfileName;
 				})
 			]
 			+ SUniformGridPanel::Slot(1, 0)

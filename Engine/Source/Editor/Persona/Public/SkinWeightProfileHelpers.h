@@ -16,9 +16,6 @@ struct FSkinWeightProfileHelpers
 	/** Tries to import a new set of Skin Weights for the given Skeletal Mesh at the given LOD index from an FBX file */
 	static void ImportSkinWeightProfileLOD(USkeletalMesh* InSkeletalMesh, FName ProfileName, int32 LODIndex);
 
-	/** Tries to copy a new set of Skin Weights for the given Skeletal Mesh from another Skeletal Mesh */
-	static void CopySkinWeightProfile(USkeletalMesh* InSkeletalMesh);
-
 	/** Tries to re import the previously imported skin weights for the given Skeletal Mesh, Profile name and LOD Index */
 	static void ReimportSkinWeightProfileLOD(USkeletalMesh* InSkeletalMesh, const FName& InProfileName, const int32 LODIndex);
 
