@@ -729,6 +729,83 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 	}
 }
 
+void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPackage*>& InHLODPackagesToSave, const FString& PreviousLevelName /*= ""*/)
+{
+	const TArray<FHierarchicalSimplification>& BuildLODLevelSettings = InLevel->GetWorldSettings()->GetHierarchicalLODSetup();
+	UMaterialInterface* BaseMaterial = InLevel->GetWorldSettings()->GetHierarchicalLODBaseMaterial();
+	TArray<TArray<ALODActor*>> LODLevelActors;
+	LODLevelActors.AddDefaulted(BuildLODLevelSettings.Num());
+
+	if (InLevel->Actors.Num() > 0)
+	{
+		FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
+		IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
+
+		// Retrieve LOD actors from the level
+		uint32 NumLODActors = 0;
+		for (int32 ActorId = 0; ActorId < InLevel->Actors.Num(); ++ActorId)
+		{
+			AActor* Actor = InLevel->Actors[ActorId];
+			if (Actor && Actor->IsA<ALODActor>())
+			{
+				ALODActor* LODActor = CastChecked<ALODActor>(Actor);
+
+				LODLevelActors[LODActor->LODLevel - 1].Add(LODActor);
+				NumLODActors++;
+			}
+		}
+
+		if (NumLODActors)
+		{
+			const int32 NumLODLevels = LODLevelActors.Num();
+			for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
+			{
+				UPackage* AssetsOuter = Utilities->RetrieveLevelHLODPackage(InLevel, LODIndex);
+				if (AssetsOuter)
+				{
+					InHLODPackagesToSave.Add(AssetsOuter);
+				}
+				// If we couldn't find the HLOD package, the level may have been renamed, 
+				// so we need to relocate our old HLOD package before saving it.
+				else if (PreviousLevelName.Len() != 0)
+				{
+					FString NewLevelName = InLevel->GetOutermost()->GetName();
+
+					FString OldHLODProxyName = Utilities->GetLevelHLODProxyName(PreviousLevelName, LODIndex);
+					UHLODProxy* OldHLODPProxy = FindObject<UHLODProxy>(nullptr, *OldHLODProxyName);
+					if (OldHLODPProxy)
+					{
+						FString NewHLODProxyName = Utilities->GetLevelHLODProxyName(NewLevelName, LODIndex);
+						FString OldHLODPackageName = FPackageName::ObjectPathToPackageName(OldHLODProxyName);
+						FString NewHLODPackageName = FPackageName::ObjectPathToPackageName(NewHLODProxyName);
+						UPackage* OldHLODPackage = FindObject<UPackage>(nullptr, *OldHLODPackageName);
+						if (OldHLODPackage)
+						{
+							OldHLODPProxy->Rename(*FPackageName::ObjectPathToObjectName(NewHLODProxyName), OldHLODPackage, REN_NonTransactional | REN_DontCreateRedirectors);
+							OldHLODPackage->Rename(*NewHLODPackageName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
+
+							InHLODPackagesToSave.Add(OldHLODPackage);
+
+							// Mark the level package as dirty as we have changed export locations, and without a resave we will not pick up
+							// HLOD packages when reloaded.
+							InLevel->GetOutermost()->MarkPackageDirty();
+						}
+					}
+				}
+
+				// We might have created imposters static mesh packages during the HLOD generation, we must save them too.
+				for (ALODActor* LODActor : LODLevelActors[LODIndex])
+				{
+					for (UInstancedStaticMeshComponent* Component : LODActor->GetImpostersStaticMeshComponents())
+					{
+						InHLODPackagesToSave.Add(Component->GetStaticMesh()->GetOutermost());
+					}
+				}
+			}
+		}
+	}
+}
+
 void FHierarchicalLODBuilder::SaveMeshesForActors()
 {
 	TArray<UPackage*> LevelPackagesToSave;
@@ -756,79 +833,23 @@ void FHierarchicalLODBuilder::SaveMeshesForActors()
 	{
 		check(LevelPackagesToSave.Num() == OldLevelPackageNames.Num() && LevelPackagesToSave.Num() == Levels.Num());
 
-		TArray<UPackage*> HLODPackagesToSave;
-
+		TSet<UPackage*> HLODPackagesToSave;
 		for(int32 PackageIndex = 0; PackageIndex < LevelPackagesToSave.Num(); ++PackageIndex)
 		{
-			const ULevel* Level = Levels[PackageIndex];
-
-			HLODPackagesToSave.Add(Level->GetOutermost());
-
-			const TArray<FHierarchicalSimplification>& BuildLODLevelSettings = Level->GetWorldSettings()->GetHierarchicalLODSetup();
-			UMaterialInterface* BaseMaterial = Level->GetWorldSettings()->GetHierarchicalLODBaseMaterial();
-			TArray<TArray<ALODActor*>> LODLevelActors;
-			LODLevelActors.AddDefaulted(BuildLODLevelSettings.Num());
-
-			if (Level->Actors.Num() > 0)
+			FString PreviousLevelName; 
+			bool bLevelRenamed = bUnsavedLevel && LevelPackagesToSave[PackageIndex]->GetName() != OldLevelPackageNames[PackageIndex];
+			if (bLevelRenamed)
 			{
-				FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
-				IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
-
-				// Retrieve LOD actors from the level
-				uint32 NumLODActors = 0;
-				for (int32 ActorId = 0; ActorId < Level->Actors.Num(); ++ActorId)
-				{
-					AActor* Actor = Level->Actors[ActorId];
-					if (Actor && Actor->IsA<ALODActor>())
-					{
-						ALODActor* LODActor = CastChecked<ALODActor>(Actor);
-						
-						LODLevelActors[LODActor->LODLevel - 1].Add(LODActor);
-						NumLODActors++;
-					}
-				}		
-
-				if (NumLODActors)
-				{
-					const int32 NumLODLevels = LODLevelActors.Num();
-					for (int32 LODIndex = 0; LODIndex < NumLODLevels; ++LODIndex)
-					{
-						UPackage* AssetsOuter = Utilities->RetrieveLevelHLODPackage(Level, LODIndex);
-						if(AssetsOuter)
-						{
-							HLODPackagesToSave.Add(AssetsOuter);
-						}
-						// If we couldn't find the HLOD package, the level may have been renamed while saving above, 
-						// so we need to relocate our old HLOD package before saving it.
-						else if(bUnsavedLevel && LevelPackagesToSave[PackageIndex]->GetName() != OldLevelPackageNames[PackageIndex])
-						{
-							FString OldHLODProxyName = Utilities->GetLevelHLODProxyName(OldLevelPackageNames[PackageIndex], LODIndex);
-							UHLODProxy* OldHLODPProxy = FindObject<UHLODProxy>(nullptr, *OldHLODProxyName);
-							if(OldHLODPProxy)
-							{
-								FString NewHLODProxyName = Utilities->GetLevelHLODProxyName(LevelPackagesToSave[PackageIndex]->GetName(), LODIndex);
-								FString OldHLODPackageName = FPackageName::ObjectPathToPackageName(OldHLODProxyName);
-								FString NewHLODPackageName = FPackageName::ObjectPathToPackageName(NewHLODProxyName);
-								UPackage* OldHLODPackage = FindObject<UPackage>(nullptr, *OldHLODPackageName);
-								if(OldHLODPackage)
-								{
-									OldHLODPProxy->Rename(*FPackageName::ObjectPathToObjectName(NewHLODProxyName), OldHLODPackage, REN_NonTransactional | REN_DontCreateRedirectors);
-									OldHLODPackage->Rename(*NewHLODPackageName, nullptr, REN_NonTransactional | REN_DontCreateRedirectors);
-									
-									HLODPackagesToSave.Add(OldHLODPackage);
-
-									// Mark the level package as dirty as we have changed export locations, and without a resave we will not pick up
-									// HLOD packages when reloaded.
-									Level->GetOutermost()->MarkPackageDirty();
-								}
-							}
-						}
-					}
-				}
+				PreviousLevelName = OldLevelPackageNames[PackageIndex];
 			}
+
+			ULevel* Level = Levels[PackageIndex];
+			HLODPackagesToSave.Add(Level->GetOutermost());
+			GetMeshesPackagesToSave(Level, HLODPackagesToSave, PreviousLevelName);
 		}
 
-		UEditorLoadingAndSavingUtils::SavePackagesWithDialog(HLODPackagesToSave, true);
+		TArray<UPackage*> PackagesToSave = HLODPackagesToSave.Array();
+		UEditorLoadingAndSavingUtils::SavePackagesWithDialog(PackagesToSave, true);
 	}
 }
 
