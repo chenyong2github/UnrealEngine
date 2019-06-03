@@ -181,7 +181,7 @@ EM_BOOL key_callback_browser_thread(int eventType, const EmscriptenKeyboardEvent
 	bool UE4CanvasHasFocus = EM_ASM_INT({return document.activeElement === document.body || document.activeElement === Module['canvas']});
 
 	// Let JavaScript page developer hook into keyboard input event handling behavior.
-	int processingBehavior = EM_ASM_INT({ if (Module['UE4_keyEvent']) { return Module['UE4_keyEvent']($0, Pointer_stringify($1), $2, $3, $4); }}, eventType, e->key, e->keyCode, domPhysicalKeyCode, e);
+	int processingBehavior = EM_ASM_INT({ if (Module['UE4_keyEvent']) { return Module['UE4_keyEvent']($0, UTF8ToString($1), $2, $3, $4); }}, eventType, e->key, e->keyCode, domPhysicalKeyCode, e);
 	if (processingBehavior == UE4_INPUT_EVENT_DISCARD_SUPPRESS_ACTION_YES) return EM_TRUE;
 	if (processingBehavior == UE4_INPUT_EVENT_DISCARD_SUPPRESS_ACTION_NO) return EM_FALSE;
 	if (UE4CanvasHasFocus && processingBehavior != UE4_INPUT_EVENT_DISCARD_SUPPRESS_ACTION_DEFAULT)

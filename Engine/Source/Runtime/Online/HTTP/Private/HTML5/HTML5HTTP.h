@@ -84,8 +84,8 @@ private:
 	*/
 	void CleanupRequest();
 
-	static void StaticReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders);
-	void ReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders);
+	static void StaticReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders, int httpStatusCode);
+	void ReceiveCallback(void *arg, void *buffer, uint32 size, void* httpHeaders, int httpStatusCode);
 	static void StaticErrorCallback(void* arg, int httpStatusCode, const char* httpStatusText);
 	void ErrorCallback(void* arg, int httpStatusCode, const char* httpStatusText);
 	static void StaticProgressCallback(void* arg, int Loaded, int Total);
