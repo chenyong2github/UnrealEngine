@@ -735,7 +735,7 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 		}
 		else if (TranslatedHLSL.Len() == 0)
 		{
-			Error(LOCTEXT("HlslTranslateErrorMessageFailed", "The HLSL Translator failed to generate HLSL!"));
+			CompileResults.NumErrors++;
 			CompileResults.bVMSucceeded = false;
 		}
 		else
@@ -760,7 +760,7 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 		}
 		else if (TranslatedHLSL.Len() == 0)
 		{
-			Error(LOCTEXT("HlslTranslateErrorMessageFailed", "The HLSL Translator failed to generate HLSL!"));
+			CompileResults.NumErrors++;
 			CompileResults.bVMSucceeded = false;
 		}
 		else
