@@ -94,7 +94,17 @@ USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, TSharedPtr<ISequence
 {
 	UObject* BoundObject = SequencerPtr.IsValid() ? SequencerPtr->FindSpawnedObjectOrTemplate(Guid) : nullptr;
 
-	if (AActor* Actor = Cast<AActor>(BoundObject))
+	AActor* Actor = Cast<AActor>(BoundObject);
+
+	if (!Actor)
+	{
+		if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(BoundObject))
+		{
+			Actor = ChildActorComponent->GetChildActor();
+		}
+	}
+
+	if (Actor)
 	{
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
@@ -470,7 +480,7 @@ bool FSkeletalAnimationTrackEditor::HandleAssetAdded(UObject* Asset, const FGuid
 
 void FSkeletalAnimationTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
-	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()))
+	if (ObjectClass->IsChildOf(USkeletalMeshComponent::StaticClass()) || ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(UChildActorComponent::StaticClass()))
 	{
 		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 

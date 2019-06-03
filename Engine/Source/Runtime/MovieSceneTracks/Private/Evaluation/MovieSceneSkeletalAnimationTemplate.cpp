@@ -298,8 +298,19 @@ namespace MovieScene
 			{
 				return SkeletalMeshComponent;
 			}
+
 			// then check to see if we are controlling an actor & if so use its first USkeletalMeshComponent 
-			else if (AActor* Actor = Cast<AActor>(InObject))
+			AActor* Actor = Cast<AActor>(InObject);
+
+			if (!Actor)
+			{
+				if (UChildActorComponent* ChildActorComponent = Cast<UChildActorComponent>(InObject))
+				{
+					Actor = ChildActorComponent->GetChildActor();
+				}
+			}
+
+			if (Actor)
 			{
 				return Actor->FindComponentByClass<USkeletalMeshComponent>();
 			}
