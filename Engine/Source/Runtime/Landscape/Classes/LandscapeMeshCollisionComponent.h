@@ -105,7 +105,8 @@ public:
 
 	//~ Begin ULandscapeHeightfieldCollisionComponent Interface
 	virtual void CreateCollisionObject() override;
-	virtual void RecreateCollision() override;
+	virtual bool RecreateCollision() override;
+	virtual uint32 ComputeCollisionHash() const override { return 0; }
 	//~ End ULandscapeHeightfieldCollisionComponent Interface
 };
 
