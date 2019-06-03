@@ -141,6 +141,7 @@ FAutoConsoleCommand CmdPrintNumLandscapeShadows(
 ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
+, CachedEditingLayerData(nullptr)
 , LayerUpdateFlagPerMode(0)
 , WeightmapsHash(0)
 #endif
@@ -1537,16 +1538,29 @@ TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAll
 
 #if WITH_EDITOR
 
+void ULandscapeComponent::SetEditingLayer(const FGuid& InEditingLayer)
+{
+	LandscapeEditingLayer = InEditingLayer;
+}
+
 FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer()
-{	
-	ALandscape* Landscape = GetLandscapeActor();
-	return Landscape != nullptr ? LayersData.Find(Landscape->GetEditingLayer()) : nullptr;
+{
+	if (CachedEditingLayer != LandscapeEditingLayer)
+	{
+		CachedEditingLayer = LandscapeEditingLayer;
+		CachedEditingLayerData = CachedEditingLayer.IsValid() ? LayersData.Find(CachedEditingLayer) : nullptr;
+	}
+	return CachedEditingLayerData;
 }
 
 const FLandscapeLayerComponentData* ULandscapeComponent::GetEditingLayer() const
 {
-	ALandscape* Landscape = GetLandscapeActor();
-	return Landscape != nullptr ? LayersData.Find(Landscape->GetEditingLayer()) : nullptr;
+	if (CachedEditingLayer != LandscapeEditingLayer)
+	{
+		CachedEditingLayer = LandscapeEditingLayer;
+		CachedEditingLayerData = CachedEditingLayer.IsValid() ? const_cast<TMap<FGuid, FLandscapeLayerComponentData>&>(LayersData).Find(CachedEditingLayer) : nullptr;
+	}
+	return CachedEditingLayerData;
 }
 
 FGuid ULandscapeComponent::GetEditingLayerGUID() const
@@ -1581,6 +1595,7 @@ void ULandscapeComponent::ForEachLayer(TFunctionRef<void(const FGuid&, struct FL
 void ULandscapeComponent::AddLayerData(const FGuid& InLayerGuid, const FLandscapeLayerComponentData& InData)
 {
 	Modify();
+	check(!LandscapeEditingLayer.IsValid());
 	FLandscapeLayerComponentData& Data = LayersData.FindOrAdd(InLayerGuid);
 	Data = InData;
 }
@@ -1666,6 +1681,7 @@ void ULandscapeComponent::AddDefaultLayerData(const FGuid& InLayerGuid, const TA
 void ULandscapeComponent::RemoveLayerData(const FGuid& InLayerGuid)
 {
 	Modify();
+	check(!LandscapeEditingLayer.IsValid());
 	LayersData.Remove(InLayerGuid);
 }
 
