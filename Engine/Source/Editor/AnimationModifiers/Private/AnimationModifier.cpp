@@ -73,9 +73,10 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 
 
 		CurrentAnimSequence->PostEditChange();
-		CurrentSkeleton->PostEditChange();		
+		CurrentSkeleton->PostEditChange();
 		CurrentAnimSequence->RefreshCacheData();
 		CurrentAnimSequence->RefreshCurveData();
+		CurrentAnimSequence->MarkRawDataAsModified();
 
 		UpdateStoredRevisions();
 	}
@@ -126,6 +127,7 @@ void UAnimationModifier::RevertFromAnimationSequence(class UAnimSequence* InAnim
 	CurrentSkeleton->PostEditChange();
 	CurrentAnimSequence->RefreshCacheData();
 	CurrentAnimSequence->RefreshCurveData();
+	CurrentAnimSequence->MarkRawDataAsModified();
 
 	ResetStoredRevisions();
 
