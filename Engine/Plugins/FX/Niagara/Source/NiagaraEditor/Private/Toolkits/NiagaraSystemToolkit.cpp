@@ -48,9 +48,7 @@
 #include "IAssetRegistry.h"
 #include "HAL/PlatformFilemanager.h"
 #include "Misc/FileHelper.h"
-#include "MessageLog/Public/MessageLogModule.h"
-#include "MessageLog/Public/IMessageLogListing.h"
-#include "NiagaraMessageManager.h"
+#include "NiagaraMessageLogViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
 
@@ -177,86 +175,6 @@ void FNiagaraSystemToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject(System);
 }
 
-void FNiagaraSystemToolkit::UpdateMessageLog()
-{	
-	TArray<UNiagaraScript*> ScriptsToGetCompileEventsFrom;
-	ScriptsToGetCompileEventsFrom.Add(System->GetSystemSpawnScript());
-	ScriptsToGetCompileEventsFrom.Add(System->GetSystemUpdateScript());
-	const TArray<FNiagaraEmitterHandle> EmitterHandles = System->GetEmitterHandles();
-	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
-	{
-		const UNiagaraEmitter* EmitterInSystem = Handle.GetInstance();
-		TArray<UNiagaraScript*> EmitterScripts;
-		EmitterInSystem->GetScripts(EmitterScripts);
-		ScriptsToGetCompileEventsFrom.Append(EmitterScripts);
-	}
-
-	TArray<TSharedPtr<INiagaraMessage>> NiagaraMessages;
-	uint32 ErrorCount = 0;
-	uint32 WarningCount = 0;
-	for (UNiagaraScript* Script : ScriptsToGetCompileEventsFrom)
-	{
-		for (const FNiagaraCompileEvent CompileEvent : Script->GetVMExecutableData().LastCompileEvents)
-		{
-			NiagaraMessages.Add(FNiagaraMessageManager::Get()->QueueMessageJob(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<UNiagaraScript>(Script), false)));
-			if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Error)
-			{
-				ErrorCount++;
-			}
-			else if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Warning)
-			{
-				WarningCount++;
-			}
-		}
-	}
-
-	TArray<TSharedRef<FTokenizedMessage>> TokenizedMessages;
-	for (const TSharedPtr<INiagaraMessage> Message : NiagaraMessages)
-	{
-		if (Message->GetMessageType() == ENiagaraMessageType::CompileEventMessage)
-		{
-			const TSharedPtr<const FNiagaraMessageCompileEvent> MessageCompileEvent = StaticCastSharedPtr<const FNiagaraMessageCompileEvent>(Message);
-			TokenizedMessages.Add(MessageCompileEvent->GenerateTokenizedMessage());
-		}
-		else if (Message->GetMessageType() == ENiagaraMessageType::NeedRecompileMessage)
-		{
-			const TSharedPtr<const FNiagaraMessageNeedRecompile> MessageNeedRecompile = StaticCastSharedPtr<const FNiagaraMessageNeedRecompile>(Message);
-			TokenizedMessages.Add(MessageNeedRecompile->GenerateTokenizedMessage());
-		}
-		else
-		{
-			checkf(false, TEXT("Message is of ENiagaraMessageType that is unhandled!"));
-		}
-	}
-
-	const auto GetCompileCompleteMessageText = [&ErrorCount, &WarningCount](ENiagaraScriptCompileStatus Status)->const FText {
-		FText MessageText;
-		switch (Status)
-		{
-		default:
-		case ENiagaraScriptCompileStatus::NCS_Unknown:
-		case ENiagaraScriptCompileStatus::NCS_Dirty:
-			MessageText = LOCTEXT("NiagaraSystemCompileStatusUnknownInfo", "System compile status unknown with {0} warning(s) and {1} error(s).");
-			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
-		case ENiagaraScriptCompileStatus::NCS_Error:
-			MessageText = LOCTEXT("NiagaraSystemCompileStatusErrorInfo", "System failed to compile with {0} warning(s) and {1} error(s).");
-			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
-		case ENiagaraScriptCompileStatus::NCS_UpToDate:
-			MessageText = LOCTEXT("NiagaraSystemCompileStatusSuccessInfo", "System successfully compiled.");
-			return MessageText;
-		case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
-			MessageText = LOCTEXT("NiagaraSystemCompileStatusWarningInfo", "System successfully compiled with {0} warning(s).");
-			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)));
-		}
-	};
-	
-	const FText CompileCompleteMessageText = GetCompileCompleteMessageText(SystemViewModel->GetLatestCompileStatus());
-	TokenizedMessages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
-
-	NiagaraMessageLogListing->ClearMessages();
-	NiagaraMessageLogListing->AddMessages(TokenizedMessages);
-}
-
 void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraSystem& InSystem)
 {
 	System = &InSystem;
@@ -266,8 +184,9 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 	SystemOptions.bCanModifyEmittersFromTimeline = true;
 	SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::SystemAsset;
 	SystemOptions.OnGetSequencerAddMenuContent.BindSP(this, &FNiagaraSystemToolkit::GetSequencerAddMenuContent);
+	const FGuid MessageLogGuid = FGuid::NewGuid();
 
-	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions));
+	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions, MessageLogGuid));
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemToolkitMode = ESystemToolkitMode::System;
 
@@ -282,7 +201,7 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 		FNiagaraEditorUtilities::WriteTextFileToDisk(FPaths::ProjectLogDir(), FilenamePart + TEXT(".onLoad.txt"), ExportText, true);
 	}
 
-	InitializeInternal(Mode, InitToolkitHost);
+	InitializeInternal(Mode, InitToolkitHost, MessageLogGuid);
 }
 
 void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraEmitter& InEmitter)
@@ -333,8 +252,9 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	FNiagaraSystemViewModelOptions SystemOptions;
 	SystemOptions.bCanModifyEmittersFromTimeline = false;
 	SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::EmitterAsset;
+	const FGuid MessageLogGuid = FGuid::NewGuid();
 
-	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions));
+	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions, MessageLogGuid));
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
 
@@ -358,41 +278,17 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 		FNiagaraEditorUtilities::WriteTextFileToDisk(FPaths::ProjectLogDir(), FilenamePart + TEXT(".onLoad.txt"), ExportText, true);
 	}
 
-	InitializeInternal(Mode, InitToolkitHost);
+	InitializeInternal(Mode, InitToolkitHost, MessageLogGuid);
 }
 
-void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost)
+void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
-	SystemViewModel->GetSystemScriptViewModel()->OnSystemCompiled().AddSP(this, &FNiagaraSystemToolkit::OnVMSystemCompiled);
-
 	if (SystemViewModel->GetEmitterHandleViewModels().Num() > 0)
 	{
 		SystemViewModel->SetSelectedEmitterHandleById(SystemViewModel->GetEmitterHandleViewModels()[0]->GetId());
 	}
 
-	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-
-	// Reuse any existing log, or create a new one (that is not held onto by the message log system)
-	auto CreateMessageLogListing = [&MessageLogModule](const FName& LogName)->TSharedRef<IMessageLogListing> {	
-		FMessageLogInitializationOptions LogOptions;
-		// Show Pages so that user is never allowed to clear log messages
-		LogOptions.bShowPages = false;
-		LogOptions.bShowFilters = false;
-		LogOptions.bAllowClear = false;
-		LogOptions.MaxPageCount = 1;
-
-		if (MessageLogModule.IsRegisteredLogListing(LogName))
-		{
-			return MessageLogModule.GetLogListing(LogName);
-		}
-		else
-		{
-			return  MessageLogModule.CreateLogListing(LogName, LogOptions);
-		}
-	};
-
-	NiagaraMessageLogListing = CreateMessageLogListing(GetNiagaraSystemMessageLogName(System));
-	NiagaraMessageLog = MessageLogModule.CreateLogListingWidget(NiagaraMessageLogListing.ToSharedRef());
+	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraSystemMessageLogName(System), MessageLogGuid, NiagaraMessageLog);
 
 	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::OnRefresh);
 	SystemViewModel->OnSelectedEmitterHandlesChanged().AddSP(this, &FNiagaraSystemToolkit::OnRefresh);
@@ -473,7 +369,6 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	SetupCommands();
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
-	UpdateMessageLog();
 
 	bChangesDiscarded = false;
 }
@@ -847,11 +742,6 @@ void FNiagaraSystemToolkit::OnThumbnailCaptured(UTexture2D* Thumbnail)
 void FNiagaraSystemToolkit::ResetSimulation()
 {
 	SystemViewModel->ResetSystem(FNiagaraSystemViewModel::ETimeResetMode::AllowResetTime, FNiagaraSystemViewModel::EMultiResetMode::AllowResetAllInstances, FNiagaraSystemViewModel::EReinitMode::ResetSystem);
-}
-
-void FNiagaraSystemToolkit::OnVMSystemCompiled()
-{
-	UpdateMessageLog();
 }
 
 void FNiagaraSystemToolkit::ExtendToolbar()
