@@ -300,17 +300,13 @@ void USoundWave::Serialize( FArchive& Ar )
 
 	if (Ar.IsSaving() || Ar.IsCooking())
 	{
-		if (bHasVirtualizeWhenSilent_DEPRECATED)
-		{
-			bHasVirtualizeWhenSilent_DEPRECATED = 0;
-			bHasPlayWhenSilent = 1;
-		}
-
+#if WITH_EDITORONLY_DATA
 		if (bVirtualizeWhenSilent_DEPRECATED)
 		{
 			bVirtualizeWhenSilent_DEPRECATED = 0;
-			bPlayWhenSilent = 1;
+			VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 		}
+#endif // WITH_EDITORONLY_DATA
 
 #if WITH_ENGINE
 		// If there is an AutoStreamingThreshold set for the platform we're cooking to,
@@ -457,7 +453,7 @@ float USoundWave::GetSubtitlePriority() const
 
 bool USoundWave::SupportsSubtitles() const
 {
-	return bPlayWhenSilent || (Subtitles.Num() > 0);
+	return VirtualizationMode == EVirtualizationMode::PlayWhenSilent || (Subtitles.Num() > 0);
 }
 
 void USoundWave::PostInitProperties()
@@ -702,8 +698,6 @@ void USoundWave::PostLoad()
 	{
 		return;
 	}
-
-	bHasPlayWhenSilent = bPlayWhenSilent;
 
 #if WITH_EDITORONLY_DATA
 	// Log a warning after loading if the source has effect chains but has channels greater than 2.
@@ -1646,9 +1640,9 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 		bool bHasSubtitles = ActiveSound.bHandleSubtitles && (ActiveSound.bHasExternalSubtitles || (Subtitles.Num() > 0));
 
 		// When the BypassPlayWhenSilent cvar is enabled, we should only honor bPlayWhenSilent for procedural sounds:
-		const bool bCanPlayWhenSilent = bPlayWhenSilent && (!BypassPlayWhenSilentCVar || bProcedural);
+		const bool bCanPlayWhenSilent = IsPlayWhenSilent() && (!BypassPlayWhenSilentCVar || bProcedural);
 		const float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
-		if (WaveInstanceVolume > KINDA_SMALL_NUMBER || ((bCanPlayWhenSilent || bHasSubtitles) && AudioDevice->PlayWhenSilentEnabled()))
+		if (WaveInstanceVolume > KINDA_SMALL_NUMBER || (bCanPlayWhenSilent || bHasSubtitles))
 		{
 			bAddedWaveInstance = true;
 			WaveInstances.Add(WaveInstance);
