@@ -6,6 +6,7 @@
 #include "NiagaraShared.h"
 #include "Logging/TokenizedMessage.h"
 #include "NiagaraGraph.h"
+#include "TickableEditorObject.h"
 
 class FNiagaraScriptToolkit;
 
