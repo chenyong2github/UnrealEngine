@@ -329,9 +329,8 @@ FGPUSortBuffers FParticleSortBuffers::GetSortBuffers()
  * @param ParticleSortBuffers - Buffers to use while sorting GPU particles.
  * @param PositionTextureRHI - Texture containing world space position for all particles.
  * @param SimulationsToSort - A list of simulations that must be sorted.
- * @returns the buffer index in which sorting results are stored.
  */
-int32 SortParticlesGPU(
+void SortParticlesGPU(
 	FRHICommandListImmediate& RHICmdList,
 	FParticleSortBuffers& ParticleSortBuffers,
 	FTexture2DRHIParamRef PositionTextureRHI,
@@ -351,12 +350,17 @@ int32 SortParticlesGPU(
 		}
 	}
 
+	// Buffer index should start so that we always end up on buffer 0 so that callers do not need to dynmically change which buffer they are using
+	const uint32 EmitterKeyMask = (1 << FMath::CeilLogTwo(SimulationsToSort.Num())) - 1;
+	const uint32 KeyMask = (EmitterKeyMask << 16) | 0xFFFF;
+
+	const int32 BufferIndex = GetGPUSortPassCount(KeyMask) & 1;
+
 	// First generate keys for each emitter to be sorted.
-	
 	const int32 TotalParticleCount = GenerateParticleSortKeys(
 		RHICmdList,
-		ParticleSortBuffers.GetKeyBufferUAV(),
-		ParticleSortBuffers.GetVertexBufferUAV(),
+		ParticleSortBuffers.GetKeyBufferUAV(BufferIndex),
+		ParticleSortBuffers.GetVertexBufferUAV(BufferIndex),
 		PositionTextureRHI,
 		SimulationsToSort,
 		FeatureLevel
@@ -367,8 +371,8 @@ int32 SortParticlesGPU(
 	INC_DWORD_STAT_BY( STAT_SortedGPUParticles, TotalParticleCount );
 
 	// Now sort the particles based on the generated keys.
-	const uint32 EmitterKeyMask = (1 << FMath::CeilLogTwo( SimulationsToSort.Num() )) - 1;
-	const uint32 KeyMask = (EmitterKeyMask << 16) | 0xFFFF;
 	FGPUSortBuffers SortBuffers = ParticleSortBuffers.GetSortBuffers();
-	return SortGPUBuffers(RHICmdList, SortBuffers, 0, KeyMask, TotalParticleCount, FeatureLevel);
+
+	const int32 FinalBufferIndex = SortGPUBuffers(RHICmdList, SortBuffers, BufferIndex, KeyMask, TotalParticleCount, FeatureLevel);
+	ensure(FinalBufferIndex == 0);
 }

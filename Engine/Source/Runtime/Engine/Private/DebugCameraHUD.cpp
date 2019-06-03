@@ -199,7 +199,7 @@ void ADebugCameraHUD::PostRender()
 
 
 			// controls display
-			yl += Y*14;
+			yl += Y*10;
 			
 			Canvas->SetDrawColor(64, 64, 255, 255);
 			Canvas->DrawText(RenderFont, TEXT("Controls"), X, yl, 1.f, 1.f, FontRenderInfo);

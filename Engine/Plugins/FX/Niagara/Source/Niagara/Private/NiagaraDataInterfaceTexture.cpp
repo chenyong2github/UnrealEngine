@@ -20,7 +20,8 @@ UNiagaraDataInterfaceTexture::UNiagaraDataInterfaceTexture(FObjectInitializer co
 	: Super(ObjectInitializer)
 	, Texture(nullptr)
 {
-
+	Proxy = MakeShared<FNiagaraDataInterfaceProxyTexture, ESPMode::ThreadSafe>();
+	PushToRenderThread();
 }
 
 void UNiagaraDataInterfaceTexture::PostInitProperties()
@@ -31,6 +32,8 @@ void UNiagaraDataInterfaceTexture::PostInitProperties()
 	{
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
+
+	PushToRenderThread();
 }
 
 void UNiagaraDataInterfaceTexture::PostLoad()
@@ -46,6 +49,7 @@ void UNiagaraDataInterfaceTexture::PostLoad()
 		}
 	}
 #endif
+	PushToRenderThread();
 }
 
 #if WITH_EDITOR
@@ -53,6 +57,7 @@ void UNiagaraDataInterfaceTexture::PostLoad()
 void UNiagaraDataInterfaceTexture::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+	PushToRenderThread();
 }
 
 
@@ -78,6 +83,7 @@ bool UNiagaraDataInterfaceTexture::CopyToInternal(UNiagaraDataInterface* Destina
 	}
 	UNiagaraDataInterfaceTexture* DestinationTexture = CastChecked<UNiagaraDataInterfaceTexture>(Destination);
 	DestinationTexture->Texture = Texture;
+	DestinationTexture->PushToRenderThread();
 
 	return true;
 }
@@ -373,46 +379,29 @@ struct FNiagaraDataInterfaceParametersCS_Texture : public FNiagaraDataInterfaceP
 		}
 	}
 
-	virtual void Set(FRHICommandList& RHICmdList, FNiagaraShader* Shader, class UNiagaraDataInterface* DataInterface, void* PerInstanceData) const override
+	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Shader->GetComputeShader();
-		UNiagaraDataInterfaceTexture* TextureDI = CastChecked<UNiagaraDataInterfaceTexture>(DataInterface);
-		UTexture *Texture = TextureDI->Texture;
-		float TexDims[2];
-		if (!Texture)
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FNiagaraDataInterfaceProxyTexture* TextureDI = static_cast<FNiagaraDataInterfaceProxyTexture*>(Context.DataInterface);
+		if (!TextureDI->TextureRHI)
 		{
-			TexDims[0] = 0.0f;
-			TexDims[1] = 0.0f;
+			float TexDims[] = { 0.0f, 0.0f };
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TexDims);
 			return;
 		}
 
-		FTextureRHIParamRef TextureRHI = Texture->TextureReference.TextureReferenceRHI->GetReferencedTexture();
-		if (TextureRHI != nullptr)
-		{
-			SetTextureParameter(
-				RHICmdList,
-				ComputeShaderRHI,
-				TextureParam,
-				SamplerParam,
-				Texture->Resource->SamplerStateRHI,
-				TextureRHI
-			);
-			TexDims[0] = TextureDI->Texture->GetSurfaceWidth();
-			TexDims[1] = TextureDI->Texture->GetSurfaceHeight();
+		SetTextureParameter(
+			RHICmdList,
+			ComputeShaderRHI,
+			TextureParam,
+			SamplerParam,
+			TextureDI->SamplerStateRHI,
+			TextureDI->TextureRHI
+		);
 
-		}
-		else
-		{
-			TexDims[0] = 0.0f;
-			TexDims[1] = 0.0f;
-			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TexDims);
-			return;
-		}
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TexDims);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TextureDI->TexDims);
 	}
 	
 
@@ -422,6 +411,40 @@ private:
 	FShaderResourceParameter SamplerParam;
 	FShaderParameter Dimensions;
 };
+
+void UNiagaraDataInterfaceTexture::PushToRenderThread()
+{
+	FNiagaraDataInterfaceProxyTexture* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyTexture>();
+
+	float DimX = 0.0f;
+	float DimY = 0.0f;
+	FTextureRHIRef RT_Texture;
+	FSamplerStateRHIRef RT_SamplerState;
+
+	if (Texture && Texture->TextureReference.TextureReferenceRHI.IsValid())
+	{
+		if (Texture->TextureReference.TextureReferenceRHI)
+		{
+			RT_Texture = Texture->TextureReference.TextureReferenceRHI->GetReferencedTexture();
+		}
+		if (Texture->Resource)
+		{
+			RT_SamplerState = Texture->Resource->SamplerStateRHI;
+		}
+		DimX = Texture->GetSurfaceWidth();
+		DimY = Texture->GetSurfaceHeight();
+	}
+
+	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT) (
+		[RT_Proxy, RT_Texture, RT_SamplerState, DimX, DimY](FRHICommandListImmediate& RHICmdList)
+		{
+			RT_Proxy->TextureRHI = RT_Texture;
+			RT_Proxy->SamplerStateRHI = RT_SamplerState;
+			RT_Proxy->TexDims[0] = DimX;
+			RT_Proxy->TexDims[1] = DimY;
+		}
+	);
+}
 
 FNiagaraDataInterfaceParametersCS* UNiagaraDataInterfaceTexture::ConstructComputeParameters()const
 {

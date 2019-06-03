@@ -313,66 +313,63 @@ void GetTangents(FVertexFactoryInput Input, float3 WorldPosition, float3 OldWorl
 
 	float3 CameraRight = lerp(ResolvedViewRight, SpriteVF.AxisLockRight.xyz, SpriteVF.AxisLockRight.w);
 	float3 CameraUp = lerp(-ResolvedViewUp, SpriteVF.AxisLockUp.xyz, SpriteVF.AxisLockUp.w);
-	
+
 	// Determine the vector from the particle to the camera and the particle's movement direction.
-	float3 CameraDirection		= SafeNormalize(ResolvedView.WorldCameraOrigin - WorldPosition.xyz);
-	float3 ParticleDirection	= SafeNormalize(WorldPosition.xyz - OldWorldPosition.xyz);
+	float3 CameraDirection	= SafeNormalize(ResolvedView.WorldCameraOrigin - WorldPosition.xyz);
+	float3 RightVector = CameraRight.xyz;
+	float3 UpVector = CameraUp.xyz;
 
-	// Tangent vectors for PSA_Velocity.
-	float3 Right_Velocity	= SafeNormalize(cross(CameraDirection, ParticleDirection));
-	float3 Up_Velocity		= -ParticleDirection;
-
-	// Tangent vectors for rotation locked about an axis.
-	float3 Right_AxisRot = SpriteVF.AxisLockRight.xyz;
-	float3 Up_AxisRot = -SafeNormalize(cross(Right_AxisRot,CameraDirection));
-
-	// Tangent vectors for camera facing position.
-	float3 Right_FacingCameraPosition = SafeNormalize(cross(CameraDirection,float3(0,0,1)));
-	float3 Up_FacingCameraPosition = cross(CameraDirection, Right_FacingCameraPosition);
-
-	// Blend between PSA_FacingCamera and PSA_Square over distance
 	float4 LocalTangentSelector = SpriteVF.TangentSelector;
 
 	BRANCH
 	if (SpriteVF.CameraFacingBlend.x > 0.f)
 	{
+		// Blend between PSA_FacingCamera and PSA_Square over distance
 		float3 CameraVector = ResolvedView.WorldCameraOrigin.xyz - WorldPosition.xyz;
 		float CameraDistanceSq = dot(CameraVector, CameraVector);
 		float AlignmentMode = saturate(CameraDistanceSq * SpriteVF.CameraFacingBlend.y - SpriteVF.CameraFacingBlend.z);
 
-		LocalTangentSelector.x = 1.f - AlignmentMode;
-		LocalTangentSelector.w = AlignmentMode;
+		float3 CameraFacingRight = SafeNormalize(cross(CameraDirection, float3(0,0,1)));
+		float3 CameraFacingUp = cross(CameraDirection, CameraFacingRight);
+
+		RightVector = normalize(lerp(RightVector, CameraFacingRight, AlignmentMode));
+		UpVector = normalize(lerp(UpVector, CameraFacingUp, AlignmentMode));
+	}
+	else
+	{
+		FLATTEN
+		if (LocalTangentSelector.y > 0)
+		{
+			// Tangent vectors for PSA_Velocity.
+			float3 ParticleDirection = SafeNormalize(WorldPosition.xyz - OldWorldPosition.xyz);
+			RightVector	= SafeNormalize(cross(CameraDirection, ParticleDirection));
+			UpVector = -ParticleDirection;
+		}
+		else if (LocalTangentSelector.z > 0)
+		{
+			// Tangent vectors for rotation locked about an axis.
+			RightVector = SpriteVF.AxisLockRight.xyz;
+			UpVector = -SafeNormalize(cross(RightVector,CameraDirection));
+		}
+		else if (LocalTangentSelector.w > 0)
+		{
+			// Tangent vectors for camera facing position.
+			RightVector = SafeNormalize(cross(CameraDirection,float3(0,0,1)));
+			UpVector = cross(CameraDirection, RightVector);
+		}
 	}
 
-	// Select the appropriate tangents.
-	// The TangentSelector values are as follows:
-	//   x - multiplied by the standard camera right/up values
-	//   y - multiplied by the velocity right/up values
-	//   z - multiplied by the axis rotation right/up values
-	// The multiplies are summed together to give the final right/up
-	float3 Right_Square	=	(CameraRight.xyz * LocalTangentSelector.x) +
-							(Right_Velocity * LocalTangentSelector.y) +
-							(Right_AxisRot * LocalTangentSelector.z) +
-							(Right_FacingCameraPosition * LocalTangentSelector.w);
-	float3 Up_Square =		(CameraUp.xyz * LocalTangentSelector.x) +
-							(Up_Velocity * LocalTangentSelector.y) +
-							(Up_AxisRot * LocalTangentSelector.z) +
-							(Up_FacingCameraPosition * LocalTangentSelector.w);
-							
-	Right_Square = normalize(Right_Square);
-	Up_Square = normalize(Up_Square);
-
 	// Determine the angle of rotation.
-	float SinRotation;
-	float CosRotation;
+	float SinRotation; // = 0
+	float CosRotation; // = 1
 	const float RotationScale = SpriteVF.RotationScale;
 	const float RotationBias = SpriteVF.RotationBias;
 	const float SpriteRotation = Input.SizeRotSubImage.z * RotationScale + RotationBias;
 	sincos(SpriteRotation, SinRotation, CosRotation);
 
 	// Rotate the sprite to determine final tangents.
-	OutRight	= SinRotation * Up_Square + CosRotation * Right_Square;
-	OutUp		= CosRotation * Up_Square - SinRotation * Right_Square;
+	OutRight	= SinRotation * UpVector + CosRotation * RightVector;
+	OutUp		= CosRotation * UpVector - SinRotation * RightVector;
 }
 
 /** derive basis vectors */

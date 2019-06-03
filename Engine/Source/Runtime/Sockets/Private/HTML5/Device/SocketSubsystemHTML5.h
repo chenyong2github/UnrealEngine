@@ -21,7 +21,7 @@ protected:
 public:
 
 	/** 
-	 * Singleton interface for this subsystem 
+	 * Singleton interface for this subsystem
 	 * @return the only instance of this subsystem
 	 */
 	static FSocketSubsystemHTML5* Create();
@@ -33,7 +33,7 @@ public:
 
 public:
 
-	FSocketSubsystemHTML5() 
+	FSocketSubsystemHTML5()
 		: bTriedToInit(false)
 	{
 	}

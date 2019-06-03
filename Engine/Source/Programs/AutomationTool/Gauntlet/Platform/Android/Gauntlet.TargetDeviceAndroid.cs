@@ -393,9 +393,10 @@ namespace Gauntlet
         }
 
         public void PopulateDirectoryMappings(string ProjectDir)
-        {
-            LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Binaries, Path.Combine(ProjectDir, "Binaries"));
-            LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Config, Path.Combine(ProjectDir, "Config"));
+		{
+			LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Build, Path.Combine(ProjectDir, "Build"));
+			LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Binaries, Path.Combine(ProjectDir, "Binaries"));
+			LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Config, Path.Combine(ProjectDir, "Config"));
             LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Content, Path.Combine(ProjectDir, "Content"));
             LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Demos, Path.Combine(ProjectDir, "Demos"));
             LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Profiling, Path.Combine(ProjectDir, "Profiling"));
@@ -1281,13 +1282,23 @@ namespace Gauntlet
 
 					bUsingCustomKeys = true;
 
-					Log.Info("Running adb kill-server to refresh credentials");
-					TargetDeviceAndroid.RunAdbGlobalCommand("kill-server", bPauseErrorParsing: true);
-
-					Thread.Sleep(5000);
+					KillAdbServer();
 				}
 
 				InstanceCount++;
+			}
+
+		}
+
+		private static void KillAdbServer()
+		{			
+			using (new ScopedSuspendECErrorParsing())
+			{
+				Log.Info("Running adb kill-server to refresh credentials");
+				TargetDeviceAndroid.RunAdbGlobalCommand("kill-server");
+				// killing the adb server restarts it and can surface superfluous device errors
+				int SleepTime = CommandUtils.IsBuildMachine ? 15000 : 5000;
+				Thread.Sleep(SleepTime);
 			}
 
 		}
@@ -1302,12 +1313,8 @@ namespace Gauntlet
 				if (InstanceCount == 0 && bUsingCustomKeys)
 				{
 					Reset();
-
-					Log.Info("Running adb kill-server to refresh credentials");
-					TargetDeviceAndroid.RunAdbGlobalCommand("kill-server", bPauseErrorParsing: true);
-					Thread.Sleep(2500);
+					KillAdbServer();
 				}
-
 			}
 		}
 

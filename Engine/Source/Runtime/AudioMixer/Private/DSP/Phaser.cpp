@@ -44,23 +44,26 @@ namespace Audio
 		LFO.Start();
 
 		// Setup the LFO oscillation ranges for APF cutoff frequencies
-		APFFrequencyRanges[0].X = 16.0f;
-		APFFrequencyRanges[0].Y = 1600.0f;
+		// Use ratios of current sample rate
+		const float SampleRateRatio = SampleRate / 48000.0f;
+		APFFrequencyRanges[0].X = 16.0f * SampleRateRatio;
+		APFFrequencyRanges[0].Y = 1600.0f * SampleRateRatio;
 
-		APFFrequencyRanges[1].X = 33.0f;
-		APFFrequencyRanges[1].Y = 3300.0f;
+		APFFrequencyRanges[1].X = 33.0f * SampleRateRatio;
+		APFFrequencyRanges[1].Y = 3300.0f * SampleRateRatio;
 
-		APFFrequencyRanges[2].X = 48.0f;
-		APFFrequencyRanges[2].Y = 4800.0f;
+		APFFrequencyRanges[2].X = 48.0f * SampleRateRatio;
+		APFFrequencyRanges[2].Y = 4800.0f * SampleRateRatio;
 
-		APFFrequencyRanges[3].X = 98.0f;
-		APFFrequencyRanges[3].Y = 9800.0f;
+		APFFrequencyRanges[3].X = 98.0f * SampleRateRatio;
+		APFFrequencyRanges[3].Y = 9800.0f * SampleRateRatio;
 
-		APFFrequencyRanges[4].X = 160.0f;
-		APFFrequencyRanges[4].Y = 16000.0f;
+		APFFrequencyRanges[4].X = 160.0f * SampleRateRatio;
+		APFFrequencyRanges[4].Y = 16000.0f * SampleRateRatio;
 
-		APFFrequencyRanges[5].X = 220.0f;
-		APFFrequencyRanges[5].Y = 22000.0f;
+		// Make sure final APF frequency won't go above Nyquist
+		APFFrequencyRanges[5].X = 220.0f * SampleRateRatio;
+		APFFrequencyRanges[5].Y = 22000.0f * SampleRateRatio;
 
 		FeedbackFrame[0] = 0.0f;
 		FeedbackFrame[1] = 0.0f;

@@ -385,7 +385,7 @@ int FMemory_GCreateMalloc_ThreadUnsafe()
 	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Used memory before allocating anything was %.2fMB\n"), SizeInMb);
 	UE_LOG(LogMemory, Display, TEXT("Used memory before allocating anything was %.2fMB"), SizeInMb);
 #endif
-	
+
 	return 0;
 }
 
@@ -536,21 +536,6 @@ void FMemory::ClearAndDisableTLSCachesOnCurrentThread()
 	{
 		GMalloc->ClearAndDisableTLSCachesOnCurrentThread();
 	}
-}
-
-void* FMemory::GPUMalloc(SIZE_T Count, uint32 Alignment /* = DEFAULT_ALIGNMENT */)
-{
-	return FPlatformMemory::GPUMalloc(Count, Alignment);
-}
-
-void* FMemory::GPURealloc(void* Original, SIZE_T Count, uint32 Alignment /* = DEFAULT_ALIGNMENT */)
-{
-	return FPlatformMemory::GPURealloc(Original, Count, Alignment);
-}
-
-void FMemory::GPUFree(void* Original)
-{
-	return FPlatformMemory::GPUFree(Original);
 }
 
 void FMemory::TestMemory()

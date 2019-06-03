@@ -136,6 +136,8 @@ public:
 		return Data;
 	}
 
+	const FShaderResourceViewRHIParamRef GetSRV() const { return PositionComponentSRV; }
+
 private:
 
 	FShaderResourceViewRHIRef PositionComponentSRV;

@@ -117,12 +117,14 @@ protected:
 private:
 	float MaxAudibleDistance;
 
-	uint32 bHasVirtualizedSoundWaves:1;
-	uint32 bVirtualizeSoundWavesInitialized:1;
-	uint32 bHasAttenuationNode:1;
-	uint32 bHasAttenuationNodeInitialized:1;
-	uint32 bShouldApplyInteriorVolumes:1;
-	uint32 bShouldApplyInteriorVolumesCached:1;
+	/** Whether a sound has play when silent enabled (i.e. for a sound cue, if any sound wave player has it enabled). */
+	UPROPERTY()
+	uint8 bHasPlayWhenSilent : 1;
+
+	uint8 bHasAttenuationNode : 1;
+	uint8 bHasAttenuationNodeInitialized : 1;
+	uint8 bShouldApplyInteriorVolumes : 1;
+	uint8 bShouldApplyInteriorVolumesCached : 1;
 
 public:
 
@@ -141,6 +143,7 @@ public:
 
 	//~ Begin USoundBase Interface.
 	virtual bool IsPlayable() const override;
+	virtual bool IsPlayWhenSilent() const override;
 	virtual bool ShouldApplyInteriorVolumes() override;
 	virtual void Parse( class FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances ) override;
 	virtual float GetVolumeMultiplier() override;
@@ -182,7 +185,7 @@ public:
 	/**
 	 * Recursively finds sound nodes of type T
 	 */
-	template<typename T> 
+	template<typename T>
 	void RecursiveFindNode(USoundNode* Node, TArray<T*>& OutNodes)
 	{
 		if (Node)
@@ -287,6 +290,3 @@ private:
 	static ENGINE_API TSharedPtr<ISoundCueAudioEditor> SoundCueAudioEditor;
 #endif
 };
-
-
-

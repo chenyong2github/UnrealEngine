@@ -31,6 +31,11 @@ struct FGPUSortBuffers
 };
 
 /**
+ * Get the number of passes we will need to make in order to sort
+ */
+int32 GetGPUSortPassCount(uint32 KeyMask);
+
+/**
  * Sort a buffer on the GPU.
  * @param SortBuffers - The buffer to sort including required views and a ping-
  *			pong location of appropriate size.

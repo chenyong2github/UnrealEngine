@@ -289,16 +289,22 @@ FIndexBufferRHIRef FRawStaticIndexBuffer::CreateRHIBuffer_Internal()
 
 	if (GetNumIndices() > 0)
 	{
+		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
+		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
+		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
+		bool bSRV = IndexStorage.GetAllowCPUAccess();
+		uint32 BufferFlags = BUF_Static | (bSRV ? BUF_ShaderResource : BUF_None);
+
 		// Create the index buffer.
 		FRHIResourceCreateInfo CreateInfo(&IndexStorage);
 		CreateInfo.bWithoutNativeResource = !SizeInBytes;
 		if (bRenderThread)
 		{
-			return RHICreateIndexBuffer(IndexStride, SizeInBytes, BUF_Static, CreateInfo);
+			return RHICreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
 		}
 		else
 		{
-			return RHIAsyncCreateIndexBuffer(IndexStride, SizeInBytes, BUF_Static, CreateInfo);
+			return RHIAsyncCreateIndexBuffer(IndexStride, SizeInBytes, BufferFlags, CreateInfo);
 		}
 	}
 	return nullptr;

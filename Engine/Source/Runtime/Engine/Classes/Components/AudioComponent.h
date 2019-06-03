@@ -1,14 +1,13 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Engine/EngineTypes.h"
 #include "Components/SceneComponent.h"
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "IAudioExtensionPlugin.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"
+#include "UObject/ObjectMacros.h"
 
 #include "AudioComponent.generated.h"
 
@@ -16,6 +15,7 @@ class FAudioDevice;
 class USoundBase;
 class USoundClass;
 class USoundConcurrency;
+
 
 /** called when we finish playing audio, either because it played to completion or because a Stop() call turned it off early */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE( FOnAudioFinished );
@@ -335,6 +335,10 @@ public:
 
 	/** shadow delegate for non UObject subscribers */
 	FOnAudioMultiEnvelopeValueNative OnAudioMultiEnvelopeValueNative;
+
+	/** Modulation for the sound */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
+	FSoundModulation Modulation;
 
 	/** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
 	UPROPERTY()

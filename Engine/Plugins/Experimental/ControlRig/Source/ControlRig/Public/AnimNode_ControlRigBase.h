@@ -31,7 +31,7 @@ struct CONTROLRIG_API FAnimNode_ControlRigBase : public FAnimNode_CustomProperty
 protected:
 	/** Rig Hierarchy node name mapping for the required bones array */
 	UPROPERTY(transient)
-	TArray<FName> ContolRigNodeMapping;
+	TArray<FName> ControlRigNodeMapping;
 
 	UPROPERTY(transient)
 	TMap<FName, uint16> CurveMappingUIDs;

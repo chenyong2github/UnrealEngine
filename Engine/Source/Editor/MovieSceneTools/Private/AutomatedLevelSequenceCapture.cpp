@@ -198,6 +198,18 @@ void UAutomatedLevelSequenceCapture::Initialize(TSharedPtr<FSceneViewport> InVie
 		{
 			DelayEveryFrame = DelayEveryFrameOverride;
 		}
+
+		bool bWriteEditDecisionListOverride;
+		if (FParse::Bool(FCommandLine::Get(), TEXT("-WriteEditDecisionList="), bWriteEditDecisionListOverride))
+		{
+			bWriteEditDecisionList = bWriteEditDecisionListOverride;
+		}
+
+		bool bWriteFinalCutProXMLOverride;
+		if (FParse::Bool(FCommandLine::Get(), TEXT("-WriteFinalCutProXML="), bWriteFinalCutProXMLOverride))
+		{
+			bWriteFinalCutProXML = bWriteFinalCutProXMLOverride;
+		}
 	}
 
 	if (Settings.bUsePathTracer)

@@ -497,22 +497,6 @@ public:
 		return ActorLockedByMatinee.IsValid();
 	}
 
-	/**
-	 * Get the sound stat flags enabled for this viewport
-	 */
-	virtual ESoundShowFlags::Type GetSoundShowFlags() const override
-	{ 
-		return SoundShowFlags;
-	}
-
-	/**
-	 * Set the sound stat flags enabled for this viewport
-	 */
-	virtual void SetSoundShowFlags(const ESoundShowFlags::Type InSoundShowFlags) override
-	{
-		SoundShowFlags = InSoundShowFlags;
-	}
-
 	void UpdateHoveredObjects( const TSet<FViewportHoverTarget>& NewHoveredObjects );
 
 	/**
@@ -793,9 +777,6 @@ private:
 	 */
 	TWeakObjectPtr<AActor>	ActorLockedByMatinee;
 	TWeakObjectPtr<AActor>	ActorLockedToCamera;
-
-	/** Those sound stat flags which are enabled on this viewport */
-	ESoundShowFlags::Type	SoundShowFlags;
 
 	/** If true, we switched between two different cameras. Set by matinee, used by the motion blur to invalidate this frames motion vectors */
 	bool					bEditorCameraCut;

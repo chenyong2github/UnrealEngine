@@ -75,7 +75,7 @@ public:
 	bool bWriteEditDecisionList;
 
 	/** Whether to write Final Cut Pro XML files (XMLs) if the sequence contains shots */
-	UPROPERTY(config, EditAnywhere, Category=Sequence)
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Sequence)
 	bool bWriteFinalCutProXML;
 
 public:

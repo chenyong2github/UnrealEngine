@@ -24,6 +24,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGPUSort, Log, All);
 static TAutoConsoleVariable<int32> CVarDebugOffsets(TEXT("GPUSort.DebugOffsets"),0,TEXT("Debug GPU sort offsets."));
 static TAutoConsoleVariable<int32> CVarDebugSort(TEXT("GPUSort.DebugSort"),0,TEXT("Debug GPU sorting."));
 
+#define GPUSORT_BITCOUNT 32
 #define RADIX_BITS 4
 #define DIGIT_COUNT (1 << RADIX_BITS)
 #define KEYS_PER_LOOP 8
@@ -673,6 +674,29 @@ IMPLEMENT_SHADER_TYPE(,FRadixSortDownsweepCS,TEXT("/Engine/Private/RadixSortShad
 ------------------------------------------------------------------------------*/
 
 /**
+ * Get the number of passes we will need to make in order to sort
+ */
+int32 GetGPUSortPassCount(uint32 KeyMask)
+{
+	const int32 BitCount = GPUSORT_BITCOUNT;
+	const int32 PassCount = BitCount / RADIX_BITS;
+
+	int32 PassesRequired = 0;
+
+	uint32 PassBits = DIGIT_COUNT - 1;
+	for (int32 PassIndex = 0; PassIndex < PassCount; ++PassIndex)
+	{
+		// Check to see if these key bits matter.
+		if ((PassBits & KeyMask) != 0)
+		{
+			++PassesRequired;
+		}
+		PassBits <<= RADIX_BITS;
+	}
+	return PassesRequired;
+}
+
+/**
  * Sort a buffer on the GPU.
  * @param SortBuffers - The buffer to sort including required views and a ping-
  *			pong location of appropriate size.
@@ -716,7 +740,7 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 	const int32 ExtraKeyCount = Count % TILE_SIZE;
 
 	// Determine how many passes are required.
-	const int32 BitCount = 32;
+	const int32 BitCount = GPUSORT_BITCOUNT;
 	const int32 PassCount = BitCount / RADIX_BITS;
 
 	// Setup sort parameters.

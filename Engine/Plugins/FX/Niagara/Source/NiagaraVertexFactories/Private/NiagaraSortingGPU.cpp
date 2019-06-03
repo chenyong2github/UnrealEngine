@@ -16,6 +16,14 @@ static FAutoConsoleVariableRef CVarNiagaraGPUSorting(
 	ECVF_Default
 );
 
+int32 GNiagaraGPUSortingUseMaxPrecision = 1;
+static FAutoConsoleVariableRef CVarNiagaraGPUSortinUseMaxPrecision(
+	TEXT("Niagara.GPUSorting.UseMaxPrecision"),
+	GNiagaraGPUSortingUseMaxPrecision,
+	TEXT("Wether sorting using fp32 instead of fp16. (default=1)"),
+	ECVF_Default
+);
+
 int32 GNiagaraGPUSortingCPUToGPUThreshold = -1;
 static FAutoConsoleVariableRef CVarNiagaraGPUSortinCPUToGPUThreshold(
 	TEXT("Niagara.GPUSorting.CPUToGPUThreshold"),
@@ -48,7 +56,7 @@ static FAutoConsoleVariableRef CVarNiagaraGPUSortingFrameCountBeforeBufferShrink
 	ECVF_Default
 );
 
-IMPLEMENT_SHADER_TYPE(, FNiagaraSortKeyGenCS, TEXT("/Engine/Private/NiagaraSortKeyGen.usf"), TEXT("GenerateParticleSortKeys"), SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FNiagaraSortKeyGenCS, "/Plugin/FX/Niagara/Private/NiagaraSortKeyGen.usf", "GenerateParticleSortKeys", SF_Compute);
 
 void FNiagaraSortKeyGenCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
@@ -69,6 +77,7 @@ FNiagaraSortKeyGenCS::FNiagaraSortKeyGenCS(const ShaderMetaType::CompiledShaderI
 	GPUParticleCountBuffer.Bind(Initializer.ParameterMap, TEXT("GPUParticleCountBuffer"));
 	ParticleCountParams.Bind(Initializer.ParameterMap, TEXT("ParticleCountParams"));
 	SortParams.Bind(Initializer.ParameterMap, TEXT("SortParams"));
+	SortKeyParams.Bind(Initializer.ParameterMap, TEXT("SortKeyParams"));
 	CameraPosition.Bind(Initializer.ParameterMap, TEXT("CameraPosition"));
 	CameraDirection.Bind(Initializer.ParameterMap, TEXT("CameraDirection"));
 
@@ -85,6 +94,7 @@ bool FNiagaraSortKeyGenCS::Serialize(FArchive& Ar)
 	Ar << GPUParticleCountBuffer;
 	Ar << ParticleCountParams;
 	Ar << SortParams;
+	Ar << SortKeyParams;
 	Ar << CameraPosition;
 	Ar << CameraDirection;
 	Ar << OutKeys;
@@ -105,7 +115,7 @@ void FNiagaraSortKeyGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedA
 	}
 }
 
-void FNiagaraSortKeyGenCS::SetParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSortInfo& SortInfo, int32 EmitterIndex, int32 OutputOffset)
+void FNiagaraSortKeyGenCS::SetParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSortInfo& SortInfo, uint32 EmitterKey, int32 OutputOffset, const FUintVector4& SortKeyParamsValue)
 {
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 
@@ -118,9 +128,10 @@ void FNiagaraSortKeyGenCS::SetParameters(FRHICommandList& RHICmdList, const FNia
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, ParticleCountParams.GetBufferIndex(), ParticleCountParams.GetBaseIndex(), ParticleCountParams.GetNumBytes(), &ParticleCountParamsValue);
 
 	// (EmitterKey, OutputOffset, SortMode, SortAttributeOffset)
-	const FUintVector4 SortParamsValue((uint32)EmitterIndex << 16, OutputOffset, (uint8)SortInfo.SortMode, SortInfo.SortAttributeOffset);
+	const FUintVector4 SortParamsValue(EmitterKey, OutputOffset, (uint8)SortInfo.SortMode, SortInfo.SortAttributeOffset);
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, SortParams.GetBufferIndex(), SortParams.GetBaseIndex(), SortParams.GetNumBytes(), &SortParamsValue);
 
+	RHICmdList.SetShaderParameter(ComputeShaderRHI, SortKeyParams.GetBufferIndex(), SortKeyParams.GetBaseIndex(), SortKeyParams.GetNumBytes(), &SortKeyParamsValue);
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, CameraPosition.GetBufferIndex(), CameraPosition.GetBaseIndex(), CameraPosition.GetNumBytes(), &SortInfo.ViewOrigin);
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, CameraDirection.GetBufferIndex(), CameraDirection.GetBaseIndex(), CameraDirection.GetNumBytes(), &SortInfo.ViewDirection);
 }
@@ -148,7 +159,7 @@ void FNiagaraSortKeyGenCS::UnbindBuffers(FRHICommandList& RHICmdList)
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-IMPLEMENT_SHADER_TYPE(, FNiagaraCopyIntBufferRegionCS, TEXT("/Engine/Private/NiagaraCopyIntBuffer.usf"), TEXT("MainCS"), SF_Compute);
+IMPLEMENT_SHADER_TYPE(, FNiagaraCopyIntBufferRegionCS, TEXT("/Plugin/FX/Niagara/Private/NiagaraCopyIntBuffer.usf"), TEXT("MainCS"), SF_Compute);
 
 FNiagaraCopyIntBufferRegionCS::FNiagaraCopyIntBufferRegionCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	: FGlobalShader(Initializer)

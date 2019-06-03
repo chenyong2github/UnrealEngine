@@ -219,6 +219,74 @@ FMacCursor::~FMacCursor()
 	}
 }
 
+void* FMacCursor::CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D InHotSpot)
+{
+	const FString TiffCursor = InPathToCursorWithoutExtension + TEXT(".tiff");
+	const FString PngCursor = InPathToCursorWithoutExtension + TEXT(".png");
+
+	// Try loading TIFF file
+	NSImage* CursorImage = [[NSImage alloc] initWithContentsOfFile:TiffCursor.GetNSString()];
+	if (!CursorImage)
+	{
+		// Try loading PNG file
+		CursorImage = [[NSImage alloc] initWithContentsOfFile:PngCursor.GetNSString()];
+	}
+
+	if (!CursorImage)
+	{
+		return nullptr;
+	}
+
+	NSImageRep* CursorImageRep = [[CursorImage representations] objectAtIndex:0];
+
+	const int32 PixelHotspotX = FMath::RoundToInt(InHotSpot.X * CursorImageRep.pixelsWide);
+	const int32 PixelHotspotY = FMath::RoundToInt(InHotSpot.Y * CursorImageRep.pixelsHigh);
+
+	NSCursor* CursorHandle = [[NSCursor alloc] initWithImage:CursorImage hotSpot : NSMakePoint(PixelHotspotX, PixelHotspotY)];
+	[CursorImage release];
+
+	return CursorHandle;
+}
+
+void* FMacCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, int32 Height, FVector2D InHotSpot)
+{
+	NSBitmapImageRep* CursorImageRep = [
+		[NSBitmapImageRep alloc]
+		initWithBitmapDataPlanes:NULL
+			pixelsWide : Width
+			pixelsHigh : Height
+			bitsPerSample : 8
+			samplesPerPixel : 4
+			hasAlpha : YES
+			isPlanar : NO
+			colorSpaceName : NSCalibratedRGBColorSpace
+			bitmapFormat : NSAlphaFirstBitmapFormat
+			bytesPerRow : Width * 4
+			bitsPerPixel : 32];
+
+	uint8* CursorPixels = [CursorImageRep bitmapData];
+	for (int32 X = 0; X < Width; X++)
+	{
+		for (int32 Y = 0; Y < Height; Y++)
+		{
+			uint8* TargetPixel = (uint8*) CursorPixels + Y * Width + X * 4;
+			*(uint32*) TargetPixel = *(((uint32*) Pixels) + (Y * Width) + X);
+		}
+	}
+
+	NSImage* CursorImage = [[NSImage alloc] initWithSize:NSMakeSize(Width, Height)];
+	[CursorImage addRepresentation : CursorImageRep];
+
+	const int32 PixelHotspotX = FMath::RoundToInt(InHotSpot.X * Width);
+	const int32 PixelHotspotY = FMath::RoundToInt(InHotSpot.Y * Height);
+
+	NSCursor* CursorHandle = [[NSCursor alloc] initWithImage:CursorImage hotSpot : NSMakePoint(PixelHotspotX, PixelHotspotY)];
+	[CursorImage release];
+	[CursorImageRep release];
+
+	return CursorHandle;
+}
+
 FVector2D FMacCursor::GetPosition() const
 {
 	FVector2D CurrentPos = CurrentPosition;

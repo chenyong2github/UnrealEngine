@@ -271,6 +271,7 @@ UNetDriver::UNetDriver(const FObjectInitializer& ObjectInitializer)
 ,	LagState(ENetworkLagState::NotLagging)
 ,	DuplicateLevelID(INDEX_NONE)
 ,	PacketLossBurstEndTime(-1.0f)
+,	OutTotalNotifiedPackets(0u)
 {
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ChannelClasses[CHTYPE_Control]	= UControlChannel::StaticClass();

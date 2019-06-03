@@ -172,6 +172,31 @@ FLinuxCursor::~FLinuxCursor()
 	}
 }
 
+void* FLinuxCursor::CreateCursorFromFile(const FString& InPathToCursorWithoutExtension, FVector2D HotSpot)
+{
+	return nullptr;
+}
+
+void* FLinuxCursor::CreateCursorFromRGBABuffer(const FColor* Pixels, int32 Width, int32 Height, FVector2D InHotSpot)
+{
+	uint32 Rmask = 0x000000ff;
+	uint32 Gmask = 0x0000ff00;
+	uint32 Bmask = 0x00ff0000;
+	uint32 Amask = 0xff000000;
+
+	SDL_Surface* Surface = SDL_CreateRGBSurfaceFrom((void*) Pixels, Width, Height, 32, Width * 4, Rmask, Gmask, Bmask, Amask);
+	if (Surface)
+	{
+		SDL_HCursor CursorHandle = SDL_CreateColorCursor(Surface, FMath::RoundToInt(InHotSpot.X * Width), FMath::RoundToInt(InHotSpot.Y * Height));
+
+		SDL_FreeSurface(Surface);
+
+		return CursorHandle;
+	}
+
+	return nullptr;
+}
+
 void FLinuxCursor::SetCustomShape( SDL_HCursor CursorHandle )
 {
 	CursorHandles[EMouseCursor::Custom] = CursorHandle;

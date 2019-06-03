@@ -431,7 +431,7 @@ TD3D12Texture2D<BaseResourceType>::~TD3D12Texture2D()
 		FD3D12TextureStats::D3D12TextureDeleted(*this);
 	}
 #if PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
-	GetParentDevice()->GetOwningRHI()->DestroyVirtualTexture(GetFlags(), GetRawTextureMemory(), GetMemorySize());
+	GetParentDevice()->GetOwningRHI()->DestroyVirtualTexture(GetFlags(), GetRawTextureMemory(), GetRawTextureBlock(), GetMemorySize());
 #endif
 }
 
@@ -1391,17 +1391,6 @@ void FD3D12DynamicRHI::RHIGetResourceInfo(FTextureRHIParamRef Ref, FRHIResourceI
 	{
 		OutInfo = Ref->ResourceInfo;
 	}
-}
-
-/** Generates mip maps for the surface. */
-void FD3D12DynamicRHI::RHIGenerateMips(FTextureRHIParamRef TextureRHI)
-{
-	// MS: GenerateMips has been removed in D3D12.  However, this code path isn't executed in 
-	// available UE content, so there is no need to re-implement GenerateMips for now.
-	FD3D12TextureBase* Texture = GetD3D12TextureFromRHITexture(TextureRHI);
-	// Surface must have been created with D3D11_BIND_RENDER_TARGET for GenerateMips to work
-	check(Texture->GetShaderResourceView() && Texture->GetRenderTargetView(0, -1));
-	GetRHIDevice()->RegisterGPUWork(0);
 }
 
 /**

@@ -162,6 +162,67 @@ static void FillMaterialName(const TArray<FStaticMaterial>& StaticMaterials, TMa
 
 
 /*-----------------------------------------------------------------------------
+	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer
+-----------------------------------------------------------------------------*/
+
+FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::FStaticMeshSectionAreaWeightedTriangleSamplerBuffer()
+{
+}
+
+FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::~FStaticMeshSectionAreaWeightedTriangleSamplerBuffer()
+{
+}
+
+void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::InitRHI()
+{
+	ReleaseRHI();
+
+	if (Samplers && Samplers->Num() > 0)
+	{
+		FRHIResourceCreateInfo CreateInfo;
+		void* BufferData = nullptr;
+
+		// Count triangle count for all sections and required memory
+		const uint32 AllSectionCount = Samplers->Num();
+		uint32 TriangleCount = 0;
+		for (uint32 i = 0; i < AllSectionCount; ++i)
+		{
+			TriangleCount += (*Samplers)[i].GetNumEntries();
+		}
+		uint32 SizeByte = TriangleCount * sizeof(SectionTriangleInfo);
+
+		BufferSectionTriangleRHI = RHICreateAndLockVertexBuffer(SizeByte, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
+
+		// Now compute the alias look up table for unifor; distribution for all section and all triangles
+		SectionTriangleInfo* SectionTriangleInfoBuffer = (SectionTriangleInfo*)BufferData;
+		for (uint32 i = 0; i < AllSectionCount; ++i)
+		{
+			FStaticMeshSectionAreaWeightedTriangleSampler& sampler = (*Samplers)[i];
+			const TArray<float>& ProbTris = sampler.GetProb();
+			const TArray<int32>& AliasTris = sampler.GetAlias();
+			const uint32 NumTriangle = sampler.GetNumEntries();
+
+			for (uint32 t = 0; t < NumTriangle; ++t)
+			{
+				SectionTriangleInfo NewTriangleInfo = { ProbTris[t], (uint32)AliasTris[t], 0, 0 };
+				*SectionTriangleInfoBuffer = NewTriangleInfo;
+				SectionTriangleInfoBuffer++;
+			}
+		}
+		RHIUnlockVertexBuffer(BufferSectionTriangleRHI);
+
+		BufferSectionTriangleSRV = RHICreateShaderResourceView(BufferSectionTriangleRHI, sizeof(SectionTriangleInfo), PF_R32G32B32A32_UINT);
+	}
+}
+
+void FStaticMeshSectionAreaWeightedTriangleSamplerBuffer::ReleaseRHI()
+{
+	BufferSectionTriangleSRV.SafeRelease();
+	BufferSectionTriangleRHI.SafeRelease();
+}
+
+
+/*-----------------------------------------------------------------------------
 	FStaticMeshLODResources
 -----------------------------------------------------------------------------*/
 
@@ -1078,6 +1139,11 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 		BeginInitResource(&AdditionalIndexBuffers->AdjacencyIndexBuffer);
 	}
 
+	if (Parent->bSupportGpuUniformlyDistributedSampling && Parent->bSupportUniformlyDistributedSampling && Parent->bAllowCPUAccess)
+	{
+		BeginInitResource(&AreaWeightedSectionSamplersBuffer);
+	}
+
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
@@ -1144,6 +1210,7 @@ void FStaticMeshLODResources::ReleaseResources()
 	BeginReleaseResource(&VertexBuffers.PositionVertexBuffer);
 	BeginReleaseResource(&VertexBuffers.ColorVertexBuffer);
 	BeginReleaseResource(&DepthOnlyIndexBuffer);
+	BeginReleaseResource(&AreaWeightedSectionSamplersBuffer);
 
 	if (AdditionalIndexBuffers)
 	{
@@ -4581,6 +4648,15 @@ void UStaticMesh::PostLoad()
 
 	if (RenderData)
 	{
+		if (bSupportGpuUniformlyDistributedSampling)
+		{
+			// Initialise pointers to samplers
+			for (FStaticMeshLODResources &LOD : RenderData->LODResources)
+			{
+				LOD.AreaWeightedSectionSamplersBuffer.Init(&LOD.AreaWeightedSectionSamplers);
+			}
+		}
+
 		// check the MinLOD values are all within range
 		bool bFixedMinLOD = false;
 		int32 MinAvailableLOD = FMath::Max<int32>(RenderData->LODResources.Num() - 1, 0);

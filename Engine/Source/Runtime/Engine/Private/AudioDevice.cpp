@@ -1,46 +1,49 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "AudioDevice.h"
 
-#include "PhysicsEngine/BodyInstance.h"
-#include "Sound/SoundEffectPreset.h"
-#include "Sound/SoundEffectSubmix.h"
-#include "HAL/FileManager.h"
-#include "Misc/Paths.h"
-#include "Misc/OutputDeviceArchiveWrapper.h"
-#include "ProfilingDebugging/ProfilingHelpers.h"
-#include "Misc/ConfigCacheIni.h"
-#include "Misc/App.h"
-#include "UObject/UObjectHash.h"
-#include "UObject/UObjectIterator.h"
-#include "UObject/Package.h"
 #include "ActiveSound.h"
-#include "ContentStreaming.h"
-#include "UnrealEngine.h"
-#include "Sound/SoundGroups.h"
-#include "Sound/SoundEffectSource.h"
-#include "Sound/SoundWave.h"
+#include "AudioCompressionSettingsUtils.h"
 #include "AudioDecompress.h"
 #include "AudioEffect.h"
 #include "AudioPluginUtilities.h"
-#include "Sound/AudioSettings.h"
-#include "Sound/SoundCue.h"
-#include "Sound/SoundNode.h"
-#include "Sound/SoundNodeWavePlayer.h"
+#include "Audio/AudioDebug.h"
+#include "ContentStreaming.h"
+#include "DrawDebugHelpers.h"
 #include "GameFramework/GameUserSettings.h"
 #include "GameFramework/WorldSettings.h"
 #include "GeneralProjectSettings.h"
+#include "HAL/FileManager.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "AudioCompressionSettingsUtils.h"
-#include "DrawDebugHelpers.h"
+#include "IAudioExtensionPlugin.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/App.h"
+#include "Misc/OutputDeviceArchiveWrapper.h"
+#include "Misc/Paths.h"
+#include "PhysicsEngine/BodyInstance.h"
+#include "ProfilingDebugging/ProfilingHelpers.h"
+#include "Sound/AudioSettings.h"
+#include "Sound/ReverbEffect.h"
+#include "Sound/SoundEffectPreset.h"
+#include "Sound/SoundEffectSource.h"
+#include "Sound/SoundEffectSubmix.h"
+#include "Sound/SoundGroups.h"
+#include "Sound/SoundWave.h"
+#include "Sound/SoundCue.h"
+#include "Sound/SoundNode.h"
+#include "Sound/SoundNodeWavePlayer.h"
+#include "UnrealEngine.h"
+#include "UObject/UObjectHash.h"
+#include "UObject/UObjectIterator.h"
+#include "UObject/Package.h"
 
 #if WITH_EDITOR
-#include "AssetRegistryModule.h"
-#include "Developer/AssetTools/Public/IAssetTools.h"
-#include "Developer/AssetTools/Public/AssetToolsModule.h"
-#include "Editor/EditorEngine.h"
 #include "AudioEditorModule.h"
-#endif
+#include "AssetRegistryModule.h"
+#include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "Developer/AssetTools/Public/IAssetTools.h"
+#include "Editor/EditorEngine.h"
+#endif // WITH_EDITOR
+
 
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
@@ -195,6 +198,7 @@ FAudioDevice::FAudioDevice()
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
 	, bReverbInterfaceEnabled(false)
+	, bModulationInterfaceEnabled(false)
 	, bPluginListenersInitialized(false)
 	, bHRTFEnabledForAll(false)
 	, bIsDeviceMuted(false)
@@ -203,11 +207,8 @@ FAudioDevice::FAudioDevice()
 	, bAllowCenterChannel3DPanning(false)
 	, DeviceDeltaTime(0.0f)
 	, bHasActivatedReverb(false)
-	, bAllowVirtualizedSounds(true)
+	, bAllowPlayWhenSilent(true)
 	, bUseAttenuationForNonGameWorlds(false)
-#if !UE_BUILD_SHIPPING
-	, RequestedAudioStats(0)
-#endif
 	, ConcurrencyManager(this)
 	, OneShotCount(0)
 	, GlobalMinPitch(0.4f)
@@ -285,7 +286,7 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	GlobalMinPitch = FMath::Clamp(AudioSettings->GlobalMinPitchScale, 0.0001f, 4.0f);
 	GlobalMaxPitch = FMath::Clamp(AudioSettings->GlobalMaxPitchScale, 0.0001f, 4.0f);
 	bAllowCenterChannel3DPanning = AudioSettings->bAllowCenterChannel3DPanning;
-	bAllowVirtualizedSounds = AudioSettings->bAllowVirtualizedSounds;
+	bAllowPlayWhenSilent = AudioSettings->bAllowPlayWhenSilent;
 	DefaultReverbSendLevel = AudioSettings->DefaultReverbSendLevel;
 
 	const FSoftObjectPath DefaultBaseSoundMixName = GetDefault<UAudioSettings>()->DefaultBaseSoundMix;
@@ -362,21 +363,38 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	//Get the requested occlusion plugin and set it up.
 	IAudioOcclusionFactory* OcclusionPluginFactory = AudioPluginUtilities::GetDesiredOcclusionPlugin(AudioPluginUtilities::CurrentPlatform);
 	if (OcclusionPluginFactory != nullptr)
-		{
+	{
 		OcclusionInterface = OcclusionPluginFactory->CreateNewOcclusionPlugin(this);
 		bOcclusionInterfaceEnabled = true;
 		bOcclusionIsExternalSend = OcclusionPluginFactory->IsExternalSend();
 		UE_LOG(LogAudio, Display, TEXT("Audio Occlusion Plugin: %s"), *(OcclusionPluginFactory->GetDisplayName()));
-		}
+	}
 	else
 	{
 		UE_LOG(LogAudio, Display, TEXT("Using built-in audio occlusion."));
 	}
 
-	// allow the platform to startup
-	if (InitializeHardware() == false)
+	//Get the requested modulation plugin and set it up.
+	if (IAudioModulationFactory* ModulationPluginFactory = AudioPluginUtilities::GetDesiredModulationPlugin(AudioPluginUtilities::CurrentPlatform))
 	{
-		// Could not initialize hardware, teardown anything that was set up during initialization
+		ModulationInterface = ModulationPluginFactory->CreateNewModulationPlugin(this);
+
+		//Set up initialization parameters for system level effect plugins:
+		FAudioPluginInitializationParams PluginInitializationParams;
+		PluginInitializationParams.SampleRate = SampleRate;
+		PluginInitializationParams.NumSources = MaxChannels;
+		PluginInitializationParams.BufferLength = PlatformSettings.CallbackBufferFrameSize;
+		PluginInitializationParams.AudioDevicePtr = this;
+		ModulationInterface->Initialize(PluginInitializationParams);
+
+		bModulationInterfaceEnabled = true;
+		UE_LOG(LogAudio, Display, TEXT("Audio Modulation Plugin: %s"), *(ModulationPluginFactory->GetDisplayName()));
+	}
+
+	// allow the platform to startup
+	if (!InitializeHardware())
+	{
+		// Could not initialize hardware, tear down anything that was set up during initialization
 		Teardown();
 
 		return false;
@@ -576,7 +594,14 @@ void FAudioDevice::Teardown()
 		bOcclusionInterfaceEnabled = false;
 	}
 
+	ModulationInterface.Reset();
+	bModulationInterfaceEnabled = false;
+
 	PluginListeners.Reset();
+
+#if ENABLE_AUDIO_DEBUG
+	FAudioDebugger::RemoveDevice(*this);
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 void FAudioDevice::Suspend(bool bGameTicking)
@@ -604,7 +629,7 @@ void FAudioDevice::UpdateAudioPluginSettingsObjectCache()
 	PluginSettingsObjects.Reset();
 
 	// Make sure we don't GC 3rd party plugin settings since these live on FSoundAttenuationSettings, which may not live in UObject graph due to overrides.
-	// There shouldn't be many of objects these (on the order of 10s not 100s) so if we find any loaded, don't let GC get them.
+	// There shouldn't be many of these objects (on the order of 10s not 100s) so if we find any loaded, don't let GC get them.
 	for (TObjectIterator<USpatializationPluginSourceSettingsBase> It; It; ++It)
 	{
 		PluginSettingsObjects.Add(*It);
@@ -616,6 +641,11 @@ void FAudioDevice::UpdateAudioPluginSettingsObjectCache()
 	}
 
 	for (TObjectIterator<UReverbPluginSourceSettingsBase> It; It; ++It)
+	{
+		PluginSettingsObjects.Add(*It);
+	}
+
+	for (TObjectIterator<USoundModulationPluginSourceSettingsBase> It; It; ++It)
 	{
 		PluginSettingsObjects.Add(*It);
 	}
@@ -645,7 +675,7 @@ void FAudioDevice::AddReferencedObjects(FReferenceCollector& Collector)
 	for (FActiveSound* ActiveSound : PendingSoundsToDelete)
 	{
 		ActiveSound->AddReferencedObjects(Collector);
-	}	
+	}
 
 	for (FVirtualLoopPair& Pair : VirtualLoops)
 	{
@@ -1127,6 +1157,13 @@ bool FAudioDevice::HandleTestLPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 	return true;
 }
 
+bool FAudioDevice::HandleTestHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	Ar.Logf(TEXT("HPF set to max for all sources"));
+	SetMixDebugState(DEBUGSTATE_TestHPF);
+	return true;
+}
+
 bool FAudioDevice::HandleTestStereoBleedCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("StereoBleed set to max for all sources"));
@@ -1145,6 +1182,13 @@ bool FAudioDevice::HandleDisableLPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
 	Ar.Logf(TEXT("LPF disabled for all sources"));
 	SetMixDebugState(DEBUGSTATE_DisableLPF);
+	return true;
+}
+
+bool FAudioDevice::HandleDisableHPFCommand(const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	Ar.Logf(TEXT("HPF disabled for all sources"));
+	SetMixDebugState(DEBUGSTATE_DisableHPF);
 	return true;
 }
 
@@ -1651,7 +1695,6 @@ bool FAudioDevice::HandleSetDynamicSoundCommand(const TCHAR* Cmd, FOutputDevice&
 	}
 	return true;
 }
-
 #endif // !UE_BUILD_SHIPPING
 
 bool FAudioDevice::IsHRTFEnabledForAll() const
@@ -1754,6 +1797,10 @@ bool FAudioDevice::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 	else if (FParse::Command(&Cmd, TEXT("DisableLPF")))
 	{
 		return HandleDisableLPFCommand(Cmd, Ar);
+	}
+	else if (FParse::Command(&Cmd, TEXT("DisableHPF")))
+	{
+		return HandleDisableHPFCommand(Cmd, Ar);
 	}
 	else if (FParse::Command(&Cmd, TEXT("DisableRadio")))
 	{
@@ -2166,7 +2213,7 @@ void FAudioDevice::UpdatePassiveSoundMixModifiers(TArray<FWaveInstance*>& WaveIn
 			USoundClass* SoundClass = WaveInstance->SoundClass;
 			if (SoundClass)
 			{
-				const float WaveInstanceActualVolume = WaveInstance->GetVolumeWithDistanceAttenuation();
+				const float WaveInstanceActualVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
 				// Check each SoundMix individually for volume levels
 				for (const FPassiveSoundMixModifier& PassiveSoundMixModifier : SoundClass->PassiveSoundMixModifiers)
 				{
@@ -3203,7 +3250,6 @@ void* FAudioDevice::InitEffect(FSoundSource* Source)
 	return nullptr;
 }
 
-
 void* FAudioDevice::UpdateEffect(FSoundSource* Source)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AudioUpdateEffects);
@@ -3215,7 +3261,6 @@ void* FAudioDevice::UpdateEffect(FSoundSource* Source)
 	}
 	return nullptr;
 }
-
 
 void FAudioDevice::DestroyEffect(FSoundSource* Source)
 {
@@ -3503,7 +3548,7 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 			Source->LastUpdate = CurrentTick;
 
 			// If they are still audible, mark them as such
-			float VolumeWeightedPriority = WaveInstance.GetVolumeWithDistanceAttenuation();
+			float VolumeWeightedPriority = WaveInstance.GetVolumeWithDistanceAttenuation() * WaveInstance.GetDynamicVolume();
 			if (VolumeWeightedPriority > 0.0f)
 			{
 				Source->LastHeardUpdate = CurrentTick;
@@ -3542,6 +3587,10 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 				Source->NotifyPlaybackData();
 				Source->Update();
 			}
+
+#if ENABLE_AUDIO_DEBUG
+			FAudioDebugger::DrawDebugInfo(*Source);
+#endif // ENABLE_AUDIO_DEBUG
 		}
 	}
 
@@ -3554,19 +3603,9 @@ void FAudioDevice::StopSources(TArray<FWaveInstance*>& WaveInstances, int32 Firs
 		WaveInstance->StopWithoutNotification();
 	}
 
-#if STATS
-	uint32 AudibleInactiveSounds = 0;
-	// Count how many sounds are not being played but were audible
-	for (int32 InstanceIndex = 0; InstanceIndex < FirstActiveIndex; InstanceIndex++)
-	{
-		FWaveInstance* WaveInstance = WaveInstances[InstanceIndex];
-		if (WaveInstance->GetVolumeWithDistanceAttenuation() > KINDA_SMALL_NUMBER)
-		{
-			AudibleInactiveSounds++;
-		}
-	}
-	SET_DWORD_STAT(STAT_AudibleWavesDroppedDueToPriority, AudibleInactiveSounds);
-#endif
+#if ENABLE_AUDIO_DEBUG
+	FAudioDebugger::UpdateAudibleInactiveSounds(FirstActiveIndex, WaveInstances);
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 void FAudioDevice::StartSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex, bool bGameTicking)
@@ -3790,6 +3829,12 @@ void FAudioDevice::Update(bool bGameTicking)
 		HandlePause(bGameTicking);
 	}
 
+	if (bModulationInterfaceEnabled)
+	{
+		SCOPED_NAMED_EVENT(FAudioDevice_ProcessModulators, FColor::Blue);
+		ModulationInterface->ProcessModulators(GetDeviceDeltaTime());
+	}
+
 	bool bHasVolumeSettings = false;
 	float AudioVolumePriority = 0.f;
 	FReverbSettings ReverbSettings;
@@ -3884,8 +3929,6 @@ void FAudioDevice::Update(bool bGameTicking)
 		// active sound is updated while paused (for a long time), most sounds will be stopped when unpaused.
 		UpdateActiveSoundPlaybackTime(bGameTicking);
 
-
-
 		const int32 Channels = GetMaxChannels();
 		SET_DWORD_STAT(STAT_WaveInstances, ActiveWaveInstances.Num());
 		SET_DWORD_STAT(STAT_AudioSources, Sources.Num() - FreeSources.Num());
@@ -3919,100 +3962,11 @@ void FAudioDevice::Update(bool bGameTicking)
 
 void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 {
-#if !UE_BUILD_SHIPPING
-	if (FirstActiveIndex == INDEX_NONE)
-	{
-		return;
-	}
-
-	TArray<FAudioStats::FStatSoundInfo> StatSoundInfos;
-	TArray<FAudioStats::FStatSoundMix> StatSoundMixes;
-	const FVector ListenerPosition = Listeners[0].Transform.GetTranslation();
-	const bool bStatsStale = (RequestedAudioStats == 0);
-	if (RequestedAudioStats != 0)
-	{
-		TMap<FActiveSound*, int32> ActiveSoundToInfoIndex;
-
-		const bool bDebug = (RequestedAudioStats & ERequestedAudioStats::DebugSounds) != 0;
-
-		for (FActiveSound* ActiveSound : ActiveSounds)
-		{
-			if (ActiveSound->Sound)
-			{
-				if (!bDebug || ActiveSound->GetSound()->bDebug)
-				{
-					ActiveSoundToInfoIndex.Add(ActiveSound, StatSoundInfos.AddDefaulted());
-					FAudioStats::FStatSoundInfo& StatSoundInfo = StatSoundInfos.Last();
-					StatSoundInfo.SoundName = ActiveSound->GetSound()->GetPathName();
-					StatSoundInfo.Distance = (ListenerPosition - ActiveSound->Transform.GetTranslation()).Size();
-
-					if (USoundClass* SoundClass = ActiveSound->GetSoundClass())
-					{
-						StatSoundInfo.SoundClassName = SoundClass->GetFName();
-					}
-					else
-					{
-						StatSoundInfo.SoundClassName = NAME_None;
-					}
-					StatSoundInfo.Transform = ActiveSound->Transform;
-					StatSoundInfo.AudioComponentID = ActiveSound->GetAudioComponentID();
-
-					if (bDebug && ActiveSound->GetSound()->bDebug)
-					{
-						ActiveSound->CollectAttenuationShapesForVisualization(StatSoundInfo.ShapeDetailsMap);
-					}
-				}
-			}
-		}
-
-		// Iterate through all wave instances.
-		for (int32 InstanceIndex = FirstActiveIndex; InstanceIndex < ActiveWaveInstances.Num(); ++InstanceIndex)
-		{
-			FWaveInstance* WaveInstance = ActiveWaveInstances[InstanceIndex];
-			int32* SoundInfoIndex = ActiveSoundToInfoIndex.Find(WaveInstance->ActiveSound);
-			if (SoundInfoIndex)
-			{
-				FAudioStats::FStatWaveInstanceInfo WaveInstanceInfo;
-				FSoundSource* Source = WaveInstanceSourceMap.FindRef(WaveInstance);
-				WaveInstanceInfo.Description = Source ? Source->Describe((RequestedAudioStats & ERequestedAudioStats::LongSoundNames) != 0) : FString(TEXT("No source"));
-				WaveInstanceInfo.ActualVolume = WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume();
-				WaveInstanceInfo.InstanceIndex = InstanceIndex;
-				WaveInstanceInfo.WaveInstanceName = *WaveInstance->GetName();
-				StatSoundInfos[*SoundInfoIndex].WaveInstanceInfos.Add(MoveTemp(WaveInstanceInfo));
-			}
-		}
-
-		if (Effects)
-		{
-			USoundMix* CurrentEQMix = Effects->GetCurrentEQMix();
-
-			for (const TPair<USoundMix*, FSoundMixState>& SoundMixPair : SoundMixModifiers)
-			{
-				StatSoundMixes.AddDefaulted();
-				FAudioStats::FStatSoundMix& StatSoundMix = StatSoundMixes.Last();
-				StatSoundMix.MixName = SoundMixPair.Key->GetName();
-				StatSoundMix.InterpValue = SoundMixPair.Value.InterpValue;
-				StatSoundMix.RefCount = SoundMixPair.Value.ActiveRefCount + SoundMixPair.Value.PassiveRefCount;
-				StatSoundMix.bIsCurrentEQ = (SoundMixPair.Key == CurrentEQMix);
-			}
-		}
-	}
-#endif
-
 	DECLARE_CYCLE_STAT(TEXT("FGameThreadAudioTask.AudioSendResults"), STAT_AudioSendResults, STATGROUP_TaskGraphTasks);
 
 	const uint32 AudioDeviceID = DeviceHandle;
-	UReverbEffect* ReverbEffect = nullptr;
-	if (Effects)
-	{
-		ReverbEffect = Effects->GetCurrentReverbEffect();
-	}
-
-	FAudioThread::RunCommandOnGameThread([AudioDeviceID, ReverbEffect
-#if !UE_BUILD_SHIPPING
-											, ListenerPosition, StatSoundInfos, StatSoundMixes, bStatsStale
-#endif
-													]()
+	UReverbEffect* ReverbEffect = Effects ? Effects->GetCurrentReverbEffect() : nullptr;
+	FAudioThread::RunCommandOnGameThread([AudioDeviceID, ReverbEffect]()
 	{
 		// At shutdown, GEngine may already be null
 		if (GEngine)
@@ -4022,16 +3976,14 @@ void FAudioDevice::SendUpdateResultsToGameThread(const int32 FirstActiveIndex)
 				if (FAudioDevice* AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceID))
 				{
 					AudioDevice->CurrentReverbEffect = ReverbEffect;
-#if !UE_BUILD_SHIPPING
-					AudioDevice->AudioStats.ListenerLocation = ListenerPosition;
-					AudioDevice->AudioStats.StatSoundInfos = StatSoundInfos;
-					AudioDevice->AudioStats.StatSoundMixes = StatSoundMixes;
-					AudioDevice->AudioStats.bStale = bStatsStale;
-#endif
 				}
 			}
 		}
 	}, GET_STATID(STAT_AudioSendResults));
+
+#if ENABLE_AUDIO_DEBUG
+	FAudioDebugger::SendUpdateResultsToGameThread(*this, FirstActiveIndex);
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 void FAudioDevice::StopAllSounds(bool bShouldStopUISounds)
@@ -4246,11 +4198,6 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		(int32)ActiveSound->Sound->HasAnyFlags(RF_BeginDestroyed)))
 	{
 		static FName InvalidSoundName(TEXT("DESTROYED_Sound"));
-		ActiveSound->DebugOriginalSoundName = InvalidSoundName;
-	}
-	else
-	{
-		ActiveSound->DebugOriginalSoundName = ActiveSound->Sound->GetFName();
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -4510,7 +4457,6 @@ void FAudioDevice::NotifyActiveSoundOcclusionTraceDone(FActiveSound* InActiveSou
 	}
 }
 
-
 FActiveSound* FAudioDevice::FindActiveSound(const uint64 AudioComponentID)
 {
 	check(IsInAudioThread());
@@ -4645,7 +4591,6 @@ float FAudioDevice::GetSquaredDistanceToListener(const FVector& Location, const 
 	return (ListenerTranslation - Location).SizeSquared();
 }
 
-
 void FAudioDevice::GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float& OutMaxDistance, float& OutFocusFactor)
 {
 	check(IsInGameThread());
@@ -4722,12 +4667,12 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 		return true;
 	}
 
-	if (VirtualSoundsEnabled() && (NewActiveSound.Sound->IsAllowedVirtual() || (NewActiveSound.bHandleSubtitles && NewActiveSound.bHasExternalSubtitles)))
+	if (PlayWhenSilentEnabled() && (NewActiveSound.Sound->SupportsSubtitles() || (NewActiveSound.bHandleSubtitles && NewActiveSound.bHasExternalSubtitles)))
 	{
 		return true;
 	}
 
-	if (NewActiveSound.Sound->IsVirtualizeWhenSilent())
+	if (NewActiveSound.Sound->IsPlayWhenSilent())
 	{
 		return true;
 	}
@@ -5118,15 +5063,15 @@ void FAudioDevice::PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float V
 
 	GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
 
-	if (Sound->IsLooping() || Sound->IsVirtualizeWhenSilent() || SoundIsAudible(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor))
+	if (Sound->IsLooping() || Sound->IsPlayWhenSilent() || SoundIsAudible(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor))
 	{
 		const bool bIsInGameWorld = World->IsGameWorld();
 
 		FActiveSound NewActiveSound;
 		NewActiveSound.SetWorld(World);
 		NewActiveSound.SetSound(Sound);
-		NewActiveSound.VolumeMultiplier = VolumeMultiplier;
-		NewActiveSound.PitchMultiplier = PitchMultiplier;
+		NewActiveSound.SetVolume(VolumeMultiplier);
+		NewActiveSound.SetPitch(PitchMultiplier);
 		NewActiveSound.RequestedStartTime = FMath::Max(0.0f, StartTime);
 		NewActiveSound.bLocationDefined = true;
 		NewActiveSound.Transform.SetTranslation(Location);
@@ -5793,7 +5738,7 @@ void FAudioDevice::UpdateVirtualLoops()
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
 			}
 
-			// If signaled to fade out and virtualized, and to pending stop list.
+			// If set to fade out and set to play when silent, add to pending stop list.
 			if (ActiveSound.bFadingOut)
 			{
 				AddSoundToStop(&ActiveSound);
@@ -5908,10 +5853,9 @@ void FAudioDevice::SetGlobalFocusSettings(const FGlobalFocusSettings& NewFocusSe
 	GlobalFocusSettings_GameThread = NewFocusSettings;
 
 	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetGlobalListenerFocusParameters"), STAT_AudioSetGlobalListenerFocusParameters, STATGROUP_TaskGraphTasks);
-	FAudioDevice* AudioDevice = this;
-	FAudioThread::RunCommandOnAudioThread([AudioDevice, NewFocusSettings]()
+	FAudioThread::RunCommandOnAudioThread([this, NewFocusSettings]()
 	{
-		AudioDevice->GlobalFocusSettings = NewFocusSettings;
+		GlobalFocusSettings = NewFocusSettings;
 	}, GET_STATID(STAT_AudioSetGlobalListenerFocusParameters));
 }
 
@@ -5921,10 +5865,9 @@ void FAudioDevice::SetGlobalPitchModulation(float PitchModulation, float TimeSec
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetGlobalPitchModulation"), STAT_AudioSetGlobalPitchModulation, STATGROUP_TaskGraphTasks);
 
-		FAudioDevice* AudioDevice = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDevice, PitchModulation, TimeSec]()
+		FAudioThread::RunCommandOnAudioThread([this, PitchModulation, TimeSec]()
 		{
-			AudioDevice->SetGlobalPitchModulation(PitchModulation, TimeSec);
+			SetGlobalPitchModulation(PitchModulation, TimeSec);
 		}, GET_STATID(STAT_AudioSetGlobalPitchModulation));
 
 		return;
@@ -5933,7 +5876,7 @@ void FAudioDevice::SetGlobalPitchModulation(float PitchModulation, float TimeSec
 	GlobalPitchScale.Set(PitchModulation, TimeSec);
 }
 
-float FAudioDevice::ClampPitch(float InPitchScale)
+float FAudioDevice::ClampPitch(float InPitchScale) const
 {
 	return FMath::Clamp(InPitchScale, GlobalMinPitch, GlobalMaxPitch);
 }
@@ -5956,43 +5899,21 @@ void FAudioDevice::SetPlatformAudioHeadroom(const float InPlatformHeadRoom)
 	PlatformAudioHeadroom = InPlatformHeadRoom;
 }
 
-#if !UE_BUILD_SHIPPING
-void HandleDumpActiveSounds(UWorld* World)
+const TArray<FWaveInstance*>& FAudioDevice::GetActiveWaveInstances() const
 {
-	if (FAudioDevice* AudioDevice = (World ? World->GetAudioDevice() : GEngine->GetMainAudioDevice()))
-	{
-		AudioDevice->DumpActiveSounds();
-	}
+	check(IsInAudioThread());
+	return ActiveWaveInstances;
 }
 
-static FAutoConsoleCommandWithWorld DumpActiveSounds(TEXT("Audio.DumpActiveSounds"), TEXT("Outputs data about all the currently active sounds."), FConsoleCommandWithWorldDelegate::CreateStatic(&HandleDumpActiveSounds), ECVF_Cheat);
-
-void FAudioDevice::DumpActiveSounds() const
+const TMap<FName, FActivatedReverb>& FAudioDevice::GetActiveReverb() const
 {
-	check(IsInGameThread());
-
-	FAudioThreadSuspendContext SuspendAudio;
-
-	UE_LOG(LogAudio, Display, TEXT("Active Sound Count: %d"), ActiveSounds.Num());
-	UE_LOG(LogAudio, Display, TEXT("------------------------"), ActiveSounds.Num());
-
-	for (const FActiveSound* ActiveSound : ActiveSounds)
-	{
-		if (ActiveSound)
-		{
-			UE_LOG(LogAudio, Display, TEXT("%s (%.3g) - %s"), *ActiveSound->GetSound()->GetName(), ActiveSound->GetSound()->GetDuration(), *ActiveSound->GetAudioComponentName());
-
-			for (const TPair<UPTRINT, FWaveInstance*>& WaveInstancePair : ActiveSound->WaveInstances)
-			{
-				const FWaveInstance* WaveInstance = WaveInstancePair.Value;
-				UE_LOG(LogAudio, Display, TEXT("   %s (%.3g) (%d) - %.3g"), *WaveInstance->GetName(), WaveInstance->WaveData->GetDuration(), WaveInstance->WaveData->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal), WaveInstance->GetActualVolume());
-			}
-		}
-	}
-
-
+	return ActivatedReverbs;
 }
-#endif
+
+const TMap<FWaveInstance*, FSoundSource*>& FAudioDevice::GetWaveInstanceSourceMap() const
+{
+	return WaveInstanceSourceMap;
+}
 
 bool FAudioDevice::ShouldUseAttenuation(const UWorld* World) const
 {

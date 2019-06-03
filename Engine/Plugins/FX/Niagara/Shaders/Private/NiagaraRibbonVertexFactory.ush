@@ -1,0 +1,759 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	ParticleBeamTrailVertexFactory.hlsl: Particle vertex factory shader code.
+=============================================================================*/
+
+#include "/Engine/Private/VertexFactoryCommon.ush"
+#include "NiagaraVFParticleAccess.usf"
+
+#define USE_PARTICLE_POSITION (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_POSITION)
+#define USE_PARTICLE_VELOCITY (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_VELOCITY)
+#define USE_PARTICLE_TIME (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_TIME)
+#define USE_PARTICLE_SIZE (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_SIZE)
+#define USE_PARTICLE_RANDOM (FEATURE_LEVEL >= FEATURE_LEVEL_SM5 && NEEDS_PARTICLE_RANDOM)
+#define USE_PARTICLE_INTERPOLATION (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)
+
+float3 TransformPosition(float3 InPosition)
+{
+	return mul(float4(InPosition,1.0), NiagaraRibbonVF.LocalToWorld).xyz;
+}
+
+float3 TransformVector(float3 InVector)
+{
+	return mul(float4(InVector,0.0), NiagaraRibbonVF.LocalToWorldInverseTransposed).xyz;
+}
+
+float3 CubicInterp(float3 P0, float3 T0, float3 P1, float3 T1, float A, float TS)
+{
+	const float A2 = A  * A;
+	const float A3 = A2 * A;
+	return (((2*A3)-(3*A2)+1) * P0) + (TS * (A3-(2*A2)+A) * T0) + (TS * (A3-A2) * T1) + (((-2*A3)+(3*A2)) * P1);
+}
+
+/*********************************************************************************
+ *							Particle specific
+ *********************************************************************************/
+ 
+Buffer<int> SortedIndices;
+uint SortedIndicesOffset;
+
+Buffer<float4> TangentsAndDistances;
+Buffer<uint> MultiRibbonIndices;
+Buffer<float> PackedPerRibbonDataByIndex;
+
+// Naming convention :
+// RawParticleId : Used to access per particle data stored in the VF. Actual particle data needs to be indirected through SortedIndices.
+// ParticleId : Used to access particle data in NiagaraVFParticleAccess.
+// VertexId : Used to represent a vertex on both side of the particles. Has some specific data like UV.
+// InterpVtxId : A virtual index that represent a vertex of or between 2 VertexId.
+
+struct FVertexFactoryInput
+{
+	uint InterpVtxId					: SV_VertexID;
+
+	// Optional instance ID for vertex layered rendering
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && ONEPASS_POINTLIGHT_SHADOW && USING_VERTEX_SHADER_LAYER
+	uint InstanceId					: SV_InstanceID;
+#endif
+};
+
+// The interpolation data required for an interp vertex.
+struct FInterpVtxData
+{
+	uint RawParticleId0;
+	uint RawParticleId1;
+	uint ParticleId0;
+	uint ParticleId1;
+	float Alpha;
+};
+
+struct FSegmentData
+{
+	float2 UV0Scale;
+	float2 UV0Offset;
+	float2 UV1Scale;
+	float2 UV1Offset;
+	float OneOverNumSegments;
+	uint StartParticleId;
+};
+
+struct FVertexFactoryIntermediates
+{
+	float3 Position;
+	float3 OldPosition;
+	float3 Direction;
+	float DistanceOnSegment;
+	float4 Color;
+	float RibbonWidth;
+	float3 Right;
+	float3 Up;
+	float3 Facing;
+	float4 TexCoord;
+	
+#if USE_PARTICLE_POSITION
+	float4 TranslatedWorldPositionAndSize;
+#endif
+
+	float4 ParticleVelocity;
+
+#if USE_PARTICLE_TIME
+	float RelativeTime;
+#endif
+
+#if USE_PARTICLE_SIZE
+	float2 ParticleSize;
+#endif
+
+#if USE_PARTICLE_RANDOM
+	float ParticleRandom;
+#endif
+
+#if (DYNAMIC_PARAMETERS_MASK & 1)
+	float4 DynamicParameter;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 2)
+	float4 DynamicParameter1;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 4)
+	float4 DynamicParameter2;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 8)
+	float4 DynamicParameter3;
+#endif
+};
+
+void GetNiagaraParticlePositionAndDirection(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	BRANCH // Also acts as ISOLATE
+	if (NiagaraRibbonVF.PositionDataOffset != -1)
+	{
+		const float3 Pos0 = GetVec3(NiagaraRibbonVF.PositionDataOffset, InterpVtxData.ParticleId0);
+		const float3 Pos1 = GetVec3(NiagaraRibbonVF.PositionDataOffset, InterpVtxData.ParticleId1);
+		const float4 TangentAndDist0 = TangentsAndDistances[InterpVtxData.RawParticleId0];
+		const float4 TangentAndDist1 = TangentsAndDistances[InterpVtxData.RawParticleId1];
+		
+		Intermediates.Position = TransformPosition(CubicInterp(Pos0, TangentAndDist0.xyz, Pos1, TangentAndDist1.xyz, InterpVtxData.Alpha, TangentAndDist1.w - TangentAndDist0.w));
+		Intermediates.Direction = normalize(TransformVector(lerp(TangentAndDist0.xyz, TangentAndDist1.xyz, InterpVtxData.Alpha)));
+
+		Intermediates.DistanceOnSegment = lerp(TangentAndDist0.w, TangentAndDist1.w, InterpVtxData.Alpha);
+	}
+} 
+
+void GetNiagaraParticleVelocity(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	BRANCH
+	if(NiagaraRibbonVF.VelocityDataOffset != -1)
+	{
+		const float3 Velocity0 = GetVec3(NiagaraRibbonVF.VelocityDataOffset, InterpVtxData.ParticleId0);
+		const float3 Velocity1 = GetVec3(NiagaraRibbonVF.VelocityDataOffset, InterpVtxData.ParticleId1);
+		const float3 Velocity = TransformVector(lerp(Velocity0, Velocity1, InterpVtxData.Alpha));
+
+		Intermediates.ParticleVelocity = float4(normalize(Velocity), length(Velocity));
+	}
+}
+
+void GetNiagaraParticleColor(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	// Overrides (FVertexFactoryIntermediates)0; 
+	Intermediates.Color = float4(1.0f, 1.0f, 1.0f, 1.0f); 
+
+	if (NiagaraRibbonVF.ColorDataOffset != -1)
+	{
+		const float4 Color0 = GetVec4(NiagaraRibbonVF.ColorDataOffset, InterpVtxData.ParticleId0);
+		const float4 Color1 = GetVec4(NiagaraRibbonVF.ColorDataOffset, InterpVtxData.ParticleId1);
+		Intermediates.Color = lerp(Color0, Color1, InterpVtxData.Alpha);
+	}
+}
+
+void GetNiagaraParticleDynamicParameters(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+#if (DYNAMIC_PARAMETERS_MASK & 1)
+	// Overrides (FVertexFactoryIntermediates)0; 
+	Intermediates.DynamicParameter = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	FLATTEN
+	if (NiagaraRibbonVF.MaterialParamDataOffset != -1)
+	{
+		Intermediates.DynamicParameter = lerp(GetVec4(NiagaraRibbonVF.MaterialParamDataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParamDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 2)
+	// Overrides (FVertexFactoryIntermediates)0; 
+	Intermediates.DynamicParameter1 = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	FLATTEN
+	if (NiagaraRibbonVF.MaterialParam1DataOffset != -1)
+	{
+		Intermediates.DynamicParameter1 = lerp(GetVec4(NiagaraRibbonVF.MaterialParam1DataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParam1DataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 4)
+	// Overrides (FVertexFactoryIntermediates)0; 
+	Intermediates.DynamicParameter2 = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	FLATTEN
+	if (NiagaraRibbonVF.MaterialParam2DataOffset != -1)
+	{
+		Intermediates.DynamicParameter2 = lerp(GetVec4(NiagaraRibbonVF.MaterialParam2DataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParam2DataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 8)
+	// Overrides (FVertexFactoryIntermediates)0; 
+	Intermediates.DynamicParameter3 = float4(1.0f, 1.0f, 1.0f, 1.0f);
+
+	FLATTEN
+	if (NiagaraRibbonVF.MaterialParam3DataOffset != -1)
+	{
+		Intermediates.DynamicParameter3 = lerp(GetVec4(NiagaraRibbonVF.MaterialParam3DataOffset, InterpVtxData.ParticleId0), GetVec4(NiagaraRibbonVF.MaterialParam3DataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+#endif
+}
+
+void GetNiagaraParticleTextureCoords(in FVertexFactoryInput Input, in FInterpVtxData InterpVtxData, in FSegmentData SegmentData,  in out FVertexFactoryIntermediates Intermediates)
+{
+	float U0ForSegment;
+	BRANCH
+	if(NiagaraRibbonVF.OneOverUV0TilingDistance != 0.0f)
+	{
+		U0ForSegment = Intermediates.DistanceOnSegment * NiagaraRibbonVF.OneOverUV0TilingDistance;
+	}
+	else
+	{
+		U0ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.OneOverNumSegments;
+	}
+
+	float U1ForSegment;
+	BRANCH
+	if(NiagaraRibbonVF.OneOverUV1TilingDistance != 0.0f)
+	{
+		U1ForSegment = Intermediates.DistanceOnSegment * NiagaraRibbonVF.OneOverUV1TilingDistance;
+	}
+	else
+	{
+		U1ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.OneOverNumSegments;
+	}
+
+	float VForSegment = Input.InterpVtxId & 0x1;
+	
+	float2 UV0ForSegment = float2(U0ForSegment, VForSegment);
+	float2 UV1ForSegment = float2(U1ForSegment, VForSegment);
+	
+	Intermediates.TexCoord.xy = UV0ForSegment * SegmentData.UV0Scale + SegmentData.UV0Offset;
+	Intermediates.TexCoord.zw = UV1ForSegment * SegmentData.UV1Scale + SegmentData.UV1Offset;
+}
+
+void GetNiagaraParticleRibbonWidth(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	// Overrides (FVertexFactoryIntermediates)0; 
+	Intermediates.RibbonWidth = 1;
+
+	FLATTEN
+	if (NiagaraRibbonVF.WidthDataOffset != -1)
+	{
+		Intermediates.RibbonWidth = lerp(GetFloat(NiagaraRibbonVF.WidthDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.WidthDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+}
+
+#if USE_PARTICLE_TIME
+void GetNiagaraNormalizedAge(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	FLATTEN
+	if (NiagaraRibbonVF.NormalizedAgeDataOffset != -1)
+	{
+		Intermediates.RelativeTime = lerp(GetFloat(NiagaraRibbonVF.NormalizedAgeDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.NormalizedAgeDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+}
+#endif
+
+#if USE_PARTICLE_RANDOM
+void GetNiagaraMaterialRandom(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	FLATTEN
+	if (NiagaraRibbonVF.MaterialRandomDataOffset != -1)
+	{
+		Intermediates.ParticleRandom = lerp(GetFloat(NiagaraRibbonVF.MaterialRandomDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.MaterialRandomDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+}
+#endif
+
+struct FVertexFactoryInterpolantsVSToPS
+{
+	// First row of the tangent to world matrix
+	float3	TangentToWorld0	: TANGENTTOWORLD0;
+	// Last row of the tangent to world matrix in xyz
+	float4	TangentToWorld2	: TANGENTTOWORLD2;
+
+#if (DYNAMIC_PARAMETERS_MASK & 1)
+	float4 DynamicParameter	: PARTICLE_DYNAMIC_PARAM0;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 2)
+	float4 DynamicParameter1	: PARTICLE_DYNAMIC_PARAM1;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 4)
+	float4 DynamicParameter2	: PARTICLE_DYNAMIC_PARAM2;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 8)
+	float4 DynamicParameter3	: PARTICLE_DYNAMIC_PARAM3;
+#endif
+
+#if NUM_TEX_COORD_INTERPOLATORS
+	float4	TexCoords[(NUM_TEX_COORD_INTERPOLATORS + 1) / 2]	: TEXCOORD3;
+#endif
+
+#if NEEDS_PARTICLE_COLOR
+	float4  Color				: TEXCOORD2;
+#endif
+
+#if USE_PARTICLE_POSITION
+	/** Cam-relative (translated) particle center and radius */
+	float4 TranslatedWorldPositionAndSize : PARTICLE_POSITION;
+#endif
+
+#if USE_PARTICLE_VELOCITY
+	float4 ParticleVelocity : PARTICLE_VELOCITY;
+#endif
+
+#if USE_PARTICLE_TIME
+	float RelativeTime : PARTICLE_TIME;
+#endif
+
+#if USE_PARTICLE_SIZE
+	float2 ParticleSize : PARTICLE_SIZE;
+#endif
+
+#if USE_PARTICLE_RANDOM
+	float ParticleRandom : PARTICLE_RANDOM;
+#endif
+
+#if INSTANCED_STEREO
+	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+#endif
+};
+
+#if NUM_TEX_COORD_INTERPOLATORS
+bool UVIndexUseZW(int UVIndex)
+{
+	#if COMPILER_GLSL_ES2
+	return (frac((float)UVIndex / 2.0f) == 0.5f);
+	#else
+	return (UVIndex % 2) != 0;
+	#endif
+}
+
+
+float2 GetUV(FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex)
+{
+	float4 UVVector = Interpolants.TexCoords[UVIndex / 2];
+	return UVIndexUseZW(UVIndex) ? UVVector.zw : UVVector.xy;
+}
+
+void SetUV(inout FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex, float2 InValue)
+{
+	FLATTEN
+	if (UVIndexUseZW(UVIndex))
+	{
+		Interpolants.TexCoords[UVIndex / 2].zw = InValue;
+	}
+	else
+	{
+		Interpolants.TexCoords[UVIndex / 2].xy = InValue;
+	}
+}
+
+#endif
+
+int GetParticleIdByInterpVtxId(uint InterpVtxId)
+{
+	uint ParticleId = InterpVtxId / 2 / NiagaraRibbonVF.InterpCount;
+
+	FLATTEN
+	if(SortedIndicesOffset != 0xFFFFFFFF)
+	{
+		ParticleId = SortedIndices[SortedIndicesOffset + ParticleId];
+	}
+
+	return ParticleId;
+}
+
+FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
+{
+	FInterpVtxData InterpVtxData = (FInterpVtxData)0;
+
+	InterpVtxData.RawParticleId0 = Input.InterpVtxId / 2 / NiagaraRibbonVF.InterpCount;
+	InterpVtxData.RawParticleId1 = InterpVtxData.RawParticleId0 + 1;
+
+	if (SortedIndicesOffset != 0xFFFFFFFF)
+	{
+		InterpVtxData.ParticleId0 = SortedIndices[SortedIndicesOffset + InterpVtxData.RawParticleId0];
+		InterpVtxData.ParticleId1 = SortedIndices[SortedIndicesOffset + InterpVtxData.RawParticleId1];
+	}
+	else
+	{
+		InterpVtxData.ParticleId0 = InterpVtxData.RawParticleId0;
+		InterpVtxData.ParticleId1 = InterpVtxData.RawParticleId1;
+	}
+
+#if USE_PARTICLE_INTERPOLATION
+	ISOLATE
+	{
+		InterpVtxData.Alpha = (float)((Input.InterpVtxId / 2) % NiagaraRibbonVF.InterpCount) * NiagaraRibbonVF.OneOverInterpCount;
+	}
+#else
+	InterpVtxData.Alpha = 0;
+#endif
+
+	return InterpVtxData;
+}
+
+FSegmentData UnpackPerRibbonDataByIndex(int RibbonIndex)
+{
+	FSegmentData SegmentData = (FSegmentData)0;
+	const int Index = RibbonIndex * 6;
+
+	SegmentData.UV0Scale = float2(PackedPerRibbonDataByIndex[Index], NiagaraRibbonVF.PackedVData.x);
+	SegmentData.UV0Offset = float2(PackedPerRibbonDataByIndex[Index + 1], NiagaraRibbonVF.PackedVData.y);
+	SegmentData.UV1Scale = float2(PackedPerRibbonDataByIndex[Index + 2], NiagaraRibbonVF.PackedVData.z);
+	SegmentData.UV1Offset = float2(PackedPerRibbonDataByIndex[Index + 3], NiagaraRibbonVF.PackedVData.w);
+	SegmentData.OneOverNumSegments = PackedPerRibbonDataByIndex[Index + 4];
+	SegmentData.StartParticleId = asuint(PackedPerRibbonDataByIndex[Index + 5]);
+
+	return SegmentData;
+}
+
+/** Converts from vertex factory specific interpolants to a FMaterialPixelParameters, which is used by material inputs. */
+FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVSToPS Interpolants, float4 SvPosition)
+{
+	// GetMaterialPixelParameters is responsible for fully initializing the result
+	FMaterialPixelParameters Result = MakeInitializedMaterialPixelParameters();
+
+#if NUM_TEX_COORD_INTERPOLATORS
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+	{
+		Result.TexCoords[CoordinateIndex] = GetUV(Interpolants, CoordinateIndex);
+	}
+#endif	// NUM_MATERIAL_TEXCOORDS
+
+	Result.VertexColor = 1;
+
+#if NEEDS_PARTICLE_COLOR
+	Result.Particle.Color = Interpolants.Color;
+#endif
+
+	half3 TangentToWorld0 = Interpolants.TangentToWorld0.xyz;
+	half4 TangentToWorld2 = Interpolants.TangentToWorld2;
+	Result.TangentToWorld = AssembleTangentToWorld( TangentToWorld0, TangentToWorld2 );
+	Result.UnMirrored = 1;
+
+	Result.TwoSidedSign = 1;
+
+#if (DYNAMIC_PARAMETERS_MASK != 0)
+	Result.Particle.DynamicParameterValidMask = NiagaraRibbonVF.MaterialParamValidMask;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 1)
+	Result.Particle.DynamicParameter = Interpolants.DynamicParameter;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 2)
+	Result.Particle.DynamicParameter1 = Interpolants.DynamicParameter1;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 4)
+	Result.Particle.DynamicParameter2 = Interpolants.DynamicParameter2;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 8)
+	Result.Particle.DynamicParameter3 = Interpolants.DynamicParameter3;
+#endif
+
+#if USE_PARTICLE_POSITION
+	Result.Particle.TranslatedWorldPositionAndSize = Interpolants.TranslatedWorldPositionAndSize;
+#endif
+
+#if USE_PARTICLE_VELOCITY
+	Result.Particle.Velocity = Interpolants.ParticleVelocity;
+#endif
+
+#if USE_PARTICLE_TIME
+	Result.Particle.RelativeTime = Interpolants.RelativeTime;
+#endif
+
+#if USE_PARTICLE_SIZE
+	Result.Particle.Size = Interpolants.ParticleSize;
+#endif
+
+#if USE_PARTICLE_RANDOM
+	Result.Particle.Random = Interpolants.ParticleRandom;
+#else
+	Result.Particle.Random = 0.0f;
+#endif
+
+	return Result;
+}
+
+/** Converts from vertex factory specific input to a FMaterialVertexParameters, which is used by vertex shader material inputs. */
+FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 WorldPosition, float3x3 TangentToLocal)
+{
+	FMaterialVertexParameters Result = (FMaterialVertexParameters)0;
+	Result.WorldPosition = WorldPosition;
+	Result.VertexColor = Intermediates.Color;
+	Result.TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3()); 
+	Result.Particle.Color = Intermediates.Color;
+	Result.PreSkinnedPosition = Intermediates.Position.xyz;
+	Result.PreSkinnedNormal = TangentToLocal[2].xyz;
+
+#if (DYNAMIC_PARAMETERS_MASK != 0)
+	Result.Particle.DynamicParameterValidMask = NiagaraRibbonVF.MaterialParamValidMask;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 1)
+	Result.Particle.DynamicParameter = Intermediates.DynamicParameter;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 2)
+	Result.Particle.DynamicParameter1 = Intermediates.DynamicParameter1;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 4)
+	Result.Particle.DynamicParameter2 = Intermediates.DynamicParameter2;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 8)
+	Result.Particle.DynamicParameter3 = Intermediates.DynamicParameter3;
+#endif
+
+#if USE_PARTICLE_POSITION
+	Result.Particle.TranslatedWorldPositionAndSize = Intermediates.TranslatedWorldPositionAndSize;
+#endif
+
+#if USE_PARTICLE_VELOCITY
+	Result.Particle.Velocity = Intermediates.ParticleVelocity;
+#endif
+
+#if USE_PARTICLE_TIME
+	Result.Particle.RelativeTime = Intermediates.RelativeTime;
+#endif
+
+#if USE_PARTICLE_SIZE
+	Result.Particle.Size = Intermediates.ParticleSize;
+#endif
+
+#if USE_PARTICLE_RANDOM
+	Result.Particle.Random = Intermediates.ParticleRandom;
+#endif
+	// Previous frame not handled deliberately. Lacks necessary information and
+	// primitives using this VF are usually transparent and hence don't output velocity
+	Result.PrevFrameLocalToWorld = Primitive.LocalToWorld;
+
+#if NUM_MATERIAL_TEXCOORDS_VERTEX
+	Result.TexCoords[0] = Intermediates.TexCoord.xy;
+	#if NUM_MATERIAL_TEXCOORDS_VERTEX > 1
+		Result.TexCoords[1] = Intermediates.TexCoord.zw;
+	#endif
+#endif
+	return Result;
+}
+
+#if 0
+float3 SafeNormalize(float3 V)
+{
+	return rsqrt(max(0.001, dot(V,V))) * V;
+}
+#endif
+
+void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
+{
+	BRANCH
+	if(NiagaraRibbonVF.FacingDataOffset != -1)
+	{
+		const float3 Facing0 = GetVec3(NiagaraRibbonVF.FacingDataOffset, InterpVtxData.ParticleId0);
+		const float3 Facing1 = GetVec3(NiagaraRibbonVF.FacingDataOffset, InterpVtxData.ParticleId1);
+		Intermediates.Facing = normalize(TransformVector(lerp(Facing0, Facing1, InterpVtxData.Alpha)));
+	}
+	else
+	{
+		Intermediates.Facing = normalize(ResolvedView.WorldCameraOrigin - Intermediates.Position);
+	}	
+
+	ISOLATE
+	{
+		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
+		Intermediates.Up = cross(Intermediates.Right, Intermediates.Facing);
+	}
+
+	BRANCH
+	if (NiagaraRibbonVF.TwistDataOffset != -1)
+	{
+		const float Twist0 = GetFloat(NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId0);
+		const float Twist1 = GetFloat(NiagaraRibbonVF.TwistDataOffset, InterpVtxData.ParticleId1);
+		float SinTwist, CosTwist;
+		sincos(lerp(Twist0, Twist1, InterpVtxData.Alpha), SinTwist, CosTwist);
+
+		// Apply a rotation matrix to up and right.
+		float3 Right = Intermediates.Right; // Back it up for the transform.
+		Intermediates.Right = CosTwist * Right + SinTwist * Intermediates.Up;
+		Intermediates.Up = -SinTwist * Right + CosTwist * Intermediates.Up;
+	}
+}
+
+float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	ISOLATE
+	{
+		// expand and align
+		int Sgn = (((int)Input.InterpVtxId & 0x1) * 2) - 1;
+		float3 Pos = Intermediates.Position.xyz + Intermediates.Right * Sgn * (Intermediates.RibbonWidth.xxx / 2);
+		// Intermediates are already in world space, only need to account for the translation around view origin.
+		return float4(Pos + ResolvedView.PreViewTranslation, 1);
+	}
+}
+
+/** derive basis vectors */
+float3x3 CalcTangentBasis(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return float3x3(-Intermediates.Up, -Intermediates.Right, Intermediates.Facing);
+}
+
+FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput Input)
+{
+	FVertexFactoryIntermediates Intermediates = (FVertexFactoryIntermediates)0;
+	FInterpVtxData InterpVtxData = GetInterpVtxData(Input);
+
+	uint RibbonIndex = MultiRibbonIndices[InterpVtxData.RawParticleId0];
+	FSegmentData SegmentData = UnpackPerRibbonDataByIndex(RibbonIndex);
+
+	GetNiagaraParticlePositionAndDirection(InterpVtxData, Intermediates);
+	GetNiagaraParticleVelocity(InterpVtxData, Intermediates);
+	GetNiagaraParticleColor(InterpVtxData, Intermediates);
+	GetNiagaraParticleDynamicParameters(InterpVtxData, Intermediates);
+	GetNiagaraParticleTextureCoords(Input, InterpVtxData, SegmentData, Intermediates);
+	GetNiagaraParticleRibbonWidth(InterpVtxData, Intermediates);
+	GetNiagaraParticleTangents(InterpVtxData, Intermediates);
+
+#if USE_PARTICLE_POSITION
+	Intermediates.TranslatedWorldPositionAndSize = float4(Intermediates.Position + ResolvedView.PreViewTranslation,  .5 * Intermediates.RibbonWidth);
+#endif
+
+#if USE_PARTICLE_TIME
+	GetNiagaraNormalizedAge(InterpVtxData, Intermediates);
+#endif
+
+#if USE_PARTICLE_SIZE
+	Intermediates.ParticleSize = Intermediates.RibbonWidth.xx;
+#endif
+
+#if USE_PARTICLE_RANDOM
+	GetNiagaraMaterialRandom(InterpVtxData, Intermediates);
+#endif
+
+	return Intermediates;
+}
+
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return CalcWorldPosition(Input, Intermediates);
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.Facing;
+}
+
+
+float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
+{
+	return InWorldPosition;
+}
+
+float3 VertexFactoryGetPositionForVertexLighting(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float3 TranslatedWorldPosition)
+{
+	return TranslatedWorldPosition;
+}
+
+FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, FMaterialVertexParameters VertexParameters)
+{
+	FVertexFactoryInterpolantsVSToPS Interpolants;
+	Interpolants = (FVertexFactoryInterpolantsVSToPS)0;
+
+#if NUM_TEX_COORD_INTERPOLATORS
+	float2 CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS];
+	GetMaterialCustomizedUVs(VertexParameters, CustomizedUVs);
+	GetCustomInterpolators(VertexParameters, CustomizedUVs);
+
+	UNROLL
+	for (int CoordinateIndex = 0; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
+	{
+		SetUV(Interpolants, CoordinateIndex, CustomizedUVs[CoordinateIndex]);
+	}
+#endif
+
+#if NEEDS_PARTICLE_COLOR
+	Interpolants.Color		= Intermediates.Color;
+#endif
+
+#if (DYNAMIC_PARAMETERS_MASK & 1)
+	Interpolants.DynamicParameter = Intermediates.DynamicParameter;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 2)
+	Interpolants.DynamicParameter1 = Intermediates.DynamicParameter1;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 4)
+	Interpolants.DynamicParameter2 = Intermediates.DynamicParameter2;
+#endif
+#if (DYNAMIC_PARAMETERS_MASK & 8)
+	Interpolants.DynamicParameter3 = Intermediates.DynamicParameter3;
+#endif
+
+#if USE_PARTICLE_POSITION
+	Interpolants.TranslatedWorldPositionAndSize = Intermediates.TranslatedWorldPositionAndSize;
+#endif
+
+#if USE_PARTICLE_VELOCITY
+	Interpolants.ParticleVelocity = Intermediates.ParticleVelocity;
+#endif
+
+#if USE_PARTICLE_TIME
+	Interpolants.RelativeTime = Intermediates.RelativeTime;
+#endif
+
+#if USE_PARTICLE_SIZE
+	Interpolants.ParticleSize = Intermediates.ParticleSize;
+#endif
+
+#if USE_PARTICLE_RANDOM
+	Interpolants.ParticleRandom = Intermediates.ParticleRandom;
+#endif
+
+	float3x3 TangentToWorld = CalcTangentBasis(Input, Intermediates);
+	Interpolants.TangentToWorld0 = TangentToWorld[0];
+	// GetNiagaraParticleTangents() technically makes the determinant to be always 1.
+	Interpolants.TangentToWorld2 = float4(TangentToWorld[2], 1 /*sign(determinant(TangentToWorld))*/);
+
+#if INSTANCED_STEREO
+	Interpolants.EyeIndex = 0;
+#endif
+
+	return Interpolants;
+}
+
+
+float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	const float3 WorldPosition = CalcWorldPosition(Input, Intermediates).xyz;
+	return float4(WorldPosition - Intermediates.ParticleVelocity.xyz * (Intermediates.ParticleVelocity.w * NiagaraRibbonVF.DeltaSeconds), 1);
+}
+
+/**
+* Get the 3x3 tangent basis vectors for this vertex factory
+*
+* @param Input - vertex input stream structure
+* @return 3x3 matrix
+*/
+float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
+{
+	return CalcTangentBasis(Input, Intermediates);
+}
+
+float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return 0;
+}
+
+uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
+{
+	return 0;
+}

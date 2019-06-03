@@ -675,6 +675,15 @@ public:
 TGlobalResource<FGPUSpriteVertexDeclaration> GGPUSpriteVertexDeclaration;
 
 /**
+ * Optional user data passed into each Mesh Batch
+ */
+struct FGPUSpriteMeshDataUserData  : public FOneFrameResource
+{
+	int32 SortedOffset = 0;
+	FShaderResourceViewRHIParamRef SortedParticleIndicesSRV = nullptr;
+};
+
+/**
  * Vertex factory for render sprites from GPU simulated particles.
  */
 class FGPUSpriteVertexFactory : public FParticleVertexFactoryBase
@@ -691,10 +700,8 @@ public:
 	FUniformBufferRHIParamRef EmitterUniformBuffer;
 	/** Emitter uniform buffer for dynamic parameters. */
 	FUniformBufferRHIRef EmitterDynamicUniformBuffer;
-	/** Buffer containing particle indices. */
-	FParticleIndicesVertexBuffer* ParticleIndicesBuffer;
-	/** Offset in to the particle indices buffer. */
-	uint32 ParticleIndicesOffset;
+	/** Buffer containing unsorted particle indices. */
+	FShaderResourceViewRHIParamRef UnsortedParticleIndicesSRV;
 	/** Texture containing positions for all particles. */
 	FTexture2DRHIParamRef PositionTextureRHI;
 	/** Texture containing velocities for all particles. */
@@ -705,8 +712,7 @@ public:
 
 	FGPUSpriteVertexFactory()
 		: FParticleVertexFactoryBase(PVFT_MAX, ERHIFeatureLevel::Num)
-		, ParticleIndicesBuffer(nullptr)
-		, ParticleIndicesOffset(0)
+		, UnsortedParticleIndicesSRV(0)
 		, PositionTextureRHI(nullptr)
 		, VelocityTextureRHI(nullptr)
 		, AttributesTextureRHI(nullptr)
@@ -737,10 +743,9 @@ public:
 	/**
 	 * Set the source vertex buffer that contains particle indices.
 	 */
-	void SetVertexBuffer( FParticleIndicesVertexBuffer* VertexBuffer, uint32 Offset )
+	void SetUnsortedParticleIndicesSRV(FShaderResourceViewRHIParamRef VertexBuffer )
 	{
-		ParticleIndicesBuffer = VertexBuffer;
-		ParticleIndicesOffset = Offset;
+		UnsortedParticleIndicesSRV = VertexBuffer;
 	}
 
 	/**
@@ -801,9 +806,18 @@ void FGPUSpriteVertexFactoryShaderParametersVS::GetElementShaderBindings(
 	FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FGPUSpriteEmitterUniformParameters>(), GPUVF->EmitterUniformBuffer);
 	ShaderBindings.Add(Shader->GetUniformBufferParameter<FGPUSpriteEmitterDynamicUniformParameters>(), GPUVF->EmitterDynamicUniformBuffer);
-	FRHIShaderResourceView* ParticleIndicesBuffer = GPUVF->ParticleIndicesBuffer->VertexBufferSRV;
-	ShaderBindings.Add(ParticleIndices, ParticleIndicesBuffer ? ParticleIndicesBuffer : (FRHIShaderResourceView*)GNullColorVertexBuffer.VertexBufferSRV);
-	ShaderBindings.Add(ParticleIndicesOffset, GPUVF->ParticleIndicesOffset);
+
+	const FGPUSpriteMeshDataUserData* UserData = reinterpret_cast<const FGPUSpriteMeshDataUserData*>(BatchElement.UserData);
+	if (UserData != nullptr)
+	{
+		ShaderBindings.Add(ParticleIndices, UserData->SortedParticleIndicesSRV);
+		ShaderBindings.Add(ParticleIndicesOffset, UserData->SortedOffset);
+	}
+	else
+	{
+		ShaderBindings.Add(ParticleIndices, GPUVF->UnsortedParticleIndicesSRV ? GPUVF->UnsortedParticleIndicesSRV : (FRHIShaderResourceView*)GNullColorVertexBuffer.VertexBufferSRV);
+		ShaderBindings.Add(ParticleIndicesOffset, 0);
+	}
 
 	ShaderBindings.AddTexture(PositionTexture, PositionTextureSampler, SamplerStatePoint, GPUVF->PositionTextureRHI);
 	ShaderBindings.AddTexture(VelocityTexture, VelocityTextureSampler, SamplerStatePoint, GPUVF->VelocityTextureRHI);
@@ -2868,6 +2882,7 @@ static void GetNewParticleArray(TArray<FNewParticle>& NewParticles, int32 NumPar
 		NewParticles.Reserve(NumParticlesNeeded);
 	}
 }
+
 /**
  * Dynamic emitter data for Cascade.
  */
@@ -3063,20 +3078,20 @@ public:
 				// Create per-emitter uniform buffer for dynamic parameters
 				CollectorResources.UniformBuffer = FGPUSpriteEmitterDynamicUniformBufferRef::CreateUniformBufferImmediate(PerViewDynamicParameters, UniformBuffer_SingleFrame);
 
+				FGPUSpriteMeshDataUserData* MeshBatchUserData = nullptr;
 				if (bAllowSorting && SortMode == PSORTMODE_DistanceToView)
 				{
+					MeshBatchUserData = &Collector.AllocateOneFrameResource<FGPUSpriteMeshDataUserData>();
+
 					// Extensibility TODO: This call to AddSortedGPUSimulation is very awkward. When rendering a frame we need to
 					// accumulate all GPU particle emitters that need to be sorted. That is so they can be sorted in one big radix
 					// sort for efficiency. Ideally that state is per-scene renderer but the renderer doesn't know anything about particles.
-					const int32 SortedBufferOffset = FXSystem->AddSortedGPUSimulation(Simulation, View->ViewMatrices.GetViewOrigin());
 					check(SimulationResources->SortedVertexBuffer.IsInitialized());
-					VertexFactory.SetVertexBuffer(&SimulationResources->SortedVertexBuffer, SortedBufferOffset);
+					MeshBatchUserData->SortedOffset = FXSystem->AddSortedGPUSimulation(Simulation, View->ViewMatrices.GetViewOrigin());
+					MeshBatchUserData->SortedParticleIndicesSRV = SimulationResources->SortedVertexBuffer.VertexBufferSRV;
 				}
-				else
-				{
-					check(Simulation->VertexBuffer.IsInitialized());
-					VertexFactory.SetVertexBuffer(&Simulation->VertexBuffer, 0);
-				}
+				check(Simulation->VertexBuffer.IsInitialized());
+				VertexFactory.SetUnsortedParticleIndicesSRV(Simulation->VertexBuffer.VertexBufferSRV);
 
 				const int32 ParticleCount = Simulation->VertexBuffer.ParticleCount;
 				const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
@@ -3100,6 +3115,7 @@ public:
 					BatchElement.NumInstances = ParticleCount / MAX_PARTICLES_PER_INSTANCE;
 					BatchElement.FirstIndex = 0;
 					BatchElement.bIsInstancedMesh = true;
+					BatchElement.UserData = MeshBatchUserData;
 					Mesh.VertexFactory = &VertexFactory;
 					Mesh.LCI = NULL;
 					if ( bUseLocalSpace )
@@ -4604,20 +4620,13 @@ void FFXSystem::SortGPUParticles(FRHICommandListImmediate& RHICmdList)
 {
 	if (ParticleSimulationResources->SimulationsToSort.Num() > 0)
 	{
-		int32 BufferIndex = SortParticlesGPU(
+		SortParticlesGPU(
 			RHICmdList,
 			ParticleSimulationResources->ParticleSortBuffers,
 			ParticleSimulationResources->GetVisualizeStateTextures().PositionTextureRHI,
 			ParticleSimulationResources->SimulationsToSort,
 			GetFeatureLevel()
 			);
-		ParticleSimulationResources->SortedVertexBuffer.VertexBufferRHI = ParticleSimulationResources->ParticleSortBuffers.GetSortedVertexBufferRHI(BufferIndex);
-		ParticleSimulationResources->SortedVertexBuffer.VertexBufferSRV = ParticleSimulationResources->ParticleSortBuffers.GetSortedVertexBufferSRV(BufferIndex);
-	}
-	else
-	{
-		ParticleSimulationResources->SortedVertexBuffer.VertexBufferRHI = ParticleSimulationResources->ParticleSortBuffers.GetSortedVertexBufferRHI(0);
-		ParticleSimulationResources->SortedVertexBuffer.VertexBufferSRV = ParticleSimulationResources->ParticleSortBuffers.GetSortedVertexBufferSRV(0);
 	}
 }
 
@@ -5070,6 +5079,8 @@ void FFXSystem::SimulateGPUParticles(
 		}
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, VisualizeStateRHIs, 2);		
 	}
+
+	UnbindRenderTargets(RHICmdList);
 
 	// Stats.
 	if (Phase == GetLastParticleSimulationPhase(GetShaderPlatform()))

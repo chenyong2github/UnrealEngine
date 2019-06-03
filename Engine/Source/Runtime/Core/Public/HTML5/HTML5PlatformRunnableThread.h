@@ -36,7 +36,7 @@ EM_ASM_({ console.log("~FHTML5PlatformProcess DESTROY [" + $0 + "]"); }, this);
 		if (rc == 0)
 		{
 			emscripten_set_thread_name(*HandlePtr, Name);
-//EM_ASM_ARGS({ var str = Pointer_stringify($0); console.log("*** CreateThreadWithName [" + str + "]"); }, Name);
+//EM_ASM_ARGS({ var str = UTF8ToString($0); console.log("*** CreateThreadWithName [" + str + "]"); }, Name);
 		}
 		return rc;
 	}

@@ -360,6 +360,10 @@ public:
 
 			extern ENGINE_API bool DoSkeletalMeshIndexBuffersNeedSRV();
 			bool bSRV = DoSkeletalMeshIndexBuffersNeedSRV();
+			// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
+			// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
+			// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
+			bSRV |= Indices.GetAllowCPUAccess();
 
 			EBufferUsageFlags Flags = BUF_Static;
 

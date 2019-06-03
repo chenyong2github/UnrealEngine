@@ -6,6 +6,8 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraWorldManager.h"
+#include "NiagaraSystemInstance.h"
+#include "NiagaraEmitterInstance.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Context Ticking"), STAT_NiagaraScriptExecContextTick, STATGROUP_Niagara);
@@ -135,7 +137,21 @@ void FNiagaraScriptExecutionContext::PostTick()
 	}
 }
 
-bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<8>>& DataSetInfos)
+void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts)
+{
+	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
+	
+	DataSetInfo[Index].Init(&DataSet, DataSet.GetCurrentData(), DataSet.GetDestinationData(), StartInstance, bUpdateInstanceCounts);
+}
+
+void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataBuffer* Input, FNiagaraDataBuffer* Output, int32 StartInstance, bool bUpdateInstanceCounts)
+{
+	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
+	check(Input || Output);
+	DataSetInfo[Index].Init(Input ? Input->GetOwner() : Output->GetOwner(), Input, Output, StartInstance, bUpdateInstanceCounts);
+}
+
+bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances)
 {
 	if (NumInstances == 0)
 	{
@@ -151,28 +167,48 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, TArray<FNiagar
 
 	DataSetMetaTable.Reset();
 
-	bool bRegisterSetupCompleted = true;
+	bool bError = false;
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraSimRegisterSetup);
-		for (FNiagaraDataSetExecutionInfo& DataSetInfo : DataSetInfos)
+		for (FNiagaraDataSetExecutionInfo& Info : DataSetInfo)
 		{
+			FNiagaraDataBuffer* DestinationData = Info.DataSet->GetDestinationData();
 #if NIAGARA_NAN_CHECKING
 			DataSetInfo.DataSet->CheckForNaNs();
 #endif
-			check(DataSetInfo.DataSet);
-			DataSetMetaTable.Emplace(DataSetInfo.DataSet->GetSizeBytes(), &InputRegisters[NumInputRegisters], NumInputRegisters, DataSetInfo.StartInstance,
-				&DataSetInfo.DataSet->CurrIDTable(), &DataSetInfo.DataSet->GetFreeIDTable(), &DataSetInfo.DataSet->GetNumFreeIDs(), &DataSetInfo.DataSet->GetMaxUsedID(), DataSetInfo.DataSet->GetIDAcquireTag());
-			if (DataSetInfo.bAllocate)
+			check(Info.DataSet);
+			DataSetMetaTable.Emplace(&InputRegisters[NumInputRegisters], NumInputRegisters, Info.StartInstance,
+				DestinationData ? &DestinationData->GetIDTable() : nullptr, &Info.DataSet->GetFreeIDTable(), &Info.DataSet->GetNumFreeIDs(), &Info.DataSet->GetMaxUsedID(), Info.DataSet->GetIDAcquireTag());
+
+			int32 TotalComponents = Info.DataSet->GetNumFloatComponents() + Info.DataSet->GetNumInt32Components();
+			if (NumInputRegisters + TotalComponents > VectorVM::MaxInputRegisters || NumOutputRegisters + TotalComponents > VectorVM::MaxOutputRegisters)
 			{
-				DataSetInfo.DataSet->Allocate(NumInstances);
-				DataSetInfo.DataSet->SetNumInstances(NumInstances);
+				UE_LOG(LogNiagara, Warning, TEXT("VM Script is using too many registers."));//TODO: We can make this a non issue and support any number of registers.
+				bError = true;
+				break;
 			}
-			
-			bRegisterSetupCompleted &= DataSetInfo.DataSet->AppendToRegisterTable(InputRegisters, NumInputRegisters, OutputRegisters, NumOutputRegisters, DataSetInfo.StartInstance);
+
+			if (Info.Input)
+			{
+				Info.Input->AppendToRegisterTable(InputRegisters, NumInputRegisters, Info.StartInstance);
+			}
+			else
+			{
+				Info.DataSet->ClearRegisterTable(InputRegisters, NumInputRegisters);
+			}
+
+			if (Info.Output)
+			{
+				Info.Output->AppendToRegisterTable(OutputRegisters, NumOutputRegisters, Info.StartInstance);
+			}
+			else
+			{
+				Info.DataSet->ClearRegisterTable(OutputRegisters, NumOutputRegisters);
+			}
 		}
 	}
 
-	if (bRegisterSetupCompleted && GbExecVMScripts != 0)
+	if (GbExecVMScripts != 0 && !bError)
 	{
 		VectorVM::Exec(
 			Script->GetVMExecutableData().ByteCode.GetData(),
@@ -192,9 +228,9 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, TArray<FNiagar
 	}
 
 	// Tell the datasets we wrote how many instances were actually written.
-	for (int Idx = 0; Idx < DataSetInfos.Num(); Idx++)
+	for (int Idx = 0; Idx < DataSetInfo.Num(); Idx++)
 	{
-		FNiagaraDataSetExecutionInfo& Info = DataSetInfos[Idx];
+		FNiagaraDataSetExecutionInfo& Info = DataSetInfo[Idx];
 
 #if NIAGARA_NAN_CHECKING
 		Info.DataSet->CheckForNaNs();
@@ -202,9 +238,11 @@ bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, TArray<FNiagar
 
 		if (Info.bUpdateInstanceCount)
 		{
-			Info.DataSet->SetNumInstances(Info.StartInstance + DataSetMetaTable[Idx].DataSetAccessIndex + 1);
+			Info.Output->SetNumInstances(Info.StartInstance + DataSetMetaTable[Idx].DataSetAccessIndex + 1);
 		}
 	}
+
+	DataSetInfo.Reset();
 
 	return true;//TODO: Error cases?
 }
@@ -217,4 +255,304 @@ void FNiagaraScriptExecutionContext::DirtyDataInterfaces()
 bool FNiagaraScriptExecutionContext::CanExecute()const
 {
 	return Script && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() > 0;
+}
+
+struct H2
+{
+	FNiagaraDataInterfaceProxy* Proxy;
+};
+
+void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
+{
+	check(IsInGameThread());
+
+	ensure(InSystemInstance != nullptr);
+	CA_ASSUME(InSystemInstance != nullptr);
+	ensure(!InSystemInstance->IsComplete());
+	SystemInstanceID = InSystemInstance->GetId();
+	bRequiredDistanceFieldData = InSystemInstance->RequiresDistanceFieldData();
+	uint32 DataSizeForGPU = InSystemInstance->GPUDataInterfaceInstanceDataSize;
+
+	if (DataSizeForGPU > 0)
+	{
+		uint32 AllocationSize = DataSizeForGPU;
+
+		DIInstanceData = new FNiagaraDataInterfaceInstanceData;
+		DIInstanceData->PerInstanceDataSize = AllocationSize;
+		DIInstanceData->PerInstanceDataForRT = FMemory::Malloc(AllocationSize);
+		DIInstanceData->Instances = InSystemInstance->DataInterfaceInstanceDataOffsets.Num();
+
+		uint8* InstanceDataBase = (uint8*) DIInstanceData->PerInstanceDataForRT;
+		uint32 RunningOffset = 0;
+		for (auto& Pair : InSystemInstance->DataInterfaceInstanceDataOffsets)
+		{
+			UNiagaraDataInterface* Interface = Pair.Key.Get();
+
+			FNiagaraDataInterfaceProxy* Proxy = Interface->GetProxy();
+			int32 Offset = Pair.Value;
+
+			const int32 RTDataSize = Interface->PerInstanceDataPassedToRenderThreadSize();
+			if (RTDataSize > 0)
+			{
+				check(Proxy);
+				void* PerInstanceData = &InSystemInstance->DataInterfaceInstanceData[Offset];
+
+				Interface->ProvidePerInstanceDataForRenderThread(InstanceDataBase, PerInstanceData, SystemInstanceID);
+
+				// @todo rethink this. So ugly.
+				DIInstanceData->InterfaceProxiesToOffsets.Add(Proxy, RunningOffset);
+
+				InstanceDataBase += RTDataSize;
+				RunningOffset += RTDataSize;
+			}
+		}
+	}
+
+	check(MAX_uint32 > InSystemInstance->ActiveGPUEmitterCount);
+
+	// Layout our packet.
+	const uint32 PackedDispatchesSize = InSystemInstance->ActiveGPUEmitterCount * sizeof(FNiagaraComputeInstanceData);
+	// We want the Params after the instance data to be aligned so we can upload to the gpu.
+	uint32 PackedDispatchesSizeAligned = Align(PackedDispatchesSize, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+	uint32 TotalParamSize = InSystemInstance->TotalParamSize;
+
+	uint32 TotalPackedBufferSize = PackedDispatchesSizeAligned + TotalParamSize;
+
+	InstanceData_ParamData_Packed = (uint8*)FMemory::Malloc(TotalPackedBufferSize);
+
+	FNiagaraComputeInstanceData* Instances = (FNiagaraComputeInstanceData*)(InstanceData_ParamData_Packed);
+	uint8* ParamDataBufferPtr = InstanceData_ParamData_Packed + PackedDispatchesSizeAligned;
+
+	// Now we will generate instance data for every GPU simulation we want to run on the render thread.
+	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
+	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
+	uint32 InstanceIndex = 0;
+	for (int32 i = 0; i < InSystemInstance->GetEmitters().Num(); i++)
+	{
+		FNiagaraEmitterInstance* Emitter = &InSystemInstance->GetEmitters()[i].Get();
+
+		if (Emitter->GetCachedEmitter()->SimTarget == ENiagaraSimTarget::GPUComputeSim && Emitter->GetGPUContext() != nullptr && Emitter->GetExecutionState() != ENiagaraExecutionState::Complete)
+		{
+			FNiagaraComputeInstanceData* InstanceData = new (&Instances[InstanceIndex]) FNiagaraComputeInstanceData;
+			InstanceIndex++;
+
+			InstanceData->Context = Emitter->GetGPUContext();
+			check(InstanceData->Context->MainDataSet);
+			InstanceData->SpawnRateInstances = Emitter->GetGPUContext()->SpawnRateInstances_GT;
+			InstanceData->EventSpawnTotal = Emitter->GetGPUContext()->EventSpawnTotal_GT;
+
+			int32 ParmSize = Emitter->GetGPUContext()->CombinedParamStore.GetPaddedParameterSizeInBytes();
+
+			Emitter->GetGPUContext()->CombinedParamStore.CopyParameterDataToPaddedBuffer(ParamDataBufferPtr, ParmSize);
+
+			InstanceData->ParamData = ParamDataBufferPtr;
+
+			ParamDataBufferPtr += ParmSize;
+
+			// @todo-threadsafety Think of a better way to do this!
+			FNiagaraComputeExecutionContext* GPUContext = Emitter->GetGPUContext();
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
+			InstanceData->DataInterfaceProxies.Reserve(DataInterfaces.Num());
+			for (UNiagaraDataInterface* DI : DataInterfaces)
+			{
+				check(DI->GetProxy());
+				InstanceData->DataInterfaceProxies.Add(DI->GetProxy());
+			}			
+		}
+	}
+
+	check(InSystemInstance->ActiveGPUEmitterCount == InstanceIndex);
+	Count = InstanceIndex;
+}
+
+void FNiagaraGPUSystemTick::Destroy()
+{
+	FNiagaraComputeInstanceData* Instances = GetInstanceData();
+	for (uint32 i = 0; i < Count; i++)
+	{
+		FNiagaraComputeInstanceData& Instance = Instances[i];
+		Instance.~FNiagaraComputeInstanceData();
+	}
+
+	FMemory::Free(InstanceData_ParamData_Packed);
+	if (DIInstanceData)
+	{
+		FMemory::Free(DIInstanceData->PerInstanceDataForRT);
+		delete DIInstanceData;
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
+	: MainDataSet(nullptr)
+	, GPUScript(nullptr)
+	, GPUScript_RT(nullptr)
+	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
+	, DataToRender(nullptr)
+	, GPUDataReadback(nullptr)
+	, AccumulatedSpawnRate(0)
+	, NumIndicesPerInstance(0)
+#if WITH_EDITORONLY_DATA
+	, GPUDebugDataReadbackFloat(nullptr)
+	, GPUDebugDataReadbackInt(nullptr)
+	, GPUDebugDataReadbackCounts(nullptr)
+	, GPUDebugDataFloatSize(0)
+	, GPUDebugDataIntSize(0)
+#endif	  
+{
+}
+
+FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
+{
+	checkf(IsInRenderingThread(), TEXT("Can only delete the gpu readback from the render thread"));
+	if (GPUDataReadback)
+	{
+		delete GPUDataReadback;
+		GPUDataReadback = nullptr;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (GPUDebugDataReadbackFloat)
+	{
+		delete GPUDebugDataReadbackFloat;
+		GPUDebugDataReadbackFloat = nullptr;
+	}
+	if (GPUDebugDataReadbackInt)
+	{
+		delete GPUDebugDataReadbackInt;
+		GPUDebugDataReadbackInt = nullptr;
+	}
+	if (GPUDebugDataReadbackCounts)
+	{
+		delete GPUDebugDataReadbackCounts;
+		GPUDebugDataReadbackCounts = nullptr;
+	}
+#endif
+
+	SetDataToRender(nullptr);
+}
+
+void FNiagaraComputeExecutionContext::Reset()
+{
+	FNiagaraComputeExecutionContext* Context = this;
+	ENQUEUE_RENDER_COMMAND(ResetRT)(
+		[Context](FRHICommandListImmediate& RHICmdList)
+	{
+		Context->ResetInternal();
+	}
+	);
+}
+
+void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName)
+{
+	DebugSimName = InDebugSimName;
+	GPUScript = InGPUComputeScript;
+	CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
+
+#if DO_CHECK
+	FNiagaraShader *Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
+	DIParamInfo.Empty();
+	if (Shader)
+	{
+		for (FNiagaraDataInterfaceParamRef& DIParams : Shader->GetDIParameters())
+		{
+			DIParamInfo.Add(DIParams.ParameterInfo);
+		}
+	}
+	else
+	{
+		DIParamInfo = InGPUComputeScript->GetRenderThreadScript()->GetDataInterfaceParamInfo();
+	}
+#endif
+}
+
+void FNiagaraComputeExecutionContext::DirtyDataInterfaces()
+{
+	CombinedParamStore.MarkInterfacesDirty();
+}
+
+bool FNiagaraComputeExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance)
+{
+	if (CombinedParamStore.GetInterfacesDirty())
+	{
+#if DO_CHECK
+		const TArray<UNiagaraDataInterface*> &DataInterfaces = CombinedParamStore.GetDataInterfaces();
+		// We must make sure that the data interfaces match up between the original script values and our overrides...
+		if (DIParamInfo.Num() != DataInterfaces.Num())
+		{
+			UE_LOG(LogNiagara, Warning, TEXT("Mismatch between Niagara GPU Execution Context data interfaces and those in its script!"));
+			return false;
+		}
+
+		for (int32 i = 0; i < DIParamInfo.Num(); ++i)
+		{
+			FString UsedClassName = DataInterfaces[i]->GetClass()->GetName();
+			if (DIParamInfo[i].DIClassName != UsedClassName)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Mismatched class between Niagara GPU Execution Context data interfaces and those in its script!\nIndex:%d\nShader:%s\nScript:%s")
+					, i, *DIParamInfo[i].DIClassName, *UsedClassName);
+			}
+		}
+#endif
+
+		CombinedParamStore.Tick();
+	}
+
+	return true;
+}
+
+void FNiagaraComputeExecutionContext::PostTick()
+{
+	//If we're for interpolated spawn, copy over the previous frame's parameters into the Prev parameters.
+	if (GPUScript && GPUScript->GetComputedVMCompilationId().HasInterpolatedParameters())
+	{
+		CombinedParamStore.CopyCurrToPrev();
+	}
+}
+
+void FNiagaraComputeExecutionContext::ResetInternal()
+{
+	checkf(IsInRenderingThread(), TEXT("Can only reset the gpu context from the render thread"));
+	AccumulatedSpawnRate = 0;
+	if (GPUDataReadback)
+	{
+		delete GPUDataReadback;
+		GPUDataReadback = nullptr;
+	}
+
+#if WITH_EDITORONLY_DATA
+	if (GPUDebugDataReadbackFloat)
+	{
+		delete GPUDebugDataReadbackFloat;
+		GPUDebugDataReadbackFloat = nullptr;
+	}
+	if (GPUDebugDataReadbackInt)
+	{
+		delete GPUDebugDataReadbackInt;
+		GPUDebugDataReadbackInt = nullptr;
+	}
+	if (GPUDebugDataReadbackCounts)
+	{
+		delete GPUDebugDataReadbackCounts;
+		GPUDebugDataReadbackCounts = nullptr;
+	}
+#endif
+
+	SetDataToRender(nullptr);
+}
+
+void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InDataToRender)
+{
+	if (DataToRender)
+	{
+		DataToRender->ReleaseReadRef();
+	}
+
+	DataToRender = InDataToRender;
+
+	if (DataToRender)
+	{
+		DataToRender->AddReadRef();
+	}
 }

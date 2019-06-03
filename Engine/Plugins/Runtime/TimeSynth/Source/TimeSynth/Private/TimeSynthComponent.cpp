@@ -341,7 +341,7 @@ void UTimeSynthComponent::ShutdownPlayingClips()
 {
 	SoundWaveDecoder.UpdateRenderThread();
 
-	// Loop through all acitve loops and render their audio
+	// Loop through all active loops and render their audio
 	for (int32 i = ActivePlayingClipIndices_AudioRenderThread.Num() - 1; i >= 0; --i)
 	{
 		// Grab the playing clip at the active index
@@ -378,7 +378,7 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	// to the list of active clips. So we only need to loop through active clip indices to render the audio output
 	EventQuantizer.NotifyEvents(NumFrames);
 
-	// Loop through all acitve loops and render their audio
+	// Loop through all active loops and render their audio
 	for (int32 i = ActivePlayingClipIndices_AudioRenderThread.Num() - 1; i >= 0; --i)
 	{
 		// Grab the playing clip at the active index
@@ -515,7 +515,7 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 
 void UTimeSynthComponent::SetQuantizationSettings(const FTimeSynthQuantizationSettings& InQuantizationSettings)
 {
-	// Store the quantizaton on the UObject for BP querying
+	// Store the quantization on the UObject for BP querying
 	QuantizationSettings = InQuantizationSettings;
 
 	// Local store what the global quantization is so we can assign it to clips using global quantization

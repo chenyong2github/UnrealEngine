@@ -14,6 +14,21 @@ UNiagaraDataInterface::UNiagaraDataInterface(FObjectInitializer const& ObjectIni
 {
 }
 
+UNiagaraDataInterface::~UNiagaraDataInterface()
+{
+	// @todo-threadsafety Can there be a UNiagaraDataInterface class itself created? Perhaps by the system?
+	if ( Proxy.IsValid() )
+	{
+		ENQUEUE_RENDER_COMMAND(FDeleteProxyRT) (
+			[RT_Proxy=MoveTemp(Proxy)](FRHICommandListImmediate& CmdList)
+			{
+				// This will release RT_Proxy on the RT
+			}
+		);
+		check(Proxy.IsValid() == false);
+	}
+}
+
 void UNiagaraDataInterface::PostLoad()
 {
 	Super::PostLoad();
@@ -150,22 +165,61 @@ void UNiagaraDataInterfaceCurveBase::GetParameterDefinitionHLSL(FNiagaraDataInte
 	OutHLSL += TEXT("\n");
 }
 
-FReadBuffer& UNiagaraDataInterfaceCurveBase::GetCurveLUTGPUBuffer()
+//FReadBuffer& UNiagaraDataInterfaceCurveBase::GetCurveLUTGPUBuffer()
+//{
+//	//TODO: This isn't really very thread safe. Need to move to a proxy like system where DIs can push data to the RT safely.
+//	if (GPUBufferDirty)
+//	{
+//		int32 ElemSize = GetCurveNumElems();
+//		CurveLUT.Release();
+//		CurveLUT.Initialize(sizeof(float), CurveLUTWidth * ElemSize, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+//		uint32 BufferSize = ShaderLUT.Num() * sizeof(float);
+//		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+//		FPlatformMemory::Memcpy(BufferData, ShaderLUT.GetData(), BufferSize);
+//		RHIUnlockVertexBuffer(CurveLUT.Buffer);
+//		GPUBufferDirty = false;
+//	}
+//
+//	return CurveLUT;
+//}
+
+void UNiagaraDataInterfaceCurveBase::PushToRenderThread()
 {
-	//TODO: This isn't really very thread safe. Need to move to a proxy like system where DIs can push data to the RT safely.
-	if (GPUBufferDirty)
+	if (!GSupportsResourceView)
 	{
-		int32 ElemSize = GetCurveNumElems();
-		CurveLUT.Release();
-		CurveLUT.Initialize(sizeof(float), CurveLUTWidth * ElemSize, EPixelFormat::PF_R32_FLOAT, BUF_Static);
-		uint32 BufferSize = ShaderLUT.Num() * sizeof(float);
-		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
-		FPlatformMemory::Memcpy(BufferData, ShaderLUT.GetData(), BufferSize);
-		RHIUnlockVertexBuffer(CurveLUT.Buffer);
-		GPUBufferDirty = false;
+		return;
 	}
 
-	return CurveLUT;
+	FNiagaraDataInterfaceProxyCurveBase* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyCurveBase>();
+
+	int32 rtNumElems = GetCurveNumElems();
+	float rtLUTMinTime = this->LUTMinTime;
+	float rtLUTMaxTime = this->LUTMaxTime;
+	float rtLUTInvTimeRange = this->LUTInvTimeRange;
+
+	const uint32 rtCurveLUTWidth = CurveLUTWidth;
+
+	// @todo-threadsafety Gross.
+	TArray<float>* ShaderLut_RT = new TArray<float>(ShaderLUT);
+
+	// Push Updates to Proxy.
+	ENQUEUE_RENDER_COMMAND(FUpdateDIColorCurve)(
+		[RT_Proxy, rtCurveLUTWidth, rtNumElems, rtLUTMinTime, rtLUTMaxTime, rtLUTInvTimeRange, ShaderLut_RT](FRHICommandListImmediate& RHICmdList)
+	{
+		RT_Proxy->LUTMinTime = rtLUTMinTime;
+		RT_Proxy->LUTMaxTime = rtLUTMaxTime;
+		RT_Proxy->LUTInvTimeRange = rtLUTInvTimeRange;
+
+		int32 ElemSize = rtNumElems;
+		RT_Proxy->CurveLUT.Release();
+		RT_Proxy->CurveLUT.Initialize(sizeof(float), rtCurveLUTWidth * ElemSize, EPixelFormat::PF_R32_FLOAT, BUF_Static);
+		uint32 BufferSize = ShaderLut_RT->Num() * sizeof(float);
+		int32 *BufferData = static_cast<int32*>(RHILockVertexBuffer(RT_Proxy->CurveLUT.Buffer, 0, BufferSize, EResourceLockMode::RLM_WriteOnly));
+		FPlatformMemory::Memcpy(BufferData, ShaderLut_RT->GetData(), BufferSize);
+		RHIUnlockVertexBuffer(RT_Proxy->CurveLUT.Buffer);
+
+		delete ShaderLut_RT;
+	});
 }
 
 struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfaceParametersCS
@@ -187,17 +241,17 @@ struct FNiagaraDataInterfaceParametersCS_Curve : public FNiagaraDataInterfacePar
 		Ar << CurveLUT;
 	}
 
-	virtual void Set(FRHICommandList& RHICmdList, FNiagaraShader* Shader, class UNiagaraDataInterface* DataInterface, void* PerInstanceData) const override
+	virtual void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override
 	{
 		check(IsInRenderingThread());
 
-		FRHIComputeShader* ComputeShaderRHI = Shader->GetComputeShader();
-		UNiagaraDataInterfaceCurveBase* CurveDI = CastChecked<UNiagaraDataInterfaceCurveBase>(DataInterface);
-		FReadBuffer& CurveLUTBuffer = CurveDI->GetCurveLUTGPUBuffer();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FNiagaraDataInterfaceProxyCurveBase* CurveDI = (FNiagaraDataInterfaceProxyCurveBase*) Context.DataInterface;
+		FReadBuffer& CurveLUTBuffer = CurveDI->CurveLUT;
 
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MinTime, CurveDI->GetMinTime());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTime, CurveDI->GetMaxTime());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InvTimeRange, CurveDI->GetInvTimeRange());
+		SetShaderValue(RHICmdList, ComputeShaderRHI, MinTime, CurveDI->LUTMinTime);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxTime, CurveDI->LUTMaxTime);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, InvTimeRange, CurveDI->LUTInvTimeRange);
 		RHICmdList.SetShaderResourceViewParameter(ComputeShaderRHI, CurveLUT.GetBaseIndex(), CurveLUTBuffer.SRV);
 	}
 

@@ -17,28 +17,93 @@ NiagaraEmitterInstance.h: Niagara emitter simulation class
 #include "NiagaraTypes.h"
 #include "RHIGPUReadback.h"
 
+struct FNiagaraDataInterfaceProxy;
+
+/** Container for data needed to process event data. */
+struct FNiagaraEventHandlingInfo
+{
+	FNiagaraEventHandlingInfo()
+		: TotalSpawnCount(0)
+		, EventData(nullptr)
+		, SourceEmitterName(NAME_None)
+	{
+	}
+
+	~FNiagaraEventHandlingInfo()
+	{
+		SetEventData(nullptr);
+	}
+
+	void SetEventData(FNiagaraDataBuffer* InEventData)
+	{
+		if (EventData)
+		{
+			EventData->ReleaseReadRef();
+		}
+		EventData = InEventData;
+		if (EventData)
+		{
+			EventData->AddReadRef();
+		}
+	}
+
+	TArray<int32, TInlineAllocator<16>> SpawnCounts;
+	int32 TotalSpawnCount;
+	FNiagaraDataBuffer* EventData;
+	FGuid SourceEmitterGuid;
+	FName SourceEmitterName;
+};
 
 
 struct FNiagaraDataSetExecutionInfo
 {
 	FNiagaraDataSetExecutionInfo()
 		: DataSet(nullptr)
+		, Input(nullptr)
+		, Output(nullptr)
 		, StartInstance(0)
-		, bAllocate(false)
 		, bUpdateInstanceCount(false)
 	{
 	}
 
-	FNiagaraDataSetExecutionInfo(FNiagaraDataSet* InDataSet, int32 InStartInstance, bool bInAllocate, bool bInUpdateInstanceCount)
-		: DataSet(InDataSet)
-		, StartInstance(InStartInstance)
-		, bAllocate(bInAllocate)
-		, bUpdateInstanceCount(bInUpdateInstanceCount)
-	{}
+
+	void Init(FNiagaraDataSet* InDataSet, FNiagaraDataBuffer* InInput, FNiagaraDataBuffer* InOutput, int32 InStartInstance, bool bInUpdateInstanceCount)
+	{
+		if (Input)
+		{
+			Input->ReleaseReadRef();
+		}
+
+		DataSet = InDataSet;
+		Input = InInput;
+		Output = InOutput;
+		StartInstance = InStartInstance;
+		bUpdateInstanceCount = bInUpdateInstanceCount;
+
+		check(DataSet);
+		check(Input == nullptr || DataSet == Input->GetOwner());
+		check(Output == nullptr || DataSet == Output->GetOwner());
+
+		if (Input)
+		{
+			Input->AddReadRef();
+		}
+		check(Output == nullptr || Output->IsBeingWritten());
+	}
+	
+	~FNiagaraDataSetExecutionInfo()
+	{
+		check(Output == nullptr || Output->IsBeingWritten());
+		if (Input)
+		{
+			Input->ReleaseReadRef();
+		}
+	}
 
 	FNiagaraDataSet* DataSet;
+	FNiagaraDataBuffer* Input;
+	FNiagaraDataBuffer* Output;
 	int32 StartInstance;
-	bool bAllocate;
 	bool bUpdateInstanceCount;
 };
 
@@ -57,6 +122,8 @@ struct FNiagaraScriptExecutionContext
 
 	TArray<FDataSetMeta> DataSetMetaTable;
 
+	TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<4>> DataSetInfo;
+
 	static uint32 TickCounter;
 
 	FNiagaraScriptExecutionContext();
@@ -64,11 +131,12 @@ struct FNiagaraScriptExecutionContext
 
 	bool Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget);
 	
-
 	bool Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget = ENiagaraSimTarget::CPUSim);
 	void PostTick();
 
-	bool Execute(uint32 NumInstances, TArray<FNiagaraDataSetExecutionInfo, TInlineAllocator<8>>& DataSetInfos);
+	void BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts);
+	void BindData(int32 Index, FNiagaraDataBuffer* Input, FNiagaraDataBuffer* Output, int32 StartInstance, bool bUpdateInstanceCounts);
+	bool Execute(uint32 NumInstances);
 
 	const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return Parameters.GetDataInterfaces(); }
 
@@ -77,215 +145,133 @@ struct FNiagaraScriptExecutionContext
 	bool CanExecute()const;
 };
 
-
-
-
 struct FNiagaraComputeExecutionContext
 {
-	FNiagaraComputeExecutionContext()
-		: MainDataSet(nullptr)
-		, SpawnRateInstances(0)
-		, EventSpawnTotal(0)
-		, SpawnScript(nullptr)
-		, UpdateScript(nullptr)
-		, GPUScript(nullptr)
-		, RTUpdateScript(0)
-		, RTSpawnScript(0)
-		, RTGPUScript(0)
-		, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
-		, GPUDataReadback(nullptr)
-		, AccumulatedSpawnRate(0)
-		, NumIndicesPerInstance(0)
-		, PerInstanceData(nullptr)
-		, PerInstanceDataSize(0)
-		, PerInstanceDataInterfaceOffsets(nullptr)
-		, PendingExecutionQueueMask(0)
-#if WITH_EDITORONLY_DATA
-		, GPUDebugDataReadbackFloat(nullptr)
-		, GPUDebugDataReadbackInt(nullptr)
-		, GPUDebugDataReadbackCounts(nullptr)
-		, GPUDebugDataCurrBufferIdx(0xFFFFFFFF)
-		, GPUDebugDataFloatSize(0)
-		, GPUDebugDataIntSize(0)
-#endif	  
-	{
-	}
+	FNiagaraComputeExecutionContext();
+	~FNiagaraComputeExecutionContext();
 
-	~FNiagaraComputeExecutionContext()
-	{
-		checkf(IsInRenderingThread(), TEXT("Can only delete the gpu readback from the render thread"));
-		if (GPUDataReadback)
-		{
-			delete GPUDataReadback;
-			GPUDataReadback = nullptr;
-		}
+	void Reset();
 
-#if WITH_EDITORONLY_DATA
-		if (GPUDebugDataReadbackFloat)
-		{
-			delete GPUDebugDataReadbackFloat;
-			GPUDebugDataReadbackFloat = nullptr;
-		}
-		if (GPUDebugDataReadbackInt)
-		{
-			delete GPUDebugDataReadbackInt;
-			GPUDebugDataReadbackInt = nullptr;
-		}
-		if (GPUDebugDataReadbackCounts)
-		{
-			delete GPUDebugDataReadbackCounts;
-			GPUDebugDataReadbackCounts = nullptr;
-		}
-#endif
-	}
+	void InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName);
+	void DirtyDataInterfaces();
+	bool Tick(FNiagaraSystemInstance* ParentSystemInstance);
 
-	void Reset()
-	{
-		FNiagaraComputeExecutionContext* Context = this;
-		ENQUEUE_RENDER_COMMAND(ResetRT)(
-			[Context](FRHICommandListImmediate& RHICmdList)
-			{
-				Context->ResetInternal();
-			}
-		);
-	}
+	void PostTick();
 
-	void InitParams(UNiagaraScript* InGPUComputeScript, UNiagaraScript* InSpawnScript, UNiagaraScript *InUpdateScript, ENiagaraSimTarget InSimTarget, const FString& InDebugSimName)
-	{
-		DebugSimName = InDebugSimName;
-		CombinedParamStore.InitFromOwningContext(InGPUComputeScript, InSimTarget, true);
-
-		GPUScript = InGPUComputeScript;
-		SpawnScript = InSpawnScript;
-		UpdateScript = InUpdateScript;
-
-#if DO_CHECK
-		FNiagaraShader *Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
-		DIParamInfo.Empty();
-		if (Shader)
-		{
-			for (FNiagaraDataInterfaceParamRef& DIParams : Shader->GetDIParameters())
-			{
-				DIParamInfo.Add(DIParams.ParameterInfo);
-			}
-		}
-		else
-		{
-			DIParamInfo = InGPUComputeScript->GetRenderThreadScript()->GetDataInterfaceParamInfo();
-		}
-#endif
-	}
-
-	void DirtyDataInterfaces()
-	{
-		CombinedParamStore.MarkInterfacesDirty();
-	}
-
-	bool Tick(FNiagaraSystemInstance* ParentSystemInstance)
-	{
-		if (CombinedParamStore.GetInterfacesDirty())
-		{
-#if DO_CHECK
-			const TArray<UNiagaraDataInterface*> &DataInterfaces = CombinedParamStore.GetDataInterfaces();
-			// We must make sure that the data interfaces match up between the original script values and our overrides...
-			if (DIParamInfo.Num() != DataInterfaces.Num())
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Mismatch between Niagara GPU Execution Context data interfaces and those in its script!"));
-				return false;
-			}
-
-			for (int32 i=0; i<DIParamInfo.Num(); ++i)
-			{
-				FString UsedClassName = DataInterfaces[i]->GetClass()->GetName();
-				if (DIParamInfo[i].DIClassName != UsedClassName)
-				{
-					UE_LOG(LogNiagara, Warning, TEXT("Mismatched class between Niagara GPU Execution Context data interfaces and those in its script!\nIndex:%d\nShader:%s\nScript:%s")
-						, i, *DIParamInfo[i].DIClassName, *UsedClassName);
-				}
-			}
-#endif
-
-			CombinedParamStore.Tick();
-		}
-
-		return true;
-	}
+	void SetDataToRender(FNiagaraDataBuffer* InDataToRender);
+	FNiagaraDataBuffer* GetDataToRender()const { return DataToRender; }
 
 private:
-	void ResetInternal()
-	{
-		checkf(IsInRenderingThread(), TEXT("Can only reset the gpu context from the render thread"));
-		AccumulatedSpawnRate = 0;
-		PendingExecutionQueueMask = 0;
-		if (GPUDataReadback)
-		{
-			delete GPUDataReadback;
-			GPUDataReadback = nullptr;
-		}
-
-#if WITH_EDITORONLY_DATA
-		if (GPUDebugDataReadbackFloat)
-		{
-			delete GPUDebugDataReadbackFloat;
-			GPUDebugDataReadbackFloat = nullptr;
-		}
-		if (GPUDebugDataReadbackInt)
-		{
-			delete GPUDebugDataReadbackInt;
-			GPUDebugDataReadbackInt = nullptr;
-		}
-		if (GPUDebugDataReadbackCounts)
-		{
-			delete GPUDebugDataReadbackCounts;
-			GPUDebugDataReadbackCounts = nullptr;
-		}
-#endif
-	}
+	void ResetInternal();
 
 public:
-	const TArray<FNiagaraEventScriptProperties> &GetEventHandlers() const { return EventHandlerScriptProps; }
+	static uint32 TickCounter;
+
+	//Persistent state 
 	FString DebugSimName;
 	class FNiagaraDataSet *MainDataSet;
-	TArray<FNiagaraDataSet*>UpdateEventWriteDataSets;
-	TArray<FNiagaraEventScriptProperties> EventHandlerScriptProps;
-	TArray<FNiagaraDataSet*> EventSets;
-	uint32 SpawnRateInstances;
-
-	TArray<int32> EventSpawnCounts;
-	uint32 EventSpawnTotal;
-	UNiagaraScript* SpawnScript;
-	UNiagaraScript* UpdateScript;
 	UNiagaraScript* GPUScript;
-	class FNiagaraShaderScript*  RTUpdateScript;
-	class FNiagaraShaderScript*  RTSpawnScript;
-	class FNiagaraShaderScript*  RTGPUScript;	
+	class FNiagaraShaderScript*  GPUScript_RT;
 	FRHIUniformBufferLayout CBufferLayout; // Persistent layouts used to create Compute Sim CBuffer
-	TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
+
+	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
+	//TArray<uint8, TAlignedHeapAllocator<16>> ParamData_RT;		// RT side copy of the parameter data
 	FNiagaraScriptExecutionParameterStore CombinedParamStore;
-	static uint32 TickCounter;
 #if DO_CHECK
 	TArray< FNiagaraDataInterfaceGPUParamInfo >  DIParamInfo;
 #endif
 
-	FRHIGPUBufferReadback *GPUDataReadback;
+	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
+
+	//Most current buffer that can be used for rendering.
+	FNiagaraDataBuffer* DataToRender;
+
 	uint32 AccumulatedSpawnRate;
 	uint32 NumIndicesPerInstance;	// how many vtx indices per instance the renderer is going to have for its draw call
 
-	void* PerInstanceData; // Data stored on parent system instance
-	uint32 PerInstanceDataSize; // Size of data stored on parent system instance in bytes
-	TMap<TWeakObjectPtr<UNiagaraDataInterface>, int32>* PerInstanceDataInterfaceOffsets;
-
-	/** Ensures we only enqueue each context once per queue before they're dispatched. See SIMULATION_QUEUE_COUNT */
-	uint32 PendingExecutionQueueMask;
-
+	uint32 EventSpawnTotal_GT;
+	uint32 SpawnRateInstances_GT;
 
 #if WITH_EDITORONLY_DATA
-	mutable FRHIGPUBufferReadback *GPUDebugDataReadbackFloat;
-	mutable FRHIGPUBufferReadback *GPUDebugDataReadbackInt;
-	mutable FRHIGPUBufferReadback *GPUDebugDataReadbackCounts;
-	mutable int32 GPUDebugDataCurrBufferIdx;
+	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackFloat;
+	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackInt;
+	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackCounts;
 	mutable uint32 GPUDebugDataFloatSize;
 	mutable uint32 GPUDebugDataIntSize;
 	mutable TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
 #endif
+
+};
+
+struct FNiagaraDataInterfaceInstanceData
+{
+	void* PerInstanceDataForRT;
+	TMap<FNiagaraDataInterfaceProxy*, int32> InterfaceProxiesToOffsets;
+	uint32 PerInstanceDataSize;
+	uint32 Instances;
+
+	~FNiagaraDataInterfaceInstanceData()
+	{}
+};
+
+//TODO: Rename FNiagaraGPUEmitterTick?
+
+struct FNiagaraComputeInstanceData
+{
+	uint32 EventSpawnTotal;
+	uint32 SpawnRateInstances;
+	uint8* ParamData;
+	FNiagaraComputeExecutionContext* Context;
+	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
+
+	//Buffer containing current state that this tick will read from. Initialized at the start of processing this tick on the RT.
+	FNiagaraDataBuffer* CurrentData;
+	//Buffer into which we'll write the new simulation state. Initialized at the start of processing this tick on the RT.
+	FNiagaraDataBuffer* DestinationData;
+
+	FNiagaraComputeInstanceData()
+		: EventSpawnTotal(0)
+		, SpawnRateInstances(0)
+		, ParamData(nullptr)
+		, Context(nullptr)
+		, CurrentData(nullptr)
+		, DestinationData(nullptr)
+	{}
+};
+
+/*
+	Represents all the information needed to dispatch a single tick of a FNiagaraSystemInstance.
+	This object will be created on the game thread and passed to the renderthread.
+
+	It contains the PerInstance data buffer for every DataInterface referenced by the system as well
+	as the Data required to dispatch updates for each Emitter in the system.
+
+	DataInterface data is packed tightly. It includes a TMap that associates the data interface with
+	the offset into the packed buffer. At that offset is the Per-Instance data for this System.
+
+	InstanceData_ParamData_Packed packs FNiagaraComputeInstanceData and ParamData into one buffer.
+	There is padding after the array of FNiagaraComputeInstanceData so we can upload ParamData directly into a UniformBuffer
+	(it is 16 byte aligned).
+
+*/
+class FNiagaraGPUSystemTick
+{
+public:
+	FNiagaraGPUSystemTick()
+		: Count(0)
+		, DIInstanceData(nullptr)
+		, InstanceData_ParamData_Packed(nullptr)
+	{}
+
+	void Init(FNiagaraSystemInstance* InSystemInstance);
+	void Destroy();
+
+	FORCEINLINE bool IsValid()const{ return InstanceData_ParamData_Packed != nullptr; }
+	FORCEINLINE FNiagaraComputeInstanceData* GetInstanceData()const{ return reinterpret_cast<FNiagaraComputeInstanceData*>(InstanceData_ParamData_Packed); }
+
+	uint32 Count;
+	FGuid SystemInstanceID;
+	FNiagaraDataInterfaceInstanceData* DIInstanceData;
+	uint8* InstanceData_ParamData_Packed;
+	bool bRequiredDistanceFieldData = false;
 };

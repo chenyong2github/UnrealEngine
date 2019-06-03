@@ -22,6 +22,7 @@
 
 struct FClearValueBinding;
 struct FRHIResourceInfo;
+struct FGenerateMipsStruct;
 enum class EClearBinding;
 
 /** The base type of RHI resources. */
@@ -567,11 +568,11 @@ public:
 	
 	/** Initialization constructor. */
 	FRHITexture(uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, FLastRenderTimeContainer* InLastRenderTime, const FClearValueBinding& InClearValue)
-	: ClearValue(InClearValue)
-	, NumMips(InNumMips)
-	, NumSamples(InNumSamples)
-	, Format(InFormat)
-	, Flags(InFlags)
+		: ClearValue(InClearValue)
+		, NumMips(InNumMips)
+		, NumSamples(InNumSamples)
+		, Format(InFormat)
+		, Flags(InFlags)
 	, LastRenderTime(InLastRenderTime ? *InLastRenderTime : DefaultLastRenderTime)	
 	{}
 
@@ -635,6 +636,7 @@ public:
 	bool IsMultisampled() const { return NumSamples > 1; }		
 
 	FRHIResourceInfo ResourceInfo;
+	TSharedPtr<FGenerateMipsStruct> GenMipsStruct;
 
 	/** sets the last time this texture was cached in a resource table. */
 	FORCEINLINE_DEBUGGABLE void SetLastRenderTime(float InLastRenderTime)

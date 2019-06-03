@@ -158,8 +158,9 @@ namespace UnrealBuildTool
 
 			if (enableMultithreading)
 			{
-				Result += " -msse2 -s USE_PTHREADS=1";
-				Result += " -DEXPERIMENTAL_OPENGL_RHITHREAD=" + (bMultithreading_UseOffscreenCanvas ? "1" : "0");
+//				Result += " -msse2 -s USE_PTHREADS=1";
+				Result += " -s USE_PTHREADS=1";
+				Result += " -DEXPERIMENTAL_OPENGL_RHITHREAD=" + (bMultithreading_UseOffscreenCanvas ? "0" : "1");
 
 				// NOTE: use "emscripten native" video, keyboard, mouse
 			}
@@ -254,9 +255,6 @@ namespace UnrealBuildTool
 			 *    > rm Engine/Binaries/HTML5/UE4Game.bc
 			 */
 
-			// enable verbose mode
-			Result += " -v";
-
 
 			// --------------------------------------------------
 			// do we want debug info?
@@ -335,8 +333,8 @@ namespace UnrealBuildTool
 			if (enableMultithreading)
 			{
 				Result += " -s ALLOW_MEMORY_GROWTH=0";
-				Result += " -s TOTAL_MEMORY=512MB";
-
+//				Result += " -s TOTAL_MEMORY=512MB";
+				Result += " -s TOTAL_MEMORY=600MB";
 // NOTE: browsers needs to temporarly have some flags set:
 //  https://github.com/kripken/emscripten/wiki/Pthreads-with-WebAssembly
 //  https://kripken.github.io/emscripten-site/docs/porting/pthreads.html
@@ -345,6 +343,7 @@ namespace UnrealBuildTool
 			else
 			{
 				Result += " -s ALLOW_MEMORY_GROWTH=1";
+				Result += " -s TOTAL_MEMORY=32MB";
 			}
 
 
@@ -539,13 +538,6 @@ namespace UnrealBuildTool
 
 				Actions.Add(CompileAction);
 			}
-
-			return Result;
-		}
-
-		public override CPPOutput CompileRCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
-		{
-			CPPOutput Result = new CPPOutput();
 
 			return Result;
 		}

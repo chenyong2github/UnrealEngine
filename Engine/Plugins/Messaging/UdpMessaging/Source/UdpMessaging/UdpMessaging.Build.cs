@@ -41,16 +41,18 @@ namespace UnrealBuildTool.Rules
 					"UdpMessaging/Private/Tunnel",
 				});
 
-			if (Target.Type == TargetType.Editor)
+			if (Target.Type == TargetType.Editor || Target.Type == TargetType.Program)
 			{
 				DynamicallyLoadedModuleNames.AddRange(
 					new string[] {
 						"Settings",
+						"TargetPlatform",
 					});
 
 				PrivateIncludePathModuleNames.AddRange(
 					new string[] {
 						"Settings",
+						"TargetPlatform",
 					});
 			}
 		}

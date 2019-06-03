@@ -275,8 +275,8 @@ private:
 		TArray<bool>& NoBorderY1, TArray<bool>& NoBorderY2, TArray<bool>& ComponentDataExist, TStoreData& StoreData);
 
 	// Generic Height Data access
-	template<typename TStoreData>
-	void GetHeightDataInternal(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TStoreData& StoreData, TFunctionRef<typename TStoreData::DataType(const ULandscapeComponent*, int32, int32, FColor*)> GetHeightDataFunction);
+	template<typename TStoreData, typename TGetHeightMapDataFunction>
+	void GetHeightDataInternal(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TStoreData& StoreData, TGetHeightMapDataFunction GetHeightMapDataFunction);
 
 	FORCEINLINE FColor& GetHeightMapColor(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData);
 
@@ -424,6 +424,9 @@ struct FHeightmapAccessor
 
 	virtual ~FHeightmapAccessor()
 	{
+		// Flush here manually so it will release the lock of the textures, as we will re lock for other things afterward
+		Flush();
+
 		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 		if (!LandscapeEdit->HasLandscapeLayersContent())
 		{

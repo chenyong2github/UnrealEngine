@@ -315,10 +315,17 @@ mtlpp::Drawable FMetalViewport::GetDrawable(EMetalViewportAccessFlag Accessor)
 			do
 			{
 				Drawable = [AppDelegate.IOSView MakeDrawable];
-				Size.width = ((id<CAMetalDrawable>)Drawable).texture.width;
-				Size.height = ((id<CAMetalDrawable>)Drawable).texture.height;
+				if (Drawable != nil)
+				{
+					Size.width = ((id<CAMetalDrawable>)Drawable).texture.width;
+					Size.height = ((id<CAMetalDrawable>)Drawable).texture.height;
+				}
+				else
+				{
+					FPlatformProcess::Sleep(0.001f);
+				}
 			}
-			while (Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
+			while (Drawable == nil || Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
 			
 	#endif
 			
