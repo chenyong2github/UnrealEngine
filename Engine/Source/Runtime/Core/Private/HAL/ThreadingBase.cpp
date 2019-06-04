@@ -8,6 +8,7 @@
 #include "Misc/EventPool.h"
 #include "Templates/Atomic.h"
 #include "HAL/PlatformStackWalk.h"
+#include "ProfilingDebugging/MiscTrace.h"
 
 DEFINE_STAT( STAT_EventWaitWithId );
 DEFINE_STAT( STAT_EventTriggerWithId );
@@ -410,6 +411,10 @@ FRunnableThread* FRunnableThread::Create(
 		}
 	}
 
+	if (NewThread)
+	{
+		TRACE_CREATE_THREAD(NewThread->GetThreadID(), *NewThread->GetThreadName(), InThreadPri);
+	}
 #if	STATS
 	if( NewThread )
 	{

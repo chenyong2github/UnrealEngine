@@ -92,6 +92,8 @@ public:
 
 	bool IsConnectedToPartyService() const { return bIsConnectedToPartyService; }
 
+	void HandlePartyDisconnected(USocialParty* LeavingParty);
+
 PARTY_SCOPE:
 	/** Validates that the target user has valid join info for us to use and that we can join any party of the given type */
 	FJoinPartyResult ValidateJoinTarget(const USocialUser& UserToJoin, const FOnlinePartyTypeId& PartyTypeId) const;

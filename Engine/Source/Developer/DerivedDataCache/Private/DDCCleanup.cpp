@@ -57,6 +57,7 @@ FDDCCleanup* FDDCCleanup::Runnable = NULL;
 FDDCCleanup::FDDCCleanup()
 	: Thread(NULL)
 	, StopTaskCounter(0)
+	, bDontWaitBetweenDeletes(false)
 {
 	// Don't delete the runnable automatically. It's going to be manually deleted in FDDCCleanup::Shutdown.
 	Thread = FRunnableThread::Create(this, TEXT("FDDCCleanup"), 0, TPri_BelowNormal, FPlatformAffinity::GetPoolThreadMask());
@@ -71,9 +72,9 @@ void FDDCCleanup::Wait( const float InSeconds, const float InSleepTime )
 {
 	// Instead of waiting the given amount of seconds doing nothing
 	// check periodically if there's been any Stop requests.
-	for( float TimeToWait = InSeconds; TimeToWait > 0.0f && ShouldStop() == false; TimeToWait -= InSleepTime )
+	for( float TimeToWait = InSeconds; TimeToWait > 0.0f && ShouldStop() == false && !bDontWaitBetweenDeletes; TimeToWait -= InSleepTime )
 	{
-		FPlatformProcess::Sleep( FMath::Min(InSleepTime, TimeToWait) );
+		FPlatformProcess::SleepNoStats( FMath::Min(InSleepTime, TimeToWait) );
 	}
 }
 
@@ -108,7 +109,7 @@ uint32 FDDCCleanup::Run()
 		}
 		Wait( 5.0f );
 	}
-	while( ShouldStop() == false );
+	while(ShouldStop() == false && CleanupList.Num() > 0);
 
 	return 0;
 }
@@ -134,7 +135,7 @@ bool FDDCCleanup::CleanupFilesystemDirectory( TSharedPtr< FFilesystemInfo > File
 			CleanupList.Remove( FilesystemInfo );
 			FilesystemInfo.Reset();
 		}
-		else if( ++FilesystemInfo->FoldersChecked >= FilesystemInfo->MaxNumFoldersToCheck && FilesystemInfo->MaxNumFoldersToCheck > 0 )
+		else if( !bDontWaitBetweenDeletes && ++FilesystemInfo->FoldersChecked >= FilesystemInfo->MaxNumFoldersToCheck && FilesystemInfo->MaxNumFoldersToCheck > 0 )
 		{
 			// Remove the filesystem but keep checking the current folder
 			FScopeLock ScopeLock( &DataLock );
@@ -158,11 +159,19 @@ bool FDDCCleanup::CleanupFilesystemDirectory( TSharedPtr< FFilesystemInfo > File
 				if( TimeSinceLastAccess >= FilesystemInfo->UnusedFileTime && TimeSinceLastModification >= FilesystemInfo->UnusedFileTime )
 				{
 					// Delete the file
-					bool Result = IFileManager::Get().Delete( *FileNames[ FileIndex ], false, true, true );
+					bool bResult = IFileManager::Get().Delete( *FileNames[ FileIndex ], false, true, true );
+					if (bResult)
+					{
+						UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Deleted %s"), *FileNames[FileIndex]);
+					}
+					else
+					{
+						UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Failed to delete %s"), *FileNames[FileIndex]);
+					}
 				}
 			}
 
-			if( ++NumFilesChecked >= FilesystemInfo->MaxContinuousFileChecks && FilesystemInfo->MaxContinuousFileChecks > 0 && ShouldStop() == false )
+			if( !bDontWaitBetweenDeletes && ++NumFilesChecked >= FilesystemInfo->MaxContinuousFileChecks && FilesystemInfo->MaxContinuousFileChecks > 0 && ShouldStop() == false )
 			{
 				NumFilesChecked = 0;
 				Wait( 1.0f );
@@ -177,7 +186,7 @@ bool FDDCCleanup::CleanupFilesystemDirectory( TSharedPtr< FFilesystemInfo > File
 		bCleanedUp = true;			
 	}
 
-	UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("DDC Folder Cleanup (%s) took %.4lfs."), *FilesystemInfo->CachePath, FPlatformTime::Seconds() - StartTime);
+	UE_CLOG(FilesystemInfo.IsValid(), LogDerivedDataCache, VeryVerbose, TEXT("DDC Folder Cleanup (%s) took %.4lfs."), *FilesystemInfo->CachePath, FPlatformTime::Seconds() - StartTime);
 
 	return bCleanedUp;
 }
@@ -218,7 +227,7 @@ void FDDCCleanup::Shutdown()
 	{
 		Runnable->EnsureCompletion();
 		delete Runnable;
-		Runnable = NULL;
+		Runnable = nullptr;
 	}
 }
 

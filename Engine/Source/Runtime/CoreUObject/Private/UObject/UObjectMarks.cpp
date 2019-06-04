@@ -38,6 +38,12 @@ public:
 		RemoveAnnotation(Object);
 	}
 
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+	}
+
 	FUObjectAnnotationSparseNoSync() :
 		AnnotationCacheKey(NULL)
 	{

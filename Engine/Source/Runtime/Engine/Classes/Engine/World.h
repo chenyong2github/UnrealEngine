@@ -111,7 +111,10 @@ private:
 public:
 	~FConstPawnIterator();
 
-	operator bool() const;
+	FConstPawnIterator(FConstPawnIterator&&);
+	FConstPawnIterator& operator=(FConstPawnIterator&&);
+
+	explicit operator bool() const;
 	FPawnIteratorObject operator*() const;
 	TUniquePtr<FPawnIteratorObject> operator->() const;
 
@@ -123,7 +126,7 @@ public:
 	FConstPawnIterator& operator--(int) { return *this; }
 
 private:
-	TActorIterator<APawn>* Iterator;
+	TUniquePtr<TActorIterator<APawn>> Iterator;
 
 	friend UWorld;
 };

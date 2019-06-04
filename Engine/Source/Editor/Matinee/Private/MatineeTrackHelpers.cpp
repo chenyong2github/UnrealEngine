@@ -185,7 +185,7 @@ bool UMatineeTrackAnimControlHelper::PreCreateTrack( UInterpGroup* Group, const 
 				SNew(STextComboPopup)
 				.Label(NSLOCTEXT("Matinee.Popups", "ChooseAnimSlot", "Choose Anim Slot..."))
 				.TextOptions(SlotStrings)
-				.OnTextChosen_UObject(this, &UMatineeTrackAnimControlHelper::OnCreateTrackTextEntry, NewWindow, (FString *)&Result)
+				.OnTextChosen_UObject(const_cast<UMatineeTrackAnimControlHelper*>(this), &UMatineeTrackAnimControlHelper::OnCreateTrackTextEntry, NewWindow, (FString *)&Result)
 				;
 
 			NewWindow->SetContent(TextEntryPopup);
@@ -282,7 +282,7 @@ bool UMatineeTrackAnimControlHelper::PreCreateKeyframe( UInterpTrack *Track, flo
 		if ( Parent.IsValid() )
 		{
 			FAssetPickerConfig AssetPickerConfig;
-			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateUObject( this, &UMatineeTrackAnimControlHelper::OnAddKeyTextEntry, Mode->InterpEd, Track );
+			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateUObject( const_cast<UMatineeTrackAnimControlHelper*>(this), &UMatineeTrackAnimControlHelper::OnAddKeyTextEntry, Mode->InterpEd, Track );
 			AssetPickerConfig.bAllowNullSelection = false;
 			AssetPickerConfig.InitialAssetViewType = EAssetViewType::List;
 
@@ -377,7 +377,7 @@ bool UMatineeTrackDirectorHelper::PreCreateKeyframe( UInterpTrack *Track, float 
 			SNew(STextComboPopup)
 			.Label(NSLOCTEXT("Matinee.Popups", "NewCut", "Cut to Group..."))
 			.TextOptions(GroupNames)
-			.OnTextChosen_UObject(this, &UMatineeTrackDirectorHelper::OnAddKeyTextEntry, Mode->InterpEd, Track);
+			.OnTextChosen_UObject(const_cast<UMatineeTrackDirectorHelper*>(this), &UMatineeTrackDirectorHelper::OnAddKeyTextEntry, Mode->InterpEd, Track);
 
 		TSharedPtr< SWindow > Parent = FSlateApplication::Get().GetActiveTopLevelWindow();
 		if ( Parent.IsValid() )
@@ -435,7 +435,7 @@ bool UMatineeTrackEventHelper::PreCreateKeyframe( UInterpTrack *Track, float Key
 		SNew(STextEntryPopup)
 		.Label(NSLOCTEXT("Matinee.Popups", "NewEventName", "New Event Name"))
 		.DefaultText(FText::FromString(TEXT("Event")))
-		.OnTextCommitted_UObject(this, &UMatineeTrackEventHelper::OnAddKeyTextEntry, (IMatineeBase*)Mode->InterpEd, Track)
+		.OnTextCommitted_UObject(const_cast<UMatineeTrackEventHelper*>(this), &UMatineeTrackEventHelper::OnAddKeyTextEntry, (IMatineeBase*)Mode->InterpEd, Track)
 		.SelectAllTextWhenFocused(true)
 		.ClearKeyboardFocusOnCommit(false)
 		.MaxWidth(1024.0f)
@@ -564,7 +564,7 @@ bool UMatineeTrackFloatPropHelper::PreCreateTrack( UInterpGroup* Group, const UI
 					SNew(STextComboPopup)
 					.Label(NSLOCTEXT("Matinee.Popups", "PropertyName", "Property Name"))
 					.TextOptions(PropStrings)
-					.OnTextChosen_UObject(this, &UMatineeTrackFloatPropHelper::OnCreateTrackTextEntry, NewWindow, (FString *)&Result)
+					.OnTextChosen_UObject(const_cast<UMatineeTrackFloatPropHelper*>(this), &UMatineeTrackFloatPropHelper::OnCreateTrackTextEntry, NewWindow, (FString *)&Result)
 					;
 
 				NewWindow->SetContent(TextEntryPopup);
@@ -702,7 +702,7 @@ bool UMatineeTrackBoolPropHelper::PreCreateTrack( UInterpGroup* Group, const UIn
 					SNew(STextComboPopup)
 					.Label(NSLOCTEXT("Matinee.Popups", "PropertyName", "Property Name"))
 					.TextOptions(PropStrings)
-					.OnTextChosen_UObject(this, &UMatineeTrackBoolPropHelper::OnCreateTrackTextEntry, TWeakPtr<SWindow>(NewWindow), (FString *)&Result);
+					.OnTextChosen_UObject(const_cast<UMatineeTrackBoolPropHelper*>(this), &UMatineeTrackBoolPropHelper::OnCreateTrackTextEntry, TWeakPtr<SWindow>(NewWindow), (FString *)&Result);
 
 				NewWindow->SetContent(TextEntryPopup);
 				GEditor->EditorAddModalWindow(NewWindow);
@@ -818,7 +818,7 @@ bool UMatineeTrackToggleHelper::PreCreateKeyframe( UInterpTrack *Track, float Ke
 		SNew(STextComboPopup)
 		.Label(NSLOCTEXT("Matinee.Popups", "ToggleAction", "Toggle Action"))
 		.TextOptions(PropStrings)
-		.OnTextChosen_UObject(this, &UMatineeTrackToggleHelper::OnAddKeyTextEntry, InterpEd, Track)
+		.OnTextChosen_UObject(const_cast<UMatineeTrackToggleHelper*>(this), &UMatineeTrackToggleHelper::OnAddKeyTextEntry, InterpEd, Track)
 		;
 
 	TSharedPtr< SWindow > Parent = FSlateApplication::Get().GetActiveTopLevelWindow();
@@ -905,7 +905,7 @@ bool UMatineeTrackVectorPropHelper::ChooseProperty(TArray<FName> &PropNames) con
 		SNew(STextComboPopup)
 		.Label(NSLOCTEXT("Matinee.Popups", "PropertyName", "Property Name"))
 		.TextOptions(PropStrings)
-		.OnTextChosen_UObject(this, &UMatineeTrackVectorPropHelper::OnCreateTrackTextEntry, TWeakPtr<SWindow>(NewWindow), (FString *)&Result)
+		.OnTextChosen_UObject(const_cast<UMatineeTrackVectorPropHelper*>(this), &UMatineeTrackVectorPropHelper::OnCreateTrackTextEntry, TWeakPtr<SWindow>(NewWindow), (FString *)&Result)
 		;
 
 	NewWindow->SetContent(TextEntryPopup);
@@ -1170,7 +1170,7 @@ bool UMatineeTrackVisibilityHelper::PreCreateKeyframe( UInterpTrack *Track, floa
 		SNew(STextComboPopup)
 		.Label(NSLOCTEXT("Matinee.Popups", "VisibilityAction", "Visibility Action"))
 		.TextOptions(PropStrings)
-		.OnTextChosen_UObject(this, &UMatineeTrackVisibilityHelper::OnAddKeyTextEntry, Mode->InterpEd, Track)
+		.OnTextChosen_UObject(const_cast<UMatineeTrackVisibilityHelper*>(this), &UMatineeTrackVisibilityHelper::OnAddKeyTextEntry, Mode->InterpEd, Track)
 		;
 
 	TSharedPtr< SWindow > Parent = FSlateApplication::Get().GetActiveTopLevelWindow();

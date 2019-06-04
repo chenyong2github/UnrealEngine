@@ -115,6 +115,13 @@ static TAutoConsoleVariable<int32> CVarLazyLoadShadersWhenPSOCacheIsPresent(
 	TEXT("Non-Zero: If we load a PSO cache, then lazy load from the shader code library. This assumes the PSO cache is more or less complete. This will only work on RHIs that support the library+Hash CreateShader API (GRHISupportsLazyShaderCodeLoading == true)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarClearOSPSOFileCache(
+														   TEXT("r.ShaderPipelineCache.ClearOSCache"),
+														   0,
+														   TEXT("1 Enables the OS level clear after install, 0 disables it."),
+														   ECVF_Default | ECVF_RenderThreadSafe
+														   );
+
 
 FRWLock FPipelineFileCache::FileCacheLock;
 FPipelineCacheFile* FPipelineFileCache::FileCache = nullptr;
@@ -2301,6 +2308,8 @@ bool FPipelineFileCache::ReportNewPSOs()
 
 void FPipelineFileCache::Initialize(uint32 InGameVersion)
 {
+	ClearOSPipelineCache();
+	
 	// Make enabled explicit on a flag not the existence of "FileCache" object as we are using that behind a lock and in Open / Close operations
 	FileCacheEnabled = true;
 	FPipelineCacheFile::GameVersion = InGameVersion;
@@ -2312,6 +2321,41 @@ void FPipelineFileCache::Initialize(uint32 InGameVersion)
 	
 	SET_MEMORY_STAT(STAT_NewCachedPSOMemory, 0);
 	SET_MEMORY_STAT(STAT_PSOStatMemory, 0);
+}
+
+void FPipelineFileCache::ClearOSPipelineCache()
+{
+	if (CVarClearOSPSOFileCache.GetValueOnAnyThread() > 0)
+	{
+#if PLATFORM_IOS
+		// clear the PSO cache on IOS if the executable is newer
+		static FString ExecutablePath = FString([[NSBundle mainBundle] bundlePath]) + TEXT("/") + FPlatformProcess::ExecutableName();
+		struct stat FileInfo;
+		if(stat(TCHAR_TO_UTF8(*ExecutablePath), &FileInfo) != -1)
+		{
+			FTimespan ExecutableTime(0, 0, FileInfo.st_atime);
+			static FString PrivateWritePathBase = FString([NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) objectAtIndex:0]) + TEXT("/");
+			FString Result = PrivateWritePathBase + TEXT("/Caches/com.chairentertainment.Fortnite/com.apple.metal/functions.data");
+			if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1)
+			{
+				FTimespan DataTime(0, 0, FileInfo.st_atime);
+				if (ExecutableTime > DataTime)
+				{
+					unlink(TCHAR_TO_UTF8(*Result));
+				}
+			}
+			Result = PrivateWritePathBase + TEXT("/Caches/com.chairentertainment.Fortnite/com.apple.metal/functions.maps");
+			if (stat(TCHAR_TO_UTF8(*Result), &FileInfo) != -1)
+			{
+				FTimespan MapsTime(0, 0, FileInfo.st_atime);
+				if (ExecutableTime > MapsTime)
+				{
+					unlink(TCHAR_TO_UTF8(*Result));
+				}
+			}
+		}
+#endif
+	}
 }
 
 uint64 FPipelineFileCache::SetGameUsageMaskWithComparison(uint64 InGameUsageMask, FPSOMaskComparisonFn InComparisonFnPtr)

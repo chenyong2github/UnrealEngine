@@ -139,6 +139,16 @@ public:
 	UPROPERTY()
 	FGuid BaseScriptID;
 
+	/**
+	* The hash of the subgraph this shader primarily represents.
+	*/
+	UPROPERTY()
+	FNiagaraCompileHash BaseScriptCompileHash;
+
+	/** Compile hashes of any top level scripts the script was dependent on that might trigger a recompile if they change. */
+	UPROPERTY()
+	TArray<FNiagaraCompileHash> ReferencedCompileHashes;
+
 	/** Guids of any functions, module scripts, parameter collections, or other assets the script was dependent on that might trigger a recompile if they change. */
 	UPROPERTY()
 	TArray<FGuid> ReferencedDependencyIds;
@@ -427,6 +437,7 @@ public:
 
 	NIAGARA_API bool CanBeRunOnGpu() const;
 	NIAGARA_API bool IsReadyToRun(ENiagaraSimTarget SimTarget) const;
+	NIAGARA_API bool ShouldCacheShadersForCooking() const;
 
 #if WITH_EDITORONLY_DATA
 	class UNiagaraScriptSourceBase *GetSource() { return Source; }
@@ -443,6 +454,7 @@ public:
 	//~ Begin UObject interface
 	void Serialize(FArchive& Ar)override;
 	virtual void PostLoad() override;
+	virtual bool IsDestructionThreadSafe() const override { return false; }
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
@@ -503,7 +515,7 @@ public:
 	NIAGARA_API void MarkScriptAndSourceDesynchronized(FString Reason);
 	
 	/** Request a synchronous compile for the script, possibly forcing it to compile.*/
-	NIAGARA_API void RequestCompile();
+	NIAGARA_API void RequestCompile(bool bForceCompile = false);
 
 	/** Request an asynchronous compile for the script, possibly forcing it to compile. The output values are the compilation id of the data as well as the async handle to 
 		gather up the results with. bTrulyAsync tells the system whether or not the compile task must be completed on the main thread (mostly used for debugging). The

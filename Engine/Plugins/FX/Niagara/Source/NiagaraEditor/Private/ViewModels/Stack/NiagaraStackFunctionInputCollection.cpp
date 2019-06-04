@@ -98,39 +98,74 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 	// Gather input data
 	for (const UEdGraphPin* InputPin : InputPins)
 	{
-		if (ProcessedInputNames.Contains(InputPin->PinName) == false)
-		{
-			ProcessedInputNames.Add(InputPin->PinName);
-
-			FNiagaraVariable InputVariable = NiagaraSchema->PinToNiagaraVariable(InputPin);
-			if (InputVariable.GetType().IsValid() == false)
-			{
-				PinsWithInvalidTypes.Add(InputPin);
-				continue;
-			}
-			else
-			{
-				ValidAliasedInputNames.Add(FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(
-					FNiagaraParameterHandle(InputPin->PinName), InputFunctionCallNode).GetParameterHandleString());
-			}
-
-			FNiagaraVariableMetaData* InputMetaData = nullptr;
-			if (InputFunctionGraph != nullptr)
-			{
-				InputMetaData = InputFunctionGraph->GetMetaData(InputVariable);
-			}
-
-			FText InputCategory = InputMetaData != nullptr && InputMetaData->CategoryName.IsEmptyOrWhitespace() == false
-				? InputMetaData->CategoryName
-				: UncategorizedName;
-
-			FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory };
-			InputDataCollection.Add(InputData);
-		}
-		else
+		if (ProcessedInputNames.Contains(InputPin->PinName))
 		{
 			DuplicateInputNames.AddUnique(InputPin->PinName);
+			continue;
 		}
+		ProcessedInputNames.Add(InputPin->PinName);
+
+		FNiagaraVariable InputVariable = NiagaraSchema->PinToNiagaraVariable(InputPin);
+		if (InputVariable.GetType().IsValid() == false)
+		{
+			PinsWithInvalidTypes.Add(InputPin);
+			continue;
+		}
+		ValidAliasedInputNames.Add(
+			FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(InputPin->PinName), InputFunctionCallNode).GetParameterHandleString());
+
+		TOptional<FNiagaraVariableMetaData> InputMetaData;
+		if (InputFunctionGraph != nullptr)
+		{
+			InputMetaData = InputFunctionGraph->GetMetaData(InputVariable);
+		}
+
+		FText InputCategory = InputMetaData.IsSet() && InputMetaData->CategoryName.IsEmptyOrWhitespace() == false
+			? InputMetaData->CategoryName
+			: UncategorizedName;
+
+		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, false };
+		InputDataCollection.Add(InputData);
+	}
+
+	// Gather static switch parameters
+	InputPins.Reset();
+	FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(*InputFunctionCallNode, InputPins);
+	for (const UEdGraphPin* InputPin : InputPins)
+	{
+		// The static switch pin names to not contain the module namespace, as they are not part of the parameter maps.
+		// We add it here only to check for name clashes with actual module parameters.
+		FString ModuleName = TEXT("Module.");
+		InputPin->PinName.AppendString(ModuleName);
+		FName SwitchPinName(*ModuleName); 
+
+		if (ProcessedInputNames.Contains(SwitchPinName))
+		{
+			DuplicateInputNames.AddUnique(SwitchPinName);
+			continue;
+		}
+		ProcessedInputNames.Add(SwitchPinName);
+
+		FNiagaraVariable InputVariable = NiagaraSchema->PinToNiagaraVariable(InputPin);
+		if (InputVariable.GetType().IsValid() == false)
+		{
+			PinsWithInvalidTypes.Add(InputPin);
+			continue;
+		}
+		ValidAliasedInputNames.Add(FNiagaraParameterHandle(*InputFunctionCallNode->GetFunctionName(), InputPin->PinName).GetParameterHandleString());
+
+		TOptional<FNiagaraVariableMetaData> InputMetaData;
+		if (InputFunctionGraph != nullptr)
+		{
+			InputMetaData = InputFunctionGraph->GetMetaData(InputVariable);
+		}
+
+		FText InputCategory = InputMetaData.IsSet() && InputMetaData->CategoryName.IsEmptyOrWhitespace() == false
+			? InputMetaData->CategoryName
+			: UncategorizedName;
+
+		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, true };
+		InputDataCollection.Add(InputData);
 	}
 
 	// Sort data and keep the uncategorized first
@@ -150,7 +185,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 		}
 		else
 		{
-			return A.Pin->PinName < B.Pin->PinName;
+			return A.Pin->PinName.LexicalLess(B.Pin->PinName);
 		}
 	});
 
@@ -184,7 +219,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 			}
 			NewChildren.Add(InputCategory);
 		}
-		InputCategory->AddInput(InputData.Pin->PinName, InputData.Type);
+		InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic);
 	}
 	RefreshIssues(DuplicateInputNames, ValidAliasedInputNames, PinsWithInvalidTypes, NewIssues);
 }
@@ -249,7 +284,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 		FStackIssue DuplicateInputError(
 			EStackIssueSeverity::Error,
 			FText::Format(LOCTEXT("DuplicateInputSummaryFormat", "Duplicate Input: {0}"), FText::FromName(DuplicateInputName)),
-			FText::Format(LOCTEXT("DuplicateInputFormat", "There are multiple inputs with the same name {0}, but different types exposed by the function {1}.\nThis is not suppored and must be fixed in the script that defines this function."),
+			FText::Format(LOCTEXT("DuplicateInputFormat", "There are multiple inputs with the same name {0} exposed by the function {1}.\nThis is not supported and must be fixed in the script that defines this function.\nCheck for inputs with the same name and different types or static switches."),
 				FText::FromName(DuplicateInputName), FText::FromString(InputFunctionCallNode->GetFunctionName())),
 			GetStackEditorDataKey(),
 			false);

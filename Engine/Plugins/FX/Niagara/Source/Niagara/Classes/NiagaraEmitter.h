@@ -351,6 +351,8 @@ public:
 	/* Gets whether or not the supplied event generator id matches an event generator which is shared between the particle spawn and update scrips. */
 	bool IsEventGeneratorShared(FName EventGeneratorId) const;
 
+	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
+
 protected:
 	virtual void BeginDestroy() override;
 
@@ -392,6 +394,14 @@ private:
 
 #if WITH_EDITOR
 	FOnPropertiesChanged OnPropertiesChangedDelegate;
+#endif
+
+	void GenerateStatID();
+#if STATS
+	TStatId StatID_GT;
+	TStatId StatID_GT_CNC;
+	TStatId StatID_RT;
+	TStatId StatID_RT_CNC;
 #endif
 };
 

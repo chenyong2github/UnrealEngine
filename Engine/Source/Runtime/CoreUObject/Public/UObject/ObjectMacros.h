@@ -1574,6 +1574,7 @@ public: \
 				PrivateStaticClass, \
 				StaticRegisterNatives##TClass, \
 				sizeof(TClass), \
+				alignof(TClass), \
 				(EClassFlags)TClass::StaticClassFlags, \
 				TClass::StaticClassCastFlags(), \
 				TClass::StaticConfigName(), \
@@ -1642,6 +1643,7 @@ public: \
 			PrivateStaticClass, \
 			StaticRegisterNatives##TClass, \
 			sizeof(TClass), \
+			alignof(TClass), \
 			(EClassFlags)TClass::StaticClassFlags, \
 			TClass::StaticClassCastFlags(), \
 			TClass::StaticConfigName(), \

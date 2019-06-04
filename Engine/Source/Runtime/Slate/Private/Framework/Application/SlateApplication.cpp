@@ -23,7 +23,6 @@
 #include "Widgets/SViewport.h"
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Input/HittestGrid.h"
-#include "Framework/Application/HardwareCursor.h"
 #include "HAL/PlatformApplicationMisc.h"
 
 #include "Framework/Application/IWidgetReflector.h"
@@ -6492,19 +6491,40 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 	TSharedPtr<SWidget> DestinationWidget = TSharedPtr<SWidget>();
 	bool bAlwaysHandleNavigationAttempt = false;
 
+#if WITH_SLATE_DEBUGGING
+	ESlateDebuggingNavigationMethod NavigationMethod = ESlateDebuggingNavigationMethod::Unknown;
+#endif
+
 	EUINavigation NavigationType = NavigationEvent.GetNavigationType();
 	if ( NavigationReply.GetBoundaryRule() == EUINavigationRule::Explicit )
 	{
 		DestinationWidget = NavigationReply.GetFocusRecipient();
 		bAlwaysHandleNavigationAttempt = true;
+
+#if WITH_SLATE_DEBUGGING
+		NavigationMethod = ESlateDebuggingNavigationMethod::Explicit;
+#endif
 	}
 	else if ( NavigationReply.GetBoundaryRule() == EUINavigationRule::Custom )
 	{
 		const FNavigationDelegate& FocusDelegate = NavigationReply.GetFocusDelegate();
 		if ( FocusDelegate.IsBound() )
 		{
+			// Switch worlds for widgets in the current path 
+			FScopedSwitchWorldHack SwitchWorld(NavigationSource);
+
 			DestinationWidget = FocusDelegate.Execute(NavigationType);
 			bAlwaysHandleNavigationAttempt = true;
+
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::CustomDelegateBound;
+#endif
+		}
+		else
+		{
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::CustomDelegateUnbound;
+#endif
 		}
 	}
 	else
@@ -6519,6 +6539,10 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 			// Resolve the Widget Path
 			FArrangedWidget& NewFocusedArrangedWidget = NewFocusedWidgetPath.Widgets.Last();
 			DestinationWidget = NewFocusedArrangedWidget.Widget;
+
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::NextOrPrevious;
+#endif
 		}
 		else
 		{
@@ -6529,11 +6553,15 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 			FScopedSwitchWorldHack SwitchWorld(NavigationSource);
 
 			DestinationWidget = NavigationSource.GetWindow()->GetHittestGrid()->FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
+
+#if WITH_SLATE_DEBUGGING
+			NavigationMethod = ESlateDebuggingNavigationMethod::HitTestGrid;
+#endif
 		}
 	}
 
 #if WITH_SLATE_DEBUGGING
-	FSlateDebugging::BroadcastAttemptNavigation(NavigationEvent, NavigationReply, NavigationSource, DestinationWidget);
+	FSlateDebugging::BroadcastAttemptNavigation(NavigationEvent, NavigationReply, NavigationSource, DestinationWidget, NavigationMethod);
 #endif
 
 	return ExecuteNavigation(NavigationSource, DestinationWidget, NavigationEvent.GetUserIndex(), bAlwaysHandleNavigationAttempt);
@@ -6574,6 +6602,10 @@ bool FSlateApplication::ExecuteNavigation(const FWidgetPath& NavigationSource, T
 			bHandled = true;
 		}
 	}
+
+#if WITH_SLATE_DEBUGGING
+	FSlateDebugging::BroadcastExecuteNavigation();
+#endif
 
 	return bHandled;
 }

@@ -754,8 +754,6 @@ void UObject::BeginDestroy()
 			);
 	}
 
-	LowLevelRename(NAME_None);
-	
 #if WITH_EDITORONLY_DATA
 	// Make sure the linker entry stays as 'bExportLoadFailed' if the entry was marked as such, 
 	// doing this prevents the object from being reloaded by subsequent load calls:
@@ -779,6 +777,8 @@ void UObject::BeginDestroy()
 		ObjExport.bExportLoadFailed = true;
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	LowLevelRename(NAME_None);
 
 	// ensure BeginDestroy has been routed back to UObject::BeginDestroy.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -4333,7 +4333,7 @@ void StaticUObjectInit()
 }
 
 // Internal cleanup functions
-void CleanupGCArrayPools();
+void ShutdownGarbageCollection();
 void CleanupLinkerAnnotations();
 void CleanupCachedArchetypes();
 
@@ -4357,7 +4357,9 @@ void StaticExit()
 		GObjTransientPkg = NULL;
 	}
 
-	IncrementalPurgeGarbage( false );
+	GatherUnreachableObjects(false);
+	IncrementalPurgeGarbage(false);
+	GUObjectClusters.DissolveClusters(true);
 
 	// Keep track of how many objects there are for GC stats as we simulate a mark pass.
 	extern FThreadSafeCounter GObjectCountDuringLastMarkPhase;
@@ -4392,19 +4394,8 @@ void StaticExit()
 	// set on all objects that are about to be deleted. One example is FLinkerLoad detaching textures - the SetLinker call needs to 
 	// not kick off texture streaming.
 	//
-	for ( FRawObjectIterator It; It; ++It )
-	{
-		FUObjectItem* ObjItem = *It;
-		checkSlow(ObjItem);
-		if (ObjItem->IsUnreachable())
-		{
-			// Begin the object's asynchronous destruction.
-			UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-			Obj->ConditionalBeginDestroy();
-		}
-	}
-
-	IncrementalPurgeGarbage( false );
+	GatherUnreachableObjects(false);
+	IncrementalPurgeGarbage(false);
 
 	{
 		//Repeat GC for every object, including structures and properties.
@@ -4414,25 +4405,15 @@ void StaticExit()
 			It->SetUnreachable();
 		}
 
-		for (FRawObjectIterator It; It; ++It)
-		{
-			FUObjectItem* ObjItem = *It;
-			checkSlow(ObjItem);
-			if (ObjItem->IsUnreachable())
-			{
-				// Begin the object's asynchronous destruction.
-				UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-				Obj->ConditionalBeginDestroy();
-			}
-		}
-
+		GatherUnreachableObjects(false);
 		IncrementalPurgeGarbage(false);
 	}
 
+	ShutdownGarbageCollection();
 	UObjectBaseShutdown();
+
 	// Empty arrays to prevent falsely-reported memory leaks.
-	FDeferredMessageLog::Cleanup();
-	CleanupGCArrayPools();
+	FDeferredMessageLog::Cleanup();	
 	CleanupLinkerAnnotations();
 	CleanupCachedArchetypes();
 

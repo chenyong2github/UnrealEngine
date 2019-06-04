@@ -83,19 +83,14 @@ namespace UE4_RepLayout_Private
 			return InBuffer.Data + Offset;
 		}
 
-		operator bool()
+		explicit operator bool() const
 		{
 			return Data != nullptr;
 		}
 
-		operator ConstOrNotType* ()
+		operator ConstOrNotType* () const
 		{
 			return Data;
-		}
-
-		operator ConstOrNotVoid* ()
-		{
-			return (ConstOrNotVoid*)Data;
 		}
 
 		ConstOrNotType* RESTRICT Data;

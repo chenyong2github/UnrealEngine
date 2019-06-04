@@ -97,16 +97,25 @@ const FPinConnectionResponse UControlRigGraphSchema::CanCreateConnection(const U
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
 	if (RigBlueprint != nullptr)
 	{
-		if (A->Direction == EGPD_Input)
-		{
-			const UEdGraphPin* Temp = A;
-			A = B;
-			B = Temp;
-		}
-
 		FString LeftA, LeftB, RightA, RightB;
 		RigBlueprint->Model->SplitPinPath(A->GetName(), LeftA, RightA);
 		RigBlueprint->Model->SplitPinPath(B->GetName(), LeftB, RightB);
+
+		const FControlRigModelPin* PinA = RigBlueprint->Model->FindPin(*LeftA, *RightA);
+		if (PinA)
+		{
+			RigBlueprint->ModelController->PrepareCycleCheckingForPin(*LeftA, *RightA, A->Direction == EGPD_Input);
+		}
+
+		if (A->Direction == EGPD_Input)
+		{
+			FString Temp = LeftA;
+			LeftA = LeftB;
+			LeftB = Temp;
+			Temp = RightA;
+			RightA = RightB;
+			RightB = Temp;
+		}
 
 		FString FailureReason;
 		bool bResult = RigBlueprint->ModelController->CanLink(*LeftA, *RightA, *LeftB, *RightB, &FailureReason);

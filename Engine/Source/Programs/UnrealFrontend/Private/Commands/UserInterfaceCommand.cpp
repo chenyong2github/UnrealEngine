@@ -34,6 +34,9 @@ void FUserInterfaceCommand::Run(  )
 {
 	FString UnrealFrontendLayoutIni = FPaths::GetPath(GEngineIni) + "/Layout.ini";
 
+	// ensure target platform manager is referenced early as it must be created on the main thread
+	GetTargetPlatformManager();
+
 	FCoreStyle::ResetToDefault();
 
 	// load required modules

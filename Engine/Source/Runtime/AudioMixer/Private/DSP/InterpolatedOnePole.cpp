@@ -19,6 +19,7 @@ namespace Audio
 		NumChannels = InNumChannels;
 		CutoffFrequency = -1.0f;
 		Z1.Init(0.0f, NumChannels);
+		Z1Data = Z1.GetData();
 		Reset();
 	}
 
@@ -30,9 +31,14 @@ namespace Audio
 		if (!FMath::IsNearlyEqual(InTargetFrequency, CutoffFrequency))
 		{
 			CutoffFrequency = InTargetFrequency;
-			float NormalizedFreq = FMath::Clamp(0.5f * InTargetFrequency / SampleRate, 0.0f, 1.0f);
+			float NormalizedFreq = FMath::Clamp(2.0f * InTargetFrequency / SampleRate, 0.0f, 1.0f);
 			B1Target = FMath::Exp(-PI * NormalizedFreq);
 			B1Delta = (B1Target - B1Curr) / static_cast<float>(InterpLength);
+		}
+
+		if (InterpLength <= 1)
+		{
+			StopFrequencyInterpolation();
 		}
 	}
 
@@ -55,12 +61,30 @@ namespace Audio
 
 		for (int32 i = 0; i < NumChannels; ++i)
 		{
-			float* Z1Data = Z1.GetData();
 			const float InputSample = InputFrame[i];
 			float Yn = InputSample + B1Curr * (Z1Data[i] - InputSample); // LPF
 			Yn = UnderflowClamp(Yn);
 			Z1Data[i] = Yn;
 			OutputFrame[i] = Yn;
+		}
+	}
+
+	void FInterpolatedLPF::ProcessAudioBuffer(float *RESTRICT InputBuffer, float *RESTRICT OutputBuffer, const int32 NumSamples)
+	{
+		for (int SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+		{
+			// cache which delay term we should be using
+			const int32 ChannelIndex = SampleIndex % NumChannels;
+
+			// step forward coefficient
+			B1Curr += B1Delta;
+			++CurrInterpCounter;
+
+			const float InputSample = InputBuffer[SampleIndex];
+			float Yn = InputSample + B1Curr * (Z1Data[ChannelIndex] - InputSample); // LPF
+			Yn = UnderflowClamp(Yn);
+			Z1Data[ChannelIndex] = Yn;
+			OutputBuffer[SampleIndex] = Yn;
 		}
 	}
 
@@ -72,6 +96,7 @@ namespace Audio
 		CurrInterpLength = 0;
 		CurrInterpCounter = 0;
 		ClearMemory();
+		Z1Data = Z1.GetData();
 	}
 
 	void FInterpolatedLPF::ClearMemory()
@@ -95,6 +120,7 @@ namespace Audio
 		NumChannels = InNumChannels;
 		CutoffFrequency = -1.0f;
 		Z1.Init(0.0f, NumChannels);
+		Z1Data = Z1.GetData();
 		Reset();
 	}
 
@@ -112,6 +138,11 @@ namespace Audio
 
 			A0Delta = (A0Target - A0Curr) / static_cast<float>(InterpLength);
 		}
+
+		if (InterpLength <= 1)
+		{
+			StopFrequencyInterpolation();
+		}
 	}
 
 	void FInterpolatedHPF::ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame)
@@ -121,7 +152,6 @@ namespace Audio
 
 		for (int32 i = 0; i < NumChannels; ++i)
 		{
-			float* Z1Data = Z1.GetData();
 			const float InputSample = InputFrame[i];
 			const float Vn = (InputSample - Z1Data[i]) * A0Curr;
 			const float LPF = Vn + Z1Data[i];
@@ -131,6 +161,27 @@ namespace Audio
 		}
 	}
 
+	void FInterpolatedHPF::ProcessAudioBuffer(float *RESTRICT InputBuffer, float *RESTRICT OutputBuffer, const int32 NumSamples)
+	{
+		for (int SampleIndex = 0; SampleIndex < NumSamples; ++SampleIndex)
+		{
+			// cache which delay term we should be using
+			const int32 ChannelIndex = SampleIndex % NumChannels;
+
+			// step forward coefficient
+			A0Curr += A0Delta;
+			++CurrInterpCounter;
+
+			const float InputSample = InputBuffer[SampleIndex];
+			const float Vn = (InputSample - Z1Data[ChannelIndex]) * A0Curr;
+			const float LPF = Vn + Z1Data[ChannelIndex];
+			Z1Data[ChannelIndex] = Vn + LPF;
+
+			OutputBuffer[SampleIndex] = InputSample - LPF;
+		}
+	}
+
+
 	void FInterpolatedHPF::Reset()
 	{
 		A0Curr = 0.0f;
@@ -138,6 +189,7 @@ namespace Audio
 		CurrInterpLength = 0;
 		CurrInterpCounter = 0;
 		ClearMemory();
+		Z1Data = Z1.GetData();
 	}
 
 	void FInterpolatedHPF::ClearMemory()

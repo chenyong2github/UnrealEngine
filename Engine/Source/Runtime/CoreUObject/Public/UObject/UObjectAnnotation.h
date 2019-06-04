@@ -35,7 +35,7 @@ public:
 	 * @param Object object that has been destroyed
 	 * @param Index	index of object that is being deleted
 	 */
-	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index)
+	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index) override
 	{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (!bAutoRemove)
@@ -49,6 +49,12 @@ public:
 		{
 			RemoveAnnotation(Object);
 		}
+	}
+
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
 	}
 
 	/**
@@ -66,7 +72,7 @@ public:
 	 */
 	virtual ~FUObjectAnnotationSparse()
 	{
-		RemoveAllAnnotations();
+		RemoveAllAnnotations();		
 	}
 
 	/**
@@ -259,9 +265,15 @@ public:
 	 * @param Object object that has been destroyed
 	 * @param Index	index of object that is being deleted
 	 */
-	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index)
+	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index) override
 	{
 		RemoveAnnotation(Object);
+	}
+
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
 	}
 
 	/**
@@ -466,14 +478,9 @@ public:
 * @param TAnnotation type of the annotation
 * @param bAutoRemove if true, annotation will automatically be removed, otherwise in non-final builds it will verify that the annotation was removed by other means prior to destruction.
 **/
-template<typename TAnnotation, bool bAutoRemove>
+template<typename TAnnotation, bool bAutoRemove, int32 NumAnnotationsPerChunk = 64 * 1024>
 class FUObjectAnnotationChunked : public FUObjectArray::FUObjectDeleteListener
 {
-	enum
-	{
-		NumAnnotationsPerChunk = 64 * 1024,
-	};
-
 	struct TAnnotationChunk
 	{
 		int32 Num;
@@ -876,6 +883,12 @@ public:
 			RemoveAnnotation(Index);
 		}
 	}
+
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+	}
 };
 
 /**
@@ -915,6 +928,12 @@ public:
 		{
 			RemoveAnnotation(Index);
 		}
+	}
+
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
 	}
 
 	/**
@@ -1125,6 +1144,12 @@ public:
 	virtual void NotifyUObjectDeleted(const UObjectBase *Object, int32 Index)
 	{
 		RemoveAnnotation(Index);
+	}
+
+	virtual void OnUObjectArrayShutdown() override
+	{
+		RemoveAllAnnotations();
+		GUObjectArray.RemoveUObjectDeleteListener(this);
 	}
 
 	/**

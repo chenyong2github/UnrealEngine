@@ -721,7 +721,7 @@ void OutputCurveMap(TMap<FName, float>& CurveMap, UCanvas* Canvas, FDisplayDebug
 {
 	TArray<FName> Names;
 	CurveMap.GetKeys(Names);
-	Names.Sort();
+	Names.Sort(FNameLexicalLess());
 	for (FName CurveName : Names)
 	{
 		FString CurveEntry = FString::Printf(TEXT("%s: %.3f"), *CurveName.ToString(), CurveMap[CurveName]);

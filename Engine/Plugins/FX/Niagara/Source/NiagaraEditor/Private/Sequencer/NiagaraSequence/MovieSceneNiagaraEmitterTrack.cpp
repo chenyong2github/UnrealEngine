@@ -81,6 +81,7 @@ void UMovieSceneNiagaraEmitterTrack::Initialize(FNiagaraSystemViewModel& InSyste
 	EmitterHandleViewModel = InEmitterHandleViewModel;
 	SetDisplayName(InEmitterHandleViewModel->GetNameText());
 	EmitterHandleId = InEmitterHandleViewModel->GetId();
+	SystemPath = SystemViewModel->GetSystem().GetPathName();
 	SetColorTint(FNiagaraEditorStyle::Get().GetColor("NiagaraEditor.NiagaraSequence.DefaultTrackColor").ToFColor(true));
 	CreateSections(InFrameResolution);
 }
@@ -182,6 +183,11 @@ bool UMovieSceneNiagaraEmitterTrack::SupportsMultipleRows() const
 FGuid UMovieSceneNiagaraEmitterTrack::GetEmitterHandleId() const
 {
 	return EmitterHandleId;
+}
+
+const FString& UMovieSceneNiagaraEmitterTrack::GetSystemPath() const
+{
+	return SystemPath;
 }
 
 const TArray<FText>& UMovieSceneNiagaraEmitterTrack::GetSectionInitializationErrors() const

@@ -7,12 +7,12 @@
 #pragma once 
 
 #include "VulkanGlobals.h"
-#include "IHeadMountedDisplayVulkanExtensions.h"
 
 class FVulkanTexture2D;
 class FVulkanFramebuffer;
 class FVulkanDevice;
 class FVulkanQueue;
+class IHeadMountedDisplayVulkanExtensions;
 
 // TODO: fix Lock/Unlock Vertex/Index buffer
 #define VULKAN_BUFFER_LOCK_THREADSAFE 0
@@ -97,7 +97,6 @@ public:
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FTexture3DRHIParamRef Texture3DRHI, uint8 MipLevel) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FTexture2DArrayRHIParamRef Texture2DArrayRHI, uint8 MipLevel) final override;
 	virtual FShaderResourceViewRHIRef RHICreateShaderResourceView(FTextureCubeRHIParamRef TextureCubeRHI, uint8 MipLevel) final override;
-	virtual void RHIGenerateMips(FTextureRHIParamRef Texture) final override {}
 	virtual uint32 RHIComputeMemorySize(FTextureRHIParamRef TextureRHI) final override;
 	virtual FTexture2DRHIRef RHIAsyncReallocateTexture2D(FTexture2DRHIParamRef Texture2D, int32 NewMipCount, int32 NewSizeX, int32 NewSizeY, FThreadSafeCounter* RequestStatus) final override;
 	virtual ETextureReallocationStatus RHIFinalizeAsyncReallocateTexture2D(FTexture2DRHIParamRef Texture2D, bool bBlockUntilCompleted) final override;
@@ -394,6 +393,8 @@ public:
 	
 	virtual void* RHILockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer, uint32 Offset, uint32 SizeRHI) final override;
 	virtual void RHIUnlockStagingBuffer(FStagingBufferRHIParamRef StagingBuffer) final override;
+
+	bool RHIRequiresComputeGenerateMips() const override { return true; };
 
 public:
 	static void SavePipelineCache();

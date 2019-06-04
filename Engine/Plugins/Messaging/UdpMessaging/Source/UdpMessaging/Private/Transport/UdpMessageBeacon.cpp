@@ -10,6 +10,11 @@
 #include "Serialization/ArrayWriter.h"
 #include "Sockets.h"
 
+#if WITH_EDITOR || IS_PROGRAM
+#include "Misc/CoreMisc.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Interfaces/ITargetPlatform.h"
+#endif
 
 /* FUdpMessageHelloSender static initialization
  *****************************************************************************/
@@ -46,6 +51,30 @@ FUdpMessageBeacon::FUdpMessageBeacon(FSocket* InSocket, const FGuid& InSocketId,
 		StaticAddresses.Add(LocalEndpoint.ToInternetAddr());
 	}
 
+#if WITH_EDITOR || IS_PROGRAM
+	if( ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager() )
+	{
+		TArray<ITargetPlatform*> Platforms = TargetPlatformManager->GetTargetPlatforms();
+		for (ITargetPlatform* Platform : Platforms)
+		{
+			// set up target platform callbacks
+			Platform->OnDeviceDiscovered().AddRaw(this, &FUdpMessageBeacon::HandleTargetPlatformDeviceDiscovered);
+			Platform->OnDeviceLost().AddRaw(this, &FUdpMessageBeacon::HandleTargetPlatformDeviceLost);
+
+			TArray<ITargetDevicePtr> Devices;
+			Platform->GetAllDevices( Devices );
+			for( ITargetDevicePtr Device : Devices )
+			{
+				if (Device.IsValid())
+				{
+					HandleTargetPlatformDeviceDiscovered(Device.ToSharedRef());
+				}
+			}
+		}
+		ProcessPendingEndpoints();
+	}
+#endif //WITH_EDITOR || IS_PROGRAM
+
 	Thread = FRunnableThread::Create(this, TEXT("FUdpMessageBeacon"), 128 * 1024, TPri_AboveNormal, FPlatformAffinity::GetPoolThreadMask());
 }
 
@@ -63,6 +92,22 @@ FUdpMessageBeacon::~FUdpMessageBeacon()
 
 	FPlatformProcess::ReturnSynchEventToPool(EndpointLeftEvent);
 	EndpointLeftEvent = nullptr;
+
+#if WITH_EDITOR || IS_PROGRAM
+	if( ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager() )
+	{
+		TArray<ITargetPlatform*> Platforms = TargetPlatformManager->GetTargetPlatforms();
+
+		for (int32 PlatformIndex = 0; PlatformIndex < Platforms.Num(); ++PlatformIndex)
+		{
+			// set up target platform callbacks
+			ITargetPlatform* Platform = Platforms[PlatformIndex];
+			Platform->OnDeviceDiscovered().RemoveAll(this);
+			Platform->OnDeviceLost().RemoveAll(this);
+
+		}
+	}
+#endif //WITH_EDITOR || IS_PROGRAM
 }
 
 
@@ -198,6 +243,11 @@ bool FUdpMessageBeacon::SendPing(const FTimespan& SocketWaitTime)
 
 void FUdpMessageBeacon::Update(const FDateTime& CurrentTime, const FTimespan& SocketWaitTime)
 {
+#if WITH_EDITOR || IS_PROGRAM
+	ProcessPendingEndpoints();
+#endif
+
+
 	if (CurrentTime < NextHelloTime)
 	{
 		return;
@@ -211,6 +261,63 @@ void FUdpMessageBeacon::Update(const FDateTime& CurrentTime, const FTimespan& So
 	}
 	SendPing(SocketWaitTime);
 }
+
+
+#if WITH_EDITOR || IS_PROGRAM
+void FUdpMessageBeacon::HandleTargetPlatformDeviceDiscovered( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> DiscoveredDevice)
+{
+	TSharedPtr<const FInternetAddr> DeviceStaticEndpoint = DiscoveredDevice->GetMessagingEndpoint();
+	if (DeviceStaticEndpoint.IsValid() )
+	{
+		FPendingEndpoint PendingEndpoint;
+		PendingEndpoint.StaticAddress = DeviceStaticEndpoint;
+		PendingEndpoint.bAdd = true;
+		PendingEndpoints.Enqueue(PendingEndpoint);
+	}
+}
+#endif //WITH_EDITOR || IS_PROGRAM
+
+#if WITH_EDITOR || IS_PROGRAM
+void FUdpMessageBeacon::HandleTargetPlatformDeviceLost( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> LostDevice)
+{
+	TSharedPtr<const FInternetAddr> DeviceStaticEndpoint = LostDevice->GetMessagingEndpoint();
+	if (DeviceStaticEndpoint.IsValid() )
+	{
+		FPendingEndpoint PendingEndpoint;
+		PendingEndpoint.StaticAddress = DeviceStaticEndpoint;
+		PendingEndpoint.bAdd = false;
+		PendingEndpoints.Enqueue(PendingEndpoint);
+	}
+}
+#endif //WITH_EDITOR || IS_PROGRAM
+
+#if WITH_EDITOR || IS_PROGRAM
+void FUdpMessageBeacon::ProcessPendingEndpoints()
+{
+	// process any pending static endpoint changes from target platform device changes
+	FPendingEndpoint PendingEndpoint;
+	while( PendingEndpoints.Dequeue(PendingEndpoint) )
+	{
+		if( !PendingEndpoint.StaticAddress.IsValid() )
+		{
+			continue;
+		}
+
+		if( PendingEndpoint.bAdd )
+		{
+			StaticAddresses.Add(PendingEndpoint.StaticAddress->Clone());
+		}
+		else
+		{
+			StaticAddresses.RemoveAll([&]( TSharedPtr<FInternetAddr> Addr)
+			{
+				return PendingEndpoint.StaticAddress->CompareEndpoints(*Addr.Get());
+			});
+		}
+	}
+}
+#endif //WITH_EDITOR || IS_PROGRAM
+
 
 
 /* FSingleThreadRunnable interface

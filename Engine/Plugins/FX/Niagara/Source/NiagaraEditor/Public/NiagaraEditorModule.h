@@ -133,6 +133,8 @@ private:
 
 	IConsoleCommand* TestCompileScriptCommand;
 	IConsoleCommand* DumpRapidIterationParametersForAsset;
+	IConsoleCommand* PreventSystemRecompileCommand;
+	IConsoleCommand* PreventAllSystemRecompilesCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 };

@@ -409,6 +409,11 @@ public:
 	*/
 	virtual bool TerminateLaunchedProcess(const FString & ProcessIdentifier) { return false;  };
 
+	/**
+	* Get the message endpoint to use for the session manager, if required
+	*/
+	virtual TSharedPtr<const class FInternetAddr> GetMessagingEndpoint() const { return nullptr; }
+
 public:
 
 	/**

@@ -1189,8 +1189,8 @@ public:
 
 		const bool bFinalFunction = FunctionToCall->HasAnyFunctionFlags(FUNC_Final) || Statement.bIsParentContext;
 		const bool bMathCall = bFinalFunction
-			&& FunctionToCall->HasAllFunctionFlags(FUNC_Static | FUNC_Final | FUNC_Native)
-			&& !FunctionToCall->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly | FUNC_BlueprintCosmetic | FUNC_NetFuncFlags)
+			&& FunctionToCall->HasAllFunctionFlags(FUNC_Static|FUNC_Final|FUNC_Native)
+			&& !FunctionToCall->HasAnyFunctionFlags(FUNC_NetFuncFlags|FUNC_BlueprintAuthorityOnly|FUNC_BlueprintCosmetic|FUNC_NetRequest|FUNC_NetResponse)
 			&& !FunctionToCall->GetOuterUClass()->IsChildOf(UInterface::StaticClass())
 			// If the function has wildcard parameters (e.g. UKismetArrayLibrary) we assume that it
 			// is doing things with reflection data at runtime and will therefore benefit from
@@ -1199,7 +1199,7 @@ public:
 			&& !UEdGraphSchema_K2::HasWildcardParams(FunctionToCall);
 
 		const bool bLocalScriptFunction = 
-			!FunctionToCall->HasAnyFunctionFlags(FUNC_Native|FUNC_NetFuncFlags);
+			!FunctionToCall->HasAnyFunctionFlags(FUNC_Native|FUNC_NetFuncFlags|FUNC_BlueprintAuthorityOnly|FUNC_BlueprintCosmetic|FUNC_NetRequest|FUNC_NetResponse);
 
 		// Handle the function calling context if needed
 		FContextEmitter CallContextWriter(*this);

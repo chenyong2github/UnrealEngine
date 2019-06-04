@@ -12,6 +12,15 @@ TAutoConsoleVariable<float> GlobalScrollAmount(
 	TEXT("How much to scroll for each click of the mouse wheel (in Slate Screen Units)."));
 
 
+float GSlateContrast = 1;
+
+FAutoConsoleVariableRef CVarSlateContrast(
+	TEXT("Slate.Contrast"),
+	GSlateContrast,
+	TEXT("The amount of contrast to apply to the UI.")
+);
+
+
 
 int32 GSlateLayoutCaching = 0;
 
@@ -31,6 +40,8 @@ FAutoConsoleVariableRef CVarSlateFastWidgetPath(
 	GSlateFastWidgetPath,
 	TEXT("Whether or not we enable fast widget pathing.  This mode relies on parent pointers to work correctly.")
 );
+
+
 
 FSlateWidgetStyle::FSlateWidgetStyle()
 { }

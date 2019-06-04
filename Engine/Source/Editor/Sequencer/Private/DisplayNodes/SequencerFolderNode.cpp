@@ -115,6 +115,12 @@ FSlateColor FSequencerFolderNode::GetIconColor() const
 	return FSlateColor(MovieSceneFolder.GetFolderColor());
 }
 
+FLinearColor FSequencerFolderNode::GetDisplayNameColor() const
+{
+	return FLinearColor::White;
+}
+
+
 bool FSequencerFolderNode::CanDrag() const
 {
 	return true;

@@ -167,7 +167,8 @@ public class UnrealEd : ModuleRules
 				"PIEPreviewDeviceProfileSelector",
 				"PakFileUtilities",
 				"TimeManagement",
-			}
+                "DerivedDataCache",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -323,5 +324,10 @@ public class UnrealEd : ModuleRules
 		{
 			PublicDefinitions.Add( "WITH_RECAST=0" );
 		}
-	}
+
+        if (Target.bWithLiveCoding)
+        {
+			PrivateIncludePathModuleNames.Add("LiveCoding");
+        }
+    }
 }

@@ -19,9 +19,10 @@
 * and handed back to the System renderer on load.
 */
 
-class NiagaraRenderer;
+class FNiagaraRenderer;
 class UMaterial;
 class UMaterialInterface;
+class FNiagaraEmitterInstance;
 
 UCLASS(ABSTRACT)
 class NIAGARA_API UNiagaraRendererProperties : public UNiagaraMergeable
@@ -33,7 +34,10 @@ public:
 	: bIsEnabled(true)
 	{
 	}
-	virtual NiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel) PURE_VIRTUAL ( UNiagaraRendererProperties::CreateEmitterRenderer, return nullptr;);
+
+	//UObject Interface End
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) PURE_VIRTUAL ( UNiagaraRendererProperties::CreateEmitterRenderer, return nullptr;);
+	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() PURE_VIRTUAL(UNiagaraRendererProperties::CreateBoundsCalculator, return nullptr;);
 	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& OutMaterials) const PURE_VIRTUAL(UNiagaraRendererProperties::GetUsedMaterials,);
 
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const { return false; };
@@ -51,15 +55,9 @@ public:
 	// GPU simulation uses DrawIndirect, so the sim step needs to know indices per instance in order to prepare the draw call parameters
 	virtual uint32 GetNumIndicesPerInstance() { return 0; }
 
-	virtual bool GetIsEnabled() const
-	{
-		return bIsEnabled;
-	}
-
-	virtual void SetIsEnabled(bool bInIsEnabled)
-	{
-		bIsEnabled = bInIsEnabled;
-	}
+	virtual bool GetIsEnabled() const { return bIsEnabled; }
+	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
+	
 	/** By default, emitters are drawn in the order that they are added to the system. This value will allow you to control the order in a more fine-grained manner. 
 	Materials of the same type (i.e. Transparent) will draw in order from lowest to highest within the system. The default value is 0.*/
 	UPROPERTY(EditAnywhere, Category = "Sort Order")

@@ -34,6 +34,9 @@ namespace Audio
 		// interpolates coefficient and processes a sample
 		void ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
 
+		// interpolates coefficient and processes a buffer
+		void ProcessAudioBuffer(float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
+
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.
 			Snaps the coefficient to the target value.
@@ -58,6 +61,7 @@ namespace Audio
 		float B1Delta{ 0.0f }; // coefficient step size 
 		float B1Target{ 0.0f };
 		TArray<float> Z1; // multi-channel delay terms
+		float* Z1Data{ nullptr };
 		int32 CurrInterpLength{ 0 };
 		int32 CurrInterpCounter{ 0 };
 		int32 NumInterpSteps;
@@ -95,6 +99,9 @@ namespace Audio
 		// interpolates coefficient and processes a sample
 		void ProcessAudioFrame(float* RESTRICT InputFrame, float* RESTRICT OutputFrame);
 
+		// interpolates coefficient and processes a buffer
+		void ProcessAudioBuffer(float* RESTRICT InputBuffer, float* RESTRICT OutputBuffer, const int32 NumSamples);
+
 		/*
 			StopFrequencyInterpolation() needs to be called manually when the interpolation should be done.
 			Snaps the coefficient to the target value.
@@ -127,6 +134,7 @@ namespace Audio
 		float A0Delta{ 0.0f }; // coefficient step size
 		float A0Target{ 0.0f };
 		TArray<float> Z1; // multi-channel delay terms
+		float* Z1Data{ nullptr };
 		int32 CurrInterpLength{ 0 };
 		int32 CurrInterpCounter{ 0 };
 		int32 NumInterpSteps;

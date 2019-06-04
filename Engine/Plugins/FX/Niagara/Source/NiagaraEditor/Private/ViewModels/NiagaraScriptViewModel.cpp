@@ -8,7 +8,6 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraScriptInputCollectionViewModel.h"
 #include "NiagaraScriptOutputCollectionViewModel.h"
-#include "NiagaraMetaDataCollectionViewModel.h"
 #include "NiagaraNodeInput.h"
 #include "INiagaraCompiler.h"
 #include "Kismet2/CompilerResultsLog.h"
@@ -23,8 +22,8 @@ template<> TMap<UNiagaraScript*, TArray<FNiagaraScriptViewModel*>> TNiagaraViewM
 FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraScript* InScript, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
 	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(InScript, DisplayName, InParameterEditMode)))
 	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InScript, InParameterEditMode)))
-	, MetaDataCollectionViewModel(MakeShareable(new FNiagaraMetaDataCollectionViewModel()))
 	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(Cast<UNiagaraScriptSource>(InScript->GetSource()), DisplayName)))
+	, VariableSelection(MakeShareable(new FNiagaraObjectSelection()))
 	, bUpdatingSelectionInternally(false)
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
 {
@@ -38,14 +37,8 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraScript* InScript, FText
 	InputCollectionViewModel->GetSelection().OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::InputViewModelSelectionChanged);
 	InputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::InputParameterValueChanged);
 	OutputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::OutputParameterValueChanged);
-	GraphViewModel->GetSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
+	GraphViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
 	GEditor->RegisterForUndo(this);
-
-	if (Source != nullptr)
-	{
-		UNiagaraGraph* Graph = Source->NodeGraph;
-		MetaDataCollectionViewModel->SetGraph(Graph);
-	}
 
 	// Guess at initial compile status
 	if (InScript != nullptr && InScript->GetVMExecutableData().IsValid() && InScript->GetVMExecutableData().ByteCode.Num() == 0) // This is either a brand new script or failed in the past. Since we create a default working script, assume invalid.
@@ -74,8 +67,8 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraScript* InScript, FText
 FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
 	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(InEmitter, DisplayName, InParameterEditMode)))
 	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InEmitter, InParameterEditMode)))
-	, MetaDataCollectionViewModel(MakeShareable(new FNiagaraMetaDataCollectionViewModel()))
 	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(Cast<UNiagaraScriptSource>(InEmitter->GraphSource), DisplayName)))
+	, VariableSelection(MakeShareable(new FNiagaraObjectSelection()))
 	, bUpdatingSelectionInternally(false)
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
 {
@@ -89,16 +82,12 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FTe
 		Scripts[i]->OnVMScriptCompiled().AddRaw(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
 	}
 	Source = Cast<UNiagaraScriptSource>(InEmitter->GraphSource);
-
+ 
 	InputCollectionViewModel->GetSelection().OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::InputViewModelSelectionChanged);
 	InputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::InputParameterValueChanged);
 	OutputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::OutputParameterValueChanged);
-	GraphViewModel->GetSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
+	GraphViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
 	GEditor->RegisterForUndo(this);
-
-	UNiagaraGraph* Graph = Source->NodeGraph;
-
-	MetaDataCollectionViewModel->SetGraph(Graph);
 
 	// Guess at initial compile status
 	LastCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDate;
@@ -150,7 +139,6 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FTe
 		CompileTypes[i].Key = Scripts[i]->GetUsage();
 		CompileTypes[i].Value = Scripts[i]->GetUsageId();
 	}
-	//UE_LOG(LogNiagaraEditor, Warning, TEXT("FNiagaraScriptViewModel %p"), this);
 }
 
 void FNiagaraScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
@@ -204,7 +192,7 @@ bool FNiagaraScriptViewModel::IsGraphDirty() const
 FNiagaraScriptViewModel::~FNiagaraScriptViewModel()
 {
 	InputCollectionViewModel->GetSelection().OnSelectedObjectsChanged().RemoveAll(this);
-	GraphViewModel->GetSelection()->OnSelectedObjectsChanged().RemoveAll(this);
+	GraphViewModel->GetNodeSelection()->OnSelectedObjectsChanged().RemoveAll(this);
 
 	if (Source.IsValid() && Source != nullptr)
 	{
@@ -276,14 +264,6 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, T
 	InputCollectionViewModel->SetScripts(InScripts);
 	OutputCollectionViewModel->SetScripts(InScripts);
 	GraphViewModel->SetScriptSource(Source.Get());
-
-	UNiagaraGraph* Graph = nullptr;
-	if (Source.IsValid() && Source != nullptr)
-	{
-		// The underlying graph may have changed after the previous call.
-		Graph = Source->NodeGraph;
-	}
-	MetaDataCollectionViewModel->SetGraph(Graph);
 
 	// Guess at initial compile status
 	LastCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDate;
@@ -385,19 +365,14 @@ TSharedRef<FNiagaraScriptOutputCollectionViewModel> FNiagaraScriptViewModel::Get
 	return OutputCollectionViewModel;
 }
 
-TSharedRef<FNiagaraMetaDataCollectionViewModel> FNiagaraScriptViewModel::GetMetadataCollectionViewModel()
-{
-	return MetaDataCollectionViewModel;
-}
-
-void FNiagaraScriptViewModel::RefreshMetadataCollection()
-{
-	MetaDataCollectionViewModel->RequestRefresh();
-}
-
 TSharedRef<FNiagaraScriptGraphViewModel> FNiagaraScriptViewModel::GetGraphViewModel()
 {
 	return GraphViewModel;
+}
+
+TSharedRef<FNiagaraObjectSelection> FNiagaraScriptViewModel::GetVariableSelection()
+{
+	return VariableSelection;
 }
 
 UNiagaraScript* FNiagaraScriptViewModel::GetStandaloneScript()
@@ -497,13 +472,13 @@ UNiagaraScript* FNiagaraScriptViewModel::GetScript(ENiagaraScriptUsage InUsage, 
 	return nullptr;
 }
 
-void FNiagaraScriptViewModel::CompileStandaloneScript()
+void FNiagaraScriptViewModel::CompileStandaloneScript(bool bForceCompile)
 {
 	if (Source.IsValid() && Source != nullptr && Scripts.Num() == 1 && Scripts[0].IsValid ())
 	{
 		if (Scripts[0]->IsStandaloneScript() && Scripts[0]->IsCompilable())
 		{
-			Scripts[0]->RequestCompile();
+			Scripts[0]->RequestCompile(bForceCompile);
 		}
 		else if (!Scripts[0]->IsCompilable())
 		{
@@ -563,7 +538,7 @@ void FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged()
 		bUpdatingSelectionInternally = true;
 		{
 			TSet<FName> SelectedInputIds;
-			for (UObject* SelectedObject : GraphViewModel->GetSelection()->GetSelectedObjects())
+			for (UObject* SelectedObject : GraphViewModel->GetNodeSelection()->GetSelectedObjects())
 			{
 				UNiagaraNodeInput* InputNode = Cast<UNiagaraNodeInput>(SelectedObject);
 				if (InputNode != nullptr)
@@ -613,7 +588,7 @@ void FNiagaraScriptViewModel::InputViewModelSelectionChanged()
 				}
 			}
 
-			GraphViewModel->GetSelection()->SetSelectedObjects(NodesToSelect);
+			GraphViewModel->GetNodeSelection()->SetSelectedObjects(NodesToSelect);
 		}
 		bUpdatingSelectionInternally = false;
 	}

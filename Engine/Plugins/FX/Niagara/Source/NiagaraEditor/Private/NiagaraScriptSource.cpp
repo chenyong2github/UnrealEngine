@@ -43,16 +43,28 @@ UNiagaraScriptSource::UNiagaraScriptSource(const FObjectInitializer& ObjectIniti
 {
 }
 
-void UNiagaraScriptSource::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
+void UNiagaraScriptSource::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id, ENiagaraScriptUsage InUsage, const FGuid& InUsageId, bool bForceRebuild) const
 {
 	Id.ScriptUsageType = InUsage;
 	Id.ScriptUsageTypeID = InUsageId;
 	Id.CompilerVersionID = FNiagaraCustomVersion::LatestScriptCompileVersion;
 	if (NodeGraph)
 	{
-		Id.BaseScriptID = NodeGraph->GetCompileID(InUsage, InUsageId);
-		NodeGraph->GatherExternalDependencyIDs(InUsage, InUsageId, Id.ReferencedDependencyIds, Id.ReferencedObjects);
+		NodeGraph->RebuildCachedCompileIds(bForceRebuild);
+		Id.BaseScriptID = NodeGraph->GetBaseId(InUsage, InUsageId);
+		Id.BaseScriptCompileHash = FNiagaraCompileHash(NodeGraph->GetCompileDataHash(InUsage, InUsageId));
+		NodeGraph->GatherExternalDependencyIDs(InUsage, InUsageId, Id.ReferencedCompileHashes, Id.ReferencedDependencyIds, Id.ReferencedObjects);
 	}
+}
+
+FGuid UNiagaraScriptSource::GetCompileBaseId(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
+{
+	return NodeGraph->GetBaseId(InUsage, InUsageId);
+}
+
+FNiagaraCompileHash UNiagaraScriptSource::GetCompileHash(ENiagaraScriptUsage InUsage, const FGuid& InUsageId) const
+{
+	return NodeGraph->GetCompileDataHash(InUsage, InUsageId);
 }
 
 void UNiagaraScriptSource::InvalidateCachedCompileIds() 

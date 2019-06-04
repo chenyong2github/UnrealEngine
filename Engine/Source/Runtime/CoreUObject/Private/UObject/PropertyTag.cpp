@@ -112,7 +112,7 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 
 	// Name.
 	Record << NAMED_ITEM("Name", Tag.Name);
-	if ((Tag.Name == NAME_None) || !Tag.Name.IsValid())
+	if (Tag.Name.IsNone())
 	{
 		return;
 	}
@@ -128,52 +128,57 @@ void operator<<(FStructuredArchive::FSlot Slot, FPropertyTag& Tag)
 		FArchive::FScopeSetDebugSerializationFlags S(UnderlyingArchive, DSF_IgnoreDiff);
 		Record << NAMED_ITEM("Size", Tag.Size) << NAMED_ITEM("ArrayIndex", Tag.ArrayIndex);
 	}
-	// only need to serialize this for structs
-	if (Tag.Type == NAME_StructProperty)
-	{
-		Record << NAMED_ITEM("StructName", Tag.StructName);
-		if (Version >= VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
-		{
-			Record << NAMED_ITEM("StructGuid", Tag.StructGuid);
-		}
-	}
-	// only need to serialize this for bools
-	else if (Tag.Type == NAME_BoolProperty && !UnderlyingArchive.IsTextFormat())
-	{
-		if (UnderlyingArchive.IsSaving())
-		{
-			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, Tag.Prop);
-			Record << NAMED_ITEM("BoolVal", Tag.BoolVal);
-		}
-		else
-		{
-			Record << NAMED_ITEM("BoolVal", Tag.BoolVal);
-		}
-	}
-	// only need to serialize this for bytes/enums
-	else if (Tag.Type == NAME_ByteProperty || Tag.Type == NAME_EnumProperty)
-	{
-		Record << NAMED_ITEM("EnumName", Tag.EnumName);
-	}
-	// only need to serialize this for arrays
-	else if (Tag.Type == NAME_ArrayProperty)
-	{
-		if (Version >= VAR_UE4_ARRAY_PROPERTY_INNER_TAGS)
-		{
-			Record << NAMED_ITEM("InnerType", Tag.InnerType);
-		}
-	}
 
-	if (Version >= VER_UE4_PROPERTY_TAG_SET_MAP_SUPPORT)
+	if (Tag.Type.GetNumber() == 0)
 	{
-		if (Tag.Type == NAME_SetProperty)
+		FNameEntryId TagType = Tag.Type.GetComparisonIndex();
+
+		// only need to serialize this for structs
+		if (TagType == NAME_StructProperty)
 		{
-			Record << NAMED_ITEM("InnerType", Tag.InnerType);
+			Record << NAMED_ITEM("StructName", Tag.StructName);
+			if (Version >= VER_UE4_STRUCT_GUID_IN_PROPERTY_TAG)
+			{
+				Record << NAMED_ITEM("StructGuid", Tag.StructGuid);
+			}
 		}
-		else if (Tag.Type == NAME_MapProperty)
+		// only need to serialize this for bools
+		else if (TagType == NAME_BoolProperty && !UnderlyingArchive.IsTextFormat())
 		{
-			Record << NAMED_ITEM("InnerType", Tag.InnerType);
-			Record << NAMED_ITEM("ValueType", Tag.ValueType);
+			if (UnderlyingArchive.IsSaving())
+			{
+				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, Tag.Prop);
+				Record << NAMED_ITEM("BoolVal", Tag.BoolVal);
+			}
+			else
+			{
+				Record << NAMED_ITEM("BoolVal", Tag.BoolVal);
+			}
+		}
+		// only need to serialize this for bytes/enums
+		else if (TagType == NAME_ByteProperty || TagType == NAME_EnumProperty)
+		{
+			Record << NAMED_ITEM("EnumName", Tag.EnumName);
+		}
+		// only need to serialize this for arrays
+		else if (TagType == NAME_ArrayProperty)
+		{
+			if (Version >= VAR_UE4_ARRAY_PROPERTY_INNER_TAGS)
+			{
+				Record << NAMED_ITEM("InnerType", Tag.InnerType);
+			}
+		}
+		else if (Version >= VER_UE4_PROPERTY_TAG_SET_MAP_SUPPORT)
+		{
+			if (TagType == NAME_SetProperty)
+			{
+				Record << NAMED_ITEM("InnerType", Tag.InnerType);
+			}
+			else if (TagType == NAME_MapProperty)
+			{
+				Record << NAMED_ITEM("InnerType", Tag.InnerType);
+				Record << NAMED_ITEM("ValueType", Tag.ValueType);
+			}
 		}
 	}
 

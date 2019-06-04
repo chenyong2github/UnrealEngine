@@ -160,7 +160,7 @@ namespace UnrealBuildTool
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
 		}
 		
-		protected string GetDsymutilPath()
+		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
 
@@ -169,6 +169,7 @@ namespace UnrealBuildTool
 			string DsymutilVersionString = Utils.RunLocalProcessAndReturnStdOut(DsymutilLocation.FullName, "-version");
 
 			bool bUseInstalledDsymutil = true;
+			int Major = 0, Minor = 0, Patch = 0;
 
 			// tease out the version number
 			string[] Tokens = DsymutilVersionString.Split(" ".ToCharArray());
@@ -189,7 +190,6 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					int Major, Minor, Patch;
 					if (!int.TryParse(Versions[0], out Major) || !int.TryParse(Versions[1], out Minor) || !int.TryParse(Versions[2], out Patch))
 					{
 						Log.TraceInformationOnce("Unable to parse version tokens: {0}", Tokens[3]);
@@ -227,6 +227,8 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// 10.0.1 has an issue with LTO builds where we need to limit the number of threads
+			ExtraOptions = (bIsForLTOBuild && Major == 10 && Minor == 0 && Patch == 1) ? "-j 1" : "";
 			return DsymutilLocation.FullName;
 		}
 	};

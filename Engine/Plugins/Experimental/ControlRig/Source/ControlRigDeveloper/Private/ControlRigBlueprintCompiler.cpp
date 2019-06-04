@@ -93,7 +93,6 @@ void FControlRigBlueprintCompilerContext::BuildPropertyLinks()
 						if (bDisplayAsDisabled != RigNode->IsDisplayAsDisabledForced())
 						{
 							RigNode->SetForceDisplayAsDisabled(bDisplayAsDisabled);
-							RigNode->Modify();
 							bEncounteredChange = true;
 						}
 					}
@@ -227,7 +226,6 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 										RigNode->ErrorMsg = TEXT("The node is part of a cycle.");
 										RigNode->ErrorType = EMessageSeverity::Error;
 										RigNode->bHasCompilerMessage = true;
-										RigNode->Modify();
 
 										MessageLog.Error(*FString::Printf(TEXT("Node '%s' is part of a cycle."), *Property->GetName()));
 									}
@@ -256,7 +254,6 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 							Node->ErrorMsg.Reset();
 							Node->ErrorType = (int32)EMessageSeverity::Info+1;
 							Node->bHasCompilerMessage = false;
-							Node->Modify();
 						}
 					}
 				}
@@ -398,6 +395,38 @@ void FControlRigBlueprintCompilerContext::PostCompile()
 	{
 		if (ControlRigBlueprint->ModelController)
 		{
+			// ensure that blueprint storage arrays have the right size.
+			// they might get out of sync due to compilation order.
+			for (const FControlRigModelNode& Node : ControlRigBlueprint->Model->Nodes())
+			{
+				for (const FControlRigModelPin& Pin : Node.Pins)
+				{
+					if (Pin.Direction != EGPD_Input)
+					{
+						continue;
+					}
+					if (!Pin.IsArray())
+					{
+						continue;
+					}
+
+					int32 ArraySize = Pin.ArraySize();
+					FString PinPath = ControlRigBlueprint->Model->GetPinPath(Pin.GetPair());
+					ControlRigBlueprint->PerformArrayOperation(PinPath, [ArraySize](FScriptArrayHelper& InArrayHelper, int32 InArrayIndex)
+					{
+						while (InArrayHelper.Num() < ArraySize)
+						{
+							InArrayHelper.AddValue();
+						}
+						while (InArrayHelper.Num() > ArraySize)
+						{
+							InArrayHelper.RemoveValues(InArrayHelper.Num() - 1);
+						}
+						return true;
+					}, true, true);
+				}
+			}
+
 			bSetDefaultsFromModel = ControlRigBlueprint->ModelController->ResendAllPinDefaultNotifications();
 		}
 	}

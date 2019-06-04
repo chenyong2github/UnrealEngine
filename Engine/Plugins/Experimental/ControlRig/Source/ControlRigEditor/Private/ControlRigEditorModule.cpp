@@ -53,6 +53,7 @@
 #include "Graph/NodeSpawners/ControlRigPropertyNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigCommentNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -746,6 +747,10 @@ void FControlRigEditorModule::GetTypeActions(const UControlRigBlueprint* CRB, FB
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	});
 
+	UBlueprintNodeSpawner* CommentNodeSpawner = UControlRigCommentNodeSpawner::Create();
+	check(CommentNodeSpawner != nullptr);
+	ActionRegistrar.AddBlueprintAction(ActionKey, CommentNodeSpawner);
+
 	// Add 'new properties'
 	TArray<FEdGraphPinType> PinTypes;
 	GetDefault<UControlRigGraphSchema>()->GetVariablePinTypes(PinTypes);
@@ -835,7 +840,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 					LOCTEXT("ClearArray", "Clear"),
 					LOCTEXT("ClearArray_Tooltip", "Clear this array of all of its entries"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleClearArray, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->EndSection();
 			}
@@ -851,13 +856,13 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 					LOCTEXT("RemoveArrayElement", "Remove"),
 					LOCTEXT("RemoveArrayElement_Tooltip", "Remove this array element"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleRemoveArrayElement, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->AddMenuEntry(
 					LOCTEXT("InsertArrayElement", "Insert"),
 					LOCTEXT("InsertArrayElement_Tooltip", "Insert an array element after this one"),
 					FSlateIcon(),
-					FUIAction(FExecuteAction::CreateUObject(Node, &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
+					FUIAction(FExecuteAction::CreateUObject(const_cast<UControlRigGraphNode*>(Node), &UControlRigGraphNode::HandleInsertArrayElement, Context.Pin->PinName.ToString())));
 
 				Context.MenuBuilder->EndSection();
 			}

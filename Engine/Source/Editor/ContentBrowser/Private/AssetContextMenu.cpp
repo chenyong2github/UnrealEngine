@@ -1410,7 +1410,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(FMenuBuilder& MenuBuilder)
 
 			AvailableCollections.Sort([](const FCollectionNameType& One, const FCollectionNameType& Two) -> bool
 			{
-				return One.Name < Two.Name;
+				return One.Name.LexicalLess(Two.Name);
 			});
 
 			for (const FCollectionNameType& AvailableCollection : AvailableCollections)

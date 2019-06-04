@@ -163,11 +163,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, ReplicatedUsing=OnRep_Transform, interp, Category=Transform)
 	FVector RelativeScale3D;
 
-private:
-	/** Current transform of the component, relative to the world */
-	FTransform ComponentToWorld;
-
-public:
 	/**
 	* Velocity of the component.
 	* @see GetComponentVelocity()
@@ -276,6 +271,10 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = LOD)
 	TEnumAsByte<enum EDetailMode> DetailMode;
 
+	/** Delegate that will be called when PhysicsVolume has been changed **/
+	UPROPERTY(BlueprintAssignable, Category=PhysicsVolume, meta=(DisplayName="Physics Volume Changed"))
+	FPhysicsVolumeChanged PhysicsVolumeChangedDelegate;
+
 #if WITH_EDITORONLY_DATA
 protected:
 	/** Editor only component used to display the sprite so as to be able to see the location of the Audio Component  */
@@ -289,16 +288,15 @@ private:
 	/** Cache that avoids Quat<->Rotator conversions if possible. Only to be used with RelativeRotation. */
 	FRotationConversionCache RelativeRotationCache;
 
+	/** Current transform of the component, relative to the world */
+	FTransform ComponentToWorld;
+
 public:
 	/** Sets the RelativeRotationCache. Used to ensure component ends up with the same RelativeRotation after calling SetWorldTransform(). */
 	void SetRelativeRotationCache(const FRotationConversionCache& InCache);
 	
 	/** Get the RelativeRotationCache.  */
 	FORCEINLINE const FRotationConversionCache& GetRelativeRotationCache() const { return RelativeRotationCache; }
-
-	/** Delegate that will be called when PhysicsVolume has been changed **/
-	UPROPERTY(BlueprintAssignable, Category=PhysicsVolume, meta=(DisplayName="Physics Volume Changed"))
-	FPhysicsVolumeChanged PhysicsVolumeChangedDelegate;
 
 	/** Delegate called when this component is moved */
 	FTransformUpdated TransformUpdated;

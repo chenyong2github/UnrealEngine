@@ -1281,11 +1281,11 @@ namespace UnrealBuildTool
 				XmlConfig.ApplyTo(ConfigurableObject);
 			}
 
-			// Allow the build platform to set defaults for this target
-			UEBuildPlatform.GetBuildPlatform(Platform).ResetTarget(this);
-
 			// If we've got a changelist set, set that we're making a formal build
 			bFormalBuild = (Version.Changelist != 0 && Version.IsPromotedBuild);
+
+			// Allow the build platform to set defaults for this target
+			UEBuildPlatform.GetBuildPlatform(Platform).ResetTarget(this);
 
 			// Set the default build version
 			if(String.IsNullOrEmpty(BuildVersion))

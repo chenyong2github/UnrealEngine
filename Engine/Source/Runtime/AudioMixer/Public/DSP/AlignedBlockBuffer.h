@@ -16,7 +16,7 @@ namespace Audio
 	public:
 		
 		// Constructor
-		FAlignedBlockBuffer(int32 InSampleCapacity=8192, int32 InMaxNumInspectSamples=1024, uint32 InByteAlignment=AUDIO_BUFFER_ALIGNMENT);
+		FAlignedBlockBuffer(int32 InSampleCapacity=8192, int32 InMaxNumInspectSamples=1024, uint32 InByteAlignment=AUDIO_SIMD_BYTE_ALIGNMENT, uint32 InAllocByteAlignment=AUDIO_BUFFER_ALIGNMENT);
 
 		// Destructor
 		~FAlignedBlockBuffer() throw();
@@ -66,6 +66,7 @@ namespace Audio
 		FAlignedBlockBuffer(const FAlignedBlockBuffer& CopyBuff);
 		
 		// Alignment definition
+		uint32 AllocByteAlignment;
 		uint32 ByteAlignment;
 		uint32 FloatAlignment;
 

@@ -103,6 +103,8 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	virtual void PostEditChangeChainProperty( struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
 
+	virtual void Serialize(FArchive& Ar) override;
+
 	/** The SoundClass assigned to newly created sounds */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName="Default Sound Class"))
 	FSoftObjectPath DefaultSoundClassName;
@@ -115,7 +117,7 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = "Audio", meta = (AllowedClasses = "SoundConcurrency", DisplayName = "Default Sound Concurrency"))
 	FSoftObjectPath DefaultSoundConcurrencyName;
 
-	/** The SoundMix to use as base when no other system has speciicefied a Base SoundMix */
+	/** The SoundMix to use as base when no other system has specified a Base SoundMix */
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundMix"))
 	FSoftObjectPath DefaultBaseSoundMix;
 
@@ -156,7 +158,10 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 
 	/** Allows sounds to play at 0 volume. */
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)
-	uint32 bAllowVirtualizedSounds:1;
+	uint32 bAllowPlayWhenSilent:1;
+
+	UPROPERTY()
+	uint32 bAllowVirtualizedSounds_DEPRECATED:1;
 
 	/** Disables master EQ effect in the audio DSP graph. */
 	UPROPERTY(config, EditAnywhere, Category = "Quality", AdvancedDisplay)

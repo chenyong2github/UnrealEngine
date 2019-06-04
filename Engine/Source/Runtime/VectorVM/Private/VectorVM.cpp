@@ -246,6 +246,7 @@ void FVectorVMContext::PrepareForExec(
 
 	DataSetMetaTable = &InDataSetMetaTable;
 
+	ThreadLocalTempData.Reset(DataSetMetaTable->Num());
 	ThreadLocalTempData.SetNum(DataSetMetaTable->Num());
 }
 
@@ -269,6 +270,7 @@ void FVectorVMContext::FinishExec()
 			MetaTable[DataSetIndex].LockFreeTable();
 			for (int32 IDToFree : Data.IDsToFree)
 			{
+				//UE_LOG(LogVectorVM, Warning, TEXT("AddFreeID: ID:%d | FreeTableIdx:%d."), IDToFree, NumFreeIDs);
 				FreeIDTable[NumFreeIDs++] = IDToFree;
 			}
 			//Unlock the free table.
@@ -1084,6 +1086,7 @@ struct FScalarKernelAcquireID
 			int32 AcquiredID = FreeIDTable[FreeIDTableIndex];
 			checkSlow(AcquiredID != INDEX_NONE);
 
+			//UE_LOG(LogVectorVM, Warning, TEXT("AcquireID: ID:%d | FreeTableIdx:%d."), AcquiredID, FreeIDTableIndex);
 			//Mark this entry in the FreeIDTable as invalid.
 			FreeIDTable[FreeIDTableIndex] = INDEX_NONE;
 
@@ -1127,6 +1130,8 @@ struct FScalarKernelUpdateID
 			{
 				//Add the ID to a thread local list of IDs to free which are actually added to the list safely at the end of this chunk's execution.
 				IDsToFree.Add(InstanceId);
+				IDTable[InstanceId] = INDEX_NONE;
+				//UE_LOG(LogVectorVM, Warning, TEXT("FreeingID: InstanceID:%d."), InstanceId);
 			}
 			else
 			{
@@ -1808,7 +1813,7 @@ void VectorVM::Exec(
 	//
 	for (int32 Idx = 0; Idx < DataSetMetaTable.Num(); Idx++)
 	{
-		uint32 DataSetOffset = DataSetMetaTable[Idx].NumVariables;
+		uint32 DataSetOffset = DataSetMetaTable[Idx].RegisterOffset;
 		DataSetOffsetTable.Add(DataSetOffset);
 		DataSetIndexTable.Add(DataSetMetaTable[Idx].DataSetAccessIndex);	// prime counter index table with the data set offset; will be incremented with every write for each instance
 	}

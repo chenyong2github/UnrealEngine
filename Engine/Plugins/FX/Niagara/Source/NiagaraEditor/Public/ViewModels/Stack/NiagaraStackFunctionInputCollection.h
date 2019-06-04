@@ -52,6 +52,7 @@ private:
 		FNiagaraTypeDefinition Type;
 		int32 SortKey;
 		FText Category;
+		bool bIsStatic;
 	};
 
 	UNiagaraNodeFunctionCall* ModuleNode;

@@ -266,7 +266,7 @@ public:
 
 	static void Shutdown()
 	{
-		// PS4 calls shutdown before initialize has been called, so bail out if that happens  
+		// PS4 calls shutdown before initialize has been called, so bail out if that happens
 		if (!bInitialized)
 		{
 			return;
@@ -323,6 +323,11 @@ uint32 FRHIFrameFlipTrackingRunnable::Run()
 	uint64 SyncFrame = 0;
 	double SyncTime = FPlatformTime::Seconds();
 	bool bForceFlipSync = true;
+
+	if ( ! FPlatformMisc::UseRenderThread() )
+	{
+		return 0;
+	}
 
 	while (bRun)
 	{
@@ -387,6 +392,11 @@ void FRHIFrameFlipTrackingRunnable::Stop()
 
 void FRHIFrameFlipTrackingRunnable::Initialize()
 {
+	if ( ! FPlatformMisc::UseRenderThread() )
+	{
+		return;
+	}
+
 	check(Thread == nullptr);
 	bInitialized = true;
 	Thread = FRunnableThread::Create(&Singleton, TEXT("RHIFrameFlipThread"), 0, TPri_AboveNormal);
@@ -394,6 +404,11 @@ void FRHIFrameFlipTrackingRunnable::Initialize()
 
 void FRHIFrameFlipTrackingRunnable::Shutdown()
 {
+	if ( ! FPlatformMisc::UseRenderThread() )
+	{
+		return;
+	}
+
 	if (!bInitialized)
 	{
 		return;
@@ -425,6 +440,11 @@ void FRHIFrameFlipTrackingRunnable::Shutdown()
 
 void FRHIFrameFlipTrackingRunnable::CompleteGraphEventOnFlip(uint64 PresentIndex, FGraphEventRef Event)
 {
+	if ( ! FPlatformMisc::UseRenderThread() )
+	{
+		return;
+	}
+
 	FScopeLock Lock(&Singleton.CS);
 
 	if (Thread)

@@ -10,6 +10,7 @@
 #include "HAL/Runnable.h"
 #include "Shared/UdpMessageSegment.h"
 #include "Templates/SharedPointer.h"
+#include "Containers/Queue.h"
 
 class FEvent;
 class FInternetAddr;
@@ -103,6 +104,13 @@ protected:
 
 private:
 
+#if WITH_EDITOR || IS_PROGRAM
+	void HandleTargetPlatformDeviceDiscovered( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> DiscoveredDevice );
+	void HandleTargetPlatformDeviceLost( TSharedRef<class ITargetDevice, ESPMode::ThreadSafe> LostDevice );
+	void ProcessPendingEndpoints();
+#endif //WITH_EDITOR || IS_PROGRAM
+
+
 	/** Holds the calculated interval between Hello segments. */
 	FTimespan BeaconInterval;
 
@@ -135,6 +143,16 @@ private:
 
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
+
+#if WITH_EDITOR || IS_PROGRAM
+	/** Holds target devices that have just been discovered **/
+	struct FPendingEndpoint
+	{
+		TSharedPtr<const FInternetAddr> StaticAddress;
+		bool bAdd;
+	};
+	TQueue<FPendingEndpoint,EQueueMode::Mpsc> PendingEndpoints;
+#endif //WITH_EDITOR || IS_PROGRAM
 
 private:
 	

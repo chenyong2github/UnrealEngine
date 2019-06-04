@@ -265,6 +265,13 @@ struct FPrimaryCrashProperties
 	 */
 	FCrashProperty GameSessionID;
 
+	/*
+	 * A hash representing a unique id for a portable callstack. These will be specific to the CL version of the application
+	 * @PCallStackHash	varchar(160)
+	 *
+	 */
+	FString PCallStackHash;
+
 	/**
 	 * Specifies the number of stack frames in the callstack to ignore when symbolicating from a minidump.
 	 */

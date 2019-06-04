@@ -31,8 +31,7 @@ namespace Audio
 	void IOscBase::Init(const float InSampleRate, const int32 InVoiceId, FModulationMatrix* InMatrix, const int32 ModMatrixStage)
 	{
 		VoiceId = InVoiceId;
-		SampleRate = InSampleRate;
-		Nyquist = 0.5f * SampleRate;
+		SetSampleRate(InSampleRate);
 
 		bChanged = true;
 
@@ -94,6 +93,17 @@ namespace Audio
 		if (FreqData.Octave != InOctave)
 		{
 			FreqData.Octave = InOctave;
+			bChanged = true;
+		}
+	}
+
+	void IOscBase::SetSampleRate(const float InSampleRate)
+	{
+		if (InSampleRate != SampleRate)
+		{
+			SampleRate = InSampleRate;
+			Nyquist = 0.5f * SampleRate;
+
 			bChanged = true;
 		}
 	}
