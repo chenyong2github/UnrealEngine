@@ -54,11 +54,6 @@ private:
 	UPROPERTY()
 	ECrossplayPreference CrossplayPreference = ECrossplayPreference::NoSelection;
 	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, ECrossplayPreference, CrossplayPreference);
-
-	/** The voice device selected by the user. Can be blank if the user has not pinned a device */
-	UPROPERTY()
-	FString VoiceConnectionId;
-	EXPOSE_REP_DATA_PROPERTY(FPartyMemberRepData, FString, VoiceConnectionId);
 };
 
 using FPartyMemberDataReplicator = TPartyDataReplicator<FPartyMemberRepData>;
