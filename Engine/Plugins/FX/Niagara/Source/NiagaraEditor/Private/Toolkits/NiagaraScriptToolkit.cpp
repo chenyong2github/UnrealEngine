@@ -143,15 +143,17 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	{
 		DisplayName = FAssetTypeActions_NiagaraScriptDynamicInputs::GetFormattedName();
 	}
-	ScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(EditedNiagaraScript, DisplayName, ENiagaraParameterEditMode::EditAll));
+
+	const FGuid MessageLogGuidKey = FGuid::NewGuid();
+	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraScriptMessageLogName(EditedNiagaraScript), MessageLogGuidKey, NiagaraMessageLog);
+
+	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(EditedNiagaraScript, DisplayName, ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, OriginalNiagaraScript, MessageLogGuidKey));
 
 	OnEditedScriptGraphChangedHandle = ScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkit::OnEditedScriptGraphChanged));
 
 	DetailsScriptSelection = MakeShareable(new FNiagaraObjectSelection());
 	DetailsScriptSelection->SetSelectedObject(EditedNiagaraScript);
-
-	const FGuid MessageLogGuidKey = FGuid::NewGuid();
 	
  	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog"); //@todo(message manager) remove stats listing
  	FMessageLogInitializationOptions LogOptions;
@@ -162,8 +164,6 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	LogOptions.MaxPageCount = 1;
 	StatsListing = MessageLogModule.CreateLogListing("MaterialEditorStats", LogOptions);
 	Stats = MessageLogModule.CreateLogListingWidget(StatsListing.ToSharedRef());
-
-	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraScriptMessageLogName(EditedNiagaraScript), MessageLogGuidKey, NiagaraMessageLog);
 
 	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v8")
 	->AddArea
