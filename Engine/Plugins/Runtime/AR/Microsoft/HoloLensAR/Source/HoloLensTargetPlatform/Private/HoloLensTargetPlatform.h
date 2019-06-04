@@ -7,7 +7,7 @@
 #pragma once
 
 #include "Common/TargetPlatformBase.h"
-#include "Runtime/Core/Public/HoloLens/HoloLensProperties.h"
+#include "Runtime/Core/Public/HoloLens/HoloLensPlatformProperties.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HoloLensTargetDevice.h"
 #include "Misc/ScopeLock.h"
