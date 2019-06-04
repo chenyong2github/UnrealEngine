@@ -754,7 +754,12 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 -(bool)HasRecordPermission
 {
+#if PLATFORM_TVOS
+	// TVOS does not have sound recording capabilities.
+	return false;
+#else
 	return [[AVAudioSession sharedInstance] recordPermission] == AVAudioSessionRecordPermissionGranted;
+#endif
 }
 
 -(void)EnableHighQualityVoiceChat:(bool)bEnable
