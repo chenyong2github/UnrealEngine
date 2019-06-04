@@ -5353,6 +5353,7 @@ bool ALandscape::ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLay
 		FLandscapeLayer Layer = LandscapeLayers[InStartingLayerIndex];
 		LandscapeLayers.RemoveAt(InStartingLayerIndex);
 		LandscapeLayers.Insert(Layer, InDestinationLayerIndex);
+		RequestLayersContentUpdateForceAll();
 		return true;
 	}
 	return false;
@@ -5413,6 +5414,26 @@ void ALandscape::SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStat
 	}
 
 	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
+}
+
+bool ALandscape::ReorderLayerBrush(int32 InLayerIndex, int32 InTargetType, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex)
+{
+	if (const FLandscapeLayer* Layer = GetLayer(InLayerIndex))
+	{
+		TArray<int8>& BrushOrderStack = GetBrushesOrderForLayer(InLayerIndex, InTargetType);
+		if (InStartingLayerBrushIndex != InDestinationLayerBrushIndex &&
+			BrushOrderStack.IsValidIndex(InStartingLayerBrushIndex) &&
+			BrushOrderStack.IsValidIndex(InDestinationLayerBrushIndex))
+		{
+			Modify();
+			int8 MovingBrushIndex = BrushOrderStack[InStartingLayerBrushIndex];
+			BrushOrderStack.RemoveAt(InStartingLayerBrushIndex);
+			BrushOrderStack.Insert(MovingBrushIndex, InDestinationLayerBrushIndex);
+			RequestLayersContentUpdateForceAll();
+			return true;
+		}
+	}
+	return false;
 }
 
 void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)

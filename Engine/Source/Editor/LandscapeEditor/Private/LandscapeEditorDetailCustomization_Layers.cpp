@@ -717,7 +717,6 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::HandleAcceptDrop(FDragDropEvent
 			{
 				LandscapeEdMode->SetCurrentLayer(DestinationLayerIndex);
 				LandscapeEdMode->RefreshDetailPanel();
-				LandscapeEdMode->RequestLayersContentUpdateForceAll();
 				return FReply::Handled();
 			}
 		}
