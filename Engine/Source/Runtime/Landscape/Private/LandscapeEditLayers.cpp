@@ -2738,7 +2738,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 
 					FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 
-					if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingHeightmap())
+					if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingHeightmap() || !Brush.BPCustomBrush->IsVisible())
 					{
 						continue;
 					}
@@ -3473,7 +3473,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 					{
 						FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 
-						if (Brush.BPCustomBrush == nullptr)
+						if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsVisible())
 						{
 							continue;
 						}
@@ -3593,7 +3593,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 
 							FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 
-							if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsAffectingWeightmapLayer(LayerInfoObj->LayerName))
+							if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsAffectingWeightmapLayer(LayerInfoObj->LayerName) || !Brush.BPCustomBrush->IsVisible())
 							{
 								continue;
 							}
@@ -5443,6 +5443,14 @@ void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintCustomBr
 		Layer->Brushes.Add(FLandscapeLayerBrush(InBrush));
 		InBrush->SetOwningLandscape(this);
 		RequestLayersContentUpdateForceAll();
+	}
+}
+
+void ALandscape::RemoveBrush(ALandscapeBlueprintCustomBrush* InBrush)
+{
+	for (int32 LayerIndex = 0; LayerIndex < LandscapeLayers.Num(); ++LayerIndex)
+	{
+		RemoveBrushFromLayer(LayerIndex, InBrush);
 	}
 }
 

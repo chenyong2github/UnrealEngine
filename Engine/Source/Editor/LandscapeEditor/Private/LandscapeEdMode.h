@@ -508,6 +508,9 @@ public:
 	void SetCurrentBrush(FName BrushName);
 	void SetCurrentBrush(int32 BrushIndex);
 
+	void UpdateBrushList();
+	const TArray<ALandscapeBlueprintCustomBrush*>& GetBrushList() const;
+
 	const TArray<TSharedRef<FLandscapeTargetListInfo>>& GetTargetList() const;
 	const TArray<FName>* GetTargetDisplayOrderList() const;
 	const TArray<FName>& GetTargetShownList() const;
@@ -614,6 +617,7 @@ public:
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;
 	TArray<FLandscapeListInfo> LandscapeList;
+	TArray<ALandscapeBlueprintCustomBrush*> BrushList;
 	TArray<FName> ShownTargetLayerList;
 	
 	/** Represent the index offset of the target layer in LandscapeTargetList */
