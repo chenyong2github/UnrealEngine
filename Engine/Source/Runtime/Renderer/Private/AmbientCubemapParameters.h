@@ -12,7 +12,7 @@
 
 class FShaderParameterMap;
 
-/** Pixel shader parameters needed for deferred passes. */
+// DEPRECATED: use FAmbientCubemapParameters instead.
 class FCubemapShaderParameters
 {
 public:
@@ -34,3 +34,12 @@ private:
 	void SetParametersTemplate(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FFinalPostProcessSettings::FCubemapEntry& Entry) const;
 };
 
+/** Shader parameters needed for deferred passes sampling the ambient cube map. */
+BEGIN_SHADER_PARAMETER_STRUCT(FAmbientCubemapParameters, )
+	SHADER_PARAMETER(FLinearColor, AmbientCubemapColor)
+	SHADER_PARAMETER(FVector4, AmbientCubemapMipAdjust)
+	SHADER_PARAMETER_TEXTURE(TextureCube, AmbientCubemap)
+	SHADER_PARAMETER_SAMPLER(SamplerState, AmbientCubemapSampler)
+END_SHADER_PARAMETER_STRUCT()
+
+void SetupAmbientCubemapParameters(const FFinalPostProcessSettings::FCubemapEntry& Entry, FAmbientCubemapParameters* OutParameters);

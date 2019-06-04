@@ -9,7 +9,6 @@
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "PostProcess/PostProcessInput.h"
 #include "PostProcess/PostProcessing.h"
-#include "CompositionLighting/PostProcessAmbient.h"
 #include "CompositionLighting/PostProcessLpvIndirect.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "CompositionLighting/PostProcessDeferredDecals.h"
@@ -105,15 +104,6 @@ bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View)
 	bEnabled &= !ShouldRenderRayTracingAmbientOcclusion(View);
 #endif
 	return bEnabled;
-}
-
-static void AddPostProcessingAmbientCubemap(FPostprocessContext& Context, FRenderingCompositeOutputRef AmbientOcclusion)
-{
-	FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessAmbient());
-	Pass->SetInput(ePId_Input0, Context.FinalOutput);
-	Pass->SetInput(ePId_Input1, AmbientOcclusion);
-
-	Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
 }
 
 // @param Levels 0..3, how many different resolution levels we want to render
@@ -350,19 +340,6 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 						TEXT("Ambient occlusion decals are not supported with Async compute SSAO."));
 				}
 
-			}
-
-			if (SceneContext.bScreenSpaceAOIsValid && FSSAOHelper::IsBasePassAmbientOcclusionRequired(Context.View))
-			{
-				FRenderingCompositePass* Pass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBasePassAO());
-				Pass->AddDependency(Context.FinalOutput);
-
-				Context.FinalOutput = FRenderingCompositeOutputRef(Pass);
-			}
-
-			if (IsAmbientCubemapPassRequired(Context.View))
-			{
-				AddPostProcessingAmbientCubemap(Context, AmbientOcclusion);
 			}
 		}
 

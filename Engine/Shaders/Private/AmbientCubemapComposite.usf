@@ -1,9 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostprocessAmbient.usf: To apply a ambient cubemap as a postprocess
-=============================================================================*/
-
 #include "Common.ush"
 #include "PostProcessCommon.ush"
 #include "DeferredShadingCommon.ush"
@@ -12,8 +8,13 @@
 #include "BRDF.ush"
 #include "MonteCarlo.ush"
 #include "ShadingModels.ush"
+#include "SceneTextureParameters.ush"
 
 #define IMPORTANCE_SAMPLE		0
+
+Texture2D AmbientOcclusionTexture;
+SamplerState AmbientOcclusionSampler;
+
 
 float3 DiffuseIBL( uint2 Random, float3 DiffuseColor, float Roughness, float3 N, float3 V )
 {
@@ -320,15 +321,14 @@ float3 ImageBasedLightingHair( FGBufferData GBuffer, float3 V, float3 N, uint2 R
 
 void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 {
-	float2 UV = UVAndScreenPos.xy;
+	float2 BufferUV = UVAndScreenPos.xy;
+	float2 ScreenSpacePos = UVAndScreenPos.zw;
+	int2 PixelPos = int2(SvPosition.xy);
 
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+
 	float AbsoluteDiffuseMip = AmbientCubemapMipAdjust.z;
 
-	// screen position in [-1, 1] screen space
-	float2 ScreenSpacePos = UVAndScreenPos.zw;
-	int2 PixelPos = (int2)SvPosition.xy;
 
 	float3 ScreenVector = normalize(mul(float4(ScreenSpacePos, 1, 0), View.ScreenToWorld).xyz);
 
@@ -429,7 +429,7 @@ void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPositio
 	}
 
 #if IMPORTANCE_SAMPLE
-	if( GBuffer.ShadingModelID > 0 && UV.x > 0.5 )
+	if( GBuffer.ShadingModelID > 0 && BufferUV.x > 0.5 )
 	{
 		NonSpecularContribution = 0;
 
@@ -445,7 +445,7 @@ void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPositio
 #endif
 
 	// apply darkening from ambient occlusion (does not use PostprocessInput1 to set white texture if SSAO is off)
-	float AmbientOcclusion = GBuffer.GBufferAO * ScreenSpaceData.AmbientOcclusion;
+	float AmbientOcclusion = GBuffer.GBufferAO * AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, BufferUV, 0).r;
 
 	// Subsurface
 	BRANCH if(GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
@@ -471,4 +471,3 @@ void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPositio
 
 	OutColor *= AmbientOcclusion;
 }
-

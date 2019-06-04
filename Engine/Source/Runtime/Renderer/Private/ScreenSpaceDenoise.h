@@ -160,6 +160,11 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectInputs, )
 		// Irradiance in RGB, AO mask in alpha.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
+
+		// Ambient occlusion mask stored in the red channel as [0; 1].
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionMask)
+
+		// Hit distance in world space.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RayHitDistance)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -167,6 +172,9 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectOutputs, )
 		// Irradiance in RGB, AO mask in alpha.
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Color)
+		
+		// Ambient occlusion mask stored in the red channel as [0; 1].
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionMask)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** Entry point to denoise reflections. */

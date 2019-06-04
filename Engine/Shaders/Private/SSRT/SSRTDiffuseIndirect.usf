@@ -7,6 +7,11 @@
 #include "../Random.ush"
 #include "../BRDF.ush"
 #include "../MonteCarlo.ush"
+#include "../SceneTextureParameters.ush"
+
+
+#define TILE_PIXEL_SIZE 8
+
 
 Texture2D		HZBTexture;
 SamplerState	HZBSampler;
@@ -22,29 +27,33 @@ float4 HZBUvFactorAndInvFactor;
 float4 PrevScreenPositionScaleBias;
 float  PrevSceneColorPreExposureCorrection;
 
-void ScreenSpaceDiffuseIndirectPS(
-	in noperspective float4 UVAndScreenPos : TEXCOORD0,
-	float4 SvPosition : SV_POSITION,
-	out float4 OutColor : SV_Target0,
-	out float OutAO : SV_Target1 )
+
+RWTexture2D<float4>	IndirectDiffuseOutput;
+RWTexture2D<float>	AmbientOcclusionOutput;
+
+
+[numthreads(TILE_PIXEL_SIZE, TILE_PIXEL_SIZE, 1)]
+void MainCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID,
+	uint GroupThreadIndex : SV_GroupIndex)
 {
-	float2 UV = UVAndScreenPos.xy;
-	float2 ScreenPos = UVAndScreenPos.zw;
-	uint2 PixelPos = (uint2)SvPosition.xy;
+	uint2 PixelPos = DispatchThreadId + View.ViewRectMin.xy;
+	float2 BufferUV = (PixelPos + 0.5) * View.BufferSizeAndInvSize.zw;
+	float2 ScreenPos = (DispatchThreadId + 0.5) * View.ViewSizeAndInvSize.zw;
 
-	OutColor = 0;
-
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
 
 	// No SSS because diffuse luminance is in alpha channel and we don't have dual source blending.
 	BRANCH if( GBuffer.ShadingModelID == 0 || GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE )
 	{
-		discard;
+		IndirectDiffuseOutput[PixelPos] = 0.0;
+		AmbientOcclusionOutput[PixelPos] = 0.0;
 	}
 
 	const float3 N = GBuffer.WorldNormal;
-	const float SceneDepth = CalcSceneDepth(UV);
+	const float SceneDepth = GBuffer.Depth;
 	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
 
 #if QUALITY == 1
@@ -62,17 +71,21 @@ void ScreenSpaceDiffuseIndirectPS(
 #endif
 
 	float2 Noise;
-	Noise.x = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
-	Noise.y = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 * 117 );
+	Noise.x = InterleavedGradientNoise(PixelPos + 0.5, View.StateFrameIndexMod8);
+	Noise.y = InterleavedGradientNoise(PixelPos + 0.5, View.StateFrameIndexMod8 * 117);
 		
 	//uint2 Random = 0x10000 * Noise;
 	uint2 Random = Rand3DPCG16( int3( PixelPos, View.StateFrameIndexMod8 ) ).xy;
 			
 	// TODO: lot of VGPR, worth recomputing every ray instead?
 	float3x3 TangentBasis = GetTangentBasis( N );
+	
+	float3 DiffuseColor = 0;
+	float AmbientOcclusion = 0;
 
 	// Shoot multiple rays
-	LOOP for( int i = 0; i < NumRays; i++ )
+	LOOP
+	for (uint i = 0; i < NumRays; i++)
 	{
 		// TOOD: VGPR, might be worth recomputing instead?
 		// SvPosition: is SvPosition really needed? Can recompute from PositionTranslatedWorld?
@@ -106,7 +119,7 @@ void ScreenSpaceDiffuseIndirectPS(
 #if 0	// Backface check
 		if( bHit )
 		{
-			float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
+			float3 SampleNormal = GetGBufferDataFromSceneTextures(HitUVz.xy).WorldNormal;
 			bHit = dot( SampleNormal, L ) < 0;
 		}
 #endif
@@ -125,28 +138,28 @@ void ScreenSpaceDiffuseIndirectPS(
 #endif
 
 			// Backface modulation of hit surface
-			float3 SampleNormal = GetGBufferData( HitUVz.xy ).WorldNormal;
+			float3 SampleNormal = GetGBufferDataFromSceneTextures(HitUVz.xy).WorldNormal;
 			SampleColor.rgb *= saturate( 1 - dot( SampleNormal, L ) );
 
 			SampleColor.rgb *= rcp( 1 + Luminance(SampleColor.rgb) );
 
-			OutColor += SampleColor;
+			DiffuseColor += SampleColor.rgb;
+			AmbientOcclusion = SampleColor.a;
 		}
 	}
 
-	OutColor /= NumRays;
-	OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
-	OutColor.rgb *= View.IndirectLightingColorScale;
+	DiffuseColor *= rcp(float(NumRays));
+	AmbientOcclusion *= rcp(float(NumRays));
 
-	OutColor.rgb *= GBuffer.DiffuseColor;
-	OutColor.a = 1 - OutColor.a;
+	DiffuseColor *= rcp( 1 - Luminance(DiffuseColor) );
+	DiffuseColor *= View.IndirectLightingColorScale;
 
-	//OutColor.rgb = OutColor.a;
-	//OutColor.a = 0;
+	AmbientOcclusion = 1 - AmbientOcclusion;
 
-#if USE_PREEXPOSURE
-	OutColor.rgb *= PrevSceneColorPreExposureCorrection;
-#endif
-
-	OutAO = OutColor.a;
-}
+	#if USE_PREEXPOSURE
+		DiffuseColor *= PrevSceneColorPreExposureCorrection;
+	#endif
+	
+	IndirectDiffuseOutput[PixelPos] = float4(DiffuseColor, 0.0);
+	AmbientOcclusionOutput[PixelPos] = AmbientOcclusion;
+} // MainCS()
