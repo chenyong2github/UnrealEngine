@@ -166,6 +166,8 @@ void UAssetManager::PostInitProperties()
 		}
 
 		LoadRedirectorMaps();
+
+		StreamableManager.SetManagerName(FString::Printf(TEXT("%s.StreamableManager"), *GetPathName()));
 	}
 }
 

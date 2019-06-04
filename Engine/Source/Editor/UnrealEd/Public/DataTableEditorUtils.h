@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "Engine/DataTable.h"
 #include "Kismet2/ListenerManager.h"
+#include "Widgets/SWidget.h"
+#include "AssetData.h"
 
 struct FDataTableEditorColumnHeaderData
 {
@@ -82,7 +84,12 @@ struct UNREALED_API FDataTableEditorUtils
 
 	static void CacheDataTableForEditing(const UDataTable* DataTable, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
 
+	/** Returns all script structs that can be used as a data table row. This only includes loaded ones */
 	static TArray<UScriptStruct*> GetPossibleStructs();
+
+	/** Fills in an array with all possible DataTable structs, unloaded and loaded */
+	static void GetPossibleStructAssetData(TArray<FAssetData>& StructAssets);
+	
 	/** Utility function which verifies that the specified struct type is viable for data tables */
 	static bool IsValidTableStruct(UScriptStruct* Struct);
 
@@ -94,4 +101,10 @@ struct UNREALED_API FDataTableEditorUtils
 
 	/** Link to variable type doc  */
 	static const FString VariableTypesTooltipDocLink;
+
+	/** Delegate called when a data table struct is selected */
+	DECLARE_DELEGATE_OneParam(FOnDataTableStructSelected, UScriptStruct*);
+
+	/** Creates a combo box that allows selecting from the list of possible row structures */
+	static TSharedRef<SWidget> MakeRowStructureComboBox(FOnDataTableStructSelected OnSelected);
 };

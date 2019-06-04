@@ -3371,6 +3371,11 @@ void FEditorViewportClient::AddReferencedObjects( FReferenceCollector& Collector
 	}
 }
 
+FString FEditorViewportClient::GetReferencerName() const
+{
+	return TEXT("FEditorViewportClient");
+}
+
 void FEditorViewportClient::ProcessClick(class FSceneView& View, class HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)
 {
 	const FViewportClick Click(&View, this, Key, Event, HitX, HitY);

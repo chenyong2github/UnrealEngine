@@ -152,6 +152,10 @@ class ENGINE_API USpringArmComponent : public USceneComponent
 
 	/** The name of the socket at the end of the spring arm (looking back towards the spring arm origin) */
 	static const FName SocketName;
+
+	/** Returns the desired rotation for the spring arm, before the rotation constraints such as bInheritPitch etc are enforced. */
+	virtual FRotator GetDesiredRotation() const;
+
 protected:
 	/** Cached component-space socket location */
 	FVector RelativeSocketLocation;

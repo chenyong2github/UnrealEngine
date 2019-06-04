@@ -828,7 +828,7 @@ public:
 	TReturnType* CreateDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
 		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, /*bIsAbstract =*/ false, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
 	}
 
 	/**
@@ -843,7 +843,7 @@ public:
 	TReturnType* CreateOptionalDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
 		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, /*bIsAbstract =*/ false, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient));
 	}
 
 	/**
@@ -854,11 +854,19 @@ public:
 	 * @param	SubobjectName				name of the new component
 	 * @param bTransient		true if the component is being assigned to a transient property
 	 */
+
+	/**
+	 * Create a subobject that has the Abstract class flag, child classes are expected to override this by calling SetDefaultSubobjectClass with the same name and a non-abstract class.
+	 * @param	TReturnType					Class of return type, all overrides must be of this type
+	 * @param	SubobjectName				Name of the new component
+	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
+	 */
 	template<class TReturnType>
+	UE_DEPRECATED(4.23, "CreateAbstract did not work as intended and has been deprecated in favor of CreateDefaultObject")
 	TReturnType* CreateAbstractDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
 	{
 		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, /*bIsAbstract =*/ true, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
 	}
 
 	/** 
@@ -872,7 +880,7 @@ public:
 	template<class TReturnType, class TClassToConstructByDefault> 
 	TReturnType* CreateDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const 
 	{ 
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, TReturnType::StaticClass(), TClassToConstructByDefault::StaticClass(), /*bIsRequired =*/ true, /*bIsAbstract =*/ false, bTransient));
+		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, TReturnType::StaticClass(), TClassToConstructByDefault::StaticClass(), /*bIsRequired =*/ true, bTransient));
 	}
 
 	/**
@@ -905,10 +913,17 @@ public:
 	 * @param	TClassToConstructByDefault	if the derived class has not overridden, create a component of this type (default is TReturnType)
 	 * @param	Outer						outer to construct the subobject in
 	 * @param	SubobjectName				name of the new component
-	 * @param bIsRequired			true if the component is required and will always be created even if DoNotCreateDefaultSubobject was sepcified.
+	 * @param bIsRequired			true if the component is required and will always be created even if DoNotCreateDefaultSubobject was specified.
 	 * @param bIsTransient		true if the component is being assigned to a transient property
 	 */
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const;
+	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const;
+
+	UE_DEPRECATED(4.23, "CreateDefaultSubobject no longer takes bAbstract as a parameter.")
+	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const
+	{
+		return CreateDefaultSubobject(Outer, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
+	}
+
 
 	/**
 	 * Sets the class of a subobject for a base class

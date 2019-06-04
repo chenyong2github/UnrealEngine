@@ -288,6 +288,11 @@ private:
 		Collector.AddReferencedObjects(KeepAliveStringTables);
 	}
 
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FStringTableEngineBridge");
+	}
+
 private:
 	struct FAsyncLoadingStringTable
 	{

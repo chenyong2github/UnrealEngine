@@ -17,7 +17,7 @@
 #include "UObject/Package.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/UObjectAnnotation.h"
-#include "Serialization/ArchiveTraceRoute.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
 #include "Serialization/AsyncLoading.h"
 #include "GameMapsSettings.h"
@@ -2651,12 +2651,8 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 			// But disregard package object itself.
 			&&	!Object->IsA(UPackage::StaticClass()) )
 			{
-				UE_LOG(LogWorld, Log, TEXT("%s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does."), *Object->GetFullName());
-				StaticExec(NULL, *FString::Printf(TEXT("OBJ REFS CLASS=%s NAME=%s shortest"),*Object->GetClass()->GetName(), *Object->GetPathName()));
-				TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( Object, true, GARBAGE_COLLECTION_KEEPFLAGS );
-				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, Object );
-				// Print out error message. We don't assert here as there might be multiple culprits.
-				UE_LOG(LogWorld, Warning, TEXT("%s didn't get garbage collected!") LINE_TERMINATOR TEXT("%s"), *Object->GetFullName(), *ErrorString );
+				UE_LOG(LogWorld, Warning, TEXT("Level object %s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does. Referenced by:"), *Object->GetFullName());
+				FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
 				FailCount++;
 			}
 		}

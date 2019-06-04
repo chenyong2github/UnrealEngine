@@ -495,6 +495,7 @@ public:
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override;
 
 	/**
 	 * Called when the user clicks in the viewport

@@ -651,7 +651,7 @@ void UAIPerceptionComponent::GetCurrentlyPerceivedActors(TSubclassOf<UAISense> S
 	OutActors.Reserve(PerceptualData.Num());
 	for (FActorPerceptionContainer::TConstIterator DataIt = GetPerceptualDataConstIterator(); DataIt; ++DataIt)
 	{
-		const bool bCurrentlyPerceived = (SenseToUse == nullptr) ? DataIt->Value.HasAnyCurrentStimulus() : DataIt->Value.IsSenseRegistered(SenseID);
+		const bool bCurrentlyPerceived = (SenseToUse == nullptr) ? DataIt->Value.HasAnyCurrentStimulus() : DataIt->Value.IsSenseActive(SenseID);
 		if (bCurrentlyPerceived)
 		{
 			if (DataIt->Value.Target.IsValid())

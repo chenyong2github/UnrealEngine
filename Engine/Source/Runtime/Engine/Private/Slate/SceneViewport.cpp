@@ -487,7 +487,7 @@ FReply FSceneViewport::OnMouseButtonDown( const FGeometry& InGeometry, const FPo
 			!bNewMenuWasOpened && // We should not focus the viewport if a menu was opened as it would close the menu
 			(bPermanentCapture || bTemporaryCapture))
 		{
-			CurrentReplyState = AcquireFocusAndCapture(FIntPoint(InMouseEvent.GetScreenSpacePosition().X, InMouseEvent.GetScreenSpacePosition().Y));
+			CurrentReplyState = AcquireFocusAndCapture(FIntPoint(InMouseEvent.GetScreenSpacePosition().X, InMouseEvent.GetScreenSpacePosition().Y), EFocusCause::Mouse);
 		}
 	}
 
@@ -497,7 +497,7 @@ FReply FSceneViewport::OnMouseButtonDown( const FGeometry& InGeometry, const FPo
 	return CurrentReplyState;
 }
 
-FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition)
+FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition, EFocusCause FocusCause)
 {
 	bShouldCaptureMouseOnActivate = false;
 
@@ -506,7 +506,7 @@ FReply FSceneViewport::AcquireFocusAndCapture(FIntPoint MousePosition)
 	TSharedRef<SViewport> ViewportWidgetRef = ViewportWidget.Pin().ToSharedRef();
 
 	// Mouse down should focus viewport for user input
-	ReplyState.SetUserFocus(ViewportWidgetRef, EFocusCause::SetDirectly, true);
+	ReplyState.SetUserFocus(ViewportWidgetRef, FocusCause, true);
 
 	UWorld* World = ViewportClient->GetWorld();
 	if (World && World->IsGameWorld() && World->GetGameInstance() && (World->GetGameInstance()->GetFirstLocalPlayerController() || World->IsPlayInEditor()))
@@ -741,7 +741,7 @@ FReply FSceneViewport::OnTouchStarted( const FGeometry& MyGeometry, const FPoint
 			const bool bTemporaryCapture = ViewportClient->CaptureMouseOnClick() == EMouseCaptureMode::CaptureDuringMouseDown;
 			if (bTemporaryCapture)
 			{
-				CurrentReplyState = AcquireFocusAndCapture(FIntPoint(TouchEvent.GetScreenSpacePosition().X, TouchEvent.GetScreenSpacePosition().Y));
+				CurrentReplyState = AcquireFocusAndCapture(FIntPoint(TouchEvent.GetScreenSpacePosition().X, TouchEvent.GetScreenSpacePosition().Y), EFocusCause::Mouse);
 			}
 		}
 		else
@@ -1090,7 +1090,7 @@ FReply FSceneViewport::OnFocusReceived(const FFocusEvent& InFocusEvent)
 				FWidgetPath PathToWidget;
 				SlateApp.GeneratePathToWidgetUnchecked(ViewportWidgetRef, PathToWidget);
 
-				return AcquireFocusAndCapture(GetSizeXY() / 2);
+				return AcquireFocusAndCapture(GetSizeXY() / 2, EFocusCause::Mouse);
 			}
 		}
 	}
@@ -1169,7 +1169,7 @@ FReply FSceneViewport::OnViewportActivated(const FWindowActivateEvent& InActivat
 		//    - the user clicked in our window but not an area our viewport covers.
 		if (InActivateEvent.GetActivationType() == FWindowActivateEvent::EA_Activate && (bShouldCaptureMouseOnActivate || bPermanentCapture))
 		{
-			return AcquireFocusAndCapture(GetSizeXY() / 2);
+			return AcquireFocusAndCapture(GetSizeXY() / 2, EFocusCause::WindowActivate);
 		}
 	}
 

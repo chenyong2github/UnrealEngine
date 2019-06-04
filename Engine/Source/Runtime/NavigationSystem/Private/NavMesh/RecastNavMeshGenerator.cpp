@@ -3187,6 +3187,11 @@ void FRecastTileGenerator::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+FString FRecastTileGenerator::GetReferencerName() const
+{
+	return TEXT("FRecastTileGenerator");
+}
+
 static int32 CaclulateMaxTilesCount(const TNavStatArray<FBox>& NavigableAreas, float TileSizeinWorldUnits, float AvgLayersPerGridCell)
 {
 	int32 GridCellsCount = 0;
@@ -3226,6 +3231,73 @@ FRecastNavMeshGenerator::FRecastNavMeshGenerator(ARecastNavMesh& InDestNavMesh)
 #endif
 
 	INC_DWORD_STAT_BY(STAT_NavigationMemory, sizeof(*this));
+
+	Init();
+
+	int32 MaxTiles = 0;
+	int32 MaxPolysPerTile = 0;
+
+	// recreate navmesh if no data was loaded, or when loaded data doesn't match current grid layout
+	bool bRecreateNavmesh = true;
+	if (DestNavMesh->HasValidNavmesh())
+	{
+		const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
+		const dtNavMeshParams* SavedNavParams = DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh->getParams();
+		if (SavedNavParams)
+		{
+			if (bGameStaticNavMesh)
+			{
+				bRecreateNavmesh = false;
+				MaxTiles = SavedNavParams->maxTiles;
+				MaxPolysPerTile = SavedNavParams->maxPolys;
+			}
+			else
+			{
+				const float TileDim = Config.tileSize * Config.cs;
+				if (SavedNavParams->tileHeight == TileDim && SavedNavParams->tileWidth == TileDim)
+				{
+					const FVector Orig = Recast2UnrealPoint(SavedNavParams->orig);
+					const FVector OrigError(FMath::Fmod(Orig.X, TileDim), FMath::Fmod(Orig.Y, TileDim), FMath::Fmod(Orig.Z, TileDim));
+					if (OrigError.IsNearlyZero())
+					{
+						bRecreateNavmesh = false;
+					}
+					else
+					{
+						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due to saved navmesh origin (%s, usually the RecastNavMesh location) not being aligned with tile size (%d uu) ")
+							, *Orig.ToString(), int(TileDim));
+					}
+				}
+
+				// if new navmesh needs more tiles, force recreating
+				if (!bRecreateNavmesh)
+				{
+					CalcNavMeshProperties(MaxTiles, MaxPolysPerTile);
+					if (FMath::Log2(MaxTiles) != FMath::Log2(SavedNavParams->maxTiles))
+					{
+						bRecreateNavmesh = true;
+						UE_LOG(LogNavigation, Warning, TEXT("Recreating dtNavMesh instance due mismatch in number of bytes required to store serialized maxTiles (%d, %d bits) vs calculated maxtiles (%d, %d bits)")
+							, SavedNavParams->maxTiles, FMath::CeilToInt(FMath::Log2(SavedNavParams->maxTiles))
+							, MaxTiles, FMath::CeilToInt(FMath::Log2(MaxTiles)));
+					}
+				}
+			}
+		};
+	}
+
+	if (bRecreateNavmesh)
+	{
+		// recreate navmesh from scratch if no data was loaded
+		ConstructTiledNavMesh();
+		// mark all the areas we need to update, which is the whole (known) navigable space
+		MarkNavBoundsDirty();
+	}
+	else
+	{
+		// otherwise just update generator params
+		Config.MaxPolysPerTile = MaxPolysPerTile;
+		NumActiveTiles = GetTilesCountHelper(DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh);
+	}
 }
 
 FRecastNavMeshGenerator::~FRecastNavMeshGenerator()
@@ -3305,6 +3377,14 @@ void FRecastNavMeshGenerator::Init()
 	
 	AdditionalCachedData = FRecastNavMeshCachedData::Construct(DestNavMesh);
 
+	if (Config.MaxPolysPerTile <= 0 && DestNavMesh->HasValidNavmesh())
+	{
+		const dtNavMeshParams* SavedNavParams = DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh->getParams();
+		if (SavedNavParams)
+		{
+			Config.MaxPolysPerTile = SavedNavParams->maxPolys;
+		}
+	}
 	UpdateNavigationBounds();
 
 	/** setup maximum number of active tile generator*/
@@ -3320,61 +3400,6 @@ void FRecastNavMeshGenerator::Init()
 	}
 
 	bInitialized = true;
-
-	int32 MaxTiles = 0;
-	int32 MaxPolysPerTile = 0;
-
-	// recreate navmesh if no data was loaded, or when loaded data doesn't match current grid layout
-	bool bRecreateNavmesh = true;
-	if (DestNavMesh->HasValidNavmesh())
-	{
-		const bool bGameStaticNavMesh = IsGameStaticNavMesh(DestNavMesh);
-		const dtNavMeshParams* SavedNavParams = DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh->getParams();
-		if (SavedNavParams)
-		{
-			if (bGameStaticNavMesh)
-			{
-				bRecreateNavmesh = false;
-				MaxTiles = SavedNavParams->maxTiles;
-				MaxPolysPerTile = SavedNavParams->maxPolys;
-			}
-			else
-			{
-				const float TileDim = Config.tileSize * Config.cs;
-				if (SavedNavParams->tileHeight == TileDim && SavedNavParams->tileWidth == TileDim)
-				{
-					const FVector Orig = Recast2UnrealPoint(SavedNavParams->orig);
-					const FVector OrigError(FMath::Fmod(Orig.X, TileDim), FMath::Fmod(Orig.Y, TileDim), FMath::Fmod(Orig.Z, TileDim));
-					if (OrigError.IsNearlyZero())
-					{
-						bRecreateNavmesh = false;
-					}
-				}
-
-				// if new navmesh needs more tiles, force recreating
-				if (!bRecreateNavmesh)
-				{
-					CalcNavMeshProperties(MaxTiles, MaxPolysPerTile);
-					if (FMath::Log2(MaxTiles) != FMath::Log2(SavedNavParams->maxTiles))
-					{
-						bRecreateNavmesh = true;
-					}
-				}
-			}
-		};
-	}
-
-	if (bRecreateNavmesh)
-	{
-		// recreate navmesh from scratch if no data was loaded
-		ConstructTiledNavMesh();
-	}
-	else
-	{
-		// otherwise just update generator params
-		Config.MaxPolysPerTile = MaxPolysPerTile;
-		NumActiveTiles = GetTilesCountHelper(DestNavMesh->GetRecastNavMeshImpl()->DetourNavMesh);
-	}
 }
 
 void FRecastNavMeshGenerator::UpdateNavigationBounds()
@@ -3439,18 +3464,31 @@ bool FRecastNavMeshGenerator::ConstructTiledNavMesh()
 		CalcNavMeshProperties(TiledMeshParameters.maxTiles, TiledMeshParameters.maxPolys);
 		Config.MaxPolysPerTile = TiledMeshParameters.maxPolys;
 
-		const dtStatus status = DetourMesh->init(&TiledMeshParameters);
-
-		if (dtStatusFailed(status))
+		if (TiledMeshParameters.maxTiles == 0)
 		{
-			UE_LOG(LogNavigation, Warning, TEXT("ConstructTiledNavMesh: Could not init navmesh.") );
+			UE_LOG(LogNavigation, Warning, TEXT("ConstructTiledNavMesh: Failed to create navmesh of size 0."));
 			bSuccess = false;
 		}
 		else
 		{
-			bSuccess = true;
-			NumActiveTiles = GetTilesCountHelper(DetourMesh);
-			DestNavMesh->GetRecastNavMeshImpl()->SetRecastMesh(DetourMesh);
+			const dtStatus status = DetourMesh->init(&TiledMeshParameters);
+
+			if (dtStatusFailed(status))
+			{
+				UE_LOG(LogNavigation, Warning, TEXT("ConstructTiledNavMesh: Could not init navmesh."));
+				bSuccess = false;
+			}
+			else
+			{
+				bSuccess = true;
+				NumActiveTiles = GetTilesCountHelper(DetourMesh);
+				DestNavMesh->GetRecastNavMeshImpl()->SetRecastMesh(DetourMesh);
+			}
+		}
+
+		if (bSuccess == false)
+		{
+			dtFreeNavMesh(DetourMesh);
 		}
 	}
 	else
@@ -3521,19 +3559,7 @@ bool FRecastNavMeshGenerator::RebuildAll()
 
 	ConstructTiledNavMesh();
 	
-	// if rebuilding all no point in keeping "old" invalidated areas
-	TArray<FNavigationDirtyArea> DirtyAreas;
-	for (FBox AreaBounds : InclusionBounds)
-	{
-		FNavigationDirtyArea DirtyArea(AreaBounds, ENavigationDirtyFlag::All | ENavigationDirtyFlag::NavigationBounds);
-		DirtyAreas.Add(DirtyArea);
-	}
-
-	if (DirtyAreas.Num())
-	{
-		MarkDirtyTiles(DirtyAreas);
-	}
-	else
+	if (MarkNavBoundsDirty() == false)
 	{
 		// There are no navigation bounds to build, probably navmesh was resized and we just need to update debug draw
 		DestNavMesh->RequestDrawingUpdate();
@@ -4116,6 +4142,24 @@ int32 FRecastNavMeshGenerator::GetDirtyTilesCount(const FBox& AreaBounds) const
 	}
 
 	return DirtyPendingCount + RunningCount;
+}
+
+bool FRecastNavMeshGenerator::MarkNavBoundsDirty()
+{
+	// if rebuilding all no point in keeping "old" invalidated areas
+	TArray<FNavigationDirtyArea> DirtyAreas;
+	for (FBox AreaBounds : InclusionBounds)
+	{
+		FNavigationDirtyArea DirtyArea(AreaBounds, ENavigationDirtyFlag::All | ENavigationDirtyFlag::NavigationBounds);
+		DirtyAreas.Add(DirtyArea);
+	}
+
+	if (DirtyAreas.Num())
+	{
+		MarkDirtyTiles(DirtyAreas);
+		return true;
+	}
+	return false;
 }
 
 void FRecastNavMeshGenerator::MarkDirtyTiles(const TArray<FNavigationDirtyArea>& DirtyAreas)

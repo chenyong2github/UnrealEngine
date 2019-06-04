@@ -952,7 +952,7 @@ void FBlueprintEditor::OnSelectionUpdated(const TArray<FSCSEditorTreeNodePtrType
 				}
 				else
 				{
-					UActorComponent* EditableComponent = NodePtr->GetEditableComponentTemplate(GetBlueprintObj());
+					UActorComponent* EditableComponent = NodePtr->GetOrCreateEditableComponentTemplate(GetBlueprintObj());
 					if (EditableComponent)
 					{
 						InspectorTitle = FText::FromString(NodePtr->GetDisplayString());
@@ -3602,6 +3602,11 @@ void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 			Collector.AddReferencedObject(Obj);
 		}
 	}
+}
+
+FString FBlueprintEditor::GetReferencerName() const
+{
+	return TEXT("FBlueprintEditor");
 }
 
 bool FBlueprintEditor::IsNodeTitleVisible(const UEdGraphNode* Node, bool bRequestRename)

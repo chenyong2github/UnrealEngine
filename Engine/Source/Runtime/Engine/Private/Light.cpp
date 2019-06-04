@@ -16,7 +16,7 @@
 ALight::ALight(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	LightComponent = CreateAbstractDefaultSubobject<ULightComponent>(TEXT("LightComponent0"));
+	LightComponent = CreateDefaultSubobject<ULightComponent>(TEXT("LightComponent0"));
 
 	bCollideWhenPlacing = true;
 	SpawnCollisionHandlingMethod = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;

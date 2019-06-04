@@ -152,6 +152,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	}
 
 	virtual void PostLoad() override;
+	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
 
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated

@@ -180,13 +180,10 @@ bool UControlRigGraphNode::IsDeprecated() const
 	return Super::IsDeprecated();
 }
 
-bool UControlRigGraphNode::ShouldWarnOnDeprecation() const
+FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	return true;
-}
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
 
-FString UControlRigGraphNode::GetDeprecationMessage() const
-{
 	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
 	if (ScriptStruct)
 	{
@@ -194,10 +191,13 @@ FString UControlRigGraphNode::GetDeprecationMessage() const
 		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
 		if (!DeprecatedMetadata.IsEmpty())
 		{
-			return FString::Printf(TEXT("Warning: This node is deprecated from: %s"), *DeprecatedMetadata);
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("DeprecatedMetadata"), FText::FromString(DeprecatedMetadata));
+			Response.MessageText = FText::Format(LOCTEXT("ControlRigGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
 		}
 	}
-	return Super::GetDeprecationMessage();
+
+	return Response;
 }
 
 void UControlRigGraphNode::ReallocatePinsDuringReconstruction(const TArray<UEdGraphPin*>& OldPins)

@@ -57,3 +57,8 @@ void FActiveMovieSceneCaptures::AddReferencedObjects(FReferenceCollector& Collec
 {
 	Collector.AddReferencedObjects(ActiveCaptures);
 }
+
+FString FActiveMovieSceneCaptures::GetReferencerName() const
+{
+	return TEXT("FActiveMovieSceneCaptures");
+}

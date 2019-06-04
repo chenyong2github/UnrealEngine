@@ -12,7 +12,7 @@ class APointLight : public ALight
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category="Light", meta=(ExposeFunctionCategories="PointLight,Rendering|Lighting"))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Light", meta=(ExposeFunctionCategories="PointLight,Rendering|Lighting"))
 	class UPointLightComponent* PointLightComponent;
 
 	// BEGIN DEPRECATED (use component functions now in level script)

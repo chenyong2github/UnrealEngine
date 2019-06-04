@@ -1500,6 +1500,7 @@ public:
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual FString GetReferencerName() const override;
 	//~ End FGCObject Interface
 
 	/**

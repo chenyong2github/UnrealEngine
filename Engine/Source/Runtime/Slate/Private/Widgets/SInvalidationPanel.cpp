@@ -254,6 +254,11 @@ void SInvalidationPanel::AddReferencedObjects(FReferenceCollector& Collector)
 #endif
 }
 
+FString SInvalidationPanel::GetReferencerName() const
+{
+	return TEXT("SInvalidationPanel");
+}
+
 void SInvalidationPanel::SetCanCache(bool InCanCache)
 {
 	bCanCache = InCanCache;

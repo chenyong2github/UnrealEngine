@@ -37,6 +37,9 @@ class NAVIGATIONSYSTEM_API INavLinkCustomInterface
 	/** Get basic link data: two points (relative to owner) and direction */
 	virtual void GetLinkData(FVector& LeftPt, FVector& RightPt, ENavLinkDirection::Type& Direction) const {};
 
+	/** Get agents supported by this link */
+	virtual void GetSupportedAgents(FNavAgentSelector& OutSupportedAgents) const {};
+
 	/** Get basic link data: area class (null = default walkable) */
 	virtual TSubclassOf<UNavArea> GetLinkAreaClass() const { return nullptr; }
 

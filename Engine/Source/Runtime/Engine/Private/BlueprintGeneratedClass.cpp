@@ -116,11 +116,6 @@ void UBlueprintGeneratedClass::PostLoad()
 			}
 		}
 
-		if (Package && Package->HasAnyPackageFlags(PKG_ForDiffing))
-		{
-			ClassFlags |= CLASS_Deprecated;
-		}
-
 #if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
 		// Patch the fast calls (needed as we can't bump engine version to serialize it directly in UFunction right now)
 		for (const FEventGraphFastCallPair& Pair : FastCallPairs_DEPRECATED)
@@ -1005,7 +1000,6 @@ void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTim
 {
 	if (!Actor
 		|| !TimelineTemplate
-		|| !TimelineTemplate->bValidatedAsWired
 		|| Actor->IsTemplate()
 		|| Actor->IsPendingKill())
 	{
@@ -1133,7 +1127,7 @@ void UBlueprintGeneratedClass::CreateComponentsForActor(const UClass* ThisClass,
 		for (UTimelineTemplate* TimelineTemplate : BPGC->Timelines)
 		{
 			// Not fatal if NULL, but shouldn't happen and ignored if not wired up in graph
-			if (TimelineTemplate && TimelineTemplate->bValidatedAsWired)
+			if (TimelineTemplate)
 			{
 				CreateTimelineComponent(Actor, TimelineTemplate);
 			}
@@ -1145,7 +1139,7 @@ void UBlueprintGeneratedClass::CreateComponentsForActor(const UClass* ThisClass,
 		{
 			const UTimelineTemplate* TimelineTemplate = Cast<const UTimelineTemplate>(MiscObj);
 			// Not fatal if NULL, but shouldn't happen and ignored if not wired up in graph
-			if (TimelineTemplate && TimelineTemplate->bValidatedAsWired)
+			if (TimelineTemplate)
 			{
 				CreateTimelineComponent(Actor, TimelineTemplate);
 			}
@@ -1630,6 +1624,13 @@ void UBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	if (Ar.IsLoading() && 0 == (Ar.GetPortFlags() & PPF_Duplicate))
 	{
 		CreatePersistentUberGraphFrame(ClassDefaultObject, true);
+
+		UPackage* Package = GetOutermost();
+		if (Package && Package->HasAnyPackageFlags(PKG_ForDiffing))
+		{
+			// If this is a diff package, set class to deprecated. This happens here to make sure it gets hit in all load cases
+			ClassFlags |= CLASS_Deprecated;
+		}
 	}
 }
 

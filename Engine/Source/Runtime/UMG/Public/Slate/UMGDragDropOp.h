@@ -27,6 +27,7 @@ public:
 
 	// Begin FGCObject
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 	// End FGCObject
 
 	virtual bool AffectedByPointerEvent(const FPointerEvent& PointerEvent) override;

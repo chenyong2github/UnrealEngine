@@ -121,6 +121,20 @@ void UK2Node_FunctionTerminator::PromoteFromInterfaceOverride(bool bIsPrimaryTer
 	Schema->ReconstructNode(*this, true);
 }
 
+UFunction* UK2Node_FunctionTerminator::FindSignatureFunction() const
+{
+	UClass* FoundClass = GetBlueprintClassFromNode();
+	UFunction* FoundFunction = FunctionReference.ResolveMember<UFunction>(FoundClass);
+
+	if (!FoundFunction && FoundClass && GetOuter())
+	{
+		// The resolve will fail if this is a locally-created function, so search using the event graph name
+		FoundFunction = FindField<UFunction>(FoundClass, *GetOuter()->GetName());
+	}
+
+	return FoundFunction;
+}
+
 void UK2Node_FunctionTerminator::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const
 {
 	Super::ValidateNodeDuringCompilation(MessageLog);

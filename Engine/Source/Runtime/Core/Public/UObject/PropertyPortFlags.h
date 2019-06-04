@@ -32,7 +32,11 @@ enum EPropertyPortFlags
 	/** Indicates that this is a blueprint pin or something else that is saved to disk as import text */
 	PPF_SerializedAsImportText		= 0x00000040,
 
-	//								= 0x00000080,
+	/** 
+	 * Set if this is being exported/imported for an external editor format like CSV.
+	 * If true, it uses authored names instead of internal names and default values are always written out.
+	 */
+	PPF_ExternalEditor				= 0x00000080,
 
 	/** only include properties which are marked CPF_InstancedReference */
 	PPF_SubobjectsOnly				= 0x00000100,

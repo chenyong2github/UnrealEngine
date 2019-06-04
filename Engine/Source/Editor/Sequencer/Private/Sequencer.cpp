@@ -2917,7 +2917,7 @@ void FSequencer::PossessPIEViewports(UObject* CameraObject, UObject* UnlockIfCam
 		{
 			if (PC->PlayerCameraManager)
 			{
-				PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+				PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 			}
 
 			if (CameraComponent)
@@ -2960,7 +2960,7 @@ void FSequencer::PossessPIEViewports(UObject* CameraObject, UObject* UnlockIfCam
 	if (PC->PlayerCameraManager)
 	{
 		PC->PlayerCameraManager->bClientSimulatingViewTarget = (CameraActor != nullptr);
-		PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+		PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 	}
 }
 
@@ -3115,6 +3115,10 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 	FMovieSceneRootEvaluationTemplateInstance::StaticStruct()->SerializeBin(Collector.GetVerySlowReferenceCollectorArchive(), &RootTemplateInstance);
 }
 
+FString FSequencer::GetReferencerName() const
+{
+	return TEXT("FSequencer");
+}
 
 void FSequencer::ResetPerMovieSceneData()
 {

@@ -148,6 +148,11 @@ void FPreviewScene::AddReferencedObjects( FReferenceCollector& Collector )
 	Collector.AddReferencedObject( PreviewWorld );
 }
 
+FString FPreviewScene::GetReferencerName() const
+{
+	return TEXT("FPreviewScene");
+}
+
 void FPreviewScene::UpdateCaptureContents()
 {
 	USkyLightComponent::UpdateSkyCaptureContents(PreviewWorld);

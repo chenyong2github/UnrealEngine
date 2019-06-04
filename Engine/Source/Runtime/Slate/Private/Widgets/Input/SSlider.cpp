@@ -2,6 +2,7 @@
 
 #include "Widgets/Input/SSlider.h"
 #include "Rendering/DrawElements.h"
+#include "Framework/Application/SlateApplication.h"
 
 void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 {
@@ -145,6 +146,52 @@ void SSlider::ResetControllerState()
 	}
 }
 
+FNavigationReply SSlider::OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent)
+{
+	FNavigationReply Reply = FNavigationReply::Escape();
+		if (bControllerInputCaptured || !bRequiresControllerLock)
+		{
+			float NewValue = ValueAttribute.Get();
+			if (Orientation == EOrientation::Orient_Horizontal)
+			{
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Left)
+				{
+					NewValue -= StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			else if (InNavigationEvent.GetNavigationType() == EUINavigation::Right)
+				{
+					NewValue += StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			}
+			else
+			{
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Down)
+				{
+					NewValue -= StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			if (InNavigationEvent.GetNavigationType() == EUINavigation::Up)
+				{
+					NewValue += StepSize.Get();
+				Reply = FNavigationReply::Stop();
+				}
+			}
+		if (ValueAttribute.Get() != NewValue)
+		{
+			CommitValue(FMath::Clamp(NewValue, 0.0f, 1.0f));
+		}
+	}
+
+	if (Reply.GetBoundaryRule() != EUINavigationRule::Escape)
+			{
+		Reply = SLeafWidget::OnNavigation(MyGeometry, InNavigationEvent);
+	}
+
+	return Reply;
+}
+
 FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
@@ -155,8 +202,7 @@ FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEve
 		// The controller's bottom face button must be pressed once to begin manipulating the slider's value.
 		// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 		// The value can be manipulated by using the game pad's directional arrows ( relative to slider orientation ).
-		if ((KeyPressed == EKeys::Enter || KeyPressed == EKeys::SpaceBar || KeyPressed == EKeys::Virtual_Accept)
-			&& bRequiresControllerLock)
+		if (FSlateApplication::Get().GetNavigationActionForKey(KeyPressed) == EUINavigationAction::Accept && bRequiresControllerLock)
 		{
 			if (bControllerInputCaptured == false)
 			{
@@ -169,43 +215,6 @@ FReply SSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEve
 			{
 				ResetControllerState();
 				Reply = FReply::Handled();
-			}
-		}
-
-		if (bControllerInputCaptured || !bRequiresControllerLock)
-		{
-			float NewValue = ValueAttribute.Get();
-			if (Orientation == EOrientation::Orient_Horizontal)
-			{
-				if (KeyPressed == EKeys::Left || KeyPressed == EKeys::Gamepad_DPad_Left || KeyPressed == EKeys::Gamepad_LeftStick_Left)
-				{
-					NewValue -= StepSize.Get();
-					Reply = FReply::Handled();
-				}
-				else if (KeyPressed == EKeys::Right || KeyPressed == EKeys::Gamepad_DPad_Right || KeyPressed == EKeys::Gamepad_LeftStick_Right)
-				{
-					NewValue += StepSize.Get();
-					Reply = FReply::Handled();
-				}
-			}
-			else
-			{
-				if (KeyPressed == EKeys::Down || KeyPressed == EKeys::Gamepad_DPad_Down || KeyPressed == EKeys::Gamepad_LeftStick_Down)
-				{
-					NewValue -= StepSize.Get();
-					Reply = FReply::Handled();
-				}
-				else if (KeyPressed == EKeys::Up || KeyPressed == EKeys::Gamepad_DPad_Up || KeyPressed == EKeys::Gamepad_LeftStick_Up)
-				{
-					NewValue += StepSize.Get();
-					Reply = FReply::Handled();
-				}
-			}
-
-			CommitValue(FMath::Clamp(NewValue, 0.0f, 1.0f));
-			if (!Reply.IsEventHandled())
-			{
-				Reply = SLeafWidget::OnKeyDown(MyGeometry, InKeyEvent);
 			}
 		}
 		else

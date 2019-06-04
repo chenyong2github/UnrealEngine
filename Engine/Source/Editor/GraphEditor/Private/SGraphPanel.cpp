@@ -1718,6 +1718,11 @@ void SGraphPanel::AddReferencedObjects(FReferenceCollector& Collector)
 	Collector.AddReferencedObject( GraphObjToDiff );
 }
 
+FString SGraphPanel::GetReferencerName() const
+{
+	return TEXT("SGraphPanel");
+}
+
 EActiveTimerReturnType SGraphPanel::InvalidatePerTick(double InCurrentTime, float InDeltaTime)
 {
 	// Invalidate the layout so it will redraw.

@@ -48,6 +48,8 @@ private:
 
 	FText GetQueryDescText() const;
 
+	void PreSave();
+
 	void CloseWidgetWindow(bool WasCancelled);
 
 	/** Build List of Editable Queries */

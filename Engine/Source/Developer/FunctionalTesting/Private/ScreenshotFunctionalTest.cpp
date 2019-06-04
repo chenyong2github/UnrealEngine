@@ -47,7 +47,7 @@ void AScreenshotFunctionalTest::PrepareTest()
 
 		if (PlayerController && PlayerController->PlayerCameraManager)
 		{
-			PlayerController->PlayerCameraManager->bGameCameraCutThisFrame = true;
+			PlayerController->PlayerCameraManager->SetGameCameraCutThisFrame();
 			if (ScreenshotCamera)
 			{
 				ScreenshotCamera->NotifyCameraCut();

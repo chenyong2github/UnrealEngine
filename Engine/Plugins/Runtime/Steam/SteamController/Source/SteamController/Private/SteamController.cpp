@@ -4,6 +4,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformProcess.h"
 #include "Misc/Paths.h"
+#include "Misc/ConfigCacheIni.h"
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 #include "Modules/ModuleManager.h"
 #include "GenericPlatform/IInputInterface.h"
@@ -73,6 +74,9 @@ public:
 		{
 			return;
 		}
+
+		GConfig->GetDouble(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
+		GConfig->GetDouble(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
 		// Initialize the API, so we can start calling SteamController functions
 		bSteamAPIInitialized = SteamAPI_Init();

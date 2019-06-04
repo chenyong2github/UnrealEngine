@@ -169,6 +169,16 @@ UStruct* UField::GetOwnerStruct() const
 	return nullptr;
 }
 
+FString UField::GetAuthoredName() const
+{
+	UStruct* Struct = GetOwnerStruct();
+	if (Struct)
+	{
+		return Struct->GetAuthoredNameForField(this);
+	}
+	return FString();
+}
+
 void UField::Bind()
 {
 }
@@ -222,10 +232,7 @@ struct FDisplayNameHelper
 
 		if (auto Property = dynamic_cast<const UProperty*>(&Object))
 		{
-			if (auto OwnerStruct = Property->GetOwnerStruct())
-			{
-				return OwnerStruct->PropertyNameToDisplayName(Property->GetFName());
-			}
+			return Property->GetAuthoredName();
 		}
 
 		return Object.GetName();
@@ -246,12 +253,8 @@ FText UField::GetDisplayNameText() const
 
 	const FString Key = GetFullGroupName(false);
 
-	FString NativeDisplayName;
-	if( HasMetaData(NAME_DisplayName) )
-	{
-		NativeDisplayName = GetMetaData(NAME_DisplayName);
-	}
-	else
+	FString NativeDisplayName = GetMetaData(NAME_DisplayName);
+	if (NativeDisplayName.IsEmpty())
 	{
 		NativeDisplayName = FName::NameToDisplayString(FDisplayNameHelper::Get(*this), IsA<UBoolProperty>());
 	}
@@ -1029,12 +1032,11 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 
 				RemainingArrayDim = Property ? Property->ArrayDim : 0;
 			}
-#if WITH_EDITOR
+
 			if (!Property)
 			{
 				Property = CustomFindProperty(Tag.Name);
 			}
-#endif // WITH_EDITOR
 
 			FName PropID = Property ? Property->GetID() : NAME_None;
 			FName ArrayInnerID = NAME_None;
@@ -1461,6 +1463,21 @@ void UStruct::SetSuperStruct(UStruct* NewSuperStruct)
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
 #endif
+}
+
+FString UStruct::PropertyNameToDisplayName(FName InName) const
+{
+	const UField* FoundField = FindField<const UField>(this, InName);
+	return GetAuthoredNameForField(FoundField);
+}
+
+FString UStruct::GetAuthoredNameForField(const UField* Field) const
+{
+	if (Field)
+	{
+		return Field->GetName();
+	}
+	return FString();
 }
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR
@@ -2324,13 +2341,15 @@ void UScriptStruct::ExportText(FString& ValueStr, const void* Value, const void*
 						ValueStr += TEXT(",");
 					}
 
+					const FString PropertyName = (PortFlags & PPF_ExternalEditor) != 0 ? *It->GetAuthoredName() : It->GetName();
+
 					if (It->ArrayDim == 1)
 					{
-						ValueStr += FString::Printf(TEXT("%s="), *It->GetName());
+						ValueStr += FString::Printf(TEXT("%s="), *PropertyName);
 					}
 					else
 					{
-						ValueStr += FString::Printf(TEXT("%s[%i]="), *It->GetName(), Index);
+						ValueStr += FString::Printf(TEXT("%s[%i]="), *PropertyName, Index);
 					}
 					ValueStr += InnerValue;
 				}

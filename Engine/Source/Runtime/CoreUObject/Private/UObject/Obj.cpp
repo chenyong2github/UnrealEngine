@@ -38,7 +38,6 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Serialization/ArchiveShowReferences.h"
 #include "Serialization/ArchiveFindCulprit.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "Misc/PackageName.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"
@@ -101,12 +100,12 @@ void UObject::EnsureNotRetrievingVTablePtr() const
 	UE_CLOG(GIsRetrievingVTablePtr, LogCore, Fatal, TEXT("We are currently retrieving VTable ptr. Please use FVTableHelper constructor instead."));
 }
 
-UObject* UObject::CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient)
+UObject* UObject::CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient)
 {
 	FObjectInitializer* CurrentInitializer = FUObjectThreadContext::Get().TopInitializer();
 	UE_CLOG(!CurrentInitializer, LogObj, Fatal, TEXT("No object initializer found during construction."));
 	UE_CLOG(CurrentInitializer->Obj != this, LogObj, Fatal, TEXT("Using incorrect object initializer."));
-	return CurrentInitializer->CreateDefaultSubobject(this, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bAbstract, bIsTransient);
+	return CurrentInitializer->CreateDefaultSubobject(this, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
 }
 
 UObject* UObject::CreateEditorOnlyDefaultSubobjectImpl(FName SubobjectName, UClass* ReturnType, bool bTransient)
@@ -2858,16 +2857,6 @@ void UObject::OutputReferencers( FOutputDevice& Ar, FReferencerInformationList* 
 	}
 
 	Ar.Logf(TEXT("\r\n") );
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	Ar.Logf(TEXT("Shortest reachability from root to %s:\r\n"), *GetFullName() );
-	TMap<UObject*,UProperty*> Rt = FArchiveTraceRoute::FindShortestRootPath(this,true,GARBAGE_COLLECTION_KEEPFLAGS);
-
-	FString RootPath = FArchiveTraceRoute::PrintRootPath(Rt, this);
-	Ar.Log(*RootPath);
-
-	Ar.Logf(TEXT("\r\n") );
-#endif
 
 	if (bTempReferencers)
 	{

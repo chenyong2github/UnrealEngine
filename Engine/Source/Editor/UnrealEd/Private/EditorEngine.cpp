@@ -10,7 +10,6 @@
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/MetaData.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Application/ThrottleManager.h"
 #include "Framework/Application/SlateApplication.h"
@@ -87,6 +86,7 @@
 #include "Net/NetworkProfiler.h"
 #include "Interfaces/IPluginManager.h"
 #include "UObject/PackageReload.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "IMediaModule.h"
 
@@ -6919,14 +6919,11 @@ void UEditorEngine::VerifyLoadMapWorldCleanup()
 
 			if (!ValidWorld)
 			{
-				// Print some debug information...
-				UE_LOG(LogLoad, Log, TEXT("%s not cleaned up by garbage collection! "), *World->GetFullName());
-				StaticExec(World, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s"), *World->GetPathName()));
-				TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( World, true, GARBAGE_COLLECTION_KEEPFLAGS );
-				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, World );
-				UE_LOG(LogLoad, Log, TEXT("%s"),*ErrorString);
-				// before asserting.
-				UE_LOG(LogLoad, Fatal, TEXT("%s not cleaned up by garbage collection!") LINE_TERMINATOR TEXT("%s") , *World->GetFullName(), *ErrorString );
+				UE_LOG(LogLoad, Error, TEXT("Previously active world %s not cleaned up by garbage collection!"), *World->GetPathName());
+				UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. World referenced by:"));
+			
+				FReferenceChainSearch RefChainSearch(World, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				UE_LOG(LogLoad, Fatal, TEXT("Previously active world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *World->GetPathName(), *RefChainSearch.GetRootPath());
 			}
 		}
 	}

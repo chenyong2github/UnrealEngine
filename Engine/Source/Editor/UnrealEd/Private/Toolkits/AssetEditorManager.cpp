@@ -137,6 +137,10 @@ void FAssetEditorManager::AddReferencedObjects( FReferenceCollector& Collector )
 	}
 }
 
+FString FAssetEditorManager::GetReferencerName() const
+{
+	return TEXT("FAssetEditorManager");
+}
 
 IAssetEditorInstance* FAssetEditorManager::FindEditorForAsset(UObject* Asset, bool bFocusIfOpen)
 {

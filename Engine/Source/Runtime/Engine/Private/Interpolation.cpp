@@ -6774,7 +6774,7 @@ void UInterpTrackDirector::UpdateTrack(float NewPosition, UInterpTrackInst* TrIn
 					
 					if ( PC->PlayerCameraManager )
 					{
-						PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+						PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 					}
 					
 					DirInst->OldViewTarget = BackupViewTarget;

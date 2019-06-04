@@ -268,3 +268,8 @@ void FStandaloneCompositeFont::AddReferencedObjects(FReferenceCollector& Collect
 		}
 	}
 }
+
+FString FStandaloneCompositeFont::GetReferencerName() const
+{
+	return TEXT("FStandaloneCompositeFont");
+}

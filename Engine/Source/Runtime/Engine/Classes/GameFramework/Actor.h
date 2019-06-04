@@ -1286,7 +1286,7 @@ public:
 
 	/** The number of seconds (in game time) since this Actor was created, relative to Get Game Time In Seconds. */
 	UFUNCTION(BlueprintPure, Category=Actor)
-	float GetGameTimeSinceCreation();
+	float GetGameTimeSinceCreation() const;
 
 protected:
 	/** Event when play begins for this actor. */

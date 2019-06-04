@@ -4,13 +4,27 @@
 
 #include "CoreMinimal.h"
 
-/** Differences found within a graph */
+/** Differences found within a graph or object */
 namespace EDiffType
 {
 	/** Differences are presented to the user in the order listed here, so put less important differences lower down */
 	enum Type
 	{
+		// No actual difference
 		NO_DIFFERENCE,
+		
+		// Object does not exist in current version
+		OBJECT_REMOVED,
+
+		// Object was added to current version
+		OBJECT_ADDED,
+
+		// An individual property differs
+		OBJECT_PROPERTY,
+
+		// Requests a full diff to be done on two objects, this will expand into other diffs
+		OBJECT_REQUEST_DIFF,
+
 		NODE_REMOVED,
 		NODE_ADDED,
 		PIN_LINKEDTO_NUM_DEC,
@@ -31,20 +45,25 @@ namespace EDiffType
 		TIMELINE_TRACK_MODIFIED,
 		NODE_PIN_COUNT,
 		NODE_COMMENT,
-		NODE_PROPERTY
+		NODE_PROPERTY,
+
+		// Informational message, does't count as a real diff
+		INFO_MESSAGE
 	};
 }
 
-/** Result of a single difference found on graph.*/
+/** Result of a single difference found on graph or object */
 struct FDiffSingleResult
 {
 	FDiffSingleResult()
 	{
 		Diff = EDiffType::NO_DIFFERENCE;
-		Node1 = NULL;
-		Node2 = NULL;
-		Pin1 = NULL;
-		Pin2 = NULL;
+		Node1 = nullptr;
+		Node2 = nullptr;
+		Pin1 = nullptr;
+		Pin2 = nullptr;
+		Object1 = nullptr;
+		Object2 = nullptr;
 		DisplayColor = FLinearColor::White;
 	}
 
@@ -63,6 +82,12 @@ struct FDiffSingleResult
 	/** The second pin involved in diff */
 	class UEdGraphPin* Pin2;
 
+	/** First top-level object involved in a diff */
+	UObject* Object1;
+
+	/** Second top-level object involved in a diff */
+	UObject* Object2;
+
 	/** String describing the error to the user */
 	FText DisplayString;
 
@@ -72,8 +97,22 @@ struct FDiffSingleResult
 	/** User can override color to use for display string */
 	FLinearColor DisplayColor;
 
-	/** Name of the graph this difference was created on*/
-	FName OwningGraph;
+	/** Path string of graph, relative to blueprint/asset root */
+	FString OwningObjectPath;
+
+	/** Returns true if this is a confirmed difference */
+	FORCEINLINE bool IsRealDifference() const 
+	{
+		switch (Diff)
+		{
+		case EDiffType::NO_DIFFERENCE:
+		case EDiffType::OBJECT_REQUEST_DIFF:
+		case EDiffType::INFO_MESSAGE:
+			return false;
+		default:
+			return true;
+		}
+	}
 };
 
 FORCEINLINE bool operator==( const FDiffSingleResult& LHS, const FDiffSingleResult& RHS )
@@ -83,12 +122,14 @@ FORCEINLINE bool operator==( const FDiffSingleResult& LHS, const FDiffSingleResu
 			LHS.Node2 == RHS.Node2 &&
 			LHS.Pin1 == RHS.Pin1 &&
 			LHS.Pin2 == RHS.Pin2 &&
+			LHS.Object1 == RHS.Object1 &&
+			LHS.Object2 == RHS.Object2 &&
 			LHS.DisplayString.ToString() == RHS.DisplayString.ToString() &&
 			LHS.ToolTip.ToString() == RHS.ToolTip.ToString() &&
 			LHS.DisplayColor == RHS.DisplayColor;
 }
 
-/** Collects the Diffs found for a node */
+/** Collects the Diffs found for a node/object */
 struct FDiffResults
 {
 	FDiffResults(TArray<FDiffSingleResult>* InResultArray): ResultArray(InResultArray), bHasFoundDiffs(false)

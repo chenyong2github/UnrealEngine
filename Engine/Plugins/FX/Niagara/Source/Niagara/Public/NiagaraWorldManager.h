@@ -67,7 +67,8 @@ public:
 	static FNiagaraWorldManager* Get(UWorld* World);
 
 	//~ GCObject Interface
-	void AddReferencedObjects(FReferenceCollector& Collector);
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 	//~ GCObject Interface
 	
 	UNiagaraParameterCollectionInstance* GetParameterCollection(UNiagaraParameterCollection* Collection);
