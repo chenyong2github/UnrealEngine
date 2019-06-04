@@ -2387,10 +2387,11 @@ public:
 
 	/**
 	 * Cleans up components, streaming data and assorted other intermediate data.
-	 * @param bSessionEnded whether to notify the viewport that the game session has ended
+	 * @param bSessionEnded whether to notify the viewport that the game session has ended.
 	 * @param NewWorld Optional new world that will be loaded after this world is cleaned up. Specify a new world to prevent it and it's sublevels from being GCed during map transitions.
+	 * @param bResetCleanedUpFlag wheter to reset the bCleanedUpWorld flag or not.
 	 */
-	void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = nullptr);
+	void CleanupWorld(bool bSessionEnded = true, bool bCleanupResources = true, UWorld* NewWorld = nullptr, bool bResetCleanedUpFlag = true);
 	
 	/**
 	 * Invalidates the cached data used to render the levels' UModel.

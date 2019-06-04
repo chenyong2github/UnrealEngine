@@ -225,7 +225,7 @@ struct FPrimitiveSceneShaderData
 	ENGINE_API void Setup(const FPrimitiveUniformShaderParameters& PrimitiveUniformShaderParameters);
 };
 
-class FSinglePrimitiveStructuredBuffer : public FRenderResource
+class ENGINE_VTABLE FSinglePrimitiveStructuredBuffer : public FRenderResource
 {
 public:
 

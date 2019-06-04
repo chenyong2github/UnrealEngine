@@ -28,6 +28,10 @@ void UListViewBase::ValidateCompiledDefaults(IWidgetCompilerLog& CompileLog) con
 	{
 		CompileLog.Error(FText::Format(LOCTEXT("Error_ListViewBase_MissingEntryClass", "{0} has no EntryWidgetClass specified - required for any UListViewBase to function."), FText::FromString(GetName())));
 	}
+	else if (!EntryWidgetClass->ImplementsInterface(UUserListEntry::StaticClass()))
+	{
+		CompileLog.Error(FText::Format(LOCTEXT("Error_ListViewBase_EntryClassNotImplementingInterface", "'{0}' has EntryWidgetClass property set to'{1}' and that Class doesn't implement User List Entry Interface - required for any UListViewBase to function."), FText::FromString(GetName()), FText::FromString(EntryWidgetClass->GetName())));
+	}
 }
 #endif
 

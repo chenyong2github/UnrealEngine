@@ -1222,6 +1222,41 @@ bool UnFbx::FFbxImporter::ImportBone(TArray<FbxNode*>& NodeArray, FSkeletalMeshI
 		BoneName = UTF8_TO_TCHAR( MakeName( LinkName ) );
 		Bone.Name = BoneName;
 
+		//Check for nan and for zero scale
+		if (AllowImportBoneErrorAndWarning)
+		{
+			bool bFoundNan = false;
+			bool bFoundZeroScale = false;
+			for (int32 i = 0; i < 4; ++i)
+			{
+				if (i < 3)
+				{
+					if (FMath::IsNaN(LocalLinkT[i]) || FMath::IsNaN(LocalLinkS[i]))
+					{
+						bFoundNan = true;
+					}
+					if (FMath::IsNearlyZero(LocalLinkS[i]))
+					{
+						bFoundZeroScale = true;
+					}
+				}
+				if (FMath::IsNaN(LocalLinkQ[i]))
+				{
+					bFoundNan = true;
+				}
+			}
+
+			if (bFoundNan)
+			{
+				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("BoneTransformNAN", "Found NAN value in bone transform. Bone name: [{0}]"), FText::FromString(BoneName))), FFbxErrors::SkeletalMesh_InvalidBindPose);
+			}
+
+			if (bFoundZeroScale)
+			{
+				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("BoneTransformZeroScale", "Found zero scale value in bone transform. Bone name: [{0}]"), FText::FromString(BoneName))), FFbxErrors::SkeletalMesh_InvalidBindPose);
+			}
+		}
+
 		SkeletalMeshImportData::FJointPos& JointMatrix = Bone.BonePos;
 		FbxSkeleton* Skeleton = Link->GetSkeleton();
 		if (Skeleton)
@@ -1324,7 +1359,6 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray
 	{
 		if (!(bIsReimport && ImportOptions->bImportAsSkeletalGeometry)) //Do not import bone if we import only the geometry and we are reimporting
 		{
-			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, LOCTEXT("FbxSkeletaLMeshimport_MultipleRootFound", "Multiple roots found")), FFbxErrors::SkeletalMesh_MultipleRoots);
 			return false;
 		}
 	}
@@ -4358,6 +4392,9 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 
 	GWarn->BeginSlowTask( NSLOCTEXT("FbxImporter", "BeginGeneratingMorphModelsTask", "Generating Morph Models"), true);
 
+	//Use this TMap to store the name of the blendshape map by the fbx uniqueID. This allow to assign unique name to each blend shape.
+	TMap<uint64, FString> UniqueIDToName;
+
 	// For each morph in FBX geometries, we create one morph target for the Unreal skeletal mesh
 	for (int32 NodeIndex = 0; NodeIndex < SkelMeshNodeArray.Num(); NodeIndex++)
 	{
@@ -4415,6 +4452,36 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 									// Maya concatenates the number of the shape to the end of its name, so instead use the name of the channel
 									ShapeName = ChannelName;
 								}
+							}
+
+							uint64 UniqueID = Shape->GetUniqueID();
+							if (UniqueIDToName.Contains(UniqueID))
+							{
+								ShapeName = UniqueIDToName.FindChecked(UniqueID);
+							}
+							else
+							{
+								//In case the shape do not have a unique name
+								//make it unique
+								int32 NameIndex = 0;
+								FString CurrentShapeName = ShapeName;
+								bool bNameNotUnique = ShapeNameToShapeArray.Contains(CurrentShapeName);
+								while(bNameNotUnique)
+								{
+									//Append ShapeX to the shape name (same has Maya)
+									if (NameIndex == 0)
+									{
+										CurrentShapeName = ShapeName + TEXT("Shape");
+										NameIndex++;
+									}
+									else
+									{
+										CurrentShapeName = ShapeName + TEXT("Shape") + FString::FromInt(NameIndex++);
+									}
+									bNameNotUnique = ShapeNameToShapeArray.Contains(CurrentShapeName);
+								}
+								ShapeName = CurrentShapeName;
+								UniqueIDToName.Add(UniqueID, ShapeName);
 							}
 
 							TArray<FbxShape*> & ShapeArray = ShapeNameToShapeArray.FindOrAdd(ShapeName);

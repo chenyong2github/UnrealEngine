@@ -3077,12 +3077,13 @@ UObject* StaticConstructObject_Internal
 			!InTemplate || 
 			(InName != NAME_None && (bAssumeTemplateIsArchetype || InTemplate == UObject::GetArchetypeFromRequiredInfo(InClass, InOuter, InName, InFlags)))
 			);
+	const bool bCanRecycleSubobjects = bIsNativeFromCDO && (!(InFlags & RF_DefaultSubObject) || !FUObjectThreadContext::Get().IsInConstructor)
 #if WITH_HOT_RELOAD
 	// Do not recycle subobjects when performing hot-reload as they may contain old property values.
-	const bool bCanRecycleSubobjects = bIsNativeFromCDO && !GIsHotReload;
-#else
-	const bool bCanRecycleSubobjects = bIsNativeFromCDO;
+	&& !GIsHotReload
 #endif
+		;
+
 	bool bRecycledSubobject = false;	
 	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject);
 	check(Result != NULL);
@@ -3671,7 +3672,7 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 		else
 		{
 			UObject* Template = OverrideClass->GetDefaultObject(); // force the CDO to be created if it hasn't already
-			EObjectFlags SubobjectFlags = Outer->GetMaskedFlags(RF_PropagateToSubObjects);
+			EObjectFlags SubobjectFlags = Outer->GetMaskedFlags(RF_PropagateToSubObjects) | RF_DefaultSubObject;
 			bool bOwnerArchetypeIsNotNative;
 			UClass* OuterArchetypeClass;
 
@@ -3721,7 +3722,6 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 #endif
 				Outer->GetClass()->AddDefaultSubobject(Result, ReturnType);
 			}
-			Result->SetFlags(RF_DefaultSubObject);
 			// Clear PendingKill flag in case we recycled a subobject of a dead object.
 			// @todo: we should not be recycling subobjects unless we're currently loading from a package
 			Result->ClearInternalFlags(EInternalObjectFlags::PendingKill);

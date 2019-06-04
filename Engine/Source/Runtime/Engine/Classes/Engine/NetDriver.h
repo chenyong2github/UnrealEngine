@@ -5,6 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -605,7 +606,7 @@ struct FDisconnectedClient
 
 
 UCLASS(Abstract, customConstructor, transient, MinimalAPI, config=Engine)
-class UNetDriver : public UObject, public FExec
+class ENGINE_VTABLE UNetDriver : public UObject, public FExec
 {
 	GENERATED_UCLASS_BODY()
 
@@ -1553,6 +1554,9 @@ public:
 protected:
 
 	bool bMaySendProperties;
+
+	/** Stream of random numbers to be used by this instance of UNetDriver */
+	FRandomStream UpdateDelayRandomStream;
 
 private:
 

@@ -189,7 +189,7 @@
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
 					<!-- Copy files for local debug builds -->
-					<Copy Files="#UE4Editor Linux Unstripped" From="$(RootDir)" To="$(SavedOutput)"/>
+					<Copy Files="#UE4Editor Linux Unstripped" From="$(RootDir)" To="$(SavedOutput)" Tag="#UE4Editor Linux Stripped"/>
 				</Case>
 				<Default>
 					<!-- Otherwise, strip the files for distribution -->

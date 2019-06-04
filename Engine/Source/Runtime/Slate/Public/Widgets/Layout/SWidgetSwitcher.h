@@ -169,4 +169,9 @@ private:
 
 	/** Required to implement GetChildren() in a way that can dynamically return the currently active child. */
 	TOneDynamicChild<FSlot> OneDynamicChild;
+
+#if WITH_ACCESSIBILITY
+	/** Used to detect when WidgetIndex changes while bound. */
+	TWeakPtr<SWidget> LastActiveWidget;
+#endif
 };

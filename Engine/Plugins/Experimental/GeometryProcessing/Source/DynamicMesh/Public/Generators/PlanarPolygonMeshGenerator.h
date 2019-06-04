@@ -1,0 +1,41 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "MeshShapeGenerator.h"
+#include "Polygon2.h"
+
+/**
+ * Generate planar triangulation of a Polygon.
+ */
+class DYNAMICMESH_API FPlanarPolygonMeshGenerator : public FMeshShapeGenerator
+{
+public:
+	/** Polygon to triangulate. If Polygon has self-intersections or degenerate edges, result is undefined. */
+	FPolygon2d Polygon;
+
+	/** Normal vector of all vertices will be set to this value. Default is +Z axis. */
+	FVector3f Normal;
+
+	/** How to map 2D indices to 3D. Default is (0,1) = (x,y,0). */
+	FIndex2i IndicesMap;
+
+public:
+	FPlanarPolygonMeshGenerator();
+
+	/** Initialize the polygon from an array of 2D vertices */
+	void SetPolygon(const TArray<FVector2D>& PolygonVerts);
+
+	/** Generate the triangulation */
+	virtual FMeshShapeGenerator& Generate() override;
+
+
+	/** Create vertex at position under IndicesMap, shifted to Origin*/
+	inline FVector3d MakeVertex(double x, double y)
+	{
+		FVector3d v(0, 0, 0);
+		v[IndicesMap.A] = x;
+		v[IndicesMap.B] = y;
+		return v;
+	}
+};

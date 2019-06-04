@@ -15,7 +15,7 @@
  * predefined material parameters. The parameters are statically defined in the compiled material by a unique name, type and default value.
  */
 UCLASS(hidecategories=Object, collapsecategories, BlueprintType,MinimalAPI)
-class UMaterialInstanceConstant : public UMaterialInstance
+class ENGINE_VTABLE UMaterialInstanceConstant : public UMaterialInstance
 {
 	GENERATED_UCLASS_BODY()
 

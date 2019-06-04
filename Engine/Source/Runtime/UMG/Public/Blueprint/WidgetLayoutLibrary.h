@@ -15,6 +15,7 @@ class UHorizontalBoxSlot;
 class UOverlaySlot;
 class UUniformGridSlot;
 class UVerticalBoxSlot;
+class UScrollBoxSlot;
 class UWidget;
 
 UCLASS()
@@ -146,6 +147,15 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "Slot")
 	static UVerticalBoxSlot* SlotAsVerticalBoxSlot(UWidget* Widget);
+
+
+	/**
+	* Gets the slot object on the child widget as a Scroll Box Slot, allowing you to manipulate its information.
+	* @param Widget The child widget of a Scroll Box.
+	*/
+	UFUNCTION(BlueprintPure, Category = "Slot")
+	static UScrollBoxSlot* SlotAsScrollBoxSlot(UWidget* Widget);
+
 
 	/**
 	 * Removes all widgets from the viewport.

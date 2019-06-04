@@ -4,6 +4,7 @@
 #include "Sound/SoundNode.h"
 #include "EngineUtils.h"
 #include "Sound/SoundCue.h"
+#include "Misc/App.h"
 
 /*-----------------------------------------------------------------------------
 	USoundNode implementation.
@@ -11,6 +12,7 @@
 USoundNode::USoundNode(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	RandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 }
 
 
