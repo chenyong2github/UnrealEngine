@@ -1888,10 +1888,17 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
 	}
 
 	const bool bUnattended = GMacAppInfo.bIsUnattended || IsRunningDedicatedServer();
@@ -1931,7 +1938,7 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 			}
 			else
 			{
-				if (bSendUnattendedBugReports)
+				if (bSendUsageData)
 				{
 					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
 				}
@@ -1981,10 +1988,17 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 	if (BuildSettings::IsLicenseeVersion() && !UE_EDITOR)
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
 	}
 
 	const bool bUnattended = GMacAppInfo.bIsUnattended || !IsInteractiveEnsureMode() || IsRunningDedicatedServer();
@@ -2019,7 +2033,7 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		}
 
 		// If the editor setting has been disabled to not send analytics extend this to the CRC
-		if (!bSendUnattendedBugReports)
+		if (!bSendUsageData)
 		{
 			Arguments += TEXT(" -NoAnalytics");
 		}

@@ -320,11 +320,19 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	// Controls if we want analytics in the crash report client
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 #if !UE_EDITOR
 	if (BuildSettings::IsLicenseeVersion())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
 	}
 #endif
 
@@ -428,7 +436,7 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 			FString CrashReportClientArguments = FString::Printf(TEXT("\"%s\""), *CrashFolderAbsolute);
 
 			// If the editor setting has been disabled to not send analytics extend this to the CRC
-			if (!bSendUnattendedBugReports)
+			if (!bSendUsageData)
 			{
 				CrashReportClientArguments += TEXT(" -NoAnalytics ");
 			}
