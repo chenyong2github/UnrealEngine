@@ -738,7 +738,7 @@ void UReflectionCaptureComponent::CreateRenderState_Concurrent()
 
 	UpdatePreviewShape();
 
-	if (ShouldRender())
+	if (ShouldComponentAddToScene() && ShouldRender())
 	{
 		GetWorld()->Scene->AddReflectionCapture(this);
 	}
@@ -752,7 +752,7 @@ void UReflectionCaptureComponent::SendRenderTransform_Concurrent()
 	{
 		UpdatePreviewShape();
 
-		if (ShouldRender())
+		if (ShouldComponentAddToScene() && ShouldRender())
 		{
 			GetWorld()->Scene->UpdateReflectionCaptureTransform(this);
 		}
