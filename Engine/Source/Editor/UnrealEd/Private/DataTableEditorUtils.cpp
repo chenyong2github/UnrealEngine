@@ -813,7 +813,7 @@ void FDataTableEditorUtils::GetPossibleStructAssetData(TArray<FAssetData>& Struc
 		}
 	}
 
-	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName < B.AssetName; });
+	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
 }
 
 bool FDataTableEditorUtils::IsValidTableStruct(UScriptStruct* Struct)
