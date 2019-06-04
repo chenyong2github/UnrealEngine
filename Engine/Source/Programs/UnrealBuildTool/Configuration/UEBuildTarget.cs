@@ -3484,8 +3484,8 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
 
 			// tell the compiled code the name of the UBT platform (this affects folder on disk, etc that the game may need to know)
-			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_PLATFORM=\"{0}\"", Platform.ToString()));
-			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_TARGET=\"{0}\"", TargetType.ToString()));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_PLATFORM=" + Platform.ToString()));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_TARGET=" + TargetType.ToString()));
 
 			// Set the global app name
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_APP_NAME=\"{0}\"", AppName));
