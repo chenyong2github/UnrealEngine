@@ -116,7 +116,7 @@ void UReflectionCaptureComponent::PropagateLightingScenarioChange()
 AReflectionCapture::AReflectionCapture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CaptureComponent = CreateAbstractDefaultSubobject<UReflectionCaptureComponent>(TEXT("NewReflectionComponent"));
+	CaptureComponent = CreateDefaultSubobject<UReflectionCaptureComponent>(TEXT("NewReflectionComponent"));
 
 	bCanBeInCluster = true;
 

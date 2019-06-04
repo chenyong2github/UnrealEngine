@@ -210,6 +210,11 @@ public:
 #endif
 
 
+#ifndef WIDGET_INCLUDE_RELFECTION_METADATA
+	#define WIDGET_INCLUDE_RELFECTION_METADATA !UE_BUILD_SHIPPING
+#endif
+
+
 
 /**
  * This is the base class for all wrapped Slate controls that are exposed to UObjects.
@@ -426,8 +431,10 @@ public:
 
 #endif
 
+#if !UE_BUILD_SHIPPING
 	/** Stores a reference to the class responsible for this widgets construction. */
 	TWeakObjectPtr<UClass> WidgetGeneratedByClass;
+#endif
 
 public:
 

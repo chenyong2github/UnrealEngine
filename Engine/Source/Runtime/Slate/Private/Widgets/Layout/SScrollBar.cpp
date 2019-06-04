@@ -341,6 +341,8 @@ void SScrollBar::SetStyle(const FScrollBarStyle* InStyle)
 		TopBrush = &Style->HorizontalTopSlotImage;
 		BottomBrush = &Style->HorizontalBottomSlotImage;
 	}
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SScrollBar::SetDragFocusCause(EFocusCause InDragFocusCause)
@@ -359,18 +361,20 @@ void SScrollBar::SetScrollBarAlwaysVisible(bool InAlwaysVisible)
 
 	if ( InAlwaysVisible )
 	{
-		Visibility = EVisibility::Visible;
+		SetVisibility(EVisibility::Visible);
 	}
 	else
 	{
-		Visibility = TAttribute<EVisibility>(SharedThis(this), &SScrollBar::ShouldBeVisible);
+		SetVisibility(TAttribute<EVisibility>(SharedThis(this), &SScrollBar::ShouldBeVisible));
 	}
+
 	Track->SetIsAlwaysVisible(InAlwaysVisible);
 }
 
 void SScrollBar::SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible)
 {
 	bAlwaysShowScrollbarTrack = InAlwaysVisible;
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 bool SScrollBar::AlwaysShowScrollbar() const

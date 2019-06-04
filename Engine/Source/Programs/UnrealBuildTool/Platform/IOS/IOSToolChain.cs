@@ -198,6 +198,18 @@ namespace UnrealBuildTool
 			return OutputType == BuildProductType.Executable || OutputType == BuildProductType.DynamicLibrary;
 		}
 
+		public override FileReference GetDebugFile(FileReference OutputFile, string DebugExtension)
+		{
+			if (OutputFile.FullName.Contains(".framework"))
+			{
+				// need to put the debug info outside of the framework
+				return FileReference.Combine(OutputFile.Directory.ParentDirectory, OutputFile.ChangeExtension(DebugExtension).GetFileName());
+			}
+			//  by default, just change the extension to the debug extension
+			return OutputFile.ChangeExtension(DebugExtension);
+		}
+
+
 		string GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment)
 		{
             string Result = "";
@@ -1566,19 +1578,29 @@ namespace UnrealBuildTool
 			}
 		}
 
-		private static void GenerateCrashlyticsData(string ExecutableDirectory, string ExecutableName, string ProjectDir, string ProjectName)
+		private static void GenerateCrashlyticsData(string DsymZip, string ProjectDir, string ProjectName)
         {
 			Log.TraceInformation("Generating and uploading Crashlytics Data");
-            string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
+
+			// Clean this folder as it's used for extraction
+			string TempPath = Path.Combine(UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Unzipped");
+
+			if (Directory.Exists(TempPath))
+			{
+				Log.TraceInformation("Deleting temp path {0}", TempPath);
+				Directory.Delete(TempPath, true);
+			}
+
+			string FabricPath = UnrealBuildTool.EngineDirectory + "/Intermediate/UnzippedFrameworks/Crashlytics/Fabric.embeddedframework";
             if (Directory.Exists(FabricPath) && Environment.GetEnvironmentVariable("IsBuildMachine") == "1")
             {
 				string PlistFile = ProjectDir + "/Intermediate/IOS/" + ProjectName + "-Info.plist";
                 Process FabricProcess = new Process();
-                FabricProcess.StartInfo.WorkingDirectory = ExecutableDirectory;
+                FabricProcess.StartInfo.WorkingDirectory = Path.GetDirectoryName(DsymZip);
                 FabricProcess.StartInfo.FileName = "/bin/sh";
 				FabricProcess.StartInfo.Arguments = string.Format("-c 'chmod 777 \"{0}/Fabric.framework/upload-symbols\"; \"{0}/Fabric.framework/upload-symbols\" -a 7a4cebd0324af21696e5e321802c5e26ba541cad -p ios {1}'",
                     FabricPath,
-					ExecutableDirectory + "/" + ExecutableName + ".dSYM.zip");
+					DsymZip);
 
 				ProcessOutput Output = new ProcessOutput();
 
@@ -1652,6 +1674,7 @@ namespace UnrealBuildTool
 			IOSProjectSettings ProjectSettings = ((IOSPlatform)UEBuildPlatform.GetBuildPlatform(Target.Platform)).ReadProjectSettings(Target.ProjectFile);
 
 			bool bPerformFullAppCreation = true;
+			string PathToDsymZip = Target.OutputPath.FullName + ".dSYM.zip";
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 			{
 				if (IsCompiledAsFramework(Target.OutputPath.FullName))
@@ -1673,15 +1696,15 @@ namespace UnrealBuildTool
 
 					// do not perform any of the .app creation below
 					bPerformFullAppCreation = false;
+					PathToDsymZip = Path.Combine(Target.OutputPath.Directory.ParentDirectory.FullName, Target.OutputPath.GetFileName() + ".dSYM.zip");
 				}
 			}
 
 			string AppName = Target.TargetName;
-			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
 			if (!Target.bSkipCrashlytics)
 			{
-				GenerateCrashlyticsData(RemoteShadowDirectoryMac, Path.GetFileName(Target.OutputPath.FullName), Target.ProjectDirectory.FullName, AppName);
+				GenerateCrashlyticsData(PathToDsymZip, Target.ProjectDirectory.FullName, AppName);
 			}
 
 			// only make the app if needed
@@ -1694,6 +1717,7 @@ namespace UnrealBuildTool
 			FileReference StagedExecutablePath = GetStagedExecutablePath(Target.OutputPath, Target.TargetName);
 			DirectoryReference.CreateDirectory(StagedExecutablePath.Directory);
 			FileReference.Copy(Target.OutputPath, StagedExecutablePath, true);
+			string RemoteShadowDirectoryMac = Target.OutputPath.Directory.FullName;
 
 			if (Target.bCreateStubIPA)
 			{

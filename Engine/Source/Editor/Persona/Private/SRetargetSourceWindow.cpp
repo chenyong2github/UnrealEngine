@@ -337,7 +337,7 @@ TSharedPtr<SWidget> SRetargetSourceWindow::OnGetContextMenuContent() const
 
 	MenuBuilder.BeginSection("RetargetSourceAction", LOCTEXT( "New", "New" ) );
 	{
-		FUIAction Action = FUIAction( FExecuteAction::CreateSP( this, &SRetargetSourceWindow::OnAddRetargetSource ) );
+		FUIAction Action = FUIAction( FExecuteAction::CreateSP( const_cast<SRetargetSourceWindow*>(this), &SRetargetSourceWindow::OnAddRetargetSource ) );
 		const FText Label = LOCTEXT("AddRetargetSourceActionLabel", "Add...");
 		const FText ToolTipText = LOCTEXT("AddRetargetSourceActionTooltip", "Add new retarget source.");
 		MenuBuilder.AddMenuEntry( Label, ToolTipText, FSlateIcon(), Action);
@@ -346,21 +346,21 @@ TSharedPtr<SWidget> SRetargetSourceWindow::OnGetContextMenuContent() const
 
 	MenuBuilder.BeginSection("RetargetSourceAction", LOCTEXT( "Selected", "Selected Item Actions" ) );
 	{
-		FUIAction Action = FUIAction( FExecuteAction::CreateSP( this, &SRetargetSourceWindow::OnRenameRetargetSource ), 
+		FUIAction Action = FUIAction( FExecuteAction::CreateSP( const_cast<SRetargetSourceWindow*>(this), &SRetargetSourceWindow::OnRenameRetargetSource ), 
 			FCanExecuteAction::CreateSP( this, &SRetargetSourceWindow::CanPerformRename ) );
 		const FText Label = LOCTEXT("RenameRetargetSourceActionLabel", "Rename");
 		const FText ToolTipText = LOCTEXT("RenameRetargetSourceActionTooltip", "Rename the selected retarget source.");
 		MenuBuilder.AddMenuEntry( Label, ToolTipText, FSlateIcon(), Action);
 	}
 	{
-		FUIAction Action = FUIAction( FExecuteAction::CreateSP( this, &SRetargetSourceWindow::OnDeleteRetargetSource ), 
+		FUIAction Action = FUIAction( FExecuteAction::CreateSP( const_cast<SRetargetSourceWindow*>(this), &SRetargetSourceWindow::OnDeleteRetargetSource ), 
 			FCanExecuteAction::CreateSP( this, &SRetargetSourceWindow::CanPerformDelete ) );
 		const FText Label = LOCTEXT("DeleteRetargetSourceActionLabel", "Delete");
 		const FText ToolTipText = LOCTEXT("DeleteRetargetSourceActionTooltip", "Deletes the selected retarget sources.");
 		MenuBuilder.AddMenuEntry( Label, ToolTipText, FSlateIcon(), Action);
 	}
 	{
-		FUIAction Action = FUIAction( FExecuteAction::CreateSP( this, &SRetargetSourceWindow::OnRefreshRetargetSource, false ), 
+		FUIAction Action = FUIAction( FExecuteAction::CreateSP( const_cast<SRetargetSourceWindow*>(this), &SRetargetSourceWindow::OnRefreshRetargetSource, false ), 
 			FCanExecuteAction::CreateSP( this, &SRetargetSourceWindow::CanPerformRefresh ) );
 		const FText Label = LOCTEXT("RefreshRetargetSourceActionLabel", "Update");
 		const FText ToolTipText = LOCTEXT("RefreshRetargetSourceActionTooltip", "Updates the selected retarget sources from source mesh.");

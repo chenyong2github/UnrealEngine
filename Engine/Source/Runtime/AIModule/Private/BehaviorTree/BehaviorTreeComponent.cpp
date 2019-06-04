@@ -239,7 +239,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 		return;
 	}
 
-	FScopedBehaviorTreeLock(*this, FScopedBehaviorTreeLock::LockReentry);
+	FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockReentry);
 	if (!bRequestedStop)
 	{
 		bRequestedStop = true;
@@ -1211,7 +1211,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	}
 
 	{
-		FScopedBehaviorTreeLock(*this, FScopedBehaviorTreeLock::LockTick);
+		FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockTick);
 
 		// tick active parallel tasks (in execution order, before task)
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
@@ -1784,7 +1784,7 @@ void UBehaviorTreeComponent::RegisterMessageObserver(const UBTTaskNode* TaskNode
 		NodeIdx.InstanceIndex = InstanceStack.Num() - 1;
 
 		TaskMessageObservers.Add(NodeIdx,
-			FAIMessageObserver::Create(this, MessageType, FOnAIMessage::CreateUObject(TaskNode, &UBTTaskNode::ReceivedMessage))
+			FAIMessageObserver::Create(this, MessageType, FOnAIMessage::CreateUObject(const_cast<UBTTaskNode*>(TaskNode), &UBTTaskNode::ReceivedMessage))
 			);
 
 		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("Message[%s] observer added for %s"),
@@ -1801,7 +1801,7 @@ void UBehaviorTreeComponent::RegisterMessageObserver(const UBTTaskNode* TaskNode
 		NodeIdx.InstanceIndex = InstanceStack.Num() - 1;
 
 		TaskMessageObservers.Add(NodeIdx,
-			FAIMessageObserver::Create(this, MessageType, RequestID, FOnAIMessage::CreateUObject(TaskNode, &UBTTaskNode::ReceivedMessage))
+			FAIMessageObserver::Create(this, MessageType, RequestID, FOnAIMessage::CreateUObject(const_cast<UBTTaskNode*>(TaskNode), &UBTTaskNode::ReceivedMessage))
 			);
 
 		UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("Message[%s:%d] observer added for %s"),

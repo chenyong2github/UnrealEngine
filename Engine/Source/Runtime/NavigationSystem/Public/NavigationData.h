@@ -649,7 +649,7 @@ public:
 			STATGROUP_TaskGraphTasks);
 
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-			FSimpleDelegateGraphTask::FDelegate::CreateUObject(this, &ANavigationData::RegisterActivePath, SharedPath),
+			FSimpleDelegateGraphTask::FDelegate::CreateUObject(const_cast<ANavigationData*>(this), &ANavigationData::RegisterActivePath, SharedPath),
 			GET_STATID(STAT_FSimpleDelegateGraphTask_AddingPathToActivePaths), NULL, ENamedThreads::GameThread
 		);
 

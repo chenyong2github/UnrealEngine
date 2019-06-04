@@ -263,7 +263,7 @@ struct FNativePropertyData
 	}
 
 	/** bool operator */
-	inline operator bool() const
+	inline explicit operator bool() const
 	{
 		return PropertyData.Num() || PropertyText.Num();
 	}

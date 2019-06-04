@@ -194,10 +194,16 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 		const bool bShouldBeEnabled = ShouldBeEnabled(bParentEnabled);
 
 		const FText& LocalText = GetText();
-		const FSlateFontInfo LocalFont = GetFont();
+		FSlateFontInfo LocalFont = GetFont();
 
 		if (ShouldDropShadow)
 		{
+			const int32 OutlineSize = LocalFont.OutlineSettings.OutlineSize;
+			if (!LocalFont.OutlineSettings.bApplyOutlineToDropShadows)
+			{
+				LocalFont.OutlineSettings.OutlineSize = 0;
+			}
+
 			FSlateDrawElement::MakeText(
 				OutDrawElements,
 				LayerId,
@@ -207,6 +213,9 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 				bShouldBeEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect,
 				InWidgetStyle.GetColorAndOpacityTint() * LocalShadowColorAndOpacity
 			);
+
+			// Restore outline size for main text
+			LocalFont.OutlineSettings.OutlineSize = OutlineSize;
 
 			// actual text should appear above the shadow
 			++LayerId;
@@ -226,6 +235,14 @@ int32 STextBlock::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 	else
 	{
 		const FVector2D LastDesiredSize = TextLayoutCache->GetDesiredSize();
+
+		// If we're performing layout caching, it's possible nobody ever called GetDesiredSize(),
+		// which for textblocks is required to be called, since CDS is where it actually generates
+		// a lot for the text layout.
+		if (GSlateLayoutCaching)
+		{
+			GetDesiredSize();
+		}
 
 		// OnPaint will also update the text layout cache if required
 		LayerId = TextLayoutCache->OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, ShouldBeEnabled(bParentEnabled));

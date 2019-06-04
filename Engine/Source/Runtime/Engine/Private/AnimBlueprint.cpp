@@ -180,6 +180,19 @@ bool UAnimBlueprint::CanRecompileWhilePlayingInEditor() const
 {
 	return true;
 }
+
+bool UAnimBlueprint::FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const
+{
+	const UAnimBlueprint* OtherAnimBP = Cast<UAnimBlueprint>(OtherBlueprint);
+	if (!OtherAnimBP)
+	{
+		return false;
+	}
+
+	// Anim BPs should diff correctly, as all the info is stored in graphs or the parent
+	return true;
+}
+
 #endif
 
 USkeletalMesh* UAnimBlueprint::GetPreviewMesh(bool bFindIfNotSet/*=false*/)

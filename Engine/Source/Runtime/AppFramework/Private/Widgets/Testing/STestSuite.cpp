@@ -2274,7 +2274,7 @@ public:
 
 	FSlateWidgetRun::FWidgetRunInfo OnCreateWidgetDecoratorWidget( const FTextRunInfo& RunInfo, const ISlateStyle* Style ) const
 	{
-		TSharedRef< SWidget > Widget = SNew( SButton ) .OnClicked( this, &SRichTextTest::OnWidgetDecoratorClicked ) 
+		TSharedRef< SWidget > Widget = SNew( SButton ) .OnClicked( const_cast<SRichTextTest*>(this), &SRichTextTest::OnWidgetDecoratorClicked ) 
 			.ToolTip( 
 				SNew( SToolTip )
 				.BorderImage( FTestStyle::Get().GetBrush( "RichText.Tagline.Background" ) )

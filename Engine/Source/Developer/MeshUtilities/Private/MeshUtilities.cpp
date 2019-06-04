@@ -5257,8 +5257,8 @@ private:
 				if (StaticMeshReductionInterface)
 				{
 					FUIAction UIAction;
-					UIAction.ExecuteAction.BindSP(this, &FMeshSimplifcationSettingsCustomization::OnMeshSimplificationModuleChosen, ModuleName);
-					UIAction.GetActionCheckState.BindSP(this, &FMeshSimplifcationSettingsCustomization::IsMeshSimplificationModuleChosen, ModuleName);
+					UIAction.ExecuteAction.BindSP(const_cast<FMeshSimplifcationSettingsCustomization*>(this), &FMeshSimplifcationSettingsCustomization::OnMeshSimplificationModuleChosen, ModuleName);
+					UIAction.GetActionCheckState.BindSP(const_cast<FMeshSimplifcationSettingsCustomization*>(this), &FMeshSimplifcationSettingsCustomization::IsMeshSimplificationModuleChosen, ModuleName);
 
 					MenuBuilder.AddMenuEntry(FText::FromName(ModuleName), FText::GetEmpty(), FSlateIcon(), UIAction, NAME_None, EUserInterfaceActionType::RadioButton);
 				}
@@ -5269,7 +5269,7 @@ private:
 		
 
 		FUIAction OpenMarketplaceAction;
-		OpenMarketplaceAction.ExecuteAction.BindSP(this, &FMeshSimplifcationSettingsCustomization::OnFindReductionPluginsClicked);
+		OpenMarketplaceAction.ExecuteAction.BindSP(const_cast<FMeshSimplifcationSettingsCustomization*>(this), &FMeshSimplifcationSettingsCustomization::OnFindReductionPluginsClicked);
 		FSlateIcon Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
 		MenuBuilder.AddMenuEntry( LOCTEXT("FindMoreReductionPluginsLink", "Search the Marketplace"), LOCTEXT("FindMoreReductionPluginsLink_Tooltip", "Opens the Marketplace to find more mesh reduction plugins"), Icon, OpenMarketplaceAction);
 		return MenuBuilder.MakeWidget();
@@ -5377,8 +5377,8 @@ private:
 				if (SkeletalMeshReductionInterface)
 				{
 					FUIAction UIAction;
-					UIAction.ExecuteAction.BindSP(this, &FSkeletalMeshSimplificationSettingsCustomization::OnSkeletalMeshSimplificationModuleChosen, ModuleName);
-					UIAction.GetActionCheckState.BindSP(this, &FSkeletalMeshSimplificationSettingsCustomization::IsSkeletalMeshSimplificationModuleChosen, ModuleName);
+					UIAction.ExecuteAction.BindSP(const_cast<FSkeletalMeshSimplificationSettingsCustomization*>(this), &FSkeletalMeshSimplificationSettingsCustomization::OnSkeletalMeshSimplificationModuleChosen, ModuleName);
+					UIAction.GetActionCheckState.BindSP(const_cast<FSkeletalMeshSimplificationSettingsCustomization*>(this), &FSkeletalMeshSimplificationSettingsCustomization::IsSkeletalMeshSimplificationModuleChosen, ModuleName);
 
 					MenuBuilder.AddMenuEntry(FText::FromName(ModuleName), FText::GetEmpty(), FSlateIcon(), UIAction, NAME_None, EUserInterfaceActionType::RadioButton);
 				}
@@ -5389,7 +5389,7 @@ private:
 
 
 		FUIAction OpenMarketplaceAction;
-		OpenMarketplaceAction.ExecuteAction.BindSP(this, &FSkeletalMeshSimplificationSettingsCustomization::OnFindReductionPluginsClicked);
+		OpenMarketplaceAction.ExecuteAction.BindSP(const_cast<FSkeletalMeshSimplificationSettingsCustomization*>(this), &FSkeletalMeshSimplificationSettingsCustomization::OnFindReductionPluginsClicked);
 		FSlateIcon Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
 		MenuBuilder.AddMenuEntry(LOCTEXT("FindMoreReductionPluginsLink", "Search the Marketplace"), LOCTEXT("FindMoreReductionPluginsLink_Tooltip", "Opens the Marketplace to find more mesh reduction plugins"), Icon, OpenMarketplaceAction);
 		return MenuBuilder.MakeWidget();
@@ -5497,8 +5497,8 @@ private:
 				if (MeshMergingInterface)
 				{
 					FUIAction UIAction;
-					UIAction.ExecuteAction.BindSP(this, &FProxyLODMeshSimplificationSettingsCustomization::OnProxyLODMeshSimplificationModuleChosen, ModuleName);
-					UIAction.GetActionCheckState.BindSP(this, &FProxyLODMeshSimplificationSettingsCustomization::IsProxyLODMeshSimplificationModuleChosen, ModuleName);
+					UIAction.ExecuteAction.BindSP(const_cast<FProxyLODMeshSimplificationSettingsCustomization*>(this), &FProxyLODMeshSimplificationSettingsCustomization::OnProxyLODMeshSimplificationModuleChosen, ModuleName);
+					UIAction.GetActionCheckState.BindSP(const_cast<FProxyLODMeshSimplificationSettingsCustomization*>(this), &FProxyLODMeshSimplificationSettingsCustomization::IsProxyLODMeshSimplificationModuleChosen, ModuleName);
 
 					MenuBuilder.AddMenuEntry(FText::FromName(ModuleName), FText::GetEmpty(), FSlateIcon(), UIAction, NAME_None, EUserInterfaceActionType::RadioButton);
 				}
@@ -5509,7 +5509,7 @@ private:
 
 
 		FUIAction OpenMarketplaceAction;
-		OpenMarketplaceAction.ExecuteAction.BindSP(this, &FProxyLODMeshSimplificationSettingsCustomization::OnFindReductionPluginsClicked);
+		OpenMarketplaceAction.ExecuteAction.BindSP(const_cast<FProxyLODMeshSimplificationSettingsCustomization*>(this), &FProxyLODMeshSimplificationSettingsCustomization::OnFindReductionPluginsClicked);
 		FSlateIcon Icon = FSlateIcon(FEditorStyle::Get().GetStyleSetName(), "LevelEditor.OpenMarketplace.Menu");
 		MenuBuilder.AddMenuEntry(LOCTEXT("FindMoreReductionPluginsLink", "Search the Marketplace"), LOCTEXT("FindMoreReductionPluginsLink_Tooltip", "Opens the Marketplace to find more mesh reduction plugins"), Icon, OpenMarketplaceAction);
 		return MenuBuilder.MakeWidget();

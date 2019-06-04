@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 
 #include "IMediaClockSink.h"
-
+#include "Misc/ScopeLock.h"
 
 /* FMediaClock structors
  *****************************************************************************/
@@ -21,6 +21,8 @@ FMediaClock::FMediaClock()
 
 void FMediaClock::TickFetch()
 {
+	UpdateSinkArray();
+
 	for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
 	{
 		auto Sink = Sinks[SinkIndex].Pin();
@@ -39,6 +41,8 @@ void FMediaClock::TickFetch()
 
 void FMediaClock::TickInput()
 {
+	UpdateSinkArray();
+
 	for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
 	{
 		auto Sink = Sinks[SinkIndex].Pin();
@@ -57,6 +61,8 @@ void FMediaClock::TickInput()
 
 void FMediaClock::TickOutput()
 {
+	UpdateSinkArray();
+
 	for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
 	{
 		auto Sink = Sinks[SinkIndex].Pin();
@@ -75,6 +81,8 @@ void FMediaClock::TickOutput()
 
 void FMediaClock::TickRender()
 {
+	UpdateSinkArray();
+
 	for (int32 SinkIndex = Sinks.Num() - 1; SinkIndex >= 0; --SinkIndex)
 	{
 		auto Sink = Sinks[SinkIndex].Pin();
@@ -112,7 +120,15 @@ void FMediaClock::UpdateTimecode(const FTimespan NewTimecode, bool NewTimecodeLo
 
 void FMediaClock::AddSink(const TSharedRef<IMediaClockSink, ESPMode::ThreadSafe>& Sink)
 {
-	Sinks.AddUnique(Sink);
+	FScopeLock Lock(&SinkCriticalSection);
+
+	SinksToAdd.AddUnique(Sink);
+
+	// Just in case this sink is pending to be removed.
+	if (SinksToRemove.Contains(Sink))
+	{
+		SinksToRemove.RemoveSwap(Sink);
+	}
 }
 
 
@@ -130,5 +146,32 @@ bool FMediaClock::IsTimecodeLocked() const
 
 void FMediaClock::RemoveSink(const TSharedRef<IMediaClockSink, ESPMode::ThreadSafe>& Sink)
 {
-	Sinks.Remove(Sink);
+	FScopeLock Lock(&SinkCriticalSection);
+
+	SinksToRemove.AddUnique(Sink);
+
+	// Just in case this sink is pending to be added.
+	if (SinksToAdd.Contains(Sink))
+	{
+		SinksToAdd.RemoveSwap(Sink);
+	}
+}
+
+void FMediaClock::UpdateSinkArray()
+{
+	FScopeLock Lock(&SinkCriticalSection);
+
+	// Add new sinks.
+	for (auto Sink : SinksToAdd)
+	{
+		Sinks.AddUnique(Sink);
+	}
+	SinksToAdd.Empty();
+	
+	// Remove sinks.
+	for (auto Sink : SinksToRemove)
+	{
+		Sinks.RemoveSwap(Sink);
+	}
+	SinksToRemove.Empty();
 }

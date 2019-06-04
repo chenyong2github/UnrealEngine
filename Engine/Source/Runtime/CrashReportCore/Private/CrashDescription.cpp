@@ -213,6 +213,7 @@ FString FPrimaryCrashProperties::EncodeArrayStringAsXMLString( const TArray<FStr
  * @EventParam AppDefaultLocale - The ICU default locale string or "en" if ICU is not enabled.
  * @EventParam UserActivityHint - Application-specific user activity string, if set in the crashed process. The meaning is game/app-specific.
  * @EventParam GameSessionID - Application-specific session Id, if set in the crashed process.
+ * @EventParam PCallStackHash - The hash of the portable callstack
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
  */
 void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCrashAttributes)
@@ -245,6 +246,7 @@ void SendPreUploadEnsureAnalytics(const TArray<FAnalyticsEventAttribute>& InCras
  * @EventParam AppDefaultLocale - The ICU default locale string or "en" if ICU is not enabled.
  * @EventParam UserActivityHint - Application-specific user activity string, if set in the crashed process. The meaning is game/app-specific.
  * @EventParam GameSessionID - Application-specific session Id, if set in the crashed process.
+ * @EventParam PCallStackHash - The hash of the portable callstack
  * @EventParam DeploymentName - Deployment name, also known as EpicApp. (e.g. "DevPlaytest", "PublicTest", "Live", etc)
  */
 void SendPreUploadCrashAnalytics(const TArray<FAnalyticsEventAttribute>& InCrashAttributes)
@@ -390,6 +392,7 @@ void FPrimaryCrashProperties::MakeCrashEventAttributes(TArray<FAnalyticsEventAtt
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("UserActivityHint"), UserActivityHint.AsString()));
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("GameSessionID"), GameSessionID.AsString()));
 	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("DeploymentName"), DeploymentName));
+	OutCrashAttributes.Add(FAnalyticsEventAttribute(TEXT("PCallStackHash"), PCallStackHash));
 
 	// Add arbitrary engine data
 	const FXmlNode* EngineNode = XmlFile->GetRootNode()->FindChildNode( FGenericCrashContext::EngineDataTag );
@@ -469,6 +472,7 @@ FCrashContext::FCrashContext( const FString& CrashContextFilepath )
 		GetCrashProperty( bIsEnsure, FGenericCrashContext::RuntimePropertiesTag, TEXT("IsEnsure"));
 		GetCrashProperty( CrashType, FGenericCrashContext::RuntimePropertiesTag, TEXT("CrashType"));
 		GetCrashProperty( NumMinidumpFramesToIgnore, FGenericCrashContext::RuntimePropertiesTag, TEXT("NumMinidumpFramesToIgnore"));
+		GetCrashProperty( PCallStackHash, FGenericCrashContext::RuntimePropertiesTag, TEXT("PCallStackHash"));
 
 		if (CrashDumpMode == ECrashDumpMode::FullDump)
 		{

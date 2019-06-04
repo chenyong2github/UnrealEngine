@@ -724,6 +724,7 @@ USocialParty* USocialManager::EstablishNewParty(const FUniqueNetId& LocalUserId,
 		USocialParty* NewParty = NewObject<USocialParty>(this, *PartyClass);
 		NewParty->OnPartyLeaveBegin().AddUObject(this, &USocialManager::HandlePartyLeaveBegin, NewParty);
 		NewParty->OnPartyLeft().AddUObject(this, &USocialManager::HandlePartyLeft, NewParty);
+		NewParty->OnPartyDisconnected().AddUObject(this, &USocialManager::HandlePartyDisconnected, NewParty);
 
 		// This must be done before InitializeParty(), as initialization can complete synchronously.
 		JoinedPartiesByTypeId.Add(PartyTypeId, NewParty);
@@ -1030,6 +1031,13 @@ void USocialManager::HandlePersistentPartyStateChanged(EPartyState NewState, EPa
 void USocialManager::HandleLeavePartyForJoinComplete(ELeavePartyCompletionResult LeaveResult, USocialParty* LeftParty)
 {
 	UE_LOG(LogParty, Verbose, TEXT("Attempt to leave party [%s] for pending join completed with result [%s]"), *LeftParty->ToDebugString(), ToString(LeaveResult));
+}
+
+void USocialManager::HandlePartyDisconnected(USocialParty* DisconnectingParty)
+{
+	const FOnlinePartyTypeId& PartyTypeId = DisconnectingParty->GetPartyTypeId();
+	JoinedPartiesByTypeId.Remove(PartyTypeId);
+	DisconnectingParty->MarkPendingKill();
 }
 
 void USocialManager::HandlePartyLeaveBegin(EMemberExitedReason Reason, USocialParty* LeavingParty)

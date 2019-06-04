@@ -237,7 +237,7 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 		{
 			if (PC->PlayerCameraManager)
 			{
-				PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+				PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 			}
 
 			if (CameraComponent)
@@ -288,7 +288,7 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, UObject* Unloc
 	if (PC->PlayerCameraManager)
 	{
 		PC->PlayerCameraManager->bClientSimulatingViewTarget = (CameraActor != nullptr);
-		PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+		PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 	}
 
 	if (OnCameraCut.IsBound())

@@ -9,28 +9,22 @@
 #include "Templates/AndOrNot.h"
 #include "Containers/Map.h"
 
-struct FWeakObjectPtr;
-
-/***
- * 
+/**
  * FWeakObjectPtr is a weak pointer to a UObject. 
  * It can return nullptr later if the object is garbage collected.
  * It has no impact on if the object is garbage collected or not.
  * It can't be directly used across a network.
  *
  * Most often it is used when you explicitly do NOT want to prevent something from being garbage collected.
- **/
+ */
 struct FWeakObjectPtr;
 
 template<class T=UObject, class TWeakObjectPtrBase=FWeakObjectPtr>
 struct TWeakObjectPtr;
 
-
-/***
-* 
-* TWeakObjectPtr is templatized version of the generic FWeakObjectPtr
-* 
-**/
+/**
+ * TWeakObjectPtr is the templated version of the generic FWeakObjectPtr
+ */
 template<class T, class TWeakObjectPtrBase>
 struct TWeakObjectPtr : private TWeakObjectPtrBase
 {
@@ -46,7 +40,7 @@ public:
 
 	/**
 	 * Construct from a null pointer
-	**/
+	 */
 	FORCEINLINE TWeakObjectPtr(TYPE_OF_NULLPTR) :
 		TWeakObjectPtrBase((UObject*)nullptr)
 	{
@@ -55,7 +49,7 @@ public:
 	/**
 	 * Construct from an object pointer
 	 * @param Object object to create a weak pointer to
-	**/
+	 */
 	template <
 		typename U,
 		typename = typename TEnableIf<TPointerIsConvertibleFromTo<const volatile U, const volatile T>::Value>::Type
@@ -88,7 +82,7 @@ public:
 	/**
 	 * Construct from another weak pointer of another type, intended for derived-to-base conversions
 	 * @param Other weak pointer to copy from
-	**/
+	 */
 	template <typename OtherT>
 	FORCEINLINE TWeakObjectPtr(const TWeakObjectPtr<OtherT, TWeakObjectPtrBase>& Other) :
 		TWeakObjectPtrBase(*(TWeakObjectPtrBase*)&Other) // we do a C-style cast to private base here to avoid clang 3.6.0 compilation problems with friend declarations
@@ -99,7 +93,7 @@ public:
 	}
 
 	/**
-	 * Reset the weak pointer back to the NULL state
+	 * Reset the weak pointer back to the null state
 	 */
 	FORCEINLINE void Reset()
 	{
@@ -109,7 +103,7 @@ public:
 	/**  
 	 * Copy from an object pointer
 	 * @param Object object to create a weak pointer to
-	**/
+	 */
 	template<class U>
 	FORCEINLINE typename TEnableIf<!TLosesQualifiersFromTo<U, T>::Value, TWeakObjectPtr&>::Type operator=(U* Object)
 	{
@@ -129,7 +123,7 @@ public:
 	/**  
 	 * Assign from another weak pointer, intended for derived-to-base conversions
 	 * @param Other weak pointer to copy from
-	**/
+	 */
 	template <typename OtherT>
 	FORCEINLINE TWeakObjectPtr& operator=(const TWeakObjectPtr<OtherT, TWeakObjectPtrBase>& Other)
 	{
@@ -144,9 +138,9 @@ public:
 
 	/**  
 	 * Dereference the weak pointer
-	 * @param bEvenIfPendingKill, if this is true, pendingkill objects are considered valid	
-	 * @return NULL if this object is gone or the weak pointer was NULL, otherwise a valid uobject pointer
-	**/
+	 * @param bEvenIfPendingKill if this is true, pendingkill objects are considered valid
+	 * @return nullptr if this object is gone or the weak pointer is explicitly null, otherwise a valid uobject pointer
+	 */
 	FORCEINLINE T* Get(bool bEvenIfPendingKill) const
 	{
 		return (T*)TWeakObjectPtrBase::Get(bEvenIfPendingKill);
@@ -168,27 +162,27 @@ public:
 
 	/**  
 	 * Dereference the weak pointer
-	**/
-	FORCEINLINE T & operator*() const
+	 */
+	FORCEINLINE T& operator*() const
 	{
 		return *Get();
 	}
 
 	/**  
 	 * Dereference the weak pointer
-	**/
-	FORCEINLINE T * operator->() const
+	 */
+	FORCEINLINE T* operator->() const
 	{
 		return Get();
 	}
 
 	/**  
 	 * Test if this points to a live UObject
-	 * @param bEvenIfPendingKill, if this is true, pendingkill objects are considered valid
-	 * @param bThreadsafeTest, if true then function will just give you information whether referenced 
-	 *							UObject is gone forever (@return false) or if it is still there (@return true, no object flags checked).
+	 * @param bEvenIfPendingKill if this is true, pendingkill objects are considered valid
+	 * @param bThreadsafeTest if true then function will just give you information whether referenced
+	 *							UObject is gone forever (return false) or if it is still there (return true, no object flags checked).
 	 * @return true if Get() would return a valid non-null pointer
-	**/
+	 */
 	FORCEINLINE bool IsValid(bool bEvenIfPendingKill, bool bThreadsafeTest = false) const
 	{
 		return TWeakObjectPtrBase::IsValid(bEvenIfPendingKill, bThreadsafeTest);
@@ -205,15 +199,28 @@ public:
 
 	/**  
 	 * Slightly different than !IsValid(), returns true if this used to point to a UObject, but doesn't any more and has not been assigned or reset in the mean time.
-	 * @param bIncludingIfPendingKill, if this is true, pendingkill objects are considered stale
-	 * @param bThreadsafeTest, set it to true when testing outside of Game Thread. Results in false if WeakObjPtr point to an existing object (no flags checked) 
+	 * @param bIncludingIfPendingKill if this is true, pendingkill objects are considered stale
+	 * @param bThreadsafeTest set it to true when testing outside of Game Thread. Results in false if WeakObjPtr point to an existing object (no flags checked)
 	 * @return true if this used to point at a real object but no longer does.
-	**/
+	 */
 	FORCEINLINE bool IsStale(bool bIncludingIfPendingKill = true, bool bThreadsafeTest = false) const
 	{
 		return TWeakObjectPtrBase::IsStale(bIncludingIfPendingKill, bThreadsafeTest);
 	}
+	
+	/**
+	 * Returns true if this pointer was explicitly assigned to null, was reset, or was never initialized.
+	 * If this returns true, IsValid() and IsStale() will both return false.
+	 */
+	FORCEINLINE bool IsExplicitlyNull() const
+	{
+		return TWeakObjectPtrBase::IsExplicitlyNull();
+	}
 
+	/**
+	 * Returns true if two weak pointers were originally set to the same object, even if they are now stale
+	 * @param Other weak pointer to compare to
+	 */
 	FORCEINLINE bool HasSameIndexAndSerialNumber(const TWeakObjectPtr& Other) const
 	{
 		return static_cast<const TWeakObjectPtrBase&>(*this).HasSameIndexAndSerialNumber(static_cast<const TWeakObjectPtrBase&>(Other));
@@ -225,6 +232,9 @@ public:
 		return GetTypeHash(static_cast<const TWeakObjectPtrBase&>(WeakObjectPtr));
 	}
 
+	/**
+	 * Weak object pointer serialization, this forwards to FArchive::operator<<(struct FWeakObjectPtr&) or an override
+	 */
 	friend FArchive& operator<<( FArchive& Ar, TWeakObjectPtr& WeakObjectPtr )
 	{
 		Ar << static_cast<TWeakObjectPtrBase&>(WeakObjectPtr);
@@ -239,6 +249,11 @@ FORCEINLINE TWeakObjectPtr<T> MakeWeakObjectPtr(T* Ptr)
 	return TWeakObjectPtr<T>(Ptr);
 }
 
+/**
+ * Compare weak pointers for equality.
+ * If both pointers would return nullptr from Get() they count as equal even if they were not initialized to the same object.
+ * @param Other weak pointer to compare to
+ */
 template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase>
 FORCENOINLINE bool operator==(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
 {
@@ -285,6 +300,10 @@ FORCENOINLINE bool operator==(TYPE_OF_NULLPTR, const TWeakObjectPtr<RhsT, OtherT
 	return !Rhs.IsValid();
 }
 
+/**
+ * Compare weak pointers for inequality
+ * @param Other weak pointer to compare to
+ */
 template <typename LhsT, typename RhsT, typename OtherTWeakObjectPtrBase>
 FORCENOINLINE bool operator!=(const TWeakObjectPtr<LhsT, OtherTWeakObjectPtrBase>& Lhs, const TWeakObjectPtr<RhsT, OtherTWeakObjectPtrBase>& Rhs)
 {
@@ -402,6 +421,7 @@ template<class T> struct TIsPODType<TAutoWeakObjectPtr<T> > { enum { Value = tru
 template<class T> struct TIsZeroConstructType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
 template<class T> struct TIsWeakPointerType<TAutoWeakObjectPtr<T> > { enum { Value = true }; };
 
+/** Utility function to fill in a TArray<ClassName*> from a TArray<TWeakObjectPtr<ClassName>> */
 template<typename DestArrayType, typename SourceArrayType>
 void CopyFromWeakArray(DestArrayType& Dest, const SourceArrayType& Src)
 {

@@ -18,7 +18,9 @@ FPerceptionListenerCounter FAIGenericID<FPerceptionListenerCounter>::Counter = F
 const float FAIStimulus::NeverHappenedAge = FLT_MAX;
 
 FAIStimulus::FAIStimulus(const UAISense& Sense, float StimulusStrength, const FVector& InStimulusLocation, const FVector& InReceiverLocation, FResult Result, FName InStimulusTag)
-	: Age(0.f), Strength(Result == SensingSucceeded ? StimulusStrength : -1.f)
+	: Age(0.f)
+	, ExpirationAge(FAIStimulus::NeverHappenedAge)
+	, Strength(Result == SensingSucceeded ? StimulusStrength : -1.f)
 	, StimulusLocation(InStimulusLocation)
 	, ReceiverLocation(InReceiverLocation)
 	, Tag(InStimulusTag)
@@ -27,7 +29,6 @@ FAIStimulus::FAIStimulus(const UAISense& Sense, float StimulusStrength, const FV
 	, bExpired(false)
 {
 	Type = Sense.GetSenseID();
-	ExpirationAge = Sense.GetDefaultExpirationAge();
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

@@ -41,7 +41,7 @@ struct FNamedAESKey
 
 struct FKeyChain
 {
-	FRSA::TKeyPtr SigningKey;
+	FRSAKeyHandle SigningKey = InvalidRSAKeyHandle;
 	TMap<FGuid, FNamedAESKey> EncryptionKeys;
 	const FNamedAESKey* MasterEncryptionKey = nullptr;
 };
@@ -1258,7 +1258,7 @@ TEncryptionInt ParseEncryptionIntFromJson(TSharedPtr<FJsonObject> InObj, const T
 	}
 }
 
-FRSA::TKeyPtr ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj)
+FRSAKeyHandle ParseRSAKeyFromJson(TSharedPtr<FJsonObject> InObj)
 {
 	TSharedPtr<FJsonObject> PublicKey = InObj->GetObjectField(TEXT("PublicKey"));
 	TSharedPtr<FJsonObject> PrivateKey = InObj->GetObjectField(TEXT("PrivateKey"));
@@ -1347,7 +1347,7 @@ void LoadKeyChainFromFile(const FString& InFilename, FKeyChain& OutCryptoSetting
 
 void LoadKeyChain(const TCHAR* CmdLine, FKeyChain& OutCryptoSettings)
 {
-	OutCryptoSettings.SigningKey.Reset();
+	OutCryptoSettings.SigningKey = InvalidRSAKeyHandle;
 	OutCryptoSettings.EncryptionKeys.Empty();
 
 	// First, try and parse the keys from a supplied crypto key cache file
@@ -1602,7 +1602,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 
 	if (InKeyChain.MasterEncryptionKey)
 	{
-		UE_LOG(LogPakFile, Display, TEXT("Encrypting using key '%s' [%s]"), *InKeyChain.MasterEncryptionKey->Name, *InKeyChain.MasterEncryptionKey->Guid.ToString());
+		UE_LOG(LogPakFile, Display, TEXT("Using encryption key '%s' [%s]"), *InKeyChain.MasterEncryptionKey->Name, *InKeyChain.MasterEncryptionKey->Guid.ToString());
 	}
 
 	TArray<FPakEntryPair> Index;
@@ -1998,7 +1998,7 @@ bool CreatePakFile(const TCHAR* Filename, TArray<FPakInputPair>& FilesToAdd, con
 		}
 	}
 
-	FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), Info.IndexHash);
+	FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), Info.IndexHash.Hash);
 
 	if (Info.bEncryptedIndex)
 	{
@@ -3824,7 +3824,7 @@ bool Repack(const FString& InputPakFile, const FString& OutputPakFile, const FPa
 		FString TempOutputPakFile = FPaths::CreateTempFilename(*FPaths::GetPath(OutputPakFile), *FPaths::GetCleanFilename(OutputPakFile));
 
 		FPakCommandLineParameters ModifiedCmdLineParameters = CmdLineParameters;
-		ModifiedCmdLineParameters.bSign = bAnySigned && InKeyChain.SigningKey.IsValid();
+		ModifiedCmdLineParameters.bSign = bAnySigned && (InKeyChain.SigningKey != InvalidRSAKeyHandle);
 		
 		FKeyChain ModifiedKeyChain = InKeyChain;
 		ModifiedKeyChain.MasterEncryptionKey = InKeyChain.EncryptionKeys.Find(EncryptionKeys.Num() ? EncryptionKeys[0] : FGuid());

@@ -1256,7 +1256,8 @@ namespace EditorUtilities
 
 			if( !bIsTransient && !bIsIdentical && !bIsComponentContainer && !bIsComponentProp && !bIsBlueprintReadonly)
 			{
-				const bool bIsSafeToCopy = !( Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties ) || ( Property->HasAnyPropertyFlags( CPF_Edit | CPF_Interp ) );
+				const bool bIsSafeToCopy = (!( Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties ) || ( Property->HasAnyPropertyFlags( CPF_Edit | CPF_Interp ) ))
+				                        && (!( Options.Flags & ECopyOptions::SkipInstanceOnlyProperties) || ( !Property->HasAllPropertyFlags(CPF_DisableEditOnTemplate) ) );
 				if( bIsSafeToCopy )
 				{
 					if (!Options.CanCopyProperty(*Property, *SourceActor))
@@ -1381,7 +1382,8 @@ namespace EditorUtilities
 					if( !bIsTransient && !bIsIdentical && !bIsComponent && !SourceUCSModifiedProperties.Contains(Property)
 						&& ( !bIsTransform || SourceComponent != SourceActor->GetRootComponent() || ( !SourceActor->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) && !TargetActor->HasAnyFlags( RF_ClassDefaultObject | RF_ArchetypeObject ) ) ) )
 					{
-						const bool bIsSafeToCopy = !( Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties ) || ( Property->HasAnyPropertyFlags( CPF_Edit | CPF_Interp ) );
+						const bool bIsSafeToCopy = (!(Options.Flags & ECopyOptions::OnlyCopyEditOrInterpProperties) || (Property->HasAnyPropertyFlags(CPF_Edit | CPF_Interp)))
+						                        && (!(Options.Flags & ECopyOptions::SkipInstanceOnlyProperties) || (!Property->HasAllPropertyFlags(CPF_DisableEditOnTemplate)));
 						if( bIsSafeToCopy )
 						{
 							if (!Options.CanCopyProperty(*Property, *SourceActor))

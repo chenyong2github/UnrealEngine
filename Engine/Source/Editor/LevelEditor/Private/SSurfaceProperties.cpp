@@ -720,6 +720,11 @@ void SSurfaceProperties::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+FString SSurfaceProperties::GetReferencerName() const
+{
+	return TEXT("SSurfaceProperties");
+}
+
 TOptional<float> SSurfaceProperties::GetLightmapResolutionValue() const
 {
 	float LightMapScale = 0.0f;

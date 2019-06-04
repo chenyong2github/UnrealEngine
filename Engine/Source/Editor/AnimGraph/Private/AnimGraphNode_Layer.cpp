@@ -75,12 +75,16 @@ void UAnimGraphNode_Layer::ValidateAnimNodeDuringCompilation(USkeleton* ForSkele
 		{
 			// check we implement this interface
 			bool bImplementsInterface = false;
-			for(FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
+
+			if (CurrentBlueprint)
 			{
-				if(InterfaceDesc.Interface.Get() == TargetClass)
+				for (FBPInterfaceDescription& InterfaceDesc : CurrentBlueprint->ImplementedInterfaces)
 				{
-					bImplementsInterface = true;
-					break;
+					if (InterfaceDesc.Interface.Get() == TargetClass)
+					{
+						bImplementsInterface = true;
+						break;
+					}
 				}
 			}
 

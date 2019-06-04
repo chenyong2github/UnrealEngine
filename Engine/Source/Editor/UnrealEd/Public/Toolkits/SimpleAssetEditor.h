@@ -52,6 +52,9 @@ private:
 	/** Handles when an asset is imported */
 	void HandleAssetPostImport(class UFactory* InFactory, UObject* InObject);
 
+	/** Called when objects need to be swapped out for new versions, like after a blueprint recompile. */
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
+
 	/** Dockable tab for properties */
 	TSharedPtr< SDockableTab > PropertiesTab;
 

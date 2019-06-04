@@ -1532,6 +1532,11 @@ void FCascade::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+FString FCascade::GetReferencerName() const
+{
+	return TEXT("FCascade");
+}
+
 void FCascade::Tick(float DeltaTime)
 {
 	// This is a bit of a hack. In order to not tick all open Cascade editors (which tick through engine tick) even when not visible,

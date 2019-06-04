@@ -73,10 +73,15 @@ void UK2Node_BaseAsyncTask::AllocateDefaultPins()
 
 	bool bExposeProxy = false;
 	bool bHideThen = false;
+	FText ExposeProxyDisplayName;
 	for (const UStruct* TestStruct = ProxyClass; TestStruct; TestStruct = TestStruct->GetSuperStruct())
 	{
 		bExposeProxy |= TestStruct->HasMetaData(TEXT("ExposedAsyncProxy"));
 		bHideThen |= TestStruct->HasMetaData(TEXT("HideThen"));
+		if (ExposeProxyDisplayName.IsEmpty())
+		{
+			ExposeProxyDisplayName = TestStruct->GetMetaDataText(TEXT("ExposedAsyncProxy"));
+		}
 	}
 
 	if (!bHideThen)
@@ -86,7 +91,11 @@ void UK2Node_BaseAsyncTask::AllocateDefaultPins()
 
 	if (bExposeProxy)
 	{
-		CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, ProxyClass, FBaseAsyncTaskHelper::GetAsyncTaskProxyName());
+		UEdGraphPin* ProxyPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Object, ProxyClass, FBaseAsyncTaskHelper::GetAsyncTaskProxyName());
+		if (!ExposeProxyDisplayName.IsEmpty())
+		{
+			ProxyPin->PinFriendlyName = ExposeProxyDisplayName;
+		}
 	}
 
 	UFunction* Function = GetFactoryFunction();

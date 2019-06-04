@@ -106,4 +106,27 @@ void UNavArea::CopyFrom(TSubclassOf<UNavArea> AreaClass)
 	}
 }
 
+#if WITH_EDITOR
+void UNavArea::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	static const FName NAME_DefaultCost = GET_MEMBER_NAME_CHECKED(UNavArea, DefaultCost);
+	static const FName NAME_FixedAreaEnteringCost = GET_MEMBER_NAME_CHECKED(UNavArea, FixedAreaEnteringCost);
 
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (HasAnyFlags(RF_ClassDefaultObject)
+#if WITH_HOT_RELOAD
+		&& !GIsHotReload
+#endif // WITH_HOT_RELOAD
+		)
+	{
+		const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+		if (PropertyName == NAME_DefaultCost
+			|| PropertyName == NAME_FixedAreaEnteringCost)
+		{
+			UNavigationSystemV1::RequestAreaUnregistering(GetClass());
+			RegisterArea();
+		}
+	}
+}
+#endif // WITH_EDITOR

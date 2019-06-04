@@ -5,6 +5,10 @@
 #include "AudioMixerSourceVoice.h"
 #include "Sound/SoundSubmix.h"
 #include "Sound/SoundEffectSubmix.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
 namespace Audio
 {
@@ -591,7 +595,7 @@ namespace Audio
 
 		// Mix all submix audio into this submix's input scratch buffer
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixChildren);
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixChildren);
 
 			// First loop this submix's child submixes mixing in their output into this submix's dry/wet buffers.
 			for (auto& ChildSubmixEntry : ChildSubmixes)
@@ -620,7 +624,7 @@ namespace Audio
 		}
 
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixSource);
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixSource);
 
 			// Loop through this submix's sound sources
 			for (const auto MixerSourceVoiceIter : MixerSourceVoices)
@@ -635,7 +639,7 @@ namespace Audio
 
 		if (EffectSubmixChain.Num() > 0)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerSubmixEffectProcessing);
+			CSV_SCOPED_TIMING_STAT(Audio, SubmixEffectProcessing);
 
 			// Setup the input data buffer
 			FSoundEffectSubmixInputData InputData;

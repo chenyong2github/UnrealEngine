@@ -123,7 +123,7 @@ void FLinkerTables::SerializeSearchableNamesMap(FStructuredArchive::FSlot Slot)
 
 		for (TPair<FPackageIndex, TArray<FName> >& Pair : SearchableNamesMap)
 		{
-			Pair.Value.Sort();
+			Pair.Value.Sort(FNameLexicalLess());
 		}
 	}
 

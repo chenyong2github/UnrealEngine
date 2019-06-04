@@ -8,9 +8,20 @@ FProxyMessageHandler::FProxyMessageHandler(const TSharedPtr<FGenericApplicationM
 
 }
 
-FProxyMessageHandler::~FProxyMessageHandler() 
+FProxyMessageHandler::~FProxyMessageHandler()
 {
 }
+
+void FProxyMessageHandler::SetTargetHandler(const TSharedPtr<FGenericApplicationMessageHandler>& InTargetHandler)
+{
+	TargetHandler = InTargetHandler;
+}
+
+const TSharedPtr<FGenericApplicationMessageHandler> FProxyMessageHandler::GetTargetHandler() const
+{
+	return TargetHandler;
+}
+
 
 bool FProxyMessageHandler::ShouldProcessUserInputMessages(const TSharedPtr< FGenericWindow >& PlatformWindow) const
 {
@@ -164,16 +175,31 @@ bool FProxyMessageHandler::OnCursorSet()
 
 bool FProxyMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue)
 {
+	if (TargetHandler.IsValid())
+	{
+		return TargetHandler->OnControllerAnalog(KeyName, ControllerId, AnalogValue);
+	}
+
 	return false;
 }
 
 bool FProxyMessageHandler::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
 {
+	if (TargetHandler.IsValid())
+	{
+		return TargetHandler->OnControllerButtonPressed(KeyName, ControllerId, IsRepeat);
+	}
+
 	return false;
 }
 
 bool FProxyMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
 {
+	if (TargetHandler.IsValid())
+	{
+		return TargetHandler->OnControllerButtonReleased(KeyName, ControllerId, IsRepeat);
+	}
+
 	return false;
 }
 

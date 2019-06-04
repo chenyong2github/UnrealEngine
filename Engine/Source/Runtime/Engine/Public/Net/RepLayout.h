@@ -83,19 +83,14 @@ namespace UE4_RepLayout_Private
 			return InBuffer.Data + Offset;
 		}
 
-		operator bool()
+		explicit operator bool() const
 		{
 			return Data != nullptr;
 		}
 
-		operator ConstOrNotType* ()
+		operator ConstOrNotType* () const
 		{
 			return Data;
-		}
-
-		operator ConstOrNotVoid* ()
-		{
-			return (ConstOrNotVoid*)Data;
 		}
 
 		ConstOrNotType* RESTRICT Data;
@@ -1505,6 +1500,7 @@ public:
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	ENGINE_API virtual FString GetReferencerName() const override;
 	//~ End FGCObject Interface
 
 	/**

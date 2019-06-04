@@ -1125,6 +1125,10 @@ void FAssetEditorToolkit::FGCEditingObjects::AddReferencedObjects(FReferenceColl
 	OwnerToolkit.EditingObjects.RemoveAllSwap([](UObject* Obj) { return Obj == nullptr; } );
 }
 
+FString FAssetEditorToolkit::FGCEditingObjects::GetReferencerName() const
+{
+	return TEXT("FAssetEditorToolkit::FGCEditorObjects");
+}
 
 TSharedPtr<FExtender> FExtensibilityManager::GetAllExtenders()
 {

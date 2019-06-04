@@ -6,6 +6,10 @@
 #include "OculusHMD_CustomPresent.h"
 #include "XRThreadUtils.h"
 
+#if PLATFORM_WINDOWS
+#include "GenerateMips.h"
+#endif
+
 
 namespace OculusHMD
 {
@@ -37,7 +41,7 @@ void FTextureSetProxy::GenerateMips_RenderThread(FRHICommandListImmediate& RHICm
 	if (RHITexture->GetNumMips() > 1 && RHITexture->GetTextureCube() == nullptr)
 	{
 #if PLATFORM_WINDOWS
-		RHICmdList.GenerateMips(RHITexture);
+		FGenerateMips::Execute(RHICmdList, RHITexture);
 #endif
 	}
 }

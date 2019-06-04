@@ -166,10 +166,6 @@ class UTimelineTemplate : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=TimelineTemplate)
 	uint8 bReplicated:1;
 
-	/** Compiler Validated As Wired up */
-	UPROPERTY()
-	uint8 bValidatedAsWired:1;
-
 	/** If we want the timeline to ignore global time dilation */
 	UPROPERTY(EditAnywhere, Category = TimelineTemplate)
 	uint8 bIgnoreTimeDilation : 1;

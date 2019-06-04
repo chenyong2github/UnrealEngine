@@ -158,7 +158,7 @@ void UNiagaraGraph::PostLoad()
 	if (bAllZeroes && UniqueNames.Num() > 1)
 	{
 		// Just do the lexicographic sort and assign the call order to their ordered index value.
-		UniqueNames.Sort();
+		UniqueNames.Sort(FNameLexicalLess());
 		for (UNiagaraNodeInput* InputNode : InputNodes)
 		{
 			if (InputNode->Usage == ENiagaraInputNodeUsage::Parameter)
@@ -629,12 +629,21 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs() const
 		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
 		if (FunctionNode)
 		{
-			for (FNiagaraVariable Variable : FunctionNode->PropagatedStaticSwitchParameters)
+			for (const FNiagaraPropagatedVariable& Propagated : FunctionNode->PropagatedStaticSwitchParameters)
 			{
+				FNiagaraVariable Variable = Propagated.SwitchParameter;
+				if (!Propagated.PropagatedName.IsEmpty())
+				{
+					Variable.SetName(FName(*Propagated.PropagatedName));
+				}
 				Result.AddUnique(Variable);
 			}			
 		}
 	}
+	Result.Sort([](const FNiagaraVariable& Left, const FNiagaraVariable& Right)
+	{
+		return Left.GetName().LexicalLess(Right.GetName());
+	});
 	return Result;
 }
 
@@ -1538,8 +1547,13 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		}
 		else if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
 		{
-			for (FNiagaraVariable Variable : FunctionNode->PropagatedStaticSwitchParameters)
+			for (const FNiagaraPropagatedVariable& Propagated : FunctionNode->PropagatedStaticSwitchParameters)
 			{
+				FNiagaraVariable Variable = Propagated.SwitchParameter;
+				if (!Propagated.PropagatedName.IsEmpty())
+				{
+					Variable.SetName(FName(*Propagated.PropagatedName));
+				}
 				AddStaticParameterReference(Variable, FunctionNode);
 			}
 		}

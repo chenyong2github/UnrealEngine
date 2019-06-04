@@ -332,6 +332,11 @@ void FLegacySlateFontInfoCache::AddReferencedObjects(FReferenceCollector& Collec
 	}
 }
 
+FString FLegacySlateFontInfoCache::GetReferencerName() const
+{
+	return TEXT("FLegacySlateFontInfoCache");
+}
+
 void FLegacySlateFontInfoCache::HandleCultureChanged()
 {
 	// We set this to the current frame count, as this will prevent the fallback font being updated for the remainder of this frame (as the culture change may have affected the fallback font used)

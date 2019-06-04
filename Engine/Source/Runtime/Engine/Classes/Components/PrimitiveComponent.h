@@ -216,18 +216,18 @@ public:
 	ELightmapType LightmapType;
 
 #if WITH_EDITORONLY_DATA
-	/** If true, and if World setting has bEnableHierarchicalLOD equal to true, then this component will be included when generating a Proxy mesh for the parent Actor */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD, meta = (DisplayName = "Include Component for HLOD Mesh generation"))
-	uint8 bEnableAutoLODGeneration : 1;
-
-	/** Use the Maximum LOD Mesh (imposter) instead of including Mesh data from this component in the Proxy Generation process */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD)
-	uint8 bUseMaxLODAsImposter: 1;
-
 	/** Which specific HLOD levels this component should be excluded from */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD)
 	TArray<int32> ExcludeForSpecificHLODLevels;
+
+	/** If true, and if World setting has bEnableHierarchicalLOD equal to true, then this component will be included when generating a Proxy mesh for the parent Actor */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD, meta = (DisplayName = "Include Component for HLOD Mesh generation"))
+	uint8 bEnableAutoLODGeneration : 1;
 #endif 
+
+	/** Use the Maximum LOD Mesh (imposter) instead of including Mesh data from this component in the Proxy Generation process */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD)
+	uint8 bUseMaxLODAsImposter : 1;
 
 	/**
 	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.
@@ -511,9 +511,6 @@ private:
 
 	FMaskFilter MoveIgnoreMask;
 
-	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
-	UPROPERTY()
-	FCustomPrimitiveData CustomPrimitiveData;
 public:
 	/**
 	 * Determine whether a Character can step up onto this component.
@@ -537,6 +534,13 @@ public:
 	/** Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3) */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
 	int32 CustomDepthStencilValue;
+
+private:
+	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
+	UPROPERTY()
+	FCustomPrimitiveData CustomPrimitiveData;
+
+public:
 
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
@@ -751,10 +755,15 @@ protected:
 
 private:
 	/** Convert a set of overlaps from a sweep to a subset that includes only those at the end location (filling in OverlapsAtEndLocation). */
-	const TArray<FOverlapInfo>* ConvertSweptOverlapsToCurrentOverlaps(TArray<FOverlapInfo>& OverlapsAtEndLocation, const TArray<FOverlapInfo>& SweptOverlaps, int32 SweptOverlapsIndex, const FVector& EndLocation, const FQuat& EndRotationQuat);
+	template<typename AllocatorType>
+	bool ConvertSweptOverlapsToCurrentOverlaps(TArray<FOverlapInfo, AllocatorType>& OutOverlapsAtEndLocation, const TOverlapArrayView& SweptOverlaps, int32 SweptOverlapsIndex, const FVector& EndLocation, const FQuat& EndRotationQuat);
 
 	/** Convert a set of overlaps from a symmetric change in rotation to a subset that includes only those at the end location (filling in OverlapsAtEndLocation). */
-	const TArray<FOverlapInfo>* ConvertRotationOverlapsToCurrentOverlaps(TArray<FOverlapInfo>& OverlapsAtEndLocation, const TArray<FOverlapInfo>& CurrentOverlaps);
+	template<typename AllocatorType>
+	bool ConvertRotationOverlapsToCurrentOverlaps(TArray<FOverlapInfo, AllocatorType>& OutOverlapsAtEndLocation, const TOverlapArrayView& CurrentOverlaps);
+
+	template<typename AllocatorType>
+	bool GetOverlapsWithActor_Template(const AActor* Actor, TArray<FOverlapInfo, AllocatorType>& OutOverlaps) const;
 
 	// FScopedMovementUpdate needs access to the above two functions.
 	friend FScopedMovementUpdate;
@@ -833,7 +842,7 @@ public:
 	 *									Generally this should only be used if this component is the RootComponent of the owning actor and overlaps with other descendant components have been verified.
 	 * @return							True if we can skip calling this in the future (i.e. no useful work is being done.)
 	 */
-	virtual bool UpdateOverlapsImpl(TArray<FOverlapInfo> const* NewPendingOverlaps=nullptr, bool bDoNotifies=true, const TArray<FOverlapInfo>* OverlapsAtEndLocation=nullptr) override;
+	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* NewPendingOverlaps=nullptr, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=nullptr) override;
 
 	/** Update current physics volume for this component, if bShouldUpdatePhysicsVolume is true. Overridden to use the overlaps to find the physics volume. */
 	virtual void UpdatePhysicsVolume( bool bTriggerNotifiers ) override;

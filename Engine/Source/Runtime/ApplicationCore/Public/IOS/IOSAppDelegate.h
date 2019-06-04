@@ -70,9 +70,13 @@ namespace FAppEntry
 	void Init();
 	void Tick();
     void SuspendTick();
+	void ResumeAudioContext();
+	void ResetAudioContextResumeTime();
 	void Shutdown();
     void Suspend(bool bIsInterrupt = false);
     void Resume(bool bIsInterrupt = false);
+	void RestartAudio();
+
 	bool IsStartupMoviePlaying();
 
 	extern bool	gAppLaunchedWithLocalNotification;
@@ -200,7 +204,9 @@ APPLICATIONCORE_API
 - (void)InitializeAudioSession;
 - (void)ToggleAudioSession:(bool)bActive force:(bool)bForce;
 - (bool)IsBackgroundAudioPlaying;
+- (bool)HasRecordPermission;
 - (void)EnableVoiceChat:(bool)bEnable;
+- (void)EnableHighQualityVoiceChat:(bool)bEnable;
 - (bool)IsVoiceChatEnabled;
 
 - (void)SetFeature:(EAudioFeature)Feature Active:(bool)bIsActive;
@@ -208,6 +214,7 @@ APPLICATIONCORE_API
 
 @property (atomic) bool bAudioActive;
 @property (atomic) bool bVoiceChatEnabled;
+@property (atomic) bool bHighQualityVoiceChatEnabled;
 
 @property (atomic) bool bIsSuspended;
 @property (atomic) bool bHasSuspended;

@@ -139,7 +139,6 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FTe
 		CompileTypes[i].Key = Scripts[i]->GetUsage();
 		CompileTypes[i].Value = Scripts[i]->GetUsageId();
 	}
-	//UE_LOG(LogNiagaraEditor, Warning, TEXT("FNiagaraScriptViewModel %p"), this);
 }
 
 void FNiagaraScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
@@ -473,13 +472,13 @@ UNiagaraScript* FNiagaraScriptViewModel::GetScript(ENiagaraScriptUsage InUsage, 
 	return nullptr;
 }
 
-void FNiagaraScriptViewModel::CompileStandaloneScript()
+void FNiagaraScriptViewModel::CompileStandaloneScript(bool bForceCompile)
 {
 	if (Source.IsValid() && Source != nullptr && Scripts.Num() == 1 && Scripts[0].IsValid ())
 	{
 		if (Scripts[0]->IsStandaloneScript() && Scripts[0]->IsCompilable())
 		{
-			Scripts[0]->RequestCompile();
+			Scripts[0]->RequestCompile(bForceCompile);
 		}
 		else if (!Scripts[0]->IsCompilable())
 		{

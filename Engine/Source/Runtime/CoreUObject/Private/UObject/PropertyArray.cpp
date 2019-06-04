@@ -335,17 +335,20 @@ void UArrayProperty::ExportTextInnerItem(FString& ValueStr, UProperty* Inner, co
 
 	uint8* StructDefaults = NULL;
 	UStructProperty* StructProperty = dynamic_cast<UStructProperty*>(Inner);
+
+	const bool bReadableForm = (0 != (PPF_BlueprintDebugView & PortFlags));
+	const bool bExternalEditor = (0 != (PPF_ExternalEditor & PortFlags));
+
 	// ArrayProperties only export a diff because array entries are cleared and recreated upon import. Static arrays are overwritten when importing,
 	// so we export the entire struct to ensure all data is copied over correctly. Behavior is currently inconsistent when copy/pasting between the two types.
 	// In the future, static arrays could export diffs if the property being imported to is reset to default before the import.
-	if ( StructProperty != NULL && Inner->ArrayDim == 1 )
+	// When exporting to an external editor, we want to save defaults so all information is available for editing
+	if ( StructProperty != NULL && Inner->ArrayDim == 1 && !bExternalEditor )
 	{
 		checkSlow(StructProperty->Struct);
 		StructDefaults = (uint8*)FMemory::Malloc(StructProperty->Struct->GetStructureSize() * Inner->ArrayDim);
 		StructProperty->InitializeValue(StructDefaults);
 	}
-
-	const bool bReadableForm = (0 != (PPF_BlueprintDebugView & PortFlags));
 
 	int32 Count = 0;
 	for( int32 i=0; i<PropertySize; i++ )
@@ -375,7 +378,11 @@ void UArrayProperty::ExportTextInnerItem(FString& ValueStr, UProperty* Inner, co
 
 		// Always use struct defaults if the inner is a struct, for symmetry with the import of array inner struct defaults
 		uint8* PropDefault = nullptr;
-		if (StructProperty)
+		if (bExternalEditor)
+		{
+			PropDefault = PropData;
+		}
+		else if (StructProperty)
 		{
 			PropDefault = StructDefaults;
 		}

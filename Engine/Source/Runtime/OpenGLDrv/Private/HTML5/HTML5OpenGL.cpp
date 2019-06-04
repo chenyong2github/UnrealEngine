@@ -264,7 +264,11 @@ FPlatformOpenGLContext* PlatformGetOpenGLRenderingContext(FPlatformOpenGLDevice*
 
 void _HTML5CreateContext(FPlatformOpenGLDevice* Device, void* InWindowHandle)
 {
-	EM_ASM({console.log("kai _HTML5CreateContext Device[" + $0 + "] InWindowHandle[" + $1 + "] GUseThreadedRendering[" + $2 + "] FHTML5Misc::AllowRenderThread()[" + $3 + "]")}, Device, InWindowHandle, GUseThreadedRendering, FHTML5Misc::AllowRenderThread());
+#ifdef __EMSCRIPTEN_PTHREADS__
+	EM_ASM({
+			console.log("kai pthread["+_pthread_self()+"] _HTML5CreateContext Device[" + $0 + "] InWindowHandle[" + $1 + "] GUseThreadedRendering[" + $2 + "] FHTML5Misc::UseRenderThread()[" + $3 + "]");
+		}, Device, InWindowHandle, GUseThreadedRendering, FHTML5Misc::UseRenderThread());
+#endif
 	EmscriptenWebGLContextAttributes attr;
 	emscripten_webgl_init_context_attributes(&attr);
 	// Enabling alpha channel on the back buffer would allow web page to composit canvas on top of the elements behind it.
@@ -280,28 +284,20 @@ void _HTML5CreateContext(FPlatformOpenGLDevice* Device, void* InWindowHandle)
 #ifdef __EMSCRIPTEN_PTHREADS__
 	if ( GUseThreadedRendering )
 	{
-		// New explicit swapping support is only available in multithreaded mode.
-		if (FHTML5Misc::AllowRenderThread())
-		{
-// UE-71696 force to explicitSwapControl when using OFFSCREEN_FRAMEBUFFER
-//			attr.explicitSwapControl = 0;
-attr.explicitSwapControl = 1;
-			UE_LOG(LogRHI, Log, TEXT("Multithreading enabled, targeting explicitSwapControl=0"));
+		// New explicit swapping support (application controls when to swap) is only available in multithreaded mode.
+		// see PlatformBlitToViewport() below
+		attr.explicitSwapControl = 1;
+		UE_LOG(LogRHI, Log, TEXT("Multithreading enabled, targeting explicitSwapControl=1"));
 
-			// Rendering thread requires access to a WebGL context from multiple threads, in which case
-			// WebGL proxying will need to be used (no OffscreenCanvas)
-			attr.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS;
-			attr.renderViaOffscreenBackBuffer = EM_TRUE;
-		}
-		else
-		{
-			attr.explicitSwapControl = 1;
-			UE_LOG(LogRHI, Log, TEXT("Multithreading enabled, targeting explicitSwapControl=1"));
-		}
+		// Rendering thread requires access to a WebGL context from multiple threads, in which case
+		// WebGL proxying will need to be used (no OffscreenCanvas)
+		attr.proxyContextToMainThread = EMSCRIPTEN_WEBGL_CONTEXT_PROXY_ALWAYS;
+		attr.renderViaOffscreenBackBuffer = EM_TRUE;
 	}
 	else
 #endif
 	{
+		// In singlethreaded builds, this does not exist, and we rely on WebGL's "implicit" swap behavior where exiting the animation tick handler() always swaps.
 		attr.explicitSwapControl = 0;
 		UE_LOG(LogRHI, Log, TEXT("Multithreading not enabled, setting explicitSwapControl=0"));
 	}
@@ -309,17 +305,19 @@ attr.explicitSwapControl = 1;
 #ifdef HTML5_USE_SDL2
 	Device->SharedContext->Context = SDL_GL_CreateContext((SDL_Window*)InWindowHandle);
 #else
-	Device->SharedContext->Context = emscripten_webgl_create_context(0, &attr);
+	Device->SharedContext->Context = emscripten_webgl_create_context("canvas", &attr);
 #endif
 
 	if (!Device->SharedContext->Context && attr.majorVersion == 2)
 	{
+#ifndef __EMSCRIPTEN_PTHREADS__
 		// If WebGL 2 context creation failed, try WebGL 1 as a fallback.
 		attr.majorVersion = 1;
 #ifdef HTML5_USE_SDL2
 		Device->SharedContext->Context = SDL_GL_CreateContext((SDL_Window*)InWindowHandle);
 #else
-		Device->SharedContext->Context = emscripten_webgl_create_context(0, &attr);
+		Device->SharedContext->Context = emscripten_webgl_create_context("canvas", &attr);
+#endif
 #endif
 	}
 
@@ -334,52 +332,31 @@ attr.explicitSwapControl = 1;
 	{
 		UE_LOG(LogRHI, Fatal, TEXT("Failed to activate WebGL context!"));
 	}
+	else
+	{
+		UE_LOG(LogRHI, Log, TEXT("WebGL context successfully activated!"));
+	}
 #endif
 }
-
-//#if HTML5_ENABLE_RENDERER_THREAD
-//void *_HTML5CreateContextThread(void *arg)
-//{
-////...// XXX: attempt 1
-////...//	_HTML5CreateContext((FPlatformOpenGLDevice*)arg /*Device*/);
-////...//	FHTML5PlatformProcess::SleepInfinite();
-//
-//// XXX: attempt 2
-//	do {
-//		FHTML5PlatformProcess::SleepNoStats(1.0f);
-////	} while (PlatformOpenGLContextValid()); // XXX: attempt 3
-//	} while (true);
-//
-//	return NULL;
-//}
-//#endif
 
 FPlatformOpenGLContext* PlatformCreateOpenGLContext(FPlatformOpenGLDevice* Device, void* InWindowHandle)
 {
 #ifdef HTML5_USE_SDL2
 	Device->SharedContext->Context = SDL_GL_CreateContext((SDL_Window*)InWindowHandle);
 #else
-#ifdef __EMSCRIPTEN_PTHREADS__
-	if ( GUseThreadedRendering )
-	{
-		if (!FHTML5Misc::AllowRenderThread())
-		{
-			pthread_attr_t pt_attr;
-			pthread_attr_init(&pt_attr);
-EM_ASM({ console.log("CANVAS BEFORE"); });
-EM_ASM({ console.log( Module['canvas'] ); });
-			emscripten_pthread_attr_settransferredcanvases(&pt_attr, Device->WindowHandle); // #canvas
-EM_ASM({ console.log("CANVAS AFTER"); });
-EM_ASM({ console.log( Module['canvas'] ); });
-//			int rc = pthread_create(&Device->thread, &pt_attr, _HTML5CreateContextThread, NULL);
-//			if (rc == ENOSYS)
-//			{
-//				UE_LOG(LogRHI, Fatal, TEXT("OffscreenCanvas is not supported!"));
-//			}
-			pthread_attr_destroy(&pt_attr);
-		}
-	}
-#endif
+
+// NOTE: when using PROXY_TO_PTHREAD -- the following is already done
+//#ifdef __EMSCRIPTEN_PTHREADS__
+//	if ( GUseThreadedRendering )
+//	{
+//		pthread_attr_t pt_attr;
+//		pthread_attr_init(&pt_attr);
+//		emscripten_pthread_attr_settransferredcanvases(&pt_attr, Device->WindowHandle); // #canvas
+//		pthread_attr_destroy(&pt_attr);
+//	}
+//#endif
+
+	EM_ASM({ console.log("CANVAS OBJECT:" + Module['canvas']); });
 	_HTML5CreateContext(Device, InWindowHandle);
 
 #endif
@@ -407,13 +384,7 @@ bool PlatformBlitToViewport( FPlatformOpenGLDevice* Device, const FOpenGLViewpor
 #ifdef __EMSCRIPTEN_PTHREADS__
 	if ( GUseThreadedRendering )
 	{
-// UE-71696 ue4 will handle when to call commit whether using OFFSCREEN_FRAMEBUFFER or OFFSCREEN_CANVAS
-//		if (!FHTML5Misc::AllowRenderThread())
-		{
-			// In multithreaded builds, we always use Emscripten's explicit swap mode, where we present on demand.
-			// In singlethreaded builds, this does not exist, and we rely on WebGL's "implicit" swap behavior where exiting the animation tick handler() always swaps.
-			emscripten_webgl_commit_frame();
-		}
+		emscripten_webgl_commit_frame();
 	}
 #endif
 
@@ -426,12 +397,14 @@ void PlatformRenderingContextSetup(FPlatformOpenGLDevice* Device)
 #ifndef HTML5_USE_SDL2
 	// Function name says "Rendering Context", but WebGL doesn't support resource
 	// sharing, so this actually just does Shared Context setup.
-	EM_ASM({console.log("kai PlatformRenderingContextSetup " + $0)}, Device->SharedContext->Context);
+#ifdef __EMSCRIPTEN_PTHREADS__
+	EM_ASM({console.log("kai pthread["+ _pthread_self() +"] PlatformRenderingContextSetup " + $0)}, Device->SharedContext->Context);
+#endif
 
 	check( Device && Device->WindowHandle && Device->SharedContext && Device->SharedContext->Context );
 
-	EM_ASM({console.log("kai PlatformRenderingContextSetup: AllowRenderThread ->", $0)}, FHTML5Misc::AllowRenderThread());
-	if (FHTML5Misc::AllowRenderThread())
+	EM_ASM({console.log("kai PlatformRenderingContextSetup: UseRenderThread ->", $0)}, GUseThreadedRendering);
+	if (GUseThreadedRendering)
 	{
 		EMSCRIPTEN_RESULT r = emscripten_webgl_make_context_current(Device->SharedContext->Context);
 		EM_ASM({console.log("kai PlatformRenderingContextSetup: emscripten_webgl_make_context_current ->", $0)}, r);
@@ -457,6 +430,11 @@ void PlatformRenderingContextSetup(FPlatformOpenGLDevice* Device)
 		{
 			UE_LOG(LogRHI, Fatal, TEXT("Failed to activate WebGL context after creation!"));
 		}
+	}
+	else
+	{
+		EM_ASM({console.log("kai PlatformRenderingContextSetup: emscripten_webgl_get_current_context ->", $0, "DSC -> ", $1)},
+				emscripten_webgl_get_current_context(), Device->SharedContext->Context );
 	}
 #else
 	// TODO: get Kai's SDL2 solution
@@ -565,7 +543,7 @@ bool PlatformContextIsCurrent( uint64 QueryContext )
 #if defined(__EMSCRIPTEN_PTHREADS__) && ! HTML5_ENABLE_RENDERER_THREAD
 	if ( emscripten_webgl_get_current_context() != (EMSCRIPTEN_WEBGL_CONTEXT_HANDLE)QueryContext ) {
 		EM_ASM({
-			console.log("!!! XXX !!! thread["+_pthread_self()+"] PlatformContextIsCurrent curctx["+$0+"] qctx["+$1+"]");
+			console.log("XXX pthread["+_pthread_self()+"] PlatformContextIsCurrent curctx["+$0+"] qctx["+$1+"]");
 		}, emscripten_webgl_get_current_context(), (uint32)QueryContext );
 		return true;
 	}

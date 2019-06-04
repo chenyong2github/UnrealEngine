@@ -125,7 +125,7 @@ UObjectBase::~UObjectBase()
 	{
 		// Validate it.
 		check(IsValidLowLevel());
-		LowLevelRename(NAME_None);
+		check(GetFName() == NAME_None);
 		GUObjectArray.FreeUObjectIndex(this);
 	}
 

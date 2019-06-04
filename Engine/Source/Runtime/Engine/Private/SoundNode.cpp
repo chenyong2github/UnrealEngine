@@ -214,14 +214,14 @@ bool USoundNode::HasConcatenatorNode() const
 	return false;
 }
 
-bool USoundNode::IsVirtualizeWhenSilent() const
+bool USoundNode::IsPlayWhenSilent() const
 {
 	for (USoundNode* ChildNode : ChildNodes)
 	{
 		if (ChildNode)
 		{
 			ChildNode->ConditionalPostLoad();
-			if (ChildNode->IsVirtualizeWhenSilent())
+			if (ChildNode->IsPlayWhenSilent())
 			{
 				return true;
 			}

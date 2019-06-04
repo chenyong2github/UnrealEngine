@@ -116,7 +116,7 @@ public:
 	/**
 	 * @return Whether or not the iterator is valid
 	 */
-	operator bool()
+	explicit operator bool() const
 	{
 		return !bReachedEnd;	
 	}

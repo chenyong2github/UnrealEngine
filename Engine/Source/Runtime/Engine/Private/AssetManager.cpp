@@ -166,6 +166,8 @@ void UAssetManager::PostInitProperties()
 		}
 
 		LoadRedirectorMaps();
+
+		StreamableManager.SetManagerName(FString::Printf(TEXT("%s.StreamableManager"), *GetPathName()));
 	}
 }
 
@@ -1153,7 +1155,7 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 				NewBundleState.AddUnique(AddBundle);
 			}
 
-			NewBundleState.Sort();
+			NewBundleState.Sort(FNameLexicalLess());
 
 			// If the pending state is valid, check if it is different
 			if (NameData->PendingState.IsValid())
@@ -2377,7 +2379,7 @@ void UAssetManager::DumpAssetTypeSummary()
 
 	Manager.GetPrimaryAssetTypeInfoList(TypeInfos);
 
-	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType < RHS.PrimaryAssetType; });
+	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType.LexicalLess(RHS.PrimaryAssetType); });
 
 	UE_LOG(LogAssetManager, Log, TEXT("=========== Asset Manager Type Summary ==========="));
 
@@ -2405,7 +2407,7 @@ void UAssetManager::DumpLoadedAssetState()
 
 	Manager.GetPrimaryAssetTypeInfoList(TypeInfos);
 
-	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType < RHS.PrimaryAssetType; });
+	TypeInfos.Sort([](const FPrimaryAssetTypeInfo& LHS, const FPrimaryAssetTypeInfo& RHS) { return LHS.PrimaryAssetType.LexicalLess(RHS.PrimaryAssetType); });
 
 	UE_LOG(LogAssetManager, Log, TEXT("=========== Asset Manager Loaded Asset State ==========="));
 
@@ -2451,7 +2453,7 @@ void UAssetManager::DumpLoadedAssetState()
 		{
 			UE_LOG(LogAssetManager, Log, TEXT("  Type %s:"), *TypeInfo.PrimaryAssetType.ToString());
 
-			LoadedInfos.Sort([](const FLoadedInfo& LHS, const FLoadedInfo& RHS) { return LHS.AssetName < RHS.AssetName; });
+			LoadedInfos.Sort([](const FLoadedInfo& LHS, const FLoadedInfo& RHS) { return LHS.AssetName.LexicalLess(RHS.AssetName); });
 
 			for (FLoadedInfo& LoadedInfo : LoadedInfos)
 			{

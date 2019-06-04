@@ -37,6 +37,7 @@
 #include "Serialization/DuplicatedObject.h"
 #include "Serialization/DuplicatedDataReader.h"
 #include "Serialization/DuplicatedDataWriter.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "Blueprint/BlueprintSupport.h"
@@ -467,9 +468,9 @@ void StaticTick( float DeltaTime, bool bUseFullTimeLimit, float AsyncLoadingTime
 
 #if STATS
 	// Set name table stats.
-	int32 NameTableEntries = FName::GetMaxNames();
 	int32 NameTableAnsiEntries = FName::GetNumAnsiNames();
 	int32 NameTableWideEntries = FName::GetNumWideNames();
+	int32 NameTableEntries = NameTableAnsiEntries + NameTableWideEntries;
 	int32 NameTableMemorySize = FName::GetNameTableMemorySize();
 	SET_DWORD_STAT( STAT_NameTableEntries, NameTableEntries );
 	SET_DWORD_STAT( STAT_NameTableAnsiEntries, NameTableAnsiEntries );
@@ -1761,12 +1762,13 @@ FName MakeUniqueObjectName( UObject* Parent, UClass* Class, FName InBaseName/*=N
 		do
 		{
 			// create the next name in the sequence for this class
-			if (BaseName.GetComparisonIndex() == NAME_Package)
+			static const FName NamePackage(NAME_Package);
+			if (BaseName == NamePackage)
 			{
 				if (Parent == NULL)
 				{
 					//package names should default to "/Temp/Untitled" when their parent is NULL. Otherwise they are a group.
-					TestName = FName(*FString::Printf(TEXT("/Temp/%s"), *FName(NAME_Untitled).ToString()), ++Class->ClassUnique);
+					TestName = FName(*FString::Printf(TEXT("/Temp/%s"), LexToString(NAME_Untitled)), ++Class->ClassUnique);
 				}
 				else
 				{
@@ -3483,11 +3485,15 @@ private:
 	{
 #if ENABLE_GC_DEBUG_OUTPUT
 		// this message is to help track down culprits behind "Object in PIE world still referenced" errors
-		if ( GIsEditor && !GIsPlayInEditorWorld && !CurrentObject->RootPackageHasAnyFlags(PKG_PlayInEditor) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor) )
+		if ( GIsEditor && !GIsPlayInEditorWorld && !CurrentObject->HasAnyFlags(RF_Transient) && Object->RootPackageHasAnyFlags(PKG_PlayInEditor) )
 		{
-			UE_LOG(LogGarbage, Warning, TEXT("GC detected illegal reference to PIE object from content [possibly via %s]:"), *ReferencingProperty->GetFullName());
-			UE_LOG(LogGarbage, Warning, TEXT("      PIE object: %s"), *Object->GetFullName());
-			UE_LOG(LogGarbage, Warning, TEXT("  NON-PIE object: %s"), *CurrentObject->GetFullName());
+			UPackage* ReferencingPackage = CurrentObject->GetOutermost();
+			if (!ReferencingPackage->HasAnyPackageFlags(PKG_PlayInEditor) && !ReferencingPackage->HasAnyFlags(RF_Transient))
+			{
+				UE_LOG(LogGarbage, Warning, TEXT("GC detected illegal reference to PIE object from content [possibly via %s]:"), *ReferencingProperty->GetFullName());
+				UE_LOG(LogGarbage, Warning, TEXT("      PIE object: %s"), *Object->GetFullName());
+				UE_LOG(LogGarbage, Warning, TEXT("  NON-PIE object: %s"), *CurrentObject->GetFullName());
+			}
 		}
 #endif
 
@@ -3636,7 +3642,7 @@ UScriptStruct* GetFallbackStruct()
 	return TBaseStructure<FFallbackStruct>::Get();
 }
 
-UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const
+UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const
 {
 	UE_CLOG(!FUObjectThreadContext::Get().IsInConstructor, LogClass, Fatal, TEXT("Subobjects cannot be created outside of UObject constructors. UObject constructing subobjects cannot be created using new or placement new operator."));
 	if (SubobjectFName == NAME_None)
@@ -3655,8 +3661,15 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 	{
 		check(OverrideClass->IsChildOf(ReturnType));
 
-		// Abstract sub-objects are only allowed when explicitly created with CreateAbstractDefaultSubobject.
-		if (!OverrideClass->HasAnyClassFlags(CLASS_Abstract) || !bAbstract)
+		if (OverrideClass->HasAnyClassFlags(CLASS_Abstract))
+		{
+			// Attempts to create an abstract class will return null. If it is not optional or the owning class is not also abstract report a warning.
+			if (!bIsRequired && !Outer->GetClass()->HasAnyClassFlags(CLASS_Abstract))
+			{
+				UE_LOG(LogClass, Warning, TEXT("Required default subobject %s not created as requested class %s is abstract. Returning null."), *SubobjectFName.ToString(), *OverrideClass->GetName());
+			}
+		}
+		else
 		{
 			UObject* Template = OverrideClass->GetDefaultObject(); // force the CDO to be created if it hasn't already
 			EObjectFlags SubobjectFlags = Outer->GetMaskedFlags(RF_PropagateToSubObjects) | RF_DefaultSubObject;
@@ -3721,7 +3734,7 @@ UObject* FObjectInitializer::CreateEditorOnlyDefaultSubobject(UObject* Outer, FN
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		UObject* EditorSubobject = CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, /*bIsAbstract =*/ false, bTransient);
+		UObject* EditorSubobject = CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient);
 		if (EditorSubobject)
 		{
 			EditorSubobject->MarkAsEditorOnlySubobject();

@@ -15,6 +15,13 @@ DECLARE_CYCLE_STAT(TEXT("InitRenderData"), STAT_InitRenderData, STATGROUP_Niagar
 
 FCriticalSection FNiagaraSharedObject::CritSec;
 TArray<FNiagaraSharedObject*> FNiagaraSharedObject::DeferredDeletionList;
+void FNiagaraSharedObject::Destroy()
+{
+	FScopeLock Lock(&CritSec);
+	check(this != nullptr);
+	check(DeferredDeletionList.Contains(this) == false);
+	DeferredDeletionList.Add(this);
+}
 
 void FNiagaraSharedObject::FlushDeletionList()
 {

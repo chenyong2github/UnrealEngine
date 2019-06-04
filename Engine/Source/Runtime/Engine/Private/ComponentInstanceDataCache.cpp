@@ -558,10 +558,10 @@ void FComponentInstanceDataCache::ApplyToActor(AActor* Actor, const ECacheApplyP
 							// components within a child actor are handled by applying the instance data to the child actor component
 							if (ChildComponent->GetOwner() == Actor)
 							{
-								Components.Add(ChildComponent);
-							}
+							Components.Add(ChildComponent);
 						}
 					}
+				}
 				}
 
 				// next loop start with the nodes we just added

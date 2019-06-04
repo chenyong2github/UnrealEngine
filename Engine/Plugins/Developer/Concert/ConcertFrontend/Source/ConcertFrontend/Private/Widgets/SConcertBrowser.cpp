@@ -688,7 +688,7 @@ TSharedRef<ITableRow> SConcertBrowser::MakeSessionRowWidget(TSharedPtr<FConcertS
 		ActiveSessionDef.Visibility = MakeAttributeSP(this, &SConcertBrowser::IsActiveSessionVisible, Item->SessionName);
 		ActiveSessionDef.Text = FEditorFontGlyphs::Info_Circle;
 		ActiveSessionDef.ToolTipText = LOCTEXT("ActiveSessionToolTip", "See the current active session");
-		ActiveSessionDef.OnClicked.BindSP(this, &SConcertBrowser::OnClickActiveSession);
+		ActiveSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickActiveSession);
 		
 		// Resume Session
 		FConcertUIButtonDefinition& ResumeSessionDef = ButtonDefs.AddDefaulted_GetRef();
@@ -696,7 +696,7 @@ TSharedRef<ITableRow> SConcertBrowser::MakeSessionRowWidget(TSharedPtr<FConcertS
 		ResumeSessionDef.Visibility = MakeAttributeSP(this, &SConcertBrowser::IsResumeSessionVisible, Item->SessionName);
 		ResumeSessionDef.Text = FEditorFontGlyphs::Play_Circle;
 		ResumeSessionDef.ToolTipText = LOCTEXT("ResumeSessionToolTip", "Resume receiving updates from this session");
-		ResumeSessionDef.OnClicked.BindSP(this, &SConcertBrowser::OnClickResumeSession);
+		ResumeSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickResumeSession);
 
 		// Suspend Session
 		FConcertUIButtonDefinition& SuspendSessionDef = ButtonDefs.AddDefaulted_GetRef();
@@ -704,7 +704,7 @@ TSharedRef<ITableRow> SConcertBrowser::MakeSessionRowWidget(TSharedPtr<FConcertS
 		SuspendSessionDef.Visibility = MakeAttributeSP(this, &SConcertBrowser::IsSuspendSessionVisible, Item->SessionName);
 		SuspendSessionDef.Text = FEditorFontGlyphs::Pause_Circle;
 		SuspendSessionDef.ToolTipText = LOCTEXT("SuspendSessionToolTip", "Suspend receiving updates from this session");
-		SuspendSessionDef.OnClicked.BindSP(this, &SConcertBrowser::OnClickSuspendSession);
+		SuspendSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickSuspendSession);
 
 		// Delete Session
 		FConcertUIButtonDefinition& DeleteSessionDef = ButtonDefs.AddDefaulted_GetRef();
@@ -712,7 +712,7 @@ TSharedRef<ITableRow> SConcertBrowser::MakeSessionRowWidget(TSharedPtr<FConcertS
 		DeleteSessionDef.Visibility = MakeAttributeSP(this, &SConcertBrowser::IsDeleteSessionVisible, Item);
 		DeleteSessionDef.Text = FEditorFontGlyphs::Trash;
 		DeleteSessionDef.ToolTipText = LOCTEXT("DeleteSessionToolTip", "Delete this session");
-		DeleteSessionDef.OnClicked.BindSP(this, &SConcertBrowser::OnClickDeleteSession, Item->SessionName);
+		DeleteSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickDeleteSession, Item->SessionName);
 
 		// Join Session
 		FConcertUIButtonDefinition& JoinSessionDef = ButtonDefs.AddDefaulted_GetRef();
@@ -720,7 +720,7 @@ TSharedRef<ITableRow> SConcertBrowser::MakeSessionRowWidget(TSharedPtr<FConcertS
 		JoinSessionDef.Visibility = MakeAttributeSP(this, &SConcertBrowser::IsJoinSessionVisible, Item->SessionName);
 		JoinSessionDef.Text = FEditorFontGlyphs::Sign_In;
 		JoinSessionDef.ToolTipText = LOCTEXT("JoinSessionToolTip", "Join this session");
-		JoinSessionDef.OnClicked.BindSP(this, &SConcertBrowser::OnClickJoinSession, Item->SessionName);
+		JoinSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickJoinSession, Item->SessionName);
 
 		// Leave Session
 		FConcertUIButtonDefinition& LeaveSessionDef = ButtonDefs.AddDefaulted_GetRef();
@@ -728,7 +728,7 @@ TSharedRef<ITableRow> SConcertBrowser::MakeSessionRowWidget(TSharedPtr<FConcertS
 		LeaveSessionDef.Visibility = MakeAttributeSP(this, &SConcertBrowser::IsLeaveSessionVisible, Item->SessionName);
 		LeaveSessionDef.Text = FEditorFontGlyphs::Sign_Out;
 		LeaveSessionDef.ToolTipText = LOCTEXT("LeaveSessionToolTip", "Leave this session");
-		LeaveSessionDef.OnClicked.BindSP(this, &SConcertBrowser::OnClickLeaveSession);
+		LeaveSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickLeaveSession);
 
 	}
 

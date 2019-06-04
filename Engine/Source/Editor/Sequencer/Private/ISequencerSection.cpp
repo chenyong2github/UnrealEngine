@@ -111,7 +111,7 @@ void ISequencerSection::GenerateSectionLayout( ISectionLayoutBuilder& LayoutBuil
 		Pair.Value.Channels.Sort([](const FChannelData& A, const FChannelData& B){
 			if (A.MetaData.SortOrder == B.MetaData.SortOrder)
 			{
-				return A.MetaData.Name < B.MetaData.Name;
+				return A.MetaData.Name.LexicalLess(B.MetaData.Name);
 			}
 			return A.MetaData.SortOrder < B.MetaData.SortOrder;
 		});

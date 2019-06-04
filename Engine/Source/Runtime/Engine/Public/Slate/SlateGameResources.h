@@ -86,6 +86,7 @@ protected:
 	FName GetCleanName(const FName& AssetName) const;
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
+	virtual FString GetReferencerName() const override;
 
 private:
 

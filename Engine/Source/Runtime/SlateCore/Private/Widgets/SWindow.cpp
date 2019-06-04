@@ -1585,7 +1585,7 @@ bool SWindow::OnIsActiveChanged( const FWindowActivateEvent& ActivateEvent )
 				FWidgetPath WidgetToFocusPath;
 				if (FSlateWindowHelper::FindPathToWidget(JustThisWindow, PinnedWidgetToFocus.ToSharedRef(), WidgetToFocusPath))
 				{
-					FSlateApplicationBase::Get().SetAllUserFocus(WidgetToFocusPath, EFocusCause::SetDirectly);
+					FSlateApplicationBase::Get().SetAllUserFocus(WidgetToFocusPath, EFocusCause::WindowActivate);
 				}
 			}
 
@@ -1597,7 +1597,7 @@ bool SWindow::OnIsActiveChanged( const FWindowActivateEvent& ActivateEvent )
 				TSharedRef<SWidget> WindowWidgetToFocus = WidgetFocusedOnDeactivate.IsValid() ? WidgetFocusedOnDeactivate.Pin().ToSharedRef() : AsShared();
 				if (FSlateWindowHelper::FindPathToWidget(JustThisWindow, WindowWidgetToFocus, WindowWidgetPath))
 				{
-					FSlateApplicationBase::Get().SetAllUserFocusAllowingDescendantFocus(WindowWidgetPath, EFocusCause::SetDirectly);
+					FSlateApplicationBase::Get().SetAllUserFocusAllowingDescendantFocus(WindowWidgetPath, EFocusCause::WindowActivate);
 				}
 			}
 		}

@@ -12,7 +12,7 @@ class ARectLight : public ALight
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(BlueprintReadOnly, Category="Light", meta=(ExposeFunctionCategories="RectLight,Rendering|Lighting"))
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category="Light", meta=(ExposeFunctionCategories="RectLight,Rendering|Lighting"))
 	class URectLightComponent* RectLightComponent;
 
 #if WITH_EDITOR

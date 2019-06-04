@@ -142,9 +142,9 @@ TSharedRef<SWidget> FNiagaraVariableAttributeBindingCustomization::OnGetMenuCont
 			SNew(SBox)
 			[
 				SNew(SGraphActionMenu)
-				.OnActionSelected(this, &FNiagaraVariableAttributeBindingCustomization::OnActionSelected)
-				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(this, &FNiagaraVariableAttributeBindingCustomization::OnCreateWidgetForAction))
-				.OnCollectAllActions(this, &FNiagaraVariableAttributeBindingCustomization::CollectAllActions)
+				.OnActionSelected(const_cast<FNiagaraVariableAttributeBindingCustomization*>(this), &FNiagaraVariableAttributeBindingCustomization::OnActionSelected)
+				.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(const_cast<FNiagaraVariableAttributeBindingCustomization*>(this), &FNiagaraVariableAttributeBindingCustomization::OnCreateWidgetForAction))
+				.OnCollectAllActions(const_cast<FNiagaraVariableAttributeBindingCustomization*>(this), &FNiagaraVariableAttributeBindingCustomization::CollectAllActions)
 				.AutoExpandActionMenu(false)
 				.ShowFilterTextBox(true)
 			]

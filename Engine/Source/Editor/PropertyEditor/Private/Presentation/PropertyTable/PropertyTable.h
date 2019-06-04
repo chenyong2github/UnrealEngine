@@ -15,6 +15,7 @@ class FPropertyTable : public TSharedFromThis< FPropertyTable >, public IPropert
 public: 
 
 	FPropertyTable();
+	virtual ~FPropertyTable();
 
 	virtual void Tick() override;
 
@@ -168,6 +169,9 @@ private:
 
 	void PurgeInvalidObjectNodes();
 
+	void ResetTable();
+
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
 private:
 
@@ -219,6 +223,9 @@ private:
 
 	/** The Orientation of this table, I.e. do we swap columns and rows */
 	EPropertyTableOrientation::Type Orientation;
+
+	FDelegateHandle ObjectsReplacedHandle;
+
 	TSharedRef<FEditConditionParser> EditConditionParser;
 };
 

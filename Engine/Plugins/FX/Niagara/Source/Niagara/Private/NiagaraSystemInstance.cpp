@@ -10,7 +10,6 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
-#include "GameFramework/PlayerController.h"
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 
@@ -1128,28 +1127,21 @@ float FNiagaraSystemInstance::GetLODDistance()
 	else
 #endif
 	{
-		UWorld* World = Component->GetWorld();
-		TArray<FVector, TInlineAllocator<8> > PlayerViewLocations;
-		//TODO: Pull this up into the world manager at least. Doing this for every instance each frame is pointless.
-		if (World->GetPlayerControllerIterator())
+		constexpr float DefaultLODDistance = 0.0f;
+
+		FNiagaraWorldManager* WorldManager = GetWorldManager();
+		if ( WorldManager == nullptr )
 		{
-			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
-			{
-				APlayerController* PlayerController = Iterator->Get();
-				if (PlayerController && PlayerController->IsLocalPlayerController())
-				{
-					FVector* POVLoc = new(PlayerViewLocations) FVector;
-					FRotator POVRotation;
-					PlayerController->GetPlayerViewPoint(*POVLoc, POVRotation);
-				}
-			}
-		}
-		else
-		{
-			PlayerViewLocations.Append(World->ViewLocationsRenderedLastFrame);
+			return DefaultLODDistance;
 		}
 
-		float LODDistanceSqr = (PlayerViewLocations.Num() ? FMath::Square(WORLD_MAX) : 0.0f);
+		TArrayView<const FVector> PlayerViewLocations = WorldManager->GetCachedPlayerViewLocations();
+		if ( PlayerViewLocations.Num() == 0 )
+		{
+			return DefaultLODDistance;
+		}
+
+		float LODDistanceSqr = FMath::Square(WORLD_MAX);
 		for (const FVector& ViewLocation : PlayerViewLocations)
 		{
 			const float DistanceToEffectSqr = FVector(ViewLocation - CurrPos).SizeSquared();

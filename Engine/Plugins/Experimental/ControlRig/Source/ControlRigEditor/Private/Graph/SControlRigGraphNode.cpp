@@ -187,19 +187,6 @@ TSharedPtr<SGraphPin> SControlRigGraphNode::GetHoveredPin(const FGeometry& MyGeo
 	return HoveredPin;
 }
 
-/** @param NewPosition  The Node should be relocated to this position in the graph panel */
-void SControlRigGraphNode::MoveTo( const FVector2D& NewPosition, FNodeSet& NodeFilter )
-{
-	if (!NodeFilter.Find(SharedThis(this)))
-	{
-		if (GraphNode && !RequiresSecondPassLayout())
-		{
-			UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
-			ControlRigGraphNode->GetBlueprint()->ModelController->SetNodePosition(ControlRigGraphNode->GetPropertyName(), NewPosition, false);
-		}
-	}
-}
-
 void SControlRigGraphNode::EndUserInteraction() const
 {
 #if WITH_EDITOR

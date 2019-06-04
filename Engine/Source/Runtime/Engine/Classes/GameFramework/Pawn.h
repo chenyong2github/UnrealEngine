@@ -93,7 +93,7 @@ public:
 
 	/**
 	 * Determines when the Pawn creates and is possessed by an AI Controller (on level start, when spawned, etc).
-	 * Only possible if AIControllerClass is set, and ignored if AutoPossessPlayer is enabled.
+	 * Only possible if AIControllerClassRef is set, and ignored if AutoPossessPlayer is enabled.
 	 * @see AutoPossessPlayer
 	 */
 	UPROPERTY(EditAnywhere, Category=Pawn)

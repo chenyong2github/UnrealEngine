@@ -461,6 +461,13 @@ void FPropertyEditorToolkit::GridSelectionChanged()
 {
 	TArray< TWeakObjectPtr< UObject > > SelectedObjects;
 	PropertyTable->GetSelectedTableObjects( SelectedObjects );
+
+	if (SelectedObjects.Num() == 0)
+	{
+		// If none are selected, show all of them to match the initial open behavior
+		SelectedObjects = PropertyTable->GetSelectedObjects();
+	}
+
 	PropertyTree->SetObjectArray( SelectedObjects );
 
 	const TSet< TSharedRef< IPropertyTableRow > > SelectedRows = PropertyTable->GetSelectedRows();

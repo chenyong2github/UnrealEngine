@@ -100,7 +100,7 @@ void UK2Node_MakeVariable::SetupVariable(const FBPVariableDescription& InVariabl
 
 	// make input pins for every value in the default value, for map pins we'll make a pair of inputs:
 	TSharedPtr<FStructOnScope> StructData = MakeShareable(new FStructOnScope(Scope));
-	FBlueprintEditorUtils::PropertyValueFromString(Property, VariableType.DefaultValue, StructData->GetStructMemory());
+	FBlueprintEditorUtils::PropertyValueFromString(Property, VariableType.DefaultValue, StructData->GetStructMemory(), this);
 
 	if(VariableType.VarType.IsArray())
 	{

@@ -14,7 +14,7 @@ ATriggerBase::ATriggerBase(const FObjectInitializer& ObjectInitializer)
 
 	// ATriggerBase is requesting UShapeComponent which is abstract, however it is responsibility
 	// of a derived class to override this type with ObjectInitializer.SetDefaultSubobjectClass.
-	CollisionComponent = CreateAbstractDefaultSubobject<UShapeComponent>(TEXT("CollisionComp"));
+	CollisionComponent = CreateDefaultSubobject<UShapeComponent>(TEXT("CollisionComp"));
 	if (CollisionComponent)
 	{
 		RootComponent = CollisionComponent;

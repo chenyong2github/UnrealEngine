@@ -176,7 +176,7 @@ void UDEPRECATED_K2Node_GetSequenceBindings::GetContextMenuActions(const FGraphN
 						AllowedClasses,
 						PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses(AllowedClasses),
 						FOnShouldFilterAsset(),
-						FOnAssetSelected::CreateUObject(this, &UDEPRECATED_K2Node_GetSequenceBindings::SetSequence),
+						FOnAssetSelected::CreateUObject(const_cast<UDEPRECATED_K2Node_GetSequenceBindings*>(this), &UDEPRECATED_K2Node_GetSequenceBindings::SetSequence),
 						FSimpleDelegate());
 					
 					SubMenuBuilder.AddWidget(MenuContent, FText::GetEmpty(), false);
@@ -193,7 +193,7 @@ void UDEPRECATED_K2Node_GetSequenceBindings::GetContextMenuActions(const FGraphN
 				LOCTEXT("Refresh_ToolTip", "Refresh this node's bindings"),
 				FSlateIcon(),
 				FUIAction(
-						FExecuteAction::CreateUObject(this, &UDEPRECATED_K2Node_GetSequenceBindings::ReconstructNode)
+						FExecuteAction::CreateUObject(const_cast<UDEPRECATED_K2Node_GetSequenceBindings*>(this), &UDEPRECATED_K2Node_GetSequenceBindings::ReconstructNode)
 					)
 				);
 		}

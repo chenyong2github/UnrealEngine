@@ -2534,13 +2534,25 @@ void FSequencer::RenderMovieInternal(TRange<FFrameNumber> Range, bool bSetFrameO
 		Range = TRange<FFrameNumber>::Hull(Range, GetPlaybackRange());
 	}
 
+	// If focused on a subsequence, transform the playback range to the root in order to always render from the root
+	if (GetRootMovieSceneSequence() != GetFocusedMovieSceneSequence())
+	{
+		bSetFrameOverrides = true;
+
+		if (const FMovieSceneSubSequenceData* SubSequenceData = RootTemplateInstance.GetHierarchy().FindSubData(GetFocusedTemplateID()))
+		{
+			Range = Range * SubSequenceData->RootToSequenceTransform.Inverse();
+		}
+	}
+
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
 	// Create a new movie scene capture object for an automated level sequence, and open the tab
 	UAutomatedLevelSequenceCapture* MovieSceneCapture = NewObject<UAutomatedLevelSequenceCapture>(GetTransientPackage(), UAutomatedLevelSequenceCapture::StaticClass(), UMovieSceneCapture::MovieSceneCaptureUIName, RF_Transient);
 	MovieSceneCapture->LoadFromConfig();
 
-	MovieSceneCapture->LevelSequenceAsset = GetCurrentAsset()->GetPathName();
+	// Always render from the root
+	MovieSceneCapture->LevelSequenceAsset = GetRootMovieSceneSequence()->GetMovieScene()->GetOuter()->GetPathName();
 
 	FFrameRate DisplayRate = GetFocusedDisplayRate();
 	FFrameRate TickResolution = GetFocusedTickResolution();
@@ -2905,7 +2917,7 @@ void FSequencer::PossessPIEViewports(UObject* CameraObject, UObject* UnlockIfCam
 		{
 			if (PC->PlayerCameraManager)
 			{
-				PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+				PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 			}
 
 			if (CameraComponent)
@@ -2948,7 +2960,7 @@ void FSequencer::PossessPIEViewports(UObject* CameraObject, UObject* UnlockIfCam
 	if (PC->PlayerCameraManager)
 	{
 		PC->PlayerCameraManager->bClientSimulatingViewTarget = (CameraActor != nullptr);
-		PC->PlayerCameraManager->bGameCameraCutThisFrame = true;
+		PC->PlayerCameraManager->SetGameCameraCutThisFrame();
 	}
 }
 
@@ -3103,6 +3115,10 @@ void FSequencer::AddReferencedObjects( FReferenceCollector& Collector )
 	FMovieSceneRootEvaluationTemplateInstance::StaticStruct()->SerializeBin(Collector.GetVerySlowReferenceCollectorArchive(), &RootTemplateInstance);
 }
 
+FString FSequencer::GetReferencerName() const
+{
+	return TEXT("FSequencer");
+}
 
 void FSequencer::ResetPerMovieSceneData()
 {

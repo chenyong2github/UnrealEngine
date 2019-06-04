@@ -1,0 +1,53 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreTypes.h"
+
+#if !IS_PROGRAM && !UE_BUILD_SHIPPING && (PLATFORM_WINDOWS || PLATFORM_PS4 || PLATFORM_XBOXONE)
+#define LOGTRACE_ENABLED 1
+#else
+#define LOGTRACE_ENABLED 0
+#endif
+
+#if LOGTRACE_ENABLED
+#include "ProfilingDebugging/FormatArgsTrace.h"
+
+struct FLogCategoryBase;
+
+struct FLogTrace
+{
+	CORE_API static void OutputLogCategory(const FLogCategoryBase* Category, const TCHAR* Name, ELogVerbosity::Type DefaultVerbosity);
+	CORE_API static void OutputLogMessageSpec(const void* LogPoint, const FLogCategoryBase* Category, ELogVerbosity::Type Verbosity, const ANSICHAR* File, int32 Line, const TCHAR* Format);
+
+	template <typename... Types>
+	static void OutputLogMessage(const void* LogPoint, Types... FormatArgs)
+	{
+		uint8 FormatArgsBuffer[4096];
+		uint16 FormatArgsSize = FFormatArgsTrace::EncodeArguments(FormatArgsBuffer, FormatArgs...);
+		if (FormatArgsSize)
+		{
+			OutputLogMessageInternal(LogPoint, FormatArgsSize, FormatArgsBuffer);
+		}
+	}
+
+private:
+	CORE_API static void OutputLogMessageInternal(const void* LogPoint, uint16 EncodedFormatArgsSize, uint8* EncodedFormatArgs);
+};
+
+#define TRACE_LOG_CATEGORY(Category, Name, DefaultVerbosity) \
+	FLogTrace::OutputLogCategory(Category, Name, DefaultVerbosity);
+
+#define TRACE_LOG_MESSAGE(Category, Verbosity, Format, ...) \
+	static bool PREPROCESSOR_JOIN(__LogPoint, __LINE__); \
+	if (!PREPROCESSOR_JOIN(__LogPoint, __LINE__)) \
+	{ \
+		FLogTrace::OutputLogMessageSpec(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), &Category, ELogVerbosity::Verbosity, __FILE__, __LINE__, Format); \
+		PREPROCESSOR_JOIN(__LogPoint, __LINE__) = true; \
+	} \
+	FLogTrace::OutputLogMessage(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), ##__VA_ARGS__);
+
+#else
+#define TRACE_LOG_CATEGORY(Category, Name, DefaultVerbosity)
+#define TRACE_LOG_MESSAGE(Category, Verbosity, Format, ...)
+#endif

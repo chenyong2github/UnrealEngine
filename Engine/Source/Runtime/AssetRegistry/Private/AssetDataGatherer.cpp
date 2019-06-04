@@ -2,9 +2,10 @@
 
 #include "AssetDataGatherer.h"
 #include "HAL/PlatformProcess.h"
+#include "HAL/RunnableThread.h"
+#include "Misc/AsciiSet.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
-#include "HAL/RunnableThread.h"
 #include "Misc/ScopeLock.h"
 #include "AssetRegistryPrivate.h"
 #include "NameTableArchive.h"
@@ -36,27 +37,13 @@ namespace
 		}
 	};
 
-	bool IsValidPackageFileToRead(const FString& Filename)
+	static constexpr FAsciiSet InvalidLongPackageCharacters(INVALID_LONGPACKAGE_CHARACTERS);
+
+	static bool ConvertToValidLongPackageName(const FString& Filename, /* out */ FString& LongPackageName)
 	{
-		FString LongPackageName;
-		if (FPackageName::TryConvertFilenameToLongPackageName(Filename, LongPackageName))
-		{
-			// Make sure the path does not contain invalid characters. These packages will not be successfully loaded or read later.
-			for (const TCHAR PackageChar : LongPackageName)
-			{
-				for (const TCHAR InvalidChar : INVALID_LONGPACKAGE_CHARACTERS)
-				{
-					if (PackageChar == InvalidChar)
-					{
-						return false;
-					}
-				}
-			}
-
-			return true;
-		}
-
-		return false;
+		// Make sure the path does not contain invalid characters. These packages will not be successfully loaded or read later.
+		return FPackageName::TryConvertFilenameToLongPackageName(Filename, LongPackageName) &&
+			FAsciiSet::HasNone(*LongPackageName, InvalidLongPackageCharacters);
 	}
 }
 
@@ -137,11 +124,19 @@ uint32 FAssetDataDiscovery::Run()
 			{
 				FScopeLock CritSectionLock(&WorkerThreadCriticalSection);
 
-				// Place all the discovered files into the files to search list
-				DiscoveredPaths.Append(MoveTemp(LocalDiscoveredPathsArray));
+				// Work around for TArray::Append(const TArray&) not growing expontentially.
+				// This causes O(N^2) allocations when continuously appending small arrays,
+				// at least on platforms with allocators that use QuantizeSize().
+				const auto ReserveAndAppend = [](auto& To, auto&& From)
+				{
+					To.Reserve(FMath::RoundUpToPowerOfTwo(To.Num() + From.Num()));
+					To.Append(MoveTemp(From));
+				};
 
-				PriorityDiscoveredFiles.Append(MoveTemp(LocalPriorityFilesToSearch));
-				NonPriorityDiscoveredFiles.Append(MoveTemp(LocalNonPriorityFilesToSearch));
+				// Place all the discovered files into the files to search list
+				ReserveAndAppend(DiscoveredPaths, MoveTemp(LocalDiscoveredPathsArray));
+				ReserveAndAppend(PriorityDiscoveredFiles, MoveTemp(LocalPriorityFilesToSearch));
+				ReserveAndAppend(NonPriorityDiscoveredFiles, MoveTemp(LocalNonPriorityFilesToSearch));
 			}
 		}
 
@@ -178,10 +173,9 @@ uint32 FAssetDataDiscovery::Run()
 		}
 		else if (FPackageName::IsPackageFilename(PackageFilenameStr))
 		{
-			if (IsValidPackageFileToRead(PackageFilenameStr))
+			FString LongPackageNameStr;
+			if (ConvertToValidLongPackageName(PackageFilenameStr, LongPackageNameStr))
 			{
-				const FString LongPackageNameStr = FPackageName::FilenameToLongPackageName(PackageFilenameStr);
-
 				if (IsPriorityFile(PackageFilenameStr))
 				{
 					LocalPriorityFilesToSearch.Add(FDiscoveredPackageFile(PackageFilenameStr, InPackageStatData.ModificationTime));
@@ -791,9 +785,12 @@ void FAssetDataGatherer::AddPathToSearch(const FString& Path)
 void FAssetDataGatherer::AddFilesToSearch(const TArray<FString>& Files)
 {
 	TArray<FString> FilesToAdd;
+	FilesToAdd.Reserve(Files.Num());
+	FString LongPackageName;
 	for (const FString& Filename : Files)
 	{
-		if ( IsValidPackageFileToRead(Filename) )
+		LongPackageName.Reset();
+		if (ConvertToValidLongPackageName(Filename, LongPackageName))
 		{
 			// Add the path to this asset into the list of discovered paths
 			FilesToAdd.Add(Filename);

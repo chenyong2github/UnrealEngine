@@ -213,7 +213,7 @@ TSharedRef<SWidget> FCameraDetails::OnGetComboContent() const
 	for (auto ItemIter = Items.CreateConstIterator(); ItemIter; ++ItemIter)
 	{
 		FText ItemText = *ItemIter;
-		FUIAction ItemAction( FExecuteAction::CreateSP( this, &FCameraDetails::CommitAspectRatioText, ItemText ) );
+		FUIAction ItemAction( FExecuteAction::CreateSP( const_cast<FCameraDetails*>(this), &FCameraDetails::CommitAspectRatioText, ItemText ) );
 		MenuBuilder.AddMenuEntry(ItemText, TAttribute<FText>(), FSlateIcon(), ItemAction);
 	}
 

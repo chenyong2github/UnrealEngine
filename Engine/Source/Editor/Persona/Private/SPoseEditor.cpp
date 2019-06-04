@@ -640,7 +640,7 @@ TSharedPtr<SWidget> SPoseViewer::OnGetContextMenuContentForCurveList() const
 
 	MenuBuilder.BeginSection("CurveAction", LOCTEXT("CurveActions", "Selected Item Actions"));
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SPoseViewer::OnDeleteCurves),
+		FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SPoseViewer*>(this), &SPoseViewer::OnDeleteCurves),
 			FCanExecuteAction::CreateSP(this, &SPoseViewer::IsCurveSelected));
 		const FText MenuLabel = LOCTEXT("DeleteCurveButtonLabel", "Delete");
 		const FText MenuToolTip = LOCTEXT("DeleteCurveButtonTooltip", "Deletes the selected animation curve.");

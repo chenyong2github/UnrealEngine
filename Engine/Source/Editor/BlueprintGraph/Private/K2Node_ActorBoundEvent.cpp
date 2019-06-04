@@ -62,7 +62,6 @@ void UK2Node_ActorBoundEvent::ReconstructNode()
 			// Found a remapped property, update the node
 			TargetDelegateProp = NewProperty;
 			DelegatePropertyName = NewProperty->GetFName();
-			CachedNodeTitle.MarkDirty();
 		}
 	}
 

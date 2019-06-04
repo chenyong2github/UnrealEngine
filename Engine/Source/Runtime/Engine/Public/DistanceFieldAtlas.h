@@ -226,7 +226,10 @@ public:
 	ENGINE_API void ProcessAsyncTasks();
 
 	/** Exposes UObject references used by the async build. */
-	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
+	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+
+	/** Returns name of class for reference tracking */
+	ENGINE_API virtual FString GetReferencerName() const override;
 
 	/** Blocks until it is safe to shut down (worker threads are idle). */
 	ENGINE_API void Shutdown();

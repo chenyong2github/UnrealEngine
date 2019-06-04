@@ -483,13 +483,19 @@ void USetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 		return;
 	}
 
+	const bool bExternalEditor = (0 != (PPF_ExternalEditor & PortFlags));
+
 	uint8* StructDefaults = nullptr;
 	if (UStructProperty* StructElementProp = Cast<UStructProperty>(ElementProp))
 	{
 		checkSlow(StructElementProp->Struct);
 
-		StructDefaults = (uint8*)FMemory::Malloc(SetLayout.Size);
-		ElementProp->InitializeValue(StructDefaults);
+		if (!bExternalEditor)
+		{
+			// For external editor, we always export all fields
+			StructDefaults = (uint8*)FMemory::Malloc(SetLayout.Size);
+			ElementProp->InitializeValue(StructDefaults);
+		}
 	}
 
 	ON_SCOPE_EXIT
@@ -524,6 +530,12 @@ void USetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 				// Always use struct defaults if the element is a struct, for symmetry with the import of array inner struct defaults
 				uint8* PropDefault = StructDefaults ? StructDefaults : DefaultValue ? DefaultSetHelper.FindElementPtr(PropData) : nullptr;
 
+				if (bExternalEditor)
+				{
+					// For external editor, always write
+					PropDefault = PropData;
+				}
+
 				ElementProp->ExportTextItem(ValueStr, PropData, PropDefault, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				--Count;
@@ -548,8 +560,15 @@ void USetProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 					ValueStr += TCHAR(',');
 				}
 
-				ElementProp->ExportTextItem(ValueStr, PropData, nullptr, Parent, PortFlags | PPF_Delimited, ExportRootScope);
+				uint8* PropDefault = nullptr;
 
+				if (bExternalEditor)
+				{
+					// For external editor, always write
+					PropDefault = PropData;
+				}
+
+				ElementProp->ExportTextItem(ValueStr, PropData, PropDefault, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				--Count;
 			}

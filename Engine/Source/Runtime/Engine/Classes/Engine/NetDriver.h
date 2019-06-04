@@ -1521,6 +1521,16 @@ public:
 		return bMaySendProperties;
 	}
 
+	/**
+	 * Get the current number of sent packets for which we have received a delivery notification
+	 */
+	ENGINE_API uint32 GetOutTotalNotifiedPackets() const { return OutTotalNotifiedPackets; }
+
+	/**
+	 * Increase the current number of sent packets for which we have received a delivery notification
+	 */
+	inline void IncreaseOutTotalNotifiedPackets() { ++OutTotalNotifiedPackets; }
+
 protected:
 
 	bool bMaySendProperties;
@@ -1555,4 +1565,7 @@ private:
 
 	/** NetDriver time to end packet loss burst simulation. */
 	float PacketLossBurstEndTime;
+
+	/** Count the number of notified packets, i.e. packets that we know if they are delivered or not. Used to reliably measure outgoing packet loss */
+	uint32 OutTotalNotifiedPackets;
 };

@@ -17,7 +17,7 @@
 #include "UObject/Package.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/UObjectAnnotation.h"
-#include "Serialization/ArchiveTraceRoute.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
 #include "Serialization/AsyncLoading.h"
 #include "GameMapsSettings.h"
@@ -2651,12 +2651,8 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 			// But disregard package object itself.
 			&&	!Object->IsA(UPackage::StaticClass()) )
 			{
-				UE_LOG(LogWorld, Log, TEXT("%s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does."), *Object->GetFullName());
-				StaticExec(NULL, *FString::Printf(TEXT("OBJ REFS CLASS=%s NAME=%s shortest"),*Object->GetClass()->GetName(), *Object->GetPathName()));
-				TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( Object, true, GARBAGE_COLLECTION_KEEPFLAGS );
-				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, Object );
-				// Print out error message. We don't assert here as there might be multiple culprits.
-				UE_LOG(LogWorld, Warning, TEXT("%s didn't get garbage collected!") LINE_TERMINATOR TEXT("%s"), *Object->GetFullName(), *ErrorString );
+				UE_LOG(LogWorld, Warning, TEXT("Level object %s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does. Referenced by:"), *Object->GetFullName());
+				FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
 				FailCount++;
 			}
 		}
@@ -4212,35 +4208,43 @@ FConstPawnIterator::FConstPawnIterator(UWorld* World)
 {
 }
 
-FConstPawnIterator::~FConstPawnIterator()
-{
-	delete Iterator;
-}
+// Operators defined in the cpp to ensure the definition of TActorIterator is known
+FConstPawnIterator::FConstPawnIterator(FConstPawnIterator&&) = default;
+FConstPawnIterator& FConstPawnIterator::operator=(FConstPawnIterator&&) = default;
+FConstPawnIterator::~FConstPawnIterator() = default;
 
  FConstPawnIterator::operator bool() const
 {
-	return (bool)*Iterator;
+	return Iterator.IsValid() && (bool)*Iterator;
 }
 
 FConstPawnIterator& FConstPawnIterator::operator++()
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator++() - this iterator has been moved from and is now invalid."));
+
 	++(*Iterator);
 	return *this;
 }
 
 FConstPawnIterator& FConstPawnIterator::operator++(int)
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator++(int) - this iterator has been moved from and is now invalid."));
+
 	++(*Iterator);
 	return *this;
 }
 
 FPawnIteratorObject FConstPawnIterator::operator*() const
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator*() - this iterator has been moved from and is now invalid."));
+
 	return FPawnIteratorObject(**Iterator);
 }
 
 TUniquePtr<FPawnIteratorObject> FConstPawnIterator::operator->() const
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator->() - this iterator has been moved from and is now invalid."));
+
 	return TUniquePtr<FPawnIteratorObject>(new FPawnIteratorObject(**Iterator));
 }
 
@@ -5526,6 +5530,7 @@ void FSeamlessTravelHandler::SeamlessTravelLoadCallback(const FName& PackageName
 	}
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "StartTravelComplete - " ) + PackageName.ToString() )) );
+	TRACE_BOOKMARK(TEXT("StartTravelComplete - %s"), *PackageName.ToString());
 }
 
 bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InURL, const FGuid& InGuid)
@@ -5645,6 +5650,7 @@ bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InU
 
 				// first, load the entry level package
 				STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "StartTravel - " ) + TransitionMap )) );
+				TRACE_BOOKMARK(TEXT("StartTravel - %s"), *TransitionMap);
 				LoadPackageAsync(TransitionMap, 
 					FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback),
 					0, 

@@ -157,9 +157,9 @@ public:
 	 *
 	 * @param DisplayGamma The display gamma to use
 	 */
-	void SetDisplayGammaAndInvertAlpha(FRHICommandList& RHICmdList, float InDisplayGamma, float bInvertAlpha)
+	void SetDisplayGammaAndInvertAlphaAndContrast(FRHICommandList& RHICmdList, float InDisplayGamma, float bInvertAlpha, float InContrast)
 	{
-		FVector4 Values( 2.2f / InDisplayGamma, 1.0f/InDisplayGamma, bInvertAlpha, 0.0f);
+		FVector4 Values( 2.2f / InDisplayGamma, 1.0f/InDisplayGamma, bInvertAlpha, InContrast);
 
 		SetShaderValue(RHICmdList, GetPixelShader(), GammaAndAlphaValues, Values);
 	}

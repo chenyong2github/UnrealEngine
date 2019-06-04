@@ -203,11 +203,11 @@ void FUObjectClusterContainer::DissolveClusterAndMarkObjectsAsUnreachable(FUObje
 	}
 }
 
-void FUObjectClusterContainer::DissolveClusters()
+void FUObjectClusterContainer::DissolveClusters(bool bForceDissolveAllClusters /* = false */)
 {
 	for (FUObjectCluster& Cluster : Clusters)
 	{
-		if (Cluster.RootIndex >= 0 && Cluster.bNeedsDissolving)
+		if (Cluster.RootIndex >= 0 && (Cluster.bNeedsDissolving || bForceDissolveAllClusters))
 		{
 			DissolveCluster(Cluster);
 		}
@@ -383,7 +383,7 @@ void ListClusters(const TArray<FString>& Args)
 			Algo::SortBy(AllClusters, [](FUObjectCluster* A)
 			{
 				return GUObjectArray.IndexToObject(A->RootIndex)->Object->GetFName();
-			});
+			}, FNameLexicalLess());
 		}
 		else if (Arg == TEXT("SortByObjectCount"))
 		{

@@ -41,13 +41,21 @@ class ENGINE_API ADebugCameraController
 	UPROPERTY()
 	uint32 bOrbitPivotUseCenter:1;
 
-	/** Whether set view mode to display GBuffer visualization */
+	/** Whether set view mode to display GBuffer visualization overview */
 	UPROPERTY()
 	uint32 bEnableBufferVisualization : 1;
 
-	/** Whether set view mode to display GBuffer visualization */
+	/** Whether set view mode to display GBuffer visualization full */
 	UPROPERTY()
 	uint32 bEnableBufferVisualizationFullMode : 1;
+
+	/** Whether GBuffer visualization overview inputs are set up  */
+	UPROPERTY()
+	uint32 bIsBufferVisualizationInputSetup : 1;
+
+	/** Last display enabled setting before toggling buffer visualization overview */
+	UPROPERTY()
+	uint32 bLastDisplayEnabled : 1;
 
 	/** Visualizes the frustum of the camera */
 	UPROPERTY()
@@ -78,6 +86,12 @@ class ENGINE_API ADebugCameraController
 	/** Toggles the display of debug info and input commands for the Debug Camera. */
 	UFUNCTION(BlueprintCallable, Category="Debug Camera")
 	void ToggleDisplay();
+
+	/** Sets display of debug info and input commands. */
+	void SetDisplay(bool bEnabled);
+
+	/** Returns whether debug info display is enabled */
+	bool IsDisplayEnabled();
 
 	/**
 	 * function called from key bindings command to save information about
@@ -130,6 +144,9 @@ class ENGINE_API ADebugCameraController
 	/** Buffer overview move left */
 	void BufferVisualizationMoveLeft();
 
+	/** Ignores axis motion */
+	void ConsumeAxisMotion(float Val);
+
 	/** Toggle buffer visualization full display */
 	void ToggleBufferVisualizationFullMode();
 
@@ -142,6 +159,9 @@ class ENGINE_API ADebugCameraController
 	void UpdateVisualizeBufferPostProcessing(FFinalPostProcessSettings& InOutPostProcessingSettings);
 
 #endif
+
+	/** Get selected visualization buffer */
+	FString GetSelectedBufferName();
 
 public:
 
@@ -194,6 +214,9 @@ protected:
 	// Adjusts movement speed limits based on SpeedScale.
 	virtual void ApplySpeedScale();
 	virtual void SetupInputComponent() override;
+
+	/** Sets up or clears input for buffer visualization overview */
+	void SetupBufferVisualizationOverviewInput();
 
 public:
 
@@ -285,9 +308,9 @@ private:
 
 	/** Last index in settings array for cycle view modes */
 	int32 LastViewModeSettingsIndex;
-	
-	/** Last buffer selected in buffer visualization overview */
-	FString LastSelectedBuffer;
+
+	/** Buffer selected in buffer visualization overview or full screen view */
+	FString CurrSelectedBuffer;
 
 	void OnTouchBegin(ETouchIndex::Type FingerIndex, FVector Location);
 	void OnTouchEnd(ETouchIndex::Type FingerIndex, FVector Location);

@@ -1289,6 +1289,13 @@ void FMeshMergeHelpers::AppendRawMesh(FMeshDescription& InTarget, const FMeshDes
 	}
 }
 
+void FMeshMergeHelpers::ExtractImposterToRawMesh(const UStaticMeshComponent* InImposterComponent, FMeshDescription& InRawMesh)
+{
+	// Retrieve imposter LOD mesh	
+	const int32 LODIndex = InImposterComponent->GetStaticMesh()->GetNumLODs() - 1;
+	UStaticMesh::RegisterMeshAttributes(InRawMesh);
+	FMeshMergeHelpers::RetrieveMesh(InImposterComponent->GetStaticMesh(), LODIndex, InRawMesh);
+}
 
 void FMeshMergeHelpers::MergeImpostersToRawMesh(TArray<const UStaticMeshComponent*> ImposterComponents, FMeshDescription& InRawMesh, const FVector& InPivot, int32 InBaseMaterialIndex, TArray<UMaterialInterface*>& OutImposterMaterials)
 {

@@ -41,6 +41,14 @@ FAutoConsoleVariableRef CVarDisableAudioSuspendOnAudioInterrupt(
     TEXT("0: Not Disabled, 1: Disabled"),
     ECVF_Default);
 
+static const double cMaxAudioContextResumeDelay = 0.5;    // Setting this to be 0.5 seconds
+static double AudioContextResumeTime = 0;
+
+void FAppEntry::ResetAudioContextResumeTime()
+{
+	AudioContextResumeTime = 0;
+}
+
 void FAppEntry::Suspend(bool bIsInterrupt)
 {
 	// also treats interrupts BEFORE initializing the engine
@@ -75,6 +83,18 @@ void FAppEntry::Suspend(bool bIsInterrupt)
 			}
 			else
 			{
+				if (AudioContextResumeTime == 0)
+				{
+					// wait 0.5 sec before restarting the audio on resume
+					// another Suspend event may occur when pulling down the notification center (Suspend-Resume-Suspend)
+					AudioContextResumeTime = FPlatformTime::Seconds() + cMaxAudioContextResumeDelay;
+				}
+				else
+				{
+					//second resume, restart the audio immediately after resume
+					AudioContextResumeTime = 0; 
+				}
+
 				if (FTaskGraphInterface::IsRunning())
 				{
 					FGraphEventRef ResignTask = FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
@@ -151,19 +171,15 @@ void FAppEntry::Resume(bool bIsInterrupt)
 			}
 			else
 			{
-				if (FTaskGraphInterface::IsRunning())
+				if (AudioContextResumeTime != 0)
 				{
-					FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
-					{
-						FAudioThread::RunCommandOnAudioThread([AudioDevice]()
-						{
-							AudioDevice->ResumeContext();
-						}, TStatId());
-					}, TStatId(), NULL, ENamedThreads::GameThread);
+					// resume audio on Tick()
+					AudioContextResumeTime = FPlatformTime::Seconds() + cMaxAudioContextResumeDelay;
 				}
 				else
 				{
-					AudioDevice->ResumeContext();
+					// resume audio immediately
+					ResumeAudioContext();
 				}
 			}
 		}
@@ -174,6 +190,63 @@ void FAppEntry::Resume(bool bIsInterrupt)
 			{
 				FPlatformAtomics::InterlockedDecrement(&SuspendCounter);
 			}
+		}
+	}
+}
+
+
+void FAppEntry::ResumeAudioContext()
+{
+	if (GEngine && GEngine->GetMainAudioDevice())
+	{
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+		if (AudioDevice)
+		{
+			if (FTaskGraphInterface::IsRunning())
+			{
+				FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+				{
+					FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+					{
+						AudioDevice->ResumeContext();
+					}, TStatId());
+				}, TStatId(), NULL, ENamedThreads::GameThread);
+			}
+			else
+			{
+				AudioDevice->ResumeContext();
+			}
+		}
+	}
+}
+
+void FAppEntry::RestartAudio()
+{
+	if (GEngine && GEngine->GetMainAudioDevice())
+	{
+		FAudioDevice* AudioDevice = GEngine->GetMainAudioDevice();
+
+		if (FTaskGraphInterface::IsRunning())
+		{
+			int32& SuspendCounter = FIOSAudioDevice::GetSuspendCounter();
+
+			//increment the counter, otherwise ResumeContext won't work
+			if (SuspendCounter == 0)
+			{
+				FPlatformAtomics::InterlockedIncrement(&SuspendCounter);
+			}
+
+			FFunctionGraphTask::CreateAndDispatchWhenReady([AudioDevice]()
+			{
+				FAudioThread::RunCommandOnAudioThread([AudioDevice]()
+				{
+					AudioDevice->ResumeContext();
+				}, TStatId());
+			}, TStatId(), NULL, ENamedThreads::GameThread);
+		}
+		else
+		{
+			AudioDevice->ResumeContext();
 		}
 	}
 }
@@ -354,6 +427,15 @@ void FAppEntry::Tick()
         FPlatformProcess::SetRealTimeMode();
     }
     
+	if (AudioContextResumeTime != 0)
+	{
+		if (FPlatformTime::Seconds() >= AudioContextResumeTime)
+		{
+			ResumeAudioContext();
+			AudioContextResumeTime = 0;
+		}
+	}
+
 	// tick the engine
 	GEngineLoop.Tick();
 }

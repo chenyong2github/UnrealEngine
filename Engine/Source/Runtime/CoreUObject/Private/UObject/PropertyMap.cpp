@@ -552,13 +552,19 @@ void UMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 		return;
 	}
 
+	const bool bExternalEditor = (0 != (PPF_ExternalEditor & PortFlags));
+
 	uint8* StructDefaults = nullptr;
 	if (UStructProperty* StructValueProp = dynamic_cast<UStructProperty*>(ValueProp))
 	{
 		checkSlow(StructValueProp->Struct);
 
-		StructDefaults = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
-		ValueProp->InitializeValue(StructDefaults + MapLayout.ValueOffset);
+		if (!bExternalEditor)
+		{
+			// For external editor, we always export all fields
+			StructDefaults = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			ValueProp->InitializeValue(StructDefaults + MapLayout.ValueOffset);
+		}
 	}
 	ON_SCOPE_EXIT
 	{
@@ -596,6 +602,12 @@ void UMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 				// Always use struct defaults if the inner is a struct, for symmetry with the import of array inner struct defaults
 				uint8* PropDefault = StructDefaults ? StructDefaults : DefaultValue ? DefaultMapHelper.FindMapPairPtrWithKey(PropData) : nullptr;
 
+				if (bExternalEditor)
+				{
+					// For external editor, always write
+					PropDefault = PropData;
+				}
+
 				ValueProp->ExportTextItem(ValueStr, PropData + MapLayout.ValueOffset, PropDefault + MapLayout.ValueOffset, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 
 				--Count;
@@ -628,6 +640,12 @@ void UMapProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue, 
 
 				// Always use struct defaults if the inner is a struct, for symmetry with the import of array inner struct defaults
 				uint8* PropDefault = StructDefaults ? StructDefaults : DefaultValue ? DefaultMapHelper.FindMapPairPtrWithKey(PropData) : nullptr;
+
+				if (bExternalEditor)
+				{
+					// For external editor, always write
+					PropDefault = PropData;
+				}
 
 				ValueProp->ExportTextItem(ValueStr, PropData + MapLayout.ValueOffset, PropDefault + MapLayout.ValueOffset, Parent, PortFlags | PPF_Delimited, ExportRootScope);
 

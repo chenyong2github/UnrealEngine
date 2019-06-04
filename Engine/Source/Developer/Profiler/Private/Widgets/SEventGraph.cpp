@@ -1051,7 +1051,7 @@ void SEventGraph::FillThreadFilterOptions()
 	// Sort the thread names alphabetically
 	ThreadNamesForCombo.Sort([]( const TSharedPtr<FName> Lhs, const TSharedPtr<FName> Rhs ) 
 	{
-		return Lhs->IsNone() || ( !Rhs->IsNone() && *Lhs < *Rhs );
+		return Lhs->IsNone() || ( !Rhs->IsNone() && Lhs->LexicalLess(*Rhs) );
 	});
 
 	// Refresh the combo box
@@ -1735,7 +1735,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 
 		FUIAction Action_ExpandHotPath
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ExpandHotPath_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_ExpandHotPath_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ExpandHotPath_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -1812,7 +1812,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 	{
 		FUIAction Action_CopySelectedToClipboard
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_CopySelectedToClipboard_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_CopySelectedToClipboard_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_CopySelectedToClipboard_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -1826,7 +1826,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 
 		FUIAction Action_SelectStack
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_SelectStack_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_SelectStack_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_SelectStack_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry
@@ -1840,7 +1840,7 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 		( 
 			LOCTEXT("ContextMenu_Header_Misc_Sort", "Sort By"), 
 			LOCTEXT("ContextMenu_Header_Misc_Sort_Desc", "Sort by column"), 
-			FNewMenuDelegate::CreateSP( this, &SEventGraph::EventGraph_BuildSortByMenu ),
+			FNewMenuDelegate::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::EventGraph_BuildSortByMenu ),
 			false, 
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Misc.SortBy")
 		);
@@ -1853,14 +1853,14 @@ TSharedPtr<SWidget> SEventGraph::EventGraph_GetMenuContent() const
 		( 
 			LOCTEXT("ContextMenu_Header_Columns_View", "View Column"), 
 			LOCTEXT("ContextMenu_Header_Columns_View_Desc", "Hides or shows columns"), 
-			FNewMenuDelegate::CreateSP( this, &SEventGraph::EventGraph_BuildViewColumnMenu ),
+			FNewMenuDelegate::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::EventGraph_BuildViewColumnMenu ),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.EventGraph.ViewColumn")
 		);
 
 		FUIAction Action_ResetColumns
 		(
-			FExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ResetColumns_Execute ),
+			FExecuteAction::CreateSP( const_cast<SEventGraph*>(this), &SEventGraph::ContextMenu_ResetColumns_Execute ),
 			FCanExecuteAction::CreateSP( this, &SEventGraph::ContextMenu_ResetColumns_CanExecute )
 		);
 		MenuBuilder.AddMenuEntry

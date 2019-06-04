@@ -306,3 +306,8 @@ void FSlateGameResources::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObjects( UIResources );
 }
+
+FString FSlateGameResources::GetReferencerName() const
+{
+	return TEXT("FSlateGameResources");
+}

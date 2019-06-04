@@ -100,5 +100,8 @@ public:
 
 	UPROPERTY(config, EditAnywhere, Category="Device Configurations")
 	TArray<FRawInputDeviceConfiguration> DeviceConfigurations;
+
+	UPROPERTY(config, EditAnywhere, Category="Device Configurations")
+	bool bRegisterDefaultDevice = true;
 };
 
