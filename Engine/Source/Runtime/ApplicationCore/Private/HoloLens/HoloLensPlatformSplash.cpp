@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "HoloLens/HoloLensSplash.h"
+#include "HoloLens/HoloLensPlatformSplash.h"
 #include "HoloLens/HoloLensPlatformApplicationMisc.h"
 
 void FHoloLensSplash::Show()
