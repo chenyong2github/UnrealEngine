@@ -59,14 +59,11 @@ protected:
 	TSharedPtr<SWidget> GenerateRow(int32 InLayerIndex);
 
 	bool IsBrushSelected(int32 InBrushIndex) const;
+	bool IsBrushEnabled(int32 InBrushIndex) const;
 	void OnBrushSelectionChanged(int32 InBrushIndex);
 	FText GetBrushText(int32 InBrushIndex) const;
 	FSlateColor GetBrushTextColor(int32 InBrushIndex) const;
 	ALandscapeBlueprintCustomBrush* GetBrush(int32 InBrushIndex) const;
-
-	FReply ToggleCommitBrushes();
-	bool IsCommitBrushesButtonEnabled() const;
-	FText GetCommitBrushesButtonText() const;
 
 	// Drag/Drop handling
 	FReply HandleDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, int32 SlotIndex, SVerticalBox::FSlot* Slot);

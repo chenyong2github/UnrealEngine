@@ -179,12 +179,6 @@ struct FLandscapeLayer
 	TArray<FLandscapeLayerBrush> Brushes;
 
 	UPROPERTY()
-	TArray<int8> HeightmapBrushOrderIndices;
-
-	UPROPERTY()
-	TArray<int8> WeightmapBrushOrderIndices;
-
-	UPROPERTY()
 	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
 };
 
@@ -282,14 +276,12 @@ public:
 	LANDSCAPE_API bool IsLayerBlendSubstractive(int32 InLayerIndex, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	LANDSCAPE_API void SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
 
-	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, int32 InTargetType, class ALandscapeBlueprintCustomBrush* InBrush);
-	LANDSCAPE_API bool ReorderLayerBrush(int32 InLayerIndex, int32 InTargetType, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex);
-	LANDSCAPE_API bool AreAllBrushesCommitedToLayer(int32 InLayerIndex, int32 InTargetType);
-	LANDSCAPE_API void SetBrushesCommitStateForLayer(int32 InLayerIndex, int32 InTargetType, bool InCommited);
-	LANDSCAPE_API TArray<int8>& GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType);
-	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 BrushIndex) const;
-	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const;
+	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, class ALandscapeBlueprintCustomBrush* InBrush);
+	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, class ALandscapeBlueprintCustomBrush* InBrush);
+	LANDSCAPE_API bool ReorderLayerBrush(int32 InLayerIndex, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex);
+	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int8 BrushIndex) const;
+	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex) const;
+	LANDSCAPE_API void OnBPCustomBrushChanged();
 	
 	LANDSCAPE_API void OnPreSave();
 
@@ -364,6 +356,9 @@ public:
 	UPROPERTY(EditAnywhere, Category=Experimental, AdvancedDisplay)
 	bool bCanHaveLayersContent = false;
 
+	DECLARE_EVENT(ALandscape, FLandscapeBPCustomBrushChangedDelegate);
+	FLandscapeBPCustomBrushChangedDelegate& OnBPCustomBrushChangedDelegate() { return LandscapeBPCustomBrushChangedDelegate; }
+
 	/** Target Landscape Layer for Landscape Splines */
 	UPROPERTY()
 	FGuid LandscapeSplinesTargetLayerGuid;
@@ -384,6 +379,7 @@ public:
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
 private:
+	FLandscapeBPCustomBrushChangedDelegate LandscapeBPCustomBrushChangedDelegate;
 
 	/** Components affected by landscape splines (used to partially clear Layer Reserved for Splines) */
 	UPROPERTY(Transient)

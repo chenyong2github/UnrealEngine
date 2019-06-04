@@ -32,12 +32,6 @@ private:
 
 	UPROPERTY(Transient)
 	bool bIsInitialized;
-
-	UPROPERTY(Transient)
-	bool PreviousAffectHeightmap;
-
-	UPROPERTY(Transient)
-	bool PreviousAffectWeightmap;
 #endif
 public:
 
@@ -65,7 +59,6 @@ public:
 	class ALandscape* GetOwningLandscape() const;
 
 	virtual void PostEditMove(bool bFinished) override;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 };
