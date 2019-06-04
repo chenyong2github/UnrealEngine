@@ -323,6 +323,11 @@ void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 	FNiagaraComputeInstanceData* Instances = (FNiagaraComputeInstanceData*)(InstanceData_ParamData_Packed);
 	uint8* ParamDataBufferPtr = InstanceData_ParamData_Packed + PackedDispatchesSizeAligned;
 
+	int32 TickCount = InSystemInstance->GetTickCount();
+	check(TickCount > 0);
+	bNeedsReset = ( TickCount == 1);
+
+
 	// Now we will generate instance data for every GPU simulation we want to run on the render thread.
 	// This is spawn rate as well as DataInterface per instance data and the ParameterData for the emitter.
 	// @todo Ideally we would only update DataInterface and ParameterData bits if they have changed.
@@ -399,6 +404,8 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUDebugDataReadbackCounts(nullptr)
 	, GPUDebugDataFloatSize(0)
 	, GPUDebugDataIntSize(0)
+	, GPUDebugDataFloatStride(0)
+	, GPUDebugDataIntStride(0)
 #endif	  
 {
 }
