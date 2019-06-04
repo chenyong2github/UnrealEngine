@@ -493,6 +493,10 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 
 		PrepassLayoutScaleMultiplier = InLayoutScaleMultiplier;
 		bNeedsPrepass = false;
+
+		// If the scale changed, that can affect the desired size of some elements that take it into
+		// account, such as text, so when the prepass size changes, so must we invalidate desired size.
+		bNeedsDesiredSize = true;
 	}
 
 	if ( bCanHaveChildren )
