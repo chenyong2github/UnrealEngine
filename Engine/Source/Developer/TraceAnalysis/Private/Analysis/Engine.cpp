@@ -9,7 +9,7 @@
 #if 0
 #include "Trace/Private/DataDecoder.h"
 #endif // 0
-#include "Trace/Private/Event.h"
+#include "Trace/Private/EventDef.h"
 
 namespace Trace
 {

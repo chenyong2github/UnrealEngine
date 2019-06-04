@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Trace/Trace.h"
-#include "Trace/Private/Event.h"
+#include "Trace/Private/EventDef.h"
 
 #if UE_TRACE_ENABLED
 

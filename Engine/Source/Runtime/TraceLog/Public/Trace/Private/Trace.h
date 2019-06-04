@@ -30,7 +30,7 @@
 #if UE_TRACE_ENABLED
 
 #define TRACE_PRIVATE_EVENT_DEFINE(LoggerName, EventName) \
-	Trace::FEvent LoggerName##EventName##Event;
+	Trace::FEventDef LoggerName##EventName##Event;
 
 #define TRACE_PRIVATE_EVENT_BEGIN(LoggerName, EventName, ...) \
 	TRACE_PRIVATE_EVENT_BEGIN_IMPL(static, LoggerName, EventName, ##__VA_ARGS__)
@@ -46,15 +46,15 @@
 		{ \
 			static const bool bOnceOnly = [] () \
 			{ \
-				const uint32 Always = Trace::FEvent::Flag_Always; \
-				const uint32 Important = Trace::FEvent::Flag_Important; \
+				const uint32 Always = Trace::FEventDef::Flag_Always; \
+				const uint32 Important = Trace::FEventDef::Flag_Important; \
 				const uint32 Flags = (0, ##__VA_ARGS__); \
 				F##LoggerName##EventName##Fields Fields; \
 				const auto* Descs = (Trace::FFieldDesc*)(&Fields); \
 				uint32 DescCount = uint32(sizeof(Fields) / sizeof(*Descs)); \
 				const auto& LoggerLiteral = Trace::FLiteralName(#LoggerName); \
 				const auto& EventLiteral = Trace::FLiteralName(#EventName); \
-				Trace::FEvent::Create(&LoggerName##EventName##Event, LoggerLiteral, EventLiteral, Descs, DescCount, Flags); \
+				Trace::FEventDef::Create(&LoggerName##EventName##Event, LoggerLiteral, EventLiteral, Descs, DescCount, Flags); \
 				return true; \
 			}(); \
 		} \
@@ -82,7 +82,7 @@
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ...) \
 	if (TRACE_PRIVATE_EVENT_IS_ENABLED(LoggerName, EventName)) \
 		if (const auto& __restrict EventName = (F##LoggerName##EventName##Fields&)LoggerName##EventName##Event) \
-			Trace::FEvent::FLogScope(LoggerName##EventName##Event.Uid, TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), ##__VA_ARGS__)
+			Trace::FEventDef::FLogScope(LoggerName##EventName##Event.Uid, TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName), ##__VA_ARGS__)
 
 #else
 

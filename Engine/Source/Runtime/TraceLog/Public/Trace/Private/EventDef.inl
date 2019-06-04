@@ -4,26 +4,26 @@
 
 #if UE_TRACE_ENABLED
 
-#include "Event.h"
+#include "EventDef.h"
 #include "Writer.inl"
 
 namespace Trace
 {
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEvent::FLogScope::FLogScope(uint16 EventUid, uint16 Size)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size)
 {
 	Ptr = Writer_BeginLog(EventUid, Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEvent::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint16 ExtraBytes)
 {
 	Ptr = Writer_BeginLog(EventUid, Size + ExtraBytes);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEvent::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint8* Out)
+inline FEventDef::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint8* Out)
 : bOutOfBand(true)
 {
 	*(uint32*)Out = (uint32(Size) << 16)|uint32(EventUid);
@@ -31,7 +31,7 @@ inline FEvent::FLogScope::FLogScope(uint16 EventUid, uint16 Size, uint8* Out)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline FEvent::FLogScope::~FLogScope()
+inline FEventDef::FLogScope::~FLogScope()
 {
 	if (!bOutOfBand)
 		Writer_EndLog(Ptr);
@@ -41,7 +41,7 @@ inline FEvent::FLogScope::~FLogScope()
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ActionType>
-inline const FEvent::FLogScope& operator << (const FEvent::FLogScope& Lhs, const ActionType& Rhs)
+inline const FEventDef::FLogScope& operator << (const FEventDef::FLogScope& Lhs, const ActionType& Rhs)
 {
 	Rhs.Write(Lhs.Ptr);
 	return Lhs;

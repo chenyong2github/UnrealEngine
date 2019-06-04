@@ -181,7 +181,7 @@ static void Writer_RetireBuffer(void (*DataSink)(const uint8*, uint32))
 
 	if (UE_TRACE_EVENT_IS_ENABLED($Trace, PerfWorker))
 	{
-		uint8 PerfEventBuffer[TRACE_PRIVATE_EVENT_SIZE($Trace, PerfWorker) + FEvent::HeaderSize];
+		uint8 PerfEventBuffer[TRACE_PRIVATE_EVENT_SIZE($Trace, PerfWorker) + FEventDef::HeaderSize];
 		UE_TRACE_LOG($Trace, PerfWorker, PerfEventBuffer)
 			<< PerfWorker.Start(StartTsc)
 			<< PerfWorker.Acquire(uint32(AcquireTailTsc - StartTsc))
@@ -251,7 +251,7 @@ UE_TRACE_API void* Writer_NextBuffer(Private::FBuffer* Buffer, uint32 PrevUsed, 
 	uint32 PerfEventSize = 0;
 	if (UE_TRACE_EVENT_IS_ENABLED($Trace, PerfNextBuffer))
 	{
-		PerfEventSize = TRACE_PRIVATE_EVENT_SIZE($Trace, PerfNextBuffer) + FEvent::HeaderSize;
+		PerfEventSize = TRACE_PRIVATE_EVENT_SIZE($Trace, PerfNextBuffer) + FEventDef::HeaderSize;
 	}
 	SizeAndRef += PerfEventSize;
 
@@ -878,8 +878,8 @@ struct TLateAtomic
 	alignas(InnerType) char Buffer[sizeof(InnerType)];
 };
 
-static TLateAtomic<uint32>	GEventUidCounter;	// = 0;
-static TLateAtomic<FEvent*>	GHeadEvent;			// = nullptr;
+static TLateAtomic<uint32>		GEventUidCounter;	// = 0;
+static TLateAtomic<FEventDef*>	GHeadEvent;			// = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
 enum class EKnownEventUids : uint16
@@ -915,7 +915,7 @@ static uint32 Writer_EventGetHash(uint32 LoggerHash, uint32 NameHash)
 
 ////////////////////////////////////////////////////////////////////////////////
 void Writer_EventCreate(
-	FEvent* Target,
+	FEventDef* Target,
 	const FLiteralName& LoggerName,
 	const FLiteralName& EventName,
 	const FFieldDesc* FieldDescs,
@@ -937,7 +937,7 @@ void Writer_EventCreate(
 		return;
 	}
 
-	if (Flags & FEvent::Flag_Important)
+	if (Flags & FEventDef::Flag_Important)
 	{
 		Uid |= uint16(EKnownEventUids::Flag_Important);
 	}
@@ -949,7 +949,7 @@ void Writer_EventCreate(
  	Target->Uid = uint16(Uid);
 	Target->LoggerHash = LoggerHash;
 	Target->Hash = Writer_EventGetHash(LoggerHash, NameHash);
-	Target->Enabled.Internal = !!(Flags & FEvent::Flag_Always);
+	Target->Enabled.Internal = !!(Flags & FEventDef::Flag_Always);
 	Target->Enabled.bOptedIn = false;
 	Target->bInitialized = true;
 
@@ -1004,7 +1004,7 @@ void Writer_EventCreate(
 	// Add this new event into the list so we can look them up later.
 	while (true)
 	{
-		FEvent* HeadEvent = GHeadEvent->load(std::memory_order_relaxed);
+		FEventDef* HeadEvent = GHeadEvent->load(std::memory_order_relaxed);
 		Target->Handle = HeadEvent;
 		if (GHeadEvent->compare_exchange_weak(HeadEvent, Target, std::memory_order_release))
 		{
@@ -1025,8 +1025,8 @@ uint32 Writer_EventToggle(const ANSICHAR* Wildcard, bool bState)
 	{
 		uint32 LoggerHash = Writer_EventGetHash(Wildcard);
 
-		FEvent* Event = Private::GHeadEvent->load(std::memory_order_relaxed);
-		for (; Event != nullptr; Event = (FEvent*)(Event->Handle))
+		FEventDef* Event = Private::GHeadEvent->load(std::memory_order_relaxed);
+		for (; Event != nullptr; Event = (FEventDef*)(Event->Handle))
 		{
 			if (Event->LoggerHash == LoggerHash)
 			{
@@ -1042,8 +1042,8 @@ uint32 Writer_EventToggle(const ANSICHAR* Wildcard, bool bState)
 	uint32 NameHash = Writer_EventGetHash(Dot + 1);
 	uint32 EventHash = Writer_EventGetHash(LoggerHash, NameHash);
 
-	FEvent* Event = Private::GHeadEvent->load(std::memory_order_relaxed);
-	for (; Event != nullptr; Event = (FEvent*)(Event->Handle))
+	FEventDef* Event = Private::GHeadEvent->load(std::memory_order_relaxed);
+	for (; Event != nullptr; Event = (FEventDef*)(Event->Handle))
 	{
 		if (Event->Hash == EventHash)
 		{
