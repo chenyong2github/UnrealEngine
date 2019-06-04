@@ -912,7 +912,6 @@ public:
 	virtual FString GetDesc() override;
 	virtual FString GetDetailedInfoInternal() const override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	//~ End UObject Interface.
 
 	/** Setup-only routines - not concerned with the instance. */
