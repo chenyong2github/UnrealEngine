@@ -14,6 +14,6 @@ public:
 	UPROPERTY()
 	FNiagaraVariable Variable;
 
-	UPROPERTY(EditAnywhere, Category = Metadata)
+	UPROPERTY(EditAnywhere, Category = Metadata, meta=(NoResetToDefault, ShowOnlyInnerProperties))
 	FNiagaraVariableMetaData Metadata;
 };

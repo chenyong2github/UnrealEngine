@@ -354,7 +354,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
 	TMap<FName, FString> PropertyMetaData;
 
-	UPROPERTY()
+	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable")
 	bool bIsStaticSwitch;
 };
 
