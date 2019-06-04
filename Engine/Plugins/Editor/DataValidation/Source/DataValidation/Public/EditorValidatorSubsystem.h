@@ -10,6 +10,8 @@
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
 #include "EditorValidatorBase.h"
+#include "Engine/EngineTypes.h"
+#include "AssetData.h"
 
 #include "EditorValidatorSubsystem.generated.h"
 

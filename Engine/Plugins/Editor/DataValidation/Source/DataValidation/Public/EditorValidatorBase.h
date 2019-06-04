@@ -10,7 +10,8 @@
 #include "UObject/Interface.h"
 #include "UObject/ObjectMacros.h"
 #include "Logging/LogVerbosity.h"
-
+#include "Internationalization/Text.h"
+#include "UObject/TextProperty.h"
 #include "EditorValidatorBase.generated.h"
 
 /*

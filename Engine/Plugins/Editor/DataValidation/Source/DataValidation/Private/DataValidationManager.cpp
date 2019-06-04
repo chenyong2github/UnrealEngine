@@ -39,7 +39,9 @@ UDEPRECATED_DataValidationManager* UDEPRECATED_DataValidationManager::Get()
 		checkf(GDataValidationManager != nullptr, TEXT("Data validation config value DataValidationManagerClassName is not a subclass of UDataValidationManager."))
 
 		GDataValidationManager->AddToRoot();
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GDataValidationManager->Initialize();
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	return GDataValidationManager;
