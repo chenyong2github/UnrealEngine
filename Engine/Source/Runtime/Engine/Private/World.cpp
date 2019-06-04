@@ -4182,35 +4182,43 @@ FConstPawnIterator::FConstPawnIterator(UWorld* World)
 {
 }
 
-FConstPawnIterator::~FConstPawnIterator()
-{
-	delete Iterator;
-}
+// Operators defined in the cpp to ensure the definition of TActorIterator is known
+FConstPawnIterator::FConstPawnIterator(FConstPawnIterator&&) = default;
+FConstPawnIterator& FConstPawnIterator::operator=(FConstPawnIterator&&) = default;
+FConstPawnIterator::~FConstPawnIterator() = default;
 
  FConstPawnIterator::operator bool() const
 {
-	return (bool)*Iterator;
+	return Iterator.IsValid() && (bool)*Iterator;
 }
 
 FConstPawnIterator& FConstPawnIterator::operator++()
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator++() - this iterator has been moved from and is now invalid."));
+
 	++(*Iterator);
 	return *this;
 }
 
 FConstPawnIterator& FConstPawnIterator::operator++(int)
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator++(int) - this iterator has been moved from and is now invalid."));
+
 	++(*Iterator);
 	return *this;
 }
 
 FPawnIteratorObject FConstPawnIterator::operator*() const
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator*() - this iterator has been moved from and is now invalid."));
+
 	return FPawnIteratorObject(**Iterator);
 }
 
 TUniquePtr<FPawnIteratorObject> FConstPawnIterator::operator->() const
 {
+	checkf(Iterator.IsValid(), TEXT("FConstPawnIterator::operator->() - this iterator has been moved from and is now invalid."));
+
 	return TUniquePtr<FPawnIteratorObject>(new FPawnIteratorObject(**Iterator));
 }
 
