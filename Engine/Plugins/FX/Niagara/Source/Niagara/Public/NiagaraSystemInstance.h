@@ -159,6 +159,7 @@ public:
 	FORCEINLINE void SetPendingSpawn(bool bInValue) { bPendingSpawn = bInValue; }
 
 	FORCEINLINE float GetAge()const { return Age; }
+	FORCEINLINE int32 GetTickCount() const { return TickCount; }
 	
 	FORCEINLINE TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation()const
 	{
