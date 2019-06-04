@@ -21,6 +21,7 @@ class FNiagaraScriptViewModel;
 class FNiagaraObjectSelection;
 struct FEdGraphEditAction;
 class FNiagaraMessageLogViewModel;
+class FNiagaraStandaloneScriptViewModel;
 
 /** Viewer/editor for a DataTable */
 class FNiagaraScriptToolkit : public FAssetEditorToolkit, public FGCObject
@@ -122,7 +123,7 @@ private:
 private:
 
 	/** The Script being edited */
-	TSharedPtr<FNiagaraScriptViewModel> ScriptViewModel;
+	TSharedPtr<FNiagaraStandaloneScriptViewModel> ScriptViewModel;
 
 	/** The selection displayed by the details tab. */
 	TSharedPtr<FNiagaraObjectSelection> DetailsScriptSelection;
