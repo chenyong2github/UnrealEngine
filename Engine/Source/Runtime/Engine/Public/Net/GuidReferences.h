@@ -16,6 +16,15 @@ using FGuidReferencesMap = TMap<int32, FGuidReferences>;
  * replicated data for the Object will be handled elsewhere (either on its own Actor channel,
  * or on its Owning Actor's channel, as a replicated subobject).
  *
+ * As Objects are replicated and received, these GUID References will become "mapped", and the
+ * networking system will update the corresponding properties with pointers to the appropriate objects.
+ *
+ * As Objects are destroyed (due to game play, actor channels closing, relevancy, etc.), GUID References
+ * will be "unmapped", and their corresponding properties will nulled out.
+ *
+ * The process of Mapping and Unmapping can happen numerous times for the same object (e.g., if an Actor
+ * goes in and out of relevancy repeatedly).
+ *
  * This class helps manage those references for specific replicated properties.
  * A FGuidReferences instance will be created for each Replicated Property that is a reference to an object.
  *
