@@ -677,7 +677,7 @@ public:
 	/**
 	 * Handle any special requirements when the sound starts (e.g. subtitles)
 	 */
-	FWaveInstance* HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const;
+	FWaveInstance& HandleStart(FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash) const;
 
 	/**
 	 * This is only used for DTYPE_Procedural audio. It's recommended to use USynthComponent base class
