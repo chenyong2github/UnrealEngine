@@ -318,47 +318,44 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	GENERATED_USTRUCT_BODY()
 public:
 	FNiagaraVariableMetaData()
-		:EditorSortPriority(0)
-		, bAdvancedDisplay(false)
+		: bAdvancedDisplay(false)
+		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
-		, CallSortPriority(0)
+		, bIsStaticSwitch(false)
 	{
 	}
 public:
-	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
-	TMap<FName, FString> PropertyMetaData;
-
 	UPROPERTY(EditAnywhere, Category = "Variable", meta = (MultiLine = true))
 	FText Description;
 
 	UPROPERTY(EditAnywhere, Category = "Variable")
 	FText CategoryName;
 
-	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero."))
-	int32 EditorSortPriority;
-
 	/** Declares that this input is advanced and should only be visible if expanded inputs have been expanded. */
 	UPROPERTY(EditAnywhere, Category = "Variable")
 	bool bAdvancedDisplay;
 
-	/** Declares the associated input is used as an inline edit condition toggle, so it should should be hidden and it should be edited as a 
-	checkbox inline with the input which has designated as its edit condition. */
-	UPROPERTY(EditAnywhere, Category = "Variable")
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (ToolTip = "Affects the sort order in the editor stacks. Use a smaller number to push it to the top. Defaults to zero."))
+	int32 EditorSortPriority;
+
+	/** Declares the associated input is used as an inline edit condition toggle, so it should be hidden and edited as a 
+	checkbox inline with the input which was designated as its edit condition. */
+	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition = "!bIsStaticSwitch"))
 	bool bInlineEditConditionToggle;
 
 	/** Declares the associated input should be conditionally editable based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions")
+	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
 	FNiagaraInputConditionMetadata EditCondition;
 
 	/** Declares the associated input should be conditionally visible based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions")
+	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
 	FNiagaraInputConditionMetadata VisibleCondition;
 
-	UPROPERTY()
-	int32 CallSortPriority;
+	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
+	TMap<FName, FString> PropertyMetaData;
 
-	UPROPERTY()
-	TArray<TWeakObjectPtr<UObject>> ReferencerNodes;
+	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable")
+	bool bIsStaticSwitch;
 };
 
 USTRUCT()
@@ -423,6 +420,19 @@ public:
 #else
 		return FText::FromString( GetStruct()->GetName() );
 #endif
+	}
+
+	FName GetFName() const
+	{
+		if ( IsValid() == false )
+		{
+			return FName();
+		}
+		if ( Enum != nullptr )
+		{
+			return Enum->GetFName();
+		}
+		return GetStruct()->GetFName();
 	}
 
 	FString GetName()const

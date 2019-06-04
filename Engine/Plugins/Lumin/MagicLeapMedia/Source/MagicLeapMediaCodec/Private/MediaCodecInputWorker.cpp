@@ -5,7 +5,7 @@
 #include "HAL/RunnableThread.h"
 #include "HAL/Event.h"
 #include "MagicLeapMediaCodecPlayer.h"
-#include "Lumin/LuminAffinity.h"
+#include "Lumin/LuminPlatformAffinity.h"
 #include "IMagicLeapMediaCodecModule.h"
 
 #include "ml_media_extractor.h"

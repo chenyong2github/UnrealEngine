@@ -723,6 +723,100 @@ namespace UnrealBuildTool
 			return true;
 		}
 
+
+		enum EConfigFlag
+		{
+			None,
+			// Required,  // not needed in C# land
+			// AllowCommandLineOverride,  // not needed in C# land
+			// DedicatedServerOnly, // not needed in C# land
+			// GenerateCacheKey,  // not needed in C# land
+		};
+
+		class ConfigLayer
+		{
+			// Used by the editor to display in the ini-editor
+			// string EditorName; // don't need editor name in C# land
+			// Path to the ini file (with variables)
+			public string Path;
+			// Special flag
+			// public EConfigFlag Flag = EConfigFlag.None;
+
+			public string ExtEnginePath = null;
+			public string ExtProjectPath = null;
+		}
+
+		struct ConfigLayerExpansion
+		{
+			// The subdirectory for this expansion (ie "NoRedist")
+			public string DirectoryPrefix;
+			// The filename prefix for this expansion (ie "Shippable")
+			public string FilePrefix;
+			// Optional flags 
+			// public EConfigFlag Flag;
+		};
+
+		static ConfigLayer[] ConfigLayers = 
+		{
+			// Engine/Base.ini
+			new ConfigLayer { Path = "{ENGINE}/Config/Base.ini" }, //, Flag = EConfigFlag.Required },
+			// Engine/Base*.ini
+ 			new ConfigLayer { Path = "{ENGINE}/Config/{ED}{EF}Base{TYPE}.ini" },
+			// Engine/Platform/BasePlatform*.ini
+			new ConfigLayer { Path = "{ENGINE}/Config/{ED}{PLATFORM}/{EF}Base{PLATFORM}{TYPE}.ini", ExtEnginePath = "{EXTENGINE}/Config/{ED}{EF}Base{PLATFORM}{TYPE}.ini" },
+			// Project/Default*.ini
+			new ConfigLayer { Path = "{PROJECT}/Config/{ED}{EF}Default{TYPE}.ini" }, //, Flag = EConfigFlag.AllowCommandLineOverride },
+			// Engine/Platform/Platform*.ini
+			new ConfigLayer { Path = "{ENGINE}/Config/{ED}{PLATFORM}/{EF}{PLATFORM}{TYPE}.ini", ExtEnginePath = "{EXTENGINE}/Config/{ED}{EF}{PLATFORM}{TYPE}.ini" },
+			// Project/Platform/Platform*.ini
+			new ConfigLayer { Path = "{PROJECT}/Config/{ED}{PLATFORM}/{EF}{PLATFORM}{TYPE}.ini", ExtProjectPath = "{EXTPROJECT}/Config/{ED}{EF}Base{PLATFORM}{TYPE}.ini" },
+
+			// UserSettings/.../User*.ini
+			new ConfigLayer { Path = "{USERSETTINGS}/Unreal Engine/Engine/Config/User{TYPE}.ini" },
+			// UserDir/.../User*.ini
+			new ConfigLayer { Path = "{USER}/Unreal Engine/Engine/Config/User{TYPE}.ini" },
+			// Project/User*.ini
+			new ConfigLayer { Path = "{PROJECT}/Config/User{TYPE}.ini" },
+		};
+
+		static ConfigLayerExpansion[] ConfigLayerExpansions =
+		{
+			// The base expansion (ie, no expansion)
+			new ConfigLayerExpansion { DirectoryPrefix = "", FilePrefix = "" }, 
+
+			// When running a dedicated server, not used in UBT
+			// new ConfigLayerExpansion { DirectoryPrefix = "", FilePrefix = "DedicatedServer" }, //  Flag_DedicatedServerOnly },
+
+			// This file is remapped in UAT from inside NFL or NoRedist, because those directories are stripped while packaging
+			new ConfigLayerExpansion { DirectoryPrefix = "", FilePrefix = "Shippable" },
+			// Hidden directory from licensees
+			new ConfigLayerExpansion { DirectoryPrefix = "NotForLicensees/", FilePrefix = "" },
+			// Settings that need to be hidden from licensees, but are needed for shipping
+			new ConfigLayerExpansion { DirectoryPrefix = "NotForLicensees/", FilePrefix = "Shippable" },
+			// Hidden directory from non-Epic
+			new ConfigLayerExpansion { DirectoryPrefix = "NoRedist/", FilePrefix = "" },
+			// Settings that need to be hidden from non-Epic, but are needed for shipping
+			new ConfigLayerExpansion { DirectoryPrefix = "NoRedist/", FilePrefix = "Shippable" },
+		};
+
+		// Match FPlatformProcess::UserDir()
+		private static string GetUserDir()
+		{
+			// Some user accounts (eg. SYSTEM on Windows) don't have a home directory. Ignore them if Environment.GetFolderPath() returns an empty string.
+			string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+			string PersonalConfigFolder = null;
+			if (!String.IsNullOrEmpty(PersonalFolder))
+			{
+				PersonalConfigFolder = PersonalFolder;
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || Environment.OSVersion.Platform == PlatformID.Unix)
+				{
+					PersonalConfigFolder = System.IO.Path.Combine(PersonalConfigFolder, "Documents");
+				}
+			}
+
+			return PersonalConfigFolder;
+		}
+
 		/// <summary>
 		/// Returns a list of INI filenames for the given project
 		/// </summary>
@@ -730,125 +824,93 @@ namespace UnrealBuildTool
 		{
 			string BaseIniName = Enum.GetName(typeof(ConfigHierarchyType), Type);
 			string PlatformName = GetIniPlatformName(Platform);
-			string PlatformParentName = GetIniPlatformParentName(PlatformName);
 
-			// Engine/Config/Base.ini (included in every ini type, required)
-			yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "Base.ini");
+			// cache some platform extension information that can be used inside the loops
+			string PlatformExtensionEngineConfigDir = DirectoryReference.Combine(UnrealBuildTool.PlatformExtensionsDirectory, Platform.ToString(), "Engine").FullName;
+			string PlatformExtensionProjectConfigDir = ProjectDir != null ? DirectoryReference.Combine(UnrealBuildTool.PlatformExtensionsDirectory, Platform.ToString(), ProjectDir.GetDirectoryName()).FullName : null;
+			bool bHasPlatformExtensionEngineConfigDir = Directory.Exists(PlatformExtensionEngineConfigDir);
+			bool bHasPlatformExtensionProjectConfigDir = PlatformExtensionProjectConfigDir != null && Directory.Exists(PlatformExtensionProjectConfigDir);
 
-			// Engine/Config/Base* ini
-			yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "Base" + BaseIniName + ".ini");
 
-			if (PlatformParentName != "")
+			foreach (ConfigLayer Layer in ConfigLayers)
 			{
-				// Engine/Config/Platform/BasePlatform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", PlatformParentName, "Base" + PlatformParentName + BaseIniName + ".ini");
-			}
-			if (Platform != UnrealTargetPlatform.Unknown)
-			{
-				// Engine/Config/Platform/BasePlatform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", PlatformName, "Base" + PlatformName + BaseIniName + ".ini");
-			}
+				bool bHasPlatformTag = Layer.Path.Contains("{PLATFORM}");
+				bool bHasProjectTag = Layer.Path.Contains("{PROJECT}");
+				bool bHasExpansionTag = Layer.Path.Contains("{ED}") || Layer.Path.Contains("{EF}");
+				bool bHasUserTag = Layer.Path.Contains("{USER}");
 
-			// Engine/Config/NotForLicensees/Base* ini
-			yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "NotForLicensees", "Base" + BaseIniName + ".ini");
-
-			// NOTE: 4.7: See comment in GetSourceIniHierarchyFilenames()
-			// Engine/Config/NoRedist/Base* ini
-			// yield return Path.Combine(EngineDirectory, "Config", "NoRedist", "Base" + BaseIniName + ".ini");
-
-			if (ProjectDir != null)
-			{
-				// Game/Config/Default* ini
-				yield return FileReference.Combine(ProjectDir, "Config", "Default" + BaseIniName + ".ini");
-
-				// Game/Config/NotForLicensees/Default* ini
-				yield return FileReference.Combine(ProjectDir, "Config", "NotForLicensees", "Default" + BaseIniName + ".ini");
-
-				// Game/Config/NoRedist/Default* ini
-				yield return FileReference.Combine(ProjectDir, "Config", "NoRedist", "Default" + BaseIniName + ".ini");
-			}
-
-			if (PlatformParentName != "")
-			{
-				// Engine/Config/Platform/Platform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", PlatformParentName, PlatformParentName + BaseIniName + ".ini");
-
-				// Engine/Config/NotForLicensees/Platform/Platform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "NotForLicensees", PlatformParentName, PlatformParentName + BaseIniName + ".ini");
-
-				// Engine/Config/NoRedist/Platform/Platform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "NoRedist", PlatformParentName, PlatformParentName + BaseIniName + ".ini");
-
-				if (ProjectDir != null)
+				// skip platform layers if we are "platform-less", or user layers without a user dir
+				if (bHasPlatformTag && Platform == null ||
+					bHasProjectTag && ProjectDir == null ||
+					bHasUserTag && GetUserDir() == null)
 				{
-					// Game/Config/Platform/Platform* ini
-					yield return FileReference.Combine(ProjectDir, "Config", PlatformParentName, PlatformParentName + BaseIniName + ".ini");
-
-					// Engine/Config/NotForLicensees/Platform/Platform* ini
-					yield return FileReference.Combine(ProjectDir, "Config", "NotForLicensees", PlatformParentName, PlatformParentName + BaseIniName + ".ini");
-
-					// Engine/Config/NoRedist/Platform/Platform* ini
-					yield return FileReference.Combine(ProjectDir, "Config", "NoRedist", PlatformParentName, PlatformParentName + BaseIniName + ".ini");
+					continue;
 				}
-			}
 
-			if (Platform != UnrealTargetPlatform.Unknown)
-			{
-				// Engine/Config/Platform/Platform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", PlatformName, PlatformName + BaseIniName + ".ini");
-
-				// Engine/Config/NotForLicensees/Platform/Platform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "NotForLicensees", PlatformName, PlatformName + BaseIniName + ".ini");
-
-				// Engine/Config/NoRedist/Platform/Platform* ini
-				yield return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Config", "NoRedist", PlatformName, PlatformName + BaseIniName + ".ini");
-
-				if (ProjectDir != null)
+				// basic replacements
+				string LayerPath;
+				// you can only have PROJECT or ENGINE, not both
+				if (bHasProjectTag)
 				{
-					// Game/Config/Platform/Platform* ini
-					yield return FileReference.Combine(ProjectDir, "Config", PlatformName, PlatformName + BaseIniName + ".ini");
-
-					// Engine/Config/NotForLicensees/Platform/Platform* ini
-					yield return FileReference.Combine(ProjectDir, "Config", "NotForLicensees", PlatformName, PlatformName + BaseIniName + ".ini");
-
-					// Engine/Config/NoRedist/Platform/Platform* ini
-					yield return FileReference.Combine(ProjectDir, "Config", "NoRedist", PlatformName, PlatformName + BaseIniName + ".ini");
-				}
-			}
-
-			DirectoryReference UserSettingsFolder = Utils.GetUserSettingDirectory(); // Match FPlatformProcess::UserSettingsDir()
-			if (UserSettingsFolder != null)
-			{
-				// <AppData>/UE4/EngineConfig/User* ini
-				yield return FileReference.Combine(UserSettingsFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");
-			}
-
-			// Some user accounts (eg. SYSTEM on Windows) don't have a home directory. Ignore them if Environment.GetFolderPath() returns an empty string.
-			string PersonalFolder = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-			if (!String.IsNullOrEmpty(PersonalFolder))
-			{
-				DirectoryReference PersonalConfigFolder; // Match FPlatformProcess::UserDir()
-				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
-				{
-					PersonalConfigFolder = DirectoryReference.Combine(new DirectoryReference(PersonalFolder), "Documents");
-				}
-				else if (Environment.OSVersion.Platform == PlatformID.Unix)
-				{
-					PersonalConfigFolder = DirectoryReference.Combine(new DirectoryReference(PersonalFolder), "Documents");
+					if (bHasPlatformTag && bHasPlatformExtensionProjectConfigDir)
+					{
+						LayerPath = Layer.ExtProjectPath.Replace("{EXTPROJECT}", PlatformExtensionProjectConfigDir);
+					}
+					else
+					{
+						LayerPath = Layer.Path.Replace("{PROJECT}", ProjectDir.FullName);
+					}
 				}
 				else
 				{
-					PersonalConfigFolder = new DirectoryReference(PersonalFolder);
+					if (bHasPlatformTag && bHasPlatformExtensionEngineConfigDir)
+					{
+						LayerPath = Layer.ExtEnginePath.Replace("{EXTENGINE}", PlatformExtensionEngineConfigDir);
+					}
+					else
+					{
+						LayerPath = Layer.Path.Replace("{ENGINE}", UnrealBuildTool.EngineDirectory.FullName);
+					}
 				}
+				LayerPath = LayerPath.Replace("{TYPE}", BaseIniName);
+				LayerPath = LayerPath.Replace("{USERSETTINGS}", Utils.GetUserSettingDirectory().FullName);
+				if (bHasUserTag) LayerPath = LayerPath.Replace("{USER}", GetUserDir());
 
-				// <Documents>/UE4/EngineConfig/User* ini
-				yield return FileReference.Combine(PersonalConfigFolder, "Unreal Engine", "Engine", "Config", "User" + BaseIniName + ".ini");
-			}
 
-			// Game/Config/User* ini
-			if (ProjectDir != null)
-			{
-				yield return FileReference.Combine(ProjectDir, "Config", "User" + BaseIniName + ".ini");
+				// handle expansion (and platform - the C++ code will validate that only expansion layers have platforms)
+				if (bHasExpansionTag)
+				{
+					foreach (ConfigLayerExpansion Expansion in ConfigLayerExpansions)
+					{
+						// expansion replacements
+						string ExpansionPath = LayerPath.Replace("{ED}", Expansion.DirectoryPrefix);
+						ExpansionPath = ExpansionPath.Replace("{EF}", Expansion.FilePrefix);
+
+						// now go up the ini parent chain
+						if (bHasPlatformTag)
+						{
+							DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(PlatformName);
+							if (Info != null && Info.IniParentChain != null)
+							{
+								// the IniParentChain
+								foreach (string ParentPlatform in Info.IniParentChain)
+								{
+									yield return new FileReference(ExpansionPath.Replace("{PLATFORM}", ParentPlatform));
+								}
+							}
+							// always yield the active platform last 
+							yield return new FileReference(ExpansionPath.Replace("{PLATFORM}", PlatformName));
+						}
+						else
+						{
+							yield return new FileReference(ExpansionPath);
+						}
+					}
+				}
+				else
+				{
+					yield return new FileReference(LayerPath);
+				}
 			}
 
 			// Get the generated config file too. EditorSettings overrides this from 
@@ -911,17 +973,8 @@ namespace UnrealBuildTool
 			// @ATG_CHANGE : END
 			else
 			{
-				return Enum.GetName(typeof(UnrealTargetPlatform), TargetPlatform);
+				return TargetPlatform == null ? "None" : TargetPlatform.ToString();
 			}
-		}
-
-		/// <summary>
-		/// Returns the ConfigDataDrivenPlatformInfo for the given platform, or null if nothing was found
-		/// </summary>
-		public static string GetIniPlatformParentName(string IniPlatformName)
-		{
-			DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(IniPlatformName);
-			return (Info == null) ? "" : Info.IniParent;
 		}
 	}
 }

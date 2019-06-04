@@ -10,6 +10,7 @@
 #include "Misc/ScopeExit.h"
 #include "Modules/ModuleManifest.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/DataDrivenPlatformInfoRegistry.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogModuleManager, Log, All);
 
@@ -73,9 +74,11 @@ FModuleManager& FModuleManager::Get()
 #if PLATFORM_DESKTOP && !IS_MONOLITHIC && !PLATFORM_HOLOLENS
 // @ATG_CHANGE : END
 		// Ensure that dependency dlls can be found in restricted sub directories
-			const TCHAR* RestrictedFolderNames[] = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist"), TEXT("Switch") };
+			TArray<FString> RestrictedFolderNames = { TEXT("NoRedist"), TEXT("NotForLicensees"), TEXT("CarefullyRedist") };
+			RestrictedFolderNames.Append(FDataDrivenPlatformInfoRegistry::GetConfidentialPlatforms());
+
 			FString ModuleDir = FPlatformProcess::GetModulesDirectory();
-			for (const TCHAR* RestrictedFolderName : RestrictedFolderNames)
+			for (const FString& RestrictedFolderName : RestrictedFolderNames)
 			{
 				FString RestrictedFolder = ModuleDir / RestrictedFolderName;
 				if (FPaths::DirectoryExists(RestrictedFolder))

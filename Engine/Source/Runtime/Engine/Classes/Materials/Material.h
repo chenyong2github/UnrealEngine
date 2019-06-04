@@ -1824,6 +1824,65 @@ private:
 		return nullptr;
 	}
 
+#if WITH_EDITOR
+
+	template<typename ParameterType, typename ...Arguments>
+	bool SetParameterValueEditorOnly(FName InParameterName, Arguments... Args)
+	{
+		// Warning: in the case of duplicate parameters with different default values, this will find the first in the expression array, not necessarily the one that's used for rendering
+
+		// Lambda which calls SetParameterValue on a given parameter and triggers a PostEditChange event if successful
+		auto TrySetParameterValue = [&](ParameterType* Parameter) -> bool
+		{
+			if (Parameter && Parameter->SetParameterValue(InParameterName, Args...))
+			{
+				if (UProperty* ParamProperty = FindField<UProperty>(ParameterType::StaticClass(), "DefaultValue"))
+				{
+					FPropertyChangedEvent PropertyChangedEvent(ParamProperty);
+					Parameter->PostEditChangeProperty(PropertyChangedEvent);
+					return true;
+				}
+			}
+			return false;
+		};
+
+		for (UMaterialExpression* Expression : Expressions)
+		{
+			if (TrySetParameterValue(Cast<ParameterType>(Expression)))
+			{
+				return true;
+			}
+			else if (UMaterialExpressionMaterialFunctionCall* FunctionCall = Cast<UMaterialExpressionMaterialFunctionCall>(Expression))
+			{
+				if (FunctionCall->MaterialFunction)
+				{
+					TArray<UMaterialFunctionInterface*> Functions;
+					Functions.Add(FunctionCall->MaterialFunction);
+					FunctionCall->MaterialFunction->GetDependentFunctions(Functions);
+
+					for (UMaterialFunctionInterface* Function : Functions)
+					{
+						const TArray<UMaterialExpression*>* ExpressionPtr = Function->GetFunctionExpressions();
+						if (ExpressionPtr)
+						{
+							for (UMaterialExpression* FunctionExpression : *ExpressionPtr)
+							{
+								if (TrySetParameterValue(Cast<ParameterType>(FunctionExpression)))
+								{
+									return true;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+#endif // WITH_EDITOR
+
 };
 
 

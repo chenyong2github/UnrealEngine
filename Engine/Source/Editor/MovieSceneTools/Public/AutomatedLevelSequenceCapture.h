@@ -30,6 +30,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category=Animation)
 	FSoftObjectPath LevelSequenceAsset;
 
+	/** Optional shot name to render. The frame range to render will be set to the shot frame range. */
+	UPROPERTY(BlueprintReadWrite, Category=Animation)
+	FString ShotName;
+
 	/** When enabled, the StartFrame setting will override the default starting frame number */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Animation, AdvancedDisplay)
 	bool bUseCustomStartFrame;
@@ -67,7 +71,7 @@ public:
 	bool bWriteEditDecisionList;
 
 	/** Whether to write Final Cut Pro XML files (XMLs) if the sequence contains shots */
-	UPROPERTY(config, EditAnywhere, Category=Sequence)
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Sequence)
 	bool bWriteFinalCutProXML;
 
 public:

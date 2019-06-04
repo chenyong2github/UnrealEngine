@@ -16,7 +16,7 @@ enum class EItemDropZone;
 class FSequencerFolderNode : public FSequencerDisplayNode
 {
 public:
-	FSequencerFolderNode( UMovieSceneFolder& InMovieSceneFolder, TSharedPtr<FSequencerDisplayNode> InParentNode, FSequencerNodeTree& InParentTree );
+	FSequencerFolderNode( UMovieSceneFolder& InMovieSceneFolder, FSequencerNodeTree& InParentTree );
 
 	// FSequencerDisplayNode interface
 	virtual ESequencerNode::Type GetType() const override;
@@ -27,6 +27,7 @@ public:
 	virtual void SetDisplayName( const FText& NewDisplayName ) override;
 	virtual const FSlateBrush* GetIconBrush() const override;
 	virtual FSlateColor GetIconColor() const override;
+	virtual FLinearColor GetDisplayNameColor() const override;
 	virtual bool CanDrag() const override;
 	virtual TOptional<EItemDropZone> CanDrop( FSequencerDisplayNodeDragDropOp& DragDropOp, EItemDropZone ItemDropZone ) const override;
 	virtual void Drop( const TArray<TSharedRef<FSequencerDisplayNode>>& DraggedNodes, EItemDropZone ItemDropZone ) override;
@@ -37,9 +38,6 @@ public:
 
 	/** Removes a node from it's old parent and makes it a child of this node. */
 	void MoveDisplayNodeToFolder(TSharedRef<FSequencerDisplayNode>& Node);
-
-	/** Adds a child node to this folder node. */
-	void AddChildNode( TSharedRef<FSequencerDisplayNode> ChildNode );
 
 	/** Gets the folder data for this display node. */
 	UMovieSceneFolder& GetFolder() const;

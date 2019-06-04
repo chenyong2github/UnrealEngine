@@ -1077,6 +1077,28 @@ void ULandscapeMeshCollisionComponent::DestroyComponent(bool bPromoteChildren/*=
 }
 
 #if WITH_EDITOR
+uint32 ULandscapeHeightfieldCollisionComponent::ComputeCollisionHash() const
+{
+	uint32 Hash = 0;
+		
+	Hash = HashCombine(GetTypeHash(SimpleCollisionSizeQuads), Hash);
+	Hash = HashCombine(GetTypeHash(CollisionSizeQuads), Hash);
+	Hash = HashCombine(GetTypeHash(CollisionScale), Hash);
+
+	FTransform ComponentTransform = GetComponentToWorld();
+	Hash = FCrc::MemCrc32(&ComponentTransform, sizeof(ComponentTransform));
+
+	const void* HeightBuffer = CollisionHeightData.LockReadOnly();
+	Hash = FCrc::MemCrc32(HeightBuffer, CollisionHeightData.GetBulkDataSize(), Hash);
+	CollisionHeightData.Unlock();
+
+	const void* DominantBuffer = DominantLayerData.LockReadOnly();
+	Hash = FCrc::MemCrc32(DominantBuffer, DominantLayerData.GetBulkDataSize(), Hash);
+	DominantLayerData.Unlock();
+
+	return Hash;
+}
+
 void ULandscapeHeightfieldCollisionComponent::UpdateHeightfieldRegion(int32 ComponentX1, int32 ComponentY1, int32 ComponentX2, int32 ComponentY2)
 {
 #if WITH_PHYSX
@@ -1213,15 +1235,24 @@ void ULandscapeMeshCollisionComponent::BeginDestroy()
 	Super::BeginDestroy();
 }
 
-void ULandscapeHeightfieldCollisionComponent::RecreateCollision()
+bool ULandscapeHeightfieldCollisionComponent::RecreateCollision()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+#if WITH_EDITOR
+		uint32 NewHash = ComputeCollisionHash();
+		if (bPhysicsStateCreated && NewHash == CollisionHash && CollisionHash != 0 && bEnableCollisionHashOptim)
+		{
+			return false;
+		}
+		CollisionHash = NewHash;
+#endif
 		HeightfieldRef = NULL;
 		HeightfieldGuid = FGuid();
 
 		RecreatePhysicsState();
 	}
+	return true;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1350,7 +1381,7 @@ void ULandscapeHeightfieldCollisionComponent::SnapFoliageInstances(const FBox& I
 }
 #endif // WITH_EDITORONLY_DATA
 
-void ULandscapeMeshCollisionComponent::RecreateCollision()
+bool ULandscapeMeshCollisionComponent::RecreateCollision()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -1358,7 +1389,7 @@ void ULandscapeMeshCollisionComponent::RecreateCollision()
 		MeshGuid = FGuid();
 	}
 
-	Super::RecreateCollision();
+	return Super::RecreateCollision();
 }
 
 void ULandscapeHeightfieldCollisionComponent::Serialize(FArchive& Ar)

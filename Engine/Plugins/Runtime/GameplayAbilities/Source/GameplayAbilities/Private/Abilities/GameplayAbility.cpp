@@ -87,14 +87,14 @@ UWorld* UGameplayAbility::GetWorld() const
 	return GetOuter()->GetWorld();
 }
 
-int32 UGameplayAbility::GetFunctionCallspace(UFunction* Function, void* Parameters, FFrame* Stack)
+int32 UGameplayAbility::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) || !IsSupportedForNetworking())
 	{
 		return FunctionCallspace::Local;
 	}
 	check(GetOuter() != nullptr);
-	return GetOuter()->GetFunctionCallspace(Function, Parameters, Stack);
+	return GetOuter()->GetFunctionCallspace(Function, Stack);
 }
 
 bool UGameplayAbility::CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack)

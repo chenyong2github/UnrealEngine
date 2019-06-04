@@ -70,7 +70,7 @@ void (* GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NU
 
 /** global for showing the splash screen */
 bool GShowSplashScreen = true;
-float GOriginalBrightness = 1.0f;
+float GOriginalBrightness = -1.0f;
 
 static int32 GetFreeMemoryMB()
 {
@@ -262,7 +262,10 @@ void FIOSPlatformMisc::SetBrightness(float Brightness)
 
 void FIOSPlatformMisc::ResetBrightness()
 {
-    SetBrightness(GOriginalBrightness);
+	if (GOriginalBrightness >= 0.f)
+	{
+		SetBrightness(GOriginalBrightness);
+	}
 }
 
 bool FIOSPlatformMisc::IsRunningOnBattery()
@@ -393,9 +396,13 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 		{
 			DeviceType = IOS_IPodTouch5;
 		}
-		else if (Major >= 7)
+		else if (Major == 7)
 		{
 			DeviceType = IOS_IPodTouch6;
+		}
+		else if (Major >= 9)
+		{
+			DeviceType = IOS_IPodTouch7;
 		}
 	}
 	// iPads
@@ -679,7 +686,7 @@ FIOSPlatformMisc::EIOSDevice FIOSPlatformMisc::GetIOSDeviceType()
 
 int FIOSPlatformMisc::GetDefaultStackSize()
 {
-	return 512 * 1024;
+	return 128 * 1024;
 }
 
 void FIOSPlatformMisc::SetMemoryWarningHandler(void (* InHandler)(const FGenericMemoryWarningContext& Context))

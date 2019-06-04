@@ -7,3 +7,5 @@
 #endif
 
 #include "Unix/UnixPlatform.h"
+
+#define PLATFORM_GLOBAL_LOG_CATEGORY			LogLinux

@@ -39,6 +39,11 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Paths to all potential module source directories (with platform extension directories added in)
+		/// </summary>
+		protected DirectoryReference[] ModuleDirectories;
+
+		/// <summary>
 		/// The name of the .Build.cs file this module was created from, if any
 		/// </summary>
 		public FileReference RulesFile
@@ -208,6 +213,17 @@ namespace UnrealBuildTool
 			IsRedistributableOverride = Rules.IsRedistributableOverride;
 
 			WhitelistRestrictedFolders = new HashSet<DirectoryReference>(Rules.WhitelistRestrictedFolders.Select(x => DirectoryReference.Combine(ModuleDirectory, x)));
+
+			// merge the main directory and any others set in the Rules
+			List<DirectoryReference> MergedDirectories = new List<DirectoryReference> { ModuleDirectory };
+			DirectoryReference[] ExtraModuleDirectories = Rules.GetModuleDirectoriesForAllSubClasses();
+			if (ExtraModuleDirectories != null)
+			{
+				MergedDirectories.AddRange(ExtraModuleDirectories);
+			}
+
+			// cache the results (it will always at least have the ModuleDirectory)
+			ModuleDirectories = MergedDirectories.ToArray();
 		}
 
 		/// <summary>
@@ -260,7 +276,7 @@ namespace UnrealBuildTool
 				foreach(string InputString in InEnumerableStrings)
 				{
 					DirectoryReference Dir = new DirectoryReference(ExpandPathVariables(InputString, null, null));
-					if(DirectoryReference.Exists(Dir))
+					if(DirectoryLookupCache.DirectoryExists(Dir))
 					{
 						Directories.Add(Dir);
 					}
@@ -325,6 +341,7 @@ namespace UnrealBuildTool
 				{
 					// Find the base directory containing this reference
 					DirectoryReference BaseDir;
+					// @todo platplug does this need to check platform extension engine directories? what are ReferencedDir's here?
 					if(ReferencedDir.IsUnderDirectory(UnrealBuildTool.EngineDirectory))
 					{
 						BaseDir = UnrealBuildTool.EngineDirectory;

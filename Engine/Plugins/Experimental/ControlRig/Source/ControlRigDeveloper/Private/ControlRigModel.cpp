@@ -18,6 +18,11 @@
 
 #if CONTROLRIG_UNDO
 
+int32 FControlRigModelPair::ArgumentSize()
+{
+	return 2;
+}
+
 void FControlRigModelPair::AppendArgumentsForAction(TArray<FString>& InOutArguments, const UControlRigModel* InModel) const
 {
 	InOutArguments.Add(InModel->Nodes()[Node].Pins[Pin].Direction == EGPD_Input ? TEXT("true") : TEXT("false"));
@@ -26,7 +31,7 @@ void FControlRigModelPair::AppendArgumentsForAction(TArray<FString>& InOutArgume
 
 void FControlRigModelPair::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex, const UControlRigModel* InModel)
 {
-	ensure(InOutArguments.Num() >= ArgumentIndex + 2);
+	ensure(InOutArguments.Num() >= ArgumentIndex + FControlRigModelPair::ArgumentSize());
 	bool bIsInput = InOutArguments[ArgumentIndex++] == TEXT("true");
 	const FControlRigModelPin* ExistingPin = InModel->FindPinFromPath(InOutArguments[ArgumentIndex++], bIsInput);
 	if (ExistingPin)
@@ -34,6 +39,11 @@ void FControlRigModelPair::ConfigureFromActionArguments(const TArray<FString>& I
 		Node = ExistingPin->Node;
 		Pin = ExistingPin->Index;
 	}
+}
+
+int32 FControlRigModelLink::ArgumentSize()
+{
+	return FControlRigModelPair::ArgumentSize() * 2;
 }
 
 void FControlRigModelLink::AppendArgumentsForAction(TArray<FString>& InOutArguments, const UControlRigModel* InModel) const
@@ -45,7 +55,12 @@ void FControlRigModelLink::AppendArgumentsForAction(TArray<FString>& InOutArgume
 void FControlRigModelLink::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex, const UControlRigModel* InModel)
 {
 	Source.ConfigureFromActionArguments(InOutArguments, ArgumentIndex, InModel);
-	Target.ConfigureFromActionArguments(InOutArguments, ArgumentIndex + 2, InModel);
+	Target.ConfigureFromActionArguments(InOutArguments, ArgumentIndex + FControlRigModelPair::ArgumentSize(), InModel);
+}
+
+int32 FControlRigModelPin::ArgumentSize()
+{
+	return 4;
 }
 
 void FControlRigModelPin::AppendArgumentsForAction(TArray<FString>& InOutArguments) const
@@ -58,7 +73,7 @@ void FControlRigModelPin::AppendArgumentsForAction(TArray<FString>& InOutArgumen
 
 void FControlRigModelPin::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex)
 {
-	ensure(InOutArguments.Num() >= ArgumentIndex + 3);
+	ensure(InOutArguments.Num() >= ArgumentIndex + FControlRigModelPin::ArgumentSize());
 
 	Name = *InOutArguments[ArgumentIndex++];
 	DefaultValue = InOutArguments[ArgumentIndex++];
@@ -99,7 +114,7 @@ FString FControlRigModelNode::GetPinPath(int32 InPinIndex, bool bIncludeNodeName
 
 bool FControlRigModelNode::IsMutable() const
 {
-	if (IsParameter())
+	if (!IsFunction())
 	{
 		return false;
 	}
@@ -116,7 +131,7 @@ bool FControlRigModelNode::IsMutable() const
 
 bool FControlRigModelNode::IsBeginExecution() const
 {
-	if (IsParameter())
+	if (!IsFunction())
 	{
 		return false;
 	}
@@ -133,7 +148,6 @@ bool FControlRigModelNode::IsBeginExecution() const
 
 const UStruct* FControlRigModelNode::UnitStruct() const
 {
-	ensure(ParameterType == EControlRigModelParameterType::None);
 	ensure(FunctionName != NAME_None);
 	return FindObject<UStruct>(ANY_PACKAGE, *(FunctionName.ToString()));
 }
@@ -186,14 +200,24 @@ const FControlRigModelPin* FControlRigModelNode::FindPin(const FName& InName, bo
 
 #if CONTROLRIG_UNDO
 
+int32 FControlRigModelNode::ArgumentSize()
+{
+	return 9;
+}
+
 void FControlRigModelNode::AppendArgumentsForAction(TArray<FString>& InOutArguments) const
 {
 	InOutArguments.Add(Name.ToString());
+	InOutArguments.Add(FString::FormatAsNumber((int32)NodeType));
 	InOutArguments.Add(FunctionName.ToString());
 	InOutArguments.Add(FString::FormatAsNumber((int32)ParameterType));
-	FString PositionStr;
+	FString PositionStr, SizeStr, ColorStr;
 	TBaseStructure<FVector2D>::Get()->ExportText(PositionStr, &Position, nullptr, nullptr, PPF_None, nullptr);
+	TBaseStructure<FVector2D>::Get()->ExportText(SizeStr, &Size, nullptr, nullptr, PPF_None, nullptr);
+	TBaseStructure<FLinearColor>::Get()->ExportText(ColorStr, &Color, nullptr, nullptr, PPF_None, nullptr);
 	InOutArguments.Add(PositionStr);
+	InOutArguments.Add(SizeStr);
+	InOutArguments.Add(ColorStr);
 	if (IsParameter() && Pins.Num() > 0)
 	{
 		FString DataTypeStr;
@@ -204,13 +228,16 @@ void FControlRigModelNode::AppendArgumentsForAction(TArray<FString>& InOutArgume
 	{
 		InOutArguments.Add(FString() /* parameter data type */);
 	}
+	InOutArguments.Add(Text);
 }
 
 void FControlRigModelNode::ConfigureFromActionArguments(const TArray<FString>& InOutArguments, int32 ArgumentIndex)
 {
-	ensure(InOutArguments.Num() >= ArgumentIndex + 4);
+	ensure(InOutArguments.Num() >= ArgumentIndex + FControlRigModelPin::ArgumentSize());
 
 	Name = *InOutArguments[ArgumentIndex++];
+	NodeType = (EControlRigModelNodeType)FCString::Atoi(*InOutArguments[ArgumentIndex++]);
+
 	const FString& InFunctionName = InOutArguments[ArgumentIndex++];
 	if (InFunctionName == FName(NAME_None).ToString())
 	{
@@ -223,6 +250,10 @@ void FControlRigModelNode::ConfigureFromActionArguments(const TArray<FString>& I
 
 	ParameterType = (EControlRigModelParameterType)FCString::Atoi(*InOutArguments[ArgumentIndex++]);
 	TBaseStructure<FVector2D>::Get()->ImportText(*InOutArguments[ArgumentIndex++], &Position, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT("Vector2D"), true);
+	TBaseStructure<FVector2D>::Get()->ImportText(*InOutArguments[ArgumentIndex++], &Size, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT("Vector2D"), true);
+	TBaseStructure<FLinearColor>::Get()->ImportText(*InOutArguments[ArgumentIndex++], &Color, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT("LinearColor"), true);
+	ArgumentIndex++; // skip pin type
+	Text = InOutArguments[ArgumentIndex++];
 }
 
 #endif
@@ -255,6 +286,11 @@ TArray<FControlRigModelNode> UControlRigModel::SelectedNodes() const
 		Nodes.Add(*Node);
 	}
 	return Nodes;
+}
+
+bool UControlRigModel::IsNodeSelected(const FName& InName) const
+{
+	return _SelectedNodes.Contains(InName);
 }
 
 const TArray<FControlRigModelLink>& UControlRigModel::Links() const
@@ -339,7 +375,6 @@ bool UControlRigModel::Clear()
 	_Nodes.Reset();
 	_Links.Reset();
 	_SelectedNodes.Reset();
-	_LastNodePositions.Reset();
 
 	return true;
 }
@@ -394,7 +429,44 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 	}
 
 	FControlRigModelNode NodeToAdd = InNode;
+	NodeToAdd.NodeType = EControlRigModelNodeType::Function;
 	NodeToAdd.Name = GetUniqueNodeName(DesiredNodeName);
+
+	struct Local
+	{
+		static void SetColorFromMetadata(FString& Metadata, FLinearColor& Color)
+		{
+			Metadata.TrimStartAndEnd();
+			FString SplitString(TEXT(" "));
+			FString Red, Green, Blue, GreenAndBlue;
+			if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
+			{
+				Red.TrimEnd();
+				GreenAndBlue.TrimStart();
+				if (GreenAndBlue.Split(SplitString, &Green, &Blue))
+				{
+					Green.TrimEnd();
+					Blue.TrimStart();
+
+					float RedValue = FCString::Atof(*Red);
+					float GreenValue = FCString::Atof(*Green);
+					float BlueValue = FCString::Atof(*Blue);
+					Color = FLinearColor(RedValue, GreenValue, BlueValue);
+				}
+			}
+		}
+	};
+
+	// get the node color from its metadata
+	if (const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(NodeToAdd.UnitStruct()))
+	{
+		FString NodeColorMetadata;
+		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::NodeColorMetaName, &NodeColorMetadata);
+		if (!NodeColorMetadata.IsEmpty())
+		{
+			Local::SetColorFromMetadata(NodeColorMetadata, NodeToAdd.Color);
+		}
+	}
 
 	AddNodePinsForFunction(NodeToAdd);
 
@@ -472,7 +544,6 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 
 	_Nodes.Add(NodeToAdd);
 	FControlRigModelNode& AddedNode = _Nodes[NodeToAdd.Index];
-	_LastNodePositions.Add(AddedNode.Name, AddedNode.Position);
 
 	SetNodePinDefaultsForFunction(AddedNode);
 
@@ -490,6 +561,56 @@ bool UControlRigModel::AddNode(const FControlRigModelNode& InNode, bool bUndo)
 		PushAction(AddNodeAction);
 	}
 
+	// resize arrays if need be
+	if (bUndo)
+	{
+		const UStruct* Struct = NodeToAdd.UnitStruct();
+		if (Struct)
+		{
+			struct FPinArrayInfo
+			{
+				int32 Size;
+				FString Default;
+				bool bExpanded;
+			};
+			TMap<FString, FPinArrayInfo> PinArraySizes;
+			for (FControlRigModelPin& Pin : AddedNode.Pins)
+			{
+				if (!Pin.IsArray())
+				{
+					continue;
+				}
+
+				FString PinPath = AddedNode.GetPinPath(Pin.Index, false);
+				if (UArrayProperty* Property = Cast<UArrayProperty>(Struct->FindPropertyByName(*PinPath)))
+				{
+					int32 DefaultArraySize = Property->GetINTMetaData(UControlRig::DefaultArraySizeMetaName);
+					if (DefaultArraySize > 0)
+					{
+						FPinArrayInfo Info;
+						Info.Size = DefaultArraySize;
+						Info.Default = Property->GetMetaData(TEXT("Default"));
+						Info.bExpanded = Property->HasMetaData(UControlRig::ExpandPinByDefaultMetaName);
+
+						PinArraySizes.Add(PinPath, Info);
+					}
+				}
+			}
+			for (const TPair<FString, FPinArrayInfo>& Pair : PinArraySizes)
+			{
+				const FControlRigModelPin* Pin = AddedNode.FindPin(*Pair.Key);
+				if (Pin)
+				{
+					SetPinArraySize(Pin->GetPair(), Pair.Value.Size, Pair.Value.Default, bUndo);
+					if (Pair.Value.bExpanded)
+					{
+						Pin = AddedNode.FindPin(*Pair.Key);
+						ExpandPin(AddedNode.Name, Pin->Name, true, true, bUndo);
+					}
+				}
+			}
+		}
+	}
 #endif
 
 	// only hook up the node automatically if we are currently
@@ -534,8 +655,10 @@ bool UControlRigModel::AddParameter(const FName& InName, const FEdGraphPinType& 
 	FControlRigModelNode Parameter;
 	Parameter.Name = GetUniqueNodeName(InName);
 
+	Parameter.NodeType = EControlRigModelNodeType::Parameter;
 	Parameter.ParameterType = InParameterType;
 	Parameter.Position = InPosition;
+	Parameter.Color = FLinearColor::Blue;
 
 	AddNodePinsForParameter(Parameter, InDataType);
 
@@ -557,6 +680,50 @@ bool UControlRigModel::AddParameter(const FName& InName, const FEdGraphPinType& 
 	FControlRigModelNode& AddedNode = _Nodes.Last();
 
 	SetNodePinDefaultsForParameter(AddedNode, InDataType);
+
+	ResetCycleCheck();
+
+	if (_ModifiedEvent.IsBound())
+	{
+		_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeAdded, &AddedNode);
+	}
+
+#if CONTROLRIG_UNDO
+	if (bUndo)
+	{
+		CurrentActions.Pop();
+		PushAction(Action);
+	}
+#endif
+
+	return true;
+}
+
+bool UControlRigModel::AddComment(const FName& InName, const FString& InText, const FVector2D& InPosition, const FVector2D& InSize, const FLinearColor& InColor, bool bUndo)
+{
+	FControlRigModelNode Comment;
+	Comment.Name = GetUniqueNodeName(InName);
+
+	Comment.NodeType = EControlRigModelNodeType::Comment;
+	Comment.Position = InPosition;
+	Comment.Size = InSize;
+	Comment.Index = _Nodes.Num();
+	Comment.Text = InText;
+	Comment.Color = InColor;
+
+#if CONTROLRIG_UNDO
+	FAction Action;
+	if (bUndo)
+	{
+		CurrentActions.Add(&Action);
+		Action.Type = EControlRigModelNotifType::NodeAdded;
+		Action.Title = FString::Printf(TEXT("Added Comment '%s'"), *Comment.Name.ToString());
+		Comment.AppendArgumentsForAction(Action.Arguments);
+	}
+#endif
+
+	_Nodes.Add(Comment);
+	FControlRigModelNode& AddedNode = _Nodes.Last();
 
 	ResetCycleCheck();
 
@@ -709,15 +876,20 @@ bool UControlRigModel::SetNodePosition(const FName& InName, const FVector2D& InP
 			CurrentActions.Add(&Action);
 			Action.Title = FString::Printf(TEXT("Moved Node '%s'"), *Node->Name.ToString());
 			Action.Type = EControlRigModelNotifType::NodeChanged;
-
-			const FVector2D* PreviousPosition = _LastNodePositions.Find(Node->Name);
-			if (PreviousPosition)
-			{
-				_Nodes[Node->Index].Position = *PreviousPosition;
-			}
 			Node->AppendArgumentsForAction(Action.Arguments);
 		}
 #endif
+
+		if ((InPosition - Node->Position).IsNearlyZero())
+		{
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+			}
+#endif
+			return false;
+		}
 
 		_Nodes[Node->Index].Position = InPosition;
 
@@ -725,7 +897,115 @@ bool UControlRigModel::SetNodePosition(const FName& InName, const FVector2D& InP
 		if (bUndo)
 		{
 			Node->AppendArgumentsForAction(Action.Arguments);
-			_LastNodePositions.Add(Node->Name, Node->Position);
+		}
+#endif
+
+		if (_ModifiedEvent.IsBound())
+		{
+			_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeChanged, Node);
+		}
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			CurrentActions.Pop();
+			PushAction(Action);
+		}
+#endif
+
+		return true;
+	}
+	return false;
+}
+
+bool UControlRigModel::SetNodeSize(const FName& InName, const FVector2D& InSize, bool bUndo)
+{
+	const FControlRigModelNode* Node = FindNode(InName);
+	if (Node != nullptr)
+	{
+#if CONTROLRIG_UNDO
+		FAction Action;
+		if (bUndo)
+		{
+			CurrentActions.Add(&Action);
+			Action.Title = FString::Printf(TEXT("Resized Node '%s'"), *Node->Name.ToString());
+			Action.Type = EControlRigModelNotifType::NodeChanged;
+			Node->AppendArgumentsForAction(Action.Arguments);
+		}
+#endif
+
+		if ((InSize - Node->Size).IsNearlyZero())
+		{
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+			}
+#endif
+			return false;
+		}
+
+		_Nodes[Node->Index].Size = InSize;
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			Node->AppendArgumentsForAction(Action.Arguments);
+		}
+#endif
+
+		if (_ModifiedEvent.IsBound())
+		{
+			_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeChanged, Node);
+		}
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			CurrentActions.Pop();
+			PushAction(Action);
+		}
+#endif
+
+		return true;
+	}
+	return false;
+}
+
+bool UControlRigModel::SetNodeColor(const FName& InName, const FLinearColor& InColor, bool bUndo)
+{
+	const FControlRigModelNode* Node = FindNode(InName);
+	if (Node != nullptr)
+	{
+#if CONTROLRIG_UNDO
+		FAction Action;
+		if (bUndo)
+		{
+			CurrentActions.Add(&Action);
+			Action.Title = FString::Printf(TEXT("Changed Color of Node '%s'"), *Node->Name.ToString());
+			Action.Type = EControlRigModelNotifType::NodeChanged;
+
+			Node->AppendArgumentsForAction(Action.Arguments);
+		}
+#endif
+
+		if (FVector4(InColor - Node->Color).IsNearlyZero3())
+		{
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+			}
+#endif
+			return false;
+		}
+
+		_Nodes[Node->Index].Color = InColor;
+
+#if CONTROLRIG_UNDO
+		if (bUndo)
+		{
+			Node->AppendArgumentsForAction(Action.Arguments);
 		}
 #endif
 
@@ -770,6 +1050,54 @@ bool UControlRigModel::SetParameterType(const FName& InName, EControlRigModelPar
 #endif
 
 			_Nodes[Node->Index].ParameterType = InParameterType;
+
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				Node->AppendArgumentsForAction(Action.Arguments);
+			}
+#endif
+
+			if (_ModifiedEvent.IsBound())
+			{
+				_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeChanged, Node);
+			}
+
+#if CONTROLRIG_UNDO
+			if (bUndo)
+			{
+				CurrentActions.Pop();
+				PushAction(Action);
+			}
+#endif
+
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UControlRigModel::SetCommentText(const FName& InName, const FString& InText, bool bUndo)
+{
+	const FControlRigModelNode* Node = FindNode(InName);
+	if (Node != nullptr)
+	{
+		ensure(Node->IsComment());
+
+		if (_Nodes[Node->Index].Text != InText)
+		{
+#if CONTROLRIG_UNDO
+			FAction Action;
+			if (bUndo)
+			{
+				CurrentActions.Add(&Action);
+				Action.Title = FString::Printf(TEXT("Set Comment Text for Node '%s'"), *Node->Name.ToString());
+				Action.Type = EControlRigModelNotifType::NodeChanged;
+				Node->AppendArgumentsForAction(Action.Arguments);
+			}
+#endif
+
+			_Nodes[Node->Index].Text = InText;
 
 #if CONTROLRIG_UNDO
 			if (bUndo)
@@ -887,7 +1215,6 @@ bool UControlRigModel::SelectNode(const FName& InName, bool bInSelected)
 			if(SelectedIndex == INDEX_NONE)
 			{
 				_SelectedNodes.Add(InName);
-				_LastNodePositions.Add(InName, Node->Position);
 				if (_ModifiedEvent.IsBound())
 				{
 					_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::NodeSelected, Node);
@@ -1124,6 +1451,14 @@ bool UControlRigModel::MakeLink(int32 InSourceNodeIndex, int32 InSourcePinIndex,
 	ensure(InTargetPinIndex >= 0 && InTargetPinIndex < _Nodes[InTargetNodeIndex].Pins.Num());
 	ensure(CanLink(InSourceNodeIndex, InSourcePinIndex, InTargetNodeIndex, InTargetPinIndex, nullptr));
 
+#if CONTROLRIG_UNDO
+	FAction Action;
+	if (bUndo)
+	{
+		CurrentActions.Add(&Action);
+	}
+#endif
+
 	TArray<int32> PinsToDisconnect;
 	PinsToDisconnect.Add(InTargetPinIndex);
 
@@ -1134,14 +1469,6 @@ bool UControlRigModel::MakeLink(int32 InSourceNodeIndex, int32 InSourcePinIndex,
 			PinsToDisconnect.Add(SubPinIndex);
 		}
 	}
-
-#if CONTROLRIG_UNDO
-	FAction Action;
-	if (bUndo)
-	{
-		CurrentActions.Add(&Action);
-	}
-#endif
 
 	int32 ParentPinIndex = InTargetPinIndex;
 	while (ParentPinIndex != INDEX_NONE)
@@ -1663,10 +1990,11 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 	{
 		FControlRigModelPin PinToAdd = Node.Pins[PinIndex];
 		PinToAdd.Name = *FString::FormatAsNumber(Node.Pins[PinIndex].ArraySize());
+		PinToAdd.DisplayNameText = FText::FromName(PinToAdd.Name);
 		PinToAdd.Index = ++PinIndexAfterArray;
 		PinToAdd.ParentIndex = PinIndex;
 		PinToAdd.Type.ContainerType = EPinContainerType::None;
-		PinToAdd.DefaultValue =  InDefaultValue;
+		PinToAdd.DefaultValue = InDefaultValue;
 
 		Node.Pins[PinIndex].SubPins.Add(PinToAdd.Index);
 		if (PinToAdd.Index == Node.Pins.Num())
@@ -1706,7 +2034,7 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 		// shift all of the links in terms of indices
 		for (int32 LinkIndex = 0; LinkIndex < OtherPin.Links.Num(); LinkIndex++)
 		{
-			FControlRigModelLink& Link = _Links[LinkIndex];
+			FControlRigModelLink& Link = _Links[OtherPin.Links[LinkIndex]];
 			if (Link.Source.Node == Node.Index)
 			{
 				int32* MappedLinkIndex = RemappedIndices.Find(Link.Source.Pin);
@@ -1739,6 +2067,85 @@ bool UControlRigModel::SetPinArraySize(const FControlRigModelPair& InPin, int32 
 		for(FControlRigModelPin PinToRemove : RemovedPins)
 		{
 			_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::PinRemoved, &PinToRemove);
+		}
+	}
+
+	if (bUndo)
+	{
+		UScriptStruct* UnitScriptStruct = (UScriptStruct*)Cast<UScriptStruct>(Node.UnitStruct());
+		if (UnitScriptStruct)
+		{
+			if (UArrayProperty* ArrayProperty = Cast<UArrayProperty>(UnitScriptStruct->FindPropertyByName(*GetPinPath(InPin, false))))
+			{
+				FString DefaultValue = InDefaultValue;
+				TArray<uint8> TempBuffer;
+
+				if (UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProperty->Inner))
+				{
+					if (UScriptStruct* InnerScriptStruct = Cast<UScriptStruct>(InnerStructProp->Struct))
+					{
+						TempBuffer.AddUninitialized(InnerScriptStruct->GetStructureSize());
+						InnerScriptStruct->InitializeDefaultValue(TempBuffer.GetData());
+						if (DefaultValue.IsEmpty())
+						{
+							InnerScriptStruct->ExportText(DefaultValue, TempBuffer.GetData(), nullptr, nullptr, PPF_None, nullptr);
+						}
+						else
+						{
+							InnerScriptStruct->ImportText(*DefaultValue, TempBuffer.GetData(), nullptr, EPropertyPortFlags::PPF_None, nullptr, UnitScriptStruct->GetFName().ToString(), true);
+						}
+					}
+				}
+
+				for (int32 AddedPinIndex : AddedPins)
+				{
+					SetPinDefaultValue(Node.Pins[AddedPinIndex].GetPair(), DefaultValue, bUndo);
+
+					if (UStructProperty* InnerStructProp = Cast<UStructProperty>(ArrayProperty->Inner))
+					{
+						if (UScriptStruct* InnerScriptStruct = Cast<UScriptStruct>(InnerStructProp->Struct))
+						{
+							if (ArrayProperty->HasMetaData(UControlRig::ExpandPinByDefaultMetaName))
+							{
+								ExpandPin(Node.Name, Node.Pins[AddedPinIndex].Name, true, true, bUndo);
+							}
+
+							TArray<int32> SubPins;
+							SubPins.Append(Node.Pins[AddedPinIndex].SubPins);
+
+							for (int32 SubPinIndex = 0; SubPinIndex < SubPins.Num(); SubPinIndex++)
+							{
+								FControlRigModelPin& SubPin = Node.Pins[SubPins[SubPinIndex]];
+								if (SubPin.Direction != EGPD_Input)
+								{
+									continue;
+								}
+
+								SubPins.Append(SubPin.SubPins);
+
+								FString DefaultValueString;
+								FControlRigModelPin ParentPin = SubPin;
+								FString PinPath = ParentPin.Name.ToString();
+								while (ParentPin.ParentIndex != INDEX_NONE && ParentPin.ParentIndex != AddedPinIndex)
+								{
+									ParentPin = Node.Pins[ParentPin.ParentIndex];
+									PinPath = ParentPin.Name.ToString() + TEXT(".") + PinPath;
+								}
+								FCachedPropertyPath PropertyPath(PinPath);
+								if (PropertyPathHelpers::GetPropertyValueAsString(TempBuffer.GetData(), InnerScriptStruct, PropertyPath, DefaultValueString))
+								{
+									SubPin.DefaultValue = DefaultValueString;
+
+									if (_ModifiedEvent.IsBound())
+									{
+										_ModifiedEvent.Broadcast(this, EControlRigModelNotifType::PinChanged, &SubPin);
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -1898,7 +2305,7 @@ void UControlRigModel::AddNodePinsForFunction(FControlRigModelNode& Node)
 		for (TFieldIterator<UProperty> It(Struct); It; ++It)
 		{
 			FControlRigModelPin Pin;
-			ConfigurePinFromField(Pin, *It);
+			ConfigurePinFromField(Pin, *It, Node);
 
 			if (It->HasMetaData(UControlRig::InputMetaName))
 			{
@@ -2034,10 +2441,22 @@ void UControlRigModel::SetNodePinDefaultsForParameter(FControlRigModelNode& Node
 	}
 }
 
-void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property)
+void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty* Property, FControlRigModelNode& Node)
 {
 	Pin.Type = GetPinTypeFromField(Property);
 	Pin.Name = Property->GetFName();
+	Pin.DisplayNameText = Property->GetDisplayNameText();
+	if (Pin.ParentIndex != INDEX_NONE)
+	{
+		if (Node.Pins[Pin.ParentIndex].IsArray())
+		{
+			Pin.DisplayNameText = FText::FromName(Pin.Name);
+		}
+	}
+	if (Pin.DisplayNameText.IsEmpty())
+	{
+		Pin.DisplayNameText = FText::FromName(Pin.Name);
+	}
 
 	Pin.bIsConstant = Property->HasMetaData(UControlRig::ConstantMetaName);
 
@@ -2068,7 +2487,7 @@ void UControlRigModel::ConfigurePinFromField(FControlRigModelPin& Pin, UProperty
 		Pin.Index = ++LastAddedIndex;
 		Pin.ParentIndex = ParentIndex;
 		Pin.Direction = PinDirection;
-		ConfigurePinFromField(Pin, *It);
+		ConfigurePinFromField(Pin, *It, Node);
 
 		if (Pin.Index == Node.Pins.Num())
 		{
@@ -2286,11 +2705,13 @@ bool UControlRigModel::UndoAction(const UControlRigModel::FAction& InAction)
 			{
 				SetParameterType(Node.Name, Node.ParameterType, false /* undo */);
 			}
-			if (!SetNodePosition(Node.Name, Node.Position, false /* undo */))
+			SetNodePosition(Node.Name, Node.Position, false /* undo */);
+			SetNodeSize(Node.Name, Node.Size, false /* undo */);
+			SetNodeColor(Node.Name, Node.Color, false /* undo */);
+			if (Node.IsComment())
 			{
-				return false;
+				SetCommentText(Node.Name, Node.Text, false /* undo */);
 			}
-			_LastNodePositions.Add(Node.Name, Node.Position);
 			break;
 		}
 		case EControlRigModelNotifType::NodeRenamed:
@@ -2371,17 +2792,32 @@ bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 			FControlRigModelNode Node;
 			Node.ConfigureFromActionArguments(InAction.Arguments);
 
-			if (Node.IsParameter())
+			switch (Node.NodeType)
 			{
-				FEdGraphPinType PinType;
-				FEdGraphPinType::StaticStruct()->ImportText(*InAction.Arguments[4], &PinType, nullptr, EPropertyPortFlags::PPF_None, nullptr, FEdGraphPinType::StaticStruct()->GetFName().ToString(), true);
-				return AddParameter(Node.Name, PinType, Node.ParameterType, Node.Position, false /* undo */);
-			}
-
-			Node.FunctionName = *InAction.Arguments[1];
-			if (!AddNode(Node, false /* undo */))
-			{
-				return false;
+				case EControlRigModelNodeType::Function:
+				{
+					Node.FunctionName = *InAction.Arguments[2];
+					if (!AddNode(Node, false /* undo */))
+					{
+						return false;
+					}
+					break;
+				}
+				case EControlRigModelNodeType::Parameter:
+				{
+					FEdGraphPinType PinType;
+					FEdGraphPinType::StaticStruct()->ImportText(*InAction.Arguments[7], &PinType, nullptr, EPropertyPortFlags::PPF_None, nullptr, FEdGraphPinType::StaticStruct()->GetFName().ToString(), true);
+					return AddParameter(Node.Name, PinType, Node.ParameterType, Node.Position, false /* undo */);
+				}
+				case EControlRigModelNodeType::Comment:
+				{
+					return AddComment(Node.Name, Node.Text, Node.Position, Node.Size, Node.Color, false /* undo */);
+				}
+				default:
+				{
+					ensure(false);
+					break;
+				}
 			}
 			break;
 		}
@@ -2398,16 +2834,18 @@ bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 		case EControlRigModelNotifType::NodeChanged:
 		{
 			FControlRigModelNode Node;
-			Node.ConfigureFromActionArguments(InAction.Arguments, 5 /* offset */);
+			Node.ConfigureFromActionArguments(InAction.Arguments, FControlRigModelNode::ArgumentSize());
 			if (Node.IsParameter())
 			{
 				SetParameterType(Node.Name, Node.ParameterType, false /* undo */);
 			}
-			if (!SetNodePosition(Node.Name, Node.Position, false /* undo */))
+			SetNodePosition(Node.Name, Node.Position, false /* undo */);
+			SetNodeSize(Node.Name, Node.Size, false /* undo */);
+			SetNodeColor(Node.Name, Node.Color, false /* undo */);
+			if (Node.IsComment())
 			{
-				return false;
+				SetCommentText(Node.Name, Node.Text, false /* undo */);
 			}
-			_LastNodePositions.Add(Node.Name, Node.Position);
 			break;
 		}
 		case EControlRigModelNotifType::NodeRenamed:
@@ -2452,7 +2890,7 @@ bool UControlRigModel::RedoAction(const UControlRigModel::FAction& InAction)
 			SplitPinPath(PinPath, Left, Right);
 
 			FControlRigModelPin Pin;
-			Pin.ConfigureFromActionArguments(InAction.Arguments, 5);
+			Pin.ConfigureFromActionArguments(InAction.Arguments, FControlRigModelPin::ArgumentSize() + 1);
 
 			SetPinDefaultValue(*Left, *Right, Pin.DefaultValue, false /* undo */);
 			ExpandPin(*Left, *Right, Pin.Direction == EGPD_Input, Pin.bExpanded, false /* undo */);

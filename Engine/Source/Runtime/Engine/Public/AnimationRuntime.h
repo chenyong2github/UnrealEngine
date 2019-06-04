@@ -8,6 +8,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/EnumClassFlags.h"
 #include "BoneIndices.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimationAsset.h"
@@ -225,11 +226,22 @@ public:
 		/*out*/ FCompactPose& ResultPose,
 		/*out*/ FBlendedCurve& ResultCurve);
 
+
+	/** Blending flags for BlendPosesPerBoneFilter */
+	enum class EBlendPosesPerBoneFilterFlags : uint32
+	{
+		None = 0,
+		MeshSpaceRotation = (1 << 0),	//! Blend bone rotations in mesh space instead of local space
+		MeshSpaceScale    = (1 << 1),	//! Blend bone scales in mesh space instead of local space
+	};
+
 	/**
 	* Blend Poses per bone weights : The BasePoses + BlendPoses(SourceIndex) * Blend Weights(BoneIndex)
 	* Please note BlendWeights are array, so you can define per bone base
 	* This supports multi per bone blending, but only one pose as blend at a time per track
 	* PerBoneBlendWeights.Num() == Atoms.Num()
+	*
+	* @note : This optionally blends rotation and/or scale in mesh space. Translation is always in local space.
 	*
 	* I had multiple debates about having PerBoneBlendWeights array(for memory reasons),
 	* but it so much simplifies multiple purpose for this function instead of searching bonenames or
@@ -237,14 +249,26 @@ public:
 	* I assume all those things should be determined before coming here and this only cares about weights
 	**/
 	static void BlendPosesPerBoneFilter(
-		FCompactPose& BasePose, 
-		const TArray<FCompactPose>& BlendPoses, 
-		FBlendedCurve& BaseCurve, 
-		const TArray<FBlendedCurve>& BlendCurves, 
-		FCompactPose& OutPose, 
-		FBlendedCurve& OutCurve, 
-		TArray<FPerBoneBlendWeight>& BoneBlendWeights, 
-		bool bMeshSpaceRotationBlending,
+		FCompactPose& BasePose,
+		const TArray<FCompactPose>& BlendPoses,
+		FBlendedCurve& BaseCurve,
+		const TArray<FBlendedCurve>& BlendCurves,
+		FCompactPose& OutPose,
+		FBlendedCurve& OutCurve,
+		TArray<FPerBoneBlendWeight>& BoneBlendWeights,
+		EBlendPosesPerBoneFilterFlags blendFlags,
+		enum ECurveBlendOption::Type CurveBlendOption);
+
+	UE_DEPRECATED(4.23, "Please use the BlendPosesPerBoneFilter function that accepts EBlendPosesPerBoneFilterFlags.")
+	static void BlendPosesPerBoneFilter(
+		FCompactPose& BasePose,
+		const TArray<FCompactPose>& BlendPoses,
+		FBlendedCurve& BaseCurve,
+		const TArray<FBlendedCurve>& BlendCurves,
+		FCompactPose& OutPose,
+		FBlendedCurve& OutCurve,
+		TArray<FPerBoneBlendWeight>& BoneBlendWeights,
+		bool bMeshSpaceRotationBlend,
 		enum ECurveBlendOption::Type CurveBlendOption);
 
 	static void UpdateDesiredBoneWeight(const TArray<FPerBoneBlendWeight>& SrcBoneBlendWeights, TArray<FPerBoneBlendWeight>& TargetBoneBlendWeights, const TArray<float>& BlendWeights);
@@ -433,53 +457,7 @@ public:
 	* @param	RequiredBones		BoneContainer
 	*/
 	static void RetargetBoneTransform(const USkeleton* MySkeleton, const FName& RetargetSource, FTransform& BoneTransform, const int32 SkeletonBoneIndex, const FCompactPoseBoneIndex& BoneIndex, const FBoneContainer& RequiredBones, const bool bIsBakedAdditive);
-private:
-	/** 
-	* Blend Poses per bone weights : The BasePose + BlendPoses(SourceIndex) * Blend Weights(BoneIndex)
-	* Please note BlendWeights are array, so you can define per bone base 
-	* This supports multi per bone blending, but only one pose as blend at a time per track
-	* PerBoneBlendWeights.Num() == Atoms.Num()
-	*
-	* @note : This blends rotation in mesh space, but translation in local space
-	*
-	* I had multiple debates about having PerBoneBlendWeights array(for memory reasons),  
-	* but it so much simplifies multiple purpose for this function instead of searching bonenames or 
-	* having multiple bone names with multiple weights, and filtering through which one is correct one
-	* I assume all those things should be determined before coming here and this only cares about weights
-	**/
-	static void BlendMeshPosesPerBoneWeights(
-				FCompactPose& BasePose,
-				const TArray<FCompactPose>& BlendPoses,
-				FBlendedCurve& BaseCurve, 
-				const TArray<FBlendedCurve>& BlendedCurves, 
-				const TArray<FPerBoneBlendWeight>& BoneBlendWeights,
-				enum ECurveBlendOption::Type CurveBlendOption,
-				/*out*/ FCompactPose& OutPose, 
-				/*out*/ FBlendedCurve& OutCurve);
 
-	/** 
-	* Blend Poses per bone weights : The BasePoses + BlendPoses(SourceIndex) * Blend Weights(BoneIndex)
-	* Please note BlendWeights are array, so you can define per bone base 
-	* This supports multi per bone blending, but only one pose as blend at a time per track
-	* PerBoneBlendWeights.Num() == Atoms.Num()
-	*
-	* @note : This blends all in local space
-	* 
-	* I had multiple debates about having PerBoneBlendWeights array(for memory reasons),  
-	* but it so much simplifies multiple purpose for this function instead of searching bonenames or 
-	* having multiple bone names with multiple weights, and filtering through which one is correct one
-	* I assume all those things should be determined before coming here and this only cares about weights
-	**/
-	static void BlendLocalPosesPerBoneWeights(
-			FCompactPose& BasePose,
-			const TArray<FCompactPose>& BlendPoses,
-			FBlendedCurve& BaseCurve, 
-			const TArray<FBlendedCurve>& BlendedCurves, 
-			const TArray<FPerBoneBlendWeight>& BoneBlendWeights,
-			enum ECurveBlendOption::Type CurveBlendOption,
-			/*out*/ FCompactPose& OutPose, 
-			/*out*/ FBlendedCurve& OutCurve);
-public:
 	/** 
 	 * Calculate distance how close two strings are. 
 	 * By close, it calculates how many operations to transform First to Second 
@@ -489,3 +467,4 @@ public:
 	static int32 GetStringDistance(const FString& First, const FString& Second);
 };
 
+ENUM_CLASS_FLAGS(FAnimationRuntime::EBlendPosesPerBoneFilterFlags);

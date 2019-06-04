@@ -322,6 +322,7 @@ public:
 private:
 	
 	static void RegisterPSOUsageDataUpdateForNextSave(FPSOUsageData& UsageData);
+	static void ClearOSPipelineCache();
 	
 private:
 	static FRWLock FileCacheLock;

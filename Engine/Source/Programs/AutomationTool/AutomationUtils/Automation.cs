@@ -421,6 +421,11 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 		#region Main Program
 
 		/// <summary>
+		/// Compiler with all scripts
+		/// </summary>
+		public static ScriptCompiler Compiler { get; set; }
+
+		/// <summary>
 		/// Main method.
 		/// </summary>
 		/// <param name="Arguments">Command line</param>
@@ -478,7 +483,7 @@ AutomationTool.exe [-verbose] [-compileonly] [-p4] Command0 [-Arg0 -Arg1 -Arg2 .
 			ProjectUtils.CleanupFolders();
 
 			// Compile scripts.
-			ScriptCompiler Compiler = new ScriptCompiler();
+			Compiler = new ScriptCompiler();
 			using(TelemetryStopwatch ScriptCompileStopwatch = new TelemetryStopwatch("ScriptCompile"))
 			{
 				Compiler.FindAndCompileAllScripts(OutScriptsForProjectFileName, AdditionalScriptsFolders);

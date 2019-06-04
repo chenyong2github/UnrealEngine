@@ -117,7 +117,7 @@ namespace Audio
 			if (!FMath::IsNearlyEqual(InFrequency, CutoffFrequency))
 			{
 				CutoffFrequency = InFrequency;
-				float NormalizedFreq = FMath::Clamp(0.5f * InFrequency / SampleRate, 0.0f, 1.0f);
+				float NormalizedFreq = FMath::Clamp(2.0f * InFrequency / SampleRate, 0.0f, 1.0f);
 				B1 = FMath::Exp(-PI * NormalizedFreq);
 				A0 = 1.0f - B1;
 			}

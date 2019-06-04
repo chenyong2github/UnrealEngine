@@ -23,6 +23,7 @@
 #include "LC_AppSettings.h"
 #include "LC_Allocators.h"
 #include "LC_DuplexPipeClient.h"
+#include "LC_MemoryStream.h"
 #include <mmsystem.h>
 
 // unreachable code
@@ -107,13 +108,11 @@ ServerCommandThread::ServerCommandThread(MainFrame* mainFrame, const wchar_t* co
 	, m_directoryCache(new DirectoryCache(2048u))
 	, m_connectionCS()
 	, m_commandThreads()
-	, m_moduleBatchScope("Module loading")
-	, m_loadedCompilandCountInBatchScope(0u)
 	, m_manualRecompileTriggered(false)
 	, m_liveModuleToModifiedOrNewObjFiles()
 {
-	m_serverThread = thread::Create(64u * 1024u, &ServerThreadProxy, this);
-	m_compileThread = thread::Create(64u * 1024u, &CompileThreadProxy, this);
+	m_serverThread = thread::Create("Live coding server", 64u * 1024u, &ServerCommandThread::ServerThread, this);
+	m_compileThread = thread::Create("Live coding compilation", 64u * 1024u, &ServerCommandThread::CompileThread, this);
 
 	m_liveModules.reserve(256u);
 	m_liveProcesses.reserve(8u);
@@ -147,15 +146,16 @@ std::wstring ServerCommandThread::GetProcessImagePath(void) const
 }
 
 
-void ServerCommandThread::LoadModule(const wchar_t* givenModulePath, const DuplexPipe* pipe, TaskContext* tasks, unsigned int processId)
+scheduler::Task<LiveModule*>* ServerCommandThread::LoadModule(unsigned int processId, void* moduleBase, const wchar_t* givenModulePath, scheduler::TaskBase* taskRoot)
 {
-	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Loading modules...");
-
+	// note that the path we get from the client might not be normalized, depending on how the executable was launched.
+	// it is crucial to normalize the path again, otherwise we could load already loaded modules into the same
+	// Live++ instance, which would wreak havoc
 	const std::wstring& modulePath = file::NormalizePath(givenModulePath);
 	const executable::Header imageHeader = GetImageHeader(modulePath.c_str());
 	if (!executable::IsValidHeader(imageHeader))
 	{
-		return;
+		return nullptr;
 	}
 
 	LiveProcess* liveProcess = FindProcessById(processId);
@@ -164,115 +164,97 @@ void ServerCommandThread::LoadModule(const wchar_t* givenModulePath, const Duple
 	if (liveProcess->TriedToLoadImage(imageHeader))
 	{
 		// tried loading this module into this process already
-		return;
+		return nullptr;
 	}
 
+	// find any other process ID that tried to load this module already
 	{
-		CommandMap commandMap;
-		commandMap.RegisterAction<GetModuleInfoAction>();
-
-		// defer loading of the module to make sure that we get the correct module base address,
-		// no matter if .exe or .dll.
-		{
-			commands::GetModule cmd = {};
-			cmd.loadImports = false;
-			cmd.taskContext = tasks;
-			wcscpy_s(cmd.path, modulePath.c_str());
-			pipe->SendCommandAndWaitForAck(cmd);
-		}
-
-		// handle commands that return module info
-		commandMap.HandleCommands(pipe, this);
-	}
-
-	liveProcess->AddLoadedImage(imageHeader);
-}
-
-
-void ServerCommandThread::LoadAllModules(const wchar_t* givenModulePath, const DuplexPipe* pipe, TaskContext* tasks, unsigned int processId)
-{
-	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Loading modules...");
-
-	const std::wstring& modulePath = file::NormalizePath(givenModulePath);
-	const executable::Header imageHeader = GetImageHeader(modulePath.c_str());
-	if (!executable::IsValidHeader(imageHeader))
-	{
-		return;
-	}
-
-	LiveProcess* liveProcess = FindProcessById(processId);
-	LC_ASSERT(liveProcess, "Invalid process ID.");
-
-	if (liveProcess->TriedToLoadImage(imageHeader))
-	{
-		// tried loading this module into this process already
-		return;
-	}
-
-	symbols::Provider* provider = symbols::OpenEXE(modulePath.c_str(), symbols::OpenOptions::ACCUMULATE_SIZE);
-	if (!provider)
-	{
-		liveProcess->AddLoadedImage(imageHeader);
-		return;
-	}
-
-	// grab DIA compilands first. this is very fast, and needed in order to gather modules next
-	symbols::DiaCompilandDB* diaCompilandDb = symbols::GatherDiaCompilands(provider);
-	symbols::ModuleDB* moduleDB = symbols::GatherModules(diaCompilandDb);
-
-	// now that we have a list of modules, load them all concurrently, starting with the main executable, followed
-	// by all DLLs.
-	{
-		CommandMap commandMap;
-		commandMap.RegisterAction<GetModuleInfoAction>();
-		{
-			commands::GetModule cmd = {};
-			cmd.loadImports = false;
-			cmd.taskContext = tasks;
-			wcscpy_s(cmd.path, modulePath.c_str());
-			pipe->SendCommandAndWaitForAck(cmd);
-		}
-
-		commandMap.HandleCommands(pipe, this);
-
-		const size_t count = moduleDB->modules.size();
+		const size_t count = m_liveProcesses.size();
 		for (size_t i = 0u; i < count; ++i)
 		{
-			const std::wstring& path = moduleDB->modules[i];
-
-			// all we have is a relative path to the DLL. get the full path from the modules loaded into the main process
+			LiveProcess* otherLiveProcess = m_liveProcesses[i];
+			if (otherLiveProcess->TriedToLoadImage(imageHeader))
 			{
-				// because DLLs might also have import DLLs, load all those as well
-				commands::GetModule cmd = {};
-				cmd.loadImports = true;
-				cmd.taskContext = tasks;
-				wcscpy_s(cmd.path, path.c_str());
-				pipe->SendCommandAndWaitForAck(cmd);
-			}
+				// some *other* process loaded this module already
+				LC_LOG_USER("Registering module %S (PID: %d)", modulePath.c_str(), processId);
 
-			// handle commands that return module info
-			commandMap.HandleCommands(pipe, this);
+				LiveModule* liveModule = m_imageHeaderToLiveModule[imageHeader];
+				if (liveModule)
+				{
+					liveModule->RegisterProcess(liveProcess, moduleBase, modulePath);
+					liveModule->DisableControlFlowGuard(liveProcess, moduleBase);
+
+					const bool installedPatchesSuccessfully = liveModule->InstallCompiledPatches(liveProcess, moduleBase);
+					if (!installedPatchesSuccessfully)
+					{
+						LC_ERROR_USER("Compiled patches could not be installed (PID: %d)", processId);
+						liveModule->UnregisterProcess(liveProcess);
+					}
+
+					liveProcess->AddLoadedImage(imageHeader);
+				}
+
+				return nullptr;
+			}
 		}
 	}
 
-	symbols::DestroyDiaCompilandDB(diaCompilandDb);
-	symbols::DestroyModuleDB(moduleDB);
-
-	symbols::Close(provider);
+	symbols::Provider* moduleProvider = symbols::OpenEXE(modulePath.c_str(), symbols::OpenOptions::ACCUMULATE_SIZE);
+	if (!moduleProvider)
+	{
+		return nullptr;
+	}
 
 	liveProcess->AddLoadedImage(imageHeader);
+
+	// accumulate module info
+	{
+		const file::Attributes attributes = file::GetAttributes(modulePath.c_str());
+		const uint64_t size = file::GetSize(attributes);
+
+		g_loadedModuleSize.Accumulate(size);
+		g_loadedModuleSize.Print();
+		g_loadedModuleSize.ResetCurrent();
+
+		LC_LOG_USER("Loading module %S (%.3f MB)", modulePath.c_str(), size / 1048576.0f);
+	}
+
+	// create a task to load the module of this batch concurrently
+	LiveModule* liveModule = new LiveModule(modulePath.c_str(), imageHeader, m_runMode);
+	m_imageHeaderToLiveModule.emplace(imageHeader, liveModule);
+
+	auto task = scheduler::CreateTask(taskRoot, [liveModule, liveProcess, modulePath, moduleBase, moduleProvider]()
+	{
+		telemetry::Scope scope("Loading module");
+
+		symbols::DiaCompilandDB* moduleDiaCompilandDb = symbols::GatherDiaCompilands(moduleProvider);
+
+		liveModule->Load(moduleProvider, moduleDiaCompilandDb);
+		liveModule->RegisterProcess(liveProcess, moduleBase, modulePath);
+		liveModule->DisableControlFlowGuard(liveProcess, moduleBase);
+
+		symbols::DestroyDiaCompilandDB(moduleDiaCompilandDb);
+		symbols::Close(moduleProvider);
+
+		return liveModule;
+	});
+
+	scheduler::RunTask(task);
+
+	return task;
 }
 
 
-void ServerCommandThread::UnloadModule(const wchar_t* givenModulePath, const DuplexPipe* pipe, unsigned int processId)
+bool ServerCommandThread::UnloadModule(unsigned int processId, const wchar_t* givenModulePath)
 {
-	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Unloading modules...");
-
+	// note that the path we get from the client might not be normalized, depending on how the executable was launched.
+	// it is crucial to normalize the path again, otherwise we could load already loaded modules into the same
+	// Live++ instance, which would wreak havoc
 	const std::wstring& modulePath = file::NormalizePath(givenModulePath);
 	const executable::Header imageHeader = GetImageHeader(modulePath.c_str());
 	if (!executable::IsValidHeader(imageHeader))
 	{
-		return;
+		return false;
 	}
 
 	LiveProcess* liveProcess = FindProcessById(processId);
@@ -281,103 +263,33 @@ void ServerCommandThread::UnloadModule(const wchar_t* givenModulePath, const Dup
 	if (!liveProcess->TriedToLoadImage(imageHeader))
 	{
 		// this module was never loaded
-		return;
+		return false;
 	}
 
-	{
-		CommandMap commandMap;
-		commandMap.RegisterAction<GetModuleInfoAction>();
-
-		// defer unloading of the module to make sure that we get the correct module base address,
-		// no matter if .exe or .dll.
-		{
-			commands::GetModule cmd = {};
-			cmd.loadImports = false;
-			cmd.taskContext = nullptr;
-			wcscpy_s(cmd.path, modulePath.c_str());
-			pipe->SendCommandAndWaitForAck(cmd);
-		}
-
-		// handle commands that return module info
-		commandMap.HandleCommands(pipe, this);
-	}
+	LC_LOG_USER("Unloading module %S", modulePath.c_str());
 
 	liveProcess->RemoveLoadedImage(imageHeader);
-}
+	m_imageHeaderToLiveModule.erase(imageHeader);
 
-
-void ServerCommandThread::UnloadAllModules(const wchar_t* givenModulePath, const DuplexPipe* pipe, unsigned int processId)
-{
-	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Unloading modules...");
-
-	const std::wstring& modulePath = file::NormalizePath(givenModulePath);
-	const executable::Header imageHeader = GetImageHeader(modulePath.c_str());
-	if (!executable::IsValidHeader(imageHeader))
+	for (auto it = m_liveModules.begin(); it != m_liveModules.end(); /* nothing */)
 	{
-		return;
-	}
-
-	LiveProcess* liveProcess = FindProcessById(processId);
-	LC_ASSERT(liveProcess, "Invalid process ID.");
-
-	if (!liveProcess->TriedToLoadImage(imageHeader))
-	{
-		// this module was never loaded
-		return;
-	}
-
-	symbols::Provider* provider = symbols::OpenEXE(modulePath.c_str(), symbols::OpenOptions::ACCUMULATE_SIZE);
-	if (!provider)
-	{
-		liveProcess->RemoveLoadedImage(imageHeader);
-		return;
-	}
-
-	// grab DIA compilands first. this is very fast, and needed in order to gather modules next
-	symbols::DiaCompilandDB* diaCompilandDb = symbols::GatherDiaCompilands(provider);
-	symbols::ModuleDB* moduleDB = symbols::GatherModules(diaCompilandDb);
-
-	// now that we have a list of modules, load them all concurrently, starting with the main executable, followed
-	// by all DLLs.
-	{
-		CommandMap commandMap;
-		commandMap.RegisterAction<GetModuleInfoAction>();
+		LiveModule* liveModule = *it;
+		if (std::equal_to<executable::Header>()(liveModule->GetImageHeader(), imageHeader))
 		{
-			commands::GetModule cmd = {};
-			cmd.loadImports = false;
-			cmd.taskContext = nullptr;
-			wcscpy_s(cmd.path, modulePath.c_str());
-			pipe->SendCommandAndWaitForAck(cmd);
+			liveModule->Unload();
+			delete liveModule;
+
+			it = m_liveModules.erase(it);
+
+			return true;
 		}
-
-		commandMap.HandleCommands(pipe, this);
-
-		const size_t count = moduleDB->modules.size();
-		for (size_t i = 0u; i < count; ++i)
+		else
 		{
-			const std::wstring& path = moduleDB->modules[i];
-
-			// all we have is a relative path to the DLL. get the full path from the modules loaded into the main process
-			{
-				// because DLLs might also have import DLLs, load all those as well
-				commands::GetModule cmd = {};
-				cmd.loadImports = true;
-				cmd.taskContext = nullptr;
-				wcscpy_s(cmd.path, path.c_str());
-				pipe->SendCommandAndWaitForAck(cmd);
-			}
-
-			// handle commands that return module info
-			commandMap.HandleCommands(pipe, this);
+			++it;
 		}
 	}
 
-	symbols::DestroyDiaCompilandDB(diaCompilandDb);
-	symbols::DestroyModuleDB(moduleDB);
-
-	symbols::Close(provider);
-
-	liveProcess->RemoveLoadedImage(imageHeader);
+	return false;
 }
 
 
@@ -511,16 +423,10 @@ void ServerCommandThread::PrewarmCompilerEnvironmentCache(void)
 	scheduler::DestroyTasks(tasks);
 	scheduler::DestroyTask(taskRoot);
 
-	LC_SUCCESS_USER("Prewarmed compiler/linker environment cache (%.3fs, %zu)", scope.ReadSeconds(), uniquePaths.size());
-}
-
-
-unsigned int __stdcall ServerCommandThread::ServerThreadProxy(void* context)
-{
-	thread::SetName("Live coding server");
-
-	ServerCommandThread* instance = static_cast<ServerCommandThread*>(context);
-	return instance->ServerThread();
+	if (uniquePaths.size() != 0u)
+	{
+		LC_SUCCESS_USER("Prewarmed compiler/linker environment cache (%.3fs, %zu executables)", scope.ReadSeconds(), uniquePaths.size());
+	}
 }
 
 
@@ -535,8 +441,6 @@ unsigned int ServerCommandThread::ServerThread(void)
 	for (;;)
 	{
 		CommandThreadContext* context = new CommandThreadContext;
-		context->instance = this;
-
 		context->pipe.Create(primitiveNames::Pipe(m_processGroupName).c_str());
 		context->exceptionPipe.Create(primitiveNames::ExceptionPipe(m_processGroupName).c_str());
 
@@ -550,8 +454,8 @@ unsigned int ServerCommandThread::ServerThread(void)
 		context->exceptionPipe.WaitForClient();
 
 		// a new client has connected, open a new thread for communication
-		context->commandThread = thread::Create(64u * 1024u, &CommandThreadProxy, context);
-		context->exceptionCommandThread = thread::Create(64u * 1024u, &ExceptionCommandThreadProxy, context);
+		context->commandThread = thread::Create("Live coding client command communication", 64u * 1024u, &ServerCommandThread::CommandThread, this, &context->pipe, context->readyEvent);
+		context->exceptionCommandThread = thread::Create("Live coding client exception command communication", 64u * 1024u, &ServerCommandThread::ExceptionCommandThread, this, &context->exceptionPipe);
 
 		// register this connection
 		{
@@ -563,14 +467,6 @@ unsigned int ServerCommandThread::ServerThread(void)
 	return 0u;
 }
 
-
-unsigned int __stdcall ServerCommandThread::CompileThreadProxy(void* context)
-{
-	thread::SetName("Live coding compilation");
-
-	ServerCommandThread* instance = static_cast<ServerCommandThread*>(context);
-	return instance->CompileThread();
-}
 
 // BEGIN EPIC MOD - Focus application windows on patch complete
 BOOL CALLBACK FocusApplicationWindows(HWND WindowHandle, LPARAM Lparam)
@@ -591,7 +487,7 @@ BOOL CALLBACK FocusApplicationWindows(HWND WindowHandle, LPARAM Lparam)
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Support for lazy-loading modules
-bool ServerCommandThread::FinishedLazyLoadingModulesAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::FinishedLazyLoadingModules::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
 { 
 	pipe->SendAck(); 
 	return false; 
@@ -599,33 +495,11 @@ bool ServerCommandThread::FinishedLazyLoadingModulesAction::Execute(CommandType*
 
 struct ClientProxyThread
 {
-	struct ProxyGetModuleAction
+	struct ProxyEnableModulesFinishedAction
 	{
-		typedef commands::GetModule CommandType;
+		typedef commands::EnableModulesFinished CommandType;
 
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context)
-		{
-			pipe->SendAck();
-
-			LiveProcess* process = static_cast<LiveProcess*>(context);
-
-			commands::GetModuleInfo cmd;
-			cmd.moduleBase = process->GetLazyLoadedModuleBase(command->path);
-			cmd.processId = process->GetProcessId();
-			cmd.loadImports = command->loadImports;
-			cmd.taskContext = command->taskContext;
-			wcscpy_s(cmd.path, command->path);
-			pipe->SendCommandAndWaitForAck(cmd);
-
-			return true;
-		}
-	};
-
-	struct ProxyEnableModuleFinishedAction
-	{
-		typedef commands::EnableModuleFinished CommandType;
-
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+		static bool Execute(CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
 		{
 			pipe->SendAck();
 			return false;
@@ -660,22 +534,27 @@ struct ClientProxyThread
 
 	void EntryPoint()
 	{
-		m_pipe->SendCommandAndWaitForAck(commands::EnableModuleBatchBegin());
-		for(const std::wstring& enableModule : m_enableModules)
-		{
-			commands::EnableModule enableModuleCommand;
-			enableModuleCommand.processId = m_process->GetProcessId();
-			wcscpy_s(enableModuleCommand.path, enableModule.c_str());
-			enableModuleCommand.token = nullptr;
-			m_pipe->SendCommandAndWaitForAck(enableModuleCommand);
+		std::vector<commands::ModuleData> modules;
+		modules.resize(m_enableModules.size());
 
-			CommandMap commandMap;
-			commandMap.RegisterAction<ProxyGetModuleAction>();
-			commandMap.RegisterAction<ProxyEnableModuleFinishedAction>();
-			commandMap.HandleCommands(m_pipe, m_process);
+		for (size_t Idx = 0; Idx < m_enableModules.size(); Idx++)
+		{
+			commands::ModuleData& module = modules[Idx];
+			module.base = m_process->GetLazyLoadedModuleBase(m_enableModules[Idx].c_str());
+			wcscpy_s(module.path, m_enableModules[Idx].c_str());
 		}
-		m_pipe->SendCommandAndWaitForAck(commands::EnableModuleBatchEnd());
-		m_pipe->SendCommandAndWaitForAck(commands::FinishedLazyLoadingModules());
+
+		commands::EnableModules enableModulesCommand;
+		enableModulesCommand.processId = m_process->GetProcessId();
+		enableModulesCommand.moduleCount = m_enableModules.size();
+		enableModulesCommand.token = nullptr;
+		m_pipe->SendCommandAndWaitForAck(enableModulesCommand, modules.data(), modules.size() * sizeof(commands::ModuleData));
+
+		CommandMap commandMap;
+		commandMap.RegisterAction<ProxyEnableModulesFinishedAction>();
+		commandMap.HandleCommands(m_pipe, m_process);
+
+		m_pipe->SendCommandAndWaitForAck(commands::FinishedLazyLoadingModules(), nullptr, 0);
 	}
 };
 // END EPIC MOD
@@ -739,10 +618,8 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 				ClientProxyThread ClientThread(liveProcess, &ClientPipe, LoadModuleFileNames);
 
 				CommandMap commandMap;
-				commandMap.RegisterAction<EnableModuleBatchBeginAction>();
-				commandMap.RegisterAction<EnableModuleBatchEndAction>();
-				commandMap.RegisterAction<EnableModuleAction>();
-				commandMap.RegisterAction<FinishedLazyLoadingModulesAction>();
+				commandMap.RegisterAction<actions::EnableModules>();
+				commandMap.RegisterAction<actions::FinishedLazyLoadingModules>();
 				commandMap.HandleCommands(&ServerPipe, this);
 
 				for (const std::wstring& loadModuleFileName : LoadModuleFileNames)
@@ -764,11 +641,27 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 			std::wstring ModuleFileName = file::NormalizePath(*Pair.Key);
 			if(ValidModuleFileNames.find(ModuleFileName) == ValidModuleFileNames.end())
 			{
-				std::wstring ModuleName = file::GetFilename(ModuleFileName);
-				LC_ERROR_USER("Live coding is not enabled for %S.", ModuleName.c_str());
-				LC_ERROR_USER("Configure the list of enabled modules from the Live Coding section of the editor preferences window.");
-				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, *FString::Printf(TEXT("Live coding not enabled for %s"), ModuleName.c_str()));
-				return;
+				// We couldn't find this exact module filename, but this could be a staged executable. See if we can just match the name.
+				std::wstring ModuleFileNameOnly = file::GetFilename(ModuleFileName);
+
+				bool bFoundNameMatch = false;
+				for (const LiveModule* liveModule : m_liveModules)
+				{
+					if (ModuleFileNameOnly == file::GetFilename(liveModule->GetModuleName()))
+					{
+						ModuleFileName = liveModule->GetModuleName();
+						bFoundNameMatch = true;
+						break;
+					}
+				}
+
+				if (!bFoundNameMatch)
+				{
+					LC_ERROR_USER("Live coding is not enabled for %S.", ModuleFileName.c_str());
+					LC_ERROR_USER("Configure the list of enabled modules from the Live Coding section of the editor preferences window.");
+					GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, *FString::Printf(TEXT("Live coding not enabled for %s"), ModuleFileName.c_str()));
+					return;
+				}
 			}
 
 			types::vector<LiveModule::ModifiedObjFile> ObjectFiles;
@@ -1154,50 +1047,35 @@ unsigned int ServerCommandThread::CompileThread(void)
 }
 
 
-unsigned int __stdcall ServerCommandThread::CommandThreadProxy(void* context)
-{
-	thread::SetName("Live coding client command communication");
-
-	CommandThreadContext* realContext = static_cast<CommandThreadContext*>(context);
-	return realContext->instance->CommandThread(&realContext->pipe, realContext->readyEvent);
-}
-
-
 unsigned int ServerCommandThread::CommandThread(DuplexPipeServer* pipe, Event* readyEvent)
 {
 	// handle incoming commands
 	CommandMap commandMap;
-	commandMap.RegisterAction<TriggerRecompileAction>();
-	commandMap.RegisterAction<BuildPatchAction>();
-	commandMap.RegisterAction<ReadyForCompilationAction>();
-	commandMap.RegisterAction<DisconnectClientAction>();
+	commandMap.RegisterAction<actions::TriggerRecompile>();
+	commandMap.RegisterAction<actions::BuildPatch>();
+	commandMap.RegisterAction<actions::ReadyForCompilation>();
+	commandMap.RegisterAction<actions::DisconnectClient>();
+	commandMap.RegisterAction<actions::RegisterProcess>();
+	commandMap.RegisterAction<actions::EnableModules>();
+	commandMap.RegisterAction<actions::DisableModules>();
+	commandMap.RegisterAction<actions::ApplySettingBool>();
+	commandMap.RegisterAction<actions::ApplySettingInt>();
+	commandMap.RegisterAction<actions::ApplySettingString>();
 	// BEGIN EPIC MOD - Adding ShowConsole command
-	commandMap.RegisterAction<ShowConsoleAction>();
+	commandMap.RegisterAction<actions::ShowConsole>();
 	// END EPIC MOD
 	// BEGIN EPIC MOD - Adding SetVisible command
-	commandMap.RegisterAction<SetVisibleAction>();
+	commandMap.RegisterAction<actions::SetVisible>();
 	// END EPIC MOD
 	// BEGIN EPIC MOD - Adding SetActive command
-	commandMap.RegisterAction<SetActiveAction>();
+	commandMap.RegisterAction<actions::SetActive>();
 	// END EPIC MOD
 	// BEGIN EPIC MOD - Adding SetBuildArguments command
-	commandMap.RegisterAction<SetBuildArgumentsAction>();
+	commandMap.RegisterAction<actions::SetBuildArguments>();
 	// END EPIC MOD
 	// BEGIN EPIC MOD - Support for lazy-loading modules
-	commandMap.RegisterAction<EnableLazyLoadedModuleAction>();
+	commandMap.RegisterAction<actions::EnableLazyLoadedModule>();
 	// END EPIC MOD
-	commandMap.RegisterAction<RegisterProcessAction>();
-	commandMap.RegisterAction<EnableModuleBatchBeginAction>();
-	commandMap.RegisterAction<EnableModuleBatchEndAction>();
-	commandMap.RegisterAction<DisableModuleBatchBeginAction>();
-	commandMap.RegisterAction<DisableModuleBatchEndAction>();
-	commandMap.RegisterAction<EnableModuleAction>();
-	commandMap.RegisterAction<EnableAllModulesAction>();
-	commandMap.RegisterAction<DisableModuleAction>();
-	commandMap.RegisterAction<DisableAllModulesAction>();
-	commandMap.RegisterAction<ApplySettingBoolAction>();
-	commandMap.RegisterAction<ApplySettingIntAction>();
-	commandMap.RegisterAction<ApplySettingStringAction>();
 
 	for (;;)
 	{
@@ -1220,7 +1098,7 @@ unsigned int ServerCommandThread::CommandThread(DuplexPipeServer* pipe, Event* r
 		m_handleCommandsEvent.Wait();
 
 		// tell client that compilation has finished
-		pipe->SendCommandAndWaitForAck(commands::CompilationFinished {});
+		pipe->SendCommandAndWaitForAck(commands::CompilationFinished {}, nullptr, 0u);
 	}
 
 	RemoveCommandThread(pipe);
@@ -1228,20 +1106,11 @@ unsigned int ServerCommandThread::CommandThread(DuplexPipeServer* pipe, Event* r
 }
 
 
-unsigned int __stdcall ServerCommandThread::ExceptionCommandThreadProxy(void* context)
-{
-	thread::SetName("Live coding client exception command communication");
-
-	CommandThreadContext* realContext = static_cast<CommandThreadContext*>(context);
-	return realContext->instance->ExceptionCommandThread(&realContext->exceptionPipe);
-}
-
-
 unsigned int ServerCommandThread::ExceptionCommandThread(DuplexPipeServer* exceptionPipe)
 {
 	// handle incoming exception commands
 	CommandMap commandMap;
-	commandMap.RegisterAction<HandleExceptionAction>();
+	commandMap.RegisterAction<actions::HandleException>();
 
 	for (;;)
 	{
@@ -1294,7 +1163,7 @@ LiveProcess* ServerCommandThread::FindProcessById(unsigned int processId)
 }
 
 
-bool ServerCommandThread::TriggerRecompileAction::Execute(CommandType*, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::TriggerRecompile::Execute(const CommandType*, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
@@ -1309,30 +1178,22 @@ bool ServerCommandThread::TriggerRecompileAction::Execute(CommandType*, const Du
 }
 
 
-bool ServerCommandThread::BuildPatchAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::BuildPatch::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize)
 {
+	pipe->SendAck();
+
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
 	// protect against accepting this command while compilation is already in progress
 	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
 
-	pipe->SendAck();
-
-	// receive module names and .obj paths
-	for (unsigned int i = 0u; i < command->count; ++i)
+	memoryStream::Reader payloadStream(payload, payloadSize);
+	for (unsigned int i = 0u; i < command->fileCount; ++i)
 	{
-		uint32_t id = 0u;
-		pipe->ReceiveCommandId(&id);
-		
-		commands::BuildPatchPacket packetCommand = {};
-		pipe->ReceiveCommand(&packetCommand);
+		const commands::BuildPatch::PatchData patchData = payloadStream.Read<commands::BuildPatch::PatchData>();
+		const LiveModule::ModifiedObjFile modifiedObjFile = { patchData.objPath, patchData.amalgamatedObjPath };
 
-		pipe->SendAck();
-
-		LiveModule::ModifiedObjFile modifiedObjFile;
-		modifiedObjFile.objPath = packetCommand.objPath;
-		modifiedObjFile.amalgamatedObjPath = packetCommand.amalgamatedObjPath;
-		commandThread->m_liveModuleToModifiedOrNewObjFiles[packetCommand.moduleName].push_back(modifiedObjFile);
+		commandThread->m_liveModuleToModifiedOrNewObjFiles[patchData.moduleName].push_back(modifiedObjFile);
 	}
 
 	commandThread->m_manualRecompileTriggered = true;
@@ -1341,7 +1202,7 @@ bool ServerCommandThread::BuildPatchAction::Execute(CommandType* command, const 
 }
 
 
-bool ServerCommandThread::HandleExceptionAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::HandleException::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1357,7 +1218,7 @@ bool ServerCommandThread::HandleExceptionAction::Execute(CommandType* command, c
 	if (!liveProcess)
 	{
 		// signal client we did not handle the exception
-		pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { nullptr, nullptr, nullptr, false });
+		pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { nullptr, nullptr, nullptr, false }, nullptr, 0u);
 		return true;
 	}
 
@@ -1388,18 +1249,18 @@ bool ServerCommandThread::HandleExceptionAction::Execute(CommandType* command, c
 	{
 		// tell the client that it needs to unwind its stack and continue at the return address
 		const ExceptionHandlerDialog::ParentFrameData& frameData = dialog.GetParentFrameData();
-		pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { frameData.returnAddress, frameData.framePointer, frameData.stackPointer, true });
+		pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { frameData.returnAddress, frameData.framePointer, frameData.stackPointer, true }, nullptr, 0u);
 		return true;
 	}
 	else if (result == IDC_EXCEPTION_HANDLER_IGNORE)
 	{
 		// tell the client that we ignored the exception
-		pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { nullptr, nullptr, nullptr, false });
+		pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { nullptr, nullptr, nullptr, false }, nullptr, 0u);
 		return true;
 	}
 
 	// signal client that we handled the exception and there's nothing left to do
-	pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { nullptr, nullptr, nullptr, true });
+	pipe->SendCommandAndWaitForAck(commands::HandleExceptionFinished { nullptr, nullptr, nullptr, true }, nullptr, 0u);
 #endif
 	// END EPIC MOD
 
@@ -1407,7 +1268,7 @@ bool ServerCommandThread::HandleExceptionAction::Execute(CommandType* command, c
 }
 
 
-bool ServerCommandThread::ReadyForCompilationAction::Execute(CommandType*, const DuplexPipe* pipe, void*)
+bool ServerCommandThread::actions::ReadyForCompilation::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1416,7 +1277,7 @@ bool ServerCommandThread::ReadyForCompilationAction::Execute(CommandType*, const
 }
 
 
-bool ServerCommandThread::DisconnectClientAction::Execute(CommandType*, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::DisconnectClient::Execute(const CommandType*, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* instance = static_cast<ServerCommandThread*>(context);
 
@@ -1440,7 +1301,7 @@ bool ServerCommandThread::DisconnectClientAction::Execute(CommandType*, const Du
 }
 
 // BEGIN EPIC MOD - Adding ShowConsole command
-bool ServerCommandThread::ShowConsoleAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::ShowConsole::Execute(const CommandType*, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1451,7 +1312,7 @@ bool ServerCommandThread::ShowConsoleAction::Execute(CommandType* command, const
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Adding SetVisible command
-bool ServerCommandThread::SetVisibleAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::SetVisible::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1462,7 +1323,7 @@ bool ServerCommandThread::SetVisibleAction::Execute(CommandType* command, const 
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Adding SetActive command
-bool ServerCommandThread::SetActiveAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::SetActive::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
@@ -1478,7 +1339,7 @@ bool ServerCommandThread::SetActiveAction::Execute(CommandType* command, const D
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Adding SetBuildArguments command
-bool ServerCommandThread::SetBuildArgumentsAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::SetBuildArguments::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
@@ -1500,7 +1361,7 @@ bool ServerCommandThread::SetBuildArgumentsAction::Execute(CommandType* command,
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Support for lazy-loading modules
-bool ServerCommandThread::EnableLazyLoadedModuleAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::EnableLazyLoadedModule::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
@@ -1523,7 +1384,7 @@ bool ServerCommandThread::EnableLazyLoadedModuleAction::Execute(CommandType* com
 }
 // END EPIC MOD
 
-bool ServerCommandThread::RegisterProcessAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1565,7 +1426,7 @@ bool ServerCommandThread::RegisterProcessAction::Execute(CommandType* command, c
 
 		if (registeredSuccessfully)
 		{
-			LiveProcess* liveProcess = new LiveProcess(processHandle, command->processId, command->threadId, pipe);
+			LiveProcess* liveProcess = new LiveProcess(processHandle, command->processId, command->threadId, command->jumpToSelf, pipe);
 			commandThread->m_liveProcesses.push_back(liveProcess);
 			// BEGIN EPIC MOD - No built-in UI
 			// commandThread->m_mainFrame->UpdateWindowTitle();
@@ -1575,390 +1436,159 @@ bool ServerCommandThread::RegisterProcessAction::Execute(CommandType* command, c
 		}
 
 		// tell client we are finished
-		pipe->SendCommandAndWaitForAck(commands::RegisterProcessFinished { registeredSuccessfully });
+		pipe->SendCommandAndWaitForAck(commands::RegisterProcessFinished { registeredSuccessfully }, nullptr, 0u);
 	}
 
 	return true;
 }
 
 
-bool ServerCommandThread::EnableModuleBatchBeginAction::Execute(CommandType*, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::EnableModules::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize)
 {
+	pipe->SendAck();
+
+	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Loading modules...");
+
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
 	// protect against several client DLLs calling into this action at the same time.
-	// we hold this critical section until we get the BatchEnd signal.
 	// this ensures that all modules are loaded serialized per process.
-	commandThread->m_actionCS.Enter();
+	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
 
-	commandThread->m_moduleBatchScope.Restart();
-	commandThread->m_loadedCompilandCountInBatchScope = 0u;
+	telemetry::Scope moduleLoadingScope("Module loading");
 
 	// set up virtual drives before loading anything, otherwise files won't be detected and therefore discarded
-	const std::wstring virtualDriveLetter = appSettings::g_virtualDriveLetter->GetValue();
-	const std::wstring virtualDrivePath = appSettings::g_virtualDrivePath->GetValue();
-	if ((virtualDriveLetter.size() != 0) && (virtualDrivePath.size() != 0))
+	AddVirtualDrive();
+
+	scheduler::TaskBase* rootTask = scheduler::CreateEmptyTask();
+	types::vector<scheduler::Task<LiveModule*>*> loadModuleTasks;
+
+	const unsigned int moduleCount = command->moduleCount;
+	loadModuleTasks.reserve(moduleCount);
+
+	memoryStream::Reader payloadStream(payload, payloadSize);
+	for (unsigned int i = 0u; i < moduleCount; ++i)
 	{
-		virtualDrive::Add(virtualDriveLetter.c_str(), virtualDrivePath.c_str());
+		const commands::ModuleData moduleData = payloadStream.Read<commands::ModuleData>();
+		scheduler::Task<LiveModule*>* task = commandThread->LoadModule(command->processId, moduleData.base, moduleData.path, rootTask);
+
+		// the module could have failed to load
+		if (task)
+		{
+			loadModuleTasks.push_back(task);
+		}
 	}
 
-	pipe->SendAck();
+	// wait for all tasks to finish
+	scheduler::RunTask(rootTask);
+	scheduler::WaitForTask(rootTask);
 
-	return true;
-}
+	const size_t loadModuleTaskCount = loadModuleTasks.size();
+	commandThread->m_liveModules.reserve(loadModuleTaskCount);
 
+	size_t loadedTranslationUnits = 0u;
 
-bool ServerCommandThread::EnableModuleBatchEndAction::Execute(CommandType*, const DuplexPipe* pipe, void* context)
-{
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-
-	commandThread->m_moduleBatchScope.End();
-	LC_SUCCESS_USER("Successfully loaded modules (%.3fs, %zu translation units)", commandThread->m_moduleBatchScope.ReadSeconds(), commandThread->m_loadedCompilandCountInBatchScope);
-
-	// EPIC REMOVED: commandThread->PrewarmCompilerEnvironmentCache();
-
-	// EPIC REMOVED: g_theApp.GetMainFrame()->ResetStatusBarText();
-
-	// tell user we are ready
-	// BEGIN EPIC MOD - Support for lazy-loading modules
-	if (thread::GetId() != thread::GetId(commandThread->m_compileThread))
-	// END EPIC MOD
+	// update all live modules loaded by the tasks
+	for (size_t i = 0u; i < loadModuleTaskCount; ++i)
 	{
-		const int shortcut = appSettings::g_compileShortcut->GetValue();
-		const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
-		LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+		scheduler::Task<LiveModule*>* task = loadModuleTasks[i];
+		LiveModule* liveModule = task->GetResult();
+
+		commandThread->m_liveModules.push_back(liveModule);
+
+		// update directory cache for this live module
+		liveModule->UpdateDirectoryCache(commandThread->m_directoryCache);
+
+		// update the number of loaded translation units
+		loadedTranslationUnits += liveModule->GetCompilandDatabase()->compilands.size();
+	}
+
+	scheduler::DestroyTasks(loadModuleTasks);
+	scheduler::DestroyTask(rootTask);
+
+	// dump memory statistics
+	{
+		LC_LOG_INDENT_TELEMETRY;
+		g_symbolAllocator.PrintStats();
+		g_immutableStringAllocator.PrintStats();
+		g_contributionAllocator.PrintStats();
+		g_compilandAllocator.PrintStats();
+		g_dependencyAllocator.PrintStats();
+	}
+
+	if (loadModuleTaskCount > 0u)
+	{
+		LC_SUCCESS_USER("Loaded %zu module(s) (%.3fs, %zu translation units)", loadModuleTaskCount, moduleLoadingScope.ReadSeconds(), loadedTranslationUnits);
+	}
+
+	// EPIC REMOVED commandThread->PrewarmCompilerEnvironmentCache();
+
+	// tell user we are ready, but only once to not clutter the log
+	{
+		static bool showedOnce = false;
+		if (!showedOnce)
+		{
+			showedOnce = true;
+			const int shortcut = appSettings::g_compileShortcut->GetValue();
+			const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
+			LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+		}
 	}
 
 	// remove virtual drives once we're finished
-	const std::wstring virtualDriveLetter = appSettings::g_virtualDriveLetter->GetValue();
-	const std::wstring virtualDrivePath = appSettings::g_virtualDrivePath->GetValue();
-	if ((virtualDriveLetter.size() != 0) && (virtualDrivePath.size() != 0))
-	{
-		virtualDrive::Remove(virtualDriveLetter.c_str(), virtualDrivePath.c_str());
-	}
+	RemoveVirtualDrive();
 
-	pipe->SendAck();
+	// tell server we are finished
+	pipe->SendCommandAndWaitForAck(commands::EnableModulesFinished { command->token }, nullptr, 0u);
 
-	// protect against several client DLLs calling into this action at the same time
-	commandThread->m_actionCS.Leave();
+	// EPIC REMOVED: g_theApp.GetMainFrame()->ResetStatusBarText();
 
 	return true;
 }
 
 
-bool ServerCommandThread::DisableModuleBatchBeginAction::Execute(CommandType*, const DuplexPipe* pipe, void* context)
+bool ServerCommandThread::actions::DisableModules::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize)
 {
+	pipe->SendAck();
+
+	// EPIC REMOVED: g_theApp.GetMainFrame()->ChangeStatusBarText(L"Unloading modules...");
+
 	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
 
 	// protect against several client DLLs calling into this action at the same time.
-	// we hold this critical section until we get the BatchEnd signal.
-	// this ensures that all modules are unloaded serialized per process.
-	commandThread->m_actionCS.Enter();
+	// this ensures that all modules are loaded serialized per process.
+	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
 
-	pipe->SendAck();
+	telemetry::Scope moduleUnloadingScope("Module unloading");
 
-	return true;
-}
+	unsigned int unloadedModules = 0u;
+	const unsigned int moduleCount = command->moduleCount;
+	memoryStream::Reader payloadStream(payload, payloadSize);
+	for (unsigned int i = 0u; i < moduleCount; ++i)
+	{
+		const commands::ModuleData moduleData = payloadStream.Read<commands::ModuleData>();
+		const bool success = commandThread->UnloadModule(command->processId, moduleData.path);
+		if (success)
+		{
+			++unloadedModules;
+		}
+	}
 
+	if (unloadedModules > 0u)
+	{
+		LC_SUCCESS_USER("Unloaded %u module(s) (%.3fs)", unloadedModules, moduleUnloadingScope.ReadSeconds());
+	}
 
-bool ServerCommandThread::DisableModuleBatchEndAction::Execute(CommandType*, const DuplexPipe* pipe, void* context)
-{
+	// tell server we are finished
+	pipe->SendCommandAndWaitForAck(commands::DisableModulesFinished { command->token }, nullptr, 0u);
+
 	// EPIC REMOVED: g_theApp.GetMainFrame()->ResetStatusBarText();
 
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-
-	pipe->SendAck();
-
-	// protect against several client DLLs calling into this action at the same time
-	commandThread->m_actionCS.Leave();
-
 	return true;
 }
 
 
-bool ServerCommandThread::EnableModuleAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
-{
-	pipe->SendAck();
-
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-
-	TaskContext taskContext = {};
-	taskContext.taskRoot = scheduler::CreateEmptyTask();
-	commandThread->LoadModule(command->path, pipe, &taskContext, command->processId);
-
-	// wait for all tasks to finish
-	scheduler::RunTask(taskContext.taskRoot);
-	scheduler::WaitForTask(taskContext.taskRoot);
-
-	// add all live modules loaded by the tasks
-	for (size_t i = 0u; i < taskContext.tasks.size(); ++i)
-	{
-		LiveModule* liveModule = taskContext.tasks[i]->GetResult();
-		commandThread->m_liveModules.push_back(liveModule);
-
-		// update directory cache for this live module
-		liveModule->UpdateDirectoryCache(commandThread->m_directoryCache);
-
-		// update the number of loaded translation units during this batch
-		commandThread->m_loadedCompilandCountInBatchScope += liveModule->GetCompilandDatabase()->compilands.size();
-	}
-
-	scheduler::DestroyTasks(taskContext.tasks);
-	scheduler::DestroyTask(taskContext.taskRoot);
-
-	// tell client we are finished
-	pipe->SendCommandAndWaitForAck(commands::EnableModuleFinished { command->token });
-
-	// dump memory statistics
-	{
-		LC_LOG_INDENT_TELEMETRY;
-		g_symbolAllocator.PrintStats();
-		g_immutableStringAllocator.PrintStats();
-		g_contributionAllocator.PrintStats();
-		g_compilandAllocator.PrintStats();
-		g_dependencyAllocator.PrintStats();
-	}
-
-	return true;
-}
-
-
-bool ServerCommandThread::EnableAllModulesAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
-{
-	pipe->SendAck();
-
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-
-	TaskContext taskContext = {};
-	taskContext.taskRoot = scheduler::CreateEmptyTask();
-	commandThread->LoadAllModules(command->path, pipe, &taskContext, command->processId);
-
-	// wait for all tasks to finish
-	scheduler::RunTask(taskContext.taskRoot);
-	scheduler::WaitForTask(taskContext.taskRoot);
-
-	// add all live modules loaded by the tasks
-	for (size_t i = 0u; i < taskContext.tasks.size(); ++i)
-	{
-		LiveModule* liveModule = taskContext.tasks[i]->GetResult();
-		commandThread->m_liveModules.push_back(liveModule);
-
-		// update directory cache for this live module
-		liveModule->UpdateDirectoryCache(commandThread->m_directoryCache);
-
-		// update the number of loaded translation units during this batch
-		commandThread->m_loadedCompilandCountInBatchScope += liveModule->GetCompilandDatabase()->compilands.size();
-	}
-
-	scheduler::DestroyTasks(taskContext.tasks);
-	scheduler::DestroyTask(taskContext.taskRoot);
-
-	// tell server we are finished
-	pipe->SendCommandAndWaitForAck(commands::EnableAllModulesFinished { command->token });
-
-	// dump memory statistics
-	{
-		LC_LOG_INDENT_TELEMETRY;
-		g_symbolAllocator.PrintStats();
-		g_immutableStringAllocator.PrintStats();
-		g_contributionAllocator.PrintStats();
-		g_compilandAllocator.PrintStats();
-		g_dependencyAllocator.PrintStats();
-	}
-
-	return true;
-}
-
-
-bool ServerCommandThread::DisableModuleAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
-{
-	pipe->SendAck();
-
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-	commandThread->UnloadModule(command->path, pipe, command->processId);
-
-	// tell server we are finished
-	pipe->SendCommandAndWaitForAck(commands::DisableModuleFinished { command->token });
-
-	return true;
-}
-
-
-bool ServerCommandThread::DisableAllModulesAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
-{
-	pipe->SendAck();
-
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-	commandThread->UnloadAllModules(command->path, pipe, command->processId);
-
-	// tell server we are finished
-	pipe->SendCommandAndWaitForAck(commands::DisableAllModulesFinished { command->token });
-
-	return true;
-}
-
-
-bool ServerCommandThread::GetModuleInfoAction::Execute(CommandType* command, const DuplexPipe* pipe, void* context)
-{
-	pipe->SendAck();
-
-	if (!command->moduleBase)
-	{
-		return false;
-	}
-
-	// note that the path we get back from the DLL might not be normalized, depending on how the executable was launched.
-	// it is crucial to normalize the path again, otherwise we could load already loaded modules into the same
-	// Live++ instance, which would wreak havoc
-	const std::wstring modulePath = file::NormalizePath(file::RelativeToAbsolutePath(command->path).c_str());
-
-	ServerCommandThread* commandThread = static_cast<ServerCommandThread*>(context);
-	TaskContext* taskContext = static_cast<TaskContext*>(command->taskContext);
-
-	// a task context is provided for loading modules
-	const bool shouldLoad = (taskContext != nullptr);
-
-	if (command->loadImports)
-	{
-		if (shouldLoad)
-		{
-			// load this module and all its import DLLs as well
-			commandThread->LoadAllModules(modulePath.c_str(), pipe, taskContext, command->processId);
-		}
-		else
-		{
-			// unload this module and all its import DLLs as well
-			commandThread->UnloadAllModules(modulePath.c_str(), pipe, command->processId);
-		}
-
-		return false;
-	}
-
-	LiveProcess* liveProcess = commandThread->FindProcessById(command->processId);
-	LC_ASSERT(liveProcess, "Invalid process ID.");
-
-	const executable::Header imageHeader = GetImageHeader(modulePath.c_str());
-	if (shouldLoad)
-	{
-		if (liveProcess->TriedToLoadImage(imageHeader))
-		{
-			// tried loading this module into this process already
-			return false;
-		}
-
-		// find any other process ID that tried to load this module already (if any)
-		{
-			const size_t count = commandThread->m_liveProcesses.size();
-			for (size_t i = 0u; i < count; ++i)
-			{
-				LiveProcess* otherLiveProcess = commandThread->m_liveProcesses[i];
-				if (otherLiveProcess->TriedToLoadImage(imageHeader))
-				{
-					// some *other* process loaded this module already
-					LC_LOG_USER("Registering module %S (PID: %d)", modulePath.c_str(), command->processId);
-
-					LiveModule* liveModule = commandThread->m_imageHeaderToLiveModule[imageHeader];
-					if (liveModule)
-					{
-						const unsigned int processId = command->processId;
-						void* moduleBase = command->moduleBase;
-
-						liveModule->RegisterProcess(liveProcess, moduleBase, modulePath);
-						liveModule->DisableControlFlowGuard(liveProcess, moduleBase);
-					
-						const bool installedPatchesSuccessfully = liveModule->InstallCompiledPatches(liveProcess, moduleBase);
-						if (!installedPatchesSuccessfully)
-						{
-							LC_ERROR_USER("Compiled patches could not be installed (PID: %d)", processId);
-							liveModule->UnregisterProcess(liveProcess);
-						}
-
-						liveProcess->AddLoadedImage(imageHeader);
-					}
-
-					return false;
-				}
-			}
-		}
-
-		symbols::Provider* moduleProvider = symbols::OpenEXE(modulePath.c_str(), symbols::OpenOptions::ACCUMULATE_SIZE);
-		if (!moduleProvider)
-		{
-			liveProcess->AddLoadedImage(imageHeader);
-			return false;
-		}
-
-		// this live module hasn't been loaded yet by any process
-		void* moduleBase = command->moduleBase;
-
-		// accumulate module info
-		const file::Attributes attributes = file::GetAttributes(modulePath.c_str());
-		const uint64_t size = file::GetSize(attributes);
-		g_loadedModuleSize.Accumulate(size);
-
-		{
-			// create a task to load the module of this batch concurrently
-			LC_LOG_USER("Loading module %S (%.3f MB)", modulePath.c_str(), size / 1048576.0f);
-
-			LiveModule* liveModule = new LiveModule(modulePath.c_str(), imageHeader, commandThread->m_runMode);
-			commandThread->m_imageHeaderToLiveModule.emplace(imageHeader, liveModule);
-
-			auto task = scheduler::CreateTask(taskContext->taskRoot, [liveModule, liveProcess, modulePath, moduleBase, moduleProvider]()
-			{
-				telemetry::Scope scope("Loading module");
-
-				symbols::DiaCompilandDB* moduleDiaCompilandDb = symbols::GatherDiaCompilands(moduleProvider);
-
-				liveModule->Load(moduleProvider, moduleDiaCompilandDb);
-				liveModule->RegisterProcess(liveProcess, moduleBase, modulePath);
-				liveModule->DisableControlFlowGuard(liveProcess, moduleBase);
-
-				symbols::DestroyDiaCompilandDB(moduleDiaCompilandDb);
-				symbols::Close(moduleProvider);
-
-				return liveModule;
-			});
-			scheduler::RunTask(task);
-
-			taskContext->tasks.emplace_back(task);
-		}
-
-		g_loadedModuleSize.Print();
-		g_loadedModuleSize.ResetCurrent();
-
-		liveProcess->AddLoadedImage(imageHeader);
-
-		return false;
-	}
-	else
-	{
-		LC_LOG_USER("Unloading module %S", modulePath.c_str());
-
-		liveProcess->RemoveLoadedImage(imageHeader);
-		commandThread->m_imageHeaderToLiveModule.erase(imageHeader);
-
-		for (auto it = commandThread->m_liveModules.begin(); it != commandThread->m_liveModules.end(); /* nothing */)
-		{
-			LiveModule* liveModule = *it;
-			if (std::equal_to<executable::Header>()(liveModule->GetImageHeader(), imageHeader))
-			{
-				liveModule->Unload();
-				delete liveModule;
-
-				it = commandThread->m_liveModules.erase(it);
-			}
-			else
-			{
-				++it;
-			}
-		}
-
-		return false;
-	}
-}
-
-
-bool ServerCommandThread::ApplySettingBoolAction::Execute(CommandType* command, const DuplexPipe* pipe, void*)
+bool ServerCommandThread::actions::ApplySettingBool::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1968,7 +1598,7 @@ bool ServerCommandThread::ApplySettingBoolAction::Execute(CommandType* command, 
 }
 
 
-bool ServerCommandThread::ApplySettingIntAction::Execute(CommandType* command, const DuplexPipe* pipe, void*)
+bool ServerCommandThread::actions::ApplySettingInt::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
 {
 	pipe->SendAck();
 
@@ -1978,7 +1608,7 @@ bool ServerCommandThread::ApplySettingIntAction::Execute(CommandType* command, c
 }
 
 
-bool ServerCommandThread::ApplySettingStringAction::Execute(CommandType* command, const DuplexPipe* pipe, void*)
+bool ServerCommandThread::actions::ApplySettingString::Execute(const CommandType* command, const DuplexPipe* pipe, void*, const void*, size_t)
 {
 	pipe->SendAck();
 

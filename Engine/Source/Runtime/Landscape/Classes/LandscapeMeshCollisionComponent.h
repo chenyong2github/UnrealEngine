@@ -100,12 +100,13 @@ public:
 	virtual void ImportCustomProperties(const TCHAR* SourceText, FFeedbackContext* Warn) override;
 
 	virtual bool CookCollisionData(const FName& Format, bool bUseOnlyDefMaterial, bool bCheckDDC, TArray<uint8>& OutCookedData, TArray<UPhysicalMaterial*>& InOutMaterials) const override;
+	virtual uint32 ComputeCollisionHash() const override { return 0; }
 #endif
 	//~ End UObject Interface.
 
 	//~ Begin ULandscapeHeightfieldCollisionComponent Interface
 	virtual void CreateCollisionObject() override;
-	virtual void RecreateCollision() override;
+	virtual bool RecreateCollision() override;
 	//~ End ULandscapeHeightfieldCollisionComponent Interface
 };
 

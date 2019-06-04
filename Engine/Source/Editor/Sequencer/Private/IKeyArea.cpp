@@ -10,12 +10,21 @@
 #include "Channels/MovieSceneChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "CurveModel.h"
+#include "ISequencer.h"
+#include "MovieSceneSequence.h"
 
-IKeyArea::IKeyArea(UMovieSceneSection& InSection, FMovieSceneChannelHandle InChannel)
-	: WeakOwningSection(&InSection)
-	, ChannelHandle(InChannel)
-	, Color(FLinearColor::White)
+IKeyArea::IKeyArea(UMovieSceneSection* InSection, FMovieSceneChannelHandle InChannel)
+	: ChannelHandle(InChannel)
 {
+	Reinitialize(InSection, InChannel);
+}
+
+void IKeyArea::Reinitialize(UMovieSceneSection* InSection, FMovieSceneChannelHandle InChannel)
+{
+	WeakOwningSection = InSection;
+	ChannelHandle = InChannel;
+	Color = FLinearColor::White;
+
 	if (const FMovieSceneChannelMetaData* MetaData = ChannelHandle.GetMetaData())
 	{
 		Color = MetaData->Color;
@@ -23,7 +32,7 @@ IKeyArea::IKeyArea(UMovieSceneSection& InSection, FMovieSceneChannelHandle InCha
 		DisplayText = MetaData->DisplayText;
 	}
 
-	UMovieScenePropertyTrack* PropertyTrack = InSection.GetTypedOuter<UMovieScenePropertyTrack>();
+	UMovieScenePropertyTrack* PropertyTrack = InSection->GetTypedOuter<UMovieScenePropertyTrack>();
 	if (PropertyTrack && !PropertyTrack->GetPropertyPath().IsEmpty())
 	{
 		PropertyBindings = FTrackInstancePropertyBindings(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath());
@@ -190,6 +199,23 @@ void IKeyArea::PasteKeys(const FMovieSceneClipboardKeyTrack& KeyTrack, const FMo
 	}
 }
 
+FText GetOwningObjectBindingName(UMovieSceneTrack* InTrack, ISequencer& InSequencer)
+{
+	check(InTrack);
+
+	UMovieSceneSequence* FocusedSequence = InSequencer.GetFocusedMovieSceneSequence();
+	UMovieScene* MovieScene = FocusedSequence->GetMovieScene();
+
+	FGuid PossessableGuid;
+	if (MovieScene->FindTrackBinding(*InTrack, PossessableGuid))
+	{
+		return MovieScene->GetObjectDisplayName(PossessableGuid);
+	}
+
+	// Couldn't find an owning track, so must not be nestled inside of something!
+	return FText();
+}
+
 TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> InSequencer) const
 {
 	ISequencerChannelInterface* EditorInterface = FindChannelEditorInterface();
@@ -199,7 +225,62 @@ TUniquePtr<FCurveModel> IKeyArea::CreateCurveEditorModel(TSharedRef<ISequencer> 
 		TUniquePtr<FCurveModel> CurveModel = EditorInterface->CreateCurveEditorModel_Raw(ChannelHandle, OwningSection, InSequencer);
 		if (CurveModel.IsValid())
 		{
-			CurveModel->SetDisplayName(DisplayText);
+			// Build long, short and context names for this curve to maximize information shown in the Curve Editor UI.
+			UMovieSceneTrack* OwningTrack = OwningSection->GetTypedOuter<UMovieSceneTrack>();
+			FText OwningTrackName;
+			FText ObjectBindingName;
+
+			if (OwningTrack)
+			{
+				OwningTrackName = OwningTrack->GetDisplayName();
+				
+				// This track might be inside an object binding and we'd like to prepend the object binding's name for more context.
+				ObjectBindingName = GetOwningObjectBindingName(OwningTrack, *InSequencer);
+			}
+
+			// Not all tracks have all the information so we need to format it differently depending on how many are valid.
+			TArray<FText> ValidNames;
+
+			if (!ObjectBindingName.IsEmptyOrWhitespace())
+			{
+				ValidNames.Add(ObjectBindingName);
+			}
+			if (!OwningTrackName.IsEmptyOrWhitespace())
+			{
+				ValidNames.Add(OwningTrackName);
+			}
+			if (!ChannelHandle.GetMetaData()->Group.IsEmptyOrWhitespace())
+			{
+				ValidNames.Add(ChannelHandle.GetMetaData()->Group);
+			}
+			if (!DisplayText.IsEmptyOrWhitespace())
+			{
+				ValidNames.Add(DisplayText);
+			}
+
+			// Now we loop through and string them together into one big format string.
+			FText LongDisplayNameFormatString;
+			for (int32 NameIndex = 0; NameIndex < ValidNames.Num(); NameIndex++)
+			{
+				const bool bLastEntry = NameIndex == ValidNames.Num() - 1;
+				if (!bLastEntry)
+				{
+					LongDisplayNameFormatString = FText::Format(NSLOCTEXT("SequencerIKeyArea", "CurveLongDisplayNameFormat", "{0}`{{1}`}."), LongDisplayNameFormatString, NameIndex);
+				}
+				else
+				{
+					LongDisplayNameFormatString = FText::Format(NSLOCTEXT("SequencerIKeyArea", "CurveLongDisplayNameFormatEnd", "{0}`{{1}`}"), LongDisplayNameFormatString, NameIndex);
+				}
+			}
+
+			FText LongDisplayName = FText::Format(LongDisplayNameFormatString, FFormatOrderedArguments(ValidNames));
+			const FText ShortDisplayName = DisplayText;
+			const FString IntentName = ChannelHandle.GetMetaData()->Group.IsEmptyOrWhitespace() ? DisplayText.ToString() : FString::Format(TEXT("{0}.{1}"), { ChannelHandle.GetMetaData()->Group.ToString(), DisplayText.ToString() });
+
+			CurveModel->SetShortDisplayName(DisplayText);
+			CurveModel->SetLongDisplayName(LongDisplayName);
+			CurveModel->SetIntentionName(IntentName);
+
 			if (Color.IsSet())
 			{
 				CurveModel->SetColor(Color.GetValue());

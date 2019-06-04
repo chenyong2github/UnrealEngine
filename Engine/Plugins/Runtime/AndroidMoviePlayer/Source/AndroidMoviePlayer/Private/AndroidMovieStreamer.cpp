@@ -4,7 +4,7 @@
 
 #include "Android/AndroidApplication.h"
 #include "Android/AndroidJava.h"
-#include "Android/AndroidFile.h"
+#include "Android/AndroidPlatformFile.h"
 
 #include "Rendering/RenderingCommon.h"
 #include "RenderUtils.h"

@@ -6,6 +6,7 @@
 
 #include "VulkanRHIPrivate.h"
 #include "IHeadMountedDisplayModule.h"
+#include "IHeadMountedDisplayVulkanExtensions.h"
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
 bool GRenderDocFound = false;

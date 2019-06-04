@@ -90,7 +90,12 @@ void UNiagaraDataInterfaceColorCurve::UpdateLUT()
 		ShaderLUT.Add(C.B);
 		ShaderLUT.Add(C.A);
 	}
-	GPUBufferDirty = true;
+
+	check(Proxy);
+
+	// @todo-threadsafety Not the best way to do this. Ideally we'd have a funnel where we can update all this data for all 
+	// interfaces at the same time.
+	Super::PushToRenderThread();
 }
 
 bool UNiagaraDataInterfaceColorCurve::CopyToInternal(UNiagaraDataInterface* Destination) const 

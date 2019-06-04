@@ -323,5 +323,10 @@ public class UnrealEd : ModuleRules
 		{
 			PublicDefinitions.Add( "WITH_RECAST=0" );
 		}
-	}
+
+        if (Target.bWithLiveCoding)
+        {
+			PrivateIncludePathModuleNames.Add("LiveCoding");
+        }
+    }
 }

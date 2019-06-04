@@ -108,7 +108,8 @@ void SPathView::Construct( const FArguments& InArgs )
 			.OnGetChildren(this, &SPathView::GetChildrenForTree)
 			.OnSetExpansionRecursive(this, &SPathView::SetTreeItemExpansionRecursive)
 			.OnContextMenuOpening(this, &SPathView::MakePathViewContextMenu)
-			.ClearSelectionOnClick(false);
+			.ClearSelectionOnClick(false)
+			.HighlightParentNodesForSelection(true);
 	}
 
 	ChildSlot

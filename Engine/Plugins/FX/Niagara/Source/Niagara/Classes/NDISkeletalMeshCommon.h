@@ -103,6 +103,16 @@ struct FSkinnedPositionAccessorHelper
 	FORCEINLINE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
 		checkf(false, TEXT("Must provide a specialization for this template type"));
+	}	
+	
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		checkf(false, TEXT("Must provide a specialization for this template type"));
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		checkf(false, TEXT("Must provide a specialization for this template type"));
 	}
 };
 
@@ -111,10 +121,11 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 {
 	FORCEINLINE void GetTrianlgeIndices(FSkeletalMeshAccessorHelper& Accessor, int32 Tri, int32& Idx0, int32& Idx1, int32& Idx2)
 	{
-		checkSlow(Tri + 2 < Accessor.IndexBuffer->Num());
-		Idx0 = Accessor.IndexBuffer->Get(Tri);
-		Idx1 = Accessor.IndexBuffer->Get(Tri + 1);
-		Idx2 = Accessor.IndexBuffer->Get(Tri + 2);
+		const int32 BaseIndex = Tri * 3;
+		checkSlow(BaseIndex + 2 < Accessor.IndexBuffer->Num());
+		Idx0 = Accessor.IndexBuffer->Get(BaseIndex);
+		Idx1 = Accessor.IndexBuffer->Get(BaseIndex + 1);
+		Idx2 = Accessor.IndexBuffer->Get(BaseIndex + 2);
 	}
 
 	FORCEINLINE void GetSkinnedTrianglePositions(FSkeletalMeshAccessorHelper& Accessor, int32 Idx0, int32 Idx1, int32 Idx2, FVector& OutPos0, FVector& OutPos1, FVector& OutPos2)
@@ -150,6 +161,16 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 	{
 		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).GetOrigin();
 	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return Accessor.Mesh->GetComposedRefPoseMatrix(BoneIndex).ToQuat();
+	}
 };
 
 template<>
@@ -157,10 +178,11 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 {
 	FORCEINLINE void GetTrianlgeIndices(FSkeletalMeshAccessorHelper& Accessor, int32 Tri, int32& Idx0, int32& Idx1, int32& Idx2)
 	{
-		checkSlow(Tri + 2 < Accessor.IndexBuffer->Num());
-		Idx0 = Accessor.IndexBuffer->Get(Tri);
-		Idx1 = Accessor.IndexBuffer->Get(Tri + 1);
-		Idx2 = Accessor.IndexBuffer->Get(Tri + 2);
+		const int32 BaseIndex = Tri * 3;
+		checkSlow(BaseIndex + 2 < Accessor.IndexBuffer->Num());
+		Idx0 = Accessor.IndexBuffer->Get(BaseIndex);
+		Idx1 = Accessor.IndexBuffer->Get(BaseIndex + 1);
+		Idx2 = Accessor.IndexBuffer->Get(BaseIndex + 2);
 	}
 
 	FORCEINLINE void GetSkinnedTrianglePositions(FSkeletalMeshAccessorHelper& Accessor, int32 Idx0, int32 Idx1, int32 Idx2, FVector& OutPos0, FVector& OutPos1, FVector& OutPos2)
@@ -196,6 +218,16 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 	{
 		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetLocation();
 	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+	}
 };
 
 template<>
@@ -203,10 +235,11 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 {
 	FORCEINLINE void GetTrianlgeIndices(FSkeletalMeshAccessorHelper& Accessor, int32 Tri, int32& Idx0, int32& Idx1, int32& Idx2)
 	{
-		checkSlow(Tri + 2 < Accessor.IndexBuffer->Num());
-		Idx0 = Accessor.IndexBuffer->Get(Tri);
-		Idx1 = Accessor.IndexBuffer->Get(Tri + 1);
-		Idx2 = Accessor.IndexBuffer->Get(Tri + 2);
+		const int32 BaseIndex = Tri * 3;
+		checkSlow(BaseIndex + 2 < Accessor.IndexBuffer->Num());
+		Idx0 = Accessor.IndexBuffer->Get(BaseIndex);
+		Idx1 = Accessor.IndexBuffer->Get(BaseIndex + 1);
+		Idx2 = Accessor.IndexBuffer->Get(BaseIndex + 2);
 	}
 
 	FORCEINLINE void GetSkinnedTrianglePositions(FSkeletalMeshAccessorHelper& Accessor, int32 Idx0, int32 Idx1, int32 Idx2, FVector& OutPos0, FVector& OutPos1, FVector& OutPos2)
@@ -241,6 +274,16 @@ struct FSkinnedPositionAccessorHelper<TIntegralConstant<ENDISkeletalMesh_Skinnin
 	FORCEINLINE_DEBUGGABLE FVector GetSkinnedBonePreviousPosition(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
 	{
 		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetLocation();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBoneRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.BoneComponentSpaceTransforms)[BoneIndex].GetRotation();
+	}
+
+	FORCEINLINE_DEBUGGABLE FQuat GetSkinnedBonePreviousRotation(FSkeletalMeshAccessorHelper& Accessor, int32 BoneIndex)
+	{
+		return (*Accessor.PrevBoneComponentSpaceTransforms)[BoneIndex].GetRotation();
 	}
 };
 

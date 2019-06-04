@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 using System;
 using System.IO;
 using System.Text;
@@ -16,10 +16,10 @@ namespace UnrealBuildTool
 	public class HTML5SDKInfo
 	{
 		static string NODE_VER = "8.9.1_64bit";
-		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
+//		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
 
-		static string LLVM_VER = "e1.38.20_64bit";
-		static string SDKVersion = "1.38.20";
+		static string LLVM_VER = "e1.38.31_64bit";
+		static string SDKVersion = "1.38.31";
 
 //		static string LLVM_VER = "incoming";
 //		static string SDKVersion = "incoming";
@@ -62,33 +62,28 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				switch (BuildHostPlatform.Current.Platform)
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64
+					|| BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac
+					|| BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 				{
-					case UnrealTargetPlatform.Win64:
-						return "Win64";
-					case UnrealTargetPlatform.Mac:
-						return "Mac";
-					case UnrealTargetPlatform.Linux:
-						return "Linux";
-					default:
-						return "error_unknown_platform";
+					return BuildHostPlatform.Current.Platform.ToString();
 				}
+				return "error_unknown_platform";
 			}
 		}
 		static string PLATFORM_EXE
 		{
 			get
 			{
-				switch (BuildHostPlatform.Current.Platform)
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					case UnrealTargetPlatform.Win64:
-						return ".exe";
-					case UnrealTargetPlatform.Mac:
-					case UnrealTargetPlatform.Linux:
-						return "";
-					default:
-						return "error_unknown_platform";
+					return ".exe";
 				}
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+				{
+					return "";
+				}
+				return "error_unknown_platform";
 			}
 		}
 
@@ -168,18 +163,31 @@ namespace UnrealBuildTool
 				string python = GetEmscriptenConfigVar("PYTHON");
 				if (python != null) return python;
 
-				switch (BuildHostPlatform.Current.Platform)
+// saving for reference
+//				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+//				{
+//					return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe");
+//				}
+//				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+//				{
+//					return "/usr/bin/python";
+//				}
+
+				// use UE4's bundled python executable
+				string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					case UnrealTargetPlatform.Win64:
-						return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe");
-
-					case UnrealTargetPlatform.Mac:
-					case UnrealTargetPlatform.Linux:
-						return "/usr/bin/python";
-
-					default:
-						return "error_unknown_platform";
+					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
 				}
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				{
+					return Path.Combine(UE4PythonPath, "Mac", "bin", "python2.7");
+				}
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
+				{
+					return Path.Combine(UE4PythonPath, "Linux", "bin", "python2.7");
+				}
+				return "error_unknown_platform";
 			}
 		}
 
@@ -266,16 +274,15 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				switch (BuildHostPlatform.Current.Platform)
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					case UnrealTargetPlatform.Win64:
-						return "USERPROFILE";
-					case UnrealTargetPlatform.Mac:
-					case UnrealTargetPlatform.Linux:
-						return "HOME";
-					default:
-						return "error_unknown_platform";
+					return "USERPROFILE";
 				}
+				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+				{
+					return "HOME";
+				}
+				return "error_unknown_platform";
 			}
 		}
 

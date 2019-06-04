@@ -216,18 +216,18 @@ public:
 	ELightmapType LightmapType;
 
 #if WITH_EDITORONLY_DATA
-	/** If true, and if World setting has bEnableHierarchicalLOD equal to true, then this component will be included when generating a Proxy mesh for the parent Actor */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD, meta = (DisplayName = "Include Component for HLOD Mesh generation"))
-	uint8 bEnableAutoLODGeneration : 1;
-
-	/** Use the Maximum LOD Mesh (imposter) instead of including Mesh data from this component in the Proxy Generation process */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD)
-	uint8 bUseMaxLODAsImposter: 1;
-
 	/** Which specific HLOD levels this component should be excluded from */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadWrite, Category = HLOD)
 	TArray<int32> ExcludeForSpecificHLODLevels;
+
+	/** If true, and if World setting has bEnableHierarchicalLOD equal to true, then this component will be included when generating a Proxy mesh for the parent Actor */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD, meta = (DisplayName = "Include Component for HLOD Mesh generation"))
+	uint8 bEnableAutoLODGeneration : 1;
 #endif 
+
+	/** Use the Maximum LOD Mesh (imposter) instead of including Mesh data from this component in the Proxy Generation process */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = HLOD)
+	uint8 bUseMaxLODAsImposter : 1;
 
 	/**
 	 * When enabled this object will not be culled by distance. This is ignored if a child of a HLOD.
@@ -535,6 +535,13 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering,  meta=(UIMin = "0", UIMax = "255", editcondition = "bRenderCustomDepth", DisplayName = "CustomDepth Stencil Value"))
 	int32 CustomDepthStencilValue;
 
+private:
+	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
+	UPROPERTY()
+	FCustomPrimitiveData CustomPrimitiveData;
+
+public:
+
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
 	 * Translucent objects with the same priority are rendered from back-to-front based on their bounds origin.
@@ -710,6 +717,28 @@ public:
 	/** Get the mask filter checked when others move into us. */
 	FMaskFilter GetMaskFilterOnBodyInstance(FMaskFilter InMaskFilter) const { return BodyInstance.GetMaskFilter(); }
 
+	/** Set custom primitive data at index DataIndex. */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetCustomPrimitiveDataFloat(int32 DataIndex, float Value);
+
+	/** Set custom primitive data, two floats at once, from index DataIndex to index DataIndex + 2. */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value);
+
+	/** Set custom primitive data, three floats at once, from index DataIndex to index DataIndex + 3. */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value);
+
+	/** Set custom primitive data, four floats at once, from index DataIndex to index DataIndex + 4. */
+	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
+	void SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value);
+
+	/** 
+	 * Get the custom primitive data for this primitive component.
+	 * @return The payload of custom data that will be set on the primitive and accessible in the material through a material expression.
+	 */
+	const FCustomPrimitiveData& GetCustomPrimitiveData() const { return CustomPrimitiveData; }
+
 #if WITH_EDITOR
 	/** Override delegate used for checking the selection state of a component */
 	DECLARE_DELEGATE_RetVal_OneParam( bool, FSelectionOverride, const UPrimitiveComponent* );
@@ -717,6 +746,10 @@ public:
 #endif
 
 protected:
+
+	/** Insert an array of floats into the CustomPrimitiveData, starting at the given index */
+	void SetCustomPrimitiveDataInternal(int32 DataIndex, const TArray<float>& Values);
+
 	/** Set of components that this component is currently overlapping. */
 	TArray<FOverlapInfo> OverlappingComponents;
 

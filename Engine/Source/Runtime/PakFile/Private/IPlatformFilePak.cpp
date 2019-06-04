@@ -4411,43 +4411,84 @@ void FPakFile::LoadIndex(FArchive* Reader)
 	else
 	{
 		// Load index into memory first.
-		Reader->Seek(Info.IndexOffset);
+
+		// If we encounter a corrupt index, try again but gather some extra debugging information so we can try and understand where it failed.
+		bool bFirstPass = true;
 		TArray<uint8> IndexData;
-		IndexData.AddUninitialized(Info.IndexSize);
-		Reader->Serialize(IndexData.GetData(), Info.IndexSize);
-		FMemoryReader IndexReader(IndexData);
 
-		// Decrypt if necessary
-		if (Info.bEncryptedIndex)
+		while (true)
 		{
-			DecryptData(IndexData.GetData(), Info.IndexSize, Info.EncryptionKeyGuid);
-		}
+			Reader->Seek(Info.IndexOffset);
+			IndexData.Empty(); // The next SetNum makes this Empty() logically redundant, but we want to try and force a memory reallocation for the re-attempt
+			IndexData.SetNum(Info.IndexSize);
+			Reader->Serialize(IndexData.GetData(), Info.IndexSize);
 
-		// Check SHA1 value.
-		uint8 IndexHash[20];
-		FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), IndexHash);
-		if (FMemory::Memcmp(IndexHash, Info.IndexHash, sizeof(IndexHash)) != 0)
-		{
-			FString StoredIndexHash, ComputedIndexHash;
-			StoredIndexHash = TEXT("0x");
-			ComputedIndexHash = TEXT("0x");
-
-			for (int64 ByteIndex = 0; ByteIndex < 20; ++ByteIndex)
+			FSHAHash EncryptedDataHash;
+			if (!bFirstPass)
 			{
-				StoredIndexHash += FString::Printf(TEXT("%02X"), Info.IndexHash[ByteIndex]);
-				ComputedIndexHash += FString::Printf(TEXT("%02X"), IndexHash[ByteIndex]);
+				FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), EncryptedDataHash.Hash);
 			}
 
-			UE_LOG(LogPakFile, Log, TEXT("Corrupt pak index detected!"));
-			UE_LOG(LogPakFile, Log, TEXT(" Filename: %s"), *PakFilename);
-			UE_LOG(LogPakFile, Log, TEXT(" Encrypted: %d"), Info.bEncryptedIndex);
-			UE_LOG(LogPakFile, Log, TEXT(" Total Size: %d"), Reader->TotalSize());
-			UE_LOG(LogPakFile, Log, TEXT(" Index Offset: %d"), Info.IndexOffset);
-			UE_LOG(LogPakFile, Log, TEXT(" Index Size: %d"), Info.IndexSize);
-			UE_LOG(LogPakFile, Log, TEXT(" Stored Index Hash: %s"), *StoredIndexHash);
-			UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash: %s"), *ComputedIndexHash);
-			UE_LOG(LogPakFile, Fatal, TEXT("Corrupted index in pak file (CRC mismatch)."));
+			// Decrypt if necessary
+			if (Info.bEncryptedIndex)
+			{
+				DecryptData(IndexData.GetData(), Info.IndexSize, Info.EncryptionKeyGuid);
+			}
+			// Check SHA1 value.
+			FSHAHash ComputedHash;
+			FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), ComputedHash.Hash);
+			if (Info.IndexHash != ComputedHash)
+			{
+				if (bFirstPass)
+				{
+					UE_LOG(LogPakFile, Log, TEXT("Corrupt pak index detected!"));
+					UE_LOG(LogPakFile, Log, TEXT(" Filename: %s"), *PakFilename);
+					UE_LOG(LogPakFile, Log, TEXT(" Encrypted: %d"), Info.bEncryptedIndex);
+					UE_LOG(LogPakFile, Log, TEXT(" Total Size: %d"), Reader->TotalSize());
+					UE_LOG(LogPakFile, Log, TEXT(" Index Offset: %d"), Info.IndexOffset);
+					UE_LOG(LogPakFile, Log, TEXT(" Index Size: %d"), Info.IndexSize);
+					UE_LOG(LogPakFile, Log, TEXT(" Stored Index Hash: %s"), *Info.IndexHash.ToString());
+					UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 0]: %s"), *ComputedHash.ToString());
+					bFirstPass = false;
+				}
+				else
+				{
+					UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 1]: %s"), *ComputedHash.ToString());
+					UE_LOG(LogPakFile, Log, TEXT(" Encrypted Index Hash: %s"), *EncryptedDataHash.ToString());
+
+					// Compute an SHA1 hash of the whole file so we can tell if the file was modified on disc (obviously as long as this isn't an  IO bug that gives us the same bogus data again)
+					FSHA1 FileHash;
+					Reader->Seek(0);
+					int64 Remaining = Reader->TotalSize();
+					TArray<uint8> WorkingBuffer;
+					WorkingBuffer.SetNum(64 * 1024);
+					while (Remaining > 0)
+					{
+						int64 ToProcess = FMath::Min((int64)WorkingBuffer.Num(), Remaining);
+						Reader->Serialize(WorkingBuffer.GetData(), ToProcess);
+						FileHash.Update(WorkingBuffer.GetData(), ToProcess);
+						Remaining -= ToProcess;
+					}
+
+					FileHash.Final();
+					FSHAHash FinalFileHash;
+					FileHash.GetHash(FinalFileHash.Hash);
+					UE_LOG(LogPakFile, Log, TEXT(" File Hash: %s"), *FinalFileHash.ToString());
+
+					UE_LOG(LogPakFile, Fatal, TEXT("Corrupted index in pak file (SHA hash mismatch)."));
+				}
+			}
+			else
+			{
+				if (!bFirstPass)
+				{
+					UE_LOG(LogPakFile, Log, TEXT("Pak index corruption appears to have recovered on the second attempt!"));
+				}
+				break;
+			}
 		}
+
+		FMemoryReader IndexReader(IndexData);
 
 		// Read the default mount point and all entries.
 		NumEntries = 0;
@@ -5402,8 +5443,13 @@ FPakPlatformFile::FPakPlatformFile()
 FPakPlatformFile::~FPakPlatformFile()
 {
 	FCoreDelegates::GetRegisterEncryptionKeyDelegate().Unbind();
+
+	FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
+
+	FCoreDelegates::OnMountAllPakFiles.Unbind();
 	FCoreDelegates::OnMountPak.Unbind();
 	FCoreDelegates::OnUnmountPak.Unbind();
+	FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks.Unbind();
 
 #if USE_PAK_PRECACHE
 	FPakPrecacher::Shutdown();
@@ -5554,14 +5600,38 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	FCoreDelegates::OnMountAllPakFiles.BindRaw(this, &FPakPlatformFile::MountAllPakFiles);
 	FCoreDelegates::OnMountPak.BindRaw(this, &FPakPlatformFile::HandleMountPakDelegate);
 	FCoreDelegates::OnUnmountPak.BindRaw(this, &FPakPlatformFile::HandleUnmountPakDelegate);
+	FCoreDelegates::OnOptimizeMemoryUsageForMountedPaks.BindRaw(this, &FPakPlatformFile::OptimizeMemoryUsageForMountedPaks);
 
+	FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FPakPlatformFile::OptimizeMemoryUsageForMountedPaks);
+
+	return !!LowerLevel;
+}
+
+void FPakPlatformFile::InitializeNewAsyncIO()
+{
+#if USE_PAK_PRECACHE
+#if !WITH_EDITOR
+	if (FPlatformProcess::SupportsMultithreading() && !FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")))
+	{
+		FPakPrecacher::Init(LowerLevel, GetPakSigningKey());
+	}
+	else
+#endif
+	{
+		UE_CLOG(FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")), LogPakFile, Display, TEXT("Disabled pak precacher to get an accurate load order. This should only be used to collect gameopenorder.log, as it is quite slow."));
+		GPakCache_Enable = 0;
+	}
+#endif
+}
+
+void FPakPlatformFile::OptimizeMemoryUsageForMountedPaks()
+{
 #if !(IS_PROGRAM || WITH_EDITOR)
-	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this] {
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Checking Pak Config\n"));
 			bool bUnloadPakEntryFilenamesIfPossible = FParse::Param(FCommandLine::Get(), TEXT("unloadpakentryfilenames"));
 			GConfig->GetBool(TEXT("Pak"), TEXT("UnloadPakEntryFilenamesIfPossible"), bUnloadPakEntryFilenamesIfPossible, GEngineIni);
 
-        if ((bUnloadPakEntryFilenamesIfPossible && !FParse::Param(FCommandLine::Get(), TEXT("nounloadpakentries"))) || FParse::Param(FCommandLine::Get(),TEXT("unloadpakentries")))
+	if ((bUnloadPakEntryFilenamesIfPossible && !FParse::Param(FCommandLine::Get(), TEXT("nounloadpakentries"))) || FParse::Param(FCommandLine::Get(), TEXT("unloadpakentries")))
 			{
 				// With [Pak] UnloadPakEntryFilenamesIfPossible enabled, [Pak] DirectoryRootsToKeepInMemoryWhenUnloadingPakEntryFilenames
 				// can contain pak entry directory wildcards of which the entire recursive directory structure of filenames underneath a
@@ -5585,26 +5655,6 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 				FPakPlatformFile* PakPlatformFile = (FPakPlatformFile*)(FPlatformFileManager::Get().FindPlatformFile(FPakPlatformFile::GetTypeName()));
 				PakPlatformFile->ShrinkPakEntriesMemoryUsage();
 			}
-		});
-#endif
-
-	return !!LowerLevel;
-}
-
-void FPakPlatformFile::InitializeNewAsyncIO()
-{
-#if USE_PAK_PRECACHE
-#if !WITH_EDITOR
-	if (FPlatformProcess::SupportsMultithreading() && !FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")))
-	{
-		FPakPrecacher::Init(LowerLevel, GetPakSigningKey());
-	}
-	else
-#endif
-	{
-		UE_CLOG(FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")), LogPakFile, Display, TEXT("Disabled pak precacher to get an accurate load order. This should only be used to collect gameopenorder.log, as it is quite slow."));
-		GPakCache_Enable = 0;
-	}
 #endif
 }
 

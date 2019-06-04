@@ -16,6 +16,7 @@
 #include "XAudio2Support.h"
 #include "IAudioExtensionPlugin.h"
 #include "ActiveSound.h"
+#include "Audio/AudioDebug.h"
 #include "Sound/AudioSettings.h"
 #include "ContentStreaming.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -25,9 +26,9 @@
 	For muting user soundtracks during cinematics
 ------------------------------------------------------------------------------------*/
 FXMPHelper XMPHelper;
-FXMPHelper* FXMPHelper::GetXMPHelper( void ) 
-{ 
-	return( &XMPHelper ); 
+FXMPHelper* FXMPHelper::GetXMPHelper( void )
+{
+	return( &XMPHelper );
 }
 
 /*------------------------------------------------------------------------------------
@@ -138,7 +139,7 @@ void FXAudio2SoundSource::FreeBuffer()
 }
 
 
-/** 
+/**
  * Submit the relevant audio buffers to the system
  */
 void FXAudio2SoundSource::SubmitPCMBuffers( void )
@@ -169,14 +170,14 @@ void FXAudio2SoundSource::SubmitPCMBuffers( void )
 	{
 		XAudio2Buffers[0].Flags = XAUDIO2_END_OF_STREAM;
 
-		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - PCM - LOOP_Never" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - PCM - LOOP_Never" ),
 			Source->SubmitSourceBuffer( XAudio2Buffers ) );
 	}
 	else
 	{
 		XAudio2Buffers[0].LoopCount = XAUDIO2_LOOP_INFINITE;
 
-		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - PCM - LOOP_*" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - PCM - LOOP_*" ),
 			Source->SubmitSourceBuffer( XAudio2Buffers ) );
 	}
 }
@@ -275,7 +276,7 @@ void FXAudio2SoundSource::SubmitPCMRTBuffers( void )
 	}
 
 	// Immediately submit the first two buffers that were either cached or synchronously read
-	// The first buffer will start the voice processing buffers and trigger an OnBufferEnd callback, which will then 
+	// The first buffer will start the voice processing buffers and trigger an OnBufferEnd callback, which will then
 	// trigger async tasks to generate more PCMRT buffers.
 	AudioDevice->ValidateAPICall(TEXT("SubmitSourceBuffer - PCMRT"),
 		Source->SubmitSourceBuffer(&XAudio2Buffers[0]));
@@ -289,7 +290,7 @@ void FXAudio2SoundSource::SubmitPCMRTBuffers( void )
 	bResourcesNeedFreeing = true;
 }
 
-/** 
+/**
  * Submit the relevant audio buffers to the system, accounting for looping modes
  */
 void FXAudio2SoundSource::SubmitXMA2Buffers( void )
@@ -311,7 +312,7 @@ void FXAudio2SoundSource::SubmitXMA2Buffers( void )
 		// Regular sound source, don't loop.
 		XAudio2Buffers[0].Flags = XAUDIO2_END_OF_STREAM;
 
-		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XMA2 - LOOP_Never" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XMA2 - LOOP_Never" ),
 			Source->SubmitSourceBuffer( XAudio2Buffers ) );
 	}
 	else
@@ -321,7 +322,7 @@ void FXAudio2SoundSource::SubmitXMA2Buffers( void )
 		XAudio2Buffers[0].LoopBegin = XAudio2Buffer->XMA2.XMA2Format.LoopBegin;
 		XAudio2Buffers[0].LoopLength = XAudio2Buffer->XMA2.XMA2Format.LoopLength;
 
-		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XMA2 - LOOP_*" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XMA2 - LOOP_*" ),
 			Source->SubmitSourceBuffer( XAudio2Buffers ) );
 	}
 #else	//XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
@@ -329,7 +330,7 @@ void FXAudio2SoundSource::SubmitXMA2Buffers( void )
 #endif	//XAUDIO_SUPPORTS_XMA2WAVEFORMATEX
 }
 
-/** 
+/**
  * Submit the relevant audio buffers to the system
  */
 void FXAudio2SoundSource::SubmitXWMABuffers( void )
@@ -353,7 +354,7 @@ void FXAudio2SoundSource::SubmitXWMABuffers( void )
 	{
 		XAudio2Buffers[0].Flags = XAUDIO2_END_OF_STREAM;
 
-		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XWMA - LOOP_Never" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XWMA - LOOP_Never" ),
 			Source->SubmitSourceBuffer( XAudio2Buffers, XAudio2BufferXWMA ) );
 	}
 	else
@@ -361,7 +362,7 @@ void FXAudio2SoundSource::SubmitXWMABuffers( void )
 		XAudio2Buffers[0].LoopCount = 255;
 		XAudio2Buffers[0].Flags = XAUDIO2_END_OF_STREAM;
 
-		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XWMA - LOOP_*" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SubmitSourceBuffer - XWMA - LOOP_*" ),
 			Source->SubmitSourceBuffer( XAudio2Buffers, XAudio2BufferXWMA ) );
 	}
 }
@@ -394,7 +395,7 @@ bool FXAudio2SoundSource::CreateSource( void )
 
 	NumSends++;
 
-	// Jira FORT-64095: This audio setting is fundamentally incompatible with the "Disable Master Reverb" checkbox in Audio Settings. 
+	// Jira FORT-64095: This audio setting is fundamentally incompatible with the "Disable Master Reverb" checkbox in Audio Settings.
 	//const bool bIsReverbDisabled =  GetDefault<UAudioSettings>()->bDisableMasterReverb;
 	if(bReverbApplied)
 	{
@@ -419,7 +420,7 @@ bool FXAudio2SoundSource::CreateSource( void )
 	bUsingHRTFSpatialization = false;
 	bool bCreatedWithSpatializationEffect = false;
 	MaxEffectChainChannels = 0;
-	
+
 	// Set to nullptr in case the voice is not successfully created, the source won't be garbage
 	Source = nullptr;
 
@@ -430,7 +431,7 @@ bool FXAudio2SoundSource::CreateSource( void )
 		if (Effect)
 		{
 			// Indicate that this source is currently using the 3d spatialization effect. We can't stop using it
-			// for the lifetime of this sound, so if this if the spatialization effect is toggled off, we're still 
+			// for the lifetime of this sound, so if this if the spatialization effect is toggled off, we're still
 			// going to hear the sound for the duration of this sound.
 			bUsingHRTFSpatialization = true;
 
@@ -510,7 +511,7 @@ bool FXAudio2SoundSource::PrepareForInitialization(FWaveInstance* InWaveInstance
 	XAudio2Buffer = FXAudio2SoundBuffer::Init(InWaveInstance->ActiveSound->AudioDevice, InWaveInstance->WaveData, InWaveInstance->StartTime > 0.f);
 	if (XAudio2Buffer)
 	{
-		// If our realtime source is not ready, then we will need to free our resources because this 
+		// If our realtime source is not ready, then we will need to free our resources because this
 		// buffer is an async decoded buffer and could be stopped before the header is finished being parsed
 		if (!XAudio2Buffer->IsRealTimeSourceReady())
 		{
@@ -833,7 +834,7 @@ void FXAudio2SoundSource::GetStereoChannelVolumes(float ChannelVolumes[CHANNEL_M
 
 			ChannelVolumes[CHANNELOUT_RADIO + Offset] = 0.0f;
 
-			// Add some LFE bleed 
+			// Add some LFE bleed
 			if (FXAudioDeviceProperties::NumSpeakers == 6)
 			{
 				ChannelVolumes[CHANNELOUT_LOWFREQUENCY + Offset] = AttenuatedVolume * LFEBleed;
@@ -845,7 +846,7 @@ void FXAudio2SoundSource::GetStereoChannelVolumes(float ChannelVolumes[CHANNEL_M
 
 		// Now get the spatialization params transformed into listener-space
 		FSpatializationParams SpatializationParams = GetSpatializationParams();
-		
+
 		// Convert to Xaudio2 coordinates
 		SpatializationParams.LeftChannelPosition = ConvertToXAudio2Orientation(SpatializationParams.LeftChannelPosition);
 		SpatializationParams.RightChannelPosition = ConvertToXAudio2Orientation(SpatializationParams.RightChannelPosition);
@@ -876,7 +877,7 @@ void FXAudio2SoundSource::GetStereoChannelVolumes(float ChannelVolumes[CHANNEL_M
 
 		ChannelVolumes[CHANNELOUT_REVERB] = AttenuatedVolume * WaveInstance->ManualReverbSendLevel;
 
-		// Handle radio distortion if the sound can handle it. 
+		// Handle radio distortion if the sound can handle it.
 		ChannelVolumes[CHANNELOUT_RADIO] = 0.0f;
 		if (WaveInstance->bApplyRadioFilter)
 		{
@@ -908,7 +909,7 @@ void FXAudio2SoundSource::GetHexChannelVolumes(float ChannelVolumes[CHANNEL_MATR
 	ChannelVolumes[CHANNELOUT_RIGHTSURROUND] = AttenuatedVolume;
 }
 
-/** 
+/**
  * Maps a sound with a given number of channels to to expected speakers
  */
 void FXAudio2SoundSource::RouteDryToSpeakers(float ChannelVolumes[CHANNEL_MATRIX_COUNT], const float InVolume)
@@ -1074,12 +1075,12 @@ void FXAudio2SoundSource::RouteHexToDry(float Chans[CHANNEL_MATRIX_COUNT])
 	}
 }
 
-/** 
+/**
  * Maps the sound to the relevant reverb effect
  */
 void FXAudio2SoundSource::RouteToReverb(float ChannelVolumes[CHANNEL_MATRIX_COUNT])
 {
-	// Reverb must be applied to process this function because the index 
+	// Reverb must be applied to process this function because the index
 	// of the destination output voice may not be at DEST_REVERB.
 	check( bReverbApplied );
 
@@ -1131,23 +1132,23 @@ void FXAudio2SoundSource::RouteStereoToReverb(float ChannelVolumes[CHANNEL_MATRI
 }
 
 
-/** 
+/**
  * Maps the sound to the relevant radio effect.
  *
- * @param	ChannelVolumes	The volumes associated to each channel. 
+ * @param	ChannelVolumes	The volumes associated to each channel.
  *							Note: Not all channels are mapped directly to a speaker.
  */
 void FXAudio2SoundSource::RouteToRadio(float ChannelVolumes[CHANNEL_MATRIX_COUNT])
 {
-	// Radio distortion must be applied to process this function because 
-	// the index of the destination output voice would be incorrect. 
+	// Radio distortion must be applied to process this function because
+	// the index of the destination output voice would be incorrect.
 	check( WaveInstance->bApplyRadioFilter );
 
-	// Get the index for the radio voice because it doesn't 
+	// Get the index for the radio voice because it doesn't
 	// necessarily match up to the enum value for radio.
 	const int32 Index = GetDestinationVoiceIndexForEffect( DEST_RADIO );
 
-	// If the index is -1, something changed with the Destinations array or 
+	// If the index is -1, something changed with the Destinations array or
 	// SourceDestinations enum without an update to GetDestinationIndexForEffect().
 	check( Index != -1 );
 
@@ -1157,8 +1158,8 @@ void FXAudio2SoundSource::RouteToRadio(float ChannelVolumes[CHANNEL_MATRIX_COUNT
 	case 1:
 		{
 			// Audio maps 1 channel to 6 speakers
-			float OutputMatrix[SPEAKER_COUNT * 1] = 
-			{		
+			float OutputMatrix[SPEAKER_COUNT * 1] =
+			{
 				0.0f,
 				0.0f,
 				ChannelVolumes[CHANNELOUT_RADIO],
@@ -1168,7 +1169,7 @@ void FXAudio2SoundSource::RouteToRadio(float ChannelVolumes[CHANNEL_MATRIX_COUNT
 			};
 
 			// Mono sounds map 1 channel to 6 speakers.
-			AudioDevice->ValidateAPICall( TEXT( "SetOutputMatrix (Mono radio)" ), 
+			AudioDevice->ValidateAPICall( TEXT( "SetOutputMatrix (Mono radio)" ),
 				Source->SetOutputMatrix( Destinations[Index].pOutputVoice, 1, SPEAKER_COUNT, OutputMatrix) );
 		}
 		break;
@@ -1176,8 +1177,8 @@ void FXAudio2SoundSource::RouteToRadio(float ChannelVolumes[CHANNEL_MATRIX_COUNT
 	case 2:
 		{
 			// Audio maps 2 channels to 6 speakers
-			float OutputMatrix[SPEAKER_COUNT * 2] = 
-			{			
+			float OutputMatrix[SPEAKER_COUNT * 2] =
+			{
 				0.0f, 0.0f,
 				0.0f, 0.0f,
 				ChannelVolumes[CHANNELOUT_RADIO], ChannelVolumes[CHANNELOUT_RADIO],
@@ -1187,7 +1188,7 @@ void FXAudio2SoundSource::RouteToRadio(float ChannelVolumes[CHANNEL_MATRIX_COUNT
 			};
 
 			// Stereo sounds map 2 channels to 6 speakers.
-			AudioDevice->ValidateAPICall( TEXT( "SetOutputMatrix (Stereo radio)" ), 
+			AudioDevice->ValidateAPICall( TEXT( "SetOutputMatrix (Stereo radio)" ),
 				Source->SetOutputMatrix( Destinations[Index].pOutputVoice, 2, SPEAKER_COUNT, OutputMatrix) );
 		}
 		break;
@@ -1196,12 +1197,12 @@ void FXAudio2SoundSource::RouteToRadio(float ChannelVolumes[CHANNEL_MATRIX_COUNT
 
 
 /**
- * Utility function for determining the proper index of an effect. Certain effects (such as: reverb and radio distortion) 
+ * Utility function for determining the proper index of an effect. Certain effects (such as: reverb and radio distortion)
  * are optional. Thus, they may be NULL, yet XAudio2 cannot have a NULL output voice in the send list for this source voice.
  *
- * @return	The index of the destination XAudio2 submix voice for the given effect; -1 if effect not in destination array. 
+ * @return	The index of the destination XAudio2 submix voice for the given effect; -1 if effect not in destination array.
  *
- * @param	Effect	The effect type's (Reverb, Radio Distoriton, etc) index to find. 
+ * @param	Effect	The effect type's (Reverb, Radio Distoriton, etc) index to find.
  */
 int32 FXAudio2SoundSource::GetDestinationVoiceIndexForEffect( SourceDestinations Effect )
 {
@@ -1210,7 +1211,7 @@ int32 FXAudio2SoundSource::GetDestinationVoiceIndexForEffect( SourceDestinations
 	switch( Effect )
 	{
 	case DEST_DRY:
-		// The dry mix is ALWAYS the first voice because always set it. 
+		// The dry mix is ALWAYS the first voice because always set it.
 		Index = 0;
 		break;
 
@@ -1220,7 +1221,7 @@ int32 FXAudio2SoundSource::GetDestinationVoiceIndexForEffect( SourceDestinations
 		break;
 
 	case DEST_RADIO:
-		// If radio distortion is applied, it depends on if there is 
+		// If radio distortion is applied, it depends on if there is
 		// reverb in the chain. Radio will always come after reverb.
 		Index = ( WaveInstance->bApplyRadioFilter ) ? ( bReverbApplied ? DEST_RADIO : DEST_REVERB ) : -1;
 		break;
@@ -1310,12 +1311,12 @@ FString FXAudio2SoundSource::Describe_Internal(bool bUseLongName, bool bIncludeC
 		else if (Buffer->NumChannels == 2)
 		{
 			SpatializedVolumeInfo = FString::Printf(TEXT(" Left: (FL: %.2f FR: %.2f FC: %.2f LF: %.2f, LS: %.2f, RS: %.2f), Right: (FL: %.2f FR: %.2f FC: %.2f LF: %.2f, LS: %.2f, RS: %.2f)"),
-													ChannelVolumes[CHANNELOUT_FRONTLEFT],		
-													ChannelVolumes[CHANNELOUT_FRONTRIGHT],		
-													ChannelVolumes[CHANNELOUT_FRONTCENTER],		
-													ChannelVolumes[CHANNELOUT_LOWFREQUENCY],	
-													ChannelVolumes[CHANNELOUT_LEFTSURROUND],	
-													ChannelVolumes[CHANNELOUT_RIGHTSURROUND],	
+													ChannelVolumes[CHANNELOUT_FRONTLEFT],
+													ChannelVolumes[CHANNELOUT_FRONTRIGHT],
+													ChannelVolumes[CHANNELOUT_FRONTCENTER],
+													ChannelVolumes[CHANNELOUT_LOWFREQUENCY],
+													ChannelVolumes[CHANNELOUT_LEFTSURROUND],
+													ChannelVolumes[CHANNELOUT_RIGHTSURROUND],
 													ChannelVolumes[CHANNELOUT_FRONTLEFT + CHANNELOUT_COUNT],
 													ChannelVolumes[CHANNELOUT_FRONTRIGHT + CHANNELOUT_COUNT],
 													ChannelVolumes[CHANNELOUT_FRONTCENTER + CHANNELOUT_COUNT],
@@ -1327,7 +1328,7 @@ FString FXAudio2SoundSource::Describe_Internal(bool bUseLongName, bool bIncludeC
 
 	const FString SoundOwnerName = (WaveInstance->ActiveSound ? WaveInstance->ActiveSound->GetOwnerName() : TEXT("None"));
 
-	return FString::Printf(TEXT("Wave: %s, Volume: %6.2f%s, Owner: %s"), 
+	return FString::Printf(TEXT("Wave: %s, Volume: %6.2f%s, Owner: %s"),
 		bUseLongName ? *WaveInstance->WaveData->GetPathName() : *WaveInstance->WaveData->GetName(),
 		WaveInstance->GetActualVolume(),
 		*SpatializedVolumeInfo,
@@ -1340,7 +1341,7 @@ void FXAudio2SoundSource::Update()
 	SCOPE_CYCLE_COUNTER(STAT_AudioUpdateSources);
 
 	if (!WaveInstance || (!bIsVirtual && !Source) || Paused || !bInitialized)
-	{	
+	{
 		return;
 	}
 
@@ -1371,7 +1372,7 @@ void FXAudio2SoundSource::Update()
 	else
 	{
 			// Set the pitch on the xaudio2 source
-		AudioDevice->ValidateAPICall( TEXT( "SetFrequencyRatio" ), 
+		AudioDevice->ValidateAPICall( TEXT( "SetFrequencyRatio" ),
 			Source->SetFrequencyRatio( Pitch) );
 
 		// Set whether to bleed to the rear speakers
@@ -1423,16 +1424,13 @@ void FXAudio2SoundSource::Update()
 			RouteToReverb( ChannelVolumes );
 		}
 
-		// If this audio can have radio distortion applied, 
-		// send the volumes to the radio distortion voice. 
+		// If this audio can have radio distortion applied,
+		// send the volumes to the radio distortion voice.
 		if( WaveInstance->bApplyRadioFilter )
 		{
 			RouteToRadio( ChannelVolumes );
 		}
 	}
-
-	FSoundSource::DrawDebugInfo();
-
 }
 
 float FXAudio2SoundSource::GetPlaybackPercent() const
@@ -1483,7 +1481,7 @@ void FXAudio2SoundSource::Stop()
 	bInitialized = false;
 
 	if( WaveInstance )
-	{	
+	{
 		Paused = false;
 		Playing = false;
 
@@ -1492,7 +1490,7 @@ void FXAudio2SoundSource::Stop()
 	}
 
 	IStreamingManager::Get().GetAudioStreamingManager().RemoveStreamingSoundSource(this);
-	
+
 	if (WaveInstance)
 	{
 		FreeBuffer();
@@ -1500,7 +1498,7 @@ void FXAudio2SoundSource::Stop()
 		bLoopCallback = false;
 		bResourcesNeedFreeing = false;
 	}
-	
+
 	FSoundSource::Stop();
 }
 
@@ -1593,7 +1591,7 @@ void FXAudio2SoundSource::HandleRealTimeSource(bool bBlockForData)
 			HandleRealTimeSourceData(bLooped);
 		}
 	}
-	
+
 	if (bGetMoreData)
 	{
 		// Update the buffer index
@@ -1712,7 +1710,7 @@ void FSpatializationHelper::Init()
 	Emitter.Position = ZeroVector;
 	Emitter.Velocity = ZeroVector;
 	Emitter.pCone = &Cone;
-	Emitter.pCone->InnerAngle = 0.0f; 
+	Emitter.pCone->InnerAngle = 0.0f;
 	Emitter.pCone->OuterAngle = 0.0f;
 	Emitter.pCone->InnerVolume = 0.0f;
 	Emitter.pCone->OuterVolume = 1.0f;
@@ -1831,7 +1829,7 @@ void FSpatializationHelper::DumpSpatializationState() const
 
 	UE_LOG(LogXAudio2, Log, TEXT("Dumping all XAudio2 Spatialization"));
 	UE_LOG(LogXAudio2, Log, TEXT("==================================="));
-	
+
 	// X3DInstance
 	UE_LOG(LogXAudio2, Log, TEXT("  X3DInstance: %#010x"), X3DInstance);
 
@@ -1893,7 +1891,7 @@ void FSpatializationHelper::DumpSpatializationState() const
 	// VolumeCurvePoint
 	FLocal::DumpDistanceCurvePoint(TEXT("  "), TEXT("VolumeCurvePoint"), 0, VolumeCurvePoint[0]);
 	FLocal::DumpDistanceCurvePoint(TEXT("  "), TEXT("VolumeCurvePoint"), 1, VolumeCurvePoint[1]);
-	
+
 	// VolumeCurve
 	FLocal::DumpDistanceCurve(TEXT("  "), TEXT("VolumeCurve"), &VolumeCurve);
 
@@ -1903,10 +1901,10 @@ void FSpatializationHelper::DumpSpatializationState() const
 
 	// ReverbVolumeCurve
 	FLocal::DumpDistanceCurve(TEXT("  "), TEXT("ReverbVolumeCurve"), &ReverbVolumeCurve);
-	
+
 	// EmitterAzimuths
 	FLocal::DumpChannelArray(TEXT("  "), TEXT("EmitterAzimuths"), UE4_XAUDIO3D_INPUTCHANNELS, EmitterAzimuths);
-	
+
 	// MatrixCoefficients
 	FLocal::DumpChannelArray(TEXT("  "), TEXT("MatrixCoefficients"), ARRAY_COUNT(MatrixCoefficients), MatrixCoefficients);
 }

@@ -15,6 +15,7 @@ class UCurveVector;
 class UCurveLinearColor;
 class UCurveFloat;
 class FNiagaraSystemInstance;
+struct FNiagaraDataInterfaceProxy;
 
 struct FNDITransformHandlerNoop
 {
@@ -143,6 +144,40 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 
+struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe>
+{
+	virtual ~FNiagaraDataInterfaceProxy() {check(IsInRenderingThread());}
+
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const = 0;
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) { check(false); }
+
+	virtual void DeferredDestroy() {}
+};
+
+struct FNiagaraDataInterfaceProxyCurveBase : public FNiagaraDataInterfaceProxy
+{
+	~FNiagaraDataInterfaceProxyCurveBase()
+	{
+		check(IsInRenderingThread());
+		CurveLUT.Release();
+	}
+
+	float LUTMinTime;
+	float LUTMaxTime;
+	float LUTInvTimeRange;
+	FReadBuffer CurveLUT;
+
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
+
+	// @todo REMOVEME
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override { check(false); }
+};
+
+//////////////////////////////////////////////////////////////////////////
+
 /** Base class for all Niagara data interfaces. */
 UCLASS(abstract, EditInlineNew)
 class NIAGARA_API UNiagaraDataInterface : public UNiagaraDataInterfaceBase
@@ -151,19 +186,51 @@ class NIAGARA_API UNiagaraDataInterface : public UNiagaraDataInterfaceBase
 		 
 public: 
 
+	virtual ~UNiagaraDataInterface();
+
 	// UObject Interface
-	virtual void PostLoad()override;
+	virtual void PostLoad() override;
 	// UObject Interface END
 
 	/** Initializes the per instance data for this interface. Returns false if there was some error and the simulation should be disabled. */
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) { return true; }
 
-	/** Destroys the per instence data for this interface. */
+	/** Destroys the per instance data for this interface. */
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) {}
 
 	/** Ticks the per instance data for this interface, if it has any. */
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
 	virtual bool PerInstanceTickPostSimulate(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) { return false; }
+
+	/** 
+		Subclasses that wish to work with GPU systems/emitters must implement this.
+		Those interfaces must fill DataForRenderThread with the data needed to upload to the GPU. It will be the last thing called on this
+		data interface for a specific tick.
+		This will be consumed by the associated FNiagaraDataInterfaceProxy.
+		Note: This class does not own the memory pointed to by DataForRenderThread. It will be recycled automatically. 
+			However, if you allocate memory yourself to pass via this buffer you ARE responsible for freeing it when it is consumed by the proxy (Which is what ChaosDestruction does).
+			Likewise, the class also does not own the memory in PerInstanceData. That pointer is the pointer passed to PerInstanceTick/PerInstanceTickPostSimulate.
+			
+		This will not be called if PerInstanceDataPassedToRenderThreadSize is 0.
+	*/
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance)
+	{
+		check(false);
+	}
+
+	/**
+	 * The size of the data this class will provide to ProvidePerInstanceDataForRenderThread.
+	 * MUST be 16 byte aligned!
+	 */
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const 
+	{ 
+		if (!Proxy)
+		{
+			return 0;
+		}
+		check(Proxy);
+		return Proxy->PerInstanceDataPassedToRenderThreadSize();
+	}
 
 	/** 
 	Returns the size of the per instance data for this interface. 0 if this interface has no per instance data. 
@@ -184,6 +251,8 @@ public:
 	virtual bool Equals(const UNiagaraDataInterface* Other) const;
 
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const { return false; }
+
+	virtual bool RequiresDistanceFieldData() const { return false; }
 
 	/** Determines if this type definition matches to a known data interface type.*/
 	static bool IsDataInterfaceType(const FNiagaraTypeDefinition& TypeDef);
@@ -206,8 +275,23 @@ public:
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors);
 #endif
 
+	FNiagaraDataInterfaceProxy* GetProxy()
+	{
+		return Proxy.Get();
+	}
+
 protected:
+	template<typename T>
+	T* GetProxyAs()
+	{
+		T* TypedProxy = static_cast<T*>(Proxy.Get());
+		check(TypedProxy != nullptr);
+		return TypedProxy;
+	}
+
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const;
+
+	TSharedPtr<FNiagaraDataInterfaceProxy, ESPMode::ThreadSafe> Proxy;
 };
 
 /** Base class for curve data interfaces which facilitates handling the curve data in a standardized way. */
@@ -216,8 +300,8 @@ class NIAGARA_API UNiagaraDataInterfaceCurveBase : public UNiagaraDataInterface
 {
 protected:
 	GENERATED_BODY()
-	UPROPERTY()
-	bool GPUBufferDirty;
+	/*UPROPERTY()
+	bool GPUBufferDirty;*/
 	UPROPERTY()
 	TArray<float> ShaderLUT;
 	UPROPERTY()
@@ -241,8 +325,7 @@ protected:
 
 public:
 	UNiagaraDataInterfaceCurveBase()
-		: GPUBufferDirty(false)
-		, LUTMinTime(0.0f)
+		: LUTMinTime(0.0f)
 		, LUTMaxTime(1.0f)
 		, LUTInvTimeRange(1.0f)
 		, bUseLUT(true)
@@ -250,18 +333,20 @@ public:
 		, ShowInCurveEditor(false)
 #endif
 	{
+		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
 	}
 
 	UNiagaraDataInterfaceCurveBase(FObjectInitializer const& ObjectInitializer)
-		: GPUBufferDirty(false)
-		, LUTMinTime(0.0f)
+		: LUTMinTime(0.0f)
 		, LUTMaxTime(1.0f)
 		, LUTInvTimeRange(1.0f)
 		, bUseLUT(true)
 #if WITH_EDITORONLY_DATA
 		, ShowInCurveEditor(false)
 #endif
-	{}
+	{
+		Proxy = MakeShared<FNiagaraDataInterfaceProxyCurveBase, ESPMode::ThreadSafe>();
+	}
 
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Curve")
 	uint32 bUseLUT : 1;
@@ -306,7 +391,7 @@ public:
 	}
 
 	//TODO: Make this a texture and get HW filter + clamping?
-	FReadBuffer& GetCurveLUTGPUBuffer();
+	//FReadBuffer& GetCurveLUTGPUBuffer();
 
 	//UNiagaraDataInterface interface
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
@@ -317,13 +402,11 @@ public:
 	FORCEINLINE float GetMaxTime()const { return LUTMaxTime; }
 	FORCEINLINE float GetInvTimeRange()const { return LUTInvTimeRange; }
 
-
 protected:
+	void PushToRenderThread();
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	virtual bool CompareLUTS(const TArray<float>& OtherLUT) const;
 	//UNiagaraDataInterface interface END
-
-	FReadBuffer CurveLUT;
 };
 
 //External function binder choosing between template specializations based on if a curve should use the LUT over full evaluation.

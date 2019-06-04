@@ -225,6 +225,106 @@ protected:
 	FNDISkeletalMesh_InstanceData* Owner;
 };
 
+/** 
+ * This contains static data created once from the DI.
+ * This should be in a proxy create by GT and accessible on RT. 
+ * Right now we cannot follow a real Proxy pattern since Niagara does not prevent unloading of UI while RT data is still in use. 
+ * See https://jira.it.epicgames.net/browse/UE-69336
+ */
+class FSkeletalMeshGpuSpawnStaticBuffers : public FRenderResource
+{
+public:
+
+	virtual ~FSkeletalMeshGpuSpawnStaticBuffers();
+
+	FORCEINLINE_DEBUGGABLE void Initialise(const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, 
+		bool bIsGpuUniformlyDistributedSampling, const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData);
+
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
+
+	virtual FString GetFriendlyName() const override { return TEXT("FSkeletalMeshGpuSpawnStaticBuffers"); }
+
+	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerProbaSRV() const { return BufferTriangleUniformSamplerProbaSRV; }
+	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerAliasSRV() const { return BufferTriangleUniformSamplerAliasSRV; }
+	FShaderResourceViewRHIRef GetBufferTriangleMatricesOffsetSRV() const { return BufferTriangleMatricesOffsetSRV; }
+	uint32 GetTriangleCount() const { return TriangleCount; }
+
+	FShaderResourceViewRHIParamRef GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
+	FShaderResourceViewRHIParamRef GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
+	FShaderResourceViewRHIParamRef GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
+	FShaderResourceViewRHIParamRef GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
+
+	uint32 GetNumTexCoord() const { return NumTexCoord; }
+
+protected:
+
+	FVertexBufferRHIRef BufferTriangleUniformSamplerProbaRHI = nullptr;
+	FShaderResourceViewRHIRef BufferTriangleUniformSamplerProbaSRV = nullptr;
+	FVertexBufferRHIRef BufferTriangleUniformSamplerAliasRHI = nullptr;
+	FShaderResourceViewRHIRef BufferTriangleUniformSamplerAliasSRV = nullptr;
+	FVertexBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
+	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
+
+	/** Cached SRV to gpu buffers of the mesh we spawn from */
+	FShaderResourceViewRHIParamRef MeshVertexBufferSrv;
+	FShaderResourceViewRHIParamRef MeshIndexBufferSrv;
+	FShaderResourceViewRHIParamRef MeshTangentBufferSRV;
+	FShaderResourceViewRHIParamRef MeshTexCoordBufferSrv;
+
+	uint32 NumTexCoord;
+
+	// Cached data for resource creation on RenderThread
+	const FSkeletalMeshLODRenderData* LODRenderData = nullptr;
+	const FSkeletalMeshSamplingLODBuiltData* SkeletalMeshSamplingLODBuiltData = nullptr;
+	uint32 TriangleCount;
+	uint32 InputWeightStride;
+	bool bUseGpuUniformlyDistributedSampling;
+};
+
+/**
+ * This contains dynamic data created per frame from the DI.
+ * This should be in a proxy create by GT and accessible on RT. Right now we cannot follow a real Proxy pattern since Niagara does not prevent unloading of UI while RT data is still in use.
+ * See https://jira.it.epicgames.net/browse/UE-69336
+ */
+class FSkeletalMeshGpuDynamicBufferProxy : public FRenderResource
+{
+public:
+
+	FSkeletalMeshGpuDynamicBufferProxy();
+	virtual ~FSkeletalMeshGpuDynamicBufferProxy();
+
+	void Initialise(const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData);
+
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
+
+	void NewFrame(const FNDISkeletalMesh_InstanceData* InstanceData, int32 LODIndex);
+
+	bool DoesBoneDataExist() const { return bBoneGpuBufferValid;}
+
+	/** Encapsulates a GPU read / CPU write buffer for bone data */
+	struct FSkeletalBuffer
+	{
+		FVertexBufferRHIRef Buffer;
+		FShaderResourceViewRHIRef SRV;
+	};
+
+	FSkeletalBuffer& GetRWBufferBone() { return RWBufferBones[CurrentBoneBufferId % 2]; }
+	FSkeletalBuffer& GetRWBufferPrevBone() { return bPrevBoneGpuBufferValid ? RWBufferBones[(CurrentBoneBufferId + 1) % 2] : GetRWBufferBone(); }
+
+private:
+
+	uint32 BoneCount = 0;
+
+	enum { BufferBoneCount = 2 };
+	FSkeletalBuffer RWBufferBones[BufferBoneCount];
+	uint8 CurrentBoneBufferId = 0;
+
+	bool bBoneGpuBufferValid = false;
+	bool bPrevBoneGpuBufferValid = false;
+};
+
 struct FNDISkeletalMesh_InstanceData
 {
 	//Cached ptr to component we sample from. 
@@ -266,11 +366,22 @@ struct FNDISkeletalMesh_InstanceData
 
 	uint32 ChangeId;
 
+	/** True if the mesh we're using allows area weighted sampling on GPU. */
+	uint32 bIsGpuUniformlyDistributedSampling : 1;
+
+	FShaderResourceViewRHIParamRef MeshSkinWeightBufferSrv;
+	uint32 MeshWeightStrideByte;
+
+	/** Extra mesh data upload to GPU.*/
+	FSkeletalMeshGpuSpawnStaticBuffers* MeshGpuSpawnStaticBuffers;
+	FSkeletalMeshGpuDynamicBufferProxy* MeshGpuSpawnDynamicBuffers;
+
 	FORCEINLINE_DEBUGGABLE bool ResetRequired(UNiagaraDataInterfaceSkeletalMesh* Interface)const;
 
 	bool Init(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
 	FORCEINLINE_DEBUGGABLE bool Cleanup(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance);
 	FORCEINLINE_DEBUGGABLE bool Tick(UNiagaraDataInterfaceSkeletalMesh* Interface, FNiagaraSystemInstance* SystemInstance, float InDeltaSeconds);
+	FORCEINLINE_DEBUGGABLE void Release();
 	FORCEINLINE int32 GetLODIndex()const { return SkinningData.Usage.GetLODIndex(); }
 
 	FORCEINLINE_DEBUGGABLE FSkeletalMeshLODRenderData& GetLODRenderDataAndSkinWeights(FSkinWeightVertexBuffer*& OutSkinWeightBuffer)
@@ -282,7 +393,7 @@ struct FNDISkeletalMesh_InstanceData
 		}
 		else
 		{
-			OutSkinWeightBuffer = Ret.GetSkinWeightVertexBuffer();
+			OutSkinWeightBuffer = &Ret.SkinWeightVertexBuffer; // Todo @sckime fix this when main comes in for real
 		}
 		return Ret;
 	}
@@ -306,6 +417,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh")
 	AActor* Source;
 	
+	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
+	UPROPERTY(Transient)
+	USkeletalMeshComponent* SourceComponent;
+
 	UPROPERTY(EditAnywhere, Category="Mesh")
 	ENDISkeletalMesh_SkinningMode SkinningMode;
 
@@ -342,8 +457,8 @@ public:
 	uint32 ChangeId;
 
 	//~ UObject interface
+	virtual void PostInitProperties()override; 
 #if WITH_EDITOR
-	virtual void PostInitProperties()override;
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 	//~ UObject interface END
@@ -358,7 +473,7 @@ public:
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)override;
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
-	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return Target == ENiagaraSimTarget::CPUSim; }
+	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
 #if WITH_EDITOR	
 	virtual TArray<FNiagaraDataInterfaceError> GetErrors() override;
 	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
@@ -366,6 +481,33 @@ public:
 	//~ UNiagaraDataInterface interface END
 
 	static USkeletalMesh* GetSkeletalMeshHelper(UNiagaraDataInterfaceSkeletalMesh* Interface, class UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp);
+
+	virtual bool GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
+	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
+
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FGuid& SystemInstance) override;
+
+	static const FString MeshIndexBufferName;
+	static const FString MeshVertexBufferName;
+	static const FString MeshSkinWeightBufferName;
+	static const FString MeshCurrBonesBufferName;
+	static const FString MeshPrevBonesBufferName;
+	static const FString MeshTangentBufferName;
+	static const FString MeshTexCoordBufferName;
+	static const FString MeshTriangleSamplerProbaBufferName;
+	static const FString MeshTriangleSamplerAliasBufferName;
+	static const FString MeshTriangleMatricesOffsetBufferName;
+	static const FString MeshTriangleCountName;
+	static const FString MeshWeightStrideByteName;
+	static const FString InstanceTransformName;
+	static const FString InstancePrevTransformName;
+	static const FString InstanceInvDeltaTimeName;
+	static const FString EnabledFeaturesName;
+	static const FString InputWeightStrideName;
+	static const FString NumTexCoordName;
+
+
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
@@ -401,7 +543,7 @@ public:
 
 	template<typename SkinningHandlerType>
 	void GetTriCoordVertices(FVectorVMContext& Context);
-		
+
 private:
 	template<typename FilterMode, typename AreaWeightingMode>
 	FORCEINLINE int32 RandomTriIndex(FRandomStream& RandStream, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData);
@@ -472,7 +614,7 @@ public:
 
 	void RandomSpecificBone(FVectorVMContext& Context);
 
-	template<typename SkinningHandlerType, typename TransformHandlerType>
+	template<typename SkinningHandlerType, typename TransformHandlerType, typename bInterpolated>
 	void GetSkinnedBoneData(FVectorVMContext& Context);
 	
 	void GetSpecificSocketCount(FVectorVMContext& Context);
@@ -483,5 +625,51 @@ public:
 		
 	// End of Direct Bone + Socket Sampling
 	//////////////////////////////////////////////////////////////////////////
+
+	void SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse);
 };
 
+
+class FSkeletalMeshInterfaceHelper
+{
+public:
+	static const FName RandomTriCoordName;
+	static const FName IsValidTriCoordName;
+	static const FName GetSkinnedTriangleDataName;
+	static const FName GetSkinnedTriangleDataWSName;
+	static const FName GetSkinnedTriangleDataInterpName;
+	static const FName GetSkinnedTriangleDataWSInterpName;
+	static const FName GetTriColorName;
+	static const FName GetTriUVName;
+	static const FName GetTriangleCountName;
+	static const FName GetTriangleAtName;
+	static const FName GetTriCoordVerticesName;
+};
+
+struct FNiagaraDISkeletalMeshPassedDataToRT
+{
+	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
+	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
+	FShaderResourceViewRHIParamRef MeshSkinWeightBufferSrv;
+
+	bool bIsGpuUniformlyDistributedSampling;
+
+	uint32 MeshWeightStrideByte;
+	FMatrix Transform;
+	FMatrix PrevTransform;
+	float DeltaSeconds;
+};
+
+typedef FNiagaraDISkeletalMeshPassedDataToRT FNiagaraDataInterfaceProxySkeletalMeshData;
+
+struct FNiagaraDataInterfaceProxySkeletalMesh : public FNiagaraDataInterfaceProxy
+{
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override 
+	{
+		return sizeof(FNiagaraDISkeletalMeshPassedDataToRT);
+	}
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FGuid& Instance) override;
+
+	TMap<FGuid, FNiagaraDataInterfaceProxySkeletalMeshData> SystemInstancesToData;
+};

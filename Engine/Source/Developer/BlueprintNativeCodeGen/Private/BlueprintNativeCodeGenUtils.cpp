@@ -122,19 +122,19 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 		ModuleDesc->LoadingPhase = ELoadingPhase::Default;
 
 		const FName PlatformName = TargetPaths.GetTargetPlatformName();
-		for (PlatformInfo::FPlatformEnumerator PlatformIt = PlatformInfo::EnumeratePlatformInfoArray(); PlatformIt; ++PlatformIt)
+		for (const PlatformInfo::FPlatformInfo& PlatformInfo : PlatformInfo::GetPlatformInfoArray())
 		{
-			if (PlatformIt->TargetPlatformName == PlatformName)
+			if (PlatformInfo.TargetPlatformName == PlatformName)
 			{
 				// We use the 'UBTTargetId' because this white-list expects the 
 				// string to correspond to UBT's UnrealTargetPlatform enum (and by proxy, FPlatformMisc::GetUBTPlatform)
-				ModuleDesc->WhitelistPlatforms.AddUnique(PlatformIt->UBTTargetId.ToString());
+				ModuleDesc->WhitelistPlatforms.AddUnique(PlatformInfo.UBTTargetId.ToString());
 
 				// Hack to allow clients for PS4/XboxOne (etc.) to build the nativized assets plugin
-				const bool bIsClientValidForPlatform = PlatformIt->UBTTargetId == TEXT("Win32") || PlatformIt->UBTTargetId == TEXT("Win64") || PlatformIt->UBTTargetId == TEXT("Linux") || PlatformIt->UBTTargetId == TEXT("Mac");
+				const bool bIsClientValidForPlatform = PlatformInfo.UBTTargetId == TEXT("Win32") || PlatformInfo.UBTTargetId == TEXT("Win64") || PlatformInfo.UBTTargetId == TEXT("Linux") || PlatformInfo.UBTTargetId == TEXT("Mac");
 
 				// should correspond to UnrealBuildTool::TargetType in TargetRules.cs
-				switch (PlatformIt->PlatformType)
+				switch (PlatformInfo.PlatformType)
 				{
 				case PlatformInfo::EPlatformType::Game:
 					ModuleDesc->WhitelistTargets.AddUnique(TEXT("Game"));
@@ -156,7 +156,7 @@ static bool BlueprintNativeCodeGenUtilsImpl::GeneratePluginDescFile(const FBluep
 					break;
 
 				case PlatformInfo::EPlatformType::Editor:
-					ensureMsgf(PlatformIt->PlatformType != PlatformInfo::EPlatformType::Editor, TEXT("Nativized Blueprint plugin is for cooked projects only - it isn't supported in editor builds."));
+					ensureMsgf(PlatformInfo.PlatformType != PlatformInfo::EPlatformType::Editor, TEXT("Nativized Blueprint plugin is for cooked projects only - it isn't supported in editor builds."));
 					break;
 				};				
 			}

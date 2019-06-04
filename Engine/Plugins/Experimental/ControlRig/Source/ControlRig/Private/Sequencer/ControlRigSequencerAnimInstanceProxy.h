@@ -39,7 +39,6 @@ public:
 	}
 
 	// FAnimInstanceProxy interface
-	virtual void CacheBones() override;
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
 	virtual void Update(float DeltaSeconds) override;
 	virtual FAnimNode_Base* GetCustomRootNode() override;

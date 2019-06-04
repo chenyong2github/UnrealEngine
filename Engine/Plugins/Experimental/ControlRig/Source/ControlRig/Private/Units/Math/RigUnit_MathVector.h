@@ -110,6 +110,32 @@ struct FRigUnit_MathVectorMul : public FRigUnit_MathVectorBinaryOp
 };
 
 /**
+ * Returns the product of the the vector and the float value
+ */
+USTRUCT(meta = (DisplayName = "Scale", PrototypeName = "Scale", Keywords = "Multiply,Product,*,ByScalar,ByFloat"))
+struct FRigUnit_MathVectorScale : public FRigUnit_MathVectorBase
+{
+	GENERATED_BODY()
+
+		FRigUnit_MathVectorScale()
+	{
+		Value = Result = FVector::ZeroVector;
+		Factor = 1.f;
+	}
+
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FVector Value;
+
+	UPROPERTY(meta = (Input))
+	float Factor;
+
+	UPROPERTY(meta = (Output))
+	FVector Result;
+};
+
+/**
  * Returns the division of the two values
  */
 USTRUCT(meta=(DisplayName="Divide", PrototypeName="Divide", Keywords="Division,Divisor,/"))

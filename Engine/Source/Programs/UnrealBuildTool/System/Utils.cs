@@ -476,7 +476,7 @@ namespace UnrealBuildTool
 			switch (Class)
 			{
 				case UnrealPlatformClass.All:
-					return ((UnrealTargetPlatform[])Enum.GetValues(typeof(UnrealTargetPlatform))).Where(x => x != UnrealTargetPlatform.Unknown).ToArray();
+					return UnrealTargetPlatform.GetValidPlatforms();
 				case UnrealPlatformClass.Desktop:
 					return new UnrealTargetPlatform[] { UnrealTargetPlatform.Win32, UnrealTargetPlatform.Win64, UnrealTargetPlatform.Linux, UnrealTargetPlatform.Mac };
 				case UnrealPlatformClass.Editor:
@@ -498,9 +498,10 @@ namespace UnrealBuildTool
 			// up file path comparisons later on
 			List<string> OtherPlatformNameStrings = new List<string>();
 			{
-				// look at each group to see if any supported platforms are in it
 				List<UnrealPlatformGroup> SupportedGroups = new List<UnrealPlatformGroup>();
-				foreach (UnrealPlatformGroup Group in Enum.GetValues(typeof(UnrealPlatformGroup)))
+
+				// look at each group to see if any supported platforms are in it
+				foreach (UnrealPlatformGroup Group in UnrealPlatformGroup.GetValidGroups())
 				{
 					// get the list of platforms registered to this group, if any
 					List<UnrealTargetPlatform> Platforms = UEBuildPlatform.GetPlatformsInGroup(Group);
@@ -518,8 +519,8 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// loop over groups one more time, anything NOT in SupportedGroups is now unsuppored, and should be added to the output list
-				foreach (UnrealPlatformGroup Group in Enum.GetValues(typeof(UnrealPlatformGroup)))
+				// loop over groups one more time, anything NOT in SupportedGroups is now unsupported, and should be added to the output list
+				foreach (UnrealPlatformGroup Group in UnrealPlatformGroup.GetValidGroups())
 				{
 					if (SupportedGroups.Contains(Group) == false)
 					{
@@ -527,31 +528,28 @@ namespace UnrealBuildTool
 					}
 				}
 
-				foreach (UnrealTargetPlatform CurPlatform in Enum.GetValues(typeof(UnrealTargetPlatform)))
+				foreach (UnrealTargetPlatform CurPlatform in UnrealTargetPlatform.GetValidPlatforms())
 				{
-					if (CurPlatform != UnrealTargetPlatform.Unknown)
+					bool ShouldConsider = true;
+
+					// If we have a platform and a group with the same name, don't add the platform
+					// to the other list if the same-named group is supported.  This is a lot of
+					// lines because we need to do the comparisons as strings.
+					string CurPlatformString = CurPlatform.ToString();
+					foreach (UnrealPlatformGroup Group in UnrealPlatformGroup.GetValidGroups())
 					{
-						bool ShouldConsider = true;
-
-						// If we have a platform and a group with the same name, don't add the platform
-						// to the other list if the same-named group is supported.  This is a lot of
-						// lines because we need to do the comparisons as strings.
-						string CurPlatformString = CurPlatform.ToString();
-						foreach (UnrealPlatformGroup Group in Enum.GetValues(typeof(UnrealPlatformGroup)))
+						if (Group.ToString().Equals(CurPlatformString))
 						{
-							if (Group.ToString().Equals(CurPlatformString))
-							{
-								ShouldConsider = false;
-								break;
-							}
+							ShouldConsider = false;
+							break;
 						}
+					}
 
-						// Don't add our current platform to the list of platform sub-directory names that
-						// we'll skip source files for
-						if (ShouldConsider && !SupportedPlatforms.Contains(CurPlatform))
-						{
-							OtherPlatformNameStrings.Add(CurPlatform.ToString());
-						}
+					// Don't add our current platform to the list of platform sub-directory names that
+					// we'll skip source files for
+					if (ShouldConsider && !SupportedPlatforms.Contains(CurPlatform))
+					{
+						OtherPlatformNameStrings.Add(CurPlatform.ToString());
 					}
 				}
 

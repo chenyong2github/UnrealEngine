@@ -235,8 +235,32 @@ namespace UnrealBuildTool
 						}
 						else
 						{
+							// Create a dummy force-included file which references PCH files, so that SN-DBS knows they are dependencies.
+							string AdditionalStubIncludes = "";
+							if (Action.CommandPath.GetFileName().Equals("cl.exe", StringComparison.OrdinalIgnoreCase))
+							{
+								string ResponseFile = Action.CommandArguments.Replace("\"", "").Replace("@", "").Trim();
+								StringBuilder WrapperContents = new StringBuilder();
+								using (StringWriter Writer = new StringWriter(WrapperContents))
+								{
+									Writer.WriteLine("// PCH dependencies for {0}", ResponseFile);
+									Writer.WriteLine("#if 0");
+									foreach (FileItem Preqrequisite in Action.PrerequisiteItems)
+									{
+										if (Preqrequisite.AbsolutePath.EndsWith(".pch"))
+										{
+											Writer.WriteLine("#include \"{0}\"", Preqrequisite.AbsolutePath.Replace(".pch", ".obj"));
+										}
+									}
+									Writer.WriteLine("#endif");
+								}
+
+								FileItem DummyResponseFileDependency = FileItem.CreateIntermediateTextFile(new FileReference(ResponseFile + ".dummy.h"), WrapperContents.ToString());
+								AdditionalStubIncludes = string.Format("/FI\"{0}\"", DummyResponseFileDependency);
+							}
+
 							// Add to script for execution by SN-DBS
-							string NewCommandArguments = "\"" + Action.CommandPath + "\"" + " " + Action.CommandArguments;
+							string NewCommandArguments = "\"" + Action.CommandPath + "\"" + " " + AdditionalStubIncludes + " " + Action.CommandArguments;
 							ScriptFile.WriteLine(NewCommandArguments);
 							InActionThreadDictionary.Add(Action, DummyActionThread);
 							Action.StartTime = Action.EndTime = DateTimeOffset.Now;
@@ -244,6 +268,12 @@ namespace UnrealBuildTool
 							JobNumber++;
 							NumScriptedActions++;
 							PrintDebugInfo |= Action.bPrintDebugInfo;
+
+							if (Action.DependencyListFile != null && File.Exists(Action.DependencyListFile.AbsolutePath))
+							{
+								Log.TraceVerbose("Deleting dependency list file {0}", Action.DependencyListFile.AbsolutePath);
+								File.Delete(Action.DependencyListFile.AbsolutePath);
+							}
 						}
 					}
 				}
@@ -421,12 +451,11 @@ namespace UnrealBuildTool
 
 					Log.WriteLineIf(bLogDetailedActionStats,
 						LogEventType.Console,
-						"^{0}^{1:0.00}^{2}^{3}^{4}",
+						"^{0}^{1:0.00}^{2}^{3}",
 						Action.ActionType.ToString(),
 						ThreadSeconds,
 						Action.CommandPath.GetFileName(),
-						Action.StatusDescription,
-						Action.bIsUsingPCH);
+						Action.StatusDescription);
 
 					// Keep track of total thread seconds spent on tasks.
 					TotalThreadSeconds += ThreadSeconds;

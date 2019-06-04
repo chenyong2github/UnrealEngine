@@ -6,13 +6,15 @@
 #include "RHI.h"
 
 #if PLATFORM_ANDROID
-#include "Android/AndroidMisc.h"
+#include "Android/AndroidPlatformMisc.h"
 
 #if USE_ANDROID_JNI
 extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
 #endif
+
+DEFINE_LOG_CATEGORY_STATIC(LogAndroidWindowUtils, Log, All)
 
 namespace AndroidWindowUtils
 {
@@ -60,24 +62,24 @@ namespace AndroidWindowUtils
 
 		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
 		const bool bMobileHDR = (MobileHDRCvar && MobileHDRCvar->GetValueOnAnyThread() == 1);
-		UE_LOG(LogAndroid, Log, TEXT("Mobile HDR: %s"), bMobileHDR ? TEXT("YES") : TEXT("no"));
+		UE_LOG(LogAndroidWindowUtils, Log, TEXT("Mobile HDR: %s"), bMobileHDR ? TEXT("YES") : TEXT("no"));
 
 		if (bMobileHDR)
 		{
-			UE_LOG(LogAndroid, Log, TEXT("Device requires 32BPP mode : %s"), bDeviceRequiresHDR32bpp ? TEXT("YES") : TEXT("no"));
-			UE_LOG(LogAndroid, Log, TEXT("Device requires mosaic: %s"), bDeviceRequiresMosaic ? TEXT("YES") : TEXT("no"));
+			UE_LOG(LogAndroidWindowUtils, Log, TEXT("Device requires 32BPP mode : %s"), bDeviceRequiresHDR32bpp ? TEXT("YES") : TEXT("no"));
+			UE_LOG(LogAndroidWindowUtils, Log, TEXT("Device requires mosaic: %s"), bDeviceRequiresMosaic ? TEXT("YES") : TEXT("no"));
 
 			if (MobileHDR32Mode != 0)
 			{
-				UE_LOG(LogAndroid, Log, TEXT("--- Enabling 32 BPP override with 'r.MobileHDR32bppMode' = %d"), MobileHDR32Mode);
-				UE_LOG(LogAndroid, Log, TEXT("  32BPP mode : YES"));
-				UE_LOG(LogAndroid, Log, TEXT("  32BPP mode requires mosaic: %s"), bMosaicEnabled ? TEXT("YES") : TEXT("no"));
-				UE_LOG(LogAndroid, Log, TEXT("  32BPP mode requires RGBE: %s"), MobileHDR32Mode == 2 ? TEXT("YES") : TEXT("no"));
+				UE_LOG(LogAndroidWindowUtils, Log, TEXT("--- Enabling 32 BPP override with 'r.MobileHDR32bppMode' = %d"), MobileHDR32Mode);
+				UE_LOG(LogAndroidWindowUtils, Log, TEXT("  32BPP mode : YES"));
+				UE_LOG(LogAndroidWindowUtils, Log, TEXT("  32BPP mode requires mosaic: %s"), bMosaicEnabled ? TEXT("YES") : TEXT("no"));
+				UE_LOG(LogAndroidWindowUtils, Log, TEXT("  32BPP mode requires RGBE: %s"), MobileHDR32Mode == 2 ? TEXT("YES") : TEXT("no"));
 			}
 
 			if (bMosaicEnabled)
 			{
-				UE_LOG(LogAndroid, Log, TEXT("Using mosaic rendering due to lack of Framebuffer Fetch support."));
+				UE_LOG(LogAndroidWindowUtils, Log, TEXT("Using mosaic rendering due to lack of Framebuffer Fetch support."));
 
 				const int32 OldScreenWidth = InOutScreenWidth;
 				const int32 OldSceenHeight = InOutScreenHeight;
@@ -99,7 +101,7 @@ namespace AndroidWindowUtils
 				InOutScreenWidth = (InOutScreenWidth / 8) * 8;
 				InOutScreenHeight = (InOutScreenHeight / 8) * 8;
 
-				UE_LOG(LogAndroid, Log, TEXT("Limiting MaxWidth=%d and MaxHeight=%d due to mosaic rendering on ES2 device (was %dx%d)"), InOutScreenWidth, InOutScreenHeight, OldScreenWidth, OldSceenHeight);
+				UE_LOG(LogAndroidWindowUtils, Log, TEXT("Limiting MaxWidth=%d and MaxHeight=%d due to mosaic rendering on ES2 device (was %dx%d)"), InOutScreenWidth, InOutScreenHeight, OldScreenWidth, OldSceenHeight);
 			}
 		}
 	}
@@ -122,7 +124,7 @@ namespace AndroidWindowUtils
 		// 0 means to use native size
 		if (RequestedContentScaleFactor == 0.0f)
 		{
-			UE_LOG(LogAndroid, Log, TEXT("Setting Width=%d and Height=%d (requested scale = 0 = auto)"), InOutScreenWidth, InOutScreenHeight);
+			UE_LOG(LogAndroidWindowUtils, Log, TEXT("Setting Width=%d and Height=%d (requested scale = 0 = auto)"), InOutScreenWidth, InOutScreenHeight);
 		}
 		else
 		{
@@ -148,7 +150,7 @@ namespace AndroidWindowUtils
 			InOutScreenWidth = FPlatformMath::Min(Width, InOutScreenWidth);
 			InOutScreenHeight = FPlatformMath::Min(Height, InOutScreenHeight);
 
-			UE_LOG(LogAndroid, Log, TEXT("Setting Width=%d and Height=%d (requested scale = %f)"), InOutScreenWidth, InOutScreenHeight, RequestedContentScaleFactor);
+			UE_LOG(LogAndroidWindowUtils, Log, TEXT("Setting Width=%d and Height=%d (requested scale = %f)"), InOutScreenWidth, InOutScreenHeight, RequestedContentScaleFactor);
 		}
 	}
 

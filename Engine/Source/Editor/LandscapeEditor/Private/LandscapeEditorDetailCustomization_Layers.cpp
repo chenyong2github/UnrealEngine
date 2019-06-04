@@ -355,6 +355,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerName(const FText& InText,
 	{
 		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Rename", "Rename Layer"));
 		LandscapeEdMode->SetLayerName(InLayerIndex, *InText.ToString());
+		OnLayerSelectionChanged(InLayerIndex);
 	}
 }
 
@@ -402,6 +403,9 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 				{
 					FUIAction RemoveReserveLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->SetLandscapeSplinesReservedLayer(INDEX_NONE); }));
 					MenuBuilder.AddMenuEntry(LOCTEXT("RemoveReserveLayerForSplines", "Remove Reserve for Splines"), LOCTEXT("RemoveReserveLayerForSplinesTooltip", "Remove reservation of Layer for Landscape Splines"), FSlateIcon(), RemoveReserveLayerAction);
+
+					FUIAction ForceUpdateSplinesAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->ForceUpdateSplines(); }));
+					MenuBuilder.AddMenuEntry(LOCTEXT("UpdateSplines", "Update Splines"), LOCTEXT("UpdateSplinesTooltip", "Update Landscape Splines"), FSlateIcon(), ForceUpdateSplinesAction);
 				}
 			}
 		}
@@ -440,6 +444,18 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 	return NULL;
 }
 
+void FLandscapeEditorCustomNodeBuilder_Layers::ForceUpdateSplines()
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape && Landscape->HasLayersContent() && Landscape->GetLandscapeSplinesReservedLayer())
+	{
+		const bool bUpdateOnlySelection = false;
+		const bool bForceUpdate = true;
+		Landscape->UpdateLandscapeSplines(FGuid(), bUpdateOnlySelection, bForceUpdate);
+	}
+}
+
 void FLandscapeEditorCustomNodeBuilder_Layers::SetLandscapeSplinesReservedLayer(int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
@@ -466,6 +482,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLandscapeSplinesReservedLayer(
 				Landscape->SetLandscapeSplinesReservedLayer(InLayerIndex);
 				LandscapeEdMode->RefreshDetailPanel();
 				LandscapeEdMode->AutoUpdateDirtyLandscapeSplines();
+				OnLayerSelectionChanged(InLayerIndex);
 			}
 		}
 	}
@@ -493,6 +510,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ClearLayer(int32 InLayerIndex)
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Clean", "Clear Layer"));
 				Landscape->ClearLayer(InLayerIndex);
+				OnLayerSelectionChanged(InLayerIndex);
 			}
 		}
 	}
@@ -528,6 +546,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ShowOnlySelectedLayer(int32 InLay
 	{
 		const FScopedTransaction Transaction(LOCTEXT("ShowOnlySelectedLayer", "Show Only Selected Layer"));
 		Landscape->ShowOnlySelectedLayer(InLayerIndex);
+		OnLayerSelectionChanged(InLayerIndex);
 	}
 }
 
@@ -544,22 +563,23 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ShowAllLayers()
 
 void FLandscapeEditorCustomNodeBuilder_Layers::CreateLayer()
 {
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
-	if (Landscape)
+FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+if (Landscape)
+{
 	{
-		{
-			const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Create", "Create Layer"));
-			Landscape->CreateLayer();
-		}
-		LandscapeEdMode->RefreshDetailPanel();
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Create", "Create Layer"));
+		Landscape->CreateLayer();
+		OnLayerSelectionChanged(Landscape->GetLayerCount() - 1);
 	}
+	LandscapeEdMode->RefreshDetailPanel();
+}
 }
 
 void FLandscapeEditorCustomNodeBuilder_Layers::OnLayerSelectionChanged(int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
-	if (LandscapeEdMode)
+	if (LandscapeEdMode && LandscapeEdMode->GetCurrentLayerIndex() != InLayerIndex)
 	{
 		FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetCurrentLayer", "Set Current Layer"));
 		LandscapeEdMode->SetCurrentLayer(InLayerIndex);
@@ -603,6 +623,10 @@ FReply FLandscapeEditorCustomNodeBuilder_Layers::OnToggleVisibility(int32 InLaye
 	{
 		const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_SetVisibility", "Set Layer Visibility"));
 		LandscapeEdMode->SetLayerVisibility(!LandscapeEdMode->IsLayerVisible(InLayerIndex), InLayerIndex);
+		if (LandscapeEdMode->IsLayerVisible(InLayerIndex))
+		{
+			OnLayerSelectionChanged(InLayerIndex);
+		}
 	}
 	return FReply::Handled();
 }

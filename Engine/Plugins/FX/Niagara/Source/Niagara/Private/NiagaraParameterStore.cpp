@@ -291,7 +291,12 @@ bool FNiagaraParameterStore::AddParameter(const FNiagaraVariable& Param, bool bI
 		//Temporary to init param data from FNiagaraVariable storage. This will be removed when we change the UNiagaraScript to use a parameter store too.
 		if (Param.IsDataAllocated())
 		{
-			FMemory::Memcpy(GetParameterData_Internal(Offset), Param.GetData(), ParamSize);
+			uint8* Dest = GetParameterData_Internal(Offset);
+			const uint8* Src = Param.GetData();
+			if (Dest != Src)
+			{
+				FMemory::Memcpy(Dest, Src, ParamSize);
+			}
 		}
 	}
 
@@ -366,7 +371,14 @@ void FNiagaraParameterStore::RenameParameter(const FNiagaraVariable& Param, FNam
 
 		bool bInitInterfaces = false;
 		bool bTriggerRebind = false;
+
+		int32 NumBytesBefore = ParameterData.Num();
 		AddParameter(NewParam, bInitInterfaces, bTriggerRebind);
+		int32 NumBytesAfter = ParameterData.Num();
+		int32 DeltaBytes = NumBytesAfter - NumBytesBefore;
+		int32 SizeInBytes = Param.GetSizeInBytes();
+
+		check(DeltaBytes == SizeInBytes);
 
 		int32 NewIdx = IndexOf(NewParam);
 		if (Param.IsDataInterface())

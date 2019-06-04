@@ -191,7 +191,7 @@ void UNiagaraNodeCustomHlsl::MoveDynamicPin(UEdGraphPin* Pin, int32 DirectionToM
 	RebuildSignatureFromPins();
 }
 
-void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive)
+void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
 {
 	Super::BuildParameterMapHistory(OutHistory, bRecursive);
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())

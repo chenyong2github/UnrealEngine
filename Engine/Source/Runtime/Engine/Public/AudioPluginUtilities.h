@@ -48,6 +48,7 @@ struct ENGINE_API AudioPluginUtilities
 	static IAudioSpatializationFactory* GetDesiredSpatializationPlugin(EAudioPlatform AudioPlatform);
 	static IAudioReverbFactory* GetDesiredReverbPlugin(EAudioPlatform AudioPlatform);
 	static IAudioOcclusionFactory* GetDesiredOcclusionPlugin(EAudioPlatform AudioPlatform);
+	static IAudioModulationFactory* GetDesiredModulationPlugin(EAudioPlatform AudioPlatform);
 
 	/** This function returns the name of the plugin specified in the platform settings. */
 	static FString GetDesiredPluginName(EAudioPlugin PluginType, EAudioPlatform AudioPlatform);

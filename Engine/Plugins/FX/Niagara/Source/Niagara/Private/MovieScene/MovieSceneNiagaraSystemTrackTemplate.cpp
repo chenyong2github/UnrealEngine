@@ -106,22 +106,22 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 				}
 			}
 
-			if (NiagaraComponent->IsActive() == false || NiagaraComponent->GetSystemInstance() == nullptr)
-			{
-				NiagaraComponent->Activate();
-			}
+			FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
 
 			if (Context.GetTime() < SpawnSectionStartFrame)
 			{
-				FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
-				if (SystemInstance != nullptr)
+				if (NiagaraComponent->IsActive() && SystemInstance != nullptr)
 				{
 					SystemInstance->SetRequestedExecutionState(ENiagaraExecutionState::Complete);
 				}
 			}
 			else if (Context.GetTime() < SpawnSectionEndFrame)
 			{
-				FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
+				if (NiagaraComponent->IsActive() == false)
+				{
+					NiagaraComponent->Activate();
+				}
+				
 				if (SystemInstance != nullptr)
 				{
 					SystemInstance->SetRequestedExecutionState(ENiagaraExecutionState::Active);
@@ -129,7 +129,6 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 			}
 			else
 			{
-				FNiagaraSystemInstance* SystemInstance = NiagaraComponent->GetSystemInstance();
 				if (SystemInstance != nullptr)
 				{
 					SystemInstance->SetRequestedExecutionState(ENiagaraExecutionState::Inactive);
@@ -138,7 +137,19 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 
 			bool bRenderingEnabled = Context.IsPreRoll() == false;
 			NiagaraComponent->SetRenderingEnabled(bRenderingEnabled);
-			NiagaraComponent->SetDesiredAge(Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame));
+
+			if (SystemInstance != nullptr && SystemInstance->IsComplete() == false)
+			{
+				float DesiredAge = Context.GetFrameRate().AsSeconds(Context.GetTime() - SpawnSectionStartFrame);
+				if (DesiredAge >= 0)
+				{
+					// Add a quarter of a frame offset here to push the desired age into the middle of the frame since it will be automatically rounded
+					// down to the nearest seek delta.  This prevents a situation where float rounding results in a value which is just slightly less than
+					// the frame boundary, which results in a skipped simulation frame.
+					float FrameOffset = NiagaraComponent->GetSeekDelta() / 4;
+					NiagaraComponent->SetDesiredAge(DesiredAge + FrameOffset);
+				}
+			}
 		}
 	}
 
@@ -149,9 +160,7 @@ struct FNiagaraSystemUpdateDesiredAgeExecutionToken : IMovieSceneExecutionToken
 FMovieSceneNiagaraSystemTrackImplementation::FMovieSceneNiagaraSystemTrackImplementation(FFrameNumber InSpawnSectionStartFrame, FFrameNumber InSpawnSectionEndFrame)
 	: SpawnSectionStartFrame(InSpawnSectionStartFrame)
 	, SpawnSectionEndFrame(InSpawnSectionEndFrame)
-{
-	EnableOverrides(CustomEvaluateFlag);
-}
+{}
 
 void FMovieSceneNiagaraSystemTrackImplementation::Evaluate(const FMovieSceneEvaluationTrack& Track, FMovieSceneSegmentIdentifier SegmentID, const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {

@@ -596,11 +596,38 @@ namespace Manzana
 			}
         }
 
-        /// <summary>
-        /// Tries to copy all of the files in a particular directory on the PC to the phone directory
-        /// (requires the bundle identifier to be able to mount that directory)
-        /// </summary>
-        public bool TryCopy(string BundleIdentifier, string SourceFolderOnPC, string TargetFolderOnDevice)
+		/// <summary>
+		/// Tries to copy the specified file from the device to a specified file path on the PC.
+		/// (requires the bundle identifier to be able to mount that directory)
+		/// </summary>
+		public bool TryCopyFileOut(string BundleIdentifier, string SourceFileOnDevice, string TargetFileOnPC)
+		{
+			if (ConnectToBundle(BundleIdentifier))
+			{
+				WriteProgressLine("Connected to bundle '{0}'", 0, BundleIdentifier);
+				try
+				{
+					CopyFileFromPhone(TargetFileOnPC, SourceFileOnDevice, 1024 * 1024);
+					return true;
+				}
+				catch (Exception ex)
+				{
+					WriteProgressLine("Failed to transfer a file, extended error is '{0}'", 100, ex.Message);
+					return false;
+				}
+			}
+			else
+			{
+				WriteProgressLine("Error: Failed to connect to bundle '{0}'", 100, BundleIdentifier);
+				return false;
+			}
+		}
+
+		/// <summary>
+		/// Tries to copy all of the files in a particular directory on the PC to the phone directory
+		/// (requires the bundle identifier to be able to mount that directory)
+		/// </summary>
+		public bool TryCopy(string BundleIdentifier, string SourceFolderOnPC, string TargetFolderOnDevice)
 		{
 			if (ConnectToBundle(BundleIdentifier))
 			{
@@ -1152,10 +1179,10 @@ namespace Manzana
             }
         }
 
-        /// <summary>
-        /// Copies a file from the phone to the PC
-        /// </summary>
-        void CopyFileFromPhone(string PathOnPC, string PathOnPhone, int ChunkSize)
+		/// <summary>
+		/// Copies a file from the phone to the PC
+		/// </summary>
+		void CopyFileFromPhone(string PathOnPC, string PathOnPhone, int ChunkSize)
         {
             DateTime StartTime = DateTime.Now;
 

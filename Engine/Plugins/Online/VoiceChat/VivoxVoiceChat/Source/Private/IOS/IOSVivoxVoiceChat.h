@@ -22,10 +22,13 @@ protected:
 	virtual void onConnectCompleted(const VivoxClientApi::Uri& Server) override;
 	virtual void onDisconnected(const VivoxClientApi::Uri& Server, const VivoxClientApi::VCSStatus& Status) override;
 	// ~End DebugClientApiEventHandler Interface
+	
+	void SetVivoxSdkConfigHints(vx_sdk_config_t &Hints) override;
 
 private:
 	void OnVoiceChatConnectComplete(const FVoiceChatResult& Result);
 	void OnVoiceChatDisconnectComplete(const FVoiceChatResult& Result);
+	void OnVoiceChatDelayedDisconnectComplete(const FVoiceChatResult& Result);
 
 	void HandleApplicationWillEnterBackground();
 	void HandleApplicationHasEnteredForeground();
@@ -41,4 +44,7 @@ private:
 	bool bShouldReconnect;
 
 	bool bIsRecording;
+
+	float BackgroundDelayedDisconnectTime;
+	NSTimer* DelayedDisconnectTimer;
 };

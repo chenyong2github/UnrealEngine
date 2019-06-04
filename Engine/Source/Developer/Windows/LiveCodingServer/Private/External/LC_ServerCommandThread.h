@@ -29,31 +29,17 @@ public:
 
 	std::wstring GetProcessImagePath(void) const;
 
-	struct TaskContext
-	{
-		scheduler::TaskBase* taskRoot;
-		types::vector<scheduler::Task<LiveModule*>*> tasks;
-	};
-
 private:
-	void LoadModule(const wchar_t* modulePath, const DuplexPipe* pipe, TaskContext* tasks, unsigned int processId);
-	void LoadAllModules(const wchar_t* modulePath, const DuplexPipe* pipe, TaskContext* tasks, unsigned int processId);
-
-	void UnloadModule(const wchar_t* modulePath, const DuplexPipe* pipe, unsigned int processId);
-	void UnloadAllModules(const wchar_t* modulePath, const DuplexPipe* pipe, unsigned int processId);
+	scheduler::Task<LiveModule*>* LoadModule(unsigned int processId, void* moduleBase, const wchar_t* modulePath, scheduler::TaskBase* taskRoot);
+	bool UnloadModule(unsigned int processId, const wchar_t* modulePath);
 
 	void PrewarmCompilerEnvironmentCache(void);
 
-	static unsigned int __stdcall ServerThreadProxy(void* context);
 	unsigned int ServerThread(void);
-
-	static unsigned int __stdcall CompileThreadProxy(void* context);
 	unsigned int CompileThread(void);
 
 	struct CommandThreadContext
 	{
-		ServerCommandThread* instance;
-
 		DuplexPipeServer pipe;
 		Event* readyEvent;
 		thread::Handle commandThread;
@@ -62,10 +48,7 @@ private:
 		thread::Handle exceptionCommandThread;
 	};
 
-	static unsigned int __stdcall CommandThreadProxy(void* context);
 	unsigned int CommandThread(DuplexPipeServer* pipe, Event* readyEvent);
-
-	static unsigned int __stdcall ExceptionCommandThreadProxy(void* context);
 	unsigned int ExceptionCommandThread(DuplexPipeServer* exceptionPipe);
 
 	void RemoveCommandThread(const DuplexPipe* pipe);
@@ -74,159 +57,53 @@ private:
 
 	void CompileChanges(bool didAllProcessesMakeProgress);
 
+
 	// actions
-	struct TriggerRecompileAction
+	struct actions
 	{
-		typedef commands::TriggerRecompile CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
+		#define DECLARE_ACTION(_name)																													\
+			struct _name																																\
+			{																																			\
+				typedef ::commands::_name CommandType;																									\
+				static bool Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void* payload, size_t payloadSize);		\
+			}
 
-	struct BuildPatchAction
-	{
-		typedef commands::BuildPatch CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
+		DECLARE_ACTION(TriggerRecompile);
+		DECLARE_ACTION(BuildPatch);
+		DECLARE_ACTION(HandleException);
+		DECLARE_ACTION(ReadyForCompilation);
+		DECLARE_ACTION(DisconnectClient);
+		DECLARE_ACTION(RegisterProcess);
 
-	struct HandleExceptionAction
-	{
-		typedef commands::HandleException CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
+		DECLARE_ACTION(EnableModules);
+		DECLARE_ACTION(DisableModules);
 
-	struct ReadyForCompilationAction
-	{
-		typedef commands::ReadyForCompilation CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
+		DECLARE_ACTION(ApplySettingBool);
+		DECLARE_ACTION(ApplySettingInt);
+		DECLARE_ACTION(ApplySettingString);
 
-	struct DisconnectClientAction
-	{
-		typedef commands::DisconnectClient CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
+		// BEGIN EPIC MOD - Adding ShowConsole command
+		DECLARE_ACTION(ShowConsole);
+		// END EPIC MOD
 
-	// BEGIN EPIC MOD - Adding ShowConsole command
-	struct ShowConsoleAction
-	{
-		typedef commands::ShowConsole CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-	// END EPIC MOD
+		// BEGIN EPIC MOD - Adding ShowConsole command
+		DECLARE_ACTION(SetVisible);
+		// END EPIC MOD
 
-	// BEGIN EPIC MOD - Adding ShowConsole command
-	struct SetVisibleAction
-	{
-		typedef commands::SetVisible CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-	// END EPIC MOD
+		// BEGIN EPIC MOD - Adding SetActive command
+		DECLARE_ACTION(SetActive);
+		// END EPIC MOD
 
-	// BEGIN EPIC MOD - Adding SetActive command
-	struct SetActiveAction
-	{
-		typedef commands::SetActive CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-	// END EPIC MOD
+		// BEGIN EPIC MOD - Adding SetBuildArguments command
+		DECLARE_ACTION(SetBuildArguments);
+		// END EPIC MOD
 
-	// BEGIN EPIC MOD - Adding SetBuildArguments command
-	struct SetBuildArgumentsAction
-	{
-		typedef commands::SetBuildArguments CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-	// END EPIC MOD
+		// BEGIN EPIC MOD - Adding support for lazy-loading modules
+		DECLARE_ACTION(EnableLazyLoadedModule);
+		DECLARE_ACTION(FinishedLazyLoadingModules);
+		// END EPIC MOD
 
-	// BEGIN EPIC MOD - Adding support for lazy-loading modules
-	struct EnableLazyLoadedModuleAction
-	{
-		typedef commands::EnableLazyLoadedModule CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct FinishedLazyLoadingModulesAction
-	{
-		typedef commands::FinishedLazyLoadingModules CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-	// END EPIC MOD
-
-	struct RegisterProcessAction
-	{
-		typedef commands::RegisterProcess CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct EnableModuleBatchBeginAction
-	{
-		typedef commands::EnableModuleBatchBegin CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct EnableModuleBatchEndAction
-	{
-		typedef commands::EnableModuleBatchEnd CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct DisableModuleBatchBeginAction
-	{
-		typedef commands::DisableModuleBatchBegin CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct DisableModuleBatchEndAction
-	{
-		typedef commands::DisableModuleBatchEnd CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct EnableModuleAction
-	{
-		typedef commands::EnableModule CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct EnableAllModulesAction
-	{
-		typedef commands::EnableAllModules CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct DisableModuleAction
-	{
-		typedef commands::DisableModule CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct DisableAllModulesAction
-	{
-		typedef commands::DisableAllModules CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct GetModuleInfoAction
-	{
-		typedef commands::GetModuleInfo CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct ApplySettingBoolAction
-	{
-		typedef commands::ApplySettingBool CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct ApplySettingIntAction
-	{
-		typedef commands::ApplySettingInt CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
-	};
-
-	struct ApplySettingStringAction
-	{
-		typedef commands::ApplySettingString CommandType;
-		static bool Execute(CommandType* command, const DuplexPipe* pipe, void* context);
+		#undef DECLARE_ACTION
 	};
 
 
@@ -252,9 +129,6 @@ private:
 	// keeping track of the client connections
 	CriticalSection m_connectionCS;
 	types::vector<CommandThreadContext*> m_commandThreads;
-
-	telemetry::Scope m_moduleBatchScope;
-	size_t m_loadedCompilandCountInBatchScope;
 
 	// BEGIN EPIC MOD - Adding SetActive command
 	bool m_active = true;

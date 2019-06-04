@@ -7,8 +7,10 @@
 #include "AudioMixerSubmix.h"
 #include "IAudioExtensionPlugin.h"
 #include "AudioMixer.h"
+#include "ProfilingDebugging/CsvProfiler.h"
 
-DEFINE_STAT(STAT_AudioMixerHRTF);
+// Link to "Audio" profiling category
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
 static int32 DisableParallelSourceProcessingCvar = 1;
 FAutoConsoleVariableRef CVarDisableParallelSourceProcessing(
@@ -63,6 +65,14 @@ FAutoConsoleVariableRef CVarBypassAudioPlugins(
 	TEXT("au.BypassAudioPlugins"),
 	BypassAudioPluginsCvar,
 	TEXT("Bypasses any audio plugin processing.\n")
+	TEXT("0: Not Disabled, 1: Disabled"),
+	ECVF_Default);
+
+static int32 FlushCommandBufferOnTimeoutCvar = 0;
+FAutoConsoleVariableRef CVarFlushCommandBufferOnTimeout(
+	TEXT("au.FlushCommandBufferOnTimeout"),
+	FlushCommandBufferOnTimeoutCvar,
+	TEXT("When set to 1, flushes audio render thread synchronously when our fence has timed out.\n")
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
@@ -208,6 +218,7 @@ namespace Audio
 			SourceInfo.bUseHRTFSpatializer = false;
 			SourceInfo.bUseOcclusionPlugin = false;
 			SourceInfo.bUseReverbPlugin = false;
+			SourceInfo.bUseModulationPlugin = false;
 			SourceInfo.bHasStarted = false;
 			SourceInfo.bOutputToBusOnly = false;
 			SourceInfo.bIsVorbis = false;
@@ -296,13 +307,23 @@ namespace Audio
 				// And will allow the audio thread to write to a new command slot
 				const int32 NextIndex = (CurrentGameIndex + 1) & 1;
 
+				FCommands& NextCommandBuffer = CommandBuffers[NextIndex];
+
 				// Make sure we've actually emptied the command queue from the render thread before writing to it
-#if !UE_BUILD_SHIPPING
-				if (!bTimedOut)
+				if (FlushCommandBufferOnTimeoutCvar && NextCommandBuffer.SourceCommandQueue.Num() != 0)
 				{
-					check(CommandBuffers[NextIndex].SourceCommandQueue.Num() == 0);
+					UE_LOG(LogAudioMixer, Warning, TEXT("Audio render callback stopped. Flushing %d commands."), NextCommandBuffer.SourceCommandQueue.Num());
+
+					// Pop and execute all the commands that came since last update tick
+					for (int32 Id = 0; Id < NextCommandBuffer.SourceCommandQueue.Num(); ++Id)
+					{
+						TFunction<void()>& CommandFunction = NextCommandBuffer.SourceCommandQueue[Id];
+						CommandFunction();
+						NumCommands.Decrement();
+					}
+
+					NextCommandBuffer.SourceCommandQueue.Reset();
 				}
-#endif
 
 				// Here we ensure that we block for any pending calls to AudioMixerThreadCommand.
 				FScopeLock ScopeLock(&CommandBufferIndexCriticalSection);
@@ -423,6 +444,11 @@ namespace Audio
 			MixerDevice->ReverbPluginInterface->OnReleaseSource(SourceId);
 		}
 
+		if (SourceInfo.bUseModulationPlugin)
+		{
+			MixerDevice->ModulationInterface->OnReleaseSource(SourceId);
+		}
+
 		// Delete the source effects
 		SourceInfo.SourceEffectChainId = INDEX_NONE;
 		ResetSourceEffectChain(SourceId);
@@ -472,6 +498,7 @@ namespace Audio
 		SourceInfo.bUseHRTFSpatializer = false;
 		SourceInfo.bUseOcclusionPlugin = false;
 		SourceInfo.bUseReverbPlugin = false;
+		SourceInfo.bUseModulationPlugin = false;
 		SourceInfo.bHasStarted = false;
 		SourceInfo.bOutputToBusOnly = false;
 		SourceInfo.bIsBypassingLPF = false;
@@ -639,6 +666,13 @@ namespace Audio
 			{
 				MixerDevice->ReverbPluginInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ReverbPluginSettings);
 				SourceInfo.bUseReverbPlugin = true;
+			}
+
+			// Create the modulation plugin source effect
+			if (InitParams.ModulationPluginSettings != nullptr)
+			{
+				MixerDevice->ModulationInterface->OnInitSource(SourceId, InitParams.AudioComponentUserID, InitParams.NumInputChannels, InitParams.ModulationPluginSettings);
+				SourceInfo.bUseModulationPlugin = true;
 			}
 
 			// Default all sounds to not consider effect chain tails when playing
@@ -1074,7 +1108,6 @@ namespace Audio
 		AudioMixerThreadCommand([this, SourceId, InHPFFrequency]()
 		{
 			AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
-
 			SourceInfos[SourceId].HighPassFilter.StartFrequencyInterpolation(InHPFFrequency, NumOutputFrames);
 		});
 	}
@@ -1310,7 +1343,7 @@ namespace Audio
 
 	void FMixerSourceManager::ComputeSourceBuffersForIdRange(const bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceBuffers);
+		CSV_SCOPED_TIMING_STAT(Audio, SourceBuffers);
 
 		const double AudioRenderThreadTime = MixerDevice->GetAudioRenderThreadTime();
 		const double AudioClockDelta = MixerDevice->GetAudioClockDelta();
@@ -1518,8 +1551,6 @@ namespace Audio
 			return;
 		}
 
-		// Apply the distance attenuation before sending to plugins
-		float* PreDistanceAttenBufferPtr = SourceInfo.PreDistanceAttenuationBuffer.GetData();
 		float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
 
 		bool bShouldMixInReverb = false;
@@ -1594,7 +1625,7 @@ namespace Audio
 		// If the source has HRTF processing enabled, run it through the spatializer
 		if (SourceInfo.bUseHRTFSpatializer)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_AudioMixerHRTF);
+			CSV_SCOPED_TIMING_STAT(Audio, HRTF);
 
 			AUDIO_MIXER_CHECK(SpatializationPlugin.IsValid());
 			AUDIO_MIXER_CHECK(SourceInfo.NumInputChannels == 1);
@@ -1943,7 +1974,7 @@ namespace Audio
 
 	void FMixerSourceManager::ComputePostSourceEffectBufferForIdRange(bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceEffectBuffers);
+		CSV_SCOPED_TIMING_STAT(Audio, SourceEffectsBuffers);
 
 		const bool bIsDebugModeEnabled = DebugSoloSources.Num() > 0;
 
@@ -2065,36 +2096,40 @@ namespace Audio
 				SourceInfo.SourceListener->OnEffectTailsDone();
 			}
 
-			// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
-			if (!SourceInfo.bOutputToBusOnly && !DisableFilteringCvar)
+			if (!SourceInfo.bOutputToBusOnly)
 			{
+				// Only scale with distance attenuation and send to source audio to plugins if we're not in output-to-bus only mode
+				const int32 NumOutputSamplesThisSource = NumOutputFrames * SourceInfo.NumInputChannels;
+
+				const bool BypassLPF = DisableFilteringCvar || (SourceInfo.LowPassFilter.GetCutoffFrequency() >= (MAX_FILTER_FREQUENCY - KINDA_SMALL_NUMBER));
+				const bool BypassHPF = DisableFilteringCvar || DisableHPFilteringCvar || (SourceInfo.HighPassFilter.GetCutoffFrequency() <= (MIN_FILTER_FREQUENCY + KINDA_SMALL_NUMBER));
+
 				float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
+				float* HpfInputBuffer = PreDistanceAttenBufferPtr; // assume bypassing LPF (HPF uses input buffer as input)
 
-				// Process the filters after the source effects (Using optimized filters)
-				for (int32 SampleIndex = 0; SampleIndex < NumOutputFrames * SourceInfo.NumInputChannels; SampleIndex += SourceInfo.NumInputChannels)
+				if (!BypassLPF)
 				{
-					SourceInfo.LowPassFilter.ProcessAudioFrame(&PreDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
+					// Not bypassing LPF, so tell HPF to use LPF output buffer as input
+					HpfInputBuffer = PostDistanceAttenBufferPtr;
 
-					if (!DisableHPFilteringCvar)
-					{
-						SourceInfo.HighPassFilter.ProcessAudioFrame(&PostDistanceAttenBufferPtr[SampleIndex], &PostDistanceAttenBufferPtr[SampleIndex]);
-					}
+					// process LPF audio block
+					SourceInfo.LowPassFilter.ProcessAudioBuffer(PreDistanceAttenBufferPtr, PostDistanceAttenBufferPtr, NumOutputSamplesThisSource);
+				}
+
+				if(!BypassHPF)
+				{
+					// process HPF audio block
+					SourceInfo.HighPassFilter.ProcessAudioBuffer(HpfInputBuffer, PostDistanceAttenBufferPtr, NumOutputSamplesThisSource);
 				}
 
 				// We manually reset interpolation to avoid branches in filter code
 				SourceInfo.LowPassFilter.StopFrequencyInterpolation();
 				SourceInfo.HighPassFilter.StopFrequencyInterpolation();
 
-				// Apply distance attenuation
-				ApplyDistanceAttenuation(SourceInfo, NumSamples);
-
-				// Send source audio to plugins
-				ComputePluginAudio(SourceInfo, DownmixData, SourceId, NumSamples);
-			}
-			else if (DisableFilteringCvar)
-			{
-				float* PostDistanceAttenBufferPtr = SourceInfo.SourceBuffer.GetData();
-				FMemory::Memcpy(PostDistanceAttenBufferPtr, PreDistanceAttenBufferPtr, NumSamples * sizeof(float));
+				if (BypassLPF && BypassHPF)
+				{
+					FMemory::Memcpy(PostDistanceAttenBufferPtr, PreDistanceAttenBufferPtr, NumSamples * sizeof(float));
+				}
 
 				// Apply distance attenuation
 				ApplyDistanceAttenuation(SourceInfo, NumSamples);
@@ -2116,7 +2151,7 @@ namespace Audio
 
 	void FMixerSourceManager::ComputeOutputBuffersForIdRange(const bool bGenerateBuses, const int32 SourceIdStart, const int32 SourceIdEnd)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceOutputBuffers);
+		CSV_SCOPED_TIMING_STAT(Audio, SourceOutputBuffers);
 
 		for (int32 SourceId = SourceIdStart; SourceId < SourceIdEnd; ++SourceId)
 		{
@@ -2145,13 +2180,14 @@ namespace Audio
 				continue;
 			}
 
-			if (SourceInfo.bIs3D)
+			if (SourceInfo.bIs3D && !DownmixData.bIsInitialDownmix)
 			{
 				ComputeDownmix3D(DownmixData);
 			}
 			else
 			{
 				ComputeDownmix2D(DownmixData);
+				DownmixData.bIsInitialDownmix = false;
 			}
 		}
 	}
@@ -2362,7 +2398,7 @@ namespace Audio
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
 
-		SCOPE_CYCLE_COUNTER(STAT_AudioMixerSourceManagerUpdate);
+		CSV_SCOPED_TIMING_STAT(Audio, SourceManagerUpdate);
 
 		if (FPlatformProcess::SupportsMultithreading())
 		{

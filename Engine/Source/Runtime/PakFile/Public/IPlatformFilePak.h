@@ -109,7 +109,7 @@ struct FPakInfo
 	/** Size (in bytes) of pak file index. */
 	int64 IndexSize;
 	/** Index SHA1 value. */
-	uint8 IndexHash[20];
+	FSHAHash IndexHash;
 	/** Flag indicating if the pak index has been encrypted. */
 	uint8 bEncryptedIndex;
 	/** Encryption key guid. Empty if we should use the embedded key. */
@@ -127,7 +127,6 @@ struct FPakInfo
 		, IndexSize(0)
 		, bEncryptedIndex(0)
 	{
-		FMemory::Memset(IndexHash, 0, sizeof(IndexHash));
 		// we always put in a NAME_None entry as index 0, so that an uncompressed PakEntry will have CompressionMethodIndex of 0 and can early out easily
 		CompressionMethods.Add(NAME_None);
 	}
@@ -182,7 +181,7 @@ struct FPakInfo
 		Ar << Version;
 		Ar << IndexOffset;
 		Ar << IndexSize;
-		Ar.Serialize(IndexHash, sizeof(IndexHash));
+		Ar << IndexHash;
 
 		if (Ar.IsLoading())
 		{
@@ -1580,6 +1579,8 @@ public:
 	virtual bool ShouldBeUsed(IPlatformFile* Inner, const TCHAR* CmdLine) const override;
 	virtual bool Initialize(IPlatformFile* Inner, const TCHAR* CommandLineParam) override;
 	virtual void InitializeNewAsyncIO() override;
+
+	void OptimizeMemoryUsageForMountedPaks();
 
 	virtual IPlatformFile* GetLowerLevel() override
 	{

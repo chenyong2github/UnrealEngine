@@ -200,7 +200,7 @@ namespace UnrealBuildTool
 				// Mark the link environment as cross-referenced.
 				BinaryLinkEnvironment.bIsCrossReferenced = true;
 
-				if (BinaryLinkEnvironment.Platform != CppPlatform.Mac && BinaryLinkEnvironment.Platform != CppPlatform.Linux)
+				if (BinaryLinkEnvironment.Platform != UnrealTargetPlatform.Mac && BinaryLinkEnvironment.Platform != UnrealTargetPlatform.Linux)
 				{
 					// Create the import library.
 					OutputFiles.AddRange(ToolChain.LinkAllFiles(BinaryLinkEnvironment, true, Makefile.Actions));
@@ -320,7 +320,7 @@ namespace UnrealBuildTool
 				foreach (FileReference OutputFilePath in OutputFilePaths)
 				{
 					FileReference LibraryFileName;
-					if (Type == UEBuildBinaryType.StaticLibrary || DependentLinkEnvironment.Platform == CppPlatform.Mac || DependentLinkEnvironment.Platform == CppPlatform.Linux)
+					if (Type == UEBuildBinaryType.StaticLibrary || DependentLinkEnvironment.Platform == UnrealTargetPlatform.Mac || DependentLinkEnvironment.Platform == UnrealTargetPlatform.Linux)
 					{
 						LibraryFileName = OutputFilePath;
 					}
@@ -338,12 +338,12 @@ namespace UnrealBuildTool
 		/// Called to allow the binary to find game modules.
 		/// </summary>
 		/// <returns>The OnlyModule if found, null if not</returns>
-		public List<UEBuildModule> FindGameModules()
+		public List<UEBuildModule> FindHotReloadModules()
 		{
 			List<UEBuildModule> GameModules = new List<UEBuildModule>();
 			foreach (UEBuildModule Module in Modules)
 			{
-				if (!UnrealBuildTool.IsUnderAnEngineDirectory(Module.ModuleDirectory))
+				if(Module.Rules.Context.bCanHotReload)
 				{
 					GameModules.Add(Module);
 				}
@@ -537,7 +537,9 @@ namespace UnrealBuildTool
 			{
 				if (!String.IsNullOrEmpty(DebugExtension) && ToolChain.ShouldAddDebugFileToReceipt(OutputFile, OutputType) && bCreateDebugInfo)
 				{
-					BuildProducts.Add(OutputFile.ChangeExtension(DebugExtension), BuildProductType.SymbolFile);
+					// @todo this could be cleaned up if we replaced Platform.GetDebugExtensions() with ToolChain.GetDebugFiles(OutputFile)
+					// would need care in MacToolchain tho, so too risky for now
+					BuildProducts.Add(ToolChain.GetDebugFile(OutputFile, DebugExtension), BuildProductType.SymbolFile);
 				}
 			}
 		}
@@ -743,7 +745,7 @@ namespace UnrealBuildTool
 			BinaryLinkEnvironment.bIsBuildingLibrary = IsBuildingLibrary(Type);
 
 			// If we don't have any resource file, use the default or compile a custom one for this module
-			if(BinaryLinkEnvironment.Platform == CppPlatform.Win32 || BinaryLinkEnvironment.Platform == CppPlatform.Win64)
+			if(BinaryLinkEnvironment.Platform == UnrealTargetPlatform.Win32 || BinaryLinkEnvironment.Platform == UnrealTargetPlatform.Win64)
 			{
 				// Figure out if this binary has any custom resource files. Hacky check to ignore the resource file in the Launch module, since it contains dialogs that the engine needs and always needs to be included.
 				FileItem[] CustomResourceFiles = BinaryLinkEnvironment.InputFiles.Where(x => x.Location.HasExtension(".res") && !x.Location.FullName.EndsWith("\\Launch\\PCLaunch.rc.res", StringComparison.OrdinalIgnoreCase)).ToArray();

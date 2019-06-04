@@ -824,6 +824,8 @@ DEFINE_FUNCTION(UObject::execCallMathFunction)
 	UFunction* Function = (UFunction*)Stack.ReadObject();
 	checkSlow(Function);
 	checkSlow(Function->FunctionFlags & FUNC_Native);
+	// ProcessContext is the arbiter of net callspace, so we can't call net functions using this instruction:
+	checkSlow(!Function->HasAnyFunctionFlags(FUNC_NetFuncFlags|FUNC_BlueprintAuthorityOnly|FUNC_BlueprintCosmetic|FUNC_NetRequest|FUNC_NetResponse));
 	UObject* NewContext = Function->GetOuterUClassUnchecked()->ClassDefaultObject;
 	checkSlow(NewContext);
 	{
@@ -857,12 +859,14 @@ void UObject::CallFunction( FFrame& Stack, RESULT_DECL, UFunction* Function )
 
 	if (Function->FunctionFlags & FUNC_Native)
 	{
-		uint8* Buffer = (uint8*)FMemory_Alloca(Function->ParmsSize);
-		int32 FunctionCallspace = GetFunctionCallspace( Function, Buffer, &Stack );
+		const bool bNetFunction = Function->HasAnyFunctionFlags(FUNC_NetFuncFlags|FUNC_BlueprintAuthorityOnly|FUNC_BlueprintCosmetic|FUNC_NetRequest|FUNC_NetResponse);
+		const int32 FunctionCallspace = bNetFunction ? GetFunctionCallspace( Function, &Stack ) : FunctionCallspace::Local;
+
 		uint8* SavedCode = NULL;
 		if (FunctionCallspace & FunctionCallspace::Remote)
 		{
 			// Call native networkable function.
+			uint8* Buffer = (uint8*)FMemory_Alloca(Function->ParmsSize);
 
 			SavedCode = Stack.Code; // Since this is native, we need to rollback the stack if we are calling both remotely and locally
 
@@ -1047,7 +1051,7 @@ DEFINE_FUNCTION(UObject::ProcessInternal)
 #endif
 
 	UFunction* Function = (UFunction*)Stack.Node;
-	int32 FunctionCallspace = P_THIS->GetFunctionCallspace(Function, Stack.Locals, NULL);
+	int32 FunctionCallspace = P_THIS->GetFunctionCallspace(Function, NULL);
 	if (FunctionCallspace & FunctionCallspace::Remote)
 	{
 		P_THIS->CallRemoteFunction(Function, Stack.Locals, Stack.OutParms, NULL);
@@ -1339,7 +1343,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 
 	if ((Function->FunctionFlags & FUNC_Native) != 0)
 	{
-		int32 FunctionCallspace = GetFunctionCallspace(Function, Parms, NULL);
+		int32 FunctionCallspace = GetFunctionCallspace(Function, NULL);
 		if (FunctionCallspace & FunctionCallspace::Remote)
 		{
 			CallRemoteFunction(Function, Parms, NULL, NULL);

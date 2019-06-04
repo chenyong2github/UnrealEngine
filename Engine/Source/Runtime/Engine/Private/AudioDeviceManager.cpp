@@ -1,9 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #include "AudioDeviceManager.h"
+
+#include "Audio/AudioDebug.h"
 #include "AudioDevice.h"
-#include "Sound/SoundWave.h"
 #include "Sound/AudioSettings.h"
+#include "Sound/SoundWave.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
@@ -75,7 +76,6 @@ FAudioDeviceManager::FAudioDeviceManager()
 	, ActiveAudioDeviceHandle(INDEX_NONE)
 	, bUsingAudioMixer(false)
 	, bPlayAllDeviceAudio(false)
-	, bVisualize3dDebug(false)
 	, bOnlyToggleAudioMixerOnce(false)
 	, bToggledAudioMixer(false)
 {
@@ -933,11 +933,16 @@ void FAudioDeviceManager::TogglePlayAllDeviceAudio()
 
 bool FAudioDeviceManager::IsVisualizeDebug3dEnabled() const
 {
-	return bVisualize3dDebug || CVarIsVisualizeEnabled;
+#if ENABLE_AUDIO_DEBUG
+	return AudioDebugger.IsVisualizeDebug3dEnabled() || CVarIsVisualizeEnabled;
+#else // ENABLE_AUDIO_DEBUG
+	return false;
+#endif // !ENABLE_AUDIO_DEBUG
 }
 
 void FAudioDeviceManager::ToggleVisualize3dDebug()
 {
+#if ENABLE_AUDIO_DEBUG
 	if (!IsInAudioThread())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ToggleVisualize3dDebug"), STAT_ToggleVisualize3dDebug, STATGROUP_AudioThreadCommands);
@@ -952,33 +957,8 @@ void FAudioDeviceManager::ToggleVisualize3dDebug()
 		return;
 	}
 
-	bVisualize3dDebug = !bVisualize3dDebug;
-}
-
-void FAudioDeviceManager::ToggleDebugStat(const uint8 StatBitMask)
-{
-#if !UE_BUILD_SHIPPING
-	if (!IsInAudioThread())
-	{
-		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.ToggleDebugStat"), STAT_ToggleDebugStat, STATGROUP_AudioThreadCommands);
-
-		FAudioDeviceManager* AudioDeviceManager = this;
-		FAudioThread::RunCommandOnAudioThread([AudioDeviceManager, StatBitMask]()
-		{
-			AudioDeviceManager->ToggleDebugStat(StatBitMask);
-		}, GET_STATID(STAT_ToggleDebugStat));
-
-		return;
-	}
-
-	for (FAudioDevice* AudioDevice : Devices)
-	{
-		if (AudioDevice)
-		{
-			AudioDevice->UpdateRequestedStat(StatBitMask);
-		}
-	}
-#endif
+	GetDebugger().ToggleVisualizeDebug3dEnabled();
+#endif // ENABLE_AUDIO_DEBUG
 }
 
 void FAudioDeviceManager::SetDebugSoloSoundClass(const TCHAR* SoundClassName)
@@ -1144,3 +1124,10 @@ void FAudioDeviceManager::SetDynamicSoundVolume(ESoundType SoundType, const FNam
 	TTuple<ESoundType, FName> Key(SoundType, SoundName);
 	DynamicSoundVolumes.FindOrAdd(Key) = Volume;
 }
+
+#if ENABLE_AUDIO_DEBUG
+FAudioDebugger& FAudioDeviceManager::GetDebugger()
+{
+	return AudioDebugger;
+}
+#endif // ENABLE_AUDIO_DEBUG

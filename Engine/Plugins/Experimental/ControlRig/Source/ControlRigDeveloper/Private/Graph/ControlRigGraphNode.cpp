@@ -31,11 +31,9 @@ UControlRigGraphNode::UControlRigGraphNode()
 : Dimensions(0.0f, 0.0f)
 , NodeTitleFull(FText::GetEmpty())
 , NodeTitle(FText::GetEmpty())
-, CachedTitleColorFromMetadata(FLinearColor(0.f, 0.f, 0.f, 0.f))
-, CachedNodeColorFromMetadata(FLinearColor(0.f, 0.f, 0.f, 0.f))
+, CachedTitleColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
+, CachedNodeColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 {
-	UpdateNodeColorFromMetadata();
-
 	bHasCompilerMessage = false;
 	ErrorType = (int32)EMessageSeverity::Info + 1;
 	ParameterType = (int32)EControlRigModelParameterType::None;
@@ -84,17 +82,6 @@ void UControlRigGraphNode::ReconstructNode()
 			return;
 		}
 	}
-
-#if WITH_EDITORONLY_DATA
-	// store the nodes connected to outputs of hierarchy refs.
-	// this is done for backwards compatibility
-	if (HasAnyFlags(RF_NeedPostLoad))
-	{
-		CacheHierarchyRefConnectionsOnPostLoad();
-	}
-#endif
-
-	Modify();
 
 	// Clear previously set messages
 	ErrorMsg.Reset();
@@ -249,7 +236,6 @@ void UControlRigGraphNode::DestroyPinList(TArray<UEdGraphPin*>& InPins)
 	// Throw away the original pins
 	for (UEdGraphPin* Pin : InPins)
 	{
-		Pin->Modify();
 		Pin->BreakAllPinLinks(bNotify);
 
 		UEdGraphNode::DestroyPin(Pin);
@@ -264,7 +250,25 @@ void UControlRigGraphNode::PostReconstructNode()
 	}
 
 	bCanRenameNode = false;
-	UpdateNodeColorFromMetadata();
+
+	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
+	if (Blueprint)
+	{
+		if (Blueprint->Model)
+		{
+			if (const FControlRigModelNode* ModelNode = Blueprint->Model->FindNode(PropertyName))
+			{
+				SetColorFromModel(ModelNode->Color);
+			}
+		}
+	}
+}
+
+void UControlRigGraphNode::SetColorFromModel(const FLinearColor& InColor)
+{
+	static const FLinearColor TitleToNodeColor(0.35f, 0.35f, 0.35f, 1.f);
+	CachedNodeColor = InColor * TitleToNodeColor;
+	CachedTitleColor = InColor;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -557,12 +561,12 @@ UClass* UControlRigGraphNode::GetControlRigSkeletonGeneratedClass() const
 FLinearColor UControlRigGraphNode::GetNodeTitleColor() const
 {
 	// return a darkened version of the default node's color
-	return CachedTitleColorFromMetadata;
+	return CachedTitleColor;
 }
 
 FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
 {
-	return CachedNodeColorFromMetadata;
+	return CachedNodeColor;
 }
 
 FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
@@ -580,6 +584,7 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 TSharedPtr<FControlRigField> UControlRigGraphNode::CreateControlRigField(const FControlRigModelPin* InPin, const FString& InPinPath, int32 InArrayIndex) const
 {
 	TSharedPtr<FControlRigField> NewField = MakeShareable(new FControlRigPin(InPin, InPinPath, InArrayIndex));
+	NewField->DisplayNameText = InPin->DisplayNameText;
 	NewField->TooltipText = InPin->TooltipText;
 	NewField->InputPin = FindPin(InPinPath, EGPD_Input);
 	NewField->OutputPin = FindPin(InPinPath, EGPD_Output);
@@ -794,10 +799,7 @@ void UControlRigGraphNode::DestroyNode()
 		UControlRigBlueprint* ControlRigBlueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
 		if(ControlRigBlueprint)
 		{
-			ControlRigBlueprint->Modify();
-
 			BreakAllNodeLinks();
-
 			FControlRigBlueprintUtils::RemoveMemberVariableIfNotUsed(ControlRigBlueprint, PropertyName, this);
 		}
 	}
@@ -968,62 +970,6 @@ void UControlRigGraphNode::SetPropertyName(const FName& InPropertyName, bool bRe
 		{
 			FString& PinString = ExpandedPins[Index];
 			PinString = PinString.Replace(*OldPropertyName, *NewPropertyName);
-		}
-	}
-}
-
-void UControlRigGraphNode::UpdateNodeColorFromMetadata()
-{
-	const FLinearColor TitleToNodeColor(0.35f, 0.35f, 0.35f, 1.f);
-	CachedTitleColorFromMetadata = Super::GetNodeTitleColor() * FLinearColor(0.1f, 0.1f, 0.1f, 1.0f);
-	CachedNodeColorFromMetadata = CachedTitleColorFromMetadata * TitleToNodeColor;
-
-	struct Local
-	{
-		static void SetColorFromMetadata(FString& Metadata, FLinearColor& Color)
-		{
-			Metadata.TrimStartAndEnd();
-			FString SplitString(TEXT(" "));
-			FString Red, Green, Blue, GreenAndBlue;
-			if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
-			{
-				Red.TrimEnd();
-				GreenAndBlue.TrimStart();
-				if (GreenAndBlue.Split(SplitString, &Green, &Blue))
-				{
-					Green.TrimEnd();
-					Blue.TrimStart();
-
-					float RedValue = FCString::Atof(*Red);
-					float GreenValue = FCString::Atof(*Green);
-					float BlueValue = FCString::Atof(*Blue);
-					Color = FLinearColor(RedValue, GreenValue, BlueValue);
-				}
-			}
-		}
-	};
-
-	// get the node color from its metadata
-	UScriptStruct* ScriptStruct = GetUnitScriptStruct();
-	if (ScriptStruct)
-	{
-		FString TitleColorMetadata, NodeColorMetadata;
-		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::TitleColorMetaName, &TitleColorMetadata);
-		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::NodeColorMetaName, &NodeColorMetadata);
-		if (!TitleColorMetadata.IsEmpty() && !NodeColorMetadata.IsEmpty())
-		{
-			Local::SetColorFromMetadata(TitleColorMetadata, CachedTitleColorFromMetadata);
-			Local::SetColorFromMetadata(NodeColorMetadata, CachedNodeColorFromMetadata);
-		}
-		else if(!TitleColorMetadata.IsEmpty() && NodeColorMetadata.IsEmpty())
-		{
-			Local::SetColorFromMetadata(TitleColorMetadata, CachedTitleColorFromMetadata);
-			CachedNodeColorFromMetadata = CachedTitleColorFromMetadata * TitleToNodeColor;
-		}
-		else if(TitleColorMetadata.IsEmpty() && !NodeColorMetadata.IsEmpty())
-		{
-			Local::SetColorFromMetadata(NodeColorMetadata, CachedTitleColorFromMetadata);
-			CachedNodeColorFromMetadata = CachedTitleColorFromMetadata * TitleToNodeColor;
 		}
 	}
 }

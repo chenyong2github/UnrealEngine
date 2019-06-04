@@ -526,7 +526,7 @@ namespace UnrealBuildTool
 			// Read the initial fields
 			string TargetName = RawObject.GetStringField("TargetName");
 			TargetType TargetType = RawObject.GetEnumField<TargetType>("TargetType");
-			UnrealTargetPlatform Platform = RawObject.GetEnumField<UnrealTargetPlatform>("Platform");
+			UnrealTargetPlatform Platform = UnrealTargetPlatform.Parse(RawObject.GetStringField("Platform"));
 			UnrealTargetConfiguration Configuration = RawObject.GetEnumField<UnrealTargetConfiguration>("Configuration");
 
 			// Try to read the build version

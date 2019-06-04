@@ -20,13 +20,103 @@ static FAutoConsoleVariableRef CVarShowNiagaraShaderWarnings(
 	TEXT("When set to 1, will display all warnings from Niagara shader compiles.")
 	);
 
+//Disabled until a few issues can be resolved.
+int32 GEnableNiagaraShaderCompilerAsyncHack = 0;
+static FAutoConsoleVariableRef CVarEnableNiagaraShaderCompilerAsyncHack(
+	TEXT("fx.EnableNiagaraShaderCompilerAsyncHack"),
+	GEnableNiagaraShaderCompilerAsyncHack,
+	TEXT("If > 0 GPU Niagara shaders will be compiled off the main therad. This is a temporary solution until these are offloaded to the shader compiler worker. \n"),
+	ECVF_ReadOnly
+);
+
+//#define ASYNC_HACK_LOG(...)
+#define ASYNC_HACK_LOG(Fmt, ...) if( IsAsyncHackEnabled() ){UE_LOG(LogNiagaraShaderCompiler, Log, Fmt, ##__VA_ARGS__);}
+
 #if WITH_EDITOR
+
+
+
+//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+//ASYNC HACK: There is a lot of code in here to do with this code being run on shader compiler worker.
+//ASYNC HACK: For now I'm leaving this in as these hacks will soon be removed.
+//ASYNC HACK: At that point, all this other code will make sense.
+//ASYNC HACK: During this time it's going to be very confusing to read this code.
+
+//ASYNC HACK: This async task will be kicked from the GT and will run all current work in JobQueue.
+//ASYNC HACK: JobQueue can be added to in this time meaning this worker will run for longer.
+//ASYNC HACK: Once this task completes and more Jobs come in, another task will be kicked off. 
+//ASYNC HACK: Only one of these tasks can ever be in flight at once! The shader compilation is not thread-safe. 
+//ASYNC HACK: It doesn't have to be on the game thread but it can't be parallelized.
+
+class FNiagaraShaderCompilerWorkerAsyncTask
+{
+	FNiagaraShaderCompilationManager* CompilerWorker;
+
+public:
+	FNiagaraShaderCompilerWorkerAsyncTask(FNiagaraShaderCompilationManager* InCompilerWorker)
+		: CompilerWorker(InCompilerWorker)
+	{
+
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraShaderCompilerWorkerAsyncTask, STATGROUP_TaskGraphTasks);
+	}
+
+	ENamedThreads::Type GetDesiredThread()
+	{
+		return ENamedThreads::AnyBackgroundThreadNormalTask;
+	}
+
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		check(CompilerWorker);
+		CompilerWorker->RunCompileJobs();
+	}
+};
+
 
 NIAGARASHADER_API FNiagaraShaderCompilationManager GNiagaraShaderCompilationManager;
 
-void FNiagaraShaderCompilationManager::Tick(float DeltaSeconds)
+bool FNiagaraShaderCompilationManager::IsAsyncHackEnabled()const
 {
-	RunCompileJobs();
+	return FApp::ShouldUseThreadingForPerformance() && GEnableNiagaraShaderCompilerAsyncHack;
+}
+
+void FNiagaraShaderCompilationManager::Tick(float DeltaSeconds, bool bBlock)
+{
+	if (IsAsyncHackEnabled())
+	{
+		//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+		check(IsInGameThread());
+	
+		//Kick off a new task if the last one has finished processing jobs.
+		if (!AsyncWork || AsyncWork->IsComplete())
+		{
+			if (JobQueue.Num() > 0)
+			{
+				ASYNC_HACK_LOG(TEXT("AsyncHack: New Compiler Async Task"));
+				AsyncWork = TGraphTask<FNiagaraShaderCompilerWorkerAsyncTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndDispatchWhenReady(this);
+			}
+		}
+
+		if (bBlock && AsyncWork && !AsyncWork->IsComplete())
+		{
+			float StartTime = FPlatformTime::Seconds();
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(AsyncWork, ENamedThreads::GameThread_Local);
+			AsyncWork = nullptr;
+			float EndTime = FPlatformTime::Seconds();
+			ASYNC_HACK_LOG(TEXT("AsyncHack: Blocked on Compiler Async Task for %5.6f Seconds"), EndTime - StartTime);
+		}
+		//ASYNC HACK END: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	}
+	else
+	{
+		RunCompileJobs();
+	}
 }
 
 FNiagaraShaderCompilationManager::FNiagaraShaderCompilationManager()
@@ -39,8 +129,9 @@ FNiagaraShaderCompilationManager::FNiagaraShaderCompilationManager()
 	{
 		WorkerInfos.Add(new FNiagaraShaderCompileWorkerInfo());
 	}
-}
 
+	AsyncWork = nullptr;
+}
 
 void FNiagaraShaderCompilationManager::RunCompileJobs()
 {
@@ -49,6 +140,7 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 	int32 NumActiveThreads = 0;
 
 
+	ASYNC_HACK_LOG(TEXT("AsyncHack: RunCompileJobs()"));
 
 	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
 	{
@@ -59,8 +151,19 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 		{
 			check(!CurrentWorkerInfo.bComplete);
 
+			//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+			if (IsAsyncHackEnabled())
+			{
+				check(!IsInGameThread());
+				//Lock access to the job queue.
+				JobQueueCriticalSection.Lock();
+			}
+			//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+
 			if (JobQueue.Num() > 0)
 			{
+				ASYNC_HACK_LOG(TEXT("AsyncHack: Taking %d Jobs from the Job Queue()"), JobQueue.Num());
+
 				bool bAddedLowLatencyTask = false;
 				int32 JobIndex = 0;
 
@@ -78,6 +181,13 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 				CurrentWorkerInfo.StartTime = FPlatformTime::Seconds();
 				JobQueue.RemoveAt(0, JobIndex);
 			}
+
+			//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+			if (IsAsyncHackEnabled())
+			{
+				JobQueueCriticalSection.Unlock();
+			}
+			//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
 		}
 
 		if (CurrentWorkerInfo.bIssuedTasksToWorker && CurrentWorkerInfo.bLaunchedWorker)
@@ -91,6 +201,7 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 			{
 				FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)(CurrentWorkerInfo.QueuedJobs[JobIndex]));
 
+				ASYNC_HACK_LOG(TEXT("AsyncHack: Processing Compile Job %s"), *CurrentJob.Input.GenerateShaderName());
 				check(!CurrentJob.bFinalized);
 				CurrentJob.bFinalized = true;
 
@@ -150,6 +261,15 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 		}
 	}
 
+
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		//Lock access to the results queue.
+		ResultsQueueCriticalSection.Lock();
+	}
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+
 	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
 	{
 		FNiagaraShaderCompileWorkerInfo& CurrentWorkerInfo = *WorkerInfos[WorkerIndex];
@@ -167,12 +287,28 @@ void FNiagaraShaderCompilationManager::RunCompileJobs()
 		CurrentWorkerInfo.QueuedJobs.Empty();
 	}
 
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		ResultsQueueCriticalSection.Unlock();
+	}
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
 }
 
 
 
 NIAGARASHADER_API void FNiagaraShaderCompilationManager::AddJobs(TArray<FShaderCommonCompileJob*> InNewJobs)
 {
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		JobQueueCriticalSection.Lock();
+		ResultsQueueCriticalSection.Lock();
+		ASYNC_HACK_LOG(TEXT("AsyncHack: Adding %d jobs"), InNewJobs.Num());
+	}
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+
+
 	for (FShaderCommonCompileJob *Job : InNewJobs)
 	{
 		FNiagaraShaderMapCompileResults& ShaderMapInfo = NiagaraShaderMapJobs.FindOrAdd(Job->Id);
@@ -182,13 +318,30 @@ NIAGARASHADER_API void FNiagaraShaderCompilationManager::AddJobs(TArray<FShaderC
 	}
 
 	JobQueue.Append(InNewJobs);
+
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		ResultsQueueCriticalSection.Unlock();
+		JobQueueCriticalSection.Unlock();
+	}
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
 }
 
 
 void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 {
+	check(IsInGameThread());
+
 	int32 NumCompilingNiagaraShaderMaps = 0;
 	TArray<int32> ShaderMapsToRemove;
+
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		ResultsQueueCriticalSection.Lock();
+	}
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
 
 	// Get all Niagara shader maps to finalize
 	//
@@ -200,6 +353,8 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 		{
 			ShaderMapsToRemove.Add(It.Key());
 			PendingFinalizeNiagaraShaderMaps.Add(It.Key(), FNiagaraShaderMapFinalizeResults(Results));
+
+			//ASYNC_HACK_LOG(TEXT("AsyncHack: Grabbing compiled shader map to process."));
 		}
 	}
 
@@ -209,6 +364,13 @@ void FNiagaraShaderCompilationManager::ProcessAsyncResults()
 	}
 
 	NumCompilingNiagaraShaderMaps = NiagaraShaderMapJobs.Num();
+
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		ResultsQueueCriticalSection.Unlock();
+	}
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
 
 	if (PendingFinalizeNiagaraShaderMaps.Num() > 0)
 	{
@@ -221,6 +383,10 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(
 	TMap<int32, FNiagaraShaderMapFinalizeResults>& CompiledShaderMaps,
 	float TimeBudget)
 {
+	check(IsInGameThread());
+
+	ASYNC_HACK_LOG(TEXT("AsyncHack: Processing %d Compiled Shader Maps"), CompiledShaderMaps.Num());
+
 	// Keeps shader maps alive as they are passed from the shader compiler and applied to the owning Script
 	TArray<TRefCountPtr<FNiagaraShaderMap> > LocalShaderMapReferences;
 	TMap<FNiagaraShaderScript*, FNiagaraShaderMap*> ScriptsToUpdate;
@@ -251,12 +417,14 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(
 			// Make a copy of the array as this entry of FNiagaraShaderMap::ShaderMapsBeingCompiled will be removed below
 			TArray<FNiagaraShaderScript*> ScriptArray = *Scripts;
 			bool bSuccess = true;
-			
+
+			ASYNC_HACK_LOG(TEXT("AsyncHack: Processing %d Finished Jobs"), ResultArray.Num());
 			for (int32 JobIndex = 0; JobIndex < ResultArray.Num(); JobIndex++)
 			{
 				FShaderCompileJob& CurrentJob = *((FShaderCompileJob*)(ResultArray[JobIndex]));
 				bSuccess = bSuccess && CurrentJob.bSucceeded;
 
+				ASYNC_HACK_LOG(TEXT("AsyncHack: Processing Finished Job %s"), *CurrentJob.Input.GenerateShaderName());
 				if (bSuccess)
 				{
 					check(CurrentJob.Output.ShaderCode.GetShaderCodeSize() > 0);
@@ -271,10 +439,10 @@ void FNiagaraShaderCompilationManager::ProcessCompiledNiagaraShaderMaps(
 
 					if (CurrentJob.Output.Errors.Num())
 					{
-						UE_LOG(LogNiagaraShaderCompiler, Warning, TEXT("There were errors for job \"%s\""), *CurrentJob.Input.DebugGroupName)
+						UE_LOG(LogNiagaraShaderCompiler, Error, TEXT("There were errors for job \"%s\""), *CurrentJob.Input.DebugGroupName)
 							for (const FShaderCompilerError& Error : CurrentJob.Output.Errors)
 							{
-								UE_LOG(LogShaders, Log, TEXT("Error: %s"), *Error.GetErrorString())
+								UE_LOG(LogNiagaraShaderCompiler, Error, TEXT("Error: %s"), *Error.GetErrorString())
 							}
 					}
 				}
@@ -419,7 +587,17 @@ void FNiagaraShaderCompilationManager::FinishCompilation(const TCHAR* ScriptName
 {
 	check(!FPlatformProperties::RequiresCookedData());
 
-	RunCompileJobs();	// since we don't async compile through another process, this will run all oustanding jobs
+	//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	if (IsAsyncHackEnabled())
+	{
+		Tick(0.0f, true);//Kick current jobs and block.
+		//ASYNC HACK: Temporary code to run this on a worker thread. This will eventually be unnecessary as we'll move this to shadercompilerworker.
+	}
+	else
+	{
+		RunCompileJobs();	// since we don't async compile through another process, this will run all oustanding jobs
+	}
+	
 	ProcessAsyncResults();	// grab compiled shader maps and assign them to their resources
 
 	check(NiagaraShaderMapJobs.Num() == 0);

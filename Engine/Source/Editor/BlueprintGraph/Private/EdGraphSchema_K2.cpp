@@ -3583,6 +3583,21 @@ bool UEdGraphSchema_K2::ConvertPropertyToPinType(const UProperty* Property, /*ou
 	return true;
 }
 
+bool UEdGraphSchema_K2::HasWildcardParams(const UFunction* Function)
+{
+	bool bResult = false;
+	for (TFieldIterator<const UProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm) && !bResult; ++PropIt)
+	{
+		const UProperty* FuncParamProperty = *PropIt;
+
+		if (IsWildcardProperty(FuncParamProperty))
+		{
+			bResult = true;
+		}
+	}
+	return bResult;
+}
+
 bool UEdGraphSchema_K2::IsWildcardProperty(const UProperty* Property)
 {
 	UFunction* Function = Cast<UFunction>(Property->GetOuter());

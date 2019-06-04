@@ -7,7 +7,7 @@
 
 // Macros which can be enabled to cause DSP sample checking
 #if 0
-#define CHECK_SAMPLE(VALUE)
+#define CHECK_SAMPLE(VALUE) 
 #define CHECK_SAMPLE2(VALUE)
 #else
 #define CHECK_SAMPLE(VALUE)  Audio::CheckSample(VALUE)
@@ -16,10 +16,10 @@
 
 namespace Audio
 {
-	// Utility to check for sample clipping. Put breakpoint in conditional to find
+	// Utility to check for sample clipping. Put breakpoint in conditional to find 
 	// DSP code that's not behaving correctly
 	static void CheckSample(float InSample, float Threshold = 0.001f)
-	{
+	{	
 		if (InSample > Threshold || InSample < -Threshold)
 		{
 			UE_LOG(LogTemp, Log, TEXT("SampleValue Was %.2f"), InSample);
@@ -73,7 +73,7 @@ namespace Audio
 		return X2;
 	}
 
-	// Sine approximation using Bhaskara I technique discovered in 7th century.
+	// Sine approximation using Bhaskara I technique discovered in 7th century. 
 	// https://en.wikipedia.org/wiki/Bh%C4%81skara_I
 	static FORCEINLINE float FastSin3(const float X)
 	{
@@ -167,6 +167,24 @@ namespace Audio
 		OutLeft = FMath::Clamp(FastSin(LeftPhase), 0.0f, 1.0f);
 		OutRight = FMath::Clamp(FastSin(RightPhase), 0.0f, 1.0f);
 	}
+ 
+	// This function encodes a stereo Left/Right signal into a stereo Mid/Side signal 
+	static FORCEINLINE void EncodeMidSide(float& LeftChannel, float& RightChannel)
+	{
+		const float Temp = (LeftChannel - RightChannel);
+		//Output
+		LeftChannel = (LeftChannel + RightChannel);
+		RightChannel = Temp;
+	}
+
+	// This function decodes a stereo Mid/Side signal into a stereo Left/Right signal
+	static FORCEINLINE void DecodeMidSide(float& MidChannel, float& SideChannel)
+	{
+		const float Temp = (MidChannel - SideChannel) * 0.5f;
+		//Output
+		MidChannel = (MidChannel + SideChannel) * 0.5f;
+		SideChannel = Temp;
+	}
 
 	// Helper function to get bandwidth from Q
 	static FORCEINLINE float GetBandwidthFromQ(const float InQ)
@@ -187,7 +205,7 @@ namespace Audio
 		return OutQ;
 	}
 
-	// Polynomial interpolation using lagrange polynomials.
+	// Polynomial interpolation using lagrange polynomials. 
 	// https://en.wikipedia.org/wiki/Lagrange_polynomial
 	static FORCEINLINE float LagrangianInterpolation(const TArray<FVector2D> Points, const float Alpha)
 	{
@@ -288,9 +306,9 @@ namespace Audio
 		// Percentage to move toward target value from current value each tick
 		float EaseFactor;
 	};
-
+	
 	// Simple easing function used to help interpolate params
-	class FLinearEase
+	class FLinearEase 
 	{
 	public:
 		FLinearEase()
@@ -339,7 +357,7 @@ namespace Audio
 			++CurrentTick;
 			return CurrentValue;
 		}
-
+		 
 		// Updates the target value without changing the duration or tick data.
 		// Sets the state as if the new value was the target value all along
 		void SetValueInterrupt(const float InValue)
@@ -372,7 +390,7 @@ namespace Audio
 
 			if (DurationTicks == 0)
 			{
-				CurrentValue = InValue;
+				CurrentValue = InValue;			
 			}
 			else
 			{

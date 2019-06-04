@@ -250,6 +250,40 @@ protected:
 	FStaticMeshLODResources* Owner;
 };
 
+typedef TArray<FStaticMeshSectionAreaWeightedTriangleSampler> FStaticMeshSectionAreaWeightedTriangleSamplerArray;
+
+/** Represents GPU resource needed for area weighted uniform sampling of a mesh surface. */
+class FStaticMeshSectionAreaWeightedTriangleSamplerBuffer : public FRenderResource
+{
+public:
+
+	ENGINE_API FStaticMeshSectionAreaWeightedTriangleSamplerBuffer();
+	ENGINE_API ~FStaticMeshSectionAreaWeightedTriangleSamplerBuffer();
+
+	ENGINE_API void Init(FStaticMeshSectionAreaWeightedTriangleSamplerArray* SamplerToUpload) { Samplers = SamplerToUpload; }
+
+	// FRenderResource interface.
+	ENGINE_API virtual void InitRHI() override;
+	ENGINE_API virtual void ReleaseRHI() override;
+	virtual FString GetFriendlyName() const override { return TEXT("FStaticMeshSectionAreaWeightedTriangleSamplerBuffer"); }
+
+	ENGINE_API const FShaderResourceViewRHIRef& GetBufferSRV() const { return BufferSectionTriangleSRV; }
+
+private:
+	struct SectionTriangleInfo
+	{
+		float  Prob;
+		uint32 Alias;
+		uint32 pad0;
+		uint32 pad1;
+	};
+
+	FVertexBufferRHIRef BufferSectionTriangleRHI = nullptr;
+	FShaderResourceViewRHIRef BufferSectionTriangleSRV = nullptr;
+
+	FStaticMeshSectionAreaWeightedTriangleSamplerArray* Samplers = nullptr;
+};
+
 
 struct FDynamicMeshVertex;
 struct FModelVertex;
@@ -340,7 +374,9 @@ struct FStaticMeshLODResources
 	/**	Allows uniform random selection of mesh sections based on their area. */
 	FStaticMeshAreaWeightedSectionSampler AreaWeightedSampler;
 	/**	Allows uniform random selection of triangles on each mesh section based on triangle area. */
-	TArray<FStaticMeshSectionAreaWeightedTriangleSampler> AreaWeightedSectionSamplers;
+	FStaticMeshSectionAreaWeightedTriangleSamplerArray AreaWeightedSectionSamplers;
+	/** Allows uniform random selection of triangles on GPU. It is not cooked and serialised but created at runtime from AreaWeightedSectionSamplers when it is available and static mesh bSupportGpuUniformlyDistributedSampling=true*/
+	FStaticMeshSectionAreaWeightedTriangleSamplerBuffer AreaWeightedSectionSamplersBuffer;
 
 	uint32 DepthOnlyNumTriangles;
 
@@ -772,7 +808,6 @@ public:
 	virtual void GetMeshDescription(int32 LODIndex, TArray<FMeshBatch>& OutMeshElements) const override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override;
-	virtual const FCustomPrimitiveData* GetCustomPrimitiveData() const override { return &CustomPrimitiveData; }
 
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingRelevant() const override { return true; }
@@ -794,9 +829,6 @@ public:
 #if STATICMESH_ENABLE_DEBUG_RENDERING
 	virtual int32 GetLightMapResolution() const override { return LightMapResolution; }
 #endif
-
-	/** The custom data for this Scene Proxy */
-	FCustomPrimitiveData CustomPrimitiveData;
 
 protected:
 	/** Information used by the proxy about a single LOD of the mesh. */

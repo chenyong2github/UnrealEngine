@@ -12,14 +12,8 @@ namespace UnrealBuildTool
 {
 	abstract class UEToolChain
 	{
-		/// <summary>
-		/// The C++ platform that this toolchain supports
-		/// </summary>
-		public readonly CppPlatform CppPlatform;
-
-		public UEToolChain(CppPlatform InCppPlatform)
+		public UEToolChain()
 		{
-			CppPlatform = InCppPlatform;
 		}
 
 		public virtual string GetVersionInfo()
@@ -80,6 +74,13 @@ namespace UnrealBuildTool
 		{
 			return true;
 		}
+		
+		public virtual FileReference GetDebugFile(FileReference OutputFile, string DebugExtension)
+		{
+			//  by default, just change the extension to the debug extension
+			return OutputFile.ChangeExtension(DebugExtension);
+		}
+
 
 		public virtual void SetupBundleDependencies(List<UEBuildBinary> Binaries, string GameName)
 		{

@@ -34,7 +34,7 @@ void USoundSourceBus::Init()
 
 	// Keep playing this bus when the volume is 0
 	// Note source buses can't ever be truly virtual as they are procedurally generated.
-	bVirtualizeWhenSilent = !bAutoDeactivateWhenSilent;
+	VirtualizationMode = bAutoDeactivateWhenSilent ? EVirtualizationMode::Disabled : EVirtualizationMode::PlayWhenSilent;
 
 	// Set the channels equal to the users channel count choice
 	switch (SourceBusChannels)

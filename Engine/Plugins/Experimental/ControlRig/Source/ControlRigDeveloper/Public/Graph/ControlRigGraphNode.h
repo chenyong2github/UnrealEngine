@@ -240,9 +240,6 @@ public:
 	void CacheHierarchyRefConnectionsOnPostLoad();
 #endif
 
-	/** Updates the cached node color based on the metadata on the rig unit */
-	void UpdateNodeColorFromMetadata();
-
 protected:
 	/** Rebuild the cached info about our inputs/outputs */
 	void CacheVariableInfo();
@@ -313,6 +310,9 @@ protected:
 	/** Destroy all pins in an array */
 	void DestroyPinList(TArray<UEdGraphPin*>& InPins);
 
+	/** Sets the body + title color from a color provided by the model */
+	void SetColorFromModel(const FLinearColor& InColor);
+
 private:
 
 	bool IsVariable() const;
@@ -321,6 +321,6 @@ private:
 	TArray<UEdGraphNode*> HierarchyRefOutputConnections;
 #endif
 
-	FLinearColor CachedTitleColorFromMetadata;
-	FLinearColor CachedNodeColorFromMetadata;
+	FLinearColor CachedTitleColor;
+	FLinearColor CachedNodeColor;
 };

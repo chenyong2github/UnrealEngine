@@ -767,22 +767,6 @@ public:
 class FViewportClient
 {
 public:
-	/** The different types of sound stat flags */
-	struct ESoundShowFlags
-	{
-		enum Type
-		{
-			Disabled = 0x00,
-			Debug = 0x01,
-			Sort_Distance = 0x02,
-			Sort_Class = 0x04,
-			Sort_Name = 0x08,
-			Sort_WavesNum = 0x10,
-			Sort_Disabled = 0x20,
-			Long_Names = 0x40,
-		};
-	};
-
 	virtual ~FViewportClient(){}
 	virtual void Precache() {}
 	virtual void RedrawRequested(FViewport* Viewport) { Viewport->Draw(); }
@@ -1023,16 +1007,6 @@ public:
 	* Sets whether stats should be visible for the viewport
 	*/
 	virtual void SetShowStats(bool bWantStats) { }
-
-	/**
-	 * Get the sound stat flags enabled for this viewport
-	 */
-	virtual ESoundShowFlags::Type GetSoundShowFlags() const { return ESoundShowFlags::Disabled; }
-
-	/**
-	 * Set the sound stat flags enabled for this viewport
-	 */
-	virtual void SetSoundShowFlags(const ESoundShowFlags::Type InSoundShowFlags) {}
 
 	/**
 	 * Check whether we should ignore input.

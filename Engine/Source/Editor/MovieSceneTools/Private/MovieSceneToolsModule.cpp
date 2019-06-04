@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 #include "Curves/RichCurve.h"
 #include "ISequencerModule.h"
+#include "ICurveEditorModule.h"
 #include "MovieSceneToolsProjectSettingsCustomization.h"
 
 #include "TrackEditors/PropertyTrackEditors/BoolPropertyTrackEditor.h"
@@ -57,6 +58,8 @@
 #include "Channels/BuiltInChannelEditors.h"
 #include "Channels/MovieSceneObjectPathChannel.h"
 #include "Channels/MovieSceneEventChannel.h"
+#include "Channels/EventChannelCurveModel.h"
+#include "Channels/SCurveEditorEventChannelView.h"
 #include "Sections/MovieSceneEventSection.h"
 
 
@@ -131,10 +134,24 @@ void FMovieSceneToolsModule::StartupModule()
 	SequencerModule.RegisterChannelInterface<FMovieSceneObjectPathChannel>();
 
 	SequencerModule.RegisterChannelInterface<FMovieSceneEventChannel>();
+
+	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
+
+	FEventChannelCurveModel::EventView = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
+		[](TWeakPtr<FCurveEditor> WeakCurveEditor) -> TSharedRef<SCurveEditorView>
+		{
+			return SNew(SCurveEditorEventChannelView, WeakCurveEditor);
+		}
+	));
 }
 
 void FMovieSceneToolsModule::ShutdownModule()
 {
+	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
+	{
+		CurveEditorModule->UnregisterView(FEventChannelCurveModel::EventView);
+	}
+
 	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
 	{
 		SettingsModule->UnregisterSettings("Project", "Editor", "Level Sequences");

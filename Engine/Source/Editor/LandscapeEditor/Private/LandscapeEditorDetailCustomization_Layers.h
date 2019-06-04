@@ -86,6 +86,7 @@ protected:
 	FText GetLayerDisplayName(int32 InLayerIndex) const;
 	bool IsLayerEditionEnabled(int32 InLayerIndex) const;
 	EVisibility GetLayerAlphaVisibility(int32 InLayerIndex) const;
+	void ForceUpdateSplines();
 
 	TOptional<float> GetLayerAlpha(int32 InLayerIndex) const;
 	void SetLayerAlpha(float InAlpha, int32 InLayerIndex, bool bCommit);

@@ -36,6 +36,10 @@
 #include "Logging/MessageLog.h"
 #include "Misc/CoreDelegates.h"
 
+#if WITH_LIVE_CODING
+#include "ILiveCodingModule.h"
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogPackFactory, Log, All);
 
 UPackFactory::UPackFactory(const FObjectInitializer& PCIP)
@@ -667,7 +671,19 @@ UObject* UPackFactory::FactoryCreateBinary
 					SOutputLogDialog::Open(NSLOCTEXT("PackFactory", "CreateBinary", "Create binary"), FailReason, FailLog, FText::GetEmpty());
 				}
 
-				if (ConfigParameters.bCompileSource)
+				bool bCompileSource = ConfigParameters.bCompileSource;
+#if WITH_LIVE_CODING
+				if (bCompileSource)
+				{
+					ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
+					if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
+					{
+						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "FailedToCompileNewGameModule", "Unable to compile source code while Live Coding is enabled. Please close the editor and build from your IDE."));
+						bCompileSource = false;
+					}
+				}
+#endif
+				if (bCompileSource)
 				{
 					// Compile the new code, either using the in editor hot-reload (if an existing module), or as a brand new module (if no existing code)
 					IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");

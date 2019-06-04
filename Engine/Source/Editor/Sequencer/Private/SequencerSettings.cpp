@@ -47,7 +47,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bRerunConstructionScripts = true;
 	bVisualizePreAndPostRoll = true;
 	TrajectoryPathCap = 250;
-	CurveVisibility = ECurveEditorCurveVisibility::SelectedCurves;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
 }
 
@@ -626,26 +625,6 @@ void USequencerSettings::SetCompileDirectorOnEvaluate(bool bInCompileDirectorOnE
 		bCompileDirectorOnEvaluate = bInCompileDirectorOnEvaluate;
 		SaveConfig();
 	}
-}
-
-ECurveEditorCurveVisibility USequencerSettings::GetCurveVisibility() const
-{
-	return CurveVisibility;
-}
-
-void USequencerSettings::SetCurveVisibility(ECurveEditorCurveVisibility InCurveVisibility)
-{
-	if (CurveVisibility != InCurveVisibility)
-	{
-		CurveVisibility = InCurveVisibility;
-		OnCurveEditorCurveVisibilityChanged.Broadcast();
-		SaveConfig();
-	}
-}
-
-USequencerSettings::FOnCurveEditorCurveVisibilityChanged& USequencerSettings::GetOnCurveEditorCurveVisibilityChanged()
-{
-	return OnCurveEditorCurveVisibilityChanged;
 }
 
 USequencerSettings::FOnLoopStateChanged& USequencerSettings::GetOnLoopStateChanged()

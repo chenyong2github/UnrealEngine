@@ -1201,15 +1201,13 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerSetObject(cons
 					Target->LandscapeInfo->CreateLayerEditorSettingsFor(SelectedLayerInfo);
 				}
 			}
-
+						
 			FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 			if (LandscapeEdMode)
 			{
-				if (LandscapeEdMode->CurrentToolTarget.LayerName == Target->LayerName
-					&& LandscapeEdMode->CurrentToolTarget.LayerInfo == Target->LayerInfoObj)
-				{
-					LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
-				}
+				LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
+				LandscapeEdMode->CurrentToolTarget.TargetType = Target->TargetType;
+				LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
 				LandscapeEdMode->UpdateTargetList();
 			}
 
@@ -1545,15 +1543,15 @@ FReply SLandscapeEditorSelectableBorder::OnMouseButtonUp(const FGeometry& MyGeom
 		}
 		else if (MouseEvent.GetEffectingButton() == EKeys::RightMouseButton &&
 			OnContextMenuOpening.IsBound())
-		{
-			TSharedPtr<SWidget> Content = OnContextMenuOpening.Execute();
-			if (Content.IsValid())
 			{
-				FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
+				TSharedPtr<SWidget> Content = OnContextMenuOpening.Execute();
+				if (Content.IsValid())
+				{
+					FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 
-				FSlateApplication::Get().PushMenu(SharedThis(this), WidgetPath, Content.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
-			}
-
+					FSlateApplication::Get().PushMenu(SharedThis(this), WidgetPath, Content.ToSharedRef(), MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+				}
+			
 			return FReply::Handled().ReleaseMouseCapture();
 		}
 	}

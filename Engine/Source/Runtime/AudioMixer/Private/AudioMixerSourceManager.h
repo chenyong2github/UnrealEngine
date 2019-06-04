@@ -11,6 +11,7 @@
 #include "AudioMixerBus.h"
 #include "DSP/InterpolatedOnePole.h"
 #include "DSP/Filter.h"
+#include "DSP/InterpolatedOnePole.h"
 #include "DSP/EnvelopeFollower.h"
 #include "DSP/ParamInterpolator.h"
 #include "DSP/BufferVectorOperations.h"
@@ -103,6 +104,7 @@ namespace Audio
 		USpatializationPluginSourceSettingsBase* SpatializationPluginSettings;
 		UOcclusionPluginSourceSettingsBase* OcclusionPluginSettings;
 		UReverbPluginSourceSettingsBase* ReverbPluginSettings;
+		USoundModulationPluginSourceSettingsBase* ModulationPluginSettings;
 		FName AudioComponentUserID;
 		uint64 AudioComponentID;
 		uint8 bPlayEffectChainTails : 1;
@@ -127,6 +129,7 @@ namespace Audio
 			, SpatializationPluginSettings(nullptr)
 			, OcclusionPluginSettings(nullptr)
 			, ReverbPluginSettings(nullptr)
+			, ModulationPluginSettings(nullptr)
 			, AudioComponentID(0)
 			, bPlayEffectChainTails(false)
 			, bUseHRTFSpatialization(false)
@@ -146,6 +149,7 @@ namespace Audio
 		// This is the number of bytes the gain array is using:
 		// (Number of input channels * number of output channels) * sizeof float.
 		int32 CopySize;
+		bool bIsInit;
 
 		FSourceChannelMap(int32 InNumInChannels, int32 InNumOutChannels) 
 			: CopySize(InNumInChannels * InNumOutChannels * sizeof(float))
@@ -163,6 +167,7 @@ namespace Audio
 			CopySize = InNumInChannels * InNumOutChannels * sizeof(float);
 			FMemory::Memzero(ChannelStartGains, CopySize);
 			FMemory::Memzero(ChannelDestinationGains, CopySize);
+			bIsInit = true;
 		}
 
 		FORCEINLINE void CopyDestinationToStart()
@@ -173,11 +178,16 @@ namespace Audio
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
 			FMemory::Memcpy(ChannelDestinationGains, InChannelGains, CopySize);
+			if (bIsInit)
+			{
+				FMemory::Memcpy(ChannelStartGains, InChannelGains, CopySize);
+			}
 		}
 
 	private:
 		FSourceChannelMap()
 			: CopySize(0)
+			, bIsInit(true)
 		{
 		}
 	};
@@ -361,6 +371,7 @@ namespace Audio
 			uint32 NumInputChannels;
 			const uint32 NumFrames;
 			uint32 NumDeviceChannels;
+			uint8 bIsInitialDownmix : 1;
 
 			FSourceDownmixData(uint32 SourceNumChannels, uint32 NumDeviceOutputChannels, uint32 InNumFrames)
 				: PostEffectBuffers(nullptr)
@@ -373,6 +384,7 @@ namespace Audio
 				, NumInputChannels(SourceNumChannels)
 				, NumFrames(InNumFrames)
 				, NumDeviceChannels(NumDeviceOutputChannels)
+				, bIsInitialDownmix(true)
 			{
 			}
 
@@ -394,6 +406,7 @@ namespace Audio
 				FiveOneSubmixInfo.Reset(NumInputChannels, 6, NumFrames);
 				SevenOneSubmixInfo.Reset(NumInputChannels, 8, NumFrames);
 				AmbisonicsSubmixInfo.Reset(NumInputChannels, 4, NumFrames);
+				bIsInitialDownmix = true;
 			}
 		};
 
@@ -480,6 +493,7 @@ namespace Audio
 			uint8 bUseHRTFSpatializer:1;
 			uint8 bUseOcclusionPlugin:1;
 			uint8 bUseReverbPlugin:1;
+			uint8 bUseModulationPlugin:1;
 			uint8 bIsDone:1;
 			uint8 bIsLastBuffer:1;
 			uint8 bOutputToBusOnly:1;

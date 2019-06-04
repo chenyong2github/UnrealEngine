@@ -41,7 +41,7 @@ public:
 	bool bSuspendModelNotifications;
 	bool bIsTemporaryGraphForCopyPaste;
 
-	UControlRigGraphNode* FindNodeFromPropertyName(const FName& InPropertyName);
+	UEdGraphNode* FindNodeFromPropertyName(const FName& InPropertyName);
 
 private:
 

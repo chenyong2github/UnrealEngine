@@ -126,6 +126,11 @@ public:
 		return InPtr;
 	}
 
+	static FString DebugDump( TSharedPtr<T> InPtr )
+	{
+		return InPtr.IsValid() ? FString::Printf(TEXT("0x%08x"), InPtr.Get()) : FString(TEXT("nullptr"));
+	}
+
 	class SerializerType{};
 };
 
@@ -161,6 +166,11 @@ public:
 	static TSharedPtr<T, ESPMode::ThreadSafe> NullableItemTypeConvertToItemType( const TSharedPtr<T, ESPMode::ThreadSafe>& InPtr )
 	{
 		return InPtr;
+	}
+
+	static FString DebugDump( TSharedPtr<T, ESPMode::ThreadSafe> InPtr )
+	{
+		return InPtr.IsValid() ? FString::Printf(TEXT("0x%08x"), InPtr.Get()) : FString(TEXT("nullptr"));
 	}
 
 	class SerializerType{};
@@ -201,6 +211,11 @@ public:
 		return InPtr.ToSharedRef();
 	}
 
+	static FString DebugDump( TSharedRef<T> InPtr )
+	{
+		return FString::Printf(TEXT("0x%08x"), &InPtr.Get());
+	}
+
 	class SerializerType{};
 };
 
@@ -236,6 +251,11 @@ public:
 	static TSharedRef<T, ESPMode::ThreadSafe> NullableItemTypeConvertToItemType( const TSharedPtr<T, ESPMode::ThreadSafe>& InPtr )
 	{
 		return InPtr.ToSharedRef();
+	}
+
+	static FString DebugDump( TSharedRef<T, ESPMode::ThreadSafe> InPtr )
+	{
+		return FString::Printf(TEXT("0x%08x"), &InPtr.Get());
 	}
 
 	class SerializerType{};
@@ -278,6 +298,12 @@ public:
 		return InPtr;
 	}
 
+	static FString DebugDump( TWeakObjectPtr<T> InPtr )
+	{
+		T* ObjPtr = InPtr.Get();
+		return ObjPtr ? FString::Printf(TEXT("0x%08x [%s]"), ObjPtr, *ObjPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
 	class SerializerType{};
 };
 
@@ -314,6 +340,11 @@ public:
 
 	static T* NullableItemTypeConvertToItemType( T* InPtr ) { return InPtr; }
 
+	static FString DebugDump( T* InPtr )
+	{
+		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+	}
+
 	typedef FGCObject SerializerType;
 };
 
@@ -343,6 +374,11 @@ public:
 	static const T* MakeNullPtr() { return NULL; }
 
 	static const T* NullableItemTypeConvertToItemType( const T* InPtr ) { return InPtr; }
+
+	static FString DebugDump( const T* InPtr )
+	{
+		return InPtr ? FString::Printf(TEXT("0x%08x [%s]"), InPtr, *InPtr->GetName()) : FString(TEXT("nullptr"));
+	}
 
 	typedef FGCObject SerializerType;
 };

@@ -5,11 +5,29 @@
 #include "ICurveEditorDragOperation.h"
 
 class FCurveEditor;
+class SCurveEditorView;
 
-class FCurveEditorDragOperation_Pan : public ICurveEditorDragOperation
+class FCurveEditorDragOperation_PanView : public ICurveEditorDragOperation
 {
 public:
-	FCurveEditorDragOperation_Pan(FCurveEditor* CurveEditor);
+	FCurveEditorDragOperation_PanView(FCurveEditor* CurveEditor, TSharedPtr<SCurveEditorView> InView);
+
+	virtual void OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
+	virtual void OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
+
+private:
+
+	FCurveEditor* CurveEditor;
+	TSharedPtr<SCurveEditorView> View;
+
+	double InitialInputMin, InitialInputMax;
+	double InitialOutputMin, InitialOutputMax;
+};
+
+class FCurveEditorDragOperation_PanInput : public ICurveEditorDragOperation
+{
+public:
+	FCurveEditorDragOperation_PanInput(FCurveEditor* CurveEditor);
 
 	virtual void OnBeginDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
 	virtual void OnDrag(FVector2D InitialPosition, FVector2D CurrentPosition, const FPointerEvent& MouseEvent) override;
@@ -18,5 +36,4 @@ private:
 
 	FCurveEditor* CurveEditor;
 	double InitialInputMin, InitialInputMax;
-	double InitialOutputMin, InitialOutputMax;
 };

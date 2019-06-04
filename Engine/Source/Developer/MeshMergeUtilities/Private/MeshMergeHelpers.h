@@ -80,4 +80,7 @@ public:
 
 	/** Merges imposter meshes into a raw mesh. */
 	static void MergeImpostersToRawMesh(TArray<const UStaticMeshComponent*> ImposterComponents, FMeshDescription& InRawMesh, const FVector& InPivot, int32 BaseMaterialIndex, TArray<UMaterialInterface*>& OutImposterMaterials);
+
+	/** Extract imposter meshes to a raw mesh. */
+	static void ExtractImposterToRawMesh(const UStaticMeshComponent* InImposterComponent, FMeshDescription& InRawMesh);
 };

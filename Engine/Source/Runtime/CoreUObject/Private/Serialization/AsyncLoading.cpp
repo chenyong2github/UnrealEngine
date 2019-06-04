@@ -594,7 +594,6 @@ void FAsyncLoadingThread::ProcessAsyncPackageRequest(FAsyncPackageDesc* InReques
 
 int32 FAsyncLoadingThread::CreateAsyncPackagesFromQueue(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, FFlushTree* FlushTree)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateAsyncPackagesFromQueue);
 	SCOPED_LOADTIMER(CreateAsyncPackagesFromQueueTime);
 
 	FAsyncLoadingTickScope InAsyncLoadingTick;
@@ -646,6 +645,7 @@ int32 FAsyncLoadingThread::CreateAsyncPackagesFromQueue(bool bUseTimeLimit, bool
 
 		if (QueueCopy.Num() > 0)
 		{
+			SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateAsyncPackagesFromQueue);
 			double Timer = 0;
 			{
 				SCOPE_SECONDS_COUNTER(Timer);
@@ -4345,36 +4345,44 @@ void FAsyncLoadingThread::InsertPackage(FAsyncPackage* Package, bool bReinsert, 
 		{
 			AsyncPackages.RemoveSingle(Package);
 		}
-		int32 InsertIndex = -1;
 
-		switch (InsertMode)
+		if (GEventDrivenLoaderEnabled)
 		{
-			case EAsyncPackageInsertMode::InsertAfterMatchingPriorities:
+			AsyncPackages.Add(Package);
+		}
+		else
+		{
+			int32 InsertIndex = -1;
+
+			switch (InsertMode)
 			{
-				InsertIndex = AsyncPackages.IndexOfByPredicate([Package](const FAsyncPackage* Element)
+				case EAsyncPackageInsertMode::InsertAfterMatchingPriorities:
 				{
-					return Element->GetPriority() < Package->GetPriority();
-				});
+					InsertIndex = AsyncPackages.IndexOfByPredicate([Package](const FAsyncPackage* Element)
+					{
+						return Element->GetPriority() < Package->GetPriority();
+					});
 
-				break;
-			}
+					break;
+				}
 
-			case EAsyncPackageInsertMode::InsertBeforeMatchingPriorities:
-			{
-				// Insert new package keeping descending priority order in AsyncPackages
-				InsertIndex = AsyncPackages.IndexOfByPredicate([Package](const FAsyncPackage* Element)
+				case EAsyncPackageInsertMode::InsertBeforeMatchingPriorities:
 				{
-					return Element->GetPriority() <= Package->GetPriority();
-				});
+					// Insert new package keeping descending priority order in AsyncPackages
+					InsertIndex = AsyncPackages.IndexOfByPredicate([Package](const FAsyncPackage* Element)
+					{
+						return Element->GetPriority() <= Package->GetPriority();
+					});
 
-				break;
-			}
-		};
+					break;
+				}
+			};
 
-		InsertIndex = InsertIndex == INDEX_NONE ? AsyncPackages.Num() : InsertIndex;
+			InsertIndex = InsertIndex == INDEX_NONE ? AsyncPackages.Num() : InsertIndex;
 
-		AsyncPackages.InsertUninitialized(InsertIndex);
-		AsyncPackages[InsertIndex] = Package;
+			AsyncPackages.InsertUninitialized(InsertIndex);
+			AsyncPackages[InsertIndex] = Package;
+		}
 
 		if (!bReinsert)
 		{
@@ -4418,7 +4426,6 @@ struct FScopedRecursionNotAllowed
 
 EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPackagesProcessed, bool bUseTimeLimit /*= false*/, bool bUseFullTimeLimit /*= false*/, float TimeLimit /*= 0.0f*/, FFlushTree* FlushTree)
 {
-	SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
 	SCOPED_LOADTIMER(AsyncLoadingTime);
 	check(!IsInGameThread() || !IsMultithreaded());
 
@@ -4431,8 +4438,9 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 
 	if (GEventDrivenLoaderEnabled)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-	FScopedRecursionNotAllowed RecursionGuard;
+		FScopedRecursionNotAllowed RecursionGuard;
 #endif
 
 		FAsyncLoadingTickScope InAsyncLoadingTick;
@@ -4449,12 +4457,12 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			bool bDidSomething = false;
 			{
 				bDidSomething = GPrecacheCallbackHandler.ProcessIncoming();
-			OutPackagesProcessed += (bDidSomething ? 1 : 0);
+				OutPackagesProcessed += (bDidSomething ? 1 : 0);
 
-			if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessIncoming"), nullptr))
-			{
-				return EAsyncPackageState::TimeOut;
-			}
+				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("ProcessIncoming"), nullptr))
+				{
+					return EAsyncPackageState::TimeOut;
+				}
 			}
 
 			if (IsAsyncLoadingSuspended())
@@ -4539,7 +4547,7 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 					}
 
 					// We're done, at least on this thread, so we can remove the package now.
-				AddToLoadedPackages(Package);
+					AddToLoadedPackages(Package);
 				}
 				if (IsTimeLimitExceeded(TickStartTime, bUseTimeLimit, TimeLimit, TEXT("TickAsyncPackage")))
 				{
@@ -4596,8 +4604,10 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessAsyncLoading(int32& OutPack
 			}
 		}
 	} // GEventDrivenLoaderEnabled
-	else
+	else if (AsyncPackages.Num())
 	{
+		SCOPE_CYCLE_COUNTER(STAT_FAsyncLoadingThread_ProcessAsyncLoading);
+
 		bool bDepthFirst = false;
 
 		// We need to loop as the function has to handle finish loading everything given no time limit
@@ -4779,13 +4789,6 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 				{
 					FScopeLock LoadedLock(&LoadedPackagesToProcessCritical);
 					LoadedPackagesToProcess.RemoveAt(PackageIndex--);
-					if (LoadedPackagesToProcess.FindByPredicate([Package](const FAsyncPackage* Pkg)
-					{
-						return Pkg->GetPackageName() == Package->GetPackageName();
-					}))
-					{
-						UE_LOG(LogStreaming, Warning, TEXT("Package %s has already been loaded"), *Package->GetPackageName().ToString());
-					}
 					LoadedPackagesToProcessNameLookup.Remove(Package->GetPackageName());
 
 					if (FPlatformProperties::RequiresCookedData())

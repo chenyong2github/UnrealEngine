@@ -117,6 +117,10 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 	};
 	
 #if WITH_EDITORONLY_DATA
+	friend struct FEnableCollisionHashOptimScope;
+	
+	uint32										CollisionHash = 0;
+
 	/** The collision height values. Stripped from cooked content */
 	FWordBulkData								CollisionHeightData;
 
@@ -165,6 +169,11 @@ class ULandscapeHeightfieldCollisionComponent : public UPrimitiveComponent
 		QF_EdgeTurned = 64,				// This quad's diagonal has been turned.
 		QF_NoCollision = 128,			// This quad has no collision.
 	};
+
+#if WITH_EDITORONLY_DATA
+private:
+	bool bEnableCollisionHashOptim = false;
+#endif //WITH_EDITORONLY_DATA
 
 	//~ Begin UActorComponent Interface.
 protected:
@@ -223,6 +232,9 @@ public:
 
 	/** Modify a sub-region of the PhysX heightfield. Note that this does not update the physical material */
 	void UpdateHeightfieldRegion(int32 ComponentX1, int32 ComponentY1, int32 ComponentX2, int32 ComponentY2);
+
+	/** Computes a hash of all the data that will impact final collision */
+	virtual uint32 ComputeCollisionHash() const;
 #endif
 
 	/** Creates collision object from a cooked collision data */
@@ -238,7 +250,7 @@ public:
 	LANDSCAPE_API void SetSectionBase(FIntPoint InSectionBase);
 
 	/** Recreate heightfield and restart physics */
-	LANDSCAPE_API virtual void RecreateCollision();
+	LANDSCAPE_API virtual bool RecreateCollision();
 
 #if WITH_EDITORONLY_DATA
 	// Called from editor code to manage foliage instances on landscape.
