@@ -590,6 +590,7 @@ public:
 		ValidateRHIAccess();
 		check(PooledBuffer);
 		checkf(Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer, TEXT("Indirect buffers needs to be underlying vertex buffer."));
+		checkf(Desc.Usage & BUF_DrawIndirect, TEXT("The buffer %s was not flagged for indirect draw call"), Name);
 		check(PooledBuffer->VertexBuffer.IsValid());
 		return PooledBuffer->VertexBuffer;
 	}

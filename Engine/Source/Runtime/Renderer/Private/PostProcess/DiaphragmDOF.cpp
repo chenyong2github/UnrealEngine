@@ -2294,6 +2294,9 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 
 				RHICmdList.SetStreamSource(0, NULL, 0);
 
+				// Marks the indirect draw parameter as used by the pass, given it's not used directly by any of the shaders.
+				PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
+
 				if (GRHISupportsRectTopology)
 				{
 					RHICmdList.DrawPrimitiveIndirect(
