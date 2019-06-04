@@ -95,6 +95,7 @@ void AddPass_ClearUAV(
 		ERenderGraphPassFlags::Compute,
 		[&Parameters, BufferUAV, Value](FRHICommandList& RHICmdList)
 		{
+			BufferUAV->MarkResourceAsUsed();
 			ClearUAV( RHICmdList, BufferUAV->GetRHI(), BufferUAV->Desc.Buffer->Desc.GetTotalNumBytes(), Value );
 		} );
 }
