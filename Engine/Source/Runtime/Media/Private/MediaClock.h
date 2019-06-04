@@ -80,9 +80,24 @@ private:
 	/** Registered clock sinks. */
 	TArray<TWeakPtr<IMediaClockSink, ESPMode::ThreadSafe>> Sinks;
 
+	/** Sinks that need to be added. */
+	TArray<TWeakPtr<IMediaClockSink, ESPMode::ThreadSafe>> SinksToAdd;
+
+	/** Sinks that need to be removed. */
+	TArray<TWeakPtr<IMediaClockSink, ESPMode::ThreadSafe>> SinksToRemove;
+
+	/** Critical section for synchronizing access to sink. */
+	mutable FCriticalSection SinkCriticalSection;
+
 	/** The current time code. */
 	FTimespan Timecode;
 
 	/** Whether the time code is locked to an external clock. */
 	bool TimecodeLocked;
+
+	/**
+	 * Updates the Sink array to reflect what has been added and removed since the last call to UpdateSinkArray.
+	 */
+	void UpdateSinkArray();
+	
 };
