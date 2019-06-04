@@ -176,6 +176,83 @@ void FHoloLensPlatformMemory::BinnedFreeToOS(void* Ptr, SIZE_T Size)
 	verify(VirtualFree(Ptr, 0, MEM_RELEASE) != 0);
 }
 
+size_t FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock::GetVirtualSizeAlignment()
+{
+	static SIZE_T OsAllocationGranularity = FPlatformMemory::GetConstants().OsAllocationGranularity;
+	return OsAllocationGranularity;
+}
+
+size_t FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock::GetCommitAlignment()
+{
+	static SIZE_T OSPageSize = FPlatformMemory::GetConstants().PageSize;
+	return OSPageSize;
+}
+
+FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock::AllocateVirtual(size_t InSize, size_t InAlignment)
+{
+	FPlatformVirtualMemoryBlock Result;
+	InSize = Align(InSize, GetVirtualSizeAlignment());
+	Result.VMSizeDivVirtualSizeAlignment = InSize / GetVirtualSizeAlignment();
+
+	size_t Alignment = FMath::Max(InAlignment, GetVirtualSizeAlignment());
+	check(Alignment <= GetVirtualSizeAlignment());
+
+	bool bTopDown = Result.GetActualSize() > 100ll * 1024 * 1024; // this is hacky, but we want to allocate huge VM blocks (like for MB3) top down
+
+	Result.Ptr = VirtualAlloc(NULL, Result.GetActualSize(), MEM_RESERVE | (bTopDown ? MEM_TOP_DOWN : 0), PAGE_NOACCESS);
+
+
+	if (!LIKELY(Result.Ptr))
+	{
+		FPlatformMemory::OnOutOfMemory(Result.GetActualSize(), Alignment);
+	}
+	check(Result.Ptr && IsAligned(Result.Ptr, Alignment));
+	return Result;
+}
+
+
+
+void FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock::FreeVirtual()
+{
+	if (Ptr)
+	{
+		check(GetActualSize() > 0);
+		// this is an iffy assumption, we don't know how much of this memory is really committed, we will assume none of it is
+		//LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
+
+		CA_SUPPRESS(6001)
+			// Windows maintains the size of allocation internally, so Size is unused
+			verify(VirtualFree(Ptr, 0, MEM_RELEASE) != 0);
+
+		Ptr = nullptr;
+		VMSizeDivVirtualSizeAlignment = 0;
+	}
+}
+
+void FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock::Commit(size_t InOffset, size_t InSize)
+{
+	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
+	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
+
+	// There are no guarantees LLM is going to be able to deal with this
+	uint8* UsePtr = ((uint8*)Ptr) + InOffset;
+	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, UsePtr, InSize));
+	if (VirtualAlloc(UsePtr, InSize, MEM_COMMIT, PAGE_READWRITE) != UsePtr)
+	{
+		FPlatformMemory::OnOutOfMemory(InSize, 0);
+	}
+}
+
+void FHoloLensPlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffset, size_t InSize)
+{
+	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
+	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
+	uint8* UsePtr = ((uint8*)Ptr) + InOffset;
+	// There are no guarantees LLM is going to be able to deal with this
+	LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, UsePtr));
+	VirtualFree(UsePtr, InSize, MEM_DECOMMIT);
+}
+
 FPlatformMemory::FSharedMemoryRegion* FHoloLensPlatformMemory::MapNamedSharedMemoryRegion(const FString& InName, bool bCreate, uint32 AccessMode, SIZE_T Size)
 {
 	FString Name(TEXT("Global\\"));
