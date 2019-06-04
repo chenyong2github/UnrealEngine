@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 
 #include "IMediaClockSink.h"
-
+#include "Misc/ScopeLock.h"
 
 /* FMediaClock structors
  *****************************************************************************/
