@@ -649,17 +649,18 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
 		if (FunctionNode && FunctionNode->PropagatedStaticSwitchParameters.Num() > 0)
 		{
-			for (const FNiagaraVariable& SwitchValue : FunctionNode->PropagatedStaticSwitchParameters)
+			for (const FNiagaraPropagatedVariable& SwitchValue : FunctionNode->PropagatedStaticSwitchParameters)
 			{
-				UEdGraphPin* ValuePin = FunctionNode->FindPin(SwitchValue.GetName(), EGPD_Input);
+				UEdGraphPin* ValuePin = FunctionNode->FindPin(SwitchValue.SwitchParameter.GetName(), EGPD_Input);
 				if (!ValuePin)
 				{
 					continue;
 				}
 				ValuePin->DefaultValue = FString();
+				FName PinName = SwitchValue.PropagatedName.IsEmpty() ? ValuePin->GetFName() : FName(*SwitchValue.PropagatedName);
 				for (UEdGraphPin* InputPin : CallInputs)
 				{
-					if (InputPin->GetFName().IsEqual(ValuePin->GetFName()) && InputPin->PinType == ValuePin->PinType)
+					if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
 					{
 						ValuePin->DefaultValue = InputPin->DefaultValue;
 						break;
