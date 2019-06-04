@@ -24,6 +24,7 @@
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
 #include "HAL/PlatformMallocCrash.h"
+#include "Unix/UnixPlatformRealTimeSignals.h"
 #include "Unix/UnixPlatformRunnableThread.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/Stats.h"
@@ -421,6 +422,12 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 	}
 #endif
 
+	bool bImplicitSend = false;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+	}
+
 	// By default we wont upload unless the *.ini has set this to true
 	bool bSendUnattendedBugReports = false;
 	if (GConfig)
@@ -558,7 +565,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			CrashReportClientArguments += TEXT("\"\"") + CrashReportLogFilepath + TEXT("\"\"");
 			CrashReportClientArguments += TEXT(" ");
 
-			if (bUnattended)
+			if (bUnattended || bImplicitSend)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended ");
 			}
@@ -604,6 +611,17 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			{
 				// spin here until CrashReporter exits
 				FProcHandle RunningProc = FPlatformProcess::CreateProc(RelativePathToCrashReporter, *CrashReportClientArguments, true, false, false, NULL, 0, NULL, NULL);
+
+				// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
+				if (bImplicitSend)
+				{
+					if (FApp::CanEverRender())
+					{
+						FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+							*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
+							*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
+					}
+				}
 
 				// do not wait indefinitely - can be more generous about the hitch than in ensure() case
 				// NOTE: Chris.Wood - increased from 3 to 8 mins because server crashes were timing out and getting lost
@@ -723,6 +741,27 @@ void PlatformCrashHandler(int32 Signal, siginfo_t* Info, void* Context)
 	}
 }
 
+void ThreadStackWalker(int32 Signal, siginfo_t* Info, void* Context)
+{
+	ThreadStackUserData* ThreadStackData = static_cast<ThreadStackUserData*>(Info->si_value.sival_ptr);
+
+	if (ThreadStackData)
+	{
+		if (ThreadStackData->bCaptureCallStack)
+		{
+			// One for the pthread frame and one for siqueue
+			int32 IgnoreCount = 2;
+			FPlatformStackWalk::StackWalkAndDump(ThreadStackData->CallStack, ThreadStackData->CallStackSize, IgnoreCount);
+		}
+		else
+		{
+			ThreadStackData->BackTraceCount = FPlatformStackWalk::CaptureStackBackTrace(ThreadStackData->BackTrace, ThreadStackData->CallStackSize);
+		}
+
+		ThreadStackData->bDone = true;
+	}
+}
+
 void FUnixPlatformMisc::SetGracefulTerminationHandler()
 {
 	struct sigaction Action;
@@ -812,6 +851,13 @@ void FUnixPlatformMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCras
 			sigaction(Signal, &Action, nullptr);
 		}
 	}
+
+	struct sigaction ActionForThread;
+	FMemory::Memzero(ActionForThread);
+	sigfillset(&ActionForThread.sa_mask);
+	ActionForThread.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
+	ActionForThread.sa_sigaction = ThreadStackWalker;
+	sigaction(THREAD_CALLSTACK_GENERATOR, &ActionForThread, nullptr);
 
 	checkf(IsInGameThread(), TEXT("Crash handler for the game thread should be set from the game thread only."));
 

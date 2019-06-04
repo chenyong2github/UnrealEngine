@@ -196,11 +196,12 @@ FD3D11Viewport::~FD3D11Viewport()
 
 	// If the swap chain was in fullscreen mode, switch back to windowed before releasing the swap chain.
 	// DXGI throws an error otherwise.
-// @ATG_CHANGE : BEGIN HoloLens support
 #if !PLATFORM_HOLOLENS
-	VERIFYD3D11RESULT_EX(SwapChain->SetFullscreenState(false,NULL), D3DRHI->GetDevice());
+	if (SwapChain)
+	{
+		VERIFYD3D11RESULT_EX(SwapChain->SetFullscreenState(false, NULL), D3DRHI->GetDevice());
+	}
 #endif
-// @ATG_CHANGE : END
 
 	FrameSyncEvent.ReleaseResource();
 

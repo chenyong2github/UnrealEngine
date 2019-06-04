@@ -1127,7 +1127,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			// We sort the variables so that they end up in the same ordering between Spawn & Update...
 			SystemEngineReadVars.Sort([&](const FNiagaraVariable& A, const FNiagaraVariable& B)
 			{
-				return A.GetName() < B.GetName();
+				return A.GetName().LexicalLess(B.GetName());
 			});
 
 			{
@@ -1176,12 +1176,12 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		// We sort the variables so that they end up in the same ordering between Spawn & Update...
 		InstanceReadVars.Sort([&](const FNiagaraVariable& A, const FNiagaraVariable& B)
 		{
-			return A.GetName() < B.GetName();
+			return A.GetName().LexicalLess(B.GetName());
 		});
 		// We sort the variables so that they end up in the same ordering between Spawn & Update...
 		InstanceWriteVars.Sort([&](const FNiagaraVariable& A, const FNiagaraVariable& B)
 		{
-			return A.GetName() < B.GetName();
+			return A.GetName().LexicalLess(B.GetName());
 		});
 		//Define the simulation context. Which is a helper struct containing all the input, result and intermediate data needed for a single simulation.
 		//Allows us to reuse the same simulate function but provide different wrappers for final IO between GPU and CPU sims.
@@ -4307,6 +4307,28 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 	// We need the generated string to generate the proper signature for now.
 	ActiveHistoryForFunctionCalls.EnterFunction(FunctionNode->GetFunctionName(), FunctionNode->FunctionScript, FunctionNode);
 
+	// Check if there are static switch parameters being set directly by a set node from the stack UI.
+	// This can happen if a module was changed and the original parameter was replaced by a static switch with the same name, but the emitter was not yet updated.
+	const FString* ModuleAlias = ActiveHistoryForFunctionCalls.GetModuleAlias();
+	if (ModuleAlias)
+	{
+		for (int32 i = 0; i < ParamMapHistories.Num(); i++)
+		{
+			for (int32 j = 0; j < ParamMapHistories[i].VariablesWithOriginalAliasesIntact.Num(); j++)
+			{
+				const FNiagaraVariable Var = ParamMapHistories[i].VariablesWithOriginalAliasesIntact[j];
+				FString VarStr = Var.GetName().ToString();
+				if (VarStr.StartsWith(*ModuleAlias))
+				{
+					VarStr = VarStr.Mid(ModuleAlias->Len() + 1);
+					if (FunctionNode->FindStaticSwitchInputPin(*VarStr))
+					{
+						Error(FText::Format(LOCTEXT("SwitchPinFoundForSetPin", "A switch node pin exists but is being set directly using Set node! Please use the stack UI to resolve the conflict. Output Pin: {0}"), FText::FromName(Var.GetName())), FunctionNode, nullptr);
+					}
+				}
+			}
+		}
+	}
 
 	// Remove input add pin if it exists
 	for (int32 i = 0; i < CallOutputs.Num(); i++)
@@ -5475,7 +5497,7 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 	return Ret;
 }
 
-void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin) //@todo(message manager) rearrange syntax to fit with FNiagaraMessageManager
+void FHlslNiagaraTranslator::Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin)
 {
 	FString NodePinStr = TEXT("");
 	FString NodePinPrefix = TEXT(" - ");

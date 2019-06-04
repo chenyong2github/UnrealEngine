@@ -837,9 +837,10 @@ void USceneComponent::EndScopedMovementUpdate(class FScopedMovementUpdate& Compl
 				if (PrimitiveThis)
 				{
 					// NOTE: UpdateOverlaps filters events to only consider overlaps where bGenerateOverlapEvents is true for both components, so it's ok if we queued up other overlaps.
-					TArray<FOverlapInfo> EndOverlaps;
-					const TArray<FOverlapInfo>* EndOverlapsPtr = CurrentScopedUpdate->GetOverlapsAtEnd(*PrimitiveThis, EndOverlaps, bTransformChanged);
-					UpdateOverlaps(&CurrentScopedUpdate->GetPendingOverlaps(), true, EndOverlapsPtr);
+					TInlineOverlapInfoArray EndOverlaps;
+					const TOverlapArrayView PendingOverlaps(CurrentScopedUpdate->GetPendingOverlaps());
+					const TOptional<TOverlapArrayView> EndOverlapsOptional = CurrentScopedUpdate->GetOverlapsAtEnd(*PrimitiveThis, EndOverlaps, bTransformChanged);
+					UpdateOverlaps(&PendingOverlaps, true, EndOverlapsOptional.IsSet() ? &(EndOverlapsOptional.GetValue()) : nullptr);
 				}
 				else
 				{
@@ -1712,10 +1713,9 @@ void USceneComponent::SetupAttachment(class USceneComponent* InParent, FName InS
 	{
 		if (ensureMsgf(InParent != this, TEXT("Cannot attach a component to itself.")))
 		{
-			// Paragon hack
-			if (/*ensureMsgf*/(InParent == nullptr || !InParent->IsAttachedTo(this))) //, TEXT("Setting up attachment would create a cycle.")))
+			if (ensureMsgf(InParent == nullptr || !InParent->IsAttachedTo(this), TEXT("Setting up attachment would create a cycle.")))
 			{
-				if (/*ensureMsgf*/(AttachParent == nullptr || !AttachParent->AttachChildren.Contains(this)))// , TEXT("SetupAttachment cannot be used once a component has already had AttachTo used to connect it to a parent.")))
+				if (ensureMsgf(AttachParent == nullptr || !AttachParent->AttachChildren.Contains(this), TEXT("SetupAttachment cannot be used once a component has already had AttachTo used to connect it to a parent.")))
 				{
 					AttachParent = InParent;
 					AttachSocketName = InSocketName;
@@ -2762,7 +2762,7 @@ bool USceneComponent::InternalSetWorldLocationAndRotation(FVector NewLocation, c
 	return false;
 }
 
-bool USceneComponent::UpdateOverlapsImpl(TArray<FOverlapInfo> const* PendingOverlaps, bool bDoNotifies, const TArray<FOverlapInfo>* OverlapsAtEndLocation)
+bool USceneComponent::UpdateOverlapsImpl(const TOverlapArrayView* PendingOverlaps, bool bDoNotifies, const TOverlapArrayView* OverlapsAtEndLocation)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateOverlaps); 
 
@@ -3466,7 +3466,7 @@ void FScopedMovementUpdate::RevertMove()
 	TeleportType = ETeleportType::None;
 }
 
-void FScopedMovementUpdate::AppendOverlapsAfterMove(const TArray<FOverlapInfo>& NewPendingOverlaps, bool bSweep, bool bIncludesOverlapsAtEnd)
+void FScopedMovementUpdate::AppendOverlapsAfterMove(const TOverlapArrayView& NewPendingOverlaps, bool bSweep, bool bIncludesOverlapsAtEnd)
 {
 	bHasMoved = true;
 	const bool bWasForcing = (CurrentOverlapState == EOverlapState::eForceUpdate);
@@ -3477,7 +3477,7 @@ void FScopedMovementUpdate::AppendOverlapsAfterMove(const TArray<FOverlapInfo>& 
 		if (NewPendingOverlaps.Num())
 		{
 			FinalOverlapCandidatesIndex = PendingOverlaps.Num();
-			PendingOverlaps.Append(NewPendingOverlaps);
+			PendingOverlaps.Append(NewPendingOverlaps.GetData(), NewPendingOverlaps.Num());
 		}
 		else
 		{
@@ -3490,7 +3490,7 @@ void FScopedMovementUpdate::AppendOverlapsAfterMove(const TArray<FOverlapInfo>& 
 		// We don't know about the final overlaps in the case of a teleport.
 		CurrentOverlapState = EOverlapState::eUnknown;
 		FinalOverlapCandidatesIndex = INDEX_NONE;
-		PendingOverlaps.Append(NewPendingOverlaps);
+		PendingOverlaps.Append(NewPendingOverlaps.GetData(), NewPendingOverlaps.Num());
 	}
 
 	if (bWasForcing)
@@ -3549,9 +3549,10 @@ void FScopedMovementUpdate::OnInnerScopeComplete(const FScopedMovementUpdate& In
 	}	
 }
 
-const TArray<FOverlapInfo>* FScopedMovementUpdate::GetOverlapsAtEnd(class UPrimitiveComponent& PrimComponent, TArray<FOverlapInfo>& EndOverlaps, bool bTransformChanged) const
+template<typename AllocatorType>
+TOptional<TOverlapArrayView> FScopedMovementUpdate::GetOverlapsAtEnd(class UPrimitiveComponent& PrimComponent, TArray<FOverlapInfo, AllocatorType>& OutEndOverlaps, bool bTransformChanged) const
 {
-	const TArray<FOverlapInfo>* EndOverlapsPtr = nullptr;
+	TOptional<TOverlapArrayView> Result;
 	switch (CurrentOverlapState)
 	{
 		case FScopedMovementUpdate::EOverlapState::eUseParent:
@@ -3559,19 +3560,21 @@ const TArray<FOverlapInfo>* FScopedMovementUpdate::GetOverlapsAtEnd(class UPrimi
 			// Only rotation could have possibly changed
 			if (bTransformChanged && PrimComponent.AreSymmetricRotations(InitialTransform.GetRotation(), PrimComponent.GetComponentQuat(), PrimComponent.GetComponentScale()))
 			{
-				EndOverlapsPtr = PrimComponent.ConvertRotationOverlapsToCurrentOverlaps(EndOverlaps, PrimComponent.GetOverlapInfos());
+				if (PrimComponent.ConvertRotationOverlapsToCurrentOverlaps(OutEndOverlaps, PrimComponent.GetOverlapInfos()))
+				{
+					Result = OutEndOverlaps;
+				}
 			}
 			else
 			{
 				// Use current overlaps (unchanged)
-				EndOverlapsPtr = &PrimComponent.GetOverlapInfos();
+				Result = PrimComponent.GetOverlapInfos();
 			}
 			break;
 		}
 		case FScopedMovementUpdate::EOverlapState::eUnknown:
 		case FScopedMovementUpdate::EOverlapState::eForceUpdate:
 		{
-			EndOverlapsPtr = nullptr;
 			break;
 		}
 		case FScopedMovementUpdate::EOverlapState::eIncludesOverlaps:
@@ -3579,7 +3582,7 @@ const TArray<FOverlapInfo>* FScopedMovementUpdate::GetOverlapsAtEnd(class UPrimi
 			if (FinalOverlapCandidatesIndex == INDEX_NONE)
 			{
 				// Overlapping nothing
-				EndOverlapsPtr = &EndOverlaps;
+				Result = OutEndOverlaps;
 			}
 			else
 			{
@@ -3587,9 +3590,14 @@ const TArray<FOverlapInfo>* FScopedMovementUpdate::GetOverlapsAtEnd(class UPrimi
 				const bool bMatchingScale = FTransform::AreScale3DsEqual(InitialTransform, PrimComponent.GetComponentTransform());
 				if (bMatchingScale)
 				{
-					EndOverlapsPtr = PrimComponent.ConvertSweptOverlapsToCurrentOverlaps(
-						EndOverlaps, GetPendingOverlaps(), FinalOverlapCandidatesIndex,
+					const bool bHasEndOverlaps = PrimComponent.ConvertSweptOverlapsToCurrentOverlaps(
+						OutEndOverlaps, PendingOverlaps, FinalOverlapCandidatesIndex,
 						PrimComponent.GetComponentLocation(), PrimComponent.GetComponentQuat());
+					
+					if (bHasEndOverlaps)
+					{
+						Result = OutEndOverlaps;
+					}
 				}
 			}
 			break;
@@ -3601,7 +3609,7 @@ const TArray<FOverlapInfo>* FScopedMovementUpdate::GetOverlapsAtEnd(class UPrimi
 		}
 	}
 
-	return EndOverlapsPtr;
+	return Result;
 }
 
 

@@ -1283,7 +1283,7 @@ bool FAssetRegistryGenerator::GenerateAssetChunkInformationCSV(const FString& Ou
 	// Sort list so it's consistent over time
 	AssetDataList.Sort([](const FAssetData& A, const FAssetData& B)
 	{
-		return A.ObjectPath < B.ObjectPath;
+		return A.ObjectPath.LexicalLess(B.ObjectPath);
 	});
 
 	// Create file for all chunks

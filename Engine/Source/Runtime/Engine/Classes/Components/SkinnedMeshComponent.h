@@ -308,7 +308,7 @@ protected:
 	/**
 	*	Mapping for socket overrides, key is the Source socket name and the value is the override socket name
 	*/
-	TSortedMap<FName, FName> SocketOverrideLookup;
+	TSortedMap<FName, FName, FDefaultAllocator, FNameFastLess> SocketOverrideLookup;
 
 public:
 #if WITH_EDITORONLY_DATA
@@ -784,7 +784,7 @@ public:
 	virtual bool DoesSocketExist(FName InSocketName) const override;
 	virtual bool HasAnySockets() const override;
 	virtual void QuerySupportedSockets(TArray<FComponentSocketDescription>& OutSockets) const override;
-	virtual bool UpdateOverlapsImpl(TArray<FOverlapInfo> const* PendingOverlaps=NULL, bool bDoNotifies=true, const TArray<FOverlapInfo>* OverlapsAtEndLocation=NULL) override;
+	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* PendingOverlaps=NULL, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=NULL) override;
 	//~ End USceneComponent Interface
 
 	//~ Begin UPrimitiveComponent Interface

@@ -547,8 +547,12 @@ namespace UnrealBuildTool
 			HotReloadState HotReloadState = null;
 			if(HotReloadMode == HotReloadMode.Disabled)
 			{
-				// Delete the previous state file
-				HotReload.DeleteTemporaryFiles(HotReloadStateFile);
+				// Make sure we're not doing a partial build from the editor (eg. compiling a new plugin)
+				if(TargetDescriptor.ForeignPlugin == null && TargetDescriptor.SingleFileToCompile == null)
+				{
+					// Delete the previous state file
+					HotReload.DeleteTemporaryFiles(HotReloadStateFile);
+				}
 			}
 			else
 			{

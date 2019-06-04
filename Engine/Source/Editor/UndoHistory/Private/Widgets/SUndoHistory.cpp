@@ -459,7 +459,7 @@ TSharedRef<SWidget> SUndoHistory::GetViewButtonContent() const
 			LOCTEXT("ToggleShowTransactionDetailsToolTip", "When enabled, display additional information about transactions."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SUndoHistory::ToggleShowTransactionDetails),
+				FExecuteAction::CreateSP(const_cast<SUndoHistory*>(this), &SUndoHistory::ToggleShowTransactionDetails),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateSP(this, &SUndoHistory::IsShowingTransactionDetails)
 			),

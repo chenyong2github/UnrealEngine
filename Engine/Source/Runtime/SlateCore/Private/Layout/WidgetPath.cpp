@@ -416,7 +416,7 @@ bool FWeakWidgetPath::ContainsWidget( const TSharedRef< const SWidget >& SomeWid
 
 FWidgetPath FWeakWidgetPath::ToNextFocusedPath(EUINavigation NavigationType) const
 {
-	return ToNextFocusedPath(NavigationType, FNavigationReply::Escape(), FArrangedWidget::NullWidget);
+	return ToNextFocusedPath(NavigationType, FNavigationReply::Escape(), FArrangedWidget::GetNullWidget());
 }
 
 FWidgetPath FWeakWidgetPath::ToNextFocusedPath(EUINavigation NavigationType, const FNavigationReply& NavigationReply, const FArrangedWidget& RuleWidget) const

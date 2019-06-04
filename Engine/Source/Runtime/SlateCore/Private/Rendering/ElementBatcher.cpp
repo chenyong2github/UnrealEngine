@@ -1594,7 +1594,7 @@ void FSlateElementBatcher::AddSplineElement(const FSlateDrawElement& DrawElement
 		SplineColor
 	);
 
-	if (const bool bNoGradient = InPayload.GradientStops.Num() <= 1)
+	if (/*const bool bNoGradient = */InPayload.GradientStops.Num() <= 1)
 	{
 		// Normal scenario where there is no color gradient.
 		LineBuilder.BuildBezierGeometry(InPayload.P0, InPayload.P1, InPayload.P2, InPayload.P3);

@@ -167,20 +167,20 @@ enum class EPaintMode : uint8
 };
 
 /** Paint mode settings class derives from base mesh painting settings */
-UCLASS()
+UCLASS(Config=EditorPerProjectUserSettings)
 class UPaintModeSettings : public UMeshPaintSettings
 {
 	GENERATED_UCLASS_BODY()
 public:
 
 	static UPaintModeSettings* Get();
-	
+
 	UPROPERTY()
 	EPaintMode PaintMode;
 
-	UPROPERTY(EditAnywhere, Category = VertexPainting, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Config, Category = VertexPainting, meta=(ShowOnlyInnerProperties))
 	FVertexPaintSettings VertexPaintSettings;
 
-	UPROPERTY(EditAnywhere, Category = TexturePainting, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, Config, Category = TexturePainting, meta=(ShowOnlyInnerProperties))
 	FTexturePaintSettings TexturePaintSettings;
 };

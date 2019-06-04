@@ -14,6 +14,8 @@ public class Core : ModuleRules
 
 		PrivateDependencyModuleNames.Add("BuildSettings");
 
+		PublicDependencyModuleNames.Add("TraceLog");
+
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"Developer/DerivedDataCache/Public",
@@ -216,7 +218,7 @@ public class Core : ModuleRules
         bool bWithMallocStomp = false;
         if (Target.Configuration != UnrealTargetConfiguration.Shipping)
         {
-			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Mac)
+			if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Win64)
 			// Target.Platform == UnrealTargetPlatform.Win32: // 32-bit windows can technically be supported, but will likely run out of virtual memory space quickly
 			// Target.Platform == UnrealTargetPlatform.XboxOne: // XboxOne could be supported, as it's similar enough to Win64
 			{

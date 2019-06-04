@@ -364,7 +364,7 @@ void OodleHandlerComponent::Initialize()
 	}
 
 	FString CurEnableModeStr;
-	UEnum* EnableModeEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("EOodleEnableMode"), true);
+	UEnum* EnableModeEnum = StaticEnum<EOodleEnableMode>();
 
 	if (GConfig->GetString(OODLE_INI_SECTION, TEXT("ServerEnableMode"), CurEnableModeStr, GEngineIni))
 	{

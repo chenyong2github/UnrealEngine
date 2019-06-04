@@ -181,7 +181,7 @@ bool					GExitPurge						= false;
 
 FChunkedFixedUObjectArray* GCoreObjectArrayForDebugVisualizers = nullptr;
 #if PLATFORM_UNIX
-FNameEntry*** CORE_API GFNameTableForDebuggerVisualizers_MT = FName::GetNameTableForDebuggerVisualizers_MT();
+uint8** CORE_API GNameBlocksDebug = FNameDebugVisualizer::GetBlocks();
 FChunkedFixedUObjectArray*& CORE_API GObjectArrayForDebugVisualizers = GCoreObjectArrayForDebugVisualizers;
 #endif
 
@@ -362,6 +362,7 @@ FScopedBootTiming::~FScopedBootTiming()
 }
 void BootTimingPoint(const ANSICHAR *Message)
 {
+	TRACE_BOOKMARK(TEXT("%s"), *FString(Message));
 }
 void DumpBootTiming()
 {
@@ -398,6 +399,8 @@ void DumpBootTiming()
 
 static void BootTimingPoint(const TCHAR *Message, const TCHAR *Prefix = nullptr, int32 Depth = 0, double TookTime = 0.0)
 {
+	TRACE_BOOKMARK(TEXT("%s"), Message);
+
 	static double LastTime = 0.0;
 	static TArray<FString> MessageStack;
 	static FString LastGapMessage;

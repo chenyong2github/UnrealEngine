@@ -14,6 +14,7 @@
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
+#include "Misc/App.h"
 #include "GameFramework/WorldSettings.h"
 #include "Particles/ParticleSystem.h"
 #include "ParticleHelper.h"
@@ -666,12 +667,18 @@ void UParticleModule::GetParticleParametersUtilized(TArray<FString>& ParticlePar
 
 uint32 UParticleModule::PrepRandomSeedInstancePayload(FParticleEmitterInstance* Owner, FParticleRandomSeedInstancePayload* InRandSeedPayload, const FParticleRandomSeedInfo& InRandSeedInfo)
 {
-	if (InRandSeedPayload != NULL)
+    // These should never be null
+	if (!ensure( Owner != nullptr && Owner->Component != nullptr ))
 	{
-		FMemory::Memzero(InRandSeedPayload, sizeof(FParticleRandomSeedInstancePayload));
+		return 0xffffffff;
+	}
+
+	if (InRandSeedPayload != nullptr)
+	{
+		new(InRandSeedPayload) FParticleRandomSeedInstancePayload();
 
 		// See if the parameter is set on the instance...
-		if ((Owner != NULL) && (Owner->Component != NULL) && (InRandSeedInfo.bGetSeedFromInstance == true))
+		if (InRandSeedInfo.bGetSeedFromInstance == true)
 		{
 			float SeedValue;
 			if (Owner->Component->GetFloatParameter(InRandSeedInfo.ParameterName, SeedValue) == true)
@@ -700,15 +707,19 @@ uint32 UParticleModule::PrepRandomSeedInstancePayload(FParticleEmitterInstance* 
 		// Pick a seed to use and initialize it!!!!
 		if (InRandSeedInfo.RandomSeeds.Num() > 0)
 		{
+			int32 Index = 0;
+
 			if (InRandSeedInfo.bRandomlySelectSeedArray)
 			{
-				int32 Index = FMath::RandRange(0, InRandSeedInfo.RandomSeeds.Num() - 1);
-				InRandSeedPayload->RandomStream.Initialize(InRandSeedInfo.RandomSeeds[Index]);
+				Index = Owner->Component->RandomStream.RandHelper(InRandSeedInfo.RandomSeeds.Num());
 			}
-			else
-			{
-				InRandSeedPayload->RandomStream.Initialize(InRandSeedInfo.RandomSeeds[0]);
-			}
+
+			InRandSeedPayload->RandomStream.Initialize(InRandSeedInfo.RandomSeeds[Index]);
+			return 0;
+		}
+		else if (FApp::bUseFixedSeed)
+		{
+			InRandSeedPayload->RandomStream.Initialize(GetFName());
 			return 0;
 		}
 	}
@@ -787,6 +798,13 @@ bool UParticleModule::IsUsedInGPUEmitter()const
 	}
 
 	return false;
+}
+
+FRandomStream& UParticleModule::GetRandomStream(FParticleEmitterInstance* Owner)
+{
+	FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
+	FRandomStream& RandomStream = (Payload != nullptr) ? Payload->RandomStream : Owner->Component->RandomStream;
+	return RandomStream;
 }
 
 #if WITH_EDITOR
@@ -1404,7 +1422,7 @@ void UParticleModuleMeshRotation::PostEditChangeProperty(FPropertyChangedEvent& 
 
 void UParticleModuleMeshRotation::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 
@@ -1445,27 +1463,11 @@ UParticleModuleMeshRotation_Seeded::UParticleModuleMeshRotation_Seeded(const FOb
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleMeshRotation_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleMeshRotation_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleMeshRotation_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleMeshRotation_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -1518,7 +1520,7 @@ void UParticleModuleMeshRotationRate::PostEditChangeProperty(FPropertyChangedEve
 
 void UParticleModuleMeshRotationRate::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleMeshRotationRate::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -1563,28 +1565,11 @@ UParticleModuleMeshRotationRate_Seeded::UParticleModuleMeshRotationRate_Seeded(c
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleMeshRotationRate_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleMeshRotationRate_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-
-uint32 UParticleModuleMeshRotationRate_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleMeshRotationRate_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -1810,7 +1795,7 @@ void UParticleModuleRotation::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 void UParticleModuleRotation::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleRotation::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -1832,27 +1817,11 @@ UParticleModuleRotation_Seeded::UParticleModuleRotation_Seeded(const FObjectInit
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleRotation_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleRotation_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleRotation_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleRotation_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -1905,7 +1874,7 @@ void UParticleModuleRotationRate::PostEditChangeProperty(FPropertyChangedEvent& 
 
 void UParticleModuleRotationRate::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleRotationRate::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -1941,27 +1910,11 @@ UParticleModuleRotationRate_Seeded::UParticleModuleRotationRate_Seeded(const FOb
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleRotationRate_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleRotationRate_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleRotationRate_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleRotationRate_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -2248,8 +2201,7 @@ float UParticleModuleSubUV::DetermineImageIndex(FParticleEmitterInstance* Owner,
 			((Particle->RelativeTime - SubUVPayload.RandomImageTime) > LODLevel->RequiredModule->RandomImageTime) ||
 			(SubUVPayload.RandomImageTime == 0.0f))
 		{
-			const float RandomNumber = FMath::SRand();
-			ImageIndex = FMath::TruncToInt(RandomNumber * TotalSubImages);
+			ImageIndex = GetRandomStream(Owner).RandHelper(TotalSubImages);
 			SubUVPayload.RandomImageTime	= Particle->RelativeTime;
 		}
 
@@ -2381,7 +2333,8 @@ void UParticleModuleSubUVMovie::Spawn(FParticleEmitterInstance* Owner, int32 Off
 			}
 			else if (StartingFrame == 0)
 			{
-				MoviePayload.Time = FMath::TruncToFloat(FMath::SRand() * (TotalSubImages-1));
+				FRandomStream& RandomStream = GetRandomStream(Owner);
+				MoviePayload.Time = FMath::TruncToFloat(RandomStream.FRand() * (TotalSubImages-1));
 			}
 
 			// Update the payload
@@ -3117,7 +3070,7 @@ void UParticleModuleLight::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset
 		LightData.RadiusScale = RadiusScale.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
 		// Exponent of 0 is interpreted by renderer as inverse squared falloff
 		LightData.LightExponent = bUseInverseSquaredFalloff ? 0 : LightExponent.GetValue(Owner->EmitterTime, Owner->Component, InRandomStream);
-		const float RandomNumber = InRandomStream ? InRandomStream->GetFraction() : FMath::SRand();
+		const float RandomNumber = InRandomStream->GetFraction();
 		LightData.bValid = RandomNumber < SpawnFraction;
 		LightData.bAffectsTranslucency = bAffectsTranslucency;
 		LightData.bHighQuality = bHighQualityLights;
@@ -3240,7 +3193,7 @@ void UParticleModuleLight::UpdateHQLight(UPointLightComponent* PointLightCompone
 
 void UParticleModuleLight::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleLight::Update(FParticleEmitterInstance* Owner, int32 Offset, float DeltaTime)
@@ -3389,27 +3342,11 @@ UParticleModuleLight_Seeded::UParticleModuleLight_Seeded(const FObjectInitialize
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleLight_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this) + Super::RequiredBytesPerInstance());
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleLight_Seeded::RequiredBytesPerInstance()
-{
-	return Super::RequiredBytesPerInstance() + RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleLight_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)((uint8*)InstData + Super::RequiredBytesPerInstance()), RandomSeedInfo);
-}
-
 void UParticleModuleLight_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this) + Super::RequiredBytesPerInstance());
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -3876,7 +3813,7 @@ void UParticleModuleLifetime::CompileModule( struct FParticleEmitterBuildInfo& E
 
 void UParticleModuleLifetime::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleLifetime::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -3942,39 +3879,18 @@ UParticleModuleLifetime_Seeded::UParticleModuleLifetime_Seeded(const FObjectInit
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleLifetime_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleLifetime_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleLifetime_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleLifetime_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
 
 float UParticleModuleLifetime_Seeded::GetLifetimeValue(FParticleEmitterInstance* Owner, float InTime, UObject* Data )
 {
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	if (Payload != NULL)
-	{		
-		return Lifetime.GetValue(InTime, Data, &(Payload->RandomStream));
-	}
-	return UParticleModuleLifetime::GetLifetimeValue(Owner, InTime, Data);
+	return Lifetime.GetValue(InTime, Data, &GetRandomStream(Owner));
 }
 
 /*-----------------------------------------------------------------------------
@@ -4208,7 +4124,7 @@ void UParticleModuleAttractorParticle::Spawn(FParticleEmitterInstance* Owner, in
 			switch (SelectionMethod)
 			{
 			case EAPSM_Random:
-				LastSelIndex		= FMath::TruncToInt(FMath::SRand() * AttractorEmitterInst->ActiveParticles);
+				LastSelIndex		= GetRandomStream(Owner).RandHelper(AttractorEmitterInst->ActiveParticles);
 				Data.SourceIndex	= LastSelIndex;
 				break;
 			case EAPSM_Sequential:

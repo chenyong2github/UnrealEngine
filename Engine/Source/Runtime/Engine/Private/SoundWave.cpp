@@ -1383,10 +1383,10 @@ bool USoundWave::CleanupDecompressor(bool bForceWait)
 	return false;
 }
 
-FWaveInstance* USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const
+FWaveInstance& USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const
 {
 	// Create a new wave instance and associate with the ActiveSound
-	FWaveInstance* WaveInstance = new FWaveInstance(WaveInstanceHash, ActiveSound);
+	FWaveInstance& WaveInstance = ActiveSound.AddWaveInstance(WaveInstanceHash);
 
 	// Add in the subtitle if they exist
 	if (ActiveSound.bHandleSubtitles && Subtitles.Num() > 0)
@@ -1395,7 +1395,7 @@ FWaveInstance* USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT
 		{
 			QueueSubtitleParams.AudioComponentID = ActiveSound.GetAudioComponentID();
 			QueueSubtitleParams.WorldPtr = ActiveSound.GetWeakWorld();
-			QueueSubtitleParams.WaveInstance = (PTRINT)WaveInstance;
+			QueueSubtitleParams.WaveInstance = (PTRINT)&WaveInstance;
 			QueueSubtitleParams.SubtitlePriority = ActiveSound.SubtitlePriority;
 			QueueSubtitleParams.Duration = Duration;
 			QueueSubtitleParams.bManualWordWrap = bManualWordWrap;
@@ -1464,7 +1464,7 @@ void USoundWave::Parse(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstance
 			ActiveSound.ApplyRadioFilter(ParseParams);
 		}
 
-		WaveInstance = HandleStart(ActiveSound, NodeWaveInstanceHash);
+		WaveInstance = &HandleStart(ActiveSound, NodeWaveInstanceHash);
 	}
 
 	// Looping sounds are never actually finished

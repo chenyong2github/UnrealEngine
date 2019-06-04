@@ -24,6 +24,9 @@
 #include "Framework/Application/SWindowTitleBar.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 #include "Framework/Application/IWidgetReflector.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -460,6 +463,13 @@ FAutoConsoleVariableRef CVarAllowCursorQueries(
 	TEXT("")
 );
 
+int32 bRequireFocusForGamepadInput = 0;
+FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
+	TEXT("Slate.RequireFocusForGamepadInput"),
+	bRequireFocusForGamepadInput,
+	TEXT("")
+);
+
 //////////////////////////////////////////////////////////////////////////
 bool FSlateApplication::MouseCaptorHelper::HasCapture() const
 {
@@ -882,9 +892,15 @@ void FPopupSupport::SendNotifications( const FWidgetPath& WidgetsUnderCursor )
 void FSlateApplication::SetPlatformApplication(const TSharedRef<class GenericApplication>& InPlatformApplication)
 {
 	PlatformApplication->SetMessageHandler(MakeShareable(new FGenericApplicationMessageHandler()));
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(MakeShareable(new FGenericAccessibleMessageHandler()));
+#endif
 
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler(CurrentApplication.ToSharedRef());
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler().ToSharedRef());
+#endif
 }
 
 void FSlateApplication::OverridePlatformApplication(TSharedPtr<class GenericApplication> InPlatformApplication)
@@ -910,6 +926,9 @@ TSharedRef<FSlateApplication> FSlateApplication::Create(const TSharedRef<class G
 
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler( CurrentApplication.ToSharedRef() );
+#if WITH_ACCESSIBILITY
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler().ToSharedRef());
+#endif
 
 	// The grid needs to know the size and coordinate system of the desktop.
 	// Some monitor setups have a primary monitor on the right and below the
@@ -962,6 +981,9 @@ FSlateApplication::FSlateApplication()
 	, bSlateWindowActive(true)
 	, Scale( 1.0f )
 	, DragTriggerDistance( 0 )
+#if WITH_ACCESSIBILITY
+	, AccessibleMessageHandler(new FSlateAccessibleMessageHandler())
+#endif
 	, CursorRadius( 0.0f )
 	, LastUserInteractionTime( 0.0 )
 	, LastUserInteractionTimeForThrottling( 0.0 )
@@ -1009,6 +1031,9 @@ FSlateApplication::FSlateApplication()
 	, AppIcon( FCoreStyle::Get().GetBrush("DefaultAppIcon") )
 	, VirtualDesktopRect( 0,0,0,0 )
 	, NavigationConfig(MakeShared<FNavigationConfig>())
+#if WITH_EDITOR
+	, EditorNavigationConfig(MakeShared<FNavigationConfig>())
+#endif
 	, SimulateGestures(false, (int32)EGestureEvent::Count)
 	, ProcessingInput(0)
 	, InputManager(MakeShared<FSlateDefaultInputMapping>())
@@ -1042,6 +1067,9 @@ FSlateApplication::FSlateApplication()
 	RegisterUser(MakeShareable(new FSlateUser(0, false)));
 
 	NavigationConfig->OnRegister();
+#if WITH_EDITOR
+	EditorNavigationConfig->OnRegister();
+#endif
 
 	SimulateGestures[(int32)EGestureEvent::LongPress] = true;
 
@@ -1589,7 +1617,7 @@ void FSlateApplication::PrivateDrawWindows( TSharedPtr<SWindow> DrawOnlyThisWind
 
 void FSlateApplication::PollGameDeviceState()
 {
-	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread )
+	if( ActiveModalWindows.Num() == 0 && !GIntraFrameDebuggingGameThread && (!bRequireFocusForGamepadInput || IsActive()))
 	{
 		// Don't poll when a modal window open or intra frame debugging is happening
 		PlatformApplication->PollGameDeviceState( GetDeltaTime() );
@@ -2076,14 +2104,59 @@ bool FSlateApplication::CanDisplayWindows() const
 	return Renderer.IsValid() && Renderer->AreShadersInitialized();
 }
 
+#if WITH_EDITOR
+static bool IsFocusInViewport(const TSet<TWeakPtr<SViewport>> Viewports, const FWeakWidgetPath& FocusPath)
+{
+	if (Viewports.Num() > 0)
+	{
+		for (const TWeakPtr<SWidget> FocusWidget : FocusPath.Widgets)
+		{
+			for (const TWeakPtr<SViewport> Viewport : Viewports)
+			{
+				if (FocusWidget == Viewport)
+				{
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+#endif
+
 EUINavigation FSlateApplication::GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent) const
 {
+#if WITH_EDITOR
+	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+	if (const FSlateUser* User = GetUser(GetUserIndexForKeyboard()))
+	{
+		if (!IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			return EditorNavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
+		}
+	}
+#endif
 	return NavigationConfig->GetNavigationDirectionFromKey(InKeyEvent);
 }
 
 EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent)
 {
+#if WITH_EDITOR
+	// Check if the focused widget is an editor widget or a PIE widget so we know which config to use.
+	if (const FSlateUser* User = GetUser(GetUserIndexForKeyboard()))
+	{
+		if (!IsFocusInViewport(AllGameViewports, User->GetWeakFocusPath()))
+		{
+			return EditorNavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+		}
+	}
+#endif
 	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
+}
+
+EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
+{
+	return NavigationConfig->GetNavigationActionForKey(InKey);
 }
 
 void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const TSharedPtr<const SWidget> InParentWidget, bool bSlowTaskWindow )
@@ -2468,6 +2541,10 @@ void FSlateApplication::InvalidateAllViewports()
 void FSlateApplication::RegisterGameViewport( TSharedRef<SViewport> InViewport )
 {
 	RegisterViewport(InViewport);
+
+#if WITH_EDITOR
+	AllGameViewports.Add(InViewport);
+#endif
 	
 	if (GameViewportWidget != InViewport)
 	{
@@ -2497,6 +2574,10 @@ void FSlateApplication::UnregisterGameViewport()
 
 	bIsFakingTouched = false;
 	bIsGameFakingTouch = false;
+
+#if WITH_EDITOR
+	AllGameViewports.Empty();
+#endif
 
 	if (GameViewportWidget.IsValid())
 	{
@@ -2950,6 +3031,9 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 
 		// Let previously-focused widget know that it's losing focus
 		OldFocusedWidget->OnFocusLost(FocusEvent);
+#if WITH_ACCESSIBILITY
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(OldFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, true, false);
+#endif
 	}
 
 #if SLATE_HAS_WIDGET_REFLECTOR
@@ -2981,6 +3065,12 @@ bool FSlateApplication::SetUserFocus(FSlateUser* User, const FWidgetPath& InFocu
 		{
 			ProcessReply(InFocusPath, Reply, nullptr, nullptr, User->GetUserIndex());
 		}
+
+		NavigationConfig->OnNavigationChangedFocus(OldFocusedWidget, NewFocusedWidget, FocusEvent);
+
+#if WITH_ACCESSIBILITY
+		GetAccessibleMessageHandler()->OnWidgetEventRaised(NewFocusedWidget.ToSharedRef(), EAccessibleEvent::FocusChange, false, true);
+#endif
 	}
 
 	return true;
@@ -4563,7 +4653,7 @@ bool FSlateApplication::TakeScreenshot(const TSharedRef<SWidget>& Widget, const 
 	FWidgetPath WidgetPath;
 	FSlateApplication::Get().GeneratePathToWidgetChecked(Widget, WidgetPath);
 
-	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::NullWidget);
+	FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(Widget).Get(FArrangedWidget::GetNullWidget());
 	FVector2D Position = ArrangedWidget.Geometry.AbsolutePosition;
 	FVector2D Size = ArrangedWidget.Geometry.GetDrawSize();
 	FVector2D WindowPosition = WidgetWindow->GetPositionInScreen();
@@ -4768,6 +4858,9 @@ void FSlateApplication::UnregisterUser(int32 UserIndex)
 		Users[UserIndex].Reset();
 
 		NavigationConfig->OnUserRemoved(UserIndex);
+#if WITH_EDITOR
+		EditorNavigationConfig->OnUserRemoved(UserIndex);
+#endif
 	}
 }
 
@@ -5347,8 +5440,8 @@ bool FSlateApplication::OnMouseDown(const TSharedPtr< FGenericWindow >& Platform
 
 bool FSlateApplication::OnMouseDown( const TSharedPtr< FGenericWindow >& PlatformWindow, const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	// convert a left mouse button click to touch event if we are faking it
+	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = true;
 		return OnTouchStarted( PlatformWindow, PlatformApplication->Cursor->GetPosition(), 1.0f, 0, 0 );
@@ -6170,8 +6263,8 @@ bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button )
 
 bool FSlateApplication::OnMouseUp( const EMouseButtons::Type Button, const FVector2D CursorPos )
 {
-	// convert to touch event if we are faking it	
-	if (bIsFakingTouch || bIsGameFakingTouch)
+	// convert left mouse click to touch event if we are faking it	
+	if ((bIsFakingTouch || bIsGameFakingTouch) && Button == EMouseButtons::Left)
 	{
 		bIsFakingTouched = false;
 		return OnTouchEnded(PlatformApplication->Cursor->GetPosition(), 0, 0);
@@ -6337,7 +6430,8 @@ FReply FSlateApplication::RouteMouseWheelOrGestureEvent(const FWidgetPath& Widge
 
 bool FSlateApplication::OnMouseMove()
 {
-	if (bIsFakingTouched || bIsGameFakingTouch)
+	// If the left button is pressed we fake 
+	if ((bIsFakingTouched || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)
@@ -6379,7 +6473,8 @@ bool FSlateApplication::OnMouseMove()
 
 bool FSlateApplication::OnRawMouseMove( const int32 X, const int32 Y )
 {
-	if (bIsFakingTouched || bIsGameFakingTouch)
+    // We fake a move only if the left mous button is down
+	if ((bIsFakingTouch || bIsGameFakingTouch) && GetPressedMouseButtons().Contains(EKeys::LeftMouseButton))
 	{
 		// convert to touch event if we are faking it
 		if (bIsFakingTouched)

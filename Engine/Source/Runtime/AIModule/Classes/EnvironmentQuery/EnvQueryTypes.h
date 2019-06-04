@@ -426,7 +426,8 @@ struct AIMODULE_API FEnvOverlapData
 		OverlapChannel(ECC_WorldStatic),
 		OverlapShape(EEnvOverlapShape::Box),
 		bOnlyBlockingHits(true),
-		bOverlapComplex(false)
+		bOverlapComplex(false),
+		bSkipOverlapQuerier(false)
 	{
 	}
 
@@ -461,6 +462,10 @@ struct AIMODULE_API FEnvOverlapData
 	/** if set, overlap will run on complex collisions */
 	UPROPERTY(EditDefaultsOnly, Category = Overlap, AdvancedDisplay)
 	uint32 bOverlapComplex : 1;
+
+	/** if set, overlap will skip querier context hits */
+	UPROPERTY(EditDefaultsOnly, Category = Overlap, AdvancedDisplay)
+	uint32 bSkipOverlapQuerier : 1;
 };
 
 //////////////////////////////////////////////////////////////////////////

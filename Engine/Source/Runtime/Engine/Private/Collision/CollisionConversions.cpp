@@ -404,7 +404,7 @@ static bool ConvertOverlappedShapeToImpactHit(const UWorld* World, const FHitLoc
 	// Return start location as 'safe location'
 	OutResult.Location = QueryTM.GetLocation();
 
-	const bool bValidPosition = (GetFlags(Hit) & EHitFlags::Position);
+	const bool bValidPosition = !!(GetFlags(Hit) & EHitFlags::Position);
 	if (bValidPosition)
 	{
 		const FVector HitPosition = GetPosition(Hit);

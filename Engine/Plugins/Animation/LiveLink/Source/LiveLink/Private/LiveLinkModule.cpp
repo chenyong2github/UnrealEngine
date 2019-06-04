@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ILiveLinkModule.h"
 
@@ -151,7 +151,7 @@ public:
 		for (const FHeaderEntry& Header : Headers)
 		{
 			TArray<FName> Subjects = LiveLinkSubjects.FindChecked(Header.Key);
-			Subjects.Sort();
+			Subjects.Sort(FNameLexicalLess());
 			for (FName Subject : Subjects)
 			{
 				FName FullName = *FString::Format(TEXT("{0} ({1})"), { Subject.ToString(), Header.Value.ToString() });

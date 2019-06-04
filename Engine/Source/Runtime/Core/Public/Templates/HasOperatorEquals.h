@@ -44,7 +44,7 @@ namespace UE4HasOperatorEquals_Private
  * Traits class which tests if a type has an operator== overload.
  */
 template <typename T>
-struct THasOperatorEquals
+struct UE_DEPRECATED(4.23, "THasOperatorEquals has been deprecated, please use TModels<CEqualityComparable, T> instead.") THasOperatorEquals
 {
 	enum { Value = UE4HasOperatorEquals_Private::Equals<T>::Value };
 };
@@ -53,7 +53,7 @@ struct THasOperatorEquals
  * Traits class which tests if a type has an operator!= overload.
  */
 template <typename T>
-struct THasOperatorNotEquals
+struct UE_DEPRECATED(4.23, "THasOperatorNotEquals has been deprecated, please use TModels<CEqualityComparable, T> instead.") THasOperatorNotEquals
 {
 	enum { Value = UE4HasOperatorEquals_Private::NotEquals<T>::Value };
 };

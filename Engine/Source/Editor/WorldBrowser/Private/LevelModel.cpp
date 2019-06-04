@@ -660,7 +660,7 @@ void FLevelModel::DeselectAllActors()
 		AActor* CurActor = (*It);
 		if (CurActor)
 		{
-			SelectedActors->Deselect(CurActor);
+			GEditor->SelectActor(CurActor, false, false);
 		}
 	}
 }

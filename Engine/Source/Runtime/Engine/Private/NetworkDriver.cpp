@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/NetworkGuid.h"
 #include "Stats/Stats.h"
+#include "Misc/App.h"
 #include "Misc/MemStack.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -278,6 +279,8 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ChannelClasses[CHTYPE_Actor]	= UActorChannel::StaticClass();
 	ChannelClasses[CHTYPE_Voice]	= UVoiceChannel::StaticClass();
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	UpdateDelayRandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 }
 
 void UNetDriver::InitPacketSimulationSettings()
@@ -362,7 +365,8 @@ void UNetDriver::LoadChannelDefinitions()
 
 		for (FChannelDefinition& ChannelDef : ChannelDefinitions)
 		{
-			UE_CLOG((ChannelDef.ChannelName.GetComparisonIndex() > MAX_NETWORKED_HARDCODED_NAME), LogNet, Warning, TEXT("Channel name will be serialized as a string: %s"), *ChannelDef.ChannelName.ToString());
+			UE_CLOG(!ChannelDef.ChannelName.ToEName() || !ShouldReplicateAsInteger(*ChannelDef.ChannelName.ToEName()), 
+				LogNet, Warning, TEXT("Channel name will be serialized as a string: %s"), *ChannelDef.ChannelName.ToString());
 			UE_CLOG(ChannelDefinitionMap.Contains(ChannelDef.ChannelName), LogNet, Error, TEXT("Channel name is defined multiple times: %s"), *ChannelDef.ChannelName.ToString());
 			UE_CLOG(StaticChannelIndices.Contains(ChannelDef.StaticChannelIndex), LogNet, Error, TEXT("Channel static index is already in use: %s %i"), *ChannelDef.ChannelName.ToString(), ChannelDef.StaticChannelIndex);
 
@@ -3669,7 +3673,7 @@ void UNetDriver::ServerReplicateActors_BuildConsiderList( TArray<FNetworkObjectI
 			const float NextUpdateDelta = bUseAdapativeNetFrequency ? ActorInfo->OptimalNetUpdateDelta : 1.0f / Actor->NetUpdateFrequency;
 
 			// then set the next update time
-			ActorInfo->NextUpdateTime = World->TimeSeconds + FMath::SRand() * ServerTickTime + NextUpdateDelta;
+			ActorInfo->NextUpdateTime = World->TimeSeconds + UpdateDelayRandomStream.FRand() * ServerTickTime + NextUpdateDelta;
 
 			// and mark when the actor first requested an update
 			//@note: using Time because it's compared against UActorChannel.LastUpdateTime which also uses that value
@@ -4032,7 +4036,7 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 					// if it is relevant then mark the channel as relevant for a short amount of time
 					if ( bIsRelevant )
 					{
-						Channel->RelevantTime = Time + 0.5f * FMath::SRand();
+						Channel->RelevantTime = Time + 0.5f * UpdateDelayRandomStream.FRand();
 					}
 					// if the channel isn't saturated
 					if ( Channel->IsNetReady( 0 ) )
@@ -4434,7 +4438,7 @@ int32 UNetDriver::ServerReplicateActors(float DeltaSeconds)
 					PriorityActors[k]->ActorInfo->bPendingNetUpdate = true;
 					if ( Channel != NULL )
 					{
-						Channel->RelevantTime = Time + 0.5f * FMath::SRand();
+						Channel->RelevantTime = Time + 0.5f * UpdateDelayRandomStream.FRand();
 					}
 				}
 			}

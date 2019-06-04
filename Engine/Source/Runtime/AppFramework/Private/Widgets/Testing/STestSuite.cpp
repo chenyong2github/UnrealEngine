@@ -42,7 +42,6 @@
 #include "Framework/Commands/InputChord.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/TextLayout.h"
 #include "Framework/Text/ISlateRun.h"
@@ -2275,7 +2274,7 @@ public:
 
 	FSlateWidgetRun::FWidgetRunInfo OnCreateWidgetDecoratorWidget( const FTextRunInfo& RunInfo, const ISlateStyle* Style ) const
 	{
-		TSharedRef< SWidget > Widget = SNew( SButton ) .OnClicked( this, &SRichTextTest::OnWidgetDecoratorClicked ) 
+		TSharedRef< SWidget > Widget = SNew( SButton ) .OnClicked( const_cast<SRichTextTest*>(this), &SRichTextTest::OnWidgetDecoratorClicked ) 
 			.ToolTip( 
 				SNew( SToolTip )
 				.BorderImage( FTestStyle::Get().GetBrush( "RichText.Tagline.Background" ) )

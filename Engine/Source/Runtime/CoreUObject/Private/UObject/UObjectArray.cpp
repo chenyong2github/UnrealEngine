@@ -197,7 +197,7 @@ void FUObjectArray::AllocateUObjectIndex(UObjectBase* Object, bool bMergingThrea
 void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 {
 	// This should only be happening on the game thread (GC runs only on game thread when it's freeing objects)
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInGarbageCollectorThread());
 
 	int32 Index = Object->InternalIndex;
 	// At this point no two objects exist with the same index so no need to lock here
@@ -206,17 +206,21 @@ void FUObjectArray::FreeUObjectIndex(UObjectBase* Object)
 		UE_LOG(LogUObjectArray, Fatal, TEXT("Unexpected concurency while adding new object"));
 	}
 
-	// @todo: threading: delete listeners should be locked while we're doing this
-	// Iterate in reverse order so that when one of the listeners removes itself from the array inside of NotifyUObjectDeleted we don't skip the next listener.
-	for (int32 ListenerIndex = UObjectDeleteListeners.Num() - 1; ListenerIndex >= 0; --ListenerIndex)
 	{
-		UObjectDeleteListeners[ListenerIndex]->NotifyUObjectDeleted(Object, Index);
+#if THREADSAFE_UOBJECTS
+		FScopeLock UObjectDeleteListenersLock(&UObjectDeleteListenersCritical);
+#endif
+		// Iterate in reverse order so that when one of the listeners removes itself from the array inside of NotifyUObjectDeleted we don't skip the next listener.
+		for (int32 ListenerIndex = UObjectDeleteListeners.Num() - 1; ListenerIndex >= 0; --ListenerIndex)
+		{
+			UObjectDeleteListeners[ListenerIndex]->NotifyUObjectDeleted(Object, Index);
+		}
 	}
 	// You cannot safely recycle indicies in the non-GC range
 	// No point in filling this list when doing exit purge. Nothing should be allocated afterwards anyway.
+	IndexToObject(Index)->ResetSerialNumberAndFlags();
 	if (Index > ObjLastNonGCIndex && !GExitPurge)  
 	{
-		IndexToObject(Index)->ResetSerialNumberAndFlags();
 		ObjAvailableList.Push((int32*)(uintptr_t)Index);
 #if UE_GC_TRACK_OBJ_AVAILABLE
 		ObjAvailableCount.Increment();
@@ -335,4 +339,23 @@ int32 FUObjectArray::AllocateSerialNumber(int32 Index)
  */
 void FUObjectArray::ShutdownUObjectArray()
 {
+	{
+#if THREADSAFE_UOBJECTS
+		FScopeLock UObjectDeleteListenersLock(&UObjectDeleteListenersCritical);
+#endif
+		for (int32 Index = UObjectDeleteListeners.Num() - 1; Index >= 0; --Index)
+		{
+			FUObjectDeleteListener* Listener = UObjectDeleteListeners[Index];
+			Listener->OnUObjectArrayShutdown();
+		}
+		UE_CLOG(UObjectDeleteListeners.Num(), LogUObjectArray, Fatal, TEXT("All UObject delete listeners should be unregistered when shutting down the UObject array"));
+	}
+	{
+		for (int32 Index = UObjectCreateListeners.Num() - 1; Index >= 0; --Index)
+		{
+			FUObjectCreateListener* Listener = UObjectCreateListeners[Index];
+			Listener->OnUObjectArrayShutdown();
+		}
+		UE_CLOG(UObjectCreateListeners.Num(), LogUObjectArray, Fatal, TEXT("All UObject delete listeners should be unregistered when shutting down the UObject array"));
+	}
 }

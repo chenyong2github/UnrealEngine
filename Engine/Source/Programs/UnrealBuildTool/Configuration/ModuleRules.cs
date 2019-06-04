@@ -563,6 +563,11 @@ namespace UnrealBuildTool
 		public bool bAddDefaultIncludePaths = true;
 
 		/// <summary>
+		/// Whether to ignore dangling (i.e. unresolved external) symbols in modules
+		/// </summary>
+		public bool bIgnoreUnresolvedSymbols = false;
+
+		/// <summary>
 		/// Whether this module should be precompiled. Defaults to the bPrecompile flag from the target. Clear this flag to prevent a module being precompiled.
 		/// </summary>
 		public bool bPrecompile;

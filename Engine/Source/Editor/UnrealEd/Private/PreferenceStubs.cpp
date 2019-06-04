@@ -5,7 +5,9 @@
 #include "Preferences/CascadeOptions.h"
 #include "Preferences/CurveEdOptions.h"
 #include "Preferences/MaterialEditorOptions.h"
+#include "Preferences/BlueprintEditorOptions.h"
 #include "Preferences/PersonaOptions.h"
+#include "Preferences/AnimationBlueprintEditorOptions.h"
 #include "Preferences/PhysicsAssetEditorOptions.h"
 #include "Preferences/MaterialStatsOptions.h"
 
@@ -70,6 +72,15 @@ UMaterialStatsOptions::UMaterialStatsOptions(const FObjectInitializer& ObjectIni
 	bMaterialQualityUsed[EMaterialQualityLevel::High] = 1;
 }
 
+UBlueprintEditorOptions::UBlueprintEditorOptions(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+UAnimationBlueprintEditorOptions::UAnimationBlueprintEditorOptions(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
 
 UCurveEdOptions::UCurveEdOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

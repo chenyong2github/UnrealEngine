@@ -15,6 +15,7 @@ class FPropertyTable : public TSharedFromThis< FPropertyTable >, public IPropert
 public: 
 
 	FPropertyTable();
+	virtual ~FPropertyTable();
 
 	virtual void Tick() override;
 
@@ -28,6 +29,7 @@ public:
 	virtual void EnqueueDeferredAction( FSimpleDelegate DeferredAction ) override;
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override {}
+	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const override;
 
 	virtual bool GetIsUserAllowedToChangeRoot() override;
 	virtual void SetIsUserAllowedToChangeRoot( bool InAllowUserToChangeRoot ) override;
@@ -167,6 +169,9 @@ private:
 
 	void PurgeInvalidObjectNodes();
 
+	void ResetTable();
+
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
 private:
 
@@ -218,5 +223,9 @@ private:
 
 	/** The Orientation of this table, I.e. do we swap columns and rows */
 	EPropertyTableOrientation::Type Orientation;
+
+	FDelegateHandle ObjectsReplacedHandle;
+
+	TSharedRef<FEditConditionParser> EditConditionParser;
 };
 

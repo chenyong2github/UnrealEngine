@@ -16,6 +16,7 @@
 #include "Misc/EnumClassFlags.h"
 
 class FMaterial;
+class FMeshDrawSingleShaderBindings;
 
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 	#pragma pack (push,4)
@@ -640,7 +641,7 @@ public:
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const struct FMeshBatchElement& BatchElement,
-		FMeshDrawSingleShaderBindings& ShaderBindings,
+		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
 		) const
 	{

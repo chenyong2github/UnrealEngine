@@ -38,6 +38,7 @@ const FName FSimpleAssetEditor::SimpleEditorAppIdentifier( TEXT( "GenericEditorA
 FSimpleAssetEditor::~FSimpleAssetEditor()
 {
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
+	GEditor->OnObjectsReplaced().RemoveAll(this);
 
 	DetailsView.Reset();
 	PropertiesTab.Reset();
@@ -51,7 +52,8 @@ void FSimpleAssetEditor::InitEditor( const EToolkitMode::Type Mode, const TShare
 	const bool bIsLockable = false;
 
 	EditingObjects = ObjectsToEdit;
-	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddRaw(this, &FSimpleAssetEditor::HandleAssetPostImport);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.AddSP(this, &FSimpleAssetEditor::HandleAssetPostImport);
+	GEditor->OnObjectsReplaced().AddSP(this, &FSimpleAssetEditor::OnObjectsReplaced);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>( "PropertyEditor" );
 	const FDetailsViewArgs DetailsViewArgs( bIsUpdatable, bIsLockable, true, FDetailsViewArgs::ObjectsUseNameArea, false );
@@ -247,6 +249,29 @@ void FSimpleAssetEditor::HandleAssetPostImport(UFactory* InFactory, UObject* InO
 	if (EditingObjects.Contains(InObject))
 	{
 		// The details panel likely needs to be refreshed if an asset was imported again
+		DetailsView->SetObjects(EditingObjects);
+	}
+}
+
+void FSimpleAssetEditor::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	bool bChangedAny = false;
+
+	// Refresh our details view if one of the objects replaced was in the map. This gets called before the reinstance GC fixup, so we might as well fixup EditingObjects now too
+	for (int32 i = 0; i < EditingObjects.Num(); i++)
+	{
+		UObject* SourceObject = EditingObjects[i];
+		UObject* ReplacedObject = ReplacementMap.FindRef(SourceObject);
+
+		if (ReplacedObject && ReplacedObject != SourceObject)
+		{
+			EditingObjects[i] = ReplacedObject;
+			bChangedAny = true;
+		}
+	}
+
+	if (bChangedAny)
+	{
 		DetailsView->SetObjects(EditingObjects);
 	}
 }

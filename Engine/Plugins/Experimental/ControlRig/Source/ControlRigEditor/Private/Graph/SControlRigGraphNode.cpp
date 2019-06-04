@@ -695,7 +695,7 @@ FSlateColor SControlRigGraphNode::GetPinTextColor(TWeakPtr<SGraphPin> GraphPin) 
 		// If there is no schema there is no owning node (or basically this is a deleted node)
 		if (GraphNode)
 		{
-			if(!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced() || !GraphPin.Pin()->IsEditingEnabled())
+			if(!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced() || !GraphPin.Pin()->IsEditingEnabled() || GraphNode->IsNodeUnrelated())
 			{
 				return FLinearColor(1.0f, 1.0f, 1.0f, 0.5f);
 			}

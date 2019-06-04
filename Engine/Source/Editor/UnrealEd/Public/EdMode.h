@@ -278,11 +278,21 @@ public:
 	/** True if this mode uses a toolkit mode (eventually they all should) */
 	virtual bool UsesToolkits() const;
 
+	/** Gets the toolkit created by this mode */
+	TSharedPtr<FModeToolkit> GetToolkit() { return Toolkit; }
+
 	/** Returns the world this toolkit is editing */
 	UWorld* GetWorld() const;
 
 	/** Returns the owning mode manager for this mode */
 	class FEditorModeTools* GetModeManager() const;
+
+	/** 
+	 * Called when the editor mode should rebuild its toolbar 
+	 *
+	 * @param ToolbarBuilder	The builder which should be used to add toolbar widgets
+	 */
+	virtual void BuildModeToolbar(class FToolBarBuilder& ToolbarBuilder) {}
 
 	// Property Widgets
 

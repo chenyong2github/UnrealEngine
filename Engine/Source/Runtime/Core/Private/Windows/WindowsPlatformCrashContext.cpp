@@ -314,6 +314,12 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 	// Suppress the user input dialog if we're running in unattended mode
 	bool bNoDialog = FApp::IsUnattended() || ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
 
+	bool bImplicitSend = false;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+	}
+
 	bool bSendUnattendedBugReports = true;
 	if (GConfig)
 	{
@@ -430,7 +436,7 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 			// Pass nullrhi to CRC when the engine is in this mode to stop the CRC attempting to initialize RHI when the capability isn't available
 			bool bNullRHI = !FApp::CanEverRender();
 
-			if (bNoDialog || bNullRHI)
+			if (bNoDialog || bNullRHI || bImplicitSend)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended");
 			}
@@ -473,6 +479,17 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 
 			FString CrashClientPath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Binaries"), FPlatformProcess::GetBinariesSubdirectory(), CrashReportClientExeName);
 			bCrashReporterRan = FPlatformProcess::CreateProc(*CrashClientPath, *CrashReportClientArguments, true, false, false, NULL, 0, NULL, NULL).IsValid();
+
+			if (bImplicitSend)
+			{
+				// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
+				if (FApp::CanEverRender())
+				{
+					FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+						*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
+						*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
+				}
+			}
 
 			// Restore the dll directory
 			if (CurrentDllDirectory)

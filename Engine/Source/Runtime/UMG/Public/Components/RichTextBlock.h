@@ -126,6 +126,12 @@ public:
 #endif
 
 	/**
+	 * Returns widgets text.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	FText GetText() const;
+	
+	/**
 	 * Directly sets the widget text.
 	 * Warning: This will wipe any binding created for the Text property!
 	 * @param InText The text to assign to the widget

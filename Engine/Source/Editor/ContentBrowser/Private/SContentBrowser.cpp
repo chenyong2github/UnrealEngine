@@ -1798,7 +1798,7 @@ TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 						FText::FromName(ChildCollection.Name),
 						FText::GetEmpty(),
 						FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(ChildCollection.Type)),
-						FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OnPathMenuItemClicked, ChildCollectionCrumbData))
+						FUIAction(FExecuteAction::CreateSP(const_cast<SContentBrowser*>(this), &SContentBrowser::OnPathMenuItemClicked, ChildCollectionCrumbData))
 						);
 				}
 
@@ -1842,7 +1842,7 @@ TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 					FText::FromString(PathWithoutParent),
 					FText::GetEmpty(),
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.BreadcrumbPathPickerFolder"),
-					FUIAction(FExecuteAction::CreateSP(this, &SContentBrowser::OnPathMenuItemClicked, SubPath))
+					FUIAction(FExecuteAction::CreateSP(const_cast<SContentBrowser*>(this), &SContentBrowser::OnPathMenuItemClicked, SubPath))
 					);
 			}
 

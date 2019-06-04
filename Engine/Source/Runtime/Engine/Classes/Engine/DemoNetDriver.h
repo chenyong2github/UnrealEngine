@@ -355,6 +355,21 @@ struct ENGINE_API FDemoSavedRepObjectState
 
 typedef TArray<struct FDemoSavedRepObjectState> FDemoSavedPropertyState;
 
+USTRUCT()
+struct FMulticastRecordOptions
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	FString FuncPathName;
+
+	UPROPERTY()
+	bool bServerSkip;
+
+	UPROPERTY()
+	bool bClientSkip;
+};
+
 /**
  * Simulated network driver for recording and playing back game sessions.
  */
@@ -589,6 +604,10 @@ private:
 
 	/** Called during a normal demoFrame*/
 	void TickDemoRecordFrame(float DeltaSeconds);
+
+	/** Config data for multicast RPCs we might want to skip recording. */
+	UPROPERTY(config)
+	TArray<FMulticastRecordOptions> MulticastRecordOptions;
 
 public:
 

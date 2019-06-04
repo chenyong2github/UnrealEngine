@@ -18,7 +18,7 @@ FButtonRowBlock::FButtonRowBlock( const TSharedPtr< const FUICommandInfo > InCom
 {
 }
 
-FButtonRowBlock::FButtonRowBlock( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FSlateIcon& InIcon, const FUIAction& UIAction, const EUserInterfaceActionType::Type InUserInterfaceActionType )
+FButtonRowBlock::FButtonRowBlock( const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FSlateIcon& InIcon, const FUIAction& UIAction, const EUserInterfaceActionType InUserInterfaceActionType )
 	: FMultiBlock( UIAction, NAME_None, EMultiBlockType::ButtonRow )
 	, LabelOverride( InLabel )
 	, ToolTipOverride( InToolTip )
@@ -156,7 +156,7 @@ void SButtonRowBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 
 
 	// What type of UI should we create for this block?
-	const EUserInterfaceActionType::Type UserInterfaceType = ButtonRowBlock->GetAction().IsValid() ? ButtonRowBlock->GetAction()->GetUserInterfaceType() : ButtonRowBlock->UserInterfaceActionTypeOverride;
+	const EUserInterfaceActionType UserInterfaceType = ButtonRowBlock->GetAction().IsValid() ? ButtonRowBlock->GetAction()->GetUserInterfaceType() : ButtonRowBlock->UserInterfaceActionTypeOverride;
 	if( UserInterfaceType == EUserInterfaceActionType::Button )
 	{
 		ChildSlot

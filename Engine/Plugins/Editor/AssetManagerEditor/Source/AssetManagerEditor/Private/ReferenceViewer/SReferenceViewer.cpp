@@ -15,6 +15,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "EditorStyleSet.h"
 #include "Engine/Selection.h"
@@ -32,6 +33,7 @@
 #include "Widgets/Input/SComboBox.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "AssetManagerEditorModule.h"
+#include "Framework/Application/SlateApplication.h"
 
 #include "ObjectTools.h"
 
@@ -179,6 +181,18 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 				.BorderImage( FEditorStyle::GetBrush("ToolPanel.GroupBorder") )
 				[
 					SNew(SVerticalBox)
+					+SVerticalBox::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Center)
+					.Padding(2.f)
+					.AutoHeight()
+					[
+						SAssignNew(SearchBox, SSearchBox)
+						.HintText(LOCTEXT("Search", "Search..."))
+						.ToolTipText(LOCTEXT("SearchTooltip", "Type here to search (pressing Enter zooms to the results)"))
+						.OnTextChanged(this, &SReferenceViewer::HandleOnSearchTextChanged)
+						.OnTextCommitted(this, &SReferenceViewer::HandleOnSearchTextCommitted)
+					]
 
 					+SVerticalBox::Slot()
 					.AutoHeight()
@@ -899,6 +913,15 @@ void SReferenceViewer::RegisterActions()
 	FAssetManagerEditorCommands::Register();
 
 	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().ZoomToFit,
+		FExecuteAction::CreateSP(this, &SReferenceViewer::ZoomToFit),
+		FCanExecuteAction::CreateSP(this, &SReferenceViewer::CanZoomToFit));
+
+	ReferenceViewerActions->MapAction(
+		FAssetManagerEditorCommands::Get().Find,
+		FExecuteAction::CreateSP(this, &SReferenceViewer::OnFind));
+
+	ReferenceViewerActions->MapAction(
 		FGlobalEditorCommonCommands::Get().FindInContentBrowser,
 		FExecuteAction::CreateSP(this, &SReferenceViewer::ShowSelectionInContentBrowser),
 		FCanExecuteAction::CreateSP(this, &SReferenceViewer::HasAtLeastOnePackageNodeSelected));
@@ -1425,6 +1448,93 @@ void SReferenceViewer::OnInitialAssetRegistrySearchComplete()
 	{
 		GraphObj->RebuildGraph();
 	}
+}
+
+void SReferenceViewer::ZoomToFit()
+{
+	if (GraphEditorPtr.IsValid())
+	{
+		GraphEditorPtr->ZoomToFit(true);
+	}
+}
+
+bool SReferenceViewer::CanZoomToFit() const
+{
+	if (GraphEditorPtr.IsValid())
+	{
+		return true;
+	}
+
+	return false;
+}
+
+void SReferenceViewer::OnFind()
+{
+	FSlateApplication::Get().SetKeyboardFocus(SearchBox, EFocusCause::SetDirectly);
+}
+
+void SReferenceViewer::HandleOnSearchTextChanged(const FText& SearchText)
+{
+	if (GraphObj == nullptr || !GraphEditorPtr.IsValid())
+	{
+		return;
+	}
+
+	GraphEditorPtr->ClearSelectionSet();
+
+	if (SearchText.IsEmpty())
+	{
+		return;
+	}
+
+	FString SearchString = SearchText.ToString();
+	TArray<FString> SearchWords;
+	SearchString.ParseIntoArrayWS( SearchWords );
+
+	TArray<UEdGraphNode_Reference*> AllNodes;
+	GraphObj->GetNodesOfClass<UEdGraphNode_Reference>( AllNodes );
+
+	TArray<FName> NodePackageNames;
+	for (UEdGraphNode_Reference* Node : AllNodes)
+	{
+		NodePackageNames.Empty();
+		Node->GetAllPackageNames(NodePackageNames);
+
+		for (const FName& PackageName : NodePackageNames)
+		{
+			// package name must match all words
+			bool bMatch = true;
+			for (const FString& Word : SearchWords)
+			{
+				if (!PackageName.ToString().Contains(Word))
+				{
+					bMatch = false;
+					break;
+				}
+			}
+
+			if (bMatch)
+			{
+				GraphEditorPtr->SetNodeSelection(Node, true);
+				break;
+			}
+		}
+	}
+}
+
+void SReferenceViewer::HandleOnSearchTextCommitted(const FText& SearchText, ETextCommit::Type CommitType)
+{
+	if (!GraphEditorPtr.IsValid())
+	{
+		return;
+	}
+
+	if (CommitType == ETextCommit::OnCleared)
+	{
+		GraphEditorPtr->ClearSelectionSet();
+	}
+		
+	GraphEditorPtr->ZoomToFit(true);
 }
 
 #undef LOCTEXT_NAMESPACE

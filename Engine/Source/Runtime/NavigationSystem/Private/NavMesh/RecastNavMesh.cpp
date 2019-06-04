@@ -975,26 +975,28 @@ bool ARecastNavMesh::GetRandomReachablePointInRadius(const FVector& Origin, floa
 	if (QueryFilter)
 	{
 		// find starting poly
+		const FVector ProjectionExtent(NavDataConfig.DefaultQueryExtent.X, NavDataConfig.DefaultQueryExtent.Y, BIG_NUMBER);
+		const FVector RcExtent = Unreal2RecastPoint(ProjectionExtent).GetAbs();
 		// convert start/end pos to Recast coords
-		const float Extent[3] = { Radius, Radius, Radius };
 		const FVector RecastOrigin = Unreal2RecastPoint(Origin);
 		NavNodeRef OriginPolyID = INVALID_NAVNODEREF;
-		NavQuery.findNearestPoly(&RecastOrigin.X, Extent, QueryFilter, &OriginPolyID, nullptr);
+		NavQuery.findNearestPoly(&RecastOrigin.X, &RcExtent.X, QueryFilter, &OriginPolyID, nullptr);
 
-		dtPolyRef Poly;
-		float RandPt[3];
-		dtStatus Status = NavQuery.findRandomPointAroundCircle(OriginPolyID, &RecastOrigin.X, Radius
-			, QueryFilter, FMath::FRand, &Poly, RandPt);
+		if (OriginPolyID != INVALID_NAVNODEREF)
+		{
+			dtPolyRef Poly;
+			float RandPt[3];
+			dtStatus Status = NavQuery.findRandomPointAroundCircle(OriginPolyID, &RecastOrigin.X, Radius
+				, QueryFilter, FMath::FRand, &Poly, RandPt);
 
-		if (dtStatusSucceed(Status))
-		{
-			OutResult = FNavLocation(Recast2UnrealPoint(RandPt), Poly);
-			return true;
+			if (dtStatusSucceed(Status))
+			{
+				OutResult = FNavLocation(Recast2UnrealPoint(RandPt), Poly);
+				return true;
+			}
 		}
-		else
-		{
-			OutResult = FNavLocation(Origin, OriginPolyID);
-		}
+
+		OutResult = FNavLocation(Origin, OriginPolyID);
 	}
 
 	return false;
@@ -2393,7 +2395,6 @@ void ARecastNavMesh::ConditionalConstructGenerator()
 		if (Generator)
 		{
 			NavDataGenerator = MakeShareable(Generator);
-			Generator->Init();
 		}
 
 		UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);

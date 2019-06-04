@@ -7,6 +7,7 @@
 #endif
 
 #include <Unknwn.h>
+#include "Misc/AssertionMacros.h"
 
 #ifdef TEXT 
 	#undef TEXT

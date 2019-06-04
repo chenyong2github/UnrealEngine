@@ -4,6 +4,7 @@
 #include "EditorUtilityCommon.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "Engine/Blueprint.h"
+#include "ScopedTransaction.h"
 
 UEditorUtilitySubsystem::UEditorUtilitySubsystem() :
 	UEditorSubsystem()

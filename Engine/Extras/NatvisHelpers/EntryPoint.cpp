@@ -2,8 +2,8 @@
 
 #include "Globals.h"
 
-extern "C" __declspec(dllexport) void InitNatvisHelpers(FNameEntry*** NameTable, FChunkedFixedUObjectArray* ObjectArray)
+extern "C" __declspec(dllexport) void InitNatvisHelpers(uint8** NameTable, FChunkedFixedUObjectArray* ObjectArray)
 {
-	GFNameTableForDebuggerVisualizers_MT = NameTable;
+	GNameBlocksDebug = NameTable;
 	GObjectArrayForDebugVisualizers = ObjectArray;
 }

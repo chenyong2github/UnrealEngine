@@ -242,7 +242,11 @@ void SMergeDetailsView::Construct(const FArguments InArgs
 		InSelectionCallback.ExecuteIfBound();
 	};
 
-	TSharedPtr<FBlueprintDifferenceTreeEntry> Category = FBlueprintDifferenceTreeEntry::CreateDefaultsCategoryEntryForMerge(FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback), Children, RemoteDifferences.Num() != 0, LocalDifferences.Num() != 0, bAnyConflict);
+	TSharedPtr<FBlueprintDifferenceTreeEntry> Category = FBlueprintDifferenceTreeEntry::CreateCategoryEntryForMerge(
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"),
+		NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"),
+		FOnDiffEntryFocused::CreateStatic(ForwardSelection, SelectionCallback), 
+		Children, RemoteDifferences.Num() != 0, LocalDifferences.Num() != 0, bAnyConflict);
 	OutTreeEntries.Push(Category);
 
 	CurrentDifference = -1;

@@ -158,7 +158,7 @@ void UNiagaraGraph::PostLoad()
 	if (bAllZeroes && UniqueNames.Num() > 1)
 	{
 		// Just do the lexicographic sort and assign the call order to their ordered index value.
-		UniqueNames.Sort();
+		UniqueNames.Sort(FNameLexicalLess());
 		for (UNiagaraNodeInput* InputNode : InputNodes)
 		{
 			if (InputNode->Usage == ENiagaraInputNodeUsage::Parameter)
@@ -642,7 +642,7 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs() const
 	}
 	Result.Sort([](const FNiagaraVariable& Left, const FNiagaraVariable& Right)
 	{
-		return Left.GetName() < Right.GetName();
+		return Left.GetName().LexicalLess(Right.GetName());
 	});
 	return Result;
 }

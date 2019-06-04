@@ -41,10 +41,14 @@ public:
 	FAISenseAffiliationFilter DetectionByAffiliation;
 
 	/** If not an InvalidRange (which is the default), we will always be able to see the target that has already been seen if they are within this range of their last seen location. */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config, meta = (UIMin = 0.0, ClampMin = 0.0))
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sense", config)
 	float AutoSuccessRangeFromLastSeenLocation;
 		
 	virtual TSubclassOf<UAISense> GetSenseImplementation() const override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+#endif // WITH_EDITOR
 
 #if WITH_GAMEPLAY_DEBUGGER
 	virtual void DescribeSelfToGameplayDebugger(const UAIPerceptionComponent* PerceptionComponent, FGameplayDebuggerCategory* DebuggerCategory) const;

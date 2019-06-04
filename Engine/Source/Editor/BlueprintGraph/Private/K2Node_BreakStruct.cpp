@@ -154,7 +154,7 @@ static bool CanCreatePinForProperty(const UProperty* Property)
 
 bool UK2Node_BreakStruct::CanBeBroken(const UScriptStruct* Struct, const bool bForInternalUse)
 {
-	if (Struct && !Struct->HasMetaData(TEXT("HasNativeBreak")) && UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Struct, bForInternalUse))
+	if (Struct && !Struct->HasMetaData(FBlueprintMetadata::MD_NativeBreakFunction) && UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Struct, bForInternalUse))
 	{
 		for (TFieldIterator<UProperty> It(Struct); It; ++It)
 		{

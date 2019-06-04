@@ -988,6 +988,11 @@ void UKismetSystemLibrary::BreakSoftClassPath(FSoftClassPath InSoftClassPath, FS
 	PathString = InSoftClassPath.ToString();
 }
 
+TSoftClassPtr<UObject> UKismetSystemLibrary::Conv_SoftClassPathToSoftClassRef(const FSoftClassPath& SoftClassPath)
+{
+	return TSoftClassPtr<UObject>(SoftClassPath);
+}
+
 bool UKismetSystemLibrary::IsValidSoftObjectReference(const TSoftObjectPtr<UObject>& SoftObjectReference)
 {
 	return !SoftObjectReference.IsNull();
@@ -1008,6 +1013,11 @@ bool UKismetSystemLibrary::NotEqual_SoftObjectReference(const TSoftObjectPtr<UOb
 	return A != B;
 }
 
+UObject* UKismetSystemLibrary::LoadAsset_Blocking(TSoftObjectPtr<UObject> Asset)
+{
+	return Asset.LoadSynchronous();
+}
+
 bool UKismetSystemLibrary::IsValidSoftClassReference(const TSoftClassPtr<UObject>& SoftClassReference)
 {
 	return !SoftClassReference.IsNull();
@@ -1026,6 +1036,11 @@ bool UKismetSystemLibrary::EqualEqual_SoftClassReference(const TSoftClassPtr<UOb
 bool UKismetSystemLibrary::NotEqual_SoftClassReference(const TSoftClassPtr<UObject>& A, const TSoftClassPtr<UObject>& B)
 {
 	return A != B;
+}
+
+UClass* UKismetSystemLibrary::LoadClassAsset_Blocking(TSoftClassPtr<UObject> AssetClass)
+{
+	return AssetClass.LoadSynchronous();
 }
 
 UObject* UKismetSystemLibrary::Conv_SoftObjectReferenceToObject(const TSoftObjectPtr<UObject>& SoftObject)
@@ -2559,11 +2574,6 @@ void UKismetSystemLibrary::LoadAsset(UObject* WorldContextObject, TSoftObjectPtr
 		FLoadAssetAction* NewAction = new FLoadAssetAction(Asset.ToSoftObjectPath(), OnLoaded, LatentInfo);
 		LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction);
 	}
-}
-
-UObject* UKismetSystemLibrary::LoadAsset_Blocking(TSoftObjectPtr<UObject> Asset)
-{
-	return Asset.ToSoftObjectPath().TryLoad();
 }
 
 void UKismetSystemLibrary::LoadAssetClass(UObject* WorldContextObject, TSoftClassPtr<UObject> AssetClass, UKismetSystemLibrary::FOnAssetClassLoaded OnLoaded, FLatentActionInfo LatentInfo)

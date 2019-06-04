@@ -79,7 +79,7 @@ void SVisualLoggerView::Construct(const FArguments& InArgs, const TSharedRef<FUI
 	TSharedRef<SScrollBar> ZoomScrollBar =
 		SNew(SScrollBar)
 		.Orientation(EOrientation::Orient_Horizontal)
-		.Thickness(FVector2D(2.0f, 2.0f));
+		.Thickness(FVector2D(6.0f, 6.0f));
 	ZoomScrollBar->SetState(0.0f, 1.0f);
 	FLogVisualizer::Get().GetTimeSliderController()->SetExternalScrollbar(ZoomScrollBar);
 
@@ -90,7 +90,7 @@ void SVisualLoggerView::Construct(const FArguments& InArgs, const TSharedRef<FUI
 
 	TSharedRef<SScrollBar> ScrollBar =
 		SNew(SScrollBar)
-		.Thickness(FVector2D(2.0f, 2.0f));
+		.Thickness(FVector2D(6.0f, 6.0f));
 
 
 	ULogVisualizerSettings* Settings = ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>();

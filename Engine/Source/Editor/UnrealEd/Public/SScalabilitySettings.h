@@ -15,7 +15,7 @@ enum class ECheckBoxState : uint8;
  * Scalability settings configuration widget                                                                  
  **/
 
-class SScalabilitySettings : public SCompoundWidget
+class UNREALED_VTABLE SScalabilitySettings : public SCompoundWidget
 {
 public:
 

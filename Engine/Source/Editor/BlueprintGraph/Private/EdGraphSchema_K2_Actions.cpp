@@ -157,8 +157,14 @@ FEdGraphSchemaActionDefiningObject FEdGraphSchemaAction_K2Graph::GetPersistentIt
 	UObject* DefiningObject = GetSourceBlueprint();
 	if (UFunction* Func = GetFunction())
 	{
-		DefiningObject = Func->GetOwnerStruct();
+		// Use the class where the function was initially introduced as the defining object
+		while (Func->GetSuperFunction())
+		{
+			Func = Func->GetSuperFunction();
+		}
+		DefiningObject = Func->GetOuterUClassUnchecked();
 	}
+
 	return FEdGraphSchemaActionDefiningObject(DefiningObject, (void*)GraphType);
 }
 

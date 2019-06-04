@@ -1406,7 +1406,7 @@ struct FHUDGroupManager
 			AggregatedHierarchyHistory.CullByDepth( Params.MaxHierarchyDepth.Get() );
 
 			// Make sure the game thread is first.
-			AggregatedHierarchyHistory.Children.KeySort( TLess<FName>() );
+			AggregatedHierarchyHistory.Children.KeySort(FNameLexicalLess());
 
 			FComplexStatUtils::DiviveStatArray( AggregatedFlatHistory, NumFrames, EComplexStatField::IncSum, EComplexStatField::IncAve );
 			FComplexStatUtils::DiviveStatArray( AggregatedFlatHistory, NumFrames, EComplexStatField::ExcSum, EComplexStatField::ExcAve );

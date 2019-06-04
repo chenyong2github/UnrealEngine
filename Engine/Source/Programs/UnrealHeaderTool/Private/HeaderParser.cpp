@@ -5058,6 +5058,11 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 		RequireSymbol(TEXT(")"), Token.Identifier);
 
 		FClassMetaData* ClassData = GetCurrentClassData();
+		if (!ClassData)
+		{
+			FString CurrentClassName = GetCurrentClass()->GetName();
+			FError::Throwf(TEXT("Could not find the associated 'U%s' class while parsing 'I%s' - it could be missing or malformed"), *CurrentClassName, *CurrentClassName);
+		}
 
 		ClassData->GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
 		ClassData->SetInterfaceGeneratedBodyLine(InputLine);

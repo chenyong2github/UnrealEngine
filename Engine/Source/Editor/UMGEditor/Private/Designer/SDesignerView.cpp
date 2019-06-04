@@ -70,6 +70,7 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Engine/DPICustomScalingRule.h"
+#include "UMGEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -215,6 +216,7 @@ public:
 		/** The original parent of the widget. */
 		FWidgetReference ParentWidget;
 
+		/** The offset of the original click location, as a percentage of the widget's size. */
 		FVector2D DraggedOffset;
 	};
 
@@ -241,7 +243,7 @@ TSharedRef<FSelectedWidgetDragDropOp> FSelectedWidgetDragDropOp::New(TSharedPtr<
 	Operation->bShowingMessage = false;
 	Operation->Designer = InDesigner;
 
-	for (const auto& InDraggedWidget : InWidgets)
+	for (const FDraggingWidgetReference& InDraggedWidget : InWidgets)
 	{
 		FItem DraggedWidget;
 		DraggedWidget.bStayingInParent = false;
@@ -355,6 +357,15 @@ void SDesignerView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepr
 	Register(MakeShareable(new FUniformGridSlotExtension()));
 	Register(MakeShareable(new FGridSlotExtension()));
 
+	//Register External Extensions
+	IUMGEditorModule& UMGEditorInterface = FModuleManager::GetModuleChecked<IUMGEditorModule>("UMGEditor");
+
+	TSharedPtr<FDesignerExtensibilityManager>DesignerExtensibilityManager = UMGEditorInterface.GetDesignerExtensibilityManager();
+	for (const auto& Extension : DesignerExtensibilityManager->GetExternalDesignerExtensions())
+	{
+		Register(Extension);
+	}
+
 	GEditor->OnBlueprintReinstanced().AddRaw(this, &SDesignerView::OnPreviewNeedsRecreation);
 
 	BindCommands();
@@ -431,6 +442,11 @@ void SDesignerView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepr
 								[
 									SAssignNew(PreviewSurface, SDPIScaler)
 									.DPIScale(this, &SDesignerView::GetPreviewDPIScale)
+									[
+										SAssignNew(PreviewSizeConstraint, SBox)
+										.WidthOverride(this, &SDesignerView::GetPreviewSizeWidth)
+										.HeightOverride(this, &SDesignerView::GetPreviewSizeHeight)
+									]
 								]
 							]
 						]
@@ -1612,7 +1628,7 @@ void SDesignerView::OnPreviewNeedsRecreation()
 	CachedWidgetGeometry.Reset();
 
 	PreviewWidget = nullptr;
-	PreviewSurface->SetContent(SNullWidget::NullWidget);
+	PreviewSizeConstraint->SetContent(SNullWidget::NullWidget);
 }
 
 SDesignerView::FWidgetHitResult::FWidgetHitResult()
@@ -2288,20 +2304,11 @@ void SDesignerView::UpdatePreviewWidget(bool bForceUpdate)
 		if ( PreviewWidget )
 		{
 			TSharedRef<SWidget> NewPreviewSlateWidget = PreviewWidget->TakeWidget();
-			NewPreviewSlateWidget->SlatePrepass();
+			NewPreviewSlateWidget->SlatePrepass(PreviewSizeConstraint->GetCachedGeometry().Scale);
 
 			PreviewSlateWidget = NewPreviewSlateWidget;
 
-			// The constraint box for the widget size needs to inside the DPI scaler in order to make sure it too
-			// is sized accurately for the size screen it's on.
-			TSharedRef<SBox> NewPreviewSizeConstraintBox = SNew(SBox)
-				.WidthOverride(this, &SDesignerView::GetPreviewSizeWidth)
-				.HeightOverride(this, &SDesignerView::GetPreviewSizeHeight)
-				[
-					NewPreviewSlateWidget
-				];
-
-			PreviewSurface->SetContent(NewPreviewSizeConstraintBox);
+			PreviewSizeConstraint->SetContent(NewPreviewSlateWidget);
 
 			// Notify all selected widgets that they are selected, because there are new preview objects
 			// state may have been lost so this will recreate it if the widget does something special when
@@ -2518,7 +2525,7 @@ FReply SDesignerView::OnDragDetected(const FGeometry& MyGeometry, const FPointer
 		// Clear any pending selected widgets, the user has already decided what widget they want.
 		PendingSelectedWidget = FWidgetReference();
 
-		for (const auto& SelectedWidget : SelectedWidgets)
+		for (const FWidgetReference& SelectedWidget : SelectedWidgets)
 		{
 			// Determine The offset to keep the widget from the mouse while dragging
 			FArrangedWidget ArrangedWidget(SNullWidget::NullWidget, FGeometry());
@@ -2527,14 +2534,13 @@ FReply SDesignerView::OnDragDetected(const FGeometry& MyGeometry, const FPointer
 
 			FDragWidget DraggingWidget;
 			DraggingWidget.Widget = SelectedWidget;
-			DraggingWidget.DraggedOffset = SelectedWidgetContextMenuLocation;
-
+			DraggingWidget.DraggedOffset = SelectedWidgetContextMenuLocation / ArrangedWidget.Geometry.GetLocalSize();
 			DraggingWidgetCandidates.Add(DraggingWidget);
 		}
 
 		TArray<FDragWidget> DraggingWidgets;
 
-		for (const auto& Candidate : DraggingWidgetCandidates)
+		for (const FDragWidget& Candidate : DraggingWidgetCandidates)
 		{
 			// check the parent chain of each dragged widget and ignore those that are children of other dragged widgets
 			bool bIsChild = false;
@@ -2965,13 +2971,11 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 					}
 					else
 					{
-						Slot = ParentWidget->AddChild(Widget);
+						Slot = ParentWidget->InsertChildAt(ParentWidget->GetChildIndex(Widget), Widget);
 					}
 
 					if (Slot != nullptr)
 					{
-						FVector2D NewPosition = LocalPosition - DraggedWidget.DraggedOffset;
-
 						FWidgetBlueprintEditorUtils::ImportPropertiesFromText(Slot, DraggedWidget.ExportedSlotProperties);
 
 						bool HasChangedLayout = false;
@@ -2985,6 +2989,12 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 							if (bIsPreview)
 							{
 								CanvasSlot->SaveBaseLayout();
+
+								FArrangedWidget ArrangedWidget(SNullWidget::NullWidget, FGeometry());
+								FDesignTimeUtils::GetArrangedWidget(Widget->GetCachedWidget().ToSharedRef(), ArrangedWidget);
+
+								FVector2D Offset = DraggedWidget.DraggedOffset * ArrangedWidget.Geometry.GetLocalSize();
+								FVector2D NewPosition = LocalPosition - Offset;
 
 								// Perform grid snapping on X and Y if we need to.
 								if (bGridSnapX)

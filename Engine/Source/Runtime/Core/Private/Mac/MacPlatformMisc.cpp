@@ -81,7 +81,7 @@ static TAutoConsoleVariable<int32> CVarMacPlatformDumpAllThreadsOnHang(
  FMacApplicationInfo - class to contain all state for crash reporting that is unsafe to acquire in a signal.
  ------------------------------------------------------------------------------*/
 
-FMacMallocCrashHandler* GCrashMalloc = nullptr;
+ CORE_API FMacMallocCrashHandler* GCrashMalloc = nullptr;
 
 /**
  * Information that cannot be obtained during a signal-handler is initialised here.
@@ -1882,6 +1882,12 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 	// Prevent CrashReportClient from spawning another CrashReportClient.
 	bool bCanRunCrashReportClient = FCString::Stristr( *(GMacAppInfo.ExecutableName), TEXT( "CrashReportClient" ) ) == nullptr;
 
+	bool bImplicitSend = false;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+	}
+
 	bool bSendUnattendedBugReports = true;
 	if (GConfig)
 	{
@@ -1925,7 +1931,7 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		if(ForkPID == 0)
 		{
 			// Child
-			if(GMacAppInfo.bIsUnattended)
+			if(GMacAppInfo.bIsUnattended || bImplicitSend)
 			{
 				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", NULL);
 			}
@@ -1934,6 +1940,18 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
 			}
 		}
+
+		if (bImplicitSend)
+		{
+			// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
+			if (FApp::CanEverRender())
+			{
+				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+					*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
+					*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
+			}
+		}
+
 		// We no longer wait here because on return the OS will scribble & crash again due to the behaviour of the XPC function
 		// macOS uses internally to launch/wait on the CrashReportClient. It is simpler, easier & safer to just die here like a good little Mac.app.
 	}

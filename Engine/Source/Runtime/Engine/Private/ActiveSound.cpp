@@ -1090,9 +1090,11 @@ void FActiveSound::HandleInteriorVolumes( const FListener& Listener, FSoundParse
 	}
 }
 
-void FActiveSound::AddWaveInstance(const UPTRINT WaveInstanceHash, FWaveInstance& WaveInstance)
+FWaveInstance& FActiveSound::AddWaveInstance(const UPTRINT WaveInstanceHash)
 {
-	WaveInstances.Add(WaveInstanceHash, &WaveInstance);
+	FWaveInstance* WaveInstance = new FWaveInstance(WaveInstanceHash, *this);
+	WaveInstances.Add(WaveInstanceHash, WaveInstance);
+	return *WaveInstance;
 }
 
 void FActiveSound::ApplyRadioFilter(const FSoundParseParameters& ParseParams )

@@ -512,7 +512,7 @@ public:
 	/**
 	 * Add newly created wave instance to active sound
 	 */
-	void AddWaveInstance(const UPTRINT WaveInstanceHash, FWaveInstance& WaveInstance);
+	FWaveInstance& AddWaveInstance(const UPTRINT WaveInstanceHash);
 
 	/**
 	 * Check whether to apply the radio filter

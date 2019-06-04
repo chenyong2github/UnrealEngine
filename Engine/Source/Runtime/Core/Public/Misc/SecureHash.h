@@ -75,7 +75,7 @@ public:
 	 *
 	 * @param String	hex representation of the hash (32 lower-case hex digits)
 	 **/
-	static FString HashBytes(const uint8* input, int32 inputLen)
+	static FString HashBytes(const uint8* input, uint64 inputLen)
 	{
 		uint8 Digest[16];
 
@@ -193,7 +193,7 @@ typedef union
 class CORE_API FSHAHash
 {
 public:
-	uint8 Hash[20];
+	alignas(uint32) uint8 Hash[20];
 
 	FSHAHash()
 	{
@@ -222,7 +222,10 @@ public:
 
 	friend CORE_API FArchive& operator<<( FArchive& Ar, FSHAHash& G );
 	
-	friend CORE_API uint32 GetTypeHash(FSHAHash const& InKey);
+	friend uint32 GetTypeHash(const FSHAHash& InKey)
+	{
+		return *reinterpret_cast<const uint32*>(InKey.Hash);
+	}
 
 	friend CORE_API FString LexToString(const FSHAHash&);
 	friend CORE_API void LexFromString(FSHAHash& Hash, const TCHAR*);
@@ -287,7 +290,7 @@ public:
 	 * @param BufferSize Size of Buffer
 	 * @param bDuplicateKeyMemory If Buffer is not always loaded, pass true so that the 20 byte hashes are duplicated 
 	 */
-	static void InitializeFileHashesFromBuffer(uint8* Buffer, int32 BufferSize, bool bDuplicateKeyMemory=false);
+	static void InitializeFileHashesFromBuffer(uint8* Buffer, uint64 BufferSize, bool bDuplicateKeyMemory=false);
 
 	/**
 	 * Gets the stored SHA hash from the platform, if it exists. This function
@@ -327,7 +330,7 @@ protected:
 	void* Buffer;
 
 	/** Size of Buffer */
-	int32 BufferSize;
+	uint64 BufferSize;
 
 	/** Hash to compare against */
 	uint8 Hash[20];
@@ -355,7 +358,7 @@ public:
 	 */
 	FAsyncSHAVerify(
 		void* InBuffer, 
-		int32 InBufferSize, 
+		uint64 InBufferSize, 
 		bool bInShouldDeleteBuffer, 
 		const TCHAR* InPathname, 
 		bool bInIsUnfoundHashAnError)
@@ -428,7 +431,7 @@ public:
 	 */
 	FBufferReaderWithSHA( 
 		void* Data, 
-		int32 Size, 
+		int64 Size, 
 		bool bInFreeOnClose, 
 		const TCHAR* SHASourcePathname, 
 		bool bIsPersistent=false, 

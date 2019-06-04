@@ -136,12 +136,25 @@ void UBehaviorTreeGraphNode::FindDiffs(UEdGraphNode* OtherNode, FDiffResults& Re
 				FGraphDiffControl::FNodeMatch NodeMatch;
 				NodeMatch.NewNode = RhsSubNode;
 
+				// Do two passes, exact and soft
 				for (UEdGraphNode* LhsSubNode : LhsSubNodes)
 				{
-					if (FGraphDiffControl::IsNodeMatch(LhsSubNode, RhsSubNode, &NodeMatches))
+					if (FGraphDiffControl::IsNodeMatch(LhsSubNode, RhsSubNode, true, &NodeMatches))
 					{
 						NodeMatch.OldNode = LhsSubNode;
 						break;
+					}
+				}
+				
+				if (NodeMatch.NewNode == nullptr)
+				{
+					for (UEdGraphNode* LhsSubNode : LhsSubNodes)
+					{
+						if (FGraphDiffControl::IsNodeMatch(LhsSubNode, RhsSubNode, false, &NodeMatches))
+						{
+							NodeMatch.OldNode = LhsSubNode;
+							break;
+						}
 					}
 				}
 
@@ -168,17 +181,9 @@ void UBehaviorTreeGraphNode::FindDiffs(UEdGraphNode* OtherNode, FDiffResults& Re
 					continue;
 				}
 
+				// There can't be a matching node in RhsGraph because it would have been found above
 				FGraphDiffControl::FNodeMatch NodeMatch;
 				NodeMatch.NewNode = LhsSubNode;
-
-				for (UEdGraphNode* RhsSubNode : RhsSubNodes)
-				{
-					if (FGraphDiffControl::IsNodeMatch(LhsSubNode, RhsSubNode, &NodeMatches))
-					{
-						NodeMatch.OldNode = RhsSubNode;
-						break;
-					}
-				}
 
 				NodeMatch.Diff(SubtractiveDiffContext, Results);
 			}

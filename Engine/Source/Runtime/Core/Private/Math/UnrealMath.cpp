@@ -2788,42 +2788,37 @@ void FVector::GenerateClusterCenters(TArray<FVector>& Clusters, const TArray<FVe
 	}
 }
 
-namespace MathRoundingUtil
-{
-
-float TruncateToHalfIfClose(float F)
+float FMath::TruncateToHalfIfClose(float F, float Tolerance)
 {
 	float ValueToFudgeIntegralPart = 0.0f;
 	float ValueToFudgeFractionalPart = FMath::Modf(F, &ValueToFudgeIntegralPart);
 	if (F < 0.0f)
 	{
-		return ValueToFudgeIntegralPart + ((FMath::IsNearlyEqual(ValueToFudgeFractionalPart, -0.5f)) ? -0.5f : ValueToFudgeFractionalPart);
+		return ValueToFudgeIntegralPart + (FMath::IsNearlyEqual(ValueToFudgeFractionalPart, -0.5f, Tolerance) ? -0.5f : ValueToFudgeFractionalPart);
 	}
 	else
 	{
-		return ValueToFudgeIntegralPart + ((FMath::IsNearlyEqual(ValueToFudgeFractionalPart, 0.5f)) ? 0.5f : ValueToFudgeFractionalPart);
+		return ValueToFudgeIntegralPart + (FMath::IsNearlyEqual(ValueToFudgeFractionalPart, 0.5f, Tolerance) ? 0.5f : ValueToFudgeFractionalPart);
 	}
 }
 
-double TruncateToHalfIfClose(double F)
+double FMath::TruncateToHalfIfClose(double F, double Tolerance)
 {
 	double ValueToFudgeIntegralPart = 0.0;
 	double ValueToFudgeFractionalPart = FMath::Modf(F, &ValueToFudgeIntegralPart);
 	if (F < 0.0)
 	{
-		return ValueToFudgeIntegralPart + ((FMath::IsNearlyEqual(ValueToFudgeFractionalPart, -0.5)) ? -0.5 : ValueToFudgeFractionalPart);
+		return ValueToFudgeIntegralPart + (FMath::IsNearlyEqual(ValueToFudgeFractionalPart, -0.5, Tolerance) ? -0.5 : ValueToFudgeFractionalPart);
 	}
 	else
 	{
-		return ValueToFudgeIntegralPart + ((FMath::IsNearlyEqual(ValueToFudgeFractionalPart, 0.5)) ? 0.5 : ValueToFudgeFractionalPart);
+		return ValueToFudgeIntegralPart + (FMath::IsNearlyEqual(ValueToFudgeFractionalPart, 0.5, Tolerance) ? 0.5 : ValueToFudgeFractionalPart);
 	}
 }
 
-} // namespace GenericPlatformMathInternal
-
 float FMath::RoundHalfToEven(float F)
 {
-	F = MathRoundingUtil::TruncateToHalfIfClose(F);
+	F = FMath::TruncateToHalfIfClose(F);
 
 	const bool bIsNegative = F < 0.0f;
 	const bool bValueIsEven = static_cast<uint32>(FloorToFloat(((bIsNegative) ? -F : F))) % 2 == 0;
@@ -2841,7 +2836,7 @@ float FMath::RoundHalfToEven(float F)
 
 double FMath::RoundHalfToEven(double F)
 {
-	F = MathRoundingUtil::TruncateToHalfIfClose(F);
+	F = FMath::TruncateToHalfIfClose(F);
 
 	const bool bIsNegative = F < 0.0;
 	const bool bValueIsEven = static_cast<uint64>(FMath::FloorToDouble(((bIsNegative) ? -F : F))) % 2 == 0;
@@ -2859,26 +2854,62 @@ double FMath::RoundHalfToEven(double F)
 
 float FMath::RoundHalfFromZero(float F)
 {
-	F = MathRoundingUtil::TruncateToHalfIfClose(F);
-	return (F < 0.0f) ? CeilToFloat(F - 0.5f) : FloorToFloat(F + 0.5f);
+	float ValueToFudgeIntegralPart = 0.0f;
+	float ValueToFudgeFractionalPart = FMath::Modf(F, &ValueToFudgeIntegralPart);
+
+	if (F < 0.0f)
+	{
+		return ValueToFudgeFractionalPart > -0.5f ? ValueToFudgeIntegralPart : ValueToFudgeIntegralPart - 1.0f;
+	}
+	else
+	{
+		return ValueToFudgeFractionalPart < 0.5f ? ValueToFudgeIntegralPart : ValueToFudgeIntegralPart + 1.0f;
+	}
 }
 
 double FMath::RoundHalfFromZero(double F)
 {
-	F = MathRoundingUtil::TruncateToHalfIfClose(F);
-	return (F < 0.0) ? CeilToDouble(F - 0.5) : FloorToDouble(F + 0.5);
+	double ValueToFudgeIntegralPart = 0.0;
+	double ValueToFudgeFractionalPart = FMath::Modf(F, &ValueToFudgeIntegralPart);
+
+	if (F < 0.0)
+	{
+		return ValueToFudgeFractionalPart > -0.5 ? ValueToFudgeIntegralPart : ValueToFudgeIntegralPart - 1.0;
+	}
+	else
+	{
+		return ValueToFudgeFractionalPart < 0.5 ? ValueToFudgeIntegralPart : ValueToFudgeIntegralPart + 1.0f;
+	}
 }
 
 float FMath::RoundHalfToZero(float F)
 {
-	F = MathRoundingUtil::TruncateToHalfIfClose(F);
-	return (F < 0.0f) ? FloorToFloat(F + 0.5f) : CeilToFloat(F - 0.5f);
+	float ValueToFudgeIntegralPart = 0.0f;
+	float ValueToFudgeFractionalPart = FMath::Modf(F, &ValueToFudgeIntegralPart);
+
+	if (F < 0.0f)
+	{
+		return ValueToFudgeFractionalPart < -0.5f ? ValueToFudgeIntegralPart - 1.0f : ValueToFudgeIntegralPart;
+	}
+	else
+	{
+		return ValueToFudgeFractionalPart > 0.5f ? ValueToFudgeIntegralPart + 1.0f : ValueToFudgeIntegralPart;
+	}
 }
 
 double FMath::RoundHalfToZero(double F)
 {
-	F = MathRoundingUtil::TruncateToHalfIfClose(F);
-	return (F < 0.0) ? FloorToDouble(F + 0.5) : CeilToDouble(F - 0.5);
+	double ValueToFudgeIntegralPart = 0.0;
+	double ValueToFudgeFractionalPart = FMath::Modf(F, &ValueToFudgeIntegralPart);
+
+	if (F < 0.0)
+	{
+		return ValueToFudgeFractionalPart < -0.5 ? ValueToFudgeIntegralPart - 1.0 : ValueToFudgeIntegralPart;
+	}
+	else
+	{
+		return ValueToFudgeFractionalPart > 0.5 ? ValueToFudgeIntegralPart + 1.0 : ValueToFudgeIntegralPart;
+	}
 }
 
 FString FMath::FormatIntToHumanReadable(int32 Val)
