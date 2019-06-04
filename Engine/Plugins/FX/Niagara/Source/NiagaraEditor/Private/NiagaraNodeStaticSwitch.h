@@ -41,7 +41,7 @@ class UNiagaraNodeStaticSwitch : public UNiagaraNodeUsageSelector
 
 public:
 
-	UPROPERTY(EditAnywhere, Category="Static Switch")
+	UPROPERTY()
 	FName InputParameterName;
 	
 	UPROPERTY()
@@ -56,6 +56,9 @@ public:
 	int32 SwitchValue;
 
 	FNiagaraTypeDefinition GetInputType() const;
+
+	void ChangeSwitchParameterName(const FName& NewName);
+	void OnSwitchParameterTypeChanged(const FNiagaraTypeDefinition& OldType);
 
 	//~ Begin EdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
@@ -82,4 +85,6 @@ private:
 	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const;
 
 	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
+
+	void RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter);
 };

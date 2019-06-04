@@ -28,6 +28,35 @@ FNiagaraTypeDefinition UNiagaraNodeStaticSwitch::GetInputType() const
 	return FNiagaraTypeDefinition();
 }
 
+void UNiagaraNodeStaticSwitch::ChangeSwitchParameterName(const FName& NewName)
+{
+	FNiagaraVariable OldValue(GetInputType(), InputParameterName);
+	InputParameterName = NewName;
+	VisualsChangedDelegate.Broadcast(this);
+	RemoveUnusedGraphParameter(OldValue);	
+}
+
+void UNiagaraNodeStaticSwitch::OnSwitchParameterTypeChanged(const FNiagaraTypeDefinition& OldType)
+{
+	RefreshFromExternalChanges();
+	VisualsChangedDelegate.Broadcast(this);
+	RemoveUnusedGraphParameter(FNiagaraVariable(OldType, InputParameterName));
+}
+
+void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter)
+{
+	TArray<FNiagaraVariable> GraphVariables = GetNiagaraGraph()->FindStaticSwitchInputs();
+	int Index = GraphVariables.Find(OldParameter);
+	if (Index == INDEX_NONE)
+	{
+		GetNiagaraGraph()->RemoveParameter(OldParameter);
+	}
+	else
+	{
+		GetNiagaraGraph()->NotifyGraphChanged();
+	}
+}
+
 void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
