@@ -16,8 +16,19 @@ const FInterpCurvePointVector USplineComponent::DummyPointPosition(0.0f, FVector
 const FInterpCurvePointQuat USplineComponent::DummyPointRotation(0.0f, FQuat::Identity);
 const FInterpCurvePointVector USplineComponent::DummyPointScale(0.0f, FVector::OneVector);
 
+USplineMetadata::USplineMetadata(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+
+}
 
 USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
+ : USplineComponent(ObjectInitializer, nullptr)
+{
+
+}
+
+USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer, USplineMetadata* Metadata)
 	: Super(ObjectInitializer)
 	, bAllowSplineEditingPerInstance_DEPRECATED(true)
 	, ReparamStepsPerSegment(10)
@@ -37,6 +48,8 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 	, ScaleVisualizationWidth(30.0f)
 #endif
 {
+	SplineCurves.Metadata = Metadata;
+
 	SplineCurves.Position.Points.Reset(10);
 	SplineCurves.Rotation.Points.Reset(10);
 	SplineCurves.Scale.Points.Reset(10);
@@ -44,10 +57,17 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 	SplineCurves.Position.Points.Emplace(0.0f, FVector(0, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 	SplineCurves.Rotation.Points.Emplace(0.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 	SplineCurves.Scale.Points.Emplace(0.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
-
+	
 	SplineCurves.Position.Points.Emplace(1.0f, FVector(100, 0, 0), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 	SplineCurves.Rotation.Points.Emplace(1.0f, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 	SplineCurves.Scale.Points.Emplace(1.0f, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+
+	if (SplineCurves.Metadata)
+	{
+		SplineCurves.Metadata->Reset(10);
+		SplineCurves.Metadata->AddPoint(0.0f);
+		SplineCurves.Metadata->AddPoint(1.0f);
+	}
 
 	UpdateSpline();
 
@@ -562,6 +582,12 @@ void USplineComponent::AddPoint(const FSplinePoint& InSplinePoint, bool bUpdateS
 		),
 		Index);
 
+	USplineMetadata* Metadata = GetSplinePointsMetadata();
+	if (Metadata)
+	{
+		Metadata->AddPoint(InSplinePoint.InputKey);
+	}
+
 	if (bLoopPositionOverride && LoopPosition <= SplineCurves.Position.Points.Last().InVal)
 	{
 		bLoopPositionOverride = false;
@@ -603,6 +629,12 @@ void USplineComponent::AddSplinePoint(const FVector& Position, ESplineCoordinate
 	SplineCurves.Position.Points.Emplace(InKey, TransformedPosition, FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 	SplineCurves.Rotation.Points.Emplace(InKey, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 	SplineCurves.Scale.Points.Emplace(InKey, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+	USplineMetadata* Metadata = GetSplinePointsMetadata();
+	if (Metadata)
+	{
+		Metadata->AddPoint(InKey);
+	}
+
 
 	if (bLoopPositionOverride)
 	{
@@ -629,6 +661,12 @@ void USplineComponent::AddSplinePointAtIndex(const FVector& Position, int32 Inde
 		SplineCurves.Position.Points.Insert(FInterpCurvePoint<FVector>(InKey, TransformedPosition, FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto), Index);
 		SplineCurves.Rotation.Points.Insert(FInterpCurvePoint<FQuat>(InKey, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto), Index);
 		SplineCurves.Scale.Points.Insert(FInterpCurvePoint<FVector>(InKey, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto), Index);
+		USplineMetadata* Metadata = GetSplinePointsMetadata();
+		if (Metadata)
+		{
+			Metadata->InsertPoint(InKey, Index);
+		}
+		
 		NumPoints++;
 
 		// Adjust subsequent points' input keys to make room for the value just added
@@ -660,6 +698,12 @@ void USplineComponent::RemoveSplinePoint(int32 Index, bool bUpdateSpline)
 		SplineCurves.Position.Points.RemoveAt(Index, 1, false);
 		SplineCurves.Rotation.Points.RemoveAt(Index, 1, false);
 		SplineCurves.Scale.Points.RemoveAt(Index, 1, false);
+		USplineMetadata* Metadata = GetSplinePointsMetadata();
+		if (Metadata)
+		{
+			Metadata->RemovePoint(Index);
+		}
+
 		NumPoints--;
 
 		// Adjust all following spline point input keys to close the gap left by the removed point
@@ -690,6 +734,12 @@ void USplineComponent::SetSplinePoints(const TArray<FVector>& Points, ESplineCoo
 	SplineCurves.Rotation.Points.Reset(NumPoints);
 	SplineCurves.Scale.Points.Reset(NumPoints);
 
+	USplineMetadata* Metadata = GetSplinePointsMetadata();
+	if (Metadata)
+	{
+		Metadata->Reset(NumPoints);
+	}
+
 	float InputKey = 0.0f;
 	for (const auto& Point : Points)
 	{
@@ -699,6 +749,11 @@ void USplineComponent::SetSplinePoints(const TArray<FVector>& Points, ESplineCoo
 		SplineCurves.Position.Points.Emplace(InputKey, TransformedPoint, FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
 		SplineCurves.Rotation.Points.Emplace(InputKey, FQuat::Identity, FQuat::Identity, FQuat::Identity, CIM_CurveAuto);
 		SplineCurves.Scale.Points.Emplace(InputKey, FVector(1.0f), FVector::ZeroVector, FVector::ZeroVector, CIM_CurveAuto);
+
+		if (Metadata)
+		{
+			Metadata->AddPoint(InputKey);
+		}
 
 		InputKey += 1.0f;
 	}
@@ -1354,6 +1409,32 @@ FTransform USplineComponent::FindTransformClosestToWorldLocation(const FVector& 
 {
 	const float Param = FindInputKeyClosestToWorldLocation(WorldLocation);
 	return GetTransformAtSplineInputKey(Param, CoordinateSpace, bUseScale);
+}
+
+template<class T>
+T GetPropertyValueAtSplinePoint(const USplineMetadata* Metadata, int32 Index, FName PropertyName)
+{
+	if (Metadata)
+	{
+		if (UProperty* Property = Metadata->GetClass()->FindPropertyByName(PropertyName))
+		{
+			const FInterpCurve<T>* Curve = Property->ContainerPtrToValuePtr<FInterpCurve<T>>(Metadata);
+			const TArray<FInterpCurvePoint<T>>& Points = Curve->Points;
+			const int32 NumPoints = Points.Num();
+			if (NumPoints > 0)
+			{
+				const int32 ClampedIndex = FMath::Clamp(Index, 0, NumPoints - 1);
+				return Points[ClampedIndex].OutVal;
+			}
+		}
+	}
+
+	return T();
+}
+
+float USplineComponent::GetFloatPropertyAtSplinePoint(int32 Index, FName PropertyName) const
+{
+	return GetPropertyValueAtSplinePoint<float>(GetSplinePointsMetadata(), Index, PropertyName);
 }
 
 #if !UE_BUILD_SHIPPING
