@@ -8,7 +8,7 @@
 #define STRICT
 #endif
 
-#include "HoloLens/HoloLensCompilerSetup.h"
+#include "HoloLens/HoloLensPlatformCompilerSetup.h"
 #include "Windows/MinimalWindowsApi.h"
 
 // Macro for releasing COM objects
