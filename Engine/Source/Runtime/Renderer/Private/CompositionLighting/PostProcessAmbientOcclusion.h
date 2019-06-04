@@ -123,3 +123,14 @@ private:
 	const bool bAOSetupAsInput;
 	const bool bForceIntermediateOutput;
 };
+
+// apply the AO to the SceneColor (lightmapped object), extra pas that is not always needed
+// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
+class FRCPassPostProcessBasePassAO : public TRenderingCompositePassBase<0, 1>
+{
+public:
+	// interface FRenderingCompositePass ---------
+	virtual void Process(FRenderingCompositePassContext& Context) override;
+	virtual void Release() override { delete this; }
+	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
+};
