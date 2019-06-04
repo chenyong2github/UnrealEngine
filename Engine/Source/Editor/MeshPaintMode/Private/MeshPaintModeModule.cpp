@@ -7,7 +7,6 @@
 #include "EditorModeRegistry.h"
 #include "EditorModes.h"
 #include "MeshPaintEdMode.h"
-#include "MeshPainterCommands.h"
 
 #include "PropertyEditorModule.h"
 #include "PaintModeSettingsCustomization.h"
