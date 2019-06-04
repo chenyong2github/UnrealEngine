@@ -136,9 +136,8 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 	{
 		Context.AddAnalyzer(*Analyzer);
 	}
-	Trace::FAnalysisProcessor Processor = Context.Process();
-
-	Processor.Start(*DataStream);
+	Trace::FAnalysisProcessor Processor = Context.Process(*DataStream);
+	Processor.Wait();
 
 	for (Trace::IAnalyzer* Analyzer : Analyzers)
 	{
