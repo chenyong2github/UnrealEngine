@@ -6308,8 +6308,25 @@ bool UDemoNetDriver::UpdateExternalDataForActor(AActor* Actor)
 
 bool UDemoNetDriver::ShouldReplicateFunction(AActor* Actor, UFunction* Function) const
 {
-	const bool bRecordingMulticast = (Function && Function->FunctionFlags & FUNC_NetMulticast) && IsRecording();
-	return bRecordingMulticast || Super::ShouldReplicateFunction(Actor, Function);
+	bool bShouldRecordMulticast = (Function && Function->FunctionFlags & FUNC_NetMulticast) && IsRecording();
+	if (bShouldRecordMulticast)
+	{
+		FString FuncPathName = GetPathNameSafe(Function);
+		int32 Idx = MulticastRecordOptions.IndexOfByPredicate([FuncPathName](const FMulticastRecordOptions& Options) { return (Options.FuncPathName == FuncPathName); });
+		if (Idx != INDEX_NONE)
+		{
+			if (World && World->IsRecordingClientReplay())
+			{
+				bShouldRecordMulticast = bShouldRecordMulticast && !MulticastRecordOptions[Idx].bClientSkip;
+			}
+			else
+			{
+				bShouldRecordMulticast = bShouldRecordMulticast && !MulticastRecordOptions[Idx].bServerSkip;
+			}
+		}
+	}
+
+	return bShouldRecordMulticast || Super::ShouldReplicateFunction(Actor, Function);
 }
 
 bool UDemoNetDriver::ShouldReplicateActor(AActor* Actor) const
