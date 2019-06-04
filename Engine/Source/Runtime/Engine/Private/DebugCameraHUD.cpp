@@ -66,6 +66,22 @@ void ADebugCameraHUD::PostRender()
 		UFont* RenderFont = GEngine->GetSmallFont();
 		if( DCC != NULL )
 		{
+			if (DCC->bEnableBufferVisualizationFullMode)
+			{
+				RenderFont = GEngine->GetMediumFont();
+				FFontRenderInfo FontRenderInfo = Canvas->CreateFontRenderInfo(false, true);
+
+				Canvas->SetDrawColor(255, 255, 64, 255);
+				FString BufferText = DCC->GetSelectedBufferName();
+				float xl, yl;
+				Canvas->StrLen(RenderFont, BufferText, xl, yl);
+				float X = Canvas->SizeX * 0.05f;
+				float Y = Canvas->SizeY < 3.0f * yl ? 0.0f : Canvas->SizeY - 3.0f * yl;
+				Canvas->DrawText(RenderFont, BufferText, X, Y, 1.f, 1.f, FontRenderInfo);
+
+				return;
+			}
+	
 			FFontRenderInfo FontRenderInfo = Canvas->CreateFontRenderInfo(false, true);
 
 			Canvas->SetDrawColor(64, 64, 255, 255);
@@ -199,7 +215,7 @@ void ADebugCameraHUD::PostRender()
 
 
 			// controls display
-			yl += Y*10;
+			yl += Y*8;
 			
 			Canvas->SetDrawColor(64, 64, 255, 255);
 			Canvas->DrawText(RenderFont, TEXT("Controls"), X, yl, 1.f, 1.f, FontRenderInfo);
