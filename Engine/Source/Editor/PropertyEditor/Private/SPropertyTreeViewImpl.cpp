@@ -11,6 +11,7 @@
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "EditConditionParser.h"
 
 #include "CategoryPropertyNode.h"
 #include "UserInterface/PropertyTree/PropertyTreeConstants.h"
