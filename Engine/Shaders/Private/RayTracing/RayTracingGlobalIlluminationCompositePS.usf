@@ -31,7 +31,6 @@ void GlobalIlluminationSceneColorCompositePS(
 	out float4 OutColor : SV_Target0
 )
 {
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
 	float4 GlobalIllumination = GlobalIlluminationTexture.Sample(GlobalIlluminationSampler, UV);
 	OutColor = float4(GlobalIllumination.rgb, 0.0);
 }
