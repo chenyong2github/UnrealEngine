@@ -84,7 +84,7 @@ namespace UnrealGameSync
 					List<PerforceDescribeRecord> Descriptions = null;
 
 					List<PerforceChangeSummary> Changes;
-					if(Perforce.FindChanges(new string[]{ "//..." }, UserName, 250, out Changes, Log))
+					if(Perforce.FindChanges(new string[]{ "//..." }, UserName, 100, out Changes, Log))
 					{
 						Perforce.DescribeMultiple(Changes.Select(x => x.Number), out Descriptions, Log);
 					}

@@ -198,6 +198,11 @@ namespace UnrealGameSync
 						DeclineBtn.Text = "Not Me";
 						Buttons.Add(DeclineBtn);
 					}
+					else
+					{
+						DeclineBtn.Text = "Dismiss";
+						Buttons.Add(DeclineBtn);
+					}
 
 					tableLayoutPanel3.ColumnCount = Buttons.Count;
 					tableLayoutPanel3.Controls.Clear();

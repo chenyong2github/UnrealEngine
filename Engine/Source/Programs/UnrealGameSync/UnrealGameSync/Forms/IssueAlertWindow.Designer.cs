@@ -55,8 +55,8 @@ namespace UnrealGameSync
             this.SummaryLabel.Location = new System.Drawing.Point(2, 0);
             this.SummaryLabel.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.SummaryLabel.Name = "SummaryLabel";
-            this.SummaryLabel.Padding = new System.Windows.Forms.Padding(0, 3, 30, 3);
-            this.SummaryLabel.Size = new System.Drawing.Size(99, 23);
+            this.SummaryLabel.Padding = new System.Windows.Forms.Padding(0, 3, 50, 3);
+            this.SummaryLabel.Size = new System.Drawing.Size(119, 23);
             this.SummaryLabel.TabIndex = 0;
             this.SummaryLabel.TabStop = true;
             this.SummaryLabel.Text = "Summary";
