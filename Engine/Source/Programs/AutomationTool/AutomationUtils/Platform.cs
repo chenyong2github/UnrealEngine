@@ -111,7 +111,10 @@ namespace AutomationTool
 					}
 					else
 					{
-						LogWarning("Platform {0} already exists", PotentialPlatformType.Name);
+						if (ExistingInstance.GetType() != PlatformInstance.GetType())
+						{
+							LogWarning("Platform {0} already exists", PotentialPlatformType.Name);
+						}
 					}
 				}
 			}
