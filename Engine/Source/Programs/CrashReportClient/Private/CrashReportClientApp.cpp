@@ -54,6 +54,9 @@ static FString GameNameFromCmd;
 /** GUID of the crash passed via the command line. */
 static FString CrashGUIDFromCmd;
 
+/** If we want to enable analytics */
+static bool AnalyticsEnabledFromCmd = true;
+
 /**
  * Look for the report to upload, either in the command line or in the platform's report queue
  */
@@ -106,6 +109,11 @@ void ParseCommandLine(const TCHAR* CommandLine)
 		if (Params.Contains(TEXT("CrashGUID")))
 		{
 			CrashGUIDFromCmd = Params.FindRef(TEXT("CrashGUID"));
+		}
+
+		if (Switches.Contains(TEXT("NoAnalytics")))
+		{
+			AnalyticsEnabledFromCmd = false;
 		}
 	}
 
@@ -346,7 +354,10 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	{
 		ErrorReport.SetCrashReportClientVersion(FCrashReportCoreConfig::Get().GetVersion());
 
-		FCrashReportAnalytics::Initialize();
+		if (AnalyticsEnabledFromCmd)
+		{
+			FCrashReportAnalytics::Initialize();
+		}
 
 		if (bUnattended)
 		{
@@ -368,8 +379,11 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		}
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
-		// Shutdown analytics.
-		FCrashReportAnalytics::Shutdown();
+		if (AnalyticsEnabledFromCmd)
+		{
+			// Shutdown analytics.
+			FCrashReportAnalytics::Shutdown();
+		}
 	}
 	else
 	{

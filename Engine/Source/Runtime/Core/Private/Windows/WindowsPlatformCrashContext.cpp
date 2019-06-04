@@ -427,6 +427,12 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 			// Run Crash Report Client
 			FString CrashReportClientArguments = FString::Printf(TEXT("\"%s\""), *CrashFolderAbsolute);
 
+			// If the editor setting has been disabled to not send analytics extend this to the CRC
+			if (!bSendUnattendedBugReports)
+			{
+				CrashReportClientArguments += TEXT(" -NoAnalytics ");
+			}
+
 			// Pass nullrhi to CRC when the engine is in this mode to stop the CRC attempting to initialize RHI when the capability isn't available
 			bool bNullRHI = !FApp::CanEverRender();
 

@@ -1931,7 +1931,15 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 			}
 			else
 			{
-				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
+				if (bSendUnattendedBugReports)
+				{
+					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
+				}
+				// If the editor setting has been disabled to not send analytics extend this to the CRC
+				else
+				{
+					execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-NoAnalytics", NULL);
+				}
 			}
 		}
 		// We no longer wait here because on return the OS will scribble & crash again due to the behaviour of the XPC function
@@ -2008,6 +2016,12 @@ void FMacCrashContext::GenerateEnsureInfoAndLaunchReporter() const
 		else
 		{
 			Arguments = FString::Printf(TEXT("\"%s/\" -Unattended"), *EnsureLogFolder);
+		}
+
+		// If the editor setting has been disabled to not send analytics extend this to the CRC
+		if (!bSendUnattendedBugReports)
+		{
+			Arguments += TEXT(" -NoAnalytics");
 		}
 
 		FString ReportClient = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("CrashReportClient"), EBuildConfigurations::Development));

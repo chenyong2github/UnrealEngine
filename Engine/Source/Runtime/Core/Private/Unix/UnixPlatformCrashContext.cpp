@@ -558,6 +558,12 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			CrashReportClientArguments += TEXT("\"\"") + CrashReportLogFilepath + TEXT("\"\"");
 			CrashReportClientArguments += TEXT(" ");
 
+			// If the editor setting has been disabled to not send analytics extend this to the CRC
+			if (!bSendUnattendedBugReports)
+			{
+				CrashReportClientArguments += TEXT(" -NoAnalytics ");
+			}
+
 			if (bUnattended)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended ");
