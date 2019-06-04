@@ -12,7 +12,7 @@
 #include "EditorUtilityBlueprint.generated.h"
 
 UCLASS()
-class UEditorUtilityBlueprint : public UBlueprint
+class BLUTILITY_API UEditorUtilityBlueprint : public UBlueprint
 {
 	GENERATED_UCLASS_BODY()
 
