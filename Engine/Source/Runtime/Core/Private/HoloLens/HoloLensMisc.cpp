@@ -4,7 +4,7 @@
 	HoloLensMisc.cpp: HoloLens implementations of misc functions
 =============================================================================*/
 
-#include "HoloLensMisc.h"
+#include "HoloLensPlatformMisc.h"
 #include "Internationalization/Internationalization.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/App.h"

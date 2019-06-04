@@ -4,7 +4,7 @@
 	HoloLensOutputDevices.cpp: HoloLens implementations of OutputDevices functions
 =============================================================================*/
 
-#include "HoloLens/HoloLensOutputDevices.h"
+#include "HoloLens/HoloLensPlatformOutputDevices.h"
 #include "Misc/App.h"
 #include "Misc/CoreDelegates.h"
 

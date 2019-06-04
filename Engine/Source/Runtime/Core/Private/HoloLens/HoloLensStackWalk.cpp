@@ -4,5 +4,5 @@
 	HoloLensStackWalk.cpp: HoloLens implementations of stack walk functions
 =============================================================================*/
 
-#include "HoloLensStackWalk.h"
+#include "HoloLensPlatformStackWalk.h"
 

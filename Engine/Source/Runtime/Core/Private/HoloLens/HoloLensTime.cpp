@@ -5,7 +5,7 @@ HoloLensTime.cpp: HoloLens implementations of time functions
 =============================================================================*/
 
 //#include "CorePrivatePCH.h"
-#include "HoloLensTime.h"
+#include "HoloLensPlatformTime.h"
 #include "Misc/AssertionMacros.h"
 #include "Containers/Ticker.h"
 #include "HoloLens/WindowsHWrapper.h"

@@ -4,7 +4,7 @@
 HoloLensProcess.cpp: HoloLens implementations of Process functions
 =============================================================================*/
 
-#include "HoloLensProcess.h"
+#include "HoloLensPlatformProcess.h"
 #include "Misc/SingleThreadEvent.h"
 #include "HoloLensRunnableThread.h"
 #include "Misc/CommandLine.h"

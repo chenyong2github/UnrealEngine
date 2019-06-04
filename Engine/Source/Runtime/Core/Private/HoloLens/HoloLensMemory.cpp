@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 
-#include "HoloLensMemory.h"
+#include "HoloLensPlatformMemory.h"
 #include "HAL/MallocTBB.h"
 #include "HAL/MallocAnsi.h"
 #include "GenericPlatform/GenericPlatformMemoryPoolStats.h"

@@ -8,7 +8,7 @@
 #include "HAL/Event.h"
 #include "Containers/StringConv.h"
 #include "HoloLens/WindowsHWrapper.h"
-#include "HoloLens/HoloLensProcess.h"
+#include "HoloLens/HoloLensPlatformProcess.h"
 #include "HoloLens/AllowWindowsPlatformTypes.h"
 
 /**

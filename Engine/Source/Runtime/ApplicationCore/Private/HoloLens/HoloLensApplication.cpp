@@ -4,14 +4,13 @@
 #include "HoloLens/HoloLensWindow.h"
 #include "HoloLens/HoloLensCursor.h"
 #include "HoloLens/HoloLensInputInterface.h"
-#include "HoloLens/HoloLensMisc.h"
+#include "HoloLens/HoloLensPlatformMisc.h"
 #include "GenericPlatform/GenericApplication.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
-// @MIXEDREALITY_CHANGE : BEGIN
 #include "IInputDeviceModule.h"
 #include "IInputDevice.h"
-// @MIXEDREALITY_CHANGE : END
+
 DEFINE_LOG_CATEGORY(LogHoloLens);
 
 // Flip this on to make license checks operate against the retail Windows Store environment.
