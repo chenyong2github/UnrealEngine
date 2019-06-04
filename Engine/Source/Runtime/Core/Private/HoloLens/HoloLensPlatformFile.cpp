@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "HoloLensFile.h"
+#include "HoloLensPlatformFile.h"
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HoloLens/HoloLensProcess.h"

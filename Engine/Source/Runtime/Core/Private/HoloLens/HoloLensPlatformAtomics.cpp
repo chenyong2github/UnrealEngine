@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "HoloLensAtomics.h"
+#include "HoloLensPlatformAtomics.h"
 #include "CoreMinimal.h"
 
 #if PLATFORM_HOLOLENS

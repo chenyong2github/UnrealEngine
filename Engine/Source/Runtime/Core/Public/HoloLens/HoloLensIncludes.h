@@ -27,6 +27,4 @@ typedef FGenericPlatformRHIFramePacer FPlatformRHIFramePacer;
 
 typedef FGenericPlatformAffinity FPlatformAffinity;
 
-// include platform properties and typedef it for the runtime
 #include "HoloLensProperties.h"
-typedef FHoloLensPlatformProperties FPlatformProperties;
