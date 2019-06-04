@@ -254,7 +254,7 @@ public:
 	/**
 	 * The parent slot of the UWidget.  Allows us to easily inline edit the layout controlling this widget.
 	 */
-	UPROPERTY(Instanced, EditAnywhere, BlueprintReadOnly, Category=Layout, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(Instanced, TextExportTransient, EditAnywhere, BlueprintReadOnly, Category=Layout, meta=(ShowOnlyInnerProperties))
 	UPanelSlot* Slot;
 
 	/** A bindable delegate for bIsEnabled */
@@ -317,6 +317,32 @@ public:
 	/**  */
 	UPROPERTY(EditAnywhere, Category="Behavior", meta=(InlineEditConditionToggle))
 	uint8 bOverride_Cursor : 1;
+
+	/** Whether or not children of this widget can appear as distinct accessible widgets. */
+	UPROPERTY(EditAnywhere, Category = "Accessibility")
+	uint8 bCanChildrenBeAccessible : 1;
+
+	/** Whether or not the widget is accessible, and how to describe it. If set to custom, additional customization options will appear. */
+	UPROPERTY(EditAnywhere, Category = "Accessibility")
+	ESlateAccessibleBehavior AccessibleBehavior;
+
+	/** When AccessibleBehavior is set to Custom, this is the text that will be used to describe the widget. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accessibility", meta = (MultiLine = true))
+	FText AccessibleText;
+
+	UPROPERTY()
+	FGetText AccessibleTextDelegate;
+
+	/** How to describe this widget when it's being presented through a summary of a parent widget. If set to custom, additional customization options will appear. */
+	UPROPERTY(EditAnywhere, Category = "Accessibility", AdvancedDisplay)
+	ESlateAccessibleBehavior AccessibleSummaryBehavior;
+
+	/** When AccessibleSummaryBehavior is set to Custom, this is the text that will be used to describe the widget. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Accessibility", meta = (MultiLine = true), AdvancedDisplay)
+	FText AccessibleSummaryText;
+
+	UPROPERTY()
+	FGetText AccessibleSummaryTextDelegate;
 
 protected:
 
@@ -426,7 +452,11 @@ public:
 
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
-	void SetRenderAngle(float Angle);
+	void SetRenderTransformAngle(float Angle);
+	
+	/** */
+	UFUNCTION(BlueprintCallable, Category = "Widget|Transform")
+	float GetRenderTransformAngle() const;
 	
 	/** */
 	UFUNCTION(BlueprintCallable, Category="Widget|Transform")
@@ -926,6 +956,11 @@ protected:
 
 	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
 
+#if WITH_ACCESSIBILITY
+	/** Gets the widget that accessibility properties should synchronize to. */
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const;
+#endif
+
 protected:
 	/** The underlying SWidget. */
 	TWeakPtr<SWidget> MyWidget;
@@ -972,4 +1007,6 @@ private:
 private:
 	PROPERTY_BINDING_IMPLEMENTATION(FText, ToolTipText);
 	PROPERTY_BINDING_IMPLEMENTATION(bool, bIsEnabled);
+	PROPERTY_BINDING_IMPLEMENTATION(FText, AccessibleText);
+	PROPERTY_BINDING_IMPLEMENTATION(FText, AccessibleSummaryText);
 };

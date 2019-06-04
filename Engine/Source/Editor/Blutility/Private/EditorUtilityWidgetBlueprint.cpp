@@ -56,33 +56,36 @@ TSharedRef<SDockTab> UEditorUtilityWidgetBlueprint::SpawnEditorUITab(const FSpaw
 	SpawnedTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateUObject(this, &UEditorUtilityWidgetBlueprint::UpdateRespawnListIfNeeded));
 	CreatedTab = SpawnedTab;
 	
-	OnCompiled().AddUObject(this, &UEditorUtilityWidgetBlueprint::RegenerateCreatedTab);
+	GEditor->OnBlueprintReinstanced().AddUObject(this, &UEditorUtilityWidgetBlueprint::RegenerateCreatedTab);
 
 	return SpawnedTab;
 }
 
 TSharedRef<SWidget> UEditorUtilityWidgetBlueprint::CreateUtilityWidget()
 {
+	TSharedRef<SWidget> TabWidget = SNullWidget::NullWidget;
+
 	UClass* BlueprintClass = GeneratedClass;
 	TSubclassOf<UEditorUtilityWidget> WidgetClass = BlueprintClass;
 	UWorld* World = GEditor->GetEditorWorldContext().World();
-	check(World);
-	CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);
-	TSharedRef<SWidget> TabWidget = SNullWidget::NullWidget;
+	if (!CreatedUMGWidget && World)
+	{
+		CreatedUMGWidget = CreateWidget<UEditorUtilityWidget>(World, WidgetClass);
+	}
+
 	if (CreatedUMGWidget)
 	{
-		TSharedRef<SWidget> CreatedSlateWidget = CreatedUMGWidget->TakeWidget();
 		TabWidget = SNew(SVerticalBox)
 			+ SVerticalBox::Slot()
 			.HAlign(HAlign_Fill)
 			[
-				CreatedSlateWidget
+				CreatedUMGWidget->TakeWidget()
 			];
 	}
 	return TabWidget;
 }
 
-void UEditorUtilityWidgetBlueprint::RegenerateCreatedTab(UBlueprint* RecompiledBlueprint)
+void UEditorUtilityWidgetBlueprint::RegenerateCreatedTab()
 {
 	if (CreatedTab.IsValid())
 	{

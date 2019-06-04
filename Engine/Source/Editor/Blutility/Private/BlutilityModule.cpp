@@ -117,7 +117,7 @@ public:
 						FName RegistrationName = FName(*(Blueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
 						Blueprint->SetRegistrationName(RegistrationName);
 						FText DisplayName = FText::FromString(Blueprint->GetName());
-						if (LevelEditorTabManager && !LevelEditorTabManager->CanSpawnTab(RegistrationName))
+						if (LevelEditorTabManager && !LevelEditorTabManager->HasTabSpawner(RegistrationName))
 						{
 							LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(Blueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
 								.SetDisplayName(DisplayName)

@@ -137,6 +137,10 @@ protected:
 
 	void OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr InNewSelection, ESelectInfo::Type InSelectInfo);
 
+	void CopySelectedRow();
+	void PasteOnSelectedRow();
+	void DuplicateSelectedRow();
+
 	/** Helper function for creating and registering the tab containing the data table data */
 	virtual void CreateAndRegisterDataTableTab(const TSharedRef<class FTabManager>& InTabManager);
 

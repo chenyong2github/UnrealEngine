@@ -255,6 +255,9 @@ void FFbxExporter::CreateDocument()
 	// Maya use cm by default
 	Scene->GetGlobalSettings().SetSystemUnit(FbxSystemUnit::cm);
 	//FbxScene->GetGlobalSettings().SetOriginalSystemUnit( KFbxSystemUnit::m );
+
+	bSceneGlobalTimeLineSet = false;
+	Scene->GetGlobalSettings().SetTimeMode(FbxTime::eDefaultMode);
 	
 	// setup anim stack
 	AnimStack = FbxAnimStack::Create(Scene, "Unreal Take");
@@ -381,6 +384,7 @@ void FFbxExporter::CloseDocument()
 		Scene->Destroy();
 		Scene = NULL;
 	}
+	bSceneGlobalTimeLineSet = false;
 }
 
 void FFbxExporter::CreateAnimatableUserProperty(FbxNode* Node, float Value, const char* Name, const char* Label)

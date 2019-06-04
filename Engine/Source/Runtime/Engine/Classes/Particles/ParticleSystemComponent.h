@@ -1164,6 +1164,9 @@ public:
 	/** Static delegate called for all systems on an activation change. */
 	static FOnSystemPreActivationChange OnSystemPreActivationChange;
 
+	/** Stream of random values to use with this component */
+	FRandomStream RandomStream;
+
 private:
 	/** In some cases the async work for this PSC can be created externally by the manager. */
 	FORCEINLINE void SetAsyncWork(FGraphEventRef& InAsyncWork) { AsyncWork = InAsyncWork; }

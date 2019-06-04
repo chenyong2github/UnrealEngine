@@ -5,7 +5,6 @@
 MONOLITHIC_HEADER_BOILERPLATE()
 
 // Generic Text Layout
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/TextRunRenderer.h"
 #include "Framework/Text/TextLineHighlight.h"
 

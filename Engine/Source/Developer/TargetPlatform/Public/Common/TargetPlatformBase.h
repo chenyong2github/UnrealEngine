@@ -9,7 +9,7 @@
 /**
  * Base class for target platforms.
  */
-class FTargetPlatformBase
+class TARGETPLATFORM_VTABLE FTargetPlatformBase
 	: public ITargetPlatform
 {
 public:

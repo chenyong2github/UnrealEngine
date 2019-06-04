@@ -60,7 +60,7 @@ public:
 	 * @param InCommand		The command info that describes what action to take when this block is activated
 	 * @param InCommandList	The list of mappings from command info to delegates so we can find the delegates to process for the provided action
 	 */
-	FMultiBlock( const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, FName InExtensionHook = NAME_None, EMultiBlockType::Type InType = EMultiBlockType::None )
+	FMultiBlock( const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None )
 		: Action( InCommand )
 		, ActionList( InCommandList )
 		, ExtensionHook( InExtensionHook )
@@ -74,7 +74,7 @@ public:
 	 *
 	 * @InAction UI action delegates that should be used in place of UI commands (dynamic menu items)
 	 */
-	FMultiBlock( const FUIAction& InAction,  FName InExtensionHook = NAME_None, EMultiBlockType::Type InType = EMultiBlockType::None )
+	FMultiBlock( const FUIAction& InAction,  FName InExtensionHook = NAME_None, EMultiBlockType InType = EMultiBlockType::None )
 		: DirectActions( InAction )
 		, ExtensionHook( InExtensionHook )
 		, Type( InType )
@@ -142,7 +142,7 @@ public:
 	 *
 	 * @return	The MultiBlock's type
 	 */
-	const EMultiBlockType::Type GetType() const
+	const EMultiBlockType GetType() const
 	{
 		return Type;
 	}
@@ -189,7 +189,7 @@ private:
 	FName ExtensionHook;
 
 	/** Type of MultiBlock */
-	EMultiBlockType::Type Type;
+	EMultiBlockType Type;
 
 	/** Name to identify a widget for tutorials */
 	FName TutorialHighlightName;
@@ -214,7 +214,7 @@ public:
 	/**
 	 * Creates a new multibox instance
 	 */
-	static TSharedRef<FMultiBox> Create( const EMultiBoxType::Type InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
+	static TSharedRef<FMultiBox> Create( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
 
 
 	/**
@@ -222,7 +222,7 @@ public:
 	 *
 	 * @return	The MultiBox's type
 	 */
-	const EMultiBoxType::Type GetType() const
+	const EMultiBoxType GetType() const
 	{
 		return Type;
 	}
@@ -319,7 +319,7 @@ private:
 	 * @param	InType	Type of MultiBox
 	 * @param	bInShouldCloseWindowAfterMenuSelection	Sets whether or not the window that contains this multibox should be destroyed after the user clicks on a menu item in this box
 	 */
-	FMultiBox( const EMultiBoxType::Type InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
+	FMultiBox( const EMultiBoxType InType,  FMultiBoxCustomization InCustomization, const bool bInShouldCloseWindowAfterMenuSelection );
 
 	/**
 	 * @return true if this box can be customized by a user
@@ -348,7 +348,7 @@ private:
 	FName StyleName;
 
 	/** Type of MultiBox */
-	EMultiBoxType::Type Type;
+	EMultiBoxType Type;
 
 	/** True if window that owns any widgets created from this multibox should be closed automatically after the user commits to a menu choice */
 	bool bShouldCloseWindowAfterMenuSelection;

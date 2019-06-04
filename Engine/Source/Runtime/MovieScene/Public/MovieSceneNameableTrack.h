@@ -12,7 +12,7 @@
  * Base class for movie scene tracks that can be renamed by the user.
  */
 UCLASS(abstract, MinimalAPI)
-class UMovieSceneNameableTrack
+class MOVIESCENE_VTABLE UMovieSceneNameableTrack
 	: public UMovieSceneTrack
 {
 	GENERATED_BODY()

@@ -608,7 +608,7 @@ private:
 /**
  * A set of BSP nodes which have the same material and relevant lights.
  */
-class FModelElement
+class ENGINE_VTABLE FModelElement
 {
 public:
 

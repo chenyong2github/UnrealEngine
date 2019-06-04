@@ -79,6 +79,7 @@ void SWindowTitleBarArea::Construct( const FArguments& InArgs )
 		[
 			SNew(SImage)
 			.Image(this, &SWindowTitleBarArea::GetMinimizeImage)
+			.AccessibleText(NSLOCTEXT("WindowTitleBar", "Minimize", "Minimize"))
 		];
 
 	MaximizeRestoreButton = SNew(SButton)
@@ -91,6 +92,7 @@ void SWindowTitleBarArea::Construct( const FArguments& InArgs )
 		[
 			SNew(SImage)
 			.Image(this, &SWindowTitleBarArea::GetMaximizeRestoreImage)
+			.AccessibleText(NSLOCTEXT("WindowTitleBar", "Maximize", "Maximize"))
 		];
 
 	CloseButton = SNew(SButton)
@@ -103,6 +105,7 @@ void SWindowTitleBarArea::Construct( const FArguments& InArgs )
 		[
 			SNew(SImage)
 			.Image(this, &SWindowTitleBarArea::GetCloseImage)
+			.AccessibleText(NSLOCTEXT("WindowTitleBar", "Close", "Close"))
 		];
 
 	ChildSlot

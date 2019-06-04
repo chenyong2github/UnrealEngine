@@ -35,7 +35,10 @@ FText FSearchableValueInfo::GetDisplayText(const TMap<int32, FText>& InLookupTab
 			AsyncTask(ENamedThreads::GameThread, [TableId, &Promise]()
 			{
 				FName ResolvedTableId = TableId;
-				IStringTableEngineBridge::FullyLoadStringTableAsset(ResolvedTableId); // Trigger the asset load
+				if (IStringTableEngineBridge::CanFindOrLoadStringTableAsset())
+				{
+					IStringTableEngineBridge::FullyLoadStringTableAsset(ResolvedTableId); // Trigger the asset load
+				}
 				Promise.SetValue(true); // Signal completion
 			});
 

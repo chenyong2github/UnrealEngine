@@ -11,6 +11,8 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
 #include "EdGraph/EdGraph.h"
 #include "MaterialGraph/MaterialGraph.h"
@@ -121,6 +123,8 @@
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 
 #include "MaterialStats.h"
+#include "Materials/MaterialExpression.h"
+
 #include "SMaterialParametersOverviewWidget.h"
 #include "IPropertyRowGenerator.h"
 
@@ -724,23 +728,27 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 FMaterialEditor::FMaterialEditor()
 	: bMaterialDirty(false)
 	, bStatsFromPreviewMaterial(false)
-	, Material(NULL)
-	, OriginalMaterial(NULL)
-	, ExpressionPreviewMaterial(NULL)
-	, EmptyMaterial(NULL)
-	, PreviewExpression(NULL)
-	, MaterialFunction(NULL)
-	, OriginalMaterialObject(NULL)
-	, EditorOptions(NULL)
-	, ScopedTransaction(NULL)
+	, Material(nullptr)
+	, OriginalMaterial(nullptr)
+	, ExpressionPreviewMaterial(nullptr)
+	, EmptyMaterial(nullptr)
+	, PreviewExpression(nullptr)
+	, MaterialFunction(nullptr)
+	, OriginalMaterialObject(nullptr)
+	, EditorOptions(nullptr)
+	, ScopedTransaction(nullptr)
 	, bAlwaysRefreshAllPreviews(false)
 	, bHideUnusedConnectors(false)
 	, bLivePreview(true)
 	, bIsRealtime(false)
 	, bShowBuiltinStats(false)
+	, bHideUnrelatedNodes(false)
+	, bLockNodeFadeState(false)
+	, bFocusWholeChain(false)
+	, bSelectRegularNode(false)
 	, MenuExtensibilityManager(new FExtensibilityManager)
 	, ToolBarExtensibilityManager(new FExtensibilityManager)
-	, MaterialEditorInstance(NULL)
+	, MaterialEditorInstance(nullptr)
 {
 }
 
@@ -1127,6 +1135,21 @@ void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleLivePreview);
 		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().ToggleRealtimeExpressions);
 		ToolbarBuilder.AddToolBarButton(FMaterialEditorCommands::Get().AlwaysRefreshAllPreviews);
+		ToolbarBuilder.AddToolBarButton(
+			FMaterialEditorCommands::Get().ToggleHideUnrelatedNodes,
+				NAME_None, 
+				TAttribute<FText>(), 
+				TAttribute<FText>(), 
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "GraphEditor.ToggleHideUnrelatedNodes")
+			);
+		ToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu),
+			LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
+			LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
+			TAttribute<FSlateIcon>(),
+			true
+		); 
 	}
 	ToolbarBuilder.EndSection();
 
@@ -1511,6 +1534,11 @@ void FMaterialEditor::LoadEditorSettings()
 			PreviewViewport->OnToggleRealtime();
 		}
 	}
+	
+	if (EditorOptions->bHideUnrelatedNodes)
+	{
+		ToggleHideUnrelatedNodes();
+	}
 
 	// Primitive type
 	int32 PrimType;
@@ -1532,7 +1560,8 @@ void FMaterialEditor::SaveEditorSettings()
 		EditorOptions->bHideUnusedConnectors		= !IsOnShowConnectorsChecked();
 		EditorOptions->bAlwaysRefreshAllPreviews	= IsOnAlwaysRefreshAllPreviews();
 		EditorOptions->bRealtimeExpressionViewport	= IsToggleRealTimeExpressionsChecked();
-		EditorOptions->bLivePreviewUpdate		= IsToggleLivePreviewChecked();
+		EditorOptions->bLivePreviewUpdate           = IsToggleLivePreviewChecked();
+		EditorOptions->bHideUnrelatedNodes          = bHideUnrelatedNodes;
 		EditorOptions->SaveConfig();
 	}
 
@@ -2238,6 +2267,12 @@ void FMaterialEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsToggleLivePreviewChecked));
 
 	ToolkitCommands->MapAction(
+		Commands.ToggleHideUnrelatedNodes,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::ToggleHideUnrelatedNodes),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsToggleHideUnrelatedNodesChecked));
+
+	ToolkitCommands->MapAction(
 		Commands.ToggleRealtimeExpressions,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::ToggleRealTimeExpressions),
 		FCanExecuteAction(),
@@ -2425,6 +2460,203 @@ bool FMaterialEditor::IsOnAlwaysRefreshAllPreviews() const
 {
 	return bAlwaysRefreshAllPreviews == true;
 }
+
+void FMaterialEditor::ToggleHideUnrelatedNodes()
+{
+	bHideUnrelatedNodes = !bHideUnrelatedNodes;
+
+	GraphEditor->ResetAllNodesUnrelatedStates();
+
+	if (bHideUnrelatedNodes && bSelectRegularNode)
+	{
+		HideUnrelatedNodes();
+	}
+	else
+	{
+		bLockNodeFadeState = false;
+		bFocusWholeChain = false;
+	}
+}
+
+bool FMaterialEditor::IsToggleHideUnrelatedNodesChecked() const
+{
+	return bHideUnrelatedNodes == true;
+}
+
+void FMaterialEditor::CollectDownstreamNodes(UMaterialGraphNode* CurrentNode, TArray<UMaterialGraphNode*>& CollectedNodes)
+{
+	TArray<UEdGraphPin*> OutputPins;
+	CurrentNode->GetOutputPins(OutputPins);
+
+	for (auto& OutputPin : OutputPins)
+	{
+		for (auto& Link : OutputPin->LinkedTo)
+		{
+			UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Link->GetOwningNode());
+			if (LinkedNode && !CollectedNodes.Contains(LinkedNode))
+			{
+				CollectedNodes.Add(LinkedNode);
+				CollectDownstreamNodes( LinkedNode, CollectedNodes );
+
+				if (bFocusWholeChain)
+				{
+					CollectUpstreamNodes( LinkedNode, CollectedNodes );
+				}
+			}
+		}
+	}
+}
+
+void FMaterialEditor::CollectUpstreamNodes(UMaterialGraphNode* CurrentNode, TArray<UMaterialGraphNode*>& CollectedNodes)
+{
+	TArray<UEdGraphPin*> InputPins;
+	CurrentNode->GetInputPins(InputPins);
+
+	for (auto& InputPin : InputPins)
+	{
+		for (auto& Link : InputPin->LinkedTo)
+		{
+			UMaterialGraphNode* LinkedNode = Cast<UMaterialGraphNode>(Link->GetOwningNode());
+			if (LinkedNode && !CollectedNodes.Contains(LinkedNode))
+			{
+				CollectedNodes.Add(LinkedNode);
+				CollectUpstreamNodes( LinkedNode, CollectedNodes );
+			}
+		}
+	}
+}
+
+void FMaterialEditor::HideUnrelatedNodes()
+{
+	TArray<UMaterialGraphNode*> NodesToShow;
+
+	const FGraphPanelSelectionSet SelectedNodes = GraphEditor->GetSelectedNodes();
+
+	for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+	{
+		UMaterialGraphNode* SelectedNode = Cast<UMaterialGraphNode>(*NodeIt);
+
+		if (SelectedNode)
+		{
+			NodesToShow.Add(SelectedNode);
+			CollectDownstreamNodes( SelectedNode, NodesToShow );
+			CollectUpstreamNodes( SelectedNode, NodesToShow );
+		}
+	}
+
+	TArray<class UEdGraphNode*> AllNodes = GraphEditor->GetCurrentGraph()->Nodes;
+
+	TArray<UEdGraphNode*> CommentNodes;
+	TArray<UEdGraphNode*> RelatedNodes;
+
+	for (auto& Node : AllNodes)
+	{
+		// Always draw the root graph node which can't cast to UMaterialGraphNode
+		if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(Node))
+		{
+			if (NodesToShow.Contains(GraphNode))
+			{
+				Node->SetNodeUnrelated(false);
+				RelatedNodes.Add(Node);
+			}
+			else
+			{
+				Node->SetNodeUnrelated(true);
+			}
+		}
+		else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(Node))
+		{
+			CommentNodes.Add(Node);
+		}
+	}
+
+	GraphEditor->FocusCommentNodes(CommentNodes, RelatedNodes);
+}
+
+TSharedRef<SWidget> FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu()
+{
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, GetToolkitCommands() );
+
+	TSharedRef<SWidget> OptionsHeading = SNew(SBox)
+		.Padding(2.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			[
+				SNew(STextBlock)
+					.Text(LOCTEXT("HideUnrelatedOptions", "Hide Unrelated Options"))
+					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
+			]
+		];
+
+	TSharedRef<SWidget> LockNodeStateCheckBox = SNew(SBox)
+		[
+			SNew(SCheckBox)
+				.IsChecked(bLockNodeFadeState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.OnCheckStateChanged(this, &FMaterialEditor::OnLockNodeStateCheckStateChanged)
+				.Style(FEditorStyle::Get(), "Menu.CheckBox")
+				.ToolTipText(LOCTEXT("LockNodeStateCheckBoxToolTip", "Lock the current state of all nodes."))
+				.Content()
+				[
+					SNew(SHorizontalBox)
+
+					+SHorizontalBox::Slot()
+					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+					[
+						SNew(STextBlock)
+							.Text(LOCTEXT("LockNodeState", "Lock Node State"))
+					]
+				]
+		];
+
+	TSharedRef<SWidget> FocusWholeChainCheckBox = SNew(SBox)
+		[
+			SNew(SCheckBox)
+				.IsChecked(bFocusWholeChain ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.OnCheckStateChanged(this, &FMaterialEditor::OnFocusWholeChainCheckStateChanged)
+				.Style(FEditorStyle::Get(), "Menu.CheckBox")
+				.ToolTipText(LOCTEXT("FocusWholeChainCheckBoxToolTip", "Focus all nodes in the chain."))
+				.Content()
+				[
+					SNew(SHorizontalBox)
+
+					+SHorizontalBox::Slot()
+					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+					[
+						SNew(STextBlock)
+							.Text(LOCTEXT("FocusWholeChain", "Focus Whole Chain"))
+					]
+				]
+		];
+
+	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
+
+	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
+
+	MenuBuilder.AddMenuEntry(FUIAction(), FocusWholeChainCheckBox);
+
+	return MenuBuilder.MakeWidget();
+}
+
+void FMaterialEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState)
+{
+	bLockNodeFadeState = (NewCheckedState == ECheckBoxState::Checked) ? true : false;
+}
+
+void FMaterialEditor::OnFocusWholeChainCheckStateChanged(ECheckBoxState NewCheckedState)
+{
+	bFocusWholeChain = (NewCheckedState == ECheckBoxState::Checked) ? true : false;
+
+	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
+	{
+		GraphEditor->ResetAllNodesUnrelatedStates();
+
+		HideUnrelatedNodes();
+	}
+}
+
 
 void FMaterialEditor::OnUseCurrentTexture()
 {
@@ -3944,6 +4176,13 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 	RegenerateCodeView();
 	RefreshExpressionPreviews();
 	SetMaterialDirty();
+	
+	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
+	{
+		GraphEditor->ResetAllNodesUnrelatedStates();
+
+		HideUnrelatedNodes();
+	}
 }
 
 int32 FMaterialEditor::GetNumberOfSelectedNodes() const
@@ -3951,7 +4190,7 @@ int32 FMaterialEditor::GetNumberOfSelectedNodes() const
 	return GraphEditor->GetSelectedNodes().Num();
 }
 
-FMaterialRenderProxy* FMaterialEditor::GetExpressionPreview(UMaterialExpression* InExpression)
+FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression* InExpression)
 {
 	bool bNewlyCreated;
 	return GetExpressionPreview(InExpression, bNewlyCreated);
@@ -4688,6 +4927,7 @@ void FMaterialEditor::OnSelectedNodesChanged(const TSet<class UObject*>& NewSele
 		EditObject = MaterialFunction;
 	}
 
+	bSelectRegularNode = false;
 	if( NewSelection.Num() == 0 )
 	{
 		SelectedObjects.Add(EditObject);
@@ -4698,6 +4938,7 @@ void FMaterialEditor::OnSelectedNodesChanged(const TSet<class UObject*>& NewSele
 		{
 			if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(*SetIt))
 			{
+				bSelectRegularNode = true;
 				SelectedObjects.Add(GraphNode->MaterialExpression);
 			}
 			else if (UMaterialGraphNode_Comment* CommentNode = Cast<UMaterialGraphNode_Comment>(*SetIt))
@@ -4713,6 +4954,16 @@ void FMaterialEditor::OnSelectedNodesChanged(const TSet<class UObject*>& NewSele
 
 	GetDetailView()->SetObjects( SelectedObjects, true );
 	FocusDetailsPanel();
+	
+	if (bHideUnrelatedNodes && !bLockNodeFadeState)
+	{
+		GraphEditor->ResetAllNodesUnrelatedStates();
+
+		if (bSelectRegularNode)
+		{
+			HideUnrelatedNodes();
+		}
+	}
 }
 
 void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)

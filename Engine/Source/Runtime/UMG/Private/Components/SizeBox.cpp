@@ -16,6 +16,7 @@ USizeBox::USizeBox(const FObjectInitializer& ObjectInitializer)
 {
 	bIsVariable = false;
 	Visibility = ESlateVisibility::SelfHitTestInvisible;
+	MinAspectRatio = 1;
 	MaxAspectRatio = 1;
 }
 
@@ -29,8 +30,8 @@ void USizeBox::ReleaseSlateResources(bool bReleaseChildren)
 TSharedRef<SWidget> USizeBox::RebuildWidget()
 {
 	MySizeBox = SNew(SBox);
-	
-	if ( GetChildrenCount() > 0 )
+
+	if (GetChildrenCount() > 0)
 	{
 		Cast<USizeBoxSlot>(GetContentSlot())->BuildSlot(MySizeBox.ToSharedRef());
 	}
@@ -42,7 +43,7 @@ void USizeBox::SetWidthOverride(float InWidthOverride)
 {
 	bOverride_WidthOverride = true;
 	WidthOverride = InWidthOverride;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetWidthOverride(InWidthOverride);
 	}
@@ -51,7 +52,7 @@ void USizeBox::SetWidthOverride(float InWidthOverride)
 void USizeBox::ClearWidthOverride()
 {
 	bOverride_WidthOverride = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetWidthOverride(FOptionalSize());
 	}
@@ -61,7 +62,7 @@ void USizeBox::SetHeightOverride(float InHeightOverride)
 {
 	bOverride_HeightOverride = true;
 	HeightOverride = InHeightOverride;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetHeightOverride(InHeightOverride);
 	}
@@ -70,7 +71,7 @@ void USizeBox::SetHeightOverride(float InHeightOverride)
 void USizeBox::ClearHeightOverride()
 {
 	bOverride_HeightOverride = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetHeightOverride(FOptionalSize());
 	}
@@ -80,7 +81,7 @@ void USizeBox::SetMinDesiredWidth(float InMinDesiredWidth)
 {
 	bOverride_MinDesiredWidth = true;
 	MinDesiredWidth = InMinDesiredWidth;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMinDesiredWidth(InMinDesiredWidth);
 	}
@@ -89,7 +90,7 @@ void USizeBox::SetMinDesiredWidth(float InMinDesiredWidth)
 void USizeBox::ClearMinDesiredWidth()
 {
 	bOverride_MinDesiredWidth = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMinDesiredWidth(FOptionalSize());
 	}
@@ -99,7 +100,7 @@ void USizeBox::SetMinDesiredHeight(float InMinDesiredHeight)
 {
 	bOverride_MinDesiredHeight = true;
 	MinDesiredHeight = InMinDesiredHeight;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMinDesiredHeight(InMinDesiredHeight);
 	}
@@ -108,7 +109,7 @@ void USizeBox::SetMinDesiredHeight(float InMinDesiredHeight)
 void USizeBox::ClearMinDesiredHeight()
 {
 	bOverride_MinDesiredHeight = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMinDesiredHeight(FOptionalSize());
 	}
@@ -118,7 +119,7 @@ void USizeBox::SetMaxDesiredWidth(float InMaxDesiredWidth)
 {
 	bOverride_MaxDesiredWidth = true;
 	MaxDesiredWidth = InMaxDesiredWidth;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMaxDesiredWidth(InMaxDesiredWidth);
 	}
@@ -127,7 +128,7 @@ void USizeBox::SetMaxDesiredWidth(float InMaxDesiredWidth)
 void USizeBox::ClearMaxDesiredWidth()
 {
 	bOverride_MaxDesiredWidth = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMaxDesiredWidth(FOptionalSize());
 	}
@@ -137,7 +138,7 @@ void USizeBox::SetMaxDesiredHeight(float InMaxDesiredHeight)
 {
 	bOverride_MaxDesiredHeight = true;
 	MaxDesiredHeight = InMaxDesiredHeight;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMaxDesiredHeight(InMaxDesiredHeight);
 	}
@@ -146,9 +147,28 @@ void USizeBox::SetMaxDesiredHeight(float InMaxDesiredHeight)
 void USizeBox::ClearMaxDesiredHeight()
 {
 	bOverride_MaxDesiredHeight = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMaxDesiredHeight(FOptionalSize());
+	}
+}
+
+void USizeBox::SetMinAspectRatio(float InMinAspectRatio)
+{
+	bOverride_MinAspectRatio = true;
+	MinAspectRatio = InMinAspectRatio;
+	if (MySizeBox.IsValid())
+	{
+		MySizeBox->SetMinAspectRatio(InMinAspectRatio);
+	}
+}
+
+void USizeBox::ClearMinAspectRatio()
+{
+	bOverride_MinAspectRatio = false;
+	if (MySizeBox.IsValid())
+	{
+		MySizeBox->SetMinAspectRatio(FOptionalSize());
 	}
 }
 
@@ -156,7 +176,7 @@ void USizeBox::SetMaxAspectRatio(float InMaxAspectRatio)
 {
 	bOverride_MaxAspectRatio = true;
 	MaxAspectRatio = InMaxAspectRatio;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMaxAspectRatio(InMaxAspectRatio);
 	}
@@ -165,7 +185,7 @@ void USizeBox::SetMaxAspectRatio(float InMaxAspectRatio)
 void USizeBox::ClearMaxAspectRatio()
 {
 	bOverride_MaxAspectRatio = false;
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetMaxAspectRatio(FOptionalSize());
 	}
@@ -175,7 +195,7 @@ void USizeBox::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
 
-	if ( bOverride_WidthOverride )
+	if (bOverride_WidthOverride)
 	{
 		SetWidthOverride(WidthOverride);
 	}
@@ -184,7 +204,7 @@ void USizeBox::SynchronizeProperties()
 		ClearWidthOverride();
 	}
 
-	if ( bOverride_HeightOverride )
+	if (bOverride_HeightOverride)
 	{
 		SetHeightOverride(HeightOverride);
 	}
@@ -193,7 +213,7 @@ void USizeBox::SynchronizeProperties()
 		ClearHeightOverride();
 	}
 
-	if ( bOverride_MinDesiredWidth )
+	if (bOverride_MinDesiredWidth)
 	{
 		SetMinDesiredWidth(MinDesiredWidth);
 	}
@@ -202,7 +222,7 @@ void USizeBox::SynchronizeProperties()
 		ClearMinDesiredWidth();
 	}
 
-	if ( bOverride_MinDesiredHeight )
+	if (bOverride_MinDesiredHeight)
 	{
 		SetMinDesiredHeight(MinDesiredHeight);
 	}
@@ -211,7 +231,7 @@ void USizeBox::SynchronizeProperties()
 		ClearMinDesiredHeight();
 	}
 
-	if ( bOverride_MaxDesiredWidth )
+	if (bOverride_MaxDesiredWidth)
 	{
 		SetMaxDesiredWidth(MaxDesiredWidth);
 	}
@@ -220,7 +240,7 @@ void USizeBox::SynchronizeProperties()
 		ClearMaxDesiredWidth();
 	}
 
-	if ( bOverride_MaxDesiredHeight )
+	if (bOverride_MaxDesiredHeight)
 	{
 		SetMaxDesiredHeight(MaxDesiredHeight);
 	}
@@ -229,7 +249,16 @@ void USizeBox::SynchronizeProperties()
 		ClearMaxDesiredHeight();
 	}
 
-	if ( bOverride_MaxAspectRatio )
+	if (bOverride_MinAspectRatio)
+	{
+		SetMinAspectRatio(MinAspectRatio);
+	}
+	else
+	{
+		ClearMinAspectRatio();
+	}
+
+	if (bOverride_MaxAspectRatio)
 	{
 		SetMaxAspectRatio(MaxAspectRatio);
 	}
@@ -247,7 +276,7 @@ UClass* USizeBox::GetSlotClass() const
 void USizeBox::OnSlotAdded(UPanelSlot* InSlot)
 {
 	// Add the child to the live slot if it already exists
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		CastChecked<USizeBoxSlot>(InSlot)->BuildSlot(MySizeBox.ToSharedRef());
 	}
@@ -256,7 +285,7 @@ void USizeBox::OnSlotAdded(UPanelSlot* InSlot)
 void USizeBox::OnSlotRemoved(UPanelSlot* InSlot)
 {
 	// Remove the widget from the live slot if it exists.
-	if ( MySizeBox.IsValid() )
+	if (MySizeBox.IsValid())
 	{
 		MySizeBox->SetContent(SNullWidget::NullWidget);
 	}

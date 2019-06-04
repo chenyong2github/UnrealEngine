@@ -615,6 +615,16 @@ void UFoliageType::Serialize(FArchive& Ar)
 #endif// WITH_EDITORONLY_DATA
 }
 
+void UFoliageType::PostLoad()
+{
+	Super::PostLoad();
+
+	if (!IsTemplate())
+	{
+		BodyInstance.FixupData(this);
+	}
+}
+
 bool UFoliageType::IsNotAssetOrBlueprint() const
 {
 	return IsAsset() == false && Cast<UBlueprint>(GetClass()->ClassGeneratedBy) == nullptr;
@@ -2548,6 +2558,8 @@ void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* In
 
 	for (auto& Pair : FoliageInfos)
 	{
+		InstancesToMove.Reset();
+
 		FFoliageInfo& Info = *Pair.Value;
 		
 		InstancesToMove = Info.GetInstancesOverlappingBox(InBoxWithInstancesToMove);
@@ -2558,8 +2570,11 @@ void AInstancedFoliageActor::MoveInstancesToNewComponent(UPrimitiveComponent* In
 		// Add the foliage to the new level
 		for (int32 InstanceIndex : InstancesToMove)
 		{
-			FFoliageInstance NewInstance = Info.Instances[InstanceIndex];
-			TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, NewInstance, InNewComponent);
+			if (Info.Instances.IsValidIndex(InstanceIndex))
+			{
+				FFoliageInstance NewInstance = Info.Instances[InstanceIndex];
+				TargetMeshInfo->AddInstance(TargetIFA, TargetFoliageType, NewInstance, InNewComponent);
+			}
 		}
 
 		TargetMeshInfo->Refresh(TargetIFA, true, true);
@@ -3901,6 +3916,12 @@ bool AInstancedFoliageActor::FoliageTrace(const UWorld* InWorld, FHitResult& Out
 						break;
 					}
 				}				
+			}
+
+			// The foliage we are snapping on doesn't have a valid base
+			if (!OutHit.Component.IsValid())
+			{
+				continue; 
 			}
 		}
 

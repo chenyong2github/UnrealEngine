@@ -59,7 +59,7 @@ struct HLandscapeSplineProxy_ControlPoint : public HLandscapeSplineProxy
 	}
 };
 
-struct HLandscapeSplineProxy_Tangent : public HLandscapeSplineProxy
+struct LANDSCAPE_VTABLE HLandscapeSplineProxy_Tangent : public HLandscapeSplineProxy
 {
 	DECLARE_HIT_PROXY( LANDSCAPE_API );
 

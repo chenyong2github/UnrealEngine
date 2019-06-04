@@ -90,7 +90,7 @@ void UParticleModuleLocation::PostEditChangeProperty(FPropertyChangedEvent& Prop
 
 void UParticleModuleLocation::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleLocation::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -103,7 +103,7 @@ void UParticleModuleLocation::SpawnEx(FParticleEmitterInstance* Owner, int32 Off
 	// Avoid divide by zero.
 	if ((DistributeOverNPoints != 0.0f) && (DistributeOverNPoints != 1.f))
 	{
-		float RandomNum = FMath::SRand() * FMath::Fractional(Owner->EmitterTime);
+		float RandomNum = InRandomStream->FRand() * FMath::Fractional(Owner->EmitterTime);
 
 		if(RandomNum > DistributeThreshold)
 		{
@@ -113,7 +113,7 @@ void UParticleModuleLocation::SpawnEx(FParticleEmitterInstance* Owner, int32 Off
 		{
 			FVector Min, Max;
 			StartLocation.GetRange(Min, Max);
-			FVector Lerped = FMath::Lerp(Min, Max, FMath::TruncToFloat((FMath::SRand() * (DistributeOverNPoints - 1.0f)) + 0.5f)/(DistributeOverNPoints - 1.0f));
+			FVector Lerped = FMath::Lerp(Min, Max, FMath::TruncToFloat((InRandomStream->FRand() * (DistributeOverNPoints - 1.0f)) + 0.5f)/(DistributeOverNPoints - 1.0f));
 			LocationOffset.Set(Lerped.X, Lerped.Y, Lerped.Z);
 		}
 	}
@@ -187,27 +187,11 @@ UParticleModuleLocation_Seeded::UParticleModuleLocation_Seeded(const FObjectInit
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleLocation_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleLocation_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleLocation_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleLocation_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -251,27 +235,11 @@ UParticleModuleLocationWorldOffset_Seeded::UParticleModuleLocationWorldOffset_Se
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleLocationWorldOffset_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleLocationWorldOffset_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleLocationWorldOffset_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleLocationWorldOffset_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -448,6 +416,8 @@ void UParticleModuleLocationEmitter::Spawn(FParticleEmitterInstance* Owner, int3
 	bool bSourceIsInLocalSpace = LocationEmitterInst->CurrentLODLevel->RequiredModule->bUseLocalSpace;
 	bool bInLocalSpace = Owner->CurrentLODLevel->RequiredModule->bUseLocalSpace;
 
+	FRandomStream& RandomStream = GetRandomStream(Owner);
+
 	SPAWN_INIT;
 		{
 			int32 Index = 0;
@@ -456,11 +426,7 @@ void UParticleModuleLocationEmitter::Spawn(FParticleEmitterInstance* Owner, int3
 			{
 			case ELESM_Random:
 				{
-					Index = FMath::TruncToInt(FMath::SRand() * LocationEmitterInst->ActiveParticles);
-					if (Index >= LocationEmitterInst->ActiveParticles)
-					{
-						Index = LocationEmitterInst->ActiveParticles - 1;
-					}
+					Index = RandomStream.RandHelper(LocationEmitterInst->ActiveParticles);
 				}
 				break;
 			case ELESM_Sequential:
@@ -719,18 +685,9 @@ void UParticleModuleLocationPrimitiveBase::DetermineUnitDirection(FParticleEmitt
 	FVector vRand;
 
 	// Grab 3 random numbers for the axes
-	if (InRandomStream == NULL)
-	{
-		vRand.X	= FMath::SRand();
-		vRand.Y = FMath::SRand();
-		vRand.Z = FMath::SRand();
-	}
-	else
-	{
-		vRand.X	= InRandomStream->GetFraction();
-		vRand.Y = InRandomStream->GetFraction();
-		vRand.Z = InRandomStream->GetFraction();
-	}
+	vRand.X	= InRandomStream->GetFraction();
+	vRand.Y = InRandomStream->GetFraction();
+	vRand.Z = InRandomStream->GetFraction();
 
 	// Set the unit dir
 	if (Positive_X && Negative_X)
@@ -846,7 +803,7 @@ void UParticleModuleLocationPrimitiveTriangle::PostEditChangeProperty(FPropertyC
 
 void UParticleModuleLocationPrimitiveTriangle::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleLocationPrimitiveTriangle::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -868,21 +825,12 @@ void UParticleModuleLocationPrimitiveTriangle::SpawnEx(FParticleEmitterInstance*
 
 	float BarycentricCoords[3] = {0};
 	float ZPos = 0.0f;
-	if (InRandomStream)
-	{
-		BarycentricCoords[0] = InRandomStream->GetFraction();
-		BarycentricCoords[1] = InRandomStream->GetFraction();
-		BarycentricCoords[2] = InRandomStream->GetFraction();
-		ZPos = InRandomStream->GetFraction();
-	}
-	else
-	{
-		BarycentricCoords[0] = FMath::SRand();
-		BarycentricCoords[1] = FMath::SRand();
-		BarycentricCoords[2] = FMath::SRand();
-		ZPos = FMath::SRand();
-	}
 
+	BarycentricCoords[0] = InRandomStream->GetFraction();
+	BarycentricCoords[1] = InRandomStream->GetFraction();
+	BarycentricCoords[2] = InRandomStream->GetFraction();
+	ZPos = InRandomStream->GetFraction();
+	
 	FVector LocationOffset = FVector::ZeroVector;
 	float Sum = FMath::Max<float>(KINDA_SMALL_NUMBER, BarycentricCoords[0] + BarycentricCoords[1] + BarycentricCoords[2]);
 	for (int32 i = 0; i < 3; i++)
@@ -1000,7 +948,7 @@ void UParticleModuleLocationPrimitiveCylinder::PostEditChangeProperty(FPropertyC
 
 void UParticleModuleLocationPrimitiveCylinder::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleLocationPrimitiveCylinder::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -1240,27 +1188,11 @@ UParticleModuleLocationPrimitiveCylinder_Seeded::UParticleModuleLocationPrimitiv
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleLocationPrimitiveCylinder_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleLocationPrimitiveCylinder_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleLocationPrimitiveCylinder_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleLocationPrimitiveCylinder_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -1304,7 +1236,7 @@ void UParticleModuleLocationPrimitiveSphere::PostEditChangeProperty(FPropertyCha
 
 void UParticleModuleLocationPrimitiveSphere::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
 {
-	SpawnEx(Owner, Offset, SpawnTime, NULL, ParticleBase);
+	SpawnEx(Owner, Offset, SpawnTime, &GetRandomStream(Owner), ParticleBase);
 }
 
 void UParticleModuleLocationPrimitiveSphere::SpawnEx(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, struct FRandomStream* InRandomStream, FBaseParticle* ParticleBase)
@@ -1456,27 +1388,11 @@ UParticleModuleLocationPrimitiveSphere_Seeded::UParticleModuleLocationPrimitiveS
 	bRequiresLoopingNotification = true;
 }
 
-void UParticleModuleLocationPrimitiveSphere_Seeded::Spawn(FParticleEmitterInstance* Owner, int32 Offset, float SpawnTime, FBaseParticle* ParticleBase)
-{
-	FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
-	SpawnEx(Owner, Offset, SpawnTime, (Payload != NULL) ? &(Payload->RandomStream) : NULL, ParticleBase);
-}
-
-uint32 UParticleModuleLocationPrimitiveSphere_Seeded::RequiredBytesPerInstance()
-{
-	return RandomSeedInfo.GetInstancePayloadSize();
-}
-
-uint32 UParticleModuleLocationPrimitiveSphere_Seeded::PrepPerInstanceBlock(FParticleEmitterInstance* Owner, void* InstData)
-{
-	return PrepRandomSeedInstancePayload(Owner, (FParticleRandomSeedInstancePayload*)InstData, RandomSeedInfo);
-}
-
 void UParticleModuleLocationPrimitiveSphere_Seeded::EmitterLoopingNotify(FParticleEmitterInstance* Owner)
 {
 	if (RandomSeedInfo.bResetSeedOnEmitterLooping == true)
 	{
-		FParticleRandomSeedInstancePayload* Payload = (FParticleRandomSeedInstancePayload*)(Owner->GetModuleInstanceData(this));
+		FParticleRandomSeedInstancePayload* Payload = Owner->GetModuleRandomSeedInstanceData(this);
 		PrepRandomSeedInstancePayload(Owner, Payload, RandomSeedInfo);
 	}
 }
@@ -1511,7 +1427,7 @@ UParticleModuleLocationBoneSocket::UParticleModuleLocationBoneSocket(const FObje
 	InheritVelocityScale = 1.0f;
 }
 
-int32 UParticleModuleLocationBoneSocket::SelectNextSpawnIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent)
+int32 UParticleModuleLocationBoneSocket::SelectNextSpawnIndex(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, FRandomStream& InRandomStream)
 {
 	check(InstancePayload && SourceComponent);
 
@@ -1531,7 +1447,7 @@ int32 UParticleModuleLocationBoneSocket::SelectNextSpawnIndex(FModuleLocationBon
 	else if (SelectionMethod == BONESOCKETSEL_Random)
 	{
 		// Note: This can select the same socket over and over...
-		SourceIndex = FMath::TruncToInt(FMath::SRand() * ((float)MaxIndex - 0.5f));
+		SourceIndex = FMath::TruncToInt(InRandomStream.FRand() * ((float)MaxIndex - 0.5f));
 		InstancePayload->LastSelectedIndex = SourceIndex;
 	}
 
@@ -1547,7 +1463,7 @@ int32 UParticleModuleLocationBoneSocket::SelectNextSpawnIndex(FModuleLocationBon
 	return SourceIndex;
 }
 
-void UParticleModuleLocationBoneSocket::RegeneratePreSelectedIndices(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent)
+void UParticleModuleLocationBoneSocket::RegeneratePreSelectedIndices(FModuleLocationBoneSocketInstancePayload* InstancePayload, USkeletalMeshComponent* SourceComponent, FRandomStream& InRandomStream)
 {
 	if (SourceIndexMode == EBoneSocketSourceIndexMode::PreSelectedIndices)
 	{
@@ -1555,7 +1471,7 @@ void UParticleModuleLocationBoneSocket::RegeneratePreSelectedIndices(FModuleLoca
 		for (int32 i = 0; i < NumPreSelectedIndices; ++i)
 		{
 			//Should we provide sequential selection here? Does that make sense for the pre selected list?
-			InstancePayload->PreSelectedBoneSocketIndices[i] = FMath::TruncToInt(FMath::SRand() * ((float)MaxIndex - 0.5f));
+			InstancePayload->PreSelectedBoneSocketIndices[i] = FMath::TruncToInt(InRandomStream.FRand() * ((float)MaxIndex - 0.5f));
 		}
 
 		if (InheritingBoneVelocity())
@@ -1637,6 +1553,8 @@ void UParticleModuleLocationBoneSocket::Spawn(FParticleEmitterInstance* Owner, i
 		return;
 	}
 
+	FRandomStream& RandomStream = GetRandomStream(Owner);
+
 	// Setup the source skeletal mesh component...
 	GetSkeletalMeshComponentSource(Owner, InstancePayload);
 
@@ -1647,7 +1565,7 @@ void UParticleModuleLocationBoneSocket::Spawn(FParticleEmitterInstance* Owner, i
 	}
 	USkeletalMeshComponent* SourceComponent = InstancePayload->SourceComponent.Get();
 
-	int32 SourceIndex = SelectNextSpawnIndex(InstancePayload, SourceComponent);
+	int32 SourceIndex = SelectNextSpawnIndex(InstancePayload, SourceComponent, RandomStream);
 	if (SourceIndex == INDEX_NONE)
 	{
 		return;
@@ -1821,7 +1739,7 @@ void UParticleModuleLocationBoneSocket::FinalUpdate(FParticleEmitterInstance* Ow
 	}
 
 	//Select a new set of bones to spawn from next frame.
-	RegeneratePreSelectedIndices(InstancePayload, SourceComponent);
+	RegeneratePreSelectedIndices(InstancePayload, SourceComponent, GetRandomStream(Owner));
 }
 
 uint32 UParticleModuleLocationBoneSocket::RequiredBytes(UParticleModuleTypeDataBase* TypeData)
@@ -2070,7 +1988,7 @@ void UParticleModuleLocationBoneSocket::GetSkeletalMeshComponentSource(FParticle
 		if (NewSkelComp)
 		{
 			InstancePayload->SourceComponent = NewSkelComp;
-			RegeneratePreSelectedIndices(InstancePayload, NewSkelComp);
+			RegeneratePreSelectedIndices(InstancePayload, NewSkelComp, GetRandomStream(Owner));
 		}
 	}
 }
@@ -2324,6 +2242,8 @@ void UParticleModuleLocationSkelVertSurface::Spawn(FParticleEmitterInstance* Own
 	{
 		return;
 	}
+
+	FRandomStream& RandomStream = GetRandomStream(Owner);
 	
 	GetSkeletalMeshComponentSource(Owner, InstancePayload);
 
@@ -2353,7 +2273,7 @@ void UParticleModuleLocationSkelVertSurface::Spawn(FParticleEmitterInstance* Own
 	{
 		int32 SourceLocationsCount(LODData.GetNumVertices());
 
-		SourceIndex = FMath::TruncToInt(FMath::SRand() * ((float)SourceLocationsCount) - 1);
+		SourceIndex = FMath::TruncToInt(RandomStream.FRand() * ((float)SourceLocationsCount) - 1);
 		InstancePayload->VertIndex = SourceIndex;
 
 		if(SourceIndex != -1)
@@ -2372,10 +2292,10 @@ void UParticleModuleLocationSkelVertSurface::Spawn(FParticleEmitterInstance* Own
 	else if(SourceType == VERTSURFACESOURCE_Surface)
 	{
 		int32 SectionCount = LODData.RenderSections.Num();
-		int32 RandomSection = FMath::RoundToInt(FMath::SRand() * ((float)SectionCount-1));
+		int32 RandomSection = FMath::RoundToInt(RandomStream.FRand() * ((float)SectionCount-1));
 
 		SourceIndex = LODData.RenderSections[RandomSection].BaseIndex +
-			(FMath::TruncToInt(FMath::SRand() * ((float)LODData.RenderSections[RandomSection].NumTriangles))*3);
+			(FMath::TruncToInt(RandomStream.FRand() * ((float)LODData.RenderSections[RandomSection].NumTriangles))*3);
 
 		InstancePayload->VertIndex = SourceIndex;
 
@@ -2506,10 +2426,7 @@ void UParticleModuleLocationSkelVertSurface::Spawn(FParticleEmitterInstance* Own
 				{
 					//We have the mesh oriented to the normal of the triangle it's on but this looks fugly as particles on each triangle are facing the same way.
 					//The only valid orientation reference should be the normal. So add an additional random rotation around it.
-					int32 OldRandSeed = FMath::GetRandSeed();
-					FMath::SRandInit((int32)((intptr_t)ParticleBase));
-					SourceRotation = SourceRotation * FQuat(FVector::UpVector, FMath::SRand()*(PI*2.0f));
-					FMath::SRandInit(OldRandSeed);
+					SourceRotation = SourceRotation * FQuat(FVector::UpVector, RandomStream.FRand()*(PI*2.0f));
 				}
 
 				FVector Rot = SourceRotation.Euler();
@@ -2581,6 +2498,8 @@ void UParticleModuleLocationSkelVertSurface::Update(FParticleEmitterInstance* Ow
 	const bool bMeshRotationActive = MeshRotationOffset > 0 && Owner->IsMeshRotationActive();
 	const FTransform& OwnerTM = Owner->Component->GetAsyncComponentToWorld();
 
+	FRandomStream& RandomStream = GetRandomStream(Owner);
+
 	BEGIN_UPDATE_LOOP;
 	{
 		FModuleLocationVertSurfaceParticlePayload* ParticlePayload = (FModuleLocationVertSurfaceParticlePayload*)((uint8*)&Particle + Offset);
@@ -2594,11 +2513,7 @@ void UParticleModuleLocationSkelVertSurface::Update(FParticleEmitterInstance* Ow
 				{
 					//We have the mesh oriented to the normal of the triangle it's on but this looks fugly as particles on each triangle are facing the same way.
 					//The only valid orientation reference should be the normal. So add an additional random rotation around it.
-
-					int32 OldRandSeed = FMath::GetRandSeed();
-					FMath::SRandInit((int32)((intptr_t)ParticleBase));
-					SourceRotation = SourceRotation * FQuat(FVector::UpVector, FMath::SRand()*(PI*2.0f));
-					FMath::SRandInit(OldRandSeed);
+					SourceRotation = SourceRotation * FQuat(FVector::UpVector, RandomStream.FRand()*(PI*2.0f));
 				}
 
 				FMeshRotationPayloadData* PayloadData = (FMeshRotationPayloadData*)((uint8*)&Particle + MeshRotationOffset);

@@ -619,7 +619,7 @@ bool FSubversionUpdateStatusWorker::Execute(FSubversionSourceControlCommand& InC
 		Parameters.Add(TEXT("--verbose"));
 
 		TArray<FString> Files;
-		Files.Add(FPaths::RootDir());
+		Files.Add(FPaths::ProjectDir());
 
 		InCommand.bCommandSuccessful &= SubversionSourceControlUtils::RunCommand(TEXT("status"), Files, Parameters, ResultsXml, InCommand.ErrorMessages, InCommand.UserName);
 		SubversionSourceControlUtils::ParseStatusResults(ResultsXml, InCommand.ErrorMessages, InCommand.UserName, InCommand.WorkingCopyRoot, OutStates);

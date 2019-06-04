@@ -11,7 +11,6 @@
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 
-
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
 class FPropertyEditorClassFilter : public IClassViewerFilter
@@ -26,7 +25,7 @@ public:
 	/** Whether or not abstract classes are allowed. */
 	bool bAllowAbstract;
 
-	bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs ) override
+	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs ) override
 	{
 		bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden|CLASS_HideDropDown|CLASS_Deprecated) &&
 			(bAllowAbstract || !InClass->HasAnyClassFlags(CLASS_Abstract));
@@ -84,6 +83,8 @@ bool SPropertyEditorClass::Supports(const TSharedRef< class FPropertyEditor >& I
 void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr< class FPropertyEditor >& InPropertyEditor)
 {
 	PropertyEditor = InPropertyEditor;
+
+	CreateClassFilter();
 	
 	if (PropertyEditor.IsValid())
 	{
@@ -129,8 +130,6 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 
 		SelectedClass = InArgs._SelectedClass;
 		OnSetClass = InArgs._OnSetClass;
-
-
 	}
 	
 	SAssignNew(ComboButton, SComboButton)
@@ -199,28 +198,36 @@ FText SPropertyEditorClass::GetDisplayValueAsString() const
 	
 }
 
-TSharedRef<SWidget> SPropertyEditorClass::GenerateClassPicker()
+void SPropertyEditorClass::CreateClassFilter()
 {
-	FClassViewerInitializationOptions Options;
-	Options.bShowUnloadedBlueprints = true;
-	Options.bShowNoneOption = bAllowNone; 
+	ClassViewerOptions.bShowBackgroundBorder = false;
+	ClassViewerOptions.bShowUnloadedBlueprints = true;
+	ClassViewerOptions.bShowNoneOption = bAllowNone;
 
-	if(PropertyEditor.IsValid())
+	if (PropertyEditor.IsValid())
 	{
-		Options.PropertyHandle = PropertyEditor->GetPropertyHandle();
+		ClassViewerOptions.PropertyHandle = PropertyEditor->GetPropertyHandle();
 	}
 
-	TSharedPtr<FPropertyEditorClassFilter> ClassFilter = MakeShareable(new FPropertyEditorClassFilter);
-	Options.ClassFilter = ClassFilter;
-	ClassFilter->ClassPropertyMetaClass = MetaClass;
-	ClassFilter->InterfaceThatMustBeImplemented = RequiredInterface;
-	ClassFilter->bAllowAbstract = bAllowAbstract;
-	Options.bIsBlueprintBaseOnly = bIsBlueprintBaseOnly;
-	Options.bIsPlaceableOnly = bAllowOnlyPlaceable;
-	Options.NameTypeToDisplay = (bShowDisplayNames ? EClassViewerNameTypeToDisplay::DisplayName : EClassViewerNameTypeToDisplay::ClassName);
-	Options.DisplayMode = bShowTree ? EClassViewerDisplayMode::TreeView : EClassViewerDisplayMode::ListView;
-	Options.bAllowViewOptions = bShowViewOptions;
+	ClassViewerOptions.bIsBlueprintBaseOnly = bIsBlueprintBaseOnly;
+	ClassViewerOptions.bIsPlaceableOnly = bAllowOnlyPlaceable;
+	ClassViewerOptions.NameTypeToDisplay = (bShowDisplayNames ? EClassViewerNameTypeToDisplay::DisplayName : EClassViewerNameTypeToDisplay::ClassName);
+	ClassViewerOptions.DisplayMode = bShowTree ? EClassViewerDisplayMode::TreeView : EClassViewerDisplayMode::ListView;
+	ClassViewerOptions.bAllowViewOptions = bShowViewOptions;
 
+	TSharedPtr<FPropertyEditorClassFilter> PropEdClassFilter = MakeShareable(new FPropertyEditorClassFilter);
+	ClassViewerOptions.ClassFilter = PropEdClassFilter;
+
+	PropEdClassFilter->ClassPropertyMetaClass = MetaClass;
+	PropEdClassFilter->InterfaceThatMustBeImplemented = RequiredInterface;
+	PropEdClassFilter->bAllowAbstract = bAllowAbstract;
+
+	ClassFilter = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassFilter(ClassViewerOptions);
+	ClassFilterFuncs = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateFilterFuncs();
+}
+
+TSharedRef<SWidget> SPropertyEditorClass::GenerateClassPicker()
+{
 	FOnClassPicked OnPicked(FOnClassPicked::CreateRaw(this, &SPropertyEditorClass::OnClassPicked));
 
 	return SNew(SBox)
@@ -231,7 +238,7 @@ TSharedRef<SWidget> SPropertyEditorClass::GenerateClassPicker()
 			.AutoHeight()
 			.MaxHeight(500)
 			[
-				FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, OnPicked)
+				FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(ClassViewerOptions, OnPicked)
 			]			
 		];
 }
@@ -272,50 +279,59 @@ void SPropertyEditorClass::SendToObjects(const FString& NewValue)
 	}
 }
 
+static UObject* LoadDragDropObject(TSharedPtr<FAssetDragDropOp> UnloadedClassOp)
+{
+	FString AssetPath;
+
+	// Find the class/blueprint path
+	if (UnloadedClassOp->HasAssets())
+	{
+		AssetPath = UnloadedClassOp->GetAssets()[0].ObjectPath.ToString();
+	}
+	else if (UnloadedClassOp->HasAssetPaths())
+	{
+		AssetPath = UnloadedClassOp->GetAssetPaths()[0];
+	}
+
+	// Check to see if the asset can be found, otherwise load it.
+	UObject* Object = FindObject<UObject>(nullptr, *AssetPath);
+	if (Object == nullptr)
+	{
+		// Load the package.
+		GWarn->BeginSlowTask(LOCTEXT("OnDrop_LoadPackage", "Fully Loading Package For Drop"), true, false);
+
+		Object = LoadObject<UObject>(nullptr, *AssetPath);
+
+		GWarn->EndSlowTask();
+	}
+
+	return Object;
+}
+
 void SPropertyEditorClass::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
 	TSharedPtr<FAssetDragDropOp> UnloadedClassOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 	if (UnloadedClassOp.IsValid())
 	{
-		bool bAllAssetWereLoaded = true;
+		UObject* Object = LoadDragDropObject(UnloadedClassOp);
 
-		FString AssetPath;
-		FString PathName;
-
-		// Find the class/blueprint path
-		if (UnloadedClassOp->HasAssets())
-		{
-			AssetPath = UnloadedClassOp->GetAssets()[0].ObjectPath.ToString();
-		}
-		else if (UnloadedClassOp->HasAssetPaths())
-		{
-			AssetPath = UnloadedClassOp->GetAssetPaths()[0];
-		}
-
-		// Check to see if the asset can be found, otherwise load it.
-		UObject* Object = FindObject<UObject>(nullptr, *AssetPath);
-		if (Object == nullptr)
-		{
-			// Load the package.
-			GWarn->BeginSlowTask(LOCTEXT("OnDrop_LoadPackage", "Fully Loading Package For Drop"), true, false);
-
-			Object = LoadObject<UObject>(nullptr, *AssetPath);
-
-			GWarn->EndSlowTask();
-		}
+		bool bOK = false;
 
 		if (UClass* Class = Cast<UClass>(Object))
 		{
-			// This was pointing to a class directly
-			UnloadedClassOp->SetToolTip(FText::GetEmpty(), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			bOK = ClassFilter->IsClassAllowed(ClassViewerOptions, Class, ClassFilterFuncs.ToSharedRef());
 		}
 		else if (UBlueprint* Blueprint = Cast<UBlueprint>(Object))
 		{
 			if (Blueprint->GeneratedClass)
 			{
-				// This was pointing to a blueprint, get generated class
-				UnloadedClassOp->SetToolTip(FText::GetEmpty(), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+				bOK = ClassFilter->IsClassAllowed(ClassViewerOptions, Blueprint->GeneratedClass, ClassFilterFuncs.ToSharedRef());
 			}
+		}
+		
+		if (bOK)
+		{
+			UnloadedClassOp->SetToolTip(FText::GetEmpty(), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 		}
 		else
 		{
@@ -350,43 +366,25 @@ FReply SPropertyEditorClass::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 	TSharedPtr<FAssetDragDropOp> UnloadedClassOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 	if (UnloadedClassOp.IsValid())
 	{
-		bool bAllAssetWereLoaded = true;
-
-		FString AssetPath;
-
-		// Find the class/blueprint path
-		if (UnloadedClassOp->HasAssets())
-		{
-			AssetPath = UnloadedClassOp->GetAssets()[0].ObjectPath.ToString();
-		}
-		else if (UnloadedClassOp->HasAssetPaths())
-		{
-			AssetPath = UnloadedClassOp->GetAssetPaths()[0];
-		}
-
-		// Check to see if the asset can be found, otherwise load it.
-		UObject* Object = FindObject<UObject>(nullptr, *AssetPath);
-		if(Object == nullptr)
-		{
-			// Load the package.
-			GWarn->BeginSlowTask(LOCTEXT("OnDrop_LoadPackage", "Fully Loading Package For Drop"), true, false);
-
-			Object = LoadObject<UObject>(nullptr, *AssetPath);
-
-			GWarn->EndSlowTask();
-		}
+		UObject* Object = LoadDragDropObject(UnloadedClassOp);
 
 		if (UClass* Class = Cast<UClass>(Object))
 		{
-			// This was pointing to a class directly
-			SendToObjects(Class->GetPathName());
+			if (ClassFilter->IsClassAllowed(ClassViewerOptions, Class, ClassFilterFuncs.ToSharedRef()))
+			{
+				// This was pointing to a class directly
+				SendToObjects(Class->GetPathName());
+			}
 		}
 		else if (UBlueprint* Blueprint = Cast<UBlueprint>(Object))
 		{
 			if (Blueprint->GeneratedClass)
 			{
-				// This was pointing to a blueprint, get generated class
-				SendToObjects(Blueprint->GeneratedClass->GetPathName());
+				if (ClassFilter->IsClassAllowed(ClassViewerOptions, Blueprint->GeneratedClass, ClassFilterFuncs.ToSharedRef()))
+				{
+					// This was pointing to a blueprint, get generated class
+					SendToObjects(Blueprint->GeneratedClass->GetPathName());
+				}
 			}
 		}
 

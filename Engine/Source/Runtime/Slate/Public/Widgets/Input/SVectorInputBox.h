@@ -26,7 +26,8 @@ class SLATE_API SVectorInputBox : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS( SVectorInputBox )
 		: _Font( FCoreStyle::Get().GetFontStyle("NormalFont") )
-		, _AllowSpin(true)
+		, _AllowSpin( false )
+		, _SpinDelta( 1 )
 		, _bColorAxisLabels( false )
 		, _AllowResponsiveLayout( false )
 		{}
@@ -44,13 +45,16 @@ public:
 		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
 
 		/** Whether or not values can be spun or if they should be typed in */
-		SLATE_ARGUMENT(bool, AllowSpin)
+		SLATE_ARGUMENT( bool, AllowSpin )
+
+		/** The delta amount to apply, per pixel, when the spinner is dragged. */
+		SLATE_ATTRIBUTE( float, SpinDelta )
 
 		/** Should the axis labels be colored */
 		SLATE_ARGUMENT( bool, bColorAxisLabels )		
 
 		/** Allow responsive layout to crush the label and margins when there is not a lot of room */
-		SLATE_ARGUMENT(bool, AllowResponsiveLayout)
+		SLATE_ARGUMENT( bool, AllowResponsiveLayout )
 
 		/** Called when the x value of the vector is changed */
 		SLATE_EVENT( FOnFloatValueChanged, OnXChanged )
@@ -78,6 +82,12 @@ public:
 
 		/** Menu extender delegate for the Z value */
 		SLATE_EVENT( FMenuExtensionDelegate, ContextMenuExtenderZ )
+
+		/** Called right before the slider begins to move for any of the vector components */
+		SLATE_EVENT( FSimpleDelegate, OnBeginSliderMovement )
+		
+		/** Called right after the slider handle is released by the user for any of the vector components */
+		SLATE_EVENT( FOnFloatValueChanged, OnEndSliderMovement )
 
 		/** Provide custom type functionality for the vector */
 		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<float> >, TypeInterface )

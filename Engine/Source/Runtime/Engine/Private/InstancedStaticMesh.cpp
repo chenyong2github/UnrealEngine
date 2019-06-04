@@ -2312,7 +2312,8 @@ void UInstancedStaticMeshComponent::OnComponentCreated()
 	{
 		// if we are pasting/duplicating this component, it may be created with some instances already in place
 		// in this case, need to ensure that the instance render data is properly created
-		const bool InitializeFromCurrentData = PerInstanceSMData.Num() > 0;
+		// We only need to only init from current data if the reorder table == per instance data, but only for the HISM Component, in the case of ISM, the reorder table is never used.
+		const bool InitializeFromCurrentData = PerInstanceSMData.Num() > 0 && (InstanceReorderTable.Num() == PerInstanceSMData.Num() || InstanceReorderTable.Num() == 0);
 		InitPerInstanceRenderData(InitializeFromCurrentData);
 	}
 }

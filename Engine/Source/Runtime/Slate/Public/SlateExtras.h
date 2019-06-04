@@ -27,7 +27,6 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Widgets/SWeakWidget.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/TextRunRenderer.h"
 #include "Framework/Text/TextLineHighlight.h"
 #include "Framework/Text/TextHitPoint.h"

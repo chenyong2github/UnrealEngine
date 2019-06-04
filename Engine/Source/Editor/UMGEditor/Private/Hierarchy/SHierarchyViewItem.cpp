@@ -1093,6 +1093,18 @@ FText FHierarchyWidget::GetLabelToolTipText() const
 	return FText::GetEmpty();
 }
 
+void FHierarchyWidget::GetFilterStrings(TArray<FString>& OutStrings) const
+{
+	FHierarchyModel::GetFilterStrings(OutStrings);
+
+	UWidget* WidgetTemplate = Item.GetTemplate();
+	if (WidgetTemplate && !WidgetTemplate->IsGeneratedName())
+	{
+		OutStrings.Add(WidgetTemplate->GetClass()->GetName());
+		OutStrings.Add(WidgetTemplate->GetClass()->GetDisplayNameText().ToString());
+	}
+}
+
 const FSlateBrush* FHierarchyWidget::GetImage() const
 {
 	if (Item.GetTemplate())

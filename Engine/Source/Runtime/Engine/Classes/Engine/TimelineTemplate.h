@@ -13,7 +13,7 @@
 class UTimelineTemplate;
 
 USTRUCT()
-struct FTTTrackBase
+struct ENGINE_VTABLE FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -43,7 +43,7 @@ public:
 
 /** Structure storing information about one event track */
 USTRUCT()
-struct FTTEventTrack : public FTTTrackBase
+struct ENGINE_VTABLE FTTEventTrack : public FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -69,7 +69,7 @@ public:
 };
 
 USTRUCT()
-struct FTTPropertyTrack : public FTTTrackBase
+struct ENGINE_VTABLE FTTPropertyTrack : public FTTTrackBase
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -253,7 +253,7 @@ class UTimelineTemplate : public UObject
 
 private:
 	/** Helper function to make sure all the cached FNames for the timeline template are updated relative to the current name of the template. */
-	void UpdateCachedNames();
+	ENGINE_API void UpdateCachedNames();
 
 	friend struct FUpdateTimelineCachedNames;
 

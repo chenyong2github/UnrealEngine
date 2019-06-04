@@ -131,7 +131,7 @@ private:
 };
 
 #if WITH_RECAST && !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-class FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
+class NAVIGATIONSYSTEM_VTABLE FNavMeshDebugDrawDelegateHelper : public FDebugDrawDelegateHelper
 {
 	typedef FDebugDrawDelegateHelper Super;
 

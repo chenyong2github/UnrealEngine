@@ -194,7 +194,7 @@ const FSlateBrush* SPropertyEditorTableRow::OnGetFavoriteImage() const
 
 void SPropertyEditorTableRow::OnEditConditionCheckChanged( ECheckBoxState CheckState )
 {
-	PropertyEditor->SetEditConditionState( CheckState == ECheckBoxState::Checked );
+	PropertyEditor->ToggleEditConditionState();
 }
 
 ECheckBoxState SPropertyEditorTableRow::OnGetEditConditionCheckState() const

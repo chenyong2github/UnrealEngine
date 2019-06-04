@@ -35,9 +35,6 @@ public:
 	/** SCompoundWidget interface */
 	void Construct(const FArguments& InArgs);
 	
-	/** Draws the viewport */
-	void DrawViewport();
-
 	/** Refreshes the viewport */
 	void RefreshViewport();
 

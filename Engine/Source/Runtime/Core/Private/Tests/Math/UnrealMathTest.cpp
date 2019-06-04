@@ -1071,6 +1071,18 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V3 = VectorMod(V0, V1);
 	LogTest( TEXT("VectorMod negative"), TestVectorsEqual(V2, V3));
 
+	// VectorSign
+	V0 = MakeVectorRegister(2.0f, -2.0f, 0.0f, -3.0f);
+	V2 = MakeVectorRegister(1.0f, -1.0f, 1.0f, -1.0f);
+	V3 = VectorSign(V0);
+	LogTest(TEXT("VectorSign"), TestVectorsEqual(V2, V3));
+
+	// VectorStep
+	V0 = MakeVectorRegister(2.0f, -2.0f, 0.0f, -3.0f);
+	V2 = MakeVectorRegister(1.0f, 0.0f, 1.0f, 0.0f);
+	V3 = VectorStep(V0);
+	LogTest(TEXT("VectorStep"), TestVectorsEqual(V2, V3));
+
 	FMatrix	M0, M1, M2, M3;
 	FVector Eye, LookAt, Up;	
 	// Create Look at Matrix

@@ -23,6 +23,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutHelpers.h"
+#include "EditConditionParser.h"
 
 SDetailsViewBase::~SDetailsViewBase()
 {
@@ -480,6 +481,16 @@ TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 	}
 
 	return ThumbnailPool;
+}
+
+TSharedPtr<FEditConditionParser> SDetailsViewBase::GetEditConditionParser() const
+{
+	if (!EditConditionParser.IsValid())
+	{
+		EditConditionParser = MakeShareable(new FEditConditionParser);
+	}
+
+	return EditConditionParser;
 }
 
 void SDetailsViewBase::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
@@ -1035,7 +1046,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 
 	FDetailNodeList InitialRootNodeList;
 	
-	NumVisbleTopLevelObjectNodes = 0;
+	NumVisibleTopLevelObjectNodes = 0;
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
 	if( GetDefault<UEditorStyleSettings>()->bShowAllAdvancedDetails )
@@ -1070,7 +1081,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 				if (LayoutRoots.Num() > 0)
 				{
 					// A top level object nodes has a non-filtered away root so add one to the total number we have
-					++NumVisbleTopLevelObjectNodes;
+					++NumVisibleTopLevelObjectNodes;
 
 					InitialRootNodeList.Append(LayoutRoots);
 				}

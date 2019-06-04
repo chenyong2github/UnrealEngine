@@ -3200,7 +3200,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalCompileEnvironment.bUseRTTI = Rules.bForceEnableRTTI;
 			GlobalCompileEnvironment.bUseInlining = Rules.bUseInlining;
-			GlobalCompileEnvironment.bHideSymbolsByDefault = Rules.bHideSymbolsByDefault;
+			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments;
 
@@ -3358,7 +3358,16 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_PLUGIN_SUPPORT=0");
 			}
 
-            if (Rules.bWithPerfCounters)
+			if (Rules.bCompileWithAccessibilitySupport && !Rules.bIsBuildingConsoleApplication)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=0");
+			}
+
+			if (Rules.bWithPerfCounters)
             {
                 GlobalCompileEnvironment.Definitions.Add("WITH_PERFCOUNTERS=1");
             }

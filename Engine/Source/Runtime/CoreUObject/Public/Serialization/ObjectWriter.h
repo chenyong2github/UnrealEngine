@@ -16,7 +16,7 @@ struct FWeakObjectPtr;
 /**
  * UObject Memory Writer Archive.
  */
-class FObjectWriter : public FMemoryWriter
+class COREUOBJECT_VTABLE FObjectWriter : public FMemoryWriter
 {
 
 public:

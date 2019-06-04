@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 
 namespace Audio
 {
@@ -24,6 +25,8 @@ namespace Audio
 	private:
 		float Scale;
 		float Add;
+
+		FRandomStream RandomStream;
 	};
 
 	/** 

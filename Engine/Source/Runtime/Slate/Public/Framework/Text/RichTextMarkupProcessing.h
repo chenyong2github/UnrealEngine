@@ -3,7 +3,6 @@
 
 #include "CoreMinimal.h"
 #include "SlateGlobals.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/ITextDecorator.h"
 #include "Internationalization/Regex.h"
 #include "Framework/Text/IRichTextMarkupParser.h"

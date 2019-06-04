@@ -1069,7 +1069,7 @@ enum class ERepLayoutState
  * explicit changelist is required. As each Handle is read, a Layout Command is applied
  * that serializes the data from the network bunch and applies it to an object.
  */
-class FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
+class ENGINE_VTABLE FRepLayout : public FGCObject, public TSharedFromThis<FRepLayout>
 {
 private:
 

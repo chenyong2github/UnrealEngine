@@ -543,7 +543,7 @@ inline uint32 GetTypeHash(FWaveInstance* A) { return A->TypeHash; }
 	FSoundBuffer.
 -----------------------------------------------------------------------------*/
 
-class FSoundBuffer
+class ENGINE_VTABLE FSoundBuffer
 {
 public:
 	FSoundBuffer(class FAudioDevice * InAudioDevice)
@@ -619,7 +619,7 @@ public:
 FSoundSource.
 -----------------------------------------------------------------------------*/
 
-class FSoundSource
+class ENGINE_VTABLE FSoundSource
 {
 public:
 	/** Constructor */

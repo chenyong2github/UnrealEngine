@@ -5,10 +5,12 @@
 
 #include "AbcFile.h"
 
+PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcCoreAbstract/TimeSampling.h>
 #include <Alembic/AbcGeom/Visibility.h>
 THIRD_PARTY_INCLUDES_END
+PRAGMA_DEFAULT_VISIBILITY_END
 
 FAbcTransform::FAbcTransform(const Alembic::AbcGeom::IXform& InTransform, const FAbcFile* InFile, IAbcObject* InParent /*= nullptr*/) : IAbcObject(InTransform, InFile, InParent), Transform(InTransform), Schema(InTransform.getSchema())
 {

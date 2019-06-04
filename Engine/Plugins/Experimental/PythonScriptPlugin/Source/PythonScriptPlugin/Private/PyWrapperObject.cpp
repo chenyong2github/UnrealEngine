@@ -1687,6 +1687,7 @@ void UPythonGeneratedClass::PostInitInstance(UObject* InObj)
 	}
 }
 
+
 void UPythonGeneratedClass::ReleasePythonResources()
 {
 	PyType.Reset();
@@ -1694,6 +1695,12 @@ void UPythonGeneratedClass::ReleasePythonResources()
 	PropertyDefs.Reset();
 	FunctionDefs.Reset();
 	PyMetaData = FPyWrapperObjectMetaData();
+}
+
+bool UPythonGeneratedClass::IsFunctionImplementedInScript(FName InFunctionName) const
+{
+	UFunction* Function = FindFunctionByName(InFunctionName);
+	return Function && Function->GetOuter() && Function->GetOuter()->IsA(UPythonGeneratedClass::StaticClass());
 }
 
 UPythonGeneratedClass* UPythonGeneratedClass::GenerateClass(PyTypeObject* InPyType)

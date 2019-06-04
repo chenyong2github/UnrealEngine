@@ -1112,6 +1112,13 @@ public:
 	*/
 	void MoveViewportCamerasToComponent(USceneComponent* Component, bool bActiveViewportOnly);
 
+	/**
+	 * Moves all viewport cameras to focus on the provided bounding box.
+	 * @param	BoundingBox				Target box
+	 * @param	bActiveViewportOnly		If true, move/reorient only the active viewport.
+	 */
+	void MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const;
+
 	/** 
 	 * Snaps an actor in a direction.  Optionally will align with the trace normal.
 	 * @param InActor			Actor to move to the floor.
@@ -3029,13 +3036,6 @@ private:
 
 	/** Gets the init values for worlds opened via Map_Load in the editor */
 	UWorld::InitializationValues GetEditorWorldInitializationValues() const;
-
-	/**
-	* Moves all viewport cameras to focus on the provided bounding box.
-	* @param	BoundingBox				Target box
-	* @param	bActiveViewportOnly		If true, move/reorient only the active viewport.
-	*/
-	void MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const;
 
 public:
 	// Launcher Worker

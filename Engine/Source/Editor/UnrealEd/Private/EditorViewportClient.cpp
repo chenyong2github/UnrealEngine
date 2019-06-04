@@ -2296,6 +2296,11 @@ void FEditorViewportClient::InputAxisForOrbit(FViewport* InViewport, const FVect
 		SetViewLocation(RotatedViewLocation);
 
 		FEditorViewportStats::Using(IsPerspective() ? FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_ORBIT_ROTATION : FEditorViewportStats::CAT_ORTHOGRAPHIC_MOUSE_ORBIT_ROTATION);
+
+		if (IsPerspective())
+		{
+			PerspectiveCameraMoved();
+		}
 	}
 	else
 	{

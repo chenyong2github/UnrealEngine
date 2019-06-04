@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/RandomStream.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "UObject/Class.h"
@@ -68,6 +69,9 @@ class ENGINE_API USoundNode : public UObject
 
 	class UEdGraphNode* GetGraphNode() const;
 #endif
+
+	/** Stream of random numbers to be used by this instance of USoundNode */
+	FRandomStream RandomStream;
 
 public:
 	//~ Begin UObject Interface

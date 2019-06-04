@@ -274,11 +274,11 @@ TSharedRef<SDockTab> FCurveTableEditor::SpawnTab_CurveTable( const FSpawnTabArgs
 
 	TSharedRef<SScrollBar> HorizontalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Horizontal)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Vertical)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	TSharedRef<SHeaderRow> RowNamesHeaderRow = SNew(SHeaderRow)
 		.Visibility(this, &FCurveTableEditor::GetGridViewControlsVisibility);

@@ -144,7 +144,7 @@ public:
 	 *
 	 * @return true if the instance exists, false otherwise
 	 */
-	bool DoesInstanceExist(const FName InSubsystemName) const;
+	ONLINESUBSYSTEM_API bool DoesInstanceExist(const FName InSubsystemName) const;
 
 	/** 
 	 * Determine if a subsystem is loaded by the OSS module
@@ -182,7 +182,7 @@ public:
 	 * **NOTE** This is intended for editor use only, attempting to use this at the wrong time can result
 	 * in unexpected crashes/behavior
 	 */
-	void ReloadDefaultSubsystem();
+	void ONLINESUBSYSTEM_API ReloadDefaultSubsystem();
 
 	// IModuleInterface
 

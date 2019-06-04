@@ -7,7 +7,10 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Images/SImage.h"
-
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 /**
  * Construct this widget
@@ -297,6 +300,10 @@ void SCheckBox::ToggleCheckedState()
 		// The state of the check box changed.  Execute the delegate to notify users
 		OnCheckStateChanged.ExecuteIfBound( ECheckBoxState::Checked );
 	}
+
+#if WITH_ACCESSIBILITY
+	FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(AsShared(), EAccessibleEvent::Activate, State == ECheckBoxState::Checked, IsCheckboxChecked.Get() == ECheckBoxState::Checked);
+#endif
 }
 
 void SCheckBox::SetIsChecked(TAttribute<ECheckBoxState> InIsChecked)
@@ -509,3 +516,10 @@ const FSlateBrush* SCheckBox::GetUndeterminedPressedImage() const
 {
 	return UndeterminedPressedImage ? UndeterminedPressedImage : &Style->UndeterminedPressedImage;
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<FSlateAccessibleWidget> SCheckBox::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleCheckBox(SharedThis(this)));
+}
+#endif

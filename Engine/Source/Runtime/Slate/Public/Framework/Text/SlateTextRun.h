@@ -4,7 +4,6 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Styling/SlateTypes.h"
-#include "Framework/Text/TextRange.h"
 #include "Framework/Text/IRun.h"
 #include "Framework/Text/TextLayout.h"
 #include "Framework/Text/ILayoutBlock.h"

@@ -295,6 +295,9 @@ public:
 	/** @return The visibility of the current level text display */
 	virtual EVisibility GetCurrentLevelTextVisibility() const;
 
+	/** @return The visibility of the current level button display */
+	virtual EVisibility GetCurrentLevelButtonVisibility() const;
+
 	/** @return The visibility of the current level text display */
 	virtual EVisibility GetSelectedActorsCurrentLevelTextVisibility() const;
 

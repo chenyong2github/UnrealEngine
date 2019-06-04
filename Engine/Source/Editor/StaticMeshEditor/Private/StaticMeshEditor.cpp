@@ -2140,6 +2140,19 @@ void FStaticMeshEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyC
 		{
 			RefreshTool();
 		}
+		else if (PropertyChangedEvent.GetPropertyName() == TEXT("CollisionResponses"))
+		{
+			for (FObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+			{
+				UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
+				if (StaticMeshComponent->GetStaticMesh() == StaticMesh)
+				{
+					StaticMeshComponent->UpdateCollisionFromStaticMesh();
+					StaticMeshComponent->MarkRenderTransformDirty();
+				}
+			}
+		}
+
 	}
 }
 
@@ -2232,8 +2245,10 @@ TStatId FStaticMeshEditor::GetStatId() const
 
 bool FStaticMeshEditor::CanRemoveUVChannel()
 {
-	// Can remove UV channel if there's one that is currently being selected and displayed
-	return Viewport->GetViewportClient().IsDrawUVOverlayChecked();
+	// Can remove UV channel if there's one that is currently being selected and displayed, 
+	// and the current LOD has more than one UV channel
+	return Viewport->GetViewportClient().IsDrawUVOverlayChecked() && 
+		StaticMesh->GetNumUVChannels(GetCurrentLODIndex()) > 1;
 }
 
 void FStaticMeshEditor::RemoveCurrentUVChannel()

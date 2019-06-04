@@ -743,7 +743,7 @@ void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 	check(PendingUnloadLevel == nullptr);
 	PendingUnloadLevel = LoadedLevel;
 	LoadedLevel = Level;
-	CachedLoadedLevelPackageName = (LoadedLevel ? LoadedLevel->GetOutermost()->GetFName() : NAME_None);
+	bHasCachedLoadedLevelPackageName = false;
 
 	// Cancel unloading for this level, in case it was queued for it
 	FLevelStreamingGCHelper::CancelUnloadRequest(LoadedLevel);
@@ -800,7 +800,9 @@ bool ULevelStreaming::IsDesiredLevelLoaded() const
 	{
 		const bool bIsGameWorld = GetWorld()->IsGameWorld();
 		const FName DesiredPackageName = bIsGameWorld ? GetLODPackageName() : GetWorldAssetPackageFName();
-		return (CachedLoadedLevelPackageName == DesiredPackageName);
+		const FName LoadedLevelPackageName = GetLoadedLevelPackageName();
+
+		return (LoadedLevelPackageName == DesiredPackageName);
 	}
 
 	return false;
@@ -826,9 +828,10 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 	// Package name we want to load
 	const bool bIsGameWorld = PersistentWorld->IsGameWorld();
 	const FName DesiredPackageName = bIsGameWorld ? GetLODPackageName() : GetWorldAssetPackageFName();
+	const FName LoadedLevelPackageName = GetLoadedLevelPackageName();
 
 	// Check if currently loaded level is what we want right now
-	if (LoadedLevel && CachedLoadedLevelPackageName == DesiredPackageName)
+	if (LoadedLevel && LoadedLevelPackageName == DesiredPackageName)
 	{
 		return true;
 	}
@@ -1363,6 +1366,7 @@ void ULevelStreaming::SetWorldAsset(const TSoftObjectPtr<UWorld>& NewWorldAsset)
 	{
 		WorldAsset = NewWorldAsset;
 		bHasCachedWorldAssetPackageFName = false;
+		bHasCachedLoadedLevelPackageName = false;
 
 		if (CurrentState == ECurrentState::FailedToLoad)
 		{
@@ -1389,6 +1393,17 @@ FName ULevelStreaming::GetWorldAssetPackageFName() const
 		bHasCachedWorldAssetPackageFName = true;
 	}
 	return CachedWorldAssetPackageFName;
+}
+
+FName ULevelStreaming::GetLoadedLevelPackageName() const
+{
+	if( !bHasCachedLoadedLevelPackageName )
+	{
+		CachedLoadedLevelPackageName = (LoadedLevel ? LoadedLevel->GetOutermost()->GetFName() : NAME_None);
+		bHasCachedLoadedLevelPackageName = true;
+	}
+
+	return CachedLoadedLevelPackageName;
 }
 
 void ULevelStreaming::SetWorldAssetByPackageName(FName InPackageName)
@@ -1557,6 +1572,7 @@ void ULevelStreaming::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		else if (PropertyName == GET_MEMBER_NAME_CHECKED(ULevelStreaming, WorldAsset))
 		{
 			bHasCachedWorldAssetPackageFName = false;
+			bHasCachedLoadedLevelPackageName = false;
 		}
 	}
 

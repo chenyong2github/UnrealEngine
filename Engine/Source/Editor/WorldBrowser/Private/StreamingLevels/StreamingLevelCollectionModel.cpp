@@ -421,7 +421,7 @@ void FStreamingLevelCollectionModel::CreateNewLevel_Executed()
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
 	if (NewLevelDialogModule.CreateAndShowNewLevelDialog(MainFrameModule.GetParentWindow(), TemplateMapPackageName))
 	{
-		UPackage* TemplatePackage = LoadPackage(nullptr, *TemplateMapPackageName, LOAD_None);
+		UPackage* TemplatePackage = TemplateMapPackageName.Len() ? LoadPackage(nullptr, *TemplateMapPackageName, LOAD_None) : nullptr;
 		UWorld* TemplateWorld = TemplatePackage ? UWorld::FindWorldInPackage(TemplatePackage) : nullptr;
 
 		// Create the new level
@@ -496,9 +496,10 @@ void FStreamingLevelCollectionModel::FixupInvalidReference_Executed()
 
 void FStreamingLevelCollectionModel::RemoveInvalidSelectedLevels_Executed()
 {
-	for (TSharedPtr<FLevelModel> LevelModel : InvalidSelectedLevels)
+	// needs to be an index-based iterator b/c we are removing elements based on it
+	for (int32 LevelIdx = InvalidSelectedLevels.Num() - 1; LevelIdx >= 0; LevelIdx--)
 	{
-		TSharedPtr<FStreamingLevelModel> TargetModel = StaticCastSharedPtr<FStreamingLevelModel>(LevelModel);
+		TSharedPtr<FStreamingLevelModel> TargetModel = StaticCastSharedPtr<FStreamingLevelModel>(InvalidSelectedLevels[LevelIdx]);
 		ULevelStreaming* LevelStreaming = TargetModel->GetLevelStreaming().Get();
 
 		if (LevelStreaming)

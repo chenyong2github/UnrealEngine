@@ -79,7 +79,7 @@ namespace Audio
 	{
 	public:
 		FAudioCaptureSynth();
-		virtual ~FAudioCaptureSynth();
+		AUDIOCAPTURE_API virtual ~FAudioCaptureSynth();
 
 		// Gets the default capture device info
 		bool GetDefaultCaptureDeviceInfo(FCaptureDeviceInfo& OutInfo);

@@ -64,6 +64,7 @@
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "AssetSelection.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "UnrealEd.EditorActor"
 
@@ -701,6 +702,8 @@ bool UUnrealEdEngine::edactDeleteSelected( UWorld* InWorld, bool bVerifyDeletion
 	}
 
 	const double StartSeconds = FPlatformTime::Seconds();
+
+	FSlateApplication::Get().CancelDragDrop();
 
 	if (GetSelectedComponentCount() > 0)
 	{

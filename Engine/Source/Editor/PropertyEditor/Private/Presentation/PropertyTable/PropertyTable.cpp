@@ -11,6 +11,8 @@
 #include "Presentation/PropertyTable/PropertyTableObjectNameColumn.h"
 #include "Presentation/PropertyTable/PropertyTablePropertyNameColumn.h"
 
+#include "EditConditionParser.h"
+
 #define LOCTEXT_NAMESPACE "PropertyTable"
 
 FPropertyTable::FPropertyTable()
@@ -31,6 +33,7 @@ FPropertyTable::FPropertyTable()
 	, AllowUserToChangeRoot( true )
 	, bRefreshRequested( false )
 	, Orientation( EPropertyTableOrientation::AlignPropertiesInColumns )
+	, EditConditionParser( new FEditConditionParser )
 {
 }
 
@@ -108,6 +111,11 @@ void FPropertyTable::EnqueueDeferredAction( FSimpleDelegate DeferredAction )
 TSharedPtr<class FAssetThumbnailPool> FPropertyTable::GetThumbnailPool() const
 {
 	return NULL;
+}
+
+TSharedPtr<FEditConditionParser> FPropertyTable::GetEditConditionParser() const
+{
+	return EditConditionParser;
 }
 
 bool FPropertyTable::GetIsUserAllowedToChangeRoot()

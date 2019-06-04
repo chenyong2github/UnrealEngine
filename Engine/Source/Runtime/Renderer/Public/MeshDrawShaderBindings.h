@@ -28,8 +28,7 @@ public:
 	inline uint32 GetHash() const
 	{
 		uint32 LocalFrequency = Frequency;
-		uint32 Hash = FCrc::TypeCrc32(LocalFrequency, ParameterMapInfo.GetHash());
-		return Hash;
+		return FCrc::TypeCrc32(LocalFrequency, 0);
 	}
 
 	bool operator==(const FMeshDrawShaderBindingsLayout& Rhs) const

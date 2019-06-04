@@ -25,7 +25,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Misc/Optional.h"
-#include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SComboButton.h"

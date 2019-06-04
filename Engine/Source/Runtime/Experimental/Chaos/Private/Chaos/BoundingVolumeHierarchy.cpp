@@ -429,7 +429,7 @@ int32 TBoundingVolumeHierarchy<OBJECT_ARRAY, T, d>::GenerateNextLevel(const TVec
 	return MinElem;
 }
 
-template class Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, float, 3>;
-template class Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, float, 3>;
-template class Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, float, 3>;
-template class Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<TArray<Chaos::TSphere<float, 3>*>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TPBDRigidParticles<float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TParticles<float, 3>, float, 3>;
+template class CHAOS_API Chaos::TBoundingVolumeHierarchy<Chaos::TGeometryParticles<float, 3>, float, 3>;

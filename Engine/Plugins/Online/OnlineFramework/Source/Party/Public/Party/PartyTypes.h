@@ -273,8 +273,8 @@ public:
 	UPROPERTY()
 	bool bOnlyLeaderFriendsCanJoin = true;
 
-	bool operator==(const FPartyPrivacySettings& Other) const;
-	bool operator!=(const FPartyPrivacySettings& Other) const { return !operator==(Other); }
+	bool PARTY_API operator==(const FPartyPrivacySettings& Other) const;
+	bool PARTY_API operator!=(const FPartyPrivacySettings& Other) const { return !operator==(Other); }
 
 	FPartyPrivacySettings() {}
 };

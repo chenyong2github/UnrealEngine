@@ -88,6 +88,7 @@ class UFoliageType : public UObject
 	virtual UObject* GetSource() const PURE_VIRTUAL(UFoliageType::GetSource, return nullptr; );
 		
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 
 	virtual bool IsNotAssetOrBlueprint() const;
 

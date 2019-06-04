@@ -50,6 +50,8 @@
 #include "UMGEditorActions.h"
 #include "GameProjectGenerationModule.h"
 
+#include "SPaletteViewModel.h"
+
 #define LOCTEXT_NAMESPACE "UMG"
 
 FWidgetBlueprintEditor::FWidgetBlueprintEditor()
@@ -102,6 +104,10 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 	bRespectLocks = GetDefault<UWidgetDesignerSettings>()->bRespectLocks;
 
 	TSharedPtr<FWidgetBlueprintEditor> ThisPtr(SharedThis(this));
+
+	PaletteViewModel = MakeShareable(new FPaletteViewModel(ThisPtr));
+	PaletteViewModel->RegisterToEvents();
+
 	WidgetToolbar = MakeShareable(new FWidgetBlueprintEditorToolbar(ThisPtr));
 
 	BindToolkitCommands();
@@ -552,6 +558,12 @@ void FWidgetBlueprintEditor::Tick(float DeltaTime)
 		bPreviewInvalidated = false;
 		RefreshPreview();
 	}
+
+	// Updat the palette view model.
+	if (PaletteViewModel->NeedUpdate())
+	{
+		PaletteViewModel->Update();
+	}
 }
 
 static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObject, FEditPropertyChain::TDoubleLinkedListNode* PropertyChainNode, UProperty* MemberProperty, bool bIsModify)
@@ -960,17 +972,15 @@ void FWidgetBlueprintEditor::UpdatePreview(UBlueprint* InBlueprint, bool bInForc
 
 			UWidgetTree* LatestWidgetTree = PreviewBlueprint->WidgetTree;
 
-			// HACK NickD: Doing this to match the hack in UUserWidget::Initialize(), to permit some semblance of widgettree
-			// inheritance.  This will correctly show the parent widget tree provided your class does not specify a root.
-			UWidgetBlueprintGeneratedClass* SuperBGClass = Cast<UWidgetBlueprintGeneratedClass>(PreviewBlueprint->GeneratedClass->GetSuperClass());
-			if ( SuperBGClass )
+			// If there is no RootWidget, we look for a WidgetTree in the parents classes until we find one.
+			if (LatestWidgetTree->RootWidget == nullptr)
 			{
-				UWidgetBlueprint* SuperWidgetBlueprint = Cast<UWidgetBlueprint>(SuperBGClass->ClassGeneratedBy);
-				if ( SuperWidgetBlueprint && (LatestWidgetTree->RootWidget == nullptr) )
+				UWidgetBlueprintGeneratedClass* BGClass = PreviewUserWidget->GetWidgetTreeOwningClass();
+				if (BGClass)
 				{
-					LatestWidgetTree = SuperWidgetBlueprint->WidgetTree;
+					LatestWidgetTree = BGClass->WidgetTree;
 				}
-			}
+			 }
 
 			// Update the widget tree directly to match the blueprint tree.  That way the preview can update
 			// without needing to do a full recompile.

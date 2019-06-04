@@ -5477,12 +5477,13 @@ EReimportResult::Type UReimportFbxStaticMeshFactory::Reimport( UObject* Obj )
 				{
 					if ((*UserData)[Idx] != nullptr)
 					{
-						bool bAddDupToRoot = !((*UserData)[Idx]->IsRooted());
+						UAssetUserData* DupObject = (UAssetUserData*)StaticDuplicateObject((*UserData)[Idx], GetTransientPackage());
+						bool bAddDupToRoot = !(DupObject->IsRooted());
 						if (bAddDupToRoot)
 						{
-							(*UserData)[Idx]->AddToRoot();
+							DupObject->AddToRoot();
 						}
-						UserDataCopy.Add((UAssetUserData*)StaticDuplicateObject((*UserData)[Idx], GetTransientPackage()), bAddDupToRoot);
+						UserDataCopy.Add(DupObject, bAddDupToRoot);
 					}
 				}
 			}

@@ -233,7 +233,6 @@ FEdModeFoliage::FEdModeFoliage()
 	FName OpacityParamName("OpacityAmount");
 	BrushMID->GetScalarParameterValue(OpacityParamName, DefaultBrushOpacity);
 
-	FFoliageEditCommands::Register();
 	UICommandList = MakeShareable(new FUICommandList);
 	BindCommands();
 }
@@ -244,12 +243,32 @@ void FEdModeFoliage::BindCommands()
 
 	UICommandList->MapAction(
 		Commands.IncreaseBrushSize,
-		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustBrushRadius, 50.f),
+		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustBrushRadius, 1.f),
 		FCanExecuteAction::CreateRaw(this, &FEdModeFoliage::CurrentToolUsesBrush));
 
 	UICommandList->MapAction(
 		Commands.DecreaseBrushSize,
-		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustBrushRadius, -50.f),
+		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustBrushRadius, -1.f),
+		FCanExecuteAction::CreateRaw(this, &FEdModeFoliage::CurrentToolUsesBrush));
+
+	UICommandList->MapAction(
+		Commands.IncreasePaintDensity,
+		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustPaintDensity, 1.f),
+		FCanExecuteAction::CreateRaw(this, &FEdModeFoliage::CurrentToolUsesBrush));
+
+	UICommandList->MapAction(
+		Commands.DecreasePaintDensity,
+		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustPaintDensity, -1.f),
+		FCanExecuteAction::CreateRaw(this, &FEdModeFoliage::CurrentToolUsesBrush));
+
+	UICommandList->MapAction(
+		Commands.IncreaseUnpaintDensity,
+		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustUnpaintDensity, 1.f),
+		FCanExecuteAction::CreateRaw(this, &FEdModeFoliage::CurrentToolUsesBrush));
+
+	UICommandList->MapAction(
+		Commands.DecreaseUnpaintDensity,
+		FExecuteAction::CreateRaw(this, &FEdModeFoliage::AdjustUnpaintDensity, -1.f),
 		FCanExecuteAction::CreateRaw(this, &FEdModeFoliage::CurrentToolUsesBrush));
 
 	UICommandList->MapAction(
@@ -1983,23 +2002,44 @@ void FEdModeFoliage::SelectInvalidInstances(const UFoliageType* Settings)
 	}
 }
 
-void FEdModeFoliage::AdjustBrushRadius(float Adjustment)
+void FEdModeFoliage::AdjustBrushRadius(float Multiplier)
 {
 	if (UISettings.IsInAnySingleInstantiationMode())
 	{
 		return;
 	}
 
+	const float PercentageChange = 0.05f;
 	const float CurrentBrushRadius = UISettings.GetRadius();
 
-	if (Adjustment > 0.f)
+	float NewValue = CurrentBrushRadius * (1 + PercentageChange * Multiplier);
+	UISettings.SetRadius(FMath::Clamp(NewValue, 0.1f, 8192.0f));
+}
+
+void FEdModeFoliage::AdjustPaintDensity(float Multiplier)
+{
+	if (UISettings.IsInAnySingleInstantiationMode())
 	{
-		UISettings.SetRadius(FMath::Min(CurrentBrushRadius + Adjustment, 8192.f));
+		return;
 	}
-	else if (Adjustment < 0.f)
+
+	const float AdjustmentAmount = 0.02f;
+	const float CurrentDensity = UISettings.GetPaintDensity();
+
+	UISettings.SetPaintDensity(FMath::Clamp(CurrentDensity + AdjustmentAmount * Multiplier, 0.0f, 1.0f));
+}
+
+void FEdModeFoliage::AdjustUnpaintDensity(float Multiplier)
+{
+	if (UISettings.IsInAnySingleInstantiationMode())
 	{
-		UISettings.SetRadius(FMath::Max(CurrentBrushRadius + Adjustment, 0.f));
+		return;
 	}
+
+	const float AdjustmentAmount = 0.02f;
+	const float CurrentDensity = UISettings.GetUnpaintDensity();
+
+	UISettings.SetUnpaintDensity(FMath::Clamp(CurrentDensity + AdjustmentAmount * Multiplier, 0.0f, 1.0f));
 }
 
 void FEdModeFoliage::ReapplyInstancesForBrush(UWorld* InWorld, const UFoliageType* Settings, const FSphere& BrushSphere, float Pressure)

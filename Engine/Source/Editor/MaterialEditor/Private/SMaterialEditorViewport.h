@@ -148,7 +148,13 @@ private:
 	void OnPreviewYCommitted( int32 NewValue, ETextCommit::Type );
 	TOptional<int32> OnGetPreviewXValue() const { return PreviewSize.X; }
 	TOptional<int32> OnGetPreviewYValue() const { return PreviewSize.Y; }
+	void OnRealtimeChanged(ECheckBoxState State);
+	ECheckBoxState IsRealtimeChecked() const;
+	EActiveTimerReturnType EnsureTick(double InCurrentTime, float InDeltaTime);
+
 private:
 	FIntPoint PreviewSize;
 	TSharedPtr<class SMaterialEditorUIPreviewZoomer> PreviewZoomer;
+	bool bRealtime;
+	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 };

@@ -18,6 +18,9 @@ public:
 	virtual ~FIOSApplication() {}
 
 	void SetMessageHandler( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
+#if WITH_ACCESSIBILITY
+	virtual void SetAccessibleMessageHandler(const TSharedRef<FGenericAccessibleMessageHandler>& InAccessibleMessageHandler) override;
+#endif
 
 	virtual void PollGameDeviceState( const float TimeDelta ) override;
 
@@ -35,13 +38,17 @@ public:
 
 	virtual bool IsGamepadAttached() const override;
 
+	TSharedRef<FIOSWindow> FindWindowByAppDelegateView();
+
 protected:
 	virtual void InitializeWindow( const TSharedRef< FGenericWindow >& Window, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FGenericWindow >& InParent, const bool bShowImmediately ) override;
 
 private:
 
 	FIOSApplication();
-
+#if WITH_ACCESSIBILITY
+	void OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue);
+#endif
 
 private:
 

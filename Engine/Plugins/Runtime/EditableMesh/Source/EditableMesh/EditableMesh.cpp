@@ -427,7 +427,7 @@ static void InvertRemapTable( TSparseArray<int32>& InvertedRemapTable, const TSp
 }
 
 
-class FCompactChange : public FChange
+class FCompactChange : public FSwapChange
 {
 public:
 
@@ -459,7 +459,7 @@ struct FUncompactChangeInput
 };
 
 
-class FUncompactChange : public FChange
+class FUncompactChange : public FSwapChange
 {
 public:
 
@@ -2621,7 +2621,8 @@ void UEditableMesh::SetSubdivisionCount( const int32 NewSubdivisionCount )
 
 void UEditableMesh::MoveVertices( const TArray<FVertexToMove>& VerticesToMove )
 {
-	EM_ENTER( TEXT( "MoveVertices: %s" ), *LogHelpers::ArrayToString( VerticesToMove ) );
+	//EM_ENTER( TEXT( "MoveVertices: %s" ), *LogHelpers::ArrayToString( VerticesToMove ) );
+	EM_ENTER(TEXT("MoveVertices: [redacted]"));
 
 	static TSet< FPolygonID > VertexConnectedPolygons;
 	VertexConnectedPolygons.Reset();
@@ -4415,7 +4416,8 @@ void UEditableMesh::DeletePolygonGroups( const TArray<FPolygonGroupID>& PolygonG
 
 void UEditableMesh::SetVerticesAttributes( const TArray<FAttributesForVertex>& AttributesForVertices )
 {
-	EM_ENTER( TEXT( "SetVerticesAttributes: %s" ), *LogHelpers::ArrayToString( AttributesForVertices ) );
+	//EM_ENTER( TEXT( "SetVerticesAttributes: %s" ), *LogHelpers::ArrayToString( AttributesForVertices ) );
+	EM_ENTER(TEXT("SetVerticesAttributes: [redacted]"));
 
 	FSetVerticesAttributesChangeInput RevertInput;
 

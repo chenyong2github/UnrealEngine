@@ -335,7 +335,7 @@ struct FParameterGroupData
  * Warning: Creating new materials directly increases shader compile times!  Consider creating a Material Instance off of an existing material instead.
  */
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
-class UMaterial : public UMaterialInterface
+class ENGINE_VTABLE UMaterial : public UMaterialInterface
 {
 	GENERATED_UCLASS_BODY()
 

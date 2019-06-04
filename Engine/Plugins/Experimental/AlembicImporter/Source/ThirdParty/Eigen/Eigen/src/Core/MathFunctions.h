@@ -383,7 +383,7 @@ inline NewType cast(const OldType& x)
 * Implementation of round                                                   *
 ****************************************************************************/
 
-#if EIGEN_HAS_CXX11_MATH
+#if EIGEN_HAS_CXX11_MATH && !(defined(__ANDROID__) || defined(ANDROID))
   template<typename Scalar>
   struct round_impl {
     static inline Scalar run(const Scalar& x)
@@ -480,7 +480,7 @@ struct log1p_impl {
   static inline Scalar run(const Scalar& x)
   {
     EIGEN_STATIC_ASSERT_NON_INTEGER(Scalar)
-    #if EIGEN_HAS_CXX11_MATH
+    #if EIGEN_HAS_CXX11_MATH && !(defined(__ANDROID__) || defined(ANDROID))
     using std::log1p;
     #endif
     using std_fallback::log1p;

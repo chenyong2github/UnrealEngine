@@ -444,7 +444,6 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 						.ColorAndOpacity( this, &SPinTypeSelector::GetSecondaryTypeIconColor )
 					]
 					+SHorizontalBox::Slot()
-					.AutoWidth()
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Left)
 					[

@@ -63,21 +63,7 @@ void SDistributionCurveEditor::Construct(const FArguments& InArgs)
 void SDistributionCurveEditor::RefreshViewport()
 {
 	Viewport->GetViewport()->Invalidate();
-}
-
-bool SDistributionCurveEditor::GetNeedsRedraw()
-{
-	if (Viewport->GetViewportClient().IsValid())
-	{
-		return Viewport->GetViewportClient()->GetNeedsRedraw();
-	}
-
-	return false;
-}
-
-void SDistributionCurveEditor::DrawViewport()
-{
-	Viewport->DrawViewport();
+	Viewport->GetViewport()->InvalidateDisplay();
 }
 
 void SDistributionCurveEditor::CurveChanged()

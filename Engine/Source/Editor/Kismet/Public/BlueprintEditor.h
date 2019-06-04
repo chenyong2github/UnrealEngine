@@ -43,6 +43,7 @@ class UEdGraph;
 class UEdGraphNode;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
+class UBlueprintEditorOptions;
 struct Rect;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
@@ -1083,6 +1084,19 @@ private:
 	/** Returns the appropriate check box state representing whether or not the selected nodes are enabled */
 	ECheckBoxState GetEnabledCheckBoxStateForSelectedNodes();
 
+	/** Configuration class used to store editor settings across sessions. */
+	UBlueprintEditorOptions* EditorOptions;
+
+	/**
+	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
+	 */
+	virtual void LoadEditorSettings();
+
+	/**
+	 * Saves editor settings to disk (docking state, window pos/size, option state, etc).
+	 */
+	virtual void SaveEditorSettings();
+
 	/** Attempt to match the given enabled state for currently-selected nodes */
 	ECheckBoxState CheckEnabledStateForSelectedNodes(ENodeEnabledState CheckState);
 
@@ -1091,6 +1105,9 @@ private:
 
 public://@TODO
 	TSharedPtr<FDocumentTracker> DocumentManager;
+	
+	/** Update all nodes' unrelated states when the graph has changed */
+	void UpdateNodesUnrelatedStatesAfterGraphChange();
 
 protected:
 
@@ -1191,6 +1208,35 @@ protected:
 
 	/** The preview actor representing the current preview */
 	mutable TWeakObjectPtr<AActor> PreviewActorPtr;
+
+	/** If true, fade out nodes which are unrelated to the selected nodes automatically. */
+	bool bHideUnrelatedNodes;
+
+	/** Lock the current fade state of each node */
+	bool bLockNodeFadeState;
+
+	/** If a regular node (not a comment node) has been selected */
+	bool bSelectRegularNode;
+
+	/** Focus nodes which are related to the selected nodes */
+	void ResetAllNodesUnrelatedStates();
+	void CollectExecUpstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void CollectExecDownstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void CollectPureDownstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void CollectPureUpstreamNodes(UEdGraphNode* CurrentNode, TArray<UEdGraphNode*>& CollectedNodes);
+	void HideUnrelatedNodes();
+
+public:
+	/** Make nodes which are unrelated to the selected nodes fade out */
+	void ToggleHideUnrelatedNodes();
+	bool IsToggleHideUnrelatedNodesChecked() const;
+
+	/** Make a drop down menu to control the opacity of unrelated nodes */
+	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();
+	TOptional<float> HandleUnrelatedNodesOpacityBoxValue() const;
+	void HandleUnrelatedNodesOpacityBoxChanged(float NewOpacity);
+	void OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState);
+
 
 public:
 	//@TODO: To be moved/merged

@@ -360,5 +360,5 @@ private:
 	static FSourceFileDatabase Instance;
 
 	/** Cached result of check for compiler availability. Speeds up performance greatly since BlueprintEditor is checking this on draw. */
-	static bool bCachedIsCompilerAvailable;
+	static bool UNREALED_API bCachedIsCompilerAvailable;
 };

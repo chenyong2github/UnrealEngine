@@ -39,7 +39,7 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	GENERATED_UCLASS_BODY()
 	
 	/** If checked, meshes nested in bone hierarchies will be imported instead of being converted to bones. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = ImportSettings, meta = (ImportType = "Animation"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta = (ImportType = "Animation"))
 	bool bImportMeshesInBoneHierarchy;
 	
 	/** Which animation range to import. The one defined at Exported, at Animated time or define a range manually */
@@ -55,7 +55,7 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	int32	EndFrame_DEPRECATED;
 
 	/** Frame range used when Set Range is used in Animation Length */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = ImportSettings, meta=(UIMin=0, ClampMin=0))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings, meta=(UIMin=0, ClampMin=0))
 	FInt32Interval FrameImportRange;
 
 	/** Enable this option to use default sample rate for the imported animation at 30 frames per second */
@@ -73,9 +73,12 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 	/** Import if custom attribute as a curve within the animation */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
 	bool bImportCustomAttribute;
+
+	/** If true, all previous custom attribute curves will be deleted when doing a re-import. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
+	bool bDeleteExistingCustomAttributeCurves;
 	
 	/** Import bone transform tracks. If false, this will discard any bone transform tracks. (useful for curves only animations)*/
-
 	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category = ImportSettings)
 	bool bImportBoneTracks;
 

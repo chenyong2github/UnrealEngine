@@ -131,6 +131,7 @@ public:
 		, bForceHiddenPropertyVisibility(false)
 		, bShowKeyablePropertiesOption(true)
 		, bShowAnimatedPropertiesOption(true)
+		, bShowCustomFilterOption(false)
 		, ColumnWidth(.65f)
 	{
 	}
@@ -265,6 +266,8 @@ public:
 	virtual TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler() = 0;
 
 	virtual void SetExtensionHandler(TSharedPtr<class IDetailPropertyExtensionHandler> InExtensionandler) = 0;
+
+	virtual TSharedPtr<class IDetailPropertyExtensionHandler> GetExtensionHandler() = 0;
 
 	/**
 	 * @return true if property editing is enabled (based on the FIsPropertyEditingEnabled delegate)

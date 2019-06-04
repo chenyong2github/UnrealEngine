@@ -408,7 +408,7 @@ struct FPooledRDGBuffer
 		return ++RefCount;
 	}
 
-	uint32 Release();
+	RENDERCORE_API uint32 Release();
 
 	inline uint32 GetRefCount()
 	{

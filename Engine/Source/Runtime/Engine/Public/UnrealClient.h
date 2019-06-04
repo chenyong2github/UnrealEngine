@@ -24,7 +24,7 @@ class UModel;
 /**
  * A render target.
  */
-class FRenderTarget
+class ENGINE_VTABLE FRenderTarget
 {
 public:
 
@@ -297,7 +297,7 @@ struct FStatHitchesData
  * Encapsulates the I/O of a viewport.
  * The viewport display is implemented using the platform independent RHI.
  */
-class FViewport : public FRenderTarget, protected FRenderResource
+class ENGINE_VTABLE FViewport : public FRenderTarget, protected FRenderResource
 {
 public:
 	/** delegate type for viewport resize events ( Params: FViewport* Viewport, uint32 ) */
@@ -1070,7 +1070,7 @@ extern ENGINE_API class FCommonViewportClient* GStatProcessingViewportClient;
  * Common functionality for game and editor viewport clients
  */
 
-class FCommonViewportClient : public FViewportClient
+class ENGINE_VTABLE FCommonViewportClient : public FViewportClient
 {
 public:
 	FCommonViewportClient()

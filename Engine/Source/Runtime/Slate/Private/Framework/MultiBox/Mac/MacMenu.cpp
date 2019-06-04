@@ -13,7 +13,7 @@
 struct FMacMenuItemState
 {
 	TSharedPtr<const FMenuEntryBlock> Block;
-	EMultiBlockType::Type Type;
+	EMultiBlockType Type;
 	NSString* Title;
 	NSString* KeyEquivalent;
 	uint32 KeyModifiers;

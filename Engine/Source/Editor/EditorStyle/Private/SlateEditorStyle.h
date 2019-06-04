@@ -70,6 +70,12 @@ public:
 
 		void Initialize();
 		void SetupGeneralStyles();
+		void SetupLevelGeneralStyles();
+		void SetupWorldBrowserStyles();
+		void SetupSequencerStyles();
+		void SetupViewportStyles();
+		void SetupNotificationBarStyles();
+		void SetupMenuBarStyles();
 		void SetupGeneralIcons();
 		void SetupWindowStyles();
 		void SetupProjectBadgeStyle();

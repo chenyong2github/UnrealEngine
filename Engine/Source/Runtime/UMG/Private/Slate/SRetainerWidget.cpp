@@ -102,6 +102,7 @@ SRetainerWidget::~SRetainerWidget()
 	
 	if( FSlateApplication::IsInitialized() )
 	{
+		FSlateApplicationBase::Get().OnGlobalInvalidate().RemoveAll( this );
 #if !UE_BUILD_SHIPPING
 		OnRetainerModeChangedDelegate.RemoveAll( this );
 #endif
