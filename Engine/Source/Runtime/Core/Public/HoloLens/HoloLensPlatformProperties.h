@@ -53,4 +53,6 @@ struct FHoloLensPlatformProperties : public FGenericPlatformProperties
 	}
 };
 
-
+#ifdef PROPERTY_HEADER_SHOULD_DEFINE_TYPE
+typedef FHoloLensPlatformProperties FPlatformProperties;
+#endif
