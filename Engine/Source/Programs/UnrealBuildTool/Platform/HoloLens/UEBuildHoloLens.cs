@@ -120,7 +120,7 @@ namespace UnrealBuildTool
 
 		HoloLensPlatformSDK SDK;
 
-		public HoloLens(UnrealTargetPlatform InPlatform, CppPlatform InDefaultCppPlatform, HoloLensPlatformSDK InSDK) : base(InPlatform, InDefaultCppPlatform)
+		public HoloLens(UnrealTargetPlatform InPlatform, HoloLensPlatformSDK InSDK) : base(InPlatform)
 		{
 			SDK = InSDK;
 		}
@@ -209,7 +209,7 @@ namespace UnrealBuildTool
 			}
 
 			// Initialize the VC environment for the target, and set all the version numbers to the concrete values we chose.
-			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, DefaultCppPlatform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString);
+			VCEnvironment Environment = VCEnvironment.Create(Target.WindowsPlatform.Compiler, Platform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersionString);
 			Target.WindowsPlatform.Environment = Environment;
 			Target.WindowsPlatform.Compiler = Environment.Compiler;
 			Target.WindowsPlatform.CompilerVersion = Environment.CompilerVersion.ToString();
@@ -720,12 +720,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates a toolchain instance for the given platform.
 		/// </summary>
-		/// <param name="CppPlatform">The platform to create a toolchain for</param>
 		/// <param name="Target">The target being built</param>
 		/// <returns>New toolchain instance.</returns>
-		public override UEToolChain CreateToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
+		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			return new HoloLensToolChain(CppPlatform, Target);
+			return new HoloLensToolChain(Target);
 		}
 	}
 
@@ -791,7 +790,7 @@ namespace UnrealBuildTool
 			if (SDK.HasRequiredSDKsInstalled() == SDKStatus.Valid)
 			{
 				Log.TraceVerbose("		Registering for {0}", UnrealTargetPlatform.HoloLens.ToString());
-				UEBuildPlatform.RegisterBuildPlatform(new HoloLens(UnrealTargetPlatform.HoloLens, CppPlatform.HoloLens, SDK));
+				UEBuildPlatform.RegisterBuildPlatform(new HoloLens(UnrealTargetPlatform.HoloLens, SDK));
 				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.Microsoft);
 				UEBuildPlatform.RegisterPlatformWithGroup(UnrealTargetPlatform.HoloLens, UnrealPlatformGroup.HoloLens);
 			}

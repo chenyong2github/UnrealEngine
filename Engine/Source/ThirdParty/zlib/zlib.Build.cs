@@ -4,14 +4,19 @@ using UnrealBuildTool;
 
 public class zlib : ModuleRules
 {
+	protected string CurrentZlibVersion;
+	protected string OldZlibVersion;
+
 	public zlib(ReadOnlyTargetRules Target) : base(Target)
 	{
 		Type = ModuleType.External;
 
-		string zlibPath = Target.UEThirdPartySourceDirectory + "zlib/v1.2.8/";
+		CurrentZlibVersion = "v1.2.8";
+		OldZlibVersion = "zlib-1.2.5";
 
+		string zlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + CurrentZlibVersion;
 		// TODO: recompile for consoles and mobile platforms
-		string OldzlibPath = Target.UEThirdPartySourceDirectory + "zlib/zlib-1.2.5/";
+		string OldzlibPath = Target.UEThirdPartySourceDirectory + "zlib/" + OldZlibVersion;
 
         // @ATG_CHANGE : BEGIN HoloLens support
         if ((Target.Platform == UnrealTargetPlatform.Win64) ||
@@ -19,14 +24,14 @@ public class zlib : ModuleRules
             (Target.Platform == UnrealTargetPlatform.HoloLens))
         {
             string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
-            PublicIncludePaths.Add(System.String.Format("{0}include/Win32/VS{1}", zlibPath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+            PublicIncludePaths.Add(System.String.Format("{0}/include/Win32/VS{1}", zlibPath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
             }
             else
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release"));
+                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", zlibPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Configuration == UnrealTargetConfiguration.Debug ? "Debug" : "Release"));
             }
             PublicAdditionalLibraries.Add("zlibstatic.lib");
         }

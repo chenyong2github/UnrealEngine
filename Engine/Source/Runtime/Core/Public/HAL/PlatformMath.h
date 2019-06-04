@@ -4,28 +4,4 @@
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
-#if PLATFORM_WINDOWS
-#include "Windows/WindowsPlatformMath.h"
-#elif PLATFORM_PS4
-#include "PS4/PS4Math.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOneMath.h"
-#elif PLATFORM_MAC
-#include "Mac/MacPlatformMath.h"
-#elif PLATFORM_IOS
-#include "IOS/IOSPlatformMath.h"
-#elif PLATFORM_ANDROID
-#include "Android/AndroidMath.h"
-#elif PLATFORM_HTML5
-#include "HTML5/HTML5PlatformMath.h"
-#elif PLATFORM_UNIX
-#include "Unix/UnixPlatformMath.h"
-#elif PLATFORM_SWITCH
-#include "Switch/SwitchPlatformMath.h"
-// @ATG_CHANGE : BEGIN HoloLens support
-#elif PLATFORM_HOLOLENS
-#include "HoloLens/HoloLensMath.h"
-// @ATG_CHANGE : END
-#else
-#error Unknown platform
-#endif
+#include COMPILED_PLATFORM_HEADER(PlatformMath.h)

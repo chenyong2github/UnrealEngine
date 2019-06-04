@@ -54,9 +54,9 @@ namespace AutomationTool
 				CreatePlatformsFromAssembly(ScriptAssembly);
 			}
 			// Create dummy platforms for platforms we don't support
-			foreach (var PlatformType in Enum.GetValues(typeof(UnrealTargetPlatform)))
+			foreach (UnrealTargetPlatform PlatformType in UnrealTargetPlatform.GetValidPlatforms())
 			{
-				var TargetDesc = new TargetPlatformDescriptor((UnrealTargetPlatform)PlatformType);
+				var TargetDesc = new TargetPlatformDescriptor(PlatformType);
 				Platform ExistingInstance;
 				if (AllPlatforms.TryGetValue(TargetDesc, out ExistingInstance) == false)
 				{
@@ -111,7 +111,10 @@ namespace AutomationTool
 					}
 					else
 					{
-						LogWarning("Platform {0} already exists", PotentialPlatformType.Name);
+						if (ExistingInstance.GetType() != PlatformInstance.GetType())
+						{
+							LogWarning("Platform {0} already exists", PotentialPlatformType.Name);
+						}
 					}
 				}
 			}
@@ -119,8 +122,8 @@ namespace AutomationTool
 
 		#endregion
 
-		protected UnrealTargetPlatform TargetPlatformType = UnrealTargetPlatform.Unknown;
-		protected UnrealTargetPlatform TargetIniPlatformType = UnrealTargetPlatform.Unknown;
+		protected UnrealTargetPlatform TargetPlatformType;
+		protected UnrealTargetPlatform TargetIniPlatformType;
 
 		public Platform(UnrealTargetPlatform PlatformType)
 		{
@@ -641,25 +644,29 @@ namespace AutomationTool
 				return PlatformExeExtension;
 			}
 
-			switch (Target)
+			if (Target == UnrealTargetPlatform.Win32 || Target == UnrealTargetPlatform.Win64 || Target == UnrealTargetPlatform.XboxOne|| Target == UnrealTargetPlatform.HoloLens)
 			{
-				case UnrealTargetPlatform.Win32:
-				case UnrealTargetPlatform.Win64:
-				// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
-				case UnrealTargetPlatform.HoloLens:
-				// @ATG_CHANGE : END
-				case UnrealTargetPlatform.XboxOne:
-					return ".exe";
-				case UnrealTargetPlatform.PS4:
-					return ".self";
-				case UnrealTargetPlatform.IOS:
-					return ".stub";
-				case UnrealTargetPlatform.Linux:
-					return "";
-				case UnrealTargetPlatform.HTML5:
-					return ".js";
-				case UnrealTargetPlatform.Mac:
-					return ".app";
+				return ".exe";
+			}
+			if (Target == UnrealTargetPlatform.PS4)
+			{
+				return ".self";
+			}
+			if (Target == UnrealTargetPlatform.IOS)
+			{
+				return ".stub";
+			}
+			if (Target == UnrealTargetPlatform.Linux)
+			{
+				return "";
+			}
+			if (Target == UnrealTargetPlatform.HTML5)
+			{
+				return ".js";
+			}
+			if (Target == UnrealTargetPlatform.Mac)
+			{
+				return ".app";
 			}
 
 			return String.Empty;

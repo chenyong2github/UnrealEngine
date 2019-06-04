@@ -17,6 +17,7 @@
 DEFINE_LOG_CATEGORY_STATIC(LogHoloLensTargetPlatform, Log, All);
 
 FHoloLensTargetPlatform::FHoloLensTargetPlatform()
+	: HoloLensDeviceDetectorModule(IHoloLensDeviceDetectorModule::Get())
 {
 #if WITH_ENGINE
 	FConfigCacheIni::LoadLocalIniFile(EngineSettings, TEXT("Engine"), true, *PlatformName());
@@ -24,7 +25,7 @@ FHoloLensTargetPlatform::FHoloLensTargetPlatform()
 	StaticMeshLODSettings.Initialize(EngineSettings);
 #endif
 
-	DeviceDetectedRegistration = IHoloLensDeviceDetectorModule::Get().OnDeviceDetected().AddRaw(this, &FHoloLensTargetPlatform::OnDeviceDetected);
+	DeviceDetectedRegistration = HoloLensDeviceDetectorModule.OnDeviceDetected().AddRaw(this, &FHoloLensTargetPlatform::OnDeviceDetected);
 }
 
 FHoloLensTargetPlatform::~FHoloLensTargetPlatform()
@@ -34,7 +35,7 @@ FHoloLensTargetPlatform::~FHoloLensTargetPlatform()
 
 void FHoloLensTargetPlatform::GetAllDevices(TArray<ITargetDevicePtr>& OutDevices) const
 {
-	IHoloLensDeviceDetectorModule::Get().StartDeviceDetection();
+	HoloLensDeviceDetectorModule.StartDeviceDetection();
 
 	OutDevices.Reset();
 	FScopeLock Lock(&DevicesLock);

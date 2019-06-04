@@ -282,6 +282,7 @@ namespace UnrealBuildTool
 		bool bUsePerFileIntellisense;
 		bool bUsePrecompiled;
 		bool bEditorDependsOnShaderCompileWorker;
+		bool bBuildLiveCodingConsole;
 		string BuildToolOverride;
 
 		/// This is the platform name that Visual Studio is always guaranteed to support.  We'll use this as
@@ -305,8 +306,9 @@ namespace UnrealBuildTool
 		/// <param name="bUsePerFileIntellisense">If true, generates per-file intellisense data</param>
 		/// <param name="bUsePrecompiled">Whether to add the -UsePrecompiled argumemnt when building targets</param>
 		/// <param name="bEditorDependsOnShaderCompileWorker">Whether editor targets should also build ShaderCompileWorker</param>
+		/// <param name="bBuildLiveCodingConsole">Whether targets using live coding should also build LiveCodingConsole</param>
 		/// <param name="BuildToolOverride">Optional arguments to pass to UBT when building</param>
-		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, string BuildToolOverride)
+		public VCProjectFile(FileReference InFilePath, FileReference InOnlyGameProject, VCProjectFileFormat InProjectFileFormat, bool bUseFastPDB, bool bUsePerFileIntellisense, bool bUsePrecompiled, bool bEditorDependsOnShaderCompileWorker, bool bBuildLiveCodingConsole, string BuildToolOverride)
 			: base(InFilePath)
 		{
 			OnlyGameProject = InOnlyGameProject;
@@ -315,6 +317,7 @@ namespace UnrealBuildTool
 			this.bUsePerFileIntellisense = bUsePerFileIntellisense;
 			this.bUsePrecompiled = bUsePrecompiled;
 			this.bEditorDependsOnShaderCompileWorker = bEditorDependsOnShaderCompileWorker;
+			this.bBuildLiveCodingConsole = bBuildLiveCodingConsole;
 			this.BuildToolOverride = BuildToolOverride;
 		}
 
@@ -472,7 +475,7 @@ namespace UnrealBuildTool
 					UnrealTargetPlatform ProjectPlatform = SolutionPlatform;
 					if (IsStubProject)
 					{
-						if (ProjectPlatform != UnrealTargetPlatform.Unknown || ProjectConfiguration != UnrealTargetConfiguration.Unknown)
+						if (ProjectConfiguration != UnrealTargetConfiguration.Unknown)
 						{
 							throw new BuildException("Stub project was expecting platform and configuration type to be set to Unknown");
 						}
@@ -514,13 +517,13 @@ namespace UnrealBuildTool
 
 		class ProjectConfigAndTargetCombination
 		{
-			public UnrealTargetPlatform Platform;
+			public UnrealTargetPlatform? Platform;
 			public UnrealTargetConfiguration Configuration;
 			public string ProjectPlatformName;
 			public string ProjectConfigurationName;
 			public ProjectTarget ProjectTarget;
 
-			public ProjectConfigAndTargetCombination(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, string InProjectPlatformName, string InProjectConfigurationName, ProjectTarget InProjectTarget)
+			public ProjectConfigAndTargetCombination(UnrealTargetPlatform? InPlatform, UnrealTargetConfiguration InConfiguration, string InProjectPlatformName, string InProjectConfigurationName, ProjectTarget InProjectTarget)
 			{
 				Platform = InPlatform;
 				Configuration = InConfiguration;
@@ -568,7 +571,7 @@ namespace UnrealBuildTool
 				ProjectConfigAndTargetCombinations = new List<ProjectConfigAndTargetCombination>();
 				if (IsStubProject)
 				{
-					ProjectConfigAndTargetCombination StubCombination = new ProjectConfigAndTargetCombination(UnrealTargetPlatform.Unknown, UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null);
+					ProjectConfigAndTargetCombination StubCombination = new ProjectConfigAndTargetCombination(null, UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null);
 					ProjectConfigAndTargetCombinations.Add(StubCombination);
 				}
 				else
@@ -641,9 +644,9 @@ namespace UnrealBuildTool
 
 			foreach (ProjectConfigAndTargetCombination Combination in ProjectConfigAndTargetCombinations)
 			{
-				if (!ProjectPlatforms.Contains(Combination.Platform))
+				if (Combination.Platform != null && !ProjectPlatforms.Contains(Combination.Platform.Value))
 				{
-					ProjectPlatforms.Add(Combination.Platform);
+					ProjectPlatforms.Add(Combination.Platform.Value);
 				}
 			}
 
@@ -695,16 +698,16 @@ namespace UnrealBuildTool
 				// @ATG_CHANGE : BEGIN HoloLens support
 				if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
 				{
-					VCIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(CppPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
+					VCIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.Win64))
 				// @ATG_CHANGE : END
 				{
-					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(CppPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
+					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win64, GetCompilerForIntellisense(), null) + ";");
 				}
 				else if (InPlatforms.Contains(UnrealTargetPlatform.Win32))
 				{
-					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(CppPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
+					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
 				}
 			}
 
@@ -764,13 +767,17 @@ namespace UnrealBuildTool
 			List<Tuple<string, UnrealTargetConfiguration>> ProjectConfigurationNameAndConfigurations = new List<Tuple<string, UnrealTargetConfiguration>>();	// ProjectConfigurationName, Configuration
 			foreach (ProjectConfigAndTargetCombination Combination in ProjectConfigAndTargetCombinations)
 			{
-				if (!ProjectPlatforms.Contains(Combination.Platform))
+				if (Combination.Platform == null)
 				{
-					ProjectPlatforms.Add(Combination.Platform);
+					continue;
+				}
+				if (!ProjectPlatforms.Contains(Combination.Platform.Value))
+				{
+					ProjectPlatforms.Add(Combination.Platform.Value);
 				}
 				if (!ProjectPlatformNameAndPlatforms.Any(ProjectPlatformNameAndPlatformTuple => ProjectPlatformNameAndPlatformTuple.Item1 == Combination.ProjectPlatformName))
 				{
-					ProjectPlatformNameAndPlatforms.Add(Tuple.Create(Combination.ProjectPlatformName, Combination.Platform));
+					ProjectPlatformNameAndPlatforms.Add(Tuple.Create(Combination.ProjectPlatformName, Combination.Platform.Value));
 				}
 				if (!ProjectConfigurationNameAndConfigurations.Any(ProjectConfigurationNameAndConfigurationTuple => ProjectConfigurationNameAndConfigurationTuple.Item1 == Combination.ProjectConfigurationName))
 				{
@@ -1231,7 +1238,7 @@ namespace UnrealBuildTool
 		private void WritePreDefaultPropsConfiguration(UnrealTargetPlatform TargetPlatform, UnrealTargetConfiguration TargetConfiguration, string ProjectPlatformName, string ProjectConfigurationName, PlatformProjectGeneratorCollection PlatformProjectGenerators, StringBuilder VCProjectFileContent)
 		{
 			PlatformProjectGenerator ProjGenerator = PlatformProjectGenerators.GetPlatformProjectGenerator(TargetPlatform, true);
-			if (((ProjGenerator == null) && (TargetPlatform != UnrealTargetPlatform.Unknown)))
+			if (ProjGenerator == null)
 			{
 				return;
 			}
@@ -1281,10 +1288,9 @@ namespace UnrealBuildTool
 		// Anonymous function that writes project configuration data
 		private void WriteConfiguration(string ProjectName, ProjectConfigAndTargetCombination Combination, StringBuilder VCProjectFileContent, PlatformProjectGeneratorCollection PlatformProjectGenerators, StringBuilder VCUserFileContent)
 		{
-			UnrealTargetPlatform Platform = Combination.Platform;
 			UnrealTargetConfiguration Configuration = Combination.Configuration;
 
-			PlatformProjectGenerator ProjGenerator = PlatformProjectGenerators.GetPlatformProjectGenerator(Platform, true);
+			PlatformProjectGenerator ProjGenerator = Combination.Platform != null ? PlatformProjectGenerators.GetPlatformProjectGenerator(Combination.Platform.Value, true) : null;
 
 			string UProjectPath = "";
 			if (IsForeignProject)
@@ -1299,7 +1305,7 @@ namespace UnrealBuildTool
 				VCProjectFileContent.AppendLine("    <Import Project=\"$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\" Condition=\"exists('$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props')\" Label=\"LocalAppDataPlatform\" />");
 				if(ProjGenerator != null)
 				{
-					ProjGenerator.GetVisualStudioImportGroupProperties(Platform, VCProjectFileContent);
+					ProjGenerator.GetVisualStudioImportGroupProperties(Combination.Platform.Value, VCProjectFileContent);
 				}
 				VCProjectFileContent.AppendLine("  </ImportGroup>");
 
@@ -1318,7 +1324,8 @@ namespace UnrealBuildTool
 					VCProjectFileContent.AppendLine("    <NMakeOutput/>");
 					VCProjectFileContent.AppendLine("  </PropertyGroup>");
 				}
-				else if (UnrealBuildTool.IsEngineInstalled() && Combination.ProjectTarget != null && Combination.ProjectTarget.TargetRules != null && !Combination.ProjectTarget.SupportedPlatforms.Contains(Combination.Platform))
+				else if (UnrealBuildTool.IsEngineInstalled() && Combination.ProjectTarget != null && Combination.ProjectTarget.TargetRules != null && 
+					(Combination.Platform == null || !Combination.ProjectTarget.SupportedPlatforms.Contains(Combination.Platform.Value)))
 				{
 					string ProjectRelativeUnusedDirectory = NormalizeProjectPath(DirectoryReference.Combine(UnrealBuildTool.EngineDirectory, "Intermediate", "Build", "Unused"));
 
@@ -1336,6 +1343,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
+					UnrealTargetPlatform Platform = Combination.Platform.Value;
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules;
 					FileReference TargetFilePath = Combination.ProjectTarget.TargetFilePath;
 					string TargetName = TargetFilePath.GetFileNameWithoutAnyExtensions();
@@ -1425,15 +1433,33 @@ namespace UnrealBuildTool
 						BuildArguments.AppendFormat(" -Project={0}", UProjectPath);
 					}
 
+					List<string> ExtraTargets = new List<string>();
+					if (!bUsePrecompiled)
+					{
+						if (TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
+						{
+							ExtraTargets.Add("ShaderCompileWorker Win64 Development");
+						}
+						if (TargetRulesObject.bWithLiveCoding && bBuildLiveCodingConsole && !UnrealBuildTool.IsEngineInstalled())
+						{
+							ExtraTargets.Add(TargetRulesObject.bUseDebugLiveCodingConsole? "LiveCodingConsole Win64 Debug" : "LiveCodingConsole Win64 Development");
+						}
+					}
+
+					if(ExtraTargets.Count > 0)
+					{
+						BuildArguments.Replace("\"", "\\\"");
+						BuildArguments.Insert(0, "-Target=\"");
+						BuildArguments.Append("\"");
+						foreach(string ExtraTarget in ExtraTargets)
+						{
+							BuildArguments.AppendFormat(" -Target=\"{0}\"", ExtraTarget);
+						}
+					}
+
 					if (bUsePrecompiled)
 					{
 						BuildArguments.Append(" -UsePrecompiled");
-					}
-					else if(TargetRulesObject.Type == TargetType.Editor && bEditorDependsOnShaderCompileWorker && !UnrealBuildTool.IsEngineInstalled())
-					{
-						BuildArguments.Replace("\"", "\\\"");
-						BuildArguments.Insert(0, "-Target=\"ShaderCompileWorker Win64 Development\" -Target=\"");
-						BuildArguments.Append("\"");
 					}
 
 					// Always wait for the mutex between UBT invocations, so that building the whole solution doesn't fail.
@@ -1479,9 +1505,7 @@ namespace UnrealBuildTool
 				{
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules;
 
-					// @ATG_CHANGE : BEGIN - HoloLens support
-					if ((Platform == UnrealTargetPlatform.Win32) || (Platform == UnrealTargetPlatform.Win64) || (Platform == UnrealTargetPlatform.HoloLens))
-					// @ATG_CHANGE : END
+					if ((Combination.Platform == UnrealTargetPlatform.Win32) || (Combination.Platform == UnrealTargetPlatform.Win64) || (Combination.Platform == UnrealTargetPlatform.HoloLens))
 					{
 						VCUserFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 						if (TargetRulesObject.Type != TargetType.Game)
@@ -1500,13 +1524,13 @@ namespace UnrealBuildTool
 
 							VCUserFileContent.AppendLine("    <LocalDebuggerCommandArguments>{0}</LocalDebuggerCommandArguments>", DebugOptions);
 						}
-						VCUserFileContent.AppendLine("    <DebuggerFlavor>{0}</DebuggerFlavor>", Platform == UnrealTargetPlatform.HoloLens ? "AppHostLocalDebugger " : "WindowsLocalDebugger");
+						VCUserFileContent.AppendLine("    <DebuggerFlavor>{0}</DebuggerFlavor>", Combination.Platform == UnrealTargetPlatform.HoloLens ? "AppHostLocalDebugger " : "WindowsLocalDebugger");
 						VCUserFileContent.AppendLine("  </PropertyGroup>");
 					}
 
 					if(ProjGenerator != null)
 					{
-						VCUserFileContent.Append(ProjGenerator.GetVisualStudioUserFileStrings(Platform, Configuration, ConditionString, TargetRulesObject, Combination.ProjectTarget.TargetFilePath, ProjectFilePath));
+						VCUserFileContent.Append(ProjGenerator.GetVisualStudioUserFileStrings(Combination.Platform.Value, Configuration, ConditionString, TargetRulesObject, Combination.ProjectTarget.TargetFilePath, ProjectFilePath));
 					}
 				}
 			}

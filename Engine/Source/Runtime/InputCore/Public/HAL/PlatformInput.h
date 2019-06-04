@@ -4,30 +4,4 @@
 
 #include "CoreTypes.h"
 
-#if PLATFORM_WINDOWS
-#include "Windows/WindowsPlatformInput.h"
-#elif PLATFORM_PS4
-#include "PS4/PS4PlatformInput.h"
-#elif PLATFORM_XBOXONE
-#include "XboxOne/XboxOnePlatformInput.h"
-#elif PLATFORM_MAC
-#include "Mac/MacPlatformInput.h"
-#elif PLATFORM_IOS
-#include "IOS/IOSPlatformInput.h"
-#elif PLATFORM_LUMIN
-#include "Lumin/LuminPlatformInput.h"
-#elif PLATFORM_ANDROID
-#include "Android/AndroidPlatformInput.h"
-#elif PLATFORM_HTML5
-#include "HTML5/HTML5PlatformInput.h"
-#elif PLATFORM_QUAIL
-#include "Quail/QuailPlatformInput.h"
-#elif PLATFORM_LINUX
-#include "Linux/LinuxPlatformInput.h"
-#elif PLATFORM_SWITCH
-#include "Switch/SwitchPlatformInput.h"
-// @ATG_CHANGE : BEGIN HoloLens support
-#elif PLATFORM_HOLOLENS
-#include "HoloLens/HoloLensPlatformInput.h"
-// @ATG_CHANGE : END
-#endif
+#include COMPILED_PLATFORM_HEADER(PlatformInput.h)

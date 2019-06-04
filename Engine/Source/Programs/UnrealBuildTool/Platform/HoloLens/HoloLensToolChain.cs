@@ -35,11 +35,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		protected ReadOnlyTargetRules Target;
 
-		public HoloLensToolChain(CppPlatform CppPlatform, ReadOnlyTargetRules Target)
-			: base(CppPlatform)
+		public HoloLensToolChain(ReadOnlyTargetRules Target)
 		{
 			this.Target = Target;
-			EnvVars = VCEnvironment.Create(Target.WindowsPlatform.Compiler, CppPlatform, Target.WindowsPlatform.Architecture, Target.WindowsPlatform.CompilerVersion, Target.HoloLensPlatform.Win10SDKVersion.ToString());
+			EnvVars = Target.WindowsPlatform.Environment;
 
 			if (Target.WindowsPlatform.ObjSrcMapFile != null)
 			{
@@ -73,7 +72,7 @@ namespace UnrealBuildTool
 			// are interpreted as WinRT.
 			Arguments.Add("/Zp8");
 
-			if (CompileEnvironment.Platform != CppPlatform.HoloLens)
+			if (CompileEnvironment.Platform != UnrealTargetPlatform.HoloLens)
 			{
 				// Allow the compiler to generate SSE2 instructions. (On by default in 64bit)
 				Arguments.Add("/arch:SSE2");
@@ -461,9 +460,7 @@ namespace UnrealBuildTool
 				var DefinitionArgument = Definition.Contains("\"") ? Definition.Replace("\"", "\\\"") : Definition;
 				VCToolChain.AddDefinition(SharedArguments,  DefinitionArgument);
 			}
-
-			var BuildPlatform = UEBuildPlatform.GetBuildPlatformForCPPTargetPlatform(CompileEnvironment.Platform);
-
+			
 			// Create a compile action for each source file.
 			CPPOutput Result = new CPPOutput();
 			foreach (FileItem SourceFile in InputFiles)
@@ -528,7 +525,6 @@ namespace UnrealBuildTool
 				{
 					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
 					{
-						CompileAction.bIsUsingPCH = true;
 						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile);
 
 						FileArguments.Add(String.Format("/FI\"{0}\"", CompileEnvironment.PrecompiledHeaderIncludeFilename.FullName));
@@ -870,16 +866,6 @@ namespace UnrealBuildTool
 				PrerequisiteItems.Add(InputFile);
 			}
 
-			if (!bBuildImportLibraryOnly)
-			{
-				// Add input libraries as prerequisites, too!
-				foreach (FileItem InputLibrary in LinkEnvironment.InputLibraries)
-				{
-					InputFileNames.Add(string.Format("\"{0}\"", InputLibrary.AbsolutePath));
-					PrerequisiteItems.Add(InputLibrary);
-				}
-			}
-
 			if (!bIsBuildingLibrary)
 			{
 				foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
@@ -1011,10 +997,6 @@ namespace UnrealBuildTool
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
 			}
-			foreach (FileItem InputLibrary in LinkEnvironment.InputLibraries)
-			{
-				ObjectFileDirectories.Add(InputLibrary.Location.Directory);
-			}
 			foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
 			{
 				// Need to handle import libraries that are about to be built (but may not exist yet), third party libraries with relative paths in the UE4 tree, and system libraries in the system path
@@ -1039,9 +1021,9 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Gets the default include paths for the given platform.
 		/// </summary>
-		public static string GetVCIncludePaths(CppPlatform Platform, WindowsCompiler Compiler)
+		public static string GetVCIncludePaths(UnrealTargetPlatform Platform, WindowsCompiler Compiler)
 		{
-			Debug.Assert(Platform == CppPlatform.HoloLens);
+			Debug.Assert(Platform == UnrealTargetPlatform.HoloLens);
 
 
 			// Also add any include paths from the INCLUDE environment variable.  MSVC is not necessarily running with an environment that

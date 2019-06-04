@@ -134,8 +134,7 @@ namespace UnrealBuildTool
 	{
 		protected FileReference ProjectFile;
 
-		public AppleToolChain(CppPlatform InCppPlatform, FileReference InProjectFile)
-			: base(InCppPlatform)
+		public AppleToolChain(FileReference InProjectFile)
 		{
 			ProjectFile = InProjectFile;
 		}
@@ -161,7 +160,7 @@ namespace UnrealBuildTool
 			Utils.RunLocalProcessAndLogOutput(StartInfo);
 		}
 		
-		protected string GetDsymutilPath()
+		protected string GetDsymutilPath(out string ExtraOptions, bool bIsForLTOBuild=false)
 		{
 			FileReference DsymutilLocation = new FileReference("/usr/bin/dsymutil");
 
@@ -189,6 +188,8 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// 10.0.1 has an issue with LTO builds where we need to limit the number of threads
+			ExtraOptions = (DsymutilVersionString.StartsWith("Apple LLVM version 10.0.1", StringComparison.Ordinal)) ? "-j 1" : "";
 			return DsymutilLocation.FullName;
 		}
 	};
