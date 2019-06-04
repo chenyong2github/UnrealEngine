@@ -748,7 +748,6 @@ void ADebugCameraController::ToggleBufferVisualizationOverviewMode()
 	if (UGameViewportClient* GameViewportClient = GetWorld()->GetGameViewport())
 	{
 		bEnableBufferVisualization = !bEnableBufferVisualization;
-		bEnableBufferVisualizationFullMode = false;
 
 		FString Cmd(TEXT("VIEWMODE "));
 
@@ -759,14 +758,18 @@ void ADebugCameraController::ToggleBufferVisualizationOverviewMode()
 
 			TArray<FString> SelectedBuffers = GetBufferVisualizationOverviewTargets();
 
-			if (LastSelectedBuffer.IsEmpty() || !SelectedBuffers.Contains(LastSelectedBuffer))
+			if (CurrSelectedBuffer.IsEmpty() || !SelectedBuffers.Contains(CurrSelectedBuffer))
 			{
 				GetNextBuffer(SelectedBuffers, 1);
 			}
+
+			bLastDisplayEnabled = IsDisplayEnabled();
+			SetDisplay(false);
 		}
 		else
 		{
 			Cmd += GetViewModeName((EViewModeIndex)LastViewModeIndex);
+			SetDisplay(bLastDisplayEnabled);
 		}
 
 		GameViewportClient->ConsoleCommand(Cmd);
@@ -781,11 +784,11 @@ void ADebugCameraController::UpdateVisualizeBufferPostProcessing(FFinalPostProce
 {
 	if (bEnableBufferVisualization)
 	{
-		FName TargetBufferName = *LastSelectedBuffer;
-		if (UMaterial* Material = GetBufferVisualizationData().GetMaterial(TargetBufferName))
+		FString BufferMaterialName = GetSelectedBufferName();
+		if (!BufferMaterialName.IsEmpty())
 		{
 			InOutPostProcessingSettings.bBufferVisualizationOverviewTargetIsSelected = true;
-			InOutPostProcessingSettings.BufferVisualizationOverviewSelectedTargetMaterialName = Material->GetName();
+			InOutPostProcessingSettings.BufferVisualizationOverviewSelectedTargetMaterialName = BufferMaterialName;
 			return;
 		}
 	}
@@ -811,13 +814,13 @@ void ADebugCameraController::GetNextBuffer(const TArray<FString>& OverviewBuffer
 	{
 		int32 BufferIndex = 0;
 
-		if (!LastSelectedBuffer.IsEmpty())
+		if (!CurrSelectedBuffer.IsEmpty())
 		{
 			bool bFoundIndex = false;
 
 			for (int32 Index = 0; Index < OverviewBuffers.Num(); Index++)
 			{
-				if (OverviewBuffers[Index] == LastSelectedBuffer)
+				if (OverviewBuffers[Index] == CurrSelectedBuffer)
 				{
 					BufferIndex = Index;
 					bFoundIndex = true;
@@ -827,17 +830,17 @@ void ADebugCameraController::GetNextBuffer(const TArray<FString>& OverviewBuffer
 
 			if (!bFoundIndex)
 			{
-				LastSelectedBuffer.Empty();
+				CurrSelectedBuffer.Empty();
 			}
 		}
 
-		if (LastSelectedBuffer.IsEmpty())
+		if (CurrSelectedBuffer.IsEmpty())
 		{
 			for (FString Buffer : OverviewBuffers)
 			{
 				if (!Buffer.IsEmpty())
 				{
-					LastSelectedBuffer = Buffer;
+					CurrSelectedBuffer = Buffer;
 					break;
 				}
 			}
@@ -869,7 +872,7 @@ void ADebugCameraController::GetNextBuffer(const TArray<FString>& OverviewBuffer
 			{
 				if (!OverviewBuffers[NextIndex].IsEmpty())
 				{
-					LastSelectedBuffer = OverviewBuffers[NextIndex];
+					CurrSelectedBuffer = OverviewBuffers[NextIndex];
 					break;
 				}
 				NextIndex = Wrap(NextIndex + Step);
@@ -898,6 +901,16 @@ void ADebugCameraController::BufferVisualizationMoveLeft()
 	GetNextBuffer(-1);
 }
 
+FString ADebugCameraController::GetSelectedBufferName()
+{
+	if (UMaterial* Material = GetBufferVisualizationData().GetMaterial(*CurrSelectedBuffer))
+	{
+		return Material->GetName();
+	}
+
+	return TEXT("");
+}
+
 void ADebugCameraController::ConsumeAxisMotion(float Val)
 {
 	// Just ignore the axis motion.
@@ -906,18 +919,23 @@ void ADebugCameraController::ConsumeAxisMotion(float Val)
 void ADebugCameraController::ToggleBufferVisualizationFullMode()
 {
 	SetBufferVisualizationFullMode(!bEnableBufferVisualizationFullMode);
-	SetupBufferVisualizationOverviewInput();
 }
 
 void ADebugCameraController::SetBufferVisualizationFullMode(bool bFullMode)
 {
-	bEnableBufferVisualizationFullMode = bFullMode;
-
-	static IConsoleVariable* ICVar = IConsoleManager::Get().FindConsoleVariable(FBufferVisualizationData::GetVisualizationTargetConsoleCommandName());
-	if (ICVar)
+	if (bEnableBufferVisualizationFullMode != bFullMode)
 	{
-		static const FName EmptyName = NAME_None;
-		ICVar->Set(bFullMode ? *LastSelectedBuffer : *EmptyName.ToString(), ECVF_SetByCode);
+		bEnableBufferVisualizationFullMode = bFullMode;
+
+		static IConsoleVariable* ICVar = IConsoleManager::Get().FindConsoleVariable(FBufferVisualizationData::GetVisualizationTargetConsoleCommandName());
+		if (ICVar)
+		{
+			static const FName EmptyName = NAME_None;
+			ICVar->Set(bFullMode ? *CurrSelectedBuffer : *EmptyName.ToString(), ECVF_SetByCode);
+		}
+
+		SetupBufferVisualizationOverviewInput();
+		SetDisplay(bEnableBufferVisualizationFullMode);
 	}
 }
 
@@ -994,5 +1012,18 @@ void ADebugCameraController::ToggleDisplay()
 	if (MyHUD)
 	{
 		MyHUD->ShowHUD();
+	}
+}
+
+bool ADebugCameraController::IsDisplayEnabled()
+{
+	return (MyHUD && MyHUD->bShowHUD);
+}
+
+void ADebugCameraController::SetDisplay(bool bEnabled)
+{
+	if (IsDisplayEnabled() != bEnabled)
+	{
+		ToggleDisplay();
 	}
 }
