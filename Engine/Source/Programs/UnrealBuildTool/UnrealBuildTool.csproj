@@ -282,20 +282,20 @@
     <Compile Include="Platform\Windows\PVSToolChain.cs" />
   </ItemGroup>
   <Choose>
+	<When Condition="Exists('Platform\HoloLens\UEBuildHoloLens.cs')">
+	  <ItemGroup>
+		<Compile Include="Platform\HoloLens\UEBuildHoloLens.cs" />
+		<Compile Include="Platform\HoloLens\HoloLensDeploy.cs" />
+		<Compile Include="Platform\HoloLens\HoloLensExports.cs" />
+		<Compile Include="Platform\HoloLens\HoloLensProjectGenerator.cs" />
+		<Compile Include="Platform\HoloLens\HoloLensToolChain.cs" />
+		<Compile Include="Platform\HoloLens\ManifestGenerator.cs" />
+		<Compile Include="Platform\HoloLens\WinMDRegistrationInfo.cs" />
+	  </ItemGroup>
+	</When>
+  </Choose>
+  <Choose>
     <When Condition="'$(OS)' == 'Windows_NT'">
-	  <Choose>
-		<When Condition="Exists('Platform\HoloLens\UEBuildHoloLens.cs')">
-		  <ItemGroup>
-			<Compile Include="Platform\HoloLens\UEBuildHoloLens.cs" />
-			<Compile Include="Platform\HoloLens\HoloLensDeploy.cs" />
-			<Compile Include="Platform\HoloLens\HoloLensExports.cs" />
-			<Compile Include="Platform\HoloLens\HoloLensProjectGenerator.cs" />
-			<Compile Include="Platform\HoloLens\HoloLensToolChain.cs" />
-			<Compile Include="Platform\HoloLens\ManifestGenerator.cs" />
-			<Compile Include="Platform\HoloLens\WinMDRegistrationInfo.cs" />
-		  </ItemGroup>
-		</When>
-	  </Choose>
 	  <PropertyGroup>
 		<Windows10SdkPath>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@InstallationFolder)</Windows10SdkPath>
 		<Windows10SdkLatestVersion>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@ProductVersion)</Windows10SdkLatestVersion>

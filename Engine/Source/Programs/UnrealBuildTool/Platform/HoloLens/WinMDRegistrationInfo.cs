@@ -29,7 +29,9 @@ namespace UnrealBuildTool
 				TypeName = InTypeName;
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
+#if !__MonoCS__ && !MONO
 					ThreadingModelName = ((Windows.Foundation.Metadata.ThreadingModel)InThreadingModel).ToString().ToLowerInvariant();
+#endif
 				}
 			}
 			
@@ -56,6 +58,7 @@ namespace UnrealBuildTool
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
+#if !__MonoCS__ && !MONO
 				ActivatableTypesList = new List<ActivatableType>();
 				var DependsOn = Assembly.ReflectionOnlyLoadFrom(InWindMDSourcePath.FullName);
 				foreach (var WinMDType in DependsOn.GetExportedTypes())
@@ -79,7 +82,7 @@ namespace UnrealBuildTool
 						ActivatableTypesList.Add(new ActivatableType(WinMDType.FullName, ThreadingModel));
 					}
 				}
-
+#endif
 			}
 		}
 
