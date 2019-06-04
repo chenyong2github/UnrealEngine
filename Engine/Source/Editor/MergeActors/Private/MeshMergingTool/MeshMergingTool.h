@@ -50,7 +50,7 @@ public:
 				DefaultSettings->MarkPendingKill();
 			}
 			
-			DefaultSettings = false;
+			DefaultSettings = nullptr;
 			bInitialized = false;
 		}
 	}
