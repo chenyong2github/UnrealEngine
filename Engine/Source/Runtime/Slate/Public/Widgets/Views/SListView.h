@@ -1024,7 +1024,7 @@ public:
 			// But we may still have space to fill!
 			if (bAtEndOfList && ViewHeightUsedSoFar < MyGeometry.GetLocalSize().Y)
 			{
-				float NewScrollOffsetForBackfill = StartIndex + (HeightGeneratedSoFar - MyGeometry.GetLocalSize().Y) / FirstItemHeight;
+				double NewScrollOffsetForBackfill = static_cast<double>(StartIndex) + (HeightGeneratedSoFar - MyGeometry.GetLocalSize().Y) / FirstItemHeight;
 
 				for( int32 ItemIndex = StartIndex-1; HeightGeneratedSoFar < MyGeometry.GetLocalSize().Y && ItemIndex >= 0; --ItemIndex )
 				{
@@ -1036,7 +1036,7 @@ public:
 					{
 						// Generated the item that puts us over the top.
 						// Count the fraction of this item that will stick out above the list
-						NewScrollOffsetForBackfill = ItemIndex + (HeightGeneratedSoFar + ItemHeight - MyGeometry.GetLocalSize().Y) / ItemHeight;
+						NewScrollOffsetForBackfill = static_cast<double>(ItemIndex) + (HeightGeneratedSoFar + ItemHeight - MyGeometry.GetLocalSize().Y) / ItemHeight;
 					}
 
 					// The widget used up some of the available vertical space.
@@ -1050,7 +1050,6 @@ public:
 		}
 
 		return FReGenerateResults(0.0f, 0.0f, 0.0f, false);
-
 	}
 
 	float GenerateWidgetForItem( const ItemType& CurItem, int32 ItemIndex, int32 StartIndex, float LayoutScaleMultiplier )
@@ -1469,14 +1468,15 @@ protected:
 				{
 					// Scroll the top of the listview to the item in question
 					double NewScrollOffset = IndexOfItem;
+
 					// Center the list view on the item in question.
 					NewScrollOffset -= (NumLiveWidgets / 2);
-					//we also don't want the widget being chopped off if it is at the end of the list
-					const double MoveBackBy = FMath::Clamp<double>(IndexOfItem - (NewScrollOffset + NumLiveWidgets), 0, FLT_MAX);
-					//Move to the correct center spot
-					NewScrollOffset += MoveBackBy;
 
-					SetScrollOffset( NewScrollOffset );
+					// Limit offset to top and bottom of the list.
+					const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+					NewScrollOffset = FMath::Clamp<double>(NewScrollOffset, 0.0, MaxScrollOffset);
+
+					SetScrollOffset(NewScrollOffset);
 				}
 				else if (bNavigateOnScrollIntoView)
 				{
@@ -1487,7 +1487,9 @@ protected:
 						if (RowGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector).Y < ListViewGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector).Y)
 						{
 							// This row is clipped on the top, so simply set it as the new scroll offset target to bump it down a bit
-							SetScrollOffset(IndexOfItem - NavigationScrollOffset);
+							const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+							double NewScrollOffset = FMath::Clamp<double>(static_cast<double>(IndexOfItem - NavigationScrollOffset), 0.0, MaxScrollOffset);
+							SetScrollOffset(NewScrollOffset);
 						}
 						else
 						{
@@ -1516,7 +1518,9 @@ protected:
 									}
 								}
 
-								SetScrollOffset(ScrollOffset + AdditionalOffset + NavigationScrollOffset);
+								const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+								double NewScrollOffset = FMath::Clamp<double>(ScrollOffset + AdditionalOffset + NavigationScrollOffset, 0.0, MaxScrollOffset);
+								SetScrollOffset(NewScrollOffset);
 							}
 						}
 					}

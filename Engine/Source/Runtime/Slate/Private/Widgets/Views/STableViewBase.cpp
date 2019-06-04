@@ -263,10 +263,17 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 			{
 				ScrollOffset = ReGenerateResults.NewScrollOffset;
 			}
-			
-			
-			SetScrollOffset( FMath::Max(0.0, ScrollOffset) );
-			ItemsPanel->SmoothScrollOffset( FMath::Fractional(ScrollOffset / GetNumItemsWide()) );
+
+			// Compute SmoothScrollOffset before SetScrollOffset(). This is becasue SetScrollOffset() modifies the ScrollOffset (double downcast to float).
+			// We need original value in computation of SmoothScrollOffset.
+			double SmoothScrollOffset = ScrollOffset / GetNumItemsWide();
+			SmoothScrollOffset = SmoothScrollOffset - (int64)SmoothScrollOffset; // get fractional part
+
+			SetScrollOffset(FMath::Max(0.0, ScrollOffset));
+
+			// FMath::Fractional() is buggy as it casts to int32 (too small for the integer part of float).
+			//ItemsPanel->SmoothScrollOffset(FMath::Fractional(ScrollOffset / GetNumItemsWide()));
+			ItemsPanel->SmoothScrollOffset(SmoothScrollOffset);
 
 			if (AllowOverscroll == EAllowOverscroll::Yes)
 			{
@@ -303,7 +310,7 @@ void STableViewBase::Tick( const FGeometry& AllottedGeometry, const double InCur
 				ScrollBar->SetState( OffsetFraction, ThumbSizeFraction );
 			}
 
-			bWasAtEndOfList = (ScrollBar->DistanceFromBottom() < KINDA_SMALL_NUMBER);
+			bWasAtEndOfList = (ScrollBar->DistanceFromBottom() < SMALL_NUMBER);
 
 			bItemsNeedRefresh = false;
 			ItemsPanel->SetRefreshPending(false);

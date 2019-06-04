@@ -224,10 +224,7 @@ public:
 		return CustomVersionContainer;
 	}
 
-	void SetCustomVersionContainer(const FCustomVersionContainer& InContainer)
-	{
-		CustomVersionContainer = InContainer;
-	}
+	void SetCustomVersionContainer(const FCustomVersionContainer& InContainer);
 
 	void SetFileVersions(const int32 EpicUE4, const int32 LicenseeUE4, const bool bInSaveUnversioned = false)
 	{

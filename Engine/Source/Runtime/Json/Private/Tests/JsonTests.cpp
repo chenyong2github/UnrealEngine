@@ -688,6 +688,180 @@ bool FJsonAutomationTest::RunTest(const FString& Parameters)
 		check( !Object.IsValid() );
 	}
 
+	// TryGetNumber tests
+	{
+		auto JsonNumberToInt64 = [](double Val, int64& OutVal) -> bool
+		{
+			FJsonValueNumber JsonVal(Val);
+			return ((FJsonValue&)JsonVal).TryGetNumber(OutVal);
+		};
+
+		auto JsonNumberToInt32 = [](double Val, int32& OutVal) -> bool
+		{
+			FJsonValueNumber JsonVal(Val);
+			return ((FJsonValue&)JsonVal).TryGetNumber(OutVal);
+		};
+
+		auto JsonNumberToUInt32 = [](double Val, uint32& OutVal) -> bool
+		{
+			FJsonValueNumber JsonVal(Val);
+			return ((FJsonValue&)JsonVal).TryGetNumber(OutVal);
+		};
+		
+		// TryGetNumber-Int64 tests
+		{
+			int64 IntVal;
+			bool bOk = JsonNumberToInt64(9007199254740991.0, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int64 Big Float64 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int64 Big Float64"), IntVal, 9007199254740991LL);
+		}
+
+		{
+			int64 IntVal;
+			bool bOk = JsonNumberToInt64(-9007199254740991.0, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int64 Small Float64 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int64 Small Float64"), IntVal, -9007199254740991LL);
+		}
+
+		{
+			int64 IntVal;
+			bool bOk = JsonNumberToInt64(0.4999999999999997, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int64 Lesser than near half succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int64 Lesser than near half rounds to zero"), IntVal, 0LL);
+		}
+
+		{
+			int64 IntVal;
+			bool bOk = JsonNumberToInt64(-0.4999999999999997, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int64 Greater than near negative half succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int64 Greater than near negative half rounds to zero"), IntVal, 0LL);
+		}
+
+		{
+			int64 IntVal;
+			bool bOk = JsonNumberToInt64(0.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int64 Half rounds to next integer succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int64 Half rounds to next integer"), IntVal, 1LL);
+		}
+
+		{
+			int64 IntVal;
+			bool bOk = JsonNumberToInt64(-0.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int64 Negative half rounds to next negative integer succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int64 Negative half rounds to next negative integer succeeds"), IntVal, -1LL);
+		}
+
+		// TryGetNumber-Int32 tests
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(2147483647.000001, IntVal);
+			TestFalse(TEXT("TryGetNumber-Int32 Number greater than max Int32 fails"), bOk);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(-2147483648.000001, IntVal);
+			TestFalse(TEXT("TryGetNumber-Int32 Number lesser than min Int32 fails"), bOk);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(2147483647.0, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Max Int32 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Max Int32"), IntVal, INT_MAX);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(2147483646.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Round up to max Int32 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Round up to max Int32"), IntVal, INT_MAX);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(-2147483648.0, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Min Int32 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Min Int32"), IntVal, INT_MIN);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(-2147483647.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Round down to min Int32 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Round down to min Int32"), IntVal, INT_MIN);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(0.4999999999999997, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Lesser than near half succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Lesser than near half rounds to zero"), IntVal, 0);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(-0.4999999999999997, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Greater than near negative half succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Greater than near negative half rounds to zero"), IntVal, 0);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(0.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Half rounds to next integer succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Half rounds to next integer"), IntVal, 1);
+		}
+
+		{
+			int32 IntVal;
+			bool bOk = JsonNumberToInt32(-0.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-Int32 Negative half rounds to next negative integer succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-Int32 Negative half rounds to next negative integer succeeds"), IntVal, -1);
+		}
+
+		// TryGetNumber-UInt32 tests
+		{
+			uint32 IntVal;
+			bool bOk = JsonNumberToUInt32(4294967295.000001, IntVal);
+			TestFalse(TEXT("TryGetNumber-UInt32 Number greater than max Uint32 fails"), bOk);
+		}
+
+		{
+			uint32 IntVal;
+			bool bOk = JsonNumberToUInt32(-0.000000000000001, IntVal);
+			TestFalse(TEXT("TryGetNumber-UInt32 Negative number fails"), bOk);
+		}
+
+		{
+			uint32 IntVal;
+			bool bOk = JsonNumberToUInt32(4294967295.0, IntVal);
+			TestTrue(TEXT("TryGetNumber-UInt32 Max UInt32 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-UInt32  Max UInt32"), IntVal, UINT_MAX);
+		}
+
+		{
+			uint32 IntVal;
+			bool bOk = JsonNumberToUInt32(4294967294.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-UInt32 Round up to max UInt32 succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-UInt32 Round up to max UInt32"), IntVal, UINT_MAX);
+		}
+
+		{
+			uint32 IntVal;
+			bool bOk = JsonNumberToUInt32(0.4999999999999997, IntVal);
+			TestTrue(TEXT("TryGetNumber-UInt32 Lesser than near half succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-UInt32 Lesser than near half rounds to zero"), IntVal, 0U);
+		}
+
+		{
+			uint32 IntVal;
+			bool bOk = JsonNumberToUInt32(0.5, IntVal);
+			TestTrue(TEXT("TryGetNumber-UInt32 Half rounds to next integer succeeds"), bOk);
+			TestEqual(TEXT("TryGetNumber-UInt32 Half rounds to next integer"), IntVal, 1U);
+		}
+	}
+
 	return true;
 }
 

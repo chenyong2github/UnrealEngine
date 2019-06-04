@@ -347,7 +347,7 @@ static void LoadBinaryIntoBigNum(const uint8* InData, int64 InDataSize, BIGNUM* 
 #endif
 }
 
-TPlatformCryptoRSAKey FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<const uint8> PublicExponent, const TArrayView<const uint8> PrivateExponent, const TArrayView<const uint8> Modulus)
+FRSAKeyHandle FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<const uint8> PublicExponent, const TArrayView<const uint8> PrivateExponent, const TArrayView<const uint8> Modulus)
 {
 	RSA* NewKey = RSA_new();
 
@@ -377,22 +377,22 @@ TPlatformCryptoRSAKey FEncryptionContextOpenSSL::CreateKey_RSA(const TArrayView<
 	return NewKey;
 }
 
-void FEncryptionContextOpenSSL::DestroyKey_RSA(TPlatformCryptoRSAKey Key)
+void FEncryptionContextOpenSSL::DestroyKey_RSA(FRSAKeyHandle Key)
 {
 	RSA_free((RSA*)Key);
 }
 
-int32 FEncryptionContextOpenSSL::GetKeySize_RSA(TPlatformCryptoRSAKey Key)
+int32 FEncryptionContextOpenSSL::GetKeySize_RSA(FRSAKeyHandle Key)
 {
 	return RSA_size((RSA*)Key);
 }
 
-int32 FEncryptionContextOpenSSL::GetMaxDataSize_RSA(TPlatformCryptoRSAKey Key)
+int32 FEncryptionContextOpenSSL::GetMaxDataSize_RSA(FRSAKeyHandle Key)
 {
 	return (GetKeySize_RSA(Key)) - RSA_PKCS1_PADDING_SIZE;
 }
 
-int32 FEncryptionContextOpenSSL::EncryptPublic_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+int32 FEncryptionContextOpenSSL::EncryptPublic_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, FRSAKeyHandle Key)
 {
 	Dest.SetNum(GetKeySize_RSA(Key));
 	int NumEncryptedBytes = RSA_public_encrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
@@ -403,7 +403,7 @@ int32 FEncryptionContextOpenSSL::EncryptPublic_RSA(TArrayView<const uint8> Sourc
 	return NumEncryptedBytes;
 }
 
-int32 FEncryptionContextOpenSSL::EncryptPrivate_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+int32 FEncryptionContextOpenSSL::EncryptPrivate_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, FRSAKeyHandle Key)
 {
 	Dest.SetNum(GetKeySize_RSA(Key));
 	int NumEncryptedBytes = RSA_private_encrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
@@ -414,7 +414,7 @@ int32 FEncryptionContextOpenSSL::EncryptPrivate_RSA(TArrayView<const uint8> Sour
 	return NumEncryptedBytes;
 }
 
-int32 FEncryptionContextOpenSSL::DecryptPublic_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+int32 FEncryptionContextOpenSSL::DecryptPublic_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, FRSAKeyHandle Key)
 {
 	Dest.SetNum(GetKeySize_RSA(Key) - RSA_PKCS1_PADDING_SIZE);
 	int NumDecryptedBytes = RSA_public_decrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);
@@ -429,7 +429,7 @@ int32 FEncryptionContextOpenSSL::DecryptPublic_RSA(TArrayView<const uint8> Sourc
 	return NumDecryptedBytes;
 }
 
-int32 FEncryptionContextOpenSSL::DecryptPrivate_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, TPlatformCryptoRSAKey Key)
+int32 FEncryptionContextOpenSSL::DecryptPrivate_RSA(TArrayView<const uint8> Source, TArray<uint8>& Dest, FRSAKeyHandle Key)
 {
 	Dest.SetNum(GetKeySize_RSA(Key) - RSA_PKCS1_PADDING_SIZE);
 	int NumDecryptedBytes = RSA_private_decrypt(Source.Num(), Source.GetData(), Dest.GetData(), (RSA*)Key, RSA_PKCS1_PADDING);

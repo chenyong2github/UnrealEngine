@@ -8,7 +8,7 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogLoadingDev, Fatal, All);
 
-class COREUOBJECT_API FArchiveAsync2 final: public FArchive
+class COREUOBJECT_API FAsyncArchive final: public FArchive
 {
 public:
 	enum class ELoadPhase
@@ -20,10 +20,10 @@ public:
 		ProcessingExports,
 	};
 
-	FArchiveAsync2(const TCHAR* InFileName
-		, TFunction<void()>&& InSummaryReadyCallback
-		);
-	virtual ~FArchiveAsync2();
+	FAsyncArchive(const TCHAR* InFileName, TFunction<void()>&& InSummaryReadyCallback);
+	virtual ~FAsyncArchive ();
+
+	/** Archive overrides */
 	virtual bool Close() override;
 	virtual bool SetCompressionMap(TArray<FCompressedChunk>* CompressedChunks, ECompressionFlags CompressionFlags) override;
 	virtual bool Precache(int64 PrecacheOffset, int64 PrecacheSize) override;
@@ -44,16 +44,14 @@ public:
 		return FileName;
 	}
 
-	bool Precache(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
+	/** AsyncArchive interface */
+	bool PrecacheWithTimeLimit(int64 PrecacheOffset, int64 PrecacheSize, bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
 	bool PrecacheForEvent(int64 PrecacheOffset, int64 PrecacheSize);
 	void FlushPrecacheBlock();
 	bool ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit);
 	void StartReadingHeader();
 	void EndReadingHeader();
-	void FirstExportStarting();
-
 	IAsyncReadRequest* MakeEventDrivenPrecacheRequest(int64 Offset, int64 BytesToRead, FAsyncFileCallBack* CompleteCallback);
-
 	void LogItem(const TCHAR* Item, int64 Offset = 0, int64 Size = 0, double StartTime = 0.0);
 
 	bool IsCookedForEDLInEditor() const
@@ -71,7 +69,7 @@ private:
 	void SetPosAndUpdatePrecacheBuffer(int64 Pos);
 
 #endif
-
+	void FirstExportStarting();
 	bool WaitRead(float TimeLimit = 0.0f);
 	void CompleteRead();
 	void CancelRead();

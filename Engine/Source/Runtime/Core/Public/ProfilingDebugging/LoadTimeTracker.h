@@ -11,6 +11,7 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 #include "ProfilingDebugging/ScopedTimers.h"
+#include "Trace/Trace.h"
 
 #ifndef ENABLE_LOADTIME_TRACKING
 	#define ENABLE_LOADTIME_TRACKING 0
@@ -211,6 +212,7 @@ struct CORE_API FScopedLoadTimeAccumulatorTimer : public FScopedDurationTimer
 #define SCOPED_LOADTIMER(TimerName) FScopedDurationTimer DurationTimer_##TimerName(FLoadTimeTracker::Get().TimerName);
 #define SCOPED_LOADTIMER_CNT(TimerName) FScopedDurationTimer DurationTimer_##TimerName(FLoadTimeTracker::Get().TimerName); FLoadTimeTracker::Get().TimerName##Cnt++;
 #else
-#define SCOPED_LOADTIMER(TimerName)
+
+#define SCOPED_LOADTIMER(TimerName) TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(TimerName, CpuProfilerGroup_LoadTime)
 #define SCOPED_LOADTIMER_CNT(TimerName)
 #endif

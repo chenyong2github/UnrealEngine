@@ -2700,7 +2700,7 @@ void FEdModeLandscape::UpdateTargetLayerDisplayOrder(ELandscapeLayerDisplayMode 
 				SavedTargetNameList.Add(LandscapeTargetList[i]->LayerName);
 			}
 
-			SavedTargetNameList.Sort();
+			SavedTargetNameList.Sort(FNameLexicalLess());
 
 			// Then insert the non layer target that shouldn't be sorted
 			for (int32 i = 0; i < GetTargetLayerStartingIndex(); ++i)

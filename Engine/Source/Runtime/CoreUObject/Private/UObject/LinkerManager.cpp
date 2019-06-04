@@ -49,9 +49,9 @@ bool FLinkerManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 			int32 NameSize = 0;
 			for (int32 j = 0; j < Linker->NameMap.Num(); j++)
 			{
-				if (Linker->NameMap[j] != NAME_None)
+				if (FNameEntryId Id = Linker->NameMap[j])
 				{
-					NameSize += FNameEntry::GetSize(*Linker->NameMap[j].ToString());
+					NameSize += FName::GetEntry(Id)->GetSizeInBytes();
 				}
 			}
 			Ar.Logf

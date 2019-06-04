@@ -9,6 +9,7 @@
 #include "HAL/ThreadSafeCounter.h"
 #include "UObject/ObjectMacros.h"
 #include "Serialization/AsyncLoading.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
@@ -517,6 +518,7 @@ public:
 		for (int32 ID : RequestIDs)
 		{
 			PendingRequests.Remove(ID);
+			TRACE_LOADTIME_END_REQUEST(ID);
 		}		
 	}
 

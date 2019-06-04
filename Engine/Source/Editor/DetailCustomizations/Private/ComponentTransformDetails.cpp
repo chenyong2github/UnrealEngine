@@ -285,15 +285,15 @@ FUIAction FComponentTransformDetails::CreateCopyAction( ETransformField::Type Tr
 	return
 		FUIAction
 		(
-			FExecuteAction::CreateSP(this, &FComponentTransformDetails::OnCopy, TransformField ),
-			FCanExecuteAction::CreateSP(this, &FComponentTransformDetails::OnCanCopy, TransformField )
+			FExecuteAction::CreateSP(const_cast<FComponentTransformDetails*>(this), &FComponentTransformDetails::OnCopy, TransformField ),
+			FCanExecuteAction::CreateSP(const_cast<FComponentTransformDetails*>(this), &FComponentTransformDetails::OnCanCopy, TransformField )
 		);
 }
 
 FUIAction FComponentTransformDetails::CreatePasteAction( ETransformField::Type TransformField ) const
 {
 	return 
-		 FUIAction( FExecuteAction::CreateSP(this, &FComponentTransformDetails::OnPaste, TransformField ) );
+		 FUIAction( FExecuteAction::CreateSP(const_cast<FComponentTransformDetails*>(this), &FComponentTransformDetails::OnPaste, TransformField ) );
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION

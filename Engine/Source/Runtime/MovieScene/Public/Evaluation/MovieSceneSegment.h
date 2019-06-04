@@ -163,6 +163,11 @@ struct FMovieSceneSegment
 		}
 	}
 
+	FMovieSceneSegment(const TRange<FFrameNumber>& InRange, std::initializer_list<FSectionEvaluationData> InApplicationImpls)
+		: FMovieSceneSegment(InRange, MakeArrayView(InApplicationImpls))
+	{
+	}
+
 	friend bool operator==(const FMovieSceneSegment& A, const FMovieSceneSegment& B)
 	{
 		return A.Range == B.Range && A.ID == B.ID && A.bAllowEmpty == B.bAllowEmpty && A.Impls == B.Impls;

@@ -286,7 +286,7 @@ void FWidgetBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 	TArray<UWidget*> Widgets = WidgetBP->GetAllSourceWidgets();
 
 	// Sort the widgets alphabetically
-	Widgets.Sort( []( const UWidget& Lhs, const UWidget& Rhs ) { return Rhs.GetFName() < Lhs.GetFName(); } );
+	Widgets.Sort( []( const UWidget& Lhs, const UWidget& Rhs ) { return Rhs.GetFName().LexicalLess(Lhs.GetFName()); } );
 
 	// Add widget variables
 	for ( UWidget* Widget : Widgets )

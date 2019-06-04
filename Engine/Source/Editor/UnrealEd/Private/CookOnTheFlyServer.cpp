@@ -307,17 +307,10 @@ void ClearHierarchyTimers()
 
 #define CREATE_TIMER(name, incrementScope) FScopeTimer ScopeTimer##name(__COUNTER__, #name, incrementScope); 
 
-#define SCOPE_TIMER(name)				CREATE_TIMER(name, true); ScopeTimer##name.Start();
+#define SCOPE_TIMER(name)				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT(#name)); CREATE_TIMER(name, true); ScopeTimer##name.Start();
 
-#define ACCUMULATE_TIMER(name)			CREATE_TIMER(name, false);
-#define ACCUMULATE_TIMER_START(name)	ScopeTimer##name.Start();
-#define ACCUMULATE_TIMER_STOP(name)		ScopeTimer##name.Stop();
 #else
 #define SCOPE_TIMER(name)
-
-#define ACCUMULATE_TIMER(name) 
-#define ACCUMULATE_TIMER_START(name) 
-#define ACCUMULATE_TIMER_STOP(name) 
 
 void OutputHierarchyTimers() {}
 void ClearHierarchyTimers() {}
@@ -1249,6 +1242,12 @@ struct FPackageTracker : public FUObjectArray::FUObjectCreateListener, public FU
 		}
 	}
 
+	virtual void OnUObjectArrayShutdown() override
+	{
+		GUObjectArray.RemoveUObjectDeleteListener(this);
+		GUObjectArray.RemoveUObjectCreateListener(this);
+	}
+
 	// This is the set of packages which have already had PostLoadFixup called 
 	TSet<UPackage*>			PostLoadFixupPackages;
 
@@ -1272,6 +1271,7 @@ struct FPackageTracker : public FUObjectArray::FUObjectCreateListener, public FU
 
 	FThreadSafeSet<FName>						NeverCookPackageList;
 	FThreadSafeSet<FName>						UncookedEditorOnlyPackages; // set of packages that have been rejected due to being referenced by editor-only properties
+	TMap<FName, TSet<FName>> 					PlatformSpecificNeverCookPackages;
 
 	// Currently targeted platforms
 	TArray<FName>			AllTargetPlatformNames;
@@ -1449,6 +1449,8 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 // this tick only happens in the editor cook commandlet directly calls tick on the side
 void UCookOnTheFlyServer::Tick(float DeltaTime)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::Tick"));
+
 	check(IsCookingInEditor());
 
 	if (IsCookByTheBookMode() && !IsCookByTheBookRunning() && !GIsSlowTask)
@@ -2167,14 +2169,6 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide( const float TimeSlice, uint32 &Co
 		{
 			const static float SecondsWarningTillAutosave = 10.0f;
 			GUnrealEd->GetPackageAutoSaver().ForceMinimumTimeTillAutoSave(SecondsWarningTillAutosave);
-		}
-
-		if (PackageTracker->CookedPackages.Exists(ToBuild))
-		{
-#if DEBUG_COOKONTHEFLY
-			UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *ToBuild.GetFilename().ToString());
-#endif
-			continue;
 		}
 
 #if DEBUG_COOKONTHEFLY
@@ -3917,13 +3911,23 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 				Result = ESavePackageResult::ContainsEditorOnlyData;
 				bCookPackage = false;
 			}
-
 			// Check whether or not game-specific behaviour should prevent this package from being cooked for the target platform
-			if (UAssetManager::IsValid() && !UAssetManager::Get().ShouldCookForPlatform(Package, Target))
+			else if (UAssetManager::IsValid() && !UAssetManager::Get().ShouldCookForPlatform(Package, Target))
 			{
 				Result = ESavePackageResult::ContainsEditorOnlyData;
 				bCookPackage = false;
 				UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *Package->GetName(), *PlatFilename);
+			}
+			// check if this package is unsupported for the target platform (typically plugin content)
+			else 
+			{
+				TSet<FName>* NeverCookPackages = PackageTracker->PlatformSpecificNeverCookPackages.Find(FName(*Target->PlatformName()));
+				if (NeverCookPackages && NeverCookPackages->Find(FName(*PackagePathName)))
+				{
+					Result = ESavePackageResult::ContainsEditorOnlyData;
+					bCookPackage = false;
+					UE_LOG(LogCook, Display, TEXT("Excluding %s -> %s"), *Package->GetName(), *PlatFilename);
+				}
 			}
 
 			if (bCookPackage == true)
@@ -4049,6 +4053,8 @@ void UCookOnTheFlyServer::SaveCookedPackage(UPackage* Package, uint32 SaveFlags,
 
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::Initialize"));
+
 	OutputDirectoryOverride = InOutputDirectoryOverride;
 	CurrentCookMode = DesiredCookMode;
 	CookFlags = InCookFlags;
@@ -5039,6 +5045,8 @@ FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
 
 void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GetAllCookedFiles"));
+
 	TArray<FString> CookedFiles;
 	{
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -5066,6 +5074,8 @@ void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCo
 
 void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArray<ITargetPlatform*>& Platforms)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::PopulateCookedPackagesFromDisk"));
+
 	// See what files are out of date in the sandbox folder
 	for (int32 Index = 0; Index < Platforms.Num(); Index++)
 	{
@@ -5328,6 +5338,8 @@ const FString ExtractPackageNameFromObjectPath( const FString ObjectPath )
 
 void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::CleanSandbox"));
+
 	const TArray<ITargetPlatform*>& Platforms = GetCookingTargetPlatforms();
 
 	// before we can delete any cooked files we need to make sure that we have finished writing them
@@ -5401,6 +5413,8 @@ void UCookOnTheFlyServer::CleanSandbox(const bool bIterative)
 
 void UCookOnTheFlyServer::GenerateAssetRegistry()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GenerateAssetRegistry"));
+
 	// Cache asset registry for later
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistry = &AssetRegistryModule.Get();
@@ -5538,6 +5552,8 @@ void UCookOnTheFlyServer::AddFileToCook( TArray<FName>& InOutFilesToCook, const 
 
 void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const TArray<FString>& CookMaps, const TArray<FString>& InCookDirectories, const TArray<FString> &IniMapSections, ECookByTheBookOptions FilesToCookFlags)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UCookOnTheFlyServer::GenerateAssetRegistry"));
+
 #if OUTPUT_TIMING
 	SCOPE_TIMER(CollectFilesToCook);
 #endif
@@ -6672,6 +6688,62 @@ void UCookOnTheFlyServer::InitializeTargetPlatforms()
 	}
 }
 
+void UCookOnTheFlyServer::DiscoverPlatformSpecificNeverCookPackages(
+	const TArray<FName>& TargetPlatformNames, const TArray<FString>& TargetPlatformStrings)
+{
+	TArray<FName> PluginUnsupportedTargetPlatforms;
+	TArray<FAssetData> PluginAssets;
+	FARFilter PluginARFilter;
+	FString PluginPackagePath;
+
+	TArray<TSharedRef<IPlugin>> AllContentPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
+	for (TSharedRef<IPlugin> Plugin : AllContentPlugins)
+	{
+		const FPluginDescriptor& Descriptor = Plugin->GetDescriptor();
+
+		// we are only interested in plugins that does not support all platforms
+		if (Descriptor.SupportedTargetPlatforms.Num() == 0)
+		{
+			continue;
+		}
+
+		// find any unsupported target platforms for this plugin
+		PluginUnsupportedTargetPlatforms.Reset();
+		for (int32 I = 0, Count = TargetPlatformNames.Num(); I < Count; ++I)
+		{
+			if (!Descriptor.SupportedTargetPlatforms.Contains(TargetPlatformStrings[I]))
+			{
+				PluginUnsupportedTargetPlatforms.Add(TargetPlatformNames[I]);
+			}
+		}
+
+		// if there are unsupported target platforms,
+		// then add all packages for this plugin for these platforms to the PlatformSpecificNeverCookPackages map
+		if (PluginUnsupportedTargetPlatforms.Num() > 0)
+		{
+			PluginPackagePath.Reset(127);
+			PluginPackagePath.AppendChar(TEXT('/'));
+			PluginPackagePath.Append(Plugin->GetName());
+
+			PluginARFilter.bRecursivePaths = true;
+			PluginARFilter.bIncludeOnlyOnDiskAssets = true;
+			PluginARFilter.PackagePaths.Reset(1);
+			PluginARFilter.PackagePaths.Emplace(*PluginPackagePath);
+
+			PluginAssets.Reset();
+			AssetRegistry->GetAssets(PluginARFilter, PluginAssets);
+
+			for (FName& PlatformName : PluginUnsupportedTargetPlatforms)
+			{
+				TSet<FName>& NeverCookPackages = PackageTracker->PlatformSpecificNeverCookPackages.FindOrAdd(PlatformName);
+				for (const FAssetData& Asset : PluginAssets)
+				{
+					NeverCookPackages.Add(Asset.PackageName);
+				}
+			}
+		}
+	}
+}
 
 void UCookOnTheFlyServer::TermSandbox()
 {
@@ -6822,12 +6894,20 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 
 	}
 	
-
-	CookByTheBookOptions->TargetPlatformNames.Empty();
-	for (const ITargetPlatform* Platform : TargetPlatforms)
+	// build persistent list of all target platform names in CookByTheBookOptions->TargetPlatformNames,
+	// also use temp list of platform strings to discover PlatformSpecificNeverCookPackages
 	{
-		FName PlatformName = FName(*Platform->PlatformName());
-		CookByTheBookOptions->TargetPlatformNames.Add(PlatformName); // build list of all target platform names
+		TArray<FString> TargetPlatformStrings;
+		TargetPlatformStrings.Reserve(TargetPlatforms.Num());
+
+		CookByTheBookOptions->TargetPlatformNames.Empty(TargetPlatforms.Num());
+		for (const ITargetPlatform* Platform : TargetPlatforms)
+		{
+			FString& PlatformString = TargetPlatformStrings.Emplace_GetRef(Platform->PlatformName());
+			CookByTheBookOptions->TargetPlatformNames.Emplace(*PlatformString);
+		}
+
+		DiscoverPlatformSpecificNeverCookPackages(CookByTheBookOptions->TargetPlatformNames, TargetPlatformStrings);
 	}
 	const TArray<FName>& TargetPlatformNames = CookByTheBookOptions->TargetPlatformNames;
 

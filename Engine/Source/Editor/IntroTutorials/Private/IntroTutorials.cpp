@@ -78,7 +78,7 @@ TSharedRef<FExtender> FIntroTutorials::AddSummonBlueprintTutorialsMenuExtender(c
 		"HelpBrowse",
 		EExtensionHook::After,
 		CommandList,
-		FMenuExtensionDelegate::CreateRaw(this, &FIntroTutorials::AddSummonBlueprintTutorialsMenuExtension, PrimaryObject));
+		FMenuExtensionDelegate::CreateRaw(const_cast<FIntroTutorials*>(this), &FIntroTutorials::AddSummonBlueprintTutorialsMenuExtension, PrimaryObject));
 
 	return Extender;
 }

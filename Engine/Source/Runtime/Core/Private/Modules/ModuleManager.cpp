@@ -681,6 +681,8 @@ void FModuleManager::UnloadModulesAtShutdown()
 {
 	ensure(IsInGameThread());
 
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("UnloadModulesAtShutdown"));
+
 	struct FModulePair
 	{
 		FName ModuleName;

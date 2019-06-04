@@ -182,7 +182,7 @@ TSharedRef<SWidget> FBlackboardSelectorDetails::OnGetKeyContent() const
 
 	for (int32 Idx = 0; Idx < KeyValues.Num(); Idx++)
 	{
-		FUIAction ItemAction( FExecuteAction::CreateSP( this, &FBlackboardSelectorDetails::OnKeyComboChange, Idx) );
+		FUIAction ItemAction( FExecuteAction::CreateSP( const_cast<FBlackboardSelectorDetails*>(this), &FBlackboardSelectorDetails::OnKeyComboChange, Idx) );
 		MenuBuilder.AddMenuEntry( FText::FromName( KeyValues[Idx] ), TAttribute<FText>(), FSlateIcon(), ItemAction);
 	}
 

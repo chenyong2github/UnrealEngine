@@ -146,7 +146,7 @@ struct FSortableDependencySort
 
 		if ((AClass != BClass) && bIsAClassGrouped && bIsBClassGrouped)
 		{
-			return AClass > BClass;
+			return BClass.LexicalLess(AClass);
 		}
 
 		if (A.DepSet != B.DepSet)

@@ -51,18 +51,21 @@ FSocket* FSocketSubsystemBSDIPv6::CreateSocket(const FName& SocketType, const FS
 	SOCKET Socket = INVALID_SOCKET;
 	FSocket* NewSocket = NULL;
 
-	switch (SocketType.GetComparisonIndex())
+	if (const EName* Ename = SocketType.ToEName())
 	{
-	case NAME_DGram:
-		// Creates a data gram (UDP) socket
-		Socket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
-		NewSocket = (Socket != INVALID_SOCKET) ? InternalBSDSocketFactory(Socket, SOCKTYPE_Datagram, SocketDescription, FNetworkProtocolTypes::IPv6) : NULL;
-		break;
-	case NAME_Stream:
-		// Creates a stream (TCP) socket
-		Socket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
-		NewSocket = (Socket != INVALID_SOCKET) ? InternalBSDSocketFactory(Socket, SOCKTYPE_Streaming, SocketDescription, FNetworkProtocolTypes::IPv6) : NULL;
-		break;
+		switch (*Ename)
+		{
+		case NAME_DGram:
+			// Creates a data gram (UDP) socket
+			Socket = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+			NewSocket = (Socket != INVALID_SOCKET) ? InternalBSDSocketFactory(Socket, SOCKTYPE_Datagram, SocketDescription, FNetworkProtocolTypes::IPv6) : NULL;
+			break;
+		case NAME_Stream:
+			// Creates a stream (TCP) socket
+			Socket = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP);
+			NewSocket = (Socket != INVALID_SOCKET) ? InternalBSDSocketFactory(Socket, SOCKTYPE_Streaming, SocketDescription, FNetworkProtocolTypes::IPv6) : NULL;
+			break;
+		}
 	}
 
 	if (!NewSocket)

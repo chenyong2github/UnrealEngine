@@ -157,7 +157,7 @@ public:
 		return CurrentInfo;
 	}
 
-	FORCEINLINE operator bool() const
+	FORCEINLINE explicit operator bool() const
 	{
 		return CurrentInfo != nullptr;
 	}

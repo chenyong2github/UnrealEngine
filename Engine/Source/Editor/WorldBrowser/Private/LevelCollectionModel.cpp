@@ -794,7 +794,7 @@ void FLevelCollectionModel::CustomizeFileMainMenu(FMenuBuilder& InMenuBuilder) c
 	InMenuBuilder.AddSubMenu( 
 		LOCTEXT("SourceControl", "Source Control"),
 		LOCTEXT("SourceControl_ToolTip", "Source Control Options"),
-		FNewMenuDelegate::CreateSP(this, &FLevelCollectionModel::FillSourceControlSubMenu));
+		FNewMenuDelegate::CreateSP(const_cast<FLevelCollectionModel*>(this), &FLevelCollectionModel::FillSourceControlSubMenu));
 		
 	if (AreAnyLevelsSelected())
 	{

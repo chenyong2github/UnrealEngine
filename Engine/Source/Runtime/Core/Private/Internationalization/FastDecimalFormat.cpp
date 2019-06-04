@@ -279,7 +279,7 @@ void FractionalToString_SplitAndRoundNumber(const bool bIsNegative, const double
 	// Multiply the value to round by 10^DecimalPlacesToRoundTo - this will allow us to perform rounding calculations 
 	// that correctly trim any remaining fractional parts that are outside of our rounding range
 	double& ValueToRound = ((bIsRoundingEntireNumber) ? IntegralPart : FractionalPart);
-	ValueToRound *= Pow10Table[DecimalPlacesToRoundTo];
+	ValueToRound = FMath::TruncateToHalfIfClose(ValueToRound * Pow10Table[DecimalPlacesToRoundTo]);
 
 	// The rounding modes here mimic those of ICU. See http://userguide.icu-project.org/formatparse/numbers/rounding-modes
 	switch (InRoundingMode)

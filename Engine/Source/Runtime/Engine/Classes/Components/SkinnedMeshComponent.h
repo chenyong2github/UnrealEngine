@@ -308,7 +308,7 @@ protected:
 	/**
 	*	Mapping for socket overrides, key is the Source socket name and the value is the override socket name
 	*/
-	TSortedMap<FName, FName> SocketOverrideLookup;
+	TSortedMap<FName, FName, FDefaultAllocator, FNameFastLess> SocketOverrideLookup;
 
 public:
 #if WITH_EDITORONLY_DATA

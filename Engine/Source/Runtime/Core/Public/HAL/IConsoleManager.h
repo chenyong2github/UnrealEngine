@@ -214,6 +214,8 @@ public:
 	}
 
 	virtual bool IsVariableInt() const { return false; }
+	virtual bool IsVariableFloat() const { return false; }
+	virtual bool IsVariableString() const { return false; }
 
 	virtual class TConsoleVariableData<int32>* AsVariableInt()
 	{

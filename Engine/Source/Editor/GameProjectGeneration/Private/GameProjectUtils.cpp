@@ -240,10 +240,10 @@ FString FNewClassInfo::GetClassPrefixCPP() const
 	switch(ClassType)
 	{
 	case EClassType::UObject:
-		return BaseClass ? BaseClass->GetPrefixCPP() : TEXT("");
+		return BaseClass ? BaseClass->GetPrefixCPP() : TEXT("U");
 
 	case EClassType::EmptyCpp:
-		return TEXT("");
+		return TEXT("F");
 
 	case EClassType::SlateWidget:
 		return TEXT("S");

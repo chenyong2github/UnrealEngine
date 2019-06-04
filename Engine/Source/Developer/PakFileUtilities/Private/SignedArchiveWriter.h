@@ -25,7 +25,7 @@ class FSignedArchiveWriter : public FArchive
 	/** Data size (excluding signatures) */
 	int64 PakSize;
 	/** Signing key */
-	FRSA::TKeyPtr SigningKey;
+	const FRSAKeyHandle SigningKey;
 	/** Hashes */
 	TArray<TPakChunkHash> ChunkHashes;
 
@@ -36,7 +36,7 @@ class FSignedArchiveWriter : public FArchive
 
 public:
 
-	FSignedArchiveWriter(FArchive& InPak, const FString& InPakFilename, FRSA::TKeyPtr InSigningKey);
+	FSignedArchiveWriter(FArchive& InPak, const FString& InPakFilename, const FRSAKeyHandle InSigningKey);
 	virtual ~FSignedArchiveWriter();
 
 	// FArchive interface

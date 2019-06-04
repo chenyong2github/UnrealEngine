@@ -376,7 +376,7 @@ void SBlueprintSubPalette::BindCommands(TSharedPtr<FUICommandList> CommandListIn
 
 	CommandListIn->MapAction(
 		PaletteCommands.RefreshPalette,
-		FExecuteAction::CreateSP(this, &SBlueprintSubPalette::RefreshActionsList, /*bPreserveExpansion =*/true)
+		FExecuteAction::CreateSP(const_cast<SBlueprintSubPalette*>(this), &SBlueprintSubPalette::RefreshActionsList, /*bPreserveExpansion =*/true)
 	);
 }
 

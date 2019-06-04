@@ -691,7 +691,7 @@ TSharedRef<SWidget> SNiagaraSpreadsheetView::OnGetTargetMenuContent() const
 				ComponentName,
 				ComponentTooltip,
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateRaw(this, &SNiagaraSpreadsheetView::SetTarget, *It)));
+				FUIAction(FExecuteAction::CreateRaw(const_cast<SNiagaraSpreadsheetView*>(this), &SNiagaraSpreadsheetView::SetTarget, *It)));
 		}
 	}
 

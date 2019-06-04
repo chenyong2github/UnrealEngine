@@ -207,7 +207,7 @@ TSharedRef<SWidget> SBehaviorTreeBlackboardEditor::HandleCreateNewEntryMenu() co
 	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 	Options.ClassFilter = MakeShareable( new FBlackboardEntryClassFilter );
 
-	FOnClassPicked OnPicked( FOnClassPicked::CreateRaw( this, &SBehaviorTreeBlackboardEditor::HandleKeyClassPicked ) );
+	FOnClassPicked OnPicked( FOnClassPicked::CreateRaw( const_cast<SBehaviorTreeBlackboardEditor*>(this), &SBehaviorTreeBlackboardEditor::HandleKeyClassPicked ) );
 
 	// clear the search box, just in case there's something typed in there 
 	// We need to do that since key adding code takes advantage of selection mechanics

@@ -660,7 +660,7 @@ static FSceneRenderer* CreateSceneRendererForSceneCapture(
 	SetupViewVamilyForSceneCapture(
 		ViewFamily,
 		SceneCaptureComponent,
-		{ SceneCaptureViewInfo },
+		MakeArrayView(&SceneCaptureViewInfo, 1),
 		MaxViewDistance, 
 		bCaptureSceneColor,
 		/* bIsPlanarReflection = */ false,
