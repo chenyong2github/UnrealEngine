@@ -569,6 +569,7 @@ void FEdModeLandscape::Enter()
 	// For now depends on the SpawnActor() above in order to get the current editor world as edmodes don't get told
 	UpdateLandscapeList();
 	UpdateTargetList();
+	UpdateBrushList();
 
 	OnWorldChangeDelegateHandle                 = FEditorSupportDelegates::WorldChange.AddRaw(this, &FEdModeLandscape::HandleLevelsChanged, true);
 	OnLevelsChangedDelegateHandle				= GetWorld()->OnLevelsChanged().AddRaw(this, &FEdModeLandscape::HandleLevelsChanged, true);
@@ -2383,6 +2384,11 @@ void FEdModeLandscape::SetCurrentBrush(int32 BrushIndex)
 	}
 }
 
+const TArray<ALandscapeBlueprintCustomBrush*>& FEdModeLandscape::GetBrushList() const
+{
+	return BrushList;
+}
+
 const TArray<TSharedRef<FLandscapeTargetListInfo>>& FEdModeLandscape::GetTargetList() const
 {
 	return LandscapeTargetList;
@@ -2987,6 +2993,7 @@ void FEdModeLandscape::HandleLevelsChanged(bool ShouldExitMode)
 	UpdateLandscapeList();
 	UpdateTargetList();
 	UpdateShownLayerList();
+	UpdateBrushList();
 
 	// if the Landscape is deleted then close the landscape editor
 	if (ShouldExitMode && bHadLandscape && CurrentToolTarget.LandscapeInfo == nullptr)
@@ -4474,6 +4481,7 @@ void FEdModeLandscape::AddBrushToCurrentLayer(ALandscapeBlueprintCustomBrush* In
 	}
 
 	Landscape->AddBrushToLayer(GetCurrentLayerIndex(), InBrush);
+	RefreshDetailPanel();
 }
 
 void FEdModeLandscape::RemoveBrushFromCurrentLayer(ALandscapeBlueprintCustomBrush* InBrush)
@@ -4486,6 +4494,7 @@ void FEdModeLandscape::RemoveBrushFromCurrentLayer(ALandscapeBlueprintCustomBrus
 	}
 
 	Landscape->RemoveBrushFromLayer(GetCurrentLayerIndex(), InBrush);
+	RefreshDetailPanel();
 }
 
 ALandscapeBlueprintCustomBrush* FEdModeLandscape::GetBrushForCurrentLayer(int8 InBrushIndex) const
@@ -4696,6 +4705,16 @@ bool FEdModeLandscape::NeedToFillEmptyMaterialLayers() const
 	return bCanFill;
 }
 
+void FEdModeLandscape::UpdateBrushList()
+{
+	BrushList.Empty();
+	for (TObjectIterator<ALandscapeBlueprintCustomBrush> BrushIt(RF_Transient|RF_ClassDefaultObject|RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill); BrushIt; ++BrushIt)
+	{
+		BrushList.AddUnique(*BrushIt);
+	}
+}
+
+
 void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 {
 	if (ALandscape* Landscape = Cast <ALandscape>(InActor))
@@ -4707,6 +4726,7 @@ void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
+		BrushList.AddUnique(Brush);
 		AddBrushToCurrentLayer(Brush);
 		RefreshDetailPanel();
 	}
@@ -4723,6 +4743,7 @@ void FEdModeLandscape::OnLevelActorRemoved(AActor* InActor)
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
+		BrushList.Remove(Brush);
 		RemoveBrushFromCurrentLayer(Brush);
 		RefreshDetailPanel();
 	}

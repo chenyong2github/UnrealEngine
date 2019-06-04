@@ -12,6 +12,7 @@ ALandscapeBlueprintCustomBrush::ALandscapeBlueprintCustomBrush(const FObjectInit
 	: OwningLandscape(nullptr)
 	, bIsCommited(false)
 	, bIsInitialized(false)
+	, bIsVisible(true)
 #endif
 {
 	USceneComponent* SceneComp = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
@@ -52,8 +53,16 @@ void ALandscapeBlueprintCustomBrush::SetCommitState(bool InCommited)
 #endif
 }
 
+void ALandscapeBlueprintCustomBrush::SetIsVisible(bool bInIsVisible)
+{
+	Modify();
+	bIsVisible = bInIsVisible;
+	GetOwningLandscape()->OnBPCustomBrushChanged();
+}
+
 void ALandscapeBlueprintCustomBrush::SetOwningLandscape(ALandscape* InOwningLandscape)
 {
+	Modify();
 	OwningLandscape = InOwningLandscape;
 }
 
@@ -97,6 +106,17 @@ void ALandscapeBlueprintCustomBrush::PostEditChangeProperty(FPropertyChangedEven
 		OwningLandscape->OnBPCustomBrushChanged();
 	}
 }
+
+void ALandscapeBlueprintCustomBrush::Destroyed()
+{
+	Super::Destroyed();
+
+	if (OwningLandscape)
+	{
+		OwningLandscape->RemoveBrush(this);
+	}
+}
+
 #endif
 
 ALandscapeBlueprintCustomSimulationBrush::ALandscapeBlueprintCustomSimulationBrush(const FObjectInitializer& ObjectInitializer)

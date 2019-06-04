@@ -96,6 +96,7 @@ public:
 			SpawnInfo.bNoFail = true;
 			SpawnInfo.OverrideLevel = Info->LandscapeActor.Get()->GetTypedOuter<ULevel>(); // always spawn in the same level as the one containing the ALandscape
 
+			FScopedTransaction Transaction(LOCTEXT("LandscapeEdModeBPCustomToolSpawn", "Create landscape brush"));
 			ALandscapeBlueprintCustomBrush* Brush = ViewportClient->GetWorld()->SpawnActor<ALandscapeBlueprintCustomBrush>(EdMode->UISettings->BlueprintCustomBrush, SpawnLocation, FRotator(0.0f), SpawnInfo);
 			EdMode->UISettings->BlueprintCustomBrush = nullptr;
 
