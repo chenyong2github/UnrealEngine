@@ -3,6 +3,7 @@
 #include "HIDInputInterface.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/CallbackDevice.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Templates/SharedPointer.h"
 
 static int32 GetDevicePropertyAsInt32(IOHIDDeviceRef DeviceRef, CFStringRef Property)
@@ -36,6 +37,9 @@ HIDInputInterface::HIDInputInterface(const TSharedRef<FGenericApplicationMessage
 	bIsGamepadAttached = false;
 	InitialButtonRepeatDelay = 0.2f;
 	ButtonRepeatDelay = 0.1f;
+
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
 	Buttons[0] = FGamepadKeyNames::FaceButtonBottom;
 	Buttons[1] = FGamepadKeyNames::FaceButtonRight;

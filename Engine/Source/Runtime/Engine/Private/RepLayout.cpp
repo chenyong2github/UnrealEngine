@@ -703,7 +703,7 @@ void FRepChangelistState::CountBytes(FArchive& Ar) const
 	{
 		Ar.CountBytes(sizeof(FCustomDeltaChangelistState), sizeof(FCustomDeltaChangelistState));
 		CustomDeltaChangelistState->CountBytes(Ar);
-	}
+}
 }
 
 FReplicationChangelistMgr::FReplicationChangelistMgr(
@@ -881,10 +881,10 @@ static void CompareParentProperties(
 
 		const bool bShouldSkip = !bIsLifetime || !bIsActive || (Parent.Condition == COND_InitialOnly && !SharedParams.bIsInitial);
 
-		if (bShouldSkip)
-		{
-			continue;
-		}
+			if (bShouldSkip)
+			{
+				continue;
+			}
 
 		const FRepLayoutCmd& Cmd = SharedParams.Cmds[Parent.CmdStart];
 		const uint16 Handle = Cmd.RelativeHandle;
@@ -983,9 +983,9 @@ static void CompareProperties_Array_r(
 		bool& bForceFail = const_cast<bool&>(SharedParams.bForceFail);
 		TGuardValue<bool> ForceFailGuard(bForceFail, bForceFail);
 
-		for (int32 i = 0; i < ArrayNum; i++)
-		{
-			const int32 ArrayElementOffset = i * Cmd.ElementSize;
+	for (int32 i = 0; i < ArrayNum; i++)
+	{
+		const int32 ArrayElementOffset = i * Cmd.ElementSize;
 			bForceFail = bOldForceFail || i >= ShadowArrayNum;
 			LocalHandle = CompareProperties_r(SharedParams, CmdIndex + 1, Cmd.EndCmd - 1, ShadowArrayData + ArrayElementOffset, ArrayData + ArrayElementOffset, ChangedLocal, LocalHandle);
 		}
@@ -3368,7 +3368,7 @@ bool FRepLayout::MoveMappedObjectToUnmappedForCustomDeltaProperties(FNetDeltaSer
 			Params.bOutHasMoreUnmapped |= TempParams.bOutHasMoreUnmapped;
 			Params.bOutSomeObjectsWereMapped |= TempParams.bOutSomeObjectsWereMapped;
 		}
-	}
+}
 
 	return bFound;
 }
@@ -3408,13 +3408,13 @@ void FRepLayout::UpdateUnmappedObjects_r(
 			
 			if (ShadowData)
 			{
-				FScriptArray* ShadowArray = (FScriptArray*)(ShadowData + Cmd).Data;
-				FScriptArray* Array = (FScriptArray*)(Data + AbsOffset).Data;
-
-				FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
-				FRepObjectDataBuffer ArrayData(Array->GetData());
-
-				const int32 NewMaxOffset = FMath::Min(ShadowArray->Num() * Cmd.ElementSize, Array->Num() * Cmd.ElementSize);
+			FScriptArray* ShadowArray = (FScriptArray*)(ShadowData + Cmd).Data;
+			FScriptArray* Array = (FScriptArray*)(Data + AbsOffset).Data;
+			
+			FRepShadowDataBuffer ShadowArrayData(ShadowArray->GetData());
+			FRepObjectDataBuffer ArrayData(Array->GetData());
+			
+			const int32 NewMaxOffset = FMath::Min(ShadowArray->Num() * Cmd.ElementSize, Array->Num() * Cmd.ElementSize);
 
 				UpdateUnmappedObjects_r(RepState, GuidReferences.Array, OriginalObject, PackageMap, ShadowArrayData, ArrayData, NewMaxOffset, bCalledPreNetReceive, bOutSomeObjectsWereMapped, bOutHasMoreUnmapped);
 			}
@@ -3470,7 +3470,7 @@ void FRepLayout::UpdateUnmappedObjects_r(
 				bCalledPreNetReceive = true;
 			}
 
-			bOutSomeObjectsWereMapped = true;
+				bOutSomeObjectsWereMapped = true;
 			const bool bUpdateShadowState = (ShadowData && INDEX_NONE != Parent.RepNotifyNumParams);
 
 			// Copy current value over so we can check to see if it changed
@@ -4522,7 +4522,7 @@ static int32 InitFromProperty_r(
 		const uint32 ArrayChecksum = AddArrayCmd(Cmds, ArrayProp, Offset + GetOffsetForProperty<BuildType>(*ArrayProp), RelativeHandle, ParentIndex, ParentChecksum, StaticArrayIndex, ServerConnection);
 
 		InitFromProperty_r<BuildType>(Cmds, ArrayProp->Inner, 0, 0, ParentIndex, ArrayChecksum, 0, ServerConnection);
-
+		
 		AddReturnCmd(Cmds);
 
 		Cmds[CmdStart].EndCmd = Cmds.Num();		// Patch in the offset to jump over our array inner elements
@@ -5019,7 +5019,7 @@ void FRepLayout::InitFromClass(UClass* InObjectClass, const UNetConnection* Serv
 				}
 
 				if (CustomDeltaProperty.FastArrayItemsCommand == INDEX_NONE)
-				{
+		{
 					UE_LOG(LogRep, Warning, TEXT("FRepLayout::InitFromClass: Unable to find Fast Array Item array in Fast Array Serializer: %s"), *Parents[ParentIndex].CachedPropertyName.ToString());
 				}
 			}
@@ -5941,7 +5941,7 @@ const TArrayView<const uint16> FRepLayout::GetLifetimeCustomDeltaProperties() co
 	if (LifetimeCustomPropertyState)
 	{
 		return LifetimeCustomPropertyState->LifetimeCustomDeltaPropertiesParentCache;
-	}
+		}
 	else
 	{
 		return TArrayView<const uint16>();
@@ -5968,6 +5968,11 @@ void FRepLayout::AddReferencedObjects(FReferenceCollector& Collector)
 			}
 		}
 	}
+}
+
+FString FRepLayout::GetReferencerName() const
+{
+	return TEXT("FRepLayout");
 }
 
 // TODO: There's a better way to do this, but it requires more changes.

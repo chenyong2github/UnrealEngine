@@ -1358,6 +1358,11 @@ void SGraphActionMenu::AddReferencedObjects( FReferenceCollector& Collector )
 	}
 }
 
+FString SGraphActionMenu::GetReferencerName() const
+{
+	return TEXT("SGraphActionMenu");
+}
+
 bool SGraphActionMenu::HandleSelection( TSharedPtr< FGraphActionNode > &InSelectedItem, ESelectInfo::Type InSelectionType )
 {
 	bool bResult = false;

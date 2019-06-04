@@ -90,27 +90,6 @@ void AssignStringToProperty(const FString& InString, const UProperty* InProp, ui
 
 void GetPropertyValueAsStringDirect(const UProperty* InProp, const uint8* InData, const int32 InPortFlags, const EDataTableExportFlags InDTExportFlags, FString& OutString)
 {
-	if (!!(InDTExportFlags & EDataTableExportFlags::UsePrettyEnumNames))
-	{
-		UEnum* Enum = nullptr;
-		int64 Val = 0;
-		if (const UEnumProperty* EnumProp = Cast<UEnumProperty>(InProp))
-		{
-			Enum = EnumProp->GetEnum();
-			Val = EnumProp->GetUnderlyingProperty()->GetSignedIntPropertyValue(InData);
-		}
-		else if (const UByteProperty* ByteProp = Cast<UByteProperty>(InProp))
-		{
-			Enum = ByteProp->GetIntPropertyEnum();
-			Val = *InData;
-		}
-
-		if (UUserDefinedEnum* UDEnum = Cast<UUserDefinedEnum>(Enum))
-		{
-			OutString.Append(GetSourceString(UDEnum->GetDisplayNameTextByValue(Val)));
-			return;
-		}
-	}
 #if WITH_EDITOR
 	if (InPortFlags & PPF_PropertyWindow)
 	{
@@ -249,7 +228,7 @@ FString DataTableUtils::AssignStringToPropertyDirect(const FString& InString, co
 	FStringOutputDevice ImportError;
 	if(InProp && IsSupportedTableProperty(InProp))
 	{
-		DataTableUtilsImpl::AssignStringToPropertyDirect(InString, InProp, InData, PPF_None, ImportError);
+		DataTableUtilsImpl::AssignStringToPropertyDirect(InString, InProp, InData, PPF_ExternalEditor, ImportError);
 	}
 
 	FString Error = ImportError;
@@ -263,7 +242,7 @@ FString DataTableUtils::AssignStringToProperty(const FString& InString, const UP
 	{
 		if(InProp->ArrayDim == 1)
 		{
-			DataTableUtilsImpl::AssignStringToProperty(InString, InProp, InData, 0, PPF_None, ImportError);
+			DataTableUtilsImpl::AssignStringToProperty(InString, InProp, InData, 0, PPF_ExternalEditor, ImportError);
 		}
 		else
 		{
@@ -305,7 +284,7 @@ FString DataTableUtils::GetPropertyValueAsStringDirect(const UProperty* InProp, 
 
 	if(InProp && IsSupportedTableProperty(InProp))
 	{
-		DataTableUtilsImpl::GetPropertyValueAsStringDirect(InProp, InData, PPF_None, InDTExportFlags, Result);
+		DataTableUtilsImpl::GetPropertyValueAsStringDirect(InProp, InData, PPF_ExternalEditor, InDTExportFlags, Result);
 	}
 
 	return Result;
@@ -319,7 +298,7 @@ FString DataTableUtils::GetPropertyValueAsString(const UProperty* InProp, const 
 	{
 		if(InProp->ArrayDim == 1)
 		{
-			DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, 0, PPF_None, InDTExportFlags, Result);
+			DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, 0, PPF_ExternalEditor, InDTExportFlags, Result);
 		}
 		else
 		{
@@ -327,7 +306,7 @@ FString DataTableUtils::GetPropertyValueAsString(const UProperty* InProp, const 
 
 			for(int32 Index = 0; Index < InProp->ArrayDim; ++Index)
 			{
-				DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, Index, PPF_Delimited, InDTExportFlags, Result);
+				DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, Index, PPF_Delimited | PPF_ExternalEditor, InDTExportFlags, Result);
 
 				if((Index + 1) < InProp->ArrayDim)
 				{
@@ -349,7 +328,7 @@ FText DataTableUtils::GetPropertyValueAsTextDirect(const UProperty* InProp, cons
 	if(InProp && IsSupportedTableProperty(InProp))
 	{
 		FString ExportedString;
-		DataTableUtilsImpl::GetPropertyValueAsStringDirect(InProp, InData, PPF_PropertyWindow, EDataTableExportFlags::UsePrettyPropertyNames | EDataTableExportFlags::UsePrettyEnumNames | EDataTableExportFlags::UseJsonObjectsForStructs, ExportedString);
+		DataTableUtilsImpl::GetPropertyValueAsStringDirect(InProp, InData, PPF_PropertyWindow, EDataTableExportFlags::UseJsonObjectsForStructs, ExportedString);
 
 		Result = FText::FromString(MoveTemp(ExportedString));
 	}
@@ -367,7 +346,7 @@ FText DataTableUtils::GetPropertyValueAsText(const UProperty* InProp, const uint
 
 		if(InProp->ArrayDim == 1)
 		{
-			DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, 0, PPF_PropertyWindow, EDataTableExportFlags::UsePrettyPropertyNames | EDataTableExportFlags::UsePrettyEnumNames | EDataTableExportFlags::UseJsonObjectsForStructs, ExportedString);
+			DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, 0, PPF_PropertyWindow, EDataTableExportFlags::UseJsonObjectsForStructs, ExportedString);
 		}
 		else
 		{
@@ -375,7 +354,7 @@ FText DataTableUtils::GetPropertyValueAsText(const UProperty* InProp, const uint
 
 			for(int32 Index = 0; Index < InProp->ArrayDim; ++Index)
 			{
-				DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, Index, PPF_PropertyWindow | PPF_Delimited, EDataTableExportFlags::UsePrettyPropertyNames | EDataTableExportFlags::UsePrettyEnumNames | EDataTableExportFlags::UseJsonObjectsForStructs, ExportedString);
+				DataTableUtilsImpl::GetPropertyValueAsString(InProp, InData, Index, PPF_PropertyWindow | PPF_Delimited, EDataTableExportFlags::UseJsonObjectsForStructs, ExportedString);
 
 				if((Index + 1) < InProp->ArrayDim)
 				{
@@ -453,11 +432,7 @@ FString DataTableUtils::GetPropertyExportName(const UProperty* Prop, const EData
 	{
 		return FString();
 	}
-	if (Prop->GetOwnerStruct()->IsA(UUserDefinedStruct::StaticClass()) && !!(InDTExportFlags & EDataTableExportFlags::UsePrettyPropertyNames))
-	{
-		return GetPropertyDisplayName(Prop, Prop->GetName());
-	}
-	return Prop->GetName();
+	return Prop->GetAuthoredName();
 }
 
 TArray<FString> DataTableUtils::GetPropertyImportNames(const UProperty* Prop)
@@ -467,18 +442,19 @@ TArray<FString> DataTableUtils::GetPropertyImportNames(const UProperty* Prop)
 	{
 		Result.AddUnique(Prop->GetName());
 	}
-	Result.AddUnique(GetPropertyExportName(Prop, EDataTableExportFlags::UsePrettyPropertyNames));
+	Result.AddUnique(GetPropertyExportName(Prop));
 	return Result;
 }
 
-FString DataTableUtils::GetPropertyDisplayName(const UProperty* Prop, const FString& DefaultName)
+FText DataTableUtils::GetPropertyDisplayName(const UProperty* Prop, const FString& DefaultName)
 {
 #if WITH_EDITOR
-	static const FName DisplayNameKey(TEXT("DisplayName"));
-	return (Prop && Prop->HasMetaData(DisplayNameKey)) ? Prop->GetMetaData(DisplayNameKey) : DefaultName;
-#else  // WITH_EDITOR
-	return DefaultName;
-#endif // WITH_EDITOR
+	if (Prop)
+	{
+		return Prop->GetDisplayNameText();
+	}
+#endif  // WITH_EDITOR
+	return FText::FromString(DefaultName);
 }
 
 TArray<FString> DataTableUtils::GetColumnDataAsString(const UDataTable* InTable, const FName& PropertyName, const EDataTableExportFlags InDTExportFlags)

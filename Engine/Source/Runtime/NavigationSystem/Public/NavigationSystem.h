@@ -585,7 +585,7 @@ public:
 	/** updates bounds of all components implementing INavRelevantInterface */
 	static void UpdateNavOctreeBounds(AActor* Actor);
 
-	virtual void AddDirtyArea(const FBox& NewArea, int32 Flags);
+	void AddDirtyArea(const FBox& NewArea, int32 Flags);
 	void AddDirtyAreas(const TArray<FBox>& NewAreas, int32 Flags);
 	bool HasDirtyAreasQueued() const;
 
@@ -712,8 +712,9 @@ protected:
 	/** spawn new crowd manager */
 	virtual void UpdateAbstractNavData();
 
-	/** Called when ConditionalPopulateNavOctree processes each Actor */
-	virtual void ConditionalPopulateNavOctreeActor(AActor& Actor);
+	/** Called during ConditionalPopulateNavOctree and gives subclassess a chance 
+	 *	to influence what gets added */
+	virtual void AddLevelToOctree(ULevel& Level);
 	
 public:
 	/** Called upon UWorld destruction to release what needs to be released */
@@ -930,6 +931,9 @@ protected:
 	void RemoveLevelCollisionFromOctree(ULevel* Level);
 
 	virtual void SpawnMissingNavigationData();
+
+protected:
+	virtual void RebuildDirtyAreas();
 
 private:
 	// adds navigation bounds update request to a pending list
