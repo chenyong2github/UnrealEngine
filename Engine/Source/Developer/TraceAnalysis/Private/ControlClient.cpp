@@ -101,9 +101,9 @@ void FControlClient::SendConnect(const TCHAR* Path)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void FControlClient::SendToggleEvent(const TCHAR* EventMask, bool bState)
+void FControlClient::SendToggleEvent(const TCHAR* EventSpec, bool bState)
 {
-    FormatAndSend(TEXT("ToggleEvent %s %d"), EventMask, bState);
+    FormatAndSend(TEXT("ToggleEvent %s %d"), EventSpec, bState);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
