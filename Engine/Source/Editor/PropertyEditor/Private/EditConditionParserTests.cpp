@@ -1,20 +1,26 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "CoreTypes.h"
+#include "EditConditionParserTests.h"
 #include "EditConditionParser.h"
+#include "EditConditionContext.h"
+#include "ObjectPropertyNode.h"
 #include "Misc/AutomationTest.h"
 
-#if WITH_DEV_AUTOMATION_TESTS
+UEditConditionTestObject::UEditConditionTestObject(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
 
-struct TestEditConditionContext : IEditConditionContext
+#if WITH_DEV_AUTOMATION_TESTS
+struct FTestEditConditionContext : IEditConditionContext
 {
 	TMap<FString, bool> BoolValues;
 	TMap<FString, double> DoubleValues;
 	TMap<FString, FString> EnumValues;
 	FString EnumTypeName;
 
-	TestEditConditionContext(){}
-	virtual ~TestEditConditionContext() {}
+	FTestEditConditionContext(){}
+	virtual ~FTestEditConditionContext() {}
 
 	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const override
 	{
@@ -101,7 +107,7 @@ static bool CanParse(const FEditConditionParser& Parser, const FString& Expressi
 
 	 for (const auto& Token : Parsed->Tokens)
 	 {
-		const EditConditionParserNamespace::FPropertyToken* PropertyToken = Token.Node.Cast<EditConditionParserNamespace::FPropertyToken>();
+		const EditConditionParserTokens::FPropertyToken* PropertyToken = Token.Node.Cast<EditConditionParserTokens::FPropertyToken>();
 		if (PropertyToken != nullptr)
 		{
 			++PropertyCount;
@@ -118,10 +124,10 @@ bool FEditConditionParser_Parse::RunTest(const FString& Parameters)
 	FEditConditionParser Parser;
 	bool bResult = true;
 
-	bResult &= CanParse(Parser, TEXT("bProperty"), 1, 1);
-	bResult &= CanParse(Parser, TEXT("!bProperty"), 2, 1);
-	bResult &= CanParse(Parser, TEXT("bProperty == true"), 3, 1);
-	bResult &= CanParse(Parser, TEXT("bProperty == false"), 3, 1);
+	bResult &= CanParse(Parser, TEXT("BoolProperty"), 1, 1);
+	bResult &= CanParse(Parser, TEXT("!BoolProperty"), 2, 1);
+	bResult &= CanParse(Parser, TEXT("BoolProperty == true"), 3, 1);
+	bResult &= CanParse(Parser, TEXT("BoolProperty == false"), 3, 1);
 	bResult &= CanParse(Parser, TEXT("IntProperty == 0"), 3, 1);
 	bResult &= CanParse(Parser, TEXT("IntProperty != 0"), 3, 1);
 	bResult &= CanParse(Parser, TEXT("IntProperty > 0"), 3, 1);
@@ -137,16 +143,16 @@ bool FEditConditionParser_Parse::RunTest(const FString& Parameters)
 	bResult &= CanParse(Parser, TEXT("Foo == Bar / 5"), 5, 2);
 	bResult &= CanParse(Parser, TEXT("Enum == EType::Value"), 3, 1);
 	bResult &= CanParse(Parser, TEXT("Enum != EType::Value"), 3, 1);
-	bResult &= CanParse(Parser, TEXT("Enum != EType::Value && bProperty"), 5, 2);
-	bResult &= CanParse(Parser, TEXT("Enum == EType::Value || bProperty == false"), 7, 2);
-	bResult &= CanParse(Parser, TEXT("Enum != EType::Value || bProperty == bFoo"), 7, 3);
+	bResult &= CanParse(Parser, TEXT("Enum != EType::Value && BoolProperty"), 5, 2);
+	bResult &= CanParse(Parser, TEXT("Enum == EType::Value || BoolProperty == false"), 7, 2);
+	bResult &= CanParse(Parser, TEXT("Enum != EType::Value || BoolProperty == bFoo"), 7, 3);
 	bResult &= CanParse(Parser, TEXT("Enum == EType::Value && Foo != 5"), 7, 2);
 	bResult &= CanParse(Parser, TEXT("Enum != EType::Value && Foo == Bar"), 7, 3);
 
 	return bResult;
 }
 
-bool CanEvaluate(const FEditConditionParser& Parser, const IEditConditionContext& Context, const FString& Expression, bool Expected)
+static bool CanEvaluate(const FEditConditionParser& Parser, const IEditConditionContext& Context, const FString& Expression, bool Expected)
 {
 	TSharedPtr<FEditConditionExpression> Parsed = Parser.Parse(Expression);
 	if (!Parsed.IsValid())
@@ -171,49 +177,99 @@ bool CanEvaluate(const FEditConditionParser& Parser, const IEditConditionContext
 	return true;
 }
 
+static bool RunBoolTests(const IEditConditionContext& Context)
+{
+	FEditConditionParser Parser;
+	bool bResult = true;
+
+	bResult &= CanEvaluate(Parser, Context, TEXT("true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("!true"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("!false"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("!BoolProperty"), false);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty == true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty == false"), false);
+
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty == BoolProperty"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty != BoolProperty"), false);
+
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty != true"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty != false"), true);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("true && true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("true && false"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false && true"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false && false"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("true && true && true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("true && true && false"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty && BoolProperty"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty && false"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false && BoolProperty"), false);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("true || true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("true || false"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false || true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false || false"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("true || true || true"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("true || true || false"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty || BoolProperty"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("BoolProperty || false"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("false || BoolProperty"), true);
+
+	return bResult;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateBool, "EditConditionParser.EvaluateBool", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FEditConditionParser_EvaluateBool::RunTest(const FString& Parameters)
 {
+	FTestEditConditionContext TestContext;
+	TestContext.SetupBool(TEXT("BoolProperty"), true);
+
+	return RunBoolTests(TestContext);
+}
+
+static bool RunNumericTests(const IEditConditionContext& Context)
+{
 	FEditConditionParser Parser;
-
-	TestEditConditionContext TestContext;
-	TestContext.SetupBool(TEXT("bProperty"), true);
-
 	bool bResult = true;
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("!true"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("!false"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("!bProperty"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("5 == 5"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("5.0 == 5.0"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == 5.0"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == 5"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == DoubleProperty"), true);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty != 5.0"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty != 6.0"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty != 6"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty != DoubleProperty"), false);
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty == true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty == false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty == bProperty"), true);
-
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty != true"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty != false"), true);
-
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true && true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true && false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false && true"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false && false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true && true && true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true && true && false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty && bProperty"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty && false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false && bProperty"), false);
-
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true || true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true || false"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false || true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false || false"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true || true || true"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("true || true || false"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty || bProperty"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("bProperty || false"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("false || bProperty"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty > 4.5"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty > 5"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty > 6"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty > DoubleProperty"), false);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty < 4.5"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty < 5"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty < 6"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty < DoubleProperty"), false);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty >= 4.5"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty >= 5"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty >= 6"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty >= DoubleProperty"), true);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty <= 4.5"), false);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty <= 5"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty <= 6"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty <= DoubleProperty"), true);
+	
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == 2 + 3"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == 6 - 1"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == 2.5 * 2"), true);
+	bResult &= CanEvaluate(Parser, Context, TEXT("DoubleProperty == 10 / 2"), true);
 
 	return bResult;
 }
@@ -222,47 +278,33 @@ bool FEditConditionParser_EvaluateBool::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateDouble, "EditConditionParser.EvaluateDouble", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FEditConditionParser_EvaluateDouble::RunTest(const FString& Parameters)
 {
+	FTestEditConditionContext TestContext;
+	TestContext.SetupDouble(TEXT("DoubleProperty"), 5.0);
+
+	return RunNumericTests(TestContext);
+}
+
+static bool RunEnumTests(const IEditConditionContext& Context, const FString& EnumName, const FString& PropertyName)
+{
 	FEditConditionParser Parser;
-
-	TestEditConditionContext TestContext;
-	TestContext.SetupDouble(TEXT("Property"), 5.0);
-
 	bool bResult = true;
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("5 == 5"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("5.0 == 5.0"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == 5.0"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == 5"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == Property"), true);
+	bResult &= CanEvaluate(Parser, Context, EnumName + TEXT("::First == ") + EnumName + TEXT("::First"), true);
+	bResult &= CanEvaluate(Parser, Context, EnumName + TEXT("::First == ") + EnumName + TEXT("::Second"), false);
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property != 5.0"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property != 6.0"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property != 6"), true);
+	bResult &= CanEvaluate(Parser, Context, EnumName + TEXT("::First != ") + EnumName + TEXT("::First"), false);
+	bResult &= CanEvaluate(Parser, Context, EnumName + TEXT("::First != ") + EnumName + TEXT("::Second"), true);
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property > 4.5"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property > 5"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property > 6"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property > Property"), false);
+	bResult &= CanEvaluate(Parser, Context, PropertyName + TEXT(" == ") + PropertyName, true);
+	bResult &= CanEvaluate(Parser, Context, PropertyName + TEXT(" != ") + PropertyName, false);
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property < 4.5"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property < 5"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property < 6"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property < Property"), false);
+	bResult &= CanEvaluate(Parser, Context, PropertyName + TEXT(" == ") + EnumName + TEXT("::First"), true);
+	bResult &= CanEvaluate(Parser, Context, EnumName + TEXT("::First == ") + PropertyName, true);
+	bResult &= CanEvaluate(Parser, Context, PropertyName + TEXT(" == ") + EnumName + TEXT("::Second"), false);
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property >= 4.5"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property >= 5"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property >= 6"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property >= Property"), true);
-
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property <= 4.5"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property <= 5"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property <= 6"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property <= Property"), true);
-
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == 2 + 3"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == 6 - 1"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == 2.5 * 2"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == 10 / 2"), true);
+	bResult &= CanEvaluate(Parser, Context, PropertyName + TEXT(" != ") + EnumName + TEXT("::Second"), true);
+	bResult &= CanEvaluate(Parser, Context, PropertyName + TEXT(" != ") + EnumName + TEXT("::First"), false);
+	bResult &= CanEvaluate(Parser, Context, EnumName + TEXT("::Second != ") + PropertyName, true);
 
 	return bResult;
 }
@@ -270,29 +312,96 @@ bool FEditConditionParser_EvaluateDouble::RunTest(const FString& Parameters)
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateEnum, "EditConditionParser.EvaluateEnum", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FEditConditionParser_EvaluateEnum::RunTest(const FString& Parameters)
 {
-	FEditConditionParser Parser;
+	FTestEditConditionContext TestContext;
 
-	TestEditConditionContext TestContext;
-	TestContext.SetupEnumType(TEXT("MyEnum"));
-	TestContext.SetupEnum(TEXT("Property"), TEXT("First"));
+	const FString EnumType = TEXT("EditConditionTestEnum");
+	TestContext.SetupEnumType(EnumType);
 
-	bool bResult = true;
-	
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("MyEnum::First == MyEnum::First"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("MyEnum::First == MyEnum::Second"), false);
+	const FString PropertyName = TEXT("EnumProperty");
+	TestContext.SetupEnum(PropertyName, TEXT("First"));
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("MyEnum::First != MyEnum::First"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("MyEnum::First != MyEnum::Second"), true);
+	return RunEnumTests(TestContext, EnumType, PropertyName);
+}
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == MyEnum::First"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("MyEnum::First == Property"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property == MyEnum::Second"), false);
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_EvaluateUObject, "EditConditionParser.EvaluateUObject", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEditConditionParser_EvaluateUObject::RunTest(const FString& Parameters)
+{
+	UEditConditionTestObject* TestObject = NewObject<UEditConditionTestObject>();
+	TestObject->AddToRoot();
 
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property != MyEnum::Second"), true);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("Property != MyEnum::First"), false);
-	bResult &= CanEvaluate(Parser, TestContext, TEXT("MyEnum::Second != Property"), true);
+	TSharedPtr<FObjectPropertyNode> ObjectNode(new FObjectPropertyNode);
+	ObjectNode->AddObject(TestObject);
 
-	return bResult;
+	FPropertyNodeInitParams InitParams;
+	ObjectNode->InitNode(InitParams);
+
+	TOptional<bool> bResult;
+	bool bAllResults = true;
+
+	// enum comparison
+	{
+		static const FName EnumPropertyName = TEXT("EnumProperty");
+		TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(EnumPropertyName, true);
+		FEditConditionContext Context(*PropertyNode.Get());
+
+		TestObject->EnumProperty = EditConditionTestEnum::First;
+		TestObject->ByteEnumProperty = EditConditionByteEnum::First;
+
+		static const FString EnumType = TEXT("EditConditionTestEnum");
+		bAllResults &= RunEnumTests(Context, EnumType, EnumPropertyName.ToString());
+
+		static const FString ByteEnumType = TEXT("EditConditionByteEnum");
+		static const FString ByteEnumPropertyName = TEXT("ByteEnumProperty");
+		bAllResults &= RunEnumTests(Context, ByteEnumType, ByteEnumPropertyName);
+	}
+
+	// bool comparison
+	{
+		static const FName BoolPropertyName(TEXT("BoolProperty"));
+		TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(BoolPropertyName, true);
+		FEditConditionContext Context(*PropertyNode.Get());
+
+		TestObject->BoolProperty = true;
+
+		bAllResults &= RunBoolTests(Context);
+	}
+
+	// double comparison
+	{
+		static const FName DoublePropertyName(TEXT("DoubleProperty"));
+		TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(DoublePropertyName, true);
+		FEditConditionContext Context(*PropertyNode.Get());
+
+		TestObject->DoubleProperty = 5.0;
+
+		bAllResults &= RunNumericTests(Context);
+	}
+
+	// integer comparison
+	{
+		static const FName IntegerPropertyName(TEXT("IntegerProperty"));
+		TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(IntegerPropertyName, true);
+		FEditConditionContext Context(*PropertyNode.Get());
+
+		TestObject->IntegerProperty = 5;
+
+		bAllResults &= RunNumericTests(Context);
+	}
+
+	{
+		static const FName DoublePropertyName(TEXT("DoubleProperty"));
+		TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(DoublePropertyName, true);
+		FEditConditionContext Context(*PropertyNode.Get());
+
+		TestEqual(TEXT("Boolean Type Name"), Context.GetTypeName(TEXT("BoolProperty")).GetValue(), TEXT("bool"));
+		TestEqual(TEXT("Enum Type Name"), Context.GetTypeName(TEXT("EnumProperty")).GetValue(), TEXT("EditConditionTestEnum"));
+		TestEqual(TEXT("Byte Enum Type Name"), Context.GetTypeName(TEXT("ByteEnumProperty")).GetValue(), TEXT("EditConditionByteEnum"));
+		TestEqual(TEXT("Double Type Name"), Context.GetTypeName(TEXT("DoubleProperty")).GetValue(), TEXT("double"));
+	}
+
+	TestObject->RemoveFromRoot();
+
+	return bAllResults;
 }
 
 #endif // WITH_DEV_AUTOMATION_TESTS

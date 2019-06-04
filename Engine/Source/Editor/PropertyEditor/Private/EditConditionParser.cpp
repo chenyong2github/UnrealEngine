@@ -1,16 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "EditConditionParser.h"
+#include "EditConditionContext.h"
 
 #include "Math/BasicMathExpressionEvaluator.h"
 #include "Misc/ExpressionParser.h"
 
-#include "PropertyNode.h"
-#include "PropertyEditorHelpers.h"
-
 #define LOCTEXT_NAMESPACE "EditConditionParser"
 
-namespace EditConditionParserNamespace
+namespace EditConditionParserTokens
 {
 	const TCHAR* const FEqual::Moniker = TEXT("==");
 	const TCHAR* const FNotEqual::Moniker = TEXT("!=");
@@ -122,11 +120,11 @@ static TOptional<FExpressionError> ConsumePropertyName(FExpressionTokenConsumer&
 				return FExpressionError(FText::Format(LOCTEXT("PropertyDoubleColonAtEnd", "EditCondition contained double colon at end of property name \"{0}\", expected enum value."), FText::FromString(PropertyName)));
 			}
 
-			Consumer.Add(StringToken.GetValue(), EditConditionParserNamespace::FEnumToken(MoveTemp(EnumType), MoveTemp(EnumValue)));
+			Consumer.Add(StringToken.GetValue(), EditConditionParserTokens::FEnumToken(MoveTemp(EnumType), MoveTemp(EnumValue)));
 		}
 		else
 		{
-			Consumer.Add(StringToken.GetValue(), EditConditionParserNamespace::FPropertyToken(MoveTemp(PropertyName)));
+			Consumer.Add(StringToken.GetValue(), EditConditionParserTokens::FPropertyToken(MoveTemp(PropertyName)));
 		}
 	}
 
@@ -155,7 +153,7 @@ template <typename T>
 struct TOperand
 {
 	TOperand(T InValue) : Value(InValue), Property(nullptr), Context(nullptr) {}
-	TOperand(const EditConditionParserNamespace::FPropertyToken& InProperty, const IEditConditionContext& InContext) : 
+	TOperand(const EditConditionParserTokens::FPropertyToken& InProperty, const IEditConditionContext& InContext) : 
 		Property(&InProperty), Context(&InContext) {}
 
 	bool IsProperty() const { return Property != nullptr; }
@@ -173,7 +171,7 @@ struct TOperand
 
 private:
 	T Value;
-	const EditConditionParserNamespace::FPropertyToken* Property;
+	const EditConditionParserTokens::FPropertyToken* Property;
 	const IEditConditionContext* Context;
 };
 
@@ -205,7 +203,7 @@ FExpressionResult ApplyBinary(TOperand<T> A, TOperand<T> B, Function Apply)
 	return MakeValue(Apply(ValueA.GetValue(), ValueB.GetValue()));
 }
 
-static FExpressionResult ApplyPropertiesEqual(const EditConditionParserNamespace::FPropertyToken& A, const EditConditionParserNamespace::FPropertyToken& B, const IEditConditionContext& Context, bool bNegate)
+static FExpressionResult ApplyPropertiesEqual(const EditConditionParserTokens::FPropertyToken& A, const EditConditionParserTokens::FPropertyToken& B, const IEditConditionContext& Context, bool bNegate)
 {
 	TOptional<FString> TypeNameA = Context.GetTypeName(A.PropertyName);
 	TOptional<FString> TypeNameB = Context.GetTypeName(B.PropertyName);
@@ -257,7 +255,7 @@ static FExpressionResult ApplyPropertiesEqual(const EditConditionParserNamespace
 
 static void CreateBooleanOperators(TOperatorJumpTable<IEditConditionContext>& OperatorJumpTable)
 {
-	using namespace EditConditionParserNamespace;
+	using namespace EditConditionParserTokens;
 
 	OperatorJumpTable.MapPreUnary<FNot>([](bool A) { return !A; });
 	OperatorJumpTable.MapPreUnary<FNot>([](const FPropertyToken& A, const IEditConditionContext* Context)
@@ -337,7 +335,7 @@ static void CreateBooleanOperators(TOperatorJumpTable<IEditConditionContext>& Op
 template <typename T>
 void CreateNumberOperators(TOperatorJumpTable<IEditConditionContext>& OperatorJumpTable)
 {
-	using namespace EditConditionParserNamespace;
+	using namespace EditConditionParserTokens;
 
 	// EQUAL
 	{
@@ -522,15 +520,16 @@ void CreateNumberOperators(TOperatorJumpTable<IEditConditionContext>& OperatorJu
 	}
 }
 
-static FExpressionResult EnumPropertyEquals(const EditConditionParserNamespace::FEnumToken& Enum, const EditConditionParserNamespace::FPropertyToken& Property, const IEditConditionContext& Context, bool bNegate)
+static FExpressionResult EnumPropertyEquals(const EditConditionParserTokens::FEnumToken& Enum, const EditConditionParserTokens::FPropertyToken& Property, const IEditConditionContext& Context, bool bNegate)
 {
 	TOptional<FString> TypeName = Context.GetTypeName(Property.PropertyName);
-	TOptional<FString> ValueProp = Context.GetEnumValue(Property.PropertyName);
 
 	if (TypeName.GetValue() != Enum.Type)
 	{
 		return MakeError(FText::Format(LOCTEXT("OperandTypeMismatch", "EditCondition attempted to compare operands of different types: \"{0}\" and \"{1}\"."), FText::FromString(Property.PropertyName), FText::FromString(Enum.Type + TEXT("::") + Enum.Value)));
 	}
+
+	TOptional<FString> ValueProp = Context.GetEnumValue(Property.PropertyName);
 
 	if (!ValueProp.IsSet())
 	{
@@ -543,7 +542,7 @@ static FExpressionResult EnumPropertyEquals(const EditConditionParserNamespace::
 
 static void CreateEnumOperators(TOperatorJumpTable<IEditConditionContext>& OperatorJumpTable)
 {
-	using namespace EditConditionParserNamespace;
+	using namespace EditConditionParserTokens;
 
 	// EQUALS
 	{
@@ -580,7 +579,7 @@ static void CreateEnumOperators(TOperatorJumpTable<IEditConditionContext>& Opera
 
 FEditConditionParser::FEditConditionParser()
 {
-	using namespace EditConditionParserNamespace;
+	using namespace EditConditionParserTokens;
 
 	TokenDefinitions.IgnoreWhitespace();
 	TokenDefinitions.DefineToken(&ExpressionParser::ConsumeSymbol<FEqual>);
@@ -631,7 +630,7 @@ FEditConditionParser::FEditConditionParser()
 
 TOptional<bool> FEditConditionParser::Evaluate(const FEditConditionExpression& Expression, const IEditConditionContext& Context) const
 {
-	using namespace EditConditionParserNamespace;
+	using namespace EditConditionParserTokens;
 	
 	FExpressionResult Result = ExpressionParser::Evaluate(Expression.Tokens, OperatorJumpTable, &Context);
 	if (Result.IsValid())
@@ -671,235 +670,6 @@ TSharedPtr<FEditConditionExpression> FEditConditionParser::Parse(const FString& 
 	}
 
 	return TSharedPtr<FEditConditionExpression>();
-}
-
-FEditConditionContext::FEditConditionContext(FPropertyNode& InPropertyNode, TSharedPtr<FEditConditionExpression> Expression)
-{
-	ParentNode = InPropertyNode.GetParentNode();
-
-	const UProperty* Property = InPropertyNode.GetProperty();
-	check(Property);
-
-	if (PropertyEditorHelpers::IsStaticArray(InPropertyNode))
-	{
-		//in the case of conditional static arrays, we have to go up one more level to get the proper parent struct.
-		ParentNode = ParentNode->GetParentNode();
-	}
-	check(ParentNode);
-
-	FComplexPropertyNode* ComplexParentNode = ParentNode->FindComplexParent();
-	check(ComplexParentNode);
-
-	// populate the properties array
-	for (const FCompiledToken& Token : Expression->Tokens)
-	{
-		if (const EditConditionParserNamespace::FPropertyToken* PropertyToken = Token.Node.Cast<EditConditionParserNamespace::FPropertyToken>())
-		{
-			const UProperty* Field = FindField<UProperty>(Property->GetOwnerStruct(), *PropertyToken->PropertyName);
-			ensureMsgf(Field != nullptr, TEXT("EditCondition parsing failed: Field name %s was not found in struct %s."), *PropertyToken->PropertyName, *Property->GetOwnerStruct()->GetName());
-
-			if (Field != nullptr)
-			{
-				FReferencedProperty& RefProperty = Properties[Properties.Emplace()];
-				RefProperty.Property = Field;
-
-				for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
-				{
-					uint8* BaseAddress = ComplexParentNode->GetMemoryOfInstance(Index);
-					check(BaseAddress != nullptr);
-
-					FPropertyAddress& Address = RefProperty.Addresses[RefProperty.Addresses.Emplace()];
-					Address.BaseAddress = BaseAddress;
-					Address.ObjectPtr = ComplexParentNode->AsStructureNode() ?
-						TWeakObjectPtr<UObject>(ComplexParentNode->GetBaseStructure()) :
-						ComplexParentNode->GetInstanceAsUObject(Index);
-
-				}
-			}
-		}
-	}
-}
-
-const UBoolProperty* FEditConditionContext::GetSingleBoolProperty() const
-{
-	if (Properties.Num() == 1)
-	{
-		const UBoolProperty* BoolProperty = Cast<UBoolProperty>(Properties[0].Property);
-		return BoolProperty;
-	}
-	return nullptr;
-}
-
-const FEditConditionContext::FReferencedProperty* FEditConditionContext::FindProperty(const FString& PropertyName) const
-{
-	for (const FReferencedProperty& Property : Properties)
-	{
-		if (Property.Property->GetNameCPP() == PropertyName)
-		{
-			return &Property;
-		}
-	}
-	return nullptr;
-}
-
-TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName) const
-{
-	const FReferencedProperty* RefProperty = FindProperty(PropertyName);
-	if (RefProperty == nullptr)
-	{
-		return TOptional<bool>();
-	}
-
-	const UBoolProperty* BoolProperty = Cast<UBoolProperty>(RefProperty->Property);
-	if (BoolProperty == nullptr)
-	{
-		return TOptional<bool>();
-	}
-
-	TOptional<bool> Result;
-
-	const FComplexPropertyNode* ComplexParentNode = ParentNode->FindComplexParent();
-	for (const FPropertyAddress& Address : RefProperty->Addresses)
-	{
-		if (!Address.ObjectPtr.IsValid())
-		{
-			return TOptional<bool>();
-		}
-
-		uint8* BaseOffset = ParentNode->GetValueAddress(Address.BaseAddress);
-		uint8* ValueAddr = BoolProperty->ContainerPtrToValuePtr<uint8>(BaseOffset);
-
-		bool bValue = BoolProperty->GetPropertyValue(ValueAddr);
-		if (!Result.IsSet())
-		{
-			Result = bValue;
-		}
-		else if (Result.GetValue() != bValue)
-		{
-			// all values aren't the same...
-			return TOptional<bool>();
-		}
-	}
-
-	return Result;
-}
-
-TOptional<double> FEditConditionContext::GetNumericValue(const FString& PropertyName) const
-{
-	const FReferencedProperty* RefProperty = FindProperty(PropertyName);
-	if (RefProperty == nullptr)
-	{
-		return TOptional<double>();
-	}
-
-	const UNumericProperty* NumericProperty = Cast<UNumericProperty>(RefProperty->Property);
-	if (NumericProperty == nullptr)
-	{
-		return TOptional<double>();
-	}
-
-	TOptional<double> Result;
-
-	for (const FPropertyAddress& Address : RefProperty->Addresses)
-	{
-		if (!Address.ObjectPtr.IsValid())
-		{
-			return TOptional<double>();
-		}
-
-		uint8* BaseOffset = ParentNode->GetValueAddress(Address.BaseAddress);
-		uint8* ValueAddr = NumericProperty->ContainerPtrToValuePtr<uint8>(BaseOffset);
-
-		double Value = 0;
-
-		if (NumericProperty->IsInteger())
-		{
-			Value = (double) NumericProperty->GetSignedIntPropertyValue(ValueAddr);
-		}
-		else if (NumericProperty->IsFloatingPoint())
-		{
-			Value = NumericProperty->GetFloatingPointPropertyValue(ValueAddr);
-		}
-
-		if (!Result.IsSet())
-		{
-			Result = Value;
-		}
-		else if (!FMath::IsNearlyEqual(Result.GetValue(), Value))
-		{
-			// all values aren't the same...
-			return TOptional<double>();
-		}
-	}
-
-	return Result;
-}
-
-TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyName) const
-{
-	const FReferencedProperty* RefProperty = FindProperty(PropertyName);
-	if (RefProperty == nullptr)
-	{
-		return TOptional<FString>();
-	}
-
-	const UEnumProperty* EnumProperty = Cast<UEnumProperty>(RefProperty->Property);
-	if (EnumProperty == nullptr)
-	{
-		return TOptional<FString>();
-	}
-
-	const UNumericProperty* NumProperty = EnumProperty->GetUnderlyingProperty();
-	if (NumProperty == nullptr)
-	{
-		return TOptional<FString>();
-	}
-
-	TOptional<int64> Result;
-
-	const FComplexPropertyNode* ComplexParentNode = ParentNode->FindComplexParent();
-	for (const FPropertyAddress& Address : RefProperty->Addresses)
-	{
-		if (!Address.ObjectPtr.IsValid())
-		{
-			return TOptional<FString>();
-		}
-
-		uint8* BaseOffset = ParentNode->GetValueAddress(Address.BaseAddress);
-		uint8* ValueAddr = NumProperty->ContainerPtrToValuePtr<uint8>(BaseOffset);
-
-		int64 Value = NumProperty->GetSignedIntPropertyValue(ValueAddr);
-
-		if (!Result.IsSet())
-		{
-			Result = Value;
-		}
-		else if (Result.GetValue() != Value)
-		{
-			// all values aren't the same...
-			return TOptional<FString>();
-		}
-	}
-
-	if (Result.IsSet())
-	{
-		return EnumProperty->GetEnum()->GetNameByValue(Result.GetValue()).ToString();
-	}
-
-	return TOptional<FString>();
-}
-
-TOptional<FString> FEditConditionContext::GetTypeName(const FString& PropertyName) const
-{
-	const FReferencedProperty* RefProperty = FindProperty(PropertyName);
-	if (RefProperty != nullptr)
-	{
-		const UProperty* Property = RefProperty->Property;
-		const UClass* Class = Property->GetClass();
-		return Class->GetName();
-	}
-
-	return TOptional<FString>();
 }
 
 #undef LOCTEXT_NAMESPACE

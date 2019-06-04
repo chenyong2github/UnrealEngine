@@ -5,7 +5,9 @@
 #include "PropertyNode.h"
 #include "PropertyHandle.h"
 #include "Editor/SceneOutliner/Public/SceneOutlinerFwd.h"
-#include "EditConditionParser.h"
+
+class FEditConditionExpression;
+class FEditConditionContext;
 
 class FPropertyEditor : public TSharedFromThis< FPropertyEditor >	
 {

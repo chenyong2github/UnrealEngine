@@ -7,7 +7,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
-namespace EditConditionParserNamespace
+namespace EditConditionParserTokens
 {
 	struct FPropertyToken 
 	{
@@ -47,8 +47,8 @@ namespace EditConditionParserNamespace
 }
 
 #define DEFINE_EDIT_CONDITION_NODE(TYPE, ...) \
-	namespace EditConditionParserNamespace { struct TYPE { static const TCHAR* const Moniker; }; } \
-	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserNamespace::TYPE, __VA_ARGS__)
+	namespace EditConditionParserTokens { struct TYPE { static const TCHAR* const Moniker; }; } \
+	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserTokens::TYPE, __VA_ARGS__)
 
 	DEFINE_EDIT_CONDITION_NODE(FEqual, 0x3AF0EE1B, 0xC3F847C7, 0xA2B95102, 0x4EFC202D)
 	DEFINE_EDIT_CONDITION_NODE(FNotEqual, 0x5CDF3FA4, 0x35614D88, 0x8F94017C, 0xF9229625)
@@ -67,19 +67,12 @@ namespace EditConditionParserNamespace
 	DEFINE_EDIT_CONDITION_NODE(FSubExpressionEnd, 0x5CB25466, 0x780CAE4D, 0x8A88E000, 0xD3695885)
 
 	DEFINE_EXPRESSION_NODE_TYPE(bool, 0xCACBC715, 0x505A6B4A, 0x8808809F, 0x897AA5F6)
-	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserNamespace::FPropertyToken, 0x9A3FAF6F, 0xB2E45E4D, 0xA80A70C6, 0x47A89BD7)
-	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserNamespace::FEnumToken, 0xC9A35C24, 0x21FC904B, 0x9F1B2B6A, 0xDF6F4BC4)
+	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserTokens::FPropertyToken, 0x9A3FAF6F, 0xB2E45E4D, 0xA80A70C6, 0x47A89BD7)
+	DEFINE_EXPRESSION_NODE_TYPE(EditConditionParserTokens::FEnumToken, 0xC9A35C24, 0x21FC904B, 0x9F1B2B6A, 0xDF6F4BC4)
 
 #undef DEFINE_EDIT_CONDITION_NODE
 
-class IEditConditionContext
-{
-public:
-	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const = 0;
-	virtual TOptional<double> GetNumericValue(const FString& PropertyName) const = 0;
-	virtual TOptional<FString> GetEnumValue(const FString& PropertyName) const = 0;
-	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const = 0;
-};
+class IEditConditionContext;
 
 class FEditConditionExpression
 {
@@ -113,45 +106,4 @@ private:
 	FTokenDefinitions TokenDefinitions;
 	FExpressionGrammar ExpressionGrammar;
 	TOperatorJumpTable<IEditConditionContext> OperatorJumpTable;
-};
-
-class UProperty;
-class FPropertyNode;
-class FComplexPropertyNode;
-
-class FEditConditionContext : public IEditConditionContext
-{
-public:
-	FEditConditionContext(FPropertyNode& InPropertyNode, TSharedPtr<FEditConditionExpression> Expression);
-	virtual ~FEditConditionContext() {}
-
-	virtual TOptional<bool> GetBoolValue(const FString& PropertyName) const override;
-	virtual TOptional<double> GetNumericValue(const FString& PropertyName) const override;
-	virtual TOptional<FString> GetEnumValue(const FString& PropertyName) const override;
-	virtual TOptional<FString> GetTypeName(const FString& PropertyName) const override;
-
-	/** 
-	 * Fetch the single boolean property referenced. 
-	 * Returns nullptr if more than one property is referenced. 
-	 */
-	const UBoolProperty* GetSingleBoolProperty() const;
-
-private:
-	struct FPropertyAddress
-	{
-		TWeakObjectPtr<UObject> ObjectPtr;
-		uint8* BaseAddress;
-	};
-
-	struct FReferencedProperty
-	{
-		const UProperty* Property;
-		TArray<FPropertyAddress> Addresses;
-	};
-
-	FPropertyNode* ParentNode;
-	TArray<FReferencedProperty> Properties;
-	TSharedPtr<FEditConditionExpression> Expression;
-
-	const FReferencedProperty* FindProperty(const FString& PropertyName) const;
 };

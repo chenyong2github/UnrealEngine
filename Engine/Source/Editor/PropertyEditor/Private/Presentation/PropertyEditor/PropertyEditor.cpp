@@ -17,6 +17,8 @@
 #include "IConfigEditorModule.h"
 #include "PropertyNode.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "EditConditionParser.h"
+#include "EditConditionContext.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -50,7 +52,7 @@ FPropertyEditor::FPropertyEditor( const TSharedRef<FPropertyNode>& InPropertyNod
 				EditConditionExpression = Parser->Parse(Property->GetMetaData(EditConditionName));
 				if (EditConditionExpression.IsValid())
 				{
-					EditConditionContext = MakeShareable(new FEditConditionContext(PropertyNode.Get(), EditConditionExpression));
+					EditConditionContext = MakeShareable(new FEditConditionContext(PropertyNode.Get()));
 				}
 			}
 		}
@@ -455,7 +457,7 @@ void FPropertyEditor::ToggleEditConditionState()
 
 	PropertyNode->NotifyPreChange( PropertyNode->GetProperty(), PropertyUtilities->GetNotifyHook() );
 
-	const UBoolProperty* EditConditionProperty = EditConditionContext->GetSingleBoolProperty();
+	const UBoolProperty* EditConditionProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
 	check(EditConditionProperty != nullptr);
 
 	FComplexPropertyNode* ComplexParentNode = ParentNode->FindComplexParent();
@@ -597,7 +599,7 @@ bool FPropertyEditor::SupportsEditConditionToggle() const
 	static const FName Name_HideEditConditionToggle("HideEditConditionToggle");
 	if (!Property->HasMetaData(Name_HideEditConditionToggle) && EditConditionExpression.IsValid())
 	{
-		const UBoolProperty* ConditionalProperty = EditConditionContext->GetSingleBoolProperty();
+		const UBoolProperty* ConditionalProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
 		if (ConditionalProperty != nullptr)
 		{
 			// If it's editable, then only put an inline toggle box if the metadata specifies it
