@@ -84,7 +84,6 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 {
 	PropertyEditor = InPropertyEditor;
 
-	CreateClassFilter();
 	
 	if (PropertyEditor.IsValid())
 	{
@@ -131,6 +130,8 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 		SelectedClass = InArgs._SelectedClass;
 		OnSetClass = InArgs._OnSetClass;
 	}
+
+	CreateClassFilter();
 	
 	SAssignNew(ComboButton, SComboButton)
 		.OnGetMenuContent(this, &SPropertyEditorClass::GenerateClassPicker)
