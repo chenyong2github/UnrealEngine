@@ -6,6 +6,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Animation/AnimCurveCompressionCodec.h"
 #include "Animation/AnimCurveCompressionSettings.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq) :
 #if WITH_EDITOR
