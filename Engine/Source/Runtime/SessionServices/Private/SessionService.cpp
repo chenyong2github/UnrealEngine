@@ -123,13 +123,6 @@ void FSessionService::SendPong(const TSharedRef<IMessageContext, ESPMode::Thread
 		Message->DeviceName = FPlatformProcess::ComputerName();
 		Message->InstanceId = FApp::GetInstanceId();
 		Message->InstanceName = FApp::GetInstanceName();
-
-#if PLATFORM_DESKTOP
-		Message->IsConsoleBuild = false;
-#else
-		Message->IsConsoleBuild = true;
-#endif
-
 		Message->PlatformName = FPlatformProperties::PlatformName();
 		Message->SessionId = FApp::GetSessionId();
 		Message->SessionName = FApp::GetSessionName();
