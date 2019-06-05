@@ -565,7 +565,11 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			CrashReportClientArguments += TEXT("\"\"") + CrashReportLogFilepath + TEXT("\"\"");
 			CrashReportClientArguments += TEXT(" ");
 
-			if (bUnattended || bImplicitSend)
+			if (bImplicitSend)
+			{
+				CrashReportClientArguments += TEXT(" -Unattended -ImplicitSend ");
+			}
+			else if (bUnattended)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended ");
 			}
@@ -611,17 +615,6 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			{
 				// spin here until CrashReporter exits
 				FProcHandle RunningProc = FPlatformProcess::CreateProc(RelativePathToCrashReporter, *CrashReportClientArguments, true, false, false, NULL, 0, NULL, NULL);
-
-				// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
-				if (bImplicitSend)
-				{
-					if (FApp::CanEverRender())
-					{
-						FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-							*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
-							*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
-					}
-				}
 
 				// do not wait indefinitely - can be more generous about the hitch than in ensure() case
 				// NOTE: Chris.Wood - increased from 3 to 8 mins because server crashes were timing out and getting lost
