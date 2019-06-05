@@ -7,7 +7,7 @@
 namespace Trace
 {
 
-#if _MSC_VER
+#if defined(_MSC_VER)
 	#pragma warning(push)
 	#pragma warning(disable : 4200) // non-standard zero-sized array
 #endif
@@ -31,7 +31,7 @@ struct FNewEventEvent
 	/*uint8		NameData[]*/
 };
 
-#if _MSC_VER
+#if defined(_MSC_VER)
 	#pragma warning(pop)
 #endif
 
