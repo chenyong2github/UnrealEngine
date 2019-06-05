@@ -500,12 +500,17 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 		{
 			if (bCameraCut)
 			{
+				FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+
 				CommonShaderParameters.ScreenPosToHistoryBufferUV = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 				CommonShaderParameters.ScreenPosAbsMax = FVector2D(0.0f, 0.0f);
 				CommonShaderParameters.HistoryBufferUVMinMax = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
 				CommonShaderParameters.HistoryBufferSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
-				CommonShaderParameters.HistoryBuffer0 = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-				CommonShaderParameters.HistoryBuffer1 = CommonShaderParameters.HistoryBuffer0;
+				CommonShaderParameters.HistoryBuffer0 = BlackDummy;
+				CommonShaderParameters.HistoryBuffer1 = BlackDummy;
+				
+				// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shader.
+				CommonShaderParameters.SceneTextures.SceneVelocityBuffer = BlackDummy;
 			}
 			else
 			{

@@ -1393,11 +1393,6 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				VelocityInput = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(VelocityRT));
 				PreFlattenVelocity = VelocityInput;
 			}
-			else if (View.AntiAliasingMethod == AAM_TemporalAA && View.bCameraCut)
-			{
-				// Velocity pass is not being rendered on camera cut.
-				VelocityInput = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(GSystemTextures.BlackDummy));
-			}
 
 			Context.FinalOutput = AddPostProcessMaterialChain(Context, BL_BeforeTranslucency, SeparateTranslucency);
 			
@@ -1422,14 +1417,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FRDGTextureRef LocalSeparateTranslucency = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("SeparateTranslucency"));
 					
 					// FPostProcessing::Process() does a AdjustGBufferRefCount(RHICmdList, -1), therefore need to pass down reference on velocity buffer manually.
-					if (FRDGTextureRef SceneVelocityBuffer = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity")))
-					{
-						SceneTextures.SceneVelocityBuffer = SceneVelocityBuffer;
-					}
-					else
-					{
-						UE_DEBUG_BREAK();
-					}
+					SceneTextures.SceneVelocityBuffer = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input2, TEXT("SceneVelocity"));
 
 					FRDGTextureRef NewSceneColor = SceneColor;
 
