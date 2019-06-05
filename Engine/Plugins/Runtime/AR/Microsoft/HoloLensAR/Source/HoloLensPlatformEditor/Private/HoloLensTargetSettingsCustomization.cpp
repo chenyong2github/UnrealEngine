@@ -638,7 +638,7 @@ void FHoloLensTargetSettingsCustomization::LoadAndValidateSigningCertificate()
 
 	FString CertificatePath = FPaths::ProjectDir() / TEXT("Build") / TEXT("HoloLens") / TEXT("SigningCertificate.pfx");
 	TArray<uint8> CertBytes;
-	if (FFileHelper::LoadFileToArray(CertBytes, *CertificatePath))
+	if (FFileHelper::LoadFileToArray(CertBytes, *CertificatePath, FILEREAD_Silent))
 	{
 		CRYPT_DATA_BLOB CertBlob;
 		CertBlob.cbData = CertBytes.Num();
