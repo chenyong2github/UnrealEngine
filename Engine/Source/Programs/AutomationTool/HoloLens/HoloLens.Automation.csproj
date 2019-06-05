@@ -50,7 +50,14 @@
       <HintPath>..\..\..\..\..\Engine\Binaries\ThirdParty\WindowsDevicePortalWrapper\WindowsDevicePortalWrapper.dll</HintPath>
     </Reference>
   </ItemGroup>
-    <Choose>
+  <Choose>
+    <When Condition="'$(OS)' != 'Windows_NT'">
+	  <PropertyGroup>
+		<DefineConstants>__MonoCS__</DefineConstants>
+	  </PropertyGroup>
+	</When>
+  </Choose>
+  <Choose>
     <When Condition="'$(OS)' == 'Windows_NT'">
 	  <PropertyGroup>
 		<Windows10SdkPath>$(Registry:HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\Microsoft\Microsoft SDKs\Windows\v10.0@InstallationFolder)</Windows10SdkPath>
