@@ -189,16 +189,6 @@ void AWorldSettings::PreInitializeComponents()
 	}
 }
 
-void AWorldSettings::PostInitializeComponents()
-{
-	Super::PostInitializeComponents();
-
-	if (GEngine->IsConsoleBuild())
-	{
-		GEngine->bUseConsoleInput = true;
-	}
-}
-
 void AWorldSettings::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();

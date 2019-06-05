@@ -1465,11 +1465,6 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	// Initialize the audio device after a world context is setup
 	InitializeAudioDeviceManager();
 
-	if ( IsConsoleBuild() )
-	{
-		bUseConsoleInput = true;
-	}
-
 	// Make sure networking checksum has access to project version
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
 	FNetworkVersion::SetProjectVersion(*ProjectSettings.ProjectVersion);
@@ -8797,29 +8792,6 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	}
 
 	return Result;
-}
-
-/** 
-* Returns whether we are running on a console platform or on the PC.
-*
-* @return true if we're on a console, false if we're running on a PC
-*/
-bool UEngine::IsConsoleBuild(EConsoleType ConsoleType) const
-{
-	switch (ConsoleType)
-	{
-	case CONSOLE_Any:
-#if !PLATFORM_DESKTOP
-		return true;
-#else
-		return false;
-#endif
-	case CONSOLE_Mobile:
-		return false;
-	default:
-		UE_LOG(LogEngine, Warning, TEXT("Unknown ConsoleType passed to IsConsoleBuild()"));
-		return false;
-	}
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
