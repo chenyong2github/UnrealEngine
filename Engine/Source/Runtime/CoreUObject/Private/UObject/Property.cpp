@@ -30,7 +30,7 @@ struct TStructOpsTypeTraits<FVector> : public TStructOpsTypeTraitsBase2<FVector>
 		WithZeroConstructor = true,
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
-		WithSerializer = true,
+		WithStructuredSerializer = true,
 	};
 };
 IMPLEMENT_STRUCT(Vector);
@@ -172,7 +172,7 @@ struct TStructOpsTypeTraits<FLinearColor> : public TStructOpsTypeTraitsBase2<FLi
 	{
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
-		WithSerializer = true,
+		WithStructuredSerializer = true,
 	};
 };
 IMPLEMENT_STRUCT(LinearColor);
@@ -297,7 +297,7 @@ struct TStructOpsTypeTraits<FSoftObjectPath> : public TStructOpsTypeTraitsBase2<
 	enum
 	{
 		WithZeroConstructor = true,
-		WithSerializer = true,
+		WithStructuredSerializer = true,
 		WithCopy = true,
 		WithIdenticalViaEquality = true,
 		WithExportTextItem = true,

@@ -61,17 +61,6 @@ struct FLinearColor
 
 	// Serializer.
 
-	friend FArchive& operator<<(FArchive& Ar,FLinearColor& Color)
-	{
-		return Ar << Color.R << Color.G << Color.B << Color.A;
-	}
-
-	bool Serialize( FArchive& Ar )
-	{
-		Ar << *this;
-		return true;
-	}
-
 	friend void operator<<(FStructuredArchive::FSlot Slot, FLinearColor& Color)
 	{
 		FStructuredArchive::FRecord Record = Slot.EnterRecord();

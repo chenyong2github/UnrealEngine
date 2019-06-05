@@ -4,8 +4,11 @@
 
 #include "Concepts/Insertable.h"
 #include "Templates/Models.h"
-//#include "ArchiveFromStructuredArchive.h"
-//#include "StructuredArchiveFromArchive.h"
+
+#if WITH_TEXT_ARCHIVE_SUPPORT
+#include "ArchiveFromStructuredArchive.h"
+#endif
+#include "StructuredArchiveFromArchive.h"
 
 /**
  * Adapter operator which allows a type to stream to an FStructuredArchive::FSlot when it already supports streaming to an FArchive.

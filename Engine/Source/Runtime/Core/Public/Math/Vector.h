@@ -18,6 +18,7 @@
 #include "Internationalization/Internationalization.h"
 #include "Math/IntVector.h"
 #include "Math/Axis.h"
+#include "Serialization/ArchiveAdapters.h"
 
 #if PLATFORM_VECTOR_CUBIC_INTERP_SSE
 #include "Math/UnrealMathSSE.h"
@@ -983,20 +984,6 @@ public:
 	static CORE_API void GenerateClusterCenters(TArray<FVector>& Clusters, const TArray<FVector>& Points, int32 NumIterations, int32 NumConnectionsToBeValid);
 
 	/**
-	 * Serializer.
-	 *
-	 * @param Ar Serialization Archive.
-	 * @param V Vector to serialize.
-	 * @return Reference to Archive after serialization.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, FVector& V)
-	{
-		// @warning BulkSerialize: FVector is serialized as memory dump
-		// See TArray::BulkSerialize for detailed description of implied limitations.
-		return Ar << V.X << V.Y << V.Z;
-	}
-
-	/**
 	 * Structured archive slot serializer.
 	 *
 	 * @param Slot Structured archive slot.
@@ -1006,18 +993,12 @@ public:
 	{
 		// @warning BulkSerialize: FVector is serialized as memory dump
 		// See TArray::BulkSerialize for detailed description of implied limitations.
-		FStructuredArchive::FStream Stream = Slot.EnterStream();
-		Stream.EnterElement() << V.X;
-		Stream.EnterElement() << V.Y;
-		Stream.EnterElement() << V.Z;
+		FStructuredArchive::FRecord Record = Slot.EnterRecord();
+		Record << NAMED_ITEM("X", V.X);
+		Record << NAMED_ITEM("Y", V.Y);
+		Record << NAMED_ITEM("Z", V.Z);
 	}
 	
-	bool Serialize(FArchive& Ar)
-	{
-		Ar << *this;
-		return true;
-	}
-
 	bool Serialize(FStructuredArchive::FSlot Slot)
 	{
 		Slot << *this;
