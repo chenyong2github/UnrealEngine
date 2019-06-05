@@ -1297,6 +1297,8 @@ void FNiagaraSystemInstance::InitEmitters()
 		Component->MarkRenderStateDirty();
 	}
 
+	bHasGPUEmitters = false;
+
 	Emitters.Empty();
 	UNiagaraSystem* System = GetSystem();
 	if (System != nullptr)
