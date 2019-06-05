@@ -12,6 +12,7 @@ FArchiveHasReferences::FArchiveHasReferences(UObject* InTarget, const TSet<UObje
 	check(InTarget);
 
 	ArIsObjectReferenceCollector = true;
+	ArIsModifyingWeakAndStrongReferences = true;
 	InTarget->Serialize(*this);
 
 	class FArchiveProxyCollector : public FReferenceCollector
