@@ -4,6 +4,7 @@
 
 #include "Remesher.h"
 #include "Util/BufferUtil.h"
+#include "DynamicMeshChangeTracker.h"
 
 /**
  * FSubRegionRemesher is an extension
@@ -48,9 +49,28 @@ public:
 		}
 		Edges.Reset();
 		BufferUtil::AppendElements(Edges, EdgeROI);
-		//Edges = std::vector<int>(EdgeROI.begin(), EdgeROI.end());
 	}
 
+
+	/**
+	 * Tell a MeshChangeTracker about the set of triangles that we might modify in the next remesh pass.
+	 * This could include one-rings of either side of an edge in the ROI, if we collapse.
+	 */
+	void SaveActiveROI(FDynamicMeshChangeTracker* Change)
+	{
+		const FDynamicMesh3* UseMesh = GetMesh();
+		for (int eid : EdgeROI)
+		{
+			FIndex2i EdgeVerts = UseMesh->GetEdgeV(eid);
+			for (int j = 0; j < 2; ++j)
+			{
+				for (int tid : UseMesh->VtxTrianglesItr(EdgeVerts[j]))
+				{
+					Change->SaveTriangle(tid, true);
+				}
+			}
+		}
+	}
 
 
 	//
