@@ -152,6 +152,21 @@ public:
 		return (FoundVal == nullptr) ? InvalidID : *FoundVal;
 	}
 
+	/** @return forward-map of input value or null if not found */
+	inline const IntType* FindTo(IntType FromID) const
+	{
+		check(bWantForward);
+		return ForwardMap.Find(FromID);
+	}
+
+	/** @return reverse-map of input value or null if not found */
+	inline const IntType* FindFrom(IntType ToID) const
+	{
+		check(bWantReverse);
+		return ReverseMap.Find(ToID);
+	}
+
+
 	void Reserve(int NumElements)
 	{
 		if (bWantForward)

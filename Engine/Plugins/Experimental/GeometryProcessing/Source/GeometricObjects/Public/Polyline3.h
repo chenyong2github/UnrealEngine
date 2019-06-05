@@ -420,10 +420,9 @@ public:
 		const T Alpha = (T)1 / (T)3;
 		const T OneMinusAlpha = (T)2 / (T)3;
 
-		int N = Vertices.Num();
-		NewPolyline.Vertices.SetNum(2*(N-1));
+		int N = Vertices.Num() - 1;
+		NewPolyline.Vertices.SetNum(2*N);
 		NewPolyline.Vertices[0] = Vertices[0];
-		N = N - 1;
 		int k = 1;
 		for (int i = 1; i < N; ++i)
 		{

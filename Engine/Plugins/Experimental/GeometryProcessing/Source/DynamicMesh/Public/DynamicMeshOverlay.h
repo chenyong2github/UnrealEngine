@@ -102,6 +102,41 @@ public:
 	/** Set the triangle to the given Element index tuple, and increment element reference counts */
 	EMeshResult SetTriangle(int TriangleID, const FIndex3i& TriElements);
 
+
+
+	//
+	// Support for inserting element at specific ID. This is a bit tricky
+	// because we likely will need to update the free list in the RefCountVector, which
+	// can be expensive. If you are going to do many inserts (eg inside a loop), wrap in
+	// BeginUnsafe / EndUnsafe calls, and pass bUnsafe = true to the InsertElement() calls,
+	// to the defer free list rebuild until you are done.
+	//
+
+	/** Call this before a set of unsafe InsertVertex() calls */
+	void BeginUnsafeElementsInsert()
+	{
+		// do nothing...
+	}
+
+	/** Call after a set of unsafe InsertVertex() calls to rebuild free list */
+	void EndUnsafeElementsInsert()
+	{
+		ElementsRefCounts.RebuildFreeList();
+	}
+
+	/**
+	 * Insert element at given index, assuming it is unused.
+	 * If bUnsafe, we use fast id allocation that does not update free list.
+	 * You should only be using this between BeginUnsafeElementsInsert() / EndUnsafeElementsInsert() calls
+	 */
+	EMeshResult InsertElement(int ElementID, const RealType* Value, int ParentVertex, bool bUnsafe = false);
+
+
+	//
+	// Accessors/Queries
+	//  
+
+
 	/** Get the element at a given index */
 	inline void GetElement(int ElementID, RealType* Data) const
 	{

@@ -18,7 +18,7 @@ void TDynamicMeshOverlay<RealType, ElementSize>::ClearElements()
 
 
 template<typename RealType, int ElementSize>
-int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantValue, int SourceVertex)
+int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantValue, int ParentVertex)
 {
 	int vid = ElementsRefCounts.Allocate();
 	int i = ElementSize * vid;
@@ -26,7 +26,7 @@ int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantV
 	{
 		Elements.InsertAt(ConstantValue, i + k);
 	}
-	ParentVertices.InsertAt(SourceVertex, vid);
+	ParentVertices.InsertAt(ParentVertex, vid);
 
 	//updateTimeStamp(true);
 	return vid;
@@ -34,7 +34,7 @@ int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(RealType ConstantV
 
 
 template<typename RealType, int ElementSize>
-int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(const RealType* Value, int SourceVertex)
+int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(const RealType* Value, int ParentVertex)
 {
 	int vid = ElementsRefCounts.Allocate();
 	int i = ElementSize * vid;
@@ -45,11 +45,45 @@ int TDynamicMeshOverlay<RealType, ElementSize>::AppendElement(const RealType* Va
 		Elements.InsertAt(Value[k], i + k);
 	}
 
-	ParentVertices.InsertAt(SourceVertex, vid);
+	ParentVertices.InsertAt(ParentVertex, vid);
 
 	//updateTimeStamp(true);
 	return vid;
 }
+
+
+template<typename RealType, int ElementSize>
+EMeshResult TDynamicMeshOverlay<RealType, ElementSize>::InsertElement(int ElementID, const RealType* Value, int ParentVertex, bool bUnsafe)
+{
+	if (ElementsRefCounts.IsValid(ElementID))
+	{
+		return EMeshResult::Failed_VertexAlreadyExists;
+	}
+
+	bool bOK = (bUnsafe) ? ElementsRefCounts.AllocateAtUnsafe(ElementID) :
+		ElementsRefCounts.AllocateAt(ElementID);
+	if (bOK == false)
+	{
+		return EMeshResult::Failed_CannotAllocateVertex;
+	}
+
+	int i = ElementSize * ElementID;
+	// insert in reverse order so that Resize() is only called once
+	for (int k = ElementSize - 1; k >= 0; --k)
+	{
+		Elements.InsertAt(Value[k], i + k);
+	}
+
+	ParentVertices.InsertAt(ParentVertex, ElementID);
+
+	//UpdateTimeStamp(true, true);
+	return EMeshResult::Ok;
+}
+
+
+
+
+
 
 
 

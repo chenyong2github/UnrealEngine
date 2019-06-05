@@ -5,10 +5,8 @@
 #pragma once
 
 #include "DynamicMesh3.h"
+#include "DynamicMeshAttributeSet.h"
 #include "EdgeLoop.h"
-
-
-
 
 /**
  * FMeshIndexMappings stores a set of integer IndexMaps for a mesh
@@ -295,10 +293,52 @@ public:
 
 
 
-	void AppendMesh(const FDynamicMesh3* AppendMesh, FMeshIndexMappings& IndexMapsOut, FDynamicMeshEditResult& ResultOut,
+	/**
+	 * Append input mesh to our internal mesh
+	 * @param AppendMesh mesh to append
+	 * @param IndexMapsOut mesh element index mappings generated in this append operation
+	 * @param PositionTransform optional transformation function applied to mesh vertex positions
+	 * @param NormalTransform optional transformation function applied to mesh normals
+	 */
+	void AppendMesh(const FDynamicMesh3* AppendMesh, FMeshIndexMappings& IndexMapsOut, 
 		TFunction<FVector3d(int, const FVector3d&)> PositionTransform = nullptr,
-		TFunction<FVector3f(int, const FVector3f&)> NormalTransform = nullptr);
+		TFunction<FVector3d(int, const FVector3d&)> NormalTransform = nullptr);
 
+
+	/**
+	 * Append normals from one attribute overlay to another.
+	 * Assumes that AppendMesh has already been appended to Mesh.
+	 * Note that this function has no dependency on .Mesh, it could be static
+	 * @param AppendMesh mesh that owns FromNormals attribute overlay
+	 * @param FromNormals Normals overlay we want to append from (owned by AppendMesh)
+	 * @param ToNormals Normals overlay we want to append to (owned by Mesh)
+	 * @param VertexMap map from AppendMesh vertex IDs to vertex IDs applicable to ToNormals (ie of .Mesh)
+	 * @param TriangleMap map from AppendMesh triangle IDs to triangle IDs applicable to ToNormals (ie of .Mesh)
+	 * @param NormalTransform optional transformation function applied to mesh normals
+	 * @param NormalMapOut Mapping from element IDs of FromNormals to new element IDs in ToNormals
+	 */
+	void AppendNormals(const FDynamicMesh3* AppendMesh,
+		const FDynamicMeshNormalOverlay* FromNormals, FDynamicMeshNormalOverlay* ToNormals,
+		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
+		TFunction<FVector3d(int, const FVector3d&)> NormalTransform,
+		FIndexMapi& NormalMapOut);
+
+
+	/**
+	 * Append UVs from one attribute overlay to another.
+	 * Assumes that AppendMesh has already been appended to Mesh.
+	 * Note that this function has no dependency on .Mesh, it could be static
+	 * @param AppendMesh mesh that owns FromUVs attribute overlay
+	 * @param FromUVs UV overlay we want to append from (owned by AppendMesh)
+	 * @param ToUVs UV overlay we want to append to (owned by Mesh)
+	 * @param VertexMap map from AppendMesh vertex IDs to vertex IDs applicable to ToUVs (ie of .Mesh)
+	 * @param TriangleMap map from AppendMesh triangle IDs to triangle IDs applicable to ToUVs (ie of .Mesh)
+	 * @param UVMapOut Mapping from element IDs of FromUVs to new element IDs in ToUVs
+	 */
+	void AppendUVs(const FDynamicMesh3* AppendMesh,
+		const FDynamicMeshUVOverlay* FromUVs, FDynamicMeshUVOverlay* ToUVs,
+		const FIndexMapi& VertexMap, const FIndexMapi& TriangleMap,
+		FIndexMapi& UVMapOut);
 };
 
 

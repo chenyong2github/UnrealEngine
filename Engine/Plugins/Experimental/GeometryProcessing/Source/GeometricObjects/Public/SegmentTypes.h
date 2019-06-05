@@ -6,6 +6,7 @@
 
 #include "Math/UnrealMath.h"
 #include "VectorTypes.h"
+#include "BoxTypes.h"
 
 
 /*
