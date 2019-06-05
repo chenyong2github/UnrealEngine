@@ -81,7 +81,7 @@ void FAESHandlerComponent::Incoming(FBitReader& Packet)
 			// Copy remaining bits to a TArray so that they are byte-aligned.
 			Ciphertext.Reset();
 			Ciphertext.AddUninitialized(Packet.GetBytesLeft());
-			Ciphertext[Ciphertext.Num()-1] = 0;
+			Ciphertext[Ciphertext.Num() - 1] = 0;
 
 			Packet.SerializeBits(Ciphertext.GetData(), Packet.GetBitsLeft());
 
@@ -192,14 +192,6 @@ void FAESHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Traits
 
 		Packet = MoveTemp(NewPacket);
 	}
-}
-
-void FAESHandlerComponent::IncomingConnectionless(const FString& Address, FBitReader& Packet)
-{
-}
-
-void FAESHandlerComponent::OutgoingConnectionless(const FString& Address, FBitWriter& Packet, FOutPacketTraits& Traits)
-{
 }
 
 int32 FAESHandlerComponent::GetReservedPacketBits() const

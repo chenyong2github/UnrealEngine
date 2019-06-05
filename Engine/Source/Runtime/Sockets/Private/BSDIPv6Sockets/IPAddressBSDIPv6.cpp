@@ -14,20 +14,25 @@ FInternetAddrBSDIPv6::FInternetAddrBSDIPv6()
 
 void FInternetAddrBSDIPv6::SetRawIp(const TArray<uint8>& RawAddr)
 {
-	if (RawAddr.Num() >= 16)
+	FMemory::Memzero(&Addr, sizeof(Addr));
+	if (RawAddr.Num() == 4)
+	{
+		Addr.sin6_addr.s6_addr[10] = 0xff;
+		Addr.sin6_addr.s6_addr[11] = 0xff;
+		Addr.sin6_addr.s6_addr[12] = RawAddr[0];
+		Addr.sin6_addr.s6_addr[13] = RawAddr[1];
+		Addr.sin6_addr.s6_addr[14] = RawAddr[2];
+		Addr.sin6_addr.s6_addr[15] = RawAddr[3];
+	}
+	else if (RawAddr.Num() == 16)
 	{
 		for (int i = 0; i < 16; ++i)
 		{
 			Addr.sin6_addr.s6_addr[i] = RawAddr[i];
 		}
+	}
 
-		Addr.sin6_family = AF_INET6;
-	}
-	else
-	{
-		FMemory::Memzero(&Addr, sizeof(Addr));
-		Addr.sin6_family = AF_INET6;
-	}
+	Addr.sin6_family = AF_INET6;
 }
 
 TArray<uint8> FInternetAddrBSDIPv6::GetRawIp() const
@@ -68,45 +73,32 @@ void FInternetAddrBSDIPv6::SetIp(const TCHAR* InAddr, bool& bIsValid)
 	bIsValid = false;
 
 	FString AddressString(InAddr);
+	FString Port;
 
-	const bool bHasOpenBracket = AddressString.Contains("[");
-	const int32 CloseBracketIndex = AddressString.Find("]");
-	const bool bHasCloseBracket = CloseBracketIndex != -1;
+	// Find some colons to try to determine the input given to us.
+	const int32 FirstColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromStart);
+	const int32 LastColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
 
-	// IPv6 may or may not include open and close brackets.
-	// However, only IPv6 address can have them.
-	bool bIsIPv6 = bHasOpenBracket && bHasCloseBracket;
+	// IPv6 will always have at least 2 colons somewhere.
+	bool bIsIPv6 = FirstColonIndex != LastColonIndex;
 
-	// Valid IPv4 should not contain an open or close bracket
-	const bool bIsLikelyIPv4 = !bHasOpenBracket && !bHasCloseBracket;
+	// If we have no colons or one colon (IPv4 + Port).
+	bool bIsLikelyIPv4 = !bIsIPv6 || LastColonIndex != INDEX_NONE;
 
 	if (bIsLikelyIPv4 || bIsIPv6)
 	{
-		const int32 LastColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
-
-		// Double check to ensure this isn't actually an IPv6 address without brackets.
-		if (bIsLikelyIPv4)
-		{
-			// IPv4 addresses can contain at most 1 colon.
-			const int32 FirstColonIndex = AddressString.Find(":");
-			bIsIPv6 = (FirstColonIndex != LastColonIndex);
-		}
-
-		// IPv4 address will only have a port when a colon is present.
-		// IPv6 address will only have a port when surrounded by brackets.
-		const bool bHasPort = (INDEX_NONE != LastColonIndex) && (!bIsIPv6 || (bHasCloseBracket && LastColonIndex > CloseBracketIndex));
-		FString Port;
-		if (bHasPort)
+		// Check to see if we have a port.
+		if (AddressString.Contains("]:") || (!bIsIPv6 && LastColonIndex != INDEX_NONE))
 		{
 			Port = AddressString.RightChop(LastColonIndex + 1);
 			AddressString = AddressString.Left(LastColonIndex);
 		}
 
+		AddressString.RemoveFromStart("[");
+		AddressString.RemoveFromEnd("]");
+
 		if (bIsIPv6)
 		{
-			AddressString.RemoveFromStart("[");
-			AddressString.RemoveFromEnd("]");
-
 			// Check for valid IPv6 address
 			const auto InAddrAnsi = StringCast<ANSICHAR>(*AddressString);
 #if PLATFORM_IOS
@@ -141,7 +133,7 @@ void FInternetAddrBSDIPv6::SetIp(const TCHAR* InAddr, bool& bIsValid)
 				}
 		}
 
-		if (bHasPort)
+		if (!Port.IsEmpty())
 		{
 			SetPort(FCString::Atoi(*Port));
 		}
@@ -221,6 +213,16 @@ int32 FInternetAddrBSDIPv6::GetPort() const
 	return ntohs(Addr.sin6_port);
 }
 
+void FInternetAddrBSDIPv6::SetScopeId(uint32 NewScopeId)
+{
+	Addr.sin6_scope_id = htonl(NewScopeId);
+}
+
+uint32 FInternetAddrBSDIPv6::GetScopeId() const
+{
+	return ntohl(Addr.sin6_scope_id);
+}
+
 void FInternetAddrBSDIPv6::SetAnyAddress()
 {
 	SetIp(in6addr_any);
@@ -254,14 +256,11 @@ FString FInternetAddrBSDIPv6::ToString(bool bAppendPort) const
 
 	inet_ntop(AF_INET6, (void*)&Addr.sin6_addr, IPStr, INET6_ADDRSTRLEN);
 
-	FString Result("[");
-	Result += IPStr;
-	Result += "]";
+	FString Result(IPStr);
 
 	if (bAppendPort)
 	{
-		Result += ":";
-		Result += FString::Printf(TEXT("%d"), GetPort());
+		Result = FString::Printf(TEXT("[%s]:%d"), IPStr, GetPort());
 	}
 
 	return Result;
@@ -279,16 +278,6 @@ bool FInternetAddrBSDIPv6::IsValid() const
 {
 	FInternetAddrBSDIPv6 Temp;
 	return memcmp(&Addr.sin6_addr, &Temp.Addr.sin6_addr, sizeof(in6_addr)) != 0;
-}
-
-uint32 FInternetAddrBSDIPv6::GetScopeId() const
-{
-	return ntohl(Addr.sin6_scope_id);
-}
-
-void FInternetAddrBSDIPv6::SetScopeId(uint32 NewScopeId)
-{
-	Addr.sin6_scope_id = htonl(NewScopeId);
 }
 
 TSharedRef<FInternetAddr> FInternetAddrBSDIPv6::Clone() const
@@ -331,7 +320,9 @@ FResolveInfoCachedBSDIPv6::FResolveInfoCachedBSDIPv6(const FInternetAddr& InAddr
 	{
 		uint32 IpAddr;
 		InAddr.GetIp(IpAddr);
-		Addr = ISocketSubsystem::Get()->CreateInternetAddr(IpAddr, InAddr.GetPort());
+		Addr = ISocketSubsystem::Get()->CreateInternetAddr();
+		Addr->SetIp(IpAddr);
+		Addr->SetPort(InAddr.GetPort());
 	}
 	
 }

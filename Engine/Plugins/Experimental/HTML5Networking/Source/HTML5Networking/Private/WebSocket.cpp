@@ -90,7 +90,7 @@ FWebSocket::FWebSocket(
 	SockFd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if (SockFd == -1)
 	{
-		UE_LOG(LogHTML5Networking, Error, TEXT("Socket creationg failed "));
+		UE_LOG(LogHTML5Networking, Error, TEXT("Socket creation failed "));
 	}
 	else
 	{
@@ -101,9 +101,10 @@ FWebSocket::FWebSocket(
 
 #endif
 
+	memset(&RemoteAddr, 0, sizeof(RemoteAddr));
+
 	// Windows XP does not have support for inet_pton
 #if PLATFORM_WINDOWS && _WIN32_WINNT <= 0x0502
-	memset(&RemoteAddr, 0, sizeof(RemoteAddr));
 	int32 SizeOfRemoteAddr = sizeof(RemoteAddr);
 
 	// Force ServerAddress into non-const array. API doesn't modify contents but old API still requires non-const string
@@ -112,24 +113,20 @@ FWebSocket::FWebSocket(
 		UE_LOG(LogHTML5Networking, Warning, TEXT("WSAStringToAddress failed "));
 		return;
 	}
-
-	RemoteAddr.sin_family = AF_INET;
-	RemoteAddr.sin_port = htons(ServerAddress.GetPort());
 #else
-	memset(&RemoteAddr, 0, sizeof(RemoteAddr));
-	RemoteAddr.sin_family = AF_INET;
-	RemoteAddr.sin_port = htons(ServerAddress.GetPort());
-
 	if (inet_pton(AF_INET, TCHAR_TO_ANSI(*ServerAddress.ToString(false)), &RemoteAddr.sin_addr) != 1)
 	{
-		UE_LOG(LogHTML5Networking, Warning, TEXT("inet_pton failed "));
+		UE_LOG(LogHTML5Networking, Warning, TEXT("inet_pton failed to %s"), *ServerAddress.ToString(false));
 		return;
 	}
 #endif
 
+	RemoteAddr.sin_family = AF_INET;
+	RemoteAddr.sin_port = htons(ServerAddress.GetPort());
+
 #if !USE_LIBWEBSOCKET // HTML5 uses BSD network API
 	int Ret = connect(SockFd, (struct sockaddr *)&RemoteAddr, sizeof(RemoteAddr));
-	UE_LOG(LogHTML5Networking, Warning, TEXT(" Connect socket returned %d"), Ret);
+	UE_LOG(LogHTML5Networking, Warning, TEXT(" Connect socket returned %d to %s. Error Code: %d"), Ret, *ServerAddress.ToString(false), ((Ret != 0) ? errno : 0));
 #endif
 }
 
@@ -192,11 +189,6 @@ FString FWebSocket::RemoteEndPoint(bool bAppendPort)
 #endif
 
 	return remote;
-}
-
-struct sockaddr_in* FWebSocket::GetRemoteAddr()
-{
-	return &RemoteAddr;
 }
 
 FString FWebSocket::LocalEndPoint(bool bAppendPort)
@@ -303,6 +295,19 @@ void FWebSocket::Flush()
 			break;
 		}
 	};
+}
+
+TArray<uint8> FWebSocket::GetRawRemoteAddr(int32& OutPort)
+{
+	OutPort = ntohs(RemoteAddr.sin_port);
+	TArray<uint8> RawBuffer;
+	uint32 IntAddr = RemoteAddr.sin_addr.s_addr;
+	RawBuffer.Add((IntAddr >> 0) & 0xFF);
+	RawBuffer.Add((IntAddr >> 8) & 0xFF);
+	RawBuffer.Add((IntAddr >> 16) & 0xFF);
+	RawBuffer.Add((IntAddr >> 24) & 0xFF);
+
+	return RawBuffer;
 }
 
 void FWebSocket::SetConnectedCallBack(FWebsocketInfoCallBack CallBack)
