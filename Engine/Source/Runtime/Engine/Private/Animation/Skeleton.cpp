@@ -744,19 +744,14 @@ FName USkeleton::GetRetargetSourceForMesh(USkeletalMesh* InMesh) const
 
 #endif
 
-int32 USkeleton::GetAnimationTrackIndex(const int32 InSkeletonBoneIndex, const UAnimSequence* InAnimSeq, const bool bUseRawData)
+int32 USkeleton::GetRawAnimationTrackIndex(const int32 InSkeletonBoneIndex, const UAnimSequence* InAnimSeq)
 {
-	const TArray<FTrackToSkeletonMap>& TrackToSkelMap = bUseRawData ? InAnimSeq->GetRawTrackToSkeletonMapTable() : InAnimSeq->GetCompressedTrackToSkeletonMapTable();
 	if( InSkeletonBoneIndex != INDEX_NONE )
 	{
-		for (int32 TrackIndex = 0; TrackIndex<TrackToSkelMap.Num(); ++TrackIndex)
+		return InAnimSeq->GetRawTrackToSkeletonMapTable().IndexOfByPredicate([&](const FTrackToSkeletonMap& TrackToSkel)
 		{
-			const FTrackToSkeletonMap& TrackToSkeleton = TrackToSkelMap[TrackIndex];
-			if( TrackToSkeleton.BoneTreeIndex == InSkeletonBoneIndex )
-			{
-				return TrackIndex;
-			}
-		}
+			return TrackToSkel.BoneTreeIndex == InSkeletonBoneIndex;
+		});
 	}
 
 	return INDEX_NONE;

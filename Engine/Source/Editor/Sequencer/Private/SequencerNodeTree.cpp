@@ -834,6 +834,10 @@ TArray< TSharedRef<FSequencerDisplayNode> > FSequencerNodeTree::GetAllNodes() co
 void FSequencerNodeTree::UpdateCurveEditorTree()
 {
 	FCurveEditor* CurveEditor = Sequencer.GetCurveEditor().Get();
+
+	// Guard against multiple broadcasts here and defer them until the end of this function
+	FScopedCurveEditorTreeUpdateGuard ScopedUpdateGuard = CurveEditor->GetTree()->ScopedUpdateGuard();
+
 	auto Traverse_AddToCurveEditor = [this, CurveEditor](FSequencerDisplayNode& InNode)
 	{
 		if (InNode.GetType() == ESequencerNode::Track)

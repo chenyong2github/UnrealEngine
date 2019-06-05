@@ -154,6 +154,8 @@ private:
 
 	void ClearChildren();
 
+	void RemoveStaleChildren();
+
 private:
 
 	/** The track editor for the track associated with this node. */

@@ -409,10 +409,17 @@ FString FHlslNiagaraTranslator::GetFunctionDefinitions()
 		// data interface functions that should be defined differently.
 	}
 
+	// Check to see if we have interpolated spawn enabled, for the GPU we need to look for the additional defines
+	bool bHasInterpolatedSpawn = CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated;
+	if ( CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleGPUComputeScript )
+	{
+		bHasInterpolatedSpawn = CompileOptions.AdditionalDefines.Contains(TEXT("InterpolatedSpawn"));
+	}
+
 	//Add a few hard coded helper functions in.
 	FwdDeclString += TEXT("float GetSpawnInterpolation();");
 	//Add helper function to get the interpolation factor.
-	if (CompileOptions.TargetUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated)
+	if ( bHasInterpolatedSpawn )
 	{
 		DefinitionsString += TEXT("float GetSpawnInterpolation()\n{\n");
 		DefinitionsString += TEXT("\treturn HackSpawnInterp;\n");
@@ -995,23 +1002,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 	//If we're compiling a function then we have all we need already, we don't want to actually generate shader/vm code.
 	if (FunctionCtx())
 		return TranslateResults;
-
-	// MASSIVE HACK - Tracked in JIRA UE-69298
-	// Hardcoded random function accessible from inner part of node implementation.
-	// It works for now at least and avoids exposing every random needed in the UI. 
-	// Temporary solution, it will be replaced when a design is validated.
-	if (CompilationTarget == ENiagaraSimTarget::GPUComputeSim)
-	{
-		HlslOutput += TEXT(R"(
-		float NiagaraInternalNoise(uint u, uint v, uint s)
-		{
-			static uint RandomSeedOffset = 0;
-			uint Seed = (u * 1664525u + v) + s + RandomSeedOffset;
-			RandomSeedOffset += Seed;
-			return float(Rand3DPCG32(int3(u,v,Seed)).x) / 4294967296.0f;
-		}
-		)");
-	}
 
 	//Now evaluate all the code chunks to generate the shader code.
 	//FString HlslOutput;
@@ -1654,13 +1644,13 @@ void FHlslNiagaraTranslator::DefineDataSetWriteFunction(FString &HlslOutputStrin
 	HlslOutput += TEXT("}\n\n");
 }
 
-
-
 void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 {
+	FString InterfaceCommonHLSL;
 	FString InterfaceUniformHLSL;
 	FString InterfaceFunctionHLSL;
 	TArray<FString> BufferParamNames;
+	TSet<FName> InterfaceClasses;
 	for (uint32 i = 0; i < 32; i++)
 	{
 		BufferParamNames.Add(TEXT("DataInterfaceBuffer_") + FString::FromInt(i));
@@ -1676,6 +1666,12 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 		UNiagaraDataInterface* CDO = Cast<UNiagaraDataInterface>(*FoundCDO);
 		if (CDO && CDO->CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
 		{
+			if ( !InterfaceClasses.Contains(Info.Type.GetFName()) )
+			{
+				CDO->GetCommonHLSL(InterfaceCommonHLSL);
+				InterfaceClasses.Add(Info.Type.GetFName());
+			}
+
 			FString OwnerIDString = Info.Name.ToString();
 			FString SanitizedOwnerIDString = GetSanitizedSymbolName(OwnerIDString, true);
 
@@ -1712,7 +1708,7 @@ void FHlslNiagaraTranslator::DefineDataInterfaceHLSL(FString &InHlslOutput)
 				, nullptr, nullptr);
 		}
 	}
-	InHlslOutput += InterfaceUniformHLSL + InterfaceFunctionHLSL;
+	InHlslOutput += InterfaceCommonHLSL + InterfaceUniformHLSL + InterfaceFunctionHLSL;
 }
 
 

@@ -45,10 +45,7 @@ void FLandscapeEditorDetailCustomization_LayersBrushStack::CustomizeDetails(IDet
 	{
 		const FName CurrentToolName = LandscapeEdMode->CurrentTool->GetToolName();
 
-		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0 && CurrentToolName == TEXT("BPCustom"))
-		{
-			LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_LayersBrushStack(DetailBuilder.GetThumbnailPool().ToSharedRef())));
-		}
+		LayerCategory.AddCustomBuilder(MakeShareable(new FLandscapeEditorCustomNodeBuilder_LayersBrushStack(DetailBuilder.GetThumbnailPool().ToSharedRef())));
 	}
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -150,7 +147,7 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 				.Content()
 				[
 					SNew(SImage)
-					.Image(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetVisibilityBrushForBrush, InBrushIndex)
+					.Image(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetVisibilityBrush, InBrushIndex)
 				]
 			]
 			+SHorizontalBox::Slot()
@@ -166,9 +163,44 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 					SNew(STextBlock)
 					.ColorAndOpacity(TAttribute<FSlateColor>::Create(TAttribute<FSlateColor>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushTextColor, InBrushIndex)))
 					.Text(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetBrushText, InBrushIndex)
-					.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsBrushEnabled, InBrushIndex)))
+					.IsEnabled(true)
 				]
 			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(0, 0, 4, 0)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ContentPadding(0)
+				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+				.OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsHeightmap, InBrushIndex)
+				.ToolTipText(LOCTEXT("LandscapeBrushAffectsHeightmap", "Toggle Affects Heightmap"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.Content()
+				[
+					SNew(SImage)
+					.Image(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsHeightmapBrush, InBrushIndex)
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+            .VAlign(VAlign_Center)
+            [
+				SNew(SButton)
+                .ContentPadding(0)
+                .ButtonStyle(FEditorStyle::Get(), "NoBorder")
+                .OnClicked(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsWeightmap, InBrushIndex)
+                .ToolTipText(LOCTEXT("LandscapeBrushAffectsWeightmap", "Toggle Affects Weightmap"))
+                .HAlign(HAlign_Center)
+                .VAlign(VAlign_Center)
+                .Content()
+                [
+                    SNew(SImage)
+                    .Image(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsWeightmapBrush, InBrushIndex)
+                ]
+            ]
 		];
 	
 	return RowWidget;
@@ -203,6 +235,28 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushC
 	return nullptr;
 }
 
+FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsHeightmap(int32 InBrushIndex)
+{
+	if (ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsHeightmap", "Set Brush Affects Heightmap"));
+		bool bAffectsHeightmap = Brush->IsAffectingHeightmap();
+		Brush->SetAffectsHeightmap(!bAffectsHeightmap);
+	}
+	return FReply::Handled();
+}
+
+FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsWeightmap(int32 InBrushIndex)
+{
+	if (ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("Landscape_Brush_AffectsWeightmap", "Set Brush Affects Weightmap"));
+		bool bAffectsWeightmap = Brush->IsAffectingWeightmap();
+		Brush->SetAffectsWeightmap(!bAffectsWeightmap);
+	}
+	return FReply::Handled();
+}
+
 FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleVisibility(int32 InBrushIndex)
 {
 	if (ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex))
@@ -214,7 +268,19 @@ FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleVisibility(in
 	return FReply::Handled();
 }
 
-const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetVisibilityBrushForBrush(int32 InBrushIndex) const
+const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsWeightmapBrush(int32 InBrushIndex) const
+{
+	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
+	return Brush && Brush->IsAffectingWeightmap() ? FEditorStyle::GetBrush("LandscapeEditor.Brush.AffectsWeight.Enabled") : FEditorStyle::GetBrush("LandscapeEditor.Brush.AffectsWeight.Disabled");
+}
+
+const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetAffectsHeightmapBrush(int32 InBrushIndex) const
+{
+	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
+	return Brush && Brush->IsAffectingHeightmap() ? FEditorStyle::GetBrush("LandscapeEditor.Brush.AffectsHeight.Enabled") : FEditorStyle::GetBrush("LandscapeEditor.Brush.AffectsHeight.Disabled");
+}
+
+const FSlateBrush* FLandscapeEditorCustomNodeBuilder_LayersBrushStack::GetVisibilityBrush(int32 InBrushIndex) const
 {
 	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
 	bool bIsVisible = Brush && Brush->IsVisible();
@@ -236,11 +302,22 @@ bool FLandscapeEditorCustomNodeBuilder_LayersBrushStack::IsBrushSelected(int32 I
 
 void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushSelectionChanged(int32 InBrushIndex)
 {
-	ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
-	if (Brush != nullptr && !Brush->IsCommited())
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	if (!LandscapeEdMode || !LandscapeEdMode->CurrentToolMode)
 	{
-		GEditor->SelectNone(true, true);
-		GEditor->SelectActor(Brush, true, true);
+		return;
+	}
+
+	const FName CurrentToolName = LandscapeEdMode->CurrentTool->GetToolName();
+	if (CurrentToolName == TEXT("BlueprintBrush"))
+	{
+		ALandscapeBlueprintCustomBrush* Brush = GetBrush(InBrushIndex);
+		if (Brush != nullptr && !Brush->IsCommited())
+		{
+			FScopedTransaction Transaction(LOCTEXT("LandscapeBrushSelect", "Brush selection"));
+			GEditor->SelectNone(true, true);
+			GEditor->SelectActor(Brush, true, true);
+		}
 	}
 }
 

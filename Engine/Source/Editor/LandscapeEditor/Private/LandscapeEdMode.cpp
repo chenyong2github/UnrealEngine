@@ -340,7 +340,7 @@ FEdModeLandscape::FEdModeLandscape()
 	InitializeTool_Splines();
 	InitializeTool_Ramp();
 	InitializeTool_Mirror();
-	InitializeTool_BPCustom();
+	InitializeTool_BlueprintBrush();
 
 	// Initialize brushes
 	InitializeBrushes();
@@ -436,7 +436,7 @@ void FEdModeLandscape::UpdateToolModes()
 
 	if (CanHaveLandscapeLayersContent())
 	{
-		ToolMode_Sculpt->ValidTools.Add(TEXT("BPCustom"));
+		ToolMode_Sculpt->ValidTools.Add(TEXT("BlueprintBrush"));
 	}
 
 	ToolMode_Sculpt->ValidTools.Add(TEXT("Mask"));
@@ -452,7 +452,7 @@ void FEdModeLandscape::UpdateToolModes()
 
 	if (CanHaveLandscapeLayersContent())
 	{
-		ToolMode_Paint->ValidTools.Add(TEXT("BPCustom"));
+		ToolMode_Paint->ValidTools.Add(TEXT("BlueprintBrush"));
 	}
 
 	// Since available tools might have changed try and reset the current tool
@@ -2573,6 +2573,12 @@ bool FEdModeLandscape::CanEditCurrentTarget(FText* Reason) const
 	if (GetLandscape() == nullptr)
 	{
 		ALandscapeProxy* Proxy = CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
+		if (!Proxy)
+		{
+            LocalReason = NSLOCTEXT("UnrealEd", "LandscapeNotFound", "No Landscape found.");
+			return false;
+		}
+		
 		if (Proxy->HasLayersContent())
 		{
 			LocalReason = NSLOCTEXT("UnrealEd", "LandscapeActorNotLoaded", "Landscape actor is not loaded. It is needed to do layer editing.");
@@ -4619,7 +4625,7 @@ bool FEdModeLandscape::CanEditLayer(FText* Reason /*=nullptr*/, FLandscapeLayer*
 		}
 	}
 
-	if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentTool->GetToolName() != FName("BPCustom"))
+	if (CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolTarget.LayerInfo == NULL && CurrentTool->GetToolName() != FName("BlueprintBrush"))
 	{
 		if (Reason)
 		{
@@ -4710,7 +4716,7 @@ void FEdModeLandscape::UpdateBrushList()
 	BrushList.Empty();
 	for (TObjectIterator<ALandscapeBlueprintCustomBrush> BrushIt(RF_Transient|RF_ClassDefaultObject|RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill); BrushIt; ++BrushIt)
 	{
-		BrushList.AddUnique(*BrushIt);
+		BrushList.Add(*BrushIt);
 	}
 }
 
@@ -4726,7 +4732,7 @@ void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 
 	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
-		BrushList.AddUnique(Brush);
+		BrushList.Add(Brush);
 		AddBrushToCurrentLayer(Brush);
 		RefreshDetailPanel();
 	}

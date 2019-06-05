@@ -155,18 +155,19 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 		}
 
 		TArray<FNiagaraVariable> SwitchNodeInputs = Graph->FindStaticSwitchInputs();
-		for (const FNiagaraVariable& Input : SwitchNodeInputs)
+		for (FNiagaraVariable& Input : SwitchNodeInputs)
 		{
 			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Input.GetType()), Input.GetName());
-			NewPin->bDefaultValueIsIgnored = false;
 			NewPin->bNotConnectable = true;
+			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 
+			int32 DefaultValue = Graph->GetMetaData(Input).Get(FNiagaraVariableMetaData()).StaticSwitchDefaultValue;
+			Input.SetValue<FNiagaraInt32>({ DefaultValue });
 			FString PinDefaultValue;
 			if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
 			{
 				NewPin->DefaultValue = PinDefaultValue;
 			}
-			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 		}
 
 		for (FNiagaraVariable& Output : Outputs)

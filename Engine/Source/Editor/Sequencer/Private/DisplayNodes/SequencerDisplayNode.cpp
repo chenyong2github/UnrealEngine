@@ -26,6 +26,7 @@
 #include "CommonMovieSceneTools.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Tree/SCurveEditorTreePin.h"
+#include "Tree/CurveEditorTreeFilter.h"
 #include "ScopedTransaction.h"
 #include "SequencerKeyTimeCache.h"
 #include "SequencerNodeSortingMethods.h"
@@ -1102,5 +1103,14 @@ void FSequencerDisplayNode::CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& O
 {
 }
 
+bool FSequencerDisplayNode::PassesFilter(const FCurveEditorTreeFilter* InFilter) const
+{
+	if (InFilter->GetType() == ECurveEditorTreeFilterType::Text)
+	{
+		const FCurveEditorTreeTextFilter* Filter = static_cast<const FCurveEditorTreeTextFilter*>(InFilter);
+		return Filter->Match(*GetDisplayName().ToString());
+	}
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE
