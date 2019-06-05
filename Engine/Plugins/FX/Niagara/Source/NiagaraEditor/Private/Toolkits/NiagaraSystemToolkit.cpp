@@ -258,9 +258,6 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
 
-	// Always remove the source information from the emitter handle when editing an emitter asset because inheritance is not valid in this case.
-	System->GetEmitterHandle(0).RemoveSource();
-
 	// Adding the emitter to the system has made a copy of it and we set this to the copy's change id here instead of the original emitter's change 
 	// id because the copy's change id may have been updated from the original as part of post load and we use this id to detect if the editable 
 	// emitter has been changed.
@@ -1053,10 +1050,7 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 		LastSyncedEmitterChangeId = EditableEmitter->GetChangeId();
 		bEmitterThumbnailUpdated = false;
 
-		TArray<UNiagaraEmitter*> AffectedEmitters;
-		AffectedEmitters.Add(Emitter);
 		UpdateExistingEmitters();
-
 		GWarn->EndSlowTask();
 	}
 	else if(bEmitterThumbnailUpdated)
@@ -1068,28 +1062,76 @@ void FNiagaraSystemToolkit::UpdateOriginalEmitter()
 	}
 }
 
+void MergeEmittersRecursively(UNiagaraEmitter* ChangedEmitter, const TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>>& EmitterToReferencingEmittersMap, TSet<UNiagaraEmitter*>& OutMergedEmitters)
+{
+	const TArray<UNiagaraEmitter*>* ReferencingEmitters = EmitterToReferencingEmittersMap.Find(ChangedEmitter);
+	if (ReferencingEmitters != nullptr)
+	{
+		for (UNiagaraEmitter* ReferencingEmitter : (*ReferencingEmitters))
+		{
+			if (ReferencingEmitter->IsSynchronizedWithParent() == false)
+			{
+				ReferencingEmitter->MergeChangesFromParent();
+				OutMergedEmitters.Add(ReferencingEmitter);
+				MergeEmittersRecursively(ReferencingEmitter, EmitterToReferencingEmittersMap, OutMergedEmitters);
+			}
+		}
+	}
+}
+
 void FNiagaraSystemToolkit::UpdateExistingEmitters()
 {
+	// Build a tree of references from the currently loaded emitters so that we can efficiently find all emitters that reference the modified emitter.
+	TMap<UNiagaraEmitter*, TArray<UNiagaraEmitter*>> EmitterToReferencingEmittersMap;
+	UNiagaraEmitter* EditableCopy = System->GetEmitterHandles()[0].GetInstance();
+	for (TObjectIterator<UNiagaraEmitter> EmitterIterator; EmitterIterator; ++EmitterIterator)
+	{
+		UNiagaraEmitter* LoadedEmitter = *EmitterIterator;
+		if (LoadedEmitter != EditableCopy && LoadedEmitter->GetParent() != nullptr)
+		{
+			TArray<UNiagaraEmitter*>& ReferencingEmitters = EmitterToReferencingEmittersMap.FindOrAdd(LoadedEmitter->GetParent());
+			ReferencingEmitters.Add(LoadedEmitter);
+		}
+	}
+
+	// Recursively merge emitters by traversing the reference chains.
+	TSet<UNiagaraEmitter*> MergedEmitters;
+	MergeEmittersRecursively(Emitter, EmitterToReferencingEmittersMap, MergedEmitters);
+
+	// find referencing systems, aside from the system being edited by this toolkit and request that they recompile,
+	// also refresh their view models, and reinitialize their components.
 	for (TObjectIterator<UNiagaraSystem> SystemIterator; SystemIterator; ++SystemIterator)
 	{
 		UNiagaraSystem* LoadedSystem = *SystemIterator;
-
 		if (LoadedSystem != System &&
 			LoadedSystem->IsPendingKill() == false && 
-			LoadedSystem->HasAnyFlags(RF_ClassDefaultObject) == false &&
-			LoadedSystem->ReferencesSourceEmitter(*Emitter))
+			LoadedSystem->HasAnyFlags(RF_ClassDefaultObject) == false)
 		{
-			LoadedSystem->UpdateFromEmitterChanges(*Emitter);
-			TArray<TSharedPtr<FNiagaraSystemViewModel>> ReferencingSystemViewModels;
-			FNiagaraSystemViewModel::GetAllViewModelsForObject(LoadedSystem, ReferencingSystemViewModels);
-
-			for (TSharedPtr<FNiagaraSystemViewModel> ReferencingSystemViewModel : ReferencingSystemViewModels)
+			bool bUsesMergedEmitterDirectly = false;
+			for (const FNiagaraEmitterHandle& EmitterHandle : LoadedSystem->GetEmitterHandles())
 			{
-				ReferencingSystemViewModel->RefreshAll();
+				if (MergedEmitters.Contains(EmitterHandle.GetInstance()))
+				{
+					bUsesMergedEmitterDirectly = true;
+					break;
+				}
 			}
 
-			if (ReferencingSystemViewModels.Num() == 0)
+			if (bUsesMergedEmitterDirectly)
 			{
+				// Request that the system recompile.
+				bool bForce = false;
+				LoadedSystem->RequestCompile(bForce);
+
+				// Invalidate any view models.
+				TArray<TSharedPtr<FNiagaraSystemViewModel>> ReferencingSystemViewModels;
+				FNiagaraSystemViewModel::GetAllViewModelsForObject(LoadedSystem, ReferencingSystemViewModels);
+				for (TSharedPtr<FNiagaraSystemViewModel> ReferencingSystemViewModel : ReferencingSystemViewModels)
+				{
+					ReferencingSystemViewModel->RefreshAll();
+				}
+
+				// Reinit any running components
 				for (TObjectIterator<UNiagaraComponent> ComponentIterator; ComponentIterator; ++ComponentIterator)
 				{
 					UNiagaraComponent* Component = *ComponentIterator;

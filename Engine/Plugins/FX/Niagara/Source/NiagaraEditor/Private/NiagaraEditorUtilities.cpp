@@ -1076,7 +1076,7 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 		{
 			for (auto EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
 			{
-				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetSource()))
+				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetInstance()->GetParent()))
 				{
 					ReferencingComponents.Add(Component);
 				}

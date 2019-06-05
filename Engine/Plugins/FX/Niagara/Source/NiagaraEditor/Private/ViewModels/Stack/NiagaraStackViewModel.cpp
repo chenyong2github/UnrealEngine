@@ -182,17 +182,18 @@ bool UNiagaraStackViewModel::HasDismissedStackIssues()
 		|| GetEmitterHandleViewModel()->GetEmitterViewModel()->GetEditorData().GetStackEditorData().GetDismissedStackIssueIds().Num() > 0;
 }
 
-bool UNiagaraStackViewModel::HasEmitterSource() const
+bool UNiagaraStackViewModel::HasParentEmitter() const
 {
-	return EmitterHandleViewModel->GetEmitterHandle()->GetSource() != nullptr;
+	return EmitterHandleViewModel->GetEmitterViewModel()->GetParentEmitter() != nullptr;
 }
 
 void UNiagaraStackViewModel::RemoveEmitterSource()
 {
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveEmitterSourceTransaction", "Remove Emitter Source"));
-		SystemViewModel->GetSystem().Modify();
-		EmitterHandleViewModel->GetEmitterHandle()->RemoveSource();
+		FScopedTransaction ScopedTransaction(LOCTEXT("RemoveParentEmitterTransaction", "Remove Parent Emitter"));
+		UNiagaraEmitter* Emitter = EmitterHandleViewModel->GetEmitterViewModel()->GetEmitter();
+		Emitter->Modify();
+		Emitter->RemoveParent();
 	}
 	RootEntry->RefreshChildren();
 }

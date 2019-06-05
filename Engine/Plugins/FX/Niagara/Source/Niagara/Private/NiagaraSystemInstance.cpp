@@ -1261,7 +1261,7 @@ bool FNiagaraSystemInstance::UsesScript(const UNiagaraScript* Script)const
 	{
 		for (FNiagaraEmitterHandle EmitterHandle : GetSystem()->GetEmitterHandles())
 		{
-			if ((EmitterHandle.GetSource() && EmitterHandle.GetSource()->UsesScript(Script)) || (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script)))
+			if (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script))
 			{
 				return true;
 			}
