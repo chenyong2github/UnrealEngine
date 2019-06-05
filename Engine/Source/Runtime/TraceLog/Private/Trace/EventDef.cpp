@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Trace/Private/Event.h"
+#include "Trace/Private/EventDef.h"
 
 #if UE_TRACE_ENABLED
 
@@ -14,15 +14,15 @@ namespace Trace
 namespace Private
 {
 
-void Writer_EventCreate(FEvent*, const FLiteralName&, const FLiteralName&, const FFieldDesc*, uint32, uint32);
+void Writer_EventCreate(FEventDef*, const FLiteralName&, const FLiteralName&, const FFieldDesc*, uint32, uint32);
 
 } // namespace Private
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
-void FEvent::Create(
-	FEvent* Target,
+void FEventDef::Create(
+	FEventDef* Target,
 	const FLiteralName& LoggerName,
 	const FLiteralName& EventName,
 	const FFieldDesc* FieldDescs,
