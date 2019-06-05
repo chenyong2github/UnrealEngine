@@ -56,6 +56,18 @@ float Reciprocal(float x){ return 1.0f/x; }
 		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld);
 		return HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
 	}
+
+	// MASSIVE HACK - Tracked in JIRA UE-69298
+	// Hardcoded random function accessible from inner part of node implementation.
+	// It works for now at least and avoids exposing every random needed in the UI. 
+	// Temporary solution, it will be replaced when a design is validated.
+	float NiagaraInternalNoise(uint u, uint v, uint s)
+	{
+		static uint RandomSeedOffset = 0;
+		uint Seed = (u * 1664525u + v) + s + RandomSeedOffset;
+		RandomSeedOffset += Seed;
+		return float(Rand3DPCG32(int3(u,v,Seed)).x) / 4294967296.0f;
+	}
 #endif
 
 /* ----------------------------------------------------------------------------

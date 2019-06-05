@@ -1115,6 +1115,11 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 	RebuildNumericCache();
 }
 
+void UNiagaraGraph::CopyCachedReferencesMap(UNiagaraGraph* TargetGraph)
+{
+	TargetGraph->ParameterToReferencesMap = ParameterToReferencesMap;
+}
+
 const class UEdGraphSchema_Niagara* UNiagaraGraph::GetNiagaraSchema() const
 {
 	return Cast<UEdGraphSchema_Niagara>(GetSchema());

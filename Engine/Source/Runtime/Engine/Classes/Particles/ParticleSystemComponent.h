@@ -34,6 +34,7 @@ class UAnimNotifyState;
 class FParticleDynamicData;
 class FParticleSystemSceneProxy;
 class UAnimNotifyState;
+class UFXSystemAsset;
 struct FDynamicEmitterDataBase;
 struct FDynamicEmitterReplayDataBase;
 struct FParticleAnimTrailEmitterInstance;
@@ -354,6 +355,11 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Effects|Components|ParticleSystem")
 	virtual void SetActorParameter(FName ParameterName, class AActor* Param) {}
+
+	/** 
+	 * Get the referenced FXSystem asset.
+	*/
+	virtual UFXSystemAsset* GetFXSystemAsset() const { return nullptr; };
 };
 
 
@@ -1019,6 +1025,11 @@ public:
 	 *	Updates the parameter if it already exists, or creates a new entry if not. 
 	 */
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
+
+	/**
+	 * Get the referenced FXSystem asset.
+	*/
+	virtual UFXSystemAsset* GetFXSystemAsset() const { return Template; };
 
 	/** 
 	 *	Set a named material instance parameter on this ParticleSystemComponent. 

@@ -75,9 +75,6 @@ USceneComponent::USceneComponent(const FObjectInitializer& ObjectInitializer /*=
 	// default behavior is visible
 	bVisible = true;
 	bAutoActivate = false;
-
-	bNetHasReceivedRelativeLocation = false;
-	bNetHasReceivedRelativeRotation = false;
 	bShouldBeAttached = AttachParent != nullptr;
 }
 
@@ -664,6 +661,8 @@ void USceneComponent::OnRegister()
 			AttachParent = nullptr;
 			AttachSocketName = NAME_None;
 			bShouldBeAttached = false;
+			bShouldSnapLocationWhenAttached = false;
+			bShouldSnapRotationWhenAttached = false;
 		}
 	}
 	
@@ -1787,6 +1786,9 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 		ensureMsgf(!AttachmentRules.bWeldSimulatedBodies, TEXT("AttachToComponent when called from a constructor cannot weld simulated bodies. Consider calling SetupAttachment directly instead."));
 		ensureMsgf(AttachmentRules.LocationRule == EAttachmentRule::KeepRelative && AttachmentRules.RotationRule == EAttachmentRule::KeepRelative && AttachmentRules.ScaleRule == EAttachmentRule::KeepRelative, TEXT("AttachToComponent when called from a constructor is only setting up attachment and will always be treated as KeepRelative. Consider calling SetupAttachment directly instead."));
 		SetupAttachment(Parent, SocketName);
+		bShouldSnapLocationWhenAttached = false;
+		bShouldSnapRotationWhenAttached = false;
+
 		return true;
 	}
 
@@ -1950,6 +1952,9 @@ bool USceneComponent::AttachToComponent(USceneComponent* Parent, const FAttachme
 		AttachParent = Parent;
 		AttachSocketName = SocketName;
 		bShouldBeAttached = AttachParent != nullptr;
+
+		bShouldSnapLocationWhenAttached = AttachmentRules.LocationRule == EAttachmentRule::SnapToTarget;
+		bShouldSnapRotationWhenAttached = AttachmentRules.RotationRule == EAttachmentRule::SnapToTarget;
 
 		OnAttachmentChanged();
 
@@ -2151,6 +2156,9 @@ void USceneComponent::DetachFromComponent(const FDetachmentTransformRules& Detac
 		AttachParent = nullptr;
 		AttachSocketName = NAME_None;
 		bShouldBeAttached = 0;
+
+		bShouldSnapLocationWhenAttached = false;
+		bShouldSnapRotationWhenAttached = false;
 
 		OnAttachmentChanged();
 
@@ -3123,18 +3131,6 @@ void USceneComponent::OnRep_Transform()
 	bNetUpdateTransform = true;
 }
 
-void USceneComponent::OnRep_RelativeLocation()
-{
-	bNetHasReceivedRelativeLocation = true;
-	OnRep_Transform();
-}
-
-void USceneComponent::OnRep_RelativeRotation()
-{
-	bNetHasReceivedRelativeRotation = true;
-	OnRep_Transform();
-}
-
 void USceneComponent::OnRep_AttachParent()
 {
 	bNetUpdateAttachment = true;
@@ -3228,16 +3224,14 @@ void USceneComponent::PostRepNotifies()
 		Exchange(NetOldAttachParent, AttachParent);
 		Exchange(NetOldAttachSocketName, AttachSocketName);
 		
-		// Note: This is a local fix for JIRA UE-43355. If we receive bNetUpdateAttachment without having received a updated transform, assume that we intend to snap and that the relative location/rotation should defaulted
-		if (!bNetHasReceivedRelativeLocation)
+		// Note: This is a local fix for JIRA UE-43355.
+		if (bShouldSnapLocationWhenAttached)
 		{
 			RelativeLocation = FVector::ZeroVector;
-			bNetHasReceivedRelativeLocation = true;
 		}
-		if (!bNetHasReceivedRelativeRotation)
+		if (bShouldSnapRotationWhenAttached)
 		{
 			RelativeRotation = FRotator::ZeroRotator;
-			bNetHasReceivedRelativeRotation = true;
 		}
 
 		// Check if this is a detach
@@ -3249,11 +3243,15 @@ void USceneComponent::PostRepNotifies()
 		else
 		{
 			const uint8 bOldShouldBeAttached = bShouldBeAttached;
+			const uint8 bOldShouldSnapLocationWhenAttached = bShouldSnapLocationWhenAttached;
+			const uint8 bOldShouldSnapRotationWhenAttached = bShouldSnapRotationWhenAttached;
 
 			AttachToComponent(NetOldAttachParent, FAttachmentTransformRules::KeepRelativeTransform, NetOldAttachSocketName);
 
-			// restore bShouldBeAttached to what we have received
+			// restore to what we have received from the server
 			bShouldBeAttached = bOldShouldBeAttached;
+			bShouldSnapLocationWhenAttached = bOldShouldSnapLocationWhenAttached;
+			bShouldSnapRotationWhenAttached = bOldShouldSnapRotationWhenAttached;
 		}
 
 		bNetUpdateAttachment = false;
@@ -3275,6 +3273,8 @@ void USceneComponent::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & O
 	DOREPLIFETIME(USceneComponent, bAbsoluteScale);
 	DOREPLIFETIME(USceneComponent, bVisible);
 	DOREPLIFETIME(USceneComponent, bShouldBeAttached);
+	DOREPLIFETIME(USceneComponent, bShouldSnapLocationWhenAttached);
+	DOREPLIFETIME(USceneComponent, bShouldSnapRotationWhenAttached);
 	DOREPLIFETIME(USceneComponent, AttachParent);
 	DOREPLIFETIME(USceneComponent, AttachChildren);
 	DOREPLIFETIME(USceneComponent, AttachSocketName);

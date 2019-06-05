@@ -127,7 +127,7 @@ template<typename T, typename AllocatorT>
 void
 TResizableCircularQueue<T, AllocatorT>::Pop(SIZE_T PopCount)
 {
-	if (ensure(Count() > PopCount))
+	if (ensure(Count() >= PopCount))
 	{
 		PopNoCheck(PopCount);
 	}

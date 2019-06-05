@@ -108,6 +108,14 @@ void FViewportInfo::ReleaseRHI()
 	ViewportRHI.SafeRelease();
 }
 
+void FViewportInfo::ReleaseResource()
+{
+	FRenderResource::ReleaseResource();
+	UITargetRT.SafeRelease();
+	UITargetRTMask.SafeRelease();
+	HDRSourceRT.SafeRelease();
+}
+
 void FViewportInfo::ConditionallyUpdateDepthBuffer(bool bInRequiresStencilTest, uint32 InWidth, uint32 InHeight)
 {
 	FViewportInfo* ViewportInfo = this;

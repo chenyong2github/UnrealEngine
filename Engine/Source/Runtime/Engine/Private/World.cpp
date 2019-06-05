@@ -4640,7 +4640,6 @@ void UWorld::WelcomePlayer(UNetConnection* Connection)
 #endif
 
 	check(CurrentLevel);
-	Connection->SendPackageMap();
 
 	FString LevelName;
 
@@ -5207,7 +5206,7 @@ bool UWorld::Listen( FURL& InURL )
 		}
 	}
 
-	if (NetDriver == NULL)
+	if (NetDriver == nullptr)
 	{
 		GEngine->BroadcastNetworkFailure(this, NULL, ENetworkFailure::NetDriverCreateFailure);
 		return false;
@@ -5218,8 +5217,8 @@ bool UWorld::Listen( FURL& InURL )
 	{
 		GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::NetDriverListenFailure, Error);
 		UE_LOG(LogWorld, Log,  TEXT("Failed to listen: %s"), *Error );
-		NetDriver->SetWorld(NULL);
-		NetDriver = NULL;
+		GEngine->DestroyNamedNetDriver(this, NetDriver->NetDriverName);
+		NetDriver = nullptr;
 		FLevelCollection* SourceCollection = FindCollectionByType(ELevelCollectionType::DynamicSourceLevels);
 		if (SourceCollection)
 		{
@@ -6502,7 +6501,7 @@ bool UWorld::UsesGameHiddenFlags() const
 
 FString UWorld::GetAddressURL() const
 {
-	return FString::Printf( TEXT("%s:%i"), *URL.Host, URL.Port );
+	return FString::Printf( TEXT("%s"), *URL.GetHostPortString() );
 }
 
 FString UWorld::RemovePIEPrefix(const FString &Source)

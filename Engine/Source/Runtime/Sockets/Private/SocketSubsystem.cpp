@@ -5,6 +5,7 @@
 #include "Misc/ScopeLock.h"
 #include "SocketSubsystemModule.h"
 #include "Modules/ModuleManager.h"
+#include "SocketTypes.h"
 #include "IPAddress.h"
 #include "Sockets.h"
 #include "Templates/UniquePtr.h"
@@ -16,6 +17,12 @@ IMPLEMENT_MODULE( FSocketSubsystemModule, Sockets );
 /** Each platform will implement these functions to construct/destroy socket implementations */
 extern FName CreateSocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule );
 extern void DestroySocketSubsystem( FSocketSubsystemModule& SocketSubsystemModule );
+
+namespace FNetworkProtocolTypes
+{
+	const FName IPv4(TEXT("IPv4"));
+	const FName IPv6(TEXT("IPv6"));
+}
 
 /** Helper function to turn the friendly subsystem name into the module name */
 static inline FName GetSocketModuleName(const FString& SubsystemName)
@@ -257,7 +264,7 @@ TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalBindAddr(FOutputDevice& Out)
 	// look up the local host address
 	TSharedRef<FInternetAddr> BindAddr = GetLocalHostAddr(Out, bCanBindAll);
 
-	// If we can bind to all addresses, return 0.0.0.0
+	// If we can bind to all addresses, return the any address
 	if (bCanBindAll)
 	{
 		BindAddr->SetAnyAddress();
@@ -290,10 +297,8 @@ FResolveInfo* ISocketSubsystem::GetHostByName(const ANSICHAR* HostName)
 TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll)
 {
 	TSharedRef<FInternetAddr> HostAddr = CreateInternetAddr();
-	HostAddr->SetAnyAddress();
-
-	bCanBindAll = false;
 	FString HostName;
+	bCanBindAll = false;
 
 	if (GetMultihomeAddress(HostAddr))
 	{
@@ -306,7 +311,9 @@ TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalHostAddr(FOutputDevice& Out,
 	}
 
 	// Failing to find the host is not considered an error and we just bind to any address
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	ESocketErrors FindHostResult = GetHostByName(TCHAR_TO_ANSI(*HostName), *HostAddr);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	if (FindHostResult == SE_NO_ERROR || FindHostResult == SE_HOST_NOT_FOUND 
 		|| FindHostResult == SE_EWOULDBLOCK || FindHostResult == SE_TRY_AGAIN)
 	{
@@ -324,23 +331,27 @@ TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalHostAddr(FOutputDevice& Out,
 	else
 	{
 		Out.Logf(TEXT("GetHostByName failed (%s)"), GetSocketError(FindHostResult));
+		HostAddr->SetAnyAddress();
 	}
 
 	// return the newly created address
 	return HostAddr;
 }
 
-bool ISocketSubsystem::GetMultihomeAddress(TSharedRef<class FInternetAddr>& Addr)
+bool ISocketSubsystem::GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr)
 {
 	TCHAR Home[256] = TEXT("");
 	if (FParse::Value(FCommandLine::Get(), TEXT("MULTIHOME="), Home, ARRAY_COUNT(Home)))
 	{
-		bool bIsValid = false;
-		Addr->SetIp(Home, bIsValid);
-		if (Home == NULL || !bIsValid)
+		TSharedPtr<FInternetAddr> MultiHomeQuery = GetAddressFromString(Home);
+		if (Home == NULL || !MultiHomeQuery.IsValid())
 		{
 			UE_LOG(LogSockets, Log, TEXT("Invalid multihome IP address %s"), Home);
 			return false;
+		}
+		else
+		{
+			Addr = MultiHomeQuery.ToSharedRef();
 		}
 
 		return true;
@@ -373,6 +384,33 @@ void ISocketSubsystem::RemoveHostNameFromCache(const ANSICHAR* HostName)
 	// Lock for thread safety
 	FScopeLock sl(&HostNameCacheSync);
 	HostNameCache.Remove(FString(HostName));
+}
+
+ESocketProtocolFamily ISocketSubsystem::GetProtocolFamilyFromName(const FName& InProtocolName) const
+{
+	if (InProtocolName == FNetworkProtocolTypes::IPv6)
+	{
+		return ESocketProtocolFamily::IPv6;
+	}
+	else if (InProtocolName == FNetworkProtocolTypes::IPv4)
+	{
+		return ESocketProtocolFamily::IPv4;
+	}
+
+	return ESocketProtocolFamily::None;
+}
+
+FName ISocketSubsystem::GetProtocolNameFromFamily(ESocketProtocolFamily InProtocolFamily) const
+{
+	switch (InProtocolFamily)
+	{
+	default:
+		return NAME_None;
+	case ESocketProtocolFamily::IPv4:
+		return FNetworkProtocolTypes::IPv4;
+	case ESocketProtocolFamily::IPv6:
+		return FNetworkProtocolTypes::IPv6;
+	}
 }
 
 FResolveInfoCached* ISocketSubsystem::CreateResolveInfoCached(TSharedPtr<FInternetAddr> Addr) const

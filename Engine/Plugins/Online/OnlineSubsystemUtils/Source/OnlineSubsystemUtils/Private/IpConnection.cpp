@@ -37,7 +37,6 @@ TAutoConsoleVariable<int32> CVarNetIpConnectionUseSendTasks(
 
 UIpConnection::UIpConnection(const FObjectInitializer& ObjectInitializer) :
 	Super(ObjectInitializer),
-	RemoteAddr(NULL),
 	Socket(NULL),
 	ResolveInfo(NULL),
 	SocketErrorDisconnectDelay(5.f),
@@ -97,13 +96,7 @@ void UIpConnection::InitRemoteConnection(UNetDriver* InDriver, class FSocket* In
 		(InMaxPacket == 0 || InMaxPacket > MAX_PACKET_SIZE) ? MAX_PACKET_SIZE : InMaxPacket,
 		InPacketOverhead == 0 ? UDP_HEADER_SIZE : InPacketOverhead);
 
-	// Copy the remote IPAddress passed in
-	bool bIsValid = false;
-	FString IpAddrStr = InRemoteAddr.ToString(false);
-	RemoteAddr = InDriver->GetSocketSubsystem()->CreateInternetAddr();
-	RemoteAddr->SetIp(*IpAddrStr, bIsValid);
-	RemoteAddr->SetPort(InRemoteAddr.GetPort());
-
+	RemoteAddr = InRemoteAddr.Clone();
 	URL.Host = RemoteAddr->ToString(false);
 
 	// Initialize our send bunch
@@ -409,27 +402,4 @@ FString UIpConnection::LowLevelDescribe()
 		:	State==USOCK_Closed		?	TEXT("Closed")
 		:								TEXT("Invalid")
 	);
-}
-
-int32 UIpConnection::GetAddrAsInt(void)
-{
-	uint32 OutAddr = 0;
-	// Get the host byte order ip addr
-	RemoteAddr->GetIp(OutAddr);
-	return (int32)OutAddr;
-}
-
-int32 UIpConnection::GetAddrPort(void)
-{
-	return RemoteAddr->GetPort();
-}
-
-TSharedPtr<FInternetAddr> UIpConnection::GetInternetAddr()
-{
-	return RemoteAddr;
-}
-
-FString UIpConnection::RemoteAddressToString()
-{
-	return RemoteAddr->ToString(true);
 }

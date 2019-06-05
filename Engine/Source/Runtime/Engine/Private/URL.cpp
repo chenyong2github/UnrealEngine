@@ -231,7 +231,7 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 		// Handle pure filenames & Posix paths.
 		bool FarHost=0;
 		bool FarMap=0;
-		if( FCString::Strlen(URL)>2 && ((URL[0] != '[' && URL[1]==':') || (URL[0]=='/' && !FPackageName::IsValidLongPackageName(URL, true))) )
+		if( FCString::Strlen(URL)>2 && ((URL[0] != '[' && URL[0] != ':' && URL[1]==':') || (URL[0]=='/' && !FPackageName::IsValidLongPackageName(URL, true))) )
 		{
 			// Pure filename.
 			Protocol = UrlConfig.DefaultProtocol;
@@ -245,16 +245,19 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 		else
 		{
 			// Determine location of the first opening square bracket.
-			// Square brackets enclose an IPv6 address.
+			// Square brackets enclose an IPv6 address if they have a port.
 			const TCHAR* SquareBracket = FCString::Strchr(URL, '[');
+			const TCHAR* FirstColonLocation = FCString::Strchr(URL, ':');
+			const TCHAR* LastColonLocation = FCString::Strrchr(URL, ':');
+			const bool bHasMultipleColons = FirstColonLocation != nullptr && LastColonLocation != nullptr && FirstColonLocation != LastColonLocation
+				&& FCString::Strchr(FirstColonLocation + 1, ':') != LastColonLocation;
 
 			// Parse protocol. Don't consider colons that occur after the opening square
 			// brace, because they are valid characters in an IPv6 address.
-			if
-			(	(FCString::Strchr(URL,':')!=NULL)
-			&&	(FCString::Strchr(URL,':')>URL+1)
-			&&  (!SquareBracket || (FCString::Strchr(URL,':')<SquareBracket))
-			&&	(FCString::Strchr(URL,'.')==NULL || FCString::Strchr(URL,':')<FCString::Strchr(URL,'.')) )
+			if( (FirstColonLocation !=nullptr)
+			&&	(FirstColonLocation >URL+1)
+			&&  ((!SquareBracket && !bHasMultipleColons) || (FirstColonLocation <SquareBracket) || (bHasMultipleColons && *(FirstColonLocation+1) == '/'))
+			&&	(FCString::Strchr(URL,'.')==nullptr || FirstColonLocation <FCString::Strchr(URL,'.')) )
 			{
 				TCHAR* ss = URL;
 				URL      = FCString::Strchr(URL,':');
@@ -272,6 +275,8 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 
 			// Parse optional host name and port.
 			const TCHAR* Dot = FCString::Strchr(URL,'.');
+			// This doesn't use FirstColonLocation as the URL could be modified by the Protocol code above
+			const TCHAR* Colon = FCString::Strchr(URL, ':');
 			const int32 ExtLen = FPackageName::GetMapPackageExtension().Len();
 
 			const bool bIsHostnameWithDot =
@@ -282,9 +287,11 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 				&&	(FCString::Strnicmp( Dot+1,TEXT("demo"), 4 ) != 0 || FChar::IsAlnum(Dot[5]));
 
 			// Square bracket indicates an IPv6 address, but IPv6 addresses can contain dots also
-			if ( bIsHostnameWithDot || SquareBracket )
+			// They also typically have multiple colons in them as well.
+			if (bIsHostnameWithDot || SquareBracket || (Colon && Colon != LastColonLocation) || bHasMultipleColons)
 			{
 				TCHAR* ss = URL;
+				// Clear out the URL such that all that should be left is the map
 				URL     = FCString::Strchr(URL,'/');
 				if( URL )
 				{
@@ -299,23 +306,27 @@ FURL::FURL( FURL* Base, const TCHAR* TextURL, ETravelType Type )
 				{
 					PortText = ClosingSquareBracket;
 				}
-				TCHAR* t = FCString::Strchr(PortText,':');
-				if( t )
+
+				// If we don't have a square bracket, check for another instance of a colon. This will tell us if we're dealing with an IPv6 address
+				// if there isn't one, then we're dealing with a port.
+				TCHAR* PortData = FCString::Strchr(PortText, ':');
+				if (PortData && (ClosingSquareBracket || (!ClosingSquareBracket && FCString::Strchr(PortData + 1, ':') == nullptr)))
 				{
 					// Port.
-					*(t++) = 0;
-					Port = FCString::Atoi( t );
+					*(PortData++) = 0;
+					Port = FCString::Atoi(PortData);
 				}
-/*
+
+				// If the input was an IPv6 address with a port, we need to remove the brackets then.
 				if(SquareBracket && ClosingSquareBracket)
 				{
 					// Trim the brackets from the host address
 					*ClosingSquareBracket = 0;
 					Host = ss + 1;
 				}
-				else*/
+				else
 				{
-					// Normal IPv4 address
+					// Otherwise, leave the address as is.
 					Host = ss;
 				}
 
@@ -437,17 +448,10 @@ FString FURL::ToString (bool FullyQualified) const
 		}
 	}
 
-	// Emit host.
+	// Emit host and port
 	if ((Host != UrlConfig.DefaultHost) || (Port != UrlConfig.DefaultPort))
 	{
-		Result += Host;
-
-		if (Port != UrlConfig.DefaultPort)
-		{
-			Result += TEXT(":");
-			Result += FString::Printf(TEXT("%i"), Port);
-		}
-
+		Result += GetHostPortString();
 		Result += TEXT("/");
 	}
 
@@ -469,6 +473,39 @@ FString FURL::ToString (bool FullyQualified) const
 	{
 		Result += TEXT("#");
 		Result += Portal;
+	}
+
+	return Result;
+}
+
+//
+// Convert the host and port values of this URL into a string that's safe for serialization
+//
+FString FURL::GetHostPortString() const
+{
+	FString Result;
+	int32 FirstColonIndex, LastColonIndex;
+	bool bNotUsingDefaultPort = (Port != UrlConfig.DefaultPort);
+
+	// If this is an IPv6 address (determined if there's more than one colon) 
+	// and we're going to be adding the port, we need to put in the brackets
+	// This is done because there's no sane way to serialize the address otherwise
+	if (Host.FindChar(':', FirstColonIndex) && Host.FindLastChar(':', LastColonIndex)
+		&& FirstColonIndex != LastColonIndex && bNotUsingDefaultPort)
+	{
+		Result += FString::Printf(TEXT("[%s]"), *Host);
+	}
+	else
+	{
+		// Otherwise print the IPv6/IPv4 address as is
+		Result += Host;
+	}
+
+
+	if (bNotUsingDefaultPort)
+	{
+		Result += TEXT(":");
+		Result += FString::Printf(TEXT("%i"), Port);
 	}
 
 	return Result;
@@ -606,4 +643,98 @@ bool FURL::operator==( const FURL& Other ) const
 
 	return 1;
 }
+
+/*-----------------------------------------------------------------------------
+	Testing
+-----------------------------------------------------------------------------*/
+#if WITH_DEV_AUTOMATION_TESTS && !UE_BUILD_SHIPPING
+
+struct FURLTestCase
+{
+	FURLTestCase(const FString& InQueryString, const FString& InHost, const FString InProtocol=TEXT(""), int32 InPort = -1) :
+		QueryString(InQueryString),
+		Protocol(InProtocol),
+		Host(InHost),
+		Port(InPort)
+	{
+
+	}
+	FString QueryString;
+	FString Protocol;
+	FString Host;
+	int32 Port;
+};
+
+static bool URLSerializationTests(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+{
+	TArray<FURLTestCase> TestCases;
+	if (FParse::Command(&Cmd, TEXT("URLSERIALIZATION")))
+	{
+		TestCases.Push(FURLTestCase(TEXT("2001:0db8:85a3:0000:0000:8a2e:0370:7334"), TEXT("2001:0db8:85a3:0000:0000:8a2e:0370:7334")));
+		TestCases.Push(FURLTestCase(TEXT("[2001:0db8:85a3:0000:0000:8a2e:0370:7334]:7778"), TEXT("2001:0db8:85a3:0000:0000:8a2e:0370:7334"), TEXT(""), 7778));
+		TestCases.Push(FURLTestCase(TEXT("[2001:db8:85a3::8a2e:370:7334]"), TEXT("2001:db8:85a3::8a2e:370:7334")));
+		TestCases.Push(FURLTestCase(TEXT("epic://2001:db8:85a3::8a2e:370:7334"), TEXT("2001:db8:85a3::8a2e:370:7334"), TEXT("epic")));
+		TestCases.Push(FURLTestCase(TEXT("192.168.0.1"), TEXT("192.168.0.1")));
+		TestCases.Push(FURLTestCase(TEXT("test://192.168.0.1"), TEXT("192.168.0.1"), TEXT("test")));
+		TestCases.Push(FURLTestCase(TEXT("::ffff:192.168.0.1"), TEXT("::ffff:192.168.0.1")));
+		TestCases.Push(FURLTestCase(TEXT("[::ffff:192.168.0.1]"), TEXT("::ffff:192.168.0.1")));
+		TestCases.Push(FURLTestCase(TEXT("[::ffff:192.168.0.1]:7778"), TEXT("::ffff:192.168.0.1"), TEXT(""), 7778));
+		TestCases.Push(FURLTestCase(TEXT("test://::ffff:192.168.0.1"), TEXT("::ffff:192.168.0.1"), TEXT("test")));
+		TestCases.Push(FURLTestCase(TEXT("unreal:192.168.0.1:7776"), TEXT("192.168.0.1"), TEXT("unreal"), 7776));
+		TestCases.Push(FURLTestCase(TEXT("192.168.0.1"), TEXT("192.168.0.1")));
+		TestCases.Push(FURLTestCase(TEXT("http://[::ffff:192.168.0.1]:8080"), TEXT("::ffff:192.168.0.1"), TEXT("http"), 8080));
+		TestCases.Push(FURLTestCase(TEXT("https:[2001:db8:85a3::8a2e:370:7334]:443"), TEXT("2001:db8:85a3::8a2e:370:7334"), TEXT("https"), 443));
+		TestCases.Push(FURLTestCase(TEXT("steam.76561197993275299:20/"), TEXT("steam.76561197993275299"), TEXT(""), 20));
+
+		bool bAllCasesPassed = true;
+		for (const auto& TestCase : TestCases)
+		{
+			FURL TestURL(nullptr, *TestCase.QueryString, TRAVEL_Absolute);
+			// This is ugly, but we use it to report which cases failed and why.
+			const bool bHostMatched = (TestURL.Host == TestCase.Host);
+			const bool bPortMatched = (TestCase.Port == -1 || TestCase.Port == TestURL.Port);
+			const bool bProtocolMatched = (TestCase.Protocol.IsEmpty() || TestCase.Protocol == TestURL.Protocol);
+
+			if (bHostMatched && bPortMatched &&	bProtocolMatched)
+			{
+				UE_LOG(LogCore, Log, TEXT("Test %s passed!"), *TestCase.QueryString);
+			}
+			else
+			{
+				bAllCasesPassed = false;
+				UE_LOG(LogCore, Warning, TEXT("Test %s failed! Matching flags: Host[%d] Port[%d] Protocol[%d]"), *TestCase.QueryString, bHostMatched, bPortMatched, bProtocolMatched);
+				if (!bHostMatched)
+				{
+					UE_LOG(LogCore, Warning, TEXT("URL had host %s, expected %s"), *TestURL.Host, *TestCase.Host);
+				}
+
+				if (!bPortMatched)
+				{
+					UE_LOG(LogCore, Warning, TEXT("URL had port %d, expected %d"), TestURL.Port, TestCase.Port);
+				}
+
+				if (!bProtocolMatched)
+				{
+					UE_LOG(LogCore, Warning, TEXT("URL had protocol %s, expected %s"), *TestURL.Protocol, *TestCase.Protocol);
+				}
+			}
+		}
+
+		if (bAllCasesPassed)
+		{
+			UE_LOG(LogCore, Log, TEXT("All URL serialization cases passed."));
+		}
+		else
+		{
+			UE_LOG(LogCore, Warning, TEXT("An URL serialization case failed!"));
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+FStaticSelfRegisteringExec FURLTests(URLSerializationTests);
+#endif // WITH_DEV_AUTOMATION_TESTS && !UE_BUILD_SHIPPING
 

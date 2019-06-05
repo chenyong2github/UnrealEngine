@@ -12,6 +12,9 @@
 #define InterlockedExchange _InterlockedExchange
 #define InterlockedExchangeAdd _InterlockedExchangeAdd
 #define InterlockedCompareExchange _InterlockedCompareExchange
+#define InterlockedAnd _InterlockedAnd
+#define InterlockedOr _InterlockedOr
+#define InterlockedXor _InterlockedXor
 
 #if PLATFORM_64BITS
 	#define InterlockedCompareExchangePointer _InterlockedCompareExchangePointer

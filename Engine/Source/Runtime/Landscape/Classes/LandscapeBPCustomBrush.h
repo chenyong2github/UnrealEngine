@@ -14,13 +14,13 @@ class LANDSCAPE_API ALandscapeBlueprintCustomBrush : public AActor
 	GENERATED_UCLASS_BODY()
 
 private:
-	UPROPERTY(Category= "Settings", EditAnywhere, NonTransactional)
+	UPROPERTY(Category= "Settings", EditAnywhere)
 	bool AffectHeightmap;
 
-	UPROPERTY(Category= "Settings", EditAnywhere, NonTransactional)
+	UPROPERTY(Category= "Settings", EditAnywhere)
 	bool AffectWeightmap;
 
-	UPROPERTY(Category = "Settings", EditAnywhere, NonTransactional)
+	UPROPERTY(Category = "Settings", EditAnywhere)
 	TArray<FName> AffectedWeightmapLayers;
 
 #if WITH_EDITORONLY_DATA
@@ -60,6 +60,9 @@ public:
 
 	bool IsVisible() const { return bIsVisible; }
 	void SetIsVisible(bool bInIsVisible);
+
+	void SetAffectsHeightmap(bool bInAffectsHeightmap);
+	void SetAffectsWeightmap(bool bInAffectsWeightmap);
 
 	void SetOwningLandscape(class ALandscape* InOwningLandscape);
 	class ALandscape* GetOwningLandscape() const;

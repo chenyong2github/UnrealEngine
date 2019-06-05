@@ -60,6 +60,20 @@ void ALandscapeBlueprintCustomBrush::SetIsVisible(bool bInIsVisible)
 	GetOwningLandscape()->OnBPCustomBrushChanged();
 }
 
+void ALandscapeBlueprintCustomBrush::SetAffectsHeightmap(bool bInAffectsHeightmap)
+{
+	Modify();
+	AffectHeightmap = bInAffectsHeightmap;
+	GetOwningLandscape()->OnBPCustomBrushChanged();
+}
+
+void ALandscapeBlueprintCustomBrush::SetAffectsWeightmap(bool bInAffectsWeightmap)
+{
+	Modify();
+	AffectWeightmap = bInAffectsWeightmap;
+	GetOwningLandscape()->OnBPCustomBrushChanged();
+}
+
 void ALandscapeBlueprintCustomBrush::SetOwningLandscape(ALandscape* InOwningLandscape)
 {
 	Modify();

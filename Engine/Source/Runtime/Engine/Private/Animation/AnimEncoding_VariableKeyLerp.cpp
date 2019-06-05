@@ -11,18 +11,18 @@
 /**
  * Handles the ByteSwap of compressed rotation data on import
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData		The compressed animation data being operated on.
  * @param	MemoryReader	The FMemoryReader to read from.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys present in the stream.
  */
 void AEFVariableKeyLerpShared::ByteSwapRotationIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
-	AEFConstantKeyLerpShared::ByteSwapRotationIn(Seq, MemoryReader, TrackData, NumKeys);
+	AEFConstantKeyLerpShared::ByteSwapRotationIn(CompressedData, MemoryReader, TrackData, NumKeys);
 
 	// Load the track table if present
 	if (NumKeys > 1)
@@ -32,7 +32,7 @@ void AEFVariableKeyLerpShared::ByteSwapRotationIn(
 		PadMemoryReader(&MemoryReader, TrackData, 4); 
 
 		// swap the track table
-		const size_t EntryStride = (Seq.GetCompressedNumberOfFrames() > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryReader, TrackData, EntryStride);
@@ -43,18 +43,18 @@ void AEFVariableKeyLerpShared::ByteSwapRotationIn(
 /**
  * Handles the ByteSwap of compressed translation data on import
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryReader	The FMemoryReader to read from.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys present in the stream.
  */
 void AEFVariableKeyLerpShared::ByteSwapTranslationIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
-	AEFConstantKeyLerpShared::ByteSwapTranslationIn(Seq, MemoryReader, TrackData, NumKeys);
+	AEFConstantKeyLerpShared::ByteSwapTranslationIn(CompressedData, MemoryReader, TrackData, NumKeys);
 
 	// Load the track table if present
 	if (NumKeys > 1)
@@ -64,7 +64,7 @@ void AEFVariableKeyLerpShared::ByteSwapTranslationIn(
 		PadMemoryReader(&MemoryReader, TrackData, 4); 
 
 		// swap the track table
-		const size_t EntryStride = (Seq.GetCompressedNumberOfFrames() > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryReader, TrackData, EntryStride);
@@ -75,18 +75,18 @@ void AEFVariableKeyLerpShared::ByteSwapTranslationIn(
 /**
  * Handles the ByteSwap of compressed Scale data on import
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryReader	The FMemoryReader to read from.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys present in the stream.
  */
 void AEFVariableKeyLerpShared::ByteSwapScaleIn(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryReader& MemoryReader,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
-	AEFConstantKeyLerpShared::ByteSwapScaleIn(Seq, MemoryReader, TrackData, NumKeys);
+	AEFConstantKeyLerpShared::ByteSwapScaleIn(CompressedData, MemoryReader, TrackData, NumKeys);
 
 	// Load the track table if present
 	if (NumKeys > 1)
@@ -96,7 +96,7 @@ void AEFVariableKeyLerpShared::ByteSwapScaleIn(
 		PadMemoryReader(&MemoryReader, TrackData, 4); 
 
 		// swap the track table
-		const size_t EntryStride = (Seq.GetCompressedNumberOfFrames() > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryReader, TrackData, EntryStride);
@@ -106,18 +106,18 @@ void AEFVariableKeyLerpShared::ByteSwapScaleIn(
 /**
  * Handles the ByteSwap of compressed rotation data on export
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryWriter	The FMemoryWriter to write to.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys to write to the stream.
  */
 void AEFVariableKeyLerpShared::ByteSwapRotationOut(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryWriter& MemoryWriter,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
-	AEFConstantKeyLerpShared::ByteSwapRotationOut(Seq, MemoryWriter, TrackData, NumKeys);
+	AEFConstantKeyLerpShared::ByteSwapRotationOut(CompressedData, MemoryWriter, TrackData, NumKeys);
 
 	// Store the track table if needed
 	if (NumKeys > 1)
@@ -127,7 +127,7 @@ void AEFVariableKeyLerpShared::ByteSwapRotationOut(
 		PadMemoryWriter(&MemoryWriter, TrackData, 4);
 
 		// swap the track table
-		const size_t EntryStride = (Seq.GetCompressedNumberOfFrames() > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryWriter, TrackData, EntryStride);
@@ -138,18 +138,18 @@ void AEFVariableKeyLerpShared::ByteSwapRotationOut(
 /**
  * Handles the ByteSwap of compressed translation data on export
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryWriter	The FMemoryWriter to write to.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys to write to the stream.
  */
 void AEFVariableKeyLerpShared::ByteSwapTranslationOut(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryWriter& MemoryWriter,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
-	AEFConstantKeyLerpShared::ByteSwapTranslationOut(Seq, MemoryWriter, TrackData, NumKeys);
+	AEFConstantKeyLerpShared::ByteSwapTranslationOut(CompressedData, MemoryWriter, TrackData, NumKeys);
 
 	// Store the track table if needed
 	if (NumKeys > 1)
@@ -159,7 +159,7 @@ void AEFVariableKeyLerpShared::ByteSwapTranslationOut(
 		PadMemoryWriter(&MemoryWriter, TrackData, 4);
 
 		// swap the track table
-		const size_t EntryStride = (Seq.GetCompressedNumberOfFrames() > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryWriter, TrackData, EntryStride);
@@ -171,18 +171,18 @@ void AEFVariableKeyLerpShared::ByteSwapTranslationOut(
 /**
  * Handles the ByteSwap of compressed Scale data on export
  *
- * @param	Seq				The UAnimSequence container.
+ * @param	CompressedData	The compressed animation data being operated on.
  * @param	MemoryWriter	The FMemoryWriter to write to.
  * @param	TrackData		The compressed data stream.
  * @param	NumKeys			The number of keys to write to the stream.
  */
 void AEFVariableKeyLerpShared::ByteSwapScaleOut(
-	UAnimSequence& Seq, 
+	FUECompressedAnimData& CompressedData,
 	FMemoryWriter& MemoryWriter,
 	uint8*& TrackData,
 	int32 NumKeys)
 {
-	AEFConstantKeyLerpShared::ByteSwapScaleOut(Seq, MemoryWriter, TrackData, NumKeys);
+	AEFConstantKeyLerpShared::ByteSwapScaleOut(CompressedData, MemoryWriter, TrackData, NumKeys);
 
 	// Store the track table if needed
 	if (NumKeys > 1)
@@ -192,7 +192,7 @@ void AEFVariableKeyLerpShared::ByteSwapScaleOut(
 		PadMemoryWriter(&MemoryWriter, TrackData, 4);
 
 		// swap the track table
-		const size_t EntryStride = (Seq.GetCompressedNumberOfFrames() > 0xFF) ? sizeof(uint16) : sizeof(uint8);
+		const size_t EntryStride = (CompressedData.CompressedNumberOfFrames > 0xFF) ? sizeof(uint16) : sizeof(uint8);
 		for (int32 KeyIndex = 0; KeyIndex < NumKeys; ++KeyIndex)
 		{
 			AC_UnalignedSwap(MemoryWriter, TrackData, EntryStride);
