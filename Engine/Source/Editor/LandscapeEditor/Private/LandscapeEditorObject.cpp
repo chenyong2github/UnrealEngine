@@ -21,6 +21,7 @@ ULandscapeEditorObject::ULandscapeEditorObject(const FObjectInitializer& ObjectI
 	, bUseWeightTargetValue(false)
 	, WeightTargetValue(1.0f)
 	, MaximumValueRadius(10000.0f)
+	, bCombinedLayersOperation(true)
 
 	, FlattenMode(ELandscapeToolFlattenMode::Both)
 	, bUseSlopeFlatten(false)
