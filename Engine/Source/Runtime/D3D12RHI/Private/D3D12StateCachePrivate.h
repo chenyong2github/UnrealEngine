@@ -829,7 +829,9 @@ public:
 	{
 		if (LastComputePipelineType != PipelineType)
 		{
-			ClearState();
+			PipelineState.Common.bNeedSetPSO = true;
+			PipelineState.Compute.bNeedSetRootSignature = true;
+
 			LastComputePipelineType = PipelineType;
 		}
 	}
