@@ -58,8 +58,8 @@ namespace UnrealBuildTool
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 			{
-#if !__MonoCS__ && !MONO
 				ActivatableTypesList = new List<ActivatableType>();
+#if !__MonoCS__ && !MONO
 				var DependsOn = Assembly.ReflectionOnlyLoadFrom(InWindMDSourcePath.FullName);
 				foreach (var WinMDType in DependsOn.GetExportedTypes())
 				{
