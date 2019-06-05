@@ -1097,20 +1097,6 @@ void UConsole::PostRender_Console_Typing(UCanvas* Canvas)
 	float ClipY = Canvas->ClipY;
 	float LeftPos = 0;
 
-	if (GEngine->IsConsoleBuild())
-	{
-		ClipX	-= 64;
-		ClipY	-= 32;
-		LeftPos	 = 32;
-	}
-
-	if (GEngine->IsStereoscopic3D())
-	{
-		LeftPos = ClipX / 3;
-		ClipX -= LeftPos;
-		ClipY = ClipY * 0.60;
-	}
-
 	PostRender_InputLine(Canvas, FIntPoint(LeftPos, ClipY));
 }
 
@@ -1187,19 +1173,6 @@ void UConsole::PostRender_Console_Open(UCanvas* Canvas)
 	float ClipX = Canvas->ClipX;
 	float TopPos = 0;
 	float LeftPos = 0;
-
-	if (GEngine->IsConsoleBuild())
-	{
-		ClipX	-= 80;
-		TopPos	 = 30;
-		LeftPos	 = 40;
-	}
-	if (GEngine->IsStereoscopic3D())
-	{
-		LeftPos = ClipX / 3;
-		ClipX -= LeftPos;
-		Height = Canvas->ClipY * 0.60;
-	}
 
 	UFont* Font = GEngine->GetSmallFont();
 
@@ -1317,13 +1290,20 @@ bool UConsole::InputKey( int32 ControllerId, FKey Key, EInputEvent Event, float 
 
 void UConsole::PostRender_Console(UCanvas* Canvas)
 {
-	if (ConsoleState == NAME_Typing)
+	if (ConsoleState != NAME_None)
 	{
-		PostRender_Console_Typing(Canvas);
-	}
-	else if (ConsoleState == NAME_Open)
-	{
-		PostRender_Console_Open(Canvas);
+		Canvas->ApplySafeZoneTransform();
+
+		if (ConsoleState == NAME_Typing)
+		{
+			PostRender_Console_Typing(Canvas);
+		}
+		else if (ConsoleState == NAME_Open)
+		{
+			PostRender_Console_Open(Canvas);
+		}
+
+		Canvas->PopSafeZoneTransform();
 	}
 }
 
@@ -1341,18 +1321,6 @@ void UConsole::PostRender_InputLine(UCanvas* Canvas, FIntPoint UserInputLinePos)
 
 	float ClipX = Canvas->ClipX;
 	float ClipY = Canvas->ClipY;
-
-	if (GEngine->IsConsoleBuild())
-	{
-		ClipX	-= 64;
-		ClipY	-= 32;
-	}
-
-	if (GEngine->IsStereoscopic3D())
-	{
-		ClipX = Canvas->ClipX - UserInputLinePos.X;
-		ClipY = ClipY * 0.60;
-	}
 
 	// Background
 	FLinearColor BackgroundColor = ConsoleDefs::AutocompleteBackgroundColor.ReinterpretAsLinear();
