@@ -18,17 +18,13 @@ struct FAnimCompressContext;
 class FDerivedDataAnimationCompression : public FDerivedDataPluginInterface
 {
 private:
-	// Anim sequence we are providing DDC data for
-	UAnimSequence* OriginalAnimSequence;
-
-	// Possible duplicate animation for doing actual build work on
-	UAnimSequence* DuplicateSequence;
+	FCompressibleAnimData DataToCompress;
 
 	// FAnimCompressContext to use during compression if we don't pull from the DDC
 	TSharedPtr<FAnimCompressContext> CompressContext;
 
-	// Whether to do compression work on original animation or duplicate it first.
-	bool bDoCompressionInPlace;
+	// Size of the previous compressed data (for stat tracking)
+	int32 PreviousCompressedSize;
 
 	// Whether we should frame strip (remove every other frame from even frames animations)
 	bool bPerformStripping;
@@ -37,12 +33,12 @@ private:
 	bool bIsEvenFramed;
 
 public:
-	FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims);
+	FDerivedDataAnimationCompression(const FCompressibleAnimData& InDataToCompress, TSharedPtr<FAnimCompressContext> InCompressContext, int32 InPreviousCompressedSize, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims);
 	virtual ~FDerivedDataAnimationCompression();
 
 	virtual const TCHAR* GetPluginName() const override
 	{
-		return TEXT("AnimSeq");
+		return *DataToCompress.TypeName;
 	}
 
 	virtual const TCHAR* GetVersionString() const override
@@ -50,7 +46,7 @@ public:
 		// This is a version string that mimics the old versioning scheme. If you
 		// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 		// return it here. Ex.
-		return TEXT("267426BCDCE54E129C9D584B35330967");
+		return TEXT("1F1656B9E10142729AB16650D9821B1F");
 	}
 
 	virtual FString GetPluginSpecificCacheKeySuffix() const override;
@@ -61,12 +57,12 @@ public:
 		return false;
 	}
 
-	virtual bool Build( TArray<uint8>& OutData ) override;
+	virtual bool Build( TArray<uint8>& OutDataArray) override;
 
 	/** Return true if we can build **/
 	bool CanBuild()
 	{
-		return !!OriginalAnimSequence;
+		return true;
 	}
 };
 

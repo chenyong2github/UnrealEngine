@@ -139,7 +139,7 @@ protected:
 	//~ Begin UAnimCompress Interface
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void DoReduction(class UAnimSequence* AnimSeq, const TArray<class FBoneData>& BoneData) override;
+	virtual void DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) override;
 	virtual void PopulateDDCKey(FArchive& Ar) override;
 #endif // WITH_EDITOR
 	//~ Begin UAnimCompress Interface
@@ -147,18 +147,20 @@ protected:
 #if WITH_EDITOR
 	//~ Begin UAnimCompress_RemoveLinearKeys Interface
 	virtual void CompressUsingUnderlyingCompressor(
-		UAnimSequence* AnimSeq,
-		const TArray<FBoneData>& BoneData, 
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
 		const TArray<FTranslationTrack>& TranslationData,
 		const TArray<FRotationTrack>& RotationData,
 		const TArray<FScaleTrack>& ScaleData,
 		const bool bFinalPass) override;
 
+#if USE_SEGMENTING_CONTEXT
 	virtual void CompressUsingUnderlyingCompressor(
 		UAnimSequence& AnimSeq,
 		const TArray<FBoneData>& BoneData,
 		TArray<FAnimSegmentContext>& RawSegments,
 		const bool bFinalPass) override;
+#endif
 
 	/**
 	 * Performs the per track compression optimization for a single segment.
@@ -167,8 +169,7 @@ protected:
 	void OptimizeSegmentTracks(struct FOptimizeSegmentTracksContext& Context) const;
 
 	virtual void FilterBeforeMainKeyRemoval(
-		UAnimSequence* AnimSeq, 
-		const TArray<FBoneData>& BoneData, 
+		const FCompressibleAnimData& CompressibleAnimData,
 		TArray<FTranslationTrack>& TranslationData,
 		TArray<FRotationTrack>& RotationData,
 		TArray<FScaleTrack>& ScaleData) override;

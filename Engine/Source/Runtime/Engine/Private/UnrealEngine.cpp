@@ -5452,9 +5452,10 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			RateScale = AnimSeq->RateScale;
 			NumCurves = AnimSeq->RawCurveData.FloatCurves.Num();
 
-			TranslationFormat = FAnimationUtils::GetAnimationCompressionFormatString(AnimSeq->TranslationCompressionFormat);
-			RotationFormat = FAnimationUtils::GetAnimationCompressionFormatString(AnimSeq->RotationCompressionFormat);
-			ScaleFormat = FAnimationUtils::GetAnimationCompressionFormatString(AnimSeq->ScaleCompressionFormat);
+			const FUECompressedAnimData& CompressedData = AnimSeq->CompressedData.CompressedDataStructure;
+			TranslationFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.TranslationCompressionFormat);
+			RotationFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.RotationCompressionFormat);
+			ScaleFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.ScaleCompressionFormat);
 		}
 
 		new(SortedAnimAssets) FSortedAnimAsset(
