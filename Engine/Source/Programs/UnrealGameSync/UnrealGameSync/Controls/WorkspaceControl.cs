@@ -2872,7 +2872,7 @@ namespace UnrealGameSync
 				ProjectLine.AddText(String.Format("Opened "));
 				ProjectLine.AddLink(SelectedFileName + " \u25BE", FontStyle.Regular, (P, R) => { SelectRecentProject(R); });
 				ProjectLine.AddText("  |  ");
-				ProjectLine.AddLink("Browse...", FontStyle.Regular, (P, R) => { Owner.EditSelectedProject(this); });
+				ProjectLine.AddLink("Settings...", FontStyle.Regular, (P, R) => { Owner.EditSelectedProject(this); });
 				Lines.Add(ProjectLine);
 
 				// Spacer
@@ -3347,7 +3347,7 @@ namespace UnrealGameSync
 		private void SelectOtherStreamDialog()
 		{
 			string NewStreamName;
-			if(SelectStreamWindow.ShowModal(this, SelectedProject.ServerAndPort, SelectedProject.UserName, StreamName, Log, out NewStreamName))
+			if(SelectStreamWindow.ShowModal(this, Workspace.Perforce, StreamName, Log, out NewStreamName))
 			{
 				SelectStream(NewStreamName);
 			}

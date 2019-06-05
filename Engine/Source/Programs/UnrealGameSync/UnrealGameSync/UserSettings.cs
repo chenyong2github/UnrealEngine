@@ -47,6 +47,13 @@ namespace UnrealGameSync
 		Content
 	}
 
+	enum UserSettingsVersion
+	{
+		Initial = 0,
+		DefaultServerSettings = 1,
+		Latest = DefaultServerSettings
+	}
+
 	class UserSelectedProjectSettings
 	{
 		public readonly string ServerAndPort;
@@ -190,6 +197,7 @@ namespace UnrealGameSync
 		ConfigFile ConfigFile = new ConfigFile();
 
 		// General settings
+		public UserSettingsVersion Version = UserSettingsVersion.Latest;
 		public bool bBuildAfterSync;
 		public bool bRunAfterSync;
 		public bool bSyncPrecompiledEditor;
@@ -284,6 +292,7 @@ namespace UnrealGameSync
 			}
 
 			// General settings
+			Version = (UserSettingsVersion)ConfigFile.GetValue("General.Version", (int)UserSettingsVersion.Initial);
 			bBuildAfterSync = (ConfigFile.GetValue("General.BuildAfterSync", "1") != "0");
 			bRunAfterSync = (ConfigFile.GetValue("General.RunAfterSync", "1") != "0");
 			bSyncPrecompiledEditor = (ConfigFile.GetValue("General.SyncPrecompiledEditor", "0") != "0");
@@ -574,6 +583,7 @@ namespace UnrealGameSync
 			// General settings
 			ConfigSection GeneralSection = ConfigFile.FindOrAddSection("General");
 			GeneralSection.Clear();
+			GeneralSection.SetValue("Version", (int)Version);
 			GeneralSection.SetValue("BuildAfterSync", bBuildAfterSync);
 			GeneralSection.SetValue("RunAfterSync", bRunAfterSync);
 			GeneralSection.SetValue("SyncPrecompiledEditor", bSyncPrecompiledEditor);

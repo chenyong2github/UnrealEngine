@@ -15,53 +15,46 @@ namespace UnrealGameSync
 {
 	partial class ConnectWindow : Form
 	{
-		string ServerAndPort;
-		string UserName;
+		PerforceConnection DefaultConnection;
+		string ServerAndPortOverride;
+		string UserNameOverride;
 		TextWriter Log;
 
-		public ConnectWindow(string ServerAndPort, string UserName, TextWriter Log)
+		private ConnectWindow(PerforceConnection DefaultConnection, string ServerAndPortOverride, string UserNameOverride, TextWriter Log)
 		{
 			InitializeComponent();
 
+			this.DefaultConnection = DefaultConnection;
 			this.Log = Log;
 
-			if(String.IsNullOrEmpty(ServerAndPort))
+			if(!String.IsNullOrWhiteSpace(ServerAndPortOverride))
 			{
-				ServerAndPort = null;
+				this.ServerAndPortOverride = ServerAndPortOverride.Trim();
 			}
-			if(String.IsNullOrEmpty(UserName))
+			if(!String.IsNullOrEmpty(UserNameOverride))
 			{
-				UserName = null;
+				this.UserNameOverride = UserNameOverride.Trim();
 			}
 
-			if(ServerAndPort != null)
-			{
-				ServerAndPortTextBox.Text = ServerAndPort;
-			}
-			if(UserName != null)
-			{
-				UserNameTextBox.Text = UserName;
-			}
-			UseDefaultConnectionSettings.Checked = ServerAndPort == null && UserName == null;
+			ServerAndPortTextBox.CueBanner = DefaultConnection.ServerAndPort;
+			ServerAndPortTextBox.Text = this.ServerAndPortOverride ?? DefaultConnection.ServerAndPort;
+			UserNameTextBox.CueBanner = DefaultConnection.UserName;
+			UserNameTextBox.Text = this.UserNameOverride ?? DefaultConnection.UserName;
+			UseDefaultConnectionSettings.Checked = this.ServerAndPortOverride == null && this.UserNameOverride == null;
 
 			UpdateEnabledControls();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, string ServerAndPort, string UserName, TextWriter Log, out string NewServerAndPort, out string NewUserName)
+		public static bool ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, ref string ServerAndPortOverride, ref string UserNameOverride, TextWriter Log)
 		{
-			ConnectWindow Connect = new ConnectWindow(ServerAndPort, UserName, Log);
+			ConnectWindow Connect = new ConnectWindow(DefaultConnection, ServerAndPortOverride, UserNameOverride, Log);
 			if(Connect.ShowDialog() == DialogResult.OK)
 			{
-				NewServerAndPort = Connect.ServerAndPort;
-				NewUserName = Connect.UserName;
+				ServerAndPortOverride = Connect.ServerAndPortOverride;
+				UserNameOverride = Connect.UserNameOverride;
 				return true;
 			}
-			else
-			{
-				NewServerAndPort = null;
-				NewUserName = null;
-				return false;
-			}
+			return false;
 		}
 
 		private void CancelBtn_Click(object sender, EventArgs e)
@@ -74,21 +67,21 @@ namespace UnrealGameSync
 		{
 			if(UseDefaultConnectionSettings.Checked)
 			{
-				ServerAndPort = null;
-				UserName = null;
+				ServerAndPortOverride = null;
+				UserNameOverride = null;
 			}
 			else
 			{
-				ServerAndPort = ServerAndPortTextBox.Text.Trim();
-				if(ServerAndPort.Length == 0)
+				ServerAndPortOverride = ServerAndPortTextBox.Text.Trim();
+				if(ServerAndPortOverride.Length == 0)
 				{
-					ServerAndPort = null;
+					ServerAndPortOverride = DefaultConnection.ServerAndPort;
 				}
 
-				UserName = UserNameTextBox.Text.Trim();
-				if(UserName.Length == 0)
+				UserNameOverride = UserNameTextBox.Text.Trim();
+				if(UserNameOverride.Length == 0)
 				{
-					UserName = null;
+					UserNameOverride = DefaultConnection.UserName;
 				}
 			}
 
@@ -115,7 +108,7 @@ namespace UnrealGameSync
 		private void BrowseUserBtn_Click(object sender, EventArgs e)
 		{
 			string NewUserName;
-			if(SelectUserWindow.ShowModal(this, ServerAndPortTextBox.Text, UserNameTextBox.Text, Log, out NewUserName))
+			if(SelectUserWindow.ShowModal(this, new PerforceConnection(UserNameTextBox.Text, null, ServerAndPortTextBox.Text), Log, out NewUserName))
 			{
 				UserNameTextBox.Text = NewUserName;
 			}

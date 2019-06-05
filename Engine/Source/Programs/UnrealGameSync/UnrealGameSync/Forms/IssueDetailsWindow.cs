@@ -1307,7 +1307,7 @@ namespace UnrealGameSync
 		private void AssignToOtherBtn_Click(object sender, EventArgs e)
 		{
 			string SelectedUserName;
-			if(SelectUserWindow.ShowModal(this, Perforce.ServerAndPort, Perforce.UserName, Log, out SelectedUserName))
+			if(SelectUserWindow.ShowModal(this, Perforce, Log, out SelectedUserName))
 			{
 				AssignToUser(SelectedUserName);
 			}

@@ -19,33 +19,6 @@ namespace UnrealGameSync
 {
 	partial class ApplicationSettingsWindow : Form
 	{
-		class GetDefaultSettingsTask : IModalTask
-		{
-			TextWriter Log;
-
-			public string ServerAndPort;
-			public string UserName;
-
-			public GetDefaultSettingsTask(TextWriter Log)
-			{
-				this.Log = Log;
-			}
-
-			public bool Run(out string ErrorMessage)
-			{
-				if(PerforceModalTask.TryGetServerSettings(null, ref ServerAndPort, ref UserName, Log))
-				{
-					ErrorMessage = null;
-					return true;
-				}
-				else
-				{
-					ErrorMessage = "Unable to query server settings";
-					return false;
-				}
-			}
-		}
-
 		class PerforceTestConnectionTask : IPerforceModalTask
 		{
 			string DepotPath;
@@ -111,14 +84,9 @@ namespace UnrealGameSync
 			this.UseUnstableBuildCheckBox.Checked = bUnstable;
 		}
 
-		public static bool? ShowModal(IWin32Window Owner, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
+		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
 		{
-			GetDefaultSettingsTask DefaultSettings = new GetDefaultSettingsTask(Log);
-
-			string ErrorMessage;
-			ModalTask.Execute(Owner, DefaultSettings, "Checking Settings", "Checking settings, please wait...", out ErrorMessage);
-
-			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultSettings.ServerAndPort, DefaultSettings.UserName, bUnstable, OriginalExecutableFileName, Settings, Log);
+			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultConnection.ServerAndPort, DefaultConnection.UserName, bUnstable, OriginalExecutableFileName, Settings, Log);
 			if(ApplicationSettings.ShowDialog() == DialogResult.OK)
 			{
 				return ApplicationSettings.bRestartUnstable;
@@ -164,7 +132,7 @@ namespace UnrealGameSync
 				if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath)
 				{
 					string ErrorMessage;
-					ModalTaskResult Result = PerforceModalTask.Execute(this, null, ServerAndPort, UserName, new PerforceTestConnectionTask(DepotPath), "Connecting", "Checking connection, please wait...", Log, out ErrorMessage);
+					ModalTaskResult Result = PerforceModalTask.Execute(this, new PerforceConnection(UserName, null, ServerAndPort), new PerforceTestConnectionTask(DepotPath), "Connecting", "Checking connection, please wait...", Log, out ErrorMessage);
 					if(Result != ModalTaskResult.Succeeded)
 					{
 						if(Result == ModalTaskResult.Failed)

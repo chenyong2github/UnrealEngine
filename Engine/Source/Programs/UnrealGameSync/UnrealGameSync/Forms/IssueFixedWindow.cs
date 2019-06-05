@@ -350,7 +350,7 @@ namespace UnrealGameSync
 		private void UserBrowseBtn_Click(object sender, EventArgs e)
 		{
 			string SelectedUserName;
-			if(SelectUserWindow.ShowModal(this, Perforce.ServerAndPort, Perforce.UserName, new BufferedTextWriter(), out SelectedUserName))
+			if(SelectUserWindow.ShowModal(this, Perforce, new BufferedTextWriter(), out SelectedUserName))
 			{
 				UserNameTextBox.Text = SelectedUserName;
 			}

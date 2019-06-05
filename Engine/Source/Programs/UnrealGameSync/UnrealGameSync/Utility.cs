@@ -306,6 +306,21 @@ namespace UnrealGameSync
 			}
 		}
 
+		private static void DeleteKey(RegistryKey Key, string Name)
+		{
+			string[] ValueNames = Key.GetValueNames();
+			if (ValueNames.Any(x => String.Compare(x, Name, StringComparison.OrdinalIgnoreCase) == 0))
+			{
+				try
+				{ 
+					Key.DeleteValue(Name);
+				}
+				catch
+				{ 
+				}
+			}
+		}
+
 		public static void SaveGlobalPerforceSettings(string ServerAndPort, string UserName, string DepotPath)
 		{
 			try
@@ -313,7 +328,7 @@ namespace UnrealGameSync
 				using (RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Epic Games\\UnrealGameSync"))
 				{
 					// Delete this legacy setting
-					try { Key.DeleteValue("Server"); } catch(Exception) { }
+					DeleteKey(Key, "Server");
 
 					if(String.IsNullOrEmpty(ServerAndPort))
 					{
@@ -335,7 +350,7 @@ namespace UnrealGameSync
 
 					if(String.IsNullOrEmpty(DepotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(DepotPath, DeploymentSettings.DefaultDepotPath, StringComparison.InvariantCultureIgnoreCase)))
 					{
-						try { Key.DeleteValue("DepotPath"); } catch(Exception) { }
+						DeleteKey(Key, "DepotPath");
 					}
 					else
 					{
@@ -429,6 +444,13 @@ namespace UnrealGameSync
 		public static Color Blend(Color First, Color Second, float T)
 		{
 			return Color.FromArgb((int)(First.R + (Second.R - First.R) * T), (int)(First.G + (Second.G - First.G) * T), (int)(First.B + (Second.B - First.B) * T));
+		}
+
+		public static PerforceConnection OverridePerforceSettings(PerforceConnection DefaultConnection, string ServerAndPort, string UserName)
+		{
+			string ResolvedServerAndPort = String.IsNullOrWhiteSpace(ServerAndPort) ? DefaultConnection.ServerAndPort : ServerAndPort;
+			string ResolvedUserName = String.IsNullOrWhiteSpace(UserName) ? DefaultConnection.UserName : UserName;
+			return new PerforceConnection(ResolvedUserName, null, ResolvedServerAndPort);
 		}
 
 		public static string FormatRecentDateTime(DateTime Date)
