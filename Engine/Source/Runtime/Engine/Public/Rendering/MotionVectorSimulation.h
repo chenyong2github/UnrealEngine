@@ -86,7 +86,8 @@ private:
 
 	//~ FUObjectDeleteListener interface - used for removing transforms for components that are no longer valid
 	virtual void NotifyUObjectDeleted(const UObjectBase* Object, int32 Index) override;
-
+	virtual void OnUObjectArrayShutdown() override;
+	
 	//~ Private constructor/destructor to prevent non-singleton use
 	FMotionVectorSimulation();
 	~FMotionVectorSimulation();

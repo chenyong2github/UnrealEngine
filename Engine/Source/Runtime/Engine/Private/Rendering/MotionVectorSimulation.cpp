@@ -23,6 +23,12 @@ FMotionVectorSimulation& FMotionVectorSimulation::Get()
 	return Singleton;
 }
 
+void FMotionVectorSimulation::OnUObjectArrayShutdown()
+{
+	SimulatedTransforms.Empty();
+	GUObjectArray.RemoveUObjectDeleteListener(this);
+}
+
 bool FMotionVectorSimulation::IsEnabled()
 {
 	return GMotionVectorSimulation != 0;
