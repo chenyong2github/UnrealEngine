@@ -176,7 +176,7 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 				
 				+ SWidgetSwitcher::Slot()
 		  		[
-					SNew(SComboBox<TSharedPtr<FString>>)
+					SNew(SComboBox<TSharedPtr<DefaultEnumOption>>)
 					.OptionsSource(&DefaultEnumDropdownOptions)
 					.OnSelectionChanged(this, &FNiagaraStaticSwitchNodeDetails::OnSelectionChanged)
 					.OnGenerateWidget(this, &FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOption)
@@ -235,12 +235,12 @@ TSharedRef<SWidget> FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOpti
 	return SNew(STextBlock).Text(FText::FromString(*InOption->Name));
 }
 
-TSharedRef<SWidget> FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOption(TSharedPtr<FString> InOption)
+TSharedRef<SWidget> FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOption(TSharedPtr<DefaultEnumOption> InOption)
 {
-	return SNew(STextBlock).Text(FText::FromString(*InOption));
+	return SNew(STextBlock).Text(InOption->DisplayName);
 }
 
-void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type)
+void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<DefaultEnumOption> NewValue, ESelectInfo::Type)
 {
 	SelectedDefaultValue = NewValue;
 	TOptional<FNiagaraVariableMetaData> MetaData = GetSwitchParameterMetadata();
@@ -255,8 +255,7 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<FString> New
 		return;
 	}
 
-	int32 Index = Enum->GetIndexByNameString(*SelectedDefaultValue);
-	MetaData->StaticSwitchDefaultValue = Index;
+	MetaData->StaticSwitchDefaultValue = SelectedDefaultValue->EnumIndex;
 	SetSwitchParameterMetadata(MetaData.GetValue());
 }
 
@@ -302,7 +301,7 @@ FText FNiagaraStaticSwitchNodeDetails::GetDefaultSelectionItemLabel() const
 {
 	if (SelectedDefaultValue.IsValid())
 	{
-		return FText::FromString(*SelectedDefaultValue);
+		return SelectedDefaultValue->DisplayName;
 	}
 
 	return LOCTEXT("InvalidNiagaraStaticSwitchNodeComboEntryText", "<Invalid selection>");
@@ -323,7 +322,8 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDefaultDropdownValues()
 		SelectedDefaultValue.Reset();
 		for (int i = 0; i < Enum->GetMaxEnumValue() - 1; i++)
 		{
-			DefaultEnumDropdownOptions.Add(MakeShareable(new FString(Enum->GetNameStringByIndex(i))));
+			FText DisplayName = Enum->GetDisplayNameTextByIndex(i);
+			DefaultEnumDropdownOptions.Add(MakeShared<DefaultEnumOption>(DisplayName, i));
 
 			if (MetaData.IsSet() && i == MetaData->StaticSwitchDefaultValue)
 			{
