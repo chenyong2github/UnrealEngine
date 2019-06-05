@@ -1,0 +1,43 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreTypes.h"
+
+namespace Trace
+{
+
+struct FFormatArgsHelper
+{
+	static void Format(TCHAR* Out, uint64 MaxOut, const TCHAR* FormatString, const uint8* FormatArgs);
+
+private:
+	struct FFormatArgSpec
+	{
+		uint64 PassthroughLength;
+		TCHAR FormatString[255];
+		uint8 ExpectedTypeCategory;
+		uint8 AdditionalIntegerArgumentCount;
+		bool Valid;
+		bool NothingPrinted;
+	};
+
+	struct FFormatArgsStreamContext
+	{
+		uint8 ArgumentCount;
+		uint8 ArgumentTypeCategory;
+		uint8 ArgumentTypeSize;
+		const uint8* DescriptorPtr;
+		const uint8* PayloadPtr;
+	};
+
+	static const TCHAR* ExtractNextFormatArg(const TCHAR* FormatString, FFormatArgSpec& Spec);
+	static void InitArgumentStream(FFormatArgsStreamContext& Context, const uint8* ArgumentsData);
+	static bool AdvanceArgumentStream(FFormatArgsStreamContext& Context);
+	static uint64 ExtractIntegerArgument(FFormatArgsStreamContext& ArgStream);
+	static double ExtractFloatingPointArgument(FFormatArgsStreamContext& ArgStream);
+	static const TCHAR* ExtractStringArgument(FFormatArgsStreamContext& ArgStream);
+	static int32 FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream);
+};
+
+}

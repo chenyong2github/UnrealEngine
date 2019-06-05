@@ -92,7 +92,7 @@ void FConsoleSlateDebugger::SetInputFilter(const TArray< FString >& Params)
 		return;
 	}
 
-	static const UEnum* SlateDebuggingInputEventEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ESlateDebuggingInputEvent"));
+	static const UEnum* SlateDebuggingInputEventEnum = StaticEnum<ESlateDebuggingInputEvent>();
 	
 	const int64 InputEventEnumValue = SlateDebuggingInputEventEnum->GetValueByNameString(Params[0]);
 	if (InputEventEnumValue == INDEX_NONE)
@@ -115,7 +115,7 @@ void FConsoleSlateDebugger::RemoveListeners()
 	FSlateDebugging::Warning.RemoveAll(this);
 	FSlateDebugging::InputEvent.RemoveAll(this);
 	FSlateDebugging::FocusEvent.RemoveAll(this);
-	FSlateDebugging::NavigationEvent.RemoveAll(this);
+	FSlateDebugging::AttemptNavigationEvent.RemoveAll(this);
 	FSlateDebugging::MouseCaptureEvent.RemoveAll(this);
 #endif
 }
@@ -128,7 +128,8 @@ void FConsoleSlateDebugger::UpdateListeners()
 	FSlateDebugging::Warning.AddRaw(this, &FConsoleSlateDebugger::OnWarning);
 	FSlateDebugging::InputEvent.AddRaw(this, &FConsoleSlateDebugger::OnInputEvent);
 	FSlateDebugging::FocusEvent.AddRaw(this, &FConsoleSlateDebugger::OnFocusEvent);
-	FSlateDebugging::NavigationEvent.AddRaw(this, &FConsoleSlateDebugger::OnNavigationEvent);
+	FSlateDebugging::AttemptNavigationEvent.AddRaw(this, &FConsoleSlateDebugger::OnAttemptNavigationEvent);
+	FSlateDebugging::ExecuteNavigationEvent.AddRaw(this, &FConsoleSlateDebugger::OnExecuteNavigationEvent);
 	FSlateDebugging::MouseCaptureEvent.AddRaw(this, &FConsoleSlateDebugger::OnCaptureStateChangeEvent);
 #endif
 }
@@ -160,7 +161,7 @@ void FConsoleSlateDebugger::OnInputEvent(const FSlateDebuggingInputEventArgs& Ev
 
 	static const FText InputEventFormat = LOCTEXT("InputEventFormat", "{0} - ({1}) - [{2}]");
 
-	static const UEnum* SlateDebuggingInputEventEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ESlateDebuggingInputEvent"));
+	static const UEnum* SlateDebuggingInputEventEnum = StaticEnum<ESlateDebuggingInputEvent>();
 	const FText InputEventTypeText = SlateDebuggingInputEventEnum->GetDisplayNameTextByValue((int64)EventArgs.InputEventType);
 	const FText AdditionalContent = FText::FromString(EventArgs.AdditionalContent);
 	const FText HandlerWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(EventArgs.HandlerWidget.Get()));
@@ -237,25 +238,33 @@ void FConsoleSlateDebugger::OnFocusEvent(const FSlateDebuggingFocusEventArgs& Ev
 	OptionallyDumpCallStack();
 }
 
-void FConsoleSlateDebugger::OnNavigationEvent(const FSlateDebuggingNavigationEventArgs& EventArgs)
+void FConsoleSlateDebugger::OnAttemptNavigationEvent(const FSlateDebuggingNavigationEventArgs& EventArgs)
 {
-	static const FText NavEventFormat = LOCTEXT("NavEventFormat", "Nav: {0}:{1} | {2} -> {3}");
+	static const FText NavEventFormat = LOCTEXT("NavEventFormat", "Navigation User({4}) Source({0}:{1}) | {5} | {2} -> {3}");
 
 	const FText SourceWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(&EventArgs.NavigationSource.GetLastWidget().Get()));
 	const FText DestinationWidget = FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(EventArgs.DestinationWidget.Get()));
 	const FText NavigationTypeText = StaticEnum<EUINavigation>()->GetDisplayNameTextByValue((int64)EventArgs.NavigationEvent.GetNavigationType());
 	const FText NavigationGenesisText = StaticEnum<ENavigationGenesis>()->GetDisplayNameTextByValue((int64)EventArgs.NavigationEvent.GetNavigationGenesis());
+	const FText NavigationMethodText = StaticEnum<ESlateDebuggingNavigationMethod>()->GetDisplayNameTextByValue((int64)EventArgs.NavigationMethod);
 
 	FText EventText = FText::Format(
 		NavEventFormat,
 		NavigationGenesisText,
 		NavigationTypeText,
 		SourceWidget,
-		DestinationWidget
+		DestinationWidget,
+		EventArgs.NavigationEvent.GetUserIndex(),
+		NavigationMethodText
 	);
 
 	UE_LOG(LogSlateDebugger, Log, TEXT("%s"), *EventText.ToString());
 
+	OptionallyDumpCallStack();
+}
+
+void FConsoleSlateDebugger::OnExecuteNavigationEvent(const FSlateDebuggingExecuteNavigationEventArgs& EventArgs)
+{
 	OptionallyDumpCallStack();
 }
 

@@ -22,14 +22,12 @@ void USoundMod::Parse(class FAudioDevice* AudioDevice, const UPTRINT NodeWaveIns
 	FWaveInstance* WaveInstance = ActiveSound.FindWaveInstance(NodeWaveInstanceHash);
 
 	// Create a new WaveInstance if this SoundWave doesn't already have one associated with it.
-	if (WaveInstance == NULL)
+	if (!WaveInstance)
 	{
 		const int32 SampleRate = 44100;
 
 		// Create a new wave instance and associate with the ActiveSound
-		WaveInstance = new FWaveInstance(&ActiveSound);
-		WaveInstance->WaveInstanceHash = NodeWaveInstanceHash;
-		ActiveSound.WaveInstances.Add(NodeWaveInstanceHash, WaveInstance);
+		WaveInstance = &ActiveSound.AddWaveInstance(NodeWaveInstanceHash);
 
 		// Create streaming wave object
 		USoundModWave* ModWave = NewObject<USoundModWave>();
@@ -38,7 +36,7 @@ void USoundMod::Parse(class FAudioDevice* AudioDevice, const UPTRINT NodeWaveIns
 		ModWave->Duration = INDEFINITELY_LOOPING_DURATION;
 		ModWave->bLooping = bLooping;
 
-		if (ResourceData == NULL)
+		if (!ResourceData)
 		{
 			RawData.GetCopy((void**)&ResourceData, true);
 		}

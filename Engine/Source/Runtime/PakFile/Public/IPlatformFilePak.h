@@ -109,7 +109,7 @@ struct FPakInfo
 	/** Size (in bytes) of pak file index. */
 	int64 IndexSize;
 	/** Index SHA1 value. */
-	uint8 IndexHash[20];
+	FSHAHash IndexHash;
 	/** Flag indicating if the pak index has been encrypted. */
 	uint8 bEncryptedIndex;
 	/** Encryption key guid. Empty if we should use the embedded key. */
@@ -127,7 +127,6 @@ struct FPakInfo
 		, IndexSize(0)
 		, bEncryptedIndex(0)
 	{
-		FMemory::Memset(IndexHash, 0, sizeof(IndexHash));
 		// we always put in a NAME_None entry as index 0, so that an uncompressed PakEntry will have CompressionMethodIndex of 0 and can early out easily
 		CompressionMethods.Add(NAME_None);
 	}
@@ -182,7 +181,7 @@ struct FPakInfo
 		Ar << Version;
 		Ar << IndexOffset;
 		Ar << IndexSize;
-		Ar.Serialize(IndexHash, sizeof(IndexHash));
+		Ar << IndexHash;
 
 		if (Ar.IsLoading())
 		{
@@ -1549,11 +1548,6 @@ public:
 	static void GetPakEncryptionKey(FAES::FAESKey& OutKey, const FGuid& InEncryptionKeyGuid);
 
 	/**
-	* Helper function for accessing pak the signing public key
-	*/
-	static TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> GetPakSigningKey();
-
-	/**
 	* Load a pak signature file. Validates the contents by comparing a SHA hash of the chunk table against and encrypted version that
 	* is stored within the file. Returns nullptr if the data is missing or fails the signature check. This function also calls
 	* the generic pak signature failure delegates if anything is wrong.
@@ -2417,11 +2411,11 @@ struct FPakSignatureFile
 	/**
 	 * Initialize and hash the CRC list then use the provided private key to encrypt the hash
 	 */
-	void SetChunkHashesAndSign(const TArray<TPakChunkHash>& InChunkHashes, const FRSA::TKeyPtr InKey)
+	void SetChunkHashesAndSign(const TArray<TPakChunkHash>& InChunkHashes, const FRSAKeyHandle InKey)
 	{
 		ChunkHashes = InChunkHashes;
 		DecryptedHash = ComputeCurrentMasterHash();
-		FRSA::Encrypt(FRSA::EKeyType::Private, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), EncryptedHash, InKey);
+		FRSA::EncryptPrivate(TArrayView<const uint8>(DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash)), EncryptedHash, InKey);
 	}
 
 	/**
@@ -2448,34 +2442,32 @@ struct FPakSignatureFile
 	/**
 	 * Decrypt the chunk CRCs hash and validate that it matches the current one
 	 */
-	bool DecryptSignatureAndValidate(const FString& InFilename)
-	{
-		TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> PublicKey = FPakPlatformFile::GetPakSigningKey();
-		return DecryptSignatureAndValidate(PublicKey, InFilename);
-	}
-
-	/**
-	 * Decrypt the chunk CRCs hash and validate that it matches the current one
-	 */
-	bool DecryptSignatureAndValidate(FRSA::TKeyPtr InKey, const FString& InFilename)
+	bool DecryptSignatureAndValidate(const FRSAKeyHandle InKey, const FString& InFilename)
 	{
 		if (Version == EVersion::Invalid)
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Pak signature file for '%s' was invalid"), *InFilename);
 		}
-		else if (FRSA::Decrypt(FRSA::EKeyType::Public, EncryptedHash, DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash), InKey))
-		{
-			FSHAHash CurrentHash = ComputeCurrentMasterHash();
-			if (DecryptedHash == CurrentHash)
-			{
-				return true;
-			}
-
-			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Expected %s, Received %s"), *InFilename, *DecryptedHash.ToString(), *CurrentHash.ToString());
-		}
 		else
 		{
-			UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Failed to decrypt signature"), *InFilename);
+			TArray<uint8> Decrypted;
+			int32 BytesDecrypted = FRSA::DecryptPublic(EncryptedHash, Decrypted, InKey);
+			if (BytesDecrypted == ARRAY_COUNT(FSHAHash::Hash))
+			{
+				FSHAHash CurrentHash = ComputeCurrentMasterHash();
+				if (FMemory::Memcmp(Decrypted.GetData(), CurrentHash.Hash, Decrypted.Num()) == 0)
+				{
+					return true;
+				}
+				else
+				{
+					UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Expected %s, Received %s"), *InFilename, *DecryptedHash.ToString(), *CurrentHash.ToString());
+				}
+			}
+			else
+			{
+				UE_LOG(LogPakFile, Warning, TEXT("Pak signature table validation failed for '%s'! Failed to decrypt signature"), *InFilename);
+			}
 		}
 
 		FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);

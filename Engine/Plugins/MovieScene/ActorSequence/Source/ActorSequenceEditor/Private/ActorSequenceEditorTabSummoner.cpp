@@ -387,7 +387,7 @@ public:
 			UBlueprint* Blueprint = BlueprintEditor->GetBlueprintObj();
 			if (Blueprint)
 			{
-				EditingComponent = SelectedNode->GetEditableComponentTemplate(Blueprint);
+				EditingComponent = SelectedNode->GetOrCreateEditableComponentTemplate(Blueprint);
 			}
 		}
 		else if (AActor* Actor = GetPreviewActor())

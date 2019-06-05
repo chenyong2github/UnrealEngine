@@ -658,39 +658,29 @@ void FString::SerializeAsANSICharArray( FArchive& Ar, int32 MinCharacters ) cons
 	}
 }
 
-void FString::AppendInt( int32 InNum )
+void FString::AppendInt( int32 Num )
 {
-	int64 Num						= InNum; // This avoids having to deal with negating -MAX_int32-1
-	const TCHAR* NumberChar[11]		= { TEXT("0"), TEXT("1"), TEXT("2"), TEXT("3"), TEXT("4"), TEXT("5"), TEXT("6"), TEXT("7"), TEXT("8"), TEXT("9"), TEXT("-") };
-	bool bIsNumberNegative			= false;
+	const TCHAR* DigitToChar		= TEXT("9876543210123456789");
+	constexpr int32 ZeroDigitIndex	= 9;
+	bool bIsNumberNegative			= Num < 0;
 	const int32 TempBufferSize		= 16; // 16 is big enough
 	TCHAR TempNum[TempBufferSize];				
 	int32 TempAt					= TempBufferSize; // fill the temp string from the top down.
 
-	// Correctly handle negative numbers and convert to positive integer.
-	if( Num < 0 )
-	{
-		bIsNumberNegative = true;
-		Num = -Num;
-	}
-
-	TempNum[--TempAt] = 0; // NULL terminator
-
-	// Convert to string assuming base ten and a positive integer.
+	// Convert to string assuming base ten.
 	do 
 	{
-		TempNum[--TempAt] = *NumberChar[Num % 10];
+		TempNum[--TempAt] = DigitToChar[ZeroDigitIndex + (Num % 10)];
 		Num /= 10;
 	} while( Num );
 
-	// Append sign as we're going to reverse string afterwards.
 	if( bIsNumberNegative )
 	{
-		TempNum[--TempAt] = *NumberChar[10];
+		TempNum[--TempAt] = TEXT('-');
 	}
 
 	const TCHAR* CharPtr = TempNum + TempAt;
-	const int32 NumChars = TempBufferSize - TempAt - 1;
+	const int32 NumChars = TempBufferSize - TempAt;
 	Append(CharPtr, NumChars);
 }
 
@@ -1587,4 +1577,35 @@ FString SlugStringForValidName(const FString& DisplayString, const TCHAR* Replac
 	}
 
 	return GeneratedName;
+}
+
+void FTextRange::CalculateLineRangesFromString(const FString& Input, TArray<FTextRange>& LineRanges)
+{
+	int32 LineBeginIndex = 0;
+
+	// Loop through splitting at new-lines
+	const TCHAR* const InputStart = *Input;
+	for (const TCHAR* CurrentChar = InputStart; CurrentChar && *CurrentChar; ++CurrentChar)
+	{
+		// Handle a chain of \r\n slightly differently to stop the FChar::IsLinebreak adding two separate new-lines
+		const bool bIsWindowsNewLine = (*CurrentChar == '\r' && *(CurrentChar + 1) == '\n');
+		if (bIsWindowsNewLine || FChar::IsLinebreak(*CurrentChar))
+		{
+			const int32 LineEndIndex = (CurrentChar - InputStart);
+			check(LineEndIndex >= LineBeginIndex);
+			LineRanges.Emplace(FTextRange(LineBeginIndex, LineEndIndex));
+
+			if (bIsWindowsNewLine)
+			{
+				++CurrentChar; // skip the \n of the \r\n chain
+			}
+			LineBeginIndex = (CurrentChar - InputStart) + 1; // The next line begins after the end of the current line
+		}
+	}
+
+	// Process any remaining string after the last new-line
+	if (LineBeginIndex <= Input.Len())
+	{
+		LineRanges.Emplace(FTextRange(LineBeginIndex, Input.Len()));
+	}
 }

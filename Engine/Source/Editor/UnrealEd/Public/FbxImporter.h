@@ -166,6 +166,8 @@ struct FBXImportOptions
 	FString BaseEmmisiveTextureName;
 	FString BaseSpecularTextureName;
 	EMaterialSearchLocation MaterialSearchLocation;
+	//If true the materials will be reorder to follow the fbx order
+	bool bReorderMaterialToFbxOrder;
 	// Skeletal Mesh options
 	bool bImportMorph;
 	bool bImportAnimations;
@@ -188,6 +190,7 @@ struct FBXImportOptions
 	bool	bPreserveLocalTransform;
 	bool	bDeleteExistingMorphTargetCurves;
 	bool	bImportCustomAttribute;
+	bool	bDeleteExistingCustomAttributeCurves;
 	bool	bImportBoneTracks;
 	bool	bSetMaterialDriveParameterOnCustomAttribute;
 	bool	bRemoveRedundantKeys;
@@ -1054,10 +1057,6 @@ public:
 	template<typename TMaterialType>
 	static void ShowFbxMaterialConflictWindow(const TArray<TMaterialType>& InSourceMaterials, const TArray<TMaterialType>& InResultMaterials, TArray<int32>& RemapMaterials, TArray<bool>& FuzzyRemapMaterials, EFBXReimportDialogReturnOption& OutReturnOption, bool bIsPreviewConflict = false);
 
-
-	/** helper function **/
-	UNREALED_API static void DumpFBXNode(FbxNode* Node);
-
 	/**
 	 * Apply asset import settings for transform to an FBX node
 	 *
@@ -1248,7 +1247,8 @@ protected:
 	{
 		NOTSTARTED,
 		FILEOPENED,
-		IMPORTED
+		IMPORTED,
+		FIXEDANDCONVERTED,
 	};
 	
 	static TSharedPtr<FFbxImporter> StaticInstance;

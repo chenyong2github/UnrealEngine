@@ -3,7 +3,9 @@
 #include "ControlRigGraphPanelNodeFactory.h"
 #include "Graph/ControlRigGraphNode.h"
 #include "Graph/ControlRigGraph.h"
+#include "EdGraphNode_Comment.h"
 #include "SControlRigGraphNode.h"
+#include "SControlRigGraphNodeComment.h"
 
 TSharedPtr<SGraphNode> FControlRigGraphPanelNodeFactory::CreateNode(UEdGraphNode* Node) const
 {
@@ -15,6 +17,14 @@ TSharedPtr<SGraphNode> FControlRigGraphPanelNodeFactory::CreateNode(UEdGraphNode
 
 		GraphNode->SlatePrepass();
 		ControlRigGraphNode->SetDimensions(GraphNode->GetDesiredSize());
+		return GraphNode;
+	}
+	if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(Node))
+	{
+		TSharedRef<SGraphNode> GraphNode =
+			SNew(SControlRigGraphNodeComment, CommentNode);
+
+		GraphNode->SlatePrepass();
 		return GraphNode;
 	}
 

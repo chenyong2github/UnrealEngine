@@ -2731,14 +2731,14 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 			if (Layer.bVisible)
 			{
 				// Draw each brushes
-				for (int32 i = 0; i < Layer.HeightmapBrushOrderIndices.Num(); ++i)
+				for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 				{
 					// TODO: handle conversion from float to RG8 by using material params to write correct values
 					// TODO: handle conversion/handling of RT not same size as internal size
 
-					FLandscapeLayerBrush& Brush = Layer.Brushes[Layer.HeightmapBrushOrderIndices[i]];
+					FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 
-					if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingHeightmap())
+					if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingHeightmap() || !Brush.BPCustomBrush->IsVisible())
 					{
 						continue;
 					}
@@ -3469,11 +3469,11 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 				{
 					const FLandscapeInfoLayerSettings& InfoLayerSettings = Info->Layers[LayerInfoSettingsIndex];
 
-					for (int32 i = 0; i < Layer.WeightmapBrushOrderIndices.Num(); ++i)
+					for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 					{
-						FLandscapeLayerBrush& Brush = Layer.Brushes[Layer.WeightmapBrushOrderIndices[i]];
+						FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 
-						if (Brush.BPCustomBrush == nullptr)
+						if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsVisible())
 						{
 							continue;
 						}
@@ -3587,13 +3587,13 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 					if (Layer.bVisible)
 					{
 						// Draw each brushes				
-						for (int32 i = 0; i < Layer.WeightmapBrushOrderIndices.Num(); ++i)
+						for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 						{
 							// TODO: handle conversion/handling of RT not same size as internal size
 
-							FLandscapeLayerBrush& Brush = Layer.Brushes[Layer.WeightmapBrushOrderIndices[i]];
+							FLandscapeLayerBrush& Brush = Layer.Brushes[i];
 
-							if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsAffectingWeightmapLayer(LayerInfoObj->LayerName))
+							if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsAffectingWeightmapLayer(LayerInfoObj->LayerName) || !Brush.BPCustomBrush->IsVisible())
 							{
 								continue;
 							}
@@ -5353,6 +5353,7 @@ bool ALandscape::ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLay
 		FLandscapeLayer Layer = LandscapeLayers[InStartingLayerIndex];
 		LandscapeLayers.RemoveAt(InStartingLayerIndex);
 		LandscapeLayers.Insert(Layer, InDestinationLayerIndex);
+		RequestLayersContentUpdateForceAll();
 		return true;
 	}
 	return false;
@@ -5415,209 +5416,93 @@ void ALandscape::SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStat
 	RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode::Update_Weightmap_All);
 }
 
-void ALandscape::AddBrushToLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
+bool ALandscape::ReorderLayerBrush(int32 InLayerIndex, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex)
 {
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-
-	if (Layer == nullptr)
+	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
-		return;
-	}
-
-	Modify();
-
-	int32 AddedIndex = Layer->Brushes.Add(FLandscapeLayerBrush(InBrush));
-
-	if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-	{
-		Layer->HeightmapBrushOrderIndices.Add(AddedIndex);
-	}
-	else
-	{
-		Layer->WeightmapBrushOrderIndices.Add(AddedIndex);
-	}
-
-	InBrush->SetOwningLandscape(this);
-
-	RequestLayersContentUpdateForceAll();
-}
-
-void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, int32 InTargetType, ALandscapeBlueprintCustomBrush* InBrush)
-{
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-
-	if (Layer == nullptr)
-	{
-		return;
-	}
-
-	Modify();
-
-	int32 IndexToRemove = INDEX_NONE;
-	for (int32 i = 0; i < Layer->Brushes.Num(); ++i)
-	{
-		if (Layer->Brushes[i].BPCustomBrush == InBrush)
+		if (InStartingLayerBrushIndex != InDestinationLayerBrushIndex &&
+			Layer->Brushes.IsValidIndex(InStartingLayerBrushIndex) &&
+			Layer->Brushes.IsValidIndex(InDestinationLayerBrushIndex))
 		{
-			IndexToRemove = i;
-			break;
+			Modify();
+			FLandscapeLayerBrush MovingBrush = Layer->Brushes[InStartingLayerBrushIndex];
+			Layer->Brushes.RemoveAt(InStartingLayerBrushIndex);
+			Layer->Brushes.Insert(MovingBrush, InDestinationLayerBrushIndex);
+			RequestLayersContentUpdateForceAll();
+			return true;
 		}
 	}
+	return false;
+}
 
-	if (IndexToRemove != INDEX_NONE)
+void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintCustomBrush* InBrush)
+{
+	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
-		Layer->Brushes.RemoveAt(IndexToRemove);
+		Modify();
+		Layer->Brushes.Add(FLandscapeLayerBrush(InBrush));
+		InBrush->SetOwningLandscape(this);
+		RequestLayersContentUpdateForceAll();
+	}
+}
 
-		for (int32 i = 0; i < Layer->HeightmapBrushOrderIndices.Num(); ++i)
+void ALandscape::RemoveBrush(ALandscapeBlueprintCustomBrush* InBrush)
+{
+	for (int32 LayerIndex = 0; LayerIndex < LandscapeLayers.Num(); ++LayerIndex)
+	{
+		RemoveBrushFromLayer(LayerIndex, InBrush);
+	}
+}
+
+void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, ALandscapeBlueprintCustomBrush* InBrush)
+{
+	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
+	{
+		for (int32 i = 0; i < Layer->Brushes.Num(); ++i)
 		{
-			if (Layer->HeightmapBrushOrderIndices[i] == IndexToRemove)
+			if (Layer->Brushes[i].BPCustomBrush == InBrush)
 			{
-				// Update the value of the index of all the one after the one we removed, so index still correctly match actual brushes list
-				for (int32 j = 0; j < Layer->HeightmapBrushOrderIndices.Num(); ++j)
-				{
-					if (Layer->HeightmapBrushOrderIndices[j] > IndexToRemove)
-					{
-						--Layer->HeightmapBrushOrderIndices[j];
-					}
-				}
-
-				Layer->HeightmapBrushOrderIndices.RemoveAt(i);
+				Modify();
+				Layer->Brushes.RemoveAt(i);
+				InBrush->SetOwningLandscape(nullptr);
+				RequestLayersContentUpdateForceAll();
 				break;
 			}
 		}
-
-		for (int32 i = 0; i < Layer->WeightmapBrushOrderIndices.Num(); ++i)
-		{
-			if (Layer->WeightmapBrushOrderIndices[i] == IndexToRemove)
-			{
-				// Update the value of the index of all the one after the one we removed, so index still correctly match actual brushes list
-				for (int32 j = 0; j < Layer->WeightmapBrushOrderIndices.Num(); ++j)
-				{
-					if (Layer->WeightmapBrushOrderIndices[j] > IndexToRemove)
-					{
-						--Layer->WeightmapBrushOrderIndices[j];
-					}
-				}
-
-				Layer->WeightmapBrushOrderIndices.RemoveAt(i);
-				break;
-			}
-		}
-
-		InBrush->SetOwningLandscape(nullptr);
 	}
+}
 
+void ALandscape::OnBPCustomBrushChanged()
+{
+#if WITH_EDITORONLY_DATA
+	LandscapeBPCustomBrushChangedDelegate.Broadcast();
 	RequestLayersContentUpdateForceAll();
+#endif
 }
 
-bool ALandscape::AreAllBrushesCommitedToLayer(int32 InLayerIndex, int32 InTargetType)
+ALandscapeBlueprintCustomBrush* ALandscape::GetBrushForLayer(int32 InLayerIndex, int8 InBrushIndex) const
 {
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-
-	if (Layer == nullptr)
+	if (const FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
-		return false;
-	}
-
-	for (FLandscapeLayerBrush& Brush : Layer->Brushes)
-	{
-		if (Brush.BPCustomBrush != nullptr && !Brush.BPCustomBrush->IsCommited()
-			&& ((InTargetType == ELandscapeToolTargetType::Type::Heightmap && Brush.BPCustomBrush->IsAffectingHeightmap()) || (InTargetType == ELandscapeToolTargetType::Type::Weightmap && Brush.BPCustomBrush->IsAffectingWeightmap())))
+		if (Layer->Brushes.IsValidIndex(InBrushIndex))
 		{
-			return false;
+			return Layer->Brushes[InBrushIndex].BPCustomBrush;
 		}
 	}
-
-	return true;
-}
-
-void ALandscape::SetBrushesCommitStateForLayer(int32 InLayerIndex, int32 InTargetType, bool InCommited)
-{
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-
-	if (Layer == nullptr)
-	{
-		return;
-	}
-
-	for (FLandscapeLayerBrush& Brush : Layer->Brushes)
-	{
-		if (Brush.BPCustomBrush != nullptr)
-		{
-			Brush.BPCustomBrush->SetCommitState(InCommited);
-		}
-	}
-}
-
-TArray<int8>& ALandscape::GetBrushesOrderForLayer(int32 InLayerIndex, int32 InTargetType)
-{
-	FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-	check(Layer != nullptr);
-
-	if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-	{
-		return Layer->HeightmapBrushOrderIndices;
-	}
-
-	return Layer->WeightmapBrushOrderIndices;
-}
-
-ALandscapeBlueprintCustomBrush* ALandscape::GetBrushForLayer(int32 InLayerIndex, int32 InTargetType, int8 InBrushIndex) const
-{
-	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-
-	if (Layer == nullptr)
-	{
-		return nullptr;
-	}
-
-	if (InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-	{
-		if (Layer->HeightmapBrushOrderIndices.IsValidIndex(InBrushIndex))
-		{
-			int8 ActualBrushIndex = Layer->HeightmapBrushOrderIndices[InBrushIndex];
-			if (Layer->Brushes.IsValidIndex(ActualBrushIndex))
-			{
-				return Layer->Brushes[ActualBrushIndex].BPCustomBrush;
-			}
-		}
-	}
-	else
-	{
-		if (Layer->WeightmapBrushOrderIndices.IsValidIndex(InBrushIndex))
-		{
-			int8 ActualBrushIndex = Layer->WeightmapBrushOrderIndices[InBrushIndex];
-			if (Layer->Brushes.IsValidIndex(ActualBrushIndex))
-			{
-				return Layer->Brushes[ActualBrushIndex].BPCustomBrush;
-			}
-		}
-	}
-
 	return nullptr;
 }
 
-TArray<ALandscapeBlueprintCustomBrush*> ALandscape::GetBrushesForLayer(int32 InLayerIndex, int32 InTargetType) const
+TArray<ALandscapeBlueprintCustomBrush*> ALandscape::GetBrushesForLayer(int32 InLayerIndex) const
 {
 	TArray<ALandscapeBlueprintCustomBrush*> Brushes;
-
-	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
-
-	if (Layer == nullptr)
+	if (const FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
-		return Brushes;
-	}
-
-	Brushes.Reserve(Layer->Brushes.Num());
-
-	for (const FLandscapeLayerBrush& Brush : Layer->Brushes)
-	{
-		if (Brush.BPCustomBrush != nullptr && ((Brush.BPCustomBrush->IsAffectingHeightmap() && InTargetType == ELandscapeToolTargetType::Type::Heightmap)
-			|| (Brush.BPCustomBrush->IsAffectingWeightmap() && InTargetType == ELandscapeToolTargetType::Type::Weightmap)))
+		Brushes.Reserve(Layer->Brushes.Num());
+		for (const FLandscapeLayerBrush& Brush : Layer->Brushes)
 		{
 			Brushes.Add(Brush.BPCustomBrush);
 		}
 	}
-
 	return Brushes;
 }
 

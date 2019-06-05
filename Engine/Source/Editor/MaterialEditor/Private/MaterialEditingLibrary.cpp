@@ -563,6 +563,16 @@ bool UMaterialEditingLibrary::SetMaterialUsage(UMaterial* Material, EMaterialUsa
 	return bResult;
 }
 
+bool UMaterialEditingLibrary::HasMaterialUsage(UMaterial* Material, EMaterialUsage Usage)
+{
+	bool bResult = false;
+	if (Material)
+	{
+		bResult = Material->GetUsageByFlag(Usage);
+	}
+	return bResult;
+}
+
 bool UMaterialEditingLibrary::ConnectMaterialProperty(UMaterialExpression* FromExpression, FString FromOutputName, EMaterialProperty Property)
 {
 	bool bResult = false;
@@ -646,6 +656,47 @@ void UMaterialEditingLibrary::RecompileMaterial(UMaterial* Material)
 void UMaterialEditingLibrary::LayoutMaterialExpressions(UMaterial* Material)
 {
 	MaterialEditingLibraryImpl::LayoutMaterialExpressions( Material );
+}
+
+float UMaterialEditingLibrary::GetMaterialDefaultScalarParameterValue(UMaterial* Material, FName ParameterName)
+{
+	float Result = 0.f;
+	if (Material)
+	{
+		Material->GetScalarParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+UTexture* UMaterialEditingLibrary::GetMaterialDefaultTextureParameterValue(UMaterial* Material, FName ParameterName)
+{
+	UTexture* Result = nullptr;
+	if (Material)
+	{
+		Material->GetTextureParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+FLinearColor UMaterialEditingLibrary::GetMaterialDefaultVectorParameterValue(UMaterial* Material, FName ParameterName)
+{
+	FLinearColor Result = FLinearColor::Black;
+	if (Material)
+	{
+		Material->GetVectorParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+bool UMaterialEditingLibrary::GetMaterialDefaultStaticSwitchParameterValue(UMaterial* Material, FName ParameterName)
+{
+	bool bResult = false;
+	if (Material)
+	{
+		FGuid OutGuid;
+		Material->GetStaticSwitchParameterDefaultValue(ParameterName, bResult, OutGuid);
+	}
+	return bResult;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -887,6 +938,17 @@ bool UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(UMaterialI
 	return bResult;
 }
 
+
+bool UMaterialEditingLibrary::GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName)
+{
+	bool bResult = false;
+	if (Instance)
+	{
+		FGuid OutGuid;
+		Instance->GetStaticSwitchParameterValue(ParameterName, bResult, OutGuid);
+	}
+	return bResult;
+}
 
 void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* Instance)
 {

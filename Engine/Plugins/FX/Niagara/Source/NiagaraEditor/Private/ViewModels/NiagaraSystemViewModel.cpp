@@ -35,6 +35,7 @@
 #include "MovieSceneFolder.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Framework/Commands/UICommandList.h"
+#include "NiagaraMessageManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - SystemViewModel - CompileSystem"), STAT_NiagaraEditor_SystemViewModel_CompileSystem, STATGROUP_NiagaraEditor);
 
@@ -48,7 +49,7 @@ FNiagaraSystemViewModelOptions::FNiagaraSystemViewModelOptions()
 {
 }
 
-FNiagaraSystemViewModel::FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions)
+FNiagaraSystemViewModel::FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions, TOptional<const FGuid> InMessageLogGuid)
 	: System(InSystem)
 	, PreviewComponent(nullptr)
 	, SystemInstance(nullptr)
@@ -68,6 +69,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiag
 	, EditorSettings(GetMutableDefault<UNiagaraEditorSettings>())
 	, bResetRequestPending(false)
 	, bCompilePendingCompletion(false)
+	,SystemMessageLogGuidKey(InMessageLogGuid)
 {
 	SetupPreviewComponentAndInstance();
 	SetupSequencer();
@@ -75,6 +77,7 @@ FNiagaraSystemViewModel::FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiag
 	GEditor->RegisterForUndo(this);
 	RegisteredHandle = RegisterViewModelWithMap(&InSystem, this);
 	AddSystemEventHandlers();
+	SendLastCompileMessageJobs();
 }
 
 void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
@@ -168,7 +171,7 @@ void FNiagaraSystemViewModel::CompileSystem(bool bForce)
 	bCompilePendingCompletion = true;
 }
 
-ENiagaraScriptCompileStatus FNiagaraSystemViewModel::GetLatestCompileStatus()
+ENiagaraScriptCompileStatus FNiagaraSystemViewModel::GetLatestCompileStatus() const
 {
 	check(SystemScriptViewModel.IsValid());
 	return SystemScriptViewModel->GetLatestCompileStatus();
@@ -505,6 +508,13 @@ void FNiagaraSystemViewModel::PostUndo(bool bSuccess)
 
 void FNiagaraSystemViewModel::Tick(float DeltaTime)
 {
+	if (bCompilePendingCompletion && System.HasOutstandingCompilationRequests() == false)
+	{
+		bCompilePendingCompletion = false;
+		OnSystemCompiled().Broadcast();
+		SendLastCompileMessageJobs();
+	}
+
 	if (bForceAutoCompileOnce || (GetDefault<UNiagaraEditorSettings>()->GetAutoCompile() && bCanAutoCompile))
 	{
 		bool bRecompile = false;
@@ -529,12 +539,6 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 
 		if (System.HasOutstandingCompilationRequests() == false)
 		{
-			if (bCompilePendingCompletion)
-			{
-				bCompilePendingCompletion = false;
-				OnSystemCompiled().Broadcast();
-			}
-
 			if (bRecompile || bForceAutoCompileOnce)
 			{
 				CompileSystem(false);
@@ -617,6 +621,69 @@ const TArray<FNiagaraStackModuleData>& FNiagaraSystemViewModel::GetStackModuleDa
 TStatId FNiagaraSystemViewModel::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemViewModel, STATGROUP_Tickables);
+}
+
+void FNiagaraSystemViewModel::SendLastCompileMessageJobs() const
+{
+	if (SystemMessageLogGuidKey.IsSet() == false)
+	{
+		return;
+	}
+
+	struct FNiagaraScriptAndOwningScriptNameString
+	{
+		FNiagaraScriptAndOwningScriptNameString(const UNiagaraScript* InScript, const FString& InOwningScriptNameString)
+			: Script(InScript)
+			, OwningScriptNameString(InOwningScriptNameString)
+		{
+		}
+
+		const UNiagaraScript* Script;
+		const FString OwningScriptNameString;
+	};
+
+	int32 ErrorCount = 0;
+	int32 WarningCount = 0;
+
+	TArray<FNiagaraScriptAndOwningScriptNameString> ScriptsToGetCompileEventsFrom;
+	ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(System.GetSystemSpawnScript(), System.GetName()));
+	ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(System.GetSystemUpdateScript(), System.GetName()));
+	const TArray<FNiagaraEmitterHandle> EmitterHandles = System.GetEmitterHandles();
+	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
+	{
+		const UNiagaraEmitter* EmitterInSystem = Handle.GetInstance();
+		TArray<UNiagaraScript*> EmitterScripts;
+		EmitterInSystem->GetScripts(EmitterScripts);
+		for (UNiagaraScript* EmitterScript : EmitterScripts)
+		{
+			ScriptsToGetCompileEventsFrom.Add(FNiagaraScriptAndOwningScriptNameString(EmitterScript, EmitterInSystem->GetUniqueEmitterName()));
+		}
+	}
+
+	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
+	// Iterate from back to front to avoid reordering the events when they are queued
+	for (int i = ScriptsToGetCompileEventsFrom.Num()-1; i >=0; --i)
+	{ 
+		const FNiagaraScriptAndOwningScriptNameString& ScriptInfo = ScriptsToGetCompileEventsFrom[i];
+		const TArray<FNiagaraCompileEvent>& CurrentCompileEvents = ScriptInfo.Script->GetVMExecutableData().LastCompileEvents;
+		for (int j = CurrentCompileEvents.Num() - 1; j >= 0; --j)
+		{
+			const FNiagaraCompileEvent& CompileEvent = CurrentCompileEvents[j];
+			if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Error)
+			{
+				ErrorCount++;
+			}
+			else if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Warning)
+			{
+				WarningCount++;
+			}
+
+			JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, MakeWeakObjectPtr(const_cast<UNiagaraScript*>(ScriptInfo.Script)), ScriptInfo.OwningScriptNameString));
+		}
+	}
+	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("System")), 0);
+	FNiagaraMessageManager::Get()->RefreshMessagesForAssetKeyAndMessageJobType(SystemMessageLogGuidKey.GetValue(), ENiagaraMessageJobType::CompileEventMessageJob);
+	FNiagaraMessageManager::Get()->QueueMessageJobBatch(JobBatchToQueue, SystemMessageLogGuidKey.GetValue());
 }
 
 void FNiagaraSystemViewModel::SetupPreviewComponentAndInstance()
@@ -1181,6 +1248,7 @@ void FNiagaraSystemViewModel::EmitterPropertyChanged(TSharedRef<FNiagaraEmitterH
 
 void FNiagaraSystemViewModel::ScriptCompiled()
 {
+	bCompilePendingCompletion = true;
 	//ReInitializeSystemInstances();
 }
 

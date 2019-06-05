@@ -185,6 +185,25 @@ struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
 	 */	
 	void PostSerialize(const FArchive& Ar);
 #endif
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		UncheckedImage.UnlinkColors();
+		UncheckedHoveredImage.UnlinkColors();
+		UncheckedPressedImage.UnlinkColors();
+		CheckedImage.UnlinkColors();
+		CheckedHoveredImage.UnlinkColors();
+		CheckedPressedImage.UnlinkColors();
+		UndeterminedImage.UnlinkColors();
+		UndeterminedHoveredImage.UnlinkColors();
+		UndeterminedPressedImage.UnlinkColors();
+		ForegroundColor.Unlink();
+		BorderBackgroundColor.Unlink();
+	}
 };
 
 #if WITH_EDITORONLY_DATA
@@ -273,6 +292,19 @@ struct SLATECORE_API FTextBlockStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance, AdvancedDisplay)
 	FSlateBrush UnderlineBrush;
 	FTextBlockStyle& SetUnderlineBrush( const FSlateBrush& InUnderlineBrush ){ UnderlineBrush = InUnderlineBrush; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		ColorAndOpacity.Unlink();
+		SelectedBackgroundColor.Unlink();
+		HighlightShape.UnlinkColors();
+		StrikeBrush.UnlinkColors();
+		UnderlineBrush.UnlinkColors();
+	}
 };
 
 /**
@@ -356,6 +388,18 @@ struct SLATECORE_API FButtonStyle : public FSlateWidgetStyle
 	 */	
 	void PostSerialize(const FArchive& Ar);
 #endif
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		Normal.UnlinkColors();
+		Hovered.UnlinkColors();
+		Pressed.UnlinkColors();
+		Disabled.UnlinkColors();
+	}
 };
 
 template<>
@@ -416,6 +460,17 @@ struct SLATECORE_API FComboButtonStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FMargin MenuBorderPadding;
 	FComboButtonStyle& SetMenuBorderPadding( const FMargin& InMenuBorderPadding ){ MenuBorderPadding = InMenuBorderPadding; return *this; }
+
+	/**
+	* Unlinks all colors in this style.
+	* @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		ButtonStyle.UnlinkColors();
+		DownArrowImage.UnlinkColors();
+		MenuBorderBrush.UnlinkColors();
+	}
 };
 
 
@@ -470,6 +525,16 @@ struct SLATECORE_API FComboBoxStyle : public FSlateWidgetStyle
 	 */	
 	void PostSerialize(const FArchive& Ar);
 #endif
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		ComboButtonStyle.UnlinkColors();
+	}
+
 };
 
 #if WITH_EDITORONLY_DATA
@@ -562,6 +627,18 @@ struct SLATECORE_API FEditableTextStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush CaretImage;
 	FEditableTextStyle& SetCaretImage( const FSlateBrush& InCaretImage ){ CaretImage = InCaretImage; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		ColorAndOpacity.Unlink();
+		BackgroundImageSelected.UnlinkColors();
+		BackgroundImageComposing.UnlinkColors();
+		CaretImage.UnlinkColors();
+	}
 };
 
 
@@ -628,6 +705,23 @@ struct SLATECORE_API FScrollBarStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush DraggedThumbImage;
 	FScrollBarStyle& SetDraggedThumbImage( const FSlateBrush& InDraggedThumbImage ){ DraggedThumbImage = InDraggedThumbImage; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		HorizontalBackgroundImage.UnlinkColors();
+		VerticalBackgroundImage.UnlinkColors();
+		VerticalTopSlotImage.UnlinkColors();
+		HorizontalTopSlotImage.UnlinkColors();
+		VerticalBottomSlotImage.UnlinkColors();
+		HorizontalBottomSlotImage.UnlinkColors();
+		NormalThumbImage.UnlinkColors();
+		HoveredThumbImage.UnlinkColors();
+		DraggedThumbImage.UnlinkColors();
+	}
 };
 
 
@@ -710,6 +804,22 @@ struct SLATECORE_API FEditableTextBoxStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FScrollBarStyle ScrollBarStyle;
 	FEditableTextBoxStyle& SetScrollBarStyle( const FScrollBarStyle& InScrollBarStyle ){ ScrollBarStyle = InScrollBarStyle; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		BackgroundImageNormal.UnlinkColors();
+		BackgroundImageHovered.UnlinkColors();
+		BackgroundImageFocused.UnlinkColors();
+		BackgroundImageReadOnly.UnlinkColors();
+		ForegroundColor.Unlink();
+		BackgroundColor.Unlink();
+		ReadOnlyForegroundColor.Unlink();
+		ScrollBarStyle.UnlinkColors();
+	}
 };
 
 
@@ -777,6 +887,17 @@ struct SLATECORE_API FProgressBarStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush MarqueeImage;
 	FProgressBarStyle& SetMarqueeImage( const FSlateBrush& InMarqueeImage ){ MarqueeImage = InMarqueeImage; return *this; }
+
+	/**
+	* Unlinks all colors in this style.
+	* @see FSlateColor::Unlink
+	*/
+	void UnlinkColors()
+	{
+		BackgroundImage.UnlinkColors();
+		FillImage.UnlinkColors();
+		MarqueeImage.UnlinkColors();
+	}
 };
 
 
@@ -813,6 +934,16 @@ struct SLATECORE_API FExpandableAreaStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	float RolloutAnimationSeconds;
 	FExpandableAreaStyle& SetRolloutAnimationSeconds(float InLengthSeconds) { RolloutAnimationSeconds = InLengthSeconds; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		CollapsedImage.UnlinkColors();
+		ExpandedImage.UnlinkColors();
+	}
 };
 
 
@@ -929,6 +1060,20 @@ struct SLATECORE_API FSliderStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	float BarThickness;
 	FSliderStyle& SetBarThickness(float InBarThickness) { BarThickness = InBarThickness; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		NormalBarImage.UnlinkColors();
+		HoveredBarImage.UnlinkColors();
+		DisabledBarImage.UnlinkColors();
+		NormalThumbImage.UnlinkColors();
+		HoveredThumbImage.UnlinkColors();
+		DisabledThumbImage.UnlinkColors();
+	}
 };
 
 
@@ -1065,6 +1210,20 @@ struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FMargin TextPadding;
 	FSpinBoxStyle& SetTextPadding( const FMargin& InTextPadding ){ TextPadding = InTextPadding; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		BackgroundBrush.UnlinkColors();
+		HoveredBackgroundBrush.UnlinkColors();
+		ActiveFillBrush.UnlinkColors();
+		InactiveFillBrush.UnlinkColors();
+		ArrowsImage.UnlinkColors();
+		ForegroundColor.Unlink();
+	}
 };
 
 
@@ -1197,6 +1356,28 @@ struct SLATECORE_API FTableRowStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
 	FSlateBrush InactiveHighlightedBrush;
 	FTableRowStyle& SetInactiveHighlightedBrush( const FSlateBrush& InInactiveHighlightedBrush){ InactiveHighlightedBrush = InInactiveHighlightedBrush; return *this; }
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		SelectorFocusedBrush.UnlinkColors();
+		ActiveHoveredBrush.UnlinkColors();
+		ActiveBrush.UnlinkColors();
+		InactiveHoveredBrush.UnlinkColors();
+		InactiveBrush.UnlinkColors();
+		EvenRowBackgroundHoveredBrush.UnlinkColors();
+		EvenRowBackgroundBrush.UnlinkColors();
+		OddRowBackgroundHoveredBrush.UnlinkColors();
+		OddRowBackgroundBrush.UnlinkColors();
+		TextColor.Unlink();
+		SelectedTextColor.Unlink();
+		DropIndicator_Above.UnlinkColors();
+		DropIndicator_Onto.UnlinkColors();
+		DropIndicator_Below.UnlinkColors();
+	}
 };
 
 
@@ -1439,6 +1620,18 @@ struct SLATECORE_API FScrollBoxStyle : public FSlateWidgetStyle
 	{
 		RightShadowBrush = InRightShadowBrush;
 		return *this;
+	}
+
+	/**
+	 * Unlinks all colors in this style.
+	 * @see FSlateColor::Unlink
+	 */
+	void UnlinkColors()
+	{
+		TopShadowBrush.UnlinkColors();
+		BottomShadowBrush.UnlinkColors();
+		LeftShadowBrush.UnlinkColors();
+		RightShadowBrush.UnlinkColors();
 	}
 };
 

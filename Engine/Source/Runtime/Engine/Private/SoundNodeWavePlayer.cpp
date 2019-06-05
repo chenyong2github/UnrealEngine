@@ -133,11 +133,49 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 			UpdatedParams.bLooping = true;
 			SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, UpdatedParams, WaveInstances);
 		}
-		// Don't play non-looping sounds again if this sound has been revived to
-		// avoid re-triggering one shots played adjacent with looping wave instances in cue
-		else if (!ActiveSound.bHasVirtualized || ParseParams.bEnableRetrigger)
+		else
 		{
-			SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
+			// Don't play non-looping sounds again if this sound has been revived to
+			// avoid re-triggering one shots played adjacent with looping wave instances in cue
+			if (ParseParams.bEnableRetrigger)
+			{
+				SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
+			}
+			else
+			{
+				// If sound has been virtualized, don't try to revive one-shots
+				if (!ActiveSound.bHasVirtualized)
+				{
+					RETRIEVE_SOUNDNODE_PAYLOAD(sizeof(int32));
+					DECLARE_SOUNDNODE_ELEMENT(int32, bPlayFailed);
+					if (*RequiresInitialization)
+					{
+						bPlayFailed = 0;
+					}
+
+					const int32 InitActiveSoundWaveInstanceNum = ActiveSound.GetWaveInstances().Num();
+					const int32 InitWaveInstancesNum = WaveInstances.Num();
+
+					// Guard against continual parsing if wave instance was created but not added to transient
+					// wave instance list to avoid inaudible sounds popping back in.
+					if (!bPlayFailed)
+					{
+						SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
+					}
+
+					if (*RequiresInitialization != 0)
+					{
+						if (ActiveSound.GetWaveInstances().Num() == InitActiveSoundWaveInstanceNum)
+						{
+							if (WaveInstances.Num() == InitWaveInstancesNum)
+							{
+								bPlayFailed = 1;
+							}
+						}
+						*RequiresInitialization = 0;
+					}
+				}
+			}
 		}
 
 		SoundWave->bLooping = bWaveIsLooping;
@@ -169,7 +207,7 @@ bool USoundNodeWavePlayer::IsPlayWhenSilent() const
 {
 	if (SoundWave)
 	{
-		return SoundWave->bPlayWhenSilent;
+		return SoundWave->VirtualizationMode == EVirtualizationMode::PlayWhenSilent;
 	}
 	return false;
 }

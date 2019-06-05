@@ -424,6 +424,9 @@ struct FHeightmapAccessor
 
 	virtual ~FHeightmapAccessor()
 	{
+		// Flush here manually so it will release the lock of the textures, as we will re lock for other things afterward
+		Flush();
+
 		// Landscape Layers are updates are delayed and done in  ALandscape::TickLayers
 		if (!LandscapeEdit->HasLandscapeLayersContent())
 		{

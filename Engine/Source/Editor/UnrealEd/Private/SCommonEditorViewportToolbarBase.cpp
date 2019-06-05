@@ -356,7 +356,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateScreenPercentageMe
 		.MinValue(PreviewScreenPercentageMin)
 		.MaxValue(PreviewScreenPercentageMax)
 		.Value(this, &SCommonEditorViewportToolbarBase::OnGetScreenPercentageValue)
-		.OnValueChanged(this, &SCommonEditorViewportToolbarBase::OnScreenPercentageValueChanged)
+		.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnScreenPercentageValueChanged)
 		]
 		];
 }
@@ -395,7 +395,7 @@ TSharedRef<SWidget> SCommonEditorViewportToolbarBase::GenerateFarViewPlaneMenu()
 				.MaxValue(100000.0f)
 				.Font(FEditorStyle::GetFontStyle(TEXT("MenuItem.Font")))
 				.Value(this, &SCommonEditorViewportToolbarBase::OnGetFarViewPlaneValue)
-				.OnValueChanged(this, &SCommonEditorViewportToolbarBase::OnFarViewPlaneValueChanged)
+				.OnValueChanged(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::OnFarViewPlaneValueChanged)
 			]
 		];
 }
@@ -429,7 +429,7 @@ TSharedPtr<FExtender> SCommonEditorViewportToolbarBase::GetViewMenuExtender() co
 		TEXT("ViewMode"),
 		EExtensionHook::After,
 		GetInfoProvider().GetViewportWidget()->GetCommandList(),
-		FMenuExtensionDelegate::CreateSP(this, &SCommonEditorViewportToolbarBase::CreateViewMenuExtensions));
+		FMenuExtensionDelegate::CreateSP(const_cast<SCommonEditorViewportToolbarBase*>(this), &SCommonEditorViewportToolbarBase::CreateViewMenuExtensions));
 
 	return GetCombinedExtenderList(ViewModeExtender);
 }

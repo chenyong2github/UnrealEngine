@@ -22,6 +22,7 @@ class STextBlock;
 class UPanelSlot;
 class UWidgetAnimation;
 class UWidgetBlueprint;
+class FPaletteViewModel;
 
 struct FNamedSlotSelection
 {
@@ -171,6 +172,8 @@ public:
 
 	bool GetIsRespectingLocks() const;
 	void SetIsRespectingLocks(bool Value);
+
+	TSharedPtr<FPaletteViewModel> GetPaletteViewModel() { return PaletteViewModel; };
 
 public:
 	/** Fires whenever a new widget is being hovered over */
@@ -373,4 +376,7 @@ private:
 
 	/** When true the animation data in the generated class should be replaced with the current animation data. */
 	bool bRefreshGeneratedClassAnimations;
+
+	/** ViewModel used by the Palette and Palette Favorite Views */
+	TSharedPtr<FPaletteViewModel> PaletteViewModel;
 };

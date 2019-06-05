@@ -13,7 +13,7 @@ USynthSound::USynthSound(const FObjectInitializer& ObjectInitializer)
 void USynthSound::Init(USynthComponent* InSynthComponent, const int32 InNumChannels, const int32 InSampleRate, const int32 InCallbackSize)
 {
 	OwningSynthComponent = InSynthComponent;
-	bPlayWhenSilent = true;
+	VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 	NumChannels = InNumChannels;
 	NumSamplesToGeneratePerCallback = InCallbackSize;
 	// Turn off async generation in old audio engine on mac.

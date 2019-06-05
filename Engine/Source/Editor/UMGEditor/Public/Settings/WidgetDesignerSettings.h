@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Engine/DeveloperSettings.h"
+#include "WidgetPaletteFavorites.h"
 #include "WidgetDesignerSettings.generated.h"
 
 /**
@@ -61,4 +62,11 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category = Interaction)
 	bool bRespectLocks;
+	
+	/**
+	 * List of Favorites widgets used to populate the Favorites Palette
+	 */
+	UPROPERTY()
+	UWidgetPaletteFavorites* Favorites;
+
 };

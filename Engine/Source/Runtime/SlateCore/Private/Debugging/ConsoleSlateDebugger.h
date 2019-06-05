@@ -40,7 +40,8 @@ private:
 	void OnWarning(const FSlateDebuggingWarningEventArgs& EventArgs);
 	void OnInputEvent(const FSlateDebuggingInputEventArgs& EventArgs);
 	void OnFocusEvent(const FSlateDebuggingFocusEventArgs& EventArgs);
-	void OnNavigationEvent(const FSlateDebuggingNavigationEventArgs& EventArgs);
+	void OnAttemptNavigationEvent(const FSlateDebuggingNavigationEventArgs& EventArgs);
+	void OnExecuteNavigationEvent(const FSlateDebuggingExecuteNavigationEventArgs& EventArgs);
 	void OnCaptureStateChangeEvent(const FSlateDebuggingMouseCaptureEventArgs& EventArgs);
 
 	void OptionallyDumpCallStack();

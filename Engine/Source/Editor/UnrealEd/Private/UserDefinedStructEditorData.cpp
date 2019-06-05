@@ -206,7 +206,7 @@ void UUserDefinedStructEditorData::ReinitializeDefaultInstance(FString* OutLog)
 				FStructVariableDescription* VarDesc = VariablesDescriptions.FindByPredicate(FStructureEditorUtils::FFindByGuidHelper<FStructVariableDescription>(VarGuid));
 				if (VarDesc && !VarDesc->CurrentDefaultValue.IsEmpty())
 				{
-					if (!FBlueprintEditorUtils::PropertyValueFromString(Property, VarDesc->CurrentDefaultValue, StructData))
+					if (!FBlueprintEditorUtils::PropertyValueFromString(Property, VarDesc->CurrentDefaultValue, StructData, ScriptStruct))
 					{
 						const FString Message = FString::Printf(TEXT("Cannot parse value. Property: %s String: \"%s\" ")
 							, *Property->GetDisplayNameText().ToString()

@@ -72,6 +72,8 @@ static const FName Cascade_CurveEditorTab("Cascade_CurveEditor");
 
 DEFINE_LOG_CATEGORY(LogCascade);
 
+FRandomStream FCascade::RandomStream(FPlatformTime::Cycles());
+
 FCascade::FCascade()
 	: ParticleSystem(nullptr)
 	, ParticleSystemComponent(nullptr)
@@ -1530,6 +1532,11 @@ void FCascade::AddReferencedObjects(FReferenceCollector& Collector)
 	}
 }
 
+FString FCascade::GetReferencerName() const
+{
+	return TEXT("FCascade");
+}
+
 void FCascade::Tick(float DeltaTime)
 {
 	// This is a bit of a hack. In order to not tick all open Cascade editors (which tick through engine tick) even when not visible,
@@ -1665,14 +1672,6 @@ void FCascade::Tick(float DeltaTime)
 				bIsPendingReset = true;
 				ResetTime = TotalTime + ResetInterval;
 			}
-		}
-	}
-
-	if (CurveEditor.IsValid())
-	{
-		if (CurveEditor->GetNeedsRedraw())
-		{
-			CurveEditor->DrawViewport();
 		}
 	}
 
@@ -4756,7 +4755,7 @@ void FCascade::OnSetRandomSeed()
 		ParticleSystem->PreEditChange(NULL);
 		ParticleSystemComponent->PreEditChange(NULL);
 
-		int32 RandomSeed = FMath::RoundToInt(RAND_MAX * FMath::SRand());
+		int32 RandomSeed = FMath::RoundToInt(RAND_MAX * RandomStream.FRand());
 		if (SelectedModule->SetRandomSeedEntry(0, RandomSeed) == false)
 		{
 			UE_LOG(LogCascade, Warning, TEXT("Failed to set random seed entry on module %s"), *(SelectedModule->GetClass()->GetName()));
@@ -4898,7 +4897,7 @@ bool FCascade::ConvertModuleToSeeded(UParticleSystem* ParticleSystem, UParticleE
 			if (RandSeedInfo != NULL)
 			{
 				RandSeedInfo->bResetSeedOnEmitterLooping = true;
-				RandSeedInfo->RandomSeeds.Add(FMath::TruncToInt(FMath::Rand() * UINT_MAX));
+				RandSeedInfo->RandomSeeds.Add(FMath::TruncToInt(RandomStream.FRand() * UINT_MAX));
 			}
 		}
 

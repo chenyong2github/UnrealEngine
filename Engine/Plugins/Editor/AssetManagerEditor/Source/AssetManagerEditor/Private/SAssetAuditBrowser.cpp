@@ -619,7 +619,7 @@ TSharedRef<SWidget> SAssetAuditBrowser::CreateHistoryMenu(bool bInBackHistory) c
 
 			MenuBuilder.AddMenuEntry(DisplayName, DisplayName, FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateRaw(this, &SAssetAuditBrowser::GoToHistoryIndex, HistoryIdx)
+					FExecuteAction::CreateRaw(const_cast<SAssetAuditBrowser*>(this), &SAssetAuditBrowser::GoToHistoryIndex, HistoryIdx)
 				),
 				NAME_None, EUserInterfaceActionType::Button);
 			--HistoryIdx;
@@ -634,7 +634,7 @@ TSharedRef<SWidget> SAssetAuditBrowser::CreateHistoryMenu(bool bInBackHistory) c
 
 			MenuBuilder.AddMenuEntry(DisplayName, DisplayName, FSlateIcon(),
 				FUIAction(
-					FExecuteAction::CreateRaw(this, &SAssetAuditBrowser::GoToHistoryIndex, HistoryIdx)
+					FExecuteAction::CreateRaw(const_cast<SAssetAuditBrowser*>(this), &SAssetAuditBrowser::GoToHistoryIndex, HistoryIdx)
 				),
 				NAME_None, EUserInterfaceActionType::Button);
 			++HistoryIdx;

@@ -26,6 +26,7 @@ public:
 
 	/* FGCObject Interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	virtual FString GetReferencerName() const override;
 
 protected:
 	/** protected constructor - for use by the template only(FSubsystemCollection<TBaseType>) */
@@ -91,7 +92,7 @@ public:
 		TSubclassOf<TBaseType> SubsystemBaseClass = SubsystemClass;
 
 		const TArray<USubsystem*>& Array = GetSubsystemArrayInternal(SubsystemBaseClass);
-		TArray<TSubsystemClass*>* SpecificArray = reinterpret_cast<TArray<TSubsystemClass*>*>(&Array);
+		const TArray<TSubsystemClass*>* SpecificArray = reinterpret_cast<const TArray<TSubsystemClass*>*>(&Array);
 		return *SpecificArray;
 	}
 

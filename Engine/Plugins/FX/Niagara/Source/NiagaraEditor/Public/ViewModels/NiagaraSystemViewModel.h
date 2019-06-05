@@ -133,7 +133,7 @@ public:
 		ResetSystem,
 	};
 	/** Creates a new view model with the supplied System and System instance. */
-	FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions);
+	FNiagaraSystemViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModelOptions InOptions, TOptional<const FGuid> InMessageLogGuid = TOptional<const FGuid>());
 
 	~FNiagaraSystemViewModel();
 
@@ -226,7 +226,7 @@ public:
 	void CompileSystem(bool bForce);
 
 	/* Get the latest status of this view-model's script compilation.*/
-	ENiagaraScriptCompileStatus GetLatestCompileStatus();
+	ENiagaraScriptCompileStatus GetLatestCompileStatus() const;
 
 	/** Gets the ids for the currently selected emitter handles. */
 	const TArray<FGuid>& GetSelectedEmitterHandleIds();
@@ -298,6 +298,10 @@ public:
 	const TArray<FNiagaraStackModuleData>& GetStackModuleDataForEmitter(TSharedRef<FNiagaraEmitterViewModel> EmitterViewModel);
 
 private:
+
+	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
+	void SendLastCompileMessageJobs() const;
+
 	/** Sets up the preview component and System instance. */
 	void SetupPreviewComponentAndInstance();
 
@@ -536,4 +540,7 @@ private:
 
 	/** An array of emitter handle ids which need their sequencer tracks refreshed next frame. */
 	TArray<FGuid> EmitterIdsRequiringSequencerTrackUpdate;
+
+	/** GUID used when sending message jobs to FNiagaraMessageManager for notifying the FNiagaraMessageLogViewModel with the same GUID key */
+	const TOptional<const FGuid> SystemMessageLogGuidKey;
 };

@@ -36,7 +36,7 @@ namespace EAnimLinkMethod
  *		@see FAnimNotifyEvent
  */
 USTRUCT()
-struct FAnimLinkableElement
+struct ENGINE_VTABLE FAnimLinkableElement
 {
 	GENERATED_USTRUCT_BODY()
 

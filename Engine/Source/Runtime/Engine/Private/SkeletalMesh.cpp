@@ -3656,7 +3656,7 @@ public:
 		} while (NotValidPreviewSection());
 		return *this;
 	}
-	FORCEINLINE operator bool() const
+	FORCEINLINE explicit operator bool() const
 	{
 		return ((SectionIndex < Sections.Num()) && LODSectionElements.SectionElements.IsValidIndex(GetSectionElementIndex()));
 	}

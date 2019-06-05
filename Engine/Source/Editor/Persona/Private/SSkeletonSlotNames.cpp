@@ -258,8 +258,8 @@ TSharedPtr<SWidget> SSkeletonSlotNames::OnGetContextMenuContent() const
 		{
 			FDisplayedSlotNameInfo* SlotInfo = SelectedItemPtr.Get();
 
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonSlotNames::OnDeleteSlotGroup, SlotInfo->Name));
-			Action.CanExecuteAction.BindSP(this, &SSkeletonSlotNames::CanDeleteSlotGroup, SlotInfo->Name);
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::OnDeleteSlotGroup, SlotInfo->Name));
+			Action.CanExecuteAction.BindSP(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::CanDeleteSlotGroup, SlotInfo->Name);
 			const FText Label = LOCTEXT("AnimSlotManagerContextMenuDeleteSlotGroupLabel", "Delete Slot Group");
 			const FText ToolTipText = LOCTEXT("AnimSlotManagerContextMenuDeleteSlotGroupTooltip", "Delete this slot group.");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
@@ -276,13 +276,13 @@ TSharedPtr<SWidget> SSkeletonSlotNames::OnGetContextMenuContent() const
 			MenuBuilder.AddSubMenu(
 				FText::Format(LOCTEXT("ContextMenuSetSlotGroupLabel", "Set Slot {0} Group to"), FText::FromName(SelectedItems[0].Get()->Name)),
 				FText::Format(LOCTEXT("ContextMenuSetSlotGroupToolTip", "Set Slot {0} Group"), FText::FromName(SelectedItems[0].Get()->Name)),
-				FNewMenuDelegate::CreateRaw(this, &SSkeletonSlotNames::FillSetSlotGroupSubMenu));
+				FNewMenuDelegate::CreateRaw(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::FillSetSlotGroupSubMenu));
 		}
 		// Rename Slot
 		{
 			FDisplayedSlotNameInfo* SlotInfo = SelectedItemPtr.Get();
 
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonSlotNames::OnRenameSlot, SlotInfo->Name));
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::OnRenameSlot, SlotInfo->Name));
 			const FText Label = LOCTEXT("AnimSlotManagerContextMenuRenameSlotLabel", "Rename Slot");
 			const FText ToolTipText = LOCTEXT("AnimSlotManagerContextMenuRenameSlotTooltip", "Rename this slot");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
@@ -291,7 +291,7 @@ TSharedPtr<SWidget> SSkeletonSlotNames::OnGetContextMenuContent() const
 		{
 			FDisplayedSlotNameInfo* SlotInfo = SelectedItemPtr.Get();
 
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonSlotNames::OnDeleteSlot, SlotInfo->Name));
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::OnDeleteSlot, SlotInfo->Name));
 			const FText Label = LOCTEXT("AnimSlotManagerContextMenuDeleteSlotLabel", "Delete Slot");
 			const FText ToolTipText = LOCTEXT("AnimSlotManagerContextMenuDeleteSlotTooltip", "Delete this slot.");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
@@ -302,14 +302,14 @@ TSharedPtr<SWidget> SSkeletonSlotNames::OnGetContextMenuContent() const
 	MenuBuilder.BeginSection("SlotManagerGeneralActions", LOCTEXT("SlotManagerGeneralActions", "Slot Manager Actions"));
 	// Add Slot
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonSlotNames::OnAddSlot));
+		FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::OnAddSlot));
 		const FText Label = LOCTEXT("AnimSlotManagerContextMenuAddSlotLabel", "Add Slot");
 		const FText ToolTipText = LOCTEXT("AnimSlotManagerContextMenuAddSlotTooltip", "Adds a new Slot");
 		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
 	}
 	// Add Group
 	{
-		FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonSlotNames::OnAddGroup));
+		FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonSlotNames*>(this), &SSkeletonSlotNames::OnAddGroup));
 		const FText Label = LOCTEXT("AnimSlotManagerContextMenuAddGroupLabel", "Add Group");
 		const FText ToolTipText = LOCTEXT("AnimSlotManagerContextMenuAddGroupTooltip", "Adds a new Group");
 		MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);

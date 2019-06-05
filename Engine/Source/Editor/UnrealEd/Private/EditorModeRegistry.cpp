@@ -32,6 +32,7 @@ FEditorModeInfo::FEditorModeInfo(
 	int32 InPriorityOrder
 	)
 	: ID(InID)
+	, ToolbarCustomizationName(*(InID.ToString()+TEXT("Toolbar")))
 	, Name(InName)
 	, IconBrush(InIconBrush)
 	, bVisible(InIsVisible)

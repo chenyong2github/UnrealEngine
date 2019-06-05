@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
  * This ensures that memory allocated by custom Objective-C types can be tracked by UE4's tools and 
  * that we benefit from the memory allocator's efficiencies.
  */
-@interface FApplePlatformObject : NSObject
+OBJC_EXPORT @interface FApplePlatformObject : NSObject
 {
 @private
 	OSQueueHead* AllocatorPtr;

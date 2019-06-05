@@ -55,6 +55,9 @@ class UAssetToolsImpl : public UObject, public IAssetTools
 public:
 	UAssetToolsImpl(const FObjectInitializer& ObjectInitializer);
 
+	// UObject implementation
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+
 	// IAssetTools implementation
 	virtual void RegisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& NewActions) override;
 	virtual void UnregisterAssetTypeActions(const TSharedRef<IAssetTypeActions>& ActionsToRemove) override;

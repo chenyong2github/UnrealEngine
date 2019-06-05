@@ -27,6 +27,7 @@ class UNiagaraSequence;
 struct FAssetData;
 class FMenuBuilder;
 class ISequencer;
+class FNiagaraMessageLogViewModel;
 
 /** Viewer/editor for a NiagaraSystem
 */
@@ -61,11 +62,6 @@ public:
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
-	/**
-	* Updates list of Niagara messages in message log
-	*/
-	void UpdateMessageLog();
-
 	FSlateIcon GetCompileStatusImage() const;
 	FText GetCompileStatusTooltip() const;
 
@@ -89,7 +85,7 @@ protected:
 	virtual bool OnRequestClose() override;
 	
 private:
-	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost);
+	void InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid);
 
 	void UpdateOriginalEmitter();
 	void UpdateExistingEmitters();
@@ -112,8 +108,6 @@ private:
 	void SetupCommands();
 
 	void ResetSimulation();
-
-	void OnVMSystemCompiled();
 
 	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);
 	TSharedRef<SWidget> CreateAddEmitterMenuContent();
@@ -159,8 +153,8 @@ private:
 	TSharedPtr<FNiagaraSystemViewModel> SystemViewModel;
 
 	/** Message log, with the log listing that it reflects */
+	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	TSharedPtr<class SWidget> NiagaraMessageLog;
-	TSharedPtr<class IMessageLogListing> NiagaraMessageLogListing;
 
 	/** The command list for this editor */
 	TSharedPtr<FUICommandList> EditorCommands;

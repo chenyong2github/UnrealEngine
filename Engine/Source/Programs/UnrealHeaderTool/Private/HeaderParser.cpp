@@ -3825,6 +3825,11 @@ void FHeaderParser::GetVarType(
 	{
 		VarProperty = FPropertyBase(CPT_Int64);
 	}
+	else if ( VarType.Matches(TEXT("uint64")) && IsBitfieldProperty() )
+	{
+		// 64-bit bitfield (bool) type, treat it like 8 bit type
+		VarProperty = FPropertyBase(CPT_Bool8);
+	}
 	else if ( VarType.Matches(TEXT("uint32")) && IsBitfieldProperty() )
 	{
 		// 32-bit bitfield (bool) type, treat it like 8 bit type
@@ -5058,6 +5063,11 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 		RequireSymbol(TEXT(")"), Token.Identifier);
 
 		FClassMetaData* ClassData = GetCurrentClassData();
+		if (!ClassData)
+		{
+			FString CurrentClassName = GetCurrentClass()->GetName();
+			FError::Throwf(TEXT("Could not find the associated 'U%s' class while parsing 'I%s' - it could be missing or malformed"), *CurrentClassName, *CurrentClassName);
+		}
 
 		ClassData->GeneratedBodyMacroAccessSpecifier = CurrentAccessSpecifier;
 		ClassData->SetInterfaceGeneratedBodyLine(InputLine);

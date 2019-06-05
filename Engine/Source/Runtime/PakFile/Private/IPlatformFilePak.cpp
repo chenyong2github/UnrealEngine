@@ -220,13 +220,21 @@ void FPakPlatformFile::GetPakEncryptionKey(FAES::FAESKey& OutKey, const FGuid& I
 	}
 }
 
-TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> FPakPlatformFile::GetPakSigningKey()
+TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> FPakPlatformFile::PakSignatureFileCache;
+FCriticalSection FPakPlatformFile::PakSignatureFileCacheLock;
+TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> FPakPlatformFile::GetPakSignatureFile(const TCHAR* InFilename)
 {
-	static TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> Key;
-	static FCriticalSection Lock;
-	Lock.Lock();
+	FScopeLock Lock(&PakSignatureFileCacheLock);
 
-	if (!Key.IsValid())
+	FName FilenameFName(InFilename);
+	if (const TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>* SignaturesFile = PakSignatureFileCache.Find(FilenameFName))
+	{
+		return *SignaturesFile;
+	}
+
+	static FRSAKeyHandle PublicKey = InvalidRSAKeyHandle;
+	static bool bInitializedPublicKey = false;
+	if (!bInitializedPublicKey)
 	{
 		FCoreDelegates::FPakSigningKeysDelegate& Delegate = FCoreDelegates::GetPakSigningKeysDelegate();
 		if (Delegate.IsBound())
@@ -234,35 +242,27 @@ TSharedPtr<FRSA::FKey, ESPMode::ThreadSafe> FPakPlatformFile::GetPakSigningKey()
 			TArray<uint8> Exponent;
 			TArray<uint8> Modulus;
 			Delegate.Execute(Exponent, Modulus);
-			Key = FRSA::CreateKey(Exponent, TArray<uint8>(), Modulus);
+			PublicKey = FRSA::CreateKey(Exponent, TArray<uint8>(), Modulus);
 		}
+		bInitializedPublicKey = true;
 	}
-	
-	Lock.Unlock();
-	return Key;
-}
 
-TMap<FName, TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>> FPakPlatformFile::PakSignatureFileCache;
-FCriticalSection FPakPlatformFile::PakSignatureFileCacheLock;
-TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> FPakPlatformFile::GetPakSignatureFile(const TCHAR* InFilename)
-{
-	FScopeLock Lock(&PakSignatureFileCacheLock);
-	FName FilenameFName(InFilename);
-	if (const TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe>* SignaturesFile = PakSignatureFileCache.Find(FilenameFName))
+	TSharedPtr<FPakSignatureFile, ESPMode::ThreadSafe> SignaturesFile;
+
+	if (PublicKey != InvalidRSAKeyHandle)
 	{
-		return *SignaturesFile;
-	}
-
-	TSharedPtr<FPakSignatureFile, ESPMode::ThreadSafe> SignaturesFile = MakeShared<FPakSignatureFile, ESPMode::ThreadSafe>();
 	FString SignaturesFilename = FPaths::ChangeExtension(InFilename, TEXT("sig"));
 	FArchive* Reader = IFileManager::Get().CreateFileReader(*SignaturesFilename);
 	if (Reader != nullptr)
 	{
+			SignaturesFile = MakeShared<FPakSignatureFile, ESPMode::ThreadSafe>();
 		SignaturesFile->Serialize(*Reader);
 		delete Reader;
 
-		if (!SignaturesFile->DecryptSignatureAndValidate(InFilename))
+			if (!SignaturesFile->DecryptSignatureAndValidate(PublicKey, InFilename))
 		{
+				// We don't need to act on this failure as the decrypt function will already have dumped out log messages
+				// and fired the signature check fail handler
 			SignaturesFile.Reset();
 		}
 
@@ -272,6 +272,7 @@ TSharedPtr<const struct FPakSignatureFile, ESPMode::ThreadSafe> FPakPlatformFile
 	{
 		UE_LOG(LogPakFile, Warning, TEXT("Couldn't find pak signature file '%s'"), InFilename);
 		FPakPlatformFile::GetPakMasterSignatureTableCheckFailureHandler().Broadcast(InFilename);
+	}
 	}
 
 	return SignaturesFile;
@@ -1196,16 +1197,17 @@ class FPakPrecacher
 	uint32 Loads;
 	uint32 Frees;
 	uint64 LoadSize;
-	FRSA::TKeyPtr SigningKey;
 	EAsyncIOPriorityAndFlags AsyncMinPriority;
 	FCriticalSection SetAsyncMinimumPriorityScopeLock;
+	bool bEnableSignatureChecks;
+
 public:
 
-	static void Init(IPlatformFile* InLowerLevel, FRSA::TKeyPtr InSigningKey)
+	static void Init(IPlatformFile* InLowerLevel, bool bInEnableSignatureChecks)
 	{
 		if (!PakPrecacherSingleton)
 		{
-			verify(!FPlatformAtomics::InterlockedCompareExchangePointer((void**)&PakPrecacherSingleton, new FPakPrecacher(InLowerLevel, InSigningKey), nullptr));
+			verify(!FPlatformAtomics::InterlockedCompareExchangePointer((void**)&PakPrecacherSingleton, new FPakPrecacher(InLowerLevel, bInEnableSignatureChecks), nullptr));
 		}
 		check(PakPrecacherSingleton);
 	}
@@ -1241,7 +1243,7 @@ public:
 		return *PakPrecacherSingleton;
 	}
 
-	FPakPrecacher(IPlatformFile* InLowerLevel, FRSA::TKeyPtr InSigningKey)
+	FPakPrecacher(IPlatformFile* InLowerLevel, bool bInEnableSignatureChecks)
 		: LowerLevel(InLowerLevel)
 		, LastReadRequest(0)
 		, NextUniqueID(1)
@@ -1251,8 +1253,8 @@ public:
 		, Loads(0)
 		, Frees(0)
 		, LoadSize(0)
-		, SigningKey(InSigningKey)
 		, AsyncMinPriority(AIOP_MIN)
+		, bEnableSignatureChecks(bInEnableSignatureChecks)
 	{
 		check(LowerLevel && FPlatformProcess::SupportsMultithreading());
 		GPakCache_MaxRequestsToLowerLevel = FMath::Max(FMath::Min(FPlatformMisc::NumberOfIOWorkerThreadsToSpawn(), GPakCache_MaxRequestsToLowerLevel), 1);
@@ -1290,17 +1292,17 @@ public:
 			UE_LOG(LogPakFile, Log, TEXT("New pak file %s added to pak precacher."), *PakFilename);
 
 			FPakData& Pak = CachedPakData[*PakIndexPtr];
-
-			if (SigningKey.IsValid())
-			{
+			
 				// Load signature data
 				Pak.Signatures = FPakPlatformFile::GetPakSignatureFile(*PakFilename);
 				
+			if (Pak.Signatures.IsValid())
+			{
 				// We should never get here unless the signature file exists and is validated. The original FPakFile creation
 				// on the main thread would have failed and the pak would never have been mounted otherwise, and then we would
 				// never have issued read requests to the pak precacher.
 				check(Pak.Signatures);
-				
+
 				// Check that we have the correct match between signature and pre-cache granularity
 				int64 NumPakChunks = Align(PakFileSize, FPakInfo::MaxChunkDataSize) / FPakInfo::MaxChunkDataSize;
 				ensure(NumPakChunks == Pak.Signatures->ChunkHashes.Num());
@@ -2123,7 +2125,7 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 		FAsyncFileCallBack CallbackFromLower =
 			[this, IndexToFill, bDoCheck](bool bWasCanceled, IAsyncReadRequest* Request)
 		{
-			if (SigningKey.IsValid() && bDoCheck)
+			if (bEnableSignatureChecks && bDoCheck)
 			{
 				StartSignatureCheck(bWasCanceled, Request, IndexToFill);
 			}
@@ -4411,43 +4413,84 @@ void FPakFile::LoadIndex(FArchive* Reader)
 	else
 	{
 		// Load index into memory first.
-		Reader->Seek(Info.IndexOffset);
+
+		// If we encounter a corrupt index, try again but gather some extra debugging information so we can try and understand where it failed.
+		bool bFirstPass = true;
 		TArray<uint8> IndexData;
-		IndexData.AddUninitialized(Info.IndexSize);
-		Reader->Serialize(IndexData.GetData(), Info.IndexSize);
-		FMemoryReader IndexReader(IndexData);
 
-		// Decrypt if necessary
-		if (Info.bEncryptedIndex)
+		while (true)
 		{
-			DecryptData(IndexData.GetData(), Info.IndexSize, Info.EncryptionKeyGuid);
-		}
+			Reader->Seek(Info.IndexOffset);
+			IndexData.Empty(); // The next SetNum makes this Empty() logically redundant, but we want to try and force a memory reallocation for the re-attempt
+			IndexData.SetNum(Info.IndexSize);
+			Reader->Serialize(IndexData.GetData(), Info.IndexSize);
 
-		// Check SHA1 value.
-		uint8 IndexHash[20];
-		FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), IndexHash);
-		if (FMemory::Memcmp(IndexHash, Info.IndexHash, sizeof(IndexHash)) != 0)
-		{
-			FString StoredIndexHash, ComputedIndexHash;
-			StoredIndexHash = TEXT("0x");
-			ComputedIndexHash = TEXT("0x");
-
-			for (int64 ByteIndex = 0; ByteIndex < 20; ++ByteIndex)
+			FSHAHash EncryptedDataHash;
+			if (!bFirstPass)
 			{
-				StoredIndexHash += FString::Printf(TEXT("%02X"), Info.IndexHash[ByteIndex]);
-				ComputedIndexHash += FString::Printf(TEXT("%02X"), IndexHash[ByteIndex]);
+				FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), EncryptedDataHash.Hash);
 			}
 
-			UE_LOG(LogPakFile, Log, TEXT("Corrupt pak index detected!"));
-			UE_LOG(LogPakFile, Log, TEXT(" Filename: %s"), *PakFilename);
-			UE_LOG(LogPakFile, Log, TEXT(" Encrypted: %d"), Info.bEncryptedIndex);
-			UE_LOG(LogPakFile, Log, TEXT(" Total Size: %d"), Reader->TotalSize());
-			UE_LOG(LogPakFile, Log, TEXT(" Index Offset: %d"), Info.IndexOffset);
-			UE_LOG(LogPakFile, Log, TEXT(" Index Size: %d"), Info.IndexSize);
-			UE_LOG(LogPakFile, Log, TEXT(" Stored Index Hash: %s"), *StoredIndexHash);
-			UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash: %s"), *ComputedIndexHash);
-			UE_LOG(LogPakFile, Fatal, TEXT("Corrupted index in pak file (CRC mismatch)."));
+			// Decrypt if necessary
+			if (Info.bEncryptedIndex)
+			{
+				DecryptData(IndexData.GetData(), Info.IndexSize, Info.EncryptionKeyGuid);
+			}
+			// Check SHA1 value.
+			FSHAHash ComputedHash;
+			FSHA1::HashBuffer(IndexData.GetData(), IndexData.Num(), ComputedHash.Hash);
+			if (Info.IndexHash != ComputedHash)
+			{
+				if (bFirstPass)
+				{
+					UE_LOG(LogPakFile, Log, TEXT("Corrupt pak index detected!"));
+					UE_LOG(LogPakFile, Log, TEXT(" Filename: %s"), *PakFilename);
+					UE_LOG(LogPakFile, Log, TEXT(" Encrypted: %d"), Info.bEncryptedIndex);
+					UE_LOG(LogPakFile, Log, TEXT(" Total Size: %d"), Reader->TotalSize());
+					UE_LOG(LogPakFile, Log, TEXT(" Index Offset: %d"), Info.IndexOffset);
+					UE_LOG(LogPakFile, Log, TEXT(" Index Size: %d"), Info.IndexSize);
+					UE_LOG(LogPakFile, Log, TEXT(" Stored Index Hash: %s"), *Info.IndexHash.ToString());
+					UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 0]: %s"), *ComputedHash.ToString());
+					bFirstPass = false;
+				}
+				else
+				{
+					UE_LOG(LogPakFile, Log, TEXT(" Computed Index Hash [Pass 1]: %s"), *ComputedHash.ToString());
+					UE_LOG(LogPakFile, Log, TEXT(" Encrypted Index Hash: %s"), *EncryptedDataHash.ToString());
+
+					// Compute an SHA1 hash of the whole file so we can tell if the file was modified on disc (obviously as long as this isn't an  IO bug that gives us the same bogus data again)
+					FSHA1 FileHash;
+					Reader->Seek(0);
+					int64 Remaining = Reader->TotalSize();
+					TArray<uint8> WorkingBuffer;
+					WorkingBuffer.SetNum(64 * 1024);
+					while (Remaining > 0)
+					{
+						int64 ToProcess = FMath::Min((int64)WorkingBuffer.Num(), Remaining);
+						Reader->Serialize(WorkingBuffer.GetData(), ToProcess);
+						FileHash.Update(WorkingBuffer.GetData(), ToProcess);
+						Remaining -= ToProcess;
+					}
+
+					FileHash.Final();
+					FSHAHash FinalFileHash;
+					FileHash.GetHash(FinalFileHash.Hash);
+					UE_LOG(LogPakFile, Log, TEXT(" File Hash: %s"), *FinalFileHash.ToString());
+
+					UE_LOG(LogPakFile, Fatal, TEXT("Corrupted index in pak file (SHA hash mismatch)."));
+				}
+			}
+			else
+			{
+				if (!bFirstPass)
+				{
+					UE_LOG(LogPakFile, Log, TEXT("Pak index corruption appears to have recovered on the second attempt!"));
+				}
+				break;
+			}
 		}
+
+		FMemoryReader IndexReader(IndexData);
 
 		// Read the default mount point and all entries.
 		NumEntries = 0;
@@ -5544,9 +5587,9 @@ bool FPakPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine)
 	GameUserSettingsIniFilename = TEXT("GameUserSettings.ini");
 #endif
 
-	// signed if we have keys, and are not running with fileopenlog (currently results in a deadlock).
-	bSigned = GetPakSigningKey().IsValid() && !FParse::Param(FCommandLine::Get(), TEXT("fileopenlog"));;
-		
+	// Signed if we have keys, and are not running with fileopenlog (currently results in a deadlock).
+	bSigned = FCoreDelegates::GetPakSigningKeysDelegate().IsBound() && !FParse::Param(FCommandLine::Get(), TEXT("fileopenlog"));
+
 	// Find and mount pak files from the specified directories.
 	TArray<FString> PakFolders;
 	GetPakFolders(FCommandLine::Get(), PakFolders);
@@ -5572,7 +5615,7 @@ void FPakPlatformFile::InitializeNewAsyncIO()
 #if !WITH_EDITOR
 	if (FPlatformProcess::SupportsMultithreading() && !FParse::Param(FCommandLine::Get(), TEXT("FileOpenLog")))
 	{
-		FPakPrecacher::Init(LowerLevel, GetPakSigningKey());
+		FPakPrecacher::Init(LowerLevel, FCoreDelegates::GetPakSigningKeysDelegate().IsBound());
 	}
 	else
 #endif
@@ -5938,7 +5981,7 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 		PendingEncryptedPakFiles.RemoveAll([InGuid](const FPakListDeferredEntry& Entry) { return Entry.EncryptionKeyGuid == InGuid; });
 	}
 
-	UE_LOG(LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
+	UE_CLOG(InGuid.IsValid(), LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
 }
 
 IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)

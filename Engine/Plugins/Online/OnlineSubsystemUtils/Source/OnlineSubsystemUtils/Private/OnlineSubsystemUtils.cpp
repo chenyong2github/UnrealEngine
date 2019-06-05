@@ -218,7 +218,9 @@ int32 GetClientPeerIp(FName InstanceName, const FUniqueNetId& UserId)
 				if (ClientConnection && 
 					ClientConnection->PlayerId.ToString() == UserId.ToString())
 				{
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					PeerIp = ClientConnection->GetAddrAsInt();
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					break;
 				}
 			}

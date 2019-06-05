@@ -123,6 +123,24 @@ FActiveSound::~FActiveSound()
 	check(CanDelete());
 }
 
+FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundToCopy, FAudioDevice& InAudioDevice)
+{
+	FActiveSound* ActiveSound = new FActiveSound(InActiveSoundToCopy);
+
+	ActiveSound->bAsyncOcclusionPending = false;
+	ActiveSound->bHasVirtualized = true;
+	ActiveSound->bIsPlayingAudio = false;
+
+	ActiveSound->AudioDevice = &InAudioDevice;
+
+	ActiveSound->VolumeConcurrency = 1.0f;
+
+	ActiveSound->ConcurrencyGroupData.Reset();
+	ActiveSound->WaveInstances.Reset();
+
+	return ActiveSound;
+}
+
 FArchive& operator<<( FArchive& Ar, FActiveSound* ActiveSound )
 {
 	if( !Ar.IsLoading() && !Ar.IsSaving() )
@@ -194,6 +212,16 @@ void FActiveSound::SetSoundClass(USoundClass* SoundClass)
 	SoundClassOverride = SoundClass;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
+}
+
+bool FActiveSound::IsPlayWhenSilent() const
+{
+	if (!AudioDevice || !AudioDevice->PlayWhenSilentEnabled())
+	{
+		return false;
+	}
+
+	return Sound && Sound->IsPlayWhenSilent();
 }
 
 void FActiveSound::ClearAudioComponent()
@@ -681,12 +709,13 @@ void FActiveSound::Stop(bool bStopNow)
 
 	if (Sound && !bIsStopping)
 	{
-		Sound->CurrentPlayCount = FMath::Max( Sound->CurrentPlayCount - 1, 0 );
+		Sound->CurrentPlayCount = FMath::Max(Sound->CurrentPlayCount - 1, 0);
 	}
 
-	for (auto WaveInstanceIt(WaveInstances.CreateIterator()); WaveInstanceIt; ++WaveInstanceIt)
+	TArray<FWaveInstance*> ToDelete;
+	for (TPair<UPTRINT, FWaveInstance*> WaveInstanceIt : WaveInstances)
 	{
-		FWaveInstance*& WaveInstance = WaveInstanceIt.Value();
+		FWaveInstance* WaveInstance = WaveInstanceIt.Value;
 
 		// Stop the owning sound source
 		FSoundSource* Source = AudioDevice->GetSoundSource(WaveInstance);
@@ -725,8 +754,7 @@ void FActiveSound::Stop(bool bStopNow)
 			{
 				Source->StopNow();
 
-				delete WaveInstance;
-				WaveInstance = nullptr;
+				ToDelete.Add(WaveInstance);
 			}
 			else
 			{
@@ -737,19 +765,18 @@ void FActiveSound::Stop(bool bStopNow)
 		else
 		{
 			// Have a wave instance but no source.
-			delete WaveInstance;
-			WaveInstance = nullptr;
+			ToDelete.Add(WaveInstance);
 		}
+	}
+
+	for (FWaveInstance* WaveInstance : ToDelete)
+	{
+		RemoveWaveInstance(WaveInstance->WaveInstanceHash);
 	}
 
 	if (bStopNow)
 	{
 		bIsStopping = false;
-	}
-
-	if (!bIsStopping)
-	{
-		WaveInstances.Empty();
 	}
 
 	if (!bWasStopping)
@@ -768,9 +795,10 @@ bool FActiveSound::UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped
 
 	bIsStopping = false;
 
-	for (auto WaveInstanceIt(WaveInstances.CreateIterator()); WaveInstanceIt; ++WaveInstanceIt)
+	TArray<FWaveInstance*> ToDelete;
+	for (TPair<UPTRINT, FWaveInstance*> WaveInstanceIt : WaveInstances)
 	{
-		FWaveInstance*& WaveInstance = WaveInstanceIt.Value();
+		FWaveInstance* WaveInstance = WaveInstanceIt.Value;
 
 		// Some wave instances in the list here may be nullptr if some sounds have already stopped or didn't need to do a stop
 		if (WaveInstance)
@@ -785,8 +813,7 @@ bool FActiveSound::UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped
 					Source->StopNow();
 
 					// Delete the wave instance
-					delete WaveInstance;
-					WaveInstance = nullptr;
+					ToDelete.Add(WaveInstance);
 				}
 				else
 				{
@@ -801,17 +828,21 @@ bool FActiveSound::UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped
 			else
 			{
 				// We have a wave instance but no source for it, so just delete it.
-				delete WaveInstance;
-				WaveInstance = nullptr;
+				ToDelete.Add(WaveInstance);
 			}
 		}
+	}
+
+	for (FWaveInstance* WaveInstance : ToDelete)
+	{
+		RemoveWaveInstance(WaveInstance->WaveInstanceHash);
 	}
 
 	// Return true to indicate this active sound can be cleaned up
 	// If we've reached this point, all sound waves have stopped so we can clear this wave instance out.
 	if (!bIsStopping)
 	{
-		WaveInstances.Reset();
+		check(WaveInstances.Num() == 0);
 		return true;
 	}
 
@@ -819,10 +850,18 @@ bool FActiveSound::UpdateStoppingSources(uint64 CurrentTick, bool bEnsureStopped
 	return false;
 }
 
-FWaveInstance* FActiveSound::FindWaveInstance( const UPTRINT WaveInstanceHash )
+FWaveInstance* FActiveSound::FindWaveInstance(const UPTRINT WaveInstanceHash)
 {
-	FWaveInstance** WaveInstance = WaveInstances.Find(WaveInstanceHash);
-	return (WaveInstance ? *WaveInstance : nullptr);
+	return WaveInstances.FindRef(WaveInstanceHash);
+}
+
+void FActiveSound::RemoveWaveInstance(const UPTRINT WaveInstanceHash)
+{
+	if (FWaveInstance* WaveInstance = WaveInstances.FindRef(WaveInstanceHash))
+	{
+		WaveInstances.Remove(WaveInstanceHash);
+		delete WaveInstance;
+	}
 }
 
 void FActiveSound::UpdateAdjustVolumeMultiplier(const float DeltaTime)
@@ -1049,6 +1088,13 @@ void FActiveSound::HandleInteriorVolumes( const FListener& Listener, FSoundParse
 			}
 		}
 	}
+}
+
+FWaveInstance& FActiveSound::AddWaveInstance(const UPTRINT WaveInstanceHash)
+{
+	FWaveInstance* WaveInstance = new FWaveInstance(WaveInstanceHash, *this);
+	WaveInstances.Add(WaveInstanceHash, WaveInstance);
+	return *WaveInstance;
 }
 
 void FActiveSound::ApplyRadioFilter(const FSoundParseParameters& ParseParams )

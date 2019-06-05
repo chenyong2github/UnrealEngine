@@ -127,9 +127,9 @@ void FSlateMaterialShaderPS::SetAdditionalTexture( FRHICommandList& RHICmdList, 
 	SetTextureParameter(RHICmdList, GetPixelShader(), AdditionalTextureParameter, TextureParameterSampler, SamplerState, InTexture );
 }
 
-void FSlateMaterialShaderPS::SetDisplayGamma(FRHICommandList& RHICmdList, float InDisplayGamma)
+void FSlateMaterialShaderPS::SetDisplayGammaAndContrast(FRHICommandList& RHICmdList, float InDisplayGamma, float InContrast)
 {
-	FVector4 InGammaValues(2.2f / InDisplayGamma, 1.0f/InDisplayGamma, 0.0f, 0.0f);
+	FVector4 InGammaValues(2.2f / InDisplayGamma, 1.0f / InDisplayGamma, 0.0f, InContrast);
 
 	SetShaderValue(RHICmdList, GetPixelShader(), GammaAndAlphaValues, InGammaValues);
 }

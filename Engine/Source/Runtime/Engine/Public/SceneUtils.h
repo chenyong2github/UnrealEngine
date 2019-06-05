@@ -14,6 +14,7 @@
 #include "Stats/Stats.h"
 #include "RHI.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "GpuProfilerTrace.h"
 
 enum class EShadingPath
 {
@@ -175,16 +176,16 @@ class FScopedGPUStatEvent;
 #if HAS_GPU_STATS
  CSV_DECLARE_CATEGORY_MODULE_EXTERN(ENGINE_API,GPU);
  // The DECLARE_GPU_STAT macros both declare and define a stat (for use in a single CPP)
- #define DECLARE_GPU_STAT(StatName) DECLARE_FLOAT_COUNTER_STAT(TEXT(#StatName), Stat_GPU_##StatName, STATGROUP_GPU); CSV_DEFINE_STAT(GPU,StatName);
- #define DECLARE_GPU_STAT_NAMED(StatName, NameString) DECLARE_FLOAT_COUNTER_STAT(NameString, Stat_GPU_##StatName, STATGROUP_GPU); CSV_DEFINE_STAT(GPU,StatName);
+ #define DECLARE_GPU_STAT(StatName) DECLARE_FLOAT_COUNTER_STAT(TEXT(#StatName), Stat_GPU_##StatName, STATGROUP_GPU); CSV_DEFINE_STAT(GPU,StatName); TRACE_GPUPROFILER_DEFINE_EVENT_TYPE(StatName);
+ #define DECLARE_GPU_STAT_NAMED(StatName, NameString) DECLARE_FLOAT_COUNTER_STAT(NameString, Stat_GPU_##StatName, STATGROUP_GPU); CSV_DEFINE_STAT(GPU,StatName); TRACE_GPUPROFILER_DEFINE_EVENT_TYPE(StatName);
 
  // Extern GPU stats are needed where a stat is used in multiple CPPs. Use the DECLARE_GPU_STAT_NAMED_EXTERN in the header and DEFINE_GPU_STAT in the CPPs
- #define DECLARE_GPU_STAT_NAMED_EXTERN(StatName, NameString) DECLARE_FLOAT_COUNTER_STAT_EXTERN(NameString, Stat_GPU_##StatName, STATGROUP_GPU, ); CSV_DECLARE_STAT_EXTERN(GPU,StatName);
- #define DEFINE_GPU_STAT(StatName) DEFINE_STAT(Stat_GPU_##StatName); CSV_DEFINE_STAT(GPU,StatName);
+ #define DECLARE_GPU_STAT_NAMED_EXTERN(StatName, NameString) DECLARE_FLOAT_COUNTER_STAT_EXTERN(NameString, Stat_GPU_##StatName, STATGROUP_GPU, ); CSV_DECLARE_STAT_EXTERN(GPU,StatName); TRACE_GPUPROFILER_DECLARE_EVENT_TYPE_EXTERN(StatName);
+ #define DEFINE_GPU_STAT(StatName) DEFINE_STAT(Stat_GPU_##StatName); CSV_DEFINE_STAT(GPU,StatName); TRACE_GPUPROFILER_DEFINE_EVENT_TYPE(StatName);
 #if STATS
-  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), GET_STATID( Stat_GPU_##StatName ).GetName() );
+  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), GET_STATID( Stat_GPU_##StatName ).GetName(), TRACE_GPUPROFILER_EVENT_TYPE(StatName) );
  #else
-  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), FName() );
+  #define SCOPED_GPU_STAT(RHICmdList, StatName) FScopedGPUStatEvent PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__); PREPROCESSOR_JOIN(GPUStatEvent_##StatName,__LINE__).Begin(RHICmdList, CSV_STAT_FNAME(StatName), FName(), TRACE_GPUPROFILER_EVENT_TYPE(StatName) );
  #endif
  #define GPU_STATS_BEGINFRAME(RHICmdList) FRealtimeGPUProfiler::Get()->BeginFrame(RHICmdList);
  #define GPU_STATS_ENDFRAME(RHICmdList) FRealtimeGPUProfiler::Get()->EndFrame(RHICmdList);
@@ -222,7 +223,7 @@ public:
 	ENGINE_API void Release();
 
 	/** Push/pop events */
-	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName);
+	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const FGpuProfilerTrace::FEventType* TraceEventType);
 	void PopEvent(FRHICommandListImmediate& RHICmdList);
 
 private:
@@ -271,7 +272,7 @@ public:
 	/**
 	* Start/Stop functions for timer stats
 	*/
-	ENGINE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName );
+	ENGINE_API void Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const FGpuProfilerTrace::FEventType* TraceEventType );
 	ENGINE_API void End();
 };
 #endif // HAS_GPU_STATS

@@ -373,7 +373,7 @@ public:
 	const TArray<FName>& GetExistingMarkerNames() const { return ExistingMarkerNames; }
 
 	// Register a new sync marker name
-	void RegisterMarkerName(FName MarkerName) { ExistingMarkerNames.AddUnique(MarkerName); ExistingMarkerNames.Sort(); }
+	void RegisterMarkerName(FName MarkerName) { ExistingMarkerNames.AddUnique(MarkerName); ExistingMarkerNames.Sort(FNameLexicalLess()); }
 
 	// Remove a sync marker name
 	void RemoveMarkerName(FName MarkerName) { ExistingMarkerNames.Remove(MarkerName); }

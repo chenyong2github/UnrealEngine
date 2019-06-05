@@ -11,6 +11,7 @@
 #include "DetailWidgetRow.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStaticSwitchNodeDetails"
 
@@ -46,7 +47,34 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 		UpdateSelectionFromNode();
 		
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(SwitchCategoryName);		
-		FDetailWidgetRow& DropdownWidget = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeDetailsFilterText", "Input parameter type"));
+		FDetailWidgetRow& NameWidget = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeNameFilterText", "Input parameter name"));
+
+		NameWidget
+		.NameContent()
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 2.0f))
+			[
+				SNew(STextBlock)
+				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+				.Text(LOCTEXT("NiagaraSwitchNodeNameText", "Input parameter name"))
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 2.0f))
+			[
+				SNew(SEditableTextBox)
+				.Text(this, &FNiagaraStaticSwitchNodeDetails::GetParameterNameText)
+				.ToolTipText(LOCTEXT("NiagaraSwitchNodeNameTooltip", "This is the name of the parameter that is exposed to the user calling this function graph."))
+				.OnTextCommitted(this, &FNiagaraStaticSwitchNodeDetails::OnParameterNameCommited)
+				.SelectAllTextWhenFocused(true)
+				.RevertTextOnEscape(true)
+			]
+		];
+
+		FDetailWidgetRow& DropdownWidget = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeTypeFilterText", "Input parameter type"));
 
 		DropdownWidget
 		.NameContent()
@@ -124,6 +152,7 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<SwitchDropdo
 		return;
 	}
 	
+	FNiagaraTypeDefinition OldType = Node->GetInputType();
 	if (SelectedDropdownItem == DropdownOptions[0])
 	{
 		Node->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Bool;
@@ -137,7 +166,7 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<SwitchDropdo
 		Node->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Enum;
 		Node->SwitchTypeData.Enum = SelectedDropdownItem->Enum;
 	}
-	Node->RefreshFromExternalChanges();
+	Node->OnSwitchParameterTypeChanged(OldType);
 }
 
 FText FNiagaraStaticSwitchNodeDetails::GetDropdownItemLabel() const
@@ -193,6 +222,19 @@ void FNiagaraStaticSwitchNodeDetails::IntOptionValueCommitted(int32 Value, EText
 	{
 		Node->SwitchTypeData.MaxIntCount = Value;
 		Node->RefreshFromExternalChanges();
+	}
+}
+
+FText FNiagaraStaticSwitchNodeDetails::GetParameterNameText() const
+{
+	return Node.IsValid() ? FText::FromName(Node->InputParameterName) : FText();
+}
+
+void FNiagaraStaticSwitchNodeDetails::OnParameterNameCommited(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (Node.IsValid())
+	{
+		Node->ChangeSwitchParameterName(FName(*InText.ToString()));
 	}
 }
 

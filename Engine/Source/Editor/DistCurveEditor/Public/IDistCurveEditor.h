@@ -38,13 +38,7 @@ public:
 class DISTCURVEEDITOR_API IDistributionCurveEditor : public SCompoundWidget
 {
 public:
-	/** Draws the viewport */
-	virtual void DrawViewport() = 0;
-
-	/** Returns whether draw is needed */
-	virtual bool GetNeedsRedraw() = 0;
-
-	/** Refreshes the viewport by invalidating */
+	/** Refreshes the viewport */
 	virtual void RefreshViewport() = 0;
 
 	/** Clears selected keys and updates the viewport */

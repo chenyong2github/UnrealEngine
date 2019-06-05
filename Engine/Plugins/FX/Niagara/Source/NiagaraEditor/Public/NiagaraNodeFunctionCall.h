@@ -11,6 +11,30 @@
 
 class UNiagaraScript;
 
+USTRUCT()
+struct FNiagaraPropagatedVariable
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+
+	FNiagaraPropagatedVariable() : FNiagaraPropagatedVariable(FNiagaraVariable()) {}
+
+	FNiagaraPropagatedVariable(FNiagaraVariable SwitchParameter) : SwitchParameter(SwitchParameter), PropagatedName(FString()) {}
+
+	UPROPERTY()
+	FNiagaraVariable SwitchParameter;
+
+	/** If set, then this overrides the name of the switch parameter when propagating. */
+	UPROPERTY()
+	FString PropagatedName;
+
+	bool operator==(const FNiagaraPropagatedVariable& Other)const
+	{
+		return SwitchParameter == Other.SwitchParameter;
+	}
+};
+
 UCLASS(MinimalAPI)
 class UNiagaraNodeFunctionCall : public UNiagaraNodeWithDynamicPins
 {
@@ -38,7 +62,7 @@ public:
 
 	/** All the input values the function propagates to the next higher caller instead of forcing the user to set them directly. */
 	UPROPERTY()
-	TArray<FNiagaraVariable> PropagatedStaticSwitchParameters;
+	TArray<FNiagaraPropagatedVariable> PropagatedStaticSwitchParameters;
 
 	bool ScriptIsValid() const;
 
@@ -87,6 +111,9 @@ public:
 	void SuggestName(FString SuggestedName);
 
 	FOnInputsChanged& OnInputsChanged();
+
+	FNiagaraPropagatedVariable* FindPropagatedVariable(const FNiagaraVariable& Variable);
+	void RemovePropagatedVariable(const FNiagaraVariable& Variable);
 
 protected:
 	virtual bool IsValidPinToCompile(UEdGraphPin* Pin) const;

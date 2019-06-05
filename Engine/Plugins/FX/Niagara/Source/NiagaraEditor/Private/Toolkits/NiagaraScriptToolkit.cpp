@@ -45,6 +45,8 @@
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraScript.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraStandaloneScriptViewModel.h"
+#include "NiagaraMessageLogViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptToolkit"
 
@@ -141,7 +143,11 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	{
 		DisplayName = FAssetTypeActions_NiagaraScriptDynamicInputs::GetFormattedName();
 	}
-	ScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(EditedNiagaraScript, DisplayName, ENiagaraParameterEditMode::EditAll));
+
+	const FGuid MessageLogGuidKey = FGuid::NewGuid();
+	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraScriptMessageLogName(EditedNiagaraScript), MessageLogGuidKey, NiagaraMessageLog);
+
+	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(EditedNiagaraScript, DisplayName, ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, OriginalNiagaraScript, MessageLogGuidKey));
 
 	OnEditedScriptGraphChangedHandle = ScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkit::OnEditedScriptGraphChanged));
@@ -149,30 +155,15 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	DetailsScriptSelection = MakeShareable(new FNiagaraObjectSelection());
 	DetailsScriptSelection->SetSelectedObject(EditedNiagaraScript);
 	
-	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
-	FMessageLogInitializationOptions LogOptions;
-	// Show Pages so that user is never allowed to clear log messages
+ 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog"); //@todo(message manager) remove stats listing
+ 	FMessageLogInitializationOptions LogOptions;
+ 	// Show Pages so that user is never allowed to clear log messages
 	LogOptions.bShowPages = false;
 	LogOptions.bShowFilters = false;
 	LogOptions.bAllowClear = false;
 	LogOptions.MaxPageCount = 1;
-
-	// Reuse any existing log, or create a new one (that is not held onto by the message log system)
-	auto CreateMessageLogListing = [&MessageLogModule, &LogOptions](const FName& LogName)->TSharedRef<IMessageLogListing> {
-		if (MessageLogModule.IsRegisteredLogListing(LogName))
-		{
-			return MessageLogModule.GetLogListing(LogName);
-		}
-		else
-		{
-			return  MessageLogModule.CreateLogListing(LogName, LogOptions);
-		}
-	};
-
 	StatsListing = MessageLogModule.CreateLogListing("MaterialEditorStats", LogOptions);
 	Stats = MessageLogModule.CreateLogListingWidget(StatsListing.ToSharedRef());
-	NiagaraMessageLogListing = CreateMessageLogListing(GetNiagaraScriptMessageLogName(EditedNiagaraScript));
-	NiagaraMessageLog = MessageLogModule.CreateLogListingWidget(NiagaraMessageLogListing.ToSharedRef());
 
 	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_Layout_v8")
 	->AddArea
@@ -249,7 +240,7 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	SetupCommands();
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
-	UpdateMessageLog();
+	
 	UpdateModuleStats();
 
 	// @todo toolkit world centric editing
@@ -334,7 +325,6 @@ void FNiagaraScriptToolkit::OnEditedScriptPropertyFinishedChanging(const FProper
 
 void FNiagaraScriptToolkit::OnVMScriptCompiled(UNiagaraScript* InScript)
 {
-	UpdateMessageLog();
 	UpdateModuleStats();
 }
 
@@ -560,60 +550,6 @@ void FNiagaraScriptToolkit::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject(OriginalNiagaraScript);
 	Collector.AddReferencedObject(EditedNiagaraScript);
-}
-
-
-
-void FNiagaraScriptToolkit::UpdateMessageLog()
-{
-	TArray<TSharedPtr<INiagaraMessage>> NiagaraMessages;
-	uint32 ErrorCount = 0;
-	uint32 WarningCount = 0;
-	for (const FNiagaraCompileEvent CompileEvent : EditedNiagaraScript->GetVMExecutableData().LastCompileEvents)
-	{
-		NiagaraMessages.Add(FNiagaraMessageManager::Get()->QueueMessageJob(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<UNiagaraScript>(OriginalNiagaraScript), true)));
-		if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Error)
-		{
-			ErrorCount++;
-		}
-		else if (CompileEvent.Severity == FNiagaraCompileEventSeverity::Warning)
-		{
-			WarningCount++;
-		}
-	}
-
-	TArray<TSharedRef<FTokenizedMessage>> TokenizedMessages;
-	for (const TSharedPtr<INiagaraMessage> Message : NiagaraMessages)
-	{
-		TokenizedMessages.Add(Message->GenerateTokenizedMessage());
-	}
-
-	const auto GetCompileCompleteMessageText = [&ErrorCount, &WarningCount](ENiagaraScriptCompileStatus Status)->const FText {
-		FText MessageText;
-		switch (Status)
-		{
-		default:
-		case ENiagaraScriptCompileStatus::NCS_Unknown:
-		case ENiagaraScriptCompileStatus::NCS_Dirty:
-			MessageText = LOCTEXT("NiagaraScriptCompileStatusUnknownInfo", "Script compile status unknown with {0} warning(s) and {1} error(s).");
-			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
-		case ENiagaraScriptCompileStatus::NCS_Error:
-			MessageText = LOCTEXT("NiagaraScriptCompileStatusErrorInfo", "Script failed to compile with {0} warning(s) and {1} error(s).");
-			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)), FText::FromString(FString::FromInt(ErrorCount)));
-		case ENiagaraScriptCompileStatus::NCS_UpToDate:
-			MessageText = LOCTEXT("NiagaraScriptCompileStatusSuccessInfo", "Script successfully compiled.");
-			return MessageText;
-		case ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings:
-			MessageText = LOCTEXT("NiagaraScriptCompileStatusWarningInfo", "Script successfully compiled with {0} warning(s).");
-			return FText::Format(MessageText, FText::FromString(FString::FromInt(WarningCount)));
-		}
-	};
-
-	const FText CompileCompleteMessageText = GetCompileCompleteMessageText(ScriptViewModel->GetLatestCompileStatus());
-	TokenizedMessages.Add(FTokenizedMessage::Create(EMessageSeverity::Info, CompileCompleteMessageText));
-
-	NiagaraMessageLogListing->ClearMessages();
- 	NiagaraMessageLogListing->AddMessages(TokenizedMessages);
 }
 
 void FNiagaraScriptToolkit::UpdateModuleStats()

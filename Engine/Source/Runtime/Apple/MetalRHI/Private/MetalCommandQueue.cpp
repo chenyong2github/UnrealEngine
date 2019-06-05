@@ -264,7 +264,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			if (!GIsEditor)
 #endif
 			{
-				if (!FParse::Param(FCommandLine::Get(),TEXT("nometalfence")))
+				if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 				{
 					Features |= EMetalFeaturesFences;
 				}

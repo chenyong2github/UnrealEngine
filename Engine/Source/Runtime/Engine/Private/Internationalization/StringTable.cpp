@@ -124,6 +124,11 @@ private:
 	}
 
 	//~ IStringTableEngineBridge interface
+	virtual bool CanFindOrLoadStringTableAssetImpl() override
+	{
+		return IsInGameThread() && !IsGarbageCollecting() && !GIsSavingPackage;
+	}
+
 	virtual int32 LoadStringTableAssetImpl(const FName InTableId, FLoadStringTableAssetCallback InLoadedCallback) override
 	{
 		const FSoftObjectPath StringTableAssetReference = GetAssetReference(InTableId);
@@ -286,6 +291,11 @@ private:
 	{
 		FScopeLock KeepAliveStringTablesLock(&KeepAliveStringTablesCS);
 		Collector.AddReferencedObjects(KeepAliveStringTables);
+	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FStringTableEngineBridge");
 	}
 
 private:

@@ -38,7 +38,6 @@
 #include "Serialization/ArchiveCountMem.h"
 #include "Serialization/ArchiveShowReferences.h"
 #include "Serialization/ArchiveFindCulprit.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "Misc/PackageName.h"
 #include "Serialization/BulkData.h"
 #include "UObject/LinkerLoad.h"
@@ -101,12 +100,12 @@ void UObject::EnsureNotRetrievingVTablePtr() const
 	UE_CLOG(GIsRetrievingVTablePtr, LogCore, Fatal, TEXT("We are currently retrieving VTable ptr. Please use FVTableHelper constructor instead."));
 }
 
-UObject* UObject::CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient)
+UObject* UObject::CreateDefaultSubobject(FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient)
 {
 	FObjectInitializer* CurrentInitializer = FUObjectThreadContext::Get().TopInitializer();
 	UE_CLOG(!CurrentInitializer, LogObj, Fatal, TEXT("No object initializer found during construction."));
 	UE_CLOG(CurrentInitializer->Obj != this, LogObj, Fatal, TEXT("Using incorrect object initializer."));
-	return CurrentInitializer->CreateDefaultSubobject(this, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bAbstract, bIsTransient);
+	return CurrentInitializer->CreateDefaultSubobject(this, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
 }
 
 UObject* UObject::CreateEditorOnlyDefaultSubobjectImpl(FName SubobjectName, UClass* ReturnType, bool bTransient)
@@ -755,8 +754,6 @@ void UObject::BeginDestroy()
 			);
 	}
 
-	LowLevelRename(NAME_None);
-	
 #if WITH_EDITORONLY_DATA
 	// Make sure the linker entry stays as 'bExportLoadFailed' if the entry was marked as such, 
 	// doing this prevents the object from being reloaded by subsequent load calls:
@@ -780,6 +777,8 @@ void UObject::BeginDestroy()
 		ObjExport.bExportLoadFailed = true;
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	LowLevelRename(NAME_None);
 
 	// ensure BeginDestroy has been routed back to UObject::BeginDestroy.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -2859,16 +2858,6 @@ void UObject::OutputReferencers( FOutputDevice& Ar, FReferencerInformationList* 
 
 	Ar.Logf(TEXT("\r\n") );
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	Ar.Logf(TEXT("Shortest reachability from root to %s:\r\n"), *GetFullName() );
-	TMap<UObject*,UProperty*> Rt = FArchiveTraceRoute::FindShortestRootPath(this,true,GARBAGE_COLLECTION_KEEPFLAGS);
-
-	FString RootPath = FArchiveTraceRoute::PrintRootPath(Rt, this);
-	Ar.Log(*RootPath);
-
-	Ar.Logf(TEXT("\r\n") );
-#endif
-
 	if (bTempReferencers)
 	{
 		delete Referencers;
@@ -4344,7 +4333,7 @@ void StaticUObjectInit()
 }
 
 // Internal cleanup functions
-void CleanupGCArrayPools();
+void ShutdownGarbageCollection();
 void CleanupLinkerAnnotations();
 void CleanupCachedArchetypes();
 
@@ -4368,7 +4357,9 @@ void StaticExit()
 		GObjTransientPkg = NULL;
 	}
 
-	IncrementalPurgeGarbage( false );
+	GatherUnreachableObjects(false);
+	IncrementalPurgeGarbage(false);
+	GUObjectClusters.DissolveClusters(true);
 
 	// Keep track of how many objects there are for GC stats as we simulate a mark pass.
 	extern FThreadSafeCounter GObjectCountDuringLastMarkPhase;
@@ -4403,19 +4394,8 @@ void StaticExit()
 	// set on all objects that are about to be deleted. One example is FLinkerLoad detaching textures - the SetLinker call needs to 
 	// not kick off texture streaming.
 	//
-	for ( FRawObjectIterator It; It; ++It )
-	{
-		FUObjectItem* ObjItem = *It;
-		checkSlow(ObjItem);
-		if (ObjItem->IsUnreachable())
-		{
-			// Begin the object's asynchronous destruction.
-			UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-			Obj->ConditionalBeginDestroy();
-		}
-	}
-
-	IncrementalPurgeGarbage( false );
+	GatherUnreachableObjects(false);
+	IncrementalPurgeGarbage(false);
 
 	{
 		//Repeat GC for every object, including structures and properties.
@@ -4425,25 +4405,15 @@ void StaticExit()
 			It->SetUnreachable();
 		}
 
-		for (FRawObjectIterator It; It; ++It)
-		{
-			FUObjectItem* ObjItem = *It;
-			checkSlow(ObjItem);
-			if (ObjItem->IsUnreachable())
-			{
-				// Begin the object's asynchronous destruction.
-				UObject* Obj = static_cast<UObject*>(ObjItem->Object);
-				Obj->ConditionalBeginDestroy();
-			}
-		}
-
+		GatherUnreachableObjects(false);
 		IncrementalPurgeGarbage(false);
 	}
 
+	ShutdownGarbageCollection();
 	UObjectBaseShutdown();
+
 	// Empty arrays to prevent falsely-reported memory leaks.
-	FDeferredMessageLog::Cleanup();
-	CleanupGCArrayPools();
+	FDeferredMessageLog::Cleanup();	
 	CleanupLinkerAnnotations();
 	CleanupCachedArchetypes();
 

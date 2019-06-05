@@ -6,6 +6,7 @@
 
 #if PLATFORM_64BITS && PLATFORM_HAS_FPlatformVirtualMemoryBlock
 #include "Misc/AssertionMacros.h"
+#include "Misc/ScopeLock.h"
 #include "HAL/MemoryBase.h"
 #include "HAL/UnrealMemory.h"
 #include "Math/NumericLimits.h"

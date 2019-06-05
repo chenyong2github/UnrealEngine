@@ -141,7 +141,7 @@ struct FGenericPlatformAtomics
 	/**
 	 * Atomically swaps two pointers returning the original pointer to the caller
 	 */
-	static FORCEINLINE void* InterlockedExchangePtr( void** Dest, void* Exchange )
+	static FORCEINLINE void* InterlockedExchangePtr( void*volatile* Dest, void* Exchange )
 	{
 #if PLATFORM_64BITS
 		#error must implement
@@ -185,6 +185,48 @@ struct FGenericPlatformAtomics
 	static FORCEINLINE int64 InterlockedCompareExchange (volatile int64* Dest, int64 Exchange, int64 Comparand)
 	{
 		#error must implement
+	}
+
+	/**
+	 * Atomically ands AndValue to the value pointed to and returns the old
+	 * value to the caller. Implemented for int8, int16 and int64 as well.
+	 */
+	static FORCEINLINE int32 InterlockedAnd(volatile int32* Value, const int32 AndValue)
+	{
+		int32 RetVal;
+		do
+		{
+			RetVal = *Value;
+		} while (InterlockedCompareExchange((int32*)Value, RetVal & AndValue, RetVal) != RetVal);
+		return RetVal;
+	}
+
+	/**
+	 * Atomically ors OrValue to the value pointed to and returns the old
+	 * value to the caller. Implemented for int8, int16 and int64 as well.
+	 */
+	static FORCEINLINE int32 InterlockedOr(volatile int32* Value, const int32 OrValue)
+	{
+		int32 RetVal;
+		do
+		{
+			RetVal = *Value;
+		} while (InterlockedCompareExchange((int32*)Value, RetVal | OrValue, RetVal) != RetVal);
+		return RetVal;
+	}
+
+	/**
+	 * Atomically xors XorValue to the value pointed to and returns the old
+	 * value to the caller. Implemented for int8, int16 and int64 as well.
+	 */
+	static FORCEINLINE int32 InterlockedXor(volatile int32* Value, const int32 XorValue)
+	{
+		int32 RetVal;
+		do
+		{
+			RetVal = *Value;
+		} while (InterlockedCompareExchange((int32*)Value, RetVal ^ XorValue, RetVal) != RetVal);
+		return RetVal;
 	}
 
 	/**
@@ -232,7 +274,7 @@ struct FGenericPlatformAtomics
 	 * Atomically compares the pointer to comparand and replaces with the exchange
 	 * pointer if they are equal and returns the original value
 	 */
-	static FORCEINLINE void* InterlockedCompareExchangePointer(void** Dest,void* Exchange,void* Comperand)
+	static FORCEINLINE void* InterlockedCompareExchangePointer(void*volatile* Dest,void* Exchange,void* Comperand)
 	{
 #if PLATFORM_64BITS
 		#error must implement

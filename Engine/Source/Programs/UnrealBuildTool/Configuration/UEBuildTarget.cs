@@ -1594,10 +1594,25 @@ namespace UnrealBuildTool
 				}
 			}
 
-			// If we're just precompiling a plugin, only include output items which are under that directory
+			// If we're just precompiling a plugin, only include output items which are part of it
 			if(ForeignPlugin != null)
 			{
-				Makefile.OutputItems.RemoveAll(x => !x.Location.IsUnderDirectory(ForeignPlugin.Directory));
+				HashSet<FileItem> RetainOutputItems = new HashSet<FileItem>();
+				foreach(UEBuildPlugin Plugin in BuildPlugins)
+				{
+					if(Plugin.File == ForeignPlugin)
+					{
+						foreach (UEBuildModule Module in Plugin.Modules)
+						{
+							FileItem[] ModuleOutputItems;
+							if(Makefile.ModuleNameToOutputItems.TryGetValue(Module.Name, out ModuleOutputItems))
+							{
+								RetainOutputItems.UnionWith(ModuleOutputItems);
+							}
+						}
+					}
+				}
+				Makefile.OutputItems.RemoveAll(x => !RetainOutputItems.Contains(x));
 			}
 
 			// Allow the toolchain to modify the final output items
@@ -3185,7 +3200,7 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.bPrintTimingInfo = Rules.bPrintToolChainTimingInfo;
 			GlobalCompileEnvironment.bUseRTTI = Rules.bForceEnableRTTI;
 			GlobalCompileEnvironment.bUseInlining = Rules.bUseInlining;
-			GlobalCompileEnvironment.bHideSymbolsByDefault = Rules.bHideSymbolsByDefault;
+			GlobalCompileEnvironment.bHideSymbolsByDefault = !Rules.bPublicSymbolsByDefault;
 			GlobalCompileEnvironment.CppStandard = Rules.CppStandard;
 			GlobalCompileEnvironment.AdditionalArguments = Rules.AdditionalCompilerArguments;
 
@@ -3343,7 +3358,16 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("WITH_PLUGIN_SUPPORT=0");
 			}
 
-            if (Rules.bWithPerfCounters)
+			if (Rules.bCompileWithAccessibilitySupport && !Rules.bIsBuildingConsoleApplication)
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("WITH_ACCESSIBILITY=0");
+			}
+
+			if (Rules.bWithPerfCounters)
             {
                 GlobalCompileEnvironment.Definitions.Add("WITH_PERFCOUNTERS=1");
             }

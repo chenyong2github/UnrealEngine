@@ -23,6 +23,7 @@
 #include "RenderResource.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ProfilingDebugging/MiscTrace.h"
 
 //
 // Globals
@@ -701,6 +702,7 @@ void StartRenderingThread()
 	GRenderingThreadRunnable = new FRenderingThread();
 
 	GRenderingThread = FRunnableThread::Create(GRenderingThreadRunnable, *BuildRenderingThreadName(ThreadCount), 0, FPlatformAffinity::GetRenderingThreadPriority(), FPlatformAffinity::GetRenderingThreadMask());
+	TRACE_SET_THREAD_GROUP(GRenderingThread->GetThreadID(), "Render");
 
 	// Wait for render thread to have taskgraph bound before we dispatch any tasks for it.
 	((FRenderingThread*)GRenderingThreadRunnable)->TaskGraphBoundSyncEvent->Wait();

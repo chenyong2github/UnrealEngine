@@ -14,6 +14,7 @@
 #include "Math/Vector4.h"
 #include "Math/VectorRegister.h"
 #include "Math/TwoVectors.h"
+#include "Math/Ray.h"
 #include "Math/Edge.h"
 #include "Math/Plane.h"
 #include "Math/Sphere.h"

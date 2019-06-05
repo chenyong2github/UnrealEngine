@@ -267,7 +267,7 @@ struct FEmitHelper
 
 	static FString HandleMetaData(const UField* Field, bool AddCategory = true, const TArray<FString>* AdditinalMetaData = nullptr);
 
-	static TArray<FString> ProperyFlagsToTags(uint64 Flags, bool bIsClassProperty);
+	static TArray<FString> PropertyFlagsToTags(uint64 Flags, bool bIsClassProperty);
 
 	static TArray<FString> FunctionFlagsToTags(uint64 Flags);
 

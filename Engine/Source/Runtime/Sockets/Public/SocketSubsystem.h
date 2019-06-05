@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "SocketTypes.h"
+#include "IPAddress.h"
 #include "AddressInfoTypes.h"
 
 class Error;
@@ -84,7 +85,8 @@ public:
 	 */
 	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, bool bForceUDP = false)
 	{
-		return CreateSocket(SocketType, SocketDescription, ESocketProtocolFamily::None);
+		const FName NoProtocolTypeName(NAME_None);
+		return CreateSocket(SocketType, SocketDescription, NoProtocolTypeName);
 	}
 
 	/**
@@ -92,11 +94,26 @@ public:
 	 *
 	 * @Param SocketType type of socket to create (DGram, Stream, etc)
 	 * @param SocketDescription debug description
-	 * @param ProtocolType the socket protocol to be used
+	 * @param ProtocolType the socket protocol to be used. Each subsystem must handle the None case and output a valid socket regardless.
 	 *
 	 * @return the new socket or NULL if failed
 	 */
-	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType) = 0;
+	UE_DEPRECATED(4.23, "Use the CreateSocket with the FName parameter for support for multiple protocol types.")
+	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, ESocketProtocolFamily ProtocolType)
+	{
+		return CreateSocket(SocketType, SocketDescription, GetProtocolNameFromFamily(ProtocolType));
+	}
+
+	/**
+	 * Creates a socket using the given protocol name.
+	 *
+	 * @Param SocketType type of socket to create (DGram, Stream, etc)
+	 * @param SocketDescription debug description
+	 * @param ProtocolName the name of the internet protocol to use for this socket. None should be handled.
+	 *
+	 * @return the new socket or NULL if failed
+	 */
+	virtual class FSocket* CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolName) = 0;
 
 	/**
 	 * Creates a resolve info cached struct to hold the resolved address
@@ -130,18 +147,71 @@ public:
 	 *
 	 * @return the results structure containing the array of address results to this query
 	 */
+	UE_DEPRECATED(4.23, "Migrate to GetAddressInfo that takes an FName as the protocol specification.")
 	virtual FAddressInfoResult GetAddressInfo(const TCHAR* HostName, const TCHAR* ServiceName = nullptr,
 		EAddressInfoFlags QueryFlags = EAddressInfoFlags::Default,
 		ESocketProtocolFamily ProtocolType = ESocketProtocolFamily::None,
+		ESocketType SocketType = ESocketType::SOCKTYPE_Unknown)
+	{
+		return GetAddressInfo(HostName, ServiceName, QueryFlags, GetProtocolNameFromFamily(ProtocolType), SocketType);
+	}
+
+	/**
+	 * Gets the address information of the given hostname and outputs it into an array of resolvable addresses.
+	 * It is up to the caller to determine which one is valid for their environment.
+	 *
+	 * This function allows for specifying FNames for the protocol type, allowing for support of other 
+	 * platform protocols
+	 *
+	 * @param HostName string version of the queryable hostname or ip address
+	 * @param ServiceName string version of a service name ("http") or a port number ("80")
+	 * @param QueryFlags What flags are used in making the getaddrinfo call. Several flags can be used at once by
+	 *                   bitwise OR-ing the flags together.
+	 *                   Platforms are required to translate this value into a the correct flag representation.
+	 * @param ProtocolTypeName Used to limit results from the call. Specifying None will search all valid protocols.
+	 *					   Callers will find they rarely have to specify this flag.
+	 * @param SocketType What socket type should the results be formatted for. This typically does not change any
+	 *                   formatting results and can be safely left to the default value.
+	 *
+	 * @return the results structure containing the array of address results to this query
+	 */
+	virtual FAddressInfoResult GetAddressInfo(const TCHAR* HostName, const TCHAR* ServiceName = nullptr,
+		EAddressInfoFlags QueryFlags = EAddressInfoFlags::Default,
+		const FName ProtocolTypeName = NAME_None,
 		ESocketType SocketType = ESocketType::SOCKTYPE_Unknown) = 0;
 
 	/**
+	 * Serializes a string that only contains an address.
+	 * 
+	 * This is a what you see is what you get, there is no DNS resolution of the input string,
+	 * so only use this if you know you already have a valid address.
+	 * Otherwise, feed the address to GetAddressInfo for guaranteed results.
+	 *
+	 * @param InAddress the address to serialize
+	 *
+	 * @return The FInternetAddr of the given string address. This will point to nullptr on failure.
+	 */
+	virtual TSharedPtr<FInternetAddr> GetAddressFromString(const FString& InAddress) = 0;
+
+	/**
 	 * Does a DNS look up of a host name
+	 * This code assumes a lot, and as such, it's not guaranteed that the results provided by it are correct.
 	 *
 	 * @param HostName the name of the host to look up
 	 * @param Addr the address to copy the IP address to
 	 */
-	virtual ESocketErrors GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr) = 0;
+	UE_DEPRECATED(4.23, "Please use GetAddressInfo to query hostnames")
+	virtual ESocketErrors GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr)
+	{
+		FAddressInfoResult GAIResult = GetAddressInfo(ANSI_TO_TCHAR(HostName), nullptr, EAddressInfoFlags::Default, NAME_None);
+		if (GAIResult.Results.Num() > 0)
+		{
+			OutAddr.SetRawIp(GAIResult.Results[0].Address->GetRawIp());
+			return SE_NO_ERROR;
+		}
+
+		return SE_HOST_NOT_FOUND;
+	}
 
 	/**
 	 * Creates a platform specific async hostname resolution object
@@ -179,7 +249,21 @@ public:
 	 * @param Address host address
 	 * @param Port host port
 	 */
-	virtual TSharedRef<FInternetAddr> CreateInternetAddr(uint32 Address=0, uint32 Port=0) = 0;
+	UE_DEPRECATED(4.23, "To support different address sizes, use CreateInternetAddr with no arguments and call SetIp/SetRawIp and SetPort on the returned object")
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr(uint32 Address, uint32 Port = 0)
+	{
+		TSharedRef<FInternetAddr> ReturnAddr = CreateInternetAddr();
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		ReturnAddr->SetIp(Address);
+		ReturnAddr->SetPort(Port);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		return ReturnAddr;
+	}
+
+	/**
+	 * Create a proper FInternetAddr representation
+	 */
+	virtual TSharedRef<FInternetAddr> CreateInternetAddr() = 0;
 
 	/**
 	 * @return Whether the machine has a properly configured network device or not
@@ -254,9 +338,9 @@ public:
 	 * 
 	 * @param Addr the address structure which will have the Multihome address in it if set.
 	 *
-	 * @return If the multihome address is valid or not.
+	 * @return If the multihome address was set and valid
 	 */
-	virtual bool GetMultihomeAddress(TSharedRef<class FInternetAddr>& Addr);
+	virtual bool GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr);
 
 	/**
 	 * Checks the host name cache for an existing entry (faster than resolving again)
@@ -287,6 +371,15 @@ public:
 	 * Returns true if FSocket::Wait is supported by this socket subsystem.
 	 */
 	virtual bool IsSocketWaitSupported() const = 0;
+
+protected:
+
+	/**
+	 * Conversion functions from the SocketProtocolFamily enum to the new FName system.
+	 * For now, both are supported, but it's better to use the FName when possible.
+	 */
+	virtual ESocketProtocolFamily GetProtocolFamilyFromName(const FName& InProtocolName) const;
+	virtual FName GetProtocolNameFromFamily(ESocketProtocolFamily InProtocolFamily) const;
 
 private:
 

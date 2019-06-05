@@ -489,6 +489,8 @@ private:
 public:
 	/** Returns currently active FBX export options. Automation or UI dialog based options. */
 	UFbxExportOption* GetExportOptions();
+
+	bool bSceneGlobalTimeLineSet = false;
 };
 
 

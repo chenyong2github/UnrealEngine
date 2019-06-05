@@ -176,7 +176,8 @@ bool FBackChannelConnection::Listen(const int16 Port)
     
     if (NewSocket == nullptr && SocketSubsystem != nullptr)
     {
-        NewSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("FBackChannelConnection ListenSocket"), true);
+		TSharedRef<FInternetAddr> BindAddress = Endpoint.ToInternetAddr();
+        NewSocket = SocketSubsystem->CreateSocket(NAME_Stream, TEXT("FBackChannelConnection ListenSocket"), BindAddress->GetProtocolType());
         
         if (NewSocket != nullptr)
         {
@@ -189,7 +190,7 @@ bool FBackChannelConnection::Listen(const int16 Port)
             
             if (!Error)
             {
-                Error = !NewSocket->Bind(*Endpoint.ToInternetAddr());
+                Error = !NewSocket->Bind(*BindAddress);
             }
             
             if (!Error)

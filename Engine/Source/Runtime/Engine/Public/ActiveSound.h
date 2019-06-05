@@ -213,6 +213,8 @@ public:
 	FActiveSound();
 	~FActiveSound();
 
+	static FActiveSound* CreateVirtualCopy(const FActiveSound& ActiveSoundToCopy, FAudioDevice& AudioDevice);
+
 private:
 	TWeakObjectPtr<UWorld> World;
 	uint32 WorldID;
@@ -277,7 +279,7 @@ public:
 	bool IsPlayingAudio() const { return bIsPlayingAudio; }
 
 	/** Whether or not sound reference is valid and set to play when silent. */
-	bool IsPlayWhenSilent() const { return Sound && Sound->IsPlayWhenSilent();  }
+	bool IsPlayWhenSilent() const;
 
 	FAudioDevice* AudioDevice;
 
@@ -299,6 +301,8 @@ private:
 
 	/** Optional override for the source bus sends for the sound. */
 	TArray<FSoundSourceBusSendInfo> SoundSourceBusSendsOverride[(int32)EBusSendType::Count];
+
+	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
 public:
 	/** Whether or not the sound has checked if it was occluded already. Used to initialize a sound as occluded and bypassing occlusion interpolation. */
@@ -481,8 +485,6 @@ public:
 	int32 EnvelopeFollowerAttackTime;
 	int32 EnvelopeFollowerReleaseTime;
 
-	TMap<UPTRINT, FWaveInstance*> WaveInstances;
-
 	TMap<UPTRINT,uint32> SoundNodeOffsetMap;
 	TArray<uint8> SoundNodeData;
 
@@ -500,10 +502,22 @@ public:
 	 */
 	FWaveInstance* FindWaveInstance(const UPTRINT WaveInstanceHash);
 
+	void RemoveWaveInstance(const UPTRINT WaveInstanceHash);
+
+	const TMap<UPTRINT, FWaveInstance*>& GetWaveInstances() const
+	{
+		return WaveInstances;
+	}
+
+	/**
+	 * Add newly created wave instance to active sound
+	 */
+	FWaveInstance& AddWaveInstance(const UPTRINT WaveInstanceHash);
+
 	/**
 	 * Check whether to apply the radio filter
 	 */
-	void ApplyRadioFilter(const struct FSoundParseParameters& ParseParams);
+	void ApplyRadioFilter(const FSoundParseParameters& ParseParams);
 
 	/** Gets total concurrency gain stage based on all concurrency memberships of sound */
 	float GetTotalConcurrencyVolumeScale() const;

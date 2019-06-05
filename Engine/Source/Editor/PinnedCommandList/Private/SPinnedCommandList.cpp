@@ -722,7 +722,7 @@ void SPinnedCommandList::SortCommands()
 		}
 
 		// fallback to lexical sort
-		return CommandIdentifier0 < CommandIdentifier1;
+		return CommandIdentifier0.LexicalLess(CommandIdentifier1);
 	});
 
 	RefreshCommandWidgets();

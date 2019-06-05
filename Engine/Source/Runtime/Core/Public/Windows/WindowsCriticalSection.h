@@ -44,11 +44,7 @@ public:
 	 */
 	FORCEINLINE void Lock()
 	{
-		// Spin first before entering critical section, causing ring-0 transition and context switch.
-		if(Windows::TryEnterCriticalSection(&CriticalSection) == 0 )
-		{
-			Windows::EnterCriticalSection(&CriticalSection);
-		}
+		Windows::EnterCriticalSection(&CriticalSection);
 	}
 
 	/**

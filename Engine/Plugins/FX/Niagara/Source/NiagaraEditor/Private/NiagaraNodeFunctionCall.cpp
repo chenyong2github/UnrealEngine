@@ -166,7 +166,7 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 			{
 				NewPin->DefaultValue = PinDefaultValue;
 			}
-			NewPin->bDefaultValueIsIgnored = PropagatedStaticSwitchParameters.Contains(Input);
+			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 		}
 
 		for (FNiagaraVariable& Output : Outputs)
@@ -556,7 +556,7 @@ bool UNiagaraNodeFunctionCall::RefreshFromExternalChanges()
 			{
 				if (InputVar.GetName().IsEqual(Pin->GetFName()))
 				{
-					Pin->bDefaultValueIsIgnored = PropagatedStaticSwitchParameters.Contains(InputVar);
+					Pin->bDefaultValueIsIgnored = FindPropagatedVariable(InputVar) != nullptr;
 					break;
 				}
 			}
@@ -765,6 +765,30 @@ void UNiagaraNodeFunctionCall::SuggestName(FString SuggestedName)
 UNiagaraNodeFunctionCall::FOnInputsChanged& UNiagaraNodeFunctionCall::OnInputsChanged()
 {
 	return OnInputsChangedDelegate;
+}
+
+FNiagaraPropagatedVariable* UNiagaraNodeFunctionCall::FindPropagatedVariable(const FNiagaraVariable& Variable)
+{
+	for (FNiagaraPropagatedVariable& Propagated : PropagatedStaticSwitchParameters)
+	{
+		if (Propagated.SwitchParameter == Variable)
+		{
+			return &Propagated;
+		}
+	}
+	return nullptr;
+}
+
+void UNiagaraNodeFunctionCall::RemovePropagatedVariable(const FNiagaraVariable& Variable)
+{
+	for (int i = 0; i < PropagatedStaticSwitchParameters.Num(); i++)
+	{
+		if (PropagatedStaticSwitchParameters[i].SwitchParameter == Variable)
+		{
+			PropagatedStaticSwitchParameters.RemoveAt(i);
+			return;
+		}
+	}
 }
 
 ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeFunctionCall::GetNumericOutputTypeSelectionMode() const

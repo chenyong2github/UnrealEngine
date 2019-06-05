@@ -81,7 +81,7 @@ private:
 struct FMovieSceneComposureExportPasses
 {
 	/** Map of internal transform pass name (or NAME_None for the Output), to the export config options */
-	TSortedMap<FName, FMovieSceneComposureExportPass> PassesToExport;
+	TSortedMap<FName, FMovieSceneComposureExportPass, FDefaultAllocator, FNameFastLess> PassesToExport;
 
 	void AddPass(const FMovieSceneComposureExportPass& InPass, ACompositingElement* CompShotElement)
 	{

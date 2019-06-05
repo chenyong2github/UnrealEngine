@@ -454,7 +454,7 @@ void UDialogueSoundWaveProxy::Parse(class FAudioDevice* AudioDevice, const UPTRI
 	bool bHasSubtitles = (Subtitles.Num() > 0);
 
 	// Check if the wave instance exists before we try to add it...
-	const bool bWaveInstanceAlreadyExisted = (ActiveSound.WaveInstances.Contains(NodeWaveInstanceHash));
+	const bool bWaveInstanceAlreadyExisted = ActiveSound.FindWaveInstance(NodeWaveInstanceHash) != nullptr;
 
 	ActiveSound.bHasExternalSubtitles = bHasSubtitles; // Need to set this so the sound will virtualize when silent if necessary.
 	SoundWave->Parse(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);

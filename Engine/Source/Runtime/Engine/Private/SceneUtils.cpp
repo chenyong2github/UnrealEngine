@@ -184,7 +184,7 @@ public:
 	static const uint64 InvalidQueryResult = 0xFFFFFFFFFFFFFFFFull;
 
 public:
-	FRealtimeGPUProfilerEvent(const FName& InName, const FName& InStatName, FRenderQueryPool* RenderQueryPool)
+	FRealtimeGPUProfilerEvent(const FName& InName, const FName& InStatName, const FGpuProfilerTrace::FEventType* InTraceEventType, FRenderQueryPool* RenderQueryPool)
 		: StartResultMicroseconds(InvalidQueryResult)
 		, EndResultMicroseconds(InvalidQueryResult)
 		, FrameNumber(-1)
@@ -196,6 +196,7 @@ public:
 		StatName = InStatName;
 #endif
 		Name = InName;
+		TraceEventType = InTraceEventType;
 
 		const int MaxGPUQueries = CVarGPUStatsMaxQueriesPerFrame.GetValueOnRenderThread();
 		if ( MaxGPUQueries == -1 || RenderQueryPool->GetAllocatedQueryCount() < MaxGPUQueries )
@@ -321,6 +322,11 @@ public:
 		return Name;
 	}
 
+	const FGpuProfilerTrace::FEventType* GetTraceEventType() const
+	{
+		return TraceEventType;
+	}
+
 	uint64 GetStartResultMicroseconds(uint32 GPUIndex = 0) const
 	{
 		return StartResultMicroseconds;
@@ -343,6 +349,7 @@ private:
 	FName StatName;
 #endif
 	FName Name;
+	const FGpuProfilerTrace::FEventType* TraceEventType;
 	uint64 StartResultMicroseconds;
 	uint64 EndResultMicroseconds;
 	uint32 FrameNumber;
@@ -369,10 +376,10 @@ public:
 		Clear(nullptr);
 	}
 
-	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName)
+	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const FGpuProfilerTrace::FEventType* TraceEventType)
 	{
 		// TODO: this should really use a pool / free list
-		FRealtimeGPUProfilerEvent* Event = new FRealtimeGPUProfilerEvent(Name, StatName, RenderQueryPool);
+		FRealtimeGPUProfilerEvent* Event = new FRealtimeGPUProfilerEvent(Name, StatName, TraceEventType, RenderQueryPool);
 		const int32 EventIndex = GpuProfilerEvents.Num();
 
 		GpuProfilerEvents.Add(Event);
@@ -466,8 +473,11 @@ public:
 			EventAggregates.Push(Aggregate);
 		}
 
+		TRACE_GPUPROFILER_BEGIN_FRAME()
+
 		for (const FRealtimeGPUProfilerTimelineEvent& TimelineEvent : GpuProfilerTimelineEvents)
 		{
+			FRealtimeGPUProfilerEvent* Event = GpuProfilerEvents[TimelineEvent.EventIndex];
 			if (TimelineEvent.Type == FRealtimeGPUProfilerTimelineEvent::EType::PushEvent)
 			{
 				if (TimelineEventStack.Num() != 0)
@@ -475,12 +485,16 @@ public:
 					EventAggregates[TimelineEventStack.Last()].ExclusiveTime -= EventAggregates[TimelineEvent.EventIndex].InclusiveTime;
 				}
 				TimelineEventStack.Push(TimelineEvent.EventIndex);
+				TRACE_GPUPROFILER_BEGIN_EVENT(Event->GetTraceEventType(), Event->GetFrameNumber(), Event->GetStartResultMicroseconds());
 			}
 			else
 			{
 				TimelineEventStack.Pop();
+				TRACE_GPUPROFILER_END_EVENT(Event->GetEndResultMicroseconds());
 			}
 		}
+
+		TRACE_GPUPROFILER_END_FRAME()
 
 		// Update the stats
 
@@ -679,7 +693,7 @@ void FRealtimeGPUProfiler::EndFrame(FRHICommandListImmediate& RHICmdList)
 	}
 }
 
-void FRealtimeGPUProfiler::PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName)
+void FRealtimeGPUProfiler::PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, const FGpuProfilerTrace::FEventType* TraceEventType)
 {
 	check(IsInRenderingThread());
 	if (bStatGatheringPaused || !bInBeginEndBlock)
@@ -689,7 +703,7 @@ void FRealtimeGPUProfiler::PushEvent(FRHICommandListImmediate& RHICmdList, const
 	check(Frames.Num() > 0);
 	if (WriteBufferIndex >= 0)
 	{
-		Frames[WriteBufferIndex]->PushEvent(RHICmdList, Name, StatName);
+		Frames[WriteBufferIndex]->PushEvent(RHICmdList, Name, StatName, TraceEventType);
 	}
 }
 
@@ -710,7 +724,7 @@ void FRealtimeGPUProfiler::PopEvent(FRHICommandListImmediate& RHICmdList)
 /*-----------------------------------------------------------------------------
 FScopedGPUStatEvent
 -----------------------------------------------------------------------------*/
-void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName)
+void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name, const FName& StatName, const FGpuProfilerTrace::FEventType* TraceEventType)
 {
 	check(IsInRenderingThread());
 	if (!AreGPUStatsEnabled())
@@ -722,7 +736,7 @@ void FScopedGPUStatEvent::Begin(FRHICommandList& InRHICmdList, const FName& Name
 	if (InRHICmdList.IsImmediate())
 	{
 		RHICmdList = (FRHICommandListImmediate*)&InRHICmdList;
-		FRealtimeGPUProfiler::Get()->PushEvent(*RHICmdList, Name, StatName);
+		FRealtimeGPUProfiler::Get()->PushEvent(*RHICmdList, Name, StatName, TraceEventType);
 	}
 }
 

@@ -35,7 +35,8 @@ namespace Gauntlet
     /// </summary>
     public enum EIntendedBaseCopyDirectory
     {
-        Binaries,
+        Build,
+		Binaries,
         Config,
         Content,
         Demos,
@@ -71,6 +72,7 @@ namespace Gauntlet
 			ExplicitClientCommandLine = string.Empty;
 			Controllers = new List<string>();
             FilesToCopy = new List<UnrealFileToCopy>();
+			AdditionalArtifactDirectories = new List<EIntendedBaseCopyDirectory>();
             RoleType = ERoleModifier.None;
 		}
 
@@ -103,6 +105,11 @@ namespace Gauntlet
 		public string ExplicitClientCommandLine { get; set; }
 
         public List<UnrealFileToCopy> FilesToCopy { get; set; }
+
+		/// <summary>
+		/// Additional directories to 
+		/// </summary>
+		public List<EIntendedBaseCopyDirectory> AdditionalArtifactDirectories { get; set; }
 
 		/// <summary>
 		/// A map value passed in per server in case a test needs multiple servers on different maps.

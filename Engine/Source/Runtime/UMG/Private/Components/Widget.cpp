@@ -162,6 +162,10 @@ UWidget::UWidget(const FObjectInitializer& ObjectInitializer)
 	RenderTransformPivot = FVector2D(0.5f, 0.5f);
 	Cursor = EMouseCursor::Default;
 
+	AccessibleBehavior = ESlateAccessibleBehavior::NotAccessible;
+	AccessibleSummaryBehavior = ESlateAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = true;
+
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UWidget::StaticClass(), &GatherWidgetForLocalization); }
 #endif
@@ -187,10 +191,15 @@ void UWidget::SetRenderShear(FVector2D Shear)
 	UpdateRenderTransform();
 }
 
-void UWidget::SetRenderAngle(float Angle)
+void UWidget::SetRenderTransformAngle(float Angle)
 {
 	RenderTransform.Angle = Angle;
 	UpdateRenderTransform();
+}
+
+float UWidget::GetRenderTransformAngle() const
+{
+	return RenderTransform.Angle;
 }
 
 void UWidget::SetRenderTranslation(FVector2D Translation)
@@ -779,6 +788,11 @@ TSharedRef<SWidget> UWidget::TakeWidget_Private(ConstructMethodType ConstructMet
 		bRoutedSynchronizeProperties = false;
 #endif
 
+#if WIDGET_INCLUDE_RELFECTION_METADATA
+		// We only need to do this once, when the slate widget is created.
+		PublicWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
+#endif
+
 		SynchronizeProperties();
 		VerifySynchronizeProperties();
 		OnWidgetRebuilt();
@@ -1157,10 +1171,23 @@ void UWidget::SynchronizeProperties()
 		SafeWidget->SetToolTipText(PROPERTY_BINDING(FText, ToolTipText));
 	}
 
-#if !UE_BUILD_SHIPPING
-	SafeWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
+#if WITH_ACCESSIBILITY
+	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();
+	if (AccessibleWidget.IsValid())
+	{
+		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleBehavior, PROPERTY_BINDING(FText, AccessibleText), EAccessibleType::Main);
+		AccessibleWidget->SetAccessibleBehavior((EAccessibleBehavior)AccessibleSummaryBehavior, PROPERTY_BINDING(FText, AccessibleSummaryText), EAccessibleType::Summary);
+		AccessibleWidget->SetCanChildrenBeAccessible(bCanChildrenBeAccessible);
+	}
 #endif
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UWidget::GetAccessibleWidget() const
+{
+	return GetCachedWidget();
+}
+#endif
 
 UObject* UWidget::GetSourceAssetOrClass() const
 {
@@ -1171,9 +1198,9 @@ UObject* UWidget::GetSourceAssetOrClass() const
 	// where it comes from, what blueprint, what the name of the widget was...etc.
 	SourceAsset = WidgetGeneratedBy.Get();
 #else
-#if !UE_BUILD_SHIPPING
-	SourceAsset = WidgetGeneratedByClass.Get();
-#endif
+	#if !UE_BUILD_SHIPPING
+		SourceAsset = WidgetGeneratedByClass.Get();
+	#endif
 #endif
 
 	if (!SourceAsset)

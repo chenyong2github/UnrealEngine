@@ -933,9 +933,9 @@ void UNiagaraScript::InvalidateCachedCompileIds()
 	GetSource()->InvalidateCachedCompileIds();
 }
 
-void UNiagaraScript::RequestCompile()
+void UNiagaraScript::RequestCompile(bool bForceCompile)
 {
-	if (!AreScriptAndSourceSynchronized())
+	if (!AreScriptAndSourceSynchronized() || bForceCompile)
 	{
 		if (IsCompilable() == false)
 		{

@@ -25,7 +25,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Misc/Optional.h"
-#include "Widgets/Input/SVectorInputBox.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Input/SComboButton.h"
@@ -409,7 +408,7 @@ void FCompElementDetailsCustomization::ForceRefreshLayout()
 
 void FCompElementDetailsCustomization::GetInstanceCameraSourceComboStrings(TArray<TSharedPtr<FString>>& OutComboBoxStrings, TArray<TSharedPtr<SToolTip>>& OutToolTips, TArray<bool>& OutRestrictedItems)
 {
-	const UEnum* CamSourceEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ESceneCameraLinkType"));
+	const UEnum* CamSourceEnum = StaticEnum<ESceneCameraLinkType>();
 	if (ensure(CamSourceEnum))
 	{
 		for (int32 EnumIndex = 0; EnumIndex < CamSourceEnum->NumEnums()-1; ++EnumIndex)
@@ -445,7 +444,7 @@ FString FCompElementDetailsCustomization::GetInstanceCameraSourceValueStr(TShare
 		}
 		else
 		{
-			const UEnum* CamSourceEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ESceneCameraLinkType"));
+			const UEnum* CamSourceEnum = StaticEnum<ESceneCameraLinkType>();
 			if (ensure(CamSourceEnum))
 			{
 				DisplayStr = CamSourceEnum->GetDisplayNameTextByValue(CurrentValue).ToString();
@@ -458,7 +457,7 @@ FString FCompElementDetailsCustomization::GetInstanceCameraSourceValueStr(TShare
 
 void FCompElementDetailsCustomization::OnCameraSourceSelected(const FString& Selection, TSharedPtr<IPropertyHandle> PropertyHandle)
 {
-	const UEnum* CamSourceEnum = FindObject<UEnum>(ANY_PACKAGE, TEXT("ESceneCameraLinkType"));
+	const UEnum* CamSourceEnum = StaticEnum<ESceneCameraLinkType>();
 	if (ensure(CamSourceEnum) && PropertyHandle.IsValid())
 	{
 		const int64 FoundValue = CamSourceEnum->GetValueByNameString(Selection);

@@ -751,12 +751,12 @@ uint32 FWaveInstance::TypeHashCounter = 0;
  *
  * @param InActiveSound		ActiveSound this wave instance belongs to.
  */
-FWaveInstance::FWaveInstance( FActiveSound* InActiveSound )
+FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InActiveSound)
 	: WaveData(nullptr)
 	, SoundClass(nullptr)
 	, SoundSubmix(nullptr)
 	, SourceEffectChain(nullptr)
-	, ActiveSound(InActiveSound)
+	, ActiveSound(&InActiveSound)
 	, Volume(0.0f)
 	, DistanceAttenuation(1.0f)
 	, VolumeMultiplier(1.0f)
@@ -812,7 +812,7 @@ FWaveInstance::FWaveInstance( FActiveSound* InActiveSound )
 	, ReverbSendLevelDistanceRange(0.0f, 0.0f)
 	, ManualReverbSendLevel(0.0f)
 	, TypeHash(0)
-	, WaveInstanceHash(0)
+	, WaveInstanceHash(InWaveInstanceHash)
 	, UserIndex(0)
 {
 	TypeHash = ++TypeHashCounter;

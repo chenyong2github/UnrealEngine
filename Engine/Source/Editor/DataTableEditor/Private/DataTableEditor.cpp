@@ -7,11 +7,17 @@
 #include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Framework/Layout/Overscroll.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IDocumentation.h"
+#include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
 #include "Policies/PrettyJsonPrintPolicy.h"
+#include "ScopedTransaction.h"
 #include "SDataTableListViewRowName.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -25,11 +31,18 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "SourceCodeNavigation.h"
+#include "PropertyEditorModule.h"
+#include "UObject/StructOnScope.h"
+
+
+
 
 #define LOCTEXT_NAMESPACE "DataTableEditor"
 
 const FName FDataTableEditor::DataTableTabId("DataTableEditor_DataTable");
+const FName FDataTableEditor::DataTableDetailsTabId("DataTableEditor_DataTableDetails");
 const FName FDataTableEditor::RowEditorTabId("DataTableEditor_RowEditor");
 const FName FDataTableEditor::RowNameColumnId("RowName");
 
@@ -78,6 +91,7 @@ void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
 	CreateAndRegisterDataTableTab(InTabManager);
+	CreateAndRegisterDataTableDetailsTab(InTabManager);
 	CreateAndRegisterRowEditorTab(InTabManager);
 }
 
@@ -86,6 +100,7 @@ void FDataTableEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
 	InTabManager->UnregisterTabSpawner(DataTableTabId);
+	InTabManager->UnregisterTabSpawner(DataTableDetailsTabId);
 	InTabManager->UnregisterTabSpawner(RowEditorTabId);
 
 	DataTableTabWidget.Reset();
@@ -98,6 +113,17 @@ void FDataTableEditor::CreateAndRegisterDataTableTab(const TSharedRef<class FTab
 
 	InTabManager->RegisterTabSpawner(DataTableTabId, FOnSpawnTab::CreateSP(this, &FDataTableEditor::SpawnTab_DataTable))
 		.SetDisplayName(LOCTEXT("DataTableTab", "Data Table"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+}
+
+void FDataTableEditor::CreateAndRegisterDataTableDetailsTab(const TSharedRef<class FTabManager>& InTabManager)
+{
+	FPropertyEditorModule & EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs(/*bUpdateFromSelection=*/ false, /*bLockable=*/ false, /*bAllowSearch=*/ true, /*InNameAreaSettings=*/ FDetailsViewArgs::HideNameArea, /*bHideSelectionTip=*/ true);
+	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
+
+	InTabManager->RegisterTabSpawner(DataTableDetailsTabId, FOnSpawnTab::CreateSP(this, &FDataTableEditor::SpawnTab_DataTableDetails))
+		.SetDisplayName(LOCTEXT("DataTableDetailsTab", "Data Table Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
@@ -202,7 +228,7 @@ void FDataTableEditor::HandlePostChange()
 
 void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table )
 {
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v2" )
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v3" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -217,6 +243,8 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		(
 			FTabManager::NewStack()
 			->AddTab(DataTableTabId, ETabState::OpenedTab)
+			->AddTab(DataTableDetailsTabId, ETabState::OpenedTab)
+			->SetForegroundTab(DataTableTabId)
 		)
 		->Split
 		(
@@ -245,7 +273,10 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		SpawnToolkitTab( DataTableTabId, TabInitializationPayload, EToolkitTabSpot::Details );
 	}*/
 
-	// NOTE: Could fill in asset editor commands here!
+	// asset editor commands here
+	ToolkitCommands->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FDataTableEditor::CopySelectedRow));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Duplicate, FExecuteAction::CreateSP(this, &FDataTableEditor::DuplicateSelectedRow));
 }
 
 FName FDataTableEditor::GetToolkitFName() const
@@ -458,6 +489,65 @@ void FDataTableEditor::OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr 
 	}
 }
 
+void FDataTableEditor::CopySelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	uint8* RowPtr = TablePtr ? TablePtr->GetRowMap().FindRef(HighlightedRowName) : nullptr;
+
+	if (!RowPtr || !TablePtr->RowStruct)
+		return;
+
+	FString ClipboardValue;
+	TablePtr->RowStruct->ExportText(ClipboardValue, RowPtr, RowPtr, TablePtr, PPF_Copy, nullptr);
+
+	FPlatformApplicationMisc::ClipboardCopy(*ClipboardValue);
+}
+
+void FDataTableEditor::PasteOnSelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	uint8* RowPtr = TablePtr ? TablePtr->GetRowMap().FindRef(HighlightedRowName) : nullptr;
+
+	if (!RowPtr || !TablePtr->RowStruct)
+		return;
+
+	const FScopedTransaction Transaction(LOCTEXT("PasteDataTableRow", "Paste Data Table Row"));
+	TablePtr->Modify();
+
+	FString ClipboardValue;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardValue);
+
+	FDataTableEditorUtils::BroadcastPreChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
+
+	const TCHAR* Result = TablePtr->RowStruct->ImportText(*ClipboardValue, RowPtr, TablePtr, PPF_Copy, GWarn, GetPathNameSafe(TablePtr->RowStruct));
+
+	FDataTableEditorUtils::BroadcastPostChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
+
+	if (Result == nullptr)
+	{
+		FNotificationInfo Info(LOCTEXT("FailedPaste", "Failed to paste row"));
+		FSlateNotificationManager::Get().AddNotification(Info);
+	}
+}
+
+void FDataTableEditor::DuplicateSelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	FName NewName = HighlightedRowName;
+
+	if (NewName == NAME_None || TablePtr == nullptr)
+		return;
+
+	const TArray<FName> ExistingNames = TablePtr->GetRowNames();
+	while (ExistingNames.Contains(NewName))
+	{
+		NewName.SetNumber(NewName.GetNumber() + 1);
+	}
+
+	FDataTableEditorUtils::DuplicateRow(TablePtr, HighlightedRowName, NewName);
+	FDataTableEditorUtils::SelectRow(TablePtr, NewName);
+}
+
 FText FDataTableEditor::GetFilterText() const
 {
 	return ActiveFilterText;
@@ -632,6 +722,11 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	}
 
 	UpdateVisibleRows(InCachedSelection, bUpdateEvenIfValid);
+
+	if (PropertyView.IsValid())
+	{
+		PropertyView->SetObject(const_cast<UDataTable*>(Table));
+	}
 }
 
 void FDataTableEditor::UpdateVisibleRows(const FName InCachedSelection, const bool bUpdateEvenIfValid)
@@ -711,11 +806,11 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 {
 	TSharedRef<SScrollBar> HorizontalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Horizontal)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Vertical)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	TSharedRef<SHeaderRow> RowNamesHeaderRow = SNew(SHeaderRow);
 	RowNamesHeaderRow->AddColumn(
@@ -872,6 +967,26 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTable( const FSpawnTabArgs& 
 			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				DataTableTabWidget.ToSharedRef()
+			]
+		];
+}
+
+TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTableDetails(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == DataTableDetailsTabId);
+
+	PropertyView->SetObject(const_cast<UDataTable*>(GetDataTable()));
+
+	return SNew(SDockTab)
+		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
+		.Label(LOCTEXT("DataTableDetails", "Data Table Details"))
+		.TabColorScale(GetTabColorScale())
+		[
+			SNew(SBorder)
+			.Padding(2)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				PropertyView.ToSharedRef()
 			]
 		];
 }

@@ -522,7 +522,7 @@ struct FNetDeltaSerializeInfo
 	/** When non-null, this indicates the given Guid has become unmapped and any references to it should be updated. */
 	const FNetworkGUID* MoveGuidToUnmapped = nullptr;
 
-	int32 PropertyRepIndex = INDEX_NONE;
+	uint16 CustomDeltaIndex = INDEX_NONE;
 
 	// Debugging variables
 	FString DebugName;

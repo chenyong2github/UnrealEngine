@@ -86,7 +86,7 @@ public:
 		, bIsLocked(false)
 		, bHasOpenColorPicker(false)
 		, bDisableCustomDetailLayouts( false )
-		, NumVisbleTopLevelObjectNodes(0)
+		, NumVisibleTopLevelObjectNodes(0)
 	{
 	}
 
@@ -107,9 +107,8 @@ public:
 
 	virtual int32 GetNumVisibleTopLevelObjects() const override
 	{
-		return NumVisbleTopLevelObjectNodes;
+		return NumVisibleTopLevelObjectNodes;
 	}
-
 
 	/** @return The identifier for this details view, or NAME_None is this view is anonymous */
 	virtual FName GetIdentifier() const override
@@ -162,6 +161,7 @@ public:
 	virtual void NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent) override;
 	void RefreshTree() override;
 	TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const override;
+	TSharedPtr<FEditConditionParser> GetEditConditionParser() const override;
 	TSharedPtr<IPropertyUtilities> GetPropertyUtilities() override;
 	void CreateColorPickerWindow(const TSharedRef< class FPropertyEditor >& PropertyEditor, bool bUseAlpha) override;
 	virtual void UpdateSinglePropertyMap(TSharedPtr<FComplexPropertyNode> InRootPropertyNode, FDetailLayoutData& LayoutData, bool bIsExternal) override;
@@ -422,7 +422,7 @@ protected:
 	/** True if we want to skip generation of custom layouts for displayed object */
 	bool bDisableCustomDetailLayouts;
 
-	int32 NumVisbleTopLevelObjectNodes;
+	int32 NumVisibleTopLevelObjectNodes;
 
 	/** Delegate for overriding the show modified filter */
 	FSimpleDelegate CustomFilterDelegate;
@@ -431,4 +431,6 @@ protected:
 	bool bCustomFilterActive;
 
 	FText CustomFilterLabel;
+
+	mutable TSharedPtr<FEditConditionParser> EditConditionParser;
 };

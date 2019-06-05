@@ -353,7 +353,7 @@ void FMovieSceneEventCustomization::PopulateQuickBindSubMenu(FMenuBuilder& MenuB
 			}
 		}
 	
-		Algo::SortBy(Functions, &UFunction::GetFName);
+		Algo::SortBy(Functions, &UFunction::GetFName, FNameLexicalLess());
 
 		for (UFunction* Function : Functions)
 		{

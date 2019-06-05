@@ -134,7 +134,7 @@ struct FSoundWaveSpectralData
 {
 	GENERATED_USTRUCT_BODY()
 
-	// The frequency hz of the spectrum value
+	// The frequency (in Hz) of the spectrum value
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SpectralData")
 	float FrequencyHz;
 
@@ -272,36 +272,36 @@ class ENGINE_API USoundWave : public USoundBase
 	GENERATED_UCLASS_BODY()
 
 	/** Platform agnostic compression quality. 1..100 with 1 being best compression and 100 being best quality. */
-	UPROPERTY(EditAnywhere, Category=Compression, meta=(ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, Category="Format|Quality", meta=(DisplayName = "Compression", ClampMin = "1", ClampMax = "100"), AssetRegistrySearchable)
 	int32 CompressionQuality;
 
 	/** Priority of this sound when streaming (lower priority streams may not always play) */
-	UPROPERTY(EditAnywhere, Category=Streaming, meta=(ClampMin=0))
+	UPROPERTY(EditAnywhere, Category="Playback|Streaming", meta=(ClampMin=0))
 	int32 StreamingPriority;
 
 	/** Quality of sample rate conversion for platforms that opt into resampling during cook. */
-	UPROPERTY(EditAnywhere, Category = Quality)
+	UPROPERTY(EditAnywhere, Category = "Format|Quality", meta=(DisplayName="Sample Rate"))
 	ESoundwaveSampleRateSettings SampleRateQuality;
 
 	/** Type of buffer this wave uses. Set once on load */
-	TEnumAsByte<enum EDecompressionType> DecompressionType;
+	TEnumAsByte<EDecompressionType> DecompressionType;
 
-	UPROPERTY(EditAnywhere, Category=Sound)
+	UPROPERTY(EditAnywhere, Category=Sound, meta=(DisplayName="Group"))
 	TEnumAsByte<ESoundGroup> SoundGroup;
 
 	/** If set, when played directly (not through a sound cue) the wave will be played looping. */
-	UPROPERTY(EditAnywhere, Category=SoundWave, AssetRegistrySearchable)
+	UPROPERTY(EditAnywhere, Category=Sound, AssetRegistrySearchable)
 	uint8 bLooping:1;
 
 	/** Whether this sound can be streamed to avoid increased memory usage */
-	UPROPERTY(EditAnywhere, Category=Streaming)
+	UPROPERTY(EditAnywhere, Category="Playback|Streaming")
 	uint8 bStreaming:1;
 
 	/** Whether this sound supports seeking. This requires recooking with a codec which supports seekability and streaming. */
-	UPROPERTY(EditAnywhere, Category = Streaming, meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
+	UPROPERTY(EditAnywhere, Category = "Playback|Streaming", meta = (DisplayName = "Seekable", EditCondition = "bStreaming"))
 	uint8 bSeekableStreaming:1;
 
-	/** Set to true for programmatically-generated, streamed audio. */
+	/** Set to true for programatically-generated, streamed audio. */
 	uint8 bProcedural:1;
 
 	/** Whether this sound wave is beginning to be destroyed by GC. */
@@ -328,15 +328,13 @@ class ENGINE_API USoundWave : public USoundBase
 	UPROPERTY(EditAnywhere, Category=Subtitles )
 	uint8 bSingleLine:1;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	uint8 bVirtualizeWhenSilent_DEPRECATED:1;
-
-	/** Allows sound to continue playing when silent. This prevents issues with sounds restarting when coming back in range, etc. */
-	UPROPERTY(EditAnywhere, Category=Sound, meta = (DisplayName = "Play When Silent"))
-	uint8 bPlayWhenSilent:1;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Whether or not this source is ambisonics file format. */
-	UPROPERTY(EditAnywhere, Category = Sound)
+	UPROPERTY(EditAnywhere, Category = Format)
 	uint8 bIsAmbisonics : 1;
 
 	/** Whether this SoundWave was decompressed from OGG. */
@@ -679,7 +677,7 @@ public:
 	/**
 	 * Handle any special requirements when the sound starts (e.g. subtitles)
 	 */
-	FWaveInstance* HandleStart( FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash ) const;
+	FWaveInstance& HandleStart(FActiveSound& ActiveSound, const UPTRINT WaveInstanceHash) const;
 
 	/**
 	 * This is only used for DTYPE_Procedural audio. It's recommended to use USynthComponent base class
