@@ -276,6 +276,7 @@ public:
 	// ICurveEditorTreeItem interface
 	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID) override;
 	virtual void CreateCurveModels(TArray<TUniquePtr<FCurveModel>>& OutCurveModels) override;
+	virtual bool PassesFilter(const FCurveEditorTreeFilter* InFilter) const override;
 
 	/**
 	 * Get the display node that is ultimately responsible for constructing a section area widget for this node.
