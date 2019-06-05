@@ -474,6 +474,16 @@ private:
 		return FMap(Ar);
 	}
 
+	FORCEINLINE void FStructuredArchive::FSlot::Serialize(TArray<uint8>& Data)
+	{
+		Ar.Formatter.Serialize(Data);
+	}
+
+	FORCEINLINE void FStructuredArchive::FSlot::Serialize(void* Data, uint64 DataSize)
+	{
+		Ar.Formatter.Serialize(Data, DataSize);
+	}
+
 	//////////// FStructuredArchive::FRecord ////////////
 
 	FORCEINLINE FStructuredArchive::FSlot FStructuredArchive::FRecord::EnterField(FArchiveFieldName Name)
