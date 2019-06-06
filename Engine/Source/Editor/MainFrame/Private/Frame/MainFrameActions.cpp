@@ -669,8 +669,8 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -manifests");
 	}
 
-	bool bTargetPlatformCanUseCrashReporter = true;
-	if (PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") && PlatformInfo->PlatformFlavor == TEXT("Win32"))
+	bool bTargetPlatformCanUseCrashReporter = PlatformInfo->bTargetPlatformCanUseCrashReporter;
+	if (bTargetPlatformCanUseCrashReporter && PlatformInfo->TargetPlatformName == FName("WindowsNoEditor") && PlatformInfo->PlatformFlavor == TEXT("Win32"))
 	{
 		FString MinumumSupportedWindowsOS;
 		GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("MinimumOSVersion"), MinumumSupportedWindowsOS, GEngineIni);
@@ -680,12 +680,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 			bTargetPlatformCanUseCrashReporter = false;
 		}
 	}
-// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
-	if (PlatformInfo->TargetPlatformName == FName("HoloLens"))
-	{
-		bTargetPlatformCanUseCrashReporter = false;
-	}
-// @ATG_CHANGE : END
+
 	// Append any extra UAT flags specified for this platform flavor
 	if (!PlatformInfo->UATCommandLine.IsEmpty())
 	{

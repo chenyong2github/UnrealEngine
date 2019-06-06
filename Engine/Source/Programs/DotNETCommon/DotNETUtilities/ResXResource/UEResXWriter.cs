@@ -41,10 +41,7 @@ namespace Tools.DotNETCommon
 			XmlElement Value = Document.CreateElement("value");
 			Value.InnerText = InValue;
 
-			// @ATG_CHANGE : BEGIN
-			// Typo fix: Use parameter so that headers have resheader element name 
-			XmlElement Data = Document.CreateElement(InRootName);
-			// @ATG_CHANGE : END
+			XmlElement Data = Document.CreateElement("data");
 
 			{
 				XmlAttribute Attr = Document.CreateAttribute("name");

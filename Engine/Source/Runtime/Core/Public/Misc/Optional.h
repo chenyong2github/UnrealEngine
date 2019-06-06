@@ -190,21 +190,6 @@ public:
 	const OptionalType& Get(const OptionalType& DefaultValue) const { return IsSet() ? *(OptionalType*)&Value : DefaultValue; }
 
 private:
-
-	// @ATG_CHANGE : BEGIN HoloLens support
-	// The approach of adjusting the packing mode around enum class forward declarations (because
-	// the compiler interprets these as WinRT types) is getting unwieldly, especially with IWYU 
-	// driving up the number of such declarations.  So instead we've just upped the default packing
-	// to 8 bytes on HoloLens32.  As a result, we need a different definition of TTypeCompatibleBytes to avoid
-	// C2719: 'parameter': formal parameter with __declspec(align('#')) won't be aligned.
-#if PLATFORM_HOLOLENS && !PLATFORM_64BITS
-	struct
-	{
-		uint8 Pad[sizeof(OptionalType)];
-	} Value;
-	bool bIsSet;
-#else
 	TTypeCompatibleBytes<OptionalType> Value;
 	bool bIsSet;
-#endif
 };
