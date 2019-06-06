@@ -20,7 +20,6 @@ public class MeshSolverUtilities : ModuleRules
             new string[]
             {
                 "CoreUObject",
-                "Engine",
 				"GeometricObjects",
 				"DynamicMesh"
                 //"GeometricObjects",
