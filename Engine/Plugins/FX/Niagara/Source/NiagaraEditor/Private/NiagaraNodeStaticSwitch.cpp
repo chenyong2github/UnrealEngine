@@ -55,6 +55,9 @@ void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable
 	{
 		GetNiagaraGraph()->NotifyGraphChanged();
 	}
+
+	// force the graph to refresh the metadata
+	GetNiagaraGraph()->GetParameterReferenceMap();
 }
 
 void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
@@ -111,6 +114,9 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 	}
 
 	CreateAddPin(EGPD_Output);
+
+	// force the graph to refresh the metadata
+	GetNiagaraGraph()->GetParameterReferenceMap();
 }
 
 void UNiagaraNodeStaticSwitch::InsertInputPinsFor(const FNiagaraVariable& Var)

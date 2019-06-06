@@ -864,6 +864,8 @@ void FNiagaraSystemInstance::BindParameters()
 	}
 
 	Component->GetOverrideParameters().Bind(&InstanceParameters);
+	InstanceParameters.Bind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
+	InstanceParameters.Bind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 
 	if (SystemSimulation->GetIsSolo())
 	{
@@ -896,6 +898,8 @@ void FNiagaraSystemInstance::UnbindParameters()
 
 	if (SystemSimulation.IsValid())
 	{
+		InstanceParameters.Unbind(&SystemSimulation->GetSpawnExecutionContext().Parameters);
+		InstanceParameters.Unbind(&SystemSimulation->GetUpdateExecutionContext().Parameters);
 		if (SystemSimulation->GetIsSolo())
 		{
 			if (Component)
@@ -1257,7 +1261,7 @@ bool FNiagaraSystemInstance::UsesScript(const UNiagaraScript* Script)const
 	{
 		for (FNiagaraEmitterHandle EmitterHandle : GetSystem()->GetEmitterHandles())
 		{
-			if ((EmitterHandle.GetSource() && EmitterHandle.GetSource()->UsesScript(Script)) || (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script)))
+			if (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script))
 			{
 				return true;
 			}
@@ -1292,6 +1296,8 @@ void FNiagaraSystemInstance::InitEmitters()
 	{
 		Component->MarkRenderStateDirty();
 	}
+
+	bHasGPUEmitters = false;
 
 	Emitters.Empty();
 	UNiagaraSystem* System = GetSystem();

@@ -325,6 +325,7 @@ bool FObjectReplicator::SerializeCustomDeltaProperty(
 	Parms.Data = Property->ContainerPtrToValuePtr<void>(Src, ArrayIndex);
 	Parms.Object = reinterpret_cast<UObject*>(Src);
 	Parms.Connection = Connection;
+	Parms.bInternalAck = Connection->InternalAck;
 	Parms.Writer = &OutBunch;
 	Parms.Map = Connection->PackageMap;
 	Parms.OldState = OldState.Get();
@@ -374,6 +375,7 @@ bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 Custom
 	Parms.CustomDeltaIndex = CustomDeltaIndex;
 	Parms.bSupportsFastArrayDeltaStructSerialization = bSupportsFastArrayDelta;
 	Parms.Connection = Connection;
+	Parms.bInternalAck = Connection->InternalAck;
 
 	return FNetSerializeCB::SendCustomDeltaProperty(*RepLayout, Parms, CustomDeltaIndex);
 }
@@ -1032,6 +1034,7 @@ bool FObjectReplicator::ReceivedBunch(FNetBitReader& Bunch, const FReplicationFl
 			Parms.Reader = &Reader;
 			Parms.NetSerializeCB = &NetSerializeCB;
 			Parms.Connection = Connection;
+			Parms.bInternalAck = Connection->InternalAck;
 			Parms.Object = Object;
 
 			if (!FNetSerializeCB::ReceiveCustomDeltaProperty(LocalRepLayout, ReceivingRepState, Parms, ReplicatedProp))
@@ -1280,6 +1283,7 @@ void FObjectReplicator::UpdateGuidToReplicatorMap()
 		Parms.GatherGuidReferences = &LocalReferencedGuids;
 		Parms.TrackedGuidMemoryBytes = &LocalTrackedGuidMemoryBytes;
 		Parms.Object = GetObject();
+		Parms.bInternalAck = Connection->InternalAck;
 
 		LocalRepLayout.GatherGuidReferences(RepState->GetReceivingRepState(), Parms, LocalReferencedGuids, LocalTrackedGuidMemoryBytes);
 	}
@@ -1336,6 +1340,7 @@ bool FObjectReplicator::MoveMappedObjectToUnmapped(const FNetworkGUID& GUID)
 	FNetSerializeCB NetSerializeCB(Connection->Driver);
 	FNetDeltaSerializeInfo Parms;
 	Parms.Connection = Connection;
+	Parms.bInternalAck = Connection->InternalAck;
 	Parms.Map = Connection->PackageMap;
 	Parms.Object = GetObject();
 	Parms.NetSerializeCB = &NetSerializeCB;
@@ -1979,6 +1984,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 	FNetDeltaSerializeInfo Parms;
 	Parms.Object = Object;
 	Parms.Connection = Connection;
+	Parms.bInternalAck = Connection->InternalAck;
 	Parms.Map = Connection->PackageMap;
 	Parms.NetSerializeCB = &NetSerializeCB;
 

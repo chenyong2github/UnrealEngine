@@ -352,30 +352,23 @@ void INiagaraModule::TickWorld(UWorld* World, ELevelTick TickType, float DeltaSe
 }
 
 #if WITH_EDITOR
-INiagaraModule::FMergeEmitterResults INiagaraModule::MergeEmitter(UNiagaraEmitter& Source, UNiagaraEmitter& LastMergedSource, UNiagaraEmitter& Instance)
+const INiagaraMergeManager& INiagaraModule::GetMergeManager()
 {
-	if (OnMergeEmitterDelegate.IsBound())
-	{
-		return OnMergeEmitterDelegate.Execute(Source, LastMergedSource, Instance);
-	}
-	FMergeEmitterResults Results;
-	Results.bSucceeded = false;
-	Results.ErrorMessages.Add(FText::Format(LOCTEXT("MergeDelegateNotRegisteredFormat", "Failed to merge emitter {0}.  Merge delegate not registered."), FText::FromString(Instance.GetPathName())));
-	return Results;
+	checkf(MergeManager.IsValid(), TEXT("Merge manager was never registered, or was unregistered."));
+	return *MergeManager.Get();
 }
 
-FDelegateHandle INiagaraModule::RegisterOnMergeEmitter(FOnMergeEmitter OnMergeEmitter)
+void INiagaraModule::RegisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager)
 {
-	checkf(OnMergeEmitterDelegate.IsBound() == false, TEXT("Only one handler is allowed for the OnMergeEmitter delegate"));
-	OnMergeEmitterDelegate = OnMergeEmitter;
-	return OnMergeEmitterDelegate.GetHandle();
+	checkf(MergeManager.IsValid() == false, TEXT("Only one merge manager can be registered at a time."));
+	MergeManager = InMergeManager;
 }
 
-void INiagaraModule::UnregisterOnMergeEmitter(FDelegateHandle DelegateHandle)
+void INiagaraModule::UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager)
 {
-	checkf(OnMergeEmitterDelegate.IsBound(), TEXT("OnMergeEmitter is not registered"));
-	checkf(OnMergeEmitterDelegate.GetHandle() == DelegateHandle, TEXT("Can only unregister the OnMergeEmitter delegate with the handle it was registered with."));
-	OnMergeEmitterDelegate.Unbind();
+	checkf(MergeManager.IsValid(), TEXT("MergeManager is not registered"));
+	checkf(MergeManager == InMergeManager, TEXT("Can only unregister the merge manager which was previously registered."));
+	MergeManager.Reset();
 }
 
 UNiagaraScriptSourceBase* INiagaraModule::CreateDefaultScriptSource(UObject* Outer)

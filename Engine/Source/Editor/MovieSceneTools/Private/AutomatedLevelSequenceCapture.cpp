@@ -132,6 +132,8 @@ UAutomatedLevelSequenceCapture::UAutomatedLevelSequenceCapture(const FObjectInit
 #if WITH_EDITORONLY_DATA
 void UAutomatedLevelSequenceCapture::AddFormatMappings(TMap<FString, FStringFormatArg>& OutFormatMappings, const FFrameMetrics& FrameMetrics) const
 {
+	OutFormatMappings.Add(TEXT("sequence"), CachedState.MasterName);
+
 	OutFormatMappings.Add(TEXT("shot"), CachedState.CurrentShotName);
 	OutFormatMappings.Add(TEXT("shot_frame"), FString::Printf(TEXT("%0*d"), Settings.ZeroPadFrameNumbers, CachedState.CurrentShotLocalTime.Time.FrameNumber.Value));
 

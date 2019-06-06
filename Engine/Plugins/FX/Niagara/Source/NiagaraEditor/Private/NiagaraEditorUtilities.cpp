@@ -879,7 +879,10 @@ const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& FNiagar
 			// We append all function nodes we find to the end of the queue, basically traversing the graph breadth-first
 			TArray<UNiagaraNodeFunctionCall*> SubFunctionNodes;
 			FunctionGraph->GetNodesOfClass(SubFunctionNodes);
-			Nodes.Append(SubFunctionNodes);
+			for (UNiagaraNodeFunctionCall* SubNode : SubFunctionNodes)
+			{
+				Nodes.AddUnique(SubNode);
+			}
 
 			// We set the static switch values based on the function call inputs to prepare the parameter map history generation
 			TArray<UEdGraphPin*> CallInputs;
@@ -1073,7 +1076,7 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 		{
 			for (auto EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
 			{
-				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetSource()))
+				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetInstance()->GetParent()))
 				{
 					ReferencingComponents.Add(Component);
 				}

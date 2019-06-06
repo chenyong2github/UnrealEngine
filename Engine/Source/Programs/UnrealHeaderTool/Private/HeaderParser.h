@@ -147,6 +147,15 @@ struct ClassDefinitionRange
 
 extern TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
 
+struct FDocumentationPolicy
+{
+	bool bClassOrStructCommentRequired = false;
+	bool bFunctionToolTipsRequired = false;
+	bool bMemberToolTipsRequired = false;
+	bool bParameterToolTipsRequired = false;
+	bool bFloatRangesRequired = false;
+};
+
 /////////////////////////////////////////////////////
 // FHeaderParser
 
@@ -469,6 +478,13 @@ protected:
 	 * @return					The input string, reformatted in such a way as to be appropriate for use as a tooltip.
 	 */
 	static FString FormatCommentForToolTip(const FString& Input);
+
+	/**
+	 * Retrieves parameter comments / tooltips from the function comment
+	 * @param		Input		An input string, expected to be a script comment.
+	 * @return					The map of parameter name to comment per parameter
+	*/
+	static TMap<FName, FString> GetParameterToolTipsFromFunctionComment(const FString& Input);
 	
 	/**
 	 * Begins the process of exporting C++ class declarations for native classes in the specified package
@@ -741,6 +757,30 @@ private:
 
 	// Verifies the target function meets the criteria for a replication notify callback
 	void VerifyRepNotifyCallback(UProperty* Property, UFunction* TargetFunction);
+
+	// Constructs the policy from a string
+	static FDocumentationPolicy GetDocumentationPolicyFromName(const FString& PolicyName);
+
+	// Constructs the policy for documentation checks for a given struct
+	static FDocumentationPolicy GetDocumentationPolicyForStruct(UStruct* Struct);
+
+	// Property types to provide UI Min and Max ranges
+	static TArray<FString> PropertyCPPTypesRequiringUIRanges;
+
+	// Returns true if a given CPP types required ui checking
+	static bool DoesCPPTypeRequireDocumentation(const FString& CPPType);
+
+	// Validates the documentation for a given enum
+	void CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries);
+
+	// Validates the documentation for a given struct
+	void CheckDocumentationPolicyForStruct(UStruct* Struct, const TMap<FName, FString>& MetaData);
+
+	// Validates the documentation for a given method
+	void CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func, const TMap<FName, FString>& MetaData);
+
+	// Checks if a valid range has been found on the provided metadata
+	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
 };
 
 /////////////////////////////////////////////////////

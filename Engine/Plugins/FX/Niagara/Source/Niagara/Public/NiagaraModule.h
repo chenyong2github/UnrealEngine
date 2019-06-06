@@ -15,6 +15,7 @@ struct FNiagaraVMExecutableData;
 class UNiagaraScript;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
+class INiagaraMergeManager;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -25,36 +26,7 @@ class NIAGARA_API INiagaraModule : public IModuleInterface
 {
 public:
 #if WITH_EDITOR
-	struct FMergeEmitterResults
-	{
-		FMergeEmitterResults()
-			: bSucceeded(true)
-			, bModifiedGraph(false)
-		{
-		}
-
-		bool bSucceeded;
-		TArray<FText> ErrorMessages;
-		bool bModifiedGraph;
-		UNiagaraEmitter* MergedInstance;
-
-		FString GetErrorMessagesString() const
-		{
-			TArray<FString> ErrorMessageStrings;
-			for (FText ErrorMessage : ErrorMessages)
-			{
-				ErrorMessageStrings.Add(ErrorMessage.ToString());
-			}
-			return FString::Join(ErrorMessageStrings, TEXT("\n"));
-		}
-	};
-	
-#endif
-
-public:
-#if WITH_EDITOR
 	typedef TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> CompileRequestPtr;
-	DECLARE_DELEGATE_RetVal_ThreeParams(FMergeEmitterResults, FOnMergeEmitter, UNiagaraEmitter&, UNiagaraEmitter&, UNiagaraEmitter&);
 	DECLARE_DELEGATE_RetVal_OneParam(class UNiagaraScriptSourceBase*, FOnCreateDefaultScriptSource, UObject*);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FScriptCompiler,const FNiagaraCompileRequestDataBase*, const FNiagaraCompileOptions&);
 	DECLARE_DELEGATE_RetVal_OneParam(CompileRequestPtr, FOnPrecompile, UObject*);
@@ -87,11 +59,11 @@ public:
 	void TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
 #if WITH_EDITOR
-	FMergeEmitterResults MergeEmitter(UNiagaraEmitter& Source, UNiagaraEmitter& LastMergedSource, UNiagaraEmitter& Instance);
+	const INiagaraMergeManager& GetMergeManager();
 
-	FDelegateHandle RegisterOnMergeEmitter(FOnMergeEmitter OnMergeEmitter);
+	void RegisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
-	void UnregisterOnMergeEmitter(FDelegateHandle DelegateHandle);
+	void UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
 	UNiagaraScriptSourceBase* CreateDefaultScriptSource(UObject* Outer);
 
@@ -200,7 +172,7 @@ private:
 	FOnProcessQueue OnProcessQueue;
 
 #if WITH_EDITORONLY_DATA
-	FOnMergeEmitter OnMergeEmitterDelegate;
+	TSharedPtr<INiagaraMergeManager> MergeManager;
 	FOnCreateDefaultScriptSource OnCreateDefaultScriptSourceDelegate;
 	FScriptCompiler ScriptCompilerDelegate;
 	FOnPrecompile ObjectPrecompilerDelegate;

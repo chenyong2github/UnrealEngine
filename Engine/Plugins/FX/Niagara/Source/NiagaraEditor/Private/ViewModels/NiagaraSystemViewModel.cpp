@@ -310,9 +310,17 @@ void FNiagaraSystemViewModel::AddEmitter(UNiagaraEmitter& Emitter)
 	if (EditMode == ENiagaraSystemViewModelEditMode::SystemAsset)
 	{
 		System.Modify();
+		EmitterHandle = System.AddEmitterHandle(Emitter, FNiagaraUtilities::GetUniqueName(Emitter.GetFName(), EmitterHandleNames));
 	}
-	EmitterHandle = System.AddEmitterHandle(Emitter, FNiagaraUtilities::GetUniqueName(Emitter.GetFName(), EmitterHandleNames));
-
+	else if (EditMode == ENiagaraSystemViewModelEditMode::EmitterAsset)
+	{
+		// When editing an emitter asset we add the emitter as a duplicate so that the parent emitter is duplicated, but it's parent emitter
+		// information is maintained.
+		checkf(System.GetNumEmitters() == 0, TEXT("Can not add multiple emitters to a system being edited in emitter asset mode."));
+		FNiagaraEmitterHandle TemporaryEmitterHandle(Emitter);
+		EmitterHandle = System.DuplicateEmitterHandle(TemporaryEmitterHandle, *Emitter.GetUniqueEmitterName());
+	}
+	
 	check(SystemScriptViewModel.IsValid());
 	FNiagaraStackGraphUtilities::RebuildEmitterNodes(System);
 

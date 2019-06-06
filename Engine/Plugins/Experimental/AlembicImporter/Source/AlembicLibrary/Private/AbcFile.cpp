@@ -126,12 +126,12 @@ EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
 
 	if (ImportSettings->ImportType == EAlembicImportType::StaticMesh)
 	{
-		EndFrameIndex = StartFrameIndex + 1;
+		EndFrameIndex = StartFrameIndex;
 	}
 
 	int32 FrameSpan = EndFrameIndex - StartFrameIndex;
 	// If Start==End or Start > End output error message due to invalid frame span
-	if (FrameSpan <= 0)
+	if (FrameSpan <= 0 && ImportSettings->ImportType != EAlembicImportType::StaticMesh)
 	{
 		TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("NoFramesForMeshObject", "Invalid frame range specified {0} - {1}."), FText::FromString(FString::FromInt(StartFrameIndex)), FText::FromString(FString::FromInt(EndFrameIndex))));
 		FAbcImportLogger::AddImportMessage(Message);

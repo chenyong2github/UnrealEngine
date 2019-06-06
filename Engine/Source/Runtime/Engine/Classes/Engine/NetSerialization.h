@@ -963,19 +963,23 @@ void FFastArraySerializer::TFastArraySerializeHelper<Type, SerializerType>::Post
 	// Look for implicit deletes that would happen due to Naks
 	// ---------------------------------------------------------
 
-	for (int32 idx = 0; idx < Items.Num(); ++idx)
+	// If we're sending data completely reliably, there's no need to do this.
+	if (!Parms.bInternalAck)
 	{
-		Type& Item = Items[idx];
-		if (Item.MostRecentArrayReplicationKey < Header.ArrayReplicationKey && Item.MostRecentArrayReplicationKey > Header.BaseReplicationKey)
+		for (int32 idx = 0; idx < Items.Num(); ++idx)
 		{
-			// Make sure this wasn't an explicit delete in this bunch (otherwise we end up deleting an extra element!)
-			if (!Header.DeletedIndices.Contains(idx))
+			Type& Item = Items[idx];
+			if (Item.MostRecentArrayReplicationKey < Header.ArrayReplicationKey && Item.MostRecentArrayReplicationKey > Header.BaseReplicationKey)
 			{
-				// This will happen in normal conditions in network replays.
-				UE_LOG(LogNetFastTArray, Log, TEXT("Adding implicit delete for ElementID: %d. MostRecentArrayReplicationKey: %d. Current Payload: [%d/%d]"),
-					Item.ReplicationID, Item.MostRecentArrayReplicationKey, Header.ArrayReplicationKey, Header.BaseReplicationKey);
+				// Make sure this wasn't an explicit delete in this bunch (otherwise we end up deleting an extra element!)
+				if (!Header.DeletedIndices.Contains(idx))
+				{
+					// This will happen in normal conditions in network replays.
+					UE_LOG(LogNetFastTArray, Log, TEXT("Adding implicit delete for ElementID: %d. MostRecentArrayReplicationKey: %d. Current Payload: [%d/%d]"),
+						Item.ReplicationID, Item.MostRecentArrayReplicationKey, Header.ArrayReplicationKey, Header.BaseReplicationKey);
 
-				Header.DeletedIndices.Add(idx);
+					Header.DeletedIndices.Add(idx);
+				}
 			}
 		}
 	}

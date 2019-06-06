@@ -9,7 +9,8 @@
 #include "MaterialEditingLibrary.generated.h"
 
 class UMaterialFunction;
-class MaterialInstance;
+class UMaterialInstance;
+
 
 /** Blueprint library for creating/editing Materials */
 UCLASS()
@@ -215,4 +216,8 @@ public:
 	/** Called after making modifications to a Material Instance to recompile shaders etc. */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void UpdateMaterialInstance(UMaterialInstanceConstant* Instance);
+
+	/** Gets all direct child mat instances */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetChildInstances(UMaterialInterface* Parent, TArray<TSoftObjectPtr<UMaterialInstance>>& ChildInstances);
 };

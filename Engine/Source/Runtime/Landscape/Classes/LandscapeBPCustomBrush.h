@@ -51,6 +51,9 @@ public:
 	UFUNCTION(BlueprintImplementableEvent)
 	void Initialize(const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
 
+	UFUNCTION(BlueprintCallable, Category="Landscape")
+	void RequestLandscapeUpdate();
+
 #if WITH_EDITOR
 	void SetCommitState(bool InCommited);
 	bool IsCommited() const { return bIsCommited; }
