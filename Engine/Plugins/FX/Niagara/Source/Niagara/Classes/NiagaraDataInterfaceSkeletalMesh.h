@@ -261,10 +261,10 @@ public:
 	uint32 GetNumWeights() const { return NumWeights; }
 
 	uint32 GetNumSpecificBones() const { return NumSpecificBones; }
-	FShaderResourceViewRHIParamRef GetSpecificBonesSRV() const { return SpecificBonesSRV; }
+	FRHIShaderResourceView* GetSpecificBonesSRV() const { return SpecificBonesSRV; }
 
 	uint32 GetNumSpecificSocketBones() const { return NumSpecificSocketBones; }
-	FShaderResourceViewRHIParamRef GetSpecificSocketBonesSRV() const { return SpecificSocketBonesSRV; }
+	FRHIShaderResourceView* GetSpecificSocketBonesSRV() const { return SpecificSocketBonesSRV; }
 
 protected:
 
