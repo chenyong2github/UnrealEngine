@@ -30,6 +30,7 @@ public:
 		VolumeData(InVolumeData),
 		AtlasAllocationMin(FIntVector(-1, -1, -1)),
 		bReferencedByAtlas(false),
+		bThrottled(false),
 		StaticMesh(NULL)
 	{}
 
@@ -55,6 +56,11 @@ public:
 
 	bool IsValidDistanceFieldVolume() const;
 
+	bool Throttled() const
+	{
+		return bThrottled;
+	}
+
 	UStaticMesh* GetStaticMesh() const
 	{
 		return StaticMesh;
@@ -63,7 +69,9 @@ public:
 private:
 	const FDistanceFieldVolumeData& VolumeData;
 	FIntVector AtlasAllocationMin;
-	bool bReferencedByAtlas;
+	bool bReferencedByAtlas : 1;
+	/** bThrottled prevents any objects using the texture from being uploaded to the scene buffer until upload of the texture to distance field atlas is complete */
+	bool bThrottled         : 1;
 	UStaticMesh* StaticMesh;
 
 	friend class FDistanceFieldVolumeTextureAtlas;
