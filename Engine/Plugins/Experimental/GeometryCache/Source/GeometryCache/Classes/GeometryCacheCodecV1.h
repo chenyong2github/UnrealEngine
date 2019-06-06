@@ -18,7 +18,6 @@ struct FGeometryCacheCodecRenderStateV1 : FGeometryCacheCodecRenderStateBase
 {
 	FGeometryCacheCodecRenderStateV1(const TArray<int32> &SetTopologyRanges); 
 	~FGeometryCacheCodecRenderStateV1();	
-	ICodecDecoder* Decoder;
 	
 	virtual bool DecodeSingleFrame(FGeometryCacheCodecDecodeArguments &Args) override;
 };
