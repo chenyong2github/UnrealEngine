@@ -6,6 +6,7 @@
 #include "Modules/Boilerplate/ModuleBoilerplate.h"
 #include "Misc/CallbackDevice.h"
 #include "IOS/IOSView.h"
+#include "IOS/IOSWindow.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "IOS/IOSPlatformMisc.h"
@@ -15,6 +16,7 @@
 #include "Misc/OutputDeviceError.h"
 #include "Misc/CommandLine.h"
 #include "IOS/IOSPlatformFramePacer.h"
+#include "IOS/IOSApplication.h"
 #include "IOS/IOSAsyncTask.h"
 #include "Misc/ConfigCacheIni.h"
 #include "IOS/IOSPlatformCrashContext.h"
@@ -33,6 +35,10 @@
 #include <AudioToolbox/AudioToolbox.h>
 #include <AVFoundation/AVAudioSession.h>
 #include "HAL/IConsoleManager.h"
+
+#if WITH_ACCESSIBILITY
+#include "IOS/Accessibility/IOSAccessibilityCache.h"
+#endif
 
 // this is the size of the game thread stack, it must be a multiple of 4k
 #if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -152,7 +158,9 @@ bool FIOSCoreDelegates::PassesPushNotificationFilters(NSDictionary* Payload)
 @synthesize timer;
 @synthesize IdleTimerEnableTimer;
 @synthesize IdleTimerEnablePeriod;
-
+#if WITH_ACCESSIBILITY
+@synthesize AccessibilityCacheTimer;
+#endif
 @synthesize savedOpenUrlParameters;
 @synthesize BackgroundSessionEventCompleteDelegate;
 
@@ -213,6 +221,13 @@ static IOSAppDelegate* CachedDelegate = nil;
 	[IOSView release];
 	[SlateController release];
 	[timer release];
+#if WITH_ACCESSIBILITY
+	if (AccessibilityCacheTimer != nil)
+	{
+		[AccessibilityCacheTimer invalidate];
+		[AccessibilityCacheTimer release];
+	}
+#endif
 	[super dealloc];
 }
 
@@ -265,6 +280,16 @@ static IOSAppDelegate* CachedDelegate = nil;
 	FEmbeddedCallParamsHelper Helper;
 	Helper.Command = TEXT("engineisrunning");
 	FEmbeddedDelegates::GetEmbeddedToNativeParamsDelegateForSubsystem(TEXT("native")).Broadcast(Helper);
+#endif
+
+#if WITH_ACCESSIBILITY
+	// Initialize accessibility code if VoiceOver is enabled. This must happen after Slate has been initialized.
+	dispatch_async(dispatch_get_main_queue(), ^{
+		if (UIAccessibilityIsVoiceOverRunning())
+		{
+			[[IOSAppDelegate GetDelegate] OnVoiceOverStatusChanged];
+		}
+	});
 #endif
 
     while( !GIsRequestingExit )
@@ -754,7 +779,12 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 -(bool)HasRecordPermission
 {
+#if PLATFORM_TVOS
+	// TVOS does not have sound recording capabilities.
+	return false;
+#else
 	return [[AVAudioSession sharedInstance] recordPermission] == AVAudioSessionRecordPermissionGranted;
+#endif
 }
 
 -(void)EnableHighQualityVoiceChat:(bool)bEnable
@@ -1237,9 +1267,54 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 #endif
     
 	[self InitializeAudioSession];
-	
+
+#if WITH_ACCESSIBILITY
+	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(OnVoiceOverStatusChanged) name:UIAccessibilityVoiceOverStatusDidChangeNotification object:nil];
+#endif
+    
 	return YES;
 }
+
+#if WITH_ACCESSIBILITY
+-(void)OnVoiceOverStatusChanged
+{
+	if (UIAccessibilityIsVoiceOverRunning())
+	{
+		// This must happen asynchronously because when the app activates from a suspended state,
+		// the IOS notification will emit before the game thread wakes up. This does mean that the
+		// accessibility element tree will probably not be 100% completed when the application
+		// opens for the first time. If this is a problem we can add separate branches for startup
+		// vs waking up.
+		FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+		{
+			FIOSApplication* Application = [IOSAppDelegate GetDelegate].IOSApplication;
+			Application->GetAccessibleMessageHandler()->SetActive(true);
+			AccessibleWidgetId WindowId = Application->GetAccessibleMessageHandler()->GetAccessibleWindowId(Application->FindWindowByAppDelegateView());
+			dispatch_async(dispatch_get_main_queue(), ^{
+                IOSAppDelegate* Delegate = [IOSAppDelegate GetDelegate];
+				[Delegate.IOSView SetAccessibilityWindow:WindowId];
+				if (Delegate.AccessibilityCacheTimer == nil)
+				{
+					// Start caching accessibility data so that it can be returned instantly to IOS. If not cached, the data takes too long
+					// to retrieve due to cross-thread waiting and IOS will timeout.
+					Delegate.AccessibilityCacheTimer = [NSTimer scheduledTimerWithTimeInterval:0.1f target:[FIOSAccessibilityCache AccessibilityElementCache] selector:@selector(UpdateAllCachedProperties) userInfo:nil repeats:YES];
+				}
+			});
+		}, TStatId(), NULL, ENamedThreads::GameThread);
+	}
+	else
+	{
+		[AccessibilityCacheTimer invalidate];
+		AccessibilityCacheTimer = nil;
+		[[IOSAppDelegate GetDelegate].IOSView SetAccessibilityWindow : IAccessibleWidget::InvalidAccessibleWidgetId];
+		[[FIOSAccessibilityCache AccessibilityElementCache] Clear];
+		FFunctionGraphTask::CreateAndDispatchWhenReady([]()
+		{
+			[IOSAppDelegate GetDelegate].IOSApplication->GetAccessibleMessageHandler()->SetActive(false);
+		}, TStatId(), NULL, ENamedThreads::GameThread);
+	}
+}
+#endif
 
 - (void) StartGameThread
 {
@@ -1255,6 +1330,23 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	{
 		[UIApplication sharedApplication].idleTimerDisabled = YES;
 	}
+}
+
++(bool)WaitAndRunOnGameThread:(TUniqueFunction<void()>)Function
+{
+	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(MoveTemp(Function), TStatId(), NULL, ENamedThreads::GameThread);
+
+	const double MaxThreadWaitTime = 2.0;
+	const double StartTime = FPlatformTime::Seconds();
+	while ((FPlatformTime::Seconds() - StartTime) < MaxThreadWaitTime)
+	{
+		FPlatformProcess::Sleep(0.05f);
+		if (Task->IsComplete())
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 #if !PLATFORM_TVOS

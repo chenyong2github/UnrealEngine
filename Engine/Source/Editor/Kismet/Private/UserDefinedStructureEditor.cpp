@@ -216,7 +216,7 @@ void FDefaultValueDetails::OnFinishedChangingProperties(const FPropertyChangedEv
 				{
 					if (StructData.IsValid() && StructData->IsValid())
 					{
-						bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, StructData->GetStructMemory(), DefaultValueString);
+						bDefaultValueSet = FBlueprintEditorUtils::PropertyValueToString(DirectProperty, StructData->GetStructMemory(), DefaultValueString, OwnerStruct);
 					}
 				}
 
@@ -588,7 +588,7 @@ public:
 		auto StructureDetailsSP = StructureDetails.Pin();
 		if(StructureDetailsSP.IsValid())
 		{
-			return FText::FromString(FStructureEditorUtils::GetVariableDisplayName(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid));
+			return FText::FromString(FStructureEditorUtils::GetVariableFriendlyName(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid));
 		}
 		return FText::GetEmpty();
 	}
@@ -686,7 +686,7 @@ public:
 		{
 			if (const FStructVariableDescription* FieldDesc = StructureDetailsSP->FindStructureFieldByGuid(FieldGuid))
 			{
-				return !FieldDesc->bDontEditoOnInstance ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				return !FieldDesc->bDontEditOnInstance ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 			}
 		}
 		return ECheckBoxState::Undetermined;
@@ -698,6 +698,28 @@ public:
 		if (StructureDetailsSP.IsValid())
 		{
 			FStructureEditorUtils::ChangeEditableOnBPInstance(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid, ECheckBoxState::Unchecked != InNewState);
+		}
+	}
+
+	ECheckBoxState OnGetSaveGameState() const
+	{
+		auto StructureDetailsSP = StructureDetails.Pin();
+		if (StructureDetailsSP.IsValid())
+		{
+			if (const FStructVariableDescription* FieldDesc = StructureDetailsSP->FindStructureFieldByGuid(FieldGuid))
+			{
+				return FieldDesc->bEnableSaveGame ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			}
+		}
+		return ECheckBoxState::Undetermined;
+	}
+
+	void OnSaveGameCommitted(ECheckBoxState InNewState)
+	{
+		auto StructureDetailsSP = StructureDetails.Pin();
+		if (StructureDetailsSP.IsValid() && (ECheckBoxState::Undetermined != InNewState))
+		{
+			FStructureEditorUtils::ChangeSaveGameEnabled(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid, InNewState == ECheckBoxState::Checked);
 		}
 	}
 
@@ -969,6 +991,21 @@ public:
 			.ToolTipText(LOCTEXT("EditableOnBPInstance", "Variable can be edited on an instance of a Blueprint."))
 			.OnCheckStateChanged(this, &FUserDefinedStructureFieldLayout::OnEditableOnBPInstanceCommitted)
 			.IsChecked(this, &FUserDefinedStructureFieldLayout::OnGetEditableOnBPInstanceState)
+		];
+
+		ChildrenBuilder.AddCustomRow(LOCTEXT("SaveGame", "Save Game"))
+		.NameContent()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("SaveGameText", "Save Game"))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.ToolTipText(LOCTEXT("SaveGame_Tooltip", "Should variable be serialized for saved games"))
+			.OnCheckStateChanged(this, &FUserDefinedStructureFieldLayout::OnSaveGameCommitted)
+			.IsChecked(this, &FUserDefinedStructureFieldLayout::OnGetSaveGameState)
 		];
 
 		ChildrenBuilder.AddCustomRow(LOCTEXT("MultiLineText", "Multi-line Text"))

@@ -309,7 +309,8 @@ ASpectatorPawn* ADebugCameraController::SpawnSpectatorPawn()
 			SpawnParams.Owner = this;
 			SpawnParams.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 			SpawnParams.ObjectFlags |= RF_Transient;	// We never want to save spectator pawns into a map
-			SpawnedSpectator = GetWorld()->SpawnActor<ASpectatorPawn>(ASpectatorPawn::StaticClass(), GetSpawnLocation(), GetControlRotation(), SpawnParams);
+
+			SpawnedSpectator = GetWorld()->SpawnActor<ASpectatorPawn>((*GameState->SpectatorClass ? *GameState->SpectatorClass : ASpectatorPawn::StaticClass()), GetSpawnLocation(), GetControlRotation(), SpawnParams);
 			if (SpawnedSpectator)
 			{
 				SpawnedSpectator->PossessedBy(this);

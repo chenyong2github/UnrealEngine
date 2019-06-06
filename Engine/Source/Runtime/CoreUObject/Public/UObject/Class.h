@@ -84,6 +84,13 @@ class COREUOBJECT_API UField : public UObject
 	/** Goes up the outer chain to look for a UStruct */
 	UStruct* GetOwnerStruct() const;
 
+	/** 
+	 * Returns a human readable string that was assigned to this field at creation. 
+	 * By default this is the same as GetName() but it can be overridden if that is an internal-only name.
+	 * This name is consistent in editor/cooked builds, is not localized, and is useful for data import/export.
+	 */
+	FString GetAuthoredName() const;
+
 #if WITH_EDITOR || HACK_HEADER_GENERATOR
 	/**
 	 * Finds the localized display name or native display name as a fallback.
@@ -372,10 +379,8 @@ public:
 	virtual void DestroyStruct(void* Dest, int32 ArrayDim = 1) const;
 
 public:
-#if WITH_EDITOR
-	/** Used to search for properties in user defined structs */
+	/** Look up a property by an alternate name if it was not found in the first search, this is overridden for user structs */
 	virtual UProperty* CustomFindProperty(const FName InName) const { return nullptr; };
-#endif // WITH_EDITOR
 
 	/** Serialize an expression to an archive. Returns expression token */
 	virtual EExprToken SerializeExpr(int32& iCode, FArchive& Ar);
@@ -440,11 +445,11 @@ public:
 	 */
 	virtual void SetSuperStruct(UStruct* NewSuperStruct);
 
-	/** Returns the a human readable string for a property, overridden for user defined structs */
-	virtual FString PropertyNameToDisplayName(FName InName) const 
-	{ 
-		return InName.ToString();
-	}
+	UE_DEPRECATED(4.23, "Replace with GetAuthoredNameForField or UField::GetAuthoredName")
+	virtual FString PropertyNameToDisplayName(FName InName) const;
+
+	/** Returns a human readable string for a given field, overridden for user defined structs */
+	virtual FString GetAuthoredNameForField(const UField* Field) const;
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR
 	/** Try and find boolean metadata with the given key. If not found on this class, work up hierarchy looking for it. */
@@ -850,7 +855,7 @@ FORCEINLINE typename TEnableIf<TModels<CGetTypeHashable, CPPSTRUCT>::Value, uint
 /**
  * Reflection data for a standalone structure declared in a header or as a user defined struct
  */
-class UScriptStruct : public UStruct
+class COREUOBJECT_VTABLE UScriptStruct : public UStruct
 {
 public:
 	/** Interface to template to manage dynamic access to C++ struct construction and destruction **/
@@ -1587,13 +1592,19 @@ public:
 
 typedef FText(*FEnumDisplayNameFn)(int32);
 
-// Optional flags for the UEnum::Get*ByName() functions.
+/** Optional flags for the UEnum::Get*ByName() functions. */
 enum class EGetByNameFlags
 {
 	None = 0,
 
-	ErrorIfNotFound = 0x01,
-	CaseSensitive   = 0x02
+	/** Outputs an warning if the enum lookup fails */
+	ErrorIfNotFound		= 0x01,
+
+	/** Does a case sensitive match */
+	CaseSensitive		= 0x02,
+
+	/** Checks the GetAuthoredNameStringByIndex value as well as normal names */
+	CheckAuthoredName	= 0x04,
 };
 
 ENUM_CLASS_FLAGS(EGetByNameFlags)
@@ -1679,6 +1690,20 @@ public:
 
 	/** Version of GetDisplayNameTextByIndex that takes a value instead */
 	FText GetDisplayNameTextByValue(int64 InValue) const;
+
+	/**
+	 * Returns the unlocalized logical name originally assigned to the enum at creation.
+	 * By default this is the same as the short name but it is overridden in child classes with different internal name storage.
+	 * This name is consistent in cooked and editor builds and is useful for things like external data import/export.
+	 *
+	 * @param InIndex Index of the enum value to get Display Name for
+	 *
+	 * @return The author-specified name, or an empty string if Index is invalid
+	 */
+	virtual FString GetAuthoredNameStringByIndex(int32 InIndex) const;
+
+	/** Version of GetAuthoredNameByIndex that takes a value instead */
+	FString GetAuthoredNameStringByValue(int64 InValue) const;
 
 	/** Gets max value of Enum. Defaults to zero if there are no entries. */
 	int64 GetMaxEnumValue() const;
@@ -2742,7 +2767,10 @@ public:
 	 * @param InFunctionName	The name of the function to test
 	 * @return					True if the specified function exists and is implemented in a blueprint generated class
 	 */
-	virtual bool IsFunctionImplementedInBlueprint(FName InFunctionName) const;
+	virtual bool IsFunctionImplementedInScript(FName InFunctionName) const;
+
+	UE_DEPRECATED(4.23, "IsFunctionImplementedInBlueprint is deprecated, call IsFunctionImplementedInScript instead")
+	bool IsFunctionImplementedInBlueprint(FName InFunctionName) const { return IsFunctionImplementedInScript(InFunctionName); }
 
 	/**
 	 * Checks if the property exists on this class or a parent class.

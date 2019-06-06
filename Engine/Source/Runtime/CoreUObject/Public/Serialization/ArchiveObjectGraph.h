@@ -87,6 +87,7 @@ class FArchiveObjectGraph : public FArchiveUObject
 	EObjectFlags	RequiredFlags;
 
 public:
+	UE_DEPRECATED(4.23, "This class is out of date and misses many references, replace with FReferenceChainSearch or FFindReferencersArchive")
 	FArchiveObjectGraph(bool IncludeTransients, EObjectFlags KeepFlags);
 	~FArchiveObjectGraph();
 

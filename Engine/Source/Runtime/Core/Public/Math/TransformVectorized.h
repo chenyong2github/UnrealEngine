@@ -1373,7 +1373,7 @@ private:
 		checkSlow(VectorAnyGreaterThan(VectorAbs(Scale3D), GlobalVectorConstants::SmallNumber));
 
 		// Invert the scale
-		const VectorRegister InvScale = VectorSet_W0(GetSafeScaleReciprocal(Scale3D , ScalarRegister(GlobalVectorConstants::SmallNumber)));
+		const VectorRegister InvScale = VectorSet_W0(GetSafeScaleReciprocal(VectorSet_W1(Scale3D), ScalarRegister(GlobalVectorConstants::SmallNumber)));
 
 		// Invert the rotation
 		const VectorRegister InvRotation = VectorQuaternionInverse(Rotation);

@@ -31,7 +31,7 @@ public:
 	TSharedRef<SWidget> CreateUtilityWidget();
 
 	/** Recreate the tab's content on recompile */
-	void RegenerateCreatedTab(UBlueprint* RecompiledBlueprint);
+	void RegenerateCreatedTab();
 	
 	void UpdateRespawnListIfNeeded(TSharedRef<SDockTab> TabBeingClosed);
 
@@ -60,6 +60,7 @@ private:
 
 	TWeakPtr<SDockTab> CreatedTab;
 
+	UPROPERTY()
 	UEditorUtilityWidget* CreatedUMGWidget;
 
 };

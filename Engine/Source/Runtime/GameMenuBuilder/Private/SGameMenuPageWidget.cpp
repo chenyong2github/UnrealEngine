@@ -943,6 +943,7 @@ FReply SGameMenuPageWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEve
 	{
 		bool bNavigationLocked = PendingMainMenu.IsValid() || PendingSubMenu.IsValid();
 		const FKey Key = InKeyEvent.GetKey();
+		EUINavigationAction NavAction = FSlateApplication::Get().GetNavigationActionForKey(Key);
 
 		if (bNavigationLocked == false)
 		{
@@ -973,12 +974,12 @@ FReply SGameMenuPageWidget::OnKeyDown(const FGeometry& MyGeometry, const FKeyEve
 				Result = FReply::Handled();
 			}
 		}
-		if (Key == EKeys::Enter || Key == EKeys::Virtual_Accept)
+		if (NavAction == EUINavigationAction::Accept)
 		{
 			ConfirmMenuItem();
 			Result = FReply::Handled();
 		} 
-		else if (Key == EKeys::Escape || Key == EKeys::Virtual_Back || Key == EKeys::Gamepad_Special_Left)
+		else if (NavAction == EUINavigationAction::Back || Key == EKeys::Gamepad_Special_Left)
 		{
 			MenuGoBack(true);
 			Result = FReply::Handled();

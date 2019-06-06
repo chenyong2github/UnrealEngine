@@ -401,6 +401,11 @@ public:
 	*/
 	bool GetChildNode(const int32 ChildArrayIndex, TSharedPtr<FPropertyNode>& OutChildNode) const;
 
+	/**
+	 * Returns whether this window's property is read only or has the CPF_EditConst flag.
+	 */
+	bool IsPropertyConst() const;
+
 	/** @return whether this window's property is constant (can't be edited by the user) */
 	bool IsEditConst() const;
 

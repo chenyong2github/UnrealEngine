@@ -9,7 +9,7 @@
 #include "Fonts/FontProviderInterface.h"
 #include "Fonts/UnicodeBlockRange.h"
 
-static int32 GSlateEnableLegacyLocalizedFallbackFont = 1;
+static int32 GSlateEnableLegacyLocalizedFallbackFont = 0;
 static FAutoConsoleVariableRef CVarSlateEnableLocalizedFallbackFont(TEXT("Slate.EnableLegacyLocalizedFallbackFont"), GSlateEnableLegacyLocalizedFallbackFont, TEXT("Enable the legacy localized fallback fonts? (0/1)."), ECVF_Default);
 
 FString FLegacySlateFontInfoCache::FFallbackContext::ToString() const
@@ -330,6 +330,11 @@ void FLegacySlateFontInfoCache::AddReferencedObjects(FReferenceCollector& Collec
 	{
 		const_cast<FFontData&>(*LastResortFontData).AddReferencedObjects(Collector);
 	}
+}
+
+FString FLegacySlateFontInfoCache::GetReferencerName() const
+{
+	return TEXT("FLegacySlateFontInfoCache");
 }
 
 void FLegacySlateFontInfoCache::HandleCultureChanged()

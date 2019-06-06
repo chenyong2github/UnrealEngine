@@ -177,9 +177,8 @@ public:
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;	
 	virtual void PrepareForCopying() override;
 
-	virtual bool IsDeprecated() const;
-	virtual bool ShouldWarnOnDeprecation() const;
-	virtual FString GetDeprecationMessage() const;
+	virtual bool IsDeprecated() const override;
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 
 	/** Set the cached dimensions of this node */
 	void SetDimensions(const FVector2D& InDimensions) { Dimensions = InDimensions; }

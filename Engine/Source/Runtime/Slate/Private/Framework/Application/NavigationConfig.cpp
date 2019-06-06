@@ -146,3 +146,19 @@ float FNavigationConfig::GetRepeatRateForPressure(float InPressure, int32 InRepe
 
 	return RepeatRate;
 }
+
+EUINavigationAction FNavigationConfig::GetNavigationActionForKey(const FKey& InKey) const
+{
+	if (InKey == EKeys::Enter || InKey == EKeys::SpaceBar || InKey == EKeys::Virtual_Accept)
+	{
+		// By default, enter, space, and gamepad accept are all counted as accept
+		return EUINavigationAction::Accept;
+	}
+	else if (InKey == EKeys::Escape || InKey == EKeys::Virtual_Back)
+	{
+		// By default, escape and gamepad back count as leaving current scope
+		return EUINavigationAction::Back;
+	}
+
+	return EUINavigationAction::Invalid;
+}

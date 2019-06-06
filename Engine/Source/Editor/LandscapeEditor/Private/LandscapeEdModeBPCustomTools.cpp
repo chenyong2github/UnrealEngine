@@ -27,13 +27,13 @@
 #define LOCTEXT_NAMESPACE "Landscape"
 
 template<class ToolTarget>
-class FLandscapeToolBPCustom : public FLandscapeTool
+class FLandscapeToolBlueprintBrush : public FLandscapeTool
 {
 protected:
 	FEdModeLandscape* EdMode;
 
 public:
-	FLandscapeToolBPCustom(FEdModeLandscape* InEdMode)
+	FLandscapeToolBlueprintBrush(FEdModeLandscape* InEdMode)
 		: EdMode(InEdMode)
 	{
 	}
@@ -46,7 +46,7 @@ public:
 	{
 	}
 
-	virtual const TCHAR* GetToolName() override { return TEXT("BPCustom"); }
+	virtual const TCHAR* GetToolName() override { return TEXT("BlueprintBrush"); }
 	virtual FText GetDisplayName() override { return FText(); };
 
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
@@ -63,6 +63,7 @@ public:
 
 	virtual void ExitTool() override
 	{
+		GEditor->SelectNone(true, true);
 	}
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) 
@@ -96,6 +97,7 @@ public:
 			SpawnInfo.bNoFail = true;
 			SpawnInfo.OverrideLevel = Info->LandscapeActor.Get()->GetTypedOuter<ULevel>(); // always spawn in the same level as the one containing the ALandscape
 
+			FScopedTransaction Transaction(LOCTEXT("LandscapeEdModeBPCustomToolSpawn", "Create landscape brush"));
 			ALandscapeBlueprintCustomBrush* Brush = ViewportClient->GetWorld()->SpawnActor<ALandscapeBlueprintCustomBrush>(EdMode->UISettings->BlueprintCustomBrush, SpawnLocation, FRotator(0.0f), SpawnInfo);
 			EdMode->UISettings->BlueprintCustomBrush = nullptr;
 
@@ -193,15 +195,15 @@ void FEdModeLandscape::CenterMirrorTool()
 //
 // Toolset initialization
 //
-void FEdModeLandscape::InitializeTool_BPCustom()
+void FEdModeLandscape::InitializeTool_BlueprintBrush()
 {
-	auto Sculpt_Tool_BPCustom = MakeUnique<FLandscapeToolBPCustom<FHeightmapToolTarget>>(this);
-	Sculpt_Tool_BPCustom->ValidBrushes.Add("BrushSet_Dummy");
-	LandscapeTools.Add(MoveTemp(Sculpt_Tool_BPCustom));
+	auto Sculpt_Tool_BlueprintBrush = MakeUnique<FLandscapeToolBlueprintBrush<FHeightmapToolTarget>>(this);
+	Sculpt_Tool_BlueprintBrush->ValidBrushes.Add("BrushSet_Dummy");
+	LandscapeTools.Add(MoveTemp(Sculpt_Tool_BlueprintBrush));
 
-	auto Paint_Tool_BPCustom = MakeUnique<FLandscapeToolBPCustom<FWeightmapToolTarget>>(this);
-	Paint_Tool_BPCustom->ValidBrushes.Add("BrushSet_Dummy");
-	LandscapeTools.Add(MoveTemp(Paint_Tool_BPCustom));
+	auto Paint_Tool_BlueprintBrush = MakeUnique<FLandscapeToolBlueprintBrush<FWeightmapToolTarget>>(this);
+	Paint_Tool_BlueprintBrush->ValidBrushes.Add("BrushSet_Dummy");
+	LandscapeTools.Add(MoveTemp(Paint_Tool_BlueprintBrush));
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -44,7 +44,6 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "Serialization/ArchiveCountMem.h"
 #include "Serialization/ObjectWriter.h"
 #include "Serialization/ObjectReader.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "Misc/PackageName.h"
 #include "Misc/EngineVersion.h"
 #include "UObject/LinkerLoad.h"
@@ -224,6 +223,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 
 #include "HAL/FileManagerGeneric.h"
 #include "UObject/UObjectThreadContext.h"
+#include "UObject/ReferenceChainSearch.h"
 
 #include "Particles/ParticleSystemManager.h"
 #include "Components/SkinnedMeshComponent.h"
@@ -5452,9 +5452,10 @@ bool UEngine::HandleListAnimsCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 			RateScale = AnimSeq->RateScale;
 			NumCurves = AnimSeq->RawCurveData.FloatCurves.Num();
 
-			TranslationFormat = FAnimationUtils::GetAnimationCompressionFormatString(AnimSeq->TranslationCompressionFormat);
-			RotationFormat = FAnimationUtils::GetAnimationCompressionFormatString(AnimSeq->RotationCompressionFormat);
-			ScaleFormat = FAnimationUtils::GetAnimationCompressionFormatString(AnimSeq->ScaleCompressionFormat);
+			const FUECompressedAnimData& CompressedData = AnimSeq->CompressedData.CompressedDataStructure;
+			TranslationFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.TranslationCompressionFormat);
+			RotationFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.RotationCompressionFormat);
+			ScaleFormat = FAnimationUtils::GetAnimationCompressionFormatString(CompressedData.ScaleCompressionFormat);
 		}
 
 		new(SortedAnimAssets) FSortedAnimAsset(
@@ -13264,15 +13265,11 @@ void UEngine::VerifyLoadMapWorldCleanup()
 		{
 			if ((World->PersistentLevel == nullptr || !WorldHasValidContext(World->PersistentLevel->OwningWorld)) && !IsWorldDuplicate(World))
 			{
-				// Print some debug information...
-				UE_LOG(LogLoad, Log, TEXT("%s not cleaned up by garbage collection! "), *World->GetFullName());
-				StaticExec(World, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s"), *World->GetPathName()));
-				TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( World, true, GARBAGE_COLLECTION_KEEPFLAGS );
-				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, World );
-				UE_LOG(LogLoad, Log, TEXT("%s"),*ErrorString);
-				// before asserting.
+				UE_LOG(LogLoad, Error, TEXT("Previously active world %s not cleaned up by garbage collection!"), *World->GetPathName());
+				UE_LOG(LogLoad, Error, TEXT("Once a world has become active, it cannot be reused and must be destroyed and reloaded. World referenced by:"));
 
-				UE_LOG(LogLoad, Fatal, TEXT("%s not cleaned up by garbage collection!") LINE_TERMINATOR TEXT("%s") , *World->GetFullName(), *ErrorString );
+				FReferenceChainSearch RefChainSearch(World, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				UE_LOG(LogLoad, Fatal, TEXT("Previously active world %s not cleaned up by garbage collection! Referenced by:") LINE_TERMINATOR TEXT("%s"), *World->GetPathName(), *RefChainSearch.GetRootPath());
 			}
 		}
 	}
@@ -13449,6 +13446,11 @@ public:
 	{
 		Collector.AddReferencedObjects( Levels ); 
 	}
+
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("FPendingStreamingLevelHolder");
+	}
 };
 
 
@@ -13566,14 +13568,18 @@ bool UEngine::CommitMapChange( FWorldContext &Context )
 
 		// Rename the newly loaded streaming levels so that their outer is correctly set to the main context's world,
 		// rather than the fake world.
-		for (ULevelStreaming* const FakeWorldStreamingLevel : FakeWorld->GetStreamingLevels())
+		TArray<ULevelStreaming*> StreamingLevelsToMove;
+		StreamingLevelsToMove.SetNumUninitialized(FakeWorld->GetStreamingLevels().Num());
+		for (int32 Index = FakeWorld->GetStreamingLevels().Num() - 1; Index >= 0; --Index)
 		{
+			ULevelStreaming* const FakeWorldStreamingLevel = FakeWorld->GetStreamingLevels()[Index];
 			FakeWorldStreamingLevel->Rename(nullptr, Context.World(), REN_ForceNoResetLoaders | REN_DontCreateRedirectors);
+			FakeWorld->RemoveStreamingLevelAt(Index);
+			StreamingLevelsToMove[Index] = FakeWorldStreamingLevel;
 		}
 
 		// Move the secondary levels to the world info levels array.
-		Context.World()->AddStreamingLevels(FakeWorld->GetStreamingLevels());
-		FakeWorld->ClearStreamingLevels();
+		Context.World()->AddStreamingLevels(StreamingLevelsToMove);
 
 		// fixup up any kismet streaming objects to force them to be loaded if they were preloaded, this
 		// will keep streaming volumes from immediately unloading the levels that were just loaded

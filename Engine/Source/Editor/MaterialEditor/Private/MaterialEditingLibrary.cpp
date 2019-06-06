@@ -26,6 +26,7 @@
 #include "EditorSupportDelegates.h"
 #include "Misc/RuntimeErrors.h"
 #include "SceneTypes.h"
+#include "AssetRegistryModule.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditingLibrary, Warning, All);
@@ -563,6 +564,16 @@ bool UMaterialEditingLibrary::SetMaterialUsage(UMaterial* Material, EMaterialUsa
 	return bResult;
 }
 
+bool UMaterialEditingLibrary::HasMaterialUsage(UMaterial* Material, EMaterialUsage Usage)
+{
+	bool bResult = false;
+	if (Material)
+	{
+		bResult = Material->GetUsageByFlag(Usage);
+	}
+	return bResult;
+}
+
 bool UMaterialEditingLibrary::ConnectMaterialProperty(UMaterialExpression* FromExpression, FString FromOutputName, EMaterialProperty Property)
 {
 	bool bResult = false;
@@ -646,6 +657,47 @@ void UMaterialEditingLibrary::RecompileMaterial(UMaterial* Material)
 void UMaterialEditingLibrary::LayoutMaterialExpressions(UMaterial* Material)
 {
 	MaterialEditingLibraryImpl::LayoutMaterialExpressions( Material );
+}
+
+float UMaterialEditingLibrary::GetMaterialDefaultScalarParameterValue(UMaterial* Material, FName ParameterName)
+{
+	float Result = 0.f;
+	if (Material)
+	{
+		Material->GetScalarParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+UTexture* UMaterialEditingLibrary::GetMaterialDefaultTextureParameterValue(UMaterial* Material, FName ParameterName)
+{
+	UTexture* Result = nullptr;
+	if (Material)
+	{
+		Material->GetTextureParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+FLinearColor UMaterialEditingLibrary::GetMaterialDefaultVectorParameterValue(UMaterial* Material, FName ParameterName)
+{
+	FLinearColor Result = FLinearColor::Black;
+	if (Material)
+	{
+		Material->GetVectorParameterDefaultValue(ParameterName, Result);
+	}
+	return Result;
+}
+
+bool UMaterialEditingLibrary::GetMaterialDefaultStaticSwitchParameterValue(UMaterial* Material, FName ParameterName)
+{
+	bool bResult = false;
+	if (Material)
+	{
+		FGuid OutGuid;
+		Material->GetStaticSwitchParameterDefaultValue(ParameterName, bResult, OutGuid);
+	}
+	return bResult;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -888,6 +940,17 @@ bool UMaterialEditingLibrary::SetMaterialInstanceVectorParameterValue(UMaterialI
 }
 
 
+bool UMaterialEditingLibrary::GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName)
+{
+	bool bResult = false;
+	if (Instance)
+	{
+		FGuid OutGuid;
+		Instance->GetStaticSwitchParameterValue(ParameterName, bResult, OutGuid);
+	}
+	return bResult;
+}
+
 void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* Instance)
 {
 	if (Instance)
@@ -902,5 +965,27 @@ void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* 
 		// update the world's viewports
 		FEditorDelegates::RefreshEditor.Broadcast();
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+	}
+}
+
+void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< TSoftObjectPtr<UMaterialInstance> >& ChildInstances)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	FAssetData ParentData = FAssetData(Parent);
+	TArray<FAssetData> AssetList;
+	TMultiMap<FName, FString> TagsAndValues;
+	FString ParentNameString = ParentData.GetExportTextName();
+	TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent), ParentNameString);
+	AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
+	
+	for (const FAssetData& MatInstRef : AssetList)
+	{
+		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MatInstRef.GetAsset()))
+		{
+			if (MaterialInstance->Parent == Parent)
+			{
+				ChildInstances.Add(MaterialInstance);
+			}
+		}
 	}
 }

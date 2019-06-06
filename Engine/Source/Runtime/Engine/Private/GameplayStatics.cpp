@@ -41,6 +41,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "Misc/EngineVersion.h"
 #include "ContentStreaming.h"
+#include "Async/Async.h"
 #include "Engine/SceneCapture2D.h"
 #include "Components/SceneCaptureComponent2D.h"
 
@@ -390,6 +391,34 @@ bool UGameplayStatics::GetEnableWorldRendering(const UObject* WorldContextObject
 	}
 
 	return false;
+}
+
+EMouseCaptureMode UGameplayStatics::GetViewportMouseCaptureMode(const UObject* WorldContextObject)
+{
+	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		UGameViewportClient* const GameViewportClient = World->GetGameViewport();
+		if (GameViewportClient)
+		{
+			return GameViewportClient->CaptureMouseOnClick();
+		}
+	}
+
+	return EMouseCaptureMode::NoCapture;
+}
+
+void UGameplayStatics::SetViewportMouseCaptureMode(const UObject* WorldContextObject, const EMouseCaptureMode MouseCaptureMode)
+{
+	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		UGameViewportClient* const GameViewportClient = World->GetGameViewport();
+		if (GameViewportClient)
+		{
+			GameViewportClient->SetCaptureMouseOnClick(MouseCaptureMode);
+		}
+	}
 }
 
 /** @RETURN True if weapon trace from Origin hits component VictimComp.  OutHitResult will contain properties of the hit. */
@@ -782,21 +811,39 @@ void UGameplayStatics::GetActorArrayBounds(const TArray<AActor*>& Actors, bool b
 	}
 }
 
+AActor* UGameplayStatics::GetActorOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(UGameplayStatics_GetActorOfClass);
+
+	// We do nothing if no is class provided
+	if (ActorClass)
+	{
+		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+		{
+			for (TActorIterator<AActor> It(World, ActorClass); It; ++It)
+			{
+				AActor* Actor = *It;
+				return Actor;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void UGameplayStatics::GetAllActorsOfClass(const UObject* WorldContextObject, TSubclassOf<AActor> ActorClass, TArray<AActor*>& OutActors)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UGameplayStatics_GetAllActorsOfClass);
 	OutActors.Reset();
 
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-
 	// We do nothing if no is class provided, rather than giving ALL actors!
-	if (ActorClass && World)
+	if (ActorClass)
+	{
+		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		for(TActorIterator<AActor> It(World, ActorClass); It; ++It)
 		{
 			AActor* Actor = *It;
-			if(!Actor->IsPendingKill())
-			{
 				OutActors.Add(Actor);
 			}
 		}
@@ -805,43 +852,46 @@ void UGameplayStatics::GetAllActorsOfClass(const UObject* WorldContextObject, TS
 
 void UGameplayStatics::GetAllActorsWithInterface(const UObject* WorldContextObject, TSubclassOf<UInterface> Interface, TArray<AActor*>& OutActors)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(UGameplayStatics_GetAllActorsWithTag);
-	OutActors.Empty();
+	QUICK_SCOPE_CYCLE_COUNTER(UGameplayStatics_GetAllActorsWithInterface);
+	OutActors.Reset();
 
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-	// We do nothing if not class provided, rather than giving ALL actors!
-	if (Interface && World)
+	// We do nothing if no interface provided, rather than giving ALL actors!
+	if (Interface)
+	{
+		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		for(FActorIterator It(World); It; ++It)
 		{
 			AActor* Actor = *It;
-			if (Actor && !Actor->IsPendingKill() && Actor->GetClass()->ImplementsInterface(Interface))
+				if (Actor->GetClass()->ImplementsInterface(Interface))
 			{
 				OutActors.Add(Actor);
 			}
 		}
 	}
 }
+}
 
 void UGameplayStatics::GetAllActorsWithTag(const UObject* WorldContextObject, FName Tag, TArray<AActor*>& OutActors)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(UGameplayStatics_GetAllActorsWithTag);
-	OutActors.Empty();
-
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	OutActors.Reset();
 
 	// We do nothing if no tag is provided, rather than giving ALL actors!
-	if (!Tag.IsNone() && World)
+	if (!Tag.IsNone())
+	{
+		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		for (FActorIterator It(World); It; ++It)
 		{
 			AActor* Actor = *It;
-			if (Actor && !Actor->IsPendingKill() && Actor->ActorHasTag(Tag))
+				if (Actor->ActorHasTag(Tag))
 			{
 				OutActors.Add(Actor);
 			}
 		}
 	}
+}
 }
 
 void UGameplayStatics::PlayWorldCameraShake(const UObject* WorldContextObject, TSubclassOf<class UCameraShake> Shake, FVector Epicenter, float InnerRadius, float OuterRadius, float Falloff, bool bOrientShakeTowardsEpicenter)
@@ -1798,15 +1848,6 @@ USaveGame* UGameplayStatics::CreateSaveGameObject(TSubclassOf<USaveGame> SaveGam
 	return nullptr;
 }
 
-USaveGame* UGameplayStatics::CreateSaveGameObjectFromBlueprint(UBlueprint* SaveGameBlueprint)
-{
-	if (SaveGameBlueprint && SaveGameBlueprint->GeneratedClass && SaveGameBlueprint->GeneratedClass->IsChildOf(USaveGame::StaticClass()))
-	{
-		return NewObject<USaveGame>(GetTransientPackage(), SaveGameBlueprint->GeneratedClass);
-	}
-	return nullptr;
-}
-
 bool UGameplayStatics::SaveGameToMemory(USaveGame* SaveGameObject, TArray<uint8>& OutSaveData )
 {
 	FMemoryWriter MemoryWriter(OutSaveData, true);
@@ -1834,24 +1875,33 @@ bool UGameplayStatics::SaveDataToSlot(const TArray<uint8>& InSaveData, const FSt
 	return false;
 }
 
-bool UGameplayStatics::SaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex)
-{
-	ISaveGameSystem* SaveSystem = IPlatformFeaturesModule::Get().GetSaveGameSystem();
-	// If we have a system and an object to save and a save name...
-	if(SaveSystem && SaveGameObject && (SlotName.Len() > 0))
+void UGameplayStatics::AsyncSaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex, FAsyncSaveGameToSlotDelegate SavedDelegate)
 	{
 		TArray<uint8> ObjectBytes;
-		FMemoryWriter MemoryWriter(ObjectBytes, true);
+	SaveGameToMemory(SaveGameObject, ObjectBytes);
 
-		FSaveGameHeader SaveHeader(SaveGameObject->GetClass());
-		SaveHeader.Write(MemoryWriter);
+	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, SavedDelegate, ObjectBytes]()
+	{
+		bool bSuccess = SaveDataToSlot(ObjectBytes, SlotName, UserIndex);
 
-		// Then save the object state, replacing object refs and names with strings
-		FObjectAndNameAsStringProxyArchive Ar(MemoryWriter, false);
-		SaveGameObject->Serialize(Ar);
+		// Now schedule the callback on the game thread, but only if it was bound to anything
+		if (SavedDelegate.IsBound())
+		{
+			AsyncTask(ENamedThreads::GameThread, [SlotName, UserIndex, SavedDelegate, bSuccess]()
+			{
+				SavedDelegate.ExecuteIfBound(SlotName, UserIndex, bSuccess);
+			});
+		}
+	});
+}
 
-		// Stuff that data into the save system with the desired file name
-		return SaveSystem->SaveGame(false, *SlotName, UserIndex, ObjectBytes);
+bool UGameplayStatics::SaveGameToSlot(USaveGame* SaveGameObject, const FString& SlotName, const int32 UserIndex)
+{
+	// This is a wrapper around the functions reading to/from a byte array
+	TArray<uint8> ObjectBytes;
+	if (SaveGameToMemory(SaveGameObject, ObjectBytes))
+	{
+		return SaveDataToSlot(ObjectBytes, SlotName, UserIndex);
 	}
 	return false;
 }
@@ -1874,26 +1924,14 @@ bool UGameplayStatics::DeleteGameInSlot(const FString& SlotName, const int32 Use
 	return false;
 }
 
-USaveGame* UGameplayStatics::LoadGameFromSlot(const FString& SlotName, const int32 UserIndex)
-{
-	ISaveGameSystem* SaveSystem = IPlatformFeaturesModule::Get().GetSaveGameSystem();
-	// If we have a save system and a valid name..
-	if (SaveSystem && (SlotName.Len() > 0))
+USaveGame* UGameplayStatics::LoadGameFromMemory(const TArray<uint8>& InSaveData)
 	{
-		// Load raw data from slot
-		TArray<uint8> ObjectBytes;
-		bool bSuccess = SaveSystem->LoadGame(false, *SlotName, UserIndex, ObjectBytes);
-		if (bSuccess)
+	if (InSaveData.Num() == 0)
 		{
-			return LoadGameFromMemory(ObjectBytes);
-		}
-	}
-
+		// Empty buffer, return instead of causing a bad serialize that could crash
 	return nullptr;
 }
 
-USaveGame* UGameplayStatics::LoadGameFromMemory(const TArray<uint8>& InSaveData)
-{
 	USaveGame* OutSaveGameObject = nullptr;
 
 	FMemoryReader MemoryReader(InSaveData, true);
@@ -1918,6 +1956,57 @@ USaveGame* UGameplayStatics::LoadGameFromMemory(const TArray<uint8>& InSaveData)
 	}
 
 	return OutSaveGameObject;
+}
+
+bool UGameplayStatics::LoadDataFromSlot(TArray<uint8>& OutSaveData, const FString& SlotName, const int32 UserIndex)
+{
+	ISaveGameSystem* SaveSystem = IPlatformFeaturesModule::Get().GetSaveGameSystem();
+	// If we have a save system and a valid name..
+	if (SaveSystem && (SlotName.Len() > 0))
+	{
+		if (SaveSystem->LoadGame(false, *SlotName, UserIndex, OutSaveData))
+		{
+			return true;
+		}
+	}
+
+	// Clear buffer on a failed read
+	OutSaveData.Reset();
+	return false;
+}
+
+void UGameplayStatics::AsyncLoadGameFromSlot(const FString& SlotName, const int32 UserIndex, FAsyncLoadGameFromSlotDelegate LoadedDelegate)
+{
+	AsyncTask(ENamedThreads::AnyHiPriThreadNormalTask, [SlotName, UserIndex, LoadedDelegate]()
+	{
+		// Do the actual I/O on the background thread
+		TArray<uint8> ObjectBytes;
+		LoadDataFromSlot(ObjectBytes, SlotName, UserIndex);
+
+		// Now schedule the serialize and callback on the game thread
+		AsyncTask(ENamedThreads::GameThread, [SlotName, UserIndex, LoadedDelegate, ObjectBytes]()
+		{
+			USaveGame* LoadedGame = nullptr;
+			if (ObjectBytes.Num() > 0)
+			{
+				LoadedGame = LoadGameFromMemory(ObjectBytes);
+			}
+
+			LoadedDelegate.ExecuteIfBound(SlotName, UserIndex, LoadedGame);
+		});
+	});
+}
+
+USaveGame* UGameplayStatics::LoadGameFromSlot(const FString& SlotName, const int32 UserIndex)
+{
+	// This is a wrapper around the functions reading to/from a byte array
+	TArray<uint8> ObjectBytes;
+	if (LoadDataFromSlot(ObjectBytes, SlotName, UserIndex))
+	{
+		return LoadGameFromMemory(ObjectBytes);
+	}
+
+	return nullptr;
 }
 
 FMemoryReader UGameplayStatics::StripSaveGameHeader(const TArray<uint8>& SaveData)

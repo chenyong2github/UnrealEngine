@@ -134,6 +134,13 @@ public:
 	virtual TSharedPtr<SWindow> GetActiveTopLevelWindow() const = 0;
 
 	/**
+	 * Get a list of all top-level windows in the application, excluding virtual windows.
+	 *
+	 * @return An array of all current top-level SWindows.
+	 */
+	virtual const TArray<TSharedRef<SWindow>> GetTopLevelWindows() const = 0;
+
+	/**
 	 * Gets the global application icon.
 	 *
 	 * @return The icon.
@@ -224,9 +231,19 @@ public:
 
 	virtual EUINavigation GetNavigationDirectionFromKey( const FKeyEvent& InKeyEvent ) const = 0;
 	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent) = 0;
+	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const = 0;
 
 	/** @return	Returns true if there are any pop-up menus summoned */
 	virtual bool AnyMenusVisible() const = 0;
+
+#if WITH_ACCESSIBILITY
+	/** 
+	 * Subclasses should store their own accessibility handler and return it through this function.
+	 *
+	 * @return A pointer to the accessibility handler, if one exists
+	 */
+	virtual TSharedPtr<class FSlateAccessibleMessageHandler> GetAccessibleMessageHandler() const = 0;
+#endif
 protected:
 	/**
 	 * Implementation of GetMouseCaptor which can be overridden without warnings.

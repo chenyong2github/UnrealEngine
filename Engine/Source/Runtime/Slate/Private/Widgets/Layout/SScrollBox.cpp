@@ -144,6 +144,7 @@ void SScrollBox::Construct( const FArguments& InArgs )
 		ScrollBar = ConstructScrollBar();
 		ScrollBar->SetDragFocusCause(InArgs._ScrollBarDragFocusCause);
 		ScrollBar->SetThickness(InArgs._ScrollBarThickness);
+		ScrollBar->SetPadding(InArgs._ScrollBarPadding);
 		ScrollBar->SetUserVisibility(InArgs._ScrollBarVisibility);
 		ScrollBar->SetScrollBarAlwaysVisible(InArgs._ScrollBarAlwaysVisible);
 
@@ -323,6 +324,13 @@ float SScrollBox::GetScrollOffset() const
 	return DesiredScrollOffset;
 }
 
+float SScrollBox::GetScrollOffsetOfEnd() const
+{
+	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());
+	const float ContentSize = GetScrollComponentFromVector(ScrollPanel->GetDesiredSize());
+	return FMath::Max(ContentSize - GetScrollComponentFromVector(ScrollPanelGeometry.Size), 0.0f);
+}
+
 float SScrollBox::GetViewFraction() const
 {
 	const FGeometry ScrollPanelGeometry = FindChildGeometry(CachedGeometry, ScrollPanel.ToSharedRef());
@@ -487,6 +495,11 @@ void SScrollBox::SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible)
 void SScrollBox::SetScrollBarThickness(FVector2D InThickness)
 {
 	ScrollBar->SetThickness(InThickness);
+}
+
+void SScrollBox::SetScrollBarPadding(const FMargin& InPadding)
+{
+	ScrollBar->SetPadding(InPadding);
 }
 
 void SScrollBox::SetScrollBarRightClickDragAllowed(bool bIsAllowed)

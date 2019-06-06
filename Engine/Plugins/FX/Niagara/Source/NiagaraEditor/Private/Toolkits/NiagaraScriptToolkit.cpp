@@ -685,7 +685,7 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 				for (int32 i = 0; i < System->GetNumEmitters(); i++)
 				{
 					AffectedEmitters.AddUnique(System->GetEmitterHandle(i).GetInstance());
-					AffectedEmitters.AddUnique((UNiagaraEmitter*)System->GetEmitterHandle(i).GetSource());
+					AffectedEmitters.AddUnique((UNiagaraEmitter*)System->GetEmitterHandle(i).GetInstance()->GetParent());
 				}
 			}
 		}

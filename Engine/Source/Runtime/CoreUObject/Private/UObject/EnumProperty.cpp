@@ -238,6 +238,10 @@ void UEnumProperty::ExportTextItem(FString& ValueStr, const void* PropertyValue,
 			{
 				ValueStr += Enum->GetDisplayNameTextByValue(Value).ToString();
 			}
+			else if (PortFlags & PPF_ExternalEditor)
+			{
+				ValueStr += Enum->GetAuthoredNameStringByValue(Value);
+			}
 			else
 			{
 				ValueStr += Enum->GetNameStringByValue(Value);
@@ -264,7 +268,7 @@ const TCHAR* UEnumProperty::ImportText_Internal(const TCHAR* InBuffer, void* Dat
 		FString Temp;
 		if (const TCHAR* Buffer = UPropertyHelpers::ReadToken(InBuffer, Temp, true))
 		{
-			int32 EnumIndex = Enum->GetIndexByName(*Temp);
+			int32 EnumIndex = Enum->GetIndexByName(*Temp, EGetByNameFlags::CheckAuthoredName);
 			if (EnumIndex == INDEX_NONE && (Temp.IsNumeric() && !Algo::Find(Temp, TEXT('.'))))
 			{
 				int64 EnumValue = INDEX_NONE;

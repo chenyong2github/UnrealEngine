@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "BSDSockets/SocketSubsystemBSDPrivate.h"
 #include "SocketSubsystemBSDIPv6.h"
+#include "SocketTypes.h"
 #include "IPAddress.h"
 
 #if PLATFORM_HAS_BSD_IPV6_SOCKETS
@@ -112,6 +113,23 @@ public:
 	/** Returns the port number from this address in host byte order */
 	virtual int32 GetPort() const override;
 
+	/**
+	 * Sets the scope interface id of the currently held address if this address
+	 * is an IPv6 address internally. If it is not, no data will be assigned.
+	 * The NewScopeId must be in host byte order.
+	 *
+	 * @param NewScopeId the new scope interface id to set this address to
+	 */
+	virtual void SetScopeId(uint32 NewScopeId);
+
+	/**
+	 * Returns the IPv6 scope interface id of the currently held address
+	 * if the address is an IPv6 address.
+	 *
+	 * @return the scope interface id
+	 */
+	virtual uint32 GetScopeId() const;
+
 	/** Sets the address to be any address */
 	virtual void SetAnyAddress() override;
 
@@ -156,22 +174,10 @@ public:
 
 	virtual TSharedRef<FInternetAddr> Clone() const override;
 
-	/**
-	 * Sets the scope interface id of the currently held address if this address
-	 * is an IPv6 address internally. If it is not, no data will be assigned.
-	 * The NewScopeId must be in host byte order.
-	 *
-	 * @param NewScopeId the new scope interface id to set this address to
-	 */
-	virtual void SetScopeId(uint32 NewScopeId);
-
-	/**
-	 * Returns the IPv6 scope interface id of the currently held address
-	 * if the address is an IPv6 address.
-	 *
-	 * @return the scope interface id
-	 */
-	virtual uint32 GetScopeId() const;
+	virtual FName GetProtocolType() const override
+	{
+		return FNetworkProtocolTypes::IPv6;
+	}
 };
 
 

@@ -203,12 +203,12 @@ private:
 	FSHAHash Hash;
 };
 
-class FRHIVertexShader : public FRHIShader {};
-class FRHIHullShader : public FRHIShader {};
-class FRHIDomainShader : public FRHIShader {};
-class FRHIPixelShader : public FRHIShader {};
-class FRHIGeometryShader : public FRHIShader {};
-class FRHIRayTracingShader : public FRHIShader {};
+class RHI_VTABLE FRHIVertexShader : public FRHIShader {};
+class RHI_VTABLE FRHIHullShader : public FRHIShader {};
+class RHI_VTABLE FRHIDomainShader : public FRHIShader {};
+class RHI_VTABLE FRHIPixelShader : public FRHIShader {};
+class RHI_VTABLE FRHIGeometryShader : public FRHIShader {};
+class RHI_VTABLE FRHIRayTracingShader : public FRHIShader {};
 
 class RHI_API FRHIComputeShader : public FRHIShader
 {

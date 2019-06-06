@@ -14,7 +14,7 @@ UAnimCurveCompressionCodec_UniformlySampled::UAnimCurveCompressionCodec_Uniforml
 }
 
 #if WITH_EDITORONLY_DATA
-bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const UAnimSequence& AnimSeq, FAnimCurveCompressionResult& OutResult)
+bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const FCompressibleAnimData& AnimSeq, FAnimCurveCompressionResult& OutResult)
 {
 	const int32 NumCurves = AnimSeq.RawCurveData.FloatCurves.Num();
 	const float Duration = AnimSeq.SequenceLength;
@@ -23,7 +23,7 @@ bool UAnimCurveCompressionCodec_UniformlySampled::Compress(const UAnimSequence& 
 	float SampleRate_;
 	if (UseAnimSequenceSampleRate)
 	{
-		const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.GetRawNumberOfFrames());
+		const FAnimKeyHelper Helper(AnimSeq.SequenceLength, AnimSeq.NumFrames);
 		SampleRate_ = Helper.KeysPerSecond();
 		NumSamples = FMath::RoundToInt(Duration * SampleRate_) + 1;
 	}
@@ -160,9 +160,9 @@ void UAnimCurveCompressionCodec_UniformlySampled::PopulateDDCKey(FArchive& Ar)
 }
 #endif
 
-void UAnimCurveCompressionCodec_UniformlySampled::DecompressCurves(const UAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const
+void UAnimCurveCompressionCodec_UniformlySampled::DecompressCurves(const FCompressedAnimSequence& AnimSeq, FBlendedCurve& Curves, float CurrentTime) const
 {
-	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.GetCompressedCurveNames();
+	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.CompressedCurveNames;
 	const int32 NumCurves = CompressedCurveNames.Num();
 
 	if (NumCurves == 0)
@@ -232,9 +232,9 @@ void UAnimCurveCompressionCodec_UniformlySampled::DecompressCurves(const UAnimSe
 	}
 }
 
-float UAnimCurveCompressionCodec_UniformlySampled::DecompressCurve(const UAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const
+float UAnimCurveCompressionCodec_UniformlySampled::DecompressCurve(const FCompressedAnimSequence& AnimSeq, SmartName::UID_Type CurveUID, float CurrentTime) const
 {
-	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.GetCompressedCurveNames();
+	const TArray<FSmartName>& CompressedCurveNames = AnimSeq.CompressedCurveNames;
 	const int32 NumCurves = CompressedCurveNames.Num();
 
 	if (NumCurves == 0)

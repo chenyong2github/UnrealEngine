@@ -23,6 +23,14 @@ DECLARE_LOG_CATEGORY_EXTERN(LogVivoxVoiceChat, Log, All);
 
 DECLARE_STATS_GROUP(TEXT("Vivox"), STATGROUP_Vivox, STATCAT_Advanced);
 
+class VIVOXVOICECHAT_API FVivoxDelegates
+{
+public:
+	/** Delegate called when the status of the audio device has changed. Triggered on platforms that the vivox sdk provides this event for */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioUnitCaptureDeviceStatusChanged, int);
+	static FOnAudioUnitCaptureDeviceStatusChanged OnAudioUnitCaptureDeviceStatusChanged;
+};
+
 class FVivoxVoiceChat : public FSelfRegisteringExec, public IVoiceChat, protected VivoxClientApi::DebugClientApiEventHandler
 {
 public:

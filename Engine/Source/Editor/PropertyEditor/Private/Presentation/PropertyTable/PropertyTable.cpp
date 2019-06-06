@@ -3,7 +3,7 @@
 #include "Presentation/PropertyTable/PropertyTable.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor/EditorPerProjectUserSettings.h"
-
+#include "Editor.h"
 
 #include "Presentation/PropertyTable/PropertyTableColumn.h"
 #include "Presentation/PropertyTable/PropertyTableRow.h"
@@ -11,6 +11,7 @@
 #include "Presentation/PropertyTable/PropertyTableObjectNameColumn.h"
 #include "Presentation/PropertyTable/PropertyTablePropertyNameColumn.h"
 
+#include "EditConditionParser.h"
 
 #define LOCTEXT_NAMESPACE "PropertyTable"
 
@@ -32,7 +33,16 @@ FPropertyTable::FPropertyTable()
 	, AllowUserToChangeRoot( true )
 	, bRefreshRequested( false )
 	, Orientation( EPropertyTableOrientation::AlignPropertiesInColumns )
+	, EditConditionParser( new FEditConditionParser )
 {
+}
+
+FPropertyTable::~FPropertyTable()
+{
+	if (GEditor && ObjectsReplacedHandle.IsValid())
+	{
+		GEditor->OnObjectsReplaced().Remove(ObjectsReplacedHandle);
+	}
 }
 
 void FPropertyTable::Tick()
@@ -101,6 +111,11 @@ void FPropertyTable::EnqueueDeferredAction( FSimpleDelegate DeferredAction )
 TSharedPtr<class FAssetThumbnailPool> FPropertyTable::GetThumbnailPool() const
 {
 	return NULL;
+}
+
+TSharedPtr<FEditConditionParser> FPropertyTable::GetEditConditionParser() const
+{
+	return EditConditionParser;
 }
 
 bool FPropertyTable::GetIsUserAllowedToChangeRoot()
@@ -214,6 +229,22 @@ void FPropertyTable::RemoveRow( const TSharedRef< class IPropertyTableRow >& Row
 	}
 }
 
+void FPropertyTable::ResetTable()
+{
+	Rows.Reset();
+	Columns.Reset();
+	SourceObjectPropertyNodes.Reset();
+	SelectedColumns.Reset();
+	SelectedRows.Reset();
+	SelectedCells.Reset();
+	StartingCellSelectionRange = nullptr;
+	EndingCellSelectionRange = nullptr;
+	CurrentRow = nullptr;
+	CurrentCell = nullptr;
+	CurrentColumn = nullptr;
+	LastClickedCell = nullptr;
+}
+
 void FPropertyTable::PurgeInvalidObjectNodes()
 {
 	TArray< TSharedRef< FObjectPropertyNode > > ValidNodes;
@@ -221,7 +252,7 @@ void FPropertyTable::PurgeInvalidObjectNodes()
 	{
 		const TWeakObjectPtr< UObject > Object = NodeIter.Key();
 
-		if ( !Object.IsValid() )
+		if ( Object.IsValid() )
 		{
 			ValidNodes.Add( NodeIter.Value() );
 		}
@@ -264,7 +295,7 @@ TArray< FPropertyInfo > FPropertyTable::GetPossibleExtensionsForPath( const TSha
 		{
 			const FPropertyInfo& Info = *ExtensionIter;
 
-			if ( Info.ArrayIndex == INDEX_NONE &&
+			if ( Info.ArrayIndex == INDEX_NONE && Info.Property.IsValid() && 
 				 ( Info.Property->IsA( UStructProperty::StaticClass() ) ||
 				   Info.Property->IsA( UArrayProperty::StaticClass() ) ) )
 			{
@@ -993,19 +1024,56 @@ void FPropertyTable::SetObjects( const TArray< TWeakObjectPtr< UObject > >& Obje
 
 	UpdateColumns();
 	UpdateRows();
+
+	// Bind to object delegates, we can't do this at construction because the shared pointer isn't set up yet
+	if (GEditor && !ObjectsReplacedHandle.IsValid())
+	{
+		ObjectsReplacedHandle = GEditor->OnObjectsReplaced().AddSP(this, &FPropertyTable::OnObjectsReplaced);
+	}
 }
 
 void FPropertyTable::SetObjects( const TArray< UObject* >& Objects )
 {
-	SourceObjects.Empty();
+	TArray<TWeakObjectPtr<UObject>> WeakObjects;
 	
-	for( auto ObjectIter = Objects.CreateConstIterator(); ObjectIter; ++ObjectIter )
+	for(UObject* Object : Objects)
 	{
-		SourceObjects.Add( *ObjectIter );
+		WeakObjects.Add(Object);
 	}
 
-	UpdateColumns();
-	UpdateRows();
+	SetObjects(WeakObjects);
+}
+
+void FPropertyTable::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	bool bChangedAny = false;
+
+	// Fix up any objects in our source list that were replaced, then refresh UI
+	for (int32 i = 0; i < SourceObjects.Num(); i++)
+	{
+		UObject* SourceObject = SourceObjects[i].Get(true);
+		UObject* ReplacedObject = ReplacementMap.FindRef(SourceObject);
+
+		if (ReplacedObject && ReplacedObject != SourceObject)
+		{
+			SourceObjectPropertyNodes.Remove(SourceObject);
+			SourceObjects[i] = ReplacedObject;
+
+			bChangedAny = true;
+		}
+	}
+
+	if (bChangedAny)
+	{
+		// The update functions do not correctly handle partial reconstruction, so delete everything and reconstruct
+		ResetTable();
+
+		UpdateRows();
+		UpdateColumns();
+
+		// This reset our selection so broadcast it
+		SelectionChanged.Broadcast();
+	}
 }
 
 void FPropertyTable::SetShowRowHeader( const bool InShowRowHeader ) 

@@ -526,7 +526,7 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunction
 	}
 }
 
-void FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins)
+void FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<UEdGraphPin*>& OutInputPins)
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(FunctionCallNode.GetSchema());
 	UNiagaraGraph* FunctionCallGraph = FunctionCallNode.GetCalledGraph();
@@ -1152,27 +1152,6 @@ UNiagaraNodeOutput* FNiagaraStackGraphUtilities::ResetGraphForOutput(UNiagaraGra
 	}
 
 	return OutputNode;
-}
-
-const UNiagaraEmitter* FNiagaraStackGraphUtilities::GetBaseEmitter(UNiagaraEmitter& Emitter, UNiagaraSystem& OwningSystem)
-{
-	for(const FNiagaraEmitterHandle& Handle : OwningSystem.GetEmitterHandles())
-	{ 
-		if (Handle.GetInstance() == &Emitter)
-		{
-			if (Handle.GetSource() != nullptr && Handle.GetSource() != &Emitter)
-			{
-				return Handle.GetSource();
-			}
-			else
-			{
-				// If the source is null then it was deleted and if the source is the same as the emitter the owning
-				// system is transient and the emitter doesn't have base.
-				return nullptr;
-			}
-		}
-	}
-	return nullptr;
 }
 
 void GetFunctionNamesRecursive(UNiagaraNode* CurrentNode, TArray<UNiagaraNode*>& VisitedNodes, TArray<FString>& FunctionNames)

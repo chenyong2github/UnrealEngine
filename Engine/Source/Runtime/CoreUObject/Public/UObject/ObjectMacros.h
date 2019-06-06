@@ -385,7 +385,7 @@ enum EPropertyFlags : uint64
 	CPF_DuplicateTransient				= 0x0000000000200000,	///< Property should always be reset to the default value during any type of duplication (copy/paste, binary duplication, etc.)
 	CPF_SubobjectReference				= 0x0000000000400000,	///< Property contains subobject references (TSubobjectPtr)
 	//CPF_    							= 0x0000000000800000,	///< 
-	CPF_SaveGame						= 0x0000000001000000,	///< Property should be serialized for save games
+	CPF_SaveGame						= 0x0000000001000000,	///< Property should be serialized for save games, this is only checked for game-specific archives with ArIsSaveGame
 	CPF_NoClear							= 0x0000000002000000,	///< Hide clear (and browse) button.
 	//CPF_  							= 0x0000000004000000,	///<
 	CPF_ReferenceParm					= 0x0000000008000000,	///< Value is passed by reference; CPF_OutParam and CPF_Param should also be set.
@@ -936,7 +936,8 @@ namespace UP
 		/// to use on struct properties or parameters.
 		AssetRegistrySearchable,
 
-		/// Property should be serialized for save game.
+		/// Property should be serialized for save games.
+		/// This is only checked for game-specific archives with ArIsSaveGame set
 		SaveGame,
 
 		/// MC Delegates only.  Property should be exposed for calling in blueprint code
@@ -1147,6 +1148,9 @@ namespace UM
 
 		/// [PropertyMetadata] Used for FColor and FLinearColor properties. Indicates that the Alpha property should be hidden when displaying the property widget in the details.
 		HideAlphaChannel,
+
+		/// [PropertyMetadata] Indicates that the property should be hidden in the details panel. Currently only used by events.
+		HideInDetailPanel,
 
 		/// [PropertyMetadata] Used for Subclass and SoftClass properties. Specifies to hide the ability to change view options in the class picker
 		HideViewOptions,

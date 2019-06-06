@@ -65,6 +65,7 @@ public:
 		, _TextFlowDirection()
 		{
 			_Clipping = EWidgetClipping::ClipToBounds;
+			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
 		}
 
 		/** Sets the text content for this editable text widget */
@@ -129,7 +130,7 @@ public:
 		 */
 		SLATE_EVENT( FOnIsTypedCharValid, OnIsTypedCharValid )
 
-		/** Called whenever the text is changed interactively by the user */
+		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnTextChanged, OnTextChanged )
 
 		/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */
@@ -352,6 +353,10 @@ protected:
 	virtual const FSlateBrush* GetFocusBrush() const;
 	virtual bool IsInteractable() const override;
 	virtual bool ComputeVolatility() const override;
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) override;
+#endif
 	//~ End SWidget Interface
 
 protected:
@@ -436,7 +441,7 @@ protected:
 	/** Called when a character is typed and we want to know if the text field supports typing this character. */
 	FOnIsTypedCharValid OnIsTypedCharValid;
 
-	/** Called whenever the text is changed interactively by the user */
+	/** Called whenever the text is changed programmatically or interactively by the user */
 	FOnTextChanged OnTextChangedCallback;
 
 	/** Called whenever the text is committed.  This happens when the user presses enter or the text box loses focus. */

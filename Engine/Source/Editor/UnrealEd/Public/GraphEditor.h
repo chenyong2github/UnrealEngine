@@ -86,6 +86,8 @@ public:
 
 	DECLARE_DELEGATE_RetVal_FiveParams( FActionMenuContent, FOnCreateActionMenu, UEdGraph*, const FVector2D&, const TArray<UEdGraphPin*>&, bool, FActionMenuClosed );
 
+	DECLARE_DELEGATE_RetVal_FiveParams( FActionMenuContent, FOnCreateNodeOrPinMenu, UEdGraph*, const UEdGraphNode*, const UEdGraphPin*, FMenuBuilder*, bool);
+
 	DECLARE_DELEGATE_RetVal_TwoParams( FReply, FOnSpawnNodeByShortcut, FInputChord, const FVector2D& );
 
 	DECLARE_DELEGATE( FOnNodeSpawnedByKeymap );
@@ -109,8 +111,10 @@ public:
 		FOnNodeVerifyTextCommit OnVerifyTextCommit;
 		/** Called when text is committed on the graph */
 		FOnNodeTextCommitted OnTextCommitted;
-		/** Called to create context menu */
+		/** Called to create context menu for right clicking in empty area */
 		FOnCreateActionMenu OnCreateActionMenu;
+		/** Called to create context menu for right clicking a node or pin, same parameters as GetContextMenuActions on schema */
+		FOnCreateNodeOrPinMenu OnCreateNodeOrPinMenu;
 		/** Called to spawn a node in the graph using a shortcut */
 		FOnSpawnNodeByShortcut OnSpawnNodeByShortcut;
 		/** Called when a keymap spawns a node */
@@ -457,6 +461,11 @@ public:
 			Implementation->SetNodeFactory(NewNodeFactory);
 		}
 	}
+	
+	/** Common methods for MaterialEditor and BlueprintEditor's focusing related nodes feature */
+	UNREALED_API void ResetAllNodesUnrelatedStates();
+
+	UNREALED_API void FocusCommentNodes(TArray<UEdGraphNode*> &CommentNodes, TArray<UEdGraphNode*> &RelatedNodes);
 
 	virtual void OnAlignTop()
 	{

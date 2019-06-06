@@ -206,11 +206,6 @@ void FCurveEditor::RemoveTreeItem(FCurveEditorTreeItemID ItemID)
 	++ActiveCurvesSerialNumber;
 }
 
-FSimpleMulticastDelegate& FCurveEditor::OnTreeChanged()
-{
-	return Tree.OnChanged();
-}
-
 ECurveEditorTreeSelectionState FCurveEditor::GetTreeSelectionState(FCurveEditorTreeItemID InTreeItemID) const
 {
 	return Tree.GetSelectionState(InTreeItemID);

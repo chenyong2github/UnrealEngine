@@ -285,19 +285,19 @@ void SNiagaraSpreadsheetView::Construct(const FArguments& InArgs, TSharedRef<FNi
 
 		CaptureData[i].OutputHorizontalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Horizontal)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		CaptureData[i].OutputVerticalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Vertical)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		CaptureData[i].InputHorizontalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Horizontal)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		CaptureData[i].InputVerticalScrollBar = SNew(SScrollBar)
 			.Orientation(Orient_Vertical)
-			.Thickness(FVector2D(8.0f, 8.0f));
+			.Thickness(FVector2D(12.0f, 12.0f));
 
 		SAssignNew(CaptureData[i].OutputsListView, STreeView< TSharedPtr<int32> >)
 			.IsEnabled(this, &SNiagaraSpreadsheetView::IsPausedAtRightTimeOnRightHandle)

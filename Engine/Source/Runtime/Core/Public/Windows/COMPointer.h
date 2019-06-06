@@ -3,6 +3,7 @@
 #pragma once
 
 #include <Unknwn.h>
+#include "Misc/AssertionMacros.h"
 
 
 /**

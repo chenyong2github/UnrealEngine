@@ -16,6 +16,11 @@ using TTraceAtomic = std::atomic<Type>;
 namespace Private
 {
 
+#if defined(_MSC_VER)
+	#pragma warning(push)
+	#pragma warning(disable : 4200) // non-standard zero-sized array
+#endif
+
 ////////////////////////////////////////////////////////////////////////////////
 struct FBuffer
 {
@@ -38,6 +43,10 @@ struct FBuffer
 	uint32						Final;
 	alignas(void*) uint8		Data[];
 };
+
+#if defined(_MSC_VER)
+	#pragma warning(pop)
+#endif
 
 extern UE_TRACE_API TTraceAtomic<FBuffer*> GActiveBuffer;
 

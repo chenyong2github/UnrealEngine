@@ -2296,6 +2296,11 @@ void FEditorViewportClient::InputAxisForOrbit(FViewport* InViewport, const FVect
 		SetViewLocation(RotatedViewLocation);
 
 		FEditorViewportStats::Using(IsPerspective() ? FEditorViewportStats::CAT_PERSPECTIVE_MOUSE_ORBIT_ROTATION : FEditorViewportStats::CAT_ORTHOGRAPHIC_MOUSE_ORBIT_ROTATION);
+
+		if (IsPerspective())
+		{
+			PerspectiveCameraMoved();
+		}
 	}
 	else
 	{
@@ -3369,6 +3374,11 @@ void FEditorViewportClient::AddReferencedObjects( FReferenceCollector& Collector
 			StereoViewState.GetReference()->AddReferencedObjects(Collector);
 		}
 	}
+}
+
+FString FEditorViewportClient::GetReferencerName() const
+{
+	return TEXT("FEditorViewportClient");
 }
 
 void FEditorViewportClient::ProcessClick(class FSceneView& View, class HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)

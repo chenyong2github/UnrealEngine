@@ -5,6 +5,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Windows/WindowsApplication.h"
 #include "GenericPlatform/GenericApplication.h"
+#include "Misc/ConfigCacheIni.h"
 
 #pragma pack (push,8)
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -34,6 +35,9 @@ XInputInterface::XInputInterface( const TSharedRef< FGenericApplicationMessageHa
 	bNeedsControllerStateUpdate = true;
 	InitialButtonRepeatDelay = 0.2f;
 	ButtonRepeatDelay = 0.1f;
+
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("InitialButtonRepeatDelay"), InitialButtonRepeatDelay, GInputIni);
+	GConfig->GetFloat(TEXT("/Script/Engine.InputSettings"), TEXT("ButtonRepeatDelay"), ButtonRepeatDelay, GInputIni);
 
 	// In the engine, all controllers map to xbox controllers for consistency 
 	X360ToXboxControllerMapping[0] = 0;		// A

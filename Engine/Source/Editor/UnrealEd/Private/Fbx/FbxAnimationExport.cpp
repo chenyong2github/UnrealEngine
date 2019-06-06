@@ -45,19 +45,26 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 	}
 
 	const float FrameRate = FMath::TruncToFloat(((AnimSeq->GetRawNumberOfFrames() - 1) / AnimSeq->SequenceLength) + 0.5f);
+	//Configure the scene time line
+	{
+		FbxGlobalSettings& SceneGlobalSettings = Scene->GetGlobalSettings();
+		double CurrentSceneFrameRate = FbxTime::GetFrameRate(SceneGlobalSettings.GetTimeMode());
+		if (!bSceneGlobalTimeLineSet || FrameRate > CurrentSceneFrameRate)
+		{
+			FbxTime::EMode ComputeTimeMode = FbxTime::ConvertFrameRateToTimeMode(FrameRate);
+			FbxTime::SetGlobalTimeMode(ComputeTimeMode, ComputeTimeMode == FbxTime::eCustom ? FrameRate : 0.0);
+			SceneGlobalSettings.SetTimeMode(ComputeTimeMode);
+			if (ComputeTimeMode == FbxTime::eCustom)
+			{
+				SceneGlobalSettings.SetCustomFrameRate(FrameRate);
+			}
+			bSceneGlobalTimeLineSet = true;
+		}
+	}
 
 	// set time correctly
 	FbxTime ExportedStartTime, ExportedStopTime;
-	if ( FMath::IsNearlyEqual(FrameRate, DEFAULT_SAMPLERATE, 1.f) )
-	{
-		ExportedStartTime.SetGlobalTimeMode(FbxTime::eFrames30);
-		ExportedStopTime.SetGlobalTimeMode(FbxTime::eFrames30);
-	}
-	else
-	{
-		ExportedStartTime.SetGlobalTimeMode(FbxTime::eCustom, FrameRate);
-		ExportedStopTime.SetGlobalTimeMode(FbxTime::eCustom, FrameRate);
-	}
+	
 
 	ExportedStartTime.SetSecondDouble(0.f);
 	ExportedStopTime.SetSecondDouble(AnimSeq->SequenceLength);
@@ -130,7 +137,7 @@ void FFbxExporter::ExportAnimSequenceToFbx(const UAnimSequence* AnimSeq,
 		ExportTimeIncrement.SetSecondDouble( TimePerKey );
 
 		int32 BoneTreeIndex = Skeleton->GetSkeletonBoneIndexFromMeshBoneIndex(SkelMesh, BoneIndex);
-		int32 BoneTrackIndex = Skeleton->GetAnimationTrackIndex(BoneTreeIndex, AnimSeq, true);
+		int32 BoneTrackIndex = Skeleton->GetRawAnimationTrackIndex(BoneTreeIndex, AnimSeq);
 		if(BoneTrackIndex == INDEX_NONE)
 		{
 			// If this sequence does not have a track for the current bone, then skip it

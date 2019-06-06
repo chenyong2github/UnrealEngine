@@ -4,7 +4,10 @@
 #include "Rendering/DrawElements.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Text/STextBlock.h"
-
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 static FName SButtonTypeName("SButton");
 
@@ -97,7 +100,7 @@ int32 SButton::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry
 			AllottedGeometry.ToPaintGeometry(),
 			BrushResource,
 			DrawEffects,
-			BrushResource->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint() * BorderBackgroundColor.Get().GetColor(InWidgetStyle)
+			BrushResource->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint() * BorderBackgroundColor.Get().GetColor(InWidgetStyle) * ColorAndOpacity.Get()
 			);
 	}
 
@@ -154,14 +157,14 @@ void SButton::OnFocusLost( const FFocusEvent& InFocusEvent )
 FReply SButton::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
 	FReply Reply = FReply::Unhandled();
-	if (IsEnabled() && (InKeyEvent.GetKey() == EKeys::Enter || InKeyEvent.GetKey() == EKeys::SpaceBar || InKeyEvent.GetKey() == EKeys::Virtual_Accept))
+	if (IsEnabled() && FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
 	{
 		Press();
 
 		if (PressMethod == EButtonPressMethod::ButtonPress)
 		{
 			//execute our "OnClicked" delegate, and get the reply
-			Reply = OnClicked.IsBound() ? OnClicked.Execute() : FReply::Handled();
+			Reply = ExecuteOnClick();
 
 			//You should ALWAYS handle the OnClicked event.
 			ensure(Reply.IsEventHandled() == true);
@@ -184,8 +187,7 @@ FReply SButton::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent
 {
 	FReply Reply = FReply::Unhandled();
 
-
-	if (IsEnabled() && (InKeyEvent.GetKey() == EKeys::Enter || InKeyEvent.GetKey() == EKeys::SpaceBar || InKeyEvent.GetKey() == EKeys::Virtual_Accept))
+	if (IsEnabled() && FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
 	{
 		const bool bWasPressed = bIsPressed;
 
@@ -195,7 +197,7 @@ FReply SButton::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent
 		if ( PressMethod == EButtonPressMethod::ButtonRelease || ( PressMethod == EButtonPressMethod::DownAndUp && bWasPressed ) )
 		{
 			//execute our "OnClicked" delegate, and get the reply
-			Reply = OnClicked.IsBound() ? OnClicked.Execute() : FReply::Handled();
+			Reply = ExecuteOnClick();
 
 			//You should ALWAYS handle the OnClicked event.
 			ensure(Reply.IsEventHandled() == true);
@@ -223,7 +225,7 @@ FReply SButton::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEv
 		if(InputClickMethod == EButtonClickMethod::MouseDown)
 		{
 			//get the reply from the execute function
-			Reply = OnClicked.IsBound() ? OnClicked.Execute() : FReply::Handled();
+			Reply = ExecuteOnClick();
 
 			//You should ALWAYS handle the OnClicked event.
 			ensure(Reply.IsEventHandled() == true);
@@ -289,9 +291,9 @@ FReply SButton::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEven
 					// pressed the button down first, then we'll allow the click to proceed without an active capture
 					const bool bTriggerForMouseEvent = (InputClickMethod == EButtonClickMethod::MouseUp || HasMouseCapture() );
 
-					if ( ( bTriggerForTouchEvent || bTriggerForMouseEvent ) && OnClicked.IsBound() == true )
+					if ( ( bTriggerForTouchEvent || bTriggerForMouseEvent ) )
 					{
-						Reply = OnClicked.Execute();
+						Reply = ExecuteOnClick();
 					}
 				}
 			}
@@ -361,6 +363,22 @@ void SButton::OnMouseLeave( const FPointerEvent& MouseEvent )
 void SButton::OnMouseCaptureLost(const FCaptureLostEvent& CaptureLostEvent)
 {
 	Release();
+}
+
+FReply SButton::ExecuteOnClick()
+{
+	if (OnClicked.IsBound())
+	{
+		FReply Reply = OnClicked.Execute();
+#if WITH_ACCESSIBILITY
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetEventRaised(AsShared(), EAccessibleEvent::Activate);
+#endif
+		return Reply;
+	}
+	else
+	{
+		return FReply::Handled();
+	}
 }
 
 void SButton::Press()
@@ -501,3 +519,10 @@ void SButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 {
 	PressMethod = InPressMethod;
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<FSlateAccessibleWidget> SButton::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleButton(SharedThis(this)));
+}
+#endif

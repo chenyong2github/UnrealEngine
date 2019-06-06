@@ -4827,16 +4827,14 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 	// Clear out those portions of the Index allowed by the user.
 	if (DirectoryRootsToKeep != nullptr)
 	{
-		TArray<FString> DirectoryNames;
-		Index.GetKeys(DirectoryNames);
-		for (int32 DirectoryNamesIndex = 0; DirectoryNamesIndex < DirectoryNames.Num(); ++DirectoryNamesIndex)
+		for(auto It = Index.CreateIterator(); It; ++It)
 		{
-			FString& DirectoryName = DirectoryNames[DirectoryNamesIndex];
+			const FString DirectoryName = MountPoint / It.Key();
 
 			bool bRemoveDirectoryFromIndex = true;
-			for (int32 DirectoryRootsToKeepIndex = 0; DirectoryRootsToKeepIndex < DirectoryRootsToKeep->Num(); ++DirectoryRootsToKeepIndex)
+			for(const FString& DirectoryRoot : *DirectoryRootsToKeep)
 			{
-				if (DirectoryName.MatchesWildcard((*DirectoryRootsToKeep)[DirectoryRootsToKeepIndex]))
+				if (DirectoryName.MatchesWildcard(DirectoryRoot))
 				{
 					bRemoveDirectoryFromIndex = false;
 					break;
@@ -4845,7 +4843,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 
 			if (bRemoveDirectoryFromIndex)
 			{
-				Index.Remove(DirectoryName);
+				It.RemoveCurrent();
 			}
 		}
 
@@ -4854,7 +4852,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 #if defined(FPAKFILE_UNLOADPAKENTRYFILENAMES_LOGKEPTFILENAMES)
 		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); It; ++It)
 		{
-			FPlatformMisc::LowLevelOutputDebugString(*(FString("FPakFile::UnloadPakEntryFilenames() - Keeping ") + It.Key()));
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FPakFile::UnloadPakEntryFilenames() %s - Keeping %s"), *PakFilename, *It.Key());
 		}
 #endif
 	}

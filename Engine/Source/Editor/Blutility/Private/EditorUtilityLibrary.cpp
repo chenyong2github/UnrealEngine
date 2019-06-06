@@ -75,6 +75,15 @@ TArray<UObject*> UEditorUtilityLibrary::GetSelectedAssets()
 	return Result;
 }
 
+TArray<FAssetData> UEditorUtilityLibrary::GetSelectedAssetData()
+{
+	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
+	TArray<FAssetData> SelectedAssets;
+	ContentBrowserModule.Get().GetSelectedAssets(SelectedAssets);
+
+	return SelectedAssets;
+}
+
 void UEditorUtilityLibrary::RenameAsset(UObject* Asset, const FString& NewName)
 {
 	FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools");

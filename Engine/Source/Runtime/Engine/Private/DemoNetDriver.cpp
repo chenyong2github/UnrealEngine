@@ -864,18 +864,6 @@ bool UDemoNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectUR
 	ServerConnection = NewObject<UNetConnection>(GetTransientPackage(), UDemoNetConnection::StaticClass());
 	ServerConnection->InitConnection(this, USOCK_Pending, ConnectURL, 1000000);
 
-	TArray<FString> UserNames;
-
-	if (GetWorld()->GetGameInstance()->GetFirstGamePlayer() != nullptr)
-	{
-		FUniqueNetIdRepl ViewerId = GetWorld()->GetGameInstance()->GetFirstGamePlayer()->GetPreferredUniqueNetId();
-
-		if (ViewerId.IsValid())
-		{ 
-			UserNames.Add(ViewerId.ToString());
-		}
-	}
-
 	const TCHAR* const LevelPrefixOverrideOption = DemoURL.GetOption(TEXT("LevelPrefixOverride="), nullptr);
 	if (LevelPrefixOverrideOption)
 	{
@@ -905,13 +893,24 @@ bool UDemoNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectUR
 	bWasStartStreamingSuccessful = true;
 
 	ActiveReplayName = DemoURL.Map;
-	ReplayStreamer->StartStreaming( 
-		DemoURL.Map, 
-		FString(),		// Friendly name isn't important for loading an existing replay.
-		UserNames, 
-		false, 
-		FNetworkVersion::GetReplayVersion(), 
-		FStartStreamingCallback::CreateUObject(this, &UDemoNetDriver::ReplayStreamingReady));
+
+	TArray<int32> UserIndices;
+	for (FLocalPlayerIterator It(GEngine, World); It; ++It)
+	{
+		if (*It)
+		{
+			UserIndices.Add(It->GetControllerId());
+		}
+	}
+	
+	FStartStreamingParameters Params;
+	Params.CustomName = DemoURL.Map;
+	Params.DemoURL = GetDemoURL();
+	Params.UserIndices = MoveTemp(UserIndices);
+	Params.bRecord = false;
+	Params.ReplayVersion = FNetworkVersion::GetReplayVersion();
+
+	ReplayStreamer->StartStreaming(Params, FStartStreamingCallback::CreateUObject(this, &UDemoNetDriver::ReplayStreamingReady));
 
 	return bWasStartStreamingSuccessful;
 }
@@ -1078,32 +1077,28 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 
 	bRecordMapChanges = ListenURL.GetOption(TEXT("RecordMapChanges"), nullptr) != nullptr;
 
-	TArray<FString> UserNames;
-	AGameStateBase* GameState = GetWorld()->GetGameState();
-
-	// If a client is recording a replay, GameState may not have replicated yet
-	if (GameState != nullptr)
+	TArray<int32> UserIndices;
+	for (FLocalPlayerIterator It(GEngine, World); It; ++It)
 	{
-		for (int32 i = 0; i < GameState->PlayerArray.Num(); i++)
+		if (*It)
 		{
-			APlayerState* PlayerState = GameState->PlayerArray[i];
-			if (PlayerState && !PlayerState->bIsABot && !PlayerState->bIsSpectator)
-			{
-				UserNames.Add(PlayerState->UniqueId.ToString());
-			}
+			UserIndices.Add(It->GetControllerId());
 		}
 	}
 
 	bIsWaitingForStream = true;
 
 	ActiveReplayName = DemoURL.Map;
-	ReplayStreamer->StartStreaming(
-		DemoURL.Map,
-		FriendlyNameOption != nullptr ? FString(FriendlyNameOption) : World->GetMapName(),
-		UserNames,
-		true,
-		FNetworkVersion::GetReplayVersion(),
-		FStartStreamingCallback::CreateUObject(this, &UDemoNetDriver::ReplayStreamingReady));
+
+	FStartStreamingParameters Params;
+	Params.CustomName = DemoURL.Map;
+	Params.FriendlyName = FriendlyNameOption != nullptr ? FString(FriendlyNameOption) : World->GetMapName();
+	Params.DemoURL = GetDemoURL();
+	Params.UserIndices = MoveTemp(UserIndices);
+	Params.bRecord = true;
+	Params.ReplayVersion = FNetworkVersion::GetReplayVersion();
+
+	ReplayStreamer->StartStreaming(Params, FStartStreamingCallback::CreateUObject(this, &UDemoNetDriver::ReplayStreamingReady));
 
 	AddNewLevel(World->GetOuter()->GetName());
 
@@ -1606,7 +1601,7 @@ void UDemoNetDriver::StopDemo()
 	{
 		UE_LOG(LogDemo, Log, TEXT("StopDemo: No demo is playing"));
 		ClearReplayTasks();
-		ActiveReplayName = FString();
+		ActiveReplayName.Empty();
 		ResetDemoState();
 		return;
 	}
@@ -1633,7 +1628,7 @@ void UDemoNetDriver::StopDemo()
 
 	ReplayStreamer->StopStreaming();
 	ClearReplayTasks();
-	ActiveReplayName = FString();
+	ActiveReplayName.Empty();
 	ResetDemoState();
 
 	check(!IsRecording() && !IsPlaying());
@@ -2672,9 +2667,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					// We check ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER to force at least one update for each actor
 					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER) || ((Time - ActorInfo->LastNetUpdateTime) < RelevantTimeout);
 
-					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || ActorInfo->bForceRelevantNextUpdate;
-
-					ActorInfo->bForceRelevantNextUpdate = false;
+					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || (ActorInfo->ForceRelevantFrame >= ReplicationFrame);
 
 					if (!bIsRelevant)
 					{
@@ -2915,7 +2908,7 @@ bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriori
 		const double ClampedExtraTime = FMath::Clamp(ExtraTime, 0.0, NetUpdateDelay);
 
 		// Try to spread the updates across multiple frames to smooth out spikes.
-		ActorInfo->NextUpdateTime = (DemoCurrentTime + NextUpdateDelta - ClampedExtraTime + ((FMath::SRand() - 0.5) * Params.ServerTickTime));
+		ActorInfo->NextUpdateTime = (DemoCurrentTime + NextUpdateDelta - ClampedExtraTime + ((UpdateDelayRandomStream.FRand() - 0.5) * Params.ServerTickTime));
 
 		Actor->CallPreReplication(this);
 
@@ -5817,12 +5810,6 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 			break;
 		}
 	}
-}
-
-TSharedPtr<FInternetAddr> UDemoNetConnection::GetInternetAddr()
-{
-	// Does not use MappedClientConnections
-	return TSharedPtr<FInternetAddr>();
 }
 
 bool UDemoNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const

@@ -109,26 +109,34 @@ public:
 	/** Initializes the designer extension, this is called the first time a designer extension is registered */
 	virtual void Initialize(IUMGDesigner* InDesigner, UWidgetBlueprint* InBlueprint);
 
+	/** Returns true if the designer extension can extend the current selection. */
 	virtual bool CanExtendSelection(const TArray< FWidgetReference >& Selection) const
 	{
 		return false;
 	}
 
-	/** Called every time the selection in the designer changes. */
+	/** Called every time a element the designer can extend is selected. */
 	virtual void ExtendSelection(const TArray< FWidgetReference >& Selection, TArray< TSharedRef<FDesignerSurfaceElement> >& SurfaceElements)
 	{
 	}
 
+	/** Called each frames to tick the extension. */
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
 	{
 	}
 
+	/** Called to paint the extension. */
 	virtual void Paint(const TSet< FWidgetReference >& Selection, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
 	{
 	}
 
 	/** Gets the ID identifying this extension. */
 	FName GetExtensionId() const;
+
+	bool operator==(const FDesignerExtension& Other) const
+	{
+		return ExtensionId.IsEqual(Other.GetExtensionId());
+	}
 
 protected:
 	void BeginTransaction(const FText& SessionName);

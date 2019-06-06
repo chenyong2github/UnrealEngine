@@ -298,8 +298,8 @@ void FEditableSkeleton::RenameSmartname(const FName InContainerName, SmartName::
 						{
 							SequencesToRecompress.Add(Seq);
 
-							Seq->CompressedCurveByteStream.Empty();
-							Seq->CurveCompressionCodec = nullptr;
+							Seq->CompressedData.CompressedCurveByteStream.Empty();
+							Seq->CompressedData.CurveCompressionCodec = nullptr;
 						}
 					}
 				}

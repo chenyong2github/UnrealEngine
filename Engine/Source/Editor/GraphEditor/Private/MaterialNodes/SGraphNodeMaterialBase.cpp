@@ -453,6 +453,7 @@ TSharedRef<SWidget> SGraphNodeMaterialBase::CreatePreviewWidget()
 
 		TSharedPtr<SViewport> ViewportWidget = 
 			SNew( SViewport )
+			.RenderDirectlyToWindow(true)
 			.EnableGammaCorrection(false);
 
 		PreviewViewport = MakeShareable(new FPreviewViewport(MaterialNode));

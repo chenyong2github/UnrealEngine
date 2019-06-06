@@ -1288,6 +1288,11 @@ void FSlateWindowElementList::FWindowElementGCObject::AddReferencedObjects(FRefe
 	}
 }
 
+FString FSlateWindowElementList::FWindowElementGCObject::GetReferencerName() const
+{
+	return TEXT("FSlateWindowElementList");
+}
+
 void FSlateWindowElementList::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObjects(ResourcesToReport);

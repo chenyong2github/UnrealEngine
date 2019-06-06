@@ -159,6 +159,7 @@ public:
 	FORCEINLINE void SetPendingSpawn(bool bInValue) { bPendingSpawn = bInValue; }
 
 	FORCEINLINE float GetAge()const { return Age; }
+	FORCEINLINE int32 GetTickCount() const { return TickCount; }
 	
 	FORCEINLINE TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation()const
 	{
@@ -210,8 +211,8 @@ public:
 
 	static bool AllocateSystemInstance(class UNiagaraComponent* InComponent, TUniquePtr< FNiagaraSystemInstance >& OutSystemInstanceAllocation);
 	static bool DeallocateSystemInstance(TUniquePtr< FNiagaraSystemInstance >& SystemInstanceAllocation);
-	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }
-	bool HasGPUEmitters() { return bHasGPUEmitters;  }*/
+	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
+	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
 	int32 GetDetailLevel()const;
 private:
