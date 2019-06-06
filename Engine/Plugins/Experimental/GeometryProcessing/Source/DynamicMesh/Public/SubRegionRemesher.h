@@ -56,20 +56,34 @@ public:
 	 * Tell a MeshChangeTracker about the set of triangles that we might modify in the next remesh pass.
 	 * This could include one-rings of either side of an edge in the ROI, if we collapse.
 	 */
+	TSet<int> Vertices;
 	void SaveActiveROI(FDynamicMeshChangeTracker* Change)
 	{
+		// there is quite a bit of overhead here...perhaps remesher could just save triangles
+		// itself before it touches them?
+
+		TArray<int> OneRingTris; OneRingTris.Reserve(32);
+
+		// figuring out unique verts means we don't do each vertex N~=valence times, 
+		// which saves a lot of one-ring iterations that are somewhat expensive...
+		Vertices.Reset();
 		const FDynamicMesh3* UseMesh = GetMesh();
 		for (int eid : EdgeROI)
 		{
 			FIndex2i EdgeVerts = UseMesh->GetEdgeV(eid);
-			for (int j = 0; j < 2; ++j)
+			Vertices.Add(EdgeVerts.A);
+			Vertices.Add(EdgeVerts.B);
+		}
+		for ( int vid : Vertices)
+		{
+			OneRingTris.Reset();
+			UseMesh->GetVertexOneRingTriangles(vid, OneRingTris);
+			for (int tid : OneRingTris)
 			{
-				for (int tid : UseMesh->VtxTrianglesItr(EdgeVerts[j]))
-				{
-					Change->SaveTriangle(tid, true);
-				}
+				Change->SaveTriangle(tid, true);
 			}
 		}
+
 	}
 
 

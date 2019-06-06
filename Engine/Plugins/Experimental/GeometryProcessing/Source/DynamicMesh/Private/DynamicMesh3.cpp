@@ -549,43 +549,22 @@ FIndex3i FDynamicMesh3::GetTriNeighbourTris(int tID) const
 }
 
 
-
-/** Enumerate triangle one ring at a vertex */
-FDynamicMesh3::vtx_triangles_enumerable FDynamicMesh3::VtxTrianglesItr(int vID) const
+void FDynamicMesh3::GetVertexOneRingTriangles(int VertexID, TArray<int>& TrianglesOut) const
 {
-	check(VertexRefCounts.IsValid(vID));
-
-	TFunction<int(int, int&)> expand_f = [this,vID](int eid, int& k) 
+	check(VertexRefCounts.IsValid(VertexID));
+	for (int EdgeID : VertexEdgeLists.Values(VertexID))
 	{
-		int vOther = GetOtherEdgeVertex(eid, vID);
-		int i = 4 * eid;
-		if (k == -1) 
+		FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
+		if (EdgePair.A != InvalidID)
 		{
-			int et0 = Edges[i + 2];
-			if (TriHasSequentialVertices(et0, vID, vOther))
-			{
-				k = 0;
-				return et0;
-			}
+			TrianglesOut.Add(EdgePair.A);
 		}
-		if (k != 1) 
+		if (EdgePair.B != InvalidID)
 		{
-			int et1 = Edges[i + 3];
-			if (et1 != InvalidID && TriHasSequentialVertices(et1, vID, vOther))
-			{
-				k = 1;
-				return et1;
-			}
+			TrianglesOut.Add(EdgePair.B);
 		}
-		k = -1;
-		return -1;
-	};
-
-	return vtx_triangles_enumerable(VertexEdgeLists.Values(vID), expand_f);
+	}
 }
-
-
-
 
 
 

@@ -363,7 +363,7 @@ public:
 	typedef typename FRefCountVector::IndexEnumerable edge_iterator;
 	template <typename T>
 	using value_iteration = FRefCountVector::MappedEnumerable<T>;
-	using vtx_triangles_enumerable = ExpandEnumerable<int, int, FSmallListSet::ValueIterator>;
+	using vtx_triangles_enumerable = TPairExpandEnumerable<FSmallListSet::ValueIterator>;
 
 	/** @return enumerable object for valid vertex indices suitable for use with range-based for, ie for ( int i : VertexIndicesItr() ) */
 	vertex_iterator VertexIndicesItr() const
@@ -435,9 +435,13 @@ public:
 	}
 
 	/** @return enumerable object for one-ring triangles of a vertex, suitable for use with range-based for, ie for ( int i : VtxTrianglesItr(VertexID) ) */
-	vtx_triangles_enumerable VtxTrianglesItr(int VertexID) const;
-
-
+	vtx_triangles_enumerable VtxTrianglesItr(int VertexID) const
+	{
+		check(VertexRefCounts.IsValid(VertexID));
+		return vtx_triangles_enumerable(VertexEdgeLists.Values(VertexID), [this, VertexID](int EdgeID) {
+			return GetOrderedOneRingEdgeTris(VertexID, EdgeID);
+		});
+	}
 
 	//
 	// Mesh Construction
@@ -547,6 +551,9 @@ public:
 
 	/** @return the max valence of all vertices in the mesh */
 	int GetMaxVtxEdgeCount() const;
+
+	/** adds triangles touching VertexID to the TrianglesOut list */
+	void GetVertexOneRingTriangles(int VertexID, TArray<int>& TrianglesOut) const;
 
 	/** Get triangle vertices */
 	inline FIndex3i GetTriangle(int TriangleID) const
@@ -1390,6 +1397,22 @@ protected:
 			TriangleEdges.InsertAt(AddEdgeInternal(v0, v1, TriangleID), 3 * TriangleID + j);
 		}
 	}
+
+	// utility function that returns one or two triangles of edge, used to enumerate vertex one-ring triangles
+	// The logic is a bit tricky to follow without drawing it out on paper, but this will only return 
+	// each triangle once, for the 'outgoing' edge from the vertex, and each triangle only has one such edge
+	// at any vertex (including boundary triangles)
+	inline FIndex2i GetOrderedOneRingEdgeTris(int VertexID, int EdgeID) const
+	{
+		int vOther = GetOtherEdgeVertex(EdgeID, VertexID);
+		int i = 4 * EdgeID;
+		int et1 = Edges[i + 3];
+		et1 = (et1 != InvalidID && TriHasSequentialVertices(et1, VertexID, vOther)) ? et1 : InvalidID;
+		int et0 = Edges[i + 2];
+		return TriHasSequentialVertices(et0, VertexID, vOther) ? 
+			FIndex2i(et0, et1) : FIndex2i(et1, InvalidID);
+	}
+
 
 	void ReverseTriOrientationInternal(int TriangleID);
 

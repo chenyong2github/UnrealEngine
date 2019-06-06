@@ -3,6 +3,7 @@
 // Port of geometry3cpp iterator_util.h
 
 #pragma once
+#include "IndexTypes.h"
 
 
 /**
@@ -232,6 +233,157 @@ public:
 	}
 
 	ExpandIteratorT begin() 
+	{
+		return ExpandIteratorT(BeginItr, EndItr, ExpandFunc);
+	}
+
+	ExpandIteratorT end()
+	{
+		return ExpandIteratorT(EndItr, EndItr, ExpandFunc);
+	}
+};
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Wrapper around existing integer iterator that returns either 0, 1, or 2 integers
+ * for each value that the original iterator returns.
+ * 
+ * This is specifically used by FDynamicMesh3::VtxTrianglesItr, where for each edge
+ * around a vertex, between 0 and 2 triangles need to be returned. 
+ * 
+ * This is done via the PairExpandFunctionT TFunction, which returns a FIndex2i for
+ * a given integer. This pair must be either (a,invalid), (a, b), or (invalid, invalid),
+ * where invalid is integer < 0
+ */
+template<typename InputIteratorT>
+class TPairExpandIterator
+{
+	using PairExpandFunctionT = TFunction<FIndex2i(int)>;
+
+public:
+	inline TPairExpandIterator() { }
+
+	inline bool operator==(const TPairExpandIterator& Other) const
+	{
+		return Cur == Other.Cur;
+	}
+	inline bool operator!=(const TPairExpandIterator & Other) const
+	{
+		return Cur != Other.Cur;
+	}
+
+	inline int operator*() const
+	{
+		return CurValue;
+	}
+
+	inline const TPairExpandIterator& operator++() 		// prefix
+	{
+		goto_next();
+		return *this;
+	}
+
+	inline void goto_next()
+	{
+		while (Cur != End)
+		{
+			if (CurPairI == 0)
+			{
+				CurPair = PairFunc(*Cur);
+				if (CurPair.A >= 0)
+				{
+					CurValue = CurPair.A;
+					CurPairI = 1;	// want to take second branch
+					return;			// let caller see value
+				}
+				else
+				{
+					CurPairI = 0;
+					++Cur;  // done with this base value
+				}
+			}
+			else if (CurPairI == 1)
+			{
+				if (CurPair.B >= 0)
+				{
+					CurValue = CurPair.B;
+					CurPairI = 2;	// want to take third branch
+					return;		// let caller see value
+				}
+				else
+				{
+					CurPairI = 0;
+					++Cur;  // done with this base value
+				}
+			}
+			else
+			{
+				CurPairI = 0;
+				++Cur;  // done with this base value
+			}
+		}
+	}
+
+	inline TPairExpandIterator(const InputIteratorT& CurItr, const InputIteratorT& EndItr, const PairExpandFunctionT& PairFuncIn)
+	{
+		Cur = CurItr;
+		End = EndItr;
+		PairFunc = PairFuncIn;
+		CurPairI = 0;
+		goto_next();
+	}
+
+	InputIteratorT Cur;
+	InputIteratorT End;
+	FIndex2i CurPair;
+	int CurValue;
+	int CurPairI;
+	PairExpandFunctionT PairFunc;
+};
+
+
+
+
+/**
+ * Generic "enumerable" object that provides begin/end semantics for an TPairExpandIterator suitable for use with range-based for.
+ * You can either provide begin/end iterators, or another "enumerable" object that has begin()/end() functions.
+ */
+template<typename InputIteratorT>
+class TPairExpandEnumerable
+{
+	using ExpandFunctionT = TFunction<FIndex2i(int)>;
+	using ExpandIteratorT = TPairExpandIterator<InputIteratorT>;
+
+public:
+	ExpandFunctionT ExpandFunc;
+	InputIteratorT BeginItr, EndItr;
+
+	TPairExpandEnumerable(const InputIteratorT& BeginIn, const InputIteratorT& EndIn, ExpandFunctionT ExpandFuncIn)
+	{
+		this->BeginItr = BeginIn;
+		this->EndItr = EndIn;
+		this->ExpandFunc = ExpandFuncIn;
+	}
+
+	template<typename IteratorSource>
+	TPairExpandEnumerable(const IteratorSource& Source, ExpandFunctionT ExpandFuncIn)
+	{
+		this->BeginItr = Source.begin();
+		this->EndItr = Source.end();
+		this->ExpandFunc = ExpandFuncIn;
+	}
+
+	ExpandIteratorT begin()
 	{
 		return ExpandIteratorT(BeginItr, EndItr, ExpandFunc);
 	}
