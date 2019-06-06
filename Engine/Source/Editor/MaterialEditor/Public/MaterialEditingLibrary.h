@@ -219,5 +219,5 @@ public:
 
 	/** Gets all direct child mat instances */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
-	static void GetChildInstances(UMaterialInterface* Parent, TArray<TSoftObjectPtr<UMaterialInstance>>& ChildInstances);
+	static void GetChildInstances(UMaterialInterface* Parent, TArray<FAssetData>& ChildInstances);
 };

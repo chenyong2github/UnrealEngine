@@ -127,6 +127,7 @@
 
 #include "SMaterialParametersOverviewWidget.h"
 #include "IPropertyRowGenerator.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
@@ -1168,7 +1169,73 @@ void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			false);
 	}
 	ToolbarBuilder.EndSection();
+	ToolbarBuilder.BeginSection("Hierarchy");
+	{
+		ToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &FMaterialEditor::GenerateInheritanceMenu),
+			LOCTEXT("Hierarchy", "Hierarchy"),
+			FText::GetEmpty(),
+			FSlateIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode")),
+			false
+		);
+	}
 };
+
+TSharedRef<SWidget> FMaterialEditor::GenerateInheritanceMenu()
+{
+	struct Local
+	{
+		static void MakeMaterialSubmenu(FMenuBuilder& MenuBuilder, FAssetData InMaterial)
+		{
+			MenuBuilder.AddMenuEntry(LOCTEXT("OpenInEditor", "Open In Editor"),
+				FText::GetEmpty(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnOpenMaterial, InMaterial)));
+
+			MenuBuilder.AddMenuEntry(LOCTEXT("FindInContentBrowser", "Find In Content Browser"),
+				FText::GetEmpty(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, InMaterial)));
+		}
+	};
+
+	RebuildInheritanceList();
+	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	TSharedPtr<FUICommandList> InCommandList = MakeShareable(new FUICommandList);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, ToolbarExtender);
+
+	if (!MaterialFunction)
+	{
+		const FName MaterialInstances = TEXT("MaterialInstances");
+		MenuBuilder.BeginSection(MaterialInstances, LOCTEXT("MaterialInstances", "Material Instances"));
+		for (FAssetData MaterialChild : MaterialChildList)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ChildName"), FText::FromName(MaterialChild.AssetName));
+			MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("MaterialChildName", "{ChildName}"), Args),
+				FText::GetEmpty(),
+				FNewMenuDelegate::CreateStatic(&Local::MakeMaterialSubmenu, MaterialChild),
+				false,
+				FSlateIcon());
+		}
+		MenuBuilder.EndSection();
+	}
+
+	TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.MaxHeight(500.0f)
+		[
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+		[
+			MenuBuilder.MakeWidget()
+		]
+		];
+
+	return ConstrainedMenu;
+}
 
 TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
 {
@@ -5150,6 +5217,16 @@ void FMaterialEditor::FocusDetailsPanel()
 	if (SpawnedDetailsTab.IsValid() && !SpawnedDetailsTab.Pin()->IsForeground())
 	{
 		SpawnedDetailsTab.Pin()->DrawAttention();
+	}
+}
+
+void FMaterialEditor::RebuildInheritanceList()
+{
+	if (!MaterialFunction)
+	{
+		MaterialChildList.Empty();
+
+		UMaterialEditingLibrary::GetChildInstances(OriginalMaterial, MaterialChildList);
 	}
 }
 
