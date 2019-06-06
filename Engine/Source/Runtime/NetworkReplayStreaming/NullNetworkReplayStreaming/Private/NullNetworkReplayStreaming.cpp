@@ -4,6 +4,9 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/EngineVersion.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Engine/LocalPlayer.h"
 
 DEFINE_LOG_CATEGORY_STATIC( LogNullReplay, Log, All );
 
@@ -747,6 +750,28 @@ EStreamingOperationResult FNullNetworkReplayStreamer::GetDemoPath(FString& DemoP
 {
 	DemoPath = ::GetDemoPath();
 	return EStreamingOperationResult::Success;
+}
+
+const int32 FNullNetworkReplayStreamer::GetUserIndexFromUserString(const FString& UserString)
+{
+	if (!UserString.IsEmpty() && GEngine != nullptr)
+	{
+		if (UWorld* World = GWorld.GetReference())
+		{
+			for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
+			{
+				if (ULocalPlayer const * const LocalPlayer = *ConstIt)
+				{
+					if (UserString.Equals(LocalPlayer->GetPreferredUniqueNetId().ToString()))
+					{
+						return LocalPlayer->GetControllerId();
+					}
+				}
+			}
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 IMPLEMENT_MODULE( FNullNetworkReplayStreamingFactory, NullNetworkReplayStreaming )

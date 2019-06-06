@@ -445,6 +445,8 @@ public:
 
 	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override;
 
+	virtual const int32 GetUserIndexFromUserString(const FString& UserString) override;
+
 	virtual bool SupportsCompression() const { return false; }
 	virtual int32 GetDecompressedSize(FArchive& InCompressed) const { return 0; }
 	virtual bool DecompressBuffer(const TArray<uint8>& InCompressed, TArray< uint8 >& OutBuffer) const { return false; }

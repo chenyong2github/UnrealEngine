@@ -115,6 +115,8 @@ public:
 
 	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override { return (CheckpointType == EReplayCheckpointType::Full); }
 
+	virtual const int32 GetUserIndexFromUserString(const FString& UserString) override;
+
 private:
 	bool IsNamedStreamLive( const FString& StreamName ) const;
 
