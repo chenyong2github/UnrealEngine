@@ -518,7 +518,7 @@ const FSlateBrush* SCheckBox::GetUndeterminedPressedImage() const
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SCheckBox::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SCheckBox::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleCheckBox(SharedThis(this)));
 }

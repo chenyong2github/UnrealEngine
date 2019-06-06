@@ -149,7 +149,7 @@ public:
 	virtual void OnMouseLeave( const FPointerEvent& MouseEvent ) override;
 	virtual bool IsInteractable() const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 	// End of SWidget interface
 

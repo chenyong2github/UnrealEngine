@@ -13,6 +13,9 @@
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDebugSafeZoneChanged, const FMargin&, bool);
 
 class FActiveTimerHandle;
+#if WITH_ACCESSIBILITY
+class FSlateAccessibleMessageHandler;
+#endif
 class FSlateApplicationBase;
 class FWidgetPath;
 class IToolTip;
@@ -238,11 +241,11 @@ public:
 
 #if WITH_ACCESSIBILITY
 	/** 
-	 * Subclasses should store their own accessibility handler and return it through this function.
+	 * Accessor for the accessible message handler. One must always exist, even if it's never activated.
 	 *
-	 * @return A pointer to the accessibility handler, if one exists
+	 * @return A reference to the assigned accessible message handler
 	 */
-	virtual TSharedPtr<class FSlateAccessibleMessageHandler> GetAccessibleMessageHandler() const = 0;
+	TSharedRef<FSlateAccessibleMessageHandler> GetAccessibleMessageHandler() const { return AccessibleMessageHandler; }
 #endif
 protected:
 	/**
@@ -589,6 +592,11 @@ public:
 #endif
 
 protected:
+#if WITH_ACCESSIBILITY
+	/** Manager for widgets and application to interact with accessibility API */
+	TSharedRef<FSlateAccessibleMessageHandler> AccessibleMessageHandler;
+#endif
+
 	/** multicast delegate to broadcast when a global invalidate is requested */
 	FOnGlobalInvalidate OnGlobalInvalidateEvent;
 
