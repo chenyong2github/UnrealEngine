@@ -47,6 +47,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bRerunConstructionScripts = true;
 	bVisualizePreAndPostRoll = true;
 	TrajectoryPathCap = 250;
+	bShowOutlinerInfoColumn = true;
 	FrameNumberDisplayFormat = EFrameNumberDisplayFormats::Seconds;
 }
 
@@ -623,6 +624,20 @@ void USequencerSettings::SetCompileDirectorOnEvaluate(bool bInCompileDirectorOnE
 	if (bInCompileDirectorOnEvaluate != bCompileDirectorOnEvaluate)
 	{
 		bCompileDirectorOnEvaluate = bInCompileDirectorOnEvaluate;
+		SaveConfig();
+	}
+}
+
+bool USequencerSettings::GetShowOutlinerInfoColumn() const
+{
+	return bShowOutlinerInfoColumn;
+}
+
+void USequencerSettings::SetShowOutlinerInfoColumn(bool bInShowOutlinerInfoColumn)
+{
+	if (bInShowOutlinerInfoColumn != bShowOutlinerInfoColumn)
+	{
+		bShowOutlinerInfoColumn = bInShowOutlinerInfoColumn;
 		SaveConfig();
 	}
 }

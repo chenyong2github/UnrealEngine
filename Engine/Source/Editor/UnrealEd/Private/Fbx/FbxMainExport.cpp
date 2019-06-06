@@ -422,24 +422,25 @@ static void SortActorsHierarchy(TArray<AActor*>& Actors)
 	});
 }
 
+
 /**
  * Exports the basic scene information to the FBX document.
  */
-void FFbxExporter::ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq)
+void FFbxExporter::ExportLevelMesh(ULevel* InLevel, bool bExportLevelGeometry, TArray<AActor*>& ActorToExport, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq)
 {
 	if (InLevel == NULL)
 	{
 		return;
 	}
 
-	if( !bSelectedOnly )
+	if (bExportLevelGeometry)
 	{
 		// Exports the level's scene geometry
 		// the vertex number of Model must be more than 2 (at least a triangle panel)
 		if (InLevel->Model != NULL && InLevel->Model->VertexBuffer.Vertices.Num() > 2 && InLevel->Model->MaterialIndexBuffers.Num() > 0)
 		{
 			// create a FbxNode
-			FbxNode* Node = FbxNode::Create(Scene,"LevelMesh");
+			FbxNode* Node = FbxNode::Create(Scene, "LevelMesh");
 
 			// set the shading mode to view texture
 			Node->SetShadingMode(FbxNode::eTextureShading);
@@ -452,21 +453,9 @@ void FFbxExporter::ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNa
 		}
 	}
 
-	TArray<AActor*> ActorToExport;
-	int32 ActorCount = InLevel->Actors.Num();
-	for (int32 ActorIndex = 0; ActorIndex < ActorCount; ++ActorIndex)
-	{
-		AActor* Actor = InLevel->Actors[ActorIndex];
-		if (Actor != NULL && (!bSelectedOnly || (bSelectedOnly && Actor->IsSelected())))
-		{
-			ActorToExport.Add(Actor);
-		}
-	}
-
 	//Sort the hierarchy to make sure parent come first
 	SortActorsHierarchy(ActorToExport);
-
-	ActorCount = ActorToExport.Num();
+	int32 ActorCount = ActorToExport.Num();
 	for (int32 ActorIndex = 0; ActorIndex < ActorCount; ++ActorIndex)
 	{
 		AActor* Actor = ActorToExport[ActorIndex];
@@ -489,11 +478,11 @@ void FFbxExporter::ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNa
 		}
 		else if (Actor->IsA(ALight::StaticClass()))
 		{
-			ExportLight((ALight*) Actor, NodeNameAdapter );
+			ExportLight((ALight*)Actor, NodeNameAdapter);
 		}
 		else if (Actor->IsA(AStaticMeshActor::StaticClass()))
 		{
-			ExportStaticMesh( Actor, CastChecked<AStaticMeshActor>(Actor)->GetStaticMeshComponent(), NodeNameAdapter );
+			ExportStaticMesh(Actor, CastChecked<AStaticMeshActor>(Actor)->GetStaticMeshComponent(), NodeNameAdapter);
 		}
 		else if (Actor->IsA(ALandscapeProxy::StaticClass()))
 		{
@@ -502,13 +491,13 @@ void FFbxExporter::ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNa
 		else if (Actor->IsA(ABrush::StaticClass()))
 		{
 			// All brushes should be included within the world geometry exported above.
-			ExportBrush((ABrush*) Actor, NULL, 0, NodeNameAdapter );
+			ExportBrush((ABrush*)Actor, NULL, 0, NodeNameAdapter);
 		}
 		else if (Actor->IsA(AEmitter::StaticClass()))
 		{
-			ExportActor( Actor, false, NodeNameAdapter, bSaveAnimSeq ); // Just export the placement of the particle emitter.
+			ExportActor(Actor, false, NodeNameAdapter, bSaveAnimSeq); // Just export the placement of the particle emitter.
 		}
-		else if(Actor->IsA(ACameraActor::StaticClass()))
+		else if (Actor->IsA(ACameraActor::StaticClass()))
 		{
 			ExportCamera(CastChecked<ACameraActor>(Actor), false, NodeNameAdapter);
 		}
@@ -518,6 +507,30 @@ void FFbxExporter::ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNa
 			ExportActor(Actor, true, NodeNameAdapter, bSaveAnimSeq);
 		}
 	}
+}
+
+/**
+ * Exports the basic scene information to the FBX document.
+ */
+void FFbxExporter::ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq)
+{
+	if (InLevel == NULL)
+	{
+		return;
+	}
+	
+	TArray<AActor*> ActorToExport;
+	int32 ActorCount = InLevel->Actors.Num();
+	for (int32 ActorIndex = 0; ActorIndex < ActorCount; ++ActorIndex)
+	{
+		AActor* Actor = InLevel->Actors[ActorIndex];
+		if (Actor != NULL && (!bSelectedOnly || (bSelectedOnly && Actor->IsSelected())))
+		{
+			ActorToExport.Add(Actor);
+		}
+	}
+
+	ExportLevelMesh(InLevel, !bSelectedOnly, ActorToExport, NodeNameAdapter, bSaveAnimSeq);
 }
 
 void FFbxExporter::FillFbxLightAttribute(FbxLight* Light, FbxNode* FbxParentNode, ULightComponent* BaseLight)

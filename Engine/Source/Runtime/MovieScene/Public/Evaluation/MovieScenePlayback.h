@@ -101,7 +101,16 @@ struct MOVIESCENE_API FMovieSceneEvaluationRange
 	{
 		return Direction == EPlayDirection::Forwards ? EvaluationRange.GetLowerBoundValue() : EvaluationRange.GetUpperBoundValue();
 	}
-	
+
+	/**
+	 * Get the current time offset by the specified amount in the direction of play
+	 */
+	FORCEINLINE FFrameTime GetOffsetTime(FFrameTime InOffset) const
+	{
+		FFrameTime Now = GetTime();
+		return Direction == EPlayDirection::Forwards ? Now + InOffset : Now - InOffset;
+	}
+
 	/**
 	 * Override the time that we're actually evaluating at
 	 */

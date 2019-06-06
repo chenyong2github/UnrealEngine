@@ -147,7 +147,7 @@ public:
 	*/
 
 	/** Creates a sub-sequence asset for the specified sub sequence name based on the given master sequence. */
-	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceName);
+	static ULevelSequence* CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName);
 
 private:
 	/** Called at the end of each frame in both the Editor and in Game to update all Sources. */
@@ -212,5 +212,8 @@ private:
 
 	/** Timecode time at start of recording */
 	FTimecode StartRecordingTimecodeSource;
+
+	/** Last Timecode Frame Number, used to avoid recording same time twice*/
+	TOptional<FFrameNumber> LastTimecodeFrameNumber;
 };
 

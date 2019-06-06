@@ -608,6 +608,9 @@ protected:
 	/** Set to true while evaluating to prevent reentrancy */
 	uint32 bIsEvaluating : 1;
 
+	/** Set to true to invoke OnStartedPlaying on first update tick for started playing */
+	uint32 bPendingOnStartedPlaying : 1;
+
 	/** The sequence to play back */
 	UPROPERTY(transient)
 	UMovieSceneSequence* Sequence;
@@ -675,4 +678,12 @@ private:
 
 	/** The maximum tick rate prior to playing (used for overriding delta time during playback). */
 	TOptional<double> OldMaxTickRate;
+
+	/**
+	* The last world game time at which we were ticked. Game time used is dependent on bTickEvenWhenPaused
+	* Valid only if we've been ticked at least once since having a tick interval; otherwise set to -1.f
+	*/
+	float LastTickGameTimeSeconds;
+
+
 };

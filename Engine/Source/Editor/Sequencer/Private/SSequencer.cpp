@@ -62,6 +62,7 @@
 #include "FrameNumberDetailsCustomization.h"
 #include "SequencerSettings.h"
 #include "SSequencerTransformBox.h"
+#include "SSequencerStretchBox.h"
 #include "SSequencerDebugVisualizer.h"
 #include "ISequencerModule.h"
 #include "IVREditorModule.h"
@@ -80,6 +81,9 @@
 #include "MovieSceneCopyableBinding.h"
 #include "MovieSceneCopyableTrack.h"
 #include "IPropertyRowGenerator.h"
+#include "Fonts/FontMeasure.h"
+#include "SequencerTrackFilters.h"
+#include "SequencerTrackFilterExtension.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -270,12 +274,16 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	Settings = InSequencer->GetSequencerSettings();
 
+	InitializeTrackFilters();
+
 	ISequencerWidgetsModule& SequencerWidgets = FModuleManager::Get().LoadModuleChecked<ISequencerWidgetsModule>( "SequencerWidgets" );
 
 	OnPlaybackRangeBeginDrag = InArgs._OnPlaybackRangeBeginDrag;
 	OnPlaybackRangeEndDrag = InArgs._OnPlaybackRangeEndDrag;
 	OnSelectionRangeBeginDrag = InArgs._OnSelectionRangeBeginDrag;
 	OnSelectionRangeEndDrag = InArgs._OnSelectionRangeEndDrag;
+	OnMarkBeginDrag = InArgs._OnMarkBeginDrag;
+	OnMarkEndDrag = InArgs._OnMarkEndDrag;
 
 	OnReceivedFocus = InArgs._OnReceivedFocus;
 
@@ -325,6 +333,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.OnSelectionRangeChanged = InArgs._OnSelectionRangeChanged;
 		TimeSliderArgs.OnSelectionRangeBeginDrag = OnSelectionRangeBeginDrag;
 		TimeSliderArgs.OnSelectionRangeEndDrag = OnSelectionRangeEndDrag;
+		TimeSliderArgs.OnMarkBeginDrag = OnMarkBeginDrag;
+		TimeSliderArgs.OnMarkEndDrag = OnMarkEndDrag;
 		TimeSliderArgs.OnViewRangeChanged = InArgs._OnViewRangeChanged;
 		TimeSliderArgs.OnClampRangeChanged = InArgs._OnClampRangeChanged;
 		TimeSliderArgs.OnGetNearestKey = InArgs._OnGetNearestKey;
@@ -338,6 +348,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 		TimeSliderArgs.SubSequenceRange = InArgs._SubSequenceRange;
 		TimeSliderArgs.VerticalFrames = InArgs._VerticalFrames;
 		TimeSliderArgs.MarkedFrames = InArgs._MarkedFrames;
+		TimeSliderArgs.OnSetMarkedFrame = InArgs._OnSetMarkedFrame;
 		TimeSliderArgs.OnMarkedFrameChanged = InArgs._OnMarkedFrameChanged;
 		TimeSliderArgs.OnClearAllMarkedFrames = InArgs._OnClearAllMarkedFrames;
 
@@ -568,12 +579,20 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 							[
 								MakeAddButton()
 							]
+							
+							+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(FMargin(0.f, 0.f, CommonPadding, 0.f))
+							[
+								MakeFilterButton()
+							]
 
 							+ SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
 							[
 								SAssignNew(SearchBox, SSearchBox)
-								.HintText(LOCTEXT("FilterNodesHint", "Filter"))
+								.HintText(LOCTEXT("SearchNodesHint", "Search Tracks"))
 								.OnTextChanged( this, &SSequencer::OnOutlinerSearchChanged )
 							]
 							+ SHorizontalBox::Slot()
@@ -600,6 +619,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.TypeInterface(NumericTypeInterface)
 									.Delta(this, &SSequencer::GetSpinboxDelta)
 									.LinearDeltaSensitivity(25)
+									.MinDesiredWidth(this, &SSequencer::GetPlayTimeMinDesiredWidth)
 								]
 							]
 						]
@@ -730,6 +750,15 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 						SAssignNew(TickResolutionOverlay, SSequencerTimePanel, SequencerPtr)
 					]
 
+					+ SGridPanel::Slot(Column1, Row2, SGridPanel::Layer(50))
+						.Padding(ResizeBarPadding)
+						.HAlign(HAlign_Left)
+						.VAlign(VAlign_Top)
+					[
+						// Stretch box
+						SAssignNew(StretchBox, SSequencerStretchBox, SequencerPtr.Pin().ToSharedRef(), *Settings, NumericTypeInterface.ToSharedRef())
+					]
+
 					// debug vis
 					+ SGridPanel::Slot( Column1, Row3, SGridPanel::Layer(10) )
 					.Padding(ResizeBarPadding)
@@ -793,7 +822,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	InSequencer->GetSelection().GetOnKeySelectionChanged().AddSP(this, &SSequencer::HandleKeySelectionChanged);
 	InSequencer->GetSelection().GetOnSectionSelectionChanged().AddSP(this, &SSequencer::HandleSectionSelectionChanged);
-	InSequencer->GetSelection().GetOnOutlinerNodeSelectionChanged().AddSP(this, &SSequencer::HandleOutlinerNodeSelectionChanged);
 
 	ResetBreadcrumbs();
 }
@@ -829,7 +857,12 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 
 	SequencerCommandBindings->MapAction(
 		FSequencerCommands::Get().ToggleShowTransformBox,
-		FExecuteAction::CreateLambda([this]{ TransformBox->ToggleVisibility(); })
+		FExecuteAction::CreateLambda([this] { TransformBox->ToggleVisibility(); })
+	);
+
+	SequencerCommandBindings->MapAction(
+		FSequencerCommands::Get().ToggleShowStretchBox,
+		FExecuteAction::CreateLambda([this] { StretchBox->ToggleVisibility(); })
 	);
 }
 
@@ -863,6 +896,36 @@ TSharedRef<INumericTypeInterface<double>> SSequencer::GetNumericTypeInterface() 
 	return NumericTypeInterface.ToSharedRef();
 }
 
+void SSequencer::InitializeTrackFilters()
+{
+	// Add all built-in track filters here
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_AudioTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_EventTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LevelVisibilityTracks>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_ParticleTracks>());
+
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_CameraObjects>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_LightObjects>());
+	AllTrackFilters.Add(MakeShared<FSequencerTrackFilter_SkeletalMeshObjects>());
+
+	// Add any global user-defined frontend filters
+	for (TObjectIterator<USequencerTrackFilterExtension> ExtensionIt(RF_NoFlags); ExtensionIt; ++ExtensionIt)
+	{
+		if (USequencerTrackFilterExtension* PotentialExtension = *ExtensionIt)
+		{
+			if (PotentialExtension->HasAnyFlags(RF_ClassDefaultObject) && !PotentialExtension->GetClass()->HasAnyClassFlags(CLASS_Deprecated | CLASS_Abstract))
+			{
+				// Grab the filters
+				TArray< TSharedRef<FSequencerTrackFilter> > ExtendedTrackFilters;
+				PotentialExtension->AddTrackFilterExtensions(ExtendedTrackFilters);
+				AllTrackFilters.Append(ExtendedTrackFilters);
+			}
+		}
+	}
+
+	// Sort by display name
+	AllTrackFilters.Sort([](const TSharedRef<FSequencerTrackFilter>& LHS, const TSharedRef<FSequencerTrackFilter>& RHS) { return LHS->GetDisplayName().ToString() < RHS->GetDisplayName().ToString(); });
+}
 
 /* SSequencer callbacks
  *****************************************************************************/
@@ -903,27 +966,6 @@ EVisibility SSequencer::HandleLabelBrowserVisibility() const
 
 void SSequencer::HandleSectionSelectionChanged()
 {
-}
-
-
-void SSequencer::HandleOutlinerNodeSelectionChanged()
-{
-	const TSet<TSharedRef<FSequencerDisplayNode>>& OutlinerSelection = SequencerPtr.Pin()->GetSelection().GetSelectedOutlinerNodes();
-	if ( OutlinerSelection.Num() == 1 )
-	{
-		for ( auto& Node : OutlinerSelection )
-		{
-			auto Parent = Node->GetParent();
-			while (Parent.IsValid())
-			{
-				TreeView->SetItemExpansion(Parent->AsShared(), true);
-				Parent = Parent->GetParent();
-			}
-
-			TreeView->RequestScrollIntoView( Node );
-			break;
-		}
-	}
 }
 
 TSharedRef<SWidget> SSequencer::MakeAddButton()
@@ -968,6 +1010,40 @@ TSharedRef<SWidget> SSequencer::MakeAddButton()
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FEditorFontGlyphs::Caret_Down)
 			.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); })
+		]
+	];
+}
+
+TSharedRef<SWidget> SSequencer::MakeFilterButton()
+{
+	return SNew(SComboButton)
+	.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
+	.ForegroundColor(FLinearColor::White)
+	.ContentPadding(0)
+	.ToolTipText(LOCTEXT("AddTrackFilterToolTip", "Add a track filter."))
+	.OnGetMenuContent(this, &SSequencer::MakeFilterMenu)
+	.HasDownArrow(true)
+	.ContentPadding(FMargin(1, 0))
+	.ButtonContent()
+	[
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
+			.Text(FEditorFontGlyphs::Filter)
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 0, 0)
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
+			.Text(LOCTEXT("Filters", "Filters"))
 		]
 	];
 }
@@ -1066,41 +1142,38 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 		ToolBarBuilder.AddSeparator();
 
-		if( SequencerPtr.Pin()->IsLevelEditorSequencer() )
-		{
-			TAttribute<FSlateIcon> KeyGroupModeIcon;
-			KeyGroupModeIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&] {
-				switch (SequencerPtr.Pin()->GetKeyGroupMode())
-				{
-				case EKeyGroupMode::KeyAll:
-					return FSequencerCommands::Get().SetKeyAll->GetIcon();
-				case EKeyGroupMode::KeyGroup:
-					return FSequencerCommands::Get().SetKeyGroup->GetIcon();
-				default: // EKeyGroupMode::KeyChanged
-					return FSequencerCommands::Get().SetKeyChanged->GetIcon();
-				}
-			}));
+		TAttribute<FSlateIcon> KeyGroupModeIcon;
+		KeyGroupModeIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&] {
+			switch (SequencerPtr.Pin()->GetKeyGroupMode())
+			{
+			case EKeyGroupMode::KeyAll:
+				return FSequencerCommands::Get().SetKeyAll->GetIcon();
+			case EKeyGroupMode::KeyGroup:
+				return FSequencerCommands::Get().SetKeyGroup->GetIcon();
+			default: // EKeyGroupMode::KeyChanged
+				return FSequencerCommands::Get().SetKeyChanged->GetIcon();
+			}
+		}));
 
-			TAttribute<FText> KeyGroupModeToolTip;
-			KeyGroupModeToolTip.Bind(TAttribute<FText>::FGetter::CreateLambda([&] {
-				switch (SequencerPtr.Pin()->GetKeyGroupMode())
-				{
-				case EKeyGroupMode::KeyAll:
-					return FSequencerCommands::Get().SetKeyAll->GetDescription();
-				case EKeyGroupMode::KeyGroup:
-					return FSequencerCommands::Get().SetKeyGroup->GetDescription();
-				default: // EKeyGroupMode::KeyChanged
-					return FSequencerCommands::Get().SetKeyChanged->GetDescription();
-				}
-			}));
+		TAttribute<FText> KeyGroupModeToolTip;
+		KeyGroupModeToolTip.Bind(TAttribute<FText>::FGetter::CreateLambda([&] {
+			switch (SequencerPtr.Pin()->GetKeyGroupMode())
+			{
+			case EKeyGroupMode::KeyAll:
+				return FSequencerCommands::Get().SetKeyAll->GetDescription();
+			case EKeyGroupMode::KeyGroup:
+				return FSequencerCommands::Get().SetKeyGroup->GetDescription();
+			default: // EKeyGroupMode::KeyChanged
+				return FSequencerCommands::Get().SetKeyChanged->GetDescription();
+			}
+		}));
 
-			ToolBarBuilder.AddComboButton(
-				FUIAction(),
-				FOnGetContent::CreateSP(this, &SSequencer::MakeKeyGroupMenu),
-				LOCTEXT("KeyGroup", "Key All"),
-				KeyGroupModeToolTip,
-				KeyGroupModeIcon);
-		}
+		ToolBarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &SSequencer::MakeKeyGroupMenu),
+			LOCTEXT("KeyGroup", "Key All"),
+			KeyGroupModeToolTip,
+			KeyGroupModeIcon);
 
 		if (IVREditorModule::Get().IsVREditorModeActive() || (SequencerPtr.Pin()->IsLevelEditorSequencer() && ExactCast<ULevelSequence>(SequencerPtr.Pin()->GetFocusedMovieSceneSequence()) == nullptr))
 		{
@@ -1143,15 +1216,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 		}
 		else
 		{
-			TAttribute<FSlateIcon> AutoKeyIcon;
-			AutoKeyIcon.Bind(TAttribute<FSlateIcon>::FGetter::CreateLambda([&]{
-				static FSlateIcon AutoKeyEnabledIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SetAutoKey");
-				static FSlateIcon AutoKeyDisabledIcon(FEditorStyle::GetStyleSetName(), "Sequencer.SetAutoChangeNone");
-
-				return SequencerPtr.Pin()->GetAutoChangeMode() == EAutoChangeMode::None ? AutoKeyDisabledIcon : AutoKeyEnabledIcon;
-			}));
-
-			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleAutoKeyEnabled, NAME_None, TAttribute<FText>(), TAttribute<FText>(), AutoKeyIcon );
+			ToolBarBuilder.AddToolBarButton( FSequencerCommands::Get().ToggleAutoKeyEnabled );
 		}
 
 		if( SequencerPtr.Pin()->IsLevelEditorSequencer() )
@@ -1261,6 +1326,130 @@ TSharedRef<SWidget> SSequencer::MakeAddMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> SSequencer::MakeFilterMenu()
+{
+	FMenuBuilder MenuBuilder(true, nullptr, AddMenuExtender);
+
+	// let track editors & object bindings populate the menu
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	MenuBuilder.BeginSection("SequencerTracksResetFilters");
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FilterListResetFilters", "Reset Filters"),
+			LOCTEXT("FilterListResetToolTip", "Resets current filter selection"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnResetFilters))
+		);
+	}
+	MenuBuilder.EndSection();
+
+	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+
+	if (World && World->GetLevels().Num() > 1)
+	{
+		MenuBuilder.BeginSection("TrackLevelFilters");
+		MenuBuilder.AddSubMenu(LOCTEXT("LevelFilters", "Level Filters"), LOCTEXT("LevelFiltersToolTip", "Filter object tracks by level"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillLevelFilterMenu));
+		MenuBuilder.EndSection();
+	}
+
+	MenuBuilder.BeginSection("TrackFilters");
+	
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			MenuBuilder.AddMenuEntry(
+				TrackFilter->GetDisplayName(),
+				TrackFilter->GetToolTipText(),
+				TrackFilter->GetIcon(),
+				FUIAction(
+				FExecuteAction::CreateSP(this, &SSequencer::OnTrackFilterClicked, TrackFilter),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SSequencer::IsTrackFilterActive, TrackFilter)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
+
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+	UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+
+	if (World)
+	{
+		const TArray<ULevel*> Levels = World->GetLevels();
+		for (ULevel* Level : Levels)
+		{
+			FString LevelName = FPackageName::GetShortName(Level->GetOutermost()->GetName());
+			InMenuBarBuilder.AddMenuEntry(
+				FText::FromString(LevelName),
+				FText::FromString(Level->GetOutermost()->GetName()),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(this, &SSequencer::OnTrackLevelFilterClicked, LevelName),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(this, &SSequencer::IsTrackLevelFilterActive, LevelName)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
+}
+
+void SSequencer::OnResetFilters()
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	Sequencer->GetNodeTree()->RemoveAllFilters();
+}
+
+void SSequencer::OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	if (IsTrackFilterActive(TrackFilter))
+	{
+		Sequencer->GetNodeTree()->RemoveFilter(TrackFilter);
+	}
+	else
+	{
+		Sequencer->GetNodeTree()->AddFilter(TrackFilter);
+	}
+}
+
+bool SSequencer::IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	return Sequencer->GetNodeTree()->IsTrackFilterActive(TrackFilter);
+}
+
+void SSequencer::OnTrackLevelFilterClicked(const FString LevelName)
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	if (IsTrackLevelFilterActive(LevelName))
+	{
+		Sequencer->GetNodeTree()->RemoveLevelFilter(LevelName);
+	}
+	else
+	{
+		Sequencer->GetNodeTree()->AddLevelFilter(LevelName);
+	}
+}
+
+bool SSequencer::IsTrackLevelFilterActive(const FString LevelName) const
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	return Sequencer->GetNodeTree()->IsTrackLevelFilterActive(LevelName);
 }
 
 TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
@@ -1567,7 +1756,8 @@ TSharedRef<SWidget> SSequencer::MakeSelectEditMenu()
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowTransformBox);
-	
+	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowStretchBox);
+
 	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 	{
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().BakeTransform);
@@ -1653,7 +1843,6 @@ TSharedRef<SWidget> SSequencer::MakeAutoChangeMenu()
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetAutoChangeNone);
 
 	return MenuBuilder.MakeWidget();
-
 }
 
 TSharedRef<SWidget> SSequencer::MakeAllowEditsMenu()
@@ -1672,9 +1861,77 @@ TSharedRef<SWidget> SSequencer::MakeKeyGroupMenu()
 {
 	FMenuBuilder MenuBuilder(false, SequencerPtr.Pin()->GetCommandBindings());
 
-	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetKeyAll);
-	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetKeyGroup);
-	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetKeyChanged);
+	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
+	{
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetKeyAll);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetKeyGroup);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SetKeyChanged);
+	}
+
+	// Interpolation
+	MenuBuilder.BeginSection("SequencerInterpolation", LOCTEXT("KeyInterpolationMenu", "Default Key Interpolation"));
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SetKeyInterpolationAuto", "Cubic (Auto)"),
+			LOCTEXT("SetKeyInterpolationAutoTooltip", "Set key interpolation to auto"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyAuto"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Auto); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Auto; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SetKeyInterpolationUser", "Cubic (User)"),
+			LOCTEXT("SetKeyInterpolationUserTooltip", "Set key interpolation to user"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyUser"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::User); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::User; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SetKeyInterpolationBreak", "Cubic (Break)"),
+			LOCTEXT("SetKeyInterpolationBreakTooltip", "Set key interpolation to break"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyBreak"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Break); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Break; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SetKeyInterpolationLinear", "Linear"),
+			LOCTEXT("SetKeyInterpolationLinearTooltip", "Set key interpolation to linear"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyLinear"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Linear); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Linear; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("SetKeyInterpolationConstant", "Constant"),
+			LOCTEXT("SetKeyInterpolationConstantTooltip", "Set key interpolation to constant"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Sequencer.IconKeyConstant"),
+			FUIAction(
+				FExecuteAction::CreateLambda([this] { SequencerPtr.Pin()->SetKeyInterpolation(EMovieSceneKeyInterpolation::Constant); }),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this] { return SequencerPtr.Pin()->GetKeyInterpolation() == EMovieSceneKeyInterpolation::Constant; })),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection(); // SequencerInterpolation
 
 	return MenuBuilder.MakeWidget();
 
@@ -1967,6 +2224,7 @@ void SSequencer::OnOutlinerSearchChanged( const FText& Filter )
 		const FString FilterString = Filter.ToString();
 
 		Sequencer->GetNodeTree()->FilterNodes( FilterString );
+
 		TreeView->Refresh();
 
 		if ( FilterString.StartsWith( TEXT( "label:" ) ) )
@@ -2711,6 +2969,24 @@ double SSequencer::GetSpinboxDelta() const
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	return Sequencer->GetDisplayRateDeltaFrameCount();
 }
+
+float SSequencer::GetPlayTimeMinDesiredWidth() const
+{
+	TRange<double> ViewRange = SequencerPtr.Pin()->GetViewRange();
+
+	FString LowerBoundStr = NumericTypeInterface->ToString(ViewRange.GetLowerBoundValue());
+	FString UpperBoundStr = NumericTypeInterface->ToString(ViewRange.GetUpperBoundValue());
+
+	const FSlateFontInfo NormalFont = FCoreStyle::Get().GetFontStyle(TEXT("NormalFont"));
+	
+	const TSharedRef< FSlateFontMeasure > FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+	FVector2D LowerTextSize = FontMeasureService->Measure(LowerBoundStr, NormalFont);
+	FVector2D UpperTextSize = FontMeasureService->Measure(UpperBoundStr, NormalFont);
+
+	return FMath::Max(LowerTextSize.X, UpperTextSize.X);
+}
+
 
 bool SSequencer::GetIsSequenceReadOnly() const
 {

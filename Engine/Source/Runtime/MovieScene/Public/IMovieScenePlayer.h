@@ -11,6 +11,8 @@
 #include "MovieSceneSpawnRegister.h"
 #include "Containers/ArrayView.h"
 #include "Evaluation/MovieSceneEvaluationState.h"
+#include "Misc/InlineValue.h"
+#include "Evaluation/IMovieSceneMotionVectorSimulation.h"
 #include "Evaluation/MovieSceneEvaluationOperand.h"
 
 
@@ -331,7 +333,10 @@ public:
 
 	/** Container that stores any per-animated state tokens  */
 	FMovieScenePreAnimatedState PreAnimatedState;
-	
+
+	/** Motion Vector Simulation */
+	TInlineValue<IMovieSceneMotionVectorSimulation> MotionVectorSimulation;
+
 private:
 
 	/** Null register that asserts on use */

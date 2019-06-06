@@ -91,6 +91,13 @@ struct ENGINE_API FTemporalLODState
 	void UpdateTemporalLODTransition(const class FViewInfo& View, float LastRenderTime);
 };
 
+enum ESequencerState
+{
+	ESS_None,
+	ESS_Paused,
+	ESS_Playing,
+};
+
 /**
  * The scene manager's persistent view state.
  */
@@ -195,9 +202,9 @@ public:
 	//
 	virtual uint32 GetCurrentTemporalAASampleIndex() const = 0;
 
-	virtual void SetSequencerState(const bool bIsPaused) = 0;
+	virtual void SetSequencerState(ESequencerState InSequencerState) = 0;
 
-	virtual bool GetSequencerState() = 0;
+	virtual ESequencerState GetSequencerState() = 0;
 
 	/** Returns the current PreExposure value. PreExposure is a custom scale applied to the scene color to prevent buffer overflow. */
 	virtual float GetPreExposure() const = 0;

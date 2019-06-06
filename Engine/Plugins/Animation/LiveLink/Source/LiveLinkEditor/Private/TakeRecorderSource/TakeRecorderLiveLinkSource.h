@@ -81,7 +81,8 @@ private:
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
 	virtual bool CanAddSource(UTakeRecorderSources* InSources) const override;
 	virtual bool SupportsSubscenes() const override { return true; }
-	virtual FString GetSubsceneName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	// ~UTakeRecorderSource
 
 };
