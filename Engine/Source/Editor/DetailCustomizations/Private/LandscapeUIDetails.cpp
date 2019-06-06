@@ -59,29 +59,29 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 			DetailBuilder.HideProperty(PropertyHandle);
 			if(GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
 			{
-				IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(PropertyHandle->GetDefaultCategoryName());
-				Category.AddCustomRow(FText(), true)
+				const FText DisplayAndFilterText(NSLOCTEXT("UnrealEd", "LandscapeToggleLayerName", "Enable Layer System"));
+				DetailBuilder.AddCustomRowToCategory(PropertyHandle, DisplayAndFilterText)
 				.NameContent()
 				[
-					PropertyHandle->CreatePropertyNameWidget(NSLOCTEXT("UnrealEd", "LandscapeToggleLayerName", "Enable Layer System"))
+					PropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText)
 				]
 				.ValueContent()
-					[
-						SNew(SCheckBox)
-						.ToolTipText(NSLOCTEXT("UnrealEd", "LandscapeToggleLayerToolTip", "Toggle whether or not to support layers on this Landscape and its streaming proxies. Toggling this will clear the undo stack."))
-						.Type(ESlateCheckBoxType::CheckBox)
-						.IsChecked_Lambda([=]() 
-						{ 
-							return Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-						})
-						.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState) 
-						{ 
-							bool bChecked = (NewState == ECheckBoxState::Checked);
-							if (Landscape->CanHaveLayersContent() != bChecked)
-							{
-								ToggleCanHaveLayersContent(Landscape);
-							}
-						})
+				[
+					SNew(SCheckBox)
+					.ToolTipText(NSLOCTEXT("UnrealEd", "LandscapeToggleLayerToolTip", "Toggle whether or not to support layers on this Landscape and its streaming proxies. Toggling this will clear the undo stack."))
+					.Type(ESlateCheckBoxType::CheckBox)
+					.IsChecked_Lambda([=]() 
+					{ 
+						return Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+					.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState) 
+					{ 
+						bool bChecked = (NewState == ECheckBoxState::Checked);
+						if (Landscape->CanHaveLayersContent() != bChecked)
+						{
+							ToggleCanHaveLayersContent(Landscape);
+						}
+					})
 				];
 			}
 			
