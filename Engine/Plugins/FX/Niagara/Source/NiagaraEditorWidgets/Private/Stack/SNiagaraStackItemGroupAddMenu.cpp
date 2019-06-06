@@ -12,6 +12,7 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagara
 {
 	AddUtilities = InAddUtilities;
 	InsertIndex = InInsertIndex;
+	bSetFocusOnNextTick = true;
 	ChildSlot
 	[
 		SNew(SBorder)
@@ -30,6 +31,15 @@ void SNiagaraStackItemGroupAddMenu::Construct(const FArguments& InArgs, INiagara
 			]
 		]
 	];
+}
+
+void SNiagaraStackItemGroupAddMenu::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	if (bSetFocusOnNextTick)
+	{
+		bSetFocusOnNextTick = false;
+		FSlateApplication::Get().SetKeyboardFocus(GetFilterTextBox(), EFocusCause::SetDirectly);
+	}
 }
 
 TSharedPtr<SEditableTextBox> SNiagaraStackItemGroupAddMenu::GetFilterTextBox()
