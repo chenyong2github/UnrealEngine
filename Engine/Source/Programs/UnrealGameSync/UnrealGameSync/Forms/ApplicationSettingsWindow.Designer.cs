@@ -33,8 +33,6 @@ namespace UnrealGameSync
             this.label1 = new System.Windows.Forms.Label();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.tableLayoutPanel1 = new System.Windows.Forms.TableLayoutPanel();
-            this.UserNameTextBox = new UnrealGameSync.TextBoxWithCueBanner();
-            this.ServerTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.label3 = new System.Windows.Forms.Label();
             this.OkBtn = new System.Windows.Forms.Button();
             this.CancelBtn = new System.Windows.Forms.Button();
@@ -48,7 +46,13 @@ namespace UnrealGameSync
             this.label6 = new System.Windows.Forms.Label();
             this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
             this.UseUnstableBuildCheckBox = new System.Windows.Forms.CheckBox();
+            this.groupBox4 = new System.Windows.Forms.GroupBox();
+            this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
+            this.EnableAutomationCheckBox = new System.Windows.Forms.CheckBox();
+            this.AutomationPortTextBox = new System.Windows.Forms.TextBox();
             this.DepotPathTextBox = new UnrealGameSync.TextBoxWithCueBanner();
+            this.UserNameTextBox = new UnrealGameSync.TextBoxWithCueBanner();
+            this.ServerTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.groupBox1.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
             this.groupBox2.SuspendLayout();
@@ -56,6 +60,8 @@ namespace UnrealGameSync
             this.groupBox3.SuspendLayout();
             this.tableLayoutPanel4.SuspendLayout();
             this.tableLayoutPanel5.SuspendLayout();
+            this.groupBox4.SuspendLayout();
+            this.flowLayoutPanel1.SuspendLayout();
             this.SuspendLayout();
             // 
             // label1
@@ -99,24 +105,6 @@ namespace UnrealGameSync
             this.tableLayoutPanel1.Size = new System.Drawing.Size(787, 68);
             this.tableLayoutPanel1.TabIndex = 0;
             // 
-            // UserNameTextBox
-            // 
-            this.UserNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.UserNameTextBox.CueBanner = "Default";
-            this.UserNameTextBox.Location = new System.Drawing.Point(89, 39);
-            this.UserNameTextBox.Name = "UserNameTextBox";
-            this.UserNameTextBox.Size = new System.Drawing.Size(695, 23);
-            this.UserNameTextBox.TabIndex = 1;
-            // 
-            // ServerTextBox
-            // 
-            this.ServerTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.ServerTextBox.CueBanner = "Default";
-            this.ServerTextBox.Location = new System.Drawing.Point(89, 5);
-            this.ServerTextBox.Name = "ServerTextBox";
-            this.ServerTextBox.Size = new System.Drawing.Size(695, 23);
-            this.ServerTextBox.TabIndex = 0;
-            // 
             // label3
             // 
             this.label3.Anchor = System.Windows.Forms.AnchorStyles.Left;
@@ -131,7 +119,7 @@ namespace UnrealGameSync
             // OkBtn
             // 
             this.OkBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
-            this.OkBtn.Location = new System.Drawing.Point(661, 318);
+            this.OkBtn.Location = new System.Drawing.Point(661, 399);
             this.OkBtn.Name = "OkBtn";
             this.OkBtn.Size = new System.Drawing.Size(89, 27);
             this.OkBtn.TabIndex = 2;
@@ -143,7 +131,7 @@ namespace UnrealGameSync
             // 
             this.CancelBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.CancelBtn.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.CancelBtn.Location = new System.Drawing.Point(756, 318);
+            this.CancelBtn.Location = new System.Drawing.Point(756, 399);
             this.CancelBtn.Name = "CancelBtn";
             this.CancelBtn.Size = new System.Drawing.Size(89, 27);
             this.CancelBtn.TabIndex = 3;
@@ -270,6 +258,47 @@ namespace UnrealGameSync
             this.UseUnstableBuildCheckBox.Text = "Use Unstable Build";
             this.UseUnstableBuildCheckBox.UseVisualStyleBackColor = true;
             // 
+            // groupBox4
+            // 
+            this.groupBox4.Controls.Add(this.flowLayoutPanel1);
+            this.groupBox4.Location = new System.Drawing.Point(17, 311);
+            this.groupBox4.Name = "groupBox4";
+            this.groupBox4.Size = new System.Drawing.Size(822, 73);
+            this.groupBox4.TabIndex = 5;
+            this.groupBox4.TabStop = false;
+            this.groupBox4.Text = "Automation";
+            // 
+            // flowLayoutPanel1
+            // 
+            this.flowLayoutPanel1.AutoSize = true;
+            this.flowLayoutPanel1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.flowLayoutPanel1.Controls.Add(this.EnableAutomationCheckBox);
+            this.flowLayoutPanel1.Controls.Add(this.AutomationPortTextBox);
+            this.flowLayoutPanel1.Location = new System.Drawing.Point(22, 26);
+            this.flowLayoutPanel1.Name = "flowLayoutPanel1";
+            this.flowLayoutPanel1.Size = new System.Drawing.Size(281, 29);
+            this.flowLayoutPanel1.TabIndex = 2;
+            // 
+            // EnableAutomationCheckBox
+            // 
+            this.EnableAutomationCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.EnableAutomationCheckBox.AutoSize = true;
+            this.EnableAutomationCheckBox.Location = new System.Drawing.Point(3, 5);
+            this.EnableAutomationCheckBox.Name = "EnableAutomationCheckBox";
+            this.EnableAutomationCheckBox.Size = new System.Drawing.Size(169, 19);
+            this.EnableAutomationCheckBox.TabIndex = 0;
+            this.EnableAutomationCheckBox.Text = "Enable automation via port";
+            this.EnableAutomationCheckBox.UseVisualStyleBackColor = true;
+            this.EnableAutomationCheckBox.CheckedChanged += new System.EventHandler(this.EnableAutomationCheckBox_CheckedChanged);
+            // 
+            // AutomationPortTextBox
+            // 
+            this.AutomationPortTextBox.Anchor = System.Windows.Forms.AnchorStyles.Left;
+            this.AutomationPortTextBox.Location = new System.Drawing.Point(178, 3);
+            this.AutomationPortTextBox.Name = "AutomationPortTextBox";
+            this.AutomationPortTextBox.Size = new System.Drawing.Size(100, 23);
+            this.AutomationPortTextBox.TabIndex = 1;
+            // 
             // DepotPathTextBox
             // 
             this.DepotPathTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
@@ -280,13 +309,32 @@ namespace UnrealGameSync
             this.DepotPathTextBox.Size = new System.Drawing.Size(558, 23);
             this.DepotPathTextBox.TabIndex = 0;
             // 
+            // UserNameTextBox
+            // 
+            this.UserNameTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.UserNameTextBox.CueBanner = "Default";
+            this.UserNameTextBox.Location = new System.Drawing.Point(89, 39);
+            this.UserNameTextBox.Name = "UserNameTextBox";
+            this.UserNameTextBox.Size = new System.Drawing.Size(695, 23);
+            this.UserNameTextBox.TabIndex = 1;
+            // 
+            // ServerTextBox
+            // 
+            this.ServerTextBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.ServerTextBox.CueBanner = "Default";
+            this.ServerTextBox.Location = new System.Drawing.Point(89, 5);
+            this.ServerTextBox.Name = "ServerTextBox";
+            this.ServerTextBox.Size = new System.Drawing.Size(695, 23);
+            this.ServerTextBox.TabIndex = 0;
+            // 
             // ApplicationSettingsWindow
             // 
             this.AcceptButton = this.OkBtn;
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.CancelButton = this.CancelBtn;
-            this.ClientSize = new System.Drawing.Size(857, 357);
+            this.ClientSize = new System.Drawing.Size(857, 438);
+            this.Controls.Add(this.groupBox4);
             this.Controls.Add(this.groupBox3);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.CancelBtn);
@@ -310,6 +358,10 @@ namespace UnrealGameSync
             this.tableLayoutPanel4.ResumeLayout(false);
             this.tableLayoutPanel5.ResumeLayout(false);
             this.tableLayoutPanel5.PerformLayout();
+            this.groupBox4.ResumeLayout(false);
+            this.groupBox4.PerformLayout();
+            this.flowLayoutPanel1.ResumeLayout(false);
+            this.flowLayoutPanel1.PerformLayout();
             this.ResumeLayout(false);
 
 		}
@@ -334,5 +386,9 @@ namespace UnrealGameSync
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
 		public System.Windows.Forms.CheckBox UseUnstableBuildCheckBox;
 		private TextBoxWithCueBanner DepotPathTextBox;
+		private System.Windows.Forms.GroupBox groupBox4;
+		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
+		private System.Windows.Forms.CheckBox EnableAutomationCheckBox;
+		private System.Windows.Forms.TextBox AutomationPortTextBox;
 	}
 }

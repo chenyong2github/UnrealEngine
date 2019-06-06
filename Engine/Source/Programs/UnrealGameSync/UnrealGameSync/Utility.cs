@@ -306,7 +306,18 @@ namespace UnrealGameSync
 			}
 		}
 
-		private static void DeleteKey(RegistryKey Key, string Name)
+		public static void DeleteRegistryKey(RegistryKey RootKey, string KeyName, string ValueName)
+		{
+			using (RegistryKey Key = RootKey.OpenSubKey(KeyName, true))
+			{
+				if (Key != null)
+				{
+					DeleteRegistryKey(Key, ValueName);
+				}
+			}
+		}
+
+		public static void DeleteRegistryKey(RegistryKey Key, string Name)
 		{
 			string[] ValueNames = Key.GetValueNames();
 			if (ValueNames.Any(x => String.Compare(x, Name, StringComparison.OrdinalIgnoreCase) == 0))
@@ -328,7 +339,7 @@ namespace UnrealGameSync
 				using (RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Epic Games\\UnrealGameSync"))
 				{
 					// Delete this legacy setting
-					DeleteKey(Key, "Server");
+					DeleteRegistryKey(Key, "Server");
 
 					if(String.IsNullOrEmpty(ServerAndPort))
 					{
@@ -350,7 +361,7 @@ namespace UnrealGameSync
 
 					if(String.IsNullOrEmpty(DepotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(DepotPath, DeploymentSettings.DefaultDepotPath, StringComparison.InvariantCultureIgnoreCase)))
 					{
-						DeleteKey(Key, "DepotPath");
+						DeleteRegistryKey(Key, "DepotPath");
 					}
 					else
 					{

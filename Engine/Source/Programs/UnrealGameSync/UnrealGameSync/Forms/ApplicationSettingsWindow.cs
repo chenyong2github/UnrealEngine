@@ -52,6 +52,7 @@ namespace UnrealGameSync
 		string InitialUserName;
 		string InitialDepotPath;
 		bool bInitialUnstable;
+		int InitialAutomationPortNumber;
 
 		bool? bRestartUnstable;
 
@@ -65,6 +66,8 @@ namespace UnrealGameSync
 
 			Utility.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
 			bInitialUnstable = bUnstable;
+
+			InitialAutomationPortNumber = AutomationServer.GetPortNumber();
 
 			this.AutomaticallyRunAtStartupCheckBox.Checked = IsAutomaticallyRunAtStartup();
 			this.KeepInTrayCheckBox.Checked = Settings.bKeepInTray;
@@ -82,6 +85,19 @@ namespace UnrealGameSync
 			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath;
 
 			this.UseUnstableBuildCheckBox.Checked = bUnstable;
+
+			if(InitialAutomationPortNumber > 0)
+			{
+				this.EnableAutomationCheckBox.Checked = true;
+				this.AutomationPortTextBox.Enabled = true;
+				this.AutomationPortTextBox.Text = InitialAutomationPortNumber.ToString();
+			}
+			else
+			{
+				this.EnableAutomationCheckBox.Checked = false;
+				this.AutomationPortTextBox.Enabled = false;
+				this.AutomationPortTextBox.Text = AutomationServer.DefaultPortNumber.ToString();
+			}
 		}
 
 		public static bool? ShowModal(IWin32Window Owner, PerforceConnection DefaultConnection, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, TextWriter Log)
@@ -126,7 +142,14 @@ namespace UnrealGameSync
 
 			bool bUnstable = UseUnstableBuildCheckBox.Checked;
 
-			if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath || bUnstable != bInitialUnstable)
+
+			int AutomationPortNumber;
+			if(!EnableAutomationCheckBox.Checked || !int.TryParse(AutomationPortTextBox.Text, out AutomationPortNumber))
+			{
+				AutomationPortNumber = -1;
+			}
+			
+			if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath || bUnstable != bInitialUnstable || AutomationPortNumber != InitialAutomationPortNumber)
 			{
 				// Try to log in to the new server, and check the application is there
 				if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath)
@@ -150,6 +173,7 @@ namespace UnrealGameSync
 
 				bRestartUnstable = UseUnstableBuildCheckBox.Checked;
 				Utility.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+				AutomationServer.SetPortNumber(AutomationPortNumber);
 			}
 
 			RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run");
@@ -176,6 +200,11 @@ namespace UnrealGameSync
 		{
 			DialogResult = DialogResult.Cancel;
 			Close();
+		}
+
+		private void EnableAutomationCheckBox_CheckedChanged(object sender, EventArgs e)
+		{
+			AutomationPortTextBox.Enabled = EnableAutomationCheckBox.Checked;
 		}
 	}
 }
