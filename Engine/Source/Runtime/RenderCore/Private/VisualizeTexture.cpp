@@ -52,6 +52,7 @@ enum class EVisualisePSType
 	Texture2DMSAA = 5,
 	Texture2DDepthStencilNoMSAA = 6,
 	Texture2DUINT8 = 7,
+	Texture2DUINT32 = 8,
 	MAX
 };
 
@@ -127,6 +128,10 @@ static EVisualisePSType GetVisualizePSType(const FRDGTextureDesc& Desc)
 			else if (Desc.Format == PF_R8_UINT)
 			{
 				return EVisualisePSType::Texture2DUINT8;
+			}
+			else if (Desc.Format == PF_R32_UINT)
+			{
+				return EVisualisePSType::Texture2DUINT32;
 			}
 			else
 			{
