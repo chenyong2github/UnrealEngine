@@ -877,15 +877,27 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 				TBSettings.MipGenSettings = TMGS_SimpleAverage;
 			}
 
+			// For multi-block images, we may have scaled the max block size to be tile-sized, but individual blocks may still be smaller than 1 tile
+			// These need to be scaled up as well (scaling up individual blocks has the effect of reducing the block's mip-bias)
+			int32 LocalBlockSizeScale = BlockSizeScale;
+			while (SourceMips[0].SizeX * LocalBlockSizeScale < TileSize || SourceMips[0].SizeY * LocalBlockSizeScale < TileSize)
+			{
+				check(BlockData.MipBias > 0u);
+				--BlockData.MipBias;
+				LocalBlockSizeScale *= 2;
+			}
+
 			// Use the texture compressor module to do all the hard work
 			TArray<FCompressedImage2D> CompressedMips;
 			bool bBuildTextureResult = false;
-			if (BlockSizeScale == 1)
+			if (LocalBlockSizeScale == 1)
 			{
 				bBuildTextureResult = Compressor->BuildTexture(SourceMips, *CompositeSourceMips, TBSettings, CompressedMips);
 			}
 			else
 			{
+				// Need to generate scaled source images before building mips
+				// Typically this is only needed to scale very small source images to be at least tile-sized, so performance shouldn't be a big concern here
 				TArray<FImage> ScaledSourceMips;
 				TArray<FImage> ScaledCompositeMips;
 				ScaledSourceMips.Reserve(SourceMips.Num());
@@ -893,13 +905,13 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 				for (const FImage& SrcMip : SourceMips)
 				{
 					FImage* ScaledMip = new(ScaledSourceMips) FImage;
-					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * BlockSizeScale, SrcMip.SizeY * BlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
+					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
 				}
 
 				for (const FImage& SrcMip : *CompositeSourceMips)
 				{
 					FImage* ScaledMip = new(ScaledCompositeMips) FImage;
-					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * BlockSizeScale, SrcMip.SizeY * BlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
+					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
 				}
 
 				bBuildTextureResult = Compressor->BuildTexture(ScaledSourceMips, ScaledCompositeMips, TBSettings, CompressedMips);
