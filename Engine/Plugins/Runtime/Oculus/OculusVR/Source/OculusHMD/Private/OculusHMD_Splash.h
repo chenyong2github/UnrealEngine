@@ -104,6 +104,7 @@ protected:
 
 	float SystemDisplayInterval;
 	double LastTimeInSeconds;
+	FDelegateHandle LoadLevelDelegate;
 };
 
 typedef TSharedPtr<FSplash> FSplashPtr;
