@@ -4572,7 +4572,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				// Save names.
 				if (!bTextFormat)
 				{
-					FStructuredArchive::FStream NameStream = StructuredArchiveRoot.EnterStream(FIELD_NAME_TEXT("Names"));
 #if WITH_EDITOR
 					FArchive::FScopeSetDebugSerializationFlags S(*Linker, DSF_IgnoreDiff, true);
 					FArchiveStackTraceIgnoreScope IgnoreSummaryDiffsScope(DiffSettings.bIgnoreHeaderDiffs);
@@ -4580,7 +4579,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					Linker->Summary.NameCount = Linker->NameMap.Num();
 					for (int32 i = 0; i < Linker->NameMap.Num(); i++)
 					{
-						FName::GetEntry(Linker->NameMap[i])->Write(NameStream.EnterElement());
+						FName::GetEntry(Linker->NameMap[i])->Write(*Linker);
 						Linker->NameIndices.Add(Linker->NameMap[i], i);
 					}
 				}

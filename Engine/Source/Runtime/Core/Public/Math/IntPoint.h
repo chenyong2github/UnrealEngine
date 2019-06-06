@@ -7,6 +7,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Templates/TypeHash.h"
+#include "Serialization/ArchiveAdapters.h"
 
 /**
  * Structure for integer points in 2-d space.

@@ -12,7 +12,6 @@
 #include "Containers/StringConv.h"
 #include "UObject/UnrealNames.h"
 #include "Templates/Atomic.h"
-#include "Serialization/ArchiveAdapters.h"
 
 /*----------------------------------------------------------------------------
 	Definitions.
@@ -236,7 +235,6 @@ public:
 	CORE_API int32 GetSizeInBytes() const;
 
 	CORE_API void Write(FArchive& Ar) const;
-	CORE_API void Write(FStructuredArchive::FSlot Slot) const;
 
 	static int32 GetDataOffset();
 	struct FNameStringView MakeView(union FNameBuffer& OptionalDecodeBuffer) const;
@@ -308,12 +306,6 @@ struct FNameEntrySerialized
 	friend FArchive& operator<<(FArchive& Ar, FNameEntrySerialized* E)
 	{
 		return Ar << *E;
-	}
-
-	friend CORE_API void operator<<(FStructuredArchive::FSlot Slot, FNameEntrySerialized& E);
-	friend void operator<<(FStructuredArchive::FSlot Slot, FNameEntrySerialized* E)
-	{
-		Slot << *E;
 	}
 };
 

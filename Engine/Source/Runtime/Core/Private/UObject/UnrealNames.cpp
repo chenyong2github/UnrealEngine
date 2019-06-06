@@ -22,7 +22,6 @@
 #include "Misc/OutputDeviceRedirector.h"
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "Serialization/ArchiveFromStructuredArchive.h"
 #include "Hash/CityHash.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealNames, Log, All);
@@ -2087,16 +2086,6 @@ void FNameEntry::Write( FArchive& Ar ) const
 	Ar << EntrySerialized;
 }
 
-void FNameEntry::Write(FStructuredArchive::FSlot Slot) const
-{
-	// This path should be unused - since FNameEntry structs are allocated with a dynamic size, we can only save them. Use FNameEntrySerialized to read them back into an intermediate buffer.
-	checkf(!Slot.GetUnderlyingArchive().IsLoading(), TEXT("FNameEntry does not support reading from an archive. Serialize into a FNameEntrySerialized and construct a FNameEntry from that."));
-
-	// Convert to our serialized type
-	FNameEntrySerialized EntrySerialized(*this);
-	Slot << EntrySerialized;
-}
-
 FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 {
 	if (Ar.IsLoading())
@@ -2179,31 +2168,6 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 
 	return Ar;
 }
-
-void operator<<(FStructuredArchive::FSlot Slot, FNameEntrySerialized& E)
-{
-	if (Slot.GetUnderlyingArchive().IsTextFormat())
-	{
-		FString Str = E.GetPlainNameString();
-		Slot << Str;
-
-		if (Slot.GetUnderlyingArchive().IsLoading())
-		{
-			// mark the name will be wide
-			E.bIsWide = true;
-
-			// get the pointer to the wide array 
-			WIDECHAR* WideName = const_cast<WIDECHAR*>(E.GetWideName());
-			FCString::Strcpy(WideName, 1024, *Str);
-		}
-	}
-	else
-	{
-		FArchiveFromStructuredArchive Ar(Slot);
-		Ar << E;
-	}
-}
-
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
 
