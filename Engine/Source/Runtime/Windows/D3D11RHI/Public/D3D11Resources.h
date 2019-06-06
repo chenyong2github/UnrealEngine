@@ -307,8 +307,9 @@ public:
 		check(RTVArraySize == Texture->RTVArraySize);
 		check(NumDepthStencilViews == Texture->NumDepthStencilViews);
 
+		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for
+		// state caching logic).
 		Resource = Texture->Resource;
-		BaseShaderResource = Texture->BaseShaderResource;
 		ShaderResourceView = Texture->ShaderResourceView;
 		RenderTargetViews = Texture->RenderTargetViews;
 

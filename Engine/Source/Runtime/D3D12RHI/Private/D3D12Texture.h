@@ -158,7 +158,9 @@ public:
 		// Alias the location, will perform an addref underneath
 		FD3D12ResourceLocation::Alias(ResourceLocation, Texture->ResourceLocation);
 
-		BaseShaderResource = Texture->BaseShaderResource;
+		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for
+		// state caching logic).
+
 		ShaderResourceView = Texture->ShaderResourceView;
 
 		for (uint32 Index = 0; Index < FExclusiveDepthStencil::MaxIndex; Index++)

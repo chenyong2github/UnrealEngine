@@ -65,6 +65,11 @@ FXRSwapChain::FXRSwapChain(FTextureRHIParamRef InRHITexture, TArray<FTextureRHIR
 	, RHITextureSwapChain(InRHITextureSwapChain)
 	, SwapChainIndex_RHIThread(0)
 {
+	RHITexture->SetName(TEXT("XRSwapChainAliasedTexture"));
+	for (int ChainElement = 0; ChainElement < RHITextureSwapChain.Num(); ++ChainElement)
+	{
+		RHITextureSwapChain[ChainElement]->SetName(FName(*FString::Printf(TEXT("XRSwapChainBackingTex%d"), ChainElement)));
+	}
 }
 
 
