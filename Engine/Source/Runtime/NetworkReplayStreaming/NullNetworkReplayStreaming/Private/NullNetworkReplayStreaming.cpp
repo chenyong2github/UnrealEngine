@@ -3,7 +3,6 @@
 #include "NullNetworkReplayStreaming.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "Misc/NetworkVersion.h"
 #include "Misc/EngineVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC( LogNullReplay, Log, All );
@@ -176,21 +175,16 @@ FString GetAutomaticDemoName()
 	return FinalDemoName;
 }
 
-void FNullNetworkReplayStreamer::StartStreaming(const FString& CustomName, const FString& FriendlyName, const TArray< int32 >& UserIndices, bool bRecord, const FNetworkReplayVersion& ReplayVersion, const FStartStreamingCallback& Delegate)
+void FNullNetworkReplayStreamer::StartStreaming(const FStartStreamingParameters& Params, const FStartStreamingCallback& Delegate)
 {
-	StartStreaming(CustomName, FriendlyName, TArray<FString>(), bRecord, ReplayVersion, Delegate);
-}
-
-void FNullNetworkReplayStreamer::StartStreaming( const FString& CustomName, const FString& FriendlyName, const TArray< FString >& UserNames, bool bRecord, const FNetworkReplayVersion& ReplayVersion, const FStartStreamingCallback& Delegate )
-{
-	FString FinalDemoName = CustomName;
+	FString FinalDemoName = Params.CustomName;
 
 	FStartStreamingResult Result;
-	Result.bRecording = bRecord;
+	Result.bRecording = Params.bRecord;
 
-	if ( CustomName.IsEmpty() )
+	if ( Params.CustomName.IsEmpty() )
 	{
-		if ( bRecord )
+		if ( Params.bRecord )
 		{
 			// If we're recording and the caller didn't provide a name, generate one automatically
 			FinalDemoName = GetAutomaticDemoName();
@@ -211,7 +205,7 @@ void FNullNetworkReplayStreamer::StartStreaming( const FString& CustomName, cons
 	
 	CurrentStreamName = FinalDemoName;
 
-	if ( !bRecord )
+	if ( !Params.bRecord )
 	{
 		// Load metadata if it exists
 		ReplayInfo = ReadReplayInfo( CurrentStreamName );
@@ -237,9 +231,9 @@ void FNullNetworkReplayStreamer::StartStreaming( const FString& CustomName, cons
 		CurrentCheckpointIndex = 0;
 
 		// Set up replay info
-		ReplayInfo.NetworkVersion = ReplayVersion.NetworkVersion;
-		ReplayInfo.Changelist = ReplayVersion.Changelist;
-		ReplayInfo.FriendlyName = FriendlyName;
+		ReplayInfo.NetworkVersion = Params.ReplayVersion.NetworkVersion;
+		ReplayInfo.Changelist = Params.ReplayVersion.Changelist;
+		ReplayInfo.FriendlyName = Params.FriendlyName;
 
 		WriteReplayInfo(CurrentStreamName, ReplayInfo);
 	}
@@ -335,16 +329,6 @@ void FNullNetworkReplayStreamer::DeleteFinishedStream( const FString& StreamName
 }
 
 void FNullNetworkReplayStreamer::EnumerateStreams(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate)
-{
-	EnumerateStreams(ReplayVersion, FString(), MetaString, ExtraParms, Delegate);
-}
-
-void FNullNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& ReplayVersion, const FString& UserString, const FString& MetaString, const FEnumerateStreamsCallback& Delegate )
-{
-	EnumerateStreams( ReplayVersion, UserString, MetaString, TArray< FString >(), Delegate );
-}
-
-void FNullNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& ReplayVersion, const FString& UserString, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate )
 {
 	// Simply returns a stream for each folder in the Saved/Demos directory
 	const FString WildCardPath = ::GetDemoPath() + TEXT( "*" );
@@ -516,11 +500,6 @@ void FNullNetworkReplayStreamer::RenameReplay(const FString& ReplayName, const F
 }
 
 void FNullNetworkReplayStreamer::EnumerateRecentStreams(const FNetworkReplayVersion& ReplayVersion, const int32 UserIndex, const FEnumerateStreamsCallback& Delegate)
-{
-	EnumerateRecentStreams(ReplayVersion, FString(), Delegate);
-}
-
-void FNullNetworkReplayStreamer::EnumerateRecentStreams(const FNetworkReplayVersion& ReplayVersion, const FString& RecentViewer, const FEnumerateStreamsCallback& Delegate)
 {
 	UE_LOG(LogNullReplay, Log, TEXT("FNullNetworkReplayStreamer::EnumerateRecentStreams is currently unsupported."));
 
