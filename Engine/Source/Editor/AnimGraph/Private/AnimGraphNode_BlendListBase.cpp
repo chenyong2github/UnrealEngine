@@ -7,6 +7,7 @@
 
 UAnimGraphNode_BlendListBase::UAnimGraphNode_BlendListBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, RemovedPinArrayIndex(INDEX_NONE)
 {
 }
 
@@ -95,12 +96,11 @@ void UAnimGraphNode_BlendListBase::ReallocatePinsDuringReconstruction(TArray<UEd
 	Super::ReallocatePinsDuringReconstruction(OldPins);
 
 	// Delete Pins by removed pin info 
-	for (const auto& i : RemovedPinArrayIndices)
+	if (RemovedPinArrayIndex != INDEX_NONE)
 	{
-		RemovePinsFromOldPins(OldPins, i);
+		RemovePinsFromOldPins(OldPins, RemovedPinArrayIndex);
+		// Clears removed pin info to avoid to remove multiple times
+		// @TODO : Considering receiving RemovedPinArrayIndex as an argument of ReconstructNode()
+		RemovedPinArrayIndex = INDEX_NONE;
 	}
-
-	// Clears removed pin info to avoid to remove multiple times
-	// @TODO : Considering receiving RemovedPinArrayIndex as an argument of ReconstructNode()
-	RemovedPinArrayIndices.Empty();
 }

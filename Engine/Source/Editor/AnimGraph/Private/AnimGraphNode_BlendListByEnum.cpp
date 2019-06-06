@@ -19,6 +19,8 @@
 UAnimGraphNode_BlendListByEnum::UAnimGraphNode_BlendListByEnum(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	// Make sure we start out with a pin
+	Node.AddPose();
 }
 
 FString UAnimGraphNode_BlendListByEnum::GetNodeCategory() const
@@ -96,12 +98,6 @@ void UAnimGraphNode_BlendListByEnum::GetContextMenuActions(const FGraphNodeConte
 					FUIAction Action = FUIAction( FExecuteAction::CreateUObject( const_cast<UAnimGraphNode_BlendListByEnum*>(this), &UAnimGraphNode_BlendListByEnum::RemovePinFromBlendList, const_cast<UEdGraphPin*>(Context.Pin)) );
 					Context.MenuBuilder->AddMenuEntry( LOCTEXT("RemovePose", "Remove Pose"), FText::GetEmpty(), FSlateIcon(), Action );
 				}
-
-				if (VisibleEnumEntries.Num() > 0)
-				{
-					FUIAction Action = FUIAction(FExecuteAction::CreateUObject(const_cast<UAnimGraphNode_BlendListByEnum*>(this), &UAnimGraphNode_BlendListByEnum::RemoveUnconnectedPinsFromBlendList));
-					Context.MenuBuilder->AddMenuEntry(LOCTEXT("RemoveUnconnectedPoses", "Remove unconnected Poses"), FText::GetEmpty(), FSlateIcon(), Action);
-				}
 			}
 		}
 
@@ -153,51 +149,6 @@ void UAnimGraphNode_BlendListByEnum::ExposeEnumElementAsPin(FName EnumElementNam
 	}
 }
 
-void UAnimGraphNode_BlendListByEnum::RemoveUnconnectedPinsFromBlendList()
-{
-	FScopedTransaction Transaction(LOCTEXT("RemoveUnconnectedPins", "Remove unconnected pins"));
-	Modify();
-
-	// inverse loop as otherwise VisibleEnumEntries.RemoveAt is incorrect
-	for (int32 i = Pins.Num() - 1; i >= 0; --i)
-	{
-		// skip if output pin OR if it has a connection
-		if (Pins[i]->Direction != EGPD_Input || Pins[i]->LinkedTo.Num() > 0)
-		{
-			continue;
-		}
-
-		int32 RawArrayIndex = 0;
-		bool bIsPosePin = false;
-		bool bIsTimePin = false;
-		GetPinInformation(Pins[i]->PinName.ToString(), /*out*/ RawArrayIndex, /*out*/ bIsPosePin, /*out*/ bIsTimePin);
-
-		// Only IsPosePin otherwise arrays go out of bounds
-		const int32 ExposedEnumIndex = bIsPosePin ? (RawArrayIndex - 1) : INDEX_NONE;
-
-		if (ExposedEnumIndex != INDEX_NONE)
-		{
-			// Record it as no longer exposed
-			VisibleEnumEntries.RemoveAt(ExposedEnumIndex);
-
-			// Remove the pose from the node
-			UProperty* AssociatedProperty;
-			int32 ArrayIndex;
-			GetPinAssociatedProperty(GetFNodeType(), Pins[i], /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
-
-			ensure(ArrayIndex == (ExposedEnumIndex + 1));
-
-			RemovedPinArrayIndices.Add(ArrayIndex);
-			Node.RemovePose(ArrayIndex);
-			Pins[i]->SetSavePinIfOrphaned(false);
-		}
-	}
-
-	ReconstructNode();
-	//@TODO: Just want to invalidate the visual representation currently
-	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());
-}
-
 void UAnimGraphNode_BlendListByEnum::RemovePinFromBlendList(UEdGraphPin* Pin)
 {
 	int32 RawArrayIndex = 0;
@@ -223,7 +174,7 @@ void UAnimGraphNode_BlendListByEnum::RemovePinFromBlendList(UEdGraphPin* Pin)
 		ensure(ArrayIndex == (ExposedEnumIndex + 1));
 
 		// setting up removed pins info 
-		RemovedPinArrayIndices.Add(ArrayIndex);
+		RemovedPinArrayIndex = ArrayIndex;
 		Node.RemovePose(ArrayIndex);
 		Pin->SetSavePinIfOrphaned(false);
 		ReconstructNode();
@@ -336,26 +287,6 @@ void UAnimGraphNode_BlendListByEnum::Serialize(FArchive& Ar)
 			}
 		}
 	}
-}
-
-void UAnimGraphNode_BlendListByEnum::AllocateDefaultPins()
-{
-	Super::AllocateDefaultPins();
-
-	// Make sure we start out with a pin
-	Node.AddPose();
-
-	if (BoundEnum && VisibleEnumEntries.Num() <= 0)
-	{
-		const int32 MaxIndex = BoundEnum->NumEnums() - 1; // we don't want to show _MAX enum
-		for (int32 Index = 0; Index < MaxIndex; ++Index)
-		{
-			VisibleEnumEntries.Add(BoundEnum->GetNameByIndex(Index));
-			Node.AddPose();
-		}
-	}
-
-	ReconstructNode();
 }
 
 void UAnimGraphNode_BlendListByEnum::ValidateAnimNodeDuringCompilation(class USkeleton* ForSkeleton, class FCompilerResultsLog& MessageLog)

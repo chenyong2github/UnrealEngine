@@ -61,7 +61,7 @@ void UAnimGraphNode_LayeredBoneBlend::RemovePinFromBlendByFilter(UEdGraphPin* Pi
 	{
 		//@TODO: ANIMREFACTOR: Need to handle moving pins below up correctly
 		// setting up removed pins info 
-		RemovedPinArrayIndices.Add(ArrayIndex);
+		RemovedPinArrayIndex = ArrayIndex;
 		Node.RemovePose(ArrayIndex);
 		ReconstructNode();
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(GetBlueprint());

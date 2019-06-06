@@ -32,7 +32,6 @@ public:
 	virtual FText GetTooltipText() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void AllocateDefaultPins() override;
 	// End of UEdGraphNode interface
 
 	// UK2Node interface
@@ -48,9 +47,8 @@ public:
 	virtual void PreloadRequiredAssets() override;
 	// End of UAnimGraphNode_Base interface
 
-	void RemoveUnconnectedPinsFromBlendList();
 	//@TODO: Generalize this behavior (returning a list of actions/delegates maybe?)
-	void RemovePinFromBlendList(UEdGraphPin* Pin);
+	virtual void RemovePinFromBlendList(UEdGraphPin* Pin);
 
 	// INodeDependingOnEnumInterface
 	virtual class UEnum* GetEnum() const override { return BoundEnum; }

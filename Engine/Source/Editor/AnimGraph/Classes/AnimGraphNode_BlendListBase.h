@@ -26,5 +26,5 @@ protected:
 	// removes removed pins and adjusts array indices of remained pins
 	void RemovePinsFromOldPins(TArray<UEdGraphPin*>& OldPins, int32 RemovedArrayIndex);
 
-	TArray<int32> RemovedPinArrayIndices;
+	int32 RemovedPinArrayIndex;
 };

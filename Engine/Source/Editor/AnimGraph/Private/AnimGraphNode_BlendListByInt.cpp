@@ -60,7 +60,7 @@ void UAnimGraphNode_BlendListByInt::RemovePinFromBlendList(UEdGraphPin* Pin)
 	{
 		//@TODO: ANIMREFACTOR: Need to handle moving pins below up correctly
 		// setting up removed pins info
-		RemovedPinArrayIndices.Add(ArrayIndex);
+		RemovedPinArrayIndex = ArrayIndex;
 		Node.RemovePose(ArrayIndex);
 		// removes the selected pin and related properties in reconstructNode()
 		// @TODO: Considering passing "RemovedPinArrayIndex" to ReconstructNode as the argument
