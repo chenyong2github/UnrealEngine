@@ -119,7 +119,6 @@ private:
 	FDelegateHandle CreateVectorParameterTrackEditorHandle;
 	FDelegateHandle CreateColorParameterTrackEditorHandle;
 
-	FDelegateHandle MergeEmitterHandle;
 	FDelegateHandle CreateDefaultScriptSourceHandle;
 	FDelegateHandle ScriptCompilerHandle;
 	FDelegateHandle PrecompilerHandle;

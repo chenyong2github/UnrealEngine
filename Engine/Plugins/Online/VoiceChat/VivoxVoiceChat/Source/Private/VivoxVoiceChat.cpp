@@ -15,6 +15,8 @@
 
 DEFINE_LOG_CATEGORY(LogVivoxVoiceChat);
 
+FVivoxDelegates::FOnAudioUnitCaptureDeviceStatusChanged FVivoxDelegates::OnAudioUnitCaptureDeviceStatusChanged;
+
 namespace
 {
 static const FVoiceChatResult ResultSuccess = { true, 0, TEXT("") };

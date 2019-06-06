@@ -42,6 +42,16 @@ bool ALandscapeBlueprintCustomBrush::ShouldTickIfViewportsOnly() const
 	return true;
 }
 
+void ALandscapeBlueprintCustomBrush::RequestLandscapeUpdate()
+{
+#if WITH_EDITORONLY_DATA
+	if (OwningLandscape)
+	{
+		OwningLandscape->RequestLayersContentUpdateForceAll();
+	}
+#endif
+}
+
 #if WITH_EDITOR
 
 void ALandscapeBlueprintCustomBrush::SetCommitState(bool InCommited)

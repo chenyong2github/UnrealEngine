@@ -21,6 +21,21 @@ struct SwitchDropdownOption
 	{}
 };
 
+// This data structure is used internally by the default enum dropdown to keep track of the user's choice
+struct DefaultEnumOption
+{
+	FText DisplayName;
+	int32 EnumIndex;	
+
+	DefaultEnumOption(FText DisplayName) : DisplayName(DisplayName), EnumIndex(0)
+	{
+	}
+
+	DefaultEnumOption(FText DisplayName, int32 EnumIndex) : DisplayName(DisplayName), EnumIndex(EnumIndex)
+	{
+	}
+};
+
 /** This customization sets up a custom details panel for the static switch node in the niagara module graph. */
 class FNiagaraStaticSwitchNodeDetails : public IDetailCustomization
 {
@@ -55,8 +70,8 @@ private:
 	TOptional<int32> GetSwitchDefaultValue() const;
 	void DefaultIntValueCommitted(int32 Value, ETextCommit::Type CommitInfo);
 	void DefaultBoolValueCommitted(ECheckBoxState NewState);
-	TSharedRef<SWidget> CreateWidgetForDropdownOption(TSharedPtr<FString> InOption);
-	void OnSelectionChanged(TSharedPtr<FString> NewValue, ESelectInfo::Type);
+	TSharedRef<SWidget> CreateWidgetForDropdownOption(TSharedPtr<DefaultEnumOption> InOption);
+	void OnSelectionChanged(TSharedPtr<DefaultEnumOption> NewValue, ESelectInfo::Type);
 	FText GetDefaultSelectionItemLabel() const;
 	void RefreshDefaultDropdownValues();
 
@@ -66,6 +81,6 @@ private:
 	TWeakObjectPtr<class UNiagaraNodeStaticSwitch> Node;
 	TArray<TSharedPtr<SwitchDropdownOption>> DropdownOptions;
 	TSharedPtr<SwitchDropdownOption> SelectedDropdownItem;
-	TArray<TSharedPtr<FString>> DefaultEnumDropdownOptions;
-	TSharedPtr<FString> SelectedDefaultValue;
+	TArray<TSharedPtr<DefaultEnumOption>> DefaultEnumDropdownOptions;
+	TSharedPtr<DefaultEnumOption> SelectedDefaultValue;
 };
