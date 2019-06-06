@@ -3302,7 +3302,6 @@ bool FEngineLoop::LoadStartupCoreModules()
 		FModuleManager::Get().LoadModule(TEXT("Blutility"));
 	}
 
-	FModuleManager::Get().LoadModule(TEXT("VirtualTexturingEditor"));
 #endif //(WITH_EDITOR && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
 #if WITH_ENGINE

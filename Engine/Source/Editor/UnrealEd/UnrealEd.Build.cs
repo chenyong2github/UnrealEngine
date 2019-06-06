@@ -63,7 +63,8 @@ public class UnrealEd : ModuleRules
 				"ClothingSystemEditorInterface",
 				"NavigationSystem",
 				"Media",
-			}
+				"VirtualTexturingEditor",
+            }
 		);
 
 		PublicDependencyModuleNames.AddRange(

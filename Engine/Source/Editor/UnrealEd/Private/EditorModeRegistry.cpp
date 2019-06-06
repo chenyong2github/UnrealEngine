@@ -16,6 +16,7 @@
 #include "Editor/SceneDepthPickerMode/Public/SceneDepthPickerMode.h"
 #include "Editor/TextureAlignMode/Public/TextureAlignEdMode.h"
 #include "Editor/FoliageEdit/Public/FoliageEditModule.h"
+#include "Editor/VirtualTexturingEditor/Public/VirtualTexturingEditorModule.h"
 
 FEditorModeInfo::FEditorModeInfo()
 	: ID(NAME_None)
@@ -65,6 +66,7 @@ void FEditorModeRegistry::Initialize()
 	FModuleManager::LoadModuleChecked<IMeshPaintModule>(TEXT("MeshPaintMode"));
 	FModuleManager::LoadModuleChecked<ILandscapeEditorModule>(TEXT("LandscapeEditor"));
 	FModuleManager::LoadModuleChecked<IFoliageEditModule>(TEXT("FoliageEdit"));
+	FModuleManager::LoadModuleChecked<FVirtualTexturingEditorModule>(TEXT("VirtualTexturingEditor"));
 }
 
 void FEditorModeRegistry::Shutdown()
