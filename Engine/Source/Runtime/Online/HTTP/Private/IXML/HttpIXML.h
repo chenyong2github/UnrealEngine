@@ -2,11 +2,6 @@
 
 #pragma once
 
-// @ATG_CHANGE : BEGIN TODO:
-#ifndef PLATFORM_HOLOLENS
-#define PLATFORM_HOLOLENS 0
-#endif
-
 #if PLATFORM_HOLOLENS
 
 #include "HttpIXMLSupport.h"

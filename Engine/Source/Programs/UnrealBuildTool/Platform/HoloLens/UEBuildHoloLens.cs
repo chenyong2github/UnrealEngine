@@ -389,7 +389,6 @@ namespace UnrealBuildTool
 
 			return string.Empty;
 		}
-		// @ATG_CHANGE : END
 
 
 		/// <summary>
@@ -417,15 +416,6 @@ namespace UnrealBuildTool
 						}
 					}
 				}
-			}
-
-			if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.HoloLens)
-			{
-				// Adjust any WinMD references that were provided as contract names.
-				string SDKFolder = Target.WindowsPlatform.Environment.WindowsSdkDir.FullName;
-				string SDKVersionString = Target.WindowsPlatform.WindowsSdkVersion;
-				ExpandWinMDReferences(Target, SDKFolder, SDKVersionString, ref Rules.PublicWinMDReferences);
-				ExpandWinMDReferences(Target, SDKFolder, SDKVersionString, ref Rules.PrivateWinMDReferences);
 			}
 		}
 
@@ -494,12 +484,6 @@ namespace UnrealBuildTool
 				Rules.PublicAdditionalLibraries.Remove("X3DAudio.lib");
 				Rules.PublicAdditionalLibraries.Remove("XAPOFX.lib");
 			}
-
-			// Adjust any WinMD references that were provided as contract names.
-			string SDKFolder = Target.WindowsPlatform.WindowsSdkDir;
-			string SDKVersionString = Target.HoloLensPlatform.Win10SDKVersion.ToString();
-			ExpandWinMDReferences(Target, SDKFolder, SDKVersionString, ref Rules.PublicWinMDReferences);
-			ExpandWinMDReferences(Target, SDKFolder, SDKVersionString, ref Rules.PrivateWinMDReferences);
 		}
 
 		private void ExpandWinMDReferences(ReadOnlyTargetRules Target, string SDKFolder, string SDKVersion, ref List<string> WinMDReferences)
@@ -576,8 +560,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.LibraryPaths.Add(new DirectoryReference(string.Format(@"{0}\Lib\{1}\um\{2}", Win10SDKRoot, Target.HoloLensPlatform.Win10SDKVersion, LibArchitecture)));
 
 			// Reference (WinMD) paths
-			// Only Foundation and Universal are referenced by default.  Modules can bring in additional
-			// contracts via the PublicWinMDReferences/PrivateWinMDReferences.
+			// Only Foundation and Universal are referenced by default.  
 			List<string> AlwaysReferenceContracts = new List<string>();
 			AlwaysReferenceContracts.Add("Windows.Foundation.FoundationContract");
 			AlwaysReferenceContracts.Add("Windows.Foundation.UniversalApiContract");

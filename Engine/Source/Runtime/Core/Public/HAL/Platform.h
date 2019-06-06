@@ -73,11 +73,9 @@
 #if !defined(PLATFORM_UNIX)
 	#define PLATFORM_UNIX 0
 #endif
-// @ATG_CHANGE : BEGIN HoloLens support
 #if !defined(PLATFORM_HOLOLENS)
 #define PLATFORM_HOLOLENS 0
 #endif
-// @ATG_CHANGE : END
 
 // Platform specific compiler pre-setup.
 #include "PreprocessorHelpers.h"

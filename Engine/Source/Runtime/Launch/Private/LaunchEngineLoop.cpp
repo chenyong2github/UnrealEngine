@@ -4512,46 +4512,6 @@ void FEngineLoop::ClearPendingCleanupObjects()
 	PendingCleanupObjects = nullptr;
 }
 
-// @ATG_CHANGE : BEGIN HoloLens support
-#if PLATFORM_HOLOLENS
-
-void FEngineLoop::OnResuming(_In_ Platform::Object^ Sender, _In_ Platform::Object^ Args)
-{
-	// Make the call down to the RHI to Resume the GPU state
-	RHIResumeRendering();
-
-	// Notify application of resume
-	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Broadcast();
-}
-
-void FEngineLoop::OnSuspending(_In_ Platform::Object^ Sender, _In_ Windows::ApplicationModel::SuspendingEventArgs^ Args)
-{
-	// Get the Suspending Event
-	Windows::ApplicationModel::SuspendingDeferral^ SuspendingEvent = Args->SuspendingOperation->GetDeferral();
-	
-	// Notify application of suspend. Application should kick off an async save at this point.
-	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
-
-	// Flush the RenderingThread
-	FlushRenderingCommands();
-
-	// Make the call down to the RHI to Suspend the GPU state
-	if (GDynamicRHI != nullptr)
-	{
-		RHISuspendRendering();
-	}
-
-	// @TODO Wait for async save to complete
-	// Flush the log so it's all written to disk
-	GLog->FlushThreadedLogs();
-	GLog->Flush();
-
-	// Tell the callback that we are done
-	SuspendingEvent->Complete();
-}
-
-#endif //  PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 #endif // WITH_ENGINE
 
 

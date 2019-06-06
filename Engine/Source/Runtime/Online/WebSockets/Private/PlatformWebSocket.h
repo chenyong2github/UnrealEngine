@@ -13,12 +13,10 @@
 
 #elif PLATFORM_XBOXONE
 #include "XboxOne/XboxOneWebSocketsManager.h"
-// @ATG_CHANGE : BEGIN HoloLens websockets
 #elif PLATFORM_HOLOLENS
 #include "HoloLens/HoloLensWebSocketsManager.h"
 typedef FHoloLensWebSocketsManager FPlatformWebSocketsManager;
 #else
-// @ATG_CHANGE : END
 #error "Web sockets not implemented on this platform yet"
 #endif // WITH_LIBWEBSOCKETS
 

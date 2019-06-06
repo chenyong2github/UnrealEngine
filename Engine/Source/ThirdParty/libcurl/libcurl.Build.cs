@@ -43,9 +43,7 @@ public class libcurl : ModuleRules
 //			PublicAdditionalLibraries.Add("ssl");
 //			PublicAdditionalLibraries.Add("dl");
 		}
-// @ATG_CHANGE : BEGIN HoloLens support
 		else if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens)
-// @ATG_CHANGE : END
 		{
 			PublicIncludePaths.Add(WinLibCurlPath + "include/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 			PublicLibraryPaths.Add(WinLibCurlPath + "lib/" + Target.Platform.ToString() +  "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());

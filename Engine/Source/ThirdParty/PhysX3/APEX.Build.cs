@@ -113,10 +113,63 @@ public class APEX : ModuleRules
 		bool bIsApexStaticallyLinked = false;
 		bool bHasApexLegacy = true;
 
-// @ATG_CHANGE : BEGIN HoloLens support
 		// Libraries and DLLs for windows platform
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens ||
-            Target.Platform == UnrealTargetPlatform.Win32)
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add(APEXLibDir);
+
+			PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_x64.lib", LibrarySuffix));
+			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x64.dll", LibrarySuffix));
+
+			string[] RuntimeDependenciesX64 =
+			{
+				"APEX_Clothing{0}_x64.dll",
+				"APEX_Legacy{0}_x64.dll",
+				"ApexFramework{0}_x64.dll",
+			};
+
+			string ApexBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win64/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			foreach (string RuntimeDependency in RuntimeDependenciesX64)
+			{
+				string FileName = ApexBinariesDir + String.Format(RuntimeDependency, LibrarySuffix);
+				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
+				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
+			}
+			if (LibrarySuffix != "")
+			{
+				PublicDefinitions.Add("UE_APEX_SUFFIX=" + LibrarySuffix);
+			}
+
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win32)
+		{
+			APEXLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add(APEXLibDir);
+
+			PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_x86.lib", LibrarySuffix));
+			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x86.dll", LibrarySuffix));
+
+			string[] RuntimeDependenciesX86 =
+			{
+				"APEX_Clothing{0}_x86.dll",
+				"APEX_Legacy{0}_x86.dll",
+				"ApexFramework{0}_x86.dll",
+			};
+
+			string ApexBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/Win32/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			foreach (string RuntimeDependency in RuntimeDependenciesX86)
+			{
+				string FileName = ApexBinariesDir + String.Format(RuntimeDependency, LibrarySuffix);
+				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
+				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
+			}
+			if (LibrarySuffix != "")
+			{
+				PublicDefinitions.Add("UE_APEX_SUFFIX=" + LibrarySuffix);
+			}
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 
@@ -147,7 +200,6 @@ public class APEX : ModuleRules
 			{
 				PublicDefinitions.Add("UE_APEX_SUFFIX=" + LibrarySuffix);
 			}
-// @ATG_CHANGE : END
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

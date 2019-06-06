@@ -25,7 +25,6 @@ public class HoloLensDeviceDetector : ModuleRules
 
 		if (Target.WindowsPlatform.bUseWindowsSDK10)
 		{
-			bEnableWinRTComponentExtensions = true;
 			bEnableExceptions = true;
 			PCHUsage = PCHUsageMode.NoSharedPCHs;
 			PrivatePCHHeaderFile = "Public/IHoloLensDeviceDetectorModule.h";

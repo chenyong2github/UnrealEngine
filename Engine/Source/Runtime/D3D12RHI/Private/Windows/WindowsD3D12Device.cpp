@@ -8,11 +8,9 @@
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <delayimp.h>
-	// @ATG_CHANGE : BEGIN HoloLens support
-	#if !PLATFORM_HOLOLENS
-	#include "amd_ags.h"
-	#endif
-	// @ATG_CHANGE : END HoloLens support
+#if !PLATFORM_CPU_ARM_FAMILY
+#include "amd_ags.h"
+#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HardwareInfo.h"
@@ -541,8 +539,7 @@ void FD3D12DynamicRHI::Init()
 	// Need to set GRHIVendorId before calling IsRHIDevice* functions
 	GRHIVendorId = AdapterDesc.VendorId;
 
-	// @ATG_CHANGE : BEGIN HoloLens support
-#if !PLATFORM_HOLOLENS
+#if !PLATFORM_CPU_ARM_FAMILY
 	// Initialize the AMD AGS utility library, when running on an AMD device
 	if (IsRHIDeviceAMD())
 	{
@@ -551,7 +548,6 @@ void FD3D12DynamicRHI::Init()
 		agsInit(&AmdAgsContext, nullptr, nullptr);
 	}
 #endif
-	// @ATG_CHANGE : END HoloLens support
 
 	// Create a device chain for each of the adapters we have choosen. This could be a single discrete card,
 	// a set discrete cards linked together (i.e. SLI/Crossfire) an Integrated device or any combination of the above
@@ -562,8 +558,8 @@ void FD3D12DynamicRHI::Init()
 	}
 
 	uint32 AmdSupportedExtensionFlags = 0;
-	// @ATG_CHANGE : BEGIN HoloLens support
-#if !PLATFORM_HOLOLENS
+
+#if !PLATFORM_CPU_ARM_FAMILY
 	if (AmdAgsContext)
 	{
 		// Initialize AMD driver extensions
@@ -581,7 +577,6 @@ void FD3D12DynamicRHI::Init()
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers without driver support. Update AMD driver."));
 	}
 #endif
-	// @ATG_CHANGE : END HoloLens support
 
 	GTexturePoolSize = 0;
 

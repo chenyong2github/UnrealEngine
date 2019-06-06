@@ -35,10 +35,8 @@ public class OpenSSL : ModuleRules
 			PublicAdditionalLibraries.Add(LibraryPath + "/" + "libssl.a");
 			PublicAdditionalLibraries.Add(LibraryPath + "/" + "libcrypto.a");
 		}
-// @ATG_CHANGE : BEGIN HoloLens support
 		else if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
 				Target.Platform == UnrealTargetPlatform.HoloLens)
-// @ATG_CHANGE : END
 		{
 			// Our OpenSSL 1.1.1 libraries are built with zlib compression support
 			PrivateDependencyModuleNames.Add("zlib");

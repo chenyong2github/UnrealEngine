@@ -46,7 +46,7 @@ namespace UnrealBuildTool
 		/// <returns>bool    true if native VisualStudio support (or custom VSI) is available</returns>
 		public override bool HasVisualStudioSupport(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration, VCProjectFileFormat ProjectFileFormat)
 		{
-			return false;
+			return true;
 		}
 
 		/// <summary>
@@ -143,6 +143,20 @@ namespace UnrealBuildTool
 			}
 
 			return LayoutDirString;
+		}
+
+		///
+		///	VisualStudio project generation functions
+		///	
+		/// <summary>
+		/// Return the VisualStudio platform name for this build platform
+		/// </summary>
+		/// <param name="InPlatform">  The UnrealTargetPlatform being built</param>
+		/// <param name="InConfiguration"> The UnrealTargetConfiguration being built</param>
+		/// <returns>string    The name of the platform that VisualStudio recognizes</returns>
+		public override string GetVisualStudioPlatformName(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration)
+		{
+			return "x64";
 		}
 
 		private bool IsValidHoloLensTarget(UnrealTargetPlatform InPlatform, TargetType InTargetType, FileReference InTargetFilePath)

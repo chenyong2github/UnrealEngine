@@ -103,7 +103,6 @@ public class ApexDestructionLib : ModuleRules
 
 
         // Libraries and DLLs for windows platform
-        // @ATG_CHANGE : BEGIN HoloLens support
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
             APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();

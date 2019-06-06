@@ -20,9 +20,7 @@ namespace PhysDLLHelper
 	const static int32 NumModuleLoadRetries = 5;
 	const static float ModuleReloadDelay = 0.5f;
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_MAC
-// @ATG_CHANGE : END
 	void* PxFoundationHandle = nullptr;
 	void* PhysX3CommonHandle = nullptr;
 	void* PhysX3Handle = nullptr;
@@ -38,9 +36,7 @@ namespace PhysDLLHelper
 	#endif	//WITH_APEX
 #endif
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 
 	FString PhysXBinariesRoot = TEXT("Binaries/ThirdParty/PhysX3/");
 	FString APEXBinariesRoot = TEXT("Binaries/ThirdParty/PhysX3/");
@@ -175,9 +171,7 @@ void* LoadPhysicsLibrary(const FString& PathEnd)
 #if WITH_APEX
 ENGINE_API void* LoadAPEXModule(const FString& Path)
 {
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	return LoadPhysicsLibrary(RootAPEXPath + Path + APEXSuffix);
 #elif PLATFORM_MAC
 	const FString APEX_HandleLibName = FString::Printf(TEXT("%slib%s%s"), *PhysXBinariesRoot, *Path, *APEXSuffix);
@@ -193,9 +187,7 @@ ENGINE_API void* LoadAPEXModule(const FString& Path)
 ENGINE_API bool LoadPhysXModules(bool bLoadCookingModule)
 {
 	bool bHasToolsExtensions = false;
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	PxFoundationHandle = LoadPhysicsLibrary(RootSharedPath + "PxFoundation" + PhysXSuffix);
 	PhysX3CommonHandle = LoadPhysicsLibrary(RootPhysXPath + "PhysX3Common" + PhysXSuffix);
 	const FString nvToolsExtPath = RootPhysXPath + "nvToolsExt" + ArchBits + "_1.dll";
@@ -286,9 +278,7 @@ ENGINE_API bool LoadPhysXModules(bool bLoadCookingModule)
  */
 void UnloadPhysXModules()
 {
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_MAC
-// @ATG_CHANGE : END
 	FPlatformProcess::FreeDllHandle(PxPvdSDKHandle);
 	FPlatformProcess::FreeDllHandle(PhysX3Handle);
 	if(PhysX3CookingHandle)
@@ -310,9 +300,7 @@ void UnloadPhysXModules()
 #if WITH_APEX
 ENGINE_API void UnloadAPEXModule(void* Handle)
 {
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS || PLATFORM_MAC
-// @ATG_CHANGE : END
 	if(Handle)
 	{
 		FPlatformProcess::FreeDllHandle(Handle);

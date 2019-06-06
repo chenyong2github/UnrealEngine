@@ -7,12 +7,17 @@ public class DX11Audio : ModuleRules
 	{
 		Type = ModuleType.External;
 
-        // @ATG_CHANGE : BEGIN HoloLens Support
-		string DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+		string DirectXSDKDir = "";
+		if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
 			Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
-			Target.UEThirdPartySourceDirectory + "Windows/DirectX";        
-        // @ATG_CHANGE : END
-
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
+		else
+		{
+			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -24,25 +29,27 @@ public class DX11Audio : ModuleRules
 			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
 		}
 
-		// @ATG_CHANGE : BEGIN HoloLens Support
-		PublicAdditionalLibraries.AddRange(
+		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PublicAdditionalLibraries.AddRange(
+				new string[] {
+				"dxguid.lib",
+				"X3DAudio.lib",
+				"xapobase.lib",
+				"XAPOFX.lib"
+				}
+				);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			PublicAdditionalLibraries.AddRange(
 			new string[]
 			{
 				"dxguid.lib",
 				"xapobase.lib"
 			}
 			);
-
-		if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicAdditionalLibraries.AddRange(
-				new string[] {
-				"X3DAudio.lib",
-				"XAPOFX.lib"
-				}
-				);
 		}
-		// @ATG_CHANGE : END
 	}
 }
 

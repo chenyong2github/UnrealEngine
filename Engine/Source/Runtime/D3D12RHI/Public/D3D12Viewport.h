@@ -170,9 +170,7 @@ private:
 	bool bAllowTearing;
 	TRefCountPtr<IDXGISwapChain1> SwapChain1;
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	bool bHDRMetaDataSet;
 	DXGI_COLOR_SPACE_TYPE ColorSpace;
 	TRefCountPtr<IDXGISwapChain4> SwapChain4;
@@ -253,9 +251,7 @@ private:
 	/** Disable HDR meta data transmission and set the necessary color space. */
 	void ShutdownHDR();
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	/** Ensure the correct color space is set on the swap chain */
 	void EnsureColorSpace(EDisplayGamut DisplayGamut, EDisplayFormat OutputDevice);
 

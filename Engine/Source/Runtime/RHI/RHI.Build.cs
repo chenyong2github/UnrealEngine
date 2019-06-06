@@ -26,12 +26,10 @@ public class RHI : ModuleRules
 					DynamicallyLoadedModuleNames.Add("D3D12RHI");
 				}
 
-				// @ATG_CHANGE : BEGIN HoloLens support
 				if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 				{
 					DynamicallyLoadedModuleNames.Add("D3D11RHI");
 				}
-				// @ATG_CHANGE : END
 
 				if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 					(Target.Platform == UnrealTargetPlatform.Win32) ||

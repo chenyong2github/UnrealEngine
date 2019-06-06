@@ -10,8 +10,6 @@ using System.Text.RegularExpressions;
 using Microsoft.Win32;
 using Tools.DotNETCommon;
 
-// @ATG_CHANGE : BEGIN TODO:
-
 namespace UnrealBuildTool
 {
 	static class Extension
@@ -446,11 +444,6 @@ namespace UnrealBuildTool
 			foreach (DirectoryReference IncludePath in EnvVars.IncludePaths)
 			{
 				VCToolChain.AddIncludePath(SharedArguments, IncludePath, Target.HoloLensPlatform.Compiler);
-			}
-
-			foreach (string CurAssemblyInfo in CompileEnvironment.WinMDReferences)
-			{
-				SharedArguments.AddFormat("/FU\"{0}\"", CurAssemblyInfo);
 			}
 
 			// Add preprocessor definitions to the argument list.

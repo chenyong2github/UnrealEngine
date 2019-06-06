@@ -5,9 +5,7 @@
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
-// @ATG_CHANGE : BEGIN HoloLens support
 #include "D3D11RHIPrivateUtil.h"
-// @ATG_CHANGE : END
 #include "StaticBoundShaderState.h"
 #include "GlobalShader.h"
 #include "OneColorShader.h"
@@ -17,9 +15,7 @@
 #include "SceneUtils.h"
 #include "EngineGlobals.h"
 
-// @ATG_CHANGE : BEGIN HoloLens support
-#if PLATFORM_DESKTOP && !PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
+#if PLATFORM_DESKTOP
 // For Depth Bounds Test interface
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include "nvapi.h"
@@ -1915,9 +1911,7 @@ void FD3D11DynamicRHI::RHIExecuteCommandList(FRHICommandList* CmdList)
 // NVIDIA Depth Bounds Test interface
 void FD3D11DynamicRHI::EnableDepthBoundsTest(bool bEnable,float MinDepth,float MaxDepth)
 {
-	// @ATG_CHANGE : BEGIN HoloLens support
-#if PLATFORM_DESKTOP && !PLATFORM_HOLOLENS
-	// @ATG_CHANGE : END
+#if PLATFORM_DESKTOP
 	if(MinDepth > MaxDepth)
 	{
 		UE_LOG(LogD3D11RHI, Error,TEXT("RHIEnableDepthBoundsTest(%i,%f, %f) MinDepth > MaxDepth, cannot set DBT."),bEnable,MinDepth,MaxDepth);

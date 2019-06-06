@@ -30,7 +30,7 @@ struct FHoloLensTypes : public FGenericPlatformTypes
 typedef FHoloLensTypes FPlatformTypes;
 
 // Base defines, must define these for the platform, there are no defaults
-#define PLATFORM_DESKTOP				1
+#define PLATFORM_DESKTOP				0
 #if defined( _WIN64 )
 #define PLATFORM_64BITS					1
 #else

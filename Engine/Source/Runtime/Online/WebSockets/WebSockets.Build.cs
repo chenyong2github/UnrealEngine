@@ -29,7 +29,6 @@ public class WebSockets : ModuleRules
 
 		bool bPlatformSupportsXboxWebsockets = Target.Platform == UnrealTargetPlatform.XboxOne;
 
-		// @ATG_CHANGE : BEGIN HoloLens websockets
 		bool bPlatformSupportsWinRTWebsockets =
 			Target.Platform == UnrealTargetPlatform.HoloLens;
 
@@ -37,7 +36,6 @@ public class WebSockets : ModuleRules
 				bPlatformSupportsLibWebsockets || 
 					bPlatformSupportsXboxWebsockets ||
 					bPlatformSupportsWinRTWebsockets;
-		// @ATG_CHANGE : END
 
 		if (bShouldUseModule)
 		{

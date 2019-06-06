@@ -10,9 +10,23 @@ public class UElibPNG : ModuleRules
 
 		string libPNGPath = Target.UEThirdPartySourceDirectory + "libPNG/libPNG-1.5.2";
 
-        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-            (Target.Platform == UnrealTargetPlatform.Win32) ||
-            (Target.Platform == UnrealTargetPlatform.HoloLens))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			string LibPath = libPNGPath + "/lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add(LibPath);
+
+			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + "_64.lib";
+			PublicAdditionalLibraries.Add(LibFileName);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win32)
+		{
+			libPNGPath = libPNGPath + "/lib/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add(libPNGPath);
+
+			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + ".lib";
+			PublicAdditionalLibraries.Add(LibFileName);
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             string PlatformSubpath = Target.Platform.ToString();
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
@@ -35,7 +49,6 @@ public class UElibPNG : ModuleRules
             }
             PublicAdditionalLibraries.Add(LibFileName + ".lib");
         }
-		// @ATG_CHANGE : END
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Mac/libpng.a");

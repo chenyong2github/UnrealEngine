@@ -73,9 +73,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	//		Software must be NULL. 
 	D3D_DRIVER_TYPE DriverType = D3D_DRIVER_TYPE_UNKNOWN;
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
-// @ATG_CHANGE : END
 	if (bWithDebug)
 	{
 		TRefCountPtr<ID3D12Debug> DebugController;
@@ -100,9 +98,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 			UE_LOG(LogD3D12RHI, Fatal, TEXT("The debug interface requires the D3D12 SDK Layers. Please install the Graphics Tools for Windows. See: https://docs.microsoft.com/en-us/windows/uwp/gaming/use-the-directx-runtime-and-visual-studio-graphics-diagnostic-features"));
 		}
 	}
-// @ATG_CHANGE : BEGIN HoloLens support
-#endif // PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING)
-// @ATG_CHANGE : END
+#endif // PLATFORM_WINDOWS || (PLATFORM_HOLOLENS && !UE_BUILD_SHIPPING && D3D12_PROFILING_ENABLED)
 
 #if USE_PIX
 	UE_LOG(LogD3D12RHI, Log, TEXT("Emitting draw events for PIX profiling."));
@@ -232,9 +228,7 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if !(UE_BUILD_SHIPPING && WITH_EDITOR) && (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
-// @ATG_CHANGE : END
 	// Add some filter outs for known debug spew messages (that we don't care about)
 	if (bWithDebug)
 	{

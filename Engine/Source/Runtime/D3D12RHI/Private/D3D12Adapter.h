@@ -158,14 +158,9 @@ public:
 
 	FORCEINLINE void CreateDXGIFactory()
 	{
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		VERIFYD3D12RESULT(::CreateDXGIFactory(IID_PPV_ARGS(DxgiFactory.GetInitReference())));
 		VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
-// @ATG_CHANGE : BEGIN HoloLens support
-#elif PLATFORM_HOLOLENS
-		VERIFYD3D12RESULT(::CreateDXGIFactory1(IID_PPV_ARGS(DxgiFactory.GetInitReference())));
-		VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
-// @ATG_CHANGE : END
 #endif
 	}
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }

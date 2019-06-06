@@ -26,9 +26,7 @@
 
 #include "HoloLens/AllowWindowsPlatformTypes.h"
 #include <collection.h>
-// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
 #include <ppltasks.h>
-// @ATG_CHANGE : END
 #include <concurrent_queue.h>
 #include "HoloLens/HideWindowsPlatformTypes.h"
 
@@ -636,12 +634,10 @@ void ViewProvider::OnActivated(_In_ Windows::ApplicationModel::Core::CoreApplica
 		if(args->Kind == ActivationKind::Launch)
 		{
 			LaunchActivatedEventArgs ^LaunchArgs = (LaunchActivatedEventArgs^)args;
-			// @ATG_CHANGE : BEGIN HoloLens packaging & F5 support
 			if (!LaunchArgs->Arguments->IsEmpty())
 			{
 				FCommandLine::Set(LaunchArgs->Arguments->Data());
 			}
-			// @ATG_CHANGE : END
 		}
 		else if(args->Kind == Windows::ApplicationModel::Activation::ActivationKind::Protocol)
 		{
@@ -670,8 +666,11 @@ void ViewProvider::OnActivated(_In_ Windows::ApplicationModel::Core::CoreApplica
 
 void ViewProvider::OnResuming(_In_ Platform::Object^ Sender, _In_ Platform::Object^ Args)
 {
-	// Send it to the Engine Loop for processing
-	GEngineLoop.OnResuming(Sender,Args);
+	// Make the call down to the RHI to Resume the GPU state
+	RHIResumeRendering();
+
+	// Notify application of resume
+	FCoreDelegates::ApplicationHasEnteredForegroundDelegate.Broadcast();
 	// Invalidate pending execution request
 	ExecutionSession = nullptr;
 
@@ -685,8 +684,28 @@ void ViewProvider::OnResuming(_In_ Platform::Object^ Sender, _In_ Platform::Obje
 
 void ViewProvider::OnSuspending(_In_ Platform::Object^ Sender, _In_ Windows::ApplicationModel::SuspendingEventArgs^ Args)
 {
-	// Send it to the Engine Loop for processing
-	GEngineLoop.OnSuspending(Sender,Args);
+	// Get the Suspending Event
+	Windows::ApplicationModel::SuspendingDeferral^ SuspendingEvent = Args->SuspendingOperation->GetDeferral();
+
+	// Notify application of suspend. Application should kick off an async save at this point.
+	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.Broadcast();
+
+	// Flush the RenderingThread
+	FlushRenderingCommands();
+
+	// Make the call down to the RHI to Suspend the GPU state
+	if (GDynamicRHI != nullptr)
+	{
+		RHISuspendRendering();
+	}
+
+	// @TODO Wait for async save to complete
+	// Flush the log so it's all written to disk
+	GLog->FlushThreadedLogs();
+	GLog->Flush();
+
+	// Tell the callback that we are done
+	SuspendingEvent->Complete();
 }
 
 const TCHAR* ViewProvider::GetPointerUpdateKindString(Windows::UI::Input::PointerUpdateKind InKind)
@@ -991,7 +1010,7 @@ void ViewProvider::Run()
 
 	appHoloLensEarlyInit();
 
-	// @ATG_CHANGE : command line fetch moved to earlier in startup, in a background task
+	// command line fetch moved to earlier in startup, in a background task
 
 	// Parse the basedir and check for the 'clearbasedir' option
 	const TCHAR* BaseDirectory = FPlatformProcess::BaseDir();

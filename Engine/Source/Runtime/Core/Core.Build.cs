@@ -68,7 +68,6 @@ public class Core : ModuleRules
 				PrivateDefinitions.Add("USE_BUNDLED_DBGHELP=0");
 			}
 		}
-		// @ATG_CHANGE : BEGIN HoloLens support
 		else if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
 			PublicIncludePaths.Add("Runtime/Core/Public/HoloLens");
@@ -80,7 +79,6 @@ public class Core : ModuleRules
 				"XInput"
 				);
 		}
-		// @ATG_CHANGE : END
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target,

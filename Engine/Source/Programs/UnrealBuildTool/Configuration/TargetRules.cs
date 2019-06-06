@@ -1268,12 +1268,10 @@ namespace UnrealBuildTool
 		[ConfigSubObject]
 		public XboxOneTargetRules XboxOnePlatform = new XboxOneTargetRules();
 
-		// @ATG_CHANGE : BEGIN HoloLens support
 		/// <summary>
 		/// HoloLens-specific target settings.
 		/// </summary>
 		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
-		// @ATG_CHANGE : END
 
 		/// <summary>
 		/// Constructor.
@@ -1586,9 +1584,7 @@ namespace UnrealBuildTool
 			SwitchPlatform = new ReadOnlySwitchTargetRules(Inner.SwitchPlatform);
 			WindowsPlatform = new ReadOnlyWindowsTargetRules(Inner.WindowsPlatform);
 			XboxOnePlatform = new ReadOnlyXboxOneTargetRules(Inner.XboxOnePlatform);
-			// @ATG_CHANGE : BEGIN HoloLens support
 			HoloLensPlatform = new ReadOnlyHoloLensTargetRules(Inner.HoloLensPlatform);
-			// @ATG_CHANGE : END
 		}
 
 		/// <summary>
@@ -2400,13 +2396,11 @@ namespace UnrealBuildTool
 			private set;
 		}
 
-		// @ATG_CHANGE : BEGIN HoloLens support
 		public ReadOnlyHoloLensTargetRules HoloLensPlatform
 		{
 			get;
 			private set;
 		}
-		// @ATG_CHANGE : END
 
 		public ReadOnlyXboxOneTargetRules XboxOnePlatform
 		{

@@ -1,11 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-
 #pragma once
-
-// @ATG_CHANGE : BEGIN TODO:
-#ifndef PLATFORM_HOLOLENS
-#define PLATFORM_HOLOLENS 0
-#endif
 
 #if PLATFORM_HOLOLENS
 

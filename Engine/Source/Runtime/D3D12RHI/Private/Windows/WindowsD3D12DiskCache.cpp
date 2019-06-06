@@ -27,11 +27,8 @@ void FDiskCacheInterface::Init(FString &filename, bool bEnable)
 	}
 	else
 	{
-		// @ATG_CHANGE : BEGIN HoloLens support
-		// FindFirstFileEx should be available everywhere, so use that in preference to FindFirstFile (which is not in HoloLens prior to 14393)
-		WIN32_FIND_DATAW fileData;
-		HANDLE Handle = FindFirstFileEx(mFileName.GetCharArray().GetData(), FINDEX_INFO_LEVELS::FindExInfoStandard, &fileData, FINDEX_SEARCH_OPS::FindExSearchNameMatch, nullptr, 0);
-		// @ATG_CHANGE : END
+		WIN32_FIND_DATA fileData;
+		HANDLE Handle = FindFirstFile(mFileName.GetCharArray().GetData(), &fileData);
 		if (Handle == INVALID_HANDLE_VALUE)
 		{
 			if (GetLastError() == ERROR_FILE_NOT_FOUND)
@@ -107,11 +104,8 @@ void FDiskCacheInterface::GrowMapping(SIZE_T size, bool firstrun)
 
 	mCacheExists = true;
 
-	// @ATG_CHANGE : BEGIN HoloLens support
-	// GetFileSizeEx should be available everywhere, so use that in preference to GetFileSize (which is not in HoloLens)
-	LARGE_INTEGER fileSize;
-	GetFileSizeEx(mFile, &fileSize);
-	if (fileSize.QuadPart == 0)
+	uint32 fileSize = GetFileSize(mFile, NULL);
+	if (fileSize == 0)
 	{
 		byte data[64];
 		FMemory::Memzero(data);
@@ -120,9 +114,8 @@ void FDiskCacheInterface::GrowMapping(SIZE_T size, bool firstrun)
 	}
 	else if (firstrun)
 	{
-		mCurrentFileMapSize = fileSize.QuadPart;
+		mCurrentFileMapSize = fileSize;
 	}
-	// @ATG_CHANGE : END
 
 	mMemoryMap = CreateFileMapping(mFile, NULL, PAGE_READWRITE, 0, (uint32)mCurrentFileMapSize, NULL);
 	if (mMemoryMap == (HANDLE)nullptr)

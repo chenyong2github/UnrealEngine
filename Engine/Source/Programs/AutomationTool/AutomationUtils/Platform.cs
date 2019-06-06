@@ -440,13 +440,6 @@ namespace AutomationTool
 			return "";
 		}
 
-		// @ATG_CHANGE : BEGIN - HoloLens packaging & F5 support
-		public virtual string UFEPlatformName
-		{
-			get { return PlatformType.ToString(); }
-		}
-		// @ATG_CHANGE : END
-
 		/// <summary>
 		/// True if this platform can write to the abslog path that's on the host desktop.
 		/// </summary>

@@ -52,9 +52,7 @@
 	// Xbox doesn't have DXGI but common code needs this defined for headers
 	#define DXGI_QUERY_VIDEO_MEMORY_INFO			int
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #elif PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 	#define ENABLE_RESIDENCY_MANAGEMENT				1
 	#define ASYNC_DEFERRED_DELETION					1
 	#define PIPELINE_STATE_FILE_LOCATION			FPaths::ProjectSavedDir()

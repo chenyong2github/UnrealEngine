@@ -33,9 +33,7 @@ public:
 	{
 #if PLATFORM_APPLE || PLATFORM_UNIX
 		printf("%s", TCHAR_TO_UTF8(Str));
-// @ATG_CHANGE : BEGIN HoloLens support
 #elif PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 		wprintf(TEXT("%ls"), Str);
 #else
 		// If this function ever gets more complicated, we could make a PlatformMisc::Printf, and each platform can then 

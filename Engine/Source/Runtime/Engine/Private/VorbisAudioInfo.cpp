@@ -661,9 +661,7 @@ void LoadVorbisLibraries()
 	if (!bIsInitialized)
 	{
 		bIsInitialized = true;
-// @ATG_CHANGE : BEGIN HoloLens support
 #if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && WITH_OGGVORBIS
-// @ATG_CHANGE : END
 		//@todo if ogg is every ported to another platform, then use the platform abstraction to load these DLLs
 		// Load the Ogg dlls
 #  if _MSC_VER >= 1900
@@ -677,11 +675,9 @@ void LoadVorbisLibraries()
 		PlatformString = TEXT("Win64");
 		DLLNameStub = TEXT("_64.dll");
 #endif
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_HOLOLENS
 		PlatformString = TEXT("HoloLens");
 #endif
-// @ATG_CHANGE :  END
 
 #if PLATFORM_CPU_ARM_FAMILY
 #if PLATFORM_64BITS
@@ -722,9 +718,7 @@ void LoadVorbisLibraries()
 		}
 #elif WITH_OGGVORBIS
 		bDllLoaded = true;
-// @ATG_CHANGE : BEGIN HoloLens support
 #endif	//(PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && WITH_OGGVORBIS
-// @ATG_CHANGE : END
 	}
 }
 

@@ -10,13 +10,11 @@
 #include "RenderResource.h"
 #include "RenderUtils.h"
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_HOLOLENS
 #include "AllowWindowsPlatformTypes.h"
 #include <dxgi1_2.h>
 #include "HideWindowsPlatformTypes.h"
 #endif
-// @ATG_CHANGE : END
 
 /** A D3D event query resource. */
 class D3D11RHI_API FD3D11EventQuery : public FRenderResource
@@ -95,13 +93,11 @@ public:
 		FrameSyncEvent.IssueEvent();
 	}
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_HOLOLENS
 	IDXGISwapChain1* GetSwapChain() const { return SwapChain; } 
 #else
 	IDXGISwapChain* GetSwapChain() const { return SwapChain; }
 #endif
-// @ATG_CHANGE : END
 
 	virtual void* GetNativeSwapChain() const override { return GetSwapChain(); }
 	virtual void* GetNativeBackBufferTexture() const override { return GetBackBuffer()->GetResource(); }
@@ -140,13 +136,11 @@ protected:
 	bool bIsFullscreen;
 	EPixelFormat PixelFormat;
 	bool bIsValid;
-// @ATG_CHANGE : BEGIN  HoloLens support
 #if PLATFORM_HOLOLENS
 	TRefCountPtr<IDXGISwapChain1> SwapChain;
 #else
 	TRefCountPtr<IDXGISwapChain> SwapChain;
 #endif
-// @ATG_CHANGE : END
 	TRefCountPtr<FD3D11Texture2D> BackBuffer;
 
 	// Support for selecting non-default output for display in fullscreen exclusive

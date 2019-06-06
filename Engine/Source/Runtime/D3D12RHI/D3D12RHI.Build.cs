@@ -6,12 +6,10 @@ public class D3D12RHI : ModuleRules
 {
 	public D3D12RHI(ReadOnlyTargetRules Target) : base(Target)
 	{
-		// @ATG_CHANGE : BEGIN HoloLens support
 		if (Target.Platform == UnrealTargetPlatform.HoloLens)
 		{
 			PrivateIncludePaths.Add("Runtime/D3D12RHI/Private/HoloLens");
 		}
-		// @ATG_CHANGE : END
 		PrivateIncludePaths.Add("Runtime/D3D12RHI/Private");
 		PrivateIncludePaths.Add("../Shaders/Shared");
 
@@ -39,10 +37,8 @@ public class D3D12RHI : ModuleRules
             PrecompileForTargets = PrecompileTargetsType.None;
         }
 
-        // @ATG_CHANGE : BEGIN HoloLens support
         if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ||
             Target.Platform == UnrealTargetPlatform.HoloLens)
-        // @ATG_CHANGE : END
 		{
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");

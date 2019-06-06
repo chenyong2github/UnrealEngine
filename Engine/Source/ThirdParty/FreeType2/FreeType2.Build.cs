@@ -37,13 +37,18 @@ public class FreeType2 : ModuleRules
 		FreeType2LibPath = FreeType2Path + "Lib/";
 
 		if (Target.Platform == UnrealTargetPlatform.Win32 ||
-			Target.Platform == UnrealTargetPlatform.Win64 ||
-// @ATG_CHANGE : BEGIN  HoloLens support
-			Target.Platform == UnrealTargetPlatform.HoloLens)
-// @ATG_CHANGE : END
+			Target.Platform == UnrealTargetPlatform.Win64)
 		{
 
-            // @ATG_CHANGE : BEGIN HoloLens support
+			FreeType2LibPath += (Target.Platform == UnrealTargetPlatform.Win64) ? "Win64/" : "Win32/";
+			FreeType2LibPath += "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+
+			PublicLibraryPaths.Add(FreeType2LibPath);
+			PublicAdditionalLibraries.Add("freetype26MT.lib");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+
             string PlatformSubpath = Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.x86 ? "Win32" : "Win64";
 
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
@@ -55,7 +60,6 @@ public class FreeType2 : ModuleRules
                 PublicLibraryPaths.Add(System.String.Format("{0}Lib/{1}/VS{2}/", FreeType2Path, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
             }
 
-            // @ATG_CHANGE : END
             PublicAdditionalLibraries.Add("freetype26MT.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)

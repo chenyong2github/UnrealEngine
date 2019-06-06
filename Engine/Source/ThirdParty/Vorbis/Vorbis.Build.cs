@@ -12,10 +12,27 @@ public class Vorbis : ModuleRules
 		PublicIncludePaths.Add(VorbisPath + "include");
 		PublicDefinitions.Add("WITH_OGGVORBIS=1");
 
-// @ATG_CHANGE : BEGIN HoloLens support
-        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-            (Target.Platform == UnrealTargetPlatform.Win32) ||
-            (Target.Platform == UnrealTargetPlatform.HoloLens))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			string VorbisLibPath = VorbisPath + "Lib/win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			PublicLibraryPaths.Add(VorbisLibPath);
+
+			PublicAdditionalLibraries.Add("libvorbis_64.lib");
+			PublicDelayLoadDLLs.Add("libvorbis_64.dll");
+
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbis_64.dll");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win32)
+		{
+			string VorbisLibPath = VorbisPath + "Lib/win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			PublicLibraryPaths.Add(VorbisLibPath);
+
+			PublicAdditionalLibraries.Add("libvorbis.lib");
+			PublicDelayLoadDLLs.Add("libvorbis.dll");
+
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbis.dll");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             string PlatformSubpath = Target.Platform.ToString();
             string LibFileName = "libvorbis";
@@ -46,7 +63,6 @@ public class Vorbis : ModuleRules
 
             PublicAdditionalLibraries.Add(LibFileName + ".lib");
 			PublicDelayLoadDLLs.Add(LibFileName + ".dll");
-// @ATG_CHANGE : END
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{

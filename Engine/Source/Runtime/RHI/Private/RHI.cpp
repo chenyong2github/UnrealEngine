@@ -715,33 +715,21 @@ EShaderPlatform ShaderFormatToLegacyShaderPlatform(FName ShaderFormat)
 
 RHI_API bool IsRHIDeviceAMD()
 {
-	// @ATG_CHANGE : BEGIN HoloLens support
-	// Vendor Id of 0 is valid on HoloLens for Xbox One
-	check(PLATFORM_HOLOLENS || GRHIVendorId != 0);
-	// @ATG_CHANGE : END HoloLens support
-
+	check(GRHIVendorId != 0);
 	// AMD's drivers tested on July 11 2013 have hitching problems with async resource streaming, setting single threaded for now until fixed.
 	return GRHIVendorId == 0x1002;
 }
 
 RHI_API bool IsRHIDeviceIntel()
 {
-	// @ATG_CHANGE : BEGIN HoloLens support
-	// Vendor Id of 0 is valid on HoloLens for Xbox One
-	check(PLATFORM_HOLOLENS || GRHIVendorId != 0);
-	// @ATG_CHANGE : END HoloLens support
-
+	check(GRHIVendorId != 0);
 	// Intel GPUs are integrated and use both DedicatedVideoMemory and SharedSystemMemory.
 	return GRHIVendorId == 0x8086;
 }
 
 RHI_API bool IsRHIDeviceNVIDIA()
 {
-	// @ATG_CHANGE : BEGIN HoloLens support
-	// Vendor Id of 0 is valid on HoloLens for Xbox One
-	check(PLATFORM_HOLOLENS || GRHIVendorId != 0);
-	// @ATG_CHANGE : END HoloLens support
-
+	check(GRHIVendorId != 0);
 	// NVIDIA GPUs are discrete and use DedicatedVideoMemory only.
 	return GRHIVendorId == 0x10DE;
 }

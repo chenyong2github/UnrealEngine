@@ -1517,9 +1517,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					// @ATG_CHANGE : BEGIN HoloLens support
 					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
-					// @ATG_CHANGE : END
 				}
 
 				if (IsCurrentPlatform)
@@ -2057,7 +2055,7 @@ namespace UnrealBuildTool
 			List<string> Definitions = new List<string>(GlobalCompileEnvironment.Definitions);
 			foreach(UEBuildModule Module in Binary.Modules)
 			{
-				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false, GlobalCompileEnvironment.WinMDReferences);
+				Module.AddModuleToCompileEnvironment(null, new HashSet<DirectoryReference>(), new HashSet<DirectoryReference>(), Definitions, new List<UEBuildFramework>(), false);
 			}
 
 			// Write the header

@@ -8,11 +8,24 @@ public class VorbisFile : ModuleRules
 		Type = ModuleType.External;
 
 		string VorbisPath = Target.UEThirdPartySourceDirectory + "Vorbis/libvorbis-1.3.2/";
-        PublicIncludePaths.Add(VorbisPath + "include");
-        // @ATG_CHANGE : BEGIN HoloLens support
-        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-            (Target.Platform == UnrealTargetPlatform.Win32) ||
-            (Target.Platform == UnrealTargetPlatform.HoloLens))
+		PublicIncludePaths.Add(VorbisPath + "include");
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			string VorbisLibPath = VorbisPath + "Lib/win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			PublicLibraryPaths.Add(VorbisLibPath);
+			PublicAdditionalLibraries.Add("libvorbisfile_64.lib");
+			PublicDelayLoadDLLs.Add("libvorbisfile_64.dll");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile_64.dll");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win32 )
+		{
+			string VorbisLibPath = VorbisPath + "Lib/win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
+			PublicLibraryPaths.Add(VorbisLibPath);
+			PublicAdditionalLibraries.Add("libvorbisfile.lib");
+			PublicDelayLoadDLLs.Add("libvorbisfile.dll");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Vorbis/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libvorbisfile.dll");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
 			string PlatformSubpath = Target.Platform.ToString();
             string LibFileName = "libvorbisfile";
@@ -44,7 +57,6 @@ public class VorbisFile : ModuleRules
             PublicAdditionalLibraries.Add(LibFileName + ".lib");
             PublicDelayLoadDLLs.Add(LibFileName + ".dll");
         }
-		// @ATG_CHANGE : END
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
 			string VorbisLibPath = VorbisPath + "lib/HTML5/";

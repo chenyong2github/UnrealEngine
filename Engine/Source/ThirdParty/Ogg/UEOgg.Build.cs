@@ -14,10 +14,29 @@ public class UEOgg : ModuleRules
 
 		string OggLibPath = OggPath + "lib/";
 
-        // @ATG_CHANGE : BEGIN HoloLens support
-        if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-            (Target.Platform == UnrealTargetPlatform.Win32) ||
-            (Target.Platform == UnrealTargetPlatform.HoloLens))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			OggLibPath += "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add( OggLibPath );
+
+			PublicAdditionalLibraries.Add("libogg_64.lib");
+
+			PublicDelayLoadDLLs.Add("libogg_64.dll");
+
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Ogg/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libogg_64.dll");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.Win32 )
+		{
+			OggLibPath += "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add( OggLibPath );
+
+			PublicAdditionalLibraries.Add("libogg.lib");
+
+			PublicDelayLoadDLLs.Add("libogg.dll");
+
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/Ogg/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/libogg.dll");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             string LibFileName = "libogg";
             string PlatformSubpath = Target.Platform.ToString();
@@ -49,7 +68,6 @@ public class UEOgg : ModuleRules
             PublicAdditionalLibraries.Add(LibFileName + ".lib");
 			PublicDelayLoadDLLs.Add(LibFileName + ".dll");
 		}
-// @ATG_CHANGE : END
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string DylibPath = Target.UEThirdPartyBinariesDirectory + "Ogg/Mac/libogg.dylib";

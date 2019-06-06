@@ -86,14 +86,6 @@ public:
 	/** Removes references to any objects pending cleanup by deleting them. */
 	virtual void ClearPendingCleanupObjects() override;
 
-// @ATG_CHANGE : BEGIN HoloLens support
-#if PLATFORM_HOLOLENS
-	void OnResuming(_In_ Platform::Object^ Sender, _In_ Platform::Object^ Args);
-	void OnSuspending(_In_ Platform::Object^ Sender, _In_ Windows::ApplicationModel::SuspendingEventArgs^ Args);
-#endif // PLATFORM_HOLOLENS || PLATFORM_WINRT
-
-// @ATG_CHANGE : END
-
 #endif // WITH_ENGINE
 
 	/** RHI post-init initialization */

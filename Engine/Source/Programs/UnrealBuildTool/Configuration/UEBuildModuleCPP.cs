@@ -236,10 +236,7 @@ namespace UnrealBuildTool
 			HashSet<DirectoryReference> SystemIncludePaths,
 			List<string> Definitions,
 			List<UEBuildFramework> AdditionalFrameworks,
-			bool bLegacyPublicIncludePaths,
-			// @ATG_CHANGE : BEGIN - winmd support
-			List<string> WinMDFiles
-			// @ATG_CHANGE : END - winmd support
+			bool bLegacyPublicIncludePaths
 			)
 		{
 			// This directory may not exist for this module (or ever exist, if it doesn't contain any generated headers), but we want the project files
@@ -248,9 +245,8 @@ namespace UnrealBuildTool
 			{
 				IncludePaths.Add(GeneratedCodeDirectory);
 			}
-			// @ATG_CHANGE : BEGIN - winmd support
-			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bLegacyPublicIncludePaths, WinMDFiles);
-			// @ATG_CHANGE : END - winmd support
+
+			base.AddModuleToCompileEnvironment(SourceBinary, IncludePaths, SystemIncludePaths, Definitions, AdditionalFrameworks, bLegacyPublicIncludePaths);
 		}
 
 		// UEBuildModule interface.
@@ -1149,19 +1145,8 @@ namespace UnrealBuildTool
 				Result.Definitions.AddRange(Rules.Target.ProjectDefinitions);
 			}
 
-			// @ATG_CHANGE : BEGIN winmd support
-			// Add winmd files
-			Result.WinMDReferences.AddRange(Rules.PrivateWinMDReferences);
-
-			// Enable WinRT if requested, or auto-enable if WinMDs have been added to the environment
-			Result.bEnableWinRTComponentExtensions = Rules.bEnableWinRTComponentExtensions || Result.WinMDReferences.Count > 0;
-
-			// /ZW ends up generating #import directives, which must be compiled locally
-			Result.bBuildLocallyWithSNDBS = Result.bBuildLocallyWithSNDBS || Result.bEnableWinRTComponentExtensions;
-
 			// Setup the compile environment for the module.
-			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, (Rules != null)? Rules.bLegacyPublicIncludePaths.Value : true, Result.WinMDReferences);
-			// @ATG_CHANGE : END winmd support
+			SetupPrivateCompileEnvironment(Result.UserIncludePaths, Result.SystemIncludePaths, Result.Definitions, Result.AdditionalFrameworks, (Rules != null)? Rules.bLegacyPublicIncludePaths.Value : true);
 
 			return Result;
 		}
@@ -1178,11 +1163,6 @@ namespace UnrealBuildTool
 
 			// Use the default optimization setting for 
 			CompileEnvironment.bOptimizeCode = ShouldEnableOptimization(ModuleRules.CodeOptimization.Default, Target.Configuration, Rules.bTreatAsEngineModule);
-
-			// @ATG_CHANGE : BEGIN winmd support
-			List<string> WinMDFiles = new List<string>(BaseCompileEnvironment.WinMDReferences);
-			WinMDFiles.AddRange(PrivateWinMDReferences);
-			// @ATG_CHANGE : END winmd support
 
 			// Override compile environment
 			CompileEnvironment.bIsBuildingDLL = !Target.ShouldCompileMonolithic();
@@ -1208,9 +1188,7 @@ namespace UnrealBuildTool
 			// Now set up the compile environment for the modules in the original order that we encountered them
 			foreach (UEBuildModule Module in ModuleToIncludePathsOnlyFlag.Keys)
 			{
-				// @ATG_CHANGE : BEGIN - winmd support
-				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, (Rules != null)? Rules.bLegacyPublicIncludePaths.Value : true, WinMDFiles);
-				// @ATG_CHANGE : END - winmd support
+				Module.AddModuleToCompileEnvironment(null, CompileEnvironment.UserIncludePaths, CompileEnvironment.SystemIncludePaths, CompileEnvironment.Definitions, CompileEnvironment.AdditionalFrameworks, (Rules != null)? Rules.bLegacyPublicIncludePaths.Value : true);
 			}
 			return CompileEnvironment;
 		}

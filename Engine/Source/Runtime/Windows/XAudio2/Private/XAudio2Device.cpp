@@ -109,7 +109,6 @@ bool FXAudio2Device::InitializeHardware()
 
 	SampleRate = UE4_XAUDIO2_SAMPLERATE;
 
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	bComInitialized = FPlatformMisc::CoInitialize();
 #if PLATFORM_64BITS && !PLATFORM_HOLOLENS
@@ -138,7 +137,6 @@ bool FXAudio2Device::InitializeHardware()
 	}
 #endif	//PLATFORM_64BITS && !PLATFORM_HOLOLENS
 #endif	//PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 
 #if DEBUG_XAUDIO2
 	uint32 Flags = XAUDIO2_DEBUG_ENGINE;
@@ -305,9 +303,7 @@ void FXAudio2Device::TeardownHardware()
 	if (bComInitialized)
 	{
 		FPlatformMisc::CoUninitialize();
-// @ATG_CHANGE : BEGIN HoloLens support
 		bComInitialized = false;
-// @ATG_CHANGE : END
 	}
 #endif
 }

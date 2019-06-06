@@ -7,11 +7,17 @@ public class DX9 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		// @ATG_CHANGE : BEGIN HoloLens support
-		string DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
-			Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
-			Target.UEThirdPartySourceDirectory + "Windows/DirectX";
-		// @ATG_CHANGE : END 
+		string DirectXSDKDir = "";
+		if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+            Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";   
+		}
+		else
+		{
+			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)

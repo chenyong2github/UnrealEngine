@@ -13,14 +13,12 @@
 class FCurlHttpResponse;
 
 #if WITH_LIBCURL
-// @ATG_CHANGE : BEGIN HoloLens support
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
 	#include "curl/curl.h"
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-// @ATG_CHANGE : END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
