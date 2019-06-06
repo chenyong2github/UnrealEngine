@@ -90,8 +90,10 @@ struct FLandscapeLayerBrush
 
 	FLandscapeLayerBrush()
 		: BPCustomBrush(nullptr)
+#if WITH_EDITOR
 		, LandscapeSize(MAX_int32, MAX_int32)
 		, LandscapeRenderTargetSize(MAX_int32, MAX_int32)
+#endif
 	{}
 
 	FLandscapeLayerBrush(ALandscapeBlueprintCustomBrush* InBrush)
