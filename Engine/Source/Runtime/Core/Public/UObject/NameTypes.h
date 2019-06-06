@@ -12,7 +12,7 @@
 #include "Containers/StringConv.h"
 #include "UObject/UnrealNames.h"
 #include "Templates/Atomic.h"
-#include "Serialization/StructuredArchive.h"
+#include "Serialization/ArchiveAdapters.h"
 
 /*----------------------------------------------------------------------------
 	Definitions.
