@@ -862,6 +862,11 @@ const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& FNiagar
 
 	// We clone the graph to prevent any destructive changes to the source
 	UNiagaraGraph* NodeGraphDeepCopy = CastChecked<UNiagaraGraph>(FEdGraphUtilities::CloneGraph(Graph, GetTransientPackage(), 0, true));
+
+	// We copy some transient data over here because the copied graph loses some data. Since the result of this function is
+	// also used to build the ui, the user will otherwise lose changes to yet unused parameters (e.g. in the metadata panel).
+	CastChecked<UNiagaraGraph>(Graph)->CopyCachedReferencesMap(NodeGraphDeepCopy);
+
 	TArray<UNiagaraNodeFunctionCall*> Nodes;
 	NodeGraphDeepCopy->GetNodesOfClass(Nodes);
 	for (int32 i = 0; i < Nodes.Num(); i++)
@@ -874,7 +879,10 @@ const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& FNiagar
 			// We append all function nodes we find to the end of the queue, basically traversing the graph breadth-first
 			TArray<UNiagaraNodeFunctionCall*> SubFunctionNodes;
 			FunctionGraph->GetNodesOfClass(SubFunctionNodes);
-			Nodes.Append(SubFunctionNodes);
+			for (UNiagaraNodeFunctionCall* SubNode : SubFunctionNodes)
+			{
+				Nodes.AddUnique(SubNode);
+			}
 
 			// We set the static switch values based on the function call inputs to prepare the parameter map history generation
 			TArray<UEdGraphPin*> CallInputs;
@@ -1068,7 +1076,7 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 		{
 			for (auto EmitterHandle : ReferencedSystemViewModel.GetSystem().GetEmitterHandles())
 			{
-				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetSource()))
+				if (Component->GetAsset()->UsesEmitter(EmitterHandle.GetInstance()->GetParent()))
 				{
 					ReferencingComponents.Add(Component);
 				}

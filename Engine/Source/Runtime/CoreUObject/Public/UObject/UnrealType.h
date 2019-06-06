@@ -7,24 +7,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "UObject/UObjectGlobals.h"
-#include "UObject/Object.h"
-#include "UObject/Class.h"
-#include "UObject/WeakObjectPtr.h"
-#include "UObject/CoreNetTypes.h"
-#include "UObject/ScriptInterface.h"
-#include "UObject/SparseDelegate.h"
+
+#include "Concepts/GetTypeHashable.h"
+#include "Containers/List.h"
+#include "Serialization/SerializedPropertyScope.h"
 #include "Templates/Casts.h"
+#include "Templates/Greater.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Templates/IsIntegral.h"
 #include "Templates/IsSigned.h"
-#include "Templates/Greater.h"
-#include "Containers/List.h"
+#include "Templates/Models.h"
+#include "UObject/Class.h"
+#include "UObject/CoreNetTypes.h"
 #include "UObject/LazyObjectPtr.h"
-#include "UObject/SoftObjectPtr.h"
+#include "UObject/Object.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/PropertyTag.h"
-#include "Serialization/SerializedPropertyScope.h"
+#include "UObject/ScriptInterface.h"
+#include "UObject/SoftObjectPtr.h"
+#include "UObject/SparseDelegate.h"
+#include "UObject/UObjectGlobals.h"
+#include "UObject/WeakObjectPtr.h"
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogType, Log, All);
 
@@ -967,7 +970,7 @@ protected:
 			(TIsPODType<TCppType>::Value ? CPF_IsPlainOldData : CPF_None) 
 			| (TIsTriviallyDestructible<TCppType>::Value ? CPF_NoDestructor : CPF_None) 
 			| (TIsZeroConstructType<TCppType>::Value ? CPF_ZeroConstructor : CPF_None)
-			| (THasGetTypeHash<TCppType>::Value ? CPF_HasGetValueTypeHash : CPF_None);
+			| (TModels<CGetTypeHashable, TCppType>::Value ? CPF_HasGetValueTypeHash : CPF_None);
 
 	}
 };
@@ -4343,6 +4346,9 @@ public:
 protected:
 	virtual FMulticastScriptDelegate::FInvocationList& GetInvocationList(const void* PropertyValue) const;
 	// End of UMulticastDelegateProperty interface
+
+private:
+	virtual void SerializeItemInternal(FArchive& Ar, void* Value, void const* Defaults) const;
 };
 
 /** Describes a single node in a custom property list. */

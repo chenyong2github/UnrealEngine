@@ -587,6 +587,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, LastWidgetRenderTime(0)
 	, bReceiveHardwareInput(false)
 	, bWindowFocusable(true)
+	, WindowVisibility(EWindowVisibility::SelfHitTestInvisible)
 	, bApplyGammaCorrection(false)
 	, BackgroundColor( FLinearColor::Transparent )
 	, TintColorAndOpacity( FLinearColor::White )
@@ -598,6 +599,7 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	, LayerZOrder(-100)
 	, GeometryMode(EWidgetGeometryMode::Plane)
 	, CylinderArcAngle( 180.0f )
+    , bRenderCleared(false)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = true;
@@ -633,6 +635,19 @@ UWidgetComponent::UWidgetComponent( const FObjectInitializer& PCIP )
 	Pivot = FVector2D(0.5f, 0.5f);
 
 	bAddedToScreen = false;
+}
+
+void UWidgetComponent::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+	if (Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::ChangedWidgetComponentWindowVisibilityDefault)
+	{
+		// Reset the default value for visibility
+		WindowVisibility = EWindowVisibility::Visible;
+	}
 }
 
 void UWidgetComponent::BeginPlay()
@@ -853,6 +868,38 @@ void UWidgetComponent::OnRegister()
 #endif // !UE_SERVER
 }
 
+void UWidgetComponent::SetWindowFocusable(bool bInWindowFocusable)
+{
+	bWindowFocusable = bInWindowFocusable;
+ 	if (SlateWindow.IsValid())
+ 	{
+ 		SlateWindow->SetIsFocusable(bWindowFocusable);
+ 	}
+};
+
+EVisibility UWidgetComponent::ConvertWindowVisibilityToVisibility(EWindowVisibility visibility)
+{
+	switch (visibility)
+	{
+	case EWindowVisibility::Visible:
+		return EVisibility::Visible;
+	case EWindowVisibility::SelfHitTestInvisible:
+		return EVisibility::SelfHitTestInvisible;
+	default:
+		checkNoEntry();
+		return EVisibility::SelfHitTestInvisible;
+	}	
+}
+
+void UWidgetComponent::SetWindowVisibility(EWindowVisibility InVisibility)
+{
+	WindowVisibility = InVisibility;
+ 	if (SlateWindow.IsValid())
+ 	{		
+ 		SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
+ 	}
+}
+
 bool UWidgetComponent::CanReceiveHardwareInput() const
 {
 	return bReceiveHardwareInput && GeometryMode == EWidgetGeometryMode::Plane;
@@ -1004,9 +1051,10 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 	{
 		UpdateWidget();
 
-		if ( Widget == nullptr && !SlateWidget.IsValid() )
+		if (Widget == nullptr && !SlateWidget.IsValid() && bRenderCleared)
 		{
-			return;
+			// We will enter here if the WidgetClass is empty and we already renderered an empty widget. No need to continue.
+			return;	
 		}
 
 	    if ( Space != EWidgetSpace::Screen )
@@ -1018,6 +1066,12 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				// a different rate than the rest of the world.
 				const float DeltaTimeFromLastDraw = LastWidgetRenderTime == 0 ? 0 : (GetCurrentTime() - LastWidgetRenderTime);
 				DrawWidgetToRenderTarget(DeltaTimeFromLastDraw);
+
+				// We draw an empty widget.
+				if (Widget == nullptr && !SlateWidget.IsValid())
+				{
+					bRenderCleared = true;
+				}
 		    }
 	    }
 	    else
@@ -1029,7 +1083,7 @@ void UWidgetComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, 
 				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 				APlayerController* PlayerController = TargetPlayer ? TargetPlayer->PlayerController : nullptr;
 
-				if ( TargetPlayer && PlayerController && IsVisible() )
+				if ( TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->bHidden))
 				{
 					if ( !bAddedToScreen )
 					{
@@ -1259,6 +1313,7 @@ bool UWidgetComponent::CanEditChange(const UProperty* InProperty) const
 		if ( PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, GeometryMode) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, TimingPolicy) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, bWindowFocusable) ||
+			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, WindowVisibility) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, bManuallyRedraw) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, RedrawTime) ||
 			 PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UWidgetComponent, BackgroundColor) ||
@@ -1303,6 +1358,8 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		static FName BlendModeName( TEXT( "BlendMode" ) );
 		static FName GeometryModeName( TEXT("GeometryMode") );
 		static FName CylinderArcAngleName( TEXT("CylinderArcAngle") );
+		static FName bWindowFocusableName(TEXT("bWindowFocusable"));
+		static FName WindowVisibilityName(TEXT("WindowVisibility"));
 
 		auto PropertyName = Property->GetFName();
 
@@ -1331,6 +1388,15 @@ void UWidgetComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCha
 		{
 			MarkRenderStateDirty();
 		}
+		else if (PropertyName == bWindowFocusableName)
+		{
+			SetWindowFocusable(bWindowFocusable);
+		}
+		else if (PropertyName == WindowVisibilityName)
+		{
+			SetWindowVisibility(WindowVisibility);
+		}
+
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -1448,6 +1514,7 @@ void UWidgetComponent::UpdateWidget()
 
 				SlateWindow = SNew(SVirtualWindow).Size(CurrentDrawSize);
 				SlateWindow->SetIsFocusable(bWindowFocusable);
+				SlateWindow->SetVisibility(ConvertWindowVisibilityToVisibility(WindowVisibility));
 				RegisterWindow();
 
 				bNeededNewWindow = true;
@@ -1479,6 +1546,7 @@ void UWidgetComponent::UpdateWidget()
 				if (CurrentSlateWidget != SNullWidget::NullWidget)
 				{
 					CurrentSlateWidget = SNullWidget::NullWidget;
+					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
 				SlateWindow->SetContent( SNullWidget::NullWidget );

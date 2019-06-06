@@ -303,6 +303,7 @@ public class Engine : ModuleRules
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"NullNetworkReplayStreaming",
+				"LocalFileNetworkReplayStreaming",
 				"HttpNetworkReplayStreaming",
 				"Advertising"
 			}

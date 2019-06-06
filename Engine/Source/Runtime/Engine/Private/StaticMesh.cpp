@@ -1710,7 +1710,7 @@ void FStaticMeshLODSettings::Initialize(const FConfigFile& IniFile)
 		};
 	}
 
-	Groups.KeySort(TLess<FName>());
+	Groups.KeySort(FNameLexicalLess());
 	GroupName2Index.Empty(Groups.Num());
 	{
 		int32 GroupIdx = 0;
@@ -2290,6 +2290,8 @@ void FStaticMeshRenderData::Cache(UStaticMesh* Owner, const FStaticMeshLODSettin
 
 
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("StaticMesh_Cache"));
+
 		COOK_STAT(auto Timer = StaticMeshCookStats::UsageStats.TimeSyncWork());
 		int32 T0 = FPlatformTime::Cycles();
 		int32 NumLODs = Owner->SourceModels.Num();
@@ -6016,6 +6018,11 @@ void UStaticMesh::GenerateLodsInPackage()
 
 #endif // #if WITH_EDITOR
 
+void UStaticMesh::AddSocket(UStaticMeshSocket* Socket)
+{
+	Sockets.AddUnique(Socket);
+}
+
 UStaticMeshSocket* UStaticMesh::FindSocket(FName InSocketName) const
 {
 	if(InSocketName == NAME_None)
@@ -6032,6 +6039,11 @@ UStaticMeshSocket* UStaticMesh::FindSocket(FName InSocketName) const
 		}
 	}
 	return NULL;
+}
+
+void UStaticMesh::RemoveSocket(UStaticMeshSocket* Socket)
+{
+	Sockets.Remove(Socket);
 }
 
 /*-----------------------------------------------------------------------------

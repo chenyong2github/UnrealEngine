@@ -119,6 +119,7 @@ class FRHIFrameFlipTrackingRunnable : public FRunnable
 	static FRunnableThread* Thread;
 	static FRHIFrameFlipTrackingRunnable Singleton;
 	static bool bInitialized;
+	static bool bRun;
 
 	FCriticalSection CS;
 	struct FFramePair
@@ -127,8 +128,6 @@ class FRHIFrameFlipTrackingRunnable : public FRunnable
 		FGraphEventRef Event;
 	};
 	TArray<FFramePair> FramePairs;
-
-	bool bRun;
 
 	FRHIFrameFlipTrackingRunnable();
 
@@ -143,7 +142,6 @@ public:
 };
 
 FRHIFrameFlipTrackingRunnable::FRHIFrameFlipTrackingRunnable()
-	: bRun(true)
 {}
 
 #if USE_FRAME_OFFSET_THREAD
@@ -152,11 +150,11 @@ struct FRHIFrameOffsetThread : public FRunnable
 	static FRunnableThread* Thread;
 	static FRHIFrameOffsetThread Singleton;
 	static bool bInitialized;
+	static bool bRun;
 
 	FCriticalSection CS;
 	FRHIFlipDetails LastFlipFrame;
 
-	bool bRun;
 
 	FEvent* WaitEvent;
 
@@ -222,8 +220,7 @@ struct FRHIFrameOffsetThread : public FRunnable
 
 public:
 	FRHIFrameOffsetThread()
-		: bRun(true)
-		, WaitEvent(nullptr)
+		: WaitEvent(nullptr)
 	{}
 
 	~FRHIFrameOffsetThread()
@@ -259,6 +256,7 @@ public:
 	static void Initialize()
 	{
 		bInitialized = true;
+		bRun = true;
 		Singleton.GetOrInitializeWaitEvent();
 		check(Thread == nullptr);
 		Thread = FRunnableThread::Create(&Singleton, TEXT("RHIFrameOffsetThread"), 0, TPri_AboveNormal);
@@ -315,6 +313,7 @@ private:
 FRunnableThread* FRHIFrameOffsetThread::Thread = nullptr;
 FRHIFrameOffsetThread FRHIFrameOffsetThread::Singleton;
 bool FRHIFrameOffsetThread::bInitialized = false;
+bool FRHIFrameOffsetThread::bRun = false;
 
 #endif // USE_FRAME_OFFSET_THREAD
 
@@ -399,6 +398,7 @@ void FRHIFrameFlipTrackingRunnable::Initialize()
 
 	check(Thread == nullptr);
 	bInitialized = true;
+	bRun = true;
 	Thread = FRunnableThread::Create(&Singleton, TEXT("RHIFrameFlipThread"), 0, TPri_AboveNormal);
 }
 
@@ -474,6 +474,7 @@ void FRHIFrameFlipTrackingRunnable::CompleteGraphEventOnFlip(uint64 PresentIndex
 FRunnableThread* FRHIFrameFlipTrackingRunnable::Thread;
 FRHIFrameFlipTrackingRunnable FRHIFrameFlipTrackingRunnable::Singleton;
 bool FRHIFrameFlipTrackingRunnable::bInitialized = false;
+bool FRHIFrameFlipTrackingRunnable::bRun = false;
 
 RHI_API uint32 RHIGetSyncInterval()
 {

@@ -149,7 +149,7 @@ bool SPropertyEditorEditInline::Supports( const FPropertyNode* InTreeNode, int32
 	return InTreeNode
 		&& InTreeNode->HasNodeFlags(EPropertyNodeFlags::EditInlineNew)
 		&& InTreeNode->FindObjectItemParent()
-		&& !InTreeNode->IsEditConst();
+		&& !InTreeNode->IsPropertyConst();
 }
 
 bool SPropertyEditorEditInline::Supports( const TSharedRef< class FPropertyEditor >& InPropertyEditor )
@@ -167,6 +167,7 @@ bool SPropertyEditorEditInline::IsClassAllowed( UClass* CheckClass, bool bAllowA
 TSharedRef<SWidget> SPropertyEditorEditInline::GenerateClassPicker()
 {
 	FClassViewerInitializationOptions Options;
+	Options.bShowBackgroundBorder = false;
 	Options.bShowUnloadedBlueprints = true;
 	Options.NameTypeToDisplay = EClassViewerNameTypeToDisplay::DisplayName;
 

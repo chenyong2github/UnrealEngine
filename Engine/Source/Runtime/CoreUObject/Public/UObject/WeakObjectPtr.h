@@ -9,21 +9,19 @@
 #include "CoreMinimal.h"
 #include "UObject/UObjectArray.h"
 
-/***
- * 
+/**
  * FWeakObjectPtr is a weak pointer to a UObject. 
- * It can return NULL later if the object is garbage collected.
+ * It can return nullptr later if the object is garbage collected.
  * It has no impact on if the object is garbage collected or not.
  * It can't be directly used across a network.
  *
  * Most often it is used when you explicitly do NOT want to prevent something from being garbage collected.
- **/
-
+ */
 struct FWeakObjectPtr
 {
 public:
 
-	/** NULL constructor **/
+	/** Null constructor **/
 	FORCEINLINE FWeakObjectPtr()
 	{
 		Reset();
@@ -31,8 +29,8 @@ public:
 	/**  
 	 * Construct from an object pointer
 	 * @param Object object to create a weak pointer to
-	**/
-	FORCEINLINE FWeakObjectPtr(const class UObject *Object)
+	 */
+	FORCEINLINE FWeakObjectPtr(const class UObject* Object)
 	{
 		(*this)=Object;
 	}
@@ -40,14 +38,14 @@ public:
 	/**  
 	 * Construct from another weak pointer
 	 * @param Other weak pointer to copy from
-	**/
-	FORCEINLINE FWeakObjectPtr(const FWeakObjectPtr &Other)
+	 */
+	FORCEINLINE FWeakObjectPtr(const FWeakObjectPtr& Other)
 	{
 		(*this)=Other;
 	}
 
 	/**
-	 * Reset the weak pointer back to the NULL state
+	 * Reset the weak pointer back to the null state
 	 */
 	FORCEINLINE void Reset()
 	{
@@ -58,24 +56,25 @@ public:
 	/**  
 	 * Copy from an object pointer
 	 * @param Object object to create a weak pointer to
-	**/
-	COREUOBJECT_API void operator=(const class UObject *Object);
+	 */
+	COREUOBJECT_API void operator=(const class UObject* Object);
 
 	/**  
 	 * Construct from another weak pointer
 	 * @param Other weak pointer to copy from
-	**/
-	FORCEINLINE void operator=(const FWeakObjectPtr &Other)
+	 */
+	FORCEINLINE void operator=(const FWeakObjectPtr& Other)
 	{
 		ObjectIndex = Other.ObjectIndex;
 		ObjectSerialNumber = Other.ObjectSerialNumber;
 	}
 
 	/**  
-	 * Compare weak pointers for equality
+	 * Compare weak pointers for equality.
+	 * If both pointers would return nullptr from Get() they count as equal even if they were not initialized to the same object.
 	 * @param Other weak pointer to compare to
-	**/
-	FORCEINLINE bool operator==(const FWeakObjectPtr &Other) const
+	 */
+	FORCEINLINE bool operator==(const FWeakObjectPtr& Other) const
 	{
 		return 
 			(ObjectIndex == Other.ObjectIndex && ObjectSerialNumber == Other.ObjectSerialNumber) ||
@@ -85,14 +84,18 @@ public:
 	/**  
 	 * Compare weak pointers for inequality
 	 * @param Other weak pointer to compare to
-	**/
-	FORCEINLINE bool operator!=(const FWeakObjectPtr &Other) const
+	 */
+	FORCEINLINE bool operator!=(const FWeakObjectPtr& Other) const
 	{
 		return 
 			(ObjectIndex != Other.ObjectIndex || ObjectSerialNumber != Other.ObjectSerialNumber) &&
 			(IsValid() || Other.IsValid());
 	}
 
+	/**
+	 * Returns true if two weak pointers were originally set to the same object, even if they are now stale
+	 * @param Other weak pointer to compare to
+	 */
 	FORCEINLINE bool HasSameIndexAndSerialNumber(const FWeakObjectPtr& Other) const
 	{
 		return ObjectIndex == Other.ObjectIndex && ObjectSerialNumber == Other.ObjectSerialNumber;
@@ -100,27 +103,27 @@ public:
 
 	/**  
 	 * Dereference the weak pointer.
-	 * @param bEvenIfPendingKill, if this is true, pendingkill objects are considered valid
-	 * @return NULL if this object is gone or the weak pointer was NULL, otherwise a UObject pointer
+	 * @param bEvenIfPendingKill if this is true, pendingkill objects are considered valid
+	 * @return nullptr if this object is gone or the weak pointer is explicitly null, otherwise a valid uobject pointer
 	 */
-	COREUOBJECT_API class UObject *Get(bool bEvenIfPendingKill) const;
+	COREUOBJECT_API class UObject* Get(bool bEvenIfPendingKill) const;
 
 	/**  
 	 * Dereference the weak pointer. This is an optimized version implying bEvenIfPendingKill=false.
-	 * @return NULL if this object is gone or the weak pointer was NULL, otherwise a UObject pointer
+	 * @return nullptr if this object is gone or the weak pointer is explicitly null, otherwise a valid uobject pointer
 	 */
-	COREUOBJECT_API class UObject *Get(/*bool bEvenIfPendingKill = false*/) const;
+	COREUOBJECT_API class UObject* Get(/*bool bEvenIfPendingKill = false*/) const;
 
 	/** Dereference the weak pointer even if it is RF_PendingKill or RF_Unreachable */
-	COREUOBJECT_API class UObject *GetEvenIfUnreachable() const;
+	COREUOBJECT_API class UObject* GetEvenIfUnreachable() const;
 
 	/**  
 	 * Test if this points to a live UObject
-	 * @param bEvenIfPendingKill, if this is true, pendingkill are not considered invalid
-	 * @param bThreadsafeTest, if true then function will just give you information whether referenced 
-	 *							UObject is gone forever (@return false) or if it is still there (@return true, no object flags checked).
-	 * @return true if Get() would return a valid non-null pointer, if bThreadsafeTest == true then @see @param bThreadsafeTest
-	**/
+	 * @param bEvenIfPendingKill if this is true, pendingkill are not considered invalid
+	 * @param bThreadsafeTest if true then function will just give you information whether referenced
+	 *							UObject is gone forever (return false) or if it is still there (return true, no object flags checked).
+	 * @return true if Get() would return a valid non-null pointer
+	 */
 	COREUOBJECT_API bool IsValid(bool bEvenIfPendingKill, bool bThreadsafeTest = false) const;
 
 	/**
@@ -131,11 +134,20 @@ public:
 
 	/**  
 	 * Slightly different than !IsValid(), returns true if this used to point to a UObject, but doesn't any more and has not been assigned or reset in the mean time.
-	 * @param bIncludingIfPendingKill, if this is false, pendingkill objects are not considered stale
-	 * @param bThreadsafeTest, set it to true when testing outside of Game Thread. Results in false if WeakObjPtr point to an existing object (no flags checked)
+	 * @param bIncludingIfPendingKill if this is false, pendingkill objects are not considered stale
+	 * @param bThreadsafeTest set it to true when testing outside of Game Thread. Results in false if WeakObjPtr point to an existing object (no flags checked)
 	 * @return true if this used to point at a real object but no longer does.
-	**/
+	 */
 	COREUOBJECT_API bool IsStale(bool bIncludingIfPendingKill = true, bool bThreadsafeTest = false) const;
+
+	/**
+	 * Returns true if this pointer was explicitly assigned to null, was reset, or was never initialized.
+	 * If this returns true, IsValid() and IsStale() will both return false.
+	 */
+	FORCEINLINE bool IsExplicitlyNull() const
+	{
+		return ObjectIndex == INDEX_NONE;
+	}
 
 	/** Hash function. */
 	friend uint32 GetTypeHash(const FWeakObjectPtr& WeakObjectPtr)
@@ -164,7 +176,7 @@ private:
 	/**  
 	 * internal function to test for serial number matches
 	 * @return true if the serial number in this matches the central table
-	**/
+	 */
 	FORCEINLINE_DEBUGGABLE bool SerialNumbersMatch() const
 	{
 		checkSlow(ObjectSerialNumber > FUObjectArray::START_SERIAL_NUMBER && ObjectIndex >= 0); // otherwise this is a corrupted weak pointer

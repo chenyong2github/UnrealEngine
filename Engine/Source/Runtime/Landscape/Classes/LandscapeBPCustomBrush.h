@@ -14,17 +14,17 @@ class LANDSCAPE_API ALandscapeBlueprintCustomBrush : public AActor
 	GENERATED_UCLASS_BODY()
 
 private:
-	UPROPERTY(Category= "Settings", EditAnywhere, NonTransactional)
+	UPROPERTY(Category= "Settings", EditAnywhere)
 	bool AffectHeightmap;
 
-	UPROPERTY(Category= "Settings", EditAnywhere, NonTransactional)
+	UPROPERTY(Category= "Settings", EditAnywhere)
 	bool AffectWeightmap;
 
-	UPROPERTY(Category = "Settings", EditAnywhere, NonTransactional)
+	UPROPERTY(Category = "Settings", EditAnywhere)
 	TArray<FName> AffectedWeightmapLayers;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(NonTransactional, DuplicateTransient)
+	UPROPERTY(DuplicateTransient)
 	class ALandscape* OwningLandscape;
 
 	UPROPERTY(NonTransactional, DuplicateTransient)
@@ -34,10 +34,7 @@ private:
 	bool bIsInitialized;
 
 	UPROPERTY(Transient)
-	bool PreviousAffectHeightmap;
-
-	UPROPERTY(Transient)
-	bool PreviousAffectWeightmap;
+	bool bIsVisible;
 #endif
 public:
 
@@ -61,12 +58,19 @@ public:
 	bool IsInitialized() const { return bIsInitialized; }
 	void SetIsInitialized(bool InIsInitialized);
 
+	bool IsVisible() const { return bIsVisible; }
+	void SetIsVisible(bool bInIsVisible);
+
+	void SetAffectsHeightmap(bool bInAffectsHeightmap);
+	void SetAffectsWeightmap(bool bInAffectsWeightmap);
+
 	void SetOwningLandscape(class ALandscape* InOwningLandscape);
 	class ALandscape* GetOwningLandscape() const;
 
 	virtual void PostEditMove(bool bFinished) override;
-	virtual void PreEditChange(UProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	virtual void Destroyed() override;
 #endif
 };
 

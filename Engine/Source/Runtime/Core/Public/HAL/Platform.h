@@ -688,6 +688,11 @@
 	#define DLLIMPORT
 #endif
 
+#ifndef DLLEXPORT_VTABLE
+	#define DLLEXPORT_VTABLE
+	#define DLLIMPORT_VTABLE
+#endif
+
 // embedded app is not default (embedding UE4 in a native view, right now just for IOS and Android)
 #ifndef BUILD_EMBEDDED_APP
 	#define BUILD_EMBEDDED_APP  0

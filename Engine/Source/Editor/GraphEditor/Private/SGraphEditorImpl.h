@@ -195,6 +195,7 @@ private:
 
 	SGraphEditor::FOnFocused OnFocused;
 	SGraphEditor::FOnCreateActionMenu OnCreateActionMenu;
+	SGraphEditor::FOnCreateNodeOrPinMenu OnCreateNodeOrPinMenu;
 
 	TAttribute<bool> IsEditable;
 

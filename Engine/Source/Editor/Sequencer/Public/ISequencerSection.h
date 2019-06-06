@@ -43,7 +43,7 @@ namespace SequencerSectionConstants
 /**
  * Interface that should be implemented for the UI portion of a section
  */
-class ISequencerSection
+class SEQUENCER_VTABLE ISequencerSection
 {
 public:
 	virtual ~ISequencerSection(){}
@@ -187,7 +187,7 @@ public:
 	virtual void SlipSection(FFrameNumber SlipTime) {}
 };
 
-class FSequencerSection : public ISequencerSection
+class SEQUENCER_VTABLE FSequencerSection : public ISequencerSection
 {
 public:
 	FSequencerSection(UMovieSceneSection& InSection)

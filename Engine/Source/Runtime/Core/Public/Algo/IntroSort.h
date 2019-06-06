@@ -60,7 +60,7 @@ namespace AlgoImpl
 					T *Max, *Item;
 					for( Max=Current.Min, Item=Current.Min+1; Item<=Current.Max; Item++ )
 					{
-						if( Predicate( Invoke( Projection, *Max ), Invoke( Projection, *Item ) ) )
+						if( Invoke( Predicate, Invoke( Projection, *Max ), Invoke( Projection, *Item ) ) )
 						{
 							Max = Item;
 						}
@@ -78,8 +78,8 @@ namespace AlgoImpl
 				Inner.Max = Current.Max+1;
 				for( ; ; )
 				{
-					while( ++Inner.Min<=Current.Max && !Predicate( Invoke( Projection, *Current.Min ), Invoke( Projection, *Inner.Min ) ) );
-					while( --Inner.Max> Current.Min && !Predicate( Invoke( Projection, *Inner.Max ), Invoke( Projection, *Current.Min ) ) );
+					while( ++Inner.Min<=Current.Max && !Invoke( Predicate, Invoke( Projection, *Current.Min ), Invoke( Projection, *Inner.Min ) ) );
+					while( --Inner.Max> Current.Min && !Invoke( Predicate, Invoke( Projection, *Inner.Max ), Invoke( Projection, *Current.Min ) ) );
 					if( Inner.Min>Inner.Max )
 					{
 						break;

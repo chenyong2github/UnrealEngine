@@ -202,7 +202,7 @@ void UK2Node_LoadAsset::ExpandNode(class FKismetCompilerContext& CompilerContext
 
 FText UK2Node_LoadAsset::GetTooltipText() const
 {
-	return FText(LOCTEXT("UK2Node_LoadAssetGetTooltipText", "Async Load Asset"));
+	return FText(LOCTEXT("UK2Node_LoadAssetGetTooltipText", "Asynchronously loads a Soft Object Reference and returns object of the correct type if the load succeeds"));
 }
 
 FText UK2Node_LoadAsset::GetNodeTitle(ENodeTitleType::Type TitleType) const
@@ -289,7 +289,7 @@ FName UK2Node_LoadAssetClass::NativeFunctionName() const
 
 FText UK2Node_LoadAssetClass::GetTooltipText() const
 {
-	return FText(LOCTEXT("UK2Node_LoadAssetClassGetTooltipText", "Async Load Class Asset"));
+	return FText(LOCTEXT("UK2Node_LoadAssetClassGetTooltipText", "Asynchronously loads a Soft Class Reference and returns class of the correct type if the load succeeds"));
 }
 
 FText UK2Node_LoadAssetClass::GetNodeTitle(ENodeTitleType::Type TitleType) const

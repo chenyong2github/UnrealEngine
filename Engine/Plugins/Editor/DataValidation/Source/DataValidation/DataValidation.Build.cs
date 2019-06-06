@@ -11,7 +11,8 @@ public class DataValidation : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"TargetPlatform"
+				"TargetPlatform",
+				"EditorSubsystem"
 			}
 		);
 //		goto through these one by one and remove extra ones
@@ -32,8 +33,9 @@ public class DataValidation : ModuleRules
 				"GraphEditor",
 				"BlueprintGraph",
 				"KismetCompiler",
-				"SandboxFile"
-			}
+				"SandboxFile",
+                "Blutility"
+            }
 		);
 	}
 }

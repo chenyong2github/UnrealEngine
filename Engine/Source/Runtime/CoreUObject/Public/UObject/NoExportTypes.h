@@ -1427,6 +1427,19 @@ struct FAutomationExecutionEntry
 	FDateTime Timestamp;
 };
 
+/** Enum used by DataValidation plugin to see if an asset has been validated for correctness (mirrored in UObjectGlobals.h)*/
+UENUM(BlueprintType)
+enum class EDataValidationResult : uint8
+{
+	/** Asset has failed validation */
+	Invalid,
+	/** Asset has passed validation */
+	Valid,
+	/** Asset has not yet been validated */
+	NotValidated
+};
+
+
 /**
  * Direct base class for all UE4 objects
  * @note The full C++ class is located here: Engine\Source\Runtime\CoreUObject\Public\UObject\Object.h

@@ -43,6 +43,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/GarbageCollection.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Serialization/LoadTimeTracePrivate.h"
 
 // This flag enables some expensive class tree validation that is meant to catch mutations of 
 // the class tree outside of SetSuperStruct. It has been disabled because loading blueprints 
@@ -81,6 +82,7 @@ COREUOBJECT_API void InitializePrivateStaticClass(
 	const TCHAR* Name
 	)
 {
+	TRACE_LOADTIME_CLASS_INFO(TClass_PrivateStaticClass, Name);
 	NotifyRegistrationEvent(PackageName, Name, ENotifyRegistrationType::NRT_Class, ENotifyRegistrationPhase::NRP_Started);
 
 	/* No recursive ::StaticClass calls allowed. Setup extras. */
@@ -167,6 +169,16 @@ UStruct* UField::GetOwnerStruct() const
 	return nullptr;
 }
 
+FString UField::GetAuthoredName() const
+{
+	UStruct* Struct = GetOwnerStruct();
+	if (Struct)
+	{
+		return Struct->GetAuthoredNameForField(this);
+	}
+	return FString();
+}
+
 void UField::Bind()
 {
 }
@@ -220,10 +232,7 @@ struct FDisplayNameHelper
 
 		if (auto Property = dynamic_cast<const UProperty*>(&Object))
 		{
-			if (auto OwnerStruct = Property->GetOwnerStruct())
-			{
-				return OwnerStruct->PropertyNameToDisplayName(Property->GetFName());
-			}
+			return Property->GetAuthoredName();
 		}
 
 		return Object.GetName();
@@ -244,12 +253,8 @@ FText UField::GetDisplayNameText() const
 
 	const FString Key = GetFullGroupName(false);
 
-	FString NativeDisplayName;
-	if( HasMetaData(NAME_DisplayName) )
-	{
-		NativeDisplayName = GetMetaData(NAME_DisplayName);
-	}
-	else
+	FString NativeDisplayName = GetMetaData(NAME_DisplayName);
+	if (NativeDisplayName.IsEmpty())
 	{
 		NativeDisplayName = FName::NameToDisplayString(FDisplayNameHelper::Get(*this), IsA<UBoolProperty>());
 	}
@@ -499,12 +504,12 @@ IMPLEMENT_CORE_INTRINSIC_CLASS(UField, UObject,
 //
 // Constructors.
 //
-UStruct::UStruct( EStaticConstructor, int32 InSize, EObjectFlags InFlags )
+UStruct::UStruct( EStaticConstructor, int32 InSize, int32 InMinAlignment, EObjectFlags InFlags )
 :	UField			( EC_StaticConstructor, InFlags )
 ,	SuperStruct		( nullptr )
 ,	Children		( NULL )
 ,	PropertiesSize	( InSize )
-,	MinAlignment	( 1 )
+,	MinAlignment	( InMinAlignment )
 ,	PropertyLink	( NULL )
 ,	RefLink			( NULL )
 ,	DestructorLink	( NULL )
@@ -851,10 +856,6 @@ void UStruct::DestroyStruct(void* Dest, int32 ArrayDim) const
 	}
 }
 
-void UStruct::SerializeBin(FArchive& Ar, void* Data) const
-{
-	SerializeBin(FStructuredArchiveFromArchive(Ar).GetSlot(), Data);
-}
 //
 // Serialize all of the class's data that belongs in a particular
 // bin and resides in Data.
@@ -913,11 +914,6 @@ void UStruct::SerializeBinEx( FStructuredArchive::FSlot Slot, void* Data, void c
 	}
 }
 
-void UStruct::SerializeTaggedProperties(FArchive& Ar, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
-{
-	SerializeTaggedProperties(FStructuredArchiveFromArchive(Ar).GetSlot(), Data, DefaultsStruct, Defaults, BreakRecursionIfFullyLoad);
-}
-
 void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* Data, UStruct* DefaultsStruct, uint8* Defaults, const UObject* BreakRecursionIfFullyLoad) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
@@ -929,21 +925,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 	if( UnderlyingArchive.IsLoading() )
 	{
 		// Load tagged properties.
-		TArray<FString> FieldNames;
-
-		TOptional<FStructuredArchive::FRecord> PropertiesRecord;
-		TOptional<FStructuredArchive::FStream> PropertiesStream;
-
-		if (UnderlyingArchive.IsTextFormat())
-		{
-			PropertiesRecord.Emplace(Slot.EnterRecord_TextOnly(FieldNames));
-		}
-		else
-		{
-			PropertiesStream.Emplace(Slot.EnterStream());
-		}
-
-		int32 CurrentFieldNameIdx = UnderlyingArchive.IsTextFormat() ? 0 : -1;
+		FStructuredArchive::FStream PropertiesStream = Slot.EnterStream();
 
 		// This code assumes that properties are loaded in the same order they are saved in. This removes a n^2 search 
 		// and makes it an O(n) when properties are saved in the same order as they are loaded (default case). In the 
@@ -953,9 +935,9 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 		int32		RemainingArrayDim	= Property ? Property->ArrayDim : 0;
 
 		// Load all stored properties, potentially skipping unknown ones.
-		while (CurrentFieldNameIdx < FieldNames.Num())
+		while (true)
 		{
-			FStructuredArchive::FRecord PropertyRecord = UnderlyingArchive.IsTextFormat() ? PropertiesRecord->EnterRecord(FIELD_NAME(*FieldNames[CurrentFieldNameIdx++])) : PropertiesStream->EnterElement().EnterRecord();
+			FStructuredArchive::FRecord PropertyRecord = PropertiesStream.EnterElement().EnterRecord();
 
 			FPropertyTag Tag;
 			PropertyRecord << NAMED_FIELD(Tag);
@@ -1050,12 +1032,11 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 
 				RemainingArrayDim = Property ? Property->ArrayDim : 0;
 			}
-#if WITH_EDITOR
+
 			if (!Property)
 			{
 				Property = CustomFindProperty(Tag.Name);
 			}
-#endif // WITH_EDITOR
 
 			FName PropID = Property ? Property->GetID() : NAME_None;
 			FName ArrayInnerID = NAME_None;
@@ -1150,7 +1131,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 	}
 	else
 	{
-		FStructuredArchive::FRecord PropertiesRecord = Slot.EnterRecord();
+		FStructuredArchive::FStream PropertiesStream = Slot.EnterStream();
 
 		check(UnderlyingArchive.IsSaving() || UnderlyingArchive.IsCountingMemory());
 
@@ -1198,7 +1179,7 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 							Tag.SetPropertyGuid(PropertyGuid);
 						}
 
-						FStructuredArchive::FRecord PropertyRecord = PropertiesRecord.EnterRecord(FIELD_NAME(*Tag.Name.ToString()));
+						FStructuredArchive::FRecord PropertyRecord = PropertiesStream.EnterElement().EnterRecord();
 
 						PropertyRecord << NAMED_FIELD(Tag);
 
@@ -1246,11 +1227,8 @@ void UStruct::SerializeTaggedProperties(FStructuredArchive::FSlot Slot, uint8* D
 			}
 		}
 
-		if (!UnderlyingArchive.IsTextFormat())
-		{
-			static FName Temp(NAME_None);
-			UnderlyingArchive << Temp;
-		}
+		static FName Temp(NAME_None);
+		PropertiesStream.EnterElement().EnterRecord().EnterField(FIELD_NAME_TEXT("Tag")).EnterRecord() << NAMED_ITEM("Name", Temp);
 	}
 }
 void UStruct::FinishDestroy()
@@ -1485,6 +1463,21 @@ void UStruct::SetSuperStruct(UStruct* NewSuperStruct)
 #if USTRUCT_FAST_ISCHILDOF_IMPL == USTRUCT_ISCHILDOF_STRUCTARRAY
 	this->ReinitializeBaseChainArray();
 #endif
+}
+
+FString UStruct::PropertyNameToDisplayName(FName InName) const
+{
+	const UField* FoundField = FindField<const UField>(this, InName);
+	return GetAuthoredNameForField(FoundField);
+}
+
+FString UStruct::GetAuthoredNameForField(const UField* Field) const
+{
+	if (Field)
+	{
+		return Field->GetName();
+	}
+	return FString();
 }
 
 #if WITH_EDITOR || HACK_HEADER_GENERATOR
@@ -1901,8 +1894,8 @@ bool FindConstructorUninitialized(UStruct* BaseClass,uint8* Data,uint8* Defaults
 #endif
 
 
-UScriptStruct::UScriptStruct( EStaticConstructor, int32 InSize, EObjectFlags InFlags )
-	: UStruct( EC_StaticConstructor, InSize, InFlags )
+UScriptStruct::UScriptStruct( EStaticConstructor, int32 InSize, int32 InAlignment, EObjectFlags InFlags )
+	: UStruct( EC_StaticConstructor, InSize, InAlignment, InFlags )
 	, StructFlags(STRUCT_NoFlags)
 #if HACK_HEADER_GENERATOR
 	, StructMacroDeclaredLineNumber(INDEX_NONE)
@@ -2009,7 +2002,7 @@ void UScriptStruct::PrepareCppStructOps()
 	}
 
 	check(!(StructFlags & STRUCT_ComputedFlags));
-	if (CppStructOps->HasSerializer())
+	if (CppStructOps->HasSerializer() || CppStructOps->HasStructuredSerializer())
 	{
 		UE_LOG(LogClass, Verbose, TEXT("Native struct %s has a custom serializer."),*GetName());
 		StructFlags = EStructFlags(StructFlags | STRUCT_SerializeNative );
@@ -2348,13 +2341,15 @@ void UScriptStruct::ExportText(FString& ValueStr, const void* Value, const void*
 						ValueStr += TEXT(",");
 					}
 
+					const FString PropertyName = (PortFlags & PPF_ExternalEditor) != 0 ? *It->GetAuthoredName() : It->GetName();
+
 					if (It->ArrayDim == 1)
 					{
-						ValueStr += FString::Printf(TEXT("%s="), *It->GetName());
+						ValueStr += FString::Printf(TEXT("%s="), *PropertyName);
 					}
 					else
 					{
-						ValueStr += FString::Printf(TEXT("%s[%i]="), *It->GetName(), Index);
+						ValueStr += FString::Printf(TEXT("%s[%i]="), *PropertyName, Index);
 					}
 					ValueStr += InnerValue;
 				}
@@ -3887,11 +3882,6 @@ bool UClass::ImplementsInterface( const class UClass* SomeInterface ) const
 	return false;
 }
 
-void UClass::SerializeDefaultObject(UObject* Object, FArchive& Ar)
-{
-	SerializeDefaultObject(Object, FStructuredArchiveFromArchive(Ar).GetSlot());
-}
-
 /** serializes the passed in object as this class's default object using the given archive
  * @param Object the object to serialize as default
  * @param Ar the archive to serialize from
@@ -4008,9 +3998,9 @@ UClass* UClass::FindCommonBase(const TArray<UClass*>& InClasses)
 	return CommonClass;
 }
 
-bool UClass::IsFunctionImplementedInBlueprint(FName InFunctionName) const
+bool UClass::IsFunctionImplementedInScript(FName InFunctionName) const
 {
-	// Implemented in UBlueprintGeneratedClass
+	// Implemented in classes such as UBlueprintGeneratedClass
 	return false;
 }
 
@@ -4092,6 +4082,7 @@ UClass::UClass
 	EStaticConstructor,
 	FName			InName,
 	uint32			InSize,
+	uint32			InAlignment,
 	EClassFlags		InClassFlags,
 	EClassCastFlags	InClassCastFlags,
 	const TCHAR*    InConfigName,
@@ -4100,7 +4091,7 @@ UClass::UClass
 	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
 	ClassAddReferencedObjectsType InClassAddReferencedObjects
 )
-:	UStruct					( EC_StaticConstructor, InSize, InFlags )
+:	UStruct					( EC_StaticConstructor, InSize, InAlignment, InFlags )
 ,	ClassConstructor		( InClassConstructor )
 ,	ClassVTableHelperCtorCaller(InClassVTableHelperCtorCaller)
 ,	ClassAddReferencedObjects( InClassAddReferencedObjects )
@@ -4556,6 +4547,7 @@ void GetPrivateStaticClassBody(
 	UClass*& ReturnClass,
 	void(*RegisterNativeFunc)(),
 	uint32 InSize,
+	uint32 InAlignment,
 	EClassFlags InClassFlags,
 	EClassCastFlags InClassCastFlags,
 	const TCHAR* InConfigName,
@@ -4615,6 +4607,7 @@ void GetPrivateStaticClassBody(
 			EC_StaticConstructor,
 			Name,
 			InSize,
+			InAlignment,
 			InClassFlags,
 			InClassCastFlags,
 			InConfigName,
@@ -4634,6 +4627,7 @@ void GetPrivateStaticClassBody(
 			EC_StaticConstructor,
 			Name,
 			InSize,
+			InAlignment,
 			InClassFlags|CLASS_CompiledFromBlueprint,
 			InClassCastFlags,
 			InConfigName,
@@ -5220,6 +5214,7 @@ UDynamicClass::UDynamicClass(
 	EStaticConstructor,
 	FName			InName,
 	uint32			InSize,
+	uint32			InAlignment,
 	EClassFlags		InClassFlags,
 	EClassCastFlags	InClassCastFlags,
 	const TCHAR*    InConfigName,
@@ -5231,6 +5226,7 @@ UDynamicClass::UDynamicClass(
   EC_StaticConstructor
 , InName
 , InSize
+, InAlignment
 , InClassFlags
 , InClassCastFlags
 , InConfigName

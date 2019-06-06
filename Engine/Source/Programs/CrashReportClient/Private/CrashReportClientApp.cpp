@@ -54,6 +54,8 @@ static FString GameNameFromCmd;
 /** GUID of the crash passed via the command line. */
 static FString CrashGUIDFromCmd;
 
+/** If we are implicitly sending its assumed we are also unattended for now */
+static bool bImplicitSendFromCmd = false;
 /** If we want to enable analytics */
 static bool AnalyticsEnabledFromCmd = true;
 
@@ -109,6 +111,11 @@ void ParseCommandLine(const TCHAR* CommandLine)
 		if (Params.Contains(TEXT("CrashGUID")))
 		{
 			CrashGUIDFromCmd = Params.FindRef(TEXT("CrashGUID"));
+		}
+ 
+		if (Switches.Contains(TEXT("ImplicitSend")))
+		{
+			bImplicitSendFromCmd = true;
 		}
 
 		if (Switches.Contains(TEXT("NoAnalytics")))
@@ -300,6 +307,23 @@ bool RunWithUI(FPlatformErrorReport ErrorReport)
 }
 #endif // !CRASH_REPORT_UNATTENDED_ONLY
 
+// When we want to implicitly send and use unattended we still want to show a message box of a crash if possible
+class FMessageBoxThread : public FRunnable
+{
+	virtual uint32 Run() override
+	{
+		// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
+		if (FApp::CanEverRender())
+		{
+			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
+				*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
+				*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
+		}
+
+		return 0;
+	}
+};
+
 void RunUnattended(FPlatformErrorReport ErrorReport)
 {
 	// Set up the main ticker
@@ -309,10 +333,23 @@ void RunUnattended(FPlatformErrorReport ErrorReport)
 	FCrashReportCoreUnattended CrashReportClient(ErrorReport);
 	ErrorReport.SetUserComment(NSLOCTEXT("CrashReportClient", "UnattendedMode", "Sent in the unattended mode"));
 
+	FMessageBoxThread MessageBox;
+	FRunnableThread* MessageBoxThread = nullptr;
+
+	if (bImplicitSendFromCmd)
+	{
+		MessageBoxThread = FRunnableThread::Create(&MessageBox, TEXT("CrashReporter_MessageBox"));
+	}
+
 	// loop until the app is ready to quit
 	while (!GIsRequestingExit)
 	{
 		MainLoop.Tick();
+	}
+
+	if (bImplicitSendFromCmd && MessageBoxThread)
+	{
+		MessageBoxThread->WaitForCompletion();
 	}
 }
 

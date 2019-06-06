@@ -6,7 +6,9 @@
 #include "Layout/WidgetPath.h"
 #include "Input/HittestGrid.h"
 #include "HAL/PlatformApplicationMisc.h"
-
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#endif
 
 FOverlayPopupLayer::FOverlayPopupLayer(const TSharedRef<SWindow>& InitHostWindow, const TSharedRef<SWidget>& InitPopupContent, TSharedPtr<SOverlay> InitOverlay)
 	: FPopupLayer(InitHostWindow, InitPopupContent)
@@ -880,7 +882,7 @@ void SWindow::ReshapeWindow( FVector2D NewPosition, FVector2D NewSize )
 	const FVector2D CurrentSize = GetSizeInScreen();
 
 	const FVector2D NewPositionTruncated = FVector2D(FMath::TruncToInt(NewPosition.X), FMath::TruncToInt(NewPosition.Y));
-	const FVector2D NewSizeRounded = FVector2D(FMath::CeilToInt(NewSize.X), FMath::CeilToInt(NewSize.Y));
+	const FVector2D NewSizeRounded = FVector2D(FMath::TruncToInt(NewSize.X), FMath::TruncToInt(NewSize.Y));
 
 	if ( CurrentPosition != NewPositionTruncated || CurrentSize != NewSizeRounded )
 	{
@@ -906,7 +908,7 @@ void SWindow::ReshapeWindow( FVector2D NewPosition, FVector2D NewSize )
 
 void SWindow::ReshapeWindow( const FSlateRect& InNewShape )
 {
-	ReshapeWindow( FVector2D(InNewShape.Left, InNewShape.Top), FVector2D( InNewShape.Right - InNewShape.Left,  InNewShape.Bottom - InNewShape.Top) );
+	ReshapeWindow(FVector2D(InNewShape.Left, InNewShape.Top), FVector2D(InNewShape.Right - InNewShape.Left, InNewShape.Bottom - InNewShape.Top));
 }
 
 void SWindow::Resize( FVector2D NewSize )
@@ -1317,7 +1319,7 @@ void SWindow::ShowWindow()
 		{
 			SlatePrepass( FSlateApplicationBase::Get().GetApplicationScale() * NativeWindow->GetDPIScaleFactor() );
 			const FVector2D WindowDesiredSizePixels = GetDesiredSizeDesktopPixels();
-			ReshapeWindow( InitialDesiredScreenPosition - (WindowDesiredSizePixels * 0.5f), WindowDesiredSizePixels);
+			ReshapeWindow(InitialDesiredScreenPosition - (WindowDesiredSizePixels * 0.5f), WindowDesiredSizePixels);
 		}
 
 		// Set the window to be maximized if we need to.  Note that this won't actually show the window if its not
@@ -1583,7 +1585,7 @@ bool SWindow::OnIsActiveChanged( const FWindowActivateEvent& ActivateEvent )
 				FWidgetPath WidgetToFocusPath;
 				if (FSlateWindowHelper::FindPathToWidget(JustThisWindow, PinnedWidgetToFocus.ToSharedRef(), WidgetToFocusPath))
 				{
-					FSlateApplicationBase::Get().SetAllUserFocus(WidgetToFocusPath, EFocusCause::SetDirectly);
+					FSlateApplicationBase::Get().SetAllUserFocus(WidgetToFocusPath, EFocusCause::WindowActivate);
 				}
 			}
 
@@ -1595,7 +1597,7 @@ bool SWindow::OnIsActiveChanged( const FWindowActivateEvent& ActivateEvent )
 				TSharedRef<SWidget> WindowWidgetToFocus = WidgetFocusedOnDeactivate.IsValid() ? WidgetFocusedOnDeactivate.Pin().ToSharedRef() : AsShared();
 				if (FSlateWindowHelper::FindPathToWidget(JustThisWindow, WindowWidgetToFocus, WindowWidgetPath))
 				{
-					FSlateApplicationBase::Get().SetAllUserFocusAllowingDescendantFocus(WindowWidgetPath, EFocusCause::SetDirectly);
+					FSlateApplicationBase::Get().SetAllUserFocusAllowingDescendantFocus(WindowWidgetPath, EFocusCause::WindowActivate);
 				}
 			}
 		}
@@ -2065,5 +2067,18 @@ FScopedSwitchWorldHack::FScopedSwitchWorldHack( const FWidgetPath& WidgetPath )
 	{
 		WorldId = Window->SwitchWorlds( WorldId );
 	}
+}
+#endif
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<FSlateAccessibleWidget> SWindow::CreateAccessibleWidget()
+{
+	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWindow(SharedThis(this)));
+}
+
+void SWindow::SetDefaultAccessibleText(EAccessibleType AccessibleType)
+{
+	TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
+	Text.Bind(this, &SWindow::GetTitle);
 }
 #endif

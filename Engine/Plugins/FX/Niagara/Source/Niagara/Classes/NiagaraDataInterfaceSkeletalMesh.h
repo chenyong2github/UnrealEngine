@@ -238,7 +238,7 @@ public:
 	virtual ~FSkeletalMeshGpuSpawnStaticBuffers();
 
 	FORCEINLINE_DEBUGGABLE void Initialise(const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, 
-		bool bIsGpuUniformlyDistributedSampling, const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData);
+		bool bIsGpuUniformlyDistributedSampling, const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData, const TArray<int32>& SpecificBones, const TArray<int32>& SpecificSocketBones);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -249,13 +249,22 @@ public:
 	FShaderResourceViewRHIRef GetBufferTriangleUniformSamplerAliasSRV() const { return BufferTriangleUniformSamplerAliasSRV; }
 	FShaderResourceViewRHIRef GetBufferTriangleMatricesOffsetSRV() const { return BufferTriangleMatricesOffsetSRV; }
 	uint32 GetTriangleCount() const { return TriangleCount; }
+	uint32 GetVertexCount() const { return VertexCount; }
 
 	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
 	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
 	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
 	FRHIShaderResourceView* GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
+	FRHIShaderResourceView* GetBufferColorSRV() const { return MeshColorBufferSrv; }
 
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
+	uint32 GetNumWeights() const { return NumWeights; }
+
+	uint32 GetNumSpecificBones() const { return NumSpecificBones; }
+	FShaderResourceViewRHIParamRef GetSpecificBonesSRV() const { return SpecificBonesSRV; }
+
+	uint32 GetNumSpecificSocketBones() const { return NumSpecificSocketBones; }
+	FShaderResourceViewRHIParamRef GetSpecificSocketBonesSRV() const { return SpecificSocketBonesSRV; }
 
 protected:
 
@@ -266,20 +275,33 @@ protected:
 	FVertexBufferRHIRef BufferTriangleMatricesOffsetRHI = nullptr;
 	FShaderResourceViewRHIRef BufferTriangleMatricesOffsetSRV = nullptr;
 
+	uint32 NumSpecificBones = 0;
+	TResourceArray<uint16> SpecificBonesArray;
+	FVertexBufferRHIRef SpecificBonesBuffer;
+	FShaderResourceViewRHIRef SpecificBonesSRV;
+
+	uint32 NumSpecificSocketBones = 0;
+	TResourceArray<uint16> SpecificSocketBonesArray;
+	FVertexBufferRHIRef SpecificSocketBonesBuffer;
+	FShaderResourceViewRHIRef SpecificSocketBonesSRV;
+
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
 	FRHIShaderResourceView* MeshVertexBufferSrv;
 	FRHIShaderResourceView* MeshIndexBufferSrv;
 	FRHIShaderResourceView* MeshTangentBufferSRV;
 	FRHIShaderResourceView* MeshTexCoordBufferSrv;
+	FRHIShaderResourceView* MeshColorBufferSrv;
 
-	uint32 NumTexCoord;
+	uint32 NumTexCoord = 0;
+	uint32 NumWeights = 0;
 
 	// Cached data for resource creation on RenderThread
 	const FSkeletalMeshLODRenderData* LODRenderData = nullptr;
 	const FSkeletalMeshSamplingLODBuiltData* SkeletalMeshSamplingLODBuiltData = nullptr;
-	uint32 TriangleCount;
-	uint32 InputWeightStride;
-	bool bUseGpuUniformlyDistributedSampling;
+	uint32 TriangleCount = 0;
+	uint32 VertexCount = 0;
+	uint32 InputWeightStride = 0;
+	bool bUseGpuUniformlyDistributedSampling = false;
 };
 
 /**
@@ -294,7 +316,7 @@ public:
 	FSkeletalMeshGpuDynamicBufferProxy();
 	virtual ~FSkeletalMeshGpuDynamicBufferProxy();
 
-	void Initialise(const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData);
+	void Initialise(const FReferenceSkeleton& RefSkel, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -306,16 +328,19 @@ public:
 	/** Encapsulates a GPU read / CPU write buffer for bone data */
 	struct FSkeletalBuffer
 	{
-		FVertexBufferRHIRef Buffer;
-		FShaderResourceViewRHIRef SRV;
+		FVertexBufferRHIRef SectionBuffer;
+		FShaderResourceViewRHIRef SectionSRV;
+
+		FVertexBufferRHIRef SamplingBuffer;
+		FShaderResourceViewRHIRef SamplingSRV;
 	};
 
 	FSkeletalBuffer& GetRWBufferBone() { return RWBufferBones[CurrentBoneBufferId % 2]; }
 	FSkeletalBuffer& GetRWBufferPrevBone() { return bPrevBoneGpuBufferValid ? RWBufferBones[(CurrentBoneBufferId + 1) % 2] : GetRWBufferBone(); }
 
 private:
-
-	uint32 BoneCount = 0;
+	uint32 SamplingBoneCount = 0;
+	uint32 SectionBoneCount = 0;
 
 	enum { BufferBoneCount = 2 };
 	FSkeletalBuffer RWBufferBones[BufferBoneCount];
@@ -482,6 +507,7 @@ public:
 
 	static USkeletalMesh* GetSkeletalMeshHelper(UNiagaraDataInterfaceSkeletalMesh* Interface, class UNiagaraComponent* OwningComponent, TWeakObjectPtr<USceneComponent>& SceneComponent, USkeletalMeshComponent*& FoundSkelComp);
 
+	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FName&  DefinitionFunctionName, FString InstanceFunctionName, FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual FNiagaraDataInterfaceParametersCS* ConstructComputeParameters() const override;
@@ -493,20 +519,27 @@ public:
 	static const FString MeshSkinWeightBufferName;
 	static const FString MeshCurrBonesBufferName;
 	static const FString MeshPrevBonesBufferName;
+	static const FString MeshCurrSamplingBonesBufferName;
+	static const FString MeshPrevSamplingBonesBufferName;
 	static const FString MeshTangentBufferName;
 	static const FString MeshTexCoordBufferName;
+	static const FString MeshColorBufferName;
 	static const FString MeshTriangleSamplerProbaBufferName;
 	static const FString MeshTriangleSamplerAliasBufferName;
 	static const FString MeshTriangleMatricesOffsetBufferName;
 	static const FString MeshTriangleCountName;
-	static const FString MeshWeightStrideByteName;
+	static const FString MeshVertexCountName;
+	static const FString MeshWeightStrideName;
+	static const FString MeshNumTexCoordName;
+	static const FString MeshNumWeightsName;
+	static const FString NumSpecificBonesName;
+	static const FString SpecificBonesName;
+	static const FString NumSpecificSocketBonesName;
+	static const FString SpecificSocketBonesName;
 	static const FString InstanceTransformName;
 	static const FString InstancePrevTransformName;
 	static const FString InstanceInvDeltaTimeName;
 	static const FString EnabledFeaturesName;
-	static const FString InputWeightStrideName;
-	static const FString NumTexCoordName;
-
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
@@ -633,6 +666,7 @@ public:
 class FSkeletalMeshInterfaceHelper
 {
 public:
+	// Triangle Sampling
 	static const FName RandomTriCoordName;
 	static const FName IsValidTriCoordName;
 	static const FName GetSkinnedTriangleDataName;
@@ -644,6 +678,29 @@ public:
 	static const FName GetTriangleCountName;
 	static const FName GetTriangleAtName;
 	static const FName GetTriCoordVerticesName;
+
+	// Bone Sampling
+	static const FName GetSkinnedBoneDataName;
+	static const FName GetSkinnedBoneDataWSName;
+	static const FName GetSkinnedBoneDataInterpolatedName;
+	static const FName GetSkinnedBoneDataWSInterpolatedName;
+	static const FName RandomSpecificBoneName;
+	static const FName IsValidBoneName;
+	static const FName GetSpecificBoneCountName;
+	static const FName GetSpecificBoneAtName;
+	static const FName RandomSpecificSocketBoneName;
+	static const FName GetSpecificSocketCountName;
+	static const FName GetSpecificSocketBoneAtName;
+
+	// Vertex Sampling
+	static const FName IsValidVertexName;
+	static const FName RandomVertexName;
+	static const FName GetSkinnedVertexDataName;
+	static const FName GetSkinnedVertexDataWSName;
+	static const FName GetVertexColorName;
+	static const FName GetVertexUVName;
+	static const FName GetVertexCountName;
+	static const FName GetVertexAtName;
 };
 
 struct FNiagaraDISkeletalMeshPassedDataToRT

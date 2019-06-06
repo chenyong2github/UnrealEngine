@@ -590,11 +590,6 @@ void ULandscapeComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMater
 		OutMaterials.Add(OverrideMaterial);
 	}
 
-	if (OverrideHoleMaterial)
-	{
-		OutMaterials.Add(OverrideHoleMaterial);
-	}
-
 	OutMaterials.Append(MobileMaterialInterfaces);
 
 #if WITH_EDITORONLY_DATA
@@ -730,7 +725,7 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	}
 
 	float ScreenSizeRatioDivider = FMath::Max(InComponent->GetLandscapeProxy()->LOD0DistributionSetting * GLandscapeLOD0DistributionScale, 1.01f);
-	float CurrentScreenSizeRatio = 1.0f;
+	float CurrentScreenSizeRatio = InComponent->GetLandscapeProxy()->LOD0ScreenSize;
 
 	LODScreenRatioSquared.AddUninitialized(MaxLOD + 1);
 
@@ -1408,12 +1403,12 @@ float FLandscapeComponentSceneProxy::GetComponentScreenSize(const FSceneView* Vi
 	// Calculate screen-space projected radius
 	float SquaredScreenRadius = FMath::Square(ScreenMultiple * ElementRadius) / FMath::Max(1.0f, DistSquared);
 
-	return FMath::Min(SquaredScreenRadius * 2.0f, 1.0f);
+	return SquaredScreenRadius * 2.0f;
 }
 
 void FLandscapeComponentSceneProxy::BuildDynamicMeshElement(const FViewCustomDataLOD* InPrimitiveCustomData, bool InToolMesh, bool InHasTessellation, bool InDisableTessellation, FMeshBatch& OutMeshBatch, TArray<FLandscapeBatchElementParams, SceneRenderingAllocator>& OutStaticBatchParamArray) const
 {
-	if (AvailableMaterials.Num() == 0)
+	if (AvailableMaterials.Num() == 0 || InPrimitiveCustomData == nullptr || InPrimitiveCustomData->SubSections.Num() == 0)
 	{
 		return;
 	}
@@ -1903,7 +1898,7 @@ void FLandscapeComponentSceneProxy::CalculateLODFromScreenSize(const FSceneView&
 	}
 	else
 	{
-		PreferedLOD = FMath::Clamp<float>(ComputeBatchElementCurrentLOD(GetLODFromScreenSize(InMeshScreenSizeSquared, InViewLODScale), InMeshScreenSizeSquared) + LocalLODBias, FMath::Max((float)MinStreamedLOD, MinValidLOD), FMath::Min((float)LastLOD, MaxValidLOD));
+		PreferedLOD = FMath::Clamp<float>(ComputeBatchElementCurrentLOD(GetLODFromScreenSize(InMeshScreenSizeSquared, InViewLODScale), InMeshScreenSizeSquared, InViewLODScale) + LocalLODBias, FMath::Max((float)MinStreamedLOD, MinValidLOD), FMath::Min((float)LastLOD, MaxValidLOD));
 	}
 
 	check(PreferedLOD != -1.0f && PreferedLOD <= MaxLOD);
@@ -1988,7 +1983,7 @@ void FLandscapeComponentSceneProxy::CalculateBatchElementLOD(const FSceneView& I
 {
 	float SquaredViewLODScale = FMath::Square(InViewLODScale);
 
-	check(InMeshScreenSizeSquared >= 0.0f && InMeshScreenSizeSquared <= 1.0f);
+	check(InMeshScreenSizeSquared >= 0.0f);
 	float ComponentScreenSize = InMeshScreenSizeSquared;
 
 	if (NumSubsections > 1)
@@ -2083,7 +2078,7 @@ int32 FLandscapeComponentSceneProxy::ConvertBatchElementLODToBatchElementIndex(i
 	return BatchElementIndex;
 }
 
-float FLandscapeComponentSceneProxy::ComputeBatchElementCurrentLOD(int32 InSelectedLODIndex, float InComponentScreenSize) const
+float FLandscapeComponentSceneProxy::ComputeBatchElementCurrentLOD(int32 InSelectedLODIndex, float InComponentScreenSize, float InViewLODScale) const
 {
 	check(LODScreenRatioSquared.IsValidIndex(InSelectedLODIndex));
 
@@ -2092,17 +2087,18 @@ float FLandscapeComponentSceneProxy::ComputeBatchElementCurrentLOD(int32 InSelec
 	float NextLODScreenRatio = LastElement ? 0 : LODScreenRatioSquared[InSelectedLODIndex + 1];
 
 	float LODScreenRatioRange = CurrentLODScreenRatio - NextLODScreenRatio;
+	float ScreenSizeWithLODScale = FMath::Clamp(InComponentScreenSize / InViewLODScale, 0.0f, LODScreenRatioSquared[0]);
 
-	if (InComponentScreenSize > CurrentLODScreenRatio || InComponentScreenSize < NextLODScreenRatio)
+	if (ScreenSizeWithLODScale > CurrentLODScreenRatio || ScreenSizeWithLODScale < NextLODScreenRatio)
 	{
 		// Find corresponding LODIndex to appropriately calculate Ratio and apply it to new LODIndex
-		int32 LODFromScreenSize = GetLODFromScreenSize(InComponentScreenSize, 1.0f); // for 4.19 only
+		int32 LODFromScreenSize = GetLODFromScreenSize(InComponentScreenSize, InViewLODScale);
 		CurrentLODScreenRatio = LODScreenRatioSquared[LODFromScreenSize];
 		NextLODScreenRatio = LODFromScreenSize == LODScreenRatioSquared.Num() - 1 ? 0 : LODScreenRatioSquared[LODFromScreenSize + 1];
 		LODScreenRatioRange = CurrentLODScreenRatio - NextLODScreenRatio;
 	}
 
-	float CurrentLODRangeRatio = (InComponentScreenSize - NextLODScreenRatio) / LODScreenRatioRange;
+	float CurrentLODRangeRatio = (ScreenSizeWithLODScale - NextLODScreenRatio) / LODScreenRatioRange;
 	float fLOD = (float)InSelectedLODIndex + (1.0f - CurrentLODRangeRatio);
 
 	return fLOD;
@@ -2152,7 +2148,6 @@ void* FLandscapeComponentSceneProxy::InitViewCustomData(const FSceneView& InView
 
 	FViewCustomDataLOD* LODData = (FViewCustomDataLOD*)new(InCustomDataMemStack) FViewCustomDataLOD();
 
-	check(InMeshScreenSizeSquared <= 1.0f);
 	LODData->ComponentScreenSize = InMeshScreenSizeSquared;
 
 	// If a valid screen size was provided, we use it instead of recomputing it
@@ -2467,7 +2462,11 @@ bool FLandscapeComponentSceneProxy::CanUseMeshBatchForShadowCascade(int8 InLODIn
 	const FStaticMeshBatch* MeshBatch = nullptr;
 	const TArray<FStaticMeshBatch>& PrimitiveStaticMeshes = GetPrimitiveSceneInfo()->StaticMeshes;
 
-	check(PrimitiveStaticMeshes.IsValidIndex(InLODIndex));
+	if (!PrimitiveStaticMeshes.IsValidIndex(InLODIndex))
+	{
+		return false;
+	}
+
 	check(PrimitiveStaticMeshes[InLODIndex].CastShadow);
 	check(InLODIndex == PrimitiveStaticMeshes[InLODIndex].LODIndex);
 	MeshBatch = &PrimitiveStaticMeshes[InLODIndex];

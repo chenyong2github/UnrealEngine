@@ -259,9 +259,9 @@ TSharedRef<SWidget> SCompElementPreviewPane::GenerateMenu() const
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SCompElementPreviewPane::RedChannelToggled),
+				FExecuteAction::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::RedChannelToggled),
 				FCanExecuteAction(),
-				FGetActionCheckState::CreateSP(this, &SCompElementPreviewPane::GetRedChannel)
+				FGetActionCheckState::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::GetRedChannel)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -271,9 +271,9 @@ TSharedRef<SWidget> SCompElementPreviewPane::GenerateMenu() const
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SCompElementPreviewPane::GreenChannelToggled),
+				FExecuteAction::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::GreenChannelToggled),
 				FCanExecuteAction(),
-				FGetActionCheckState::CreateSP(this, &SCompElementPreviewPane::GetGreenChannel)
+				FGetActionCheckState::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::GetGreenChannel)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -283,9 +283,9 @@ TSharedRef<SWidget> SCompElementPreviewPane::GenerateMenu() const
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SCompElementPreviewPane::BlueChannelToggled),
+				FExecuteAction::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::BlueChannelToggled),
 				FCanExecuteAction(),
-				FGetActionCheckState::CreateSP(this, &SCompElementPreviewPane::GetBlueChannel)
+				FGetActionCheckState::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::GetBlueChannel)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
@@ -295,9 +295,9 @@ TSharedRef<SWidget> SCompElementPreviewPane::GenerateMenu() const
 			FText(),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateSP(this, &SCompElementPreviewPane::AlphaChannelToggled),
+				FExecuteAction::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::AlphaChannelToggled),
 				FCanExecuteAction(),
-				FGetActionCheckState::CreateSP(this, &SCompElementPreviewPane::GetAlphaChannel)
+				FGetActionCheckState::CreateSP(const_cast<SCompElementPreviewPane*>(this), &SCompElementPreviewPane::GetAlphaChannel)
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton

@@ -359,7 +359,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFloorOffsetWidget() const
 				.MinSliderValue(-100.0f)
 				.MaxSliderValue(100.0f)
 				.Value(this, &SAnimViewportToolBar::OnGetFloorOffset)
-				.OnValueChanged(this, &SAnimViewportToolBar::OnFloorOffsetChanged)
+				.OnValueChanged(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFloorOffsetChanged)
 				.ToolTipText(LOCTEXT("FloorOffsetToolTip", "Height offset for the floor mesh (stored per-mesh)"))
 			]
 		];
@@ -386,8 +386,8 @@ TSharedRef<SWidget> SAnimViewportToolBar::MakeFOVWidget() const
 				.MinSliderValue(FOVMin)
 				.MaxSliderValue(FOVMax)
 				.Value(this, &SAnimViewportToolBar::OnGetFOVValue)
-				.OnValueChanged(this, &SAnimViewportToolBar::OnFOVValueChanged)
-				.OnValueCommitted(this, &SAnimViewportToolBar::OnFOVValueCommitted)
+				.OnValueChanged(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFOVValueChanged)
+				.OnValueCommitted(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::OnFOVValueCommitted)
 			]
 		];
 }
@@ -690,7 +690,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 				InMenuBuilder.AddSubMenu(
 					LOCTEXT("CharacterMenu_ClothingSubMenu", "Clothing"),
 					LOCTEXT("CharacterMenu_ClothingSubMenuToolTip", "Options relating to clothing"),
-					FNewMenuDelegate::CreateRaw(this, &SAnimViewportToolBar::FillCharacterClothingMenu));
+					FNewMenuDelegate::CreateRaw(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::FillCharacterClothingMenu));
 			}
 #endif // #if WITH_APEX_CLOTHING
 		}
@@ -711,7 +711,7 @@ TSharedRef<SWidget> SAnimViewportToolBar::GenerateCharacterMenu() const
 		InMenuBuilder.AddSubMenu(
 			LOCTEXT("CharacterMenu_AdvancedSubMenu", "Advanced"),
 			LOCTEXT("CharacterMenu_AdvancedSubMenuToolTip", "Advanced options"),
-			FNewMenuDelegate::CreateRaw(this, &SAnimViewportToolBar::FillCharacterAdvancedMenu));
+			FNewMenuDelegate::CreateRaw(const_cast<SAnimViewportToolBar*>(this), &SAnimViewportToolBar::FillCharacterAdvancedMenu));
 
 		InMenuBuilder.EndSection();
 	}

@@ -977,6 +977,84 @@ void FComponentEditorUtils::FillComponentContextMenuOptions(FMenuBuilder& MenuBu
 	}
 }
 
+UActorComponent* FComponentEditorUtils::FindMatchingComponent(UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList)
+{
+	if (ComponentInstance == nullptr)
+	{
+		return nullptr;
+	}
+
+	TInlineComponentArray<UActorComponent*> FoundComponents;
+	UActorComponent* LastFoundComponent = nullptr;
+	for (UActorComponent* Component : ComponentList)
+	{
+		// Early out on pointer match
+		if (ComponentInstance == Component)
+		{
+			return Component;
+		}
+
+		if (ComponentInstance->GetFName() == Component->GetFName())
+		{
+			FoundComponents.Add(Component);
+			LastFoundComponent = Component;
+		}
+	}
+
+	// No match or 1 match avoid sorting
+	if (FoundComponents.Num() <= 1)
+	{
+		return LastFoundComponent;
+	}
+
+	if (USceneComponent* CurrentSceneComponent = Cast<USceneComponent>(ComponentInstance))
+	{
+		// Sort by matching hierarchy
+		FoundComponents.Sort([&](const UActorComponent& ComponentA, const UActorComponent& ComponentB)
+		{
+			const USceneComponent* SceneComponentA = Cast<USceneComponent>(&ComponentA);
+			const USceneComponent* SceneComponentB = Cast<USceneComponent>(&ComponentB);
+			if (SceneComponentB == nullptr)
+			{
+				return true;
+			}
+			else if (SceneComponentA == nullptr)
+			{
+				return false;
+			}
+
+			const USceneComponent* AttachParentA = SceneComponentA->GetAttachParent();
+			const USceneComponent* AttachParentB = SceneComponentB->GetAttachParent();
+			const USceneComponent* CurrentParent = CurrentSceneComponent->GetAttachParent();
+			// No parents...
+			if (CurrentParent == nullptr)
+			{
+				return AttachParentA == nullptr;
+			}
+
+			bool MatchA = AttachParentA != nullptr && AttachParentA->GetFName() == CurrentParent->GetFName();
+			bool MatchB = AttachParentB != nullptr && AttachParentB->GetFName() == CurrentParent->GetFName();
+			while (MatchA && MatchB)
+			{
+				AttachParentA = AttachParentA->GetAttachParent();
+				AttachParentB = AttachParentB->GetAttachParent();
+				CurrentParent = CurrentParent->GetAttachParent();
+				if (CurrentParent == nullptr)
+				{
+					return AttachParentA == nullptr;
+				}
+
+				MatchA = AttachParentA != nullptr && AttachParentA->GetFName() == CurrentParent->GetFName();
+				MatchB = AttachParentB != nullptr && AttachParentB->GetFName() == CurrentParent->GetFName();
+			}
+
+			return MatchA;
+		});
+	}
+
+	return FoundComponents[0];
+}
+
 void FComponentEditorUtils::OnGoToComponentAssetInBrowser(UObject* Asset)
 {
 	TArray<UObject*> Objects;

@@ -171,6 +171,8 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 void EditorExit()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("EditorExit"));
+
 	GLevelEditorModeTools().SetDefaultMode(FBuiltinEditorModes::EM_Default);
 	GLevelEditorModeTools().DeactivateAllModes(); // this also activates the default mode
 

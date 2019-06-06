@@ -106,6 +106,9 @@ protected:
 	/**	Spawns the tab with the data table inside */
 	TSharedRef<SDockTab> SpawnTab_DataTable( const FSpawnTabArgs& Args );
 
+	/**	Spawns the tab with the data table inside */
+	TSharedRef<SDockTab> SpawnTab_DataTableDetails(const FSpawnTabArgs& Args);
+
 	/**	Spawns the tab with the Row Editor inside */
 	TSharedRef<SDockTab> SpawnTab_RowEditor(const FSpawnTabArgs& Args);
 
@@ -134,8 +137,15 @@ protected:
 
 	void OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr InNewSelection, ESelectInfo::Type InSelectInfo);
 
+	void CopySelectedRow();
+	void PasteOnSelectedRow();
+	void DuplicateSelectedRow();
+
 	/** Helper function for creating and registering the tab containing the data table data */
 	virtual void CreateAndRegisterDataTableTab(const TSharedRef<class FTabManager>& InTabManager);
+
+	/** Helper function for creating and registering the tab containing the data table details */
+	virtual void CreateAndRegisterDataTableDetailsTab(const TSharedRef<class FTabManager>& InTabManager);
 
 	/** Helper function for creating and registering the tab containing the row editor */
 	virtual void CreateAndRegisterRowEditorTab(const TSharedRef<class FTabManager>& InTabManager);
@@ -159,6 +169,9 @@ protected:
 
 	/** UI for the "Data Table" tab */
 	TSharedPtr<SWidget> DataTableTabWidget;
+
+	/** Property viewing widget */
+	TSharedPtr<class IDetailsView> PropertyView;
 
 	/** UI for the "Row Editor" tab */
 	TSharedPtr<SWidget> RowEditorTabWidget;
@@ -202,6 +215,9 @@ protected:
 
 	/**	The tab id for the data table tab */
 	static const FName DataTableTabId;
+
+	/**	The tab id for the data table details tab */
+	static const FName DataTableDetailsTabId;
 
 	/**	The tab id for the row editor tab */
 	static const FName RowEditorTabId;

@@ -12,7 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "Misc/OutputDeviceRedirector.h"
 #include "Internationalization/Regex.h"
-
+#include <inttypes.h>
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
@@ -1066,7 +1066,24 @@ void FAutomationTestBase::TestEqual(const TCHAR* What, const int32 Actual, const
 	}
 }
 
+
+void FAutomationTestBase::TestEqual(const TCHAR* What, const int64 Actual, const int64 Expected)
+{
+	if (Actual != Expected)
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %" PRId64 ", but it was %" PRId64 "."), What, Expected, Actual), 1);
+	}
+}
+
 void FAutomationTestBase::TestEqual(const TCHAR* What, const float Actual, const float Expected, float Tolerance)
+{
+	if (!FMath::IsNearlyEqual(Actual, Expected, Tolerance))
+	{
+		AddError(FString::Printf(TEXT("Expected '%s' to be %f, but it was %f within tolerance %f."), What, Expected, Actual, Tolerance), 1);
+	}
+}
+
+void FAutomationTestBase::TestEqual(const TCHAR* What, const double Actual, const double Expected, double Tolerance)
 {
 	if (!FMath::IsNearlyEqual(Actual, Expected, Tolerance))
 	{

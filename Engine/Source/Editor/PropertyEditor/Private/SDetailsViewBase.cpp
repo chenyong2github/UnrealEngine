@@ -23,6 +23,7 @@
 #include "Widgets/Input/SSearchBox.h"
 #include "Classes/EditorStyleSettings.h"
 #include "DetailLayoutHelpers.h"
+#include "EditConditionParser.h"
 
 SDetailsViewBase::~SDetailsViewBase()
 {
@@ -145,7 +146,12 @@ TArray< FPropertyPath > SDetailsViewBase::GetPropertiesInOrderDisplayed() const
 // @return populates OutNodes with the leaf node corresponding to property as the first entry in the list (e.g. [leaf, parent, grandparent]):
 static void FindTreeNodeFromPropertyRecursive( const TArray< TSharedRef<FDetailTreeNode> >& Nodes, const FPropertyPath& Property, TArray< TSharedPtr< FDetailTreeNode > >& OutNodes )
 {
-	for (auto& TreeNode : Nodes)
+	if (Property == FPropertyPath())
+	{
+		return;
+	}
+
+	for (const TSharedRef<FDetailTreeNode>& TreeNode : Nodes)
 	{
 		if (TreeNode->IsLeaf())
 		{
@@ -171,7 +177,7 @@ static void FindTreeNodeFromPropertyRecursive( const TArray< TSharedRef<FDetailT
 
 void SDetailsViewBase::HighlightProperty(const FPropertyPath& Property)
 {
-	auto PrevHighlightedNodePtr = CurrentlyHighlightedNode.Pin();
+	TSharedPtr<FDetailTreeNode> PrevHighlightedNodePtr = CurrentlyHighlightedNode.Pin();
 	if (PrevHighlightedNodePtr.IsValid())
 	{
 		PrevHighlightedNodePtr->SetIsHighlighted(false);
@@ -475,6 +481,16 @@ TSharedPtr<FAssetThumbnailPool> SDetailsViewBase::GetThumbnailPool() const
 	}
 
 	return ThumbnailPool;
+}
+
+TSharedPtr<FEditConditionParser> SDetailsViewBase::GetEditConditionParser() const
+{
+	if (!EditConditionParser.IsValid())
+	{
+		EditConditionParser = MakeShareable(new FEditConditionParser);
+	}
+
+	return EditConditionParser;
 }
 
 void SDetailsViewBase::NotifyFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
@@ -1030,7 +1046,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 
 	FDetailNodeList InitialRootNodeList;
 	
-	NumVisbleTopLevelObjectNodes = 0;
+	NumVisibleTopLevelObjectNodes = 0;
 	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
 
 	if( GetDefault<UEditorStyleSettings>()->bShowAllAdvancedDetails )
@@ -1065,7 +1081,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 				if (LayoutRoots.Num() > 0)
 				{
 					// A top level object nodes has a non-filtered away root so add one to the total number we have
-					++NumVisbleTopLevelObjectNodes;
+					++NumVisibleTopLevelObjectNodes;
 
 					InitialRootNodeList.Append(LayoutRoots);
 				}

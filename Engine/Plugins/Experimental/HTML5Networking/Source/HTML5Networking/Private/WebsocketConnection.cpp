@@ -171,19 +171,24 @@ void UWebSocketConnection::ReceivedRawPacket(void* Data,int32 Count)
 	if ( bChallengeHandshake )
 	{
 		// Process all incoming packets.
-		if (Driver->ConnectionlessHandler.IsValid() && Driver->StatelessConnectComponent.IsValid())
+		if (Driver->ConnectionlessHandler.IsValid() && Driver->StatelessConnectComponent.IsValid() && Driver->GetSocketSubsystem() != nullptr)
 		{
+			int32 Port;
+			TSharedPtr<FInternetAddr> IncomingAddress = Driver->GetSocketSubsystem()->CreateInternetAddr();
+			IncomingAddress->SetRawIp(WebSocket->GetRawRemoteAddr(Port));
+			IncomingAddress->SetPort(Port);
+
 			const ProcessedPacket UnProcessedPacket =
-									Driver->ConnectionlessHandler->IncomingConnectionless(LowLevelGetRemoteAddress(true), DataRef, Count);
+									Driver->ConnectionlessHandler->IncomingConnectionless(IncomingAddress, DataRef, Count);
 	
 			TSharedPtr<StatelessConnectHandlerComponent> StatelessConnect = Driver->StatelessConnectComponent.Pin();
 
 			bool bRestartedHandshake = false;
 
-			if (!UnProcessedPacket.bError && StatelessConnect->HasPassedChallenge(LowLevelGetRemoteAddress(true), bRestartedHandshake) &&
+			if (!UnProcessedPacket.bError && StatelessConnect->HasPassedChallenge(IncomingAddress, bRestartedHandshake) &&
 					!bRestartedHandshake)
 			{
-				UE_LOG(LogNet, Log, TEXT("Server accepting post-challenge connection from: %s"), *LowLevelGetRemoteAddress(true));
+				UE_LOG(LogNet, Log, TEXT("Server accepting post-challenge connection from: %s"), *(IncomingAddress->ToString(false)));
 				// Set the initial packet sequence from the handshake data
 				if (StatelessConnectComponent.IsValid())
 				{
@@ -219,31 +224,4 @@ void UWebSocketConnection::ReceivedRawPacket(void* Data,int32 Count)
 	}
 
 	UNetConnection::ReceivedRawPacket(DataRef,Count);
-}
-
-int32 UWebSocketConnection::GetAddrAsInt()
-{
-	// Get the host byte order ip addr
-	struct sockaddr_in* sock = WebSocket->GetRemoteAddr();
-	return (int32)ntohl(sock->sin_addr.s_addr);
-}
-
-int32 UWebSocketConnection::GetAddrPort()
-{
-	// Get the host byte order ip port
-	struct sockaddr_in* sock = WebSocket->GetRemoteAddr();
-	return (int32)ntohs(sock->sin_port);
-}
-
-TSharedPtr<FInternetAddr> UWebSocketConnection::GetInternetAddr()
-{
-	struct sockaddr_in* sock = WebSocket->GetRemoteAddr();
-
-	// @todo #JIRA UENET-883: This should be based on NetConnection.RemoteAddr, when moved down from IPConnection
-	return ISocketSubsystem::Get()->CreateInternetAddr((int32)ntohl(sock->sin_addr.s_addr), (int32)ntohs(sock->sin_port));
-}
-
-FString UWebSocketConnection::RemoteAddressToString()
-{
-	return WebSocket->RemoteEndPoint(true);
 }

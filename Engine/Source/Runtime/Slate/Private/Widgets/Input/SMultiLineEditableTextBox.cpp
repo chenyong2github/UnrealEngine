@@ -57,7 +57,7 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 			.Style(&InArgs._Style->ScrollBarStyle)
 			.Orientation(Orient_Horizontal)
 			.AlwaysShowScrollbar(InArgs._AlwaysShowScrollbars)
-			.Thickness(FVector2D(5.0f, 5.0f));
+			.Thickness(FVector2D(9.0f, 9.0f));
 	}
 	
 	bHasExternalVScrollBar = InArgs._VScrollBar.IsValid();
@@ -69,7 +69,7 @@ void SMultiLineEditableTextBox::Construct( const FArguments& InArgs )
 			.Style(&InArgs._Style->ScrollBarStyle)
 			.Orientation(Orient_Vertical)
 			.AlwaysShowScrollbar(InArgs._AlwaysShowScrollbars)
-			.Thickness(FVector2D(5.0f, 5.0f));
+			.Thickness(FVector2D(9.0f, 9.0f));
 	}
 
 	SBorder::Construct( SBorder::FArguments()
@@ -196,6 +196,11 @@ void SMultiLineEditableTextBox::SetStyle(const FEditableTextBoxStyle* InStyle)
 	BorderImageHovered = &Style->BackgroundImageHovered;
 	BorderImageFocused = &Style->BackgroundImageFocused;
 	BorderImageReadOnly = &Style->BackgroundImageReadOnly;
+}
+
+void SMultiLineEditableTextBox::SetTextStyle(const FTextBlockStyle* InTextStyle)
+{
+	EditableText->SetTextStyle(InTextStyle);
 }
 
 FSlateColor SMultiLineEditableTextBox::DetermineForegroundColor() const

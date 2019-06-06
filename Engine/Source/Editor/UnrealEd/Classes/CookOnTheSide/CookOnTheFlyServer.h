@@ -282,6 +282,11 @@ public:
 	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 	/**
+	  * UObject interface
+	  */
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+
+	/**
 	 * Dumps cooking stats to the log
 	 *  run from the exec command "Cook stats"
 	 */
@@ -678,6 +683,13 @@ private:
 	* Initialize all target platforms
 	*/
 	void InitializeTargetPlatforms();
+
+	/**
+	* Some content plugins does not support all target platforms.
+	* Build up a map of unsupported packages per platform that can be checked before saving.
+	*/
+	void DiscoverPlatformSpecificNeverCookPackages(
+		const TArray<FName>& TargetPlatformNames, const TArray<FString>& TargetPlatformStrings);
 
 	/**
 	* Clean up the sandbox

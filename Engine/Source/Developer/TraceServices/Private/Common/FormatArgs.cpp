@@ -1,0 +1,347 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Common/FormatArgs.h"
+#include "ProfilingDebugging/FormatArgsTrace.h"
+#include "CoreMinimal.h"
+
+namespace Trace
+{
+
+const TCHAR* FFormatArgsHelper::ExtractNextFormatArg(const TCHAR* FormatString, FFormatArgSpec& Spec)
+{
+	Spec.PassthroughLength = 0;
+	Spec.AdditionalIntegerArgumentCount = 0;
+	Spec.Valid = false;
+	Spec.NothingPrinted = false;
+
+	enum EState
+	{
+		None,
+		Flags,
+		Width,
+		PrecisionStart,
+		Precision,
+		Length,
+		Specifier
+	};
+	EState CurrentState = None;
+	const TCHAR* Src = FormatString;
+	const TCHAR* FormatSpecifierStart = nullptr;
+	while (*Src != 0)
+	{
+		switch (CurrentState)
+		{
+		case None:
+			if (*Src == '%')
+			{
+				FormatSpecifierStart = Src;
+				CurrentState = Flags;
+			}
+			++Src;
+			break;
+		case Flags:
+			if (*Src == '%')
+			{
+				++Src;
+				CurrentState = None;
+				break;
+			}
+			if (*Src == '-' ||
+				*Src == '+' ||
+				*Src == ' ' ||
+				*Src == '#' ||
+				*Src == '0')
+			{
+				++Src;
+				break;
+			}
+			CurrentState = Width;
+			break;
+		case Width:
+			if (*Src == '*')
+			{
+				++Spec.AdditionalIntegerArgumentCount;
+				++Src;
+				CurrentState = PrecisionStart;
+				break;
+			}
+			else if ('0' <= *Src && *Src <= '9')
+			{
+				++Src;
+				break;
+			}
+			CurrentState = PrecisionStart;
+			break;
+		case PrecisionStart:
+			if (*Src == '.')
+			{
+				++Src;
+				CurrentState = Precision;
+				break;
+			}
+			CurrentState = Length;
+			break;
+		case Precision:
+			if (*Src == '*')
+			{
+				++Spec.AdditionalIntegerArgumentCount;
+				++Src;
+				CurrentState = Length;
+				break;
+			}
+			else if ('0' <= *Src && *Src <= '9')
+			{
+				++Src;
+				break;
+			}
+			CurrentState = Length;
+			break;
+		case Length:
+			if (*Src == 'h' ||
+				*Src == 'l' ||
+				*Src == 'j' ||
+				*Src == 'z' ||
+				*Src == 't' ||
+				*Src == 'L')
+			{
+				++Src;
+				break;
+			}
+			CurrentState = Specifier;
+			break;
+		case Specifier:
+			if (*Src == 'd' ||
+				*Src == 'i' ||
+				*Src == 'u' ||
+				*Src == 'o' ||
+				*Src == 'x' ||
+				*Src == 'X' ||
+				*Src == 'c' ||
+				*Src == 'p')
+			{
+				Spec.ExpectedTypeCategory = FFormatArgsTrace::FormatArgTypeCode_CategoryInteger;
+			}
+			else if (*Src == 'f' ||
+				*Src == 'F' ||
+				*Src == 'e' ||
+				*Src == 'E' ||
+				*Src == 'g' ||
+				*Src == 'G' ||
+				*Src == 'a' ||
+				*Src == 'A')
+			{
+				Spec.ExpectedTypeCategory = FFormatArgsTrace::FormatArgTypeCode_CategoryFloatingPoint;
+			}
+			else if (*Src == 's' || *Src == 'S')
+			{
+				Spec.ExpectedTypeCategory = FFormatArgsTrace::FormatArgTypeCode_CategoryString;
+			}
+			else if (*Src == 'n')
+			{
+				Spec.ExpectedTypeCategory = FFormatArgsTrace::FormatArgTypeCode_CategoryInteger;
+				Spec.NothingPrinted = true;
+			}
+			else
+			{
+				CurrentState = None;
+				break;
+			}
+
+			++Src;
+			uint64 FormatSpecifierLength = Src + 1 - FormatSpecifierStart;
+			check(FormatSpecifierLength < 255);
+			FCString::Strncpy(Spec.FormatString, FormatSpecifierStart, FormatSpecifierLength);
+			Spec.Valid = true;
+			Spec.PassthroughLength = FormatSpecifierStart - FormatString;
+			return Src;
+		}
+	}
+	Spec.PassthroughLength = Src - FormatString;
+	return Src;
+}
+
+void FFormatArgsHelper::InitArgumentStream(FFormatArgsStreamContext& Context, const uint8* ArgumentsData)
+{
+	Context.ArgumentCount = *ArgumentsData++;
+	Context.DescriptorPtr = ArgumentsData;
+	Context.PayloadPtr = ArgumentsData + Context.ArgumentCount;
+	if (Context.ArgumentCount)
+	{
+		Context.ArgumentTypeCategory = *Context.DescriptorPtr & FFormatArgsTrace::FormatArgTypeCode_CategoryBitMask;
+		Context.ArgumentTypeSize = *Context.DescriptorPtr & FFormatArgsTrace::FormatArgTypeCode_SizeBitMask;
+	}
+	else
+	{
+		Context.ArgumentTypeCategory = 0;
+		Context.ArgumentTypeSize = 0;
+	}
+}
+
+bool FFormatArgsHelper::AdvanceArgumentStream(FFormatArgsStreamContext& Context)
+{
+	if (Context.ArgumentTypeCategory == 0)
+	{
+		return false;
+	}
+	if (Context.ArgumentTypeCategory == FFormatArgsTrace::FormatArgTypeCode_CategoryString)
+	{
+		check(Context.ArgumentTypeSize == 2);
+		const TCHAR* StringPtr = reinterpret_cast<const TCHAR*>(Context.PayloadPtr);
+		while (*StringPtr++);
+		Context.PayloadPtr = reinterpret_cast<const uint8*>(StringPtr);
+	}
+	else
+	{
+		Context.PayloadPtr += Context.ArgumentTypeSize;
+	}
+	++Context.DescriptorPtr;
+	Context.ArgumentTypeCategory = *Context.DescriptorPtr & FFormatArgsTrace::FormatArgTypeCode_CategoryBitMask;
+	Context.ArgumentTypeSize = *Context.DescriptorPtr & FFormatArgsTrace::FormatArgTypeCode_SizeBitMask;
+	--Context.ArgumentCount;
+	return true;
+}
+
+uint64 FFormatArgsHelper::ExtractIntegerArgument(FFormatArgsStreamContext& ArgStream)
+{
+	uint64 Result = 0;
+	if (ArgStream.ArgumentTypeCategory == FFormatArgsTrace::FormatArgTypeCode_CategoryInteger)
+	{
+		memcpy(&Result, ArgStream.PayloadPtr, ArgStream.ArgumentTypeSize);
+	}
+	AdvanceArgumentStream(ArgStream);
+	return Result;
+}
+
+double FFormatArgsHelper::ExtractFloatingPointArgument(FFormatArgsStreamContext& ArgStream)
+{
+	double Result = 0.0;
+	if (ArgStream.ArgumentTypeCategory == FFormatArgsTrace::FormatArgTypeCode_CategoryFloatingPoint)
+	{
+		if (ArgStream.ArgumentTypeSize == 4)
+		{
+			Result = *reinterpret_cast<const float*>(ArgStream.PayloadPtr);
+		}
+		else
+		{
+			check(ArgStream.ArgumentTypeSize == 8)
+				Result = *reinterpret_cast<const double*>(ArgStream.PayloadPtr);
+		}
+	}
+	AdvanceArgumentStream(ArgStream);
+	return Result;
+}
+
+const TCHAR* FFormatArgsHelper::ExtractStringArgument(FFormatArgsStreamContext& ArgStream)
+{
+	static TCHAR Empty[] = TEXT("");
+	const TCHAR* Result = Empty;
+	if (ArgStream.ArgumentTypeCategory == FFormatArgsTrace::FormatArgTypeCode_CategoryString)
+	{
+		check(ArgStream.ArgumentTypeSize == 2);
+		Result = reinterpret_cast<const TCHAR*>(ArgStream.PayloadPtr);
+	}
+	AdvanceArgumentStream(ArgStream);
+	return Result;
+}
+
+int32 FFormatArgsHelper::FormatArgument(TCHAR* Out, uint64 MaxOut, const FFormatArgSpec& ArgSpec, FFormatArgsStreamContext& ArgStream)
+{
+	check(ArgSpec.AdditionalIntegerArgumentCount <= 2);
+	switch (ArgSpec.ExpectedTypeCategory)
+	{
+	case FFormatArgsTrace::FormatArgTypeCode_CategoryInteger:
+		if (ArgSpec.NothingPrinted)
+		{
+			for (uint8 IntegerArgIndex = 0; IntegerArgIndex < ArgSpec.AdditionalIntegerArgumentCount + 1; ++IntegerArgIndex)
+			{
+				ExtractIntegerArgument(ArgStream);
+			}
+			return 0;
+		}
+		else
+		{
+			if (ArgSpec.AdditionalIntegerArgumentCount == 2)
+			{
+				return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream));
+			}
+			else if (ArgSpec.AdditionalIntegerArgumentCount == 1)
+			{
+				return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream));
+			}
+			else
+			{
+				return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream));
+			}
+		}
+		break;
+	case FFormatArgsTrace::FormatArgTypeCode_CategoryFloatingPoint:
+		if (ArgSpec.AdditionalIntegerArgumentCount == 2)
+		{
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream), ExtractFloatingPointArgument(ArgStream));
+		}
+		else if (ArgSpec.AdditionalIntegerArgumentCount == 1)
+		{
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractFloatingPointArgument(ArgStream));
+		}
+		else
+		{
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractFloatingPointArgument(ArgStream));
+		}
+		break;
+	case FFormatArgsTrace::FormatArgTypeCode_CategoryString:
+		if (ArgSpec.AdditionalIntegerArgumentCount == 2)
+		{
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractIntegerArgument(ArgStream), ExtractStringArgument(ArgStream));
+		}
+		else if (ArgSpec.AdditionalIntegerArgumentCount == 1)
+		{
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractIntegerArgument(ArgStream), ExtractStringArgument(ArgStream));
+		}
+		else
+		{
+			return FCString::Snprintf(Out, MaxOut, ArgSpec.FormatString, ExtractStringArgument(ArgStream));
+		}
+		break;
+	default:
+		check(false);
+		return 0;
+	}
+}
+
+void FFormatArgsHelper::Format(TCHAR* Out, uint64 MaxOut, const TCHAR* FormatString, const uint8* FormatArgs)
+{
+	FFormatArgsStreamContext ArgumentStream;
+	InitArgumentStream(ArgumentStream, FormatArgs);
+	if (ArgumentStream.ArgumentCount == 0)
+	{
+		FCString::Strcpy(Out, MaxOut, FormatString);
+		return;
+	}
+
+	const TCHAR* Src = FormatString;
+	TCHAR* Dst = Out;
+	TCHAR* DstEnd = Out + MaxOut;
+	while (*Src != 0 && Dst != DstEnd)
+	{
+		FFormatArgSpec Spec;
+		const TCHAR* NextSrc = ExtractNextFormatArg(Src, Spec);
+		uint64 PassthroughCopyLength = FMath::Min<uint64>(Spec.PassthroughLength, DstEnd - Dst);
+		if (PassthroughCopyLength)
+		{
+			FCString::Strncpy(Dst, Src, PassthroughCopyLength + 1);
+			Dst += PassthroughCopyLength;
+		}
+		if (Spec.Valid)
+		{
+			int32 Length = FormatArgument(Dst, DstEnd - Dst, Spec, ArgumentStream);
+			if (Length < 0)
+			{
+				break;
+			}
+			Dst += Length;
+		}
+		Src = NextSrc;
+	}
+}
+
+}

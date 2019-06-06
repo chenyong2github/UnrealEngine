@@ -26,15 +26,16 @@ bool FTCPTransport::Initialize(const TCHAR* InHostIp)
 
 	// convert the string to a ip addr structure
 	// DEFAULT_TCP_FILE_SERVING_PORT is overridden 
-	TSharedRef<FInternetAddr> Addr = SSS->CreateInternetAddr(0, DEFAULT_TCP_FILE_SERVING_PORT);
+	TSharedRef<FInternetAddr> Addr = SSS->CreateInternetAddr();
 	bool bIsValid;
 
 	Addr->SetIp(*HostIp, bIsValid);
+	Addr->SetPort(DEFAULT_TCP_FILE_SERVING_PORT);
 
 	if (bIsValid)
 	{
 		// create the socket
-		FileSocket = SSS->CreateSocket(NAME_Stream, TEXT("FNetworkPlatformFile tcp"));
+		FileSocket = SSS->CreateSocket(NAME_Stream, TEXT("FNetworkPlatformFile tcp"), Addr->GetProtocolType());
 
 		// try to connect to the server
 		if (FileSocket == nullptr || FileSocket->Connect(*Addr) == false)

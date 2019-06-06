@@ -117,7 +117,7 @@ public:
 
 	friend inline uint32 GetTypeHash( const FShaderResourceId& Id )
 	{
-		return FCrc::MemCrc_DEPRECATED((const void*)&Id.OutputHash, sizeof(Id.OutputHash));
+		return GetTypeHash(Id.OutputHash);
 	}
 
 	friend bool operator==(const FShaderResourceId& X, const FShaderResourceId& Y)
@@ -227,13 +227,6 @@ public:
 		checkf(BufferIndex == InBufferIndex, TEXT("Tweak FShaderLooseParameterBufferInfo type sizes"));
 	}
 
-	inline uint32 GetHash() const
-	{
-		uint32 Hash = FCrc::TypeCrc32(BufferIndex, 0);
-		Hash = FCrc::TypeCrc32(BufferSize, Hash);
-		return Hash;
-	}
-
 	friend FArchive& operator<<(FArchive& Ar,FShaderLooseParameterBufferInfo& Info)
 	{
 		Ar << Info.BufferIndex;
@@ -265,16 +258,6 @@ public:
 		Ar << Info.SRVs;
 		Ar << Info.LooseParameterBuffers;
 		return Ar;
-	}
-
-	inline uint32 GetHash() const
-	{
-		uint32 Hash = 0;
-		for (const FShaderLooseParameterBufferInfo& ShaderLooseParameterBufferInfo: LooseParameterBuffers)
-		{
-			Hash = HashCombine(ShaderLooseParameterBufferInfo.GetHash(), Hash);
-		}
-		return Hash;
 	}
 
 	inline bool operator==(const FShaderParameterMapInfo& Rhs) const

@@ -9,7 +9,8 @@
 #include "MaterialEditingLibrary.generated.h"
 
 class UMaterialFunction;
-class MaterialInstance;
+class UMaterialInstance;
+
 
 /** Blueprint library for creating/editing Materials */
 UCLASS()
@@ -78,6 +79,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static bool SetMaterialUsage(UMaterial* Material, EMaterialUsage Usage, bool& bNeedsRecompile);
 
+	/**
+	 *	Check if a particular usage is enabled for the supplied material (e.g. SkeletalMesh, ParticleSprite etc)
+	 *	@param	Material			Material to check usage for
+	 *	@param	Usage				Usage type to check for this material
+	 */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool HasMaterialUsage(UMaterial* Material, EMaterialUsage Usage);
+
 	/** 
 	 *	Connect a material expression output to one of the material property inputs (e.g. diffuse color, opacity etc)
 	 *	@param	FromExpression		Expression to make connection from
@@ -108,6 +117,23 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void LayoutMaterialExpressions(UMaterial* Material);
+
+	/** Get the default scalar (float) parameter value from a Material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static float GetMaterialDefaultScalarParameterValue(UMaterial* Material, FName ParameterName);
+
+
+	/** Get the default texture parameter value from a Material  */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static UTexture* GetMaterialDefaultTextureParameterValue(UMaterial* Material, FName ParameterName);
+
+	/** Get the default vector parameter value from a Material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static FLinearColor GetMaterialDefaultVectorParameterValue(UMaterial* Material, FName ParameterName);
+
+	/** Get the default static switch parameter value from a Material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool GetMaterialDefaultStaticSwitchParameterValue(UMaterial* Material, FName ParameterName);
 
 	//////// MATERIAL FUNCTION EDITING
 
@@ -183,8 +209,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static bool SetMaterialInstanceVectorParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName, FLinearColor Value);
 
+	/** Get the current static switch parameter value from a Material Instance */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static bool GetMaterialInstanceStaticSwitchParameterValue(UMaterialInstanceConstant* Instance, FName ParameterName);
 
 	/** Called after making modifications to a Material Instance to recompile shaders etc. */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void UpdateMaterialInstance(UMaterialInstanceConstant* Instance);
+
+	/** Gets all direct child mat instances */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetChildInstances(UMaterialInterface* Parent, TArray<TSoftObjectPtr<UMaterialInstance>>& ChildInstances);
 };

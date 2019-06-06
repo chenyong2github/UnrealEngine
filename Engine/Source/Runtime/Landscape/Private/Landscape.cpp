@@ -60,6 +60,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "LandscapeDataAccess.h"
+#include "UObject/EditorObjectVersion.h"
 
 /** Landscape stats */
 
@@ -313,6 +314,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 	LLM_SCOPE(ELLMTag::Landscape);
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
 #if WITH_EDITOR
 	if (Ar.IsCooking() && !HasAnyFlags(RF_ClassDefaultObject) && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MobileRendering))
@@ -438,7 +440,24 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		LegacyComponentData.Data.Emplace(MapBuildDataId, LegacyMapBuildData);
 		GComponentsWithLegacyLightmaps.AddAnnotation(this, LegacyComponentData);
 	}
-
+	
+	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::RemoveLandscapeHoleMaterial)
+	{
+		if (OverrideHoleMaterial_DEPRECATED != nullptr)
+		{
+			if (OverrideMaterial == nullptr)
+			{
+				OverrideMaterial = OverrideHoleMaterial_DEPRECATED;
+			}
+			else
+			{
+				if (OverrideMaterial->GetBlendMode() != EBlendMode::BLEND_Masked)
+				{
+					UE_LOG(LogLandscape, Warning, TEXT("OverrideHoleMaterial was deprecated, your OverrideMaterial is not currently setup correctly to support visibility painting, please correct your material, otherwise your landscape component \"%s\" won't render as before."), *GetFullName());
+				}
+			}
+		}
+	}
 	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::NewLandscapeMaterialPerLOD)
 	{
 		if (MobileMaterialInterface_DEPRECATED != nullptr)
@@ -568,20 +587,6 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) c
 	}
 	
 	return UMaterial::GetDefaultMaterial(MD_Surface);
-}
-
-UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
-{
-	if (OverrideHoleMaterial)
-	{
-		return OverrideHoleMaterial;
-	}
-	ALandscapeProxy* Proxy = GetLandscapeProxy();
-	if (Proxy)
-	{
-		return Proxy->GetLandscapeHoleMaterial();
-	}
-	return nullptr;
 }
 
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
@@ -970,8 +975,10 @@ void ULandscapeComponent::PostLoad()
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
+		UWorld* World = GetWorld();
+
 		// If we're loading on a platform that doesn't require cooked data, but *only* supports OpenGL ES, generate or preload data from the DDC
-		if (!FPlatformProperties::RequiresCookedData() && GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1)
+		if (!FPlatformProperties::RequiresCookedData() && ((GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1) || (World && (World->FeatureLevel <= ERHIFeatureLevel::ES3_1))))
 		{
 			CheckGenerateLandscapePlatformData(false, nullptr);
 		}
@@ -1023,6 +1030,7 @@ ALandscapeProxy::ALandscapeProxy(const FObjectInitializer& ObjectInitializer)
 	ComponentScreenSizeToUseSubSections = 0.65f;
 	UseTessellationComponentScreenSizeFalloff = true;
 	TessellationComponentScreenSizeFalloff = 0.75f;
+	LOD0ScreenSize = 1.0f;
 	LOD0DistributionSetting = 1.75f;
 	LODDistributionSetting = 2.0f;
 	bCastStaticShadow = true;
@@ -1768,7 +1776,7 @@ void ALandscapeProxy::PostRegisterAllComponents()
 
 #if WITH_EDITOR
 	// Game worlds don't have landscape infos
-	if (!GetWorld()->IsGameWorld())
+	if (!GetWorld()->IsGameWorld() && !IsPendingKillPending())
 	{
 		// Duplicated Landscapes don't have a valid guid until PostEditImport is called, we'll register then
 		if (LandscapeGuid.IsValid())
@@ -1860,24 +1868,9 @@ void ALandscape::PostLoad()
 		{
 			if (Landscape && Landscape != this && Landscape->LandscapeGuid == LandscapeGuid && Landscape->GetWorld() == CurrentWorld)
 			{
-				// Duplicated landscape level, need to generate new GUID
+				// Duplicated landscape level, need to generate new GUID. This can happen during PIE or gameplay when streaming the same landscape actor.
 				Modify();
 				LandscapeGuid = FGuid::NewGuid();
-
-
-				// Show MapCheck window
-
-				FFormatNamedArguments Arguments;
-				Arguments.Add(TEXT("ProxyName1"), FText::FromString(Landscape->GetName()));
-				Arguments.Add(TEXT("LevelName1"), FText::FromString(Landscape->GetLevel()->GetOutermost()->GetName()));
-				Arguments.Add(TEXT("ProxyName2"), FText::FromString(this->GetName()));
-				Arguments.Add(TEXT("LevelName2"), FText::FromString(this->GetLevel()->GetOutermost()->GetName()));
-				FMessageLog("LoadErrors").Warning()
-					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("LoadError_DuplicateLandscapeGuid", "Landscape {ProxyName1} of {LevelName1} has the same guid as {ProxyName2} of {LevelName2}. {LevelName2}.{ProxyName2} has had its guid automatically changed, please save {LevelName2}!"), Arguments)));
-
-				// Show MapCheck window
-				FMessageLog("LoadErrors").Open();
 				break;
 			}
 		}
@@ -1933,6 +1926,7 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 
 	Ar.UsingCustomVersion(FLandscapeCustomVersion::GUID);
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
 
 	if (Ar.IsLoading() && Ar.CustomVer(FLandscapeCustomVersion::GUID) < FLandscapeCustomVersion::MigrateOldPropertiesToNewRenderingProperties)
 	{
@@ -1952,6 +1946,24 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			{
 				LOD0DistributionSetting = LOD0SquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 				LODDistributionSetting = LODDSquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
+			}
+		}
+	}
+	
+	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::RemoveLandscapeHoleMaterial)
+	{
+		if (LandscapeHoleMaterial_DEPRECATED != nullptr)
+		{
+			if (LandscapeMaterial == nullptr)
+			{
+				LandscapeMaterial = LandscapeHoleMaterial_DEPRECATED;
+			}
+			else
+			{
+				if (LandscapeMaterial->GetBlendMode() != EBlendMode::BLEND_Masked)
+				{
+					UE_LOG(LogLandscape, Warning, TEXT("LandscapeHoleMaterial was deprecated, your landscape material is not currently setup correctly to support visibility painting, please correct your material, otherwise your landscape \"%s\" won't render as before."), *GetFullName());
+				}
 			}
 		}
 	}
@@ -2371,6 +2383,7 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		TessellationComponentScreenSizeFalloff = Landscape->TessellationComponentScreenSizeFalloff;
 		LODDistributionSetting = Landscape->LODDistributionSetting;
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
+		LOD0ScreenSize = Landscape->LOD0ScreenSize;
 		OccluderGeometryLOD = Landscape->OccluderGeometryLOD;
 		NegativeZBoundsExtension = Landscape->NegativeZBoundsExtension;
 		PositiveZBoundsExtension = Landscape->PositiveZBoundsExtension;
@@ -2380,10 +2393,6 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 		{
 			LandscapeMaterial = Landscape->LandscapeMaterial;
 			LandscapeMaterialsOverride = Landscape->LandscapeMaterialsOverride;
-		}
-		if (!LandscapeHoleMaterial)
-		{
-			LandscapeHoleMaterial = Landscape->LandscapeHoleMaterial;
 		}
 		if (LandscapeMaterial == Landscape->LandscapeMaterial)
 		{
@@ -2445,6 +2454,12 @@ void ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
 	if (LOD0DistributionSetting != Landscape->LOD0DistributionSetting)
 	{
 		LOD0DistributionSetting = Landscape->LOD0DistributionSetting;
+		bUpdated = true;
+	}
+
+	if (LOD0ScreenSize != Landscape->LOD0ScreenSize)
+	{
+		LOD0ScreenSize = Landscape->LOD0ScreenSize;
 		bUpdated = true;
 	}
 
@@ -2573,15 +2588,6 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 	return LandscapeMaterial != nullptr ? LandscapeMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
 }
 
-UMaterialInterface* ALandscapeProxy::GetLandscapeHoleMaterial() const
-{
-	if (LandscapeHoleMaterial)
-	{
-		return LandscapeHoleMaterial;
-	}
-	return nullptr;
-}
-
 UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODIndex) const
 {
 	if (InLODIndex != INDEX_NONE)
@@ -2616,19 +2622,6 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 	}
 
 	return UMaterial::GetDefaultMaterial(MD_Surface);
-}
-
-UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
-{
-	if (LandscapeHoleMaterial)
-	{
-		return LandscapeHoleMaterial;
-	}
-	else if (ALandscape* Landscape = LandscapeActor.Get())
-	{
-		return Landscape->GetLandscapeHoleMaterial();
-	}
-	return nullptr;
 }
 
 void ALandscape::PreSave(const class ITargetPlatform* TargetPlatform)

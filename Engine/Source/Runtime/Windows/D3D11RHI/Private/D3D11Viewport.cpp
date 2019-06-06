@@ -196,7 +196,10 @@ FD3D11Viewport::~FD3D11Viewport()
 
 	// If the swap chain was in fullscreen mode, switch back to windowed before releasing the swap chain.
 	// DXGI throws an error otherwise.
-	VERIFYD3D11RESULT_EX(SwapChain->SetFullscreenState(false,NULL), D3DRHI->GetDevice());
+	if (SwapChain)
+	{
+		VERIFYD3D11RESULT_EX(SwapChain->SetFullscreenState(false, NULL), D3DRHI->GetDevice());
+	}
 
 	FrameSyncEvent.ReleaseResource();
 

@@ -5,6 +5,7 @@
 #include "AssetThumbnail.h"
 
 struct FPropertyChangedEvent;
+class FEditConditionParser;
 
 /**
  * Settings for property editor widgets that call up to the base container for the widgets
@@ -28,4 +29,5 @@ public:
 	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const = 0;
 	/** If a customization standalone widget is used, the value should be update only once, when its window is closed */
 	virtual bool DontUpdateValueWhileEditing() const = 0;
+	virtual TSharedPtr<FEditConditionParser> GetEditConditionParser() const = 0;
 };

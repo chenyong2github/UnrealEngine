@@ -6,9 +6,9 @@
 bool FPersonaEditorModeManager::GetCameraTarget(FSphere& OutTarget) const
 {
 	// Note: assumes all of our modes are IPersonaEditMode!
-	for(int32 ModeIndex = 0; ModeIndex < Modes.Num(); ++ModeIndex)
+	for(int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
 	{
-		TSharedPtr<IPersonaEditMode> EditMode = StaticCastSharedPtr<IPersonaEditMode>(Modes[ModeIndex]);
+		TSharedPtr<IPersonaEditMode> EditMode = StaticCastSharedPtr<IPersonaEditMode>(ActiveModes[ModeIndex]);
 
 		FSphere Target;
 		if (EditMode->GetCameraTarget(Target))
@@ -24,9 +24,9 @@ bool FPersonaEditorModeManager::GetCameraTarget(FSphere& OutTarget) const
 void FPersonaEditorModeManager::GetOnScreenDebugInfo(TArray<FText>& OutDebugText) const
 {
 	// Note: assumes all of our modes are IPersonaEditMode!
-	for (int32 ModeIndex = 0; ModeIndex < Modes.Num(); ++ModeIndex)
+	for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
 	{
-		TSharedPtr<IPersonaEditMode> EditMode = StaticCastSharedPtr<IPersonaEditMode>(Modes[ModeIndex]);
+		TSharedPtr<IPersonaEditMode> EditMode = StaticCastSharedPtr<IPersonaEditMode>(ActiveModes[ModeIndex]);
 		EditMode->GetOnScreenDebugInfo(OutDebugText);
 	}
 }

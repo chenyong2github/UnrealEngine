@@ -12,6 +12,7 @@ ALandscapeBlueprintCustomBrush::ALandscapeBlueprintCustomBrush(const FObjectInit
 	: OwningLandscape(nullptr)
 	, bIsCommited(false)
 	, bIsInitialized(false)
+	, bIsVisible(true)
 #endif
 {
 	USceneComponent* SceneComp = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
@@ -52,8 +53,30 @@ void ALandscapeBlueprintCustomBrush::SetCommitState(bool InCommited)
 #endif
 }
 
+void ALandscapeBlueprintCustomBrush::SetIsVisible(bool bInIsVisible)
+{
+	Modify();
+	bIsVisible = bInIsVisible;
+	GetOwningLandscape()->OnBPCustomBrushChanged();
+}
+
+void ALandscapeBlueprintCustomBrush::SetAffectsHeightmap(bool bInAffectsHeightmap)
+{
+	Modify();
+	AffectHeightmap = bInAffectsHeightmap;
+	GetOwningLandscape()->OnBPCustomBrushChanged();
+}
+
+void ALandscapeBlueprintCustomBrush::SetAffectsWeightmap(bool bInAffectsWeightmap)
+{
+	Modify();
+	AffectWeightmap = bInAffectsWeightmap;
+	GetOwningLandscape()->OnBPCustomBrushChanged();
+}
+
 void ALandscapeBlueprintCustomBrush::SetOwningLandscape(ALandscape* InOwningLandscape)
 {
+	Modify();
 	OwningLandscape = InOwningLandscape;
 }
 
@@ -89,84 +112,25 @@ void ALandscapeBlueprintCustomBrush::PostEditMove(bool bFinished)
 	}
 }
 
-void ALandscapeBlueprintCustomBrush::PreEditChange(UProperty* PropertyThatWillChange)
-{
-	const FName PropertyName = PropertyThatWillChange != nullptr ? PropertyThatWillChange->GetFName() : NAME_None;
-
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeBlueprintCustomBrush, AffectHeightmap)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeBlueprintCustomBrush, AffectWeightmap))
-	{
-		PreviousAffectHeightmap = AffectHeightmap;
-		PreviousAffectWeightmap = AffectWeightmap;
-	}
-}
-
 void ALandscapeBlueprintCustomBrush::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeBlueprintCustomBrush, AffectHeightmap)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeBlueprintCustomBrush, AffectWeightmap))
+	if (OwningLandscape)
 	{
-		for (FLandscapeLayer& Layer : OwningLandscape->LandscapeLayers)
-		{
-			for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
-			{
-				if (Layer.Brushes[i].BPCustomBrush == this)
-				{
-					if (AffectHeightmap && !PreviousAffectHeightmap) // changed to affect
-					{
-						Layer.HeightmapBrushOrderIndices.Add(i); // simply add the brush as the last one
-					}
-					else if (!AffectHeightmap && PreviousAffectHeightmap) // changed to no longer affect
-					{
-						for (int32 j = 0; j < Layer.HeightmapBrushOrderIndices.Num(); ++j)
-						{
-							if (Layer.HeightmapBrushOrderIndices[j] == i)
-							{
-								Layer.HeightmapBrushOrderIndices.RemoveAt(j);
-								break;
-							}
-						}
-					}
-
-					if (AffectWeightmap && !PreviousAffectWeightmap) // changed to affect
-					{
-						Layer.WeightmapBrushOrderIndices.Add(i); // simply add the brush as the last one
-					}
-					else if (!AffectWeightmap && PreviousAffectWeightmap) // changed to no longer affect
-					{
-						for (int32 j = 0; j < Layer.WeightmapBrushOrderIndices.Num(); ++j)
-						{
-							if (Layer.WeightmapBrushOrderIndices[j] == i)
-							{
-								Layer.WeightmapBrushOrderIndices.RemoveAt(j);
-								break;
-							}
-						}
-					}
-
-					PreviousAffectHeightmap = AffectHeightmap;
-					PreviousAffectWeightmap = AffectWeightmap;
-
-					break;
-				}
-			}			
-		}		
-
-		// Should trigger a rebuild of the UI so the visual is updated with changes made to actor
-		//TODO: find a way to trigger the update of the UI
-		//FEdModeLandscape* EdMode = (FEdModeLandscape*)GLevelEditorModeTools().GetActiveMode(FBuiltinEditorModes::EM_Landscape);
-		//EdMode->RefreshDetailPanel();
-	}
-
-	if (OwningLandscape != nullptr)
-	{
-		OwningLandscape->RequestLayersContentUpdateForceAll(); // For now since we dont have brush bounds, we have to force an update of all components, otherwise we will have not right layer being rendered as materials are not updated
+		OwningLandscape->OnBPCustomBrushChanged();
 	}
 }
+
+void ALandscapeBlueprintCustomBrush::Destroyed()
+{
+	Super::Destroyed();
+
+	if (OwningLandscape)
+	{
+		OwningLandscape->RemoveBrush(this);
+	}
+}
+
 #endif
 
 ALandscapeBlueprintCustomSimulationBrush::ALandscapeBlueprintCustomSimulationBrush(const FObjectInitializer& ObjectInitializer)

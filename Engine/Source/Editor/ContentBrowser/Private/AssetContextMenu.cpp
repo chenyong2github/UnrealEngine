@@ -6,6 +6,8 @@
 #include "Framework/Commands/UIAction.h"
 #include "Textures/SlateIcon.h"
 #include "Engine/Blueprint.h"
+#include "Engine/UserDefinedStruct.h"
+#include "Engine/UserDefinedEnum.h"
 #include "Misc/MessageDialog.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HAL/FileManager.h"
@@ -1408,7 +1410,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(FMenuBuilder& MenuBuilder)
 
 			AvailableCollections.Sort([](const FCollectionNameType& One, const FCollectionNameType& Two) -> bool
 			{
-				return One.Name < Two.Name;
+				return One.Name.LexicalLess(Two.Name);
 			});
 
 			for (const FCollectionNameType& AvailableCollection : AvailableCollections)
@@ -2153,6 +2155,22 @@ void FAssetContextMenu::ExecuteReload()
 			if (AssetData.AssetClass == UObjectRedirector::StaticClass()->GetFName())
 			{
 				// Don't operate on Redirectors
+				continue;
+			}
+
+			if (AssetData.AssetClass == UUserDefinedStruct::StaticClass()->GetFName())
+			{
+				FNotificationInfo Notification(LOCTEXT("CannotReloadUserStruct", "User created structures cannot be safely reloaded."));
+				Notification.ExpireDuration = 3.0f;
+				FSlateNotificationManager::Get().AddNotification(Notification);
+				continue;
+			}
+
+			if (AssetData.AssetClass == UUserDefinedEnum::StaticClass()->GetFName())
+			{
+				FNotificationInfo Notification(LOCTEXT("CannotReloadUserEnum", "User created enumerations cannot be safely reloaded."));
+				Notification.ExpireDuration = 3.0f;
+				FSlateNotificationManager::Get().AddNotification(Notification);
 				continue;
 			}
 

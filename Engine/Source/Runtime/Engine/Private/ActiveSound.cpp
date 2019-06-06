@@ -125,6 +125,8 @@ FActiveSound::~FActiveSound()
 
 FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundToCopy, FAudioDevice& InAudioDevice)
 {
+	check(!InActiveSoundToCopy.bIsStopping);
+
 	FActiveSound* ActiveSound = new FActiveSound(InActiveSoundToCopy);
 
 	ActiveSound->bAsyncOcclusionPending = false;
@@ -1090,9 +1092,11 @@ void FActiveSound::HandleInteriorVolumes( const FListener& Listener, FSoundParse
 	}
 }
 
-void FActiveSound::AddWaveInstance(const UPTRINT WaveInstanceHash, FWaveInstance& WaveInstance)
+FWaveInstance& FActiveSound::AddWaveInstance(const UPTRINT WaveInstanceHash)
 {
-	WaveInstances.Add(WaveInstanceHash, &WaveInstance);
+	FWaveInstance* WaveInstance = new FWaveInstance(WaveInstanceHash, *this);
+	WaveInstances.Add(WaveInstanceHash, WaveInstance);
+	return *WaveInstance;
 }
 
 void FActiveSound::ApplyRadioFilter(const FSoundParseParameters& ParseParams )

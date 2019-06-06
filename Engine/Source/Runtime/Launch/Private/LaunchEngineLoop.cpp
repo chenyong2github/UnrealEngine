@@ -28,6 +28,8 @@
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
 #include "Stats/StatsMallocProfilerProxy.h"
+#include "Trace/Trace.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1155,6 +1157,11 @@ DECLARE_CYCLE_STAT( TEXT( "FEngineLoop::PreInit.AfterStats" ), STAT_FEngineLoop_
 
 int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 {
+	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
+#if CPUPROFILERTRACE_ENABLED
+	FCpuProfilerTrace::Init(FParse::Param(CmdLine, TEXT("cpuprofilertrace")));
+#endif
+
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 
 #if PLATFORM_WINDOWS
@@ -1204,6 +1211,27 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	{
 		// Fail, shipping builds will crash if setting command line fails
 		return -1;
+	}
+
+	{
+		FString TraceHost;
+		if (FParse::Value(CmdLine, TEXT("tracehost"), TraceHost))
+		{
+			Trace::Connect(*TraceHost);
+		}
+
+#if PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+		else
+		{
+			// If we can detect a named event then we can try and auto-connect to UnrealInsights.
+			HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
+			if (KnownEvent != nullptr)
+			{
+				Trace::Connect(TEXT("127.0.0.1"));
+				::CloseHandle(KnownEvent);
+			}
+		}
+#endif // PLATFORM_WINDOWS
 	}
 
 #if WITH_ENGINE
@@ -1763,6 +1791,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 
 		{
+			TRACE_THREAD_GROUP_SCOPE("ThreadPool");
 			GThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
 
@@ -1774,6 +1803,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 			verify(GThreadPool->Create(NumThreadsInThreadPool, StackSize * 1024, TPri_SlightlyBelowNormal));
 		}
 		{
+			TRACE_THREAD_GROUP_SCOPE("BackgroundThreadPool");
 			GBackgroundPriorityThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = 2;
 			if (FPlatformProperties::IsServerOnly())
@@ -1785,13 +1815,11 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 		}
 
 #if WITH_EDITOR
-		// when we are in the editor we like to do things like build lighting and such
-		// this thread pool can be used for those purposes
-		GLargeThreadPool = FQueuedThreadPool::Allocate();
-		int32 NumThreadsInLargeThreadPool = FMath::Max(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 2);
-
-		// GLargeThreadPool needs extra stack size just like regular thread pool in editor mode, Crunch texture compression relies on this 
-		verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024));
+		{
+			TRACE_THREAD_GROUP_SCOPE("LargeThreadPool");
+			// GLargeThreadPool needs extra stack size just like regular thread pool in editor mode, Crunch texture compression relies on this 
+			verify(GLargeThreadPool->Create(NumThreadsInLargeThreadPool, StackSize * 1024));
+		}
 #endif
 	}
 
@@ -1841,6 +1869,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	if (FPlatformProcess::SupportsMultithreading())
 	{
 		{
+			TRACE_THREAD_GROUP_SCOPE("IOThreadPool");
 			SCOPED_BOOT_TIMING("GIOThreadPool->Create");
 			GIOThreadPool = FQueuedThreadPool::Allocate();
 			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfIOWorkerThreadsToSpawn();
@@ -3575,6 +3604,7 @@ int32 FEngineLoop::Init()
 void FEngineLoop::Exit()
 {
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, TEXT( "EngineLoop.Exit" ) );
+	TRACE_BOOKMARK(TEXT("EngineLoop.Exit"));
 
 	GIsRunning	= 0;
 	GLogConsole	= nullptr;
@@ -3925,6 +3955,7 @@ uint64 FScopedSampleMallocChurn::DumpFrame = 0;
 
 static inline void BeginFrameRenderThread(FRHICommandListImmediate& RHICmdList, uint64 CurrentFrameCounter)
 {
+	TRACE_BEGIN_FRAME(TraceFrameType_Rendering);
 	GRHICommandList.LatchBypass();
 	GFrameNumberRenderThread++;
 
@@ -3966,6 +3997,7 @@ static inline void EndFrameRenderThread(FRHICommandListImmediate& RHICmdList)
 	FPlatformMisc::EndNamedEvent();
 #endif
 #endif // !UE_BUILD_SHIPPING 
+	TRACE_END_FRAME(TraceFrameType_Rendering);
 }
 
 #if BUILD_EMBEDDED_APP
@@ -4024,6 +4056,8 @@ void FEngineLoop::Tick()
 	}
 
 	{
+		TRACE_BEGIN_FRAME(TraceFrameType_Game);
+
 		SCOPE_CYCLE_COUNTER(STAT_FrameTime);
 
 		#if WITH_PROFILEGPU && !UE_BUILD_SHIPPING
@@ -4453,6 +4487,7 @@ void FEngineLoop::Tick()
 #if UE_GC_TRACK_OBJ_AVAILABLE
 		SET_DWORD_STAT(STAT_Hash_NumObjects, GUObjectArray.GetObjectArrayNumMinusAvailable());
 #endif
+		TRACE_END_FRAME(TraceFrameType_Game);
 	}
 
 #if BUILD_EMBEDDED_APP
@@ -5030,6 +5065,8 @@ void FEngineLoop::AppPreExit( )
 		GShaderCompilingManager = nullptr;
 	}
 #endif
+
+	Trace::Flush();
 }
 
 

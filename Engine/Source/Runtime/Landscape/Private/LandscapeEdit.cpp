@@ -229,9 +229,8 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 
 	const bool bComponentHasHoles = ComponentHasVisibilityPainted();
 	UMaterialInterface* const LandscapeMaterial = GetLandscapeMaterial(InLODIndex);
-	UMaterialInterface* const HoleMaterial = bComponentHasHoles ? GetLandscapeHoleMaterial() : nullptr;
-	UMaterialInterface* const MaterialToUse = bComponentHasHoles && HoleMaterial ? HoleMaterial : LandscapeMaterial;
-	bool bOverrideBlendMode = bComponentHasHoles && !HoleMaterial && LandscapeMaterial->GetBlendMode() == BLEND_Opaque;
+	UMaterialInterface* const MaterialToUse = LandscapeMaterial;
+	bool bOverrideBlendMode = bComponentHasHoles && LandscapeMaterial->GetBlendMode() == BLEND_Opaque;
 
 	if (bOverrideBlendMode)
 	{
@@ -4004,7 +4003,8 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		ChangeTessellationComponentScreenSizeFalloff(TessellationComponentScreenSizeFalloff);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LODDistributionSetting)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting))
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0DistributionSetting)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LOD0ScreenSize))
 	{		
 		MarkComponentsRenderStateDirty();
 	}
@@ -4103,7 +4103,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			LandscapeActor = nullptr;
 		}
 	}
-	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || PropertyName == FName(TEXT("LandscapeMaterialsOverride")))
+	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeMaterialsOverride")))
 	{
 		bool RecreateMaterialInstances = true;
 
@@ -4152,6 +4152,14 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void ALandscape::PreEditChange(UProperty* PropertyThatWillChange)
+{
+	PreEditLandscapeMaterial = LandscapeMaterial;
+	PreEditLandscapeMaterialsOverride = LandscapeMaterialsOverride;
+
+	Super::PreEditChange(PropertyThatWillChange);
+}
+
 void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
@@ -4165,16 +4173,42 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || MemberPropertyName == FName(TEXT("LandscapeMaterialsOverride")))
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterial) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride))
+		&& PropertyChangedEvent.ChangeType != EPropertyChangeType::ArrayAdd)
 	{
-		bool RecreateMaterialInstances = true;
+		bool HasMaterialChanged = false;
 
-		if (PropertyName == FName(TEXT("LandscapeMaterialsOverride")) && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
+		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			RecreateMaterialInstances = false;
-		}		
+			if (PreEditLandscapeMaterial != LandscapeMaterial || PreEditLandscapeMaterialsOverride.Num() != LandscapeMaterialsOverride.Num() || bIsPerformingInteractiveActionOnLandscapeMaterialOverride)
+			{
+				HasMaterialChanged = true;
+			}
 
-		if (Info != nullptr && RecreateMaterialInstances)
+			if (!HasMaterialChanged)
+			{
+				for (int32 i = 0; i < LandscapeMaterialsOverride.Num(); ++i)
+				{
+					const FLandscapeProxyMaterialOverride& NewMaterialOverride = LandscapeMaterialsOverride[i];
+					const FLandscapeProxyMaterialOverride& PreEditMaterialOverride = PreEditLandscapeMaterialsOverride[i];
+
+					if (!(PreEditMaterialOverride == NewMaterialOverride))
+					{
+						HasMaterialChanged = true;
+						break;
+					}
+				}
+			}
+
+			bIsPerformingInteractiveActionOnLandscapeMaterialOverride = false;
+		}
+		else
+		{
+			// We are probably using a slider or something similar in LandscapeMaterialsOverride
+			bIsPerformingInteractiveActionOnLandscapeMaterialOverride = MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride);
+		}
+
+		if (Info != nullptr && HasMaterialChanged)
 		{
 			FMaterialUpdateContext MaterialUpdateContext;
 			Info->UpdateLayerInfoMap(/*this*/);
@@ -4237,6 +4271,11 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	else if (PropertyName == FName(TEXT("LOD0DistributionSetting")))
 	{
 		LOD0DistributionSetting = FMath::Clamp<float>(LOD0DistributionSetting, 1.0f, 10.0f);
+		bPropagateToProxies = true;
+	}
+	else if (PropertyName == FName(TEXT("LOD0ScreenSize")))
+	{
+		LOD0ScreenSize = FMath::Clamp<float>(LOD0ScreenSize, 1.0f, 10.0f);
 		bPropagateToProxies = true;
 	}
 	else if (PropertyName == FName(TEXT("CollisionMipLevel")))
@@ -4363,6 +4402,9 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			LandscapeMaterialChangedDelegate.Broadcast();
 		}
 	}
+
+	PreEditLandscapeMaterial = nullptr;
+	PreEditLandscapeMaterialsOverride.Empty();
 }
 
 void ALandscapeProxy::ChangedPhysMaterial()
@@ -5491,7 +5533,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 
 	MobileWeightmapTextures.Empty();
 
-    UTexture2D* MobileWeightNormalmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, GMobileCompressLandscapeWeightMaps ? true : false );
+    UTexture2D* MobileWeightNormalmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, GMobileCompressLandscapeWeightMaps ? true : false );
 	CreateEmptyTextureMips(MobileWeightNormalmapTexture);
 
 	{
@@ -5534,7 +5576,7 @@ void ULandscapeComponent::GeneratePlatformPixelData()
 					// create a new weightmap texture if we've run out of channels
 					CurrentChannel = 0;
 					RemainingChannels = 4;
-                    CurrentWeightmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, GMobileCompressLandscapeWeightMaps ? true : false);
+                    CurrentWeightmapTexture = GetLandscapeProxy()->CreateLandscapeTexture(WeightmapSize, WeightmapSize, TEXTUREGROUP_Terrain_Weightmap, TSF_BGRA8, nullptr, GMobileCompressLandscapeWeightMaps ? true : false);
 					CreateEmptyTextureMips(CurrentWeightmapTexture);
 					MobileWeightmapTextures.Add(CurrentWeightmapTexture);
 				}
@@ -5873,9 +5915,10 @@ void ULandscapeComponent::GeneratePlatformVertexData(const ITargetPlatform* Targ
 	PlatformData.InitializeFromUncompressedData(NewPlatformData);
 }
 
-UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, bool bCompress) const
+UTexture2D* ALandscapeProxy::CreateLandscapeTexture(int32 InSizeX, int32 InSizeY, TextureGroup InLODGroup, ETextureSourceFormat InFormat, UObject* OptionalOverrideOuter, bool bCompress) const
 {
-	UTexture2D* NewTexture = NewObject<UTexture2D>(const_cast<ALandscapeProxy*>(this));
+	UObject* TexOuter = OptionalOverrideOuter ? OptionalOverrideOuter : const_cast<ALandscapeProxy*>(this);
+	UTexture2D* NewTexture = NewObject<UTexture2D>(TexOuter);
 	NewTexture->Source.Init2DWithMipChain(InSizeX, InSizeY, InFormat);
 	NewTexture->SRGB = false;
 	NewTexture->CompressionNone = !bCompress;

@@ -507,6 +507,7 @@ private:
 		 */
 		void OnItemSeen( ItemType InItem, TSharedRef<ITableRow> InGeneratedWidget)
 		{
+			ensure(TListTypeTraits<ItemType>::IsPtrValid(InItem));
 			TSharedRef<ITableRow>* LookupResult = ItemToWidgetMap.Find( InItem );
 			const bool bWidgetIsNewlyGenerated = (LookupResult == nullptr);
 			if ( bWidgetIsNewlyGenerated )
@@ -573,6 +574,26 @@ private:
 					{
 						WidgetToCleanUp->ResetRow();
 						OwnerList->OnRowReleased.ExecuteIfBound(WidgetToCleanUp);
+					}
+				}
+				else if(!TListTypeTraits<ItemType>::IsPtrValid(ItemToBeCleanedUp))
+				{
+					// If we get here, it means we have an invalid object. We will need to remove that object from both maps.
+					// This may happen for example when ItemType is a UObject* and the object is garbage collected.
+					auto Widget = WidgetMapToItem.FindKey(ItemToBeCleanedUp);
+					if (Widget != nullptr)
+					{
+						for (auto WidgetItemPair = ItemToWidgetMap.CreateIterator(); WidgetItemPair; ++WidgetItemPair)
+						{
+							const ITableRow* Item = &(WidgetItemPair.Value().Get());
+							if (Item == *Widget)
+							{
+								WidgetItemPair.RemoveCurrent();
+								break;
+							}
+						}
+
+						WidgetMapToItem.Remove(*Widget);
 					}
 				}
 			}
@@ -971,6 +992,12 @@ public:
 			{
 				const ItemType& CurItem = (*SourceItems)[ItemIndex];
 
+				// We do not generatie a new widget if the CurItem is an invalid object.
+				if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
+				{
+					continue;
+				}
+
 				const float ItemHeight = GenerateWidgetForItem(CurItem, ItemIndex, StartIndex, LayoutScaleMultiplier);
 
 				const bool bIsFirstItem = ItemIndex == StartIndex;
@@ -1024,11 +1051,16 @@ public:
 			// But we may still have space to fill!
 			if (bAtEndOfList && ViewHeightUsedSoFar < MyGeometry.GetLocalSize().Y)
 			{
-				float NewScrollOffsetForBackfill = StartIndex + (HeightGeneratedSoFar - MyGeometry.GetLocalSize().Y) / FirstItemHeight;
+				double NewScrollOffsetForBackfill = static_cast<double>(StartIndex) + (HeightGeneratedSoFar - MyGeometry.GetLocalSize().Y) / FirstItemHeight;
 
 				for( int32 ItemIndex = StartIndex-1; HeightGeneratedSoFar < MyGeometry.GetLocalSize().Y && ItemIndex >= 0; --ItemIndex )
 				{
 					const ItemType& CurItem = (*SourceItems)[ItemIndex];
+					// When the item is not valid, we do not generate a widget for it.
+					if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
+					{
+						continue;
+					}
 
 					const float ItemHeight = GenerateWidgetForItem(CurItem, ItemIndex, StartIndex, LayoutScaleMultiplier);
 
@@ -1036,7 +1068,7 @@ public:
 					{
 						// Generated the item that puts us over the top.
 						// Count the fraction of this item that will stick out above the list
-						NewScrollOffsetForBackfill = ItemIndex + (HeightGeneratedSoFar + ItemHeight - MyGeometry.GetLocalSize().Y) / ItemHeight;
+						NewScrollOffsetForBackfill = static_cast<double>(ItemIndex) + (HeightGeneratedSoFar + ItemHeight - MyGeometry.GetLocalSize().Y) / ItemHeight;
 					}
 
 					// The widget used up some of the available vertical space.
@@ -1050,11 +1082,11 @@ public:
 		}
 
 		return FReGenerateResults(0.0f, 0.0f, 0.0f, false);
-
 	}
 
 	float GenerateWidgetForItem( const ItemType& CurItem, int32 ItemIndex, int32 StartIndex, float LayoutScaleMultiplier )
 	{
+		ensure(TListTypeTraits<ItemType>::IsPtrValid(CurItem));
 		// Find a previously generated Widget for this item, if one exists.
 		TSharedPtr<ITableRow> WidgetForItem = WidgetGenerator.GetWidgetForItem( CurItem );
 		if ( !WidgetForItem.IsValid() )
@@ -1396,7 +1428,7 @@ public:
 	 */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector )
 	{
-		TListTypeTraits<ItemType>::AddReferencedObjects( Collector, WidgetGenerator.ItemsWithGeneratedWidgets, SelectedItems );
+		TListTypeTraits<ItemType>::AddReferencedObjects( Collector, WidgetGenerator.ItemsWithGeneratedWidgets, SelectedItems, WidgetGenerator.WidgetMapToItem );
 	}
 
 	/**
@@ -1469,14 +1501,15 @@ protected:
 				{
 					// Scroll the top of the listview to the item in question
 					double NewScrollOffset = IndexOfItem;
+
 					// Center the list view on the item in question.
 					NewScrollOffset -= (NumLiveWidgets / 2);
-					//we also don't want the widget being chopped off if it is at the end of the list
-					const double MoveBackBy = FMath::Clamp<double>(IndexOfItem - (NewScrollOffset + NumLiveWidgets), 0, FLT_MAX);
-					//Move to the correct center spot
-					NewScrollOffset += MoveBackBy;
 
-					SetScrollOffset( NewScrollOffset );
+					// Limit offset to top and bottom of the list.
+					const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+					NewScrollOffset = FMath::Clamp<double>(NewScrollOffset, 0.0, MaxScrollOffset);
+
+					SetScrollOffset(NewScrollOffset);
 				}
 				else if (bNavigateOnScrollIntoView)
 				{
@@ -1487,7 +1520,9 @@ protected:
 						if (RowGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector).Y < ListViewGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector).Y)
 						{
 							// This row is clipped on the top, so simply set it as the new scroll offset target to bump it down a bit
-							SetScrollOffset(IndexOfItem - NavigationScrollOffset);
+							const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+							double NewScrollOffset = FMath::Clamp<double>(static_cast<double>(IndexOfItem - NavigationScrollOffset), 0.0, MaxScrollOffset);
+							SetScrollOffset(NewScrollOffset);
 						}
 						else
 						{
@@ -1516,7 +1551,9 @@ protected:
 									}
 								}
 
-								SetScrollOffset(ScrollOffset + AdditionalOffset + NavigationScrollOffset);
+								const double MaxScrollOffset = FMath::Max(0.0, static_cast<double>(ItemsSource->Num()) - NumLiveWidgets);
+								double NewScrollOffset = FMath::Clamp<double>(ScrollOffset + AdditionalOffset + NavigationScrollOffset, 0.0, MaxScrollOffset);
+								SetScrollOffset(NewScrollOffset);
 							}
 						}
 					}
@@ -1602,6 +1639,13 @@ protected:
 				while( AbsScrollByAmount != 0 && ItemIndex < SourceItems->Num() && ItemIndex >= 0 )
 				{
 					const ItemType CurItem = (*SourceItems)[ ItemIndex ];
+					// If the CurItem is not valid, we do not generate a new widget for it, we skip it.
+					if (!TListTypeTraits<ItemType>::IsPtrValid(CurItem))
+					{
+						++ItemIndex;
+						continue;
+					}
+
 					TSharedPtr<ITableRow> RowWidget = WidgetGenerator.GetWidgetForItem( CurItem );
 					if ( !RowWidget.IsValid() )
 					{

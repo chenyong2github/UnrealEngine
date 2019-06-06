@@ -2672,9 +2672,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					// We check ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER to force at least one update for each actor
 					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER) || ((Time - ActorInfo->LastNetUpdateTime) < RelevantTimeout);
 
-					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || ActorInfo->bForceRelevantNextUpdate;
-
-					ActorInfo->bForceRelevantNextUpdate = false;
+					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || (ActorInfo->ForceRelevantFrame >= ReplicationFrame);
 
 					if (!bIsRelevant)
 					{
@@ -2915,7 +2913,7 @@ bool UDemoNetDriver::ReplicatePrioritizedActor(const FActorPriority& ActorPriori
 		const double ClampedExtraTime = FMath::Clamp(ExtraTime, 0.0, NetUpdateDelay);
 
 		// Try to spread the updates across multiple frames to smooth out spikes.
-		ActorInfo->NextUpdateTime = (DemoCurrentTime + NextUpdateDelta - ClampedExtraTime + ((FMath::SRand() - 0.5) * Params.ServerTickTime));
+		ActorInfo->NextUpdateTime = (DemoCurrentTime + NextUpdateDelta - ClampedExtraTime + ((UpdateDelayRandomStream.FRand() - 0.5) * Params.ServerTickTime));
 
 		Actor->CallPreReplication(this);
 
@@ -5819,12 +5817,6 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 	}
 }
 
-TSharedPtr<FInternetAddr> UDemoNetConnection::GetInternetAddr()
-{
-	// Does not use MappedClientConnections
-	return TSharedPtr<FInternetAddr>();
-}
-
 bool UDemoNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const
 {
 	// We save all currently streamed levels into the demo stream so we can force the demo playback client
@@ -6316,8 +6308,25 @@ bool UDemoNetDriver::UpdateExternalDataForActor(AActor* Actor)
 
 bool UDemoNetDriver::ShouldReplicateFunction(AActor* Actor, UFunction* Function) const
 {
-	const bool bRecordingMulticast = (Function && Function->FunctionFlags & FUNC_NetMulticast) && IsRecording();
-	return bRecordingMulticast || Super::ShouldReplicateFunction(Actor, Function);
+	bool bShouldRecordMulticast = (Function && Function->FunctionFlags & FUNC_NetMulticast) && IsRecording();
+	if (bShouldRecordMulticast)
+	{
+		FString FuncPathName = GetPathNameSafe(Function);
+		int32 Idx = MulticastRecordOptions.IndexOfByPredicate([FuncPathName](const FMulticastRecordOptions& Options) { return (Options.FuncPathName == FuncPathName); });
+		if (Idx != INDEX_NONE)
+		{
+			if (World && World->IsRecordingClientReplay())
+			{
+				bShouldRecordMulticast = bShouldRecordMulticast && !MulticastRecordOptions[Idx].bClientSkip;
+			}
+			else
+			{
+				bShouldRecordMulticast = bShouldRecordMulticast && !MulticastRecordOptions[Idx].bServerSkip;
+			}
+		}
+	}
+
+	return bShouldRecordMulticast || Super::ShouldReplicateFunction(Actor, Function);
 }
 
 bool UDemoNetDriver::ShouldReplicateActor(AActor* Actor) const

@@ -68,6 +68,10 @@ namespace
 UDataTable::UDataTable(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	bIgnoreExtraFields = false;
+	bIgnoreMissingFields = false;
+	bStripFromClientBuilds = false;
+
 #if WITH_EDITORONLY_DATA
 	{ static const FAutoRegisterLocalizationDataGatheringCallback AutomaticRegistrationOfLocalizationGatherer(UDataTable::StaticClass(), &GatherDataTableForLocalization); }
 #endif
@@ -89,7 +93,7 @@ void UDataTable::LoadStructData(FArchive& Ar)
 	UScriptStruct* LoadUsingStruct = RowStruct;
 	if (!LoadUsingStruct)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject))
+		if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while loading DataTable '%s'!"), *GetPathName());
 		}
@@ -125,7 +129,7 @@ void UDataTable::SaveStructData(FArchive& Ar)
 	UScriptStruct* SaveUsingStruct = RowStruct;
 	if (!SaveUsingStruct)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject))
+		if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while saving DataTable '%s'!"), *GetPathName());
 		}
@@ -314,7 +318,7 @@ UScriptStruct& UDataTable::GetEmptyUsingStruct() const
 	UScriptStruct* EmptyUsingStruct = RowStruct;
 	if (!EmptyUsingStruct)
 	{
-		if (!HasAnyFlags(RF_ClassDefaultObject))
+		if (!HasAnyFlags(RF_ClassDefaultObject) && GetOutermost() != GetTransientPackage())
 		{
 			UE_LOG(LogDataTable, Error, TEXT("Missing RowStruct while emptying DataTable '%s'!"), *GetPathName());
 		}
@@ -394,7 +398,7 @@ UProperty* UDataTable::FindTableProperty(const FName& PropertyName) const
 
 			for (TFieldIterator<UProperty> It(RowStruct); It; ++It)
 			{
-				if (PropertyNameStr == RowStruct->PropertyNameToDisplayName(It->GetFName()))
+				if (PropertyNameStr == RowStruct->GetAuthoredNameForField(*It))
 				{
 					Property = *It;
 					break;
@@ -547,6 +551,33 @@ bool UDataTable::WriteRowAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJson
 	return FDataTableExporterJSON(InDTExportFlags, JsonWriter).WriteRow(RowStruct, RowData);
 }
 
+bool UDataTable::CopyImportOptions(UDataTable* SourceTable)
+{
+	// Only safe to call on an empty table
+	if (!SourceTable || !ensure(RowMap.Num() == 0))
+	{
+		return false;
+	}
+
+	bStripFromClientBuilds = SourceTable->bStripFromClientBuilds;
+	bIgnoreExtraFields = SourceTable->bIgnoreExtraFields;
+	bIgnoreMissingFields = SourceTable->bIgnoreMissingFields;
+	ImportKeyField = SourceTable->ImportKeyField;
+	RowStruct = SourceTable->RowStruct;
+
+	if (RowStruct)
+	{
+		RowStructName = RowStruct->GetFName();
+	}
+
+	if (SourceTable->AssetImportData)
+	{
+		AssetImportData->SourceData = SourceTable->AssetImportData->SourceData;
+	}
+
+	return true;
+}
+
 bool UDataTable::WriteTableAsJSON(const TSharedRef< TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR> > >& JsonWriter, const EDataTableExportFlags InDTExportFlags) const
 {
 	return FDataTableExporterJSON(InDTExportFlags, JsonWriter).WriteTable(*this);
@@ -558,23 +589,26 @@ bool UDataTable::WriteTableAsJSONObject(const TSharedRef< TJsonWriter<TCHAR, TPr
 }
 #endif
 
-/** Get array of UProperties that corresponds to columns in the table */
-TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* InRowStruct, TArray<FString>& OutProblems)
+TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>& Cells, UStruct* InRowStruct, TArray<FString>& OutProblems, int32 KeyColumn)
 {
 	TArray<UProperty*> ColumnProps;
 
 	// Get list of all expected properties from the struct
 	TArray<FName> ExpectedPropNames = DataTableUtils::GetStructPropertyNames(InRowStruct);
 
-	// Need at least 2 columns, first column is skipped, will contain row names
+	// Need at least 2 columns, first column will contain row names
 	if(Cells.Num() > 1)
 	{
 		ColumnProps.AddZeroed( Cells.Num() );
 
-		// first element always NULL - as first column is row names
-
-		for (int32 ColIdx = 1; ColIdx < Cells.Num(); ++ColIdx)
+		// Skip first column depending on option
+		for (int32 ColIdx = 0; ColIdx < Cells.Num(); ++ColIdx)
 		{
+			if (ColIdx == KeyColumn)
+			{
+				continue;
+			}
+
 			const TCHAR* ColumnValue = Cells[ColIdx];
 
 			FName PropName = DataTableUtils::MakeValidName(ColumnValue);
@@ -594,7 +628,10 @@ TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 				// Didn't find a property with this name, problem..
 				if(ColumnProp == nullptr)
 				{
-					OutProblems.Add(FString::Printf(TEXT("Cannot find Property for column '%s' in struct '%s'."), *PropName.ToString(), *InRowStruct->GetName()));
+					if (!bIgnoreExtraFields)
+					{
+						OutProblems.Add(FString::Printf(TEXT("Cannot find Property for column '%s' in struct '%s'."), *PropName.ToString(), *InRowStruct->GetName()));
+					}
 				}
 				// Found one!
 				else
@@ -622,23 +659,26 @@ TArray<UProperty*> UDataTable::GetTablePropertyArray(const TArray<const TCHAR*>&
 		}
 	}
 
-	// Generate warning for any properties in struct we are not filling in
-	for (int32 PropIdx=0; PropIdx < ExpectedPropNames.Num(); PropIdx++)
+	if (!bIgnoreMissingFields)
 	{
-		const UProperty* const ColumnProp = FindField<UProperty>(InRowStruct, ExpectedPropNames[PropIdx]);
+		// Generate warning for any properties in struct we are not filling in
+		for (int32 PropIdx = 0; PropIdx < ExpectedPropNames.Num(); PropIdx++)
+		{
+			const UProperty* const ColumnProp = FindField<UProperty>(InRowStruct, ExpectedPropNames[PropIdx]);
 
 #if WITH_EDITOR
-		// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),
-		// then avoid warning about it
-		static const FName DataTableImportOptionalMetadataKey(TEXT("DataTableImportOptional"));
-		if (ColumnProp->HasMetaData(DataTableImportOptionalMetadataKey))
-		{
-			continue;
-		}
+			// If the structure has specified the property as optional for import (gameplay code likely doing a custom fix-up or parse of that property),
+			// then avoid warning about it
+			static const FName DataTableImportOptionalMetadataKey(TEXT("DataTableImportOptional"));
+			if (ColumnProp->HasMetaData(DataTableImportOptionalMetadataKey))
+			{
+				continue;
+			}
 #endif // WITH_EDITOR
 
-		const FString DisplayName = DataTableUtils::GetPropertyDisplayName(ColumnProp, ExpectedPropNames[PropIdx].ToString());
-		OutProblems.Add(FString::Printf(TEXT("Expected column '%s' not found in input."), *DisplayName));
+			const FString DisplayName = DataTableUtils::GetPropertyExportName(ColumnProp);
+			OutProblems.Add(FString::Printf(TEXT("Expected column '%s' not found in input."), *DisplayName));
+		}
 	}
 
 	return ColumnProps;
@@ -719,7 +759,7 @@ TArray<FString> UDataTable::GetColumnTitles() const
 		{
 			UProperty* Prop = *It;
 			check(Prop != nullptr);
-			const FString DisplayName = DataTableUtils::GetPropertyDisplayName(Prop, Prop->GetName());
+			const FString DisplayName = DataTableUtils::GetPropertyExportName(Prop);
 			Result.Add(DisplayName);
 		}
 	}

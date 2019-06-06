@@ -23,9 +23,9 @@
 #include "UObject/UnrealType.h"
 #include "UObject/UObjectAnnotation.h"
 #include "Serialization/ArchiveCountMem.h"
-#include "Serialization/ArchiveTraceRoute.h"
 #include "Misc/PackageName.h"
 #include "UObject/PackageFileSummary.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SWindow.h"
 #include "Framework/Application/SlateApplication.h"
@@ -1963,17 +1963,12 @@ void UEditorEngine::CheckForWorldGCLeaks( UWorld* NewWorld, UPackage* WorldPacka
 		const bool bIsPersistantWorldType = (RemainingWorld->WorldType == EWorldType::Inactive) || (RemainingWorld->WorldType == EWorldType::EditorPreview) || (RemainingWorld->WorldType == EWorldType::GamePreview);
 		if(!bIsNewWorld && !bIsPersistantWorldType && !WorldHasValidContext(RemainingWorld))
 		{
-			StaticExec(RemainingWorld, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s"), *RemainingWorld->GetPathName()));
-
-			TMap<UObject*, UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath(RemainingWorld, true, GARBAGE_COLLECTION_KEEPFLAGS);
-			FString						ErrorString	= FArchiveTraceRoute::PrintRootPath(Route, RemainingWorld);
-
-			UE_LOG(LogEditorServer, Fatal, TEXT("%s still around while trying to load new map") LINE_TERMINATOR TEXT("%s"), *RemainingWorld->GetPathName(), *ErrorString);
+			FReferenceChainSearch RefChainSearch(RemainingWorld, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+			UE_LOG(LogEditorServer, Fatal, TEXT("Old world %s not cleaned up by garbage collection while loading new map! Referenced by:") LINE_TERMINATOR TEXT("%s"), *RemainingWorld->GetPathName(), *RefChainSearch.GetRootPath());
 		}
 	}
 
-
-	if(WorldPackage != NULL)
+	if(WorldPackage != nullptr)
 	{
 		UPackage* NewWorldPackage = NewWorld ? NewWorld->GetOutermost() : nullptr;
 		for(TObjectIterator<UPackage> It; It; ++It)
@@ -1982,12 +1977,8 @@ void UEditorEngine::CheckForWorldGCLeaks( UWorld* NewWorld, UPackage* WorldPacka
 			const bool bIsNewWorldPackage = (NewWorldPackage && RemainingPackage == NewWorldPackage);
 			if(!bIsNewWorldPackage && RemainingPackage == WorldPackage)
 			{
-				StaticExec(NULL, *FString::Printf(TEXT("OBJ REFS CLASS=PACKAGE NAME=%s"), *RemainingPackage->GetPathName()));
-
-				TMap<UObject*, UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath(RemainingPackage, true, GARBAGE_COLLECTION_KEEPFLAGS);
-				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath(Route, RemainingPackage);
-
-				UE_LOG(LogEditorServer, Fatal, TEXT("%s still around while trying to load new map") LINE_TERMINATOR TEXT("%s"), *RemainingPackage->GetPathName(), *ErrorString);
+				FReferenceChainSearch RefChainSearch(RemainingPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				UE_LOG(LogEditorServer, Fatal, TEXT("Old level package %s not cleaned up by garbage collection while loading new map! Referenced by:") LINE_TERMINATOR TEXT("%s"), *RemainingPackage->GetPathName(), *RefChainSearch.GetRootPath());
 			}
 		}
 	}
@@ -2562,7 +2553,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					}
 				}
 
-				if (WorldPackage == NULL)
+				if (WorldPackage == nullptr)
 				{
 					FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "MapPackageLoadFailed", "Failed to open map file. This is most likely because the map was saved with a newer version of the engine."));
 					GIsEditorLoadingPackage = false;
@@ -2572,17 +2563,12 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 				// Reset the opened package to nothing.
 				UserOpenedFile				= FString();
 
-
 				UWorld* World = UWorld::FindWorldInPackage(WorldPackage);
 				
-				if (World == NULL)
+				if (World == nullptr)
 				{
-					StaticExec(NULL, *FString::Printf(TEXT("OBJ REFS CLASS=PACKAGE NAME=%s"), *WorldPackage->GetPathName()));
-
-					TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( WorldPackage, true, GARBAGE_COLLECTION_KEEPFLAGS );
-					FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, WorldPackage );
-
-					UE_LOG(LogEditorServer, Fatal,TEXT("Failed to find the world in %s.") LINE_TERMINATOR TEXT("%s"),*WorldPackage->GetPathName(),*TempFname,*ErrorString);
+					FReferenceChainSearch RefChainSearch(WorldPackage, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+					UE_LOG(LogEditorServer, Fatal, TEXT("Failed to find the world in already loaded world package %s! Referenced by:") LINE_TERMINATOR TEXT("%s"), *WorldPackage->GetPathName(), *RefChainSearch.GetRootPath());
 				}
 				Context.SetCurrentWorld(World);
 				GWorld = World;
@@ -4763,6 +4749,46 @@ void UEditorEngine::MoveViewportCamerasToComponent(USceneComponent* Component, b
 	}
 }
 
+void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const
+{
+	// Make sure we had at least one non-null actor in the array passed in.
+	if (BoundingBox.GetSize() != FVector::ZeroVector || BoundingBox.GetCenter() != FVector::ZeroVector)
+	{
+		if (bActiveViewportOnly)
+		{
+			if (GCurrentLevelEditingViewportClient)
+			{
+				GCurrentLevelEditingViewportClient->FocusViewportOnBox(BoundingBox);
+
+				// Update Linked Orthographic viewports.
+				if (GCurrentLevelEditingViewportClient->IsOrtho() && GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports)
+				{
+					// Search through all viewports
+					for (FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
+					{
+						// Only update other orthographic viewports
+						if (LinkedViewportClient && LinkedViewportClient != GCurrentLevelEditingViewportClient && LinkedViewportClient->IsOrtho())
+						{
+							LinkedViewportClient->FocusViewportOnBox(BoundingBox);
+						}
+					}
+				}
+			}
+
+		}
+		else
+		{
+			// Update all viewports.
+			for (FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
+			{
+				//Dont move camera attach to an actor
+				if (!LinkedViewportClient->IsAnyActorLocked())
+					LinkedViewportClient->FocusViewportOnBox(BoundingBox);
+			}
+		}
+	}
+}
+
 /** 
  * Snaps an actor in a direction.  Optionally will align with the trace normal.
  * @param InActor			Actor to move to the floor.
@@ -6851,44 +6877,4 @@ void UEditorEngine::AutoMergeStaticMeshes()
 		OwnerComponent->StaticMesh->Build();
 	}
 #endif // #if TODO_STATICMESH
-}
-
-void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const
-{
-	// Make sure we had at least one non-null actor in the array passed in.
-	if (BoundingBox.GetSize() != FVector::ZeroVector || BoundingBox.GetCenter() != FVector::ZeroVector)
-	{
-		if (bActiveViewportOnly)
-		{
-			if (GCurrentLevelEditingViewportClient)
-			{
-				GCurrentLevelEditingViewportClient->FocusViewportOnBox(BoundingBox);
-
-				// Update Linked Orthographic viewports.
-				if (GCurrentLevelEditingViewportClient->IsOrtho() && GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports)
-				{
-					// Search through all viewports
-					for(FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
-					{
-						// Only update other orthographic viewports
-						if (LinkedViewportClient && LinkedViewportClient != GCurrentLevelEditingViewportClient && LinkedViewportClient->IsOrtho())
-						{
-							LinkedViewportClient->FocusViewportOnBox(BoundingBox);
-						}
-					}
-				}
-			}
-
-		}
-		else
-		{
-			// Update all viewports.
-			for(FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
-			{
-				//Dont move camera attach to an actor
-				if (!LinkedViewportClient->IsAnyActorLocked())
-					LinkedViewportClient->FocusViewportOnBox(BoundingBox);
-			}
-		}
-	}
 }

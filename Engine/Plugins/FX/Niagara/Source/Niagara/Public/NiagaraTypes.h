@@ -322,6 +322,7 @@ public:
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
 		, bIsStaticSwitch(false)
+		, StaticSwitchDefaultValue(0)
 	{
 	}
 public:
@@ -340,7 +341,7 @@ public:
 
 	/** Declares the associated input is used as an inline edit condition toggle, so it should be hidden and edited as a 
 	checkbox inline with the input which was designated as its edit condition. */
-	UPROPERTY(EditAnywhere, Category = "Variable", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Variable")
 	bool bInlineEditConditionToggle;
 
 	/** Declares the associated input should be conditionally editable based on the value of another input. */
@@ -356,6 +357,10 @@ public:
 
 	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable")
 	bool bIsStaticSwitch;
+
+	/** The default value to use when creating new pins or stack entries for a static switch parameter */
+	UPROPERTY()
+	int32 StaticSwitchDefaultValue;
 };
 
 USTRUCT()

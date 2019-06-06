@@ -23,6 +23,7 @@ class FDetailWidgetRow;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class SDragAndDropVerticalBox;
+class ALandscapeBlueprintCustomBrush;
 
 /**
  * Slate widgets customizer for the layers list in the Landscape Editor
@@ -96,6 +97,9 @@ protected:
 	
 	FReply OnToggleLock(int32 InLayerIndex);
 	const FSlateBrush* GetLockBrushForLayer(int32 InLayerIndex) const;
+
+	void FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintCustomBrush*> Brushes);
+	void AddBrushToCurrentLayer(ALandscapeBlueprintCustomBrush* Brush);
 
 private:
 

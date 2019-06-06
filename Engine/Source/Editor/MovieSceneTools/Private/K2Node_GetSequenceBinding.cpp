@@ -260,7 +260,7 @@ void UK2Node_GetSequenceBinding::GetContextMenuActions(const FGraphNodeContextMe
 						AllowedClasses,
 						PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses(AllowedClasses),
 						FOnShouldFilterAsset(),
-						FOnAssetSelected::CreateUObject(this, &UK2Node_GetSequenceBinding::SetSequence),
+						FOnAssetSelected::CreateUObject(const_cast<UK2Node_GetSequenceBinding*>(this), &UK2Node_GetSequenceBinding::SetSequence),
 						FSimpleDelegate());
 					
 					SubMenuBuilder.AddWidget(MenuContent, FText::GetEmpty(), false);

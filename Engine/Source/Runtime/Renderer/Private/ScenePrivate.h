@@ -2271,6 +2271,14 @@ public:
 	/** Updates view uniform buffer and invalidates the internally cached view instance. */
 	void UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters);
 
+	const FViewInfo& GetInstancedView(const FViewInfo& View)
+	{
+		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
+		const EStereoscopicPass StereoPassIndex = (View.StereoPass != eSSP_FULL) ? eSSP_RIGHT_EYE : eSSP_FULL;
+
+		return static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
+	}
+
 	TUniformBufferRef<FViewUniformShaderParameters> ViewUniformBuffer;
 	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedViewUniformBuffer;
 	TUniformBufferRef<FSceneTexturesUniformParameters> DepthPassUniformBuffer;
@@ -2291,6 +2299,7 @@ public:
 	TUniformBufferRef<FSceneTexturesUniformParameters> CustomDepthPassUniformBuffer;
 	TUniformBufferRef<FMobileSceneTextureUniformParameters> MobileCustomDepthPassUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> CustomDepthViewUniformBuffer;
+	TUniformBufferRef<FInstancedViewUniformShaderParameters> InstancedCustomDepthViewUniformBuffer;
 	TUniformBufferRef<FViewUniformShaderParameters> VirtualTextureViewUniformBuffer;
 
 	TUniformBufferRef<FMobileBasePassUniformParameters> MobileOpaqueBasePassUniformBuffer;

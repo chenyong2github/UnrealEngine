@@ -90,6 +90,8 @@ public:
 
 	void RemoveNotificationWindow(SDL_HWindow HWnd);
 
+	void CheckIfApplicatioNeedsDeactivation();
+
 	EWindowZone::Type WindowHitTest( const TSharedPtr< FLinuxWindow > &window, int x, int y );
 
 	TSharedPtr< FLinuxWindow > FindWindowBySDLWindow( SDL_Window *win );

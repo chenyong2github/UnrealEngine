@@ -38,7 +38,7 @@ enum EBasePassDrawListType
  * An interface to the private scene manager implementation of a scene.  Use GetRendererModule().AllocateScene to create.
  * The scene
  */
-class FSceneInterface
+class ENGINE_VTABLE FSceneInterface
 {
 public:
 	FSceneInterface(ERHIFeatureLevel::Type InFeatureLevel)

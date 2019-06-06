@@ -27,11 +27,12 @@ void SScrollBar::Construct(const FArguments& InArgs)
 
 	SBorder::Construct( SBorder::FArguments()
 		.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
+		.Padding(InArgs._Padding)
 		[
 			SNew(SVerticalBox)
 
 			+ SVerticalBox::Slot()
-			.FillHeight( 1 )
+			.FillHeight(1)
 			[
 				SNew(SBorder)
 				.BorderImage(BackgroundBrush)
@@ -55,10 +56,11 @@ void SScrollBar::Construct(const FArguments& InArgs)
 					.ThumbSlot()
 					[
 						SAssignNew(DragThumb, SBorder)
-						.BorderImage( this, &SScrollBar::GetDragThumbImage )
+						.BorderImage(this, &SScrollBar::GetDragThumbImage)
 						.ColorAndOpacity(this, &SScrollBar::GetThumbOpacity)
 						.HAlign(HAlign_Center)
 						.VAlign(VAlign_Center)
+						.Padding(0)
 						[
 							SAssignNew(ThicknessSpacer, SSpacer)
 							.Size(InArgs._Thickness)
@@ -339,6 +341,8 @@ void SScrollBar::SetStyle(const FScrollBarStyle* InStyle)
 		TopBrush = &Style->HorizontalTopSlotImage;
 		BottomBrush = &Style->HorizontalBottomSlotImage;
 	}
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SScrollBar::SetDragFocusCause(EFocusCause InDragFocusCause)
@@ -357,18 +361,20 @@ void SScrollBar::SetScrollBarAlwaysVisible(bool InAlwaysVisible)
 
 	if ( InAlwaysVisible )
 	{
-		Visibility = EVisibility::Visible;
+		SetVisibility(EVisibility::Visible);
 	}
 	else
 	{
-		Visibility = TAttribute<EVisibility>(SharedThis(this), &SScrollBar::ShouldBeVisible);
+		SetVisibility(TAttribute<EVisibility>(SharedThis(this), &SScrollBar::ShouldBeVisible));
 	}
+
 	Track->SetIsAlwaysVisible(InAlwaysVisible);
 }
 
 void SScrollBar::SetScrollBarTrackAlwaysVisible(bool InAlwaysVisible)
 {
 	bAlwaysShowScrollbarTrack = InAlwaysVisible;
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 bool SScrollBar::AlwaysShowScrollbar() const

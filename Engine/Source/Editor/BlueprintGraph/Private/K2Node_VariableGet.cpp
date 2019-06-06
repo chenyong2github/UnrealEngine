@@ -361,7 +361,7 @@ void UK2Node_VariableGet::GetContextMenuActions(const FGraphNodeContextMenuBuild
 				MenuEntryTooltip,
 				FSlateIcon(),
 				FUIAction(
-				FExecuteAction::CreateUObject(this, &UK2Node_VariableGet::TogglePurity),
+				FExecuteAction::CreateUObject(const_cast<UK2Node_VariableGet*>(this), &UK2Node_VariableGet::TogglePurity),
 				FCanExecuteAction::CreateStatic(CanExecutePurityToggle, bCanTogglePurity && !Context.bIsDebugging),
 				FIsActionChecked()
 				)

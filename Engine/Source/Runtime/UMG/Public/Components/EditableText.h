@@ -135,7 +135,7 @@ public:
 
 public:
 
-	/** Called whenever the text is changed interactively by the user */
+	/** Called whenever the text is changed programmatically or interactively by the user */
 	UPROPERTY(BlueprintAssignable, Category="Widget Event", meta=(DisplayName="OnTextChanged (Editable Text)"))
 	FOnEditableTextChangedEvent OnTextChanged;
 
@@ -195,6 +195,10 @@ protected:
 
 	void HandleOnTextChanged(const FText& Text);
 	void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
+
+#if WITH_ACCESSIBILITY
+	virtual TSharedPtr<SWidget> GetAccessibleWidget() const override;
+#endif
 
 protected:
 	TSharedPtr<SEditableText> MyEditableText;

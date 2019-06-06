@@ -17,7 +17,7 @@
 #include "UObject/Package.h"
 #include "UObject/ObjectRedirector.h"
 #include "UObject/UObjectAnnotation.h"
-#include "Serialization/ArchiveTraceRoute.h"
+#include "UObject/ReferenceChainSearch.h"
 #include "Misc/PackageName.h"
 #include "Serialization/AsyncLoading.h"
 #include "GameMapsSettings.h"
@@ -2654,12 +2654,8 @@ void FLevelStreamingGCHelper::VerifyLevelsGotRemovedByGC()
 			// But disregard package object itself.
 			&&	!Object->IsA(UPackage::StaticClass()) )
 			{
-				UE_LOG(LogWorld, Log, TEXT("%s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does."), *Object->GetFullName());
-				StaticExec(NULL, *FString::Printf(TEXT("OBJ REFS CLASS=%s NAME=%s shortest"),*Object->GetClass()->GetName(), *Object->GetPathName()));
-				TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( Object, true, GARBAGE_COLLECTION_KEEPFLAGS );
-				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, Object );
-				// Print out error message. We don't assert here as there might be multiple culprits.
-				UE_LOG(LogWorld, Warning, TEXT("%s didn't get garbage collected!") LINE_TERMINATOR TEXT("%s"), *Object->GetFullName(), *ErrorString );
+				UE_LOG(LogWorld, Warning, TEXT("Level object %s didn't get garbage collected! Trying to find culprit, though this might crash. Try increasing stack size if it does. Referenced by:"), *Object->GetFullName());
+				FReferenceChainSearch RefChainSearch(Object, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
 				FailCount++;
 			}
 		}
@@ -3969,12 +3965,21 @@ bool UWorld::IsNavigationRebuilt() const
 	return GetNavigationSystem() == NULL || GetNavigationSystem()->IsNavigationBuilt(GetWorldSettings());
 }
 
-void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld)
+void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* NewWorld, bool bResetCleanedUpFlag)
 {
 	UE_LOG(LogWorld, Log, TEXT("UWorld::CleanupWorld for %s, bSessionEnded=%s, bCleanupResources=%s"), *GetName(), bSessionEnded ? TEXT("true") : TEXT("false"), bCleanupResources ? TEXT("true") : TEXT("false"));
 
+	TArray<UWorld*> WorldsToResetCleanedUpFlag;
+
 	check(IsVisibilityRequestPending() == false);
+	
+	check(!bCleanedUpWorld);
 	bCleanedUpWorld = true;
+
+	if (bResetCleanedUpFlag)
+	{
+		WorldsToResetCleanedUpFlag.Add(this);
+	}
 
 	// Wait on current physics scenes if they are processing
 	if(FPhysScene* CurrPhysicsScene = GetPhysicsScene())
@@ -4069,7 +4074,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 		UWorld* World = CastChecked<UWorld>(GetLevel(LevelIndex)->GetOuter());
 		if (!World->bCleanedUpWorld)
 		{
-			World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+			World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
+
+			if (bResetCleanedUpFlag)
+			{
+				WorldsToResetCleanedUpFlag.Add(World);
+			}
 		}
 	}
 
@@ -4080,7 +4090,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 			UWorld* World = CastChecked<UWorld>(Level->GetOuter());
 			if (!World->bCleanedUpWorld)
 			{
-				World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+				World->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
+
+				if (bResetCleanedUpFlag)
+				{
+					WorldsToResetCleanedUpFlag.Add(World);
+				}
 			}
 		}
 	}
@@ -4099,7 +4114,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 			UWorld* const LevelWorld = CastChecked<UWorld>(Level->GetOuter());
 			if (!LevelWorld->bCleanedUpWorld)
 			{
-				LevelWorld->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld);
+				LevelWorld->CleanupWorld(bSessionEnded, bCleanupResources, NewWorld, false);
+
+				if (bResetCleanedUpFlag)
+				{
+					WorldsToResetCleanedUpFlag.Add(LevelWorld);
+				}
 			}
 		}
 	}
@@ -4107,6 +4127,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	PSCPool.Cleanup();
 
 	FWorldDelegates::OnPostWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);
+
+	for (UWorld* WorldToResetCleanedUpFlag: WorldsToResetCleanedUpFlag)
+	{
+		check(WorldToResetCleanedUpFlag->bCleanedUpWorld);
+		WorldToResetCleanedUpFlag->bCleanedUpWorld = false;
+	}
 }
 
 UGameViewportClient* UWorld::GetGameViewport() const
@@ -4617,7 +4643,6 @@ void UWorld::WelcomePlayer(UNetConnection* Connection)
 #endif
 
 	check(CurrentLevel);
-	Connection->SendPackageMap();
 
 	FString LevelName;
 
@@ -5184,7 +5209,7 @@ bool UWorld::Listen( FURL& InURL )
 		}
 	}
 
-	if (NetDriver == NULL)
+	if (NetDriver == nullptr)
 	{
 		GEngine->BroadcastNetworkFailure(this, NULL, ENetworkFailure::NetDriverCreateFailure);
 		return false;
@@ -5195,8 +5220,8 @@ bool UWorld::Listen( FURL& InURL )
 	{
 		GEngine->BroadcastNetworkFailure(this, NetDriver, ENetworkFailure::NetDriverListenFailure, Error);
 		UE_LOG(LogWorld, Log,  TEXT("Failed to listen: %s"), *Error );
-		NetDriver->SetWorld(NULL);
-		NetDriver = NULL;
+		GEngine->DestroyNamedNetDriver(this, NetDriver->NetDriverName);
+		NetDriver = nullptr;
 		FLevelCollection* SourceCollection = FindCollectionByType(ELevelCollectionType::DynamicSourceLevels);
 		if (SourceCollection)
 		{
@@ -5507,6 +5532,7 @@ void FSeamlessTravelHandler::SeamlessTravelLoadCallback(const FName& PackageName
 	}
 
 	STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "StartTravelComplete - " ) + PackageName.ToString() )) );
+	TRACE_BOOKMARK(TEXT("StartTravelComplete - %s"), *PackageName.ToString());
 }
 
 bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InURL, const FGuid& InGuid)
@@ -5626,6 +5652,7 @@ bool FSeamlessTravelHandler::StartTravel(UWorld* InCurrentWorld, const FURL& InU
 
 				// first, load the entry level package
 				STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "StartTravel - " ) + TransitionMap )) );
+				TRACE_BOOKMARK(TEXT("StartTravel - %s"), *TransitionMap);
 				LoadPackageAsync(TransitionMap, 
 					FLoadPackageAsyncDelegate::CreateRaw(this, &FSeamlessTravelHandler::SeamlessTravelLoadCallback),
 					0, 
@@ -6477,7 +6504,7 @@ bool UWorld::UsesGameHiddenFlags() const
 
 FString UWorld::GetAddressURL() const
 {
-	return FString::Printf( TEXT("%s:%i"), *URL.Host, URL.Port );
+	return FString::Printf( TEXT("%s"), *URL.GetHostPortString() );
 }
 
 FString UWorld::RemovePIEPrefix(const FString &Source)

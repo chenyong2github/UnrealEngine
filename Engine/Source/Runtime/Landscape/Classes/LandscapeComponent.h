@@ -251,7 +251,7 @@ struct FLandscapeComponentMaterialOverride
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
+	UPROPERTY(EditAnywhere, Category = LandscapeComponent, meta=(UIMin=0, UIMax=8, ClampMin=0, ClampMax=8))
 	FPerPlatformInt LODIndex;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
@@ -355,8 +355,8 @@ class ULandscapeComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent)
 	UMaterialInterface* OverrideMaterial;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent, AdvancedDisplay)
-	UMaterialInterface* OverrideHoleMaterial;
+	UPROPERTY()
+	UMaterialInterface* OverrideHoleMaterial_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
 	TArray<FLandscapeComponentMaterialOverride> OverrideMaterials;
@@ -850,9 +850,6 @@ public:
 
 	/** Returns the actor's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
 	LANDSCAPE_API UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
-
-	/** Returns the actor's LandscapeHoleMaterial, or the Component's OverrideLandscapeHoleMaterial if set */
-	LANDSCAPE_API UMaterialInterface* GetLandscapeHoleMaterial() const;
 
 	/** Returns true if this component has visibility painted */
 	LANDSCAPE_API bool ComponentHasVisibilityPainted() const;

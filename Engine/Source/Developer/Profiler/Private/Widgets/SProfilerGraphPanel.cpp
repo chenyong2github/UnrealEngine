@@ -82,7 +82,7 @@ void SProfilerGraphPanel::Construct(const FArguments& InArgs)
 					.Orientation(Orient_Horizontal)
 					.AlwaysShowScrollbar(true)
 					.Visibility(EVisibility::Visible)
-					.Thickness(FVector2D(8.0f, 8.0f))
+					.Thickness(FVector2D(12.0f, 12.0f))
 					.OnUserScrolled(this, &SProfilerGraphPanel::HorizontalScrollBar_OnUserScrolled)
 				]
 			]
@@ -94,7 +94,7 @@ void SProfilerGraphPanel::Construct(const FArguments& InArgs)
 				.Orientation(Orient_Vertical)
 				.AlwaysShowScrollbar(true)
 				.Visibility(EVisibility::Visible)
-				.Thickness(FVector2D(8.0f, 8.0f))
+				.Thickness(FVector2D(12.0f, 12.0f))
 				.OnUserScrolled(this, &SProfilerGraphPanel::VerticalScrollBar_OnUserScrolled)
 			]
 		]

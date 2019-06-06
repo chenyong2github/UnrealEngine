@@ -142,6 +142,7 @@ SInvalidationPanel::~SInvalidationPanel()
 
 	if ( FSlateApplication::IsInitialized() )
 	{
+		FSlateApplicationBase::Get().OnGlobalInvalidate().RemoveAll(this);
 		FSlateApplication::Get().ReleaseResourcesForLayoutCache(this);
 	}
 }
@@ -252,6 +253,11 @@ void SInvalidationPanel::AddReferencedObjects(FReferenceCollector& Collector)
 #if SLATE_VERBOSE_NAMED_EVENTS
 	UE_LOG(LogSlateInvalidationPanel, Verbose, TEXT("SInvalidationPanel(%s): %d References"), *DebugName, CachedResources.Num());
 #endif
+}
+
+FString SInvalidationPanel::GetReferencerName() const
+{
+	return TEXT("SInvalidationPanel");
 }
 
 void SInvalidationPanel::SetCanCache(bool InCanCache)
@@ -612,7 +618,7 @@ int32 SInvalidationPanel::OnPaint( const FPaintArgs& Args, const FGeometry& Allo
 					FWidgetPath WidgetPath;
 					if ( FSlateApplication::Get().GeneratePathToWidgetUnchecked(SafeInvalidator.ToSharedRef(), WidgetPath, EVisibility::All) )
 					{
-						FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(SafeInvalidator.ToSharedRef()).Get(FArrangedWidget::NullWidget);
+						FArrangedWidget ArrangedWidget = WidgetPath.FindArrangedWidget(SafeInvalidator.ToSharedRef()).Get(FArrangedWidget::GetNullWidget());
 						ArrangedWidget.Geometry.AppendTransform( FSlateLayoutTransform(Inverse(Args.GetWindowToDesktopTransform())) );
 
 						FSlateDrawElement::MakeBox(

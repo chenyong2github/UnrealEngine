@@ -312,7 +312,7 @@ public:
 				&& ActorLevel->GetWorld() == LocalCurrentWorld)
 			{
 				// ignore non-persistent world settings
-				if (LocalCurrentActor->GetLevel() == LocalCurrentWorld->PersistentLevel || !LocalCurrentActor->IsA(AWorldSettings::StaticClass()))
+				if (ActorLevel == LocalCurrentWorld->PersistentLevel || !LocalCurrentActor->IsA(AWorldSettings::StaticClass()))
 				{
 					State->CurrentActor = LocalCurrentActor;
 					State->Index = LocalIndex;

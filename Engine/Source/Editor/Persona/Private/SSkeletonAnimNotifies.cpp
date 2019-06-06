@@ -166,7 +166,7 @@ TSharedPtr<SWidget> SSkeletonAnimNotifies::OnGetContextMenuContent() const
 	{
 		MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("SelectedSyncMarkerActions", "Selected Sync Marker Actions"));
 		{
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::OnDeleteSyncMarker));
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnDeleteSyncMarker));
 			const FText Label = LOCTEXT("DeleteSyncMarkerButtonLabel", "Delete");
 			const FText ToolTipText = LOCTEXT("DeleteSyncMarkerButtonTooltip", "Deletes the sync marker from the suggestions");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
@@ -177,7 +177,7 @@ TSharedPtr<SWidget> SSkeletonAnimNotifies::OnGetContextMenuContent() const
 	{
 		MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("AnimNotifyActions", "Notifies"));
 		{
-			FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::OnAddAnimNotify));
+			FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnAddAnimNotify));
 			const FText Label = LOCTEXT("NewAnimNotifyButtonLabel", "New...");
 			const FText ToolTipText = LOCTEXT("NewAnimNotifyButtonTooltip", "Creates a new anim notify.");
 			MenuBuilder.AddMenuEntry(Label, ToolTipText, FSlateIcon(), Action);
@@ -187,7 +187,7 @@ TSharedPtr<SWidget> SSkeletonAnimNotifies::OnGetContextMenuContent() const
 		MenuBuilder.BeginSection("AnimNotifyAction", LOCTEXT("SelectedAnimNotifyActions", "Selected Notify Actions"));
 		{
 			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::OnRenameAnimNotify),
+				FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnRenameAnimNotify),
 					FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformRename));
 				const FText Label = LOCTEXT("RenameAnimNotifyButtonLabel", "Rename");
 				const FText ToolTipText = LOCTEXT("RenameAnimNotifyButtonTooltip", "Renames the selected anim notifies.");
@@ -195,7 +195,7 @@ TSharedPtr<SWidget> SSkeletonAnimNotifies::OnGetContextMenuContent() const
 			}
 
 			{
-				FUIAction Action = FUIAction(FExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::OnDeleteAnimNotify),
+				FUIAction Action = FUIAction(FExecuteAction::CreateSP(const_cast<SSkeletonAnimNotifies*>(this), &SSkeletonAnimNotifies::OnDeleteAnimNotify),
 					FCanExecuteAction::CreateSP(this, &SSkeletonAnimNotifies::CanPerformDelete));
 				const FText Label = LOCTEXT("DeleteAnimNotifyButtonLabel", "Delete");
 				const FText ToolTipText = LOCTEXT("DeleteAnimNotifyButtonTooltip", "Deletes the selected anim notifies.");

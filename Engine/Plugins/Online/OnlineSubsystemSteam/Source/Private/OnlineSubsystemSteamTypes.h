@@ -322,8 +322,7 @@ public:
 			return SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid() && SessionId.IsValid();
 		case ESteamSession::AdvertisedSessionHost:
 		case ESteamSession::AdvertisedSessionClient:
-			// Could/should check that the HostAddr is valid here also
-			return SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid() && SessionId.IsValid();
+			return ((SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid()) || (HostAddr.IsValid() && HostAddr->IsValid())) && SessionId.IsValid();
 		case ESteamSession::LANSession:
 		default:
 			// LAN case

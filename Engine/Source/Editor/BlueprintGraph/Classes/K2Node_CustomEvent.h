@@ -19,6 +19,14 @@ class UK2Node_CustomEvent : public UK2Node_Event
 {
 	GENERATED_UCLASS_BODY()
 
+	/** Optional message to display when the event is deprecated */
+	UPROPERTY()
+	FString DeprecationMessage;
+
+	/** Specifies that usage of this event has been deprecated */
+	UPROPERTY()
+	bool bIsDeprecated;
+
 	/** Specifies that the event can be triggered in Editor */
 	UPROPERTY()
 	bool bCallInEditor;
@@ -41,12 +49,15 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	virtual void AutowireNewNode(UEdGraphPin* FromPin) override;
 	virtual void AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const override;
 	virtual FText GetKeywords() const override;
+	virtual bool HasDeprecatedReference() const override { return bIsDeprecated; }
+	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface
-	BLUEPRINTGRAPH_API virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
+	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	virtual void GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const override;
-	BLUEPRINTGRAPH_API virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
+	virtual void FixupPinStringDataReferences(FArchive* SavingArchive) override;
+	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface

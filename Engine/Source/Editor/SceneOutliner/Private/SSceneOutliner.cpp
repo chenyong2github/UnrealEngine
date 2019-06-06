@@ -118,7 +118,7 @@ namespace SceneOutliner
 	TSharedPtr< FOutlinerFilter > CreateHideTemporaryActorsFilter()
 	{
 		return MakeShareable( new FOutlinerPredicateFilter( FActorFilterPredicate::CreateStatic( []( const AActor* InActor ){			
-			return (InActor->GetWorld() && InActor->GetWorld()->WorldType != EWorldType::PIE) || GEditor->ObjectsThatExistInEditorWorld.Get(InActor);
+			return ((InActor->GetWorld() && InActor->GetWorld()->WorldType != EWorldType::PIE) || GEditor->ObjectsThatExistInEditorWorld.Get(InActor)) && !InActor->HasAnyFlags(EObjectFlags::RF_Transient);
 		} ), EDefaultFilterBehaviour::Pass ) );
 	}
 
@@ -1163,8 +1163,7 @@ namespace SceneOutliner
 		}
 
 		// If we are allowing intermediate sorts and met the conditions, or this is the final sort after all ops are complete
-		if ((bMadeAnySignificantChanges && !SharedData->bRepresentingPlayWorld && !bDisableIntermediateSorting) ||
-			bFinalSort)
+		if ((bMadeAnySignificantChanges && !bDisableIntermediateSorting) || bFinalSort)
 		{
 			RequestSort();
 		}
@@ -1670,7 +1669,7 @@ namespace SceneOutliner
 	void SSceneOutliner::FillFoldersSubMenu(FMenuBuilder& MenuBuilder) const
 	{
 		MenuBuilder.AddMenuEntry(LOCTEXT( "CreateNew", "Create New Folder" ), LOCTEXT( "CreateNew_ToolTip", "Move to a new folder" ),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"), FExecuteAction::CreateSP(this, &SSceneOutliner::CreateFolder));
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "SceneOutliner.NewFolderIcon"), FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::CreateFolder));
 
 		AddMoveToFolderOutliner(MenuBuilder);
 	}
@@ -1796,7 +1795,7 @@ namespace SceneOutliner
 			[
 				SNew(SSceneOutliner, MiniSceneOutlinerInitOptions)
 				.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
-				.OnItemPickedDelegate(FOnSceneOutlinerItemPicked::CreateSP(this, &SSceneOutliner::MoveSelectionTo))
+				.OnItemPickedDelegate(FOnSceneOutlinerItemPicked::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::MoveSelectionTo))
 			];
 
 		MenuBuilder.BeginSection(FName(), LOCTEXT("ExistingFolders", "Existing:"));
@@ -1810,12 +1809,12 @@ namespace SceneOutliner
 			LOCTEXT( "AddChildrenToSelection", "Immediate Children" ),
 			LOCTEXT( "AddChildrenToSelection_ToolTip", "Select all immediate actor children of the selected folders" ),
 			FSlateIcon(),
-			FExecuteAction::CreateSP(this, &SSceneOutliner::SelectFoldersDescendants, /*bSelectImmediateChildrenOnly=*/ true));
+			FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::SelectFoldersDescendants, /*bSelectImmediateChildrenOnly=*/ true));
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT( "AddDescendantsToSelection", "All Descendants" ),
 			LOCTEXT( "AddDescendantsToSelection_ToolTip", "Select all actor descendants of the selected folders" ),
 			FSlateIcon(),
-			FExecuteAction::CreateSP(this, &SSceneOutliner::SelectFoldersDescendants, /*bSelectImmediateChildrenOnly=*/ false));
+			FExecuteAction::CreateSP(const_cast<SSceneOutliner*>(this), &SSceneOutliner::SelectFoldersDescendants, /*bSelectImmediateChildrenOnly=*/ false));
 	}
 
 	void SSceneOutliner::SelectFoldersDescendants(bool bSelectImmediateChildrenOnly)
@@ -2238,7 +2237,7 @@ namespace SceneOutliner
 		CacheFoldersEdit = InFolders;
 
 		// Sort folder names so parents appear before children
-		CacheFoldersEdit.Sort();
+		CacheFoldersEdit.Sort(FNameLexicalLess());
 
 		// Cache existing children
 		for (FName Folder : CacheFoldersEdit)
@@ -2426,7 +2425,7 @@ namespace SceneOutliner
 			// Sort in descending order so children will be deleted before parents
 			CacheFoldersDelete.Sort([](const FFolderTreeItem& FolderA, const FFolderTreeItem& FolderB)
 			{
-				return (FolderA.Path > FolderB.Path);
+				return FolderB.Path.LexicalLess(FolderA.Path);
 			});
 
 			for (FFolderTreeItem* Folder : CacheFoldersDelete)

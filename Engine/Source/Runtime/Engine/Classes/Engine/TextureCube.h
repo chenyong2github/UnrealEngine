@@ -11,7 +11,7 @@
 class FTextureResource;
 
 UCLASS(hidecategories=Object, MinimalAPI)
-class UTextureCube : public UTexture
+class ENGINE_VTABLE UTextureCube : public UTexture
 {
 	GENERATED_UCLASS_BODY()
 

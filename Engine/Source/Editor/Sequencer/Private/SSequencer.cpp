@@ -71,6 +71,7 @@
 #include "Camera/CameraActor.h"
 #include "SCurveEditorPanel.h"
 #include "Tree/SCurveEditorTree.h"
+#include "Tree/SCurveEditorTreeTextFilter.h"
 #include "SCurveKeyDetailPanel.h"
 #include "MovieSceneTimeHelpers.h"
 #include "FrameNumberNumericInterface.h"
@@ -381,7 +382,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	}
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
-		.Thickness(FVector2D(5.0f, 5.0f));
+		.Thickness(FVector2D(9.0f, 9.0f));
 	SAssignNew(TrackOutliner, SSequencerTrackOutliner);
 	SAssignNew(TrackArea, SSequencerTrackArea, TimeSliderControllerRef, InSequencer);
 	SAssignNew(TreeView, SSequencerTreeView, InSequencer->GetNodeTree(), TrackArea.ToSharedRef())
@@ -410,7 +411,18 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 			.DisabledTimeSnapTooltip(LOCTEXT("CurveEditorTimeSnapDisabledTooltip", "Time Snapping is currently driven by Sequencer."))
 			.TreeContent()
 			[
-				SNew(SCurveEditorTree, InSequencer->GetCurveEditor())
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SCurveEditorTreeTextFilter, InSequencer->GetCurveEditor())
+				]
+
+				+ SVerticalBox::Slot()
+				[
+					SNew(SCurveEditorTree, InSequencer->GetCurveEditor())
+				]
 			];
 
 			// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.

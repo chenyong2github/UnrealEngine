@@ -15,7 +15,7 @@
 #include "Editor.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
-#include "PropertyCustomizationHelpers.h"
+#include "MaterialList.h"
 #include "IPropertyUtilities.h"
 
 #include "LandscapeProxy.h"
@@ -116,7 +116,7 @@ public:
 	/**
 	 * @return Whether or not the iterator is valid
 	 */
-	operator bool()
+	explicit operator bool() const
 	{
 		return !bReachedEnd;	
 	}

@@ -305,15 +305,13 @@ bool FStructureEditorUtils::AddVariable(UUserDefinedStruct* Struct, const FEdGra
 		FString DisplayName;
 		const FName VarName = FMemberVariableNameHelper::Generate(Struct, FString(), Guid, &DisplayName);
 		check(NULL == GetVarDesc(Struct).FindByPredicate(FStructureEditorUtils::FFindByNameHelper<FStructVariableDescription>(VarName)));
-		check(IsUniqueVariableDisplayName(Struct, DisplayName));
+		check(IsUniqueVariableFriendlyName(Struct, DisplayName));
 
 		FStructVariableDescription NewVar;
 		NewVar.VarName = VarName;
 		NewVar.FriendlyName = DisplayName;
 		NewVar.SetPinType(VarType);
 		NewVar.VarGuid = Guid;
-		NewVar.bDontEditoOnInstance = false;
-		NewVar.bInvalidMember = false;
 		GetVarDesc(Struct).Add(NewVar);
 
 		OnStructureChanged(Struct, EStructureEditorChangeInfo::AddedVariable);
@@ -355,7 +353,7 @@ bool FStructureEditorUtils::RenameVariable(UUserDefinedStruct* Struct, FGuid Var
 		FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
 		if (VarDesc 
 			&& !NewDisplayNameStr.IsEmpty()
-			&& IsUniqueVariableDisplayName(Struct, NewDisplayNameStr))
+			&& IsUniqueVariableFriendlyName(Struct, NewDisplayNameStr))
 		{
 			const FScopedTransaction Transaction(LOCTEXT("RenameVariable", "Rename Variable"));
 			ModifyStructData(Struct);
@@ -449,7 +447,7 @@ bool FStructureEditorUtils::ChangeVariableDefaultValue(UUserDefinedStruct* Struc
 			const UProperty* Property = FindField<UProperty>(Struct, VarDesc->VarName);
 			FStructOnScope StructDefaultMem(Struct);
 			bAdvancedValidation = StructDefaultMem.IsValid() && Property &&
-				FBlueprintEditorUtils::PropertyValueFromString(Property, NewDefaultValue, StructDefaultMem.GetStructMemory());
+				FBlueprintEditorUtils::PropertyValueFromString(Property, NewDefaultValue, StructDefaultMem.GetStructMemory(), Struct);
 		}
 
 		if (bAdvancedValidation)
@@ -468,7 +466,7 @@ bool FStructureEditorUtils::ChangeVariableDefaultValue(UUserDefinedStruct* Struc
 	return false;
 }
 
-bool FStructureEditorUtils::IsUniqueVariableDisplayName(const UUserDefinedStruct* Struct, const FString& DisplayName)
+bool FStructureEditorUtils::IsUniqueVariableFriendlyName(const UUserDefinedStruct* Struct, const FString& DisplayName)
 {
 	if(Struct)
 	{
@@ -484,13 +482,19 @@ bool FStructureEditorUtils::IsUniqueVariableDisplayName(const UUserDefinedStruct
 	return false;
 }
 
-FString FStructureEditorUtils::GetVariableDisplayName(const UUserDefinedStruct* Struct, FGuid VarGuid)
+FString FStructureEditorUtils::GetVariableFriendlyName(const UUserDefinedStruct* Struct, FGuid VarGuid)
 {
 	const FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
 	return VarDesc ? VarDesc->FriendlyName : FString();
 }
 
-UProperty* FStructureEditorUtils::GetPropertyByDisplayName(const UUserDefinedStruct* Struct, FString DisplayName)
+FString FStructureEditorUtils::GetVariableFriendlyNameForProperty(const UUserDefinedStruct* Struct, const UProperty* Property)
+{
+	const FStructVariableDescription* VarDesc = Struct && Property ? GetVarDesc(Struct).FindByPredicate(FFindByNameHelper<FStructVariableDescription>(Property->GetFName())) : nullptr;
+	return VarDesc ? VarDesc->FriendlyName : FString();
+}
+
+UProperty* FStructureEditorUtils::GetPropertyByFriendlyName(const UUserDefinedStruct* Struct, FString DisplayName)
 {
 	if (Struct)
 	{
@@ -697,13 +701,29 @@ bool FStructureEditorUtils::ChangeEditableOnBPInstance(UUserDefinedStruct* Struc
 {
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 	FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
-	const bool bNewDontEditoOnInstance = !bInIsEditable;
-	if (VarDesc && (bNewDontEditoOnInstance != VarDesc->bDontEditoOnInstance))
+	const bool bNewDontEditOnInstance = !bInIsEditable;
+	if (VarDesc && (bNewDontEditOnInstance != VarDesc->bDontEditOnInstance))
 	{
 		const FScopedTransaction Transaction(LOCTEXT("ChangeVariableOnBPInstance", "Change variable editable on BP instance"));
 		ModifyStructData(Struct);
 
-		VarDesc->bDontEditoOnInstance = bNewDontEditoOnInstance;
+		VarDesc->bDontEditOnInstance = bNewDontEditOnInstance;
+		OnStructureChanged(Struct);
+		return true;
+	}
+	return false;
+}
+
+bool FStructureEditorUtils::ChangeSaveGameEnabled(UUserDefinedStruct* Struct, FGuid VarGuid, bool bInSaveGame)
+{
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	FStructVariableDescription* VarDesc = GetVarDescByGuid(Struct, VarGuid);
+	if (VarDesc && (bInSaveGame != VarDesc->bEnableSaveGame))
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ChangeSaveGameOnVariable", "Change variable SaveGame flag"));
+		ModifyStructData(Struct);
+
+		VarDesc->bEnableSaveGame = bInSaveGame;
 		OnStructureChanged(Struct);
 		return true;
 	}

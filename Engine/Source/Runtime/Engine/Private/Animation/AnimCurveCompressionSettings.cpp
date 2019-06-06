@@ -23,7 +23,7 @@ bool UAnimCurveCompressionSettings::AreSettingsValid() const
 	return Codec != nullptr && Codec->IsCodecValid();
 }
 
-bool UAnimCurveCompressionSettings::Compress(UAnimSequence& AnimSeq) const
+bool UAnimCurveCompressionSettings::Compress(const FCompressibleAnimData& AnimSeq, FCompressedAnimSequence& OutCompressedData) const
 {
 	if (Codec == nullptr || !AreSettingsValid())
 	{
@@ -34,8 +34,8 @@ bool UAnimCurveCompressionSettings::Compress(UAnimSequence& AnimSeq) const
 	bool Success = Codec->Compress(AnimSeq, CompressionResult);
 	if (Success)
 	{
-		AnimSeq.CompressedCurveByteStream = CompressionResult.CompressedBytes;
-		AnimSeq.CurveCompressionCodec = CompressionResult.Codec;
+		OutCompressedData.CompressedCurveByteStream = CompressionResult.CompressedBytes;
+		OutCompressedData.CurveCompressionCodec = CompressionResult.Codec;
 	}
 
 	return Success;

@@ -350,7 +350,30 @@ UObject* FSoftObjectPath::TryLoad(FUObjectSerializeContext* InLoadContext) const
 
 	if (!IsNull())
 	{
-		LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *ToString(), nullptr, LOAD_None, nullptr, true, InLoadContext);
+		if (IsSubobject())
+		{
+			// For subobjects, it's not safe to call LoadObject directly, so we want to load the parent object and then resolve again
+			FSoftObjectPath TopLevelPath = FSoftObjectPath(AssetPathName, FString());
+			UObject* TopLevelObject = TopLevelPath.TryLoad(InLoadContext);
+
+			// This probably loaded the top-level object, so re-resolve ourselves
+			return ResolveObject();
+		}
+
+		FString PathString = ToString();
+#if WITH_EDITOR
+		if (GPlayInEditorID != INDEX_NONE)
+		{
+			// If we are in PIE and this hasn't already been fixed up, we need to fixup at resolution time. We cannot modify the path as it may be somewhere like a blueprint CDO
+			FSoftObjectPath FixupObjectPath = *this;
+			if (FixupObjectPath.FixupForPIE())
+			{
+				PathString = FixupObjectPath.ToString();
+			}
+		}
+#endif
+
+		LoadedObject = StaticLoadObject(UObject::StaticClass(), nullptr, *PathString, nullptr, LOAD_None, nullptr, true, InLoadContext);
 
 #if WITH_EDITOR
 		// Look at core redirects if we didn't find the object
@@ -382,7 +405,6 @@ UObject* FSoftObjectPath::ResolveObject() const
 		return nullptr;
 	}
 
-	FString PathString = ToString();
 #if WITH_EDITOR
 	if (GPlayInEditorID != INDEX_NONE)
 	{
@@ -390,12 +412,31 @@ UObject* FSoftObjectPath::ResolveObject() const
 		FSoftObjectPath FixupObjectPath = *this;
 		if (FixupObjectPath.FixupForPIE())
 		{
-			PathString = FixupObjectPath.ToString();
+			return FixupObjectPath.ResolveObjectInternal();
 		}
 	}
 #endif
 
-	UObject* FoundObject = FindObject<UObject>(nullptr, *PathString);
+	return ResolveObjectInternal();
+}
+
+UObject* FSoftObjectPath::ResolveObjectInternal() const
+{
+	if (SubPathString.IsEmpty())
+	{
+		TCHAR PathString[FName::StringBufferSize];
+		AssetPathName.ToString(PathString);
+		return ResolveObjectInternal(PathString);
+	}
+	else
+	{
+		return ResolveObjectInternal(*ToString());
+	}
+}
+
+UObject* FSoftObjectPath::ResolveObjectInternal(const TCHAR* PathString) const
+{
+	UObject* FoundObject = FindObject<UObject>(nullptr, PathString);
 
 #if WITH_EDITOR
 	// Look at core redirects if we didn't find the object
@@ -404,8 +445,7 @@ UObject* FSoftObjectPath::ResolveObject() const
 		FSoftObjectPath FixupObjectPath = *this;
 		if (FixupObjectPath.FixupCoreRedirects())
 		{
-			PathString = FixupObjectPath.ToString();
-			FoundObject = FindObject<UObject>(nullptr, *PathString);
+			FoundObject = FindObject<UObject>(nullptr, *FixupObjectPath.ToString());
 		}
 	}
 #endif

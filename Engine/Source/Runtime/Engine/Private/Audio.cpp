@@ -816,7 +816,6 @@ FWaveInstance::FWaveInstance(const UPTRINT InWaveInstanceHash, FActiveSound& InA
 	, UserIndex(0)
 {
 	TypeHash = ++TypeHashCounter;
-	ActiveSound->AddWaveInstance(WaveInstanceHash, *this);
 }
 
 /**

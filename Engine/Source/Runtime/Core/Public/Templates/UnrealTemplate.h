@@ -12,6 +12,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Templates/RemoveReference.h"
 #include "Templates/TypeCompatibleBytes.h"
+#include "Templates/Identity.h"
 #include "Traits/IsContiguousContainer.h"
 
 /*-----------------------------------------------------------------------------
@@ -581,21 +582,6 @@ template <typename From, typename To>
 struct TLosesQualifiersFromTo
 {
 	enum { Value = !TAreTypesEqual<typename TCopyQualifiersFromTo<From, To>::Type, To>::Value };
-};
-
-/**
- * Returns the same type passed to it.  This is useful in a few cases, but mainly for inhibiting template argument deduction in function arguments, e.g.:
- *
- * template <typename T>
- * void Func1(T Val); // Can be called like Func(123) or Func<int>(123);
- *
- * template <typename T>
- * void Func2(typename TIdentity<T>::Type Val); // Must be called like Func<int>(123)
- */
-template <typename T>
-struct TIdentity
-{
-	typedef T Type;
 };
 
 /**
