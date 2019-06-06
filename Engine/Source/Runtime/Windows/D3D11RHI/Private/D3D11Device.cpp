@@ -554,7 +554,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		ReleaseCachedQueries();
 
 
-#if !PLATFORM_CPU_ARM_FAMILY
+#ifdef AMD_AGS_API
 		// Clean up the AMD extensions and shut down the AMD AGS utility library
 		if (AmdAgsContext != NULL)
 		{
@@ -573,7 +573,7 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 		}
 #endif // INTEL_METRICSDISCOVERY
 
-#endif
+#endif //AMD_AGS_API
 
 		// When running with D3D debug, clear state and flush the device to get rid of spurious live objects in D3D11's report.
 		if (D3D11RHI_ShouldCreateWithD3DDebug())

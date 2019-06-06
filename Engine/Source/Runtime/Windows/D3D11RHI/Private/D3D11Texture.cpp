@@ -436,7 +436,6 @@ void ReturnPooledTexture2D(int32 MipCount, EPixelFormat PixelFormat, ID3D11Textu
 #endif // #if USE_TEXTURE_POOLING
 }
 
-#if WITH_D3DX_LIBS || PLATFORM_CPU_ARM_FAMILY
 DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFormat, uint32 InFlags)
 {
 	// DX 11 Shared textures must be B8G8R8A8_UNORM
@@ -446,7 +445,6 @@ DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFor
 	}
 	return InFormat;
 }
-#endif	
 
 /** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
 #define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
