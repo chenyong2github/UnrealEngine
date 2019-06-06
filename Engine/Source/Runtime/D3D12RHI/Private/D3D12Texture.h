@@ -502,7 +502,7 @@ public:
 	static void UpdateD3D12TextureStats(const D3D12_RESOURCE_DESC& Desc, int64 TextureSize, bool b3D, bool bCubeMap);
 
 	template<typename BaseResourceType>
-	static void D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>& Texture);
+	static void D3D12TextureAllocated(TD3D12Texture2D<BaseResourceType>& Texture, const D3D12_RESOURCE_DESC *Desc = nullptr);
 
 	template<typename BaseResourceType>
 	static void D3D12TextureDeleted(TD3D12Texture2D<BaseResourceType>& Texture);
