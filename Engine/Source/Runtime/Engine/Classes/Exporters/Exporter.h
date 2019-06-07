@@ -19,7 +19,7 @@ class UActorComponent;
 class UAssetExportTask;
 
 UCLASS(abstract, transient, MinimalAPI)
-class UExporter : public UObject
+class ENGINE_VTABLE UExporter : public UObject
 {
 	GENERATED_UCLASS_BODY()
 

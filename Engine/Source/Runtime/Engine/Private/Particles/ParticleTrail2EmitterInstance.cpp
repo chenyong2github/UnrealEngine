@@ -2223,7 +2223,8 @@ bool FParticleRibbonEmitterInstance::ResolveSourcePoint(int32 InTrailIdx,
 						{
 							case EPSSM_Random:
 							{
-								Index = FMath::TruncToInt(FMath::FRand() * SourceEmitter->ActiveParticles);
+								FRandomStream& RandomStream = SourceModule->GetRandomStream(this);
+								Index = RandomStream.RandHelper(SourceEmitter->ActiveParticles);
 							}
 								break;
 							case EPSSM_Sequential:

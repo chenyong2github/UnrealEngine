@@ -524,9 +524,15 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bIncludePluginsForTargetPlatforms = false;
 
-        /// <summary>
-        /// Whether to include PerfCounters support.
-        /// </summary>
+		/// <summary>
+		/// Whether to allow accessibility code in both Slate and the OS layer.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bCompileWithAccessibilitySupport = true;
+
+		/// <summary>
+		/// Whether to include PerfCounters support.
+		/// </summary>
 		[RequiresUniqueBuildEnvironment]
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/BuildSettings.BuildSettings", "bWithPerfCounters")]
         public bool bWithPerfCounters = false;
@@ -998,10 +1004,11 @@ namespace UnrealBuildTool
 		public bool bParseTimingInfoForTracing = false;
 
 		/// <summary>
-		/// Whether to hide symbols by default on POSIX platforms
+		/// Whether to expose all symbols as public by default on POSIX platforms
 		/// </summary>
-		[CommandLine("-HideSymbolsByDefault")]
-		public bool bHideSymbolsByDefault;
+		[CommandLine("-PublicSymbolsByDefault")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bPublicSymbolsByDefault = false;
 
 		/// <summary>
 		/// Allows overriding the toolchain to be created for this target. This must match the name of a class declared in the UnrealBuildTool assembly.
@@ -1874,7 +1881,12 @@ namespace UnrealBuildTool
 			get { return Inner.bIncludePluginsForTargetPlatforms; }
 		}
 
-        public bool bWithPerfCounters
+		public bool bCompileWithAccessibilitySupport
+		{
+			get { return Inner.bCompileWithAccessibilitySupport; }
+		}
+
+		public bool bWithPerfCounters
 		{
 			get { return Inner.bWithPerfCounters; }
 		}
@@ -2225,9 +2237,9 @@ namespace UnrealBuildTool
 			get { return Inner.bParseTimingInfoForTracing; }
 		}
 
-		public bool bHideSymbolsByDefault
+		public bool bPublicSymbolsByDefault
 		{
-			get { return Inner.bHideSymbolsByDefault; }
+			get { return Inner.bPublicSymbolsByDefault; }
 		}
 
 		public string ToolChainName

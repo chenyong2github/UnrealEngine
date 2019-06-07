@@ -8,6 +8,7 @@
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"
 #include "UObject/ObjectMacros.h"
+#include "Math/RandomStream.h"
 
 #include "AudioComponent.generated.h"
 
@@ -615,6 +616,8 @@ private:
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
 	void UpdateSpriteTexture();
 #endif
+
+	FRandomStream RandomStream;
 
 	static uint64 AudioComponentIDCounter;
 	static TMap<uint64, UAudioComponent*> AudioIDToComponentMap;

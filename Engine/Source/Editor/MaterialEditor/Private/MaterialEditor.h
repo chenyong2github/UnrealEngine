@@ -34,6 +34,7 @@ class UFactory;
 class UMaterialEditorOptions;
 class UMaterialExpressionComment;
 class UMaterialInstance;
+class UMaterialGraphNode;
 struct FGraphAppearanceInfo;
 
 /**
@@ -44,6 +45,7 @@ class FMatExpressionPreview : public FMaterial, public FMaterialRenderProxy
 public:
 	FMatExpressionPreview()
 	: FMaterial()
+	, UnrelatedNodesOpacity(1.0f)
 	{
 		// Register this FMaterial derivative with AddEditorLoadedMaterialResource since it does not have a corresponding UMaterialInterface
 		FMaterial::AddEditorLoadedMaterialResource(this);
@@ -52,6 +54,7 @@ public:
 
 	FMatExpressionPreview(UMaterialExpression* InExpression)
 	: FMaterial()
+	, UnrelatedNodesOpacity(1.0f)
 	, Expression(InExpression)
 	{
 		FMaterial::AddEditorLoadedMaterialResource(this);
@@ -150,7 +153,7 @@ public:
 	virtual bool IsSpecialEngineMaterial() const override { return false; }
 	virtual bool IsWireframe() const override { return false; }
 	virtual bool IsMasked() const override { return false; }
-	virtual enum EBlendMode GetBlendMode() const override { return BLEND_Opaque; }
+	virtual enum EBlendMode GetBlendMode() const override { return BLEND_Translucent; }
 	virtual FMaterialShadingModelField GetShadingModels() const override { return MSM_Unlit; }
 	virtual float GetOpacityMaskClipValue() const override { return 0.5f; }
 	virtual bool GetCastDynamicShadowAsMasked() const override { return false; }
@@ -171,6 +174,8 @@ public:
 	{
 		return Ar << V.Expression;
 	}
+
+	float UnrelatedNodesOpacity;
 
 private:
 	TWeakObjectPtr<UMaterialExpression> Expression;
@@ -363,7 +368,7 @@ public:
 	virtual bool CanPasteNodes() const override;
 	virtual void PasteNodesHere(const FVector2D& Location) override;
 	virtual int32 GetNumberOfSelectedNodes() const override;
-	virtual FMaterialRenderProxy* GetExpressionPreview(UMaterialExpression* InExpression) override;
+	virtual FMatExpressionPreview* GetExpressionPreview(UMaterialExpression* InExpression) override;
 	virtual void DeleteNodes(const TArray<class UEdGraphNode*>& NodesToDelete) override;
 
 
@@ -585,6 +590,20 @@ private:
 	bool IsOnAlwaysRefreshAllPreviews() const;
 	/** Command for the stats button */
 
+	/** Make nodes which are unrelated to the selected nodes fade out */
+	void ToggleHideUnrelatedNodes();
+	bool IsToggleHideUnrelatedNodesChecked() const;
+	void CollectDownstreamNodes(UMaterialGraphNode* CurrentNode, TArray<UMaterialGraphNode*>& CollectedNodes);
+	void CollectUpstreamNodes(UMaterialGraphNode* CurrentNode, TArray<UMaterialGraphNode*>& CollectedNodes);
+	void HideUnrelatedNodes();
+
+	/** Make a drop down menu to control the opacity of unrelated nodes */
+	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();
+	TOptional<float> HandleUnrelatedNodesOpacityBoxValue() const;
+	void HandleUnrelatedNodesOpacityBoxChanged(float NewOpacity);
+	void OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState);
+	void OnFocusWholeChainCheckStateChanged(ECheckBoxState NewCheckedState);
+
 	void ToggleReleaseStats();
 	bool IsToggleReleaseStatsChecked() const;
 	void ToggleBuiltinStats();
@@ -786,6 +805,18 @@ private:
 
 	/** If true, show stats for an empty material. Helps artists to judge the cost of their changes to the graph. */
 	bool bShowBuiltinStats;
+
+	/** If true, fade out nodes which are unrelated to the selected nodes automatically. */
+	bool bHideUnrelatedNodes;
+
+	/** Lock the current fade state of each node */
+	bool bLockNodeFadeState;
+
+	/** Focus all nodes in the same output chain  */
+	bool bFocusWholeChain;
+
+	/** If a regular node (not a comment node, not the output node) has been selected */
+	bool bSelectRegularNode;
 
 	/** Command list for this editor */
 	TSharedPtr<FUICommandList> GraphEditorCommands;

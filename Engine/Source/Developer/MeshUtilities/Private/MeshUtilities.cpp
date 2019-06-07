@@ -266,7 +266,7 @@ static void SkinnedMeshToRawMeshes(USkinnedMeshComponent* InSkinnedMeshComponent
 					const FVector TangentX = InComponentToWorld.TransformVector(SkinnedVertex.TangentX.ToFVector());
 					const FVector TangentZ = InComponentToWorld.TransformVector(SkinnedVertex.TangentZ.ToFVector());
 					const FVector4 UnpackedTangentZ = SkinnedVertex.TangentZ.ToFVector4();
-					const FVector TangentY = (TangentX ^ TangentZ).GetSafeNormal() * UnpackedTangentZ.W;
+					const FVector TangentY = (TangentZ ^ TangentX).GetSafeNormal() * UnpackedTangentZ.W;
 
 					RawMesh.WedgeTangentX.Add(TangentX);
 					RawMesh.WedgeTangentY.Add(TangentY);
@@ -747,9 +747,9 @@ void FMeshUtilities::BuildSkeletalModelFromChunks(FSkeletalMeshLODModel& LODMode
 
 			FSoftSkinVertex NewVertex;
 			NewVertex.Position = SoftVertex.Position;
-			NewVertex.TangentX = SoftVertex.TangentX.ToFVector();
-			NewVertex.TangentY = SoftVertex.TangentY.ToFVector();
-			NewVertex.TangentZ = SoftVertex.TangentZ.ToFVector();
+			NewVertex.TangentX = SoftVertex.TangentX;
+			NewVertex.TangentY = SoftVertex.TangentY;
+			NewVertex.TangentZ = SoftVertex.TangentZ;
 			FMemory::Memcpy(NewVertex.UVs, SoftVertex.UVs, sizeof(FVector2D)*MAX_TEXCOORDS);
 			NewVertex.Color = SoftVertex.Color;
 			for (int32 i = 0; i < MAX_TOTAL_INFLUENCES; ++i)

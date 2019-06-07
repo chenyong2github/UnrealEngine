@@ -13,6 +13,8 @@ class UBlueprint;
 class FClassViewerNode
 {
 public:
+	FClassViewerNode(UClass* Class);
+
 	/**
 	 * Creates a node for the widget's tree.
 	 *
@@ -100,9 +102,6 @@ public:
 
 	/** true if the class passed the filter. */
 	bool bPassesFilter;
-
-	/** true if the class is a "normal type", this is used to identify unloaded blueprints as blueprint bases. */
-	bool bIsBPNormalType;
 
 	/** Pointer to the parent to this object. */
 	TWeakPtr< FClassViewerNode > ParentNode;

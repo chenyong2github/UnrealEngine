@@ -577,7 +577,6 @@ namespace UnrealBuildTool
 			if (CompileEnvironment.bHideSymbolsByDefault)
 			{
 				Result += " -fvisibility=hidden";
-				Result += " -fvisibility-inlines-hidden";
 			}
 
 			if (String.IsNullOrEmpty(ClangPath))
@@ -750,6 +749,11 @@ namespace UnrealBuildTool
 				// Use local-dynamic TLS model. This generates less efficient runtime code for __thread variables, but avoids problems of running into
 				// glibc/ld.so limit (DTV_SURPLUS) for number of dlopen()'ed DSOs with static TLS (see e.g. https://www.cygwin.com/ml/libc-help/2013-11/msg00033.html)
 				Result += " -ftls-model=local-dynamic";
+			}
+			else
+			{
+				Result += " -ffunction-sections";
+				Result += " -fdata-sections";
 			}
 
 			if (CompileEnvironment.bEnableExceptions)
@@ -950,9 +954,14 @@ namespace UnrealBuildTool
 
 			// This apparently can help LLDB speed up symbol lookups
 			Result += " -Wl,--build-id";
-			if (bSuppressPIE && !LinkEnvironment.bIsBuildingDLL)
+			if (!LinkEnvironment.bIsBuildingDLL)
 			{
-				Result += " -Wl,-nopie";
+				Result += " -Wl,--gc-sections";
+
+				if (bSuppressPIE)
+				{
+					Result += " -Wl,-nopie";
+				}
 			}
 
 			// Profile Guided Optimization (PGO) and Link Time Optimization (LTO)
@@ -1001,10 +1010,10 @@ namespace UnrealBuildTool
 				// Linking with the toolchain on linux appears to not search usr/
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 				{
-					Result += String.Format(" -B{0}/usr/lib/", SysRootPath);
-					Result += String.Format(" -B{0}/usr/lib64/", SysRootPath);
-					Result += String.Format(" -L{0}/usr/lib/", SysRootPath);
-					Result += String.Format(" -L{0}/usr/lib64/", SysRootPath);
+					Result += String.Format(" -B\"{0}/usr/lib/\"", SysRootPath);
+					Result += String.Format(" -B\"{0}/usr/lib64/\"", SysRootPath);
+					Result += String.Format(" -L\"{0}/usr/lib/\"", SysRootPath);
+					Result += String.Format(" -L\"{0}/usr/lib64/\"", SysRootPath);
 				}
 			}
 
@@ -1718,6 +1727,14 @@ namespace UnrealBuildTool
 
 			LinkCommandString += " -Wl,--start-group";
 			LinkCommandString += ExternalLibraries;
+
+			// make unresolved symbols an error, unless a) building a cross-referenced DSO  b) we opted out
+			if ((!LinkEnvironment.bIsBuildingDLL || !LinkEnvironment.bIsCrossReferenced) && !LinkEnvironment.bIgnoreUnresolvedSymbols)
+			{
+				// This will make the linker report undefined symbols the current module, but ignore in the dependent DSOs.
+				// It is tempting, but may not be possible to change that report-all - due to circular dependencies between our libs.
+				LinkCommandString += " -Wl,--unresolved-symbols=ignore-in-shared-libs";
+			}
 			LinkCommandString += " -Wl,--end-group";
 
 			LinkCommandString += " -lrt"; // needed for clock_gettime()
@@ -1732,6 +1749,7 @@ namespace UnrealBuildTool
 				LinkCommandString += " " + "ThirdParty/Linux/LibCxx/lib/Linux/" + LinkEnvironment.Architecture + "/libc++abi.a";
 				LinkCommandString += " -lm";
 				LinkCommandString += " -lc";
+				LinkCommandString += " -lpthread"; // pthread_mutex_trylock is missing from libc stubs
 				LinkCommandString += " -lgcc_s";
 				LinkCommandString += " -lgcc";
 			}

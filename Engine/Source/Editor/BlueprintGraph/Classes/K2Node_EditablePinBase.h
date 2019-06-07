@@ -83,7 +83,7 @@ public:
 };
 
 UCLASS(abstract, MinimalAPI)
-class UK2Node_EditablePinBase : public UK2Node
+class BLUEPRINTGRAPH_VTABLE UK2Node_EditablePinBase : public UK2Node
 {
 	GENERATED_UCLASS_BODY()
 

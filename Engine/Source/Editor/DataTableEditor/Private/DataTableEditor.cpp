@@ -7,11 +7,17 @@
 #include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/GenericCommands.h"
 #include "Framework/Layout/Overscroll.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IDocumentation.h"
+#include "Misc/FeedbackContext.h"
 #include "Misc/FileHelper.h"
 #include "Modules/ModuleManager.h"
 #include "Policies/PrettyJsonPrintPolicy.h"
+#include "ScopedTransaction.h"
 #include "SDataTableListViewRowName.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
@@ -25,8 +31,13 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "SourceCodeNavigation.h"
 #include "PropertyEditorModule.h"
+#include "UObject/StructOnScope.h"
+
+
+
 
 #define LOCTEXT_NAMESPACE "DataTableEditor"
 
@@ -262,7 +273,10 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		SpawnToolkitTab( DataTableTabId, TabInitializationPayload, EToolkitTabSpot::Details );
 	}*/
 
-	// NOTE: Could fill in asset editor commands here!
+	// asset editor commands here
+	ToolkitCommands->MapAction(FGenericCommands::Get().Copy, FExecuteAction::CreateSP(this, &FDataTableEditor::CopySelectedRow));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FDataTableEditor::PasteOnSelectedRow));
+	ToolkitCommands->MapAction(FGenericCommands::Get().Duplicate, FExecuteAction::CreateSP(this, &FDataTableEditor::DuplicateSelectedRow));
 }
 
 FName FDataTableEditor::GetToolkitFName() const
@@ -473,6 +487,65 @@ void FDataTableEditor::OnRowSelectionChanged(FDataTableEditorRowListViewDataPtr 
 	{
 		CallbackOnRowHighlighted.ExecuteIfBound(HighlightedRowName);
 	}
+}
+
+void FDataTableEditor::CopySelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	uint8* RowPtr = TablePtr ? TablePtr->GetRowMap().FindRef(HighlightedRowName) : nullptr;
+
+	if (!RowPtr || !TablePtr->RowStruct)
+		return;
+
+	FString ClipboardValue;
+	TablePtr->RowStruct->ExportText(ClipboardValue, RowPtr, RowPtr, TablePtr, PPF_Copy, nullptr);
+
+	FPlatformApplicationMisc::ClipboardCopy(*ClipboardValue);
+}
+
+void FDataTableEditor::PasteOnSelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	uint8* RowPtr = TablePtr ? TablePtr->GetRowMap().FindRef(HighlightedRowName) : nullptr;
+
+	if (!RowPtr || !TablePtr->RowStruct)
+		return;
+
+	const FScopedTransaction Transaction(LOCTEXT("PasteDataTableRow", "Paste Data Table Row"));
+	TablePtr->Modify();
+
+	FString ClipboardValue;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardValue);
+
+	FDataTableEditorUtils::BroadcastPreChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
+
+	const TCHAR* Result = TablePtr->RowStruct->ImportText(*ClipboardValue, RowPtr, TablePtr, PPF_Copy, GWarn, GetPathNameSafe(TablePtr->RowStruct));
+
+	FDataTableEditorUtils::BroadcastPostChange(TablePtr, FDataTableEditorUtils::EDataTableChangeInfo::RowData);
+
+	if (Result == nullptr)
+	{
+		FNotificationInfo Info(LOCTEXT("FailedPaste", "Failed to paste row"));
+		FSlateNotificationManager::Get().AddNotification(Info);
+	}
+}
+
+void FDataTableEditor::DuplicateSelectedRow()
+{
+	UDataTable* TablePtr = Cast<UDataTable>(GetEditingObject());
+	FName NewName = HighlightedRowName;
+
+	if (NewName == NAME_None || TablePtr == nullptr)
+		return;
+
+	const TArray<FName> ExistingNames = TablePtr->GetRowNames();
+	while (ExistingNames.Contains(NewName))
+	{
+		NewName.SetNumber(NewName.GetNumber() + 1);
+	}
+
+	FDataTableEditorUtils::DuplicateRow(TablePtr, HighlightedRowName, NewName);
+	FDataTableEditorUtils::SelectRow(TablePtr, NewName);
 }
 
 FText FDataTableEditor::GetFilterText() const
@@ -733,11 +806,11 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 {
 	TSharedRef<SScrollBar> HorizontalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Horizontal)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	TSharedRef<SScrollBar> VerticalScrollBar = SNew(SScrollBar)
 		.Orientation(Orient_Vertical)
-		.Thickness(FVector2D(8.0f, 8.0f));
+		.Thickness(FVector2D(12.0f, 12.0f));
 
 	TSharedRef<SHeaderRow> RowNamesHeaderRow = SNew(SHeaderRow);
 	RowNamesHeaderRow->AddColumn(

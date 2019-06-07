@@ -461,6 +461,11 @@ public:
 			Implementation->SetNodeFactory(NewNodeFactory);
 		}
 	}
+	
+	/** Common methods for MaterialEditor and BlueprintEditor's focusing related nodes feature */
+	UNREALED_API void ResetAllNodesUnrelatedStates();
+
+	UNREALED_API void FocusCommentNodes(TArray<UEdGraphNode*> &CommentNodes, TArray<UEdGraphNode*> &RelatedNodes);
 
 	virtual void OnAlignTop()
 	{

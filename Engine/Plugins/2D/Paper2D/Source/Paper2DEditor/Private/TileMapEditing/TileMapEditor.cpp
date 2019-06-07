@@ -233,7 +233,7 @@ TSharedRef<SDockTab> FTileMapEditor::SpawnTab_Viewport(const FSpawnTabArgs& Args
 					SNew(STextBlock)
 					.Visibility(EVisibility::HitTestInvisible)
 					.TextStyle(FEditorStyle::Get(), "Graph.CornerText")
-					.Text(LOCTEXT("TileMapEditorViewportEarlyAccessPreviewWarning", "Early access preview"))
+					.Text(LOCTEXT("TileMapEditorViewportEarlyAccessPreviewWarning", "Beta preview"))
 				]
 		];
 }

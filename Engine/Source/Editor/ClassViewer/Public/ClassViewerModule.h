@@ -7,6 +7,7 @@
 
 class IClassViewerFilter;
 class IPropertyHandle;
+class FClassViewerFilterFuncs;
 
 /** Delegate used with the Class Viewer in 'class picking' mode.  You'll bind a delegate when the
     class viewer widget is created, which will be fired off when a class is selected in the list */
@@ -163,4 +164,10 @@ public:
 	virtual TSharedRef<class SWidget> CreateClassViewer(const FClassViewerInitializationOptions& InitOptions,
 		const FOnClassPicked& OnClassPickedDelegate );
 
+	/** 
+	 * Create a new class filter from the given initialization options.
+	 */
+	virtual TSharedRef<IClassViewerFilter> CreateClassFilter(const FClassViewerInitializationOptions& InitOptions);
+
+	virtual TSharedRef<FClassViewerFilterFuncs> CreateFilterFuncs();
 };

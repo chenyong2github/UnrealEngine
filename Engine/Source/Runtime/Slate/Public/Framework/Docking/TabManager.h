@@ -110,7 +110,7 @@ class FSpawnTabArgs
  * Invoked when a tab needs to be spawned.
  */
 DECLARE_DELEGATE_RetVal_OneParam( TSharedRef<SDockTab>, FOnSpawnTab, const FSpawnTabArgs& );
-
+DECLARE_DELEGATE_RetVal_OneParam(bool, FCanSpawnTab, const FSpawnTabArgs&);
 /**
  * Allows users to provide custom logic when searching for a tab to reuse.
  * The TabId that is being searched for is provided as a courtesy, but does not have to be respected.
@@ -130,10 +130,11 @@ namespace ETabSpawnerMenuType
 
 struct FTabSpawnerEntry : public FWorkspaceItem
 {
-	FTabSpawnerEntry( const FName& InTabType, const FOnSpawnTab& InSpawnTabMethod )
-		: FWorkspaceItem( FText(), FSlateIcon(), false )
-		, TabType( InTabType )
-		, OnSpawnTab( InSpawnTabMethod )
+	FTabSpawnerEntry(const FName& InTabType, const FOnSpawnTab& InSpawnTabMethod, const FCanSpawnTab& InCanSpawnTab)
+		: FWorkspaceItem(FText(), FSlateIcon(), false)
+		, TabType(InTabType)
+		, OnSpawnTab(InSpawnTabMethod)
+		, CanSpawnTab(InCanSpawnTab)
 		, OnFindTabToReuse()
 		, MenuType(ETabSpawnerMenuType::Enabled)
 		, bAutoGenerateMenuEntry(true)
@@ -191,6 +192,7 @@ struct FTabSpawnerEntry : public FWorkspaceItem
 private:
 	FName TabType;
 	FOnSpawnTab OnSpawnTab;
+	FCanSpawnTab CanSpawnTab;
 	/** When this method is not provided, we assume that the tab should only allow 0 or 1 instances */
 	FOnFindTabToReuse OnFindTabToReuse;
 	/** Whether this menu item should be enabled, disabled, or hidden */
@@ -294,6 +296,12 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 					return SharedThis(this);
 				}
 
+				TSharedRef<FStack> AddTab(const FTab& Tab)
+				{
+					Tabs.Add(Tab);
+					return SharedThis(this);
+				}
+
 				TSharedRef<FStack> SetSizeCoefficient( const float InSizeCoefficient )
 				{
 					SizeCoefficient = InSizeCoefficient;
@@ -348,6 +356,23 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 					ChildNodes.Add(InNode);
 					return SharedThis(this);
 				}
+
+				TSharedRef<FSplitter> InsertBefore(TSharedRef<FLayoutNode> NodeToInsertBefore, TSharedRef<FLayoutNode> NodeToInsert)
+				{
+					int32 InsertAtIndex = ChildNodes.Find(NodeToInsertBefore);
+					check(InsertAtIndex != INDEX_NONE);
+					ChildNodes.Insert(NodeToInsert, InsertAtIndex);
+					return SharedThis(this);
+				}
+
+				TSharedRef<FSplitter> InsertAfter(TSharedRef<FLayoutNode> NodeToInsertAfter, TSharedRef<FLayoutNode> NodeToInsert)
+				{
+					int32 InsertAtIndex = ChildNodes.Find(NodeToInsertAfter);
+					check(InsertAtIndex != INDEX_NONE);
+					ChildNodes.Insert(NodeToInsert, InsertAtIndex + 1);
+					return SharedThis(this);
+				}
+
 
 				TSharedRef<FSplitter> SetSizeCoefficient( const float InSizeCoefficient )
 				{
@@ -626,10 +651,11 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		 * InvokeTab().
 		 * @param TabId The TabId to register the spawner for.
 		 * @param OnSpawnTab The callback that will be used to spawn the tab.
+		 * @param CanSpawnTab The callback that will be used to ask if spawning the tab is allowed
 		 * @return The registration entry for the spawner.
 		 */
-		FTabSpawnerEntry& RegisterTabSpawner( const FName TabId, const FOnSpawnTab& OnSpawnTab );
-		
+		FTabSpawnerEntry& RegisterTabSpawner(const FName TabId, const FOnSpawnTab& OnSpawnTab, const FCanSpawnTab& CanSpawnTab = FCanSpawnTab());
+
 		/**
 		 * Unregisters the tab spawner matching the provided TabId.
 		 * @param TabId The TabId to remove the spawner for.
@@ -732,7 +758,11 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		void ClearLocalWorkspaceMenuCategories();
 
 		/** @return true if the tab has a factory registered for it that allows it to be spawned. */
-		bool CanSpawnTab( FName TabId );
+		UE_DEPRECATED(4.23, "CanSpawnTab has been replaced by HasTabSpawner")
+		bool CanSpawnTab(FName TabId) const;
+
+		/** @return true if the tab has a factory registered for it that allows it to be spawned. */
+		bool HasTabSpawner(FName TabId) const;
 
 		/** Returns the owner tab (if it exists) */
 		TSharedPtr<SDockTab> GetOwnerTab() { return OwnerTabPtr.Pin(); }
@@ -748,9 +778,9 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 			
 		void PopulateTabSpawnerMenu_Helper( FMenuBuilder& PopulateMe, struct FPopulateTabSpawnerMenu_Args Args );
 
-		void MakeSpawnerMenuEntry( FMenuBuilder &PopulateMe, const TSharedPtr<FTabSpawnerEntry> &SpawnerNode );
+		void MakeSpawnerMenuEntry( FMenuBuilder &PopulateMe, const TSharedPtr<FTabSpawnerEntry> &InSpawnerNode );
 
-		TSharedRef<SDockTab> InvokeTab_Internal( const FTabId& TabId );
+		TSharedPtr<SDockTab> InvokeTab_Internal( const FTabId& TabId );
 
 		/** Finds the last major or nomad tab in a particular window. */
 		TSharedPtr<SDockTab> FindLastTabInWindow(TSharedPtr<SWindow> Window) const;
@@ -773,7 +803,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		void RestoreSplitterContent( const TSharedRef<FSplitter>& SplitterNode, const TSharedRef<class SDockingSplitter>& SplitterWidget, const TSharedPtr<SWindow>& ParentWindow );
 		
 		bool IsValidTabForSpawning( const FTab& SomeTab ) const;
-		TSharedRef<SDockTab> SpawnTab( const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow );
+		TSharedPtr<SDockTab> SpawnTab( const FTabId& TabId, const TSharedPtr<SWindow>& ParentWindow );
 
 		TSharedPtr<class SDockingTabStack> FindTabInLiveAreas( const FTabMatcher& TabMatcher ) const;
 		static TSharedPtr<class SDockingTabStack> FindTabInLiveArea( const FTabMatcher& TabMatcher, const TSharedRef<SDockingArea>& InArea );
@@ -812,6 +842,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		FTabSpawner TabSpawner;
 		TSharedRef<FTabSpawner> NomadTabSpawner;
 		TSharedPtr<FTabSpawnerEntry> FindTabSpawnerFor(FName TabId);
+		bool HasTabSpawnerFor(FName TabId) const;
 
 		TArray< TWeakPtr<SDockingArea> > DockAreas;
 		TArray< TSharedRef<FTabManager::FArea> > CollapsedDockAreas;
@@ -899,8 +930,17 @@ public:
 	/** Activate the NewActiveTab. If NewActiveTab is NULL, the active tab is cleared. */
 	void SetActiveTab( const TSharedPtr<SDockTab>& NewActiveTab );
 
-	FTabSpawnerEntry& RegisterNomadTabSpawner( const FName TabId, const FOnSpawnTab& OnSpawnTab );
-	
+	/**
+	 * Register a new normad tab spawner with the tab manager.  The spawner will be called when anyone calls
+	 * InvokeTab().
+	 * A nomad tab is a tab that can be placed with major tabs or minor tabs in any tab well
+	 * @param TabId The TabId to register the spawner for.
+	 * @param OnSpawnTab The callback that will be used to spawn the tab.
+	 * @param CanSpawnTab The callback that will be used to ask if spawning the tab is allowed
+	 * @return The registration entry for the spawner.
+	 */
+	FTabSpawnerEntry& RegisterNomadTabSpawner( const FName TabId, const FOnSpawnTab& OnSpawnTab, const FCanSpawnTab& CanSpawnTab = FCanSpawnTab());
+
 	void UnregisterNomadTabSpawner( const FName TabId );
 
 	void SetApplicationTitle( const FText& AppTitle );

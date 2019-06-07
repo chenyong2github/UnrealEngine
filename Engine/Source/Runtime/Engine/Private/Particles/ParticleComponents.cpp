@@ -1702,7 +1702,9 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 	LockAxisFlags = EPAL_NONE;
 	ModuleOffsetMap.Empty();
 	ModuleInstanceOffsetMap.Empty();
+	ModuleRandomSeedInstanceOffsetMap.Empty();
 	ModulesNeedingInstanceData.Empty();
+	ModulesNeedingRandomSeedInstanceData.Empty();
 	MeshMaterials.Empty();
 	DynamicParameterDataOffset = 0;
 	LightDataOffset = 0;
@@ -1791,6 +1793,25 @@ void UParticleEmitter::CacheEmitterModuleInfo()
 					ModuleInstanceOffsetMap.Add(CurLODLevel->Modules[ModuleIdx], ReqInstanceBytes);
 				}
 				ReqInstanceBytes += TempInstanceBytes;
+			}
+
+			// Add space for per instance random seed value if required
+			if (FApp::bUseFixedSeed || ParticleModule->bSupportsRandomSeed)
+			{
+				// Add the high-lodlevel offset to the lookup map
+				ModuleRandomSeedInstanceOffsetMap.Add(ParticleModule, ReqInstanceBytes);
+				// Remember that this module has emitter-instance data
+				ModulesNeedingRandomSeedInstanceData.Add(ParticleModule);
+
+				// Add all the other LODLevel modules, using the same offset.
+				// This removes the need to always also grab the HighestLODLevel pointer.
+				for (int32 LODIdx = 1; LODIdx < LODLevels.Num(); LODIdx++)
+				{
+					UParticleLODLevel* CurLODLevel = LODLevels[LODIdx];
+					ModuleRandomSeedInstanceOffsetMap.Add(CurLODLevel->Modules[ModuleIdx], ReqInstanceBytes);
+				}
+
+				ReqInstanceBytes += sizeof(FParticleRandomSeedInstancePayload);
 			}
 		}
 
@@ -3335,6 +3356,8 @@ UParticleSystemComponent::UParticleSystemComponent(const FObjectInitializer& Obj
 	bAutoActivate = true;
 	bResetOnDetach = false;
 	OldPosition = FVector(0.0f, 0.0f, 0.0f);
+
+	RandomStream.Initialize(FApp::bUseFixedSeed ? GetFName() : NAME_None);
 
 	PartSysVelocity = FVector(0.0f, 0.0f, 0.0f);
 
@@ -6555,7 +6578,7 @@ void UParticleSystemComponent::InitializeSystem()
 
 			if( Template->bUseDelayRange )
 			{
-				const float	Rand = FMath::FRand();
+				const float	Rand = RandomStream.FRand();
 				EmitterDelay	 = Template->DelayLow + ((Template->Delay - Template->DelayLow) * Rand);
 			}
 		}
@@ -7228,8 +7251,7 @@ bool UParticleSystemComponent::GetFloatParameter(const FName InName,float& OutFl
 			}
 			else if (Param.ParamType == PSPT_ScalarRand)
 			{
-				// check(IsInGameThread()); this isn't exactly cool to call from multiple threads, but it isn't terrible.
-				OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * FMath::SRand();
+				OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * RandomStream.FRand();
 				return true;
 			}
 		}
@@ -7260,9 +7282,7 @@ bool UParticleSystemComponent::GetVectorParameter(const FName InName,FVector& Ou
 			}
 			else if (Param.ParamType == PSPT_VectorRand)
 			{
-				check(IsInGameThread());
-				FVector RandValue(FMath::SRand(), FMath::SRand(), FMath::SRand());
-				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandValue;
+				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
 		}
@@ -7292,9 +7312,7 @@ bool UParticleSystemComponent::GetAnyVectorParameter(const FName InName,FVector&
 			}
 			if (Param.ParamType == PSPT_VectorRand)
 			{
-				//check(IsInGameThread());
-				FVector RandValue(FMath::SRand(), FMath::SRand(), FMath::SRand());
-				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandValue;
+				OutVector = Param.Vector + (Param.Vector_Low - Param.Vector) * RandomStream.VRand();
 				return true;
 			}
 			if (Param.ParamType == PSPT_Scalar)
@@ -7305,8 +7323,7 @@ bool UParticleSystemComponent::GetAnyVectorParameter(const FName InName,FVector&
 			}
 			if (Param.ParamType == PSPT_ScalarRand)
 			{
-				// check(IsInGameThread()); this isn't exactly cool to call from multiple threads, but it isn't terrible.
-				float OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * FMath::SRand();
+				float OutFloat = Param.Scalar + (Param.Scalar_Low - Param.Scalar) * RandomStream.FRand();
 				OutVector = FVector(OutFloat, OutFloat, OutFloat);
 				return true;
 			}

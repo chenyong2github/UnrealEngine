@@ -12,9 +12,9 @@ public:
 
 	virtual ~FUnloadedBlueprintData() {}
 
-	virtual bool HasAnyClassFlags( uint32 InFlagsToCheck ) const override;
+	virtual bool HasAnyClassFlags(uint32 InFlagsToCheck) const override;
 
-	virtual bool HasAllClassFlags( uint32 InFlagsToCheck ) const override;
+	virtual bool HasAllClassFlags(uint32 InFlagsToCheck) const override;
 
 	virtual void SetClassFlags(uint32 InFlags) override;
 
@@ -23,6 +23,14 @@ public:
 	virtual bool IsChildOf(const UClass* InClass) const override;
 
 	virtual bool IsA(const UClass* InClass) const override;
+
+	virtual void SetNormalBlueprintType(bool bInNormalBPType) override { bNormalBlueprintType = bInNormalBPType; }
+
+	virtual bool IsNormalBlueprintType() const override { return bNormalBlueprintType; }
+
+	virtual TSharedPtr<FString> GetClassName() const override;
+
+	virtual FName GetClassPath() const override;
 
 	virtual const UClass* GetClassWithin() const override;
 
@@ -37,6 +45,9 @@ public:
 private:
 	/** Flags for the class. */
 	uint32 ClassFlags = CLASS_None;
+
+	/** Is this a normal blueprint type? */
+	bool bNormalBlueprintType;
 
 	/** The implemented interfaces for this class. */
 	TArray<FString> ImplementedInterfaces;
