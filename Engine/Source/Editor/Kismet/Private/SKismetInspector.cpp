@@ -765,6 +765,21 @@ bool SKismetInspector::IsStructViewPropertyReadOnly(const struct FPropertyAndPar
 	return false;
 }
 
+bool SKismetInspector::IsAnyParentContainerSelected(const FPropertyAndParent& PropertyAndParent) const
+{
+	for (const UProperty* CurrentProperty : PropertyAndParent.ParentProperties)
+	{
+		const UProperty* CurrentOuter = Cast<UProperty>(CurrentProperty->GetOuter());
+
+		if (CurrentOuter != nullptr && SelectedObjectProperties.Find(MakeWeakObjectPtr(const_cast<UProperty*>(CurrentOuter))))
+		{
+			return true;
+		}
+	}
+
+	return false;
+} 
+
 bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndParent ) const
 {
 	const UProperty& Property = PropertyAndParent.Property;
@@ -832,30 +847,23 @@ bool SKismetInspector::IsPropertyVisible( const FPropertyAndParent& PropertyAndP
 		// If the current property is selected, it is visible.
 		return true;
 	}
-	else if ( PropertyAndParent.ParentProperty )
+	else if ( PropertyAndParent.ParentProperties.Num() > 0 && SelectedObjectProperties.Num() > 0 )
 	{
-		const UProperty* ParentProperty = PropertyAndParent.ParentProperty;
-		const UProperty* ParentPropertyOuter = nullptr;
-		
-		if (ParentProperty)
-		{
-			ParentPropertyOuter = Cast<UProperty>(ParentProperty->GetOuter());
-		}
+		const UProperty* ParentProperty = PropertyAndParent.ParentProperties[0];
 
 		if ( SelectedObjectProperties.Find( MakeWeakObjectPtr( const_cast<UProperty*>( ParentProperty ) ) ) )
 		{
 			// If its parent is selected, it should be visible
 			return true;
 		}
-		else if ( ParentPropertyOuter && SelectedObjectProperties.Find( MakeWeakObjectPtr( const_cast<UProperty*>( ParentPropertyOuter ) ) ) )
+		else if ( IsAnyParentContainerSelected(PropertyAndParent) )
 		{
-			// If its parent is part of a container and the container property is selected, it should be visible
 			return true;
 		}
 	}
 
 
-	return !SelectedObjectProperties.Num();
+	return SelectedObjectProperties.Num() == 0;
 }
 
 void SKismetInspector::SetPropertyWindowContents(TArray<UObject*> Objects)

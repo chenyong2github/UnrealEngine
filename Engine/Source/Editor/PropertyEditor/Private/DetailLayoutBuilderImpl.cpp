@@ -626,14 +626,14 @@ bool FDetailLayoutBuilderImpl::IsPropertyVisible( TSharedRef<IPropertyHandle> Pr
 	{
 		TArray<UObject*> OuterObjects;
 		PropertyHandle->GetOuterObjects(OuterObjects);
-
-		TArray<TWeakObjectPtr<UObject> > Objects;
+		
+		TArray<TWeakObjectPtr<UObject>> Objects;
 		for (auto OuterObject : OuterObjects)
 		{
 			Objects.Add(OuterObject);
 		}
 
-		FPropertyAndParent PropertyAndParent(*PropertyHandle->GetProperty(), PropertyHandle->GetParentHandle().IsValid() ? PropertyHandle->GetParentHandle()->GetProperty() : nullptr, Objects );
+		FPropertyAndParent PropertyAndParent(PropertyHandle, Objects);
 
 		return IsPropertyVisible(PropertyAndParent);
 	}
