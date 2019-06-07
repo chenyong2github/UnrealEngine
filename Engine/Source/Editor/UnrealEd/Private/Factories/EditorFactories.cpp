@@ -3967,6 +3967,18 @@ UObject* UTextureFactory::FactoryCreateBinary
 				// Found multiple UDIM pages, so import as UDIM texture
 				// Exclude UDIM number from the name of the UE4 texture asset we create
 				TextureName = *BaseUDIMName;
+
+				// Need to rename the package to match the new texture name, since package was already created
+				// Package name will be the same as the object name, except will contain additional path information,
+				// so we take the existing package name, then extract the UDIM index in order to preserve the path
+				FString PackageName;
+				InParent->GetName(PackageName);
+
+				FString PackageUDIMName;
+				const int32 PackageUDIMIndex = ParseUDIMName(PackageName, PackageUDIMName);
+				check(PackageUDIMIndex == BaseUDIMIndex);
+				check(PackageUDIMName.EndsWith(BaseUDIMName, ESearchCase::CaseSensitive));
+				verify(InParent->Rename(*PackageUDIMName, nullptr, REN_DontCreateRedirectors));
 			}
 		}
 	}
