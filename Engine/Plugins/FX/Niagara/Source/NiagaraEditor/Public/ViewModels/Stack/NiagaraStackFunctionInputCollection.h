@@ -41,11 +41,12 @@ protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 	
 private:
-	void RefreshIssues(TArray<FName> DuplicateInputNames, TArray<FName> ValidAliasedInputNames, TArray<const UEdGraphPin*> PinsWithInvalidTypes, TArray<FStackIssue>& NewIssues);
+	void RefreshIssues(TArray<FName> DuplicateInputNames, TArray<FName> ValidAliasedInputNames, TArray<const UEdGraphPin*> PinsWithInvalidTypes, TMap<FName, UEdGraphPin*> StaticSwitchInputs, TArray<FStackIssue>& NewIssues);
 
 	void OnFunctionInputsChanged();
 
-private:
+	UNiagaraStackEntry::FStackIssueFix GetNodeRemovalFix(UEdGraphPin* PinToRemove);
+
 	struct FInputData
 	{
 		const UEdGraphPin* Pin;
