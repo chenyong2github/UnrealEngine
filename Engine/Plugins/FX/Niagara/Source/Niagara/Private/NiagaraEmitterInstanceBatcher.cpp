@@ -342,8 +342,6 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FOverlappableTicks& Ove
 void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, const FUniformBufferRHIParamRef ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FUniformBufferRHIParamRef SceneTexturesUniformBuffer)
 {
 	ExecuteAll(RHICmdList, ViewUniformBuffer);
-	// Sort buffer only after the tick, so that the sorting and rendering stay coherent.
-	SortGPUParticles(RHICmdList);
 }
 
 void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FUniformBufferRHIParamRef ViewUniformBuffer)
@@ -590,6 +588,9 @@ bool NiagaraEmitterInstanceBatcher::UsesGlobalDistanceField() const
 void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdList, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData)
 {
 	GlobalDistanceFieldParams = GlobalDistanceFieldParameterData ? *GlobalDistanceFieldParameterData : FGlobalDistanceFieldParameterData();
+
+	// Sort buffer after mesh batches are issued, before tick (which will change the GPU instance count).
+	SortGPUParticles(RHICmdList);
 }
 
 int32 NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(const FNiagaraGPUSortInfo& SortInfo)
