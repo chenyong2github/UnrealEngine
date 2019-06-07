@@ -48,12 +48,14 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				LOCTEXT("CreateFromTemplateLabel", "Create a new system from a system template"),
 				LOCTEXT("TemplateLabel", "Select a System Template"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedSystemTemplateAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SAssignNew(TemplateAssetPicker, SNiagaraTemplateAssetPicker, UNiagaraSystem::StaticClass())
 				.OnTemplateAssetActivated(this, &SNewSystemDialog::OnTemplateAssetActivated)),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateFromSelectedEmittersLabel", "Create a new system from a set of selected emitters"),
 				LOCTEXT("ProjectEmittersLabel", "Select Emitters to Add"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectEmiterAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
 				.Padding(0, 0, 0, 10)
@@ -109,11 +111,13 @@ void SNewSystemDialog::Construct(const FArguments& InArgs)
 				LOCTEXT("CreateFromOtherSystemLabel", "Copy an existing system from your project content"),
 				LOCTEXT("ProjectSystemsLabel", "Select a Project System"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker::CreateSP(this, &SNewSystemDialog::GetSelectedProjectSystemAssets),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SystemAssetPicker),
 			SNiagaraNewAssetDialog::FNiagaraNewAssetDialogOption(
 				LOCTEXT("CreateEmptyLabel", "Create an empty system with no emitters"),
 				LOCTEXT("EmptyLabel", "Empty System"),
 				SNiagaraNewAssetDialog::FOnGetSelectedAssetsFromPicker(),
+				SNiagaraNewAssetDialog::FOnSelectionConfirmed(),
 				SNew(SBox)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
