@@ -186,6 +186,16 @@ private:
 	/** Helper function to open the selected graph */
 	void OpenGraph(FDocumentTracker::EOpenDocumentCause InCause);
 
+	/**
+	* Check if the override of a given function is most likely desired as a blueprint function 
+	* or as an event. 
+	* 
+	* @param OverrideFunc	Desired function to override
+	* 
+	* @return	True if the function is desired as a function, false if desired as an event
+	*/
+	bool IsImplementationDesiredAsFunction(const UFunction* OverrideFunc) const;
+
 	/** Callbacks for commands */
 	void OnOpenGraph();
 	void OnOpenGraphInNewTab();

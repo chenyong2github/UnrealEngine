@@ -2106,7 +2106,7 @@ void SMyBlueprint::ImplementFunction(FEdGraphSchemaAction_K2Graph* GraphAction)
 	// Some types of blueprints don't have an event graph (IE gameplay ability blueprints), in that case just make a new graph, even
 	// for events:
 	UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(GetBlueprintObj());
-	if (UEdGraphSchema_K2::FunctionCanBePlacedAsEvent(OverrideFunc) && EventGraph)
+	if (UEdGraphSchema_K2::FunctionCanBePlacedAsEvent(OverrideFunc) && !IsImplementationDesiredAsFunction(OverrideFunc) && EventGraph)
 	{
 		// Add to event graph
 		FName EventName = OverrideFunc->GetFName();
@@ -2141,6 +2141,27 @@ void SMyBlueprint::ImplementFunction(FEdGraphSchemaAction_K2Graph* GraphAction)
 		FBlueprintEditorUtils::AddFunctionGraph(GetBlueprintObj(), NewGraph, /*bIsUserCreated=*/ false, OverrideFuncClass);
 		BlueprintEditorPtr.Pin()->OpenDocument(NewGraph, FDocumentTracker::OpenNewDocument);
 	}
+}
+
+bool SMyBlueprint::IsImplementationDesiredAsFunction(const UFunction* OverrideFunc) const
+{	
+	// If the original function was created in a parent blueprint, then prefer a BP function
+	if (OverrideFunc)
+	{
+		FName OverrideName = *OverrideFunc->GetName();
+		TSet<FName> GraphNames;
+		FBlueprintEditorUtils::GetAllGraphNames(GetBlueprintObj(), GraphNames);
+		for (const FName & Name : GraphNames)
+		{
+			if (Name == OverrideName)
+			{
+				return true;
+			}
+		}
+	}
+	
+	// Otherwise, we would prefer an event
+	return false;
 }
 
 void SMyBlueprint::OnFindReference()
