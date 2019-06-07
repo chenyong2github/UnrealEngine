@@ -1242,6 +1242,7 @@ namespace UnrealBuildTool
 			{
 				DirectoryItem ModuleDirectoryItem = DirectoryItem.GetItemByDirectoryReference(Dir);
 				FindInputFilesFromDirectoryRecursive(ModuleDirectoryItem, ExcludedNames, SourceDirectories, Makefile.DirectoryToSourceFiles, InputFiles);
+				Makefile.SourceDirectories.Add(ModuleDirectoryItem);
 			}
 
 			return InputFiles;
