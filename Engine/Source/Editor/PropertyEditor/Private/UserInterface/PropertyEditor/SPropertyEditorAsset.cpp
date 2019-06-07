@@ -1042,13 +1042,6 @@ void SPropertyEditorAsset::OnBrowse()
 	FObjectOrAssetData Value;
 	GetValue( Value );
 
-	// Try loading owning object
-	if (Value.Object == nullptr && Value.ObjectPath.IsValid())
-	{
-		FSoftObjectPath MapObjectPath = FSoftObjectPath(Value.ObjectPath.GetAssetPathName(), FString());
-		MapObjectPath.TryLoad();
-	}
-
 	if(PropertyEditor.IsValid() && Value.Object)
 	{
 		// This code only works on loaded objects
