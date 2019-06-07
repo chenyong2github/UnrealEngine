@@ -4264,6 +4264,8 @@ bool FAudioDevice::RemoveVirtualLoop(FActiveSound& InActiveSound)
 
 	if (FAudioVirtualLoop* VirtualLoop = VirtualLoops.Find(&InActiveSound))
 	{
+		check(InActiveSound.bIsStopping);
+
 		const uint64 ComponentID = InActiveSound.GetAudioComponentID();
 		if (ComponentID > 0)
 		{
@@ -4394,7 +4396,11 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 			AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
 		}
 
-		if (!VirtualLoops.Contains(SoundToStop))
+		if (VirtualLoops.Contains(SoundToStop))
+		{
+			SoundToStop->bIsStopping = true;
+		}
+		else
 		{
 			ConcurrencyManager.RemoveActiveSound(*SoundToStop);
 		}
@@ -5737,20 +5743,12 @@ void FAudioDevice::UpdateVirtualLoops()
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
 			}
-
-			// If set to fade out and set to play when silent, add to pending stop list.
-			if (ActiveSound.bFadingOut)
-			{
-				AddSoundToStop(&ActiveSound);
-			}
 		}
 
 		for (FAudioVirtualLoop& RetriggerLoop : VirtualLoopsToRetrigger)
 		{
 			RetriggerVirtualLoop(RetriggerLoop);
 		}
-
-		VirtualLoopsToRetrigger.Reset();
 	}
 
 	// if !FAudioVirtualLoop::IsEnabled(), attempt to realize/re-trigger

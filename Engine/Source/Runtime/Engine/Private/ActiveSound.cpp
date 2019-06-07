@@ -125,6 +125,8 @@ FActiveSound::~FActiveSound()
 
 FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundToCopy, FAudioDevice& InAudioDevice)
 {
+	check(!InActiveSoundToCopy.bIsStopping);
+
 	FActiveSound* ActiveSound = new FActiveSound(InActiveSoundToCopy);
 
 	ActiveSound->bAsyncOcclusionPending = false;
