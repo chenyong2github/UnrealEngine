@@ -398,7 +398,7 @@ UNiagaraEmitter* UNiagaraEmitter::CreateAsDuplicate(const UNiagaraEmitter& InEmi
 	NewEmitter->Parent = InEmitterToDuplicate.Parent;
 	if (InEmitterToDuplicate.ParentAtLastMerge != nullptr)
 	{
-		NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>StaticDuplicateObject(InEmitterToDuplicate.ParentAtLastMerge, NewEmitter);
+		NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(InEmitterToDuplicate.ParentAtLastMerge, NewEmitter));
 		NewEmitter->ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
 	}
 	NewEmitter->SetUniqueEmitterName(InDuplicateName.ToString());
