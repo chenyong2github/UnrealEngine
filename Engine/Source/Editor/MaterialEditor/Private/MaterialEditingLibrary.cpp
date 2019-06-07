@@ -26,6 +26,7 @@
 #include "EditorSupportDelegates.h"
 #include "Misc/RuntimeErrors.h"
 #include "SceneTypes.h"
+#include "AssetRegistryModule.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialEditingLibrary, Warning, All);
@@ -964,5 +965,27 @@ void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* 
 		// update the world's viewports
 		FEditorDelegates::RefreshEditor.Broadcast();
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
+	}
+}
+
+void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< TSoftObjectPtr<UMaterialInstance> >& ChildInstances)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	FAssetData ParentData = FAssetData(Parent);
+	TArray<FAssetData> AssetList;
+	TMultiMap<FName, FString> TagsAndValues;
+	FString ParentNameString = ParentData.GetExportTextName();
+	TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent), ParentNameString);
+	AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
+	
+	for (const FAssetData& MatInstRef : AssetList)
+	{
+		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MatInstRef.GetAsset()))
+		{
+			if (MaterialInstance->Parent == Parent)
+			{
+				ChildInstances.Add(MaterialInstance);
+			}
+		}
 	}
 }
