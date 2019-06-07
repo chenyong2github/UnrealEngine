@@ -968,24 +968,81 @@ void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* 
 	}
 }
 
-void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< TSoftObjectPtr<UMaterialInstance> >& ChildInstances)
+void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< FAssetData>& ChildInstances)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	FAssetData ParentData = FAssetData(Parent);
 	TArray<FAssetData> AssetList;
 	TMultiMap<FName, FString> TagsAndValues;
-	FString ParentNameString = ParentData.GetExportTextName();
+	const FString ParentNameString = FAssetData(Parent).GetExportTextName();
 	TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent), ParentNameString);
 	AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
 	
-	for (const FAssetData& MatInstRef : AssetList)
+	for (const FAssetData MatInstRef : AssetList)
 	{
-		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MatInstRef.GetAsset()))
+		ChildInstances.Add(MatInstRef);
+	}
+}
+
+void UMaterialEditingLibrary::GetScalarParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllScalarParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
 		{
-			if (MaterialInstance->Parent == Parent)
-			{
-				ChildInstances.Add(MaterialInstance);
-			}
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+void UMaterialEditingLibrary::GetVectorParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllVectorParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+void UMaterialEditingLibrary::GetTextureParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllTextureParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
+		}
+	}
+}
+
+void UMaterialEditingLibrary::GetStaticSwitchParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames)
+{
+	ParameterNames.Empty();
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllStaticSwitchParameterInfo(MaterialInfo, MaterialGuids);
+
+		for (const FMaterialParameterInfo& Info : MaterialInfo)
+		{
+			ParameterNames.Add(Info.Name);
 		}
 	}
 }

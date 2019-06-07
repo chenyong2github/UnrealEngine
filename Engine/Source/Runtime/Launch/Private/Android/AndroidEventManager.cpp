@@ -130,8 +130,9 @@ void FAppEventManager::Tick()
 					}
 					else
 					{
-						FAndroidAppEntry::DestroyWindow();
-						FAndroidWindow::SetHardwareWindow(NULL);
+						//FAndroidAppEntry::DestroyWindow();
+						//FAndroidWindow::SetHardwareWindow(NULL);
+						bDestroyWindow = true;
 					}
 				}
 			}

@@ -42,6 +42,11 @@ void UMovieSceneImagePlateTrack::RemoveSection(UMovieSceneSection& Section)
 	Sections.Remove(&Section);
 }
 
+void UMovieSceneImagePlateTrack::RemoveSectionAt(int32 SectionIndex)
+{
+	Sections.RemoveAt(SectionIndex);
+}
+
 FMovieSceneEvalTemplatePtr UMovieSceneImagePlateTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
 	return FMovieSceneImagePlateSectionTemplate(*CastChecked<const UMovieSceneImagePlateSection>(&InSection), *this);

@@ -289,7 +289,7 @@ private:
 	// ----------------
 
 public:
-	void UpdateViewMatrix(const FVector& ViewLocation, const FRotator& ViewRotation);
+	ENGINE_API void UpdateViewMatrix(const FVector& ViewLocation, const FRotator& ViewRotation);
 
 	void UpdatePlanarReflectionViewMatrix(const FSceneView& SourceView, const FMirrorMatrix& MirrorMatrix);
 
@@ -851,6 +851,7 @@ public:
 	FQuat		BaseHmdOrientation;
 	FVector		BaseHmdLocation;
 	float		WorldToMetersScale;
+	TOptional<FTransform> PreviousViewTransform;
 
 	// normally the same as ViewMatrices unless "r.Shadow.FreezeCamera" is activated
 	FViewMatrices ShadowViewMatrices;

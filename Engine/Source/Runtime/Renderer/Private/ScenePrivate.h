@@ -973,8 +973,8 @@ public:
 	// Is DOFHistoryRT2 set from DepthOfField?
 	bool bDOFHistory2;
 
-	// True when Sequencer has paused
-	bool bSequencerIsPaused;
+	// Sequencer state for view management
+	ESequencerState SequencerState;
 
 	FTemporalLODState TemporalLODState;
 
@@ -1470,14 +1470,14 @@ public:
 
 	virtual SIZE_T GetSizeBytes() const override;
 
-	virtual void SetSequencerState(const bool bIsPaused) override
+	virtual void SetSequencerState(ESequencerState InSequencerState) override
 	{
-		bSequencerIsPaused = bIsPaused;
+		SequencerState = InSequencerState;
 	}
 
-	virtual bool GetSequencerState() override
+	virtual ESequencerState GetSequencerState() override
 	{
-		return bSequencerIsPaused;
+		return SequencerState;
 	}
 
 	/** Information about visibility/occlusion states in past frames for individual primitives. */
@@ -1882,6 +1882,7 @@ public:
 
 	/** Pending operations on the object buffers to be processed next frame. */
 	TArray<FPrimitiveSceneInfo*> PendingAddOperations;
+	TArray<FPrimitiveSceneInfo*> PendingThrottledOperations;
 	TSet<FPrimitiveSceneInfo*> PendingUpdateOperations;
 	TArray<FPrimitiveRemoveInfo> PendingRemoveOperations;
 	TArray<FVector4> PrimitiveModifiedBounds[GDF_Num];
@@ -2225,6 +2226,19 @@ public:
 		if (VelocityData)
 		{
 			VelocityData->PrimitiveSceneInfo = nullptr;
+		}
+	}
+
+	/** 
+	 * Overrides a primitive's previous LocalToWorld matrix for this frame only
+	 */
+	void OverridePreviousTransform(FPrimitiveComponentId PrimitiveComponentId, const FMatrix& PreviousLocalToWorld)
+	{
+		FComponentVelocityData* VelocityData = ComponentData.Find(PrimitiveComponentId);
+		if (VelocityData)
+		{
+			VelocityData->PreviousLocalToWorld = PreviousLocalToWorld;
+			VelocityData->bPreviousLocalToWorldValid = true;
 		}
 	}
 

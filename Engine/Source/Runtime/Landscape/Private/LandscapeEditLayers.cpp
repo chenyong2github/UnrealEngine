@@ -2632,11 +2632,11 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 
 		FIntPoint MinExtend;
 		FIntPoint MaxExtend;
-
 		if (!Info->GetLandscapeExtent(MinExtend.X, MinExtend.Y, MaxExtend.X, MaxExtend.Y))
 		{
 			return 0;
 		}
+		const FIntPoint LandscapeSize = MaxExtend - MinExtend;
 
 		// Use to compute TopLeft Component per Heightmap
 		struct FHeightmapTopLeft
@@ -2743,13 +2743,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 						continue;
 					}
 
-					if (!Brush.IsInitialized())
-					{
-						Brush.Initialize(GetBoundingRect(), FIntPoint(CombinedHeightmapNonAtlasRT->SizeX, CombinedHeightmapNonAtlasRT->SizeY));
-					}
-
-					UTextureRenderTarget2D* BrushOutputNonAtlasRT = Brush.Render(true, CombinedHeightmapNonAtlasRT);
-
+					UTextureRenderTarget2D* BrushOutputNonAtlasRT = Brush.Render(true, LandscapeSize, CombinedHeightmapNonAtlasRT);
 					if (BrushOutputNonAtlasRT == nullptr || BrushOutputNonAtlasRT->SizeX != CombinedHeightmapNonAtlasRT->SizeX || BrushOutputNonAtlasRT->SizeY != CombinedHeightmapNonAtlasRT->SizeY)
 					{
 						continue;
@@ -3433,6 +3427,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 		{
 			return 0;
 		}
+		const FIntPoint LandscapeSize = MaxExtend - MinExtend;
 		
 		check(WeightmapRTList.Num() > 0);
 
@@ -3600,13 +3595,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 
 							BrushRequiredAllocations.AddUnique(LayerInfoObj);
 
-							if (!Brush.IsInitialized())
-							{
-								Brush.Initialize(GetBoundingRect(), FIntPoint(LandscapeScratchRT3->SizeX, LandscapeScratchRT3->SizeY));
-							}
-
-							UTextureRenderTarget2D* BrushOutputRT = Brush.Render(false, LandscapeScratchRT3);
-
+							UTextureRenderTarget2D* BrushOutputRT = Brush.Render(false, LandscapeSize, LandscapeScratchRT3);
 							if (BrushOutputRT == nullptr || BrushOutputRT->SizeX != LandscapeScratchRT3->SizeX || BrushOutputRT->SizeY != LandscapeScratchRT3->SizeY)
 							{
 								continue;
@@ -5504,6 +5493,39 @@ TArray<ALandscapeBlueprintCustomBrush*> ALandscape::GetBrushesForLayer(int32 InL
 		}
 	}
 	return Brushes;
+}
+
+UTextureRenderTarget2D* FLandscapeLayerBrush::Render(bool InIsHeightmap, const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget)
+{
+	if (Initialize(InLandscapeSize, InLandscapeRenderTarget))
+	{
+		TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
+		return BPCustomBrush->Render(InIsHeightmap, InLandscapeRenderTarget);
+	}
+	return nullptr;
+}
+
+bool FLandscapeLayerBrush::Initialize(const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget)
+{
+	if (BPCustomBrush && InLandscapeRenderTarget)
+	{
+		if (ALandscape* Landscape = BPCustomBrush->GetOwningLandscape())
+		{
+			const FIntPoint NewLandscapeRenderTargetSize = FIntPoint(InLandscapeRenderTarget->SizeX, InLandscapeRenderTarget->SizeY);
+			const FTransform NewLandscapeTransform = Landscape->GetTransform();
+			if (!LandscapeTransform.Equals(NewLandscapeTransform) || (LandscapeSize != InLandscapeSize) || LandscapeRenderTargetSize != NewLandscapeRenderTargetSize)
+			{
+				LandscapeTransform = NewLandscapeTransform;
+				LandscapeRenderTargetSize = NewLandscapeRenderTargetSize;
+				LandscapeSize = InLandscapeSize;
+				
+				TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
+				BPCustomBrush->Initialize(LandscapeTransform, LandscapeSize, LandscapeRenderTargetSize);
+			}
+			return true;
+		}
+	}
+	return false;
 }
 
 #endif // WITH_EDITOR

@@ -216,10 +216,10 @@ FTransform ComputeWorldSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshC
 	return SpaceBases[BoneIndex] * SkeletalMeshComponent.GetComponentToWorld();
 }
 
-FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, int32 BoneIndex)
+FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& LocalTransforms, int32 BoneIndex)
 {
 	const FReferenceSkeleton& RefSkeleton = SkeletalMeshComponent.SkeletalMesh->RefSkeleton;
-	FTransform AccumulatedDelta = SkeletalMeshComponent.BoneSpaceTransforms[BoneIndex];
+	FTransform AccumulatedDelta = LocalTransforms[BoneIndex];
 	int32 CurBoneIdx = BoneIndex;
 	while ((CurBoneIdx = RefSkeleton.GetParentIndex(CurBoneIdx)) != INDEX_NONE)
 	{
@@ -246,15 +246,15 @@ FTransform ComputeLocalSpaceTargetTM(const USkeletalMeshComponent& SkeletalMeshC
 			}
 		}
 
-		AccumulatedDelta = AccumulatedDelta * SkeletalMeshComponent.BoneSpaceTransforms[CurBoneIdx];
+		AccumulatedDelta = AccumulatedDelta * LocalTransforms[CurBoneIdx];
 	}
 
 	return FTransform::Identity;
 }
 
-FTransform ComputeTargetTM(const FPhysicalAnimationData& PhysAnimData, const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& SpaceBases, int32 BoneIndex)
+FTransform ComputeTargetTM(const FPhysicalAnimationData& PhysAnimData, const USkeletalMeshComponent& SkeletalMeshComponent, const UPhysicsAsset& PhysAsset, const TArray<FTransform>& LocalTransforms, const TArray<FTransform>& SpaceBases, int32 BoneIndex)
 {
-	return PhysAnimData.bIsLocalSimulation ? ComputeLocalSpaceTargetTM(SkeletalMeshComponent, PhysAsset, BoneIndex) : ComputeWorldSpaceTargetTM(SkeletalMeshComponent, SpaceBases, BoneIndex);
+	return PhysAnimData.bIsLocalSimulation ? ComputeLocalSpaceTargetTM(SkeletalMeshComponent, PhysAsset, LocalTransforms, BoneIndex) : ComputeWorldSpaceTargetTM(SkeletalMeshComponent, SpaceBases, BoneIndex);
 }
 
 void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
@@ -271,6 +271,7 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 #if WITH_PHYSX
 		FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 		{
+			TArray<FTransform> LocalTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
 			for (int32 DataIdx = 0; DataIdx < DriveData.Num(); ++DataIdx)
 			{
 				const FPhysicalAnimationData& PhysAnimData = DriveData[DataIdx];
@@ -280,7 +281,7 @@ void UPhysicalAnimationComponent::UpdateTargetActors(ETeleportType TeleportType)
 					const int32 BoneIdx = RefSkeleton.FindBoneIndex(PhysAnimData.BodyName);
 					if (BoneIdx != INDEX_NONE)	//It's possible the skeletal mesh has changed out from under us. In that case we should probably reset, but at the very least don't do work on non-existent bones
 					{
-						const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, SpaceBases, BoneIdx);
+						const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, LocalTransforms, SpaceBases, BoneIdx);
 						TargetActor->setKinematicTarget(U2PTransform(TargetTM));	//TODO: this doesn't work with sub-stepping!
 						
 						if(TeleportType == ETeleportType::TeleportPhysics)
@@ -338,6 +339,8 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngine()
 #if WITH_PHYSX
 		FPhysicsCommand::ExecuteWrite(SkeletalMeshComponent, [&]()
 		{
+			TArray<FTransform> LocalTransforms = SkeletalMeshComponent->GetBoneSpaceTransforms();
+
 			for (int32 DataIdx = 0; DataIdx < DriveData.Num(); ++DataIdx)
 			{
 				bool bNewConstraint = false;
@@ -368,7 +371,7 @@ void UPhysicalAnimationComponent::UpdatePhysicsEngine()
 							ConstraintInstance->SetRefFrame(EConstraintFrame::Frame1, FTransform::Identity);
 							ConstraintInstance->SetRefFrame(EConstraintFrame::Frame2, FTransform::Identity);
 
-							const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, SpaceBases, ChildBody->InstanceBoneIndex);
+							const FTransform TargetTM = ComputeTargetTM(PhysAnimData, *SkeletalMeshComponent, *PhysAsset, LocalTransforms, SpaceBases, ChildBody->InstanceBoneIndex);
 
 							// Create kinematic actor we are going to create joint with. This will be moved around with calls to SetLocation/SetRotation.
 							PxScene* PScene = PRigidActor->getScene();

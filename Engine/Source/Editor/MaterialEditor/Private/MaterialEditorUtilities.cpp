@@ -32,6 +32,7 @@
 #include "MaterialUtilities.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Templates/UniquePtr.h"
+#include "Materials/MaterialFunctionInstance.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditorUtilities"
 
@@ -715,6 +716,72 @@ void FMaterialEditorUtilities::BuildTextureStreamingData(UMaterialInterface* Upd
 			ExportErrors.OutputToLog();
 
 			CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+		}
+	}
+}
+
+
+void FMaterialEditorUtilities::OnOpenMaterial(FAssetData InMaterial)
+{
+	UMaterialInterface* MaterialInterface = Cast<UMaterialInterface>(InMaterial.GetAsset());
+	OpenSelectedParentEditor(MaterialInterface);
+}
+
+void FMaterialEditorUtilities::OnOpenFunction(FAssetData InFunction)
+{
+	UMaterialFunctionInterface* MaterialFunctionInterface = Cast<UMaterialFunctionInterface>(InFunction.GetAsset());
+	OpenSelectedParentEditor(MaterialFunctionInterface);
+}
+
+void FMaterialEditorUtilities::OnShowMaterialInContentBrowser(FAssetData InMaterial)
+{
+	TArray<UObject*> SyncedObject;
+	SyncedObject.Add(InMaterial.GetAsset());
+	GEditor->SyncBrowserToObjects(SyncedObject);
+}
+
+void FMaterialEditorUtilities::OnShowFunctionInContentBrowser(FAssetData InFunction)
+{
+	TArray<UObject*> SyncedObject;
+	SyncedObject.Add(InFunction.GetAsset());
+	GEditor->SyncBrowserToObjects(SyncedObject);
+}
+
+void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialInterface* InMaterialInterface)
+{
+	// See if its a material or material instance constant. 
+	if (ensure(InMaterialInterface))
+	{
+		if (InMaterialInterface->IsA(UMaterial::StaticClass()))
+		{
+			// Show material editor
+			UMaterial* Material = Cast<UMaterial>(InMaterialInterface);
+			FAssetEditorManager::Get().OpenEditorForAsset(Material);
+		}
+		else if (InMaterialInterface->IsA(UMaterialInstance::StaticClass()))
+		{
+			// Show material instance editor
+			UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(InMaterialInterface);
+			FAssetEditorManager::Get().OpenEditorForAsset(MaterialInstance);
+		}
+	}
+}
+
+void FMaterialEditorUtilities::OpenSelectedParentEditor(UMaterialFunctionInterface* InMaterialFunction)
+{
+	// See if its a material or material instance constant.  
+	if (ensure(InMaterialFunction) )
+	{
+		if (InMaterialFunction->IsA(UMaterialFunctionInstance::StaticClass()))
+		{
+			// Show function instance editor
+			UMaterialFunctionInstance* FunctionInstance = Cast<UMaterialFunctionInstance>(InMaterialFunction);
+			FAssetEditorManager::Get().OpenEditorForAsset(FunctionInstance);
+		}
+		else
+		{
+			// Show function editor
+			FAssetEditorManager::Get().OpenEditorForAsset(InMaterialFunction);
 		}
 	}
 }

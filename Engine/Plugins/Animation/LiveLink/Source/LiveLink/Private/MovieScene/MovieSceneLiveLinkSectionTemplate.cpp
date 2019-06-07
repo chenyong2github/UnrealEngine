@@ -154,7 +154,7 @@ bool FMovieSceneLiveLinkTemplateData::GetLiveLinkFrameArray(const FFrameTime& Fr
 						{
 							CurveElement.CurveValue = FloatChannels[ChannelIndex++].GetValues()[Index].Value;
 							FrameData.CurveElements.Add(CurveElement);
-						}
+						}	
 						LiveLinkFrameDataArray.Add(FrameData);
 					}
 				}

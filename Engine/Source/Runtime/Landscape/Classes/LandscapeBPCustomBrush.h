@@ -31,9 +31,6 @@ private:
 	bool bIsCommited;
 
 	UPROPERTY(Transient)
-	bool bIsInitialized;
-
-	UPROPERTY(Transient)
 	bool bIsVisible;
 #endif
 public:
@@ -49,7 +46,7 @@ public:
 	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult);
 
 	UFUNCTION(BlueprintImplementableEvent)
-	void Initialize(const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
+	void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
 
 	UFUNCTION(BlueprintCallable, Category="Landscape")
 	void RequestLandscapeUpdate();
@@ -57,9 +54,6 @@ public:
 #if WITH_EDITOR
 	void SetCommitState(bool InCommited);
 	bool IsCommited() const { return bIsCommited; }
-
-	bool IsInitialized() const { return bIsInitialized; }
-	void SetIsInitialized(bool InIsInitialized);
 
 	bool IsVisible() const { return bIsVisible; }
 	void SetIsVisible(bool bInIsVisible);

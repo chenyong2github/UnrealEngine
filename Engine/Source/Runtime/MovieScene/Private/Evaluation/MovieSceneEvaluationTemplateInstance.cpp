@@ -8,6 +8,8 @@
 #include "Compilation/MovieSceneCompiler.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Compilation/MovieSceneEvaluationTemplateGenerator.h"
+#include "Evaluation/MovieSceneMotionVectorSimulation.h"
+#include "Rendering/MotionVectorSimulation.h"
 
 #include "IMovieSceneModule.h"
 #include "Algo/Sort.h"
@@ -193,6 +195,11 @@ void FMovieSceneRootEvaluationTemplateInstance::Initialize(UMovieSceneSequence& 
 	RootTemplate = &TemplateStore->AccessTemplate(InRootSequence);
 
 	RootID = MovieSceneSequenceID::Root;
+
+	if (FMotionVectorSimulation::Get().IsEnabled() && !Player.MotionVectorSimulation.IsValid())
+	{
+		Player.MotionVectorSimulation = FMovieSceneMotionVectorSimulation();
+	}
 }
 
 void FMovieSceneRootEvaluationTemplateInstance::Finish(IMovieScenePlayer& Player)
@@ -203,6 +210,7 @@ void FMovieSceneRootEvaluationTemplateInstance::Finish(IMovieScenePlayer& Player
 	CallSetupTearDown(Player);
 
 	ResetDirectorInstances();
+	Player.MotionVectorSimulation.Reset();
 }
 
 void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Context, IMovieScenePlayer& Player, FMovieSceneSequenceID InOverrideRootID)
@@ -257,6 +265,11 @@ void FMovieSceneRootEvaluationTemplateInstance::Evaluate(FMovieSceneContext Cont
 
 	// Process execution tokens
 	ExecutionTokens.Apply(Context, Player);
+
+	if (Player.MotionVectorSimulation.IsValid())
+	{
+		Player.MotionVectorSimulation->Apply(Player);
+	}
 }
 
 FMovieSceneEvaluationPtrCache FMovieSceneRootEvaluationTemplateInstance::ConstructEvaluationPtrCacheForFrame(UMovieSceneSequence* OverrideRootSequence)

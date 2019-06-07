@@ -525,6 +525,8 @@ public:
 	virtual bool IsReadyForOwnerToAutoDestroy() const override;
 	//~ End ActorComponent Interface.
 
+	void AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut);
+
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the SoundAttenuation asset or overrides set. */
 	const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
 

@@ -90,6 +90,10 @@ struct FLandscapeLayerBrush
 
 	FLandscapeLayerBrush()
 		: BPCustomBrush(nullptr)
+#if WITH_EDITOR
+		, LandscapeSize(MAX_int32, MAX_int32)
+		, LandscapeRenderTargetSize(MAX_int32, MAX_int32)
+#endif
 	{}
 
 	FLandscapeLayerBrush(ALandscapeBlueprintCustomBrush* InBrush)
@@ -97,36 +101,21 @@ struct FLandscapeLayerBrush
 	{}
 
 #if WITH_EDITOR
-	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult)
-	{
-		if (BPCustomBrush != nullptr)
-		{
-			TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-			return BPCustomBrush->Render(InIsHeightmap, InCombinedResult);
-		}
-
-		return nullptr;
-	}
-
-	bool IsInitialized() const 
-	{
-		return BPCustomBrush != nullptr ? BPCustomBrush->IsInitialized() : false;
-	}
-
-	void Initialize(const FIntRect& InBoundRect, const FIntPoint& InLandscapeRenderTargetSize)
-	{
-		if (BPCustomBrush != nullptr)
-		{
-			TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-			FIntPoint LandscapeSize = InBoundRect.Max - InBoundRect.Min;
-			BPCustomBrush->Initialize(LandscapeSize, InLandscapeRenderTargetSize);
-			BPCustomBrush->SetIsInitialized(true);
-		}
-	}
+	UTextureRenderTarget2D* Render(bool InIsHeightmap, const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget);
 #endif
 
 	UPROPERTY()
 	ALandscapeBlueprintCustomBrush* BPCustomBrush;
+
+private:
+
+#if WITH_EDITOR
+	bool Initialize(const FIntPoint& LandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget);
+
+	FTransform LandscapeTransform;
+	FIntPoint LandscapeSize;
+	FIntPoint LandscapeRenderTargetSize;
+#endif
 };
 
 UENUM()

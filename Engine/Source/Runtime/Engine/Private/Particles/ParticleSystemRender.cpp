@@ -5496,8 +5496,8 @@ void FDynamicTrailsEmitterData::Init(bool bInSelected)
 {
 	bSelected = bInSelected;
 
-	check(SourcePointer->ActiveParticleCount < (16 * 1024));	// TTP #33330
-	check(SourcePointer->ParticleStride < (2 * 1024));			// TTP #33330
+	ensure(SourcePointer->ActiveParticleCount < (16 * 1024));	// TTP #33330
+	ensure(SourcePointer->ParticleStride < (2 * 1024));			// TTP #33330
 
 	MaterialResource = SourcePointer->MaterialInterface->GetRenderProxy();
 

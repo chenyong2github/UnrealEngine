@@ -305,6 +305,18 @@ private:
 	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
 public:
+	enum class EFadeOut : uint8
+	{
+		// Sound is not currently fading out
+		None,
+
+		// Client code (eg. AudioComponent) is requesting a fade out
+		User,
+
+		// The concurrency system is requesting a fade due to voice stealing
+		Concurrency
+	};
+
 	/** Whether or not the sound has checked if it was occluded already. Used to initialize a sound as occluded and bypassing occlusion interpolation. */
 	uint8 bHasCheckedOcclusion:1;
 
@@ -316,9 +328,6 @@ public:
 
 	/** Whether the wave instances should remain active if they're dropped by the prioritization code. Useful for e.g. vehicle sounds that shouldn't cut out. */
 	uint8 bShouldRemainActiveIfDropped:1;
-
-	/** Is the audio component currently fading out */
-	uint8 bFadingOut:1;
 
 	/** Whether the current component has finished playing */
 	uint8 bFinished:1;
@@ -403,8 +412,10 @@ public:
 	/** Whether or not the active sound is stopping. */
 	uint8 bIsStopping:1;
 
-public:
 	uint8 UserIndex;
+
+	/** Type of fade out currently being applied */
+	EFadeOut FadeOut;
 
 	/** whether we were occluded the last time we checked */
 	FThreadSafeBool bIsOccluded;
@@ -594,6 +605,8 @@ public:
 
 	/** Gets the sound concurrency handles applicable to this sound instance*/
 	void GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const;
+
+	bool GetConcurrencyFadeDuration(float& OutFadeDuration) const;
 
 	/** Delegate callback function when an async occlusion trace completes */
 	static void OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);

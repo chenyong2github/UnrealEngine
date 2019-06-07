@@ -134,10 +134,19 @@ struct FLiveLinkTransformKeys
 		FloatChannels[StartIndex++].AutoSetTangents();
 	}
 
+	//returns rotation as -180 to 180.
+	FVector GetNormalizedRotation(float X, float Y, float Z)
+	{
+		FQuat Quat(FRotator(Y, Z, X));
+		FVector Rot = Quat.Euler();
+		return Rot;
+	}
+
+
 	//This function is the one that's called when recording live link incrementally. We move the values over from our saved 
 	//Location, Rotation and Scale buffers into the specified float channels and then reset our buffers, re-using it's memory 
 	//for the next iteration. We also fix any euler flips during this process, avoiding iterating over the data once again during Finalize.
-	void AppendToFloatChannelsAndReset(int32 StartIndex, TArray<FMovieSceneFloatChannel>& FloatChannels, const TArray<FFrameNumber>& Times, TOptional<FVector>& LastRotationValues)
+	void AppendToFloatChannelsAndReset(int32 StartIndex, TArray<FMovieSceneFloatChannel>& FloatChannels, const TArray<FFrameNumber>& Times)
 	{
 		if (Times.Num() > 0)
 		{
@@ -148,24 +157,47 @@ struct FLiveLinkTransformKeys
 			FloatChannels[StartIndex++].AddKeys(Times, LocationZ);
 			LocationZ.Reset();
 
+
+			FVector LastRotationValue;
 			//fix euler flips
-			if (LastRotationValues.IsSet())
+			TArrayView<const FMovieSceneFloatValue> XRotChannel = FloatChannels[StartIndex].GetValues();
+			TArrayView<const FMovieSceneFloatValue> YRotChannel = FloatChannels[StartIndex].GetValues();
+			TArrayView<const FMovieSceneFloatValue> ZRotChannel = FloatChannels[StartIndex].GetValues();
+
+			if (XRotChannel.Num() > 0)
 			{
-				FVector Val = LastRotationValues.GetValue();
-				FMath::WindRelativeAnglesDegrees(Val.X, RotationX[0].Value);
-				FMath::WindRelativeAnglesDegrees(Val.Y, RotationY[0].Value);
-				FMath::WindRelativeAnglesDegrees(Val.Z, RotationZ[0].Value);
+
+				int32 LastOne = XRotChannel.Num() - 1;
+				FVector Rotation = GetNormalizedRotation(RotationX[0].Value, RotationY[0].Value, RotationZ[0].Value);
+				RotationX[0].Value = Rotation.X;
+				RotationY[0].Value = Rotation.Y;
+				RotationZ[0].Value = Rotation.Z;
+
+				//Due winding from last one saved with the new one normalized.
+
+				FMath::WindRelativeAnglesDegrees(XRotChannel[LastOne].Value, RotationX[0].Value);
+				FMath::WindRelativeAnglesDegrees(YRotChannel[LastOne].Value, RotationY[0].Value);
+				FMath::WindRelativeAnglesDegrees(ZRotChannel[LastOne].Value, RotationZ[0].Value);
+			}
+			else
+			{
+				FVector Rotation = GetNormalizedRotation(RotationX[0].Value, RotationY[0].Value, RotationZ[0].Value);
+				RotationX[0].Value = Rotation.X;
+				RotationY[0].Value = Rotation.Y;
+				RotationZ[0].Value = Rotation.Z;
 			}
 			int32 TotalCount = Times.Num();
-			
+
 			for (int32 RotIndex = 0; RotIndex < TotalCount - 1; RotIndex++)
 			{
+				FVector Rotation = GetNormalizedRotation(RotationX[RotIndex + 1].Value, RotationY[RotIndex + 1].Value, RotationZ[RotIndex + 1].Value);
+				RotationX[RotIndex + 1].Value = Rotation.X;
+				RotationY[RotIndex + 1].Value = Rotation.Y;
+				RotationZ[RotIndex + 1].Value = Rotation.Z;
 				FMath::WindRelativeAnglesDegrees(RotationX[RotIndex].Value, RotationX[RotIndex + 1].Value);
 				FMath::WindRelativeAnglesDegrees(RotationY[RotIndex].Value, RotationY[RotIndex + 1].Value);
 				FMath::WindRelativeAnglesDegrees(RotationZ[RotIndex].Value, RotationZ[RotIndex + 1].Value);
 			}
-			FVector Vec(RotationX[TotalCount - 1].Value, RotationY[TotalCount - 1].Value, RotationZ[TotalCount - 1].Value); 
-			LastRotationValues = Vec;
 
 			FloatChannels[StartIndex++].AddKeys(Times, RotationX);
 			RotationX.Reset();
@@ -199,4 +231,5 @@ struct FLiveLinkTransformKeys
 		FloatChannels[StartIndex++].AutoSetTangents();
 
 	}
+
 };

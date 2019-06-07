@@ -66,7 +66,7 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 		return false;
 	}
 
-	if (InActiveSound.bFadingOut || InActiveSound.bIsStopping)
+	if (InActiveSound.FadeOut != FActiveSound::EFadeOut::None || InActiveSound.bIsStopping)
 	{
 		return false;
 	}
@@ -81,27 +81,16 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 	return true;
 }
 
-void FAudioVirtualLoop::CalculateUpdateInterval(bool bIsAtMaxConcurrency)
+void FAudioVirtualLoop::CalculateUpdateInterval()
 {
-	// If calculating due to being at max concurrency, set to max rate as
-	// sound will most likely be killed again on next check until concurrency
-	// is no longer full.  This limits starting and stopping of excess sounds
-	// virtualizing.
-	if (bIsAtMaxConcurrency)
-	{
-		UpdateInterval = VirtualLoopsUpdateRateMaxCVar;
-	}
-	else
-	{
-		check(ActiveSound);
-		FAudioDevice* AudioDevice = ActiveSound->AudioDevice;
-		check(AudioDevice);
+	check(ActiveSound);
+	FAudioDevice* AudioDevice = ActiveSound->AudioDevice;
+	check(AudioDevice);
 
-		const float DistanceToListener = AudioDevice->GetDistanceToNearestListener(ActiveSound->Transform.GetLocation());
-		const float DistanceRatio = (DistanceToListener - ActiveSound->MaxDistance) / FMath::Max(VirtualLoopsPerfDistanceCVar, 1.0f);
-		const float DistanceRatioClamped = FMath::Clamp(DistanceRatio, 0.0f, 1.0f);
-		UpdateInterval = FMath::Lerp(VirtualLoopsUpdateRateMinCVar, VirtualLoopsUpdateRateMaxCVar, DistanceRatioClamped);
-	}
+	const float DistanceToListener = AudioDevice->GetDistanceToNearestListener(ActiveSound->Transform.GetLocation());
+	const float DistanceRatio = (DistanceToListener - ActiveSound->MaxDistance) / FMath::Max(VirtualLoopsPerfDistanceCVar, 1.0f);
+	const float DistanceRatioClamped = FMath::Clamp(DistanceRatio, 0.0f, 1.0f);
+	UpdateInterval = FMath::Lerp(VirtualLoopsUpdateRateMinCVar, VirtualLoopsUpdateRateMaxCVar, DistanceRatioClamped);
 }
 
 FActiveSound& FAudioVirtualLoop::GetActiveSound()
