@@ -691,7 +691,7 @@ public:
 	virtual EWindowZone::Type GetWindowZoneOverride() const;
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<class FSlateAccessibleWidget> CreateAccessibleWidget();
+	virtual TSharedRef<class FSlateAccessibleWidget> CreateAccessibleWidget();
 #endif
 
 public:

@@ -788,7 +788,7 @@ public:
 	virtual bool Advanced_IsWindow() const { return true; }
 
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 	virtual void SetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) override;
 #endif
 private:
