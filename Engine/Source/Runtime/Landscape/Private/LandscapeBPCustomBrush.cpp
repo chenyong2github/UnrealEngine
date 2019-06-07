@@ -11,7 +11,6 @@ ALandscapeBlueprintCustomBrush::ALandscapeBlueprintCustomBrush(const FObjectInit
 #if WITH_EDITORONLY_DATA
 	: OwningLandscape(nullptr)
 	, bIsCommited(false)
-	, bIsInitialized(false)
 	, bIsVisible(true)
 #endif
 {
@@ -93,11 +92,6 @@ void ALandscapeBlueprintCustomBrush::SetOwningLandscape(ALandscape* InOwningLand
 ALandscape* ALandscapeBlueprintCustomBrush::GetOwningLandscape() const
 { 
 	return OwningLandscape; 
-}
-
-void ALandscapeBlueprintCustomBrush::SetIsInitialized(bool InIsInitialized)
-{
-	bIsInitialized = InIsInitialized;
 }
 
 bool ALandscapeBlueprintCustomBrush::IsAffectingWeightmapLayer(const FName& InLayerName) const
