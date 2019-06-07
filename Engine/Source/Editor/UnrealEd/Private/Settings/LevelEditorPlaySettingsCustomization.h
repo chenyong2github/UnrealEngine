@@ -380,12 +380,24 @@ protected:
 private:
 
 	// Handles selecting a common screen resolution.
-	void HandleCommonResolutionSelected(FPlayScreenResolution Resolution)
+	void HandleCommonResolutionSelected(const FPlayScreenResolution Resolution)
 	{
 		int32 Width = Resolution.Width;
 		int32 Height = Resolution.Height;
 		float ScaleFactor;
 		ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
+		// Maintain previous orientation (i.e., swap Width and Height if required)
+		int32 PreviousWidth;
+		int32 PreviousHeight;
+		if (WindowWidthProperty->GetValue(PreviousWidth) == FPropertyAccess::Success && WindowHeightProperty->GetValue(PreviousHeight) == FPropertyAccess::Success)
+		{
+			const bool bIsOrientationPreserved = (PreviousWidth < PreviousHeight) != (Width < Height);
+			if (bIsOrientationPreserved)
+			{
+				Width = Resolution.Height;
+				Height = Resolution.Width;
+			}
+		}
 
 		UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(Resolution.ProfileName, false);
 		if (DeviceProfile)

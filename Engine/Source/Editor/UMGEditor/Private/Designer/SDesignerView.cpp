@@ -335,11 +335,11 @@ void SDesignerView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepr
 
 	bShowResolutionOutlines = false;
 
+	HeightReadFromSettings = 0;
+	WidthReadFromSettings = 0;
 	SetStartupResolution();
 
 	CachedPreviewDesiredSize = FVector2D(0, 0);
-	HeightReadFromSettings = 0;
-	WidthReadFromSettings = 0;
 
 	ResolutionTextFade = FCurveSequence(0.0f, 1.0f);
 	ResolutionTextFade.Play(this->AsShared());
@@ -961,12 +961,16 @@ void SDesignerView::SetStartupResolution()
 		GConfig->SetInt(*ConfigSectionName, TEXT("PreviewWidth"), DefaultResolutionWidth, GEditorPerProjectIni);
 		PreviewWidth = DefaultResolutionWidth;
 	}
+	// Initially assign WidthReadFromSettings to PreviewWidth
+	WidthReadFromSettings = PreviewWidth;
 	// Height
 	if (!GConfig->GetInt(*ConfigSectionName, TEXT("PreviewHeight"), PreviewHeight, GEditorPerProjectIni))
 	{
 		GConfig->SetInt(*ConfigSectionName, TEXT("PreviewHeight"), DefaultResolutionHeight, GEditorPerProjectIni);
 		PreviewHeight = DefaultResolutionHeight;
 	}
+	// Initially assign HeightReadFromSettings to PreviewHeight
+	HeightReadFromSettings = PreviewHeight;
 	// Aspect Ratio
 	if (!GConfig->GetString(*ConfigSectionName, TEXT("PreviewAspectRatio"), PreviewAspectRatio, GEditorPerProjectIni))
 	{
@@ -3254,15 +3258,14 @@ FReply SDesignerView::HandleDPISettingsClicked()
 	return FReply::Handled();
 }
 
-void SDesignerView::HandleOnCommonResolutionSelected(FPlayScreenResolution InResolution)
+void SDesignerView::HandleOnCommonResolutionSelected(const FPlayScreenResolution InResolution)
 {
 	bSafeZoneFlipped = false;
 	bCanPreviewSwapAspectRatio = InResolution.bCanSwapAspectRatio;
 	WidthReadFromSettings = InResolution.Width;
 	HeightReadFromSettings = InResolution.Height;
-	// Phone/tablet resolutions can be stored in either portrait or landscape mode, and may need to be flipped
-	if (bCanPreviewSwapAspectRatio && ((!bPreviewIsPortrait && InResolution.Width < InResolution.Height) ||
-		(bPreviewIsPortrait && InResolution.Width > InResolution.Height)))
+	// Most resolutions (tablets, phones, TVs, etc.) can be stored in either portrait or landscape mode, and may need to be flipped
+	if (bCanPreviewSwapAspectRatio && (bPreviewIsPortrait != (InResolution.Width < InResolution.Height)))
 	{
 		PreviewWidth = InResolution.Height;
 		PreviewHeight = InResolution.Width;
@@ -3271,16 +3274,11 @@ void SDesignerView::HandleOnCommonResolutionSelected(FPlayScreenResolution InRes
 	{
 		PreviewWidth = InResolution.Width;
 		PreviewHeight = InResolution.Height;
-		bPreviewIsPortrait = PreviewWidth < PreviewHeight;
 	}
+	bPreviewIsPortrait = PreviewWidth < PreviewHeight;
 	PreviewAspectRatio = InResolution.AspectRatio;
 
 	PreviewOverrideName = InResolution.ProfileName;
-
-	if (!bCanPreviewSwapAspectRatio)
-	{
-		bPreviewIsPortrait = (PreviewHeight > PreviewWidth);
-	}
 
 	ScaleFactor = 1.0f;
 	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
@@ -3336,7 +3334,7 @@ void SDesignerView::HandleOnCommonResolutionSelected(FPlayScreenResolution InRes
 	ResolutionTextFade.Play(this->AsShared());
 }
 
-bool SDesignerView::HandleIsCommonResolutionSelected(FPlayScreenResolution InResolution) const
+bool SDesignerView::HandleIsCommonResolutionSelected(const FPlayScreenResolution InResolution) const
 {
 	// If we're using a custom design time size, none of the other resolutions should appear selected, even if they match.
 	if ( UUserWidget* DefaultWidget = GetDefaultWidget() )
@@ -3616,8 +3614,8 @@ FReply SDesignerView::HandleZoomToFitClicked()
 FReply SDesignerView::HandleSwapAspectRatioClicked()
 {
 	bSafeZoneFlipped = false;
-	// If in portrait
-	if (PreviewHeight > PreviewWidth)
+	// If in default orientation (portrait for table/phone, landscape for monitor/laptop/TV)
+	if ((WidthReadFromSettings < HeightReadFromSettings) == (PreviewWidth < PreviewHeight))
 	{
 		PreviewHeight = WidthReadFromSettings;
 		PreviewWidth = HeightReadFromSettings;
