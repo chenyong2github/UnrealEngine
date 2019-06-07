@@ -3038,6 +3038,12 @@ namespace OculusHMD
 			}
 			else
 			{
+				// Work around an error log that can happen when enabling stereo rendering again
+				if (NextFrameNumber == WaitFrameNumber)
+				{
+					NextFrameNumber++;
+				}
+
 				if (Settings->Flags.bPauseRendering)
 				{
 					GEngine->SetMaxFPS(0);
