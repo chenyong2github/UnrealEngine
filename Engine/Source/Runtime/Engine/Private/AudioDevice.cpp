@@ -145,6 +145,12 @@ FAutoConsoleVariableRef CVarEnableBinauralAudioForAllSpatialSounds(
 	TEXT("Toggles binaural audio rendering for all spatial sounds if binaural rendering is available.\n"),
 	ECVF_Default);
 
+static int32 DisableBinauralSpatializationCVar = 0;
+FAutoConsoleVariableRef CVarDisableBinauralSpatialization(
+	TEXT("au.DisableBinauralSpatialization"),
+	DisableBinauralSpatializationCVar,
+	TEXT("Disables binaural spatialization.\n"),
+	ECVF_Default);
 
 using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
 
@@ -184,6 +190,7 @@ FAudioDevice::FAudioDevice()
 	, PlatformAudioHeadroom(1.0f)
 	, DefaultReverbSendLevel(0.0f)
 	, bHRTFEnabledForAll_OnGameThread(false)
+	, bHRTFDisabled_OnGameThread(false)
 	, bGameWasTicking(true)
 	, bDisableAudioCaching(false)
 	, bIsAudioDeviceHardwareInitialized(false)
@@ -198,9 +205,11 @@ FAudioDevice::FAudioDevice()
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
 	, bReverbInterfaceEnabled(false)
+	, bReverbPluginBypassesMasterReverb(true)
 	, bModulationInterfaceEnabled(false)
 	, bPluginListenersInitialized(false)
 	, bHRTFEnabledForAll(false)
+	, bHRTFDisabled(false)
 	, bIsDeviceMuted(false)
 	, bIsInitialized(false)
 	, AudioClock(0.0)
@@ -351,9 +360,9 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	{
 		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
 		bReverbInterfaceEnabled = true;
+		bReverbPluginBypassesMasterReverb = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
 		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
 		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
-
 	}
 	else
 	{
@@ -1706,6 +1715,17 @@ bool FAudioDevice::IsHRTFEnabledForAll() const
 
 	check(IsInGameThread());
 	return (bHRTFEnabledForAll_OnGameThread || EnableBinauralAudioForAllSpatialSoundsCVar == 1) && IsSpatializationPluginEnabled();
+}
+
+bool FAudioDevice::IsHRTFDisabled() const
+{
+	if (IsInAudioThread())
+	{
+		return (bHRTFDisabled || DisableBinauralSpatializationCVar == 1);
+	}
+
+	check(IsInGameThread());
+	return (bHRTFDisabled_OnGameThread || DisableBinauralSpatializationCVar == 1);
 }
 
 void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
