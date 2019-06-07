@@ -4843,7 +4843,7 @@ bool UAnimSequence::CreateAnimation(USkeletalMeshComponent* MeshComponent)
 		RawAnimationData.AddZeroed(NumBones);
 		AnimationTrackNames.AddUninitialized(NumBones);
 
-		const TArray<FTransform>& BoneSpaceTransforms = MeshComponent->BoneSpaceTransforms;
+		const TArray<FTransform> BoneSpaceTransforms = MeshComponent->GetBoneSpaceTransforms();
 
 		check(BoneSpaceTransforms.Num() >= NumBones);
 

@@ -3233,6 +3233,17 @@ FText USkeletalMesh::GetSourceFileLabelFromIndex(int32 SourceFileIndex)
 }
 #endif //WITH_EDITOR
 
+
+TArray<FString> USkeletalMesh::K2_GetAllMorphTargetNames() const
+{
+	TArray<FString> Names;
+	for (UMorphTarget* MorphTarget : MorphTargets)
+	{
+		Names.Add(MorphTarget->GetFName().ToString());
+	}
+	return Names;
+}
+
 /*-----------------------------------------------------------------------------
 USkeletalMeshSocket
 -----------------------------------------------------------------------------*/
