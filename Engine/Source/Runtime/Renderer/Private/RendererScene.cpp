@@ -431,6 +431,7 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 		{
 			PendingAddOperations.Remove(InPrimitive);
 			PendingUpdateOperations.Remove(InPrimitive);
+			PendingThrottledOperations.Remove(InPrimitive);
 
 			if (InPrimitive->DistanceFieldInstanceIndices.Num() > 0)
 			{
