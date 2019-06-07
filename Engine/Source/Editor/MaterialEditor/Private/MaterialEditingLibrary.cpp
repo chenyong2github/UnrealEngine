@@ -968,24 +968,17 @@ void UMaterialEditingLibrary::UpdateMaterialInstance(UMaterialInstanceConstant* 
 	}
 }
 
-void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< TSoftObjectPtr<UMaterialInstance> >& ChildInstances)
+void UMaterialEditingLibrary::GetChildInstances(UMaterialInterface* Parent, TArray< FAssetData>& ChildInstances)
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	FAssetData ParentData = FAssetData(Parent);
 	TArray<FAssetData> AssetList;
 	TMultiMap<FName, FString> TagsAndValues;
-	FString ParentNameString = ParentData.GetExportTextName();
+	const FString ParentNameString = FAssetData(Parent).GetExportTextName();
 	TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UMaterialInstance, Parent), ParentNameString);
 	AssetRegistryModule.Get().GetAssetsByTagValues(TagsAndValues, AssetList);
 	
-	for (const FAssetData& MatInstRef : AssetList)
+	for (const FAssetData MatInstRef : AssetList)
 	{
-		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MatInstRef.GetAsset()))
-		{
-			if (MaterialInstance->Parent == Parent)
-			{
-				ChildInstances.Add(MaterialInstance);
-			}
-		}
+		ChildInstances.Add(MatInstRef);
 	}
 }
