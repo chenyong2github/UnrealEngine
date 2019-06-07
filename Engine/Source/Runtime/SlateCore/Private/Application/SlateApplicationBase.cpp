@@ -5,6 +5,9 @@
 #include "Layout/WidgetPath.h"
 #include "Application/ActiveTimerHandle.h"
 #include "Misc/ScopeLock.h"
+#if WITH_ACCESSIBILITY
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 
 /* Static initialization
@@ -25,6 +28,9 @@ FWidgetPath FHitTesting::LocateWidgetInWindow(FVector2D ScreenspaceMouseCoordina
 FSlateApplicationBase::FSlateApplicationBase()
 : Renderer()
 , HitTesting(this)
+#if WITH_ACCESSIBILITY
+, AccessibleMessageHandler(new FSlateAccessibleMessageHandler())
+#endif
 , bIsSlateAsleep(false)
 {
 

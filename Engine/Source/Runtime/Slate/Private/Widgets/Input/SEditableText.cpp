@@ -603,7 +603,7 @@ float SEditableText::UpdateAndClampVerticalScrollBar(const float InViewOffset, c
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SEditableText::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SEditableText::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleEditableText(SharedThis(this)));
 }

@@ -18,23 +18,33 @@
 @synthesize Bounds;
 @synthesize bIsVisible;
 
--(id)initWithId:(AccessibleWidgetId)InId AndParentId:(AccessibleWidgetId)InParentId
+-(id)initWithId:(AccessibleWidgetId)InId
 {
-	id UIParent = nil;
-	if (InParentId != IAccessibleWidget::InvalidAccessibleWidgetId)
-	{
-		UIParent = [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:InParentId];
-	}
-	else
-	{
-		UIParent = [IOSAppDelegate GetDelegate].IOSView;
-	}
-
-	if (self = [super initWithAccessibilityContainer:UIParent])
+	if (self = [super initWithAccessibilityContainer:[IOSAppDelegate GetDelegate].IOSView])
 	{
 		self.Id = InId;
 		self.bIsVisible = true;
 		Leaf = [[FIOSAccessibilityLeaf alloc] initWithParent:self];
+
+		// Retrieve parent ID in the background. Things probably won't work quite right until
+		// this finishes but it's better than locking up the application for a while.
+		FFunctionGraphTask::CreateAndDispatchWhenReady([InId]()
+		{
+			TSharedPtr<IAccessibleWidget> Widget = [IOSAppDelegate GetDelegate].IOSApplication->GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(InId);
+			if (Widget.IsValid())
+			{
+				TSharedPtr<IAccessibleWidget> Parent = Widget->GetParent();
+				if (Parent.IsValid())
+				{
+					const AccessibleWidgetId ParentId = Parent->GetId();
+					// All UIKit functions must be run on Main Thread
+					dispatch_async(dispatch_get_main_queue(), ^
+					{
+						[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:InId] SetParent:ParentId];
+					});
+				}
+			}
+		}, TStatId(), NULL, ENamedThreads::GameThread);
 	}
 
 	return self;
@@ -131,7 +141,7 @@
 		const TSharedPtr<IAccessibleWidget> Widget = [IOSAppDelegate GetDelegate].IOSApplication->GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(TempId);
 		if (Widget.IsValid())
 		{
-			const TSharedPtr<IAccessibleWidget> HitWidget = Widget->GetTopLevelWindow()->AsWindow()->GetChildAtPosition(X, Y);
+			const TSharedPtr<IAccessibleWidget> HitWidget = Widget->GetWindow()->AsWindow()->GetChildAtPosition(X, Y);
 			if (HitWidget.IsValid())
 			{
 				FoundId = HitWidget->GetId();

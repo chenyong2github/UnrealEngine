@@ -899,7 +899,7 @@ void FSlateApplication::SetPlatformApplication(const TSharedRef<class GenericApp
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler(CurrentApplication.ToSharedRef());
 #if WITH_ACCESSIBILITY
-	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler().ToSharedRef());
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler());
 #endif
 }
 
@@ -927,7 +927,7 @@ TSharedRef<FSlateApplication> FSlateApplication::Create(const TSharedRef<class G
 	PlatformApplication = InPlatformApplication;
 	PlatformApplication->SetMessageHandler( CurrentApplication.ToSharedRef() );
 #if WITH_ACCESSIBILITY
-	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler().ToSharedRef());
+	PlatformApplication->SetAccessibleMessageHandler(CurrentApplication->GetAccessibleMessageHandler());
 #endif
 
 	// The grid needs to know the size and coordinate system of the desktop.
@@ -981,9 +981,6 @@ FSlateApplication::FSlateApplication()
 	, bSlateWindowActive(true)
 	, Scale( 1.0f )
 	, DragTriggerDistance( 0 )
-#if WITH_ACCESSIBILITY
-	, AccessibleMessageHandler(new FSlateAccessibleMessageHandler())
-#endif
 	, CursorRadius( 0.0f )
 	, LastUserInteractionTime( 0.0 )
 	, LastUserInteractionTimeForThrottling( 0.0 )
@@ -1879,6 +1876,10 @@ void FSlateApplication::TickApplication(ESlateTickType TickType, float DeltaTime
 
 			// Draw all windows
 			DrawWindows();
+
+#if WITH_ACCESSIBILITY
+			AccessibleMessageHandler->Tick();
+#endif
 		}
 
 		PostTickEvent.Broadcast(DeltaTime);

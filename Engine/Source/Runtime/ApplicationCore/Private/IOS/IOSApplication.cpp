@@ -260,22 +260,14 @@ void FIOSApplication::OnAccessibleEventRaised(TSharedRef<IAccessibleWidget> Widg
 	const AccessibleWidgetId Id = Widget->GetId();
 	switch (Event)
 	{
-	case EAccessibleEvent::BeforeRemoveFromParent:
-		dispatch_async(dispatch_get_main_queue(), ^{
-			[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id] SetParent:IAccessibleWidget::InvalidAccessibleWidgetId];
-		});
-		break;
-	case EAccessibleEvent::AfterAddToParent:
+	case EAccessibleEvent::ParentChanged:
 	{
-		AccessibleWidgetId ParentId = IAccessibleWidget::InvalidAccessibleWidgetId;
-		TSharedPtr<IAccessibleWidget> ParentWidget = Widget->GetParent();
-		if (ParentWidget.IsValid())
-		{
-			ParentId = ParentWidget->GetId();
-		}
 		dispatch_async(dispatch_get_main_queue(), ^{
-			[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id] SetParent:ParentId];
+			[[[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id] SetParent:NewValue.GetValue<AccessibleWidgetId>()];
 		});
+		// LayoutChanged is to indicate things like "a widget became visible or hidden" while
+		// ScreenChanged is for large-scale UI changes. It can potentially take an NSString to read
+		// to the user when this happens, if we choose to support that.
 		UIAccessibilityPostNotification(UIAccessibilityLayoutChangedNotification, nil);
 		break;
 	}

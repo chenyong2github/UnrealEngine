@@ -142,9 +142,8 @@ void SWidgetSwitcher::OnArrangeChildren(const FGeometry& AllottedGeometry, FArra
 		// tree to update itself.
 		if (LastActiveWidget != ActiveSlotPtr->GetWidget())
 		{
-			SWidgetSwitcher* UnconstThis = const_cast<SWidgetSwitcher*>(this);
-			UnconstThis->LastActiveWidget = ActiveSlotPtr->GetWidget();
-			FSlateApplication::Get().GetAccessibleMessageHandler()->OnWidgetChildrenChanged(SharedThis(UnconstThis));
+			const_cast<SWidgetSwitcher*>(this)->LastActiveWidget = ActiveSlotPtr->GetWidget();
+			FSlateApplication::Get().GetAccessibleMessageHandler()->MarkDirty();
 		}
 #endif
 	}
