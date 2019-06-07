@@ -355,7 +355,7 @@ public:
 	void InitializeTool_Splines();
 	void InitializeTool_Ramp();
 	void InitializeTool_Mirror();
-	void InitializeTool_BPCustom();
+	void InitializeTool_BlueprintBrush();
 	void UpdateToolModes();
 
 	/** Destructor */
