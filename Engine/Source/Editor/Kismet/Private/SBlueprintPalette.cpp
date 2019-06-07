@@ -53,6 +53,7 @@
 #include "BlueprintEditorSettings.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "SPinTypeSelector.h"
+#include "GraphEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintPalette"
 
@@ -250,25 +251,29 @@ static void GetSubGraphIcon(FEdGraphSchemaAction_K2Graph const* const ActionIn, 
 		break;
 	case EEdGraphSchemaAction_K2Graph::Function:
 		{
-			if ( ActionIn->EdGraph == nullptr )
+			if (ActionIn->EdGraph == nullptr)
 			{
 				IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.PotentialOverrideFunction_16x"));
 				ToolTipOut = LOCTEXT("PotentialOverride_Tooltip", "Potential Override");	
 			}
 			else
 			{
-				if ( ActionIn->EdGraph->IsA(UAnimationGraph::StaticClass()) )
+				if (ActionIn->EdGraph->IsA(UAnimationGraph::StaticClass()))
 				{
 					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Animation_16x"));
 				}
 				else if (UFunction* OverrideFunc = FindField<UFunction>(BlueprintIn->ParentClass, ActionIn->FuncName))
 				{
-					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.OverrideFunction_16x"));
+					const bool bIsPureFunction = OverrideFunc && OverrideFunc->HasAnyFunctionFlags(FUNC_BlueprintPure);
+					IconOut = FEditorStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.OverridePureFunction_16x") : TEXT("GraphEditor.OverrideFunction_16x"));
 					ToolTipOut = LOCTEXT("Override_Tooltip", "Override");
 				}
 				else
 				{
-					IconOut = FEditorStyle::GetBrush(TEXT("GraphEditor.Function_16x"));
+					UFunction* Function = FindField<UFunction>(BlueprintIn->SkeletonGeneratedClass, ActionIn->FuncName);
+					const bool bIsPureFunction = Function && Function->HasAnyFunctionFlags(FUNC_BlueprintPure);
+
+					IconOut = FEditorStyle::GetBrush(bIsPureFunction ? TEXT("GraphEditor.PureFunction_16x") : TEXT("GraphEditor.Function_16x"));
 					if (ActionIn->EdGraph->IsA(UAnimationGraph::StaticClass()))
 					{
 						ToolTipOut = LOCTEXT("AnimationGraph_Tooltip", "Animation Graph");
