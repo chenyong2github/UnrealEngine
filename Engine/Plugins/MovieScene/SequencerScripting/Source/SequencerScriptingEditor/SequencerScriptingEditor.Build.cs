@@ -16,8 +16,10 @@ public class SequencerScriptingEditor : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"SequencerScriptingEditor/Private",
+                "SequencerScripting/Private",
+                "../../../../Source/Editor/UnrealEd/Private", // TODO: Fix this, for now it's needed for the fbx exporter
             }
-		);
+        );
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -27,8 +29,9 @@ public class SequencerScriptingEditor : ModuleRules
 				"MovieScene",
                 "MovieSceneTools",
                 "MovieSceneTracks",
+                "CinematicCamera",
             }
-		);
+        );
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -42,7 +45,9 @@ public class SequencerScriptingEditor : ModuleRules
 				"MovieSceneCaptureDialog",
                 "MovieSceneCapture",
                 "LevelSequence",
-			}
+				"SequencerScripting",
+                "UnrealEd",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -51,5 +56,7 @@ public class SequencerScriptingEditor : ModuleRules
 				
 			}
 		);
-	}
+        AddEngineThirdPartyPrivateStaticDependencies(Target, "FBX");
+
+    }
 }

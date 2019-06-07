@@ -297,6 +297,12 @@ public:
 	/** What sort of context menu this node summons */
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder);
 
+	/** Can this node show the add object bindings menu? */
+	virtual bool CanAddObjectBindingsMenu() const { return false; }
+
+	/** Can this node show the add tracks menu? */
+	virtual bool CanAddTracksMenu() const { return false; }
+
 	/**
 	 * @return The name of the node (for identification purposes)
 	 */

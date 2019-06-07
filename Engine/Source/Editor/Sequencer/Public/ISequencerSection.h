@@ -68,12 +68,6 @@ public:
 	 */
 	virtual TSharedRef<SWidget> GenerateSectionWidget() { return SNullWidget::NullWidget; }
 
-	UE_DEPRECATED(4.20, "Please override Sequencer::DrawKeys instead")
-	virtual const FSlateBrush* GetKeyBrush(FKeyHandle KeyHandle) const { return nullptr; }
-
-	UE_DEPRECATED(4.20, "Please override Sequencer::DrawKeys instead")
-	virtual FVector2D GetKeyBrushOrigin( FKeyHandle KeyHandle ) const { return FVector2D(0.0f, 0.0f); }
-
 	/**
 	 * Called when the section is double clicked
 	 *

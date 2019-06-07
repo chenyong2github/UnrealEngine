@@ -1468,6 +1468,15 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			SCOPE_CYCLE_COUNTER(STAT_TickTime);
 			FWorldDelegates::OnWorldPreActorTick.Broadcast(this, TickType, DeltaSeconds);
 		}
+
+		// Tick level sequence actors first
+		for (AActor* LevelSequenceActor : LevelSequenceActors)
+		{
+			if (LevelSequenceActor != nullptr)
+			{
+				LevelSequenceActor->Tick(DeltaSeconds);
+			}
+		}
 	}
 
 	for (int32 i = 0; i < LevelCollections.Num(); ++i)

@@ -38,6 +38,7 @@ UMovieSceneAudioSection::UMovieSceneAudioSection( const FObjectInitializer& Obje
 	AudioVolume_DEPRECATED = AudioDeprecatedMagicNumber;
 	bSuppressSubtitles = false;
 	bOverrideAttenuation = false;
+	BlendType = EMovieSceneBlendType::Absolute;
 
 	EvalOptions.EnableAndSetCompletionMode
 		(GetLinkerCustomVersion(FSequencerObjectVersion::GUID) < FSequencerObjectVersion::WhenFinishedDefaultsToProjectDefault ? 

@@ -40,6 +40,10 @@ void FAnimSequencerInstanceProxy::ConstructNodes()
 	FullBodyBlendNode.ResetPoses();
 	AdditiveBlendNode.ResetPoses();
 
+
+	SnapshotNode.SnapshotName = UAnimSequencerInstance::SequencerPoseName;
+
+
 	ClearSequencePlayerMap();
 }
 
@@ -53,6 +57,11 @@ void FAnimSequencerInstanceProxy::ClearSequencePlayerMap()
 	SequencerToPlayerMap.Empty();
 }
 
+void FAnimSequencerInstanceProxy::ResetPose()
+{
+	SequencerRootNode.Base.SetLinkNode(&SnapshotNode);
+	//force evaluation?
+}	
 void FAnimSequencerInstanceProxy::ResetNodes()
 {
 	FMemory::Memzero(FullBodyBlendNode.DesiredAlphas.GetData(), FullBodyBlendNode.DesiredAlphas.GetAllocatedSize());
@@ -165,3 +174,4 @@ void FAnimSequencerInstanceProxy::EnsureAnimTrack(UAnimSequenceBase* InAnimSeque
 		PlayerState->PlayerNode.OverrideAsset(InAnimSequence);
 	}
 }
+
