@@ -40,6 +40,7 @@
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "RendererModule.h"
+#include "Rendering/MotionVectorSimulation.h"
 #include "SceneViewExtension.h"
 
 const TCHAR* GShaderSourceModeDefineName[] =
@@ -731,6 +732,9 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
 		SceneRenderer->ViewFamily.SceneCaptureCompositeMode = CaptureComponent->CompositeMode;
 
+		// Ensure that the views for this scene capture reflect any simulated camera motion for this frame
+		TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(CaptureComponent);
+
 		// Process Scene View extensions for the capture component
 		{
 			for (int32 Index = 0; Index < CaptureComponent->SceneViewExtensions.Num(); ++Index)
@@ -761,6 +765,11 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 			for (FSceneView& View : SceneRenderer->Views)
 			{
+				if (PreviousTransform.IsSet())
+				{
+					View.PreviousViewTransform = PreviousTransform.GetValue();
+				}
+
 				View.bCameraCut = CaptureComponent->bCameraCutThisFrame;
 
 				if (CaptureComponent->bEnableClipPlane)

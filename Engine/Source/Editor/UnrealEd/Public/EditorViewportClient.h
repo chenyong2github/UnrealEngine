@@ -566,6 +566,11 @@ public:
 	virtual FMatrix GetWidgetCoordSystem() const;
 
 	/**
+	* @return The local coordinate system for the transform widget.
+	* For world coordiante system return the identity matrix
+	*/
+	virtual FMatrix GetLocalCoordinateSystem() const;
+	/**
 	 * Sets the coordinate system space to use
 	 */
 	virtual void SetWidgetCoordSystemSpace( ECoordSystem NewCoordSystem );
@@ -950,7 +955,7 @@ public:
 	void MarkMouseMovedSinceClick();
 
 	/** Determines whether this viewport is currently allowed to use Absolute Movement */
-	bool IsUsingAbsoluteTranslation() const;
+	bool IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation = false) const;
 
 	bool IsForcedRealtimeAudio() const { return bForceAudioRealtime; }
 

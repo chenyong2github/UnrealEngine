@@ -302,20 +302,6 @@ public:
 		return RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(PropertyTrackEditorType::CreateTrackEditor), PropertyTypes);
 	}
 
-public:
-
-	UE_DEPRECATED(4.16, "Please use RegisterTrackEditor")
-	FDelegateHandle RegisterTrackEditor_Handle(FOnCreateTrackEditor InOnCreateTrackEditor)
-	{
-		return RegisterTrackEditor(InOnCreateTrackEditor, TArrayView<FAnimatedPropertyKey>());
-	}
-	
-	UE_DEPRECATED(4.16, "Please use UnRegisterTrackEditor")
-	void UnRegisterTrackEditor_Handle(FDelegateHandle InHandle)
-	{
-		UnRegisterTrackEditor(InHandle);
-	}
-
 private:
 
 	/** Map of sequencer interfaces for movie scene channel types, keyed on channel UStruct name */

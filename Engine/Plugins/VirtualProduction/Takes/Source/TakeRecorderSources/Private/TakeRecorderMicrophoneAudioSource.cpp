@@ -39,11 +39,20 @@ void UTakeRecorderMicrophoneAudioSourceSettings::PostEditChangeProperty(FPropert
 	}
 }
 
-FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneName(ULevelSequence* InSequence) const
+FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneTrackName(ULevelSequence* InSequence) const
 {
 	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
 	{
-		return TakeMetaData->GetSlate() + TEXT("Audio");
+		return FString::Printf(TEXT("Audio_%s"), *TakeMetaData->GenerateAssetPath("{slate}"));
+	}
+	return TEXT("MicrophoneAudio");
+}
+
+FString UTakeRecorderMicrophoneAudioSourceSettings::GetSubsceneAssetName(ULevelSequence* InSequence) const
+{
+	if (UTakeMetaData* TakeMetaData = InSequence->FindMetaData<UTakeMetaData>())
+	{
+		return FString::Printf(TEXT("Audio_%s"), *TakeMetaData->GenerateAssetPath("{slate}_{take}"));
 	}
 	return TEXT("MicrophoneAudio");
 }

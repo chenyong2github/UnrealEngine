@@ -87,7 +87,4 @@ private:
 	/** Cached Key Reduction from Live Link Source Propreties*/
 	bool bReduceKeys;
 
-	/** Needed for rewinding, when we set the values we keep track of the last value set to restart the re-winding from that. */
-	TOptional<FVector> LastRotationValues;
-
 };
