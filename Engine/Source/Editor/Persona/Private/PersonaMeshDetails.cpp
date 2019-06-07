@@ -1268,21 +1268,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::CreateSkinWeightProfileMenuContent()
 			MeshDetailLayout->ForceRefreshDetails();
 		}
 	})));
-
-	// Menu entry for copying skin weights from another Skeletal Mesh
-	AddProfileMenuBuilder.AddMenuEntry(LOCTEXT("CopyOverrideLabel", "Copy Skin Weights"), LOCTEXT("CopyOverrideToolTip", "Copy Skin Weights from another Skeletal Mesh"),
-		FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([this, WeakSkeletalMeshPtr = SkeletalMeshPtr]()
-	{
-		if (USkeletalMesh* SkeletalMesh = WeakSkeletalMeshPtr.Get())
-		{
-			FScopedTransaction ScopedTransaction(LOCTEXT("CopySkinWeightProfile", "Create Skin Weight Profile with Skin Weights from another Skeletal Mesh"));
-			SkeletalMesh->Modify();
-
-			FSkinWeightProfileHelpers::CopySkinWeightProfile(SkeletalMesh);
-			MeshDetailLayout->ForceRefreshDetails();
-		}
-	})));
-
+	
 	// Add extra (sub)-menus for previously added Skin Weight Profiles
 	if (USkeletalMesh* Mesh = SkeletalMeshPtr.Get())
 	{

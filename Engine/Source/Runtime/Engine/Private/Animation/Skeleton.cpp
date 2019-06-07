@@ -1538,10 +1538,17 @@ void USkeleton::AccumulateCurveMetaData(FName CurveName, bool bMaterialSet, bool
 			if (Mapping->Exists(CurveName))
 			{
 				FCurveMetaData* CurveMetaData = GetCurveMetaData(CurveName);
+				bool bOldMaterial = CurveMetaData->Type.bMaterial;
+				bool bOldMorphtarget = CurveMetaData->Type.bMorphtarget;
 				// we don't want to undo previous flags, if it was true, we just alolw more to it. 
 				CurveMetaData->Type.bMaterial |= bMaterialSet;
 				CurveMetaData->Type.bMorphtarget |= bMorphtargetSet;
-				MarkPackageDirty();
+
+				if (bOldMaterial != CurveMetaData->Type.bMaterial 
+					|| bOldMorphtarget != CurveMetaData->Type.bMorphtarget)
+				{
+					MarkPackageDirty();
+				}
 			}
 		}
 	}

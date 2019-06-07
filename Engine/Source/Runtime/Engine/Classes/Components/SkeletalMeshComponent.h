@@ -339,9 +339,18 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Animation, meta=(ShowOnlyInnerProperties))
 	struct FSingleAnimationPlayData AnimationData;
 
-	/** Temporary array of local-space (relative to parent bone) rotation/translation for each bone. */
+	// this is explicit copy because this buffer is reused during evaluation
+	// we want to have reference and emptied during evaluation
+	TArray<FTransform> GetBoneSpaceTransforms();
+
+	/** 
+	 * Temporary array of local-space (relative to parent bone) rotation/translation for each bone. 
+	 * This property is not safe to access during evaluation, so we created wrapper.
+	 */
+	UE_DEPRECATED(4.23, "Direct access to this property is deprecated, please use GetBoneSpaceTransforms instead. We will move to private in the future.")
 	TArray<FTransform> BoneSpaceTransforms;
-	
+
+public:
 	/** Offset of the root bone from the reference pose. Used to offset bounding box. */
 	UPROPERTY(transient)
 	FVector RootBoneTranslation;
@@ -1241,6 +1250,11 @@ private:
 	 * if same curve is found
 	 **/
 	TMap<FName, float>	MorphTargetCurves;
+
+	/** 
+	 * Temporary storage for Curve UIDList of evaluating Animation 
+	 */
+	TArray<uint16> CachedCurveUIDList;
 
 public:
 	const TMap<FName, float>& GetMorphTargetCurves() const { return MorphTargetCurves;  }
