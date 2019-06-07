@@ -423,8 +423,9 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 #endif
 
 	bool bImplicitSend = false;
-	if (GConfig)
+	if (!UE_EDITOR && GConfig && !bReportingNonCrash)
 	{
+		// Only check if we are in a non-editor build
 		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
 	}
 
