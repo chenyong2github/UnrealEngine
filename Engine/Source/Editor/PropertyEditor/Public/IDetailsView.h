@@ -250,6 +250,19 @@ public:
 	virtual FIsPropertyReadOnly& GetIsPropertyReadOnlyDelegate() = 0;
 
 	/**
+	 * Sets a delegate to call to check if custom row visibility is filtered,
+	 * i.e. whether the FIsCustomRowVisible delegate will always return true no matter the parameters.
+	 */
+	virtual void SetIsCustomRowVisibilityFilteredDelegate(FIsCustomRowVisibilityFiltered InIsCustomRowVisibilityFiltered) = 0;
+	virtual FIsCustomRowVisibilityFiltered& GetIsCustomRowVisibilityFilteredDelegate() = 0;
+
+	/**
+	 * Sets a delegate to call to determine if a specific custom row should be visible in this instance of the details view
+	 */
+	virtual void SetIsCustomRowVisibleDelegate(FIsCustomRowVisible InIsCustomRowVisible) = 0;
+	virtual FIsCustomRowVisible& GetIsCustomRowVisibleDelegate() = 0;
+
+	/**
 	 * Sets a delegate to call to layout generic details not specific to an object being viewed
 	 */ 
 	virtual void SetGenericLayoutDetailsDelegate( FOnGetDetailCustomizationInstance OnGetGenericDetails ) = 0;
