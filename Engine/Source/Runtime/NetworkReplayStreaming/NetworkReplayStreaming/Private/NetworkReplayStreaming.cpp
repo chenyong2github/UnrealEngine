@@ -9,7 +9,9 @@ IMPLEMENT_MODULE( FNetworkReplayStreaming, NetworkReplayStreaming );
 
 INetworkReplayStreamingFactory& FNetworkReplayStreaming::GetFactory(const TCHAR* FactoryNameOverride)
 {
-	FString FactoryName = TEXT("NullNetworkReplayStreaming");
+	static const FString DefaultFactoryName = TEXT("LocalFileNetworkReplayStreaming");
+
+	FString FactoryName = DefaultFactoryName;
 
 	if (FactoryNameOverride == nullptr)
 	{
@@ -33,7 +35,7 @@ INetworkReplayStreamingFactory& FNetworkReplayStreaming::GetFactory(const TCHAR*
 	
 		if (!FModuleManager::Get().IsModuleLoaded(*FactoryName))
 		{
-			FactoryName = TEXT("NullNetworkReplayStreaming");
+			FactoryName = DefaultFactoryName;
 		}
 	}
 
