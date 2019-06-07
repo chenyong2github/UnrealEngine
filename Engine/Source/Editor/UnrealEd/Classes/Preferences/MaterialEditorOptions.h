@@ -37,6 +37,10 @@ class UNREALED_API UMaterialEditorOptions : public UObject
 	/** If true, always refresh the material preview. */
 	UPROPERTY(EditAnywhere, config, Category = Options)
 	uint32 bLivePreviewUpdate : 1;
+	
+	/** If true, fade nodes which are not connected to the selected nodes */
+	UPROPERTY(EditAnywhere, config, Category=Options)
+	uint32 bHideUnrelatedNodes:1;
 
 	/** If true, always refresh all expression previews. */
 	UPROPERTY(EditAnywhere, config, Category=Options)

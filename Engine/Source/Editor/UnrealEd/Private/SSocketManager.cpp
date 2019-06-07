@@ -405,7 +405,7 @@ void SSocketManager::CreateSocket()
 		NewSocket->OnPropertyChanged().AddSP( this, &SSocketManager::OnSocketPropertyChanged );
 
 		CurrentStaticMesh->PreEditChange(NULL);
-		CurrentStaticMesh->Sockets.Add(NewSocket);
+		CurrentStaticMesh->AddSocket(NewSocket);
 		CurrentStaticMesh->PostEditChange();
 		CurrentStaticMesh->MarkPackageDirty();
 
@@ -437,7 +437,7 @@ void SSocketManager::DuplicateSelectedSocket()
 
 		// Add the new socket to the static mesh
 		CurrentStaticMesh->PreEditChange(NULL);
-		CurrentStaticMesh->Sockets.Add(NewSocket);
+		CurrentStaticMesh->AddSocket(NewSocket);
 		CurrentStaticMesh->PostEditChange();
 		CurrentStaticMesh->MarkPackageDirty();
 

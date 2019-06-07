@@ -16,6 +16,7 @@
 #include "ICascade.h"
 #include "IDistCurveEditor.h"
 #include "Particles/ParticleEmitter.h"
+#include "Math/RandomStream.h"
 
 class FFXSystemInterface;
 class IDetailsView;
@@ -497,4 +498,7 @@ private:
 
 	/** Maps particle emitters to rendered thumbnails for the emitter UI */
 	FParticleEmitterThumbnailMap EmitterToThumbnailMap;
+
+	/** Random stream used to seed particle modules */
+	static FRandomStream RandomStream;
 };

@@ -69,6 +69,12 @@ TSharedRef<SWidget> SSourceControlSubmitListRow::GenerateWidgetForColumn(const F
 	return SNullWidget::NullWidget;
 }
 
+FText SSourceControlSubmitWidget::SavedChangeListDescription;
+
+SSourceControlSubmitWidget::~SSourceControlSubmitWidget()
+{
+	SavedChangeListDescription = ChangeListDescriptionTextCtrl->GetText();
+}
 
 void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 {
@@ -133,6 +139,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 				[
 					SAssignNew( ChangeListDescriptionTextCtrl, SMultiLineEditableTextBox )
 					.SelectAllTextWhenFocused( true )
+					.Text(SavedChangeListDescription)
 					.AutoWrapText( true )
 				]
 			]
@@ -384,6 +391,9 @@ void SSourceControlSubmitWidget::OnToggleSelectedCheckBox(ECheckBoxState InNewSt
 void SSourceControlSubmitWidget::FillChangeListDescription(FChangeListDescription& OutDesc)
 {
 	OutDesc.Description = ChangeListDescriptionTextCtrl->GetText();
+
+	ChangeListDescriptionTextCtrl->SetText(FText()); // Don't save description on Submit
+
 	OutDesc.FilesForAdd.Empty();
 	OutDesc.FilesForSubmit.Empty();
 

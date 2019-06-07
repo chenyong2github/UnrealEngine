@@ -17,18 +17,26 @@
 #include "VREditorInteractor.h"
 #include "EditorWorldExtension.h"
 
-#include "Framework/Commands/UICommandList.h"
 #include "Components/MeshComponent.h"
 #include "Components/PrimitiveComponent.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/UICommandList.h"
 
-IMeshPainter::IMeshPainter()
-	: CurrentViewportInteractor(nullptr), bArePainting(false), TimeSinceStartedPainting(0.0f), Time(0.0f), WidgetLineThickness(1.0f), VertexPointColor(FLinearColor::White), HoverVertexPointColor(0.3f, 1.0f, 0.3f), PaintTransaction(nullptr)
+IMeshPainter::IMeshPainter() :
+	CurrentViewportInteractor(nullptr),
+	bArePainting(false),
+	TimeSinceStartedPainting(0.0f),
+	Time(0.0f),
+	WidgetLineThickness(1.0f),
+	VertexPointColor(FLinearColor::White),
+	HoverVertexPointColor(0.3f, 1.0f, 0.3f),
+	PaintTransaction(nullptr)
 {
-	FMeshPainterCommands::Register();
 }
 
 IMeshPainter::~IMeshPainter()
 {
+	UICommandList.Reset();
 }
 
 void IMeshPainter::RenderInteractors(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI, bool bRenderVertices, ESceneDepthPriorityGroup DepthGroup/* = SDPG_World*/)
@@ -66,24 +74,53 @@ void IMeshPainter::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 	Time += DeltaTime;
 }
 
+void IMeshPainter::ChangeBrushRadius(float Multiplier)
+{
+	const float ChangePercentage = 0.05f;
+	const float OldValue = GetBrushSettings()->GetBrushRadius();
+
+	float NewValue = OldValue * (1 + ChangePercentage * Multiplier);
+	GetBrushSettings()->SetBrushRadius(NewValue);
+}
+
+void IMeshPainter::ChangeBrushStrength(float Multiplier)
+{
+	const float ChangeAmount = 0.02f;
+	const float OldValue = GetBrushSettings()->GetBrushStrength();
+
+	float NewValue = OldValue + ChangeAmount * Multiplier;
+	GetBrushSettings()->SetBrushStrength(NewValue);
+}
+
+void IMeshPainter::ChangeBrushFalloff(float Multiplier)
+{
+	const float ChangeAmount = 0.02f;
+	const float OldValue = GetBrushSettings()->GetBrushFalloff();
+
+	float NewValue = OldValue + ChangeAmount * Multiplier;
+	GetBrushSettings()->SetBrushFalloff(NewValue);
+}
+
 void IMeshPainter::RegisterCommands(TSharedRef<FUICommandList> CommandList)
 {
 	const FMeshPainterCommands& Commands = FMeshPainterCommands::Get();
 
-	// Lambda used to alter the paint brush size
-	auto BrushLambda = [this](float Multiplier)
-	{
-		const float BrushChangeValue = 0.05f;
-		float BrushRadius = GetBrushSettings()->GetBrushRadius();
-		BrushRadius *= (1.f + (BrushChangeValue * Multiplier));
-		GetBrushSettings()->SetBrushRadius(BrushRadius);
-	};
-	CommandList->MapAction(Commands.IncreaseBrushSize, FExecuteAction::CreateLambda(BrushLambda, 1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
-	CommandList->MapAction(Commands.DecreaseBrushSize, FExecuteAction::CreateLambda(BrushLambda, -1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+	CommandList->MapAction(Commands.IncreaseBrushRadius, FExecuteAction::CreateRaw(this, &IMeshPainter::ChangeBrushRadius, 1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+	CommandList->MapAction(Commands.DecreaseBrushRadius, FExecuteAction::CreateRaw(this, &IMeshPainter::ChangeBrushRadius, -1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+
+	CommandList->MapAction(Commands.IncreaseBrushStrength, FExecuteAction::CreateRaw(this, &IMeshPainter::ChangeBrushStrength, 1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+	CommandList->MapAction(Commands.DecreaseBrushStrength, FExecuteAction::CreateRaw(this, &IMeshPainter::ChangeBrushStrength, -1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+
+	CommandList->MapAction(Commands.IncreaseBrushFalloff, FExecuteAction::CreateRaw(this, &IMeshPainter::ChangeBrushFalloff, 1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+	CommandList->MapAction(Commands.DecreaseBrushFalloff, FExecuteAction::CreateRaw(this, &IMeshPainter::ChangeBrushFalloff, -1.0f), FCanExecuteAction(), EUIActionRepeatMode::RepeatEnabled);
+
+	UICommandList = CommandList;
 }
 
 void IMeshPainter::UnregisterCommands(TSharedRef<FUICommandList> CommandList)
 {
+	UICommandList.Reset();
+
 	const FMeshPainterCommands& Commands = FMeshPainterCommands::Get();	
 	for (const TSharedPtr<const FUICommandInfo> Action : Commands.Commands)
 	{
@@ -142,26 +179,11 @@ bool IMeshPainter::InputKey(FEditorViewportClient* InViewportClient, FViewport* 
 {
 	bool bHandled = false;
 
-	// Lambda used to alter the paint brush size
-	auto BrushLambda = [this](float Multiplier)
+	if (UICommandList.IsValid())
 	{
-		const float BrushChangeValue = 0.05f;
-		float BrushRadius = GetBrushSettings()->GetBrushRadius();
-		BrushRadius *= (1.f + (BrushChangeValue * Multiplier));
-		GetBrushSettings()->SetBrushRadius(BrushRadius);
-	};
-
-	if (InKey == EKeys::LeftBracket)
-	{
-		BrushLambda(-1.0f);
-		bHandled = true;
+		bHandled = UICommandList->ProcessCommandBindings(InKey, FSlateApplication::Get().GetModifierKeys(), InEvent == IE_Repeat);
 	}
-	else if (InKey == EKeys::RightBracket)
-	{
-		BrushLambda(1.0f);
-		bHandled = true;
-	}
-
+	
 	return bHandled;
 }
 

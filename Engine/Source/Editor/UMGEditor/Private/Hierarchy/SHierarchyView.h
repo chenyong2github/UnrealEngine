@@ -88,24 +88,31 @@ private:
 	/** Gets the search text currently being used to filter the list, also used to highlight text */
 	FText GetSearchText() const;
 
-	/** Transforms the widget into a searchable string */
-	void TransformWidgetToString(TSharedPtr<FHierarchyModel> Widget, OUT TArray< FString >& Array);
+	/**  Gets an array of strings used for filtering/searching the specified widget. */
+	void GetWidgetFilterStrings(TSharedPtr<FHierarchyModel> Widget, TArray<FString>& OutStrings);
 
 	/** Called when a Blueprint is recompiled and live objects are swapped out for replacements */
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 
-	/** Restores the state of expanded items based on the saved expanded item state, then clears the expanded state cache. */
-	void RestoreExpandedItems();
+	/** Sets the expansion state of hierarchy view items based on their model. */
+	void UpdateItemsExpansionFromModel();
+
+	/** Stores the names of all currently expanded nodes in the hierarchy view. */
+	void SaveItemsExpansion();
+
+	/** Sets the expansion state of hierarchy view items based on the state saved by SaveItemsExpansion. */
+	void RestoreItemsExpansion();
 
 	enum class EExpandBehavior : uint8
 	{
 		NeverExpand,
 		AlwaysExpand,
 		RestoreFromPrevious,
+		FromModel
 	};
 
 	/** Recursively expands the models based on the expansion set. */
-	void RecursiveExpand(TSharedPtr<FHierarchyModel>& Model, EExpandBehavior ExpandBehavior = EExpandBehavior::AlwaysExpand);
+	void RecursiveExpand(TSharedPtr<FHierarchyModel>& Model, EExpandBehavior ExpandBehavior);
 
 	/**  */
 	void RestoreSelectedItems();
@@ -115,9 +122,6 @@ private:
 
 	/** Handler for recursively expanding/collapsing items */
 	void SetItemExpansionRecursive(TSharedPtr<FHierarchyModel> Model, bool bInExpansionState);
-
-	/** Find and store the names of all currently expanded nodes in the hierarchy view. Should only be called when rebuilding the tree */
-	void FindExpandedItemNames();
 
 private:
 
@@ -159,7 +163,4 @@ private:
 
 	/** Flag to ignore selections while the hierarchy view is updating the selection. */
 	bool bIsUpdatingSelection;
-
-	/** Should all nodes in the tree be expanded? */
-	bool bExpandAllNodes;
 };

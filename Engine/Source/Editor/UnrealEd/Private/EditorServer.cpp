@@ -4749,6 +4749,46 @@ void UEditorEngine::MoveViewportCamerasToComponent(USceneComponent* Component, b
 	}
 }
 
+void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const
+{
+	// Make sure we had at least one non-null actor in the array passed in.
+	if (BoundingBox.GetSize() != FVector::ZeroVector || BoundingBox.GetCenter() != FVector::ZeroVector)
+	{
+		if (bActiveViewportOnly)
+		{
+			if (GCurrentLevelEditingViewportClient)
+			{
+				GCurrentLevelEditingViewportClient->FocusViewportOnBox(BoundingBox);
+
+				// Update Linked Orthographic viewports.
+				if (GCurrentLevelEditingViewportClient->IsOrtho() && GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports)
+				{
+					// Search through all viewports
+					for (FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
+					{
+						// Only update other orthographic viewports
+						if (LinkedViewportClient && LinkedViewportClient != GCurrentLevelEditingViewportClient && LinkedViewportClient->IsOrtho())
+						{
+							LinkedViewportClient->FocusViewportOnBox(BoundingBox);
+						}
+					}
+				}
+			}
+
+		}
+		else
+		{
+			// Update all viewports.
+			for (FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
+			{
+				//Dont move camera attach to an actor
+				if (!LinkedViewportClient->IsAnyActorLocked())
+					LinkedViewportClient->FocusViewportOnBox(BoundingBox);
+			}
+		}
+	}
+}
+
 /** 
  * Snaps an actor in a direction.  Optionally will align with the trace normal.
  * @param InActor			Actor to move to the floor.
@@ -6837,44 +6877,4 @@ void UEditorEngine::AutoMergeStaticMeshes()
 		OwnerComponent->StaticMesh->Build();
 	}
 #endif // #if TODO_STATICMESH
-}
-
-void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActiveViewportOnly) const
-{
-	// Make sure we had at least one non-null actor in the array passed in.
-	if (BoundingBox.GetSize() != FVector::ZeroVector || BoundingBox.GetCenter() != FVector::ZeroVector)
-	{
-		if (bActiveViewportOnly)
-		{
-			if (GCurrentLevelEditingViewportClient)
-			{
-				GCurrentLevelEditingViewportClient->FocusViewportOnBox(BoundingBox);
-
-				// Update Linked Orthographic viewports.
-				if (GCurrentLevelEditingViewportClient->IsOrtho() && GetDefault<ULevelEditorViewportSettings>()->bUseLinkedOrthographicViewports)
-				{
-					// Search through all viewports
-					for(FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
-					{
-						// Only update other orthographic viewports
-						if (LinkedViewportClient && LinkedViewportClient != GCurrentLevelEditingViewportClient && LinkedViewportClient->IsOrtho())
-						{
-							LinkedViewportClient->FocusViewportOnBox(BoundingBox);
-						}
-					}
-				}
-			}
-
-		}
-		else
-		{
-			// Update all viewports.
-			for(FLevelEditorViewportClient* LinkedViewportClient : GetLevelViewportClients())
-			{
-				//Dont move camera attach to an actor
-				if (!LinkedViewportClient->IsAnyActorLocked())
-					LinkedViewportClient->FocusViewportOnBox(BoundingBox);
-			}
-		}
-	}
 }

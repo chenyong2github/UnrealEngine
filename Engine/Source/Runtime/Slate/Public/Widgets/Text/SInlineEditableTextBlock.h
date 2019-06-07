@@ -102,7 +102,7 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 		/** Callback to check if the widget is selected, should only be hooked up if parent widget is handling selection or focus. */
 		SLATE_EVENT( FIsSelected, IsSelected )
 
-		/** Called whenever the text is changed interactively by the user */
+		/** Called whenever the text is changed programmatically or interactively by the user */
 		SLATE_EVENT( FOnVerifyTextChanged, OnVerifyTextChanged )
 	SLATE_END_ARGS()
 

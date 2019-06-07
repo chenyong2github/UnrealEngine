@@ -117,3 +117,41 @@ void SGraphEditor::NotifyPostPropertyChange( const FPropertyChangedEvent& Proper
 	}
 }
 
+void SGraphEditor::ResetAllNodesUnrelatedStates()
+{
+	TArray<class UEdGraphNode*> AllNodes = GetCurrentGraph()->Nodes;
+
+	for (auto& GraphNode : AllNodes)
+	{
+		if (GraphNode->IsNodeUnrelated())
+		{
+			GraphNode->SetNodeUnrelated(false);
+		}
+	}
+}
+
+void SGraphEditor::FocusCommentNodes(TArray<UEdGraphNode*> &CommentNodes, TArray<UEdGraphNode*> &RelatedNodes)
+{
+	for (auto& CommentNode : CommentNodes)
+	{
+		CommentNode->SetNodeUnrelated(true);
+
+		const FSlateRect CommentRect(
+			CommentNode->NodePosX, 
+			CommentNode->NodePosY, 
+			CommentNode->NodePosX + CommentNode->NodeWidth, 
+			CommentNode->NodePosY + CommentNode->NodeHeight
+		);
+
+		for (auto& RelatedNode : RelatedNodes)
+		{
+			const FVector2D NodePos(RelatedNode->NodePosX, RelatedNode->NodePosY);
+
+			if (CommentRect.ContainsPoint(NodePos))
+			{
+				CommentNode->SetNodeUnrelated(false);
+				break;
+			}
+		}
+	}
+}

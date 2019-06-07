@@ -152,7 +152,7 @@ struct FLandscapeTargetListInfo
 
 	FName GetLayerName() const;
 
-	FString& ReimportFilePath() const
+	FString GetReimportFilePath() const
 	{
 		if (TargetType == ELandscapeToolTargetType::Weightmap)
 		{
@@ -162,7 +162,39 @@ struct FLandscapeTargetListInfo
 		}
 		else //if (TargetType == ELandscapeToolTargetType::Heightmap)
 		{
-			return LandscapeInfo->GetLandscapeProxy()->ReimportHeightmapFilePath;
+			if (LandscapeInfo.IsValid())
+			{
+				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
+
+				if (LandscapeProxy)
+				{
+					return LandscapeProxy->ReimportHeightmapFilePath;
+				}
+			}
+
+			return FString(TEXT(""));
+		}
+	}
+
+	void SetReimportFilePath(const FString& InNewPath)
+	{
+		if (TargetType == ELandscapeToolTargetType::Weightmap)
+		{
+			FLandscapeEditorLayerSettings* EditorLayerSettings = GetEditorLayerSettings();
+			check(EditorLayerSettings);
+			EditorLayerSettings->ReimportLayerFilePath = InNewPath;
+		}
+		else //if (TargetType == ELandscapeToolTargetType::Heightmap)
+		{
+			if (LandscapeInfo.IsValid())
+			{
+				ALandscapeProxy* LandscapeProxy = LandscapeInfo->GetLandscapeProxy();
+
+				if (LandscapeProxy)
+				{
+					LandscapeProxy->ReimportHeightmapFilePath = InNewPath;
+				}
+			}
 		}
 	}
 };

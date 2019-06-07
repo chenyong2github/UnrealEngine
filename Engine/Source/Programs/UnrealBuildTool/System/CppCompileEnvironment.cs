@@ -342,7 +342,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Whether to hide symbols by default
 		/// </summary>
-		public bool bHideSymbolsByDefault;
+		public bool bHideSymbolsByDefault = true;
 
 		/// <summary>
 		/// Which C++ standard to support. May not be compatible with all platforms.

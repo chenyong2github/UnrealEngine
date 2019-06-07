@@ -137,6 +137,24 @@ public:
 	}
 
 	/**
+	 * If the color rule is set to UseColor_Specified_Link, this will copy the linked color internally,
+	 * unlink it and set the color rule to UseColor_Specified.
+	 * Nothing happens if the color rule is not set to UseColor_Specified_Link.
+	 */
+	void Unlink()
+	{
+		if (ColorUseRule == ESlateColorStylingMode::UseColor_Specified_Link)
+		{
+			ColorUseRule = ESlateColorStylingMode::UseColor_Specified;
+			if (ensure(LinkedSpecifiedColor.IsValid()))
+			{
+				SpecifiedColor = *LinkedSpecifiedColor;
+				LinkedSpecifiedColor.Reset();
+			}
+		}
+	}
+
+	/**
 	 * Compares this color with another for equality.
 	 *
 	 * @param Other The other color.

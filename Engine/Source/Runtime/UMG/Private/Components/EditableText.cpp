@@ -12,12 +12,21 @@
 /////////////////////////////////////////////////////
 // UEditableText
 
+static FEditableTextStyle* DefaultEditableTextStyle = nullptr;
+
 UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BY DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
-	static const FEditableTextStyle StaticEditableTextStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextStyle >("NormalEditableText");
-	WidgetStyle = StaticEditableTextStyle;
+	if (DefaultEditableTextStyle == nullptr)
+	{
+		// HACK: THIS SHOULD NOT COME FROM CORESTYLE AND SHOULD INSTEAD BE DEFINED BY ENGINE TEXTURES/PROJECT SETTINGS
+		DefaultEditableTextStyle = new FEditableTextStyle(FCoreStyle::Get().GetWidgetStyle<FEditableTextStyle>("NormalEditableText"));
+
+		// Unlink UMG default colors from the editor settings colors.
+		DefaultEditableTextStyle->UnlinkColors();
+	}
+
+	WidgetStyle = *DefaultEditableTextStyle;
 
 	ColorAndOpacity_DEPRECATED = FLinearColor::Black;
 
@@ -38,6 +47,9 @@ UEditableText::UEditableText(const FObjectInitializer& ObjectInitializer)
 	AllowContextMenu = true;
 	VirtualKeyboardDismissAction = EVirtualKeyboardDismissAction::TextChangeOnDismiss;
 	Clipping = EWidgetClipping::ClipToBounds;
+
+	AccessibleBehavior = ESlateAccessibleBehavior::Auto;
+	bCanChildrenBeAccessible = false;
 }
 
 void UEditableText::ReleaseSlateResources(bool bReleaseChildren)
@@ -199,6 +211,13 @@ void UEditableText::PostLoad()
 		}
 	}
 }
+
+#if WITH_ACCESSIBILITY
+TSharedPtr<SWidget> UEditableText::GetAccessibleWidget() const
+{
+	return MyEditableText;
+}
+#endif
 
 #if WITH_EDITOR
 

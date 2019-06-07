@@ -240,7 +240,7 @@ public:
 };
 
 UCLASS(customConstructor, Abstract, MinimalAPI, transient, config=Engine)
-class UNetConnection : public UPlayer
+class ENGINE_VTABLE UNetConnection : public UPlayer
 {
 	GENERATED_UCLASS_BODY()
 

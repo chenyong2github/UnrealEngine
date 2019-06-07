@@ -152,7 +152,7 @@ struct FVirtualPointerPosition
  * Base class for all mouse and keyevents.
  */
 USTRUCT(BlueprintType)
-struct FInputEvent
+struct SLATECORE_VTABLE FInputEvent
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -370,7 +370,7 @@ struct TStructOpsTypeTraits<FInputEvent> : public TStructOpsTypeTraitsBase2<FInp
  * It is passed to event handlers dealing with key input.
  */
 USTRUCT(BlueprintType)
-struct FKeyEvent : public FInputEvent
+struct SLATECORE_VTABLE FKeyEvent : public FInputEvent
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -464,7 +464,7 @@ struct TStructOpsTypeTraits<FKeyEvent> : public TStructOpsTypeTraitsBase2<FKeyEv
  * It is passed to event handlers dealing with analog keys.
  */
 USTRUCT(BlueprintType)
-struct FAnalogInputEvent
+struct SLATECORE_VTABLE FAnalogInputEvent
 	: public FKeyEvent
 {
 	GENERATED_USTRUCT_BODY()
@@ -527,7 +527,7 @@ struct TStructOpsTypeTraits<FAnalogInputEvent> : public TStructOpsTypeTraitsBase
  * FCharacterEvent describes a keyboard action where the utf-16 code is given.  Used for OnKeyChar messages
  */
 USTRUCT(BlueprintType)
-struct FCharacterEvent
+struct SLATECORE_VTABLE FCharacterEvent
 	: public FInputEvent
 {
 	GENERATED_USTRUCT_BODY()
@@ -609,7 +609,7 @@ public:
  * It is passed to event handlers dealing with pointer-based input.
  */
 USTRUCT(BlueprintType)
-struct FPointerEvent
+struct SLATECORE_VTABLE FPointerEvent
 	: public FInputEvent
 {
 	GENERATED_USTRUCT_BODY()

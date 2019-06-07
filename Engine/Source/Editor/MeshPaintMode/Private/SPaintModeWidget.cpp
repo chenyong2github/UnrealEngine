@@ -104,7 +104,7 @@ void SPaintModeWidget::CreateDetailsView()
 		/*bAllowSearch=*/ false,
 		FDetailsViewArgs::HideNameArea,
 		/*bHideSelectionTip=*/ true,
-		/*InNotifyHook=*/ nullptr,
+		/*InNotifyHook=*/ this,
 		/*InSearchInitialKeyFocus=*/ false,
 		/*InViewIdentifier=*/ NAME_None);
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Automatic;
@@ -243,6 +243,17 @@ EVisibility SPaintModeWidget::IsTexturePaintModeVisible() const
 {
 	UPaintModeSettings* MeshPaintSettings = (UPaintModeSettings*)MeshPainter->GetPainterSettings();
 	return (MeshPaintSettings->PaintMode == EPaintMode::Textures) ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+void SPaintModeWidget::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, UProperty* PropertyThatChanged)
+{
+	if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		for (UObject* Settings : SettingsObjects)
+		{
+			Settings->SaveConfig();
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // "PaintModePainter"

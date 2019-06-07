@@ -13,9 +13,9 @@
 UCurveLinearColorAtlas::UCurveLinearColorAtlas(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-#if WITH_EDITOR
 	TextureSize = 256;
 	GradientPixelSize = 1;
+#if WITH_EDITORONLY_DATA
 	bHasAnyDirtyTextures = false;
 	bShowDebugColorsForNullGradients = false;
 	SizeXY = { (float)TextureSize, (float)GradientPixelSize };

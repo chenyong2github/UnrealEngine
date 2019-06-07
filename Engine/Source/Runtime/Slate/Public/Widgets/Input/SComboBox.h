@@ -342,7 +342,13 @@ protected:
 				}
 				else if (NavAction == EUINavigationAction::Back || KeyPressed == EKeys::BackSpace)
 				{
+					const bool bWasInputCaptured = bControllerInputCaptured;
+
 					OnMenuOpenChanged(false);
+					if (bWasInputCaptured)
+					{
+						return FReply::Handled();
+					}
 				}
 				else
 				{

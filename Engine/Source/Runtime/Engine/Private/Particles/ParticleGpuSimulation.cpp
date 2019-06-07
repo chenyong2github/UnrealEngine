@@ -3565,7 +3565,7 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		check(AllocatedTiles.Num() == TileTimeOfDeath.Num());
 		FreeParticlesInTile = 0;
 
-		RandomStream.Initialize( FMath::Rand() );
+		RandomStream.Initialize(Component->RandomStream.FRand());
 		EmitterInstRandom = RandomStream.GetFraction();
 
 		FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources();

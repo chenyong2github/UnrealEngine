@@ -476,14 +476,14 @@ void SNiagaraGeneratedCodeView::UpdateUI()
 		{
 			GeneratedCode[i].HorizontalScrollBar = SNew(SScrollBar)
 				.Orientation(Orient_Horizontal)
-				.Thickness(FVector2D(8.0f, 8.0f));
+				.Thickness(FVector2D(12.0f, 12.0f));
 		}
 
 		if (!GeneratedCode[i].VerticalScrollBar.IsValid())
 		{
 			GeneratedCode[i].VerticalScrollBar = SNew(SScrollBar)
 				.Orientation(Orient_Vertical)
-				.Thickness(FVector2D(8.0f, 8.0f));
+				.Thickness(FVector2D(12.0f, 12.0f));
 		}
 		
 		if (!GeneratedCode[i].Container.IsValid())

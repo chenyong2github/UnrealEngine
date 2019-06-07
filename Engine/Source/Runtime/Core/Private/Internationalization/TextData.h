@@ -158,7 +158,7 @@ public:
 			if (!this->LocalizedString.IsValid())
 			{
 				// We copy (rather than move) DisplayString here, as other threads may currently be accessing it
-				this->LocalizedString = MakeShareable(new FString(DisplayString));
+				this->LocalizedString = MakeShared<FString, ESPMode::ThreadSafe>(DisplayString);
 			}
 		}
 	}
