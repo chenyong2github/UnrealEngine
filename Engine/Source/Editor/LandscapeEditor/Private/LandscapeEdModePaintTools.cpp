@@ -1256,6 +1256,10 @@ public:
 	virtual void EnterTool() override
 	{
 		FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>::EnterTool();
+		if (!this->EdMode->CurrentToolTarget.LandscapeInfo.Get())
+		{
+			return;
+		}
 
 		ALandscapeProxy* LandscapeProxy = this->EdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
 		MeshComponent = NewObject<UStaticMeshComponent>(LandscapeProxy, NAME_None, RF_Transient);
@@ -1277,8 +1281,11 @@ public:
 	{
 		FLandscapeToolPaintBase<ToolTarget, FLandscapeToolStrokeFlatten<ToolTarget>>::ExitTool();
 
-		MeshComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
-		MeshComponent->DestroyComponent();
+		if (MeshComponent)
+		{
+			MeshComponent->DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform);
+			MeshComponent->DestroyComponent();
+		}
 	}
 };
 
