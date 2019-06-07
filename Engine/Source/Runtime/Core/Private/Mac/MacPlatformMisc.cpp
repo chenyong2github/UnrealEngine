@@ -1931,24 +1931,13 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		if(ForkPID == 0)
 		{
 			// Child
-			if(GMacAppInfo.bIsUnattended || bImplicitSend)
+			if(GMacAppInfo.bIsUnattended)
 			{
 				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", NULL);
 			}
 			else
 			{
 				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, NULL);
-			}
-		}
-
-		if (bImplicitSend)
-		{
-			// We will not have any GUI for the crash reporter if we are sending implicitly, so pop a message box up at least
-			if (FApp::CanEverRender())
-			{
-				FPlatformMisc::MessageBoxExt(EAppMsgType::Ok,
-					*NSLOCTEXT("MessageDialog", "ReportCrash_Body", "The application has crashed and will now close. We apologize for the inconvenience.").ToString(),
-					*NSLOCTEXT("MessageDialog", "ReportCrash_Title", "Application Crash Detected").ToString());
 			}
 		}
 
