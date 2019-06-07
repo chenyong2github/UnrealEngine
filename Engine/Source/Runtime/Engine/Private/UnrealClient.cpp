@@ -2079,6 +2079,11 @@ void FViewport::FHitProxyMap::AddReferencedObjects( FReferenceCollector& Collect
 	}
 }
 
+FString FViewport::FHitProxyMap::GetReferencerName() const
+{
+	return TEXT("FViewport::FHitProxyMap");
+}
+
 /**
  * Globally enables/disables rendering
  *

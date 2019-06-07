@@ -899,6 +899,11 @@ void FDistanceFieldAsyncQueue::AddReferencedObjects(FReferenceCollector& Collect
 	}
 }
 
+FString FDistanceFieldAsyncQueue::GetReferencerName() const
+{
+	return TEXT("FDistanceFieldAsyncQueue");
+}
+
 void FDistanceFieldAsyncQueue::ProcessAsyncTasks()
 {
 #if WITH_EDITOR

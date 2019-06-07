@@ -39,7 +39,6 @@ UTimelineTemplate::UTimelineTemplate(const FObjectInitializer& ObjectInitializer
 	TimelineLength = 5.0f;
 	TimelineGuid = FGuid::NewGuid();
 	bReplicated = false;
-	bValidatedAsWired = false;
 
 	UpdateCachedNames();
 }

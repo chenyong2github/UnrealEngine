@@ -356,6 +356,9 @@ protected:
 	/** Returns TRUE if the input pin should be hidden from view */
 	bool ShouldPinBeHidden(const UEdGraphPin* InPin) const;
 
+	/** Returns the widget to use for the enabled state of the node */
+	TSharedPtr<SWidget> GetEnabledStateWidget();
+
 protected:
 	/** Input pin widgets on this node */
 	TArray< TSharedRef<SGraphPin> > InputPins;

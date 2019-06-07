@@ -58,6 +58,11 @@ void UNavLinkCustomComponent::GetLinkData(FVector& LeftPt, FVector& RightPt, ENa
 	Direction = LinkDirection;
 }
 
+void UNavLinkCustomComponent::GetSupportedAgents(FNavAgentSelector& OutSupportedAgents) const
+{
+	OutSupportedAgents = SupportedAgents;
+}
+
 TSubclassOf<UNavArea> UNavLinkCustomComponent::GetLinkAreaClass() const
 {
 	return bLinkEnabled ? EnabledAreaClass : DisabledAreaClass;

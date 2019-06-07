@@ -16,6 +16,7 @@ class FTraceReferences
 	void GetReferencedInternal( UObject* CurrentObject, TArray<FObjectGraphNode*> &OutReferenced, int32 CurrentDepth, int32 TargetDepth );
 
 public:
+	UE_DEPRECATED(4.23, "This class is out of date and misses many references, replace with FReferenceChainSearch or FFindReferencersArchive")
 	FTraceReferences( bool bIncludeTransients = false, EObjectFlags KeepFlags = RF_AllFlags );
 
 	// returns referencer string of an object

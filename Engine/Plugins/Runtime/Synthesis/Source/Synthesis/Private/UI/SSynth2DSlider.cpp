@@ -2,6 +2,7 @@
 
 #include "UI/SSynth2DSlider.h"
 #include "Rendering/DrawElements.h"
+#include "Framework/Application/SlateApplication.h"
 
 void SSynth2DSlider::Construct(const SSynth2DSlider::FArguments& InDeclaration)
 {
@@ -125,7 +126,7 @@ FReply SSynth2DSlider::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& I
 		// The controller's bottom face button must be pressed once to begin manipulating the slider's value.
 		// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 		// The value can be manipulated by using the game pad's directional arrows ( relative to slider orientation ).
-		if (KeyPressed == EKeys::Enter || KeyPressed == EKeys::SpaceBar || KeyPressed == EKeys::Virtual_Accept)
+		if (FSlateApplication::Get().GetNavigationActionForKey(KeyPressed) == EUINavigationAction::Accept)
 		{
 			if (bControllerInputCaptured == false)
 			{

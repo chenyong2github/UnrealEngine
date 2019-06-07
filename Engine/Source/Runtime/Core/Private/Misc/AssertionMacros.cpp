@@ -480,7 +480,12 @@ FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32
 	StaticFailDebug(TEXT("LowLevelFatalError"), File, Line, DescriptionString, false, NumStackFramesToIgnore);
 }
 
-FORCENOINLINE void FDebug::DumpStackTraceToLog()
+void FDebug::DumpStackTraceToLog()
+{
+	DumpStackTraceToLog(TEXT("=== FDebug::DumpStackTrace(): ==="));
+}
+
+FORCENOINLINE void FDebug::DumpStackTraceToLog(const TCHAR* Heading)
 {
 #if !NO_LOGGING
 	// Walk the stack and dump it to the allocated memory.
@@ -500,7 +505,7 @@ FORCENOINLINE void FDebug::DumpStackTraceToLog()
 
 	// Dump the error and flush the log.
 	// ELogVerbosity::Error to make sure it gets printed in log for conveniency.
-	FDebug::LogFormattedMessageWithCallstack(LogOutputDevice.GetCategoryName(), __FILE__, __LINE__, TEXT("=== FDebug::DumpStackTrace(): ==="), ANSI_TO_TCHAR(StackTrace), ELogVerbosity::Error);
+	FDebug::LogFormattedMessageWithCallstack(LogOutputDevice.GetCategoryName(), __FILE__, __LINE__, Heading, ANSI_TO_TCHAR(StackTrace), ELogVerbosity::Error);
 	GLog->Flush();
 	FMemory::SystemFree(StackTrace);
 #endif

@@ -136,7 +136,7 @@ public:
 	FString GetDebugDescription() const;
 };
 
-UCLASS(Abstract, BlueprintType, meta = (ExposedAsyncProxy), config = Game)
+UCLASS(Abstract, BlueprintType, meta = (ExposedAsyncProxy=AsyncTask), config = Game)
 class GAMEPLAYTASKS_API UGameplayTask : public UObject, public IGameplayTaskOwnerInterface
 {
 	GENERATED_BODY()

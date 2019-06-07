@@ -209,7 +209,7 @@ static UObject* GetAssetRevisionObject(TSharedPtr<FHistoryTreeItem> HistoryTreeI
 				if (FileRevision.IsValid() && FileRevision->Get(TempPackageName)) // grab the path to a temporary package (where the revision item will be stored)
 				{
 					// try and load the temporary package
-					AssetPackage = LoadPackage(NULL, *TempPackageName, LOAD_DisableCompileOnLoad);
+					AssetPackage = LoadPackage(NULL, *TempPackageName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
 				}
 			} // if FileSourceControlState.IsValid()
 		}

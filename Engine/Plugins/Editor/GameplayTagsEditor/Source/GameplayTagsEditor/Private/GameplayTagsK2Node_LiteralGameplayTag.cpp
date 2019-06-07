@@ -57,9 +57,12 @@ FText UGameplayTagsK2Node_LiteralGameplayTag::GetMenuCategory() const
 	return LOCTEXT("ActionMenuCategory", "Gameplay Tags");
 }
 
-FString UGameplayTagsK2Node_LiteralGameplayTag::GetDeprecationMessage() const
+FEdGraphNodeDeprecationResponse UGameplayTagsK2Node_LiteralGameplayTag::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
 {
-	return LOCTEXT("NodeDeprecated_Warning", "@@ is deprecated, replace with Make Literal GameplayTagContainer function call").ToString();
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	Response.MessageText = LOCTEXT("NodeDeprecated_Warning", "@@ is deprecated, replace with Make Literal GameplayTagContainer function call");
+
+	return Response;
 }
 
 void UGameplayTagsK2Node_LiteralGameplayTag::ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeChanges)

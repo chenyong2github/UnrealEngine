@@ -43,7 +43,7 @@ UObject const* FMergeToolUtils::LoadRevision(const FString& AssetName, const ISo
 	if (DesiredRevision.Get(TempFileName))
 	{
 		// Try and load that package
-		UPackage* TempPackage = LoadPackage(NULL, *TempFileName, LOAD_DisableCompileOnLoad);
+		UPackage* TempPackage = LoadPackage(NULL, *TempFileName, LOAD_ForDiff|LOAD_DisableCompileOnLoad);
 		if (TempPackage != NULL)
 		{
 			// Grab the old asset from that old package

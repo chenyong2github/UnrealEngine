@@ -1000,12 +1000,11 @@ const TCHAR* UProperty::ImportSingleProperty( const TCHAR* Str, void* DestData, 
 			{
 				Property = FindField<UProperty>(ObjectStruct, NewPropertyName);
 			}
-#if WITH_EDITOR
+
 			if (!Property)
 			{
 				Property = ObjectStruct->CustomFindProperty(PropertyName);
 			}
-#endif	// WITH_EDITOR
 		}		
 
 		delete[] Token;

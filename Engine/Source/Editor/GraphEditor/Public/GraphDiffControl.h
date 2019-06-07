@@ -4,6 +4,9 @@
 #include "CoreMinimal.h"
 #include "DiffResults.h"
 
+class UEdGraph;
+class UEdGraphNode;
+
 /** Used to find differences between revisions of a graph. */
 class GRAPHEDITOR_API FGraphDiffControl
 {
@@ -65,27 +68,27 @@ public:
 	struct GRAPHEDITOR_API FNodeMatch
 	{
 		FNodeMatch()
-			: NewNode(NULL)
-			, OldNode(NULL)
+			: NewNode(nullptr)
+			, OldNode(nullptr)
 		{}
 
-		class UEdGraphNode* NewNode;
-		class UEdGraphNode* OldNode;
+		UEdGraphNode* NewNode;
+		UEdGraphNode* OldNode;
 
 		/**
 		 * Looks at the two node members and compares them to see if there are any
-		 * differences. If one of the nodes is NULL, then this will return true with
+		 * differences. If one of the nodes is nullptr, then this will return true with
 		 * a EDiffType::NODE_ADDED result.
 		 * 
 		 * @param  DiffsArrayOut	If supplied, this will be filled out with all the differences that were found.
 		 * @return True if there were differences found, false if the two nodes are identical.
 		 */
-		bool Diff(const FNodeDiffContext& DiffContext, TArray<FDiffSingleResult>* DiffsResultsOut = NULL) const;
+		bool Diff(const FNodeDiffContext& DiffContext, TArray<FDiffSingleResult>* DiffsResultsOut = nullptr) const;
 		bool Diff(const FNodeDiffContext& DiffContext, FDiffResults& DiffsOut) const;
 
 		/**
 		 * Checks to see if this is a valid match.
-		 * @return False if NewNode or OldNode is NULL, true if both are valid.
+		 * @return False if NewNode or OldNode is nullptr, true if both are valid.
 		 */
 		bool IsValid() const;
 	};
@@ -96,15 +99,21 @@ public:
 	 * match, so providing a list of already matched nodes helps us narrow it down (and 
 	 * prevents us from matching one node with multiple others).
 	 * 
-	 * @param  Graph		The graph you want to search.
-	 * @param  Node			The node you want to match.
+	 * @param  OldGraph		The graph you want to search.
+	 * @param  NewNode		The new node you want to match.
 	 * @param  PriorMatches	Previous made matches to exclude from our search.
-	 * @return A pair of nodes (including the supplied one) that best match each other (one may be NULL if no match was found).
+	 * @return A pair of nodes (including the supplied one) that best match each other (one may be nullptr if no match was found).
 	 */
-	static FNodeMatch FindNodeMatch(class UEdGraph* OldGraph, class UEdGraphNode* Node, TArray<FNodeMatch> const& PriorMatches);
+	static FNodeMatch FindNodeMatch(UEdGraph* OldGraph, UEdGraphNode* NewNode, TArray<FNodeMatch> const& PriorMatches);
 
-	/** Determine if the two Nodes are the same */
-	static bool IsNodeMatch(class UEdGraphNode* Node1, class UEdGraphNode* Node2, TArray<FGraphDiffControl::FNodeMatch> const* Exclusions = nullptr);
+	/** 
+	 * Returns true if the two Nodes are the same 
+	 * 
+	 * @param  Node1		First node to check
+	 * @param  Node2		Second node
+	 * @param  Exclusions	Previous made matches to exclude from our search.
+	 */
+	static bool IsNodeMatch(UEdGraphNode* Node1, UEdGraphNode* Node2, bool bExactOnly = false, TArray<FGraphDiffControl::FNodeMatch> const* Exclusions = nullptr);
 
 	/**
 	 * Looks for node differences between the two supplied graphs. Diffs will be
@@ -115,5 +124,8 @@ public:
 	 * @param  DiffsOut		All the differences that were found between the two.
 	 * @return True if any differences were found, false if both graphs are identical.
 	 */
-	static bool DiffGraphs(class UEdGraph* const OldGraph, class UEdGraph* const NewGraph, TArray<FDiffSingleResult>& DiffsOut);
+	static bool DiffGraphs(UEdGraph* const OldGraph, UEdGraph* const NewGraph, TArray<FDiffSingleResult>& DiffsOut);
+
+	/** Computes an object path for a specific graph, relative to the blueprint/asset root */
+	static FString GetGraphPath(UEdGraph* Graph);
 };

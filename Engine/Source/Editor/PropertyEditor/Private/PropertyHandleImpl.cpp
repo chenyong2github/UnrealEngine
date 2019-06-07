@@ -24,6 +24,7 @@
 #include "UObject/EnumProperty.h"
 #include "IDetailPropertyRow.h"
 #include "ObjectEditorUtils.h"
+#include "PropertyEditorHelpers.h"
 
 #define LOCTEXT_NAMESPACE "PropertyHandleImplementation"
 
@@ -3617,7 +3618,8 @@ bool FPropertyHandleObject::Supports( TSharedRef<FPropertyNode> PropertyNode )
 		return false;
 	}
 
-	return Property->IsA( UObjectPropertyBase::StaticClass() ) || Property->IsA(UInterfaceProperty::StaticClass());
+	return Property->IsA(UObjectPropertyBase::StaticClass()) || Property->IsA(UInterfaceProperty::StaticClass()) 
+		|| PropertyEditorHelpers::IsSoftClassPath(Property) || PropertyEditorHelpers::IsSoftObjectPath(Property);
 }
 
 FPropertyAccess::Result FPropertyHandleObject::GetValue( UObject*& OutValue ) const
@@ -3643,6 +3645,14 @@ FPropertyAccess::Result FPropertyHandleObject::GetValue( const UObject*& OutValu
 			UInterfaceProperty* InterfaceProp = Cast<UInterfaceProperty>(Property);
 			const FScriptInterface& ScriptInterface = InterfaceProp->GetPropertyValue(PropValue);
 			OutValue = ScriptInterface.GetObject();
+		}
+		else
+		{
+			// This is a struct path, get the path string and search for the object
+			FString ObjectPathString;
+			Res = Implementation->GetValueAsString(ObjectPathString);
+			FSoftObjectPath ObjectPath(ObjectPathString);
+			OutValue = ObjectPath.ResolveObject();
 		}
 	}
 
@@ -3737,6 +3747,15 @@ FPropertyAccess::Result FPropertyHandleObject::SetValueFromFormattedString(const
 			else if (InterfaceProperty)
 			{
 				InterfaceThatMustBeImplemented = InterfaceProperty->InterfaceClass;
+			}
+			else if (PropertyEditorHelpers::IsSoftClassPath(NodeProperty))
+			{
+				RequiredClass = NodeProperty->GetOwnerProperty()->GetClassMetaData(TEXT("MetaClass"));
+				InterfaceThatMustBeImplemented = NodeProperty->GetOwnerProperty()->GetClassMetaData(TEXT("MustImplement"));
+			}
+			else if (PropertyEditorHelpers::IsSoftObjectPath(NodeProperty))
+			{
+				// No metaclass, allowedclasses is the only filter
 			}
 			else
 			{
@@ -3862,13 +3881,27 @@ FPropertyAccess::Result FPropertyHandleObject::SetObjectValueFromSelection()
 		UInterfaceProperty* IntProp = Cast<UInterfaceProperty>(NodeProperty);
 		UClassProperty* ClassProp = Cast<UClassProperty>(NodeProperty);
 		USoftClassProperty* SoftClassProperty = Cast<USoftClassProperty>(NodeProperty);
-		UClass* const InterfaceThatMustBeImplemented = ObjProp ? ObjProp->GetOwnerProperty()->GetClassMetaData(TEXT("MustImplement")) : nullptr;
+		UClass* const InterfaceThatMustBeImplemented = NodeProperty ? NodeProperty->GetOwnerProperty()->GetClassMetaData(TEXT("MustImplement")) : nullptr;
 
-		if (ClassProp || SoftClassProperty)
+		if (ClassProp || SoftClassProperty || PropertyEditorHelpers::IsSoftClassPath(NodeProperty))
 		{
 			FEditorDelegates::LoadSelectedAssetsIfNeeded.Broadcast();
 
-			const UClass* const SelectedClass = GEditor->GetFirstSelectedClass(ClassProp ? ClassProp->MetaClass : SoftClassProperty->MetaClass);
+			UClass* RequiredClass = nullptr;
+			if (ClassProp)
+			{
+				RequiredClass = ClassProp->MetaClass;
+			}
+			else if (SoftClassProperty)
+			{
+				RequiredClass = SoftClassProperty->MetaClass;
+			}
+			else
+			{
+				RequiredClass = NodeProperty->GetOwnerProperty()->GetClassMetaData(TEXT("MetaClass"));
+			}
+
+			const UClass* const SelectedClass = GEditor->GetFirstSelectedClass(RequiredClass);
 			if (SelectedClass)
 			{
 				if (!InterfaceThatMustBeImplemented || SelectedClass->ImplementsInterface(InterfaceThatMustBeImplemented))

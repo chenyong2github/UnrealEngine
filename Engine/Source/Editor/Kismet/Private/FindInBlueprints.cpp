@@ -418,7 +418,7 @@ FReply FFindInBlueprintsProperty::OnClick()
 		UBlueprint* Blueprint = GetParentBlueprint();
 		if (Blueprint)
 		{
-			TSharedPtr<IBlueprintEditor> BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(Blueprint, false);
+			TSharedPtr<IBlueprintEditor> BlueprintEditor = FKismetEditorUtilities::GetIBlueprintEditorForObject(Blueprint, true);
 
 			if (BlueprintEditor.IsValid())
 			{

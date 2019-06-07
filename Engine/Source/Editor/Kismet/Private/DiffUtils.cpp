@@ -2,6 +2,7 @@
 
 #include "DiffUtils.h"
 #include "UObject/PropertyPortFlags.h"
+#include "UObject/Package.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
 #include "ISourceControlProvider.h"
@@ -11,6 +12,7 @@
 #include "Engine/Blueprint.h"
 #include "IAssetTypeActions.h"
 #include "ObjectEditorUtils.h"
+#include "Components/ActorComponent.h"
 
 namespace UE4DiffUtils_Private
 {
@@ -32,25 +34,30 @@ namespace UE4DiffUtils_Private
 		return nullptr;
 	}
 
-	FPropertySoftPathSet GetPropertyNameSet(const UObject* ForObj)
+	FPropertySoftPathSet GetPropertyNameSet(const UStruct* ForStruct)
 	{
-		return FPropertySoftPathSet(DiffUtils::GetVisiblePropertiesInOrderDeclared(ForObj));
+		return FPropertySoftPathSet(DiffUtils::GetVisiblePropertiesInOrderDeclared(ForStruct));
 	}
 }
 
 FResolvedProperty FPropertySoftPath::Resolve(const UObject* Object) const
 {
+	return Resolve(Object->GetClass(), Object);
+}
+
+FResolvedProperty FPropertySoftPath::Resolve(const UStruct* Struct, const void* StructData) const
+{
 	// dig into the object, finding nested objects, etc:
-	const void* CurrentBlock = Object;
-	const UStruct* NextClass = Object->GetClass();
+	const void* CurrentBlock = StructData;
+	const UStruct* NextClass = Struct;
 	const void* NextBlock = CurrentBlock;
 	const UProperty* Property = nullptr;
 
-	for( int32 i = 0; i < PropertyChain.Num(); ++i )
+	for (int32 i = 0; i < PropertyChain.Num(); ++i)
 	{
 		CurrentBlock = NextBlock;
-		const UProperty* NextProperty = UE4DiffUtils_Private::Resolve(NextClass, PropertyChain[i]);
-		if( NextProperty )
+		const UProperty* NextProperty = UE4DiffUtils_Private::Resolve(NextClass, PropertyChain[i].PropertyName);
+		if (NextProperty)
 		{
 			Property = NextProperty;
 			if (const UObjectProperty* ObjectProperty = Cast<UObjectProperty>(Property))
@@ -101,11 +108,11 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 		}
 	};
 
-	auto TryReadIndex = [](const TArray<FName>& LocalPropertyChain, int32& OutIndex) -> int32
+	auto TryReadIndex = [](const TArray<FChainElement>& LocalPropertyChain, int32& OutIndex) -> int32
 	{
 		if(OutIndex + 1 < LocalPropertyChain.Num())
 		{
-			FString AsString = LocalPropertyChain[OutIndex + 1].ToString();
+			FString AsString = LocalPropertyChain[OutIndex + 1].DisplayString;
 			if(AsString.IsNumeric())
 			{
 				++OutIndex;
@@ -121,7 +128,7 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 	FPropertyPath Ret;
 	for( int32 I = 0; I < PropertyChain.Num(); ++I )
 	{
-		FName PropertyIdentifier = PropertyChain[I];
+		FName PropertyIdentifier = PropertyChain[I].PropertyName;
 		UProperty* ResolvedProperty = UE4DiffUtils_Private::Resolve(ContainerStruct, PropertyIdentifier);
 
 		FPropertyInfo Info(ResolvedProperty, INDEX_NONE);
@@ -186,7 +193,7 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 				// we have an index, but are we looking into a key or value? Peek ahead to find out:
 				if(ensure(I + 1 < PropertyChain.Num()))
 				{
-					if(PropertyChain[I+1] == MapProperty->KeyProp->GetFName())
+					if(PropertyChain[I+1].PropertyName == MapProperty->KeyProp->GetFName())
 					{
 						++I;
 
@@ -195,7 +202,7 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 						FPropertyInfo MakKeyInfo(MapProperty->KeyProp, RealIndex);
 						Ret.AddProperty(MakKeyInfo);
 					}
-					else if(ensure( PropertyChain[I+1] == MapProperty->ValueProp->GetFName() ))
+					else if(ensure( PropertyChain[I+1].PropertyName == MapProperty->ValueProp->GetFName() ))
 					{	
 						++I;
 
@@ -245,9 +252,9 @@ FPropertyPath FPropertySoftPath::ResolvePath(const UObject* Object) const
 FString FPropertySoftPath::ToDisplayName() const
 {
 	FString Ret;
-	for( FName Property : PropertyChain )
+	for( FChainElement Element : PropertyChain )
 	{
-		FString PropertyAsString = Property.ToString();
+		FString PropertyAsString = Element.DisplayString;
 		if(Ret.IsEmpty())
 		{
 			Ret.Append(PropertyAsString);
@@ -278,23 +285,23 @@ const UObject* DiffUtils::GetCDO(const UBlueprint* ForBlueprint)
 	return ForBlueprint->GeneratedClass->ClassDefaultObject;
 }
 
-void DiffUtils::CompareUnrelatedObjects(const UObject* A, const UObject* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties)
+void DiffUtils::CompareUnrelatedStructs(const UStruct* StructA, const void* A, const UStruct* StructB, const void* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties)
 {
-	FPropertySoftPathSet PropertiesInA = UE4DiffUtils_Private::GetPropertyNameSet(A);
-	FPropertySoftPathSet PropertiesInB = UE4DiffUtils_Private::GetPropertyNameSet(B);
+	FPropertySoftPathSet PropertiesInA = UE4DiffUtils_Private::GetPropertyNameSet(StructA);
+	FPropertySoftPathSet PropertiesInB = UE4DiffUtils_Private::GetPropertyNameSet(StructB);
 
 	// any properties in A that aren't in B are differing:
 	auto AddedToA = PropertiesInA.Difference(PropertiesInB).Array();
-	for( const auto& Entry : AddedToA )
+	for (const auto& Entry : AddedToA)
 	{
-		OutDifferingProperties.Push(FSingleObjectDiffEntry( Entry, EPropertyDiffType::PropertyAddedToA ));
+		OutDifferingProperties.Push(FSingleObjectDiffEntry(Entry, EPropertyDiffType::PropertyAddedToA));
 	}
 
 	// and the converse:
 	auto AddedToB = PropertiesInB.Difference(PropertiesInA).Array();
 	for (const auto& Entry : AddedToB)
 	{
-		OutDifferingProperties.Push(FSingleObjectDiffEntry( Entry, EPropertyDiffType::PropertyAddedToB ));
+		OutDifferingProperties.Push(FSingleObjectDiffEntry(Entry, EPropertyDiffType::PropertyAddedToB));
 	}
 
 	// for properties in common, dig out the uproperties and determine if they're identical:
@@ -303,8 +310,8 @@ void DiffUtils::CompareUnrelatedObjects(const UObject* A, const UObject* B, TArr
 		FPropertySoftPathSet Common = PropertiesInA.Intersect(PropertiesInB);
 		for (const auto& PropertyName : Common)
 		{
-			FResolvedProperty AProp = PropertyName.Resolve(A);
-			FResolvedProperty BProp = PropertyName.Resolve(B);
+			FResolvedProperty AProp = PropertyName.Resolve(StructA, A);
+			FResolvedProperty BProp = PropertyName.Resolve(StructB, B);
 
 			check(AProp != FResolvedProperty() && BProp != FResolvedProperty());
 			TArray<FPropertySoftPath> DifferingSubProperties;
@@ -316,6 +323,14 @@ void DiffUtils::CompareUnrelatedObjects(const UObject* A, const UObject* B, TArr
 				}
 			}
 		}
+	}
+}
+
+void DiffUtils::CompareUnrelatedObjects(const UObject* A, const UObject* B, TArray<FSingleObjectDiffEntry>& OutDifferingProperties)
+{
+	if (A && B)
+	{
+		return CompareUnrelatedStructs(A->GetClass(), A, B->GetClass(), B, OutDifferingProperties);
 	}
 }
 
@@ -569,21 +584,30 @@ static void IdenticalHelper(const UProperty* AProperty, const UProperty* BProper
 			return;
 		}
 
-		// dig into the objects if they are in the same package as our initial object:
 		const UObjectProperty* BPropAsObject = CastChecked<UObjectProperty>(BProperty);
 
 		const UObject* A = *((const UObject* const*)AValue);
 		const UObject* B = *((const UObject* const*)BValue);
 
+		// dig into the objects if they are in the same package as our initial object:
 		if(BPropAsObject->HasAnyPropertyFlags(CPF_InstancedReference) && APropAsObject->HasAnyPropertyFlags(CPF_InstancedReference) && A && B && A->GetClass() == B->GetClass())
 		{
-			// dive into the object to find actual differences:
 			const UClass* AClass = A->GetClass(); // BClass and AClass are identical!
 
-			for (TFieldIterator<UProperty> PropertyIt(AClass); PropertyIt; ++PropertyIt)
+			// We only want to recurse if this is EditInlineNew and not a component
+			// Other instanced refs are likely to form a type-specific web so recursion doesn't make sense and won't be displayed properly in the details pane
+			if (AClass->HasAnyClassFlags(CLASS_EditInlineNew) && !AClass->IsChildOf(UActorComponent::StaticClass()))
 			{
-				const UProperty* ClassProp = *PropertyIt;
-				IdenticalHelper(ClassProp, ClassProp, ClassProp->ContainerPtrToValuePtr<void>(A, 0), ClassProp->ContainerPtrToValuePtr<void>(B, 0), FPropertySoftPath(RootPath, ClassProp), DifferingSubProperties);
+				for (TFieldIterator<UProperty> PropertyIt(AClass); PropertyIt; ++PropertyIt)
+				{
+					const UProperty* ClassProp = *PropertyIt;
+					IdenticalHelper(ClassProp, ClassProp, ClassProp->ContainerPtrToValuePtr<void>(A, 0), ClassProp->ContainerPtrToValuePtr<void>(B, 0), FPropertySoftPath(RootPath, ClassProp), DifferingSubProperties);
+				}
+			}
+			else if (A->GetFName() != B->GetFName())
+			{
+				// If the names don't match, report that as a difference as the object was likely changed
+				DifferingSubProperties.Push(RootPath);
 			}
 		}
 		else
@@ -626,34 +650,22 @@ bool DiffUtils::Identical(const FResolvedProperty& AProp, const FResolvedPropert
 	return DifferingProperties.Num() == 0;
 }
 
-TArray<FPropertySoftPath> DiffUtils::GetVisiblePropertiesInOrderDeclared(const UObject* ForObj, const TArray<FName>& Scope /*= TArray<FName>()*/)
+TArray<FPropertySoftPath> DiffUtils::GetVisiblePropertiesInOrderDeclared(const UStruct* ForStruct, const FPropertySoftPath& Scope /*= TArray<FName>()*/)
 {
 	TArray<FPropertySoftPath> Ret;
-	if (ForObj)
+	if (ForStruct)
 	{
-		const UClass* Class = ForObj->GetClass();
-		TSet<FString> HiddenCategories = FEditorCategoryUtils::GetHiddenCategories(Class);
-		for (TFieldIterator<UProperty> PropertyIt(Class); PropertyIt; ++PropertyIt)
+		TSet<FString> HiddenCategories = FEditorCategoryUtils::GetHiddenCategories(ForStruct);
+		for (TFieldIterator<UProperty> PropertyIt(ForStruct); PropertyIt; ++PropertyIt)
 		{
 			FName CategoryName = FObjectEditorUtils::GetCategoryFName(*PropertyIt);
 			if (!HiddenCategories.Contains(CategoryName.ToString()))
 			{
 				if (PropertyIt->PropertyFlags&CPF_Edit)
 				{
-					TArray<FName> NewPath(Scope);
-					NewPath.Push(PropertyIt->GetFName());
-					if (const UObjectProperty* ObjectProperty = Cast<UObjectProperty>(*PropertyIt))
-					{
-						const UObject* const* BaseObject = reinterpret_cast<const UObject* const*>( ObjectProperty->ContainerPtrToValuePtr<void>(ForObj) );
-						if (BaseObject && *BaseObject)
-						{
-							Ret.Append( GetVisiblePropertiesInOrderDeclared(*BaseObject, NewPath) );
-						}
-					}
-					else
-					{
-						Ret.Push(NewPath);
-					}
+					// We don't need to recurse into objects/structs as those will be picked up in the Identical check later
+					FPropertySoftPath NewPath(Scope, *PropertyIt);
+					Ret.Push(NewPath);
 				}
 			}
 		}
@@ -701,103 +713,53 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::NoDiffe
 	) );
 }
 
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::AnimBlueprintEntry()
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::UnknownDifferencesEntry()
 {
-	// For now, a widget and a short message explaining that differences in the AnimGraph are
-	// not detected by the diff tool:
+	// Warn about there being unknown differences
 	const auto GenerateWidget = []() -> TSharedRef<SWidget>
 	{
 		return SNew(STextBlock)
 			.ColorAndOpacity(FLinearColor(.7f, .7f, .7f))
 			.TextStyle(FEditorStyle::Get(), TEXT("BlueprintDif.ItalicText"))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "AnimBlueprintsNotSupported", "Warning: Detecting differences in Animation Blueprint specific data is not yet supported..."));
-	};
-
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-	Children.Emplace( TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FOnDiffEntryFocused()
-		, FGenerateDiffEntryWidget::CreateStatic(GenerateWidget)
-		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-		)) );
-
-	const auto CreateAnimGraphRootEntry = []() -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "AnimGraphTooltip", "Detecting differences in Animation Blueprint specific data is not yet supported"))
-			.ColorAndOpacity(DiffViewUtils::LookupColor(true))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "AnimGraphLabel", "Animation Blueprint"));
+			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "BlueprintTypeNotSupported", "Warning: Detecting differences in this Blueprint type specific data is not yet supported..."));
 	};
 
 	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
 		FOnDiffEntryFocused()
-		, FGenerateDiffEntryWidget::CreateStatic(CreateAnimGraphRootEntry)
-		, Children
-		));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::WidgetBlueprintEntry()
-{
-	// For now, a widget and a short message explaining that differences in the WidgetTree are
-	// not detected by the diff tool:
-	const auto GenerateWidget = []() -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ColorAndOpacity(FLinearColor(.7f, .7f, .7f))
-			.TextStyle(FEditorStyle::Get(), TEXT("BlueprintDif.ItalicText"))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "WidgetTreeNotSupported", "Warning: Detecting differences in Widget Blueprint specific data is not yet supported..."));
-	};
-
-	TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> > Children;
-	Children.Emplace(TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FOnDiffEntryFocused()
 		, FGenerateDiffEntryWidget::CreateStatic(GenerateWidget)
 		, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >()
-		)));
-
-	const auto CreateWidgetTreeRootEntry = []() -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "WidgetTreeTooltip", "Detecting differences in Widget Blueprint specific data is not yet supported"))
-			.ColorAndOpacity(DiffViewUtils::LookupColor(true))
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "WidgetTreeLabel", "Widget Blueprint"));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FOnDiffEntryFocused()
-		, FGenerateDiffEntryWidget::CreateStatic(CreateWidgetTreeRootEntry)
-		, Children
-		));
+	));
 }
 
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateDefaultsCategoryEntry(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateCategoryEntry(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
 {
-	const auto CreateDefaultsRootEntry = [](FLinearColor Color) -> TSharedRef<SWidget>
+	const auto CreateDefaultsRootEntry = [](FText LabelText, FText ToolTipText, FLinearColor Color) -> TSharedRef<SWidget>
 	{
 		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"))
+			.ToolTipText(ToolTipText)
 			.ColorAndOpacity(Color)
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"));
+			.Text(LabelText);
 	};
 
 	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
 		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, DiffViewUtils::LookupColor(bHasDifferences) )
+		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, LabelText, ToolTipText, DiffViewUtils::LookupColor(bHasDifferences))
 		, Children
 	));
 }
 
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateDefaultsCategoryEntryForMerge(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
+TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateCategoryEntryForMerge(const FText& LabelText, const FText& ToolTipText, FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
 {
-	const auto CreateDefaultsRootEntry = [](bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
+	const auto CreateDefaultsRootEntry = [](FText LabelText, FText ToolTipText, bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
 	{
 		const FLinearColor BaseColor = DiffViewUtils::LookupColor(bInHasRemoteDifferences || bInHasLocalDifferences, bInHasConflicts);
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			[
 				SNew(STextBlock)
-				.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsTooltip", "The list of changes made in the Defaults panel"))
+				.ToolTipText(ToolTipText)
 				.ColorAndOpacity(BaseColor)
-				.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "DefaultsLabel", "Defaults"))
+				.Text(LabelText)
 			]
 			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasRemoteDifferences, bInHasConflicts))
 			+ DiffViewUtils::Box(true, BaseColor)
@@ -806,49 +768,7 @@ TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateD
 
 	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
 		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
-		, Children
-		));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateComponentsCategoryEntry(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasDifferences)
-{
-	const auto CreateComponentsRootEntry = [](FLinearColor Color) -> TSharedRef<SWidget>
-	{
-		return SNew(STextBlock)
-			.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"))
-			.ColorAndOpacity(Color)
-			.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateComponentsRootEntry, DiffViewUtils::LookupColor(bHasDifferences))
-		, Children
-		));
-}
-
-TSharedPtr<FBlueprintDifferenceTreeEntry> FBlueprintDifferenceTreeEntry::CreateComponentsCategoryEntryForMerge(FOnDiffEntryFocused FocusCallback, const TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >& Children, bool bHasRemoteDifferences, bool bHasLocalDifferences, bool bHasConflicts)
-{
-	const auto CreateComponentsRootEntry = [](bool bInHasRemoteDifferences, bool bInHasLocalDifferences, bool bInHasConflicts) -> TSharedRef<SWidget>
-	{
-		const FLinearColor BaseColor = DiffViewUtils::LookupColor(bInHasRemoteDifferences || bInHasLocalDifferences, bInHasConflicts);
-		return  SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			[
-				SNew(STextBlock)
-				.ToolTipText(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSTooltip", "The list of changes made in the Components panel"))
-				.ColorAndOpacity(BaseColor)
-				.Text(NSLOCTEXT("FBlueprintDifferenceTreeEntry", "SCSLabel", "Components"))
-			]
-			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasRemoteDifferences, bInHasConflicts))
-			+ DiffViewUtils::Box(true, BaseColor)
-			+ DiffViewUtils::Box(true, DiffViewUtils::LookupColor(bInHasLocalDifferences, bInHasConflicts));
-	};
-
-	return TSharedPtr<FBlueprintDifferenceTreeEntry>(new FBlueprintDifferenceTreeEntry(
-		FocusCallback
-		, FGenerateDiffEntryWidget::CreateStatic(CreateComponentsRootEntry, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
+		, FGenerateDiffEntryWidget::CreateStatic(CreateDefaultsRootEntry, LabelText, ToolTipText, bHasRemoteDifferences, bHasLocalDifferences, bHasConflicts)
 		, Children
 	));
 }
@@ -863,7 +783,7 @@ TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > DiffTreeVi
 			];
 	};
 
-	const auto ChildrenAccessor = [](TSharedPtr<FBlueprintDifferenceTreeEntry> InTreeItem, TArray< TSharedPtr< FBlueprintDifferenceTreeEntry > >& OutChildren, TArray< TSharedPtr<FBlueprintDifferenceTreeEntry> >* MasterList)
+	const auto ChildrenAccessor = [](TSharedPtr<FBlueprintDifferenceTreeEntry> InTreeItem, TArray< TSharedPtr< FBlueprintDifferenceTreeEntry > >& OutChildren)
 	{
 		OutChildren = InTreeItem->Children;
 	};
@@ -878,7 +798,7 @@ TSharedRef< STreeView<TSharedPtr< FBlueprintDifferenceTreeEntry > > > DiffTreeVi
 
 	return SNew(STreeView< TSharedPtr< FBlueprintDifferenceTreeEntry > >)
 		.OnGenerateRow(STreeView< TSharedPtr< FBlueprintDifferenceTreeEntry > >::FOnGenerateRow::CreateStatic(RowGenerator))
-		.OnGetChildren(STreeView< TSharedPtr< FBlueprintDifferenceTreeEntry > >::FOnGetChildren::CreateStatic(ChildrenAccessor, DifferencesList))
+		.OnGetChildren(STreeView< TSharedPtr< FBlueprintDifferenceTreeEntry > >::FOnGetChildren::CreateStatic(ChildrenAccessor))
 		.OnSelectionChanged(STreeView< TSharedPtr< FBlueprintDifferenceTreeEntry > >::FOnSelectionChanged::CreateStatic(Selector))
 		.TreeItemsSource(DifferencesList);
 }
@@ -1056,19 +976,37 @@ FText DiffViewUtils::GetPanelLabel(const UBlueprint* Blueprint, const FRevisionI
 				, FText::FromString(Revision.Date.ToString(TEXT("%m/%d/%Y"))));		
 		}
 
-		return FText::Format( NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
-			, Label
-			, FText::FromString( Blueprint->GetName() )
-			, RevisionData );
+		if (Label.IsEmpty())
+		{
+			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
+				, FText::FromString(Blueprint->GetName())
+				, RevisionData);
+		}
+		else
+		{
+			return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
+				, Label
+				, FText::FromString(Blueprint->GetName())
+				, RevisionData);
+		}
 	}
 	else
 	{
 		if( Blueprint )
 		{
-			return FText::Format( NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
-				, Label
-				, FText::FromString( Blueprint->GetName() )
-				, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision" ));
+			if (Label.IsEmpty())
+			{
+				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabelTwoLines", "{0}\n{1}")
+					, FText::FromString(Blueprint->GetName())
+					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
+			}
+			else
+			{
+				return FText::Format(NSLOCTEXT("DiffViewUtils", "RevisionLabel", "{0}\n{1}\n{2}")
+					, Label
+					, FText::FromString(Blueprint->GetName())
+					, NSLOCTEXT("DiffViewUtils", "LocalRevisionLabel", "Local Revision"));
+			}
 		}
 
 		return NSLOCTEXT("DiffViewUtils", "NoBlueprint", "None" );

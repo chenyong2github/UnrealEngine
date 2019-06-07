@@ -21,15 +21,16 @@ public:
 	SLATE_BEGIN_ARGS( SGameplayTagQueryWidget )
 		: _ReadOnly(false), _AutoSave(false)
 	{}
-		SLATE_ARGUMENT( bool, ReadOnly )	// Flag to set if the list is read only
-		SLATE_ARGUMENT( bool, AutoSave)		// Flag to set if edits should be applied automatically (hides buttons)
+		SLATE_ARGUMENT(bool, ReadOnly)		// Flag to set if the list is read only
+		SLATE_ARGUMENT(bool, AutoSave)		// Flag to set if edits should be applied automatically (hides buttons)
+		SLATE_EVENT(FSimpleDelegate, OnClosePreSave) // Called when "Save and Close" button clicked
 		SLATE_EVENT(FSimpleDelegate, OnSaveAndClose) // Called when "Save and Close" button clicked
 		SLATE_EVENT(FSimpleDelegate, OnCancel) // Called when "Close Without Saving" button clicked
 		SLATE_EVENT(FSimpleDelegate, OnQueryChanged)	// Called when the user has modified the query
-	SLATE_END_ARGS()
+		SLATE_END_ARGS()
 
-	/** Simple struct holding a tag query and its owner for generic re-use of the widget */
-	struct FEditableGameplayTagQueryDatum
+		/** Simple struct holding a tag query and its owner for generic re-use of the widget */
+		struct FEditableGameplayTagQueryDatum
 	{
 		/** Constructor */
 		FEditableGameplayTagQueryDatum(class UObject* InOwnerObj, struct FGameplayTagQuery* InTagQuery, FString* InTagExportText=nullptr)
@@ -64,13 +65,16 @@ private:
 	/** Containers to modify */
 	TArray<FEditableGameplayTagQueryDatum> TagQueries;
 
-	/** Called when "save and close" is clicked */
+	/** Called when "Save and Close" is clicked before we save the data. */
+	FSimpleDelegate OnClosePreSave;
+
+	/** Called when "Save and Close" is clicked after we have saved the data. */
 	FSimpleDelegate OnSaveAndClose;
 
 	/** Called when the user has modified the query */
 	FSimpleDelegate OnQueryChanged;
 
-	/** Called when "cancel" is clicked */
+	/** Called when "Close Without Saving" is clicked */
 	FSimpleDelegate OnCancel;
 
 	/** Properties Tab */
@@ -79,17 +83,17 @@ private:
 	class UEditableGameplayTagQuery* CreateEditableQuery(FGameplayTagQuery& Q);
 	TWeakObjectPtr<class UEditableGameplayTagQuery> EditableQuery;
 
-	/** Called when the user clicks the "Expand All" button; Expands the entire tag tree */
+	/** Called when the user clicks the "Save and Close" button */
 	FReply OnSaveAndCloseClicked();
 
-	/** Called when the user clicks the "Expand All" button; Expands the entire tag tree */
+	/** Called when the user clicks the "Close Without Saving" button */
 	FReply OnCancelClicked();
 
 	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
 
-	/** Controls visibility of the "save and close" button */
+	/** Controls visibility of the "Save and Close" button */
 	EVisibility GetSaveAndCloseButtonVisibility() const;
-	/** Controls visibility of the "cancel without saving" button */
+	/** Controls visibility of the "Close Without Saving" button */
 	EVisibility GetCancelButtonVisibility() const;
 
 	void SaveToTagQuery();

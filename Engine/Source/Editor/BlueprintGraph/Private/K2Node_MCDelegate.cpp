@@ -17,6 +17,7 @@
 #include "K2Node_CallDelegate.h"
 #include "K2Node_ClearDelegate.h"
 #include "K2Node_RemoveDelegate.h"
+#include "Kismet2/BlueprintEditorUtils.h"
 
 #include "KismetCompiler.h"
 #include "DelegateNodeHandlers.h"
@@ -267,6 +268,27 @@ void UK2Node_BaseMCDelegate::AutowireNewNode(UEdGraphPin* FromPin)
 			Super::AutowireNewNode(FromPin);
 		}
 	}
+}
+
+bool UK2Node_BaseMCDelegate::HasDeprecatedReference() const
+{
+	// Check if the referenced delegate is deprecated.
+	return DelegateReference.IsDeprecated();
+}
+
+FEdGraphNodeDeprecationResponse UK2Node_BaseMCDelegate::GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const
+{
+	FEdGraphNodeDeprecationResponse Response = Super::GetDeprecationResponse(DeprecationType);
+	if (DeprecationType == EEdGraphNodeDeprecationType::NodeHasDeprecatedReference)
+	{
+		if (UProperty* DelegateProperty = DelegateReference.ResolveMember<UProperty>(GetBlueprintClassFromNode()))
+		{
+			FString DetailedMessage = DelegateProperty->GetMetaData(FBlueprintMetadata::MD_DeprecationMessage);
+			Response.MessageText = FBlueprintEditorUtils::GetDeprecatedMemberUsageNodeWarning(GetPropertyDisplayName(), FText::FromString(DetailedMessage));
+		}
+	}
+	
+	return Response;
 }
 
 /////// UK2Node_AddDelegate ///////////

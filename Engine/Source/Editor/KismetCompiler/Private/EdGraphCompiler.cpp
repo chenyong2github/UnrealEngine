@@ -65,9 +65,24 @@ void FGraphCompilerContext::ValidatePin(const UEdGraphPin* Pin) const
 /** Validates that the node is schema compatible */
 void FGraphCompilerContext::ValidateNode(const UEdGraphNode* Node) const
 {
-	if (Node->IsDeprecated() && Node->ShouldWarnOnDeprecation())
+	const bool bIsNodeDeprecated = Node->IsDeprecated();
+	if (bIsNodeDeprecated || Node->HasDeprecatedReference())
 	{
-		MessageLog.Warning(*Node->GetDeprecationMessage(), Node);
+		EEdGraphNodeDeprecationType ResponseType = bIsNodeDeprecated ? EEdGraphNodeDeprecationType::NodeTypeIsDeprecated : EEdGraphNodeDeprecationType::NodeHasDeprecatedReference;
+		FEdGraphNodeDeprecationResponse Response = Node->GetDeprecationResponse(ResponseType);
+		if (Response.MessageType != EEdGraphNodeDeprecationMessageType::None && !Response.MessageText.IsEmpty())
+		{
+			switch (Response.MessageType)
+			{
+			case EEdGraphNodeDeprecationMessageType::Note:
+				MessageLog.Note(*Response.MessageText.ToString(), Node);
+				break;
+
+			case EEdGraphNodeDeprecationMessageType::Warning:
+				MessageLog.Warning(*Response.MessageText.ToString(), Node);
+				break;
+			}
+		}
 	}
 
 	for (int32 PinIndex = 0; PinIndex < Node->Pins.Num(); ++PinIndex)

@@ -653,6 +653,9 @@ namespace EditorUtilities
 
 			/** Filters out Blueprint Read-only properties */
 			FilterBlueprintReadOnly = 1 << 5,
+
+			/** Filters out properties that are marked instance only. */
+			SkipInstanceOnlyProperties = 1 << 6,
 		};
 	}
 

@@ -338,6 +338,10 @@ void UByteProperty::ExportTextItem( FString& ValueStr, const void* PropertyValue
 			{
 				ValueStr += Enum->GetDisplayNameTextByValue(*(const uint8*)PropertyValue).ToString();
 			}
+			else if (PortFlags & PPF_ExternalEditor)
+			{
+				ValueStr += Enum->GetAuthoredNameStringByValue(*(const uint8*)PropertyValue);
+			}
 			else
 			{
 				ValueStr += Enum->GetNameStringByValue(*(const uint8*)PropertyValue);
@@ -360,7 +364,7 @@ const TCHAR* UByteProperty::ImportText_Internal( const TCHAR* InBuffer, void* Da
 		FString Temp;
 		if (const TCHAR* Buffer = UPropertyHelpers::ReadToken(InBuffer, Temp, true))
 		{
-			int32 EnumIndex = Enum->GetIndexByName(*Temp);
+			int32 EnumIndex = Enum->GetIndexByName(*Temp, EGetByNameFlags::CheckAuthoredName);
 			if (EnumIndex == INDEX_NONE && (Temp.IsNumeric() && !Algo::Find(Temp, TEXT('.'))))
 			{
 				int64 EnumValue = INDEX_NONE;

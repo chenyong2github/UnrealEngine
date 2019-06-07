@@ -18,6 +18,9 @@ FSCSDiff::FSCSDiff(const UBlueprint* InBlueprint)
 		return;
 	}
 
+	// Need to pull off const because the ICH access functions theoretically could modify it
+	Blueprint = const_cast<UBlueprint*>(InBlueprint);
+
 	Inspector = SNew(SKismetInspector)
 		.HideNameArea(true)
 		.ViewIdentifier(FName("BlueprintInspector"))
@@ -55,16 +58,16 @@ TSharedRef< SWidget > FSCSDiff::TreeWidget()
 	return ContainerWidget.ToSharedRef();
 }
 
-void GetDisplayedHierarchyRecursive(TArray< int32 >& TreeAddress, const FSCSEditorTreeNode& Node, TArray< FSCSResolvedIdentifier >& OutResult)
+void GetDisplayedHierarchyRecursive(UBlueprint* Blueprint, TArray< int32 >& TreeAddress, const FSCSEditorTreeNode& Node, TArray< FSCSResolvedIdentifier >& OutResult)
 {
 	FSCSIdentifier Identifier = { Node.GetVariableName(), TreeAddress };
-	FSCSResolvedIdentifier ResolvedIdentifier = { Identifier, Node.GetComponentTemplate() };
+	FSCSResolvedIdentifier ResolvedIdentifier = { Identifier, Node.GetOrCreateEditableComponentTemplate(Blueprint) };
 	OutResult.Push(ResolvedIdentifier);
 	const auto& Children = Node.GetChildren();
 	for (int32 Iter = 0; Iter != Children.Num(); ++Iter)
 	{
 		TreeAddress.Push(Iter);
-		GetDisplayedHierarchyRecursive(TreeAddress, *Children[Iter], OutResult);
+		GetDisplayedHierarchyRecursive(Blueprint, TreeAddress, *Children[Iter], OutResult);
 		TreeAddress.Pop();
 	}
 }
@@ -73,14 +76,14 @@ TArray< FSCSResolvedIdentifier > FSCSDiff::GetDisplayedHierarchy() const
 {
 	TArray< FSCSResolvedIdentifier > Ret;
 
-	if( SCSEditor.IsValid() )
+	if( SCSEditor.IsValid() && SCSEditor->GetActorNode().IsValid())
 	{
-		const TArray<FSCSEditorTreeNodePtrType>& RootNodes = SCSEditor->GetRootComponentNodes();
+		const TArray<FSCSEditorTreeNodePtrType>& RootNodes = SCSEditor->GetActorNode()->GetComponentNodes();
 		for (int32 Iter = 0; Iter != RootNodes.Num(); ++Iter)
 		{
 			TArray< int32 > TreeAddress;
 			TreeAddress.Push(Iter);
-			GetDisplayedHierarchyRecursive(TreeAddress, *RootNodes[Iter], Ret);
+			GetDisplayedHierarchyRecursive(Blueprint, TreeAddress, *RootNodes[Iter], Ret);
 		}
 	}
 
@@ -98,7 +101,7 @@ void FSCSDiff::OnSCSEditorUpdateSelectionFromNodes(const TArray<FSCSEditorTreeNo
 		if(NodePtr.IsValid() && NodePtr->CanEditDefaults())
 		{
 			InspectorTitle = FText::FromString(NodePtr->GetDisplayString());
-			InspectorObjects.Add(NodePtr->GetComponentTemplate());
+			InspectorObjects.Add(NodePtr->GetOrCreateEditableComponentTemplate(Blueprint));
 		}
 	}
 
