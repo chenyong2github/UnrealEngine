@@ -21,15 +21,15 @@ TSharedRef<ISequencerTrackEditor> FPrimitiveMaterialTrackEditor::CreateTrackEdit
 	return MakeShared<FPrimitiveMaterialTrackEditor>(OwningSequencer);
 }
 
-void FPrimitiveMaterialTrackEditor::ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const FGuid& ObjectBinding, const UClass* ObjectClass)
+void FPrimitiveMaterialTrackEditor::ExtendObjectBindingTrackMenu(TSharedRef<FExtender> Extender, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	if (ObjectClass->IsChildOf(UPrimitiveComponent::StaticClass()))
 	{
-		Extender->AddMenuExtension(SequencerMenuExtensionPoints::AddTrackMenu_PropertiesSection, EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateSP(this, &FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu, ObjectBinding));
+		Extender->AddMenuExtension(SequencerMenuExtensionPoints::AddTrackMenu_PropertiesSection, EExtensionHook::Before, nullptr, FMenuExtensionDelegate::CreateSP(this, &FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu, ObjectBindings));
 	}
 }
 
-void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, FGuid ObjectBinding)
+void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, TArray<FGuid> ObjectBindings)
 {
 	auto GetMaterialIndexForTrack = [](UMovieSceneTrack* InTrack)
 	{
@@ -39,7 +39,7 @@ void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder
 
 	int32 MinNumMaterials = TNumericLimits<int32>::Max();
 
-	for (TWeakObjectPtr<> WeakObject : GetSequencer()->FindObjectsInCurrentSequence(ObjectBinding))
+	for (TWeakObjectPtr<> WeakObject : GetSequencer()->FindObjectsInCurrentSequence(ObjectBindings[0]))
 	{
 		UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(WeakObject.Get());
 		if (PrimitiveComponent)
@@ -53,7 +53,7 @@ void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("MaterialSwitcherTitle", "Material Switchers"));
 
 		const UMovieScene*        MovieScene = GetFocusedMovieScene();
-		const FMovieSceneBinding* Binding    = Algo::FindBy(MovieScene->GetBindings(), ObjectBinding, &FMovieSceneBinding::GetObjectGuid);
+		const FMovieSceneBinding* Binding    = Algo::FindBy(MovieScene->GetBindings(), ObjectBindings[0], &FMovieSceneBinding::GetObjectGuid);
 
 		check(Binding);
 
@@ -67,7 +67,7 @@ void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder
 					FText(),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateSP(this, &FPrimitiveMaterialTrackEditor::CreateTrackForElement, ObjectBinding, Index)
+						FExecuteAction::CreateSP(this, &FPrimitiveMaterialTrackEditor::CreateTrackForElement, ObjectBindings, Index)
 					)
 				);
 			}
@@ -77,18 +77,21 @@ void FPrimitiveMaterialTrackEditor::ConstructObjectBindingTrackMenu(FMenuBuilder
 	}
 }
 
-void FPrimitiveMaterialTrackEditor::CreateTrackForElement(FGuid ObjectBindingID, int32 MaterialIndex)
+void FPrimitiveMaterialTrackEditor::CreateTrackForElement(TArray<FGuid> ObjectBindingIDs, int32 MaterialIndex)
 {
 	UMovieScene* MovieScene = GetFocusedMovieScene();
 
 	FScopedTransaction Transaction(LOCTEXT("CreateTrack", "Create Material Track"));
 	MovieScene->Modify();
 
-	UMovieScenePrimitiveMaterialTrack* NewTrack = MovieScene->AddTrack<UMovieScenePrimitiveMaterialTrack>(ObjectBindingID);
-	NewTrack->MaterialIndex = MaterialIndex;
-	NewTrack->SetDisplayName(FText::Format(LOCTEXT("MaterialTrackName_Format", "Material Element {0}"), FText::AsNumber(MaterialIndex)));
+	for (FGuid ObjectBindingID : ObjectBindingIDs)
+	{
+		UMovieScenePrimitiveMaterialTrack* NewTrack = MovieScene->AddTrack<UMovieScenePrimitiveMaterialTrack>(ObjectBindingID);
+		NewTrack->MaterialIndex = MaterialIndex;
+		NewTrack->SetDisplayName(FText::Format(LOCTEXT("MaterialTrackName_Format", "Material Element {0}"), FText::AsNumber(MaterialIndex)));
 
-	NewTrack->AddSection(*NewTrack->CreateNewSection());
+		NewTrack->AddSection(*NewTrack->CreateNewSection());
+	}
 
 	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }

@@ -467,6 +467,9 @@ public:
 	/** Gets the currently selected sections. */
 	virtual void GetSelectedSections(TArray<UMovieSceneSection*>& OutSelectedSections) = 0;
 
+	/** Gets the currently selected folders. */
+	virtual void GetSelectedFolders(TArray<UMovieSceneFolder*>& OutSelectedFolders) = 0;
+
 	/** Selects an object by GUID */
 	virtual void SelectObject(FGuid ObjectBinding) = 0;
 

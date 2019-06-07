@@ -579,34 +579,7 @@ FMatrix FEditorModeTools::GetCustomDrawingCoordinateSystem()
 	{
 		case COORD_Local:
 		{
-			// Let the current mode have a shot at setting the local coordinate system.
-			// If it doesn't want to, create it by looking at the currently selected actors list.
-
-			bool CustomCoordinateSystemProvided = false;
-			for (const auto& Mode : ActiveModes)
-			{
-				if (Mode->GetCustomDrawingCoordinateSystem(Matrix, nullptr))
-				{
-					CustomCoordinateSystemProvided = true;
-					break;
-				}
-			}
-
-			if (!CustomCoordinateSystemProvided)
-			{
-				const int32 Num = GetSelectedActors()->CountSelections<AActor>();
-
-				// Coordinate system needs to come from the last actor selected
-				if (Num > 0)
-				{
-					Matrix = FQuatRotationMatrix(GetSelectedActors()->GetBottom<AActor>()->GetActorQuat());
-				}
-			}
-
-			if (!Matrix.Equals(FMatrix::Identity))
-			{
-				Matrix.RemoveScaling();
-			}
+			Matrix = GetLocalCoordinateSystem();
 		}
 		break;
 
@@ -624,6 +597,42 @@ FMatrix FEditorModeTools::GetCustomInputCoordinateSystem()
 {
 	return GetCustomDrawingCoordinateSystem();
 }
+
+FMatrix FEditorModeTools::GetLocalCoordinateSystem()
+{
+	FMatrix Matrix = FMatrix::Identity;
+	// Let the current mode have a shot at setting the local coordinate system.
+	// If it doesn't want to, create it by looking at the currently selected actors list.
+
+	bool CustomCoordinateSystemProvided = false;
+	for (const auto& Mode : ActiveModes)
+	{
+		if (Mode->GetCustomDrawingCoordinateSystem(Matrix, nullptr))
+		{
+			CustomCoordinateSystemProvided = true;
+			break;
+		}
+	}
+
+	if (!CustomCoordinateSystemProvided)
+	{
+		const int32 Num = GetSelectedActors()->CountSelections<AActor>();
+
+		// Coordinate system needs to come from the last actor selected
+		if (Num > 0)
+		{
+			Matrix = FQuatRotationMatrix(GetSelectedActors()->GetBottom<AActor>()->GetActorQuat());
+		}
+	}
+
+	if (!Matrix.Equals(FMatrix::Identity))
+	{
+		Matrix.RemoveScaling();
+	}
+
+	return Matrix;
+}
+
 
 /** Gets the widget axis to be drawn */
 EAxisList::Type FEditorModeTools::GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const

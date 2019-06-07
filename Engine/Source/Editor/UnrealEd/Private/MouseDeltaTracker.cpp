@@ -475,7 +475,7 @@ void FMouseDeltaTracker::AddDelta(FEditorViewportClient* InViewportClient, FKey 
 			}
 		}
 		//if Absolute Translation, and not just moving the camera around
-		else if (InViewportClient->IsUsingAbsoluteTranslation())
+		else if (InViewportClient->IsUsingAbsoluteTranslation(false))
 		{
 			// Compute a view.
 			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues( 
@@ -618,7 +618,7 @@ const FVector FMouseDeltaTracker::GetScreenDelta() const
 /**
  * Converts the delta movement to drag/rotation/scale based on the viewport type or widget axis
  */
-void FMouseDeltaTracker::ConvertMovementDeltaToDragRot(FEditorViewportClient* InViewportClient, FVector& InOutDragDelta, FVector& OutDrag, FRotator& OutRotation, FVector& OutScale) const
+void FMouseDeltaTracker::ConvertMovementDeltaToDragRot(FSceneView* InView, FEditorViewportClient* InViewportClient, FVector& InOutDragDelta, FVector& OutDrag, FRotator& OutRotation, FVector& OutScale) const
 {
 	OutDrag = FVector::ZeroVector;
 	OutRotation = FRotator::ZeroRotator;
@@ -626,7 +626,7 @@ void FMouseDeltaTracker::ConvertMovementDeltaToDragRot(FEditorViewportClient* In
 
 	if( InViewportClient->GetCurrentWidgetAxis() != EAxisList::None )
 	{
-		InViewportClient->Widget->ConvertMouseMovementToAxisMovement( InViewportClient, bUsedDragModifier, InOutDragDelta, OutDrag, OutRotation, OutScale );
+		InViewportClient->Widget->ConvertMouseMovementToAxisMovement( InView, InViewportClient, bUsedDragModifier, InOutDragDelta, OutDrag, OutRotation, OutScale );
 	}
 	else
 	{

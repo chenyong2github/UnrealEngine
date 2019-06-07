@@ -226,6 +226,9 @@ public:
 	/** Toggle the visibility of the transform box. */
 	TSharedPtr< FUICommandInfo > ToggleShowTransformBox;
 
+	/** Toggle the visibility of the stretch box. */
+	TSharedPtr< FUICommandInfo > ToggleShowStretchBox;
+
 	/** Bake transform. */
 	TSharedPtr< FUICommandInfo > BakeTransform;
 
