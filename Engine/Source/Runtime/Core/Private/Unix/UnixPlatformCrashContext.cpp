@@ -579,7 +579,8 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			{
 				CrashReportClientArguments += TEXT(" -NoAnalytics ");
 			}
-			else if (bImplicitSend)
+
+			if (bImplicitSend)
 			{
 				CrashReportClientArguments += TEXT(" -Unattended -ImplicitSend ");
 			}
