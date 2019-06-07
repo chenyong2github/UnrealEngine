@@ -53,7 +53,6 @@ void FInsightsManager::PostConstructor()
 
 void FInsightsManager::BindCommands()
 {
-	ActionManager.Map_InsightsManager_Live();
 	ActionManager.Map_InsightsManager_Load();
 	ActionManager.Map_ToggleDebugInfo_Global();
 	ActionManager.Map_OpenSettings_Global();

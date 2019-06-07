@@ -33,6 +33,7 @@
 #include "Insights/Common/Stopwatch.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/BaseTimingTrack.h"
@@ -505,11 +506,12 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 				{
 					if (!ThreadGroups.Contains(GroupName))
 					{
-						ThreadGroups.Add(GroupName, { GroupName, bIsGroupVisible, 0 });
+						ThreadGroups.Add(GroupName, { GroupName, bIsGroupVisible, 0, Order });
 					}
 					else
 					{
 						bIsGroupVisible = ThreadGroups[GroupName].bIsVisible;
+						ThreadGroups[GroupName].Order = Order;
 					}
 				}
 
@@ -575,10 +577,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		if (bIsTimingEventsTrackDirty)
 		{
 			// The list has changed. Sort the list again.
-			TimingEventsTracks.Sort([this](const FTimingEventsTrack& A, const FTimingEventsTrack& B) -> bool
-			{
-				return A.GetOrder() < B.GetOrder();
-			});
+			Algo::SortBy(TimingEventsTracks, &FTimingEventsTrack::GetOrder);
 		}
 	}
 
@@ -2677,8 +2676,22 @@ void STimingView::ShowContextMenu(const FVector2D& ScreenSpacePosition, const FP
 
 void STimingView::BindCommands()
 {
-	//TSharedPtr<FUICommandList> CommandList = FTimingProfilerManager::Get()->GetCommandList();
-	//const FTimingProfilerCommands& Commands = FTimingProfilerManager::GetCommands();
+	FTimingViewCommands::Register();
+	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+
+	TSharedPtr<FUICommandList> CommandList = FTimingProfilerManager::Get()->GetCommandList();
+
+	CommandList->MapAction(
+		Commands.ShowAllGpuTracks,
+		FExecuteAction::CreateSP(this, &STimingView::ShowHideAllGpuTracks_Execute),
+		FCanExecuteAction(), //FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllGpuTracks_IsChecked));
+
+	CommandList->MapAction(
+		Commands.ShowAllCpuTracks,
+		FExecuteAction::CreateSP(this, &STimingView::ShowHideAllCpuTracks_Execute),
+		FCanExecuteAction(), //FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllCpuTracks_IsChecked));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2827,13 +2840,6 @@ void STimingView::UpdateAggregatedStats()
 		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
-
-			Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
-			Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
-
 			auto TableToString = [](const TCHAR* TableName, Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* Table) -> FString
 			{
 				FString Str;
@@ -2848,7 +2854,7 @@ void STimingView::UpdateAggregatedStats()
 				const Trace::ITableLayout& TableLayout = Table->GetLayout();
 				const int32 ColumnCount = TableLayout.GetColumnCount();
 
-				auto Reader = Table->CreateReader();
+				Trace::ITableReader<Trace::FLoadTimeProfilerAggregatedStats>* Reader = Table->CreateReader();
 
 				//////////////////////////////////////////////////
 
@@ -2913,11 +2919,26 @@ void STimingView::UpdateAggregatedStats()
 					Str.Append("\n[...]");
 				}
 
+				delete Reader;
+
 				return Str;
 			};
 
-			EventAggregationStr = TableToString(TEXT("Event Aggregation"), EventAggregationTable);
-			ObjectTypeAggregationStr = TableToString(TEXT("Object Type Aggregation"), ObjectTypeAggregationTable);
+			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+			const Trace::ILoadTimeProfilerProvider& LoadTimeProfilerProvider = *Trace::ReadLoadTimeProfilerProvider(*Session.Get());
+
+			{
+				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
+				EventAggregationStr = TableToString(TEXT("Event Aggregation"), EventAggregationTable);
+				delete EventAggregationTable;
+			}
+
+			{
+				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
+				ObjectTypeAggregationStr = TableToString(TEXT("Object Type Aggregation"), ObjectTypeAggregationTable);
+				delete ObjectTypeAggregationTable;
+			}
 		}
 	}
 }
@@ -3477,57 +3498,64 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 
 	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
 	{
+		const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+
+		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllGpuTracks", "GPU Track (Y)"),
+			LOCTEXT("ShowAllGpuTracks", "GPU Track - Y"),
 			LOCTEXT("ShowAllGpuTracks_Tooltip", "Show/hide the GPU track"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllGpuTracks_Execute),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllGpuTracks_IsChecked)),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllGpuTracks_IsChecked)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllCpuTracks", "CPU Thread Tracks (U)"),
+			LOCTEXT("ShowAllCpuTracks", "CPU Thread Tracks - U"),
 			LOCTEXT("ShowAllCpuTracks_Tooltip", "Show/hide all CPU tracks (and all CPU thread groups)"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllCpuTracks_Execute),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllCpuTracks_IsChecked)),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllCpuTracks_IsChecked)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllLoadingTracks);
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllLoadingTracks", "Asset Loading Tracks (L)"),
+			LOCTEXT("ShowAllLoadingTracks", "Asset Loading Tracks - L"),
 			LOCTEXT("ShowAllLoadingTracks_Tooltip", "Show/hide the Asset Loading tracks"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllLoadingTracks_Execute),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllLoadingTracks_IsChecked)),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllLoadingTracks_IsChecked)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllIoTracks);
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllIoTracks", "I/O Tracks (I)"),
+			LOCTEXT("ShowAllIoTracks", "I/O Tracks - I"),
 			LOCTEXT("ShowAllIoTracks_Tooltip", "Show/hide the I/O (File Activity) tracks"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideAllIoTracks_Execute),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllIoTracks_IsChecked)),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &STimingView::ShowHideAllIoTracks_IsChecked)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 
+		//TODO: MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("AutoHideEmptyTracks", "Auto Hide Empty Tracks (V)"),
+			LOCTEXT("AutoHideEmptyTracks", "Auto Hide Empty Tracks - V"),
 			LOCTEXT("AutoHideEmptyTracks_Tooltip", "Auto hide empty tracks (ones without timing events in current viewport)"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ToggleAutoHideEmptyTracks),
-				FCanExecuteAction::CreateLambda([] { return true; }),
-				FIsActionChecked::CreateSP(this, &STimingView::IsAutoHideEmptyTracksEnabled)),
+					  FCanExecuteAction(),
+					  FIsActionChecked::CreateSP(this, &STimingView::IsAutoHideEmptyTracksEnabled)),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
@@ -3549,13 +3577,23 @@ TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 
 void STimingView::CreateThreadGroupsMenu(FMenuBuilder& MenuBuilder)
 {
+	// Sort the list of thread groups.
+	TArray<const FThreadGroup*> SortedThreadGroups;
+	SortedThreadGroups.Reserve(ThreadGroups.Num());
 	for (const auto& KV : ThreadGroups)
 	{
-		const FThreadGroup& ThreadGroup = KV.Value;
+		SortedThreadGroups.Add(&KV.Value);
+	}
+	Algo::SortBy(SortedThreadGroups, &FThreadGroup::GetOrder);
+
+	for (const FThreadGroup* ThreadGroupPtr : SortedThreadGroups)
+	{
+		const FThreadGroup& ThreadGroup = *ThreadGroupPtr;
 		if (ThreadGroup.NumTimelines > 0)
 		{
 			MenuBuilder.AddMenuEntry(
-				FText::FromString(ThreadGroup.Name),
+				//FText::FromString(ThreadGroup.Name),
+				FText::Format(LOCTEXT("ThreadGroupFmt", "{0} ({1})"), FText::FromString(ThreadGroup.Name), ThreadGroup.NumTimelines),
 				TAttribute<FText>(), // no tooltip
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &STimingView::ToggleTrackVisibilityByGroup_Execute, ThreadGroup.Name),

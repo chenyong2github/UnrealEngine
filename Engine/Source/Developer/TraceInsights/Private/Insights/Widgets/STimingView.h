@@ -390,9 +390,12 @@ protected:
 
 	struct FThreadGroup
 	{
-		const TCHAR* Name; /**< the thread group name; pointer to string owned by ThreadProvider */
-		bool bIsVisible;
-		uint32 NumTimelines;
+		const TCHAR* Name; /**< The thread group name; pointer to string owned by ThreadProvider. */
+		bool bIsVisible;  /**< Toggle to show/hide all thread timelines associated with this group at once. Used also as default for new thread timelines. */
+		uint32 NumTimelines; /**< Number of thread timelines associated with this group. */
+		int32 Order; //**< Order index used for sorting. Inherited from last thread timeline associated with this group. **/
+
+		int32 GetOrder() const { return Order; }
 	};
 
 	TMap<const TCHAR*, FThreadGroup> ThreadGroups; /**< maps thread group name to thread group info */
