@@ -1517,6 +1517,18 @@ void FHttpNetworkReplayStreamer::DeleteFinishedStream( const FString& StreamName
 
 void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& InReplayVersion, const int32 UserIndex, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate )
 {
+	EnumerateStreams( InReplayVersion, GetUserStringFromUserIndex(UserIndex), MetaString, ExtraParms, Delegate );
+}
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& InReplayVersion, const FString& UserString, const FString& MetaString, const FEnumerateStreamsCallback& Delegate )
+{
+	EnumerateStreams( InReplayVersion, UserString, MetaString, TArray< FString >(), Delegate );
+}
+
+void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& InReplayVersion, const FString& UserString, const FString& MetaString, const TArray< FString >& ExtraParms, const FEnumerateStreamsCallback& Delegate )
+{
 	if ( ServerURL.IsEmpty() )
 	{
 		UE_LOG( LogHttpReplay, Warning, TEXT( "FHttpNetworkReplayStreamer::EnumerateStreams. ServerURL is empty, aborting." ) );
@@ -1549,7 +1561,6 @@ void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& 
 	}
 
 	// Add optional User parameter (filter replays by a user that was in the replay)
-	FString UserString = GetUserStringFromUserIndex(UserIndex);
 	if ( !UserString.IsEmpty() )
 	{
 		URL += FString::Printf( TEXT( "&user=%s" ), *FGenericPlatformHttp::UrlEncode( UserString ) );
@@ -1569,6 +1580,8 @@ void FHttpNetworkReplayStreamer::EnumerateStreams( const FNetworkReplayVersion& 
 
 	AddRequestToQueue( EQueuedHttpRequestType::EnumeratingSessions, HttpRequest );
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FHttpNetworkReplayStreamer::EnumerateRecentStreams( const FNetworkReplayVersion& InReplayVersion, const int32 UserIndex, const FEnumerateStreamsCallback& Delegate )
 {
