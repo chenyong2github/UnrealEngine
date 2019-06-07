@@ -502,6 +502,12 @@ struct FNetDeltaSerializeInfo
 	/** Whether or not we support FFastArraySerializer::FastArrayDeltaSerialize_DeltaSerializeStructs */
 	bool bSupportsFastArrayDeltaStructSerialization = false;
 
+	/**
+	 * Whether or the connection is completely reliable.
+	 * We cache this off separate from UNetConnection so we can limit usage.
+	 */
+	bool bInternalAck = false;
+
 	/** The object that owns the struct we're serializing. */
 	UObject* Object = nullptr;
 
