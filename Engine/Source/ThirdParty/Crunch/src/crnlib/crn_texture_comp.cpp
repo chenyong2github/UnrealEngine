@@ -49,7 +49,7 @@ bool create_compressed_texture(const crn_comp_params& params, crnlib::vector<uin
       ((local_params.m_file_type == cCRNFileTypeCRN) && ((local_params.m_flags & cCRNCompFlagManualPaletteSizes) != 0))) {
     if ((local_params.m_file_type == cCRNFileTypeCRN) ||
         ((local_params.m_file_type == cCRNFileTypeDDS) && (local_params.m_quality_level < cCRNMaxQualityLevel))) {
-      console::info("Compressing using quality level %i", local_params.m_quality_level);
+      console::info("Compressing using quality level %u", local_params.m_quality_level);
     }
     if (local_params.m_format == cCRNFmtDXT3) {
       if (local_params.m_file_type == cCRNFileTypeCRN)
