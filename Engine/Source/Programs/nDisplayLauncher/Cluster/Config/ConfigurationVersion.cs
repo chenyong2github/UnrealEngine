@@ -10,15 +10,19 @@ namespace nDisplayLauncher.Cluster.Config
 {
 	public enum ConfigurationVersion
 	{
-		//Unknown = 0,
 		Ver21, // 4.21 and older
-		Ver22
+		Ver22,
+		Ver23
 	}
 
 	public static class ConfigurationVersionHelpers
 	{
 		public static ConfigurationVersion FromString(string Ver)
 		{
+			if (Ver.CompareTo("23") == 0)
+			{
+				return ConfigurationVersion.Ver23;
+			}
 			if (Ver.CompareTo("22") == 0)
 			{
 				return ConfigurationVersion.Ver22;
@@ -33,6 +37,9 @@ namespace nDisplayLauncher.Cluster.Config
 		{
 			switch (Ver)
 			{
+				case ConfigurationVersion.Ver23:
+					return "23";
+
 				case ConfigurationVersion.Ver22:
 					return "22";
 

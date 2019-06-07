@@ -1396,6 +1396,11 @@ void FSceneViewport::ResizeFrame(uint32 NewWindowSizeX, uint32 NewWindowSizeY, E
 	}
 }
 
+bool FSceneViewport::HasFixedSize() const
+{
+	return bForceViewportSize;
+}
+
 void FSceneViewport::SetFixedViewportSize(uint32 NewViewportSizeX, uint32 NewViewportSizeY)
 {
 	if (NewViewportSizeX > 0 && NewViewportSizeY > 0)

@@ -398,6 +398,8 @@ private:
 class IConsoleCommandExecutor : public IModularFeature
 {
 public:
+	virtual ~IConsoleCommandExecutor() = default;
+
 	/**
 	 * Get the name identifying this modular feature set.
 	 */

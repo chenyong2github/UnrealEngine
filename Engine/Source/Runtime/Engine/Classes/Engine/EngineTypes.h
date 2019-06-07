@@ -3430,19 +3430,30 @@ struct ENGINE_API FComponentReference
 {
 	GENERATED_BODY()
 
+	FComponentReference() : OtherActor(nullptr) {}
+
 	/** Pointer to a different Actor that owns the Component.  */
 	UPROPERTY(EditInstanceOnly, Category=Component)
 	AActor* OtherActor;
 
 	/** Name of component property to use */
 	UPROPERTY(EditAnywhere, Category=Component)
-	FName	ComponentProperty;
+	FName ComponentProperty;
+
+	/** Path to the component from its owner actor */
+	UPROPERTY()
+	FString PathToComponent;
 
 	/** Allows direct setting of first component to constraint. */
-	TWeakObjectPtr<class USceneComponent> OverrideComponent;
+	TWeakObjectPtr<class UActorComponent> OverrideComponent;
 
 	/** Get the actual component pointer from this reference */
-	class USceneComponent* GetComponent(AActor* OwningActor) const;
+	class UActorComponent* GetComponent(AActor* OwningActor) const;
+
+	bool operator== (const FComponentReference& Other) const
+	{
+		return OtherActor == Other.OtherActor && ComponentProperty == Other.ComponentProperty && PathToComponent == Other.PathToComponent && OverrideComponent == Other.OverrideComponent;
+	}
 };
 
 /** Types of surfaces in the game, used by Physical Materials */

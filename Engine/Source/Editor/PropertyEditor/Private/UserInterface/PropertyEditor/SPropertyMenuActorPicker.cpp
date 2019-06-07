@@ -145,7 +145,7 @@ void SPropertyMenuActorPicker::OnPaste()
 	else
 	{
 		AActor* Actor = LoadObject<AActor>(NULL, *DestPath);
-		if(Actor && (ActorFilter.IsBound() || ActorFilter.Execute(Actor)))
+		if(Actor && (!ActorFilter.IsBound() || ActorFilter.Execute(Actor)))
 		{
 			SetValue(Actor);
 		}

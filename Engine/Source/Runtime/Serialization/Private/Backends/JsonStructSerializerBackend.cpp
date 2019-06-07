@@ -16,7 +16,10 @@ namespace JsonStructSerializerBackend
 	template<typename ValueType>
 	void WritePropertyValue(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State, const ValueType& Value)
 	{
-		if ((State.ValueProperty == nullptr) || (State.ValueProperty->ArrayDim > 1) || (State.ValueProperty->GetOuter()->GetClass() == UArrayProperty::StaticClass()))
+		if ((State.ValueProperty == nullptr) ||
+			(State.ValueProperty->ArrayDim > 1) ||
+			(State.ValueProperty->GetOuter()->GetClass() == UArrayProperty::StaticClass()) ||
+			(State.ValueProperty->GetOuter()->GetClass() == USetProperty::StaticClass()))
 		{
 			JsonWriter->WriteValue(Value);
 		}
@@ -35,7 +38,10 @@ namespace JsonStructSerializerBackend
 	// Writes a null value to the serialization output.
 	void WriteNull(const TSharedRef<TJsonWriter<UCS2CHAR>> JsonWriter, const FStructSerializerState& State)
 	{
-		if ((State.ValueProperty == nullptr) || (State.ValueProperty->ArrayDim > 1) || (State.ValueProperty->GetOuter()->GetClass() == UArrayProperty::StaticClass()))
+		if ((State.ValueProperty == nullptr) ||
+			(State.ValueProperty->ArrayDim > 1) ||
+			(State.ValueProperty->GetOuter()->GetClass() == UArrayProperty::StaticClass()) ||
+			(State.ValueProperty->GetOuter()->GetClass() == USetProperty::StaticClass()))
 		{
 			JsonWriter->WriteNull();
 		}
@@ -83,7 +89,7 @@ void FJsonStructSerializerBackend::BeginStructure(const FStructSerializerState& 
 	{
 		UObject* Outer = State.ValueProperty->GetOuter();
 
-		if ((Outer != nullptr) && (Outer->GetClass() == UArrayProperty::StaticClass()))
+		if ((Outer != nullptr) && (Outer->GetClass() == UArrayProperty::StaticClass() || Outer->GetClass() == USetProperty::StaticClass()))
 		{
 			JsonWriter->WriteObjectStart();
 		}
@@ -223,11 +229,28 @@ void FJsonStructSerializerBackend::WriteProperty(const FStructSerializerState& S
 	// classes & objects
 	else if (State.ValueType == UClassProperty::StaticClass())
 	{
-		WritePropertyValue(JsonWriter, State, CastChecked<UClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex)->GetPathName());
+		UObject* const& Value = CastChecked<UClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
+	}
+	else if (State.ValueType == USoftClassProperty::StaticClass())
+	{
+		FSoftObjectPtr const& Value = CastChecked<USoftClassProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		WritePropertyValue(JsonWriter, State, Value.IsValid() ? Value->GetPathName() : FString());
 	}
 	else if (State.ValueType == UObjectProperty::StaticClass())
 	{
-		WriteNull(JsonWriter, State);
+		UObject* const& Value = CastChecked<UObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		WritePropertyValue(JsonWriter, State, Value ? Value->GetPathName() : FString());
+	}
+	else if (State.ValueType == UWeakObjectProperty::StaticClass())
+	{
+		FWeakObjectPtr const& Value = CastChecked<UWeakObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		WritePropertyValue(JsonWriter, State, Value.IsValid() ? Value.Get()->GetPathName() : FString());
+	}
+	else if (State.ValueType == USoftObjectProperty::StaticClass())
+	{
+		FSoftObjectPtr const& Value = CastChecked<USoftObjectProperty>(State.ValueProperty)->GetPropertyValue_InContainer(State.ValueData, ArrayIndex);
+		WritePropertyValue(JsonWriter, State, Value.ToString());
 	}
 
 	// unsupported property type

@@ -1,9 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Network/DisplayClusterServer.h"
-
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/ScopeLock.h"
+
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterServer::FDisplayClusterServer(const FString& InName, const FString& InAddr, const int32 InPort) :

@@ -147,16 +147,16 @@ bool FDatasmithCameraFocusSettingsTemplate::Equals( const FDatasmithCameraFocusS
 	return bEquals;
 }
 
-void UDatasmithCineCameraComponentTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithCineCameraComponentTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	UCineCameraComponent* CineCameraComponent = Cast< UCineCameraComponent >( Destination );
 
 	if ( !CineCameraComponent )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithCineCameraComponentTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithCineCameraComponentTemplate >( Destination ) : nullptr;
 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( CurrentFocalLength, CineCameraComponent, PreviousTemplate );
@@ -167,9 +167,9 @@ void UDatasmithCineCameraComponentTemplate::Apply( UObject* Destination, bool bF
 	FocusSettings.Apply( &CineCameraComponent->FocusSettings, PreviousTemplate ? &PreviousTemplate->FocusSettings : nullptr );
 
 	PostProcessSettings.Apply( &CineCameraComponent->PostProcessSettings, PreviousTemplate ? &PreviousTemplate->PostProcessSettings : nullptr );
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithCineCameraComponentTemplate::Load( const UObject* Source )

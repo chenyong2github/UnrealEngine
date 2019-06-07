@@ -4,6 +4,8 @@
 #include "LiveLinkTypes.h"
 #include "BonePose.h"
 #include "Engine/Blueprint.h"
+#include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
   
 ULiveLinkRemapAsset::ULiveLinkRemapAsset(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -34,27 +36,27 @@ void ULiveLinkRemapAsset::OnBlueprintClassCompiled(UBlueprint* TargetBlueprint)
 	CurveNameMap.Reset();
 }
 
-void MakeCurveMapFromFrame(const FCompactPose& InPose, const FLiveLinkSubjectFrame& InFrame, const TArray<FName, TMemStackAllocator<>>& TransformedCurveNames, TMap<FName, float>& OutCurveMap)
+void MakeCurveMapFromFrame(const FCompactPose& InPose, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, const TArray<FName, TMemStackAllocator<>>& TransformedCurveNames, TMap<FName, float>& OutCurveMap)
 {
 	OutCurveMap.Reset();
-	OutCurveMap.Reserve(InFrame.Curves.Num());
+	OutCurveMap.Reserve(InFrameData->PropertyValues.Num());
 
 	const USkeleton* Skeleton = InPose.GetBoneContainer().GetSkeletonAsset();
 
-	for (int32 CurveIdx = 0; CurveIdx < InFrame.CurveKeyData.CurveNames.Num(); ++CurveIdx)
+	if (InSkeletonData->PropertyNames.Num() == InFrameData->PropertyValues.Num())
 	{
-		const FOptionalCurveElement& Curve = InFrame.Curves[CurveIdx];
-		if (Curve.IsValid())
+		for (int32 CurveIdx = 0; CurveIdx < InSkeletonData->PropertyNames.Num(); ++CurveIdx)
 		{
-			OutCurveMap.Add(TransformedCurveNames[CurveIdx]) = Curve.Value;
+			float PropertyValue = InFrameData->PropertyValues[CurveIdx];
+			OutCurveMap.Add(TransformedCurveNames[CurveIdx]) = PropertyValue;
 		}
 	}
 }
 
 
-void ULiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSubjectFrame& InFrame, FCompactPose& OutPose, FBlendedCurve& OutCurve)
+void ULiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve)
 {
-	const TArray<FName>& SourceBoneNames = InFrame.RefSkeleton.GetBoneNames();
+	const TArray<FName>& SourceBoneNames = InSkeletonData->BoneNames;
 
 	TArray<FName, TMemStackAllocator<>> TransformedBoneNames;
 	TransformedBoneNames.Reserve(SourceBoneNames.Num());
@@ -78,7 +80,7 @@ void ULiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSu
 	{
 		FName BoneName = TransformedBoneNames[i];
 
-		FTransform BoneTransform = InFrame.Transforms[i];
+		FTransform BoneTransform = InFrameData->Transforms[i];
 
 		int32 MeshIndex = OutPose.GetBoneContainer().GetPoseBoneIndexForBoneName(BoneName);
 		if (MeshIndex != INDEX_NONE)
@@ -91,7 +93,7 @@ void ULiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSu
 		}
 	}
 
-	const TArray<FName>& SourceCurveNames = InFrame.CurveKeyData.CurveNames;
+	const TArray<FName>& SourceCurveNames = InSkeletonData->PropertyNames;
 	TArray<FName, TMemStackAllocator<>> TransformedCurveNames;
 	TransformedCurveNames.Reserve(SourceCurveNames.Num());
 
@@ -112,7 +114,7 @@ void ULiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSu
 
 	TMap<FName, float> BPCurveValues;
 
-	MakeCurveMapFromFrame(OutPose, InFrame, TransformedCurveNames, BPCurveValues);
+	MakeCurveMapFromFrame(OutPose, InSkeletonData, InFrameData, TransformedCurveNames, BPCurveValues);
 
 	RemapCurveElements(BPCurveValues);
 

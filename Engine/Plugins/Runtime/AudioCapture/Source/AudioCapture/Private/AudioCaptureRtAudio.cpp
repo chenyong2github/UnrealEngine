@@ -68,10 +68,13 @@ bool FAudioCaptureImpl::OpenDefaultCaptureStream(FOnCaptureFunction InOnCapture,
 	// Open up new audio stream
 	CaptureDevice.openStream(nullptr, &RtAudioStreamParams, RTAUDIO_FLOAT32, SampleRate, &NumFrames, &OnAudioCaptureCallback, this);
 
-	if (CaptureDevice.isStreamOpen())
+	if (!CaptureDevice.isStreamOpen())
 	{
-		SampleRate = CaptureDevice.getStreamSampleRate();
+		UE_LOG(LogAudioCapture, Warning, TEXT("RtAudio failed to create a new audio stream."));
+		return false;
 	}
+
+	SampleRate = CaptureDevice.getStreamSampleRate();
 
 	return true;
 }

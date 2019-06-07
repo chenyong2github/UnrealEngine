@@ -40,7 +40,8 @@ public class PropertyEditor : ModuleRules
                 "AssetRegistry",
                 "AssetTools",
 				"ClassViewer",
-                "ContentBrowser",
+				"StructViewer",
+				"ContentBrowser",
 				"ConfigEditor",
 			}
 		);
@@ -70,6 +71,7 @@ public class PropertyEditor : ModuleRules
                 "AssetRegistry",
                 "AssetTools",
 				"ClassViewer",
+				"StructViewer",
 				"ContentBrowser",
 				"MainFrame",
 			}

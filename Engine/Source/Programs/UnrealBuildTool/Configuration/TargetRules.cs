@@ -649,6 +649,12 @@ namespace UnrealBuildTool
 		public bool bIsBuildingConsoleApplication = false;
 
 		/// <summary>
+		/// If true, creates an additional console application. Hack for Windows, where it's not possible to conditionally inherit a parent's console Window depending on how
+		/// the application is invoked; you have to link the same executable with a different subsystem setting.
+		/// </summary>
+		public bool bBuildAdditionalConsoleApp = false;
+
+		/// <summary>
 		/// True if debug symbols that are cached for some platforms should not be created.
 		/// </summary>
 		public bool bDisableSymbolCache = true;
@@ -1397,6 +1403,9 @@ namespace UnrealBuildTool
 				// Include all plugins
 				bIncludePluginsForTargetPlatforms = true;
 
+				// Create an additional console app for the editor
+				bBuildAdditionalConsoleApp = true;
+
 				// only have exports in modular builds
 				bHasExports = (LinkType == TargetLinkType.Modular);
 
@@ -1980,6 +1989,11 @@ namespace UnrealBuildTool
 			get { return Inner.bIsBuildingConsoleApplication; }
 		}
 
+		public bool bBuildAdditionalConsoleApp
+		{
+			get { return Inner.bBuildAdditionalConsoleApp; }
+		}
+		
 		public bool bDisableSymbolCache
 		{
 			get { return Inner.bDisableSymbolCache; }

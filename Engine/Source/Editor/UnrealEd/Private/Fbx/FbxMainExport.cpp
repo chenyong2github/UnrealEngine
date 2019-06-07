@@ -109,6 +109,9 @@ TSharedPtr<FFbxExporter> FFbxExporter::StaticInstance;
 
 FFbxExporter::FFbxExporter()
 {
+	bBakeKeys = true;
+	bKeepHierarchy = true;
+
 	//We use the FGCObject pattern to keep the fbx export option alive during the editor session
 	ExportOptionsUI = NewObject<UFbxExportOption>();
 	//Load the option from the user save ini file
@@ -3509,18 +3512,13 @@ FbxNode* FFbxExporter::ExportCollisionMesh(const UStaticMesh* StaticMesh, const 
 	MeshCollisionName += UTF8_TO_TCHAR(ParentActor->GetName()); //-V595
 	FbxNode* FbxActor = FbxNode::Create(Scene, TCHAR_TO_UTF8(*MeshCollisionName));
 
-	FbxNode *ParentOfParentMesh = nullptr;
 	if (ParentActor != nullptr)
 	{
-		FbxActor->LclTranslation.Set(ParentActor->LclTranslation.Get());
-		FbxActor->LclRotation.Set(ParentActor->LclRotation.Get());
-		FbxActor->LclScaling.Set(ParentActor->LclScaling.Get());
-		ParentOfParentMesh = ParentActor->GetParent();
-	}
-
-	if (ParentOfParentMesh == nullptr)
-	{
-		ParentOfParentMesh = Scene->GetRootNode();
+		// Collision meshes are added directly to the scene root, so we need to use the global transform instead of the relative one.
+		FbxAMatrix& GlobalTransform = ParentActor->EvaluateGlobalTransform();
+		FbxActor->LclTranslation.Set(GlobalTransform.GetT());
+		FbxActor->LclRotation.Set(GlobalTransform.GetR());
+		FbxActor->LclScaling.Set(GlobalTransform.GetS());
 	}
 
 	Scene->GetRootNode()->AddChild(FbxActor);

@@ -2030,7 +2030,7 @@ class FExportReferenceSorter : public FArchiveUObject
 		static bool bInitializedStaticCoreClasses = false;
 		static TArray<UClass*> StaticCoreClasses;
 		static TArray<UObject*> StaticCoreReferencedObjects;
-		static TArray<UObject*> StaticProcessedObjects;
+		static FOrderedObjectSet StaticProcessedObjects;
 		static TSet<UObject*> StaticSerializedObjects;
 		
 		
@@ -2644,22 +2644,20 @@ private:
 	/**
 	 * The list of objects that have been evaluated by this archive so far.
 	 */
-	/*struct FOrderedObjectSet
+	struct FOrderedObjectSet
 	{
-		TMap<UObject*, int32> ObjectsSet;
-		// TArray<UObject*> ObjectsList;
+		TMap<UObject*, int32> ObjectsMap;
 
 		int32 Add(UObject* Object)
 		{
-			// int32 Index = ObjectsList.Add(Object);
-			int32 Index = ObjectsSet.Num(); // never use the list anyway so no point in even having it
-			ObjectsSet.Add(Object, Index);
+			const int32 Index = ObjectsMap.Num();
+			ObjectsMap.Add(Object, Index);
 			return Index;
 		}
 
 		inline int32 Find(UObject* Object) const
 		{
-			const int32 *Index = ObjectsSet.Find(Object);
+			const int32 *Index = ObjectsMap.Find(Object);
 			if (Index)
 			{
 				return *Index;
@@ -2668,11 +2666,10 @@ private:
 		}
 		inline int32 Num() const
 		{
-			return ObjectsSet.Num();
+			return ObjectsMap.Num();
 		}
-	};*/
-	TArray<UObject*> ProcessedObjects;
-	
+	};
+	FOrderedObjectSet ProcessedObjects;
 
 	/**
 	 * The list of objects that have been serialized; used to prevent calling Serialize on an object more than once.

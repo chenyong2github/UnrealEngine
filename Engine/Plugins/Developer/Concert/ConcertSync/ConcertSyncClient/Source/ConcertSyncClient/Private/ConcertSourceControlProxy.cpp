@@ -3,6 +3,7 @@
 #include "ConcertSourceControlProxy.h"
 #include "ISourceControlModule.h"
 #include "Features/IModularFeatures.h"
+#include "HAL/FileManager.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
 	#include "Widgets/SNullWidget.h"
@@ -24,7 +25,7 @@ FConcertSourceControlStateProxy::FConcertSourceControlStateProxy(FSourceControlS
 FConcertSourceControlStateProxy::FConcertSourceControlStateProxy(FString InFilename)
 	: ActualState(nullptr)
 	, CachedFilename(MoveTemp(InFilename))
-	, CachedTimestamp(0)
+	, CachedTimestamp(IFileManager::Get().GetTimeStamp(*CachedFilename))
 {
 }
 

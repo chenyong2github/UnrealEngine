@@ -49,6 +49,9 @@ public:
 
 	~FStaticMeshEditor();
 
+	/** Initializes the editor to use a static mesh. Should be the first thing called. */
+	void InitEditorForStaticMesh(UStaticMesh* ObjectToEdit);
+
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
@@ -417,6 +420,9 @@ private:
 
 	/** Allow custom data for this editor */
 	TMap<int32, int32> CustomEditorData;
+
+	/** A local reference to the private Extender set in FAssetEditorToolkit so that we can extend our Toolbar sub-menus */
+	TSharedPtr<FExtender> EditorToolbarExtender;
 
 	/** Static Mesh Editor Secondary Toolbar */
 	TSharedPtr<SWidget> SecondaryToolbar;

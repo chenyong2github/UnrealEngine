@@ -107,6 +107,27 @@ void UPyTestObject::MulticastDelegatePropertyCallback(FString InStr) const
 	}
 }
 
+TArray<int32> UPyTestObject::ReturnArray()
+{
+	TArray<int32> TmpArray;
+	TmpArray.Add(10);
+	return TmpArray;
+}
+
+TSet<int32> UPyTestObject::ReturnSet()
+{
+	TSet<int32> TmpSet;
+	TmpSet.Add(10);
+	return TmpSet;
+}
+
+TMap<int32, bool> UPyTestObject::ReturnMap()
+{
+	TMap<int32, bool> TmpMap;
+	TmpMap.Add(10, true);
+	return TmpMap;
+}
+
 void UPyTestObject::EmitScriptError()
 {
 	FFrame::KismetExecutionMessage(TEXT("EmitScriptError was called"), ELogVerbosity::Error);

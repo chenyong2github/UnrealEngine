@@ -116,7 +116,7 @@ protected:
 				else
 				{
 					DataOffset = FMath::Min(DataOffset, InOffset);
-					DataSize += InSize;
+					DataSize = InOffset + InSize - DataOffset;
 				}
 			}
 
@@ -266,6 +266,9 @@ protected:
 
 		/** @return True if this record contains a reference to a pie object */
 		bool ContainsPieObject() const;
+
+		/** @return true if the record has a delta change or a custom change */
+		bool HasChanges() const;
 
 		/** Transfers data from an array. */
 		class FReader : public FArchiveUObject
@@ -573,6 +576,13 @@ public:
 		return FTransactionContext(Id, OperationId, Title, *Context, PrimaryObject);
 	}
 
+	/** @return true if the transaction is transient. */
+	virtual bool IsTransient() const override;
+
+	/** @return True if this record contains a reference to a pie object */
+	virtual bool ContainsPieObjects() const override;
+
+
 	/** Returns a unique string to serve as a type ID for the FTranscationBase-derived type. */
 	virtual const TCHAR* GetTransactionType() const
 	{
@@ -624,9 +634,6 @@ public:
 	int32 GetRecordCount() const;
 
 	const UObject* GetPrimaryObject() const { return PrimaryObject; }
-
-	/** @return True if this record contains a reference to a pie object */
-	virtual bool ContainsPieObjects() const override;
 
 	/** Checks if a specific object is in the transaction currently underway */
 	bool IsObjectTransacting(const UObject* Object) const;

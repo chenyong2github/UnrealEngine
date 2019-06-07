@@ -27,7 +27,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** Pointer to data preparation pipeline blueprint used to process input data */
 	UPROPERTY()
-	class UBlueprint* DataPrepRecipeBP;
+	class UBlueprint* DataprepRecipeBP;
 
 	/** Importing data and options used for this Datasmith scene */
 	UPROPERTY(EditAnywhere, Instanced, Category=ImportSettings)

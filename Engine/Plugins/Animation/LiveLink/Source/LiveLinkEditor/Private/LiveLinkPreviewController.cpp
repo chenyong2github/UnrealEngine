@@ -1,15 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkPreviewController.h"
+
+#include "Animation/DebugSkelMeshComponent.h"
+#include "CameraController.h"
 #include "ILiveLinkClient.h"
-#include "LiveLinkTypes.h"
+#include "IPersonaPreviewScene.h"
 #include "LiveLinkClientReference.h"
 #include "LiveLinkInstance.h"
 #include "LiveLinkRemapAsset.h"
-
-#include "CameraController.h"
-#include "IPersonaPreviewScene.h"
-#include "Animation/DebugSkelMeshComponent.h"
+#include "Roles/LiveLinkCameraRole.h"
+#include "Roles/LiveLinkCameraTypes.h"
 
 const FName EditorCamera(TEXT("EditorActiveCamera"));
 
@@ -30,9 +31,12 @@ public:
 	{
 		if (ILiveLinkClient* Client = ClientRef.GetClient())
 		{
-			if (const FLiveLinkSubjectFrame* Frame = Client->GetSubjectData(EditorCamera))
+			FLiveLinkSubjectFrameData CameraFrame;
+			if (Client->EvaluateFrame_AnyThread(EditorCamera, ULiveLinkCameraRole::StaticClass(), CameraFrame))
 			{
-				FTransform Camera = Frame->Transforms[0];
+				FLiveLinkCameraFrameData* FrameData = CameraFrame.FrameData.Cast<FLiveLinkCameraFrameData>();
+
+				FTransform Camera = FrameData->Transform;
 				InOutCameraPosition = Camera.GetLocation();
 				InOutCameraEuler = Camera.GetRotation().Euler();
 				return;

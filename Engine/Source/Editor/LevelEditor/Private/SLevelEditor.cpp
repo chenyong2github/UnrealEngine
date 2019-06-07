@@ -260,12 +260,19 @@ void SLevelEditor::ConstructNotificationBar()
 
 	// developer tools
 	const IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>(MainFrameModuleName);
+	const FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked< FLevelEditorModule >(LevelEditorModuleName);
+	
+	TArray<FMainFrameDeveloperTool> Tools;
+	for (const TTuple<FName, FLevelEditorModule::FStatusBarItem>& Item : LevelEditorModule.GetStatusBarItems())
+	{
+		Tools.Add({Item.Value.Visibility, Item.Value.Label, Item.Value.Value});
+	}
 
 	NotificationBarBox->AddSlot()
 		.AutoWidth()
 		.Padding(5.0f, 0.0f, 0.0f, 0.0f)
 		[
-			MainFrameModule.MakeDeveloperTools()
+			MainFrameModule.MakeDeveloperTools( Tools )
 		];
 }
 

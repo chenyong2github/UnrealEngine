@@ -27,6 +27,7 @@ public class UnrealEd : ModuleRules
 			{
 				"BehaviorTreeEditor",
 				"ClassViewer",
+				"StructViewer",
 				"ContentBrowser",
 				"DerivedDataCache",
 				"DesktopPlatform",
@@ -182,6 +183,7 @@ public class UnrealEd : ModuleRules
 				"Matinee",
 				"AssetTools",
 				"ClassViewer",
+				"StructViewer",
 				"CollectionManager",
 				"ContentBrowser",
 				"CurveTableEditor",

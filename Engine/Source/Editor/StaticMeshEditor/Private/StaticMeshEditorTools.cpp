@@ -7,6 +7,7 @@
 #include "EngineDefines.h"
 #include "EditorStyleSet.h"
 #include "PropertyHandle.h"
+#include "IDetailGroup.h"
 #include "IDetailChildrenBuilder.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/FeedbackContext.h"
@@ -91,15 +92,29 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 	IDetailCategoryBuilder& CollisionCategory = DetailBuilder.EditCategory( "Collision", LOCTEXT("CollisionCategory", "Collision") );
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailBuilder.EditCategory("ImportSettings");
 
-	// Hide the ability to change the import settings object
 	TSharedRef<IPropertyHandle> ImportSettings = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, AssetImportData));
-	IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(ImportSettings);
-	Row.CustomWidget(true)
-		.NameContent()
-		[
-			ImportSettings->CreatePropertyNameWidget()
-		];
-	
+	if (!StaticMeshEditor.GetStaticMesh() || !StaticMeshEditor.GetStaticMesh()->AssetImportData->IsA<UFbxStaticMeshImportData>())
+	{
+		// Hide the ability to change the import settings object
+		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(ImportSettings);
+		Row.CustomWidget(true)
+			.NameContent()
+			[
+				ImportSettings->CreatePropertyNameWidget()
+			];
+	}
+	else
+	{
+		// If the AssetImportData is an instance of UFbxStaticMeshImportData we create a custom UI.
+		// Since DetailCustomization UI is not supported on instanced properties and because IDetailLayoutBuilder does not work well inside instanced objects scopes,
+		// we need to manually recreate the whole FbxStaticMeshImportData UI in order to customize it.
+		ImportSettings->MarkHiddenByCustomization();
+		VertexColorImportOptionHandle = ImportSettings->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxStaticMeshImportData, VertexColorImportOption));
+		VertexColorImportOverrideHandle = ImportSettings->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxStaticMeshImportData, VertexOverrideColor));
+		TMap<FName, IDetailGroup*> ExistingGroup;
+		PropertyCustomizationHelpers::MakeInstancedPropertyCustomUI(ExistingGroup, ImportSettingsCategory, ImportSettings, FOnInstancedPropertyIteration::CreateSP(this, &FStaticMeshDetails::OnInstancedFbxStaticMeshImportDataPropertyIteration));
+	}
+
 	DetailBuilder.EditCategory( "Navigation", FText::GetEmpty(), ECategoryPriority::Uncommon );
 
 	LevelOfDetailSettings = MakeShareable( new FLevelOfDetailSettingsLayout( StaticMeshEditor ) );
@@ -143,6 +158,38 @@ void FStaticMeshDetails::CustomizeDetails( class IDetailLayoutBuilder& DetailBui
 			}
 		}
 	}
+}
+
+void FStaticMeshDetails::OnInstancedFbxStaticMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const
+{
+	IDetailPropertyRow* Row = nullptr;
+
+	if (PropertyGroup)
+	{
+		Row = &PropertyGroup->AddPropertyRow(Property);
+	}
+	else
+	{
+		Row = &BaseCategory.AddProperty(Property);
+	}
+
+	if (Row)
+	{
+		//Vertex Override Color property should be disabled if we are not in override mode.
+		if (Property->IsValidHandle() && Property->GetProperty() == VertexColorImportOverrideHandle->GetProperty())
+		{
+			Row->IsEnabled(TAttribute<bool>(this, &FStaticMeshDetails::GetVertexOverrideColorEnabledState));
+		}
+	}
+}
+
+bool FStaticMeshDetails::GetVertexOverrideColorEnabledState() const
+{
+	uint8 VertexColorImportOption;
+	check(VertexColorImportOptionHandle.IsValid());
+	ensure(VertexColorImportOptionHandle->GetValue(VertexColorImportOption) == FPropertyAccess::Success);
+
+	return (VertexColorImportOption == EVertexColorImportOption::Override);
 }
 
 void SConvexDecomposition::Construct(const FArguments& InArgs)

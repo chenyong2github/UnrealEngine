@@ -125,6 +125,9 @@ public:
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 private:
+	/** Sort Reimport handlers by priority if they are unsorted */
+	void SortHandlersIfNeeded();
+
 	/** Reimport handlers registered with this manager */
 	TArray<FReimportHandler*> Handlers;
 

@@ -10,9 +10,10 @@
 #include "Config/Parser/DisplayClusterConfigParserDebugAuto.h"
 
 #include "DisplayClusterBuildConfig.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/Paths.h"
+
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 #include "DisplayClusterStrings.h"
 
 
@@ -261,6 +262,17 @@ bool FDisplayClusterConfigManager::GetInputSetupRecord(const FString& id, FDispl
 	return GetItem(CfgInputSetupRecords, id, input, FString("GetInputSetupRecord"));
 }
 
+TArray<FDisplayClusterConfigProjection> FDisplayClusterConfigManager::GetProjections() const
+{
+	return CfgProjections;
+}
+
+bool FDisplayClusterConfigManager::GetProjection(const FString& id, FDisplayClusterConfigProjection& projection) const
+{
+	return GetItem(CfgProjections, id, projection, FString("GetProjection"));
+}
+
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IDisplayClusterConfigParserListener
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -367,6 +379,13 @@ void FDisplayClusterConfigManager::AddCustom(const FDisplayClusterConfigCustom& 
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found custom: %s"), *InCfgCustom.ToString());
 	CfgCustom = InCfgCustom;
+}
+
+void FDisplayClusterConfigManager::AddProjection(const FDisplayClusterConfigProjection& InCfgProjection)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
+	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found projeciton: %s"), *InCfgProjection.ToString());
+	CfgProjections.Add(InCfgProjection);
 }
 
 
