@@ -212,7 +212,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			}
 
 			Context->MainDataSet->EndSimulate();
-			if (Instance->bIsFinalTick)
+			if (Instance.bIsFinalTick)
 			{
 				Context->SetDataToRender(Instance.DestinationData);
 			}
