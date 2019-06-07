@@ -161,12 +161,25 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 			NewPin->bNotConnectable = true;
 			NewPin->bDefaultValueIsIgnored = FindPropagatedVariable(Input) != nullptr;
 
-			int32 DefaultValue = Graph->GetMetaData(Input).Get(FNiagaraVariableMetaData()).StaticSwitchDefaultValue;
-			Input.SetValue<FNiagaraInt32>({ DefaultValue });
 			FString PinDefaultValue;
-			if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
+			TOptional<FNiagaraVariableMetaData> MetaData = Graph->GetMetaData(Input);
+			if (MetaData.IsSet())
 			{
-				NewPin->DefaultValue = PinDefaultValue;
+				int32 DefaultValue = MetaData->StaticSwitchDefaultValue;
+				Input.AllocateData();
+				Input.SetValue<FNiagaraInt32>({ DefaultValue });
+				
+				if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
+				{
+					NewPin->DefaultValue = PinDefaultValue;
+				}
+			}
+			else
+			{
+				if (Schema->TryGetPinDefaultValueFromNiagaraVariable(Input, PinDefaultValue))
+				{
+					NewPin->DefaultValue = PinDefaultValue;
+				}
 			}
 		}
 
