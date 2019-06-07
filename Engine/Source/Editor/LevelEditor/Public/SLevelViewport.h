@@ -12,6 +12,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "EditorViewportClient.h"
+#include "Widgets/Layout/SScaleBox.h"
 #include "Widgets/SWindow.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "SEditorViewport.h"
@@ -704,6 +705,12 @@ private:
 
 	/** Handle any level viewport changes on leaving PIE or simulate */
 	void TransitionFromPIE(bool bIsSimulating);
+
+	/** Get the stretch type of the viewport */
+	EStretch::Type OnGetScaleBoxStretch() const;
+
+	/** Get the SViewport size */
+	FVector2D GetSViewportSize() const;
 
 private:
 	/** Tab which this viewport is located in */

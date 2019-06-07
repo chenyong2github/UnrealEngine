@@ -128,6 +128,11 @@ private:
 	bool bShowTree;
 	/** Should we prettify class names on the class picker? (ie show their display name) */
 	bool bShowDisplayNames;
+	/** Classes that can be picked with this property */
+	TArray<const UClass*> AllowedClassFilters;
+	/** Classes that can NOT be picked with this property */
+	TArray<const UClass*> DisallowedClassFilters;
+
 
 	/** Attribute used to get the currently selected class (required if PropertyEditor == null) */
 	TAttribute<const UClass*> SelectedClass;

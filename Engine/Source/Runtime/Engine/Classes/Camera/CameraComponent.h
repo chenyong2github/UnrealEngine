@@ -144,7 +144,7 @@ protected:
 	// The frustum component used to show visually where the camera field of view is
 	class UDrawFrustumComponent* DrawFrustum;
 
-	UPROPERTY(transient)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="StaticMesh")
 	class UStaticMesh* CameraMesh;
 
 	// The camera mesh to show visually where the camera is placed

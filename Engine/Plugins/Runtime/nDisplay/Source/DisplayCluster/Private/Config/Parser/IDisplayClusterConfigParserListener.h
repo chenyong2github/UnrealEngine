@@ -29,4 +29,5 @@ public:
 	virtual void AddInput(const FDisplayClusterConfigInput& InCfgInput) = 0;
 	virtual void AddInputSetup(const FDisplayClusterConfigInputSetup& input) = 0;
 	virtual void AddCustom(const FDisplayClusterConfigCustom& InCfgCustom) = 0;
+	virtual void AddProjection(const FDisplayClusterConfigProjection& InCfgProjection) = 0;
 };

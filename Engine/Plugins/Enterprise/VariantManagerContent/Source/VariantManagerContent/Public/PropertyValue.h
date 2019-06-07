@@ -16,6 +16,7 @@ DECLARE_MULTICAST_DELEGATE(FOnPropertyRecorded);
 DECLARE_MULTICAST_DELEGATE(FOnPropertyApplied);
 
 class UVariantObjectBinding;
+class USCS_Node;
 
 UENUM()
 enum class EPropertyValueCategory : uint8
@@ -86,6 +87,8 @@ public:
 	//~ End valid resolve requirement
 
 	// Returns the type of UProperty (UObjectProperty, UFloatProperty, etc)
+	// If checking for Enums, prefer checking if GetEnumPropertyEnum() != nullptr, as it may be that
+	// we received a UNumericProperty that actually represents an enum, which wouldn't be reflected here
 	virtual UClass* GetPropertyClass() const;
 	EPropertyValueCategory GetPropCategory() const;
 	virtual UScriptStruct* GetStructPropertyStruct() const;
@@ -95,6 +98,12 @@ public:
 	// Utility functions for UEnumProperties
 	TArray<FName> GetValidEnumsFromPropertyOverride();
 	FString GetEnumDocumentationLink();
+	// Used RecordedData as an enum value and gets the corresponding index for our Enum
+	int32 GetRecordedDataAsEnumIndex();
+	// Sets our RecordedData with the value that matches Index, for our Enum
+	void SetRecordedDataFromEnumIndex(int32 Index);
+	// Makes sure RecordedData data is a valid Enum index for our Enum (_MAX is not allowed)
+	void SanitizeRecordedEnumData();
 	bool IsNumericPropertySigned();
 	bool IsNumericPropertyUnsigned();
 	bool IsNumericPropertyFloatingPoint();
@@ -117,9 +126,15 @@ public:
 	bool HasRecordedData() const;
 	const TArray<uint8>& GetRecordedData();
 	void SetRecordedData(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
+	virtual const TArray<uint8>& GetDefaultValue();
+	void ClearDefaultValue();
 
 	FOnPropertyApplied& GetOnPropertyApplied();
 	FOnPropertyRecorded& GetOnPropertyRecorded();
+
+private:
+
+	void SetRecordedDataInternal(const uint8* NewDataBytes, int32 NumBytes, int32 Offset = 0);
 
 protected:
 
@@ -129,7 +144,8 @@ protected:
 	// (e.g. SetIntensity instead of setting the Intensity UPROPERTY directly)
 	void ApplyViaFunctionSetter(UObject* TargetObject);
 
-	// Check if our parent object has the property path we captured
+	// Recursively navigate the component/USCS_Node hierarchy trying to resolve our property path
+	bool ResolveUSCSNodeRecursive(const USCS_Node* Node, int32 SegmentIndex);
 	bool ResolvePropertiesRecursive(UStruct* ContainerClass, void* ContainerAddress, int32 PropertyIndex);
 
 	FOnPropertyApplied OnPropertyApplied;
@@ -175,6 +191,8 @@ protected:
 
 	UPROPERTY()
 	EPropertyValueCategory PropCategory;
+
+	TArray<uint8> DefaultValue;
 
 	TSoftObjectPtr<UObject> TempObjPtr;
 	FName TempName;

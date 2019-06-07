@@ -100,6 +100,7 @@ void STimecodeSynchronizerSourceViewport::Construct(const FArguments& InArgs, UT
 								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
 								.ShadowOffset(FVector2D(1.f, 1.f))
 								.Text(this, &STimecodeSynchronizerSourceViewport::HandleIntervalMinTimecodeText)
+								.Justification(ETextJustify::Right)
 								.ToolTipText(LOCTEXT("OverlayMinTimecodeDataTooltip", "Buffered minimum Timecode of this source"))
 							]
 							
@@ -112,6 +113,7 @@ void STimecodeSynchronizerSourceViewport::Construct(const FArguments& InArgs, UT
 								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
 								.ShadowOffset(FVector2D(1.f, 1.f))
 								.Text(this, &STimecodeSynchronizerSourceViewport::HandleIntervalMaxTimecodeText)
+								.Justification(ETextJustify::Right)
 								.ToolTipText(LOCTEXT("OverlayMaxTimecodeDataTooltip", "Buffered maximum Timecode of this source"))
 							]
 						]
@@ -144,6 +146,7 @@ void STimecodeSynchronizerSourceViewport::Construct(const FArguments& InArgs, UT
 							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.18"))
 							.ShadowOffset(FVector2D(1.f, 1.f))
 							.Text(this, &STimecodeSynchronizerSourceViewport::HandleCurrentTimecodeText)
+							.Justification(ETextJustify::Right)
 							.ToolTipText(LOCTEXT("OverlayCurrentTimecodeDataTooltip", "Current Timecode of system"))
 						]
 					]
@@ -167,7 +170,7 @@ FText STimecodeSynchronizerSourceViewport::HandleIntervalMinTimecodeText() const
 		Timecode = FTimecode::FromFrameNumber(OldestFrame, AttachedSource->GetFrameRate(), bIsDropFrame);
 	}
 
-	return FText::FromString(Timecode.ToString());
+	return FText::FromString(FString("Minimum: ") + Timecode.ToString());
 }
 
 FText STimecodeSynchronizerSourceViewport::HandleIntervalMaxTimecodeText() const
@@ -181,12 +184,12 @@ FText STimecodeSynchronizerSourceViewport::HandleIntervalMaxTimecodeText() const
 		Timecode = FTimecode::FromFrameNumber(NewestFrame, AttachedSource->GetFrameRate(), bIsDropFrame);
 	}
 
-	return FText::FromString(Timecode.ToString());
+	return FText::FromString(FString("Maximum: ") + Timecode.ToString());
 }
 
 FText STimecodeSynchronizerSourceViewport::HandleCurrentTimecodeText() const
 {
-	return FText::FromString(FApp::GetTimecode().ToString());
+	return FText::FromString(FString("Current: ") + FApp::GetTimecode().ToString());
 }
 
 FText STimecodeSynchronizerSourceViewport::HandleIsSourceMasterText() const

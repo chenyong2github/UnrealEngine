@@ -18,6 +18,7 @@
 	[
 		"UnrealFrontend",
 		"UnrealMultiUserServer",
+		"UnrealDisasterRecoveryService",
 		"UnrealLightmass"
 	],
 	"Modules" :
@@ -33,6 +34,7 @@
 			"WhitelistPrograms": [
 				"UnrealFrontend",
 				"UnrealMultiUserServer",
+				"UnrealDisasterRecoveryService",
 				"UnrealLightmass"
 			]
 		}

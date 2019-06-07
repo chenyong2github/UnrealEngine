@@ -3,7 +3,6 @@
 #include "SEditorViewport.h"
 #include "Misc/Paths.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Widgets/SViewport.h"
 #include "Misc/App.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Settings/LevelEditorViewportSettings.h"
@@ -48,8 +47,6 @@ SEditorViewport::~SEditorViewport()
 
 void SEditorViewport::Construct( const FArguments& InArgs )
 {
-	
-
 	ChildSlot
 	[
 		SNew(SGlobalPlayWorldActions)
@@ -58,16 +55,17 @@ void SEditorViewport::Construct( const FArguments& InArgs )
 			.ShowEffectWhenDisabled(false)
 			.EnableGammaCorrection(false) // Scene rendering handles this
 			.AddMetaData(InArgs.MetaData.Num() > 0 ? InArgs.MetaData[0] : MakeShareable(new FTagMetaData(TEXT("LevelEditorViewport"))))
+			.ViewportSize(InArgs._ViewportSize)
 			[
 				SAssignNew(ViewportOverlay, SOverlay)
 				+ SOverlay::Slot()
 				[
-				SNew(SBorder)
-				.BorderImage(this, &SEditorViewport::OnGetViewportBorderBrush)
-				.BorderBackgroundColor(this, &SEditorViewport::OnGetViewportBorderColorAndOpacity)
-				.Visibility(this, &SEditorViewport::OnGetViewportContentVisibility)
-				.Padding(0.0f)
-				.ShowEffectWhenDisabled(false)
+					SNew(SBorder)
+					.BorderImage(this, &SEditorViewport::OnGetViewportBorderBrush)
+					.BorderBackgroundColor(this, &SEditorViewport::OnGetViewportBorderColorAndOpacity)
+					.Visibility(this, &SEditorViewport::OnGetViewportContentVisibility)
+					.Padding(0.0f)
+					.ShowEffectWhenDisabled(false)
 				]
 			]
 		]

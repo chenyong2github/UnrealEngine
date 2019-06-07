@@ -18,7 +18,7 @@ class WMFMEDIAFACTORY_API UWmfMediaSettings
 	GENERATED_BODY()
 
 public:
-	 
+
 	/** Default constructor. */
 	UWmfMediaSettings();
 
@@ -32,7 +32,7 @@ public:
 	 * the user to install additional codec packs. Enable this option to skip
 	 * this check and allow the usage of non-standard codecs.
 	 */
-	UPROPERTY(config, EditAnywhere, Category=Media)
+	UPROPERTY(config, EditAnywhere, Category=Media, meta = (EditCondition = "!EnableHAPCodec"))
 	bool AllowNonStandardCodecs;
 
 	/**
@@ -52,6 +52,17 @@ public:
 	bool NativeAudioOut;
 
 	/** Use hardware accelerated video acceleration (GPU) when possible otherwise fallback to software implementation (CPU), Windows and DX11 only. */
-	UPROPERTY(config, EditAnywhere, Category=Media, meta = (DisplayName = "Hardware Accelerated Video Decoding (Experimental)"))
+	UPROPERTY(config, EditAnywhere, Category=Media, meta = (DisplayName = "Hardware Accelerated Video Decoding (Experimental)", EditCondition = "!EnableHAPCodec"))
 	bool HardwareAcceleratedVideoDecoding;
+
+	/** Enable internal HAP codec (Force AllowNonStandardCodecs and HardwareAcceleratedVideoDecoding to true) */
+	UPROPERTY(config, EditAnywhere, Category = Media)
+	bool EnableHAPCodec;
+
+public:
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& InPropertyChangedEvent) override;
+#endif //WITH_EDITOR
+
 };

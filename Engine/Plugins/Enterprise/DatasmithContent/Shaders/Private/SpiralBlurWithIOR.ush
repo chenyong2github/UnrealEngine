@@ -67,7 +67,7 @@ SceneDepth = CalcSceneDepth(NewUV);
 float2 ScenePixels = View.BufferSizeAndInvSize.xy * ScreenUV;
 ScenePixels += View.TemporalAAParams.r;
 float2 RandomSamp = ((uint)(ScenePixels.x) + 2 * (uint)(ScenePixels.y)) % 5;
-RandomSamp += Texture2DSample(RandomTex, RandomTexSampler, View.BufferSizeAndInvSize.xy * ScreenUV / 64);
+RandomSamp += Texture2DSample(RandomTex, RandomTexSampler, View.BufferSizeAndInvSize.xy * ScreenUV / 64).xy;
 RandomSamp /= 6;
 RandomSamp -= 0.5;
 

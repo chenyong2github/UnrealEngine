@@ -17,6 +17,7 @@
 #include "MediaCapture.generated.h"
 
 class FSceneViewport;
+class FTextureRenderTargetResource;
 class UTextureRenderTarget2D;
 
 /**
@@ -256,6 +257,8 @@ protected:
 	UMediaOutput* MediaOutput;
 
 private:
+	struct FCaptureFrame;
+
 	void InitializeResolveTarget(int32 InNumberOfBuffers);
 	void OnEndFrame_GameThread();
 	void CacheMediaOutput(EMediaCaptureSourceType InSourceType);
@@ -265,6 +268,10 @@ private:
 	void BroadcastStateChanged();
 	void SetFixedViewportSize(TSharedPtr<FSceneViewport> InSceneViewport);
 	void ResetFixedViewportSize(TSharedPtr<FSceneViewport> InViewport, bool bInFlushRenderingCommands);
+
+	void Capture_RenderThread(FRHICommandListImmediate& RHICmdList, UMediaCapture* InMediaCapture, FCaptureFrame* CapturingFrame, FCaptureFrame* ReadyFrame,
+		FSceneViewport* InCapturingSceneViewport, FTextureRenderTargetResource* InTextureRenderTargetResource,
+		FIntPoint InDesiredSize, FMediaCaptureStateChangedSignature InOnStateChanged);
 
 private:
 	struct FCaptureFrame
@@ -296,8 +303,8 @@ private:
 	FString MediaOutputName;
 	bool bUseRequestedTargetSize;
 
-	bool bResolvedTargetInitialized;
-	bool bShouldCaptureRHITexture;
 	bool bViewportHasFixedViewportSize;
+	TAtomic<bool> bResolvedTargetInitialized;
+	TAtomic<bool> bShouldCaptureRHITexture;
 	TAtomic<int32> WaitingForResolveCommandExecutionCounter;
 };

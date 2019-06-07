@@ -9,6 +9,7 @@
 #include "Editor.h"
 
 #include "Engine/Selection.h"
+#include "Engine/World.h"
 #include "Editor/EditorEngine.h"
 #include "GameFramework/Actor.h"
 
@@ -17,22 +18,24 @@
 
 bool UVPUIBase::Initialize()
 {
-	const bool SuperInitialized = UUserWidget::Initialize();
+	const bool SuperInitialized = Super::Initialize();
 
-	if (!HasAnyFlags(RF_ClassDefaultObject))
+	if (SuperInitialized && !HasAnyFlags(RF_ClassDefaultObject))
 	{
+		FEditorDelegates::MapChange.AddUObject(this, &ThisClass::OnEditorMapChanged);
+		FWorldDelegates::OnWorldCleanup.AddUObject(this, &ThisClass::OnWorldCleanupEvent);
 		FVPBookmarkLifecycleDelegates::GetOnBookmarkCreated().AddUObject(this, &ThisClass::OnBookmarkCreated);
 		FVPBookmarkLifecycleDelegates::GetOnBookmarkDestroyed().AddUObject(this, &ThisClass::OnBookmarkDestroyed);
 		FVPBookmarkLifecycleDelegates::GetOnBookmarkCleared().AddUObject(this, &ThisClass::OnBookmarkCleared);
+
+		USelection::SelectNoneEvent.AddUObject(this, &UVPUIBase::OnEditorSelectNone);
+		USelection::SelectionChangedEvent.AddUObject(this, &UVPUIBase::OnEditorSelectionChanged);
+		USelection::SelectObjectEvent.AddUObject(this, &UVPUIBase::OnEditorSelectionChanged);
+		// Monitor VI.NavigationMode cvar
+		IConsoleManager::Get().RegisterConsoleVariableSink_Handle(FConsoleCommandDelegate::CreateUObject(this, &UVPUIBase::CVarSinkHandler));
+
+		GetSelectedActor();
 	}
-
-	USelection::SelectNoneEvent.AddUObject(this, &UVPUIBase::OnEditorSelectNone);
-	USelection::SelectionChangedEvent.AddUObject(this, &UVPUIBase::OnEditorSelectionChanged);
-	USelection::SelectObjectEvent.AddUObject(this, &UVPUIBase::OnEditorSelectionChanged);	
-	// Monitor VI.NavigationMode cvar
-	IConsoleManager::Get().RegisterConsoleVariableSink_Handle(FConsoleCommandDelegate::CreateUObject(this, &UVPUIBase::CVarSinkHandler));
-
-	GetSelectedActor();
 
 	return SuperInitialized;
 }
@@ -40,13 +43,18 @@ bool UVPUIBase::Initialize()
 
 void UVPUIBase::BeginDestroy()
 {
-	USelection::SelectObjectEvent.RemoveAll(this);
-	USelection::SelectionChangedEvent.RemoveAll(this);
-	USelection::SelectNoneEvent.RemoveAll(this);
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		USelection::SelectObjectEvent.RemoveAll(this);
+		USelection::SelectionChangedEvent.RemoveAll(this);
+		USelection::SelectNoneEvent.RemoveAll(this);
 
-	FVPBookmarkLifecycleDelegates::GetOnBookmarkCleared().RemoveAll(this);
-	FVPBookmarkLifecycleDelegates::GetOnBookmarkDestroyed().RemoveAll(this);
-	FVPBookmarkLifecycleDelegates::GetOnBookmarkCreated().RemoveAll(this);
+		FVPBookmarkLifecycleDelegates::GetOnBookmarkCleared().RemoveAll(this);
+		FVPBookmarkLifecycleDelegates::GetOnBookmarkDestroyed().RemoveAll(this);
+		FVPBookmarkLifecycleDelegates::GetOnBookmarkCreated().RemoveAll(this);
+		FWorldDelegates::OnWorldCleanup.RemoveAll(this);
+		FEditorDelegates::MapChange.RemoveAll(this);
+	}
 
 	Super::BeginDestroy();
 }
@@ -91,6 +99,17 @@ void UVPUIBase::GetSelectedActor()
 }
 
 /* Events */
+
+void UVPUIBase::OnEditorMapChanged(uint32)
+{
+	OnMapChanged();
+}
+
+
+void UVPUIBase::OnWorldCleanupEvent(UWorld*, bool, bool)
+{
+	OnMapChanged();
+}
 
 void UVPUIBase::OnEditorSelectionChanged(UObject* NewSelection)
 {

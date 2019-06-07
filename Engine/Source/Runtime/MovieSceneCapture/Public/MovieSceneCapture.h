@@ -54,6 +54,7 @@ public:
 	virtual void Close() override { Finalize(); }
 	virtual FMovieSceneCaptureHandle GetHandle() const override { return Handle; }
 	const FMovieSceneCaptureSettings& GetSettings() const override { return Settings; }
+	const int32 GetFrameNumberOffset() const override { return FrameNumberOffset; }
 	// End IMovieSceneCaptureInterface
 
 	/*~ Begin UObject interface */

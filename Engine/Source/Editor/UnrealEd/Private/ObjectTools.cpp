@@ -907,7 +907,14 @@ namespace ObjectTools
 		ForceReplaceReferences(ObjectToReplaceWith, ObjectsToReplace, InObjectsToReplaceWithin, OutInfo, bWarnAboutRootSet);
 	}
 
-	FConsolidationResults ConsolidateObjects( UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate)
+	// ForceReplaceReferences version exposed to the public API
+	void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace)
+	{
+		FForceReplaceInfo ReplaceInfo;
+		ForceReplaceReferences(ObjectToReplaceWith, ObjectsToReplace, ReplaceInfo, false);
+	}
+
+	FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate)
 	{
 		FConsolidationResults ConsolidationResults;
 
@@ -2081,6 +2088,11 @@ namespace ObjectTools
 
 	int32 DeleteObjects( const TArray< UObject* >& InObjectsToDelete, bool bShowConfirmation )
 	{
+		const FScopedBusyCursor BusyCursor;
+
+		TArray<UObject*> ObjectsToDelete = InObjectsToDelete;
+		AddExtraObjectsToDelete(ObjectsToDelete);
+
 		// Allows deleting of sounds after they have been previewed
 		GEditor->ClearPreviewComponents();
 
@@ -2101,10 +2113,14 @@ namespace ObjectTools
 			}
 		}
 
-		const FScopedBusyCursor BusyCursor;
-
-		TArray<UObject*> ObjectsToDelete = InObjectsToDelete;
-		AddExtraObjectsToDelete(ObjectsToDelete);
+		// Query delegate hook to validate if the delete operation is available
+		FCanDeleteAssetResult CanDeleteResult;
+		FEditorDelegates::OnAssetsCanDelete.Broadcast(ObjectsToDelete, CanDeleteResult);
+		if (!CanDeleteResult.Get())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "CannotDelete", "Cannot currently delete selected objects. See log for details."));
+			return 0;
+		}
 
 		// Make sure packages being saved are fully loaded.
 		if( !HandleFullyLoadingPackages( ObjectsToDelete, NSLOCTEXT("UnrealEd", "Delete", "Delete") ) )
@@ -2139,7 +2155,7 @@ namespace ObjectTools
 		// (so that they're not flagged in the dialog)
 		FEditorDelegates::OnAssetsPreDelete.Broadcast(ObjectsToDelete);
 
-		TSharedRef<FAssetDeleteModel> DeleteModel = MakeShareable(new FAssetDeleteModel(ObjectsToDelete));
+		TSharedRef<FAssetDeleteModel> DeleteModel = MakeShared<FAssetDeleteModel>(ObjectsToDelete);
 
 		if ( bShowConfirmation )
 		{
@@ -2295,6 +2311,15 @@ namespace ObjectTools
 
 	bool DeleteSingleObject( UObject* ObjectToDelete, bool bPerformReferenceCheck )
 	{
+		// Query delegate hook to validate if the delete operation is available
+		FCanDeleteAssetResult CanDeleteResult;
+		FEditorDelegates::OnAssetsCanDelete.Broadcast(TArray<UObject*>{ ObjectToDelete }, CanDeleteResult);
+		if (!CanDeleteResult.Get())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "CannotDelete", "Cannot delete selected objects. See log for details."));
+			return false;
+		}
+
 		GEditor->GetSelectedObjects()->Deselect( ObjectToDelete );
 
 		{
@@ -2363,6 +2388,15 @@ namespace ObjectTools
 
 		TArray<UObject*> ShownObjectsToDelete = InObjectsToDelete;
 		AddExtraObjectsToDelete(ShownObjectsToDelete);
+
+		// Query delegate hook to validate if the delete operation is available
+		FCanDeleteAssetResult CanDeleteResult;
+		FEditorDelegates::OnAssetsCanDelete.Broadcast(ShownObjectsToDelete, CanDeleteResult);
+		if (!CanDeleteResult.Get())
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "CannotDelete", "Cannot currently delete selected objects. See log for details."));
+			return 0;
+		}
 
 		// Confirm that the delete was intentional
 		if ( ShowConfirmation && !ShowDeleteConfirmationDialog(ShownObjectsToDelete) )

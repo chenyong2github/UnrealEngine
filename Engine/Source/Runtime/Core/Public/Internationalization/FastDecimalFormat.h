@@ -70,7 +70,7 @@ CORE_API bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const
 	FORCEINLINE void NumberToString(const NUMBER_TYPE InVal, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberFormattingOptions& InFormattingOptions, FString& OutString)		\
 	{																																																\
 		const bool bIsNegative = InVal < 0;																																							\
-		Internal::IntegralToString(bIsNegative, static_cast<uint64>((bIsNegative) ? -InVal : InVal), InFormattingRules, InFormattingOptions, OutString);											\
+		Internal::IntegralToString(bIsNegative, (bIsNegative) ? -static_cast<uint64>(InVal) : static_cast<uint64>(InVal), InFormattingRules, InFormattingOptions, OutString);						\
 	}																																																\
 	FORCEINLINE FString NumberToString(const NUMBER_TYPE InVal, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberFormattingOptions& InFormattingOptions)						\
 	{																																																\
@@ -131,10 +131,17 @@ CORE_API bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const
 		return StringToNumber(InStr, FCString::Strlen(InStr), InFormattingRules, InParsingOptions, OutVal, OutParsedLen);																													\
 	}
 
+#ifdef _MSC_VER
+#pragma warning (push)
+#pragma warning (disable : 4146) // unary minus operator applied to unsigned type, result still unsigned
+#endif
 FAST_DECIMAL_FORMAT_SIGNED_IMPL(int8)
 FAST_DECIMAL_FORMAT_SIGNED_IMPL(int16)
 FAST_DECIMAL_FORMAT_SIGNED_IMPL(int32)
 FAST_DECIMAL_FORMAT_SIGNED_IMPL(int64)
+#ifdef _MSC_VER
+#pragma warning (pop)
+#endif
 
 FAST_DECIMAL_FORMAT_UNSIGNED_IMPL(uint8)
 FAST_DECIMAL_FORMAT_UNSIGNED_IMPL(uint16)

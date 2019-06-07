@@ -9,17 +9,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public USDImporter(ReadOnlyTargetRules Target) : base(Target)
         {
-			PublicIncludePaths.AddRange(
-				new string[] {
-				}
-				);
+			bUseRTTI = true;
 
-			PrivateIncludePaths.AddRange(
-				new string[] {
-				}
-				);
-
-		
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -43,12 +34,6 @@ namespace UnrealBuildTool.Rules
 					"JsonUtilities",
                 }
 				);
-
-			PrivateIncludePathModuleNames.AddRange(
-				new string[] {
-					"MeshDescription"
-				}
-			);
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{

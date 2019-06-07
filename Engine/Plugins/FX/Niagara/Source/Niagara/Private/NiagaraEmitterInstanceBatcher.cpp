@@ -157,7 +157,9 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 
 	for (FNiagaraGPUSystemTick* Tick : OverlappableTick)
 	{
-		uint32 DispatchCount = Tick->Count;
+		const uint32 DispatchCount = Tick->Count;
+		const bool bIsFinalTick = Tick->bIsFinalTick;
+
 		FNiagaraComputeInstanceData* Instances = Tick->GetInstanceData();
 		for (uint32 Index = 0; Index < DispatchCount; Index++)
 		{
@@ -212,7 +214,10 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			}
 
 			Context->MainDataSet->EndSimulate();
-			Context->SetDataToRender(Instance.DestinationData);
+			if (bIsFinalTick)
+			{
+				Context->SetDataToRender(Instance.DestinationData);
+			}
 		}
 	}
 }
@@ -368,8 +373,8 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FUni
 			// Those ticks should still be executed in order.
 			for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
 			{
-				FNiagaraComputeInstanceData* data = Tick.GetInstanceData();
-				ContextToTicks.FindOrAdd(data->Context).Add(&Tick);
+				FNiagaraComputeInstanceData* Data = Tick.GetInstanceData();
+				ContextToTicks.FindOrAdd(Data->Context).Add(&Tick);
 			}
 
 			// Count the maximum number of tick per context to know the number of passes we need to do
@@ -377,6 +382,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FUni
 			for (auto& Ticks : ContextToTicks)
 			{
 				NumSimPass = FMath::Max(NumSimPass, (uint32)Ticks.Value.Num());
+				Ticks.Value.Last()->bIsFinalTick = true;
 			}
 
 			// Transpose now only once the data to get all independent tick per pass

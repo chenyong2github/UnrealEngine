@@ -1450,6 +1450,13 @@ public:
 		return Pairs.GetData(Index, Layout.SetLayout);
 	}
 
+	void MoveAssign(FScriptMap& Other, const FScriptMapLayout& Layout)
+	{
+		checkSlow(this != &Other);
+		Empty(0, Layout);
+		Pairs.MoveAssign(Other.Pairs, Layout.SetLayout);
+	}
+
 	void Empty(int32 Slack, const FScriptMapLayout& Layout)
 	{
 		Pairs.Empty(Slack, Layout.SetLayout);

@@ -11,9 +11,11 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
+#include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/InputBindingManager.h"
 #include "Framework/Docking/TabManager.h"
+#include "Toolkits/FConsoleCommandExecutor.h"
 #include "TexAlignTools.h"
 #include "ISourceControlModule.h"
 #include "Editor/UnrealEdEngine.h"
@@ -228,6 +230,10 @@ void FUnrealEdMisc::OnInit()
 	FScopedSlowTask SlowTask(100);
 	SlowTask.EnterProgressFrame(10);
 
+	// Register the command executor
+	CmdExec = MakeUnique<FConsoleCommandExecutor>();
+	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CmdExec.Get());
+
 	// Register all callback notifications
 	FEditorDelegates::SelectedProps.AddRaw(this, &FUnrealEdMisc::CB_SelectedProps);
 	FEditorDelegates::DisplayLoadErrors.AddRaw(this, &FUnrealEdMisc::CB_DisplayLoadErrors);
@@ -257,7 +263,6 @@ void FUnrealEdMisc::OnInit()
 	FPlayWorldCommands::Register();
 	FPlayWorldCommands::BindGlobalPlayWorldCommands();
 
-
 	// Register common asset editor commands
 	FAssetEditorCommonCommands::Register();
 
@@ -277,7 +282,6 @@ void FUnrealEdMisc::OnInit()
 	FUserActivityTracking::SetActivity(FUserActivity(TEXT("EditorInit"), EUserActivityContext::Editor));
 
 	FEditorModeRegistry::Initialize();
-
 
 	// Are we in immersive mode?
 	const TCHAR* ParsedCmdLine = FCommandLine::Get();
@@ -960,6 +964,10 @@ void FUnrealEdMisc::OnExit()
 		}
 		FPlatformProcess::CloseProc(Handle);
 	}
+
+	// Unregister the command executor
+	IModularFeatures::Get().UnregisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CmdExec.Get());
+	CmdExec.Reset();
 
 	//Release static class to be sure its not release in a random way. This class use a static multicastdelegate which can be delete before and crash the editor on exit
 	GTexAlignTools.Release();

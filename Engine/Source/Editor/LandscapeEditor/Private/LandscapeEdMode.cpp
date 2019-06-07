@@ -191,6 +191,7 @@ void ALandscape::SplitHeightmap(ULandscapeComponent* Comp, ALandscapeProxy* Targ
 	GDisableAutomaticTextureMaterialUpdateDependencies = false;
 
 #if WITH_EDITORONLY_DATA
+	check(Comp->GetLandscapeProxy()->HasLayersContent() == DstProxy->CanHaveLayersContent());
 	if (Comp->GetLandscapeProxy()->HasLayersContent() && DstProxy->CanHaveLayersContent())
 	{
 		FLandscapeLayersTexture2DCPUReadBackResource* NewCPUReadBackResource = new FLandscapeLayersTexture2DCPUReadBackResource(NewHeightmapTexture->Source.GetSizeX(), NewHeightmapTexture->Source.GetSizeY(), NewHeightmapTexture->GetPixelFormat(), NewHeightmapTexture->Source.GetNumMips());
@@ -4716,7 +4717,11 @@ void FEdModeLandscape::UpdateBrushList()
 	BrushList.Empty();
 	for (TObjectIterator<ALandscapeBlueprintCustomBrush> BrushIt(RF_Transient|RF_ClassDefaultObject|RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill); BrushIt; ++BrushIt)
 	{
-		BrushList.Add(*BrushIt);
+		ALandscapeBlueprintCustomBrush* Brush = *BrushIt;
+		if (Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
+		{
+			BrushList.Add(Brush);
+		}
 	}
 }
 
@@ -4729,11 +4734,13 @@ void FEdModeLandscape::OnLevelActorAdded(AActor* InActor)
 	}
 
 	ALandscapeBlueprintCustomBrush* Brush = Cast<ALandscapeBlueprintCustomBrush>(InActor);
-
-	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
+	if (Brush && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
-		BrushList.Add(Brush);
-		AddBrushToCurrentLayer(Brush);
+		if (!GIsReinstancing)
+		{
+			AddBrushToCurrentLayer(Brush);
+		}
+		UpdateBrushList();
 		RefreshDetailPanel();
 	}
 }
@@ -4746,11 +4753,9 @@ void FEdModeLandscape::OnLevelActorRemoved(AActor* InActor)
 	}
 
 	ALandscapeBlueprintCustomBrush* Brush = Cast<ALandscapeBlueprintCustomBrush>(InActor);
-
-	if (Brush != nullptr && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
+	if (Brush && Brush->GetTypedOuter<UPackage>() != GetTransientPackage())
 	{
-		BrushList.Remove(Brush);
-		RemoveBrushFromCurrentLayer(Brush);
+		UpdateBrushList();
 		RefreshDetailPanel();
 	}
 }

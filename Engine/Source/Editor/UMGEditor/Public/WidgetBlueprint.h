@@ -318,7 +318,7 @@ public:
 	/** Does the editor support widget from an editor package. */
 	virtual bool AllowEditorWidget() const { return false; }
 
-private:
+protected:
 #if WITH_EDITOR
 	virtual void LoadModulesRequiredForCompilation() override;
 

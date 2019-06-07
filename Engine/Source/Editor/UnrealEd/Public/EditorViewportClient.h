@@ -472,7 +472,7 @@ public:
 	FViewportCursorLocation GetCursorWorldLocationFromMousePos();
 
 	/** FViewportClient interface */
-	virtual void ProcessScreenShots(FViewport* Viewport) override;
+	virtual bool ProcessScreenShots(FViewport* Viewport) override;
 	virtual void RedrawRequested(FViewport* Viewport) override;
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) override;
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad=false) override;

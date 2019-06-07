@@ -708,7 +708,7 @@ namespace ImagePlateFrameCache
 
 					UncachedFrame.Cache->OnPreloadFrame(UncachedFrame.FrameNumber);
 
-					TFuture<FImagePlateSourceFrame> Future = Async<FImagePlateSourceFrame>(
+					TFuture<FImagePlateSourceFrame> Future = Async(
 						EAsyncExecution::ThreadPool,
 						[FilenameToLoad, FrameNumber]
 						{

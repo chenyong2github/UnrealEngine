@@ -773,7 +773,7 @@ public:
 	virtual void RedrawRequested(FViewport* Viewport) { Viewport->Draw(); }
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) { Viewport->InvalidateHitProxy(); }
 	virtual void Draw(FViewport* Viewport,FCanvas* Canvas) {}
-	virtual void ProcessScreenShots(FViewport* Viewport) {}
+	virtual bool ProcessScreenShots(FViewport* Viewport) { return false; }
 	virtual UWorld* GetWorld() const { return NULL; }
 	virtual struct FEngineShowFlags* GetEngineShowFlags() { return NULL; }
 

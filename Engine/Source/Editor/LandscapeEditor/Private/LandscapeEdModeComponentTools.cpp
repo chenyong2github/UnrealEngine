@@ -524,7 +524,8 @@ public:
 					LandscapeProxy = World->SpawnActor<ALandscapeStreamingProxy>();
 					// copy shared properties to this new proxy
 					LandscapeProxy->GetSharedProperties(Landscape);
-
+					LandscapeProxy->CreateLandscapeInfo();
+					
 					// set proxy location
 					// by default first component location
 					ULandscapeComponent* FirstComponent = *TargetSelectedComponents.CreateConstIterator();
@@ -611,10 +612,11 @@ public:
 					Component->MobileWeightmapTextures.Reset();
 					
 					Component->UpdateMaterialInstances();
-
+										
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("ComponentName"), FText::FromString(Component->GetName()));
 				}
+				LandscapeProxy->UpdateCachedHasLayersContent();
 
 				for (ULandscapeHeightfieldCollisionComponent* Component : TargetSelectedCollisionComponents)
 				{

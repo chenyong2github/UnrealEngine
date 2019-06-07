@@ -254,7 +254,7 @@ protected:
 	//
 
 	/** Mesh for this hand */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "VREditorInteractor")
 	class UStaticMeshComponent* HandMeshComponent;
 private:
 

@@ -279,4 +279,5 @@ public:
 	uint8* InstanceData_ParamData_Packed;
 	bool bRequiredDistanceFieldData = false;
 	bool bNeedsReset = false;
+	bool bIsFinalTick = false;
 };

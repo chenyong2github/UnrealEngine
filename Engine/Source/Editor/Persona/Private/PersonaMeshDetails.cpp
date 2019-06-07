@@ -77,6 +77,8 @@
 #include "IEditableSkeleton.h"
 #include "IMeshReductionManagerModule.h"
 #include "SkinWeightProfileHelpers.h"
+#include "Factories/FbxSkeletalMeshImportData.h"
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "PersonaMeshDetails"
 
@@ -1971,20 +1973,66 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 			.OnObjectChanged(FOnSetObject::CreateSP(this, &FPersonaMeshDetails::OnSetPostProcessBlueprint, PostProcessHandle))
 	];
 
-	// Hide the ability to change the import settings object
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailLayout.EditCategory("ImportSettings");
 	TSharedRef<IPropertyHandle> AssetImportProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, AssetImportData), USkeletalMesh::StaticClass());
-	IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);
-	Row.CustomWidget(true)
-		.NameContent()
-		[
-			AssetImportProperty->CreatePropertyNameWidget()
-		];
+	if (!SkeletalMeshPtr.IsValid() || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
+	{
+		// Hide the ability to change the import settings object
+		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);
+		Row.CustomWidget(true)
+			.NameContent()
+			[
+				AssetImportProperty->CreatePropertyNameWidget()
+			];
+	}
+	else
+	{
+		// If the AssetImportData is an instance of UFbxSkeletalMeshImportData we create a custom UI.
+		// Since DetailCustomization UI is not supported on instanced properties and because IDetailLayoutBuilder does not work well inside instanced objects scopes,
+		// we need to manually recreate the whole FbxSkeletalMeshImportData UI in order to customize it.
+		AssetImportProperty->MarkHiddenByCustomization();
+		VertexColorImportOptionHandle = AssetImportProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, VertexColorImportOption));
+		VertexColorImportOverrideHandle = AssetImportProperty->GetChildHandle(GET_MEMBER_NAME_CHECKED(UFbxSkeletalMeshImportData, VertexOverrideColor));
+		TMap<FName, IDetailGroup*> ExistingGroup;
+		PropertyCustomizationHelpers::MakeInstancedPropertyCustomUI(ExistingGroup, ImportSettingsCategory, AssetImportProperty, FOnInstancedPropertyIteration::CreateSP(this, &FPersonaMeshDetails::OnInstancedFbxSkeletalMeshImportDataPropertyIteration));
+	}
 
 
 	CustomizeSkinWeightProfiles(DetailLayout);
 
 	HideUnnecessaryProperties(DetailLayout);
+}
+
+void FPersonaMeshDetails::OnInstancedFbxSkeletalMeshImportDataPropertyIteration(IDetailCategoryBuilder& BaseCategory, IDetailGroup* PropertyGroup, TSharedRef<IPropertyHandle>& Property) const
+{
+	IDetailPropertyRow* Row = nullptr;
+	
+	if (PropertyGroup)
+	{
+		Row = &PropertyGroup->AddPropertyRow(Property);
+	}
+	else
+	{
+		Row = &BaseCategory.AddProperty(Property);
+	}
+
+	if (Row)
+	{
+		//Vertex Override Color property should be disabled if we are not in override mode.
+		if (Property->IsValidHandle() && Property->GetProperty() == VertexColorImportOverrideHandle->GetProperty())
+		{
+			Row->IsEnabled(TAttribute<bool>(this, &FPersonaMeshDetails::GetVertexOverrideColorEnabledState));
+		}
+	}
+}
+
+bool FPersonaMeshDetails::GetVertexOverrideColorEnabledState() const
+{
+	uint8 VertexColorImportOption;
+	check(VertexColorImportOptionHandle.IsValid());
+	ensure(VertexColorImportOptionHandle->GetValue(VertexColorImportOption) == FPropertyAccess::Success);
+
+	return (VertexColorImportOption == EVertexColorImportOption::Override);
 }
 
 void FPersonaMeshDetails::HideUnnecessaryProperties(IDetailLayoutBuilder& DetailLayout)

@@ -92,7 +92,7 @@ struct UNREALED_API FDataTableEditorUtils
 	static void GetPossibleStructAssetData(TArray<FAssetData>& StructAssets);
 	
 	/** Utility function which verifies that the specified struct type is viable for data tables */
-	static bool IsValidTableStruct(UScriptStruct* Struct);
+	static bool IsValidTableStruct(const UScriptStruct* Struct);
 
 	/** Tooltip text for the data table row type */
 	static FText GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);
