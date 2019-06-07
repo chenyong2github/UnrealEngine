@@ -348,8 +348,9 @@ void FRemesher::UpdateAfterSplit(int edgeID, int va, int vb, const FDynamicMesh3
 		{
 			int nSetID = (ca.FixedSetID > 0 && ca.FixedSetID == cb.FixedSetID) ?
 				ca.FixedSetID : FVertexConstraint::InvalidSetID;
+			bool bMovable = ca.Movable && cb.Movable;
 			Constraints->SetOrUpdateVertexConstraint(SplitInfo.NewVertex,
-				new FVertexConstraint(true, nSetID));
+				FVertexConstraint(true, bMovable, nSetID));
 			bPositionFixed = true;
 		}
 
@@ -376,7 +377,7 @@ void FRemesher::UpdateAfterSplit(int edgeID, int va, int vb, const FDynamicMesh3
 			if (set_target != nullptr) 
 			{
 				Constraints->SetOrUpdateVertexConstraint(SplitInfo.NewVertex,
-					new FVertexConstraint(set_target));
+					FVertexConstraint(set_target));
 				ProjectVertex(SplitInfo.NewVertex, set_target);
 				bPositionFixed = true;
 			}
