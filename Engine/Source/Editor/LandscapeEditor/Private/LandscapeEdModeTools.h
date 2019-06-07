@@ -292,7 +292,7 @@ public:
 	}
 
 	// X2/Y2 Coordinates are "inclusive" max values
-	void CacheData(int32 X1, int32 Y1, int32 X2, int32 Y2)
+	void CacheData(int32 X1, int32 Y1, int32 X2, int32 Y2, bool bCacheOriginalData = true)
 	{
 		if (!Valid)
 		{
@@ -320,8 +320,10 @@ public:
 				DataAccess.GetDataFast(CachedX1, CachedY1, CachedX2, CachedY2, CachedData);
 			}
 
-			OriginalData = CachedData;
-
+			if (bCacheOriginalData)
+			{
+				OriginalData = CachedData;
+			}
 			Valid = true;
 		}
 		else
@@ -344,7 +346,10 @@ public:
 					DataAccess.GetDataFast(X1, CachedY1, CachedX1 - 1, CachedY2, CachedData);
 				}
 
-				CacheOriginalData(X1, CachedY1, CachedX1 - 1, CachedY2);
+				if (bCacheOriginalData)
+				{
+					CacheOriginalData(X1, CachedY1, CachedX1 - 1, CachedY2);
+				}
 				CachedX1 = X1;
 			}
 
@@ -364,7 +369,10 @@ public:
 				{
 					DataAccess.GetDataFast(CachedX2 + 1, CachedY1, X2, CachedY2, CachedData);
 				}
-				CacheOriginalData(CachedX2 + 1, CachedY1, X2, CachedY2);
+				if (bCacheOriginalData)
+				{
+					CacheOriginalData(CachedX2 + 1, CachedY1, X2, CachedY2);
+				}
 				CachedX2 = X2;
 			}
 
@@ -384,7 +392,10 @@ public:
 				{
 					DataAccess.GetDataFast(CachedX1, Y1, CachedX2, CachedY1 - 1, CachedData);
 				}
-				CacheOriginalData(CachedX1, Y1, CachedX2, CachedY1 - 1);
+				if (bCacheOriginalData)
+				{
+					CacheOriginalData(CachedX1, Y1, CachedX2, CachedY1 - 1);
+				}
 				CachedY1 = Y1;
 			}
 
@@ -404,8 +415,10 @@ public:
 				{
 					DataAccess.GetDataFast(CachedX1, CachedY2 + 1, CachedX2, Y2, CachedData);
 				}
-
-				CacheOriginalData(CachedX1, CachedY2 + 1, CachedX2, Y2);
+				if (bCacheOriginalData)
+				{
+					CacheOriginalData(CachedX1, CachedY2 + 1, CachedX2, Y2);
+				}
 				CachedY2 = Y2;
 			}
 		}
@@ -485,6 +498,25 @@ public:
 		return Value == 0;
 	}
 
+	bool HasCachedData(int32 X1, int32 Y1, int32 X2, int32 Y2) const
+	{
+		return (Valid && X1 >= CachedX1 && Y1 >= CachedY1 && X2 <= CachedX2 && Y2 <= CachedY2);
+	}
+
+	template<typename TGetCacheRegionFunction>
+	bool GetDataAndCache(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& OutData, TGetCacheRegionFunction GetCacheRegion)
+	{
+		if (!HasCachedData(X1, Y1, X2, Y2))
+		{
+			FIntRect Bounds = GetCacheRegion();
+			check((Bounds.Min.X <= X1) && (Bounds.Min.Y <= Y1) && (Bounds.Max.X >= X2) && (Bounds.Max.Y >= Y2));
+			const bool bCacheOriginalData = false;
+			CacheData(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y, bCacheOriginalData);
+		}
+		ensure(HasCachedData(X1, Y1, X2, Y2));
+		return GetCachedData(X1, Y1, X2, Y2, OutData);
+	}
+
 	// X2/Y2 Coordinates are "inclusive" max values
 	bool GetCachedData(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& OutData)
 	{
@@ -521,7 +553,7 @@ public:
 	}
 
 	// X2/Y2 Coordinates are "inclusive" max values
-	void SetCachedData(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& Data, ELandscapeLayerPaintingRestriction PaintingRestriction = ELandscapeLayerPaintingRestriction::None)
+	void SetCachedData(int32 X1, int32 Y1, int32 X2, int32 Y2, TArray<AccessorType>& Data, ELandscapeLayerPaintingRestriction PaintingRestriction = ELandscapeLayerPaintingRestriction::None, bool bUpdateData = true)
 	{
 		checkSlow(Data.Num() == (1 + Y2 - Y1) * (1 + X2 - X1));
 
@@ -534,8 +566,11 @@ public:
 			}
 		}
 
-		// Update real data
-		DataAccess.SetData(X1, Y1, X2, Y2, Data.GetData(), PaintingRestriction);
+		if (bUpdateData)
+		{
+			// Update real data
+			DataAccess.SetData(X1, Y1, X2, Y2, Data.GetData(), PaintingRestriction);
+		}
 	}
 
 	// Get the original data before we made any changes with the SetCachedData interface.

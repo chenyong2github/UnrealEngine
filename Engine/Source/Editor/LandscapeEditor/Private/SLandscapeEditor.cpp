@@ -534,6 +534,13 @@ bool SLandscapeEditor::GetIsPropertyVisible(const FPropertyAndParent& PropertyAn
 				return false;
 			}
 		}
+		if (Property.HasMetaData("ShowForLandscapeLayerSystem"))
+		{
+			if (!LandscapeEdMode->HasLandscapeLayersContent())
+			{
+				return false;
+			}
+		}
 
 		return true;
 	}
