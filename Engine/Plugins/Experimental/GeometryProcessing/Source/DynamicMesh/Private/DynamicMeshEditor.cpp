@@ -85,10 +85,15 @@ bool FDynamicMeshEditor::StitchVertexLoopsMinimal(const TArray<int>& Loop1, cons
 
 operation_failed:
 	// remove what we added so far
-	if (i > 0) 
+	if (ResultOut.NewQuads.Num()) 
 	{
-		ResultOut.NewTriangles.SetNum(2 * i + 1);
-		if (RemoveTriangles(ResultOut.NewTriangles, false) == false)
+		TArray<int> Triangles; Triangles.Reserve(2*ResultOut.NewQuads.Num());
+		for (const FIndex2i& QuadTriIndices : ResultOut.NewQuads)
+		{
+			Triangles.Add(QuadTriIndices.A);
+			Triangles.Add(QuadTriIndices.B);
+		}
+		if (!RemoveTriangles(Triangles, false))
 		{
 			checkf(false, TEXT("FDynamicMeshEditor::StitchLoop: failed to add all triangles, and also failed to back out changes."));
 		}
@@ -96,6 +101,45 @@ operation_failed:
 	return false;
 }
 
+
+
+bool FDynamicMeshEditor::AddTriangleFan_OrderedVertexLoop(int CenterVertex, const TArray<int>& VertexLoop, int GroupID, FDynamicMeshEditResult& ResultOut)
+{
+	if (GroupID == -1)
+	{
+		GroupID = Mesh->AllocateTriangleGroup();
+		ResultOut.NewGroups.Add(GroupID);
+	}
+
+	int N = VertexLoop.Num();
+	ResultOut.NewTriangles.Reserve(N);
+
+	int i = 0;
+	for (i = 0; i < N; ++i)
+	{
+		int A = VertexLoop[i];
+		int B = VertexLoop[(i + 1) % N];
+
+		FIndex3i NewT(CenterVertex, B, A);
+		int NewTID = Mesh->AppendTriangle(NewT, GroupID);
+		if (NewTID < 0)
+		{
+			goto operation_failed;
+		}
+
+		ResultOut.NewTriangles.Add(NewTID);
+	}
+
+	return true;
+
+operation_failed:
+	// remove what we added so far
+	if (!RemoveTriangles(ResultOut.NewTriangles, false))
+	{
+		checkf(false, TEXT("FDynamicMeshEditor::AddTriangleFan: failed to add all triangles, and also failed to back out changes."));
+	}
+	return false;
+}
 
 
 

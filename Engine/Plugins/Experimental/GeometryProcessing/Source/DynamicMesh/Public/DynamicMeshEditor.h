@@ -142,6 +142,17 @@ public:
 
 
 	/**
+	 * Fill hole with a triangle fan given an existing (unconnected) center vertex and
+	 * an ordered loop of boundary vertices on the hole border.
+	 * @param CenterVertex Index of floating vertex in the center of the hole
+	 * @param VertexLoop Indices of vertices on the boundary of the hole, in order
+	 * @param ResultOut lists of newly created triangles
+	 * @return true if operation succeeded.  If a failure occurs, any added triangles are removed via RemoveTriangles.
+	 */
+	bool AddTriangleFan_OrderedVertexLoop(int CenterVertex, const TArray<int>& VertexLoop, int GroupID, FDynamicMeshEditResult& ResultOut);
+
+
+	/**
 	 * Duplicate triangles of a mesh. This duplicates the current groups and also any attributes existing on the triangles.
 	 * @param Triangles the triangles to duplicate
 	 * @param IndexMaps returned mappings from old to new triangles/vertices/etc (you may initialize to optimize memory usage, etc)
