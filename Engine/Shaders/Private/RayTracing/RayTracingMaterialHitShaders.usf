@@ -143,7 +143,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		SkyOcclusionUV = LightmapUV0;
 
 		uint VTRequest = 0;
-		GetLightMapColorHQ(LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, MaterialParameters.SvPosition.xy, OutDiffuseLighting, OutSubsurfaceLighting, VTRequest);
+		GetLightMapColorHQ(LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, MaterialParameters.SvPosition.xy, ShadingModel, OutDiffuseLighting, OutSubsurfaceLighting, VTRequest);
 
 	// Low quality texture lightmaps
 	#elif LQ_TEXTURE_LIGHTMAP
