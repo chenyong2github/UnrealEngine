@@ -84,7 +84,6 @@ DEFINE_STAT(STAT_LandscapeLayersRegenerateDrawCalls);
 
 DEFINE_STAT(STAT_LandscapeLayersRegenerateHeightmaps);
 DEFINE_STAT(STAT_LandscapeLayersResolveHeightmaps);
-DEFINE_STAT(STAT_LandscapeLayersResolveTexture);
 
 DEFINE_STAT(STAT_LandscapeLayersUpdateMaterialInstance);
 DEFINE_STAT(STAT_LandscapeLayersReallocateWeightmaps);
