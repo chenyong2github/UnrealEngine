@@ -127,19 +127,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetOnRebuildChildren(FSimpleDeleg
 
 void FLandscapeEditorCustomNodeBuilder_Layers::GenerateHeaderRowContent(FDetailWidgetRow& NodeRow)
 {
-	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 
-	if (LandscapeEdMode == NULL)
-	{
-		return;
-	}
-
-	NodeRow.NameWidget
-		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.Text(FText::FromString(TEXT("Layers")))
-		];
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -156,7 +144,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::GenerateChildContent(IDetailChild
 		LayerList->SetDropIndicator_Above(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Above"));
 		LayerList->SetDropIndicator_Below(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Below"));
 
-		ChildrenBuilder.AddCustomRow(FText::FromString(FString(TEXT("Layers"))))
+		ChildrenBuilder.AddCustomRow(FText::FromString(FString(TEXT("Test"))))
 			.Visibility(EVisibility::Visible)
 			[
 				LayerList.ToSharedRef()
@@ -359,6 +347,26 @@ void FLandscapeEditorCustomNodeBuilder_Layers::SetLayerName(const FText& InText,
 	}
 }
 
+
+void FLandscapeEditorCustomNodeBuilder_Layers::FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintCustomBrush*> Brushes)
+{
+	for (ALandscapeBlueprintCustomBrush* Brush : Brushes)
+	{
+		if (Brush->GetOwningLandscape() == nullptr)
+		{
+			TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
+			FUIAction AddAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, Brush]() { SharedThis->AddBrushToCurrentLayer(Brush); }));
+			MenuBuilder.AddMenuEntry(FText::FromString(Brush->GetActorLabel()), FText(), FSlateIcon(), AddAction);
+		}
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_Layers::AddBrushToCurrentLayer(ALandscapeBlueprintCustomBrush* Brush)
+{
+	const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushAddToCurrentLayerTransaction", "Add brush to current layer"));
+	GetEditorMode()->AddBrushToCurrentLayer(Brush);
+}
+
 TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenuOpening(int32 InLayerIndex)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
@@ -439,9 +447,25 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 		}
 		MenuBuilder.EndSection();
 
+		const TArray<ALandscapeBlueprintCustomBrush*>& Brushes = LandscapeEdMode->GetBrushList();
+		if (Brushes.ContainsByPredicate([](ALandscapeBlueprintCustomBrush* Brush) { return Brush->GetOwningLandscape() == nullptr; }))
+		{
+			MenuBuilder.BeginSection("LandscapeEditorBrushActions", LOCTEXT("LandscapeEditorBrushActions.Heading", "Brushes"));
+			{
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("LandscaeEditorBrushAddSubMenu", "Add"),
+					LOCTEXT("LandscaeEditorBrushAddSubMenuToolTip", "Add brush to current layer"),
+					FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::FillAddBrushMenu, Brushes),
+					false,
+					FSlateIcon()
+				);
+			}
+			MenuBuilder.EndSection();
+		}
+
 		return MenuBuilder.MakeWidget();
 	}
-	return NULL;
+	return nullptr;
 }
 
 void FLandscapeEditorCustomNodeBuilder_Layers::ForceUpdateSplines()

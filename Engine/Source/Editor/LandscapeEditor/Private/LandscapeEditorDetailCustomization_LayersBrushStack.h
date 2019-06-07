@@ -56,8 +56,13 @@ protected:
 
 	static class FEdModeLandscape* GetEditorMode();
 
-	TSharedPtr<SWidget> GenerateRow(int32 InLayerIndex);
+	TSharedPtr<SWidget> GenerateRow(int32 InBrushIndex);
+	TSharedPtr<SWidget> OnBrushContextMenuOpening(int32 InBrushIndex);
 
+	void RemoveBrush(ALandscapeBlueprintCustomBrush* Brush);
+	
+	FReply OnToggleVisibility(int32 InBrushIndex);
+	const FSlateBrush* GetVisibilityBrushForBrush(int32 InBrushIndex) const;
 	bool IsBrushSelected(int32 InBrushIndex) const;
 	bool IsBrushEnabled(int32 InBrushIndex) const;
 	void OnBrushSelectionChanged(int32 InBrushIndex);
