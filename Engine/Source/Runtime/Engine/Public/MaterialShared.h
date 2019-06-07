@@ -2051,7 +2051,7 @@ public:
 /**
  * An material render proxy which overrides the material's Color vector and Texture parameter (mixed together).
  */
-class FColoredTexturedMaterialRenderProxy : public FColoredMaterialRenderProxy
+class ENGINE_VTABLE FColoredTexturedMaterialRenderProxy : public FColoredMaterialRenderProxy
 {
 public:
 
