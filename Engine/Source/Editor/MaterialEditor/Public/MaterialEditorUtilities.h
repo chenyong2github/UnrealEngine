@@ -194,7 +194,17 @@ public:
 	/** Get IMaterialEditor for given object, if it exists */
 	static TSharedPtr<class IMaterialEditor> GetIMaterialEditorForObject(const UObject* ObjectToFocusOn);
 
+
+	/** Commands for the Parents menu */
+	static void OnOpenMaterial(FAssetData InMaterial);
+	static void OnOpenFunction(FAssetData InFunction);
+	static void OnShowMaterialInContentBrowser(FAssetData InMaterial);
+	static void OnShowFunctionInContentBrowser(FAssetData InFunction);
+
 private:
+
+	static void OpenSelectedParentEditor(UMaterialFunctionInterface* InMaterialFunction);
+	static void OpenSelectedParentEditor(UMaterialInterface* InMaterialInterface);
 
 	/**
 	 * Recursively walks the expression tree and parses the visible expression branches.
