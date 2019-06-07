@@ -532,66 +532,84 @@ void UAudioComponent::FadeIn( float FadeInDuration, float FadeVolumeLevel, float
 	PlayInternal(StartTime, FadeInDuration, FadeVolumeLevel);
 }
 
-void UAudioComponent::FadeOut( float FadeOutDuration, float FadeVolumeLevel )
+void UAudioComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel)
 {
-	if (bIsActive)
-	{
-		if (FadeOutDuration > 0.0f)
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.FadeOut"), STAT_AudioFadeOut, STATGROUP_AudioThreadCommands);
+	const bool bIsFadeOut = true;
+	AdjustVolumeInternal(FadeOutDuration, FadeVolumeLevel, bIsFadeOut);
+}
 
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, FadeOutDuration, FadeVolumeLevel]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->TargetAdjustVolumeMultiplier = FadeVolumeLevel;
-						ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + FadeOutDuration;
-						ActiveSound->bFadingOut = true;
-					}
-				}, GET_STATID(STAT_AudioFadeOut));
+void UAudioComponent::AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel)
+{
+	const bool bIsFadeOut = false;
+	AdjustVolumeInternal(AdjustVolumeDuration, AdjustVolumeLevel, bIsFadeOut);
+}
+
+void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut)
+{
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return;
+	}
+
+	if (AdjustVolumeDuration == 0.0f && AdjustVolumeLevel == 0.0f)
+	{
+		Stop();
+		return;
+	}
+
+	const uint64 InAudioComponentID = AudioComponentID;
+	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
+	FAudioThread::RunCommandOnAudioThread([AudioDevice, InAudioComponentID, AdjustVolumeDuration, AdjustVolumeLevel, bIsFadeOut]()
+	{
+		FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InAudioComponentID);
+		if (!ActiveSound)
+		{
+			return;
+		}
+
+		// Ignore fade out request if requested volume is higher than current target.
+		if (bIsFadeOut && AdjustVolumeLevel >= ActiveSound->TargetAdjustVolumeMultiplier)
+		{
+			return;
+		}
+
+		if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
+		{
+			// Ignore adjust volume request if non-zero and currently voice stealing.
+			if (AdjustVolumeLevel != 0.0f)
+			{
+				return;
+			}
+
+			// Ignore request of longer fade out than active target if active is concurrency (voice stealing) fade.
+			if (AdjustVolumeDuration > ActiveSound->TargetAdjustVolumeStopTime)
+			{
+				return;
 			}
 		}
 		else
 		{
-			Stop();
+			ActiveSound->FadeOut = AdjustVolumeLevel == 0.0f ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
 		}
-	}
-}
 
-void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolumeLevel )
-{
-	if (bIsActive)
-	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
+		ActiveSound->TargetAdjustVolumeMultiplier = AdjustVolumeLevel;
+
+		if (AdjustVolumeDuration > 0.0f)
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
-
-			const uint64 MyAudioComponentID = AudioComponentID;
-			FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, AdjustVolumeDuration, AdjustVolumeLevel]()
-			{
-				FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-				if (ActiveSound)
-				{
-					ActiveSound->bFadingOut = false;
-					ActiveSound->TargetAdjustVolumeMultiplier = AdjustVolumeLevel;
-
-					if (AdjustVolumeDuration > 0.0f)
-					{
-						ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + AdjustVolumeDuration;
-					}
-					else
-					{
-						ActiveSound->CurrentAdjustVolumeMultiplier = AdjustVolumeLevel;
-						ActiveSound->TargetAdjustVolumeStopTime = -1.0f;
-					}
-				}
-			}, GET_STATID(STAT_AudioAdjustVolume));
+			ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + AdjustVolumeDuration;
 		}
-	}
+		else
+		{
+			ActiveSound->CurrentAdjustVolumeMultiplier = AdjustVolumeLevel;
+			ActiveSound->TargetAdjustVolumeStopTime = -1.0f;
+		}
+	}, GET_STATID(STAT_AudioAdjustVolume));
 }
 
 void UAudioComponent::Stop()

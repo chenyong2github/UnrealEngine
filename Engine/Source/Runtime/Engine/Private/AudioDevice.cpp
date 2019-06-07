@@ -2094,39 +2094,53 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 		ConcurrencyManager.UpdateQuietSoundsToStop();
 	}
 
-	// Remove all wave instances from the wave instance list that are stopping due to max concurrency
+	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
+	{
+		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
+		{
+			if (!ActiveSound->bShouldStopDueToMaxConcurrency)
+			{
+				continue;
+			}
+
+			if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
+			{
+				continue;
+			}
+
+			if (ActiveSound->bIsStopping)
+			{
+				continue;
+			}
+
+			ConcurrencyManager.RemoveActiveSound(*ActiveSound);
+			ConcurrencyManager.FadeOutActiveSound(*ActiveSound);
+
+			const bool bDoRangeCheck = false;
+			FAudioVirtualLoop VirtualLoop;
+			if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
+			{
+				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
+				ActiveSound->ClearAudioComponent();
+
+				if (USoundBase* Sound = ActiveSound->GetSound())
+				{
+					UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Invalidated by 'StopQuiestest' Concurrency Rule."), *Sound->GetName());
+				}
+				AddVirtualLoop(VirtualLoop);
+			}
+			ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
+		}
+	}
+
+	// Remove all wave instances from the wave instance list that are stopping due to max concurrency.
+	// Must be after checking if sound must fade out due to concurrency to avoid pre-maturally removing
+	// wave instances prior to concurrency system marking as fading out.
 	for (int32 i = WaveInstances.Num() - 1; i >= 0; --i)
 	{
 		if (WaveInstances[i]->ShouldStopDueToMaxConcurrency())
 		{
 			WaveInstances.RemoveAtSwap(i, 1, false);
-		}
-	}
-
-	for (int32 i = ActiveSoundsCopy.Num() - 1; i >= 0; --i)
-	{
-		if (FActiveSound* ActiveSound = ActiveSoundsCopy[i])
-		{
-			if (ActiveSound->bShouldStopDueToMaxConcurrency)
-			{
-				AddSoundToStop(ActiveSound);
-				const bool bDoRangeCheck = false;
-				FAudioVirtualLoop VirtualLoop;
-				if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
-				{
-					// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
-					ActiveSound->ClearAudioComponent();
-
-					const bool bIsAtMaxConcurrency = true;
-					VirtualLoop.CalculateUpdateInterval(bIsAtMaxConcurrency);
-					if (USoundBase* Sound = ActiveSound->GetSound())
-					{
-						UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Invalidated by 'StopQuiestest' Concurrency Rule."), *Sound->GetName());
-					}
-					AddVirtualLoop(VirtualLoop);
-				}
-				ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
-			}
 		}
 	}
 }
@@ -5726,7 +5740,7 @@ void FAudioDevice::UpdateVirtualLoops()
 			}
 
 			// If signaled to fade out and virtualized, add to pending stop list.
-			if (ActiveSound.bFadingOut)
+			if (ActiveSound.FadeOut != FActiveSound::EFadeOut::None)
 			{
 				AddSoundToStop(&ActiveSound);
 				continue;
@@ -5734,7 +5748,9 @@ void FAudioDevice::UpdateVirtualLoops()
 
 			const float DeltaTime = GetDeviceDeltaTime();
 
-			// Keep playback time up-to-date as it may be used to evaluate concurrency
+			// Keep playback time up-to-date as it may be used to evaluate whether or
+			// not virtual sound is eligible for playback when compared against
+			// actively playing sounds in concurrency checks.
 			ActiveSound.PlaybackTime += DeltaTime * ActiveSound.MinCurrentPitch;
 
 			// If the loop is ready to realize, add to array to be re-triggered outside of the loop
