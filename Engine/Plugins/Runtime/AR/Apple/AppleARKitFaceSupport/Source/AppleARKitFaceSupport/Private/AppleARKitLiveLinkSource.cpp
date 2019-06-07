@@ -248,7 +248,7 @@ bool FAppleARKitLiveLinkRemotePublisher::InitSendSocket()
 	{
 		ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get();
 		// Allocate our socket for sending
-		SendSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("FAppleARKitLiveLinkRemotePublisher socket"), true);
+		SendSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("FAppleARKitLiveLinkRemotePublisher socket"), Addr->GetProtocolType());
 		SendSocket->SetReuseAddr();
 		SendSocket->SetNonBlocking();
 		UE_LOG(LogAppleARKitFace, Log, TEXT("Sending LiveLink face AR data to address (%s)"), *Addr->ToString(true));
@@ -339,7 +339,7 @@ bool FAppleARKitLiveLinkRemoteListener::InitReceiveSocket()
 	GConfig->GetInt(TEXT("/Script/AppleARKit.AppleARKitSettings"), TEXT("LiveLinkPublishingPort"), LiveLinkPort, GEngineIni);
 	Addr->SetPort(LiveLinkPort);
 
-	RecvSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("FAppleARKitLiveLinkRemoteListener socket"));
+	RecvSocket = SocketSubsystem->CreateSocket(NAME_DGram, TEXT("FAppleARKitLiveLinkRemoteListener socket"), Addr->GetProtocolType());
 	if (RecvSocket != nullptr)
 	{
 		RecvSocket->SetReuseAddr();

@@ -2672,9 +2672,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 					// We check ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER to force at least one update for each actor
 					const bool bWasRecentlyRelevant = (ActorInfo->LastNetUpdateTime < KINDA_SMALL_NUMBER) || ((Time - ActorInfo->LastNetUpdateTime) < RelevantTimeout);
 
-					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || ActorInfo->bForceRelevantNextUpdate;
-
-					ActorInfo->bForceRelevantNextUpdate = false;
+					bool bIsRelevant = !bUseNetRelevancy || Actor->bAlwaysRelevant || Actor == ClientConnection->PlayerController || (ActorInfo->ForceRelevantFrame >= ReplicationFrame);
 
 					if (!bIsRelevant)
 					{
@@ -5817,12 +5815,6 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 			break;
 		}
 	}
-}
-
-TSharedPtr<FInternetAddr> UDemoNetConnection::GetInternetAddr()
-{
-	// Does not use MappedClientConnections
-	return TSharedPtr<FInternetAddr>();
 }
 
 bool UDemoNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const

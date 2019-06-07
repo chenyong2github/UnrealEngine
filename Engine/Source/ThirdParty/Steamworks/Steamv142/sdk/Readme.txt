@@ -1,12 +1,85 @@
 ================================================================
 
-Copyright © 1996-2016, Valve Corporation, All rights reserved.
+Copyright © 1996-2018, Valve Corporation, All rights reserved.
 
 ================================================================
 
 
 Welcome to the Steamworks SDK.  For documentation please see our partner 
 website at: http://partner.steamgames.com
+
+----------------------------------------------------------------
+v1.42 3rd January 2018
+----------------------------------------------------------------
+
+ISteamInventory
+* Added ability to start a purchase process through the Steam Client via the StartPurchase call and a given set of item definition ids and quantities.  Users will be prompted in the Steam Client overlay to complete the purchase, including funding their Steam Wallet if necessary.  Returns a SteamInventoryStartPurchaseResult_t call result if the user authorizes the purchase.
+* Added ability to retrieve item definition prices via the RequestPrices call. Once the call result SteamInventoryRequestPricesResult_t is returned, GetNumItemsWithPrices, GetItemsWithPrices, and GetItemPrice can be called to retrieve the item definition prices in the user's local currency.
+* Added ability to modify whitelisted per item dynamic properties. The usage pattern is to call StartUpdateProperties, SetProperty or RemoveProperty, and finally SubmitUpdateProperties.  The SteamInventoryCallback_t will be fired with the appropriate result handle on success or failure.
+* Deprecated TradeItems
+
+ISteamController
+* Added Action Set Layers – Action Set Layers are optional sets of action bindings which can be overlaid upon an existing set of controls.  In contrast to Action Sets, layers draw their actions from the Action Set they exist within and do not wholesale replace what is already active when applied, but apply small modifications.  These can consist of setting changes as well as adding or removing bindings from the base action set.  More than one layer can be applied at a time and will be applied consecutively, so an example might be the Sniper Class layer which includes tweaks or bindings specific to snipers in addition to the Scoped-In layer which alters look sensitivity.
+* Added ActivateActionSetLayer – Activates the specified Layer.
+* Added DeactivateActionSetLayer – Deactivates the specified Layer.
+* Added DeactivateAllActionSetLayers – Deactivates all layers, resetting the mapping to the action base Action Set.
+* Added GetActiveActionSetLayers – Returns all currently active Action Set Layers.
+* Added GetInputTypeForHandle - Returns the input type for a particular handle, such as Steam Controller, PS4 Controller, Xbox One or 360.
+
+ISteamHTMLSurface
+* Added HTML_BrowserRestarted_t callback which is fired when the browser has restarted due to an internal failure
+
+ISteamFriends
+* Added IsClanPublic
+* Added IsClanOfficialGameGroup
+
+Steam API
+* Removed the ISteamUnifiedMessages interface.  It is no longer intended for public usage.
+
+
+----------------------------------------------------------------
+v1.41 13th July 2017
+----------------------------------------------------------------
+
+ISteamClient
+* Exposed ISteamParentalSettings interface. You can use this to determine if the user has parental settings turned on and for what high-level Steam features. 
+
+* ISteamHTMLSurface
+* Added SetDPIScalingFactor - Scale the output display space by this factor, this is useful when displaying content on high dpi devices.
+
+ISteamUGC
+* Added ability to mark a piece of UGC as requiring a set of DLC (AppID). These relationships are managed via new AddAppDependency, RemoveAppDependency, and GetAppDependencies calls.
+* Ported over ability to delete UGC from ISteamRemoteStorage and called it DeleteItem. Note that this does *not* prompt the user in any way.
+* Added m_nPublishedFileId to SubmitItemUpdateResult_t so that it is easier to keep track of what item was updated.
+
+
+----------------------------------------------------------------
+v1.40 25th April 2017
+----------------------------------------------------------------
+
+ISteamInventory
+* Update API documentation 
+* GetResultItemProperty - Retrieve dynamic properties for a given item returned in the result set.
+
+ISteamUtils
+* IsVRHeadsetStreamingEnabled - Returns true if the HMD content will be streamed via Steam In-Home Streaming
+* SetVRHeadsetStreamingEnabled - Set whether the HMD content will be streamed via Steam In-Home Streaming
+
+ISteamUser
+* GetAvailableVoice and GetVoice - Some parameters have become deprecated and now have default values.
+
+ISteamUGC 
+* SetReturnPlaytimeStats - Set the number of days of playtime stats to return for a piece of UGC.
+* AddDependency and RemoveDependency - Useful for parent-child relationship or dependency management
+
+ISteamVideo
+* Added GetOPFSettings and GetOPFStringForApp for retrieving Open Projection Format data used in Steam 360 Video playback. 
+* GetOPFSettings - Handle the GetOPFSettingsResult_t callback which is called when the OPF related data for the passed in AppID is ready for retrieval. 
+* GetOPFStringForApp - Using the AppID returned in GetOPFSettingsResult_t pass in an allocated string buffer to get the OPF data.
+
+SteamPipe GUI Tool
+* A simple GUI wrapper for Steamcmd/SteamPipe has been added to the SDK in the tools\ContentBuilder folder. More details can be found here: http://steamcommunity.com/groups/steamworks/discussions/0/412449508292646864
+
 
 ----------------------------------------------------------------
 v1.39 6th January 2017
