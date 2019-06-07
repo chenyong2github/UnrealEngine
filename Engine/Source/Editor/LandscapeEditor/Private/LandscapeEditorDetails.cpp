@@ -173,7 +173,7 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 
 		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 		{
-			LOCTEXT("ToolSet_BPCustom", "Blueprint Custom");
+			LOCTEXT("ToolSet_BlueprintBrush", "Blueprint Brushes");
 		}
 
 		LOCTEXT("ToolSet_Select", "Selection");
@@ -336,7 +336,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 
 			if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 			{
-				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BPCustom"), NAME_None, LOCTEXT("Tool.SculptBPCustom", "Blueprint Custom"), LOCTEXT("Tool.SculptBPCustom.Tooltip", "Custom sculpting tools created using Blueprint."));
+				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BlueprintBrush"), NAME_None, LOCTEXT("Tool.SculptBlueprintBrush", "Blueprint Brushes"), LOCTEXT("Tool.SculptBlueprintBrush.Tooltip", "Custom sculpting tools created using Blueprint."));
 			}
 
 			MenuBuilder.EndSection();
@@ -358,7 +358,7 @@ TSharedRef<SWidget> FLandscapeEditorDetails::GetToolSelector()
 
 			if (LandscapeEdMode->CanHaveLandscapeLayersContent())
 			{
-				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BPCustom"), NAME_None, LOCTEXT("Tool.PaintBPCustom", "Blueprint Custom"), LOCTEXT("Tool.PaintBPCustom.Tooltip", "Custom painting tools created using Blueprint."));
+				MenuBuilder.AddToolButton(NameToCommandMap.FindChecked("Tool_BlueprintBrush"), NAME_None, LOCTEXT("Tool.PaintBlueprintBrush", "Blueprint Brushes"), LOCTEXT("Tool.PaintBlueprintBrush.Tooltip", "Custom painting tools created using Blueprint."));
 			}
 
 			MenuBuilder.EndSection();
