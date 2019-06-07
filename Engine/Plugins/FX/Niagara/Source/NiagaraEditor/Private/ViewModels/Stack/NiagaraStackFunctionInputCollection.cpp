@@ -227,9 +227,8 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 	RefreshIssues(DuplicateInputNames, ValidAliasedInputNames, PinsWithInvalidTypes, StaticSwitchInputs, NewIssues);
 }
 
-UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetNodeRemovalFix(UEdGraphPin* PinToRemove)
+UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription)
 {
-	FText FixDescription = LOCTEXT("RemoveInvalidInputTransaction", "Remove input override.");
 	return FStackIssueFix(
 		FixDescription,
 		UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([=]()
@@ -283,7 +282,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 						FText::FromString(OverridePin->PinName.ToString()), FText::FromString(InputFunctionCallNode->GetFunctionName())),
 					GetStackEditorDataKey(),
 					false,
-					GetNodeRemovalFix(OverridePin));
+					GetNodeRemovalFix(OverridePin, LOCTEXT("RemoveInvalidInputTransaction", "Remove input override")));
 
 				NewIssues.Add(InvalidInputOverrideError);
 			}
@@ -300,7 +299,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 				TArray<FStackIssueFix> Fixes;
 
 				// first possible fix: convert the value over to the static switch
-				FText ConversionFixDescription = LOCTEXT("ConvertInputToStaticSwitchTransaction", "Copy value to static switch parameter.");
+				FText ConversionFixDescription = LOCTEXT("ConvertInputToStaticSwitchTransaction", "Copy value to static switch parameter");
 				FStackIssueFix ConvertInputOverrideFix(
 					ConversionFixDescription,
 					UNiagaraStackEntry::FStackIssueFixDelegate::CreateLambda([=]()
@@ -323,7 +322,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 				Fixes.Add(ConvertInputOverrideFix);
 
 				// second possible fix: remove the override completely
-				Fixes.Add(GetNodeRemovalFix(OverridePin));
+				Fixes.Add(GetNodeRemovalFix(OverridePin, LOCTEXT("RemoveInvalidInputTransaction", "Remove input override (WARNING: this could result in different behavior!)")));
 
 				FStackIssue DeprecatedInputOverrideError(
 					EStackIssueSeverity::Error,
