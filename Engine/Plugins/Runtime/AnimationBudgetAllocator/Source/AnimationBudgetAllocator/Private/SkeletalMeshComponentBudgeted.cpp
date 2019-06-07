@@ -41,6 +41,26 @@ void USkeletalMeshComponentBudgeted::EndPlay(const EEndPlayReason::Type EndPlayR
 	Super::EndPlay(EndPlayReason);
 }
 
+void USkeletalMeshComponentBudgeted::SetComponentTickEnabled(bool bEnabled)
+{
+	if (AnimationBudgetAllocator)
+	{
+		AnimationBudgetAllocator->SetComponentTickEnabled(this, bEnabled);
+	}
+	else
+	{
+		Super::SetComponentTickEnabled(bEnabled);
+	}
+}
+
+void USkeletalMeshComponentBudgeted::SetComponentSignificance(float Significance, bool bNeverSkip, bool bTickEvenIfNotRendered, bool bAllowReducedWork, bool bForceInterpolate)
+{
+	if (AnimationBudgetAllocator)
+	{
+		AnimationBudgetAllocator->SetComponentSignificance(this, Significance, bNeverSkip, bTickEvenIfNotRendered, bAllowReducedWork, bForceInterpolate);
+	}
+}
+
 void USkeletalMeshComponentBudgeted::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 #if !UE_BUILD_SHIPPING
