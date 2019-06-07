@@ -236,6 +236,8 @@ void FSequencerTrackNode::UpdateSections()
 	{
 		Sections.RemoveAt(Sections.Num()-NumToRemove, NumToRemove, true);
 	}
+
+	RemoveStaleChildren();
 }
 
 void FSequencerTrackNode::ClearChildren()
@@ -246,6 +248,33 @@ void FSequencerTrackNode::ClearChildren()
 	for (TSharedRef<FSequencerDisplayNode> Child : OldChildren)
 	{
 		Child->SetParent(nullptr);
+	}
+}
+
+void FSequencerTrackNode::RemoveStaleChildren()
+{
+	// Gather stale nodes into a separate array
+	TArray<TSharedRef<FSequencerDisplayNode>> StaleNodes;
+
+	TArray<TSharedRef<FSequencerDisplayNode>> NodesToCheck = ChildNodes;
+	for (int32 Index = 0; Index < NodesToCheck.Num(); ++Index)
+	{
+		TSharedRef<FSequencerDisplayNode> Child = NodesToCheck[Index];
+		if (Child->TreeSerialNumber != TreeSerialNumber)
+		{
+			// This node is stale - remove it
+			StaleNodes.Add(Child);
+		}
+		else
+		{
+			// This node is still relevant, but its children may not be - recurse into those
+			NodesToCheck.Append(Child->GetChildNodes());
+		}
+	}
+
+	for (TSharedRef<FSequencerDisplayNode> StaleNode : StaleNodes)
+	{
+		StaleNode->SetParent(nullptr);
 	}
 }
 
