@@ -139,14 +139,8 @@ public:
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
 
 #if WITH_EDITORONLY_DATA
-	/** Called to query whether or not this emitter is referenced as the source to any emitter handles for this System.*/
-	bool ReferencesSourceEmitter(UNiagaraEmitter& Emitter);
-
 	/** Determines if this system has the supplied emitter as an editable and simulating emitter instance. */
 	bool ReferencesInstanceEmitter(UNiagaraEmitter& Emitter);
-
-	/** Updates all handles which use this emitter as their source. */
-	void UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmitter, bool bRecompileOnChange = true);
 
 	/** Updates the system's rapid iteration parameters from a specific emitter. */
 	void RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle);
@@ -238,7 +232,6 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
-	INiagaraModule::FMergeEmitterResults MergeChangesForEmitterHandle(FNiagaraEmitterHandle& EmitterHandle);
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
 #endif
 
