@@ -138,8 +138,4 @@ void ALandscapeBlueprintCustomBrush::Destroyed()
 
 #endif
 
-ALandscapeBlueprintCustomSimulationBrush::ALandscapeBlueprintCustomSimulationBrush(const FObjectInitializer& ObjectInitializer)
-{
-}
-
 #undef LOCTEXT_NAMESPACE
