@@ -5,13 +5,11 @@
 // Dependencies.
 
 #include "CoreMinimal.h"
-#include "Engine/EngineBaseTypes.h"
 #include "Misc/NetworkVersion.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/JsonSerializerMacros.h"
 
-class FNetworkReplayVersion;
 class IAnalyticsProvider;
 
 class FReplayEventListItem : public FJsonSerializable
@@ -469,7 +467,7 @@ struct FStartStreamingParameters
 {
 	FString CustomName;
 	FString FriendlyName;
-	FURL DemoURL;
+	FString DemoURL;
 	TArray<int32> UserIndices;
 	FNetworkReplayVersion ReplayVersion;
 	bool bRecord;
@@ -647,9 +645,12 @@ public:
 
 	virtual void Exec(const TCHAR* Cmd, FOutputDevice& Ar) {}
 
+protected:
+	/** Temporary to assist with deprecation of user string apis */
+	virtual const int32 GetUserIndexFromUserString(const FString& UserString) = 0;
+
 private:
-	static const int32 GetUserIndexFromUserString(const FString& UserString);
-	static const void GetUserIndicesFromUserStrings(const TArray<FString>& UserStrings, TArray<int32>& OutUserIndices);
+	const void GetUserIndicesFromUserStrings(const TArray<FString>& UserStrings, TArray<int32>& OutUserIndices);
 };
 
 /** Replay streamer factory */

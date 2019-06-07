@@ -905,7 +905,7 @@ bool UDemoNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& ConnectUR
 	
 	FStartStreamingParameters Params;
 	Params.CustomName = DemoURL.Map;
-	Params.DemoURL = DemoURL;
+	Params.DemoURL = GetDemoURL();
 	Params.UserIndices = MoveTemp(UserIndices);
 	Params.bRecord = false;
 	Params.ReplayVersion = FNetworkVersion::GetReplayVersion();
@@ -1093,7 +1093,7 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 	FStartStreamingParameters Params;
 	Params.CustomName = DemoURL.Map;
 	Params.FriendlyName = FriendlyNameOption != nullptr ? FString(FriendlyNameOption) : World->GetMapName();
-	Params.DemoURL = DemoURL;
+	Params.DemoURL = GetDemoURL();
 	Params.UserIndices = MoveTemp(UserIndices);
 	Params.bRecord = true;
 	Params.ReplayVersion = FNetworkVersion::GetReplayVersion();
