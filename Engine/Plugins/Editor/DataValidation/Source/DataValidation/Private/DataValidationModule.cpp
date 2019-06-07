@@ -1,7 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DataValidationModule.h"
-#include "DataValidationManager.h"
 #include "UObject/Object.h"
 #include "UObject/SoftObjectPath.h"
 #include "GameFramework/HUD.h"
@@ -23,6 +22,7 @@
 
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "EditorValidatorSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "DataValidationModule"
 
@@ -205,10 +205,10 @@ void FDataValidationModule::ValidateAssets(TArray<FAssetData> SelectedAssets, bo
 		SelectedAssets = DependentAssets.Array();
 	}
 
-	UDataValidationManager* DataValidationManager = UDataValidationManager::Get();
-	if (DataValidationManager)
+	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
+	if (EditorValidationSubsystem)
 	{
-		DataValidationManager->ValidateAssets(SelectedAssets, false);
+		EditorValidationSubsystem->ValidateAssets(SelectedAssets, false);
 	}
 }
 
@@ -292,10 +292,10 @@ void FDataValidationModule::CreateDataValidationContentBrowserPathMenu(FMenuBuil
 
 void FDataValidationModule::OnPackageSaved(const FString& PackageFileName, UObject* PackageObj)
 {
-	UDataValidationManager* DataValidationManager = UDataValidationManager::Get();
-	if (DataValidationManager && PackageObj)
+	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
+	if (EditorValidationSubsystem && PackageObj)
 	{
-		DataValidationManager->ValidateSavedPackage(PackageObj->GetFName());
+		EditorValidationSubsystem->ValidateSavedPackage(PackageObj->GetFName());
 	}
 }
 
