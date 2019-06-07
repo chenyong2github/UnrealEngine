@@ -356,6 +356,10 @@ public:
 
 	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable")
 	bool bIsStaticSwitch;
+
+	/** The default value to use when creating new pins or stack entries for a static switch parameter */
+	UPROPERTY()
+	int32 StaticSwitchDefaultValue;
 };
 
 USTRUCT()
