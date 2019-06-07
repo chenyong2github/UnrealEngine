@@ -45,7 +45,7 @@ private:
 
 	void OnFunctionInputsChanged();
 
-	UNiagaraStackEntry::FStackIssueFix GetNodeRemovalFix(UEdGraphPin* PinToRemove);
+	UNiagaraStackEntry::FStackIssueFix GetNodeRemovalFix(UEdGraphPin* PinToRemove, FText FixDescription);
 
 	struct FInputData
 	{
