@@ -454,7 +454,7 @@ void NiagaraEmitterInstanceBatcher::SimStepClearAndSetup(const FNiagaraComputeIn
 //	SCOPED_GPU_EVENTF(RHICmdList, NiagaraIndexBufferClear, TEXT("Niagara index buffer clear"));
 	SCOPED_DRAW_EVENT(RHICmdList, NiagaraIndexBufferClear);
 	SCOPED_GPU_STAT(RHICmdList, NiagaraIndexBufferClear);
-
+	//UE_LOG(LogNiagara, Log, TEXT("Clearing UAV %p"), (FRHIVertexBuffer *)DatasetIndexBufferWrite.Buffer);
 	ClearUAV(RHICmdList, DatasetIndexBufferWrite, 0);
 #endif
 }
@@ -513,7 +513,7 @@ void NiagaraEmitterInstanceBatcher::TickSingle(const FNiagaraGPUSystemTick& Tick
 	FNiagaraDataBuffer& CurrentData = *Instance->CurrentData;
 	FNiagaraDataBuffer& DestinationData = *Instance->DestinationData;
 
-	uint32 PrevNumInstances = CurrentData.GetNumInstances();
+	uint32 PrevNumInstances = Tick.bNeedsReset ? 0 : CurrentData.GetNumInstances();
 	uint32 NewNumInstances = Instance->SpawnRateInstances + Instance->EventSpawnTotal + PrevNumInstances;
 
 	//We must assume all particles survive when allocating here. 
@@ -813,13 +813,16 @@ void NiagaraEmitterInstanceBatcher::ResolveDatasetWrites(FRHICommandList &RHICmd
 		    int32 *NumInstancesAfterSim = static_cast<int32*>(Context->GPUDataReadback->Lock(64 * sizeof(int32)));
 			if (NumInstancesAfterSim)
 			{
-				int32 NewExistingDataCount = NumInstancesAfterSim[1] + Context->AccumulatedSpawnRate; // index 1 is always the count
+				int32 NewExistingDataCount = (Context->ResetSinceLastReadbackIssued ? 0 : NumInstancesAfterSim[1]) + Context->AccumulatedSpawnRate; // index 1 is always the count
 				DestinationData.SetNumInstances(NewExistingDataCount);
-				//UE_LOG(LogNiagara, Log, TEXT("GPU Syncup %s : Was(%d) Now(%d)"), *Context->DebugSimName, ExistingDataCount, NewExistingDataCount );
+				//UE_LOG(LogNiagara, Log, TEXT("GPU Syncup %s : Was(%d) Now(%d) Accumulated(%d) NumInstancesAfterSim[1](%d)"), *Context->DebugSimName, ExistingDataCount, NewExistingDataCount , Context->AccumulatedSpawnRate, NumInstancesAfterSim[1]);
+				//UE_LOG(LogNiagara, Log, TEXT("Reading UAV %p"), (FRHIVertexBuffer *)DatasetIndexBufferWrite.Buffer);
+
 				INC_DWORD_STAT_BY(STAT_NiagaraGPUParticles, NewExistingDataCount);
 				SET_DWORD_STAT(STAT_NiagaraReadbackLatency, 0);
 
 				Context->AccumulatedSpawnRate = 0;
+				Context->ResetSinceLastReadbackIssued = false;
 				bSuccessfullyRead = true;
 			}
 			else
@@ -876,7 +879,7 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 					IntDataBuffer = static_cast<int*>(Context->GPUDebugDataReadbackInt->Lock(Context->GPUDebugDataIntSize));
 				}
 
-				Context->DebugInfo->Frame.CopyFromGPUReadback(FloatDataBuffer, IntDataBuffer, 0, NewExistingDataCount);
+				Context->DebugInfo->Frame.CopyFromGPUReadback(FloatDataBuffer, IntDataBuffer, 0, NewExistingDataCount, Context->GPUDebugDataFloatStride, Context->GPUDebugDataIntStride);
 
 				Context->DebugInfo->bWritten = true;
 
@@ -907,6 +910,8 @@ void NiagaraEmitterInstanceBatcher::ProcessDebugInfo(FRHICommandList &RHICmdList
 				Context->GPUDebugDataReadbackCounts = nullptr;	
 				Context->GPUDebugDataFloatSize = 0;
 				Context->GPUDebugDataIntSize = 0;
+				Context->GPUDebugDataFloatStride = 0;
+				Context->GPUDebugDataIntStride = 0;
 			}
 
 			// We've updated the debug info directly, now we need to no longer keep asking and querying because this frame is done!
@@ -1018,6 +1023,13 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 		InitIndexBuffer[1] = 0;		// number of instances 
 		ReadIndexBuffer.Initialize(sizeof(int32), 64, EPixelFormat::PF_R32_UINT, BUF_DrawIndirect | BUF_Static, nullptr, &InitIndexBuffer);
 	}
+	else if (Tick.bNeedsReset)
+	{
+		//UE_LOG(LogNiagara, Log, TEXT("Clearing UAV due to reset!"));
+		ClearUAV(RHICmdList, ReadIndexBuffer, 0);
+		Context->AccumulatedSpawnRate = 0;
+		Context->ResetSinceLastReadbackIssued = true;
+	}
 
 	RHICmdList.SetComputeShader(Shader->GetComputeShader());
 
@@ -1098,12 +1110,15 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 			Context->GPUDebugDataFloatSize = 0;
 			Context->GPUDebugDataIntSize = 0;
+			Context->GPUDebugDataFloatStride = 0;
+			Context->GPUDebugDataIntStride = 0;
 
 			if (DestinationData.GetGPUBufferFloat().NumBytes > 0)
 			{
 				Context->GPUDebugDataReadbackFloat = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Debug Info Float Emitter Readback"));
 				Context->GPUDebugDataReadbackFloat->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferFloat().Buffer);
 				Context->GPUDebugDataFloatSize = DestinationData.GetGPUBufferFloat().NumBytes;
+				Context->GPUDebugDataFloatStride = DestinationData.GetFloatStride();
 			}
 
 			if (DestinationData.GetGPUBufferInt().NumBytes > 0)
@@ -1111,6 +1126,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 				Context->GPUDebugDataReadbackInt = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Debug Info Int Emitter Readback"));
 				Context->GPUDebugDataReadbackInt->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferInt().Buffer);
 				Context->GPUDebugDataIntSize = DestinationData.GetGPUBufferInt().NumBytes;
+				Context->GPUDebugDataIntStride = DestinationData.GetInt32Stride();
 			}
 
 			Context->GPUDebugDataReadbackCounts = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Emitter Readback"));

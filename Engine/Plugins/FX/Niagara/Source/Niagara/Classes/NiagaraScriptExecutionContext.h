@@ -186,6 +186,7 @@ public:
 	//Most current buffer that can be used for rendering.
 	FNiagaraDataBuffer* DataToRender;
 
+	bool ResetSinceLastReadbackIssued = false;
 	FRHIGPUMemoryReadback *GPUDataReadback;
 	uint32 AccumulatedSpawnRate;
 	uint32 NumIndicesPerInstance;	// how many vtx indices per instance the renderer is going to have for its draw call
@@ -199,6 +200,8 @@ public:
 	mutable FRHIGPUMemoryReadback *GPUDebugDataReadbackCounts;
 	mutable uint32 GPUDebugDataFloatSize;
 	mutable uint32 GPUDebugDataIntSize;
+	mutable uint32 GPUDebugDataFloatStride;
+	mutable uint32 GPUDebugDataIntStride;
 	mutable TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> DebugInfo;
 #endif
 
@@ -275,4 +278,5 @@ public:
 	FNiagaraDataInterfaceInstanceData* DIInstanceData;
 	uint8* InstanceData_ParamData_Packed;
 	bool bRequiredDistanceFieldData = false;
+	bool bNeedsReset = false;
 };
