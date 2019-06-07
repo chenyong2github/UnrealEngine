@@ -1931,7 +1931,11 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 		if(ForkPID == 0)
 		{
 			// Child
-			if(GMacAppInfo.bIsUnattended)
+			if (bImplicitSend)
+			{
+				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", "-ImplicitSend", NULL);
+			}
+			else if(GMacAppInfo.bIsUnattended)
 			{
 				execl(GMacAppInfo.CrashReportClient, "CrashReportClient", CrashInfoFolder, "-Unattended", NULL);
 			}
