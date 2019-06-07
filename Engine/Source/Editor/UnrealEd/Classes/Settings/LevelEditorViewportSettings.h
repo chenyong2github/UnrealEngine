@@ -242,6 +242,14 @@ class UNREALED_API ULevelEditorViewportSettings
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, meta=( DisplayName = "Enable Combined Translate/Rotate Widget" ))
 	uint32 bAllowTranslateRotateZWidget:1;
 
+	/** Allow arcball rotation with rotate widget */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, meta = (DisplayName = "Enable Arcball Rotate"))
+	uint32 bAllowArcballRotate : 1;
+
+	/** Allow screen rotation with rotate widget */
+	UPROPERTY(EditAnywhere, config, Category = LookAndFeel, meta = (DisplayName = "Enable Screen Rotate"))
+	uint32 bAllowScreenRotate : 1;
+
 	/** If true, Clicking a BSP selects the brush and ctrl+shift+click selects the surface. If false, vice versa */
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, meta=( DisplayName = "Clicking BSP Enables Brush" ), AdvancedDisplay)
 	uint32 bClickBSPSelectsBrush:1;

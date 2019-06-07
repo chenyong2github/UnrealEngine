@@ -103,6 +103,8 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	MaterialParamValidMask |= MaterialParamOffset1 == -1 ? 0 : 0x2;
 	MaterialParamValidMask |= MaterialParamOffset2 == -1 ? 0 : 0x4;
 	MaterialParamValidMask |= MaterialParamOffset3 == -1 ? 0 : 0x8;
+
+	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
 }
 
 void FNiagaraRendererMeshes::ReleaseRenderThreadResources()
@@ -204,7 +206,8 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 			{
 				const FSceneView* View = Views[ViewIndex];
 				//TODO: Work out LOD and pass through in dynamic data.
-				const FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[0];
+				const int32 LODIndex = FMath::Max<int32>((int32)MeshRenderData->CurrentFirstLODIdx, MeshMinimumLOD);
+				const FStaticMeshLODResources& LODModel = MeshRenderData->LODResources[LODIndex];
 
 				FNiagaraMeshCollectorResourcesMesh& CollectorResources = Collector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesMesh>();
 				SetupVertexFactory(&CollectorResources.VertexFactory, LODModel);
@@ -435,7 +438,8 @@ FNiagaraDynamicDataBase *FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 		DynamicData = new FNiagaraDynamicDataMesh(Emitter);
 
 		//TODO: Mesh LODs.
-		const FStaticMeshLODResources& LODModel = Properties->ParticleMesh->RenderData->LODResources[0];
+		const int32 LODIndex = FMath::Max<int32>((int32)MeshRenderData->CurrentFirstLODIdx, MeshMinimumLOD);
+		const FStaticMeshLODResources& LODModel = Properties->ParticleMesh->RenderData->LODResources[LODIndex];
 
 		check(BaseMaterials_GT.Num() == LODModel.Sections.Num());
 

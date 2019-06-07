@@ -17,17 +17,4 @@ void ADisplayClusterPlayerController::PlayerTick(float DeltaTime)
 void ADisplayClusterPlayerController::BeginPlay()
 {
 	Super::BeginPlay();
-
-#if 0
-	//@todo: temporary solution. we need generic DisplayCluster access to statistics
-	//@note: next line causes crash
-	FDisplayClusterConfigDebug cfgDebug = FGDisplayCluster->GetPrivateConfigMgr()->GetConfigDebug();
-	if (cfgDebug.DrawStats)
-	{
-		UE_LOG(LogDisplayClusterGame, Log, TEXT("Activating onscreen stats"));
-		ConsoleCommand(FString("stat fps"),  true);
-		ConsoleCommand(FString("stat unit"), true);
-	}
-#endif
 }
-

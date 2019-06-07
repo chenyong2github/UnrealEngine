@@ -3262,6 +3262,13 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
 			}
 
+			// If the view has a previous view transform, then overwrite the previous view info for the _current_ frame.
+			if (View.PreviousViewTransform.IsSet())
+			{
+				// Note that we must ensure this transform ends up in ViewState->PrevFrameViewInfo else it will be used to calculate the next frame's motion vectors as well
+				View.PrevViewInfo.ViewMatrices.UpdateViewMatrix(View.PreviousViewTransform->GetTranslation(), View.PreviousViewTransform->GetRotation().Rotator());
+			}
+
 			// detect conditions where we should reset occlusion queries
 			if (bFirstFrameOrTimeWasReset || 
 				ViewState->LastRenderTime + GEngine->PrimitiveProbablyVisibleTime < View.Family->CurrentRealTime ||
@@ -3350,7 +3357,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	if (MotionBlurTargetFPS <= 0)
 	{
 		// Keep motion vector lengths stable for paused sequencer frames.
-		if (bSequencerIsPaused)
+		if (GetSequencerState() == ESS_Paused)
 		{
 			// Reset the moving average to the current delta time.
 			MotionBlurTargetDeltaTime = DeltaWorldTime;
@@ -3365,7 +3372,7 @@ void FSceneViewState::UpdateMotionBlurTimeScale(const FViewInfo& View)
 	{
 		// Keep motion vector lengths stable for paused sequencer frames. Assumes a 60 FPS tick.
 		// Tuned for content compatibility with existing content when target is the default 30 FPS.
-		if (bSequencerIsPaused)
+		if (GetSequencerState() == ESS_Paused)
 		{
 			DeltaWorldTime = 1.0f / 60.0f;
 		}

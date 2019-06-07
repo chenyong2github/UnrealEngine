@@ -12,7 +12,7 @@
 
 class UPropertyValue;
 
-UCLASS(DefaultToInstanced)
+UCLASS(DefaultToInstanced, meta=(ScriptName="UVariantActorBinding"))
 class VARIANTMANAGERCONTENT_API UVariantObjectBinding : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -35,7 +35,7 @@ public:
 
 	void AddFunctionCallers(const TArray<FFunctionCaller>& InFunctionCallers);
 	TArray<FFunctionCaller>& GetFunctionCallers();
-	void RemoveFunctionCallers(const TArray<FFunctionCaller>& InFunctionCallers);
+	void RemoveFunctionCallers(const TArray<FFunctionCaller*>& InFunctionCallers);
 	void ExecuteTargetFunction(FName FunctionName);
 	void ExecuteAllTargetFunctions();
 

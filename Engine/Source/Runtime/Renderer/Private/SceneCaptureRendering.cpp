@@ -40,6 +40,7 @@
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "RendererModule.h"
+#include "Rendering/MotionVectorSimulation.h"
 #include "SceneViewExtension.h"
 
 const TCHAR* GShaderSourceModeDefineName[] =
@@ -733,6 +734,9 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
 		SceneRenderer->ViewFamily.SceneCaptureCompositeMode = CaptureComponent->CompositeMode;
 
+		// Ensure that the views for this scene capture reflect any simulated camera motion for this frame
+		TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(CaptureComponent);
+
 		// Process Scene View extensions for the capture component
 		{
 			for (int32 Index = 0; Index < CaptureComponent->SceneViewExtensions.Num(); ++Index)
@@ -763,6 +767,11 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 			for (FSceneView& View : SceneRenderer->Views)
 			{
+				if (PreviousTransform.IsSet())
+				{
+					View.PreviousViewTransform = PreviousTransform.GetValue();
+				}
+
 				View.bCameraCut = CaptureComponent->bCameraCutThisFrame;
 
 				if (CaptureComponent->bEnableClipPlane)
@@ -859,6 +868,16 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 		CaptureComponent->TextureTargetRight
 	};
 
+	FTransform Transform = CaptureComponent->GetComponentToWorld();
+	const FVector ViewLocation = Transform.GetTranslation();
+
+	if (CaptureComponent->bCaptureRotation)
+	{
+		// Remove the translation from Transform because we only need rotation.
+		Transform.SetTranslation(FVector::ZeroVector);
+		Transform.SetScale3D(FVector::OneVector);
+	}
+
 	for (uint32 CaptureIter = StartIndex; CaptureIter < EndIndex; ++CaptureIter)
 	{
 		UTextureRenderTargetCube* const TextureTarget = TextureTargets[CaptureIter];
@@ -869,8 +888,17 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 			for (int32 faceidx = 0; faceidx < (int32)ECubeFace::CubeFace_MAX; faceidx++)
 			{
 				const ECubeFace TargetFace = (ECubeFace)faceidx;
-				const FVector Location = CaptureComponent->GetComponentToWorld().GetTranslation();
-				const FMatrix ViewRotationMatrix = FLocal::CalcCubeFaceTransform(TargetFace);
+
+				FMatrix ViewRotationMatrix;
+
+				if (CaptureComponent->bCaptureRotation)
+				{
+					ViewRotationMatrix = Transform.ToInverseMatrixWithScale() * FLocal::CalcCubeFaceTransform(TargetFace);
+				}
+				else
+				{
+					ViewRotationMatrix = FLocal::CalcCubeFaceTransform(TargetFace);
+				}
 				FIntPoint CaptureSize(TextureTarget->GetSurfaceWidth(), TextureTarget->GetSurfaceHeight());
 				FMatrix ProjectionMatrix;
 				BuildProjectionMatrix(CaptureSize, ECameraProjectionMode::Perspective, FOV, 1.0f, GNearClippingPlane, ProjectionMatrix);

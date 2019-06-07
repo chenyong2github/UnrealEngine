@@ -25,4 +25,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Bookmarks", meta = (WorldContext = "WorldContextObject"))
 	static void GetAllVPBookmark(const UObject* WorldContextObject, TArray<UVPBookmark*>& OutBookmarks);
+
+	UFUNCTION(BlueprintCallable, Category = "Bookmarks")
+	static bool CreateVPBookmarkName(AActor* Bookmark, const FString& FormatString, FString& GeneratedNumber, FString& GeneratedLetter);
 };

@@ -2742,6 +2742,7 @@ namespace UnrealBuildTool
 				OutputFilePaths: OutputFilePaths,
 				IntermediateDirectory: Module.IntermediateDirectory,
 				bAllowExports: true,
+				bBuildAdditionalConsoleApp: false,
 				PrimaryModule: Module,
 				bUsePrecompiled: Module.Rules.bUsePrecompiled
 			);
@@ -3147,6 +3148,7 @@ namespace UnrealBuildTool
 				OutputFilePaths: OutputPaths,
 				IntermediateDirectory: IntermediateDirectory,
 				bAllowExports: Rules.bHasExports,
+				bBuildAdditionalConsoleApp: Rules.bBuildAdditionalConsoleApp,
 				PrimaryModule: LaunchModule,
 				bUsePrecompiled: LaunchModule.Rules.bUsePrecompiled && OutputPaths[0].IsUnderDirectory(UnrealBuildTool.EngineDirectory)
 			);
@@ -3156,11 +3158,6 @@ namespace UnrealBuildTool
 			LaunchModule.Binary = Binary;
 			Binary.AddModule(LaunchModule);
 
-			// Create an additional console app for the editor
-			if ((Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Mac) && Configuration != UnrealTargetConfiguration.Shipping && TargetType == TargetType.Editor)
-			{
-				Binary.bBuildAdditionalConsoleApp = true;
-			}
 		}
 
 		/// <summary>

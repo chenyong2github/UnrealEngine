@@ -113,7 +113,7 @@ namespace BuildPatchServices
 		RequestIdManifestB = DownloadService->RequestFile(Configuration.ManifestBUri, DownloadCompleteDelegate, DownloadProgressDelegate);
 
 		// Start the generation thread.
-		TFuture<bool> Thread = Async<bool>(EAsyncExecution::Thread, [this]() { return AsyncRun(); });
+		TFuture<bool> Thread = Async(EAsyncExecution::Thread, [this]() { return AsyncRun(); });
 
 		// Main timers.
 		double DeltaTime = 0.0;
@@ -473,7 +473,7 @@ namespace BuildPatchServices
 		{
 			if (Download->WasSuccessful())
 			{
-				Async<void>(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
+				Async(EAsyncExecution::ThreadPool, [Download, RelevantPromisePtr]()
 				{
 					FBuildPatchAppManifestPtr Manifest = MakeShareable(new FBuildPatchAppManifest());
 					if (!Manifest->DeserializeFromData(Download->GetData()))

@@ -58,4 +58,6 @@ private:
 	int32 NormalizedAgeOffset;
 	int32 MaterialRandomOffset;
 	int32 CustomSortingOffset;
+
+	int32 MeshMinimumLOD = 0;
 };

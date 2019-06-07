@@ -114,6 +114,12 @@ public:
 	virtual void ExportLevelMesh( ULevel* InLevel, bool bSelectedOnly, INodeNameAdapter& NodeNameAdapter , bool bSaveAnimSeq = true);
 
 	/**
+	* Exports the basic scene information to the FBX document, using the passed in Actors
+	*/
+	virtual void ExportLevelMesh(ULevel* InLevel, bool bExportLevelGeometry, TArray<AActor*>& ActorToExport, INodeNameAdapter& NodeNameAdapter, bool bSaveAnimSeq = true);
+
+
+	/**
 	 * Exports the given Matinee sequence information into a FBX document.
 	 * 
 	 * @return	true, if sucessful

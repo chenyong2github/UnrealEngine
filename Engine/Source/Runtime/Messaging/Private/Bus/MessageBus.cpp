@@ -80,6 +80,7 @@ void FMessageBus::Publish(
 	void* Message,
 	UScriptStruct* TypeInfo,
 	EMessageScope Scope,
+	const TMap<FName, FString> Annotations,
 	const FTimespan& Delay,
 	const FDateTime& Expiration,
 	const TSharedRef<IMessageSender, ESPMode::ThreadSafe>& Publisher
@@ -88,6 +89,7 @@ void FMessageBus::Publish(
 	Router->RouteMessage(MakeShareable(new FMessageContext(
 		Message,
 		TypeInfo,
+		Annotations,
 		nullptr,
 		Publisher->GetSenderAddress(),
 		TArray<FMessageAddress>(),
@@ -110,6 +112,7 @@ void FMessageBus::Send(
 	void* Message,
 	UScriptStruct* TypeInfo,
 	EMessageFlags Flags,
+	const TMap<FName, FString> Annotations,
 	const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& Attachment,
 	const TArray<FMessageAddress>& Recipients,
 	const FTimespan& Delay,
@@ -120,6 +123,7 @@ void FMessageBus::Send(
 	Router->RouteMessage(MakeShareable(new FMessageContext(
 		Message,
 		TypeInfo,
+		Annotations,
 		Attachment,
 		Sender->GetSenderAddress(),
 		Recipients,

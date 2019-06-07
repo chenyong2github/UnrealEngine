@@ -16,11 +16,11 @@ static FAutoConsoleVariableRef CVarNiagaraGPUSorting(
 	ECVF_Default
 );
 
-int32 GNiagaraGPUSortingUseMaxPrecision = 1;
+int32 GNiagaraGPUSortingUseMaxPrecision = 0;
 static FAutoConsoleVariableRef CVarNiagaraGPUSortinUseMaxPrecision(
 	TEXT("Niagara.GPUSorting.UseMaxPrecision"),
 	GNiagaraGPUSortingUseMaxPrecision,
-	TEXT("Wether sorting using fp32 instead of fp16. (default=1)"),
+	TEXT("Wether sorting using fp32 instead of fp16. (default=0)"),
 	ECVF_Default
 );
 

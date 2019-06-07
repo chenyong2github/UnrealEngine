@@ -775,7 +775,7 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 }
 
 /** Gathers the information needed to represent a single object's distance field and appends it to the upload buffers. */
-void ProcessPrimitiveUpdate(
+bool ProcessPrimitiveUpdate(
 	bool bIsAddOperation,
 	FRHICommandListImmediate& RHICmdList, 
 	FSceneRenderer& SceneRenderer, 
@@ -800,7 +800,13 @@ void ProcessPrimitiveUpdate(
 	bool bBuiltAsIfTwoSided;
 	bool bMeshWasPlane;
 	float SelfShadowBias;
-	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, ObjectLocalToWorldTransforms);
+	bool bThrottled;
+	PrimitiveSceneInfo->Proxy->GetDistancefieldAtlasData(LocalVolumeBounds, DistanceMinMax, BlockMin, BlockSize, bBuiltAsIfTwoSided, bMeshWasPlane, SelfShadowBias, ObjectLocalToWorldTransforms, bThrottled);
+
+	if (bThrottled)
+	{
+		return false;
+	}
 
 	if (BlockMin.X >= 0 
 		&& BlockMin.Y >= 0 
@@ -1003,6 +1009,7 @@ void ProcessPrimitiveUpdate(
 			UE_LOG(LogDistanceField,Log,TEXT("Primitive %s %s excluded due to bounding radius %f"), *PrimitiveSceneInfo->Proxy->GetOwnerName().ToString(), *PrimitiveSceneInfo->Proxy->GetResourceName().ToString(), BoundingRadius);
 		}
 	}
+	return true;
 }
 
 bool bVerifySceneIntegrity = false;
@@ -1012,7 +1019,9 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 	if (GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI
-		&& (DistanceFieldSceneData.HasPendingOperations() || DistanceFieldSceneData.AtlasGeneration != GDistanceFieldVolumeTextureAtlas.GetGeneration()))
+		&& (DistanceFieldSceneData.HasPendingOperations() || 
+			DistanceFieldSceneData.PendingThrottledOperations.Num()>0 || 
+			DistanceFieldSceneData.AtlasGeneration != GDistanceFieldVolumeTextureAtlas.GetGeneration()))
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateObjectData);
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneObjectData);
@@ -1031,6 +1040,14 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 		{
 			DistanceFieldSceneData.InstancedSurfelBuffers = new FInstancedSurfelBuffers();
 		}
+
+		if (DistanceFieldSceneData.PendingAddOperations.Num()>0)
+		{
+			DistanceFieldSceneData.PendingThrottledOperations.Reserve(DistanceFieldSceneData.PendingThrottledOperations.Num() + DistanceFieldSceneData.PendingAddOperations.Num());
+		}
+
+		DistanceFieldSceneData.PendingAddOperations.Append(DistanceFieldSceneData.PendingThrottledOperations);
+		DistanceFieldSceneData.PendingThrottledOperations.Reset();
 
 		if (DistanceFieldSceneData.AtlasGeneration != GDistanceFieldVolumeTextureAtlas.GetGeneration())
 		{
@@ -1182,18 +1199,21 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 			{
 				FPrimitiveSceneInfo* PrimitiveSceneInfo = DistanceFieldSceneData.PendingAddOperations[UploadPrimitiveIndex];
 
-				ProcessPrimitiveUpdate(
+				if (!ProcessPrimitiveUpdate(
 					true,
-					RHICmdList, 
-					*this, 
-					PrimitiveSceneInfo, 
-					OriginalNumObjects, 
-					InvTextureDim, 
-					bPrepareForDistanceFieldGI, 
+					RHICmdList,
+					*this,
+					PrimitiveSceneInfo,
+					OriginalNumObjects,
+					InvTextureDim,
+					bPrepareForDistanceFieldGI,
 					bAnyViewEnabledDistanceCulling,
-					ObjectLocalToWorldTransforms, 
-					UploadObjectIndices, 
-					UploadObjectData);
+					ObjectLocalToWorldTransforms,
+					UploadObjectIndices,
+					UploadObjectData))
+				{
+					DistanceFieldSceneData.PendingThrottledOperations.Add(PrimitiveSceneInfo);
+				}
 			}
 
 			for (TSet<FPrimitiveSceneInfo*>::TIterator It(DistanceFieldSceneData.PendingUpdateOperations); It; ++It)
@@ -1202,20 +1222,24 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 
 				ProcessPrimitiveUpdate(
 					false,
-					RHICmdList, 
-					*this, 
-					PrimitiveSceneInfo, 
-					OriginalNumObjects, 
-					InvTextureDim, 
-					bPrepareForDistanceFieldGI, 
+					RHICmdList,
+					*this,
+					PrimitiveSceneInfo,
+					OriginalNumObjects,
+					InvTextureDim,
+					bPrepareForDistanceFieldGI,
 					bAnyViewEnabledDistanceCulling,
-					ObjectLocalToWorldTransforms, 
-					UploadObjectIndices, 
+					ObjectLocalToWorldTransforms,
+					UploadObjectIndices,
 					UploadObjectData);
 			}
 
 			DistanceFieldSceneData.PendingAddOperations.Reset();
 			DistanceFieldSceneData.PendingUpdateOperations.Empty();
+			if (DistanceFieldSceneData.PendingThrottledOperations.Num() == 0)
+			{
+				DistanceFieldSceneData.PendingThrottledOperations.Empty();
+			}
 
 			if (DistanceFieldSceneData.ObjectBuffers->MaxObjects < DistanceFieldSceneData.NumObjectsInBuffer)
 			{

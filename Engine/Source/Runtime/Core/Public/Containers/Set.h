@@ -1374,6 +1374,15 @@ public:
 		return Elements.GetData(Index, Layout.SparseArrayLayout);
 	}
 
+	void MoveAssign(FScriptSet& Other, const FScriptSetLayout& Layout)
+	{
+		checkSlow(this != &Other);
+		Empty(0, Layout);
+		Elements.MoveAssign(Other.Elements, Layout.SparseArrayLayout);
+		Hash.MoveToEmpty(Other.Hash);
+		HashSize = Other.HashSize; Other.HashSize = 0;
+	}
+
 	void Empty(int32 Slack, const FScriptSetLayout& Layout)
 	{
 		// Empty the elements array, and reallocate it for the expected number of elements.

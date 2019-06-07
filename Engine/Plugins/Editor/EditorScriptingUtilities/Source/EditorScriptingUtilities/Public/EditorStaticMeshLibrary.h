@@ -84,12 +84,22 @@ public:
 	 * The build settings of LOD 0 will be applied to all subsequent LODs.
 	 * @param	StaticMesh				Mesh to process.
 	 * @param	ReductionOptions		Options on how to generate LODs on the mesh.
+	 * @param	bApplyChanges				Indicates if change must be notified.
 	 * @return the number of LODs generated on the input mesh.
 	 * An negative value indicates that the reduction could not be performed. See log for explanation.
 	 * No action will be performed if ReductionOptions.ReductionSettings is empty
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
-	static int32 SetLods(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions& ReductionOptions);
+	static int32 SetLodsWithNotification(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions& ReductionOptions, bool bApplyChanges );
+
+	/**
+	 * Same as SetLodsWithNotification but changes are applied.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static int32 SetLods(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions& ReductionOptions)
+	{
+		return SetLodsWithNotification(StaticMesh, ReductionOptions, true);
+	}
 
 	/**
 	 * Adds or create a LOD at DestinationLodIndex using the geometry from SourceStaticMesh SourceLodIndex
@@ -134,13 +144,23 @@ public:
 	/**
 	 * Add simple collisions to a static mesh.
 	 * This method replicates what is done when invoking menu entries "Collision > Add [...] Simplified Collision" in the Mesh Editor.
-	 * @param	StaticMesh				Mesh to generate simple collision for.
-	 * @param	ShapeType				Options on which simple collision to add to the mesh.
+	 * @param	StaticMesh			Mesh to generate simple collision for.
+	 * @param	ShapeType			Options on which simple collision to add to the mesh.
+	 * @param	bApplyChanges		Indicates if changes must be apply or not.
 	 * @return An integer indicating the index of the collision newly created.
 	 * A negative value indicates the addition failed.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
-	static int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType ShapeType);
+	static int32 AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType ShapeType, bool bApplyChanges);
+
+	/**
+	 * Same as AddSimpleCollisionsWithNotification but changes are automatically applied.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType ShapeType)
+	{
+		return AddSimpleCollisionsWithNotification(StaticMesh, ShapeType, true);
+	}
 
 	/**
 	 * Get number of simple collisions present on a static mesh.
@@ -176,19 +196,39 @@ public:
 	 * @param	HullCount				Maximum number of convex pieces that will be created. Must be positive.
 	 * @param	MaxHullVerts			Maximum number of vertices allowed for any generated convex hull.
 	 * @param	HullPrecision			Number of voxels to use when generating collision. Must be positive.
+	 * @param	bApplyChanges			Indicates if changes must be apply or not.
 	 * @return A boolean indicating if the addition was successful or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
-	static bool SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision);
+	static bool SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges);
+
+	/**
+	 * Same as SetConvexDecompositionCollisionsWithNotification but changes are automatically applied.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static bool SetConvexDecompositionCollisions(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision)
+	{
+		return SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, true);
+	}
 
 	/**
 	 * Remove collisions from a static mesh.
 	 * This method replicates what is done when invoking menu entries "Collision > Remove Collision" in the Mesh Editor.
 	 * @param	StaticMesh			Static mesh to remove collisions from.
+	 * @param	bApplyChanges		Indicates if changes must be apply or not.
 	 * @return A boolean indicating if the removal was successful or not.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
-	static bool RemoveCollisions(UStaticMesh* StaticMesh);
+	static bool RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges);
+
+	/**
+	 * Same as RemoveCollisionsWithNotification but changes are applied.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh")
+	static bool RemoveCollisions(UStaticMesh* StaticMesh)
+	{
+		return RemoveCollisionsWithNotification(StaticMesh, true);
+	}
 
 	/**
 	 * Enables/disables mesh section collision for a specific LOD.

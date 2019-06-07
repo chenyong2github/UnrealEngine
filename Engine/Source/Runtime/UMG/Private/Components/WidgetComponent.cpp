@@ -1221,12 +1221,12 @@ float UWidgetComponent::ComputeComponentWidth() const
 	{
 		default:
 		case EWidgetGeometryMode::Plane:
-			return DrawSize.X;
+			return CurrentDrawSize.X;
 		break;
 
 		case EWidgetGeometryMode::Cylinder:
 			const float ArcAngleRadians = FMath::DegreesToRadians(GetCylinderArcAngle());
-			const float Radius = GetDrawSize().X / ArcAngleRadians;
+			const float Radius = CurrentDrawSize.X / ArcAngleRadians;
 			// Chord length is 2*R*Sin(Theta/2)
 			return 2.0f * Radius * FMath::Sin(0.5f*ArcAngleRadians);
 		break;
@@ -1649,18 +1649,15 @@ void UWidgetComponent::UpdateBodySetup( bool bDrawSizeChanged )
 
 		FKBoxElem* BoxElem = BodySetup->AggGeom.BoxElems.GetData();
 
-		FVector Origin = FVector(.5f,
-			-( CurrentDrawSize.X * 0.5f ) + ( CurrentDrawSize.X * Pivot.X ),
-			-( CurrentDrawSize.Y * 0.5f ) + ( CurrentDrawSize.Y * Pivot.Y ));
-			const float Width = ComputeComponentWidth();
-			const float Height = CurrentDrawSize.Y;
-			Origin = FVector(.5f,
-				-( Width * 0.5f ) + ( Width * Pivot.X ),
-				-( Height * 0.5f ) + ( Height * Pivot.Y ));
+		const float Width = ComputeComponentWidth();
+		const float Height = CurrentDrawSize.Y;
+		const FVector Origin = FVector(.5f,
+			-( Width * 0.5f ) + ( Width * Pivot.X ),
+			-( Height * 0.5f ) + ( Height * Pivot.Y ));
 			
 		BoxElem->X = 0.01f;
-		BoxElem->Y = CurrentDrawSize.X;
-		BoxElem->Z = CurrentDrawSize.Y;
+		BoxElem->Y = Width;
+		BoxElem->Z = Height;
 
 		BoxElem->SetTransform(FTransform::Identity);
 		BoxElem->Center = Origin;

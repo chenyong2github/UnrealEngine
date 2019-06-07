@@ -3,9 +3,19 @@
 #include "ConcertServerSyncCommandQueue.h"
 #include "HAL/PlatformTime.h"
 
+void FConcertServerSyncCommandQueue::RegisterEndpoint(const FGuid& InEndpointId)
+{
+	QueuedSyncCommands.FindOrAdd(InEndpointId);
+}
+
+void FConcertServerSyncCommandQueue::UnregisterEndpoint(const FGuid& InEndpointId)
+{
+	QueuedSyncCommands.Remove(InEndpointId);
+}
+
 void FConcertServerSyncCommandQueue::SetCommandProcessingMethod(const FGuid& InEndpointId, const ESyncCommandProcessingMethod InProcessingMethod)
 {
-	FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindOrAdd(InEndpointId);
+	FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindChecked(InEndpointId);
 	EndpointSyncQueue.ProcessingMethod = InProcessingMethod;
 }
 
@@ -18,7 +28,7 @@ void FConcertServerSyncCommandQueue::QueueCommand(TArrayView<const FGuid> InEndp
 {
 	for (const FGuid& EndpointId : InEndpointIds)
 	{
-		FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindOrAdd(EndpointId);
+		FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindChecked(EndpointId);
 		EndpointSyncQueue.CommandQueue.Add(InCommand);
 	}
 }
@@ -82,16 +92,26 @@ void FConcertServerSyncCommandQueue::ProcessQueue(const double InTimeLimitSecond
 
 bool FConcertServerSyncCommandQueue::IsQueueEmpty(const FGuid& InEndpointId) const
 {
-	const FEndpointSyncCommandQueue* EndpointSyncQueuePtr = QueuedSyncCommands.Find(InEndpointId);
-	return !EndpointSyncQueuePtr || EndpointSyncQueuePtr->CommandQueue.Num() == 0;
+	const FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindChecked(InEndpointId);
+	return EndpointSyncQueue.CommandQueue.Num() == 0;
 }
 
 void FConcertServerSyncCommandQueue::ClearQueue(const FGuid& InEndpointId)
 {
-	QueuedSyncCommands.Remove(InEndpointId);
+	FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommands.FindChecked(InEndpointId);
+	EndpointSyncQueue.CommandQueue.Reset();
 }
 
 void FConcertServerSyncCommandQueue::ClearQueue()
+{
+	for (auto& QueuedSyncCommandsPair : QueuedSyncCommands)
+	{
+		FEndpointSyncCommandQueue& EndpointSyncQueue = QueuedSyncCommandsPair.Value;
+		EndpointSyncQueue.CommandQueue.Reset();
+	}
+}
+
+void FConcertServerSyncCommandQueue::ResetQueue()
 {
 	QueuedSyncCommands.Reset();
 }

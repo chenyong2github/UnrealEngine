@@ -21,6 +21,11 @@ class VPUTILITIES_API UVPBlueprintLibrary : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
+	
+	/** Refresh the desktop 3D viewport so that it updates changes even when not set to 'Realtime' */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static void Refresh3DEditorViewport();
+
 	/** Spawn a virtual production tickable actor */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static AVPViewportTickableActorBase* SpawnVPTickableActor(UObject* ContextObject, const TSubclassOf<AVPViewportTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation);
@@ -28,7 +33,7 @@ public:
 	/** Spawn a virtual production bookmark */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static AActor* SpawnBookmarkAtCurrentLevelEditorPosition(const TSubclassOf<AActor> ActorClass, const FVPBookmarkCreationContext CreationContext, const FVector Offset, const bool bFlattenRotation = true);
-
+	
 	/** Jump to a virtual production bookmark */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static bool JumpToBookmarkInLevelEditor(const UVPBookmark* Bookmark);
@@ -48,10 +53,6 @@ public:
 	/** Get the VR room transform (the playable area shown as a wireframe cage on Vive and Rift */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static FTransform GetEditorVRRoomTransform();
-
-	/** Set the VR flight speed cvar */
-	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
-	static void SetMaxFlightSpeed(const float Speed);
 
 	/** Set the VR grab speed cvar */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
@@ -76,4 +77,10 @@ public:
 	/** Trigger an UnrealEd Delete */
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static bool EditorDeleteSelectedObjects();
+
+	UFUNCTION(BlueprintCallable, Category = "VPBookmarks")		
+	static void VPBookmarkSplineMeshIndicatorSetStartAndEnd(USplineMeshComponent* SplineMesh);
+
+	UFUNCTION(BlueprintCallable, Category = "VPBookmarks")
+	static void VPBookmarkSplineMeshIndicatorDisable(USplineMeshComponent* SplineMesh);
 };

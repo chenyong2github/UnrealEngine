@@ -61,7 +61,7 @@ void SExpandableArea::Construct( const FArguments& InArgs )
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew( SBorder )
+				SAssignNew( TitleBorder, SBorder )
 				.BorderImage(TitleBorderImage)
 				.BorderBackgroundColor(TitleBorderBackgroundColor)
 				.Padding(0.0f)
@@ -225,6 +225,11 @@ FVector2D SExpandableArea::ComputeDesiredSize( float ) const
 	}
 
 	return FVector2D::ZeroVector;
+}
+
+bool SExpandableArea::IsTitleHovered() const
+{
+	return TitleBorder.IsValid() && TitleBorder->IsHovered();
 }
 
 #undef LOCTEXT_NAMESPACE

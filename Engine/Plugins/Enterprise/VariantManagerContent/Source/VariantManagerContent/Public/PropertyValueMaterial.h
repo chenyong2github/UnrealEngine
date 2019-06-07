@@ -36,4 +36,6 @@ public:
 	virtual UClass* GetObjectPropertyObjectClass() const override;
 
 	virtual int32 GetValueSizeInBytes() const override;
+
+	virtual const TArray<uint8>& GetDefaultValue();
 };

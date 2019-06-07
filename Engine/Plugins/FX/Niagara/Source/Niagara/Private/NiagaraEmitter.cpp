@@ -398,7 +398,7 @@ UNiagaraEmitter* UNiagaraEmitter::CreateAsDuplicate(const UNiagaraEmitter& InEmi
 	NewEmitter->Parent = InEmitterToDuplicate.Parent;
 	if (InEmitterToDuplicate.ParentAtLastMerge != nullptr)
 	{
-		NewEmitter->ParentAtLastMerge = InEmitterToDuplicate.ParentAtLastMerge;
+		NewEmitter->ParentAtLastMerge = Cast<UNiagaraEmitter>(StaticDuplicateObject(InEmitterToDuplicate.ParentAtLastMerge, NewEmitter));
 		NewEmitter->ParentAtLastMerge->ClearFlags(RF_Standalone | RF_Public);
 	}
 	NewEmitter->SetUniqueEmitterName(InDuplicateName.ToString());
@@ -869,6 +869,12 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 	EmitterUpdateScriptProps.Script->RapidIterationParameters.AddOnChangedHandler(
 		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
 
+	ReouterMergedObject(this, MergedEmitter->GPUComputeScript);
+	GPUComputeScript->RapidIterationParameters.RemoveAllOnChangedHandlers(this);
+	GPUComputeScript = MergedEmitter->GPUComputeScript;
+	GPUComputeScript->RapidIterationParameters.AddOnChangedHandler(
+		FNiagaraParameterStore::FOnChanged::FDelegate::CreateUObject(this, &UNiagaraEmitter::ScriptRapidIterationParameterChanged));
+
 	// Copy event handlers
 	for (FNiagaraEventScriptProperties& EventScriptProperties : EventHandlerScriptProps)
 	{
@@ -931,7 +937,7 @@ bool UNiagaraEmitter::SetUniqueEmitterName(const FString& InName)
 		{
 			// Also rename the underlying uobject to keep things consistent.
 			FName UniqueObjectName = MakeUniqueObjectName(GetOuter(), UNiagaraEmitter::StaticClass(), *InName);
-			Rename(*UniqueObjectName.ToString());
+			Rename(*UniqueObjectName.ToString(), GetOuter(), REN_ForceNoResetLoaders);
 		}
 
 #if WITH_EDITORONLY_DATA

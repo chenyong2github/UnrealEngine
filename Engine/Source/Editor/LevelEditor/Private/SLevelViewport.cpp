@@ -187,7 +187,21 @@ void SLevelViewport::Construct(const FArguments& InArgs)
 
 	ConstructLevelEditorViewportClient( InArgs );
 
-	SEditorViewport::Construct( SEditorViewport::FArguments() );
+	SEditorViewport::Construct(SEditorViewport::FArguments()
+		.ViewportSize(MakeAttributeSP(this, &SLevelViewport::GetSViewportSize))
+		);
+	TSharedRef<SWidget> EditorViewportWidget = ChildSlot.GetChildAt(0);
+	ChildSlot
+	[
+		SNew(SScaleBox)
+		.Stretch(this, &SLevelViewport::OnGetScaleBoxStretch)
+		.HAlign(EHorizontalAlignment::HAlign_Center)
+		.VAlign(EVerticalAlignment::VAlign_Center)
+		.StretchDirection(EStretchDirection::Both)
+		[
+			EditorViewportWidget
+		]
+	];
 
 	ActiveViewport = SceneViewport;
 
@@ -559,6 +573,27 @@ void SLevelViewport::TransitionFromPIE(bool bIsSimulating)
 			ActorPreview.LevelViewportClient->SetIsSimulateInEditorViewport(false);
 		}
 	}
+}
+
+EStretch::Type SLevelViewport::OnGetScaleBoxStretch() const
+{
+	FSceneViewport* GameSceneViewport = GetGameSceneViewport();
+	if (GameSceneViewport && GameSceneViewport->HasFixedSize())
+	{
+		return EStretch::ScaleToFit;
+	}
+	return EStretch::Fill;
+}
+
+FVector2D SLevelViewport::GetSViewportSize() const
+{
+	FSceneViewport* GameSceneViewport = GetGameSceneViewport();
+	if (GameSceneViewport && GameSceneViewport->HasFixedSize())
+	{
+		return GameSceneViewport->GetSize();
+	}
+
+	return SViewport::FArguments::GetDefaultViewportSize();
 }
 
 FReply SLevelViewport::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )

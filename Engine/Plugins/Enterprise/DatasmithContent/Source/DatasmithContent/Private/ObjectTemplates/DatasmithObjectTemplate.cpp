@@ -4,6 +4,7 @@
 #include "DatasmithAssetUserData.h"
 #include "Interfaces/Interface_AssetUserData.h"
 #include "UObject/Object.h"
+#include "UObject/StrongObjectPtr.h"
 #include "GameFramework/Actor.h"
 
 
@@ -81,6 +82,16 @@ TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FDat
 #endif // #if WITH_EDITORONLY_DATA
 }
 
+void UDatasmithObjectTemplate::Apply(UObject* Destination, bool bForce)
+{
+#if WITH_EDITORONLY_DATA
+	if(UObject* Object = UpdateObject(Destination, bForce))
+	{
+		FDatasmithObjectTemplateUtils::SetObjectTemplate(Object, this);
+	}
+#endif // #if WITH_EDITORONLY_DATA
+}
+
 UDatasmithObjectTemplate* FDatasmithObjectTemplateUtils::GetObjectTemplate(UObject* Outer, TSubclassOf< UDatasmithObjectTemplate > Subclass)
 {
 #if WITH_EDITORONLY_DATA
@@ -126,3 +137,21 @@ bool FDatasmithObjectTemplateUtils::SetsEquals(const TSet<FName>& Left, const TS
 	return Left.Num() == Right.Num() && Left.Includes(Right);
 }
 
+UDatasmithObjectTemplate* UDatasmithObjectTemplate::GetDifference(UObject* Destination, UDatasmithObjectTemplate* SourceTemplate)
+{
+	// Cache the template of the Destination object
+	TStrongObjectPtr< UDatasmithObjectTemplate > DestinationTemplate{ NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplate->GetClass()) };
+	DestinationTemplate->Load(Destination);
+
+	// Update the Destination object with the new template
+	SourceTemplate->UpdateObject(Destination);
+
+	// Create a new template based on the updated Destination object
+	UDatasmithObjectTemplate* DiffTemplate = NewObject< UDatasmithObjectTemplate >(GetTransientPackage(), SourceTemplate->GetClass());
+	DiffTemplate->Load(Destination);
+
+	// Restore Destination object to previous state
+	DestinationTemplate->UpdateObject(Destination, true);
+
+	return DiffTemplate;
+}

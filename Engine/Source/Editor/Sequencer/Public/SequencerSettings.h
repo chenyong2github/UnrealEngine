@@ -214,9 +214,9 @@ public:
 	/** Set zoom in/out position (mouse position or current time). */
 	void SetZoomPosition(ESequencerZoomPosition InZoomPosition);
 
-	/** Gets whether or not auto-scroll is enabled. */
+	/** Gets whether or not auto-scroll is enabled when playing. */
 	bool GetAutoScrollEnabled() const;
-	/** Sets whether or not auto-scroll is enabled. */
+	/** Sets whether or not auto-scroll is enabled when playing. */
 	void SetAutoScrollEnabled(bool bInAutoScrollEnabled);
 	
 	/** Gets whether or not to link the curve editor time range. */
@@ -305,6 +305,11 @@ public:
 	void SetCompileDirectorOnEvaluate(bool bInCompileDirectorOnEvaluate);
 
 	uint32 GetTrajectoryPathCap() const { return TrajectoryPathCap; }
+
+	/** Gets whether to show the sequencer outliner info column */
+	bool GetShowOutlinerInfoColumn() const;
+	/** Sets whether to show the sequencer outliner info column */
+	void SetShowOutlinerInfoColumn(bool bInShowOutlinerInfoColumn);
 
 	FOnLoopStateChanged& GetOnLoopStateChanged();
 
@@ -409,7 +414,7 @@ protected:
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	TEnumAsByte<ESequencerZoomPosition> ZoomPosition;
 
-	/** Enable or disable auto scroll in the timeline. */
+	/** Enable or disable auto scroll in the timeline when playing. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	bool bAutoScrollEnabled;
 
@@ -474,10 +479,14 @@ protected:
 	bool bCompileDirectorOnEvaluate;
 
 	/** Specifies the maximum number of keys to draw when rendering trajectories in viewports */
-	UPROPERTY(config, EditAnywhere, Category=General)
+	UPROPERTY(config, EditAnywhere, Category = General)
 	uint32 TrajectoryPathCap;
 
-	/** What format do we display time in to the user? */	
+	/** Whether to show the sequencer outliner info column */
+	UPROPERTY(config, EditAnywhere, Category = General)
+	bool bShowOutlinerInfoColumn;
+
+	/** What format do we display time in to the user? */
 	UPROPERTY(config, EditAnywhere, Category=General)
 	EFrameNumberDisplayFormats FrameNumberDisplayFormat;
 

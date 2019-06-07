@@ -98,3 +98,8 @@ void FDisplayClusterConfigParser::AddCustom(const FDisplayClusterConfigCustom& I
 {
 	ConfigParserListener->AddCustom(InCfgCustom);
 }
+
+void FDisplayClusterConfigParser::AddProjection(const FDisplayClusterConfigProjection& InCfgProjection)
+{
+	ConfigParserListener->AddProjection(InCfgProjection);
+}

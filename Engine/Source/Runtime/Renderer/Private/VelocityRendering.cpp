@@ -502,7 +502,9 @@ bool FVelocityRendering::PrimitiveHasVelocity(ERHIFeatureLevel::Type FeatureLeve
 
 bool FVelocityRendering::PrimitiveHasVelocityForView(const FViewInfo& View, const FBoxSphereBounds& Bounds, const FPrimitiveSceneInfo* PrimitiveSceneInfo)
 {
-	if (View.bCameraCut)
+	// Skip camera cuts which effectively reset velocity for the new frame.
+	bool bRawCameraCut = View.bCameraCut && !View.PreviousViewTransform.IsSet();
+	if (bRawCameraCut)
 	{
 		return false;
 	}

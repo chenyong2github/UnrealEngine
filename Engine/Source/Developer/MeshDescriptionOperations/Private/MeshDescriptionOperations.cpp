@@ -1644,7 +1644,7 @@ bool FMeshDescriptionOperations::RemoveUVChannel(FMeshDescription& MeshDescripti
 	return true;
 }
 
-void FMeshDescriptionOperations::GeneratePlanarUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TArray<FVector2D>& OutTexCoords)
+void FMeshDescriptionOperations::GeneratePlanarUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords)
 {
 	// Project along X-axis (left view), UV along Z Y axes
 	FVector U = FVector::UpVector;
@@ -1652,12 +1652,11 @@ void FMeshDescriptionOperations::GeneratePlanarUV(const FMeshDescription& MeshDe
 
 	TMeshAttributesConstRef<FVertexID, FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
-	OutTexCoords.AddZeroed(MeshDescription.VertexInstances().Num());
+	OutTexCoords.Reserve(MeshDescription.VertexInstances().Num());
 
 	FVector Size = Params.Size * Params.Scale;
 	FVector Offset = Params.Position - Size / 2.f;
 
-	int32 TextureCoordIndex = 0;
 	for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
 		const FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstanceID);
@@ -1670,11 +1669,11 @@ void FMeshDescriptionOperations::GeneratePlanarUV(const FMeshDescription& MeshDe
 
 		float UCoord = FVector::DotProduct(Vertex, U) * Params.UVTile.X;
 		float VCoord = FVector::DotProduct(Vertex, V) * Params.UVTile.Y;
-		OutTexCoords[TextureCoordIndex++] = FVector2D(UCoord, VCoord);
+		OutTexCoords.Add(VertexInstanceID, FVector2D(UCoord, VCoord));
 	}
 }
 
-void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDescription, const FUVMapParameters& Params, TArray<FVector2D>& OutTexCoords)
+void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords)
 {
 	FVector Size = Params.Size * Params.Scale;
 	FVector Offset = Params.Position;
@@ -1685,10 +1684,9 @@ void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDes
 
 	TMeshAttributesConstRef<FVertexID, FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
-	OutTexCoords.AddZeroed(MeshDescription.VertexInstances().Num());
+	OutTexCoords.Reserve(MeshDescription.VertexInstances().Num());
 
 	const float AngleOffset = PI; // offset to get the same result as in 3dsmax
-	int32 TextureCoordIndex = 0;
 
 	for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
 	{
@@ -1708,7 +1706,7 @@ void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDes
 		float UCoord = Angle / (2 * PI);
 		float VCoord = FVector::DotProduct(Vertex, V) * Params.UVTile.Y;
 
-		OutTexCoords[TextureCoordIndex++] = FVector2D(UCoord, VCoord);
+		OutTexCoords.Add(VertexInstanceID, FVector2D(UCoord, VCoord));
 	}
 
 	// Fix the UV coordinates for triangles at the seam where the angle wraps around
@@ -1726,8 +1724,8 @@ void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDes
 					EndIndex = EndIndex % NumInstances;
 				}
 
-				const FVector2D& StartUV = OutTexCoords[VertexInstances[StartIndex].GetValue()];
-				FVector2D& EndUV = OutTexCoords[VertexInstances[EndIndex].GetValue()];
+				const FVector2D& StartUV = OutTexCoords[VertexInstances[StartIndex]];
+				FVector2D& EndUV = OutTexCoords[VertexInstances[EndIndex]];
 
 				// TODO: Improve fix for UVTile other than 1
 				float Threshold = 0.5f / Params.UVTile.X;
@@ -1748,14 +1746,14 @@ void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDes
 	}
 }
 
-void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TArray<FVector2D>& OutTexCoords)
+void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescription, const FUVMapParameters& Params, TMap<FVertexInstanceID, FVector2D>& OutTexCoords)
 {
 	FVector Size = Params.Size * Params.Scale;
 	FVector HalfSize = Size / 2.0f;
 
 	TMeshAttributesConstRef<FVertexID, FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 
-	OutTexCoords.AddZeroed(MeshDescription.VertexInstances().Num());
+	OutTexCoords.Reserve(MeshDescription.VertexInstances().Num());
 
 	// Setup the UVs such that the mapping is from top-left to bottom-right when viewed orthographically
 	TArray<TPair<FVector, FVector>> PlaneUVs;
@@ -1819,7 +1817,7 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 			float UCoord = FVector::DotProduct(Vertex, U) * Params.UVTile.X;
 			float VCoord = FVector::DotProduct(Vertex, V) * Params.UVTile.Y;
 
-			OutTexCoords[VertexInstanceID.GetValue()] = FVector2D(UCoord, VCoord);
+			OutTexCoords.Add(VertexInstanceID, FVector2D(UCoord, VCoord));
 		}
 	}
 }

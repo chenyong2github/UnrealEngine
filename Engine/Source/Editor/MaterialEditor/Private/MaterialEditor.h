@@ -36,6 +36,7 @@ class UMaterialExpressionComment;
 class UMaterialInstance;
 class UMaterialGraphNode;
 struct FGraphAppearanceInfo;
+class UMaterialFunctionInstance;
 
 /**
  * Class for rendering previews of material expressions in the material editor's linked object viewport.
@@ -389,6 +390,9 @@ public:
 	/** Called to bring focus to the details panel */
 	void FocusDetailsPanel();
 
+	/** Rebuilds the inheritance list for this material. */
+	void RebuildInheritanceList();
+
 public:
 	/** Set to true when modifications have been made to the material */
 	bool bMaterialDirty;
@@ -523,6 +527,8 @@ private:
 
 	/** Creates the toolbar buttons. Bound by ExtendToolbar*/
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+
+	TSharedRef<SWidget> GenerateInheritanceMenu();
 
 	TSharedRef< SWidget > GeneratePreviewMenuContent();
 
@@ -852,4 +858,9 @@ private:
 	/** True if the quality level or feature level to preview has been changed */
 	bool bPreviewFeaturesChanged;
 
+	/** List of children used to populate the inheritance list chain. */
+	TArray< FAssetData > MaterialChildList;
+
+	/** List of children used to populate the inheritance list chain. */
+	TArray< FAssetData > FunctionChildList;
 };

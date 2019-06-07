@@ -37,13 +37,13 @@ namespace nDisplayLauncher.Cluster.Config.Entity
 
 		public override void InitializeFromText(string text)
 		{
-			Id = Parser.GetStringValue("id", text);
-			IsFullscreen = Parser.GetBoolValue("fullscreen", text);
-			WinX = Parser.GetIntValue("winx", text);
-			WinY = Parser.GetIntValue("winy", text);
-			ResX = Parser.GetIntValue("resx", text);
-			ResY = Parser.GetIntValue("resy", text);
-			Viewports = Parser.GetStringArrayValue("viewports", text);
+			Id = Parser.GetStringValue(text, "id");
+			IsFullscreen = Parser.GetBoolValue(text, "fullscreen", false);
+			WinX = Parser.GetIntValue(text, "winx", -1);
+			WinY = Parser.GetIntValue(text, "winy", -1);
+			ResX = Parser.GetIntValue(text, "resx", -1);
+			ResY = Parser.GetIntValue(text, "resy", -1);
+			Viewports = Parser.GetStringArrayValue(text, "viewports");
 		}
 	}
 }

@@ -33,9 +33,11 @@ FWorldTileModel::FWorldTileModel(FWorldTileCollectionModel& InWorldModel, int32 
 {
 	UWorldComposition* WorldComposition = LevelCollectionModel.GetWorld()->WorldComposition;
 
-	// Tile display details object
-	TileDetails = NewObject<UWorldTileDetails>(GetTransientPackage(), NAME_None, RF_Transient|RF_Transactional);
+	// Tile display details object, don't mark the tile details transaction on creation, its lifespan is controlled through root set
+	TileDetails = NewObject<UWorldTileDetails>(GetTransientPackage(), NAME_None, RF_Transient);
 	TileDetails->AddToRoot();
+	// Mark it transactional afterward so modification on it are undoable.
+	TileDetails->SetFlags(RF_Transactional);
 
 	// Subscribe to tile properties changes
 	// Un-subscribe in dtor if new is added!

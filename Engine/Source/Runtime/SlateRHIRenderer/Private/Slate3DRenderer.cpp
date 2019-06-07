@@ -198,7 +198,10 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 			}
 		}
 	}
-	InRHICmdList.EndRenderPass();
+	if(InRHICmdList.IsInsideRenderPass())
+	{
+		InRHICmdList.EndRenderPass();
+	}
 
 	FSlateEndDrawingWindowsCommand::EndDrawingWindows(InRHICmdList, Context.WindowDrawBuffer, *RenderTargetPolicy);
 	InRHICmdList.CopyToResolveTarget(RenderTargetResource->GetRenderTargetTexture(), RTTextureRHI, FResolveParams());

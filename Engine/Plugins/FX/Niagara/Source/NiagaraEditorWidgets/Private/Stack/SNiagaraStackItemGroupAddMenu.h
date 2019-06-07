@@ -16,6 +16,8 @@ public:
 
 	void Construct(const FArguments& InArgs, INiagaraStackItemGroupAddUtilities* InAddUtilities, int32 InInsertIndex);
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+
 	TSharedPtr<class SEditableTextBox> GetFilterTextBox();
 
 private:
@@ -29,4 +31,6 @@ private:
 	int32 InsertIndex;
 
 	TSharedPtr<class SGraphActionMenu> AddMenu;
+
+	bool bSetFocusOnNextTick;
 };

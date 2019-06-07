@@ -2186,6 +2186,32 @@ USkeletalMeshSocket* USkeletalMesh::GetSocketByIndex(int32 Index) const
 	return nullptr;
 }
 
+TMap<FVector, FColor> USkeletalMesh::GetVertexColorData(const uint32 PaintingMeshLODIndex) const
+{
+	TMap<FVector, FColor> VertexColorData;
+#if WITH_EDITOR
+	const FSkeletalMeshModel* SkeletalMeshModel = GetImportedModel();
+	if (bHasVertexColors && SkeletalMeshModel && SkeletalMeshModel->LODModels.IsValidIndex(PaintingMeshLODIndex))
+	{
+		const TArray<FSkelMeshSection>& Sections = SkeletalMeshModel->LODModels[PaintingMeshLODIndex].Sections;
+
+		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+		{
+			const TArray<FSoftSkinVertex>& SoftVertices = Sections[SectionIndex].SoftVertices;
+			
+			for (int32 VertexIndex = 0; VertexIndex < SoftVertices.Num(); ++VertexIndex)
+			{
+				FVector Position = SoftVertices[VertexIndex].Position;
+				FColor& Color = VertexColorData.FindOrAdd(Position);
+				Color = SoftVertices[VertexIndex].Color;
+			}
+		}
+	}
+#endif // #if WITH_EDITOR
+
+	return VertexColorData;
+}
+
 
 void USkeletalMesh::RebuildSocketMap()
 {
@@ -3232,6 +3258,17 @@ FText USkeletalMesh::GetSourceFileLabelFromIndex(int32 SourceFileIndex)
 	return RealSourceFileIndex == 0 ? NSSkeletalMeshSourceFileLabels::GeoAndSkinningText() : RealSourceFileIndex == 1 ? NSSkeletalMeshSourceFileLabels::GeometryText() : NSSkeletalMeshSourceFileLabels::SkinningText();
 }
 #endif //WITH_EDITOR
+
+
+TArray<FString> USkeletalMesh::K2_GetAllMorphTargetNames() const
+{
+	TArray<FString> Names;
+	for (UMorphTarget* MorphTarget : MorphTargets)
+	{
+		Names.Add(MorphTarget->GetFName().ToString());
+	}
+	return Names;
+}
 
 /*-----------------------------------------------------------------------------
 USkeletalMeshSocket

@@ -130,3 +130,29 @@ FText ULiveLinkBlueprintLibrary::GetSourceMachineName(UPARAM(ref) FLiveLinkSourc
 		return FText::GetEmpty();
 	}
 }
+
+bool ULiveLinkBlueprintLibrary::EvaluateLiveLinkFrame(FLiveLinkSubjectRepresentation InSubjectRepresentation, FLiveLinkBaseBlueprintData& OutBlueprintData)
+{
+	// We should never hit this!  stubs to avoid NoExport on the class.
+	check(0);
+	return false;
+}
+
+bool ULiveLinkBlueprintLibrary::Generic_EvaluateLiveLinkFrame(FLiveLinkSubjectRepresentation InSubjectRepresentation, FLiveLinkBlueprintDataStruct& OutBlueprintData)
+{
+	if (InSubjectRepresentation.Role != nullptr)
+	{
+		IModularFeatures& ModularFeatures = IModularFeatures::Get();
+		if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+		{
+			ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+			
+			FLiveLinkSubjectFrameData FrameData;
+			if (LiveLinkClient->EvaluateFrame_AnyThread(InSubjectRepresentation.Subject, InSubjectRepresentation.Role, FrameData))
+			{
+				return InSubjectRepresentation.Role.GetDefaultObject()->InitializeBlueprintData(FrameData, OutBlueprintData);
+			}
+		}
+	}
+	return false;
+}

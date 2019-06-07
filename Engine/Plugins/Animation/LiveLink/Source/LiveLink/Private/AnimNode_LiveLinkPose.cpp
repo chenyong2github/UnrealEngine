@@ -6,8 +6,9 @@
 #include "Features/IModularFeatures.h"
 
 #include "Animation/AnimInstanceProxy.h"
-
 #include "LiveLinkRemapAsset.h"
+#include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 
 FAnimNode_LiveLinkPose::FAnimNode_LiveLinkPose() 
 	: RetargetAsset(ULiveLinkRemapAsset::StaticClass())
@@ -61,9 +62,15 @@ void FAnimNode_LiveLinkPose::Evaluate_AnyThread(FPoseContext& Output)
 		return;
 	}
 
-	if(const FLiveLinkSubjectFrame* Subject = LiveLinkClient->GetSubjectData(SubjectName))
+	FLiveLinkSubjectFrameData AnimationFrame;
+	if(LiveLinkClient->EvaluateFrame_AnyThread(SubjectName, ULiveLinkAnimationRole::StaticClass(), AnimationFrame))
 	{
-		CurrentRetargetAsset->BuildPoseForSubject(CachedDeltaTime, *Subject, Output.Pose, Output.Curve);
+		FLiveLinkSkeletonStaticData* SkeletonData = AnimationFrame.StaticData.Cast<FLiveLinkSkeletonStaticData>();
+		FLiveLinkAnimationFrameData* FrameData = AnimationFrame.FrameData.Cast<FLiveLinkAnimationFrameData>();
+		check(SkeletonData);
+		check(FrameData);
+
+		CurrentRetargetAsset->BuildPoseForSubject(CachedDeltaTime, SkeletonData, FrameData, Output.Pose, Output.Curve);
 		CachedDeltaTime = 0.f; // Reset so that if we evaluate again we don't "create" time inside of the retargeter
 	}
 }

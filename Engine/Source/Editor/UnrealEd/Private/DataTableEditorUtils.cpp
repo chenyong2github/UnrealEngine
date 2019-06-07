@@ -841,9 +841,9 @@ void FDataTableEditorUtils::GetPossibleStructAssetData(TArray<FAssetData>& Struc
 	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
 }
 
-bool FDataTableEditorUtils::IsValidTableStruct(UScriptStruct* Struct)
+bool FDataTableEditorUtils::IsValidTableStruct(const UScriptStruct* Struct)
 {
-	UScriptStruct* TableRowStruct = FindObjectChecked<UScriptStruct>(ANY_PACKAGE, TEXT("TableRowBase"));
+	const UScriptStruct* TableRowStruct = FTableRowBase::StaticStruct();
 
 	// If a child of the table row struct base, but not itself
 	const bool bBasedOnTableRowBase = TableRowStruct && Struct->IsChildOf(TableRowStruct) && (Struct != TableRowStruct);

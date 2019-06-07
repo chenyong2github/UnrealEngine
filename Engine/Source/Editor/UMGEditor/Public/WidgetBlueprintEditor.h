@@ -264,11 +264,20 @@ private:
 	/** Extends the sequencer add track menu. */
 	void ExtendSequencerAddTrackMenu( FMenuBuilder& AddTrackMenuBuilder, const TArray<UObject*> ContextObjects );
 
-	/** Replace track with selected widget function */
-	void ReplaceTrackWithSelectedWidget(FWidgetReference SelectedWidget, UWidget* BoundWidget, FGuid ObjectBinding);
+	/** Binds additional widgets to a track of the same type */
+	void AddWidgetsToTrack(const TArray<FWidgetReference> Widgets, FGuid ObjectId);
 
-	/** Extends the sequencer add track menu. */
-	void ExtendSequencerObjectBindingMenu(FMenuBuilder& ObjectBindingMenuBuilder, const TArray<UObject*> ContextObjects);
+	/** Unbind widgets from a track*/
+	void RemoveWidgetsFromTrack(const TArray<FWidgetReference> Widgets, FGuid ObjectId);
+
+	/** Remove all bindings from a track */
+	void RemoveAllWidgetsFromTrack(FGuid ObjectId);
+
+	/** Remove any missing bindings from a track */
+	void RemoveMissingWidgetsFromTrack(FGuid ObjectId);
+	
+	/** Replace current widget bindings on a track with new widget bindings */
+	void ReplaceTrackWithWidgets(const TArray<FWidgetReference> Widgets, FGuid ObjectId);
 
 	/** Add an animation track for the supplied slot to the current animation. */
 	void AddSlotTrack( UPanelSlot* Slot );
@@ -291,6 +300,9 @@ private:
 	/** Get the animation playback event contexts */
 	TArray<UObject*> GetAnimationEventContexts() const { TArray<UObject*> EventContexts; EventContexts.Add(GetPreview()); return EventContexts; }
 	
+	/** Update the name of a track to reflect changes in bindings */
+	void UpdateTrackName(FGuid ObjectId);
+
 private:
 	/** The preview scene that owns the preview GUI */
 	FPreviewScene PreviewScene;

@@ -3190,24 +3190,19 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 
 FIntRect ALandscapeProxy::GetBoundingRect() const
 {
-	FIntRect Rect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
-
-	for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
-	{
-		Rect.Include(LandscapeComponents[CompIdx]->GetSectionBase());
-	}
-
 	if (LandscapeComponents.Num() > 0)
 	{
+		FIntRect Rect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
+		for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
+		{
+			Rect.Include(LandscapeComponents[CompIdx]->GetSectionBase());
+		}
 		Rect.Max += FIntPoint(ComponentSizeQuads, ComponentSizeQuads);
 		Rect -= LandscapeSectionOffset;
-	}
-	else
-	{
-		Rect = FIntRect();
+		return Rect;
 	}
 
-	return Rect;
+	return FIntRect();
 }
 
 bool ALandscape::HasAllComponent()

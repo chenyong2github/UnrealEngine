@@ -11,7 +11,6 @@ ALandscapeBlueprintCustomBrush::ALandscapeBlueprintCustomBrush(const FObjectInit
 #if WITH_EDITORONLY_DATA
 	: OwningLandscape(nullptr)
 	, bIsCommited(false)
-	, bIsInitialized(false)
 	, bIsVisible(true)
 #endif
 {
@@ -40,6 +39,16 @@ void ALandscapeBlueprintCustomBrush::Tick(float DeltaSeconds)
 bool ALandscapeBlueprintCustomBrush::ShouldTickIfViewportsOnly() const
 {
 	return true;
+}
+
+void ALandscapeBlueprintCustomBrush::RequestLandscapeUpdate()
+{
+#if WITH_EDITORONLY_DATA
+	if (OwningLandscape)
+	{
+		OwningLandscape->RequestLayersContentUpdateForceAll();
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -85,11 +94,6 @@ ALandscape* ALandscapeBlueprintCustomBrush::GetOwningLandscape() const
 	return OwningLandscape; 
 }
 
-void ALandscapeBlueprintCustomBrush::SetIsInitialized(bool InIsInitialized)
-{
-	bIsInitialized = InIsInitialized;
-}
-
 bool ALandscapeBlueprintCustomBrush::IsAffectingWeightmapLayer(const FName& InLayerName) const
 {
 	return AffectedWeightmapLayers.Contains(InLayerName);
@@ -125,10 +129,11 @@ void ALandscapeBlueprintCustomBrush::Destroyed()
 {
 	Super::Destroyed();
 
-	if (OwningLandscape)
+	if (OwningLandscape && !GIsReinstancing)
 	{
 		OwningLandscape->RemoveBrush(this);
 	}
+	OwningLandscape = nullptr;
 }
 
 #endif

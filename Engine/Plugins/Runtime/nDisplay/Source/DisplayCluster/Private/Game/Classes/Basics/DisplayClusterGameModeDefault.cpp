@@ -3,8 +3,8 @@
 #include "DisplayClusterGameModeDefault.h"
 #include "DisplayClusterPawnDefault.h"
 
-#include "Misc/DisplayClusterLog.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 ADisplayClusterGameModeDefault::ADisplayClusterGameModeDefault() :

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Config/Parser/DisplayClusterConfigParser.h"
-#include "Misc/DisplayClusterLog.h"
+#include "DisplayClusterLog.h"
 
 
 /**
@@ -34,4 +34,3 @@ protected:
 		return tmp;
 	}
 };
-

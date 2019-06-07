@@ -472,7 +472,7 @@ public:
 	FViewportCursorLocation GetCursorWorldLocationFromMousePos();
 
 	/** FViewportClient interface */
-	virtual void ProcessScreenShots(FViewport* Viewport) override;
+	virtual bool ProcessScreenShots(FViewport* Viewport) override;
 	virtual void RedrawRequested(FViewport* Viewport) override;
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) override;
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad=false) override;
@@ -565,6 +565,11 @@ public:
 	 */
 	virtual FMatrix GetWidgetCoordSystem() const;
 
+	/**
+	* @return The local coordinate system for the transform widget.
+	* For world coordiante system return the identity matrix
+	*/
+	virtual FMatrix GetLocalCoordinateSystem() const;
 	/**
 	 * Sets the coordinate system space to use
 	 */
@@ -950,7 +955,7 @@ public:
 	void MarkMouseMovedSinceClick();
 
 	/** Determines whether this viewport is currently allowed to use Absolute Movement */
-	bool IsUsingAbsoluteTranslation() const;
+	bool IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation = false) const;
 
 	bool IsForcedRealtimeAudio() const { return bForceAudioRealtime; }
 

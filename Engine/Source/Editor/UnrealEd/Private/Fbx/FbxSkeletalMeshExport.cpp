@@ -250,6 +250,44 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 		}
 	}
 
+
+	if (GetExportOptions()->bExportMorphTargets)
+	{
+		for (UMorphTarget* MorphTarget : SkelMesh->MorphTargets)
+		{
+			// The original BlendShape Name was not saved during import, so we need to come up with a new one.
+			const FString BlendShapeName(TEXT("blendShape_") + MorphTarget->GetName());
+			FbxBlendShape* BlendShape = FbxBlendShape::Create(Mesh, TCHAR_TO_UTF8(*BlendShapeName));
+			Mesh->AddDeformer(BlendShape);
+			FbxBlendShapeChannel* BlendShapeChannel = FbxBlendShapeChannel::Create(BlendShape, TCHAR_TO_UTF8(*MorphTarget->GetName()));
+
+			if (BlendShape->AddBlendShapeChannel(BlendShapeChannel))
+			{
+				FbxShape* Shape = FbxShape::Create(BlendShapeChannel, TCHAR_TO_UTF8(*MorphTarget->GetName()));
+				Shape->InitControlPoints(VertexCount);
+				FbxVector4* ShapeControlPoints = Shape->GetControlPoints();
+
+				// Replicate the base mesh in the shape control points to set up the data.
+				for (int32 VertIndex = 0; VertIndex < VertexCount; ++VertIndex)
+				{
+					FVector Position = Vertices[VertIndex].Position;
+					ShapeControlPoints[VertIndex] = Converter.ConvertToFbxPos(Position);
+				}
+				
+				int32 NumberOfDeltas;
+				FMorphTargetDelta* MorphTargetDeltas = MorphTarget->GetMorphTargetDelta(LODIndex, NumberOfDeltas);
+				for (int32 MorphTargetDeltaIndex = 0; MorphTargetDeltaIndex < NumberOfDeltas; ++MorphTargetDeltaIndex)
+				{
+					// Apply the morph target deltas to the control points.
+					FMorphTargetDelta& CurrentDelta = MorphTargetDeltas[MorphTargetDeltaIndex];
+					ShapeControlPoints[CurrentDelta.SourceIdx] = Converter.ConvertToFbxPos(Vertices[CurrentDelta.SourceIdx].Position + CurrentDelta.PositionDelta);
+				}
+
+				BlendShapeChannel->AddTargetShape(Shape);
+			}
+		}
+	}
+
 	FbxNode* MeshNode = FbxNode::Create(Scene, TCHAR_TO_UTF8(MeshName));
 	MeshNode->SetNodeAttribute(Mesh);
 

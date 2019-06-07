@@ -516,7 +516,7 @@ void FConcertLocalEndpoint::ProcessEndpointDiscovery(const FConcertMessageContex
 			FConcertReliableHandshakeData* InitialHandshake = new FConcertReliableHandshakeData();
 			InitialHandshake->ConcertEndpointId = EndpointContext.EndpointId;
 			InitialHandshake->MessageId = FGuid::NewGuid();
-			InitialHandshake->EndpointTimeoutTick = FTimespan(0,0,Settings.RemoteEndpointTimeoutSeconds).GetTicks();
+			InitialHandshake->EndpointTimeoutTick = FTimespan(0, 0, Settings.RemoteEndpointTimeoutSeconds).GetTicks();
 			NewRemoteEndpoint->FillReliableHandshakeResponse(EConcertReliableHandshakeState::Negotiate, *InitialHandshake);
 
 			Logger.LogSendReliableHandshake(*InitialHandshake, Message->ConcertEndpointId, ConcertContext.UtcNow);
@@ -735,7 +735,7 @@ void FConcertLocalEndpoint::SendKeepAlives(const FDateTime& UtcNow)
 		check(RemoteEndpoint.IsValid());
 
 		// if no message have been sent to this endpoint for a quarter of the timeout span, send a keep alive
-		if (RemoteEndpoint->GetLastSentMessageTime() + (RemoteEndpoint->GetEndpointTimeoutSpan() * 0.25f) <= UtcNow)
+		if (!RemoteEndpoint->GetEndpointTimeoutSpan().IsZero() && RemoteEndpoint->GetLastSentMessageTime() + (RemoteEndpoint->GetEndpointTimeoutSpan() * 0.25f) <= UtcNow)
 		{
 			SendKeepAlive(RemoteEndpoint.ToSharedRef(), UtcNow);
 		}
@@ -744,23 +744,26 @@ void FConcertLocalEndpoint::SendKeepAlives(const FDateTime& UtcNow)
 
 void FConcertLocalEndpoint::TimeoutRemoteEndpoints(const FDateTime& UtcNow)
 {
-	FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
-
 	const FTimespan RemoteEndpointTimeoutSpan = FTimespan(0, 0, Settings.RemoteEndpointTimeoutSeconds);
 
-	for (auto It = RemoteEndpoints.CreateIterator(); It; ++It)
+	if (!RemoteEndpointTimeoutSpan.IsZero())
 	{
-		const FGuid EndpointId = It->Key;
-		FConcertRemoteEndpointPtr RemoteEndpoint = It->Value;
+		FScopeLock RemoteEndpointsLock(&RemoteEndpointsCS);
 
-		check(RemoteEndpoint.IsValid());
-		if (RemoteEndpoint->GetLastReceivedMessageTime() + RemoteEndpointTimeoutSpan <= UtcNow)
+		for (auto It = RemoteEndpoints.CreateIterator(); It; ++It)
 		{
-			PendingRemoteEndpointConnectionChangedEvents.Add(MakeTuple(RemoteEndpoint->GetEndpointContext(), EConcertRemoteEndpointConnection::TimedOut));
-			Logger.LogRemoteEndpointTimeOut(EndpointId, UtcNow);
-			SendEndpointClosed(RemoteEndpoint.ToSharedRef(), UtcNow);
-			It.RemoveCurrent();
-			continue;
+			const FGuid EndpointId = It->Key;
+			FConcertRemoteEndpointPtr RemoteEndpoint = It->Value;
+
+			check(RemoteEndpoint.IsValid());
+			if (RemoteEndpoint->GetLastReceivedMessageTime() + RemoteEndpointTimeoutSpan <= UtcNow)
+			{
+				PendingRemoteEndpointConnectionChangedEvents.Add(MakeTuple(RemoteEndpoint->GetEndpointContext(), EConcertRemoteEndpointConnection::TimedOut));
+				Logger.LogRemoteEndpointTimeOut(EndpointId, UtcNow);
+				SendEndpointClosed(RemoteEndpoint.ToSharedRef(), UtcNow);
+				It.RemoveCurrent();
+				continue;
+			}
 		}
 	}
 }

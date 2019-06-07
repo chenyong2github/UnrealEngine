@@ -22,6 +22,9 @@ class UMovieSceneTrack;
 class UMovieScene;
 struct FMovieSceneBinding;
 struct FCurveEditorTreeItemID;
+class FSequencerTrackFilter;
+class FSequencerTrackFilterCollection;
+class FSequencerTrackFilter_LevelFilter;
 
 /**
  * Represents a tree of sequencer display nodes, used to populate the Sequencer UI with MovieScene data
@@ -34,6 +37,8 @@ public:
 public:
 
 	FSequencerNodeTree(FSequencer& InSequencer);
+	
+	~FSequencerNodeTree();
 
 	/**
 	 * Updates the tree with sections from a MovieScene
@@ -51,7 +56,7 @@ public:
 	const TArray< TSharedRef<FSequencerDisplayNode> >& GetRootNodes() const;
 
 	/** @return Whether or not there is an active filter */
-	bool HasActiveFilter() const { return !FilterString.IsEmpty(); }
+	bool HasActiveFilter() const;
 
 	/**
 	 * Returns whether or not a node is filtered
@@ -59,7 +64,17 @@ public:
 	 * @param Node	The node to check if it is filtered
 	 */
 	bool IsNodeFiltered( const TSharedRef<const FSequencerDisplayNode> Node ) const;
-	
+
+	/**
+	 * Schedules an update of all filters
+	 */
+	void RequestFilterUpdate() { bFilterUpdateRequested = true; }
+
+	/**
+	 * @return Whether there is a filter update scheduled
+	 */
+	bool NeedsFilterUpdate() const { return bFilterUpdateRequested; }
+
 	/**
 	 * Filters the nodes based on the passed in filter terms
 	 *
@@ -131,6 +146,15 @@ public:
 	 */
 	TOptional<FSectionHandle> GetSectionHandle(const UMovieSceneSection* Section) const;
 
+	void AddFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	int32 RemoveFilter(TSharedRef<FSequencerTrackFilter> TrackFilter);
+	void RemoveAllFilters();
+	bool IsTrackFilterActive(TSharedRef<FSequencerTrackFilter> TrackFilter) const;
+
+	void AddLevelFilter(const FString& LevelName);
+	void RemoveLevelFilter(const FString& LevelName);
+	bool IsTrackLevelFilterActive(const FString& LevelName) const;
+
 private:
 
 	/** Population algorithm utilities */
@@ -148,6 +172,13 @@ private:
 	void UpdateSectionHandles(TSharedRef<FSequencerTrackNode> TrackNode);
 
 private:
+
+	/**
+	 * Update the list of filters nodes based on current filter settings, if an update is scheduled
+	 * This is called by Update();
+	 */
+	void UpdateFilters();
+
 	/**
 	 * Finds or adds a type editor for the track
 	 *
@@ -191,7 +222,7 @@ private:
 	/** Tools for building movie scene section layouts.  One tool for each track */
 	TMap< UMovieSceneTrack*, TSharedPtr<ISequencerTrackEditor> > EditorMap;
 	/** Set of all filtered nodes */
-	TSet< TSharedRef<const FSequencerDisplayNode> > FilteredNodes;
+	TSet< TSharedRef<FSequencerDisplayNode> > FilteredNodes;
 	/** Cardinal hovered node */
 	TSharedPtr<FSequencerDisplayNode> HoveredNode;
 	/** Active filter string if any */
@@ -202,4 +233,12 @@ private:
 	TMap<TWeakPtr<FSequencerDisplayNode>, FCurveEditorTreeItemID> CurveEditorTreeItemIDs;
 	/** A multicast delegate which is called whenever the node tree has been updated. */
 	FOnUpdated OnUpdatedDelegate;
+
+	/** Active track filters */
+	TSharedPtr<FSequencerTrackFilterCollection> TrackFilters;
+	
+	/** Level based track filtering */
+	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
+
+	bool bFilterUpdateRequested;
 };
