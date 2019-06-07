@@ -1851,7 +1851,6 @@ void SConcertSessionBrowser::Construct(const FArguments& InArgs, IConcertClientP
 	{
 		return; // Don't build the UI if ConcertClient is not available.
 	}
-		ResumeSessionDef.OnClicked.BindSP(const_cast<SConcertBrowser*>(this), &SConcertBrowser::OnClickResumeSession);
 
 	Controller = MakeUnique<FConcertBrowserController>(InConcertClient);
 

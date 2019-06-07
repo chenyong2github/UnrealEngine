@@ -888,6 +888,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 			for (int32 faceidx = 0; faceidx < (int32)ECubeFace::CubeFace_MAX; faceidx++)
 			{
 				const ECubeFace TargetFace = (ECubeFace)faceidx;
+				const FVector Location = CaptureComponent->GetComponentToWorld().GetTranslation();
 
 				FMatrix ViewRotationMatrix;
 

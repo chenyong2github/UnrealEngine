@@ -3462,14 +3462,16 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 				NewV,
 				TSF_BGRA8
 			);
-			const int32 DestSize = Texture->Source.CalcMipSize(0);
+
+			uint8* Dest = OutImage.RawData.GetData();
+
 			// Doing a memset to make sure the alpha channel is set to 0xff since we only have 3 color planes.
-			FMemory::Memset(Dest, 0xff, DestSize);
+			FMemory::Memset(Dest, 0xff, NewU * NewV * sizeof(uint8));
 
 			// Copy upside-down scanlines.
 			Buffer += 128;
 			int32 CountU = FMath::Min<int32>(PCX->BytesPerLine, NewU);
-			for (int32 IndexU = 0; IndexU < CountU; IndexU++)
+			for (int32 i = 0; i < NewV; i++)
 			{
 				// We need to decode image one line per time building RGB image color plane by color plane.
 				int32 RunLength, Overflow = 0;
@@ -3483,7 +3485,7 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 							Color = *Buffer++;
 							if ((Color & 0xc0) == 0xc0)
 							{
-								RunLength = FMath::Min((Color & 0x3f), CountU - IndexU);
+								RunLength = FMath::Min((Color & 0x3f), CountU - j);
 								Overflow = (Color & 0x3f) - RunLength;
 								Color = *Buffer++;
 							}
@@ -3492,17 +3494,17 @@ bool UTextureFactory::ImportImage(const uint8* Buffer, uint32 Length, FFeedbackC
 						}
 						else
 						{
-							RunLength = FMath::Min(Overflow, CountU - IndexU);
+							RunLength = FMath::Min(Overflow, CountU - j);
 							Overflow = Overflow - RunLength;
 						}
 
-						//checkf(((IndexV*NewU + RunLength) * 4 + ColorPlane) < (Texture->Source.CalcMipSize(0)),
+						//checkf(((i*NewU + RunLength) * 4 + ColorPlane) < (Texture->Source.CalcMipSize(0)),
 						//	TEXT("RLE going off the end of buffer"));
-						for (int32 k = IndexU; k < IndexU + RunLength; k++)
+						for (int32 k = j; k < j + RunLength; k++)
 						{
-							Dest[(IndexV*NewU + k) * 4 + ColorPlane] = Color;
+							Dest[(i*NewU + k) * 4 + ColorPlane] = Color;
 						}
-						IndexU += RunLength - 1;
+						j += RunLength - 1;
 					}
 				}
 			}

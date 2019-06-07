@@ -127,7 +127,7 @@ bool IsMotionBlurScatterRequired(const FViewInfo& View, const FScreenPassTexture
 	const bool bIsScatterRequiredByVelocityLength = VelocityMaxInTiles > TileDistanceMaxGathered;
 
 	// Cinematic is paused.
-	const bool bInPausedCinematic = (ViewState && ViewState->bSequencerIsPaused);
+	const bool bInPausedCinematic = (ViewState && ViewState->SequencerState == ESS_Paused);
 
 	// Use the scatter approach if requested by cvar or we're in a paused cinematic (higher quality).
 	const bool bIsScatterRequiredByUser = CVarMotionBlurScatter.GetValueOnRenderThread() == 1 || bInPausedCinematic;
