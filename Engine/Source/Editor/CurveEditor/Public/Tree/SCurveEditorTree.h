@@ -35,7 +35,16 @@ private:
 
 	void SetItemExpansionRecursive(FCurveEditorTreeItemID Model, bool bInExpansionState);
 
+	void RefreshTree();
+
 private:
+
+	bool bFilterWasActive;
+
+	TArray<FCurveEditorTreeItemID> RootItems;
+
+	/** Set of item IDs that were expanded before a filter was applied */
+	TSet<FCurveEditorTreeItemID> PreFilterExpandedItems;
 
 	TSharedPtr<FCurveEditor> CurveEditor;
 
