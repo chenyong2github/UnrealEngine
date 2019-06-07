@@ -322,6 +322,7 @@ public:
 		, EditorSortPriority(0)
 		, bInlineEditConditionToggle(false)
 		, bIsStaticSwitch(false)
+		, StaticSwitchDefaultValue(0)
 	{
 	}
 public:
