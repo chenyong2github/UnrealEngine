@@ -13,29 +13,29 @@
 
 #define LOCTEXT_NAMESPACE "DataValidationManager"
 
-UDataValidationManager* GDataValidationManager = nullptr;
+UDEPRECATED_DataValidationManager* GDataValidationManager = nullptr;
 
 /**
- * UDataValidationManager
+ * UDEPRECATED_DataValidationManager
  */
 
-UDataValidationManager::UDataValidationManager(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_DataValidationManager::UDEPRECATED_DataValidationManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	DataValidationManagerClassName = FSoftClassPath(TEXT("/Script/DataValidation.DataValidationManager"));
 	bValidateOnSave = true;
 }
 
-UDataValidationManager* UDataValidationManager::Get()
+UDEPRECATED_DataValidationManager* UDEPRECATED_DataValidationManager::Get()
 {
 	if (GDataValidationManager == nullptr)
 	{
-		FSoftClassPath DataValidationManagerClassName = (UDataValidationManager::StaticClass()->GetDefaultObject<UDataValidationManager>())->DataValidationManagerClassName;
+		FSoftClassPath DataValidationManagerClassName = (UDEPRECATED_DataValidationManager::StaticClass()->GetDefaultObject<UDEPRECATED_DataValidationManager>())->DataValidationManagerClassName;
 
 		UClass* SingletonClass = DataValidationManagerClassName.TryLoadClass<UObject>();
 		checkf(SingletonClass != nullptr, TEXT("Data validation config value DataValidationManagerClassName is not a valid class name."));
 
-		GDataValidationManager = NewObject<UDataValidationManager>(GetTransientPackage(), SingletonClass, NAME_None);
+		GDataValidationManager = NewObject<UDEPRECATED_DataValidationManager>(GetTransientPackage(), SingletonClass, NAME_None);
 		checkf(GDataValidationManager != nullptr, TEXT("Data validation config value DataValidationManagerClassName is not a subclass of UDataValidationManager."))
 
 		GDataValidationManager->AddToRoot();
@@ -45,7 +45,7 @@ UDataValidationManager* UDataValidationManager::Get()
 	return GDataValidationManager;
 }
 
-void UDataValidationManager::Initialize()
+void UDEPRECATED_DataValidationManager::Initialize()
 {
 	FMessageLogInitializationOptions InitOptions;
 	InitOptions.bShowFilters = true;
@@ -54,11 +54,11 @@ void UDataValidationManager::Initialize()
 	MessageLogModule.RegisterLogListing("DataValidation", LOCTEXT("DataValidation", "Data Validation"), InitOptions);
 }
 
-UDataValidationManager::~UDataValidationManager()
+UDEPRECATED_DataValidationManager::~UDEPRECATED_DataValidationManager()
 {
 }
 
-EDataValidationResult UDataValidationManager::IsObjectValid(UObject* InObject, TArray<FText>& ValidationErrors) const
+EDataValidationResult UDEPRECATED_DataValidationManager::IsObjectValid(UObject* InObject, TArray<FText>& ValidationErrors) const
 {
 	if (ensure(InObject))
 	{
@@ -68,7 +68,7 @@ EDataValidationResult UDataValidationManager::IsObjectValid(UObject* InObject, T
 	return EDataValidationResult::NotValidated;
 }
 
-EDataValidationResult UDataValidationManager::IsAssetValid(FAssetData& AssetData, TArray<FText>& ValidationErrors) const
+EDataValidationResult UDEPRECATED_DataValidationManager::IsAssetValid(FAssetData& AssetData, TArray<FText>& ValidationErrors) const
 {
 	if (AssetData.IsValid())
 	{
@@ -82,7 +82,7 @@ EDataValidationResult UDataValidationManager::IsAssetValid(FAssetData& AssetData
 	return EDataValidationResult::Invalid;
 }
 
-int32 UDataValidationManager::ValidateAssets(TArray<FAssetData> AssetDataList, bool bSkipExcludedDirectories, bool bShowIfNoFailures) const
+int32 UDEPRECATED_DataValidationManager::ValidateAssets(TArray<FAssetData> AssetDataList, bool bSkipExcludedDirectories, bool bShowIfNoFailures) const
 {
 	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ValidatingDataTask", "Validating Data..."));
 	SlowTask.Visibility = bShowIfNoFailures ? ESlowTaskVisibility::ForceVisible : ESlowTaskVisibility::Invisible;
@@ -170,7 +170,7 @@ int32 UDataValidationManager::ValidateAssets(TArray<FAssetData> AssetDataList, b
 	return NumInvalidFiles;
 }
 
-void UDataValidationManager::ValidateOnSave(TArray<FAssetData> AssetDataList) const
+void UDEPRECATED_DataValidationManager::ValidateOnSave(TArray<FAssetData> AssetDataList) const
 {
 	// Only validate if enabled and not auto saving
 	if (!bValidateOnSave || GEditor->IsAutosaving())
@@ -188,7 +188,7 @@ void UDataValidationManager::ValidateOnSave(TArray<FAssetData> AssetDataList) co
 	}
 }
 
-void UDataValidationManager::ValidateSavedPackage(FName PackageName)
+void UDEPRECATED_DataValidationManager::ValidateSavedPackage(FName PackageName)
 {
 	// Only validate if enabled and not auto saving
 	if (!bValidateOnSave || GEditor->IsAutosaving())
@@ -198,10 +198,10 @@ void UDataValidationManager::ValidateSavedPackage(FName PackageName)
 
 	SavedPackagesToValidate.AddUnique(PackageName);
 
-	GEditor->GetTimerManager()->SetTimerForNextTick(this, &UDataValidationManager::ValidateAllSavedPackages);
+	GEditor->GetTimerManager()->SetTimerForNextTick(this, &UDEPRECATED_DataValidationManager::ValidateAllSavedPackages);
 }
 
-bool UDataValidationManager::IsPathExcludedFromValidation(const FString& Path) const
+bool UDEPRECATED_DataValidationManager::IsPathExcludedFromValidation(const FString& Path) const
 {
 	for (const FDirectoryPath& ExcludedPath : ExcludedDirectories)
 	{
@@ -214,7 +214,7 @@ bool UDataValidationManager::IsPathExcludedFromValidation(const FString& Path) c
 	return false;
 }
 
-void UDataValidationManager::ValidateAllSavedPackages()
+void UDEPRECATED_DataValidationManager::ValidateAllSavedPackages()
 {
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
