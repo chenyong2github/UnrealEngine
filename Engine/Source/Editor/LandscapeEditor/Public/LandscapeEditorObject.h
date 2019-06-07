@@ -266,6 +266,9 @@ class ULandscapeEditorObject : public UObject
 	UPROPERTY(NonTransactional)
 	float MaximumValueRadius;
 
+	UPROPERTY(Category="Tool Settings", EditAnywhere, NonTransactional, meta=(ShowForTools="Flatten,Smooth", ShowForTargetTypes="Heightmap", ShowForLandscapeLayerSystem))
+	bool bCombinedLayersOperation;
+
 	// Flatten Tool:
 
 	// Whether to flatten by lowering, raising, both or terracing
