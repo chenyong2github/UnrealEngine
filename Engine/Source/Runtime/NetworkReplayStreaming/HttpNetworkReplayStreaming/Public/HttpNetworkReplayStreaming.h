@@ -261,6 +261,8 @@ public:
 
 	virtual bool IsCheckpointTypeSupported(EReplayCheckpointType CheckpointType) const override;
 
+	virtual const int32 GetUserIndexFromUserString(const FString& UserString) override;
+
 	/** FHttpNetworkReplayStreamer */
 	void UploadHeader();
 	void FlushStream();

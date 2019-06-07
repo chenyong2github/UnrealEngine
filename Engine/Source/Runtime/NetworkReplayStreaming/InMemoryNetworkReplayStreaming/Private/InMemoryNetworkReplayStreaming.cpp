@@ -5,6 +5,9 @@
 #include "Misc/Guid.h"
 #include "Misc/DateTime.h"
 #include "HAL/IConsoleManager.h"
+#include "Engine/Engine.h"
+#include "Engine/World.h"
+#include "Engine/LocalPlayer.h"
 
 DEFINE_LOG_CATEGORY_STATIC( LogMemoryReplay, Log, All );
 
@@ -555,6 +558,28 @@ void FInMemoryNetworkReplayStreamer::Tick(float DeltaSeconds)
 TStatId FInMemoryNetworkReplayStreamer::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FInMemoryNetworkReplayStreamer, STATGROUP_Tickables);
+}
+
+const int32 FInMemoryNetworkReplayStreamer::GetUserIndexFromUserString(const FString& UserString)
+{
+	if (!UserString.IsEmpty() && GEngine != nullptr)
+	{
+		if (UWorld* World = GWorld.GetReference())
+		{
+			for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
+			{
+				if (ULocalPlayer const * const LocalPlayer = *ConstIt)
+				{
+					if (UserString.Equals(LocalPlayer->GetPreferredUniqueNetId().ToString()))
+					{
+						return LocalPlayer->GetControllerId();
+					}
+				}
+			}
+		}
+	}
+
+	return INDEX_NONE;
 }
 
 void FInMemoryReplayStreamArchive::Serialize(void* V, int64 Length) 
