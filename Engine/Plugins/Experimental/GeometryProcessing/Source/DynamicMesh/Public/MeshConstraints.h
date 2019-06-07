@@ -47,14 +47,14 @@ public:
 		TrackingSetID = -1;
 	}
 
-	FEdgeConstraint(EEdgeRefineFlags ConstraintFlags)
+	explicit FEdgeConstraint(EEdgeRefineFlags ConstraintFlags)
 	{
 		RefineFlags = ConstraintFlags;
 		Target = nullptr;
 		TrackingSetID = -1;
 	}
 
-	FEdgeConstraint(EEdgeRefineFlags ConstraintFlags, IProjectionTarget* TargetIn)
+	explicit FEdgeConstraint(EEdgeRefineFlags ConstraintFlags, IProjectionTarget* TargetIn)
 	{
 		RefineFlags = ConstraintFlags;
 		Target = TargetIn;
@@ -133,7 +133,7 @@ public:
 		Target = nullptr;
 	}
 
-	FVertexConstraint(bool bIsFixed, bool bIsMovable = false, int SetID = InvalidSetID)
+	explicit FVertexConstraint(bool bIsFixed, bool bIsMovable, int SetID = InvalidSetID)
 	{
 		Fixed = bIsFixed;
 		Movable = bIsMovable;
@@ -141,7 +141,7 @@ public:
 		Target = nullptr;
 	}
 
-	FVertexConstraint(IProjectionTarget* TargetIn)
+	explicit FVertexConstraint(IProjectionTarget* TargetIn)
 	{
 		Fixed = false;
 		Movable = false;
