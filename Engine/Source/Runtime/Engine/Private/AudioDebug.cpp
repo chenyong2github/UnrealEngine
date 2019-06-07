@@ -277,7 +277,7 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 		float DisplayValue = 0.0f;
 		if (ActiveSoundVisualizeModeCVar == 1 || ActiveSoundVisualizeModeCVar == 2)
 		{
-			for (FWaveInstance* WaveInstance : *ThisSoundsWaveInstances)
+			for (FWaveInstance* WaveInstance : ThisSoundsWaveInstances)
 			{
 				DisplayValue = FMath::Max(DisplayValue, WaveInstance->GetVolumeWithDistanceAttenuation() * WaveInstance->GetDynamicVolume());
 			}
