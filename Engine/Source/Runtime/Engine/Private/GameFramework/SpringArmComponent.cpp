@@ -42,9 +42,14 @@ USpringArmComponent::USpringArmComponent(const FObjectInitializer& ObjectInitial
  	UnfixedCameraPosition = FVector::ZeroVector;
 }
 
+FRotator USpringArmComponent::GetDesiredRotation() const
+{
+	return GetComponentRotation();
+}
+
 FRotator USpringArmComponent::GetTargetRotation() const
 {
-	FRotator DesiredRot = GetComponentRotation();
+	FRotator DesiredRot = GetDesiredRotation();
 
 	if (bUsePawnControlRotation)
 	{

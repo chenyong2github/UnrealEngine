@@ -146,6 +146,7 @@ public:
 	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual FReply OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 	virtual void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+	virtual FNavigationReply OnNavigation(const FGeometry& MyGeometry, const FNavigationEvent& InNavigationEvent) override;
 
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual bool IsInteractable() const override;

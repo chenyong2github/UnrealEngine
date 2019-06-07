@@ -312,6 +312,7 @@ FNavigationLink INavLinkCustomInterface::GetModifier(const INavLinkCustomInterfa
 
 	ENavLinkDirection::Type LinkDirection = ENavLinkDirection::BothWays;
 	CustomNavLink->GetLinkData(LinkMod.Left, LinkMod.Right, LinkDirection);
+	CustomNavLink->GetSupportedAgents(LinkMod.SupportedAgents);
 	LinkMod.Direction = LinkDirection;
 
 	return LinkMod;

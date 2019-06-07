@@ -239,7 +239,7 @@ void UBehaviorTreeComponent::StopTree(EBTStopMode::Type StopMode)
 		return;
 	}
 
-	FScopedBehaviorTreeLock(*this, FScopedBehaviorTreeLock::LockReentry);
+	FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockReentry);
 	if (!bRequestedStop)
 	{
 		bRequestedStop = true;
@@ -1211,7 +1211,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	}
 
 	{
-		FScopedBehaviorTreeLock(*this, FScopedBehaviorTreeLock::LockTick);
+		FScopedBehaviorTreeLock ScopedLock(*this, FScopedBehaviorTreeLock::LockTick);
 
 		// tick active parallel tasks (in execution order, before task)
 		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)

@@ -224,6 +224,13 @@ private:
 	ECheckBoxState OnGetMultilineCheckboxState() const;
 	void OnMultilineChanged(ECheckBoxState InNewState);
 
+	EVisibility GetDeprecatedVisibility() const;
+	ECheckBoxState OnGetDeprecatedCheckboxState() const;
+	void OnDeprecatedChanged(ECheckBoxState InNewState);
+
+	FText GetDeprecationMessageText() const;
+	void OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit, FName VarName);
+
 	/** Refresh the property flags list */
 	void RefreshPropertyFlags();
 
@@ -244,6 +251,9 @@ private:
 
 	/** Returns TRUE if the Variable is inherited by the current Blueprint */
 	bool IsVariableInheritedByBlueprint() const;
+
+	/** Returns TRUE if the Variable is marked as deprecated */
+	bool IsVariableDeprecated() const;
 private:
 	/** Pointer back to my parent tab */
 	TWeakPtr<SMyBlueprint> MyBlueprint;
@@ -385,12 +395,6 @@ private:
 	void SetEntryNode();
 
 	UMulticastDelegateProperty* GetDelegateProperty() const;
-	FText OnGetTooltipText() const;
-	void OnTooltipTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
-	FText OnGetCategoryText() const;
-	void OnCategoryTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
-	TSharedRef< ITableRow > MakeCategoryViewWidget( TSharedPtr<FText> Item, const TSharedRef< STableViewBase >& OwnerTable );
-	void OnCategorySelectionChanged( TSharedPtr<FText> ProposedSelection, ESelectInfo::Type /*SelectInfo*/ );
 
 	void CollectAvailibleSignatures();
 	void OnFunctionSelected(TSharedPtr<FString> FunctionItemData, ESelectInfo::Type SelectInfo);
@@ -398,14 +402,6 @@ private:
 	EVisibility OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const;
 
 private:
-
-	/** A list of all category names to choose from */
-	TArray<TSharedPtr<FText>> CategorySource;
-
-	/** Widgets for the categories */
-	TWeakPtr<SComboButton> CategoryComboButton;
-	TWeakPtr<SListView<TSharedPtr<FText>>> CategoryListView;
-
 	TArray<TSharedPtr<FString>> FunctionsToCopySignatureFrom;
 	TSharedPtr<STextComboBox> CopySignatureComboButton;
 };
@@ -609,6 +605,12 @@ private:
 	/** Enables/Disables selected event as editor callable  */
 	void OnEditorCallableEventModified( const ECheckBoxState NewCheckedState ) const;
 
+	bool IsFunctionDeprecated() const;
+	ECheckBoxState OnGetDeprecatedCheckboxState() const;
+	void OnDeprecatedChanged(ECheckBoxState InNewState);
+
+	FText GetDeprecationMessageText() const;
+	void OnDeprecationMessageTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	
 	FReply OnAddNewOutputClicked();
 

@@ -26,10 +26,12 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SHyperlink.h"
 #include "SourceCodeNavigation.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "DataTableEditor"
 
 const FName FDataTableEditor::DataTableTabId("DataTableEditor_DataTable");
+const FName FDataTableEditor::DataTableDetailsTabId("DataTableEditor_DataTableDetails");
 const FName FDataTableEditor::RowEditorTabId("DataTableEditor_RowEditor");
 const FName FDataTableEditor::RowNameColumnId("RowName");
 
@@ -78,6 +80,7 @@ void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& 
 	FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
 	CreateAndRegisterDataTableTab(InTabManager);
+	CreateAndRegisterDataTableDetailsTab(InTabManager);
 	CreateAndRegisterRowEditorTab(InTabManager);
 }
 
@@ -86,6 +89,7 @@ void FDataTableEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
 	InTabManager->UnregisterTabSpawner(DataTableTabId);
+	InTabManager->UnregisterTabSpawner(DataTableDetailsTabId);
 	InTabManager->UnregisterTabSpawner(RowEditorTabId);
 
 	DataTableTabWidget.Reset();
@@ -98,6 +102,17 @@ void FDataTableEditor::CreateAndRegisterDataTableTab(const TSharedRef<class FTab
 
 	InTabManager->RegisterTabSpawner(DataTableTabId, FOnSpawnTab::CreateSP(this, &FDataTableEditor::SpawnTab_DataTable))
 		.SetDisplayName(LOCTEXT("DataTableTab", "Data Table"))
+		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
+}
+
+void FDataTableEditor::CreateAndRegisterDataTableDetailsTab(const TSharedRef<class FTabManager>& InTabManager)
+{
+	FPropertyEditorModule & EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	FDetailsViewArgs DetailsViewArgs(/*bUpdateFromSelection=*/ false, /*bLockable=*/ false, /*bAllowSearch=*/ true, /*InNameAreaSettings=*/ FDetailsViewArgs::HideNameArea, /*bHideSelectionTip=*/ true);
+	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
+
+	InTabManager->RegisterTabSpawner(DataTableDetailsTabId, FOnSpawnTab::CreateSP(this, &FDataTableEditor::SpawnTab_DataTableDetails))
+		.SetDisplayName(LOCTEXT("DataTableDetailsTab", "Data Table Details"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef());
 }
 
@@ -202,7 +217,7 @@ void FDataTableEditor::HandlePostChange()
 
 void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UDataTable* Table )
 {
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v2" )
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout( "Standalone_DataTableEditor_Layout_v3" )
 	->AddArea
 	(
 		FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -217,6 +232,8 @@ void FDataTableEditor::InitDataTableEditor( const EToolkitMode::Type Mode, const
 		(
 			FTabManager::NewStack()
 			->AddTab(DataTableTabId, ETabState::OpenedTab)
+			->AddTab(DataTableDetailsTabId, ETabState::OpenedTab)
+			->SetForegroundTab(DataTableTabId)
 		)
 		->Split
 		(
@@ -632,6 +649,11 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 	}
 
 	UpdateVisibleRows(InCachedSelection, bUpdateEvenIfValid);
+
+	if (PropertyView.IsValid())
+	{
+		PropertyView->SetObject(const_cast<UDataTable*>(Table));
+	}
 }
 
 void FDataTableEditor::UpdateVisibleRows(const FName InCachedSelection, const bool bUpdateEvenIfValid)
@@ -872,6 +894,26 @@ TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTable( const FSpawnTabArgs& 
 			.BorderImage( FEditorStyle::GetBrush( "ToolPanel.GroupBorder" ) )
 			[
 				DataTableTabWidget.ToSharedRef()
+			]
+		];
+}
+
+TSharedRef<SDockTab> FDataTableEditor::SpawnTab_DataTableDetails(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId().TabType == DataTableDetailsTabId);
+
+	PropertyView->SetObject(const_cast<UDataTable*>(GetDataTable()));
+
+	return SNew(SDockTab)
+		.Icon(FEditorStyle::GetBrush("DataTableEditor.Tabs.Properties"))
+		.Label(LOCTEXT("DataTableDetails", "Data Table Details"))
+		.TabColorScale(GetTabColorScale())
+		[
+			SNew(SBorder)
+			.Padding(2)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			[
+				PropertyView.ToSharedRef()
 			]
 		];
 }

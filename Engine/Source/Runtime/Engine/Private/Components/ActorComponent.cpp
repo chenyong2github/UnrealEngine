@@ -586,6 +586,7 @@ void UActorComponent::PreEditChange(UProperty* PropertyThatWillChange)
 		// Don't do do a full recreate in this situation, and instead simply detach.
 		if( !IsPendingKill() )
 		{
+			// One way this check can fail is that component subclass does not call Super::PostEditChangeProperty
 			check(!EditReregisterContexts.Find(this));
 			EditReregisterContexts.Add(this,new FComponentReregisterContext(this));
 		}

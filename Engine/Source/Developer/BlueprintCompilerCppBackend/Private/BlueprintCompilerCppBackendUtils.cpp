@@ -658,7 +658,7 @@ FString FEmitHelper::HandleMetaData(const UField* Field, bool AddCategory, const
 #endif
 #define HANDLE_CPF_TAG(TagName, CheckedFlags) if (HasAllFlags(Flags, (CheckedFlags))) { Tags.Emplace(TagName); }
 
-TArray<FString> FEmitHelper::ProperyFlagsToTags(uint64 Flags, bool bIsClassProperty)
+TArray<FString> FEmitHelper::PropertyFlagsToTags(uint64 Flags, bool bIsClassProperty)
 {
 	TArray<FString> Tags;
 

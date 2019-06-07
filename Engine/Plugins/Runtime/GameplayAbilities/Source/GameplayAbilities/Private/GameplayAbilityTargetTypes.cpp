@@ -169,7 +169,7 @@ bool FGameplayAbilityTargetDataHandle::NetSerialize(FArchive& Ar, class UPackage
 				// only reallocating when necessary
 				check(!Data[i].IsValid());
 
-				FGameplayAbilityTargetData * NewData = (FGameplayAbilityTargetData*)FMemory::Malloc(ScriptStruct->GetCppStructOps()->GetSize());
+				FGameplayAbilityTargetData * NewData = (FGameplayAbilityTargetData*)FMemory::Malloc(ScriptStruct->GetStructureSize());
 				ScriptStruct->InitializeStruct(NewData);
 
 				Data[i] = TSharedPtr<FGameplayAbilityTargetData>(NewData);

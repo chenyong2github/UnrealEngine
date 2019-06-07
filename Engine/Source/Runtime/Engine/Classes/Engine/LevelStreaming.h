@@ -15,7 +15,7 @@ class ULevel;
 class ULevelStreaming;
 
 // Stream Level Action
-class FStreamLevelAction : public FPendingLatentAction
+class ENGINE_API FStreamLevelAction : public FPendingLatentAction
 {
 public:
 	bool			bLoading;

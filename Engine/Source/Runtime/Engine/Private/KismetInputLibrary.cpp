@@ -3,6 +3,7 @@
 #include "Kismet/KismetInputLibrary.h"
 #include "EngineGlobals.h"
 #include "Engine/Engine.h"
+#include "Framework/Application/SlateApplication.h"
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -66,6 +67,37 @@ bool UKismetInputLibrary::Key_IsValid(const FKey& Key)
 {
 	return Key.IsValid();
 }
+
+EUINavigationAction UKismetInputLibrary::Key_GetNavigationAction(const FKey& InKey)
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		return FSlateApplication::Get().GetNavigationActionForKey(InKey);
+	}
+
+	return EUINavigationAction::Invalid;
+}
+
+EUINavigation UKismetInputLibrary::Key_GetNavigationDirectionFromKey(const FKeyEvent& InKeyEvent)
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		return FSlateApplication::Get().GetNavigationDirectionFromKey(InKeyEvent);
+	}
+
+	return EUINavigation::Invalid;
+}
+
+EUINavigation UKismetInputLibrary::Key_GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent)
+{
+	if (FSlateApplication::IsInitialized())
+	{
+		return FSlateApplication::Get().GetNavigationDirectionFromAnalog(InAnalogEvent);
+	}
+
+	return EUINavigation::Invalid;
+}
+
 
 FText UKismetInputLibrary::Key_GetDisplayName(const FKey& Key)
 {
@@ -137,6 +169,10 @@ bool UKismetInputLibrary::InputEvent_IsRightCommandDown(const FInputEvent& Input
 	return Input.IsRightCommandDown();
 }
 
+FText UKismetInputLibrary::InputChord_GetDisplayName(const FInputChord& Key) 
+{ 
+	return Key.GetInputText(); 
+}
 
 FKey UKismetInputLibrary::GetKey(const FKeyEvent& Input)
 {
