@@ -56,6 +56,13 @@ public:
 			return false;
 		}
 
+		UStruct* OwnerStruct = InItemProperty->GetOwnerStruct();
+		if (!OwnerStruct || OwnerStruct->Children == nullptr)
+		{
+			// Verify that the property is not part of an invalid trash class
+			return false;
+		}
+
 		uint8* ReadAddress = StructData->GetStructMemory();
 		check(ReadAddress);
 		OutAddresses.Add(NULL, InPropertyNode.GetValueBaseAddress(ReadAddress), true);

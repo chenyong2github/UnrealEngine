@@ -418,6 +418,13 @@ EPropertyDataValidationResult FPropertyNode::EnsureDataIsValid()
 		if (Property.IsValid())
 		{
 			UProperty* MyProperty = Property.Get();
+			UStruct* OwnerStruct = MyProperty->GetOwnerStruct();
+
+			if (!OwnerStruct || OwnerStruct->Children == nullptr)
+			{
+				//verify that the property is not part of an invalid trash class, treat it as an invalid object if it is which will cause a refresh
+				return EPropertyDataValidationResult::ObjectInvalid;
+			}
 
 			//verify that the number of container children is correct
 			UArrayProperty* ArrayProperty = Cast<UArrayProperty>(MyProperty);
