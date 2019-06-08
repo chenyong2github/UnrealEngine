@@ -129,10 +129,11 @@ void ALandscapeBlueprintCustomBrush::Destroyed()
 {
 	Super::Destroyed();
 
-	if (OwningLandscape)
+	if (OwningLandscape && !GIsReinstancing)
 	{
 		OwningLandscape->RemoveBrush(this);
 	}
+	OwningLandscape = nullptr;
 }
 
 #endif
