@@ -1635,6 +1635,10 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 	{
 		ParseParams.SpatializationMethod = ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF;
 	}
+	else if (Settings->SpatializationAlgorithm == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF && AudioDevice->IsHRTFDisabled())
+	{
+		ParseParams.SpatializationMethod = ESoundSpatializationAlgorithm::SPATIALIZATION_Default;
+	}
 	else
 	{
 		ParseParams.SpatializationMethod = Settings->SpatializationAlgorithm;
