@@ -315,7 +315,7 @@ namespace ClassViewer
 				return false;
 			}
 
-			bool bReturnPassesFilter = false;
+			bool bReturnPassesFilter = true;
 
 			TArray< TSharedPtr< FClassViewerNode > >& ChildList = InOriginalRootNode->GetChildrenList();
 			for(int32 ChildIdx = 0; ChildIdx < ChildList.Num(); ChildIdx++)
