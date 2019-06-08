@@ -42,7 +42,6 @@ FActiveSound::FActiveSound()
 	, bAllowSpatialization(true)
 	, bHasAttenuationSettings(false)
 	, bShouldRemainActiveIfDropped(false)
-	, bFadingOut(false)
 	, bFinished(false)
 	, bIsPaused(false)
 	, bShouldStopDueToMaxConcurrency(false)
@@ -73,6 +72,7 @@ FActiveSound::FActiveSound()
 	, bIsPlayingAudio(false)
 	, bIsStopping(false)
 	, UserIndex(0)
+	, FadeOut(EFadeOut::None)
 	, bIsOccluded(false)
 	, bAsyncOcclusionPending(false)
 	, PlaybackTime(0.f)
@@ -408,6 +408,7 @@ int32 FActiveSound::FindClosestListener( const TArray<FListener>& InListeners ) 
 void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const
 {
 	OutConcurrencyHandles.Reset();
+
 	if (!ConcurrencySet.Num() && Sound)
 	{
 		Sound->GetConcurrencyHandles(OutConcurrencyHandles);
@@ -436,6 +437,27 @@ void FActiveSound::GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurre
 			}
 		}
 	}
+}
+
+bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
+{
+	OutFadeDuration = -1.0f;
+	TArray<FConcurrencyHandle> Handles;
+	GetConcurrencyHandles(Handles);
+	for (FConcurrencyHandle& Handle : Handles)
+	{
+		OutFadeDuration = OutFadeDuration < 0.0f
+			? Handle.Settings.VoiceStealReleaseTime
+			: FMath::Min(Handle.Settings.VoiceStealReleaseTime, OutFadeDuration);
+	}
+
+	if (OutFadeDuration < 0.0f)
+	{
+		OutFadeDuration = 0.0f;
+		return false;
+	}
+
+	return true;
 }
 
 void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, const float DeltaTime)
@@ -529,7 +551,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 
 	// Recurse nodes, have SoundWave's create new wave instances and update bFinished unless we finished fading out.
 	bFinished = true;
-	if (!bFadingOut || (PlaybackTime <= TargetAdjustVolumeStopTime))
+	if (FadeOut == EFadeOut::None || (PlaybackTime <= TargetAdjustVolumeStopTime))
 	{
 		if (bHasAttenuationSettings)
 		{
