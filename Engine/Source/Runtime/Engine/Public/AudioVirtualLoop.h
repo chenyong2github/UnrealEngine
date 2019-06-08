@@ -55,7 +55,7 @@ public:
 	/**
 	 * Overrides the update interval to the provided length.
 	 */
-	void CalculateUpdateInterval(bool bIsAtMaxConcurrency = false);
+	void CalculateUpdateInterval();
 
 	/**
 	  * Updates the loop and checks if ready to play (or 'realize').
