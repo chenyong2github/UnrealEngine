@@ -143,7 +143,6 @@ void FNiagaraEmitterHandle::ConditionalPostLoad(int32 NiagaraCustomVersion)
 			{
 				Source_DEPRECATED->ConditionalPostLoad();
 				Instance->Parent = Source_DEPRECATED;
-				Instance->Parent->Rename(nullptr, Instance, REN_ForceNoResetLoaders);
 				Source_DEPRECATED = nullptr;
 			}
 			if (LastMergedSource_DEPRECATED != nullptr)
