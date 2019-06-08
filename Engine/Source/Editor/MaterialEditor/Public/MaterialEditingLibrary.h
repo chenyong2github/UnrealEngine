@@ -220,4 +220,20 @@ public:
 	/** Gets all direct child mat instances */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void GetChildInstances(UMaterialInterface* Parent, TArray<FAssetData>& ChildInstances);
+
+	/** Gets all scalar parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetScalarParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/** Gets all vector parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetVectorParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/** Gets all texture parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetTextureParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/** Gets all static switch parameter names */
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	static void GetStaticSwitchParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
 };
