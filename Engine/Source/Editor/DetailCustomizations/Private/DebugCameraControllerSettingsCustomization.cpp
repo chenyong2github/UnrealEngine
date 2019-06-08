@@ -10,6 +10,7 @@
 #include "DetailWidgetRow.h"
 #include "IDetailPropertyRow.h"
 #include "ShowFlags.h"
+#include "RHI.h"
 
 
 TSharedRef<IPropertyTypeCustomization> FDebugCameraControllerSettingsViewModeIndexCustomization::MakeInstance()
@@ -47,6 +48,14 @@ void FDebugCameraControllerSettingsViewModeIndexCustomization::CustomizeHeader(T
 	TSharedPtr<FPropertyRestriction> EnumRestriction = MakeShareable(new FPropertyRestriction(NSLOCTEXT("DebugCycleViewModes", "DebugCycleViewModes", "Cycle view modes for debug camera controller")));
 	const UEnum* const ViewModeIndexEnum = StaticEnum<EViewModeIndex>();
 	EnumRestriction->AddHiddenValue(ViewModeIndexEnum->GetNameStringByValue((uint8)EViewModeIndex::VMI_VisualizeBuffer));
+	EnumRestriction->AddHiddenValue(ViewModeIndexEnum->GetNameStringByValue((uint8)EViewModeIndex::VMI_StationaryLightOverlap));
+#if RHI_RAYTRACING
+	if (!GRHISupportsRayTracing)
+	{
+		EnumRestriction->AddHiddenValue(ViewModeIndexEnum->GetNameStringByValue((uint8)EViewModeIndex::VMI_PathTracing));
+		EnumRestriction->AddHiddenValue(ViewModeIndexEnum->GetNameStringByValue((uint8)EViewModeIndex::VMI_RayTracingDebug));
+	}
+#endif
 	ViewModeIndexHandle->AddRestriction(EnumRestriction.ToSharedRef());
 
 	HeaderRow
