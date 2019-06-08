@@ -486,10 +486,10 @@ public:
 			Other.Data = nullptr;
 
 			MappedRegion = Other.MappedRegion;
-			Other->MappedRegion = nullptr;
+			Other.MappedRegion = nullptr;
 
 			MappedHandle = Other.MappedHandle;
-			Other->MappedHandle = nullptr;
+			Other.MappedHandle = nullptr;
 		}
 
 		/** Destructor. */
@@ -627,6 +627,12 @@ public:
 		this->AllocatorInstance.AcceptFileMapping(OwnedPtr->GetMappedHandle(), OwnedPtr->GetMappedRegion(), (void*)OwnedPtr->GetPointer());
 		OwnedPtr->RelinquishOwnership();
 	}
+};
+
+template <uint32 Alignment>
+struct TAllocatorTraits<TMaybeMappedAllocator<Alignment>> : TAllocatorTraitsBase<TMaybeMappedAllocator<Alignment>>
+{
+	enum { SupportsMove = true };
 };
 
 struct ENGINE_API FCompressedAnimSequence
