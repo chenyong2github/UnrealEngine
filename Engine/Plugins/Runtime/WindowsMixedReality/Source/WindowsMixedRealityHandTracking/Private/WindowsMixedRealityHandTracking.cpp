@@ -117,14 +117,15 @@ private:
 IMPLEMENT_MODULE(FWindowsMixedRealityHandTrackingModule, WindowsMixedRealityHandTracking);
 
 
-FName FWindowsMixedRealityHandTracking::LiveLinkLeftHandTrackingSubjectName(TEXT("WMRLeftHand"));
-FName FWindowsMixedRealityHandTracking::LiveLinkRightHandTrackingSubjectName(TEXT("WMRRightHand"));
+FLiveLinkSubjectName FWindowsMixedRealityHandTracking::LiveLinkLeftHandTrackingSubjectName(TEXT("WMRLeftHand"));
+FLiveLinkSubjectName FWindowsMixedRealityHandTracking::LiveLinkRightHandTrackingSubjectName(TEXT("WMRRightHand"));
 
 
 FWindowsMixedRealityHandTracking::FWindowsMixedRealityHandTracking(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
 	: MessageHandler(InMessageHandler)
 	, DeviceIndex(0)
 	, bIsHandTrackingStateValid(true)
+	, LiveLinkSkeletonStaticData(FLiveLinkSkeletonStaticData::StaticStruct())
 {
 	// Register "MotionController" modular feature manually
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);

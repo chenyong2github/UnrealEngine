@@ -33,10 +33,13 @@ void UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::PostInitProperties()
 }
 #endif
 
-void UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSubjectFrame& InFrame, FCompactPose& OutPose, FBlendedCurve& OutCurve)
+void UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::BuildPoseForSubject(float DeltaTime, const FLiveLinkSkeletonStaticData* InSkeletonData, const FLiveLinkAnimationFrameData* InFrameData, FCompactPose& OutPose, FBlendedCurve& OutCurve)
 {
+	check(InSkeletonData);
+	check(InFrameData);
+
 	// Transform Bone Names
-	const TArray<FName>& SourceBoneNames = InFrame.RefSkeleton.GetBoneNames();
+	const TArray<FName>& SourceBoneNames = InSkeletonData->GetBoneNames();
 
 	TArray<FName, TMemStackAllocator<>> TransformedBoneNames;
 	TransformedBoneNames.Reserve(SourceBoneNames.Num());
@@ -50,7 +53,7 @@ void UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::BuildPoseForSubject(flo
 	{
 		FName BoneName = TransformedBoneNames[i];
 
-		FTransform BoneTransform = GetRetargetedTransform(InFrame, i);
+		FTransform BoneTransform = GetRetargetedTransform(InFrameData, i);
 
 		int32 MeshIndex = OutPose.GetBoneContainer().GetPoseBoneIndexForBoneName(BoneName);
 		if (MeshIndex != INDEX_NONE)
@@ -68,7 +71,7 @@ void UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::BuildPoseForSubject(flo
 				NewRot.W = Sign(SwizzleW) * OldRotVector[StaticCast<uint8>(SwizzleW) % 4];
 
 				// Left hand bones need to be flipped
-				const FString* Handedness = InFrame.MetaData.StringMetaData.Find(TEXT("Handedness"));
+				const FString* Handedness = InFrameData->MetaData.StringMetaData.Find(TEXT("Handedness"));
 				if (Handedness && Handedness->Equals(TEXT("Left")))
 				{
 					NewRot.X = -NewRot.X;
@@ -104,9 +107,11 @@ FName UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::GetRemappedBoneName(FN
 	return BoneName;
 }
 
-FTransform UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::GetRetargetedTransform(const FLiveLinkSubjectFrame& InFrame, int TransformIndex) const
+FTransform UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::GetRetargetedTransform(const FLiveLinkAnimationFrameData* InFrameData, int TransformIndex) const
 {
-	FTransform OutTransform = InFrame.Transforms[TransformIndex];
+	check(InFrameData);
+
+	FTransform OutTransform = InFrameData->Transforms[TransformIndex];
 
 	if (!bHasMetacarpals && (
 		TransformIndex == static_cast<int>(EWMRHandKeypoint::ThumbProximal)		|| 
@@ -116,7 +121,7 @@ FTransform UWindowsMixedRealityHandTrackingLiveLinkRemapAsset::GetRetargetedTran
 		TransformIndex == static_cast<int>(EWMRHandKeypoint::LittleProximal)	))
 	{
 		// Metacarpal is always one entry before the Proximal
-		OutTransform = InFrame.Transforms[TransformIndex - 1] * OutTransform;
+		OutTransform = InFrameData->Transforms[TransformIndex - 1] * OutTransform;
 	}
 
 	return OutTransform;

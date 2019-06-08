@@ -13,6 +13,7 @@
 #include "InputCoreTypes.h"
 #include "ILiveLinkSource.h"
 #include "IInputDevice.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 
 /**
   * WindowsMixedReality HandTracking
@@ -46,7 +47,7 @@ public:
 
 	// ILiveLinkSource interface
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
-	virtual bool IsSourceStillValid() override;
+	virtual bool IsSourceStillValid() const override;
 	virtual bool RequestSourceShutdown() override;
 	virtual FText GetSourceMachineName() const override;
 	virtual FText GetSourceStatus() const override;
@@ -103,10 +104,12 @@ private:
 	/** Our identifier in LiveLink */
 	FGuid LiveLinkSourceGuid;
 
-	static FName LiveLinkLeftHandTrackingSubjectName;
-	static FName LiveLinkRightHandTrackingSubjectName;
+	static FLiveLinkSubjectName LiveLinkLeftHandTrackingSubjectName;
+	static FLiveLinkSubjectName LiveLinkRightHandTrackingSubjectName;
+	FLiveLinkSubjectKey LiveLinkLeftHandTrackingSubjectKey;
+	FLiveLinkSubjectKey LiveLinkRightHandTrackingSubjectKey;
 	bool bNewLiveLinkClient = false;
-	FLiveLinkRefSkeleton LiveLinkRefSkeleton;
+	FLiveLinkStaticDataStruct LiveLinkSkeletonStaticData;
 };
 
 DEFINE_LOG_CATEGORY_STATIC(LogWindowsMixedRealityHandTracking, Display, All);

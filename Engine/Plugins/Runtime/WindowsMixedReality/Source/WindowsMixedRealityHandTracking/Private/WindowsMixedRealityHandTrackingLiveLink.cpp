@@ -10,6 +10,7 @@
 #include "Engine/Engine.h"
 #include "LiveLinkSourceFactory.h"
 #include "ILiveLinkClient.h"
+#include "Roles/LiveLinkAnimationRole.h"
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityHandTracking"
 
@@ -19,10 +20,15 @@ void FWindowsMixedRealityHandTracking::ReceiveClient(ILiveLinkClient* InClient, 
 	LiveLinkSourceGuid = InSourceGuid;
 	bNewLiveLinkClient = true;
 
+	LiveLinkLeftHandTrackingSubjectKey.Source = InSourceGuid;
+	LiveLinkLeftHandTrackingSubjectKey.SubjectName = LiveLinkLeftHandTrackingSubjectName;
+	LiveLinkRightHandTrackingSubjectKey.Source = InSourceGuid;
+	LiveLinkRightHandTrackingSubjectKey.SubjectName = LiveLinkRightHandTrackingSubjectName;
+
 	UpdateLiveLink();
 }
 
-bool FWindowsMixedRealityHandTracking::IsSourceStillValid()
+bool FWindowsMixedRealityHandTracking::IsSourceStillValid() const
 {
 	return LiveLinkClient != nullptr;
 }
@@ -101,8 +107,10 @@ void FWindowsMixedRealityHandTracking::SetupLiveLinkData()
 	BoneParents.Add(23);	// LittleDistal -> LittleIntermediate
 	BoneParents.Add(24);	// LittleTip -> LittleDistal
 
-	LiveLinkRefSkeleton.SetBoneNames(BoneNames);
-	LiveLinkRefSkeleton.SetBoneParents(BoneParents);
+	FLiveLinkSkeletonStaticData* SkeletonDataPtr = LiveLinkSkeletonStaticData.Cast<FLiveLinkSkeletonStaticData>();
+	check(SkeletonDataPtr);
+	SkeletonDataPtr->SetBoneNames(BoneNames);
+	SkeletonDataPtr->SetBoneParents(BoneParents);
 }
 
 void FWindowsMixedRealityHandTracking::UpdateLiveLinkTransforms(TArray<FTransform>& OutTransforms, const FWindowsMixedRealityHandTracking::FHandState& HandState)
@@ -132,47 +140,56 @@ void FWindowsMixedRealityHandTracking::UpdateLiveLink()
 
 	if (LiveLinkClient)
 	{
-		static FLiveLinkFrameData LiveLinkLeftFrame;
-		static FLiveLinkFrameData LiveLinkRightFrame;
+		FLiveLinkFrameDataStruct LiveLinkLeftFrameDataStruct(FLiveLinkAnimationFrameData::StaticStruct());
+		FLiveLinkAnimationFrameData& LiveLinkLeftAnimationFrameData = *LiveLinkLeftFrameDataStruct.Cast<FLiveLinkAnimationFrameData>();
+		FLiveLinkFrameDataStruct LiveLinkRightFrameDataStruct(FLiveLinkAnimationFrameData::StaticStruct());
+		FLiveLinkAnimationFrameData& LiveLinkRightAnimationFrameData = *LiveLinkRightFrameDataStruct.Cast<FLiveLinkAnimationFrameData>();
+
+
 		static bool bInitialized = false;
 		if (!bInitialized)
 		{
 			SetupLiveLinkData();
 
-			LiveLinkLeftFrame.Transforms.Reserve(EWMRHandKeypointCount);
-			LiveLinkRightFrame.Transforms.Reserve(EWMRHandKeypointCount);
+			LiveLinkLeftAnimationFrameData.Transforms.Reserve(EWMRHandKeypointCount);
+			LiveLinkRightAnimationFrameData.Transforms.Reserve(EWMRHandKeypointCount);
 			// Init to identity all of the Keypoint transforms
 			for (uint32 Count = 0; Count < EWMRHandKeypointCount; ++Count)
 			{
-				LiveLinkLeftFrame.Transforms.Add(FTransform::Identity);
-				LiveLinkRightFrame.Transforms.Add(FTransform::Identity);
+				LiveLinkLeftAnimationFrameData.Transforms.Add(FTransform::Identity);
+				LiveLinkRightAnimationFrameData.Transforms.Add(FTransform::Identity);
 			}
 
 			// Set some metadata to specify handedness
-			LiveLinkLeftFrame.MetaData.StringMetaData.Add(FName(TEXT("Handedness")), TEXT("Left"));
-			LiveLinkRightFrame.MetaData.StringMetaData.Add(FName(TEXT("Handedness")), TEXT("Right"));
+			LiveLinkLeftAnimationFrameData.MetaData.StringMetaData.Add(FName(TEXT("Handedness")), TEXT("Left"));
+			LiveLinkRightAnimationFrameData.MetaData.StringMetaData.Add(FName(TEXT("Handedness")), TEXT("Right"));
 
 			bInitialized = true;
 		}
 
 		if (bNewLiveLinkClient)
 		{
-			LiveLinkClient->ClearSubject(LiveLinkLeftHandTrackingSubjectName);
-			LiveLinkClient->ClearSubject(LiveLinkRightHandTrackingSubjectName);
-			LiveLinkClient->PushSubjectSkeleton(LiveLinkSourceGuid, LiveLinkLeftHandTrackingSubjectName, LiveLinkRefSkeleton);
-			LiveLinkClient->PushSubjectSkeleton(LiveLinkSourceGuid, LiveLinkRightHandTrackingSubjectName, LiveLinkRefSkeleton);
+			FLiveLinkStaticDataStruct SkeletalDataLeft;
+			SkeletalDataLeft.InitializeWith(LiveLinkSkeletonStaticData);
+			FLiveLinkStaticDataStruct SkeletalDataRight;
+			SkeletalDataRight.InitializeWith(LiveLinkSkeletonStaticData);
+
+			LiveLinkClient->RemoveSubject_AnyThread(LiveLinkLeftHandTrackingSubjectKey);
+			LiveLinkClient->RemoveSubject_AnyThread(LiveLinkRightHandTrackingSubjectKey);
+			LiveLinkClient->PushSubjectStaticData_AnyThread(LiveLinkLeftHandTrackingSubjectKey, ULiveLinkAnimationRole::StaticClass(), MoveTemp(SkeletalDataLeft));
+			LiveLinkClient->PushSubjectStaticData_AnyThread(LiveLinkRightHandTrackingSubjectKey, ULiveLinkAnimationRole::StaticClass(), MoveTemp(SkeletalDataRight));
 			bNewLiveLinkClient = false;
 		}
 
-		LiveLinkLeftFrame.WorldTime = LiveLinkRightFrame.WorldTime = FPlatformTime::Seconds();
+		LiveLinkLeftAnimationFrameData.WorldTime = LiveLinkRightAnimationFrameData.WorldTime = FPlatformTime::Seconds();
 
 		// Update the transforms for each subject from tracking data
-		UpdateLiveLinkTransforms(LiveLinkLeftFrame.Transforms, GetLeftHandState());
-		UpdateLiveLinkTransforms(LiveLinkRightFrame.Transforms, GetRightHandState());
+		UpdateLiveLinkTransforms(LiveLinkLeftAnimationFrameData.Transforms, GetLeftHandState());
+		UpdateLiveLinkTransforms(LiveLinkRightAnimationFrameData.Transforms, GetRightHandState());
 
 		// Share the data locally with the LiveLink client
-		LiveLinkClient->PushSubjectData(LiveLinkSourceGuid, LiveLinkLeftHandTrackingSubjectName, LiveLinkLeftFrame);
-		LiveLinkClient->PushSubjectData(LiveLinkSourceGuid, LiveLinkRightHandTrackingSubjectName, LiveLinkRightFrame);
+		LiveLinkClient->PushSubjectFrameData_AnyThread(LiveLinkLeftHandTrackingSubjectKey, MoveTemp(LiveLinkLeftFrameDataStruct));
+		LiveLinkClient->PushSubjectFrameData_AnyThread(LiveLinkRightHandTrackingSubjectKey, MoveTemp(LiveLinkRightFrameDataStruct));
 	}
 }
 
