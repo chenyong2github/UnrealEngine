@@ -9,9 +9,9 @@
 namespace Chaos
 {
 	template<class T, int d>
-	class TPBDJointConstraintsBase
+	class CHAOS_API TPBDJointConstraintsBase
 	{
-	  public:
+	public:
 		TPBDJointConstraintsBase(const T InStiffness = (T)1)
 		    : Stiffness(InStiffness)
 		{
@@ -24,14 +24,26 @@ namespace Chaos
 		}
 		virtual ~TPBDJointConstraintsBase() {}
 	
-		void UpdateDistances(const TRigidParticles<T, d>& InParticles, const TArray<TVector<T, d>>& Locations);
+		// @todo(ccaulfield): optimize and generalize the constraint allocation/free api. We still want packed arrays, so we need handles not direct indices.
+		int32 AddConstraint(const TRigidParticles<T, d>& InParticles, const TVector<int32, 2>& InConstrainedParticleIndices, const TVector<T, d>& InLocation)
+		{
+			int32 ConstraintIndex = Constraints.Emplace(InConstrainedParticleIndices);
+			UpdateDistance(InParticles, InLocation, ConstraintIndex);
+			return ConstraintIndex;
+		}
+
+
+	protected:
+		void UpdateDistance(const TRigidParticles<T, d>& InParticles, const TVector<T, d>& InLocation, const int32 InConstraintIndex);
+		void UpdateDistances(const TRigidParticles<T, d>& InParticles, const TArray<TVector<T, d>>& InLocations);
 		TVector<T, d> GetDelta(const TPBDRigidParticles<T, d>& InParticles, const TVector<T, d>& WorldSpaceX1, const TVector<T, d>& WorldSpaceX2, const PMatrix<T, d, d>& WorldSpaceInvI1, const PMatrix<T, d, d>& WorldSpaceInvI2, const int32 i) const;
-	
-	  protected:
+
 		TArray<TVector<int32, 2>> Constraints;
 		TArray<TVector<TVector<T, 3>, 2>> Distances;
 	
-	  private:
+	private:
+		void UpdateDistanceInternal(const TRigidParticles<T, d>& InParticles, const TVector<T, d>& InLocation, const int32 InConstraintIndex);
+
 		T Stiffness;
 	};
 }

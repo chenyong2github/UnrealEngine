@@ -22,7 +22,14 @@ FClothingSimulationBase::FClothingSimulationBase()
 	MaxPhysicsDelta = UPhysicsSettings::Get()->MaxPhysicsDeltaTime;
 }
 
-void FClothingSimulationBase::SkinPhysicsMesh(UClothingAsset* InAsset, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform, const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals)
+void FClothingSimulationBase::SkinPhysicsMesh(
+	UClothingAsset* InAsset, 
+	const FClothPhysicalMeshData& InMesh, 
+	const FTransform& RootBoneTransform, 
+	const FMatrix* InBoneMatrices, 
+	const int32 InNumBoneMatrices, 
+	TArray<FVector>& OutPositions, 
+	TArray<FVector>& OutNormals)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ClothSkinPhysMesh);
 
@@ -231,7 +238,10 @@ void FClothingSimulationBase::FillContext(USkeletalMeshComponent* InComponent, f
 	if(InComponent->IsPendingKill())
 	{
 		AActor* CompOwner = InComponent->GetOwner();
-		UE_LOG(LogSkeletalMesh, Warning, TEXT("Attempting to fill a clothing simulation context for a PendingKill skeletal mesh component (Comp: %s, Actor: %s). Pending kill skeletal mesh components should be unregistered before marked pending kill."), *InComponent->GetName(), CompOwner ? *CompOwner->GetName() : TEXT("None"));
+		UE_LOG(LogSkeletalMesh, Warning, 
+			TEXT("Attempting to fill a clothing simulation context for a PendingKill skeletal mesh component (Comp: %s, Actor: %s). "
+				"Pending kill skeletal mesh components should be unregistered before marked pending kill."), 
+			*InComponent->GetName(), CompOwner ? *CompOwner->GetName() : TEXT("None"));
 
 		// Make sure we clear this out to skip any attempted simulations
 		BaseContext->BoneTransforms.Reset();

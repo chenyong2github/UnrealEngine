@@ -217,6 +217,16 @@ public:
 
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click);
 
+	/**
+	 * Allows an editor mode to override the bounding box used to focus the viewport on a selection
+	 * 
+	 * @param Actor			The selected actor that is being considered for focus
+	 * @param PrimitiveComponent	The component in the actor being considered for focus
+	 * @param InOutBox		The box that should be computed for the actor and component
+	 * @return bool			true if the mode overrides the box and populated InOutBox, false if it did not populate InOutBox
+	 */
+	virtual bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox) const { return false; }
+
 	/** Handling SelectActor */
 	virtual bool Select( AActor* InActor, bool bInSelected ) { return 0; }
 

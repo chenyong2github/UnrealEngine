@@ -1361,6 +1361,24 @@ namespace GeometryCollectionExample
 
 		R.ExpectTrue(ClosestPoint2 == 500);
 
+		// ----------------------------------------------------------
+
+		TVector<T, 3> Particle_LookUp3(10000.0, 10000.0, 10000.0);
+
+		int32 ClosestPoint3 = SpatialHash.GetClosestPoint(Particle_LookUp3);
+		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+
+		R.ExpectTrue(ClosestPoint3 == 161);
+
+		// ----------------------------------------------------------
+
+		TVector<T, 3> Particle_LookUp4(-1234.0, 0.1234, 1234.0);
+
+		int32 ClosestPoint4 = SpatialHash.GetClosestPoint(Particle_LookUp4);
+		// TSpatialHash<T>::GetClosestPoints() Time is 0.000005
+
+		R.ExpectTrue(ClosestPoint4 == 431);
+
 		return !R.HasError();
 
 	}

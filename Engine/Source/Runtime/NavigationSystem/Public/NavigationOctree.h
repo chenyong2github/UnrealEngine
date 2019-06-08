@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "Stats/Stats.h"
 #include "AI/Navigation/NavigationTypes.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "NavigationSystemTypes.h"
 #include "EngineStats.h"
 #include "AI/NavigationModifier.h"
 #include "AI/Navigation/NavRelevantInterface.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 
 class INavRelevantInterface;
 

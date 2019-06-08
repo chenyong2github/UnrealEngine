@@ -16,4 +16,7 @@ namespace GeometryCollectionExample
 
 	template<class T>
 	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestDeleteHiddenFaces(ExampleResponse&& R);
+
+	template<class T>
+	bool GEOMETRYCOLLECTIONEXAMPLECORE_API TestFillHoles(ExampleResponse&& R);
 }

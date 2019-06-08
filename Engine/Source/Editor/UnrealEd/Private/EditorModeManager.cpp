@@ -787,6 +787,18 @@ bool FEditorModeTools::HandleClick(FEditorViewportClient* InViewportClient,  HHi
 	return bHandled;
 }
 
+bool FEditorModeTools::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox)
+{
+	bool bHandled = false;
+	for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+	{
+		const TSharedPtr<FEdMode>& Mode = ActiveModes[ModeIndex];
+		bHandled |= Mode->ComputeBoundingBoxForViewportFocus(Actor, PrimitiveComponent, InOutBox);
+	}
+
+	return bHandled;
+}
+
 /** true if the passed in brush actor should be drawn in wireframe */	
 bool FEditorModeTools::ShouldDrawBrushWireframe( AActor* InActor ) const
 {

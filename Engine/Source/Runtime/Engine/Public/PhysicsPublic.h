@@ -15,6 +15,7 @@
 #include "RenderResource.h"
 #include "LocalVertexFactory.h"
 #include "DynamicMeshBuilder.h"
+#include "PhysicsPublicCore.h"
 //#include "StaticMeshResources.h"
 
 class AActor;
@@ -103,12 +104,8 @@ using namespace physx;
 using namespace nvidia;
 #endif	//WITH_APEX
 
-/** Pointer to PhysX SDK object */
-extern ENGINE_API PxPhysics*			GPhysXSDK;
 /** Pointer to PhysX cooking object */
 extern ENGINE_API PxCooking*			GPhysXCooking;
-/** Pointer to PhysX allocator */
-extern ENGINE_API class FPhysXAllocator* GPhysXAllocator;
 
 /** Pointer to PhysX Command Handler */
 extern ENGINE_API class FPhysCommandHandler* GPhysCommandHandler;
@@ -117,19 +114,6 @@ namespace NvParameterized
 {
 	class Interface;
 }
-
-#if WITH_APEX
-
-/** Pointer to APEX SDK object */
-extern ENGINE_API apex::ApexSDK*			GApexSDK;
-/** Pointer to APEX legacy module object */
-extern ENGINE_API apex::Module* 			GApexModuleLegacy;
-#if WITH_APEX_CLOTHING
-/** Pointer to APEX Clothing module object */
-extern ENGINE_API apex::ModuleClothing*		GApexModuleClothing;
-#endif //WITH_APEX_CLOTHING
-
-#endif // #if WITH_APEX
 
 #endif // WITH_PHYSX
 
@@ -340,24 +324,7 @@ public:
 	bool HasValidGeometry();
 };
 
-namespace PhysDLLHelper
-{
-/**
- *	Load the required modules for PhysX
- */
-ENGINE_API bool LoadPhysXModules(bool bLoadCooking);
 
-
-#if WITH_APEX
-	ENGINE_API void* LoadAPEXModule(const FString& Path);
-	ENGINE_API void UnloadAPEXModule(void* Handle);
-#endif
-
-/** 
- *	Unload the required modules for PhysX
- */
-void UnloadPhysXModules();
-}
 
 ENGINE_API bool	InitGamePhys();
 ENGINE_API void	TermGamePhys();
@@ -390,7 +357,3 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysDispatchNotifications, FPhysScene*);
 	static FOnPhysDispatchNotifications OnPhysDispatchNotifications;
 };
-
-#if WITH_PHYSX
-extern ENGINE_API class IPhysXCookingModule* GetPhysXCookingModule(bool bForceLoad = true);
-#endif //WITH_PHYSX

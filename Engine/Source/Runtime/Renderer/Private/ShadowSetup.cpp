@@ -19,7 +19,7 @@
 #include "SceneManagement.h"
 #include "ScenePrivateBase.h"
 #include "PostProcess/SceneRenderTargets.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "LightSceneInfo.h"
 #include "ShadowRendering.h"
 #include "TextureLayout.h"

@@ -11,10 +11,14 @@
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush"
 
+#if USE_PER_VERTEX_HITPROXY_ID
+Buffer<float4> VertexFetch_HitProxyIdBuffer;
+#endif
+
 struct FHitProxyVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
-#if USE_INSTANCING	
+#if USE_INSTANCING || USE_PER_VERTEX_HITPROXY_ID
 	float4 InstanceHitProxyId : HIT_PROXY_ID;
 #endif
 	float4 PixelPosition : TEXCOORD6;
@@ -113,7 +117,13 @@ void Main(
 	FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
 	WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 
-#if USE_INSTANCING
+#if USE_PER_VERTEX_HITPROXY_ID
+	#if MANUAL_VERTEX_FETCH
+		Output.InstanceHitProxyId = VertexFetch_HitProxyIdBuffer[(VF_VertexOffset + Input.VertexId)] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE;
+	#else
+		Output.InstanceHitProxyId = float4(0,0,0,0);
+	#endif
+#elif USE_INSTANCING
 	Output.InstanceHitProxyId = VertexFactoryGetInstanceHitProxyId(Input, VFIntermediates);
 #endif
 

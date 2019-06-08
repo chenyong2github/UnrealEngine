@@ -270,7 +270,7 @@ void FMovieSceneObjectCache::UpdateBindings(const FGuid& InGuid, IMovieScenePlay
 		// If we have no overrides, or they want to allow the default spawnable, do that now
 		if (bUseDefault)
 		{
-			UObject* SpawnedObject = Player.GetSpawnRegister().FindSpawnedObject(InGuid, SequenceID);
+			UObject* SpawnedObject = Player.GetSpawnRegister().FindSpawnedObject(InGuid, SequenceID).Get();
 			if (SpawnedObject)
 			{
 				Bindings->Objects.Add(SpawnedObject);

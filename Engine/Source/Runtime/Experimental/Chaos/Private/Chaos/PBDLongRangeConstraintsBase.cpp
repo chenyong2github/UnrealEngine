@@ -10,110 +10,169 @@
 using namespace Chaos;
 
 template<class T, int d>
-TPBDLongRangeConstraintsBase<T, d>::TPBDLongRangeConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 NumberOfAttachments, const T Stiffness)
+TPBDLongRangeConstraintsBase<T, d>::TPBDLongRangeConstraintsBase(const TDynamicParticles<T, d>& InParticles, const TMap<int32, TSet<uint32>>& PointToNeighbors, const int32 NumberOfAttachments, const T Stiffness)
     : MStiffness(Stiffness)
 {
-	ComputeEuclidianConstraints(InParticles, Mesh, NumberOfAttachments);
+	ComputeEuclidianConstraints(InParticles, PointToNeighbors, NumberOfAttachments);
 }
 
 template<class T, int d>
-TArray<TArray<uint32>> TPBDLongRangeConstraintsBase<T, d>::ComputeIslands(const TDynamicParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const TArray<uint32>& KinematicParticles)
+TArray<TArray<uint32>> TPBDLongRangeConstraintsBase<T, d>::ComputeIslands(
+    const TDynamicParticles<T, d>& InParticles,
+    const TMap<int32, TSet<uint32>>& PointToNeighbors,
+    const TArray<uint32>& KinematicParticles)
 {
 	// Compute Islands
 	uint32 NextIsland = 0;
-	TMap<uint32, uint32> ParticleToIslandMap;
+	TArray<uint32> FreeIslands;
 	TArray<TArray<uint32>> IslandElements;
-	for (auto Element : KinematicParticles)
+
+	TMap<uint32, uint32> ParticleToIslandMap;
+	ParticleToIslandMap.Reserve(KinematicParticles.Num());
+
+	for (const uint32 Element : KinematicParticles)
 	{
-		int32 Island = -1;
-		auto Neighbors = Mesh.GetNeighbors(Element);
+		// Assign Element an island, possibly unioning existing islands
+		uint32 Island = TNumericLimits<uint32>::Max();
+
+		// KinematicParticles is generated from the keys of PointToNeighbors, so
+		// we don't need to check if Element exists.
+		const TSet<uint32>& Neighbors = PointToNeighbors[Element];
 		for (auto Neighbor : Neighbors)
 		{
 			if (ParticleToIslandMap.Contains(Neighbor))
 			{
-				if (Island >= 0)
+				if (Island == TNumericLimits<uint32>::Max())
 				{
-					uint32 OtherIsland = ParticleToIslandMap[Neighbor];
+					// We don't have an assigned island yet.  Join with the island
+					// of the neighbor.
+					Island = ParticleToIslandMap[Neighbor];
+				}
+				else
+				{
+					const uint32 OtherIsland = ParticleToIslandMap[Neighbor];
 					if (OtherIsland != Island)
 					{
+						// This kinematic particle is connected to multiple islands.
+						// Union them.
 						for (auto OtherElement : IslandElements[OtherIsland])
 						{
 							check(ParticleToIslandMap[OtherElement] == OtherIsland);
 							ParticleToIslandMap[OtherElement] = Island;
 						}
 						IslandElements[Island].Append(IslandElements[OtherIsland]);
-						IslandElements[OtherIsland].SetNum(0);
+						IslandElements[OtherIsland].Reset(); // Don't deallocate
+						FreeIslands.AddUnique(OtherIsland);
 					}
-				}
-				else
-				{
-					Island = ParticleToIslandMap[Neighbor];
 				}
 			}
 		}
-		if (Island < 0)
+
+		// If no connected Island was found, create a new one (or reuse an old 
+		// vacated one).
+		if (Island == TNumericLimits<uint32>::Max())
 		{
-			Island = NextIsland++;
-			IslandElements.SetNum(NextIsland);
+			if (FreeIslands.Num() == 0)
+			{
+				Island = NextIsland++;
+				IslandElements.SetNum(NextIsland);
+			}
+			else
+			{
+				// Reuse a previously allocated, but currently unused, island.
+				Island = FreeIslands.Pop();
+			}
 		}
+
 		ParticleToIslandMap.FindOrAdd(Element) = Island;
-		check(Island >= 0);
-		IslandElements[static_cast<uint32>(Island)].Add(Element);
+		check(IslandElements.IsValidIndex(Island));
+		IslandElements[Island].Add(Element);
 	}
+	// IslandElements may contain empty arrays.
 	return IslandElements;
 }
 
 template<class T, int d>
-void TPBDLongRangeConstraintsBase<T, d>::ComputeEuclidianConstraints(const TDynamicParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 NumberOfAttachments)
+void TPBDLongRangeConstraintsBase<T, d>::ComputeEuclidianConstraints(
+    const TDynamicParticles<T, d>& InParticles,
+    const TMap<int32, TSet<uint32>>& PointToNeighbors,
+    const int32 NumberOfAttachments)
 {
 	// TODO(mlentine): Support changing which particles are kinematic during simulation
 	TArray<uint32> KinematicParticles;
-	for (uint32 i = 0; i < InParticles.Size(); ++i)
+	for (const auto& KV : PointToNeighbors)
 	{
-		if (InParticles.InvM(i) == 0)
+		const int32 i = KV.Key;
+		if (InParticles.InvM(i) == 0.0)
 		{
 			KinematicParticles.Add(i);
 		}
 	}
-	TArray<TArray<uint32>> IslandElements = ComputeIslands(InParticles, Mesh, KinematicParticles);
-	FCriticalSection CriticalSection;
-	PhysicsParallelFor(InParticles.Size(), [&](int32 i) {
-		if (InParticles.InvM(i) == 0)
-			return;
-		TArray<Pair<T, uint32>> ClosestElements;
-		for (auto Elements : IslandElements)
+
+	const TArray<TArray<uint32>> IslandElements = ComputeIslands(InParticles, PointToNeighbors, KinematicParticles);
+	int32 NumTotalIslandElements = 0;
+	for(const auto& Elements : IslandElements)
+		NumTotalIslandElements += Elements.Num();
+	TArray<Pair<T, uint32>> ClosestElements;
+	ClosestElements.Reserve(NumTotalIslandElements);
+
+	//FCriticalSection CriticalSection;
+	//PhysicsParallelFor(InParticles.Size(), [&](int32 i)
+	for (const auto& KV : PointToNeighbors)
+	{
+		// For each non-kinematic particle i...
+		const uint32 i = KV.Key;
+		if (InParticles.InvM(i) == 0.0)
+			continue;
+
+		// Measure the distance to all particles in all islands...
+		ClosestElements.Reset();
+		for (const TArray<uint32>& Elements : IslandElements)
 		{
-			int32 ClosestElement = -1;
-			for (auto Element : Elements)
+			// IslandElements may contain empty arrays.
+			if (Elements.Num() == 0)
+				continue;
+
+			uint32 ClosestElement = TNumericLimits<uint32>::Max();
+			T ClosestDistance = TNumericLimits<T>::Max();
+			for (const uint32 Element : Elements)
 			{
-				if (ClosestElement < 0 || ComputeDistance(InParticles, ClosestElement, i) > ComputeDistance(InParticles, Element, i))
+				const T Distance = ComputeDistance(InParticles, Element, i);
+				if (Distance < ClosestDistance)
 				{
 					ClosestElement = Element;
+					ClosestDistance = Distance;
 				}
 			}
-			// Empty Island
-			if (ClosestElement < 0)
-				continue;
-			ClosestElements.Add(MakePair(ComputeDistance(InParticles, ClosestElement, i), static_cast<uint32>(ClosestElement)));
+			ClosestElements.Add(MakePair(ClosestDistance, ClosestElement));
 		}
-		// How to sort based on smalled first value of pair....
+
+		// Order all by distance, smallest first...
 		ClosestElements.Sort();
+
+		// Take the first N-umberOfAttachments.
 		if (NumberOfAttachments < ClosestElements.Num())
 		{
 			ClosestElements.SetNum(NumberOfAttachments);
 		}
+
+		// Add constraints between this particle, and the N closest...
 		for (auto Element : ClosestElements)
 		{
-			CriticalSection.Lock();
-			MConstraints.Add({Element.Second, static_cast<uint32>(i)});
+			//CriticalSection.Lock();
+			MConstraints.Add({Element.Second, i});
 			MDists.Add(Element.First);
-			CriticalSection.Unlock();
+			//CriticalSection.Unlock();
 		}
-	});
+	}
+	//);
 }
 
 template<class T, int d>
-void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(const TDynamicParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const int32 NumberOfAttachments)
+void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(
+    const TDynamicParticles<T, d>& InParticles,
+    const TMap<int32, TSet<uint32>>& PointToNeighbors,
+    const int32 NumberOfAttachments)
 {
 	// TODO(mlentine): Support changing which particles are kinematic during simulation
 	TArray<uint32> KinematicParticles;
@@ -124,12 +183,12 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(const TDynam
 			KinematicParticles.Add(i);
 		}
 	}
-	TArray<TArray<uint32>> IslandElements = ComputeIslands(InParticles, Mesh, KinematicParticles);
+	TArray<TArray<uint32>> IslandElements = ComputeIslands(InParticles, PointToNeighbors, KinematicParticles);
 	// Store distances for all adjacent vertices
 	TMap<TVector<uint32, 2>, T> Distances;
 	for (uint32 i = 0; i < InParticles.Size(); ++i)
 	{
-		auto Neighbors = Mesh.GetNeighbors(i);
+		auto Neighbors = PointToNeighbors[i];
 		for (auto Neighbor : Neighbors)
 		{
 			Distances[TVector<uint32, 2>(i, Neighbor)] = ComputeDistance(InParticles, Neighbor, i);
@@ -165,7 +224,7 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(const TDynam
 				continue;
 			Visited.Add(PairElem.Second);
 			auto CurrentStartEnd = TVector<uint32, 2>(Element, PairElem.Second);
-			auto Neighbors = Mesh.GetNeighbors(PairElem.Second);
+			auto Neighbors = PointToNeighbors[PairElem.Second];
 			for (auto Neighbor : Neighbors)
 			{
 				check(Neighbor != PairElem.Second);
@@ -259,23 +318,36 @@ void TPBDLongRangeConstraintsBase<T, d>::ComputeGeodesicConstraints(const TDynam
 template<class T, int d>
 TVector<T, d> TPBDLongRangeConstraintsBase<T, d>::GetDelta(const TPBDParticles<T, d>& InParticles, const int32 i) const
 {
-	const auto& Constraint = MConstraints[i];
+	const TArray<uint32>& Constraint = MConstraints[i];
 	check(Constraint.Num() > 1);
-	uint32 i1 = Constraint[0];
-	uint32 i2 = Constraint[Constraint.Num() - 1];
-	uint32 i2m1 = Constraint[Constraint.Num() - 2];
+	const uint32 i1 = Constraint[0];
+	const uint32 i2 = Constraint[Constraint.Num() - 1];
+	const uint32 i2m1 = Constraint[Constraint.Num() - 2];
 	check(InParticles.InvM(i1) == 0);
 	check(InParticles.InvM(i2) > 0);
-	T Distance = ComputeGeodesicDistance(InParticles, Constraint);
+	const T Distance = ComputeGeodesicDistance(InParticles, Constraint);
 	if (Distance < MDists[i])
-		return TVector<T,d>(0);
-	TVector<T, d> Direction = (InParticles.P(i2m1) - InParticles.P(i2)).GetSafeNormal();
-	TVector<T, d> Delta = (Distance - MDists[i]) * Direction;
-	T Correction = (InParticles.P(i2) - InParticles.P(i2m1)).Size() - (InParticles.P(i2) + MStiffness * Delta - InParticles.P(i2m1)).Size();
+		return TVector<T, d>(0);
+
+	//const TVector<T, d> Direction = (InParticles.P(i2m1) - InParticles.P(i2)).GetSafeNormal();
+	TVector<T, d> Direction = InParticles.P(i2m1) - InParticles.P(i2);
+	const T DirLen = Direction.SafeNormalize();
+
+	const T Offset = Distance - MDists[i];
+	const TVector<T, d> Delta = MStiffness * Offset * Direction;
+
+	/*  // ryan - this currently fails:
+
+	const T NewDirLen = (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size();
+	//T Correction = (InParticles.P(i2) - InParticles.P(i2m1)).Size() - (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size();
+	const T Correction = DirLen - NewDirLen;
 	check(Correction >= 0);
-	T NewDist = (Distance - (InParticles.P(i2) - InParticles.P(i2m1)).Size() + (InParticles.P(i2) + MStiffness * Delta - InParticles.P(i2m1)).Size());
+
+	//T NewDist = (Distance - (InParticles.P(i2) - InParticles.P(i2m1)).Size() + (InParticles.P(i2) + Delta - InParticles.P(i2m1)).Size());
+	const T NewDist = Distance - DirLen + NewDirLen;
 	check(FGenericPlatformMath::Abs(NewDist - MDists[i]) < 1e-4);
-	return MStiffness * Delta;
+*/
+	return Delta;
 }
 
 template class Chaos::TPBDLongRangeConstraintsBase<float, 3>;

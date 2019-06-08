@@ -32,7 +32,7 @@ protected:
 
 private:
 	/** Performs fracturing of an Editable Mesh */
-	void FractureMesh(AActor* OriginalActor, IMeshEditorModeEditingContract& MeshEditorMode, UEditableMesh* SourceMesh, const UMeshFractureSettings& FractureSettings);
+	void FractureMesh(AActor* OriginalActor, IMeshEditorModeEditingContract& MeshEditorMode, UEditableMesh* SourceMesh, const FTransform& Transform, int32 RandomSeed, const UMeshFractureSettings& FractureSettings, const FBox& Bounds);
 
 	/** Extract plane cut settings from plane Actor in same Scene */
 	void ExtractPlaneCutsFromPlaneActors(TArray<UEditableMesh*>& SelectedMeshes, TArray<UPlaneCut>& PlaneCuts, TArray<AActor*>& PlaneActors);

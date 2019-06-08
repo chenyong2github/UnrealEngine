@@ -603,7 +603,7 @@
 #include "Animation/AnimBlueprint.h"
 #include "EngineModule.h"
 #include "AI/NavigationSystemBase.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "CanvasTypes.h"
 #include "Sound/SoundBase.h"
 #include "Components/LightComponent.h"

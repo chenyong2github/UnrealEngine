@@ -17,9 +17,6 @@ class IDetailsView;
 class FMeshEditorModeToolkit;
 struct FTreeItem;
 
-// #note: cutout fracturing isn't currently working
-//#define CUTOUT_ENABLED
-
 class SCustomSlider : public SSlider
 {
 public:
@@ -146,10 +143,8 @@ protected:
 	TSharedPtr<IDetailsView> RadialDetailsView;
 	TSharedPtr<IDetailsView> SlicingDetailsView;
 	TSharedPtr<IDetailsView> PlaneCutDetailsView;
-#ifdef CUTOUT_ENABLED
 	TSharedPtr<IDetailsView> CutoutDetailsView;
 	TSharedPtr<IDetailsView> BrickDetailsView;
-#endif
 
 	/** Fracture Configuration Settings */
 	UMeshFractureSettings* MeshFractureSettings;

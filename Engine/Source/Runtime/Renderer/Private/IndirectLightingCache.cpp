@@ -12,7 +12,7 @@
 #include "RenderResource.h"
 #include "SceneTypes.h"
 #include "RendererInterface.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "PrimitiveSceneInfo.h"
 #include "DynamicPrimitiveDrawing.h"
 #include "ScenePrivate.h"

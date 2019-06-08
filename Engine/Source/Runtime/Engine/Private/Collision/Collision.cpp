@@ -110,6 +110,11 @@ bool FHitResult::NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSu
 	{
 		PenetrationDepth = 0.0f;
 	}
+
+	if (Ar.IsLoading() && bOutSuccess)
+	{
+		Distance = (ImpactPoint - TraceStart).Size();
+	}
 	
 	if (!bInvalidItem)
 	{
