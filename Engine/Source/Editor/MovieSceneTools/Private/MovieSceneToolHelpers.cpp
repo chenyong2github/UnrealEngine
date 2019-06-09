@@ -1199,7 +1199,7 @@ bool MovieSceneToolHelpers::ImportFBXNode(FString NodeName, UnFbx::FFbxCurvesAPI
 	return true;
 }
 
-void GetCameras( FbxNode* Parent, TArray<FbxCamera*>& Cameras )
+void MovieSceneToolHelpers::GetCameras( FbxNode* Parent, TArray<FbxCamera*>& Cameras )
 {
 	FbxCamera* Camera = Parent->GetCamera();
 	if( Camera )
@@ -1317,7 +1317,7 @@ void MovieSceneToolHelpers::CopyCameraProperties(FbxCamera* CameraNode, AActor* 
 	CameraComponent->SetFieldOfView(FieldOfView);
 }
 
-FString GetCameraName(FbxCamera* InCamera)
+FString MovieSceneToolHelpers::GetCameraName(FbxCamera* InCamera)
 {
 	FbxNode* CameraNode = InCamera->GetNode();
 	if (CameraNode)
@@ -1452,7 +1452,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 	if (bCreateCameras)
 	{
 		TArray<FbxCamera*> AllCameras;
-		GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
+		MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
 
 		UWorld* World = GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient->GetWorld() : nullptr;
 
@@ -1460,7 +1460,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 		TArray<FbxCamera*> UnmatchedCameras;
 		for (auto Camera : AllCameras)
 		{
-			FString NodeName = GetCameraName(Camera);
+			FString NodeName = MovieSceneToolHelpers::GetCameraName(Camera);
 
 			bool bMatched = false;
 			for (auto InObjectBinding : InObjectBindingMap)
@@ -1505,7 +1505,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 		// Add any unmatched cameras
 		for (auto UnmatchedCamera : UnmatchedCameras)
 		{
-			FString CameraName = GetCameraName(UnmatchedCamera);
+			FString CameraName = MovieSceneToolHelpers::GetCameraName(UnmatchedCamera);
 
 			AActor* NewCamera = nullptr;
 			if (UnmatchedCamera->GetApertureMode() == FbxCamera::eFocalLength)
@@ -1541,7 +1541,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 
 FGuid FindCameraGuid(FbxCamera* Camera, TMap<FGuid, FString>& InObjectBindingMap)
 {
-	FString CameraName = GetCameraName(Camera);
+	FString CameraName = MovieSceneToolHelpers::GetCameraName(Camera);
 
 	for (auto& Pair : InObjectBindingMap)
 	{
@@ -1587,7 +1587,7 @@ void ImportCameraCut(UnFbx::FFbxImporter* FbxImporter, UMovieScene* InMovieScene
 
 	// The camera switcher camera index refer to depth-first found order of the camera in the FBX
 	TArray<FbxCamera*> AllCameras;
-	GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
+	MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
 
 	UMovieSceneCameraCutTrack* CameraCutTrack = GetCameraCutTrack(InMovieScene);
 	FFrameRate FrameRate = CameraCutTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
