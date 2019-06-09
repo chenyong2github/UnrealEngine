@@ -604,7 +604,16 @@ void FObjectReplicator::StartReplicating(class UActorChannel * InActorChannel)
 
 	// Cache off netGUID so if this object gets deleted we can close it
 	ObjectNetGUID = ConnectionNetDriver->GuidCache->GetOrAssignNetGUID( Object );
-	check(!ObjectNetGUID.IsDefault() && ObjectNetGUID.IsValid());
+
+	const bool bIsValidToReplicate = !ObjectNetGUID.IsDefault() && ObjectNetGUID.IsValid();
+	if (UNLIKELY(!bIsValidToReplicate))
+	{
+		// This has mostly been seen when doing a Seamless Travel Restart.
+		// In that case, the server can think the client is still on the same map and replicate objects before
+		// the client has finished the travel, and the client will later remove those references from the Package Map.
+		UE_LOG(LogRep, Error, TEXT("StartReplicating: Invalid Net GUID. Object may fail to replicate properties or handle RPCs. Object %s"), *Object->GetPathName());
+		return;
+	}
 
 	if (ConnectionNetDriver->IsServer() || ConnectionNetDriver->MaySendProperties())
 	{
