@@ -6,6 +6,7 @@
 #include "Application/SlateApplicationBase.h"
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #include "Widgets/SWidget.h"
+#include "HAL/IConsoleManager.h"
 
 TMap<SWidget*, TSharedRef<FSlateAccessibleWidget>> FSlateAccessibleWidgetCache::AccessibleWidgetMap;
 TMap<AccessibleWidgetId, TSharedRef<FSlateAccessibleWidget>> FSlateAccessibleWidgetCache::AccessibleIdMap;
