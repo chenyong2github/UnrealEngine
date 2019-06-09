@@ -642,6 +642,8 @@ namespace Audio
 			FSoundEffectSubmixInitData InitData;
 			InitData.SampleRate = GetSampleRate();
 	
+			bool bIsMasterReverbBypassed = false;
+
 			// Setup the master reverb plugin
 			if (ReverbPluginInterface.IsValid() && MasterSubmixInstances[EMasterSubmixType::ReverbPlugin].IsValid())
 			{
@@ -656,8 +658,11 @@ namespace Audio
 				MasterReverbPluginSubmix->AddSoundEffectSubmix(ReverbPluginId, ReverbPluginEffectSubmix);
 				MasterReverbPluginSubmix->SetParentSubmix(MasterSubmixInstance);
 				MasterSubmixInstance->AddChildSubmix(MasterReverbPluginSubmix);
+
+				bIsMasterReverbBypassed = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
 			}
-			else if (MasterSubmixInstances[EMasterSubmixType::Reverb].IsValid())
+					
+			if (MasterSubmixInstances[EMasterSubmixType::Reverb].IsValid() && !bIsMasterReverbBypassed)
 			{
 				// Setup the master reverb only if we don't have a reverb plugin
 				USoundEffectSubmixPreset* ReverbPreset = nullptr;

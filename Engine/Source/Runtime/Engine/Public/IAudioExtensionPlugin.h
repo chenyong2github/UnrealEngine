@@ -640,6 +640,9 @@ public:
 	virtual void ProcessSourceAudio(const FAudioPluginSourceInputData& InputData, FAudioPluginSourceOutputData& OutputData)
 	{
 	}
+
+	/** Returns whether or not the plugin reverb overrides the master reverb. If true, then the built in reverb will be uninitialized and bypassed. */
+	virtual bool DoesReverbOverrideMasterReverb() const { return true; }
 };
 
 /************************************************************************/
