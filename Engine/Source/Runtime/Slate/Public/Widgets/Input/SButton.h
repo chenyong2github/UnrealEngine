@@ -184,7 +184,7 @@ public:
 	virtual bool IsInteractable() const override;
 	virtual bool ComputeVolatility() const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 	// SWidget
 

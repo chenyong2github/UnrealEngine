@@ -172,7 +172,7 @@ public:
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual bool IsInteractable() const override;
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override;
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 #endif
 
 	/** @return Is the handle locked or not? Defaults to false */

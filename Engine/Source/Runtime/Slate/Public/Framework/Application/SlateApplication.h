@@ -1419,9 +1419,6 @@ public:
 	virtual void SetAllUserFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause) override;
 	virtual void SetAllUserFocusAllowingDescendantFocus(const FWidgetPath& InFocusPath, const EFocusCause InCause) override;
 	virtual TSharedPtr<SWidget> GetUserFocusedWidget(uint32 UserIndex) const override;
-#if WITH_ACCESSIBILITY
-	virtual TSharedPtr<FSlateAccessibleMessageHandler> GetAccessibleMessageHandler() const override { return AccessibleMessageHandler; }
-#endif
 	virtual const TArray<TSharedRef<SWindow>> GetTopLevelWindows() const override { return SlateWindows; }
 
 	DECLARE_EVENT_OneParam(FSlateApplication, FApplicationActivationStateChangedEvent, const bool /*IsActive*/)
@@ -1751,10 +1748,7 @@ private:
 
 	/** These windows will be destroyed next tick. */
 	TArray< TSharedRef<SWindow> > WindowDestroyQueue;
-#if WITH_ACCESSIBILITY
-	/** Manager for widgets and application to interact with accessibility API */
-	TSharedRef<FSlateAccessibleMessageHandler> AccessibleMessageHandler;
-#endif
+
 	/** The stack of menus that are open */
 	FMenuStack MenuStack;
 

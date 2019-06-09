@@ -39,6 +39,10 @@
 /** Singleton accessor */
 +(id)AccessibilityElementCache;
 
+#if !UE_BUILD_SHIPPING
+-(void)DumpAccessibilityStats;
+#endif
+
 @end
 
 #endif

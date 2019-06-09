@@ -11,9 +11,25 @@
 
 @implementation FIOSAccessibilityCache
 
+static void DumpAccessibilityStatsForwarder()
+{
+	[[FIOSAccessibilityCache AccessibilityElementCache] DumpAccessibilityStats];
+}
+
 - (id)init
 {
 	Cache = [[NSMutableDictionary alloc] init];
+
+#if !UE_BUILD_SHIPPING
+	IConsoleManager::Get().RegisterConsoleCommand
+	(
+		TEXT("DumpAccessibilityStatsIOS"),
+		TEXT("Writes to LogAccessibility the memory stats for the platform-level accessibility data (AccessibilityElements) required for IOS support."),
+		FConsoleCommandDelegate::CreateStatic(&DumpAccessibilityStatsForwarder),
+		ECVF_Default
+	);
+#endif
+
 	return self;
 }
 
@@ -29,26 +45,11 @@
 	{
 		return nil;
 	}
-
+	
 	FIOSAccessibilityContainer* ExistingElement = [Cache objectForKey:[NSNumber numberWithInt:Id]];
 	if (ExistingElement == nil)
 	{
-		AccessibleWidgetId ParentId = IAccessibleWidget::InvalidAccessibleWidgetId;
-		// All IAccessibleWidget functions must be run on Game Thread
-		[IOSAppDelegate WaitAndRunOnGameThread : [Id, &ParentId]()
-		{
-			TSharedPtr<IAccessibleWidget> Widget = [IOSAppDelegate GetDelegate].IOSApplication->GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(Id);
-			if (Widget.IsValid())
-			{
-				TSharedPtr<IAccessibleWidget> ParentWidget = Widget->GetParent();
-				if (ParentWidget.IsValid())
-				{
-					ParentId = ParentWidget->GetId();
-				}
-			}
-		}];
-
-		ExistingElement = [[[FIOSAccessibilityContainer alloc] initWithId:Id AndParentId:ParentId] autorelease];
+		ExistingElement = [[[FIOSAccessibilityContainer alloc] initWithId:Id] autorelease];
 		[Cache setObject:ExistingElement forKey:[NSNumber numberWithInt:Id]];
 	}
 	return ExistingElement;
@@ -133,6 +134,35 @@
 		}, TStatId(), NULL, ENamedThreads::GameThread);
 	}
 }
+
+#if !UE_BUILD_SHIPPING
+-(void)DumpAccessibilityStats
+{
+	const uint32 NumContainers = [Cache count];
+	uint32 SizeOfContainer = 0;
+	uint32 SizeOfLeaf = 0;
+	uint32 CacheSize = 0;
+
+	NSArray* Keys = [Cache allKeys];
+	for (NSString* Key in Keys)
+	{
+		FIOSAccessibilityContainer* Container = [Cache objectForKey : Key];
+		FIOSAccessibilityLeaf* Leaf = [Container GetLeaf];
+
+		SizeOfContainer = malloc_size(Container);
+		SizeOfLeaf = malloc_size(Leaf);
+		CacheSize += sizeof(NSString*) + sizeof(FIOSAccessibilityContainer*) + malloc_size(Key) + SizeOfContainer + SizeOfLeaf
+			+ malloc_size([NSString stringWithFString : Leaf.Label])
+			+ malloc_size([NSString stringWithFString : Leaf.Hint])
+			+ malloc_size([NSString stringWithFString : Leaf.Value]);
+	}
+
+	UE_LOG(LogAccessibility, Log, TEXT("Number of Accessibility Elements: %i"), NumContainers * 2);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of FIOSAccessibilityContainer: %u"), SizeOfContainer);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of FIOSAccessibilityLeaf: %u"), SizeOfLeaf);
+	UE_LOG(LogAccessibility, Log, TEXT("Memory stored in cache: %u kb"), CacheSize / 1000);
+}
+#endif
 
 @end
 
