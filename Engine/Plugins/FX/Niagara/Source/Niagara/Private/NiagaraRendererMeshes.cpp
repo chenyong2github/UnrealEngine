@@ -107,16 +107,16 @@ FNiagaraRendererMeshes::FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLev
 	MeshMinimumLOD = Properties->ParticleMesh->MinLOD.GetValueForFeatureLevel(FeatureLevel);
 }
 
-void FNiagaraRendererMeshes::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRendererMeshes::ReleaseRenderThreadResources()
 {
-	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
+	FNiagaraRenderer::ReleaseRenderThreadResources();
 	VertexFactory->ReleaseResource();
 	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
 }
 
-void FNiagaraRendererMeshes::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
+void FNiagaraRendererMeshes::CreateRenderThreadResources()
 {
-	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
+	FNiagaraRenderer::CreateRenderThreadResources();
 	VertexFactory->InitResource();
 }
 
@@ -135,13 +135,11 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRender);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderMeshes);
-	check(SceneProxy);
 
 	SimpleTimer MeshElementsTimer;
 
-	NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
 	FNiagaraDynamicDataMesh *DynamicDataMesh = (static_cast<FNiagaraDynamicDataMesh*>(DynamicDataRender));
-	if (!DynamicDataMesh || !Batcher)
+	if (!DynamicDataMesh)
 	{
 		return;
 	}
@@ -168,17 +166,11 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 	FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();
 	FGlobalDynamicReadBuffer::FAllocation ParticleData;
 
-	// @TODO : support multiple LOD and section, using an inlined array and/or the SceneRenderingAllocator
-	uint32 IndirectArgsOffset = INDEX_NONE;
 	//For cpu sims we allocate render buffers from the global pool. GPU sims own their own.
-	if (SimTarget == ENiagaraSimTarget::CPUSim)
+	if (DynamicDataMesh->GetSimTarget() == ENiagaraSimTarget::CPUSim)
 	{
 		ParticleData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
 		FMemory::Memcpy(ParticleData.Buffer, SourceParticleData->GetFloatBuffer().GetData(), SourceParticleData->GetFloatBuffer().Num());
-	}
-	else // ENiagaraSimTarget::GPUComputeSim
-	{
-		IndirectArgsOffset = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance);
 	}
 
 	{
@@ -268,23 +260,24 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 					}
 				};
 
-				if (SimTarget == ENiagaraSimTarget::CPUSim)//TODO: Compute shader for sorting gpu sims and larger cpu sims.
+				if (DynamicDataMesh->GetSimTarget() == ENiagaraSimTarget::CPUSim)//TODO: Compute shader for sorting gpu sims and larger cpu sims.
 				{
 					check(ParticleData.IsValid());
 					if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE)
 					{
 						if (GNiagaraGPUSorting &&
 							GNiagaraGPUSortingCPUToGPUThreshold != INDEX_NONE &&
-							SortInfo.ParticleCount >= GNiagaraGPUSortingCPUToGPUThreshold)
+							SortInfo.ParticleCount >= GNiagaraGPUSortingCPUToGPUThreshold &&
+							SceneProxy->GetBatcher())
 						{
 							SortInfo.ParticleCount = NumInstances;
 							SortInfo.ParticleDataFloatSRV = ParticleData.ReadBuffer->SRV;
 							SortInfo.FloatDataOffset = ParticleData.FirstIndex / sizeof(float);
 							SortInfo.FloatDataStride = SourceParticleData->GetFloatStride() / sizeof(float);
-							const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
+							const int32 IndexBufferOffset = SceneProxy->GetBatcher()->AddSortedGPUSimulation(SortInfo);
 							if (IndexBufferOffset != INDEX_NONE)
 							{
-								CollectorResources.VertexFactory.SetSortedIndices(Batcher->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+								CollectorResources.VertexFactory.SetSortedIndices(SceneProxy->GetBatcher()->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
 							}
 						}
 						else
@@ -299,7 +292,21 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				}
 				else
 				{
-					if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE && GNiagaraGPUSorting)
+					if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE && GNiagaraGPUSorting && SceneProxy->GetBatcher())
+					{
+						SortInfo.ParticleDataFloatSRV = SourceParticleData->GetGPUBufferFloat().SRV;
+						SortInfo.FloatDataOffset = 0;
+						SortInfo.FloatDataStride = SourceParticleData->GetFloatStride() / sizeof(float);
+						SortInfo.GPUParticleCountSRV = SourceParticleData->GetGPUIndices().SRV;
+						SortInfo.GPUParticleCountOffset = 1;
+						const int32 IndexBufferOffset = SceneProxy->GetBatcher()->AddSortedGPUSimulation(SortInfo);
+						if (IndexBufferOffset != INDEX_NONE)
+						{
+							CollectorResources.VertexFactory.SetSortedIndices(SceneProxy->GetBatcher()->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+						}
+					}
+
+					if (SortInfo.SortMode != ENiagaraSortMode::None && SortInfo.SortAttributeOffset != INDEX_NONE && GNiagaraGPUSorting && SceneProxy->GetBatcher())
 					{
 						// Here we need to be conservative about the InstanceCount, since the final value is only known on the GPU after the simulation.
 						SortInfo.ParticleCount = SourceParticleData->GetNumInstances();
@@ -307,12 +314,12 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						SortInfo.ParticleDataFloatSRV = SourceParticleData->GetGPUBufferFloat().SRV;
 						SortInfo.FloatDataOffset = 0;
 						SortInfo.FloatDataStride = SourceParticleData->GetFloatStride() / sizeof(float);
-						SortInfo.GPUParticleCountSRV = Batcher->GetGPUInstanceCounterManager().GetInstanceCountBuffer().SRV;
-						SortInfo.GPUParticleCountOffset = SourceParticleData->GetGPUInstanceCountBufferOffset();
-						const int32 IndexBufferOffset = Batcher->AddSortedGPUSimulation(SortInfo);
-						if (IndexBufferOffset != INDEX_NONE && SortInfo.GPUParticleCountOffset != INDEX_NONE)
+						SortInfo.GPUParticleCountSRV = SourceParticleData->GetGPUIndices().SRV;
+						SortInfo.GPUParticleCountOffset = 1;
+						const int32 IndexBufferOffset = SceneProxy->GetBatcher()->AddSortedGPUSimulation(SortInfo);
+						if (IndexBufferOffset != INDEX_NONE)
 						{
-							CollectorResources.VertexFactory.SetSortedIndices(Batcher->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
+							CollectorResources.VertexFactory.SetSortedIndices(SceneProxy->GetBatcher()->GetGPUSortedBuffer().VertexBufferSRV, IndexBufferOffset);
 						}
 					}
 					CollectorResources.VertexFactory.SetParticleData(SourceParticleData->GetGPUBufferFloat().SRV, 0, SourceParticleData->GetFloatStride() / sizeof(float));
@@ -328,7 +335,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 			
 				// GPU mesh rendering currently only supports one mesh section.
 				// TODO: Add proper support for multiple mesh sections for GPU mesh particles.
-				int32 MaxSection = SimTarget == ENiagaraSimTarget::GPUComputeSim ? 1 : LODModel.Sections.Num();
+				int32 MaxSection = DynamicDataMesh->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim ? 1 : LODModel.Sections.Num();
 				const bool bIsWireframe = AllowDebugViewmodes() && View && View->Family->EngineShowFlags.Wireframe;
 				for (int32 SectionIndex = 0; SectionIndex < MaxSection; SectionIndex++)
 				{
@@ -384,11 +391,10 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 						BatchElement.NumPrimitives = Section.NumTriangles;
 					}
 
-					if (IndirectArgsOffset != INDEX_NONE)
+					if (DynamicDataMesh->GetSimTarget() == ENiagaraSimTarget::GPUComputeSim)
 					{
 						BatchElement.NumPrimitives = 0;
-						BatchElement.IndirectArgsOffset = IndirectArgsOffset;
-						BatchElement.IndirectArgsBuffer = Batcher->GetGPUInstanceCounterManager().GetDrawIndirectBuffer().Buffer;
+						BatchElement.IndirectArgsBuffer = SourceParticleData->GetGPUIndices().Buffer;
 					}
 					else
 					{
@@ -426,6 +432,7 @@ FNiagaraDynamicDataBase *FNiagaraRendererMeshes::GenerateDynamicData(const FNiag
 
 	FNiagaraDynamicDataMesh *DynamicData = nullptr;
 
+	ENiagaraSimTarget SimTarget = Emitter->GetData().GetSimTarget();
 	if (Properties->ParticleMesh)
 	{
 		DynamicData = new FNiagaraDynamicDataMesh(Emitter);

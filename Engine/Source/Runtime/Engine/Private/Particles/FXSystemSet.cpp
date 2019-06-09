@@ -87,12 +87,12 @@ void FFXSystemSet::UpdateVectorField(UVectorFieldComponent* VectorFieldComponent
 	}
 }
 
-void FFXSystemSet::PreInitViews(FRHICommandListImmediate& RHICmdList)
+void FFXSystemSet::PreInitViews()
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreInitViews(RHICmdList);
+		FXSystem->PreInitViews();
 	}
 }
 
