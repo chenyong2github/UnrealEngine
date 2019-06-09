@@ -90,8 +90,8 @@ public:
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
 	virtual void Initialize(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
-	virtual void CreateRenderThreadResources() {}
-	virtual void ReleaseRenderThreadResources() {}
+	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
+	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const {}
@@ -132,6 +132,8 @@ protected:
 
 	uint32 bLocalSpace : 1;
 	uint32 bHasLights : 1;
+	ENiagaraSimTarget SimTarget;
+	uint32 NumIndicesPerInstance;
 
 #if STATS
 	TStatId EmitterStatID;
@@ -140,5 +142,6 @@ protected:
 	/** Cached array of materials used from the properties data. Validated with usage flags etc. */
 	TArray<UMaterialInterface*> BaseMaterials_GT;
 	FMaterialRelevance BaseMaterialRelevance_GT;
+
 };
 
