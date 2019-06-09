@@ -84,7 +84,9 @@ public:
 
 protected:
 	void ToggleWhitelistedProperties();
+	bool IsRowVisibilityFiltered() const;
 	bool GetIsPropertyVisible(const FPropertyAndParent& PropertyAndParent) const;
+	bool GetIsRowVisible(FName InRowName, FName InParentName) const;
 
 private:
 	TSharedPtr<IDetailsView> DetailViewWidget;
