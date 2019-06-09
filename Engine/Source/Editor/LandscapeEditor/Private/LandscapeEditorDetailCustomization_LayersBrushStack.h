@@ -59,8 +59,8 @@ protected:
 	TSharedPtr<SWidget> GenerateRow(int32 InBrushIndex);
 	TSharedPtr<SWidget> OnBrushContextMenuOpening(int32 InBrushIndex);
 
-	void RemoveBrush(ALandscapeBlueprintCustomBrush* Brush);
-	
+	void FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintCustomBrush*> Brushes);
+
 	FReply OnToggleVisibility(int32 InBrushIndex);
 	FReply OnToggleAffectsHeightmap(int32 InBrushIndex);
 	FReply OnToggleAffectsWeightmap(int32 InBrushIndex);
