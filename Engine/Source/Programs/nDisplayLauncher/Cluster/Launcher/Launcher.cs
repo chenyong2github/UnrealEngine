@@ -22,7 +22,7 @@ namespace nDisplayLauncher.Cluster
 	{
 		// Current configuration version (config file format)
 		// NOTE: Don't forget to update this value with newer version.
-		public const ConfigurationVersion CurrentVersion = ConfigurationVersion.Ver22;
+		public const ConfigurationVersion CurrentVersion = ConfigurationVersion.Ver23;
 
 		// net
 		public static int DefaultListenerPort = 41000;

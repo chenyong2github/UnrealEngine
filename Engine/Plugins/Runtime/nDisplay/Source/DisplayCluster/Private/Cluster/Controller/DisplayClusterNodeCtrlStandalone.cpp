@@ -78,13 +78,3 @@ void FDisplayClusterNodeCtrlStandalone::EmitClusterEvent(const FDisplayClusterCl
 {
 	// Nothing special to do here in standalone mode
 }
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterNodeCtrlBase
-//////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterNodeCtrlStandalone::InitializeStereo()
-{
-	//@todo: initialize stereo for standalone mode
-
-	return FDisplayClusterNodeCtrlBase::InitializeStereo();
-}

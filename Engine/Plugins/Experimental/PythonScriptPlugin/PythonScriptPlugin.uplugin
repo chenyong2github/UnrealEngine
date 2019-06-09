@@ -19,8 +19,8 @@
 	[
 		{
 			"Name" : "PythonScriptPluginPreload",
-			"Type" : "Editor",
-			"LoadingPhase" : "PreDefault"
+			"Type" : "Runtime",
+			"LoadingPhase" : "EarliestPossible"
 		},
 		{
 			"Name" : "PythonScriptPlugin",

@@ -86,8 +86,16 @@ bool UProxyMediaSource::IsProxyValid() const
 
 void UProxyMediaSource::SetDynamicMediaSource(UMediaSource* InProxy)
 {
-	DynamicProxy = (Proxy == InProxy) ? nullptr : InProxy;
+	DynamicProxy = InProxy;
 }
+
+
+#if WITH_EDITOR
+void UProxyMediaSource::SetMediaSource(UMediaSource* InProxy)
+{
+	Proxy = InProxy;
+}
+#endif
 
 
 /* IMediaOptions interface

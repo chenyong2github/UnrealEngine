@@ -8,11 +8,12 @@
 
 class IConcertServer;
 class IConcertClient;
+class IConcertServerEventSink;
 
 typedef TSharedPtr<IConcertServer, ESPMode::ThreadSafe> IConcertServerPtr;
+typedef TSharedRef<IConcertServer, ESPMode::ThreadSafe> IConcertServerRef;
 typedef TSharedPtr<IConcertClient, ESPMode::ThreadSafe> IConcertClientPtr;
-
-class UConcertServerConfig;
+typedef TSharedRef<IConcertClient, ESPMode::ThreadSafe> IConcertClientRef;
 
 /**
  * Interface for the Main Concert module.
@@ -20,22 +21,41 @@ class UConcertServerConfig;
 class IConcertModule : public IModuleInterface
 {
 public:
-	/** Get the Concert module */
-	static IConcertModule& Get()
+	/**
+	 * Singleton-like access to this module's interface.  This is just for convenience!
+	 * Beware of calling this during the shutdown phase, though.  Your module might have been unloaded already.
+	 *
+	 * @return Returns singleton instance, loading the module on demand if needed
+	 */
+	static inline IConcertModule& Get()
 	{
-		static const FName ModuleName = TEXT("Concert");
-		return FModuleManager::Get().GetModuleChecked<IConcertModule>(ModuleName);
+		static const FName ModuleName = "Concert";
+		return FModuleManager::LoadModuleChecked<IConcertModule>(ModuleName);
 	}
 
-	/** Parse command line server settings and save them
-	 * @param CommandLine the application command line arguments
-	 * @return the server settings, modified or not by the command line
+	/**
+	 * Checks to see if this module is loaded and ready.  It is only valid to call Get() during shutdown if IsAvailable() returns true.
+	 *
+	 * @return True if the module is loaded and ready to use
 	 */
-	virtual UConcertServerConfig* ParseServerSettings(const TCHAR* CommandLine) = 0;
+	static inline bool IsAvailable()
+	{
+		static const FName ModuleName = "Concert";
+		return FModuleManager::Get().IsModuleLoaded(ModuleName);
+	}
 
-	/** Get the server instance for Concert */
-	virtual IConcertServerPtr GetServerInstance(/*Name*/) = 0;
+	/**
+	 * Create a server that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)
+	 * @param InRole The role to create
+	 * @param InEventSink Sink functions for events that the server can emit
+	 * @return The server
+	 */
+	virtual IConcertServerRef CreateServer(const FString& InRole, IConcertServerEventSink* InEventSink) = 0;
 
-	/** Get the client instance for Concert */
-	virtual IConcertClientPtr GetClientInstance(/*Name*/) = 0;
+	/**
+	 * Create a client that will perform a certain role (eg, MultiUser, DisasterRecovery, etc)
+	 * @param InRole The role to create
+	 * @return The client
+	 */
+	virtual IConcertClientRef CreateClient(const FString& InRole) = 0;
 };

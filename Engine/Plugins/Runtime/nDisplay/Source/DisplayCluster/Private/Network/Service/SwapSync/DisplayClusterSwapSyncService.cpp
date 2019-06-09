@@ -6,11 +6,11 @@
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterLog.h"
 
 #include "Network/Session/DisplayClusterSessionInternal.h"
 
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterSwapSyncService::FDisplayClusterSwapSyncService(const FString& InAddr, const int32 InPort) :

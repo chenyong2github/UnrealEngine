@@ -63,6 +63,17 @@ enum class ETimecodeSynchronizationTimecodeType
 };
 
 /**
+ * Enumerates possible framerate source
+ */
+UENUM()
+enum class ETimecodeSynchronizationFrameRateSources: uint8
+{
+	EngineCustomTimeStepFrameRate UMETA(ToolTip="Frame Rate of engine custom time step if it is of type UFixedFrameRateCustomTimeStep."),
+	CustomFrameRate UMETA(ToolTip = "Custom Frame Rate selected by the user.")
+};
+
+
+/**
  * Enumerates Synchronization related events.
  */
 enum class ETimecodeSynchronizationEvent
@@ -310,6 +321,24 @@ public:
 	 */
 	void AddRuntimeTimeSynchronizationSource(UTimeSynchronizationSource* Source);
 
+	/**
+	 * Get Current System Frame Time which is synchronized
+	 *
+	 * @return FrameTime
+	 */
+	FFrameTime GetCurrentSystemFrameTime() const
+	{
+		if (CurrentSystemFrameTime.IsSet())
+		{
+			return CurrentSystemFrameTime.GetValue();
+		}
+		else
+		{
+			return FFrameTime();
+		}
+	}
+
+
 private:
 
 	/** Synchronization states */
@@ -405,16 +434,13 @@ private:
 	FFrameTime GetProviderFrameTime() const;
 
 public:
-	/** The fixed framerate to use. */
-	UPROPERTY(EditAnywhere, Category="Genlock", Meta=(DisplayName="Enable"))
-	bool bUseCustomTimeStep;
 
-	/** Custom strategy to tick in a interval. */
-	UPROPERTY(EditAnywhere, Instanced, Category="Genlock", Meta=(EditCondition="bUseCustomTimeStep", DisplayName="Genlock Source"))
-	UFixedFrameRateCustomTimeStep* CustomTimeStep;
+	/** Frame Rate Source. */
+	UPROPERTY(EditAnywhere, Category = "Frame Rate Settings", Meta = (DisplayName = "Frame Rate Source"))
+	ETimecodeSynchronizationFrameRateSources FrameRateSource;
 
 	/** The fixed framerate to use. */
-	UPROPERTY(EditAnywhere, Category="Genlock", Meta=(EditCondition="!bUseCustomTimeStep", ClampMin="15.0"))
+	UPROPERTY(EditAnywhere, Category="Frame Rate Settings", Meta=(EditCondition = "IN_CPP", ClampMin="15.0"))
 	FFrameRate FixedFrameRate;
 
 public:

@@ -9,10 +9,6 @@ namespace UnrealBuildTool.Rules
 		public UnrealUSDWrapper(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bEnableExceptions = true;
-
-			PCHUsage = ModuleRules.PCHUsageMode.NoSharedPCHs;
-			PrivatePCHHeaderFile = "Public/UnrealUSDWrapper.h";
-
 			bUseRTTI = true;
 
 			PublicDependencyModuleNames.AddRange(
@@ -46,7 +42,7 @@ namespace UnrealBuildTool.Rules
 					"usdLux"
 				};
 
-				PrivateIncludePaths.AddRange(
+				PublicIncludePaths.AddRange(
 					new string[] {
 					ModuleDirectory + "/../ThirdParty/USD/include",
 					PythonSourceTPSDir + "/Win64/include",
@@ -64,15 +60,13 @@ namespace UnrealBuildTool.Rules
 				}
 				else
 				{
-					System.Console.WriteLine("UnrealUSDWrapper does not supported this platform");
+					System.Console.WriteLine("UnrealUSDWrapper does not support this platform");
 				}
 			}
 			else
 			{
 				PublicDefinitions.Add("USE_USD_SDK=0");
 			}
-
-			PrivateIncludePaths.Add("UnrealUSDWrapper/Private");
         }
 	}
 }

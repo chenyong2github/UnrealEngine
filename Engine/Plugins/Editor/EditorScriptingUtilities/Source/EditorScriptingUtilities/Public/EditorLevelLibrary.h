@@ -269,7 +269,7 @@ public:
 	 * @param	MaterialToBeReplaced	Material we want to replace.
 	 * @param	NewMaterial				Material to replace MaterialToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static void ReplaceMeshComponentsMaterials(const TArray<class UMeshComponent*>& MeshComponents, class UMaterialInterface* MaterialToBeReplaced, class UMaterialInterface* NewMaterial);
 
 	/**
@@ -278,7 +278,7 @@ public:
 	 * @param	MaterialToBeReplaced	Material we want to replace.
 	 * @param	NewMaterial				Material to replace MaterialToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static void ReplaceMeshComponentsMaterialsOnActors(const TArray<class AActor*>& Actors, class UMaterialInterface* MaterialToBeReplaced, class UMaterialInterface* NewMaterial);
 
 	/**
@@ -288,7 +288,7 @@ public:
 	 * @param	MeshToBeReplaced		Mesh we want to replace.
 	 * @param	NewMesh					Mesh to replace MeshToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static void ReplaceMeshComponentsMeshes(const TArray<class UStaticMeshComponent*>& MeshComponents, class UStaticMesh* MeshToBeReplaced, class UStaticMesh* NewMesh);
 
 	/**
@@ -297,7 +297,7 @@ public:
 	 * @param	MeshToBeReplaced		Mesh we want to replace.
 	 * @param	NewMesh					Mesh to replace MeshToBeReplaced by.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static void ReplaceMeshComponentsMeshesOnActors(const TArray<class AActor*>& Actors, class UStaticMesh* MeshToBeReplaced, class UStaticMesh* NewMesh);
 
 	/**
@@ -306,7 +306,7 @@ public:
 	 * @param	ActorClass				Class/Blueprint of the new actor that will be spawn.
 	 * @param	StaticMeshPackagePath	If the list contains Brushes and it is requested to change them to StaticMesh, StaticMeshPackagePath is the package path to where the StaticMesh will be created. ie. /Game/MyFolder/
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep", meta = (DeterminesOutputType = "ActorClass"))
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeterminesOutputType = "ActorClass"))
 	static TArray<class AActor*> ConvertActors(const TArray<class AActor*>& Actors, TSubclassOf<class AActor> ActorClass, const FString& StaticMeshPackagePath);
 
 public:
@@ -318,7 +318,7 @@ public:
 	 * @param	JoinOptions				Options on how to join the actors.
 	 * @return The new created actor.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static class AActor* JoinStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToJoin, const FEditorScriptingJoinStaticMeshActorsOptions& JoinOptions);
 
 	/**
@@ -330,7 +330,7 @@ public:
 	 * @param	OutMergedActor			The new created actor, if requested.
 	 * @return	if the operation is successful.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static bool MergeStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingMergeStaticMeshActorsOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 
 	/**
@@ -340,7 +340,7 @@ public:
 	 * @param   OutMergedActor generated actor if requested
 	 * @return  Success of the proxy creation
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | DataPrep")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep")
 	static bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 };
 

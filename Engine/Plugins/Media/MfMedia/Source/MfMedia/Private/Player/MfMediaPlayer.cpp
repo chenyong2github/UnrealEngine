@@ -383,7 +383,7 @@ bool FMfMediaPlayer::InitializePlayer(const TSharedPtr<FArchive, ESPMode::Thread
 	// initialize presentation on a separate thread
 	const EAsyncExecution Execution = Precache ? EAsyncExecution::Thread : EAsyncExecution::ThreadPool;
 
-	Async<void>(Execution, [
+	Async(Execution, [
 		Archive, Url, Precache, LocalPlayerOptions,
 		Callback = TComPtr<FMfMediaSourceReaderCallback>(SourceReaderCallback),
 		SamplesPtr = TWeakPtr<FMediaSamples, ESPMode::ThreadSafe>(Samples),

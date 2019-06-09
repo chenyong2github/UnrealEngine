@@ -4,8 +4,9 @@
 #include "Common/TcpSocketBuilder.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/ScopeLock.h"
+
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClient::FDisplayClusterClient(const FString& InName) :

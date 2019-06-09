@@ -88,7 +88,7 @@ public:
 	DECLARE_DYNAMIC_DELEGATE_OneParam(FOnTakeRecorderMarkedFrameAdded, const FMovieSceneMarkedFrame&, MarkedFrame);
 
 	/** Called when a Take Panel is constructed or destroyed. */
-	UFUNCTION(BlueprintCallable, Category="Take Recorder")
+	UFUNCTION(BlueprintCallable, Category="Take Recorder", meta=(DisplayName="Set On Take Recorder Panel Changed"))
 	static void SetOnTakeRecorderPanelChanged(FOnTakeRecorderPanelChanged OnTakeRecorderPanelChanged);
 
 	/** Called when take recording starts. */

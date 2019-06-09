@@ -1243,7 +1243,7 @@ FxaaFloat4 FxaaPixelShader(
     FxaaFloat pixelOffsetSubpix = max(pixelOffsetGood, subpixH);
     if(!horzSpan) posM.x += pixelOffsetSubpix * lengthSign;
     if( horzSpan) posM.y += pixelOffsetSubpix * lengthSign;
-    #if (FXAA_DISCARD == 1)
+    #if ((FXAA_DISCARD == 1) || (POST_PROCESS_ALPHA == 2))
         return FxaaTexTop(tex, posM);
     #else
         return FxaaFloat4(FxaaTexTop(tex, posM).xyz, lumaM);

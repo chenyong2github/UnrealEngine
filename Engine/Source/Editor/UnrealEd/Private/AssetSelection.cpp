@@ -432,6 +432,11 @@ namespace ActorPlacementUtils
 			// if this is the only level
 			return true;
 		}
+		if (GIsRunningUnattendedScript)
+		{
+			// Don't prompt user for checks in unattended mode
+			return true;
+		}
 		if (InLevel && GetDefault<ULevelEditorMiscSettings>()->bPromptWhenAddingToLevelBeforeCheckout && SourceControlHelpers::IsAvailable())
 		{
 			FString FileName = SourceControlHelpers::PackageFilename(InLevel->GetPathName());

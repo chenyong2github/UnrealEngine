@@ -1440,14 +1440,14 @@ bool FSourceCodeNavigation::NavigateToFunctionAsync(UFunction* InFunction)
 
 static TArray<ISourceCodeNavigationHandler*> SourceCodeNavigationHandlers;
 
-void FSourceCodeNavigation::AddNavigationHandler(ISourceCodeNavigationHandler* handler)
+void FSourceCodeNavigation::AddNavigationHandler(ISourceCodeNavigationHandler* Handler)
 {
-	SourceCodeNavigationHandlers.Add(handler);
+	SourceCodeNavigationHandlers.Add(Handler);
 }
 
-void FSourceCodeNavigation::RemoveNavigationHandler(ISourceCodeNavigationHandler* handler)
+void FSourceCodeNavigation::RemoveNavigationHandler(ISourceCodeNavigationHandler* Handler)
 {
-	SourceCodeNavigationHandlers.Remove(handler);
+	SourceCodeNavigationHandlers.Remove(Handler);
 }
 
 bool FSourceCodeNavigation::CanNavigateToClass(const UClass* InClass)
@@ -1459,8 +1459,8 @@ bool FSourceCodeNavigation::CanNavigateToClass(const UClass* InClass)
 
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
-		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
-		if (handler->CanNavigateToClass(InClass))
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->CanNavigateToClass(InClass))
 		{
 			return true;
 		}
@@ -1478,8 +1478,8 @@ bool FSourceCodeNavigation::NavigateToClass(const UClass* InClass)
 
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
-		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
-		if (handler->NavigateToClass(InClass))
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->NavigateToClass(InClass))
 		{
 			return true;
 		}
@@ -1495,6 +1495,51 @@ bool FSourceCodeNavigation::NavigateToClass(const UClass* InClass)
 	return false;
 }
 
+bool FSourceCodeNavigation::CanNavigateToStruct(const UScriptStruct* InStruct)
+{
+	if (!InStruct)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
+	{
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->CanNavigateToStruct(InStruct))
+		{
+			return true;
+		}
+	}
+
+	return (InStruct->StructFlags & STRUCT_Native) && FSourceCodeNavigation::IsCompilerAvailable();
+}
+
+bool FSourceCodeNavigation::NavigateToStruct(const UScriptStruct* InStruct)
+{
+	if (!InStruct)
+	{
+		return false;
+	}
+
+	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
+	{
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->NavigateToStruct(InStruct))
+		{
+			return true;
+		}
+	}
+
+	FString StructHeaderPath;
+	if (FSourceCodeNavigation::FindClassHeaderPath(InStruct, StructHeaderPath) && IFileManager::Get().FileSize(*StructHeaderPath) != INDEX_NONE)
+	{
+		FString AbsoluteHeaderPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*StructHeaderPath);
+		FSourceCodeNavigation::OpenSourceFile(AbsoluteHeaderPath);
+		return true;
+	}
+	return false;
+}
+
 bool FSourceCodeNavigation::CanNavigateToFunction(const UFunction* InFunction)
 {
 	if (!InFunction)
@@ -1504,8 +1549,8 @@ bool FSourceCodeNavigation::CanNavigateToFunction(const UFunction* InFunction)
 
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
-		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
-		if (handler->CanNavigateToFunction(InFunction))
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->CanNavigateToFunction(InFunction))
 		{
 			return true;
 		}
@@ -1525,8 +1570,8 @@ bool FSourceCodeNavigation::NavigateToFunction(const UFunction* InFunction)
 
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
-		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
-		if (handler->NavigateToFunction(InFunction))
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->NavigateToFunction(InFunction))
 		{
 			return true;
 		}
@@ -1558,8 +1603,8 @@ bool FSourceCodeNavigation::CanNavigateToProperty(const UProperty* InProperty)
 
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
-		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
-		if (handler->CanNavigateToProperty(InProperty))
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->CanNavigateToProperty(InProperty))
 		{
 			return true;
 		}
@@ -1577,8 +1622,8 @@ bool FSourceCodeNavigation::NavigateToProperty(const UProperty* InProperty)
 
 	for (int32 i = 0; i < SourceCodeNavigationHandlers.Num(); ++i)
 	{
-		ISourceCodeNavigationHandler* handler = SourceCodeNavigationHandlers[i];
-		if (handler->NavigateToProperty(InProperty))
+		ISourceCodeNavigationHandler* Handler = SourceCodeNavigationHandlers[i];
+		if (Handler->NavigateToProperty(InProperty))
 		{
 			return true;
 		}

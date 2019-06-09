@@ -713,12 +713,12 @@ static bool SaveWorld(UWorld* World,
 						}
 
 						World->Rename(*NewWorldAssetName, NULL, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
-
-						// We're renaming the world, add a path redirector so that soft object paths get fixed on save
-						FSoftObjectPath NewPath( World );
-						GRedirectCollector.AddAssetPathRedirection( *OldPath.GetAssetPathString(), *NewPath.GetAssetPathString() );
-						bAddedAssetPathRedirection = true;
 					}
+
+					// We're changing the world path, add a path redirector so that soft object paths get fixed on save
+					FSoftObjectPath NewPath( World );
+					GRedirectCollector.AddAssetPathRedirection( *OldPath.GetAssetPathString(), *NewPath.GetAssetPathString() );
+					bAddedAssetPathRedirection = true;
 				}
 			}
 		}

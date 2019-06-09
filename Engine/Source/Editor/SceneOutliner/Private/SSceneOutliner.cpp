@@ -30,6 +30,7 @@
 #include "SceneOutlinerModule.h"
 #include "SceneOutlinerDelegates.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Kismet2/ComponentEditorUtils.h"
 #include "Widgets/Input/SSearchBox.h"
 
 #include "SceneOutlinerDragDrop.h"
@@ -139,16 +140,17 @@ namespace SceneOutliner
 			}
 		};
 
-		return MakeShareable( new FOnlyCurrentLevelFilter() );
+		return MakeShared<FOnlyCurrentLevelFilter>();
 	}
 
 	TSharedPtr< FOutlinerFilter > CreateShowActorComponentsFilter()
 	{
-		auto* Filter = new FOutlinerPredicateFilter(FActorFilterPredicate::CreateStatic([](const AActor* InActor) {	return InActor!= nullptr; }), EDefaultFilterBehaviour::Fail);
+		TSharedRef< FOutlinerPredicateFilter > Filter = MakeShared<FOutlinerPredicateFilter>(FActorFilterPredicate::CreateStatic([](const AActor* InActor) {	return InActor!= nullptr; }), EDefaultFilterBehaviour::Fail);
+		Filter->ComponentPred = FComponentFilterPredicate::CreateStatic([](const UActorComponent* InComponent) {return Cast<UPrimitiveComponent>(InComponent) != nullptr; });
 
 		// If anything fails this filter, make it non interactive. We don't want to allow selection of implicitly included parents which might nuke the actor selection.
 		Filter->FailedItemState = EFailedFilterState::NonInteractive;
-		return MakeShareable(Filter);
+		return Filter;
 	}
 
 	struct FItemSelection : IMutableTreeItemVisitor
@@ -256,7 +258,7 @@ namespace SceneOutliner
 		bFullRefresh = true;
 		bNeedsRefresh = true;
 		bIsReentrant = false;
-		bActorComponentsEnabled = true;
+		bActorComponentsEnabled = true;// || InInitOptions.Mode = ESceneOutlinerMode::ComponentPicker;
 
 		bSortDirty = true;
 		bActorSelectionDirty = SharedData->Mode == ESceneOutlinerMode::ActorBrowsing;
@@ -942,18 +944,21 @@ namespace SceneOutliner
 
 	bool SSceneOutliner::IsShowingActorComponents()
 	{
-		return bActorComponentsEnabled && GetDefault<USceneOutlinerSettings>()->bShowActorComponents;
+		return SharedData->Mode == ESceneOutlinerMode::ComponentPicker || (bActorComponentsEnabled && GetDefault<USceneOutlinerSettings>()->bShowActorComponents);
 	}
 
 	void SSceneOutliner::ToggleShowActorComponents()
 	{
-		const bool bEnableFlag = !IsShowingActorComponents();
+		if ( SharedData->Mode != ESceneOutlinerMode::ComponentPicker )
+		{
+			const bool bEnableFlag = !IsShowingActorComponents();
 
-		USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
-		Settings->bShowActorComponents = bEnableFlag;
-		Settings->PostEditChange();
+			USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
+			Settings->bShowActorComponents = bEnableFlag;
+			Settings->PostEditChange();
 
-		ApplyShowActorComponentsFilter(bEnableFlag);
+			ApplyShowActorComponentsFilter(bEnableFlag);
+		}
 	}
 
 	void SSceneOutliner::ApplyShowActorComponentsFilter(bool bShowActorComponents)
@@ -1218,17 +1223,20 @@ namespace SceneOutliner
 
 					if (IsShowingActorComponents())
 					{
-						for (UActorComponent* Component : Actor->GetComponentsByClass(UPrimitiveComponent::StaticClass()))
+						for (UActorComponent* Component : Actor->GetComponents())
 						{
-							bool IsHandled = false;
-							if (CustomImplementation)
+							if (Filters->PassesAllFilters(FComponentTreeItem(Component)))
 							{
-								IsHandled = CustomImplementation->ConstructTreeItem(*this, Component);
-							}
-							if (!IsHandled)
-							{
-								// add the actor's components - default implementation
-								ConstructItemFor<FComponentTreeItem>(Component);
+								bool IsHandled = false;
+								if (CustomImplementation)
+								{
+									IsHandled = CustomImplementation->ConstructTreeItem(*this, Component);
+								}
+								if (!IsHandled)
+								{
+									// add the actor's components - default implementation
+									ConstructItemFor<FComponentTreeItem>(Component);
+								}
 							}
 						}
 					}
@@ -2574,7 +2582,7 @@ namespace SceneOutliner
 			return;
 		}
 
-		if( SharedData->Mode == ESceneOutlinerMode::ActorPicker )
+		if( SharedData->Mode == ESceneOutlinerMode::ActorPicker || SharedData->Mode == ESceneOutlinerMode::ComponentPicker )
 		{
 			// In actor picking mode, we fire off the notification to whoever is listening.
 			// This may often cause the widget itself to be enqueued for destruction
@@ -2839,23 +2847,25 @@ namespace SceneOutliner
 
 					if (IsShowingActorComponents())
 					{
-						for (UActorComponent* Component : InActor->GetComponentsByClass(UPrimitiveComponent::StaticClass()))
+						TArray<ISceneOutlinerTraversal*> ConstructTreeItemImp = IModularFeatures::Get().GetModularFeatureImplementations<ISceneOutlinerTraversal>("SceneOutlinerTraversal");
+						for (UActorComponent* Component : InActor->GetComponents())
 						{
-							TArray<ISceneOutlinerTraversal*> ConstructTreeItemImp = IModularFeatures::Get().GetModularFeatureImplementations<ISceneOutlinerTraversal>("SceneOutlinerTraversal");
-
-							bool IsHandled = false;
-							for (ISceneOutlinerTraversal* CustomImplementation : ConstructTreeItemImp)
+							if (Filters->PassesAllFilters(FComponentTreeItem(Component)))
 							{
-								IsHandled = CustomImplementation->ConstructTreeItem(*this, Component);
-								if (IsHandled)
+								bool IsHandled = false;
+								for (ISceneOutlinerTraversal* CustomImplementation : ConstructTreeItemImp)
 								{
-									break;
+									IsHandled = CustomImplementation->ConstructTreeItem(*this, Component);
+									if (IsHandled)
+									{
+										break;
+									}
 								}
-							}
-							if (!IsHandled)
-							{
-								// add the actor's components - default implementation
-								ConstructItemFor<FComponentTreeItem>(Component);
+								if (!IsHandled)
+								{
+									// add the actor's components - default implementation
+									ConstructItemFor<FComponentTreeItem>(Component);
+								}
 							}
 						}
 					}
@@ -3070,7 +3080,7 @@ namespace SceneOutliner
 
 				// In 'actor picking' mode, we allow the user to commit their selection by pressing enter
 				// in the search window when a single actor is available
-				else if( SharedData->Mode == ESceneOutlinerMode::ActorPicker )
+				else if( SharedData->Mode == ESceneOutlinerMode::ActorPicker || SharedData->Mode == ESceneOutlinerMode::ComponentPicker )
 				{
 					// In actor picking mode, we check to see if we have a selected actor, and if so, fire
 					// off the notification to whoever is listening.  This may often cause the widget itself

@@ -18,12 +18,14 @@
 #include "DetailLayoutBuilder.h"
 #include "UserInterface/PropertyEditor/SPropertyAssetPicker.h"
 #include "UserInterface/PropertyEditor/SPropertyMenuAssetPicker.h"
-#include "UserInterface/PropertyEditor/SPropertySceneOutliner.h"
+#include "UserInterface/PropertyEditor/SPropertyMenuComponentPicker.h"
 #include "UserInterface/PropertyEditor/SPropertyMenuActorPicker.h"
+#include "UserInterface/PropertyEditor/SPropertySceneOutliner.h"
 #include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorAsset.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorCombo.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorClass.h"
+#include "UserInterface/PropertyEditor/SPropertyEditorStruct.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorInteractiveActorPicker.h"
 #include "UserInterface/PropertyEditor/SPropertyEditorSceneDepthPicker.h"
 #include "Widgets/Input/SHyperlink.h"
@@ -31,6 +33,8 @@
 #include "IDocumentation.h"
 #include "SResetToDefaultPropertyEditor.h"
 #include "EditorFontGlyphs.h"
+#include "DetailCategoryBuilder.h"
+#include "IDetailGroup.h"
 
 #define LOCTEXT_NAMESPACE "PropertyCustomizationHelpers"
 
@@ -315,6 +319,18 @@ namespace PropertyCustomizationHelpers
 			.OnUseSelected(OnUseSelected);
 	}
 
+	TSharedRef<SWidget> MakeComponentPickerWithMenu( UActorComponent* const InitialComponent, const bool AllowClear, FOnShouldFilterActor ActorFilter, FOnShouldFilterComponent ComponentFilter, FOnComponentSelected OnSet, FSimpleDelegate OnClose )
+	{
+		return
+			SNew(SPropertyMenuComponentPicker)
+			.InitialComponent(InitialComponent)
+			.AllowClear(AllowClear)
+			.ActorFilter(ActorFilter)
+			.ComponentFilter(ComponentFilter)
+			.OnSet(OnSet)
+			.OnClose(OnClose);
+	}
+
 	TSharedRef<SWidget> MakeInteractiveActorPicker( FOnGetAllowedClasses OnGetAllowedClasses, FOnShouldFilterActor OnShouldFilterActor, FOnActorSelected OnActorSelectedFromPicker )
 	{
 		return 
@@ -577,6 +593,26 @@ void SClassPropertyEntryBox::Construct(const FArguments& InArgs)
 	];
 }
 
+void SStructPropertyEntryBox::Construct(const FArguments& InArgs)
+{
+	ChildSlot
+	[	
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.VAlign(VAlign_Center)
+		[
+			SAssignNew(PropertyEditorStruct, SPropertyEditorStruct)
+				.MetaStruct(InArgs._MetaStruct)
+				.AllowNone(InArgs._AllowNone)
+				.ShowViewOptions(!InArgs._HideViewOptions)
+				.ShowDisplayNames(InArgs._ShowDisplayNames)
+				.ShowTree(InArgs._ShowTreeView)
+				.SelectedStruct(InArgs._SelectedStruct)
+				.OnSetStruct(InArgs._OnSetStruct)
+		]
+	];
+}
+
 void SProperty::Construct( const FArguments& InArgs, TSharedPtr<IPropertyHandle> InPropertyHandle )
 {
 	TSharedPtr<SWidget> ChildSlotContent;
@@ -697,6 +733,51 @@ TSharedRef<SWidget> PropertyCustomizationHelpers::MakePropertyComboBox(const TSh
 		.OnGetComboBoxValue(OnGetValue)
 		.OnComboBoxValueSelected(OnValueSelected)
 		.Font(FontStyle);
+}
+
+void PropertyCustomizationHelpers::MakeInstancedPropertyCustomUI(TMap<FName, IDetailGroup*>& ExistingGroup, IDetailCategoryBuilder& BaseCategory, TSharedRef<IPropertyHandle>& BaseProperty, FOnInstancedPropertyIteration AddRowDelegate)
+{
+	uint32 NumChildren = 0;
+	BaseProperty->GetNumChildren(NumChildren);
+	for (uint32 PropertyIndex = 0; PropertyIndex < NumChildren; ++PropertyIndex)
+	{
+		TSharedRef<IPropertyHandle> ChildHandle = BaseProperty->GetChildHandle(PropertyIndex).ToSharedRef();
+
+		if (ChildHandle->GetProperty())
+		{
+			const FName DefaultCategoryName = ChildHandle->GetDefaultCategoryName();
+			const bool DelegateIsBound = AddRowDelegate.IsBound();
+			IDetailGroup* DetailGroup = nullptr;
+
+			if (!DefaultCategoryName.IsNone())
+			{
+				// Custom categories don't work with instanced object properties, so we are using groups instead here.
+				IDetailGroup*& DetailGroupPtr = ExistingGroup.FindOrAdd(DefaultCategoryName);
+				if (!DetailGroupPtr)
+				{
+					DetailGroupPtr = &BaseCategory.AddGroup(DefaultCategoryName, ChildHandle->GetDefaultCategoryText());
+				}
+				DetailGroup = DetailGroupPtr;
+			}
+
+			if (DelegateIsBound)
+			{
+				AddRowDelegate.Execute(BaseCategory, DetailGroup, ChildHandle);
+			}
+			else if (DetailGroup)
+			{
+				DetailGroup->AddPropertyRow(ChildHandle);
+			}
+			else
+			{
+				BaseCategory.AddProperty(ChildHandle);
+			}
+		}
+		else
+		{
+			MakeInstancedPropertyCustomUI(ExistingGroup, BaseCategory, ChildHandle, AddRowDelegate);
+		}
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////

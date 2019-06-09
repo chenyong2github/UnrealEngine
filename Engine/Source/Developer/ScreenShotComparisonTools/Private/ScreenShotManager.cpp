@@ -68,7 +68,7 @@ FString FScreenShotManager::GetLocalComparisonFolder() const
 
 TFuture<FImageComparisonResult> FScreenShotManager::CompareScreenshotAsync(FString RelativeImagePath)
 {
-	return Async<FImageComparisonResult>(EAsyncExecution::Thread, [=] () { return CompareScreenshot(RelativeImagePath); });
+	return Async(EAsyncExecution::Thread, [=] () { return CompareScreenshot(RelativeImagePath); });
 }
 
 FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingImage)
@@ -243,7 +243,7 @@ FImageComparisonResult FScreenShotManager::CompareScreenshot(FString ExistingIma
 
 TFuture<FScreenshotExportResults> FScreenShotManager::ExportComparisonResultsAsync(FString ExportPath)
 {
-	return Async<FScreenshotExportResults>(EAsyncExecution::Thread, [=] () { return ExportComparisonResults(ExportPath); });
+	return Async(EAsyncExecution::Thread, [=] () { return ExportComparisonResults(ExportPath); });
 }
 
 FScreenshotExportResults FScreenShotManager::ExportComparisonResults(FString RootExportFolder)

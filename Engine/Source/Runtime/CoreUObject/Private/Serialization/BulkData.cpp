@@ -804,7 +804,7 @@ void FUntypedBulkData::StartSerializingBulkData(FArchive& Ar, UObject* Owner, in
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FUntypedBulkData::StartSerializingBulkData"), STAT_UBD_StartSerializingBulkData, STATGROUP_Memory);
 	check(SerializeFuture.IsValid() == false);	
 
-	SerializeFuture = Async<bool>(EAsyncExecution::ThreadPool, [=]() 
+	SerializeFuture = Async(EAsyncExecution::ThreadPool, [=]() 
 	{ 
 		AsyncLoadBulkData(); 
 		return true;

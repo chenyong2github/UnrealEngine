@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "RequiredProgramMainCPPInclude.h"
 #include "Misc/CommandLine.h"
@@ -7,6 +7,12 @@
 #include "UObject/Object.h"
 #include "Misc/ConfigCacheIni.h"
 
+#include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
+#include "Roles/LiveLinkCameraRole.h"
+#include "Roles/LiveLinkCameraTypes.h"
+#include "Roles/LiveLinkTransformRole.h"
+#include "Roles/LiveLinkTransformTypes.h"
 #include "LiveLinkProvider.h"
 #include "LiveLinkRefSkeleton.h"
 #include "LiveLinkTypes.h"
@@ -290,6 +296,9 @@ struct FLiveLinkStreamedJointHeirarchySubject : IStreamedEntity
 	{
 		JointsToStream.Reset();
 
+		FLiveLinkStaticDataStruct StaticData(FLiveLinkSkeletonStaticData::StaticStruct());
+		FLiveLinkSkeletonStaticData& AnimationData = *StaticData.Cast<FLiveLinkSkeletonStaticData>();
+
 		MItDag::TraversalType traversalType = MItDag::kBreadthFirst;
 		MFn::Type filter = MFn::kJoint;
 
@@ -300,9 +309,6 @@ struct FLiveLinkStreamedJointHeirarchySubject : IStreamedEntity
 		//Build Hierarchy
 		TArray<int32> ParentIndexStack;
 		ParentIndexStack.SetNum(100, false);
-
-		TArray<FName> JointNames;
-		TArray<int32> JointParents;
 
 		int32 Index = 0;
 
@@ -326,17 +332,19 @@ struct FLiveLinkStreamedJointHeirarchySubject : IStreamedEntity
 			FName JointName(JointObject.name().asChar());
 
 			JointsToStream.Add(FStreamHierarchy(JointName, JointPath, ParentIndex));
-			JointNames.Add(JointName);
-			JointParents.Add(ParentIndex);
+			AnimationData.BoneNames.Add(JointName);
+			AnimationData.BoneParents.Add(ParentIndex);
 		}
 
-		LiveLinkProvider->UpdateSubject(SubjectName, JointNames, JointParents);
+		LiveLinkProvider->UpdateSubjectStaticData(SubjectName, ULiveLinkAnimationRole::StaticClass(), MoveTemp(StaticData));
 	}
 
 	virtual void OnStream(double StreamTime, int32 FrameNumber)
 	{
-		TArray<FTransform> JointTransforms;
-		JointTransforms.Reserve(JointsToStream.Num());
+		FLiveLinkFrameDataStruct FrameData(FLiveLinkAnimationFrameData::StaticStruct());
+		FLiveLinkAnimationFrameData& AnimationData = *FrameData.Cast<FLiveLinkAnimationFrameData>();
+
+		AnimationData.Transforms.Reserve(JointsToStream.Num());
 
 		TArray<MMatrix> InverseScales;
 		InverseScales.Reserve(JointsToStream.Num());
@@ -359,44 +367,11 @@ struct FLiveLinkStreamedJointHeirarchySubject : IStreamedEntity
 				ParentInverseScale *
 				GetTranslation(H.JointObject);
 
-			//OutputRotation(GetRotation(jointObject, RotOrder));
-			//OutputRotation(GetRotationOrientation(jointObject, RotOrder));
-			//OutputRotation(GetJointOrientation(jointObject, RotOrder));
-			//OutputRotation(TempJointMatrix);
-
-			JointTransforms.Add(BuildUETransformFromMayaTransform(MayaSpaceJointMatrix));
+			AnimationData.Transforms.Add(BuildUETransformFromMayaTransform(MayaSpaceJointMatrix));
 		}
 
-		TArray<FLiveLinkCurveElement> Curves;
-
-#if 0
-		double CurFrame = CurrentTime.value();
-		double CurveValue = CurFrame / 200.0;
-
-		Curves.AddDefaulted();
-		Curves[0].CurveName = FName(TEXT("Test"));
-		Curves[0].CurveValue = static_cast<float>(FMath::Clamp(CurveValue, 0.0, 1.0));
-
-		if (CurFrame > 100.0)
-		{
-			double Curve2Value = (CurFrame - 100.0) / 100.0;
-			Curves.AddDefaulted();
-			Curves[1].CurveName = FName(TEXT("Test2"));
-			Curves[1].CurveValue = static_cast<float>(FMath::Clamp(Curve2Value, 0.0, 1.0));
-		}
-		//MGlobal::displayInfo(MString("CURVE TEST:") + CurFrame + " " + CurveValue);
-
-		if (CurFrame > 201.0)
-		{
-			LiveLinkProvider->ClearSubject(SubjectToStream.SubjectName);
-		}
-		else
-		{
-			LiveLinkProvider->UpdateSubjectFrame(SubjectToStream.SubjectName, JointTransforms, Curves, StreamTime);
-		}
-#else
-		LiveLinkProvider->UpdateSubjectFrame(SubjectName, JointTransforms, Curves, StreamTime);
-#endif
+		AnimationData.WorldTime = StreamTime;
+		LiveLinkProvider->UpdateSubjectFrameData(SubjectName, MoveTemp(FrameData));
 	}
 
 private:
@@ -415,7 +390,13 @@ public:
 
 	virtual void RebuildSubjectData()
 	{
-		LiveLinkProvider->UpdateSubject(SubjectName, ActiveCameraBoneNames, ActiveCameraBoneParents);
+		FLiveLinkStaticDataStruct StaticData(FLiveLinkCameraStaticData::StaticStruct());
+		FLiveLinkCameraStaticData& CameraData = *StaticData.Cast<FLiveLinkCameraStaticData>();
+		CameraData.bIsFieldOfViewSupported = true;
+		CameraData.bIsAspectRatioSupported = true;
+		CameraData.bIsFocalLengthSupported = true;
+		CameraData.bIsProjectionModeSupported = true;
+		LiveLinkProvider->UpdateSubjectStaticData(SubjectName, ULiveLinkCameraRole::StaticClass(), MoveTemp(StaticData));
 	}
 
 	void StreamCamera(MDagPath CameraPath, double StreamTime, int32 FrameNumber)
@@ -435,12 +416,20 @@ public:
 			SetMatrixRow(CameraTransformMatrix[2], C.upDirection(MSpace::kWorld));
 			SetMatrixRow(CameraTransformMatrix[3], EyeLocation);
 
-			TArray<FTransform> CameraTransform = { BuildUETransformFromMayaTransform(CameraTransformMatrix) };
-			// Convert Maya Camera orientation to Unreal
-			CameraTransform[0].SetRotation(CameraTransform[0].GetRotation() * FRotator(0.f, -90.f, 0.f).Quaternion());
-			TArray<FLiveLinkCurveElement> Curves;
+			FLiveLinkFrameDataStruct FrameData(FLiveLinkCameraFrameData::StaticStruct());
+			FLiveLinkCameraFrameData& CameraData = *FrameData.Cast<FLiveLinkCameraFrameData>();
 
-			LiveLinkProvider->UpdateSubjectFrame(SubjectName, CameraTransform, Curves, StreamTime);
+			CameraData.FieldOfView = C.horizontalFieldOfView();
+			CameraData.AspectRatio = C.aspectRatio();
+			CameraData.FocalLength = C.focalLength();
+			CameraData.ProjectionMode = C.isOrtho() ? ELiveLinkCameraProjectionMode::Orthographic : ELiveLinkCameraProjectionMode::Perspective;
+
+			CameraData.Transform = BuildUETransformFromMayaTransform(CameraTransformMatrix);
+			// Convert Maya Camera orientation to Unreal
+			CameraData.Transform.SetRotation(CameraData.Transform.GetRotation() * FRotator(0.f, -90.f, 0.f).Quaternion());
+			CameraData.WorldTime = StreamTime;
+
+			LiveLinkProvider->UpdateSubjectFrameData(SubjectName, MoveTemp(FrameData));
 		}
 	}
 
@@ -516,7 +505,8 @@ public:
 
 	virtual void RebuildSubjectData()
 	{
-		LiveLinkProvider->UpdateSubject(SubjectName, PropBoneNames, PropBoneParents);
+		FLiveLinkStaticDataStruct StaticData(FLiveLinkTransformStaticData::StaticStruct());
+		LiveLinkProvider->UpdateSubjectStaticData(SubjectName, ULiveLinkTransformRole::StaticClass(), MoveTemp(StaticData));
 	}
 
 	virtual void OnStream(double StreamTime, int32 FrameNumber)
@@ -525,11 +515,13 @@ public:
 
 		MMatrix Transform = TransformNode.transformation().asMatrix();
 
-		TArray<FTransform> UETransforms = { BuildUETransformFromMayaTransform(Transform) };
-		// Convert Maya Camera orientation to Unreal
-		TArray<FLiveLinkCurveElement> Curves;
+		FLiveLinkFrameDataStruct FrameData(FLiveLinkTransformFrameData::StaticStruct());
+		FLiveLinkTransformFrameData& TransformData = *FrameData.Cast<FLiveLinkTransformFrameData>();
 
-		LiveLinkProvider->UpdateSubjectFrame(SubjectName, UETransforms, Curves, StreamTime);
+		// Convert Maya Camera orientation to Unreal
+		TransformData.Transform = BuildUETransformFromMayaTransform(Transform);
+		TransformData.WorldTime = StreamTime;
+		LiveLinkProvider->UpdateSubjectFrameData(SubjectName, MoveTemp(FrameData));
 	}
 
 private:
