@@ -20,8 +20,8 @@ public:
 	FNiagaraRendererSprites(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 
 	//FNiagaraRenderer interface
-	virtual void CreateRenderThreadResources()override;
-	virtual void ReleaseRenderThreadResources()override;
+	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)override;
+	virtual void ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)override;
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
@@ -55,6 +55,7 @@ private:
 		const FSceneViewFamily& ViewFamily,
 		const FNiagaraSceneProxy *SceneProxy,
 		FNiagaraDynamicDataSprites *DynamicDataSprites,
+		uint32 IndirectArgsOffset,
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources) const;
 

@@ -96,6 +96,7 @@ struct FMeshBatchElement
 	int8 VisualizeElementIndex;
 #endif
 	FVertexBufferRHIParamRef IndirectArgsBuffer;
+	uint32 IndirectArgsOffset;
 
 	FMeshBatchElement()
 	:	PrimitiveUniformBuffer(nullptr)
@@ -121,6 +122,7 @@ struct FMeshBatchElement
 	,	VisualizeElementIndex(INDEX_NONE)
 #endif
 	,	IndirectArgsBuffer(nullptr)
+	,	IndirectArgsOffset(0)
 	{
 	}
 };
