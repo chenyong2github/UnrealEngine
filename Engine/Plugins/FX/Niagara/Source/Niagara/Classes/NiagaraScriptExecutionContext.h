@@ -233,8 +233,6 @@ struct FNiagaraComputeInstanceData
 	//Buffer into which we'll write the new simulation state. Initialized at the start of processing this tick on the RT.
 	FNiagaraDataBuffer* DestinationData;
 
-	bool bIsFinalTick;
-
 	FNiagaraComputeInstanceData()
 		: EventSpawnTotal(0)
 		, SpawnRateInstances(0)
@@ -242,7 +240,6 @@ struct FNiagaraComputeInstanceData
 		, Context(nullptr)
 		, CurrentData(nullptr)
 		, DestinationData(nullptr)
-		, bIsFinalTick(false)
 	{}
 };
 
@@ -282,4 +279,5 @@ public:
 	uint8* InstanceData_ParamData_Packed;
 	bool bRequiredDistanceFieldData = false;
 	bool bNeedsReset = false;
+	bool bIsFinalTick = false;
 };
