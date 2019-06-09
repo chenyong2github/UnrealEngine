@@ -2,6 +2,7 @@
 
 #include "NiagaraGPUInstanceCountManager.h"
 #include "NiagaraStats.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 int32 GNiagaraMinGPUInstanceCount = 2048;
 static FAutoConsoleVariableRef CVarNiagaraMinGPUInstanceCount(
