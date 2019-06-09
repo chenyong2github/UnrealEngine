@@ -658,11 +658,9 @@ public:
 
 protected:
 	/** Current object being debugged for this blueprint */
-	UPROPERTY(transient, duplicatetransient)
 	TWeakObjectPtr< class UObject > CurrentObjectBeingDebugged;
 
 	/** Current world being debugged for this blueprint */
-	UPROPERTY(transient, duplicatetransient)
 	TWeakObjectPtr< class UWorld > CurrentWorldBeingDebugged;
 
 	/** Delegate called when the debug object is set */
