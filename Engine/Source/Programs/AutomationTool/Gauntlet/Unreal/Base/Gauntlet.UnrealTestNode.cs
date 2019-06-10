@@ -540,7 +540,13 @@ namespace Gauntlet
 		{
 			TestInstance = UnrealApp.RestartSession();
 
-			return TestInstance != null;
+			bool bWasRestarted = (TestInstance != null);
+			if (bWasRestarted)
+			{
+				MarkTestStarted();
+			}
+
+			return bWasRestarted;
 		}
 
 		/// <summary>
