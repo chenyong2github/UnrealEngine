@@ -162,9 +162,35 @@ private:
 
 	enum class ETrackType { Master, Object };
 
+	/**
+	 * Create or update a track node for the specified track object, updating its serial number.
+	 *
+	 * @param Track                   Pointer to the track to create or update a node for
+	 * @param TrackType               Whether this track is a master track or contained within an object
+	 * @return A shared pointer to a track node with its serial number updated. Will return nullptr for tracks that are forcibly hidden through FSequencer::IsTrackVisible.
+	 */
 	TSharedPtr<FSequencerTrackNode> CreateOrUpdateTrack(UMovieSceneTrack* Track, ETrackType TrackType);
-	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene);
-	TSharedPtr<FSequencerObjectBindingNode> CreateOrUpdateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding, const UMovieScene* InMovieScene);
+
+	/**
+	 * Create or update a folder node for the specified folder and all its decendent child folders and object bindings, updating their serial numbers in the process
+	 *
+	 * @param Folder                  Pointer to the movie scene folder to create a node for
+	 * @param AllBindings             A map from guid to binding pointer for all the bindings in the sequence
+	 * @param ChildToParentBinding    Child to parent GUID map used for creating parent items
+	 * @return A shared reference to a folder node. The resulting node's serial number will always be up-to-date, as will all its child folders, and any immediate child object bindings.
+	 */
+	TSharedRef<FSequencerFolderNode> CreateOrUpdateFolder(UMovieSceneFolder* Folder, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding);
+
+	/**
+	 * Find an existing object binding node (or create a new one) for the specified binding ID without updating its tree serial number, creating any parent object binding nodes in the process.
+	 * @note: Will only update FSequencerDisplayNode::TreeSerialNumber for object bindings that have a known and valid parent object binding.
+	 *
+	 * @param BindingID               The Guid of the object binding within UMovieScene::GetBindings
+	 * @param AllBindings             A map from guid to binding pointer for all the bindings in the sequence
+	 * @param ChildToParentBinding    Child to parent GUID map used for creating parent items
+	 * @return A shared pointer to an object binding node or nullptr if the supplied BindingID was not valid for this sequence. The resulting node's serial number will be up-to-date if it is a child of another binding, or it was previously added to a folder.
+	 */
+	TSharedPtr<FSequencerObjectBindingNode> FindOrCreateObjectBinding(const FGuid& BindingID, const TSortedMap<FGuid, const FMovieSceneBinding*>& AllBindings, const TSortedMap<FGuid, FGuid>& ChildToParentBinding);
 
 	/**
 	 * Creates section handles for all the sections contained in the specified track
