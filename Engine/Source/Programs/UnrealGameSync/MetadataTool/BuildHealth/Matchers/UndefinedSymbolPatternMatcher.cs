@@ -70,6 +70,9 @@ namespace MetadataTool
 			{
 				string SymbolName = SymbolMatch;
 
+				// Remove any __declspec qualifiers
+				SymbolName = Regex.Replace(SymbolName, "(?<![^a-zA-Z_])__declspec\\([^\\)]+\\)", "");
+
 				// Remove any argument lists for functions (anything after the first paren)
 				SymbolName = Regex.Replace(SymbolName, "\\(.*$", "");
 
