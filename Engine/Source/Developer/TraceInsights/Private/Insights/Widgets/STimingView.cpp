@@ -219,8 +219,10 @@ void STimingView::Reset()
 
 	LoadingGetEventNameFn = FLoadingTrackGetEventNameDelegate::CreateRaw(this, &STimingView::GetLoadTimeProfilerEventName);
 
-	EventAggregationStr.Reset();
-	ObjectTypeAggregationStr.Reset();
+	EventAggregationTotalCount = 0;
+	EventAggregation.Reset();
+	ObjectTypeAggregationTotalCount = 0;
+	ObjectTypeAggregation.Reset();
 
 	IoOverviewTrack = nullptr;
 	IoActivityTrack = nullptr;
@@ -523,7 +525,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 					if (!CachedTimelines.Contains(TrackId))
 					{
-						FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u")));
+						FString TrackName(ThreadInfo.Name && *ThreadInfo.Name ? ThreadInfo.Name : FString::Printf(TEXT("Thread %u"), ThreadInfo.Id));
 
 						// Create new Timing Events track for the CPU thread.
 						Track = AddTimingEventsTrack(TrackId, ETimingEventsTrackType::Cpu, TrackName, GroupName, Order);
@@ -1151,7 +1153,15 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 				const float ValueX = X + ValueOffsetX;
 
 				constexpr float LineH = 14.0f;
-				constexpr float H = 10 * LineH;
+				float H = 5 * LineH;
+				if (Package)
+				{
+					H += 3 * LineH;
+				}
+				if (Export)
+				{
+					H += 2 * LineH;
+				}
 				const float MaxY = FMath::Max(0.0f, Viewport.Height - H - 18.0f);
 				float Y = FMath::Clamp<float>(MousePosition.Y + 18.0f, 0.0f, MaxY);
 
@@ -1186,7 +1196,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 				DrawContext.DrawText(ValueX, Y, DepthStr, MainFont, ValueColor);
 				Y += LineH;
 
-				DrawContext.DrawText(X, Y, TEXT("Package Type:"), MainFont, TextColor);
+				DrawContext.DrawText(X, Y, TEXT("Package Event:"), MainFont, TextColor);
 				DrawContext.DrawText(ValueX, Y, GetName(HoveredTimingEvent.LoadingInfo.PackageEventType), MainFont, ValueColor);
 				Y += LineH;
 
@@ -1208,7 +1218,7 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 				}
 
 				{
-					DrawContext.DrawText(X, Y, TEXT("Export Type:"), MainFont, TextColor);
+					DrawContext.DrawText(X, Y, TEXT("Export Event:"), MainFont, TextColor);
 					FString ExportTypeStr = FString::Printf(TEXT("%s%s"), GetName(HoveredTimingEvent.LoadingInfo.ExportEventType), Export && Export->IsAsset ? TEXT(" [asset]") : TEXT(""));
 					DrawContext.DrawText(ValueX, Y, ExportTypeStr, MainFont, ValueColor);
 					Y += LineH;
@@ -1239,40 +1249,170 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	if (bAssetLoadingMode)
 	{
-		const FLinearColor BackgroundColor(0.01f, 0.01f, 0.01f, 0.9f);
-		const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 0.9f);
-
 		constexpr float MarginX = 8.0f;
 		constexpr float MarginY = 8.0f;
 
-		constexpr float BorderX = 4.0f;
-		constexpr float BorderY = 4.0f;
+		const float X = ViewWidth - MarginX;
 		float Y = ViewHeight;
 
-		if (ObjectTypeAggregationStr.Len() > 0)
+		if (ObjectTypeAggregation.Num() > 0)
 		{
-			FVector2D TextSize = FontMeasureService->Measure(ObjectTypeAggregationStr, MainFont);
-			const float X = ViewWidth - MarginX - TextSize.X - 2 * BorderX;
-			Y -= MarginY + TextSize.Y + 2 * BorderY;
-			DrawContext.DrawBox(X, Y, TextSize.X + 2 * BorderX, TextSize.Y + 2 * BorderY, WhiteBrush, BackgroundColor);
-			DrawContext.LayerId++;
-			DrawContext.DrawText(X + BorderX, Y + BorderY, ObjectTypeAggregationStr, MainFont, TextColor);
-			DrawContext.LayerId++;
+			Y -= MarginY;
+			Y -= DrawAssetLoadingAggregationTable(DrawContext, X, Y, TEXT("Object Type Aggregation"), ObjectTypeAggregation, ObjectTypeAggregationTotalCount);
 		}
 
-		if (EventAggregationStr.Len() > 0)
+		if (EventAggregation.Num() > 0)
 		{
-			FVector2D TextSize = FontMeasureService->Measure(EventAggregationStr, MainFont);
-			const float X = ViewWidth - MarginX - TextSize.X - 2 * BorderX;
-			Y -= MarginY + TextSize.Y + 2 * BorderY;
-			DrawContext.DrawBox(X, Y, TextSize.X + 2 * BorderX, TextSize.Y + 2 * BorderY, WhiteBrush, BackgroundColor);
-			DrawContext.LayerId++;
-			DrawContext.DrawText(X + BorderX, Y + BorderY, EventAggregationStr, MainFont, TextColor);
-			DrawContext.LayerId++;
+			Y -= MarginY;
+			Y -= DrawAssetLoadingAggregationTable(DrawContext, X, Y, TEXT("Event Aggregation"), EventAggregation, EventAggregationTotalCount);
 		}
 	}
 
 	return SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled && IsEnabled());
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+float STimingView::DrawAssetLoadingAggregationTable(FDrawContext& DrawContext, float RightX, float BottomY, const TCHAR* TableName, const TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32 TotalRowCount) const
+{
+	const FLinearColor BackgroundColor(0.01f, 0.01f, 0.01f, 0.9f);
+	const FLinearColor TextColorHeader(0.5f, 0.5f, 0.5f, 0.9f);
+	const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 0.9f);
+
+	constexpr float BorderX = 4.0f;
+	constexpr float BorderY = 4.0f;
+
+	constexpr float LineH = 14.0f;
+
+	float TableHeight = (2 + Aggregation.Num()) * LineH;
+	if (Aggregation.Num() < TotalRowCount)
+	{
+		TableHeight += LineH; // for the "[...]" line
+	}
+
+	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	float MaxNameWidth = 140.0f;
+	for (const FAssetLoadingEventAggregationRow& Row : Aggregation)
+	{
+		float NameWidth = FontMeasureService->Measure(Row.Name, MainFont).X;
+		if (NameWidth > MaxNameWidth)
+		{
+			MaxNameWidth = NameWidth;
+		}
+	}
+	float NameColumnWidth = MaxNameWidth + 5.0f;
+
+	constexpr float RowNumberColumnWidth = 20.0f;
+	constexpr float CountColumnWidth = 50.0f;
+	constexpr float TotalColumnWidth = 65.0f;
+	constexpr float MinColumnWidth = 60.0f;
+	constexpr float MaxColumnWidth = 60.0f;
+	constexpr float AvgColumnWidth = 60.0f;
+	constexpr float MedColumnWidth = 60.0f;
+
+	const float TableWidth = RowNumberColumnWidth
+						   + NameColumnWidth
+						   + CountColumnWidth
+						   + TotalColumnWidth
+						   + MaxColumnWidth
+						   + AvgColumnWidth
+						   + MedColumnWidth
+						   + MinColumnWidth;
+
+	float W = TableWidth + 2 * BorderX;
+	float H = TableHeight + 2 * BorderY;
+
+	float Y = BottomY - H;
+
+	DrawContext.DrawBox(RightX - W, Y, W, H, WhiteBrush, BackgroundColor);
+	DrawContext.LayerId++;
+	Y += BorderY;
+
+	const float TableX = RightX - W + BorderX;
+
+	// Table name
+	{
+		FString TableNameRow = FString::Printf(TEXT("%s (%d records, sorted by Total time)"), TableName, TotalRowCount);
+		DrawContext.DrawText(TableX, Y, TableNameRow, MainFont, TextColor);
+		Y += LineH;
+	}
+
+	// Column names
+	{
+		float X = TableX;
+
+		X += RowNumberColumnWidth;
+
+		DrawContext.DrawText(X, Y, TEXT("Name"), MainFont, TextColorHeader);
+		X += NameColumnWidth;
+
+		X += CountColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Count"), MainFont, TextColorHeader);
+
+		X += TotalColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Total"), MainFont, TextColorHeader);
+
+		X += MaxColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Max [ms]"), MainFont, TextColorHeader);
+
+		X += AvgColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Avg [ms]"), MainFont, TextColorHeader);
+
+		X += MedColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Med [ms]"), MainFont, TextColorHeader);
+
+		X += MinColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TEXT("Min [ms]"), MainFont, TextColorHeader);
+
+		Y += LineH;
+	}
+
+	// Records
+	for (int32 Index = 0; Index < Aggregation.Num(); ++Index)
+	{
+		constexpr int32 NumDigits = 2;
+		constexpr bool bAddTimeUnit = false;
+
+		const FAssetLoadingEventAggregationRow& Row = Aggregation[Index];
+
+		float X = TableX;
+
+		X += RowNumberColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X - 4.0f, Y, FString::Printf(TEXT("%d."), Index + 1), MainFont, TextColorHeader);
+
+		DrawContext.DrawText(X, Y, Row.Name, MainFont, TextColor);
+		X += NameColumnWidth;
+
+		X += CountColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, FText::AsNumber(Row.Count).ToString(), MainFont, TextColor);
+
+		X += TotalColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeAuto(Row.Total), MainFont, TextColor);
+
+		X += MaxColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Max, NumDigits, bAddTimeUnit), MainFont, TextColor);
+
+		X += AvgColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Avg, NumDigits, bAddTimeUnit), MainFont, TextColor);
+
+		X += MedColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Med, NumDigits, bAddTimeUnit), MainFont, TextColor);
+
+		X += MinColumnWidth;
+		DrawContext.DrawTextAligned(HAlign_Right, X, Y, TimeUtils::FormatTimeMs(Row.Min, NumDigits, bAddTimeUnit), MainFont, TextColor);
+
+		Y += LineH;
+	}
+
+	if (Aggregation.Num() < TotalRowCount)
+	{
+		DrawContext.DrawText(TableX, Y, TEXT("[...]"), MainFont, TextColorHeader);
+		Y += LineH;
+	}
+
+	DrawContext.LayerId++;
+
+	return H;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2026,8 +2166,8 @@ FReply STimingView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointe
 				SelectionEndTime = SelectionStartTime;
 				LastSelectionType = ESelectionType::None;
 				//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-				EventAggregationStr.Reset();
-				ObjectTypeAggregationStr.Reset();
+				EventAggregation.Reset();
+				ObjectTypeAggregation.Reset();
 			}
 
 			// Capture mouse, so we can drag outside this widget.
@@ -2115,8 +2255,8 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 					SelectionEndTime = SelectionStartTime = 0.0;
 					LastSelectionType = ESelectionType::None;
 					//TODO: SelectionChangedEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-					EventAggregationStr.Reset();
-					ObjectTypeAggregationStr.Reset();
+					EventAggregation.Reset();
+					ObjectTypeAggregation.Reset();
 				}
 			}
 
@@ -2226,8 +2366,8 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			}
 			LastSelectionType = ESelectionType::TimeRange;
 			//TODO: SelectionChangingEvent.Broadcast(SelectionStartTime, SelectionEndTime);
-			EventAggregationStr.Reset();
-			ObjectTypeAggregationStr.Reset();
+			EventAggregation.Reset();
+			ObjectTypeAggregation.Reset();
 		}
 
 		Reply = FReply::Handled();
@@ -2844,16 +2984,12 @@ void STimingView::UpdateAggregatedStats()
 		TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
 		if (Session.IsValid() && Trace::ReadLoadTimeProfilerProvider(*Session.Get()))
 		{
-			auto TableToString = [](const TCHAR* TableName, Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* Table) -> FString
+			auto ReadTable = [](Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* Table, TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32& TotalRowCount)
 			{
-				FString Str;
+				TotalRowCount = Table->GetRowCount();
 
-				const uint32 TotalRowCount = static_cast<uint32>(Table->GetRowCount());
-
-				Str.Append(TableName).Append(": ").Append(FText::AsNumber(TotalRowCount).ToString()).Append(" records, sorted by Total time");
-
-				constexpr uint32 MaxRowCount = 10; // only get first 10 records
-				const uint32 RowCount = FMath::Min<uint32>(TotalRowCount, MaxRowCount);
+				constexpr int32 MaxRowCount = 10; // only get first 10 records
+				const int32 RowCount = FMath::Min(TotalRowCount, MaxRowCount);
 
 				const Trace::ITableLayout& TableLayout = Table->GetLayout();
 				const int32 ColumnCount = TableLayout.GetColumnCount();
@@ -2864,17 +3000,17 @@ void STimingView::UpdateAggregatedStats()
 
 				struct FSortedIndexEntry
 				{
-					uint32 RowIndex;
+					int32 RowIndex;
 					double Value;
 				};
 
 				TArray<FSortedIndexEntry> SortedIndex;
 				SortedIndex.Reserve(TotalRowCount);
 
-				constexpr uint32 TotalTimeColumnIndex = 2;
+				constexpr int32 TotalTimeColumnIndex = 2;
 				ensure(TableLayout.GetColumnType(TotalTimeColumnIndex) == Trace::ETableColumnType::TableColumnType_Double);
 
-				for (uint32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
+				for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
 				{
 					Reader->SetRowIndex(RowIndex);
 					double Value = Reader->GetValueDouble(TotalTimeColumnIndex);
@@ -2885,47 +3021,43 @@ void STimingView::UpdateAggregatedStats()
 
 				//////////////////////////////////////////////////
 
-				for (uint32 Index = 0; Index < RowCount; ++Index)
+				Aggregation.Reset();
+				Aggregation.AddDefaulted(RowCount);
+
+				for (int32 Index = 0; Index < RowCount; ++Index)
 				{
-					uint32 RowIndex = SortedIndex[Index].RowIndex;
+					FAssetLoadingEventAggregationRow& Row = Aggregation[Index];
+
+					int32 RowIndex = SortedIndex[Index].RowIndex;
 					Reader->SetRowIndex(RowIndex);
 
-					Str.Append("\n").Append(FText::AsNumber(Index + 1).ToString()).Append(". ");
-
+					ensure(ColumnCount == 7);
 					for (int32 ColumnIndex = 0; ColumnIndex < ColumnCount; ++ColumnIndex)
 					{
-						Str.Append(TableLayout.GetColumnName(ColumnIndex)).Append("=");
+						ensure(TableLayout.GetColumnType(0) == Trace::ETableColumnType::TableColumnType_CString);
+						Row.Name = Reader->GetValueCString(0);
 
-						Trace::ETableColumnType ColumnType = TableLayout.GetColumnType(ColumnIndex);
-						switch (ColumnType)
-						{
-						case Trace::ETableColumnType::TableColumnType_Bool:
-							Str.Append(Reader->GetValueBool(ColumnIndex) ? TEXT("True") : TEXT("False")).Append(", ");
-							break;
-						case Trace::ETableColumnType::TableColumnType_Int:
-							Str.Append(FText::AsNumber(Reader->GetValueInt(ColumnIndex)).ToString()).Append(", ");
-							break;
-						case Trace::ETableColumnType::TableColumnType_Float:
-							Str.Append(FText::AsNumber(Reader->GetValueFloat(ColumnIndex)).ToString()).Append(", ");
-							break;
-						case Trace::ETableColumnType::TableColumnType_Double:
-							Str.Append(FText::AsNumber(Reader->GetValueDouble(ColumnIndex)).ToString()).Append(", ");
-							break;
-						case Trace::ETableColumnType::TableColumnType_CString:
-							Str.Append(Reader->GetValueCString(ColumnIndex)).Append(", ");
-							break;
-						}
+						ensure(TableLayout.GetColumnType(1) == Trace::ETableColumnType::TableColumnType_Int);
+						Row.Count = Reader->GetValueInt(1);
+
+						ensure(TableLayout.GetColumnType(2) == Trace::ETableColumnType::TableColumnType_Double);
+						Row.Total = Reader->GetValueDouble(2);
+
+						ensure(TableLayout.GetColumnType(3) == Trace::ETableColumnType::TableColumnType_Double);
+						Row.Min = Reader->GetValueDouble(3);
+
+						ensure(TableLayout.GetColumnType(4) == Trace::ETableColumnType::TableColumnType_Double);
+						Row.Max = Reader->GetValueDouble(4);
+
+						ensure(TableLayout.GetColumnType(5) == Trace::ETableColumnType::TableColumnType_Double);
+						Row.Avg = Reader->GetValueDouble(5);
+
+						ensure(TableLayout.GetColumnType(6) == Trace::ETableColumnType::TableColumnType_Double);
+						Row.Med = Reader->GetValueDouble(6);
 					}
 				}
 
-				if (RowCount != TotalRowCount)
-				{
-					Str.Append("\n[...]");
-				}
-
 				delete Reader;
-
-				return Str;
 			};
 
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
@@ -2934,13 +3066,13 @@ void STimingView::UpdateAggregatedStats()
 
 			{
 				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* EventAggregationTable = LoadTimeProfilerProvider.CreateEventAggregation(SelectionStartTime, SelectionEndTime);
-				EventAggregationStr = TableToString(TEXT("Event Aggregation"), EventAggregationTable);
+				ReadTable(EventAggregationTable, EventAggregation, EventAggregationTotalCount);
 				delete EventAggregationTable;
 			}
 
 			{
 				Trace::ITable<Trace::FLoadTimeProfilerAggregatedStats>* ObjectTypeAggregationTable = LoadTimeProfilerProvider.CreateObjectTypeAggregation(SelectionStartTime, SelectionEndTime);
-				ObjectTypeAggregationStr = TableToString(TEXT("Object Type Aggregation"), ObjectTypeAggregationTable);
+				ReadTable(ObjectTypeAggregationTable, ObjectTypeAggregation, ObjectTypeAggregationTotalCount);
 				delete ObjectTypeAggregationTable;
 			}
 		}

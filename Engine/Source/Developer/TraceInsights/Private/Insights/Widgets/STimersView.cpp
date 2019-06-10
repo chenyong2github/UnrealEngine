@@ -29,16 +29,25 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const EColumnSortMode::Type STimersView::DefaultColumnSortMode(EColumnSortMode::Descending);
-const FName STimersView::DefaultColumnBeingSorted(FTimersViewColumns::TotalInclusiveTimeColumnID);
+const EColumnSortMode::Type STimersView::GetDefaultColumnSortMode()
+{
+	return EColumnSortMode::Descending;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FName STimersView::GetDefaultColumnBeingSorted()
+{
+	return FTimersViewColumns::TotalInclusiveTimeColumnID;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 STimersView::STimersView()
 	: bExpansionSaved(false)
 	, GroupingMode(ETimerGroupingMode::ByType)
-	, ColumnSortMode(DefaultColumnSortMode)
-	, ColumnBeingSorted(DefaultColumnBeingSorted)
+	, ColumnSortMode(GetDefaultColumnSortMode())
+	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 {
 	FMemory::Memset(bTimerNodeIsVisible, 1);
 }
@@ -1189,12 +1198,7 @@ bool STimersView::HeaderMenu_SortMode_IsChecked(const FName ColumnId, const ECol
 bool STimersView::HeaderMenu_SortMode_CanExecute(const FName ColumnId, const EColumnSortMode::Type InSortMode) const
 {
 	const FTimersViewColumn& Column = TreeViewHeaderColumns.FindChecked(ColumnId);
-	const bool bIsValid = Column.bCanBeSorted();
-
-	bool bCanExecute = ColumnBeingSorted != ColumnId ? true : ColumnSortMode != InSortMode;
-	bCanExecute = bCanExecute && bIsValid;
-
-	return bCanExecute;
+	return Column.bCanBeSorted();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1218,7 +1222,7 @@ bool STimersView::ContextMenu_SortMode_IsChecked(const EColumnSortMode::Type InS
 
 bool STimersView::ContextMenu_SortMode_CanExecute(const EColumnSortMode::Type InSortMode) const
 {
-	return ColumnSortMode != InSortMode;
+	return true; //ColumnSortMode != InSortMode;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1242,7 +1246,7 @@ bool STimersView::ContextMenu_SortByColumn_IsChecked(const FName ColumnId)
 
 bool STimersView::ContextMenu_SortByColumn_CanExecute(const FName ColumnId) const
 {
-	return ColumnId != ColumnBeingSorted;
+	return true; //ColumnId != ColumnBeingSorted;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1318,8 +1322,8 @@ bool STimersView::ContextMenu_ShowAllColumns_CanExecute() const
 
 void STimersView::ContextMenu_ShowAllColumns_Execute()
 {
-	ColumnSortMode = DefaultColumnSortMode;
-	ColumnBeingSorted = DefaultColumnBeingSorted;
+	ColumnSortMode = GetDefaultColumnSortMode();
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 
 	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)
@@ -1399,8 +1403,8 @@ bool STimersView::ContextMenu_ResetColumns_CanExecute() const
 
 void STimersView::ContextMenu_ResetColumns_Execute()
 {
-	ColumnSortMode = DefaultColumnSortMode;
-	ColumnBeingSorted = DefaultColumnBeingSorted;
+	ColumnSortMode = GetDefaultColumnSortMode();
+	ColumnBeingSorted = GetDefaultColumnBeingSorted();
 
 	const int32 NumColumns = FTimersViewColumnFactory::Get().Collection.Num();
 	for (int32 ColumnIndex = 0; ColumnIndex < NumColumns; ColumnIndex++)

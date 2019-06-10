@@ -44,6 +44,18 @@ class STimingView : public SCompoundWidget
 private:
 	static constexpr float MinTooltipWidth = 110.0f;
 
+protected:
+	struct FAssetLoadingEventAggregationRow
+	{
+		FString Name;
+		int32 Count;
+		double Total;
+		double Min;
+		double Max;
+		double Avg;
+		double Med;
+	};
+
 public:
 	/** Default constructor. */
 	STimingView();
@@ -276,7 +288,7 @@ protected:
 	void DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
 	void DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
 
-	void DrawTimeRangeSelection(FDrawContext& DH) const;
+	void DrawTimeRangeSelection(FDrawContext& DrawContext) const;
 
 	void ShowContextMenu(const FVector2D& ScreenSpacePosition, const FPointerEvent& MouseEvent);
 
@@ -302,6 +314,8 @@ protected:
 	void UpdateVerticalScrollBar();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	float DrawAssetLoadingAggregationTable(FDrawContext& DrawContext, float RightX, float BottomY, const TCHAR* TableName, const TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32 TotalRowCount) const;
 
 	void UpdateAggregatedStats();
 
@@ -413,8 +427,11 @@ protected:
 
 	bool bAssetLoadingMode;
 
-	FString EventAggregationStr;
-	FString ObjectTypeAggregationStr;
+	int32 EventAggregationTotalCount;
+	TArray<FAssetLoadingEventAggregationRow> EventAggregation;
+
+	int32 ObjectTypeAggregationTotalCount;
+	TArray<FAssetLoadingEventAggregationRow> ObjectTypeAggregation;
 
 	////////////////////////////////////////////////////////////
 	// File activity (I/O)
