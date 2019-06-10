@@ -52,7 +52,8 @@ void MemoryUnmap(void* Address, SIZE_T Size)
 ////////////////////////////////////////////////////////////////////////////////
 UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
 {
-	DWORD (WINAPI *WinApiThunk)(void*) = [] (void* Param) -> DWORD {
+	DWORD (WINAPI *WinApiThunk)(void*) = [] (void* Param) -> DWORD
+	{
 		typedef void (*EntryType)(void);
 		(EntryType(Param))();
 		return 0;
