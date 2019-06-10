@@ -156,7 +156,7 @@ namespace ShaderPrint
 
 	bool IsEnabled()
 	{
-		return CVarEnable.GetValueOnAnyThread();
+		return CVarEnable.GetValueOnAnyThread() != 0;
 	}
 
 	// Shader to initialize the output value buffer

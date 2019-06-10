@@ -111,7 +111,7 @@ bool ShouldRenderRayTracingTranslucency(const FViewInfo& View)
 	bool bViewWithRaytracingTranslucency = View.FinalPostProcessSettings.TranslucencyType == ETranslucencyType::RayTracing;
 
 	const int32 GRayTracingTranslucency = CVarRayTracingTranslucency.GetValueOnRenderThread();
-	const bool bTranslucencyCvarEnabled = GRayTracingTranslucency < 0 ? bViewWithRaytracingTranslucency : GRayTracingTranslucency;
+	const bool bTranslucencyCvarEnabled = GRayTracingTranslucency < 0 ? bViewWithRaytracingTranslucency : (GRayTracingTranslucency != 0);
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
 	const bool bRayTracingTranslucencyEnabled = (ForceAllRayTracingEffects > 0 || (bTranslucencyCvarEnabled && ForceAllRayTracingEffects < 0));
 
