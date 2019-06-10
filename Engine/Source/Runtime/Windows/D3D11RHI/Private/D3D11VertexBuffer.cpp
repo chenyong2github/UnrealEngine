@@ -127,11 +127,20 @@ void* FD3D11DynamicRHI::RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBuffe
 
 	if(bIsDynamic)
 	{
-		check(LockMode == RLM_WriteOnly);
+		check(LockMode == RLM_WriteOnly || LockMode == RLM_WriteOnly_NoOverwrite);
 
 		// If the buffer is dynamic, map its memory for writing.
 		D3D11_MAPPED_SUBRESOURCE MappedSubresource;
-		VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(VertexBuffer->Resource,0,D3D11_MAP_WRITE_DISCARD,0,&MappedSubresource), Direct3DDevice);
+
+		if (LockMode == RLM_WriteOnly)
+		{
+			VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(VertexBuffer->Resource,0,D3D11_MAP_WRITE_DISCARD,0,&MappedSubresource), Direct3DDevice);
+		}
+		else
+		{
+			VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(VertexBuffer->Resource,0,D3D11_MAP_WRITE_NO_OVERWRITE,0,&MappedSubresource), Direct3DDevice);
+		}
+		
 		LockedData.SetData(MappedSubresource.pData);
 		LockedData.Pitch = MappedSubresource.RowPitch;
 	}

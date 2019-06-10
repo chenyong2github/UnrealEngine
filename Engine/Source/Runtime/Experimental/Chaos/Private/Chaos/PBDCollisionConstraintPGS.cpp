@@ -6,13 +6,11 @@
 #include "Chaos/BoundingVolumeHierarchy.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Pair.h"
-#include "Chaos/PBDContactGraph.h"
+#include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/Transform.h"
 
 #include "ProfilingDebugging/ScopedTimers.h"
-
-#define USE_SHOCK_PROPOGATION 1
 
 using namespace Chaos;
 
@@ -74,14 +72,13 @@ TRigidTransform<T, d> GetTransformPGS(const TPBDRigidParticles<T, d>& InParticle
 }
 
 template<class T, int d>
-TPBDCollisionConstraintPGS<T, d>::TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, TArrayCollectionArray<bool>& Collided, const int32 PushOutIterations /*= 1*/, const int32 PushOutPairIterations /*= 1*/, const T Thickness /*= (T)0*/, const T Restitution /*= (T)0*/, const T Friction /*= (T)0*/)
-    : MCollided(Collided), MContactGraph(InParticles), MNumIterations(PushOutIterations), MPairIterations(PushOutPairIterations), MThickness(Thickness), MRestitution(Restitution), MFriction(Friction), Tolerance(KINDA_SMALL_NUMBER), MaxIterations(10), bUseCCD(false)
+TPBDCollisionConstraintPGS<T, d>::TPBDCollisionConstraintPGS(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, TArrayCollectionArray<bool>& Collided, TArrayCollectionArray<TSerializablePtr<TChaosPhysicsMaterial<T>>>& InPhysicsMaterials, const T Thickness /*= (T)0*/)
+    : MCollided(Collided), MPhysicsMaterials(InPhysicsMaterials), MThickness(Thickness), Tolerance(KINDA_SMALL_NUMBER), MaxIterations(10), bUseCCD(false)
 {
-	MContactGraph.Initialize(InParticles.Size());
 }
 
 template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, const T Dt)
+void TPBDCollisionConstraintPGS<T, d>::ComputeConstraints(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt)
 {
 	double Time = 0;
 	FDurationTimer Timer(Time);
@@ -94,55 +91,80 @@ void TPBDCollisionConstraintPGS<T, d>::ComputeConstraints(const TPBDRigidParticl
 	FCriticalSection CriticalSection;
 	Time = 0;
 	Timer.Start();
-	PhysicsParallelFor(InParticles.Size(), [&](int32 Body1Index) {
-		if (InParticles.Disabled(Body1Index))
-			return;
+	PhysicsParallelFor(InIndices.Num(), [&](int32 Index) {
+		const int32 ParticleIndex = InIndices[Index];
+
 		TArray<int32> PotentialIntersections;
-		TBox<T, d> Box1 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body1Index);
-		if (InParticles.Geometry(Body1Index)->HasBoundingBox())
+		TBox<T, d> Box1;
+		if (InParticles.Geometry(ParticleIndex)->HasBoundingBox())
 		{
+			Box1 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, ParticleIndex);
 			PotentialIntersections = Hierarchy.FindAllIntersections(Box1);
 		}
 		else
 		{
 			PotentialIntersections = Hierarchy.GlobalObjects();
 		}
+
 		for (int32 i = 0; i < PotentialIntersections.Num(); ++i)
 		{
 			int32 Body2Index = PotentialIntersections[i];
-			if (InParticles.InvM(Body1Index) < FLT_MIN && InParticles.InvM(Body2Index) < FLT_MIN)
+
+			// Collision group culling...
+			// CollisionGroup == 0 : Collide_With_Everything
+			// CollisionGroup == INDEX_NONE : Disabled collisions
+			// CollisionGroup_A != CollisionGroup_B : Skip Check
+			if(InParticles.Disabled(Body2Index))
 			{
 				continue;
 			}
-			if (Body1Index == Body2Index || ((InParticles.Geometry(Body1Index)->HasBoundingBox() == InParticles.Geometry(Body2Index)->HasBoundingBox()) && Body2Index > Body1Index))
+				
+			if (InParticles.CollisionGroup(ParticleIndex) == INDEX_NONE || InParticles.CollisionGroup(Body2Index) == INDEX_NONE)
 			{
 				continue;
 			}
-			const auto& Box2 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body2Index);
-			if (InParticles.Geometry(Body1Index)->HasBoundingBox() && InParticles.Geometry(Body2Index)->HasBoundingBox() && !Box1.Intersects(Box2))
+			if (InParticles.CollisionGroup(ParticleIndex) && InParticles.CollisionGroup(Body2Index) && InParticles.CollisionGroup(ParticleIndex) != InParticles.CollisionGroup(Body2Index))
 			{
 				continue;
 			}
-			auto Constraint = ComputeConstraint(InParticles, Body1Index, Body2Index, MThickness);
+
+			if (InParticles.InvM(ParticleIndex) < FLT_MIN && InParticles.InvM(Body2Index) < FLT_MIN)
+			{
+				continue;
+			}
+			if (ParticleIndex == Body2Index || ((InParticles.Geometry(ParticleIndex)->HasBoundingBox() == InParticles.Geometry(Body2Index)->HasBoundingBox()) && Body2Index > ParticleIndex))
+			{
+				continue;
+			}
+			if (InParticles.Geometry(ParticleIndex)->HasBoundingBox() && InParticles.Geometry(Body2Index)->HasBoundingBox())
+			{
+				const auto& Box2 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body2Index);
+				if (!Box1.Intersects(Box2))
+				{
+					continue;
+				}
+			}
+			auto Constraint = ComputeConstraint(InParticles, ParticleIndex, Body2Index, MThickness);
 			CriticalSection.Lock();
-			MConstraints.Add(Constraint);
+			Constraints.Add(Constraint);
 			CriticalSection.Unlock();
 		}
 	});
-	MContactGraph.ComputeGraph(InParticles, MConstraints);
+
 	Timer.Stop();
-	UE_LOG(LogChaos, Verbose, TEXT("\tPBDCollisionConstraint Construct %d Constraints with Potential Collisions %f"), MConstraints.Num(), Time);
+
+	UE_LOG(LogChaos, Verbose, TEXT("\tPBDCollisionConstraint Construct %d Constraints with Potential Collisions %f"), Constraints.Num(), Time);
 }
 
 template<class T, int d>
 void TPBDCollisionConstraintPGS<T, d>::RemoveConstraints(const TSet<uint32>& RemovedParticles)
 {
-	for (int32 i = 0; i < MConstraints.Num(); ++i)
+	for (int32 i = 0; i < Constraints.Num(); ++i)
 	{
-		const auto& Constraint = MConstraints[i];
+		const auto& Constraint = Constraints[i];
 		if (RemovedParticles.Contains(Constraint.ParticleIndex) || RemovedParticles.Contains(Constraint.LevelsetIndex))
 		{
-			MConstraints.RemoveAtSwap(i);
+			Constraints.RemoveAtSwap(i);
 			i--;
 		}
 	}
@@ -176,9 +198,10 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraints(const TPBDRigidParticle
 		if (InParticles.Disabled(Body1Index))
 			return;
 		TArray<int32> PotentialIntersections;
-		TBox<T, d> Box1 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body1Index);
+		TBox<T, d> Box1;
 		if (InParticles.Geometry(Body1Index)->HasBoundingBox())
 		{
+			Box1 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body1Index);
 			PotentialIntersections = Hierarchy.FindAllIntersections(Box1);
 		}
 		else
@@ -193,10 +216,13 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraints(const TPBDRigidParticle
 			{
 				continue;
 			}
-			const auto& Box2 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body2Index);
-			if (InParticles.Geometry(Body1Index)->HasBoundingBox() && InParticles.Geometry(Body2Index)->HasBoundingBox() && !Box1.Intersects(Box2))
+			if (InParticles.Geometry(Body1Index)->HasBoundingBox() && InParticles.Geometry(Body2Index)->HasBoundingBox())
 			{
-				continue;
+				const auto& Box2 = Hierarchy.GetWorldSpaceBoundingBox(InParticles, Body2Index);
+				if (!Box1.Intersects(Box2))
+				{
+					continue;
+				}
 			}
 			
 			if (InParticles.InvM(Body1Index) && InParticles.InvM(Body2Index) && (InParticles.Island(Body1Index) != InParticles.Island(Body2Index)))	//todo(ocohen): this is a hack - we should not even consider dynamics from other islands
@@ -205,12 +231,12 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraints(const TPBDRigidParticle
 			}
 			auto Constraint = ComputeConstraint(InParticles, Body1Index, Body2Index, MThickness);
 			CriticalSection.Lock();
-			MConstraints.Add(Constraint);
+			Constraints.Add(Constraint);
 			CriticalSection.Unlock();
 		}
 	});
 	Timer.Stop();
-	UE_LOG(LogChaos, Verbose, TEXT("\tPBDCollisionConstraint Update %d Constraints with Potential Collisions %f"), MConstraints.Num(), Time);
+	UE_LOG(LogChaos, Verbose, TEXT("\tPBDCollisionConstraint Update %d Constraints with Potential Collisions %f"), Constraints.Num(), Time);
 }
 
 template<class T_PARTICLES, class T, int d>
@@ -236,7 +262,7 @@ void ComputePGSPropeties(const T_PARTICLES& InParticles, const TRigidBodyContact
 
 template<class T, int d>
 template<class T_PARTICLES>
-void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T Dt, const int32 Island)
+void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T Dt, const TArray<int32>& InConstraintIndices)
 {
 	TArray<T> Normals;
 	TArray<TVector<T, d - 1>> Tangents;
@@ -245,12 +271,12 @@ void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T D
 	TArray<TVector<TVector<T, d>, d - 1>> ConstraintTangents;
 	TVector<TArray<T>, d - 1> TangentMultipliers;
 	TVector<TArray<TVector<TVector<T, d>, 2>>, d - 1> TangentAngulars, TangentMassWeightedAngulars;
-	const TArray<int32> IslandConstraints = MContactGraph.GetIslandConstraints(Island).Array();
 
 	int32 NumConstraints = 0;
-	for (int32 ConstraintIndex = 0; ConstraintIndex < IslandConstraints.Num(); ++ConstraintIndex)
+	for (int32 ConstraintIndex : InConstraintIndices)
 	{
-		NumConstraints += MConstraints[IslandConstraints[ConstraintIndex]].Phi.Num();
+		const FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
+		NumConstraints += Constraint.Phi.Num();
 	}
 
 	Normals.SetNumZeroed(NumConstraints);
@@ -267,9 +293,9 @@ void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T D
 	}
 
 	int32 FlattenedIndex = 0;
-	for (int32 ConstraintIndex = 0; ConstraintIndex < IslandConstraints.Num(); ++ConstraintIndex)
+	for (int32 ConstraintIndex : InConstraintIndices)
 	{
-		FRigidBodyContactConstraint& Constraint = MConstraints[IslandConstraints[ConstraintIndex]];
+		FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
 		PMatrix<T, d, d> WorldSpaceInvI1 = (GetRotationPGS(InParticles, Constraint.ParticleIndex) * FMatrix::Identity).GetTransposed() * InParticles.InvI(Constraint.ParticleIndex) * (GetRotationPGS(InParticles, Constraint.ParticleIndex) * FMatrix::Identity);
 		PMatrix<T, d, d> WorldSpaceInvI2 = (GetRotationPGS(InParticles, Constraint.LevelsetIndex) * FMatrix::Identity).GetTransposed() * InParticles.InvI(Constraint.LevelsetIndex) * (GetRotationPGS(InParticles, Constraint.LevelsetIndex) * FMatrix::Identity);
 		for (int32 PointIndex = 0; PointIndex < Constraint.Phi.Num(); ++PointIndex)
@@ -316,9 +342,9 @@ void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T D
 	{
 		Residual = 0;
 		FlattenedIndex = 0;
-		for (int32 ConstraintIndex = 0; ConstraintIndex < IslandConstraints.Num(); ++ConstraintIndex)
+		for (int32 ConstraintIndex : InConstraintIndices)
 		{
-			FRigidBodyContactConstraint& Constraint = MConstraints[IslandConstraints[ConstraintIndex]];
+			FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
 			for (int32 PointIndex = 0; PointIndex < Constraint.Phi.Num(); ++PointIndex)
 			{
 				T Body1NormalVelocity = TVector<T, d>::DotProduct(InParticles.V(Constraint.ParticleIndex), Constraint.Normal[PointIndex]) +
@@ -347,7 +373,10 @@ void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T D
 				InParticles.W(Constraint.LevelsetIndex) += NormalDelta * MassWeightedAngulars[FlattenedIndex][1];
 				// Normal update
 				Normals[FlattenedIndex] = NewNormal;
-				if (MFriction)
+				T Friction = MPhysicsMaterials[Constraint.LevelsetIndex]
+					? FMath::Max(MPhysicsMaterials[Constraint.ParticleIndex]->Friction, MPhysicsMaterials[Constraint.LevelsetIndex]->Friction)
+					: MPhysicsMaterials[Constraint.ParticleIndex]->Friction;
+				if (Friction)
 				{
 					for (int32 Dimension = 0; Dimension < (d - 1); Dimension++)
 					{
@@ -358,9 +387,9 @@ void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T D
 						T RelativeTangentVelocity = Body1TangentVelocity + Body2TangentVelocity;
 						T TangentDelta = -RelativeTangentVelocity / TangentMultipliers[Dimension][FlattenedIndex];
 						T NewTangent = Tangents[FlattenedIndex][Dimension] + TangentDelta;
-						if (FMath::Abs(NewTangent) > MFriction * NewNormal)
+						if (FMath::Abs(NewTangent) > Friction * NewNormal)
 						{
-							NewTangent = MFriction * NewNormal;
+							NewTangent = Friction * NewNormal;
 							if (NewTangent < 0)
 							{
 								NewTangent *= -1;
@@ -386,13 +415,12 @@ void TPBDCollisionConstraintPGS<T, d>::Solve(T_PARTICLES& InParticles, const T D
 }
 
 template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::PrintParticles(const TPBDRigidParticles<T, d>& InParticles, const int32 Island)
+void TPBDCollisionConstraintPGS<T, d>::PrintParticles(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InConstraintIndices)
 {
-	const TArray<int32> IslandConstraints = MContactGraph.GetIslandConstraints(Island).Array();
 	TSet<int32> ConstraintParticles;
-	for (int32 i = 0; i < IslandConstraints.Num(); ++i)
+	for (int32 ConstraintIndex : InConstraintIndices)
 	{
-		FRigidBodyContactConstraint& Constraint = MConstraints[IslandConstraints[i]];
+		const FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
 		if (!ConstraintParticles.Contains(Constraint.ParticleIndex))
 		{
 			ConstraintParticles.Add(Constraint.ParticleIndex);
@@ -409,12 +437,11 @@ void TPBDCollisionConstraintPGS<T, d>::PrintParticles(const TPBDRigidParticles<T
 }
 
 template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::PrintConstraints(const TPBDRigidParticles<T, d>& InParticles, const int32 Island)
+void TPBDCollisionConstraintPGS<T, d>::PrintConstraints(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InConstraintIndices)
 {
-	const TArray<int32> IslandConstraints = MContactGraph.GetIslandConstraints(Island).Array();
-	for (int32 i = 0; i < IslandConstraints.Num(); ++i)
+	for (int32 ConstraintIndex : InConstraintIndices)
 	{
-		FRigidBodyContactConstraint& Constraint = MConstraints[IslandConstraints[i]];
+		const FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
 		UE_LOG(LogChaos, Verbose, TEXT("Constraint between %d and %d has %d contacts"), Constraint.ParticleIndex, Constraint.LevelsetIndex, Constraint.Phi.Num());
 		for (int32 j = 0; j < Constraint.Phi.Num(); ++j)
 		{
@@ -610,11 +637,10 @@ void RemovePointsInsideHull(TRigidBodyContactConstraintPGS<T, d>& Constraint)
 }
 
 template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Island)
+void TPBDCollisionConstraintPGS<T, d>::Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices)
 {
-	const TArray<int32> IslandConstraints = MContactGraph.GetIslandConstraints(Island).Array();
-	PhysicsParallelFor(IslandConstraints.Num(), [&](int32 ConstraintIndex) {
-		FRigidBodyContactConstraint& Constraint = MConstraints[IslandConstraints[ConstraintIndex]];
+	PhysicsParallelFor(InConstraintIndices.Num(), [&](int32 ConstraintIndex) {
+		FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
 		if (InParticles.Sleeping(Constraint.ParticleIndex))
 		{
 			check(InParticles.Sleeping(Constraint.LevelsetIndex) || InParticles.InvM(Constraint.LevelsetIndex) == 0);
@@ -628,18 +654,17 @@ void TPBDCollisionConstraintPGS<T, d>::Apply(TPBDRigidParticles<T, d>& InParticl
 		// @todo(mlentine): Prune contact points based on convex hull
 		RemovePointsInsideHull(Constraint);
 	});
-	PrintParticles(InParticles, Island);
-	PrintConstraints(InParticles, Island);
-	Solve(static_cast<TRigidParticles<T, d>&>(InParticles), Dt, Island);
-	PrintParticles(InParticles, Island);
+	PrintParticles(InParticles, InConstraintIndices);
+	PrintConstraints(InParticles, InConstraintIndices);
+	Solve(static_cast<TRigidParticles<T, d>&>(InParticles), Dt, InConstraintIndices);
+	PrintParticles(InParticles, InConstraintIndices);
 }
 
 template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& ActiveIndices, const int32 Island)
+void TPBDCollisionConstraintPGS<T, d>::ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices)
 {
-	const TArray<int32> IslandConstraints = MContactGraph.GetIslandConstraints(Island).Array();
-	PhysicsParallelFor(IslandConstraints.Num(), [&](int32 ConstraintIndex) {
-		FRigidBodyContactConstraint& Constraint = MConstraints[IslandConstraints[ConstraintIndex]];
+	PhysicsParallelFor(InConstraintIndices.Num(), [&](int32 ConstraintIndex) {
+		FRigidBodyContactConstraint& Constraint = Constraints[ConstraintIndex];
 		if (InParticles.Sleeping(Constraint.ParticleIndex))
 		{
 			check(InParticles.Sleeping(Constraint.LevelsetIndex) || InParticles.InvM(Constraint.LevelsetIndex) == 0);
@@ -648,36 +673,53 @@ void TPBDCollisionConstraintPGS<T, d>::ApplyPushOut(TPBDRigidParticles<T, d>& In
 		const_cast<TPBDCollisionConstraintPGS<T, d>*>(this)->UpdateConstraint(InParticles, MThickness, Constraint);
 		// @todo(mlentine): Prune contact points based on convex hull
 	});
+
+	TArray<bool> Saved;
 	TArray<TVector<T, d>> SavedV, SavedW;
+	Saved.SetNum(InParticles.Size());
 	SavedV.SetNum(InParticles.Size());
 	SavedW.SetNum(InParticles.Size());
-	PhysicsParallelFor(ActiveIndices.Num(), [&](int32 Index) {
-		int32 ParticleIndex = ActiveIndices[Index];
-		SavedV[ParticleIndex] = InParticles.V(ParticleIndex);
-		SavedW[ParticleIndex] = InParticles.W(ParticleIndex);
-		InParticles.V(ParticleIndex) = TVector<T, d>(0);
-		InParticles.W(ParticleIndex) = TVector<T, d>(0);
-	});
-	PrintParticles(InParticles, Island);
-	PrintConstraints(InParticles, Island);
-	Solve(InParticles, Dt, Island);
-	PrintParticles(InParticles, Island);
-	PhysicsParallelFor(ActiveIndices.Num(), [&](int32 Index) {
-		int32 ParticleIndex = ActiveIndices[Index];
-		if (InParticles.InvM(ParticleIndex))
+	auto SaveParticle = [&](int32 ParticleIndex)
+	{
+		if (!Saved[ParticleIndex])
 		{
-			InParticles.P(ParticleIndex) += InParticles.V(ParticleIndex) * Dt;
-			InParticles.Q(ParticleIndex) += TRotation<T, d>(InParticles.W(ParticleIndex), 0.f) * InParticles.Q(ParticleIndex) * Dt * T(0.5);
-			InParticles.Q(ParticleIndex).Normalize();
+			SavedV[ParticleIndex] = InParticles.V(ParticleIndex);
+			SavedW[ParticleIndex] = InParticles.W(ParticleIndex);
+			InParticles.V(ParticleIndex) = TVector<T, d>(0);
+			InParticles.W(ParticleIndex) = TVector<T, d>(0);
+			Saved[ParticleIndex] = true;
 		}
-		InParticles.V(ParticleIndex) = SavedV[ParticleIndex];
-		InParticles.W(ParticleIndex) = SavedW[ParticleIndex];
-	});
-}
+	};
+	auto RestoreParticle = [&](int32 ParticleIndex)
+	{
+		if (Saved[ParticleIndex])
+		{
+			if (InParticles.InvM(ParticleIndex))
+			{
+				InParticles.P(ParticleIndex) += InParticles.V(ParticleIndex) * Dt;
+				InParticles.Q(ParticleIndex) += TRotation<T, d>(InParticles.W(ParticleIndex), 0.f) * InParticles.Q(ParticleIndex) * Dt * T(0.5);
+				InParticles.Q(ParticleIndex).Normalize();
+			}
+			InParticles.V(ParticleIndex) = SavedV[ParticleIndex];
+			InParticles.W(ParticleIndex) = SavedW[ParticleIndex];
+			Saved[ParticleIndex] = false;
+		}
+	};
 
-template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::CopyOutConstraints(int32 Island)
-{
+	PhysicsParallelFor(InConstraintIndices.Num(), [&](int32 ConstraintIndex) {
+		SaveParticle(Constraints[ConstraintIndex].ParticleIndex);
+		SaveParticle(Constraints[ConstraintIndex].LevelsetIndex);
+	});
+	PrintParticles(InParticles, InConstraintIndices);
+	PrintConstraints(InParticles, InConstraintIndices);
+
+	Solve(InParticles, Dt, InConstraintIndices);
+	
+	PrintParticles(InParticles, InConstraintIndices);
+	PhysicsParallelFor(InConstraintIndices.Num(), [&](int32 ConstraintIndex) {
+		RestoreParticle(Constraints[ConstraintIndex].ParticleIndex);
+		RestoreParticle(Constraints[ConstraintIndex].LevelsetIndex);
+	});
 }
 
 template<class T, int d>
@@ -1283,24 +1325,6 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraint(const T_PARTICLES& InPar
 	{
 		UpdateLevelsetConstraint(InParticles, Thickness, Constraint);
 	}
-}
-
-template<class T, int d>
-bool TPBDCollisionConstraintPGS<T, d>::SleepInactive(TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& ActiveIndices, int32& IslandSleepCount, const int32 Island, const T LinearSleepThreshold, const T AngularSleepThreshold) const
-{
-	return MContactGraph.SleepInactive(InParticles, ActiveIndices, IslandSleepCount, Island, LinearSleepThreshold, AngularSleepThreshold);
-}
-
-template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::UpdateIslandsFromConstraints(TPBDRigidParticles<T, d>& InParticles, TArray<TSet<int32>>& IslandParticles, TArray<int32>& IslandSleepCounts, TSet<int32>& ActiveIndices)
-{
-	MContactGraph.UpdateIslandsFromConstraints(InParticles, IslandParticles, IslandSleepCounts, ActiveIndices, MConstraints);
-}
-
-template<class T, int d>
-void TPBDCollisionConstraintPGS<T, d>::UpdateAccelerationStructures(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& ActiveIndices, const int32 Island)
-{
-	// @todo(mlentine): Do we need to do anything here?
 }
 
 template class Chaos::TPBDCollisionConstraintPGS<float, 3>;

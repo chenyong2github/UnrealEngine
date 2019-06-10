@@ -993,7 +993,7 @@ public:
 			OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_POSITION"), 1);
 		}
 
-		if (bNeedsParticleVelocity)
+		if (bNeedsParticleVelocity || Material->IsUsedWithNiagaraMeshParticles())
 		{
 			OutEnvironment.SetDefine(TEXT("NEEDS_PARTICLE_VELOCITY"), 1);
 		}

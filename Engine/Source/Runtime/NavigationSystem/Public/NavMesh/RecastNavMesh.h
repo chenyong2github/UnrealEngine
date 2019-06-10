@@ -514,6 +514,9 @@ private:
 	/** Squared draw distance */
 	static float DrawDistanceSq;
 
+	/** MinimumSizeForChaosNavMeshInfluence*/
+	static float MinimumSizeForChaosNavMeshInfluenceSq;
+
 public:
 
 	struct FRaycastResult
@@ -561,6 +564,10 @@ public:
 
 	FORCEINLINE static void SetDrawDistance(float NewDistance) { DrawDistanceSq = NewDistance * NewDistance; }
 	FORCEINLINE static float GetDrawDistanceSq() { return DrawDistanceSq; }
+
+	FORCEINLINE static void SetMinimumSizeForChaosNavMeshInfluence(float NewSize) { MinimumSizeForChaosNavMeshInfluenceSq = NewSize * NewSize; }
+	FORCEINLINE static float GetMinimumSizeForChaosNavMeshInfluenceSq() { return MinimumSizeForChaosNavMeshInfluenceSq; }
+	
 
 	//////////////////////////////////////////////////////////////////////////
 

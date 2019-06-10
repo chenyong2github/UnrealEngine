@@ -21,7 +21,7 @@
 
 #include "Rendering/SkeletalMeshRenderData.h"
 
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "Utils.h"
 
 #include "Framework/Application/SlateApplication.h"

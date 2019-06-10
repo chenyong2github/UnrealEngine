@@ -592,6 +592,13 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 						}
 						else
 						{
+							if (BoneIndex >= InSpaceBases.Num())
+							{
+								const FName BodyName = PhysicsAsset->SkeletalBodySetups[i]->BoneName;
+								UE_LOG(LogPhysics, Warning, TEXT("BoneIndex %d out of range of SpaceBases (Size %d) on PhysicsAsset '%s' in SkeletalMesh '%s' for bone '%s'"), BoneIndex, InSpaceBases.Num(), *PhysicsAsset->GetName(), *SkeletalMesh->GetName(), *BodyName.ToString());
+								continue;
+							}
+
 							// update bone transform to world
 							const FTransform BoneTransform = InSpaceBases[BoneIndex] * CurrentLocalToWorld;
 							if(!BoneTransform.IsValid())

@@ -147,6 +147,8 @@ public:
 	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
 	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
 
+	void TransitionToDeferredDeletionQueue(TUniquePtr< FNiagaraSystemInstance>& InPtr);
+
 protected:
 
 	/** System of instances being simulated.  We use a weak object ptr here because once the last referencing object goes away this system may be come invalid at runtime. */
@@ -222,4 +224,6 @@ protected:
 	bool bIsSolo;
 
 	TOptional<float> MaxDeltaTime;
+
+	TArray<TUniquePtr< FNiagaraSystemInstance> > DeferredDeletionQueue;
 };

@@ -2,8 +2,10 @@
 
 #pragma once
 
-#include "Physics/IPhysXCooking.h"
-#include "Physics/IPhysXCookingModule.h"
+#if WITH_PHYSX
+
+#include "IPhysXCooking.h"
+#include "IPhysXCookingModule.h"
 
 namespace physx
 {
@@ -89,3 +91,5 @@ private:
 
 	uint32 PhysXCookerTLS;
 };
+
+#endif

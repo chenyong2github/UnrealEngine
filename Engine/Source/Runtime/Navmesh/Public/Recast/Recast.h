@@ -102,6 +102,8 @@ enum rcTimerLabel
 	RC_MAX_TIMERS
 };
 
+NAVMESH_API DECLARE_LOG_CATEGORY_EXTERN(LogRecast, Log, All);
+
 /// Provides an interface for optional logging and performance tracking of the Recast 
 /// build process.
 /// @ingroup recast

@@ -776,20 +776,30 @@ public:
 	FD3D12LockedResource LockedData;
 };
 
+class FD3D12ShaderResourceView;
+
 /** Structured buffer resource class. */
 class FD3D12StructuredBuffer : public FRHIStructuredBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12StructuredBuffer>
 {
 public:
+	// Current SRV
+	FD3D12ShaderResourceView* DynamicSRV;
 
 	FD3D12StructuredBuffer(FD3D12Device* InParent, uint32 InStride, uint32 InSize, uint32 InUsage)
 		: FRHIStructuredBuffer(InStride, InSize, InUsage)
 		, FD3D12BaseShaderResource(InParent)
+		, DynamicSRV(nullptr)
 		, LockedData(InParent)
 	{
 	}
 
 	void Rename(FD3D12ResourceLocation& NewLocation);
 	void RenameLDAChain(FD3D12ResourceLocation& NewLocation);
+
+	void SetDynamicSRV(FD3D12ShaderResourceView* InSRV)
+	{
+		DynamicSRV = InSRV;
+	}
 
 	virtual ~FD3D12StructuredBuffer();
 
@@ -809,8 +819,6 @@ public:
 
 	FD3D12LockedResource LockedData;
 };
-
-class FD3D12ShaderResourceView;
 
 /** Vertex buffer resource class. */
 class FD3D12VertexBuffer : public FRHIVertexBuffer, public FD3D12BaseShaderResource, public FD3D12TransientResource, public FD3D12LinkedAdapterObject<FD3D12VertexBuffer>

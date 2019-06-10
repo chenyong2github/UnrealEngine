@@ -36,6 +36,7 @@
 #include <functional>
 #include <unordered_map>
 #include <unordered_set>
+#include "Chaos/ErrorReporter.h"
 
 using namespace Chaos;
 
@@ -48,7 +49,8 @@ static TAutoConsoleVariable<float> CVarClothGravityMagnitude(TEXT("physics.Cloth
 
 void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, UClothingAssetBase* InAsset, int32 InSimDataIndex)
 {
-    EdgeStiffness = InOwnerComponent->EdgeStiffness;
+	MinMass = 0.0001;
+	EdgeStiffness = InOwnerComponent->EdgeStiffness;
     BendingStiffness = InOwnerComponent->BendingStiffness;
     AreaStiffness = InOwnerComponent->AreaStiffness;
     VolumeStiffness = InOwnerComponent->VolumeStiffness;
@@ -60,7 +62,7 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
     bUseSelfCollisions = InOwnerComponent->bUseSelfCollisions;
     bUseContinuousCollisionDetection = InOwnerComponent->bUseContinuousCollisionDetection;
 
-    ClothingSimulationContext Context;
+	ClothingSimulationContext Context;
     FillContext(InOwnerComponent, 0, &Context);
 
     // TODO(mlentine): Support multiple assets.
@@ -69,44 +71,92 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
     FClothLODData& AssetLodData = Asset->LodData[0];
     FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
 
-    FTransform RootBoneTransform = Context.BoneTransforms[Asset->ReferenceBoneIndex];
-    FClothingSimulationBase::SkinPhysicsMesh(Asset, PhysMesh, RootBoneTransform, Context.RefToLocals.GetData(), Context.RefToLocals.Num(), reinterpret_cast<TArray<FVector>&>(AnimationPositions), reinterpret_cast<TArray<FVector>&>(AnimationNormals));
-    FTransform RootBoneWorldTransform = RootBoneTransform * Context.LocalToWorld;
-    ParallelFor(AnimationPositions.Num(), [&](int32 Index) {
-        AnimationPositions[Index] = RootBoneWorldTransform.TransformPosition(AnimationPositions[Index]);
-        AnimationNormals[Index] = RootBoneWorldTransform.TransformVector(AnimationNormals[Index]);
-    });
+	// SkinPhysicsMesh() strips scale from RootBoneTransform ("Ignore any user scale.  
+	// It's already accounted for in our skinning matrices."), and returns all points 
+	// in that space.
+	FTransform RootBoneTransform = Context.BoneTransforms[Asset->ReferenceBoneIndex];
+	FClothingSimulationBase::SkinPhysicsMesh(
+		Asset, 
+		PhysMesh, // curr pos and norm
+		RootBoneTransform, 
+		Context.RefToLocals.GetData(), 
+		Context.RefToLocals.Num(), 
+		reinterpret_cast<TArray<FVector>&>(AnimationPositions), 
+		reinterpret_cast<TArray<FVector>&>(AnimationNormals));
 
-    TPBDParticles<float, 3>& LocalParticles = Evolution->Particles();
-    uint32 Size = LocalParticles.Size();
-    check(Size == 0);
-    LocalParticles.AddParticles(PhysMesh.Vertices.Num());
-    if (IndexToRangeMap.Num() <= InSimDataIndex)
+	// Transform points & normals to world space
+	RootBoneTransform.SetScale3D(FVector(1.0f));
+	const FTransform RootBoneWorldTransform = RootBoneTransform * Context.ComponentToWorld;
+	ParallelFor(AnimationPositions.Num(), 
+		[&](int32 Index) 
+		{
+			AnimationPositions[Index] = RootBoneWorldTransform.TransformPosition(AnimationPositions[Index]);
+	        AnimationNormals[Index] = RootBoneWorldTransform.TransformVector(AnimationNormals[Index]);
+		});
+
+    TPBDParticles<float, 3>& Particles = Evolution->Particles();
+    const uint32 Offset = Particles.Size();
+    Particles.AddParticles(PhysMesh.Vertices.Num());
+
+	if (IndexToRangeMap.Num() <= InSimDataIndex)
         IndexToRangeMap.SetNum(InSimDataIndex + 1);
-    IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>({Size, LocalParticles.Size()});
-    for (uint32 i = Size; i < LocalParticles.Size(); ++i)
+    IndexToRangeMap[InSimDataIndex] = Chaos::TVector<uint32, 2>(Offset, Particles.Size());
+
+    for (uint32 i = Offset; i < Particles.Size(); ++i)
     {
-        LocalParticles.X(i) = AnimationPositions[i - Size];
-        LocalParticles.V(i) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
-        LocalParticles.M(i) = 1.f;
-        LocalParticles.InvM(i) = PhysMesh.MaxDistances[i - Size] > 0.1 ? 1.f : 0.f;
+        Particles.X(i) = AnimationPositions[i - Offset];
+        Particles.V(i) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
+		// Initialize mass to 0, to be overridden later
+		Particles.M(i) = 0.f;
     }
 
-    TArray<Chaos::TVector<int32, 3>> InputSurfaceElements;
-    for (int i = Size; i < PhysMesh.Indices.Num() / 3; ++i)
+	const int32 NumTriangles = PhysMesh.Indices.Num() / 3;
+	TArray<Chaos::TVector<int32, 3>> InputSurfaceElements;
+	InputSurfaceElements.Reserve(NumTriangles);
+    for (int i = 0; i < NumTriangles; ++i)
     {
         const int32 Index = 3 * i;
-        InputSurfaceElements.Add({static_cast<int32>(PhysMesh.Indices[Index]), static_cast<int32>(PhysMesh.Indices[Index + 1]), static_cast<int32>(PhysMesh.Indices[Index + 2])});
+        InputSurfaceElements.Add(
+			{static_cast<int32>(PhysMesh.Indices[Index]), 
+			 static_cast<int32>(PhysMesh.Indices[Index + 1]), 
+			 static_cast<int32>(PhysMesh.Indices[Index + 2])});
     }
+	check(InputSurfaceElements.Num() == NumTriangles);
+	if (Meshes.Num() <= InSimDataIndex)
+	{
+		Meshes.SetNum(InSimDataIndex + 1);
+		FaceNormals.SetNum(InSimDataIndex + 1);
+		PointNormals.SetNum(InSimDataIndex + 1);
+	}
+	TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[InSimDataIndex];
     Mesh.Reset(new Chaos::TTriangleMesh<float>(MoveTemp(InputSurfaceElements)));
+	check(Mesh->GetNumElements() == NumTriangles);
     const auto& SurfaceElements = Mesh->GetSurfaceElements();
+	Mesh->GetPointToTriangleMap(); // Builds map for later use by GetPointNormals().
+
+	// Assign per particle mass proportional to connected area.
+	for (const Chaos::TVector<int32, 3>& Tri : SurfaceElements)
+	{
+		const float ThirdTriArea = 0.5 * Chaos::TVector<float, 3>::CrossProduct(
+			Particles.X(Tri[1] + Offset) - Particles.X(Tri[0] + Offset),
+			Particles.X(Tri[2] + Offset) - Particles.X(Tri[0] + Offset)).Size() / 3.0;
+		Particles.M(Tri[0] + Offset) += ThirdTriArea;
+		Particles.M(Tri[1] + Offset) += ThirdTriArea;
+		Particles.M(Tri[2] + Offset) += ThirdTriArea;
+	}
+	for (uint32 i = Offset; i < Particles.Size(); i++)
+	{
+		Particles.M(i) = FMath::Max(Particles.M(i), MinMass);
+		Particles.InvM(i) = PhysMesh.MaxDistances[i-Offset] > 0.1 ? 1.0/Particles.M(i) : 0.0;
+	}
+
     // Add Model
     if (ShapeTargetStiffness)
     {
         check(ShapeTargetStiffness > 0.f && ShapeTargetStiffness <= 1.f);
-        Evolution->AddPBDConstraintFunction(std::bind(
-            static_cast<void (Chaos::TPerParticlePBDShapeConstraints<float, 3>::*)(TPBDParticles<float, 3> & InParticles, const float Dt) const>(&Chaos::TPerParticlePBDShapeConstraints<float, 3>::Apply),
-            Chaos::TPerParticlePBDShapeConstraints<float, 3>(Evolution->Particles(), AnimationPositions, ShapeTargetStiffness), std::placeholders::_1, std::placeholders::_2));
+		Evolution->AddPBDConstraintFunction([ShapeConstraints = Chaos::TPerParticlePBDShapeConstraints<float, 3>(Evolution->Particles(), AnimationPositions, ShapeTargetStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			ShapeConstraints.Apply(InParticles, Dt);
+		});
     }
     if (EdgeStiffness)
     {
@@ -121,8 +171,9 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
         if (bUseBendingElements)
         {
             TArray<Chaos::TVector<int32, 4>> BendingConstraints = Mesh->GetUniqueAdjacentElements();
-            Evolution->AddPBDConstraintFunction(std::bind(&Chaos::TPBDBendingConstraints<float>::Apply,
-                                                          Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints)), std::placeholders::_1, std::placeholders::_2));
+			Evolution->AddPBDConstraintFunction([BendConstraints = Chaos::TPBDBendingConstraints<float>(Evolution->Particles(), MoveTemp(BendingConstraints))](TPBDParticles<float, 3>& InParticles, const float Dt) {
+				BendConstraints.Apply(InParticles, Dt);
+			});
         }
         else
         {
@@ -135,8 +186,9 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
     if (AreaStiffness)
     {
         TArray<Chaos::TVector<int32, 3>> SurfaceConstraints = SurfaceElements;
-        Evolution->AddPBDConstraintFunction(std::bind(&Chaos::TPBDAxialSpringConstraints<float, 3>::Apply,
-                                                      Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), AreaStiffness), std::placeholders::_1, std::placeholders::_2));
+		Evolution->AddPBDConstraintFunction([SurfConstraints = Chaos::TPBDAxialSpringConstraints<float, 3>(Evolution->Particles(), MoveTemp(SurfaceConstraints), AreaStiffness)](TPBDParticles<float, 3>& InParticles, const float Dt) {
+			SurfConstraints.Apply(InParticles, Dt);
+		});
     }
     if (VolumeStiffness)
     {
@@ -190,16 +242,29 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
     }
     if (StrainLimitingStiffness)
     {
-        Evolution->AddPBDConstraintFunction(std::bind(
-            static_cast<void (Chaos::TPerParticlePBDLongRangeConstraints<float, 3>::*)(TPBDParticles<float, 3> & InParticles, const float Dt) const>(&Chaos::TPerParticlePBDLongRangeConstraints<float, 3>::Apply),
-            Chaos::TPerParticlePBDLongRangeConstraints<float, 3>(Evolution->Particles(), *Mesh, StrainLimitingStiffness), std::placeholders::_1, std::placeholders::_2));
+		check(Mesh->GetNumElements() > 0);
+        Evolution->AddPBDConstraintFunction(
+			std::bind(
+				static_cast
+				<
+					void (Chaos::TPerParticlePBDLongRangeConstraints<float, 3>::*)(
+						TPBDParticles<float, 3> & InParticles, 
+						const float Dt) const
+				>(&Chaos::TPerParticlePBDLongRangeConstraints<float, 3>::Apply),
+				Chaos::TPerParticlePBDLongRangeConstraints<float, 3>(
+					Evolution->Particles(), 
+					Mesh->GetPointToNeighborsMap(), 
+					10, // The max number of connected neighbors per particle.  ryan - What should this be?  Was k...
+					StrainLimitingStiffness), 
+				std::placeholders::_1, 
+				std::placeholders::_2));
     }
     // Add Self Collisions
     if (bUseSelfCollisions)
     {
         // TODO(mlentine): Parallelize these for multiple meshes
         Evolution->CollisionTriangles().Append(SurfaceElements);
-        for (uint32 i = Size; i < LocalParticles.Size(); ++i)
+        for (uint32 i = Offset; i < Particles.Size(); ++i)
         {
             auto Neighbors = Mesh->GetNRing(i, 5);
             for (const auto& Element : Neighbors)
@@ -212,68 +277,83 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
     }
     // Add Collision Bodies
     TGeometryParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
-    USkeletalMesh* TargetMesh = InOwnerComponent->SkeletalMesh;
-    // TODO(mlentine): Support collision body activation on a per particle basis, preferably using a map but also can be a particle attribute
+    //USkeletalMesh* TargetMesh = InOwnerComponent->SkeletalMesh;
+	USkeletalMesh* TargetMesh = CastChecked<USkeletalMesh>(Asset->GetOuter());
+
+		// TODO(mlentine): Support collision body activation on a per particle basis, preferably using a map but also can be a particle attribute
     if (UPhysicsAsset* PhysAsset = Asset->PhysicsAsset)
     {
         for (const USkeletalBodySetup* BodySetup : PhysAsset->SkeletalBodySetups)
         {
-            int32 MeshBoneIndex = TargetMesh->RefSkeleton.FindBoneIndex(BodySetup->BoneName);
-            int32 MappedBoneIndex = INDEX_NONE;
+			if (!BodySetup)
+				continue;
 
-            if (MeshBoneIndex != INDEX_NONE)
-            {
-                MappedBoneIndex = Asset->UsedBoneNames.AddUnique(BodySetup->BoneName);
-            }
+			const int32 MeshBoneIndex = TargetMesh->RefSkeleton.FindBoneIndex(BodySetup->BoneName);
+			const int32 MappedBoneIndex = 
+				MeshBoneIndex != INDEX_NONE ? 
+				Asset->UsedBoneNames.AddUnique(BodySetup->BoneName) : INDEX_NONE;
 
+			const FKAggregateGeom& AggGeom = BodySetup->AggGeom; 
+			if(AggGeom.SphylElems.Num())
             {
                 uint32 OldSize = CollisionParticles.Size();
-                CollisionParticles.AddParticles(BodySetup->AggGeom.SphereElems.Num());
+                CollisionParticles.AddParticles(AggGeom.SphylElems.Num());
                 for (uint32 i = OldSize; i < CollisionParticles.Size(); ++i)
                 {
-                    const auto& CollisionSphere = BodySetup->AggGeom.SphereElems[i - OldSize];
-                    CollisionParticles.Geometry(i) = new Chaos::TSphere<float, 3>(Chaos::TVector<float, 3>(0.f, 0.f, 0.f), CollisionSphere.Radius);
-                    BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(CollisionSphere.Center, Chaos::TRotation<float, 3>::MakeFromEuler(Chaos::TVector<float, 3>(0.f, 0.f, 0.f)));
-                    BoneIndices[i] = MappedBoneIndex;
-                }
-            }
-            {
-                uint32 OldSize = CollisionParticles.Size();
-                CollisionParticles.AddParticles(BodySetup->AggGeom.BoxElems.Num());
-                for (uint32 i = OldSize; i < CollisionParticles.Size(); ++i)
-                {
-                    const auto& Box = BodySetup->AggGeom.BoxElems[i - OldSize];
-                    Chaos::TVector<float, 3> half_extents(Box.X / 2.f, Box.Y / 2.f, Box.Z / 2.f);
-                    CollisionParticles.Geometry(i) = new Chaos::TBox<float, 3>(-half_extents, half_extents);
-                    BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Box.Center, Box.Rotation.Quaternion());
-                    BoneIndices[i] = MappedBoneIndex;
-                }
-            }
-            {
-                uint32 OldSize = CollisionParticles.Size();
-                CollisionParticles.AddParticles(BodySetup->AggGeom.SphylElems.Num());
-                for (uint32 i = OldSize; i < CollisionParticles.Size(); ++i)
-                {
-                    const auto& Capsule = BodySetup->AggGeom.SphylElems[i - OldSize];
+                    const auto& Capsule = AggGeom.SphylElems[i - OldSize];
                     if (Capsule.Length == 0)
                     {
-                        CollisionParticles.Geometry(i) = new Chaos::TSphere<float, 3>(Chaos::TVector<float, 3>(0), Capsule.Radius);
+                        CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TSphere<float,3>>(Chaos::TVector<float, 3>(0), Capsule.Radius));
                     }
                     else
                     {
                         Chaos::TVector<float, 3> half_extents(0, 0, Capsule.Length / 2);
-                        CollisionParticles.Geometry(i) = new Chaos::TCapsule<float>(-half_extents, half_extents, Capsule.Radius);
+                        CollisionParticles.SetDynamicGeometry(
+							i, 
+							MakeUnique<Chaos::TCapsule<float>>(
+								-half_extents, half_extents, Capsule.Radius));
                     }
                     BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Capsule.Center, Capsule.Rotation.Quaternion());
                     BoneIndices[i] = MappedBoneIndex;
                 }
             }
-            /*{
+			if(AggGeom.SphereElems.Num())
+            {
+                uint32 OldSize = CollisionParticles.Size();
+                CollisionParticles.AddParticles(AggGeom.SphereElems.Num());
+                for (uint32 i = OldSize; i < CollisionParticles.Size(); ++i)
+                {
+                    const auto& CollisionSphere = AggGeom.SphereElems[i - OldSize];
+                    CollisionParticles.SetDynamicGeometry(
+						i, 
+						MakeUnique<Chaos::TSphere<float,3>>(
+							Chaos::TVector<float, 3>(0.f, 0.f, 0.f), 
+							CollisionSphere.Radius));
+                    BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(CollisionSphere.Center, Chaos::TRotation<float, 3>::MakeFromEuler(Chaos::TVector<float, 3>(0.f, 0.f, 0.f)));
+                    BoneIndices[i] = MappedBoneIndex;
+                }
+            }
+			if(AggGeom.BoxElems.Num())
+            {
+                uint32 OldSize = CollisionParticles.Size();
+                CollisionParticles.AddParticles(AggGeom.BoxElems.Num());
+                for (uint32 i = OldSize; i < CollisionParticles.Size(); ++i)
+                {
+                    const auto& Box = AggGeom.BoxElems[i - OldSize];
+                    Chaos::TVector<float, 3> half_extents(Box.X / 2.f, Box.Y / 2.f, Box.Z / 2.f);
+                    CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TBox<float,3>>(-half_extents, half_extents));
+                    BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Box.Center, Box.Rotation.Quaternion());
+                    BoneIndices[i] = MappedBoneIndex;
+                }
+            }
+            /*
+			if(AggGeom.TaperedCapsuleElems.Num())
+			{
                 int32 OldSize = CollisionParticles.Size();
-                CollisionParticles.AddParticles(BodySetup->AggGeom.TaperedCapsuleElems.Num());
+                CollisionParticles.AddParticles(AggGeom.TaperedCapsuleElems.Num());
                 for (int32 i = OldSize; i < CollisionParticles.Size(); ++i)
                 {
-                    const auto& Capsule = BodySetup->AggGeom.TaperedCapsuleElems[i - OldSize];
+                    const auto& Capsule = AggGeom.TaperedCapsuleElems[i - OldSize];
                     if (Capsule.Length == 0)
                     {
                         CollisionParticles.Geometry(i) = new Chaos::Sphere<float, 3>(Chaos::TVector<float, 3>(0), Capsule.Radius1 > Capsule.Radius0 ? Capsule.Radius1 : Capsule.Radius0);
@@ -294,14 +374,15 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
                     BoneIndices[i] = MappedBoneIndex;
                 }
 			}*/
+			if(AggGeom.ConvexElems.Num())
             {
 // Collision bodies are stored in PhysX specific data structures so they can only be imported if we enable PhysX.
 #if WITH_PHYSX && !PLATFORM_LUMIN && !PLATFORM_ANDROID
                 uint32 OldSize = CollisionParticles.Size();
-                CollisionParticles.AddParticles(BodySetup->AggGeom.ConvexElems.Num());
+                CollisionParticles.AddParticles(AggGeom.ConvexElems.Num());
                 for (uint32 i = OldSize; i < CollisionParticles.Size(); ++i)
                 {
-                    const auto& CollisionBody = BodySetup->AggGeom.ConvexElems[i - OldSize];
+                    const auto& CollisionBody = AggGeom.ConvexElems[i - OldSize];
                     TArray<Chaos::TVector<int32, 3>> CollisionMeshElements;
                     const auto PhysXMesh = CollisionBody.GetConvexMesh();
                     for (int32 j = 0; j < static_cast<int32>(PhysXMesh->getNbPolygons()); ++j)
@@ -340,28 +421,136 @@ void ClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, U
                     }
                     Chaos::TUniformGrid<float, 3> Grid(BoundingBox.Min(), BoundingBox.Max(), Chaos::TVector<int32, 3>(100 * Extents[0] / Extents[MaxAxis], 100 * Extents[0] / Extents[MaxAxis], 100 * Extents[0] / Extents[MaxAxis]));
                     Chaos::TTriangleMesh<float> CollisionMesh(MoveTemp(CollisionMeshElements));
-                    CollisionParticles.Geometry(i) = new Chaos::TLevelSet<float, 3>(Grid, CollisionMeshParticles, CollisionMesh);
+					Chaos::FErrorReporter ErrorReporter;
+                    CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TLevelSet<float,3>>(ErrorReporter, Grid, CollisionMeshParticles, CollisionMesh));
                     BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(Chaos::TVector<float, 3>(0.f, 0.f, 0.f), Chaos::TRotation<float, 3>::MakeFromEuler(Chaos::TVector<float, 3>(0.f, 0.f, 0.f)));
                     BoneIndices[i] = MappedBoneIndex;
                 }
 #endif
             }
-        }
-    }
+        } // end for
+    } // end if PhysAsset
+
+	// We can't just use AddExternalCollisions() because we need to add entries for bone mappings and lookups.
+	const FClothCollisionData& LodCollData = AssetLodData.CollisionData;
+	if (LodCollData.Spheres.Num() || LodCollData.SphereConnections.Num() || LodCollData.Convexes.Num())
+	{
+		UE_LOG(LogSkeletalMesh, Warning,
+			TEXT("Actor '%s' component '%s' has %d sphere, %d capsule, and %d "
+				"convex collision objects for physics authored as part of a LOD construct, "
+				"probably by the Apex cloth authoring system.  This is deprecated.  "
+				"Please update your asset!"),
+			*InOwnerComponent->GetOwner()->GetName(),
+			*InOwnerComponent->GetName(),
+			LodCollData.Spheres.Num(),
+			LodCollData.SphereConnections.Num(),
+			LodCollData.Convexes.Num());
+
+		TSet<int32> CapsuleEnds;
+		if (LodCollData.SphereConnections.Num())
+		{
+			const uint32 Size = CollisionParticles.Size();
+			CollisionParticles.AddParticles(LodCollData.SphereConnections.Num());
+			CapsuleEnds.Reserve(LodCollData.SphereConnections.Num() * 2);
+			for (uint32 i = Size; i < CollisionParticles.Size(); ++i)
+			{
+				// This data was pulled from a FKSphylElem, which is a capsule.  So 
+				// it should only have 1 radius, and the BoneIndex for both spheres
+				// should be the same.
+				const FClothCollisionPrim_SphereConnection& Connection = LodCollData.SphereConnections[i - Size];
+
+				const int32 SphereIndex0 = Connection.SphereIndices[0];
+				const int32 SphereIndex1 = Connection.SphereIndices[1];
+				checkSlow(SphereIndex0 != SphereIndex1);
+				const float Radius = LodCollData.Spheres[SphereIndex0].Radius;
+				checkSlow(LodCollData.Spheres[SphereIndex0].Radius - LodCollData.Spheres[SphereIndex1].Radius < SMALL_NUMBER);
+				const Chaos::TVector<float, 3> X0 = LodCollData.Spheres[SphereIndex0].LocalPosition;
+				const Chaos::TVector<float, 3> X1 = LodCollData.Spheres[SphereIndex1].LocalPosition;
+
+				checkSlow(LodCollData.Spheres[SphereIndex0].BoneIndex == LodCollData.Spheres[SphereIndex1].BoneIndex);
+				const int32 BoneIndex = LodCollData.Spheres[SphereIndex0].BoneIndex;
+				const FName BoneName = 
+					TargetMesh->RefSkeleton.IsValidIndex(BoneIndex) ? 
+					TargetMesh->RefSkeleton.GetBoneName(BoneIndex) : NAME_None;
+				const int32 MappedBoneIndex = BoneName != NAME_None ?
+					Asset->UsedBoneNames.AddUnique(BoneName) : INDEX_NONE;
+				BoneIndices[i] = MappedBoneIndex;
+
+				const Chaos::TVector<float, 3> Center = (X0 + X1) * 0.5;
+				const Chaos::TVector<float, 3> Axis = X1 - X0;
+				const float HalfHeight = Axis.Size() * 0.5;
+
+				// We construct a capsule centered at the origin along the Z axis, and
+				// then move it into place with X and R.
+				CollisionParticles.X(i) = Center;
+				CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromRotatedVector(Chaos::TVector<float, 3>::AxisVector(2), Axis.GetSafeNormal());
+				BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(CollisionParticles.X(i), CollisionParticles.R(i));
+
+				CollisionParticles.SetDynamicGeometry(
+					i,
+					MakeUnique<Chaos::TCapsule<float>>(
+						Chaos::TVector<float, 3>(0.f, 0.f, -HalfHeight), // Min
+						Chaos::TVector<float, 3>(0.f, 0.f, HalfHeight), // Max
+						Radius));
+				IndexAndCapsuleCollisionMap.Add(MakePair(i, Connection));
+
+				// Skip spheres added as end caps for the capsule.
+				CapsuleEnds.Add(SphereIndex0);
+				CapsuleEnds.Add(SphereIndex1);
+			}
+		}
+		if (LodCollData.Spheres.Num() - CapsuleEnds.Num())
+		{
+			const uint32 Size = CollisionParticles.Size();
+			CollisionParticles.AddParticles(LodCollData.Spheres.Num() - CapsuleEnds.Num());
+			// i = Spheres index, j = CollisionParticles index
+			for (uint32 i = 0, j = Size; i < (uint32)LodCollData.Spheres.Num(); ++i)
+			{
+				// Skip spheres that are the end caps of capsules.
+				if (CapsuleEnds.Contains(i))
+					continue;
+
+				const FClothCollisionPrim_Sphere& CollisionSphere = LodCollData.Spheres[i];
+
+				const int32 BoneIndex = CollisionSphere.BoneIndex;
+				const FName BoneName = 
+					TargetMesh->RefSkeleton.IsValidIndex(BoneIndex) ? 
+					TargetMesh->RefSkeleton.GetBoneName(BoneIndex) : NAME_None;
+				const int32 MappedBoneIndex = BoneName != NAME_None ?
+					Asset->UsedBoneNames.AddUnique(BoneName) : INDEX_NONE;
+				BoneIndices[j] = MappedBoneIndex;
+
+				CollisionParticles.X(j) = CollisionSphere.LocalPosition;
+				CollisionParticles.R(j) = Chaos::TRotation<float, 3>(Chaos::TVector<float, 3>::AxisVector(0), 0.f);
+				BaseTransforms[j] = Chaos::TRigidTransform<float, 3>(CollisionParticles.X(j), CollisionParticles.R(j));
+
+				CollisionParticles.SetDynamicGeometry(
+					j,
+					MakeUnique<Chaos::TSphere<float, 3>>(
+						Chaos::TVector<float, 3>(0.f, 0.f, 0.f), 
+						CollisionSphere.Radius));
+				IndexAndSphereCollisionMap.Add(MakePair(j, CollisionSphere));
+				j++;
+			}
+		}
+
+	} // end if LodCollData
+
     AnimationTransforms.SetNum(BaseTransforms.Num());
     for (uint32 i = 0; i < CollisionParticles.Size(); ++i)
     {
-        if (BoneIndices[i] != INDEX_NONE)
+		const int32 BoneIndex = BoneIndices[i];
+        if (Asset->UsedBoneIndices.IsValidIndex(BoneIndex))
         {
-            const int32 MappedIndex = Asset->UsedBoneIndices[BoneIndices[i]];
-            if (MappedIndex != INDEX_NONE)
+            const int32 MappedIndex = Asset->UsedBoneIndices[BoneIndex];
+            if (Context.BoneTransforms.IsValidIndex(MappedIndex))
             {
                 const FTransform& BoneTransform = Context.BoneTransforms[MappedIndex];
-                AnimationTransforms[i] = BaseTransforms[i] * BoneTransform * Context.LocalToWorld;
+                AnimationTransforms[i] = BaseTransforms[i] * BoneTransform * Context.ComponentToWorld;
                 CollisionParticles.X(i) = AnimationTransforms[i].GetTranslation();
                 CollisionParticles.R(i) = AnimationTransforms[i].GetRotation();
             }
-        }
+		}
     }
 }
 
@@ -381,14 +570,19 @@ void ClothingSimulation::Initialize()
     Evolution->CollisionParticles().AddArray(&BaseTransforms);
     if (GravityMagnitude)
     {
-        Evolution->AddForceFunction(Chaos::Utilities::GetDeformablesGravityFunction(Chaos::TVector<float, 3>(0.f, 0.f, -1.f), GravityMagnitude));
+        Evolution->AddForceFunction(
+			Chaos::Utilities::GetDeformablesGravityFunction(
+				Chaos::TVector<float, 3>(0.f, 0.f, -1.f), 
+				GravityMagnitude));
     }
-    Evolution->SetKinematicUpdateFunction([&](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, int32 Index) {
-        if (ParticlesInput.InvM(Index) > 0)
-            return;
-        float Alpha = (LocalTime - Time) / DeltaTime;
-        ParticlesInput.X(Index) = Alpha * AnimationPositions[Index] + (1 - Alpha) * OldAnimationPositions[Index];
-    });
+    Evolution->SetKinematicUpdateFunction(
+		[&](Chaos::TPBDParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, const int32 Index) 
+		{
+			if (!OldAnimationPositions.IsValidIndex(Index) || ParticlesInput.InvM(Index) > 0)
+				return;
+			const float Alpha = (LocalTime - Time) / DeltaTime;
+			ParticlesInput.X(Index) = Alpha * AnimationPositions[Index] + (1.f - Alpha) * OldAnimationPositions[Index];
+		});
     Evolution->SetCollisionKinematicUpdateFunction([&](Chaos::TKinematicGeometryParticles<float, 3>& ParticlesInput, const float Dt, const float LocalTime, int32 Index) {
         float Alpha = (LocalTime - Time) / DeltaTime;
         Chaos::TVector<float, 3> NewX = Alpha * AnimationTransforms[Index].GetTranslation() + (1 - Alpha) * OldAnimationTransforms[Index].GetTranslation();
@@ -410,38 +604,41 @@ void ClothingSimulation::Initialize()
 void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float InDeltaTime, IClothingSimulationContext* InOutContext)
 {
     ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InOutContext);
+    Context->ComponentToWorld = InComponent->GetComponentToWorld();
     Context->DeltaTime = ClampDeltaTime > 0 ? std::min(InDeltaTime, ClampDeltaTime) : InDeltaTime;
-    Context->RefToLocals.Reset();
-    Context->LocalToWorld = InComponent->GetComponentToWorld();
+
+	Context->RefToLocals.Reset();
     InComponent->GetCurrentRefToLocalMatrices(Context->RefToLocals, 0);
 
-    USkeletalMesh* SkelMesh = InComponent->SkeletalMesh;
+	const USkeletalMesh* SkelMesh = InComponent->SkeletalMesh;
     if (USkinnedMeshComponent* MasterComponent = InComponent->MasterPoseComponent.Get())
     {
-        int32 NumBones = InComponent->GetMasterBoneMap().Num();
+		const TArray<int32>& MasterBoneMap = InComponent->GetMasterBoneMap();
+        int32 NumBones = MasterBoneMap.Num();
         if (NumBones == 0)
         {
             if (InComponent->SkeletalMesh)
             {
                 // This case indicates an invalid master pose component (e.g. no skeletal mesh)
                 NumBones = InComponent->SkeletalMesh->RefSkeleton.GetNum();
-                Context->BoneTransforms.Empty(NumBones);
-                Context->BoneTransforms.AddDefaulted(NumBones);
             }
+			Context->BoneTransforms.Reset(NumBones);
+			Context->BoneTransforms.AddDefaulted(NumBones);
         }
         else
         {
             Context->BoneTransforms.Reset(NumBones);
             Context->BoneTransforms.AddDefaulted(NumBones);
+			const TArray<FTransform>& MasterTransforms = MasterComponent->GetComponentSpaceTransforms();
             for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
             {
                 bool bFoundMaster = false;
-                if (InComponent->GetMasterBoneMap().IsValidIndex(BoneIndex))
+                if (MasterBoneMap.IsValidIndex(BoneIndex))
                 {
-                    const int32 MasterIndex = InComponent->GetMasterBoneMap()[BoneIndex];
-                    if (MasterIndex != INDEX_NONE)
+                    const int32 MasterIndex = MasterBoneMap[BoneIndex];
+                    if (MasterTransforms.IsValidIndex(MasterIndex))
                     {
-                        Context->BoneTransforms[BoneIndex] = MasterComponent->GetComponentSpaceTransforms()[MasterIndex];
+                        Context->BoneTransforms[BoneIndex] = MasterTransforms[MasterIndex];
                         bFoundMaster = true;
                     }
                 }
@@ -449,14 +646,11 @@ void ClothingSimulation::FillContext(USkeletalMeshComponent* InComponent, float 
                 if (!bFoundMaster && SkelMesh)
                 {
                     const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-                    if (ParentIndex != INDEX_NONE)
-                    {
-                        Context->BoneTransforms[BoneIndex] = Context->BoneTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
-                    }
-                    else
-                    {
-                        Context->BoneTransforms[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
-                    }
+					check(ParentIndex < BoneIndex);
+					Context->BoneTransforms[BoneIndex] = 
+						Context->BoneTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex ?
+						Context->BoneTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex] :
+                        SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
                 }
             }
         }
@@ -472,19 +666,36 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
     ClothingSimulationContext* Context = static_cast<ClothingSimulationContext*>(InContext);
     if (Context->DeltaTime == 0)
         return;
-    // Get New Animation Positions and Normals
+
+	// Get New Animation Positions and Normals
     OldAnimationTransforms = AnimationTransforms;
     OldAnimationPositions = AnimationPositions;
-    FClothLODData& AssetLodData = Asset->LodData[0];
-    FTransform RootBoneTransform = Context->BoneTransforms[Asset->ReferenceBoneIndex];
-    FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
-    FClothingSimulationBase::SkinPhysicsMesh(Asset, PhysMesh, RootBoneTransform, Context->RefToLocals.GetData(), Context->RefToLocals.Num(), reinterpret_cast<TArray<FVector>&>(AnimationPositions), reinterpret_cast<TArray<FVector>&>(AnimationNormals));
-    FTransform RootBoneWorldTransform = RootBoneTransform * Context->LocalToWorld;
-    ParallelFor(AnimationPositions.Num(), [&](int32 Index) {
-        AnimationPositions[Index] = RootBoneWorldTransform.TransformPosition(AnimationPositions[Index]);
-        AnimationNormals[Index] = RootBoneWorldTransform.TransformVector(AnimationNormals[Index]);
-    });
-    // Collision bodies
+    const FClothLODData& AssetLodData = Asset->LodData[0];
+    const FClothPhysicalMeshData& PhysMesh = AssetLodData.PhysicalMeshData;
+
+	FTransform RootBoneTransform = Context->BoneTransforms[Asset->ReferenceBoneIndex];
+    FClothingSimulationBase::SkinPhysicsMesh(
+		Asset, 
+		PhysMesh, 
+		RootBoneTransform, 
+		Context->RefToLocals.GetData(), 
+		Context->RefToLocals.Num(), 
+		reinterpret_cast<TArray<FVector>&>(AnimationPositions), 
+		reinterpret_cast<TArray<FVector>&>(AnimationNormals));
+
+	RootBoneTransform.SetScale3D(FVector(1.0f));
+	
+	// Removing Context->ComponentToWorld means the sim doesn't see updates to the component level xf
+	const FTransform RootBoneWorldTransform = RootBoneTransform * Context->ComponentToWorld;
+
+    ParallelFor(AnimationPositions.Num(), 
+		[&](int32 Index) 
+		{
+			AnimationPositions[Index] = RootBoneWorldTransform.TransformPosition(AnimationPositions[Index]);
+			AnimationNormals[Index] = RootBoneWorldTransform.TransformVector(AnimationNormals[Index]);
+		});
+
+	// Collision bodies
     TGeometryParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
     for (uint32 i = 0; i < CollisionParticles.Size(); ++i)
     {
@@ -494,7 +705,7 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
             if (MappedIndex != INDEX_NONE)
             {
                 const FTransform& BoneTransform = Context->BoneTransforms[MappedIndex];
-                AnimationTransforms[i] = BaseTransforms[i] * BoneTransform * Context->LocalToWorld;
+                AnimationTransforms[i] = BaseTransforms[i] * BoneTransform * Context->ComponentToWorld;
             }
         }
     }
@@ -509,41 +720,134 @@ void ClothingSimulation::Simulate(IClothingSimulationContext* InContext)
     Time += DeltaTime;
 }
 
-void ClothingSimulation::GetSimulationData(TMap<int32, FClothSimulData>& OutData, USkeletalMeshComponent* InOwnerComponent, USkinnedMeshComponent* InOverrideComponent) const
+void ClothingSimulation::GetSimulationData(
+	TMap<int32, FClothSimulData>& OutData, 
+	USkeletalMeshComponent* InOwnerComponent, 
+	USkinnedMeshComponent* InOverrideComponent) const
 {
-    if (!Mesh) return;
-    TArray<Chaos::TVector<float, 3>> PointNormals = Mesh->GetPointNormals(Evolution->Particles());
+	const FTransform& OwnerTransform = InOwnerComponent->GetComponentTransform();
     for (int32 i = 0; i < IndexToRangeMap.Num(); ++i)
-    {
-        FClothSimulData Data;
-        Data.Positions.SetNum(IndexToRangeMap[i][1] - IndexToRangeMap[i][0]);
-        Data.Normals.SetNum(IndexToRangeMap[i][1] - IndexToRangeMap[i][0]);
-        for (uint32 j = IndexToRangeMap[i][0]; j < IndexToRangeMap[i][1]; ++j)
+    {	
+		const TUniquePtr<Chaos::TTriangleMesh<float>>& Mesh = Meshes[i];
+		if (!Mesh) 
+			continue;
+		Mesh->GetFaceNormals(FaceNormals[i], Evolution->Particles().X(), false);
+		Mesh->GetPointNormals(PointNormals[i], FaceNormals[i], false);
+
+		FClothSimulData& Data = OutData.FindOrAdd(i);
+		Data.Reset();
+
+		const TArray<FTransform>& ComponentSpaceTransforms = InOverrideComponent ?
+			InOverrideComponent->GetComponentSpaceTransforms() :
+			InOwnerComponent->GetComponentSpaceTransforms();
+		if (!ComponentSpaceTransforms.IsValidIndex(Asset->ReferenceBoneIndex))
+		{
+			UE_LOG(LogSkeletalMesh, Warning,
+				TEXT("Failed to write back clothing simulation data for component '%s' as bone transforms are invalid."),
+				*InOwnerComponent->GetName());
+			check(false);
+			continue;
+		}
+
+		FTransform RootBoneTransform = ComponentSpaceTransforms[Asset->ReferenceBoneIndex];
+		RootBoneTransform.SetScale3D(FVector(1.0f));
+		RootBoneTransform *= OwnerTransform;
+		Data.Transform = RootBoneTransform;
+		Data.ComponentRelativeTransform = OwnerTransform.Inverse();
+
+		const Chaos::TVector<uint32, 2>& VertexDomain = IndexToRangeMap[i];
+		const uint32 VertexRange = VertexDomain[1] - VertexDomain[0];
+		Data.Positions.SetNum(VertexRange);
+        Data.Normals.SetNum(VertexRange);
+		for (uint32 j = VertexDomain[0]; j < VertexDomain[1]; ++j)
         {
-            Data.Positions[j - IndexToRangeMap[i][0]] = Evolution->Particles().X(j);
-            Data.Normals[j - IndexToRangeMap[i][0]] = PointNormals[j];
-        }
-        OutData.Emplace(i, Data);
+			const uint32 LocalIndex = j - VertexDomain[0];
+            Data.Positions[LocalIndex] = Evolution->Particles().X(j);
+            Data.Normals[LocalIndex] = PointNormals[i][LocalIndex];
+		}
     }
 }
 
 void ClothingSimulation::AddExternalCollisions(const FClothCollisionData& InData)
 {
     TGeometryParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
-    {
-        uint32 Size = CollisionParticles.Size();
-        CollisionParticles.AddParticles(InData.Spheres.Num());
+	TSet<int32> CapsuleEnds;
+
+	const uint32 NumParticles0 = CollisionParticles.Size();
+
+	if(InData.SphereConnections.Num())
+	{
+		const uint32 Size = CollisionParticles.Size();
+        CollisionParticles.AddParticles(InData.SphereConnections.Num());
+		CapsuleEnds.Reserve(InData.SphereConnections.Num() * 2);
         for (uint32 i = Size; i < CollisionParticles.Size(); ++i)
         {
-            const auto& CollisionSphere = InData.Spheres[i - Size];
-            CollisionParticles.X(i) = Chaos::TVector<float, 3>(0.f, 0.f, 0.f);
-            CollisionParticles.R(i) = Chaos::TRotation<float, 3>::MakeFromEuler(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
-            CollisionParticles.Geometry(i) = new Chaos::TSphere<float, 3>(CollisionSphere.LocalPosition, CollisionSphere.Radius);
-            IndexAndSphereCollisionMap.Add(MakePair(i, CollisionSphere));
+			// This data was pulled from a FKSphylElem, which is a capsule.  So 
+			// it should only have 1 radius, and the BoneIndex for both spheres
+			// should be the same.
+			const FClothCollisionPrim_SphereConnection& Connection = InData.SphereConnections[i - Size];
+			const int32 SphereIndex0 = Connection.SphereIndices[0];
+			const int32 SphereIndex1 = Connection.SphereIndices[1];
+			checkSlow(SphereIndex0 != SphereIndex1);
+			const float Radius = InData.Spheres[SphereIndex0].Radius;
+			checkSlow(InData.Spheres[SphereIndex0].Radius - InData.Spheres[SphereIndex1].Radius < SMALL_NUMBER);
+			const Chaos::TVector<float, 3> X0 = InData.Spheres[SphereIndex0].LocalPosition;
+			const Chaos::TVector<float, 3> X1 = InData.Spheres[SphereIndex1].LocalPosition;
+			const int32 BoneIndex = InData.Spheres[SphereIndex0].BoneIndex;
+			checkSlow(InData.Spheres[SphereIndex0].BoneIndex == InData.Spheres[SphereIndex1].BoneIndex);
+
+			const Chaos::TVector<float, 3> Center = (X0 + X1) * 0.5;
+			const Chaos::TVector<float, 3> Axis = X1 - X0;
+			const float HalfHeight = Axis.Size() * 0.5;
+
+			// We construct a capsule centered at the origin along the Z axis, and
+			// then move it into place with X and R.
+			CollisionParticles.X(i) = Center;
+//			CollisionParticles.X(i) = Chaos::TVector<float,3>(0.f);
+			CollisionParticles.R(i) = Chaos::TRotation<float, 3>::FromRotatedVector(Chaos::TVector<float,3>::AxisVector(2), Axis.GetSafeNormal());
+//			CollisionParticles.R(i) = Chaos::TRotation<float, 3>();
+			BaseTransforms[i] = Chaos::TRigidTransform<float, 3>(CollisionParticles.X(i), CollisionParticles.R(i));
+
+			CollisionParticles.SetDynamicGeometry(
+				i,
+				MakeUnique<Chaos::TCapsule<float>>(
+					Chaos::TVector<float, 3>(0.f, 0.f, -HalfHeight), // Min
+					Chaos::TVector<float, 3>(0.f, 0.f, HalfHeight), // Max
+					Radius));
+            IndexAndCapsuleCollisionMap.Add(MakePair(i, Connection));
+
+			// Skip spheres added as end caps for the capsule.
+			CapsuleEnds.Add(SphereIndex0);
+			CapsuleEnds.Add(SphereIndex1);
+		}
+	}
+/**/
+	if(InData.Spheres.Num() - CapsuleEnds.Num())
+	{
+        const uint32 Size = CollisionParticles.Size();
+        CollisionParticles.AddParticles(InData.Spheres.Num() - CapsuleEnds.Num());
+        for (uint32 i = 0, j = Size; i < (uint32)InData.Spheres.Num(); ++i)
+        {
+			// Skip spheres that are the end caps of capsules.
+			if (CapsuleEnds.Contains(i))
+				continue;
+			
+			const auto& CollisionSphere = InData.Spheres[i];
+//            CollisionParticles.X(j) = CollisionSphere.LocalPosition;
+            CollisionParticles.X(j) = Chaos::TVector<float, 3>(0.f);
+			CollisionParticles.R(j) = Chaos::TRotation<float, 3>(Chaos::TVector<float, 3>::AxisVector(0), 0.f); //::MakeFromEuler(Chaos::TVector<float, 3>(0.f, 0.f, 0.f));
+            CollisionParticles.SetDynamicGeometry(
+				j, 
+				MakeUnique<Chaos::TSphere<float,3>>(
+					CollisionSphere.LocalPosition, //Chaos::TVector<float, 3>(0.f, 0.f, 0.f), 
+					CollisionSphere.Radius));
+            IndexAndSphereCollisionMap.Add(MakePair(j, CollisionSphere));
+			j++;
         }
     }
+	if(InData.Convexes.Num())
     {
-        uint32 Size = CollisionParticles.Size();
+        const uint32 Size = CollisionParticles.Size();
         CollisionParticles.AddParticles(InData.Convexes.Num());
         for (uint32 i = Size; i < CollisionParticles.Size(); ++i)
         {
@@ -557,7 +861,7 @@ void ClothingSimulation::AddExternalCollisions(const FClothCollisionData& InData
                     new Chaos::TPlane<float, 3>(Chaos::TVector<float, 3>(0.f, 0.f, convex.Planes[j].W / convex.Planes[j].Z),
                                                    Chaos::TVector<float, 3>(convex.Planes[j].X, convex.Planes[j].Y, convex.Planes[j].Z))));
             }
-            CollisionParticles.Geometry(i) = new Chaos::TImplicitObjectIntersection<float, 3>(MoveTemp(Planes));
+            CollisionParticles.SetDynamicGeometry(i, MakeUnique<Chaos::TImplicitObjectIntersection<float, 3>>(MoveTemp(Planes)));
             IndexAndConvexCollisionMap.Add(MakePair(i, convex));
         }
     }
@@ -565,8 +869,11 @@ void ClothingSimulation::AddExternalCollisions(const FClothCollisionData& InData
 
 void ClothingSimulation::ClearExternalCollisions()
 {
-    Evolution->CollisionParticles().Resize(0);
-    IndexAndSphereCollisionMap.Reset();
+	TGeometryParticles<float, 3>& CollisionParticles = Evolution->CollisionParticles();
+    CollisionParticles.Resize(0);
+
+	IndexAndSphereCollisionMap.Reset();
+    IndexAndCapsuleCollisionMap.Reset();
     IndexAndConvexCollisionMap.Reset();
 }
 
@@ -582,6 +889,13 @@ void ClothingSimulation::GetCollisions(FClothCollisionData& OutCollisions, bool 
             OutCollisions.Spheres.Add(IndexSphere.Second);
         }
     }
+	for (const auto& IndexCapsule : IndexAndCapsuleCollisionMap)
+	{
+		if (Evolution->Collided(IndexCapsule.First))
+		{
+			OutCollisions.SphereConnections.Add(IndexCapsule.Second);
+		}
+	}
     for (const auto& IndexConvex : IndexAndConvexCollisionMap)
     {
         if (Evolution->Collided(IndexConvex.First))

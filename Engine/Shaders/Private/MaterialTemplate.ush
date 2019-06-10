@@ -2009,8 +2009,8 @@ void GetMaterialClippingVelocity(FMaterialPixelParameters Parameters, FPixelMate
 		clip(GetMaterialMaskInputRaw(PixelMaterialInputs) - 1.0f / 255.0f);
 	#elif MATERIALBLENDING_MASKED
 		clip(GetMaterialMask(PixelMaterialInputs)); 
-	#elif MATERIALBLENDING_TRANSLUCENT
-		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0f / 255.0f);
+	#elif MATERIALBLENDING_TRANSLUCENT || MATERIALBLENDING_ADDITIVE || MATERIALBLENDING_MODULATE
+		clip(GetMaterialOpacity(PixelMaterialInputs) - 1.0 / 255.0 - GetMaterialOpacityMaskClipValue());
 	#endif
 }
 

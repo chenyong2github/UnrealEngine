@@ -1113,6 +1113,11 @@ bool FMaterialResource::IsUsedWithInstancedStaticMeshes() const
 	return Material->bUsedWithInstancedStaticMeshes;
 }
 
+bool FMaterialResource::IsUsedWithGeometryCollections() const
+{
+	return Material->bUsedWithGeometryCollections;
+}
+
 bool FMaterialResource::IsUsedWithAPEXCloth() const
 {
 	return Material->bUsedWithClothing;
@@ -1240,6 +1245,11 @@ bool FMaterialResource::IsDitheredLODTransition() const
 bool FMaterialResource::IsTranslucencyWritingCustomDepth() const
 {
 	return Material->IsTranslucencyWritingCustomDepth();
+}
+
+bool FMaterialResource::IsTranslucencyWritingVelocity() const
+{
+	return Material->IsTranslucencyWritingVelocity();
 }
 
 bool FMaterialResource::IsMasked() const 
@@ -2656,6 +2666,7 @@ bool FMaterial::WritesEveryPixel(bool bShadowPass) const
 	}
 
 	return !IsMasked()
+		&& !IsTranslucentBlendMode(GetBlendMode())
 		// Render dithered material as masked if a stencil prepass is not used (UE-50064, UE-49537)
 		&& !((bShadowPass || !bStencilDitheredLOD) && IsDitheredLODTransition())
 		&& !IsWireframe()

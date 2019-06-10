@@ -34,7 +34,6 @@ void FGeometryCollectionEditableMeshFormat::FillMeshObjectPtr( UPrimitiveCompone
 		}
 	}
 
-	check(SubMeshAddress.MeshObjectPtr);
 }
 
 
