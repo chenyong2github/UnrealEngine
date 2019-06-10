@@ -33,9 +33,9 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	{
 	case RouteId_BeginOpen:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 TempHandle = EventData.GetValue("TempHandle").As<uint64>();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 TempHandle = EventData.GetValue<uint64>("TempHandle");
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		check(!PendingOpenMap.Contains(TempHandle));
 		uint32 FileIndex = FileActivityProvider.GetFileIndex(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 		FPendingActivity& Open = PendingOpenMap.Add(TempHandle);
@@ -45,9 +45,9 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_EndOpen:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 TempHandle = EventData.GetValue("TempHandle").As<uint64>();
-		uint64 FileHandle = EventData.GetValue("FileHandle").As<uint64>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 TempHandle = EventData.GetValue<uint64>("TempHandle");
+		uint64 FileHandle = EventData.GetValue<uint64>("FileHandle");
 		check(PendingOpenMap.Contains(TempHandle));
 		FPendingActivity& Open = PendingOpenMap[TempHandle];
 		if (FileHandle == uint64(-1)) // TODO: Portable invalid file handle?
@@ -65,10 +65,10 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_BeginClose:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 TempHandle = EventData.GetValue("TempHandle").As<uint64>();
-		uint64 FileHandle = EventData.GetValue("FileHandle").As<uint64>();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 TempHandle = EventData.GetValue<uint64>("TempHandle");
+		uint64 FileHandle = EventData.GetValue<uint64>("FileHandle");
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		check(OpenFilesMap.Contains(FileHandle));
 		check(!PendingCloseMap.Contains(TempHandle));
 		uint64 FileIndex = OpenFilesMap[FileHandle];
@@ -80,8 +80,8 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_EndClose:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 TempHandle = EventData.GetValue("TempHandle").As<uint64>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 TempHandle = EventData.GetValue<uint64>("TempHandle");
 		check(PendingCloseMap.Contains(TempHandle));
 		FPendingActivity& Close = PendingCloseMap[TempHandle];
 		FileActivityProvider.EndActivity(Close.FileIndex, Close.ActivityIndex, Time, false);
@@ -90,12 +90,12 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_BeginRead:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 ReadHandle = EventData.GetValue("ReadHandle").As<uint64>();
-		uint64 FileHandle = EventData.GetValue("FileHandle").As<uint64>();
-		uint64 Offset = EventData.GetValue("Offset").As<uint64>();
-		uint64 Size = EventData.GetValue("Size").As<uint64>();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 ReadHandle = EventData.GetValue<uint64>("ReadHandle");
+		uint64 FileHandle = EventData.GetValue<uint64>("FileHandle");
+		uint64 Offset = EventData.GetValue<uint64>("Offset");
+		uint64 Size = EventData.GetValue<uint64>("Size");
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		check(OpenFilesMap.Contains(FileHandle));
 		uint32 FileIndex = OpenFilesMap[FileHandle];
 		uint64 ReadIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Read, Offset, Size, Time);
@@ -106,10 +106,10 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_EndRead:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 ReadHandle = EventData.GetValue("ReadHandle").As<uint64>();
-		uint64 SizeRead = EventData.GetValue("SizeRead").As<uint64>();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 ReadHandle = EventData.GetValue<uint64>("ReadHandle");
+		uint64 SizeRead = EventData.GetValue<uint64>("SizeRead");
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		check(ActiveReadsMap.Contains(ReadHandle));
 		const FPendingActivity& Read = ActiveReadsMap[ReadHandle];
 		FileActivityProvider.EndActivity(Read.FileIndex, Read.ActivityIndex, Time, false);
@@ -118,12 +118,12 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_BeginWrite:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 WriteHandle = EventData.GetValue("WriteHandle").As<uint64>();
-		uint64 FileHandle = EventData.GetValue("FileHandle").As<uint64>();
-		uint64 Offset = EventData.GetValue("Offset").As<uint64>();
-		uint64 Size = EventData.GetValue("Size").As<uint64>();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 WriteHandle = EventData.GetValue<uint64>("WriteHandle");
+		uint64 FileHandle = EventData.GetValue<uint64>("FileHandle");
+		uint64 Offset = EventData.GetValue<uint64>("Offset");
+		uint64 Size = EventData.GetValue<uint64>("Size");
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		check(OpenFilesMap.Contains(FileHandle));
 		uint32 FileIndex = OpenFilesMap[FileHandle];
 		uint64 WriteIndex = FileActivityProvider.BeginActivity(FileIndex, Trace::FileActivityType_Write, Offset, Size, Time);
@@ -134,10 +134,10 @@ void FPlatformFileTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 	}
 	case RouteId_EndWrite:
 	{
-		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue("Cycle").As<uint64>());
-		uint64 WriteHandle = EventData.GetValue("WriteHandle").As<uint64>();
-		uint64 SizeWritten = EventData.GetValue("SizeWritten").As<uint64>();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		double Time = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		uint64 WriteHandle = EventData.GetValue<uint64>("WriteHandle");
+		uint64 SizeWritten = EventData.GetValue<uint64>("SizeWritten");
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		check(ActiveWritesMap.Contains(WriteHandle));
 		const FPendingActivity& Write = ActiveWritesMap[WriteHandle];
 		FileActivityProvider.EndActivity(Write.FileIndex, Write.ActivityIndex, Time, false);

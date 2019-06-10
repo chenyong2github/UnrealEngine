@@ -42,17 +42,14 @@ public:
 		FInterfaceBuilder&		InterfaceBuilder;
 	};
 
-	struct FValue
-	{
-		template <typename AsType>
-		AsType As() const;
-	};
-
 	struct FEventData
 	{
-		virtual const FValue&	GetValue(const ANSICHAR* FieldName) const = 0;
+		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName) const;
 		virtual const uint8*	GetAttachment() const = 0;
 		virtual uint16			GetAttachmentSize() const = 0;
+
+	private:
+		virtual const void*		GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const = 0;
 	};
 
 	struct FOnEventContext
@@ -68,23 +65,39 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-template <typename AsType>
-AsType IAnalyzer::FValue::As() const
+template <typename ValueType>
+ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
 {
-	uint16 FieldType = uint16(UPTRINT(this) >> 48);
-	if (FieldType == 0xffff)
+	uint16 FieldTypeId;
+	const void* Addr = GetValueImpl(FieldName, FieldTypeId);
+	if (Addr == nullptr)
 	{
-		return AsType(0);
+		return ValueType(0);
 	}
 
-	check((FieldType & _Field_Float) == 0);
+	uint32 Pow2Size = (FieldTypeId & _Field_Pow2SizeMask);
+	uint32 Category = (FieldTypeId & _Field_CategoryMask);
 
-	const void* Addr = (void*)(UPTRINT(this) & ((1ull << 48) - 1));
-	UPTRINT Value = 0;
-	uint32 Size = 1 << (FieldType & _Field_Pow2SizeMask);
-	memcpy(&Value, Addr, Size);
+	if (Category == _Field_Float)
+	{
+		switch (Pow2Size)
+		{
+		case _Field_32: return ValueType(*(const float*)(Addr));
+		case _Field_64: return ValueType(*(const double*)(Addr));
+		}
+	}
+	else if (Category == _Field_Integer)
+	{
+		switch (Pow2Size)
+		{
+		case _Field_8:  return ValueType(*(const uint8*)(Addr));
+		case _Field_16: return ValueType(*(const uint16*)(Addr));
+		case _Field_32: return ValueType(*(const uint32*)(Addr));
+		case _Field_64: return ValueType(*(const uint64*)(Addr));
+		}
+	}
 
-	return AsType(Value);
+	return ValueType(0);
 }
 
 } // namespace Trace

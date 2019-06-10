@@ -33,7 +33,7 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 	case RouteId_EventSpec:
 	{
-		uint16 Id = EventData.GetValue("Id").As<uint16>();
+		uint16 Id = EventData.GetValue<uint16>("Id");
 		if (ScopeIdToEventIdMap.Contains(Id))
 		{
 			TimingProfilerProvider.SetTimerName(ScopeIdToEventIdMap[Id], reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
@@ -48,7 +48,7 @@ void FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	case RouteId_EndCapture:
 	{
 		TotalEventSize += EventData.GetAttachmentSize();
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 LastCycle = ThreadState->LastCycle;
 		uint64 BufferSize = EventData.GetAttachmentSize();

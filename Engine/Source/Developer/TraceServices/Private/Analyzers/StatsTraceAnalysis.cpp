@@ -31,16 +31,16 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_Spec:
 	{
 		Trace::FAnalysisSessionEditScope _(Session);
-		uint32 StatId = EventData.GetValue("Id").As<uint32>();
+		uint32 StatId = EventData.GetValue<uint32>("Id");
 		check(!CountersMap.Contains(StatId));
 		const ANSICHAR* Name = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
 		const TCHAR* Description = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(Name) + 1);
 		Trace::ECounterDisplayHint DisplayHint = Trace::CounterDisplayHint_None;
-		if (EventData.GetValue("IsFloatingPoint").As<bool>())
+		if (EventData.GetValue<bool>("IsFloatingPoint"))
 		{
 			DisplayHint = Trace::CounterDisplayHint_FloatingPoint;
 		}
-		else if (EventData.GetValue("IsMemory").As<bool>())
+		else if (EventData.GetValue<bool>("IsMemory"))
 		{
 			DisplayHint = Trace::CounterDisplayHint_Memory;
 		}
@@ -51,7 +51,7 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	case RouteId_EventBatch:
 	{
 		Trace::FAnalysisSessionEditScope _(Session);
-		uint32 ThreadId = EventData.GetValue("ThreadId").As<uint32>();
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 BufferSize = EventData.GetAttachmentSize();
 		const uint8* BufferPtr = EventData.GetAttachment();

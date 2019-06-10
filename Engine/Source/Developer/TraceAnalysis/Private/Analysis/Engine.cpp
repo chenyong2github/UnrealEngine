@@ -217,7 +217,7 @@ struct FAnalysisEngine::FEventDataImpl
 	: public FEventData
 {
 	virtual					~FEventDataImpl() = default;
-	virtual const FValue&	GetValue(const ANSICHAR* FieldName) const override;
+	virtual const void*		GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const override;
 	virtual const uint8*	GetAttachment() const override;
 	virtual uint16			GetAttachmentSize() const override;
 	const FDispatch*		Dispatch;
@@ -226,10 +226,8 @@ struct FAnalysisEngine::FEventDataImpl
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-const IAnalyzer::FValue& FAnalysisEngine::FEventDataImpl::GetValue(const ANSICHAR* FieldName) const
+const void* FAnalysisEngine::FEventDataImpl::GetValueImpl(const ANSICHAR* FieldName, uint16& Type) const
 {
-	UPTRINT Ret = ~0ull;
-
 	FFnv1aHash Hash;
 	Hash.Add(FieldName);
 	uint32 NameHash = Hash.Get();
@@ -239,13 +237,12 @@ const IAnalyzer::FValue& FAnalysisEngine::FEventDataImpl::GetValue(const ANSICHA
 		const auto& Field = Dispatch->Fields[i];
 		if (Field.Hash == NameHash)
 		{
-			Ret = UPTRINT(Ptr + Field.Offset);
-			Ret |= UPTRINT(Field.TypeInfo) << 48;
-			break;
+			Type = Field.TypeInfo;
+			return (Ptr + Field.Offset);
 		}
 	}
 
-	return *(FValue*)Ret;
+	return nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -416,8 +413,8 @@ void FAnalysisEngine::OnNewTrace(const FOnEventContext& Context)
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnTiming(const FOnEventContext& Context)
 {
-	SessionContext.StartCycle = Context.EventData.GetValue("StartCycle").As<uint64>();
-	SessionContext.CycleFrequency = Context.EventData.GetValue("CycleFrequency").As<uint64>();
+	SessionContext.StartCycle = Context.EventData.GetValue<uint64>("StartCycle");
+	SessionContext.CycleFrequency = Context.EventData.GetValue<uint64>("CycleFrequency");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
