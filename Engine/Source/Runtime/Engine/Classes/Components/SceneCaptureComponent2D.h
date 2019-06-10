@@ -122,7 +122,9 @@ public:
 
 	//~ End UObject Interface
 
-	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView);
+	void SetCameraView(const FMinimalViewInfo& DesiredView);
+
+	virtual void GetCameraView(float DeltaTime, FMinimalViewInfo& OutDesiredView);
 
 	/** Adds an Blendable (implements IBlendableInterface) to the array of Blendables (if it doesn't exist) and update the weight */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
