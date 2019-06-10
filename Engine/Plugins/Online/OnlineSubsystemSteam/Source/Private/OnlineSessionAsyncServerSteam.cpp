@@ -406,7 +406,9 @@ void FOnlineAsyncTaskSteamCreateServer::Finalize()
 			UE_LOG_ONLINE_SESSION(Verbose, TEXT("Server SteamP2P IP: %s"), *NewSessionInfo->SteamP2PAddr->ToString(true));
 
 			// Create the proper ip address for this server
-			NewSessionInfo->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr(SteamGameServerPtr->GetPublicIP(), Subsystem->GetGameServerGamePort());
+			NewSessionInfo->HostAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
+			NewSessionInfo->HostAddr->SetIp(SteamGameServerPtr->GetPublicIP());
+			NewSessionInfo->HostAddr->SetPort(Subsystem->GetGameServerGamePort());
 			UE_LOG_ONLINE_SESSION(Verbose, TEXT("Server IP: %s"), *NewSessionInfo->HostAddr->ToString(true));
 
 			if (!Session->OwningUserId.IsValid())
@@ -675,7 +677,8 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 	}
 
 	// Verify success with all required keys found
-	if (bSuccess && (KeysFound == STEAMKEY_NUMREQUIREDSERVERKEYS) && (SteamAddrKeysFound == 2))
+	// If the user has SteamNetworking off, then we should just check if their host addressing is correct.
+	if (bSuccess && (KeysFound == STEAMKEY_NUMREQUIREDSERVERKEYS) && (SteamAddrKeysFound == 2 || (HostAddr->IsValid() && HostAddr.IsValid())))
 	{
 		SessionInfo->HostAddr = HostAddr;
 		SessionInfo->SteamP2PAddr = SteamP2PAddr;
@@ -1273,10 +1276,8 @@ void FOnlineAsyncEventSteamInviteAccepted::Finalize()
 		Port = (Port > 0) ? Port : Subsystem->GetGameServerGamePort();
 
 		// Parse the address
-		bool bIsValid;
-		TSharedRef<FInternetAddr> IpAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-		IpAddr->SetIp(ParsedURL, bIsValid);
-		if (bIsValid)
+		TSharedPtr<FInternetAddr> IpAddr = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetAddressFromString(ParsedURL);
+		if (IpAddr.IsValid())
 		{
 			SessionInt->CurrentSessionSearch->QuerySettings.Set(FName(SEARCH_STEAM_HOSTIP), IpAddr->ToString(false), EOnlineComparisonOp::Equals);
 			FOnlineAsyncTaskSteamFindServerForInviteSession* NewTask = new FOnlineAsyncTaskSteamFindServerForInviteSession(Subsystem, SearchSettings, LocalUserNum, SessionInt->OnSessionUserInviteAcceptedDelegates);

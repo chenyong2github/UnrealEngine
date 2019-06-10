@@ -39,9 +39,6 @@ class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 	UPROPERTY(Config)
 	uint32 MaxPortCountToTry;
 
-	/** Local address this net driver is associated with */
-	TSharedPtr<FInternetAddr> LocalAddr;
-
 	/** Underlying socket communication */
 	FSocket* Socket;
 
@@ -54,7 +51,7 @@ class ONLINESUBSYSTEMUTILS_API UIpNetDriver : public UNetDriver
 	virtual bool InitConnect( FNetworkNotify* InNotify, const FURL& ConnectURL, FString& Error ) override;
 	virtual bool InitListen( FNetworkNotify* InNotify, FURL& LocalURL, bool bReuseAddressAndPort, FString& Error ) override;
 	virtual void TickDispatch( float DeltaTime ) override;
-	virtual void LowLevelSend(FString Address, void* Data, int32 CountBits, FOutPacketTraits& Traits) override;
+	virtual void LowLevelSend(TSharedPtr<const FInternetAddr> Address, void* Data, int32 CountBits, FOutPacketTraits& Traits) override;
 	virtual FString LowLevelGetNetworkNumber() override;
 	virtual void LowLevelDestroy() override;
 	virtual class ISocketSubsystem* GetSocketSubsystem() override;

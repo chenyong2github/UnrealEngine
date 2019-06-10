@@ -229,7 +229,7 @@ void FNetworkProfiler::SetCurrentConnection( UNetConnection* Connection )
 {
 	if ( bIsTrackingEnabled && Connection != nullptr )
 	{
-		const TSharedPtr<const FInternetAddr> ConnectionAddr = Connection->GetInternetAddr();
+		const TSharedPtr<const FInternetAddr> ConnectionAddr = Connection->GetRemoteAddr();
 		if ( ConnectionAddr.IsValid() )
 		{
 			if ( LastAddress != ConnectionAddr )
