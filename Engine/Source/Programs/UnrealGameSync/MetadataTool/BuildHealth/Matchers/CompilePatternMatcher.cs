@@ -30,7 +30,7 @@ namespace MetadataTool
 		{
 			// Find a list of source files with errors
 			HashSet<string> ErrorFileNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-			foreach (Match FileMatch in Regex.Matches(Diagnostic.Message, @"^\s*((?:[A-Za-z]:)?[^\s(:]+)[\(:]\d[\s\d:\)]+(?:warning|error)", RegexOptions.Multiline))
+			foreach (Match FileMatch in Regex.Matches(Diagnostic.Message, @"^\s*((?:[A-Za-z]:)?[^\s(:]+)[\(:]\d[\s\d:\)]+(?:warning|error|fatal error)", RegexOptions.Multiline))
 			{
 				if (FileMatch.Success)
 				{
