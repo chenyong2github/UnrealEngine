@@ -14,6 +14,10 @@
 #include "PhysicsEngine/PhysicsSettingsEnums.h"
 #include "PhysicsEngine/BodySetupEnums.h"
 #include "GameFramework/WorldSettings.h"
+#include "PhysicsCoreTypes.h"
+
+#include "Framework/Threading.h"
+
 #include "PhysicsSettings.generated.h"
 
 /**
@@ -37,6 +41,32 @@ struct FPhysicalSurfaceName
 		: Type(InType)
 		, Name(InName)
 	{}
+};
+
+/** 
+  * Settings container for Chaos physics engine settings, accessed in Chaos through a setting provider interface.
+  * See: IChaosSettingsProvider
+  */
+USTRUCT()
+struct ENGINE_API FChaosPhysicsSettings
+{
+	GENERATED_BODY()
+
+	FChaosPhysicsSettings();
+
+	/** Default threading model to use on module initialisation. Can be switched at runtime using p.Chaos.ThreadingModel */
+	UPROPERTY(EditAnywhere, Category = ChaosPhysics)
+	EChaosThreadingMode DefaultThreadingModel;
+
+	/** The framerate/timestep ticking mode when running with a dedicated thread */
+	UPROPERTY(EditAnywhere, Category = Framerate)
+	EChaosSolverTickMode DedicatedThreadTickMode;
+
+	/** The buffering mode to use when running with a dedicated thread */
+	UPROPERTY(EditAnywhere, Category = Framerate)
+	EChaosBufferMode DedicatedThreadBufferMode;
+
+	void OnSettingsUpdated();
 };
 
 UENUM()
@@ -263,6 +293,10 @@ class ENGINE_API UPhysicsSettings : public UDeveloperSettings
 	/** If we want to Enable MPB or not globally. This is then overridden by project settings if not enabled. **/
 	UPROPERTY(config, EditAnywhere, Category = Broadphase)
 	FBroadphaseSettings DefaultBroadphaseSettings;
+
+	/** Chaos physics engine settings */
+	UPROPERTY(config, EditAnywhere, Category = ChaosPhysics)
+	FChaosPhysicsSettings ChaosSettings;
 
 public:
 

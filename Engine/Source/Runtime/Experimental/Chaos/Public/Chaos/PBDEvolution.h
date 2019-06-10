@@ -13,7 +13,7 @@ class CHAOS_API TPBDEvolution
 {
   public:
 	// TODO(mlentine): Init particles from some type of input
-	TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematicGeometryParticles<T, d>&& InGeometryParticles, TArray<TVector<int32, 3>>&& CollisionTriangles, int32 NumIterations = 1, T CollisionThickness = 0, T SelfCollisionsThickness = 0, T CoefficientOfFriction = 0, T Damping = 0.01);
+	TPBDEvolution(TPBDParticles<T, d>&& InParticles, TKinematicGeometryParticles<T, d>&& InGeometryParticles, TArray<TVector<int32, 3>>&& CollisionTriangles, int32 NumIterations = 1, T CollisionThickness = 0, T SelfCollisionsThickness = 0, T CoefficientOfFriction = 0, T Damping = 0.04);
 	~TPBDEvolution() {}
 
 	void AdvanceOneTimeStep(const T dt);
@@ -34,7 +34,10 @@ class CHAOS_API TPBDEvolution
 	TArray<TVector<int32, 3>>& CollisionTriangles() { return MCollisionTriangles; }
 	TSet<TVector<int32, 2>>& DisabledCollisionElements() { return MDisabledCollisionElements; }
 
-	void SetIterations(int32 Iterations) { MNumIterations = Iterations; }
+	int32 GetIterations() const { return MNumIterations; }
+	void SetIterations(const int32 Iterations) { MNumIterations = Iterations; }
+
+	T GetTime() const { return MTime; }
 
   private:
 	TPBDParticles<T, d> MParticles;

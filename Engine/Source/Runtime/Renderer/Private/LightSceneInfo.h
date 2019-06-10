@@ -9,9 +9,9 @@
 #include "CoreMinimal.h"
 #include "RenderResource.h"
 #include "Templates/ScopedPointer.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "SceneManagement.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "Templates/UniquePtr.h"
 
 class FLightPrimitiveInteraction;

@@ -2,6 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionRenderLevelSetActor.h"
 
+#include "EngineUtils.h"
 
 #include "Chaos/ArrayND.h"
 #include "Chaos/Vector.h"
@@ -10,6 +11,34 @@ using namespace Chaos;
 
 DEFINE_LOG_CATEGORY_STATIC(LSR_LOG, Log, All);
 
+AGeometryCollectionRenderLevelSetActor* AGeometryCollectionRenderLevelSetActor::FindOrCreate(UWorld* World)
+{
+	AGeometryCollectionRenderLevelSetActor* Actor = nullptr;
+	if (!World)
+	{
+		UE_LOG(LSR_LOG, Warning, TEXT("No valid World where to search for an existing GeometryCollectionRenderLevelSetActor singleton actor."));
+	}
+	else
+	{
+		const TActorIterator<AGeometryCollectionRenderLevelSetActor> ActorIterator(World);
+		if (ActorIterator)
+		{
+			Actor = *ActorIterator;
+		}
+		else
+		{
+			FActorSpawnParameters SpawnInfo;
+			SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			Actor = World->SpawnActor<AGeometryCollectionRenderLevelSetActor>(SpawnInfo);
+		}
+		if (!Actor)
+		{
+			UE_LOG(LSR_LOG, Warning, TEXT("No GeometryCollectionRenderLevelSetActor singleton actor could be found or created."));
+		}
+	}
+	return Actor;
+}
+
 AGeometryCollectionRenderLevelSetActor::AGeometryCollectionRenderLevelSetActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), SurfaceTolerance(0.01f), Isovalue(0.f), Enabled(true), RenderVolumeBoundingBox(false), DynRayMarchMaterial(NULL), StepSizeMult(1.f)
 {
@@ -17,15 +46,9 @@ AGeometryCollectionRenderLevelSetActor::AGeometryCollectionRenderLevelSetActor(c
 	RootComponent = PostProcessComponent;
 
 	// set initial values
-	// @todo: Need to make this work based on if the module is loaded
-#if 0
-	TargetVolumeTexture = LoadObject<UVolumeTexture>(NULL, TEXT("/GeometryCollectionPlugin/VolumeVisualization/Textures/VolumeToRender"), NULL, LOAD_None, NULL);
-	UMaterialInterface* MaterialInterface = LoadObject<UMaterialInterface>(NULL, TEXT("/GeometryCollectionPlugin/VolumeVisualization/Materials/M_VolumeRenderSphereTracePP"), NULL, LOAD_None, NULL);
+	TargetVolumeTexture = LoadObject<UVolumeTexture>(NULL, TEXT("/Engine/EngineDebugMaterials/VolumeToRender"), NULL, LOAD_None, NULL);
+	UMaterialInterface* MaterialInterface = LoadObject<UMaterialInterface>(NULL, TEXT("/Engine/EngineDebugMaterials/M_VolumeRenderSphereTracePP"), NULL, LOAD_None, NULL);
 	RayMarchMaterial = MaterialInterface ? MaterialInterface->GetBaseMaterial() : nullptr;
-#else
-	TargetVolumeTexture = nullptr;
-	RayMarchMaterial = nullptr;
-#endif
 }
 
 void AGeometryCollectionRenderLevelSetActor::BeginPlay()
@@ -45,7 +68,6 @@ void AGeometryCollectionRenderLevelSetActor::PostEditChangeProperty(struct FProp
 	// sync all rendering properties each time a param changes.
 	// @todo: optimize to only update parameters when rendering-specific ones are edited
 	SyncMaterialParameters();
-
 }
 #endif
 
@@ -104,17 +126,18 @@ void AGeometryCollectionRenderLevelSetActor::SyncLevelSetTransform(const FTransf
 bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::TLevelSet<float, 3> &LevelSet, const FTransform &LocalToWorld)
 {
 	// error case when the target volume texture isn't set
-	if (TargetVolumeTexture == NULL) {
+	if (TargetVolumeTexture == NULL)
+	{
 		UE_LOG(LSR_LOG, Warning, TEXT("Target UVolumeTexture is null on %s"), *GetFullName());
 		return false;
 	}
 
 	// get refs to the grid structures
-	const TArrayND<float, 3> &LevelSetPhiArray = LevelSet.GetPhiArray();
-	const TArrayND<TVector<float, 3>, 3> &LevelSetNormalsArray = LevelSet.GetNormalsArray();
-	const TUniformGrid<float, 3> &LevelSetGrid = LevelSet.GetGrid();
+	const TArrayND<float, 3>& LevelSetPhiArray = LevelSet.GetPhiArray();
+	const TArrayND<TVector<float, 3>, 3>& LevelSetNormalsArray = LevelSet.GetNormalsArray();
+	const TUniformGrid<float, 3>& LevelSetGrid = LevelSet.GetGrid();
 
-	const TVector<int32, 3> &Counts = LevelSetGrid.Counts();
+	const TVector<int32, 3>& Counts = LevelSetGrid.Counts();
 	
 	// set bounding box
 	MinBBoxCorner = LevelSetGrid.MinCorner();
@@ -125,39 +148,38 @@ bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::TL
 	VoxelSize = LevelSetGrid.Dx().X;
 
 	// Error case when the voxel size is sufficiently small
-	if (VoxelSize < 1e-5) {
-		UE_LOG(LSR_LOG, Warning, TEXT("Voxel size is zero on %s"), *GetFullName());
+	if (VoxelSize < KINDA_SMALL_NUMBER)
+	{
+		UE_LOG(LSR_LOG, Warning, TEXT("Voxel size is too small on %s"), *GetFullName());
 		return false;
 	}
 
 	// lambda for querying the level set information
-	// @note: x and z swap for volume textures to match TlevelSet
 	// @todo: we could encode voxel ordering more nicely in the UVolumeTexture
-	auto QueryVoxel = [&](const int32 x, const int32 y, const int32 z, FFloat16 *ret)
+	auto QueryVoxel = [&LevelSetPhiArray, &LevelSetNormalsArray](int32 PosX, int32 PosY, int32 PosZ, void* Value)
 	{
-		float sd = LevelSetPhiArray(TVector<int32, 3>(z, y, x));
-		TVector<float, 3> n = LevelSetNormalsArray(TVector<int32, 3>(z, y, x));
-		n.Normalize();
+		const TVector<float, 3> Normal = LevelSetNormalsArray(TVector<int32, 3>(PosX, PosY, PosZ)).GetSafeNormal();
+		const float Phi = LevelSetPhiArray(TVector<int32, 3>(PosX, PosY, PosZ));
 
-		// @note: x and z swap for volume textures to render correctly
-		ret[0] = n.X;
-		ret[1] = n.Y;
-		ret[2] = n.Z;
-		ret[3] = sd;
+		FFloat16* const Voxel = static_cast<FFloat16*>(Value);  // TSF_RGBA16F
+		Voxel[0] = Normal.X;
+		Voxel[1] = Normal.Y;
+		Voxel[2] = Normal.Z;
+		Voxel[3] = Phi;
 	};
 
 	// fill volume texture from level set
-	// @note: we swap z and x to match level set in world space
-	bool success = TargetVolumeTexture->UpdateSourceFromFunction(QueryVoxel, Counts.Z, Counts.Y, Counts.X);
+	const bool success = TargetVolumeTexture->UpdateSourceFromFunction(QueryVoxel, Counts.X, Counts.Y, Counts.Z, TSF_RGBA16F);
 
-	if (!success) {
+	if (!success)
+	{
 		UE_LOG(LSR_LOG, Warning, TEXT("Couldn't create target volume texture from TLevelSet with %s"), *GetFullName());
 		return false;
 	}
 
 	// set all parameters on our dynamic material instance to sync state
 	SyncMaterialParameters();
-	
+
 	UE_LOG(LSR_LOG, Log, TEXT("Volume Bounds: %s - %s -- Volume Dims: %d %d %d -- Voxel Size: %f -- World To Local: %s"), *MinBBoxCorner.ToString(), *MaxBBoxCorner.ToString(), Counts.X, Counts.Y, Counts.Z, VoxelSize, *WorldToLocal.ToString());
 
 	return true;

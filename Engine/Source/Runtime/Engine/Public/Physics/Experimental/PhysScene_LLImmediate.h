@@ -104,7 +104,6 @@ public:
 	virtual void CreateRigidBodyCallback(FParticlesType&) {};
 	virtual void ParameterUpdateCallback(FParticlesType&, const float) {};
 	virtual void DisableCollisionsCallback(TSet<TTuple<int32, int32>>&) {};
-	virtual void AddConstraintCallback(FParticlesType&, const float, const int32) {};
 	virtual void AddForceCallback(FParticlesType&, const float, const int32) {};
 };
 #endif

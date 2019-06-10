@@ -293,6 +293,9 @@ public:
 
 	virtual void OnTransformChanged() override;
 
+	const TArray<FMatrix>& GetMeshObjectReferenceToLocalMatrices() const;
+	const TIndirectArray<FSkeletalMeshLODRenderData>& GetSkeletalMeshRenderDataLOD() const;
+
 protected:
 	AActor* Owner;
 	class FSkeletalMeshObject* MeshObject;

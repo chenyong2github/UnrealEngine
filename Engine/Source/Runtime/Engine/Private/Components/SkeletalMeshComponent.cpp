@@ -589,6 +589,17 @@ void USkeletalMeshComponent::OnUnregister()
 		ClothingSimulationContext = nullptr;
 	}
 
+	if (bDeferredKinematicUpdate != 0)
+	{
+		UWorld* World = GetWorld();
+		FPhysScene* PhysScene = World ? World->GetPhysicsScene() : nullptr;
+
+		if (PhysScene != nullptr)
+		{
+			PhysScene->ClearPreSimKinematicUpdate(this);
+		}
+	}
+
 	Super::OnUnregister();
 }
 

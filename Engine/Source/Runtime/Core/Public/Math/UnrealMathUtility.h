@@ -1586,5 +1586,24 @@ struct FMath : public FPlatformMath
 	 *
 	 * @return	Perlin noise in the range of -1.0 to 1.0
 	 */
-	static CORE_API float PerlinNoise1D(const float Value);
+	static CORE_API float PerlinNoise1D(float Value);
+
+	/**
+	* Generates a 1D Perlin noise sample at the given location.  Returns a continuous random value between -1.0 and 1.0.
+	*
+	* @param	Location	Where to sample
+	*
+	* @return	Perlin noise in the range of -1.0 to 1.0
+	*/
+	static CORE_API float PerlinNoise2D(const FVector2D& Location);
+	 
+
+	/**
+	* Generates a 3D Perlin noise sample at the given location.  Returns a continuous random value between -1.0 and 1.0.
+	*
+	* @param	Location	Where to sample
+	*
+	* @return	Perlin noise in the range of -1.0 to 1.0
+	*/
+	static CORE_API float PerlinNoise3D(const FVector& Location);
 };

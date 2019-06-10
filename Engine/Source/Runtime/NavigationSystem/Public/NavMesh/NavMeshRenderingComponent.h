@@ -13,7 +13,7 @@
 #include "Components/PrimitiveComponent.h"
 #include "MeshBatch.h"
 #include "LocalVertexFactory.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "StaticMeshResources.h"
 #include "NavMeshRenderingComponent.generated.h"
 

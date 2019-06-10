@@ -35,7 +35,7 @@ public:
 	*
 	* Node E has no geometry of its own, only a transform by which to control A & B as a single unit
 	*/
-	static void ClusterBonesUnderNewNode(FGeometryCollection* GeometryCollection, int32 InsertAtIndex, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform);
+	static void ClusterBonesUnderNewNode(FGeometryCollection* GeometryCollection, int32 InsertAtIndex, const TArray<int32>& SelectedBones, bool CalcNewLocalTransform, bool Validate = true);
 
 	/** Cluster all existing bones under a new root node, so there is now only one root node and a completely flat hierarchy underneath it */
 	static void ClusterAllBonesUnderNewRoot(FGeometryCollection* GeometryCollection);
@@ -48,9 +48,6 @@ public:
 
 	/** Clusters using one of ClusterBonesUnderNewNode or ClusterBonesUnderExistingNode based on the context of what is being clustered */
 	static void ClusterBonesByContext(FGeometryCollection* GeometryCollection, int32 MergeNode, const TArray<int32>& SourceElementsIn);
-
-	/** Delete specified nodes from the geometry collection hierarchy */
-	static void DeleteNodesInHierarchy(FGeometryCollection* GeometryCollection, TArray<int32>& NodesToDelete);
 
 	/** Returns true if bone hierarchy contains more than one root node */
 	static bool ContainsMultipleRootBones(FGeometryCollection* GeometryCollection);
@@ -68,7 +65,7 @@ public:
 	static void GetChildBonesFromLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level, TArray<int32>& BonesOut);
 
 	/** Recursively Add all children to output bone list from source bone down to the leaf nodes */
-	static void RecursiveAddAllChildren(const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, int32 SourceBone, TArray<int32>& BonesOut);
+	static void RecursiveAddAllChildren(const TManagedArray<TSet<int32>>& Children, int32 SourceBone, TArray<int32>& BonesOut);
 
 	/** Search hierarchy for the parent of the specified bone, where the parent exists at the given level in the hierarchy */
 	static int32 GetParentOfBoneAtSpecifiedLevel(const FGeometryCollection* GeometryCollection, int32 SourceBone, int32 Level);
@@ -80,10 +77,10 @@ public:
 	*  Level 2 children of "Name_0001" are "Name_0001_0001", "Name_0001_0002",.. etc
 	* from the given bone index down through the hierarchy to the leaf nodes
 	*/
-	static void RecursivelyUpdateChildBoneNames(int32 BoneIndex, const TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, TManagedArray<FString>& BoneNames, bool OverrideBoneNames = false);
+	static void RecursivelyUpdateChildBoneNames(int32 BoneIndex, const TManagedArray<TSet<int32>>& Children, TManagedArray<FString>& BoneNames, bool OverrideBoneNames = false);
 	
 	/** Recursively update the hierarchy level of all the children below this bone */
-	static void RecursivelyUpdateHierarchyLevelOfChildren(TManagedArray<FGeometryCollectionBoneNode>& Hierarchy, int32 ParentElement);
+	static void UpdateHierarchyLevelOfChildren(FGeometryCollection* GeometryCollection, int32 ParentElement);
 
 	/** Collapse hierarchy at specified level */
 	static void CollapseLevelHierarchy(int8 Level, FGeometryCollection* GeometryCollection);
@@ -109,11 +106,16 @@ public:
 	/** return an array of all child leaf nodes below the specified node */
 	static void GetLeafBones(FGeometryCollection* GeometryCollection, int BoneIndex, TArray<int32>& LeafBonesOut);
 
+	/** move the selected node up a level in direction of root */
+	static void MoveUpOneHierarchyLevel(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
+
+	static void ValidateResults(FGeometryCollection* GeometryCollection);
 private:
 	static int32 PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
 	// #todo: intend to remove reliance on custom attributes for slider by making use of Rest/Dynamic collections
 	static void ResetSliderTransforms(TManagedArray<FTransform>& ExplodedTransforms, TManagedArray<FTransform>& Transforms);
+	
+	static void RecursivelyUpdateHierarchyLevelOfChildren(TManagedArray<int32>& Levels, const TManagedArray<TSet<int32>>& Children, int32 ParentElement);
 
-	static void ValidateResults(FGeometryCollection* GeometryCollection);
 
 };
