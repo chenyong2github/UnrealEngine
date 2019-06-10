@@ -862,6 +862,11 @@ const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& FNiagar
 
 	// We clone the graph to prevent any destructive changes to the source
 	UNiagaraGraph* NodeGraphDeepCopy = CastChecked<UNiagaraGraph>(FEdGraphUtilities::CloneGraph(Graph, GetTransientPackage(), 0, true));
+
+	// We copy some transient data over here because the copied graph loses some data. Since the result of this function is
+	// also used to build the ui, the user will otherwise lose changes to yet unused parameters (e.g. in the metadata panel).
+	CastChecked<UNiagaraGraph>(Graph)->CopyCachedReferencesMap(NodeGraphDeepCopy);
+
 	TArray<UNiagaraNodeFunctionCall*> Nodes;
 	NodeGraphDeepCopy->GetNodesOfClass(Nodes);
 	for (int32 i = 0; i < Nodes.Num(); i++)

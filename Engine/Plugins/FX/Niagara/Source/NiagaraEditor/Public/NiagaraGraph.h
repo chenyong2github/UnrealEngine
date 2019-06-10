@@ -265,6 +265,8 @@ class UNiagaraGraph : public UEdGraph
 
 	void RebuildCachedCompileIds(bool bForce = false);
 
+	void CopyCachedReferencesMap(UNiagaraGraph* TargetGraph);
+
 protected:
 	void RebuildNumericCache();
 	bool bNeedNumericCacheRebuilt;

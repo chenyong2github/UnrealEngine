@@ -332,8 +332,7 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 	for (auto& GraphWeakPtr : Graphs)
 	{
 		UNiagaraGraph* Graph = GraphWeakPtr.Get();
-		for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
-		// for (const auto& ParameterElement : FNiagaraEditorUtilities::GetCompiledGraphParameterMapReferences(Graph)) // TODO(mv): This makes unused module parameters not show up. See CL 6182457.
+		for (const auto& ParameterElement : FNiagaraEditorUtilities::GetCompiledGraphParameterMapReferences(Graph))
 		{
 			TArray<FNiagaraGraphParameterReferenceCollection>* Found = ParameterEntries.Find(ParameterElement.Key);
 			if (Found)
