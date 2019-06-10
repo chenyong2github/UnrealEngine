@@ -16,7 +16,7 @@ using TTraceAtomic = std::atomic<Type>;
 namespace Private
 {
 
-#if _MSC_VER
+#if defined(_MSC_VER)
 	#pragma warning(push)
 	#pragma warning(disable : 4200) // non-standard zero-sized array
 #endif
@@ -44,7 +44,7 @@ struct FBuffer
 	alignas(void*) uint8		Data[];
 };
 
-#if _MSC_VER
+#if defined(_MSC_VER)
 	#pragma warning(pop)
 #endif
 
