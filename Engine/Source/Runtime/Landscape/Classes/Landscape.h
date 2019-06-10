@@ -171,38 +171,6 @@ struct FLandscapeLayer
 	TMap<ULandscapeLayerInfoObject*, bool> WeightmapLayerAllocationBlend; // True -> Substractive, False -> Additive
 };
 
-struct FLandscapeLayersCopyTextureParams
-{
-	FLandscapeLayersCopyTextureParams(const FString& InSourceResourceDebugName, FTextureResource* InSourceResource, const FString& InDestResourceDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource,
-		const FIntPoint& InInitialPositionOffset, int32 InSubSectionSizeQuad, int32 InNumSubSections, uint8 InSourceCurrentMip, uint8 InDestCurrentMip, uint32 InSourceArrayIndex, uint32 InDestArrayIndex)
-		: SourceResourceDebugName(InSourceResourceDebugName)
-		, SourceResource(InSourceResource)
-		, DestResourceDebugName(InDestResourceDebugName)
-		, DestResource(InDestResource)
-		, DestCPUResource(InDestCPUResource)
-		, InitialPositionOffset(InInitialPositionOffset)
-		, SubSectionSizeQuad(InSubSectionSizeQuad)
-		, NumSubSections(InNumSubSections)
-		, SourceMip(InSourceCurrentMip)
-		, DestMip(InDestCurrentMip)
-		, SourceArrayIndex(InSourceArrayIndex)
-		, DestArrayIndex(InDestArrayIndex)
-	{}
-
-	FString SourceResourceDebugName;
-	FTextureResource* SourceResource;
-	FString DestResourceDebugName;
-	FTextureResource* DestResource;
-	FTextureResource* DestCPUResource;
-	FIntPoint InitialPositionOffset;
-	int32 SubSectionSizeQuad;
-	int32 NumSubSections;
-	uint8 SourceMip;
-	uint8 DestMip;
-	uint32 SourceArrayIndex;
-	uint32 DestArrayIndex;
-};
-
 UCLASS(MinimalAPI, showcategories=(Display, Movement, Collision, Lighting, LOD, Input), hidecategories=(Mobility))
 class ALandscape : public ALandscapeProxy
 {
@@ -360,16 +328,9 @@ private:
 	void DrawWeightmapComponentToRenderTargetMips(const TArray<FVector2D>& InTexturePositionsToDraw, UTexture* InReadWeightmap, bool InClearRTWrite, struct FLandscapeLayersWeightmapShaderParameters& InShaderParams) const;
 
 	void CopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
-						   uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
+							   uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
 	void CopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-						   uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0) const;
-
-	void AddDeferredCopyLayersTexture(UTexture* InSourceTexture, UTexture* InDestTexture, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0), uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0,
-									  uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
-	void AddDeferredCopyLayersTexture(const FString& InSourceDebugName, FTextureResource* InSourceResource, const FString& InDestDebugName, FTextureResource* InDestResource, FTextureResource* InDestCPUResource = nullptr, const FIntPoint& InInitialPositionOffset = FIntPoint(0, 0),
-									  uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 InDestArrayIndex = 0);
-
-	void CommitDeferredCopyLayersTexture();
+							   uint8 InSourceCurrentMip = 0, uint8 InDestCurrentMip = 0, uint32 InSourceArrayIndex = 0, uint32 uInDestArrayIndex = 0) const;
 
 	void InitializeLayers();
 	void InitializeLandscapeLayersWeightmapUsage();
@@ -451,8 +412,6 @@ private:
 	
 	// Used in packing the material layer data contained into CombinedLayersWeightmapAllMaterialLayersResource to be set again for each component weightmap (size of the landscape)
 	class FLandscapeTexture2DResource* WeightmapScratchPackLayerTextureResource;
-
-	TArray<FLandscapeLayersCopyTextureParams> PendingCopyTextures;
 #endif
 
 protected:
