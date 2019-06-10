@@ -46,6 +46,18 @@ void SMediaImage::Construct(const FArguments& InArgs, UTexture* InTexture)
 				Input.MaskA = Output.MaskA;
 			}
 
+			FExpressionInput& Opacity = Material->Opacity;
+			{
+				Opacity.Expression = TextureSampler;
+				Opacity.Mask = Output.Mask;
+				Opacity.MaskR = 0;
+				Opacity.MaskG = 0;
+				Opacity.MaskB = 0;
+				Opacity.MaskA = 1;
+			}
+
+			Material->BlendMode = BLEND_AlphaComposite;
+
 			Material->Expressions.Add(TextureSampler);
 			Material->MaterialDomain = EMaterialDomain::MD_UI;
 			Material->PostEditChange();

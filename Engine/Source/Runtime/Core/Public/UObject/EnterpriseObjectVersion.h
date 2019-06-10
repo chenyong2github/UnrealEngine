@@ -28,7 +28,7 @@ struct CORE_API FEnterpriseObjectVersion
 		AjaMediaConfiguration,
 
 		// Addition of pointer to UDatasmithDataPrepRecipe 
-		HasUDatasmithDataPrepRecipe,
+		HasUDataprepRecipe,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

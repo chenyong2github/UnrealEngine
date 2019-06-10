@@ -491,9 +491,11 @@
 									<Grid.ColumnDefinitions>
 										<ColumnDefinition Width="*"/>
 										<ColumnDefinition Width="*"/>
+										<ColumnDefinition Width="*"/>
 									</Grid.ColumnDefinitions>
-									<Button Grid.Column="0" x:Name="ctrlBtnAddApplication" Content="Add" Template="{DynamicResource ButtonTemplate}" Click="ctrlBtnAddApplication_Click" ToolTip="Add new application to list" />
-									<Button Grid.Column="1" x:Name="ctrlDelApplicationBtn" Content="Remove" Template="{DynamicResource ButtonTemplate}" Click="ctrlDelApplicationBtn_Click" ToolTip="Delete selected  application" />
+									<Button Grid.Column="0" x:Name="ctrlBtnAddApplication" Content="Add" Template="{DynamicResource ButtonTemplate}" Click="ctrlBtnAddApplication_Click" ToolTip="Add application to list" />
+									<Button Grid.Column="1" x:Name="ctrlBtnAddEditorGame"  Content="Add Project in Editor -game" Template="{DynamicResource ButtonTemplate}" Click="ctrlBtnAddEditorProject_Click" ToolTip="Add project running in Editor -game to list" />
+									<Button Grid.Column="2" x:Name="ctrlDelApplicationBtn" Content="Remove" Template="{DynamicResource ButtonTemplate}" Click="ctrlDelApplicationBtn_Click" ToolTip="Delete selected  application" />
 								</Grid>
 								<Grid Grid.Row="4">
 									<Grid.ColumnDefinitions>

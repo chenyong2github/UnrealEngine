@@ -6,6 +6,7 @@
 #include "ScopedTransaction.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "Kismet2/ComponentEditorUtils.h"
 #include "SceneOutlinerDragDrop.h"
 #include "SceneOutlinerStandaloneTypes.h"
 
@@ -34,6 +35,14 @@ FComponentTreeItem::FComponentTreeItem(UActorComponent* InComponent)
 {
 	AActor* OwningActor = InComponent->GetOwner();
 	bExistsInCurrentWorldAndPIE = GEditor->ObjectsThatExistInEditorWorld.Get(OwningActor);
+
+	const FName VariableName = FComponentEditorUtils::FindVariableNameGivenComponentInstance(InComponent);
+	const bool bIsArrayVariable = !VariableName.IsNone() && InComponent->GetOwner() != nullptr && FindField<UArrayProperty>(InComponent->GetOwner()->GetClass(), VariableName);
+
+	if (!VariableName.IsNone() && !bIsArrayVariable)
+	{
+		CachedDisplayString = VariableName.ToString();
+	}
 }
 
 FTreeItemPtr FComponentTreeItem::FindParent(const FTreeItemMap& ExistingItems) const
@@ -119,7 +128,18 @@ FTreeItemID FComponentTreeItem::GetID() const
 FString FComponentTreeItem::GetDisplayString() const
 {
 	const UActorComponent* ComponentPtr = Component.Get();
-	return ComponentPtr ? ComponentPtr->GetClass()->GetFName().ToString() : LOCTEXT("ComponentLabelForMissingComponent", "(Deleted Component)").ToString();
+	if (ComponentPtr)
+	{
+		if (!CachedDisplayString.IsEmpty())
+		{
+			return CachedDisplayString;
+		}
+		else
+		{
+			return ComponentPtr->GetName();
+		}
+	}
+	return LOCTEXT("ComponentLabelForMissingComponent", "(Deleted Component)").ToString();
 }
 
 int32 FComponentTreeItem::GetTypeSortPriority() const

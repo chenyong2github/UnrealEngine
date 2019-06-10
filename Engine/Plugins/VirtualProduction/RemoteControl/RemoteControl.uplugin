@@ -1,0 +1,32 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.2",
+	"FriendlyName": "Remote Control",
+	"Description": "A suite of tools to remote control the editor and/or runtime.",
+	"Category": "Virtual Production",
+	"CreatedBy": "Epic Games Inc.",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"Installed": false,
+	"Plugins":
+	[
+	],
+	"Modules": [
+		{
+			"Name": "RemoteControl",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "WebRemoteControl",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
+		}
+
+	]
+}

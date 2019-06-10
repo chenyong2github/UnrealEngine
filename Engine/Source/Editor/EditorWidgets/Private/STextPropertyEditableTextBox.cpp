@@ -1372,7 +1372,7 @@ ECheckBoxState STextPropertyEditableTextBox::GetLocalizableCheckState(bool bActi
 		return bIsLocalized == bActiveState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 
-	return ECheckBoxState::Undetermined;
+	return ECheckBoxState::Unchecked;
 }
 
 void STextPropertyEditableTextBox::HandleLocalizableCheckStateChanged(ECheckBoxState InCheckboxState, bool bActiveState)

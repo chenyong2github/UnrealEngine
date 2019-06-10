@@ -22,6 +22,12 @@ class BLUTILITY_API UEditorUtilityBlueprint : public UBlueprint
 	{
 		return false;
 	}
-	// End of UBlueprint interface
+	
 #endif
+
+#if WITH_EDITORONLY_DATA
+protected:
+	virtual void LoadModulesRequiredForCompilation() override;
+#endif
+// End of UBlueprint interface
 };

@@ -2994,37 +2994,37 @@ void FMeshMergeUtilities::MergeComponentsToInstances(const TArray<UPrimitiveComp
 
 					for(const FComponentEntry& ComponentEntry : ActorEntry.ComponentEntries)
 					{
-						auto AddInstancedStaticMeshComponent = [](AActor* InActor)
+						UInstancedStaticMeshComponent* NewComponent = nullptr;
+
+						NewComponent = (UInstancedStaticMeshComponent*)ActorEntry.MergedActor->FindComponentByClass(InSettings.ISMComponentToUse.Get());
+
+						if (NewComponent && NewComponent->PerInstanceSMData.Num() > 0)
 						{
-							// Check if we have a usable (empty) ISMC first
-							if(UInstancedStaticMeshComponent* ExistingComponent = InActor->FindComponentByClass<UInstancedStaticMeshComponent>())
-							{
-								if(ExistingComponent->PerInstanceSMData.Num() == 0)
-								{
-									return ExistingComponent;
-								}
-							}
+							NewComponent = nullptr;
+						}
+
+						if (NewComponent == nullptr)
+						{
+							NewComponent = NewObject<UInstancedStaticMeshComponent>(ActorEntry.MergedActor, InSettings.ISMComponentToUse.Get());
 						
-							UInstancedStaticMeshComponent* NewComponent = NewObject<UInstancedStaticMeshComponent>(InActor);
-							if(InActor->GetRootComponent())
+							if (ActorEntry.MergedActor->GetRootComponent())
 							{
 								// Attach to root if we already have one
-								NewComponent->AttachToComponent(InActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
+								NewComponent->AttachToComponent(ActorEntry.MergedActor->GetRootComponent(), FAttachmentTransformRules::KeepRelativeTransform);
 							}
 							else
 							{
 								// Make a new root if we dont have a root already
-								InActor->SetRootComponent(NewComponent);
+								ActorEntry.MergedActor->SetRootComponent(NewComponent);
 							}
 
 							// Take 'instanced' ownership so it persists with this actor
-							InActor->RemoveOwnedComponent(NewComponent);
+							ActorEntry.MergedActor->RemoveOwnedComponent(NewComponent);
 							NewComponent->CreationMethod = EComponentCreationMethod::Instance;
-							InActor->AddOwnedComponent(NewComponent);
-							return NewComponent;
-						};
+							ActorEntry.MergedActor->AddOwnedComponent(NewComponent);
 
-						UInstancedStaticMeshComponent* NewComponent = AddInstancedStaticMeshComponent(ActorEntry.MergedActor);
+						}
+
 						NewComponent->SetStaticMesh(ComponentEntry.StaticMesh);
 						for(int32 MaterialIndex = 0; MaterialIndex < ComponentEntry.Materials.Num(); ++MaterialIndex)
 						{

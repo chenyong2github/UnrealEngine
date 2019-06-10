@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/SubclassOf.h"
 #include "Components/ActorComponent.h"
+#include "Engine/EngineTypes.h"
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectHash.h"
 
@@ -14,6 +15,9 @@ class UMaterialInterface;
 class UNREALED_API FComponentEditorUtils
 {
 public:
+	/** Is the instance component is editable */
+	static bool CanEditComponentInstance(const UActorComponent* ActorComp, const UActorComponent* ParentSceneComp, bool bAllowUserContructionScript);
+
 	/** Tests whether the native component is editable */
 	static bool CanEditNativeComponent(const UActorComponent* NativeComponent);
 
@@ -235,7 +239,7 @@ public:
 	}
 
 	// Try to find the correct variable name for a given native component template or instance (which can have a mismatch)
-	static FName FindVariableNameGivenComponentInstance(UActorComponent* ComponentInstance);
+	static FName FindVariableNameGivenComponentInstance(const UActorComponent* ComponentInstance);
 
 	/**
 	* Populates the given menu with basic options for operations on components in the world.
@@ -251,6 +255,13 @@ public:
 	 * @return Valid Component pointer if match was found. nullptr otherwise.
 	 */
 	static UActorComponent* FindMatchingComponent(UActorComponent* ComponentInstance, const TInlineComponentArray<UActorComponent*>& ComponentList);
+
+	/**
+	 * Make a FComponentReference from a component pointer.
+	 * @param ExpectedComponentOwner The expected component owner. Should be the same as OwningActor from FComponentReference::GetComponent().
+	 * @param Component The component we would like to initialize the FComponentReference with.
+	 */
+	static FComponentReference MakeComponentReference(const AActor* ExpectedComponentOwner, const UActorComponent* Component);
 
 private:	
 	static USceneComponent* FindClosestParentInList(UActorComponent* ChildComponent, const TArray<UActorComponent*>& ComponentList);

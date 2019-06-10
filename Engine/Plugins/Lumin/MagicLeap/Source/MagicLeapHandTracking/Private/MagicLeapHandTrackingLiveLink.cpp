@@ -2,12 +2,14 @@
 
 #include "MagicLeapHandTracking.h"
 #include "IMagicLeapHandTrackingPlugin.h"
-#include "LiveLinkMagicLeapHandTrackingSourceEditor.h"
 #include "CoreMinimal.h"
 #include "Engine/Engine.h"
 #include "LiveLinkSourceFactory.h"
 #include "ILiveLinkClient.h"
 #include "IMagicLeapPlugin.h"
+#include "Misc/App.h"
+#include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 
 #define LOCTEXT_NAMESPACE "MagicLeapHandTracking"
 
@@ -18,7 +20,7 @@ void FMagicLeapHandTracking::ReceiveClient(ILiveLinkClient* InClient, FGuid InSo
 	bNewLiveLinkClient = true;
 }
 
-bool FMagicLeapHandTracking::IsSourceStillValid()
+bool FMagicLeapHandTracking::IsSourceStillValid() const
 {
 	return LiveLinkClient != nullptr;
 }
@@ -45,14 +47,13 @@ FText FMagicLeapHandTracking::GetSourceType() const
 	return LOCTEXT("MagicLeapHandTrackingLiveLinkSourceType", "MagicLeap Hand Tracking");
 }
 
-#define MLHTBONE(keyenum, name, parent) BoneKeypoints.Add(keyenum); BoneNames.Add(name); BoneParents.Add(parent);
-void FMagicLeapHandTracking::SetupLiveLinkData()
+#define MLHTBONE(keyenum, name, parent) BoneKeypoints.Add(keyenum); StaticData.BoneNames.Add(name); StaticData.BoneParents.Add(parent);
+void FMagicLeapHandTracking::SetupLiveLinkData(FLiveLinkSkeletonStaticData& StaticData)
 {
-	TArray<FName> BoneNames;
-	BoneNames.Reserve(EHandTrackingKeypointCount);
+	StaticData.BoneNames.Reserve(EHandTrackingKeypointCount);
 
 	// Array of bone indices to parent bone index
-	BoneParents.Reserve(EHandTrackingKeypointCount);
+	StaticData.BoneParents.Reserve(EHandTrackingKeypointCount);
 
 	BoneKeypoints.Reserve(EHandTrackingKeypointCount);
 
@@ -88,9 +89,6 @@ void FMagicLeapHandTracking::SetupLiveLinkData()
 	MLHTBONE(EHandTrackingKeypoint::Wrist_Radial,	WristRadial_Name,	23);
 
 	MLHTBONE(EHandTrackingKeypoint::Hand_Center, HandCenter_Name,		-1); //23 //Root
-
-	LiveLinkRefSkeleton.SetBoneNames(BoneNames);
-	LiveLinkRefSkeleton.SetBoneParents(BoneParents);
 }
 #undef MLHTBONE
 
@@ -100,6 +98,11 @@ void FMagicLeapHandTracking::UpdateLiveLinkTransforms(TArray<FTransform>& OutTra
 	// The hand tracking transforms are in world space.
 	// Sadly hand tracking transforms can be unused, and contain only an identity matrix.  So we do some weird stuff to keep those
 	// identity in the hierarchical skeleton.
+
+	if (EHandTrackingKeypointCount != BoneKeypoints.Num())
+	{
+		return;
+	}
 
 	for (int32 i = 0; i < EHandTrackingKeypointCount; ++i)
 	{
@@ -149,39 +152,58 @@ void FMagicLeapHandTracking::UpdateLiveLink()
 
 	if (LiveLinkClient && bIsHandTrackingStateValid && IMagicLeapPlugin::Get().IsMagicLeapHMDValid())
 	{
+		FLiveLinkSubjectKey LeftKey = FLiveLinkSubjectKey(LiveLinkSourceGuid, LiveLinkLeftHandTrackingSubjectName);
+		FLiveLinkSubjectKey RightKey = FLiveLinkSubjectKey(LiveLinkSourceGuid, LiveLinkRightHandTrackingSubjectName);
+
 		if (bNewLiveLinkClient)
 		{
-			LiveLinkClient->ClearSubject(LiveLinkLeftHandTrackingSubjectName);
-			LiveLinkClient->ClearSubject(LiveLinkRightHandTrackingSubjectName);
-			LiveLinkClient->PushSubjectSkeleton(LiveLinkSourceGuid, LiveLinkLeftHandTrackingSubjectName, LiveLinkRefSkeleton);
-			LiveLinkClient->PushSubjectSkeleton(LiveLinkSourceGuid, LiveLinkRightHandTrackingSubjectName, LiveLinkRefSkeleton);
+			LiveLinkClient->RemoveSubject_AnyThread(LeftKey);
+			LiveLinkClient->RemoveSubject_AnyThread(RightKey);
+
+			FLiveLinkStaticDataStruct SkeletalDataLeft(FLiveLinkSkeletonStaticData::StaticStruct());
+			FLiveLinkSkeletonStaticData* SkeletonDataLeftPtr = SkeletalDataLeft.Cast<FLiveLinkSkeletonStaticData>();
+			SetupLiveLinkData(*SkeletonDataLeftPtr);
+
+			FLiveLinkStaticDataStruct SkeletalDataRight;
+			SkeletalDataRight.InitializeWith(SkeletalDataLeft);
+
+			// Initialize frame data
+			{
+				LiveLinkLeftFrame.InitializeWith(FLiveLinkAnimationFrameData::StaticStruct(), nullptr);
+				LiveLinkRightFrame.InitializeWith(FLiveLinkAnimationFrameData::StaticStruct(), nullptr);
+				FLiveLinkAnimationFrameData* LiveLinkLeftFramePtr = LiveLinkLeftFrame.Cast<FLiveLinkAnimationFrameData>();
+				FLiveLinkAnimationFrameData* LiveLinkRightFramePtr = LiveLinkRightFrame.Cast<FLiveLinkAnimationFrameData>();
+				LiveLinkLeftFramePtr->Transforms.Reserve(EHandTrackingKeypointCount);
+				LiveLinkRightFramePtr->Transforms.Reserve(EHandTrackingKeypointCount);
+				for (size_t i = 0; i < EHandTrackingKeypointCount; ++i)
+				{
+					LiveLinkRightFramePtr->Transforms.Add(FTransform::Identity);
+					LiveLinkRightFramePtr->Transforms.Add(FTransform::Identity);
+				}
+			}
+
+			LiveLinkClient->PushSubjectStaticData_AnyThread(LeftKey, ULiveLinkAnimationRole::StaticClass(), MoveTemp(SkeletalDataLeft));
+			LiveLinkClient->PushSubjectStaticData_AnyThread(RightKey, ULiveLinkAnimationRole::StaticClass(), MoveTemp(SkeletalDataRight));
 			bNewLiveLinkClient = false;
 		}
 
-		static FLiveLinkFrameData LiveLinkLeftFrame;
-		static FLiveLinkFrameData LiveLinkRightFrame;
-		static bool bInitialized = false;
-		if (!bInitialized)
-		{
-			LiveLinkLeftFrame.Transforms.Reserve(EHandTrackingKeypointCount);
-			LiveLinkRightFrame.Transforms.Reserve(EHandTrackingKeypointCount);
-			for (size_t i = 0; i < EHandTrackingKeypointCount; ++i)
-			{
-				LiveLinkLeftFrame.Transforms.Add(FTransform::Identity);
-				LiveLinkRightFrame.Transforms.Add(FTransform::Identity);
-			}
-			bInitialized = true;
-		}
+		FLiveLinkAnimationFrameData* LiveLinkLeftFramePtr = LiveLinkLeftFrame.Cast<FLiveLinkAnimationFrameData>();
+		FLiveLinkAnimationFrameData* LiveLinkRightFramePtr = LiveLinkRightFrame.Cast<FLiveLinkAnimationFrameData>();
 
-		LiveLinkLeftFrame.WorldTime = LiveLinkRightFrame.WorldTime = FPlatformTime::Seconds();
+		LiveLinkLeftFramePtr->WorldTime = LiveLinkRightFramePtr->WorldTime = FPlatformTime::Seconds();
+		LiveLinkLeftFramePtr->MetaData.SceneTime = LiveLinkRightFramePtr->MetaData.SceneTime = FQualifiedFrameTime(FApp::GetTimecode(), FApp::GetTimecodeFrameRate());
 
 		// Update the transforms for each subject from tracking data
-		UpdateLiveLinkTransforms(LiveLinkLeftFrame.Transforms, LeftHand);
-		UpdateLiveLinkTransforms(LiveLinkRightFrame.Transforms, RightHand);
+		UpdateLiveLinkTransforms(LiveLinkLeftFramePtr->Transforms, LeftHand);
+		UpdateLiveLinkTransforms(LiveLinkRightFramePtr->Transforms, RightHand);
 
-		// Share the data locally with the LiveLink client
-		LiveLinkClient->PushSubjectData(LiveLinkSourceGuid, LiveLinkLeftHandTrackingSubjectName, LiveLinkLeftFrame);
-		LiveLinkClient->PushSubjectData(LiveLinkSourceGuid, LiveLinkRightHandTrackingSubjectName, LiveLinkRightFrame);
+		// Copy the data locally and share it with the LiveLink client
+		FLiveLinkFrameDataStruct NewLiveLinkLeftFrame;
+		FLiveLinkFrameDataStruct NewLiveLinkRightFrame;
+		NewLiveLinkLeftFrame.InitializeWith(LiveLinkLeftFrame);
+		NewLiveLinkRightFrame.InitializeWith(LiveLinkRightFrame);
+		LiveLinkClient->PushSubjectFrameData_AnyThread(LeftKey, MoveTemp(LiveLinkLeftFrame));
+		LiveLinkClient->PushSubjectFrameData_AnyThread(RightKey, MoveTemp(NewLiveLinkRightFrame));
 	}
 }
 

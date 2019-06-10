@@ -954,6 +954,7 @@ USceneCaptureComponentCube::USceneCaptureComponentCube(const FObjectInitializer&
 	PrimaryComponentTick.bAllowTickOnDedicatedServer = false;
 	bTickInEditor = true;
 	IPD = 6.2f;
+	bCaptureRotation = false;
 
 #if WITH_EDITORONLY_DATA
 	if (!IsRunningCommandlet())
@@ -961,6 +962,8 @@ USceneCaptureComponentCube::USceneCaptureComponentCube(const FObjectInitializer&
 		static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
 		CaptureMesh = EditorMesh.Object;
 	}
+
+	DrawFrustum = nullptr;
 #endif
 }
 

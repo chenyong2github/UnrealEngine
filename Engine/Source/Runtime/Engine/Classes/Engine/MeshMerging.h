@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Engine/MaterialMerging.h"
 #include "GameFramework/Actor.h"
+#include "Components/InstancedStaticMeshComponent.h"
 #include "MeshMerging.generated.h"
 
 /** The importance of a mesh feature when automatically generating mesh LODs. */
@@ -620,6 +621,7 @@ struct FMeshInstancingSettings
 		, MeshReplacementMethod(EMeshInstancingReplacementMethod::KeepOriginalActorsAsEditorOnly)
 		, bSkipMeshesWithVertexColors(true)
 		, bUseHLODVolumes(true)
+		, ISMComponentToUse(UInstancedStaticMeshComponent::StaticClass())
 	{}
 
 	/** The actor class to attach new instance static mesh components to */
@@ -647,4 +649,10 @@ struct FMeshInstancingSettings
 	 */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Instancing", meta=(DisplayName="Use HLOD Volumes"))
 	bool bUseHLODVolumes;
+
+	/**
+	 * Whether to use the Instanced Static Mesh Compoment or the Hierarchical Instanced Static Mesh Compoment
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Instancing", meta = (DisplayName = "Select the type of Instanced Component", DisallowedClasses = "FoliageInstancedStaticMeshComponent"))
+	TSubclassOf<UInstancedStaticMeshComponent> ISMComponentToUse;
 };

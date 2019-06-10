@@ -2,7 +2,8 @@
 
 #include "LiveLinkSourceFactory.h"
 
-ULiveLinkSourceFactory::ULiveLinkSourceFactory(const FObjectInitializer& ObjectInitializer)
-{
 
+TSharedPtr<SWidget> ULiveLinkSourceFactory::BuildCreationPanel(FOnLiveLinkSourceCreated OnLiveLinkSourceCreated) const
+{
+	return TSharedPtr<SWidget>();
 }

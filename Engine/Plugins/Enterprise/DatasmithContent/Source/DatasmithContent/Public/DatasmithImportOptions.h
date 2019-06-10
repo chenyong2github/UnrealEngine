@@ -263,6 +263,26 @@ public:
 	{
 		return (FMath::IsNearlyEqual(ChordTolerance, Other.ChordTolerance) && FMath::IsNearlyEqual(MaxEdgeLength, Other.MaxEdgeLength) && FMath::IsNearlyEqual(NormalTolerance, Other.NormalTolerance) && StitchingTechnique == Other.StitchingTechnique);
 	}
+
+	uint32 GetHash() const
+	{
+		uint32 Hash = uint32(StitchingTechnique);
+		for (float Param : {ChordTolerance, MaxEdgeLength, NormalTolerance})
+		{
+			Hash = HashCombine(Hash, GetTypeHash(Param));
+		}
+		return Hash;
+	}
+};
+
+UCLASS(config = Editor, Transient)
+class DATASMITHCONTENT_API UDatasmithCommonTessellationOptions : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Geometry & Tessellation Options", meta = (ShowOnlyInnerProperties))
+	FDatasmithTessellationOptions Options;
 };
 
 UCLASS(config = EditorPerProjectUserSettings, HideCategories = ("NotVisible"))

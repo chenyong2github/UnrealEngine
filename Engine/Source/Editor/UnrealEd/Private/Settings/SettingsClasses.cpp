@@ -15,6 +15,7 @@
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Settings/EditorProjectSettings.h"
 #include "Settings/ClassViewerSettings.h"
+#include "Settings/StructViewerSettings.h"
 #include "Settings/EditorExperimentalSettings.h"
 #include "Settings/EditorLoadingSavingSettings.h"
 #include "Settings/EditorMiscSettings.h"
@@ -76,7 +77,6 @@ UClassViewerSettings::UClassViewerSettings(const FObjectInitializer& ObjectIniti
 {
 }
 
-
 void UClassViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -93,6 +93,26 @@ void UClassViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& 
 	SettingChangedEvent.Broadcast(Name);
 }
 
+/* UStructViewerSettings interface
+*****************************************************************************/
+
+UStructViewerSettings::FSettingChangedEvent UStructViewerSettings::SettingChangedEvent;
+
+void UStructViewerSettings::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName Name = (PropertyChangedEvent.Property != nullptr)
+		? PropertyChangedEvent.Property->GetFName()
+		: NAME_None;
+
+	if (!FUnrealEdMisc::Get().IsDeletePreferences())
+	{
+		SaveConfig();
+	}
+
+	SettingChangedEvent.Broadcast(Name);
+}
 
 /* USkeletalMeshEditorSettings interface
 *****************************************************************************/

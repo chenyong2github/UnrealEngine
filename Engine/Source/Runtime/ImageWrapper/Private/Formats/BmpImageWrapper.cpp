@@ -41,11 +41,13 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int32 
 	const uint8* Buffer = CompressedData.GetData();
 	const FBitmapInfoHeader* bmhdr = nullptr;
 	const uint8* Bits = nullptr;
+	EBitmapHeaderVersion HeaderVersion = EBitmapHeaderVersion::BHV_BITMAPINFOHEADER;
 
 	if (bHasHeader)
 	{
 		bmhdr = (FBitmapInfoHeader *)(Buffer + sizeof(FBitmapFileHeader));
 		Bits = Buffer + ((FBitmapFileHeader *)Buffer)->bfOffBits;
+		HeaderVersion = ((FBitmapFileHeader *)Buffer)->GetHeaderVersion();
 	}
 	else
 	{
@@ -53,7 +55,7 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int32 
 		Bits = Buffer + sizeof(FBitmapInfoHeader);
 	}
 
-	if (bmhdr->biCompression != BCBI_RGB)
+	if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS)
 	{
 		UE_LOG(LogImageWrapper, Error, TEXT("RLE compression of BMP images not supported"));
 		return;
@@ -151,18 +153,77 @@ void FBmpImageWrapper::UncompressBMPData(const ERGBFormat InFormat, const int32 
 		const int32 SrcPtrDiff = bNegativeHeight ? SrcStride : -SrcStride;
 		const uint8* SrcPtr = Bits + (bNegativeHeight ? 0 : Height - 1) * SrcStride;
 
-		for (int32 Y = 0; Y < Height; Y++)
+		// Getting the bmiColors member from the BITMAPINFO, which is used as a mask on BitFields compression.
+		const FBmiColorsMask* ColorMask = (FBmiColorsMask*)(CompressedData.GetData() + sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader));
+		// Header version 4 introduced the option to declare custom color space, so we can't just assume sRGB past that version.
+		const bool bAssumeRGBCompression = bmhdr->biCompression == BCBI_RGB
+			|| (bmhdr->biCompression == BCBI_BITFIELDS && ColorMask->IsMaskRGB8() && HeaderVersion < EBitmapHeaderVersion::BHV_BITMAPV4HEADER);
+		
+		if (bAssumeRGBCompression)
 		{
-			const uint8* SrcRowPtr = SrcPtr;
-			for (int32 X = 0; X < Width; X++)
+			for (int32 Y = 0; Y < Height; Y++)
 			{
-				*ImageData++ = *SrcRowPtr++;
-				*ImageData++ = *SrcRowPtr++;
-				*ImageData++ = *SrcRowPtr++;
-				*ImageData++ = *SrcRowPtr++;
+				const uint8* SrcRowPtr = SrcPtr;
+				for (int32 X = 0; X < Width; X++)
+				{
+					*ImageData++ = *SrcRowPtr++;
+					*ImageData++ = *SrcRowPtr++;
+					*ImageData++ = *SrcRowPtr++;
+					*ImageData++ = 0xFF; //In BCBI_RGB compression the last 8 bits of the pixel are not used.
+					SrcRowPtr++;
+				}
+
+				SrcPtr += SrcPtrDiff;
+			}
+		}
+		else if (bmhdr->biCompression == BCBI_BITFIELDS)
+		{
+			//If the header version is V4 or higher we need to make sure we are still using sRGB format
+			if (HeaderVersion >= EBitmapHeaderVersion::BHV_BITMAPV4HEADER)
+			{
+				const FBitmapInfoHeaderV4* bmhdrV4 = (FBitmapInfoHeaderV4*)(Buffer + sizeof(FBitmapFileHeader));
+				
+				if (bmhdrV4->biCSType != (uint32)EBitmapCSType::BCST_LCS_sRGB && bmhdrV4->biCSType != (uint32)EBitmapCSType::BCST_LCS_WINDOWS_COLOR_SPACE)
+				{
+					UE_LOG(LogImageWrapper, Error, TEXT("BMP uses an unsupported custom color space definition, sRGB color space will be used instead."));
+				}
 			}
 
-			SrcPtr += SrcPtrDiff;
+			//Calculating the bit mask info needed to remap the pixels' color values.
+			uint32 TrailingBits[4];
+			float MappingRatio[4];
+			for (uint32 MaskIndex = 0; MaskIndex < 4; MaskIndex++)
+			{
+				TrailingBits[MaskIndex] = FMath::CountTrailingZeros(ColorMask->RGBAMask[MaskIndex]);
+				const uint32 NumberOfBits = 32 - (TrailingBits[MaskIndex] + FMath::CountLeadingZeros(ColorMask->RGBAMask[MaskIndex]));
+				MappingRatio[MaskIndex] = NumberOfBits == 0 ? 0 : (FMath::Exp2(8) - 1) / (FMath::Exp2(NumberOfBits) - 1);
+			}
+
+			//In header pre-version 4, we should ignore the last 32bit (alpha) content.
+			const bool bHasAlphaChannel = ColorMask->RGBAMask[3] != 0 && HeaderVersion >= EBitmapHeaderVersion::BHV_BITMAPV4HEADER;
+
+			for (int32 Y = 0; Y < Height; Y++)
+			{
+				const uint32* SrcPixel = (uint32*)SrcPtr;
+				for (int32 X = 0; X < Width; X++)
+				{
+					// Set the color values in BGRA order.
+					for (int32 ColorIndex = 2; ColorIndex >= 0; ColorIndex--)
+					{
+						*ImageData++ = FMath::RoundToInt(((*SrcPixel & ColorMask->RGBAMask[ColorIndex]) >> TrailingBits[ColorIndex]) * MappingRatio[ColorIndex]);
+					}
+
+					*ImageData++ = bHasAlphaChannel ? FMath::RoundToInt(((*SrcPixel & ColorMask->RGBAMask[3]) >> TrailingBits[3]) * MappingRatio[3]) : 0xFF;
+
+					SrcPixel++;
+				}
+
+				SrcPtr += SrcPtrDiff;
+			}
+		}
+		else
+		{
+			UE_LOG(LogImageWrapper, Error, TEXT("BMP uses an unsupported compression format (%i)"), bmhdr->biCompression)
 		}
 	}
 	else if (bmhdr->biPlanes==1 && bmhdr->biBitCount==16)
@@ -190,7 +251,7 @@ bool FBmpImageWrapper::LoadBMPHeader()
 	const FBitmapFileHeader* bmf   = (FBitmapFileHeader *)(CompressedData.GetData() + 0);
 	if ((CompressedData.Num() >= sizeof(FBitmapFileHeader) + sizeof(FBitmapInfoHeader)) && CompressedData.GetData()[0] == 'B' && CompressedData.GetData()[1] == 'M')
 	{
-		if (bmhdr->biCompression != BCBI_RGB)
+		if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS)
 		{
 			UE_LOG(LogImageWrapper, Error, TEXT("RLE compression of BMP images not supported"));
 			return false;
@@ -225,7 +286,7 @@ bool FBmpImageWrapper::LoadBMPInfoHeader()
 {
 	const FBitmapInfoHeader* bmhdr = (FBitmapInfoHeader *)CompressedData.GetData();
 
-	if (bmhdr->biCompression != BCBI_RGB)
+	if (bmhdr->biCompression != BCBI_RGB && bmhdr->biCompression != BCBI_BITFIELDS)
 	{
 		UE_LOG(LogImageWrapper, Error, TEXT("RLE compression of BMP images not supported"));
 		return false;

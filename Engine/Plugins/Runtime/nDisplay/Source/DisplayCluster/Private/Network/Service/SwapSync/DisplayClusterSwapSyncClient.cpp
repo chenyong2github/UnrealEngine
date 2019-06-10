@@ -3,7 +3,7 @@
 #include "Network/Service/SwapSync/DisplayClusterSwapSyncClient.h"
 #include "Network/Service/SwapSync/DisplayClusterSwapSyncMsg.h"
 
-#include "Misc/DisplayClusterLog.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterSwapSyncClient::FDisplayClusterSwapSyncClient() :

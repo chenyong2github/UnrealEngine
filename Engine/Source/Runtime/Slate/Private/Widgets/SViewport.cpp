@@ -10,6 +10,16 @@ DECLARE_CYCLE_STAT(TEXT("Game UI Tick"), STAT_ViewportTickTime, STATGROUP_Slate)
 DECLARE_CYCLE_STAT(TEXT("Game UI Paint"), STAT_ViewportPaintTime, STATGROUP_Slate);
 
 
+static const FVector2D DefaultViewportSize(320.0f, 240.0f);
+
+
+/* SViewport::FArguments interface
+*****************************************************************************/
+FVector2D SViewport::FArguments::GetDefaultViewportSize()
+{
+	return DefaultViewportSize;
+}
+
 /* SViewport constructors
  *****************************************************************************/
 

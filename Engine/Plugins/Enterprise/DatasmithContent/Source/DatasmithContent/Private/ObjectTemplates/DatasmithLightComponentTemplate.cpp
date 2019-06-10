@@ -8,16 +8,16 @@ UDatasmithLightComponentTemplate::UDatasmithLightComponentTemplate()
 {
 }
 
-void UDatasmithLightComponentTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithLightComponentTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	ULightComponent* LightComponent = Cast< ULightComponent >( Destination );
 
 	if ( !LightComponent )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithLightComponentTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithLightComponentTemplate >( Destination ) : nullptr;
 
 	if ( !PreviousTemplate || LightComponent->IsVisible() == PreviousTemplate->bVisible )
@@ -51,9 +51,9 @@ void UDatasmithLightComponentTemplate::Apply( UObject* Destination, bool bForce 
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( IESTexture, LightComponent, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bUseIESBrightness, LightComponent, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( IESBrightnessScale, LightComponent, PreviousTemplate );
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithLightComponentTemplate::Load( const UObject* Source )

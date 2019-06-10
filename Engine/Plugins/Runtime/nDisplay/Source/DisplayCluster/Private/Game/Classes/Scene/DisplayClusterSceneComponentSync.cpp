@@ -4,8 +4,9 @@
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Game/IPDisplayClusterGameManager.h"
-#include "Misc/DisplayClusterLog.h"
+
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
 
 
 UDisplayClusterSceneComponentSync::UDisplayClusterSceneComponentSync(const FObjectInitializer& ObjectInitializer) :
