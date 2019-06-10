@@ -222,8 +222,8 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushC
 			if (FilteredBrushes.Num())
 			{
 				MenuBuilder.AddSubMenu(
-					LOCTEXT("LandscaeEditorBrushAddSubMenu", "Add"),
-					LOCTEXT("LandscaeEditorBrushAddSubMenuToolTip", "Add brush to current layer"),
+					LOCTEXT("LandscapeEditorBrushAddSubMenu", "Add"),
+					LOCTEXT("LandscapeEditorBrushAddSubMenuToolTip", "Add brush to current layer"),
 					FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::FillAddBrushMenu, FilteredBrushes),
 					false,
 					FSlateIcon()
