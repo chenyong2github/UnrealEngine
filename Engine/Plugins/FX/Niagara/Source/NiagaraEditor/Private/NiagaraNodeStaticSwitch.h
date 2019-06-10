@@ -47,18 +47,13 @@ public:
 	UPROPERTY()
 	FStaticSwitchTypeData SwitchTypeData;
 
-	/** If true then the current SwitchValue should be used for compilation, otherwise the node is not yet connected to a constant value */
-	UPROPERTY(Transient)
-	bool IsValueSet;
-
-	/** The current value that the node is evaluated with. For bool 0 is false, for enums the value is the index of the enum value. */
-	UPROPERTY(Transient)
-	int32 SwitchValue;
-
 	FNiagaraTypeDefinition GetInputType() const;
 
 	void ChangeSwitchParameterName(const FName& NewName);
 	void OnSwitchParameterTypeChanged(const FNiagaraTypeDefinition& OldType);
+
+	void SetSwitchValue(int Value);
+	void ClearSwitchValue();
 
 	//~ Begin EdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
@@ -72,6 +67,8 @@ public:
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
 	virtual bool SubstituteCompiledPin(FHlslNiagaraTranslator* Translator, UEdGraphPin** LocallyOwnedPin) override;
 	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const override;
+	virtual UEdGraphPin* GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive) const;
+	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 	//~ End UNiagaraNode Interface
 
 protected:
@@ -87,4 +84,10 @@ private:
 	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const;
 
 	void RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter);
+
+	/** If true then the current SwitchValue should be used for compilation, otherwise the node is not yet connected to a constant value */
+	bool IsValueSet = false;
+
+	/** The current value that the node is evaluated with. For bool 0 is false, for enums the value is the index of the enum value. */
+	int32 SwitchValue = 0;
 };

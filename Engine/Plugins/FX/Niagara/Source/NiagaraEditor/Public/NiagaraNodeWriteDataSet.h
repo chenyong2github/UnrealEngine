@@ -34,7 +34,7 @@ public:
 
 	virtual void Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)override;
 
-	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true) const override;
+	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 	virtual TSharedPtr<SGraphNode> CreateVisualWidget() override;
 protected:
 	void AddConditionPin(int32 PinIndex = -1);
