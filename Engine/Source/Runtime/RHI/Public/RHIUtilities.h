@@ -645,9 +645,28 @@ inline void RHICreateTargetableShaderResource2DArray(
 
 	// Ensure that the targetable texture is either render or depth-stencil targetable.
 	check(TargetableTextureFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable));
+	bool bForceSeparateTargetAndShaderResource = false;
+	if (NumSamples > 1)
+	{
+		bForceSeparateTargetAndShaderResource = RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
+	}
 
-	// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
-	OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
+	if (!bForceSeparateTargetAndShaderResource)
+	{
+		// Create a single texture that has both TargetableTextureFlags and TexCreate_ShaderResource set.
+		OutTargetableTexture = OutShaderResourceTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags | TargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
+	}
+	else
+	{
+		uint32 ResolveTargetableTextureFlags = TexCreate_ResolveTargetable;
+		if (TargetableTextureFlags & TexCreate_DepthStencilTargetable)
+		{
+			ResolveTargetableTextureFlags |= TexCreate_DepthStencilResolveTarget;
+		}
+		// Create a texture that has TargetableTextureFlags set, and a second texture that has TexCreate_ResolveTargetable and TexCreate_ShaderResource set.
+		OutTargetableTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, NumSamples, Flags | TargetableTextureFlags, CreateInfo);
+		OutShaderResourceTexture = RHICreateTexture2DArray(SizeX, SizeY, SizeZ, Format, NumMips, 1,  Flags | ResolveTargetableTextureFlags | TexCreate_ShaderResource, CreateInfo);
+	}
 }
 
 /**

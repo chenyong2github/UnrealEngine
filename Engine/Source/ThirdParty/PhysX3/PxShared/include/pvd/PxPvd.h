@@ -43,7 +43,7 @@ namespace physx
 
 class PxPvdTransport;
 
-#if PX_WINDOWS_FAMILY && !PX_ARM_FAMILY
+#if PX_WINDOWS_FAMILY
 #ifndef PX_PVDSDK_DLL
 #define PX_PVDSDK_API PX_DLL_IMPORT
 #elif PX_PVDSDK_DLL

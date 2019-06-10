@@ -343,7 +343,7 @@ public:
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData;
 			FRHIResourceCreateInfo CreateInfo(&BlackTextureBulkData);
 			CreateInfo.DebugName = TEXT("BlackArrayTexture");
-			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, TexCreate_ShaderResource, CreateInfo);
+			FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(1, 1, 1, PF_B8G8R8A8, 1, 1, TexCreate_ShaderResource, CreateInfo);
 			TextureRHI = TextureArray;
 
 			// Create the sampler state RHI resource.

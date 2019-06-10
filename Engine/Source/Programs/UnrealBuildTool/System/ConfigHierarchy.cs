@@ -271,7 +271,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Legacy function for ease of transition from ConfigCacheIni to ConfigHierarchy. Gets a string with the given key name, returning an empty string on failure.
+		/// Legacy function for ease of transition from ConfigCacheIni to ConfigHierarchy. Gets an array with the given key name, returning null on failure.
 		/// </summary>
 		/// <param name="SectionName">Section name</param>
 		/// <param name="KeyName">Key name</param>
@@ -979,6 +979,10 @@ namespace UnrealBuildTool
 			if (TargetPlatform == UnrealTargetPlatform.Win32 || TargetPlatform == UnrealTargetPlatform.Win64)
 			{
 				return "Windows";
+			}
+			else if (TargetPlatform == UnrealTargetPlatform.HoloLens)
+			{
+				return "HoloLens";
 			}
 			else
 			{

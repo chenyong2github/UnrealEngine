@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "Materials/MaterialInterface.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Kismet/BlueprintPlatformLibrary.h"
 #include "AppleARKitVideoOverlay.generated.h"
 
-class FSceneViewFamily;
+class UARTextureCameraImage;
+class UMaterialInstanceDynamic;
 
 /** Helper class to ensure the ARKit camera material is cooked. */
 UCLASS()
@@ -19,32 +19,34 @@ class UARKitCameraOverlayMaterialLoader : public UObject
 public:
 	UPROPERTY()
 	UMaterialInterface* DefaultCameraOverlayMaterial;
-	
+
 	UARKitCameraOverlayMaterialLoader()
 	{
-		static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultOverlayMaterialRef(TEXT("/AppleARKit/ARKitCameraMaterial.ARKitCameraMaterial"));
+		static ConstructorHelpers::FObjectFinder<UMaterialInterface> DefaultOverlayMaterialRef(TEXT("/AppleARKit/M_CameraOverlay.M_CameraOverlay"));
 		DefaultCameraOverlayMaterial = DefaultOverlayMaterialRef.Object;
 	}
 };
 
-struct FAppleARKitFrame;
-
 class FAppleARKitVideoOverlay
+	: public FGCObject
 {
 public:
 	FAppleARKitVideoOverlay();
 
-	void UpdateVideoTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FAppleARKitFrame& Frame, const FSceneViewFamily& InViewFamily);
-	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, const EScreenOrientation::Type DeviceOrientation);
+	void SetCameraTexture(UARTextureCameraImage* InCameraImage);
+
+	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView);
+	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation);
+
+	void SetOverlayTexture(UARTextureCameraImage* InCameraImage);
 
 private:
-	FTextureRHIRef VideoTextureY;
-	FTextureRHIRef VideoTextureCbCr;
-	UMaterialInterface* RenderingOverlayMaterial;
-	FIndexBufferRHIRef OverlayIndexBufferRHI;
-	
-	// Separate vertex buffer for each supported device orientation
-	FVertexBufferRHIRef OverlayVertexBufferRHI[4];
+	//~ FGCObject
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	//~ FGCObject
 
-	double LastUpdateTimestamp;
+	UMaterialInstanceDynamic* MID_CameraOverlay;
+	UMaterialInterface* RenderingOverlayMaterial;
+	FIndexBufferRHIRef IndexBufferRHI;
+	FVertexBufferRHIRef VertexBufferRHI;
 };

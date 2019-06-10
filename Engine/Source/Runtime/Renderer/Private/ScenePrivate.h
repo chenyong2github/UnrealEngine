@@ -2201,7 +2201,7 @@ public:
 	/** 
 	 * Updates a primitives current LocalToWorld state.
 	 */
-	void UpdateTransform(FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix LocalToWorld, FMatrix PreviousLocalToWorld)
+	void UpdateTransform(FPrimitiveSceneInfo* PrimitiveSceneInfo, const FMatrix& LocalToWorld, const FMatrix& PreviousLocalToWorld)
 	{
 		check(PrimitiveSceneInfo->Proxy->IsMovable());
 

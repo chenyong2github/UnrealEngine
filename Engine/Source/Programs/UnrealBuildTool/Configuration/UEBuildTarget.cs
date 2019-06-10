@@ -201,6 +201,11 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Win64 = FindOrAddByName("Win64");
 
 		/// <summary>
+		/// HoloLens
+		/// </summary>
+		public static UnrealTargetPlatform HoloLens = FindOrAddByName("HoloLens");
+
+		/// <summary>
 		/// Mac
 		/// </summary>
 		public static UnrealTargetPlatform Mac = FindOrAddByName("Mac");
@@ -422,6 +427,11 @@ namespace UnrealBuildTool
 		/// this group is just to lump Win32 and Win64 into Windows directories, removing the special Windows logic in MakeListOfUnsupportedPlatforms
 		/// </summary>
 		public static UnrealPlatformGroup Windows = FindOrAddByName("Windows");
+
+		/// <summary>
+		/// this group is just to lump HoloLens32 and HoloLens64 into HoloLens directories
+		/// </summary>
+		public static UnrealPlatformGroup HoloLens = FindOrAddByName("HoloLens");
 
 		/// <summary>
 		/// Microsoft platforms
@@ -1298,7 +1308,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the receipt
-			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version);
+			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture);
 
 			if (!Rules.bShouldCompileAsDLL)
 			{
@@ -1533,7 +1543,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32;
+					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
 				}
 
 				if (IsCurrentPlatform)
@@ -3504,8 +3514,8 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
 
 			// tell the compiled code the name of the UBT platform (this affects folder on disk, etc that the game may need to know)
-			GlobalCompileEnvironment.Definitions.Add("UBT_COMPILED_PLATFORM=" + Platform.ToString());
-			GlobalCompileEnvironment.Definitions.Add("UBT_COMPILED_TARGET=" + TargetType.ToString());
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_PLATFORM=" + Platform.ToString()));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_TARGET=" + TargetType.ToString()));
 
 			// Set the global app name
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_APP_NAME=\"{0}\"", AppName));

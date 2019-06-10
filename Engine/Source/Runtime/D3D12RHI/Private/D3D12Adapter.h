@@ -91,7 +91,7 @@ public:
 	FORCEINLINE const D3D_FEATURE_LEVEL GetFeatureLevel() const { return Desc.MaxSupportedFeatureLevel; }
 	FORCEINLINE ID3D12Device* GetD3DDevice() const { return RootDevice.GetReference(); }
 	FORCEINLINE ID3D12Device1* GetD3DDevice1() const { return RootDevice1.GetReference(); }
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	FORCEINLINE ID3D12Device2* GetD3DDevice2() const { return RootDevice2.GetReference(); }
 #endif
 #if D3D12_RHI_RAYTRACING
@@ -158,7 +158,7 @@ public:
 
 	FORCEINLINE void CreateDXGIFactory()
 	{
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		VERIFYD3D12RESULT(::CreateDXGIFactory(IID_PPV_ARGS(DxgiFactory.GetInitReference())));
 		VERIFYD3D12RESULT(DxgiFactory->QueryInterface(IID_PPV_ARGS(DxgiFactory2.GetInitReference())));
 #endif
@@ -312,7 +312,7 @@ protected:
 	// LDA setups have one ID3D12Device
 	TRefCountPtr<ID3D12Device> RootDevice;
 	TRefCountPtr<ID3D12Device1> RootDevice1;
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	TRefCountPtr<ID3D12Device2> RootDevice2;
 #endif
 #if D3D12_RHI_RAYTRACING

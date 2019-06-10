@@ -163,7 +163,7 @@ public:
 	virtual void RecordAnalytics() override;
 
 	virtual void SetTrackingOrigin(EHMDTrackingOrigin::Type NewOrigin) override;
-	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() override;
+	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const override;
 	virtual bool GetFloorToEyeTrackingTransform(FTransform& OutFloorToEye) const override;
 
 public:

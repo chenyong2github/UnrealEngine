@@ -55,6 +55,8 @@ public:
 	uint32	GetPacketsReceived() const override;
 
 private:
+	static int32 SendBufferSize;
+	static int32 ReceiveBufferSize;
 
 	void					CloseWithError(const TCHAR* Error, FSocket* InSocket=nullptr);
 
