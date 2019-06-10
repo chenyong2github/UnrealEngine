@@ -157,6 +157,7 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 				UiaRaiseAutomationEvent(&ScopedProvider.Provider, UIA_Invoke_InvokedEventId);
 			}
 			break;
+#if WINVER >= 0x0A00
 		case EAccessibleEvent::Notification:
 		{
 			typedef HRESULT(WINAPI* UiaRaiseNotificationEventFunc)(IRawElementProviderSimple*, NotificationKind, NotificationProcessing, BSTR, BSTR);
@@ -172,6 +173,7 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 			}
 			break;
 		}
+#endif
 		case EAccessibleEvent::BeforeRemoveFromParent:
 		{
 			// ChildRemoved events require an ID passed along with them to identify which child (which no longer exists) was removed
