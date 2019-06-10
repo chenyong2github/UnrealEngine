@@ -101,6 +101,7 @@ struct FViewportInfo : public FRenderResource
 	/** FRenderResource interface */
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
+	virtual void ReleaseResource() override;
 
 	FViewportInfo()
 		:	ColorSpaceLUTOutputDevice(0),
