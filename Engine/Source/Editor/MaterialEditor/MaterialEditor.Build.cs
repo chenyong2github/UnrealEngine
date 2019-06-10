@@ -41,8 +41,8 @@ public class MaterialEditor : ModuleRules
 				"GraphEditor",
                 "AdvancedPreviewScene",
                 "Projects",
-
-			}
+                "AssetRegistry",
+            }
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
