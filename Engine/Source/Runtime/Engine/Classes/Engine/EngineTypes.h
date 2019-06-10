@@ -481,7 +481,7 @@ enum EMaterialShadingModel
 static_assert(MSM_NUM <= 16, "Do not exceed 16 shading models without expanding FMaterialShadingModelField to support uint32 instead of uint16!");
 
 /** Wrapper for a bitfield of shading models. A material contains one of these to describe what possible shading models can be used by that material. */
-USTRUCT(BlueprintType)
+USTRUCT()
 struct ENGINE_API FMaterialShadingModelField
 {
 	GENERATED_USTRUCT_BODY()
