@@ -92,6 +92,14 @@ class UK2Node_CustomEvent : public UK2Node_Event
 	 */
 	BLUEPRINTGRAPH_API uint32 GetNetFlags() const;
 
+	/**
+	* Updates the Signature of this event. Empties current pins and adds the new given parameters.
+	* Does nothing if DelegateSignature is nullptr
+	* 
+	* @param DelegateSignature	The new signature for this function to have
+	*/
+	BLUEPRINTGRAPH_API void SetDelegateSignature(const UFunction* DelegateSignature);
+
 private:
 	/** Constructing FText strings can be costly, so we cache the node's title */
 	FNodeTextCache CachedNodeTitle;
