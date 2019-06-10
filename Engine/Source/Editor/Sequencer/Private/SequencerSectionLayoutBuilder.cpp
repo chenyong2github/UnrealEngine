@@ -124,7 +124,13 @@ void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSec
 	else
 	{
 		// Just ensure the name is up to date
-		KeyArea->SetName(CurrentNode->GetNodeName());
+		const FMovieSceneChannelMetaData* MetaData = Channel.GetMetaData();
+		if (!ensureAlwaysMsgf(MetaData, TEXT("Attempting to update an expired channel handle to the node tree")))
+		{
+			return;
+		}
+
+		KeyArea->SetName(MetaData->Name);
 	}
 }
 
