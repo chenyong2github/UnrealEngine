@@ -525,7 +525,8 @@ public:
 		}
 		else
 		{
-			Hash = PointerHash(IndirectArgsBuffer, Hash);
+			Hash = PointerHash(IndirectArgs.Buffer, Hash);
+			Hash = FCrc::TypeCrc32(IndirectArgs.Offset, Hash);
 		}		
 
 		return Hash;
