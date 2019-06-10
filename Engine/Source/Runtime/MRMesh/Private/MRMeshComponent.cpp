@@ -16,7 +16,7 @@
 #include "PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "PhysicsPublic.h"
-#include "Physics/IPhysXCooking.h"
+#include "IPhysXCooking.h"
 #include "PhysXCookHelper.h"
 #include "Misc/RuntimeErrors.h"
 #include "Engine/Engine.h"

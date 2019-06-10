@@ -8,6 +8,7 @@
 #include "NiagaraWorldManager.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
+#include "NiagaraGPUInstanceCountManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Register Setup"), STAT_NiagaraSimRegisterSetup, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Context Ticking"), STAT_NiagaraScriptExecContextTick, STATGROUP_Niagara);
@@ -395,9 +396,6 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUScript_RT(nullptr)
 	, CBufferLayout(TEXT("Niagara Compute Sim CBuffer"))
 	, DataToRender(nullptr)
-	, GPUDataReadback(nullptr)
-	, AccumulatedSpawnRate(0)
-	, NumIndicesPerInstance(0)
 #if WITH_EDITORONLY_DATA
 	, GPUDebugDataReadbackFloat(nullptr)
 	, GPUDebugDataReadbackInt(nullptr)
@@ -406,6 +404,7 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUDebugDataIntSize(0)
 	, GPUDebugDataFloatStride(0)
 	, GPUDebugDataIntStride(0)
+	, GPUDebugDataCountOffset(INDEX_NONE)
 #endif	  
 {
 }
@@ -413,11 +412,7 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 {
 	checkf(IsInRenderingThread(), TEXT("Can only delete the gpu readback from the render thread"));
-	if (GPUDataReadback)
-	{
-		delete GPUDataReadback;
-		GPUDataReadback = nullptr;
-	}
+	check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
 
 #if WITH_EDITORONLY_DATA
 	if (GPUDebugDataReadbackFloat)
@@ -440,13 +435,14 @@ FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 	SetDataToRender(nullptr);
 }
 
-void FNiagaraComputeExecutionContext::Reset()
+void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	FNiagaraComputeExecutionContext* Context = this;
+	NiagaraEmitterInstanceBatcher* B = Batcher && !Batcher->IsPendingKill() ? Batcher : nullptr;
 	ENQUEUE_RENDER_COMMAND(ResetRT)(
-		[Context](FRHICommandListImmediate& RHICmdList)
+		[B, Context](FRHICommandListImmediate& RHICmdList)
 	{
-		Context->ResetInternal();
+		Context->ResetInternal(B);
 	}
 	);
 }
@@ -518,14 +514,18 @@ void FNiagaraComputeExecutionContext::PostTick()
 	}
 }
 
-void FNiagaraComputeExecutionContext::ResetInternal()
+void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatcher* Batcher)
 {
 	checkf(IsInRenderingThread(), TEXT("Can only reset the gpu context from the render thread"));
-	AccumulatedSpawnRate = 0;
-	if (GPUDataReadback)
+
+	// Release and reset readback data.
+	if (Batcher)
 	{
-		delete GPUDataReadback;
-		GPUDataReadback = nullptr;
+		Batcher->GetGPUInstanceCounterManager().FreeEntry(EmitterInstanceReadback.GPUCountOffset);
+	}
+	else // In this case the batcher is pending kill so no need to putback entry in the pool.
+	{
+		EmitterInstanceReadback.GPUCountOffset = INDEX_NONE;
 	}
 
 #if WITH_EDITORONLY_DATA

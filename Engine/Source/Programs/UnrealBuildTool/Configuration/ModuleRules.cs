@@ -878,7 +878,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		public void SetupModulePhysicsSupport(ReadOnlyTargetRules Target)
 		{
-            bool bUseNonPhysXInterface = Target.bUseChaos == true || Target.bCompileImmediatePhysics == true;
+			PublicIncludePathModuleNames.Add("PhysicsCore");
+			PublicDependencyModuleNames.Add("PhysicsCore");
+
+			bool bUseNonPhysXInterface = Target.bUseChaos == true || Target.bCompileImmediatePhysics == true;
 
             // 
             if (Target.bCompileChaos == true || Target.bUseChaos == true)
@@ -887,14 +890,12 @@ namespace UnrealBuildTool
                 PublicIncludePathModuleNames.AddRange(
                     new string[] {
                         "Chaos",
-						"ChaosSolvers",
-						"FieldSystemCore",
+						"FieldSystemCore"
                     }
                 );
                 PublicDependencyModuleNames.AddRange(
                   new string[] {
                         "Chaos",
-						"ChaosSolvers",
 						"FieldSystemCore"
                   }
                 );
@@ -920,6 +921,20 @@ namespace UnrealBuildTool
 			{
 				// Disable non-physx interfaces
 				PublicDefinitions.Add("WITH_CHAOS=0");
+
+				// 
+				// WITH_CHAOS_NEEDS_TO_BE_FIXED
+				//
+				// Anything wrapped in this define needs to be fixed
+				// in one of the build targets. This define was added
+				// to help identify complier failures between the
+				// the three build targets( UseChaos, PhysX, WithChaos )
+				// This defaults to off , and will be enabled for bUseChaos. 
+				// This define should be removed when all the references 
+				// have been fixed across the different builds. 
+				//
+				PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
+
 				PublicDefinitions.Add("PHYSICS_INTERFACE_LLIMMEDIATE=0");
 
 				if (Target.bCompilePhysX)
@@ -993,6 +1008,7 @@ namespace UnrealBuildTool
 				if(Target.bUseChaos)
 				{
 					PublicDefinitions.Add("WITH_CHAOS=1");
+					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=1");
 					PublicDefinitions.Add("COMPILE_ID_TYPES_AS_INTS=0");
 					
 					PublicIncludePathModuleNames.AddRange(
@@ -1010,6 +1026,7 @@ namespace UnrealBuildTool
 				else
 				{
 					PublicDefinitions.Add("WITH_CHAOS=0");
+					PublicDefinitions.Add("WITH_CHAOS_NEEDS_TO_BE_FIXED=0");
 				}
 
 				if(Target.bCompileImmediatePhysics)

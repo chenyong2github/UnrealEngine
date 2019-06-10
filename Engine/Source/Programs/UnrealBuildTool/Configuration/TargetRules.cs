@@ -303,13 +303,13 @@ namespace UnrealBuildTool
 		/// Whether to enable the mesh editor.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bEnableMeshEditor = false; // {Dev-Physics:false, Dev-Destruction:true}
+		public bool bEnableMeshEditor = true;
 
 		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileChaos = false; // {Dev-Physics:false, Dev-Destruction:true}
+		public bool bCompileChaos = false;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
@@ -327,7 +327,7 @@ namespace UnrealBuildTool
 		/// Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCustomSceneQueryStructure = false; // {Dev-Physics:false, Dev-Destruction:true}
+		public bool bCustomSceneQueryStructure = false;
 
 		/// <summary>
 		/// Whether to include PhysX support.

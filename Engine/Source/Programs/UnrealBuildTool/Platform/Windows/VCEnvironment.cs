@@ -83,6 +83,11 @@ namespace UnrealBuildTool
 		public readonly FileReference ResourceCompilerPath;
 
 		/// <summary>
+		/// Path to the ISPC compiler
+		/// </summary>
+		public readonly FileReference ISPCCompilerPath;
+
+		/// <summary>
 		/// The default system include paths
 		/// </summary>
 		public readonly List<DirectoryReference> IncludePaths = new List<DirectoryReference>();
@@ -134,6 +139,8 @@ namespace UnrealBuildTool
 
 			// Get the resource compiler path from the Windows SDK
 			ResourceCompilerPath = GetResourceCompilerToolPath(Platform, WindowsSdkDir, WindowsSdkVersion);
+
+			ISPCCompilerPath = GetISPCCompilerToolPath(Platform);
 
 			// Add both toolchain paths to the PATH environment variable. There are some support DLLs which are only added to one of the paths, but which the toolchain in the other directory
 			// needs to run (eg. mspdbcore.dll).
@@ -345,6 +352,21 @@ namespace UnrealBuildTool
 				}
 			}
 			throw new BuildException("Unable to find path to the Windows resource compiler under {0} (version {1})", WindowsSdkDir, WindowsSdkVersion);
+		}
+
+		/// <summary>
+		/// Gets the path to the ISPC compiler's ispc.exe for the specified platform.
+		/// </summary>
+		static FileReference GetISPCCompilerToolPath(UnrealTargetPlatform Platform)
+		{
+			FileReference ISPCCompilerPath = FileReference.Combine(UnrealBuildTool.EngineSourceThirdPartyDirectory, "IntelISPC", "bin", "Windows", "ispc.exe");
+
+			if(FileReference.Exists(ISPCCompilerPath))
+			{
+				return ISPCCompilerPath;
+			}
+
+			throw new BuildException("Unable to find ISPC compiler path under {0}", ISPCCompilerPath);
 		}
 
 		/// <summary>

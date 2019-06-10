@@ -1087,6 +1087,7 @@ namespace UnrealBuildTool
 				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
 				CompileAction.CommandPath = EnvVars.CompilerPath;
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 				string[] AdditionalArguments = String.IsNullOrEmpty(CompileEnvironment.AdditionalArguments)? new string[0] : new string[] { CompileEnvironment.AdditionalArguments };
 
@@ -1234,6 +1235,7 @@ namespace UnrealBuildTool
 				CompileAction.CommandPath = EnvVars.ResourceCompilerPath;
 				CompileAction.StatusDescription = Path.GetFileName(RCFile.AbsolutePath);
 				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 				// Resource tool can run remotely if possible
 				CompileAction.bCanExecuteRemotely = true;
@@ -1359,6 +1361,184 @@ namespace UnrealBuildTool
 				}
 			}
 			return Result.ToString();
+		}
+
+		public override CPPOutput GenerateISPCHeaders(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		{
+			CPPOutput Result = new CPPOutput();
+
+			foreach (FileItem ISPCFile in InputFiles)
+			{
+				Action CompileAction = new Action(ActionType.Compile);
+				CompileAction.CommandDescription = "Compile";
+				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				CompileAction.CommandPath = EnvVars.ISPCCompilerPath;
+				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+
+				// Resource tool can run remotely if possible
+				CompileAction.bCanExecuteRemotely = true;
+
+				List<string> Arguments = new List<string>();
+
+				// Add the ISPC obj file as a prerequisite of the action.
+				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+
+				// Add the ISPC h file to the produced item list.
+				FileItem ISPCIncludeHeaderFile = FileItem.GetItemByFileReference(
+					FileReference.Combine(
+						OutputDir,
+						Path.GetFileName(ISPCFile.AbsolutePath) + ".generated.h"
+						)
+					);
+
+				// Add the ISPC file to be compiled.
+				Arguments.Add(String.Format("-h \"{0}\"", ISPCIncludeHeaderFile));
+
+				// Also add the x86/x86_64 definition to the ISPC compiler
+				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win32)
+				{
+					Arguments.Add("--arch=x86");
+				}
+				else if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
+				{
+					Arguments.Add("--arch=x86_64");
+				}
+
+				// Add the target architectures
+				Arguments.Add("--target=avx2,avx,sse4,sse2");
+
+				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
+				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
+				}
+
+				// System include paths.
+				foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+				}
+				foreach (DirectoryReference SystemIncludePath in EnvVars.IncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+				}
+
+				CompileAction.ProducedItems.Add(ISPCIncludeHeaderFile);
+				Result.GeneratedHeaderFiles.Add(ISPCIncludeHeaderFile);
+
+				CompileAction.CommandArguments = String.Join(" ", Arguments);
+
+				// Add the source file and its included files to the prerequisite item list.
+				CompileAction.PrerequisiteItems.Add(ISPCFile);
+
+				Actions.Add(CompileAction);
+				
+				Log.TraceVerbose("   ISPC Generating Header " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+			}
+
+			return Result;
+		}
+
+		public override CPPOutput CompileISPCFiles(CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference OutputDir, List<Action> Actions)
+		{
+			CPPOutput Result = new CPPOutput();
+
+			string[] ISATargets = { "avx2", "avx", "sse4", "sse2" };
+			List<string> CompileTargets = new List<string>(ISATargets);	
+
+			foreach (FileItem ISPCFile in InputFiles)
+			{
+				Action CompileAction = new Action(ActionType.Compile);
+				CompileAction.CommandDescription = "Compile";
+				CompileAction.WorkingDirectory = UnrealBuildTool.EngineSourceDirectory;
+				CompileAction.CommandPath = EnvVars.ISPCCompilerPath;
+				CompileAction.StatusDescription = Path.GetFileName(ISPCFile.AbsolutePath);
+
+				// Resource tool can run remotely if possible
+				CompileAction.bCanExecuteRemotely = true;
+
+				List<string> Arguments = new List<string>();
+
+				// Add the ISPC file to be compiled.
+				Arguments.Add(String.Format(" \"{0}\"", ISPCFile.AbsolutePath));
+
+				List<FileItem> CompiledISPCObjFiles = new List<FileItem>();
+
+				foreach(string Target in CompileTargets)
+				{
+					// Add the ISA specific ISPC obj files to the produced item list.
+					FileItem CompiledISPCObjFile = FileItem.GetItemByFileReference(
+						FileReference.Combine(
+							OutputDir,
+							Path.GetFileName(ISPCFile.AbsolutePath) + "_" + Target + ".obj"
+							)
+						);
+
+					CompiledISPCObjFiles.Add(CompiledISPCObjFile);
+				}
+
+				// Add the common ISPC obj file to the produced item list.
+				FileItem CompiledISPCObjFileNoISA = FileItem.GetItemByFileReference(
+					FileReference.Combine(
+						OutputDir,
+						Path.GetFileName(ISPCFile.AbsolutePath) + ".obj"
+						)
+					);
+
+				CompiledISPCObjFiles.Add(CompiledISPCObjFileNoISA);
+
+				// Add the output ISPC obj file
+				Arguments.Add(String.Format("-o \"{0}\"", CompiledISPCObjFileNoISA));
+
+				// Also add the x86/x86_64 definition to the ISPC compiler
+				if (CompileEnvironment.Platform == UnrealTargetPlatform.Win32)
+				{
+					Arguments.Add("--arch=x86");
+				}
+				else if (CompileEnvironment.Platform == UnrealTargetPlatform.Win64)
+				{
+					Arguments.Add("--arch=x86_64");
+				}
+
+				// Add the target architectures
+				Arguments.Add("--target=avx2,avx,sse4,sse2 -O2");
+
+				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
+				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", IncludePath));
+				}
+
+				// System include paths.
+				foreach (DirectoryReference SystemIncludePath in CompileEnvironment.SystemIncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+				}
+				foreach (DirectoryReference SystemIncludePath in EnvVars.IncludePaths)
+				{
+					Arguments.Add(String.Format("-I\"{0}\"", SystemIncludePath));
+				}
+
+				// Preprocessor definitions.
+				foreach (string Definition in CompileEnvironment.Definitions)
+				{
+					Arguments.Add(String.Format("-D\"{0}\"", Definition));
+				}
+
+				CompileAction.ProducedItems.AddRange(CompiledISPCObjFiles);
+				Result.ObjectFiles.AddRange(CompiledISPCObjFiles);
+
+				CompileAction.CommandArguments = String.Join(" ", Arguments);
+
+				// Add the source file and its included files to the prerequisite item list.
+				CompileAction.PrerequisiteItems.Add(ISPCFile);
+
+				Actions.Add(CompileAction);
+
+				Log.TraceVerbose("   ISPC Compiling " + CompileAction.StatusDescription + ": \"" + CompileAction.CommandPath + "\"" + CompileAction.CommandArguments);
+			}
+
+			return Result;
 		}
 
 		public override FileItem LinkFiles(LinkEnvironment LinkEnvironment, bool bBuildImportLibraryOnly, List<Action> Actions)

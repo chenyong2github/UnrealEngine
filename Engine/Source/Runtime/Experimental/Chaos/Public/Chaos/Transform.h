@@ -112,6 +112,24 @@ class TRigidTransform
 };
 
 template<>
+class TRigidTransform<float, 2> : public FTransform
+{
+  public:
+	TRigidTransform()
+	    : FTransform() {}
+	TRigidTransform(const TVector<float, 3>& Translation, const TRotation<float, 3>& Rotation)
+	    : FTransform(Rotation, Translation) {}
+	TRigidTransform(const FMatrix& Matrix)
+	    : FTransform(Matrix) {}
+	TRigidTransform(const FTransform& Transform)
+	    : FTransform(Transform) {}
+	PMatrix<float, 3, 3> Inverse() const
+	{
+		return ToMatrixNoScale().Inverse();
+	}
+};
+
+template<>
 class TRigidTransform<float, 3> : public FTransform
 {
   public:

@@ -5,9 +5,7 @@
 #if WITH_CHAOS
 
 #include "Engine/Engine.h"
-#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
-#include "Physics/PhysicsInterfaceCore.h"
 #include "Physics/PhysicsInterfaceTypes.h"
 #include "PhysicsEngine/ConstraintDrives.h"
 #include "PhysicsEngine/ConstraintTypes.h"
@@ -19,29 +17,23 @@
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Pair.h"
 #include "Chaos/Transform.h"
-#include "GameFramework/WorldSettings.h"
 #include "Physics/GenericPhysicsInterface.h"
 #include "PhysicsInterfaceWrapperShared.h"
+#include "ChaosInterfaceWrapper.h"
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
 
-template<typename T>
-struct FCallbackDummy
-{};
-
-template <typename T>
-using FPhysicsHitCallback = FCallbackDummy<T>;
-
-class FPxQueryFilterCallback;
-using FPhysicsQueryFilterCallback = FPxQueryFilterCallback;
-
 static int32 NextBodyIdValue = 0;
 static int32 NextConstraintIdValue = 0;
-static TMap<uint32, TMap<struct FRigidBodyIndexPair, bool> *> EmptyCollisionMap = TMap<uint32, TMap<struct FRigidBodyIndexPair, bool> *>();
 
 class FPhysInterface_Chaos;
 struct FBodyInstance;
 struct FPhysxUserData;
+class IPhysicsReplicationFactory;
+
+class FBodyInstancePhysicsObject;
+
+class AWorldSettings;
 
 namespace Chaos
 {
@@ -61,70 +53,81 @@ namespace Chaos
 	class TPBDSpringConstraints;
 }
 
-#if COMPILE_ID_TYPES_AS_INTS
-typedef uint32 RigidBodyId;
-typedef uint32 RigidConstraintId;
-typedef uint32 RigidAggregateId;
-
-static FORCEINLINE uint32 ToValue(uint32 Id) { return Id; }
-#else
-#define CREATEIDTYPE(IDNAME) \
-    class IDNAME \
-    { \
-      public: \
-        IDNAME() {} \
-        IDNAME(const uint32 InValue) : Value(InValue) {} \
-        bool operator==(const IDNAME& Other) const { return Value == Other.Value; } \
-        uint32 Value; \
-    }
-
-CREATEIDTYPE(RigidBodyId);
-CREATEIDTYPE(RigidConstraintId);
-CREATEIDTYPE(RigidAggregateId);
-
-template<class T_ID>
-static uint32 ToValue(T_ID Id)
+class FPhysicsActorReference_Chaos 
 {
-    return Id.Value;
-}
-#endif
+public:
 
-#define CREATEIDSCENEPAIR(NAME, IDNAME) \
-    class ENGINE_API NAME : public Chaos::Pair<IDNAME, FPhysInterface_Chaos*> \
-    { \
-      public: \
-        using Chaos::Pair<IDNAME, FPhysInterface_Chaos*>::Second; \
-        \
-        NAME() \
-        { \
-            Second = nullptr; \
-        } \
-        bool IsValid() const; \
-        bool Equals(const NAME& Other) const \
-        { \
-            return static_cast<Chaos::Pair<IDNAME, FPhysInterface_Chaos*>>(Other) == static_cast<Chaos::Pair<IDNAME, FPhysInterface_Chaos*>>(*this); \
-        } \
-    } \
+	FPhysicsActorReference_Chaos( 
+		FBodyInstance * InBodyInstance = nullptr,
+		FPhysScene_ChaosInterface* InScene = nullptr, 
+		FBodyInstancePhysicsObject* InPhysicsObject = nullptr)
+		: BodyInstance(InBodyInstance)
+		, Scene(InScene)
+		, PhysicsObject(InPhysicsObject){}
 
-CREATEIDSCENEPAIR(FPhysicsActorReference_Chaos, RigidBodyId);
-CREATEIDSCENEPAIR(FPhysicsConstraintReference_Chaos, RigidConstraintId);
-CREATEIDSCENEPAIR(FPhysicsAggregateReference_Chaos, RigidAggregateId);
+	bool IsValid() const { return PhysicsObject != nullptr; }
+	bool Equals(const FPhysicsActorReference_Chaos& Handle) const { return PhysicsObject == Handle.PhysicsObject; }
+
+	FPhysScene_ChaosInterface* GetScene() { return Scene; }
+	const FPhysScene_ChaosInterface* GetScene() const { return Scene; }
+	void SetScene(FPhysScene_ChaosInterface* InScene) { Scene = InScene; }
+
+	FBodyInstancePhysicsObject* GetPhysicsObject() { return PhysicsObject; }
+	/*const*/ FBodyInstancePhysicsObject* GetPhysicsObject() const { return PhysicsObject; }
+	void SetPhysicsObject(FBodyInstancePhysicsObject* InPhysicsObject) { PhysicsObject = InPhysicsObject; }
+
+	FBodyInstance* GetBodyInstance() { return BodyInstance; }
+	const FBodyInstance* GetBodyInstance() const { return BodyInstance; }
+	void SetBodyInstance(FBodyInstance * InBodyInstance) { BodyInstance = InBodyInstance; }
+
+private:
+	FBodyInstance* BodyInstance;
+	FPhysScene_ChaosInterface* Scene;
+	FBodyInstancePhysicsObject* PhysicsObject;
+};
+
+class FPhysicsConstraintReference_Chaos
+{
+public:
+	bool IsValid() const {return false;}
+};
+
+class FPhysicsAggregateReference_Chaos
+{
+public:
+	bool IsValid() const { return false; }
+};
 
 class FPhysicsShapeReference_Chaos
 {
 public:
+	typedef Chaos::TImplicitObject<float, 3> Internal;
+
+
+	FPhysicsShapeReference_Chaos()
+		: Object(nullptr), bSimulation(false), bQuery(false), ActorRef() {}
+	FPhysicsShapeReference_Chaos(Internal* ObjectIn, bool bSimulationIn, bool bQueryIn, FPhysicsActorReference_Chaos ActorRefIn)
+		: Object(ObjectIn),bSimulation(bSimulationIn),bQuery(bQueryIn),ActorRef(ActorRefIn){}
+	FPhysicsShapeReference_Chaos(const FPhysicsShapeReference_Chaos& Other)
+		: Object(Other.Object)
+		, bSimulation(Other.bSimulation)
+		, bQuery(Other.bQuery)
+		, ActorRef(Other.ActorRef){}
+
+
 	bool IsValid() const { return (Object != nullptr); }
 	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Object == Other.Object; }
     bool operator==(const FPhysicsShapeReference_Chaos& Other) const { return Equals(Other); }
-	Chaos::TImplicitObject<float, 3>* Object;
-    bool bSimulation;
-    bool bQuery;
+
+	Internal* Object;
+	bool bSimulation;
+	bool bQuery;
     FPhysicsActorReference_Chaos ActorRef;
 };
 
 FORCEINLINE uint32 GetTypeHash(const FPhysicsShapeReference_Chaos& InShapeReference)
 {
-    return GetTypeHash(reinterpret_cast<uintptr_t>(InShapeReference.Object));
+    return PointerHash(InShapeReference.Object);
 }
 
 // Temp interface
@@ -141,110 +144,15 @@ namespace physx
 struct FContactModifyCallback;
 class ULineBatchComponent;
 
-class FSimEventCallbackFactory
-{
-public:
-    physx::PxSimulationEventCallback* Create(FPhysInterface_Chaos* PhysScene, int32 SceneType) { return nullptr; }
-    void Destroy(physx::PxSimulationEventCallback* Callback) {}
-};
-class FContactModifyCallbackFactory
-{
-public:
-    FContactModifyCallback* Create(FPhysInterface_Chaos* PhysScene, int32 SceneType) { return nullptr; }
-    void Destroy(FContactModifyCallback* Callback) {}
-};
-class FPhysicsReplicationFactory
-{
-public:
-    FPhysicsReplication* Create(FPhysScene_PhysX* OwningPhysScene) { return nullptr; }
-    void Destroy(FPhysicsReplication* PhysicsReplication) {}
-};
-
-
-
 class FPhysInterface_Chaos : public FGenericPhysicsInterface
 {
 public:
     ENGINE_API FPhysInterface_Chaos(const AWorldSettings* Settings=nullptr);
     ENGINE_API ~FPhysInterface_Chaos();
 
-    void SetKinematicTransform(const RigidBodyId BodyId, const Chaos::TRigidTransform<float, 3>& NewTransform)
-    {
-        MCriticalSection.Lock();
-        DelayedAnimationTransforms[GetIndexFromId(BodyId)] = NewTransform;
-        MCriticalSection.Unlock();
-    }
-
-    RigidBodyId AddNewRigidParticle(const Chaos::TVector<float, 3>& X, const Chaos::TRotation<float, 3>& R, const Chaos::TVector<float, 3>& V, const Chaos::TVector<float, 3>& W, const float M, const Chaos::PMatrix<float, 3, 3>& I, Chaos::TImplicitObject<float, 3>* Geometry, Chaos::TBVHParticles<float, 3>* CollisionParticles, const bool Kinematic, const bool Disabled);
-
-    Chaos::TPBDRigidParticles<float, 3>& BeginAddNewRigidParticles(const int32 Num, int32& Index, RigidBodyId& Id);
-    Chaos::TPBDRigidParticles<float, 3>& BeginUpdateRigidParticles(const TArray<RigidBodyId> Ids);
-
-    void EndAddNewRigidParticles()
-    {
-        MCriticalSection.Unlock();
-    }
-
-    void EndUpdateRigidParticles()
-    {
-        MCriticalSection.Unlock();
-    }
-
-    void EnableCollisionPair(const TTuple<int32, int32>& CollisionPair)
-    {
-        MCriticalSection.Lock();
-        DelayedEnabledCollisions.Add(CollisionPair);
-        MCriticalSection.Unlock();
-    }
-
-    void DisableCollisionPair(const TTuple<int32, int32>& CollisionPair)
-    {
-        MCriticalSection.Lock();
-        DelayedDisabledCollisions.Add(CollisionPair);
-        MCriticalSection.Unlock();
-    }
-
-    void SetGravity(const Chaos::TVector<float, 3>& Acceleration)
-    {
-        DelayedGravityAcceleration = Acceleration;
-    }
-
-	RigidConstraintId AddSpringConstraint(const Chaos::TVector<RigidBodyId, 2>& Constraint);
-	void RemoveSpringConstraint(const RigidConstraintId Constraint);
-
-    void AddForce(const Chaos::TVector<float, 3>& Force, RigidBodyId BodyId)
-    {
-        MCriticalSection.Lock();
-        DelayedForce[GetIndexFromId(BodyId)] += Force;
-        MCriticalSection.Unlock();
-    }
-
-    void AddTorque(const Chaos::TVector<float, 3>& Torque, RigidBodyId BodyId)
-    {
-        MCriticalSection.Lock();
-        DelayedTorque[GetIndexFromId(BodyId)] += Torque;
-        MCriticalSection.Unlock();
-    }
-
-    uint32 GetConstraintIndexFromId(const RigidConstraintId Id)
-    {
-        check(ConstraintIdToIndexMap.Contains(ToValue(Id)));
-        return ConstraintIdToIndexMap[ToValue(Id)];
-    }
-
-    uint32 GetIndexFromId(const RigidBodyId Id)
-    {
-        check(IdToIndexMap.Contains(ToValue(Id)));
-        return IdToIndexMap[ToValue(Id)];
-    }
-
-	void SetBodyInstance(FBodyInstance* OwningInstance, RigidBodyId Id);
-    
-    ENGINE_API void SyncBodies();
-
     // Interface needed for interface
-	static ENGINE_API FPhysicsActorHandle CreateActor(const FActorCreationParams& Params);
-	static ENGINE_API void ReleaseActor(FPhysicsActorReference_Chaos& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
+	static ENGINE_API void CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle);
+	static ENGINE_API void ReleaseActor(FPhysicsActorHandle& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
 
 	static ENGINE_API FPhysicsAggregateReference_Chaos CreateAggregate(int32 MaxBodies);
 	static ENGINE_API void ReleaseAggregate(FPhysicsAggregateReference_Chaos& InAggregate);
@@ -253,14 +161,14 @@ public:
 
 	// Material interface functions
     // @todo(mlentine): How do we set material on the solver?
-    static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial) {}
+	static FPhysicsMaterialHandle CreateMaterial(const UPhysicalMaterial* InMaterial) { return nullptr; }
     static void ReleaseMaterial(FPhysicsMaterialHandle& InHandle) {}
     static void UpdateMaterial(const FPhysicsMaterialHandle& InHandle, UPhysicalMaterial* InMaterial) {}
     static void SetUserData(const FPhysicsMaterialHandle& InHandle, void* InUserData) {}
 
 	// Actor interface functions
 	template<typename AllocatorType>
-	static int32 GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorReference, TArray<FPhysicsShapeHandle, AllocatorType>& OutShapes);
+	static ENGINE_API int32 GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorReference, TArray<FPhysicsShapeHandle, AllocatorType>& OutShapes);
 	static int32 GetNumShapes(const FPhysicsActorHandle& InHandle);
 
 	static void ReleaseShape(const FPhysicsShapeHandle& InShape);
@@ -268,7 +176,7 @@ public:
 	static void AttachShape(const FPhysicsActorHandle& InActor, const FPhysicsShapeHandle& InNewShape);
 	static void DetachShape(const FPhysicsActorHandle& InActor, FPhysicsShapeHandle& InShape, bool bWakeTouching = true);
 
-	static ENGINE_API void SetActorUserData_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, FPhysxUserData* InUserData);
+	static ENGINE_API void SetActorUserData_AssumesLocked(FPhysicsActorReference_Chaos& InActorReference, FPhysxUserData* InUserData);
 
 	static ENGINE_API bool IsRigidBody(const FPhysicsActorReference_Chaos& InActorReference);
 	static ENGINE_API bool IsDynamic(const FPhysicsActorReference_Chaos& InActorReference)
@@ -324,10 +232,10 @@ public:
 	static ENGINE_API void SetLinearDamping_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InDamping);
 	static ENGINE_API void SetAngularDamping_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InDamping);
 
-	static ENGINE_API void AddForce_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InForce);
-	static ENGINE_API void AddTorque_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InTorque);
-	static ENGINE_API void AddForceMassIndependent_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InForce);
-	static ENGINE_API void AddTorqueMassIndependent_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InTorque);
+	static ENGINE_API void AddImpulse_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InForce);
+	static ENGINE_API void AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InTorque);
+	static ENGINE_API void AddVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InForce);
+	static ENGINE_API void AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InTorque);
 	static ENGINE_API void AddImpulseAtLocation_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InImpulse, const FVector& InLocation);
 	static ENGINE_API void AddRadialImpulse_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange);
 
@@ -402,8 +310,13 @@ public:
     // Interface needed for cmd
     static ENGINE_API bool ExecuteRead(const FPhysicsActorReference_Chaos& InActorReference, TFunctionRef<void(const FPhysicsActorReference_Chaos& Actor)> InCallable)
     {
-        InCallable(InActorReference);
-        return true;
+		if(InActorReference.IsValid())
+		{
+			InCallable(InActorReference);
+			return true;
+		}
+
+		return false;
     }
 
     static ENGINE_API bool ExecuteRead(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
@@ -414,26 +327,46 @@ public:
 
     static ENGINE_API bool ExecuteRead(const FPhysicsActorReference_Chaos& InActorReferenceA, const FPhysicsActorReference_Chaos& InActorReferenceB, TFunctionRef<void(const FPhysicsActorReference_Chaos& ActorA, const FPhysicsActorReference_Chaos& ActorB)> InCallable)
     {
-        InCallable(InActorReferenceA, InActorReferenceB);
-        return true;
+		if(InActorReferenceA.IsValid() || InActorReferenceB.IsValid())
+		{
+			InCallable(InActorReferenceA, InActorReferenceB);
+			return true;
+		}
+
+		return false;
     }
 
     static ENGINE_API bool ExecuteRead(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
     {
-        InCallable(InConstraintRef);
-        return true;
+		if(InConstraintRef.IsValid())
+		{
+			InCallable(InConstraintRef);
+			return true;
+		}
+
+		return false;
     }
 
     static ENGINE_API bool ExecuteRead(FPhysScene* InScene, TFunctionRef<void()> InCallable)
     {
-        InCallable();
-        return true;
+		if(InScene)
+		{
+			InCallable();
+			return true;
+		}
+
+		return false;
     }
 
     static ENGINE_API bool ExecuteWrite(const FPhysicsActorReference_Chaos& InActorReference, TFunctionRef<void(const FPhysicsActorReference_Chaos& Actor)> InCallable)
     {
-        InCallable(InActorReference);
-        return true;
+		if(InActorReference.IsValid())
+		{
+			InCallable(InActorReference);
+			return true;
+		}
+
+		return false;
     }
 
     static ENGINE_API bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
@@ -444,25 +377,43 @@ public:
 
     static ENGINE_API bool ExecuteWrite(const FPhysicsActorReference_Chaos& InActorReferenceA, const FPhysicsActorReference_Chaos& InActorReferenceB, TFunctionRef<void(const FPhysicsActorReference_Chaos& ActorA, const FPhysicsActorReference_Chaos& ActorB)> InCallable)
     {
-        InCallable(InActorReferenceA, InActorReferenceB);
-        return true;
+		if(InActorReferenceA.IsValid() || InActorReferenceB.IsValid())
+		{
+			InCallable(InActorReferenceA, InActorReferenceB);
+			return true;
+		}
+
+		return false;
     }
 
     static ENGINE_API bool ExecuteWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
     {
-        InCallable(InConstraintRef);
-        return true;
+		if(InConstraintRef.IsValid())
+		{
+			InCallable(InConstraintRef);
+			return true;
+		}
+
+		return false;
     }
 	
     static ENGINE_API bool ExecuteWrite(FPhysScene* InScene, TFunctionRef<void()> InCallable)
     {
-        InCallable();
-        return true;
+		if(InScene)
+		{
+			InCallable();
+			return true;
+		}
+
+		return false;
     }
 
     static void ExecuteShapeWrite(FBodyInstance* InInstance, FPhysicsShapeHandle& InShape, TFunctionRef<void(FPhysicsShapeHandle& InShape)> InCallable)
     {
-        InCallable(InShape);
+		if(InInstance && InShape.IsValid())
+        {
+			InCallable(InShape);
+		}
     }
 
 	// Scene query interface functions
@@ -523,29 +474,32 @@ public:
 
 	static ENGINE_API bool ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Ar, UWorld* InWorld);
 
-	static ENGINE_API FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InActorReference)
+	static ENGINE_API FPhysScene* GetCurrentScene(FPhysicsActorHandle& InActorReference)
 	{
-		return InActorReference.Second;
+		return InActorReference.GetScene();
+	}
+
+	static ENGINE_API const FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InActorReference)
+	{
+		return InActorReference.GetScene();
 	}
 
 #if WITH_PHYSX
     static void CalculateMassPropertiesFromShapeCollection(physx::PxMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM);
 #endif
 
-    static const Chaos::TPBDRigidParticles<float, 3>& GetParticlesAndIndex(const FPhysicsActorReference_Chaos& InActorReference, uint32& Index);
-    static const TArray<Chaos::TVector<int32, 2>>& GetConstraintArrayAndIndex(const FPhysicsConstraintReference_Chaos& InActorReference, uint32& Index);
-
 	// Shape interface functions
 	static FPhysicsShapeHandle CreateShape(physx::PxGeometry* InGeom, bool bSimulation = true, bool bQuery = true, UPhysicalMaterial* InSimpleMaterial = nullptr, TArray<UPhysicalMaterial*>* InComplexMaterials = nullptr);
 	
-	static void AddGeometry(const FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
+	static void ENGINE_API AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
 	static FPhysicsShapeHandle CloneShape(const FPhysicsShapeHandle& InShape);
 
+	static ENGINE_API FCollisionFilterData GetSimulationFilter(const FPhysicsShapeHandle& InShape);
+	static ENGINE_API FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle& InShape);
 	static bool IsSimulationShape(const FPhysicsShapeHandle& InShape);
 	static bool IsQueryShape(const FPhysicsShapeHandle& InShape);
 	static bool IsShapeType(const FPhysicsShapeHandle& InShape, ECollisionShapeType InType);
-	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
-	static FPhysicsGeometryCollection GetGeometryCollection(const FPhysicsShapeHandle& InShape);
+	static ENGINE_API ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle& InShape);
     static void* GetUserData(const FPhysicsShapeHandle& InShape) { return nullptr; }
 
@@ -567,122 +521,9 @@ public:
     static void SetGeometry(const FPhysicsShapeHandle& InShape, physx::PxGeometry& InGeom) {}
 	static void SetLocalTransform(const FPhysicsShapeHandle& InShape, const FTransform& NewLocalTransform);
     static void SetMaterials(const FPhysicsShapeHandle& InShape, const TArrayView<UPhysicalMaterial*>InMaterials) {}
-
-    // Scene
-    void AddActorsToScene_AssumesLocked(const TArray<FPhysicsActorHandle>& InActors);
-    void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate) {}
-
-    void SetOwningWorld(UWorld* InOwningWorld) { MOwningWorld = InOwningWorld; }
-    UWorld* GetOwningWorld() { return MOwningWorld; }
-    const UWorld* GetOwningWorld() const { return MOwningWorld; }
-
-    FPhysicsReplication* GetPhysicsReplication() { return nullptr; }
-    void RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType);
-    void AddCustomPhysics_AssumesLocked(FBodyInstance* BodyInstance, FCalculateCustomPhysics& CalculateCustomPhysics)
-    {
-        CalculateCustomPhysics.ExecuteIfBound(MDeltaTime, BodyInstance);
-    }
-    void AddForce_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, bool bAllowSubstepping, bool bAccelChange);
-    void AddForceAtPosition_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Force, const FVector& Position, bool bAllowSubstepping, bool bIsLocalForce = false);
-    void AddRadialForceToBody_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Origin, const float Radius, const float Strength, const uint8 Falloff, bool bAccelChange, bool bAllowSubstepping);
-	void ClearForces_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping);
-    void AddTorque_AssumesLocked(FBodyInstance* BodyInstance, const FVector& Torque, bool bAllowSubstepping, bool bAccelChange);
-	void ClearTorques_AssumesLocked(FBodyInstance* BodyInstance, bool bAllowSubstepping);
-    void SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInstance, const FTransform& TargetTM, bool bAllowSubstepping);
-    bool GetKinematicTarget_AssumesLocked(const FBodyInstance* BodyInstance, FTransform& OutTM) const;
-
-    ENGINE_API void DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable) {}
-    ENGINE_API void DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID) {}
-
-	void MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning) {}
-	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp) {}
-    
-    void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance, int32 SceneType) {}
-    void AddPendingSleepingEvent(FBodyInstance* BI, ESleepEvent SleepEventType, int32 SceneType) {}
-
-	TArray<FCollisionNotifyInfo>& GetPendingCollisionNotifies(int32 SceneType) { return MNotifies; }
-
-	static bool SupportsOriginShifting() { return false; }
-    void ApplyWorldOffset(FVector InOffset) { check(InOffset.Size() == 0); }
-    ENGINE_API void SetUpForFrame(const FVector* NewGrav, float InDeltaSeconds = 0.0f, float InMaxPhysicsDeltaTime = 0.0f)
-    {
-        SetGravity(*NewGrav);
-        MDeltaTime = InDeltaSeconds;
-    }
-    ENGINE_API void StartFrame()
-    {
-        Scene.Tick(MDeltaTime);
-        SyncBodies();
-    }
-    ENGINE_API void EndFrame(ULineBatchComponent* InLineBatcher) {}
-    void WaitPhysScenes() {}
-    FGraphEventRef GetCompletionEvent()
-	{
-        return FGraphEventRef();
-	}
-
-    bool HandleExecCommands(const TCHAR* Cmd, FOutputDevice* Ar) { return false; }
-    void ListAwakeRigidBodies(bool bIncludeKinematic);
-	ENGINE_API int32 GetNumAwakeBodies() const;
-	ENGINE_API static TSharedPtr<FContactModifyCallbackFactory> ContactModifyCallbackFactory;
-    ENGINE_API static TSharedPtr<FPhysicsReplicationFactory> PhysicsReplicationFactory;
-
-    //ENGINE_API physx::PxScene* GetPxScene(uint32 SceneType) const { return nullptr; }
-    //ENGINE_API nvidia::apex::Scene* GetApexScene(uint32 SceneType) const { return nullptr; }
-
-    ENGINE_API void StartAsync() {}
-	ENGINE_API bool HasAsyncScene() const { return false; }
-    void SetPhysXTreeRebuildRate(int32 RebuildRate) {}
-    ENGINE_API void EnsureCollisionTreeIsBuilt(UWorld* World) {}
-    ENGINE_API void KillVisualDebugger() {}
-
-    ENGINE_API static TSharedPtr<FSimEventCallbackFactory> SimEventCallbackFactory;
-
-    DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysScenePreTick, FPhysInterface_Chaos*, float /*DeltaSeconds*/);
-    FOnPhysScenePreTick OnPhysScenePreTick;
-    DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPhysSceneStep, FPhysInterface_Chaos*, float /*DeltaSeconds*/);
-    FOnPhysSceneStep OnPhysSceneStep;
-
-    ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
-    ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
-
-private:
-    FPhysScene_Chaos Scene;
-
-    // @todo(mlentine): Locking is very heavy handed right now; need to make less so.
-    FCriticalSection MCriticalSection;
-    float MDeltaTime;
-    TMap<uint32, uint32> IdToIndexMap;
-    TMap<uint32, uint32> ConstraintIdToIndexMap;
-    TArray<uint32> ConstraintIds;
-    TArray<Chaos::TRigidTransform<float, 3>> OldAnimationTransforms;
-    TArray<Chaos::TRigidTransform<float, 3>> NewAnimationTransforms;
-    TArray<Chaos::TRigidTransform<float, 3>> DelayedAnimationTransforms;
-	TUniquePtr<Chaos::TPBDRigidParticles<float, 3>> DelayedNewParticles;
-	TUniquePtr<Chaos::TPBDRigidParticles<float, 3>> DelayedUpdateParticles;
-    TSet<int32> DelayedUpdateIndices;
-    //Collisions
-    TArray<TTuple<int32, int32>> DelayedDisabledCollisions;
-    TArray<TTuple<int32, int32>> DelayedEnabledCollisions;
-    //Gravity
-    Chaos::TVector<float, 3> DelayedGravityAcceleration;
-    TUniquePtr<Chaos::PerParticleGravity<float, 3>> MGravity;
-	//Springs
-    TArray<Chaos::TVector<int32, 2>> DelayedSpringConstraints;
-    TArray<uint32> DelayedRemoveSpringConstraints;
-    TUniquePtr<Chaos::TPBDSpringConstraints<float, 3>> MSpringConstraints;
-    //Force
-    TArray<Chaos::TVector<float, 3>> DelayedForce;
-    TArray<Chaos::TVector<float, 3>> DelayedTorque;
-    //Body Instances
-    Chaos::TArrayCollectionArray<FBodyInstance*> BodyInstances;
-    Chaos::TArrayCollectionArray<FBodyInstance*> DelayedBodyInstances;
-    Chaos::TArrayCollectionArray<FBodyInstance*> DelayedUpdateBodyInstances;
-    // Temp Interface
-    UWorld* MOwningWorld;
-    TArray<FCollisionNotifyInfo> MNotifies;
 };
 
+/*
 FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& Geom)
 {
 	if (Geom.GetType() == Chaos::ImplicitObjectType::Box)
@@ -699,12 +540,13 @@ FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& 
 	}
 	return ECollisionShapeType::None;
 }
-
+*/
 FORCEINLINE ECollisionShapeType GetGeometryType(const Chaos::TImplicitObject<float, 3>& Geom)
 {
 	return GetType(Geom);
 }
 
+/*
 FORCEINLINE float GetRadius(const Chaos::TCapsule<float>& Capsule)
 {
 	return Capsule.GetRadius();
@@ -714,6 +556,7 @@ FORCEINLINE float GetHalfHeight(const Chaos::TCapsule<float>& Capsule)
 {
 	return Capsule.GetHeight() / 2.f;
 }
+*/
 
 FORCEINLINE FVector FindBoxOpposingNormal(const FPhysTypeDummy& PHit, const FVector& TraceDirectionDenorm, const FVector InNormal)
 {
@@ -745,74 +588,9 @@ FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* Wor
 
 }
 
-inline bool HadInitialOverlap(const FPhysTypeDummy& Hit)
-{
-	return false;
-} 
-
-inline Chaos::TImplicitObject<float, 3>* GetShape(const FPhysTypeDummy& Hit)
-{
-	return nullptr;
-}
-
-inline FPhysActorDummy* GetActor(const FPhysTypeDummy& Hit)
-{
-	return nullptr;
-}
-
-inline float GetDistance(const FPhysTypeDummy& Hit)
-{
-	return 0.0f;
-}
-
-inline FVector GetPosition(const FPhysTypeDummy& Hit)
-{
-	return FVector::ZeroVector;
-}
-
-inline FVector GetNormal(const FPhysTypeDummy& Hit)
-{
-	return FVector(0.0f, 0.0f, 1.0f);
-}
-
-inline UPhysicalMaterial* GetUserData(const FPhysTypeDummy& Material)
-{
-	return nullptr;
-}
-
-inline FBodyInstance* GetUserData(const FPhysActorDummy& Actor)
-{
-	return nullptr;
-}
-
 inline FPhysTypeDummy* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
 {
 	return nullptr;
-}
-
-inline FHitFlags GetFlags(const FPhysTypeDummy& Hit)
-{
-	return FHitFlags(EHitFlags::None);
-}
-
-FORCEINLINE void SetFlags(FPhysTypeDummy& Hit, FHitFlags Flags)
-{
-	//Hit.flags = U2PHitFlags(Flags);
-}
-
-inline uint32 GetInternalFaceIndex(const FPhysTypeDummy& Hit)
-{
-	return 0;
-}
-
-inline void SetInternalFaceIndex(FPhysTypeDummy& Hit, uint32 FaceIndex)
-{
-	
-}
-
-inline FCollisionFilterData GetQueryFilterData(const FPhysicsShape& Shape)
-{
-	return FCollisionFilterData();
 }
 
 inline FCollisionFilterData GetSimulationFilterData(const FPhysicsShape& Shape)
@@ -820,32 +598,12 @@ inline FCollisionFilterData GetSimulationFilterData(const FPhysicsShape& Shape)
 	return FCollisionFilterData();
 }
 
-inline uint32 GetInvalidPhysicsFaceIndex()
-{
-	return 0xffffffff;
-}
-
 inline uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
 {
 	return GetInvalidPhysicsFaceIndex();
 }
 
-inline FTransform GetGlobalPose(const FPhysActorDummy& RigidActor)
-{
-	return FTransform::Identity;
-}
-
-inline uint32 GetNumShapes(const FPhysActorDummy& RigidActor)
-{
-	return 0;
-}
-
 inline void GetShapes(const FPhysActorDummy& RigidActor, FPhysTypeDummy** ShapesBuffer, uint32 NumShapes)
-{
-	
-}
-
-inline void SetActor(FPhysTypeDummy& Hit, FPhysActorDummy* Actor)
 {
 	
 }
@@ -855,41 +613,11 @@ inline void SetShape(FPhysTypeDummy& Hit, FPhysTypeDummy* Shape)
 
 }
 
-template <typename HitType>
-void SetBlock(FPhysicsHitCallback<HitType>& Callback, const HitType& Hit)
-{
-	
-}
-
-template <typename HitType>
-void SetHasBlock(FPhysicsHitCallback<HitType>& Callback, bool bHasBlock)
-{
-	
-}
-
-template <typename HitType>
-void ProcessTouches(FPhysicsHitCallback<HitType>& Callback, const TArray<HitType>& TouchingHits)
-{
-	
-}
-
-template <typename HitType>
-void FinalizeQuery(FPhysicsHitCallback<HitType>& Callback)
-{
-	
-}
-
-template <typename HitType>
-HitType* GetBlock(const FPhysicsHitCallback<HitType>& Callback)
-{
-	return nullptr;
-}
-
-template <typename HitType>
-bool GetHasBlock(const FPhysicsHitCallback<HitType>& Callback)
-{
-	return false;
-}
-
 bool IsBlocking(const FPhysicsShape& PShape, const FCollisionFilterData& QueryFilter);
+
+template <>
+ENGINE_API int32 FPhysInterface_Chaos::GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorHandle, TArray<FPhysicsShapeReference_Chaos, FDefaultAllocator>& OutShapes);
+template <>
+ENGINE_API int32 FPhysInterface_Chaos::GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorHandle, PhysicsInterfaceTypes::FInlineShapeArray& OutShapes);
+
 #endif

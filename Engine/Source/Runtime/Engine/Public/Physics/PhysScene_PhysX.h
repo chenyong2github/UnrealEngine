@@ -11,6 +11,7 @@ class ISQAccelerator;
 class FSQAccelerator;
 class FSQAcceleratorUnion;
 class FSQAcceleratorEntry;
+class FPhysXSQAccelerator;
 
 /** Buffers used as scratch space for PhysX to avoid allocations during simulation */
 struct FSimulationScratchBuffer
@@ -198,6 +199,8 @@ public:
 	If not set it defaults to using FPhysicsReplication. */
 	ENGINE_API static TSharedPtr<IPhysicsReplicationFactory> PhysicsReplicationFactory;
 
+	ENGINE_API void SerializeForTesting(FArchive& Ar);
+
 	//////////////////////////////////////////////////////////////////////////
 	// PhysScene_PhysX interface
 
@@ -296,8 +299,11 @@ private:
 	static const int32 SimScratchBufferBoundary = 16 * 1024;
 
 #if WITH_CUSTOM_SQ_STRUCTURE
-	class FSQAcceleratorUnion* SQAcceleratorUnion;
-	class FSQAccelerator* SQAccelerator;
+	FSQAcceleratorUnion* SQAcceleratorUnion;
+	FSQAccelerator* SQAccelerator;
+#if WITH_PHYSX && !WITH_CHAOS
+	FPhysXSQAccelerator* PhysXSQAccelerator;
+#endif
 #endif
 
 #if WITH_PHYSX

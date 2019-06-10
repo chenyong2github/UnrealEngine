@@ -547,8 +547,8 @@ namespace SceneOutliner
 		}
 
 		// Capture selection changes of bones from mesh selection in fracture tools
-		FFractureToolDelegates::Get().OnComponentSelectionChanged.AddRaw(this, &SSceneOutliner::OnComponentSelectionChanged);
-		FFractureToolDelegates::Get().OnComponentsUpdated.AddRaw(this, &SSceneOutliner::OnComponentsUpdated);
+		FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.AddRaw(this, &SSceneOutliner::OnComponentSelectionChanged);
+		FSceneOutlinerDelegates::Get().OnComponentsUpdated.AddRaw(this, &SSceneOutliner::OnComponentsUpdated);
 
 		// Register to find out when actors are added or removed
 		// @todo outliner: Might not catch some cases (see: CALLBACK_ActorPropertiesChange, CALLBACK_LayerChange, CALLBACK_LevelDirtied, CALLBACK_OnActorMoved, CALLBACK_UpdateLevelsForAllActors)
@@ -653,8 +653,8 @@ namespace SceneOutliner
 
 	SSceneOutliner::~SSceneOutliner()
 	{
-		FFractureToolDelegates::Get().OnComponentSelectionChanged.RemoveAll(this);
-		FFractureToolDelegates::Get().OnComponentsUpdated.RemoveAll(this);
+		FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.RemoveAll(this);
+		FSceneOutlinerDelegates::Get().OnComponentsUpdated.RemoveAll(this);
 
 		// We only synchronize selection when in actor browsing mode
 		if( SharedData->Mode == ESceneOutlinerMode::ActorBrowsing )

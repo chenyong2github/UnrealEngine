@@ -11,6 +11,10 @@
 
 #include "GeometryCollectionFactory.generated.h"
 
+class UGeometryCollection;
+class UGeometryCollectionComponent;
+
+typedef TTuple<const UGeometryCollection *, const UGeometryCollectionComponent *, FTransform> GeometryCollectionTuple;
 
 /**
 * Factory for Simple Cube

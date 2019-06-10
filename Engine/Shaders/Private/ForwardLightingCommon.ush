@@ -349,25 +349,24 @@ half3 GetImageBasedReflectionLighting(FMaterialPixelParameters MaterialParameter
 	{
 		float StepOffset = InterleavedGradientNoise( MaterialParameters.SvPosition.xy, View.StateFrameIndexMod8 );
 		StepOffset -= 0.5;
-		
-		float4 HitUVzTime;
-		float HCBLevel;
 
-		RayCast(
-			TranslucentBasePass.HZBTexture, TranslucentBasePass.HZBSampler, float2(1, 1),
-			MaterialParameters.WorldPosition_CamRelative, RayDirection, 0, 0, MaterialParameters.ScreenPosition.w,
+		float3 HitUVz;
+		float Level = 0;
+
+		bool bHit = RayCast(
+			TranslucentBasePass.HZBTexture, TranslucentBasePass.HZBSampler,
+			MaterialParameters.WorldPosition_CamRelative, RayDirection, Roughness, MaterialParameters.ScreenPosition.w,
 			12, StepOffset,
 			TranslucentBasePass.HZBUvFactorAndInvFactor,
-			TranslucentBasePass.PrevScreenPositionScaleBias,
-			HitUVzTime, HCBLevel
+			HitUVz,
+			Level
 		);
 
-		// if there was a hit
-		BRANCH if( HitUVzTime.w < 1 )
+		BRANCH if( bHit )
 		{
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(TranslucentBasePass.PrevScreenPositionScaleBias, HitUVzTime.xyz, SampleUV, Vignette);
+			ReprojectHit(TranslucentBasePass.PrevScreenPositionScaleBias, HitUVz, SampleUV, Vignette);
 
 			float4 SSR = SampleScreenColor( 
 				TranslucentBasePass.PrevSceneColor, 

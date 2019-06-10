@@ -4587,10 +4587,6 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 
 	TArray<AActor*> InvisLevelActors;
 
-	TArray<UClass*> PrimitiveComponentTypesToIgnore;
-	PrimitiveComponentTypesToIgnore.Add( UShapeComponent::StaticClass() );
-	PrimitiveComponentTypesToIgnore.Add( UNavLinkRenderingComponent::StaticClass() );
-	PrimitiveComponentTypesToIgnore.Add( UDrawFrustumComponent::StaticClass() );
 	// Create a bounding volume of all of the selected actors.
 	FBox BoundingBox(ForceInit);
 
@@ -4607,7 +4603,7 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 				}
 
 				// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-				const bool bIgnore = Components.Num() > 1 && PrimitiveComponentTypesToIgnore.IndexOfByPredicate(ComponentTypeMatcher(PrimitiveComponent)) != INDEX_NONE;
+				const bool bIgnore = Components.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
 
 				if(!bIgnore && PrimitiveComponent->IsRegistered())
 				{
@@ -4651,50 +4647,21 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 
 						if(PrimitiveComponent->IsRegistered())
 						{
-
 							// Some components can have huge bounds but are not visible.  Ignore these components unless it is the only component on the actor 
-							const bool bIgnore = PrimitiveComponents.Num() > 1 && PrimitiveComponentTypesToIgnore.IndexOfByPredicate(ComponentTypeMatcher(PrimitiveComponent)) != INDEX_NONE;
+							const bool bIgnore = PrimitiveComponents.Num() > 1 && PrimitiveComponent->IgnoreBoundsForEditorFocus();
 
 							if(!bIgnore)
 							{
-								BoundingBox += PrimitiveComponent->Bounds.GetBox();
+								FBox LocalBox(ForceInit);
+								if (GLevelEditorModeTools().ComputeBoundingBoxForViewportFocus(Actor, PrimitiveComponent, LocalBox))
+								{
+									BoundingBox += LocalBox;
+								}
+								else
+								{
+									BoundingBox += PrimitiveComponent->Bounds.GetBox();
+								}
 							}
-						}
-					}
-
-					if(Actor->IsA<ABrush>() && GLevelEditorModeTools().IsModeActive(FBuiltinEditorModes::EM_Geometry))
-					{
-						FEdModeGeometry* GeometryMode = GLevelEditorModeTools().GetActiveModeTyped<FEdModeGeometry>(FBuiltinEditorModes::EM_Geometry);
-
-						TArray<FGeomVertex*> SelectedVertices;
-						TArray<FGeomPoly*> SelectedPolys;
-						TArray<FGeomEdge*> SelectedEdges;
-
-						GeometryMode->GetSelectedVertices(SelectedVertices);
-						GeometryMode->GetSelectedPolygons(SelectedPolys);
-						GeometryMode->GetSelectedEdges(SelectedEdges);
-
-						if(SelectedVertices.Num() + SelectedPolys.Num() + SelectedEdges.Num() > 0)
-						{
-							BoundingBox.Init();
-
-							for(FGeomVertex* Vertex : SelectedVertices)
-							{
-								BoundingBox += Vertex->GetWidgetLocation();
-							}
-
-							for(FGeomPoly* Poly : SelectedPolys)
-							{
-								BoundingBox += Poly->GetWidgetLocation();
-							}
-
-							for(FGeomEdge* Edge : SelectedEdges)
-							{
-								BoundingBox += Edge->GetWidgetLocation();
-							}
-
-							// Zoom out a little bit so you can see the selection
-							BoundingBox = BoundingBox.ExpandBy(25);
 						}
 					}
 				}

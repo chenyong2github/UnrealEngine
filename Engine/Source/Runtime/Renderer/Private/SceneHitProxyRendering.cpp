@@ -20,11 +20,11 @@
 #include "VisualizeTexture.h"
 #include "MeshPassProcessor.inl"
 #include "GPUScene.h"
+#include "Rendering/ColorVertexBuffer.h"
 
 class FHitProxyShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
-
 	FHitProxyShaderElementData(FHitProxyId InBatchHitProxyId)
 		: BatchHitProxyId(InBatchHitProxyId)
 	{
@@ -41,10 +41,12 @@ class FHitProxyVS : public FMeshMaterialShader
 	DECLARE_SHADER_TYPE(FHitProxyVS,MeshMaterial);
 
 public:
-
 	virtual bool Serialize(FArchive& Ar) override
 	{
 		bool bShaderHasOutdatedParameters = FMeshMaterialShader::Serialize(Ar);
+
+		Ar << VertexFetch_HitProxyIdBuffer;
+
 		return bShaderHasOutdatedParameters;
 	}
 
@@ -56,14 +58,42 @@ public:
 			&& (Material->IsSpecialEngineMaterial() || !Material->WritesEveryPixel() || Material->MaterialMayModifyMeshPosition() || Material->IsTwoSided());
 	}
 
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const FMeshMaterialShaderElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings)
+	{
+		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
+
+#if WITH_EDITOR
+		const FColorVertexBuffer* HitProxyIdBuffer = PrimitiveSceneProxy ? PrimitiveSceneProxy->GetCustomHitProxyIdBuffer() : nullptr;
+		if(HitProxyIdBuffer)
+		{
+			ShaderBindings.Add(VertexFetch_HitProxyIdBuffer, HitProxyIdBuffer->GetColorComponentsSRV());
+		}
+		else
+		{
+			ShaderBindings.Add(VertexFetch_HitProxyIdBuffer, GNullColorVertexBuffer.VertexBufferSRV);
+		}
+#endif
+	}
 protected:
 
 	FHitProxyVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
 		FMeshMaterialShader(Initializer)
 	{
 		PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
+
+		VertexFetch_HitProxyIdBuffer.Bind(Initializer.ParameterMap, TEXT("VertexFetch_HitProxyIdBuffer"), SPF_Optional);
 	}
 	FHitProxyVS() {}
+
+	FShaderResourceParameter VertexFetch_HitProxyIdBuffer;
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FHitProxyVS,TEXT("/Engine/Private/HitProxyVertexShader.usf"),TEXT("Main"),SF_Vertex); 
@@ -151,9 +181,15 @@ public:
 	{
 		FMeshMaterialShader::GetShaderBindings(Scene, FeatureLevel, PrimitiveSceneProxy, MaterialRenderProxy, Material, DrawRenderState, ShaderElementData, ShaderBindings);
 
-
 		FHitProxyId hitProxyId = ShaderElementData.BatchHitProxyId;
 
+#if WITH_EDITOR
+		if (PrimitiveSceneProxy && PrimitiveSceneProxy->GetCustomHitProxyIdBuffer())
+		{
+			hitProxyId = FColor(0);
+		}
+		else 
+#endif
 		if (PrimitiveSceneProxy && ShaderElementData.BatchHitProxyId == FHitProxyId())
 		{
 			hitProxyId = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->DefaultDynamicHitProxyId;
