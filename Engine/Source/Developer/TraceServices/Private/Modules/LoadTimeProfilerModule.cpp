@@ -9,25 +9,24 @@
 namespace Trace
 {
 
-FName FLoadTimeProfilerModule::ModuleName("TraceModule_LoadTimeProfiler");
-
-void FLoadTimeProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
-{
-	OutModuleInfo.Name = ModuleName;
-	OutModuleInfo.DisplayName = TEXT("Asset Loading");
-}
-
+static const FName LoadTimeProfilerModuleName("TraceModule_LoadTimeProfiler");
 static const FName LoadTimeProfilerProviderName("LoadTimeProfiler");
 static const FName FileActivityProviderName("FileActivity");
 
-void FLoadTimeProfilerModule::OnAnalysisBegin(IAnalysisSession& Session, bool bIsEnabled, TArray<IAnalyzer*>& OutAnalyzers)
+void FLoadTimeProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
+{
+	OutModuleInfo.Name = LoadTimeProfilerModuleName;
+	OutModuleInfo.DisplayName = TEXT("Asset Loading");
+}
+
+void FLoadTimeProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
 	FLoadTimeProfilerProvider* LoadTimeProfilerProvider = new FLoadTimeProfilerProvider(Session);
 	Session.AddProvider(LoadTimeProfilerProviderName, LoadTimeProfilerProvider);
-	OutAnalyzers.Add(new FAsyncLoadingTraceAnalyzer(Session, *LoadTimeProfilerProvider));
+	Session.AddAnalyzer(new FAsyncLoadingTraceAnalyzer(Session, *LoadTimeProfilerProvider));
 	FFileActivityProvider* FileActivityProvider = new FFileActivityProvider(Session);
 	Session.AddProvider(FileActivityProviderName, FileActivityProvider);
-	OutAnalyzers.Add(new FPlatformFileTraceAnalyzer(Session, *FileActivityProvider));
+	Session.AddAnalyzer(new FPlatformFileTraceAnalyzer(Session, *FileActivityProvider));
 }
 
 void FLoadTimeProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)

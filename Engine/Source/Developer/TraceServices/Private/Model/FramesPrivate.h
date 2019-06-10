@@ -21,10 +21,12 @@ public:
 	virtual void EnumerateFrames(ETraceFrameType FrameType, uint64 Start, uint64 End, TFunctionRef<void(const FFrame&)> Callback) const override;
 	void BeginFrame(ETraceFrameType FrameType, double Time);
 	void EndFrame(ETraceFrameType FrameType, double Time);
+	virtual FOnFrameAdded& OnFrameAdded() override { return OnFrameAddedDelegate; }
 
 private:
 	IAnalysisSession& Session;
 	TArray<TPagedArray<FFrame>> Frames;
+	FOnFrameAdded OnFrameAddedDelegate;
 };
 
 }

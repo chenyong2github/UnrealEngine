@@ -8,16 +8,16 @@
 
 namespace Trace
 {
-	class FAnalysisSession;
-	class FCounterInternal;
-	class FCounterProvider;
+	class IAnalysisSession;
+	class ICounter;
+	class ICounterProvider;
 }
 
 class FStatsAnalyzer
 	: public Trace::IAnalyzer
 {
 public:
-	FStatsAnalyzer(Trace::FAnalysisSession& Session, Trace::FCounterProvider& CounterProvider);
+	FStatsAnalyzer(Trace::IAnalysisSession& Session, Trace::ICounterProvider& CounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override;
@@ -36,8 +36,8 @@ private:
 
 	TSharedRef<FThreadState> GetThreadState(uint32 ThreadId);
 
-	Trace::FAnalysisSession& Session;
-	Trace::FCounterProvider& CounterProvider;
-	TMap<uint32, Trace::FCounterInternal*> CountersMap;
+	Trace::IAnalysisSession& Session;
+	Trace::ICounterProvider& CounterProvider;
+	TMap<uint32, Trace::ICounter*> CountersMap;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 };

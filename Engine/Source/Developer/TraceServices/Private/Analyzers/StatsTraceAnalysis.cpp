@@ -2,9 +2,9 @@
 #include "StatsTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
 #include "Common/Utils.h"
-#include "Model/Counters.h"
+#include "TraceServices/Model/Counters.h"
 
-FStatsAnalyzer::FStatsAnalyzer(Trace::FAnalysisSession& InSession, Trace::FCounterProvider& InCounterProvider)
+FStatsAnalyzer::FStatsAnalyzer(Trace::IAnalysisSession& InSession, Trace::ICounterProvider& InCounterProvider)
 	: Session(InSession)
 	, CounterProvider(InCounterProvider)
 {
@@ -25,32 +25,40 @@ void FStatsAnalyzer::OnAnalysisEnd()
 
 void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 {
+	Trace::FAnalysisSessionEditScope _(Session);
+
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
 	{
 	case RouteId_Spec:
 	{
-		Trace::FAnalysisSessionEditScope _(Session);
 		uint32 StatId = EventData.GetValue<uint32>("Id");
-		check(!CountersMap.Contains(StatId));
+		Trace::ICounter* Counter;
+		Trace::ICounter** FindIt = CountersMap.Find(StatId);
+		if (!FindIt)
+		{
+			Counter = CounterProvider.CreateCounter();
+			CountersMap.Add(StatId, Counter);
+		}
+		else
+		{
+			Counter = *FindIt;
+		}
 		const ANSICHAR* Name = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
 		const TCHAR* Description = reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(Name) + 1);
 		Trace::ECounterDisplayHint DisplayHint = Trace::CounterDisplayHint_None;
-		if (EventData.GetValue<bool>("IsFloatingPoint"))
-		{
-			DisplayHint = Trace::CounterDisplayHint_FloatingPoint;
-		}
-		else if (EventData.GetValue<bool>("IsMemory"))
+		if (EventData.GetValue<bool>("IsMemory"))
 		{
 			DisplayHint = Trace::CounterDisplayHint_Memory;
 		}
-		Trace::FCounterInternal* Counter = CounterProvider.CreateCounter(ANSI_TO_TCHAR(Name), Description, DisplayHint);
-		CountersMap.Add(StatId, Counter);
+		Counter->SetName(Session.StoreString(ANSI_TO_TCHAR(Name)));
+		Counter->SetDescription(Session.StoreString(Description));
+		Counter->SetIsFloatingPoint(EventData.GetValue<bool>("IsFloatingPoint"));
+		Counter->SetDisplayHint(DisplayHint);
 		break;
 	}
 	case RouteId_EventBatch:
 	{
-		Trace::FAnalysisSessionEditScope _(Session);
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		TSharedRef<FThreadState> ThreadState = GetThreadState(ThreadId);
 		uint64 BufferSize = EventData.GetAttachmentSize();
@@ -70,8 +78,17 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 
 			uint64 DecodedIdAndOp = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 			uint32 StatId = DecodedIdAndOp >> 3;
-			//check(CountersMap.Contains(StatId));
-			Trace::FCounterInternal& Counter = *CountersMap[StatId];
+			Trace::ICounter* Counter;
+			Trace::ICounter** FindIt = CountersMap.Find(StatId);
+			if (!FindIt)
+			{
+				Counter = CounterProvider.CreateCounter();
+				CountersMap.Add(StatId, Counter);
+			}
+			else
+			{
+				Counter = *FindIt;
+			}
 			uint8 Op = DecodedIdAndOp & 0x7;
 			uint64 CycleDiff = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 			uint64 Cycle = ThreadState->LastCycle + CycleDiff;
@@ -81,24 +98,24 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 			{
 			case Increment:
 			{
-				CounterProvider.Add(Counter, Time, int64(1));
+				Counter->AddValue(Time, int64(1));
 				break;
 			}
 			case Decrement:
 			{
-				CounterProvider.Add(Counter, Time, int64(-1));
+				Counter->AddValue(Time, int64(-1));
 				break;
 			}
 			case AddInteger:
 			{
 				int64 Amount = FTraceAnalyzerUtils::DecodeZigZag(BufferPtr);
-				CounterProvider.Add(Counter, Time, Amount);
+				Counter->AddValue(Time, Amount);
 				break;
 			}
 			case SetInteger:
 			{
 				int64 Value = FTraceAnalyzerUtils::DecodeZigZag(BufferPtr);
-				CounterProvider.Set(Counter, Time, Value);
+				Counter->SetValue(Time, Value);
 				break;
 			}
 			case AddFloat:
@@ -106,7 +123,7 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 				double Amount;
 				memcpy(&Amount, BufferPtr, sizeof(double));
 				BufferPtr += sizeof(double);
-				CounterProvider.Add(Counter, Time, Amount);
+				Counter->AddValue(Time, Amount);
 				break;
 			}
 			case SetFloat:
@@ -114,6 +131,7 @@ void FStatsAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 				double Value;
 				memcpy(&Value, BufferPtr, sizeof(double));
 				BufferPtr += sizeof(double);
+				Counter->SetValue(Time, Value);
 				break;
 			}
 			}

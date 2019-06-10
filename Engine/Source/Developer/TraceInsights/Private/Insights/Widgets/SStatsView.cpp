@@ -1401,11 +1401,11 @@ void SStatsView::RebuildTree(bool bResync)
 		bListHasChanged = true;
 	}
 
-	if (Session.IsValid() && Trace::ReadCounterProvider(*Session.Get()))
+	if (Session.IsValid())
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-		const Trace::ICounterProvider& CountersProvider = *Trace::ReadCounterProvider(*Session.Get());
+		const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
 
 		if (!bResync)
 		{
@@ -1423,8 +1423,8 @@ void SStatsView::RebuildTree(bool bResync)
 			{
 				FName Name(Counter.GetName());
 				FName Group(Counter.GetDisplayHint() == Trace::CounterDisplayHint_Memory ? TEXT("Memory") :
-							Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint ? TEXT("float") : TEXT("int64"));
-				EStatsNodeType Type = Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint ? EStatsNodeType::Float : EStatsNodeType::Int64;
+							Counter.IsFloatingPoint() ? TEXT("float") : TEXT("int64"));
+				EStatsNodeType Type = Counter.IsFloatingPoint() ? EStatsNodeType::Float : EStatsNodeType::Int64;
 				FStatsNodePtr StatsNodePtr = MakeShareable(new FStatsNode(Counter.GetId(), Name, Group, Type));
 				StatsNodes.Add(StatsNodePtr);
 				//StatsNodesMap.Add(Name, StatsNodePtr);
@@ -1715,7 +1715,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		StatsNodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid() && StartTime < EndTime && Trace::ReadCounterProvider(*Session.Get()))
+	if (Session.IsValid() && StartTime < EndTime)
 	{
 		const bool bComputeMedian = true;
 
@@ -1725,13 +1725,13 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 		{
 			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
 
-			const Trace::ICounterProvider& CountersProvider = *Trace::ReadCounterProvider(*Session.Get());
+			const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
 
 			// Compute instance count and total/min/max inclusive/exclusive times for each counter.
 			// Iterate through all counters.
 			CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
 			{
-				if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
+				if (Counter.IsFloatingPoint())
 				{
 					CalculationHelperDbl.Update(Counter);
 				}
@@ -1752,7 +1752,7 @@ void SStatsView::UpdateStats(double StartTime, double EndTime)
 				// Iterate again through all counters.
 				CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](const Trace::ICounter& Counter)
 				{
-					if (Counter.GetDisplayHint() == Trace::CounterDisplayHint_FloatingPoint)
+					if (Counter.IsFloatingPoint())
 					{
 						CalculationHelperDbl.UpdateHistograms(Counter);
 					}

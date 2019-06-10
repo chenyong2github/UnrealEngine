@@ -136,12 +136,9 @@ void FLogProvider::ConstructMessage(uint64 Index, TFunctionRef<void(const FLogMe
 void FLogProvider::EnumerateCategories(TFunctionRef<void(const FLogCategory &)> Callback) const
 {
 	Session.ReadAccessCheck();
-	auto Iterator = Categories.GetIteratorFromItem(0);
-	const FLogCategory* Category = Iterator.GetCurrentItem();
-	while (Category)
+	for (auto Iterator = Categories.GetIteratorFromItem(0); Iterator; ++Iterator)
 	{
-		Callback(*Category);
-		Category = Iterator.NextItem();
+		Callback(*Iterator);
 	}
 }
 

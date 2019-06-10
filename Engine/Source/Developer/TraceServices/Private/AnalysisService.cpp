@@ -14,6 +14,7 @@
 #include "Model/FramesPrivate.h"
 #include "Model/BookmarksPrivate.h"
 #include "Model/ThreadsPrivate.h"
+#include "Model/CountersPrivate.h"
 
 namespace Trace
 {
@@ -71,21 +72,43 @@ FAnalysisSession::FAnalysisSession(const TCHAR* SessionName)
 
 FAnalysisSession::~FAnalysisSession()
 {
-	for (auto& KV : Providers)
+	for (int32 AnalyzerIndex = Analyzers.Num() - 1; AnalyzerIndex >= 0; --AnalyzerIndex)
 	{
-		IProvider* Provider = KV.Value;
-		delete Provider;
+		delete Analyzers[AnalyzerIndex];
 	}
+	for (int32 ProviderIndex = Providers.Num() - 1; ProviderIndex >= 0; --ProviderIndex)
+	{
+		delete Providers[ProviderIndex];
+	}
+}
+
+void FAnalysisSession::AddAnalyzer(IAnalyzer* Analyzer)
+{
+	Analyzers.Add(Analyzer);
 }
 
 void FAnalysisSession::AddProvider(const FName& InName, IProvider* Provider)
 {
-	Providers.Add(InName, Provider);
+	Providers.Add(Provider);
+	ProvidersMap.Add(InName, Provider);
 }
 
 const IProvider* FAnalysisSession::ReadProviderPrivate(const FName& InName) const
 {
-	IProvider* const* FindIt = Providers.Find(InName);
+	IProvider* const* FindIt = ProvidersMap.Find(InName);
+	if (FindIt)
+	{
+		return *FindIt;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+IProvider* FAnalysisSession::EditProviderPrivate(const FName& InName)
+{
+	IProvider** FindIt = ProvidersMap.Find(InName);
 	if (FindIt)
 	{
 		return *FindIt;
@@ -114,7 +137,6 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 {
 	OnAnalysisStarted().Broadcast(AnalysisSession);
 
-	TArray<IAnalyzer*> Analyzers;
 	{
 		IAnalysisSession& Session = AnalysisSession.Get();
 		Trace::FAnalysisSessionEditScope _(Session);
@@ -126,24 +148,20 @@ void FAnalysisService::AnalyzeInternal(TSharedRef<FAnalysisSession> AnalysisSess
 		Session.AddProvider(FThreadProvider::ProviderName, ThreadProvider);
 		FFrameProvider* FrameProvider = new FFrameProvider(Session);
 		Session.AddProvider(FFrameProvider::ProviderName, FrameProvider);
-		Analyzers.Add(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider));
-		Analyzers.Add(new FLogTraceAnalyzer(Session, *LogProvider));
-		ModuleService.OnAnalysisBegin(Session, Analyzers);
+		FCounterProvider* CounterProvider = new FCounterProvider(Session, *FrameProvider);
+		Session.AddProvider(FCounterProvider::ProviderName, CounterProvider);
+		Session.AddAnalyzer(new FMiscTraceAnalyzer(Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider));
+		Session.AddAnalyzer(new FLogTraceAnalyzer(Session, *LogProvider));
+		ModuleService.OnAnalysisBegin(Session);
 	}
 	
 	FAnalysisContext Context;
-	for (Trace::IAnalyzer* Analyzer : Analyzers)
+	for (Trace::IAnalyzer* Analyzer : AnalysisSession->ReadAnalyzers())
 	{
 		Context.AddAnalyzer(*Analyzer);
 	}
 	Trace::FAnalysisProcessor Processor = Context.Process(*DataStream);
 	Processor.Wait();
-
-	for (Trace::IAnalyzer* Analyzer : Analyzers)
-	{
-		delete Analyzer;
-	}
-	Analyzers.Empty();
 
 	delete DataStream;
 

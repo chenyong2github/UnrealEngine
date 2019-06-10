@@ -34,12 +34,9 @@ void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, ui
 	{
 		return;
 	}
-	auto Iterator = Frames[FrameType].GetIteratorFromItem(Start);
-	const FFrame* Frame = Iterator.GetCurrentItem();
-	for (uint64 Index = Start; Index < End; ++Index)
+	for (auto Iterator = Frames[FrameType].GetIteratorFromItem(Start); Iterator; ++Iterator)
 	{
-		Callback(*Frame);
-		Frame = Iterator.NextItem();
+		Callback(*Iterator);
 	}
 }
 
@@ -52,6 +49,7 @@ void FFrameProvider::BeginFrame(ETraceFrameType FrameType, double Time)
 	Frame.StartTime = Time;
 	Frame.EndTime = std::numeric_limits<double>::infinity();
 	Frame.Index = Index;
+	Frame.FrameType = FrameType;
 	Session.UpdateDurationSeconds(Time);
 }
 
@@ -60,6 +58,7 @@ void FFrameProvider::EndFrame(ETraceFrameType FrameType, double Time)
 	Session.WriteAccessCheck();
 	FFrame& Frame = Frames[FrameType][Frames[FrameType].Num() - 1];
 	Frame.EndTime = Time;
+	OnFrameAddedDelegate.Broadcast(Frame);
 	Session.UpdateDurationSeconds(Time);
 }
 

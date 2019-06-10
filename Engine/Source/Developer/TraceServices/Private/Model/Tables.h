@@ -386,7 +386,7 @@ public:
 
 private:
 	const LayoutType& Layout;
-	typename TPagedArray<typename LayoutType::RowType>::FIterator Iterator;
+	typename TPagedArray<typename LayoutType::RowType>::TIterator Iterator;
 	const typename LayoutType::RowType* CurrentRow;
 };
 

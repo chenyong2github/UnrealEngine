@@ -25,7 +25,7 @@ class IModule
 {
 public:
 	virtual void GetModuleInfo(FModuleInfo& OutModuleInfo) = 0;
-	virtual void OnAnalysisBegin(IAnalysisSession& Session, bool bIsEnabled, TArray<IAnalyzer*>& OutAnalyzers) = 0;
+	virtual void OnAnalysisBegin(IAnalysisSession& Session) = 0;
 	virtual void GetLoggers(TArray<const TCHAR*>& OutLoggers) = 0;
 };
 

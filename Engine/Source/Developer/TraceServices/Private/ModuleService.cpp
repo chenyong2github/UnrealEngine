@@ -69,14 +69,14 @@ void FModuleService::SetModuleEnabled(const FName& ModuleName, bool bEnabled)
 	}
 }
 
-void FModuleService::OnAnalysisBegin(IAnalysisSession& Session, TArray<IAnalyzer*>& OutAnalyzers)
+void FModuleService::OnAnalysisBegin(IAnalysisSession& Session)
 {
 	FScopeLock Lock(&CriticalSection);
 	Initialize();
 	for (const auto& KV : ModulesMap)
 	{
 		IModule* Module = KV.Value;
-		Module->OnAnalysisBegin(Session, EnabledModules.Contains(Module), OutAnalyzers);
+		Module->OnAnalysisBegin(Session);
 	}
 }
 

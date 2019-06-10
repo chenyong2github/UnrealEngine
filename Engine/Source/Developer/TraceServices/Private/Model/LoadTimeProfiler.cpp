@@ -23,12 +23,9 @@ void FLoadTimeProfilerProvider::EnumeratePackages(TFunctionRef<void(const FPacka
 {
 	Session.ReadAccessCheck();
 
-	auto Iterator = Packages.GetIteratorFromItem(0);
-	const FPackageInfo* Package = Iterator.GetCurrentItem();
-	while (Package)
+	for (auto Iterator = Packages.GetIteratorFromItem(0); Iterator; ++Iterator)
 	{
-		Callback(*Package);
-		Package = Iterator.NextItem();
+		Callback(*Iterator);
 	}
 }
 
