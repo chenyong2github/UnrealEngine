@@ -236,4 +236,44 @@ public:
 	/** Gets all static switch parameter names */
 	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
 	static void GetStaticSwitchParameterNames(UMaterialInterface* Material, TArray<FName>& ParameterNames);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in 
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetScalarParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetVectorParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetTextureParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
+
+	/**
+	*	Returns the path of the asset where the parameter originated, as well as true/false if it was found
+	*	@param	Material	The material or material instance you want to look up a parameter from
+	*	@param	ParameterName		The parameter name
+	*	@param	ParameterSource		The soft object path of the asset the parameter originates in
+	*	@return	Whether or not the parameter was found in this material
+	*/
+	UFUNCTION(BlueprintCallable, Category = "MaterialEditing")
+	bool GetStaticSwitchParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource);
 };
