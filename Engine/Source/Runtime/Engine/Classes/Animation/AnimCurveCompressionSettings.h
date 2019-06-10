@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Animation/AnimCompressionTypes.h"
 #include "AnimCurveCompressionSettings.generated.h"
 
 class UAnimCurveCompressionCodec;

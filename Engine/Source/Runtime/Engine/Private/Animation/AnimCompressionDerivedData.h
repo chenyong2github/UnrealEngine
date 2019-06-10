@@ -8,6 +8,8 @@
 #include "DerivedDataPluginInterface.h"
 #endif
 
+#include "Animation/AnimCompressionTypes.h"
+
 class UAnimSequence;
 struct FAnimCompressContext;
 
