@@ -49,4 +49,6 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleResetDependentSystems;
 
 	TSharedPtr<FUICommandInfo> CollapseStackToHeaders;
+
+	TSharedPtr<FUICommandInfo> FindInCurrentView;
 };

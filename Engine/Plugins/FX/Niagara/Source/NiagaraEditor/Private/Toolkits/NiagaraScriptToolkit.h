@@ -118,7 +118,7 @@ private:
 	/** Navigates to element in graph (node, pin, etc.) 
 	* @Param ElementToFocus Defines the graph element to navigate to and select.
 	*/
-	void FocusGraphElement(const INiagaraScriptGraphFocusInfo* ElementToFocus);
+	void FocusGraphElementIfSameScriptID(const FNiagaraScriptIDAndGraphFocusInfo* ElementToFocus);
 
 private:
 
