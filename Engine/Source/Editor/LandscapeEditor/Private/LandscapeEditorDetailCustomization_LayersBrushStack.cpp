@@ -207,12 +207,6 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::Generate
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
-void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::RemoveBrush(ALandscapeBlueprintCustomBrush* Brush)
-{
-	const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushRemoveTransaction", "Remove Brush"));
-	GetEditorMode()->RemoveBrushFromCurrentLayer(Brush);
-}
-
 TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushContextMenuOpening(int32 InBrushIndex)
 {
 	if (ALandscapeBlueprintCustomBrush* CurrentBrush = GetBrush(InBrushIndex))
@@ -222,17 +216,47 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnBrushC
 		{
 			TSharedRef<FLandscapeEditorCustomNodeBuilder_LayersBrushStack> SharedThis = AsShared();
 
-			// Remove Brush
-			FUIAction RemoveAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush] { SharedThis->RemoveBrush(CurrentBrush); }));
-			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushRemove", "Remove"), LOCTEXT("LandscapeBrushRemoveToolTip", "Remove brush from current layer"), FSlateIcon(), RemoveAction);
+			// Add Brush
+			const TArray<ALandscapeBlueprintCustomBrush*>& Brushes = GetEditorMode()->GetBrushList();
+			TArray<ALandscapeBlueprintCustomBrush*> FilteredBrushes = Brushes.FilterByPredicate([](ALandscapeBlueprintCustomBrush* Brush) { return Brush->GetOwningLandscape() == nullptr; });
+			if (FilteredBrushes.Num())
+			{
+				MenuBuilder.AddSubMenu(
+					LOCTEXT("LandscaeEditorBrushAddSubMenu", "Add"),
+					LOCTEXT("LandscaeEditorBrushAddSubMenuToolTip", "Add brush to current layer"),
+					FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_LayersBrushStack::FillAddBrushMenu, FilteredBrushes),
+					false,
+					FSlateIcon()
+				);
+			}
 
-		
+			// Remove Brush
+			FUIAction RemoveAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, CurrentBrush]
+			{ 
+				const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushRemoveTransaction", "Remove Brush"));
+				GetEditorMode()->RemoveBrushFromCurrentLayer(CurrentBrush);
+			}));
+			MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeBrushRemove", "Remove"), LOCTEXT("LandscapeBrushRemoveToolTip", "Remove brush from current layer"), FSlateIcon(), RemoveAction);
 		}
 		MenuBuilder.EndSection();
 		return MenuBuilder.MakeWidget();
 	}
 
 	return nullptr;
+}
+
+void FLandscapeEditorCustomNodeBuilder_LayersBrushStack::FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintCustomBrush*> Brushes)
+{
+	TSharedRef<FLandscapeEditorCustomNodeBuilder_LayersBrushStack> SharedThis = AsShared();
+	for (ALandscapeBlueprintCustomBrush* Brush : Brushes)
+	{
+		FUIAction AddAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, Brush]()
+		{
+			const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushAddToCurrentLayerTransaction", "Add brush to current layer"));
+			GetEditorMode()->AddBrushToCurrentLayer(Brush);
+		}));
+		MenuBuilder.AddMenuEntry(FText::FromString(Brush->GetActorLabel()), FText(), FSlateIcon(), AddAction);
+	}
 }
 
 FReply FLandscapeEditorCustomNodeBuilder_LayersBrushStack::OnToggleAffectsHeightmap(int32 InBrushIndex)
