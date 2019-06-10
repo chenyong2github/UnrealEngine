@@ -466,7 +466,7 @@ void FNiagaraDataBuffer::CheckUsage(bool bReadOnly)const
 	if (Owner->SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		//We can read on the RT but any modifications must be GT (or GT Task).
-		check(bReadOnly || !IsInRenderingThread());
+		check(IsInGameThread() || (bReadOnly || !IsInRenderingThread()));
 	}
 	else
 	{
