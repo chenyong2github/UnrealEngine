@@ -151,6 +151,7 @@ namespace FNiagaraEditorUtilities
 	** @Param ScriptUsageToInclude Only return Scripts that have this usage
 	** @Param (Optional) TargetUsageToMatch Only return Scripts that have this target usage (output node) 
 	** @Param bIncludeDeprecatedScripts Whether or not to return Scripts that are deprecated (defaults to false) 
+	** @Param bIncludeNonLibraryScripts Whether or not to return non-library scripts (defaults to false)
 	*/
 	struct FGetFilteredScriptAssetsOptions
 	{
@@ -158,12 +159,14 @@ namespace FNiagaraEditorUtilities
 			: ScriptUsageToInclude(ENiagaraScriptUsage::Module)
 			, TargetUsageToMatch()
 			, bIncludeDeprecatedScripts(false)
+			, bIncludeNonLibraryScripts(false)
 		{
 		}
 
 		ENiagaraScriptUsage ScriptUsageToInclude;
 		TOptional<ENiagaraScriptUsage> TargetUsageToMatch;
 		bool bIncludeDeprecatedScripts;
+		bool bIncludeNonLibraryScripts;
 	};
 
 	NIAGARAEDITOR_API void GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets); 

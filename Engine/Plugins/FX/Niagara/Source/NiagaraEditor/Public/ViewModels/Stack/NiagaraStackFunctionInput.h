@@ -112,7 +112,7 @@ public:
 	UNiagaraNodeCustomHlsl* GetExpressionNode() const;
 
 	/** Gets the dynamic inputs available for this input. */
-	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs);
+	void GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs = false);
 
 	/** Sets the dynamic input script for this input. */
 	void SetDynamicInput(UNiagaraScript* DynamicInput);

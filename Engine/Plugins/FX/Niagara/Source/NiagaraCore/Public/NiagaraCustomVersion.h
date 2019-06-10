@@ -122,6 +122,8 @@ struct FNiagaraCustomVersion
 
 		MoveInheritanceDataFromTheEmitterHandleToTheEmitter, // Moved the emitter inheritance data from the emitter handle to the emitter to allow for chained emitter inheritance.
 		
+		AddLibraryAssetProperty, // Add property to all Niagara scripts indicating whether or not they belong to the library
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1,
