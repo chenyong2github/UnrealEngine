@@ -370,7 +370,7 @@ void STimingProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr
 
 void STimingProfilerWindow::ShowTab(const FName& TabID)
 {
-	if (TabManager->CanSpawnTab(TabID))
+	if (TabManager->HasTabSpawner(TabID))
 	{
 		TabManager->InvokeTab(TabID);
 	}
