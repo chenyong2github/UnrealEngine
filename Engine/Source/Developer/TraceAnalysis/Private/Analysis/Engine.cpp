@@ -218,7 +218,6 @@ struct FAnalysisEngine::FEventDataImpl
 {
 	virtual					~FEventDataImpl() = default;
 	virtual const FValue&	GetValue(const ANSICHAR* FieldName) const override;
-	virtual const FArray&	GetArray(const ANSICHAR* FieldName) const override;
 	virtual const uint8*	GetData() const override;
 	virtual const uint8*	GetAttachment() const override;
 	virtual uint16			GetAttachmentSize() const override;
@@ -249,12 +248,6 @@ const IAnalyzer::FValue& FAnalysisEngine::FEventDataImpl::GetValue(const ANSICHA
 	}
 
 	return *(FValue*)Ret;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-const IAnalyzer::FArray& FAnalysisEngine::FEventDataImpl::GetArray(const ANSICHAR* FieldName) const
-{
-	return *(FArray*)0x493;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
