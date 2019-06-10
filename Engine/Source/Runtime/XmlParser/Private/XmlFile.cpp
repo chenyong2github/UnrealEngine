@@ -322,10 +322,8 @@ static bool IsQuote(TCHAR Char)
 	return Char == TCHAR('\"');
 }
 
-TArray<FString> FXmlFile::Tokenize(FString Input)
+void FXmlFile::Tokenize(FString Input, TArray<FString>& Tokens)
 {
-	TArray<FString> Tokens;
-
 	FString WorkingToken;
 	enum TOKENTYPE { OPERATOR, STRING, NONE } Type = NONE;
 	bool bInToken = false;
@@ -434,17 +432,15 @@ TArray<FString> FXmlFile::Tokenize(FString Input)
 	{
 		Tokens.Add(WorkingToken);
 	}
-
-	// Return result
-	return Tokens;
 }
 
 TArray<FString> FXmlFile::Tokenize(TArray<FString>& Input)
 {
 	TArray<FString> Tokens;
+	Tokens.Reserve(Input.Num());
 	for(int32 i = 0; i < Input.Num(); ++i)
 	{
-		Tokens.Append(Tokenize(Input[i]));
+		Tokenize(Input[i], Tokens);
 	}
 	return Tokens;
 }

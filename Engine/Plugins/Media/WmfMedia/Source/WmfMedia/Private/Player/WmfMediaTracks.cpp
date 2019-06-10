@@ -5,6 +5,10 @@
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 
+#if HAP_SUPPORTED
+	#include "hapguid.h"
+#endif
+
 #include "IHeadMountedDisplayModule.h"
 #include "IMediaOptions.h"
 #include "MediaHelpers.h"
@@ -21,6 +25,7 @@
 
 #include "WmfMediaAudioSample.h"
 #include "WmfMediaBinarySample.h"
+#include "WmfMediaHAPDecoder.h"
 #include "WmfMediaHardwareVideoDecodingTextureSample.h"
 #include "WmfMediaOverlaySample.h"
 #include "WmfMediaSampler.h"
@@ -177,8 +182,21 @@ TComPtr<IMFTopology> FWmfMediaTracks::CreateTopology()
 
 	if (GetDefault<UWmfMediaSettings>()->HardwareAcceleratedVideoDecoding)
 	{
-		WmfMediaTopologyLoader MediaTopologyLoader;
-		bool bHardwareAccelerated = MediaTopologyLoader.IsHardwareAccelerated(Topology);
+		bool bHardwareAccelerated = false;
+#if HAP_SUPPORTED
+		if (GetDefault<UWmfMediaSettings>()->EnableHAPCodec)
+		{
+			WmfMediaTopologyLoader MediaTopologyLoader;
+			bHardwareAccelerated = MediaTopologyLoader.EnableHardwareAcceleration(Topology);
+		}
+
+		if (bHardwareAccelerated == false)
+#endif
+		{
+			WmfMediaTopologyLoader MediaTopologyLoader;
+			bHardwareAccelerated = MediaTopologyLoader.IsHardwareAccelerated(Topology);
+		}
+
 		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Video (media source %p) will be decoded on %s"), this, MediaSource.Get(), bHardwareAccelerated ? "GPU" : "CPU");
 		Info += FString::Printf(TEXT("Video decoded on %s\n"), bHardwareAccelerated ? TEXT("GPU") : TEXT("CPU"));
 	}
@@ -1118,8 +1136,61 @@ bool FWmfMediaTracks::AddTrackToTopology(const FTrack& Track, IMFTopology& Topol
 		return false;
 	}
 
-	// connect nodes
-	const HRESULT Result = SourceNode->ConnectOutput(0, OutputNode, 0);
+	
+
+	const bool bEnableHAPCodec = GetDefault<UWmfMediaSettings>()->EnableHAPCodec;
+
+	// Check subtype
+	GUID SubType;
+
+	if (FAILED(Format.InputType->GetGUID(MF_MT_SUBTYPE, &SubType)))
+	{
+		UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Unable to query MF_MT_SUBTYPE"), this);
+		return false;
+	}
+
+	HRESULT Result = S_OK;
+
+#if HAP_SUPPORTED
+	// Add custom HAP Decoder if allowed
+	if (MajorType == MFMediaType_Video &&
+		bEnableHAPCodec &&
+		(SubType == DecoderGUID_HAP ||
+		 SubType == DecoderGUID_HAP_ALPHA ||
+		 SubType == DecoderGUID_HAP_Q ||
+		 SubType == DecoderGUID_HAP_Q_ALPHA))
+	{
+		TComPtr<IMFTopologyNode> DecoderNode;
+		Result = ::MFCreateTopologyNode(MF_TOPOLOGY_TRANSFORM_NODE, &DecoderNode);
+
+		if (FAILED(Result))
+		{
+			UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Failed to create decoder node for stream %i"), this, Track.StreamIndex);
+			return false;
+		}
+
+		WmfMediaHAPDecoder *Decoder = new WmfMediaHAPDecoder();
+
+		TComPtr<IMFTransform> DecoderTransform(Decoder);
+
+		if (FAILED(DecoderNode->SetObject(DecoderTransform)) ||
+			FAILED(DecoderNode->SetUINT32(MF_TOPONODE_STREAMID, 0)) ||
+			FAILED(Topology.AddNode(DecoderNode)) ||
+			FAILED(SourceNode->ConnectOutput(0, DecoderNode, 0)) ||
+			FAILED(DecoderNode->ConnectOutput(0, OutputNode, 0)) ||
+			FAILED(DecoderNode->SetUINT32(MF_TOPONODE_CONNECT_METHOD, MF_CONNECT_ALLOW_CONVERTER)) ||
+			FAILED(OutputNode->SetUINT32(MF_TOPONODE_CONNECT_METHOD, MF_CONNECT_ALLOW_CONVERTER)))
+		{
+			UE_LOG(LogWmfMedia, Verbose, TEXT("Tracks %p: Failed to configure decoder node for stream %i"), this, Track.StreamIndex);
+			return false;
+		}
+	}
+	else
+#endif	
+	{
+		// connect nodes
+		Result = SourceNode->ConnectOutput(0, OutputNode, 0);
+	}
 
 	if (FAILED(Result))
 	{

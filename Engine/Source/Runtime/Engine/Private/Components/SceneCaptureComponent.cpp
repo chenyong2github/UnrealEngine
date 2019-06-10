@@ -514,6 +514,16 @@ void USceneCaptureComponent2D::TickComponent(float DeltaTime, enum ELevelTick Ti
 	}
 }
 
+void USceneCaptureComponent2D::SetCameraView(const FMinimalViewInfo& DesiredView)
+{
+	SetWorldLocation(DesiredView.Location);
+	SetWorldRotation(DesiredView.Rotation);
+
+	FOVAngle = DesiredView.FOV;
+	ProjectionType = DesiredView.ProjectionMode;
+	OrthoWidth = DesiredView.OrthoWidth;
+}
+
 void USceneCaptureComponent2D::GetCameraView(float DeltaTime, FMinimalViewInfo& OutMinimalViewInfo)
 {
 	OutMinimalViewInfo.Location = GetComponentLocation();
@@ -954,6 +964,7 @@ USceneCaptureComponentCube::USceneCaptureComponentCube(const FObjectInitializer&
 	PrimaryComponentTick.bAllowTickOnDedicatedServer = false;
 	bTickInEditor = true;
 	IPD = 6.2f;
+	bCaptureRotation = false;
 
 #if WITH_EDITORONLY_DATA
 	if (!IsRunningCommandlet())
@@ -961,6 +972,8 @@ USceneCaptureComponentCube::USceneCaptureComponentCube(const FObjectInitializer&
 		static ConstructorHelpers::FObjectFinder<UStaticMesh> EditorMesh(TEXT("/Engine/EditorMeshes/MatineeCam_SM"));
 		CaptureMesh = EditorMesh.Object;
 	}
+
+	DrawFrustum = nullptr;
 #endif
 }
 

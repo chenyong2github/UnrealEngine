@@ -37,6 +37,40 @@ public class libOpus : ModuleRules
 			PublicAdditionalLibraries.Add("opus.lib");
 			PublicAdditionalLibraries.Add("speex_resampler.lib");
 		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x64)
+			{
+				LibraryPath += "Windows/VS2012/";
+				LibraryPath += "x64/";
+			}
+			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.x86)
+			{
+				LibraryPath += "Windows/VS2012/";
+				LibraryPath += "win32/";
+			}
+			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32)
+			{
+				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED ? "2015" : "2012");
+				LibraryPath += "/ARM/";
+			}
+			else if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
+			{
+				LibraryPath += "Windows/VS" + (Target.WindowsPlatform.Compiler >= WindowsCompiler.VisualStudio2015_DEPRECATED ? "2015" : "2012");
+				LibraryPath += "/ARM64/";
+			}
+			
+
+			LibraryPath += "Release/";
+
+			PublicLibraryPaths.Add(LibraryPath);
+
+ 			PublicAdditionalLibraries.Add("silk_common.lib");
+ 			PublicAdditionalLibraries.Add("silk_float.lib");
+ 			PublicAdditionalLibraries.Add("celt.lib");
+			PublicAdditionalLibraries.Add("opus.lib");
+			PublicAdditionalLibraries.Add("speex_resampler.lib");
+		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			string OpusPath = LibraryPath + "/Mac/libopus.a";

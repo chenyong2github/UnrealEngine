@@ -10,7 +10,7 @@
 #include "SkeletalMeshTypes.h"
 #include "Serialization/BulkData.h"
 #include "Components.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "Animation/MorphTarget.h"
 
 class FSkeletalMeshLODModel;

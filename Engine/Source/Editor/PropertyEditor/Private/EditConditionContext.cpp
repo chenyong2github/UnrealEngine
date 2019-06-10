@@ -72,6 +72,8 @@ const UBoolProperty* FEditConditionContext::GetSingleBoolProperty(const TSharedP
 	return BoolProperty;
 }
 
+static TSet<const UProperty*> AlreadyLogged;
+
 template<typename T>
 T* FindTypedField(const TWeakPtr<FPropertyNode>& PropertyNode, const FString& PropertyName)
 {
@@ -83,7 +85,12 @@ T* FindTypedField(const TWeakPtr<FPropertyNode>& PropertyNode, const FString& Pr
 		UProperty* Field = FindField<UProperty>(Property->GetOwnerStruct(), *PropertyName);
 		if (Field == nullptr)
 		{
-			UE_LOG(LogEditCondition, Error, TEXT("EditCondition parsing failed: Field name %s was not found in struct %s."), *PropertyName, *Property->GetOwnerStruct()->GetName());
+			if (!AlreadyLogged.Find(Field))
+			{
+				AlreadyLogged.Add(Field);
+				UE_LOG(LogEditCondition, Error, TEXT("EditCondition parsing failed: Field name \"%s\" was not found in class \"%s\"."), *PropertyName, *Property->GetOwnerStruct()->GetName());
+			}
+
 			return nullptr;
 		}
 

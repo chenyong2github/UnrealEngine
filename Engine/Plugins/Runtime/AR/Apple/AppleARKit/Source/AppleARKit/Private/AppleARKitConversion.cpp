@@ -244,7 +244,14 @@ ARConfiguration* FAppleARKitConversion::ToARConfiguration( UARSessionConfig* Ses
 			{
 				return nullptr;
 			}
-			SessionConfiguration = [AROrientationTrackingConfiguration new];
+			AROrientationTrackingConfiguration* OrientationTrackingConfiguration = [AROrientationTrackingConfiguration new];
+#if SUPPORTS_ARKIT_1_5
+			if (FAppleARKitAvailability::SupportsARKit15())
+			{
+				OrientationTrackingConfiguration.autoFocusEnabled = SessionConfig->ShouldEnableAutoFocus();
+			}
+#endif
+			SessionConfiguration = OrientationTrackingConfiguration;
 			break;
 		}
 		case EARSessionType::World:

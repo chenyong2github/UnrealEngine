@@ -201,6 +201,11 @@ namespace UnrealBuildTool
 		public static UnrealTargetPlatform Win64 = FindOrAddByName("Win64");
 
 		/// <summary>
+		/// HoloLens
+		/// </summary>
+		public static UnrealTargetPlatform HoloLens = FindOrAddByName("HoloLens");
+
+		/// <summary>
 		/// Mac
 		/// </summary>
 		public static UnrealTargetPlatform Mac = FindOrAddByName("Mac");
@@ -259,6 +264,32 @@ namespace UnrealBuildTool
 		/// Confidential platform
 		/// </summary>
 		public static UnrealTargetPlatform Lumin = FindOrAddByName("Lumin");
+	}
+
+	/// <summary>
+	/// Extension methods used for serializing UnrealTargetPlatform instances
+	/// </summary>
+	static class UnrealTargetPlatformExtensionMethods
+	{
+		/// <summary>
+		/// Read an UnrealTargetPlatform instance from a binary archive
+		/// </summary>
+		/// <param name="Reader">Archive to read from</param>
+		/// <returns>New UnrealTargetPlatform instance</returns>
+		public static UnrealTargetPlatform ReadUnrealTargetPlatform(this BinaryArchiveReader Reader)
+		{
+			return UnrealTargetPlatform.Parse(Reader.ReadString());
+		}
+
+		/// <summary>
+		/// Write an UnrealTargetPlatform instance to a binary archive
+		/// </summary>
+		/// <param name="Writer">The archive to write to</param>
+		/// <param name="Platform">The platform to write</param>
+		public static void WriteUnrealTargetPlatform(this BinaryArchiveWriter Writer, UnrealTargetPlatform Platform)
+		{
+			Writer.WriteString(Platform.ToString());
+		}
 	}
 
 	/// <summary>
@@ -396,6 +427,11 @@ namespace UnrealBuildTool
 		/// this group is just to lump Win32 and Win64 into Windows directories, removing the special Windows logic in MakeListOfUnsupportedPlatforms
 		/// </summary>
 		public static UnrealPlatformGroup Windows = FindOrAddByName("Windows");
+
+		/// <summary>
+		/// this group is just to lump HoloLens32 and HoloLens64 into HoloLens directories
+		/// </summary>
+		public static UnrealPlatformGroup HoloLens = FindOrAddByName("HoloLens");
 
 		/// <summary>
 		/// Microsoft platforms
@@ -1272,7 +1308,7 @@ namespace UnrealBuildTool
 			}
 
 			// Create the receipt
-			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version);
+			TargetReceipt Receipt = new TargetReceipt(ProjectFile, TargetName, TargetType, Platform, Configuration, Version, Architecture);
 
 			if (!Rules.bShouldCompileAsDLL)
 			{
@@ -1474,7 +1510,7 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(TargetToolChain.GetVersionInfo(), ExternalMetadata, ReceiptFileName, ProjectIntermediateDirectory, TargetType, bDeployAfterCompile, bHasProjectScriptPlugin);
+			TargetMakefile Makefile = new TargetMakefile(TargetToolChain.GetVersionInfo(), ExternalMetadata, ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
 
 			// Setup the hot reload module list
 			Makefile.HotReloadModuleNames = GetHotReloadModuleNames();
@@ -1507,7 +1543,7 @@ namespace UnrealBuildTool
 				}
 				else
 				{
-					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32;
+					IsCurrentPlatform = Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Win32 || Platform == UnrealTargetPlatform.HoloLens;
 				}
 
 				if (IsCurrentPlatform)
@@ -2742,6 +2778,7 @@ namespace UnrealBuildTool
 				OutputFilePaths: OutputFilePaths,
 				IntermediateDirectory: Module.IntermediateDirectory,
 				bAllowExports: true,
+				bBuildAdditionalConsoleApp: false,
 				PrimaryModule: Module,
 				bUsePrecompiled: Module.Rules.bUsePrecompiled
 			);
@@ -3147,6 +3184,7 @@ namespace UnrealBuildTool
 				OutputFilePaths: OutputPaths,
 				IntermediateDirectory: IntermediateDirectory,
 				bAllowExports: Rules.bHasExports,
+				bBuildAdditionalConsoleApp: Rules.bBuildAdditionalConsoleApp,
 				PrimaryModule: LaunchModule,
 				bUsePrecompiled: LaunchModule.Rules.bUsePrecompiled && OutputPaths[0].IsUnderDirectory(UnrealBuildTool.EngineDirectory)
 			);
@@ -3156,11 +3194,6 @@ namespace UnrealBuildTool
 			LaunchModule.Binary = Binary;
 			Binary.AddModule(LaunchModule);
 
-			// Create an additional console app for the editor
-			if ((Platform == UnrealTargetPlatform.Win64 || Platform == UnrealTargetPlatform.Mac) && Configuration != UnrealTargetConfiguration.Shipping && TargetType == TargetType.Editor)
-			{
-				Binary.bBuildAdditionalConsoleApp = true;
-			}
 		}
 
 		/// <summary>
@@ -3481,8 +3514,8 @@ namespace UnrealBuildTool
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_MODULE_MANIFEST_DEBUGGAME=\"{0}\"", ModuleManifest.GetStandardFileName(AppName, Platform, UnrealTargetConfiguration.DebugGame, Architecture, true)));
 
 			// tell the compiled code the name of the UBT platform (this affects folder on disk, etc that the game may need to know)
-			GlobalCompileEnvironment.Definitions.Add("UBT_COMPILED_PLATFORM=" + Platform.ToString());
-			GlobalCompileEnvironment.Definitions.Add("UBT_COMPILED_TARGET=" + TargetType.ToString());
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_PLATFORM=" + Platform.ToString()));
+			GlobalCompileEnvironment.Definitions.Add(String.Format("UBT_COMPILED_TARGET=" + TargetType.ToString()));
 
 			// Set the global app name
 			GlobalCompileEnvironment.Definitions.Add(String.Format("UE_APP_NAME=\"{0}\"", AppName));

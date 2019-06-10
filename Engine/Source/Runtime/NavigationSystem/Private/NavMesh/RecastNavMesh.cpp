@@ -104,6 +104,7 @@ void FNavMeshTileData::MakeUnique()
 }
 
 float ARecastNavMesh::DrawDistanceSq = 0.0f;
+float ARecastNavMesh::MinimumSizeForChaosNavMeshInfluenceSq = 0.0f;
 #if !WITH_RECAST
 
 ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)

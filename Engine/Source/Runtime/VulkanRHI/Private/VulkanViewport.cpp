@@ -98,6 +98,7 @@ FVulkanViewport::~FVulkanViewport()
 
 			// FIXME: race condition on TransitionAndLayoutManager, could this be called from RT while RHIT is active?
 			Device->NotifyDeletedImage(BackBufferImages[Index]);
+			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
 			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
 
@@ -323,6 +324,7 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 	, DepthStencilRenderTargetImage(VK_NULL_HANDLE)
 {
 	FMemory::Memzero(ColorRenderTargetImages);
+	FMemory::Memzero(ColorResolveTargetImages);
 		
 	AttachmentTextureViews.Empty(RTLayout.GetNumAttachmentDescriptions());
 	uint32 MipIndex = 0;
@@ -345,9 +347,9 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		MipIndex = InRTInfo.ColorRenderTarget[Index].MipIndex;
 
 		FVulkanTextureView RTView;
-		if (Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D)
+		if (Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
 		{
-			RTView.Create(*Texture->Surface.Device, Texture->Surface.Image, VK_IMAGE_VIEW_TYPE_2D, Texture->Surface.GetFullAspectMask(), Texture->Surface.PixelFormat, Texture->Surface.ViewFormat, MipIndex, 1, FMath::Max(0, (int32)InRTInfo.ColorRenderTarget[Index].ArraySliceIndex), 1, true);
+			RTView.Create(*Texture->Surface.Device, Texture->Surface.Image, Texture->Surface.GetViewType(), Texture->Surface.GetFullAspectMask(), Texture->Surface.PixelFormat, Texture->Surface.ViewFormat, MipIndex, 1, FMath::Max(0, (int32)InRTInfo.ColorRenderTarget[Index].ArraySliceIndex), Texture->Surface.GetNumberOfArrayLevels(), true);
 		}
 		else if (Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE)
 		{
@@ -364,15 +366,28 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 			ensure(0);
 		}
 
-		if (Texture->MSAASurface)
-		{
-			AttachmentTextureViews.Add(Texture->MSAAView);
-		}
-
 		AttachmentTextureViews.Add(RTView);
 		AttachmentViewsToDelete.Add(RTView.View);
 
 		++NumColorAttachments;
+
+		if (InRTInfo.bHasResolveAttachments)
+		{
+			FRHITexture* ResolveRHITexture = InRTInfo.ColorResolveRenderTarget[Index].Texture;
+			ColorResolveTargetImages[Index] = Texture->Surface.Image;
+			FVulkanTextureBase* ResolveTexture = FVulkanTextureBase::Cast(ResolveRHITexture);
+
+			//resolve attachments only supported for 2d/2d array textures
+			FVulkanTextureView ResolveRTView;
+			if (ResolveTexture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D || ResolveTexture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY)
+			{
+				ResolveRTView.Create(*ResolveTexture->Surface.Device, ResolveTexture->Surface.Image, ResolveTexture->Surface.GetViewType(), ResolveTexture->Surface.GetFullAspectMask(), ResolveTexture->Surface.PixelFormat, ResolveTexture->Surface.ViewFormat, 
+					MipIndex, 1, FMath::Max(0, (int32)InRTInfo.ColorRenderTarget[Index].ArraySliceIndex), ResolveTexture->Surface.GetNumberOfArrayLevels(), true);
+			}
+
+			AttachmentTextureViews.Add(ResolveRTView);
+			AttachmentViewsToDelete.Add(ResolveRTView.View);
+		}
 	}
 
 	if (RTLayout.GetHasDepthStencil())
@@ -383,7 +398,7 @@ FVulkanFramebuffer::FVulkanFramebuffer(FVulkanDevice& Device, const FRHISetRende
 		check(Texture->PartialView);
 		PartialDepthTextureView = *Texture->PartialView;
 
-		ensure(Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE);
+		ensure(Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_2D_ARRAY || Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE);
 		if (NumColorAttachments == 0 && Texture->Surface.GetViewType() == VK_IMAGE_VIEW_TYPE_CUBE)
 		{
 			FVulkanTextureView RTView;
@@ -466,6 +481,20 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 	int32 AttachementIndex = 0;
 	for (int32 Index = 0; Index < InRTInfo.NumColorRenderTargets; ++Index)
 	{
+		if (InRTInfo.bHasResolveAttachments)
+		{
+			const FRHIRenderTargetView& R = InRTInfo.ColorResolveRenderTarget[Index];
+			if (R.Texture)
+			{
+				VkImage AImage = ColorResolveTargetImages[AttachementIndex];
+				VkImage BImage = ((FVulkanTextureBase*)R.Texture->GetTextureBaseRHI())->Surface.Image;
+				if (AImage != BImage)
+				{
+					return false;
+				}
+			}
+		}
+
 		const FRHIRenderTargetView& B = InRTInfo.ColorRenderTarget[Index];
 		if (B.Texture)
 		{
@@ -511,12 +540,17 @@ void FVulkanViewport::RecreateSwapchain(void* NewNativeWindow, bool bForce)
 		for (VkImage& BackBufferImage : BackBufferImages)
 		{
 			Device->NotifyDeletedImage(BackBufferImage);
+			Device->NotifyDeletedRenderTarget(BackBufferImage);
 			BackBufferImage = VK_NULL_HANDLE;
 		}
+
+		Device->GetDeferredDeletionQueue().ReleaseResources(true);
 
 		SwapChain->Destroy();
 		delete SwapChain;
 		SwapChain = nullptr;
+
+		Device->GetDeferredDeletionQueue().ReleaseResources(true);
 	}
 
 	WindowHandle = NewNativeWindow;
@@ -576,6 +610,7 @@ void FVulkanViewport::RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat)
 		for (VkImage& BackBufferImage : BackBufferImages)
 		{
 			Device->NotifyDeletedImage(BackBufferImage);
+			Device->NotifyDeletedRenderTarget(BackBufferImage);
 			BackBufferImage = VK_NULL_HANDLE;
 		}
 		

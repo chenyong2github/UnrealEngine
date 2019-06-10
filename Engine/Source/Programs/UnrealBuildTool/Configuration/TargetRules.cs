@@ -1,14 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -180,6 +175,11 @@ namespace UnrealBuildTool
 		public global::UnrealBuildTool.TargetType Type = global::UnrealBuildTool.TargetType.Game;
 
 		/// <summary>
+		/// Tracks a list of config values read while constructing this target
+		/// </summary>
+		internal ConfigValueTracker ConfigValueTracker = new ConfigValueTracker();
+
+		/// <summary>
 		/// Whether the target uses Steam.
 		/// </summary>
 		public bool bUsesSteam;
@@ -303,13 +303,13 @@ namespace UnrealBuildTool
 		/// Whether to enable the mesh editor.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bEnableMeshEditor = false; // {Dev-Physics:false, Dev-Destruction:true}
+		public bool bEnableMeshEditor = true;
 
 		/// <summary>
 		/// Whether to compile the Chaos physics plugin.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileChaos = false; // {Dev-Physics:false, Dev-Destruction:true}
+		public bool bCompileChaos = false;
 
 		/// <summary>
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
@@ -327,7 +327,7 @@ namespace UnrealBuildTool
 		/// Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCustomSceneQueryStructure = false; // {Dev-Physics:false, Dev-Destruction:true}
+		public bool bCustomSceneQueryStructure = false;
 
 		/// <summary>
 		/// Whether to include PhysX support.
@@ -653,6 +653,12 @@ namespace UnrealBuildTool
 		/// True if this is a console application that's being built.
 		/// </summary>
 		public bool bIsBuildingConsoleApplication = false;
+
+		/// <summary>
+		/// If true, creates an additional console application. Hack for Windows, where it's not possible to conditionally inherit a parent's console Window depending on how
+		/// the application is invoked; you have to link the same executable with a different subsystem setting.
+		/// </summary>
+		public bool bBuildAdditionalConsoleApp = false;
 
 		/// <summary>
 		/// True if debug symbols that are cached for some platforms should not be created.
@@ -1275,6 +1281,11 @@ namespace UnrealBuildTool
 		public XboxOneTargetRules XboxOnePlatform = new XboxOneTargetRules();
 
 		/// <summary>
+		/// HoloLens-specific target settings.
+		/// </summary>
+		public HoloLensTargetRules HoloLensPlatform = new HoloLensTargetRules();
+
+		/// <summary>
 		/// Constructor.
 		/// </summary>
 		/// <param name="Target">Information about the target being built</param>
@@ -1290,7 +1301,7 @@ namespace UnrealBuildTool
 			// Read settings from config files
 			foreach(object ConfigurableObject in GetConfigurableObjects())
 			{
-				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject);
+				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject, ConfigValueTracker);
 				XmlConfig.ApplyTo(ConfigurableObject);
 			}
 
@@ -1402,6 +1413,9 @@ namespace UnrealBuildTool
 
 				// Include all plugins
 				bIncludePluginsForTargetPlatforms = true;
+
+				// Create an additional console app for the editor
+				bBuildAdditionalConsoleApp = true;
 
 				// only have exports in modular builds
 				bHasExports = (LinkType == TargetLinkType.Modular);
@@ -1585,6 +1599,7 @@ namespace UnrealBuildTool
 			SwitchPlatform = new ReadOnlySwitchTargetRules(Inner.SwitchPlatform);
 			WindowsPlatform = new ReadOnlyWindowsTargetRules(Inner.WindowsPlatform);
 			XboxOnePlatform = new ReadOnlyXboxOneTargetRules(Inner.XboxOnePlatform);
+			HoloLensPlatform = new ReadOnlyHoloLensTargetRules(Inner.HoloLensPlatform);
 		}
 
 		/// <summary>
@@ -1633,6 +1648,11 @@ namespace UnrealBuildTool
 		public TargetType Type
 		{
 			get { return Inner.Type; }
+		}
+
+		internal ConfigValueTracker ConfigValueTracker
+		{
+			get { return Inner.ConfigValueTracker; }
 		}
 
 		public bool bUsesSteam
@@ -1991,6 +2011,11 @@ namespace UnrealBuildTool
 			get { return Inner.bIsBuildingConsoleApplication; }
 		}
 
+		public bool bBuildAdditionalConsoleApp
+		{
+			get { return Inner.bBuildAdditionalConsoleApp; }
+		}
+		
 		public bool bDisableSymbolCache
 		{
 			get { return Inner.bDisableSymbolCache; }
@@ -2396,6 +2421,12 @@ namespace UnrealBuildTool
 		}
 
 		public ReadOnlyWindowsTargetRules WindowsPlatform
+		{
+			get;
+			private set;
+		}
+
+		public ReadOnlyHoloLensTargetRules HoloLensPlatform
 		{
 			get;
 			private set;

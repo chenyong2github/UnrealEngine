@@ -104,7 +104,7 @@ public:
 	* @param The new widget
 	* @param The label to use for the UI
 	*/
-	virtual void UpdateExternalUMGUI(TSubclassOf<class UUserWidget> InUMGClass, FName Name, FVector2D InSize = FVector2D::ZeroVector) = 0;
+	virtual void UpdateExternalUMGUI(const struct FVREditorFloatingUICreationContext& CreationContext) = 0;
 
 	/**
 	* Update any external Slate UI spawned from the radial menu

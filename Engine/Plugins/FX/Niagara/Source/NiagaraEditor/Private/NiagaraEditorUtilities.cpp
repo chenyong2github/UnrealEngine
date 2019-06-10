@@ -630,14 +630,16 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
 		if (SwitchNode)
 		{
-			SwitchNode->IsValueSet = false;
+			SwitchNode->ClearSwitchValue();
 			for (UEdGraphPin* InputPin : CallInputs)
 			{
 				if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName))
 				{
 					int32 SwitchValue = 0;
-					SwitchNode->IsValueSet = ResolveConstantValue(InputPin, SwitchValue);
-					SwitchNode->SwitchValue = SwitchValue;
+					if (ResolveConstantValue(InputPin, SwitchValue))
+					{
+						SwitchNode->SetSwitchValue(SwitchValue);
+					}
 					break;
 				}
 			}
@@ -657,7 +659,7 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 					continue;
 				}
 				ValuePin->DefaultValue = FString();
-				FName PinName = SwitchValue.PropagatedName.IsEmpty() ? ValuePin->GetFName() : FName(*SwitchValue.PropagatedName);
+				FName PinName = SwitchValue.ToVariable().GetName();
 				for (UEdGraphPin* InputPin : CallInputs)
 				{
 					if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
@@ -906,22 +908,21 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 	ScriptFilter.TagsAndValues.Add(GET_MEMBER_NAME_CHECKED(UNiagaraScript, Usage), UnqualifiedScriptUsageString);
 
 	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().GetAssets(ScriptFilter, OutFilteredScriptAssets);
+	TArray<FAssetData> FilteredScriptAssets;
+	AssetRegistryModule.Get().GetAssets(ScriptFilter, FilteredScriptAssets);
 
-	// We remove deprecated scripts separately as FARFilter does not support filtering by non-string tags.
-	if (InFilter.bIncludeDeprecatedScripts == false)
+	for (int i = 0; i < FilteredScriptAssets.Num(); ++i)
 	{
-		bool bScriptIsDeprecated = false;
-		bool bFoundDeprecatedTag = false;
-		for (int i = OutFilteredScriptAssets.Num() - 1; i >= 0; --i)
+		// Check if the script is deprecated
+		if (InFilter.bIncludeDeprecatedScripts == false)
 		{
-			bFoundDeprecatedTag = OutFilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated), bScriptIsDeprecated);
-			// If the asset does not have the metadata tag, check if it is loaded and if so check the bDeprecated value directly
+			bool bScriptIsDeprecated = false;
+			bool bFoundDeprecatedTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bDeprecated), bScriptIsDeprecated);
 			if (bFoundDeprecatedTag == false)
 			{
-				if (OutFilteredScriptAssets[i].IsAssetLoaded())
+				if (FilteredScriptAssets[i].IsAssetLoaded())
 				{
-					UNiagaraScript* Script = static_cast<UNiagaraScript*>(OutFilteredScriptAssets[i].GetAsset());
+					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
 					if (Script != nullptr)
 					{
 						bScriptIsDeprecated = Script->bDeprecated;
@@ -930,26 +931,48 @@ void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOp
 			}
 			if (bScriptIsDeprecated)
 			{
-				OutFilteredScriptAssets.RemoveAt(i);
+				continue;
 			}
 		}
-	}
-	// We remove scripts with non matching usage bitmasks separately as FARFilter does not support filtering by non-string tags.
-	if (InFilter.TargetUsageToMatch.IsSet())
-	{
-		FString BitfieldTagValue;
-		int32 BitfieldValue, TargetBit;
-		for (int i = OutFilteredScriptAssets.Num() - 1; i >= 0; --i)
-		{
-			BitfieldTagValue = OutFilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
-			BitfieldValue = FCString::Atoi(*BitfieldTagValue);
 
+		// Check if usage bitmask matches
+		if (InFilter.TargetUsageToMatch.IsSet())
+		{
+			FString BitfieldTagValue;
+			int32 BitfieldValue, TargetBit;
+			BitfieldTagValue = FilteredScriptAssets[i].GetTagValueRef<FString>(GET_MEMBER_NAME_CHECKED(UNiagaraScript, ModuleUsageBitmask));
+			BitfieldValue = FCString::Atoi(*BitfieldTagValue);
 			TargetBit = (BitfieldValue >> (int32)InFilter.TargetUsageToMatch.GetValue()) & 1;
 			if (TargetBit != 1)
 			{
-				OutFilteredScriptAssets.RemoveAt(i);
+				continue;
 			}
 		}
+
+		// Check if library script
+		if (InFilter.bIncludeNonLibraryScripts == false)
+		{
+			bool bScriptIsLibrary = true;
+			bool bFoundLibScriptTag = FilteredScriptAssets[i].GetTagValue(GET_MEMBER_NAME_CHECKED(UNiagaraScript, bExposeToLibrary), bScriptIsLibrary);
+
+			if (bFoundLibScriptTag == false)
+			{
+				if (FilteredScriptAssets[i].IsAssetLoaded())
+				{
+					UNiagaraScript* Script = static_cast<UNiagaraScript*>(FilteredScriptAssets[i].GetAsset());
+					if (Script != nullptr)
+					{
+						bScriptIsLibrary = Script->bExposeToLibrary;
+					}
+				}
+			}
+			if (bScriptIsLibrary == false)
+			{
+				continue;
+			}
+		}
+
+		OutFilteredScriptAssets.Add(FilteredScriptAssets[i]);
 	}
 }
 

@@ -54,6 +54,7 @@ class UNetConnection;
 class UNetDriver;
 class UPrimitiveComponent;
 class UTexture2D;
+class FPhysScene_Chaos;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
 
@@ -1293,6 +1294,16 @@ private:
 
 	/** Physics scene for this world. */
 	FPhysScene*									PhysicsScene;
+	// Note that this should be merged with PhysScene going forward but is needed for now.
+public:
+#if INCLUDE_CHAOS
+	/** Current global physics scene. */
+	TSharedPtr<FPhysScene_Chaos> PhysicsScene_Chaos;
+
+	/** Default global physics scene. */
+	TSharedPtr<FPhysScene_Chaos> DefaultPhysicsScene_Chaos;
+#endif
+private:
 
 	/** Array of components that need updates at the end of the frame */
 	UPROPERTY(Transient, NonTransactional)
@@ -1324,6 +1335,11 @@ private:
 
 	/** Utility function that is used to ensure that a World has the correct WorldSettings */
 	void RepairWorldSettings();
+	
+#if INCLUDE_CHAOS
+	/** Utility function that is used to ensure that a World has the correct ChaosActor */
+	void RepairChaosActors();
+#endif
 
 	/** Gameplay timers. */
 	class FTimerManager* TimerManager;

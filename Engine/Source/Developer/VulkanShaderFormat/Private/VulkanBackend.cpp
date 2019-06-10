@@ -3340,7 +3340,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 #endif		
 	}
 
-	void print_extensions(_mesa_glsl_parse_state* state, bool bUsesES31Extensions)
+	void print_extensions(_mesa_glsl_parse_state* state, bool bUsesES31Extensions, bool bShouldEmitMultiview)
 	{
 		if (bUsesES2TextureLODExtension)
 		{
@@ -3376,6 +3376,11 @@ class FGenerateVulkanVisitor : public ir_visitor
 				ralloc_asprintf_append(buffer, "#extension GL_EXT_tessellation_shader : enable\n");
 			}
 
+		}
+
+		if (bShouldEmitMultiview && (state->target == vertex_shader || state->target == fragment_shader))
+		{
+			ralloc_asprintf_append(buffer, "#extension GL_EXT_multiview : enable\n");
 		}
 	}
 
@@ -3508,9 +3513,11 @@ public:
 		print_layout(state);
 		buffer = 0;
 
+		const bool bShouldEmitMultiview = strstr(signature, "gl_ViewIndex") != nullptr;
+
 		char* Extensions = ralloc_asprintf(mem_ctx, "");
 		buffer = &Extensions;
-		print_extensions(state, state->language_version == 310);
+		print_extensions(state, state->language_version == 310, bShouldEmitMultiview);
 		if (state->bSeparateShaderObjects && !state->bGenerateES)
 		{
 			switch (state->target)
@@ -4065,6 +4072,7 @@ struct FSystemValue
 /** Vertex shader system values. */
 static FSystemValue VertexSystemValueTable[] =
 {
+	{ "SV_ViewID", glsl_type::int_type, "gl_ViewIndex", ir_var_in, false, false, false, false },
 	{ "SV_VertexID", glsl_type::int_type, "gl_VertexIndex", ir_var_in, false, false, false, false },
 	{ "SV_InstanceID", glsl_type::int_type, "gl_InstanceIndex", ir_var_in, false, false, false, false },
 	{ "SV_Position", glsl_type::vec4_type, "gl_Position", ir_var_out, false, false, true, false },
@@ -4074,6 +4082,7 @@ static FSystemValue VertexSystemValueTable[] =
 /** Pixel shader system values. */
 static FSystemValue PixelSystemValueTable[] =
 {
+	{ "SV_ViewID", glsl_type::int_type, "gl_ViewIndex", ir_var_in, false, false, false, false },
 	{ "SV_Depth", glsl_type::float_type, "gl_FragDepth", ir_var_out, false, false, false, false },
 	{ "SV_Position", glsl_type::vec4_type, "gl_FragCoord", ir_var_in, true, false, false, false },
 	{ "SV_IsFrontFace", glsl_type::bool_type, "gl_FrontFacing", ir_var_in, false, false, true, false },
@@ -4089,6 +4098,7 @@ static FSystemValue PixelSystemValueTable[] =
 /** Geometry shader system values. */
 static FSystemValue GeometrySystemValueTable[] =
 {
+	{ "SV_ViewID", glsl_type::int_type, "gl_ViewIndex", ir_var_in, false, false, false, false },
 	{ "SV_VertexID", glsl_type::int_type, "gl_VertexID", ir_var_in, false, false, false, false },
 	{ "SV_InstanceID", glsl_type::int_type, "gl_InstanceID", ir_var_in, false, false, false, false },
 	{ "SV_Position", glsl_type::vec4_type, "gl_Position", ir_var_in, false, true, true, false },
@@ -4103,6 +4113,7 @@ static FSystemValue GeometrySystemValueTable[] =
 /** Hull shader system values. */
 static FSystemValue HullSystemValueTable[] =
 {
+	{ "SV_ViewID", glsl_type::int_type, "gl_ViewIndex", ir_var_in, false, false, false, false },
 	{ "SV_OutputControlPointID", glsl_type::int_type, "gl_InvocationID", ir_var_in, false, false, false, false },
 	{ NULL, NULL, NULL, ir_var_auto, false, false, false, false }
 };
@@ -4110,7 +4121,7 @@ static FSystemValue HullSystemValueTable[] =
 /** Domain shader system values. */
 static FSystemValue DomainSystemValueTable[] =
 {
-
+	{ "SV_ViewID", glsl_type::int_type, "gl_ViewIndex", ir_var_in, false, false, false, false },
 	// TODO : SV_DomainLocation has types float2 or float3 depending on the input topology
 	{ "SV_Position", glsl_type::vec4_type, "gl_Position", ir_var_in, false, true, true, false },
 	{ "SV_Position", glsl_type::vec4_type, "gl_Position", ir_var_out, false, false, true, false },
@@ -4343,6 +4354,18 @@ static ir_rvalue* GenShaderInputSemantic(
 				ralloc_asprintf(ParseState, "gl_TessLevelInner[0]"),
 				ir_var_out
 				);
+		}
+	}
+
+	if (Variable == NULL && (Frequency == HSF_VertexShader || Frequency == HSF_PixelShader))
+	{
+		if (FCStringAnsi::Stricmp(Semantic, "SV_ViewId") == 0)
+		{
+			Variable = new(ParseState)ir_variable(
+				Type,
+				ralloc_asprintf(ParseState, "gl_ViewIndex"),
+				ir_var_in
+			);
 		}
 	}
 

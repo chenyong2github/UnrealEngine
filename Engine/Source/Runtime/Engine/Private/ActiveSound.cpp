@@ -1449,8 +1449,6 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 	FocusDistanceScale = 1.0f;
 	FocusPriorityScale = 1.0f;
 
-	check(Sound);
-
 	if (Settings->bEnableReverbSend)
 	{
 		ParseParams.ReverbSendMethod = Settings->ReverbSendMethod;
@@ -1462,16 +1460,13 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 
 	if (Settings->bSpatialize || Settings->bEnableListenerFocus)
 	{
-		AudioDevice->GetAzimuth(ListenerData, Sound, SoundTransform, *Settings, Listener.Transform, Azimuth, AbsoluteAzimuth);
+		AudioDevice->GetAzimuth(ListenerData, SoundTransform, *Settings, Listener.Transform, Azimuth, AbsoluteAzimuth);
 
 		if (Settings->bSpatialize)
 		{
 			ParseParams.AttenuationDistance = ListenerData.AttenuationDistance;
-
 			ParseParams.ListenerToSoundDistance = ListenerData.ListenerToSoundDistance;
-
 			ParseParams.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistanceForPanning;
-
 			ParseParams.AbsoluteAzimuth = AbsoluteAzimuth;
 		}
 
@@ -1481,7 +1476,7 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 			const FGlobalFocusSettings& FocusSettings = AudioDevice->GetGlobalFocusSettings();
 
 			// Get the current target focus factor
-			const float TargetFocusFactor = AudioDevice->GetFocusFactor(ListenerData, Sound, Azimuth, *Settings);
+			const float TargetFocusFactor = AudioDevice->GetFocusFactor(Azimuth, *Settings);
 
 			// User opt-in for focus interpolation
 			if (Settings->bEnableFocusInterpolation)
@@ -1634,6 +1629,10 @@ void FActiveSound::ApplyAttenuation(FSoundParseParameters& ParseParams, const FL
 	if (Settings->SpatializationAlgorithm == ESoundSpatializationAlgorithm::SPATIALIZATION_Default && AudioDevice->IsHRTFEnabledForAll())
 	{
 		ParseParams.SpatializationMethod = ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF;
+	}
+	else if (Settings->SpatializationAlgorithm == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF && AudioDevice->IsHRTFDisabled())
+	{
+		ParseParams.SpatializationMethod = ESoundSpatializationAlgorithm::SPATIALIZATION_Default;
 	}
 	else
 	{

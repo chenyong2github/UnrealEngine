@@ -10,7 +10,7 @@
 #include <d3d11.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 
-const GUID MF_SA_D3D11_AWARE = { 0x206b4fc8, 0xfcf9, 0x4c51, { 0xaf, 0xe3, 0x97, 0x64, 0x36, 0x9e, 0x33, 0xa0 } };
+#include "hapguid.h"
 
 bool WmfMediaTopologyLoader::IsHardwareAccelerated(const TComPtr<IMFTopology>& InTopology) const
 {
@@ -31,9 +31,19 @@ bool WmfMediaTopologyLoader::IsHardwareAccelerated(const TComPtr<IMFTopology>& I
 		return false;
 	}
 
-	return CheckTopologyForHardwareDecoding(FullTopology);
+	return SetHardwareAccelerationOnTransformNode(FullTopology);
 }
 
+
+bool WmfMediaTopologyLoader::EnableHardwareAcceleration(const TComPtr<IMFTopology>& InTopology) const
+{
+	if (ResolveActivationNode(InTopology) == false)
+	{
+		return false;
+	}
+
+	return SetHardwareAccelerationOnTransformNode(InTopology);
+}
 
 bool WmfMediaTopologyLoader::ResolveActivationNode(const TComPtr<IMFTopology>& InTopology) const
 {
@@ -114,7 +124,30 @@ bool WmfMediaTopologyLoader::ResolveActivationNode(const TComPtr<IMFTopology>& I
 }
 
 
-bool WmfMediaTopologyLoader::CheckTopologyForHardwareDecoding(const TComPtr<IMFTopology>& InTopology) const
+bool WmfMediaTopologyLoader::SetHardwareAccelerationOnTransformNode(const TComPtr<IMFTopology>& InTopology) const
+{
+	TComPtr<IMFTopologyNode> D3DManagerNode;
+	TComPtr<IMFDXGIDeviceManager> D3DManager;
+	TComPtr<IMFTransform> Transform;
+
+	if (FindDeviceManager(InTopology, D3DManager, D3DManagerNode, Transform))
+	{
+		ULONG_PTR ptr = (ULONG_PTR)((IMFDXGIDeviceManager*)D3DManager);
+		HRESULT hr = Transform->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER, ptr);
+		if (SUCCEEDED(hr))
+		{
+			return true;
+		}
+		else if (hr == E_FAIL)
+		{
+			return false;
+		}
+	}
+
+	return false;
+}
+
+bool WmfMediaTopologyLoader::FindDeviceManager(const TComPtr<IMFTopology>& InTopology, TComPtr<IMFDXGIDeviceManager>& OutDeviceManager, TComPtr<IMFTopologyNode>& OutD3DManagerNode, TComPtr<IMFTransform>& OutTransformNode) const
 {
 	WORD NodeCount = 0;
 	InTopology->GetNodeCount(&NodeCount);
@@ -160,18 +193,19 @@ bool WmfMediaTopologyLoader::CheckTopologyForHardwareDecoding(const TComPtr<IMFT
 							TComPtr<IMFStreamSink> DeviceManagerStreamSink;
 							DeviceManagerUnknown->QueryInterface(__uuidof(IMFStreamSink), (void**)&DeviceManagerStreamSink);
 
-							HRESULT hr = MFGetService(DeviceManagerStreamSink, MR_VIDEO_ACCELERATION_SERVICE, IID_PPV_ARGS(&DeviceManager));
-
-							ULONG_PTR ptr = (ULONG_PTR)((IMFDXGIDeviceManager*)DeviceManager);
-							hr = Transform->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER, ptr);
-
-							if (SUCCEEDED(hr))
+							if (DeviceManagerStreamSink.IsValid())
 							{
-								return true;
-							}
-							else if (hr == E_FAIL)
-							{
-								return false;
+								HRESULT hr = MFGetService(DeviceManagerStreamSink, MR_VIDEO_ACCELERATION_SERVICE, IID_PPV_ARGS(&DeviceManager));
+
+								ULONG_PTR ptr = (ULONG_PTR)((IMFDXGIDeviceManager*)DeviceManager);
+
+								if (DeviceManager.IsValid())
+								{
+									OutDeviceManager = DeviceManager;
+									OutD3DManagerNode = Node;
+									OutTransformNode = Transform;
+									return true;
+								}
 							}
 						}
 					}

@@ -481,7 +481,7 @@ enum EMaterialShadingModel
 static_assert(MSM_NUM <= 16, "Do not exceed 16 shading models without expanding FMaterialShadingModelField to support uint32 instead of uint16!");
 
 /** Wrapper for a bitfield of shading models. A material contains one of these to describe what possible shading models can be used by that material. */
-USTRUCT(BlueprintType)
+USTRUCT()
 struct ENGINE_API FMaterialShadingModelField
 {
 	GENERATED_USTRUCT_BODY()
@@ -1332,7 +1332,7 @@ struct FRigidBodyErrorCorrection
  * Information about one contact between a pair of rigid bodies.
  */
 USTRUCT()
-struct FRigidBodyContactInfo
+struct ENGINE_API FRigidBodyContactInfo
 {
 	GENERATED_BODY()
 
@@ -1386,7 +1386,7 @@ struct FRigidBodyContactInfo
  * Information about an overall collision, including contacts.
  */
 USTRUCT()
-struct FCollisionImpactData
+struct ENGINE_API FCollisionImpactData
 {
 	GENERATED_BODY()
 
@@ -3430,19 +3430,30 @@ struct ENGINE_API FComponentReference
 {
 	GENERATED_BODY()
 
+	FComponentReference() : OtherActor(nullptr) {}
+
 	/** Pointer to a different Actor that owns the Component.  */
 	UPROPERTY(EditInstanceOnly, Category=Component)
 	AActor* OtherActor;
 
 	/** Name of component property to use */
 	UPROPERTY(EditAnywhere, Category=Component)
-	FName	ComponentProperty;
+	FName ComponentProperty;
+
+	/** Path to the component from its owner actor */
+	UPROPERTY()
+	FString PathToComponent;
 
 	/** Allows direct setting of first component to constraint. */
-	TWeakObjectPtr<class USceneComponent> OverrideComponent;
+	TWeakObjectPtr<class UActorComponent> OverrideComponent;
 
 	/** Get the actual component pointer from this reference */
-	class USceneComponent* GetComponent(AActor* OwningActor) const;
+	class UActorComponent* GetComponent(AActor* OwningActor) const;
+
+	bool operator== (const FComponentReference& Other) const
+	{
+		return OtherActor == Other.OtherActor && ComponentProperty == Other.ComponentProperty && PathToComponent == Other.PathToComponent && OverrideComponent == Other.OverrideComponent;
+	}
 };
 
 /** Types of surfaces in the game, used by Physical Materials */

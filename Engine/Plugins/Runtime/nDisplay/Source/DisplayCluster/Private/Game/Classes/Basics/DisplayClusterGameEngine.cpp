@@ -10,11 +10,14 @@
 #include "Misc/App.h"
 #include "Misc/CommandLine.h"
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterHelpers.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/Parse.h"
+
+#include "Misc/DisplayClusterHelpers.h"
+
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
+#include "DisplayClusterStrings.h"
 
 
 void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
@@ -65,8 +68,8 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Standalone)
 	{
-		DisplayClusterHelpers::str::DustCommandLineValue(cfgPath);
-		DisplayClusterHelpers::str::DustCommandLineValue(nodeId);
+		DisplayClusterHelpers::str::TrimStringValue(cfgPath);
+		DisplayClusterHelpers::str::TrimStringValue(nodeId);
 
 		// Start game session
 		if (!GDisplayCluster->StartSession(cfgPath, nodeId))
@@ -158,6 +161,27 @@ bool UDisplayClusterGameEngine::LoadMap(FWorldContext& WorldContext, FURL URL, c
 	}
 
 	return true;
+}
+
+void UDisplayClusterGameEngine::RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj)
+{
+	if (ClusterMgr)
+	{
+		ClusterMgr->RegisterSyncObject(SyncObj);
+	}
+}
+
+void UDisplayClusterGameEngine::UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj)
+{
+	if (ClusterMgr)
+	{
+		ClusterMgr->UnregisterSyncObject(SyncObj);
+	}
+}
+
+bool UDisplayClusterGameEngine::IsMaster() const
+{
+	return NodeController && NodeController->IsMaster();
 }
 
 void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)

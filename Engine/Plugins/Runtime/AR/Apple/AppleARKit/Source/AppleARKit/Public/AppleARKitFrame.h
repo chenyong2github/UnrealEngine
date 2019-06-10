@@ -28,9 +28,8 @@ struct APPLEARKIT_API FAppleARKitFrame
 	 * with the UE4-ified versions of ARFrames properties.
 	 *
 	 * @param InARFrame 		- The frame to convert / copy
-	 * @param MetalTextureCache - A CVMetalTextureCacheRef to use in the conversion of InARFrame's CVPixelBufferRef to CVMetalTextureRef for our CapturedImage property.
-	 */ 
-	FAppleARKitFrame( ARFrame* InARFrame, CVMetalTextureCacheRef MetalTextureCache );
+	 */
+	FAppleARKitFrame( ARFrame* InARFrame );
 
 	/** 
 	 * Copy contructor. CapturedImage is skipped as we don't need / want to retain access to the 
@@ -53,10 +52,6 @@ struct APPLEARKIT_API FAppleARKitFrame
 
 #if SUPPORTS_ARKIT_1_0
 
-	/** The frame's captured images */
-    CVMetalTextureRef CapturedYImage;
-    CVMetalTextureRef CapturedCbCrImage;
-
 	/** The raw camera buffer from ARKit */
 	CVPixelBufferRef CameraImage;
 	/** The raw camera depth info from ARKit (needs iPhone X) */
@@ -64,13 +59,6 @@ struct APPLEARKIT_API FAppleARKitFrame
 	void* NativeFrame;
 #endif
 
-	/** The width and height in pixels of the frame's captured images. */
-	uint32 CapturedYImageWidth;
-	uint32 CapturedYImageHeight;
-    
-    uint32 CapturedCbCrImageWidth;
-    uint32 CapturedCbCrImageHeight;
-    
 	/** The camera used to capture the frame's image. */
 	FAppleARKitCamera Camera;
 

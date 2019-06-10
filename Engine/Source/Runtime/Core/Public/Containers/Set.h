@@ -250,7 +250,7 @@ public:
 	/** Assignment operator. */
 	TSet& operator=(const TSet& Copy)
 	{
-		if(this != &Copy)
+		if (this != &Copy)
 		{
 			int32 CopyHashSize = Copy.HashSize;
 
@@ -1372,6 +1372,15 @@ public:
 	const void* GetData(int32 Index, const FScriptSetLayout& Layout) const
 	{
 		return Elements.GetData(Index, Layout.SparseArrayLayout);
+	}
+
+	void MoveAssign(FScriptSet& Other, const FScriptSetLayout& Layout)
+	{
+		checkSlow(this != &Other);
+		Empty(0, Layout);
+		Elements.MoveAssign(Other.Elements, Layout.SparseArrayLayout);
+		Hash.MoveToEmpty(Other.Hash);
+		HashSize = Other.HashSize; Other.HashSize = 0;
 	}
 
 	void Empty(int32 Slack, const FScriptSetLayout& Layout)

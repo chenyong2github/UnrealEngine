@@ -98,10 +98,6 @@ private:
 	void UpdateFrame();
 	void CalcTrackingToWorldRotation();
 #if SUPPORTS_ARKIT_1_0
-	bool bShouldWriteCameraImagePerFrame;
-	float WrittenCameraImageScale;
-	int32 WrittenCameraImageQuality;
-	ETextureRotationDirection WrittenCameraImageRotation;
 	/** Asynchronously writes a JPEG to disk */
 	void WriteCameraImageToDisk(CVPixelBufferRef PixelBuffer);
 #endif
@@ -120,7 +116,8 @@ private:
 	void SessionDidRemoveAnchors_Internal( FGuid AnchorGuid );
 #endif
 	void SessionDidUpdateFrame_Internal( TSharedRef< FAppleARKitFrame, ESPMode::ThreadSafe > Frame );
-
+	/** Removes all tracked geometries, marking them as not tracked and sending the delegate event */
+	void ClearTrackedGeometries();
 	
 public:
 	/**
@@ -142,16 +139,19 @@ private:
 	
 	bool bIsRunning = false;
 	
-	void SetDeviceOrientation( EScreenOrientation::Type InOrientation );
+	void SetDeviceOrientation(EDeviceScreenOrientation InOrientation);
 
 	/** Creates or clears the face ar support object if face ar has been requested */
 	void CheckForFaceARSupport(UARSessionConfig* InSessionConfig);
 	
 	/** Updates the ARKit perf counters */
 	void UpdateARKitPerfStats();
-	
-	/** The orientation of the device; see EScreenOrientation */
-	EScreenOrientation::Type DeviceOrientation;
+
+	/** Inits the textures and sets the texture on the overlay */
+	void SetupCameraTextures();
+
+	/** The orientation of the device; see EDeviceScreenOrientation */
+	EDeviceScreenOrientation DeviceOrientation;
 	
 	/** A rotation from ARKit TrackingSpace to Unreal Space. It is re-derived based on other parameters; users should not set it directly. */
 	FRotator DerivedTrackingToUnrealRotation;
@@ -163,9 +163,6 @@ private:
 	
 	// ARKit Session Delegate
 	FAppleARKitSessionDelegate* Delegate = nullptr;
-	
-	/** The Metal texture cache for unbuffered texture uploads. */
-	CVMetalTextureCacheRef MetalTextureCache = nullptr;
 
 	/** Cache of images that we've converted previously to prevent repeated conversion */
 	TMap< FString, CGImage* > ConvertedCandidateImages;

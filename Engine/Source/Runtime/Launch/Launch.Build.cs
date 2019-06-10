@@ -82,6 +82,12 @@ public class Launch : ModuleRules
 					"GameplayMediaEncoder",
 				});
 			}
+			else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+			{
+				DynamicallyLoadedModuleNames.Add("D3D11RHI");
+				DynamicallyLoadedModuleNames.Add("XAudio2");
+				DynamicallyLoadedModuleNames.Add("AudioMixerXAudio2");
+			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
 				DynamicallyLoadedModuleNames.AddRange(new string[] {

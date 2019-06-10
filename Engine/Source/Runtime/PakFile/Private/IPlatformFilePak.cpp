@@ -185,7 +185,7 @@ FPakMasterSignatureTableCheckFailureHandler& FPakPlatformFile::GetPakMasterSigna
 	return Delegate;
 }
 
-void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList)
+void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList) 
 {
 	TArray<FPakListEntry> Paks;
 	GetMountedPaks(Paks);
@@ -195,6 +195,21 @@ void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const T
 		if (Pak.PakFile && Pak.PakFile->GetFilename() == InPakFilename)
 		{
 			Pak.PakFile->GetFilenamesInChunk(InChunkIDs, OutFileList);
+			break;
+		}
+	}
+}
+
+void FPakPlatformFile::GetFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList)
+{
+	TArray<FPakListEntry> Paks;
+	GetMountedPaks(Paks);
+
+	for (const FPakListEntry& Pak : Paks)
+	{
+		if (Pak.PakFile && Pak.PakFile->GetFilename() == InPakFilename)
+		{
+			Pak.PakFile->GetFilenames(OutFileList);
 			break;
 		}
 	}
@@ -5114,6 +5129,20 @@ public:
 };
 #endif //DO_CHECK
 
+
+void FPakFile::GetFilenames(TArray<FString>& OutFileList) const
+{
+	for (const TMap<FString, FPakDirectory>::ElementType& DirectoryElement : Index)
+	{
+		const  FPakDirectory& Directory = DirectoryElement.Value;
+		for (const FPakDirectory::ElementType& FileElement : Directory)
+		{
+			OutFileList.Add(MountPoint / DirectoryElement.Key / FileElement.Key);
+		}
+	}
+}
+
+
 void FPakFile::GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList)
 {
 	TSet<int32> OverlappingEntries;
@@ -5732,6 +5761,24 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 		else
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
+		}
+
+		if (bSuccess)
+		{
+			if (FCoreDelegates::PakFileMountedCallback.IsBound())
+			{
+				// uncomment this when we have time to test 
+				// FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
+			}
+			if (FCoreDelegates::NewFileAddedDelegate.IsBound())
+			{
+				TArray<FString> Filenames;
+				Pak->GetFilenames(Filenames);
+				for (const FString& Filename : Filenames)
+				{
+					FCoreDelegates::NewFileAddedDelegate.Broadcast(Filename);
+				}
+			}
 		}
 	}
 	else

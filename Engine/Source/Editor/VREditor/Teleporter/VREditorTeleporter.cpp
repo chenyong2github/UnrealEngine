@@ -209,7 +209,7 @@ void AVREditorTeleporter::StopAiming( )
 		InteractorTryingTeleport = nullptr;
 
 		TeleportingState = EState::None;
-
+		VRMode->GetWorldInteraction().AllowWorldMovement(true);
 	}
 }
 

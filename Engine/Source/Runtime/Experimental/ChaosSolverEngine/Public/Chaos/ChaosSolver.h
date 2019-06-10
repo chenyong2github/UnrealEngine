@@ -24,15 +24,6 @@ class CHAOSSOLVERENGINE_API UChaosSolver : public UObject
 public:
 	UChaosSolver(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	bool IsVisible() { return true; }
-
-#if INCLUDE_CHAOS
-	static TSharedPtr<FPhysScene_Chaos> GetSolver()
-	{
-		return FPhysScene_Chaos::GetInstance();
-	}
-#endif
-
-protected:
 };
 
 

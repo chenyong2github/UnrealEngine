@@ -1121,6 +1121,16 @@ public:
 		return (const uint8*)Data.GetData() + Layout.Size * Index;
 	}
 
+	void MoveAssign(FScriptSparseArray& Other, const FScriptSparseArrayLayout& Layout)
+	{
+		checkSlow(this != &Other);
+		Empty(0, Layout);
+		Data.MoveAssign(Other.Data, Layout.Size);
+		AllocationFlags.MoveAssign(Other.AllocationFlags);
+		FirstFreeIndex = Other.FirstFreeIndex; Other.FirstFreeIndex = 0;
+		NumFreeIndices = Other.NumFreeIndices; Other.NumFreeIndices = 0;
+	}
+
 	void Empty(int32 Slack, const FScriptSparseArrayLayout& Layout)
 	{
 		// Free the allocated elements.

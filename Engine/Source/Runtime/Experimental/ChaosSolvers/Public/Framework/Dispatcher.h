@@ -6,24 +6,19 @@
 
 #include "CoreMinimal.h"
 #include "Containers/Queue.h"
+#include "Threading.h"
 
 class FChaosSolversModule;
+class FPhysicsCommandsTask;
 
 namespace Chaos
 {
-	class PBDRigidsSolver;
+	class FPBDRigidsSolver;
 	class FPersistentPhysicsTask;
 }
 
 namespace Chaos
 {
-	enum class DispatcherMode : uint8
-	{
-		DedicatedThread,
-		TaskGraph,
-		SingleThread
-	};
-
 	class IDispatcher
 	{
 	public:
@@ -31,24 +26,26 @@ namespace Chaos
 
 		virtual void EnqueueCommand(TFunction<void()> InCommand) = 0;
 		virtual void EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand) = 0;
-		virtual void EnqueueCommand(PBDRigidsSolver* InSolver, TFunction<void(PBDRigidsSolver*)> InCommand) const = 0;
-		virtual DispatcherMode GetMode() const = 0;
+		virtual void EnqueueCommand(FPBDRigidsSolver* InSolver, TFunction<void(FPBDRigidsSolver*)> InCommand) const = 0;
+		virtual EThreadingMode GetMode() const = 0;
 	};
 
-	template<DispatcherMode Mode>
-	class CHAOSSOLVERS_API Dispatcher : public IDispatcher
+	template<EThreadingMode Mode>
+	class CHAOSSOLVERS_API FDispatcher : public IDispatcher
 	{
 	public:
 		friend class FPersistentPhysicsTask;
+		friend class ::FPhysicsCommandsTask;
+		friend class FPhysScene_ChaosInterface;
 
-		explicit Dispatcher(FChaosSolversModule* InOwnerModule)
+		explicit FDispatcher(FChaosSolversModule* InOwnerModule)
 			: Owner(InOwnerModule)
 		{}
 
 		virtual void EnqueueCommand(TFunction<void()> InCommand) final override;
 		virtual void EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand) final override;
-		virtual void EnqueueCommand(PBDRigidsSolver* InSolver, TFunction<void(PBDRigidsSolver*)> InCommand) const final override;
-		virtual DispatcherMode GetMode() const final override { return Mode; }
+		virtual void EnqueueCommand(FPBDRigidsSolver* InSolver, TFunction<void(FPBDRigidsSolver*)> InCommand) const final override;
+		virtual EThreadingMode GetMode() const final override { return Mode; }
 
 	private:
 		FChaosSolversModule* Owner;
@@ -58,18 +55,28 @@ namespace Chaos
 	};
 
 	template<>
-	void Dispatcher<DispatcherMode::DedicatedThread>::EnqueueCommand(TFunction<void()> InCommand);
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommand(TFunction<void()> InCommand);
 	template<>
-	void Dispatcher<DispatcherMode::DedicatedThread>::EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand);
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand);
 	template<>
-	void Dispatcher<DispatcherMode::DedicatedThread>::EnqueueCommand(PBDRigidsSolver* InSolver, TFunction<void(PBDRigidsSolver *)> InCommand) const;
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommand(FPBDRigidsSolver* InSolver, TFunction<void(FPBDRigidsSolver *)> InCommand) const;
 
 	template<>
-	void Dispatcher<DispatcherMode::SingleThread>::EnqueueCommand(TFunction<void()> InCommand);
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommand(TFunction<void()> InCommand);
 	template<>
-	void Dispatcher<DispatcherMode::SingleThread>::EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand);
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand);
 	template<>
-	void Dispatcher<DispatcherMode::SingleThread>::EnqueueCommand(PBDRigidsSolver* InSolver, TFunction<void(PBDRigidsSolver *)> InCommand) const;
+	void FDispatcher<EThreadingMode::SingleThread>::EnqueueCommand(FPBDRigidsSolver* InSolver, TFunction<void(FPBDRigidsSolver *)> InCommand) const;
+
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommand(TFunction<void()> InCommand);
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommand(TFunction<void(FPersistentPhysicsTask*)> InCommand);
+	template<>
+	void FDispatcher<EThreadingMode::DedicatedThread>::EnqueueCommand(FPBDRigidsSolver* InSolver, TFunction<void(FPBDRigidsSolver *)> InCommand) const;
 }
+
+void LexFromString(Chaos::EThreadingMode& OutValue, const TCHAR* InString);
+FString LexToString(const Chaos::EThreadingMode InValue); 
 
 #endif

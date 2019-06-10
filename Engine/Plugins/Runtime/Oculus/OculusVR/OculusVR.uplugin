@@ -1,7 +1,7 @@
 {
 	"FileVersion": 3,
 	"Version": 1,
-	"VersionName": "1.32.0",
+	"VersionName": "1.36.0",
 	"FriendlyName": "Oculus VR",
 	"Description": "Support for Oculus headsets and controllers",
 	"Category": "Virtual Reality",
@@ -14,6 +14,11 @@
 	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"Installed": false,
+	"SupportedTargetPlatforms": [
+		"Win32",
+		"Win64",
+		"Android"
+	],
 	"Modules": [
 		{
 			"Name": "OculusHMD",

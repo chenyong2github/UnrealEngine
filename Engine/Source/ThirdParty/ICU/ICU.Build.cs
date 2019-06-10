@@ -39,11 +39,16 @@ public class ICU : ModuleRules
 		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+			(Target.Platform == UnrealTargetPlatform.Win32) ||
+			(Target.Platform == UnrealTargetPlatform.HoloLens))
 		{
 			string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			TargetSpecificPath += VSVersionFolderName + "/";
 
+			if(Target.Platform == UnrealTargetPlatform.HoloLens)
+            {
+                TargetSpecificPath += Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+            }
 			string[] LibraryNameStems =
 			{
 				"dt",   // Data
@@ -82,9 +87,24 @@ public class ICU : ModuleRules
 					PublicDelayLoadDLLs.Add(LibraryName);
 				}
 
-				if(Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
+
+				if(Target.Platform == UnrealTargetPlatform.Win64 || 
+					Target.Platform == UnrealTargetPlatform.Win32)
 				{
 					string BinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/ICU/{0}/{1}/VS{2}/", ICUVersion, Target.Platform.ToString(), Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+					foreach(string Stem in LibraryNameStems)
+					{
+						string LibraryName = BinariesDir + String.Format("icu{0}{1}53.dll", Stem, LibraryNamePostfix);
+						RuntimeDependencies.Add(LibraryName);
+					}
+				}
+                else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					string BinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/ICU/{0}/{1}/VS{2}/", ICUVersion, PlatformFolderName, Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+					if(Target.Platform == UnrealTargetPlatform.HoloLens)
+					{
+                            BinariesDir += Target.WindowsPlatform.GetArchitectureSubpath() + "/";
+					}
 					foreach(string Stem in LibraryNameStems)
 					{
 						string LibraryName = BinariesDir + String.Format("icu{0}{1}53.dll", Stem, LibraryNamePostfix);

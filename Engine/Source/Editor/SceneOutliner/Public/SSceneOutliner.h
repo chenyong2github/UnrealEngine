@@ -71,10 +71,8 @@ namespace SceneOutliner
 
 	public:
 
-		SLATE_BEGIN_ARGS( SSceneOutliner ){}
-
+		SLATE_BEGIN_ARGS( SSceneOutliner ) {}
 			SLATE_ARGUMENT( FOnSceneOutlinerItemPicked, OnItemPickedDelegate )
-
 		SLATE_END_ARGS()
 
 		/**
@@ -632,7 +630,7 @@ namespace SceneOutliner
 		/** Reentrancy guard */
 		bool bIsReentrant;
 
-		/** Whether Actor Components are enabled in the scene outliner, currently defaults to false */
+		/** Whether Actor Components are enabled in the scene outliner */
 		bool bActorComponentsEnabled;
 
 		/** Console commands for enabling/disabling actor components in the scene outliner while it is still in development */
@@ -655,9 +653,7 @@ namespace SceneOutliner
 
 		TMap<FName, const FSlateBrush*> CachedIcons;
 
-		void ActorComponentsModeToggle() {
-			bActorComponentsEnabled = bActorComponentsEnabled ? false : true; FullRefresh();
-		}
+		void ActorComponentsModeToggle() { bActorComponentsEnabled = !bActorComponentsEnabled; FullRefresh(); }
 
 	private:
 		/** Functions relating to sorting */

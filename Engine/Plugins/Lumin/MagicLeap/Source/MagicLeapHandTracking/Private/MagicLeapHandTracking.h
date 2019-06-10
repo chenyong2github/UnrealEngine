@@ -181,7 +181,7 @@ public:
 
 	// ILiveLinkSource interface
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
-	virtual bool IsSourceStillValid() override;
+	virtual bool IsSourceStillValid() const override;
 	virtual bool RequestSourceShutdown() override;
 	virtual FText GetSourceMachineName() const override;
 	virtual FText GetSourceStatus() const override;
@@ -224,7 +224,7 @@ private:
 	void OnAppPause() override;
 	void OnAppResume() override;
 
-	void SetupLiveLinkData();
+	void SetupLiveLinkData(struct FLiveLinkSkeletonStaticData& StaticData);
 	void UpdateLiveLink();
 	void UpdateLiveLinkTransforms(TArray<FTransform>& OutTransforms, const FMagicLeapHandTracking::FHandState& HandState);
 
@@ -297,8 +297,9 @@ private:
 	static FName LiveLinkLeftHandTrackingSubjectName;
 	static FName LiveLinkRightHandTrackingSubjectName;
 	bool bNewLiveLinkClient = false;
-	FLiveLinkRefSkeleton LiveLinkRefSkeleton;
 
+	FLiveLinkFrameDataStruct LiveLinkLeftFrame;
+	FLiveLinkFrameDataStruct LiveLinkRightFrame;
 };
 
 DEFINE_LOG_CATEGORY_STATIC(LogMagicLeapHandTracking, Display, All);

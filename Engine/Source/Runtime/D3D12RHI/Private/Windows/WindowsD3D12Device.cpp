@@ -8,7 +8,9 @@
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <delayimp.h>
-	#include "amd_ags.h"
+#if !PLATFORM_CPU_ARM_FAMILY
+#include "amd_ags.h"
+#endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #include "HardwareInfo.h"
@@ -488,7 +490,11 @@ void FD3D12DynamicRHIModule::StartupModule()
 #endif
 
 #if USE_PIX
+#if PLATFORM_CPU_ARM_FAMILY
+	static FString WindowsPixDllRelativePath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Windows/DirectX/arm64"));
+#else
 	static FString WindowsPixDllRelativePath = FPaths::Combine(*FPaths::EngineDir(), TEXT("Binaries/ThirdParty/Windows/DirectX/x64"));
+#endif
 	static FString WindowsPixDll("WinPixEventRuntime.dll");
 	UE_LOG(LogD3D12RHI, Log, TEXT("Loading %s for PIX profiling (from %s)."), WindowsPixDll.GetCharArray().GetData(), WindowsPixDllRelativePath.GetCharArray().GetData());
 	WindowsPixDllHandle = FPlatformProcess::GetDllHandle(*FPaths::Combine(*WindowsPixDllRelativePath, *WindowsPixDll));
@@ -533,6 +539,7 @@ void FD3D12DynamicRHI::Init()
 	// Need to set GRHIVendorId before calling IsRHIDevice* functions
 	GRHIVendorId = AdapterDesc.VendorId;
 
+#if !PLATFORM_CPU_ARM_FAMILY
 	// Initialize the AMD AGS utility library, when running on an AMD device
 	if (IsRHIDeviceAMD())
 	{
@@ -540,6 +547,7 @@ void FD3D12DynamicRHI::Init()
 		// agsInit should be called before D3D device creation
 		agsInit(&AmdAgsContext, nullptr, nullptr);
 	}
+#endif
 
 	// Create a device chain for each of the adapters we have choosen. This could be a single discrete card,
 	// a set discrete cards linked together (i.e. SLI/Crossfire) an Integrated device or any combination of the above
@@ -550,6 +558,8 @@ void FD3D12DynamicRHI::Init()
 	}
 
 	uint32 AmdSupportedExtensionFlags = 0;
+
+#if !PLATFORM_CPU_ARM_FAMILY
 	if (AmdAgsContext)
 	{
 		// Initialize AMD driver extensions
@@ -566,6 +576,7 @@ void FD3D12DynamicRHI::Init()
 	{
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers without driver support. Update AMD driver."));
 	}
+#endif
 
 	GTexturePoolSize = 0;
 

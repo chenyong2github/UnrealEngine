@@ -7,28 +7,30 @@
 #include "UObject/Class.h"
 #include "ConcertMessages.h"
 #include "IConcertSessionHandler.h"
-#include "ConcertTransactionEvents.h"
-#include "IdentifierTable/ConcertIdentifierTable.h"
+#include "IConcertClientTransactionBridge.h"
 #include "UObject/StructOnScope.h"
 
-class IConcertClientSession;
-class FConcertTransactionLedger;
+class FConcertSyncClientLiveSession;
 
 class FConcertClientTransactionManager
 {
 public:
-	FConcertClientTransactionManager(TSharedRef<IConcertClientSession> InSession);
+	FConcertClientTransactionManager(TSharedRef<FConcertSyncClientLiveSession> InLiveSession, IConcertClientTransactionBridge* InTransactionBridge);
 	~FConcertClientTransactionManager();
 
 	/**
-	 * Get the transient ledger of transactions for this session.
+	 * @return true if there are any packages with live transactions right now.
 	 */
-	const FConcertTransactionLedger& GetLedger() const;
+	bool HasSessionChanges() const;
 
 	/**
-	 * Get the transient ledger of transactions for this session.
+	 * Indicate if a particular package is supported for live transactions
+	 * based on transaction filters.
+	 *
+	 * @param InPackage The package to check for support.
+	 * @return true if the package support live transactions.
 	 */
-	FConcertTransactionLedger& GetMutableLedger();
+	bool HasLiveTransactionSupport(class UPackage* InPackage) const;
 
 	/**
 	 * Called to replay any live transactions for all packages.
@@ -43,17 +45,7 @@ public:
 	/**
 	 * Called to handle a remote transaction being received.
 	 */
-	void HandleRemoteTransaction(const uint64 InTransactionIndex, const TArray<uint8>& InTransactionData, const bool bApply);
-
-	/**
-	 * Called to handle a transaction state change.
-	 */
-	void HandleTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState);
-
-	/**
-	 * Called to handle an object being transacted.
-	 */
-	void HandleObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionEvent);
+	void HandleRemoteTransaction(const FGuid& InSourceEndpointId, const int64 InTransactionEventId, const bool bApply);
 
 	/**
 	 * Called to process any pending transaction events (sending or receiving).
@@ -66,13 +58,8 @@ private:
 	 */
 	struct FPendingTransactionToProcessContext
 	{
-		FPendingTransactionToProcessContext()
-			: bIsRequired(false)
-		{
-		}
-
 		/** Is this transaction required? */
-		bool bIsRequired;
+		bool bIsRequired = false;
 		
 		/** Optional list of packages to process transactions for, or empty to process transactions for all packages */
 		TArray<FName> PackagesToProcess;
@@ -106,37 +93,16 @@ private:
 	 */
 	struct FPendingTransactionToSend
 	{
-		FPendingTransactionToSend(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject)
-			: TransactionId(InTransactionId)
-			, OperationId(InOperationId)
-			, PrimaryObject(InPrimaryObject)
-			, LastSnapshotTimeSeconds(0)
-			, bIsFinalized(false)
-			, bIsExcluded(false)
-		{}
+		explicit FPendingTransactionToSend(const FConcertClientLocalTransactionCommonData& InCommonData)
+			: CommonData(InCommonData)
+		{
+		}
 
-		FGuid TransactionId;
-		FGuid OperationId;
-		FWeakObjectPtr PrimaryObject;
-		double LastSnapshotTimeSeconds;
-		bool bIsFinalized;
-		bool bIsExcluded;
-		TArray<FConcertObjectId> ExcludedObjectUpdates;
-		TArray<FName> ModifiedPackages;
-		FConcertLocalIdentifierTable FinalizedLocalIdentifierTable;
-		TArray<FConcertExportedObject> FinalizedObjectUpdates;
-		TArray<FConcertExportedObject> SnapshotObjectUpdates;
-		FText Title;
-	};
-
-	/**
-	 * Transaction filter result
-	 */
-	enum class ETransactionFilterResult : uint8
-	{
-		IncludeObject,		// Include the object in the Concert Transaction
-		ExcludeObject,		// Filter the object from the Concert Transaction
-		ExcludeTransaction	// Filter the entire transaction and prevent propagation
+		FConcertClientLocalTransactionCommonData CommonData;
+		FConcertClientLocalTransactionSnapshotData SnapshotData;
+		FConcertClientLocalTransactionFinalizedData FinalizedData;
+		bool bIsFinalized = false;
+		double LastSnapshotTimeSeconds = 0.0;
 	};
 
 	/**
@@ -172,6 +138,21 @@ private:
 	void ProcessTransactionSnapshotEvent(const FPendingTransactionToProcessContext& InContext, const FConcertTransactionSnapshotEvent& InEvent);
 
 	/**
+	 * Handle a local transaction, ensuring that there is a pending entry to be sent.
+	 */
+	FPendingTransactionToSend& HandleLocalTransactionCommon(const FConcertClientLocalTransactionCommonData& InCommonData);
+
+	/**
+	 * Handle a local transaction being snapshot, queueing it for send later.
+	 */
+	void HandleLocalTransactionSnapshot(const FConcertClientLocalTransactionCommonData& InCommonData, const FConcertClientLocalTransactionSnapshotData& InSnapshotData);
+	
+	/**
+	 * Handle a local transaction being finalized, queueing it for send later.
+	 */
+	void HandleLocalTransactionFinalized(const FConcertClientLocalTransactionCommonData& InCommonData, const FConcertClientLocalTransactionFinalizedData& InFinalizedData);
+
+	/**
 	 * Send a transaction finalized event.
 	 */
 	void SendTransactionFinalizedEvent(const FGuid& InTransactionId, const FGuid& InOperationId, UObject* InPrimaryObject, const TArray<FName>& InModifiedPackages, const TArray<FConcertExportedObject>& InObjectUpdates, const FConcertLocalIdentifierTable& InLocalIdentifierTable, const FText& InTitle);
@@ -197,24 +178,18 @@ private:
 	void FillTransactionEvent(const FGuid& InTransactionId, const FGuid& InOperationId, const TArray<FName>& InModifiedPackages, FConcertTransactionEventBase& OutEvent) const;
 
 	/**
-	 * Filter transaction object 
-	 * @param InObject object to test the filter against.
-	 * @param InChangedPackage outer package the object is from.
-	 * @return a transaction filter result which tell how to handle the object or the full transaction
+	 * Session instance this transaction manager was created for.
 	 */
-	ETransactionFilterResult ApplyTransactionFilters(UObject* InObject, UPackage* InChangedPackage);
+	TSharedPtr<FConcertSyncClientLiveSession> LiveSession;
 
 	/**
-	 * Run an array of Transaction Class Filter on an object.
-	 * @param InFilters object to test the filter against.
-	 * @param InObject the object to run the filters on.
-	 * @return true if the object matched at least one of the filters.
+	 * Transaction bridge used by this manager.
 	 */
-	bool RunTransactionFilters(const TArray<struct FTransactionClassFilter>& InFilters, UObject* InObject);
+	IConcertClientTransactionBridge* TransactionBridge;
 
 	/**
 	 * Array of pending transaction events in the order they were received.
-	 * Events are queued in this array while the session is suspended or the user is interacting, 
+	 * Events are queued in this array while the session is suspended or the user is interacting,
 	 * and any queued transactions will be processed on the next Tick.
 	 */
 	TArray<FPendingTransactionToProcess> PendingTransactionsToProcess;
@@ -228,19 +203,4 @@ private:
 	 * Map of transaction IDs to the pending transaction that may be sent in the future (when finalized).
 	 */
 	TMap<FGuid, FPendingTransactionToSend> PendingTransactionsToSend;
-
-	/**
-	 * Transient ledger of transactions for this session.
-	 */
-	TUniquePtr<FConcertTransactionLedger> TransactionLedger;
-
-	/**
-	 * Session instance this transaction manager was created for.
-	 */
-	TSharedPtr<IConcertClientSession> Session;
-
-	/**
-	 * Flag to ignore transaction state change event, used when we do not want to record transaction we generate ourselves
-	 */
-	bool bIgnoreTransaction;
 };

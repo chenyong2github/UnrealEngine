@@ -302,7 +302,25 @@ TSharedRef<SWidget> FMovieSceneEventCustomization::GetMenuContent()
 
 		TArray<UK2Node_FunctionEntry*> EntryNodes;
 
-		for (UEdGraph* FunctionGraph : DirectorBP->FunctionGraphs)
+		TArray<UEdGraph*> AllFunctionGraphs;
+		UBlueprint* BlueprintClass = DirectorBP;
+		do
+		{
+			// Add the functions that belong to this Blueprint Class
+			AllFunctionGraphs.Append(BlueprintClass->FunctionGraphs);
+
+			// And then see if we have a parent Blueprint Class to get functions from too.
+			if (BlueprintClass->ParentClass)
+			{
+				BlueprintClass = Cast<UBlueprint>(BlueprintClass->ParentClass->ClassGeneratedBy);
+			}
+			else
+			{
+				BlueprintClass = nullptr;
+			}
+		} while (BlueprintClass != nullptr);
+
+		for (UEdGraph* FunctionGraph : AllFunctionGraphs) 
 		{
 			EntryNodes.Reset();
 			FunctionGraph->GetNodesOfClass<UK2Node_FunctionEntry>(EntryNodes);

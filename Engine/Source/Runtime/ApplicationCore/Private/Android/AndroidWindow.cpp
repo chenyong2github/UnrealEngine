@@ -184,7 +184,7 @@ void* FAndroidWindow::WaitForHardwareWindow()
 }
 
 #if USE_ANDROID_JNI
-extern bool AndroidThunkCpp_IsGearVRApplication();
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
 bool FAndroidWindow::IsCachedRectValid(const bool bMosaicEnabled, const float RequestedContentScaleFactor, ANativeWindow* Window)
@@ -254,7 +254,7 @@ FPlatformRect FAndroidWindow::GetScreenRect()
 	return FPlatformRect();
 #else
 
-	static const bool bIsGearVRApp = AndroidThunkCpp_IsGearVRApplication();
+	static const bool bIsOculusMobileApp = AndroidThunkCpp_IsOculusMobileApplication();
 
 	ANativeWindow* Window = (ANativeWindow*)FAndroidWindow::GetHardwareWindow();
 	static const bool bIsDaydreamApp = FAndroidMisc::IsDaydreamApplication();
@@ -279,12 +279,12 @@ FPlatformRect FAndroidWindow::GetScreenRect()
 	}
 
 	// determine mosaic requirements:
-	const bool bMosaicEnabled = AndroidWindowUtils::ShouldEnableMosaic() && !(bIsGearVRApp || bIsDaydreamApp);
+	const bool bMosaicEnabled = AndroidWindowUtils::ShouldEnableMosaic() && !(bIsOculusMobileApp || bIsDaydreamApp);
 
 	// CSF is a multiplier to 1280x720
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
-	// If the app is for Gear VR then always use 0 as ScaleFactor (to match window size).
-	float RequestedContentScaleFactor = bIsGearVRApp ? 0.0f : CVar->GetFloat();
+	// If the app is for Oculus Mobile then always use 0 as ScaleFactor (to match window size).
+	float RequestedContentScaleFactor = bIsOculusMobileApp ? 0.0f : CVar->GetFloat();
 
 	FString CmdLineCSF;
 	if (FParse::Value(FCommandLine::Get(), TEXT("mcsf="), CmdLineCSF, false))
@@ -306,7 +306,7 @@ FPlatformRect FAndroidWindow::GetScreenRect()
 		const bool bMobileHDR = (MobileHDRCvar && MobileHDRCvar->GetValueOnAnyThread() == 1);
 		UE_LOG(LogAndroid, Log, TEXT("Mobile HDR: %s"), bMobileHDR ? TEXT("YES") : TEXT("no"));
 
-		if (!bIsGearVRApp)
+		if (!bIsOculusMobileApp)
 		{
 			bool bSupportsES30 = FAndroidMisc::SupportsES30();
 			if (!bIsDaydreamApp && !bSupportsES30)
@@ -347,7 +347,7 @@ void FAndroidWindow::CalculateSurfaceSize(void* InWindow, int32_t& SurfaceWidth,
 
 #else
 
-	static const bool bIsMobileVRApp = AndroidThunkCpp_IsGearVRApplication() || FAndroidMisc::IsDaydreamApplication();
+	static const bool bIsMobileVRApp = AndroidThunkCpp_IsOculusMobileApplication() || FAndroidMisc::IsDaydreamApplication();
 
 	ANativeWindow* Window = (ANativeWindow*)InWindow;
 

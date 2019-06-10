@@ -84,6 +84,7 @@ DEFINE_STAT(STAT_LandscapeLayersRegenerateDrawCalls);
 
 DEFINE_STAT(STAT_LandscapeLayersRegenerateHeightmaps);
 DEFINE_STAT(STAT_LandscapeLayersResolveHeightmaps);
+DEFINE_STAT(STAT_LandscapeLayersResolveTexture);
 
 DEFINE_STAT(STAT_LandscapeLayersUpdateMaterialInstance);
 DEFINE_STAT(STAT_LandscapeLayersReallocateWeightmaps);
@@ -1512,6 +1513,21 @@ const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLa
 		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.LayerAllocations;
+		}
+	}
+#endif
+
+	return WeightmapLayerAllocations;
+}
+
+const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (const FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.LayerAllocations;
 		}
 	}
 #endif

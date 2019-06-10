@@ -1109,7 +1109,7 @@ void UActorRecording::StartRecordingNewComponents(ULevelSequence* CurrentSequenc
 
 						ObjectTemplate->AddInstanceComponent(NewTemplateComponent);
 
-						DuplicatedDynamicComponents.Add(ActorComponent, NewTemplateComponent);
+						DuplicatedDynamicComponents.Add(ActorComponent, TWeakObjectPtr< USceneComponent >( NewTemplateComponent ) );
 					}
 				}
 				else

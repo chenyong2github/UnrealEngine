@@ -37,6 +37,16 @@ FWindowsUIAManager::FWindowsUIAManager(const FWindowsApplication& InApplication)
 {
 	OnAccessibleMessageHandlerChanged();
 
+#if !UE_BUILD_SHIPPING
+	IConsoleManager::Get().RegisterConsoleCommand
+	(
+		TEXT("DumpAccessibilityStatsWindows"),
+		TEXT("Writes to LogAccessibility the memory stats for the platform-level accessibility data (Providers) required for Windows support."),
+		FConsoleCommandDelegate::CreateRaw(this, &FWindowsUIAManager::DumpAccessibilityStats),
+		ECVF_Default
+	);
+#endif
+
 	if (WidgetTypeToWindowsTypeMap.Num() == 0)
 	{
 			WidgetTypeToWindowsTypeMap.Add(EAccessibleWidgetType::Button, UIA_ButtonControlTypeId);
@@ -157,51 +167,98 @@ void FWindowsUIAManager::OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAc
 				UiaRaiseAutomationEvent(&ScopedProvider.Provider, UIA_Invoke_InvokedEventId);
 			}
 			break;
+#if WINVER >= 0x0A00
 		case EAccessibleEvent::Notification:
 		{
 			typedef HRESULT(WINAPI* UiaRaiseNotificationEventFunc)(IRawElementProviderSimple*, NotificationKind, NotificationProcessing, BSTR, BSTR);
-			HMODULE Handle = GetModuleHandle(TEXT("Uiautomationcore.dll"));
-			if (Handle)
+			static UiaRaiseNotificationEventFunc NotificationFunc = nullptr;
+			static bool bDoOnce = true;
+			if (bDoOnce)
 			{
-				// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
-				UiaRaiseNotificationEventFunc NotificationFunc = (UiaRaiseNotificationEventFunc)(void*)GetProcAddress(Handle, "UiaRaiseNotificationEvent");
-				if (NotificationFunc)
+				HMODULE Handle = GetModuleHandle(TEXT("Uiautomationcore.dll"));
+				bDoOnce = false;
+				if (Handle)
 				{
-					NotificationFunc(&ScopedProvider.Provider, NotificationKind_ActionCompleted, NotificationProcessing_All, SysAllocString(*NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
+					// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
+					NotificationFunc = (UiaRaiseNotificationEventFunc)(void*)GetProcAddress(Handle, "UiaRaiseNotificationEvent");
 				}
+			}
+			if (NotificationFunc)
+			{
+				NotificationFunc(&ScopedProvider.Provider, NotificationKind_ActionCompleted, NotificationProcessing_All, SysAllocString(*NewValue.GetValue<FString>()), SysAllocString(TEXT("")));
 			}
 			break;
 		}
-		case EAccessibleEvent::BeforeRemoveFromParent:
-		{
-			// ChildRemoved events require an ID passed along with them to identify which child (which no longer exists) was removed
-			int id[2] = { UiaAppendRuntimeId, Widget->GetId() };
-			FScopedWidgetProvider ParentProvider(GetWidgetProvider(Widget->GetParent().ToSharedRef()));
-			UiaRaiseStructureChangedEvent(&ParentProvider.Provider, StructureChangeType_ChildRemoved, id, ARRAYSIZE(id));
-			break;
-		}
-		case EAccessibleEvent::AfterAddToParent:
-		{
-			FScopedWidgetProvider ParentProvider(GetWidgetProvider(Widget->GetParent().ToSharedRef()));
-			UiaRaiseStructureChangedEvent(&ParentProvider.Provider, StructureChangeType_ChildAdded, nullptr, 0);
-			break;
-		}
+#endif
+		// IMPORTANT: Calling UiaRaiseStructureChangedEvent seems to raise our per-frame timing for accessibility by
+		// over 10x (.04ms to .7ms, tested by clicking on the "All Classes" button in the modes panel of the Editor).
+		// For now, I'm disabling this until we figure out if it's absolutely necessary.
+		//case EAccessibleEvent::ParentChanged:
+		//{
+		//	const AccessibleWidgetId OldId = OldValue.GetValue<AccessibleWidgetId>();
+		//	const AccessibleWidgetId NewId = NewValue.GetValue<AccessibleWidgetId>();
+		//	if (OldId != IAccessibleWidget::InvalidAccessibleWidgetId)
+		//	{
+		//		GetWidgetProvider(WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(OldId).ToSharedRef());
+		//		int id[2] = { UiaAppendRuntimeId, Widget->GetId() };
+		//		FScopedWidgetProvider ParentProvider(GetWidgetProvider(WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(OldId).ToSharedRef()));
+		//		UiaRaiseStructureChangedEvent(&ParentProvider.Provider, StructureChangeType_ChildRemoved, id, ARRAYSIZE(id));
+		//	}
+		//	if (NewId != IAccessibleWidget::InvalidAccessibleWidgetId)
+		//	{
+		//		FScopedWidgetProvider ParentProvider(GetWidgetProvider(WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWidgetFromId(NewId).ToSharedRef()));
+		//		UiaRaiseStructureChangedEvent(&ParentProvider.Provider, StructureChangeType_ChildAdded, nullptr, 0);
+		//	}
+		//	break;
+		//}
 		case EAccessibleEvent::WidgetRemoved:
+		{
 			typedef HRESULT(WINAPI* UiaDisconnectProviderFunc)(IRawElementProviderSimple*);
-			HMODULE Handle = GetModuleHandle(TEXT("Uiautomationcore.dll"));
-			if (Handle)
+			static UiaDisconnectProviderFunc DisconnectFunc = nullptr;
+			static bool bDoOnce = true;
+			if (bDoOnce)
 			{
-				// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
-				UiaDisconnectProviderFunc DisconnectFunc = (UiaDisconnectProviderFunc)(void*)GetProcAddress(Handle, "UiaDisconnectProvider");
-				if (DisconnectFunc)
+				bDoOnce = false;
+				HMODULE Handle = GetModuleHandle(TEXT("Uiautomationcore.dll"));
+				if (Handle)
 				{
-					DisconnectFunc(&ScopedProvider.Provider);
+					// Cast to intermediary void* to avoid compiler warning 4191, since GetProcAddress doesn't know function arguments
+					DisconnectFunc = (UiaDisconnectProviderFunc)(void*)GetProcAddress(Handle, "UiaDisconnectProvider");
 				}
 			}
+			if (DisconnectFunc)
+			{
+				DisconnectFunc(&ScopedProvider.Provider);
+			}
 			break;
+		}
 		}
 	}
 }
+
+#if !UE_BUILD_SHIPPING
+void FWindowsUIAManager::DumpAccessibilityStats() const
+{
+	const uint32 NumWidgetProviders = CachedWidgetProviders.Num();
+	// This isn't exactly right since some ControlProviders will be TextRangeProviders, but it should be close
+	const uint32 NumControlProviders = ProviderList.Num() - NumWidgetProviders;
+
+	const uint32 SizeOfWidgetProvider = sizeof(FWindowsUIAWidgetProvider);
+	const uint32 SizeOfControlProvider = sizeof(FWindowsUIAControlProvider);
+	const uint32 SizeOfCachedWidgetProviders = CachedWidgetProviders.GetAllocatedSize();
+	const uint32 SizeOfProviderList = ProviderList.GetAllocatedSize();
+	const uint32 CacheSize = NumWidgetProviders * SizeOfWidgetProvider + NumControlProviders * SizeOfControlProvider + SizeOfCachedWidgetProviders + SizeOfProviderList;
+
+	UE_LOG(LogAccessibility, Log, TEXT("Dumping Windows accessibility stats:"));
+	UE_LOG(LogAccessibility, Log, TEXT("Number of Widget Providers: %i"), NumWidgetProviders);
+	UE_LOG(LogAccessibility, Log, TEXT("Number of non-Widget Providers: %i"), NumControlProviders);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of FWindowsUIAWidgetProvider: %u"), SizeOfWidgetProvider);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of FWindowsUIAControlProvider: %u"), SizeOfControlProvider);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of WidgetProvider* map: %u"), SizeOfCachedWidgetProviders);
+	UE_LOG(LogAccessibility, Log, TEXT("Size of all Provider* set: %u"), SizeOfProviderList);
+	UE_LOG(LogAccessibility, Log, TEXT("Memory stored in cache: %u kb"), CacheSize / 1000);
+}
+#endif
 
 #undef LOCTEXT_NAMESPACE
 

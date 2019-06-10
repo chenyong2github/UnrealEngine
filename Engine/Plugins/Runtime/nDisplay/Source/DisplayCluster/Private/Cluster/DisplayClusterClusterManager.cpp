@@ -13,9 +13,9 @@
 #include "Dom/JsonObject.h"
 
 #include "Misc/DisplayClusterAppExit.h"
-#include "Misc/DisplayClusterLog.h"
 #include "Misc/DisplayClusterHelpers.h"
-#include "Misc/DisplayClusterTypesConverter.h"
+
+#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
 
 #include "Input/IPDisplayClusterInputManager.h"
 
@@ -23,6 +23,8 @@
 
 #include "DisplayClusterBuildConfig.h"
 #include "DisplayClusterGlobals.h"
+#include "DisplayClusterLog.h"
+#include "DisplayClusterStrings.h"
 
 #include "SocketSubsystem.h"
 
@@ -78,7 +80,7 @@ bool FDisplayClusterClusterManager::StartSession(const FString& configPath, cons
 			FString resolvedNodeId;
 			if (GetResolvedNodeId(resolvedNodeId))
 			{
-				DisplayClusterHelpers::str::DustCommandLineValue(resolvedNodeId);
+				DisplayClusterHelpers::str::TrimStringValue(resolvedNodeId);
 				ClusterNodeId = resolvedNodeId;
 			}
 			else

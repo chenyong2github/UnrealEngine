@@ -825,8 +825,6 @@ protected:
 	TArray<FFaceTrackingFrame> FrameHistory;
 	/** The name to use when generating the file to save to */
 	FName DeviceName;
-	/** If true, it writes a file each frame. Otherwise, it writes the data upon demand or exit */
-	bool bSavePerFrameOrOnDemand;
 	/**
 	 * The time code provider to use when tagging file time stamps
 	 * Note: this requires the FAppleARKitSystem object to mark it in use so GC doesn't destroy it. Normally it would
@@ -880,7 +878,7 @@ public:
 private:
 	// ILiveLinkSource interface
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
-	virtual bool IsSourceStillValid() override;
+	virtual bool IsSourceStillValid() const override;
 	virtual bool RequestSourceShutdown() override;
 	virtual FText GetSourceMachineName() const override;
 	virtual FText GetSourceStatus() const override;

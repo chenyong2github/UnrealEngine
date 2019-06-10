@@ -1,8 +1,10 @@
 ﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "LiveLinkMagicLeapHandTrackingSourceFactory.h"
-#include "LiveLinkMagicLeapHandTrackingSourceEditor.h"
 #include "IMagicLeapHandTrackingPlugin.h"
 #include "MagicLeapHandTracking.h"
+
+#include "Features/IModularFeatures.h"
+#include "ILiveLinkClient.h"
 
 #define LOCTEXT_NAMESPACE "MagicLeapHandTracking"
 
@@ -16,29 +18,23 @@ FText ULiveLinkMagicLeapHandTrackingSourceFactory::GetSourceTooltip() const
 	return LOCTEXT("HandTrackingLiveLinkSourceTooltip", "Hand Tracking Key Points Source");
 }
 
-TSharedPtr<SWidget> ULiveLinkMagicLeapHandTrackingSourceFactory::CreateSourceCreationPanel()
+ULiveLinkMagicLeapHandTrackingSourceFactory::EMenuType ULiveLinkMagicLeapHandTrackingSourceFactory::GetMenuType() const
 {
-	if (!ActiveSourceEditor.IsValid())
+	if (IModularFeatures::Get().IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
-		SAssignNew(ActiveSourceEditor, SLiveLinkMagicLeapHandTrackingSourceEditor);
+		ILiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+
+		if (!IMagicLeapHandTrackingPlugin::Get().IsLiveLinkSourceValid() || !LiveLinkClient.HasSourceBeenAdded(IMagicLeapHandTrackingPlugin::Get().GetLiveLinkSource()))
+		{
+			return EMenuType::MenuEntry;
+		}
 	}
-	return ActiveSourceEditor;
+	return EMenuType::Disabled;
 }
 
-TSharedPtr<ILiveLinkSource> ULiveLinkMagicLeapHandTrackingSourceFactory::OnSourceCreationPanelClosed(bool bCreateSource)
+TSharedPtr<ILiveLinkSource> ULiveLinkMagicLeapHandTrackingSourceFactory::CreateSource(const FString& ConnectionString) const
 {
-	TSharedPtr<ILiveLinkSource> NewSource = nullptr;
-
-	if (bCreateSource && ActiveSourceEditor.IsValid())
-	{
-		TSharedPtr<FMagicLeapHandTracking> HandTracking = StaticCastSharedPtr<FMagicLeapHandTracking>(IMagicLeapHandTrackingPlugin::Get().GetLiveLinkSource());
-
-		// Here we could apply settings from SLiveLinkMagicLeapHandTrackingSourceEditor
-
-		NewSource = HandTracking;
-	}
-	ActiveSourceEditor = nullptr;
-	return NewSource;
+	return IMagicLeapHandTrackingPlugin::Get().GetLiveLinkSource();
 }
 
 #undef LOCTEXT_NAMESPACE

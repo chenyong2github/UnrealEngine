@@ -479,13 +479,6 @@ enum EDrawRectangleFlags
 	EDRF_UseTesselatedIndexBuffer
 };
 
-class FPreSceneRenderValues
-{
-	public:
-		bool bUsesGlobalDistanceField = false;
-};
-DECLARE_MULTICAST_DELEGATE_OneParam(FPreSceneRenderDelegate, class FPreSceneRenderValues&);
-
 class FPostOpaqueRenderParameters
 {
 public:
@@ -746,12 +739,10 @@ public:
 	virtual void RegisterCustomCullingImpl(ICustomCulling* impl) = 0;
 	virtual void UnregisterCustomCullingImpl(ICustomCulling* impl) = 0;
 
-	virtual FPreSceneRenderDelegate& OnPreSceneRender() = 0;
 	virtual void RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDelegate& PostOpaqueRenderDelegate) = 0;
 	virtual void RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& OverlayRenderDelegate) = 0;
 	virtual void RenderPostOpaqueExtensions(const class FViewInfo& View, FRHICommandListImmediate& RHICmdList, class FSceneRenderTargets& SceneContext, TUniformBufferRef<FSceneTexturesUniformParameters>& SceneTextureUniformParams) = 0;
 	virtual void RenderOverlayExtensions(const class FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext) = 0;
-	virtual FPreSceneRenderValues PreSceneRenderExtension() = 0;
 	virtual bool HasPostOpaqueExtentions() const = 0;
 
 	/** Delegate that is called upon resolving scene color. */

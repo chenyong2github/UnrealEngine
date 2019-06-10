@@ -1311,29 +1311,36 @@ static void ComputeTangents(
 
 		// Start building a list of faces adjacent to this face.
 		AdjacentFaces.Reset();
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			int32 ThisCornerIndex = WedgeOffset + CornerIndex;
 			const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(ThisCornerIndex);
-			for (int32 k = 0; k < DupVerts.Num(); k++)
+			for (int32 k = 0, nk = DupVerts.Num() ; k < nk; k++)
 			{
-				AdjacentFaces.AddUnique(DupVerts[k] / 3);
+				AdjacentFaces.Add(DupVerts[k] / 3);
 			}
 			if (DupVerts.Num() == 0)
 			{
-				AdjacentFaces.AddUnique(ThisCornerIndex / 3); // I am a "dup" of myself
+				AdjacentFaces.Add(ThisCornerIndex / 3); // I am a "dup" of myself
 			}
 		}
 
 		// We need to sort these here because the criteria for point equality is
 		// exact, so we must ensure the exact same order for all dups.
-		AdjacentFaces.Sort();
+ 		AdjacentFaces.Sort();
 
 		// Process adjacent faces
-		for (int32 AdjacentFaceIndex = 0; AdjacentFaceIndex < AdjacentFaces.Num(); AdjacentFaceIndex++)
+		int32 LastIndex = -1;
+		for (int32 OtherFaceIndex : AdjacentFaces)
 		{
-			int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
-			for (int32 OurCornerIndex = 0; OurCornerIndex < 3; OurCornerIndex++)
+			if (LastIndex == OtherFaceIndex)
+			{
+				continue;
+			}
+
+			LastIndex = OtherFaceIndex;
+
+			for (int32 OurCornerIndex = 0; OurCornerIndex < 3; ++OurCornerIndex)
 			{
 				if (bCornerHasTangents[OurCornerIndex])
 					continue;
@@ -1350,13 +1357,9 @@ static void ComputeTangents(
 				else
 				{
 					// Check matching vertices against main vertex .
-					for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
+					for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; ++OtherCornerIndex)
 					{
-						if (PointsEqual(
-							CornerPositions[OurCornerIndex],
-							InVertices[InIndices[OtherFaceIndex * 3 + OtherCornerIndex]],
-							ComparisonThreshold
-							))
+						if(CornerPositions[OurCornerIndex].Equals(InVertices[InIndices[OtherFaceIndex * 3 + OtherCornerIndex]], ComparisonThreshold))
 						{
 							CommonIndexCount++;
 							NewFanFace.LinkedVertexIndex = OtherCornerIndex;
@@ -1378,7 +1381,7 @@ static void ComputeTangents(
 
 		// Find true relevance of faces for a vertex normal by traversing
 		// smoothing-group-compatible connected triangle fans around common vertices.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			if (bCornerHasTangents[CornerIndex])
 				continue;
@@ -1387,13 +1390,13 @@ static void ComputeTangents(
 			do
 			{
 				NewConnections = 0;
-				for (int32 OtherFaceIdx = 0; OtherFaceIdx < RelevantFacesForCorner[CornerIndex].Num(); OtherFaceIdx++)
+				for (int32 OtherFaceIdx = 0, ni = RelevantFacesForCorner[CornerIndex].Num() ; OtherFaceIdx < ni; ++OtherFaceIdx)
 				{
 					FFanFace& OtherFace = RelevantFacesForCorner[CornerIndex][OtherFaceIdx];
 					// The vertex' own face is initially the only face with bFilled == true.
 					if (OtherFace.bFilled)
 					{
-						for (int32 NextFaceIndex = 0; NextFaceIndex < RelevantFacesForCorner[CornerIndex].Num(); NextFaceIndex++)
+						for (int32 NextFaceIndex = 0, nk = RelevantFacesForCorner[CornerIndex].Num() ; NextFaceIndex < nk ; ++NextFaceIndex)
 						{
 							FFanFace& NextFace = RelevantFacesForCorner[CornerIndex][NextFaceIndex];
 							if (!NextFace.bFilled) // && !NextFace.bBlendTangents)
@@ -1404,9 +1407,9 @@ static void ComputeTangents(
 									int32 CommonVertices = 0;
 									int32 CommonTangentVertices = 0;
 									int32 CommonNormalVertices = 0;
-									for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
+									for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; ++OtherCornerIndex)
 									{
-										for (int32 NextCornerIndex = 0; NextCornerIndex < 3; NextCornerIndex++)
+										for (int32 NextCornerIndex = 0; NextCornerIndex < 3; ++NextCornerIndex)
 										{
 											int32 NextVertexIndex = InIndices[NextFace.FaceIndex * 3 + NextCornerIndex];
 											int32 OtherVertexIndex = InIndices[OtherFace.FaceIndex * 3 + OtherCornerIndex];
@@ -1463,7 +1466,7 @@ static void ComputeTangents(
 		}
 
 		// Vertex normal construction.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			if (bCornerHasTangents[CornerIndex])
 			{
@@ -1473,7 +1476,7 @@ static void ComputeTangents(
 			}
 			else
 			{
-				for (int32 RelevantFaceIdx = 0; RelevantFaceIdx < RelevantFacesForCorner[CornerIndex].Num(); RelevantFaceIdx++)
+				for (int32 RelevantFaceIdx = 0; RelevantFaceIdx < RelevantFacesForCorner[CornerIndex].Num(); ++RelevantFaceIdx)
 				{
 					FFanFace const& RelevantFace = RelevantFacesForCorner[CornerIndex][RelevantFaceIdx];
 					if (RelevantFace.bFilled)
@@ -1506,7 +1509,7 @@ static void ComputeTangents(
 		}
 
 		// Normalization.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			CornerTangentX[CornerIndex].Normalize();
 			CornerTangentY[CornerIndex].Normalize();
@@ -1523,7 +1526,7 @@ static void ComputeTangents(
 		}
 
 		// Copy back to the mesh.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			OutTangentX[WedgeOffset + CornerIndex] = CornerTangentX[CornerIndex];
 			OutTangentY[WedgeOffset + CornerIndex] = CornerTangentY[CornerIndex];
@@ -1775,7 +1778,7 @@ static void ComputeNormals(
 
 	// Declare these out here to avoid reallocations.
 	TArray<FFanFace> RelevantFacesForCorner[3];
-	TArray<int32> AdjacentFaces;
+// 	TArray<int32> AdjacentFaces;
 
 	int32 NumWedges = InIndices.Num();
 	int32 NumFaces = NumWedges / 3;
@@ -1822,30 +1825,33 @@ static void ComputeNormals(
 		}
 
 		// Start building a list of faces adjacent to this face.
-		AdjacentFaces.Reset();
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+// 		AdjacentFaces.Reset();
+		TSet<int32> AdjacentFaces;
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			int32 ThisCornerIndex = WedgeOffset + CornerIndex;
 			const TArray<int32>& DupVerts = OverlappingCorners.FindIfOverlapping(ThisCornerIndex);
 			if (DupVerts.Num() == 0)
 			{
-				AdjacentFaces.AddUnique(ThisCornerIndex / 3); // I am a "dup" of myself
+//				AdjacentFaces.AddUnique(ThisCornerIndex / 3); // I am a "dup" of myself
+				AdjacentFaces.Add(ThisCornerIndex / 3); // I am a "dup" of myself
 			}
 			for (int32 k = 0; k < DupVerts.Num(); k++)
 			{
-				AdjacentFaces.AddUnique(DupVerts[k] / 3);
+				AdjacentFaces.Add(DupVerts[k] / 3);
 			}
 		}
 
 		// We need to sort these here because the criteria for point equality is
 		// exact, so we must ensure the exact same order for all dups.
-		AdjacentFaces.Sort();
+// 		AdjacentFaces.Sort();
 
 		// Process adjacent faces
-		for (int32 AdjacentFaceIndex = 0; AdjacentFaceIndex < AdjacentFaces.Num(); AdjacentFaceIndex++)
+// 		for (int32 AdjacentFaceIndex = 0; AdjacentFaceIndex < AdjacentFaces.Num(); AdjacentFaceIndex++)
+		for (int32 OtherFaceIndex : AdjacentFaces )
 		{
-			int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
-			for (int32 OurCornerIndex = 0; OurCornerIndex < 3; OurCornerIndex++)
+// 			int32 OtherFaceIndex = AdjacentFaces[AdjacentFaceIndex];
+			for (int32 OurCornerIndex = 0; OurCornerIndex < 3; ++OurCornerIndex)
 			{
 				if (bCornerHasNormal[OurCornerIndex])
 					continue;
@@ -1915,9 +1921,9 @@ static void ComputeNormals(
 								{
 									int32 CommonVertices = 0;
 									int32 CommonNormalVertices = 0;
-									for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; OtherCornerIndex++)
+									for (int32 OtherCornerIndex = 0; OtherCornerIndex < 3; ++OtherCornerIndex)
 									{
-										for (int32 NextCornerIndex = 0; NextCornerIndex < 3; NextCornerIndex++)
+										for (int32 NextCornerIndex = 0; NextCornerIndex < 3; ++NextCornerIndex)
 										{
 											int32 NextVertexIndex = InIndices[NextFace.FaceIndex * 3 + NextCornerIndex];
 											int32 OtherVertexIndex = InIndices[OtherFace.FaceIndex * 3 + OtherCornerIndex];
@@ -1953,7 +1959,7 @@ static void ComputeNormals(
 
 
 		// Vertex normal construction.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			if (bCornerHasNormal[CornerIndex])
 			{
@@ -1981,13 +1987,13 @@ static void ComputeNormals(
 		}
 
 		// Normalization.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			CornerNormal[CornerIndex].Normalize();
 		}
 
 		// Copy back to the mesh.
-		for (int32 CornerIndex = 0; CornerIndex < 3; CornerIndex++)
+		for (int32 CornerIndex = 0; CornerIndex < 3; ++CornerIndex)
 		{
 			OutTangentZ[WedgeOffset + CornerIndex] = CornerNormal[CornerIndex];
 		}
@@ -2785,7 +2791,7 @@ public:
 			LODModel.IndexBuffer.SetIndices(CombinedIndices, bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit);
 			
 			// Build the reversed index buffer.
-			if (InOutModels[0].BuildSettings.bBuildReversedIndexBuffer)
+			if (LODModel.AdditionalIndexBuffers && InOutModels[0].BuildSettings.bBuildReversedIndexBuffer)
 			{
 				TArray<uint32> InversedIndices;
 				const int32 IndexCount = CombinedIndices.Num();
@@ -2823,7 +2829,7 @@ public:
 			}
 
 			// Build the inversed depth only index buffer.
-			if (InOutModels[0].BuildSettings.bBuildReversedIndexBuffer)
+			if (LODModel.AdditionalIndexBuffers && InOutModels[0].BuildSettings.bBuildReversedIndexBuffer)
 			{
 				TArray<uint32> ReversedDepthOnlyIndices;
 				const int32 IndexCount = DepthOnlyIndices.Num();
@@ -2836,6 +2842,7 @@ public:
 			}
 
 			// Build a list of wireframe edges in the static mesh.
+			if (LODModel.AdditionalIndexBuffers)
 			{
 				TArray<FMeshEdgeDef> Edges;
 				TArray<uint32> WireframeIndices;
@@ -2852,7 +2859,7 @@ public:
 			}
 
 			// Build the adjacency index buffer used for tessellation.
-			if (InOutModels[0].BuildSettings.bBuildAdjacencyBuffer)
+			if (LODModel.AdditionalIndexBuffers && InOutModels[0].BuildSettings.bBuildAdjacencyBuffer)
 			{
 				TArray<uint32> AdjacencyIndices;
 

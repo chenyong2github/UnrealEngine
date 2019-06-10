@@ -5437,8 +5437,10 @@ void FEditorViewportClient::TakeHighResScreenShot()
 	}
 }
 
-void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
+bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 {
+	bool bIsScreenshotSaved = false;
+
 	if (GIsDumpingMovie || FScreenshotRequest::IsScreenshotRequested() || GIsHighResScreenshot)
 	{
 		// Default capture region is the entire viewport
@@ -5449,7 +5451,7 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 
 		if (!ensure(HighResScreenshotConfig.ImageWriteQueue))
 		{
-			return;
+			return false;
 		}
 
 		// If capture region isn't valid, we need to determine which rectangle to capture from.
@@ -5536,7 +5538,7 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 			TFuture<bool> CompletionFuture = HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
 			if (CompletionFuture.IsValid())
 			{
-				CompletionFuture.Wait();
+				bIsScreenshotSaved = CompletionFuture.Get();
 			}
 		}
 
@@ -5549,6 +5551,8 @@ void FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 
 		InViewport->InvalidateHitProxy();
 	}
+
+	return bIsScreenshotSaved;
 }
 
 void FEditorViewportClient::DrawBoundingBox(FBox &Box, FCanvas* InCanvas, const FSceneView* InView, const FViewport* InViewport, const FLinearColor& InColor, const bool bInDrawBracket, const FString &InLabelText)

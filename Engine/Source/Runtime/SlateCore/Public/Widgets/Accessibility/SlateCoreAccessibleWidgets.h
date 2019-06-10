@@ -17,6 +17,7 @@ class SWindow;
  */
 class SLATECORE_API FSlateAccessibleWidget : public IAccessibleWidget
 {
+	friend class FSlateAccessibleMessageHandler;
 public:
 	FSlateAccessibleWidget(TWeakPtr<SWidget> InWidget, EAccessibleWidgetType InWidgetType = EAccessibleWidgetType::Unknown);
 	virtual ~FSlateAccessibleWidget();
@@ -24,7 +25,7 @@ public:
 	// IAccessibleWidget
 	virtual AccessibleWidgetId GetId() const override final;
 	virtual bool IsValid() const override final;
-	virtual TSharedPtr<IAccessibleWidget> GetTopLevelWindow() const override final;
+	virtual TSharedPtr<IAccessibleWidget> GetWindow() const override final;
 	virtual FBox2D GetBounds() const override final;
 	virtual TSharedPtr<IAccessibleWidget> GetParent() override final;
 	virtual TSharedPtr<IAccessibleWidget> GetNextSibling() override final;
@@ -43,60 +44,28 @@ public:
 	virtual FString GetHelpText() const override;
 	// ~
 
-	/** Tell this widget to recompute its children the next time they are requested. */
-	void MarkChildrenDirty();
 	/**
 	 * Detach this widget from its current parent and attach it to a new parent. This will emit notifications back to the accessible message handler.
 	 *
 	 * @param NewParent The widget to assign as the new parent widget.
 	 */
 	void UpdateParent(TSharedPtr<IAccessibleWidget> NewParent);
-	/**
-	 * If MarkChildrenDirty() has been called, recalculate the list of all accessible widgets below this one.
-	 * Because SWidget->GetChildren() has no guarantees about what it returns and how it returns it, we can
-	 * never truly 100% guarantee that the accessible tree will be in sync with the Slate tree.
-	 *
-	 * We make a reasonable assumption that widgets are smart about implementing this function to return the
-	 * same widgets every time. However, we can't assume anything about when a child gets added or removed
-	 * with respect to the ordering of the children. Because of this, we have to recompute their indices
-	 * any time we suspect the hierarchy may have changed.
-	 *
-	 * @param bUpdateRecursively If true, calls UpdateAllChildren() on any children found.
-	 */
-	void UpdateAllChildren(bool bUpdateRecursively = false);
-
-	/**
-	 * Search the Slate hierarchy recursively and generate a list of all accessible widgets whose parent is this widget.
-	 *
-	 * @param AccessibleWidget The root widget to find children for.
-	 * @return All Slate widgets whose accessible parent is the passed-in widget.
-	 */
-	static TArray<TSharedRef<SWidget>> GetAccessibleChildren(TSharedRef<SWidget> AccessibleWidget);
 
 protected:
-	/**
-	 * Recursively find the accessible widget under the specified X,Y coordinates.
-	 *
-	 * @param X The X coordinate to search in absolute screen space.
-	 * @param Y The Y coordinate to search in absolute screen space.
-	 * @return The deepest accessible widget found.
-	 */
-	TSharedPtr<IAccessibleWidget> GetChildAtUsingGeometry(int32 X, int32 Y);
-
 	/** The underlying Slate widget backing this accessible widget. */
 	TWeakPtr<SWidget> Widget;
 	/** What type of widget the platform's accessibility API should treat this as. */
 	EAccessibleWidgetType WidgetType;
 	/** The accessible parent to this widget. This should usually be valid on widgets in the hierarchy, except for SWindows. */
 	TWeakPtr<FSlateAccessibleWidget> Parent;
-	/** All accessible widgets whose parent is this widget. This is not necessarily correct unless UpdateAllChildren() is called first. */
+	/** All accessible widgets whose parent is this widget. */
 	TArray<TWeakPtr<FSlateAccessibleWidget>> Children;
+	/** A temporary array filled when processing the widget tree, which will eventually be moved to the Children array. */
+	TArray<TWeakPtr<FSlateAccessibleWidget>> ChildrenBuffer;
 	/** The index of this widget in its parent's list of children. */
 	int32 SiblingIndex;
 	/** An application-unique identifier for GetId(). */
 	AccessibleWidgetId Id;
-	/** Whether the contents of the Children array has changed and UpdateAllChildren() needs to be called. */
-	bool bChildrenDirty;
 
 private:
 	/**
@@ -104,7 +73,7 @@ private:
 	 *
 	 * @return The parent SWindow for the Slate widget referenced by this accessible widget.
 	 */
-	TSharedPtr<SWindow> GetTopLevelSlateWindow() const;
+	TSharedPtr<SWindow> GetSlateWindow() const;
 };
 
 // SWindow

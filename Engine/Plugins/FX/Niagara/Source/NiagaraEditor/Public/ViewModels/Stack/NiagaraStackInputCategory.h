@@ -32,7 +32,7 @@ public:
 
 	void ResetInputs();
 
-	void AddInput(FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior);
+	void AddInput(FName InInputParameterHandle, FNiagaraTypeDefinition InInputType, EStackParameterBehavior InParameterBehavior, bool bIsVisible);
 
 	//~ UNiagaraStackEntry interface
 	virtual FText GetDisplayName() const override;
@@ -56,6 +56,7 @@ private:
 		FName ParameterHandle;
 		FNiagaraTypeDefinition Type;
 		EStackParameterBehavior ParameterBehavior;
+		bool bIsVisible;
 	};
 
 	UNiagaraNodeFunctionCall* ModuleNode;

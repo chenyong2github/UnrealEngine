@@ -466,7 +466,11 @@ public:
 			uint32 NumVertices;
 		} VertexParams;
 		
-		FVertexBufferRHIParamRef IndirectArgsBuffer;
+		struct  
+		{
+			FVertexBufferRHIParamRef Buffer;
+			uint32 Offset;
+		} IndirectArgs;
 	};
 
 	int8 PrimitiveIdStreamIndex;
@@ -489,7 +493,7 @@ public:
 			&& NumPrimitives == Rhs.NumPrimitives
 			&& NumInstances == Rhs.NumInstances
 			&& ((NumPrimitives > 0 && VertexParams.BaseVertexIndex == Rhs.VertexParams.BaseVertexIndex && VertexParams.NumVertices == Rhs.VertexParams.NumVertices)
-				|| (NumPrimitives == 0 && IndirectArgsBuffer == Rhs.IndirectArgsBuffer));
+				|| (NumPrimitives == 0 && IndirectArgs.Buffer == Rhs.IndirectArgs.Buffer && IndirectArgs.Offset == Rhs.IndirectArgs.Offset));
 	}
 
 	uint32 GetDynamicInstancingHash() const
@@ -521,7 +525,8 @@ public:
 		}
 		else
 		{
-			Hash = PointerHash(IndirectArgsBuffer, Hash);
+			Hash = PointerHash(IndirectArgs.Buffer, Hash);
+			Hash = FCrc::TypeCrc32(IndirectArgs.Offset, Hash);
 		}		
 
 		return Hash;

@@ -20,7 +20,6 @@ FSlateAccessibleWidget::FSlateAccessibleWidget(TWeakPtr<SWidget> InWidget, EAcce
 	: Widget(InWidget)
 	, WidgetType(InWidgetType)
 	, SiblingIndex(INDEX_NONE)
-	, bChildrenDirty(true)
 {
 	static AccessibleWidgetId RuntimeIdCounter = 0;
 	if (RuntimeIdCounter == TNumericLimits<AccessibleWidgetId>::Max())
@@ -48,12 +47,11 @@ bool FSlateAccessibleWidget::IsValid() const
 	return Widget.IsValid();
 }
 
-TSharedPtr<SWindow> FSlateAccessibleWidget::GetTopLevelSlateWindow() const
+TSharedPtr<SWindow> FSlateAccessibleWidget::GetSlateWindow() const
 {
 	if (Widget.IsValid())
 	{
 		TSharedPtr<SWidget> WindowWidget = Widget.Pin();
-		// todo: fix this for nested windows
 		while (WindowWidget.IsValid())
 		{
 			if (WindowWidget->Advanced_IsWindow())
@@ -66,9 +64,9 @@ TSharedPtr<SWindow> FSlateAccessibleWidget::GetTopLevelSlateWindow() const
 	return nullptr;
 }
 
-TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetTopLevelWindow() const
+TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetWindow() const
 {
-	return FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(GetTopLevelSlateWindow());
+	return FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(GetSlateWindow());
 }
 
 FBox2D FSlateAccessibleWidget::GetBounds() const
@@ -95,10 +93,11 @@ FString FSlateAccessibleWidget::GetWidgetName() const
 {
 	if (Widget.IsValid())
 	{
-		FText AccessibleText = Widget.Pin()->GetAccessibleText();
+		TSharedPtr<SWidget> SharedWidget = Widget.Pin();
+		FText AccessibleText = SharedWidget->GetAccessibleText();
 		if (AccessibleText.IsEmpty())
 		{
-			TSharedPtr<FTagMetaData> Tag = Widget.Pin()->GetMetaData<FTagMetaData>();
+			TSharedPtr<FTagMetaData> Tag = SharedWidget->GetMetaData<FTagMetaData>();
 			if (Tag.IsValid())
 			{
 				return Tag->Tag.ToString();
@@ -120,10 +119,15 @@ FString FSlateAccessibleWidget::GetHelpText() const
 {
 	if (Widget.IsValid())
 	{
-		TSharedPtr<IToolTip> ToolTip = Widget.Pin()->GetToolTip();
-		if (ToolTip.IsValid())
+		TSharedPtr<SWidget> SharedWidget = Widget.Pin();
+		// If the accessible text is already the tooltip, don't duplicate it for the help text.
+		if (SharedWidget->GetAccessibleBehavior() != EAccessibleBehavior::ToolTip)
 		{
-			return ToolTip->GetContentWidget()->GetAccessibleText().ToString();
+			TSharedPtr<IToolTip> ToolTip = SharedWidget->GetToolTip();
+			if (ToolTip.IsValid())
+			{
+				return ToolTip->GetContentWidget()->GetAccessibleText().ToString();
+			}
 		}
 	}
 	return FString();
@@ -169,7 +173,7 @@ void FSlateAccessibleWidget::SetFocus()
 {
 	if (SupportsFocus())
 	{
-		TSharedPtr<SWindow> WidgetWindow = GetTopLevelSlateWindow();
+		TSharedPtr<SWindow> WidgetWindow = GetSlateWindow();
 		if (WidgetWindow.IsValid())
 		{
 			TArray<TSharedRef<SWindow>> WindowArray;
@@ -183,81 +187,21 @@ void FSlateAccessibleWidget::SetFocus()
 	}
 }
 
-void FSlateAccessibleWidget::MarkChildrenDirty()
-{
-	for (int32 i = 0; i < Children.Num(); ++i)
-	{
-		if (Children[i].IsValid())
-		{
-			Children[i].Pin()->SiblingIndex = INDEX_NONE;
-		}
-	}
-
-	Children.Reset();
-	bChildrenDirty = true;
-}
-
-void FSlateAccessibleWidget::UpdateAllChildren(bool bUpdateRecursively)
-{
-	if (bChildrenDirty)
-	{
-		bChildrenDirty = false;
-		if (Widget.IsValid())
-		{
-			TArray<TSharedRef<SWidget>> AccessibleChildren = GetAccessibleChildren(Widget.Pin().ToSharedRef());
-			Children.Reset(AccessibleChildren.Num());
-			for (int32 i = 0; i < AccessibleChildren.Num(); ++i)
-			{
-				TSharedPtr<FSlateAccessibleWidget> Child = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(AccessibleChildren[i]);
-				Children.Add(Child);
-				Child->Parent = StaticCastSharedRef<FSlateAccessibleWidget>(AsShared());
-				Child->SiblingIndex = i;
-
-				if (bUpdateRecursively)
-				{
-					Child->UpdateAllChildren(true);
-				}
-			}
-		}
-	}
-}
-
 void FSlateAccessibleWidget::UpdateParent(TSharedPtr<IAccessibleWidget> NewParent)
 {
-	if (Parent == NewParent)
+	if (Parent != NewParent)
 	{
-		return;
-	}
-
-	if (Parent.IsValid())
-	{
-		// Even though we're storing SiblingIndex, we have no guarantee
-		// that GetChildren will return the same order after a widget is
-		// added or removed, so we have to re-update all indices.
-		Parent.Pin()->MarkChildrenDirty();
-		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->RaiseEvent(AsShared(), EAccessibleEvent::BeforeRemoveFromParent);
-	}
-
-	Parent = StaticCastSharedPtr<FSlateAccessibleWidget>(NewParent);
-
-	if (Parent.IsValid())
-	{
-		Parent.Pin()->MarkChildrenDirty();
-		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->RaiseEvent(AsShared(), EAccessibleEvent::AfterAddToParent);
-	}
-	else
-	{
-		SiblingIndex = INDEX_NONE;
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->RaiseEvent(
+			AsShared(), EAccessibleEvent::ParentChanged,
+			Parent.IsValid() ? Parent.Pin()->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId,
+			NewParent.IsValid() ? NewParent->GetId() : IAccessibleWidget::InvalidAccessibleWidgetId);
+		Parent = StaticCastSharedPtr<FSlateAccessibleWidget>(NewParent);
 	}
 }
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetParent()
 {
-	if (Parent.IsValid())
-	{
-		return Parent.Pin();
-	}
-	return nullptr;
+	return Parent.Pin();
 }
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetNextSibling()
@@ -265,14 +209,9 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetNextSibling()
 	if (Parent.IsValid())
 	{
 		TSharedPtr<FSlateAccessibleWidget> SharedParent = Parent.Pin();
-		SharedParent->UpdateAllChildren();
 		if (SiblingIndex >= 0 && SiblingIndex < SharedParent->Children.Num() - 1)
 		{
-			const TWeakPtr<FSlateAccessibleWidget>& Child = SharedParent->Children[SiblingIndex + 1];
-			if (Child.IsValid())
-			{
-				return Child.Pin();
-			}
+			return SharedParent->Children[SiblingIndex + 1].Pin();
 		}
 	}
 	return nullptr;
@@ -283,14 +222,9 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetPreviousSibling()
 	if (Parent.IsValid())
 	{
 		TSharedPtr<FSlateAccessibleWidget> SharedParent = Parent.Pin();
-		SharedParent->UpdateAllChildren();
 		if (SiblingIndex >= 1 && SiblingIndex < SharedParent->Children.Num())
 		{
-			const TWeakPtr<FSlateAccessibleWidget>& Child = SharedParent->Children[SiblingIndex - 1];
-			if (Child.IsValid())
-			{
-				return Child.Pin();
-			}
+			return SharedParent->Children[SiblingIndex - 1].Pin();
 		}
 	}
 	return nullptr;
@@ -298,77 +232,21 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetPreviousSibling()
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetChildAt(int32 Index)
 {
-	UpdateAllChildren();
-	if (Index >= 0 && Index < Children.Num() && Widget.IsValid() && Widget.Pin()->CanChildrenBeAccessible())
+	check(Index >= 0 && Index < Children.Num());
+	if (Widget.IsValid())
 	{
-		const TWeakPtr<FSlateAccessibleWidget>& Child = Children[Index];
-		if (Child.IsValid())
-		{
-			return Child.Pin();
-		}
-
+		return Children[Index].Pin();
 	}
 	return nullptr;
 }
 
 int32 FSlateAccessibleWidget::GetNumberOfChildren()
 {
-	UpdateAllChildren();
-	if (Widget.IsValid() && Widget.Pin()->CanChildrenBeAccessible())
+	if (Widget.IsValid())
 	{
 		return Children.Num();
 	}
 	return 0;
-}
-
-TArray<TSharedRef<SWidget>> FSlateAccessibleWidget::GetAccessibleChildren(TSharedRef<SWidget> Widget)
-{
-	TArray<TSharedRef<SWidget>> AccessibleChildren;
-	if (!Widget->CanChildrenBeAccessible())
-	{
-		return AccessibleChildren;
-	}
-
-	FChildren* Children = Widget->GetChildren();
-	if (Children)
-	{
-		for (int32 i = 0; i < Children->Num(); ++i)
-		{
-			TSharedRef<SWidget> Child = Children->GetChildAt(i);
-			if (Child->GetAccessibleBehavior() != EAccessibleBehavior::NotAccessible)
-			{
-				AccessibleChildren.Add(Child);
-			}
-			else
-			{
-				AccessibleChildren.Append(GetAccessibleChildren(Child));
-			}
-		}
-	}
-	return AccessibleChildren;
-}
-
-TSharedPtr<IAccessibleWidget> FSlateAccessibleWidget::GetChildAtUsingGeometry(int32 X, int32 Y)
-{
-	// This is slow and we should use the HitTest grid when possible.
-	if (!IsHidden() && GetBounds().IsInside(FVector2D(X, Y)))
-	{
-		UpdateAllChildren();
-		// Traverse the hierarchy backwards in order to handle the case where widgets are overlaid on top of each other.
-		for (int32 i = Children.Num() - 1; i >= 0; --i)
-		{
-			if (Children[i].IsValid())
-			{
-				TSharedPtr<IAccessibleWidget> Child = Children[i].Pin()->GetChildAtUsingGeometry(X, Y);
-				if (Child.IsValid())
-				{
-					return Child;
-				}
-			}
-		}
-		return AsShared();
-	}
-	return nullptr;
 }
 
 // SWindow
@@ -405,11 +283,37 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 					break;
 				}
 			}
-			HitWidget = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(LastAccessibleWidget);
+			if (LastAccessibleWidget.IsValid())
+			{
+				HitWidget = FSlateAccessibleWidgetCache::GetAccessibleWidget(LastAccessibleWidget.ToSharedRef());
+			}
 		}
 		else
 		{
-			HitWidget = GetChildAtUsingGeometry(X, Y);
+			TArray<TSharedPtr<IAccessibleWidget>> ToProcess;
+			ToProcess.Reserve(10);
+			ToProcess.Add(AsShared());
+
+			while (ToProcess.Num() > 0)
+			{
+				const TSharedPtr<IAccessibleWidget> Current = ToProcess.Pop(false);
+				// Because children are weak pointers, Current could be invalid in the case where the SWidget and all
+				// shared pointers were deleted while in the middle of FSlateAccessibleMessageHandler refreshing the data.
+				if (Current.IsValid() && !Current->IsHidden() && Current->GetBounds().IsInside(FVector2D(X, Y)))
+				{
+					// The widgets are being traversed in reverse render order, so usually if a widget is rendered
+					// on top of another this will return the rendered one. But it's not 100% guarantee, and opacity
+					// screws things up sometimes. ToProcess can safely be reset because once we go down a branch
+					// we no longer care about any other branches.
+					ToProcess.Reset();
+					HitWidget = Current;
+					const int32 NumChildren = Current->GetNumberOfChildren();
+					for (int32 i = 0; i < NumChildren; ++i)
+					{
+						ToProcess.Add(Current->GetChildAt(i));
+					}
+				}
+			}
 		}
 	}
 
@@ -418,7 +322,7 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetChildAtPosition(int32 X
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleWindow::GetFocusedWidget() const
 {
-	return FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(FSlateApplicationBase::Get().GetKeyboardFocusedWidget());
+	return FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(FSlateApplicationBase::Get().GetKeyboardFocusedWidget());
 }
 
 FString FSlateAccessibleWindow::GetWidgetName() const

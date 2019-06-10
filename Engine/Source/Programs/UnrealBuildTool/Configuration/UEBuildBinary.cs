@@ -31,6 +31,16 @@ namespace UnrealBuildTool
 		/// A static library (.lib or .a)
 		/// </summary>
 		StaticLibrary,
+
+		/// <summary>
+		/// Object files
+		/// </summary>
+		Object,
+
+		/// <summary>
+		/// Precompiled header
+		/// </summary>
+		PrecompiledHeader,
 	}
 
 	/// <summary>
@@ -116,6 +126,7 @@ namespace UnrealBuildTool
 		/// <param name="OutputFilePaths"></param>
 		/// <param name="IntermediateDirectory"></param>
 		/// <param name="bAllowExports"></param>
+		/// <param name="bBuildAdditionalConsoleApp"></param>
 		/// <param name="PrimaryModule"></param>
 		/// <param name="bUsePrecompiled"></param>
 		public UEBuildBinary(
@@ -123,6 +134,7 @@ namespace UnrealBuildTool
 				IEnumerable<FileReference> OutputFilePaths,
 				DirectoryReference IntermediateDirectory,
 				bool bAllowExports,
+				bool bBuildAdditionalConsoleApp,
 				UEBuildModuleCPP PrimaryModule,
 				bool bUsePrecompiled
 			)
@@ -132,6 +144,7 @@ namespace UnrealBuildTool
 			this.OutputFilePaths = new List<FileReference>(OutputFilePaths);
 			this.IntermediateDirectory = IntermediateDirectory;
 			this.bAllowExports = bAllowExports;
+			this.bBuildAdditionalConsoleApp = bBuildAdditionalConsoleApp;
 			this.PrimaryModule = PrimaryModule;
 			this.bUsePrecompiled = bUsePrecompiled;
 			

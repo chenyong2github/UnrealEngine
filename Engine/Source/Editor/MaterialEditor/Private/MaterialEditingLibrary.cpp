@@ -1046,3 +1046,87 @@ void UMaterialEditingLibrary::GetStaticSwitchParameterNames(UMaterialInterface* 
 		}
 	}
 }
+
+bool UMaterialEditingLibrary::GetScalarParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllScalarParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+		
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialEditingLibrary::GetVectorParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllVectorParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialEditingLibrary::GetTextureParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllTextureParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}
+
+bool UMaterialEditingLibrary::GetStaticSwitchParameterSource(UMaterialInterface* Material, const FName ParameterName, FSoftObjectPath& ParameterSource)
+{
+	if (Material)
+	{
+		TArray<FMaterialParameterInfo> MaterialInfo;
+		TArray<FGuid> MaterialGuids;
+		Material->GetAllStaticSwitchParameterInfo(MaterialInfo, MaterialGuids);
+		FMaterialParameterInfo* ParameterInfo = MaterialInfo.FindByPredicate([ParameterName](const FMaterialParameterInfo& Parameter)
+		{
+			return ParameterName == Parameter.Name;
+		});
+
+		if (ParameterInfo)
+		{
+			ParameterSource = ParameterInfo->ParameterLocation;
+			return true;
+		}
+	}
+	return false;
+}

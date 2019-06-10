@@ -169,6 +169,38 @@ public class APEX : ModuleRules
 				PublicDefinitions.Add("UE_APEX_SUFFIX=" + LibrarySuffix);
 			}
 		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+            string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
+
+            APEXLibDir += "/" + Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
+			PublicLibraryPaths.Add(APEXLibDir);
+
+			PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch));
+			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_{1}.dll", LibrarySuffix, Arch));
+
+
+            string[] RuntimeDependenciesTempl =
+			{
+                "APEX_Clothing{0}_{1}.dll",
+                "APEX_Legacy{0}_{1}.dll",
+                "ApexFramework{0}_{1}.dll",
+			};
+
+			string ApexBinariesDir = String.Format("$(EngineDir)/Binaries/ThirdParty/PhysX3/{1}/VS{0}/", Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.Platform.ToString());
+			bHasApexLegacy = Target.Platform != UnrealTargetPlatform.HoloLens;
+
+			foreach(string RuntimeDependency in RuntimeDependenciesTempl)
+			{
+				string FileName = ApexBinariesDir + String.Format(RuntimeDependency, LibrarySuffix, Arch);
+				RuntimeDependencies.Add(FileName, StagedFileType.NonUFS);
+				RuntimeDependencies.Add(Path.ChangeExtension(FileName, ".pdb"), StagedFileType.DebugNonUFS);
+			}
+			if (LibrarySuffix != "")
+			{
+				PublicDefinitions.Add("UE_APEX_SUFFIX=" + LibrarySuffix);
+			}
+		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
 			APEXLibDir += "/Mac";
