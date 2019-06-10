@@ -1,14 +1,9 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -178,6 +173,11 @@ namespace UnrealBuildTool
 		/// The type of target.
 		/// </summary>
 		public global::UnrealBuildTool.TargetType Type = global::UnrealBuildTool.TargetType.Game;
+
+		/// <summary>
+		/// Tracks a list of config values read while constructing this target
+		/// </summary>
+		internal ConfigValueTracker ConfigValueTracker = new ConfigValueTracker();
 
 		/// <summary>
 		/// Whether the target uses Steam.
@@ -1295,7 +1295,7 @@ namespace UnrealBuildTool
 			// Read settings from config files
 			foreach(object ConfigurableObject in GetConfigurableObjects())
 			{
-				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject);
+				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject, ConfigValueTracker);
 				XmlConfig.ApplyTo(ConfigurableObject);
 			}
 
@@ -1642,6 +1642,11 @@ namespace UnrealBuildTool
 		public TargetType Type
 		{
 			get { return Inner.Type; }
+		}
+
+		internal ConfigValueTracker ConfigValueTracker
+		{
+			get { return Inner.ConfigValueTracker; }
 		}
 
 		public bool bUsesSteam
