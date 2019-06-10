@@ -295,7 +295,7 @@ int32 UNiagaraSpriteRendererProperties::GetNumCutoutVertexPerSubimage() const
 	}
 }
 
-uint32 UNiagaraSpriteRendererProperties::GetNumIndicesPerInstance() const
+uint32 UNiagaraSpriteRendererProperties::GetNumIndicesPerInstance()
 {
 	// This is a based on cutout vertices making a triangle strip.
 	if (GetNumCutoutVertexPerSubimage() == 8)
