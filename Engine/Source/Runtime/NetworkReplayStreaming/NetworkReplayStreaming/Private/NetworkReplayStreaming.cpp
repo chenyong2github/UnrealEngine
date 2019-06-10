@@ -123,3 +123,97 @@ bool FNetworkReplayStreaming::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDev
 
 	return false;
 }
+
+void INetworkReplayStreamer::StartStreaming(const FString& CustomName, const FString& FriendlyName, const TArray<FString>& UserNames, bool bRecord, const FNetworkReplayVersion& ReplayVersion, const FStartStreamingCallback& Delegate)
+{
+	FStartStreamingParameters Params;
+	Params.CustomName = CustomName;
+	Params.FriendlyName = FriendlyName;
+	GetUserIndicesFromUserStrings(UserNames, Params.UserIndices);
+	Params.bRecord = bRecord;
+	Params.ReplayVersion = ReplayVersion;
+
+	StartStreaming(Params, Delegate);
+}
+
+void INetworkReplayStreamer::StartStreaming(const FString& CustomName, const FString& FriendlyName, const TArray<int32>& UserIndices, bool bRecord, const FNetworkReplayVersion& ReplayVersion, const FStartStreamingCallback& Delegate)
+{
+	FStartStreamingParameters Params;
+	Params.CustomName = CustomName;
+	Params.FriendlyName = FriendlyName;
+	Params.UserIndices = UserIndices;
+	Params.bRecord = bRecord;
+	Params.ReplayVersion = ReplayVersion;
+
+	StartStreaming(Params, Delegate);
+}
+
+void INetworkReplayStreamer::EnumerateStreams(const FNetworkReplayVersion& ReplayVersion, const FString& UserString, const FString& MetaString, const FEnumerateStreamsCallback& Delegate)
+{
+	EnumerateStreams(ReplayVersion, GetUserIndexFromUserString(UserString), MetaString, TArray<FString>(), Delegate);
+}
+
+void INetworkReplayStreamer::EnumerateStreams(const FNetworkReplayVersion& ReplayVersion, const FString& UserString, const FString& MetaString, const TArray<FString>& ExtraParms, const FEnumerateStreamsCallback& Delegate)
+{
+	EnumerateStreams(ReplayVersion, GetUserIndexFromUserString(UserString), MetaString, ExtraParms, Delegate);
+}
+
+void INetworkReplayStreamer::EnumerateRecentStreams(const FNetworkReplayVersion& ReplayVersion, const FString& RecentViewer, const FEnumerateStreamsCallback& Delegate)
+{
+	EnumerateRecentStreams(ReplayVersion, GetUserIndexFromUserString(RecentViewer), Delegate);
+}
+
+const int32 INetworkReplayStreamer::GetUserIndexFromUserString(const FString& UserString)
+{
+	if (!UserString.IsEmpty() && GEngine != nullptr)
+	{
+		if (UWorld* World = GWorld.GetReference())
+		{
+			for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
+			{
+				if (ULocalPlayer const * const LocalPlayer = *ConstIt)
+				{
+					if (UserString.Equals(LocalPlayer->GetPreferredUniqueNetId().ToString()))
+					{
+						return LocalPlayer->GetControllerId();
+					}
+				}
+			}
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+const void INetworkReplayStreamer::GetUserIndicesFromUserStrings(const TArray<FString>& UserStrings, TArray<int32>& OutUserIndices)
+{
+	if (GEngine != nullptr)
+	{
+		if (UserStrings.Num() == 1)
+		{
+			OutUserIndices.Emplace(GetUserIndexFromUserString(UserStrings[0]));
+		}
+		else if (UserStrings.Num() > 1)
+		{
+			if (UWorld* World = GWorld.GetReference())
+			{
+				TMap<FString, int32> StringToId;
+				for (auto ConstIt = GEngine->GetLocalPlayerIterator(World); ConstIt; ++ConstIt)
+				{
+					if (ULocalPlayer const * const LocalPlayer = *ConstIt)
+					{
+						StringToId.Emplace(LocalPlayer->GetPreferredUniqueNetId().ToString(), LocalPlayer->GetControllerId());
+					}
+				}
+
+				for (const FString& UserString : UserStrings)
+				{
+					if (int32 const * const UserIndex = StringToId.Find(UserString))
+					{
+						OutUserIndices.Emplace(*UserIndex);
+					}
+				}
+			}
+		}
+	}
+}
