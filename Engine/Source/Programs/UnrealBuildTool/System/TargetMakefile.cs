@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 14;
+		public const int CurrentVersion = 16;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -52,6 +52,11 @@ namespace UnrealBuildTool
 		/// Type of the target
 		/// </summary>
 		public TargetType TargetType;
+
+		/// <summary>
+		/// Map of config file keys to values. Makefile will be invalidated if any of these change.
+		/// </summary>
+		public ConfigValueTracker ConfigValueTracker;
 
 		/// <summary>
 		/// Whether the target should be deployed after being built
@@ -130,6 +135,11 @@ namespace UnrealBuildTool
 		public List<UHTModuleHeaderInfo> UObjectModuleHeaders = new List<UHTModuleHeaderInfo>();
 
 		/// <summary>
+		/// List of config settings in generated config files
+		/// </summary>
+		public Dictionary<string, string> ConfigSettings = new Dictionary<string, string>();
+
+		/// <summary>
 		/// List of all plugin names. The makefile will be considered invalid if any of these changes, or new plugins are added.
 		/// </summary>
 		public HashSet<FileItem> PluginFiles;
@@ -137,7 +147,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Additional files which are required 
 		/// </summary>
-		public HashSet<FileItem> AdditionalDependencies = new HashSet<FileItem>(); 
+		public HashSet<FileItem> AdditionalDependencies = new HashSet<FileItem>();
 
 		/// <summary>
 		/// Constructor
@@ -147,9 +157,10 @@ namespace UnrealBuildTool
 		/// <param name="ReceiptFile">Path to the receipt file</param>
 		/// <param name="ProjectIntermediateDirectory">Path to the project intermediate directory</param>
 		/// <param name="TargetType">The type of target</param>
+		/// <param name="ConfigValueTracker">Set of dependencies on config files</param>
 		/// <param name="bDeployAfterCompile">Whether to deploy the target after compiling</param>
 		/// <param name="bHasProjectScriptPlugin">Whether the target has a project script plugin</param>
-		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
+		public TargetMakefile(string ToolchainInfo, string ExternalMetadata, FileReference ReceiptFile, DirectoryReference ProjectIntermediateDirectory, TargetType TargetType, ConfigValueTracker ConfigValueTracker, bool bDeployAfterCompile, bool bHasProjectScriptPlugin)
 		{
 			this.CreateTimeUtc = DateTime.UtcNow;
 			this.ToolchainInfo = ToolchainInfo;
@@ -157,6 +168,7 @@ namespace UnrealBuildTool
 			this.ReceiptFile = ReceiptFile;
 			this.ProjectIntermediateDirectory = ProjectIntermediateDirectory;
 			this.TargetType = TargetType;
+			this.ConfigValueTracker = ConfigValueTracker;
 			this.bDeployAfterCompile = bDeployAfterCompile;
 			this.bHasProjectScriptPlugin = bHasProjectScriptPlugin;
 			this.Actions = new List<Action>();
@@ -185,6 +197,7 @@ namespace UnrealBuildTool
 			ReceiptFile = Reader.ReadFileReference();
 			ProjectIntermediateDirectory = Reader.ReadDirectoryReference();
 			TargetType = (TargetType)Reader.ReadInt();
+			ConfigValueTracker = new ConfigValueTracker(Reader);
 			bDeployAfterCompile = Reader.ReadBool();
 			bHasProjectScriptPlugin = Reader.ReadBool();
 			AdditionalArguments = Reader.ReadArray(() => Reader.ReadString());
@@ -216,6 +229,7 @@ namespace UnrealBuildTool
 			Writer.WriteFileReference(ReceiptFile);
 			Writer.WriteDirectoryReference(ProjectIntermediateDirectory);
 			Writer.WriteInt((int)TargetType);
+			ConfigValueTracker.Write(Writer);
 			Writer.WriteBool(bDeployAfterCompile);
 			Writer.WriteBool(bHasProjectScriptPlugin);
 			Writer.WriteArray(AdditionalArguments, Item => Writer.WriteString(Item));
@@ -386,20 +400,11 @@ namespace UnrealBuildTool
 					return null;
 				}
 
-				// Check if ini files are newer. Ini files contain build settings too.
-				DirectoryReference ProjectDirectory = DirectoryReference.FromFile(ProjectFile);
-				foreach (ConfigHierarchyType IniType in (ConfigHierarchyType[])Enum.GetValues(typeof(ConfigHierarchyType)))
+				// Check if any config settings have changed. Ini files contain build settings too.
+				if(!Makefile.ConfigValueTracker.IsValid())
 				{
-					foreach (FileReference IniFilename in ConfigHierarchy.EnumerateConfigFileLocations(IniType, ProjectDirectory, Platform))
-					{
-						FileInfo IniFileInfo = new FileInfo(IniFilename.FullName);
-						if(IniFileInfo.LastWriteTimeUtc > Makefile.CreateTimeUtc)
-						{
-							// Ini files are newer than makefile
-							ReasonNotLoaded = "ini files are newer than makefile";
-							return null;
-						}
-					}
+					ReasonNotLoaded = "config setting changed";
+					return null;
 				}
 
 				// Get the current build metadata from the platform

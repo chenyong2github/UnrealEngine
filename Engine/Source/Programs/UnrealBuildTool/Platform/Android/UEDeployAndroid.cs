@@ -1662,7 +1662,7 @@ namespace UnrealBuildTool
 						continue;
 					}
 
-					IEnumerable<string> Values;
+					IReadOnlyList<string> Values;
 					Section.TryGetValues(Key, out Values);
 
 					foreach (string Value in Values)
@@ -1683,7 +1683,7 @@ namespace UnrealBuildTool
 						continue;
 					}
 
-					IEnumerable<string> Values;
+					IReadOnlyList<string> Values;
 					Section.TryGetValues(Key, out Values);
 					foreach (string Value in Values)
 					{
