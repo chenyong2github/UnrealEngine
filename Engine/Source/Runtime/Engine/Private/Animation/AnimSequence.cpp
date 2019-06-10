@@ -66,7 +66,23 @@ static FAutoConsoleVariableRef CVarOddFrameStripping(
 	GPerformFrameStrippingOddFramedAnimations,
 	TEXT("1 = When frame stripping apply to animations with an odd number of frames too. 0 = only even framed animations"));
 
+
+
 #if WITH_EDITOR
+
+template <typename ArrayType>
+FGuid GetArrayGuid(TArrayView<const ArrayType> Array)
+{
+	FSHA1 Sha;
+	Sha.Update((uint8*)Array.GetData(), Array.Num() * Array.GetTypeSize());
+
+	Sha.Final();
+
+	uint32 Hash[5];
+	Sha.GetHash((uint8*)Hash);
+	FGuid Guid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
+	return Guid;
+}
 
 void OnCVarsChanged()
 {
@@ -74,6 +90,41 @@ void OnCVarsChanged()
 	{
 		return; // not initialized
 	}
+
+	/*static TArray<UAnimSequence*> SequenceCache;
+	static FString OutputMessage;
+	
+	SequenceCache.Reset();
+
+	for (TObjectIterator<UAnimSequence> It; It; ++It)
+	{
+		SequenceCache.Add(*It);
+	}
+
+	SequenceCache.Sort([](const UAnimSequence& A, const UAnimSequence& B)
+	{
+		return A.GetFName() > B.GetFName();
+	});
+
+	OutputMessage.Reset();
+
+	for (UAnimSequence* Seq : SequenceCache)
+	{
+		const FCompressedAnimSequence& AnimData = Seq->CompressedData;
+		const FUECompressedAnimData& UEAnimData = AnimData.CompressedDataStructure;
+		const int32 Additive = Seq->IsValidAdditive() ? 1 : 0;
+		OutputMessage += FString::Printf(TEXT("%s - %.2f Fr:%i Add:%i TO:%i SO:%i CBS:%i\n"), *Seq->GetName(), Seq->SequenceLength, Seq->GetRawNumberOfFrames(), Additive, UEAnimData.CompressedTrackOffsets.Num(), UEAnimData.CompressedScaleOffsets.OffsetData.Num(), UEAnimData.CompressedByteStream.Num());
+		OutputMessage += FString::Printf(TEXT("\t K:%i (%i : %i : %i)\n"), (int32)UEAnimData.KeyEncodingFormat, (int32)UEAnimData.TranslationCompressionFormat, (int32)UEAnimData.RotationCompressionFormat, (int32)UEAnimData.ScaleCompressionFormat);
+		OutputMessage += FString::Printf(TEXT("\t Curve Codec:%s\n"), AnimData.CurveCompressionCodec ? *AnimData.CurveCompressionCodec->GetPathName() : TEXT("nullptr"));
+		OutputMessage += FString::Printf(TEXT("\t TrackOff:%s\n"), *GetArrayGuid<int32>(UEAnimData.CompressedTrackOffsets).ToString());
+		OutputMessage += FString::Printf(TEXT("\t ScaleOff:%s\n"), *GetArrayGuid<int32>(UEAnimData.CompressedScaleOffsets.OffsetData).ToString());
+		OutputMessage += FString::Printf(TEXT("\t BoneByteStream:%s\n"), *GetArrayGuid<uint8>(UEAnimData.CompressedByteStream).ToString());
+		OutputMessage += FString::Printf(TEXT("\t CurveByteStream:%s\n"), *GetArrayGuid<uint8>(AnimData.CompressedCurveByteStream).ToString());
+	}
+
+	OutputMessage += FString::Printf(TEXT("\n\nTotalAnims: %i"), SequenceCache.Num());
+	FPlatformApplicationMisc::ClipboardCopy(*OutputMessage);*/
+
 	static bool bFirstRun = true;
 
 	static bool bCompressionFrameStrip = (GPerformFrameStripping == 1);
@@ -153,6 +204,170 @@ void OnCVarsChanged()
 
 FAutoConsoleVariableSink AnimationCVarSink(FConsoleCommandDelegate::CreateStatic(&OnCVarsChanged));
 #endif
+
+bool CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, int32 NumFrames, FName ErrorName, float MaxPosDiff, float MaxAngleDiff)
+{
+	bool bRemovedKeys = false;
+
+	// First part is to make sure we have valid input
+	bool const bPosTrackIsValid = (RawTrack.PosKeys.Num() == 1 || RawTrack.PosKeys.Num() == NumFrames);
+	if (!bPosTrackIsValid)
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Found non valid position track for %s, %d frames, instead of %d. Chopping!"), *ErrorName.ToString(), RawTrack.PosKeys.Num(), NumFrames);
+		bRemovedKeys = true;
+		RawTrack.PosKeys.RemoveAt(1, RawTrack.PosKeys.Num() - 1);
+		RawTrack.PosKeys.Shrink();
+		check(RawTrack.PosKeys.Num() == 1);
+	}
+
+	bool const bRotTrackIsValid = (RawTrack.RotKeys.Num() == 1 || RawTrack.RotKeys.Num() == NumFrames);
+	if (!bRotTrackIsValid)
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Found non valid rotation track for %s, %d frames, instead of %d. Chopping!"), *ErrorName.ToString(), RawTrack.RotKeys.Num(), NumFrames);
+		bRemovedKeys = true;
+		RawTrack.RotKeys.RemoveAt(1, RawTrack.RotKeys.Num() - 1);
+		RawTrack.RotKeys.Shrink();
+		check(RawTrack.RotKeys.Num() == 1);
+	}
+
+	// scale keys can be empty, and that is valid 
+	bool const bScaleTrackIsValid = (RawTrack.ScaleKeys.Num() == 0 || RawTrack.ScaleKeys.Num() == 1 || RawTrack.ScaleKeys.Num() == NumFrames);
+	if (!bScaleTrackIsValid)
+	{
+		UE_LOG(LogAnimation, Warning, TEXT("Found non valid Scaleation track for %s, %d frames, instead of %d. Chopping!"), *ErrorName.ToString(), RawTrack.ScaleKeys.Num(), NumFrames);
+		bRemovedKeys = true;
+		RawTrack.ScaleKeys.RemoveAt(1, RawTrack.ScaleKeys.Num() - 1);
+		RawTrack.ScaleKeys.Shrink();
+		check(RawTrack.ScaleKeys.Num() == 1);
+	}
+
+	// Second part is actual compression.
+
+	// Check variation of position keys
+	if ((RawTrack.PosKeys.Num() > 1) && (MaxPosDiff >= 0.0f))
+	{
+		FVector FirstPos = RawTrack.PosKeys[0];
+		bool bFramesIdentical = true;
+		for (int32 j = 1; j < RawTrack.PosKeys.Num() && bFramesIdentical; j++)
+		{
+			if ((FirstPos - RawTrack.PosKeys[j]).SizeSquared() > FMath::Square(MaxPosDiff))
+			{
+				bFramesIdentical = false;
+			}
+		}
+
+		// If all keys are the same, remove all but first frame
+		if (bFramesIdentical)
+		{
+			bRemovedKeys = true;
+			RawTrack.PosKeys.RemoveAt(1, RawTrack.PosKeys.Num() - 1);
+			RawTrack.PosKeys.Shrink();
+			check(RawTrack.PosKeys.Num() == 1);
+		}
+	}
+
+	// Check variation of rotational keys
+	if ((RawTrack.RotKeys.Num() > 1) && (MaxAngleDiff >= 0.0f))
+	{
+		FQuat FirstRot = RawTrack.RotKeys[0];
+		bool bFramesIdentical = true;
+		for (int32 j = 1; j < RawTrack.RotKeys.Num() && bFramesIdentical; j++)
+		{
+			if (FQuat::Error(FirstRot, RawTrack.RotKeys[j]) > MaxAngleDiff)
+			{
+				bFramesIdentical = false;
+			}
+		}
+
+		// If all keys are the same, remove all but first frame
+		if (bFramesIdentical)
+		{
+			bRemovedKeys = true;
+			RawTrack.RotKeys.RemoveAt(1, RawTrack.RotKeys.Num() - 1);
+			RawTrack.RotKeys.Shrink();
+			check(RawTrack.RotKeys.Num() == 1);
+		}
+	}
+
+	float MaxScaleDiff = 0.0001f;
+
+	// Check variation of Scaleition keys
+	if ((RawTrack.ScaleKeys.Num() > 1) && (MaxScaleDiff >= 0.0f))
+	{
+		FVector FirstScale = RawTrack.ScaleKeys[0];
+		bool bFramesIdentical = true;
+		for (int32 j = 1; j < RawTrack.ScaleKeys.Num() && bFramesIdentical; j++)
+		{
+			if ((FirstScale - RawTrack.ScaleKeys[j]).SizeSquared() > FMath::Square(MaxScaleDiff))
+			{
+				bFramesIdentical = false;
+			}
+		}
+
+		// If all keys are the same, remove all but first frame
+		if (bFramesIdentical)
+		{
+			bRemovedKeys = true;
+			RawTrack.ScaleKeys.RemoveAt(1, RawTrack.ScaleKeys.Num() - 1);
+			RawTrack.ScaleKeys.Shrink();
+			check(RawTrack.ScaleKeys.Num() == 1);
+		}
+	}
+
+	return bRemovedKeys;
+}
+
+bool StaticCompressRawAnimData(TArray<FRawAnimSequenceTrack>& RawAnimationData, int32 NumFrames, FName ErrorName, float MaxPosDiff, float MaxAngleDiff)
+{
+	bool bRemovedKeys = false;
+
+#if WITH_EDITORONLY_DATA
+	if (ensureMsgf(RawAnimationData.Num() > 0, TEXT("%s is trying to compress while raw animation is missing"), *ErrorName.ToString()))
+	{
+		// This removes trivial keys, and this has to happen before the removing tracks
+		for (int32 TrackIndex = 0; TrackIndex < RawAnimationData.Num(); TrackIndex++)
+		{
+			bRemovedKeys |= CompressRawAnimSequenceTrack(RawAnimationData[TrackIndex], NumFrames, ErrorName, MaxPosDiff, MaxAngleDiff);
+		}
+
+		bool bCompressScaleKeys = false;
+		// go through remove keys if not needed
+		for (int32 TrackIndex = 0; TrackIndex < RawAnimationData.Num(); TrackIndex++)
+		{
+			FRawAnimSequenceTrack const& RawData = RawAnimationData[TrackIndex];
+			if (RawData.ScaleKeys.Num() > 0)
+			{
+				// if scale key exists, see if we can just empty it
+				if ((RawData.ScaleKeys.Num() > 1) || (RawData.ScaleKeys[0].Equals(FVector(1.f)) == false))
+				{
+					bCompressScaleKeys = true;
+					break;
+				}
+			}
+		}
+
+		// if we don't have scale, we should delete all scale keys
+		// if you have one track that has scale, we still should support scale, so compress scale
+		if (!bCompressScaleKeys)
+		{
+			// then remove all scale keys
+			for (int32 TrackIndex = 0; TrackIndex < RawAnimationData.Num(); TrackIndex++)
+			{
+				FRawAnimSequenceTrack& RawData = RawAnimationData[TrackIndex];
+				RawData.ScaleKeys.Empty();
+			}
+		}
+	}
+#endif
+	return bRemovedKeys;
+}
+
+bool StaticCompressRawAnimData(TArray<FRawAnimSequenceTrack>& RawAnimationData, int32 NumFrames, FName ErrorName)
+{
+	const float MaxPosDiff = 0.0001f;
+	const float MaxAngleDiff = 0.0003f;
+	return StaticCompressRawAnimData(RawAnimationData, NumFrames, ErrorName, MaxPosDiff, MaxAngleDiff);
+}
 
 /////////////////////////////////////////////////////
 // FRequestAnimCompressionParams
@@ -296,7 +511,6 @@ UAnimSequence::UAnimSequence(const FObjectInitializer& ObjectInitializer)
 	, bUseRawDataOnly(!FPlatformProperties::RequiresCookedData())
 {
 	RateScale = 1.0;
-	CompressedRawDataSize = 0.f;
 
 #if WITH_EDITORONLY_DATA
 	ImportFileFramerate = 0.0f;
@@ -340,7 +554,7 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 	Super::AddReferencedObjects(This, Collector);
 
 	UAnimSequence* AnimSeq = CastChecked<UAnimSequence>(This);
-	Collector.AddReferencedObject(AnimSeq->CurveCompressionCodec);
+	Collector.AddReferencedObject(AnimSeq->CompressedData.CurveCompressionCodec);
 }
 
 int32 UAnimSequence::GetUncompressedRawSize() const
@@ -374,10 +588,15 @@ int32 UAnimSequence::GetApproxRawSize() const
 	return Total;
 }
 
+int32 UAnimSequence::GetApproxBoneCompressedSize() const
+{
+	return CompressedData.CompressedDataStructure.GetApproxBoneCompressedSize();
+}
+
 int32 UAnimSequence::GetApproxCompressedSize() const
 {
-	int32 BoneTotal = sizeof(int32)*CompressedTrackOffsets.Num() + CompressedByteStream.Num() + CompressedScaleOffsets.GetMemorySize() + sizeof(FCompressedSegment)*CompressedSegments.Num();
-	int32 CurveTotal = CompressedCurveByteStream.Num();
+	int32 BoneTotal = GetApproxBoneCompressedSize();
+	int32 CurveTotal = CompressedData.CompressedCurveByteStream.Num();
 	return BoneTotal + CurveTotal;
 }
 
@@ -710,7 +929,7 @@ void UAnimSequence::PostLoad()
 		{
 			SetSkeletonVirtualBoneGuid(GetSkeleton()->GetVirtualBoneGuid());
 		}
-		if( RawAnimationData.Num() > 0  && CompressedByteStream.Num() > 0 )
+		if( RawAnimationData.Num() > 0  && CompressedData.CompressedByteStream.Num() > 0 )
 		{
 #if 0//@todo.Cooker/Package...
 			// Don't do this on consoles; raw animation data should have been stripped during cook!
@@ -729,10 +948,6 @@ void UAnimSequence::PostLoad()
 #endif
 		}
 	}
-
-#if WITH_EDITORONLY_DATA
-	bWasCompressedWithoutTranslations = false; //@todoanim: @fixmelh : AnimRotationOnly - GetAnimSet()->bAnimRotationOnly;
-#endif // WITH_EDITORONLY_DATA
 
 	for(FAnimNotifyEvent& Notify : Notifies)
 	{
@@ -754,7 +969,7 @@ void UAnimSequence::PostLoad()
 
 	if (USkeleton* CurrentSkeleton = GetSkeleton())
 	{
-		for (FSmartName& CurveName : CompressedCurveNames)
+		for (FSmartName& CurveName : CompressedData.CompressedCurveNames)
 		{
 			CurrentSkeleton->VerifySmartName(USkeleton::AnimCurveMappingName, CurveName);
 		}
@@ -884,9 +1099,8 @@ void UAnimSequence::BeginDestroy()
 {
 	Super::BeginDestroy();
 
-	// clear any active codec links
-	RotationCodec = NULL;
-	TranslationCodec = NULL;
+	CompressedData.CompressedDataStructure.TranslationCodec = nullptr;
+	CompressedData.CompressedDataStructure.RotationCodec = nullptr;
 }
 
 #if WITH_EDITOR
@@ -987,7 +1201,7 @@ void UAnimSequence::GetBoneTransform(FTransform& OutAtom, int32 TrackIndex, floa
 	// If the caller didn't request that raw animation data be used . . .
 	if ( !bUseRawData && IsCompressedDataValid() )
 	{
-		FAnimSequenceDecompressionContext DecompContext(this);
+		FAnimSequenceDecompressionContext DecompContext(SequenceLength, Interpolation, GetFName(), CompressedData.CompressedDataStructure);
 		DecompContext.Seek(Time);
 		AnimationFormat_GetBoneAtom( OutAtom, DecompContext, TrackIndex );
 		return;
@@ -1050,95 +1264,7 @@ void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& Raw
 
 void UAnimSequence::ExtractBoneTransform(const struct FRawAnimSequenceTrack& RawTrack, FTransform& OutAtom, float Time) const
 {
-	// Bail out (with rather wacky data) if data is empty for some reason.
-	if(RawTrack.PosKeys.Num() == 0 || RawTrack.RotKeys.Num() == 0)
-	{
-		UE_LOG(LogAnimation, Log, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence[%s]!"),*GetFullName());
-		OutAtom.SetIdentity();
-		return;
-	}
-
-	int32 KeyIndex1, KeyIndex2;
-	float Alpha;
-	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, Time, NumFrames, SequenceLength);
-	// @Todo fix me: this change is not good, it has lots of branches. But we'd like to save memory for not saving scale if no scale change exists
-	const bool bHasScaleKey = (RawTrack.ScaleKeys.Num() > 0);
-	static const FVector DefaultScale3D = FVector(1.f);
-
-	if (Interpolation == EAnimInterpolationType::Step) 
-	{
-		Alpha = 0.f;
-	}
-
-	if(Alpha <= 0.f)
-	{
-		const int32 PosKeyIndex1 = FMath::Min(KeyIndex1, RawTrack.PosKeys.Num()-1);
-		const int32 RotKeyIndex1 = FMath::Min(KeyIndex1, RawTrack.RotKeys.Num()-1);
-		if(bHasScaleKey)
-		{
-			const int32 ScaleKeyIndex1 = FMath::Min(KeyIndex1, RawTrack.ScaleKeys.Num()-1);
-			OutAtom = FTransform(RawTrack.RotKeys[RotKeyIndex1], RawTrack.PosKeys[PosKeyIndex1], RawTrack.ScaleKeys[ScaleKeyIndex1]);
-		}
-		else
-		{
-			OutAtom = FTransform(RawTrack.RotKeys[RotKeyIndex1], RawTrack.PosKeys[PosKeyIndex1], DefaultScale3D);
-		}
-		return;
-	}
-	else if(Alpha >= 1.f)
-	{
-		const int32 PosKeyIndex2 = FMath::Min(KeyIndex2, RawTrack.PosKeys.Num()-1);
-		const int32 RotKeyIndex2 = FMath::Min(KeyIndex2, RawTrack.RotKeys.Num()-1);
-		if(bHasScaleKey)
-		{
-			const int32 ScaleKeyIndex2 = FMath::Min(KeyIndex2, RawTrack.ScaleKeys.Num()-1);
-			OutAtom = FTransform(RawTrack.RotKeys[RotKeyIndex2], RawTrack.PosKeys[PosKeyIndex2], RawTrack.ScaleKeys[ScaleKeyIndex2]);
-		}
-		else
-		{
-			OutAtom = FTransform(RawTrack.RotKeys[RotKeyIndex2], RawTrack.PosKeys[PosKeyIndex2], DefaultScale3D);
-		}
-		return;
-	}
-
-	const int32 PosKeyIndex1 = FMath::Min(KeyIndex1, RawTrack.PosKeys.Num()-1);
-	const int32 RotKeyIndex1 = FMath::Min(KeyIndex1, RawTrack.RotKeys.Num()-1);
-
-	const int32 PosKeyIndex2 = FMath::Min(KeyIndex2, RawTrack.PosKeys.Num()-1);
-	const int32 RotKeyIndex2 = FMath::Min(KeyIndex2, RawTrack.RotKeys.Num()-1);
-
-	FTransform KeyAtom1, KeyAtom2;
-
-	if(bHasScaleKey)
-	{
-		const int32 ScaleKeyIndex1 = FMath::Min(KeyIndex1, RawTrack.ScaleKeys.Num()-1);
-		const int32 ScaleKeyIndex2 = FMath::Min(KeyIndex2, RawTrack.ScaleKeys.Num()-1);
-
-		KeyAtom1 = FTransform(RawTrack.RotKeys[RotKeyIndex1], RawTrack.PosKeys[PosKeyIndex1], RawTrack.ScaleKeys[ScaleKeyIndex1]);
-		KeyAtom2 = FTransform(RawTrack.RotKeys[RotKeyIndex2], RawTrack.PosKeys[PosKeyIndex2], RawTrack.ScaleKeys[ScaleKeyIndex2]);
-	}
-	else
-	{
-		KeyAtom1 = FTransform(RawTrack.RotKeys[RotKeyIndex1], RawTrack.PosKeys[PosKeyIndex1], DefaultScale3D);
-		KeyAtom2 = FTransform(RawTrack.RotKeys[RotKeyIndex2], RawTrack.PosKeys[PosKeyIndex2], DefaultScale3D);
-	}
-
-	// 	UE_LOG(LogAnimation, Log, TEXT(" *  *  *  Position. PosKeyIndex1: %3d, PosKeyIndex2: %3d, Alpha: %f"), PosKeyIndex1, PosKeyIndex2, Alpha);
-	// 	UE_LOG(LogAnimation, Log, TEXT(" *  *  *  Rotation. RotKeyIndex1: %3d, RotKeyIndex2: %3d, Alpha: %f"), RotKeyIndex1, RotKeyIndex2, Alpha);
-
-	// Ensure rotations are normalized (Added for Jira UE-53971)
-	if (!ensureMsgf(KeyAtom1.IsRotationNormalized(), TEXT("Rotation isn't normalized (Anim:%s)"), *GetPathName()))
-	{
-		KeyAtom1.NormalizeRotation();
-	}
-
-	if (!ensureMsgf(KeyAtom2.IsRotationNormalized(), TEXT("Rotation isn't normalized (Anim:%s)"), *GetPathName()))
-	{
-		KeyAtom2.NormalizeRotation();
-	}
-
-	OutAtom.Blend(KeyAtom1, KeyAtom2, Alpha);
-	OutAtom.NormalizeRotation();
+	FAnimationUtils::ExtractTransformFromTrack(Time, NumFrames, SequenceLength, RawTrack, Interpolation, OutAtom);
 }
 
 void UAnimSequence::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const
@@ -1153,7 +1279,7 @@ void UAnimSequence::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Conte
 
 FTransform UAnimSequence::ExtractRootTrackTransform(float Pos, const FBoneContainer * RequiredBones) const
 {
-	const TArray<FTrackToSkeletonMap> & TrackToSkeletonMap = bUseRawDataOnly ? TrackToSkeletonMapTable : CompressedTrackToSkeletonMapTable;
+	const TArray<FTrackToSkeletonMap> & TrackToSkeletonMap = bUseRawDataOnly ? TrackToSkeletonMapTable : CompressedData.CompressedTrackToSkeletonMapTable;
 
 	// we assume root is in first data if available = SkeletonIndex == 0 && BoneTreeIndex == 0)
 	if ((TrackToSkeletonMap.Num() > 0) && (TrackToSkeletonMap[0].BoneTreeIndex == 0))
@@ -1615,7 +1741,7 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 	// extract curve data . Even if no track, it can contain curve data
 	EvaluateCurveData(OutCurve, ExtractionContext.CurrentTime, bUseRawDataForPoseExtraction);
 
-	const int32 NumTracks = bUseRawDataForPoseExtraction ? TrackToSkeletonMapTable.Num() : CompressedTrackToSkeletonMapTable.Num();
+	const int32 NumTracks = bUseRawDataForPoseExtraction ? TrackToSkeletonMapTable.Num() : CompressedData.CompressedTrackToSkeletonMapTable.Num();
 	if (NumTracks == 0)
 	{
 		return;
@@ -1716,7 +1842,7 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 		CSV_SCOPED_TIMING_STAT(Animation, ExtractPoseFromAnimData);
 		CSV_CUSTOM_STAT(Animation, NumberOfExtractedAnimations, 1, ECsvCustomStatOp::Accumulate);
 
-		FAnimSequenceDecompressionContext EvalDecompContext(this);
+		FAnimSequenceDecompressionContext EvalDecompContext(SequenceLength, Interpolation, GetFName(), CompressedData.CompressedDataStructure);
 		EvalDecompContext.Seek(ExtractionContext.CurrentTime);
 
 		// Handle Root Bone separately
@@ -1835,22 +1961,10 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 }
 
 #if WITH_EDITORONLY_DATA
-void UAnimSequence::UpdateCompressedCurveNames()
-{
-	// Copy our curve names to the compressed array
-	const int32 NumCurves = RawCurveData.FloatCurves.Num();
-	CompressedCurveNames.Reset(NumCurves);
-	CompressedCurveNames.AddUninitialized(NumCurves);
-	for (int32 CurveIndex = 0; CurveIndex < NumCurves; ++CurveIndex)
-	{
-		const FFloatCurve& Curve = RawCurveData.FloatCurves[CurveIndex];
-		CompressedCurveNames[CurveIndex] = Curve.Name;
-	}
-}
 
 void UAnimSequence::UpdateCompressedCurveName(SmartName::UID_Type CurveUID, const struct FSmartName& NewCurveName)
 {
-	for (FSmartName& CurveName : CompressedCurveNames)
+	for (FSmartName& CurveName : CompressedData.CompressedCurveNames)
 	{
 		if (CurveName.UID == CurveUID)
 		{
@@ -2315,179 +2429,22 @@ bool UAnimSequence::CropRawAnimData( float CurrentTime, bool bFromStart )
 	return true;
 }
 
-bool UAnimSequence::CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, float MaxPosDiff, float MaxAngleDiff)
-{
-	bool bRemovedKeys = false;
-
-	// First part is to make sure we have valid input
-	bool const bPosTrackIsValid = (RawTrack.PosKeys.Num() == 1 || RawTrack.PosKeys.Num() == NumFrames);
-	if( !bPosTrackIsValid )
-	{
-		UE_LOG(LogAnimation, Warning, TEXT("Found non valid position track for %s, %d frames, instead of %d. Chopping!"), *GetName(), RawTrack.PosKeys.Num(), NumFrames);
-		bRemovedKeys = true;
-		RawTrack.PosKeys.RemoveAt(1, RawTrack.PosKeys.Num()- 1);
-		RawTrack.PosKeys.Shrink();
-		check( RawTrack.PosKeys.Num() == 1);
-	}
-
-	bool const bRotTrackIsValid = (RawTrack.RotKeys.Num() == 1 || RawTrack.RotKeys.Num() == NumFrames);
-	if( !bRotTrackIsValid )
-	{
-		UE_LOG(LogAnimation, Warning, TEXT("Found non valid rotation track for %s, %d frames, instead of %d. Chopping!"), *GetName(), RawTrack.RotKeys.Num(), NumFrames);
-		bRemovedKeys = true;
-		RawTrack.RotKeys.RemoveAt(1, RawTrack.RotKeys.Num()- 1);
-		RawTrack.RotKeys.Shrink();
-		check( RawTrack.RotKeys.Num() == 1);
-	}
-
-	// scale keys can be empty, and that is valid 
-	bool const bScaleTrackIsValid = (RawTrack.ScaleKeys.Num() == 0 || RawTrack.ScaleKeys.Num() == 1 || RawTrack.ScaleKeys.Num() == NumFrames);
-	if( !bScaleTrackIsValid )
-	{
-		UE_LOG(LogAnimation, Warning, TEXT("Found non valid Scaleation track for %s, %d frames, instead of %d. Chopping!"), *GetName(), RawTrack.ScaleKeys.Num(), NumFrames);
-		bRemovedKeys = true;
-		RawTrack.ScaleKeys.RemoveAt(1, RawTrack.ScaleKeys.Num()- 1);
-		RawTrack.ScaleKeys.Shrink();
-		check( RawTrack.ScaleKeys.Num() == 1);
-	}
-
-	// Second part is actual compression.
-
-	// Check variation of position keys
-	if( (RawTrack.PosKeys.Num() > 1) && (MaxPosDiff >= 0.0f) )
-	{
-		FVector FirstPos = RawTrack.PosKeys[0];
-		bool bFramesIdentical = true;
-		for(int32 j=1; j<RawTrack.PosKeys.Num() && bFramesIdentical; j++)
-		{
-			if( (FirstPos - RawTrack.PosKeys[j]).SizeSquared() > FMath::Square(MaxPosDiff) )
-			{
-				bFramesIdentical = false;
-			}
-		}
-
-		// If all keys are the same, remove all but first frame
-		if( bFramesIdentical )
-		{
-			bRemovedKeys = true;
-			RawTrack.PosKeys.RemoveAt(1, RawTrack.PosKeys.Num()- 1);
-			RawTrack.PosKeys.Shrink();
-			check( RawTrack.PosKeys.Num() == 1);
-		}
-	}
-
-	// Check variation of rotational keys
-	if( (RawTrack.RotKeys.Num() > 1) && (MaxAngleDiff >= 0.0f) )
-	{
-		FQuat FirstRot = RawTrack.RotKeys[0];
-		bool bFramesIdentical = true;
-		for(int32 j=1; j<RawTrack.RotKeys.Num() && bFramesIdentical; j++)
-		{
-			if( FQuat::Error(FirstRot, RawTrack.RotKeys[j]) > MaxAngleDiff )
-			{
-				bFramesIdentical = false;
-			}
-		}
-
-		// If all keys are the same, remove all but first frame
-		if( bFramesIdentical )
-		{
-			bRemovedKeys = true;
-			RawTrack.RotKeys.RemoveAt(1, RawTrack.RotKeys.Num()- 1);
-			RawTrack.RotKeys.Shrink();
-			check( RawTrack.RotKeys.Num() == 1);
-		}			
-	}
-	
-	float MaxScaleDiff = 0.0001f;
-
-	// Check variation of Scaleition keys
-	if( (RawTrack.ScaleKeys.Num() > 1) && (MaxScaleDiff >= 0.0f) )
-	{
-		FVector FirstScale = RawTrack.ScaleKeys[0];
-		bool bFramesIdentical = true;
-		for(int32 j=1; j<RawTrack.ScaleKeys.Num() && bFramesIdentical; j++)
-		{
-			if( (FirstScale - RawTrack.ScaleKeys[j]).SizeSquared() > FMath::Square(MaxScaleDiff) )
-			{
-				bFramesIdentical = false;
-			}
-		}
-
-		// If all keys are the same, remove all but first frame
-		if( bFramesIdentical )
-		{
-			bRemovedKeys = true;
-			RawTrack.ScaleKeys.RemoveAt(1, RawTrack.ScaleKeys.Num()- 1);
-			RawTrack.ScaleKeys.Shrink();
-			check( RawTrack.ScaleKeys.Num() == 1);
-		}
-	}
-
-	return bRemovedKeys;
-}
-
 bool UAnimSequence::CompressRawAnimData(float MaxPosDiff, float MaxAngleDiff)
 {
-	bool bRemovedKeys = false;
-#if WITH_EDITORONLY_DATA
-
-	if (AnimationTrackNames.Num() > 0 && ensureMsgf(RawAnimationData.Num() > 0, TEXT("%s is trying to compress while raw animation is missing"), *GetName()))
+	if (RawAnimationData.Num() > 0)
 	{
-		// This removes trivial keys, and this has to happen before the removing tracks
-		for(int32 TrackIndex=0; TrackIndex<RawAnimationData.Num(); TrackIndex++)
-		{
-			bRemovedKeys |= CompressRawAnimSequenceTrack(RawAnimationData[TrackIndex], MaxPosDiff, MaxAngleDiff);
-		}
-
-		const USkeleton* MySkeleton = GetSkeleton();
-
-		if(MySkeleton)
-		{
-			bool bCompressScaleKeys = false;
-			// go through remove keys if not needed
-			for(int32 TrackIndex=0; TrackIndex<RawAnimationData.Num(); TrackIndex++)
-			{
-				FRawAnimSequenceTrack const& RawData = RawAnimationData[TrackIndex];
-				if(RawData.ScaleKeys.Num() > 0)
-				{
-					// if scale key exists, see if we can just empty it
-					if((RawData.ScaleKeys.Num() > 1) || (RawData.ScaleKeys[0].Equals(FVector(1.f)) == false))
-					{
-						bCompressScaleKeys = true;
-						break;
-					}
-				}
-			}
-
-			// if we don't have scale, we should delete all scale keys
-			// if you have one track that has scale, we still should support scale, so compress scale
-			if(!bCompressScaleKeys)
-			{
-				// then remove all scale keys
-				for(int32 TrackIndex=0; TrackIndex<RawAnimationData.Num(); TrackIndex++)
-				{
-					FRawAnimSequenceTrack& RawData = RawAnimationData[TrackIndex];
-					RawData.ScaleKeys.Empty();
-				}
-			}
-		}
+		return StaticCompressRawAnimData(RawAnimationData, NumFrames, GetFName(), MaxPosDiff, MaxAngleDiff);
 	}
-
-	CompressedTrackOffsets.Empty();
-	CompressedScaleOffsets.Empty();
-	CompressedSegments.Empty();
-	CompressedByteStream.Empty();
-
-#endif
-	return bRemovedKeys;
+	return false;
 }
 
 bool UAnimSequence::CompressRawAnimData()
 {
-	const float MaxPosDiff = 0.0001f;
-	const float MaxAngleDiff = 0.0003f;
-	return CompressRawAnimData(MaxPosDiff, MaxAngleDiff);
+	if (RawAnimationData.Num() > 0)
+	{
+		return StaticCompressRawAnimData(RawAnimationData, NumFrames, GetFName());
+	}
+	return false;
 }
 
 /** 
@@ -2573,8 +2530,6 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 
 	TGuardValue<bool> CompressGuard(bCompressionInProgress, true);
 
-	const bool bDoCompressionInPlace = FUObjectThreadContext::Get().IsRoutingPostLoad;
-
 	// Need to make sure this is up to date.
 	VerifyCurveNames<FFloatCurve>(*CurrentSkeleton, USkeleton::AnimCurveMappingName, RawCurveData.FloatCurves);
 	VerifyTrackMap(CurrentSkeleton);
@@ -2587,8 +2542,16 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		const bool bPerformFrameStripping = Params.bPerformFrameStripping && bAllowFrameStripping;
 		const bool bPerformStrippingOnOddFramedAnims = Params.bPerformFrameStrippingOnOddNumberedFrames;
 
+		const int32 PreviousCompressionSize = GetApproxCompressedSize();
+
+		// Filter RAW data to get rid of mismatched tracks (translation/rotation data with a different number of keys than there are frames)
+		// No trivial key removal is done at this point (impossible error metrics of -1), since all of the techniques will perform it themselves
+		CompressRawAnimData(-1.0f, -1.0f);
+
+		FCompressibleAnimData CompressibleData(this); //Build the data that the compression code will compress
+
 		TArray<uint8> OutData;
-		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(this, Params.CompressContext, bDoCompressionInPlace, bPerformFrameStripping, bPerformStrippingOnOddFramedAnims);
+		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(CompressibleData, Params.CompressContext, PreviousCompressionSize, bPerformFrameStripping, bPerformStrippingOnOddFramedAnims);
 		// For debugging DDC/Compression issues		
 		const bool bSkipDDC = false;
 		if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
@@ -2612,7 +2575,7 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 			}
 		}
 
-		if (bUseRawDataOnly && OutData.Num() > 0)
+		if (OutData.Num() > 0)
 		{
 			FMemoryReader MemAr(OutData);
 			SerializeCompressedData(MemAr, true);
@@ -2624,260 +2587,12 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 #endif
 }
 
-#if WITH_EDITOR
-struct FAnimDDCDebugData
-{
-	FString FullName;
-	uint8   AdditiveSetting;
-	FString CompressionSchemeName;
-	FGuid   RawDataGuid;
-
-	FAnimDDCDebugData(const UAnimSequence* AnimSequence, FArchive& Ar)
-	{
-		if (Ar.IsSaving())
-		{
-			FullName = AnimSequence->GetFullName();
-			AdditiveSetting = (uint8)AnimSequence->AdditiveAnimType.GetValue();
-			CompressionSchemeName = AnimSequence->CompressionScheme->GetFullName();
-			RawDataGuid = AnimSequence->GetRawDataGuid();
-		}
-
-		Ar << FullName;
-		Ar << AdditiveSetting;
-		Ar << CompressionSchemeName;
-		Ar << RawDataGuid;
-	}
-};
-#endif
-
 void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 {
-	Ar << KeyEncodingFormat;
-	Ar << TranslationCompressionFormat;
-	Ar << RotationCompressionFormat;
-	Ar << ScaleCompressionFormat;
-
-	Ar << CompressedTrackOffsets;
-	Ar << CompressedScaleOffsets;
-	Ar << CompressedSegments;
-
-	Ar << CompressedTrackToSkeletonMapTable;
-	Ar << CompressedCurveNames;
-
-	Ar << CompressedRawDataSize;
-	Ar << CompressedNumFrames;
-
-	if (Ar.IsLoading())
+	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// Serialize the compressed byte stream from the archive to the buffer.
-		int32 NumBytes;
-		Ar << NumBytes;
-
-		// we must know the proper codecs to use
-		AnimationFormat_SetInterfaceLinks(*this);
-		check(RotationCodec != NULL);
-
-		bool bUseBulkDataForLoad = false;
-		if (!bDDCData && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::FortMappedCookedAnimation)
-		{
-			Ar << bUseBulkDataForLoad;
-		}
-		if (bUseBulkDataForLoad)
-		{
-#if !WITH_EDITOR
-			FByteBulkData OptionalBulk;
-#endif
-			bool bUseMapping = FPlatformProperties::SupportsMemoryMappedFiles() && FPlatformProperties::SupportsMemoryMappedAnimation();
-			OptionalBulk.Serialize(Ar, this, -1, bUseMapping);
-
-			if (!bUseMapping)
-			{
-				OptionalBulk.ForceBulkDataResident();
-			}
-
-			size_t Size = OptionalBulk.GetBulkDataSize();
-
-			FOwnedBulkDataPtr* OwnedPtr = OptionalBulk.StealFileMapping();
-
-#if WITH_EDITOR
-			check(!bUseMapping && !OwnedPtr->GetMappedHandle());
-			CompressedByteStream.Empty(Size);
-			CompressedByteStream.AddUninitialized(Size);
-			if (Size)
-			{
-				FMemory::Memcpy(&CompressedByteStream[0], OwnedPtr->GetPointer(), Size);
-			}
-#else
-			CompressedByteStream.AcceptOwnedBulkDataPtr(OwnedPtr, Size);
-#endif
-			delete OwnedPtr;
-		}
-		else
-		{
-			if (FPlatformProperties::RequiresCookedData())
-			{
-				CompressedByteStream.Empty(NumBytes);
-				CompressedByteStream.AddUninitialized(NumBytes);
-				Ar.Serialize(CompressedByteStream.GetData(), NumBytes);
-			}
-			else
-			{
-				TArray<uint8> SerializedData;
-				SerializedData.Empty(NumBytes);
-				SerializedData.AddUninitialized(NumBytes);
-				Ar.Serialize(SerializedData.GetData(), NumBytes);
-
-				// Swap the buffer into the byte stream.
-				FMemoryReader MemoryReader(SerializedData, true);
-				MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
-				((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
-			}
-		}
-		
-		FString CurveCodecPath;
-		Ar << CurveCodecPath;
-
-		CurveCompressionCodec = CurveCompressionSettings->GetCodec(CurveCodecPath);
-
-		int32 NumCurveBytes;
-		Ar << NumCurveBytes;
-
-		CompressedCurveByteStream.Empty(NumCurveBytes);
-		CompressedCurveByteStream.AddUninitialized(NumCurveBytes);
-		Ar.Serialize(CompressedCurveByteStream.GetData(), NumCurveBytes);
+		CompressedData.SerializeCompressedData(Ar, bDDCData, this, CurveCompressionSettings);
 	}
-	else if (Ar.IsSaving() || Ar.IsCountingMemory())
-	{
-		// Swap the byte stream into a buffer.
-		TArray<uint8> SerializedData;
-
-		const bool bIsCooking = !bDDCData && Ar.IsCooking();
-
-		if (!HasAnyFlags(RF_ClassDefaultObject))
-		{
-			// we must know the proper codecs to use
-			AnimationFormat_SetInterfaceLinks(*this);
-
-			// and then use the codecs to byte swap
-			check(RotationCodec != NULL);
-			((AnimEncoding*)RotationCodec)->ByteSwapOut(*this, SerializedData, Ar.ForceByteSwapping(), bIsCooking);
-		}
-
-		// Make sure the entire byte stream was serialized.
-		//check( CompressedByteStream.Num() == SerializedData.Num() );
-
-		// Serialize the buffer to archive.
-		int32 Num = SerializedData.Num();
-		Ar << Num;
-
-		bool bUseBulkDataForSave = Num && bIsCooking && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles) && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::MemoryMappedAnimation);
-
-		bool bSavebUseBulkDataForSave = false;
-		if (!bDDCData)
-		{
-			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
-			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::FortMappedCookedAnimation)
-			{
-				bUseBulkDataForSave = false;
-			}
-			else
-			{
-				bSavebUseBulkDataForSave = true;
-			}
-		}
-
-		// Count compressed data.
-		Ar.CountBytes(SerializedData.Num(), SerializedData.Num());
-
-		if (bSavebUseBulkDataForSave)
-		{
-			Ar << bUseBulkDataForSave;
-		}
-		else
-		{
-			check(!bUseBulkDataForSave);
-		}
-
-#define TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING WITH_EDITOR
-#if TEST_IS_CORRECTLY_FORMATTED_FOR_MEMORY_MAPPING
-		if(!IsTemplate() && bIsCooking)
-		{
-			TArray<uint8> TempSerialized;
-			check(RotationCodec != NULL);
-			((AnimEncoding*)RotationCodec)->ByteSwapOut(*this, TempSerialized, Ar.ForceByteSwapping());
-
-			FMemoryReader MemoryReader(TempSerialized, true);
-			MemoryReader.SetByteSwapping(Ar.ForceByteSwapping());
-
-			TArray<uint8> SavedCompressedByteStream = CompressedByteStream;
-			CompressedByteStream.Empty();
-
-			((AnimEncoding*)RotationCodec)->ByteSwapIn(*this, MemoryReader);
-
-			check(CompressedByteStream.Num() == Num);
-
-			check(FMemory::Memcmp(SerializedData.GetData(), CompressedByteStream.GetData(), Num) == 0);
-
-			CompressedByteStream = SavedCompressedByteStream;
-		}
-#endif
-
-		if (bUseBulkDataForSave)
-		{
-#if WITH_EDITOR
-			OptionalBulk.Lock(LOCK_READ_WRITE);
-			void* Dest = OptionalBulk.Realloc(Num);
-			FMemory::Memcpy(Dest, &(SerializedData[0]), Num);
-			OptionalBulk.Unlock();
-			OptionalBulk.SetBulkDataFlags(BULKDATA_PayloadAtEndOfFile | BULKDATA_PayloadInSeperateFile | BULKDATA_Force_NOT_InlinePayload | BULKDATA_MemoryMappedPayload);
-			OptionalBulk.ClearBulkDataFlags(BULKDATA_ForceInlinePayload);
-			OptionalBulk.Serialize(Ar, this);
-#else
-			UE_LOG(LogAnimation, Fatal, TEXT("Can't save animation as bulk data in non-editor builds!"));
-#endif
-		}
-		else
-		{
-			Ar.Serialize(SerializedData.GetData(), SerializedData.Num());
-		}
-
-		FString CurveCodecPath = CurveCompressionCodec->GetPathName();
-		Ar << CurveCodecPath;
-
-		int32 NumCurveBytes = CompressedCurveByteStream.Num();
-		Ar << NumCurveBytes;
-		Ar.Serialize(CompressedCurveByteStream.GetData(), NumCurveBytes);
-	}
-
-#if WITH_EDITOR
-	if (bDDCData)
-	{
-		//Skip ddc debug data if we are cooking
-		FAnimDDCDebugData DebugData(this, Ar);
-
-		if (Ar.IsLoading())
-		{
-			if(USkeleton* CurrentSkeleton = GetSkeleton())
-			{
-				// Refresh the compressed curve names since the IDs might have changed since
-				for (FSmartName& CurveName : CompressedCurveNames)
-				{
-					CurrentSkeleton->VerifySmartName(USkeleton::AnimCurveMappingName, CurveName);
-				}
-
-				bUseRawDataOnly = !IsCompressedDataValid() || !IsCurveCompressedDataValid();
-
-				ensureMsgf(!bUseRawDataOnly, TEXT("Anim Compression failed for Sequence '%s' Guid:%s CompressedDebugData:\n\tOriginal Anim:%s\n\tAdditiveSetting:%i\n\tCompression Scheme:%s\n\tRawDataGuid:%s"),
-					*GetFullName(),
-					*RawDataGuid.ToString(),
-					*DebugData.FullName,
-					DebugData.AdditiveSetting,
-					*DebugData.CompressionSchemeName,
-					*DebugData.RawDataGuid.ToString());
-			}
-		}
-	}
-#endif
 }
 
 #if WITH_EDITOR
@@ -2975,9 +2690,6 @@ void CopyTransformToRawAnimationData(const FTransform& BoneTransform, FRawAnimSe
 
 struct FByFramePoseEvalContext
 {
-private:
-	const UAnimSequence* AnimToEval;
-	
 public:
 	FBoneContainer RequiredBones;
 
@@ -2987,36 +2699,38 @@ public:
 	TArray<FBoneIndexType> RequiredBoneIndexArray;
 
 	FByFramePoseEvalContext(const UAnimSequence* InAnimToEval)
-		: AnimToEval(InAnimToEval)
-		, IntervalTime(InAnimToEval->SequenceLength / ((float)InAnimToEval->GetRawNumberOfFrames() - 1))
+		: FByFramePoseEvalContext(InAnimToEval->SequenceLength, InAnimToEval->GetRawNumberOfFrames(), InAnimToEval->GetSkeleton())
+	{}
+		
+	FByFramePoseEvalContext(float InSequenceLength, int32 InRawNumOfFrames, USkeleton* InSkeleton)
+		: IntervalTime(InSequenceLength / ((float)InRawNumOfFrames - 1))
 	{
 		// Initialize RequiredBones for pose evaluation
 		RequiredBones.SetUseRAWData(true);
 
-		USkeleton* MySkeleton = AnimToEval->GetSkeleton();
-		check(MySkeleton);
+		check(InSkeleton);
 
-		RequiredBoneIndexArray.AddUninitialized(MySkeleton->GetReferenceSkeleton().GetNum());
+		RequiredBoneIndexArray.AddUninitialized(InSkeleton->GetReferenceSkeleton().GetNum());
 		for (int32 BoneIndex = 0; BoneIndex < RequiredBoneIndexArray.Num(); ++BoneIndex)
 		{
 			RequiredBoneIndexArray[BoneIndex] = BoneIndex;
 		}
 
-		RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(true), *MySkeleton);
+		RequiredBones.InitializeTo(RequiredBoneIndexArray, FCurveEvaluationOption(true), *InSkeleton);
 	}
 
 };
 
-void UAnimSequence::BakeOutVirtualBoneTracks()
+void UAnimSequence::BakeOutVirtualBoneTracks(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable)
 {
 	const int32 NumVirtualBones = GetSkeleton()->GetVirtualBones().Num();
 	check( (RawAnimationData.Num() == TrackToSkeletonMapTable.Num()) && (RawAnimationData.Num() == AnimationTrackNames.Num()) ); //Make sure starting data is valid
 
-	TArray<FRawAnimSequenceTrack> NewRawTracks = TArray<FRawAnimSequenceTrack>(RawAnimationData, NumVirtualBones);
+	NewRawTracks = TArray<FRawAnimSequenceTrack>(RawAnimationData, NumVirtualBones);
 
-	TArray<FTrackToSkeletonMap> NewTrackToSkeletonMapTable = TArray<FTrackToSkeletonMap>(TrackToSkeletonMapTable, NumVirtualBones);
+	NewTrackToSkeletonMapTable = TArray<FTrackToSkeletonMap>(TrackToSkeletonMapTable, NumVirtualBones);
 
-	TArray<FName> NewAnimationTrackNames = TArray<FName>(AnimationTrackNames, NumVirtualBones);
+	NewAnimationTrackNames = TArray<FName>(AnimationTrackNames, NumVirtualBones);
 
 	for (int32 VBIndex = 0; VBIndex < NumVirtualBones; ++VBIndex)
 	{
@@ -3060,11 +2774,7 @@ void UAnimSequence::BakeOutVirtualBoneTracks()
 		}
 	}
 
-	RawAnimationData = MoveTemp(NewRawTracks);
-	AnimationTrackNames = MoveTemp(NewAnimationTrackNames);
-	TrackToSkeletonMapTable = MoveTemp(NewTrackToSkeletonMapTable);
-
-	CompressRawAnimData();
+	StaticCompressRawAnimData(NewRawTracks, NumFrames, GetFName());
 }
 
 bool IsIdentity(const FVector& Pos)
@@ -3114,7 +2824,7 @@ void UAnimSequence::TestEvalauteAnimation() const
 	}
 }
 
-void UAnimSequence::BakeOutAdditiveIntoRawData()
+void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable, FRawCurveTracks& NewCurveTracks, TArray<FRawAnimSequenceTrack>& AdditiveBaseAnimationData)
 {
 	AddAnimLoadingDebugEntry(TEXT("BakeOutAdditiveIntoRawData"));
 	if (!CanBakeAdditive())
@@ -3134,10 +2844,7 @@ void UAnimSequence::BakeOutAdditiveIntoRawData()
 
 	FByFramePoseEvalContext EvalContext(this);
 
-	//New raw data
-	FRawCurveTracks NewCurveTracks;
-
-	TArray<FRawAnimSequenceTrack> NewRawTracks;
+	NewRawTracks.Reset(EvalContext.RequiredBoneIndexArray.Num());
 	NewRawTracks.SetNum(EvalContext.RequiredBoneIndexArray.Num());
 
 	for (FRawAnimSequenceTrack& RawTrack : NewRawTracks)
@@ -3148,12 +2855,12 @@ void UAnimSequence::BakeOutAdditiveIntoRawData()
 	}
 
 	// keep the same buffer size
-	TemporaryAdditiveBaseAnimationData = NewRawTracks;
+	AdditiveBaseAnimationData = NewRawTracks;
 
-	TArray<FTrackToSkeletonMap> NewTrackToSkeletonMapTable;
+	NewTrackToSkeletonMapTable.Reset(EvalContext.RequiredBoneIndexArray.Num());
 	NewTrackToSkeletonMapTable.SetNumUninitialized(EvalContext.RequiredBoneIndexArray.Num());
 
-	TArray<FName> NewAnimationTrackNames;
+	NewAnimationTrackNames.SetNumUninitialized(EvalContext.RequiredBoneIndexArray.Num());
 	NewAnimationTrackNames.SetNumUninitialized(EvalContext.RequiredBoneIndexArray.Num());
 
 	for (int32 TrackIndex = 0; TrackIndex < EvalContext.RequiredBoneIndexArray.Num(); ++TrackIndex)
@@ -3189,7 +2896,7 @@ void UAnimSequence::BakeOutAdditiveIntoRawData()
 		for (FCompactPoseBoneIndex TrackIndex(0); TrackIndex < NewRawTracks.Num(); ++TrackIndex)
 		{
 			CopyTransformToRawAnimationData(Pose[TrackIndex], NewRawTracks[TrackIndex.GetInt()], Frame);
-			CopyTransformToRawAnimationData(BasePose[TrackIndex], TemporaryAdditiveBaseAnimationData[TrackIndex.GetInt()], Frame);
+			CopyTransformToRawAnimationData(BasePose[TrackIndex], AdditiveBaseAnimationData[TrackIndex.GetInt()], Frame);
 		}
 
 		//Write out curve data for this frame
@@ -3234,17 +2941,12 @@ void UAnimSequence::BakeOutAdditiveIntoRawData()
 		}
 	}
 
-	RawAnimationData = MoveTemp(NewRawTracks);
-	AnimationTrackNames = MoveTemp(NewAnimationTrackNames);
-	TrackToSkeletonMapTable = MoveTemp(NewTrackToSkeletonMapTable);
-	RawCurveData = NewCurveTracks;
-
 	const FSmartNameMapping* Mapping = GetSkeleton()->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
 	check(Mapping); // Should always exist
-	RawCurveData.RefreshName(Mapping);
+	NewCurveTracks.RefreshName(Mapping);
 
 #if 0 //Validate baked data
-	for (FRawAnimSequenceTrack& RawTrack : RawAnimationData)
+	for (FRawAnimSequenceTrack& RawTrack : NewRawTracks)
 	{
 		for (FQuat& Rot : RawTrack.RotKeys)
 		{
@@ -3253,17 +2955,17 @@ void UAnimSequence::BakeOutAdditiveIntoRawData()
 	}
 #endif
 
-	CompressRawAnimData();
+	StaticCompressRawAnimData(NewRawTracks,NumFrames, GetFName());
 
 	// Note on (TrackIndex > 0) below : deliberately stop before track 0, compression code doesn't like getting a completely empty animation
-	for (int32 TrackIndex = RawAnimationData.Num() - 1; TrackIndex > 0; --TrackIndex)
+	for (int32 TrackIndex = NewRawTracks.Num() - 1; TrackIndex > 0; --TrackIndex)
 	{
-		const FRawAnimSequenceTrack& Track = RawAnimationData[TrackIndex];
+		const FRawAnimSequenceTrack& Track = NewRawTracks[TrackIndex];
 		if (IsRawTrackValidForRemoval(Track))
 		{
-			RawAnimationData.RemoveAtSwap(TrackIndex, 1, false);
-			AnimationTrackNames.RemoveAtSwap(TrackIndex, 1, false);
-			TrackToSkeletonMapTable.RemoveAtSwap(TrackIndex, 1, false);
+			NewRawTracks.RemoveAtSwap(TrackIndex, 1, false);
+			NewAnimationTrackNames.RemoveAtSwap(TrackIndex, 1, false);
+			NewTrackToSkeletonMapTable.RemoveAtSwap(TrackIndex, 1, false);
 		}
 	}
 
@@ -3291,22 +2993,17 @@ void UAnimSequence::RecycleAnimSequence()
 	RawDataGuid.Invalidate();
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();
-	CompressedTrackToSkeletonMapTable.Empty();
-	CompressedTrackOffsets.Empty(0);
-	CompressedByteStream.Empty(0);
-	CompressedScaleOffsets.Empty(0);
-	CompressedSegments.Empty(0);
+	CompressedData.CompressedDataStructure.Reset();
 	SourceRawAnimationData.Empty(0);
 	RawCurveData.Empty();
-	CompressedCurveByteStream.Empty(0);
-	CompressedCurveNames.Empty(0);
+	CompressedData.CompressedCurveByteStream.Empty(0);
+	CompressedData.CompressedCurveNames.Empty(0);
 	AuthoredSyncMarkers.Empty();
 	UniqueMarkerNames.Empty();
 	Notifies.Empty();
 	AnimNotifyTracks.Empty();
 	CompressionScheme = nullptr;
-	CurveCompressionCodec = nullptr;
-	TranslationCompressionFormat = RotationCompressionFormat = ScaleCompressionFormat = ACF_None;
+	CompressedData.CurveCompressionCodec = nullptr;
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -3318,45 +3015,10 @@ void UAnimSequence::CleanAnimSequenceForImport()
 	RawDataGuid.Invalidate();
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();
-	CompressedTrackOffsets.Empty(0);
-	CompressedByteStream.Empty(0);
-	CompressedScaleOffsets.Empty(0);
+	CompressedData.CompressedDataStructure.Reset();
 	SourceRawAnimationData.Empty(0);
 }
 #endif // WITH_EDITOR
-
-bool UAnimSequence::CopyAnimSequenceProperties(UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bSkipCopyingNotifies)
-{
-#if WITH_EDITORONLY_DATA
-	// Copy parameters
-	DestAnimSeq->SequenceLength				= SourceAnimSeq->SequenceLength;
-	DestAnimSeq->NumFrames					= SourceAnimSeq->NumFrames;
-	DestAnimSeq->RateScale					= SourceAnimSeq->RateScale;
-	DestAnimSeq->bDoNotOverrideCompression	= SourceAnimSeq->bDoNotOverrideCompression;
-
-	// Copy Compression Settings
-	DestAnimSeq->CompressionScheme = static_cast<UAnimCompress*>(StaticDuplicateObject(SourceAnimSeq->CompressionScheme, DestAnimSeq, NAME_None, RF_AllFlags, nullptr, EDuplicateMode::Normal, ~EInternalObjectFlags::RootSet));
-	DestAnimSeq->TranslationCompressionFormat	= SourceAnimSeq->TranslationCompressionFormat;
-	DestAnimSeq->RotationCompressionFormat		= SourceAnimSeq->RotationCompressionFormat;
-	DestAnimSeq->AdditiveAnimType				= SourceAnimSeq->AdditiveAnimType;
-	DestAnimSeq->RefPoseType					= SourceAnimSeq->RefPoseType;
-	DestAnimSeq->RefPoseSeq						= SourceAnimSeq->RefPoseSeq;
-	DestAnimSeq->RefFrameIndex					= SourceAnimSeq->RefFrameIndex;
-
-	if( !bSkipCopyingNotifies )
-	{
-		// Copy Metadata information
-		CopyNotifies(SourceAnimSeq, DestAnimSeq);
-	}
-
-	DestAnimSeq->MarkPackageDirty();
-
-	// Copy Curve Data
-	DestAnimSeq->RawCurveData = SourceAnimSeq->RawCurveData;
-#endif // WITH_EDITORONLY_DATA
-
-	return true;
-}
 
 
 bool UAnimSequence::CopyNotifies(UAnimSequence* SourceAnimSeq, UAnimSequence* DestAnimSeq, bool bShowDialogs /*= true */)
@@ -5078,10 +4740,7 @@ void UAnimSequence::ResetAnimation()
 	SourceRawAnimationData.Empty();
 	AnimationTrackNames.Empty();
 	TrackToSkeletonMapTable.Empty();
-	CompressedTrackOffsets.Empty();
-	CompressedScaleOffsets.Empty();
-	CompressedSegments.Empty();
-	CompressedByteStream.Empty();
+	CompressedData.CompressedDataStructure.Reset();
 
 	Notifies.Empty();
 	AuthoredSyncMarkers.Empty();
@@ -5285,7 +4944,7 @@ void UAnimSequence::EvaluateCurveData(FBlendedCurve& OutCurve, float CurrentTime
 	else
 	{
 		CSV_SCOPED_TIMING_STAT(Animation, EvaluateCurveData);
-		CurveCompressionCodec->DecompressCurves(*this, OutCurve, CurrentTime);
+		CompressedData.CurveCompressionCodec->DecompressCurves(CompressedData, OutCurve, CurrentTime);
 	}
 }
 
@@ -5299,7 +4958,7 @@ float UAnimSequence::EvaluateCurveData(SmartName::UID_Type CurveUID, float Curre
 	}
 	else
 	{
-		return CurveCompressionCodec->DecompressCurve(*this, CurveUID, CurrentTime);
+		return CompressedData.CurveCompressionCodec->DecompressCurve(CompressedData, CurveUID, CurrentTime);
 	}
 }
 
@@ -5310,7 +4969,7 @@ bool UAnimSequence::HasCurveData(SmartName::UID_Type CurveUID, bool bForceUseRaw
 		return Super::HasCurveData(CurveUID, bForceUseRawData);
 	}
 
-	for (const FSmartName& CurveName : CompressedCurveNames)
+	for (const FSmartName& CurveName : CompressedData.CompressedCurveNames)
 	{
 		if (CurveName.UID == CurveUID)
 		{
@@ -6056,10 +5715,7 @@ void UAnimSequence::EnableRootMotionSettingFromMontage(bool bInEnableRootMotion,
 #if WITH_EDITOR
 void UAnimSequence::OnRawDataChanged()
 {
-	CompressedTrackOffsets.Empty();
-	CompressedScaleOffsets.Empty();
-	CompressedByteStream.Empty();
-	CompressedSegments.Empty();
+	CompressedData.CompressedDataStructure.Reset();
 	bUseRawDataOnly = true;
 
 	RequestSyncAnimRecompression(false);
@@ -6070,19 +5726,18 @@ void UAnimSequence::OnRawDataChanged()
 
 bool UAnimSequence::IsCompressedDataValid() const
 {
-	return CompressedByteStream.Num() > 0 || RawAnimationData.Num() == 0 ||
-		   (TranslationCompressionFormat == ACF_Identity && RotationCompressionFormat == ACF_Identity && ScaleCompressionFormat == ACF_Identity);
+	return CompressedData.CompressedDataStructure.IsCompressedDataValid() || RawAnimationData.Num() == 0;
 }
 
 bool UAnimSequence::IsCurveCompressedDataValid() const
 {
-	if (CurveCompressionCodec == nullptr)
+	if (CompressedData.CurveCompressionCodec == nullptr)
 	{
 		// No codec
 		return false;
 	}
 
-	if (CompressedCurveByteStream.Num() == 0 && RawCurveData.FloatCurves.Num() != 0)
+	if (CompressedData.CompressedCurveByteStream.Num() == 0 && RawCurveData.FloatCurves.Num() != 0)
 	{
 		// No compressed data but we have raw data
 		if (!IsValidAdditive())
@@ -6146,7 +5801,7 @@ void GatherAnimSequenceStats(FOutputDevice& Ar)
 		int32 NumScaleTracksWithOneKey = 0;
 
 		AnimationFormat_GetStats(
-			Seq, 
+			Seq->CompressedData.CompressedDataStructure,
 			NumTransTracks,
 			NumRotTracks,
 			NumScaleTracks,
@@ -6181,7 +5836,7 @@ void GatherAnimSequenceStats(FOutputDevice& Ar)
 			NumTransTracks, NumRotTracks, NumScaleTracks,
 			NumTransTracksWithOneKey, NumRotTracksWithOneKey, NumScaleTracksWithOneKey,
 			TotalNumTransKeys, TotalNumRotKeys, TotalNumScaleKeys,
-			*FAnimationUtils::GetAnimationKeyFormatString(static_cast<AnimationKeyFormat>(Seq->KeyEncodingFormat)),
+			*FAnimationUtils::GetAnimationKeyFormatString(static_cast<AnimationKeyFormat>(Seq->CompressedData.CompressedDataStructure.KeyEncodingFormat)),
 			(int32)Seq->GetResourceSizeBytes(EResourceSizeMode::EstimatedTotal) );
 	}
 	Ar.Logf( TEXT("======================================================================") );
