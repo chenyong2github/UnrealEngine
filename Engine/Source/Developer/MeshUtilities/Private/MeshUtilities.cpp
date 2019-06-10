@@ -5711,6 +5711,8 @@ void FMeshUtilities::ShutdownModule()
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>(PropertyEditorModuleName);
 
 		PropertyEditorModule.UnregisterCustomClassLayout("MeshSimplificationSettings");
+		PropertyEditorModule.UnregisterCustomClassLayout("SkeletalMeshSimplificationSettings");
+		PropertyEditorModule.UnregisterCustomClassLayout("ProxyLODMeshSimplificationSettings");
 	}
 
 	RemoveLevelViewportMenuExtender();
