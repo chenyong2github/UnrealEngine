@@ -233,14 +233,26 @@ void FSessionService::UpdateSessions()
 	TArray<FRecorderSessionInfo> RecorderSessions;
 	TraceRecorder->GetActiveSessions(RecorderSessions);
 
+	TSet<FSessionHandle> SessionsToRemove;
+	for (const auto& KV : Sessions)
+	{
+		SessionsToRemove.Add(KV.Key);
+	}
+
 	FScopeLock Lock(&SessionsCS);
 	for (const FStoreSessionInfo& StoreSession : StoreSessions)
 	{
 		FSessionInfoInternal& Session = Sessions.FindOrAdd(StoreSession.Handle);
+		SessionsToRemove.Remove(StoreSession.Handle);
 		Session.Uri = StoreSession.Uri;
 		Session.Name = StoreSession.Name;
 		Session.bIsLive = StoreSession.bIsLive;
 		Session.RecorderSessionHandle = 0;
+	}
+
+	for (FSessionHandle Session : SessionsToRemove)
+	{
+		Sessions.Remove(Session);
 	}
 
 	for (const FRecorderSessionInfo& RecorderSession : RecorderSessions)
