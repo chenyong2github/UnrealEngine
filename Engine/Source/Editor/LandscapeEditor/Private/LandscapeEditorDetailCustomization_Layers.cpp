@@ -144,7 +144,7 @@ void FLandscapeEditorCustomNodeBuilder_Layers::GenerateChildContent(IDetailChild
 		LayerList->SetDropIndicator_Above(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Above"));
 		LayerList->SetDropIndicator_Below(*FEditorStyle::GetBrush("LandscapeEditor.TargetList.DropZone.Below"));
 
-		ChildrenBuilder.AddCustomRow(FText::FromString(FString(TEXT("Test"))))
+		ChildrenBuilder.AddCustomRow(FText::FromString(FString(TEXT("Layers"))))
 			.Visibility(EVisibility::Visible)
 			[
 				LayerList.ToSharedRef()
