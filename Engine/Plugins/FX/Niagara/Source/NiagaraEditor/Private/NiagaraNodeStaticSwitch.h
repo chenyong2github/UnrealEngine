@@ -30,6 +30,10 @@ struct FStaticSwitchTypeData
 	UPROPERTY()
 	UEnum* Enum;
 
+	/** If set, then this switch is not exposed but will rather be evaluated by the given compile-time constant */
+	UPROPERTY()
+	FName SwitchConstant;
+
 	FStaticSwitchTypeData() : SwitchType(ENiagaraStaticSwitchType::Bool), MaxIntCount(1), Enum(nullptr)
 	{ }
 };
@@ -54,6 +58,10 @@ public:
 
 	void SetSwitchValue(int Value);
 	void ClearSwitchValue();
+	/** If true then the value of this static switch is not set by the user but directly by the compiler via one of the engine constants (e.g. Emitter.Determinism). */
+	bool IsSetByCompiler() const;
+
+	void UpdateCompilerConstantValue(class FHlslNiagaraTranslator* Translator);
 
 	//~ Begin EdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
