@@ -157,7 +157,9 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 
 	for (FNiagaraGPUSystemTick* Tick : OverlappableTick)
 	{
-		uint32 DispatchCount = Tick->Count;
+		const uint32 DispatchCount = Tick->Count;
+		const bool bIsFinalTick = Tick->bIsFinalTick;
+
 		FNiagaraComputeInstanceData* Instances = Tick->GetInstanceData();
 		for (uint32 Index = 0; Index < DispatchCount; Index++)
 		{
@@ -212,7 +214,7 @@ void NiagaraEmitterInstanceBatcher::ResizeBuffersAndGatherResources(FOverlappabl
 			}
 
 			Context->MainDataSet->EndSimulate();
-			if (Instance.bIsFinalTick)
+			if (bIsFinalTick)
 			{
 				Context->SetDataToRender(Instance.DestinationData);
 			}
@@ -380,8 +382,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList &RHICmdList, FUni
 			for (auto& Ticks : ContextToTicks)
 			{
 				NumSimPass = FMath::Max(NumSimPass, (uint32)Ticks.Value.Num());
-				FNiagaraComputeInstanceData* Data = Ticks.Value.Last()->GetInstanceData();
-				Data->bIsFinalTick = true;
+				Ticks.Value.Last()->bIsFinalTick = true;
 			}
 
 			// Transpose now only once the data to get all independent tick per pass
