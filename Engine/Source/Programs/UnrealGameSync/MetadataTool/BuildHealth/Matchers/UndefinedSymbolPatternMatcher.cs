@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Tools.DotNETCommon.Perforce;
 
 namespace MetadataTool
 {
@@ -94,6 +95,40 @@ namespace MetadataTool
 
 			// Otherwise pass
 			return false;
+		}
+
+		public override List<ChangeInfo> FindCausers(PerforceConnection Perforce, BuildHealthIssue Issue, IReadOnlyList<ChangeInfo> Changes)
+		{
+			SortedSet<string> FileNamesWithoutPath = new SortedSet<string>(StringComparer.Ordinal);
+			foreach(string Identifier in Issue.Identifiers)
+			{
+				Match Match = Regex.Match(Identifier, "^[AUFS]([A-Z][A-Za-z_]*)::");
+				if(Match.Success)
+				{
+					FileNamesWithoutPath.Add(Match.Groups[1].Value + ".h");
+					FileNamesWithoutPath.Add(Match.Groups[1].Value + ".cpp");
+				}
+			}
+
+			if(FileNamesWithoutPath.Count > 0)
+			{
+				List<ChangeInfo> Causers = new List<ChangeInfo>();
+				foreach (ChangeInfo Change in Changes)
+				{
+					DescribeRecord DescribeRecord = GetDescribeRecord(Perforce, Change);
+					if (ContainsFileNames(DescribeRecord, FileNamesWithoutPath))
+					{
+						Causers.Add(Change);
+					}
+				}
+
+				if (Causers.Count > 0)
+				{
+					return Causers;
+				}
+			}
+
+			return base.FindCausers(Perforce, Issue, Changes);
 		}
 
 		public override string GetSummary(BuildHealthIssue Issue)
