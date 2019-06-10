@@ -197,7 +197,7 @@ public:
 	 * Notification from the renderer that it is about to perform visibility
 	 * checks on FX belonging to this system.
 	 */
-	virtual void PreInitViews(FRHICommandListImmediate& RHICmdList) = 0;
+	virtual void PreInitViews() = 0;
 
 	virtual bool UsesGlobalDistanceField() const = 0;
 

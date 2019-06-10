@@ -60,7 +60,7 @@ FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 }
 uint GetNumRayTracingDynamicMeshVerticesIndirect()
 {
-	return 6 * NiagaraSpriteVFLooseParameters.IndirectArgsBuffer[NiagaraSpriteVFLooseParameters.IndirectArgsOffset + 1];
+	return 6 * NiagaraSpriteVFLooseParameters.IndirectArgsBuffer[1];
 }
 #endif
 

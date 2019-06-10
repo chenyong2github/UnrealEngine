@@ -1275,11 +1275,8 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	IntInputBufferParam.Bind(ParameterMap, TEXT("InputInt"));
 	FloatOutputBufferParam.Bind(ParameterMap, TEXT("OutputFloat"));
 	IntOutputBufferParam.Bind(ParameterMap, TEXT("OutputInt"));
-
-	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
-	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
-	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
-
+	OutputIndexBufferParam.Bind(ParameterMap, TEXT("DataSetIndices"));
+	InputIndexBufferParam.Bind(ParameterMap, TEXT("ReadDataSetIndices"));
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
 	NumEventsPerParticleParam.Bind(ParameterMap, TEXT("NumEventsPerParticle"));
 	NumParticlesPerEventParam.Bind(ParameterMap, TEXT("NumParticlesPerEvent"));
@@ -1287,6 +1284,7 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	NumSpawnedInstancesParam.Bind(ParameterMap, TEXT("SpawnedInstances"));
 	UpdateStartInstanceParam.Bind(ParameterMap, TEXT("UpdateStartInstance"));
+	NumIndicesPerInstanceParam.Bind(ParameterMap, TEXT("NumIndicesPerInstance"));
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
@@ -1325,9 +1323,11 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	ensure(FloatOutputBufferParam.IsBound() || IntOutputBufferParam.IsBound());	// we should have at least one output buffer we're writing to
 	ensure(ComponentBufferSizeWriteParam.IsBound());
-	ensure(InstanceCountsParam.IsBound());
+	ensure(OutputIndexBufferParam.IsBound());
+	ensure(InputIndexBufferParam.IsBound());
 	ensure(UpdateStartInstanceParam.IsBound());
 	ensure(NumSpawnedInstancesParam.IsBound());
+	ensure(NumIndicesPerInstanceParam.IsBound());
 }
 
 bool FNiagaraShader::Serialize(FArchive& Ar)
@@ -1341,11 +1341,7 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << IntInputBufferParam;
 	Ar << FloatOutputBufferParam;
 	Ar << IntOutputBufferParam;
-
-	Ar << InstanceCountsParam;
-	Ar << ReadInstanceCountOffsetParam;
-	Ar << WriteInstanceCountOffsetParam;
-
+	Ar << InputIndexBufferParam;
 	Ar << EmitterTickCounterParam;
 
 	Ar << NumSpawnedInstancesParam;
@@ -1370,6 +1366,8 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << CopyInstancesBeforeStartParam;
 	Ar << ViewUniformBufferParam;
 
+	Ar << OutputIndexBufferParam;
+	Ar << NumIndicesPerInstanceParam;
 	return bShaderHasOutdatedParameters;
 }
 
