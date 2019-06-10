@@ -45,8 +45,8 @@ void SKeyAreaEditorSwitcher::Rebuild()
 			[
 				SNew(SBox)
 				.IsEnabled(!KeyAreaNode->GetSequencer().IsReadOnly())
-				.WidthOverride(100)
 				.HAlign(HAlign_Left)
+				.MinDesiredWidth(100)
 				.Visibility(this, &SKeyAreaEditorSwitcher::GetWidgetVisibility, Index)
 				[
 					KeyArea->CreateKeyEditor(KeyAreaNode->GetSequencer().AsShared(), ObjectBindingID)

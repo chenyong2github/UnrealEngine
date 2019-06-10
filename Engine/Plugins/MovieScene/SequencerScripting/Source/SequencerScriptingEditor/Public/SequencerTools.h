@@ -6,7 +6,10 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCaptureDialogModule.h"
+#include "SequencerBindingProxy.h"
 #include "SequencerTools.generated.h"
+
+class UFbxExportOption;
 
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
 
@@ -43,4 +46,30 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools")
 	static void CancelMovieRender();
+
+public:
+	/*
+	 * Export Passed in Bindings to FBX
+	 *
+	 * @InWorld World to export
+	 * @InSequence Sequence to export
+	 * @InBindings Bindings to export
+	 * @InFBXFileName File to create
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools")
+	static bool ExportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UFbxExportOption* OverrideOptions,const FString& InFBXFileName);
+
+	/*
+	 * Import Passed in Bindings to FBX
+	 *
+	 * @InWorld World to import to
+	 * @InSequence InSequence to import
+	 * @InBindings InBindings to import
+	 * @InImportFBXSettings Settings to control import.
+	 * @InImportFileName Path to fbx file to create
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools")
+	static bool ImportFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString&  InImportFilename);
+
+
 };

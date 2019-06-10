@@ -173,6 +173,7 @@ void UMovieSceneAnimationTrackRecorder::StopRecordingImpl()
 	{
 		// Legacy Animation Recorder allowed recording into an animation asset directly and not creating an movie section
 		const bool bShowAnimationAssetCreatedToast = false;
+		InitialRootTransform = FAnimationRecorderManager::Get().GetInitialRootTransform(SkeletalMeshComponent.Get());
 		FAnimationRecorderManager::Get().StopRecordingAnimation(SkeletalMeshComponent.Get(), bShowAnimationAssetCreatedToast);
 	}
 }
@@ -201,7 +202,18 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 	//  Note we wait for first tick so that we can make sure all of the attach tracks are set up .
 	if (!bAnimationRecorderCreated)
 	{
-		
+		//Reset the start times based upon when the animation really starts.
+		if (MovieSceneSection.IsValid())
+		{
+			MovieSceneSection->TimecodeSource = FMovieSceneTimecodeSource(FApp::GetTimecode());
+			FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+			FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
+
+			// Ensure we're expanded to at least the next frame so that we don't set the start past the end
+			// when we set the first frame.
+			MovieSceneSection->ExpandToFrame(CurrentFrame + FFrameNumber(1));
+			MovieSceneSection->SetStartFrame(TRangeBound<FFrameNumber>::Inclusive(CurrentFrame));
+		}
 		bAnimationRecorderCreated = true;
 		AActor* Actor = nullptr;
 		SkeletalMeshComponent = CastChecked<USkeletalMeshComponent>(ObjectToRecord.Get());
@@ -212,11 +224,9 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 		//In Sequence Recorder this would be done via checking if the component was dynamically created, due to changes in how the take recorder handles this, it no longer 
 		//possible so it seems if it's native do root, otherwise, don't.  
 		bool bRemoveRootAnimation = SkeletalMeshComponent->CreationMethod != EComponentCreationMethod::Native ? false : true;
-
 		// Need to pass this up to the settings since it's used later to force root lock and transfer root from animation to transform
 		UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(Settings.Get());
 		AnimSettings->bRemoveRootAnimation = bRemoveRootAnimation;
-
 		//If not removing root we also don't record in world space ( not totally sure if it matters but matching up with Sequence Recorder)
 		bool bRecordInWorldSpace = bRemoveRootAnimation == false ? false : true;
 		

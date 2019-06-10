@@ -11,7 +11,7 @@
 #include "TakeRecorderMicrophoneAudioSource.generated.h"
 
 /** A recording source that records microphone audio */
-UCLASS(Abstract, config=EditorSettings, DisplayName="Microphone Audio Recorder Defaults")
+UCLASS(Abstract, config=EditorSettings, DisplayName="Microphone Audio Recorder")
 class UTakeRecorderMicrophoneAudioSourceSettings : public UTakeRecorderSource
 {
 public:
@@ -22,7 +22,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	
 	// UTakeRecorderSource Interface
-	virtual FString GetSubsceneName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
+	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	// ~UTakeRecorderSource Interface
 
 	/** Name of the recorded audio track name */

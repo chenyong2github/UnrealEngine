@@ -213,6 +213,28 @@ void UMovieSceneFolder::PostLoad()
 	Super::PostLoad();
 }
 
+UMovieSceneFolder* UMovieSceneFolder::FindFolderContaining(const FGuid& InObjectBinding)
+{
+	for (FGuid ChildGuid : GetChildObjectBindings())
+	{
+		if (ChildGuid == InObjectBinding)
+		{
+			return this;
+		}
+	}
+
+	for (UMovieSceneFolder* ChildFolder : GetChildFolders())
+	{
+		UMovieSceneFolder* Folder = ChildFolder->FindFolderContaining(InObjectBinding);
+		if (Folder != nullptr)
+		{
+			return Folder;
+		}
+	}
+
+	return nullptr;
+}
+
 void UMovieSceneFolder::Serialize( FArchive& Archive )
 {
 	if ( Archive.IsLoading() )

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UObject/Object.h"
+#include "UObject/StrongObjectPtr.h"
 #include "ISequencer.h"
 #include "Recorder/TakeRecorderParameters.h"
 #include "Serializers/MovieSceneManifestSerialization.h"
@@ -208,9 +209,6 @@ private:
 	 * Set the currently active take recorder instance
 	 */
 	static bool SetActiveRecorder(UTakeRecorder* NewActiveRecorder);
-
-	/** A pointer to the currently active recorder */
-	static UTakeRecorder* CurrentRecorder;
 
 	/** Event to trigger when a new recording is initialized */
 	static FOnTakeRecordingInitialized OnRecordingInitializedEvent;

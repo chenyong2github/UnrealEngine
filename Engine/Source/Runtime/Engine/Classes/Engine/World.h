@@ -904,6 +904,10 @@ class ENGINE_API UWorld final : public UObject, public FNetworkNotify
 	UPROPERTY(Transient)
 	TArray<UObject*>							PerModuleDataObjects;
 
+	// Level sequence actors to tick first
+	UPROPERTY(transient)
+	TArray<AActor*>								LevelSequenceActors;
+
 private:
 	/** Level collection. ULevels are referenced by FName (Package name) to avoid serialized references. Also contains offsets in world units */
 	UPROPERTY(Transient)
