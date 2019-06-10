@@ -3871,7 +3871,7 @@ bool UClass::ImplementsInterface( const class UClass* SomeInterface ) const
 			for (TArray<FImplementedInterface>::TConstIterator It(CurrentClass->Interfaces); It; ++It)
 			{
 				const UClass* InterfaceClass = It->Class;
-				if (InterfaceClass->IsChildOf(SomeInterface))
+				if (InterfaceClass && InterfaceClass->IsChildOf(SomeInterface))
 				{
 					return true;
 				}
