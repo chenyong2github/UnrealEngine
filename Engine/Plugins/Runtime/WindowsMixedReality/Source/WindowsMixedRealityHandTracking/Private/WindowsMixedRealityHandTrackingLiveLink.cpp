@@ -11,6 +11,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "ILiveLinkClient.h"
 #include "Roles/LiveLinkAnimationRole.h"
+#include "Roles/LiveLinkAnimationTypes.h"
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityHandTracking"
 
@@ -107,6 +108,8 @@ void FWindowsMixedRealityHandTracking::SetupLiveLinkData()
 	BoneParents.Add(23);	// LittleDistal -> LittleIntermediate
 	BoneParents.Add(24);	// LittleTip -> LittleDistal
 
+	FLiveLinkStaticDataStruct SkeletonStaticData(FLiveLinkSkeletonStaticData::StaticStruct());
+	LiveLinkSkeletonStaticData.InitializeWith(SkeletonStaticData);
 	FLiveLinkSkeletonStaticData* SkeletonDataPtr = LiveLinkSkeletonStaticData.Cast<FLiveLinkSkeletonStaticData>();
 	check(SkeletonDataPtr);
 	SkeletonDataPtr->SetBoneNames(BoneNames);
