@@ -94,7 +94,7 @@ void UMovieScenePropertyTrack::RemoveSection(UMovieSceneSection& Section)
 
 void UMovieScenePropertyTrack::RemoveSectionAt(int32 SectionIndex)
 {
-	bool bResetSectionToKey = SectionToKey = Sections[SectionIndex];
+	bool bResetSectionToKey = (SectionToKey == Sections[SectionIndex]);
 
 	Sections.RemoveAt(SectionIndex);
 
