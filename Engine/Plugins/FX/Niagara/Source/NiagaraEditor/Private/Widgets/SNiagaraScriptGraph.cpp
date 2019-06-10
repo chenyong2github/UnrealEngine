@@ -21,6 +21,10 @@
 #include "NiagaraNodeFactory.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraNodeOutput.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Images/SImage.h"
+#include "Layout/WidgetPath.h"
+#include "Framework/Application/SlateApplication.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraph"
 
