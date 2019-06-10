@@ -3174,7 +3174,11 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 	int32 LayerSmoothingCount = Mesh->GetLayerCount(FbxLayerElement::eSmoothing);
 	for(int32 i = 0; i < LayerSmoothingCount; i++)
 	{
-		GeometryConverter->ComputePolygonSmoothingFromEdgeSmoothing (Mesh, i);
+		FbxLayerElementSmoothing const* SmoothingInfo = Mesh->GetLayer(i)->GetSmoothing();
+		if (SmoothingInfo && SmoothingInfo->GetMappingMode() != FbxLayerElement::eByPolygon)
+		{
+			GeometryConverter->ComputePolygonSmoothingFromEdgeSmoothing(Mesh, i);
+		}
 	}
 
 	//
@@ -3271,6 +3275,12 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 			{
 				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ConvertSmoothingGroupFailed", "Unable to fully convert the smoothing groups for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_ConvertSmoothingGroupFailed);
 				bSmoothingAvailable = false;
+			}
+			else
+			{
+				//After using the geometry converter we always have to get the Layer and the smoothing info
+				BaseLayer = Mesh->GetLayer(0);
+				SmoothingInfo = BaseLayer->GetSmoothing();
 			}
 		}
 
