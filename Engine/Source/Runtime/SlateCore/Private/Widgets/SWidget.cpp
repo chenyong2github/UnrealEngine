@@ -595,7 +595,7 @@ void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
 #if WITH_ACCESSIBILITY
 	if (FSlateApplicationBase::IsInitialized())
 	{
-		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetParentChanged(AsShared());
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
 	}
 #endif
 	if (InParent.IsValid())
@@ -617,7 +617,7 @@ bool SWidget::ConditionallyDetatchParentWidget(SWidget* InExpectedParent)
 #if WITH_ACCESSIBILITY
 		if (FSlateApplicationBase::IsInitialized())
 		{
-			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetParentChanged(AsShared());
+			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
 		}
 #endif
 
@@ -1275,7 +1275,7 @@ void SWidget::SetOnMouseLeave(FSimpleNoReplyPointerEventHandler EventHandler)
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SWidget::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SWidget::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWidget(AsShared()));
 }
@@ -1295,19 +1295,22 @@ void SWidget::SetAccessibleBehavior(EAccessibleBehavior InBehavior, const TAttri
 			TAttribute<FText>& Text = (AccessibleType == EAccessibleType::Main) ? AccessibleData.AccessibleText : AccessibleData.AccessibleSummaryText;
 			Text = InText;
 		}
-		const bool bWasAccessible = IsAccessible();
+		const bool bWasAccessible = Behavior != EAccessibleBehavior::NotAccessible;
 		Behavior = InBehavior;
-		if (AccessibleType == EAccessibleType::Main && bWasAccessible != IsAccessible())
+		if (AccessibleType == EAccessibleType::Main && bWasAccessible != (Behavior != EAccessibleBehavior::NotAccessible))
 		{
-			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->OnWidgetAccessibleBehaviorChanged(AsShared());
+			FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
 		}
 	}
 }
 
 void SWidget::SetCanChildrenBeAccessible(bool InCanChildrenBeAccessible)
 {
-	AccessibleData.bCanChildrenBeAccessible = InCanChildrenBeAccessible;
-	// todo: emit notifications
+	if (AccessibleData.bCanChildrenBeAccessible != InCanChildrenBeAccessible)
+	{
+		AccessibleData.bCanChildrenBeAccessible = InCanChildrenBeAccessible;
+		FSlateApplicationBase::Get().GetAccessibleMessageHandler()->MarkDirty();
+	}
 }
 
 void SWidget::SetDefaultAccessibleText(EAccessibleType AccessibleType)

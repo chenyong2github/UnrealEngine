@@ -521,7 +521,7 @@ void SButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SButton::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SButton::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleButton(SharedThis(this)));
 }

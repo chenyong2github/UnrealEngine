@@ -2071,7 +2071,7 @@ FScopedSwitchWorldHack::FScopedSwitchWorldHack( const FWidgetPath& WidgetPath )
 #endif
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SWindow::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SWindow::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleWindow(SharedThis(this)));
 }

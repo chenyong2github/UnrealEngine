@@ -71,6 +71,10 @@ public:
 	static TMap<EAccessibleWidgetType, ULONG> WidgetTypeToWindowsTypeMap;
 	static TMap<EAccessibleWidgetType, FText> WidgetTypeToTextMap;
 
+#if !UE_BUILD_SHIPPING
+	void DumpAccessibilityStats() const;
+#endif
+
 private:
 	/** Callback function for processing events raised from the AccessibleMessageHandler */
 	void OnEventRaised(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue);

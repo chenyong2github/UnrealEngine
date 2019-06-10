@@ -85,7 +85,7 @@ public:
 		return FCursorReply::Cursor( EMouseCursor::Hand );
 	}
 #if WITH_ACCESSIBILITY
-	virtual TSharedPtr<FSlateAccessibleWidget> CreateAccessibleWidget() override
+	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override
 	{
 		return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleHyperlink(SharedThis(this)));
 	}
