@@ -417,7 +417,7 @@ void FGeometryCollectionSceneProxy::SetDynamicData_RenderThread(FGeometryCollect
 
 		if (bSupportsManualVertexFetch)
 		{
-			const bool bLocalGeometryCollectionTripleBufferUploads = GGeometryCollectionTripleBufferUploads;
+			const bool bLocalGeometryCollectionTripleBufferUploads = (GGeometryCollectionTripleBufferUploads != 0);
 
 			if (bLocalGeometryCollectionTripleBufferUploads && TransformBuffers.Num() == 1)
 			{
