@@ -619,9 +619,7 @@ void USceneComponent::UpdateComponentToWorldWithParent(USceneComponent* Parent,F
 		NewTransform = CalcNewComponentToWorld(RelativeTransform, Parent, SocketName);
 	}
 
-	// @MIXEDREALITY_CHANGE : BEGIN - This check is blocking HoloLens apps from launching in Development mode.
-#if DO_CHECK && !PLATFORM_HOLOLENS
-	// @MIXEDREALITY_CHANGE : END
+#if DO_CHECK
 	ensure(NewTransform.IsValid());
 #endif
 
