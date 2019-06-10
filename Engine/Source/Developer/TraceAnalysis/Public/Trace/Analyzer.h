@@ -51,10 +51,8 @@ public:
 	struct FEventData
 	{
 		virtual const FValue&	GetValue(const ANSICHAR* FieldName) const = 0;
-		virtual const uint8*	GetData() const = 0;
 		virtual const uint8*	GetAttachment() const = 0;
 		virtual uint16			GetAttachmentSize() const = 0;
-		virtual uint16			GetTotalSize() const = 0;
 	};
 
 	struct FOnEventContext

@@ -218,10 +218,8 @@ struct FAnalysisEngine::FEventDataImpl
 {
 	virtual					~FEventDataImpl() = default;
 	virtual const FValue&	GetValue(const ANSICHAR* FieldName) const override;
-	virtual const uint8*	GetData() const override;
 	virtual const uint8*	GetAttachment() const override;
 	virtual uint16			GetAttachmentSize() const override;
-	virtual uint16			GetTotalSize() const override;
 	const FDispatch*		Dispatch;
 	const uint8*			Ptr;
 	uint16					Size;
@@ -251,12 +249,6 @@ const IAnalyzer::FValue& FAnalysisEngine::FEventDataImpl::GetValue(const ANSICHA
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const uint8* FAnalysisEngine::FEventDataImpl::GetData() const
-{
-	return Ptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
 const uint8* FAnalysisEngine::FEventDataImpl::GetAttachment() const
 {
 	return Ptr + Dispatch->EventSize;
@@ -266,12 +258,6 @@ const uint8* FAnalysisEngine::FEventDataImpl::GetAttachment() const
 uint16 FAnalysisEngine::FEventDataImpl::GetAttachmentSize() const
 {
 	return Size - Dispatch->EventSize;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-uint16 FAnalysisEngine::FEventDataImpl::GetTotalSize() const
-{
-	return Size;
 }
 
 
@@ -458,7 +444,8 @@ FAnalysisEngine::FDispatch& FAnalysisEngine::AddDispatch(uint16 Uid, uint16 Fiel
 ////////////////////////////////////////////////////////////////////////////////
 void FAnalysisEngine::OnNewEvent(const FOnEventContext& Context)
 {
-	const auto& NewEvent = *(FNewEventEvent*)Context.EventData.GetData();
+	const FEventDataImpl& EventData = (const FEventDataImpl&)(Context.EventData);
+	const auto& NewEvent = *(FNewEventEvent*)(EventData.Ptr);
 
 	FDispatch& Dispatch = AddDispatch(NewEvent.EventUid, NewEvent.FieldCount);
 
