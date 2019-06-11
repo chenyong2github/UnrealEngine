@@ -3225,6 +3225,7 @@ bool FEngineLoop::LoadStartupCoreModules()
 	SlowTask.EnterProgressFrame(10);
 	if ( !IsRunningDedicatedServer() )
 	{
+		FModuleManager::Get().LoadModule("SlateCore");
 		FModuleManager::Get().LoadModule("Slate");
 
 #if !UE_BUILD_SHIPPING
