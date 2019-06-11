@@ -143,56 +143,71 @@ namespace WindowsMixedReality
 			IHeadMountedDisplayModule::StartupModule();
 
 #if !PLATFORM_HOLOLENS
-			// Get the base directory of this plugin
-			FString BaseDir = IPluginManager::Get().FindPlugin("WindowsMixedReality")->GetBaseDir();
-
-			FString EngineDir = FPaths::EngineDir();
-			FString BinariesSubDir = FPlatformProcess::GetBinariesSubdirectory();
-#if WINDOWS_MIXED_REALITY_DEBUG_DLL
-			FString DLLName(TEXT("MixedRealityInteropDebug.dll"));
-#else
-			FString DLLName(TEXT("MixedRealityInterop.dll"));
-#endif
-			FString MRInteropLibraryPath = BaseDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
-
-#if PLATFORM_64BITS && WITH_EDITOR
-			// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
-			FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries" / BinariesSubDir / "HolographicAppRemoting.dll"));
-#endif
-
-			// Then finally try to load the WMR Interop Library
-			void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
-
 			FString OSVersionLabel;
 			FString OSSubVersionLabel;
 			FPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
 			// GetOSVersion returns the Win10 release version in the OSVersion rather than the OSSubVersion, so parse it out ourselves
 			OSSubVersionLabel = OSVersionLabel;
 			bool bHasSupportedWindowsVersion = OSSubVersionLabel.RemoveFromStart("Windows 10 (Release ") && OSSubVersionLabel.RemoveFromEnd(")") && (FCString::Atoi(*OSSubVersionLabel) >= MIN_WIN_10_VERSION_FOR_WMR);
-			if (MixedRealityInteropLibraryHandle && bHasSupportedWindowsVersion)
+
+			if (bHasSupportedWindowsVersion)
 			{
-				HMD = new MixedRealityInterop();
+				// Get the base directory of this plugin
+				FString BaseDir = IPluginManager::Get().FindPlugin("WindowsMixedReality")->GetBaseDir();
+
+				FString EngineDir = FPaths::EngineDir();
+				FString BinariesSubDir = FPlatformProcess::GetBinariesSubdirectory();
+#if WINDOWS_MIXED_REALITY_DEBUG_DLL
+				FString DLLName(TEXT("MixedRealityInteropDebug.dll"));
+#else // WINDOWS_MIXED_REALITY_DEBUG_DLL
+				FString DLLName(TEXT("MixedRealityInterop.dll"));
+#endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
+				FString MRInteropLibraryPath = BaseDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+
+#if PLATFORM_64BITS && WITH_EDITOR
+				// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
+				FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries/ThirdParty/Windows/HoloLens" / BinariesSubDir / "HolographicAppRemoting.dll"));
+#endif // PLATFORM_64BITS && WITH_EDITOR
+
+				// Then finally try to load the WMR Interop Library
+				void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
+				if (MixedRealityInteropLibraryHandle)
+				{
+					HMD = new MixedRealityInterop();
+				}
+				else
+				{
+					FText ErrorText = NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError",
+						"Failed to load Windows Mixed Reality Interop Library!  Windows Mixed Reality cannot function.");
+					FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
+					UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
+				}			
 			}
 			else
 			{
-				FText ErrorText = FText::Format(FTextFormat(NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError", 
-					"Failed to load Windows Mixed Reality Interop Library, or this version of Windows is not supported. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
+				FText ErrorText = FText::Format(FTextFormat(NSLOCTEXT("WindowsMixedRealityHMD", "MixedRealityInteropLibraryError",
+					"Windows Mixed Reality is not supported on this Windows version. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
 					FText::FromString(FString::FromInt(MIN_WIN_10_VERSION_FOR_WMR)), FText::FromString(OSVersionLabel));
 				FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
 				UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
 			}
-#else
+
+#else // !PLATFORM_HOLOLENS
 			HMD = new MixedRealityInterop();
-#endif
+#endif // !PLATFORM_HOLOLENS
+
 #if WANTS_INTEROP_LOGGING
-			HMD->SetLogCallback(&LogCallback);
-#endif
+			if (HMD != nullptr)
+			{
+				HMD->SetLogCallback(&LogCallback);
+			}	
+#endif // WANTS_INTEROP_LOGGING
 
 			FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("WindowsMixedReality"))->GetBaseDir(), TEXT("Shaders"));
 			AddShaderSourceDirectoryMapping(TEXT("/Plugin/WindowsMixedReality"), PluginShaderDir);
-#else
+#else // WITH_WINDOWS_MIXED_REALITY
 			UE_LOG(LogWmrHmd, Error, TEXT("Windows Mixed Reality compiled with unsupported compiler.  Please recompile with Visual Studio 2017"));
-#endif
+#endif // WITH_WINDOWS_MIXED_REALITY
 		}
 
 		void ShutdownModule() override
