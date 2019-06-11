@@ -280,10 +280,10 @@ public:
 	bool GetNodePreviouslyVisited(const class UNiagaraNode* Node) const;
 
 	/** If we haven't already visited the owning nodes, do so.*/
-	void VisitInputPins(const class UNiagaraNode*);
+	void VisitInputPins(const class UNiagaraNode*, bool bFilterForCompilation);
 	
 	/** If we haven't already visited the owning node, do so.*/
-	void VisitInputPin(const UEdGraphPin* Pin, const class UNiagaraNode*);
+	void VisitInputPin(const UEdGraphPin* Pin, const class UNiagaraNode*, bool bFilterForCompilation);
 
 	/**
 	* Record that a pin writes to the parameter map. The pin name is expected to be the namespaced parameter map version of the name. If any aliases are in place, they are removed.
@@ -298,7 +298,7 @@ public:
 	/**
 	* Record that a pin reads from the parameter map. The pin name is expected to be the namespaced parameter map version of the name. If any aliases are in place, they are removed.
 	*/
-	int32 HandleVariableRead(int32 ParameterMapIndex, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool& OutUsedDefault);
+	int32 HandleVariableRead(int32 ParameterMapIndex, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool bFilterForCompilation, bool& OutUsedDefault);
 
 	int32 HandleExternalVariableRead(int32 ParamMapIdx, const FName& InVarName);
 	

@@ -15,6 +15,7 @@
 
 #include "EdGraph/EdGraphPin.h"
 #include "ScopedTransaction.h"
+#include "NiagaraEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
 
@@ -77,8 +78,9 @@ void UNiagaraStackFunctionInputCollection::SetShouldShowInStack(bool bInShouldSh
 
 void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	TSet<const UEdGraphPin*> HiddenPins;
 	TArray<const UEdGraphPin*> InputPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 
@@ -125,13 +127,15 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 			? InputMetaData->CategoryName
 			: UncategorizedName;
 
-		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, false };
+		bool IsVisible = !HiddenPins.Contains(InputPin);
+		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, false, IsVisible };
 		InputDataCollection.Add(InputData);
 	}
 
 	// Gather static switch parameters
+	TSet<UEdGraphPin*> HiddenSwitchPins;
 	TArray<UEdGraphPin*> SwitchPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(*InputFunctionCallNode, SwitchPins);
+	FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(*InputFunctionCallNode, SwitchPins, HiddenSwitchPins);
 	for (UEdGraphPin* InputPin : SwitchPins)
 	{
 		// The static switch pin names to not contain the module namespace, as they are not part of the parameter maps.
@@ -167,7 +171,8 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 			? InputMetaData->CategoryName
 			: UncategorizedName;
 
-		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, true };
+		bool IsVisible = !HiddenSwitchPins.Contains(InputPin);
+		FInputData InputData = { InputPin, InputVariable.GetType(), InputMetaData ? InputMetaData->EditorSortPriority : 0, InputCategory, true, IsVisible };
 		InputDataCollection.Add(InputData);
 	}
 
@@ -222,7 +227,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 			}
 			NewChildren.Add(InputCategory);
 		}
-		InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic);
+		InputCategory->AddInput(InputData.Pin->PinName, InputData.Type, InputData.bIsStatic ? EStackParameterBehavior::Static : EStackParameterBehavior::Dynamic, InputData.bIsVisible);
 	}
 	RefreshIssues(DuplicateInputNames, ValidAliasedInputNames, PinsWithInvalidTypes, StaticSwitchInputs, NewIssues);
 }

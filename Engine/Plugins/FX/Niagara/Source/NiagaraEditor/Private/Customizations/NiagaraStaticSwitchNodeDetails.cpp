@@ -320,8 +320,12 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDefaultDropdownValues()
 	if (Enum)
 	{
 		SelectedDefaultValue.Reset();
-		for (int i = 0; i < Enum->GetMaxEnumValue() - 1; i++)
+		for (int i = 0; i < Enum->GetMaxEnumValue(); i++)
 		{
+			if (!Enum->IsValidEnumValue(i))
+			{
+				continue;
+			}
 			FText DisplayName = Enum->GetDisplayNameTextByIndex(i);
 			DefaultEnumDropdownOptions.Add(MakeShared<DefaultEnumOption>(DisplayName, i));
 
