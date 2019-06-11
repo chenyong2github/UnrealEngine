@@ -157,41 +157,6 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FStructu
 {
 	struct FD3D12InitializeStructuredBufferSRVRHICommand final : public FRHICommand<FD3D12InitializeStructuredBufferSRVRHICommand>
 	{
-		FD3D12StructuredBuffer* Buffer;
-		FD3D12ShaderResourceView* SRV;
-
-		FD3D12InitializeStructuredBufferSRVRHICommand(FD3D12StructuredBuffer* InBuffer, FD3D12ShaderResourceView* InSRV)
-			: Buffer(InBuffer)
-			, SRV(InSRV)
-		{}
-
-		void Execute(FRHICommandListBase& RHICmdList)
-		{
-			FD3D12ResourceLocation& Location = Buffer->ResourceLocation;
-			const uint64 Offset = Location.GetOffsetFromBaseOfResource();
-			const D3D12_RESOURCE_DESC& BufferDesc = Location.GetResource()->GetDesc();
-
-			const uint32 BufferUsage = Buffer->GetUsage();
-			const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
-			const bool bUINT8Access = (BufferUsage & BUF_UINT8) != 0;
-
-			// Create a Shader Resource View
-			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
-			SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-
-			// BufferDesc.StructureByteStride  is not getting patched through the D3D resource DESC structs, so use the RHI version as a hack
-			uint32 Stride = Buffer->GetStride();
-
-
-	SRVDesc.Format = PlatformShaderResourceFormat;
-
-	return CreateSRV(Texture3D, SRVDesc);
-}
-
-FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FStructuredBufferRHIParamRef StructuredBufferRHI)
-{
-	struct FD3D12InitializeStructuredBufferSRVRHICommand final : public FRHICommand<FD3D12InitializeStructuredBufferSRVRHICommand>
-	{
 		FD3D12StructuredBuffer* StructuredBuffer;
 		FD3D12ShaderResourceView* SRV;
 
@@ -211,7 +176,7 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FStructu
 			const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
 			const bool bUINT8Access = (BufferUsage & BUF_UINT8) != 0;
 			// Create a Shader Resource View
-			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc ={};
 			SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 
 			// BufferDesc.StructureByteStride  is not getting patched through the D3D resource DESC structs, so use the RHI version as a hack
