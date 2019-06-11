@@ -29,6 +29,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Misc/Fnv.h"
 
+
 #include "Async/MappedFileHandle.h"
 
 DEFINE_LOG_CATEGORY(LogPakFile);
@@ -185,7 +186,7 @@ FPakMasterSignatureTableCheckFailureHandler& FPakPlatformFile::GetPakMasterSigna
 	return Delegate;
 }
 
-void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList)
+void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList) 
 {
 	TArray<FPakListEntry> Paks;
 	GetMountedPaks(Paks);
@@ -195,6 +196,21 @@ void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const T
 		if (Pak.PakFile && Pak.PakFile->GetFilename() == InPakFilename)
 		{
 			Pak.PakFile->GetFilenamesInChunk(InChunkIDs, OutFileList);
+			break;
+		}
+	}
+}
+
+void FPakPlatformFile::GetFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList)
+{
+	TArray<FPakListEntry> Paks;
+	GetMountedPaks(Paks);
+
+	for (const FPakListEntry& Pak : Paks)
+	{
+		if (Pak.PakFile && Pak.PakFile->GetFilename() == InPakFilename)
+		{
+			Pak.PakFile->GetFilenames(OutFileList);
 			break;
 		}
 	}
@@ -5113,6 +5129,20 @@ public:
 	//~ End FArchiveProxy Interface
 };
 #endif //DO_CHECK
+
+
+void FPakFile::GetFilenames(TArray<FString>& OutFileList) const
+{
+	for (const TMap<FString, FPakDirectory>::ElementType& DirectoryElement : Index)
+	{
+		const  FPakDirectory& Directory = DirectoryElement.Value;
+		for (const FPakDirectory::ElementType& FileElement : Directory)
+		{
+			OutFileList.Add(MountPoint / DirectoryElement.Key / FileElement.Key);
+		}
+	}
+}
+
 
 void FPakFile::GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList)
 {
