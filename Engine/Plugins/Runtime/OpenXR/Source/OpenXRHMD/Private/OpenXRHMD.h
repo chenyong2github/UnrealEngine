@@ -96,15 +96,6 @@ public:
 		return (TrackingSpaceType == XR_REFERENCE_SPACE_TYPE_STAGE) ? EHMDTrackingOrigin::Floor : EHMDTrackingOrigin::Eye;
 	}
 
-	virtual class IHeadMountedDisplay* GetHMDDevice() override
-	{ 
-		return this;
-	}
-
-	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
-	{
-		return SharedThis(this);
-	}
 protected:
 	/** FXRTrackingSystemBase protected interface */
 	virtual float GetWorldToMetersScale() const override;

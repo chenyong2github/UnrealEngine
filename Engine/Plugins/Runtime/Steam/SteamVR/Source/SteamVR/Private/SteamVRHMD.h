@@ -127,17 +127,6 @@ public:
 	}
 	virtual FString GetVersionString() const override;
 
-
-	virtual class IHeadMountedDisplay* GetHMDDevice() override
-	{
-		return this;
-	}
-
-	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
-	{
-		return SharedThis(this);
-	}
-
 	virtual bool OnStartGameFrame(FWorldContext& WorldContext) override;
 	virtual bool DoesSupportPositionalTracking() const override;
 	virtual bool HasValidTrackingPosition() override;

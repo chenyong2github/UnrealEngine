@@ -55,8 +55,6 @@ public:
 	virtual bool OnEndGameFrame(FWorldContext& WorldContext) override;
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
-	virtual class IHeadMountedDisplay* GetHMDDevice() override { return this; }
-	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return AsShared(); }
 	virtual class TSharedPtr< class IXRCamera, ESPMode::ThreadSafe > GetXRCamera(int32 DeviceId) override;
 	virtual FName GetSystemName() const override;
 	virtual FString GetVersionString() const override;
