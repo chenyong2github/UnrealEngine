@@ -174,6 +174,8 @@ public:
 		}
 	}
 
+	virtual bool GetHandJointPosition(const FName MotionSource, int jointIndex, FVector& OutPosition) const override { return false; }
+
 private:
 	FLiveLinkSubjectKey GetSubjectKeyFromMotionSource(FName MotionSource) const
 	{

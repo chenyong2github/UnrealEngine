@@ -444,7 +444,8 @@ namespace UnrealBuildTool
 			{
 				return ":";
 			}
-			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win32 || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64 || 
+				BuildHostPlatform.Current.Platform == UnrealTargetPlatform.HoloLens)
 			{
 				return ";";
 			}

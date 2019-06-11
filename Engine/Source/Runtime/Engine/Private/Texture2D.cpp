@@ -1202,7 +1202,7 @@ bool UTexture2D::IsFullyStreamedIn()
 }
 
 
-UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat)
+UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat, const FName InName)
 {
 	LLM_SCOPE(ELLMTag::Textures);
 
@@ -1213,7 +1213,7 @@ UTexture2D* UTexture2D::CreateTransient(int32 InSizeX, int32 InSizeY, EPixelForm
 	{
 		NewTexture = NewObject<UTexture2D>(
 			GetTransientPackage(),
-			NAME_None,
+			InName,
 			RF_Transient
 			);
 
@@ -1863,7 +1863,7 @@ void FTexture2DArrayResource::InitRHI()
 	// Create the RHI texture.
 	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
 	FRHIResourceCreateInfo CreateInfo;
-	FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(SizeX, SizeY, GetNumValidTextures(), Format, NumMips, TexCreateFlags, CreateInfo);
+	FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(SizeX, SizeY, GetNumValidTextures(), Format, NumMips, 1, TexCreateFlags, CreateInfo);
 	TextureRHI = TextureArray;
 
 	// Read the mip-levels into the RHI texture.

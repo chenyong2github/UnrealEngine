@@ -345,6 +345,14 @@ namespace UnrealBuildTool
 						{
 							TargetReceipt Receipt = TargetReceipt.Read(Makefile.ReceiptFile);
 							Log.TraceInformation("Deploying {0} {1} {2}...", Receipt.TargetName, Receipt.Platform, Receipt.Configuration);
+							
+							//@MIXEDREALITY_CHANGE : Begin project dir was missing.
+							if (Receipt.ProjectDir == null)
+							{
+								Receipt.ProjectDir = UnrealBuildTool.EngineDirectory;
+							}
+							//@MIXEDREALITY_CHANGE : End
+
 							UEBuildPlatform.GetBuildPlatform(Receipt.Platform).Deploy(Receipt);
 						}
 					}
@@ -572,14 +580,14 @@ namespace UnrealBuildTool
 			CppDependencyCache CppDependencies;
 			using(Timeline.ScopeEvent("Reading dependency cache"))
 			{
-				CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType);
+				CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefile.TargetType, TargetDescriptor.Architecture);
 			}
 
 			// Create the action history
 			ActionHistory History;
 			using(Timeline.ScopeEvent("Reading action history"))
 			{
-				History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType);
+				History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefile.TargetType, TargetDescriptor.Architecture);
 			}
 
 			// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.

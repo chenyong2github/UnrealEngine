@@ -8,6 +8,7 @@
 #include "GoogleARCoreSessionConfig.h"
 #include "GoogleARCoreCameraImageBlitter.h"
 #include "GoogleARCoreAugmentedImage.h"
+#include "GoogleARCoreAugmentedFace.h"
 #include "GoogleARCoreCameraIntrinsics.h"
 #include "GoogleARCoreAugmentedImageDatabase.h"
 #include "ARSessionConfig.h"
@@ -132,6 +133,10 @@ static ArTrackableType GetTrackableType(UClass* ClassType)
 	{
 		return ArTrackableType::AR_TRACKABLE_AUGMENTED_IMAGE;
 	}
+	else if (ClassType == UGoogleARCoreAugmentedFace::StaticClass())
+	{
+		return ArTrackableType::AR_TRACKABLE_FACE;
+	}
 	else
 	{
 		return ArTrackableType::AR_TRACKABLE_NOT_VALID;
@@ -177,9 +182,9 @@ class FGoogleARCoreSession : public TSharedFromThis<FGoogleARCoreSession>, publi
 {
 
 public:
-	static TSharedPtr<FGoogleARCoreSession> CreateARCoreSession();
+	static TSharedPtr<FGoogleARCoreSession> CreateARCoreSession(bool bUseFrontCamera);
 
-	FGoogleARCoreSession();
+	FGoogleARCoreSession(bool bUseFrontCamera);
 	~FGoogleARCoreSession();
 
 	// Properties
@@ -254,6 +259,7 @@ public:
 	FTransform GetCameraPose() const;
 	int64 GetCameraTimestamp() const;
 	EGoogleARCoreTrackingState GetCameraTrackingState() const;
+	EGoogleARCoreTrackingFailureReason GetCameraTrackingFailureReason() const;
 
 	void GetUpdatedAnchors(TArray<UARPin*>& OutUpdatedAnchors) const;
 	template< class T > void GetUpdatedTrackables(TArray<T*>& OutARCoreTrackableList) const;
@@ -274,6 +280,9 @@ public:
 	EGoogleARCoreAPIStatus GetCameraTextureIntrinsics(
 		UGoogleARCoreCameraIntrinsics *&OutCameraIntrinsics) const;
 
+	void TransformARCoordinates2D(EGoogleARCoreCoordinates2DType InputCoordinatesType, const TArray<FVector2D>& InputCoordinates,
+		EGoogleARCoreCoordinates2DType OutputCoordinatesType, TArray<FVector2D>& OutputCoordinates) const;
+
 #if PLATFORM_ANDROID
 	EGoogleARCoreAPIStatus GetCameraMetadata(const ACameraMetadata*& OutCameraMetadata) const;
 	ArFrame* GetHandle() { return FrameHandle; };
@@ -284,6 +293,7 @@ private:
 	FTransform LatestCameraPose;
 	int64 LatestCameraTimestamp;
 	EGoogleARCoreTrackingState LatestCameraTrackingState;
+	EGoogleARCoreTrackingFailureReason LatestCameraTrackingFailureReason;
 
 	EGoogleARCoreAPIStatus LatestPointCloudStatus;
 	EGoogleARCoreAPIStatus LatestImageMetadataStatus;
@@ -396,6 +406,22 @@ public:
 #endif
 };
 
+class FGoogleARCoreAugmentedFaceResource : public FGoogleARCoreTrackableResource
+{
+public:
+#if PLATFORM_ANDROID
+	FGoogleARCoreAugmentedFaceResource(TSharedPtr<FGoogleARCoreSession> InSession, ArTrackable* InTrackableHandle, UARTrackedGeometry* InTrackedGeometry)
+		: FGoogleARCoreTrackableResource(InSession, InTrackableHandle, InTrackedGeometry)
+	{
+		ensure(TrackableHandle != nullptr);
+	}
+
+	void UpdateGeometryData() override;
+
+	ArAugmentedFace* GetFaceHandle() { return reinterpret_cast<ArAugmentedFace*>(TrackableHandle); }
+#endif
+};
+
 #if PLATFORM_ANDROID
 // Template function definition
 template< class T >
@@ -428,7 +454,12 @@ T* UGoogleARCoreUObjectManager::GetTrackableFromHandle(ArTrackable* TrackableHan
 			NewTrackableObject = static_cast<UARTrackedGeometry*>(ImageObject);
 			NativeResource = new FGoogleARCoreAugmentedImageResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
 		}
-
+		else if (TrackableType == ArTrackableType::AR_TRACKABLE_FACE)
+		{
+			UGoogleARCoreAugmentedFace* FaceObject = NewObject<UGoogleARCoreAugmentedFace>();
+			NewTrackableObject = static_cast<UARTrackedGeometry*> (FaceObject);
+			NativeResource = new FGoogleARCoreAugmentedFaceResource(Session->AsShared(), TrackableHandle, NewTrackableObject);
+		}
 		// We should have a valid trackable object now.
 		checkf(NewTrackableObject, TEXT("Unknown ARCore Trackable Type: %d"), TrackableType);
 

@@ -1,3 +1,3 @@
 #pragma once
 
-typedef const char * ovrCloudStorageVersionHandle;
+typedef const char* ovrCloudStorageVersionHandle;

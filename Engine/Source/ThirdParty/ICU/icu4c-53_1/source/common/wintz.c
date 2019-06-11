@@ -11,7 +11,7 @@
 
 #include "unicode/utypes.h"
 
-#if U_PLATFORM_HAS_WIN32_API
+#if U_PLATFORM_HAS_WIN32_API && !PLATFORM_UWP
 
 #include "wintz.h"
 #include "cmemory.h"
@@ -400,3 +400,106 @@ uprv_detectWindowsTimeZone() {
 }
 
 #endif /* U_PLATFORM_HAS_WIN32_API */
+
+#if PLATFORM_UWP
+
+#include "wintz.h"
+#include "cmemory.h"
+#include "cstring.h"
+
+#include "unicode/ures.h"
+
+#   define WIN32_LEAN_AND_MEAN
+#   define VC_EXTRALEAN
+#   define NOUSER
+#   define NOSERVICE
+#   define NOIME
+#   define NOMCX
+#include <windows.h>
+
+#define MAX_LENGTH_ID 40
+
+U_CFUNC const char* U_EXPORT2
+uprv_detectWindowsTimeZoneUAP() {
+    UErrorCode status = U_ZERO_ERROR;
+    UResourceBundle* bundle = NULL;
+    char* icuid = NULL;
+    char tmpid[MAX_LENGTH_ID];
+    int32_t len;
+    int id;
+    int errorCode;
+    char ISOcode[3]; /* 2 letter iso code */
+	UChar wISOcode[3]; /* 2 letter iso code */
+	WCHAR winidwstr[MAX_LENGTH_ID];
+	PDYNAMIC_TIME_ZONE_INFORMATION WinTimeZoneInfo;
+    
+	tmpid[0] = 0;
+
+	WinTimeZoneInfo = (PDYNAMIC_TIME_ZONE_INFORMATION)malloc(sizeof(DYNAMIC_TIME_ZONE_INFORMATION));
+	GetDynamicTimeZoneInformation(WinTimeZoneInfo);
+	
+    id = GetUserGeoID(GEOCLASS_NATION);
+    errorCode = GetGeoInfoW(id,GEO_ISO2,wISOcode,3,0);
+	if (errorCode > 0)
+	{
+		WideCharToMultiByte(CP_ACP, 0, wISOcode, errorCode, ISOcode, 3, NULL, NULL);
+	}
+
+    bundle = ures_openDirect(NULL, "windowsZones", &status);
+    ures_getByKey(bundle, "mapTimezones", bundle, &status);
+
+    /* Note: We get the winid not from static tables but from resource bundle. */
+    while (U_SUCCESS(status) && ures_hasNext(bundle)) {
+        const char* winid;
+        UResourceBundle* winTZ = ures_getNextResource(bundle, NULL, &status);
+        if (U_FAILURE(status)) {
+            break;
+        }
+		
+        winid = ures_getKey(winTZ);
+        MultiByteToWideChar(CP_UTF8, 0, winid, -1, winidwstr, MAX_LENGTH_ID);
+		
+		if (wcscmp(winidwstr, WinTimeZoneInfo->TimeZoneKeyName) == 0)
+		{
+			const UChar* icuTZ = NULL;
+			if (errorCode != 0) {
+				icuTZ = ures_getStringByKey(winTZ, ISOcode, &len, &status);
+			}
+			if (errorCode==0 || icuTZ==NULL) {
+				/* fallback to default "001" and reset status */
+				status = U_ZERO_ERROR;
+				icuTZ = ures_getStringByKey(winTZ, "001", &len, &status);
+			}
+			if (U_SUCCESS(status)) 
+			{
+				/* if icuTZ has more than one city, take only the first (i.e. terminate icuTZ at first space) */
+				int index=0;
+				while (! (*icuTZ == '\0' || *icuTZ ==' ')) {
+					tmpid[index++]=(char)(*icuTZ++);  /* safe to assume 'char' is ASCII compatible on windows */
+				}
+				tmpid[index]='\0';
+				ures_close(winTZ);
+				break;
+			}
+		}
+
+        ures_close(winTZ);
+    }
+
+    /*
+     * Copy the timezone ID to icuid to be returned.
+     */
+    if (tmpid[0] != 0) {
+        len = uprv_strlen(tmpid);
+        icuid = (char*)uprv_calloc(len + 1, sizeof(char));
+        if (icuid != NULL) {
+            uprv_strcpy(icuid, tmpid);
+        }
+    }
+
+    ures_close(bundle);
+	free(WinTimeZoneInfo);    
+    
+	return icuid;
+}
+#endif

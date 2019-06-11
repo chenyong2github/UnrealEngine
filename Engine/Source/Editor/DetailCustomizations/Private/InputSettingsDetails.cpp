@@ -141,7 +141,6 @@ void FActionMappingsNodeBuilder::GenerateChildContent( IDetailChildrenBuilder& C
 void FActionMappingsNodeBuilder::AddActionMappingButton_OnClick()
 {
 	static const FName BaseActionMappingName(*LOCTEXT("NewActionMappingName", "NewActionMapping").ToString());
-	static int32 NewMappingCount = 0;
 	const FScopedTransaction Transaction(LOCTEXT("AddActionMapping_Transaction", "Add Action Mapping"));
 
 	TArray<UObject*> OuterObjects;
@@ -153,27 +152,11 @@ void FActionMappingsNodeBuilder::AddActionMappingButton_OnClick()
 		InputSettings->Modify();
 		ActionMappingsPropertyHandle->NotifyPreChange();
 
-		FName NewActionMappingName;
-		bool bFoundUniqueName;
-		do
-		{
-			// Create a numbered name and check whether it's already been used
-			NewActionMappingName = FName(BaseActionMappingName, ++NewMappingCount);
-			bFoundUniqueName = true;
-			for (int32 Index = 0; Index < InputSettings->ActionMappings.Num(); ++Index)
-			{
-				if (InputSettings->ActionMappings[Index].ActionName == NewActionMappingName)
-				{
-					bFoundUniqueName = false;
-					break;
-				}
-			}
-		}
-		while (!bFoundUniqueName);
+		FName NewActionMappingName = InputSettings->GetUniqueActionName(BaseActionMappingName);
 
 		DelayedGroupExpansionStates.Emplace(NewActionMappingName, true);
 		FInputActionKeyMapping NewMapping(NewActionMappingName);
-		InputSettings->ActionMappings.Add(NewMapping);
+		InputSettings->AddActionMapping(NewMapping);
 
 		ActionMappingsPropertyHandle->NotifyPostChange();
 	}
@@ -228,7 +211,7 @@ void FActionMappingsNodeBuilder::AddActionMappingToGroupButton_OnClick(const FMa
 
 		DelayedGroupExpansionStates.Emplace(MappingSet.SharedName, true);
 		FInputActionKeyMapping NewMapping(MappingSet.SharedName);
-		InputSettings->ActionMappings.Add(NewMapping);
+		InputSettings->AddActionMapping(NewMapping);
 
 		ActionMappingsPropertyHandle->NotifyPostChange();
 	}
@@ -460,27 +443,11 @@ void FAxisMappingsNodeBuilder::AddAxisMappingButton_OnClick()
 		InputSettings->Modify();
 		AxisMappingsPropertyHandle->NotifyPreChange();
 
-		FName NewAxisMappingName;
-		bool bFoundUniqueName;
-		do
-		{
-			// Create a numbered name and check whether it's already been used
-			NewAxisMappingName = FName(BaseAxisMappingName, ++NewMappingCount);
-			bFoundUniqueName = true;
-			for (int32 Index = 0; Index < InputSettings->AxisMappings.Num(); ++Index)
-			{
-				if (InputSettings->AxisMappings[Index].AxisName == NewAxisMappingName)
-				{
-					bFoundUniqueName = false;
-					break;
-				}
-			}
-		}
-		while (!bFoundUniqueName);
+		FName NewAxisMappingName = InputSettings->GetUniqueAxisName(BaseAxisMappingName);
 
 		DelayedGroupExpansionStates.Emplace(NewAxisMappingName, true);
 		FInputAxisKeyMapping NewMapping(NewAxisMappingName);
-		InputSettings->AxisMappings.Add(NewMapping);
+		InputSettings->AddAxisMapping(NewMapping);
 
 		AxisMappingsPropertyHandle->NotifyPostChange();
 	}
@@ -535,7 +502,7 @@ void FAxisMappingsNodeBuilder::AddAxisMappingToGroupButton_OnClick(const FMappin
 
 		DelayedGroupExpansionStates.Emplace(MappingSet.SharedName, true);
 		FInputAxisKeyMapping NewMapping(MappingSet.SharedName);
-		InputSettings->AxisMappings.Add(NewMapping);
+		InputSettings->AddAxisMapping(NewMapping);
 
 		AxisMappingsPropertyHandle->NotifyPostChange();
 	}
@@ -645,8 +612,8 @@ TSharedRef<IDetailCustomization> FInputSettingsDetails::MakeInstance()
 void FInputSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuilder)
 {
 	static const FName BindingsCategory = TEXT("Bindings");
-	static const FName ActionMappings = GET_MEMBER_NAME_CHECKED(UInputSettings, ActionMappings);
-	static const FName AxisMappings = GET_MEMBER_NAME_CHECKED(UInputSettings, AxisMappings);
+	static const FName ActionMappings = UInputSettings::GetActionMappingsPropertyName();
+	static const FName AxisMappings = UInputSettings::GetAxisMappingsPropertyName();
 
 	IDetailCategoryBuilder& MappingsDetailCategoryBuilder = DetailBuilder.EditCategory(BindingsCategory);
 

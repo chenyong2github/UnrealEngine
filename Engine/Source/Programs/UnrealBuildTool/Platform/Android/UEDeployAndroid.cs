@@ -62,7 +62,7 @@ namespace UnrealBuildTool
 		private string UPLHashCode = null;
 		private bool ARCorePluginEnabled = false;
 		private bool FacebookPluginEnabled = false;
-		private bool GearVRPluginEnabled = false;
+		private bool OculusMobilePluginEnabled = false;
 		private bool GoogleVRPluginEnabled = false;
 		private bool CrashlyticsPluginEnabled = false;
 
@@ -78,7 +78,7 @@ namespace UnrealBuildTool
 			ARCorePluginEnabled = false;
 			FacebookPluginEnabled = false;
 			GoogleVRPluginEnabled = false;
-			GearVRPluginEnabled = false;
+			OculusMobilePluginEnabled = false;
 			CrashlyticsPluginEnabled = false;
 			foreach (string Plugin in inPluginExtraData)
 			{
@@ -96,10 +96,10 @@ namespace UnrealBuildTool
 					continue;
 				}
 
-				// check if the Gear VR plugin was enabled
-				if (Plugin.Contains("GearVR_APL"))
+				// check if the Oculus Mobile plugin was enabled
+				if (Plugin.Contains("OculusMobile_APL"))
 				{
-					GearVRPluginEnabled = true;
+					OculusMobilePluginEnabled = true;
 					continue;
 				}
 
@@ -452,12 +452,12 @@ namespace UnrealBuildTool
 			}
 		}
 
-		public bool IsPackagingForGearVR(ConfigHierarchy Ini = null)
+		public List<string> GetTargetOculusMobileDevices(ConfigHierarchy Ini = null)
 		{
-			// always false if the Gear VR plugin wasn't enabled
-			if (!GearVRPluginEnabled)
+			// always false if the Oculus Mobile plugin wasn't enabled
+			if (!OculusMobilePluginEnabled)
 			{
-				return false;
+				return new List<string>();
 			}
 
 			// make a new one if one wasn't passed in
@@ -466,10 +466,30 @@ namespace UnrealBuildTool
 				Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			}
 
+			List<string> OculusMobileDevices;
+			bool result = Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "PackageForOculusMobile", out OculusMobileDevices);
+			if (!result || OculusMobileDevices == null)
+			{
+				OculusMobileDevices = new List<string>();
+			}
+
+			// Handle bPackageForGearVR for backwards compatibility
 			bool bPackageForGearVR = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bPackageForGearVR", out bPackageForGearVR);
+			if (bPackageForGearVR && !OculusMobileDevices.Contains("GearGo"))
+			{
+				OculusMobileDevices.Add("GearGo");
+			}
 
-			return bPackageForGearVR;
+			return OculusMobileDevices;
+		}
+
+		public bool IsPackagingForOculusMobile(ConfigHierarchy Ini = null)
+		{
+			List<string> TargetOculusDevices = GetTargetOculusMobileDevices(Ini);
+			bool bTargetOculusDevices = (TargetOculusDevices != null && TargetOculusDevices.Count() > 0);
+
+			return bTargetOculusDevices;
 		}
 
 		public bool DisableVerifyOBBOnStartUp(ConfigHierarchy Ini = null)
@@ -1953,11 +1973,11 @@ namespace UnrealBuildTool
 			ConfigHierarchy Ini = GetConfigCacheIni(ConfigHierarchyType.Engine);
 			bool bShowLaunchImage = false;
 			Ini.GetBool("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "bShowLaunchImage", out bShowLaunchImage);
-			bool bPackageForGearVR = IsPackagingForGearVR(Ini); ;
+			bool bPackageForOculusMobile = IsPackagingForOculusMobile(Ini); ;
 			bool bPackageForDaydream = IsPackagingForDaydream(Ini);
 			
-			//override the parameters if we are not showing a launch image or are packaging for Gear VR and Daydream
-			if (bPackageForGearVR || bPackageForDaydream || !bShowLaunchImage)
+			//override the parameters if we are not showing a launch image or are packaging for Oculus Mobile and Daydream
+			if (bPackageForOculusMobile || bPackageForDaydream || !bShowLaunchImage)
 			{
 				bNeedPortrait = bNeedLandscape = false;
 			}
@@ -2202,7 +2222,7 @@ namespace UnrealBuildTool
 			Ini.GetString("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ExtraApplicationSettings", out ExtraApplicationSettings);
 			List<string> ExtraPermissions;
 			Ini.GetArray("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings", "ExtraPermissions", out ExtraPermissions);
-			bool bPackageForGearVR = IsPackagingForGearVR(Ini);
+			bool bPackageForOculusMobile = IsPackagingForOculusMobile(Ini);
 			bool bEnableIAP = false;
 			Ini.GetBool("OnlineSubsystemGooglePlay.Store", "bSupportsInAppPurchasing", out bEnableIAP);
 			bool bShowLaunchImage = false;
@@ -2247,22 +2267,22 @@ namespace UnrealBuildTool
 			// only apply density to configChanges if using android-24 or higher and minimum sdk is 17
 			bool bAddDensity = (SDKLevelInt >= 24) && (MinSDKVersion >= 17);
 
-			// disable Gear VR if not supported platform (in this case only armv7 for now)
+			// disable Oculus Mobile if not supported platform (in this case only armv7 for now)
 			if (UE4Arch != "-armv7" && UE4Arch != "-arm64")
 			{
-				if (bPackageForGearVR)
+				if (bPackageForOculusMobile)
 				{
-					Log.TraceInformation("Disabling Package For Gear VR for unsupported architecture {0}", UE4Arch);
-					bPackageForGearVR = false;
+					Log.TraceInformation("Disabling Package For Oculus Mobile for unsupported architecture {0}", UE4Arch);
+					bPackageForOculusMobile = false;
 				}
 			}
 
-			// disable splash screen for Gear VR (for now)
-			if (bPackageForGearVR)
+			// disable splash screen for Oculus Mobile (for now)
+			if (bPackageForOculusMobile)
 			{
 				if (bShowLaunchImage)
 				{
-					Log.TraceInformation("Disabling Show Launch Image for Gear VR enabled application");
+					Log.TraceInformation("Disabling Show Launch Image for Oculus Mobile enabled application");
 					bShowLaunchImage = false;
 				}
 			}
@@ -2584,7 +2604,7 @@ namespace UnrealBuildTool
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.GET_ACCOUNTS\"/>");
 				}
 
-				if(!bPackageForGearVR)
+				if(!bPackageForOculusMobile)
 				{
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.MODIFY_AUDIO_SETTINGS\"/>");
 					Text.AppendLine("\t<uses-permission android:name=\"android.permission.VIBRATE\"/>");
@@ -3131,10 +3151,10 @@ namespace UnrealBuildTool
 			{
 				bool bDisableV2Signing = false;
 
-				if (IsPackagingForGearVR())
+				if (GetTargetOculusMobileDevices().Contains("GearGo"))
 				{
 					bDisableV2Signing = true;
-					Log.TraceInformation("Disabling v2Signing for Gear VR APK");
+					Log.TraceInformation("Disabling v2Signing for Oculus Go / Gear VR APK");
 				}
 
 				string KeyAlias, KeyStore, KeyStorePassword, KeyPassword;

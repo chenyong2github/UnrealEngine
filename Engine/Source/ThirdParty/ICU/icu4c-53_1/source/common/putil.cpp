@@ -256,7 +256,12 @@ static UDate getUTCtime_fake() {
     umtx_lock(&fakeClockMutex);
     if(!fakeClock_set) {
         UDate real = getUTCtime_real();
-        const char *fake_start = getenv("U_FAKETIME_START");
+		const char *fake_start = 
+#if PLATFORM_HOLOLENS
+			NULL; 
+#else
+			getenv("U_FAKETIME_START");
+#endif
         if((fake_start!=NULL) && (fake_start[0]!=0)) {
             sscanf(fake_start,"%lf",&fakeClock_t0);
             fakeClock_dt = fakeClock_t0 - real;
@@ -838,7 +843,7 @@ static const struct OffsetZoneMapping OFFSET_ZONE_MAPPINGS[] = {
 static const char* remapShortTimeZone(const char *stdID, const char *dstID, int32_t daylightType, int32_t offset)
 {
     int32_t idx;
-#ifdef DEBUG_TZNAME
+#ifdef DEBUG_TZNAME && !PLATFORM_HOLOLENS
     fprintf(stderr, "TZ=%s std=%s dst=%s daylight=%d offset=%d\n", getenv("TZ"), stdID, dstID, daylightType, offset);
 #endif
     for (idx = 0; idx < LENGTHOF(OFFSET_ZONE_MAPPINGS); idx++)
@@ -998,6 +1003,13 @@ U_CAPI const char* U_EXPORT2
 uprv_tzname(int n)
 {
     const char *tzid = NULL;
+#if PLATFORM_HOLOLENS
+	tzid = uprv_detectWindowsTimeZoneUAP();
+	
+	if (tzid != NULL) {
+        return tzid;
+    }
+#else
 #if U_PLATFORM_USES_ONLY_WIN32_API
     tzid = uprv_detectWindowsTimeZone();
 
@@ -1016,7 +1028,7 @@ uprv_tzname(int n)
 #endif*/
 
 /* This code can be temporarily disabled to test tzname resolution later on. */
-#if !defined (DEBUG_TZNAME) && (U_PLATFORM != U_PF_ORBIS)
+#if !defined (DEBUG_TZNAME) && (U_PLATFORM != U_PF_ORBIS) && !defined(PLATFORM_HOLOLENS)
     tzid = getenv("TZ");
     if (tzid != NULL && isValidOlsonID(tzid)
 #if U_PLATFORM == U_PF_SOLARIS
@@ -1090,6 +1102,7 @@ uprv_tzname(int n)
     else {
         return gTimeZoneBufferPtr;
     }
+#endif
 #endif
 #endif
 
@@ -1260,7 +1273,7 @@ u_getDataDirectory(void) {
     There may also be some platforms where environment variables
     are not allowed.
     */
-#   if !defined(ICU_NO_USER_DATA_OVERRIDE) && !UCONFIG_NO_FILE_IO
+#   if !defined(ICU_NO_USER_DATA_OVERRIDE) && !UCONFIG_NO_FILE_IO && !PLATFORM_HOLOLENS
     /* First try to get the environment variable */
     path=getenv("ICU_DATA");
 #   endif
@@ -1274,15 +1287,15 @@ u_getDataDirectory(void) {
      */
 #if defined(ICU_DATA_DIR) || defined(U_ICU_DATA_DEFAULT_DIR)
     if(path==NULL || *path==0) {
-# if defined(ICU_DATA_DIR_PREFIX_ENV_VAR)
-        const char *prefix = getenv(ICU_DATA_DIR_PREFIX_ENV_VAR);
+# if defined(ICU_DATA_DIR_PREFIX_ENV_VAR) && !PLATFORM_HOLOLENS
+		const char *prefix = getenv(ICU_DATA_DIR_PREFIX_ENV_VAR);
 # endif
 # ifdef ICU_DATA_DIR
         path=ICU_DATA_DIR;
 # else
         path=U_ICU_DATA_DEFAULT_DIR;
 # endif
-# if defined(ICU_DATA_DIR_PREFIX_ENV_VAR)
+# if defined(ICU_DATA_DIR_PREFIX_ENV_VAR) && !PLATFORM_HOLOLENS
         if (prefix != NULL) {
             snprintf(datadir_path_buffer, PATH_MAX, "%s%s", prefix, path);
             path=datadir_path_buffer;
@@ -1441,7 +1454,7 @@ static const char *uprv_getPOSIXIDForCategory(int category)
             || (uprv_strcmp("C", posixID) == 0)
             || (uprv_strcmp("POSIX", posixID) == 0))
         {
-#if U_PLATFORM == U_PF_ORBIS
+#if U_PLATFORM == U_PF_ORBIS || PLATFORM_HOLOLENS
 
 #else
             /* Maybe we got some garbage.  Try something more reasonable */
@@ -1630,7 +1643,7 @@ The leftmost codepage (.xxx) wins.
         return gCorrectedPOSIXLocale;
     }
 
-#if U_PLATFORM == U_PF_DURANGO
+#if U_PLATFORM == U_PF_DURANGO || PLATFORM_HOLOLENS
 	LCID id = LocaleNameToLCID(LOCALE_NAME_USER_DEFAULT, 0);
 #else
     LCID id = GetThreadLocale();
@@ -1980,7 +1993,12 @@ int_getDefaultCodepage()
 
 #elif U_PLATFORM_USES_ONLY_WIN32_API
     static char codepage[64];
+// ATG - richiem - removing API calls that are not allowed within a store app, hard coding the default for now
+#if PLATFORM_HOLOLENS
+	sprintf(codepage, "windows-%d", 1252);
+#else
     sprintf(codepage, "windows-%d", GetACP());
+#endif
     return codepage;
 
 #elif U_POSIX_LOCALE

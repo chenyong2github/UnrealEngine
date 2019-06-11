@@ -15,6 +15,7 @@
 #include "Features/IModularFeatures.h"
 
 #include "WindowsSpatialInputDefinitions.h"
+#include "MixedRealityInterop.h"
 
 namespace WindowsMixedReality
 {
@@ -51,15 +52,28 @@ namespace WindowsMixedReality
 		virtual FName GetMotionControllerDeviceTypeName() const override;
 		virtual bool GetControllerOrientationAndPosition(const int32 ControllerIndex, const EControllerHand DeviceHand, FRotator & OutOrientation, FVector & OutPosition, float WorldToMetersScale) const override;
 		virtual ETrackingStatus GetControllerTrackingStatus(const int32 ControllerIndex, const EControllerHand DeviceHand) const override;
+		virtual bool GetHandJointPosition(const FName MotionSource, const int32 jointIndex, FVector& OutPosition) const override;
+
+		bool CaptureGestures(uint32 capturingSet);
+		static void RegisterKeys() noexcept;
 
 	private:
-		void RegisterKeys() noexcept;
 		void InitializeSpatialInput() noexcept;
 		void UninitializeSpatialInput() noexcept;
 
 #if WITH_WINDOWS_MIXED_REALITY
 		void SendButtonEvents(uint32 source);
 		void SendAxisEvents(uint32 source);
+#endif
+
+#if WITH_WINDOWS_MIXED_REALITY
+		TUniquePtr<GestureRecognizerInterop> gestureRecognizer;
+		uint32 CapturingSet = 0;
+		bool UpdateGestureCallbacks(FString& errorMsg);
+		void TapCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Tap& desc);
+		void HoldCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Hold& desc);
+		void ManipulationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Manipulation& desc);
+		void NavigationCallback(GestureStage stage, SourceKind kind, const GestureRecognizerInterop::Navigation& desc);
 #endif
 
 		bool isLeftTouchpadTouched = false;
