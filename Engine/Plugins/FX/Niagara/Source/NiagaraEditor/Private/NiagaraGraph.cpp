@@ -614,20 +614,20 @@ void UNiagaraGraph::FindInputNodes(TArray<UNiagaraNodeInput*>& OutInputNodes, UN
 	}
 }
 
-TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs() const
+TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs(bool bReachableOnly) const
 {
+	TArray<UEdGraphNode*> NodesToProcess = bReachableOnly ? FindReachbleNodes() : Nodes;
+
 	TArray<FNiagaraVariable> Result;
-	for (UEdGraphNode* Node : Nodes)
+	for (UEdGraphNode* Node : NodesToProcess)
 	{
-		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
-		if (SwitchNode)
+		if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
 		{
 			FNiagaraVariable Variable(SwitchNode->GetInputType(), SwitchNode->InputParameterName);
 			Result.AddUnique(Variable);
 		}
 
-		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
-		if (FunctionNode)
+		if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node))
 		{
 			for (const FNiagaraPropagatedVariable& Propagated : FunctionNode->PropagatedStaticSwitchParameters)
 			{
@@ -645,6 +645,57 @@ TArray<FNiagaraVariable> UNiagaraGraph::FindStaticSwitchInputs() const
 		return Left.GetName().LexicalLess(Right.GetName());
 	});
 	return Result;
+}
+
+TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
+{
+	TArray<UEdGraphNode*> ResultNodes;
+	TArray<UNiagaraNodeOutput*> OutNodes;
+	FindOutputNodes(OutNodes);
+	ResultNodes.Append(OutNodes);
+
+	for (int i = 0; i < ResultNodes.Num(); i++)
+	{
+		UEdGraphNode* Node = ResultNodes[i];
+		if (Node == nullptr)
+		{
+			continue;
+		}
+		
+		if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
+		{
+			TArray<UEdGraphPin*> OutPins;
+			SwitchNode->GetOutputPins(OutPins);
+			for (UEdGraphPin* Pin : OutPins)
+			{
+				UEdGraphPin* TracedPin = SwitchNode->GetTracedOutputPin(Pin, false);
+				if (TracedPin && TracedPin != Pin)
+				{
+					ResultNodes.AddUnique(TracedPin->GetOwningNode());
+				}
+			}
+		}
+		else
+		{
+			TArray<UEdGraphPin*> InputPins;
+			for (UEdGraphPin* Pin : Node->GetAllPins())
+			{
+				if (!Pin || Pin->Direction != EEdGraphPinDirection::EGPD_Input)
+				{
+					continue;
+				}
+				for (UEdGraphPin* LinkedPin : Pin->LinkedTo)
+				{
+					if (!LinkedPin)
+					{
+						continue;
+					}
+					ResultNodes.AddUnique(LinkedPin->GetOwningNode());
+				}
+			}
+		}
+	}
+	return ResultNodes;
 }
 
 void UNiagaraGraph::GetParameters(TArray<FNiagaraVariable>& Inputs, TArray<FNiagaraVariable>& Outputs)const

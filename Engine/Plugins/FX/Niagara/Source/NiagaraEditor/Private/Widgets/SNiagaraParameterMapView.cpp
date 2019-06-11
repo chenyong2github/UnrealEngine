@@ -331,6 +331,10 @@ void SNiagaraParameterMapView::CollectAllActions(FGraphActionListBuilderBase& Ou
 	TMap<FNiagaraVariable, TArray<FNiagaraGraphParameterReferenceCollection>> ParameterEntries;
 	for (auto& GraphWeakPtr : Graphs)
 	{
+		if (!GraphWeakPtr.IsValid())
+		{
+			continue;
+		}
 		UNiagaraGraph* Graph = GraphWeakPtr.Get();
 		for (const auto& ParameterElement : FNiagaraEditorUtilities::GetCompiledGraphParameterMapReferences(Graph))
 		{

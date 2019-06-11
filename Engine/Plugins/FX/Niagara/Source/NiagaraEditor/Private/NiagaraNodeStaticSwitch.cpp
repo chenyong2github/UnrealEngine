@@ -43,6 +43,18 @@ void UNiagaraNodeStaticSwitch::OnSwitchParameterTypeChanged(const FNiagaraTypeDe
 	RemoveUnusedGraphParameter(FNiagaraVariable(OldType, InputParameterName));
 }
 
+void UNiagaraNodeStaticSwitch::SetSwitchValue(int Value)
+{
+	IsValueSet = true;
+	SwitchValue = Value;
+}
+
+void UNiagaraNodeStaticSwitch::ClearSwitchValue()
+{
+	IsValueSet = false;
+	SwitchValue = 0;
+}
+
 void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter)
 {
 	TArray<FNiagaraVariable> GraphVariables = GetNiagaraGraph()->FindStaticSwitchInputs();
@@ -280,6 +292,11 @@ bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Tra
 
 UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin) const
 {
+	return GetTracedOutputPin(LocallyOwnedOutputPin, true);
+}
+
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bRecursive) const
+{
 	TArray<UEdGraphPin*> InputPins;
 	GetInputPins(InputPins);
 	TArray<UEdGraphPin*> OutputPins;
@@ -293,16 +310,21 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 			continue;
 		}
 		int32 VarIdx;
-		if (OutPin == LocallyOwnedOutputPin && GetVarIndex(nullptr, InputPins.Num(), IsValueSet ? SwitchValue : 0, VarIdx))
+		if (OutPin == LocallyOwnedOutputPin && GetVarIndex(nullptr, InputPins.Num(), SwitchValue, VarIdx))
 		{
 			UEdGraphPin* InputPin = InputPins[VarIdx + i];
 			if (InputPin->LinkedTo.Num() == 1)
 			{
-				return UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0]);
+				return bRecursive ? UNiagaraNode::TraceOutputPin(InputPin->LinkedTo[0]) : InputPin->LinkedTo[0];
 			}
 		}
 	}
 	return LocallyOwnedOutputPin;
+}
+
+void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
+{
+	UNiagaraNode::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 }
 
 FText UNiagaraNodeStaticSwitch::GetTooltipText() const

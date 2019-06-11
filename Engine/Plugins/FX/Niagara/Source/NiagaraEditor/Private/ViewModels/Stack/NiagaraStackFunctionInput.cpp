@@ -1595,7 +1595,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 
 bool UNiagaraStackFunctionInput::GetShouldPassFilterForVisibleCondition() const
 {
-	return GetHasVisibleCondition() == false || GetVisibleConditionEnabled();
+	return bIsVisible && (GetHasVisibleCondition() == false || GetVisibleConditionEnabled());
 }
 
 void UNiagaraStackFunctionInput::GetSearchItems(TArray<FStackSearchItem>& SearchItems) const
