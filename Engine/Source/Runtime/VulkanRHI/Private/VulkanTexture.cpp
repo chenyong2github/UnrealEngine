@@ -1805,31 +1805,6 @@ FVulkanTexture2D::~FVulkanTexture2D()
 	}
 }
 
-
-FVulkanBackBuffer::FVulkanBackBuffer(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 UEFlags)
-	: FVulkanTexture2D(Device, Format, SizeX, SizeY, 1, 1, UEFlags, FRHIResourceCreateInfo())
-{
-}
-
-FVulkanBackBuffer::FVulkanBackBuffer(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, VkImage Image, uint32 UEFlags)
-	: FVulkanTexture2D(Device, Format, SizeX, SizeY, 1, 1, Image, UEFlags, FRHIResourceCreateInfo())
-{
-}
-
-FVulkanBackBuffer::~FVulkanBackBuffer()
-{
-	if (Surface.IsImageOwner() == false)
-	{
-		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
-		// Clear flags so ~FVulkanTexture2D() doesn't try to re-destroy it
-		Surface.UEFlags = 0;
-		DefaultView.View = VK_NULL_HANDLE;
-		DefaultView.ViewId = 0;
-		Surface.Image = VK_NULL_HANDLE;
-	}
-}
-
-
 FVulkanTexture2DArray::FVulkanTexture2DArray(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, uint32 Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
 	:	FRHITexture2DArray(SizeX, SizeY, ArraySize, NumMips, NumSamples, Format, Flags, InClearValue)
 	,	FVulkanTextureBase(Device, VK_IMAGE_VIEW_TYPE_2D_ARRAY, Format, SizeX, SizeY, 1, ArraySize, NumMips, NumSamples, Flags, BulkData)

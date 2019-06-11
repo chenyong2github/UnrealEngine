@@ -160,9 +160,10 @@ public:
 		// Tablet pressure
 		float Pressure = ViewportClient->Viewport->IsPenActive() ? ViewportClient->Viewport->GetTabletPressure() : 1.0f;
 
-		this->Cache.CacheData(X1, Y1, X2, Y2);
+		const bool bUseWeightTargetValue = UISettings->bUseWeightTargetValue;
+		const bool bCacheOriginalData = !bUseWeightTargetValue;
 
-		bool bUseWeightTargetValue = UISettings->bUseWeightTargetValue;
+		this->Cache.CacheData(X1, Y1, X2, Y2, bCacheOriginalData);
 
 		// The data we'll be writing to
 		TArray<ToolTarget::CacheClass::DataType> Data;

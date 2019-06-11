@@ -156,9 +156,8 @@ void FMaterialParameterCollectionTrackEditor::AddTrackToSequence(const FAssetDat
 
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(Track);
+		GetSequencer()->OnAddTrack(Track, FGuid());
 	}
-	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
 void FMaterialParameterCollectionTrackEditor::AddTrackToSequenceEnterPressed(const TArray<FAssetData>& InAssetData)

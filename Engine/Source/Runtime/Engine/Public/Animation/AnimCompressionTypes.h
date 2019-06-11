@@ -4,9 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Misc/Guid.h"
 #include "Misc/MemStack.h"
+#include "BonePose.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimCurveTypes.h"
+#include "Animation/AnimationAsset.h"
 
 #include "Async/MappedFileHandle.h"
 #include "HAL/PlatformFilemanager.h"
@@ -17,7 +20,11 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 
+#include "ProfilingDebugging/CsvProfiler.h"
+
 #include "AnimCompressionTypes.generated.h"
+
+CSV_DECLARE_CATEGORY_EXTERN(Animation);
 
 /**
  * Indicates animation data key format.
@@ -33,6 +40,12 @@ enum AnimationKeyFormat
 
 class FMemoryReader;
 class FMemoryWriter;
+
+class UAnimCompress;
+class UAnimCurveCompressionSettings;
+class USkeleton;
+
+extern FGuid GenerateGuidFromRawAnimData(const TArray<FRawAnimSequenceTrack>& RawAnimationData, const FRawCurveTracks& RawCurveData);
 
 template<typename ArrayClass>
 struct ENGINE_API FCompressedOffsetDataBase
@@ -87,6 +100,34 @@ struct ENGINE_API FCompressedOffsetDataBase
 	bool IsValid() const
 	{
 		return (OffsetData.Num() > 0);
+	}
+};
+
+// Helper for buiilding DDC keys of settings
+struct FArcToHexString
+{
+private:
+	TArray<uint8> TempBytes;
+
+public:
+	FMemoryWriter Ar;
+
+	FArcToHexString()
+		: Ar(TempBytes)
+	{
+		TempBytes.Reserve(64);
+	}
+
+	FString MakeString() const
+	{
+		FString Key;
+		const uint8* SettingsAsBytes = TempBytes.GetData();
+		Key.Reserve(TempBytes.Num() + 1);
+		for (int32 ByteIndex = 0; ByteIndex < TempBytes.Num(); ++ByteIndex)
+		{
+			ByteToHex(SettingsAsBytes[ByteIndex], Key);
+		}
+		return Key;
 	}
 };
 
@@ -150,20 +191,18 @@ public:
 		, SequenceLength(0.f)
 		, NumFrames(0)
 		, bIsValidAdditive(false)
-		, CompressCommandletVersion(0)
-		, RefFrameIndex(0)
-		, RefPoseType((EAdditiveBasePoseType)0)
-		, AdditiveAnimType((EAdditiveAnimationType)0)
 	{
 	}
 
-	FCompressibleAnimData(class UAnimSequence* InSeq);
+	FCompressibleAnimData(UAnimCompress* InRequestedCompressionScheme, UAnimCurveCompressionSettings* InCurveCompressionSettings, USkeleton* InSkeleton, EAnimInterpolationType InInterpolation, float InSequenceLength, int32 InNumFrames);
 
-	class UAnimCompress* RequestedCompressionScheme;
+	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
 
-	class UAnimCurveCompressionSettings* CurveCompressionSettings;
+	UAnimCompress* RequestedCompressionScheme;
 
-	class USkeleton* Skeleton;
+	UAnimCurveCompressionSettings* CurveCompressionSettings;
+
+	USkeleton* Skeleton;
 
 	TArray<FTrackToSkeletonMap> TrackToSkeletonMapTable;
 
@@ -182,19 +221,6 @@ public:
 	int32 NumFrames;
 
 	bool bIsValidAdditive;
-
-	//For DDC
-	FString TypeName;
-	FString DDCKey;
-
-	int32 CompressCommandletVersion;
-	FGuid RawDataGuid;
-
-	//Additive
-	FGuid AdditiveDataGuid;
-	int32 RefFrameIndex;
-	EAdditiveBasePoseType RefPoseType;
-	EAdditiveAnimationType AdditiveAnimType;
 
 	//For Logging
 	FString Name;
@@ -674,5 +700,61 @@ public:
 	// The size of the raw data used to create the compressed data
 	int32 CompressedRawDataSize;
 
-	void SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, class UAnimCurveCompressionSettings* CurveCompressionSettings);
+	void SerializeCompressedData(FArchive& Ar, bool bDDCData, UObject* DataOwner, USkeleton* Skeleton, class UAnimCurveCompressionSettings* CurveCompressionSettings, bool bCanUseBulkData=true);
+
+	int32 GetSkeletonIndexFromTrackIndex(const int32 TrackIndex) const
+	{
+		return CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;
+	}
 };
+
+struct FRootMotionReset
+{
+
+	FRootMotionReset(bool bInEnableRootMotion, ERootMotionRootLock::Type InRootMotionRootLock, bool bInForceRootLock, FTransform InAnimFirstFrame, bool bInIsValidAdditive)
+		: bEnableRootMotion(bInEnableRootMotion)
+		, RootMotionRootLock(InRootMotionRootLock)
+		, bForceRootLock(bInForceRootLock)
+		, AnimFirstFrame(InAnimFirstFrame)
+		, bIsValidAdditive(bInIsValidAdditive)
+	{
+	}
+
+	bool bEnableRootMotion;
+
+	ERootMotionRootLock::Type RootMotionRootLock;
+
+	bool bForceRootLock;
+
+	FTransform AnimFirstFrame;
+
+	bool bIsValidAdditive;
+
+	void ResetRootBoneForRootMotion(FTransform& BoneTransform, const FBoneContainer& RequiredBones) const
+	{
+		switch (RootMotionRootLock)
+		{
+		case ERootMotionRootLock::AnimFirstFrame: BoneTransform = AnimFirstFrame; break;
+		case ERootMotionRootLock::Zero: BoneTransform = FTransform::Identity; break;
+		default:
+		case ERootMotionRootLock::RefPose: BoneTransform = RequiredBones.GetRefPoseArray()[0]; break;
+		}
+
+		if (bIsValidAdditive && RootMotionRootLock != ERootMotionRootLock::AnimFirstFrame)
+		{
+			//Need to remove default scale here for additives
+			BoneTransform.SetScale3D(BoneTransform.GetScale3D() - FVector(1.f));
+		}
+	}
+};
+
+extern void DecompressPose(	FCompactPose& OutPose,
+							const FCompressedAnimSequence& CompressedData,
+							const FAnimExtractContext& ExtractionContext,
+							USkeleton* Skeleton,
+							float SequenceLength,
+							EAnimInterpolationType Interpolation,
+							bool bIsBakedAdditive,
+							FName RetargetSource,
+							FName SourceName,
+							const FRootMotionReset& RootMotionReset);

@@ -54,6 +54,7 @@ private:
 		int32 SortKey;
 		FText Category;
 		bool bIsStatic;
+		bool bIsVisible;
 	};
 
 	UNiagaraNodeFunctionCall* ModuleNode;

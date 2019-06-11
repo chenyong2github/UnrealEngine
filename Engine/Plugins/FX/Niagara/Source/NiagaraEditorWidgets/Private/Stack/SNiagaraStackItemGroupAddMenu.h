@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Styling/SlateTypes.h"
 
 class INiagaraStackItemGroupAddUtilities;
 
@@ -25,6 +26,10 @@ private:
 
 	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& SelectedActions, ESelectInfo::Type InSelectionType);
 
+	void OnLibraryToggleChanged(ECheckBoxState CheckState);
+
+	ECheckBoxState LibraryToggleIsChecked() const;
+
 private:
 	INiagaraStackItemGroupAddUtilities* AddUtilities;
 
@@ -33,4 +38,6 @@ private:
 	TSharedPtr<class SGraphActionMenu> AddMenu;
 
 	bool bSetFocusOnNextTick;
+	
+	static bool bIncludeNonLibraryScripts;
 };

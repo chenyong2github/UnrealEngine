@@ -12,11 +12,34 @@
 class FVulkanDynamicRHI;
 class FVulkanSwapChain;
 class FVulkanQueue;
+class FVulkanViewport;
 
 namespace VulkanRHI
 {
 	class FSemaphore;
 }
+
+class FVulkanBackBuffer : public FVulkanTexture2D
+{
+public:
+	FVulkanBackBuffer(FVulkanDevice& Device, FVulkanViewport* InViewport, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 UEFlags);
+	virtual ~FVulkanBackBuffer();
+	
+	virtual void OnTransitionResource(FVulkanCommandListContext& Context, EResourceTransitionAccess TransitionType) override final;
+
+	void OnGetBackBufferImage(FRHICommandListImmediate& RHICmdList);
+	void OnAdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdList);
+
+	void ReleaseViewport();
+
+private:
+	void AcquireBackBufferImage(FVulkanCommandListContext& Context);
+	void ReleaseAcquiredImage();
+
+private:
+	FVulkanViewport* Viewport;
+};
+
 
 class FVulkanViewport : public FRHIViewport, public VulkanRHI::FDeviceChild
 {
@@ -26,7 +49,8 @@ public:
 	FVulkanViewport(FVulkanDynamicRHI* InRHI, FVulkanDevice* InDevice, void* InWindowHandle, uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat);
 	~FVulkanViewport();
 
-	FTexture2DRHIRef GetBackBuffer(FRHICommandList& RHICmdList);
+	FTexture2DRHIRef GetBackBuffer(FRHICommandListImmediate& RHICmdList);
+	void AdvanceBackBufferFrame(FRHICommandListImmediate& RHICmdList);
 
 	void WaitForFrameEventCompletion();
 
@@ -48,9 +72,7 @@ public:
 	}
 
 	virtual void Tick(float DeltaTime) override final;
-
-	void AdvanceBackBufferFrame();
-
+	
 	bool Present(FVulkanCommandListContext* Context, FVulkanCmdBuffer* CmdBuffer, FVulkanQueue* Queue, FVulkanQueue* PresentQueue, bool bLockToVsync);
 
 	inline uint32 GetPresentCount() const
@@ -62,14 +84,11 @@ protected:
 	VkImage BackBufferImages[NUM_BUFFERS];
 	VulkanRHI::FSemaphore* RenderingDoneSemaphores[NUM_BUFFERS];
 	FVulkanTextureView TextureViews[NUM_BUFFERS];
-	
-	TRefCountPtr<FVulkanBackBuffer> BackBuffers[NUM_BUFFERS];
-	TRefCountPtr<FVulkanBackBufferReference> RenderingBackBufferReference;
-
-	// 'Dummy' back buffer
-	TRefCountPtr<FVulkanBackBuffer> RenderingBackBuffer;
 	TRefCountPtr<FVulkanBackBuffer> RHIBackBuffer;
 
+	// 'Dummy' back buffer
+	TRefCountPtr<FVulkanTexture2D>	RenderingBackBuffer;
+	
 	/** narrow-scoped section that locks access to back buffer during its recreation*/
 	FCriticalSection RecreatingSwapchain;
 
@@ -79,7 +98,6 @@ protected:
 	bool bIsFullscreen;
 	EPixelFormat PixelFormat;
 	int32 AcquiredImageIndex;
-	int32 PreAcquiredImageIndex;
 	FVulkanSwapChain* SwapChain;
 	void* WindowHandle;
 	uint32 PresentCount;
@@ -95,10 +113,7 @@ protected:
 	uint64 LastFrameFenceCounter = 0;
 
 	void CreateSwapchain();
-	void PreAcquireSwapchainImage();
-	void GetNextImageIndex();
 	void AcquireImageIndex();
-	void AcquireBackBuffer(FRHICommandListBase& CmdList, FVulkanBackBufferReference* NewBackBuffer);
 
 	void RecreateSwapchain(void* NewNativeWindow, bool bForce = false);
 	void RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat);
@@ -110,6 +125,7 @@ protected:
 	friend class FVulkanDynamicRHI;
 	friend class FVulkanCommandListContext;
 	friend struct FRHICommandAcquireBackBuffer;
+	friend class FVulkanBackBuffer;
 };
 
 template<>

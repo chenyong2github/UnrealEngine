@@ -628,6 +628,10 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 
 		// First see if it is directly called, as this will force a need to refresh from external changes...
 		UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(It->GetSource());
+		if (!Source)
+		{
+			continue;
+		}
 		TArray<UNiagaraNode*> NiagaraNodes;
 		Source->NodeGraph->GetNodesOfClass<UNiagaraNode>(NiagaraNodes);
 		bool bRefreshed = false;

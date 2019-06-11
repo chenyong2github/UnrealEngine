@@ -534,7 +534,9 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 					if (CurrentData)
 					{
 						const uint32 DeadInstanceCount = Context->EmitterInstanceReadback.CPUCount - Counts[Context->EmitterInstanceReadback.GPUCountOffset];
-						if (DeadInstanceCount && DeadInstanceCount < CurrentData->GetNumInstances())
+
+						// This will communicate the particle counts to the game thread. If DeadInstanceCount equals CurrentData->GetNumInstances() the game thread will know that the emitter has completed.
+						if (DeadInstanceCount <= CurrentData->GetNumInstances())
 						{
 							CurrentData->SetNumInstances(CurrentData->GetNumInstances() - DeadInstanceCount);
 						}
