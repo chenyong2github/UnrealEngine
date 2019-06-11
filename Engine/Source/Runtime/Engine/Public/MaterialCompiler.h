@@ -36,6 +36,14 @@ enum class EVirtualTextureUnpackType
 	HeightR8G8,
 };
 
+/** What type of compiler is this? Used by material expressions that select input based on compile context */
+enum class EMaterialCompilerType
+{
+	Standard, /** Standard HLSL translator */
+	Lightmass, /** Lightmass proxy compiler */
+	MaterialProxy, /** Flat material proxy compiler */
+};
+
 /** 
  * The interface used to translate material expressions into executable code. 
  * Note: Most member functions should be pure virtual to force a FProxyMaterialCompiler override!
@@ -71,6 +79,16 @@ public:
 	virtual void AppendExpressionError(UMaterialExpression* Expression, const TCHAR* Text) = 0;
 
 	virtual int32 CallExpression(FMaterialExpressionKey ExpressionKey,FMaterialCompiler* InCompiler) = 0;
+
+	virtual EMaterialCompilerType GetCompilerType() const { return EMaterialCompilerType::Standard; }
+	inline bool IsMaterialProxyCompiler() const { return GetCompilerType() == EMaterialCompilerType::MaterialProxy; }
+	inline bool IsLightmassCompiler() const { return GetCompilerType() == EMaterialCompilerType::Lightmass; }
+
+	inline bool IsVertexInterpolatorBypass() const
+	{
+		const EMaterialCompilerType Type = GetCompilerType();
+		return Type == EMaterialCompilerType::MaterialProxy || Type == EMaterialCompilerType::Lightmass;
+	}
 
 	virtual EMaterialValueType GetType(int32 Code) = 0;
 
@@ -280,11 +298,9 @@ public:
 	virtual int32 LightmapUVs() = 0;
 	virtual int32 PrecomputedAOMask()  = 0;
 
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) = 0;
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) = 0;
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) = 0;
 	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) = 0;
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) = 0;
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) = 0;
 
 	virtual int32 ObjectOrientation() = 0;
@@ -517,11 +533,9 @@ public:
 	virtual int32 LightmapUVs() override { return Compiler->LightmapUVs(); }
 	virtual int32 PrecomputedAOMask() override { return Compiler->PrecomputedAOMask(); }
 
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Realtime; }
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override { return Compiler->GIReplace(Direct, StaticIndirect, DynamicIndirect); }
 	virtual int32 ShadowReplace(int32 Default, int32 Shadow) override { return Compiler->ShadowReplace(Default, Shadow); }
 	virtual int32 RayTracingQualitySwitchReplace(int32 Normal, int32 RayTraced) override { return Compiler->RayTracingQualitySwitchReplace(Normal, RayTraced); }
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override { return Compiler->VirtualTextureOutputReplace(Default, VirtualTexture); }
 	
 	virtual int32 ObjectOrientation() override { return Compiler->ObjectOrientation(); }

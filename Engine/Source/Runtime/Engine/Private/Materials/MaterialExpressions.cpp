@@ -13150,9 +13150,7 @@ int32 UMaterialExpressionLightmassReplace::Compile(class FMaterialCompiler* Comp
 	}
 	else
 	{
-		int32 Arg1 = Realtime.Compile(Compiler);
-		int32 Arg2 = Lightmass.Compile(Compiler);
-		return Compiler->LightmassReplace(Arg1, Arg2);
+		return Compiler->IsLightmassCompiler() ? Lightmass.Compile(Compiler) : Realtime.Compile(Compiler);
 	}
 }
 
@@ -13250,9 +13248,7 @@ int32 UMaterialExpressionMaterialProxyReplace::Compile(class FMaterialCompiler* 
 	}
 	else
 	{
-		int32 Arg1 = Realtime.Compile(Compiler);
-		int32 Arg2 = MaterialProxy.Compile(Compiler);
-		return Compiler->MaterialProxyReplace(Arg1, Arg2);
+		return Compiler->IsMaterialProxyCompiler() ? MaterialProxy.Compile(Compiler) : Realtime.Compile(Compiler);
 	}
 }
 
@@ -15469,7 +15465,12 @@ int32 UMaterialExpressionVertexInterpolator::Compile(class FMaterialCompiler* Co
 {
 	if (Input.GetTracedInput().Expression)
 	{
-		if (InterpolatorIndex == INDEX_NONE || CompileErrors.Num() > 0)
+		if (Compiler->IsVertexInterpolatorBypass())
+		{
+			// Certain types of compilers don't support vertex interpolators, just evaluate the input directly in that case
+			return Input.Compile(Compiler);
+		}
+		else if (InterpolatorIndex == INDEX_NONE || CompileErrors.Num() > 0)
 		{
 			// Now this node is confirmed part of the graph, append all errors from the input compilation
 			check(CompileErrors.Num() == CompileErrorExpressions.Num());
@@ -15504,6 +15505,8 @@ int32 UMaterialExpressionVertexInterpolator::CompileInput(class FMaterialCompile
 	InterpolatorIndex = INDEX_NONE;
 	InterpolatedType = MCT_Unknown;
 	InterpolatorOffset = INDEX_NONE;
+
+	ensure(!Compiler->IsVertexInterpolatorBypass());
 
 	CompileErrors.Empty();
 	CompileErrorExpressions.Empty();

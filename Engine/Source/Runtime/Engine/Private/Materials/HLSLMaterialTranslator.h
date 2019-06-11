@@ -6005,8 +6005,6 @@ protected:
 		return ResultIdx;
 	}
 
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Realtime; }
-
 	virtual int32 GIReplace(int32 Direct, int32 StaticIndirect, int32 DynamicIndirect) override 
 	{ 
 		if(Direct == INDEX_NONE || DynamicIndirect == INDEX_NONE)
@@ -6040,8 +6038,6 @@ protected:
 		EMaterialValueType ResultType = GetArithmeticResultType(Normal, RayTraced);
 		return AddCodeChunk(ResultType, TEXT("(GetRayTracingQualitySwitch() ? (%s) : (%s))"), *GetParameterCode(RayTraced), *GetParameterCode(Normal));
 	}
-
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return Realtime; }
 
 	virtual int32 VirtualTextureOutputReplace(int32 Default, int32 VirtualTexture) override
 	{

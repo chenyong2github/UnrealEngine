@@ -392,8 +392,7 @@ struct FExportMaterialCompiler : public FProxyMaterialCompiler
 		}
 	}
 	
-	virtual int32 LightmassReplace(int32 Realtime, int32 Lightmass) override { return Realtime; }
-	virtual int32 MaterialProxyReplace(int32 Realtime, int32 MaterialProxy) override { return MaterialProxy; }
+	virtual EMaterialCompilerType GetCompilerType() const override { return EMaterialCompilerType::MaterialProxy; }
 };
 
 
