@@ -362,6 +362,7 @@ public:
 	virtual ~FEdModeLandscape();
 
 	/** ILandscapeEdModeInterface */
+	virtual void PostUpdateLayerContent() override;
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const override;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const override;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const override;
@@ -529,6 +530,7 @@ public:
 	void MoveTargetLayerDisplayOrder(int32 IndexToMove, int32 IndexToDestination);
 
 	/** Update shown layer list */	
+	void RequestUpdateShownLayerList();
 	void UpdateShownLayerList();
 	bool ShouldShowLayer(TSharedRef<FLandscapeTargetListInfo> Target) const;
 	void UpdateLayerUsageInformation(TWeakObjectPtr<ULandscapeLayerInfoObject>* LayerInfoObjectThatChanged = nullptr);
@@ -639,4 +641,7 @@ private:
 
 	/** The interactor that is currently painting, prevents multiple interactors from sculpting when one actually is */
 	class UViewportInteractor* InteractorPainting;
+
+	/** Delayed refresh */
+	bool bNeedsUpdateShownLayerList;
 };
