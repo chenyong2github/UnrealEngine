@@ -31,6 +31,8 @@
 	<Property Name="TVOSStripFilter" Value="*.a;"/>
 	<Property Name="LinuxStripFilter" Value="Engine\Binaries\Linux\*."/>
 	<Property Name="LuminStripFilter" Value="*.a;*.so"/>
+	<Property Name="HoloLensStripFilter" Value="*.pdb"/>
+
 
 	<Property Name="WindowsSignFilter" Value="*.exe;*.dll"/>
 	<Property Name="MacSignFilter" Value="*.dylib;*.app"/>
@@ -523,6 +525,15 @@
 	</Property>
 	
 	<Property Name="CopyLuminExceptions">
+	</Property>
+
+	<!-- HoloLens -->
+	<Property Name="CopyHoloLensFilter">
+		<!-- Build Files -->
+		Engine/Build/HoloLens/...
+	</Property>
+
+	<Property Name="CopyHoloLensExceptions">
 	</Property>
 
 </BuildGraph>

@@ -109,6 +109,7 @@ struct NIAGARA_API FNiagaraConstants
 	static void Init();
 	static const TArray<FNiagaraVariable>& GetEngineConstants();
 	static const TArray<FNiagaraVariable>& GetTranslatorConstants();
+	static const TArray<FNiagaraVariable>& GetStaticSwitchConstants();
 	static FNiagaraVariable UpdateEngineConstant(const FNiagaraVariable& InVar);
 	static const FNiagaraVariable *FindEngineConstant(const FNiagaraVariable& InVar);
 	static FText GetEngineConstantDescription(const FNiagaraVariable& InVar);
@@ -124,12 +125,14 @@ struct NIAGARA_API FNiagaraConstants
 	static const FNiagaraVariableMetaData* GetConstantMetaData(const FNiagaraVariable& InVar);
 
 	static const FNiagaraVariable* GetKnownConstant(const FName& InName, bool bAllowPartialNameMatch);
+	static const FNiagaraVariable *FindStaticSwitchConstant(const FName& InName);
 
 	static bool IsEngineManagedAttribute(const FNiagaraVariable& Var);
 
 private:
 	static TArray<FNiagaraVariable> SystemParameters;
 	static TArray<FNiagaraVariable> TranslatorParameters;
+	static TArray<FNiagaraVariable> SwitchParameters;
 	static TMap<FName, FNiagaraVariable> UpdatedSystemParameters;
 	static TMap<FNiagaraVariable, FText> SystemStrMap;
 	static TArray<FNiagaraVariable> Attributes;

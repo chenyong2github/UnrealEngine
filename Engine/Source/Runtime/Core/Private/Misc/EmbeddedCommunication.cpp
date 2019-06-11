@@ -165,6 +165,8 @@ void FEmbeddedCommunication::KeepAwake(FName Requester, bool bNeedsRendering)
 		(*WakeCount)++;
 	}
 	
+	WakeGameThread();
+	
 #endif
 }
 

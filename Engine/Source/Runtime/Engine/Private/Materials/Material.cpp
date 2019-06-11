@@ -1256,6 +1256,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_MorphTargets: UsageValue = bUsedWithMorphTargets; break;
 		case MATUSAGE_SplineMesh: UsageValue = bUsedWithSplineMeshes; break;
 		case MATUSAGE_InstancedStaticMeshes: UsageValue = bUsedWithInstancedStaticMeshes; break;
+		case MATUSAGE_GeometryCollections: UsageValue = bUsedWithGeometryCollections; break;
 		case MATUSAGE_Clothing: UsageValue = bUsedWithClothing; break;
 		case MATUSAGE_GeometryCache: UsageValue = bUsedWithGeometryCache; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
@@ -1376,6 +1377,10 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithInstancedStaticMeshes = NewValue; break;
 		}
+		case MATUSAGE_GeometryCollections:
+		{
+			bUsedWithGeometryCollections = NewValue; break;
+		}
 		case MATUSAGE_Clothing:
 		{
 			bUsedWithClothing = NewValue; break;
@@ -1408,6 +1413,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_MorphTargets: UsageName = TEXT("bUsedWithMorphTargets"); break;
 		case MATUSAGE_SplineMesh: UsageName = TEXT("bUsedWithSplineMeshes"); break;
 		case MATUSAGE_InstancedStaticMeshes: UsageName = TEXT("bUsedWithInstancedStaticMeshes"); break;
+		case MATUSAGE_GeometryCollections: UsageName = TEXT("bUsedWithGeometryCollections"); break;
 		case MATUSAGE_Clothing: UsageName = TEXT("bUsedWithClothing"); break;
 		case MATUSAGE_GeometryCache: UsageName = TEXT("bUsedWithGeometryCache"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
@@ -1481,6 +1487,7 @@ static bool IsPrimitiveTypeUsageFlag(EMaterialUsage Usage)
 		|| Usage == MATUSAGE_MorphTargets
 		|| Usage == MATUSAGE_SplineMesh
 		|| Usage == MATUSAGE_InstancedStaticMeshes
+		|| Usage == MATUSAGE_GeometryCollections
 		|| Usage == MATUSAGE_Clothing
 		|| Usage == MATUSAGE_GeometryCache;
 }
@@ -3947,7 +3954,8 @@ bool UMaterial::CanEditChange(const UProperty* InProperty) const
 		{
 			return BlendMode == BLEND_Masked ||
 			bCastDynamicShadowAsMasked ||
-			IsTranslucencyWritingCustomDepth();
+			IsTranslucencyWritingCustomDepth() ||
+			IsTranslucencyWritingVelocity();
 		}
 
 		if ( PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterial, bCastDynamicShadowAsMasked) )
@@ -5662,6 +5670,11 @@ bool UMaterial::IsDitheredLODTransition() const
 bool UMaterial::IsTranslucencyWritingCustomDepth() const
 {
 	return AllowTranslucentCustomDepthWrites != 0 && IsTranslucentBlendMode(GetBlendMode());
+}
+
+bool UMaterial::IsTranslucencyWritingVelocity() const
+{
+	return bOutputTranslucentVelocity && IsTranslucentBlendMode(GetBlendMode());
 }
 
 bool UMaterial::IsMasked() const

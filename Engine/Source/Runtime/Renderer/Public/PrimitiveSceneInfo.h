@@ -11,7 +11,7 @@
 #include "RenderingThread.h"
 #include "SceneTypes.h"
 #include "HitProxies.h"
-#include "GenericOctreePublic.h"
+#include "Math/GenericOctreePublic.h"
 #include "Engine/Scene.h"
 #include "RendererInterface.h"
 

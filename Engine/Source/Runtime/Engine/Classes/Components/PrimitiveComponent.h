@@ -862,6 +862,14 @@ public:
 	 */
 	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* NewPendingOverlaps=nullptr, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=nullptr) override;
 
+#if WITH_EDITOR
+	/**
+	 * Whether or not the bounds of this component should be considered when focusing the editor camera to an actor with this component in it.
+	 * Useful for debug components which need a bounds for rendering but don't contribute to the visible part of the mesh in a meaningful way
+	 */
+	virtual bool IgnoreBoundsForEditorFocus() const { return false; }
+#endif
+
 	/** Update current physics volume for this component, if bShouldUpdatePhysicsVolume is true. Overridden to use the overlaps to find the physics volume. */
 	virtual void UpdatePhysicsVolume( bool bTriggerNotifiers ) override;
 

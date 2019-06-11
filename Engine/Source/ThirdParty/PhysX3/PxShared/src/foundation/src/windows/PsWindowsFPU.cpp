@@ -39,7 +39,9 @@
 physx::shdfnd::FPUGuard::FPUGuard()
 {
 // default plus FTZ and DAZ
-#if PX_X64
+	// @MIXEDREALITY_CHANGE : BEGIN ARM Support
+#if PX_X64 || PX_ARM_FAMILY
+	// @MIXEDREALITY_CHANGE : END
 	// query current control word state
 	_controlfp_s(mControlWords, 0, 0);
 
@@ -60,7 +62,9 @@ physx::shdfnd::FPUGuard::~FPUGuard()
 {
 	_clearfp();
 
-#if PX_X64
+	// @MIXEDREALITY_CHANGE : BEGIN ARM Support
+#if PX_X64 || PX_ARM_FAMILY
+	// @MIXEDREALITY_CHANGE : END
 	// reset FP state
 	unsigned int cw;
 	_controlfp_s(&cw, *mControlWords, _MCW_ALL);

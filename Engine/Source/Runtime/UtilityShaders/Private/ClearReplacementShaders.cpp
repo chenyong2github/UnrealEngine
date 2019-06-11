@@ -75,17 +75,23 @@ void FClearTexture2DReplacementScissorCS::FinalizeParameters(FRHICommandList& RH
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, ClearTextureRW, FUnorderedAccessViewRHIRef());
 }
 
-void FClearBufferReplacementCS::SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, uint32 NumDWordsToClear,uint32 ClearValue)
+void FClearBufferReplacementCS::SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, uint32 NumDWordsToClear,uint32 ClearValue, bool bBarriers)
 {
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 	SetShaderValue(RHICmdList, ComputeShaderRHI, ClearBufferCSParams, FUintVector4(ClearValue, NumDWordsToClear, 0, 0));
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, BufferRW);
+	if (bBarriers)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, BufferRW);
+	}
 	RHICmdList.SetUAVParameter(ComputeShaderRHI, ClearBufferRW.GetBaseIndex(), BufferRW);
 }
 
-void FClearBufferReplacementCS::FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW)
+void FClearBufferReplacementCS::FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, bool bBarriers)
 {
-	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, BufferRW);
+	if (bBarriers)
+	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, BufferRW);
+	}
 	FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 	SetUAVParameter(RHICmdList, ComputeShaderRHI, ClearBufferRW, FUnorderedAccessViewRHIRef());
 }

@@ -159,7 +159,9 @@ public:
 		// Alias the location, will perform an addref underneath
 		FD3D12ResourceLocation::Alias(ResourceLocation, Texture->ResourceLocation);
 
-		BaseShaderResource = Texture->BaseShaderResource;
+		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for
+		// state caching logic).
+
 		ShaderResourceView = Texture->ShaderResourceView;
 
 		for (uint32 Index = 0; Index < FExclusiveDepthStencil::MaxIndex; Index++)
@@ -415,7 +417,7 @@ class FD3D12BaseTexture2DArray : public FRHITexture2DArray, public FD3D12FastCle
 {
 public:
 	FD3D12BaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
-		: FRHITexture2DArray(InSizeX, InSizeY, InSizeZ, InNumMips, InFormat, InFlags, InClearValue)
+		: FRHITexture2DArray(InSizeX, InSizeY, InSizeZ, InNumMips, InNumSamples, InFormat, InFlags, InClearValue)
 	{
 		check(InNumSamples == 1);
 	}

@@ -60,7 +60,7 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 	}
 }
 
-UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* WorldContextObject, int32 Width, int32 Height, ETextureRenderTargetFormat Format)
+UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* WorldContextObject, int32 Width, int32 Height, ETextureRenderTargetFormat Format, FLinearColor ClearColor)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
@@ -69,7 +69,8 @@ UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* W
 		UTextureRenderTarget2D* NewRenderTarget2D = NewObject<UTextureRenderTarget2D>(WorldContextObject);
 		check(NewRenderTarget2D);
 		NewRenderTarget2D->RenderTargetFormat = Format;
-		NewRenderTarget2D->InitAutoFormat(Width, Height);
+		NewRenderTarget2D->ClearColor = ClearColor;
+		NewRenderTarget2D->InitAutoFormat(Width, Height);		
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
 		return NewRenderTarget2D; 

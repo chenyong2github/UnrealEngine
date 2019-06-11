@@ -168,6 +168,11 @@ FMaterialShadingModelField FDebugViewModeMaterialProxy::GetShadingModels() const
 	return Material ? Material->GetShadingModels() : MSM_Unlit;
 }
 
+bool FDebugViewModeMaterialProxy::IsShadingModelFromMaterialExpression() const
+{ 
+	return Material ? Material->IsShadingModelFromMaterialExpression() : false;
+}
+
 float FDebugViewModeMaterialProxy::GetOpacityMaskClipValue() const
 { 
 	return Material ? Material->GetOpacityMaskClipValue() : .5f;

@@ -193,7 +193,8 @@ void InitializeNewRapidIterationParametersForNode(const UEdGraphSchema_Niagara* 
 	if (FunctionCallNode != nullptr)
 	{
 		TArray<const UEdGraphPin*> FunctionInputPins;
-		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
+		TSet<const UEdGraphPin*> HiddenInputPins;
+		FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, FunctionInputPins, HiddenInputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly, false);
 		for (const UEdGraphPin* FunctionInputPin : FunctionInputPins)
 		{
 			FNiagaraTypeDefinition InputType = Schema->PinToTypeDefinition(FunctionInputPin);

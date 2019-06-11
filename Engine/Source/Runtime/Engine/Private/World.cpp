@@ -67,6 +67,7 @@
 #include "VisualLogger/VisualLogger.h"
 #include "LevelUtils.h"
 #include "Physics/PhysicsInterfaceCore.h"
+#include "Physics/Experimental/PhysScene_Chaos.h"
 #include "AI/AISystemBase.h"
 #include "Camera/CameraActor.h"
 #include "Engine/NetworkObjectList.h"
@@ -80,7 +81,8 @@
 #include "ShaderCompiler.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/DemoNetDriver.h"
-#include "VT/VirtualTexture.h"
+#include "Modules/ModuleManager.h"
+#include "VT/VirtualTexture.h" 
 
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -122,6 +124,10 @@
 #include "Engine/AssetManager.h"
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+
+#if INCLUDE_CHAOS
+#include "ChaosSolversModule.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorld, Log, All);
 DEFINE_LOG_CATEGORY(LogSpawn);
@@ -922,6 +928,9 @@ void UWorld::PostLoad()
 #if WITH_EDITOR
 	RepairWorldSettings();
 #endif
+#if INCLUDE_CHAOS
+	RepairChaosActors();
+#endif
 
 	for (auto It = StreamingLevels.CreateIterator(); It; ++It)
 	{
@@ -1172,6 +1181,77 @@ UAISystemBase* UWorld::CreateAISystem()
 	return AISystem; 
 }
 
+#if INCLUDE_CHAOS
+void UWorld::RepairChaosActors()
+{
+	if (!PhysicsScene_Chaos)
+	{
+		// Streamed levels need to find the persistent level's owning world to fetch chaos scene.
+		UWorld *OwningWorld = ULevel::StreamedLevelsOwningWorld.FindRef(PersistentLevel->GetOutermost()->GetFName()).Get();
+		if (OwningWorld)
+		{
+			PersistentLevel->OwningWorld = OwningWorld;
+			PhysicsScene_Chaos = PersistentLevel->OwningWorld->PhysicsScene_Chaos;
+		}
+	}
+
+	if (!PhysicsScene_Chaos)
+	{
+		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		check(ChaosModule);
+		bool bHasChaosActor = false;
+		for (int32 i = 0; i < PersistentLevel->Actors.Num(); ++i)
+		{
+			if (PersistentLevel->Actors[i] && ChaosModule->IsValidSolverActorClass(PersistentLevel->Actors[i]->GetClass()))
+			{
+				bHasChaosActor = true;
+
+				bool bClearOwningWorld = false;
+
+				if (PersistentLevel->OwningWorld == nullptr)
+				{
+					bClearOwningWorld = true;
+					PersistentLevel->OwningWorld = this;
+				}
+
+				PersistentLevel->Actors[i]->PostRegisterAllComponents();
+
+				if (bClearOwningWorld)
+				{
+					PersistentLevel->OwningWorld = nullptr;
+				}
+
+				break;
+			}
+		}
+		if (!bHasChaosActor)
+		{
+			bool bClearOwningWorld = false;
+
+			if (PersistentLevel->OwningWorld == nullptr)
+			{
+				bClearOwningWorld = true;
+				PersistentLevel->OwningWorld = this;
+			}
+
+			FActorSpawnParameters ChaosSpawnInfo;
+			ChaosSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+			ChaosSpawnInfo.Name = TEXT("DefaultChaosActor");
+			SpawnActor(ChaosModule->GetSolverActorClass(), nullptr, nullptr, ChaosSpawnInfo);
+			check(PhysicsScene_Chaos);
+
+			if (bClearOwningWorld)
+			{
+				PersistentLevel->OwningWorld = nullptr;
+			}
+		}
+	}
+
+	// make the current scene the default scene
+	DefaultPhysicsScene_Chaos = PhysicsScene_Chaos;
+}
+#endif
+
 void UWorld::RepairWorldSettings()
 {
 	AWorldSettings* ExistingWorldSettings = PersistentLevel->GetWorldSettings(false);
@@ -1296,6 +1376,9 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 #if WITH_EDITOR
 	RepairWorldSettings();
+#endif
+#if INCLUDE_CHAOS
+	RepairChaosActors();
 #endif
 
 	// initialize DefaultPhysicsVolume for the world
@@ -1516,6 +1599,16 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS)
 	check(GetWorldSettings());
 #if WITH_EDITOR
 	WorldSettings->SetIsTemporarilyHiddenInEditor(true);
+#endif
+
+#if INCLUDE_CHAOS
+	FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+	check(ChaosModule);
+	FActorSpawnParameters ChaosSpawnInfo;
+	ChaosSpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+	ChaosSpawnInfo.Name = TEXT("DefaultChaosActor");
+	SpawnActor(ChaosModule->GetSolverActorClass(), nullptr, nullptr, ChaosSpawnInfo);
+	check(PhysicsScene_Chaos);
 #endif
 
 	// Initialize the world
@@ -3958,6 +4051,13 @@ void UWorld::BeginPlay()
 			GetAISystem()->StartPlay();
 		}
 	}
+
+#if WITH_CHAOS
+	if(PhysicsScene)
+	{
+		PhysicsScene->OnWorldBeginPlay();
+	}
+#endif
 }
 
 bool UWorld::IsNavigationRebuilt() const
@@ -3985,6 +4085,9 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	if(FPhysScene* CurrPhysicsScene = GetPhysicsScene())
 	{
 		CurrPhysicsScene->WaitPhysScenes();
+#if WITH_CHAOS
+		CurrPhysicsScene->OnWorldEndPlay();
+#endif
 	}
 
 	FWorldDelegates::OnWorldCleanup.Broadcast(this, bSessionEnded, bCleanupResources);

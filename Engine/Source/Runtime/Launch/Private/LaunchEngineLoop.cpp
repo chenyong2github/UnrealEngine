@@ -1215,7 +1215,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 	{
 		FString TraceHost;
-		if (FParse::Value(CmdLine, TEXT("tracehost"), TraceHost))
+		if (FParse::Value(CmdLine, TEXT("-tracehost="), TraceHost))
 		{
 			Trace::Connect(*TraceHost);
 		}

@@ -1088,7 +1088,7 @@ void FSceneRenderTargets::AllocMobileMultiViewDepth(FRHICommandList& RHICmdList,
 		const FIntPoint MultiViewBufferSize(BufferSize.X / ScaleFactor, BufferSize.Y);
 
 		// Using the result of GetDepthFormat() without stencil due to packed depth-stencil not working in array frame buffers.
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(MultiViewBufferSize, PF_D24, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable, false));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(MultiViewBufferSize, PF_D24, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		Desc.Flags |= TexCreate_FastVRAM;
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.ArraySize = 2;
@@ -2048,11 +2048,8 @@ void FSceneRenderTargets::AllocateMobileRenderTargets(FRHICommandList& RHICmdLis
 	if (bIsUsingMobileMultiView)
 	{
 		const int32 ScaleFactor = (bIsMobileMultiViewDirectEnabled) ? 1 : 2;
-		if (!bIsMobileMultiViewDirectEnabled)
-		{
-			AllocMobileMultiViewSceneColor(RHICmdList, ScaleFactor);
-		}
 
+		AllocMobileMultiViewSceneColor(RHICmdList, ScaleFactor);
 		AllocMobileMultiViewDepth(RHICmdList, ScaleFactor);
 	}
 #endif
@@ -2207,18 +2204,17 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 	if (!SceneDepthZ || GFastVRamConfig.bDirty)
 	{
 		FTexture2DRHIRef DepthTex, SRTex;
-		const bool bHMDAllocated = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, PF_X24_G8, 0, TexCreate_None, TexCreate_DepthStencilTargetable, DepthTex, SRTex, GetNumSceneColorMSAASamples(CurrentFeatureLevel));
+		bHMDAllocatedDepthTarget = StereoRenderTargetManager && StereoRenderTargetManager->AllocateDepthTexture(0, BufferSize.X, BufferSize.Y, PF_X24_G8, 0, TexCreate_None, TexCreate_DepthStencilTargetable, DepthTex, SRTex, GetNumSceneColorMSAASamples(CurrentFeatureLevel));
 
 		// Create a texture to store the resolved scene depth, and a render-targetable surface to hold the unresolved scene depth.
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_DepthStencil, DefaultDepthClear, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, false));
 		Desc.NumSamples = GetNumSceneColorMSAASamples(CurrentFeatureLevel);
 		Desc.Flags |= GFastVRamConfig.SceneDepth;
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthZ, TEXT("SceneDepthZ"));
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SceneDepthZ, TEXT("SceneDepthZ"), true, ERenderTargetTransience::Transient, bHMDAllocatedDepthTarget);
 
-		if (bHMDAllocated)
+		if (SceneDepthZ && bHMDAllocatedDepthTarget)
 		{
 			const uint32 OldElementSize = SceneDepthZ->ComputeMemorySize();
-			bHMDAllocatedDepthTarget = true;
 		
 			// If SRT and texture are different (MSAA), only modify the resolve render target, to avoid creating a swapchain of MSAA textures
 			if (SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture == SceneDepthZ->GetRenderTargetItem().TargetableTexture)
@@ -2233,12 +2229,18 @@ void FSceneRenderTargets::AllocateCommonDepthTargets(FRHICommandList& RHICmdList
 			GRenderTargetPool.UpdateElementSize(SceneDepthZ, OldElementSize);
 		}
 
-		SceneStencilSRV = RHICreateShaderResourceView((FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture, 0, 1, PF_X24_G8);
+		SceneStencilSRV.SafeRelease();
 	}
-	else if (bStereo && bHMDAllocatedDepthTarget)
+
+	// We need to update the stencil SRV every frame if the depth target was allocated by an HMD.
+	// TODO: This should be handled by the HMD depth target swap chain, but currently it only updates the depth SRV.
+	if (bHMDAllocatedDepthTarget)
 	{
-		// We need to update the stencil SRV every frame if the depth target was allocated by an HMD.
-		// TODO: This should be handled by the HMD depth target swap chain, but currently it only updates the depth SRV.
+		SceneStencilSRV.SafeRelease();
+	}
+
+	if (SceneDepthZ && !SceneStencilSRV)
+	{
 		SceneStencilSRV = RHICreateShaderResourceView((FTexture2DRHIRef&)SceneDepthZ->GetRenderTargetItem().TargetableTexture, 0, 1, PF_X24_G8);
 	}
 

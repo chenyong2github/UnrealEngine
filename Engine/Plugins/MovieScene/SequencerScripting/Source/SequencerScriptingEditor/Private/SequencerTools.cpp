@@ -131,32 +131,6 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 	return bDidExport;
 }
 
-FString GetCameraName(FbxCamera* InCamera)
-{
-	FbxNode* CameraNode = InCamera->GetNode();
-	if (CameraNode)
-	{
-		return CameraNode->GetName();
-	}
-
-	return InCamera->GetName();
-}
-
-void GetCameras(FbxNode* Parent, TArray<FbxCamera*>& Cameras)
-{
-	FbxCamera* Camera = Parent->GetCamera();
-	if (Camera)
-	{
-		Cameras.Add(Camera);
-	}
-
-	int32 NodeCount = Parent->GetChildCount();
-	for (int32 NodeIndex = 0; NodeIndex < NodeCount; ++NodeIndex)
-	{
-		FbxNode* Child = Parent->GetChild(NodeIndex);
-		GetCameras(Child, Cameras);
-	}
-}
 
 
 TArray<FGuid> AddActors(UWorld* World, UMovieSceneSequence* InSequence, UMovieScene* InMovieScene, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID,const TArray<TWeakObjectPtr<AActor> >& InActors)
@@ -198,13 +172,13 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UWorld* World, UMovieScen
 	if (bCreateCameras)
 	{
 		TArray<FbxCamera*> AllCameras;
-		GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
+		MovieSceneToolHelpers::GetCameras(FbxImporter->Scene->GetRootNode(), AllCameras);
 
 		// Find unmatched cameras
 		TArray<FbxCamera*> UnmatchedCameras;
 		for (auto Camera : AllCameras)
 		{
-			FString NodeName = GetCameraName(Camera);
+			FString NodeName = MovieSceneToolHelpers::GetCameraName(Camera);
 
 			bool bMatched = false;
 			for (auto InObjectBinding : InObjectBindingMap)
@@ -242,7 +216,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UWorld* World, UMovieScen
 		// Add any unmatched cameras
 		for (auto UnmatchedCamera : UnmatchedCameras)
 		{
-			FString CameraName = GetCameraName(UnmatchedCamera);
+			FString CameraName = MovieSceneToolHelpers::GetCameraName(UnmatchedCamera);
 
 			AActor* NewCamera = nullptr;
 			if (UnmatchedCamera->GetApertureMode() == FbxCamera::eFocalLength)

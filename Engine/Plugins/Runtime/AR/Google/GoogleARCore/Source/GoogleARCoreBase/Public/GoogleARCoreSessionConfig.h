@@ -10,7 +10,10 @@
 
 #include "GoogleARCoreSessionConfig.generated.h"
 
-
+/**
+ * A UDataAsset that can be used to configure ARCore specific settings on top of
+ * UARSessionConfig. 
+ */
 UCLASS(BlueprintType, Category = "AR AugmentedReality")
 class GOOGLEARCOREBASE_API UGoogleARCoreSessionConfig : public UARSessionConfig
 {
@@ -45,6 +48,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = "google arcore augmentedimages")
 	UGoogleARCoreAugmentedImageDatabase *AugmentedImageDatabase;
 
+	/** Configure which camera will be used to in the AR session. */
+	UPROPERTY(EditAnywhere, Category = "ARCore Settings")
+	EGoogleARCoreCameraFacing CameraFacing = EGoogleARCoreCameraFacing::Back;
+
+	/** Configure which Augmented Face mode will be used in the AR session. */
+	UPROPERTY(EditAnywhere, Category = "ARCore Settings")
+	EGoogleARCoreAugmentedFaceMode AugmentedFaceMode = EGoogleARCoreAugmentedFaceMode::Disabled;
 public:
 
 	/**

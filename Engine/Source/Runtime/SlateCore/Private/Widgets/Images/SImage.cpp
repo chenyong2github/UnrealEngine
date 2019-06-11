@@ -80,7 +80,7 @@ void SImage::SetImage(TAttribute<const FSlateBrush*> InImage)
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SImage::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SImage::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleImage(SharedThis(this)));
 }

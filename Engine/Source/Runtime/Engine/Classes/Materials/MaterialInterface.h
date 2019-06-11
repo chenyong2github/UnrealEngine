@@ -46,6 +46,7 @@ enum EMaterialUsage
 	MATUSAGE_MorphTargets,
 	MATUSAGE_SplineMesh,
 	MATUSAGE_InstancedStaticMeshes,
+	MATUSAGE_GeometryCollections,
 	MATUSAGE_Clothing,
 	MATUSAGE_NiagaraSprites,
 	MATUSAGE_NiagaraRibbons,
@@ -69,7 +70,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bUsesSceneColorCopy : 1;
 	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
 	uint8 bDisableDepthTest : 1;
-	uint8 bOutputsVelocityInBasePass : 1;
+	uint8 bOutputsTranslucentVelocity : 1;
 	uint8 bUsesGlobalDistanceField : 1;
 	uint8 bUsesWorldPositionOffset : 1;
 	uint8 bDecal : 1;
@@ -713,6 +714,7 @@ public:
 	ENGINE_API virtual bool IsTwoSided() const;
 	ENGINE_API virtual bool IsDitheredLODTransition() const;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const;
+	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const;
 	ENGINE_API virtual bool IsMasked() const;
 	ENGINE_API virtual bool IsDeferredDecal() const;
 

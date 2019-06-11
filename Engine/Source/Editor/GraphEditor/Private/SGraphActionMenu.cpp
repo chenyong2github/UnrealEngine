@@ -90,6 +90,11 @@ public:
 		ContentBorder->SetContent(InContent);
 	}
 
+	virtual const FSlateBrush* GetBorder() const
+	{
+		return nullptr;
+	}
+
 private:
 	TSharedPtr<SBorder> ContentBorder;
 };

@@ -90,9 +90,6 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 		GMaxRHIShaderPlatform = (PLATFORM_LUMINGL4 || PLATFORM_LUMIN) ? SP_VULKAN_SM5_LUMIN : SP_VULKAN_SM5;
 	}
 
-	// VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS=0 requires separate MSAA and resolve textures
-	check(RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform) == (!VULKAN_USE_MSAA_RESOLVE_ATTACHMENTS));
-
 	GVulkanRHI = new FVulkanDynamicRHI();
 #if ENABLE_RHI_VALIDATION
 	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
@@ -1022,10 +1019,10 @@ void FVulkanDynamicRHI::RHISubmitCommandsAndFlushGPU()
 	Device->SubmitCommandsAndFlushGPU();
 }
 
-FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 NumSamplesTileMem, VkImage Resource, uint32 Flags)
+FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, uint32 Flags)
 {
 	const FRHIResourceCreateInfo ResourceCreateInfo(IsDepthOrStencilFormat(Format) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
-	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, NumSamplesTileMem, Resource, Flags, ResourceCreateInfo);
+	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, Resource, Flags, ResourceCreateInfo);
 }
 
 FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, VkImage Resource, FSamplerYcbcrConversionInitializer& ConversionInitializer, uint32 Flags)
@@ -1034,10 +1031,10 @@ FTexture2DRHIRef FVulkanDynamicRHI::RHICreateTexture2DFromResource(EPixelFormat 
 	return new FVulkanTexture2D(*Device, Format, SizeX, SizeY, NumMips, NumSamples, Resource, ConversionInitializer, Flags, ResourceCreateInfo);
 }
 
-FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, VkImage Resource, uint32 Flags)
+FTexture2DArrayRHIRef FVulkanDynamicRHI::RHICreateTexture2DArrayFromResource(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 NumSamples, VkImage Resource, uint32 Flags)
 {
 	const FClearValueBinding ClearValueBinding(IsDepthOrStencilFormat(Format) ? FClearValueBinding::DepthZero : FClearValueBinding::Transparent);
-	return new FVulkanTexture2DArray(*Device, Format, SizeX, SizeY, ArraySize, NumMips, Resource, Flags, nullptr, ClearValueBinding);
+	return new FVulkanTexture2DArray(*Device, Format, SizeX, SizeY, ArraySize, NumMips, NumSamples, Resource, Flags, nullptr, ClearValueBinding);
 }
 
 FTextureCubeRHIRef FVulkanDynamicRHI::RHICreateTextureCubeFromResource(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, VkImage Resource, uint32 Flags)
@@ -1509,6 +1506,34 @@ static VkRenderPass CreateRenderPass(FVulkanDevice& InDevice, const FVulkanRende
 	CreateInfo.pSubpasses = SubpassDescriptions;
 	CreateInfo.dependencyCount = NumDependencies;
 	CreateInfo.pDependencies = SubpassDependencies;
+
+	/*
+	Bit mask that specifies which view rendering is broadcast to
+	0011 = Broadcast to first and second view (layer)
+	*/
+	const uint32_t ViewMask[2] = { 0b00000011, 0b00000011 };
+
+	/*
+	Bit mask that specifices correlation between views
+	An implementation may use this for optimizations (concurrent render)
+	*/
+	const uint32_t CorrelationMask = 0b00000011;
+
+	VkRenderPassMultiviewCreateInfo MultiviewInfo;
+	if (RTLayout.GetIsMultiView())
+	{
+		FMemory::Memzero(MultiviewInfo);
+		MultiviewInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
+		MultiviewInfo.pNext = nullptr;
+		MultiviewInfo.subpassCount = NumSubpasses;
+		MultiviewInfo.pViewMasks = ViewMask;
+		MultiviewInfo.dependencyCount = 0;
+		MultiviewInfo.pViewOffsets = nullptr;
+		MultiviewInfo.correlationMaskCount = 1;
+		MultiviewInfo.pCorrelationMasks = &CorrelationMask;
+
+		CreateInfo.pNext = &MultiviewInfo;
+	}
 	
 	VkRenderPass RenderPassHandle;
 	VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass(InDevice.GetInstanceHandle(), &CreateInfo, VULKAN_CPU_ALLOCATOR, &RenderPassHandle));

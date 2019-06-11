@@ -125,7 +125,7 @@ static void ClearQuadSetup( FRHICommandList& RHICmdList, bool bClearColor, int32
 	PixelShader->SetColors(RHICmdList, ClearColorArray, NumClearColors);
 }
 
-static void ClearUAVShader(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UnorderedAccessViewRHI, uint32 SizeInBytes, uint32 ClearValue)
+static void ClearUAVShader(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* UnorderedAccessViewRHI, uint32 SizeInBytes, uint32 ClearValue, bool bBarriers = true)
 {
 	UE_CLOG((SizeInBytes & 0x3) != 0, LogClearQuad, Warning,
 		TEXT("Buffer size is not a multiple of DWORDs. Up to 3 bytes after buffer end will also be cleared"));
@@ -136,9 +136,9 @@ static void ClearUAVShader(FRHICommandList& RHICmdList, FRHIUnorderedAccessView*
 	uint32 NumDWordsToClear = (SizeInBytes + 3) / 4;
 	uint32 NumThreadGroupsX = (NumDWordsToClear + 63) / 64;
 	RHICmdList.SetComputeShader(ShaderRHI);
-	ComputeShader->SetParameters(RHICmdList, UnorderedAccessViewRHI, NumDWordsToClear, ClearValue);
+	ComputeShader->SetParameters(RHICmdList, UnorderedAccessViewRHI, NumDWordsToClear, ClearValue, bBarriers);
 	RHICmdList.DispatchComputeShader(NumThreadGroupsX, 1, 1);
-	ComputeShader->FinalizeParameters(RHICmdList, UnorderedAccessViewRHI);
+	ComputeShader->FinalizeParameters(RHICmdList, UnorderedAccessViewRHI, bBarriers);
 }
 
 void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& StructuredBuffer, uint32 Value)
@@ -155,16 +155,17 @@ void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& Structured
 	}
 }
 
-void ClearUAV(FRHICommandList& RHICmdList, const FRWBuffer& Buffer, uint32 Value)
+void ClearUAV(FRHICommandList& RHICmdList, const FRWBuffer& Buffer, uint32 Value, bool bBarriers)
 {
 	if (Buffer.NumBytes <= uint32(CVarFastClearUAVMaxSize.GetValueOnRenderThread()))
 	{
 		uint32 Values[4] = { Value, Value, Value, Value };
 		RHICmdList.ClearTinyUAV(Buffer.UAV, Values);
+		check(bBarriers); //  TODO ClearTinyUAV is doing transitions as of today
 	}
 	else
 	{
-		ClearUAVShader(RHICmdList, Buffer.UAV, Buffer.NumBytes, Value);
+		ClearUAVShader(RHICmdList, Buffer.UAV, Buffer.NumBytes, Value, bBarriers);
 	}
 }
 

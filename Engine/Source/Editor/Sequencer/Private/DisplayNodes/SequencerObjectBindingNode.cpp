@@ -158,7 +158,8 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 	if (GetSequencer().IsLevelEditorSequencer())
 	{
-		UMovieScene* MovieScene = GetSequencer().GetFocusedMovieSceneSequence()->GetMovieScene();
+		FSequencer*  Sequencer  = &GetSequencer();
+		UMovieScene* MovieScene = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
 		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(ObjectBinding);
 
 		if (Spawnable)
@@ -175,6 +176,55 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				LOCTEXT("SubLevelLabel", "Spawnable Level"),
 				LOCTEXT("SubLevelTooltip", "Specifies which level the spawnable should be spawned into"),
 				FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddSpawnLevelMenu)
+			);
+
+			auto ContinuouslyRespawnCheckState = [Sequencer, MovieScene]
+			{
+				ECheckBoxState CheckState = ECheckBoxState::Undetermined;
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							if (CheckState != ECheckBoxState::Undetermined && SelectedSpawnable->bContinuouslyRespawn != ( CheckState == ECheckBoxState::Checked ))
+							{
+								return ECheckBoxState::Undetermined;
+							}
+							CheckState = SelectedSpawnable->bContinuouslyRespawn ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+						}
+					}
+				}
+				return CheckState;
+			};
+
+			auto ToggleContinuouslyRespawn = [Sequencer, MovieScene, ContinuouslyRespawnCheckState]
+			{
+				FScopedTransaction Transaction(LOCTEXT("SetContinuouslyRespawn", "Set Continuously Respawn"));
+
+				bool bNewValue = ContinuouslyRespawnCheckState() == ECheckBoxState::Unchecked;
+				MovieScene->Modify();
+				for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetSelection().GetSelectedOutlinerNodes())
+				{
+					if (Node->GetType() == ESequencerNode::Object)
+					{
+						FMovieSceneSpawnable* SelectedSpawnable = MovieScene->FindSpawnable(static_cast<const FSequencerObjectBindingNode&>(Node.Get()).GetObjectBinding());
+						if (SelectedSpawnable)
+						{
+							SelectedSpawnable->bContinuouslyRespawn = bNewValue;
+						}
+					}
+				}
+			};
+
+			MenuBuilder.AddMenuEntry(
+				LOCTEXT("ContinuouslyRespawn", "Continuously Respawn"),
+				LOCTEXT("ContinuouslyRespawn", "When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateLambda(ToggleContinuouslyRespawn), FCanExecuteAction(), FGetActionCheckState::CreateLambda(ContinuouslyRespawnCheckState)),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
 			);
 
 			MenuBuilder.AddMenuEntry( FSequencerCommands::Get().SaveCurrentSpawnableState );

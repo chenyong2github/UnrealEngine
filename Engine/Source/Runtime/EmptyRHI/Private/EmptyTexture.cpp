@@ -128,7 +128,7 @@ void FEmptyDynamicRHI::RHICopySharedMips(FTexture2DRHIParamRef DestTexture2D,FTe
 
 }
 
-FTexture2DArrayRHIRef FEmptyDynamicRHI::RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
+FTexture2DArrayRHIRef FEmptyDynamicRHI::RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 {
 	return new FEmptyTexture2DArray((EPixelFormat)Format, SizeX, SizeY, SizeZ, NumMips, Flags, CreateInfo.BulkData);
 }

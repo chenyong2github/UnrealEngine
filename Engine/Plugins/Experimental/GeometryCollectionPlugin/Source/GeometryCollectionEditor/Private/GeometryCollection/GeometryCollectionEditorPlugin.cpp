@@ -11,11 +11,15 @@
 #include "GeometryCollection/GeometryCollectionCommands.h"
 #include "GeometryCollection/AssetTypeActions_GeometryCollection.h"
 #include "GeometryCollection/AssetTypeActions_GeometryCollectionCache.h"
+#include "GeometryCollection/GeometryCollectionAssetBroker.h"
 #include "GeometryCollection/GeometryCollectionEditorStyle.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
+#include "GeometryCollection/GeometryCollectionThumbnailRenderer.h"
+#include "GeometryCollection/GeometryCollectionSelectRigidBodyEdMode.h"
 #include "HAL/ConsoleManager.h"
 #include "Features/IModularFeatures.h"
 #include "GeometryCollection/DetailCustomizations/GeomComponentCacheCustomization.h"
+#include "GeometryCollection/DetailCustomizations/SelectedRigidBodyCustomization.h"
 #include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/CoreStyle.h"
@@ -35,6 +39,9 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	GeometryCollectionCacheAssetActions = new FAssetTypeActions_GeometryCollectionCache();
 	AssetTools.RegisterAssetTypeActions(MakeShareable(GeometryCollectionAssetActions));
 	AssetTools.RegisterAssetTypeActions(MakeShareable(GeometryCollectionCacheAssetActions));
+
+	AssetBroker = new FGeometryCollectionAssetBroker();
+	FComponentAssetBrokerage::RegisterBroker(MakeShareable(AssetBroker), UGeometryCollectionComponent::StaticClass(), true, true);
 
 	if (GIsEditor && !IsRunningCommandlet())
 	{
@@ -66,6 +73,12 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 			TEXT("GeometryCollection.SelectNone"),
 			TEXT("Deselect all geometry in hierarchy."),
 			FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGeometryCollectionCommands::SelectNone),
+			ECVF_Default
+		));
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("GeometryCollection.SelectLessThenVolume"),
+			TEXT("Select all geometry with a volume less than specified."),
+			FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(&FGeometryCollectionCommands::SelectLessThenVolume),
 			ECVF_Default
 		));
 		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
@@ -129,6 +142,12 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 			ECVF_Default
 		));
 		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("GeometryCollection.PrintDetailedStatisticsSummary"),
+			TEXT("Prints detailed statistics of the contents of the selected collection(s)."),
+			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionCommands::PrintDetailedStatisticsSummary),
+			ECVF_Default
+		));
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
 			TEXT("GeometryCollection.SetupNestedBoneAsset"),
 			TEXT("Converts the selected GeometryCollectionAsset into a test asset."),
 			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionCommands::SetupNestedBoneAsset),
@@ -138,6 +157,12 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 			TEXT("GeometryCollection.SetupTwoClusteredCubesAsset"),
 			TEXT("Addes two clustered cubes to the selected actor."),
 			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionCommands::SetupTwoClusteredCubesAsset),
+			ECVF_Default
+		));
+		EditorCommands.Add(IConsoleManager::Get().RegisterConsoleCommand(
+			TEXT("GeometryCollection.Heal"),
+			TEXT("Tries to fill holes in go."),
+			FConsoleCommandWithWorldDelegate::CreateStatic(&FGeometryCollectionCommands::HealGeometry),
 			ECVF_Default
 		));
 	}
@@ -152,7 +177,13 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 	if(PropertyModule)
 	{
 		PropertyModule->RegisterCustomPropertyTypeLayout("GeomComponentCacheParameters", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FGeomComponentCacheParametersCustomization::MakeInstance));
+		PropertyModule->RegisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawActorSelectedRigidBody", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FSelectedRigidBodyCustomization::MakeInstance));
 	}
+
+	// Register rigid body selection editor mode
+	FEditorModeRegistry::Get().RegisterMode<FGeometryCollectionSelectRigidBodyEdMode>(
+		FGeometryCollectionSelectRigidBodyEdMode::EditorModeID,
+		NSLOCTEXT("GeometryCollectionSelectRigidBody", "GeometryCollectionSelectRigidBodyEdMode", "Geometry Collection Select Editor Mode"));
 
 	// Style sets
 	StyleSet = MakeShared<FSlateStyleSet>(GetEditorStyleName());
@@ -172,6 +203,9 @@ void IGeometryCollectionEditorPlugin::StartupModule()
 		.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+
+	UThumbnailManager::Get().RegisterCustomRenderer(UGeometryCollection::StaticClass(), UGeometryCollectionThumbnailRenderer::StaticClass());
+
 }
 
 
@@ -179,10 +213,14 @@ void IGeometryCollectionEditorPlugin::ShutdownModule()
 {
 	if (UObjectInitialized())
 	{
+		UThumbnailManager::Get().UnregisterCustomRenderer(UGeometryCollection::StaticClass());
+
 		FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
 		IAssetTools& AssetTools = AssetToolsModule.Get();
 		AssetTools.UnregisterAssetTypeActions(GeometryCollectionAssetActions->AsShared());
 		AssetTools.UnregisterAssetTypeActions(GeometryCollectionCacheAssetActions->AsShared());
+
+		FComponentAssetBrokerage::UnregisterBroker(MakeShareable(AssetBroker));
 
 		// Unbind provider from editor
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
@@ -194,7 +232,11 @@ void IGeometryCollectionEditorPlugin::ShutdownModule()
 		if(PropertyModule)
 		{
 			PropertyModule->UnregisterCustomPropertyTypeLayout("GeomCollectionCacheParameters");
+			PropertyModule->UnregisterCustomPropertyTypeLayout("GeometryCollectionDebugDrawActorSelectedRigidBody");
 		}
+
+		// Unregister rigid body selection editor mode
+		FEditorModeRegistry::Get().UnregisterMode(FGeometryCollectionSelectRigidBodyEdMode::EditorModeID);
 	}
 }
 

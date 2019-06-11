@@ -79,29 +79,17 @@ private:
 	FShaderParameter InWorld;
 };
 
-/**
- * A pixel shader for rendering a transformed textured element.
- */
-class FStereoLayerPS : public FGlobalShader
+class FStereoLayerPS_Base : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FStereoLayerPS,Global,ENGINE_API);
 public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
-
-	FStereoLayerPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FGlobalShader(Initializer)
-	{
-		InTexture.Bind(Initializer.ParameterMap,TEXT("InTexture"), SPF_Mandatory);
-		InTextureSampler.Bind(Initializer.ParameterMap,TEXT("InTextureSampler"));
-	}
-	FStereoLayerPS() {}
 
 	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FTextureRHIParamRef TextureRHI)
 	{
 		FRHIPixelShader* PS = GetPixelShader();
 
-		SetTextureParameter(RHICmdList, PS,InTexture,InTextureSampler,SamplerStateRHI,TextureRHI);
+		SetTextureParameter(RHICmdList, PS, InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -112,7 +100,46 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-private:
+protected:
 	FShaderResourceParameter InTexture;
 	FShaderResourceParameter InTextureSampler;
+
+	FStereoLayerPS_Base(const ShaderMetaType::CompiledShaderInitializerType& Initializer, const TCHAR* TextureParamName) :
+		FGlobalShader(Initializer) 
+	{
+		InTexture.Bind(Initializer.ParameterMap, TextureParamName, SPF_Mandatory);
+		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
+	}
+	FStereoLayerPS_Base() {}
+
+};
+
+/**
+ * A pixel shader for rendering a transformed textured element.
+ */
+class FStereoLayerPS : public FStereoLayerPS_Base
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FStereoLayerPS,Global,ENGINE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	FStereoLayerPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
+		FStereoLayerPS_Base(Initializer, TEXT("InTexture"))	{}
+	FStereoLayerPS() {}
+};
+
+/**
+ * A pixel shader for rendering a transformed external texture element.
+ */
+class FStereoLayerPS_External : public FStereoLayerPS_Base
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FStereoLayerPS_External, Global, ENGINE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	FStereoLayerPS_External(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FStereoLayerPS_Base(Initializer, TEXT("InExternalTexture")) {}
+	FStereoLayerPS_External() {}
 };

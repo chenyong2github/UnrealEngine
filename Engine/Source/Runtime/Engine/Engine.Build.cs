@@ -84,8 +84,11 @@ public class Engine : ModuleRules
 				"MeshDescription",
 				"PakFile",
                 "NetworkReplayStreaming",
-            }
-        );
+				"PhysicsCore",
+				"PhysicsSQ",
+				"ChaosSolvers"
+			}
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

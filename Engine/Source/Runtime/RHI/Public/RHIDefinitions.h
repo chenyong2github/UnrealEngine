@@ -560,6 +560,7 @@ enum EResourceLockMode
 {
 	RLM_ReadOnly,
 	RLM_WriteOnly,
+	RLM_WriteOnly_NoOverwrite,
 	RLM_Num
 };
 
@@ -1188,7 +1189,7 @@ inline bool RHIHasTiledGPU(const EShaderPlatform Platform)
 
 inline bool RHISupportsMobileMultiView(const EShaderPlatform Platform)
 {
-	return (Platform == EShaderPlatform::SP_OPENGL_ES3_1_ANDROID || Platform == EShaderPlatform::SP_OPENGL_ES2_ANDROID)
+	return (Platform == EShaderPlatform::SP_OPENGL_ES3_1_ANDROID || Platform == EShaderPlatform::SP_OPENGL_ES2_ANDROID) || IsVulkanMobilePlatform(Platform)
 		|| FDataDrivenShaderPlatformInfo::GetInfo(Platform).bSupportsMobileMultiView;
 }
 

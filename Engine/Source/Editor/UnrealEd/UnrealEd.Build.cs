@@ -253,7 +253,7 @@ public class UnrealEd : ModuleRules
 			DynamicallyLoadedModuleNames.Add("LuminPlatformEditor");
 		}
 
-		CircularlyReferencedDependentModules.AddRange(
+        CircularlyReferencedDependentModules.AddRange(
 			new string[]
 			{
 				"GraphEditor",

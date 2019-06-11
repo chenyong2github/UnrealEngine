@@ -157,6 +157,7 @@ public:
 	LANDSCAPE_API bool IsValidPosition(int32 X, int32 Y);
 	LANDSCAPE_API void DeleteLayer(ULandscapeLayerInfoObject* LayerInfo, const FName& LayerName);
 	LANDSCAPE_API void ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULandscapeLayerInfoObject* ToLayerInfo);
+	LANDSCAPE_API void GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const;
 
 	LANDSCAPE_API void UpdateDebugColorMaterial();
 

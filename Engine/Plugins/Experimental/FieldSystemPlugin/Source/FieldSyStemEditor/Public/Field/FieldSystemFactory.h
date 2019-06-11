@@ -8,6 +8,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Factories/Factory.h"
 #include "Field/FieldSystem.h"
+#include "Field/FieldSystemAsset.h"
 
 #include "FieldSystemFactory.generated.h"
 

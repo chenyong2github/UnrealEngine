@@ -51,7 +51,10 @@
 #include "MeshDrawCommands.h"
 #include "VT/VirtualTextureSystem.h"
 #include "HAL/LowLevelMemTracker.h"
-#include "DiaphragmDOF.h"
+#include "IXRTrackingSystem.h"
+#include "IXRCamera.h"
+#include "IXRCamera.h"
+#include "DiaphragmDOF.h" 
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -1447,7 +1450,22 @@ void FViewInfo::SetupUniformBufferParameters(
 
 	ViewUniformShaderParameters.StereoPassIndex = GEngine->StereoRenderingDevice ? GEngine->StereoRenderingDevice->GetViewIndexForPass(StereoPass) : 0;
 	ViewUniformShaderParameters.StereoIPD = StereoIPD;
-	
+
+	{
+		auto XRCamera = GEngine->XRSystem ? GEngine->XRSystem->GetXRCamera() : nullptr;
+		TArray<FVector2D> CameraUVs;
+		if (XRCamera.IsValid() && XRCamera->GetPassthroughCameraUVs_RenderThread(CameraUVs) && CameraUVs.Num() == 4)
+		{
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(CameraUVs[0], CameraUVs[1]);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(CameraUVs[2], CameraUVs[3]);
+		}
+		else
+		{
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[0] = FVector4(0, 0, 0, 1);
+			ViewUniformShaderParameters.XRPassthroughCameraUVs[1] = FVector4(1, 0, 1, 1);
+		}
+	}
+
 	ViewUniformShaderParameters.PreIntegratedBRDF = GEngine->PreIntegratedSkinBRDFTexture->Resource->TextureRHI;
 
 	if (UseGPUScene(GMaxRHIShaderPlatform, RHIFeatureLevel))
@@ -2959,7 +2977,8 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 		    || View.TopViewMeshElements.Num() 
 		    || View.BatchedViewElements.HasPrimsToDraw() 
 		    || View.TopBatchedViewElements.HasPrimsToDraw() 
-		    || View.NumVisibleDynamicEditorPrimitives > 0)
+		    || View.NumVisibleDynamicEditorPrimitives > 0
+			|| IsMobileColorsRGB())
 	    {
 		    return true;
 	    }
@@ -3469,13 +3488,6 @@ void FRendererModule::RegisterPostOpaqueRenderDelegate(const FPostOpaqueRenderDe
 void FRendererModule::RegisterOverlayRenderDelegate(const FPostOpaqueRenderDelegate& InOverlayRenderDelegate)
 {
 	this->OverlayRenderDelegate = InOverlayRenderDelegate;
-}
-
-FPreSceneRenderValues FRendererModule::PreSceneRenderExtension()
-{
-	FPreSceneRenderValues Result;
-	PreSceneRenderDelegate.Broadcast(Result);
-	return Result;
 }
 
 void FRendererModule::RenderPostOpaqueExtensions(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, TUniformBufferRef<FSceneTexturesUniformParameters>& SceneTextureUniformParams)

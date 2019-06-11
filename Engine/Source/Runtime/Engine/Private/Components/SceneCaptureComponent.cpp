@@ -515,6 +515,16 @@ void USceneCaptureComponent2D::TickComponent(float DeltaTime, enum ELevelTick Ti
 	}
 }
 
+void USceneCaptureComponent2D::SetCameraView(const FMinimalViewInfo& DesiredView)
+{
+	SetWorldLocation(DesiredView.Location);
+	SetWorldRotation(DesiredView.Rotation);
+
+	FOVAngle = DesiredView.FOV;
+	ProjectionType = DesiredView.ProjectionMode;
+	OrthoWidth = DesiredView.OrthoWidth;
+}
+
 void USceneCaptureComponent2D::GetCameraView(float DeltaTime, FMinimalViewInfo& OutMinimalViewInfo)
 {
 	OutMinimalViewInfo.Location = GetComponentLocation();

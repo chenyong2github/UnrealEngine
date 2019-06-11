@@ -497,6 +497,7 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 	RemoveFromDeferredUpdateList();
 }
 
+#include "SceneUtils.h"
 /**
  * Updates (resolves) the render target texture.
  * Optionally clears the contents of the render target to green.
@@ -504,6 +505,7 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
  */
 void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImmediate& RHICmdList, bool bClearRenderTarget/*=true*/ )
 {
+	SCOPED_DRAW_EVENT(RHICmdList, GPUResourceUpdate)
 	RemoveFromDeferredUpdateList();
 
  	// clear the target surface to green

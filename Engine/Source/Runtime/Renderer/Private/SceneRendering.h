@@ -151,6 +151,17 @@ public:
 	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> OccludedPerObjectShadows;
 };
 
+enum class EVelocityPass : uint32
+{
+	// Renders a separate velocity pass for opaques.
+	Opaque = 0,
+
+	// Renders a separate velocity / depth pass for translucency AFTER the translucent pass.
+	Translucency,
+
+	Count
+};
+
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)
 struct FTranslucenyPrimCount
 {

@@ -1586,5 +1586,67 @@ struct FMath : public FPlatformMath
 	 *
 	 * @return	Perlin noise in the range of -1.0 to 1.0
 	 */
-	static CORE_API float PerlinNoise1D(const float Value);
+	static CORE_API float PerlinNoise1D(float Value);
+
+	/**
+	* Generates a 1D Perlin noise sample at the given location.  Returns a continuous random value between -1.0 and 1.0.
+	*
+	* @param	Location	Where to sample
+	*
+	* @return	Perlin noise in the range of -1.0 to 1.0
+	*/
+	static CORE_API float PerlinNoise2D(const FVector2D& Location);
+	 
+
+	/**
+	* Generates a 3D Perlin noise sample at the given location.  Returns a continuous random value between -1.0 and 1.0.
+	*
+	* @param	Location	Where to sample
+	*
+	* @return	Perlin noise in the range of -1.0 to 1.0
+	*/
+	static CORE_API float PerlinNoise3D(const FVector& Location);
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and the weight
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param Weight - The weight to blend with
+	 *
+	 * @return the next value in the series
+	 */
+	static CORE_API inline float WeightedMovingAverage(float CurrentSample, float PreviousSample, float Weight)
+	{
+		Weight = Clamp<float>(Weight, 0.f, 1.f);
+		float WAvg = (CurrentSample * Weight) + (PreviousSample * (1.f - Weight));
+		return WAvg;
+	}
+
+	/**
+	 * Calculates the new value in a weighted moving average series using the previous value and a weight range.
+	 * The weight range is used to dynamically adjust based upon distance between the samples
+	 * This allows you to smooth a value more aggressively for small noise and let large movements be smoothed less (or vice versa)
+	 *
+	 * @param CurrentSample - The value to blend with the previous sample to get a new weighted value
+	 * @param PreviousSample - The last value from the series
+	 * @param MaxDistance - Distance to use as the blend between min weight or max weight
+	 * @param MinWeight - The weight use when the distance is small
+	 * @param MaxWeight - The weight use when the distance is large
+	 *
+	 * @return the next value in the series
+	 */
+	static CORE_API inline float DynamicWeightedMovingAverage(float CurrentSample, float PreviousSample, float MaxDistance, float MinWeight, float MaxWeight)
+	{
+		// We need the distance between samples to determine how much of each weight to use
+		const float Distance = Abs<float>(CurrentSample - PreviousSample);
+		float Weight = MinWeight;
+		if (MaxDistance > 0)
+		{
+			// Figure out the lerp value to use between the min/max weights
+			const float LerpAlpha = Clamp<float>(Distance / MaxDistance, 0.f, 1.f);
+			Weight = Lerp<float>(MinWeight, MaxWeight, LerpAlpha);
+		}
+		return WeightedMovingAverage(CurrentSample, PreviousSample, Weight);
+	}
 };

@@ -4,12 +4,12 @@
 #include "Chaos/Array.h"
 #include "Chaos/Map.h"
 #include "Chaos/PBDRigidSpringConstraintsBase.h"
-#include "Chaos/PerParticleRule.h"
+#include "Chaos/PBDConstraintContainer.h"
 
 namespace Chaos
 {
 template<class T, int d>
-class TPBDRigidSpringConstraints : public TParticleRule<T, d>, public TPBDRigidSpringConstraintsBase<T, d>
+class TPBDRigidSpringConstraints : public TPBDRigidSpringConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
 {
 	typedef TPBDRigidSpringConstraintsBase<T, d> Base;
 
@@ -27,10 +27,13 @@ class TPBDRigidSpringConstraints : public TParticleRule<T, d>, public TPBDRigidS
 
 	virtual ~TPBDRigidSpringConstraints() {}
 
-	void ApplyHelper(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Island) const
+	void UpdatePositionBasedState(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt)
 	{
-		const int32 NumConstraints = Constraints.Num();
-		for (int32 ConstraintIndex = 0; ConstraintIndex < NumConstraints; ++ConstraintIndex)
+	}
+
+	void ApplyHelper(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
+	{
+		for (int32 ConstraintIndex : InConstraintIndices)
 		{
 			const TVector<int32, 2>& Constraint = Constraints[ConstraintIndex];
 
@@ -38,12 +41,6 @@ class TPBDRigidSpringConstraints : public TParticleRule<T, d>, public TPBDRigidS
 			int32 ConstraintInnerIndex2 = Constraint[1];
 
 			check(InParticles.Island(ConstraintInnerIndex1) == InParticles.Island(ConstraintInnerIndex2) || InParticles.Island(ConstraintInnerIndex1) == -1 || InParticles.Island(ConstraintInnerIndex2) == -1);
-
-			// @todo(mlentine): We should cache constraints per island somewhere
-			if (InParticles.Island(ConstraintInnerIndex1) != Island && InParticles.Island(ConstraintInnerIndex2) != Island)
-			{
-				continue;
-			}
 
 			const TVector<T, d> WorldSpaceX1 = InParticles.Q(ConstraintInnerIndex1).RotateVector(Distances[ConstraintIndex][0]) + InParticles.P(ConstraintInnerIndex1);
 			const TVector<T, d> WorldSpaceX2 = InParticles.Q(ConstraintInnerIndex2).RotateVector(Distances[ConstraintIndex][1]) + InParticles.P(ConstraintInnerIndex2);
@@ -69,9 +66,14 @@ class TPBDRigidSpringConstraints : public TParticleRule<T, d>, public TPBDRigidS
 		}
 	}
 
-	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const int32 Island) const override //-V762
+	void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
 	{
-		ApplyHelper(InParticles, Dt, Island);
+		ApplyHelper(InParticles, Dt, InConstraintIndices);
+	}
+
+	CHAOS_API void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices)
+	{
+
 	}
 };
 }

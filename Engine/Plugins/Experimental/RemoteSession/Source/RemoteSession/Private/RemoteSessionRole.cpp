@@ -7,6 +7,7 @@
 #include "Channels/RemoteSessionInputChannel.h"
 #include "Channels/RemoteSessionXRTrackingChannel.h"
 #include "Channels/RemoteSessionARCameraChannel.h"
+#include "Channels/RemoteSessionARSystemChannel.h"
 #include "Channels/RemoteSessionFrameBufferChannel.h"
 #include "Async/Async.h"
 #include "GeneralProjectSettings.h"
@@ -223,7 +224,7 @@ void FRemoteSessionRole::CreateChannel(const FString& InChannelName, ERemoteSess
 	}
 	else if (InChannelName == FRemoteSessionXRTrackingChannel::StaticType())
 	{
-		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
+		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::Orientation);
 		if (IsSupported)
 		{
 			NewChannel = MakeShareable(new FRemoteSessionXRTrackingChannel(InMode, OSCConnection));
@@ -247,7 +248,19 @@ void FRemoteSessionRole::CreateChannel(const FString& InChannelName, ERemoteSess
 			UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionARCameraChannel does not support sending on this platform/device"));
 		}
 	}
-	
+	else if (InChannelName == FRemoteSessionARSystemChannel::StaticType())
+	{
+		bool IsSupported = (InMode == ERemoteSessionChannelMode::Read) || UARBlueprintLibrary::IsSessionTypeSupported(EARSessionType::World);
+		if (IsSupported)
+		{
+			NewChannel = MakeShareable(new FRemoteSessionARSystemChannel(InMode, OSCConnection));
+		}
+		else
+		{
+			UE_LOG(LogRemoteSession, Warning, TEXT("FRemoteSessionARSystemChannel does not support sending on this platform/device"));
+		}
+	}
+
 	if (NewChannel.IsValid())
 	{
 		UE_LOG(LogRemoteSession, Log, TEXT("Created Channel %s with mode %d"), *InChannelName, (int)InMode);

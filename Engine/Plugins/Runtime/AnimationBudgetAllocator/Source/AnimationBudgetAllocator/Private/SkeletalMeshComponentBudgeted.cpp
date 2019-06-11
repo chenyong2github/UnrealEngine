@@ -59,7 +59,7 @@ void USkeletalMeshComponentBudgeted::SetComponentSignificance(float Significance
 	{
 		AnimationBudgetAllocator->SetComponentSignificance(this, Significance, bNeverSkip, bTickEvenIfNotRendered, bAllowReducedWork, bForceInterpolate);
 	}
-	else
+	else if (HasBegunPlay())
 	{
 		UE_LOG(LogSkeletalMesh, Warning, TEXT("SetComponentSignificance called on [%s] before registering with budget allocator"), *GetName());
 	}

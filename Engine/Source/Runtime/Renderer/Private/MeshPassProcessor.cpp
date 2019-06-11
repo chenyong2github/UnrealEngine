@@ -757,7 +757,8 @@ void FMeshDrawCommand::SetDrawParametersAndFinalize(
 	else
 	{
 		checkf(BatchElement.IndirectArgsBuffer, TEXT("It is only valid to set BatchElement.NumPrimitives == 0 when a IndirectArgsBuffer is used"));
-		IndirectArgsBuffer = BatchElement.IndirectArgsBuffer;
+		IndirectArgs.Buffer = BatchElement.IndirectArgsBuffer;
+		IndirectArgs.Offset = BatchElement.IndirectArgsOffset;
 	}
 
 	Finalize(PipelineId, ShadersForDebugging);
@@ -909,9 +910,9 @@ void FMeshDrawCommand::SubmitDraw(
 		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
 
 		FString DrawEventName = FString::Printf(
-			TEXT("%s %s"),
-			// Note: this is the parent's material name, not the material instance
-			*Material->GetFriendlyName(),
+				TEXT("%s %s"),
+				// Note: this is the parent's material name, not the material instance
+				*Material->GetFriendlyName(),
 			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
 
 		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
@@ -935,37 +936,37 @@ void FMeshDrawCommand::SubmitDraw(
 	{
 		const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = MeshDrawCommand.CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
-		if (MeshDrawCommand.CachedPipelineId.GetId() != StateCache.PipelineId)
+	if (MeshDrawCommand.CachedPipelineId.GetId() != StateCache.PipelineId)
+	{
+		FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		StateCache.SetPipelineState(MeshDrawCommand.CachedPipelineId.GetId());
+	}
+
+	if (MeshDrawCommand.StencilRef != StateCache.StencilRef)
+	{
+		RHICmdList.SetStencilRef(MeshDrawCommand.StencilRef);
+		StateCache.StencilRef = MeshDrawCommand.StencilRef;
+	}
+
+	for (int32 VertexBindingIndex = 0; VertexBindingIndex < MeshDrawCommand.VertexStreams.Num(); VertexBindingIndex++)
+	{
+		const FVertexInputStream& Stream = MeshDrawCommand.VertexStreams[VertexBindingIndex];
+
+		if (MeshDrawCommand.PrimitiveIdStreamIndex != -1 && Stream.StreamIndex == MeshDrawCommand.PrimitiveIdStreamIndex)
 		{
-			FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState;
-			RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			StateCache.SetPipelineState(MeshDrawCommand.CachedPipelineId.GetId());
+			RHICmdList.SetStreamSource(Stream.StreamIndex, ScenePrimitiveIdsBuffer, PrimitiveIdOffset);
+			StateCache.VertexStreams[Stream.StreamIndex] = Stream;
 		}
-
-		if (MeshDrawCommand.StencilRef != StateCache.StencilRef)
+		else if (StateCache.VertexStreams[Stream.StreamIndex] != Stream)
 		{
-			RHICmdList.SetStencilRef(MeshDrawCommand.StencilRef);
-			StateCache.StencilRef = MeshDrawCommand.StencilRef;
+			RHICmdList.SetStreamSource(Stream.StreamIndex, Stream.VertexBuffer, Stream.Offset);
+			StateCache.VertexStreams[Stream.StreamIndex] = Stream;
 		}
+	}
 
-		for (int32 VertexBindingIndex = 0; VertexBindingIndex < MeshDrawCommand.VertexStreams.Num(); VertexBindingIndex++)
-		{
-			const FVertexInputStream& Stream = MeshDrawCommand.VertexStreams[VertexBindingIndex];
-
-			if (MeshDrawCommand.PrimitiveIdStreamIndex != -1 && Stream.StreamIndex == MeshDrawCommand.PrimitiveIdStreamIndex)
-			{
-				RHICmdList.SetStreamSource(Stream.StreamIndex, ScenePrimitiveIdsBuffer, PrimitiveIdOffset);
-				StateCache.VertexStreams[Stream.StreamIndex] = Stream;
-			}
-			else if (StateCache.VertexStreams[Stream.StreamIndex] != Stream)
-			{
-				RHICmdList.SetStreamSource(Stream.StreamIndex, Stream.VertexBuffer, Stream.Offset);
-				StateCache.VertexStreams[Stream.StreamIndex] = Stream;
-			}
-		}
-
-		MeshDrawCommand.ShaderBindings.SetOnCommandList(RHICmdList, MeshPipelineState.BoundShaderState, StateCache.ShaderBindings);
+	MeshDrawCommand.ShaderBindings.SetOnCommandList(RHICmdList, MeshPipelineState.BoundShaderState, StateCache.ShaderBindings);
 	}
 
 	if (MeshDrawCommand.IndexBuffer)
@@ -985,10 +986,10 @@ void FMeshDrawCommand::SubmitDraw(
 		else
 		{
 			RHICmdList.DrawIndexedPrimitiveIndirect(
-				MeshDrawCommand.IndexBuffer,
-				MeshDrawCommand.IndirectArgsBuffer,
-				0
-			);
+				MeshDrawCommand.IndexBuffer, 
+				MeshDrawCommand.IndirectArgs.Buffer, 
+				MeshDrawCommand.IndirectArgs.Offset
+				);
 		}
 	}
 	else

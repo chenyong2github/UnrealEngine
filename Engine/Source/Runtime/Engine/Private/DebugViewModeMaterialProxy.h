@@ -142,6 +142,7 @@ public:
 	virtual bool IsMasked() const override;
 	virtual enum EBlendMode GetBlendMode() const override;
 	virtual FMaterialShadingModelField GetShadingModels() const override;
+	virtual bool IsShadingModelFromMaterialExpression() const override;
 	virtual float GetOpacityMaskClipValue() const override;
 	virtual bool GetCastDynamicShadowAsMasked() const override;
 	virtual void GatherCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const override;

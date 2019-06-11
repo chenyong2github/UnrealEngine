@@ -3057,8 +3057,8 @@ void GlobalBeginCompileShader(
 		Input.Environment.SetDefine(TEXT("INSTANCED_STEREO"), bIsInstancedStereo);
 		Input.Environment.SetDefine(TEXT("MULTI_VIEW"), bIsInstancedStereo && bIsMultiViewCVar && RHISupportsMultiView(ShaderPlatform));
 
-		const bool bIsAndroidGLES = RHISupportsMobileMultiView(ShaderPlatform);
-		Input.Environment.SetDefine(TEXT("MOBILE_MULTI_VIEW"), bIsMobileMultiViewCVar && bIsAndroidGLES);
+		const bool bSupportsMobileMultiview = RHISupportsMobileMultiView(ShaderPlatform);
+		Input.Environment.SetDefine(TEXT("MOBILE_MULTI_VIEW"), bIsMobileMultiViewCVar && bSupportsMobileMultiview);
 
 		// Throw a warning if we are silently disabling ISR due to missing platform support.
 		if (bIsInstancedStereoCVar && !bIsInstancedStereo && !GShaderCompilingManager->AreWarningsSuppressed(ShaderPlatform))

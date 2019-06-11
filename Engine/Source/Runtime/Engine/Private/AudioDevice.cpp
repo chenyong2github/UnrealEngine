@@ -145,8 +145,17 @@ FAutoConsoleVariableRef CVarEnableBinauralAudioForAllSpatialSounds(
 	TEXT("Toggles binaural audio rendering for all spatial sounds if binaural rendering is available.\n"),
 	ECVF_Default);
 
+static int32 DisableBinauralSpatializationCVar = 0;
+FAutoConsoleVariableRef CVarDisableBinauralSpatialization(
+	TEXT("au.DisableBinauralSpatialization"),
+	DisableBinauralSpatializationCVar,
+	TEXT("Disables binaural spatialization.\n"),
+	ECVF_Default);
 
-using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
+namespace
+{
+	using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
+} // namespace <>
 
 /*-----------------------------------------------------------------------------
 	FAudioDevice implementation.
@@ -184,6 +193,7 @@ FAudioDevice::FAudioDevice()
 	, PlatformAudioHeadroom(1.0f)
 	, DefaultReverbSendLevel(0.0f)
 	, bHRTFEnabledForAll_OnGameThread(false)
+	, bHRTFDisabled_OnGameThread(false)
 	, bGameWasTicking(true)
 	, bDisableAudioCaching(false)
 	, bIsAudioDeviceHardwareInitialized(false)
@@ -198,9 +208,11 @@ FAudioDevice::FAudioDevice()
 	, bSpatializationInterfaceEnabled(false)
 	, bOcclusionInterfaceEnabled(false)
 	, bReverbInterfaceEnabled(false)
+	, bReverbPluginBypassesMasterReverb(true)
 	, bModulationInterfaceEnabled(false)
 	, bPluginListenersInitialized(false)
 	, bHRTFEnabledForAll(false)
+	, bHRTFDisabled(false)
 	, bIsDeviceMuted(false)
 	, bIsInitialized(false)
 	, AudioClock(0.0)
@@ -351,9 +363,9 @@ bool FAudioDevice::Init(int32 InMaxChannels)
 	{
 		ReverbPluginInterface = ReverbPluginFactory->CreateNewReverbPlugin(this);
 		bReverbInterfaceEnabled = true;
+		bReverbPluginBypassesMasterReverb = ReverbPluginInterface->DoesReverbOverrideMasterReverb();
 		bReverbIsExternalSend = ReverbPluginFactory->IsExternalSend();
 		UE_LOG(LogAudio, Log, TEXT("Audio Reverb Plugin: %s"), *(ReverbPluginFactory->GetDisplayName()));
-
 	}
 	else
 	{
@@ -1708,6 +1720,17 @@ bool FAudioDevice::IsHRTFEnabledForAll() const
 	return (bHRTFEnabledForAll_OnGameThread || EnableBinauralAudioForAllSpatialSoundsCVar == 1) && IsSpatializationPluginEnabled();
 }
 
+bool FAudioDevice::IsHRTFDisabled() const
+{
+	if (IsInAudioThread())
+	{
+		return (bHRTFDisabled || DisableBinauralSpatializationCVar == 1);
+	}
+
+	check(IsInGameThread());
+	return (bHRTFDisabled_OnGameThread || DisableBinauralSpatializationCVar == 1);
+}
+
 void FAudioDevice::SetMixDebugState(EDebugState InDebugState)
 {
 	if (!IsInAudioThread())
@@ -2794,22 +2817,21 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 	}
 
 
-	FAudioDevice* AudioDevice = this;
-	FAudioThread::RunCommandOnAudioThread([AudioDevice, WorldID, InViewportIndex, ListenerTransformCopy, InDeltaSeconds]()
+	FAudioThread::RunCommandOnAudioThread([this, WorldID, InViewportIndex, ListenerTransformCopy, InDeltaSeconds]()
 	{
 		// Broadcast to a 3rd party plugin listener observer if enabled
-		for (TAudioPluginListenerPtr PluginManager : AudioDevice->PluginListeners)
+		for (TAudioPluginListenerPtr PluginManager : PluginListeners)
 		{
-			PluginManager->OnListenerUpdated(AudioDevice, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
+			PluginManager->OnListenerUpdated(this, InViewportIndex, ListenerTransformCopy, InDeltaSeconds);
 		}
 
-		TArray<FListener>& AudioThreadListeners = AudioDevice->Listeners;
+		TArray<FListener>& AudioThreadListeners = Listeners;
 		if (InViewportIndex >= AudioThreadListeners.Num())
 		{
 			const int32 NumListeners = InViewportIndex - AudioThreadListeners.Num() + 1;
 			for (int32 i = 0; i < NumListeners; ++i)
 			{
-				AudioThreadListeners.Add(FListener(AudioDevice));
+				AudioThreadListeners.Add(FListener(this));
 			}
 		}
 
@@ -2824,6 +2846,12 @@ void FAudioDevice::SetListener(UWorld* World, const int32 InViewportIndex, const
 			logOrEnsureNanError(TEXT("FAudioDevice::SetListener has detected a NaN in Listener Velocity"));
 		}
 #endif
+
+		if (FAudioVirtualLoop::ShouldListenerMoveForceUpdate(Listener.Transform, ListenerTransformCopy))
+		{
+			const bool bForceUpdate = true;
+			UpdateVirtualLoops(bForceUpdate);
+		}
 
 		Listener.WorldID = WorldID;
 		Listener.Transform = ListenerTransformCopy;
@@ -3822,7 +3850,8 @@ void FAudioDevice::Update(bool bGameTicking)
 		SCOPED_NAMED_EVENT(FAudioDevice_UpdateVirtualLoops, FColor::Blue);
 		// Update which loops should re-trigger due to coming back into proximity
 		// or allowed by concurrency re-evaluating in context of other sounds stopping
-		UpdateVirtualLoops();
+		const bool bForceUpdate = false;
+		UpdateVirtualLoops(bForceUpdate);
 	}
 
 	// update if baked analysis is enabled
@@ -4634,17 +4663,15 @@ void FAudioDevice::GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld*
 			float Azimuth = 0.0f;
 			float AbsoluteAzimuth = 0.0f;
 			const int32 ClosestListenerIndex = FindClosestListenerIndex(SoundTransform);
-			if (ClosestListenerIndex >= 0 && ClosestListenerIndex < ListenerTransforms.Num())
+			if (ClosestListenerIndex >= ListenerTransforms.Num())
 			{
-				const FTransform& ListenerTransform = ListenerTransforms[ClosestListenerIndex];
-				GetAzimuth(ListenerData, Sound, SoundTransform, *AttenuationSettingsToApply, ListenerTransform, Azimuth, AbsoluteAzimuth);
+				UE_LOG(LogAudio, Warning, TEXT("Invalid ClosestListenerIndex. Sound max distance and focus factor calculation failed."));
+				return;
+			}
 
-				OutFocusFactor = GetFocusFactor(ListenerData, Sound, Azimuth, *AttenuationSettingsToApply);
-			}
-			else
-			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to get max distance and focus factor of sound."));
-			}
+			const FTransform& ListenerTransform = ListenerTransforms[ClosestListenerIndex];
+			GetAzimuth(ListenerData, SoundTransform, *AttenuationSettingsToApply, ListenerTransform, Azimuth, AbsoluteAzimuth);
+			OutFocusFactor = GetFocusFactor(Azimuth, *AttenuationSettingsToApply);
 		}
 	}
 	else
@@ -4825,7 +4852,7 @@ void FAudioDevice::GetAttenuationListenerData(FAttenuationListenerData& OutListe
 	}
 }
 
-void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& OutAbsoluteAzimuth) const
+void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& OutAbsoluteAzimuth) const
 {
 	GetAttenuationListenerData(OutListenerData, SoundTransform, AttenuationSettings, &ListenerTransform);
 
@@ -4849,7 +4876,7 @@ void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const U
 
 	if (AbsAzimuthVector2D.X > 0.0f && AbsAzimuthVector2D.Y < 0.0f)
 	{
-		OutAbsoluteAzimuth = 360 - OutAbsoluteAzimuth;
+		OutAbsoluteAzimuth = 360.0f - OutAbsoluteAzimuth;
 	}
 	else if (AbsAzimuthVector2D.X < 0.0f && AbsAzimuthVector2D.Y < 0.0f)
 	{
@@ -4857,14 +4884,12 @@ void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const U
 	}
 	else if (AbsAzimuthVector2D.X < 0.0f && AbsAzimuthVector2D.Y > 0.0f)
 	{
-		OutAbsoluteAzimuth = 180 - OutAbsoluteAzimuth;
+		OutAbsoluteAzimuth = 180.0f - OutAbsoluteAzimuth;
 	}
 }
 
-float FAudioDevice::GetFocusFactor(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const
+float FAudioDevice::GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const
 {
-	check(Sound);
-
 	// 0.0f means we are in focus, 1.0f means we are out of focus
 	float FocusFactor = 0.0f;
 
@@ -5722,7 +5747,7 @@ float FAudioDevice::GetGameDeltaTime() const
 	return FMath::Min(DeltaTime, 0.5f);
 }
 
-void FAudioDevice::UpdateVirtualLoops()
+void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 {
 	if (FAudioVirtualLoop::IsEnabled())
 	{
@@ -5755,7 +5780,7 @@ void FAudioDevice::UpdateVirtualLoops()
 
 			// If the loop is ready to realize, add to array to be re-triggered outside of the loop
 			// to avoid map manipulation while iterating.
-			if (VirtualLoop.CanRealize(DeltaTime))
+			if (VirtualLoop.CanRealize(DeltaTime, bForceUpdate))
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
 			}

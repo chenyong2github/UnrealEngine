@@ -4998,7 +4998,7 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 			{
 				UPrimitiveComponent* PrimitiveComponent = PrimitiveComponents[ComponentIndex];
 
-				if (PrimitiveComponent->IsRegistered())
+				if (PrimitiveComponent->IsRegistered() && !PrimitiveComponent->IgnoreBoundsForEditorFocus())
 				{
 					BoundingBox += PrimitiveComponent->Bounds.GetBox();
 					++NumSelectedActors;

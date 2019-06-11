@@ -499,13 +499,16 @@ void FNiagaraCompileEventToken::OpenScriptAssetByPathAndFocusNodeOrPinIfSet(
 			FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 			if (InPinGUID.IsSet())
 			{
-				FNiagaraScriptGraphPinToFocusInfo PinToFocusInfo = FNiagaraScriptGraphPinToFocusInfo(ScriptAsset->GetUniqueID(), InPinGUID.GetValue());
-				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&PinToFocusInfo);
+				
+				TSharedRef<FNiagaraScriptGraphPinToFocusInfo> PinToFocusInfo = MakeShared<FNiagaraScriptGraphPinToFocusInfo>(InPinGUID.GetValue());
+				FNiagaraScriptIDAndGraphFocusInfo PinToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), PinToFocusInfo);
+				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&PinToFocusAndScriptID);
 			}
 			else if (InNodeGUID.IsSet())
 			{
-				FNiagaraScriptGraphNodeToFocusInfo NodeToFocusInfo = FNiagaraScriptGraphNodeToFocusInfo(ScriptAsset->GetUniqueID(), InNodeGUID.GetValue());
-				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&NodeToFocusInfo);
+				TSharedRef<FNiagaraScriptGraphNodeToFocusInfo> NodeToFocusInfo = MakeShared<FNiagaraScriptGraphNodeToFocusInfo>(InNodeGUID.GetValue());
+				FNiagaraScriptIDAndGraphFocusInfo NodeToFocusAndScriptID = FNiagaraScriptIDAndGraphFocusInfo(ScriptAsset->GetUniqueID(), NodeToFocusInfo);
+				NiagaraEditorModule.GetOnScriptToolkitsShouldFocusGraphElement().Broadcast(&NodeToFocusAndScriptID);
 			}
 		}
 		else

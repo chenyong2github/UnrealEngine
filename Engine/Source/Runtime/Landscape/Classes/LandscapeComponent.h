@@ -327,6 +327,14 @@ enum ELandscapeLayerUpdateMode : uint32
 
 #endif
 
+UENUM()
+enum ELandscapeClearMode
+{
+	Clear_Weightmap = 1 << 0 UMETA(DisplayName = "Paint"),
+	Clear_Heightmap = 1 << 1 UMETA(DisplayName = "Sculpt"),
+	Clear_All = Clear_Weightmap | Clear_Heightmap UMETA(DisplayName = "All")
+};
+
 UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
@@ -598,6 +606,7 @@ public:
 
 	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false) const;
+	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const;
 
 #if WITH_EDITOR
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);

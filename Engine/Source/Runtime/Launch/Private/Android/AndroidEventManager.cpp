@@ -70,6 +70,7 @@ void FAppEventManager::Tick()
 	while (!Queue.IsEmpty())
 	{
 		bool bDestroyWindow = false;
+		bool bShuttingDown = false;
 
 		FAppEventData Event = DequeueAppEvent();
 
@@ -124,7 +125,7 @@ void FAppEventManager::Tick()
 				{
 					if (GEngine != nullptr && GEngine->IsInitialized() && GEngine->XRSystem.IsValid() && GEngine->XRSystem->GetHMDDevice() && GEngine->XRSystem->GetHMDDevice()->IsHMDConnected())
 					{
-						// delay the destruction until after the renderer teardown on Gear VR
+						// delay the destruction until after the renderer teardown on Oculus Mobile
 						bDestroyWindow = true;
 					}
 					else
@@ -159,6 +160,7 @@ void FAppEventManager::Tick()
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("APP_EVENT_STATE_ON_DESTROY"));
 			break;
 		case APP_EVENT_STATE_ON_STOP:
+			bShuttingDown = true;
 			bHaveGame = false;
 			break;
 		case APP_EVENT_STATE_ON_PAUSE:
@@ -240,6 +242,7 @@ void FAppEventManager::Tick()
 
 			PauseRendering();
 			PauseAudio();
+			ReleaseMicrophone(bShuttingDown);
 
 			bRunning = false;
 			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Execution has been paused..."));
@@ -272,6 +275,15 @@ void FAppEventManager::Tick()
 		{
 			EventHandlerEvent->Wait();
 		}
+	}
+}
+
+void FAppEventManager::ReleaseMicrophone(bool shuttingDown)
+{
+	if (FModuleManager::Get().IsModuleLoaded("Voice"))
+	{
+		UE_LOG(LogTemp, Log, TEXT("Android release microphone"));
+		FModuleManager::Get().UnloadModule("Voice", shuttingDown);
 	}
 }
 

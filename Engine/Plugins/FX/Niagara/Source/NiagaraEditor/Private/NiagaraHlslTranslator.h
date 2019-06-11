@@ -486,6 +486,8 @@ public:
 
 	static FString GetFunctionSignatureSymbol(const FNiagaraFunctionSignature& Sig);
 
+	/** If OutVar can be replaced by a literal constant, it's data is initialized with the correct value and we return true. Returns false otherwise. */
+	bool GetLiteralConstantVariable(FNiagaraVariable& OutVar) const;
 
 private:
 	void InitializeParameterMapDefaults(int32 ParamMapHistoryIdx);
@@ -544,9 +546,6 @@ private:
 	bool IsBulkSystemScript() const;
 	bool IsSpawnScript() const;
 	bool RequiresInterpolation() const;
-
-	/** If OutVar can be replaced by a literal constant, it's data is initialized with the correct value and we return true. Returns false otherwise. */
-	bool GetLiteralConstantVariable(FNiagaraVariable& OutVar) const;
 
 	/** Map of symbol names to count of times it's been used. Used for generating unique symbol names. */
 	TMap<FName, uint32> SymbolCounts;

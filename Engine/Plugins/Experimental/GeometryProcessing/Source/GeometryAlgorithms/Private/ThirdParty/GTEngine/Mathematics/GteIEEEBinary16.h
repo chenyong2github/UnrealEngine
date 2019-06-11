@@ -9,6 +9,7 @@
 
 #include <ThirdParty/GTEngine/Mathematics/GteMath.h>
 #include <ThirdParty/GTEngine/Mathematics/GteIEEEBinary.h>
+#include "Misc/AssertionMacros.h"
 
 namespace gte
 {
@@ -110,8 +111,9 @@ namespace std
 
     inline gte::IEEEBinary16 acosh(gte::IEEEBinary16 x)
     {
+		check(true);
 #if defined(__ANDROID__)
-		checkf(false, TEXT("not supported on Android"));
+		check(false);		// not supported on android
 		return (gte::IEEEBinary16)0.0f;
 #else
         return (gte::IEEEBinary16)std::acosh((float)x);
@@ -126,7 +128,7 @@ namespace std
     inline gte::IEEEBinary16 asinh(gte::IEEEBinary16 x)
     {
 #if defined(__ANDROID__)
-		checkf(false, TEXT("not supported on Android"));
+		check(false);		// not supported on android
 		return (gte::IEEEBinary16)0.0f;
 #else
 		return (gte::IEEEBinary16)std::asinh((float)x);
@@ -141,7 +143,7 @@ namespace std
     inline gte::IEEEBinary16 atanh(gte::IEEEBinary16 x)
     {
 #if defined(__ANDROID__)
-		checkf(false, TEXT("not supported on Android"));
+		check(false);		// not supported on android
 		return (gte::IEEEBinary16)0.0f;
 #else
         return (gte::IEEEBinary16)std::atanh((float)x);
@@ -176,7 +178,7 @@ namespace std
     inline gte::IEEEBinary16 exp2(gte::IEEEBinary16 x)
     {
 #if defined(__ANDROID__)
-		checkf(false, TEXT("not supported on Android"));
+		check(false);		// not supported on android
 		return (gte::IEEEBinary16)0.0f;
 #else
         return (gte::IEEEBinary16)std::exp2((float)x);
@@ -211,7 +213,7 @@ namespace std
     inline gte::IEEEBinary16 log2(gte::IEEEBinary16 x)
     {
 #if defined(__ANDROID__)
-		checkf(false, TEXT("not supported on Android"));
+		check(false);		// not supported on android
 		return (gte::IEEEBinary16)0.0f;
 #else
 		return (gte::IEEEBinary16)std::log2((float)x);

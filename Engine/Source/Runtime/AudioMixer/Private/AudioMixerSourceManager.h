@@ -109,6 +109,7 @@ namespace Audio
 		uint64 AudioComponentID;
 		uint8 bPlayEffectChainTails : 1;
 		uint8 bUseHRTFSpatialization : 1;
+		uint8 bIsExternalSend : 1;
 		uint8 bIsDebugMode : 1;
 		uint8 bOutputToBusOnly : 1;
 		uint8 bIsVorbis : 1;
@@ -133,6 +134,7 @@ namespace Audio
 			, AudioComponentID(0)
 			, bPlayEffectChainTails(false)
 			, bUseHRTFSpatialization(false)
+			, bIsExternalSend(false)
 			, bIsDebugMode(false)
 			, bOutputToBusOnly(false)
 			, bIsVorbis(false)
@@ -167,7 +169,7 @@ namespace Audio
 			CopySize = InNumInChannels * InNumOutChannels * sizeof(float);
 			FMemory::Memzero(ChannelStartGains, CopySize);
 			FMemory::Memzero(ChannelDestinationGains, CopySize);
-			bIsInit = true;
+			bIsInit = false;
 		}
 
 		FORCEINLINE void CopyDestinationToStart()
@@ -178,16 +180,17 @@ namespace Audio
 		FORCEINLINE void SetChannelMap(const float* RESTRICT InChannelGains)
 		{
 			FMemory::Memcpy(ChannelDestinationGains, InChannelGains, CopySize);
-			if (bIsInit)
+			if (!bIsInit)
 			{
 				FMemory::Memcpy(ChannelStartGains, InChannelGains, CopySize);
+				bIsInit = true;
 			}
 		}
 
 	private:
 		FSourceChannelMap()
 			: CopySize(0)
-			, bIsInit(true)
+			, bIsInit(false)
 		{
 		}
 	};
@@ -491,6 +494,7 @@ namespace Audio
 			uint8 bHasStarted:1;
 			uint8 bIsBusy:1;
 			uint8 bUseHRTFSpatializer:1;
+			uint8 bIsExternalSend:1;
 			uint8 bUseOcclusionPlugin:1;
 			uint8 bUseReverbPlugin:1;
 			uint8 bUseModulationPlugin:1;

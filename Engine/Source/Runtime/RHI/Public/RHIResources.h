@@ -736,7 +736,7 @@ public:
 		return FIntPoint(SizeX, SizeY);
 	}
 
-	virtual FIntVector GetSizeXYZ() const final override
+	virtual FIntVector GetSizeXYZ() const override
 	{
 		return FIntVector(SizeX, SizeY, 1);
 	}
@@ -747,39 +747,31 @@ private:
 	uint32 SizeY;
 };
 
-class RHI_API FRHITexture2DArray : public FRHITexture
+class RHI_API FRHITexture2DArray : public FRHITexture2D
 {
 public:
 	
 	/** Initialization constructor. */
-	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture(InNumMips,1,InFormat,InFlags,NULL, InClearValue)
-	, SizeX(InSizeX)
-	, SizeY(InSizeY)
+	FRHITexture2DArray(uint32 InSizeX,uint32 InSizeY,uint32 InSizeZ,uint32 InNumMips,uint32 NumSamples, EPixelFormat InFormat,uint32 InFlags, const FClearValueBinding& InClearValue)
+	: FRHITexture2D(InSizeX, InSizeY, InNumMips,NumSamples,InFormat,InFlags, InClearValue)
 	, SizeZ(InSizeZ)
 	{}
 	
 	// Dynamic cast methods.
 	virtual FRHITexture2DArray* GetTexture2DArray() { return this; }
-	
-	/** @return The width of the textures in the array. */
-	uint32 GetSizeX() const { return SizeX; }
-	
-	/** @return The height of the texture in the array. */
-	uint32 GetSizeY() const { return SizeY; }
+
+	virtual FRHITexture2D* GetTexture2D() { return NULL; }
 
 	/** @return The number of textures in the array. */
 	uint32 GetSizeZ() const { return SizeZ; }
 
 	virtual FIntVector GetSizeXYZ() const final override
 	{
-		return FIntVector(SizeX, SizeY, SizeZ);
+		return FIntVector(GetSizeX(), GetSizeY(), SizeZ);
 	}
 
 private:
 
-	uint32 SizeX;
-	uint32 SizeY;
 	uint32 SizeZ;
 };
 
@@ -1601,6 +1593,10 @@ public:
 	int32 NumColorRenderTargets;
 	bool bClearColor;
 
+	// Color Render Targets Info
+	FRHIRenderTargetView ColorResolveRenderTarget[MaxSimultaneousRenderTargets];	
+	bool bHasResolveAttachments;
+
 	// Depth/Stencil Render Target Info
 	FRHIDepthRenderTargetView DepthStencilRenderTarget;	
 	bool bClearDepth;
@@ -1612,7 +1608,8 @@ public:
 
 	FRHISetRenderTargetsInfo() :
 		NumColorRenderTargets(0),
-		bClearColor(false),		
+		bClearColor(false),
+		bHasResolveAttachments(false),
 		bClearDepth(false),
 		bClearStencil(false),
 		NumUAVs(0)
@@ -1621,6 +1618,7 @@ public:
 	FRHISetRenderTargetsInfo(int32 InNumColorRenderTargets, const FRHIRenderTargetView* InColorRenderTargets, const FRHIDepthRenderTargetView& InDepthStencilRenderTarget) :
 		NumColorRenderTargets(InNumColorRenderTargets),
 		bClearColor(InNumColorRenderTargets > 0 && InColorRenderTargets[0].LoadAction == ERenderTargetLoadAction::EClear),
+		bHasResolveAttachments(false),
 		DepthStencilRenderTarget(InDepthStencilRenderTarget),		
 		bClearDepth(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.DepthLoadAction == ERenderTargetLoadAction::EClear),
 		bClearStencil(InDepthStencilRenderTarget.Texture && InDepthStencilRenderTarget.StencilLoadAction == ERenderTargetLoadAction::EClear),
@@ -1653,7 +1651,7 @@ public:
 		struct FHashableStruct
 		{
 			// Depth goes in the last slot
-			FRHITexture* Texture[MaxSimultaneousRenderTargets + 1];
+			FRHITexture* Texture[MaxSimultaneousRenderTargets*2 + 1];
 			uint32 MipIndex[MaxSimultaneousRenderTargets];
 			uint32 ArraySliceIndex[MaxSimultaneousRenderTargets];
 			ERenderTargetLoadAction LoadAction[MaxSimultaneousRenderTargets];
@@ -1668,6 +1666,7 @@ public:
 			bool bClearDepth;
 			bool bClearStencil;
 			bool bClearColor;
+			bool bHasResolveAttachments;
 			FRHIUnorderedAccessView* UnorderedAccessView[MaxSimultaneousUAVs];
 
 			void Set(const FRHISetRenderTargetsInfo& RTInfo)
@@ -1676,6 +1675,7 @@ public:
 				for (int32 Index = 0; Index < RTInfo.NumColorRenderTargets; ++Index)
 				{
 					Texture[Index] = RTInfo.ColorRenderTarget[Index].Texture;
+					Texture[MaxSimultaneousRenderTargets+Index] = RTInfo.ColorResolveRenderTarget[Index].Texture;
 					MipIndex[Index] = RTInfo.ColorRenderTarget[Index].MipIndex;
 					ArraySliceIndex[Index] = RTInfo.ColorRenderTarget[Index].ArraySliceIndex;
 					LoadAction[Index] = RTInfo.ColorRenderTarget[Index].LoadAction;
@@ -1692,6 +1692,7 @@ public:
 				bClearDepth = RTInfo.bClearDepth;
 				bClearStencil = RTInfo.bClearStencil;
 				bClearColor = RTInfo.bClearColor;
+				bHasResolveAttachments = RTInfo.bHasResolveAttachments;
 
 				for (int32 Index = 0; Index < MaxSimultaneousUAVs; ++Index)
 				{
@@ -1898,6 +1899,7 @@ public:
 			DepthStencilState != rhs.DepthStencilState ||
 			ImmutableSamplerState != rhs.ImmutableSamplerState ||
 			bDepthBounds != rhs.bDepthBounds ||
+			bMultiView != rhs.bMultiView ||
 			PrimitiveType != rhs.PrimitiveType) 
 		{
 			return false;
@@ -1948,6 +1950,7 @@ public:
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
 		COMPARE_FIELD(bDepthBounds)
+		COMPARE_FIELD(bMultiView)
 		COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -1972,6 +1975,7 @@ public:
 		COMPARE_FIELD(RasterizerState)
 		COMPARE_FIELD(DepthStencilState)
 		COMPARE_FIELD(bDepthBounds)
+		COMPARE_FIELD(bMultiView)
 		COMPARE_FIELD(PrimitiveType)
 		COMPARE_FIELD_END;
 
@@ -1993,8 +1997,9 @@ public:
 	// Note: FGraphicsMinimalPipelineStateInitializer is 8-byte aligned and can't have any implicit padding,
 	// as it is sometimes hashed and compared as raw bytes. Explicit padding is therefore required between
 	// all data members and at the end of the structure.
-	bool					bDepthBounds = false;
-	uint8					Padding[3] = {};
+	bool							bDepthBounds = false;
+	bool							bMultiView = false;
+	uint8							Padding[2] = {};
 
 	EPrimitiveType			PrimitiveType;
 };
@@ -2510,6 +2515,9 @@ struct FRHIRenderPassInfo
 
 	// Some RHIs need to know if this render pass is going to be reading and writing to the same texture in the case of generating mip maps for partial resource transitions
 	bool bGeneratingMips = false;
+
+	// If this render pass should be multiview
+	bool bMultiviewPass = false;
 
 	// Hint for some RHI's that renderpass will have specific sub-passes 
 	ESubpassHint SubpassHint = ESubpassHint::None;

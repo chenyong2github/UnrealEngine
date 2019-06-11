@@ -277,8 +277,8 @@ public:
 		ClearBufferRW.Bind(Initializer.ParameterMap, TEXT("ClearBufferRW"), SPF_Mandatory);
 	}
 	
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, uint32 NumDWordsToClear, uint32 ClearValue);
-	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW);
+	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, uint32 NumDWordsToClear, uint32 ClearValue, bool bBarriers = true);
+	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, bool bBarriers = true);
 	
 	// FShader interface.
 	virtual bool Serialize(FArchive& Ar) override

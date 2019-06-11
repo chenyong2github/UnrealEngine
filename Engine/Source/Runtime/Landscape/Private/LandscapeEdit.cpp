@@ -3495,6 +3495,22 @@ void ULandscapeInfo::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULan
 	}
 }
 
+void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const
+{
+	OutUsedLayerInfos.Empty();
+	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	{
+		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		{
+			const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations(InLayerGuid);
+			for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
+			{
+				OutUsedLayerInfos.AddUnique(AllocInfo.LayerInfo);
+			}
+		}
+	});
+}
+
 void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown)
 {
 	FVector ModifiedScale = DeltaScale;

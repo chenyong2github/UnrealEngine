@@ -340,6 +340,10 @@ FString FLauncherWorker::CreateUATCommand( const ILauncherProfileRef& InProfile,
 			{
 				Platforms += TEXT("+IOS");
 			}
+			else if (PlatformInfo->TargetPlatformName == FName("HoloLens"))
+			{
+				Platforms += TEXT("+HoloLens");
+			}
 			else
 			{
 				Platforms += TEXT("+");

@@ -198,17 +198,17 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 }
 
 
-void FNiagaraRendererRibbons::ReleaseRenderThreadResources()
+void FNiagaraRendererRibbons::ReleaseRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
-	FNiagaraRenderer::ReleaseRenderThreadResources();
+	FNiagaraRenderer::ReleaseRenderThreadResources(Batcher);
 	VertexFactory->ReleaseResource();
 	WorldSpacePrimitiveUniformBuffer.ReleaseResource();
 }
 
 // FPrimitiveSceneProxy interface.
-void FNiagaraRendererRibbons::CreateRenderThreadResources()
+void FNiagaraRendererRibbons::CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher)
 {
-	FNiagaraRenderer::CreateRenderThreadResources();
+	FNiagaraRenderer::CreateRenderThreadResources(Batcher);
 	VertexFactory->InitResource();
 }
 
@@ -301,7 +301,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 	int32 TotalFloatSize = SourceParticleData->GetFloatBuffer().Num() / sizeof(float);
 	FGlobalDynamicReadBuffer::FAllocation ParticleData;
 
-	if (DynamicDataRibbon->GetSimTarget() == ENiagaraSimTarget::CPUSim)
+	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		FGlobalDynamicReadBuffer& DynamicReadBuffer = Collector.GetDynamicReadBuffer();
 		ParticleData = DynamicReadBuffer.AllocateFloat(TotalFloatSize);
@@ -569,7 +569,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGenRibbonVertexData);
 
-	if (Emitter->GetData().GetSimTarget() == ENiagaraSimTarget::GPUComputeSim)
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		return nullptr;
 	}
@@ -598,7 +598,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	FNiagaraDataSetAccessor<int32> RibbonIdData;
 	FNiagaraDataSetAccessor<FNiagaraID> RibbonFullIDData;
 
-	ENiagaraSimTarget SimTarget = Data.GetSimTarget();
 	FNiagaraDataBuffer* DataToRender = Emitter->GetData().GetCurrentData();
 	if (DataToRender == nullptr || DataToRender->GetNumInstances() < 2 || !PosData.IsValid() || !SortKeyData.IsValid())
 	{

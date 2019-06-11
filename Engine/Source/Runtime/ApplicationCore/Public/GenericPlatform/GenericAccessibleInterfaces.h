@@ -19,7 +19,7 @@ enum class EAccessibleBehavior : uint8
 	ToolTip
 };
 
-DECLARE_LOG_CATEGORY_EXTERN(LogAccessibility, Log, All);
+APPLICATIONCORE_API DECLARE_LOG_CATEGORY_EXTERN(LogAccessibility, Log, All);
 
 #if WITH_ACCESSIBILITY
 
@@ -51,17 +51,36 @@ enum class EAccessibleWidgetType : uint8
 /** Events that can be raised from accessible widgets to report back to the platform */
 enum class EAccessibleEvent : uint8
 {
-	/** A widget has become focused or unfocused. */
+	/**
+	 * A widget has become focused or unfocused.
+	 * OldValue - The old focus state of the widget
+	 * NewValue - The new focus state of the widget
+	 */
 	FocusChange,
-	/** A widget has been clicked, checked, or otherwise activated */
+	/**
+	 * A widget has been clicked, checked, or otherwise activated.
+	 * OldValue - N/A
+	 * NewValue - N/A
+	 */
 	Activate,
-	/** Notify the user that something has happened. The user is not guaranteed to get this message. */
+	/**
+	 * Warning: Partial implementation
+	 * Notify the user that something has happened. The user is not guaranteed to get this message.
+	 * OldValue - N/A
+	 * NewValue - An FString of the message to read
+	 */
 	Notification,
-	/** Right before a widget is removed from its parent widget. */
-	BeforeRemoveFromParent,
-	/** Right after a widget is added to its parent widget. */
-	AfterAddToParent,
-	/** The widget was removed from the UI tree or deleted. */
+	/**
+	 * A widget's parent is about to be changed.
+	 * OldValue - The AccessibleWidgetId of the old parent, or InvalidAccessibleWidgetId if there was none
+	 * NewValue - The AccessibleWidgetId of the new parent, or InvalidAccessibleWidgetId if there was none
+	 */
+	ParentChanged,
+	/**
+	 * The widget was removed from the UI tree or deleted.
+	 * OldValue - N/A
+	 * NewValue - N/A
+	 */
 	WidgetRemoved
 };
 
@@ -264,7 +283,7 @@ public:
 	 *
 	 * @return The root window in this widget's widget tree, or nullptr if there is no window.
 	 */
-	virtual TSharedPtr<IAccessibleWidget> GetTopLevelWindow() const = 0;
+	virtual TSharedPtr<IAccessibleWidget> GetWindow() const = 0;
 	/**
 	 * Retrieving the bounding rect in absolute coordinates for this widget. On some platforms this may be used for hit testing.
 	 *
@@ -490,23 +509,12 @@ public:
 	 *
 	 * @param Widget The widget raising the event
 	 * @param Event The type of event being raised
-	 * @param OldValue If this is a property changed event, the old value of the property
-	 * @param NewValue If this is a property changed event, the current value of the property. This may also be used by non-property events that require data.
+	 * @param OldValue See EAccessibleEvent documentation for more details.
+	 * @param NewValue See EAccessibleEvent documentation for more details.
 	 */
-	void RaiseEvent(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
+	void RaiseEvent(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event, FVariant OldValue = FVariant(), FVariant NewValue = FVariant())
 	{
 		AccessibleEventDelegate.ExecuteIfBound(Widget, Event, OldValue, NewValue);
-	}
-	/**
-	 * Push an event from an accessible widget back to the platform layer.
-	 * This is a convenience function if OldValue and NewValue are irrelevant for this event type.
-	 *
-	 * @param Widget The widget raising the event
-	 * @param Event The type of event being raised
-	 */
-	void RaiseEvent(TSharedRef<IAccessibleWidget> Widget, EAccessibleEvent Event)
-	{
-		RaiseEvent(Widget, Event, FVariant(), FVariant());
 	}
 
 	/**

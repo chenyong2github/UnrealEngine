@@ -8,7 +8,7 @@
 
 #include "LandscapeBPCustomBrush.generated.h"
 
-UCLASS(Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Cooking, Rendering))
+UCLASS(Abstract, Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Cooking, Rendering))
 class LANDSCAPE_API ALandscapeBlueprintCustomBrush : public AActor
 {
 	GENERATED_UCLASS_BODY()
@@ -70,14 +70,4 @@ public:
 	virtual void Destroyed() override;
 #endif
 };
-
-UCLASS(Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Cooking, Rendering))
-class LANDSCAPE_API ALandscapeBlueprintCustomSimulationBrush : public ALandscapeBlueprintCustomBrush
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-	// TODO: To Implement
-};
-
 

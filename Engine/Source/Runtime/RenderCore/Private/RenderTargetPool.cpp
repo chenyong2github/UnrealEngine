@@ -289,7 +289,7 @@ static void ClobberAllocatedRenderTarget(FRHICommandList& RHICmdList, const FPoo
 
 #endif
 
-bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& InputDesc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName, bool bDoWritableBarrier, ERenderTargetTransience TransienceHint)
+bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& InputDesc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName, bool bDoWritableBarrier, ERenderTargetTransience TransienceHint, bool bDeferTextureAllocation)
 {
 	check(IsInRenderingThread());
 
@@ -428,8 +428,9 @@ Done:
 		FRHIResourceCreateInfo CreateInfo(Desc.ClearValue);
 		CreateInfo.DebugName = InDebugName;
 
-		if(Desc.TargetableFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV))
+		if(Desc.TargetableFlags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_UAV) && !bDeferTextureAllocation)
 		{
+			// Only create resources if we're not asked to defer creation.
 			if(Desc.Is2DTexture())
 			{
 				if (!Desc.IsArray())
@@ -540,8 +541,9 @@ Done:
 
 			RHIBindDebugLabelName(Found->RenderTargetItem.TargetableTexture, InDebugName);
 		}
-		else
+		else if (!bDeferTextureAllocation)
 		{
+			// Only create resources if we're not asked to defer creation.
 			if(Desc.Is2DTexture())
 			{
 				// this is useful to get a CPU lockable texture through the same interface
@@ -583,7 +585,7 @@ Done:
 			RHIBindDebugLabelName(Found->RenderTargetItem.ShaderResourceTexture, InDebugName);
 		}
 
-		if(Desc.TargetableFlags & TexCreate_UAV)
+		if((Desc.TargetableFlags & TexCreate_UAV) && !bDeferTextureAllocation)
 		{
 			// The render target desc is invalid if a UAV is requested with an RHI that doesn't support the high-end feature level.
 			check(GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5);
@@ -596,8 +598,13 @@ Done:
 			Found->RenderTargetItem.UAV = Found->RenderTargetItem.MipUAVs[0];
 		}
 
-		AllocationLevelInKB += ComputeSizeInKB(*Found);
-		VerifyAllocationLevel();
+		if (!bDeferTextureAllocation)
+		{
+			// Only calculate allocation level if we actually allocated something. If bDeferTextureAllocation is true, the caller should call 
+			// UpdateElementSize once it's set the resources on the created object.
+			AllocationLevelInKB += ComputeSizeInKB(*Found);
+			VerifyAllocationLevel();
+		}
 
 		FoundIndex = PooledRenderTargets.Num() - 1;
 

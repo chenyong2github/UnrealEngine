@@ -232,7 +232,7 @@ void MainVertexShader(
 /*=============================================================================
  * Pixel Shader
  *============================================================================*/
- 
+
 void MainPixelShader(
 	in INPUT_POSITION_QUALIFIERS float4 SvPosition : SV_Position,
 	FVelocityInterpsVSToPS Input

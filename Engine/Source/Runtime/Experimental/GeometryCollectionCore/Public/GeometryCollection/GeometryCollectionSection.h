@@ -3,6 +3,8 @@
 #pragma once
 #include "Containers/Set.h"
 
+class HHitProxy;
+
 /**
 * A set of triangles which are rendered with the same material.
 */
@@ -15,6 +17,7 @@ struct FGeometryCollectionSection
 		, NumTriangles(0)
 		, MinVertexIndex(0)
 		, MaxVertexIndex(0)
+		, HitProxy(NULL)
 	{ }	
 	
 	/** Serializer. */
@@ -37,6 +40,8 @@ struct FGeometryCollectionSection
 	int32 NumTriangles;
 	int32 MinVertexIndex;
 	int32 MaxVertexIndex;
+
+	HHitProxy* HitProxy;
 
 	static const int InvalidIndex = -1;
 };

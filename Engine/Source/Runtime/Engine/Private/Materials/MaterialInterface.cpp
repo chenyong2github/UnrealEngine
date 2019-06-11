@@ -38,6 +38,7 @@ void FMaterialRelevance::SetPrimitiveViewRelevance(FPrimitiveViewRelevance& OutV
 {
 	OutViewRelevance.bOpaqueRelevance = bOpaque;
 	OutViewRelevance.bMaskedRelevance = bMasked;
+	OutViewRelevance.bOutputsTranslucentVelocityRelevance = bOutputsTranslucentVelocity;
 	OutViewRelevance.bDistortionRelevance = bDistortion;
 	OutViewRelevance.bSeparateTranslucencyRelevance = bSeparateTranslucency;
 	OutViewRelevance.bNormalTranslucencyRelevance = bNormalTranslucency;
@@ -149,7 +150,7 @@ FMaterialRelevance UMaterialInterface::GetRelevance_Internal(const UMaterial* Ma
 			MaterialRelevance.bDisableDepthTest = bIsTranslucent && Material->bDisableDepthTest;		
 			MaterialRelevance.bUsesSceneColorCopy = bIsTranslucent && MaterialResource->RequiresSceneColorCopy_GameThread();
 			MaterialRelevance.bDisableOffscreenRendering = BlendMode == BLEND_Modulate; // Blend Modulate must be rendered directly in the scene color.
-			MaterialRelevance.bOutputsVelocityInBasePass = Material->bOutputVelocityOnBasePass;	
+			MaterialRelevance.bOutputsTranslucentVelocity = Material->IsTranslucencyWritingVelocity();
 			MaterialRelevance.bUsesGlobalDistanceField = MaterialResource->UsesGlobalDistanceField_GameThread();
 			MaterialRelevance.bUsesWorldPositionOffset = MaterialResource->UsesWorldPositionOffset_GameThread();
 			ETranslucencyLightingMode TranslucencyLightingMode = MaterialResource->GetTranslucencyLightingMode();
@@ -406,6 +407,11 @@ bool UMaterialInterface::IsDitheredLODTransition() const
 }
 
 bool UMaterialInterface::IsTranslucencyWritingCustomDepth() const
+{
+	return false;
+}
+
+bool UMaterialInterface::IsTranslucencyWritingVelocity() const
 {
 	return false;
 }

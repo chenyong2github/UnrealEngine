@@ -182,6 +182,41 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FStructu
 			// BufferDesc.StructureByteStride  is not getting patched through the D3D resource DESC structs, so use the RHI version as a hack
 			uint32 Stride = Buffer->GetStride();
 
+
+	SRVDesc.Format = PlatformShaderResourceFormat;
+
+	return CreateSRV(Texture3D, SRVDesc);
+}
+
+FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FStructuredBufferRHIParamRef StructuredBufferRHI)
+{
+	struct FD3D12InitializeStructuredBufferSRVRHICommand final : public FRHICommand<FD3D12InitializeStructuredBufferSRVRHICommand>
+	{
+		FD3D12StructuredBuffer* StructuredBuffer;
+		FD3D12ShaderResourceView* SRV;
+
+		FD3D12InitializeStructuredBufferSRVRHICommand(FD3D12StructuredBuffer* InStructuredBuffer, FD3D12ShaderResourceView* InSRV)
+			: StructuredBuffer(InStructuredBuffer)
+			, SRV(InSRV)
+		{}
+
+		void Execute(FRHICommandListBase& RHICmdList)
+		{
+			FD3D12ResourceLocation& Location = StructuredBuffer->ResourceLocation;
+
+			const uint64 Offset = Location.GetOffsetFromBaseOfResource();
+			const D3D12_RESOURCE_DESC& BufferDesc = Location.GetResource()->GetDesc();
+
+			const uint32 BufferUsage = StructuredBuffer->GetUsage();
+			const bool bByteAccessBuffer = (BufferUsage & BUF_ByteAddressBuffer) != 0;
+			const bool bUINT8Access = (BufferUsage & BUF_UINT8) != 0;
+			// Create a Shader Resource View
+			D3D12_SHADER_RESOURCE_VIEW_DESC SRVDesc = {};
+			SRVDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+
+			// BufferDesc.StructureByteStride  is not getting patched through the D3D resource DESC structs, so use the RHI version as a hack
+			uint32 Stride = StructuredBuffer->GetStride();
+
 			if (bByteAccessBuffer)
 			{
 				SRVDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_RAW;
@@ -200,11 +235,11 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(FStructu
 			}
 
 			SRVDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-			SRVDesc.Buffer.NumElements = Buffer->ResourceLocation.GetSize() / Stride;
+			SRVDesc.Buffer.NumElements = Location.GetSize() / Stride;
 			SRVDesc.Buffer.FirstElement = Offset / Stride;
 
 			// Create a Shader Resource View
-			SRV->Initialize(SRVDesc, Buffer->ResourceLocation, Stride);
+			SRV->Initialize(SRVDesc, StructuredBuffer->ResourceLocation, Stride);
 		}
 	};
 
@@ -385,15 +420,6 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::CreateShaderResourceView_RenderThrea
 
 FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView_RenderThread(FRHICommandListImmediate& RHICmdList, FStructuredBufferRHIParamRef StructuredBufferRHI)
 {
-	FD3D12StructuredBuffer*  StructuredBuffer = FD3D12DynamicRHI::ResourceCast(StructuredBufferRHI);
-
-	// TODO: we have to stall the RHI thread when creating SRVs of dynamic buffers because they get renamed.
-	// perhaps we could do a deferred operation?
-	if (StructuredBuffer->GetUsage() & BUF_AnyDynamic)
-	{
-		FScopedRHIThreadStaller StallRHIThread(RHICmdList);
-		return RHICreateShaderResourceView(StructuredBufferRHI);
-	}
 	return RHICreateShaderResourceView(StructuredBufferRHI);
 }
 

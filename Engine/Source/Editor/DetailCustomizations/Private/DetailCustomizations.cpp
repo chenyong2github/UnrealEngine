@@ -131,7 +131,6 @@
 #include "MotionControllerPinFactory.h"
 #include "LandscapeUIDetails.h"
 #include "LandscapeProxyUIDetails.h"
-#include "LandscapeSettingsDetails.h"
 #include "PerPlatformPropertyCustomization.h"
 #include "SkeletalMeshReductionSettingsDetails.h"
 #include "SkeletalMeshLODSettingsDetails.h"
@@ -389,7 +388,6 @@ void FDetailCustomizationsModule::RegisterObjectCustomizations()
 
 	RegisterCustomClassLayout("Landscape", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeUIDetails::MakeInstance));
 	RegisterCustomClassLayout("LandscapeProxy", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeProxyUIDetails::MakeInstance));
-	RegisterCustomClassLayout("LandscapeSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FLandscapeSettingsDetails::MakeInstance));
 }
 
 

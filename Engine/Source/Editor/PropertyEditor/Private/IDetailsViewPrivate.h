@@ -81,6 +81,16 @@ public:
 	virtual bool IsPropertyReadOnly( const struct FPropertyAndParent& PropertyAndParent ) const = 0;
 
 	/**
+	 * @return Whether the IsCustomRowVisible check is pertinent, i.e. always return true no matter the specified row and parent names.
+	 */
+	virtual bool IsCustomRowVisibilityFiltered() const = 0;
+
+	/**
+	 * @return Whether a custom row with the specified name and parent name is visible.
+	 */
+	virtual bool IsCustomRowVisible(FName InRowName, FName InParentName) const = 0;
+
+	/**
 	 * @return The thumbnail pool that should be used for thumbnails being rendered in this view
 	 */
 	virtual TSharedPtr<class FAssetThumbnailPool> GetThumbnailPool() const = 0;

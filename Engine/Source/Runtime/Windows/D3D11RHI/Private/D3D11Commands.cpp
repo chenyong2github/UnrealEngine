@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "D3D11RHIPrivate.h"
-#include "Windows/D3D11RHIPrivateUtil.h"
+#include "D3D11RHIPrivateUtil.h"
 #include "StaticBoundShaderState.h"
 #include "GlobalShader.h"
 #include "OneColorShader.h"
@@ -72,6 +72,7 @@ void FD3D11BaseShaderResource::SetDirty(bool bInDirty, uint32 CurrentFrame)
 	ensureMsgf((GEnableDX11TransitionChecks == 0) || !(CurrentGPUAccess == EResourceTransitionAccess::EReadable && bDirty), TEXT("ShaderResource is dirty, but set to Readable."));
 }
 
+#if !PLATFORM_HOLOLENS
 //MultiGPU
 void FD3D11DynamicRHI::RHIBeginUpdateMultiFrameResource(FTextureRHIParamRef RHITexture)
 {
@@ -152,6 +153,7 @@ void FD3D11DynamicRHI::RHIEndUpdateMultiFrameResource(FRHIUnorderedAccessView* U
 	NvAPI_D3D_EndResourceRendering(Direct3DDevice, (NVDX_ObjectHandle)UAV->IHVResourceHandle, 0);
 	RHIPopEvent();
 }
+#endif
 
 // Vertex state.
 void FD3D11DynamicRHI::RHISetStreamSource(uint32 StreamIndex, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset)
@@ -1968,6 +1970,7 @@ static bool IsUAVOverlapSupported()
 
 void FD3D11DynamicRHI::BeginUAVOverlap()
 {
+#if !PLATFORM_HOLOLENS
 	if (!GOverlapUAVOBegin)
 	{
 		if (IsRHIDeviceNVIDIA())
@@ -1982,9 +1985,11 @@ void FD3D11DynamicRHI::BeginUAVOverlap()
 
 		GOverlapUAVOBegin = true;
 	}
+#endif	
 }
 void FD3D11DynamicRHI::EndUAVOverlap()
 {
+#if !PLATFORM_HOLOLENS
 	if (GOverlapUAVOBegin)
 	{
 		if (IsRHIDeviceNVIDIA())
@@ -1999,6 +2004,7 @@ void FD3D11DynamicRHI::EndUAVOverlap()
 
 		GOverlapUAVOBegin = false;
 	}
+#endif
 }
 
 

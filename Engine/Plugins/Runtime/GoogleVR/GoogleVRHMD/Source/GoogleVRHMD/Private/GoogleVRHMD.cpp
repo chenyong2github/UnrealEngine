@@ -2248,7 +2248,7 @@ void FGoogleVRHMD::SetTrackingOrigin(EHMDTrackingOrigin::Type InOrigin)
 	OnTrackingOriginChanged();
 }
 
-EHMDTrackingOrigin::Type FGoogleVRHMD::GetTrackingOrigin()
+EHMDTrackingOrigin::Type FGoogleVRHMD::GetTrackingOrigin() const
 {
 	return TrackingOrigin;
 }

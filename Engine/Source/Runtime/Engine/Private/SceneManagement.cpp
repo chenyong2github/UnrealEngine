@@ -198,6 +198,7 @@ FMeshBatchAndRelevance::FMeshBatchAndRelevance(const FMeshBatch& InMesh, const F
 	EBlendMode BlendMode = Material->GetBlendMode();
 	bHasOpaqueMaterial = (BlendMode == BLEND_Opaque);
 	bHasMaskedMaterial = (BlendMode == BLEND_Masked);
+	bHasTranslucentMaterialWithVelocity = Material->IsTranslucencyWritingVelocity();
 	bRenderInMainPass = PrimitiveSceneProxy->ShouldRenderInMainPass();
 }
 

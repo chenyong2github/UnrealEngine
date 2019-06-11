@@ -26,6 +26,7 @@ class URuntimeVirtualTexture;
 class UTexture2D;
 enum class ERuntimeVirtualTextureMaterialType;
 struct FMeshBatch;
+class FColorVertexBuffer;
 
 /** Data for a simple dynamic light. */
 class FSimpleLightEntry
@@ -178,6 +179,15 @@ public:
 	 */
 	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies);
 
+#if WITH_EDITOR
+	/** 
+	 * Allows a scene proxy to override hit proxy ids and generate more than one hit proxy id per draw call
+	 * Useful for sub-section selection (faces, vertices, bones, etc)
+	 * 
+	 * @return The vertex buffer  to be use for custom hit proxy ids or null if not used.  Each color represents an id in a HHitProxy
+	 */
+	virtual const FColorVertexBuffer* GetCustomHitProxyIdBuffer() const { return nullptr; }
+#endif
 	/**
 	 * Draws the primitive's static elements.  This is called from the rendering thread once when the scene proxy is created.
 	 * The static elements will only be rendered if GetViewRelevance declares static relevance.

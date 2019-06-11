@@ -37,7 +37,9 @@ public:
 		// Quad Y component will be calculated based on the texture dimensions
 		LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO	= 0x00000004,
 		// The layer will intersect with the scene's depth. Currently only supported on Oculus platforms.
-		LAYER_FLAG_SUPPORT_DEPTH			= 0x00000008,
+		LAYER_FLAG_SUPPORT_DEPTH = 0x00000008,
+		// Required on some platforms to enable rendering of external textures.
+		LAYER_FLAG_TEX_EXTERNAL = 0x00000010,
 	};
 
 	/**

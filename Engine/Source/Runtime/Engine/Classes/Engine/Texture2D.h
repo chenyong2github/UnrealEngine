@@ -374,7 +374,7 @@ public:
 	friend struct FStreamingRenderAsset;
 	
 	/** creates and initializes a new Texture2D with the requested settings */
-	ENGINE_API static class UTexture2D* CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat = PF_B8G8R8A8);
+	ENGINE_API static class UTexture2D* CreateTransient(int32 InSizeX, int32 InSizeY, EPixelFormat InFormat = PF_B8G8R8A8, const FName InName = NAME_None);
 
 	/**
 	 * Gets the X size of the texture, in pixels

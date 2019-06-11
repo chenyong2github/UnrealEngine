@@ -1590,7 +1590,7 @@ class FOpenGLBaseTexture2DArray : public FRHITexture2DArray
 {
 public:
 	FOpenGLBaseTexture2DArray(uint32 InSizeX, uint32 InSizeY, uint32 InSizeZ, uint32 InNumMips, uint32 InNumSamples, uint32 InNumSamplesTileMem, uint32 InArraySize, EPixelFormat InFormat, uint32 InFlags, const FClearValueBinding& InClearValue)
-	: FRHITexture2DArray(InSizeX,InSizeY,InSizeZ,InNumMips,InFormat,InFlags, InClearValue)
+	: FRHITexture2DArray(InSizeX,InSizeY,InSizeZ,InNumMips,InNumSamples,InFormat,InFlags, InClearValue)
 	{
 		check(InNumSamples == 1);	// OpenGL supports multisampled texture arrays, but they're currently not implemented in OpenGLDrv.
 		check(InNumSamplesTileMem == 1);

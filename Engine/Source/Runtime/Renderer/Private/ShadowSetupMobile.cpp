@@ -10,7 +10,7 @@ ShadowSetupMobile.cpp: Shadow setup implementation for mobile specific features.
 #include "EngineDefines.h"
 #include "ConvexVolume.h"
 #include "RendererInterface.h"
-#include "GenericOctree.h"
+#include "Math/GenericOctree.h"
 #include "LightSceneInfo.h"
 #include "SceneRendering.h"
 #include "DynamicPrimitiveDrawing.h"

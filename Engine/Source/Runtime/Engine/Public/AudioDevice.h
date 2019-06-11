@@ -950,6 +950,25 @@ public:
 		}, GET_STATID(STAT_SetHRTFEnabledForAll));
 	}
 
+	/** Whether or not HRTF is disabled. */
+	bool IsHRTFDisabled() const;
+
+	void SetHRTFDisabled(bool InIsHRTFDisabled)
+	{
+		const bool bNewHRTFDisabled = InIsHRTFDisabled;
+
+		bHRTFDisabled_OnGameThread = bNewHRTFDisabled;
+
+		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetHRTFDisabled"), STAT_SetHRTFDisabled, STATGROUP_AudioThreadCommands);
+
+		FAudioDevice* AudioDevice = this;
+		FAudioThread::RunCommandOnAudioThread([AudioDevice, bNewHRTFDisabled]()
+		{
+			AudioDevice->bHRTFDisabled = bNewHRTFDisabled;
+
+		}, GET_STATID(STAT_SetHRTFDisabled));
+	}
+
 	void SetSpatializationInterfaceEnabled(bool InbSpatializationInterfaceEnabled)
 	{
 		FAudioThread::SuspendAudioThread();
@@ -973,10 +992,10 @@ public:
 	void GetAttenuationListenerData(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform* InListenerTransform = nullptr) const;
 
 	/** Returns the azimuth angle of the sound relative to the sound's nearest listener. Used for 3d audio calculations. */
-	void GetAzimuth(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& AbsoluteAzimuth) const;
+	void GetAzimuth(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& AbsoluteAzimuth) const;
 
 	/** Returns the focus factor of a sound based on its position and listener data. */
-	float GetFocusFactor(FAttenuationListenerData& OutListenerData, const USoundBase* Sound, const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
+	float GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
 
 	/** Gets the max distance and focus factor of a sound. */
 	void GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld* World, const FVector& Location, const FSoundAttenuationSettings* AttenuationSettingsToApply, float& OutMaxDistance, float& OutFocusFactor);
@@ -1083,6 +1102,12 @@ public:
 	bool IsReverbPluginEnabled() const
 	{
 		return bReverbInterfaceEnabled;
+	}
+
+	/** Whether or not the reverb plugin is bypassing the master reverb. */
+	bool IsReverbPluginBypassingMasterReverb() const
+	{
+		return bReverbPluginBypassesMasterReverb;
 	}
 
 	static bool IsReverbPluginLoaded()
@@ -1449,7 +1474,7 @@ public:
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
 
-	void UpdateVirtualLoops();
+	void UpdateVirtualLoops(bool bForceUpdate);
 
 	/** Sets the update delta time for the audio frame */
 	virtual void UpdateDeviceDeltaTime()
@@ -1679,7 +1704,10 @@ private:
 	FActivatedReverb HighestPriorityActivatedReverb;
 
 	/** Gamethread representation of whether HRTF is enabled for all 3d sounds. (not bitpacked to avoid thread issues) */
-	bool bHRTFEnabledForAll_OnGameThread:1;
+	bool bHRTFEnabledForAll_OnGameThread;
+
+	/** Gamethread representation of whether HRTF is disabbled for all 3d sounds. */
+	bool bHRTFDisabled_OnGameThread;
 
 	uint8 bGameWasTicking:1;
 
@@ -1714,13 +1742,17 @@ private:
 	uint8 bSpatializationInterfaceEnabled:1;
 	uint8 bOcclusionInterfaceEnabled:1;
 	uint8 bReverbInterfaceEnabled:1;
+	uint8 bReverbPluginBypassesMasterReverb:1;
 	uint8 bModulationInterfaceEnabled:1;
 
 	/** Whether or not we've initialized plugin listeners array. */
 	uint8 bPluginListenersInitialized:1;
 
-	/** Whether HRTF is enabled for all 3d sounds. */
+	/** Whether HRTF is enabled for all 3d sounds. This will automatically make all 3d mono sounds HRTF spatialized. */
 	uint8 bHRTFEnabledForAll:1;
+
+	/** Whether or not HRTF is disabled. This will make any sounds which are set to HRTF spatialize to spatialize with panning. */
+	uint8 bHRTFDisabled:1;
 
 	/** Whether the audio device is active (current audio device in-focus in PIE) */
 	uint8 bIsDeviceMuted:1;
