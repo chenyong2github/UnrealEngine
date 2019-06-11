@@ -477,6 +477,7 @@ public:
 	{
 
 	}
+	virtual void RHIAdvanceFrameForGetViewportBackBuffer(FRHIViewport* Viewport) final override
 	{
 
 	}
