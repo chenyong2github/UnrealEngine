@@ -951,7 +951,7 @@ RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
 #if WITH_EDITOR
-RENDERCORE_API uint32 GRequiresCookedDataPlatformMask = 0;
+RENDERCORE_API uint64 GRequiresCookedDataPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GRequiresCookedDataPlatformMask) * 8, "GRequiresCookedDataPlatformMask must be large enough to support all shader platforms");
 #endif
 
