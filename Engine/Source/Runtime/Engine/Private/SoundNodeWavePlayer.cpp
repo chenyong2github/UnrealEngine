@@ -185,10 +185,6 @@ void USoundNodeWavePlayer::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT 
 float USoundNodeWavePlayer::GetDuration()
 {
 	float Duration = 0.f;
-	if (!SoundWave && !IsAsyncLoading())
-	{
-		SoundWave = SoundWaveAssetPtr.LoadSynchronous();
-	}
 	if (SoundWave)
 	{
 		if (bLooping)
