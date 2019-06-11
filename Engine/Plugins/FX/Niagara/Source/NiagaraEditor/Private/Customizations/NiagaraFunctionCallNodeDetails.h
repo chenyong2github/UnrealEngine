@@ -6,6 +6,8 @@
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
 #include "Misc/Optional.h"
+#include "NiagaraTypes.h"
+#include "NiagaraGraph.h"
 
 /** This customization sets up a custom details panel for the function call node in the niagara module graph. */
 class FNiagaraFunctionCallNodeDetails : public IDetailCustomization
@@ -20,4 +22,10 @@ public:
 	
 private:
 	TWeakObjectPtr<class UNiagaraNodeFunctionCall> Node;
+
+	void CopyMetadataFromCalledGraph(FNiagaraVariable FromVariable);
+	void CopyMetadataForNameOverride(FNiagaraVariable FromVariable, FNiagaraVariable ToVariable);
+
+	UNiagaraGraph* GetNodeGraph();
+	UNiagaraGraph* GetCalledGraph();
 };

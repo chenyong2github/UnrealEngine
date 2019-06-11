@@ -659,7 +659,7 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 					continue;
 				}
 				ValuePin->DefaultValue = FString();
-				FName PinName = SwitchValue.PropagatedName.IsEmpty() ? ValuePin->GetFName() : FName(*SwitchValue.PropagatedName);
+				FName PinName = SwitchValue.ToVariable().GetName();
 				for (UEdGraphPin* InputPin : CallInputs)
 				{
 					if (InputPin->GetFName().IsEqual(PinName) && InputPin->PinType == ValuePin->PinType)
