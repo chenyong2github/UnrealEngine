@@ -501,11 +501,12 @@ struct FVulkanTextureBase : public FVulkanBaseShaderResource
 
 	bool bIsAliased;
 
+	virtual void OnTransitionResource(FVulkanCommandListContext& Context, EResourceTransitionAccess TransitionType) {};
+
 private:
 	void DestroyViews();
 };
 
-class FVulkanBackBuffer;
 class FVulkanTexture2D : public FRHITexture2D, public FVulkanTextureBase
 {
 public:
@@ -529,11 +530,6 @@ public:
 		return FRHIResource::GetRefCount();
 	}
 
-	virtual FVulkanBackBuffer* GetBackBuffer()
-	{
-		return nullptr;
-	}
-
 	virtual void* GetTextureBaseRHI() override final
 	{
 		FVulkanTextureBase* Base = static_cast<FVulkanTextureBase*>(this);
@@ -544,48 +540,6 @@ public:
 	{
 		return (void*)Surface.Image;
 	}
-};
-
-class FVulkanBackBuffer : public FVulkanTexture2D
-{
-public:
-	FVulkanBackBuffer(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 UEFlags);
-	FVulkanBackBuffer(FVulkanDevice& Device, EPixelFormat Format, uint32 SizeX, uint32 SizeY, VkImage Image, uint32 UEFlags);
-	virtual ~FVulkanBackBuffer();
-
-	virtual FVulkanBackBuffer* GetBackBuffer() override final
-	{
-		return this;
-	}
-};
-
-class FVulkanBackBufferReference : public FRHITexture2D
-{
-public:
-	FVulkanBackBufferReference(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 UEFlags)
-		: FRHITexture2D(SizeX, SizeY, 1, 1, Format, UEFlags, FRHIResourceCreateInfo().ClearValueBinding)
-		, AcquiredBackBuffer(nullptr)
-	{
-	}
-
-	virtual FRHITexture2D* GetTexture2D() override 
-	{ 
-		return AcquiredBackBuffer; 
-	}
-	
-	virtual void* GetTextureBaseRHI() override
-	{
-		FVulkanTextureBase* Base = static_cast<FVulkanTextureBase*>(AcquiredBackBuffer);
-		return Base;
-	}
-
-	void SetBackBuffer(FVulkanBackBuffer* InAcquiredBackbuffer)
-	{
-		AcquiredBackBuffer = InAcquiredBackbuffer;
-	}
-
-private:
-	FVulkanBackBuffer* AcquiredBackBuffer;
 };
 
 class FVulkanTexture2DArray : public FRHITexture2DArray, public FVulkanTextureBase

@@ -131,6 +131,8 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_RandomSeed() { return Emitter_RandomSeed; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnRate() { return Emitter_SpawnRate; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnInterval() { return Emitter_SpawnInterval; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SimulationTarget() { return Emitter_SimulationTarget; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_ScriptUsage() { return ScriptUsage; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_InterpSpawnStartDt() { return Emitter_InterpSpawnStartDt; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Emitter_SpawnGroup() { return Emitter_SpawnGroup; }
 
@@ -224,6 +226,7 @@ private:
 	static FNiagaraVariable Emitter_Age;
 	static FNiagaraVariable Emitter_LocalSpace;
 	static FNiagaraVariable Emitter_Determinism;
+	static FNiagaraVariable Emitter_SimulationTarget;
 	static FNiagaraVariable Emitter_RandomSeed;
 	static FNiagaraVariable Emitter_SpawnRate;
 	static FNiagaraVariable Emitter_SpawnInterval;
@@ -261,6 +264,7 @@ private:
 	static FNiagaraVariable Particles_RibbonFacing;
 	static FNiagaraVariable Particles_RibbonLinkOrder;
 
+	static FNiagaraVariable ScriptUsage;
 	static FNiagaraVariable DataInstance_Alive;
 	static FNiagaraVariable Translator_BeginDefaults;
 };

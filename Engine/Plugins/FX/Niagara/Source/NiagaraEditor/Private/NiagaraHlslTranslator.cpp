@@ -3362,6 +3362,20 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 			OutVar.SetValue(bEmitterDeterminism ? FNiagaraBool(true) : FNiagaraBool(false));
 			return true;
 		}
+		if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetSimulationTargetEnum(), TEXT("Emitter.SimulationTarget")))
+		{
+			FNiagaraInt32 EnumValue;
+			EnumValue.Value = (uint8) CompilationTarget;
+			OutVar.SetValue(EnumValue);
+			return true;
+		}
+	}
+	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)GetCurrentUsage();
+		OutVar.SetValue(EnumValue);
+		return true;
 	}
 	return false;
 }

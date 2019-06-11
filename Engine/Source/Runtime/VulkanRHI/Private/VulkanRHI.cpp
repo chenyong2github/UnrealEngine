@@ -846,11 +846,6 @@ void FVulkanCommandListContext::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,
 		//#todo-rco: Check for r.FinishCurrentFrame
 	}
 
-	if (GVulkanDelayAcquireImage == EDelayAcquireImageType::PreAcquire)
-	{
-		RHI->DrawingViewport->PreAcquireSwapchainImage();
-	}
-
 	RHI->DrawingViewport = nullptr;
 
 	ReadAndCalculateGPUFrameTime();

@@ -249,6 +249,8 @@ void FTransitionAndLayoutManager::BeginRealRenderPass(FVulkanCommandListContext&
 		FTextureRHIParamRef Texture = RPInfo.ColorRenderTargets[Index].RenderTarget;
 		CA_ASSUME(Texture);
 		FVulkanSurface& Surface = FVulkanTextureBase::Cast(Texture)->Surface;
+		check(Surface.Image != VK_NULL_HANDLE);
+
 		VkImageLayout* Found = Layouts.Find(Surface.Image);
 		check(Found);
 
@@ -1229,9 +1231,13 @@ void FVulkanCommandListContext::RHITransitionResources(EResourceTransitionAccess
 		FPendingTransition PendingTransition;
 		for (int32 Index = 0; Index < NumTextures; ++Index)
 		{
-			if (InTextures[Index])
+			FRHITexture* RHITexture = InTextures[Index];
+			if (RHITexture)
 			{
-				PendingTransition.Textures.Add(InTextures[Index]);
+				PendingTransition.Textures.Add(RHITexture);
+				
+				FVulkanTextureBase* VulkanTexture = FVulkanTextureBase::Cast(RHITexture);
+				VulkanTexture->OnTransitionResource(*this, TransitionType);
 			}
 		}
 

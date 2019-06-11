@@ -1416,7 +1416,7 @@ static TSharedPtr<FAppleARKitAnchorData> MakeAnchorData( ARAnchor* Anchor, doubl
 			NewAnchor->ObjectClassification = FAppleARKitConversion::ToEARObjectClassification(PlaneAnchor.classification);
 		}
 #else
-		NewAnchor->ObjectClassification = ToEARObjectClassification::Unknown;
+		NewAnchor->ObjectClassification = EARObjectClassification::Unknown;
 #endif
 	}
 #if SUPPORTS_ARKIT_1_5

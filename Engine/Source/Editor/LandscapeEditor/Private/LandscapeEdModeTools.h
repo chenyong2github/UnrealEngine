@@ -292,7 +292,7 @@ public:
 	}
 
 	// X2/Y2 Coordinates are "inclusive" max values
-	void CacheData(int32 X1, int32 Y1, int32 X2, int32 Y2, bool bCacheOriginalData = true)
+	void CacheData(int32 X1, int32 Y1, int32 X2, int32 Y2, bool bCacheOriginalData = false)
 	{
 		if (!Valid)
 		{
@@ -510,8 +510,7 @@ public:
 		{
 			FIntRect Bounds = GetCacheRegion();
 			check((Bounds.Min.X <= X1) && (Bounds.Min.Y <= Y1) && (Bounds.Max.X >= X2) && (Bounds.Max.Y >= Y2));
-			const bool bCacheOriginalData = false;
-			CacheData(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y, bCacheOriginalData);
+			CacheData(Bounds.Min.X, Bounds.Min.Y, Bounds.Max.X, Bounds.Max.Y);
 		}
 		ensure(HasCachedData(X1, Y1, X2, Y2));
 		return GetCachedData(X1, Y1, X2, Y2, OutData);
@@ -729,11 +728,13 @@ struct FXYOffsetmapAccessor
 						
 			// Notify foliage to move any attached instances
 			bool bUpdateFoliage = false;
+			bool bUpdateNormals = false;
 			
 			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 
 			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
+				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
 					ULandscapeHeightfieldCollisionComponent* CollisionComponent = Component->CollisionComponent.Get();
@@ -761,7 +762,7 @@ struct FXYOffsetmapAccessor
 
 				// Update landscape.
 				LandscapeEdit->SetXYOffsetData(X1, Y1, X2, Y2, Data, 0); // XY Offset always need to be update before the height update
-				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, NewHeights.GetData(), 0, true);
+				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, NewHeights.GetData(), 0, bUpdateNormals);
 
 				// Snap foliage for each component.
 				for (int32 Index = 0; Index < CollisionComponents.Num(); ++Index)
@@ -774,7 +775,7 @@ struct FXYOffsetmapAccessor
 			{
 				// No foliage, just update landscape.
 				LandscapeEdit->SetXYOffsetData(X1, Y1, X2, Y2, Data, 0); // XY Offset always need to be update before the height update
-				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, NewHeights.GetData(), 0, true);
+				LandscapeEdit->SetHeightData(X1, Y1, X2, Y2, NewHeights.GetData(), 0, bUpdateNormals);
 			}
 		}
 	}

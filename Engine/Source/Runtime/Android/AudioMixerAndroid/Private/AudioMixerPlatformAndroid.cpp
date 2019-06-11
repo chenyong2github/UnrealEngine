@@ -220,7 +220,7 @@ namespace Audio
 
 		AudioStreamInfo.OutputDeviceIndex = 0;
 		AudioStreamInfo.NumOutputFrames = OpenStreamParams.NumFrames;
-		AudioStreamInfo.NumBuffers = OpenStreamParams.NumBuffers;
+		AudioStreamInfo.NumBuffers = FMath::Max(OpenStreamParams.NumBuffers, 4);
 		AudioStreamInfo.AudioMixer = OpenStreamParams.AudioMixer;
 
 		if (!GetOutputDeviceInfo(AudioStreamInfo.OutputDeviceIndex, AudioStreamInfo.DeviceInfo))

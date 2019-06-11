@@ -46,8 +46,8 @@ TAutoConsoleVariable<int32> CVarDelayAcquireBackBuffer(
 	1,
 	TEXT("Whether to delay acquiring the back buffer \n")
 	TEXT(" 0: acquire next image on frame start \n")
-	TEXT(" 1: acquire next image just before presenting, rendering is done to intermediate image which is then copied to real backbuffer (default) \n")
-	TEXT(" 2: acquire next image immediately after presenting current"),
+	TEXT(" 1: acquire next image just before presenting, rendering is done to intermediate image which is then copied to a real backbuffer (default) \n")
+	TEXT(" 2: acquire next image on first use"),
 	ECVF_ReadOnly
 );
 
@@ -59,7 +59,7 @@ static EDelayAcquireImageType DelayAcquireBackBuffer()
 	case 1:
 		return EDelayAcquireImageType::DelayAcquire;
 	case 2:
-		return EDelayAcquireImageType::PreAcquire;
+		return EDelayAcquireImageType::LazyAcquire;
 	}
 	return EDelayAcquireImageType::None;
 }
