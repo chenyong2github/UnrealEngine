@@ -6063,7 +6063,7 @@ void FRepLayout::PreSendCustomDeltaProperties(
 	UObject* Object,
 	UNetConnection* Connection,
 	FReplicationChangelistMgr& ChangelistMgr,
-	TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
+	TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
 {
 	using namespace UE4_RepLayout_Private;
 
@@ -6154,7 +6154,7 @@ void FRepLayout::PostSendCustomDeltaProperties(
 	UObject* Object,
 	UNetConnection* Connection,
 	FReplicationChangelistMgr& ChangelistMgr,
-	TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
+	TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const
 {
 }
 
@@ -6948,20 +6948,31 @@ void FSendingRepState::CountBytes(FArchive& Ar) const
 
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("RecentCustomDeltaState",
 		RecentCustomDeltaState.CountBytes(Ar);
-	for (const auto& RecentCustomDeltaStatePair : RecentCustomDeltaState)
-	{
-		if (INetDeltaBaseState const * const BaseState = RecentCustomDeltaStatePair.Value.Get())
+		for (const TSharedPtr<INetDeltaBaseState>& LocalRecentCustomDeltaState : RecentCustomDeltaState)
 		{
-			BaseState->CountBytes(Ar);
+			if (INetDeltaBaseState const * const BaseState = LocalRecentCustomDeltaState.Get())
+			{
+				BaseState->CountBytes(Ar);
+			}
 		}
-	}
 	);
 
 	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CDOCustomDeltaState",
 		CDOCustomDeltaState.CountBytes(Ar);
-		for (const auto& CDOCustomDeltaStatePair : CDOCustomDeltaState)
+		for (const TSharedPtr<INetDeltaBaseState>& LocalRecentCustomDeltaState : CDOCustomDeltaState)
 		{
-			if (INetDeltaBaseState const * const BaseState = CDOCustomDeltaStatePair.Value.Get())
+			if (INetDeltaBaseState const* const BaseState = LocalRecentCustomDeltaState.Get())
+			{
+				BaseState->CountBytes(Ar);
+			}
+		}
+	);
+
+	GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("CheckpointCustomDeltaState",
+		CheckpointCustomDeltaState.CountBytes(Ar);
+		for (const TSharedPtr<INetDeltaBaseState>& LocalRecentCustomDeltaState : CheckpointCustomDeltaState)
+		{
+			if (INetDeltaBaseState const* const BaseState = LocalRecentCustomDeltaState.Get())
 			{
 				BaseState->CountBytes(Ar);
 			}
