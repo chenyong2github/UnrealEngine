@@ -872,7 +872,7 @@ public:
 	 * @param	TexCoords			The texture coordinates to set on the UV channel.
 	 * @return true if the UV channel could be set.
 	 */
-	ENGINE_API bool SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TArray<FVector2D>& TexCoords);
+	ENGINE_API bool SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TMap<FVertexInstanceID, FVector2D>& TexCoords);
 
 #endif
 

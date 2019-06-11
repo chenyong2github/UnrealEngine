@@ -9,7 +9,6 @@
 #include "Serializers/MovieSceneSpawnSerialization.h"
 #include "Serializers/MovieSceneAnimationSerialization.h"
 #include "Serializers/MovieSceneSerializedType.h"
-#include "Serializers/MovieSceneLiveLinkSerialization.h"
 
 
 //#include "FrameDebuggerServer.h"
@@ -106,13 +105,3 @@ FMovieSceneSerializerRunnable<FSerializedTypeFileHeader, FSerializedTypeFileHead
 template<> SERIALIZEDRECORDERINTERFACE_API
 FRunnableThread* TMovieSceneSerializer<FSerializedTypeFileHeader, FSerializedTypeFileHeader>::Thread = nullptr;
 
-template<> SERIALIZEDRECORDERINTERFACE_API
-FMovieSceneSerializerRunnable<FLiveLinkFileHeader, FLiveLinkFrame>* TMovieSceneSerializer<FLiveLinkFileHeader, FLiveLinkFrame>::Runnable = nullptr;
-template<> SERIALIZEDRECORDERINTERFACE_API
-FRunnableThread* TMovieSceneSerializer<FLiveLinkFileHeader, FLiveLinkFrame>::Thread = nullptr;
-
-
-template<> SERIALIZEDRECORDERINTERFACE_API
-FMovieSceneSerializerRunnable<FLiveLinkManifestHeader, FLiveLinkManifestHeader>* TMovieSceneSerializer<FLiveLinkManifestHeader, FLiveLinkManifestHeader>::Runnable = nullptr;
-template<> SERIALIZEDRECORDERINTERFACE_API
-FRunnableThread* TMovieSceneSerializer<FLiveLinkManifestHeader, FLiveLinkManifestHeader>::Thread = nullptr;

@@ -5,7 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+
+#include "LiveLinkSourceFactory.h"
 #include "Misc/FrameRate.h"
+#include "Templates/SubclassOf.h"
 
 #include "LiveLinkSourceSettings.generated.h"
 
@@ -32,43 +35,36 @@ struct FLiveLinkTimeSynchronizationSettings
 {
 	GENERATED_BODY()
 
-	FLiveLinkTimeSynchronizationSettings() : FrameRate(60, 1) {}
+	FLiveLinkTimeSynchronizationSettings() = default;
 
 	// The frame rate of the source.
 	// This should be the frame rate the source is "stamped" at, not necessarily the frame rate the source is sending.
 	// The source should supply this whenever possible.
 	UPROPERTY(EditAnywhere, Category = Settings)
-	FFrameRate FrameRate;
+	FFrameRate FrameRate = {60, 1};
+
+	// When evaluating: how far back from current timecode should we read the buffer (in frame number)
+	UPROPERTY(EditAnywhere, Category = Settings)
+	int32 FrameDelay = 0;
 };
  
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-
 USTRUCT()
 struct FLiveLinkInterpolationSettings
 {
 	GENERATED_BODY()
 
-	FLiveLinkInterpolationSettings() 
-		: 
-#if WITH_EDITORONLY_DATA
-		bUseInterpolation_DEPRECATED(false), 
-#endif
-		InterpolationOffset(0.5f) 
-	{}
+	FLiveLinkInterpolationSettings() = default;
 
 #if WITH_EDITORONLY_DATA
-	// Unused
 	//UE_DEPRECATED(4.21, "Please use ULiveLinkSourceSettings::Mode to specify how the source will behave.")
 	UPROPERTY()
-	bool bUseInterpolation_DEPRECATED;
+	bool bUseInterpolation_DEPRECATED = false;
 #endif
 
-	// When interpolating: how far back from current time should we read the buffer (in seconds)
+	// When evaluating: how far back from current time should we read the buffer (in seconds)
 	UPROPERTY(EditAnywhere, Category = Settings)
-	float InterpolationOffset;
+	float InterpolationOffset = 0.5f;
 };
-
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 // Base class for live link source settings (can be replaced by sources themselves) 
 UCLASS()
@@ -77,7 +73,7 @@ class LIVELINKINTERFACE_API ULiveLinkSourceSettings : public UObject
 public:
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "Mode")
+	UPROPERTY(EditAnywhere, Category = "Settings")
 	ELiveLinkSourceMode Mode = ELiveLinkSourceMode::Default;
 
 	// Only used when Mode is set to Interpolated.
@@ -87,6 +83,12 @@ public:
 	// Only used when Mode is set to TimeSynchronized.
 	UPROPERTY(EditAnywhere, Category = "Time Synchronization Settings")
 	FLiveLinkTimeSynchronizationSettings TimeSynchronizationSettings;
+
+	UPROPERTY(EditAnywhere, Category = "Settings", AdvancedDisplay)
+	FString ConnectionString;
+
+	UPROPERTY(VisibleAnywhere, Category = "Settings", AdvancedDisplay)
+	TSubclassOf<ULiveLinkSourceFactory> Factory;
 
 	virtual void Serialize(FArchive& Ar) override;
 };

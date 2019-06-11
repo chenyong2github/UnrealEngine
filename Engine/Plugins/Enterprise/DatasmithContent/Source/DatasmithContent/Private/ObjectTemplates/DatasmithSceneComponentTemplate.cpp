@@ -15,16 +15,16 @@ namespace
 	}
 }
 
-void UDatasmithSceneComponentTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithSceneComponentTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	USceneComponent* SceneComponent = Cast< USceneComponent >( Destination );
 
 	if ( !SceneComponent )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithSceneComponentTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithSceneComponentTemplate >( Destination ) : nullptr;
 
 	if ( !PreviousTemplate || PreviousTemplate->Mobility == SceneComponent->Mobility )
@@ -93,10 +93,9 @@ void UDatasmithSceneComponentTemplate::Apply( UObject* Destination, bool bForce 
 	{
 		SceneComponent->ComponentTags = FDatasmithObjectTemplateUtils::ThreeWaySetMerge(PreviousTemplate->Tags, TSet<FName>(SceneComponent->ComponentTags), Tags).Array();
 	}
-
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( Destination, this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return Destination;
 }
 
 void UDatasmithSceneComponentTemplate::Load( const UObject* Source )

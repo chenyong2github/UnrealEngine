@@ -27,22 +27,22 @@ bool FDatasmithCameraLookatTrackingSettingsTemplate::Equals( const FDatasmithCam
 	return bEquals;
 }
 
-void UDatasmithCineCameraActorTemplate::Apply( UObject* Destination, bool bForce )
+UObject* UDatasmithCineCameraActorTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-#if WITH_EDITORONLY_DATA
 	ACineCameraActor* CineCameraActor = Cast< ACineCameraActor >( Destination );
 
 	if ( !CineCameraActor )
 	{
-		return;
+		return nullptr;
 	}
 
+#if WITH_EDITORONLY_DATA
 	UDatasmithCineCameraActorTemplate* PreviousTemplate = !bForce ? FDatasmithObjectTemplateUtils::GetObjectTemplate< UDatasmithCineCameraActorTemplate >( Destination ) : nullptr;
 
 	LookatTrackingSettings.Apply( &CineCameraActor->LookatTrackingSettings, PreviousTemplate ? &PreviousTemplate->LookatTrackingSettings : nullptr );
-
-	FDatasmithObjectTemplateUtils::SetObjectTemplate( CineCameraActor->GetRootComponent(), this );
 #endif // #if WITH_EDITORONLY_DATA
+
+	return CineCameraActor->GetRootComponent();
 }
 
 void UDatasmithCineCameraActorTemplate::Load( const UObject* Source )

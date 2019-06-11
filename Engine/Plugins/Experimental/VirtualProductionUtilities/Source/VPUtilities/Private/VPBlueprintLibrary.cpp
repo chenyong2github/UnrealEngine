@@ -6,6 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "VPSettings.h"
 #include "VPUtilitiesModule.h"
+#include "Components/SplineMeshComponent.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -20,7 +21,7 @@
 namespace VPBlueprintLibrary
 {
 #if WITH_EDITOR
-	const FLevelEditorViewportClient* GetViewPortClient()
+	FLevelEditorViewportClient* GetViewPortClient()
 	{
 		return	GCurrentLevelEditingViewportClient ? GCurrentLevelEditingViewportClient :
 			GLastKeyLevelEditingViewportClient ? GLastKeyLevelEditingViewportClient :
@@ -29,7 +30,7 @@ namespace VPBlueprintLibrary
 
 	UViewportWorldInteraction* GetViewportWorldInteraction(FString& FailMessage)
 	{
-		if (const FLevelEditorViewportClient* Client = GetViewPortClient())
+		if (FLevelEditorViewportClient* Client = GetViewPortClient())
 		{
 			UViewportWorldInteraction* ViewportWorldInteraction = nullptr;
 
@@ -54,6 +55,15 @@ namespace VPBlueprintLibrary
 #endif
 }
 
+void UVPBlueprintLibrary::Refresh3DEditorViewport()
+{
+#if WITH_EDITOR	
+	if (FLevelEditorViewportClient* VP = VPBlueprintLibrary::GetViewPortClient())
+	{
+		VP->Invalidate(true);
+	}
+#endif
+}
 
 AVPViewportTickableActorBase* UVPBlueprintLibrary::SpawnVPTickableActor(UObject* ContextObject, const TSubclassOf<AVPViewportTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation)
 {
@@ -86,7 +96,6 @@ AActor* UVPBlueprintLibrary::SpawnBookmarkAtCurrentLevelEditorPosition(const TSu
 	return Result;
 }
 
-
 bool UVPBlueprintLibrary::JumpToBookmarkInLevelEditor(const UVPBookmark* Bookmark)
 {
 	bool bResult = false;
@@ -106,11 +115,11 @@ FGameplayTagContainer UVPBlueprintLibrary::GetVirtualProductionRole()
 FTransform UVPBlueprintLibrary::GetEditorViewportTransform()
 {
 #if WITH_EDITOR
-	if (const FLevelEditorViewportClient* Client = VPBlueprintLibrary::GetViewPortClient())
-	{
+	if (FLevelEditorViewportClient* Client = VPBlueprintLibrary::GetViewPortClient())
+	{ 
 		FRotator ViewportRotation(0, 0, 0);
 		FVector ViewportLocation(0, 0, 0);
-
+		
 		if (!Client->IsOrtho())
 		{
 			ViewportRotation = Client->GetViewRotation();
@@ -153,13 +162,6 @@ FTransform UVPBlueprintLibrary::GetEditorVRRoomTransform()
 }
 
 
-void UVPBlueprintLibrary::SetMaxFlightSpeed(const float Speed)
-{
-	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.MaxFlightSpeed"));
-	CVar->Set(Speed);
-}
-
-
 void UVPBlueprintLibrary::SetGrabSpeed(const float Speed)
 {
 	IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("VI.DragScale"));
@@ -194,7 +196,10 @@ FVector UVPBlueprintLibrary::GetVREditorLaserHoverLocation()
 			{
 				if (EdInteractor->GetControllerType() == EControllerType::Laser)
 				{
-					return EdInteractor->GetHoverLocation();
+					//FVector Temp = EdInteractor->GetHoverLocation();
+					//UE_LOG(LogVPUtilities, Warning, TEXT("%s"), *Temp.ToString());
+
+					return EdInteractor->GetInteractorData().LastHoverLocationOverUI;
 				}
 			}
 		}
@@ -248,3 +253,19 @@ bool UVPBlueprintLibrary::EditorDeleteSelectedObjects()
 
 	return false;
 }
+
+void UVPBlueprintLibrary::VPBookmarkSplineMeshIndicatorSetStartAndEnd(USplineMeshComponent* SplineMesh)
+{
+	SplineMesh->SetVisibility(true);
+	const FTransform SplineTransform = SplineMesh->GetComponentTransform();
+		
+	// @todo: Fix - GetVREditorLaserHoverLocation() does not return the correct hover location
+	// USplineMeshComponent::SetEndPosition expects local space
+	SplineMesh->SetEndPosition(SplineTransform.InverseTransformPosition(IsVREditorModeActive() ? GetVREditorLaserHoverLocation() : GetEditorViewportTransform().TransformPosition(FVector(80, 0, -20))));
+}
+
+void UVPBlueprintLibrary::VPBookmarkSplineMeshIndicatorDisable(USplineMeshComponent* SplineMesh)
+{
+	SplineMesh->SetVisibility(false);
+}
+

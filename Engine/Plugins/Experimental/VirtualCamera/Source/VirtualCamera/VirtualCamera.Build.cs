@@ -33,6 +33,8 @@ public class VirtualCamera : ModuleRules
 				new string[]
 				{
 					"Concert",
+					"ConcertSyncClient",
+					"MultiUserClient",
 				}
 			);
 		}

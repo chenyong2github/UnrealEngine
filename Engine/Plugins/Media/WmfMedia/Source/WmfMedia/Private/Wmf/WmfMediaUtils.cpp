@@ -7,6 +7,11 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
+
+#if HAP_SUPPORTED
+	#include "hapguid.h"
+#endif
+
 #include "Math/NumericLimits.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/Archive.h"
@@ -93,7 +98,7 @@ namespace WmfMedia
 		// uncompressed
 //		&MFVideoFormat_A2R10G10B10,
 //		&MFVideoFormat_A16B16G16R16F,
-//		&MFVideoFormat_ARGB32
+		&MFVideoFormat_ARGB32,
 //		&MFVideoFormat_RGB32,
 //		&MFVideoFormat_RGB24,
 //		&MFVideoFormat_RGB555,
@@ -515,6 +520,19 @@ namespace WmfMedia
 				return NULL;
 			}
 
+
+#if HAP_SUPPORTED
+			const bool bEnableHAPCodec = GetDefault<UWmfMediaSettings>()->EnableHAPCodec;
+			if (bEnableHAPCodec && ((SubType == DecoderGUID_HAP) || (SubType == DecoderGUID_HAP_Q)))
+			{
+				Result = OutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
+			}
+			else if (bEnableHAPCodec && ((SubType == DecoderGUID_HAP_ALPHA) || (SubType == DecoderGUID_HAP_Q_ALPHA)))
+			{
+				Result = OutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_ARGB32);
+			}
+			else 
+#endif
 			if ((SubType == MFVideoFormat_HEVC) ||
 				(SubType == MFVideoFormat_HEVC_ES) ||
 				(SubType == MFVideoFormat_NV12) ||

@@ -9,6 +9,7 @@
 #include "ConcertDataStoreMessages.h"
 
 class IConcertServerSession;
+class FConcertSyncServerLiveSession;
 struct FConcertSessionContext;
 
 /**
@@ -26,7 +27,7 @@ public:
 	/**
 	 * Constructs a server-side data store.
 	 *
-	 * @param Session
+	 * @param LiveSession
 	 *     The session owning the data store.
 	 *
 	 * @param bIsContentReplicationEnabled
@@ -35,7 +36,7 @@ public:
 	 *     this is expected to be true, but for unit tests, it is useful to be able to turn this
 	 *     feature off.
 	 */
-	FConcertServerDataStore(TSharedPtr<IConcertServerSession> Session, bool bIsContentReplicationEnabled = true);
+	FConcertServerDataStore(TSharedRef<FConcertSyncServerLiveSession> LiveSession, bool bIsContentReplicationEnabled = true);
 	virtual ~FConcertServerDataStore();
 
 private:
@@ -47,8 +48,8 @@ private:
 	/** Maps the property name to an arbitrary blob value that can be memory compared. */
 	FConcertDataStore DataStore;
 
-	/** The concert session owning the store and through which the requests/responses are dispatched. */
-	TSharedPtr<IConcertServerSession> Session;
+	/** The concert live session owning the store and through which the requests/responses are dispatched. */
+	TSharedPtr<FConcertSyncServerLiveSession> LiveSession;
 
 	/** True if the server should perform initial sync and push further modifications to the clients. */
 	bool bContentReplicationEnabled;

@@ -1299,7 +1299,7 @@ void FViewport::HighResScreenshot()
 
 	ViewportClient->GetEngineShowFlags()->SetHighResScreenshotMask(MaskShowFlagBackup);
 	ViewportClient->GetEngineShowFlags()->MotionBlur = MotionBlurShowFlagBackup;
-	ViewportClient->ProcessScreenShots(DummyViewport);
+	bool bIsScreenshotSaved = ViewportClient->ProcessScreenShots(DummyViewport);
 
 	SceneColorFormatVar->Set(OldSceneColorFormat, ECVF_SetByCode);
 	PostColorFormatVar->Set(OldPostColorFormat, ECVF_SetByCode);
@@ -1324,7 +1324,7 @@ void FViewport::HighResScreenshot()
 	bTakeHighResScreenShot = false;
 
 	// Notification of a successful screenshot
-	if ((GIsEditor || !IsFullscreen()) && !GIsAutomationTesting )
+	if ((GIsEditor || !IsFullscreen()) && !GIsAutomationTesting && bIsScreenshotSaved)
 	{
 		auto Message = NSLOCTEXT("UnrealClient", "HighResScreenshotSavedAs", "High resolution screenshot saved as");
 		FNotificationInfo Info(Message);

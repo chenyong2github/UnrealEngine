@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Profile/IMediaProfileManager.h"
-#include "UObject/GCObject.h"
+#include "UObject/StrongObjectPtr.h"
 
 class UMediaProfile;
 class UProxyMediaSource;
@@ -19,20 +19,10 @@ public:
 	virtual FOnMediaProfileChanged& OnMediaProfileChanged() override;
 
 private:
-	class FInternalReferenceCollector : public FGCObject
-	{
-	public:
-		FInternalReferenceCollector(FMediaProfileManager* InOwner);
-		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	private:
-		FMediaProfileManager* Owner;
-	};
-	friend FInternalReferenceCollector;
-	FInternalReferenceCollector Collector;
+#if WITH_EDITOR
+	void OnMediaProxiesChanged();
+#endif
 
-	UMediaProfile* CurrentMediaProfile;
-	TArray<UProxyMediaSource*> CurrentProxyMediaSources;
-	TArray<UProxyMediaOutput*> CurrentProxyMediaOutputs;
-
+	TStrongObjectPtr<UMediaProfile> CurrentMediaProfile;
 	FOnMediaProfileChanged MediaProfileChangedDelegate;
 };

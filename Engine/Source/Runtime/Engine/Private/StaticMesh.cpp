@@ -3418,8 +3418,15 @@ void FStaticMeshSourceModel::SaveRawMesh(FRawMesh& InRawMesh, bool /* unused */)
 	//Save both format
 	RawMeshBulkData->SaveRawMesh(InRawMesh);
 
-	MeshDescription = MakeUnique<FMeshDescription>();
-	UStaticMesh::RegisterMeshAttributes(*MeshDescription);
+	if (MeshDescription.IsValid())
+	{
+		MeshDescription->Empty();
+	}
+	else
+	{
+		MeshDescription = MakeUnique<FMeshDescription>();
+		UStaticMesh::RegisterMeshAttributes(*MeshDescription);
+	}
 
 	TMap<int32, FName> MaterialMap;
 	check(StaticMeshOwner != nullptr);
@@ -3494,7 +3501,15 @@ void FStaticMeshSourceModel::SerializeBulkData(FArchive& Ar, UObject* Owner)
 			{
 				if (Ar.IsLoading())
 				{
-					MeshDescription = MakeUnique<FMeshDescription>();
+					if (MeshDescription.IsValid())
+					{
+						MeshDescription->Empty();
+					}
+					else
+					{
+						MeshDescription = MakeUnique<FMeshDescription>();
+						UStaticMesh::RegisterMeshAttributes(*MeshDescription);
+					}
 				}
 
 				Ar << (*MeshDescription);
@@ -3949,15 +3964,22 @@ void UStaticMesh::CacheMeshData()
 						SourceModel.RawMeshBulkData->LoadRawMesh(TempRawMesh);
 
 						// Create a new MeshDescription
-						SourceModel.MeshDescription = MakeUnique<FMeshDescription>();
-						RegisterMeshAttributes(*SourceModel.MeshDescription);
+						if (SourceModel.MeshDescription.IsValid())
+						{
+							SourceModel.MeshDescription->Empty();
+						}
+						else
+						{
+							SourceModel.MeshDescription = MakeUnique<FMeshDescription>();
+							RegisterMeshAttributes(*SourceModel.MeshDescription);
+						}
 
 						// Convert the RawMesh to MeshDescription
 						TMap<int32, FName> MaterialMap;
 						FillMaterialName(StaticMaterials, MaterialMap);
 						FMeshDescriptionOperations::ConvertFromRawMesh(TempRawMesh, *SourceModel.MeshDescription, MaterialMap);
 
-						// Pack MeshDescription into bulk data
+						// Pack MeshDescription into temporary bulk data
 						FMeshDescriptionBulkData MeshDescriptionBulkData;
 						MeshDescriptionBulkData.SaveMeshDescription(*SourceModel.MeshDescription);
 
@@ -3967,6 +3989,13 @@ void UStaticMesh::CacheMeshData()
 						FMemoryWriter Ar(DerivedData, bIsPersistent);
 						MeshDescriptionBulkData.Serialize(Ar, this);
 						GetDerivedDataCacheRef().Put(*MeshDataKey, DerivedData);
+
+						// Pack MeshDescription into the bulk data
+						if (!SourceModel.MeshDescriptionBulkData.IsValid())
+						{
+							SourceModel.MeshDescriptionBulkData = MakeUnique<FMeshDescriptionBulkData>();
+						}
+						SourceModel.MeshDescriptionBulkData->SaveMeshDescription(*SourceModel.MeshDescription);
 					}
 				}
 			}
@@ -4078,7 +4107,7 @@ bool UStaticMesh::RemoveUVChannel(int32 LODIndex, int32 UVChannelIndex)
 	return false;
 }
 
-bool UStaticMesh::SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TArray<FVector2D>& TexCoords)
+bool UStaticMesh::SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TMap<FVertexInstanceID, FVector2D>& TexCoords)
 {
 	FMeshDescription* MeshDescription = GetMeshDescription(LODIndex);
 	if (!MeshDescription)
@@ -4093,11 +4122,17 @@ bool UStaticMesh::SetUVChannel(int32 LODIndex, int32 UVChannelIndex, const TArra
 
 	Modify();
 
-	int32 TextureCoordIndex = 0;
 	TMeshAttributesRef<FVertexInstanceID, FVector2D> UVs = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 	for (const FVertexInstanceID& VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
 	{
-		UVs.Set(VertexInstanceID, UVChannelIndex, TexCoords[TextureCoordIndex++]);
+		if (const FVector2D* UVCoord = TexCoords.Find(VertexInstanceID))
+		{
+			UVs.Set(VertexInstanceID, UVChannelIndex, *UVCoord);
+		}
+		else
+		{
+			ensureMsgf(false, TEXT("Tried to apply UV data that did not match the StaticMesh MeshDescription."));
+		}
 	}
 
 	CommitMeshDescription(LODIndex);

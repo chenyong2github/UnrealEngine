@@ -13,6 +13,7 @@
 class IPDisplayClusterClusterManager;
 class IPDisplayClusterNodeController;
 class IPDisplayClusterInputManager;
+class IDisplayClusterClusterSyncObject;
 
 
 /**
@@ -23,12 +24,19 @@ class DISPLAYCLUSTER_API UDisplayClusterGameEngine
 	: public UGameEngine
 {
 	GENERATED_BODY()
-	
+
 public:
 	virtual void Init(class IEngineLoop* InEngineLoop) override;
 	virtual void PreExit() override;
 	virtual void Tick(float DeltaSeconds, bool bIdleMode) override;
 	virtual bool LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error) override;
+
+	EDisplayClusterOperationMode GetOperationMode() const { return OperationMode; }
+
+	void RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj);
+	void UnregisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj);
+
+	bool IsMaster() const;
 
 protected:
 	virtual bool InitializeInternals();

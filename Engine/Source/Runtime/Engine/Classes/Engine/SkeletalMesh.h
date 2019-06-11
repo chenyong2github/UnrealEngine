@@ -967,6 +967,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Animation")
 	USkeletalMeshSocket* GetSocketByIndex(int32 Index) const;
 
+	/**
+	 * Returns vertex color data by position.
+	 * For matching to reimported meshes that may have changed or copying vertex paint data from mesh to mesh.
+	 *
+	 *	@return	VertexColorData		Returns a map of vertex position and their associated color.
+	 */
+	TMap<FVector, FColor> GetVertexColorData(const uint32 PaintingMeshLODIndex = 0) const;
+
 	/** Called to rebuild an out-of-date or invalid socket map */
 	void RebuildSocketMap();
 

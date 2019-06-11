@@ -82,7 +82,7 @@ public:
 
 	/** The class we'll create our interactors from */
 	UPROPERTY(EditAnywhere, config, Category = "Motion Controllers")
-	TSubclassOf<UVREditorInteractor> InteractorClass;
+	TSoftClassPtr<UVREditorInteractor> InteractorClass;
 
 	/** The class we'll create our interactors from */
 	UPROPERTY( EditAnywhere, config, Category = "Motion Controllers" )

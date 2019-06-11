@@ -76,6 +76,9 @@ public:
 	virtual TArray<FDisplayClusterConfigInputSetup> GetInputSetupRecords() const override;
 	virtual bool GetInputSetupRecord(const FString& id, FDisplayClusterConfigInputSetup& input) const override;
 
+	virtual TArray<FDisplayClusterConfigProjection> GetProjections() const override;
+	virtual bool GetProjection(const FString& id, FDisplayClusterConfigProjection& projection) const override;
+
 	virtual FDisplayClusterConfigGeneral GetConfigGeneral() const override
 	{ return CfgGeneral; }
 
@@ -122,6 +125,7 @@ public:
 	virtual void AddInput(const FDisplayClusterConfigInput& InCfgInput)  override;
 	virtual void AddInputSetup(const FDisplayClusterConfigInputSetup& InCfgInputSetup) override;
 	virtual void AddCustom(const FDisplayClusterConfigCustom& InCfgCustom) override;
+	virtual void AddProjection(const FDisplayClusterConfigProjection& InCfgProjection) override;
 
 private:
 	enum class EConfigFileType
@@ -156,6 +160,7 @@ private:
 	TArray<FDisplayClusterConfigSceneNode>   CfgSceneNodes;
 	TArray<FDisplayClusterConfigInput>       CfgInputDevices;
 	TArray<FDisplayClusterConfigInputSetup>  CfgInputSetupRecords;
+	TArray<FDisplayClusterConfigProjection>  CfgProjections;
 
 	FDisplayClusterConfigInfo    CfgInfo;
 	FDisplayClusterConfigGeneral CfgGeneral;

@@ -704,6 +704,11 @@ UObject* ULevelFactory::FactoryCreateText
 	FParse::Next( &Buffer );
 	if (GetBEGIN(&Buffer, TEXT("MAP")))
 	{
+		if (ULevel* Level = Cast<ULevel>(InParent))
+		{
+			World = Level->GetWorld();
+		}
+
 		if (RootMapPackage)
 		{
 			FString MapName;
@@ -738,11 +743,14 @@ UObject* ULevelFactory::FactoryCreateText
 	bool bIsExpectingNewMapTag = false;
 
 	// Unselect all actors.
-	GEditor->SelectNone( false, false );
+	if (GWorld == World)
+	{
+		GEditor->SelectNone( false, false );
 
-	// Mark us importing a T3D (only from a file, not from copy/paste).
-	GEditor->IsImportingT3D = (FCString::Stricmp(Type,TEXT("paste")) != 0) && (FCString::Stricmp(Type,TEXT("move")) != 0);
-	GIsImportingT3D = GEditor->IsImportingT3D;
+		// Mark us importing a T3D (only from a file, not from copy/paste).
+		GEditor->IsImportingT3D = (FCString::Stricmp(Type,TEXT("paste")) != 0) && (FCString::Stricmp(Type,TEXT("move")) != 0);
+		GIsImportingT3D = GEditor->IsImportingT3D;
+	}
 
 	// We need to detect if the .t3d file is the entire level or just selected actors, because we
 	// don't want to replace the WorldSettings and BuildBrush if they already exist. To know if we
@@ -1143,7 +1151,10 @@ UObject* ULevelFactory::FactoryCreateText
 
 							const bool bUpdateTexCoords = true;
 							const bool bOnlyRefreshSurfaceMaterials = false;
-							GEditor->polyUpdateMaster(CurrentLevel->Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+							if (GWorld == World)
+							{
+								GEditor->polyUpdateMaster(CurrentLevel->Model, i, bUpdateTexCoords, bOnlyRefreshSurfaceMaterials);
+							}
 						}
 					}
 				}
@@ -1191,7 +1202,10 @@ UObject* ULevelFactory::FactoryCreateText
 			ImportObjectProperties( (uint8*)Actor, *PropText, Actor->GetClass(), Actor, Actor, Warn, 0, INDEX_NONE, NULL, &ExistingToNewMap );
 			bActorChanged = true;
 
-			GEditor->SelectActor( Actor, true, false, true );
+			if (GWorld == World)
+			{
+				GEditor->SelectActor( Actor, true, false, true );
+			}
 		}
 		else // This actor is new, but rejected to import its properties, so just delete...
 		{
@@ -1282,7 +1296,7 @@ UObject* ULevelFactory::FactoryCreateText
 				ActorParent = FindObject<AActor>( World->GetCurrentLevel(), *ActorAttachmentDetail->ParentName.ToString() );
 			}
 			// Parent the actors
-			if( ActorParent != nullptr )
+			if( GWorld == World && ActorParent != nullptr )
 			{
 				// Make sure our parent isn't selected (would cause GEditor->ParentActors to fail)
 				const bool bParentWasSelected = ActorParent->IsSelected();
@@ -1309,10 +1323,13 @@ UObject* ULevelFactory::FactoryCreateText
 	}
 
 	// Mark us as no longer importing a T3D.
-	GEditor->IsImportingT3D = 0;
-	GIsImportingT3D = false;
+	if (GWorld == World)
+	{
+		GEditor->IsImportingT3D = 0;
+		GIsImportingT3D = false;
 
-	GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, World );
+		GEditor->GetEditorSubsystem<UImportSubsystem>()->BroadcastAssetPostImport(this, World );
+	}
 
 	return World;
 }
@@ -3466,27 +3483,28 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 					/*NumMips=*/ 1,
 					TSF_BGRA8
 					);
+				const int32 DestSize = Texture->Source.CalcMipSize(0);
 				uint8* Dest = Texture->Source.LockMip(0);
-
+				// Doing a memset to make sure the alpha channel is set to 0xff since we only have 3 color planes.
+				FMemory::Memset(Dest, 0xff, DestSize);
 				// Copy upside-down scanlines.
 				Buffer += 128;
 				int32 CountU = FMath::Min<int32>(PCX->BytesPerLine,NewU);
-				for( int32 i=0; i<NewV; i++ )
+				for (int32 IndexV = 0; IndexV < NewV; IndexV++)
 				{
-
 					// We need to decode image one line per time building RGB image color plane by color plane.
 					int32 RunLength, Overflow=0;
 					uint8 Color=0;
 					for( int32 ColorPlane=2; ColorPlane>=0; ColorPlane-- )
 					{
-						for( int32 j=0; j<CountU; j++ )
+						for (int32 IndexU = 0; IndexU < CountU; IndexU++)
 						{
 							if(!Overflow)
 							{
 								Color = *Buffer++;
 								if((Color & 0xc0) == 0xc0)
 								{
-									RunLength=FMath::Min((Color&0x3f), CountU-j);
+									RunLength=FMath::Min((Color&0x3f), CountU-IndexU);
 									Overflow=(Color&0x3f)-RunLength;
 									Color=*Buffer++;
 								}
@@ -3495,17 +3513,17 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 							}
 							else
 							{
-								RunLength=FMath::Min(Overflow, CountU-j);
+								RunLength=FMath::Min(Overflow, CountU-IndexU);
 								Overflow=Overflow-RunLength;
 							}
 	
-							checkf( ((i*NewU+RunLength)*4+ColorPlane) < (Texture->Source.CalcMipSize(0)), 
+							checkf( ((IndexV*NewU+RunLength)*4+ColorPlane) < (Texture->Source.CalcMipSize(0)), 
 								TEXT("RLE going off the end of buffer") );
-							for( int32 k=j; k<j+RunLength; k++ )
+							for (int32 k = IndexU; k < IndexU + RunLength; k++)
 							{
-								Dest[ (i*NewU+k)*4 + ColorPlane ] = Color;
+								Dest[(IndexV*NewU + k) * 4 + ColorPlane] = Color;
 							}
-							j+=RunLength-1;
+							IndexU += RunLength - 1;
 						}
 					}				
 				}

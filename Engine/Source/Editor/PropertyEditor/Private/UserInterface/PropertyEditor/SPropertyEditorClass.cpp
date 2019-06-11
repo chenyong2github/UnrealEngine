@@ -10,6 +10,7 @@
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
+#include "UObject/UObjectIterator.h"
 
 #define LOCTEXT_NAMESPACE "PropertyEditor"
 
@@ -25,6 +26,12 @@ public:
 	/** Whether or not abstract classes are allowed. */
 	bool bAllowAbstract;
 
+	/** Classes that can be picked */
+	TArray<const UClass*> AllowedClassFilters;
+
+	/** Classes that can't be picked */
+	TArray<const UClass*> DisallowedClassFilters;
+
 	virtual bool IsClassAllowed(const FClassViewerInitializationOptions& InInitOptions, const UClass* InClass, TSharedRef< FClassViewerFilterFuncs > InFilterFuncs ) override
 	{
 		bool bMatchesFlags = !InClass->HasAnyClassFlags(CLASS_Hidden|CLASS_HideDropDown|CLASS_Deprecated) &&
@@ -33,7 +40,10 @@ public:
 		if(bMatchesFlags && InClass->IsChildOf(ClassPropertyMetaClass)
 			&& (!InterfaceThatMustBeImplemented || InClass->ImplementsInterface(InterfaceThatMustBeImplemented)))
 		{
-			return true;
+			if (DisallowedClassFilters.Find(InClass) == INDEX_NONE && (AllowedClassFilters.Num() == 0 || AllowedClassFilters.Find(InClass) != INDEX_NONE))
+			{
+				return true;
+			}
 		}
 
 		return false;
@@ -83,8 +93,6 @@ bool SPropertyEditorClass::Supports(const TSharedRef< class FPropertyEditor >& I
 void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr< class FPropertyEditor >& InPropertyEditor)
 {
 	PropertyEditor = InPropertyEditor;
-
-	CreateClassFilter();
 	
 	if (PropertyEditor.IsValid())
 	{
@@ -111,6 +119,56 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 		bShowViewOptions = Property->GetOwnerProperty()->HasMetaData(TEXT("HideViewOptions")) ? false : true;
 		bShowTree = Property->GetOwnerProperty()->HasMetaData(TEXT("ShowTreeView"));
 		bShowDisplayNames = Property->GetOwnerProperty()->HasMetaData(TEXT("ShowDisplayNames"));
+
+		auto FillClassFilters = [&](TArray<const UClass*> &ClassFilters, FName TagName)
+		{
+
+			const FString* ClassesFilterString = &Property->GetMetaData(TagName);
+
+			ClassFilters.Empty();
+
+			if (!ClassesFilterString->IsEmpty())
+			{
+				TArray<FString> ClassFilterNames;
+				ClassesFilterString->ParseIntoArray(ClassFilterNames, TEXT(","), true);
+
+				for (FString& ClassName : ClassFilterNames)
+				{
+					// User can potentially list class names with leading or trailing whitespace
+					ClassName.TrimStartAndEndInline();
+
+					UClass* Class = FindObject<UClass>(ANY_PACKAGE, *ClassName);
+
+					if (!Class)
+					{
+						Class = LoadObject<UClass>(nullptr, *ClassName);
+					}
+
+					if (Class)
+					{
+						// If the class is an interface, expand it to be all classes in memory that implement the class.
+						if (Class->HasAnyClassFlags(CLASS_Interface))
+						{
+							for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+							{
+								UClass* const ClassWithInterface = (*ClassIt);
+								if (ClassWithInterface->ImplementsInterface(Class))
+								{
+									ClassFilters.Add(ClassWithInterface);
+								}
+							}
+						}
+						else
+						{
+							ClassFilters.Add(Class);
+						}
+					}
+				}
+			}
+		};
+
+		FillClassFilters(AllowedClassFilters, "AllowedClasses");
+		FillClassFilters(DisallowedClassFilters, "DisallowedClasses");
 	}
 	else
 	{
@@ -127,11 +185,14 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 		bShowViewOptions = InArgs._ShowViewOptions;
 		bShowTree = InArgs._ShowTree;
 		bShowDisplayNames = InArgs._ShowDisplayNames;
-
+		AllowedClassFilters.Empty();
+		DisallowedClassFilters.Empty();
 		SelectedClass = InArgs._SelectedClass;
 		OnSetClass = InArgs._OnSetClass;
 	}
 	
+	CreateClassFilter();
+
 	SAssignNew(ComboButton, SComboButton)
 		.OnGetMenuContent(this, &SPropertyEditorClass::GenerateClassPicker)
 		.ContentPadding(FMargin(2.0f, 2.0f))
@@ -221,6 +282,8 @@ void SPropertyEditorClass::CreateClassFilter()
 	PropEdClassFilter->ClassPropertyMetaClass = MetaClass;
 	PropEdClassFilter->InterfaceThatMustBeImplemented = RequiredInterface;
 	PropEdClassFilter->bAllowAbstract = bAllowAbstract;
+	PropEdClassFilter->AllowedClassFilters = AllowedClassFilters;
+	PropEdClassFilter->DisallowedClassFilters = DisallowedClassFilters;
 
 	ClassFilter = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassFilter(ClassViewerOptions);
 	ClassFilterFuncs = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateFilterFuncs();
@@ -366,7 +429,31 @@ FReply SPropertyEditorClass::OnDrop(const FGeometry& MyGeometry, const FDragDrop
 	TSharedPtr<FAssetDragDropOp> UnloadedClassOp = DragDropEvent.GetOperationAs<FAssetDragDropOp>();
 	if (UnloadedClassOp.IsValid())
 	{
-		UObject* Object = LoadDragDropObject(UnloadedClassOp);
+		bool bAllAssetWereLoaded = true;
+
+		FString AssetPath;
+
+		// Find the class/blueprint path
+		if (UnloadedClassOp->HasAssets())
+		{
+			AssetPath = UnloadedClassOp->GetAssets()[0].ObjectPath.ToString();
+		}
+		else if (UnloadedClassOp->HasAssetPaths())
+		{
+			AssetPath = UnloadedClassOp->GetAssetPaths()[0];
+		}
+
+		// Check to see if the asset can be found, otherwise load it.
+		UObject* Object = FindObject<UObject>(nullptr, *AssetPath);
+		if(Object == nullptr)
+		{
+			// Load the package.
+			GWarn->BeginSlowTask(LOCTEXT("OnDrop_LoadPackage", "Fully Loading Package For Drop"), true, false);
+
+			Object = LoadObject<UObject>(nullptr, *AssetPath);
+
+			GWarn->EndSlowTask();
+		}
 
 		if (UClass* Class = Cast<UClass>(Object))
 		{

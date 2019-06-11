@@ -314,6 +314,14 @@ namespace ObjectTools
 	UNREALED_API int32 ForceDeleteObjects( const TArray< UObject* >& ObjectsToDelete, bool ShowConfirmation = true );
 
 	/**
+	 * Forcefully replaces references to passed in objects
+	 *
+	 * @param ObjectToReplaceWith	Any references found to 'ObjectsToReplace' will be replaced with this object.  If the object is nullptr references will be nulled.
+	 * @param ObjectsToReplace		An array of objects that should be replaced with 'ObjectToReplaceWith'
+	 */
+	UNREALED_API void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace);
+
+	/**
 	 * Gathers additional objects to delete such as map built data
 	 *
 	 * @param	ObjectsToDelete		List of objects to delete that is appended by additional objects that should be deleted

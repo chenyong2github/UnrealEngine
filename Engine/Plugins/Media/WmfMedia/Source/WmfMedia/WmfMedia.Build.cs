@@ -19,12 +19,26 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
                     "Engine",
                     "MediaUtils",
-					"Projects",
-					"RenderCore",
+                    "Projects",
+                    "RenderCore",
                     "RHI",
-					"UtilityShaders",
+                    "UtilityShaders",
                     "WmfMediaFactory",
                 });
+
+            if (Target.Platform == UnrealTargetPlatform.Win64)
+            {
+                PrivateDependencyModuleNames.AddRange(
+                    new string[] {
+                    "HAPLib",
+                    "SnappyLib",
+                    });
+                PrivateDefinitions.Add("HAP_SUPPORTED=1");
+            }
+            else
+            {
+                PrivateDefinitions.Add("HAP_SUPPORTED=0");
+            }
 
             if (Target.Platform != UnrealTargetPlatform.XboxOne)
             {
@@ -41,6 +55,7 @@ namespace UnrealBuildTool.Rules
 					"WmfMedia/Private",
 					"WmfMedia/Private/Player",
 					"WmfMedia/Private/Wmf",
+                    "WmfMedia/Private/HAPDecoder",
                     "../../../../Source/Runtime/Windows/D3D11RHI/Private",
                     "../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
                 });
@@ -61,7 +76,9 @@ namespace UnrealBuildTool.Rules
 				PublicDelayLoadDLLs.Add("mfplat.dll");
 				PublicDelayLoadDLLs.Add("mfplay.dll");
 				PublicDelayLoadDLLs.Add("shlwapi.dll");
-			}
+
+                PublicAdditionalLibraries.Add("d3dcompiler.lib");
+            }
 		}
 	}
 }
