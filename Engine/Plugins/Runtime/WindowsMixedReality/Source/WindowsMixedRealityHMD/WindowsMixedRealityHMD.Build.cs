@@ -130,6 +130,22 @@ namespace UnrealBuildTool.Rules
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
 			}
+
+			PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
+			RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "QRCodesTrackerPlugin.dll"));
+
+			// Add a dependency to SceneUnderstanding.dll if present
+			string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
+			if (File.Exists(SceneUnderstandingPath))
+			{
+				PublicDelayLoadDLLs.Add("SceneUnderstanding.dll");
+				RuntimeDependencies.Add(SceneUnderstandingPath);
+				PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+			}
 		}
 	}
 }

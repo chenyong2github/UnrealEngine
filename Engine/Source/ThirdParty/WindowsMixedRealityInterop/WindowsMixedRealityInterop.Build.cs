@@ -49,6 +49,19 @@ public class WindowsMixedRealityInterop : ModuleRules
             // Explicitly load lib path since name conflicts with an existing lib in the DX11 dependency.
             PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "d3d11.lib"));
         }
-    }
+
+		// Add a dependency to SceneUnderstanding.dll if present
+		string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
+		if (File.Exists(SceneUnderstandingPath))
+		{
+			PublicDelayLoadDLLs.Add("SceneUnderstanding.dll");
+			RuntimeDependencies.Add(SceneUnderstandingPath);
+			PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+		}
+		else
+		{
+			PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+		}
+	}
 }
 
