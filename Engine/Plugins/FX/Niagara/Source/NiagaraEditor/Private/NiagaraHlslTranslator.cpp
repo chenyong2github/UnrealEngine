@@ -3370,6 +3370,13 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 			return true;
 		}
 	}
+	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)GetCurrentUsage();
+		OutVar.SetValue(EnumValue);
+		return true;
+	}
 	return false;
 }
 

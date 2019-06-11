@@ -77,6 +77,7 @@ void FNiagaraConstants::Init()
 		SwitchParameters.Add(SYS_PARAM_EMITTER_LOCALSPACE);
 		SwitchParameters.Add(SYS_PARAM_EMITTER_DETERMINISM);
 		SwitchParameters.Add(SYS_PARAM_EMITTER_SIMULATION_TARGET);
+		SwitchParameters.Add(SYS_PARAM_SCRIPT_USAGE);
 	}
 
 	if (UpdatedSystemParameters.Num() == 0)
