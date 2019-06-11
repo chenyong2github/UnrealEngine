@@ -36,9 +36,11 @@ struct FVirtualTextureSourceLayerData
 	ETextureSourceFormat SourceFormat;
 	EPixelFormat PixelFormat;
 	FName FormatName;
+	FName TextureFormatName;
 
 	EGammaSpace GammaSpace;
 	bool bHasAlpha;
+	bool bUseCrunch;
 };
 
 /**
