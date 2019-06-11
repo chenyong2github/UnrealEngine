@@ -950,6 +950,11 @@ static_assert(SP_NumPlatforms <= sizeof(GSelectiveBasePassOutputsPlatformMask) *
 RENDERCORE_API uint64 GDistanceFieldsPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GDistanceFieldsPlatformMask) * 8, "GDistanceFieldsPlatformMask must be large enough to support all shader platforms");
 
+#if WITH_EDITOR
+RENDERCORE_API uint32 GRequiresCookedDataPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GRequiresCookedDataPlatformMask) * 8, "GRequiresCookedDataPlatformMask must be large enough to support all shader platforms");
+#endif
+
 RENDERCORE_API void RenderUtilsInit()
 {
 	if (GUseForwardShading)
@@ -1037,6 +1042,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GDistanceFieldsPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->RequiresCookedData())
+				{
+					GRequiresCookedDataPlatformMask |= Mask;
+				}
+				else
+				{
+					GRequiresCookedDataPlatformMask &= ~Mask;
 				}
 			}
 		}
