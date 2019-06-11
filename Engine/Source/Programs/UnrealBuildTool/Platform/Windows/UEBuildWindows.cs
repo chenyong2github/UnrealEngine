@@ -931,7 +931,7 @@ namespace UnrealBuildTool
 
 									int SortOrder = SortedInstallDirs.Count;
 
-									ISetupInstanceCatalog Catalog = (ISetupInstanceCatalog)Instance as ISetupInstanceCatalog;
+									ISetupInstanceCatalog Catalog = Instance as ISetupInstanceCatalog;
 									if (Catalog != null && Catalog.IsPrerelease())
 									{
 										SortOrder |= (1 << 16);
