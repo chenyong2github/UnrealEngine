@@ -355,7 +355,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
 	TMap<FName, FString> PropertyMetaData;
 
-	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable")
+	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable", meta = (ToolTip = "This is a read-only variable that designates if the metadata is tied to a static switch or not."))
 	bool bIsStaticSwitch;
 
 	/** The default value to use when creating new pins or stack entries for a static switch parameter */

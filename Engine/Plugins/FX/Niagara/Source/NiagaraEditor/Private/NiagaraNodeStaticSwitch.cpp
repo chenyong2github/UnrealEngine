@@ -3,6 +3,7 @@
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraHlslTranslator.h"
+#include "NiagaraConstants.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
@@ -21,7 +22,7 @@ FNiagaraTypeDefinition UNiagaraNodeStaticSwitch::GetInputType() const
 	{
 		return FNiagaraTypeDefinition::GetIntDef();
 	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 	{
 		return FNiagaraTypeDefinition(SwitchTypeData.Enum);
 	}
@@ -53,6 +54,11 @@ void UNiagaraNodeStaticSwitch::ClearSwitchValue()
 {
 	IsValueSet = false;
 	SwitchValue = 0;
+}
+
+bool UNiagaraNodeStaticSwitch::IsSetByCompiler() const
+{
+	return !SwitchTypeData.SwitchConstant.IsNone();
 }
 
 void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable& OldParameter)
@@ -102,7 +108,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 			}
 		}
 	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 	{
 		// The last enum value is a special "max" value that we do not want to display, so we skip it
 		for (int32 i = 0; i < SwitchTypeData.Enum->NumEnums() - 1; i++)
@@ -145,7 +151,7 @@ void UNiagaraNodeStaticSwitch::InsertInputPinsFor(const FNiagaraVariable& Var)
 		// +1 because the range is inclusive
 		OptionsCount = SwitchTypeData.MaxIntCount + 1;
 	}
-	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 	{
 		// -1 because the last enum value is a special "max" value
 		OptionsCount = SwitchTypeData.Enum->NumEnums() - 1;
@@ -174,7 +180,7 @@ void UNiagaraNodeStaticSwitch::InsertInputPinsFor(const FNiagaraVariable& Var)
 		{
 			PathSuffix += FString::FromInt(i);
 		}
-		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 		{
 			FText EnumName = SwitchTypeData.Enum->GetDisplayNameTextByIndex(i);
 			PathSuffix += EnumName.ToString();
@@ -197,7 +203,40 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 	return GetVarIndex(Translator, InputPinCount, SwitchValue, VarIndexOut);
 }
 
-bool UNiagaraNodeStaticSwitch::GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const
+void UNiagaraNodeStaticSwitch::UpdateCompilerConstantValue(FHlslNiagaraTranslator* Translator)
+{
+	if (!IsSetByCompiler() || !Translator)
+	{
+		return;
+	}
+	IsValueSet = false;
+
+	const FNiagaraVariable* Found = FNiagaraConstants::FindStaticSwitchConstant(SwitchTypeData.SwitchConstant);
+	FNiagaraVariable Constant = Found ? *Found : FNiagaraVariable();
+	if (Found && Translator->GetLiteralConstantVariable(Constant))
+	{
+		if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
+		{
+			SwitchValue = Constant.GetValue<bool>();
+			IsValueSet = true;
+		}
+		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer || SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+		{
+			SwitchValue = Constant.GetValue<int32>();
+			IsValueSet = true;
+		}
+		else
+		{
+			Translator->Error(LOCTEXT("InvalidSwitchType", "Invalid static switch type."), this, nullptr);
+		}
+	}
+	else
+	{
+		Translator->Error(FText::Format(LOCTEXT("InvalidConstantValue", "Unable to determine constant value '{0}' for static switch."), FText::FromName(SwitchTypeData.SwitchConstant)), this, nullptr);
+	}
+}
+
+bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32 Value, int32& VarIndexOut) const
 {
 	bool Success = false;
 	if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
@@ -255,7 +294,14 @@ bool UNiagaraNodeStaticSwitch::SubstituteCompiledPin(FHlslNiagaraTranslator* Tra
 	// if we compile the standalone module or function we don't have any valid input yet, so we just take the first option to satisfy the compiler
 	ENiagaraScriptUsage TargetUsage = Translator->GetTargetUsage();
 	bool IsDryRun = TargetUsage == ENiagaraScriptUsage::Module || TargetUsage == ENiagaraScriptUsage::Function;
-	SwitchValue = IsDryRun ? 0 : SwitchValue;
+	if (IsDryRun)
+	{
+		SwitchValue = 0;
+	}
+	else
+	{
+		UpdateCompilerConstantValue(Translator);
+	}
 	if (!IsValueSet && !IsDryRun)
 	{
 		FText ErrorMessage = FText::Format(LOCTEXT("MissingSwitchValue", "The input parameter \"{0}\" is not set to a constant value for the static switch node."), FText::FromString(InputParameterName.ToString()));

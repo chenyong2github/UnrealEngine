@@ -9,6 +9,7 @@
 
 TArray<FNiagaraVariable> FNiagaraConstants::SystemParameters;
 TArray<FNiagaraVariable> FNiagaraConstants::TranslatorParameters;
+TArray<FNiagaraVariable> FNiagaraConstants::SwitchParameters;
 TMap<FName, FNiagaraVariable> FNiagaraConstants::UpdatedSystemParameters;
 TMap<FNiagaraVariable, FText> FNiagaraConstants::SystemStrMap;
 TArray<FNiagaraVariable> FNiagaraConstants::Attributes;
@@ -69,6 +70,12 @@ void FNiagaraConstants::Init()
 	if (TranslatorParameters.Num() == 0)
 	{
 		TranslatorParameters.Add(TRANSLATOR_PARAM_BEGIN_DEFAULTS);
+	}
+
+	if (SwitchParameters.Num() == 0)
+	{
+		SwitchParameters.Add(SYS_PARAM_EMITTER_LOCALSPACE);
+		SwitchParameters.Add(SYS_PARAM_EMITTER_DETERMINISM);
 	}
 
 	if (UpdatedSystemParameters.Num() == 0)
@@ -442,6 +449,12 @@ const TArray<FNiagaraVariable>& FNiagaraConstants::GetTranslatorConstants()
 	return TranslatorParameters;
 }
 
+const TArray<FNiagaraVariable>& FNiagaraConstants::GetStaticSwitchConstants()
+{
+	check(SwitchParameters.Num() != 0);
+	return SwitchParameters;
+}
+
 bool FNiagaraConstants::IsEngineManagedAttribute(const FNiagaraVariable& Var)
 {
 	return EngineManagedAttributes.Contains(Var);
@@ -467,15 +480,20 @@ FNiagaraVariable FNiagaraConstants::UpdateEngineConstant(const FNiagaraVariable&
 
 }
 
-
 const FNiagaraVariable* FNiagaraConstants::FindEngineConstant(const FNiagaraVariable& InVar)
 {
-	const TArray<FNiagaraVariable>& LocalSystemParameters = GetEngineConstants();
-	const FNiagaraVariable* FoundSystemVar = LocalSystemParameters.FindByPredicate([&](const FNiagaraVariable& Var)
+	return GetEngineConstants().FindByPredicate([&](const FNiagaraVariable& Var)
 	{
 		return Var.GetName() == InVar.GetName();
 	});
-	return FoundSystemVar;
+}
+
+const FNiagaraVariable * FNiagaraConstants::FindStaticSwitchConstant(const FName& InName)
+{
+	return GetStaticSwitchConstants().FindByPredicate([&](const FNiagaraVariable& Var)
+	{
+		return Var.GetName() == InName;
+	});
 }
 
 FText FNiagaraConstants::GetEngineConstantDescription(const FNiagaraVariable& InAttribute)
