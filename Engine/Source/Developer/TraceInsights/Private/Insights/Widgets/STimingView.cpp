@@ -512,8 +512,9 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 					}
 					else
 					{
-						bIsGroupVisible = ThreadGroups[GroupName].bIsVisible;
-						ThreadGroups[GroupName].Order = Order;
+						FThreadGroup& ThreadGroup = ThreadGroups[GroupName];
+						bIsGroupVisible = ThreadGroup.bIsVisible;
+						ThreadGroup.Order = Order;
 					}
 				}
 
@@ -3894,7 +3895,7 @@ void STimingView::ToggleAutoHideEmptyTracks()
 {
 	if (Layout.TargetMinTimelineH == 0.0f)
 	{
-		Layout.TargetMinTimelineH = RealMinTimelineH;
+		Layout.TargetMinTimelineH = FTimingEventsTrackLayout::RealMinTimelineH;
 	}
 	else
 	{

@@ -8,6 +8,7 @@
 #include "Templates/UniquePtr.h"
 
 // Insights
+#include "Insights/IoProfilerManager.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/Widgets/SStartPageWindow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -138,6 +139,12 @@ void FInsightsManager::OnSessionChanged()
 	{
 		// FIXME: make TimingProfilerManager to register to SessionChangedEvent instead
 		TimingProfilerManager->OnSessionChanged();
+	}
+
+	if (TSharedPtr<FIoProfilerManager> IoProfilerManager = FIoProfilerManager::Get())
+	{
+		// FIXME: make IoProfilerManager to register to SessionChangedEvent instead
+		IoProfilerManager->OnSessionChanged();
 	}
 
 	SessionChangedEvent.Broadcast();

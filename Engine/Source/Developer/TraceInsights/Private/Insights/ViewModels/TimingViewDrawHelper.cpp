@@ -168,9 +168,9 @@ void FTimingViewDrawHelper::EndTimeline(FTimingEventsTrack& Track)
 		// 1.0f is for horizontal line between timelines
 		NewH = 1.0f + Layout.TimelineDY + Layout.EventH * (MaxDepth + 1) + Layout.EventDY * MaxDepth + Layout.TimelineDY;
 
-		if (NewH < RealMinTimelineH)
+		if (NewH < FTimingEventsTrackLayout::RealMinTimelineH)
 		{
-			NewH = RealMinTimelineH;
+			NewH = FTimingEventsTrackLayout::RealMinTimelineH;
 		}
 	}
 
