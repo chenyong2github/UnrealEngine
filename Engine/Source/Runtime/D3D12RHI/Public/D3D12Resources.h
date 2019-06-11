@@ -725,7 +725,7 @@ public:
 	virtual ~FD3D12UniformBuffer();
 };
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 class FD3D12TransientResource
 {
 	// Nothing special for fast ram

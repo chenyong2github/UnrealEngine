@@ -1,0 +1,22 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "LiveLinkSourceFactory.h"
+#include "LiveLinkWindowsMixedRealityHandTrackingSourceFactory.generated.h"
+
+UCLASS()
+class ULiveLinkWindowsMixedRealityHandTrackingSourceFactory : public ULiveLinkSourceFactory
+{
+public:
+
+	GENERATED_BODY()
+
+	virtual FText GetSourceDisplayName() const;
+	virtual FText GetSourceTooltip() const;
+
+	virtual TSharedPtr<SWidget> CreateSourceCreationPanel();
+	virtual TSharedPtr<ILiveLinkSource> OnSourceCreationPanelClosed(bool bMakeSource);
+
+	TSharedPtr<class SLiveLinkWindowsMixedRealityHandTrackingSourceEditor> ActiveSourceEditor;
+};

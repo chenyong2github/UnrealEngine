@@ -76,6 +76,9 @@ const TCHAR* AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform Audio
 			return *LuminConfig;
 		}
 
+		case EAudioPlatform::HoloLens:
+			return TEXT("/Script/HoloLensRuntimeSettings.HoloLensRuntimeSettings");
+
 		case EAudioPlatform::Unknown:
 		{
 			return *UnknownConfig;

@@ -1005,6 +1005,11 @@ RETRY_SETUPANDVALIDATE:
 					// since Desktop is just packaging, we don't need an SDK, and UBT will return INVALID, since it doesn't build for it
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, PlatformInfo::EPlatformSDKStatus::Installed);
 				}
+				else if (PlatformName == TEXT("HoloLens"))
+				{
+					PlatformName = TEXT("HoloLens");
+					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);
+				}
 				else
 				{
 					PlatformInfo::UpdatePlatformSDKStatus(PlatformName, Status);

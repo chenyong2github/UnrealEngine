@@ -2,20 +2,30 @@
 
 #include "/Engine/Private/Common.ush"
 
-float FarPlaneDistance;
 Texture2D InDepthTexture;
 SamplerState InTextureSampler;
 
+float NearPlaneM;
+float FarPlaneM;
+float WorldToMeters;
+
 void MainPixelShader(
 	in float2 uv : TEXCOORD0,
-	out float4 OutColor : SV_Target0
+	out float OutColor : SV_Target0
 	)
 {
-	// Max 24-bit int.
-	float MaxZ = 16777215.0f;
+	float MaxZ = 65000.0f;
 
-	float depth = Texture2DSample(InDepthTexture, InTextureSampler, uv);
-	float percent = depth / MaxZ;
+	// Convert to Unreal units.
+	float MinZ = NearPlaneM * WorldToMeters;
 
-	OutColor = 1 - percent * FarPlaneDistance;
+	float zNonLinear = Texture2DSample(InDepthTexture, InTextureSampler, uv).r;
+	// Find linear depth from reverse-z projected depth.
+	float zLinear = -MaxZ / (zNonLinear / (MinZ / (MinZ - MaxZ)) - 1);
+
+	// Convert to meters.
+	zLinear = zLinear / WorldToMeters;
+
+	// Project to non-linear space relative to the holographic camera's clipping planes.
+	OutColor = (FarPlaneM / (FarPlaneM - NearPlaneM)) * (1 - (NearPlaneM / zLinear));
 }

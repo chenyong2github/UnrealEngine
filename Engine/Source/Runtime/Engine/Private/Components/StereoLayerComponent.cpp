@@ -111,6 +111,7 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 			LayerDsec.Flags |= (bNoAlphaChannel) ? IStereoLayers::LAYER_FLAG_TEX_NO_ALPHA_CHANNEL : 0;
 			LayerDsec.Flags |= (bQuadPreserveTextureRatio) ? IStereoLayers::LAYER_FLAG_QUAD_PRESERVE_TEX_RATIO : 0;
 			LayerDsec.Flags |= (bSupportsDepth) ? IStereoLayers::LAYER_FLAG_SUPPORT_DEPTH : 0;
+			LayerDsec.Flags |= (Texture->GetMaterialType() == MCT_TextureExternal) ? IStereoLayers::LAYER_FLAG_TEX_EXTERNAL : 0;
 
 			switch (StereoLayerType)
 			{
@@ -171,6 +172,17 @@ void UStereoLayerComponent::SetTexture(UTexture* InTexture)
 	}
 
 	Texture = InTexture;
+	bIsDirty = true;
+}
+
+void UStereoLayerComponent::SetLeftTexture(UTexture* InTexture)
+{
+	if (LeftTexture == InTexture)
+	{
+		return;
+	}
+
+	LeftTexture = InTexture;
 	bIsDirty = true;
 }
 

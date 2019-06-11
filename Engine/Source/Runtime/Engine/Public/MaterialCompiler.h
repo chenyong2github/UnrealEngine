@@ -296,6 +296,8 @@ public:
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) = 0;
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) = 0;
 
+
+	virtual int32 MapARPassthroughCameraUV(int32 UV) = 0;
 	// The compiler can run in a different state and this affects caching of sub expression, Expressions are different (e.g. View.PrevWorldViewOrigin) when using previous frame's values
 	// If possible we should re-factor this to avoid having to deal with compiler state
 	virtual bool IsCurrentlyCompilingForPreviousFrame() const { return false; }
@@ -560,6 +562,11 @@ public:
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override
 	{
 		return Compiler->ShadingModel(InSelectedShadingModel);
+	}
+
+	virtual int32 MapARPassthroughCameraUV(int32 UV) override
+	{
+		return Compiler->MapARPassthroughCameraUV(UV);
 	}
 
 	virtual int32 TextureCoordinateOffset() override

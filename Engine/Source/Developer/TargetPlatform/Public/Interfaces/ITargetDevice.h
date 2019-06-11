@@ -51,7 +51,10 @@ enum class ETargetDeviceTypes
 	Phone,
 
 	/** The device is a tablet computer. */
-	Tablet
+	Tablet,
+
+	/** The device is a standalone HMD */
+	HMD
 };
 
 
