@@ -1820,7 +1820,6 @@ FVulkanBackBuffer::~FVulkanBackBuffer()
 {
 	if (Surface.IsImageOwner() == false)
 	{
-		Surface.Device->NotifyDeletedRenderTarget(Surface.Image);
 		// Clear flags so ~FVulkanTexture2D() doesn't try to re-destroy it
 		Surface.UEFlags = 0;
 		DefaultView.View = VK_NULL_HANDLE;
