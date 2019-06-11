@@ -23,10 +23,6 @@ FLandscapeUIDetails::FLandscapeUIDetails()
 
 FLandscapeUIDetails::~FLandscapeUIDetails()
 {
-	if (DetailLayoutBuilder)
-	{
-		GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().RemoveAll(this);
-	}
 }
 
 TSharedRef<IDetailCustomization> FLandscapeUIDetails::MakeInstance()
@@ -52,50 +48,33 @@ void FLandscapeUIDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder 
 			TSharedRef<IPropertyHandle> ComponentScreenSizeToUseSubSectionsProp = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections));
 			DetailBuilder.HideProperty(ComponentScreenSizeToUseSubSectionsProp);
 		}
-
-		if (!DetailLayoutBuilder)
-		{
-			DetailLayoutBuilder = &DetailBuilder;
-			GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddSP(this, &FLandscapeUIDetails::OnEditorExperimentalSettingsChanged);
-		}
-			   
+							   
 		TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(ALandscape, bCanHaveLayersContent));
 		DetailBuilder.HideProperty(PropertyHandle);
-		if (GetMutableDefault<UEditorExperimentalSettings>()->bLandscapeLayerSystem)
-		{
-			const FText DisplayAndFilterText(LOCTEXT("LandscapeToggleLayerName", "Enable Layer System"));
-			DetailBuilder.AddCustomRowToCategory(PropertyHandle, DisplayAndFilterText)
-			.NameContent()
-			[
-				PropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText)
-			]
-			.ValueContent()
-			[
-				SNew(SCheckBox)
-				.ToolTipText(LOCTEXT("LandscapeToggleLayerToolTip", "Toggle whether or not to support layers on this Landscape and its streaming proxies. Toggling this will clear the undo stack."))
-				.Type(ESlateCheckBoxType::CheckBox)
-				.IsChecked_Lambda([=]()
+		const FText DisplayAndFilterText(LOCTEXT("LandscapeToggleLayerName", "Enable Layer System"));
+		DetailBuilder.AddCustomRowToCategory(PropertyHandle, DisplayAndFilterText)
+		.NameContent()
+		[
+			PropertyHandle->CreatePropertyNameWidget(DisplayAndFilterText)
+		]
+		.ValueContent()
+		[
+			SNew(SCheckBox)
+			.ToolTipText(LOCTEXT("LandscapeToggleLayerToolTip", "Toggle whether or not to support layers on this Landscape and its streaming proxies. Toggling this will clear the undo stack."))
+			.Type(ESlateCheckBoxType::CheckBox)
+			.IsChecked_Lambda([=]()
+			{
+				return Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			})
+			.OnCheckStateChanged_Lambda([=](ECheckBoxState NewState)
+			{
+				bool bChecked = (NewState == ECheckBoxState::Checked);
+				if (Landscape->CanHaveLayersContent() != bChecked)
 				{
-					return Landscape->CanHaveLayersContent() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-			    })
-			    .OnCheckStateChanged_Lambda([=](ECheckBoxState NewState)
-			    {
-			        bool bChecked = (NewState == ECheckBoxState::Checked);
-				    if (Landscape->CanHaveLayersContent() != bChecked)
-				    {
-					    ToggleCanHaveLayersContent(Landscape);
-				    }
-			    })
-			];
-		}
-	}
-}
-
-void FLandscapeUIDetails::OnEditorExperimentalSettingsChanged(FName PropertyName)
-{
-	if (DetailLayoutBuilder && PropertyName == GET_MEMBER_NAME_CHECKED(UEditorExperimentalSettings, bLandscapeLayerSystem))
-	{
-		DetailLayoutBuilder->ForceRefreshDetails();
+					ToggleCanHaveLayersContent(Landscape);
+				}
+			})
+		];
 	}
 }
 
