@@ -6924,7 +6924,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 		}
 		else
 		{
-			EAsyncPackageState::TimeOut;
+			Result = EAsyncPackageState::TimeOut;
 		}
 	
 		// Mark package as having been fully loaded and update load time.
