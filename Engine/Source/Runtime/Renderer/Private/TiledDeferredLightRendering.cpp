@@ -124,21 +124,22 @@ public:
 		const FViewInfo& View, 
 		int32 ViewIndex,
 		int32 NumViews,
-		const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, 
-		int32 NumLightsToRenderInSortedLights, 
-		const FSimpleLightArray& SimpleLights, 
-		int32 StartIndex, 
+		const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
+		int32 TiledDeferredLightsStart, 
+		int32 TiledDeferredLightsEnd,
+		const FSimpleLightArray& SimpleLights,
+		int32 StartIndex,
 		int32 NumThisPass,
 		IPooledRenderTarget& InTextureValue,
 		IPooledRenderTarget& OutTextureValue)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 		SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureValue.GetRenderTargetItem().ShaderResourceTexture);
 
-		FUnorderedAccessViewRHIParamRef OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
+		FRHIUnorderedAccessView* OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, &OutUAV, 1);
 		OutTexture.SetTexture(RHICmdList, ShaderRHI, 0, OutUAV);
 
@@ -161,6 +162,8 @@ public:
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
 			GSystemTextures.LTCAmp->GetRenderTargetItem().ShaderResourceTexture
 			);
+
+		const int32 NumLightsToRenderInSortedLights = TiledDeferredLightsEnd - TiledDeferredLightsStart;
 
 		if (TransmissionProfilesTexture.IsBound())
 		{
@@ -193,7 +196,7 @@ public:
 		{
 			if (StartIndex + LightIndex < NumLightsToRenderInSortedLights)
 			{
-				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[StartIndex + LightIndex];
+				const FSortedLightSceneInfo& SortedLightInfo = SortedLights[TiledDeferredLightsStart + StartIndex + LightIndex];
 				const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
 
 				FLightShaderParameters LightParameters;
@@ -266,7 +269,7 @@ public:
 	{
 		OutTexture.UnsetUAV(RHICmdList, GetComputeShader());
 
-		FUnorderedAccessViewRHIParamRef OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
+		FRHIUnorderedAccessView* OutUAV = OutTextureValue.GetRenderTargetItem().UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, &OutUAV, 1);
 	}
 
@@ -325,10 +328,10 @@ bool FDeferredShadingSceneRenderer::CanUseTiledDeferred() const
 	return GUseTiledDeferredShading != 0 && Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5;
 }
 
-bool FDeferredShadingSceneRenderer::ShouldUseTiledDeferred(int32 NumUnshadowedLights, int32 NumSimpleLights) const
+bool FDeferredShadingSceneRenderer::ShouldUseTiledDeferred(int32 NumTiledDeferredLights) const
 {
 	// Only use tiled deferred if there are enough unshadowed lights to justify the fixed cost, 
-	return (NumUnshadowedLights + NumSimpleLights >= GNumLightsBeforeUsingTiledDeferred);
+	return (NumTiledDeferredLights >= GNumLightsBeforeUsingTiledDeferred);
 }
 
 template <bool bVisualizeLightCulling>
@@ -337,10 +340,11 @@ static void SetShaderTemplTiledLighting(
 	const FViewInfo& View,
 	int32 ViewIndex,
 	int32 NumViews,
-	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, 
-	int32 NumLightsToRenderInSortedLights, 
+	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights,
+	int32 TiledDeferredLightsStart, 
+	int32 TiledDeferredLightsEnd,
 	const FSimpleLightArray& SimpleLights,
-	int32 StartIndex, 
+	int32 StartIndex,
 	int32 NumThisPass,
 	IPooledRenderTarget& InTexture,
 	IPooledRenderTarget& OutTexture)
@@ -348,7 +352,7 @@ static void SetShaderTemplTiledLighting(
 	TShaderMapRef<FTiledDeferredLightingCS<bVisualizeLightCulling> > ComputeShader(View.ShaderMap);
 	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
-	ComputeShader->SetParameters(RHICmdList, View, ViewIndex, NumViews, SortedLights, NumLightsToRenderInSortedLights, SimpleLights, StartIndex, NumThisPass, InTexture, OutTexture);
+	ComputeShader->SetParameters(RHICmdList, View, ViewIndex, NumViews, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, InTexture, OutTexture);
 
 	uint32 GroupSizeX = (View.ViewRect.Size().X + GDeferredLightTileSizeX - 1) / GDeferredLightTileSizeX;
 	uint32 GroupSizeY = (View.ViewRect.Size().Y + GDeferredLightTileSizeY - 1) / GDeferredLightTileSizeY;
@@ -358,8 +362,10 @@ static void SetShaderTemplTiledLighting(
 }
 
 
-void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(FRHICommandListImmediate& RHICmdList, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 NumUnshadowedLights, const FSimpleLightArray& SimpleLights)
+void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(FRHICommandListImmediate& RHICmdList, const TArray<FSortedLightSceneInfo, SceneRenderingAllocator>& SortedLights, int32 TiledDeferredLightsStart, int32 TiledDeferredLightsEnd, const FSimpleLightArray& SimpleLights)
 {
+	const int32 NumUnshadowedLights = TiledDeferredLightsEnd - TiledDeferredLightsStart;
+
 	check(GUseTiledDeferredShading);
 	check(SortedLights.Num() >= NumUnshadowedLights);
 
@@ -405,11 +411,11 @@ void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(FRHICommandListI
 
 					if(View.Family->EngineShowFlags.VisualizeLightCulling)
 					{
-						SetShaderTemplTiledLighting<1>(RHICmdList, View, ViewIndex, Views.Num(), SortedLights, NumLightsToRenderInSortedLights, SimpleLights, StartIndex, NumThisPass, InTexture, *OutTexture);
+						SetShaderTemplTiledLighting<1>(RHICmdList, View, ViewIndex, Views.Num(), SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, InTexture, *OutTexture);
 					}
 					else
 					{
-						SetShaderTemplTiledLighting<0>(RHICmdList, View, ViewIndex, Views.Num(), SortedLights, NumLightsToRenderInSortedLights, SimpleLights, StartIndex, NumThisPass, InTexture, *OutTexture);
+						SetShaderTemplTiledLighting<0>(RHICmdList, View, ViewIndex, Views.Num(), SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, InTexture, *OutTexture);
 					}
 				}
 			}

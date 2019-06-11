@@ -402,7 +402,7 @@ void FShaderCompilerOutput::GenerateOutputHash()
 	
 	const TArray<uint8>& Code = ShaderCode.GetReadAccess();
 
-	// we don't hash the optional attachments as they would prevent sharing (e.g. many material share the save VS)
+	// we don't hash the optional attachments as they would prevent sharing (e.g. many materials share the same VS)
 	uint32 ShaderCodeSize = ShaderCode.GetShaderCodeSize();
 
 	HashState.Update(Code.GetData(), ShaderCodeSize * Code.GetTypeSize());
@@ -542,9 +542,8 @@ void VerifyShaderSourceFiles(EShaderPlatform ShaderPlatform)
 		for( int32 ShaderFileIdx=0; ShaderFileIdx < VirtualShaderSourcePaths.Num(); ShaderFileIdx++ )
 		{
 			SlowTask.EnterProgressFrame(1);
-			FString FileContents;
 			// load each shader source file. This will cache the shader source data after it has been verified
-			LoadShaderSourceFile(*VirtualShaderSourcePaths[ShaderFileIdx], FileContents, nullptr);
+			LoadShaderSourceFile(*VirtualShaderSourcePaths[ShaderFileIdx], nullptr, nullptr);
 		}
 	}
 }
@@ -659,7 +658,7 @@ FString ParseVirtualShaderFilename(const FString& InFilename)
 	return OutputFilename;
 }
 
-bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString& OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors) // TODO: const FString&
+bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors) // TODO: const FString&
 {
 	// it's not expected that cooked platforms get here, but if they do, this is the final out
 	if (FPlatformProperties::RequiresCookedData())
@@ -681,7 +680,10 @@ bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString& OutFileContents
 		//if this file has already been loaded and cached, use that
 		if (CachedFile)
 		{
-			OutFileContents = *CachedFile;
+			if (OutFileContents)
+			{
+				*OutFileContents = *CachedFile;
+			}
 			bResult = true;
 		}
 		else
@@ -689,10 +691,16 @@ bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString& OutFileContents
 			FString ShaderFilePath = GetShaderSourceFilePath(VirtualFilePath, OutCompileErrors);
 
 			// verify SHA hash of shader files on load. missing entries trigger an error
-			if (!ShaderFilePath.IsEmpty() && FFileHelper::LoadFileToString(OutFileContents, *ShaderFilePath, FFileHelper::EHashOptions::EnableVerify|FFileHelper::EHashOptions::ErrorMissingHash) )
+			FString FileContents;
+			if (!ShaderFilePath.IsEmpty() && FFileHelper::LoadFileToString(FileContents, *ShaderFilePath, FFileHelper::EHashOptions::EnableVerify|FFileHelper::EHashOptions::ErrorMissingHash) )
 			{
 				//update the shader file cache
-				GShaderFileCache.Add(VirtualFilePath, *OutFileContents);
+				GShaderFileCache.Add(VirtualFilePath, FileContents);
+
+				if (OutFileContents)
+				{
+					*OutFileContents = MoveTemp(FileContents);
+				}
 				bResult = true;
 			}
 		}
@@ -704,7 +712,7 @@ bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, FString& OutFileContents
 
 void LoadShaderSourceFileChecked(const TCHAR* VirtualFilePath, FString& OutFileContents)
 {
-	if (!LoadShaderSourceFile(VirtualFilePath, OutFileContents, nullptr))
+	if (!LoadShaderSourceFile(VirtualFilePath, &OutFileContents, nullptr))
 	{
 		UE_LOG(LogShaders, Fatal, TEXT("Couldn't find source file of virtual shader path \'%s\'"), VirtualFilePath);
 	}
@@ -736,7 +744,7 @@ const TCHAR* SkipToCharOnCurrentLine(const TCHAR* InStr, TCHAR TargetChar)
 static void GetShaderIncludes(const TCHAR* EntryPointVirtualFilePath, const TCHAR* VirtualFilePath, TArray<FString>& IncludeVirtualFilePaths, EShaderPlatform ShaderPlatform, uint32 DepthLimit, bool AddToIncludeFile)
 {
 	FString FileContents;
-	LoadShaderSourceFile(VirtualFilePath, FileContents, nullptr);
+	LoadShaderSourceFile(VirtualFilePath, &FileContents, nullptr);
 
 	//avoid an infinite loop with a 0 length string
 	if (FileContents.Len() > 0)

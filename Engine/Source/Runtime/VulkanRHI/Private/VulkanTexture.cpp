@@ -170,7 +170,7 @@ struct FRHICommandLockWriteTexture final : public FRHICommand<FRHICommandLockWri
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
-		FVulkanSurface::InternalLockWrite((FVulkanCommandListContext&)RHICmdList.GetContext(), Surface, SubresourceRange, Region, StagingBuffer);
+		FVulkanSurface::InternalLockWrite(VulkanRHI::GetVulkanContext(RHICmdList.GetContext()), Surface, SubresourceRange, Region, StagingBuffer);
 	}
 };
 
@@ -192,6 +192,12 @@ VkImage FVulkanSurface::CreateImage(
 	const VkPhysicalDeviceProperties& DeviceProperties = InDevice.GetDeviceProperties();
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[InFormat];
 	VkFormat TextureFormat = (VkFormat)FormatInfo.PlatformFormat;
+
+
+	if(UEFlags & TexCreate_CPUReadback)
+	{
+		bForceLinearTexture = true;
+	}
 
 	checkf(TextureFormat != VK_FORMAT_UNDEFINED, TEXT("PixelFormat %d, is not supported for images"), (int32)InFormat);
 
@@ -423,7 +429,7 @@ struct FRHICommandInitialClearTexture final : public FRHICommand<FRHICommandInit
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		Surface->InitialClear((FVulkanCommandListContext&)CmdList.GetContext(), ClearValueBinding, bTransitionToPresentable);
+		Surface->InitialClear(VulkanRHI::GetVulkanContext(CmdList.GetContext()), ClearValueBinding, bTransitionToPresentable);
 	}
 };
 
@@ -440,7 +446,8 @@ struct FRHICommandRegisterImageLayout final : public FRHICommand<FRHICommandRegi
 
 	void Execute(FRHICommandListBase& RHICmdList)
 	{
-		((FVulkanCommandListContext&)RHICmdList.GetContext()).FindOrAddLayout(Image, ImageLayout);
+		auto& Context = RHICmdList.GetContext();
+		VulkanRHI::GetVulkanContext(Context).FindOrAddLayout(Image, ImageLayout);
 	}
 };
 
@@ -530,17 +537,20 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 	const bool bCPUReadback = (UEFlags & TexCreate_CPUReadback) != 0;
 	const bool bDynamic = (UEFlags & TexCreate_Dynamic) != 0;
 
+
+	VkMemoryPropertyFlags MemoryFlags = bCPUReadback ? VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT : VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 	// Per https://developer.nvidia.com/what%E2%80%99s-your-vulkan-memory-type
-	VkDeviceSize SizeToBeConsideredForDedicated = 16 * 1024 * 1024;
+	VkDeviceSize SizeToBeConsideredForDedicated = 12 * 1024 * 1024;
 	if ((bRenderTarget || MemoryRequirements.size >= SizeToBeConsideredForDedicated) && InDevice.GetOptionalExtensions().HasKHRDedicatedAllocation)
 	{
-		ResourceAllocation = InDevice.GetResourceHeapManager().AllocateDedicatedImageMemory(Image, MemoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, __FILE__, __LINE__);
+		ResourceAllocation = InDevice.GetResourceHeapManager().AllocateDedicatedImageMemory(Image, MemoryRequirements, MemoryFlags, __FILE__, __LINE__);
 	}
 	else
 #endif
 	{
-		ResourceAllocation = InDevice.GetResourceHeapManager().AllocateImageMemory(MemoryRequirements, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, __FILE__, __LINE__);
+		ResourceAllocation = InDevice.GetResourceHeapManager().AllocateImageMemory(MemoryRequirements, MemoryFlags, __FILE__, __LINE__);
 	}
 	ResourceAllocation->BindImage(Device, Image);
 
@@ -1482,14 +1492,18 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 	ensure(NumMips != 0xFFFFFFFF);
 	ViewInfo.subresourceRange.levelCount = NumMips;
 
-	auto CheckUseNvidiaWorkaround = []() -> bool
+	auto CheckUseNvidiaWorkaround = [&Device]() -> bool
 	{
 		if (IsRHIDeviceNVIDIA())
 		{
-			if(FParse::Param(FCommandLine::Get(), TEXT("rtx20xxmipworkaround")))
+			// Workaround for 20xx family not copying last mips correctly, so instead the view is created without the last 1x1 and 2x2 mips
+			if (GRHIAdapterName.Contains(TEXT("RTX 20")))
 			{
-				// Workaround for 20xx family not copying last mips correctly, so instead the view is created without the last 1x1 and 2x2 mips
-				if (GRHIAdapterName.Contains(TEXT("RTX 20")))
+				UNvidiaDriverVersion NvidiaVersion;
+				const VkPhysicalDeviceProperties& Props = Device.GetDeviceProperties();
+				static_assert(sizeof(NvidiaVersion) == sizeof(Props.driverVersion), "Mismatched Nvidia pack driver version!");
+				NvidiaVersion.Packed = Props.driverVersion;
+				if (NvidiaVersion.Major < 430)
 				{
 					return true;
 				}
@@ -1497,8 +1511,8 @@ VkImageView FVulkanTextureView::StaticCreate(FVulkanDevice& Device, VkImage InIm
 		}
 		return false;
 	};
-	static bool NvidiaWorkaround = CheckUseNvidiaWorkaround();
-	if(NvidiaWorkaround && Format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && Format <= VK_FORMAT_BC7_SRGB_BLOCK && NumMips > 1)
+	static bool bNvidiaWorkaround = CheckUseNvidiaWorkaround();
+	if (bNvidiaWorkaround && Format >= VK_FORMAT_BC1_RGB_UNORM_BLOCK && Format <= VK_FORMAT_BC7_SRGB_BLOCK && NumMips > 1)
 	{
 		ViewInfo.subresourceRange.levelCount = FMath::Max(1, int32(NumMips) - 2);
 	}
@@ -1997,7 +2011,7 @@ void FVulkanDynamicRHI::RHIBindDebugLabelName(FTextureRHIParamRef TextureRHI, co
 	TextureRHI->SetName(DebugName);
 }
 
-void FVulkanDynamicRHI::RHIBindDebugLabelName(FUnorderedAccessViewRHIParamRef UnorderedAccessViewRHI, const TCHAR* Name)
+void FVulkanDynamicRHI::RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
 {
 #if VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_API_DUMP
 	//if (Device->SupportsDebugMarkers())
@@ -2107,7 +2121,7 @@ FTextureReferenceRHIRef FVulkanDynamicRHI::RHICreateTextureReference(FLastRender
 	return new FVulkanTextureReference(*Device, LastRenderTime);
 }
 
-void FVulkanCommandListContext::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRef, FTextureRHIParamRef NewTexture)
+void FVulkanCommandListContext::RHIUpdateTextureReference(FRHITextureReference* TextureRef, FTextureRHIParamRef NewTexture)
 {
 	//#todo-rco: Implementation needs to be verified
 	FVulkanTextureReference* VulkanTextureRef = (FVulkanTextureReference*)TextureRef;
@@ -2162,18 +2176,32 @@ void FVulkanCommandListContext::RHICopyTexture(FTextureRHIParamRef SourceTexture
 
 	VkImageCopy Region;
 	FMemory::Memzero(Region);
-	ensure(SrcSurface.Width == DstSurface.Width && SrcSurface.Height == DstSurface.Height);
-	Region.extent.width = FMath::Max(1u, SrcSurface.Width>> CopyInfo.SourceMipIndex);
-	Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+	if (CopyInfo.Size == FIntVector::ZeroValue)
+	{
+		// Copy whole texture when zero vector is specified for region size
+		ensure(SrcSurface.Width <= DstSurface.Width && SrcSurface.Height <= DstSurface.Height);
+		Region.extent.width = FMath::Max(1u, SrcSurface.Width >> CopyInfo.SourceMipIndex);
+		Region.extent.height = FMath::Max(1u, SrcSurface.Height >> CopyInfo.SourceMipIndex);
+	}
+	else
+	{
+		ensure(CopyInfo.Size.X > 0 && (uint32)CopyInfo.Size.X <= DstSurface.Width && CopyInfo.Size.Y > 0 && (uint32)CopyInfo.Size.Y <= DstSurface.Height);
+		Region.extent.width = CopyInfo.Size.X;
+		Region.extent.height = CopyInfo.Size.Y;
+	}
 	Region.extent.depth = 1;
 	Region.srcSubresource.aspectMask = SrcSurface.GetFullAspectMask();
 	Region.srcSubresource.baseArrayLayer = CopyInfo.SourceSliceIndex;
 	Region.srcSubresource.layerCount = CopyInfo.NumSlices;
 	Region.srcSubresource.mipLevel = CopyInfo.SourceMipIndex;
+	Region.srcOffset.x = CopyInfo.SourcePosition.X;
+	Region.srcOffset.y = CopyInfo.SourcePosition.Y;
 	Region.dstSubresource.aspectMask = DstSurface.GetFullAspectMask();
 	Region.dstSubresource.baseArrayLayer = CopyInfo.DestSliceIndex;
 	Region.dstSubresource.layerCount = CopyInfo.NumSlices;
 	Region.dstSubresource.mipLevel = CopyInfo.DestMipIndex;
+	Region.dstOffset.x = CopyInfo.DestPosition.X;
+	Region.dstOffset.y = CopyInfo.DestPosition.Y;
 
 	for (uint32 Index = 0; Index < CopyInfo.NumMips; ++Index)
 	{

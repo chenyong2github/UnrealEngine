@@ -32,6 +32,7 @@ public:
 /** Base class of all shaders that need material and vertex factory parameters. */
 class RENDERER_API FMeshMaterialShader : public FMaterialShader
 {
+	DECLARE_SHADER_TYPE(FMeshMaterialShader, MeshMaterial);
 public:
 	FMeshMaterialShader() {}
 
@@ -66,7 +67,7 @@ public:
 		const FScene* Scene, 
 		const FSceneView* ViewIfDynamicMeshCommand, 
 		const FVertexFactory* VertexFactory,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 		const FMeshBatch& MeshBatch,

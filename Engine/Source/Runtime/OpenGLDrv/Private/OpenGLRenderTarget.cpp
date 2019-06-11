@@ -39,8 +39,8 @@ public:
 	FOpenGLFramebufferKey(
 		uint32 InNumRenderTargets,
 		FOpenGLTextureBase** InRenderTargets,
-		uint32* InRenderTargetArrayIndices,
-		uint32* InRenderTargetMipmapLevels,
+		const uint32* InRenderTargetArrayIndices,
+		const uint32* InRenderTargetMipmapLevels,
 		FOpenGLTextureBase* InDepthStencilTarget,
 		EOpenGLCurrentContext InContext
 		)
@@ -102,7 +102,7 @@ static FOpenGLFramebufferCache& GetOpenGLFramebufferCache()
 	return OpenGLFramebufferCache;
 }
 
-GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTextureBase** RenderTargets, uint32* ArrayIndices, uint32* MipmapLevels, FOpenGLTextureBase* DepthStencilTarget )
+GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTargets, FOpenGLTextureBase** RenderTargets, const uint32* ArrayIndices, const uint32* MipmapLevels, FOpenGLTextureBase* DepthStencilTarget)
 {
 	VERIFY_GL_SCOPE();
 
@@ -482,7 +482,7 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FTextureRHIParamRef SourceTexture
 		}
 
 		GPUProfilingData.RegisterGPUWork();
-		uint32 MipmapLevel = ResolveParams.MipIndex;
+		const uint32 MipmapLevel = ResolveParams.MipIndex;
 
 		const bool bTrueBlit = !SourceTextureRHI->IsMultisampled()
 			&& !DestTextureRHI->IsMultisampled()
@@ -648,7 +648,7 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FT
 	const GLenum Attachment = bDepthFormat ? (FOpenGL::SupportsPackedDepthStencil() && bDepthStencilFormat ? GL_DEPTH_STENCIL_ATTACHMENT : GL_DEPTH_ATTACHMENT) : GL_COLOR_ATTACHMENT0;
 	const bool bIsColorBuffer = Texture->Attachment == GL_COLOR_ATTACHMENT0;
 
-	uint32 MipmapLevel = 0;
+	const uint32 MipmapLevel = InFlags.GetMip();
 	GLuint SourceFramebuffer = bIsColorBuffer ? GetOpenGLFramebuffer(1, &Texture, NULL, &MipmapLevel, NULL) : GetOpenGLFramebuffer(0, NULL, NULL, NULL, Texture);
 	if (TextureRHI->IsMultisampled())
 	{
@@ -899,7 +899,8 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntR
 	VERIFY_GL_SCOPE();
 
 	// Verify requirements, but don't crash
-	if (!ensure(FOpenGL::SupportsFloatReadSurface()) || !ensure(TextureRHI) || !ensure(TextureRHI->GetFormat() == PF_A32B32G32R32F))
+	// Ignore texture format here, GL will convert it for us in glReadPixels
+	if (!ensure(FOpenGL::SupportsFloatReadSurface()) || !ensure(TextureRHI))
 	{
 		return;
 	}
@@ -911,7 +912,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntR
 	}
 
 	// Get framebuffer for texture
-	uint32 MipmapLevel = 0;
+	const uint32 MipmapLevel = InFlags.GetMip();
 	GLuint SourceFramebuffer = GetOpenGLFramebuffer(1, &Texture, NULL, &MipmapLevel, NULL);
 
 	uint32 SizeX = Rect.Width();
@@ -983,7 +984,7 @@ void FOpenGLDynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI,F
 	FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(TextureRHI);
 	check(TextureRHI->GetFormat() == PF_FloatRGBA);
 
-	uint32 MipmapLevel = MipIndex;
+	const uint32 MipmapLevel = MipIndex;
 
 	// Temp FBO is introduced to prevent a ballooning of FBO objects, which can have a detrimental
 	// impact on object management performance in the driver, only for CubeMapArray presently

@@ -128,12 +128,12 @@ public:
 
 	/** Initialization constructor. */
 	FD3D11BoundShaderState(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
-		FVertexShaderRHIParamRef InVertexShaderRHI,
-		FPixelShaderRHIParamRef InPixelShaderRHI,
-		FHullShaderRHIParamRef InHullShaderRHI,
-		FDomainShaderRHIParamRef InDomainShaderRHI,
-		FGeometryShaderRHIParamRef InGeometryShaderRHI,
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
+		FRHIVertexShader* InVertexShaderRHI,
+		FRHIPixelShader* InPixelShaderRHI,
+		FRHIHullShader* InHullShaderRHI,
+		FRHIDomainShader* InDomainShaderRHI,
+		FRHIGeometryShader* InGeometryShaderRHI,
 		ID3D11Device* Direct3DDevice
 		);
 

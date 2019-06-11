@@ -128,22 +128,22 @@ struct FLpvBaseWriteShaderParams
 {
 	FLpvWriteUniformBufferRef		UniformBuffer;
 	FTextureRHIParamRef				LpvBufferSRVs[7];
-	FUnorderedAccessViewRHIParamRef LpvBufferUAVs[7];
+	FRHIUnorderedAccessView* LpvBufferUAVs[7];
 
-	FShaderResourceViewRHIParamRef	VplListHeadBufferSRV;
-	FUnorderedAccessViewRHIParamRef VplListHeadBufferUAV;
-	FShaderResourceViewRHIParamRef	VplListBufferSRV;
-	FUnorderedAccessViewRHIParamRef VplListBufferUAV;
+	FRHIShaderResourceView*	VplListHeadBufferSRV;
+	FRHIUnorderedAccessView* VplListHeadBufferUAV;
+	FRHIShaderResourceView*	VplListBufferSRV;
+	FRHIUnorderedAccessView* VplListBufferUAV;
 
 	FTextureRHIParamRef				GvBufferSRVs[3];
-	FUnorderedAccessViewRHIParamRef GvBufferUAVs[3];
+	FRHIUnorderedAccessView* GvBufferUAVs[3];
 
-	FShaderResourceViewRHIParamRef	GvListHeadBufferSRV;
-	FUnorderedAccessViewRHIParamRef GvListHeadBufferUAV;
-	FShaderResourceViewRHIParamRef	GvListBufferSRV;
-	FUnorderedAccessViewRHIParamRef GvListBufferUAV;
+	FRHIShaderResourceView*	GvListHeadBufferSRV;
+	FRHIUnorderedAccessView* GvListHeadBufferUAV;
+	FRHIShaderResourceView*	GvListBufferSRV;
+	FRHIUnorderedAccessView* GvListBufferUAV;
 
-	FUnorderedAccessViewRHIParamRef AOVolumeTextureUAV;
+	FRHIUnorderedAccessView* AOVolumeTextureUAV;
 	FTextureRHIParamRef				AOVolumeTextureSRV;
 };
 
@@ -190,11 +190,11 @@ public:
 
 	FTextureRHIParamRef GetLpvBufferSrv( int i )						{ return LpvVolumeTextures[ 1-mWriteBufferIndex ][i]->GetRenderTargetItem().ShaderResourceTexture; }
 
-	FUnorderedAccessViewRHIParamRef GetVplListBufferUav()				{ return mVplListBuffer->UAV; }
-	FUnorderedAccessViewRHIParamRef GetVplListHeadBufferUav()			{ return mVplListHeadBuffer->UAV; }
+	FRHIUnorderedAccessView* GetVplListBufferUav()				{ return mVplListBuffer->UAV; }
+	FRHIUnorderedAccessView* GetVplListHeadBufferUav()			{ return mVplListHeadBuffer->UAV; }
 
-	FUnorderedAccessViewRHIParamRef GetGvListBufferUav()				{ return GvListBuffer->UAV; }
-	FUnorderedAccessViewRHIParamRef GetGvListHeadBufferUav()			{ return GvListHeadBuffer->UAV; }
+	FRHIUnorderedAccessView* GetGvListBufferUav()				{ return GvListBuffer->UAV; }
+	FRHIUnorderedAccessView* GetGvListHeadBufferUav()			{ return GvListHeadBuffer->UAV; }
 
 	bool IsEnabled() const												{ return bEnabled;	}
 	bool IsDirectionalOcclusionEnabled() const							{ return bDirectionalOcclusionEnabled; }

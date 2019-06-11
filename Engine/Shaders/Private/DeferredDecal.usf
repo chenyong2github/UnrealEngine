@@ -30,6 +30,9 @@ float2 DecalParams;
 	#include "/Engine/Generated/Material.ush"
 #endif
 
+#if NUM_VIRTUALTEXTURE_SAMPLES
+	RWTexture2D<uint> VTFeedbackBuffer : register(VT_FEEDBACK_REGISTER); //MUST match FDecalRenderTargetManager::VirtualTextureFeedbackIndex
+#endif
 
 // from component to clip space (for decal frustum)
 float4x4 FrustumComponentToClip;
@@ -312,6 +315,16 @@ void FPixelShaderInOut_MainPS(inout FPixelShaderIn In, inout FPixelShaderOut Out
 	GBufferData.PerObjectGBufferData = 1; 
 
 	DecalCommonOutput(In, Out, Color, Opacity, GBufferData);
+
+#if NUM_VIRTUALTEXTURE_SAMPLES
+	FinalizeVirtualTextureFeedback(
+		MaterialParameters.VirtualTextureFeedback,
+		MaterialParameters.SvPosition,
+		Opacity,
+		View.FrameNumber,
+		VTFeedbackBuffer
+	);
+#endif
 }
 
 

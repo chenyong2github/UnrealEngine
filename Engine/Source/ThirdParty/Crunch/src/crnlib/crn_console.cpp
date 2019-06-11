@@ -80,8 +80,8 @@ void console::vprintf(eConsoleMessageType type, const char* p, va_list args) {
 
   if ((!m_output_disabled) && (!handled)) {
     if (pPrefix)
-      ::printf("%s", pPrefix);
-    ::printf(m_crlf ? "%s\n" : "%s", buf);
+      ::wprintf(L"%hs", pPrefix);
+    ::wprintf(m_crlf ? L"%hs\n" : L"%hs", buf);
   }
 
   uint n = strlen(buf);

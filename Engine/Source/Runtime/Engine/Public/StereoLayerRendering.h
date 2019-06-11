@@ -34,7 +34,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, FVector2D QuadSize, FBox2D UVRect, const FMatrix& ViewProjection, const FMatrix& World)
 	{
-		FVertexShaderRHIParamRef VS = GetVertexShader();
+		FRHIVertexShader* VS = GetVertexShader();
 
 		if (InQuadAdjust.IsBound())
 		{
@@ -85,9 +85,9 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 
-	void SetParameters(FRHICommandList& RHICmdList, FSamplerStateRHIParamRef SamplerStateRHI, FTextureRHIParamRef TextureRHI)
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FTextureRHIParamRef TextureRHI)
 	{
-		FPixelShaderRHIParamRef PS = GetPixelShader();
+		FRHIPixelShader* PS = GetPixelShader();
 
 		SetTextureParameter(RHICmdList, PS, InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
 	}

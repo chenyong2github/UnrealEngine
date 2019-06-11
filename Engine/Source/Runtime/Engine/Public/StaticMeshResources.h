@@ -769,16 +769,38 @@ public:
 	/** Sets up a wireframe FMeshBatch for a specific LOD. */
 	virtual bool GetWireframeMeshElement(int32 LODIndex, int32 BatchIndex, const FMaterialRenderProxy* WireframeRenderProxy, uint8 InDepthPriorityGroup, bool bAllowPreCulledIndices, FMeshBatch& OutMeshBatch) const;
 
+	/** Sets up a collision FMeshBatch for a specific LOD and element. */
+	virtual bool GetCollisionMeshElement(
+		int32 LODIndex,
+		int32 BatchIndex,
+		int32 ElementIndex,
+		uint8 InDepthPriorityGroup,
+		const FMaterialRenderProxy* RenderProxy,
+		FMeshBatch& OutMeshBatch) const;
+
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override
 	{
 		return GetCurrentFirstLODIdx_Internal();
 	}
 
 protected:
-	/**
-	 * Sets IndexBuffer, FirstIndex and NumPrimitives of OutMeshElement.
-	 */
-	virtual void SetIndexSource(int32 LODIndex, int32 ElementIndex, FMeshBatch& OutMeshElement, bool bWireframe, bool bRequiresAdjacencyInformation, bool bUseInversedIndices, bool bAllowPreCulledIndices) const;
+	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
+	uint32 SetMeshElementGeometrySource(
+		int32 LODIndex,
+		int32 ElementIndex,
+		bool bWireframe,
+		bool bRequiresAdjacencyInformation,
+		bool bUseInversedIndices,
+		bool bAllowPreCulledIndices,
+		const FVertexFactory* VertexFactory,
+		FMeshBatch& OutMeshElement) const;
+
+	/** Sets the screen size on a mesh element. */
+	void SetMeshElementScreenSize(int32 LODIndex, bool bDitheredLODTransition, FMeshBatch& OutMeshBatch) const;
+
+	/** Returns whether this mesh needs reverse culling when using reversed indices. */
+	bool IsReversedCullingNeeded(bool bUseReversedIndices) const;
+
 	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
 
 	/** Only call on render thread timeline */

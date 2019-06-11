@@ -63,7 +63,13 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 	{
 		FVertexFactoryInput Input = LoadVertexFactoryInput(VertexIndex / 3, VertexIndex % 3);
 		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
-		float3 WorldPosition = (VertexFactoryGetWorldPosition(Input, VFIntermediates) - float4(ResolvedView.PreViewTranslation, 0.0f)).xyz;
+		float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
+		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
+
+		WorldPosition.xyz -= ResolvedView.PreViewTranslation;
+		WorldPosition.xyz += GetMaterialWorldPositionOffset(VertexParameters);
+
 		RWVertexPositions[VertexIndex * 3 + 0] = WorldPosition.x;
 		RWVertexPositions[VertexIndex * 3 + 1] = WorldPosition.y;
 		RWVertexPositions[VertexIndex * 3 + 2] = WorldPosition.z;

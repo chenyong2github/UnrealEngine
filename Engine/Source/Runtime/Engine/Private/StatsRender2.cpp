@@ -580,7 +580,9 @@ static int32 RenderCounter( const FGameThreadStatsData& ViewData, const FComplex
 	const bool bDisplayAll = All.NameAndInfo.GetFlag(EStatMetaFlags::ShouldClearEveryFrame);
 
 	// Draw the label
-	Canvas->DrawShadowedString(X, Y, *ShortenName(*All.GetDescription()), Globals.StatFont, Globals.StatColor);
+	const FString StatDesc = All.GetDescription();
+	const FString StatDisplay = StatDesc.Len() == 0 ? All.GetShortName().GetPlainNameString() : StatDesc;
+	Canvas->DrawShadowedString(X, Y, *ShortenName(*StatDisplay), Globals.StatFont, Globals.StatColor);
 	int32 CurrX = X + Globals.AfterNameColumnOffset;
 
 	if( bDisplayAll )

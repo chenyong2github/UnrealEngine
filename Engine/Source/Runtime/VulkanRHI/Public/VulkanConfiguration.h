@@ -173,6 +173,13 @@
 	#define VULKAN_SUPPORTS_DEBUG_UTILS							0
 #endif
 
+#ifdef VK_EXT_memory_priority
+#define VULKAN_SUPPORTS_MEMORY_PRIORITY							1
+#else
+#define VULKAN_SUPPORTS_MEMORY_PRIORITY							0
+#endif
+
+
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVulkanRHI, Log, All);
 

@@ -8,6 +8,7 @@
 #include "MaterialShared.h"
 #include "Engine/Scene.h"
 #include "PrimitiveUniformShaderParameters.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 
 class FLightCacheInterface;
 
@@ -194,6 +195,11 @@ struct FMeshBatch
 	/** Whether the mesh batch should apply dithered LOD. */
 	uint32 bDitheredLODTransition : 1;
 
+	/** Whether the mesh batch can be rendered to virtual textures. */
+	uint32 bRenderToVirtualTexture : 1;
+	/** What virtual texture material type this mesh batch should be rendered with. */
+	uint32 RuntimeVirtualTextureMaterialType : ERuntimeVirtualTextureMaterialType_NumBits;
+
 	// can be NULL
 	const FLightCacheInterface* LCI;
 
@@ -292,6 +298,8 @@ struct FMeshBatch
 	,	bSelectable(true)
 	,	bRequiresPerElementVisibility(false)
 	,	bDitheredLODTransition(false)
+	,	bRenderToVirtualTexture(false)
+	,	RuntimeVirtualTextureMaterialType(0)
 	,	LCI(NULL)
 	,	VertexFactory(NULL)
 	,	MaterialRenderProxy(NULL)

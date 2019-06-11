@@ -45,6 +45,9 @@ FStaticLightingTextureMapping(
 
 void FLandscapeStaticLightingTextureMapping::Apply(FQuantizedLightmapData* QuantizedData, const TMap<ULightComponent*,FShadowMapData2D*>& ShadowMapData, ULevel* LightingScenario)
 {
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel);
+
 	//ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
 	ELightMapPaddingType PaddingType = LMPT_NoPadding;
 
@@ -61,9 +64,11 @@ void FLandscapeStaticLightingTextureMapping::Apply(FQuantizedLightmapData* Quant
 	if (bNeedsLightMap)
 	{
 		// Create a light-map for the primitive.
+		TMap<ULightComponent*, FShadowMapData2D*> EmptyShadowMapData;
 		MeshBuildData.LightMap = FLightMap2D::AllocateLightMap(
 			Registry,
 			QuantizedData,
+			bUseVirtualTextures ? ShadowMapData : EmptyShadowMapData,
 			LandscapeComponent->Bounds,
 			PaddingType,
 			LMF_Streamed
@@ -74,7 +79,7 @@ void FLandscapeStaticLightingTextureMapping::Apply(FQuantizedLightmapData* Quant
 		MeshBuildData.LightMap = NULL;
 	}
 
-	if (ShadowMapData.Num() > 0)
+	if (ShadowMapData.Num() > 0 && !bUseVirtualTextures)
 	{
 		MeshBuildData.ShadowMap = FShadowMap2D::AllocateShadowMap(
 			Registry,

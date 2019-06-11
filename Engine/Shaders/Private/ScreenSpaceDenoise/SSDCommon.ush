@@ -6,14 +6,40 @@
 
 #pragma once
 
+#if !defined(SPHERICAL_HARMONIC_ORDER)
+	#define SPHERICAL_HARMONIC_ORDER 0
+#endif
+
 #include "../Common.ush"
-#include "../SceneViewFamilyBlackboard.ush"
+#include "../SceneTextureParameters.ush"
 #include "../ColorSpace.ush"
 #include "../SphericalGaussian.ush"
+
+#if SPHERICAL_HARMONIC_ORDER > 0
+	#include "../SHCommon.ush"
+#endif
+
+#include "SSDPublic.ush"
 #include "SSDDefinitions.ush"
 
 
-#define FIX_UNROLL(N) [unroll(N)]
+//------------------------------------------------------- SHARED CONSTANTS DEPENDING ON CONFIG OF SHADER
+
+#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+	#define TARGETED_SAMPLE_COUNT 128
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO || CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	// A gray scale valued encoded into a 16bit float only have 10bits mantissa.
+	#define TARGETED_SAMPLE_COUNT 1024
+
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
+	// Indirect diffuse requires really large spatial kernel to clean the noise.
+	#define TARGETED_SAMPLE_COUNT 4096
+
+#else
+	#error Unconfigured TARGETED_SAMPLE_COUNT
+
+#endif
 
 
 //------------------------------------------------------- SHARED SHADER PARAMETERS
@@ -33,10 +59,29 @@ float SafeRcp(float x)
 	return 0;
 }
 
+//------------------------------------------------------- SPHERICAL HARMONIC INTERFACE
+
+#if SPHERICAL_HARMONIC_ORDER == 0
+	// NOP
+
+#elif SPHERICAL_HARMONIC_ORDER == 2
+typedef FTwoBandSHVector FSSDSphericalHarmonic;
+typedef FTwoBandSHVectorRGB FSSDSphericalHarmonicRGB;
+
+#elif SPHERICAL_HARMONIC_ORDER == 3
+typedef FThreeBandSHVector FSSDSphericalHarmonic;
+typedef FThreeBandSHVectorRGB FSSDSphericalHarmonicRGB;
+
+#else
+	#error Unknown spherical harmonic configuration.
+
+#endif
+
+
 //------------------------------------------------------- COMMON SCENE INFOS
 
 /** olds commonly used information of the scene of a given sample. */
-struct FSSFSampleSceneInfos
+struct FSSDSampleSceneInfos
 {
 	/** Normal of the pixel in world space. */
 	float3 WorldNormal;
@@ -51,9 +96,9 @@ struct FSSFSampleSceneInfos
 	float Roughness;
 };
 
-FSSFSampleSceneInfos CreateSampleSceneInfos()
+FSSDSampleSceneInfos CreateSampleSceneInfos()
 {
-	FSSFSampleSceneInfos Infos;
+	FSSDSampleSceneInfos Infos;
 	Infos.WorldNormal             = 0;
 	Infos.TranslatedWorldPosition = 0;
 	Infos.WorldDepth              = 0;
@@ -61,11 +106,11 @@ FSSFSampleSceneInfos CreateSampleSceneInfos()
 	return Infos;
 }
 
-FSSFSampleSceneInfos InitSampleSceneInfos(
+FSSDSampleSceneInfos InitSampleSceneInfos(
 	float4x4 ScreenToTranslatedWorld,
 	float2 ScreenPosition, float WorldDepth, float3 WorldNormal, float Roughness)
 {
-	FSSFSampleSceneInfos Infos;
+	FSSDSampleSceneInfos Infos;
 
 	float2 ClipPosition = ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f);
 	Infos.TranslatedWorldPosition = mul(float4(ClipPosition, WorldDepth, 1), ScreenToTranslatedWorld).xyz;
@@ -75,22 +120,22 @@ FSSFSampleSceneInfos InitSampleSceneInfos(
 	return Infos;
 }
 
-FSSFSampleSceneInfos FetchCurrentSceneInfos(float2 ScreenPosition, float2 BufferUV)
+FSSDSampleSceneInfos FetchCurrentSceneInfos(float2 ScreenPosition, float2 BufferUV)
 {
-	FGBufferData GBufferData = GetGBufferDataFromSceneBlackboard(BufferUV);
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
 	return InitSampleSceneInfos(
 		View.ScreenToTranslatedWorld,
 		ScreenPosition, GBufferData.Depth, GBufferData.WorldNormal, GBufferData.Roughness);
 }
 
-FSSFSampleSceneInfos FetchPrevSceneInfos(float2 ScreenPosition, float2 BufferUV)
+FSSDSampleSceneInfos FetchPrevSceneInfos(float2 ScreenPosition, float2 BufferUV)
 {
 	// TODO: so what to do with mip level of these guys?
 	float WorldSceneDepth = ConvertFromDeviceZ(PrevDepthBuffer.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).r);
 	float3 WorldNormal = DecodeNormal(PrevGBufferA.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).rgb);
 	float Roughness = PrevGBufferB.SampleLevel(GlobalPointClampedSampler, BufferUV, 0).b;
 
-	FSSFSampleSceneInfos OutMetadata;
+	FSSDSampleSceneInfos OutMetadata;
 	OutMetadata = InitSampleSceneInfos(
 		View.PrevScreenToTranslatedWorld,
 		ScreenPosition, WorldSceneDepth, WorldNormal, Roughness);
@@ -100,19 +145,19 @@ FSSFSampleSceneInfos FetchPrevSceneInfos(float2 ScreenPosition, float2 BufferUV)
 	return OutMetadata;
 }
 
-float ProjectWorldDistanceToScreenDistance(FSSFSampleSceneInfos SceneMetadata, float WorldDistance)
+float ProjectWorldDistanceToScreenDistance(FSSDSampleSceneInfos SceneMetadata, float WorldDistance)
 {
 	float4 ClipDistance = mul(View.ViewToClipNoAA, float4(WorldDistance, 0, SceneMetadata.WorldDepth, 1));
 	return ClipDistance.x / ClipDistance.w;
 }
 
-float ProjectWorldDistanceToPixelDistance(FSSFSampleSceneInfos SceneMetadata, float WorldDistance)
+float ProjectWorldDistanceToPixelDistance(FSSDSampleSceneInfos SceneMetadata, float WorldDistance)
 {
 	return WorldDistance * View.ViewSizeAndInvSize.x * 0.5 / (SceneMetadata.WorldDepth * GetTanHalfFieldOfView().x);
 }
 
 /** Compute the anisotropy value. The lower the value is, the more anysotropic the sample is. */
-float ComputeAnisotropyInvFactor(FSSFSampleSceneInfos SceneMetadata)
+float ComputeAnisotropyInvFactor(FSSDSampleSceneInfos SceneMetadata)
 {
 	if (!CONFIG_NORMAL_ANISOTROPY)
 	{
@@ -125,7 +170,7 @@ float ComputeAnisotropyInvFactor(FSSFSampleSceneInfos SceneMetadata)
 }
 
 /** Return whether this signal should store in given mip level. */
-float ComputeSignalMipLevel(FSSFSampleSceneInfos SceneMetadata, float WorldBluringRadius)
+float ComputeSignalMipLevel(FSSDSampleSceneInfos SceneMetadata, float WorldBluringRadius)
 {
 	if (WorldBluringRadius == WORLD_RADIUS_INVALID)
 	{
@@ -153,7 +198,7 @@ float ComputeSignalMipLevel(FSSFSampleSceneInfos SceneMetadata, float WorldBluri
 
 /** Returns the radius of a pixel in world space. */
 // TODO: move that to CPU
-float ComputeWorldBluringRadiusCausedByPixelSize(FSSFSampleSceneInfos SceneMetadata)
+float ComputeWorldBluringRadiusCausedByPixelSize(FSSDSampleSceneInfos SceneMetadata)
 {
 	// Should be multiplied 0.5* for the diameter to radius, and by 2.0 because GetTanHalfFieldOfView() cover only half of the pixels.
 	return (View.ViewSizeAndInvSize.z * GetTanHalfFieldOfView().x) * SceneMetadata.WorldDepth;

@@ -285,6 +285,12 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 		case VMI_HLODColoration:
 			bPostProcessing = true;
 			break;
+		case VMI_RayTracingDebug:
+			bPostProcessing = true;
+			break;
+		case VMI_PathTracing:
+			bPostProcessing = true;
+			break;
 	}
 
 	if(!bPerspective)
@@ -318,6 +324,8 @@ void ApplyViewMode(EViewModeIndex ViewModeIndex, bool bPerspective, FEngineShowF
 	EngineShowFlags.SetCollisionVisibility(ViewModeIndex == VMI_CollisionVisibility);
 	EngineShowFlags.SetLODColoration(ViewModeIndex == VMI_LODColoration);
 	EngineShowFlags.SetHLODColoration(ViewModeIndex == VMI_HLODColoration);
+	EngineShowFlags.SetRayTracingDebug(ViewModeIndex == VMI_RayTracingDebug);
+	EngineShowFlags.SetPathTracing(ViewModeIndex == VMI_PathTracing);
 }
 
 void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex ViewModeIndex, FEngineShowFlags& EngineShowFlags, bool bCanDisableTonemapper)
@@ -474,11 +482,21 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		if (ViewModeIndex == VMI_RayTracingDebug)
 		{
 			EngineShowFlags.SetRayTracingDebug(true);
+			EngineShowFlags.SetVisualizeHDR(false);
+			EngineShowFlags.SetVisualizeBloom(false);
+			EngineShowFlags.SetVisualizeMotionBlur(false);
+			EngineShowFlags.SetDepthOfField(false);
+			EngineShowFlags.SetPostProcessMaterial(false);
+
+			if (bCanDisableTonemapper)
+			{
+				EngineShowFlags.SetTonemapper(false);
+			}
 		}
 	}
 
 	// disable AA in full screen GBuffer visualization
-	if (bCanDisableTonemapper && (EngineShowFlags.VisualizeBuffer || ViewModeIndex == VMI_RayTracingDebug ))
+	if (bCanDisableTonemapper && EngineShowFlags.VisualizeBuffer)
 	{
 		EngineShowFlags.SetTonemapper(false);
 	}
@@ -686,6 +704,8 @@ const TCHAR* GetViewModeName(EViewModeIndex ViewModeIndex)
 		case VMI_LitLightmapDensity:		return TEXT("LitLightmapDensity");
 		case VMI_ReflectionOverride:		return TEXT("ReflectionOverride");
 		case VMI_VisualizeBuffer:			return TEXT("VisualizeBuffer");
+		case VMI_RayTracingDebug:			return TEXT("RayTracingDebug");
+		case VMI_PathTracing:				return TEXT("PathTracing");
 		case VMI_CollisionPawn:				return TEXT("CollisionPawn");
 		case VMI_CollisionVisibility:		return TEXT("CollisionVis");
 		case VMI_LODColoration:				return TEXT("LODColoration");

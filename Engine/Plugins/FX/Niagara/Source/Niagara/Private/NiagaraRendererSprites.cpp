@@ -173,7 +173,7 @@ void FNiagaraRendererSprites::CreateRenderThreadResources(NiagaraEmitterInstance
 		Initializer.VertexBufferByteOffset = 0;
 		Initializer.TotalPrimitiveCount = 0;
 		Initializer.VertexBufferElementType = VET_Float3;
-		Initializer.PrimitiveType = PT_TriangleList;
+		Initializer.GeometryType = RTGT_Triangles;
 		Initializer.bFastBuild = true;
 		Initializer.bAllowUpdate = false;
 		RayTracingGeometry.SetInitializer(Initializer);
@@ -198,7 +198,7 @@ void FNiagaraRendererSprites::ConditionalInitPrimitiveUniformBuffer(const FNiaga
 			false,
 			SceneProxy->UseSingleSampleShadowFromStationaryLights(),
 			SceneProxy->GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			SceneProxy->UseEditorDepthTest(),
+			SceneProxy->DrawsVelocity(),
 			SceneProxy->GetLightingChannelMask(),
 			0,
 			INDEX_NONE,
@@ -350,7 +350,7 @@ void FNiagaraRendererSprites::SetVertexFactoryParticleData(
 
 		int32 NumInstances = SourceParticleData->GetNumInstances();
 		FNiagaraGPUSortInfo SortInfo;
-		if (View && SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent))
+		if (View && SortMode != ENiagaraSortMode::None && (BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout|| BlendMode == BLEND_Translucent || !bSortOnlyWhenTranslucent))
 		{
 			SortInfo.ParticleCount = NumInstances;
 			SortInfo.SortMode = SortMode;
@@ -483,6 +483,9 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 
 	MeshBatch.VertexFactory = &CollectorResources.VertexFactory;
 	MeshBatch.CastShadow = SceneProxy->CastsDynamicShadow();
+#if RHI_RAYTRACING
+	MeshBatch.CastRayTracedShadow = SceneProxy->CastsDynamicShadow();
+#endif
 	MeshBatch.bUseAsOccluder = false;
 	MeshBatch.ReverseCulling = SceneProxy->IsLocalToWorldDeterminantNegative();
 	MeshBatch.Type = PT_TriangleList;
@@ -635,14 +638,18 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		RayTracingInstance.Materials.Add(MeshBatch);
 
 		// Update dynamic ray tracing geometry
-		Context.DynamicRayTracingGeometriesToUpdate.AddDynamicMeshBatchForGeometryUpdate(
-			Context.Scene,
-			Context.ReferenceView,
-			SceneProxy,
-			MeshBatch,
-			RayTracingGeometry,
-			6 * SourceParticleData->GetNumInstances(),
-			RayTracingDynamicVertexBuffer);
+		Context.DynamicRayTracingGeometriesToUpdate.Add(
+			FRayTracingDynamicGeometryUpdateParams
+			{
+				MeshBatch,
+				MeshBatch.Elements[0].NumPrimitives == 0,
+				6 *  SourceParticleData->GetNumInstances(),
+				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
+				2 *  SourceParticleData->GetNumInstances(),
+				&RayTracingGeometry,
+				&RayTracingDynamicVertexBuffer
+			}
+		);
 	}
 
 	RayTracingInstance.BuildInstanceMaskAndFlags();

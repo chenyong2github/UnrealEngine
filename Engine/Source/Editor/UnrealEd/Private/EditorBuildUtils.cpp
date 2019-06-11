@@ -1080,6 +1080,8 @@ EDebugViewShaderMode ViewModeIndexToDebugViewShaderMode(EViewModeIndex SelectedV
 		return DVSM_MaterialTextureScaleAccuracy;
 	case VMI_RequiredTextureResolution:
 		return DVSM_RequiredTextureResolution;
+	case VMI_RayTracingDebug:
+		return DVSM_RayTracingDebug;
 	case VMI_Unknown:
 	default :
 		return DVSM_None;
@@ -1198,7 +1200,7 @@ bool FEditorBuildUtils::EditorBuildMaterialTextureStreamingData(UPackage* Packag
 				FMaterialResource* Resource = Material->GetMaterialResource(FeatureLevel);
 				if (Resource)
 				{
-					Resource->CacheShaders(GMaxRHIShaderPlatform, false);
+					Resource->CacheShaders(GMaxRHIShaderPlatform);
 					Materials.Add(Material);
 				}
 			}
@@ -1385,7 +1387,7 @@ bool FEditorBuildUtils::CompileShadersComplexityViewMode(EMaterialQualityLevel::
 
 		FMaterialShaderMapId ResourceId;
 		SpecialResource->GetShaderMapId(ShaderPlatform, ResourceId);
-		SpecialResource->CacheShaders(ResourceId, ShaderPlatform, false);
+		SpecialResource->CacheShaders(ResourceId, ShaderPlatform);
 
 		OfflineShaderResources.Add(SpecialResource);
 	}

@@ -19,6 +19,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "AI/Navigation/NavRelevantInterface.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 #include "PrimitiveComponent.generated.h"
 
 class AController;
@@ -545,6 +546,7 @@ public:
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
 	 * Translucent objects with the same priority are rendered from back-to-front based on their bounds origin.
+	 * This setting is also used to sort objects being drawn into a runtime virtual texture.
 	 *
 	 * Ignored if the object is not translucent.  The default priority is zero.
 	 * Warning: This should never be set to a non-default value unless you know what you are doing, as it will prevent the renderer from sorting correctly.  
@@ -556,6 +558,22 @@ public:
 	/** Used for precomputed visibility */
 	UPROPERTY()
 	int32 VisibilityId;
+
+	/** 
+	 * Array of runtime virtual textures into which we render the mesh for this actor. 
+	 * The material also needs to be set up to output to a virtual texture. 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+
+	/** Render to the main pass based on the virtual texture settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Exclusive;
+
+	/** Get the array of runtime virtual textures into which we render the mesh for this actor. */
+	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const { return RuntimeVirtualTextures; }
+	/** Get the runtime virtual texture pass settings. */
+	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const { return VirtualTextureRenderPassType; }
 
 	/** Used by the renderer, to identify a component across re-registers. */
 	FPrimitiveComponentId ComponentId;

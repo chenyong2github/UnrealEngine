@@ -80,7 +80,7 @@ public:
 		return  false;
 	}
 
-	virtual const TArray<UTexture*>& GetReferencedTextures() const override
+	virtual const TArray<UObject*>& GetReferencedTextures() const override
 	{
 		return ReferencedTextures;
 	}
@@ -170,7 +170,7 @@ private:
 	/** The material interface for this proxy */
 	UMaterialInterface* MaterialInterface;
 	UMaterial* Material;	
-	TArray<UTexture*> ReferencedTextures;
+	TArray<UObject*> ReferencedTextures;
 	EMaterialShaderMapUsage::Type Usage;
 	EDebugViewShaderMode DebugViewMode;
 	const TCHAR* PixelShaderName;

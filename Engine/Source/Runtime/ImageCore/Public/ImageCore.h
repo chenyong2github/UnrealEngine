@@ -92,6 +92,18 @@ public:
 	IMAGECORE_API void CopyTo(FImage& DestImage, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const;
 
 	/**
+	 * Copies and resizes the image to a destination image with the specified size and format.
+	 * Resize is done using bilinear filtering
+	 *
+	 * @param DestImage - The destination image.
+	 * @param DestSizeX - Width of the resized image
+	 * @param DestSizeY - Height of the resized image
+	 * @param DestFormat - The destination image format.
+	 * @param DestSRGB - Whether the destination image is in SRGB format.
+	 */
+	IMAGECORE_API void ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawImageFormat::Type DestFormat, EGammaSpace DestGammaSpace) const;
+
+	/**
 	 * Gets the number of bytes per pixel.
 	 *
 	 * @return Bytes per pixel.

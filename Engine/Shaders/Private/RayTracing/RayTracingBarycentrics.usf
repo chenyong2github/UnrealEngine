@@ -6,32 +6,22 @@
 RWTexture2D<float4> Output;
 RaytracingAccelerationStructure TLAS;
 
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
-
-struct FBarycentricsPayload
+struct FBarycentricsPayload : FMinimalPayload
 {
 	float2 Barycentrics;
-	bool Hit;
 };
 
 
 [shader("raygeneration")]
 void RayTracingBarycentricsMainRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
 	RayDesc Ray;
 
-	Ray.Origin = ReconstructWorldPositionFromDepth(RenderTargetUV, 0.0f);
+	Ray.Origin = View.WorldCameraOrigin;
 	Ray.Direction = normalize(ReconstructWorldPositionFromDepth(RenderTargetUV, 10000.f) - Ray.Origin);
 	Ray.TMin = 0.5f; // 1 unit in UE4 = 1 cm -0> 0.5 ==> 5 mm
 	Ray.TMax = 1e27f;
@@ -54,22 +44,16 @@ void RayTracingBarycentricsMainRGS()
 	);
 
 	float4 Result = float4(0, 0, 0, 1);
-	if (Payload.Hit)
+	if (Payload.IsHit())
 	{
 		Result = float4(Payload.Barycentrics, 1.0f - Payload.Barycentrics.x - Payload.Barycentrics.y, 1.0f);
 	}
-	Output[PixelCoord] = Result;
-}
-
-[shader("miss")]
-void RayTracingBarycentricsMainMS(inout FBarycentricsPayload Payload)
-{
-	Payload.Hit = false;
+	Output[PixelCoord] = Result * View.PreExposure;
 }
 
 [shader("closesthit")]
 void RayTracingBarycentricsMainCHS(inout FBarycentricsPayload Payload, in FDefaultAttributes Attributes)
 {
 	Payload.Barycentrics = Attributes.Barycentrics;
-	Payload.Hit = true;
+	Payload.HitT = RayTCurrent();
 }

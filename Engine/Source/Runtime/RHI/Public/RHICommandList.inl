@@ -17,7 +17,6 @@ FORCEINLINE_DEBUGGABLE void FRHICommandListBase::Flush()
 {
 	if (HasCommands())
 	{
-		check(!DrawUPData.OutVertexData && !DrawUPData.OutIndexData);
 		check(!IsImmediate());
 		GRHICommandList.ExecuteList(*this);
 	}
@@ -67,7 +66,6 @@ namespace PipelineStateCache
 
 FORCEINLINE_DEBUGGABLE void FRHICommandListImmediate::ImmediateFlush(EImmediateFlushType::Type FlushType)
 {
-	check(!DrawUPData.OutVertexData && !DrawUPData.OutIndexData);
 	switch (FlushType)
 	{
 	case EImmediateFlushType::WaitForOutstandingTasksOnly:
