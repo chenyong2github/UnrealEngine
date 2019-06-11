@@ -66,9 +66,9 @@ public:
 	// Data includes what we need for transform and everything in local vertex factory too
 	struct FDataType : public FLocalVertexFactory::FDataType
 	{
-		FShaderResourceViewRHIParamRef InstanceTransformSRV = nullptr;
-		FShaderResourceViewRHIParamRef InstancePrevTransformSRV = nullptr;
-		FShaderResourceViewRHIParamRef InstanceBoneMapSRV = nullptr;
+		FRHIShaderResourceView* InstanceTransformSRV = nullptr;
+		FRHIShaderResourceView* InstancePrevTransformSRV = nullptr;
+		FRHIShaderResourceView* InstanceBoneMapSRV = nullptr;
 	};
 
 	//
@@ -144,27 +144,27 @@ public:
 		return ShaderFrequency == SF_Vertex ? new FGeometryCollectionVertexFactoryShaderParameters() : NULL;
 	}
 
-	inline void SetInstanceTransformSRV(FShaderResourceViewRHIParamRef InstanceTransformSRV)
+	inline void SetInstanceTransformSRV(FRHIShaderResourceView* InstanceTransformSRV)
 	{
 		Data.InstanceTransformSRV = InstanceTransformSRV;
 	}
 	
-	inline const FShaderResourceViewRHIParamRef GetInstanceTransformSRV() const
+	inline const FRHIShaderResourceView* GetInstanceTransformSRV() const
 	{
 		return Data.InstanceTransformSRV;
 	}
 
-	inline void SetInstancePrevTransformSRV(FShaderResourceViewRHIParamRef InstancePrevTransformSRV)
+	inline void SetInstancePrevTransformSRV(FRHIShaderResourceView* InstancePrevTransformSRV)
 	{
 		Data.InstancePrevTransformSRV = InstancePrevTransformSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetInstancePrevTransformSRV() const
+	inline const FRHIShaderResourceView* GetInstancePrevTransformSRV() const
 	{
 		return Data.InstancePrevTransformSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetInstanceBoneMapSRV() const
+	inline const FRHIShaderResourceView* GetInstanceBoneMapSRV() const
 	{
 		return Data.InstanceBoneMapSRV;
 	}
