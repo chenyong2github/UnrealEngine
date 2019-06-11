@@ -233,6 +233,16 @@ namespace UnrealBuildTool
 		public bool bCreateHotPatchableImage = false;
 
 		/// <summary>
+		/// Strip unreferenced symbols (/OPT:REF)
+		/// </summary>
+		public bool bStripUnreferencedSymbols = false;
+
+		/// <summary>
+		/// Merge identical COMDAT sections together (/OPT:ICF)
+		/// </summary>
+		public bool bMergeIdenticalCOMDATs = false;
+
+		/// <summary>
 		/// Whether to put global symbols in their own sections (/Gw), allowing the linker to discard any that are unused.
 		/// </summary>
 		public bool bOptimizeGlobalData = true;
@@ -440,6 +450,16 @@ namespace UnrealBuildTool
 			get { return Inner.bCreateHotPatchableImage; }
 		}
 
+		public bool bStripUnreferencedSymbols
+		{
+			get { return Inner.bStripUnreferencedSymbols; }
+		}
+
+		public bool bMergeIdenticalCOMDATs
+		{
+			get { return Inner.bMergeIdenticalCOMDATs; }
+		}
+
 		public bool bOptimizeGlobalData
 		{
 			get { return Inner.bOptimizeGlobalData; }
@@ -591,6 +611,11 @@ namespace UnrealBuildTool
 			{
 				Target.bWithLiveCoding = true;
 				Target.WindowsPlatform.bCreateHotPatchableImage = true;
+			}
+			else if (Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping)
+			{
+				Target.WindowsPlatform.bStripUnreferencedSymbols = true;
+				Target.WindowsPlatform.bMergeIdenticalCOMDATs = true;
 			}
 		}
 

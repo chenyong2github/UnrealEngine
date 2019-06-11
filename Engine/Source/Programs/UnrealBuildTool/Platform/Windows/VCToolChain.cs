@@ -786,22 +786,25 @@ namespace UnrealBuildTool
 			{
 				// Generate an EXE checksum.
 				Arguments.Add("/RELEASE");
-
-				// Eliminate unreferenced symbols.
-				Arguments.Add("/OPT:REF");
-
-				// Remove redundant COMDATs.
-				Arguments.Add("/OPT:ICF");
 			}
-			//
-			//	Regular development binary. 
-			//
+
+			// Eliminate unreferenced symbols.
+			if (Target.WindowsPlatform.bStripUnreferencedSymbols)
+			{
+				Arguments.Add("/OPT:REF");
+			}
 			else
 			{
-				// Keep symbols that are unreferenced.
 				Arguments.Add("/OPT:NOREF");
+			}
 
-				// Disable identical COMDAT folding.
+			// Identical COMDAT folding
+			if (Target.WindowsPlatform.bMergeIdenticalCOMDATs)
+			{
+				Arguments.Add("/OPT:ICF");
+			}
+			else
+			{
 				Arguments.Add("/OPT:NOICF");
 			}
 
