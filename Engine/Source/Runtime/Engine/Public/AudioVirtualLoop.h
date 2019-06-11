@@ -17,8 +17,18 @@ private:
 
 	FActiveSound* ActiveSound;
 
+	/**
+	  * Check if provided active sound is in audible range.
+	  */
+	static bool IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice = nullptr);
+
 public:
 	FAudioVirtualLoop();
+
+	/**
+	 * Check to see if listener move is far enough such that a check for virtual loop realization is necessary
+	 */
+	static bool ShouldListenerMoveForceUpdate(const FTransform& LastTransform, const FTransform& CurrentTransform);
 
 	/**
 	 * Checks if provided active sound is available to be virtualized.  If so, returns new active sound ready to be
@@ -48,11 +58,6 @@ public:
 	const FActiveSound& GetActiveSound() const;
 
 	/**
-	 * Check if provided active sound is in audible range.
-	 */
-	static bool IsInAudibleRange(const FActiveSound& InActiveSound, const FAudioDevice* InAudioDevice = nullptr);
-
-	/**
 	 * Overrides the update interval to the provided length.
 	 */
 	void CalculateUpdateInterval();
@@ -61,5 +66,5 @@ public:
 	  * Updates the loop and checks if ready to play (or 'realize').
 	  * Returns whether or not the sound is ready to be realized.
 	  */
-	bool CanRealize(float DeltaTime);
+	bool CanRealize(float DeltaTime, bool bForceUpdate);
 };

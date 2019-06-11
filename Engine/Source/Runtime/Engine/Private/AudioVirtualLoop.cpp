@@ -21,6 +21,13 @@ FAutoConsoleVariableRef CVarVirtualLoopsPerfDistance(
 	TEXT("Sets virtual loop distance to scale update rate between min and max beyond max audible distance of sound.\n"),
 	ECVF_Default);
 
+static float VirtualLoopsForceUpdateListenerMoveDistanceCVar = 2500.0f;
+FAutoConsoleVariableRef CVarVirtualLoopsForceUpdateListenerMoveDistance(
+	TEXT("au.VirtualLoops.ForceUpdateListenerMoveDistance"),
+	VirtualLoopsForceUpdateListenerMoveDistanceCVar,
+	TEXT("Sets distance threshold required to force an update to check for virtualized sounds to realize if listener moves in a single frame over the given distance.\n"),
+	ECVF_Default);
+
 static float VirtualLoopsUpdateRateMinCVar = 0.1f;
 FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMin(
 	TEXT("au.VirtualLoops.UpdateRate.Min"),
@@ -139,7 +146,7 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 			return true;
 		}
 
-		DistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(AudioDevice->GetGlobalFocusSettings(), InActiveSound.FocusDistanceScale);
+		DistanceScale = InActiveSound.FocusDistanceScale;
 	}
 
 	DistanceScale = FMath::Max(DistanceScale, 0.0001f);
@@ -147,9 +154,13 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 	return AudioDevice->LocationIsAudible(Location, InActiveSound.MaxDistance / DistanceScale);
 }
 
-bool FAudioVirtualLoop::CanRealize(float DeltaTime)
+bool FAudioVirtualLoop::CanRealize(float DeltaTime, bool bForceUpdate)
 {
-	if (UpdateInterval > 0.0f)
+	if (bForceUpdate)
+	{
+		TimeSinceLastUpdate = 0.0f;
+	}
+	else if (UpdateInterval > 0.0f)
 	{
 		TimeSinceLastUpdate += DeltaTime;
 		if (UpdateInterval > TimeSinceLastUpdate)
@@ -171,4 +182,11 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 	}
 
 	return true;
+}
+
+bool FAudioVirtualLoop::ShouldListenerMoveForceUpdate(const FTransform& LastTransform, const FTransform& CurrentTransform)
+{
+	const float DistanceSq = FVector::DistSquared(LastTransform.GetTranslation(), CurrentTransform.GetTranslation());
+	const float ForceUpdateDistSq = VirtualLoopsForceUpdateListenerMoveDistanceCVar * VirtualLoopsForceUpdateListenerMoveDistanceCVar;
+	return DistanceSq > ForceUpdateDistSq;
 }

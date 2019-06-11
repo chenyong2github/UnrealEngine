@@ -1474,7 +1474,7 @@ public:
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
 
-	void UpdateVirtualLoops();
+	void UpdateVirtualLoops(bool bForceUpdate);
 
 	/** Sets the update delta time for the audio frame */
 	virtual void UpdateDeviceDeltaTime()
