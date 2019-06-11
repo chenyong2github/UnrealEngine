@@ -250,11 +250,8 @@ void FLiveLinkPropertyTrackEditor::HandleAddLiveLinkTrackMenuEntryExecute()
 
 		if (GetSequencer().IsValid())
 		{
-			GetSequencer()->OnAddTrack(NewTrack);
+			GetSequencer()->OnAddTrack(NewTrack, FGuid());
 		}
-
-
-		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 	}
 }
 

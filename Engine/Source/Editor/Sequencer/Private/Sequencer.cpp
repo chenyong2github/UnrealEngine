@@ -8083,13 +8083,18 @@ void FSequencer::OnAddFolder()
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
-void FSequencer::OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack)
+void FSequencer::OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, const FGuid& ObjectBinding)
 {
+	if (!ensureAlwaysMsgf(InTrack.IsValid(), TEXT("Attempted to add a null UMovieSceneTrack to Sequencer. This should never happen.")))
+	{
+		return;
+	}
+
 	FString NewNodePath;
 
-	// Cinematic Shot Tracks and Camera Cut Tracks are always in the root and ignore sorting/folders, so we don't give them a chance to be placed into a folder.
-	bool bIsValidTrack = !(InTrack->IsA(UMovieSceneCinematicShotTrack::StaticClass()) || InTrack->IsA(UMovieSceneCameraCutTrack::StaticClass()));
-	if(bIsValidTrack)
+	// If they specified an object binding it's being added to, we don't add it to a folder since we can't have it existing
+	// as a children of two places at once.
+	if(!GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectBinding))
 	{
 		TArray<UMovieSceneFolder*> SelectedParentFolders;
 		CalculateSelectedFolderAndPath(SelectedParentFolders, NewNodePath);
@@ -8100,13 +8105,20 @@ void FSequencer::OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack)
 			SelectedParentFolders[0]->AddChildMasterTrack(InTrack.Get());
 		}
 	}
-	Selection.Empty();
 
 	// We can't add the newly created folder to the selection set as the nodes for it don't actually exist yet.
 	// However, we can calculate the resulting path that the node will end up at and add that to the selection
 	// set, which will cause the newly created node to be selected when the selection is restored post-refresh.
 	NewNodePath += InTrack->GetFName().ToString();
 	SequencerWidget->AddAdditionalPathToSelectionSet(NewNodePath);
+
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
+	EmptySelection();
+	if (InTrack->GetAllSections().Num() > 0)
+	{
+		SelectSection(InTrack->GetAllSections()[0]);
+	}
+	ThrobSectionSelection();
 }
 
 
