@@ -136,3 +136,5 @@ ECheckBoxState SNiagaraStackItemGroupAddMenu::LibraryToggleIsChecked() const
 {
 	return SNiagaraStackItemGroupAddMenu::bIncludeNonLibraryScripts ? ECheckBoxState::Unchecked : ECheckBoxState::Checked;
 }
+
+#undef LOCTEXT_NAMESPACE
