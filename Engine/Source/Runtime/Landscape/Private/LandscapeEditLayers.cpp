@@ -4327,6 +4327,11 @@ void ALandscape::UpdateLayersContent(bool bInWaitForStreaming, bool bInSkipMonit
 	{
 		LayerContentUpdateModes |= ELandscapeLayerUpdateMode::Update_Client_Deferred;
 	}
+
+	if (LandscapeEdMode)
+	{
+		LandscapeEdMode->PostUpdateLayerContent();
+	}
 }
 
 // not thread safe
@@ -4981,16 +4986,67 @@ void ALandscape::DeleteLayer(int32 InLayerIndex)
 	RequestLayersContentUpdateForceAll();
 }
 
-void ALandscape::ClearLayer(int32 InLayerIndex, TSet<ULandscapeComponent*>* InComponents)
+void ALandscape::GetUsedPaintLayers(int32 InLayerIndex, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const
 {
 	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
 	if (Layer)
 	{
-		ClearLayer(Layer->Guid, InComponents);
+		GetUsedPaintLayers(Layer->Guid, OutUsedLayerInfos);
 	}
 }
 
-void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>* InComponents)
+void ALandscape::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const
+{
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (!LandscapeInfo)
+	{
+		return;
+	}
+	
+	LandscapeInfo->GetUsedPaintLayers(InLayerGuid, OutUsedLayerInfos);
+}
+
+void ALandscape::ClearPaintLayer(int32 InLayerIndex, ULandscapeLayerInfoObject* InLayerInfo)
+{
+	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	if (Layer)
+	{
+		ClearPaintLayer(Layer->Guid, InLayerInfo);
+	}
+}
+
+void ALandscape::ClearPaintLayer(const FGuid& InLayerGuid, ULandscapeLayerInfoObject* InLayerInfo)
+{
+	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
+	if (!LandscapeInfo)
+	{
+		return;
+	}
+
+	Modify();
+	FScopedSetLandscapeEditingLayer Scope(this, InLayerGuid, [=] { RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_Weightmap_All); });
+
+	FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
+	LandscapeInfo->ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	{
+		Proxy->Modify();
+		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		{
+			Component->DeleteLayer(InLayerInfo, LandscapeEdit);
+		}
+	});
+}
+
+void ALandscape::ClearLayer(int32 InLayerIndex, TSet<ULandscapeComponent*>* InComponents, ELandscapeClearMode InClearMode)
+{
+	const FLandscapeLayer* Layer = GetLayer(InLayerIndex);
+	if (Layer)
+	{
+		ClearLayer(Layer->Guid, InComponents, InClearMode);
+	}
+}
+
+void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>* InComponents, ELandscapeClearMode InClearMode)
 {
 	ensure(HasLayersContent());
 
@@ -5015,11 +5071,14 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 	TArray<uint8> NewHeightAlphaBlendData;
 	TArray<uint8> NewHeightFlagsData;
 
-	if (Layer->BlendMode == LSBM_AlphaBlend)
+	if (InClearMode & ELandscapeClearMode::Clear_Heightmap)
 	{
-		NewHeightAlphaBlendData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
-		FMemory::Memset(NewHeightAlphaBlendData.GetData(), 255, NewHeightAlphaBlendData.Num());
-		NewHeightFlagsData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
+		if (Layer->BlendMode == LSBM_AlphaBlend)
+		{
+			NewHeightAlphaBlendData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
+			FMemory::Memset(NewHeightAlphaBlendData.GetData(), 255, NewHeightAlphaBlendData.Num());
+			NewHeightFlagsData.AddZeroed(FMath::Square(ComponentSizeQuads + 1));
+		}
 	}
 
 	TArray<ULandscapeComponent*> Components;
@@ -5053,19 +5112,25 @@ void ALandscape::ClearLayer(const FGuid& InLayerGuid, TSet<ULandscapeComponent*>
 	FLandscapeEditDataInterface LandscapeEdit(LandscapeInfo);
 	for (ULandscapeComponent* Component : Components)
 	{
-		int32 MinX = MAX_int32;
-		int32 MinY = MAX_int32;
-		int32 MaxX = MIN_int32;
-		int32 MaxY = MIN_int32;
-		Component->GetComponentExtent(MinX, MinY, MaxX, MaxY);
-		check(ComponentSizeQuads == (MaxX - MinX));
-		check(ComponentSizeQuads == (MaxY - MinY));
-		LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, NewHeightData.GetData(), 0, false, nullptr, NewHeightAlphaBlendData.GetData(), NewHeightFlagsData.GetData());
-
-		// Clear weight maps
-		for (FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
+		if (InClearMode & ELandscapeClearMode::Clear_Heightmap)
 		{
-			Component->DeleteLayer(LayerSettings.LayerInfoObj, LandscapeEdit);
+			int32 MinX = MAX_int32;
+			int32 MinY = MAX_int32;
+			int32 MaxX = MIN_int32;
+			int32 MaxY = MIN_int32;
+			Component->GetComponentExtent(MinX, MinY, MaxX, MaxY);
+			check(ComponentSizeQuads == (MaxX - MinX));
+			check(ComponentSizeQuads == (MaxY - MinY));
+			LandscapeEdit.SetHeightData(MinX, MinY, MaxX, MaxY, NewHeightData.GetData(), 0, false, nullptr, NewHeightAlphaBlendData.GetData(), NewHeightFlagsData.GetData());
+		}
+
+		if (InClearMode & ELandscapeClearMode::Clear_Weightmap)
+		{
+			// Clear weight maps
+			for (FLandscapeInfoLayerSettings& LayerSettings : LandscapeInfo->Layers)
+			{
+				Component->DeleteLayer(LayerSettings.LayerInfoObj, LandscapeEdit);
+			}
 		}
 	}
 }

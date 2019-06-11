@@ -358,6 +358,61 @@ void FLandscapeEditorCustomNodeBuilder_Layers::FillAddBrushMenu(FMenuBuilder& Me
 	}
 }
 
+void FLandscapeEditorCustomNodeBuilder_Layers::FillClearPaintLayerMenu(FMenuBuilder& MenuBuilder, int32 InLayerIndex, TArray<ULandscapeLayerInfoObject*> InUsedLayerInfos)
+{
+	// Clear All Weightmap Data
+	TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
+	FUIAction ClearAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex]() { SharedThis->ClearLayer(InLayerIndex, ELandscapeClearMode::Clear_Weightmap); }));
+	MenuBuilder.AddMenuEntry(LOCTEXT("LandscapeClearAllWeightmap", "All"), FText(), FSlateIcon(), ClearAction);
+	MenuBuilder.AddMenuSeparator();
+
+	// Clear Per LayerInfo
+	for (ULandscapeLayerInfoObject* LayerInfo : InUsedLayerInfos)
+	{
+		FUIAction ClearLayerInfoAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex, LayerInfo]() { SharedThis->ClearPaintLayer(InLayerIndex, LayerInfo); }));
+		MenuBuilder.AddMenuEntry(FText::FromName(LayerInfo->LayerName), FText(), FSlateIcon(), ClearLayerInfoAction);
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_Layers::FillClearLayerMenu(FMenuBuilder& MenuBuilder, int32 InLayerIndex)
+{
+	TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
+	const UEnum* EnumPtr = FindObject<UEnum>(ANY_PACKAGE, TEXT("ELandscapeClearMode"), true);
+	if (ensure(EnumPtr != nullptr))
+	{
+		// NumEnums()-1 to exclude Enum Max Value
+		for (int32 i = 0; i < EnumPtr->NumEnums()-1; ++i)
+		{
+			ELandscapeClearMode EnumValue = (ELandscapeClearMode)EnumPtr->GetValueByIndex(i);
+			if(EnumValue == ELandscapeClearMode::Clear_Weightmap)
+			{
+				TArray<ULandscapeLayerInfoObject*> UsedLayerInfos;
+				FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+				ensure(LandscapeEdMode);
+				ALandscape* Landscape = LandscapeEdMode->GetLandscape();
+				ensure(Landscape);
+
+				Landscape->GetUsedPaintLayers(InLayerIndex, UsedLayerInfos);
+				if (UsedLayerInfos.Num() > 0)
+				{
+					MenuBuilder.AddSubMenu(
+						EnumPtr->GetDisplayNameTextByIndex(i),
+						FText(),
+						FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::FillClearPaintLayerMenu, InLayerIndex, UsedLayerInfos),
+						false,
+						FSlateIcon()
+					);
+				}
+			}
+			else
+			{
+				FUIAction ClearAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex, EnumValue]() { SharedThis->ClearLayer(InLayerIndex, EnumValue); }));
+				MenuBuilder.AddMenuEntry(EnumPtr->GetDisplayNameTextByIndex(i), FText(), FSlateIcon(), ClearAction);
+			}
+		}
+	}
+}
+
 void FLandscapeEditorCustomNodeBuilder_Layers::AddBrushToCurrentLayer(ALandscapeBlueprintCustomBrush* Brush)
 {
 	const FScopedTransaction Transaction(LOCTEXT("LandscapeBrushAddToCurrentLayerTransaction", "Add brush to current layer"));
@@ -389,8 +444,13 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 				if (!Layer->bLocked)
 				{
 					// Clear Layer
-					FUIAction ClearLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->ClearLayer(InLayerIndex); }));
-					MenuBuilder.AddMenuEntry(LOCTEXT("ClearLayer", "Clear..."), LOCTEXT("ClearLayerTooltip", "Clear Layer"), FSlateIcon(), ClearLayerAction);
+					MenuBuilder.AddSubMenu(
+						LOCTEXT("LandscapeEditorClearLayerSubMenu", "Clear"),
+						FText(),
+						FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::FillClearLayerMenu, InLayerIndex),
+						false,
+						FSlateIcon()
+					);
 
 					// Delete Layer
 					FUIAction DeleteLayerAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, InLayerIndex] { SharedThis->DeleteLayer(InLayerIndex); }), FCanExecuteAction::CreateLambda([Landscape] { return Landscape->LandscapeLayers.Num() > 1; }));
@@ -518,7 +578,27 @@ void FLandscapeEditorCustomNodeBuilder_Layers::RenameLayer(int32 InLayerIndex)
 	}
 }
 
-void FLandscapeEditorCustomNodeBuilder_Layers::ClearLayer(int32 InLayerIndex)
+void FLandscapeEditorCustomNodeBuilder_Layers::ClearPaintLayer(int32 InLayerIndex, ULandscapeLayerInfoObject* InLayerInfo)
+{
+	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
+	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
+	if (Landscape)
+	{
+		FLandscapeLayer* Layer = LandscapeEdMode->GetLayer(InLayerIndex);
+		if (Layer)
+		{
+			EAppReturnType::Type Result = FMessageDialog::Open(EAppMsgType::YesNo, FText::Format(LOCTEXT("Landscape_ClearPaintLayer_Message", "The layer {0} : {1} content will be completely cleared.  Continue?"), FText::FromName(Layer->Name), FText::FromName(InLayerInfo->LayerName)));
+			if (Result == EAppReturnType::Yes)
+			{
+				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_PaintClear", "Clear Paint Layer"));
+				Landscape->ClearPaintLayer(InLayerIndex, InLayerInfo);
+				LandscapeEdMode->RequestUpdateShownLayerList();
+			}
+		}
+	}
+}
+
+void FLandscapeEditorCustomNodeBuilder_Layers::ClearLayer(int32 InLayerIndex, ELandscapeClearMode InClearMode)
 {
 	FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 	ALandscape* Landscape = LandscapeEdMode ? LandscapeEdMode->GetLandscape() : nullptr;
@@ -531,8 +611,12 @@ void FLandscapeEditorCustomNodeBuilder_Layers::ClearLayer(int32 InLayerIndex)
 			if (Result == EAppReturnType::Yes)
 			{
 				const FScopedTransaction Transaction(LOCTEXT("Landscape_Layers_Clean", "Clear Layer"));
-				Landscape->ClearLayer(InLayerIndex);
+				Landscape->ClearLayer(InLayerIndex, nullptr, InClearMode);
 				OnLayerSelectionChanged(InLayerIndex);
+				if (InClearMode & ELandscapeClearMode::Clear_Weightmap)
+				{
+					LandscapeEdMode->RequestUpdateShownLayerList();
+				}
 			}
 		}
 	}
