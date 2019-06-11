@@ -234,7 +234,7 @@ FShader* FOpenColorIOShaderType::FinishCompileShader(
 
 	// Reuse an existing resource with the same key or create a new one based on the compile output
 	// This allows FShaders to share compiled bytecode and RHI shader references
-	FShaderResource* Resource = FShaderResource::FindOrCreateShaderResource(InCurrentJob.Output, SpecificType, /* SpecificPermutationId = */ 0);
+	TRefCountPtr<FShaderResource> Resource = FShaderResource::FindOrCreate(InCurrentJob.Output, SpecificType, /* SpecificPermutationId = */ 0);
 
 	// Find a shader with the same key in memory
 	FShader* Shader = InCurrentJob.ShaderType->FindShaderById(FShaderId(InShaderMapHash, nullptr, nullptr, InCurrentJob.ShaderType, /* SpecificPermutationId = */ 0, InCurrentJob.Input.Target));

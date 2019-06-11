@@ -19,7 +19,7 @@
 #include "Misc/ScopeLock.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
-#include "Misc/ScopeLock.h"
+#include "Misc/ScopeRwLock.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Interfaces/IShaderFormat.h"
@@ -391,7 +391,114 @@ void FShaderType::Uninitialize()
 	bInitializedSerializationHistory = false;
 }
 
-TMap<FShaderResourceId, FShaderResource*> FShaderResource::ShaderResourceIdMap;
+struct FShaderResourceKeyFuncs
+{
+	typedef FShaderResource* KeyType;
+	typedef FShaderResource* KeyInitType;
+	typedef FShaderResource* ElementInitType;
+
+	enum { bAllowDuplicateKeys = false };
+
+	static KeyInitType GetSetKey(FShaderResource* Element)
+	{
+		return Element;
+	}
+
+	static bool Matches(FShaderResource* A, FShaderResource* B)
+	{
+		return A == B || A->GetId() == B->GetId();
+	}
+
+	static bool Matches(FShaderResource* Resource, const FShaderResourceId& Id)
+	{
+		return Resource->GetId() == Id;
+	}
+
+	static uint32 GetKeyHash(FShaderResource* Key)
+	{
+		return GetTypeHash(Key->GetOutputHash());
+	}
+
+	static uint32 GetKeyHash(const FShaderResourceId& Key)
+	{
+		return GetTypeHash(Key.OutputHash);
+	}
+};
+
+
+class FShaderResourceSet 
+{
+public:
+	TRefCountPtr<FShaderResource> Find(const FShaderResourceId& Id) const
+	{
+		uint32 IdHash = FShaderResourceKeyFuncs::GetKeyHash(Id);
+
+		FRWScopeLock Locker(Lock, SLT_ReadOnly);
+		
+		if (FShaderResource*const* ResourceIt = Set.FindByHash(IdHash, Id))
+		{
+			return TRefCountPtr<FShaderResource>(*ResourceIt);
+		}
+
+		return TRefCountPtr<FShaderResource>();
+	}
+
+	/** 
+	 * Add resource and return it as smart pointer unless an identical resource exists.
+	 * In that case the resource is deleted and the existing resource is returned.
+	 */
+	TRefCountPtr<FShaderResource> AddOrDelete(FShaderResource* Resource)
+	{
+		TRefCountPtr<FShaderResource> OutResource(Resource);
+
+		{
+			FRWScopeLock Locker(Lock, SLT_Write);
+		
+			bool bAlreadyInSet;
+			FSetElementId ElementId = Set.Add(Resource, &bAlreadyInSet);
+			if (bAlreadyInSet)
+			{
+				return TRefCountPtr<FShaderResource>(Set[ElementId]);
+			}
+		}
+
+		return OutResource;
+	}
+
+	/** Returns true if resource was removed before someone created a new reference to it */
+	bool TryRemove(FShaderResource& Resource)
+	{
+		FRWScopeLock Locker(Lock, SLT_Write);
+
+		if (Resource.NumRefs == 0)
+		{
+			Set.Remove(&Resource);
+			return true;
+		}
+
+		// Another thread found the resource after ref-count was decremented to zero
+		return false;
+	}
+
+	void GetAllIds(TArray<FShaderResourceId>& Out) const
+	{
+		FRWScopeLock Locker(Lock, SLT_ReadOnly);
+
+		Out.Reserve(Set.Num());
+		for (FShaderResource* Resource : Set)
+		{
+			Out.Add(Resource->GetId());
+			Out.Last().MakeSelfContained();			
+		}
+	}
+
+private:
+	mutable FRWLock Lock;
+	TSet<FShaderResource*, FShaderResourceKeyFuncs> Set;
+};
+
+static FShaderResourceSet gLoadedShaderResources;
+
 
 #if RHI_RAYTRACING
 TArray<uint32> FShaderResource::GlobalUnusedIndicies;
@@ -476,12 +583,7 @@ FShaderResource::FShaderResource(const FShaderCompilerOutput& Output, FShaderTyp
 #if WITH_EDITORONLY_DATA
 	PlatformDebugData = Output.PlatformDebugData;
 #endif
-
-	{
-		check(IsInGameThread());
-		ShaderResourceIdMap.Add(GetId(), this);
-	}
-	
+		
 	INC_DWORD_STAT_BY_FName(GetMemoryStatType((EShaderFrequency)Target.Frequency).GetName(), Code.Num());
 	INC_DWORD_STAT_BY(STAT_Shaders_ShaderResourceMemory, GetSizeBytes());
 	INC_DWORD_STAT_BY(STAT_Shaders_NumShaderResourcesLoaded, 1);
@@ -608,12 +710,6 @@ void FShaderResource::CompressCode(const TArray<uint8>& UncompressedCode)
 		Code.SetNum(CompressedSize);
 	}
 	Code.Shrink();
-}
-
-void FShaderResource::Register()
-{
-	check(IsInGameThread());
-	ShaderResourceIdMap.Add(GetId(), this);
 }
 
 // Note: this is derived data.  Bump guid in ShaderVersion.ush if changing the format, no backwards compat is necessary
@@ -746,19 +842,14 @@ void FShaderResource::SerializePlatformDebugData(FArchive& Ar)
 
 void FShaderResource::AddRef()
 {
-	checkSlow(IsInGameThread());
-	++NumRefs;
+	FPlatformAtomics::InterlockedIncrement((volatile int32*)&NumRefs);
 }
-
 
 void FShaderResource::Release()
 {
-	checkSlow(IsInGameThread());
-	check(NumRefs != 0);
-	if(--NumRefs == 0)
+	check(NumRefs > 0);
+	if (FPlatformAtomics::InterlockedDecrement((volatile int32*)&NumRefs) == 0 && gLoadedShaderResources.TryRemove(*this))
 	{
-		ShaderResourceIdMap.Remove(GetId());
-
 		// Send a release message to the rendering thread when the shader loses its last reference.
 		BeginReleaseResource(this);
 		BeginCleanup(this);
@@ -777,31 +868,38 @@ void FShaderResource::Release()
 	}
 }
 
-
-FShaderResource* FShaderResource::FindShaderResourceById(const FShaderResourceId& Id)
+TRefCountPtr<FShaderResource> FShaderResource::FindById(const FShaderResourceId& Id)
 {
-	check(IsInGameThread());
-	FShaderResource* Result = ShaderResourceIdMap.FindRef(Id);
-	return Result;
+	return gLoadedShaderResources.Find(Id);
 }
 
+TRefCountPtr<FShaderResource> FShaderResource::FindOrClone(FShaderResource&& Temp)
+{
+	if (TRefCountPtr<FShaderResource> ExistingResource = FindById(Temp.GetId()))
+	{
+		return ExistingResource;
+	}
 
-FShaderResource* FShaderResource::FindOrCreateShaderResource(const FShaderCompilerOutput& Output, FShaderType* SpecificType, int32 SpecificPermutationId)
+	FShaderResource* Clone = new FShaderResource(MoveTemp(Temp));
+	return gLoadedShaderResources.AddOrDelete(Clone);
+}
+
+TRefCountPtr<FShaderResource> FShaderResource::FindOrCreate(const FShaderCompilerOutput& Output, FShaderType* SpecificType, int32 SpecificPermutationId)
 {
 	const FShaderResourceId ResourceId(Output.Target, Output.OutputHash, SpecificType ? SpecificType->GetName() : nullptr, SpecificPermutationId);
-	FShaderResource* Resource = FindShaderResourceById(ResourceId);
-	if (!Resource)
+
+	if (TRefCountPtr<FShaderResource> ExistingResource = FindById(ResourceId))
 	{
-		Resource = new FShaderResource(Output, SpecificType, SpecificPermutationId);
+		return ExistingResource;
 	}
-	
-	return Resource;
+
+	FShaderResource* NewResource = new FShaderResource(Output, SpecificType, SpecificPermutationId);
+	return gLoadedShaderResources.AddOrDelete(NewResource);
 }
 
 void FShaderResource::GetAllShaderResourceId(TArray<FShaderResourceId>& Ids)
 {
-	check(IsInGameThread());
-	ShaderResourceIdMap.GetKeys(Ids);
+	gLoadedShaderResources.GetAllIds(Ids);
 }
 
 bool FShaderResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform, EShaderPlatform TargetPlatform)
@@ -1122,8 +1220,7 @@ FArchive& operator<<(FArchive& Ar,class FSelfContainedShaderId& Ref)
  * This still needs to initialize members to safe values since FShaderType::GenerateSerializationHistory uses this constructor.
  */
 FShader::FShader()
-	: SerializedResource(nullptr)
-	, ShaderPipeline(nullptr)
+	: ShaderPipeline(nullptr)
 	, VFType(nullptr)
 	, Type(nullptr)
 	, PermutationId(0)
@@ -1139,7 +1236,7 @@ FShader::FShader()
  */
 FShader::FShader(const CompiledShaderInitializerType& Initializer)
 	: MaterialShaderMapHash(Initializer.MaterialShaderMapHash)
-	, SerializedResource(nullptr)
+	, Resource(Initializer.Resource)
 	, ShaderPipeline(Initializer.ShaderPipeline)
 	, VFType(Initializer.VertexFactoryType)
 	, Type(Initializer.Type)
@@ -1170,13 +1267,16 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 		if (Initializer.ParameterMap.ContainsParameterAllocation(StructIt->GetShaderVariableName()))
 		{
 			UniformBufferParameterStructs.Add(*StructIt);
-			UniformBufferParameters.Add(new FShaderUniformBufferParameter());
-			FShaderUniformBufferParameter* Parameter = UniformBufferParameters.Last();
-			Parameter->Bind(Initializer.ParameterMap, StructIt->GetShaderVariableName(), SPF_Mandatory);
+			
+			UniformBufferParameters.Add(FShaderUniformBufferParameter());
+			FShaderUniformBufferParameter& Parameter = UniformBufferParameters.Last();
+			Parameter.Bind(Initializer.ParameterMap, StructIt->GetShaderVariableName(), SPF_Mandatory);
 		}
 	}
 
-	SetResource(Initializer.Resource);
+	
+	check(Resource && Resource->Target == Target);
+	checkSlow(FShaderResource::FindById(Resource->GetId()) == Resource);
 
 	// Register the shader now that it is valid, so that it can be reused
 	Register(false);
@@ -1186,11 +1286,6 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 FShader::~FShader()
 {
 	check(NumRefs == 0);
-
-	for (int32 StructIndex = 0; StructIndex < UniformBufferParameters.Num(); StructIndex++)
-	{
-		delete UniformBufferParameters[StructIndex];
-	}
 }
 
 
@@ -1207,7 +1302,6 @@ EShaderPlatform FShader::GetShaderPlatform() const
 {
 	return Target.GetPlatform();
 }
-
 
 bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCookedMaterial)
 {
@@ -1237,6 +1331,8 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 	Ar << FShaderResource::FilterShaderSourceHashForSerialization(Ar, Hash);
 	Ar << Target;
 
+	const bool SerializeStructTypeNameAsStrings = Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::MaterialInstanceSerializeOptimization_ShaderFName;
+
 	// TODO(RDG): Kill that once all shaders are refactored.
 	if (Ar.IsLoading())
 	{
@@ -1250,7 +1346,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 		{
 			FShaderParametersMetadata* Struct = nullptr;
 
-			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::MaterialInstanceSerializeOptimization_ShaderFName)
+			if (SerializeStructTypeNameAsStrings)
 			{
 				FString StructName;
 				Ar << StructName;
@@ -1265,9 +1361,9 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 				checkf(Struct, TEXT("Uniform Buffer Struct %s no longer exists, which shader of type %s was compiled with.  Modify ShaderVersion.ush to invalidate old shaders."), *StructFName.ToString(), Type->GetName());
 			}
 			
-			FShaderUniformBufferParameter* Parameter = new FShaderUniformBufferParameter();
+			FShaderUniformBufferParameter Parameter;
 
-			Ar << *Parameter;
+			Ar << Parameter;
 
 			UniformBufferParameterStructs.Add(Struct);
 			UniformBufferParameters.Add(Parameter);
@@ -1278,21 +1374,22 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 		int32 NumUniformParameters = UniformBufferParameters.Num();
 		Ar << NumUniformParameters;
 
-		for (int32 StructIndex = 0; StructIndex < UniformBufferParameters.Num(); StructIndex++)
+		for (int32 StructIndex = 0; StructIndex < NumUniformParameters; StructIndex++)
 		{
-			FString StructName(UniformBufferParameterStructs[StructIndex]->GetStructTypeName());
+			const TCHAR* StructName = UniformBufferParameterStructs[StructIndex]->GetStructTypeName();
 
-			if (Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::MaterialInstanceSerializeOptimization_ShaderFName)
+			if (SerializeStructTypeNameAsStrings)
 			{
-				Ar << StructName;
+				FString StructNameCopy(StructName);
+				Ar << StructNameCopy;
 			}
 			else
 			{
-				FName StructFName(*StructName);
+				FName StructFName(StructName);
 				Ar << StructFName;
 			}
 
-			Ar << *UniformBufferParameters[StructIndex];
+			Ar << UniformBufferParameters[StructIndex];
 		}
 	}
 
@@ -1308,9 +1405,12 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 		if (Ar.IsLoading())
 		{
 			// Load the inlined shader resource
-			SerializedResource = new FShaderResource();
-			SerializedResource->Serialize(Ar, bLoadedByCookedMaterial);
-			checkSlow(OutputHash == SerializedResource->OutputHash);
+			FShaderResource ResourceTemp;
+			ResourceTemp.Serialize(Ar, bLoadedByCookedMaterial);
+
+			Resource = FShaderResource::FindOrClone(MoveTemp(ResourceTemp));
+
+			checkSlow(OutputHash == Resource->OutputHash);
 		}
 	}
 	else
@@ -1322,8 +1422,8 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 			FShaderResourceId ResourceId(Target, OutputHash, Type->LimitShaderResourceToThisType() ? Type->GetName() : nullptr, Type->LimitShaderResourceToThisType() ? PermutationId : 0);
 
 			// use it to look up in the registered resource map
-			FShaderResource* ExistingResource = FShaderResource::FindShaderResourceById(ResourceId);
-			SetResource(ExistingResource);
+			Resource = FShaderResource::FindById(ResourceId);
+			check(Resource && Resource->Target == Target);
 		}
 	}
 
@@ -1387,34 +1487,6 @@ FShaderId FShader::GetId() const
 #endif
 	ShaderId.Target = Target;
 	return ShaderId;
-}
-
-void FShader::RegisterSerializedResource()
-{
-	if (SerializedResource)
-	{
-		FShaderResource* ExistingResource = FShaderResource::FindShaderResourceById(SerializedResource->GetId());
-
-		// Reuse an existing shader resource if a matching one already exists in memory
-		if (ExistingResource)
-		{
-			delete SerializedResource;
-			SerializedResource = ExistingResource;
-		}
-		else
-		{
-			// Register the newly loaded shader resource so it can be reused by other shaders
-			SerializedResource->Register();
-		}
-
-		SetResource(SerializedResource);
-	}
-}
-
-void FShader::SetResource(FShaderResource* InResource)
-{
-	check(InResource && InResource->Target == Target);
-	Resource = InResource;
 }
 
 void FShader::DumpDebugInfo()

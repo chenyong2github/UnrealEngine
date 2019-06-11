@@ -1890,19 +1890,16 @@ public:
 	FRHIShaderLibraryParamRef FindShaderLibrary(const FSHAHash& Hash)
 	{
 		FRWScopeLock(LibraryMutex, SLT_ReadOnly);
-		FRHIShaderLibraryParamRef Result = nullptr;
 
 		// Search in library opened order
-		for (int32 i = 0; i < ShaderCodeArchiveStack.Num(); ++i)
+		for (FRHIShaderLibraryParamRef ShaderCodeArchive : ShaderCodeArchiveStack)
 		{
-			FRHIShaderLibraryParamRef ShaderCodeArchive = ShaderCodeArchiveStack[i];
 			if (ShaderCodeArchive->ContainsEntry(Hash))
 			{
-				Result = ShaderCodeArchive;
-				break;
+				return ShaderCodeArchive;
 			}
 		}
-		return Result;
+		return nullptr;
 	}
 
 	bool ContainsShaderCode(const FSHAHash& Hash)

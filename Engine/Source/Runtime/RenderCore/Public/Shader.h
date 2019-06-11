@@ -164,6 +164,16 @@ public:
 		return Ar;
 	}
 
+	/** Copy string data that belongs to FShaderResource for cases where this id can outlive the resource. */
+	void MakeSelfContained()
+	{
+		if (SpecificShaderTypeName && SpecificShaderTypeName != *SpecificShaderTypeStorage)
+		{
+			SpecificShaderTypeStorage = SpecificShaderTypeName;
+			SpecificShaderTypeName = *SpecificShaderTypeStorage;
+		}
+	}
+
 	/** Hash of the compiled shader output, which is used to create the FShaderResource. */
 	FSHAHash OutputHash;
 
@@ -274,23 +284,23 @@ public:
 class FShaderResource : public FRenderResource, public FDeferredCleanupInterface
 {
 	friend class FShader;
+	friend class FShaderResourceSet;
 public:
 
 	/** Constructor used for deserialization. */
 	RENDERCORE_API FShaderResource();
+	FShaderResource(FShaderResource&&) = default;
 
 	/** Constructor used when creating a new shader resource from compiled output. */
 	FShaderResource(const FShaderCompilerOutput& Output, FShaderType* InSpecificType, int32 InSpecificPermutationId);
 
-	~FShaderResource();
+	RENDERCORE_API ~FShaderResource();
 
 	RENDERCORE_API void Serialize(FArchive& Ar, bool bLoadedByCookedMaterial);
 
 	// Reference counting.
 	RENDERCORE_API void AddRef();
 	RENDERCORE_API void Release();
-
-	RENDERCORE_API void Register();
 
 	/** @return the shader's vertex shader */
 	FORCEINLINE const FVertexShaderRHIParamRef GetVertexShader()
@@ -394,6 +404,11 @@ public:
 #endif // RHI_RAYTRACING
 
 	RENDERCORE_API FShaderResourceId GetId() const;
+	
+	const FSHAHash& GetOutputHash() const
+	{
+		return OutputHash;
+	}
 
 	uint32 GetSizeBytes() const
 	{
@@ -404,14 +419,24 @@ public:
 	virtual void InitRHI();
 	virtual void ReleaseRHI();
 
+
+	UE_DEPRECATED(4.24, "Save return value as TRefCountPtr<FShaderResource> and use FindById() instead")
+	static FShaderResource* FindShaderResourceById(const FShaderResourceId& Id);
+
 	/** Finds a matching shader resource in memory if possible. */
-	RENDERCORE_API static FShaderResource* FindShaderResourceById(const FShaderResourceId& Id);
+	RENDERCORE_API static TRefCountPtr<FShaderResource> FindById(const FShaderResourceId& Id);
+
+	/** Finds a matching shader resource in memory or clone the temporary and register the new resource */
+	RENDERCORE_API static TRefCountPtr<FShaderResource> FindOrClone(FShaderResource&& Temp);
+
+	UE_DEPRECATED(4.24, "Save return value as TRefCountPtr<FShaderResource> and use FindOrCreate() instead")
+	static FShaderResource* FindOrCreateShaderResource(const FShaderCompilerOutput& Output, class FShaderType* SpecificType, int32 SpecificPermutationId);
 
 	/** 
 	 * Finds a matching shader resource in memory or creates a new one with the given compiler output.  
 	 * SpecificType can be NULL
 	 */
-	RENDERCORE_API static FShaderResource* FindOrCreateShaderResource(const FShaderCompilerOutput& Output, class FShaderType* SpecificType, int32 SpecificPermutationId);
+	RENDERCORE_API static TRefCountPtr<FShaderResource> FindOrCreate(const FShaderCompilerOutput& Output, class FShaderType* SpecificType, int32 SpecificPermutationId);
 
 	/** Return a list of all shader Ids currently known */
 	RENDERCORE_API static void GetAllShaderResourceId(TArray<FShaderResourceId>& Ids);
@@ -479,7 +504,7 @@ private:
 	int32 SpecificPermutationId;
 
 	/** The number of references to this shader. */
-	mutable uint32 NumRefs;
+	mutable int32 NumRefs;
 
 	/** The number of instructions the shader takes to execute. */
 	uint32 NumInstructions;
@@ -500,8 +525,6 @@ private:
 
 	void BuildParameterMapInfo(const TMap<FString, FParameterAllocation>& ParameterMap);
 
-	/** Tracks loaded shader resources by id. */
-	static TMap<FShaderResourceId, FShaderResource*> ShaderResourceIdMap;
 	/** Critical section for ShaderResourceIdMap. */
 	static FCriticalSection ShaderResourceIdMapCritical;
 };
@@ -816,7 +839,7 @@ public:
 		const TArray<uint8>& Code;
 		const FShaderParameterMap& ParameterMap;
 		const FSHAHash& OutputHash;
-		FShaderResource* Resource;
+		TRefCountPtr<FShaderResource> Resource;
 		FSHAHash MaterialShaderMapHash;
 		const FShaderPipelineType* ShaderPipeline;
 		FVertexFactoryType* VertexFactoryType;
@@ -826,7 +849,7 @@ public:
 			FShaderType* InType,
 			int32 InPermutationId,
 			const FShaderCompilerOutput& CompilerOutput,
-			FShaderResource* InResource,
+			TRefCountPtr<FShaderResource>&& InResource,
 			const FSHAHash& InMaterialShaderMapHash,
 			const FShaderPipelineType* InShaderPipeline,
 			FVertexFactoryType* InVertexFactoryType
@@ -867,7 +890,7 @@ public:
 
 	virtual bool Serialize(FArchive& Ar) { return false; }
 
-	// Reference counting.
+	// Thread-safe reference counting.
 	void AddRef();
 	void Release();
 
@@ -982,9 +1005,6 @@ public:
 
 	void SetResource(FShaderResource* InResource);
 
-	/** Called from the main thread to register and set the serialized resource */
-	void RegisterSerializedResource();
-
 	/** Implement for geometry shaders that want to use stream out. */
 	static void GetStreamOutElements(FStreamOutElementList& ElementList, TArray<uint32>& StreamStrides, int32& RasterizedStream) {}
 
@@ -998,65 +1018,44 @@ public:
 	FORCEINLINE_DEBUGGABLE const TShaderUniformBufferParameter<UniformBufferStructType>& GetUniformBufferParameter() const
 	{
 		const FShaderParametersMetadata* SearchStruct = &UniformBufferStructType::StaticStructMetadata;
-		int32 FoundIndex = INDEX_NONE;
 
 		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
 		{
 			if (UniformBufferParameterStructs[StructIndex] == SearchStruct)
 			{
-				FoundIndex = StructIndex;
-				break;
+				return static_cast<const TShaderUniformBufferParameter<UniformBufferStructType>&>(UniformBufferParameters[StructIndex]);
 			}
 		}
 
-		if (FoundIndex != INDEX_NONE)
-		{
-			const TShaderUniformBufferParameter<UniformBufferStructType>& FoundParameter = (const TShaderUniformBufferParameter<UniformBufferStructType>&)*UniformBufferParameters[FoundIndex];
-			return FoundParameter;
-		}
-		else
-		{
-			// This can happen if the uniform buffer was not bound
-			// There's no good way to distinguish not being bound due to temporary debugging / compiler optimizations or an actual code bug,
-			// Hence failing silently instead of an error message
-			static TShaderUniformBufferParameter<UniformBufferStructType> UnboundParameter;
-			UnboundParameter.SetInitialized();
-			return UnboundParameter;
-		}
+		// This can happen if the uniform buffer was not bound
+		// There's no good way to distinguish not being bound due to temporary debugging / compiler optimizations or an actual code bug,
+		// Hence failing silently instead of an error message
+		static TShaderUniformBufferParameter<UniformBufferStructType> UnboundParameter;
+		UnboundParameter.SetInitialized();
+		return UnboundParameter;
 	}
 
 	/** Finds an automatically bound uniform buffer matching the given uniform buffer struct if one exists, or returns an unbound parameter. */
 	const FShaderUniformBufferParameter& GetUniformBufferParameter(const FShaderParametersMetadata* SearchStruct) const
 	{
-		int32 FoundIndex = INDEX_NONE;
-
 		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
 		{
 			if (UniformBufferParameterStructs[StructIndex] == SearchStruct)
 			{
-				FoundIndex = StructIndex;
-				break;
+				return UniformBufferParameters[StructIndex];
 			}
 		}
 
-		if (FoundIndex != INDEX_NONE)
-		{
-			const FShaderUniformBufferParameter& FoundParameter = *UniformBufferParameters[FoundIndex];
-			return FoundParameter;
-		}
-		else
-		{
-			static FShaderUniformBufferParameter UnboundParameter;
-			UnboundParameter.SetInitialized();
-			return UnboundParameter;
-		}
+		static FShaderUniformBufferParameter UnboundParameter;
+		UnboundParameter.SetInitialized();
+		return UnboundParameter;
 	}
 
 	const FShaderParametersMetadata* FindAutomaticallyBoundUniformBufferStruct(int32 BaseIndex) const
 	{
-		for (int32 i = 0; i < UniformBufferParameters.Num(); i++)
+		for (int32 i = 0, Num = UniformBufferParameters.Num(); i < Num; i++)
 		{
-			if (UniformBufferParameters[i]->GetBaseIndex() == BaseIndex)
+			if (UniformBufferParameters[i].GetBaseIndex() == BaseIndex)
 			{
 				return UniformBufferParameterStructs[i];
 			}
@@ -1069,13 +1068,6 @@ public:
 	inline FShader* GetShader()
 	{
 		return this;
-	}
-
-	/** Discards the serialized resource, used when the engine is using NullRHI */
-	void DiscardSerializedResource()
-	{
-		delete SerializedResource;
-		SerializedResource = nullptr;
 	}
 
 	void DumpDebugInfo();
@@ -1091,7 +1083,7 @@ protected:
 
 	/** Indexed the same as UniformBufferParameters.  Packed densely for coherent traversal. */
 	TArray<const FShaderParametersMetadata*> UniformBufferParameterStructs;
-	TArray<FShaderUniformBufferParameter*> UniformBufferParameters;
+	TArray<FShaderUniformBufferParameter> UniformBufferParameters;
 
 private:
 	/** Hash of the material shader map this shader belongs to, stored so that an FShaderId can be constructed from this shader. */
@@ -1113,9 +1105,6 @@ private:
 
 	/** Reference to the shader resource, which stores the compiled bytecode and the RHI shader resource. */
 	TRefCountPtr<FShaderResource> Resource;
-
-	/** Pointer to the shader resource that has been serialized from disk, to be registered on the main thread later. */
-	FShaderResource* SerializedResource;
 
 	/** Shader pipeline this shader belongs to, stored so that an FShaderId can be constructed from this shader. */
 	const FShaderPipelineType* ShaderPipeline;
@@ -2291,8 +2280,6 @@ public:
 		check(IsInGameThread());
 		for (FShader* Shader : SerializedShaders)
 		{
-			Shader->RegisterSerializedResource();
-
 			FShaderType* Type = Shader->GetType();
 			FShader* ExistingShader = Type->FindShaderById(Shader->GetId());
 
@@ -2312,10 +2299,6 @@ public:
 
 		for (FSerializedShaderPipeline* SerializedPipeline : SerializedShaderPipelines)
 		{
-			for (TRefCountPtr<FShader> Shader : SerializedPipeline->ShaderStages)
-			{
-				Shader->RegisterSerializedResource();
-			}
 			FShaderPipeline* ShaderPipeline = new FShaderPipeline(SerializedPipeline->ShaderPipelineType, SerializedPipeline->ShaderStages);
 			AddShaderPipeline(SerializedPipeline->ShaderPipelineType, ShaderPipeline);
 
@@ -2329,20 +2312,12 @@ public:
 	{
 		for (FShader* Shader : SerializedShaders)
 		{
-			if (Shader)
-			{
-				Shader->DiscardSerializedResource();
-			}
 			delete Shader;
 		}
 		SerializedShaders.Empty();
 
 		for (FSerializedShaderPipeline* SerializedPipeline : SerializedShaderPipelines)
 		{
-			for (TRefCountPtr<FShader> Shader : SerializedPipeline->ShaderStages)
-			{
-				Shader->DiscardSerializedResource();
-			}
 			delete SerializedPipeline;
 		}
 		SerializedShaderPipelines.Empty();

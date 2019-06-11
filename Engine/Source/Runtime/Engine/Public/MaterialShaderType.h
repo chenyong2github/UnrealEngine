@@ -80,14 +80,14 @@ public:
 		CompiledShaderInitializerType(
 			FShaderType* InType,
 			const FShaderCompilerOutput& CompilerOutput,
-			FShaderResource* InResource,
+			TRefCountPtr<FShaderResource>&& InResource,
 			const FUniformExpressionSet& InUniformExpressionSet,
 			const FSHAHash& InMaterialShaderMapHash,
 			const FShaderPipelineType* InShaderPipeline,
 			FVertexFactoryType* InVertexFactoryType,
 			const FString& InDebugDescription
 			)
-		: FGlobalShaderType::CompiledShaderInitializerType(InType,/** PermutationId = */ 0,CompilerOutput,InResource,InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType)
+		: FGlobalShaderType::CompiledShaderInitializerType(InType,/** PermutationId = */ 0,CompilerOutput,MoveTemp(InResource),InMaterialShaderMapHash,InShaderPipeline,InVertexFactoryType)
 		, UniformExpressionSet(InUniformExpressionSet)
 		, DebugDescription(InDebugDescription)
 		{}
