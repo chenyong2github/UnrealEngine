@@ -1191,7 +1191,12 @@ int32 FPaintModePainter::GetMaxLODIndexToPaint() const
 
 	for (const UMeshComponent* MeshComponent : SelectedComponents )
 	{
-		LODMin = FMath::Min(LODMin, MeshPaintHelpers::GetNumberOfLODs(MeshComponent) - 1);
+		int32 NumMeshLODs = 0;
+		if (MeshPaintHelpers::TryGetNumberOfLODs(MeshComponent, NumMeshLODs))
+		{
+			ensure(NumMeshLODs > 0);
+			LODMin = FMath::Min(LODMin, NumMeshLODs - 1);
+		}
 	}
 
 	if (LODMin == TNumericLimits<int32>::Max())
