@@ -76,7 +76,7 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.ViewDownOneLevel", new FSlateImageBrush(RootToContentDir(TEXT("LevelViewDown_48x.png")), IconSize));
 	Set("FractureEditor.ViewDownOneLevel.Small", new FSlateImageBrush(RootToContentDir(TEXT("LevelViewDown_48x.png")), SmallIconSize));
 
-	Set("FractureEditor.SpinBox", FSpinBoxStyle(GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
+	Set("FractureEditor.SpinBox", FSpinBoxStyle(FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
 		.SetTextPadding(FMargin(0))
 		.SetBackgroundBrush(FSlateNoResource())
 		.SetHoveredBackgroundBrush(FSlateNoResource())
