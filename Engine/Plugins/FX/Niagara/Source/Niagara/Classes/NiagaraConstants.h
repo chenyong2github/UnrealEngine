@@ -65,6 +65,7 @@
 #define SYS_PARAM_EMITTER_RANDOM_SEED                    INiagaraModule::GetVar_Emitter_RandomSeed()
 #define SYS_PARAM_EMITTER_SPAWNRATE                      INiagaraModule::GetVar_Emitter_SpawnRate()
 #define SYS_PARAM_EMITTER_SPAWN_INTERVAL                 INiagaraModule::GetVar_Emitter_SpawnInterval()
+#define SYS_PARAM_EMITTER_SIMULATION_TARGET              INiagaraModule::GetVar_Emitter_SimulationTarget()
 #define SYS_PARAM_EMITTER_INTERP_SPAWN_START_DT          INiagaraModule::GetVar_Emitter_InterpSpawnStartDt()
 #define SYS_PARAM_EMITTER_SPAWN_GROUP                    INiagaraModule::GetVar_Emitter_SpawnGroup()
 
