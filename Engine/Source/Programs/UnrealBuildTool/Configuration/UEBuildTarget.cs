@@ -262,6 +262,32 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Extension methods used for serializing UnrealTargetPlatform instances
+	/// </summary>
+	static class UnrealTargetPlatformExtensionMethods
+	{
+		/// <summary>
+		/// Read an UnrealTargetPlatform instance from a binary archive
+		/// </summary>
+		/// <param name="Reader">Archive to read from</param>
+		/// <returns>New UnrealTargetPlatform instance</returns>
+		public static UnrealTargetPlatform ReadUnrealTargetPlatform(this BinaryArchiveReader Reader)
+		{
+			return UnrealTargetPlatform.Parse(Reader.ReadString());
+		}
+
+		/// <summary>
+		/// Write an UnrealTargetPlatform instance to a binary archive
+		/// </summary>
+		/// <param name="Writer">The archive to write to</param>
+		/// <param name="Platform">The platform to write</param>
+		public static void WriteUnrealTargetPlatform(this BinaryArchiveWriter Writer, UnrealTargetPlatform Platform)
+		{
+			Writer.WriteString(Platform.ToString());
+		}
+	}
+
+	/// <summary>
 	/// Platform groups
 	/// </summary>
 	public partial struct UnrealPlatformGroup
@@ -1474,7 +1500,7 @@ namespace UnrealBuildTool
 
 			// Create the makefile
 			string ExternalMetadata = UEBuildPlatform.GetBuildPlatform(Platform).GetExternalBuildMetadata(ProjectFile);
-			TargetMakefile Makefile = new TargetMakefile(TargetToolChain.GetVersionInfo(), ExternalMetadata, ReceiptFileName, ProjectIntermediateDirectory, TargetType, bDeployAfterCompile, bHasProjectScriptPlugin);
+			TargetMakefile Makefile = new TargetMakefile(TargetToolChain.GetVersionInfo(), ExternalMetadata, ReceiptFileName, ProjectIntermediateDirectory, TargetType, Rules.ConfigValueTracker, bDeployAfterCompile, bHasProjectScriptPlugin);
 
 			// Setup the hot reload module list
 			Makefile.HotReloadModuleNames = GetHotReloadModuleNames();
