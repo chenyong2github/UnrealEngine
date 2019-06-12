@@ -93,6 +93,8 @@ protected:
 
 	bool VerbosityThreshold_IsChecked(ELogVerbosity::Type Verbosity) const;
 	void VerbosityThreshold_Execute(ELogVerbosity::Type Verbosity);
+	FText VerbosityThreshold_GetSuffixGlyph(ELogVerbosity::Type Verbosity) const;
+	FSlateColor VerbosityThreshold_GetSuffixColor(ELogVerbosity::Type Verbosity) const;
 
 	bool ShowHideAllCategories_IsChecked() const;
 	void ShowHideAllCategories_Execute();
