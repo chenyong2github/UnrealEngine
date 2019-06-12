@@ -23,7 +23,7 @@ class FDetailWidgetRow;
 class IDetailChildrenBuilder;
 class IDetailLayoutBuilder;
 class SDragAndDropVerticalBox;
-class ALandscapeBlueprintBrushBase;
+class ALandscapeBlueprintCustomBrush;
 class ULandscapeLayerInfoObject;
 
 /**
@@ -100,10 +100,10 @@ protected:
 	FReply OnToggleLock(int32 InLayerIndex);
 	const FSlateBrush* GetLockBrushForLayer(int32 InLayerIndex) const;
 
-	void FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintBrushBase*> Brushes);
-	void AddBrushToCurrentLayer(ALandscapeBlueprintBrushBase* Brush);
+	void FillAddBrushMenu(FMenuBuilder& MenuBuilder, TArray<ALandscapeBlueprintCustomBrush*> Brushes);
 	void FillClearPaintLayerMenu(FMenuBuilder& MenuBuilder, int32 InLayerIndex, TArray<ULandscapeLayerInfoObject*> InUsedLayerInfos);
 	void FillClearLayerMenu(FMenuBuilder& MenuBuilder, int32 InLayerIndex);
+	void AddBrushToCurrentLayer(ALandscapeBlueprintCustomBrush* Brush);
 
 private:
 
