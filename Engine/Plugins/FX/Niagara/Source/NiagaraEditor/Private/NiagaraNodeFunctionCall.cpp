@@ -381,6 +381,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 
 		TArray<UEdGraphPin*> CallerInputPins;
 		GetInputPins(CallerInputPins);
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(GetCalledGraph(), CallerInputPins);
 
 		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
 		UNiagaraGraph* FunctionGraph = Source->NodeGraph;
@@ -678,6 +679,10 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		{
 			OutputNode = FunctionGraph->FindOutputNode(ENiagaraScriptUsage::DynamicInput);
 		}
+
+		TArray<UEdGraphPin*> InputPins;
+		GetInputPins(InputPins);
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
