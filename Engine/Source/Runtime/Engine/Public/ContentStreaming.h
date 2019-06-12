@@ -17,6 +17,8 @@ class ICompressedAudioInfo;
 class UTexture2D;
 struct FRenderAssetStreamingManager;
 struct FWaveInstance;
+class UAnimStreamable;
+struct FCompressedAnimSequence;
 
 /*-----------------------------------------------------------------------------
 	Stats.
@@ -444,6 +446,27 @@ struct IAudioStreamingManager : public IStreamingManager
 };
 
 /**
+ * Interface to add functions specifically related to animation streaming
+ */
+struct IAnimationStreamingManager : public IStreamingManager
+{
+	/** Adds a new Streamable Anim to the streaming manager. */
+	virtual void AddStreamingAnim(UAnimStreamable* Anim) = 0;
+
+	/** Removes a Streamable Anim from the streaming manager. */
+	virtual bool RemoveStreamingAnim(UAnimStreamable* Anim) = 0;
+
+	/**
+	 * Gets a pointer to a chunk of animation data
+	 *
+	 * @param Anim			AnimStreamable we want a chunk from
+	 * @param ChunkIndex	Index of the chunk we want
+	 * @return Either the desired chunk or NULL if it's not loaded
+	 */
+	virtual const FCompressedAnimSequence* GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex) const = 0;
+};
+
+/**
  * Streaming manager collection, routing function calls to streaming managers that have been added
  * via AddStreamingManager.
  */
@@ -525,6 +548,11 @@ struct ENGINE_VTABLE FStreamingManagerCollection : public IStreamingManager
 	 * Gets a reference to the Audio Streaming Manager interface
 	 */
 	ENGINE_API IAudioStreamingManager& GetAudioStreamingManager() const;
+
+	/**
+	 * Gets a reference to the Animation Streaming Manager interface
+	 */
+	ENGINE_API IAnimationStreamingManager& GetAnimationStreamingManager() const;
 
 	/**
 	 * Adds a streaming manager to the array of managers to route function calls to.
@@ -616,5 +644,8 @@ protected:
 
 	/** The audio streaming manager, should always exist */
 	IAudioStreamingManager* AudioStreamingManager;
+
+	/** The animation streaming manager, should always exist */
+	IAnimationStreamingManager* AnimationStreamingManager;
 };
 

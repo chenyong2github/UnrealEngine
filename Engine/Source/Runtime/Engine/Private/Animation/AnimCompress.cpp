@@ -1583,24 +1583,14 @@ void UAnimCompress::CoalesceCompressedSegments(UAnimSequence& AnimSeq, const TAr
 
 FString UAnimCompress::MakeDDCKey()
 {
-	FString Key;
-	TArray<uint8> TempBytes;
-	TempBytes.Reserve(64);
+	FArcToHexString ArcToHexString;
 
 	// Serialize the compression settings into a temporary array. The archive
 	// is flagged as persistent so that machines of different endianness produce
 	// identical binary results.
-	FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
+	PopulateDDCKey(ArcToHexString.Ar);
 
-	PopulateDDCKey(Ar);
-
-	const uint8* SettingsAsBytes = TempBytes.GetData();
-	Key.Reserve(TempBytes.Num() + 1);
-	for (int32 ByteIndex = 0; ByteIndex < TempBytes.Num(); ++ByteIndex)
-	{
-		ByteToHex(SettingsAsBytes[ByteIndex], Key);
-	}
-	return Key;
+	return ArcToHexString.MakeString();
 }
 
 void UAnimCompress::PopulateDDCKey(FArchive& Ar)

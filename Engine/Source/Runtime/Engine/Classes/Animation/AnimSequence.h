@@ -448,6 +448,7 @@ public:
 		bUseRawDataOnly = true;
 		RawDataGuid = bForceNewRawDatGuid ? FGuid::NewGuid() : GenerateGuidFromRawData();
 		FlagDependentAnimationsAsRawDataOnly();
+		UpdateDependentStreamingAnimations();
 	}
 #endif
 	//~ End UAnimSequenceBase Interface
@@ -506,16 +507,6 @@ public:
 	const FRawAnimSequenceTrack& GetRawAnimationTrack(int32 TrackIndex) const { return RawAnimationData[TrackIndex]; }
 
 private:
-	/** 
-	 * Utility function.
-	 * When extracting root motion, this function resets the root bone to the first frame of the animation.
-	 * 
-	 * @param	BoneTransform		Root Bone Transform
-	 * @param	RequiredBones		BoneContainer
-	 * @param	ExtractionContext	Extraction Context to access root motion extraction information.
-	 */
-	void ResetRootBoneForRootMotion(FTransform& BoneTransform, const FBoneContainer & RequiredBones, ERootMotionRootLock::Type InRootMotionRootLock) const;
-
 	/**
 	* Retarget a single bone transform, to apply right after extraction.
 	*
@@ -820,6 +811,9 @@ public:
 	// Helper function to allow us to notify animations that depend on us that they need to update
 	void FlagDependentAnimationsAsRawDataOnly() const;
 
+	// Helper function to allow us to update streaming animations that depend on us with our data when we are updated
+	void UpdateDependentStreamingAnimations() const;
+
 	// Generate a GUID from a hash of our own raw data
 	FGuid GenerateGuidFromRawData() const;
 
@@ -888,16 +882,8 @@ private:
 	/** Take a set of marker positions and validates them against a requested start position, updating them as desired */
 	void ValidateCurrentPosition(const FMarkerSyncAnimPosition& Position, bool bPlayingForwards, bool bLooping, float&CurrentTime, FMarkerPair& PreviousMarker, FMarkerPair& NextMarker) const;
 	bool UseRawDataForPoseExtraction(const FBoneContainer& RequiredBones) const;
-	void UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& RawCurveData) const;
 	// Should we be always using our raw data (i.e is our compressed data stale)
 	bool bUseRawDataOnly;
-
-	// Populate InOutPose based on raw animation data. 
-	void BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, FCompactPose& InOutPose, float InTime) const;
-	
-	// Internal functionality used by BuildPoseFromRawData. Template param specifies whether KeyIndex2 and Alpha are expected to be used.
-	template<bool INTERPOLATE>
-	void BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimationData, FCompactPose& InOutPose, int32 KeyIndex1, int32 KeyIndex2, float Alpha) const;
 
 public:
 	// Are we currently compressing this animation
