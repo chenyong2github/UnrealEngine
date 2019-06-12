@@ -87,6 +87,9 @@ struct CORE_API FRenderingObjectVersion
 		// Lightmaps replace ULightMapVirtualTexture (non-UTexture derived class) with ULightMapVirtualTexture2D (derived from UTexture)
 		VirtualTexturedLightmapsV2,
 
+		// UTextureRenderTarget2D now explicitly allows users to create sRGB or non-sRGB type targets
+		ExplicitSRGBSetting,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

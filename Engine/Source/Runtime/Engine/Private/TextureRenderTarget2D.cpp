@@ -191,13 +191,10 @@ void UTextureRenderTarget2D::PostEditChangeProperty(FPropertyChangedEvent& Prope
 	SizeX = FMath::Clamp<int32>(SizeX - (SizeX % GPixelFormats[Format].BlockSizeX),1,MaxSize);
 	SizeY = FMath::Clamp<int32>(SizeY - (SizeY % GPixelFormats[Format].BlockSizeY),1,MaxSize);
 
-	// Always set SRGB back to 'on'; it will be turned off again in the call to Super::PostEditChangeProperty below if necessary
-	if (PropertyChangedEvent.Property)
-	{
-		SRGB = true;
-	}
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+    // SRGB may have been changed by Super, reset it since we prefer to honor explicit user choice
+	SRGB = IsSRGB();
 }
 #endif // WITH_EDITOR
 
@@ -210,6 +207,30 @@ void UTextureRenderTarget2D::Serialize(FArchive& Ar)
 	if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::AddedTextureRenderTargetFormats)
 	{
 		RenderTargetFormat = bHDR_DEPRECATED ? RTF_RGBA16f : RTF_RGBA8;
+	}
+
+	if (Ar.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::ExplicitSRGBSetting)
+	{
+		float DisplayGamme = 2.2f;
+
+		if (TargetGamma > KINDA_SMALL_NUMBER * 10.0f)
+		{
+			DisplayGamme = TargetGamma;
+		}
+
+		EPixelFormat Format = GetFormat();
+		if (Format == PF_FloatRGB || Format == PF_FloatRGBA || bForceLinearGamma)
+		{
+			DisplayGamme = 1.0f;
+		}
+
+		// This is odd behavior to apply the sRGB gamma correction when target gamma is not 1.0f, but this
+		// is to maintain old behavior and users won't have to change content.
+		if (RenderTargetFormat == RTF_RGBA8 && FMath::Abs(DisplayGamme - 1.0f) > KINDA_SMALL_NUMBER)
+		{
+			RenderTargetFormat = RTF_RGBA8_SRGB;
+			SRGB = true;
+		}
 	}
 }
 
@@ -428,15 +449,8 @@ void FTextureRenderTarget2DResource::InitDynamicRHI()
 {
 	if( TargetSizeX > 0 && TargetSizeY > 0 )
 	{
-		bool bUseSRGB=true;
-		// if render target gamma used was 1.0 then disable SRGB for the static texture
-		if( FMath::Abs(GetDisplayGamma() - 1.0f) < KINDA_SMALL_NUMBER )
-		{
-			bUseSRGB = false;
-		}
-
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		uint32 TexCreateFlags = bUseSRGB ? TexCreate_SRGB : 0;
+		uint32 TexCreateFlags = Owner->IsSRGB() ? TexCreate_SRGB : 0;
 		TexCreateFlags |= Owner->bGPUSharedFlag ? TexCreate_Shared : 0;
 		FRHIResourceCreateInfo CreateInfo = FRHIResourceCreateInfo(FClearValueBinding(ClearColor));
 

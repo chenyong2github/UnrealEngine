@@ -25,6 +25,8 @@ enum ETextureRenderTargetFormat
 	RTF_RG8,
 	/** RGBA channels, 8 bit per channel fixed point, range [0, 1]. */
 	RTF_RGBA8,
+	/** RGBA channels, 8 bit per channel fixed point, range [0, 1]. RGB is encoded with sRGB gamma curve. A is always stored as linear. */
+	RTF_RGBA8_SRGB,
 	/** R channel, 16 bit per channel floating point, range [-65504, 65504] */
 	RTF_R16f,
 	/** RG channels, 16 bit per channel floating point, range [-65504, 65504] */
@@ -45,18 +47,19 @@ inline EPixelFormat GetPixelFormatFromRenderTargetFormat(ETextureRenderTargetFor
 {
 	switch (RTFormat)
 	{
-	case RTF_R8: return PF_G8; break;
-	case RTF_RG8: return PF_R8G8; break;
-	case RTF_RGBA8: return PF_B8G8R8A8; break;
+	case RTF_R8: return PF_G8;
+	case RTF_RG8: return PF_R8G8;
+	case RTF_RGBA8: return PF_B8G8R8A8;
+	case RTF_RGBA8_SRGB: return PF_B8G8R8A8;
 
-	case RTF_R16f: return PF_R16F; break;
-	case RTF_RG16f: return PF_G16R16F; break;
-	case RTF_RGBA16f: return PF_FloatRGBA; break;
+	case RTF_R16f: return PF_R16F;
+	case RTF_RG16f: return PF_G16R16F;
+	case RTF_RGBA16f: return PF_FloatRGBA;
 
-	case RTF_R32f: return PF_R32_FLOAT; break;
-	case RTF_RG32f: return PF_G32R32F; break;
-	case RTF_RGBA32f: return PF_A32B32G32R32F; break;
-	case RTF_RGB10A2: return PF_A2B10G10R10; break;
+	case RTF_R32f: return PF_R32_FLOAT;
+	case RTF_RG32f: return PF_G32R32F;
+	case RTF_RGBA32f: return PF_A32B32G32R32F;
+	case RTF_RGB10A2: return PF_A2B10G10R10;
 	}
 
 	ensureMsgf(false, TEXT("Unhandled ETextureRenderTargetFormat entry %u"), (uint32)RTFormat);
@@ -114,7 +117,7 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 	 * Use the smallest format that has enough precision and range for what you are doing.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=TextureRenderTarget2D, AssetRegistrySearchable)
-	TEnumAsByte<enum ETextureRenderTargetFormat> RenderTargetFormat;
+	TEnumAsByte<ETextureRenderTargetFormat> RenderTargetFormat;
 
 	/** Whether to support Mip maps for this render target texture */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = TextureRenderTarget2D, AssetRegistrySearchable)
@@ -202,6 +205,18 @@ class UTextureRenderTarget2D : public UTextureRenderTarget
 		else
 		{
 			return OverrideFormat;
+		}
+	}
+
+	bool IsSRGB() const
+	{
+		if (OverrideFormat == PF_Unknown)
+		{
+			return RenderTargetFormat == RTF_RGBA8_SRGB;
+		}
+		else
+		{
+			return !bForceLinearGamma;
 		}
 	}
 
