@@ -32,10 +32,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = Tools, meta = (DisplayName = "Translation Picker"))
 	bool bEnableTranslationPicker;
 
-	/** The Blutility shelf holds editor utility Blueprints. Summon from the Workspace menu. */
-	UPROPERTY(EditAnywhere, config, Category=Tools, meta=(DisplayName="Editor Utility Blueprints (Blutility)"))
-	bool bEnableEditorUtilityBlueprints;
-
 	/** When enabled, all details panels will be able to have properties marked as favorite that show in a top most category.  
 	 * NOTE: Some customizations are not supported yet
 	 */
