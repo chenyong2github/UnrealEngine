@@ -184,6 +184,11 @@ struct FVector3
 		return FVector3<T>(X / Scalar, Y / Scalar, Z / Scalar);
 	}
 
+	inline FVector3<T> operator/(const FVector3<T>& V2) const // component-wise
+	{
+		return FVector3<T>(X / V2.X, Y / V2.Y, Z / V2.Z);
+	}
+
 	inline FVector3<T>& operator+=(const FVector3<T>& V2)
 	{
 		X += V2.X;
@@ -485,6 +490,11 @@ struct FVector2
 	inline FVector2 operator/(const T& Scalar) const
 	{
 		return FVector2(X / Scalar, Y / Scalar);
+	}
+
+	inline FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
+	{
+		return FVector2<T>(X / V2.X, Y / V2.Y);
 	}
 
 	inline FVector2<T>& operator+=(const FVector2<T>& V2)
