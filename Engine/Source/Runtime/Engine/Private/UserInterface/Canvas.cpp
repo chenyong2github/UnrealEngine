@@ -976,6 +976,7 @@ void FCanvas::Clear(const FLinearColor& ClearColor)
 				{
 					// do fast clear
 					FRHIRenderPassInfo RPInfo(CanvasRenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
+					TransitionRenderPassTargets(RHICmdList, RPInfo);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearCanvas"));
 					RHICmdList.EndRenderPass();					
 				}
