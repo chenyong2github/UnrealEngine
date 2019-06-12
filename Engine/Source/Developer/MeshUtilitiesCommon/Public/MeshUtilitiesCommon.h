@@ -13,7 +13,8 @@ enum class ELightmapUVVersion : int32
 	ChartJoiningLFix = 4,
 	Allocator2DFlipFix = 5,
 	ConsiderLightmapPadding = 6,
-	Latest = ConsiderLightmapPadding
+	ForceLightmapPadding = 7,
+	Latest = ForceLightmapPadding
 };
 
 /** Helper struct for building acceleration structures. */

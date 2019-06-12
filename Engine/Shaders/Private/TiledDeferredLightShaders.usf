@@ -5,9 +5,19 @@
 =============================================================================*/
 
 #define SUPPORT_CONTACT_SHADOWS 0
+#define USE_SOURCE_TEXTURE 0
 
 #include "Common.ush"
 #include "DeferredLightingCommon.ush"
+
+/**
+ * Hoist shading model selection out to the main function, then repeat light loop with fixed light model and let early outs deal with it.
+ * This should let the compiler defer loading values from the GBuffer until they are needed and thus reduce the catastrophic 
+ * resister pressure.
+ * If the compiler refuses, then move the GBuffer data load into the per-shading model branches also.
+ * Also use an outermost early out check to skip the whole pass.
+ */
+#define USE_PASS_PER_SHADING_MODEL 1
 
 #define THREADGROUP_TOTALSIZE (THREADGROUP_SIZEX * THREADGROUP_SIZEY)
 
@@ -45,6 +55,72 @@ groupshared uint TileSimpleLightIndices[MAX_LIGHTS];
 /** Output HDR target. */
 Texture2D<float4> InTexture;
 RWTexture2D<float4> RWOutTexture;
+
+void ExecuteShadingLoops(inout float4 CompositedLighting, FScreenSpaceData ScreenSpaceData, uint NumLightsAffectingTile, uint NumSimpleLightsAffectingTile, float3 CameraVector, float3 WorldPosition)
+{
+	LOOP
+	for (uint TileLightIndex = 0; TileLightIndex < NumLightsAffectingTile; TileLightIndex++) 
+	{
+		uint LightIndex = TileLightIndices[TileLightIndex];
+
+		FDeferredLightData LightData = (FDeferredLightData)0;
+		LightData.Position = TiledDeferred.LightPositionAndInvRadius[LightIndex].xyz;
+		LightData.InvRadius = TiledDeferred.LightPositionAndInvRadius[LightIndex].w;
+		LightData.Color = TiledDeferred.LightColorAndFalloffExponent[LightIndex].xyz;
+		LightData.FalloffExponent = TiledDeferred.LightColorAndFalloffExponent[LightIndex].w;
+		{
+			float4 Value = TiledDeferred2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex];
+			LightData.Direction = Value.xyz;
+			LightData.bSpotLight = Value.w > 0;
+			LightData.SpecularScale = abs(Value.w);
+		}
+		LightData.SpotAngles = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].xy;
+		LightData.SourceRadius = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].z;
+		// don't support lights with non-0 length in tiled-deferred path, so make sure it stays zero-initialized
+		//LightData.SourceLength = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].w;
+		LightData.ShadowMapChannelMask = TiledDeferred2.ShadowMapChannelMask[LightIndex];
+		LightData.bInverseSquared = LightData.FalloffExponent == 0;
+		// Only radial lights supported with tiled deferred
+		LightData.bRadialLight = true;
+		// The only type of shadowing supported for lights using tiled is static shadowing, so the light should only compute shadowing if it has static shadowing
+		LightData.ShadowedBits = dot(LightData.ShadowMapChannelMask, float4(1, 1, 1, 1));
+	
+		// Lights requiring light attenuation are not supported tiled for now
+		// WARNING: DeferredLightUniforms.SourceTexture is not set here, but compiles out because of bRectLight being false and USE_SOURCE_TEXTURE == 0.
+		FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
+		CompositedLighting += GetDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.ShadingModelID, LightData, float4(1, 1, 1, 1), 0.5, uint2(0,0), RectTexture);
+	}
+
+	// The simple shading model does not depend on ShadingModelID, so use it anytime the material is lit
+	LOOP
+	for (uint TileLightIndex2 = 0; TileLightIndex2 < NumSimpleLightsAffectingTile; TileLightIndex2++) 
+	{
+		uint LightIndex = TileSimpleLightIndices[TileLightIndex2];
+
+		FSimpleDeferredLightData LightData = (FSimpleDeferredLightData)0;
+		LightData.Position = TiledDeferred.LightPositionAndInvRadius[LightIndex].xyz;
+		LightData.InvRadius = TiledDeferred.LightPositionAndInvRadius[LightIndex].w;
+		LightData.Color = TiledDeferred.LightColorAndFalloffExponent[LightIndex].xyz;
+		LightData.FalloffExponent = TiledDeferred.LightColorAndFalloffExponent[LightIndex].w;
+		LightData.bInverseSquared = LightData.FalloffExponent == 0;
+						
+		// todo: doesn't support ScreenSpaceSubsurfaceScattering yet (not using alpha)
+		CompositedLighting.rgb += GetSimpleDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, LightData);
+	}
+}
+
+
+#define EXECUTE_SHADING_LOOPS_SINGLE_SM(ShadingModelId, PixelShadingModelId, /*inout float4*/ CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition) \
+{	\
+	BRANCH	\
+	if (PixelShadingModelId == ShadingModelId)	\
+	{	\
+		FScreenSpaceData ScreenSpaceData = GetScreenSpaceDataUint(PixelPos); \
+		ScreenSpaceData.GBuffer.ShadingModelID = ShadingModelId;	\
+		ExecuteShadingLoops(CompositedLighting, ScreenSpaceData, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);	\
+	}	\
+}
+
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void TiledDeferredLightingMain(
@@ -172,9 +248,6 @@ void TiledDeferredLightingMain(
 	float2 ClipPosition = ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? SceneDepth : 1.0f);
 	float3 WorldPosition = mul(float4(ClipPosition, SceneDepth, 1), View.ScreenToWorld).xyz;
 
-	// RGB accumulated RGB HDR color, A: luminance for screenspace subsurface scattering
-	float4 CompositedLighting = 0;
-
 #define DO_CULLING_AND_SHADING 1
 #if DO_CULLING_AND_SHADING
 
@@ -239,65 +312,48 @@ void TiledDeferredLightingMain(
 	uint NumLightsAffectingTile = TileNumLights;
 	uint NumSimpleLightsAffectingTile = TileNumSimpleLights;
 	
+
+#if USE_PASS_PER_SHADING_MODEL
+	// Now we could trick the compiler to put this in a branch by setting an always 1 int variable and decorate with BRANCH
+	// this might force it to not load the whole thing, but you never know with shader compilers.
+	uint PixelShadingModelID = GetScreenSpaceDataUint(PixelPos).GBuffer.ShadingModelID;
+#else // !USE_PASS_PER_SHADING_MODEL
 	// Lookup GBuffer properties once per pixel 
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceDataUint(PixelPos);
-	FGBufferData InGBufferData = ScreenSpaceData.GBuffer; 
-	float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
-		
-	BRANCH
-	if (InGBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
-	{
-        FRectTexture RectTexture = InitRectTexture(DeferredLightUniforms.SourceTexture);
+	uint PixelShadingModelID = ScreenSpaceData.GBuffer.ShadingModelID;
 
-		LOOP
-		for (uint TileLightIndex = 0; TileLightIndex < NumLightsAffectingTile; TileLightIndex++) 
-		{
-			uint LightIndex = TileLightIndices[TileLightIndex];
-
-			FDeferredLightData LightData = (FDeferredLightData)0;
-			LightData.Position = TiledDeferred.LightPositionAndInvRadius[LightIndex].xyz;
-			LightData.InvRadius = TiledDeferred.LightPositionAndInvRadius[LightIndex].w;
-			LightData.Color = TiledDeferred.LightColorAndFalloffExponent[LightIndex].xyz;
-			LightData.FalloffExponent = TiledDeferred.LightColorAndFalloffExponent[LightIndex].w;
-			{
-				float4 Value = TiledDeferred2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex];
-				LightData.Direction = Value.xyz;
-				LightData.bSpotLight = Value.w > 0;
-				LightData.SpecularScale = abs(Value.w);
-			}
-			LightData.SpotAngles = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].xy;
-			LightData.SourceRadius = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].z;
-			// don't support lights with non-0 length in tiled-deferred path, so make sure it stays zero-initialized
-			//LightData.SourceLength = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].w;
-			LightData.ShadowMapChannelMask = TiledDeferred2.ShadowMapChannelMask[LightIndex];
-			LightData.bInverseSquared = LightData.FalloffExponent == 0;
-			// Only radial lights supported with tiled deferred
-			LightData.bRadialLight = true;
-			// The only type of shadowing supported for lights using tiled is static shadowing, so the light should only compute shadowing if it has static shadowing
-			LightData.ShadowedBits = dot(LightData.ShadowMapChannelMask, float4(1, 1, 1, 1));
+#endif // USE_PASS_PER_SHADING_MODEL
 	
-			// Lights requiring light attenuation are not supported tiled for now
-			CompositedLighting += GetDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer, ScreenSpaceData.AmbientOcclusion, InGBufferData.ShadingModelID, LightData, float4(1, 1, 1, 1), 0.5, uint2(0,0), RectTexture);
-		}
 
-		// The simple shading model does not depend on ShadingModelID, so use it anytime the material is lit
-		LOOP
-		for (uint TileLightIndex = 0; TileLightIndex < NumSimpleLightsAffectingTile; TileLightIndex++) 
-		{
-			uint LightIndex = TileSimpleLightIndices[TileLightIndex];
+	// NOTE: This definition of 'CameraVector' appears to be the reverse of what 
+	// is in forward shading parts e.g, as defined in 'FMaterialPixelParameters'.
 
-			FSimpleDeferredLightData LightData = (FSimpleDeferredLightData)0;
-			LightData.Position = TiledDeferred.LightPositionAndInvRadius[LightIndex].xyz;
-			LightData.InvRadius = TiledDeferred.LightPositionAndInvRadius[LightIndex].w;
-			LightData.Color = TiledDeferred.LightColorAndFalloffExponent[LightIndex].xyz;
-			LightData.FalloffExponent = TiledDeferred.LightColorAndFalloffExponent[LightIndex].w;
-			LightData.bInverseSquared = LightData.FalloffExponent == 0;
-						
-			// todo: doesn't support ScreenSpaceSubsurfaceScattering yet (not using alpha)
-			CompositedLighting.rgb += GetSimpleDynamicLighting(WorldPosition, CameraVector, ScreenSpaceData.GBuffer.WorldNormal, ScreenSpaceData.AmbientOcclusion, ScreenSpaceData.GBuffer.DiffuseColor, ScreenSpaceData.GBuffer.SpecularColor, ScreenSpaceData.GBuffer.Roughness, LightData);
-		}
+	float3 CameraVector = normalize(WorldPosition - View.WorldCameraOrigin);
+
+	// RGB accumulated RGB HDR color, A: luminance for screenspace subsurface scattering
+	float4 CompositedLighting = 0;
+	//BRANCH
+	if (PixelShadingModelID != SHADINGMODELID_UNLIT)
+	{
+#if USE_PASS_PER_SHADING_MODEL
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_DEFAULT_LIT, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_SUBSURFACE, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_PREINTEGRATED_SKIN, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_CLEAR_COAT, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_SUBSURFACE_PROFILE, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_TWOSIDED_FOLIAGE, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_HAIR, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_CLOTH, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+		EXECUTE_SHADING_LOOPS_SINGLE_SM(SHADINGMODELID_EYE, PixelShadingModelID, CompositedLighting, PixelPos, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+#else // !USE_PASS_PER_SHADING_MODEL
+		ExecuteShadingLoops(CompositedLighting, ScreenSpaceData, NumLightsAffectingTile, NumSimpleLightsAffectingTile, CameraVector, WorldPosition);
+#endif // USE_PASS_PER_SHADING_MODEL
 	}
-		
+
+#if USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+	CompositedLighting *= View.PreExposure;
+#endif // USE_PREEXPOSURE && !VISUALIZE_LIGHT_CULLING
+
 #endif
 
 	// Only write to the buffer for threads inside the view

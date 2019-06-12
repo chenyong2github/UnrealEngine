@@ -53,6 +53,7 @@
 #include "Editor/EditorPerformanceSettings.h"
 #include "ImageWriteQueue.h"
 #include "DebugViewModeHelpers.h"
+#include "RayTracingDebugVisualizationMenuCommands.h"
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
 
@@ -312,6 +313,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, LastEngineShowFlags(ESFIM_Game)
 	, ExposureSettings()
 	, CurrentBufferVisualizationMode(NAME_None)
+	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, FramesSinceLastDraw(0)
 	, ViewIndex(INDEX_NONE)
 	, ViewFOV(EditorViewportDefs::DefaultPerspectiveFOVAngle)
@@ -3682,9 +3684,11 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	EViewModeIndex CurrentViewMode = GetViewMode();
 	ViewFamily.ViewMode = CurrentViewMode;
-	bool bCanDisableTonemapper = (CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None)
-								|| (CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None);
 
+	const bool bVisualizeBufferEnabled = CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None;
+	const bool bRayTracingDebugEnabled = CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None;
+	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
+	
 	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, bCanDisableTonemapper);
 	EngineShowFlagOrthographicOverride(IsPerspective(), ViewFamily.EngineShowFlags);
 
@@ -5229,6 +5233,9 @@ void FEditorViewportClient::MouseMove(FViewport* InViewport,int32 x, int32 y)
 
 	// Let the current editor mode know about the mouse movement.
 	ModeTools->MouseMove(this, Viewport, x, y);
+
+	CachedLastMouseX = x;
+	CachedLastMouseY = y;
 }
 
 void FEditorViewportClient::MouseLeave(FViewport* InViewport)

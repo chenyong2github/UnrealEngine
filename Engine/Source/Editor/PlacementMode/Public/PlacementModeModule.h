@@ -7,8 +7,6 @@
 
 #include "Framework/MultiBox/MultiBoxExtender.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnPlacementModeCategoryRefreshed, FName /*CategoryName*/)
-
 struct FPlacementCategory : FPlacementCategoryInfo
 {
 	FPlacementCategory(const FPlacementCategoryInfo& SourceInfo)
@@ -48,15 +46,14 @@ public:
 	 */
 	virtual void PreUnloadCallback() override;
 
+	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnPlacementModeCategoryRefreshed, FOnPlacementModeCategoryRefreshed);
+	virtual FOnPlacementModeCategoryRefreshed& OnPlacementModeCategoryRefreshed() override { return PlacementModeCategoryRefreshed; }
+
 	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnRecentlyPlacedChanged, FOnRecentlyPlacedChanged);
 	virtual FOnRecentlyPlacedChanged& OnRecentlyPlacedChanged() override { return RecentlyPlacedChanged; }
 
 	DECLARE_DERIVED_EVENT(FPlacementModeModule, IPlacementModeModule::FOnAllPlaceableAssetsChanged, FOnAllPlaceableAssetsChanged);
 	virtual FOnAllPlaceableAssetsChanged& OnAllPlaceableAssetsChanged() override { return AllPlaceableAssetsChanged; }
-
-	FOnPlacementModeCategoryRefreshed& OnPlacementModeCategoryRefreshed() { return PlacementModeCategoryRefreshed; }
-
-	void BroadcastPlacementModeCategoryRefreshed(FName CategoryName) { PlacementModeCategoryRefreshed.Broadcast(CategoryName); }
 
 	/**
 	 * Add the specified assets to the recently placed items list

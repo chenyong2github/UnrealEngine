@@ -555,7 +555,7 @@ static bool UpdateScissorRect(
 				// because we're about to go back to rendering widgets "normally", but with the added effect that now
 				// we have the stencil buffer bound with a bunch of clipping zones rendered into it.
 				{
-					FDepthStencilStateRHIParamRef DSMaskRead =
+					FRHIDepthStencilState* DSMaskRead =
 						TStaticDepthStencilState<
 						/*bEnableDepthWrite*/ false
 						, /*DepthTest*/ CF_Always
@@ -906,7 +906,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				}
 #endif
 
-				FSamplerStateRHIParamRef SamplerState = BilinearClamp;
+				FRHISamplerState* SamplerState = BilinearClamp;
 				FTextureRHIParamRef TextureRHI = GWhiteTexture->TextureRHI;
 				if (ShaderResource)
 				{

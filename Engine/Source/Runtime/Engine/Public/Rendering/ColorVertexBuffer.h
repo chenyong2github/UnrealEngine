@@ -173,7 +173,7 @@ public:
 	ENGINE_API void BindColorVertexBuffer(const class FVertexFactory* VertexFactory, struct FStaticMeshDataType& StaticMeshData) const;
 	ENGINE_API static void BindDefaultColorVertexBuffer(const class FVertexFactory* VertexFactory, struct FStaticMeshDataType& StaticMeshData, NullBindStride BindStride);
 
-	FORCEINLINE const FShaderResourceViewRHIParamRef GetColorComponentsSRV() const
+	FORCEINLINE FRHIShaderResourceView* GetColorComponentsSRV() const
 	{
 		return ColorComponentsSRV;
 	}

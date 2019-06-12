@@ -12,18 +12,6 @@
 // xyz:Bloom1Tint.rgb, w:unused
 float4 ColorScale1;
 
-// vertex shader entry point
-void MainPostprocessCommonVS(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 InTexCoord : ATTRIBUTE1,
-	out noperspective float4 OutTexCoord : TEXCOORD0,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	DrawRectangle(InPosition, InTexCoord, OutPosition, OutTexCoord.xy);
-	OutTexCoord.zw = OutPosition.xy;
-}
-
 void VisualizeBloomSetupPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0,
 	float4 SvPosition : SV_POSITION, 
@@ -132,12 +120,12 @@ void VisualizeBloomOverlayPS(
 void MainVS(
 	float4 InPosition : ATTRIBUTE0,
 	float2 InTexCoord : ATTRIBUTE1,
-	out noperspective float4 OutTexCoord : TEXCOORD0,
+	out noperspective float4 OutUVAndScreenPos : TEXCOORD0,
 	out nointerpolation float OutExposureScale : TEXCOORD1,
 	out float4 OutPosition : SV_POSITION
 	)
 {
-	MainPostprocessCommonVS(InPosition, InTexCoord, OutTexCoord, OutPosition);
+	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVAndScreenPos);
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	// texture can be GWhiteTexture which is 1x1. It's important we don't read outside bounds.
@@ -171,7 +159,7 @@ float4 BloomSetupCommon(float2 UV, float Threshold, float ExposureScale)
 	// mask 0..1
 	half BloomAmount = saturate(BloomLuminance / 2.0f);
 
-	return float4(BloomAmount * LinearColor, 0);
+	return float4(BloomAmount * LinearColor, 0) * PreExposure;
 }
 
 // x:BloomThreshold, yz:unused, w:ExposureScale (useful if eyeadaptation is locked)

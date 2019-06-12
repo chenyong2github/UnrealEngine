@@ -244,7 +244,7 @@ FPrimitiveViewRelevance FNiagaraSceneProxy::GetViewRelevance(const FSceneView* V
 {
 	FPrimitiveViewRelevance Relevance;
 
-	if (bRenderingEnabled == false || (View->GetFeatureLevel() != ERHIFeatureLevel::SM5 && View->GetFeatureLevel() != ERHIFeatureLevel::ES3_1))
+	if (bRenderingEnabled == false || !FNiagaraUtilities::SupportsNiagaraRendering(View->GetFeatureLevel()))
 	{
 		return Relevance;
 	}

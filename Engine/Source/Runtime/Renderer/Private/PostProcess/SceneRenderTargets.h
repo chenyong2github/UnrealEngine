@@ -15,6 +15,7 @@
 #include "SceneInterface.h"
 #include "SceneView.h"
 #include "RendererInterface.h"
+#include "../VT/VirtualTextureFeedback.h"
 
 class FViewInfo;
 
@@ -217,6 +218,9 @@ public:
 
 	void SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool bBindQuadOverdrawBuffers, FRHISetRenderTargetsInfo& Info);
 	void SetQuadOverdrawUAV(FRHICommandList& RHICmdList, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers, FRHIRenderPassInfo& Info);
+
+	void BindVirtualTextureFeedbackUAV(FRHIRenderPassInfo& RPInfo);
+
 	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, FExclusiveDepthStencil::Type DepthStencilAccess, bool bBindQuadOverdrawBuffers, bool bClearQuadOverdrawBuffers = false, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1), bool bIsWireframe=false);
 	void FinishGBufferPassAndResolve(FRHICommandListImmediate& RHICmdList);
 
@@ -576,6 +580,9 @@ public:
 
 	// todo: free ScreenSpaceAO so pool can reuse
 	bool bCustomDepthIsValid;
+
+	/**	Virtual texture feedback buffer bound as UAV during basepass*/
+	FVirtualTextureFeedback VirtualTextureFeedback;
 
 private:
 	/** used by AdjustGBufferRefCount */

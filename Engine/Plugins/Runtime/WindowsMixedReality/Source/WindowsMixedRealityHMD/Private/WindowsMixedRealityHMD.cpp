@@ -75,13 +75,13 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, float nearPlaneM, float farPlaneM, float worldToMetersValue, FTextureRHIParamRef DepthTexture)
 	{
-		FPixelShaderRHIParamRef PixelShaderRHI = GetPixelShader();
+		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 
 		SetShaderValue(RHICmdList, PixelShaderRHI, NearPlaneM, nearPlaneM);
 		SetShaderValue(RHICmdList, PixelShaderRHI, FarPlaneM, farPlaneM);
 		SetShaderValue(RHICmdList, PixelShaderRHI, WorldToMeters, worldToMetersValue);
 
-		FSamplerStateRHIParamRef SamplerStateRHI = TStaticSamplerState<SF_Point>::GetRHI();
+		FRHISamplerState* SamplerStateRHI = TStaticSamplerState<SF_Point>::GetRHI();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, InDepthTexture, InTextureSampler, SamplerStateRHI, DepthTexture);
 	}
 

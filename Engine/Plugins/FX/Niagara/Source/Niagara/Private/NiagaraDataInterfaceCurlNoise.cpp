@@ -482,7 +482,7 @@ struct FNiagaraDataInterfaceParametersCS_CurlNoise : public FNiagaraDataInterfac
 		check(IsInRenderingThread());
 
 		// Get shader and DI
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
 		FNiagaraDataInterfaceProxyCurlNoise* CNDI = static_cast<FNiagaraDataInterfaceProxyCurlNoise*>(Context.DataInterface);
 
 		// Set parameters

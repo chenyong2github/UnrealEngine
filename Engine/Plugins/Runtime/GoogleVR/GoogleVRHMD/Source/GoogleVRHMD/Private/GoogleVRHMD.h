@@ -402,7 +402,8 @@ private:
 #if GOOGLEVRHMD_SUPPORTED_INSTANT_PREVIEW_PLATFORMS
 	static const int kReadbackTextureCount = 5;
 	FTexture2DRHIRef ReadbackTextures[kReadbackTextureCount];
-	FRenderQueryRHIRef ReadbackCopyQueries[kReadbackTextureCount];
+	FRenderQueryPoolRHIRef RenderQueryPool;
+	FRHIPooledRenderQuery ReadbackCopyQueries[kReadbackTextureCount];
 	FIntPoint ReadbackTextureSizes[kReadbackTextureCount];
 	int ReadbackTextureCount;
 	instant_preview::ReferencePose ReadbackReferencePoses[kReadbackTextureCount];

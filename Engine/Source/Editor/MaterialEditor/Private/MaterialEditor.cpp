@@ -1423,6 +1423,32 @@ void FMaterialEditor::DrawMaterialInfoStrings(
 			DrawPositionY += SpacingBetweenLines;
 		}
 
+		uint32 NumVirtualTextureLookups = MaterialResource->GetEstimatedNumVirtualTextureLookups();
+		if (NumVirtualTextureLookups > 0)
+		{
+			Canvas->DrawShadowedString(
+				5,
+				DrawPositionY,
+				*FString::Printf(TEXT("Virtual Texture Lookups (Est.): %u"), NumVirtualTextureLookups),
+				FontToUse,
+				FLinearColor(1, 1, 0)
+			);
+			DrawPositionY += SpacingBetweenLines;
+		}
+
+		const uint32 NumVirtualTextureStacks = MaterialResource->GetNumVirtualTextureStacks();
+		if (NumVirtualTextureStacks > 0)
+		{
+			Canvas->DrawShadowedString(
+				5,
+				DrawPositionY,
+				*FString::Printf(TEXT("Virtual Texture Stacks: %u"), NumVirtualTextureStacks),
+				FontToUse,
+				FLinearColor(1, 1, 0)
+			);
+			DrawPositionY += SpacingBetweenLines;
+		}
+
 		if (bGeneratedNewShaders)
 		{
 			int32 NumShaders = 0;
@@ -2059,6 +2085,29 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(SamplesString, FLinearColor::Yellow)));
 					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
 					Line->AddToken(FTextToken::Create(FText::FromString(SamplesString)));
+					Messages.Add(Line);
+				}
+
+				// Display estimated virtual texture look-up counts
+				uint32 NumVirtualTextureLookups = MaterialResource->GetEstimatedNumVirtualTextureLookups();
+				if (NumVirtualTextureLookups > 0)
+				{
+					FString LookupsString = FString::Printf(TEXT("Virtual Texture Lookups (Est.): %u"), NumVirtualTextureLookups);
+
+					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(LookupsString, FLinearColor::Yellow)));
+					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
+					Line->AddToken(FTextToken::Create(FText::FromString(LookupsString)));
+					Messages.Add(Line);
+				}
+
+				const uint32 NumVirtualTextureStacks = MaterialResource->GetNumVirtualTextureStacks();
+				if (NumVirtualTextureStacks > 0u)
+				{
+					FString VTString = FString::Printf(TEXT("Virtual Texture Stacks: %u"), NumVirtualTextureStacks);
+
+					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(VTString, FLinearColor::Yellow)));
+					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
+					Line->AddToken(FTextToken::Create(FText::FromString(VTString)));
 					Messages.Add(Line);
 				}
 
@@ -4610,7 +4659,7 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 			bNewlyCreated = true;
 			Preview = new FMatExpressionPreview(MaterialExpression);
 			ExpressionPreviews.Add(Preview);
-			Preview->CacheShaders(GMaxRHIShaderPlatform, true);
+			Preview->CacheShaders(GMaxRHIShaderPlatform);
 		}
 		return Preview;
 	}

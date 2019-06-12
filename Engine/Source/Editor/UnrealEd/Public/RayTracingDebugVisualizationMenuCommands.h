@@ -36,6 +36,8 @@ public:
 
 	void BindCommands(FUICommandList& CommandList, const TSharedPtr<FEditorViewportClient>& Client) const;
 
+	static bool DebugModeShouldBeTonemapped(const FName& RayTracingDebugModeName);
+
 private:
 	void BuildCommandMap();
 

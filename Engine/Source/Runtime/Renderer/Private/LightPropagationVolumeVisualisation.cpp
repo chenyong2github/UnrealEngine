@@ -64,7 +64,7 @@ public:
 		FRHICommandList& RHICmdList, 
 		const FSceneView& View )
 	{
-		FGeometryShaderRHIParamRef ShaderRHI = GetGeometryShader();
+		FRHIGeometryShader* ShaderRHI = GetGeometryShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
 };
@@ -84,7 +84,7 @@ public:
 		FRHICommandList& RHICmdList, 
 		const FSceneView& View )
 	{
-		FVertexShaderRHIParamRef ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = GetVertexShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 	}
 };
@@ -116,7 +116,7 @@ public:
 		const FLightPropagationVolume* LPV,
 		const FSceneView& View )
 	{
-		FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		
 		for ( int i = 0; i < 7; i++ )
@@ -169,7 +169,7 @@ public:
 	void UnbindBuffers(FRHICommandList& RHICmdList)
 	{
 		// TODO: Is this necessary here?
-		FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		for ( int i = 0; i < 7; i++ )
 		{
 			if ( LpvBufferSRVParameters[i].IsBound() )

@@ -49,6 +49,6 @@ public class D3D12RHI : ModuleRules
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
             	AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
             }
-		}
+        }
     }
 }

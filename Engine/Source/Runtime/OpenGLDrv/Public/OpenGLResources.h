@@ -1168,12 +1168,12 @@ public:
 	/** Initialization constructor. */
 	FOpenGLBoundShaderState(
 		FOpenGLLinkedProgram* InLinkedProgram,
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
-		FVertexShaderRHIParamRef InVertexShaderRHI,
-		FPixelShaderRHIParamRef InPixelShaderRHI,
-		FGeometryShaderRHIParamRef InGeometryShaderRHI,
-		FHullShaderRHIParamRef InHullShaderRHI,
-		FDomainShaderRHIParamRef InDomainShaderRHI
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
+		FRHIVertexShader* InVertexShaderRHI,
+		FRHIPixelShader* InPixelShaderRHI,
+		FRHIGeometryShader* InGeometryShaderRHI,
+		FRHIHullShader* InHullShaderRHI,
+		FRHIDomainShader* InDomainShaderRHI
 		);
 
 	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);
@@ -1932,7 +1932,7 @@ protected:
 class FOpenGLShaderResourceViewProxy : public TOpenGLResourceProxy<FRHIShaderResourceView, FOpenGLShaderResourceView>
 {
 public:
-	FOpenGLShaderResourceViewProxy(TFunction<FOpenGLShaderResourceView*(FShaderResourceViewRHIParamRef)> CreateFunc)
+	FOpenGLShaderResourceViewProxy(TFunction<FOpenGLShaderResourceView*(FRHIShaderResourceView*)> CreateFunc)
 		: TOpenGLResourceProxy<FRHIShaderResourceView, FOpenGLShaderResourceView>(CreateFunc)
 	{}
 

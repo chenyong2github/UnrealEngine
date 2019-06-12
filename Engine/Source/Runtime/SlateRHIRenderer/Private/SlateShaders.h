@@ -338,7 +338,7 @@ public:
 	void SetWeightsAndOffsets(FRHICommandList& RHICmdList, const TArray<FVector4>& InWeightsAndOffsets, int32 NumSamples )
 	{
 		check(InWeightsAndOffsets.Num() <= MAX_BLUR_SAMPLES);
-		SetShaderValueArray<FPixelShaderRHIParamRef, FVector4>(RHICmdList, GetPixelShader(), WeightAndOffsets, InWeightsAndOffsets.GetData(), InWeightsAndOffsets.Num() );
+		SetShaderValueArray<FRHIPixelShader*, FVector4>(RHICmdList, GetPixelShader(), WeightAndOffsets, InWeightsAndOffsets.GetData(), InWeightsAndOffsets.Num() );
 		SetShaderValue(RHICmdList, GetPixelShader(), SampleCount, NumSamples);
 	}
 

@@ -220,12 +220,12 @@ class FVulkanBoundShaderState : public FRHIBoundShaderState
 {
 public:
 	FVulkanBoundShaderState(
-		FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
-		FVertexShaderRHIParamRef InVertexShaderRHI,
-		FPixelShaderRHIParamRef InPixelShaderRHI,
-		FHullShaderRHIParamRef InHullShaderRHI,
-		FDomainShaderRHIParamRef InDomainShaderRHI,
-		FGeometryShaderRHIParamRef InGeometryShaderRHI
+		FRHIVertexDeclaration* InVertexDeclarationRHI,
+		FRHIVertexShader* InVertexShaderRHI,
+		FRHIPixelShader* InPixelShaderRHI,
+		FRHIHullShader* InHullShaderRHI,
+		FRHIDomainShader* InDomainShaderRHI,
+		FRHIGeometryShader* InGeometryShaderRHI
 	);
 
 	virtual ~FVulkanBoundShaderState();
@@ -293,6 +293,8 @@ public:
 	virtual ~FVulkanSurface();
 
 	void Destroy();
+	void InvalidateMappedMemory(){ ResourceAllocation->InvalidateMappedMemory();}
+	void* GetMappedPointer() { return ResourceAllocation->GetMappedPointer(); }
 
 #if 0
 	/**
@@ -1179,15 +1181,34 @@ public:
 	void UpdateConstantData(const void* Contents, int32 ContentsSize);
 };
 
-class FVulkanRealUniformBuffer : public FVulkanUniformBuffer, public FVulkanResourceMultiBuffer
+class FVulkanRealUniformBuffer : public FVulkanUniformBuffer
 {
 public:
+	FVulkanDevice* Device;
 	FVulkanRealUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation);
+	virtual ~FVulkanRealUniformBuffer();
 
-	void Update(const void* Contents, int32 ContentsSize);
+	VulkanRHI::FBufferAllocation* GetBufferAllocation() const
+	{
+		checkSlow(UBAllocation);
+		return UBAllocation->GetBufferAllocation();
+	}
 
-private:
-	TArray<TRefCountPtr<FRHIResource>> ResourceTable;
+	inline uint32 GetOffset() const
+	{
+		return UBAllocation->GetOffset();
+	}
+
+	// Returns previous allocation
+	inline VulkanRHI::FBufferSuballocation* UpdateUBAllocation(VulkanRHI::FBufferSuballocation* NewAlloc)
+	{
+		checkSlow(UBAllocation);
+		VulkanRHI::FBufferSuballocation* PrevBufferSuballoc = UBAllocation;
+		UBAllocation = NewAlloc;
+
+		return PrevBufferSuballoc;
+	}
+	VulkanRHI::FBufferSuballocation* UBAllocation = nullptr;
 };
 
 class FVulkanStructuredBuffer : public FRHIStructuredBuffer, public FVulkanResourceMultiBuffer
@@ -1241,17 +1262,18 @@ class FVulkanShaderResourceView : public FRHIShaderResourceView, public VulkanRH
 public:
 	FVulkanShaderResourceView(FVulkanDevice* Device, FRHIResource* InRHIBuffer, FVulkanResourceMultiBuffer* InSourceBuffer, uint32 InSize, EPixelFormat InFormat);
 
-	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, uint32 InMipLevel, int32 InNumMips, EPixelFormat InFormat)
+	FVulkanShaderResourceView(FVulkanDevice* Device, FRHITexture* InSourceTexture, const FRHITextureSRVCreateInfo& InCreateInfo)
 		: VulkanRHI::FDeviceChild(Device)
-		, BufferViewFormat(InFormat)
+		, BufferViewFormat((EPixelFormat)InCreateInfo.Format)
+		, SRGBOverride(InCreateInfo.SRGBOverride)
 		, SourceTexture(InSourceTexture)
 		, SourceStructuredBuffer(nullptr)
-		, MipLevel(InMipLevel)
-		, NumMips(InNumMips)
+		, MipLevel(InCreateInfo.MipLevel)
+		, NumMips(InCreateInfo.NumMipLevels)
+		, FirstArraySlice(InCreateInfo.FirstArraySlice)
+		, NumArraySlices(InCreateInfo.NumArraySlices)
 		, Size(0)
 		, SourceBuffer(nullptr)
-		, VolatileBufferHandle(VK_NULL_HANDLE)
-		, VolatileLockCounter(MAX_uint32)
 	{
 	}
 
@@ -1260,12 +1282,9 @@ public:
 		, BufferViewFormat(PF_Unknown)
 		, SourceTexture(nullptr)
 		, SourceStructuredBuffer(InStructuredBuffer)
-		, MipLevel(0)
 		, NumMips(0)
 		, Size(InStructuredBuffer->GetSize())
 		, SourceBuffer(nullptr)
-		, VolatileBufferHandle(VK_NULL_HANDLE)
-		, VolatileLockCounter(MAX_uint32)
 	{
 	}
 
@@ -1281,13 +1300,16 @@ public:
 	}
 
 	EPixelFormat BufferViewFormat;
+	ERHITextureSRVOverrideSRGBType SRGBOverride = SRGBO_Default;
 
 	// The texture that this SRV come from
 	TRefCountPtr<FRHITexture> SourceTexture;
 	FVulkanTextureView TextureView;
 	FVulkanStructuredBuffer* SourceStructuredBuffer;
-	uint32 MipLevel;
-	uint32 NumMips;
+	uint32 MipLevel = 0;
+	uint32 NumMips = MAX_uint32;
+	uint32 FirstArraySlice = 0;
+	uint32 NumArraySlices = 0;
 
 	~FVulkanShaderResourceView();
 
@@ -1301,8 +1323,8 @@ public:
 
 protected:
 	// Used to check on volatile buffers if a new BufferView is required
-	VkBuffer VolatileBufferHandle;
-	uint32 VolatileLockCounter;
+	VkBuffer VolatileBufferHandle = VK_NULL_HANDLE;
+	uint32 VolatileLockCounter = MAX_uint32;
 };
 
 class FVulkanComputeFence : public FRHIComputeFence, public VulkanRHI::FGPUEvent

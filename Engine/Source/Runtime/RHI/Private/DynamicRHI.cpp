@@ -345,12 +345,61 @@ void FDynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIPara
 	UE_LOG(LogRHI, Fatal, TEXT("RHITransferVertexBufferUnderlyingResource isn't implemented for the current RHI"));
 }
 
-void FDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
+void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FVertexBufferRHIParamRef VertexBuffer, uint32 Stride, uint8 Format)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
 }
 
-void FDynamicRHI::RHIUpdateShaderResourceView(FShaderResourceViewRHIParamRef SRV, FIndexBufferRHIParamRef IndexBuffer)
+void FDynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, FIndexBufferRHIParamRef IndexBuffer)
 {
 	UE_LOG(LogRHI, Fatal, TEXT("RHIUpdateShaderResourceView isn't implemented for the current RHI"));
+}
+
+FDefaultRHIRenderQueryPool::FDefaultRHIRenderQueryPool(ERenderQueryType InQueryType, FDynamicRHI* InDynamicRHI, uint32 InNumQueries)
+	: DynamicRHI(InDynamicRHI)
+	, QueryType(InQueryType)
+	, NumQueries(InNumQueries)
+{
+	if (NumQueries != UINT32_MAX && (GSupportsTimestampRenderQueries || InQueryType != RQT_AbsoluteTime))
+	{
+		Queries.Reserve(NumQueries);
+		for (uint32 i = 0; i < NumQueries; i++)
+		{
+			Queries.Push(DynamicRHI->RHICreateRenderQuery(QueryType));
+			++AllocatedQueries;
+		}
+	}
+}
+
+FRHIPooledRenderQuery FDefaultRHIRenderQueryPool::AllocateQuery()
+{
+	check(IsInRenderingThread());
+	if (Queries.Num() > 0)
+	{
+		return FRHIPooledRenderQuery(this, Queries.Pop());
+	}
+	else
+	{
+		ensure(++AllocatedQueries <= NumQueries);
+		return FRHIPooledRenderQuery(this, DynamicRHI->RHICreateRenderQuery(QueryType));
+	}
+}
+
+void FDefaultRHIRenderQueryPool::ReleaseQuery(TRefCountPtr<FRHIRenderQuery>&& Query)
+{
+	if (QueryType == ERenderQueryType::RQT_Occlusion)
+	{
+		static int dbg = 0;
+		dbg++;
+	}
+	check(IsInRenderingThread());
+	//Hard to validate because of Resource resurrection, better to remove GetQueryRef entirely
+	//checkf(Query.IsValid() && Query.GetRefCount() <= 2, TEXT("Query has been released but reference still held: use FRHIPooledRenderQuery::GetQueryRef() with extreme caution"));
+	Queries.Push(MoveTemp(Query));
+	check(!Query.IsValid());
+}
+
+FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries)
+{
+	return GDynamicRHI->RHICreateRenderQueryPool(QueryType, NumQueries);
 }

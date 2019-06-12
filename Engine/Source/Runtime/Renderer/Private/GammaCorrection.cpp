@@ -140,7 +140,7 @@ void FSceneRenderer::GammaCorrectToViewportRenderTarget(FRHICommandList& RHICmdL
 		InvDisplayGamma = 1 / OverrideGamma;
 	}
 
-	const FPixelShaderRHIParamRef ShaderRHI = PixelShader->GetPixelShader();
+	FRHIPixelShader* ShaderRHI = PixelShader->GetPixelShader();
 
 	SetShaderValue(
 		RHICmdList, 

@@ -46,7 +46,7 @@ FD3D12DynamicRHI* FD3D12DynamicRHI::SingleD3DRHI = nullptr;
 
 using namespace D3D12RHI;
 
-FD3D12DynamicRHI::FD3D12DynamicRHI(TArray<FD3D12Adapter*>& ChosenAdaptersIn) :
+FD3D12DynamicRHI::FD3D12DynamicRHI(const TArray<TSharedPtr<FD3D12Adapter>>& ChosenAdaptersIn) :
 	NumThreadDynamicHeapAllocators(0),
 	ChosenAdapters(ChosenAdaptersIn),
 	AmdAgsContext(nullptr),
@@ -150,6 +150,7 @@ FD3D12DynamicRHI::FD3D12DynamicRHI(TArray<FD3D12Adapter*>& ChosenAdaptersIn) :
 	GPixelFormats[PF_R8G8			].PlatformFormat = DXGI_FORMAT_R8G8_UNORM;
 	GPixelFormats[PF_R32G32B32A32_UINT].PlatformFormat = DXGI_FORMAT_R32G32B32A32_UINT;
 	GPixelFormats[PF_R16G16_UINT	].PlatformFormat = DXGI_FORMAT_R16G16_UINT;
+	GPixelFormats[PF_R32G32_UINT	].PlatformFormat = DXGI_FORMAT_R32G32_UINT;
 
 	GPixelFormats[PF_BC6H			].PlatformFormat = DXGI_FORMAT_BC6H_UF16;
 	GPixelFormats[PF_BC7			].PlatformFormat = DXGI_FORMAT_BC7_TYPELESS;
@@ -220,7 +221,7 @@ void FD3D12DynamicRHI::Shutdown()
 	RHIShutdownFlipTracking();
 
 	// Cleanup All of the Adapters
-	for (FD3D12Adapter*& Adapter : ChosenAdapters)
+	for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
 	{
 		// Take a reference on the ID3D12Device so that we can delete the FD3D12Device
 		// and have it's children correctly release ID3D12* objects via RAII

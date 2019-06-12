@@ -89,7 +89,7 @@ enum crn_limits {
 
   cCRNMaxFaces = 6,
   //UE4_BEGIN
-  cCRNMaxLevels = 512,
+  cCRNMaxLevels = 1024 * 1024,
   //UE4_END
   cCRNMaxHelperThreads = 16,
 
@@ -213,9 +213,10 @@ struct crn_comp_params {
     m_format = cCRNFmtDXT1;
     m_flags = cCRNCompFlagPerceptual | cCRNCompFlagHierarchical | cCRNCompFlagUseBothBlockTypes;
 
+    //UE4_BEGIN
     for (crn_uint32 f = 0; f < cCRNMaxFaces; f++)
-      for (crn_uint32 l = 0; l < cCRNMaxLevels; l++)
-        m_pImages[f][l] = NULL;
+      m_pImages[f] = NULL;
+    //UE4_END
 
     m_target_bitrate = 0.0f;
     m_quality_level = cCRNMaxQualityLevel;
@@ -323,7 +324,9 @@ struct crn_comp_params {
   crn_uint32 m_flags;  // see crn_comp_flags enum
 
   // Array of pointers to 32bpp input images.
-  const crn_uint32* m_pImages[cCRNMaxFaces][cCRNMaxLevels];
+  //UE4_BEGIN
+  const crn_uint32** m_pImages[cCRNMaxFaces];
+  //UE4_END
 
   // Target bitrate - if non-zero, the compressor will use an interpolative search to find the
   // highest quality level that is <= the target bitrate. If it fails to find a bitrate high enough, it'll

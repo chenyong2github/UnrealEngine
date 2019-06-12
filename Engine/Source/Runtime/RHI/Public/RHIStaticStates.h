@@ -154,7 +154,7 @@ template<ESamplerFilter Filter=SF_Point,
 	uint32 BorderColor = 0,
 	/** Only supported in D3D11 */
 	ESamplerCompareFunction SamplerComparisonFunction=SCF_Never>
-class TStaticSamplerState : public TStaticStateRHI<TStaticSamplerState<Filter,AddressU,AddressV,AddressW,MipBias,MaxAnisotropy,BorderColor,SamplerComparisonFunction>,FSamplerStateRHIRef,FSamplerStateRHIParamRef>
+class TStaticSamplerState : public TStaticStateRHI<TStaticSamplerState<Filter,AddressU,AddressV,AddressW,MipBias,MaxAnisotropy,BorderColor,SamplerComparisonFunction>,FSamplerStateRHIRef, FRHISamplerState*>
 {
 public:
 	static FSamplerStateRHIRef CreateRHI()
@@ -171,7 +171,7 @@ public:
  * Should only be used from the rendering thread.
  */
 template<ERasterizerFillMode FillMode=FM_Solid,ERasterizerCullMode CullMode=CM_None,bool bEnableLineAA=false,bool bEnableMSAA=true>
-class TStaticRasterizerState : public TStaticStateRHI<TStaticRasterizerState<FillMode,CullMode,bEnableLineAA>,FRasterizerStateRHIRef,FRasterizerStateRHIParamRef>
+class TStaticRasterizerState : public TStaticStateRHI<TStaticRasterizerState<FillMode,CullMode,bEnableLineAA>,FRasterizerStateRHIRef, FRHIRasterizerState*>
 {
 public:
 	FORCEINLINE_DEBUGGABLE static FRasterizerStateRHIRef CreateRHI()
@@ -183,7 +183,7 @@ public:
 
 /** Given a fill and cull mode, returns a static rasterizer state. */
 template<bool bEnableMSAA>
-FORCEINLINE_DEBUGGABLE FRasterizerStateRHIParamRef GetStaticRasterizerState(ERasterizerFillMode FillMode,ERasterizerCullMode CullMode)
+FORCEINLINE_DEBUGGABLE FRHIRasterizerState* GetStaticRasterizerState(ERasterizerFillMode FillMode,ERasterizerCullMode CullMode)
 {
 	switch(FillMode)
 	{
@@ -258,7 +258,7 @@ class TStaticDepthStencilState : public TStaticStateRHI<
 		StencilWriteMask
 		>,
 	FDepthStencilStateRHIRef,
-	FDepthStencilStateRHIParamRef
+	FRHIDepthStencilState*
 	>
 {
 public:
@@ -370,7 +370,7 @@ class TStaticBlendState : public TStaticStateRHI<
 		RT7ColorWriteMask,RT7ColorBlendOp,RT7ColorSrcBlend,RT7ColorDestBlend,RT7AlphaBlendOp,RT7AlphaSrcBlend,RT7AlphaDestBlend
 		>,
 	FBlendStateRHIRef,
-	FBlendStateRHIParamRef
+	FRHIBlendState*
 	>
 {
 public:

@@ -11,6 +11,7 @@
 #include "Misc/ScopeLock.h"
 #include "RHI.h"
 #include "RenderUtils.h"
+#include "RHIValidation.h"
 
 // let the platform set up the headers and some defines
 #include "VulkanPlatform.h"
@@ -58,6 +59,8 @@ class FVulkanGfxPipeline;
 class FVulkanRenderPass;
 class FVulkanCommandBufferManager;
 struct FInputAttachmentData;
+class FValidationContext;
+
 
 inline VkShaderStageFlagBits UEFrequencyToVKStageBit(EShaderFrequency InStage)
 {
@@ -94,6 +97,7 @@ inline EShaderFrequency VkStageBitToUEFrequency(VkShaderStageFlagBits FlagBits)
 
 	return SF_NumFrequencies;
 }
+
 
 class FVulkanRenderTargetLayout
 {
@@ -296,6 +300,26 @@ private:
 	uint32						NumUsedClearValues;
 	FVulkanDevice&				Device;
 };
+
+union UNvidiaDriverVersion
+{
+	struct
+	{
+#if PLATFORM_LITTLE_ENDIAN
+		uint32 Tertiary		: 6;
+		uint32 Secondary	: 8;
+		uint32 Minor		: 8;
+		uint32 Major		: 10;
+#else
+		uint32 Major		: 10;
+		uint32 Minor		: 8;
+		uint32 Secondary	: 8;
+		uint32 Tertiary		: 6;
+#endif
+	};
+	uint32 Packed;
+};
+
 
 namespace VulkanRHI
 {
@@ -838,6 +862,19 @@ namespace VulkanRHI
 		}
 #endif
 	}
+
+	FVulkanCommandListContext& GetVulkanContext(FValidationContext& CmdContext);
+
+	inline FVulkanCommandListContext& GetVulkanContext(IRHICommandContext& CmdContext)
+	{
+#if ENABLE_RHI_VALIDATION
+		if (GValidationRHI)
+		{
+			return GetVulkanContext((FValidationContext&)CmdContext);
+		}
+#endif
+		return (FVulkanCommandListContext&)CmdContext;
+	}
 }
 
 extern int32 GVulkanSubmitAfterEveryEndRenderPass;
@@ -849,3 +886,5 @@ extern bool GRenderDocFound;
 #endif
 
 const int GMaxCrashBufferEntries = 2048;
+
+extern class FVulkanDynamicRHI*	GVulkanRHI;

@@ -47,6 +47,8 @@ struct MTILayerTrace : public IMPTable<CAMetalLayer*, MTILayerTrace>, public MTI
 	{
 	}
 	
+	INTERPOSE_DECLARATION_VOID(init, id);
+	INTERPOSE_DECLARATION(initWithLayer, id, id);
 	INTERPOSE_DECLARATION(Setdevice, void, id <MTLDevice>);
 	INTERPOSE_DECLARATION(SetpixelFormat, void, MTLPixelFormat);
 	INTERPOSE_DECLARATION(SetframebufferOnly, void, BOOL);

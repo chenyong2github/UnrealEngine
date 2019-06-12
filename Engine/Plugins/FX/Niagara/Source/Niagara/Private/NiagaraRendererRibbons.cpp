@@ -322,7 +322,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			false,
 			SceneProxy->UseSingleSampleShadowFromStationaryLights(),
 			SceneProxy->GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			SceneProxy->UseEditorDepthTest(),
+			SceneProxy->DrawsVelocity(),
 			SceneProxy->GetLightingChannelMask(),
 			0,
 			INDEX_NONE,

@@ -474,7 +474,7 @@ void FTransitionAndLayoutManager::TransitionResource(FVulkanCmdBuffer* CmdBuffer
 	}
 }
 
-void FVulkanCommandListContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, const FUnorderedAccessViewRHIParamRef* UAVs)
+void FVulkanCommandListContext::RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget, uint32 NumUAVs, FRHIUnorderedAccessView* const* UAVs)
 {
 	FRHIDepthRenderTargetView DepthView;
 	if (NewDepthStencilTarget)
@@ -780,12 +780,12 @@ void FVulkanDynamicRHI::RHIReadSurfaceData(FTextureRHIParamRef TextureRHI, FIntR
 	{
 		VkBufferImageCopy CopyRegion;
 		FMemory::Memzero(CopyRegion);
-		//Region.bufferOffset = 0;
+		//CopyRegion.bufferOffset = 0;
 		CopyRegion.bufferRowLength = TextureRHI2D->GetSizeX();
 		CopyRegion.bufferImageHeight = TextureRHI2D->GetSizeY();
 		CopyRegion.imageSubresource.aspectMask = Texture2D->Surface.GetFullAspectMask();
-		//Region.imageSubresource.mipLevel = 0;
-		//Region.imageSubresource.baseArrayLayer = 0;
+		CopyRegion.imageSubresource.mipLevel = InFlags.GetMip();
+		//CopyRegion.imageSubresource.baseArrayLayer = 0;
 		CopyRegion.imageSubresource.layerCount = 1;
 		CopyRegion.imageExtent.width = TextureRHI2D->GetSizeX();
 		CopyRegion.imageExtent.height = TextureRHI2D->GetSizeY();
@@ -951,84 +951,29 @@ void FVulkanDynamicRHI::RHIMapStagingSurface(FTextureRHIParamRef TextureRHI,void
 	check(TextureRHI2D);
 	FVulkanTexture2D* Texture2D = ResourceCast(TextureRHI2D);
 
-	VulkanRHI::FStagingBuffer** StagingBufferPtr = nullptr;
-	{
-		FScopeLock Lock(&GStagingMapLock);
-		StagingBufferPtr = &GPendingLockedStagingBuffers.FindOrAdd(Texture2D);
-		checkf(!*StagingBufferPtr, TEXT("Can't map the same texture twice!"));
-	}
 
 	OutWidth = Texture2D->GetSizeX();
 	OutHeight = Texture2D->GetSizeY();
 
-	uint32 BufferSize = OutWidth * OutHeight * VulkanRHI::GetNumBitsPerPixel(Texture2D->Surface.ViewFormat) / 8;
-	VulkanRHI::FStagingBuffer* StagingBuffer = Device->GetStagingManager().AcquireBuffer(BufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT, true);
-	*StagingBufferPtr = StagingBuffer;
-
-	Device->PrepareForCPURead(); //make sure the results are ready 
-	FVulkanCmdBuffer* CmdBuffer = Device->GetImmediateContext().GetCommandBufferManager()->GetUploadCmdBuffer();
-
-	// Transition texture to source copy layout
-	VkImageLayout& CurrentLayout = Device->GetImmediateContext().TransitionAndLayoutManager.FindOrAddLayoutRW(Texture2D->Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
-	bool bHadLayout = (CurrentLayout != VK_IMAGE_LAYOUT_UNDEFINED);
-	if (CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-	{
-		VulkanSetImageLayoutSimple(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	}
-
-	VkBufferImageCopy CopyRegion;
-	FMemory::Memzero(CopyRegion);
-	//Region.bufferOffset = 0;
-	CopyRegion.bufferRowLength = OutWidth;
-	CopyRegion.bufferImageHeight = OutHeight;
-	CopyRegion.imageSubresource.aspectMask = Texture2D->Surface.GetFullAspectMask();
-	//CopyRegion.imageSubresource.mipLevel = InMipIndex;
-	//CopyRegion.imageSubresource.baseArrayLayer = SrcBaseArrayLayer;
-	CopyRegion.imageSubresource.layerCount = 1;
-	CopyRegion.imageExtent.width = OutWidth;
-	CopyRegion.imageExtent.height = OutHeight;
-	CopyRegion.imageExtent.depth = 1;
-
-	VulkanRHI::vkCmdCopyImageToBuffer(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, StagingBuffer->GetHandle(), 1, &CopyRegion);
-	// Transition back to original layout
-	if (bHadLayout && CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
-	{
-		VulkanSetImageLayoutSimple(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout);
-	}
-	else
-	{
-		CurrentLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-	}
-
-	VkBufferMemoryBarrier Barrier;
-	ensure(StagingBuffer->GetSize() >= BufferSize);
-	//#todo-rco: Change offset if reusing a buffer suballocation
-	VulkanRHI::SetupAndZeroBufferBarrier(Barrier, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT, StagingBuffer->GetHandle(), 0/*StagingBuffer->GetOffset()*/, BufferSize);
-	VulkanRHI::vkCmdPipelineBarrier(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, 0, 0, nullptr, 1, &Barrier, 0, nullptr);
-
-	Device->GetImmediateContext().GetCommandBufferManager()->SubmitUploadCmdBuffer();
-
-	OutData = StagingBuffer->GetMappedPointer();
-	StagingBuffer->InvalidateMappedMemory();
+	OutData = Texture2D->Surface.GetMappedPointer();
+	Texture2D->Surface.InvalidateMappedMemory();
 }
+
+
+void FVulkanDynamicRHI::RHIMapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef Texture, void*& OutData, int32& OutWidth, int32& OutHeight)
+{
+	RHIMapStagingSurface(Texture, OutData, OutWidth, OutHeight);
+}
+
+void FVulkanDynamicRHI::RHIUnmapStagingSurface_RenderThread(class FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef Texture)
+{
+	RHIUnmapStagingSurface(Texture);
+}
+
+
 
 void FVulkanDynamicRHI::RHIUnmapStagingSurface(FTextureRHIParamRef TextureRHI)
 {
-	FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
-	check(TextureRHI2D);
-	FVulkanTexture2D* Texture2D = ResourceCast(TextureRHI2D);
-
-	VulkanRHI::FStagingBuffer* StagingBuffer = nullptr;
-	{
-		FScopeLock Lock(&GStagingMapLock);
-		bool bFound = GPendingLockedStagingBuffers.RemoveAndCopyValue(Texture2D, StagingBuffer);
-		checkf(bFound, TEXT("Texture was not mapped!"));
-	}
-
-	ensure(!Device->GetImmediateContext().GetCommandBufferManager()->HasPendingUploadCmdBuffer());
-
-	Device->GetImmediateContext().GetCommandBufferManager()->PrepareForNewActiveCommandBuffer();
-	Device->GetStagingManager().ReleaseBuffer(nullptr, StagingBuffer);
 }
 
 void FVulkanDynamicRHI::RHIReadSurfaceFloatData(FTextureRHIParamRef TextureRHI, FIntRect Rect, TArray<FFloat16Color>& OutData, ECubeFace CubeFace,int32 ArrayIndex,int32 MipIndex)
@@ -1256,7 +1201,7 @@ void FVulkanDynamicRHI::RHIRead3DSurfaceFloatData(FTextureRHIParamRef TextureRHI
 	Device->GetImmediateContext().GetCommandBufferManager()->PrepareForNewActiveCommandBuffer();
 }
 
-void FVulkanCommandListContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FUnorderedAccessViewRHIParamRef* InUAVs, int32 NumUAVs, FComputeFenceRHIParamRef WriteComputeFenceRHI)
+void FVulkanCommandListContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFenceRHI)
 {
 	FPendingTransition PendingTransition;
 	if (NumUAVs > 0)
