@@ -799,6 +799,28 @@ void UWorld::PostDuplicate(bool bDuplicateForPIE)
 			Obj->PostEditChange();
 		}
 	}
+
+	if (bDuplicateForPIE)
+	{
+		// When PIE begins, check/log any problems with textures assigned to material instances
+		for (TObjectIterator<UPrimitiveComponent> It; It; ++It)
+		{
+			UPrimitiveComponent* Component = *It;
+			AActor* Owner = Component->GetOwner();
+			if (Owner != nullptr && !Owner->HasAnyFlags(RF_ClassDefaultObject) && Owner->IsInLevel(PersistentLevel))
+			{
+				TArray<UMaterialInterface*> Materials;
+				Component->GetUsedMaterials(Materials);
+				for (UMaterialInterface* Material : Materials)
+				{
+					if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Material))
+					{
+						MaterialInstance->ValidateTextureOverrides(FeatureLevel);
+					}
+				}
+			}
+		}
+	}
 #endif // WITH_EDITOR
 }
 

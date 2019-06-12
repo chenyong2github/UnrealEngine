@@ -359,9 +359,9 @@ public:
 		else
 		{
 			OutValue = NULL;
-		const bool bOverrideValuesOnly = !AreExperimentalMaterialLayersEnabled();
-			if(!MaterialInterface->GetTextureParameterValue(ParameterInfo,OutValue,bOverrideValuesOnly))
-		{
+			const bool bOverrideValuesOnly = !AreExperimentalMaterialLayersEnabled();
+			if (!MaterialInterface->GetTextureParameterValue(ParameterInfo, OutValue, bOverrideValuesOnly))
+			{
 				OutValue = GetIndexedTexture<UTexture>(Material, TextureIndex);
 			}
 		}
@@ -375,6 +375,11 @@ public:
 	FName GetParameterName() const
 	{
 		return ParameterInfo.Name;
+	}
+
+	const FMaterialParameterInfo& GetParameterInfo() const
+	{
+		return ParameterInfo;
 	}
 
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const

@@ -598,6 +598,8 @@ public:
 	ENGINE_API virtual void LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const override;
 #endif
 
+	ENGINE_API void ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatureLevel) const;
+
 	/**
 	 *	Returns all the Guids related to this material. For material instances, this includes the parent hierarchy.
 	 *  Used for versioning as parent changes don't update the child instance Guids.

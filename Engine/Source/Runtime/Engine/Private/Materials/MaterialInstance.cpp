@@ -1160,7 +1160,79 @@ void UMaterialInstance::LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent)
 		}
 	}
 }
-#endif
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatureLevel) const
+{
+	const UMaterial* Material = GetMaterial();
+	const FMaterialResource* CurrentResource = Material->GetMaterialResource(InFeatureLevel);
+
+	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[] =
+	{
+		&CurrentResource->GetUniform2DTextureExpressions(),
+		&CurrentResource->GetUniformCubeTextureExpressions(),
+		&CurrentResource->GetUniformVolumeTextureExpressions(),
+		&CurrentResource->GetUniformVirtualTextureExpressions(),
+	};
+
+	FString MaterialName;
+	GetName(MaterialName);
+
+	for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(TextureExpressions); ++TypeIndex)
+	{
+		for (FMaterialUniformExpressionTexture* TextureExpression : *TextureExpressions[TypeIndex])
+		{
+			FMaterialUniformExpressionTextureParameter* ParameterExpression = TextureExpression->GetTextureParameterUniformExpression();
+			if (ParameterExpression)
+			{
+				UTexture* Texture = nullptr;
+				const FMaterialParameterInfo& ParameterInfo = ParameterExpression->GetParameterInfo();
+				if (GetTextureParameterValue(ParameterInfo, Texture, true))
+				{
+					check(Texture);
+					const EMaterialValueType TextureType = Texture->GetMaterialType();
+					switch (TypeIndex)
+					{
+					case 0:
+						if (!(TextureType & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						else if (TextureType & MCT_TextureVirtual)
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires non-virtual texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					case 1:
+						if (!(TextureType & MCT_TextureCube))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Cube texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					case 2:
+						if (!(TextureType & MCT_VolumeTexture))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required Volume texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					case 3:
+						if (!(TextureType & (MCT_Texture2D | MCT_TextureExternal | MCT_TextureVirtual)))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required 2D texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						else if (!(TextureType & MCT_TextureVirtual))
+						{
+							UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" requires virtual texture"), *MaterialName, *ParameterInfo.Name.ToString(), *Texture->GetName());
+						}
+						break;
+					default:
+						checkNoEntry();
+					}
+				}
+			}
+		}
+	}
+}
 
 void UMaterialInstance::GetUsedTexturesAndIndices(TArray<UTexture*>& OutTextures, TArray< TArray<int32> >& OutIndices, EMaterialQualityLevel::Type QualityLevel, ERHIFeatureLevel::Type FeatureLevel) const
 {
@@ -3140,6 +3212,11 @@ void UMaterialInstance::Serialize(FArchive& Ar)
 		SaveShaderStableKeys(Ar.CookingTarget());
 	}
 #endif
+
+	if (Ar.IsSaving() && Ar.IsCooking())
+	{
+		ValidateTextureOverrides(GMaxRHIFeatureLevel);
+	}
 }
 
 void UMaterialInstance::PostLoad()
