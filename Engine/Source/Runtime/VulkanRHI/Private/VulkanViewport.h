@@ -81,9 +81,9 @@ public:
 	}
 
 protected:
-	VkImage BackBufferImages[NUM_BUFFERS];
-	VulkanRHI::FSemaphore* RenderingDoneSemaphores[NUM_BUFFERS];
-	FVulkanTextureView TextureViews[NUM_BUFFERS];
+	TStaticArray<VkImage, NUM_BUFFERS> BackBufferImages;
+	TStaticArray<VulkanRHI::FSemaphore*, NUM_BUFFERS> RenderingDoneSemaphores;
+	TStaticArray<FVulkanTextureView, NUM_BUFFERS> TextureViews;
 	TRefCountPtr<FVulkanBackBuffer> RHIBackBuffer;
 
 	// 'Dummy' back buffer

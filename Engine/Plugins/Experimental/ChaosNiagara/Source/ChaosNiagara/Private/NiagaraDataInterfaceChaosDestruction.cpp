@@ -4092,7 +4092,7 @@ void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,
 
 void SetBuffer(FRHICommandList& CmdList,
 	const FShaderResourceParameter& Param,
-	const FComputeShaderRHIParamRef Shader,
+	FRHIComputeShader* Shader,
 	FDynamicReadBuffer& Buffer)
 {
 	// Skip unbound parameters, since we won't be reading any of them
@@ -4104,7 +4104,7 @@ void SetBuffer(FRHICommandList& CmdList,
 template <typename T>
 void SetBuffer(FRHICommandList& CmdList,
 	const FShaderResourceParameter& Param,
-	const FComputeShaderRHIParamRef Shader,
+	FRHIComputeShader* Shader,
 	FDynamicReadBuffer& Buffer,
 	const TArray<T>& Array,
 	const EPixelFormat PixelFormat,
@@ -4605,7 +4605,7 @@ struct FNiagaraDataInterfaceParametersCS_ChaosDestruction : public FNiagaraDataI
 	{
 		check(IsInRenderingThread());
 
-		const FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
 		FNiagaraDataInterfaceProxyChaosDestruction* ChaosDestructionInterfaceProxy = static_cast<FNiagaraDataInterfaceProxyChaosDestruction*>(Context.DataInterface);
 		if (ChaosDestructionInterfaceProxy)
 		{
