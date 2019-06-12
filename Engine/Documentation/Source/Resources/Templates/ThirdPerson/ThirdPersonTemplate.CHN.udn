@@ -11,7 +11,7 @@ topic-image:TP_ThirdPersonBP_Preview.png
 
 如果您已经使用 **第三人称模板** 开始新游戏，那就再好不过啦！如您希望了解特定操作的指南，或者从零开始了解无限的创造可能，均可在此文档中寻找灵感。
 
-* 在 **蓝图可视化脚本（Blueprints Visual Scripting）** 系统上 [研读](Engine/Blueprints) 并 [观看视频](Videos)。有时重点不在于结果，而在于执行的方式。即使您最后将在 C++ 中进行工作，了解蓝图也有助于快速将灵感转化为原型。
+* 在 **蓝图可视化脚本（Blueprints Visual Scripting）** 系统上 [研读](Engine/Blueprints) 并 观看视频。有时重点不在于结果，而在于执行的方式。即使您最后将在 C++ 中进行工作，了解蓝图也有助于快速将灵感转化为原型。
 * 使用 [虚幻动态图形](Engine/UMG) 为第三人称游戏 [创建 HUD](Engine/UMG/QuickStart)。
 * 为什么不在场景中添加一些可破坏模型呢？在 [可破坏 Actor 文档](Engine/Physics/Destructibles) 和 [](Engine/Blueprints/HowTo) 中查看操作方法！
 * 可通过 [行为树](Engine/AI/BehaviorTrees/QuickStart)为游戏添加 **AI 角色**，使其追逐、逃离、帮助或伤害玩家。

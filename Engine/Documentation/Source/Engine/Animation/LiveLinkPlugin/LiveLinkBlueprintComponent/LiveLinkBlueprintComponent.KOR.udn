@@ -1,13 +1,15 @@
-INTSourceChangelist:4404731
+INTSourceChangelist:6604520
 Availability: Public
-Crumbs: 
 Title: 블루프린트의 라이브 링크
 Description: 블루프린트에서 Live Link Component 를 사용하여 실행시간 또는 패키지 프로젝트에 연결을 설정해 주는 기능을 설명합니다. 
-Type: 
+Type: overview
 Version: 4.20
-Parent: 
-Order: 
+Parent: Engine/Animation/LiveLinkPlugin
 Tags: Live Link
+Order: 2
+
+
+[TOC (start:2 end:4)]
 
 **Live Link** (라이브 링크) 기능의 접근성을 높이기 위해 **액터 블루프린트** 에 **Live Link Component** (라이브 링크 컴포넌트)를 추가하면 에디터와 실행시간 양쪽에 라이브 링크 소스 연결을 자동으로 찾아 설정하도록 할 수 있습니다. 블루프린트를 통해 서브젝트 자체 또는 그에 대한 정보를 구하거나 다른 여러 함수를 호출할 수도 있습니다. 
 
@@ -28,14 +30,20 @@ On Live Link Updated 노드는 실제로 **Tick Event** (틱 이벤트)를 대�
 아래는 에디터의 카메라 트랜스폼을 Maya 의 Editor Active Camera 의 스트리밍 데이터로 구동하고 있습니다. 
 
 [OBJECT:EmbeddedVideo]
- [PARAMLITERAL:width]
- 640
- [/PARAMLITERAL]
- [PARAMLITERAL:height]
- 360
- [/PARAMLITERAL]
  [PARAMLITERAL:videoid]
  uPG4MKaVyFU
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
  [/PARAMLITERAL]
 [/OBJECT]
 
@@ -82,16 +90,17 @@ String Metadata (스트링 메타데이터)는 서브젝트의 네임드 스트�
 | 출력 | 설명 |
 | --- | --- |
 | **String Metadata** | 스트링 메타데이터 - 프레임 또는 서브젝트 관련 부가 정보를 제공하는 네임드 스트링 맵입니다. 예: “Type”: “Camera” |
-| **Scene Timecode** | 씬 타임코드 - 현재 프레임에 연관된 타임코드 값입니다. [INCLUDE:#excerpt1]|
+| **Scene Timecode** | [INCLUDE:#excerpt_0] |
 | **Scene Framerate** | 씬 프레임 속도 - Scene Timecode 에 해당하는 프레임 속도입니다. |
 
-[COMMENT: none]
-[EXCERPT:Excerpt1]
+<!--
+[EXCERPT:excerpt_0]
+씬 타임코드 - 현재 프레임에 연관된 타임코드 값입니다.  
 [REGION:note]
 이 값은 고유하다는 보장이 없습니다. 예를 들어 MotionBuilder 에서 한 프레임을 편집했는데 그 프레임의 타임코드가 여러 프레임 동안 전송될 수 있습니다.
 [/REGION]
-[/EXCERPT]
-[/COMMENT]
+[/EXCERPT:excerpt_0]
+-->
 
 #### 루트 트랜스폼 구하기
 
@@ -146,7 +155,7 @@ Number of Transforms 는 서브젝트 프레임 내 트랜스폼 수를 반환�
 
 ### 사용가능 서브젝트 이름 구하기
 
-**Get Available Subject Names** 함수는 Live Link Component 에서 이름 배열을 반환받고 그 이름이 유효하면 **Get Subject Data** 를 호출합니다. 
+**Get Available Subject Names** 함수는 Live Link Component 에서 이름 배열을 반환받고 그 이름이 유효하면 **Get Subject Data** 를 호출합니다.
 
 ![](GetAvailableSubjectNames.png)
 
@@ -217,5 +226,5 @@ Connect to Provider 노드를 사용할 때마다 **Source Handle** (소스 핸�
 **Construct Message Bus Finder**, **Get Available Providers**, **Connect to Provider** 블루프린트 함수를 사용하면 메시지 버스 소스를 자동 감지하여 실행시간에 연결할 수 있을 뿐 아니라, 패키지 프로젝트에서도 그 소스에 연결할 수 있습니다.
 
 [REGION:warning]
-프로젝트를 패키지했더니 노드 망이 런타임에는 작동하는데 패키지 프로젝트에서는 작동하지 않는 경우, 정상 작동을 위해서는 `- Messaging` 명령줄 인수를 붙여줘야 합니다. 메시지 버스의 한계점 중 하나입니다.
+패키지 프로젝트에서 라이브 링크 플러그인을 사용하려면, 프로젝트를 시작할 때 명령줄에 `-Messaging` 플래그를 추가하면 됩니다.
 [/REGION]

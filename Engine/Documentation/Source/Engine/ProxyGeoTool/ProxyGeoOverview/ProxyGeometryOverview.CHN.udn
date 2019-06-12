@@ -1,0 +1,66 @@
+﻿INTSourceChangelist:6910457
+Availability: Public
+Crumbs: 
+Title: 代理几何体概述
+Description: 虚幻引擎4中代理几何体系统的概述。
+Type: overview
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 0
+Tags: Optimization
+Tags: ProxyGeometryTool
+Tags: ProxyGeo
+topic-image: ProxyLOD_TopicImage.png
+
+
+## 代理几何体工具
+
+代理几何体工具的目标是帮助降低静态网格体及其相应材质和纹理运行时的渲染成本开销。代理几何体工具通过将多个静态网格体和它们对应的材质组合成一个带一组纹理和材质的静态网格体，从而实现这一点，这些纹理和材质仍然与原始静态网格体的形状和外观相匹配，但是三角形的数量减少了。如果质量上的差异是可以接受的，或者是不明显的，例如远离摄像机的结构，这种简化的结果可以作为原始几何体的代理。  
+![Proxy_Geometry_OV_01.png](Proxy_Geometry_OV_01.png)
+
+### 代理几何体工具静态网格体生成
+
+使用代理几何体工具时得到的结果可能因工具中使用的设置而异。下图仅使用代理几何体工具的默认设置创建。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Before Using Proxy Geo](ProxyGeo_Orginal_01.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After Using Proxy Geo](ProxyGeo_Crunched_01.png) 
+ [/PARAM]
+[/OBJECT]
+
+  
+[REGION:simpletable]
+| **代理前**|| **代理后** ||
+|---|---|---|---|
+| **对象数量** | 22 | **对象数量** | 1 |
+| **三角形数量*** | 27,308 | **三角形数量*** | 4,032 |
+| **材质数量*** | 6 | **材质数量*** | 1 |
+[/REGION]
+
+虽然静态网格体看起来可能与原始对象不完全一样，但是使用代理几何体工具可以节省很多。在此测试场景中，我们采用22个静态网格体、6种材质和超过2.7万个三角形，并将它们转换为使用一种材质和四千个三角形的单个静态网格体。
+
+### 代理几何体工具纹理生成
+
+代理几何体工具还将生成一组新的纹理，这些纹理对应于创建的新静态网格体几何体。下图展示了一个例子，即对比使用的原始纹理，这个生成的纹理看起来是什么样的。 
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![使用代理几何体前](ProxyGeo_Default_Texture_01.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![使用代理几何体后](ProxyGeo_Crunched_Texture_01.png) 
+ [/PARAM]
+[/OBJECT]
+
+### 关于工具性能的简要说明
+
+代理系统第一次处理几何体的项目时，将填充游戏线程上的着色器缓存，这会产生一次性开销。这意味着后续的迭代（例如，更改一些参数和重新构建代理）可以更快。当与现有的第三方选项进行比较时，这个新系统在中等空间大小的几何体群集上的速度提高了2倍到3倍，但是在非常大的几何体群集上完成的时间是相似的。
+
+[REGION:note]
+请注意，上面关于速度改进的信息只与在UE4编辑器中生成代理有关，而与它们在游戏中的使用无关。在游戏中，使用代理所带来的性能优势将取决于最终的多边形数量和纹理大小等数量。
+[/REGION]
+
+[](#)[](#)

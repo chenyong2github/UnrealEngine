@@ -1,0 +1,24 @@
+﻿INTSourceChangelist:3718992
+Availability:Public
+Crumbs: %ROOT%
+Title:1.Oculus Runtime をダウンロードする
+Description:Oculus Runtime をダウンロードしましょう
+Type:quick start
+SkillLevel:Beginner
+Version:4.17
+Parent:Platforms/VR/OculusVR/OculusRift/QuickStart
+Order:1
+Checkpoint:RIFTQS
+Tags:Oculus Rift
+Tags:VR
+
+[NAV]
+
+このセクションでは、アンリアル エンジン 4 と互換性のある最新の Oculusu Runtimes をどこからダウンロードするのか説明します。
+
+1. [Oculus 社のセットアップ ページ](https://www.oculus.com/en-us/setup/) にアクセスし、ページ中央部にある **[Start  Download]** ボタンを押して Oculus Runtimes をダウンロードしてください。
+
+	![](OR_Download_Runtimes_00.png)
+
+
+[NAV]

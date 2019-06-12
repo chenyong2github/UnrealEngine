@@ -1,211 +1,250 @@
-﻿Availability:NoPublish
+﻿INTSourceChangelist:3108692
+Availability:NoPublish
 Title:测试
 Crumbs:
 Description: 这是一个测试
 
 [EXCERPT:TestCaseOne]
+(#creatingtheblueprint)
+
 ## 创建蓝图
 
 ![](TutorialTestImage01.png)
 
-1. 在您的Content Browser(内容浏览器)面板中，点击New Asset(新建资源)面板。
+1. 在内容浏览器面板中点击“新建资源（New Asset）”选项卡。
 
-1. 从列表中选择Blueprint(蓝图)。
+1. 从列表中选择蓝图。
 [/EXCERPT:TestCaseOne]
 
 
 [EXCERPT:TestSecond]
+(#parentclasswindow)
+
 ## 父类窗口
 
 ![](TutorialTestImage02.png)
 
-1. 从Pick Parent Class window（选取父类窗口）中选择Actor。
+1. 从“选取父类（Pick Parent Class）”窗口中选择Actor
 
 [/EXCERPT:TestSecond]
 
 
 [EXCERPT:Third]
+(#openingtheblueprint)
+
 ## 打开蓝图
 
 ![](TutorialTestImage03.png)
 
-1. 给您的新蓝图取个名字。
-1. 双击蓝图以打开。
+1. 为新蓝图命名。
+1. 双击蓝图将其打开。
 
 [/EXCERPT:Third]
 
 
 [EXCERPT:Fourth]
+(#componentpanel)
+
 ## 组件面板
 
 ![](TutorialTestImage04.png)
 
-1. 选中Component(组件)选项卡，转到组件面板。
+1. 选中“组件（Component）”选项卡后，前往组件面板。
 
-1. 在下拉选项卡中，从列表中选择SceneComponent。 这会成为您的父项组件。
-1. 下一步是从列表中添加StaticMeshComponent（静态网格物体组件）。
+1. 在下拉选项卡中，从列表中选择一个场景组件（SceneComponent）。其将成为父组件。
+1. 之后从列表中添加一个静态网格体组件（StaticMeshComponent）。
 [/EXCERPT:Fourth]
 
 
 [EXCERPT:Five]
-## 静态网格物体细节
+(#staticmeshdetails)
+
+## 静态网格体细节
 
 ![](TutorialTestImage05.png)
 
-1. 在您的组件面板中选中StaticMeshComponent（静态网格物体组件）后，在Detail（细节）面板中查看其细节。
-1. 下滑，直到您找到组件选项。 在Globals（全局）旁，输入静态网格物体的名称。 
+1. 在组件面板中选中静态网格体组件（StaticMeshComponent）后，在细节面板中查看其细节。
+1. 向下滚动找到“组件（Components）”选项。在Globals旁边为静态网格体赋予一个命名。 
 [/EXCERPT:Five]
 
 
 
 [EXCERPT:Six]
-## 添加静态网格物体到蓝图
+(#addingstaticmeshtotheblueprint)
+
+## 将静态网格体添加到蓝图
 
 ![](TutorialTestImage06.png)
 
-1. 在Components（组件）选项上方，您会发现静态网格物体选项，在您找到它后，点击预览窗口旁的条。
-1. 在新建窗口中，在搜索栏中出现了EditorCube类型。 在它出现后，将其添加到StaticMeshComponent（静态网格物体组件）中。
+1. 在组件选项上方可找到静态网格体选项。找到后点击预览窗口旁边的条。
+1. 在出现的新窗口中，在搜索栏中输入EditorCube。其出现后，将其添加到StaticMeshComponent。
 
 [/EXCERPT:Six]
 
 
 
 [EXCERPT:Eight]
-## 添加事件触发器
+(#addinganeventtrigger)
+
+## 添加一个事件触发器
 
 ![](TutorialTestImage08.png)
 
-1. 在蓝图中，选择Graph（图表）选项卡，然后在Event Graph（事件图表）中（右键点击）并展开Add Event（添加事件）。
+1. 在蓝图中选中“图表”选项卡，然后在事件图表中点击右键并展开“添加事件（Add Event）”。
 1. 从列表中选择事件ReceiveBeginPlay。
 [/EXCERPT:Eight]
 
 
 
 [EXCERPT:Nine]
-## 添加时间轴
+(#addingatimeline)
+
+## 添加一条时间轴
 
 ![](TutorialTestImage09.png)
 
-1. 在事件图表中（右键点击）并选择Add Timeline（添加时间轴），随后给它起个名字。
+1. 在事件图表中点击右键并选择“添加时间轴（Add Timeline）”，然后为其命名。
 
 [/EXCERPT:Nine]
 
 
 
 [EXCERPT:Ten]
-## 在时间轴内创建浮点轨迹
+(#creatingafloattrackinsideatimeline)
+
+## 在时间轴中创建一条浮点轨迹
 
 ![](TutorialTestImage10.png)
 
-1. 双击时间轴以打开。 
-1. 选择Add Float Track（添加浮点轨迹），给轨迹起个名字。
+1. 双击时间轴将其打开。 
+1. 选择“添加浮点轨迹（Add Float Track）”，为轨迹赋予一个命名。
 [/EXCERPT:Ten]
 
 
 
 [EXCERPT:Eleven]
-## 变更时间轴长度并添加引脚
+(#changingtimelengthandaddingpins)
+
+## 修改时长并添加引脚
 
 ![](TutorialTestImage11.png)
 
-1. 勾选轨迹上方的Loop（循环）并设置轨迹长度为2.00。
-1. 在时间条内添加引脚(按Shift键 + 鼠标左键) 。
+1. 启用轨迹上的循环并将轨迹长度设为2.00。
+1. 按Shift+鼠标左键在时间条中添加一个定位针。
 [/EXCERPT:Eleven]
 
 
 
 [EXCERPT:Tweleve]
-## 引脚设置
+(#pinsettings)
+
+## 定位针设置
 
 ![](TutorialTestImage12.png)
 
-1. 选择引脚并变更其设置为0.00, 0.00。 
+1. 选择定位针并将其设置改为0.00, 0.00。 
 [/EXCERPT:Tweleve]
 
 
 
 [EXCERPT:Thirteen]
-## 完整的时间轴轨迹
+(#completetimelinetrack)
+
+## 完成时间轴轨迹
 
 ![](TutorialTestImage13.png)
 
-1. 再添加两个引脚到轨迹，将一个引脚设置为1.00, 1.00，另一个设置为2.00, 0.00。 
-1. 注意： 第一个设置(2.00)代表时间，而第二个设置(0.00)代表值。
+1. 在轨迹中添加两个定位针，将一个设为1.00, 1.00、另一个设为2.00, 0.00。 
+1. 注意：第一个设置（2.00）代表时间，而第二个设置（0.00）代表值。
 [/EXCERPT:Thirteen]
 
 
 
 [EXCERPT:Fourteen]
-## 连接事件到时间轴
+(#connectingtheeventtothetimeline)
+
+## 将事件连接到时间轴
 
 ![](TutorialTestImage14.png)
 
-1. 选择EventGraph（事件图表），然后连接事件ReceivePlay到时间轴的PlayFromStart连接。
+1. 选择“事件图表”选项卡，然后将事件ReceivePlay连接到时间轴的PlayFromStart连接。
 [/EXCERPT:Fourteen]
 
 
 
 [EXCERPT:fifteen]
-## 添加移动距离
+(#addingadistanceoftravel)
+
+## 添加行走距离
 
 ![](TutorialTestImage15.png)
 
-1. 在时间轴上，从最新创建的轨迹中拉根线并添加Lerp。
-1. 连接轨迹到Lerp的Alpha处并设置B状态为250。
+1. 在时间轴上，从新建的轨迹连出引擎并添加一个Lerp。
+1. 将轨迹连接到Lerp的Alpha并将B状态设为250。
 [/EXCERPT:Fifteen]
 
 
 
 [EXCERPT:Sixteen]
-## 添加移动方向
+(#addingdirectionoftravel)
+
+## 添加行走方向
 
 ![](TutorialTestImage16.png)
 
-1. 从Lerp的ReturnValue（返回值）拉根线并添加Make Vector。
-1. 连接Lerp的ReturnValue到Make Vector的Z输入。
-1. 注意： 您必须将Lerp从X Vector（X向量）断开。 这可以通过（对连接点按下Alt + 鼠标左键）来完成。
+1. 从Lerp的ReturnValue连出引线，添加一个Make Vector。
+1. 将Lerp的ReturnValue连接到Make Vector的Z输入。
+1. 注意：需要从X矢量断开Lerp的连接。按住Alt在连接点上点击鼠标左键即可完成此操作
 [/EXCERPT:Sixteen]
 
 
 
 [EXCERPT:Seventeen]
-## 添加网格物体到事件图表
+(#addingmeshtotheeventgraph)
+
+## 将网格体添加到事件图表
 
 ![](TutorialTestImage17.png)
 
-1. 在My Blueprint（我的蓝图）选项卡中，选择您的立方体的静态网格物体组件并将其拖入Eventgraph（事件图表）中。 
-1. 当您在事件图表中释放组件时，选择GET选项。 
+1. 从“我的蓝图”选项卡中选择立方体的静态网格体组件并将其拖入事件图表。 
+1. 在事件图表中放开组件时选择“获取（GET）”选项。 
 [/EXCERPT:Seventeen]
 
 
 
 [EXCERPT:Eighteen]
+(#setlocation)
+
 ## 设置位置
 
 ![](TutorialTestImage18.png)
 
-1. 从Static Mesh Component（静态网格物体组件）拉根线，然后添加Set Relative Location（设置相对位置）。
-1. 连接Make Vector（制作向量）的Return Value（返回值）到Set relative Location（设置相对位置）的New Location（新建位置）。
+1. 从静态网格体组件连出引线并添加一个“设置相对位置（Set Relative Location）”。
+1. 将Make Vector的Return Value连接到Set relative Location的New Location。
 [/EXCERPT:Eighteen]
 
 
 
 [EXCERPT:Nineteen]
-## 完成对蓝图的连接
+(#wrappinguptheblueprint)
+
+## 包裹蓝图
 
 ![](TutorialTestImage19.png)
 
-1. 从Timeline（时间轴）的Update（更新）输出拉根线到Set Relative Location（设置相对位置）的输入。
+1. 从Timeline的Update输出连出引线到Set Relative Location的输入。
 1. 编译并保存蓝图。
 [/EXCERPT:Nineteen]
 
 
 
 [EXCERPT:Twenty]
-## 可以开始玩了
+(#timetoplay)
+
+## 开始执行
 
 ![](TutorialTestImage20.png)
 
-1. 把您的Timeline（时间轴）蓝图拖曳到世界中并按下Simulate（模拟）。 请注意您的目标将会开始移动。
+1. 将Timeline蓝图拖入场景并按下模拟（Simulate）。此时对象将开始移动。
 [/EXCERPT:Twenty]
 

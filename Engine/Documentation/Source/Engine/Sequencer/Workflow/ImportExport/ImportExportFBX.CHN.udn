@@ -1,142 +1,203 @@
-﻿INTSourceChangelist:3124629
+INTSourceChangelist:3781189
 Availability:Public
-Title:导出和导入 FBX 文件
 Crumbs: %ROOT%, Engine
-Description:说明如何从 Sequencer 导出 FBX 文件，以及将 FBX 文件导入 Sequencer。 
-Navigation:topic
+Title:导出和导入FBX文件
+Description:介绍如何将FBX文件导出和导入Sequencer。 
+Type: Overview
+SkillLevel: Advanced
+Version: 4.18
 parent:Engine/Sequencer/Workflow
 order:1
-Version:4.13
-Related:Engine\Sequencer\Overview
-Related:Engine/Sequencer/HowTo
+tags:Sequencer
+Related: Engine/Sequencer/Overview
 
-本页内容介绍如何将场景从 Sequencer 导出为 FBX 文件，在第三方应用程序如 3dsMax 或 Maya 中修改该文件，然后将该 FBX 文件（以及您的修改）重新导入虚幻引擎的 Sequencer，作为现有场景的一部分。 
+[TOC(start:2 end:3)]
 
-在此过程中，需要注意几点。请牢记：
+本文介绍如何将场景从Sequencer中导出为FBX文件，并在第三方应用程序（如3dsMax或Maya）中修改该文件，
+完成必要的修改后，可以再将该FBX文件连同修改重新导入虚幻引擎4的Sequencer场景中。 
 
-* 导出时，您可以将场景中的所有带动画的物体导出到 FBX 文件中。 
-* 导入 FBX 文件时，只会导入动画。不会新建物体。 
-* 导出/导入无法用于 **Master Sequences**、主场景中的 **Shots** 或 **Subscenes**。 
-* 请确保您的第三方应用程序的时间设置与虚幻引擎中场景使用的时间帧一致。 
+在此过程中，有几点需要注意：
 
-只要您是从源关卡序列导出（而非从主场景中的镜头导出），且仅修改了现有资源的动画，就可以将修改直接导回虚幻引擎中的场景。 
-同时，在虚幻引擎和第三方应用程序中使用相同的时间帧还能确保它们能够排列起来，且导入的场景不会以不同的时率重新采样。 
+* 导出时，场景中所有带动画的物体都可以导出到FBX文件中。 
+* 导入FBX文件时，只会导入动画。不会新建物体。 
+* 导出/导入无法用于 **主序列**、主序列中的 **镜头** 或 **子场景**。 
+* 务必使第三方应用程序中的时间设置与虚幻引擎中场景使用的时间帧一致。 
 
+只要你是从源关卡序列导出（而非从主场景中的镜头导出），且仅修改了现有资源的动画，就可以将修改直接导回虚幻引擎4中的场景。 
+另外，在虚幻引擎和第三方应用程序中用相同的时间帧还确保了两者能够对齐，且导入的场景不会以不同的时率重新采样。 
+
+(#exampleworkflow)
 ## 工作流示例
 
-在下面，我们将从 **Sequencer** Showcase（下图所示，可从 Launcher 的 **Learn** 标签免费获取）中导出一个场景，然后将其导入 Maya，修改场景中的摄像机移动，然后将修改与此 FBX 文件一起导回虚幻引擎，现有的场景将自动更新反映修改。 
+下面，我们从Sequencer Subway项目（如下图所示，可从启动程序的 **学习（Learn）** 选项卡免费获取）中导出一个场景，
+将其导入Maya，修改场景中的摄像机移动，然后将该FBX文件连同修改导回虚幻引擎，修改会自动更新到现有场景。 
 
 ![](SequencerSample.png)
 
-
-### 从 Sequencer 导出
+(#exportingfromsequencer)
+### 从Sequencer导出
 
 首先，确定要导出的关卡序列。 
 
-1.	在下面的片段中，我们选择要修改的镜头并将其打开。接下来转到 **General Options** 并选择 **Export**。接下来会得到一个主轨迹，其中包含 **shot0040_001**，接着打开这一特定关卡序列并将其导出。 
+1.	在下面的片段中，我们选择并打开了要修改的镜头。然后转至 **常规选项（General Options）**，选择 **导出（Export）**。此时会看到一个主轨迹，其中包含 **shot0040_001**，我们打开这个特定关卡序列并将其导出。 
 
 	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	SM77fHV_wu8
-	[/PARAMLITERAL]
+		[PARAMLITERAL:videoid]
+		6RGyTp5oQFo
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
 	[/OBJECT]
+
+	执行FBX导出过程时，将显示 **FBX导出选项（FBX Export Options）** 窗口。在此窗口中，可以定义内容的导出方式。 
+
+	![](FBXExportOptions.png)
+
+	在这里，你可以设置 **FBX导出兼容性（FBX Export Compatibility）** 版本以及骨架网格体的 **顶点颜色（Vertex Color）**、**细节层级（Level of Detail）** 或 **碰撞（Collision）** 选项。 
+	另外，还有一个 **将骨骼运动映射到根（Map Skeletal Motion to Root）** 的选项。如果启用该选项，会将骨骼Actor运动映射到骨架的根骨骼。 
+	此例中，我们保留所有默认设置，然后选择 **导出（Export）** 以导出内容。 
 	
+(#externalediting)
 ### 外部编辑
 
-从 Sequencer 导出 FBX 后，可以打开第三方应用程序将其导入，然后开始编辑。 
+从Sequencer导出FBX后，可以打开第三方应用程序将其导入，然后开始编辑。 
 
-1.	将 FBX 导入 Maya 之前，需要让 **时间** 的工作单元和虚幻引擎中使用的 **时率** 相匹配。 
+1.	将FBX导入Maya之前，需要将 **时间（Time）** 的工作单位设置成与虚幻引擎中使用的 **时率（Time Rate）** 一致。 
 
 	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	cwldMhWAqBY
-	[/PARAMLITERAL]
+		[PARAMLITERAL:videoid]
+		uwXH1IljO4Q
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
 	[/OBJECT]
 
-1.	接下来将 FBX 导入 Maya，并设置场景，开始修改。导入场景后，在 **Panel** 下设置 Perspective，在场景中使用摄像机 **shotCamA** 并隐藏所有阻挡画面的元素（如体积光网格体），将其选中后按 **Ctrl + H** 即可。最后在 **View** 下通过 **Select Camera** 显示 **shotCamA** 的属性和关键帧，然后即可开始编辑。
+1.	接下来，将FBX导入Maya并设置场景，以便开始编辑。导入场景后，在 **面板（Panel）** 中设置视角（Perspective），在场景中使用摄像机 **shotCamA**，并选中所有阻挡画面的元素（如体积光网格体），然后按 **Ctrl + H** 将其隐藏。最后，在 **查看（View）** 中通过 **选择摄像机（Select Camera）** 显示 **shotCamA** 的属性和关键帧，即可开始编辑。
 
 	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	0Nc4S-T1t1I
-	[/PARAMLITERAL]
+		[PARAMLITERAL:videoid]
+		1F_GR2DjXG4
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
 	[/OBJECT] 
 
-1.	接下来编辑摄像机移动。以上我们选择了 **shotCamA** 的 Translation 和 Rotation 属性，并 **单击右键**，选择 **Break Connections**。接着为摄像机选择一个新的起始点，用于开始场景，然后按 **S** 将新位置设为关键帧。向前稍微拖动，并将摄像机移动到结束位置，再次按 **S** 将结束位置设为关键帧，使摄像机沿新路径运动。
-
+1.	接下来编辑摄像机的移动。在以上视频中，我们选择了 **shotCamA** 的平移（Translation）和旋转（Rotation）属性，单击右键，选择 **断开连接（Break Connections）**。接着为摄像机选择一个新的起始点，用于开始场景，然后按 **S** 键将新位置设为关键帧。往前拉一点点，将摄像机移动到结束位置，再次按 **S** 键将结束位置设为关键帧，使摄像机沿新路径运动。
+	
 	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	3asklRbBagA
-	[/PARAMLITERAL]
-	[/OBJECT] 
-
-1.	修改完成后，使用 **Export Selection** 导出场景。在从 Maya 导出的过程中，首先将导出类型修改为 **FBX export**。然后在 **Advanced Options** 和 **Axis Conversion** 下将 **Up Axis** 修改为跟随 **Z** 轴，实现向虚幻引擎的兼容导入。未来的版本将修正此问题，使您无需对轴进行转换，但目前必须执行此操作来避免出现导入问题。
-
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	sj-gWprQFNk
-	[/PARAMLITERAL]
-	[/OBJECT] 
-
-
-### 导入 Sequencer
-
-拥有经编辑的 FBX 格式文件后，可将其连同修改一起导入虚幻引擎，更新场景。
-
-1.	在需要编辑的 **shot0040_001** 中，**右键单击** **shotCamA** 并选择 **Import**。此操作将提取 FBX 中的变形数据，然后将其应用到虚幻引擎中所选的物体上。如需将相同变形数据应用到场景中的多个物体上，此操作将十分实用。 
-
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	HvNrIL9_GZw
-	[/PARAMLITERAL]
+		[PARAMLITERAL:videoid]
+		AEZVptCLp2E
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
 	[/OBJECT]
+
+1.	修改完后，使用“文件（File）”菜单上的 **导出选中项（Export Selection）** 导出场景。从Maya导出时，首先将导出类型更改为 **FBX导出（FBX export）**。然后在 **高级选项（Advanced Options）** 和 **轴转换（Axis Conversion）** 下将 **上方向轴（Up Axis）** 更改为沿着 **Z** 轴，实现向虚幻引擎的兼容导入。此问题可能会在未来版本的引擎中得到解决，从而无需再对轴进行转换，但目前必须执行此操作来避免出现导入问题。
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		965YuIfek68
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+	
+(#importingtosequencer)
+### 导入Sequencer
+
+现在我们有了一个经编辑的FBX格式文件。我们可以将其与修改一起导入虚幻引擎来更新场景。
+
+1.	在需要编辑的 **shot0040_001** 中，右键单击 **shotCamA** 并选择 **导入（Import）**。此操作将获取FBX中的变换数据，然后将其应用到虚幻引擎中所选的物体上。当需要将相同变换数据应用到场景中的多个物体上时，此操作将十分实用。 
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		uffYjwSFbfQ
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+	导入FBX时，将显示 **导入FBX（Import FBX）** 窗口。 
+
+	![](ImportFBX.png)
+
+	你可以在此窗口（如启用）**强制执行顺X轴前视口（Force Front XAxis）**，以使用顺X轴前视口而不是-Y轴将场景从FBX坐标系转换为UE4坐标系。 
+	另外，还可以使用 **创建摄像机（Create Cameras）** 功能。如果关卡中尚无摄像机，可以使用此功能创建。 
 
 	[REGION:tip]
-	除单击右键外，也可从 **General Options** 窗口导入 FBX。 
+	除单击右键外，也可从 **常规选项（General Options）** 窗口导入FBX。 
 
 	![](ImportOption.png)
 
-	使用此法时，虚幻引擎将尝试匹配物体的名称。例如，如果 FBX 文件和序列中都有 **shotCamA**，引擎会将来自 FBX 文件的数据应用到引擎中的相应物体上。 
+	选择此方法时，虚幻引擎将尝试匹配物体的名称。例如，如果FBX文件和序列中都有 **shotCamA**，引擎会将FBX文件中的数据应用到引擎中的相应物体上。 
 	[/REGION]
 
-在示例中，我们只对摄像机应用了变形修改。然而，我们可能会将新数值设为 **Focal Length** 关键帧，形成外观不同的镜头。
-可以在此工作流上进行试验，找到最适合实际情况的使用方式。有时可能需要导出 3D 包（如 Maya 或 3dsMax），以便对场景的各方面进行微调，然后将修改导回虚幻引擎里的场景中。 
+在此例中，我们只对摄像机应用了变换修改。但是，我们也可以将新数值设为 **焦距（Focal Length）** 关键帧，形成外观不同的镜头。
+请在此工作流程中多尝试，找到最适合实际情况的使用方式。 
+有时，你可能需要导出3D包（如Maya或3dsMax），对场景的各方面进行微调，然后将修改导回虚幻引擎里的场景中。 
 	
+
+
 
 
 

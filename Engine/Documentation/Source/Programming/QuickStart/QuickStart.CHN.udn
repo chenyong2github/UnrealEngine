@@ -1,69 +1,370 @@
-﻿Availability: Public
-Title:编程快速入门
-Crumbs:%ROOT%, Programming
-Description:创建您的首个代码项目并添加新的C++类。
-SkillLevel: Beginner
-Version: 4.8
+﻿INTSourceChangelist:6537364
+Availability: Public
+Title: 编程快速入门
+Description: 创建您的第一个代码项目并添加一个新的C++类。
+Type: quick start
+Parent: Programming
+Tags: Getting Started
+Tags: Programming
+topic-image: newclass_topic.png
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![](newclass_topic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Programming\QuickStart:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Programming\QuickStart]
-	[/PARAM]
-	[PARAM:description]
-	%Programming\QuickStart:description%
-	[/PARAM]
-[/OBJECT]
-[/VAR]
 
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![](newclass_topic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Programming\QuickStart:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Programming\QuickStart]
-	[/PARAM]
-	[PARAM:description]
-	%Programming\QuickStart:description%
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-在本教程的过程中，我们会创建新的 **虚幻引擎** 项目，向其添加新的C++类，然后编译项目并添加新类的实例到关卡中。 在完成后，我们会看到以C++来编程的 **Actor** 在屏幕上的移动。
+[TOC (start:2 end:2)]
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	dS1f71pS-5I
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ dS1f71pS-5I
+ [/PARAMLITERAL]
 [/OBJECT]
 
-## 步骤
+本快速入门指南的主要目标是向您介绍虚幻引擎4（UE4）的开发环境。在本指南结束时，您将了解如何在UE4中设置和开发C++项目。本指南向您展示如何创建一个新的虚幻引擎项目，如何向此项目添加一个新的C++类，如何编译此项目，以及如何向您的关卡添加一个新类的实例。在本指南结束时，您将能够看到您的编程 **Actor** 悬浮在关卡中一张桌子的上方。
 
-[REGION:buttonlist]
 
-	* [](Programming\QuickStart\1 "%Programming\QuickStart\1:description%")
-	* [](Programming\QuickStart\2 "%Programming\QuickStart\2:description%")
-	* [](Programming\QuickStart\3 "%Programming\QuickStart\3:description%")
-	* [](Programming\QuickStart\4 "%Programming\QuickStart\4:description%")
-	* [](Programming\QuickStart\5 "%Programming\QuickStart\5:description%")
-	
+## 1. 必要的项目设置
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    
+
+在开始本教程之前，您应该安装了 **Visual Studio 2017** 桌面版（最好是社区版或专业版）。有关设置说明，请参阅[为UE4设置Visual Studio](Programming/Development/VisualStudioSetup)。
+
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    
+
+在开始本教程之前，您应该安装了 **Xcode 9**。
+
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_0]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_0]
+
+1.  从启动器打开 **虚幻引擎（Unreal Engine）**。将出现[项目浏览器](Engine/Basics/Projects/Browser)。
+
+2.  单击 **新建项目（New Project）** 选项卡，然后选择 **C++** 选项卡。然后，选择 **基础代码（Basic Code）**，以便我们有一个干净的起点，并确保设置了 **具有初学者内容（With Starter Content）**。我们需要输入一个项目名称，所以我们将使用“QuickStart”。我们现在可以单击 **创建项目（Create Project）** 开始。
+    [![](CreateProject.png)](CreateProject.png)
+
+    **虚幻编辑器（Unreal Editor）** 现在将打开我们的新项目。**Visual Studio** 也将打开并加载我们的项目创建的解决方案文件。
+
+[/EXCERPT:excerpt_0]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_1]
+
+1.  从启动器打开 **虚幻引擎（Unreal Engine）**。将出现[项目浏览器](Engine/Basics/Projects/Browser)。
+
+2.  单击 **新建项目（New Project）** 选项卡，然后选择 **C++** 选项卡。然后，选择 **基础代码（Basic Code）**，以便我们有一个干净的起点，并确保设置了 **具有初学者内容（With Starter Content）**。我们需要输入一个项目名称，所以我们将使用“QuickStart”。我们现在可以单击 **创建项目（Create Project）** 开始。
+    [![](CreateProject.png)](CreateProject.png)
+
+    **虚幻编辑器（Unreal Editor）** 现在将打开我们的新项目。**Xcode** 也将打开并加载我们的项目创建的解决方案文件。
+
+[/EXCERPT:excerpt_1]
+-->
+
+## 2. 创建C++类
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_2]
+1.  在 **虚幻编辑器（Unreal Editor）** 中，我们可以使用位于 **文件（File）** 下拉菜单中的 **新建C++类...（New C++ Class...）** 命令创建一个新的C++类。  
+      
+    ![](AddCPPClass.png)
+
+1.  将打开 **选择父类（Choose Parent Class）** 菜单。因为 **Actor** 是 **虚幻引擎（Unreal Engine）** 关卡中最基础的类，所以我们将使用`Actor`类作为我们的基础类。  
+      
+    ![](ChooseParentClass.png)
+
+1.  将打开 **命名您的新Actor（Name Your New Actor）** 菜单。在本例中，让我们输入名称“FloatingActor”，然后单击 **创建类（Create Class）**。  
+      
+    ![](NameActorClass.png)
+
+1.  从启动器打开 **虚幻引擎（Unreal Engine）**。将出现[项目浏览器](Engine/Basics/Projects/Browser)。
+
+1.  单击 **新建项目（New Project）** 选项卡，然后选择 **C++** 选项卡。然后，选择 **基础代码（Basic Code）**，以便我们有一个干净的起点，并确保设置了 **具有初学者内容（With Starter Content）**。我们需要输入一个项目名称，所以我们将使用“QuickStart”。我们现在可以单击 **创建项目（Create Project）** 开始。[![](CreateProject.png)](CreateProject.png)
+
+ **虚幻编辑器（Unreal Editor）** 现在将打开我们的新项目。**Xcode** 也将打开并加载我们的项目创建的解决方案文件。
+
+[/EXCERPT:excerpt_2]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_3]
+1.  在 **虚幻编辑器（Unreal Editor）** 中，我们可以使用位于 **文件（File）** 下拉菜单中的 **新建C++类...（New C++ Class...）** 命令创建一个新的C++类。
+    
+	![](AddCPPClass.png)
+
+1.  这将打开 **选择父类（Choose Parent Class）** 菜单。因为 **Actor** 是 **虚幻引擎（Unreal Engine）** 关卡中最基础的类，所以我们将使用`Actor`类作为我们的基础类。  
+    
+	![](ChooseParentClass.png)
+
+1.  将打开 **命名您的新Actor（Name Your New Actor）** 菜单。在本例中，让我们输入名称“FloatingActor”，然后单击 **创建类（Create Class）**。  
+    
+	![](NameActorClass.png)    
+
+现在我们已经创建了一个C++类，我们可以切换到 **Visual Studio** 来对它进行编程。将自动为我们打开`FloatingActor.cpp`，同时 **虚幻引擎（Unreal Engine）** 将自动编译并加载代码和我们的新类。
+
+[/EXCERPT:excerpt_3]
+-->
+## 3. 编写和编译C++代码
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_4]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_4]
+
+在**Visual Studio**中，我们将使用 **解决方案资源管理器（Solution Explorer）** 窗格来查找我们新创建的C++文件。在我们的示例中，它们将被命名为 `FloatingActor.cpp` 和 `FloatingActor.h`，并将位于QuickStart项目中。 
+
+[![](SolutionExplorer_Files.png)](SolutionExplorer_Files.png)
+[/EXCERPT:excerpt_4]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_5]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_5]
+在 **Xcode** 中，我们将找到我们新创建的C++文件。在我们的示例中，它们将被命名为FloatingActor.cpp和FloatingActor.h，并将位于QuickStart项目中。  
+  
+[![](SolutionExplorer_Files_Mac.png)](SolutionExplorer_Files_Mac.png)
+[/EXCERPT:excerpt_5]
+-->
+
+[REGION:note]
+我们将开始编写代码。本教程中使用的所有代码可在页面底部找到，其状态为完成该页说明时的当前状态。
 [/REGION]
 
+1.  在FloatingActor.h中，我们将在文件末尾的右大括号和分号之前添加以下代码：
+    
+        float RunningTime;    
 
+2.  切换到FloatingActor.cpp，我们将在 **AFloatingActor::Tick** 末尾的右大括号之前添加以下代码：
+    
+        FVector NewLocation = GetActorLocation();
+        float DeltaHeight = (FMath::Sin(RunningTime + DeltaTime) - FMath::Sin(RunningTime));
+        NewLocation.Z += DeltaHeight * 20.0f;       //Scale our height by a factor of 20
+        RunningTime += DeltaTime;
+        SetActorLocation(NewLocation);
+    
+    [REGION:note]
+    我们刚刚编写的代码将使用我们创建的 *RunningTime* 变量追踪我们随时间的移动，使 **FloatingActor** 能够平稳地上下浮动。
+    [/REGION]    
 
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_6]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_6]
+
+现在我们已经完成了编码，我们可以通过在 **解决方案资源管理器（Solution Explorer）** 中右键单击我们的项目并选择 **构建（Build）** 命令来进行编译，也可以通过按下 **虚幻编辑器（Unreal Editor）** 中的 **编译（Compile）** 按钮来进行编译。编译成功后，**虚幻编辑器（Unreal Editor）** 将自动加载我们进行的更改。
+
+[![](CompileFromVS.png)](CompileFromVS.png)
+[REGION:caption]
+从Visual Studio编译。
+[/REGION]
+
+[![](CompileFromEditor.png)](CompileFromEditor.png)
+[REGION:caption]
+从虚幻编辑器（Unreal Editor）编译。
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    操作系统
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_7]
+    [/PARAM]
+[/OBJECT]
+<!--
+[EXCERPT:excerpt_7]
+
+现在我们已经完成了编码，我们可以通过单击 **产品（Product）> 构建（Build）** 选项来使用Xcode的调试配置编译我们的项目。我们还可以通过单击 **产品（Product）> 构建（Build For）> 配置处理（Profiling）** 选项或者通过按下 **虚幻编辑器（Unreal Editor）** 中的 **编译（Compile）** 按钮，来使用Xcode的开发配置进行编译。编译成功后，**虚幻编辑器（Unreal Editor）** 将自动加载我们进行的更改。
+
+[![](CompileFromXCode.png)](CompileFromXCode.png)
+[REGION:caption]
+在Xcode中编译命令的位置
+[/REGION]
+
+[![](ProjectBuild_mac.png)](ProjectBuild_mac.png)
+[REGION:caption]
+在Xcode中使用当前选择的配置进行编译。
+[/REGION]
+
+[![](ProjectBuildProfile_mac.png)](ProjectBuildProfile_mac.png)
+[REGION:caption]
+使用Xcode的开发配置进行编译。
+[/REGION]
+
+[![](CompileFromEditor.png)](CompileFromEditor.png)
+[REGION:caption]
+从虚幻编辑器（Unreal Editor）编译
+[/REGION]
+
+[REGION:note]
+在运行二进制编辑器时，如果您在任何 **未烘焙的** 配置中编译项目，则添加-game标签非常重要；如果您在任何 **调试** 配置中编译项目，则添加-debug标签非常重要。在Xcode中编译项目时，只会编译项目；除非单独编译编辑器，否则不会编译编辑器本身。
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+
+现在，我们可以根据代码在 **虚幻编辑器（Unreal Editor）** 中创建对象了。下面包含了本页使用的所有代码，以供参考。
+
+## 4. 测试您的代码
+
+1.  在 **虚幻编辑器（Unreal Editor）** 中，找到 **内容浏览器（Content Browser）**，并展开名为“C++ Classes”的文件夹。在此文件夹中，有一个“QuickStart”文件夹，其中包含了我们的 **Actor** 类 **FloatingActor**。
+    
+    [![](ClassInContentBrowser.png)](ClassInContentBrowser.png)
+    
+2.  我们可以直接将 **FloatingActor** 类拖放到 **关卡编辑器（Level Editor）** 窗口中，在我们的场景中创建一个 **FloatingActor** 的实例。它将在 **关卡编辑器（Level Editor）** 和 **世界大纲视图（World Outliner）** 中被选中，在其中被称为“FloatingActor1”。它的 **组件** 和其他属性将在 **细节面板（Details Panel）** 中可见。
+    
+    [![](WorldOutliner.png)](WorldOutliner.png)
+    
+3.  我们的 **FloatingActor** 需要在游戏中可见。当它被选中时，我们可以在 **细节面板（Details Panel）** 中单击 **添加组件（Add Component）**，并选择 **锥体（Cone）** 以为它提供一个简单的可视化表现形式。
+    
+    [![](AddStaticMesh.png)](AddStaticMesh.png)
+    
+4.  现在我们的自定义 **Actor** 已经准备好了，让我们将它移动到某个突出的位置。我们可以用鼠标左键选中它在场景中将它拖动，也可以手动移动它。要手动移动它，我们需要在 **关卡编辑器（Level Editor）** 或 **世界大纲视图（World Outliner）** 中选中它，然后使用 **细节面板（Details Panel）** 来选择“FloatingActor1（示例）”。我们现在可以直接编辑FloatingActor1的 **变换（Transform）** 的位置。我们来将X设置为-200，并将Z设置为200。这会将“FloatingActor1”置于我们场景中的桌子上方。
+    
+    [![](SetActorLocation.png)](SetActorLocation.png)
+    
+5.  按下 **运行（Play）** 按钮，观看锥体上下浮动！
+    
+    [![](MovingCone.png)](MovingCone.png)
+    
+
+## 5. 看你的了！
+
+利用您所学到知识，尝试执行以下操作：
+
+*   将一个[粒子系统组件](Engine/Rendering/ParticleSystems)添加到您的FloatingActor。一些预编译的粒子系统已经包含在您的项目中了。
+
+*   使用 **虚幻引擎的** [UProperty](Programming/UnrealArchitecture/Reference/Properties) 宏来公开一个变量，表示FloatingActor的移动幅度，而不是使用硬编码的值。您可能想要查看[变量、定时器和事件](Programming/Tutorials/VariablesTimersEvents)教程以获得对本主题的帮助。
+
+*   在X轴和/或Y轴上添加周期运动，并将`DeltaTime`值乘以介于0.6到1.4之间的一个数字，这样您的FloatingActor就可以自由地浮动。这种效果用于能力提升物品会很棒！
+
+有关本教程介绍的细节：
+
+*   有关Actor的更多信息，请参阅[Actor](https://api.unrealengine.com/INT/API/Runtime/Engine/GameFramework/AActor/index.html "AActor")手册页。
+
+* 有关进一步教程，请参阅[C++编程教程](Programming/Tutorials)手册页。

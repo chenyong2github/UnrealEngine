@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:이벤트로 UI 업데이트 구동
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
@@ -19,7 +19,7 @@ topic-image:EventUI.png
 
 UI 요소를 제작할 때 만드는 콘텐츠를 최적화시킬 수 있는 방법을 미리 염두에 두는 습관을 들이는 것이 좋은데, 그래야 나중에 크게 최적화시키지 않고도 퍼포먼스를 향상시키는 데 도움이 되기 때문입니다. 예를 들어 프로젝트 범위 내에서라면, [](Engine/UMG/UserGuide/PropertyBinding) 으로 UI 에 정도를 전달하기에 충분할 수 있습니다. 하지만 UI 구성이 좀 더 복잡하다든가 프로젝트를 최적화시킬 필요가 있다면, UI 업데이트를 매 프레임이 아닌 알 필요가 있을 때만 하는 것이 좋을 것입니다.
 
-이번 비법에서는 HUD 에 정보를 전달하는 세 가지 예제를 살펴보겠습니다. 세 가지 모두 정보 전달은 되지만, 세 번째 예제가 업데이트 프로세스를 틱 이벤트에서 옮기고 [이벤트 디스패처](Engine/Blueprints/UserGuide/EventDispatcher) 를 사용하여 정보를 수동으로 업데이트하는, 비용상 가장 효율적인 방법을 사용하고 있습니다.
+이번 하우투에서는 HUD 에 정보를 전달하는 세 가지 예제를 살펴보겠습니다. 세 가지 모두 정보 전달은 되지만, 세 번째 예제가 업데이트 프로세스를 틱 이벤트에서 옮기고 [이벤트 디스패처](Engine/Blueprints/UserGuide/EventDispatcher) 를 사용하여 정보를 수동으로 업데이트하는, 비용상 가장 효율적인 방법을 사용하고 있습니다.
 
 
 ## 예제 1. 함수 바인딩

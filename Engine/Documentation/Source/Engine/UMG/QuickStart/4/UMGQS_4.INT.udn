@@ -1,10 +1,11 @@
-Availability: Public
+Availability: docs
 Title:4. Scripting the Main Menu
 Crumbs:%ROOT%, Engine, Engine/UMG, Engine/UMG/QuickStart
 Description:In this step we will script the functionality for our Main Menu and load into game. 
 version: 4.9
 tags:UMG UI Designer
 
+## Page no longer needed.
 
 [VAR:Steps]
 [OBJECT:Navigation]

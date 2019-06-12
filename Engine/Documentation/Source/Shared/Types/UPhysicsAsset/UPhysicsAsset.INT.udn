@@ -8,6 +8,6 @@ Description:Overview of the PhysicsAsset class
 A PhysicsAsset defines the physics and collision used by a SkeletalMesh.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide
+Engine/Physics/PhysicsAssetEditor/UserGuide
 [/VAR]
 [/EXCERPT:UPhysicsAsset]

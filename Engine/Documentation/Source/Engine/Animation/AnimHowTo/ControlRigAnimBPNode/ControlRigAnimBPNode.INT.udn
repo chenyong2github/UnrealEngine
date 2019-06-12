@@ -1,0 +1,107 @@
+Availability: Public
+Crumbs: 
+Title: Control Rig Animation Blueprint Node
+Description: Describes how you can use the Control Rig Animation Blueprint node to incorporate Control Rig content within an Animation Blueprint enabling you to blend to or use Rig content directly in your animations. 
+Type: how-to
+Version: 4.21
+Parent: Engine/Animation/AnimHowTo
+Order: 
+SkillLevel:Advanced
+Tags: Animation Blueprints
+Tags: Experimental
+Tags: Rigging
+Tags: control rig list
+topic-image:ControlRigAnimBPTopic.png
+
+
+Once you have created a [Control Rig Blueprint](Engine/Animation/ControlRig/Blueprint), you can use the Control Rig node inside the AnimGraph of an [Animation Blueprint](Engine/Animation/AnimBlueprints) to augment animation data with the content you provide in your Control Rig Blueprint. This enables you accomplish tasks like blending animation data with the contents of a Control Rig Blueprint or layer the content of a Control Rig Blueprint on top of an existing animation data.
+
+The example below illustrates how you can use a Control Rig Blueprint to instruct one Joint to aim at and follow another Joint. With the Control Rig created, you can then use the Control Rig node and incorporate the Control Rig contents into an existing Animation Blueprint that is playing an animation.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fhrbYhjUF80
+	[/PARAMLITERAL]
+[/OBJECT]
+
+## Steps
+
+For this example, we are using a new **Blueprint Third Person Template** project. 
+
+1.  In your project after [enabling the Control Rig Plugin](Engine/Animation/ControlRig), click the **Add New **button and under **Animation**, select **Control Rig**.   
+    ![](1_CRNode.png "1_CRNode.png")
+
+1.  Select the  **ControlRig** as the Parent Rig, then click **Create** and give it any name.    
+    ![](2_CRNode.png "2_CRNode.png")  
+
+1.  Inside the Control Rig Blueprint, right-click in the  **Hierarchy** tab and under Import, assign the **SK_Mannequin**.   
+    ![](3_CRNode.png "3_CRNode.png")
+
+1.  In the **Preview Scene Settings** tab, assign the **SK_Mannequin** as the **Preview Mesh**.   
+    ![](4_CRNode.png "4_CRNode.png")
+
+1.  Compile the Control Rig Blueprint.   
+    ![](5_CRNode.png "5_CRNode.png")
+
+1.  Right-click in the graph and create a **Rig Hierarchy Ref** variable.   
+    ![](6_CRNode.png "6_CRNode.png")
+
+1.  In the  **Details** panel for the **Rig Hierarchy Ref**, change the **Variable Name** to **Base_Hierarchy**.   
+    ![](7_CRNode.png "7_CRNode.png")  
+    This creates a reference to the hierarchy and is usually a good practice to rename it to something more relatable like Base Hierarchy.  
+
+1.  Off the out pin, use the **Get Joint Transform** node with **Joint** set to **hand_r** and **Type** set to **Current**.  
+    ![](8_CRNode.png "8_CRNode.png")  
+    This will be the target Joint to aim at and we will get the current transform value of that Joint.  
+
+1.  Right-click in the graph and add an **Aim Constraint** node.  
+    ![](9_CRNode.png "9_CRNode.png")  
+
+1.  Compile the Blueprint.
+
+1.  Connect the **Base_Hierarchy** and **Get Joint Transform** nodes to the **Aim Constraint** as shown below with the following settings:  
+    ![](10_CRNode.png "10_CRNode.png") 
+    **Joint** = **head**  
+    **Aim Vector Y** = **1.0**  
+    **Aim Target Weight** = **1.0**  
+    Here we are instructing the head Joint to aim along the Y axis at the transform of the right hand.  
+
+1.  In the **Content Browser** under **Content > Mannequin > Character > Mesh**, right-click on the **UE4\_Mannequin\_Skeleton** and select **Create > Anim Blueprint** and give it any name.  
+    ![](11_CRNode.png "11_CRNode.png")  
+
+1.  On the AnimGraph inside the Animation Blueprint, connect a **Control Rig** node (with your  **Control Rig Class** assigned) to the **Final Animation Pose**.  
+    ![](12_CRNode.png "12_CRNode.png")
+
+1.  Add and connect the **ThirdPersonIdle** animation to  **Control Rig**  and compile.  
+    ![](13_CRNode.png "13_CRNode.png")  
+    The character will start to idle while looking towards their right hand. As the right hand moves, the character will automatically move its head to aim at (looking at) the right hand. You can further test this by adding a Transform Modify Bone node to the graph so you can manipulate it inside the Viewport.  
+
+1.  Add a **Transform Modify Bone** node between the **Control Rig** and **Play ThirdPersonIdle** animation (conversion nodes will automatically be created).  
+    ![](14_CRNode.png "14_CRNode.png")
+
+1.  In the **Details** panel for  **Transform Modify Bone**, set the **Bone to Modify** to  **upperarm_r**  and  **Rotation Mode** to **Add to Existing**.  
+    ![](15_CRNode.png "15_CRNode.png")
+
+1.  Compile the Animation Blueprint.
+
+## End Result
+
+You can now rotate the right arm inside the Viewport and the head will follow the location of the hand. You can also change out different animations or adjust the Rotation Space to achieve different results.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fhrbYhjUF80
+	[/PARAMLITERAL]
+[/OBJECT]

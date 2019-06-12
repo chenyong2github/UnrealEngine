@@ -1,0 +1,35 @@
+Availability: Public
+Title: Stereo Panoramic Capture Tool
+Description: A look at how to use the Stereo Panoramic plugin to capture VR images and movies.
+Type: landing
+Version: 4.13
+Parent: Platforms/VR/DevelopVR
+Tags: Sequencer
+Tags: VR
+Tags: Plugins
+Tags: GearVR
+Tags: SteamVR
+Tags: Cinematics
+Tags: Google VR
+Tags: Oculus Rift
+Tags: Virtual Reality
+Tags: Landing Page
+topic-image: SPE_Topic_Image_00.png
+
+
+![](SPE_Header_00.png)
+
+The Stereo Panoramic Movie Capture plugin for UE4 allows you to capture still images or movies that can then be viewed or played back in stereo giving the illusion that the world is being rendered in realtime.  In the following sections, we will take a look at how to set up and use the Stereo Panoramic Movie Capture plugin and also take a look at how you can create an image viewer inside of UE4 that will allow you to see the images you create in stereo. 
+
+[REGION:warning]
+Please note that the Stereo Panoramic Movie Capture plugin is still in an experimental state so you may run into issues like unexpected crashes when using it.
+[/REGION]
+
+
+## Starting Out
+
+[DIR(end:"1" output:"topic" parent:"Platforms/VR/DevelopVR/StereoPanoramicCapture" type:"quick start")]
+
+## Reference
+
+[DIR(end:"1" output:"listbutton" parent:"Platforms/VR/DevelopVR/StereoPanoramicCapture" type:"landing,overview,reference,how-to")]

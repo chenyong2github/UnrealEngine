@@ -35,8 +35,6 @@ Related:Programming/Development/BuildingUnrealEngine
 
 アンリアル エンジンのソースコードをダウンロードするには、以下の手順に従います。
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

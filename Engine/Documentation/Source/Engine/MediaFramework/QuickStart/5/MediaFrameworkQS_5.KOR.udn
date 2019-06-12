@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:5 - TV 블루프린트 함수 기능 & 테스트
 Description:TV 블프린트 함수 기능을 마무리하고 레벨에서 테스트해 봅니다.
@@ -12,6 +12,8 @@ type:multi-step
 order:5
 tags:Media Framework
 tags:Blueprints
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

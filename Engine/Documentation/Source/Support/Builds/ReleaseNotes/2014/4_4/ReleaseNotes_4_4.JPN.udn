@@ -236,7 +236,7 @@ Ragdoll はデフォルトではルートボディで制約されます。これ
 
 
 ## 学習リソース
-* [新たなクイック スタート ディレクトリ](GettingStarted/QuickStartDirectory) - 入門ドキュメントまたはエディタから直接すべてのクイック スタート ガイドに飛ぶことができます！
+* [新たなクイック スタート ディレクトリ](GettingStarted) - 入門ドキュメントまたはエディタから直接すべてのクイック スタート ガイドに飛ぶことができます！
 * [マチネ チュートリアル](Resources/Showcases/MatineeFightScene)
 * [マチネ ハウトゥー 3～8](Engine/Matinee/HowTo)
 * [Paper2D](Resources/ContentExamples/Paper2D) と [スプライン コンポーネント](Resources/ContentExamples/Blueprint_Splines) のためのコンテンツ サンプルのディレクトリ
@@ -244,7 +244,7 @@ Ragdoll はデフォルトではルートボディで制約されます。これ
 * AI のためのクイック スタート
 * [FBX のためのエラー メッセージを改善しました。]
 * [Mixamo のインポート ガイド](Engine/Animation/UsingMixamoContent)
-* [iOS のためのクイック スタート](Platforms/iOS/QuickStart)
+* [iOS のためのクイック スタート](Platforms/Mobile/iOS/QuickStart)
 	* Mac から iOS
 	* Windows から iOS (ブループリントのみ)
 * iOS のセットアップおよびデプロイのためのエディタ内チュートリアル

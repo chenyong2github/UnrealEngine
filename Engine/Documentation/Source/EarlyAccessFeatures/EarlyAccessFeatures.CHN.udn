@@ -1,0 +1,18 @@
+﻿INTSourceChangelist:6576377
+Availability: Public
+Crumbs: 
+Title:抢先体验功能
+Description:仍在开发但状态稳定的功能。
+Type:landing
+Version:
+Parent: %ROOT%
+Order: 100
+Tags: 
+topic-icon:earlyaccess_icon.png
+
+
+[REGION:note]
+抢先体验功能让您有机会了解它们的工作方式，规划您的流程并创建测试内容。**在交付处于此状态的功能时应当谨慎**，因为它们可能没有经过性能或稳定性优化，可能无法在所有平台上使用。我们支持资源的向后兼容性，这些功能的API是稳定的。
+[/REGION]
+
+[DIR(output:"topic" tags:"Early Access" type:"landing" end:"1")]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2703120
+﻿INTSourceChangelist:3108692
 Title:结构体说明符
 Crumbs:%ROOT%, Programming/UnrealArchitecture/Reference,  Programming/UnrealArchitecture/Reference, Programming/UnrealArchitecture/Reference/Structs
 Description:声明游戏性结构体时使用的关键词，以指定结构体与引擎和编辑器诸多方面的相处方式。

@@ -1,9 +1,11 @@
-INTSourceChangelist:3782314
+﻿INTSourceChangelist:6413515
 Availability:Public
 Title:动画重定位
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:描述如何在多个骨架网格体中使用重定位动画以便共享动画， 
 version:4.14
+tags:Animation
+tags:Animation Features
+tags:Animation Retargeting
 topic-image:AnimationgRetargeting_topic.png
 
 [REGION:fullwidth]
@@ -15,7 +17,6 @@ topic-image:AnimationgRetargeting_topic.png
 
 [TOC(start:2 end:2)]
 
-(#whyuseretargeting?)
 ## 为何使用重定位？
 
 假设您有多个角色，您希望在基本角色、矮壮角色和高瘦角色之间共享动画。
@@ -29,7 +30,6 @@ topic-image:AnimationgRetargeting_topic.png
 [/REGION]
 
 
-(#resultsbeforeretargeting)
 ### 重定位前的结果
 
 在应用重定位前，您就可以在任何共用相同骨架资源的骨骼网格之间使用动画。但是，如果角色身材比例如上图所示有差异，就会得到一些很难看的结果。请注意矮个角色是如何被不必要地拉长的，高个角色又是如何被压短的，这都是系统为了使其符合基本角色的骨骼比例而进行的更改。
@@ -41,7 +41,6 @@ topic-image:AnimationgRetargeting_topic.png
 |基本角色|矮壮角色|高瘦角色|
 [/REGION]
 
-(#resultsafterretargeting)
 ### 重定位后的结果
 
 对角色应用重定位以后，系统就不再考虑它们的比例差异，动画会在每个角色身上正常播放。 
@@ -55,7 +54,6 @@ topic-image:AnimationgRetargeting_topic.png
 [/REGION]
 [/EXCERPT:AfterTable]
 
-(#howdoesretargetingwork?)
 ## 重定位的原理是怎样的？
 
 动画绑定到[骨架](Engine/Animation/Skeleton)资源。骨架资产其实就是一个骨骼名称和层次结构数据的列表，但它也存储了来自用于定义骨架资产的原始骨骼网格的初始比例。此数据是以骨骼平移数据的形式存储的。特别要注意的是，重定位系统只会重定位骨骼的平移分量。骨骼的旋转始终来自动画数据。
@@ -72,7 +70,6 @@ topic-image:AnimationgRetargeting_topic.png
 
 此外，对于动画重定位，使用重定位动画和非重定位动画没有显著的性能差异。使用动画重定位的好处是增加独特角色的数量，又不必创建全新的一套匹配动画，重新做动画可能会严重占用您的动画存储预算。
 
-(#retargetinganimationsfordifferentskeletons)
 ### 不同骨架的重定位动画
 
 在为不共享相同骨架资源的角色处理动画重定位时，需要指定一个特殊的资源，名为 **绑定（Rig）**，它负责处理骨架之间传递的动画数据。 
@@ -86,7 +83,6 @@ topic-image:AnimationgRetargeting_topic.png
 
 
 
-(#howareendeffectorshandledwithretargeting?)
 ## 重定位如何处理最终效果器？
 
 高个角色会跑得更快吗？它们能拿住相同的道具吗？——这些都是使用重定位时可能出现的问题。简而言之，这里没有自动完成的工作，要由用户来决定如何实施。 
@@ -98,7 +94,6 @@ topic-image:AnimationgRetargeting_topic.png
 这个系统非常灵活，可以根据您的需要定制。也许您只希望左手是IK，而右手使用其FK位置和IK旋转。有时可以这样处理脚部，有时不需要这样处理。当角色踩踏非常精确的道具时，您会希望打开IK；当角色只是四处奔跑时，您会希望使用FK，以免产生罗圈腿的角色（或相反）。 
 
 
-(#settingupretargeting)
 ## 设置重定位
 
 [COMMENT:none]
@@ -129,7 +124,6 @@ topic-image:AnimationgRetargeting_topic.png
 [/REGION]
 
 
-(#usingtheretargetmanager)
 ## 使用重定位源管理器
 
 ![](BasePoseManager.png)

@@ -1,0 +1,57 @@
+INTSourceChangelist:6017040
+Availability: Public
+Title: 다이내믹 트랜스폼으로 레벨 시퀀스 생성
+Description: 런타임에 변경되는 다이내믹 월드 트랜스폼이 있는 액터를 포함해서 레벨 시퀀스를 만드는 법을 설명합니다. 
+Parent: Engine/Sequencer/HowTo
+Tags: Sequencer
+Tags: how-to
+Order: 29
+
+
+시네마틱 시퀀스를 만들 때, 씬의 액터에 트랜스폼 데이터를 적용하고 전체 씬을 레벨의 새 위치로 옮길 수 있습니다. 이제 레벨 시퀀스의 인스턴스 데이터를 오버라이드하고 새 **Transform Origin Actor** (트랜스폼 오리진 액터)를 할당하여 시퀀스의 새 원점으로 사용할 수 있습니다. 그러면 시퀀스에 키프레임 액터가 활성화되고 지정된 트랜스폼 오리진 액터를 기준으로 상대 트랜스폼이 적용됩니다. 
+
+이 예제에서는 시퀀스에 캐릭터를 추가하고 경로를 지정합니다. 그런 다음 인스턴스 데이터를 오버라이드하고 트랜스폼 오리진 액터를 할당하면 정의된 경로는 그대로 유지하면서 전체 씬을 레벨의 새 위치로 옮깁니다. 
+
+![](DynamicTransformBanner-2.png "DynamicTransformBanner-2.png")
+
+## 단계
+
+[REGION:note]
+여기서는 **블루프린트 삼인칭** 새 프로젝트를 사용합니다.
+[/REGION]
+
+1. **Content/Mannequin/Character/Mesh** 폴더의 **SK_Mannequin** 을 끌어 레벨에 놓습니다.
+![](DynamicTransform_01-3.png "DynamicTransform_01-3.png")
+1. 메인 툴바에서 **시네마틱** - **레벨 시퀀스 추가** 를 클릭한 뒤 이름을 짓고 저장 위치를 지정합니다.      
+![](DynamicTransform_02-2.png "DynamicTransform_02-2.png")
+1. 레벨 시퀀스에 **SK_Mannequin** 를 추가한 다음 **ThirdPersonWalk** 애니메이션을 추가하고 **150** 마크로 루핑합니다.   
+![](DynamicTransform_03-1.png "DynamicTransform_03-1.png")
+1. 레벨의 Select **SK_Mannequin** 을 선택하고, **디테일** 패널에서 **위치** 값을 **0,0,0** 으로 설정합니다.   
+![](DynamicTransform_04-3.png "DynamicTransform_04-3.png")
+<p></p>최적의 결과를 위해서는, 액터의 트랜스폼을 먼저 0 으로 설정한 뒤 시퀀서에서 키프레임 설정하는 것이 좋습니다. 트랜스폼 데이터를 키프레임 설정했는데 0 이 아니면, 레벨에 트랜스폼 오리진 액터를 이동할 때 오프셋이 적용됩니다. 
+1. 레벨 시퀀스에서, **트랜스폼** 트랙에 **SK_Mannequin** 에 대한 키프레임을 시작 위치로 추가한 다음, 캐릭터를 앞으로 이동하고 **150** 에 키프레임을 추가하여 경로를 생성합니다.   
+![](DynamicTransform_05-1.png "DynamicTransform_05-1.png")
+1. **모드** 패널에서 **기본 액터** 를 끌어 레벨에 놓습니다.   
+![](DynamicTransform_06-1.png "DynamicTransform_06-1.png")
+<p></p>이 액터는 레벨 시퀀스의 트랜스폼이 기반으로 하는 씬의 원점으로 사용됩니다. 
+1. 레벨의 레벨 시퀀스를 선택한 다음, **디테일** 패널에서 **Auto Play** (자동 재생), **Loop Indefinitely** (무한 루프), **Override Instance Data** (인스턴스 데이터 오버라이드)를 선택합니다. 
+1. 6 단계의 **액터** 를 **트랜스폼 오리진 액터** 로 선택합니다.  
+![](DynamicTransform_07.png "DynamicTransform_07.png")
+1. 레벨에서 **시뮬레이트** 또는 **플레이** 합니다.
+
+
+## 최종 결과
+
+레벨에서 시뮬레이트 또는 플레이할 때, 레벨 시퀀스가 자동 시작됩니다. 또한 레벨에 트랜스폼 오리진 액터로 할당된 액터를 이동하여 레벨 시퀀스 원점을 이동할 수 있습니다. 
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Vy6cvfjECN8
+ [/PARAMLITERAL]
+[/OBJECT]

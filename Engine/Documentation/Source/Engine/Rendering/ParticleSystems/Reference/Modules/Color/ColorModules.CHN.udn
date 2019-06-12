@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3243860
+﻿INTSourceChangelist:6340821
 Availability:Public
 Title:Color 模块
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
@@ -34,13 +34,14 @@ WCG-PdJ41rw
 
 **Initial Color** 模块在生成时设置粒子颜色。粒子在其生命周期中将保持该颜色，除非被另一颜色模块所覆盖。它包含下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 | [REGION:tablesection]Color[/REGION]||
 | **Start Color** | 确定粒子颜色的矢量 distribution。基于粒子生成的 EmitterTime 获取数值。|
 | **Start Alpha** | 确定粒子 alpha 组件的浮点 distribution。基于粒子生成的 EmitterTime 获取数值。|
 | **Clamp Alpha** | 如为 _true_，alpha 值将被锁定在 [0.0 .. 1.0f] 的范围内。|
-
+[/REGION]
 
 生成粒子时，模块从使用发射器时间的 distributions 获取适当的值，直接为其设置 Particle.Color 和 Particle.BaseColor 值。
 
@@ -49,6 +50,7 @@ WCG-PdJ41rw
 
 **Init Color (Seed)** 模块与生成时设置粒子初始颜色的 [Initial Color](#InitialColor) 模块相同；然而此模块可对种子信息进行指定。该种子信息用于选择 distribution 值，从发射器每次使用的模块获得更稳定的效果。它包含下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]RandomSeed[/REGION]||
@@ -57,15 +59,10 @@ WCG-PdJ41rw
 |**Start Color** | 确定粒子颜色的矢量 distribution。基于粒子生成的 EmitterTime 获取数值。|
 |**Start Alpha** | 确定粒子 alpha 组件的浮点 distribution。基于粒子生成的 EmitterTime 获取数值。|
 |**Clamp Alpha** | 如为 _true_，alpha 值将被锁定在 [0.0 .. 1.0f] 的范围内。|
-
-
-
+[/REGION]
 
 
 生成粒子时，模块从使用发射器时间的 distributions 获取适当的值，并直接为其设置 Particle.Color 和 Particle.BaseColor 值。
-
-
-
 
 
 ## Color Over Life
@@ -84,13 +81,14 @@ zlZ1dvYsjrk
 
 **Color Over Life** 模块用于设置粒子在其生命周期中的颜色。它包含下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]Color[/REGION]||
 |**Color Over Life** | 确定粒子颜色的矢量 distribution。使用粒子更新中的 RelativeTime 获取该数值。|
 |**Alpha Over Life** | 确定粒子 alpha 组件的矢量 distribution。使用粒子更新中的 RelativeTime 获取该数值。|
 |**Clamp Alpha** | 如为 _true_，alpha 值将被锁定在 [0.0 .. 1.0f] 的范围内。|
-
+[/REGION]
 
 生成粒子时，模块从使用粒子时间的 distributions 获取适当的值，并为其设置 Particle Color 和 BaseColor 值。 
 
@@ -105,13 +103,14 @@ zlZ1dvYsjrk
 
 **Scale Color/Life** 模块用于调整粒子在其生命周期中的颜色。它包含下列属性：
 
+[REGION:simpletable]
 | 属性 | 描述 |
 | ---- | ---- |
 |[REGION:tablesection]Color[/REGION]||
 |**Color Scale Over Life** | 确定粒子颜色的矢量 distribution。使用粒子更新中的 RelativeTime 获取该数值。|
 |**Alpha Scale Over Life** | 确定粒子 alpha 组件的矢量 distribution。使用粒子更新中的 RelativeTime 获取该数值。|
 |**Emitter Time** | 确定特效基于发射器时间或粒子时间的布尔值。|
-
+[/REGION]
 
 在生成和更新粒子时，模块从使用选定时间的 distributions 获取适当的值，并利用这些值对粒子颜色进行调整。
 

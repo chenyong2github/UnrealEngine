@@ -1,14 +1,16 @@
-﻿INTSourceChangelist:2574161
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UAnimSequence RTTs
 Crumbs:
 
 [EXCERPT:AdditiveAnimType]
 
+(#Overview)
 ### 总览
 
 动画都可以随时作为完全动画或者附加动画进行使用。系统执行恰当的计算，在必要时将数据转换为相位差。这使这个系统比旧版本引擎中的系统拥有更大的灵活性，因为不需要提前指定被当作附加动画的动画。
 
+(#Additiveanimation)
 ### 附加动画
 
 附加动画计算基础动画和当前动画的增量，可将此差异应用到任意基础动画。 
@@ -19,6 +21,7 @@ Crumbs:
 1. Current animation：要进行转换的动画
 2. Base animation：计算增量时需要其作为基础的位置，这将改变增量被提取的方式
 
+(#Additiveanimationtype)
 ### 附加动画类型
 
 这将决定希望使用的附加类型。 
@@ -31,6 +34,7 @@ Crumbs:
 
 [EXCERPT:RefPoseType]
 
+(#BasePoseType)
 ### 基础动作类型
 
 这将决定此附加增量的计算方式。 
@@ -40,6 +44,7 @@ Crumbs:
 3. Selected animation scaled：选择下方的另一个动画并在提取增量时缩放整个动画
 4. Selected animation frame：选择下方的另一个动画且只基于帧数
 
+(#BasePoseAnimation)
 ### 基础动作动画
 
 如上方的选项需要选中的动画，可在此处选择动画。 

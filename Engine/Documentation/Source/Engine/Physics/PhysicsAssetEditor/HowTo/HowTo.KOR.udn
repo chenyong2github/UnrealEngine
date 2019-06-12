@@ -1,0 +1,22 @@
+INTSourceChangelist:6441463
+Availability: Public
+Title:피직스 애셋 에디터 안내서
+Crumbs: %ROOT%, Engine, Engine/Physics, Engine/Physics/PhysicsAssetEditor
+Description:피직스 애셋 툴의 하우투 부분에 대한 첫 페이지입니다.
+Navigation:topic
+parent:Engine/Physics/PhysicsAssetEditor
+type:how-to
+order:1
+Version: 4.13
+tags:Physics 
+tags:how-to
+
+This page contains links to guides on how-to perform common tasks in the **Physics Asset Tool** (**PhAT**).
+
+## 초급
+
+[DIR(output:"fancy" parent:"Engine/Physics/PhysicsAssetEditor/HowTo" org:"hierarchy" skill_level:"Beginner")]
+
+## 중급
+
+[DIR(output:"fancy" parent:"Engine/Physics/PhysicsAssetEditor/HowTo" org:"hierarchy" skill_level:"Intermediate")]

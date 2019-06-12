@@ -1,4 +1,4 @@
-availability:Public
+availability:docs
 title:2. Required Asset Creation & Setup
 description:Going over creating and setting up the required assets.
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -11,6 +11,7 @@ tags: Render Targets
 Order:2
 checkpoint:CTUB
 
+## Marking as Docs as the page has been combined. 
 [NAV]
 
 In this section we will go over how to create and setup the required assets so you can createTextures using Blueprints and Render Targets.

@@ -13,7 +13,6 @@ order:9
 
 为Actor设置输入能让你在一定程度上控制Actor如何及何时响应玩家的输入。欲了解更多信息，请参见以下**Setup**部分提供的链接。 
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/ActorInput" org:"hierarchy" end:"1")]

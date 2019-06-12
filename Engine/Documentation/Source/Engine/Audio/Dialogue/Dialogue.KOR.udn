@@ -1,42 +1,222 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6601362
 Availability: Public
-Title:다이얼로그 보이스 및 웨이브 사용법
-Crumbs: %ROOT%, Engine, Engine/Audio
-Description:청자 및 대화의 컨텍스트가 여럿인 대화의 구성 예입니다.
-version: 4.13
-checkpoint:dialogueqs
-prereq: Engine/Blueprints/QuickStart
-type:how-to
-type:landing
-parent:Engine/Audio
-skilllevel:Intermediate
-related:Engine/Audio/Overview
-related:Engine/Audio/SoundCues/Editor
-related:Engine/Audio/SoundCues/NodeReference
-topic-image: Engine/Audio/audio_topic.png
+Title: 다이얼로그 보이스 및 웨이브 사용법
+Description: 청자 및 대화의 컨텍스트가 여럿인 대화의 구성 예입니다.
+Type: how-to
+Version: 4.13
+Parent: Engine/Audio
+topic-image: audio_topic.png
+SkillLevel: Intermediate
+Order: 1
+Related: Engine/Audio/SoundCues/Editor
+Related: Engine/Audio/SoundCues/NodeReference
+Related: Engine/Audio/Overview
 
 
-매우 기본적인 대화 구성에 대한 예제입니다. 긴 대화의 경우 보통 컨버세이션 매니저 시스템을 사용하여 만드는 것이 좋습니다.
-이 상황에서는, 퀘스트 NPC 와 두 가지 플레이가능 캐릭터를 구성하고, Dialogue Voices (다이얼로그 보이스)와 Dialogue Waves (다이얼로그 웨이브)를 사용하여 
-누구와 이야기중인지에 때라 퀘스트를 주는 사람의 톤을 조정하는 방법을 살펴보도록 하겠습니다.
+[TOC (start:2 end:2)]
+
+사전 필수 주제
+
+이 글은 다음 주제에 대한 지식이 있는 분들을 대상으로 합니다. 확인 후 진행해 주세요.
+
+*   [](Engine/Blueprints/QuickStart "")
+    
+
+매우 기본적인 대화 구성에 대한 예제입니다. 긴 대화의 경우 보통 컨버세이션 매니저 시스템을 사용하여 만드는 것이 좋습니다. 이 상황에서는, 퀘스트 NPC 와 두 가지 플레이가능 캐릭터를 구성하고, Dialogue Voices (다이얼로그 보이스)와 Dialogue Waves (다이얼로그 웨이브)를 사용하여 누구와 이야기중인지에 때라 퀘스트를 주는 사람의 톤을 조정하는 방법을 살펴보도록 하겠습니다.
 
 [REGION:imagetable]
-| ![](QuestGiver.png)(h:300)| ![](Adam.png)(h:300)|![](Zoe.png)(h:300) |
-|---|----|----|
-|퀘스트 NPC | 아담 | 조 | 
+| ![](QuestGiver.png)(h:300) | ![](Adam.png)(h:300) | ![](Zoe.png)(h:300) |
+| --- | --- | --- |
+| 퀘스트 NPC | 아담 | 조 |
 [/REGION]
 
 예제 디자인 문서의 개요는 이렇습니다:
 
-		- 퀘스트 NPC 는 여성 군인으로, 아담의 팀에 호위 임무 제공을 위한 지원군을 채용하려 합니다.
-		- 아담은 잠입을 주로 하는 용병으로, 꼭 필요할 때만 공격한다는 주의입니다.
-		- 조는 퇴역 군인으로, 지난 번 있었던 은하계 내전 이후 아담의 팀에 합류했습니다.
+    - 퀘스트 NPC 는 여성 군인으로, 아담의 팀에 호위 임무 제공을 위한 지원군을 채용하려 합니다.
+        - 아담은 잠입을 주로 하는 용병으로, 꼭 필요할 때만 공격한다는 주의입니다.
+        - 조는 퇴역 군인으로, 지난 번 있었던 은하계 내전 이후 아담의 팀에 합류했습니다.
 
+## 1 - 다이얼로그 보이스 생성
 
-## 단계
+이번 예제에서는 언리얼 엔진 마켓플레이스에서 무료로 받을 수 있는 [Mixamo Animation Pack](https://www.unrealengine.com/marketplace/mixamo-animation-pack) (믹사모 애니메이션 팩)의 캐릭터를 사용하고 있습니다. 믹사모 애니메이션 팩의 모든 캐릭터는 범용 캐릭터 블루프린트에서 상속하고 있습니다. 별도의 프로젝트 작업시 또는 C++ 구성에서는 다음 단계에 별도의 조정이 필요할 것이지만, 핵심적인 개념은 여전히 유효합니다.
 
-[DIR(output:"checkpoint" parent:"Engine/Audio/Dialogue" org:"hierarchy")]
+각 캐릭터는 Dialogue Voice (다이얼로그 보이스) 변수에 대해 별도의 값을 갖고 있습니다. 오디오 콘텐츠를 현지화하지 않는다 하더라도, 캐릭터 별로 구분되는 보이스가 있다는 것은 주어진 성우의 녹음을 해당 음성에 연동시킬 수 있다는 것으로, Zoe (조)는 항상 조의 목소리처럼 들릴 것입니다.
 
-[REGION:call_to_action]
-	[클릭하면 시작합니다.](Engine/Audio/Dialogue/1 "%Engine/Audio/Dialogue/1:title%")
+1. **콘텐츠 브라우저** 의 **MixamoAnimPack** 폴더에서 **MixamoCharacter_Master** 에 **더블클릭** 하여 블루프린트를 엽니다.  
+    
+    ![](MixamoMaster.png)(w:700)
+
+1. 블루프린트에 새로운 [변수](Engine/Blueprints/UserGuide/Variables) 를 추가합니다.  
+    
+    ![](NewVariable.png)
+
+1. 변수 이름을 **DialogueVoice** 라 한 뒤 그 유형을 **DialogueVoice Reference** 로 설정합니다.  
+    
+    ![](DialogueVoiceRef.png)
+
+1. 블루프린트를 컴파일하고 저장합니다. 이제 세 캐릭터 각각에 사용할 다이얼로그 보이스 애셋을 만들어 줘야 합니다.
+
+1. **콘텐츠 브라우저** 로 돌아가 새로운 **다이얼로그 보이스** 애셋을 만듭니다.
+    
+    ![](DialogueVoiceNew.png)
+
+1. 새 애셋 이름을 **QuestNPC** 라 하고 **더블클릭** 하여 엽니다.
+
+1. 디자인 문서에 의하면, 퀘스트 NPC 보이스는 **Feminine** (여성)에 **Singular** (단수)입니다. 드롭다운 메뉴를 사용하여 **Gender** (성별)과 **Plurality** (개수)를 알맞게 설정합니다.
+    
+    ![](QuestNPC.png)
+
+1. 위 프로세스를 두 번 반복하여 **Masculine** (남성) **Singular** (단수)인 Adam (아담) 및 **Feminine** (여성) **Singular** (단수)인 Zoe (조)에 대한 **다이얼로그 보이스** 애셋을 생성합니다.
+    
+    ![](AdamVoice.png) ![](ZoeVoice.png)
+
+1. 새로운 **다이얼로그 보이스** 애셋 전부 저장하고 닫습니다.
+
+**다이얼로그 보이스** 애셋이 생성되었으니, 캐릭터에 할당해 주면 됩니다.
+
+1. **콘텐츠 브라우저** 로 돌아와 **Mixamo_SWAT** 폴더에서 **Mixamo_SWAT** 블루프린트를 엽니다.  
+    
+    ![](MixamoSWAT.png)
+
+1. 블루프린트가 데이터 전용 블루프린트가 아니고 기본값이 이미 보이지 않는 경우, **툴바** 의 **클래스 디폴트** 버튼을 눌러 블루프린트의 디폴트 프로퍼티를 엽니다.  
+    
+    ![](ClassDefaults.png)
+
+1. **디테일** 패널에서 **Dialogue Voice** (다이얼로그 보이스)를 **Quest NPC** 로 설정합니다.  
+    
+    ![](DialogueVoiceSetSwat.png)
+
+1. 위 단계를 반복하여 **Mixamo_Adam** 블루프린트의 **다이얼로그 보이스** 를 **Adam** 으로, **Mixamo_Zoe** 블루프린트의 **다이얼로그 보이스** 를 **Zoe** 로 설정합니다.  
+    
+    ![](AdamVoiceSet.png) ![](ZoeVoiceSet.png)
+
+[REGION:tip]
+다이얼로그 보이스 캐릭터의 식별을 돕기 위해:
+
+1. 월드에 캐릭터를 배치한 뒤, 그 캐릭터에 뷰포트 프레임을 잡습니다.
+
+1. **콘텐츠 브라우저** 에서 **다이얼로그 보이스** 애셋에 우클릭합니다.
+
+1. **애셋 액션 >> 썸네일 캡처** 를 선택합니다.  
+    ![](ThumbnailCapture.png)(w:500)
 [/REGION]
+
+## 2 - 다이얼로그 웨이브 만들기
+
+이 예제에서는 퀘스트 NPC 가 아담과 조에게 인사를 건네는 것만 구현하겠습니다. 복잡한 대화에 관련된 상세 정보는 아래 "사운드 큐 및 다이얼로그" 부분을 참고하세요. 다이얼로그 각 줄마다 **Dialogue Wave** (다이얼로그 웨이브) 애셋을 할당해 줘야 합니다.
+
+1. **콘텐츠 브라우저** 로 돌아가 새로운 **다이얼로그 웨이브** 애셋을 만듭니다.
+    
+    ![](DialogueWaveNew.png)
+
+1. 새 애셋 이름을 **QuestGreeting** 이라 한 뒤 **더블클릭** 하여 엽니다.
+
+1. **Spoken Text** (대화 텍스트)에 "Hey! Could you come over here? I need your help with something important." (안녕하세요! 이 쪽으로 와주시겠습니까? 중요한 일에 관련해서 도움이 필요합니다.) 라고 입력합니다. NPC 가 아담과 조에게 이야기할 때 같은 텍스트를 말할 수도 있지만, 게임 디자인 문서에 따르면 청자에 따라 어조는 달라질 수 있다고 합니다. 즉 **Dialogue Context** (다이얼로그 컨텍스트)를 두 개 별도로 구성해줘야 한다는 뜻입니다.
+
+1. 컨텍스트 하나는 이미 기본으로 생성됩니다. **Speaker** (화자) 항목에 **Quest NPC** 라 입력합니다.
+    
+    ![](Context1Speaker.png)
+
+1. 더하기 아이콘을 클릭하여 청자를 추가합니다.
+    
+    ![](Context1ListenerAdd.png)
+
+1. **Directed At** (지시 대상) 항목을 **Adam** 으로 설정합니다.
+
+    ![](Context1Listener.png)
+
+1. **Add Dialogue Context** (다이얼로그 컨텍스트 추가)를 클릭하여 **다이얼로그 컨텍스트** 를 새로 추가합니다.
+    
+    ![](AddDialogueContext.png)
+
+1. 이 컨텍스트의 **화자** 를 **Quest NPC** 로, **Directed At** (지시 대상)을 **Zoe** 로 설정합니다.
+    
+    ![](ZoeContext.png)
+
+성우가 군대 배경을 공유하는 조에게는 더 친근하게, 용병 경험이 있는 아담에게는 더 퉁명스럽게 이야기하도록 노트를 작성해 줄 수도 있습니다. 이러한 것들은 **Voice Actor Direction** (성우 지시) 칸에 들어갑니다. 마지막으로 성우 녹화를 받은 후, 그 파일을 **사운드 웨이브** 로 임포트한 뒤 각 컨텍스트의 **Sound Wave** (사운드 웨이브) 칸에 설정합니다. 이 예제에서는 **사운드 웨이브** 를 직접 만들지는 않겠지만, **시작용 콘텐츠** 의 **사운드 웨이브** 를 사용하여 테스트해 볼 수 있습니다.
+
+![](GreetingAudio.png)
+
+[REGION:tip]
+**다이얼로그 웨이브** 에서 **Subtitle Override** (대체 자막)을 설정할 수도 있습니다. 효과음이나 기타 플레이어가 알지 못하는 외국어로 이야기하는 캐릭터와 같은 경우에 유용하게 쓰일 수 있습니다.
+[/REGION]
+
+## 3 - 컨텍스트 설정
+
+이제 **다이얼로그 보이스** 와 **다이얼로그 웨이브** 구성이 완료되었으니, 퀘스트 NPC 에게 인사를 건네기 위한 올바른 컨텍스트를 만드는 로직을 짜 주도록 하겠습니다. 다시 말씀드리지만, **다이얼로그 컨텍스트** 에는 최소 두 개의 **다이얼로그 보이스** 와 하나의 **청자**, 그 대화의 **지시 대상** 이 되는 **다이얼로그 보이스** 최소 하나로 이루어집니다.
+
+1. **Mixamo_SWAT** 블루프린트에 **Box** 컴포넌트를 추가합니다.
+    
+    ![](AddBoxComponent.png)
+
+1. **뷰포트** 에서 캐릭터 높이까지 오도록 **Box** 컴포넌트를 조절한 뒤, 그 앞쪽으로 약간 돌출시킵니다. 이 박스가 캐릭터에게는 겹치지 않도록 하거나, 캐릭터의 캡슐 컴포넌트가 오버랩 이벤트를 생성하지 않도록 해야 합니다. 그렇지 않으면 스스로 대화 로직을 발동시키게 됩니다.
+    
+    ![](TriggerVolume.png)
+
+1. 새로운 **다이얼로그 웨이브** 변수를 추가하고 이름을 **Greeting** 이라 합니다.
+
+1. 블루프린트를 컴파일하고 기본값을 앞서 만든 **QuestGreeting** **다이얼로그 웨이브** 로 설정합니다.
+
+    ![](QuestGreetingDetails.png)
+
+1. 다음과 같이 블루프린트 그래프를 구성합니다.
+    [REGION:lightbox]
+    [![](DialogueContextBP.png "DialogueContextBP.png")(w:720)](DialogueContextBP.png)
+    [/REGION]
+    이 그래프:  
+    * 무언가가 박스 컴포넌트에 겹친 후 발동됩니다.
+    
+    * **Overlapping Actor** (겹치는 액터)를 우리 **MixamoCharacter_Master** 로 형변환합니다. **다이얼로그 보이스** 변수를 추가한 곳입니다.
+    
+    * **겹치는 액터** 에서 보이스를 구해온 뒤 **다이얼로그 컨텍스트** 의 **Target** (대상)으로 사용합니다.
+    
+    * **다이얼로그 컨텍스트** 에 대한 **화자** 에 퀘스트 NPC 의 보이스를 사용합니다.
+    
+    * 올바른 **다이얼로그 컨텍스트** 를 사용하여, 퀘스트 NPC 위치에서 이름이 **Greeting** 인 **다이얼로그 웨이브** 를 재생합니다. 믹사모 애니메이션 팩에 들어있는 게임 모드로 우리 대화 구성을 테스트해 볼 수 있습니다.
+
+1. **월드 세팅** 을 엽니다.
+
+1. **GameMode Override** (게임모드 대체값)을 **MixamoGame** 으로 설정합니다.
+
+1. **Default Pawn Class** (기본 폰 클래스)를 **Mixamo_Adam** 또는 **Mixamo_Zoe** 로 설정합니다.  
+    ![](SetDefaultPawn.png)
+    이제 레벨에 QuestNPC 가 배치되면 아담이나 조를 가지고 근처로 달려가게 하여 대화를 발동시킬 수 있습니다.
+
+## 4 - 자막 표시
+
+자막은 기본적으로 켜져 있을 것이지만, 실제로 켜져있는지 확인하려는 경우 **프로젝트 세팅** 에서 확인할 수 있습니다.
+
+1. **프로젝트 세팅** 을 엽니다.
+
+1. **일반 세팅** 아래 **Subtitles** (자막) 섹션을 찾아 **Subtitles Enabled** (자막 활성화) 박스가 체크되었는지 확인합니다.
+    
+    ![](SubtitlesOn.png)
+    
+이제 퀘스트 NPC 대화를 발동시키면, 그에 따르는 자막 텍스트가 화면 하단에 표시됩니다.
+
+![](SubtitlesPlaying.png)
+
+[REGION:note]
+현재 발생하고 있는 컨텍스트에 대한 **다이얼로그 웨이브** 에 **사운드 웨이브** 가 설정되어 있지 않은 경우 자막은 표시되지 않습니다.
+[/REGION]
+
+## 5 - 다음 단계: 사운드 큐와 다이얼로그
+
+보다 복잡한 대화를 만들기 위해서는, Sound Cue (사운드 큐) 및 Audio Component (오디오 컴포넌트)를 사용하는 것이 좋습니다. 오디오 컴포넌트는 **On Audio Finished** 델리게이트를 사용하여 오디오 재생 종료시 특정 함수 기능을 묶어주는 것이 가능합니다.
+
+[REGION:note]
+여기서 한 가지 고려할 점은, 사운드 큐를 사용하면 **다이얼로그 텍스트** 를 동적으로 변경할 수 없기에, 블루프린트 또는 C++ 로직은 
+위 예제와 다를 것입니다.
+[/REGION]
+
+**사운드 큐** 를 사용하여 **다이얼로그 웨이브** 를 재생하는 방법으로, **사운드 큐 에디터** 의 **Dialogue Player** 노드가 있습니다.
+
+![](DialoguePlayerNode.png)
+
+**Dialogue Player** 노드를 선택하고 **디테일** 패널을 확인합니다. 여기서 사용할 **다이얼로그 웨이브** 와 아울러 **컨텍스트** 에 대한 **지시 대상** 및 **화자** 항목을 설정할 수 있습니다.
+
+![](DialogueNodeDetails.png)
+
+기존 오디오 재생 완료 후 다음 대화 재생을 위한 이벤트를 묶는 방법을 확인할 수 있는 예제 블루프린트입니다.
+
+![](AudioNextSteps.png)

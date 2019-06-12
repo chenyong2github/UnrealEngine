@@ -2,13 +2,13 @@ Availability: Public
 Crumbs: 
 Title: Timecode and Genlock
 Description: Describes how to make the Unreal Engine adopt timecode from an AJA video input, and how to lock the Engine's frame rate to match the source video.
-Type: 
+Type: overview
 Version: 4.20
 Parent: Engine/ProVideoIO
-Order: 
+Order: 2
 Tags: Guide
-Tags: Early Access
 Tags: professional video
+topic-image: tc-genlock-topic-421.png
 
 
 By default, the Unreal Editor generates its own timecode, based on the current system time on your computer. This timecode is set by default to run at 30 frames per second, but the engine typically renders many more frames than 30 in any given second. So, typically multiple consecutive frames in the output will get assigned the same timecode value.

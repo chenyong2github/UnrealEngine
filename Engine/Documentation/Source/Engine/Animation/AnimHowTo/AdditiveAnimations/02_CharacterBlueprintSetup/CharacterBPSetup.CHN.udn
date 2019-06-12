@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:2 - 更新角色蓝图
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:在这步中，我们将在角色蓝图中创建一些脚本，模拟武器开火。 

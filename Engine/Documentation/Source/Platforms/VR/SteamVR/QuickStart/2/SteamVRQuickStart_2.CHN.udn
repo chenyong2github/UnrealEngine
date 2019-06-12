@@ -1,0 +1,69 @@
+﻿INTSourceChangelist:6424577
+Availability:Docs
+Title: 2.设置UE4以与SteamVR配合使用
+Crumbs:%ROOT%, Platforms/VR/SteamVR
+Description: 设置SteamVR和UE4以配合使用
+Navigation:platform
+Version: 4.17
+Skilllevel: Beginner
+Platform:SteamVR
+type:multi-step
+parent:Platforms/VR/SteamVR/QuickStart
+order:2
+Checkpoint: SteamVRQS
+tags: SteamVR
+
+[nav]
+
+在以下一节中，我们将介绍如何设置一个新的虚幻引擎4(UE4)项目来与SteamVR配合使用。
+
+(#steps)
+
+## 步骤
+
+[region:note]
+如果您尚未进行此操作，请确保运行SteamVR **空间设置（Room Setup）** 来建立和校准VR跟踪区域。 
+否则，可能会导致SteamVR和UE4不能正常配合工作。
+[/region]
+
+1. 创建一个新的空白蓝图项目，并将硬件设置为 **移动设备/平板电脑（Mobile / Tablet）**，显卡设置为 **可缩放的3D或2D（Scalable 3D or 2D）** 和 **没有初学者内容（No Starter Content）**。
+
+	[REGION:lightbox]
+	[![](T_CreateNewProject.png)(w:555)](T_CreateNewProject.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 加载项目后，单击 **运行（Play）** 按钮旁边的小三角形，然后从显示的菜单中选择 **虚拟现实预览（VR Preview）** 选项。 
+	
+	![](Check_VR_Working_00.png)
+
+1. 当虚拟现实预览（VR Preview）启动时，戴上您的HMD，您现在应该可以看到显示的基本关卡，并能够戴着HMD朝任何方向旋转您的头部，如下方视频中所示。
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		4xuNrwS3o-c
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+(#endresult)
+
+## 最终结果
+
+完成后，您将能够使用SteamVR和HTC Vive HMD查看UE4项目。
+
+[nav]

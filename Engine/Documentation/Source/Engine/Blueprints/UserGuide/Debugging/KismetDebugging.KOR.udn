@@ -1,83 +1,102 @@
-﻿INTSourceChangelist:3810557
+﻿INTSourceChangelist:6435234
 Availability:Public
 Title: 블루프린트 디버깅
 Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Workflow
 Description:Breakpoint, 중단점으로 실행을 일시정지시켜 그래프와 변수 값을 조사합니다.
-version: 4.9
+version: 4.20
 Parent:Engine/Blueprints/Workflow
 order:5
 tags:Blueprints
 
-[EXCERPT:Overview]
-Blueprint 디버깅은 중단점 사용을 통해 Play In Editor 나 Simulate In Editor 모드에서 게임 실행을 일시정지시키고 블루프린트나 레벨 블루프린트의 어느 그래프로도 들어가 볼 수 있는 매우 강력한 기능입니다.
-[/EXCERPT:Overview]
-
-[TOC (start:2)]
+블루프린트 디버깅은 중단점을 사용해 에디터에서 플레이 또는 에디터에서 시뮬레이트 모드에서 게임 실행을 일시정지하고 블루프린트나 레벨 블루프린트의 그래프를 한 단계씩 진행하며 살펴볼 수 있는 매우 강력한 기능입니다.
 
 ## 디버깅 컨트롤
 
-디버그 컨트롤을 통해 _에디터에서 플레이_ 와 _에디터에서 시뮬레이트_ 모드에서의 게임 실행을 제어할 수 있습니다. 게임이 실행중이면 블루프린트 에디터에 컨트롤이 활성화되며, 
-디버깅중인 _블루프린트_ 의 유형과 현재 디버깅 상태에 따라 [](Engine/Blueprints/Editor/UIComponents\Toolbar) 에 다양한 디버깅 전용 버튼이 나타납니다.
+Blueprint Debugger (블루프린트 디버거)는 PIE 및 SIE 세션 도중 게임 실행을 제어할 수 있습니다. 이 컨트롤은 게임이 실행 중일 때 [툴바](Engine/Blueprints/Editor/UIComponents/Toolbar) 에 활성화됩니다. 디버깅 중인 블루프린트 유형과 디버깅 세션 현재 상태에 따라 다른 디버깅 컨트롤이 나타납니다. 어떤 컨트롤은 **중단점** 에 걸렸을 때와 같이, 관련이 있을 때만 활성화됩니다.
 
 [REGION:fullwidth]
 ![](debugging_editor.png)
-[/REGION:fullwidth]
+[/REGION]
 
-**디버그** 탭은 **블루프린트 에디터** 의 창 메뉴와 **블루프린트 디버거** 양쪽에서 열 수 있는데, _에디터에서 시뮬레이트_ 또는 _에디터에서 플레이_ 모드가 활성 상태일 때는 컨텍스트에 따른 디버깅 버튼이 표시됩니다.
-
-디버그 컨트롤을 통해 _에디터에서 플레이_ 와 _에디터에서 시뮬레이트_ 모드에서의 게임 실행을 제어할 수 있습니다. 게임이 실행중이면 블루프린트 에디터에 컨트롤이 활성화되며,
-디버깅중인 _블루프린트_ 의 유형과 현재 디버깅 상태에 따라 [](Engine/Blueprints/Editor/UIComponents\Toolbar) 에 다양한 디버깅 전용 버튼이 나타납니다. 일부 컨트롤은 **중단점** 에 걸렸을 때처럼 관련이 있는 상황에서만 나타납니다.
+[REGION:caption]
+**디버그** 탭은 **블루프린트 에디터** 의 창 메뉴와 **블루프린트 디버거** 양쪽에서 열 수 있는데, PIE 또는 SIE 에서 플레이 모드가 활성 상태일 때는 컨텍스트에 따른 디버깅 버튼이 표시됩니다.
+[/REGION]
 
 ![](blueprint_debugger.png)
 
 ## 중단점
 
-**중단점** (Breakpoints)은 에디터에서 게임을 실행할 때 특정 지점에서 게임 실행을 일시정지시키는 것입니다. **디버그** 탭에는 한 그래프나 레벨 블루프린트에 속하는 모든 그래프에 대한 중단점 전부가 표시되지요. 목록에 표시되는 중단점 이름에는 하이퍼링크가 되어 있어, 클릭하면 그 중단점에 연결된 노드가 **그래프** 탭에 표시됩니다.
+**Breakpoint** (중단점)은 블루프린트 그래프에 놓을 수 있는 마커입니다. 중단점이 있는 노드를 PIE 또는 SIE 모드에서 실행할 때가 되면, 게임이 일시정지되고 블루프린트 에디터의 그래프 뷰에서 노드 위치로 이동합니다. 여기서 변수 값을 관찰하고 블루프린트 안에서 실행 흐름을 살펴보거나 한 단계씩 진행할 수 있습니다. 지정한 블루프린트의 모든 중단점은 블루프린트의 그래프를 선택하면 볼 수 있습니다. 노드에 중단점을 배치하려면, 노드에 우클릭하고 컨텍스트 메뉴에서 **Add Breakpoint** (중단점 추가)를 선택합니다. 이 때 노드의 왼쪽 위 모서리에 빨강 단샛 팔각형이 나타납니다. 중단점은 노드를 다시 우클릭하거나, 디버그 탭에서 중단점 항목에 우클릭하고 **Remove Breakpoint** (중단점 제거) 명령을 선택하는 것으로 제거할 수 있습니다.
 
-중단점은 **함수 호출** 이나 **흐름 제어** 같은 작업을 하는 그래프 내 어느 실행 노드에도 우클릭후 **Add breakpoint** 를 선택하여 설정할 수 있습니다. 그러면 노드 좌상단에 중단점이 설정되었음을 알리는 그래픽이 표시됩니다.
+![](ActiveBreakpoint.png "ActiveBreakpoint.png")
 
-![Blueprint Debugging - Breakpoint Enabled](k2_breakpoint.png)
+[REGION:caption]
+이 중단점은 Print 노드가 실행될 때 게임을 중단시킵니다.
+[/REGION]
 
-중단점은 노드에 우클릭후 **Disable breakpoint** 를 선택하거나, **디버그** 탭의 중단점 옆에 토글 오프 시키는 아이콘을 클릭하여서도 끌 수 있습니다. 이 작업은 **디버그** 탭에서 중단점에 우클릭하고 **Disable breakpoint** 를 선택해서 할 수도 있습니다.
+중단점을 완전 제거하지 않고 임시 비활성화하려면, 블루프린트 노드 자체를 우클릭하거나, 디버그 탭의 중단점 항목에 우클릭한 뒤 컨텍스트 메뉴에서 **Disable Breakpoint** (중단점 비활성화)를 선택하면 됩니다. 비활성화된 중단점은 빨간색 팔각형의 윤곽선으로 나타납니다. 비활성화된 중단점은 실행되지 않지만, 다시 활성화하기 쉽습니다. 이 프로세스는 중단점을 반복해서 지우고 다시 만드는 것보다 편리하고 사람이 실수할 확률이 적습니다.
 
-![Blueprint Debugging - Breakpoint Disable Option](k2_breakpoint_toggleoff.png)
+![](InactiveBreakpoint.png "InactiveBreakpoint.png")
 
-그러면 중단점이 있기는 해도, 노드 실행시 게임을 중지시키지는 않습니다. 꺼진 중단점은 외곽선으로 표시됩니다.
+[REGION:caption]
+이 중단점은 비활성화되어 현재 아무것도 하지 않지만, 필요한 경우 쉽게 다시 활성화할 수 있습니다.
+[/REGION]
 
-![Blueprint Debugging - Breakpoint Disabled](k2_breakpoint_disabled.png)
+비활성화된 중단점을 활성화하려면, 노드에 우클릭하고 **Enable breakpoint** (중단점 활성화)를 선택하거나 **디버그** 탭에서 중단점 옆의 아이콘을 클릭합니다. **디버그** 탭에서 중단점에 우클릭하고 **Enable breakpoint** (중단점 활성화)를 선택해도 됩니다. 디버깅 세션 도중을 포함해서 언제든 중단점을 생성, 비/활성화, 소멸할 수 있습니다. 중단점은 프로젝트 .ini 파일에 저장되므로, 에디터 세션간에 유지됩니다.
 
-꺼진 중단점을 켜려면, 노드에 우클릭하고 **Enable breakpoint** 를 선택하거나 **디버그** 탭에서 중단점 옆의 아이콘을 클릭합니다. **디버그** 탭에서 중단점에 우클릭하고 **Enable breakpoint** 를 선택해도 됩니다.
+[REGION:note]
+중단점을 유효하지 않은 위치에 배치하면, 노란색으로 느낌표가 표시될 수 있습니다. 경우에 따라, 블루프린트를 컴파일하면 문제가 해결됩니다. 그렇지 않은 경우, 중단점 아이콘에 마우스 커서를 올리면 설명이 표시됩니다.
+[/REGION]
 
-![Blueprint Debugging - Breakpoint Enable Option](k2_breakpoint_toggleon.png)
+![](WarningBreakpoint.png "WarningBreakpoint.png")
 
-중단점 제거는 노드나 **디버그** 탭에서 중단점에 우클릭한 다음 **Remove breakpoint** 를 선택하면 됩니다.
+[REGION:caption]
+이 중단점은 유효하지 않아 걸리지 않습니다. 경우에 따라, 블루프린트를 다시 컴파일하면 해결될 수도 있습니다.
+[/REGION]
 
-중단점이 걸리면, 그래프는 중단점이 들어있는 노드에 포커스를 맞추고, 그 중단점 위에 표식이 나타납니다.
+중단점으로 실행이 일시정지되면, 에디터는 그 노드를 강조하고 초첨을 맞춘 뒤, 그 위에 커다란 빨간색 화살표를 표시합니다.
 
-![Blueprint Debugging - Breakpoint Hit Indicator](k2_breakpoint_indicator.png)
+![](BreakingOnBreakpoint.png "BreakingOnBreakpoint.png")
 
-추가로 플레이어에게 디버깅때문에 게임이 일시정지되었음을 알리는 오버레이가 뷰포트에 표시됩니다.
-
-![Blueprint Debugging - Viewport overlay](k2_debug_viewport.png)
-
+[REGION:caption]
+중단점에 걸려 실행을 일시정지합니다.
+[/REGION]
 
 ## 디버그 탭과 블루프린트 디버거
 
-[EXCERPT:DebugTab]
+**Debug** (디버그) 탭에는 디자이너가 중단점과 감시값 형태로 중요하다 지정한 정보가 표시됩니다. 그 뿐만 아니라 블루프린트에 속한 지금까지 실행된 모든 노드 스택을 추적하기도 합니다. 이 창에는 중단점 사용시 게임 실행 제어를 위한 컨트롤도 표시됩니다.
 
-[INCLUDE:#DebugPanel]
+### 감시 창
 
-### 감시값
+**Blueprint Watch Window** (블루프린트 감시 창)은 감시하고자 하는 노드와 변수가 여러 블루프린트에 나뉘어 있어도 바로 가기를 제공하여 디버깅 속도를 높일 수 있도록 설계되었습니다. 에디터에서 연 모든 블루프린트의 감시 데이터와 현재 콜스택의 일부인 감시 데이터는 하나의 목록으로 통합되는데, 이 목록은 블루프린트 실행이 일시정지될 때마다 현재 데이터로 채워집니다. 이 목록을 사용하면, 변수와 함수 출력을 조사하고, 블루프린트 사이를 쉽게 이동할 수 있습니다. 배열, 세트, 맵, 다른 데이터 구조체를 펼치면, 들어있는 데이터를 빠르고 편리하게 분석해 볼 수 있습니다. 또한 "Node Name" (노드 이름) 열의 항목을 클릭하면 블루프린트의 그 이름 노드로 이동할 수 있으며, "Object Name" (오브젝트 이름) 열의 항목을 클릭하면 해당 특정 오브젝트 인스턴스를 선택할 수 있습니다.
 
-**감시값** (Watch value)을 통해 실행 도중 변수의 값을 쉽고 빠르게 살펴볼 수 있습니다. 중단점에 걸리면 선택된 액터는 물론 레벨 블루프린트에 대한 모든 감시값이 디버그 창에 표시되며, 그래프를 파 들어감(step through)에 따라 업데이트도 됩니다.
+### 콜 스택
 
-![Blueprint Debugging - Watch Values](k2_watch_value.png)
+디버깅 세션 도중 사용할 수 있는 **Call Stack** (콜 스택)은 개념 상 대부분의 C++ 개발 환경에서 찾을 수 있는 콜 스택과 비슷합니다. 콜 스택은 블루프린트와 네이티브 (C++) 코드 사이 실행 흐름을 현재 스택 위에 실행 중인 블루프린트 함수와 함께 표시합니다.
 
-감시중인 값은 그래프의 변수 위에 방울 모양으로 직접 표시되게 하는 기능도 있습니다.
+[REGION:note]
+블루프린트 매크로는 콜 스택에 표시되지 않습니다. 대신, 블루프린트 매크로는 그것을 호출한 블루프린트 함수의 일부로 나타납니다.
+[/REGION]
 
-![블루프린트 디버깅 - 감시값 정보 방울](k2_watch_bubble.png)
+![](ActiveBreakpoint.png "ActiveBreakpoint.png")
 
-감시 정보 방울 표시를 켜려면, 변수의 이름 옆에 있는 돋보기 (![Blueprint Debugging - Watch Value Button](k2_icon_watch.png)) 버튼을 클릭하기만 하면 됩니다.
+[REGION:caption]
+위의 블루프린트 함수는 팩토리얼 연산을 반복 수행합니다. 중단점은 함수 끝에 설정했습니다.
+[/REGION]
+
+중단점에 걸리면, 콜 스택에 현재 작동 중인 함수가 나열되며, 맨 위에 현재 함수부터 시작해서 아래로 호출한 함수까지입니다. 각 줄 항목에 있는 함수 이름은 그 바로 아래 줄에 있는 함수가 호출한 함수라는 뜻입니다. 재귀 (셀프 호출) 함수의 경우, 같은 함수 이름이 연속해서 여러 번 나타날 수 있습니다.
+
+![](CallStack_FiveFactorial.png "CallStack_FiveFactorial.png")
+
+[REGION:caption]
+이 콜 스택은 위에 있던 팩토리얼 함수를 다섯 번 재귀 호출하는 것을 보여줍니다. 이 함수는 원래 액터의 메인 블루프린트 그래프에서 호출되어, 차례로 네이티브 (C++) 코드에서 호출된 `BeginPlay` 이벤트에 반응하고 있습니다.
+[/REGION]
+
+![](CallStack.png "CallStack.png")
+
+[REGION:caption]
+콜 스택을 확인하(거나 숨기)려면, **창** > **개발자 툴** 서브메뉴에서 선택할 수 있습니다.
+[/REGION]
 
 ### 실행 추적
 
@@ -85,12 +104,4 @@ Blueprint 디버깅은 중단점 사용을 통해 Play In Editor 나 Simulate In
 
 ![Blueprint Debugging - Execution Trace Stack](k2_debug_exectrace.png)
 
-디버깅시 그래프를 파고 들어감에 따라 이 목록이 업데이트됩니다.
-
-[/EXCERPT:DebugTab]
-
-[COMMENT:none]
-[EXCERPT:DebugPanel]
-**디버그** 탭에는 디자이너가 중단점과 감시값 형태로 중요하다 지정한 정보가 표시됩니다. 그 뿐만 아니라 블루프린트에 속한 여지껏 실행된 모든 노드 스택을 추적하기도 합니다. 이 창에는 중단점 사용시 게임 실행 제어를 위한 컨트롤도 표시됩니다.
-[/EXCERPT:DebugPanel]
-[/COMMENT]
+디버깅할 때 그래프를 단계 별로 진행하면서 이 목록이 업데이트됩니다.

@@ -73,11 +73,11 @@ Epic Games开发人员 **Joe Graf** 写了几篇内容丰富的博文，讨论�
 
 ### iOS
 
-有关详细的iOS增强现实先决条件信息，请参阅[](Platforms/AR/HandheldAR/ARKitPrerequisites)主题。此外，虚幻引擎和iOS设备的基本配置详见虚幻引擎文档的[](Platforms/iOS)部分。   
+有关详细的iOS增强现实先决条件信息，请参阅[](Platforms/AR/HandheldAR/ARKitPrerequisites)主题。此外，虚幻引擎和iOS设备的基本配置详见虚幻引擎文档的[](Platforms/Mobile/iOS)部分。   
 
 ### Android
 
-有关详细的Android增强现实先决条件信息，请参阅[](Platforms/AR/HandheldAR/ARCorePrerequisites)主题。虚幻引擎和Android设备的基本配置详见虚幻引擎文档的[](Platforms/Android/GettingStarted) 部分。 
+有关详细的Android增强现实先决条件信息，请参阅[](Platforms/AR/HandheldAR/ARCorePrerequisites)主题。虚幻引擎和Android设备的基本配置详见虚幻引擎文档的[](Platforms/Mobile/Android/GettingStarted) 部分。 
 
 ## 虚幻AR初体验
 

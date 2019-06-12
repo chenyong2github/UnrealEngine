@@ -1,0 +1,17 @@
+Availability: Public
+Crumbs: 
+Title: Datasmith Software Interop Guides
+Description: Guides that describe special considerations that you should know about when you use Datasmith to import content from different source applications.
+Type:landing
+Version: 4.20
+Parent: Studio/Datasmith
+Order: 1
+Tags: Unreal Studio
+Tags: Datasmith
+
+
+One of the goals of Datasmith is to support the widest range of industry standard 3D design applications used across industries including architecture, engineering, construction and manufacturing. For the most part, Datasmith treats each of these supported software applications and file formats in similar ways, and produces similar results, as described in the [Datasmith Overview](Studio/Datasmith/Overview) pages.
+
+However, each of these supported applications and file formats presents unique challenges and opportunities for the import process. The guides listed below detail additional considerations that are specific to each different data source.
+
+[DIR(output:"topic" parent:"Studio/Datasmith/SoftwareInteropGuides")]

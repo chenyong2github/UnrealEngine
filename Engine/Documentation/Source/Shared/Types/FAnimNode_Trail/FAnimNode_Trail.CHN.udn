@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:2683714
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
 Title:FAnimNode_Trail RTTs
 Crumbs:
 
 [EXCERPT:TrailRelaxationSpeed]
 
+(#Overview)
 ### 总览
 
 定义轨迹松弛速度的曲线。轨迹松弛速度是轨迹松弛到动画姿势的速度。它并非 [0, 1]，因为它必须为每帧独立。 

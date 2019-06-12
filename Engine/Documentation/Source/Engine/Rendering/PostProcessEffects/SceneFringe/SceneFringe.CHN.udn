@@ -1,19 +1,30 @@
-﻿INTSourceChangelist:1903238
-Availability:Public
+﻿INTSourceChangelist:3782314
+Availability: Public
+Crumbs: %ROOT%
 Title:场景边纹
-Crumbs: %ROOT%, Engine, Engine/Rendering, Engine/Rendering/PostProcessEffects
-Description:模拟真实世界摄像机镜头边缘附近的颜色变换的色差特效
+Description: 模拟真实世界摄像机镜头边缘附近的颜色变换的色差特效
+Type: Overview
+SkillLevel:Beginner
+Version:4.16
+Parent:Engine/Rendering/PostProcessEffects
+Order:9
+Tags:Post Process
+Topic-image:SceneFringe_topic.png
 
 [EXCERPT:SceneFringe_Desc]
-**Scene Fringe** （场景边纹）是模拟真实世界摄像机镜头颜色变换的色差特效。 此特效在图像的边缘处最为明显。
+**场景边纹** 是模拟真实世界摄像机镜头颜色变换的色差特效。 此特效在图像的边缘处最为明显。
 [/EXCERPT:SceneFringe_Desc]
 
-[REGION:imagetable]
-| ![Without Scene Fringe](scenefringe_0.png)(w:460) | ![With Scene Fringe](scenefringe_2.png)(w:460) |
-| :----: | :----: |
-| 无场景边纹特效 | 有场景边纹特效 (极端值) |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![无场景边纹](scenefringe_0.png)(w:700)
+	[/PARAM]
+	[PARAM:after]
+	![有场景边纹](scenefringe_2.png)(w:700)
+	[/PARAM]
+[/OBJECT]
 
+**场景边纹** 设置可以在 **后期处理设置**（Post Process Settings）的 **场景色彩**（Scene Color）中找到。
 
 | 属性 | 描述 |
 | -------- | ----------- |
@@ -24,10 +35,11 @@ Description:模拟真实世界摄像机镜头边缘附近的颜色变换的色�
 
 [EXCERPT:Intensity]
 [REGION:imagetable]
-| ![Scene Fringe Intensity - 0](scenefringe_0.png)(w:260) | ![Scene Fringe Intensity - 1](scenefringe_1.png)(w:260) | ![Scene Fringe Intensity - 5](scenefringe_2.png)(w:260)
+| ![Scene Fringe Intensity - 0](scenefringe_0.png)(w:240) | ![Scene Fringe Intensity - 1](scenefringe_1.png)(w:240) | ![Scene Fringe Intensity - 5](scenefringe_2.png)(w:240)
 | ------ | ------ | ------ |
 | 0.0 | 1.0 | 5.0 |
 [/REGION]
 [/EXCERPT:Intensity]
 
 [/COMMENT]
+

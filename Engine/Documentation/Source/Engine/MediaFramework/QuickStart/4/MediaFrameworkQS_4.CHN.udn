@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:4 - 电视机蓝图设置 - 构造脚本
 Description:在本节中，我们将使用构造脚本设置一些可以在编辑器内修改电视机蓝图的参数。
@@ -12,7 +12,9 @@ type:multi-step
 order:4
 tags:Media Framework
 tags:Blueprints
- 
+
+## 页面已被合并，标记为Docs。 
+  
 [NAV]
 
 我们已定义了电视机蓝图的组件，接下来我们将设置[构造脚本（Construction Script）](Engine/Blueprints/UserGuide/UserConstructionScript)，以便当我们将电视机放置在关卡中时可以更改其上的内容。

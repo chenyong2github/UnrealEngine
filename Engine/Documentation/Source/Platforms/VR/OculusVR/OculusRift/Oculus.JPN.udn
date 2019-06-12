@@ -1,0 +1,38 @@
+﻿INTSourceChangelist:3782314
+Title:Oculus Rift 向けの開発
+Availability:Public
+Crumbs: %ROOT%, Platforms
+Description:UE4 で Oculus Rift HMD を使用する
+Navigation: platform
+Platform:Oculus
+Version:4.17
+type: landing
+parent:Platforms/VR/OculusVR
+order:2
+tags:VR
+Tags:Desktop VR
+tags:Oculus Rift
+tags:Platform
+topic-image:OculusRiftDevelopment_topic.png
+
+![](Rift_Touch_Tracker.png)(w:1000)
+
+## はじめよう 
+
+[DIR(end:"1" output:"topic" type:"quick start" parent:"Platforms/VR/OculusVR/OculusRift")]
+
+## Samsung Gear VR の開発
+
+[DIR(end:"1" output:"topic" type:"reference,overview" parent:"Platforms/VR/OculusVR/OculusRift")]
+
+## ガイド
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Advanced" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Expert" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+
+
+
+
+

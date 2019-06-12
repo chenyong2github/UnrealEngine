@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:4 - 마무리
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:마지막 단계에서는 캐릭터 블루프린트를 업데이트하여 컨트롤러 로테이션 처리 방식 변경이나 테스트 전 사소한 문제를 몇 가지 해결해 봅니다.

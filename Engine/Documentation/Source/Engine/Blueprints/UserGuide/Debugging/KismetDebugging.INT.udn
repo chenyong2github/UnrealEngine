@@ -2,81 +2,100 @@ Availability:Public
 Title: Blueprint Debugging
 Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Workflow
 Description:Pause execution using Breakpoints to inspect graphs and the values of variables.
-version: 4.9
+version: 4.20
 Parent:Engine/Blueprints/Workflow
 order:5
 tags:Blueprints
 
-[EXCERPT:Overview]
 Blueprint debugging is a very powerful feature that allows you to pause execution of the game in Play In Editor or Simulate In Editor mode and step through any graph of a Blueprint or Level Blueprint through the use of Breakpoints.
-[/EXCERPT:Overview]
-
-[TOC (start:2)]
 
 ## Debugging Controls
 
-The debug controls allow execution of the game in Play In Editor and Simulate In Editor mode to be controlled. The controls become enabled in the Blueprint Editor when the game is running. Different debugging-specific buttons appear on the 
-[Toolbar](Engine/Blueprints/Editor/UIComponents\Toolbar) depending on the type of Blueprint being debugged and the current state of the debugging. 
+The Blueprint Debugger provides control over execution of the game during PIE and SIE sessions. The controls become enabled in the [Toolbar](Engine/Blueprints/Editor/UIComponents/Toolbar) when the game is running. Different debugging controls appear depending on the type of Blueprint being debugged and the current state of the debugging session. Some controls only become enabled when relevant, such as when a **Breakpoint** is hit.
 
 [REGION:fullwidth]
 ![](debugging_editor.png)
-[/REGION:fullwidth]
+[/REGION]
 
-Both the **Debug** tab, which can be opened from the **Blueprint Editor's** window menu, and the **Blueprint Debugger** will also display the context-sensitive debugging buttons when Simulate in Editor or Play in Editor modes are active.
-
-The debug controls allow execution of the game in Play In Editor and Simulate In Editor mode to be controlled. The controls become enabled when the game is running. Different debugging-specific buttons appear on the 
-**Toolbar** depending on the type of Blueprint being debugged and the current state of the debugging. Some controls only become enabled when relevant, i.e. when a **Breakpoint** is hit.
+[REGION:caption]
+Both the **Debug** tab, which can be opened from the **Blueprint Editor's** window menu, and the **Blueprint Debugger** will display the context-sensitive debugging buttons when PIE or SIE modes are active.
+[/REGION]
 
 ![](blueprint_debugger.png)
 
 ## Breakpoints
 
-Breakpoints allow execution of the game to be paused at a certain point when running the game in the editor. All Breakpoints for all graphs belonging to a Blueprint or Level Blueprint are displayed in the **Debug** tab. The names of the Breakpoints in this list are hyperlinked allowing you to click on them and be taken directly to the node associated with the Breakpoint in the **Graph** tab.
+**Breakpoints** are markers that can be placed on Blueprint graph nodes. When a node with a Breakpoint is about to be executed during PIE or SIE mode, the game will pause and the developer will be taken to the node in the Blueprint Editor's graph view. This provides the opportunity to observe the values of variables and examine or step through the flow of execution within the Blueprint. All Breakpoints for a given Blueprint are displayed in the **Debug tab**, and can be viewed in the Blueprint's graph when selected. To place a Breakpoint on a node, right-click the node and select **Add Breakpoint** from the context menu, at which point a solid, red octagon will appear in the upper-left corner of the node. The Breakpoint can be removed by right-clicking the node again, or by right-clicking the Breakpoint's entry in the Debug tab, and selecting the **Remove Breakpoint** command.
 
-Breakpoints can be set on any node in the graph that gets executed, such as **Function Calls** and **Flow Control** operations, by **Right-clicking** on the node and choosing **Add Breakpoint**. When a Breakpoint has been set on a node, a graphic is displayed in the upper-left corner of the node.
+![](ActiveBreakpoint.png "ActiveBreakpoint.png")
 
-![Blueprint Debugging - Breakpoint Enabled](k2_breakpoint.png)
+[REGION:caption]
+This Breakpoint will interrupt the game when the Print node is about to be executed.
+[/REGION]
 
-Breakpoints can be disabled as well by **Right-clicking** on the node and choosing **Disable Breakpoint** or clicking the icon next to the Breakpoint in the **Debug** to toggle it off. This can also be done by **Right-clicking** the Breakpoint in the **Debug** tab and choosing **Disable Breakpoint**.
+To disable a Breakpoint temporarily without fully removing it, you can right-click on either the Blueprint node itself, or the Breakpoint's entry in the Debug tab, and choose **Disable Breakpoint** from the context menu. A disabled Breakpoint will appear as a an outline of a red octagon. Disabled Breakpoints will not execute, but can easily be enabled again. This process is more convenient and less prone to human error than destroying and remaking Breakpoints repeatedly.
 
-![Blueprint Debugging - Breakpoint Disable Option](k2_Breakpoint_toggleoff.png)
+![](InactiveBreakpoint.png "InactiveBreakpoint.png")
 
-This leaves the Breakpoint in place, but it will not stop the game when the node is executed. A disabled Breakpoint is displayed as just an outline.
+[REGION:caption]
+This Breakpoint has been disabled and currently does nothing, but can easily be enabled again if it is needed.
+[/REGION]
 
-![Blueprint Debugging - Breakpoint Disabled](k2_breakpoint_disabled.png)
+To enable a disabled Breakpoint, **Right-click** on the node and choose **Enable Breakpoint** or click the icon next to the Breakpoint in the **Debug** tab. This can also be done by **Right-clicking** the Breakpoint in the **Debug** tab and choosing **Enable Breakpoint**. Breakpoints can be created, disabled, enabled, or destroyed at any time, including during a debugging session. Breakpoints are saved in project .ini files, so they will persist between Editor sessions.
 
-To enable a disabled Breakpoint, **Right-click** on the node and choose **Enable Breakpoint** or click the icon next to the Breakpoint in the **Debug** tab. This can also be done by **Right-clicking** the Breakpoint in the **Debug** tab and choosing **Enable Breakpoint**.
+[REGION:note]
+If a Breakpoint is placed at an invalid location, it may appear yellow and feature an exclamation point. In some cases, compiling the Blueprint will resolve the issue. If this is not the case, holding the mouse cursor over the Breakpoint icon will reveal an explanation.
+[/REGION]
 
-![Blueprint Debugging - Breakpoint Enable Option](k2_breakpoint_toggleon.png)
+![](WarningBreakpoint.png "WarningBreakpoint.png")
 
-Breakpoints can be removed by **Right-clicking** the node or **Right-clicking** the Breakpoint in the **Debug** tab and choosing **Remove Breakpoint**.
+[REGION:caption]
+This Breakpoint is invalid and will never be hit. In some cases, recompiling the Blueprint can fix this.
+[/REGION]
 
-When a Breakpoint is hit, the graph will focus on the node containing the Breakpoint and an indicator is displayed on the Breakpoint.
+When pausing execution with a Breakpoint, the Editor will highlight and focus the node, and will place a large, red arrow over it.
 
-![Blueprint Debugging - Breakpoint Hit Indicator](k2_breakpoint_indicator.png)
+![](BreakingOnBreakpoint.png "BreakingOnBreakpoint.png")
 
-In addition, the viewport will display an overlay to alert the player that the game has been paused for debugging.
-
-![Blueprint Debugging - Viewport overlay](k2_debug_viewport.png)
-
+[REGION:caption]
+This Breakpoint has just been hit, pausing execution.
+[/REGION]
 
 ## Debug Tab and Blueprint Debugger
 
-[EXCERPT:DebugTab]
+The **Debug** tab shows information designated as important by the designer in the form of Breakpoints and watch values as well as a trace stack of all nodes belonging to the Blueprint that have been executed. This window also shows controls for controlling execution of the game when using Breakpoints.
 
-[INCLUDE:#DebugPanel]
+### Watch Window
 
-### Watch Values
+The **Blueprint Watch Window** is designed to speed up debugging by giving you access to the variables and nodes that you want to watch, even across multiple Blueprints. Watch data from every Blueprint that you open in the Editor, and that is part of the current callstack, will be consolidated into a single list, which will be populated with current data whenever Blueprint execution is paused. Using this list, you can inspect variables and function outputs, and jump between Blueprints with ease. Arrays, Sets, Maps, and other data structures can be expanded, making drill-down examination of any data they contain quick and convenient. You can also click on an entry in the "Node Name" column to go to the named node in any Blueprint, or select an entry in the "Object Name" column to select that specific Object instance.
 
-**Watch values** allow you to quickly and easily see the values of variables during execution. All watch values for the selected Actor as well as the Level Blueprint are displayed in the Debug window when debugging after a Breakpoint is hit and update as you step through the graph.
+### Call Stack
 
-![Blueprint Debugging - Watch Values](k2_watch_value.png)
+The **Call Stack** that is available during debugging sessions is similar in concept to the call stack that is found in most C++ development environments. The Call Stack reveals the flow of execution between Blueprint and native (C++) code with the Blueprint Function currently being executed at the top of the stack.
 
-Values being watched also have the ability to be displayed directly in the graph as a bubble above the variable.
+[REGION:note]
+Blueprint Macros do not show up in the Call Stack. Instead, a Blueprint Macro will appear as part of the Blueprint Function which called it.
+[/REGION]
 
-![Blueprint Debugging - Watch Value Info Bubble](k2_watch_bubble.png)
+![](ActiveBreakpoint.png "ActiveBreakpoint.png")
 
-To enable the display of the watch information bubble, simply click the magnifying glass (![Blueprint Debugging - Watch Value Button](k2_icon_watch.png)) next to the variable's name.
+[REGION:caption]
+The Blueprint Function above recursively performs Factorial calculation. A Breakpoint has been set at the end of the function.
+[/REGION]
+
+When a Breakpoint is hit, the Call Stack lists the functions currently in operation, starting with the current function at the top, and proceeding downward to the calling functions. This means that each line entry contains the name of a function that was called by the function named on the line immediately below it. In the case of a recursive (self-calling) function, the same function name may appear multiple times in a row.
+
+![](CallStack_FiveFactorial.png "CallStack_FiveFactorial.png")
+
+[REGION:caption]
+This Call Stack shows a five-deep recursive call into the Factorial function shown above, which was originally called from the Actor's main Blueprint graph, which in turn was responding to the `BeginPlay` Event called from native (C++) code.
+[/REGION]
+
+![](CallStack.png "CallStack.png")
+
+[REGION:caption]
+To view (or hide) the Call Stack, select it from the **Window** dropdown, under the **Developer Tools** submenu.
+[/REGION]
 
 ### Execution Trace
 
@@ -85,11 +104,3 @@ The **Execution Trace** stack shows a list of the nodes executed with the most r
 ![Blueprint Debugging - Execution Trace Stack](k2_debug_exectrace.png)
 
 This list updates as you step through the graph when debugging.
-
-[/EXCERPT:DebugTab]
-
-[COMMENT:none]
-[EXCERPT:DebugPanel]
-The **Debug** tab shows information designated as important by the designer in the form of Breakpoints and watch values as well as a trace stack of all nodes belonging to the Blueprint that have been executed. This window also shows controls for controlling execution of the game when using Breakpoints.
-[/EXCERPT:DebugPanel]
-[/COMMENT]

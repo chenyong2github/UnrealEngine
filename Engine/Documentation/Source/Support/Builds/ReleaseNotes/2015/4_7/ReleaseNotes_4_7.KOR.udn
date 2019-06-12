@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6537038
 Title: 언리얼 엔진 4.7 릴리즈 노트
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.7
-order:7
-
+Order: 37
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -90,13 +89,13 @@ Artem V. Navrotskiy (bozaro), ArneBezuijen, Black Phoenix (PheonixBlack), codeta
 
 ![](InworldComponentEditing03.png)
 
-#### 배치가능 공백 액터
+#### 배치가능 기본 액터
 
-이제 레벨에 바로 "공백 액터" 를 드래그 앤 드롭으로 배치할 수 있습니다!
+이제 레벨에 바로 "기본 액터" 를 드래그 앤 드롭으로 배치할 수 있습니다!
 
 ![](PlaceableEmptyActors.png)
 
-공백 폰과 캐릭터도 지원됩니다. 새로운 월드내 컴포넌트 편집 기능을 사용하여 레벨에서 바로 재미난 액터를 만들 수 있습니다.
+기본 폰과 캐릭터도 지원됩니다. 새로운 월드내 컴포넌트 편집 기능을 사용하여 레벨에서 바로 재미난 액터를 만들 수 있습니다.
 
 #### 블루프린트 가능 컴포넌트
 

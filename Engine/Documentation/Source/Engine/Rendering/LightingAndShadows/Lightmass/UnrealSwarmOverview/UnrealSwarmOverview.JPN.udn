@@ -1,0 +1,332 @@
+﻿INTSourceChangelist:6429227
+Availability: Public
+Crumbs: 
+Title: Unreal Swarm
+Description: Unreal Swarm の概要です。 Unreal Swarm は、Unreal Engine 4 の高品質なスタティック グローバル イルミネーション ソルバである Unreal のライトマスを含む、計算コストが高いアプリケーション用のタスク分散システムです。
+Type: 
+Version: 4.19
+Parent: Engine/Rendering/LightingAndShadows/Lightmass
+Order: 
+Tags: 
+
+
+![](UnrealSwarm_OverviewImage-2.png "UnrealSwarm_OverviewImage-2.png")
+
+開発環境によっては、ライティング、シャドウ、ジオメトリの計算負荷が重く、広いオープンワールドのレンダリングには時間を要することがあります。 プロジェクトのビルド時間を短縮する方法はいくつかあります。[「推奨される仕様」](GettingStarted/RecommendedSpecifications)を超えてハードウェアをアップグレードしたり、**Unreal Swarm** のあるタスク分散システムを利用して[「高品質なスタティック グローバル イルミネーション」](Engine/Rendering/LightingAndShadows/Lightmass/)を解決するなど、高負荷な計算の実行時間を短縮できます。
+
+## Unreal Swarm とは
+
+Unreal Swarm は一般的なアプリケーションおよびタスク分散システムで、2 つのアプリケーション タイプがあります。1 つはビルド タスクを分散するコーディネータ、もう 1 つはホスト システムのリソースを使用して割り当てられたジョブを完了するエージェントです。
+
+![](UnrealSwarm_Scheme.png "UnrealSwarm_Scheme.png")
+
+Swarm を設定した後、Swarm Coordinator がネットワーク上の Swarm Agent のジョブとタスクを管理します。
+
+## 要件
+
+Unreal Swarm の設定を始める前に、ネットワーク内の少なくとも 1 台のマシンに Unreal Engine 4 (UE4) がインストールされていることを確認してください。
+
+[REGION:note]
+計算負荷の高いタスク用にレンダリングファームを設定する場合は、IT 部門と連携して Swarm Coordinator と Swarm Agent をホストすることになるマシンに対して適切な権限を与えてください。
+[/REGION]
+
+## Swarm Coordinator の設定
+
+使用するマシンを決定して UE4 をインストールできたら、Swarm Coordinator を設定する準備の完了です。次の手順を実行してください。
+
+1.  UE4 をインストールしたら、`[UE4ROOT]\Engine\Binaries\DotNET.` に移動します。
+2.  ネットワーク上の他のマシンへタスク分散を行うマシン上で、新しいディレクトリを作成します。 説明をわかりやすくするため、新しいディレクトリに `Swarm Coordinator` という名前を付けます。
+3.  次に、次のファイルを `[UE4ROOT]\Engine\Binaries\DotNET` フォルダから新しく作成したディレクトリに移動 (またはコピー) します。  
+    *   **AgentInterface.dll**
+    *   **SwarmCommonUtils.dll**
+    *   **SwarmCoordinator.exe**
+    *   **SwarmCoordinator.exe.config**
+    *   **SwarmCoordinatorInterface.dll**
+    *   **SwarmInterface.dll**
+    *   **UnrealControls.dll**
+4.  最後に、自分のマシンでアプリケーションが実行できることを確認するために、先に進み **Swarm Coordinator** の実行ファイルをダブルクリックします。  
+    ![](UnrealSwarm_CoordSetup-1.png "UnrealSwarm_CoordSetup-1.png")
+
+[REGION:note]
+Swarm Agent がすでにデプロイされている場合、Swarm Coordinator はその **エージェント ダイアログ ウィンドウ** (1) と **再起動設定エリア** (2) を表示します。
+
+[REGION:lightbox]
+[![](SwarmCoordinator_UIFinal.png "SwarmCoordinator_UIFinal.png")](SwarmCoordinator_UIFinal.png)
+[/REGION]
+[REGION:caption]
+クリックして最大化。
+[/REGION]
+[/REGION]
+
+この時点では、アプリケーションを使用して何もする必要はないので、そのまま次のセクションに進み、そこで Swarm Agent をセットアップします。
+
+## Swarm Agent をデプロイする
+
+Swarm Coordinator を設定したら、Swarm Agent がデプロイできるようになります。 エージェントをホストするマシンを決定したら、次の手順に従います。
+
+1.  Swarm Agent をホストする各マシンに、新しいディレクトリを作成します。 説明をわかりやすくするため、新しいディレクトリに `Swarm Agent` という名前を付けます。
+2.  次のファイルを `[UE4ROOT]\Engine\Binaries\DotNET` フォルダから新しく作成したディレクトリに直接移動 (またはコピー) します。 **SwarmAgent.exe**、 **AgentInterface.dll**、**SwarmCommonUtils.dll**、**SwarmCoordinatorInterface.dll**、**SwarmInterface.dll**、**UnrealControls.dll**。
+3.  エージェントをデプロイするには、**Swarm Agent** 実行ファイルをダブルクリックします。
+4.  Swarm Agent を起動すると、**Windows の通知領域** に **[Swarm]** アイコンが表示されます。 **[Swarm]** アイコンをダブルクリックして、アプリケーションのメインメニューを開きます。  
+    ![](UnrealSwarm_AgentSetup_4-1.png "UnrealSwarm_AgentSetup_4-1.png")
+5.  Swarm Agent を設定するには、**[Settings (設定)]** タブをクリックします。  
+    ![](UnrealSwarm_AgentSetup_5-2.png "UnrealSwarm_AgentSetup_5-2.png")  
+    [REGION:note]
+    **[Developer Settings (デベロッパー設定)]**を有効にするには、**ShowDeveloperMenu** フラグ (**[Settings] > [Developer Settings]**) を**「True」**に設定します。  
+    ![](SwarmAgent_DeveloperSettings-2.png "SwarmAgent_DeveloperSettings-2.png")
+    [/REGION]
+	エージェントの設定を更新すると、Swarm エージェントは設定を `SwarmAgent.Options.xml` に書き出すこと留意してください (デベロッパー設定が有効になっている場合は `SwarmAgent.DeveloperOptions.xml` に書き出します) 。  
+    
+6.  **[Distribution Settings (分散設定)]** ドロップダウンメニューで、 **「CoordinatorRemotingHost」** フィールドを探し、ホストコンピュータの **IPv4 アドレス** を入力します。  
+    ![](UnrealSwarm_AgentSetup_6-2.png "UnrealSwarm_AgentSetup_6-2.png")
+    [REGION:tip]
+    コンピュータの **IPv4 アドレス** がわからない場合は、 **コマンドプロンプト** から `ipconfig` を実行してください。
+    [/REGION]
+7.  システムの **IPv4 アドレス** を **「CoordinatorRemotingHost」** フィールドに入力したくない場合は、コーディネーターの  **DNS 名** を入力できます。
+8.  最後に、**Swarm Coordinator** を開くと、デプロイされた Swarm Agent の詳細が表示されます。  
+    [REGION:lightbox]
+    [![](UnrealSwarm_AgentSetup_8-2.png "UnrealSwarm_AgentSetup_8-2.png")](UnrealSwarm_AgentSetup_8-2.png)
+    [/REGION]
+    [REGION:caption]
+    クリックして最大化。
+    [/REGION]
+
+### エージェントグループの設定
+
+エージェントグループを設定すると、実行クラスタを作成するのに役立ちます。 例えば、あるマシンのセットがレンダリングファームの一部ではないグループに属しているのに対して、別のクラスタがそのファームに属するマシンを持っている場合です。 
+
+はじめに、**[Settings (設定)]> [Distribution Settings (分散設定)]** メニューを開きます。  
+
+![](SwarmAgent_Settings_DistributionSettings.png "SwarmAgent_Settings_DistributionSettings.png")
+
+エージェントグループを設定するには、まず、このエージェントをデプロイするグループジョブを指定します。 例えば、ここでは、このエージェントを **[AllowedRemoteAgentGroup]** 設定の 「FarmGroup」ジョブにデプロイするように指定しています。  
+
+![](UnrealSwarm_FarmGroup.png "UnrealSwarm_FarmGroup.png")
+
+このエージェントを「FarmGroup」ジョブにデプロイする場合は、**[AgentGroupName]** が **[AllowedRemoteAgentGroup]** と一致していることを確認してください。 次の例では、このエージェントの「FarmGroup」ジョブへのデプロイを無効化しています。  
+
+![](UnrealSwarm_NonFarmGroup.png "UnrealSwarm_NonFarmGroup.png")
+
+エージェントの **[Distribution Settings]** についてさらに詳しく知りたい場合は、次の表を参照してください。実行クラスタ内の各エージェントに指定できる残りのプロパティを網羅した便利なメモです。
+
+| **設定** | **デフォルト値** | **説明** |
+| --- | --- | --- |
+| **AgentGroupName** | デフォルト | この Swarm Agent が属するエージェントグループの名前です。 |
+| **AllowedRemoteAgentGroup** | DefaultDeployed | この Swarm Agent のデプロイ先となるエージェント グループジョブの名前です。 |
+| **AllowedRemoteAgentNames** | RENDER* | (「 」、「,」、「;」で区切られた) リモートマシンで使用されているフィルタ文字列です。 |
+| **AvoidLocalExecution** | False | [INCLUDE:#excerpt_0] |
+| **CoordinatorRemotingHost** | RENDER-01 | Swarm Coordinator をホストしているマシンの名前です。 このフィールドには、コーディネーターの DNS 名またはコーディネーターの IPv4 アドレスのいずれかの文字列を入力できます。 |
+| **EnableStandaloneMode** | False | このフラグを `True` に設定すると、出力および入力タスクに対して分散システムが無効になります。 |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+
+このフラグを `True` に設定すると、この Swarm Agent からのジョブおよびタスクの分散が有効になります (ローカル実行なし) 。
+
+[REGION:note]
+このフラグを設定すると、スレッドの優先順位が `Idle` に設定され、Swarm に接続されている他のエージェントが優先されるため、分散を必ず行うというよりは提案となります。 これは、利用可能なエージェントが他にない場合 (または Swarm がコーディネータを見つけることができない場合) 、何もせずずっと待機したり失敗となってしまうのではなく、そのエージェント上でビルドが実行されるということです。
+[/REGION]
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+### Swarm Cache を管理する
+
+Swarm Agent をデプロイしたら、エージェントの Swarm Cache の管理を行ってください。 通常、エージェントの Swarm Cache の管理というのは、エージェントのキャッシュ設定の更新、キャッシュのクリア、キャッシュの検証のことを言います。 
+
+エージェントのキャッシュ設定を更新するには、**[Settings (設定)]> [Cache settings (キャッシュ設定)]** メニューに移動します。
+
+![](SwarmAgent_Settings_CacheSettings.png "SwarmAgent_Settings_CacheSettings.png")
+
+このメニューから、エージェントの **キャッシュ設定** を更新できます (下記参照) 。
+
+| **設定** | **デフォルト値** | **説明** |
+| --- | --- | --- |
+| **CacheFolder** | \\[ディスクのフォルダ\\]/SwarmCache | キャッシュフォルダの場所です。大容量で高速なドライブ上にあります。 |
+| **MaximumCacheSize** | 10 | キャッシュフォルダのおよその最大サイズをギガバイト単位で示します。 |
+| **MaximumJobsToKeep** | 5 | ログを記録してデータを出力する前に実行されるジョブの数です。 |
+
+さらに、**Swarm Agent** によって割り当てられたタスクを完了するために使用されるホスト マシンのキャッシュを消去したい場合は、**[Cache (キャッシュ)]** メニューの**「Clean」**コマンドを呼び出します。
+
+![](SwarmAgent_CacheMenu_Clean.png "SwarmAgent_CacheMenu_Clean.png")
+
+最後に、マシンのキャッシュを検証したい場合は、**[Cache (キャッシュ)]** メニューの**「Validate」**コマンドを呼び出します。
+
+![](SwarmAgent_CacheMenu_Validate.png "SwarmAgent_CacheMenu_Validate.png")
+
+[REGION:tip]
+特に Unreal のライトマスがクラッシュしてビルドが失敗するような場合は、Swarm Cache を定期的にクリーニングして検証することをお勧めします。
+[/REGION]
+
+### エージェント ログの読み方
+
+**[Log (ログ)]** タブをクリックすると、Swarm Agent のログメッセージがフラッシュされる [Log] ウィンドウが開きます。
+
+![](SwarmAgent_LogWindow.png "SwarmAgent_LogWindow.png")
+
+**[Log]** ウィンドウにフラッシュされる出力の量を指定したい場合は、**「MaximumJobApplicationLogLines」**変数 (**[Developer Settings (デベロッパー設定)] > [Log Settings (ログ設定)]** メニューにあります) を更新して、**[Log]** ウィンドウの出力行数を切り捨てる前に、「Job」アプリケーションからの出力行数を変更します。
+
+![](SwarmAgent_DeveloperSettings_LogSettings.png "SwarmAgent_DeveloperSettings_LogSettings.png")
+
+デバッグやメンテナンスを目的として**「AgentLog」***テキスト ファイルを配置する必要がある場合は、すべてのジョブの始めと終わりに、Agent のアクティビティが `[Folder on Disk]\SwarmCache\Logs` にログインしていることを確認することが重要です。
+
+[REGION:lightbox]
+[![](SwarmAgent_LogWindowFiles.png "SwarmAgent_LogWindowFiles.png")](SwarmAgent_LogWindowFiles.png)
+[/REGION]
+[REGION:caption]
+クリックして最大化。
+[/REGION]
+
+通常、ディスク上のファイルに対するデフォルトのロギング レベルは**「ExtraVerbose」** に設定されていますが、Swarm Agent の [Log] ウィンドウに対するデフォルトのロギング レベルは**「Informative」** に設定されています。 **[Log]** 出力の詳細度を変更したい場合は、**[Settings (設定)] > [Log Settings (ログ設定)]** メニューにある**「Verbosity」**変数を更新してください。
+
+![](SwarmAgent_Settings_LogSettings.png "SwarmAgent_Settings_LogSettings.png")
+
+### 進捗状況を監視する
+
+割り当てられているジョブおよびタスクに作用するエージェントの進捗状況を監視したい場合は、[Swarm Status] ウィンドウを開きます。 
+
+![](SwarmAgent_SwarmStatusMenu.png "SwarmAgent_SwarmStatusMenu.png")
+
+エージェントが実行されると、マシンごとに進捗バーが表示されます。各進捗バーには、初期化中のアプリケーション (1)、作業準備中のアプリケーション (2)、分散作業を実行中のアプリケーション(3) が表示されます ( 1 と 2 は、分散を行っているわけではありません) 。  
+
+![](SwarmAgent_SwarmStatusWindowExample.png "SwarmAgent_SwarmStatusWindowExample.png")
+
+[REGION:tip]
+ジョブの進行状況に関する詳細を表示するには、マウスカーソルを進行状況バーの上に置きます。
+[/REGION]
+
+最後に、下部にある [Distributed Progress] バーに、完了したジョブの割合 (4) と現在処理中のジョブの割合 (5) が表示されます。
+
+![](SwarmAgent_DistributedProgress.png "SwarmAgent_DistributedProgress.png")
+
+  
+
+## Swarm Agent を停止する
+
+Swarm Agent を停止するには、**[File (ファイル)]> [Exit (終了)]** をクリックしてアプリケーションを閉じ、そのプロセスを終了します。
+
+![](SwarmAgent_ExitProcess.png "SwarmAgent_ExitProcess.png")
+
+[REGION:tip]
+または、**Windows** の通知領域にある **[Swarm]** アイコンを右クリックして、[Exit (終了)] コマンドを選択します。
+[/REGION]
+
+この時点では、Swarm Coordinator と Swarm Agent は最小限の動作で実行されます。 ライト、オブジェクト、処理の必要な計算の数を考えると、十分なエージェントがあれば Unreal のライトマスのビルドは数時間もかからず、数分で完了するはずです。
+
+[REGION:tip]
+ビルド パフォーマンスを向上させるには、(作業中のシーンのサイズと複雑さを含む) 開発環境に合わせてローカルマシン上に確保されているコアの数を見直すことをお勧めします。 見直しするには、 **[Developer Settings (デベロッパー設定)] > [Local Performance Settings (ローカルパフォーマンス設定)]** メニューにある **「LocalJobsDefaultProcessorCount」** 変数を調整してください。   
+  
+![](SwarmAgent_DeveloperSettings_LocalPerformanceSettings-1.png "SwarmAgent_DeveloperSettings_LocalPerformanceSettings-1.png")
+[/REGION]
+
+Unreal Swarm の実行に関して一般的な質問がある場合は、以下のよくある質問を参照してください。  
+
+## よくある質問
+
+*   [Swarm Agent と Coordinator を使用する際にビルド時間を短縮する方法を教えてください。](#improvebuildtimes)
+*   [エージェントが分散されないのですが。](#agentdistribution)
+*   [ライティングをビルドするときに CPU 使用量を制限するには？](#limitcpuusage)
+*   [Swarm Agent を起動しようとすると、「UnrealLightmass.exe」に対して Windows アプリケーションのエラーが発生しますが、どういう意味ですか？](#applicationerror)
+*   [Swarm Agent と Swarm Coordinator は Mac または Linux でサポートされていますか？](#maclinux)
+*   [GPU を使用したライティングのビルドは可能ですか？](#gpubuild)
+*   [以下のエラーはどういう意味ですか？](#errors)
+
+(#improvebuildtimes)
+##### Swarm Agent と Coordinator を使用する際にビルド時間を短縮する方法を教えてください。
+
+*   プレイヤーがアクセス可能な領域に [Lightmass Importance Volume](Engine/Rendering/LightingAndShadows/Lightmass/Basics) を追加します。](Engine/Rendering/LightingAndShadows/Lightmass/Basics)
+    *   このボリュームは、ライトマスの正確性と質にこだわりたいときに使用します。 これを使用すると、プレイヤーがいる領域をカバーできます。 ボリュームの外側の領域は、より少ない光子を受け取るので、結果として品質が低下します。 ある領域を囲むために単一のボリュームを使用する場合、光子計算を重要な領域に集中させるというボリュームの目的に反することに注意してください。
+*   [ライトマップ](Engine/Content/Types/StaticMeshes/LightmapUnwrapping)の解像度を調整します。
+    *   シーン内にスタティック メッシュがあり、それら個々が高いライトマップ解像度と多くの光の寄与がある場合、シーンだけでなく単一のアクタに対するビルド時間も長くなる可能性があります。 可能であれば、高品質の結果を得るためにライトマップの解像度を低くして、[Statistics (統)] ウィンドウでレベルに対して単一のアクタをビルドするのに要した時間を把握するようにしてください。 ライトマップ解像度を高く設定している大きな (または複雑な) スタティック メッシュに対して良好な結果を得るには、それを別々の小さなメッシュに分割するか、または可能な場合はライトマップ UV を作り直して、この問題を軽減できるか検討してください。
+*   [フォーリッジ ツール](Engine/Foliage)のライトマップ解像度を有効にします。
+    *   フォーリッジをレベルにペイントするときに使用するインスタンス化したスタティック メッシュでは、インスタンス元のスタティック メッシュのライトマップ解像度が自動的に使用されます。 レベルで何百もの (あるいは何千もの) フォーリッジをペイントしている場合、そのメッシュのライトマップ解像度がシステムが扱うには高くなりすぎる可能性があります。 また、それにより、指数関数的にビルド時間が長くなったり、メモリ使用量の制約によってライトマスがクラッシュする潜在的な可能性をもたらしたり、テクスチャメモリの消費量がより増えたりすることにつながります。  
+          
+        **[Light Map Resolution (ライトマップの解像度)]** を有効にしてデフォルト値の「8」を使用するか、またはより低い値である「4」に設定することをお勧めします。これにより、すべてのインスタンスの解像度は低下します。しかし、動的シャドウはカメラの近くで処理される一方で、静的シャドウは遠くのオブジェクトのみ表示できれば良いので、視覚で認知される品質の低下は最小限に抑えられます。  
+          
+        [REGION:lightbox]
+        [![](FoliageTool_LMResolution.png "FoliageTool_LMResolution.png")(w:150)](FoliageTool_LMResolution.png)
+        [/REGION]
+        [REGION:caption]
+        クリックしてフルサイズ表示。
+        [/REGION]
+*   シーンにあるアクタやライトの数を減らします。
+    *   レベル内の[シャドウキャスティング](Engine/Rendering/LightingAndShadows/Shadows)アクタやライトの数は、ライティングを計算するときのこれらすべての相互作用を考慮する必要があることを意味します。 単一のライトが相互作用するアクタの数を制限するには、ライトを減らすことが重要です。 大きな領域に影響を与えなくて良いライトの影響半径を小さくすると、計算数が減るため処理中のライトのビルドが速くなります。
+*   推奨よりも高いシステム仕様を使用します。
+    *   Swarm Agent は CPU の計算量が多く、負荷が重いプロセスです。 ローカルマシンのみを使用している場合は、高性能な CPU と大容量の RAM を使用すると、ビルド処理時間を短縮できます。 ただし、前述の他の要因もビルド処理時間に影響を与えることに注意してください。
+
+(#agentdistribution)
+##### エージェントが分散されないのですが。
+
+Remote Swarm Agent は、ジョブの実行を拒否することがあり、それにはいくつか理由があります。その理由の中で最も一般的なのは、Remote Swarm Agent がすでに他のジョブに取り組んでおり、余裕がないということです。 もう 1 つの可能性は、Remote Swarm Agent がその時点でジョブを引き受けるには忙しすぎると判断することです。これは、マシンがコンパイルや[コンテンツのクック](Engine/Deployment/Cooking)などのリソース集約型の処理を行っていることが原因です。 エージェントのウィンドウの **[Swarm Status]** タブに、ビルドに役立つ可能性があるすべてのリモートエージェントの完全なリストが表示されます。 そのうちの 1 つが現在利用できない場合は、ビルドの他の部分と一緒に白いバーがティック表示されます。そして、バーの上にマウスを置くと、「Waiting for remote to become available (リモートが利用可能になるのを待っています)」というメッセージが表示されます。  
+  
+また、 利用可能なリモート エージェントを調べるためのより高度な方法は、**[Log (ログ)]** タブをクリックして **[Network (ネットワーク)]** メニューから **[Ping Remote Agents (リモートエージェントからのピン)]** を選択することです。ビルドをしていないときでも利用可能です。 リモートマシンとそれらの現在の状態のリストが表示されます。
+
+(#limitcpuusage)
+##### ライティングをビルドするときに CPU 使用量を制限するには？
+
+**[Swarm] > [DeveloperSettings (デベロッパー設定)]** タブから、**LocalJobDefaultProcessCount** と **RemoteJobDefaultProcessorCount** を使用して、ローカルマシンとリモートマシンのライティング ビルド中に使用される CPU コアの数を制限できます。  
+  
+ローカルマシンでは、その作業に使用する CPU をほんの数コアに制限し、他のタスクを快適に実行できるようにするために十分なコア数を残すことをおすすめします。 デフォルトでは、この作業のためにいくつかのコアが解放されたままになります。しかし、ライトのビルド計算をもっと処理できるように分散タスクをローカルに残して作業するために利用可能なコアがもっと必要になることもあります。
+
+(#applicationerror)
+##### Swarm Agent を起動しようとすると、「UnrealLightmass.exe」に対して Windows アプリケーションのエラーが発生しますが、どういう意味ですか？
+
+![](UnrealLightmassEXEError.png "UnrealLightmassEXEError.png")
+
+*   このタイプのエラーは、UE4 が直接の原因となっていない何かによって Windows での起動が妨げられていることを表しています。 以下は、問題を解決するためのいくつかの手順です。
+    *   適切で最新の Visual Studio 依存関係がインストールされていることを確認してください。 Unreal Engine バージョン 4.9 以前の場合は **VS2013** の依存関係が必要です。4.10 以降の場合は **VS2015** の依存関係が必要になります。
+    *   それでも問題が解決しない場合、無料のアプリケーション (例えば [Dependency Walker](http://www.dependencywalker.com)) を使用して、「UnrealLightmass.exe」の読み込みを妨げている可能性がある「DLL」ファイルの問題の解決を試みてください。
+
+(#maclinux)
+##### Swarm Agent と Swarm Coordinator は Mac または Linux でサポートされていますか？
+
+**現在、Swarm Agent と Swarm Coordinator は Windows でのみサポートされています。 ライトのビルドはまだ Mac と Linux 用の Swarm を使用しますが、ユーザーがアクセスすることはできません。**
+(#gpubuild)
+##### GPU を使用したライティングのビルドは可能ですか？
+
+Swarm は現在、ライティング データ用に GPU の計算をサポートしていません。
+
+(#errors)
+##### 以下のエラーはどういう意味ですか？
+
+*   Lightmass Crashed with “Ran out of memory allocating \[値\]”
+
+[REGION:lightbox]
+[![](SA_RanOutOfMemory.png)](SA_RanOutOfMemory.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズ表示。
+[/REGION]
+
+
+*   このエラーは、Swarm Agent がライトマスのメモリ不足のため、ライトマスのデータ処理に失敗していることを表しています。 これは、Swarm Coordinator を使用して、すべての作業を 1 台のマシンで実行する必要がある複数のエージェント間でビルドを分散していない場合に最もよく発生します。   ライトマスは、多くのアクタとライトのある大きなレベルを計算するとき、またはライトマップの解像度が高すぎると、メモリ不足になる可能性があります。  
+      
+    ローカルマシンの RAM 容量を増やしたり、分散用のエージェントを追加したり、可能であればアクタのライトマップの解像度を下げたり、プレイヤーがアクセス可能な重要な領域の計算にフォーカスを当てている Lightmass Importance Volume を追加することで、このエラーを回避できます。
+
+*   Lightmass Crashed with“Assertion Failed: (Index >=0)&(Index&lt;ArrayNum))”
+
+[REGION:lightbox]
+[![](SA_ArrayIndexOutOfBounds.png)](SA_ArrayIndexOutOfBounds.png)
+[/REGION]
+[REGION:caption]
+クリックしてフルサイズ表示。
+[/REGION]
+  
+
+*   このエラーが発生したら、Swarm Cache を削除して検証する必要があります。
+
+*   エディタのトースト ポップアップで、「Light Build Failed. Swarm failed to kick off.」と表示されます。  
+    ![](FailedToKickOff.jpg)
+    *   Unreal Editor からライティングをビルドしようとすると、このメッセージが表示されることがあります。 以下は、それが表示されたいくつかの一般的な理由です。
+        *   Swarm Agent の複数のインスタンスを開いて実行していないことを確認してください。 これを確認するには、実行中のタスク処理を確認するか、**Windows** の **通知領域** を確認します。
+        *   レベル内でのレベルやアクタの破損。
+        *   ファイアウォール ソフトウェア、アンチウイルス ソフトウェアで**「SwarmAgent.exe」**の例外設定が正しく行われていません。
+        *   エンジンのインストールまたは破損の問題。 ランチャーを使用している場合は、エンジン バージョンのドロップダウンを選択して **[Verify (確認)]** を選択します。  
+            ![](VerifyEngine.png)
+        *   Unreal のライトマスのソースビルドに関する問題。 Unreal のライトマスを再ビルドします。
+    *   Swarm がそれでも起動に失敗する場合、そのポートが別のシステムプロセスによって使用されている可能性があります。
+        *   Swarm Log を開き、以下のエラーメッセージを確認してください。 
+        *   Exception details: System.Net.Sockets.SocketException (0x80004005): No connection could be made because the target machine actively refused it 123.456.7.89:8009
+            			
+            ポート割り当てに関するこの問題を解決するためには、IT 部門と連携してください。Swarm が正しく機能するためには、特にポート「8008」と「8009」が必要となるからです。 これらのポートが利用できないと、エージェントやコーディネーターを起動できません。 そして、これは特に UE4 が原因で発生する問題ではありません。

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4499768
+﻿INTSourceChangelist:6173642
 Availability: Public
 Crumbs: 
 Title: 使用安装构建版本
@@ -20,7 +20,7 @@ Tags:
 
 ## 生成安装构建版本
 
-你可以将 [BuildGraph](Programming/Development/BuildGraph) 脚本系统与位于 `[UE4Root]/Engine/Build/InstalledBuild.xml` 中的安装构建版本脚本结合使用，创建安装构建版本。  
+你可以将 [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) 脚本系统与位于 `[UE4Root]/Engine/Build/InstalledBuild.xml` 中的安装构建版本脚本结合使用，创建安装构建版本。  
 
 **要创建安装构建版本：**
 

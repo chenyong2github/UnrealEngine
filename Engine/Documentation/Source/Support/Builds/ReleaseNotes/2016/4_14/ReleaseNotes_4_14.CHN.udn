@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:3223841
+﻿INTSourceChangelist:6537038
 Availability:Public
-Title:虚幻引擎 4.14 版本信息
+Title:虚幻引擎4.14版本说明
 Description:虚幻引擎 4.14 版本信息说明
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-Order:14
+Order: 30
 reference-image:image_6.gif
 reference-image:image_7.gif
 reference-image:image_9.gif
@@ -52,13 +52,13 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 全新的前向着色渲染器结合了高精度 UE4 灯光功能和多重采样抗锯齿（MSAA）支持！前向渲染器拥有 MSAA 和启用每个材质优化的选项，非常适用于 VR。
 
-![image alt text](image_1.png)(w:929 h:664 convert:false)
+![image alt text](image_1.png)(w:929 convert:false)
 
 前向渲染器的工作原理是将灯光和反射捕捉剔除到一个视锥空间网格。前向通道中的每个像素在对其产生影响的灯光和反射捕捉上迭代，对它们带有的材质进行着色。静态光照的动态阴影为提前计算，并被打包到屏幕空间阴影遮罩的通道中，以便高效利用多个阴影投射功能。
 
 启用 Rendering Project 设置中的“Forward Shading”并重启编辑器即可使用前向渲染器。
 
-![image alt text](image_2.png)(w:240 h:24 convert:false)
+![image alt text](image_2.png)(w:240 convert:false)
 
 支持的 **前向渲染功能** 包括：
 
@@ -94,7 +94,7 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 * D-Buffer 贴图上的 MSAA、动态模糊、动态阴影和胶囊体阴影
 
-![image alt text](image_3.png)(w:929 h:664 convert:false)
+![image alt text](image_3.png)(w:929 convert:false)
 
 前向渲染器支持多重采样抗锯齿（MSAA）和随机采样抗锯齿（TAA）。在多数情况下 TAA 更为可取，因为它能移除几何体锯齿和反射锯齿。在 VR 项目中，头部追踪引起的恒定亚像素运动会造成不必要的模糊。MSAA 方为更佳选择。
 
@@ -104,7 +104,7 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 在 Rendering 项目设置中设置默认抗锯齿方法即可使用 MSAA：
 
-![image alt text](image_4.png)(w:336 h:53 convert:false)
+![image alt text](image_4.png)(w:336 convert:false)
 
 控制台变量“r.MSAACount”控制每个像素计算的 MSAA 采样数。“r.MSAACount 1”拥有特殊含义并可返回随机采样抗锯齿，便于在抗锯齿方法之间切换。  
 
@@ -112,7 +112,7 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 进行一些渲染时，前向渲染器的速度比延迟渲染器更快。可在每个材质上禁用的功能可以实现最大的性能提升。默认情况如下：只有最近的反射捕捉应用时不带视差矫正，除非材质使用高精度反射、高度雾按每个顶点计算、平面反射只应用到启用的材质上。
 
-![image alt text](image_5.png)(w:228 h:73 convert:false)
+![image alt text](image_5.png)(w:228 convert:false)
 
 在 Epic 最新的 VR 游戏《Robo Recall》上平衡这些选项。在使用 NVIDIA 970 GTX 显卡的情况下，前向渲染器比延迟渲染器的速度快约 22%。
 
@@ -121,25 +121,25 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 接触阴影（Contact Shadows）可在物体上实现高细节动态阴影。
 
 [REGION:asyncgif]
-![image alt text](image_6.gif)(w:929 h:522)
+![image alt text](image_6.gif)(w:929)
 [/REGION]
 
 下图中的常春藤只是一些扁平的片，但由于材质中输出的 Pixel Depth Offset，其自身形成的阴影十分真实。
 
 [REGION:asyncgif]
-![image alt text](image_7.gif)(w:929 h:606)
+![image alt text](image_7.gif)(w:929)
 [/REGION]
 
 接触阴影功能针对深度缓冲在屏幕空间中添加一个短光线投射，了解像素是否从给定光照被遮挡。这能够在几何体的连接点处形成锐化的细节阴影。通过其他算法所形成阴影的接触点可能出现缺失或模糊，存在多种原因。通常这是由于缺乏分辨率或深度偏差。无论原因如何，全新的接触阴影功能能够以较小的开销填补空缺。
 
 接触阴影可用于设置光照上的 Contact Shadow Length 属性。此属性控制屏幕空间中光线投射的长度。如设为 1，则光线投射将穿过屏幕。如设置的值较大，精度和性能将会下降。因此在实现需要的效果时请尽量将长度保持在最短。
 
-![image alt text](image_8.png)(w:434 h:118 convert:false)
+![image alt text](image_8.png)(w:434 convert:false)
 
 接触阴影的另一个使用情况是从任意光照的视差遮蔽映射获得自阴影。这需要在材质中输出像素深度偏移。此动画显示了一个视差遮蔽映射的表面，接触阴影的长度设为 0.1。
 
 [REGION:asyncgif]
-![image alt text](image_9.gif)(w:752 h:344)
+![image alt text](image_9.gif)(w:752)
 [/REGION]
 
 ## 新鲜出炉：自动 LOD 生成
@@ -147,7 +147,7 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 虚幻引擎最新版本可以自动减少静态网格体的多边形数量来创建 LOD！
 
 [REGION:asyncgif]
-![image alt text](image_10.gif)(w:768 h:628)
+![image alt text](image_10.gif)(w:768)
 [/REGION]
 
 上面的动画显示了自动生成的五个 LOD。每个 LOD 的三角形数量均为上一个的一半。
@@ -158,7 +158,7 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 控制所生成 LOD 的高级设置在静态网格体查看器中的 LOD Settings 下。
 
-![image alt text](image_11.png)(w:425 h:184 convert:false)
+![image alt text](image_11.png)(w:425 convert:false)
 
 “LOD Group”包含预设列表。可根据项目在 BaseEngine.ini 文件的 [StaticMeshLODSettings] 下进行修改。我们建议为项目设置好类别并尽量使用 LOD 群组，而不对每个 LOD 的细节进行控制。
 
@@ -170,13 +170,13 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 最新版本现支持同一几何体在多个光照设置下的预计算光照！这在 VR 和建筑视觉表现的使用实例中尤为重要，因为这些项目要求尽量高的精度和性能。
 
-![image alt text](image_12.png)(w:929 h:540 convert:false)
+![image alt text](image_12.png)(w:929 convert:false)
 
-![image alt text](image_13.png)(w:929 h:541 convert:false)
+![image alt text](image_13.png)(w:929 convert:false)
 
 在上例中，定向光照、天空光照和天空盒已放置到一个名为 DayScenario 的光照情景关卡中。街灯已被放置到 NightScenario 中。
 
-![image alt text](image_14.png)(w:260 h:164 convert:false)
+![image alt text](image_14.png)(w:260 convert:false)
 
 使用光照情景的方法：
 
@@ -188,7 +188,7 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 
 * 在不变关卡的关卡蓝图的 BeginPlay 中，在需要激活的光照情景关卡上执行一个 Load Stream Level。
 
-![image alt text](image_15.png)(w:552 h:196 convert:false)
+![image alt text](image_15.png)(w:552 convert:false)
 
 限制：
 
@@ -203,20 +203,20 @@ Adam Moss（adamnv）、Alan Edwardes（alanedwardes）、Andreas Axelsson （ju
 在延迟渲染器中，全新的前向着色功能现可用于半透明表面，从多个灯光处获得反射高光、从视差矫正反射捕捉获得基于图像的反射。
 
 [REGION:asyncgif]
-![image alt text](image_16.gif)(w:664 h:401)
+![image alt text](image_16.gif)(w:664)
 [/REGION]
 
-![image alt text](image_17.jpg)(w:329 h:118 convert:false)
+![image alt text](image_17.jpg)(w:329 convert:false)
 
 ## 新鲜出炉：全分辨率皮肤着色
 
 UE4 现支持下表面轮廓着色模型的全分辨率皮肤着色。这可生成表面细节（如毛孔和皱纹）的高保真度光照。 
 
-![image alt text](image_18.png)(w:312 h:334 convert:false) ![image alt text](image_19.png)(w:312 h:334 convert:false)
+![image alt text](image_18.png)(w:312 convert:false) ![image alt text](image_19.png)(w:312 convert:false)
 
 *棋盘格渲染皮肤（左图）、全分辨率皮肤（右图）  *（注释：头部模型由 Lee Perry-Smith 创建）
 
-![image alt text](image_20.png)(w:320 h:320 convert:false) ![image alt text](image_21.png)(w:321 h:321 convert:false)
+![image alt text](image_20.png)(w:320 convert:false) ![image alt text](image_21.png)(w:321 convert:false)
 
 *表面细节 - 棋盘格（左图）、全分辨率（右图）*
 
@@ -258,40 +258,40 @@ UE4 现支持下表面轮廓着色模型的全分辨率皮肤着色。这可生�
 
 使用反射捕捉时，引擎将混合来自反射捕捉的间接反射和来自光照图的间接弥散。因为反射立方体贴图只在空间中的一个点捕捉，这将有助于减少泄露，但光照图会在所有接收物表面进行计算并包含本地阴影。
 
-![image alt text](image_22.png)(w:757 h:436 convert:false)
+![image alt text](image_22.png)(w:757 convert:false)
 
 *（**左图带光照图混合，右图则不带**）*
 
 混合在不平表面效果较好。但在平滑表面上，来自反射捕捉的反射与来自其他方法的反射（如屏幕空间反射或平面反射）不相匹配。  
 
-**十分平滑的表面上将不再进行光照图混合**。** **粗糙度为 .3 的表面将获得完整光照图混合，粗糙度 .1 及以下的表面将逐渐淡出至无光照图混合。这允许反射捕捉和 SSR 进行更好的匹配，过渡更不明显。  
+**十分平滑的表面上将不再进行光照图混合。** 粗糙度为 .3 的表面将获得完整光照图混合，粗糙度 .1 及以下的表面将逐渐淡出至无光照图混合。这允许反射捕捉和 SSR 进行更好的匹配，过渡更不明显。  
 
 下图的镜头展示了前后的镜面表面反射。注意 SSR 和反射捕捉之间墙壁反射的区别。在动态效果下穿帮尤其明显，因为它将随摄像机一同运动（由于存在 SSR 限制）。
 
 [REGION:asyncgif]
-![image alt text](image_23.gif)(w:762 h:440)
+![image alt text](image_23.gif)(w:762)
 [/REGION]
 
 **这会对现有内容产生影响 - 在反射泄露在平滑表面的情况下，泄露将更为明显。**为解决此问题，可放置更多反射探头减少泄露。关卡最小应拥有一个大型球体捕捉。也可通过渲染项目设置恢复旧的光照图渲染行为：
 
-![image alt text](image_24.png)(w:356 h:53 convert:false)
+![image alt text](image_24.png)(w:356 convert:false)
 
 ## 新鲜出炉：Visual Studio“15”支持
 
 虚幻引擎 4.14 版本自然支持即将推出的 Visual Studio“15”。仍然支持 Visual Studio 2015。可从 [微软 Visual Studio 网站](https://www.visualstudio.com/en-us/news/releasenotes/vs15-relnotes) 的“Preview”部分获取 Visual Studio“15”。
 
-![image alt text](image_25.png)(w:929 h:558 convert:false)
+![image alt text](image_25.png)(w:929 convert:false)
 
 如您已安装 Visual Studio 的多个版本，可在“Editor Preferences”的“Source Code”部分选择使用的版本。
 
-![image alt text](image_26.png)(w:670 h:132 convert:false)
+![image alt text](image_26.png)(w:670 convert:false)
 
 ## 新鲜出炉：从 Actor 创建静态网格体
 
 现在可以右键点击关卡视口中的 actor 并将其当前状态转换为一个新的静态网格体资源。这个方法甚至可用于骨架网格体，因此可以从摆好姿势的角色上获取网格体。
 
 [REGION:asyncgif]
-![image alt text](image_27.gif)(w:929 h:598)
+![image alt text](image_27.gif)(w:929)
 [/REGION]
 
 ## 新鲜出炉：NVIDIA Ansel 支持
@@ -300,12 +300,12 @@ UE4 4.14 新增了对 NVIDIA Ansel 摄影的支持！
 
 Ansel 是 NVIDIA 退出的一款新工具，便于玩家在游戏中进行截图。在 Ansel 模式中时，游戏将暂停，玩家可控制摄像机构图，然后进行截图。可抓取多种截图，从 HDR 到 360 立体均可。在 NVIDIA 网站中查阅更多详情： [http://www.geforce.com/hardware/technology/ansel](http://www.geforce.com/hardware/technology/ansel)
 
-![image alt text](image_28.jpg)(w:929 h:598 convert:false)
+![image alt text](image_28.jpg)(w:929 convert:false)
 
 Ansel 现已作为全新的 UE4 插件公开。在项目中启用插件后，即可在 standalone 游戏会话中访问 Ansel。 
 
 [REGION:asyncgif]
-![image alt text](image_29.gif)(w:928 h:425)
+![image alt text](image_29.gif)(w:928)
 [/REGION]
 
 *（在网页浏览器中查看 Ansel 360 捕捉）*
@@ -319,7 +319,7 @@ Ansel 现已作为全新的 UE4 插件公开。在项目中启用插件后，即
 缆绳组件插件已更新新特性，包括碰撞支持和附着物体或效果的套接字。
 
 [REGION:asyncgif]
-![image alt text](image_30.gif)(w:781 h:496)
+![image alt text](image_30.gif)(w:781)
 [/REGION]
 
 缆绳组件现包含以下新特性：
@@ -336,16 +336,16 @@ Ansel 现已作为全新的 UE4 插件公开。在项目中启用插件后，即
 
 UMG 和 Slate 的字体现在拥有一个可应用的任选外框。  
 
-![image alt text](image_31.png)(w:929 h:534 convert:false)
+![image alt text](image_31.png)(w:929 convert:false)
 
 指定字体的控件可以变更外框设置、颜色、或外框所使用的材质。
 
-![image alt text](image_32.png)(w:397 h:148 convert:false)
+![image alt text](image_32.png)(w:397 convert:false)
 
 外框上字体材质的使用方法与其他字体材质的使用方法相同，唯一的区别是对外框指定的材质只能应用到外框。字体材质可在外框上使用，创建出许多不同效果。
 
 [REGION:asyncgif]
-![image alt text](image_33.gif)(w:645 h:194)
+![image alt text](image_33.gif)(w:645)
 [/REGION]
 
 ## 新鲜出炉：可编辑的 Map 与 Set 属性
@@ -354,11 +354,11 @@ UMG 和 Slate 的字体现在拥有一个可应用的任选外框。
 
 **Sets** 和阵列相似，但无法在一个集中两次拥有相同元素，且元素的排序无法保证。然而在一个 set 中进行查找确定其是否包含元素的速度十分之快。
 
-![image alt text](image_34.png)(w:401 h:185 convert:false)
+![image alt text](image_34.png)(w:401 convert:false)
 
 **Maps** 拥有一个键和一个值，可在 details 面板中对这二者进行编辑。和 Sets 相同，所有的键必须独一无二，元素的排序不保证留存。然而，元素值的查找速度非常快（只要明确它是一个键）。
 
-![image alt text](image_35.png)(w:401 h:254 convert:false) 
+![image alt text](image_35.png)(w:401 convert:false)  
 
 ## 新鲜出炉：材质中的矢量 Noise
 
@@ -386,22 +386,22 @@ UMG 和 Slate 的字体现在拥有一个可应用的任选外框。
 
 下图是一个简单的石床材质，使用 Vector Noise / Voronoi 的距离组件调制一些表面的凹凸、混合裂缝中的苔藓，以及种子位置和 Vector Noise / Cellnoise，用于变更每块岩石的色彩和凹凸高度。
 
-![image alt text](image_36.png)(w:626 h:304 convert:false)
+![image alt text](image_36.png)(w:626 convert:false)
 
 Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规 Perlin noise 容器）。对于更复杂的表达式而言，有必要计算表达式结果的梯度。为进行协助，可放置表达式计算为一个材质函数，并将其结合助手节点 **Prepare3DDeriv**、**Compute3DDeriv**、或 **GradFrom3DDeriv**/**CurlFrom3DDeriv** 进行使用。它们使用位于四面体图案中的基础表达式的四个求值来近似这些基于导数的操作。例如，此网络使用梯度从一个凹凸高度函数计算凹凸法线。
 
-![image alt text](image_37.png)(w:929 h:241 convert:false)
+![image alt text](image_37.png)(w:929 convert:false)
 
 ## 新鲜出炉：PhysX 3.4 升级
 
 虚幻引擎现使用 NVIDIA PhysX 最新的 3.4 版本。这改善了刚体和场景查询的性能和内存使用（尤其是多核性能）。 
 
-![image alt text](image_38.png)(w:441 h:197 convert:false)
+![image alt text](image_38.png)(w:441 convert:false)
 
 这个版本的 PhysX 支持 **运动物体** 上的 **连续碰撞检测（Continuous Collision Detection）**（CCD），可在高速运动的刚体之间形成精确的碰撞。在下方的 Robo Recall 测试关卡动画中，玩家挥舞武器反弹迎面而来的子弹。
 
 [REGION:asyncgif]
-![image alt text](image_39.gif)(w:674 h:378)
+![image alt text](image_39.gif)(w:674)
 [/REGION]
 
 可立即在 UE4 中使用的新特性：
@@ -418,7 +418,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 
 与动画相关的工具被拆分为单独的资源编辑器，无需再在多个模式中使用一个编辑器。
 
-![image alt text](image_40.jpg)(w:929 h:560 convert:false)
+![image alt text](image_40.jpg)(w:929 convert:false)
 
 还进行了多项其他改良。每个编辑器的常用功能基本均显示在视口和改良的骨架树中。
 
@@ -431,24 +431,24 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 * 动画蓝图编辑器的布局已作调整，更接近标准蓝图编辑器的布局。动画预览编辑器现在可以选择性地将对预览属性均进行的修改应用到类默认上。
 
 [REGION:asyncgif]
-![image alt text](image_41.gif)(w:409 h:552)
+![image alt text](image_41.gif)(w:409)
 [/REGION]
 
 ### 资源快捷工具栏
 
-![image alt text](image_42.png)(w:460 h:60 convert:false)
+![image alt text](image_42.png)(w:460 convert:false)
 
 使用改良的资源快捷工具栏可在共享骨架的相关动画资源之间切换。
 
 ### 录制移至传送功能按钮
 
-![image alt text](image_43.png)(w:252 h:68 convert:false)
+![image alt text](image_43.png)(w:252 convert:false)
 
 之前的版本中，录制通过工具栏上的一个按钮进行。最新版本中，录制按钮已移至传送功能按钮中（与 Sequencer 相似）。
 
 ### 预览场景设置
 
-![image alt text](image_44.png)(w:605 h:378 convert:false)
+![image alt text](image_44.png)(w:605 convert:false)
 
 通过“Scene Setup”菜单即可在每个编辑器中编辑场景中的物体和它们的动画。使用该功能可以应用预览动画、设置不同的预览网格体（这是针对骨架或单个动画），并附加额外的网格体。额外的网格体现可指定为单独的纯编辑器资源。这些资源将定义作为主网格体从属进行驱动的一套骨架网格体。
 
@@ -457,7 +457,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 在最新版本中，使用动画编辑器中的全新专属窗口即可便利地对动画曲线进行调整。编辑时即可进行即时预览。
 
 [REGION:asyncgif]
-![image alt text](image_45.gif)(w:761 h:537)
+![image alt text](image_45.gif)(w:761)
 [/REGION]
 
 在之前的版本中只能在动画资源上配置曲线，而在最新版本中可在骨架上进行设置。
@@ -466,7 +466,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 
 通过 Child Actor 模板即可自定义添加到蓝图的子 Actor 组件的属性。
 
-![image alt text](image_46.png)( w:929 h:658convert:false)
+![image alt text](image_46.png)( w:929)
 
 添加子 Actor 组件后，拥有 Actor 的蓝图编辑器的 Details 面板中便会出现一个可展开模板。可从此处访问子 Actor 的全部属性，包括公开变量。 
 
@@ -482,10 +482,10 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 
 “后期处理”动画蓝图也拥有其原生特性和蓝图更新步骤，因此参数可被读取或计算，以便在动画图表中使用。
 
-![image alt text](image_47.png)(w:356 h:69 convert:false)
+![image alt text](image_47.png)(w:356 convert:false)
 
 [REGION:asyncgif]
-![image alt text](image_48.gif)(w:740 h:441)
+![image alt text](image_48.gif)(w:740)
 [/REGION]
 
 ## 新鲜出炉：VR 中的地形编辑
@@ -493,7 +493,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 在新版本中可使用 VR 运动控制器创建并设计地貌，并绘制地形材质。
 
 [REGION:asyncgif]
-![image alt text](image_49.gif)(w:620 h:336)
+![image alt text](image_49.gif)(w:620)
 [/REGION]
 
 可在快捷菜单的“Modes”面板中打开地形编辑工具。然后从 UI 中选择笔刷并开始绘制！长按运动控制器上的“Modifier”按钮即可消除。
@@ -503,7 +503,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 新版本中轮胎力的应用点已发生变化。之前的版本中，轮胎力的应用点位于载具的质量中心。新版本中轮胎力的应用点位于 **轮胎的质量中心**，更容易实现车辆的载荷摆振。 
 
 [REGION:asyncgif]
-![image alt text](image_50.gif)(w:736 h:372)
+![image alt text](image_50.gif)(w:736)
 [/REGION]
 
 此外我们还添加了 **简单轮式载具移动组件（Simple Wheeled Vehicle Movement Component）**，无需复杂的引擎和传动模拟即可实现车轮悬挂和轮胎摩擦。利用此组件可轻松 **在单个轮胎上应用扭矩**。在新版本中，继承自 Wheeled Vehicle Movement Component 的全部组件均可在任意组件上使用，无需依赖于 Wheeled Vehicle Actor。
@@ -515,7 +515,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 在虚幻引擎 4.14 版本中可发布支持 Vulkan 的游戏。
 
 [REGION:raw]
-![image alt text](image_51.png)( w:837 h:409 convert:false)
+![image alt text](image_51.png)( w:837 convert:false)
 [/REGION]
 
 * UE4 支持带 Vulkan 驱动的 Android 7（Nougat）设备，以及运行最新 OTA 更新的三星 Galaxy S7。
@@ -531,7 +531,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 新版本的移动渲染通道中已支持自定义深度。自定义后期处理材质现在可从场景深度、自定义深度以及场景色彩取样。 
 
 [REGION:raw]
-![image alt text](image_52.png)(w:804 h:394 convert:false)
+![image alt text](image_52.png)(w:804 convert:false)
 [/REGION]
 
 需要后期处理，因此必须启用移动 HDR。但在当前版本中，移动 MSAA 启用时该功能无法正常工作。
@@ -541,7 +541,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 在最新版本中，渲染场景进行捕捉时，移动设备支持输出 Inverse Opacity 和 Depth 值的 Scene Capture Source 设置。 
 
 [REGION:raw]
-![image alt text](image_53.png)(w:760 h:373 convert:false)
+![image alt text](image_53.png)(w:760 convert:false)
 [/REGION]
 
 * “SceneColor (HDR) in RGB, Inv Opacity in A”选项可用于将带半透明度的物体渲染为纹理，然后在场景或控件蓝图上进行透明混合。 
@@ -558,7 +558,7 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 
 这将带来一些益处。之前法线可能存在显示错误（见下图），并且限制在一个 UV 通道上。全新蒙皮系统将这两个问题一举解决。
 
-![image alt text](image_54.jpg)(w:510 h:585 convert:false)
+![image alt text](image_54.jpg)(w:510 convert:false)
 
 ## 新鲜出炉：材质属性节点
 
@@ -572,13 +572,13 @@ Perlin Curl 和 Perlin Gradient 可在倍频中被一同添加（只作为常规
 
 Get 和 Set 节点的主要改良是引脚为选择性添加，与默认公开全部属性的 Break 和 Make 节点不同。这使得图表可避开需要手动连接每个属性引脚的老工作流程。选择一个节点将在细节面板中显示当前引脚的列表，可展开或移除此列表。例如，下图中的材质函数抓取一个属性集，然后将基础色彩（Base Color）和粗糙度（Roughness）混合到一个光亮的红色表面。
 
-![image alt text](image_55.png)(w:841 h:226 convert:false)
+![image alt text](image_55.png)(w:841 convert:false)
 
 为使图表更加简洁，这些节点利用许多后端变更，对项目可能需要添加的自定义材质属性形成前向兼容。缺失的属性将被自动检测，用户可以对错误进行处理，在项目之间共享材质更为可行。在节点上非显式排列的属性（包括材质图表创建后添加的属性）将通过主 Material Attributes 引脚传递。新引脚添加 Make 和 Break 节点后，所有图表均需要手动更新。
 
 新的 Blend 节点将实现使用一个遮罩的多个属性集的混合，这是结合材质细节层使用时的常见操作。下图实例平均地混合了红色和绿色材质（定义为函数），一个节点将为结果应用透明层。
 
-![image alt text](image_56.png)(w:929 h:249 convert:false)
+![image alt text](image_56.png)(w:929 convert:false)
 
 Blend 节点默认为所有使用 Alpha 输入的材质属性执行线性插值。利用此节点的复选框可退出顶点/像素层面的混合，更易于控制纯顶点或纯像素遮罩数据的使用。与前文提到的 Get 和 Set 节点相似，Blend 节点将自动处理新属性的添加或移除，使程序员在注册属性时指定自定义混合行为。
 
@@ -586,18 +586,18 @@ Blend 节点默认为所有使用 Alpha 输入的材质属性执行线性插值�
 
 在新版本中，材质可访问骨架网格体的参考动作位置，以在每个顶点的输出中使用。这可在动画角色上形成局部效果。该节点可在静态网格体之间共享，也可在返回标准本地位置的网格体之间共享。下面的图表实例在局部空间中创建了一个网格图案，它在动画中和骨架网格体之间保持相对关系。
 
-[REGION:asyncgif]![image alt text](image_57.gif)(w:346 h:369)[/REGION] ![image alt text](image_58.png)(w:500 h:369 convert:false)
+[REGION:asyncgif]![image alt text](image_57.gif)(w:346)[/REGION] ![image alt text](image_58.png)(w:500 convert:false)
 
 ## 新鲜出炉：Sequencer 镜头导入/导出改良
 
-影片录制时可以对每个镜头进行帧处理。新版本中，在每个镜头的开头和末尾可多渲染主序列的帧。通过剪辑决定列表（EDL）即可将这些额外的帧剪入和剪出。此列表可在外部视频编辑包中使用，调整镜头之间的剪辑。![image alt text](image_59.gif)(h:233 w:929 convert:false)
+影片录制时可以对每个镜头进行帧处理。新版本中，在每个镜头的开头和末尾可多渲染主序列的帧。通过剪辑决定列表（EDL）即可将这些额外的帧剪入和剪出。此列表可在外部视频编辑包中使用，调整镜头之间的剪辑。![image alt text](image_59.gif)(w:929 convert:false)
 
 ## 新鲜出炉：摄像机升降架改良
 
 新版本调整了摄像机升降架的行为，可模拟物理升降架的运动。
 
 [REGION:asyncgif]
-![image alt text](image_60.gif)(w:773 h:457)
+![image alt text](image_60.gif)(w:773)
 [/REGION]
 
 * 摄像机升降架绕 Z 轴和 Y 轴的旋转量为 0。
@@ -606,14 +606,14 @@ Blend 节点默认为所有使用 Alpha 输入的材质属性执行线性插值�
 
 ## 新鲜出炉：Sequencer 音频录制
 
-在新版本中，录制序列时可通过话筒录制音频。![image alt text](image_61.jpg)(h:288 w:929 convert:false)
+在新版本中，录制序列时可通过话筒录制音频。![image alt text](image_61.jpg)(w:929 convert:false)
 
 ## 新鲜出炉：Pose Driver 改良
 
 Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他方面。在此版本中，该节点可驱动骨骼变形以及变形目标。例如基于手臂的旋转驱动护肩骨。此外还添加了使用驱动骨平移的选项（而不使用其方向）。已改良调试绘制，显示每个“目标”动作和骨骼当前与其之间的接近程度。
 
 [REGION:asyncgif]
-![image alt text](image_62.gif)(w:449 h:390)
+![image alt text](image_62.gif)(w:449)
 [/REGION]
 
 ## 新鲜出炉：虚拟骨骼
@@ -621,7 +621,7 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 新版本中加入了对骨架添加“虚拟骨骼”的功能。无法对虚拟骨骼进行蒙皮，但其会在骨架上两个现有骨骼之间被约束。骨架上每个动画的虚拟骨骼数据将自动生成。例如，可添加一个关节（手的子项），但其会受到手掌关节的约束。与套接字不同，此关节可作为一个目标（即 IK 目标或查看目标）在动画蓝图中使用，或在 AnimBP 中对其进行修改，以便之后使用。 
 
 [REGION:asyncgif]
-![image alt text](image_63.gif)(w:489 h:330)
+![image alt text](image_63.gif)(w:489)
 [/REGION]
 
 这有助于改善角色迭代时间。之前的版本中，如果需要变更 IK 或瞄准的目标关节层级，需要在引擎外进行操作，DCC，然后导回所有动画修复带新关节的动画数据。而利用虚拟骨骼可跳过这些步骤，在引擎中执行全部工作。然而这需要对动画数据进行重新压缩，将关节重新纳入动画数据中。 
@@ -633,7 +633,7 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 利用全新的变形目标调试视图模式（Morph Target View Mode）可更容易地确定每个变形目标所影响的顶点。
 
 [REGION:asyncgif]
-![image alt text](image_64.gif)(w:545 h:396)
+![image alt text](image_64.gif)(w:545)
 [/REGION]
 
 ## 新鲜出炉：子动画蒙太奇
@@ -641,7 +641,7 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 基于父蒙太奇创建子蒙太奇，以便替换动画片段，同时保持整体时间设置。可用于为行动添加变量，同时保证其不会影响到游戏进程。
 
 [REGION:asyncgif]
-![image alt text](image_65.gif)(w:566 h:624)
+![image alt text](image_65.gif)(w:566)
 [/REGION]
 
 ## 新鲜出炉：MIDI Device 插件
@@ -668,13 +668,13 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 
 新版本中的地形镜像工具可将几何体复制到镜面平面，创建斜向对称的多人游戏地图。
 
-![image alt text](image_67.jpg)(w:721 h:453 convert:false)
+![image alt text](image_67.jpg)(w:721 convert:false)
 
 ## 新鲜出炉：网格体材质槽导入改良 
 
 新版本中的材质流程已修改，可对静态和骨架网格体中每个材质的使用进行更大程度的控制并获得更多信息，改善导入网格体时材质排序的不一致。
 
-![image alt text](image_68.jpg)(w:461 h:354 convert:false)
+![image alt text](image_68.jpg)(w:461 convert:false)
 
 列表中的每个元素为带下列信息的材质槽
 
@@ -694,7 +694,7 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 
 在每个更新版本中，我们都将更新引擎，以支持平台合作伙伴的 SDK 版本。
 
-![image alt text](image_69.png)(w:929 h:397 convert:false)
+![image alt text](image_69.png)(w:929 convert:false)
 
 * Xbox One：升至 August 2016 QFE 2
 
@@ -710,7 +710,7 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 
 全新 **移动补丁应用蓝图库** 包含移动游戏从云端网站 **下载并安装游戏内容和补丁**（而非从 App Store 上进行初始下载）的所有必备功能。
 
-![image alt text](image_70.png)(w:929 h:486 convert:false)
+![image alt text](image_70.png)(w:929 convert:false)
 
 这些功能可确定是否有更新游戏内容、开始下载、跟踪进程、处理错误，并在最后安装成功下载的内容包。此外还包含检查存储空间和 WiFi 连接的功能，以便蓝图在这些情况下提醒用户。支持 Android 和 iOS。
 
@@ -718,17 +718,17 @@ Pose Driver 节点使骨骼基于一套“范例动作”驱动动画的其他�
 
 新版本中包含全新在线子系统 GameCircle（Online Subsystem GameCircle）插件！
 
-![image alt text](image_71.jpg)(w:929 h:293 convert:false)
+![image alt text](image_71.jpg)(w:929 convert:false)
 
 支持 GameCircle 成就、排行榜、好友和 Amazon 内购。启用此插件后，即可在 Plugins 类目下访问全新的 Amazon GameCircle 项目设置面板。针对 Fire TV 的 AndroidManifest.xml 变更可在此处启用。
 
-![image alt text](image_72.jpg)(w:929 h:334 convert:false)
+![image alt text](image_72.jpg)(w:929 convert:false)
 
 ## 新鲜出炉：实时 GPU 分析工具
 
 UE 4.14 包含一个实时 GPU 分析工具，可提供主要渲染类型的逐帧数据。输入控制台命令“stat gpu”即可使用。*'**也可通过 Viewport Options 下拉菜单中的“Stat”子菜单将数据在编辑器中打开。
 
-![image alt text](image_73.png)(w:929 h:293 convert:false)
+![image alt text](image_73.png)(w:929 convert:false)
 
 这些数据为累积式，非层级式。因此不需要从事件树向下寻找即可看到主要类型。例如，阴影投影为所有光照的全部投影（在所有镜头中）的总和。 
 
@@ -736,7 +736,7 @@ UE 4.14 包含一个实时 GPU 分析工具，可提供主要渲染类型的逐�
 
 游戏运行时，GPU 数据可录入到一个文件中，以便之后进行分析。和现有数据相同，可使用控制台命令“stat startfile”和“stat stopfile”即将数据录入到一个 ue4stats 文件。在 Unreal Frontend 工具中打开文件即可查看数据。
 
-![image alt text](image_74.png)(w:929 h:402 convert:false)
+![image alt text](image_74.png)(w:929 convert:false)
 
 *使用 UnrealFrontend 对 GPU 进行分析。总共会显示后期处理和基础通过时间*
 
@@ -756,7 +756,7 @@ SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 
 新版本中推出了一个新选项生成 **加权（二进制）图谱纹理**（替代每个材质平均加权的图谱纹理），从而改善了合并 actor 和组合材质时 **纹理空间的应用方式**。 
 
-![image alt text](image_75.png)(w:286 h:286 convert:false)![image alt text](image_76.png)(w:286 h:286 convert:false)
+![image alt text](image_75.png)(w:286 convert:false)![image alt text](image_76.png)(w:286 convert:false)
 
 *（左图：平均加权的材质。右图：二进制法）*
 
@@ -770,11 +770,11 @@ SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 
 新版本中，用户可从电脑上拖放文件到媒体播放器的视口中，无需创建 FileMediaSource 资源即可预览视频文件。
 
-![image alt text](image_77.jpg)(w:664 h:561 convert:false)
+![image alt text](image_77.jpg)(w:664 convert:false)
 
 * 已添加一个解码器性能数据标签。输出取决于用于播放的玩家插件。
 
-	![image alt text](image_78.png)(w:313 h:365 convert:false)
+	![image alt text](image_78.png)(w:313 convert:false)
 
 ## 新鲜出炉：移动 VR 多视图
 
@@ -784,7 +784,7 @@ SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 
 此功能仍在实验性阶段，我们还需要验证它与更多功能和设备之间的兼容性。
 
-![image alt text](image_79.jpg)(w:929 h:84 convert:false)
+![image alt text](image_79.jpg)(w:929 convert:false)
 
 如上图所示在 Project Settings 菜单中启用移动多视图，然后重启编辑器使变更生效。
 
@@ -802,7 +802,7 @@ SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 
 新版本支持 PSVR 的原生 90Hz 到 90Hz 投射和 120Hz 到 120Hz 投射！这意味着可选则更高的帧率运行，将延迟和投影穿帮最小化。引擎将把帧率锁定在选择上，但使用者仍需努力保证帧率的稳定！
 
-![image alt text](image_80.jpg)(w:929 h:158 convert:false)
+![image alt text](image_80.jpg)(w:929 convert:false)
 
 ## 新鲜出炉：Windows 多点触控
 
@@ -816,7 +816,7 @@ SCOPED_GPU_STAT(RHICmdList, Stat_GPU_Postprocessing);
 
 EDL 当前仍为实验性功能，默认为禁用，但可通过项目设置轻松开启。
 
-![image alt text](image_81.jpg)(w:929 h:318 convert:false)
+![image alt text](image_81.jpg)(w:929 convert:false)
 
 ## 新鲜出炉：Game Mode 和 Game State 类简化
 

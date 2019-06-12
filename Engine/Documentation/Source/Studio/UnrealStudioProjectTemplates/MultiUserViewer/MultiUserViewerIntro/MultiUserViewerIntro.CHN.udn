@@ -1,0 +1,112 @@
+﻿INTSourceChangelist:5500496
+Availability: Public
+Crumbs: 
+Title:多用户查看器入门
+Description:设置并运行多用户查看器模板的完整分步指南。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: Getting Started
+Tags: multi-user viewer
+topic-image:Studio/UnrealStudioProjectTemplates/MultiUserViewer/multiuserviewer-getstarted-topic.png
+
+本页面包含在本地网络上使用多用户查看器模板中的默认内容开始使用多用户查看器模板的详细分步说明。
+
+*   [1 - 封装和分发](#1-packaginganddistributing)
+*   [2 - 一个人员启动服务器](#2-onepersonstartsaserver)
+*   [3 - 其他人员加入](#3-otherpeoplejoin)
+
+(#1-packaginganddistributing)
+## 1 - 封装和分发
+
+希望在多用户查看器中加入同一个会话的每个人员都需要从已封装的 *.exe* 文件运行应用程序。团队中的一个人员需要从虚幻编辑器中封装项目，然后将封装后的构建版本分发给所有其他人。
+
+1.  如果尚未创建项目，请以多用户查看器模板为基础创建新项目并在虚幻编辑器中将它打开。
+2.  在主菜单中，选择 **文件（File） > 封装项目（Package Project） > Windows > 64位Windows（Windows (64-bit)）。**
+    [REGION:lightbox]
+    [![封装（64位Windows）](multiuserviewer-package-win64.png "Package for Windows 64-bit")](multiuserviewer-package-win64.png) 
+    *单击查看大图。*
+    [/REGION]
+3.  浏览至计算机上你希望虚幻编辑器放置项目的封装后版本的文件夹，然后单击 **选择文件夹（Select Folder）**。  
+    ![选择文件夹（Select Folder）](multiuserviewer-package-select-folder.png "Select a folder")
+
+	虚幻编辑器开始封装过程。
+
+    ![封装进度](multiuserviewer-packagestatus.png "Packaging progress")
+4.  封装过程完成后，转至你在上面的步骤3中选择的文件夹。你将找到一个名称为 **WindowsNoEditor** 的文件夹，其包含的内容类似于下图中所示：  
+    ![封装内容](multiuserviewer-package-contents.png "Package contents")  
+    希望在多用户查看器中加入同一个会话的每个人员的本地计算机上都需要具有此文件夹中的所有文件。你可以通过你认为最合适的方式在组织中分发这些文件。  
+    例如，你可以压缩此文件夹中的文件并将它们放置在本地网络上的共享位置，以便其他所有用户都可以将它们复制到其计算机并提取它们。
+
+[REGION:tip]
+有关封装及如何配置此过程的更多信息，另请参阅[封装项目](Engine/Basics/Projects/Packaging)。
+[/REGION]
+[REGION:note]
+每次更改项目中的内容后，都 **必须** 遵循此封装和分发过程。关卡中的3D模型不会在联网用户间自动复制；它们会被编译到封装应用程序中。为了使会话中的所有人员都能够看到最新内容，每个人都需要使用相同版本的封装应用程序。
+[/REGION]
+
+
+
+(#2-onepersonstartsaserver)
+## 2 - 一个人员启动服务器
+
+在本步骤中，你将启动服务器，它是其他人员可以连接到的多用户查看器应用程序的特殊实例。
+
+1.  双击封装应用程序的 *.exe* 文件。  
+    例如，在本示例中，项目的名称是 **MultiUserProject**，因此其封装应用程序的名称是 *MultiUserProject.exe*。  
+    ![封装可执行文件](multiuserviewer-exe.png "Packaged executable")
+2.  在欢迎屏幕中，为自己设置显示名称。此名称将显示在你头像上方，以便同一个会话中的其他人员能够识别你。   
+    ![设置显示名称](multiuserviewer-displayname.png "Set a display name")
+    单击箭头转至下一步骤。
+3.  如果你的计算机上安装了受支持的VR系统，你可以选择以桌面（Desktop）模式还是以VR模式启动。（如果未安装VR系统，此功能按钮不会显示。请跳至下一步骤。)  
+    ![选择桌面（Desktop）或VR模式](multiuserviewer-server-desktopvr.png "Choose desktop or VR mode")  
+    选择一个选项，然后单击箭头，接着转至下一步骤。
+4.  请保留下一设置的默认值，即 **主持会话（Host a session）**。  
+    ![主持会话（Host a session）](multiuserviewer-server-host.png "Host a session")  
+    单击箭头以完成服务器设置。
+
+你将在主关卡中启动，对于你的网络上的其他计算机，你的计算机将作为服务器可见。随着其他人员加入会话，你将能够看到其头像显示。使用[桌面功能按钮](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#desktopcontrols)或[VR功能按钮](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#vrcontrols)在场景中移动并进行交互。
+
+![打开的服务器会话](multiuserviewer-server-joined.png "Server session opened")
+
+(#3-otherpeoplejoin)
+## 3 - 其他人员加入
+
+在本步骤中，希望加入同一个会话的其他每个人员都将在不同的计算机上启动封装应用程序的独立实例，并且，他们将连接到同一个服务器。
+
+希望加入会话的每个人员都应遵循这些说明。
+
+1.  双击封装应用程序的 *.exe* 文件。例如，在本示例中，项目的名称是 **MultiUserProject**，因此其封装应用程序的名称是 *MultiUserProject.exe*。  
+    ![封装可执行文件](multiuserviewer-exe.png "Packaged executable")
+2.  在欢迎屏幕中，为自己设置显示名称。此名称将显示在你头像上方，以便同一个会话中的其他人员能够识别你。  
+    ![设置显示名称](multiuserviewer-displayname.png "Set a display name")  
+    单击箭头转至下一步骤。
+3.  如果你的计算机上安装了受支持的VR系统，你可以选择以 **桌面（Desktop）** 模式还是以 **VR** 模式启动。（如果未安装VR系统，此功能按钮不会显示。请跳至下一步骤。)  
+    ![选择桌面（Desktop）或VR模式](multiuserviewer-client-desktopvr.png "Choose desktop or VR mode")  
+    选择一个选项，然后单击箭头，接着转至下一步骤。
+4.  将下一设置更改为 **加入会话（Join a session）**。  
+    ![选择“加入会话（Join a session）”](multiuserviewer-client-join.png "Choose Join a session")
+    单击箭头，接着转至下一步骤。
+5.  应用程序会扫描网络，并列出所有可用服务器。  
+    ![选择要加入的服务器](multiuserviewer-client-serverlist.png "Select a server to join")  
+    *   如果在列表中看到所需的服务器，单击其名称以加入会话。   
+        ![单击服务器名称](multiuserviewer-client-servername-1.png "Click the server name")
+    *   如果未看到所需的服务器，尝试单击 **刷新（Refresh）** 按钮，让应用程序重新扫描网络以发现服务器。  
+        ![刷新服务器列表](multiuserviewer-client-refresh.png "Refresh the list of servers")
+    *   如果应用程序检测不到服务器，但是你知道其IP地址，激活 **手动指定IP地址（Manually specify an IP Address）** 开关。  
+        ![切换至手动输入IP地址模式](multiuserviewer-client-manualip.png "Switch to manual IP mode")  
+        在提供的字段中输入IP地址，然后单击 **加入（Join）**。  
+        ![输入服务器IP地址并加入](multiuserviewer-client-manualipjoin.png "Enter server IP Address and join")
+
+你将在主关卡中启动。你将能够看到运行服务器的人员以及加入会话的其他所有人员的头像。
+
+使用[桌面功能按钮](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#desktopcontrols)或[VR功能按钮](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#vrcontrols)在场景中移动并进行交互。
+
+![](multiuserviewer-client-joined.png "multiuserviewer-client-joined.png")
+
+(#4-onyourown)
+## 4 - 自己动手
+
+现在你已经了解了使用多用户模板的方法，你可以开始使用相同的运行时体验审查你自己的内容。请继续查看[将你自己的内容与多用户查看器模板配合使用](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent)指南中的说明。
+

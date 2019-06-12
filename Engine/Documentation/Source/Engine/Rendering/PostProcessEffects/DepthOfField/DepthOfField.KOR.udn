@@ -1,4 +1,4 @@
-INTSourceChangelist:4312754
+INTSourceChangelist:6430248
 Availability: Public
 Crumbs: %ROOT%
 Title:뎁스 오브 필드
@@ -9,76 +9,116 @@ Version:4.20
 Parent:Engine/Rendering/PostProcessEffects
 Order:5
 Tags:Post Process
-Topic-image:Engine\Rendering\PostProcessEffects/DepthOfField/Cinematic/DOF_Cine_Topic.png
+Tags:Depth of Field
+Topic-image:DOF_Cine_Topic.png
+hero-image: 1_DepthOfFieldVisualization.png
 
-![image_0.png](image_0.png)
+[TOC (start:2 end:3)]
+
+![](DepthOfField_Banner.png "DepthOfField_Banner.png")
 
 [EXCERPT:DepthOfField_Desc]
 DoF (Depth of Field, 뎁스 오브 필드)는 씬의 초점 앞이나 뒷부분을 거리에 따라 흐리게 만드는 기법으로, 실제 실제 카메라에서 벌어지는 현상과 비슷합니다. 이 이펙트는 보는 사람의 관심을 끌고, 렌더링이 좀 더 사진이나 영화같아 보이도록 만드는 데 사용할 수 있습니다.
 [/EXCERPT:DepthOfField_Desc]
 
-
-# 뎁스 오브 필드 유형
+## 뎁스 오브 필드 유형
 
 언리얼 엔진 4 에서 사용할 수 있는 뎁스 오브 필드 이펙트 메서드는 여러가지 있습니다. 크게 두 가지 범주로 나뉩니다.
 
-* **Cinematic** (시네마틱) 메서드는 일반적으로 뎁스 오브 필드 이펙트에 시네마틱 또는 영화같은 느낌을 냅니다. 이 메서드의 조정은 실제 사진이나 영화를 촬영할 때 사용할 수 있는 일반적인 카메라 옵션과 더 비슷합니다. 이 메서드는 모바일 플랫폼에서 사용하기에는 너무 비쌀 수 있지만 데스크톱 및 콘솔 플랫폼에서는 잘 작동합니다.
+*   **Cinematic** 시네마틱 - 일반적으로 뎁스 오브 필드 이펙트에 시네마틱 또는 영화같은 느낌을 냅니다. 이 메서드의 조정은 실제 사진이나 영화를 촬영할 때 사용할 수 있는 일반적인 카메라 옵션과 더 비슷합니다. 이 메서드는 모바일 플랫폼에서 사용하기에는 너무 비쌀 수 있지만 데스크톱 및 콘솔 플랫폼에서는 잘 작동합니다.
 
-* **Mobile** (모바일) 메서드는 모바일 플랫폼에 최적화된 저비용 뎁스 오브 필드 옵션을 제공합니다. 
+*   **Mobile** 모바일 - 모바일 플랫폼에 최적화된 저비용 뎁스 오브 필드 옵션을 제공합니다.  
+    
 
-[DIR(output:"topic" parent:"Engine/Rendering/PostProcessEffects/DepthOfField" end:"1" org:"hierarchy")]
+아래 메서드에서 선택하면 각 기능에 대해 더욱 자세히 배울 수 있습니다.
 
-## 뎁스 오브 필드 구현
+[DIR(output:"topic" parent:"Engine/Rendering/PostProcessEffects/DepthOfField")]
 
-뎁스 오브 필드는 Near, Far, Focal Region - 즉 근경, 원경, 초점구역 이렇게 세 가지 레이어로 나뉘며, 이들 각각은 별도로 처리한 다음 나중에 합성하여 최종 효과를 냅니다. 근경과 원경 레이어에 있는, 즉 초점구역에 있지 않은 사물에는 항상 최대 블러를 적용합니다. 그런 다음 그 레이어를 블러 미적용 씬과 섞는 것입니다.
+## 구현
 
-* 초점구역 내 (검정) 사물은 블러링이 적용되지 않은 씬 레이어를 사용합니다.
+뎁스 오브 필드는 Near, Far, Focal Region - 즉 근경, 원경, 초점구역 이렇게 세 가지 레이어( 또는 구역으)로 나뉘며, 이들 각각은 별도로 처리한 다음 나중에 합성하여 최종 이미지 이펙트를 냅니다. 근경과 원경 레이어에 있는, 즉 초점구역에 있지 않은 사물에는 항상 최대 블러를 적용합니다. 그런 다음 그 레이어를 블러 미적용 씬과 블렌딩하여 최종 결과물을 만듭니다.  
 
-* 근경(초록)이나 원경(파랑) 레이어에 있으면서 전환되는 구역에도 있지 않은 사물은, 블러링이 적용된 레이어에 최대로 섞어줍니다.
+![](DOF_LayerImplementation1.png "DOF_LayerImplementation1.png")
 
-* 전환 구역 안에 있는 사물은, 블러링이 적용되지 않은 씬 레이어와 블러링이 적용된 레이어를 구역 내 위치에 따라 연속적으로 섞어줍니다.
+*   초점구역 내 (검정) 사물은 블러 적용되지 않은 씬 레이어를 사용합니다. 이 레이어는 여기서처럼 캐릭터에만 초점이 맞도록 매우 좁게 할 수도, 씬의 전경과 배경을 더 포괄하도록 매우 넓게 할 수도 있습니다.
 
-## 뎁스 오브 필드 시각화
+*   근경(초록) 또는 원경(파랑) 레이어에 있으면서 초점 구역과 근경 또는 원경 구역 사이 전환 구역 밖에 있는 사물은, 블러 적용 레이어에 완전히 블렌딩되어 초점이 맞지 않은 상태가 됩니다.
+
+*   전환 구역 안에 있는 (차량 왼쪽 영역에 있는) 사물은 (근경과 원경의 경우) 블러 적용되지 않은 씬 레이어와 블러 적용 레이어를 초점 구역 전환 내 위치에 따라 연속적으로 블렌딩합니다.
+
+### 뎁스 오브 필드 시각화
 
 전환 구역을 포함한 이 레이어들은 ( **표시 > 시각화** 아래) **뎁스 오브 필드 레이어** 표시 옵션으로 시각화시켜 볼 수 있습니다.
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
-	![시네마틱 DoF 를 사용한 씬](image_1.png)(w:998) 
+	![씬](1_DepthOfFieldVisualization_SceneView.png) 
 	[/PARAM]
 	[PARAM:after]
-    ![시네마틱 DoF 를 사용한 뎁스 오브 필드 레이어 시각화](image_2.png)(w:998) 
+	![레이어 시각화](1_DepthOfFieldVisualization.png) 
 	[/PARAM]
-	[PARAMLITERAL:position]
-	bottom
-	[/PARAMLITERAL]
 [/OBJECT]
 
 **Depth of Field Layer** (뎁스 오브 필드 레이어) 시각화에는 사용 중인 DOF 메서드에 관련된 유용한 정보도 포함되어 있습니다. 예를 들면 현재 설정된 값, 씬에 마우스를 움직일 때 카메라와 액터의 거리가 마우스 옆에 표시되기도 합니다. 
 
-![image_3.png](image_3.png)
+![](DepthOfFieldVisualization_Stats.png "DepthOfFieldVisualization_Stats.png")
 
-## 에디터에서 DOF 사용
+### 에디터에서 DOF 사용
 
-언리얼 에디터에서 뎁스 오브 필드를 사용하는 메서드는 몇 가지입니다. [Post Process Volume](Engine/Rendering/PostProcessEffects) (포스트 프로세스 볼륨) 배치, [Camera Actor](Engine/Actors/CameraActors) (카메라 액터) 사용, 또는 [Cine Camera Actor](Engine/Sequencer/HowTo/CineCameraActors) (시네 카메라 액터) 사용입니다. 이들 각각은 시네 카메라 액터만 카메라와 렌즈에 업계 표준 세팅이 추가되어 있다는 점만 제외하면 같은 뎁스 오브 필드 프로퍼티에 액세스할 수 있습니다. 
+언리얼 에디터에서 뎁스 오브 필드를 사용하는 방법은 여러가지 있습니다. [Post Process Volume](Engine/Rendering/PostProcessEffects) (포스트 프로세스 볼륨), [Camera Actor](Engine/Actors/CameraActors) (카메라 액터) 또는 [Cine Camera Actor](Engine/Sequencer/HowTo/CineCameraActors) (시네 카메라 액터)를 배치하고 사용하는 것입니다. 이들 각각은 시네 카메라 액터만 카메라와 렌즈에 업계 표준 세팅이 추가되어 있다는 점만 제외하면 같은 뎁스 오브 필드 프로퍼티에 액세스할 수 있습니다.  
+  
 
-사용되는 세팅 대부분은 **Camera** (카메라) 및 **Depth of Field** (뎁스 오브 필드) 섹션의 **Lens** (렌즈) 탭에서 액세스할 수 있습니다. DOF 메서드를 선택하면, 그에 영향을 주는 프로퍼티는 편집할 수 있지만 주지 않는 프로퍼티는 (그 옆에 체크로 활성화되어 있어도) 회색으로 비활성화됩니다. 
+사용되는 세팅 대부분은 **Camera** (카메라) 및 **Depth of Field** (뎁스 오브 필드) 섹션의 **Lens** (렌즈) 탭에서 액세스할 수 있습니다. DOF 메서드를 선택하면, 그에 영향을 주는 프로퍼티는 편집할 수 있지만 주지 않는 프로퍼티는 (그 옆에 체크로 활성화되어 있어도) 회색으로 비활성화됩니다.
 
-![image_4.png](image_4.png)
-
+[REGION:lightbox]
+[![](DoFProperties.png "DoFProperties.png")(w:300)](DoFProperties.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
 [시네 카메라 액터](Engine/Sequencer/HowTo/CineCameraActors) 를 사용할 때, 뎁스 오브 필드에 영향을 주는 프로퍼티는 **Current Camera Settings** (현재 카메라 세팅) 아래 **Lens Settings** (렌즈 세팅) 섹션에서 찾을 수 있습니다. 
-
-![image_5.png](image_5.png)
-
-카메라 또는 시네 카메라 액터를 사용하는 경우, [액터 파일럿](Engine/UI/LevelEditor/Viewports/ActorLocking) 기능으로 위치를 잡을 수 있습니다. 레벨 뷰포트에서 **Perspective** (원근) 버튼을 누르고 씬의 **Placed Cameras** (배치된 카메라) 중 하나를 선택하면 됩니다. 
-
-![image_6.png](image_6.png)
-
+[REGION:lightbox]
+[![](DoFProperties_CineCameraActor.png "DoFProperties_CineCameraActor.png")(w:300)](DoFProperties_CineCameraActor.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+카메라 또는 시네 카메라 액터를 사용하는 경우, [액터 파일럿](Engine/UI/LevelEditor/Viewports/ActorLocking) 기능으로 위치를 잡을 수 있습니다. 레벨 뷰포트에서 **Perspective** (원근) 버튼을 누르고 씬에 배치된 카메라 중 하나를 선택하면 됩니다. 
+[REGION:lightbox]
+[![](DepthOfField_PilotCamera.png "DepthOfField_PilotCamera.png")](DepthOfField_PilotCamera.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
 
 레벨 뷰포트 시야는 카메라에 맞춰지고, 카메라가 찍는 화면대로 파일럿 중이라는 것이 표시됩니다.
 
-![image_7.png](image_7.png)
+![](DoF_PilotCamera_Status.png "DoF_PilotCamera_Status.png")
 
-카메라 또는 (카메라가 안에 있는 경우) 포스트 프로세스 볼륨의 프로퍼티 변화가 있으면 레벨 뷰포트에 표시됩니다. 
+카메라 또는 (카메라가 안에 있는 경우) 포스트 프로세스 볼륨의 프로퍼티 변화가 있으면 뷰포트에 바로 표시됩니다. 
 
-예를 들어 위 샷과 비슷한 화면을 얻기 위한 핵심은, 낮은 **Aperture (F-stop)** (조리개, f값)을 사용하여 큰 보케를 만들고, 카메라나 뷰포트를 오브젝트 가까이 움직인 뒤 **Field of View **(FoV) 값을 낮춥니다. 그런 다음 **Focal Distance** (초점 거리)를 조정하여 초점 구역(, 다른 말로 Focal Plane, 초점 면) 앞 뒤의 콘텐츠에 초점이 잡히지 않도록 합니다. 
+예를 들어 위 샷과 비슷한 결과를 얻으려면, 낮은 **Aperture (F-stop)** (조리개, f값)을 사용하여 큰 보케 모양을 만들고, 카메라나 뷰포트를 오브젝트 가까운 위치로 이동한 뒤 **Field of View **(FOV) 값을 낮춥니다. 그런 다음 **Focal Distance** (초점 거리)를 조정하여 초점 면 앞 뒤의 콘텐츠에 초점이 잡히지 않도록 합니다.
+
+### 시네마틱 카메라의 디버그 초점 면 사용
+
+[시네 카메라 액터](Engine/Sequencer/HowTo/CineCameraActors) 를 사용할 때, **Draw Debug Focus Plane** (디버그 초첨 면 그리기)를 활성화하면 레벨의 초점 위치를 확인할 수 있습니다.
+[REGION:lightbox]
+[![](DoFProperties_CineCameraActor_DrawFocusPlane.png "DoFProperties_CineCameraActor_DrawFocusPlane.png")(w:300)](DoFProperties_CineCameraActor_DrawFocusPlane.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+활성화되면, 카메라에서 현재 설정된 **Manual Focus Distance** (수동 초점 거리) 위치에 초점 면을 그립니다. 이 경우 캐릭터는 초점 위치에 있어서 모든 것에 초점이 잡혀 선명하게 표시됩니다. 초점 면 앞 또는 뒤의 모든 것에는 초점이 잡히지 않습니다.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Draw Debug Focus Plane: 비활성화](DebugFocusPlane_Disabled.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Draw Debug Focus Plane: 활성화](DebugFocusPlane_Enabled.png) 
+ [/PARAM]
+[/OBJECT]
+
+[REGION:note]
+**Debug Focus Plane Color** (디버그 초점 면 색)을 사용하면 초점 면을 그릴 때 사용할 RGBA 색 값을 사용자 정의할 수 있습니다. 그려지는 초점 면이 잘 안보일 때 좋습니다.
+[/REGION]

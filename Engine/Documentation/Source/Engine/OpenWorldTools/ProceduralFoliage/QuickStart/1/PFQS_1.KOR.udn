@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3810467
-Availability:Public
+INTSourceChangelist:6078243
+Availability:Docs
 Title: 1. 폴리지 타입 액터 만들기
 Crumbs:
 Description:필요한 액터를 전부 만들어 추가합니다.
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## Set to Docs as the pages have been combined into one. 
 
 [VAR:Steps]
 [OBJECT:Navigation]
@@ -24,7 +26,7 @@ Version: 4.8
 
 
 
-이번 비법에서는 UE4 에서 프로시저럴 폴리지 툴의 정상 작동에 필요한 레벨, 랜드스케이프 터레인, 필수 액터 전부를 새로 만들어 보겠습니다.
+이번 하우투에서는 UE4 에서 프로시저럴 폴리지 툴의 정상 작동에 필요한 레벨, 랜드스케이프 터레인, 필수 액터 전부를 새로 만들어 보겠습니다.
 
 
 1. UE4 에서 **디폴트 템플릿** 을 바탕으로 새 레벨을 만듭니다.

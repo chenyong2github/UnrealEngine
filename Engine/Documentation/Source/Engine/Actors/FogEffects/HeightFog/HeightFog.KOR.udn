@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6340938
 Availability: Public
 Title:익스포넨셜 하이트 포그 사용 안내서
 Crumbs: %ROOT%, Engine, Engine/Actors, Engine/Actors/FogEffects
 Description:Guide to creating height-based, distance fog in levels.
 topic-image:heightfog_topic.png
+tags:overview,fog effects,exponential height fog
 
 
 
@@ -36,6 +37,7 @@ Exponential Height Fog Actor 위치를 움직여 포그의 고도를 결정합�
 
 Height Fog (하이트 포그) 섹션에서 컴포넌트와 연관된 다음 프로퍼티를 편집할 수 있습니다.
 
+[REGION:simpletable]
 |**프로퍼티** | **설명** |
 |---|---|
 | **Fog Density** | 안개 농도 - 포그 레이어의 두께로 생각해 볼 수 있는 전체 농도 인수입니다. |
@@ -49,11 +51,7 @@ Height Fog (하이트 포그) 섹션에서 컴포넌트와 연관된 다음 프�
 | **Visible** | 보임 - 주요 안개 표시여부를 조절합니다. |
 | **Actor Hidden in Game** | 액터 게임에서 숨김 - 게임에서 안개를 숨길지 입니다. |
 | **Editor Billboard Scale** | 에디터 빌보드 스케일 - 에디터 빌드의 빌보드 컴포넌트에 적용되는 스케일입니다. |
-
-
-
-
-
+[/REGION]
 
 ## 익스포넨셜 하이트 포그 애니메이션
 

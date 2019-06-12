@@ -1,36 +1,341 @@
 Availability: Public
-Title:Creating an Aim Offset
-Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/AnimHowTo
-Description:Using an Aim Offset, a character aims a weapon in the direction of your mouse or controller. 
-version: 4.14
-skilllevel: Advanced
-type:how-to
-tags:Animation
-tags:Aim Offset
+Title: Creating an Aim Offset
+Description: Using an Aim Offset, a character aims a weapon in the direction of your mouse or controller.
+Type: how-to
+Version: 4.14
+Parent: Engine/Animation/AnimHowTo
+Tags: Animation
+Tags: Aim Offset
+SkillLevel: Advanced
+Order: 1
 
-In this guide, we will create an [Aim Offset](Engine/Animation/AimOffset), which is an asset that stores a blendable series of poses to help a character aim a weapon. 
-We will take an animation sequence and chop it up into usable poses for an Aim Offset, get the player's pitch/yaw location of the mouse and use that to determine which blended pose to use so that the character moves and aims in the location of the mouse (with some restrictions) as seen in the example below. 
+
+[TOC (start:2 end:2)]
+
+In this guide, we will create an [Aim Offset](Engine/Animation/AimOffset), which is an asset that stores a blendable series of poses to help a character aim a weapon. We will take an animation sequence and chop it up into usable poses for an Aim Offset, get the player's pitch/yaw location of the mouse and use that to determine which blended pose to use so that the character moves and aims in the location of the mouse (with some restrictions) as seen in the example below.
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-CEIeNE9lKxI
-[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ CEIeNE9lKxI
+ [/PARAMLITERAL]
 [/OBJECT]
 
-Completing the following steps will result in a similar character as depicted above: 
+Completing the following steps will result in a similar character as depicted above:
 
-## Steps
+## 1 - Creating Aim Poses
 
-[DIR(output:"checkpoint" parent:"Engine/Animation/AnimHowTo/AimOffset")]
+In this step, we update our default playable character and create all the poses that will be needed for the Aim Offset.
 
-[REGION:call_to_action]
-[Click to Start](Engine/Animation/AnimHowTo/AimOffset/01_CreatingAimPoses "%Engine/Animation/AnimHowTo/AimOffset/01_CreatingAimPoses:description%")
+[REGION:note]
+For this guide we are using the **Blueprint Third Person Template** project and have added the **Animation Starter Pack** to the project:
+
+![](AnimationAssetPack.png)(w:820)
+
+You can download the Animation Starter Pack for free through the **Marketplace** from the Epic Launcher.
 [/REGION]
 
+### Steps
 
+1.  In the **Content Browser** under the **Content/ThirdPersonBP/Blueprints** folder, open the **ThirdPersonGameMode**.    
+
+1.  Under **Default Pawn Class**, click the drop-down menu and select the **Ue4ASP_Character** then **Save** and close the Blueprint.
+    
+    ![](Animations1.png)
+    
+    We are changing the default playable character to use the one provided with the Animation Starter Pack.    
+
+1.  In the **Content Browser** open the **Content/AnimStarterPack** folder, then click **Add New** and create a folder called **AimPoses**.
+    
+    ![](AimOffset1.png)    
+
+1.  Drag the **Aim\_Space\_Hip** asset onto the **AimPoses** folder and select **Copy**.
+    
+    ![](AimOffset2.png)
+    
+    This is the animation sequence that contains a range of motions for aiming a weapon that we will chop up into poses.    
+
+1.  Inside the **AimPoses** folder, with **Aim\_Space\_Hip** selected, press **Ctrl+W** to duplicate it and name it **Aim_Center**.
+    
+    ![](AimOffset3.png)    
+
+1.  Open the **Aim_Center** asset, click the **Pause** button from the playback controls, then click the **ToFront** button.
+    
+    ![](AimOffset4.png)    
+
+1.  **Right-click** on the scrub bar in the timeline, then choose the **Remove from frame 1 to frame 87** option.
+    
+    ![](AimOffset5.png)
+    
+    With this, we now have a single frame containing a pose we can use in our Aim Offset.    
+
+1.  In the **AimPoses** folder with **Aim\_Space\_Hip** selected, press **Ctrl+W** to duplicate it and name it **Aim\_Center\_Down**.    
+
+1.  Open **Aim\_Center\_Down**, make sure it is on frame **0**, then click the **ToNext** button and go to frame **20**.
+    
+    ![](AimOffset9.png)
+    
+    The character will now be aiming downward in the viewport, which is the pose we want to use for aiming down.    
+
+1.  **Right-click** on the scrub bar in the timeline, then choose the **Remove frame 0 to frame 20** option.
+    
+    ![](AimOffset10.png)
+    
+    Depending on where you **Right-click** on the scrub bar, the frame range may be off by a frame or two, just make sure the character is aiming down.    
+
+1.  **Right-click** on the scrub bar in the timeline again, then choose the **Remove from frame 1 to frame 68** option.
+    
+    ![](AimOffset11.png)    
+
+1.  In the **AimPoses** folder with **Aim\_Space\_Hip** selected, press **Ctrl+W** to duplicate it and name it **Aim\_Center\_Up**.    
+
+1.  Open **Aim\_Center\_Up**, make sure it is on frame **0**, then click the **ToNext** button and go to frame **10**.    
+
+1.  **Right-click** on the scrub bar in the timeline, then choose the **Remove frame 0 to frame 10** option.
+    
+    ![](AimOffset14.png)    
+
+1.  **Right-click** on the scrub bar in the timeline again, then choose the **Remove from frame 1 to frame 78** option.
+    
+    ![](AimOffset15.png)    
+
+1.  **Duplicate** the **Aim\_Space\_Hip** asset each time and create each of the remaining poses based on the table below.
+
+    [REGION:simpletable]      
+    | Anim Name | Start At Keyframe | Remove Frames 1 | Remove Frames 2 |
+    | --- | --- | --- | --- |
+    | **Aim\_Left\_Center** | 30 | 0 - 30 | 1 - 57 |
+    | **Aim\_Left\_Up** | 40 | 0 - 40 | 1 - 48 |
+    | **Aim\_Left\_Down** | 50 | 0 - 50 | 1 - 37 |
+    | **Aim\_Right\_Center** | 60 | 0 - 60 | 1 - 27 |
+    | **Aim\_Right\_Up** | 70 | 0 - 70 | 1 - 17 |
+    | **Aim\_Right\_Down** | 80 | 0 - 80 | 1 - 8 |
+	[/REGION]
+    
+    For each animation, be sure to start at the suggested **Start At Keyframe** frame, then **Right-click** on the scrub bar and **Remove Frames 1**, **Right-click** on the scrub bar again and **Remove Frames 2**. Each of your animations should be a single frame with the character aiming in the direction of its corresponding name. When you have created each, your **AimPoses** folder should have several poses in it for each aiming direction.
+    
+    ![](AimOffset17.png)
+    
+1.  In the **Content Browser**, **Shift** and select each of the aim poses.
+    
+    ![](AimOffset18.png)
+    
+1.  **Right-click** and under **Asset Actions**, select the **Bulk Edit via Property Matrix** option.
+    
+    ![](AimOffset19.png)
+    
+1.  In the **Property Matrix**, under **Additive Settings**, change the **Additive Anim Type** to **Mesh Space**.
+    
+    ![](AimOffset20.png)
+    
+    [REGION:note]
+    For an animation to be compatible with an Aim Offset, it must be set to use an Additive Anim Type of **Mesh Space**.
+    [/REGION]   
+
+1.  Change the **Base Pose Type** to **Selected animation frame**, then under **Base Pose Animation**, click the pick asset icon and choose **Idle\_Rifle\_Hip**.
+    
+    ![](add_01.png)
+    
+    This Base Pose Type will define how the additive delta is to be calculated.
+    
+1.  Once you have done so, return to the **Content Browser** and click the **Save All** button.
+    
+    ![](AimOffset22.png)
+    
+
+With each of our pose assets created, in the next step, we will the poses to create our Aim Offset.
+
+## 2 - Creating the Aim Offset
+
+In this step, we take each of our aim poses and create our Aim Offset which will blend between each of the poses.
+
+### Steps
+
+1.  In the **Content/AnimStarterPack/UE4_Mannequin/Mesh** folder, **Right-click** on the **UE4_Mannequin** and select **Create Aim Offset**.
+    
+    ![](AimOffset23.png)
+    
+    This will create the Aim Offset asset based on this Skeleton.    
+
+1.  In the Aim Offset window (center window), under **Parameters**, enter the parameters shown below.
+    
+    ![](AimOffset26.png)
+    
+    Set the **X Axis Label** to **Yaw** and **Y Axis Label** to **Pitch**, then set both Axis Ranges to **-90 to 90** and click **Apply Parameter Changes**.    
+    [REGION:note]
+    Aim Offsets work very similar to [Blend Spaces](Engine/Animation/Blendspaces) and will allow us to blend between our poses based on our parameters.
+    [/REGION]    
+
+1.  In the **Asset Browser**, search for **Aim**, then drag the **Aim_Center** animation onto the graph in the center position as shown below.
+    
+    ![](AimOffset27.png)    
+
+1.  Drag the **Aim\_Center\_Up** to position **1** and **Aim\_Center\_Down** to position **2** as shown below.
+    
+    ![](AimOffset28.png)
+    
+    Optionally, you can turn off the tooltip in the grid by unchecking the **Enable Tooltip Display** option.    
+
+1.  Drag the **Aim\_Left\_Center** to position **1** and **Aim\_Right\_Center** to position **2** as shown below.
+    
+    ![](AimOffset29.png)    
+
+1.  Add the **Aim\_Left\_Up** (1), **Aim\_Right\_Up** (2), **Aim\_Left\_Down** (3) and **Aim\_Right\_Down** (4) poses to finish the Aim Offset.
+    
+    ![](AimOffset30.png)    
+
+1.  In the **Asset Details** panel, set the **Preview Base Pose** option under **Additive Settings** to **Idle\_Rifle\_Hip**.
+    
+    ![](Add01.png)
+    
+    You can preview the blending of poses by moving your mouse within the grid, the viewport mesh will update its pose based on your mouse position.
+    
+
+The Aim Offset is now setup, in the next step we will hook it up for use within our **Animation Blueprint** so that gameplay can drive the blending.
+
+## 3 - Implementing the Aim Offset
+
+In this step, we add the Aim Offset to our Animation Blueprint and hook it up to our existing Anim Graph.
+
+### Steps
+
+1.  In the **Content/AnimStarterPack** folder, open the **UE4ASP\_HeroTPP\_AnimBlueprint** and **Double-click** the **AnimGraph** in the **MyBlueprint** panel.
+    
+    ![](step3_01.png)    
+
+1.  From the **Asset Browser** tab, drag in your Aim Offset asset.
+    
+    ![](step3_02.png)    
+
+1.  Connect the Aim Offset as shown below, then **Right-click** on the **Yaw** and **Pitch** pins and **Promote to Variable** and name them **Aim Yaw** and **Aim Pitch**.
+    
+    ![](step3_03.png)
+    
+    These two variables will be populated by where the player is aiming using their mouse and will drive the pose in our Aim Offset.    
+
+1.  In the **MyBlueprint** panel, jump over to the **EventGraph**.
+    
+    ![](step3_04.png)   
+
+1.  In the **EventGraph**, locate the **Sequence** node within the Movement portion of the script.
+    
+    ![](step3_05.png)
+    
+    Click the **Add pin** button on the **Sequence** node.
+    
+    ![](step3_05b.png)    
+
+1.  From the **MyBlueprint** panel, hold down **Alt** and drag in both the **Aim Yaw** and **Aim Pitch** and connect to **Sequence** node.
+    
+    ![](step3_06.png)    
+
+1.  Drag off the **Cast To Ue4ASP_Character** node and add the **Get Control Rotation** and **Get Actor Rotation** nodes.
+    
+    ![](step3_07.png)    
+
+1.  Drag off the **Get Control Rotation** node and add a **Delta(Rotator)** node.
+    
+    ![](step3_08.png)    
+
+1.  Connect the **Get Actor Rotation** to the **Delta(Rotator) B Pin**, then off the **Return Value** add an **RInterp To** node (and swap the connection from Current to Target).
+    
+    ![](step3_09.png)    
+    [REGION:tip]
+    You can hold **Ctrl** and **Left-click** on the **Current** pin to drag its connection to the **Target** pin.
+    [/REGION]    
+
+1.  Drag off the **Current** pin of the **RInterp To** node and select **Make Rotator**.
+    
+    ![](step3_10.png)    
+
+1.  From the **MyBlueprint** panel, hold **Ctrl** and drag in the **Aim Pitch** and **Aim Yaw** variables and connect them to the **Make Rotator** node's **Pitch** and **Yaw**.
+    
+    ![](step3_11.png)    
+
+1.  At the start of the **Movement** script, find the **Event Blueprint Update Animation** node and promote **Delta Time X** to a variable called **Time** and connect as shown.
+    
+    ![](step3_12.png)    
+
+1.  Back on the **RInterp To** node, connect the new **Time** variable and set the **Interp Speed** to **15**.
+    
+    ![](step3_13.png)
+    
+    We are going to use the rotation of the character and the rotation of the player's input to create a new rotator that will limit how much the character can turn in a direction.    
+
+1.  Off the **RInterp To** node, add a **Break Rotator** and **Clamp Angle** of **Pitch** and **Yaw** with min/max angles set to **-90** and **90** respectively.
+    
+    ![](step3_14.png)    
+
+1.  Connect the **Clamp Angle** from the **Pitch** to **Aim Pitch** and the **Yaw** to **Aim Yaw**.
+    
+    ![](step3_15.png)
+    
+    The Aim Yaw and Aim Pitch values that drive our Aim Offset now take into account the character's rotation, the player's current controller rotation and are clamped to prevent the character from turning too far in one direction. Without clamping the angle degrees, the character's legs could be pointed forwards while the character turns all the way around and points in the opposite direction which is probably something we want to avoid.
+  
+We are just about done with our setup, in the next step, we will tie everything together and test out our character's ability to aim.
+
+## 4 - Finishing Up
+
+In this final section, we will update our Character Blueprint to change how controller rotation is handled as well as fix some minor issues before testing.
+
+### Steps
+
+1.  In the **Content/AnimStarterPack** folder, open the **Ue4ASP_Character** Blueprint.    
+
+1.  Cick on **Ue4ASP_Character** in the **Components** window, then in the **Details** uncheck **Use Controller Rotation Yaw**.
+    
+    ![](step4_04.png)
+    
+    This will prevent the character from automatically turning to the location of the Controller's yaw.    
+
+1.  Cick on **CapsuleComponent** in the **Components** window, then in the **Details** check the **Hidden in Game** option.
+    
+    ![](HideCapsule.png)
+    
+    This will hide the debug collision display during gameplay.    
+
+1.  Click the **EventGraph** in **MyBlueprint**, then find the **Crouching** section and replace the **InputAction Crouch** node with a **C** Key Event.
+    
+    ![](step4_05.png)
+    
+    This will remove the yellow warning sign on the compile button in the upper left corner of the window since the project does not have an Action Mapping for Crouch by default, we are going to use the **C** button to crouch (you can use any Key Event you wish for this).
+    
+1.  **Compile** and **Save**, then close the Blueprint.    
+
+1.  Remove the **ThirdPersonCharacter** from the level.
+    
+    ![](DeleteCharacter.png)
+    
+    This will make sure that we use the character assigned to Game Mode and not the one placed in the level.    
+
+1.  Click the **Play** button to play in the editor.
+    
+
+### End Result
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:videoid]
+ CEIeNE9lKxI
+ [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+[/OBJECT]
+
+When you play in the editor, the character will now aim while stationary and will react to mouse movement, pointing in the direction of your mouse. There are some restrictions in place that prevent the character from turning and facing backward while the mouse is behind them as well and while the character is jogging, moving the mouse also turns the character's torso in the direction you are pointing.
+
+You can take this a few steps further by allowing the character to aim in a direction and play a shooting animation in that direction and (or) allow the character to play a shooting animation while moving in a direction or crouching by [layering animations](Engine/Animation/AnimHowTo/AdditiveAnimations) over the existing animations. Or, you can take a look at [Skeletal Mesh Sockets](Engine/Content/Types/SkeletalMeshes/Sockets) for examples on how to attach a weapon to the character's hands now that they can aim.

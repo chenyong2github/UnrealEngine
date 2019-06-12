@@ -1,6 +1,6 @@
 Availability:Public
 Title:Replicating object references
-Crumbs:%ROOT%, Gameplay, Gameplay/Networking, Gameplay/Networking/Actors, Gameplay/Networking/Actors/Properties
+parent:Gameplay/Networking/Actors/Properties
 Description:Detailed information about how object reference properties are replicated.
 Related: Gameplay/Networking/Actors/Properties/Conditions
 Related: Gameplay/Networking/Actors/RPCs

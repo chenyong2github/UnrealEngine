@@ -1,0 +1,124 @@
+INTSourceChangelist:6626192
+Availability: Public
+Crumbs: 
+Title: 비저빌리티 및 오클루전 컬링 세팅
+Description: 언리얼 엔진 4 에서 사용할 수 있는 비저빌리티 및 오클루전 컬링 메서드에 대한 레퍼런스입니다.
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/VisibilityCulling
+Order: 
+Tags: Performance
+
+
+여기서는 언리얼 엔진 4 (UE4)의 프로젝트 세팅과 비저빌리티 및 오클루전 컬링에 사용되는 다양한 볼륨 유형 세팅을 다룹니다.
+
+## 프로젝트 세팅
+
+**Project Settings** (프로젝트 세팅)에는 프로젝트 전체에 영향을  주는 컬링 세팅이 들어 있으며, 예를 들면 하드웨어 오클루전 쿼리, 라이트를 컬링할 화면 크기 등입니다.
+
+프로젝트 세팅 창의 **렌더링** 에서 **Culling** (컬링) 섹션을 선택하면 확인할 수 있습니다.
+
+[REGION:lightbox]
+[![](ProjectSettings.png "ProjectSettings.png")](ProjectSettings.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Occlusion Culling** | [INCLUDE:#excerpt_1] |
+| **Min Screen Radius for Lights** | 라이트에 대한 최소 화면 반경 - 라이트를 뷰에서 컬링할 최소 화면 반경을 설정합니다. 값이 크면 라이트를 보다 빠르게 컬링하여 퍼포먼스가 향상될 수 있습니다. 그러나 값이 너무 커서 큰 오클루더가 렌더링되지 않는 경우 오히려 퍼포먼스가 저하될 수 있습니다. |
+| **Min Screen Radius for Early Z Pass** | 얼리 Z 패스에 대한 최소 화면 반경 - 얼리 Z 패스에 컬링되는 오브젝트에 대한 최소 화면 반경을 설정합니다. 값이 크면 오브젝트를 보다 빠르게 컬링하여 퍼포먼스가 향상될 수 있습니다. 그러나 값이 너무 커서 큰 오클루더가 렌더링되지 않는 경우 오히려 퍼포먼스가 저하될 수 있습니다. |
+| **Min Screen Radius for Cascaded Shadow Maps** | 캐스케이드 섀도 맵에 대한 최소 화면 반경 - Cascaded Shadow Map 뎁스 패스에 대해 컬링되는 오브젝트에 대한 최소 화면 반경을 설정합니다. 값이 크면 퍼포먼스가 향상될 수 있습니다. 그러나 오브젝트가 카메라와 거리가 가까우면 그림자를 드리우지 않아 부작용이 생길 수 있습니다. |
+| **Warn about no precomputed visibility** | 프리컴퓨티드 비저빌리티 없음 관련 경고 - 현재 카메라 위치에 사용할 수 있는 프리컴퓨티드 비저빌리티 데이터가 없으면 경고를 띄웁니다. 프로젝트가 오클루전에 대해 프리컴퓨티드 비저빌리티에 의존하는 경우 유용한 알림이 될 수 있습니다. |
+
+<!--
+[EXCERPT:excerpt_1]
+오클루전 컬링 - (하드웨어, 소프트웨어, 라운드 로빈 오클루전 쿼리같은) 오클루전 쿼리 메서드로 액터 컬링을 허용합니다. 이 세팅은 컬 디스턴스 또는 프리컴퓨티드 비저빌리티 볼륨같은 거리 기반 컬링 메서드를 비활성화하지 않습니다.
+[REGION:note]
+오클루전 컬링을 비활성화하면 렌더링되는 액터 수에 따라 프로젝트와 레벨의 퍼포먼스에 심각한 영향을 줄 수 있습니다.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+
+
+## 액터 세팅
+
+레벨 또는 블루프린트에 선택된 액터에는 **디테일** 패널을 통해 액세스할 수 있는 거리 세팅이 들어 있습니다. 인스턴스 별 거리를 설정하거나 컬 디스턴스 볼륨을 사용한 액터의 컬링 여부를 결정합니다.
+
+[REGION:lightbox]
+[![](DetailsPanel-1.png "DetailsPanel-1.png")](DetailsPanel-1.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Min Draw Distance** | 최소 그리기 거리 - 씬에서 오브젝트를 렌더링할 최소 그리기 거리를 설정합니다. 오브젝트의 바운딩 구체 중심에 카메라 위치까지 월드 스페이스 유닛 (센티미터) 단위로 측정합니다. |
+| **Desired Max Draw Distance** | 원하는 최대 그리기 거리 - 레벨 디자이너를 위한 최대 그리기 거리를 설정합니다. "실제" 최대 거리는 **Min Draw Distance** (0 무시)입니다. |
+| **Current Max Draw Distance** | 현재 최대 그리기 거리 - 오브젝트가 컬링되는 읽기 전용 거리입니다. 이 값은 **Min Draw Distance** 또는 기준 컬 디스턴스 볼륨에 설정된 **Cull Distances** 중 하나를 나타냅니다. 값이 0 이면 이 오브젝트를 컬링해서는 안된다는 것을 나타냅니다. |
+| **Never Distance Cull** | 디스턴스 컬링 안함 - 활성화하면 이 오브젝트는 거리에 따라 걸링하지 않습니다. 계층형 레벨 오브 디테일(HLOD) 메시의 자손인 경우에도 무시됩니다. |
+| **Allow Cull Distance Volume** | 컬 디스턴스 볼륨 허용 - 컬 디스턴스 볼륨의 컬 디스턴스 값을 받아 캐시에 저장된 컬 디스턴스를 수정할지 여부입니다. |
+| **Treat as Background for Occlusion** | 오클루전에 대한 배경으로 취급 - 이 오브젝트를 오클루전에 대한 배경의 일부로 취급합니다. 배경의 일부인 스카이박스 및 커다란 지면 렌더링 비용을 줄이는 최적화로 사용할 수 있습니다. |
+| **Use as Occluder** | 오클루더로 사용 - 뎁스 온리 패스에서 이 프리미티브 렌더링 여부입니다. 일반적으로 모든 오브젝트에 대해 ture 여야 하며, 뎁스 온리 패스에서 오브젝트 렌더링 여부는 렌더러가 결정하도록 놔둬야 합니다. |
+
+
+## 컬 디스턴스 볼륨
+
+**Cull Distance Volume** (컬 디스턴스 볼륨)은 액터를 더이상 그리지 않을 크기와 컬 디스턴스 범위를 지정할 수 있습니다.
+
+![](PVisOverride.png "PVisOverride.png")
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Cull Distances** | [INCLUDE:#excerpt_25] |
+| **Enabled** | 활성화 - 볼륨의 현재 활성화 여부입니다. |
+
+
+<!--
+[EXCERPT:excerpt_25]
+컬 디스턴스 - 컬 디스턴스 볼륨 안의 크기에 따라 오브젝트의 그리기 거리를 설정하는 데 사용되는 크기 및 컬 디스턴스 짝 목록 배열입니다. 코드는 오브젝트의 바운딩 박스 구체 직경을 계산하고 이 배열에 가장 잘 맞는 것을 찾아 오브젝트에 할당할 컬 디스턴스를 결정합니다.
+  
+**Size** 크기 - 컬 디스턴스에 연관시킬 크기입니다.  
+**Cull Distance** 컬 디스턴스 - 액터의 바운드 크기와 연관시킬 거리입니다.
+[/EXCERPT:excerpt_25]
+-->
+
+
+## 프리컴퓨티드 비저빌리티 월드 세팅
+
+**월드 세팅** 에서 **프리컴퓨티드 비저빌리티** 아래에서 프리컴퓨티드 비저빌리티 생성 방식을 변경하는 세팅을 액세스할 수 있습니다.
+
+![](PVisWorldSettings.png "PVisWorldSettings.png")
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Precomputed Visibility** | 프리컴퓨티드 비저빌리티 - 프리컴퓨티드 비저빌리티 볼륨 내 그리고 이 레벨에 대한 카메라 트랙을 따라 비저빌리티 셀을 배치할지 여부입니다. 가시성을 미리계산하면 런타임 메모리와 라이팅 빌드 시간이 약간 늘어나는 대신 렌더링 스레드 시간이 줄어듭니다. |
+| **Place Cells Only Along Camera Tracks** | 카메라 트랙을 따라서만 셀 배치 - 활성화하면 카메라 트랙을 따라서만 비저빌리티 셀을 배치합니다. |
+| **Visibility Cells** | 비저빌리티 셀 - 프리컴퓨티드 비저빌리티 셀의 x 및 y 월드 스페이스 크기입니다. 크기가 작으면 런타임 메모리 사용량과 라이팅 빌드 시간이 늘어나는 대신 오클루전 컬링 효율이 높아집니다. |
+| **Visibility Aggressiveness** | 비저빌리티 적극성 - 프리컴퓨티드 비저빌리티의 적극성을 결정합니다. 이 세팅이 높으면 컬링되는 오브젝트 수가 많아지지만, 팝핑같은 가시성 오류가 더 많이 발생합니다. |
+
+
+
+[REGION:note]
+추가 정보는 [프리컴퓨티드 비저빌리티 볼륨](Engine/Rendering/VisibilityCulling/PrecomputedVisibilityVolume) 문서를 참고하세요.
+[/REGION]
+
+## 프리컴퓨티드 비저빌리티 오버라이드 볼륨
+
+**Precomputed Visibility Override Volume** (프리컴퓨티드 비저빌리티 오버라이드 볼륨)은 기존 프리컴퓨티드 비저빌리티 볼륨 안에 있는 액터와 레벨의 가시성 설정을 덮어쓸 수 있습니다.
+
+![](PvisOverride1.png "PvisOverride1.png")
+
+| 프로퍼티 | 설명 |
+| --- | --- |
+|**Override Visible Actors** | 보이는 액터 오버라이드 - 이 볼륨 안에서 봤을 때 프리컴퓨티드 비저빌리티에 항상 보이는 것으로 간주할 액터 배열입니다. |
+| **Override Invisible Actors** | 안보이는 액터 오버라이드 - 이 볼륨 안에서 봤을 때 프리컴퓨티드 비저빌리티에 항상 안보이는 것으로 간주할 액터 배열입니다. |
+| **Override Invisible Levels** | 안보이는 레벨 오버라이드 - 이 볼륨 안에서 봤을 때 프리컴퓨티드 비저빌리티에 항상 안보이는 것으로 간주할 액터가 들어있는 레벨 이름 배열입니다. |
+
+
+[REGION:note]
+추가 정보는 [프리컴퓨티드 비저빌리티 볼륨](Engine/Rendering/VisibilityCulling/PrecomputedVisibilityVolume) 문서를 참고하세요.
+[/REGION]

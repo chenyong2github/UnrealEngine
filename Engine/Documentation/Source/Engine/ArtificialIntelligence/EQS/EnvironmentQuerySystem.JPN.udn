@@ -1,0 +1,36 @@
+﻿INTSourceChangelist:0
+Availability: Docs
+Title: Environment Query System
+Description: Documents the Environment Query System (EQS) and how it can be used to query the environment for data. That data can then be used to provide the AI with data used in the decision making process on how to proceed. 
+Version: 4.21
+Parent: Engine/ArtificialIntelligence
+Tags: Experimental
+Tags: AI
+Tags: Behavior Trees
+Tags: EQS
+Tags: Environment Query System
+Tags: AI Systems
+topic-image: EQS_Topic_Image.png
+social-image: EQS_Topic_Image.png
+topic-icon: EQS_Topic_Image.png
+Order: 1
+
+
+[TOC (start:2 end:2)]
+
+The **Environment Query System (EQS) **is a feature within the Artificial Intelligence system in Unreal Engine 4 (UE4) that is used to collect data from the environment. Within EQS, you can ask questions about the data collected through a variety of different Tests which produces an Item that best fits the type of question asked. 
+
+An EQS Query can be called from a [Behavior Tree](Engine/ArtificialIntelligence/BehaviorTrees) and used to make decisions on how to proceed based on the results of your Tests. EQS Queries are primarily made up of [Generators](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators) (which are used to produce the locations or Actors that will be tested and weighted) and [Contexts](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceContexts) (which are used as a frame of reference for any Tests or Generators). EQS Queries can be used to instruct AI characters to find the best possible location that will provide a line of sight to a player in order to attack, the nearest health or ammo pickup, or where the closest cover point (among other possibilities). 
+
+Once you have a general understanding of how Behavior Trees work in UE4 and want to have your AI query the environment, you may want to start with the **Environment Query System Quick Start **guide which will walk you through an end-to-end example of having the AI find the best possible position to attack from a range against the player. Also refer to the Essentials section for an overview of EQS, a User Guide to working with EQS, and a node reference page that breaks down the available nodes and properties within EQS. 
+
+## Starting Out
+
+%Engine\ArtificialIntelligence\EQS\EQSQuickStart:topic%
+
+## Essentials
+
+%Engine\ArtificialIntelligence\EQS\EQSOverview:topic%
+%Engine\ArtificialIntelligence\EQS\EQSUserGuide:topic%
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference:topic%
+%Engine\ArtificialIntelligence\EQS\EQSTestingPawn:topic%

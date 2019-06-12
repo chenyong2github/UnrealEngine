@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3403467
+INTSourceChangelist:3403467
 Availability: Public
 crumbs:%ROOT%
 Title: 폰트 생성 및 할당
@@ -14,7 +14,7 @@ Order:2
 Tags: UMG UI Designer
 topic-image:CreatingFonts_Topic.png
 
-여기서는 공백 폰트 애셋을 만들어 폰트 페이스 애셋을 할당하거나, 폰트 에디터를 사용하여 새로운 TTF 또는 OTF 폰트 파일을 바로 임포트하는 법을 알아봅니다.
+여기서는 빈 폰트 애셋을 만들어 폰트 페이스 애셋을 할당하거나, 폰트 에디터를 사용하여 새로운 TTF 또는 OTF 폰트 파일을 바로 임포트하는 법을 알아봅니다.
 
 ![](CreatingFonts_Hero.png)(w:700)
 
@@ -24,7 +24,7 @@ topic-image:CreatingFonts_Topic.png
 별도의 폰트 애셋을 만들고 폰트 에디터를 사용하여 폰트 페이스 애셋을 할당하는 법은 다음과 같습니다.
 
 [REGION:note]
-여기서는 **공백 템플릿** 프로젝트에 **시작용 콘텐츠** 없음, **타깃 하드웨어** 와 **프로젝트 세팅** 은 기본으로 한 것을 사용합니다.
+여기서는 **기본 템플릿** 프로젝트에 **시작용 콘텐츠** 없음, **타깃 하드웨어** 와 **프로젝트 세팅** 은 기본으로 한 것을 사용합니다.
 [/REGION]
 
 
@@ -49,7 +49,7 @@ topic-image:CreatingFonts_Topic.png
 	
 ### 폰트 페이스 애셋 할당
 	
-1. 공백 폰트 애셋을 생성했으니, 사용할 폰트 페이스를 할당해 줘야 합니다. 폰트 에디터에서 폰트를 더블클릭하여 엽니다.
+1. 빈 폰트 애셋을 생성했으니, 사용할 폰트 페이스를 할당해 줘야 합니다. 폰트 에디터에서 폰트를 더블클릭하여 엽니다.
 
 	![](FontEditorWindow.png)(w:700)
 

@@ -1,46 +1,38 @@
-﻿INTSourceChangelist:3801260
+﻿INTSourceChangelist:6407987
 Availability: Public
-Crumbs: %ROOT%
 Title: 使用距离场环境光遮蔽
 Description: 如何在虚幻引擎4中设置并使用距离场环境光遮蔽。
-Type: how-to
-SkillLevel:Beginner
-Version:4.18
-Parent:Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields
-Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
-Order:2
-Tags:Lighting
-Topic-image:DFAO_Topic.png
-Social-image:DFAO_Header.png
+Version: 4.18
+Parent: Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo
+Tags: Lighting
+topic-image: DFAO_Topic.png
+social-image: DFAO_Header.png
+SkillLevel: Beginner
+Order: 2
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
+Related: Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields
 
 
-
-[REGION:fullwidth raw]
 ![](DFAO_Header.png)
-[/REGION]
 
-开发游戏时，你可能主要依赖屏幕空间方法来提供动态环境光遮蔽（AO）乃至预计算照明，以使世界场景中的对象看起来更加真实。这些方法虽然有用但却存在局限性。[屏幕空间环境光遮蔽（Screen Space Ambient Occlusion）](Engine/Rendering/LightingAndShadows/AmbientOcclusion)(SSAO)仅限于使用场景深度的情况而且仅在可见屏幕空间中有效。预计算方法仅对世界场景中的静态对象有效，这意味着它们无法实时更新。 
-[距离场环境光遮蔽（Distance Field Ambient Occlusion）](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)(DFAO)是一种全动态AO方法，它将[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)用于可移动静态网格体。它不仅可在动态照明的世界场景中使用，也可用于预计算照明。
+开发游戏时，你可能主要依赖屏幕空间方法来提供动态环境光遮蔽（AO）乃至预计算照明，以使世界场景中的对象看起来更加真实。这些方法虽然有用但却存在局限性。[屏幕空间环境光遮蔽（Screen Space Ambient Occlusion）](Engine/Rendering/LightingAndShadows/AmbientOcclusion)(SSAO)仅限于使用场景深度的情况而且仅在可见屏幕空间中有效。预计算方法仅对世界场景中的静态对象有效，这意味着它们无法实时更新。[距离场环境光遮蔽（Distance Field Ambient Occlusion）](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)(DFAO)是一种全动态AO方法，它将[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)用于可移动静态网格体。它不仅可在动态照明的世界场景中使用，也可用于预计算照明。
 
 在本指南中，您将学习如何为使用天空光照（Sky Light）的场景启用DFAO并了解可以调整的设置。
-
 
 ## 步骤
 
 [REGION:note]
-该功能要求您在 **项目设置（Project Settings）** 的 **渲染（Rendering）** 部分中启用 **生成网格体距离场（Generate Mesh Distance Fields）**。请在此处查看如何[启用网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields#EnablingDistanceFields) （如果尚未启用）。
+该功能要求您在 **项目设置（Project Settings）** 的 **渲染（Rendering）** 部分中启用 **生成网格体距离场（Generate Mesh Distance Fields）**。请在此处查看如何[启用网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields#启用距离场) （如果尚未启用）。
 [/REGION]
 
 1. 首先，导航至 **模式（Modes）** 窗口，在 **光源（Lights）** 部分中，选中并将 **天空光照（Sky Light）** 拖动到关卡视口中。
-  ​
-  ![](AddSkylight.png)(w:750)
+    
+    ![](AddSkylight.png)(w:750)
 
-2. 选择好天空光照（Sky Light）之后，导航至其 **细节（Details）** 面板并将其 **可移动性（Mobility）** 设置为 **可移动（Movable）**。
-
-  ![](TransformMobility.png)(w:450)
-  ​
+1. 选择好天空光照（Sky Light）之后，导航至其 **细节（Details）** 面板并将其 **可移动性（Mobility）** 设置为 **可移动（Movable）**。
+    
+    ![](TransformMobility.png)(w:450)
 
 ## 最终结果
 
@@ -55,10 +47,10 @@ Social-image:DFAO_Header.png
 	[/PARAM]
 [/OBJECT]
 
-您可以从该比较示例中看出在启用“距离场环境光遮蔽（Distance Field Ambient Occlusion）”的情况下为场景添加“天空光照（Sky Light）”带来的影响。 
+您可以从该比较示例中看出在启用“距离场环境光遮蔽（Distance Field Ambient Occlusion）”的情况下为场景添加“天空光照（Sky Light）”带来的影响。
 
 ## 其他天空光照（Sky Light）设置
 
-请参阅[距离场参考](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#SkyLight)来了解[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)设置（特定于“天空光照（Sky Light）”）。这些设置使您能够对场景进行艺术控制，例如控制遮蔽的精确性、其色调和对比度等等。 
+请参阅[距离场参考](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#天空光照)来了解[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)设置（特定于“天空光照（Sky Light）”）。这些设置使您能够对场景进行艺术控制，例如控制遮蔽的精确性、其色调和对比度等等。
 
 

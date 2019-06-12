@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:6412247
 Availability:Public
 Title: 게임플레이 클래스
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
-Description:게임플레이 클래스 생성 및 구현을 위한 참고서입니다.
+Description:게임플레이 클래스 생성 및 구현을 위한 레퍼런스입니다.
 Version: 4.11
 
 [TOC(start:2)]
@@ -73,7 +73,7 @@ Version: 4.11
 
 	#include "EnginePrivate.h"
 
-그 파일 하나 포함시켜준 것으로 포함되지 않는 클래스의 함수에 대한 구현에서 다른 클래스를 레퍼런싱한 경우, 파일을 추가로 포함시켜 줘야 할 수도 있습니다.
+그 파일 하나 포함시켜준 것으로 포함되지 않는 클래스의 함수에 대한 구현에서 다른 클래스를 참조한 경우, 파일을 추가로 포함시켜 줘야 할 수도 있습니다.
 
 ### 클래스 생성자
 
@@ -144,7 +144,7 @@ UObject 생성자의 가장 기본적인 형태는 다음과 같습니다:
 그러나 하드코딩된 레퍼런스는 여전히 완벽 지원됩니다. 오브젝트를 생성할 때마다 애셋을 검색할 수는 없으니, 이러한 검색은 한 번만 합니다. 이는 애셋 검색을 한 번만 하도록 보장해 주는 정적인 구조체를 
 통해 이루어집니다.
 
-`ConstructorHelpers::FObjectFinder` 는 `StaticLoadObject` 를 사용해서 지정된 `UObject` 로의 레퍼런스를 찾습니다. 이는 보통 콘텐츠 패키지에 저장된 애셋을 레퍼런싱하는 데 사용됩니다. 오브젝트를 찾지 못하면 
+`ConstructorHelpers::FObjectFinder` 는 `StaticLoadObject` 를 사용해서 지정된 `UObject` 로의 레퍼런스를 찾습니다. 이는 보통 콘텐츠 패키지에 저장된 애셋을 참조하는 데 사용됩니다. 오브젝트를 찾지 못하면 
 실패했다고 보고됩니다.
 
 	ATimelineTestActor::ATimelineTestActor()

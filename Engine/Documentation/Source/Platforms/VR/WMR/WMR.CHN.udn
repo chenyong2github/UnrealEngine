@@ -1,0 +1,25 @@
+﻿INTSourceChangelist:5483272
+Availability: Public
+Crumbs: 
+Title:Windows混合现实
+Description:针对Windows混合现实进行开发的信息。
+Type: 
+Version: 4.21
+Parent: Platforms/VR
+Order: 
+Tags: Platform
+Tags: Desktop VR
+topic-image: WindowsMixedReality.png
+
+
+![](WindowsMixedReality.png "WindowsMixedReality.png")
+
+虚幻引擎4现原生支持Windows混合现实（WMR）平台和头戴设备，包括惠普Mixed Reality和三星Odyssey头戴设备。 
+
+欲知安装和配置Windows混合现实平台和头戴设备的完整信息，请参见微软的[入门指南](https://docs.microsoft.com/en-us/windows/mixed-reality/enthusiast-guide/before-you-start)。
+
+[REGION:warning]
+如需使用虚幻引擎的WMR支持，必须拥有 **2018年4月或更新的Windows 10更新**，以及一台支持的头戴设备。
+[/REGION]
+
+[](#)[](#)

@@ -11,7 +11,7 @@ topic-image:FP_FirstPersonBP_Preview.png
 
 如果您已使用 **第一人称模板** 开始新游戏，那就再好不过啦！如您希望了解特定操作的指南和从零开始的无限可能性，可在此文档中寻找灵感。
 
-* 在 **蓝图可视化脚本（Blueprints Visual Scripting）** 系统上 [研读](Engine/Blueprints) 并 [观看视频](Videos)。有时重点不在于结果，而在于执行的方式。即使您最后将在 C++ 中进行工作，了解蓝图也有助于快速将灵感转化为原型。
+* 在 **蓝图可视化脚本（Blueprints Visual Scripting）** 系统上 [研读](Engine/Blueprints) 并 观看视频。有时重点不在于结果，而在于执行的方式。即使您最后将在 C++ 中进行工作，了解蓝图也有助于快速将灵感转化为原型。
 * 使用 [级联粒子编辑器](Engine/Rendering/ParticleSystems/Cascade) 创建代表枪口火舌的 [粒子效果](Engine/Rendering/ParticleSystems)！然后使用 [粒子系统组件](Engine/Components/Rendering#particlesystemcomponent)，将其添加到 **FirstPersonCharacter** 蓝图，并在 **InputAction Fire** 事件中启用组件。
 	* **奖励提示**：为 **FirstPersonProjectile** 添加一个粒子系统组件，使其获得烟雾拖尾的效果。在 [此处](Engine/Rendering/ParticleSystems/Reference/Modules/Required) 查找 **Use Local Space** 属性。
 * 使用 [虚幻动态图形](Engine/UMG) 为第一人称游戏 [创建 HUD](Engine/UMG/QuickStart)。

@@ -1,105 +1,105 @@
-﻿INTSourceChangelist:0
-Availability: Docs
-Title:Using Auto-Key in Sequencer
+﻿INTSourceChangelist:3759671
+Availability: Public
+Title:シーケンサで Auto-Key (自動キー) を使用する
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
-Description:Shows how to use the auto-key feature in Sequencer to automatically key property value changes to Actors in Sequencer. 
+Description:シーケンサで自動キーを使用してアクタのプロパティ値の変更を自動的に入力する方法について説明します。
 Version: 4.18
 SkillLevel: Beginner
 parent:Engine/Sequencer/HowTo
 order:1
-checkpoint: editorqs
+checkpoint:editorqs
 Related: Engine/Sequencer/Overview
 Related: Engine\Sequencer\ReferenceEditor\
 tags:Sequencer
 type:how-to
 
-One approach you can take when crafting your cinematics with the **Sequencer Editor** is to enable the **Auto-Key** feature to automatically keyframe property changes. 
-There are a few different ways you can manually add keyframes to tracks in Sequencer, however if you are making several changes to an Actor's property, you may want to enable Auto-Key to keyframe those changes for you. 
+**シーケンサ エディタ** でシネマティックスを作成するために、 **[Auto-Key (自動キー)]** 機能を有効にしてプロパティ変更を自動的にキーフレーム化する方法があります。
+シーケンサでトラックにキーフレームを手動で追加する方法はいくつかありますが、アクタのプロパティに複数の変更を加える場合、Auto-Key を有効にして変更をキーフレーム化することができます。
 
-In this how-to, we illustrate the requirements to use Auto-Key and practice auto-keying the properties of multiple Actors. 
+この操作ガイドでは、Auto-Key を使用する必要条件と複数アクタのプロパティの自動キー入力の手順を示します。
 
-## Steps
+## 手順
 
 [REGION:note]
-For this how-to guide, we are using the **Blueprint Third Person Template** with **Starter Content** enabled. 
+ここでは **Starter Content Enabled (スターター コンテンツを有効にした状態)** で **Blueprint Third Person Template** を使います。
 [/REGION]
 
-1.	Inside your project, from the Main Toolbar, click the **Cinematics** button and select **Add Level Sequence** and give it any name. 
+1.	プロジェクト内で、メイン ツールバーから **[Cinematics (シネマティックス)]** ボタンをクリックし、 **[Add Level Sequence (レベル シーケンスを追加)]** を選択し、名前を付けます。
 
 	![](AutoKey_01.png)
 
-1.	Inside the **Sequencer Editor**, click the **Auto-Key** button from the Toolbar. 
+1.	**シーケンサ エディタ** 内でツールバーから **[Auto-Key]** ボタンをクリックします。
 
 	![](AutoKey_02.png)
 
-	The Auto-Key button will change to a key icon, indicating that Auto-Key is enabled. 
+	[Auto-Key] ボタンによってキー アイコンに変わるので、Auto-Key が有効であることが分かります。
 
-1.	From the **Modes** panel, drag both a **Point Light** and a **Cube** into the Level. 
+1.	**[Modes]** パネルから **[Point Light]** と **[Cube]** の両方をレベルにドラッグします。
 
 	![](AutoKey_04.png)
 
-	These will be the Actors who we want to Auto-Key property changes for in Sequencer. 
+	これらはシーケンサでプロパティ変更を Auto-Key で自動入力するアクタです。
 
-1.	Select both the **Point Light** and **Cube**, then in **Sequencer**, click the **Track** button and select **Add Current Selection** under **Actor To Sequencer**. 
+1.	**[Point Light]** と **[Cube]** の両方を選択し、 **シーケンサ** で **[Track]** ボタンをクリックし、 **[Actor To Sequencer]** の **[Add Current Selection]** を選択します。
 
 	![](AutoKey_05.png)
 
-	This will add both Actors to Sequencer so that we can begin to manipulate and control their properties from Sequencer. 
+	これで両方のアクタがシーケンサに追加されて、シーケンサからプロパティを操作し、制御できるようになります。
 
-1.	Click the **Keyframe** button for the Tracks highlighted below to add a keyframe for their current values. 
+1.	以下でハイライトされているトラックの **[Keyframe]** ボタンをクリックし、現在の値にキーフレームを追加します。
 
 	![](AutoKey_06.png)
 
 	[REGION:note]
-	In order for **Auto-Key** to begin tracking and keying properties, at least one keyframe for the Actor's property you want to auto-key must be added. 
+	**Auto-Key** でプロパティのトラッキングとキーイングを開始するためには Auto-Key を必要とするアクタのプロパティについて少なくともひとつのキーフレームを追加しなければなりません。
 	[/REGION]
 
-1.	Move the Timeline to frame **50**, then in the Level, move the **Cube** in any direction. 
+1.	タイムラインをフレーム **50** まで動かします。次に、レベルで **Cube** を任意の方向に移動します。
 
 	![](AutoKey_07.png)
 
-	When moving the Cube, the **Transform** value is automatically keyframed inside Sequencer.
+	Cube を移動する場合、 **[Transform]** 値をシーケンサ内で自動的にキーフレーム化します。
 	
-1.	In the **Details** panel for the **Point Light**, change the **Intensity** and **Light Color** values. 
+1.	**[Point Light]** の **[Details (詳細)]** パネルで、 **[Intensity]** と **[Light Color]** の値を変更します。
 
 	![](AutoKey_08.png)
 
-	Sequencer will automatically keyframe whatever results you enter inside the **Details** panel since both tracks in Sequencer have a keyframe on them already. 
+	**[Details (詳細)]** パネル内で何らかの結果を入力するとシーケンサが自動的にキーフレーム化します。シーケンサ内の両方のトラックには既にキーフレームがあるからです。
 
-1.	Scrub the Timeline ahead to frame **150**, then in the Level with the **Cube** selected, press the **R** key and scale the size of the cube to any value. 
+1.	タイムラインをフレーム **150** までスクラブします。次にレベルで **[Cube]** を選択した状態で、**[R」** キーを押して任意の値にキューブのサイズをスケーリングします。
 
 	![](AutoKey_09.png)
 
-	If you expand that **Transform** track for the Cube in Sequencer, you will notice that only the **Scale** value had a keyframed applied. 
-	This is because, by default, the Auto-Key keyframes only the properites that have changed and not all properties. 
-	Since we only changed the Scale value and not the Location or Rotation, only the Scale value was keyframed. 
-	You can change this by enabling the **Key All Properites** option from the Sequencer Toolbar which will add keys for all properties not just the ones that have changed. 
+	シーケンサでキューブの **Transform** トラックを展開すると、**[Scale (スケール)]** 値だけにキーフレームが適用されているのがわかります。
+	これはデフォルトで Auto-Key がすべてのプロパティではなく変更されたプロパティだけをキーフレーム化するからです。
+	Scale 値だけを変更し、Location や Rotation は変更しなかったため、Scale 値のみがキーフレーム化されます。
+	これを変更するには、シーケンサのツールバーから **[Key All Properties]** オプションを有効にします。これにより、変更したプロパティだけでなく、すべてのプロパティに対してキーが追加されるようになります。
 
-1.	Click the **Auto-Key Options** button next to the **Auto-Key** button. 
+1.	**[Auto-Key]** ボタンの隣にある **[Auto-Key Options]** ボタンをクリックします。
 
 	![](AutoKey_10.png)
 
-	This will change the Auto-Key feature to **Key All** instead of **Key Only Changes**. 
+	これで Auto-Key 機能は **[Key Only Changes (変更したものだけをキー入力)]** の代わりに、**[Key All (すべてをキー入力)]** に変わります。
 
-1.	Scale the Cube in the Level again to any value. 
+1.	レベル内のキューブを再度任意の値にスケーリングします。
 
 	![](AutoKey_11.png)
 
-	You will notice that even though you are making Scale value changes, the Auto-Key feature will also key Location and Rotation values now. 
+	Scale 値を変更しても、Auto-Key 機能は、Location と Rotation の値もキー入力します。
 
-1.	Select the **Point Light** track, then in the **Details** panel for the Point Light, change the **Light Color** to any value. 
+1.	**[Point Light]** トラックのポイントライトの **[Details (詳細)]** パネルで、**[Light Color]** を任意の値に変更します。
 
 	![](AutoKey_12.png)
 
-	Here, even though the Point Light track is selected and **Key All** is enabled, changing the Light Color property only affects the Light Color Track (a new **Intensity** keyframe was not added). 
-	Sequencer will only apply auto-keys to individual property tracks and not all tracks for a given Actor. For example, Location, Rotation, and Scale are all part of the Transform track which is why they recieve keyframes automatically. 
-	Intensity and Light Color are two different properties, and thefore, changing the value of the Light Color will not auto-key the Intensity track. 
+	ポイントライト トラックを選択して、**[Key All]** を有効にしても、Light Color プロパティを変更した場合、影響を受けるのは Light Color Track だけです (新しい **Intensity** キーフレームは追加されませんでした)。
+	シーケンサは任意のアクタのすべてのトラックではなく、個々のプロパティ トラックだけに自動キーを適用します。例えば、Location、Rotation、および Scale はすべて Transform トラックの一部です。そのため、キーフレームを自動的に受け取ります。
+	Intensity と Light Color は、2 つの異なるプロパティです。従って、Light Color の値を変更しても Intensity トラックに自動でキー入力しません。
 
 
-## End Result
+## まとめ
 
-You should now have an understanding of how to use the **Auto-Key** feature within Sequencer and the requirements to automatically add keys. 
-Once you add an Actor to a Level Sequence and add a keyframe for a property track, enabling the auto-key option will start to automatically add keys for that property whenever you change them (as seen below). 
+ここまででシーケンサ内の **Auto-Key** 機能の使用方法と自動的にキーを追加するための要件について説明しました。
+アクタをレベル シーケンスに追加し、プロパティ トラックにキーフレームを追加すると auto-key オプションが有効になり、変更するたびに自動的にプロパティのキーが追加されるようになります (以下参照)。
 
 [OBJECT:EmbeddedVideo]
 [PARAMLITERAL:videoid]
@@ -118,6 +118,7 @@ pd3laxIT_VE
 simple
 [/PARAMLITERAL]
 [/OBJECT]
+
 
 
 

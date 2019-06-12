@@ -3,8 +3,7 @@ Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.4
-order:4
-
+Order: 40
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -236,7 +235,7 @@ The friction mode can be set project wide or overwritten per physical material.
 
 
 ## Learning Resources
-* [New Quick Start Directory](GettingStarted/QuickStartDirectory) - Jump straight to all quick start guides from the Getting Started docs or from the editor!
+* [New Quick Start Directory](GettingStarted) - Jump straight to all quick start guides from the Getting Started docs or from the editor!
 * [Matinee Fight Scene Tutorial](Resources/Showcases/MatineeFightScene)
 * [Matinee How-Tos 3-8](Engine/Matinee/HowTo)
 * Content Example Directories for [Paper2D](Resources/ContentExamples/Paper2D) & [Spline Components](Resources/ContentExamples/Blueprint_Splines)
@@ -244,7 +243,7 @@ The friction mode can be set project wide or overwritten per physical material.
 * AI Quick Start
 * [FBX Error Message Improvements](Shared/Editor/FbxErrors)
 * [Mixamo Import Guide](Engine/Animation/UsingMixamoContent)
-* [iOS Quick Start](Platforms/iOS/QuickStart)
+* [iOS Quick Start](Platforms/Mobile/iOS/QuickStart)
 	* Mac-to-iOS
 	* Windows-to-iOS, Blueprint Only
 * In-Editor Tutorials for iOS Setup & Deployment

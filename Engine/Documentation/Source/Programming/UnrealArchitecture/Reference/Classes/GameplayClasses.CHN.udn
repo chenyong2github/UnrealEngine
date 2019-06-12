@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2946765
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:游戏性类
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
@@ -18,20 +18,23 @@ Version:4.11
 
 
 
+(#AddingClasses)
 ## 添加类
 
 [](Programming\Development\ManagingGameCode\CppClassWizard) 将设置新类所需要的头文件和源文件，并随之更新游戏模块。头文件和源文件自动包含类声明和类构造函数，以及虚幻引擎专有代码 - 例如 `UCLASS()` 宏。
 
+(#ClassHeaders)
 ## 类头
 
 虚幻引擎中的游戏性类通常拥有单独且唯一的类头文件。通常这些文件的命名与其中定义的类相匹配，减去 `A` 或 `U` 前缀，并使用 `.h` 文件扩展名。因此，`AActor` 类的类头文件命名为 `Actor.h`。虽然 Epic 代码遵循这些规则，但当前引擎中类名称和源文件名之间不存在正式关系。
 
 游戏性类的类头文件使用标准 C++ 语法，并结合专门的宏，以简化类、变量和函数的声明过程。
 
-在每个游戏性类头文件的顶端，需要包含生成的头文件（自动创建）。因此在 `ClassName.h` 的顶端不许出现以下行：
+在每个游戏性类头文件的顶端，需要包含生成的头文件（自动创建）。因此在 `ClassName.h` 的顶端必须出现以下行：
 
 	#include "ClassName.generated.h"
 
+(#ClassDeclaration)
 ### 类声明
 
 类声明定义类的名称、其继承的类，以及其继承的函数和变量。类声明还将定义通过 [类说明符](#ClassSpecifiers) 和元数据要求的其他引擎和编辑器特定行为。 
@@ -51,6 +54,7 @@ Version:4.11
 
 [INCLUDE:Programming/UnrealArchitecture/Reference/Classes/Specifiers#main(offset:3)]
 
+(#ClassImplementation)
 ## 类实现
 
 所有的游戏性类必须使用 `GENERATED_BODY` 宏进行正常实现。该执行在定义类和其所有变量和函数的类头（.h）文件中完成。最佳方法是使类源和头文件的命名与实现的类相匹配，减去 `A` 或 `U` 前缀。因此，`AActor` 类的源文件命名为 `Actor.cpp`，其头文件命名为 `Actor.h`。对编辑器中“Add C++ Class”菜单选项创建的类而言，此操作将自动进行。
@@ -61,6 +65,7 @@ Version:4.11
 
 如在类函数实现中引用其他类（包含一个该文件未将类函数包括在内），则可能还需要包含额外的文件。
 
+(#ClassConstructor)
 ### 类构造函数
 
 `UObjects` 使用 **Constructors** 设置属性和其他变量的默认值，并执行其他必要的初值设定。类构造函数通常放置在类实现文件中，如 `AActor::AActor` 构造函数位于 `Actor.cpp` 中。 
@@ -71,6 +76,7 @@ Version:4.11
 
 也可以将构造函数内联放置在类头文件中。然而，如果构造函数在类头文件中，UClass 必须结合 `CustomConstructor` 说明符进行声明，因为这阻止了自动代码生成器在标头中创建构造函数声明。
 
+(#ConstructorFormat)
 #### 构造函数格式
 
 UObject 构建函数最基本的形式如下所示：
@@ -107,12 +113,14 @@ UObject 构建函数最基本的形式如下所示：
 		SomeProperty = 26;
 	}
 
+(#ConstructorStaticsandHelpers)
 #### 构建函数静态属性和助手
 
 为更负责的数据类型设置数值（尤其是类引用、命名和资源引用）时，需要在构造函数中定义并实例化一个 **ConstructorStatics** 结构体，以保存所需的诸多属性数值。`ConstructorStatics` 结构体在构造函数首次运行时才会被创建。在随后的运行上它只会复制一个指针，使其处理速度极快。`ConstructorStatics` 被创建时，数值将被指定到结构体成员，以便稍后在构建函数上指定数值到实际属性时进行访问。
 
 **ContructorHelpers** 是 `ObjectBase.h` 中定义的特殊命名空间。`ObjectBase.h` 包含用于执行构建函数特定常规操作的助手模板。例如为资源或类寻找引用、以及创建并寻找组件的助手模板。
 
+(#AssetReferences)
 ##### 资源引用
 
 理想状态下，类中的资源引用并不存在。硬编码资源引用很脆弱，优选方法是使用蓝图配置资源属性。然而，仍然完全支持硬编码引用。不需要在每次构造对象时搜索资源，因此这些搜索只执行一次。一个静态结构体可确保只执行一次资源搜索：
@@ -138,6 +146,7 @@ UObject 构建函数最基本的形式如下所示：
 		StaticMesh = ConstructorStatics.Object0.Object;
 	}
 
+(#ClassReferences)
 ##### 类引用
 
 `ConstructorHelpers::FClassFinder` 为特定的 `UClass` 寻找引用。如类未找到，则报告失败。
@@ -163,6 +172,7 @@ UObject 构建函数最基本的形式如下所示：
 
 对跨模块的引用而言，使用 ClassFinder 法较好。
 
+(#ComponentsandSub-Objects)
 ##### 组件和子对象
 
 在构造函数中还可创建组件子对象并将其附着到 actor 的层级。生成一个 actor 时，将从 CDO 复制其组件。为确保组件固定被创建、被销毁和被正确地垃圾回收，构建函数中创建的每个组件的指针应被存储在拥有类的一个 UPROPERTY 中。

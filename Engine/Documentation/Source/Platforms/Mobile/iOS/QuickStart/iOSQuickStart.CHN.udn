@@ -1,0 +1,99 @@
+﻿INTSourceChangelist:6549201
+Availability: Public
+Title: iOS快速入门
+Description: 关于在iOS设备上设置和启动游戏的说明。
+Type: quick start
+Version: 4.18
+Parent: Platforms/Mobile/iOS
+Tags: mobile
+Tags: iOS
+Tags: StartingOut
+Tags: QuickStart
+topic-image: iOS_QS_Editor_TopicImage.png
+Order: 4
+
+
+[TOC (start:2 end:2)]
+
+![](iOS_QS_Hero_Image.png "iOS_QS_Hero_Image.png")
+
+本Apple iOS快速入门指南的重点是带领您了解设置您计算机的基础知识，以便使用虚幻引擎4（UE4）进行iOS开发。本指南还教您如何使用虚幻编辑器的启动和打包功能在iOS设备上安装模板游戏。
+
+完成本快速入门指南后，开发人员将了解如何在UE4中执行以下任务：  
+
+*   创建一个新的UE4项目，专门针对iOS移动开发。
+
+*   为iOS移动开发设置UE4项目。
+
+*   将一个UE4关卡部署到您的iOS设备上进行测试。
+
+[REGION:warning]
+本指南中描述的仅限PC工作流需要一个纯蓝图的项目。如果您想要在您的项目中使用任何代码，您还需要一个Mac来编译代码。您可以遵循[在Windows上为iOS构建](Platforms/Mobile/iOS/Windows)页面在PC上为iOS开发基于代码的项目。
+[/REGION]
+
+## 1 - 项目设置
+
+本节我们将介绍如何导入移动授权，以便您可以构建UE4项目并将它们部署到iOS设备。
+
+1.  首先，如果您的iOS设备尚未连接到您的计算机，确保通过USB线将两者连接起来。
+
+1.  接下来，在虚幻编辑器中打开 **iOSQuickStart ** 项目。  
+    ![](open_project.png)
+
+1.  转到 **编辑（Edit）** > **项目（Project）** **设置（Settings）**，打开您的项目设置。  
+    ![](Provision_01.png)
+
+1.  然后，在 **平台（Platforms）** > **iOS** 下， **移动授权（Mobile Provision）** 部分中，按 **导入设备（Import Provision）** 按钮导入您的设备，然后针对 **导入证书（Import Certificate）** 执行同样的操作。  
+    ![](Provision_02.png)
+
+1.  如果设置和导入正确，您应该在 **状态（Status）** 中看到 **有效（Valid） ** 一词。  
+    ![](Provision_03.png)
+    
+    如果您在移动授权方面遇到问题，请查看官方的[Apple帮助](https://help.apple.com/xcode/mac/current/#/devd1432da9a)了解更多的故障排除信息。
+    
+
+## 2 - 部署
+
+要在基于iOS的设备上测试当前关卡，您需要执行以下操作：
+
+1.  在工具栏中，单击 **启动（Launch）** 旁边的箭头打开 **启动选项（Launch Options）** 菜单并选择 **iOS** 设备。
+    
+    ![](launch_ios.png)
+    
+1.  这将使用当前贴图启动iOS烘焙过程。当项目正在烘焙时，将在UE4编辑器的右下角显示状态，如下图所示。  
+      
+    ![](project_cooking.png)![](project_packaging.png)![](project_deploying.png)
+
+1.  当项目完成并安装到您的设备上时，将显示一则消息，如下所示。   
+    .![](project_success.png)
+
+1.  完成后，在iOS设备上找到该应用程序并打开它。打开后，您应该会在iOS设备上看到类似下图的内容。  
+    ![](game_device.png)
+
+## 3 - 看你的了！
+
+现在我们已经介绍了如何打包UE4项目，并准备在iOS设备上进行测试，请尝试使用您从本快速入门指南中学到的知识来完成以下任务。  
+
+*   使用其中一个默认模板创建一个新项目，然后尝试在iOS设备上运行该项目。
+
+下面选择的链接可以帮助您处理各种问题，包括哪些iOS设备可与UE4一起使用，以及在针对移动设备创建内容时应该考虑的事项。如果您之前没有浏览过这些链接，强烈建议您浏览一下它们，因为它们包含了大量有价值的信息。
+
+*   [iOS设备兼容性](Platforms/Mobile/iOS/DeviceCompatibility)
+
+*   [设置设备描述](Platforms/DeviceProfiles)
+
+*   [移动平台的性能指南](Platforms/Mobile/Performance)
+
+有关为移动设备设计游戏内容和关卡的更多信息，请查看以下链接：  
+
+*   [为移动设备创建内容](Platforms/Mobile/Meshes)
+
+*   [为移动设备创建材质](Platforms/Mobile/Materials)
+
+*   [为移动设备创建纹理](Platforms/Mobile/Textures)
+
+*   [移动设备的照明](Platforms/Mobile/Lighting)
+
+您还可以使用移动预览器来更改预览移动游戏的方式，而无需将移动游戏部署到设备上。  
+
+*   [移动预览器](Platforms/Mobile/Previewer)

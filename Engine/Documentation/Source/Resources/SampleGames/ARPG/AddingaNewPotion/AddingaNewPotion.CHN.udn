@@ -1,0 +1,160 @@
+﻿INTSourceChangelist:6411668
+Availability: Public
+Title: 添加新的药剂
+Description: 介绍了如何对动作RPG添加新的药剂类型。
+Type: how-to
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+Tags: mobile
+Tags: Ability System
+Tags: Action RPG
+topic-image: image8.png
+SkillLevel: Beginner
+Order: 7
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints/Scripting
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+[TOC (start:2 end:2)]
+
+为了帮助抵抗动作RPG（ARPG）中的怪物造成的伤害，玩家可以购买并使用药剂。目前ARPG中有两种可供玩家使用的药剂，一种是恢复玩家生命值的生命药剂，一种是恢复玩家法力值的法力药剂。在下面的操作指南中，我们将研究创建一种同时恢复玩家的生命值和法力值的新药剂。
+
+## 步骤
+
+1.  首先，找到ARPG项目中的 **Potions** 文件夹。
+	[REGION:lightbox]
+	[![](image4.png)(w:700)](image4.png)
+	[/REGION]
+	[REGION:caption]
+	单击查看大图
+	[/REGION]
+	[REGION:note]
+	由于ARPG使用Asset Manager，必须将玩家可以使用的所有药剂都放在potions文件夹中，否则它们就不会显示在商店或玩家物品栏中。
+	[/REGION]
+1.  接下来，右键单击内容浏览器，然后从显示的列表中选择 **蓝图类（Blueprint Class）** 选项。  
+    ![](image12-1.png "image12-1.png")
+
+1.  在 **选取父类（Pick Parent Class）** 窗口中，找到 **所有类（All Classes）** 部分，然后在搜索框中 **输入GA_PotionBase**，并单击 **GA_PotionBase**。然后单击 **选择（Select）** 来创建新资源。  
+    [REGION:lightbox]
+    [![](image6.png)(w:250px)](image6.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  将新的药剂命名为 **GA_DeathsDoor**。  
+    [REGION:note]
+    GA_DeathsDoor中的GA代表玩法能力（Gameplay Ability）。
+    [/REGION]
+
+1.  现在我们已经使这个玩法能力成为控制视觉效果的效果的一部分，接下来我们需要创建玩法效果。玩法效果控制当使用药剂时应用于玩家的生命的数值。为此，右键单击 **内容浏览器**，然后从显示的列表中选择 **蓝图类（Blueprint Class）** 选项。  
+    ![](image12-1.png "image12-1.png")
+
+1.  在 **选取父类（Pick Parent Class）** 窗口中，找到 **所有类（All Classes）** 部分，然后在搜索框中输入 **GE_HealBase**，并单击 **GE_HealBase**。然后单击 **选择（Select）** 来创建新资源。
+    [REGION:lightbox]
+    [![](image3.png)(w:250px)](image3.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1.  将新创建的药剂命名为 **GE_DeathsDoor**。
+    [REGION:note]
+    GE_DeathsDoor中的GE代表玩法效果（Gameplay Effect）。
+    [/REGION]
+    
+1.  接下来，双击 **GA_DeathsDoor** 药剂将其在蓝图编辑器中打开，然后在 **细节（Details）** 面板中输入下列信息：
+    *   **要播放的蒙太奇（Montage to Play）：**AM\_Item\_Potion
+    
+    *   **目标玩法效果类（Target Gameplay Effect Classes）：**GE_DeathsDoor  
+        [REGION:lightbox]
+        [![](image15.png)(w:600)](image15.png)
+        [/REGION]
+        [REGION:caption]
+        单击查看大图。
+        [/REGION]
+        
+1.  完成这些操作后，确保编译并保存GA_DeathsDoor蓝图。
+
+1.  然后打开 **GE_DeathsDoor** 蓝图。
+
+1.  在GE_DeathsDoor蓝图的 **细节（Details）** 面板中单击 **修饰符（Modifiers）** 部分中的 **附加** 图标来添加附加修饰符。  
+    [REGION:lightbox]
+    [![](image7.png)(w:600)](image7.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1.  展开新创建的修饰符，并将 **属性（Attribute）** 设置为 **RPGAttributeSet.Mana**。  
+    [REGION:lightbox]
+    [![](image11.png)(w:600)](image11.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1.  然后，将 **可扩展浮点量级（Scalable** **Float** **Magnitude）** 值设置为 **2.0**。这将确保我们恢复最大数量的法力。
+    [REGION:lightbox]
+    [![](image2.png)(w:600)](image2.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1.  单击表格条目，然后在显示的列表中选择 **攻击伤害（AttackDamage）** 选项，将 **无（None）** 输入设置为 **重攻击（Heavy Attack）**。 完成这些操作后，确保编译并保存你的蓝图。  
+      
+    [REGION:lightbox]
+    [![](image17.png)(w:600)](image17.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1.  接下来，转到 **Items** \> **Potions** 文件夹，然后在内容浏览器中右键单击。在显示的列表中转到 **杂项（Miscellaneous）** 部分，选择 **数据资源（Data** **Asset）**。  
+    [REGION:lightbox]
+    [![](image5.png)(w:250px)](image5.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1.  在 **选取数据资源类（Pick Data Asset Class）** 对话框中的 **所有类（All Classes）** 部分下，找到并单击 **RPGPotionItem**，然后单击 **选择（Select）** 按钮。  
+    ![](image9.png "image9.png")
+
+1.  将新创建的数据资源命名为 **Potion_DeathsDoor** 并打开。  
+    ![](image1.png "image1.png")
+
+1.  在此数据资源中填充的信息就是玩家在用户界面（UI）中查看此物品时将看到的信息。下表列出了你需要填写的所有项：  
+    ![](image8.png "image8.png")
+    
+    |||
+    | --- | --- |
+    | **属性名称** | **数值** |
+    | 物品类型（Item Type） | Potion |
+    | 物品名称（Item Name） | Deaths Door |
+    | 物品描述（Item Description） | Recovers 50% HP & 50% MP |
+    | 物品图标（Item Icon） | T\_UI\_Potion_Mana |
+    | 价格（Price） | 100 |
+    | 最大数量（Max Count） | 0 |
+    | 最高级别（Max Level） | 1 |
+    | 授予能力（Granted Ability） | GA_DeathsDoor |
+    
+
+## 最终结果
+
+现在按“运行（Play）”按钮启动ARPG，浏览到药剂菜单。现在你应该能够像下面的视频一样购买Death's Door药剂。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ F-lLXVDXN9k
+ [/PARAMLITERAL]
+[/OBJECT]

@@ -1,0 +1,451 @@
+﻿INTSourceChangelist:6618300
+Availability: Public
+Title: 动画预算分配器
+Description: 通过动态节流骨架网格体组件tick来限制动画数据的运行时间的系统。
+Type: overview
+Version: 4.22
+Parent: Engine/Animation
+Order: 34
+Tags: Animation
+Tags: Optimization
+Tags: Animation Features
+Tags: Performance
+Tags: Experimental
+Tags: animation budgeter
+topic-image: AnimBudgetTopic.png
+social-image: AnimBudgetTopic.png
+hero-image:AnimBudgetBanner.png
+
+ **动画预算分配器**（或 **动画预算器**）系统通过动态节流骨架网格体组件tick来限制动画数据的运行时间。其目的是使用一个固定的CPU预算（不超过它），同时以最小的系统开销来最大化感知到的动画质量。
+
+系统决定每个平台（要在游戏线程上执行的工作的毫秒数）的固定预算，并计算出它是否能够完成所有需要完成的工作，或者是否需要减少需要完成的工作。如果需要减少工作，它将根据重要性针对几个领域进行调整，目标是动态调整负载以适应固定的（游戏线程）预算。相关领域包括：
+
+*   停止tick并使用[主姿势组件](Engine/Animation/WorkingwithModularCharacters#masterposecomponent)。
+
+*   以较低速率执行更新。
+
+*   在更新之间内插（或不内插）。 
+
+## 启用动画预算器
+
+要使用动画预算分配器，您将需要先从 **插件（Plugins）** 菜单启用它。
+
+1.  从 **编辑（Edit）> 插件（Plugins）** 选项打开 **插件（Plugins）** 菜单。   
+    ![](AnimBudget_EditMenu.png "AnimBudget_EditMenu.png")
+
+2.  在 **编程（Programming）** 下，启用 **动画预算分配器（Animation Budget Allocator）** 插件并重启编辑器。   
+    [REGION:lightbox]
+    [![](AnimBudget_EnablePlugin.png)(w:900)](AnimBudget_EnablePlugin.png)
+    [/REGION]
+    [REGION:caption]
+    单击图像显示全视图。
+    [/REGION]
+    
+
+## 使用动画预算器
+
+要使用动画预算器，按`（反引号键）输入以下控制台命令：
+
+*   要启用 - “a.Budget.Enabled 1”
+
+*   要禁用 - “a.Budget.Enabled 0”
+
+[REGION:note]
+启用插件时，自动启用动画预算器。
+[/REGION]
+
+您也可以使用 **启动动画预算（Enable ANimation Budget）** 蓝图节点来通过蓝图启用/禁用动画预算功能。 
+
+![](AnimBudgetBPnode.png)
+
+[REGION:note]
+目前，这是该系统唯一能公开给蓝图的部分，其余部分都是基于CVars和C++ API调用的。
+[/REGION]
+
+要启用调试显示：
+
+[REGION:note]
+目前，只有GitHub上的主分支具有启用调试显示的功能。该功能将在4.23中The ability to enable the display of debug information is available in the Master Branch in GitHUb currently only. This feature will become more widely available in 4.23.
+[/REGION]
+
+*   要启用调试显示 - “a.Budget.Debug.Enabled 1”
+
+*   要禁用调试显示 - “a.Budget.Debug.Enabled 0”
+
+一旦启用，将在运行时在视口内显示一个图表。
+
+![](AnimBudget_GraphBreakdown.png "AnimBudget_GraphBreakdown.png")
+
+该图表由以下几部分组成：
+
+1.  一个大约20帧的内核上平滑过渡的时间（单位为毫秒）（使其更容易读取趋势，并且是每tick所花费的时间）。 
+
+2.  总时间
+
+3.  动画预算（虚线）
+
+4.  性能（实线）
+
+性能将随需要完成的工作量而变化。下面，虚线是我们的动画预算，实线是我们的性能。我们目前预算不足，因为只有一个角色（玩家）在tick。
+
+![](AnimBudget_0x0.png "AnimBudget_0x0.png")
+
+下面，我们将角色数量增加到10个，性能受到的影响可以通过性能峰值（有噪点的行）看出。性能有两条线，灰色线是实际的系统性能，有一点噪点，会随着系统负载的变化而波动。平滑的白线可以让您更好地了解实际的系统性能。  
+
+![](AnimBudget_3x3.png "AnimBudget_3x3.png")
+
+在下面的最后一个示例中，我们将角色数量增加到略多于100个，您可以看到性能徘徊在分配的预算（虚线）周围。  
+
+[REGION:lightbox]
+![](AnimBudget_10x10.png)(w:900)
+[/REGION]
+[REGION:caption]
+单击图像显示全视图。
+[/REGION]
+[REGION:note]
+这仅适用于动画，并表示动画被tick的频率。
+[/REGION]
+
+动画预算器试图将系统所做的全部工作保持在预算之内，并试图最大限度地提高系统所能产生的质量。它会尝试以最高帧率运行最接近、最重要的网格体，并降低重要性较低的东西或较远的东西的帧率。这一切都是在填写预算和需要做的总工作量的时候完成的。
+
+在每个骨架网格体上，您都会看到调试数据：
+
+![](AnimBudget_CharacterDebugInfo.png "AnimBudget_CharacterDebugInfo.png")
+
+这些数字显示了网格体更新的速度。如果值为1，则表示它正在被更新，并在每一帧中进行tick。值为5意味着，每5帧它将执行一次更新并tick。  
+
+例如，在[Fortnite](https://www.epicgames.com/fortnite/)中，角色由若干骨架网格体（头、身体、背包等）组成，所有这些网格体都可以在给定时间tick。当我们运行动画预算器时，您会注意到，除了网格体更新的频率（由数值表示）外，还使用了文本 **Lo**、**Hi** 或 **I**。这表示网格体是如何tick的。  
+
+*   **Hi**（或高细节）- 这意味着骨架网格体组件和运行更加昂贵的逻辑。 
+
+*   **Lo**（或低细节）- 这意味着昂贵的逻辑（例如额外的角色部分或可以在远处略过的更昂贵的工作）没有运行。 
+
+*   **I**（或内插）- 表示骨架网格体在帧与帧之间进行插值。 
+
+下面的例子说明了动画预算器的更新和优先级是如何根据所需的动画工作量进行调整的。  
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ cBqqn2KY8fQ
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 动画预算器C++ API
+
+您可以访问引擎安装文件夹内的动画预算器的C++文件，路径为：
+
+*   Engine\\Plugins\\Runtime\\AnimationBudgetAllocator\\Source\\AnimationBudgetAllocator\\Public\
+
+下面是 **IAnimationBudgetAllocator.h:**
+
+    // 版权所有 1998-2019 Epic Games, Inc。保留所有权利。#pragma once
+    #pragma once
+    class USkeletalMeshComponentBudgeted;
+    class UWorld;
+    struct FAnimationBudgetAllocatorParameters;
+    /**
+     * 动态管理骨架网格体组件的tick率，以保持指定的预算。
+     */
+     classIAnimationBudgetAllocator
+     {
+     public:
+        /**获取指定世界场景的预算器 */
+        static ANIMATIONBUDGETALLOCATOR_API IAnimationBudgetAllocator* Get(UWorld* InWorld);
+        /**
+         * 使用预算器系统注册一个组件。如果组件已经注册，此函数不执行任何操作。
+         * 一旦调用此函数：
+         * - 将禁用默认tick函数
+         * - 将禁用URO
+         * - 并行动画任务将被重新路由至预算器
+         */virtualvoidRegisterComponent(USkeletalMeshComponentBudgeted*InComponent)=0;/**
+         * 从预算器系统注销组件。如果组件未注册，此函数不执行任何操作。
+         * 一旦调用此函数：
+         * - 将重新启用默认tick函数
+         * - 将重新启用URO
+         * - 并行动画任务将被重新路由至内部函数
+         */
+        virtual void RegisterComponent(USkeletalMeshComponentBudgeted* InComponent) = 0;
+        /**
+         * 更新此组件的先决条件。应在先决条件可能在外部发生更改时调用。
+         */
+        virtual void UpdateComponentTickPrerequsites(USkeletalMeshComponentBudgeted* InComponent) = 0;
+        /**
+         * 设置指定组件的重要性和其他标记。
+         * 此信息用于动态控制组件的tick率。
+         */
+        virtual void SetComponentSignificance(USkeletalMeshComponentBudgeted* Component, float Significance, bool bNeverSkip = false, bool bTickEvenIfNotRendered = false, bool bAllowReducedWork = true, bool bForceInterpolate = false) = 0;
+        /** 将指定组件设置为tick或不tick。如果预算器被禁用，则这将调用 Component->SetComponentTickEnabled(bShouldTick). */
+        virtual void SetComponentTickEnabled(USkeletalMeshComponentBudgeted* Component, bool bShouldTick) = 0;
+        /** 获取指定组件设置为tick还是不tick */
+        virtual bool IsComponentTickEnabled(USkeletalMeshComponentBudgeted* Component) const = 0;
+        /** 通知我们减少了组件的工作 */
+        virtual void SetIsRunningReducedWork(USkeletalMeshComponentBudgeted* Component, bool bInReducedWork) = 0;
+        /** 设置tick时间 */
+        virtual void SetGameThreadLastTickTimeMs(int32 InManagerHandle, float InGameThreadLastTickTimeMs) = 0;
+        /** 设置任务完成时间 */
+        virtual void SetGameThreadLastCompletionTimeMs(int32 InManagerHandle, float InGameThreadLastCompletionTimeMs) = 0;
+        /** 每帧Tick系统 */
+        virtual void Update(float DeltaSeconds) = 0;
+        /**  设置是否启用此预算分配器 */
+        virtual void SetEnabled(bool bInEnabled) = 0;
+        /** 获取此预算分配器是否启用 */
+        virtual bool GetEnabled() const = 0;
+        /** 设置各种参数 */
+        virtual void SetParameters(const FAnimationBudgetAllocatorParameters& InParameters) = 0;
+    };
+
+## 其他控制台命令
+
+下面的控制台命令也可以用于调试动画预算器：
+
+| 属性 | 说明 |
+| --- | --- |
+| **a.Budget.AlwaysTickFalloffAggression** | [INCLUDE:#excerpt_1] |
+| **a.Budget.BudgetFactorBeforeAggressiveReducedWork** | [INCLUDE:#excerpt_2] |
+| **a.Budget.BudgetFactorBeforeReduceWork** | [INCLUDE:#excerpt_3] |
+| **a.Budget.BudgetFactorBeforeReducedWorkEpsilon** | [INCLUDE:#excerpt_4] |
+| ****a.Budget.BudgetMs**** | [INCLUDE:#excerpt_5] |
+| **a.Budget.BudgetPressureSmoothingSpeed** | [INCLUDE:#excerpt_6] |
+| **a.Budget.Debug.Enabled** | [INCLUDE:#excerpt_7] |
+| **a.Budget.Debug.ShowAddresses** | [INCLUDE:#excerpt_8] |
+| **a.Budget.Enabled** | [INCLUDE:#excerpt_9] |
+| **a.Budget.GBudgetPressureBeforeEmergencyReducedWork** | [INCLUDE:#excerpt_10] |
+| **a.Budget.InitialEstimatedWorkUnitTime** | [INCLUDE:#excerpt_11] |
+| **a.Budget.InterpolationFalloffAggression** | [INCLUDE:#excerpt_12] |
+| **a.Budget.InterpolationMaxRate** | [INCLUDE:#excerpt_13] |
+| **a.Budget.InterpolationTickMultiplier** | [INCLUDE:#excerpt_14] |
+| **a.Budget.MaxInterpolatedComponents** | [INCLUDE:#excerpt_15] |
+| ****a.Budget.MaxTickedOffsreen**** | [INCLUDE:#excerpt_16] |
+| **a.Budget.MaxTickRate** | [INCLUDE:#excerpt_17] |
+| **a.Budget.MinQuality** | [INCLUDE:#excerpt_18] |
+| **a.Budget.ReducedWorkThrottleMaxInFrames** | [INCLUDE:#excerpt_19] |
+| **a.Budget.ReducedWorkThrottleMaxPerFrame** | [INCLUDE:#excerpt_20] |
+| **a.Budget.ReducedWorkThrottleMinInFrames** | [INCLUDE:#excerpt_21] |
+| **a.Budget.StateChangeThrottleInFrames** | [INCLUDE:#excerpt_22] |
+| **a.Budget.WorkUnitSmoothingSpeed** | [INCLUDE:#excerpt_23] |
+
+<!--
+[EXCERPT:excerpt_23]
+
+值 > 0.1，默认值 = 5.0  
+  
+平均工作单元收敛于实测数量的速度。  
+
+[/EXCERPT:excerpt_23]
+-->
+<!--
+[EXCERPT:excerpt_22]
+
+范围 \[1, 128\]，默认值 = 30  
+  
+防止由于系统和负载噪点而导致节流阀值变化太频繁。  
+
+[/EXCERPT:excerpt_22]
+-->
+<!--
+[EXCERPT:excerpt_21]
+
+范围 \[1, 255\]，默认值 = 2  
+  
+防止由于系统和负载噪点而导致简化工作变化太频繁。超过预算压力时使用的最小值（例如：大幅度削减）。  
+
+[/EXCERPT:excerpt_21]
+-->
+<!--
+[EXCERPT:excerpt_20]
+
+范围 \[1, 255\]，默认值 = 4  
+  
+控制每tick向/从简化工作切换的最大组件数。  
+
+[/EXCERPT:excerpt_20]
+-->
+<!--
+[EXCERPT:excerpt_19]
+
+范围 \[1, 255\]，默认值 = 20  
+  
+防止由于系统和负载噪点而导致简化工作变化太频繁。在预算压力下使用的最大值。
+
+[/EXCERPT:excerpt_19]
+-->
+<!--
+[EXCERPT:excerpt_18]
+
+值 \[0.0, 1.0\]，默认值 = 0.0  
+  
+允许的最低质量度量。质量就是由NumComponentsTickingThisFrame/NumComponentsThatWeNeedToTick决定的。  
+  
+如果此值不是0.0，则可能会超出我们的时间预算。  
+
+[/EXCERPT:excerpt_18]
+-->
+<!--
+[EXCERPT:excerpt_17]
+
+值 >= 1，默认值 = 10  
+  
+我们允许的最大tick率。如果进行了该设置，则可能超出预算，但可将单独网格体的质量保持在一个合理的水平。  
+
+[/EXCERPT:excerpt_17]
+-->
+<!--
+[EXCERPT:excerpt_16]
+
+值 >= 1，默认值 = 4  
+  
+我们tick的屏幕外组件（最重要的优先）的最大数量。  
+
+[/EXCERPT:excerpt_16]
+-->
+<!--
+[EXCERPT:excerpt_15]
+
+范围 >= 0，默认值 = 16  
+  
+在开始节流之前要内插的最大组件数。  
+
+[/EXCERPT:excerpt_15]
+-->
+<!--
+[EXCERPT:excerpt_14]
+
+范围 \[0.1, 0.9\]，默认值 = 0.75  
+  
+控制与“正常”tick相比平摊内插tick将取的期望值。  
+
+[/EXCERPT:excerpt_14]
+-->
+<!--
+[EXCERPT:excerpt_13]
+
+值 > 1，默认值 = 6  
+  
+控制内插时tick发生的速率。  
+
+[/EXCERPT:excerpt_13]
+-->
+<!--
+[EXCERPT:excerpt_12]
+
+范围 \[0.1, 0.9\]，默认值 = 0.4  
+  
+控制内插组件在负载下衰减的速率。  
+  
+数值越高意味着当超过分配的时间预算时，我们会将内插组件的数量减少得越多。  
+  
+只有当超过时间预算时，才会内插组件。  
+
+[/EXCERPT:excerpt_12]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+值 > 0.0，默认值 = 0.08  
+  
+控制我们预期的骨架网格体组件的平均执行时间（单位为毫秒）。  
+  
+该值只适用于组件的第一个tick，之后我们将使用tick所花费的实际时间。  
+
+[/EXCERPT:excerpt_11]
+-->
+<!--
+[EXCERPT:excerpt_10]
+
+范围 > 0.0，默认值 = 2.5  
+  
+控制紧急简化工作的预算压力（适用于所有组件，但不包括那些bAlwaysTick的组件）。  
+
+[/EXCERPT:excerpt_10]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+值：0/1  
+  
+控制是否启用骨架网格体批处理系统。应在没有正在运行的骨架网格体时设置。  
+
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+值：0/1  
+  
+控制调试渲染是否显示用于调试的组件数据的地址。  
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+
+值：0/1  
+  
+控制是否为动画预算分配器启用调试渲染（在支持它的构建中）。  
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+范围 > 0.0，默认值 = 3.0  
+  
+平滑多少预算压力值用于节流简化工作。  
+
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+
+值 > 0.1，默认值 = 1.0  
+  
+分配给要执行的骨架网格体工作的时间（单位为毫秒）。  
+  
+当超出预算时，各种其他控制台变量开始发挥作用，例如a.Budget.AlwaysTickFalloffAggression和a.Budget.InterpolationFalloffAggression。  
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+范围 > 0.0，默认值 = 0.25  
+  
+增加的工作将被推迟，直到预算压力降到a.Budget.BudgetFactorBeforeReducedWork减去该数量以下。  
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+范围 > 1，默认值 = 1.5  
+  
+减少的工作将被推迟，直到预算压力超过该数量。  
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+范围 > 1，默认值 = 2.0  
+  
+减少的工作将在预算压力超过该数量时更快地被应用。  
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+范围 \[0.1, 0.9\]，默认值 = 0.8  
+  
+控制“总是tick”组件在负载下衰减的速率。  
+  
+数值越高意味着当超过分配的时间预算时，我们会将始终tick组件的数量减少得越多。  
+
+[/EXCERPT:excerpt_1]
+-->

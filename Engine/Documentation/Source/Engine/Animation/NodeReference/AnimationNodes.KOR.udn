@@ -1,9 +1,11 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6412433
 Availability:Public
-Title: 애니메이션 노드 참고서
-Crumbs: %ROOT%, Engine, Engine/Animation
+Title: 애니메이션 노드 레퍼런스
 Description:애니메이션 블루프린트에서 사용할 수 있는 여러가지 애니메이션 노드에 대한 설명입니다.
 version: 4.9
+tags:Animation
+tags:Animation Features
+type:reference
 topic-image:AnimationgNodeReference_topic.png
 
 [EXCERPT:Intro]

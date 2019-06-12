@@ -1,14 +1,15 @@
-﻿Availability:NoPublish
-Title:Cascade入门教程
+INTSourceChangelist:3108692
+Availability:NoPublish
+Title:级联欢迎教程
 Crumbs:
-Description: 虚幻引擎4所有初级教程内容
+Description:虚幻引擎4的所有入门教程的内容
 
 [EXCERPT:Stage1]
 [VAR:StageTitle]
-欢迎使用Cascade
+欢迎使用级联
 [/VAR]
 
-Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用接口元素的基础使用。 在大多数章节中都提供了到文件的链接，这样您可以阅读任何您感兴趣的主题。
+级联是虚幻引擎4的粒子编辑器。本快速指南描述了常用界面元素的基本用法。大多数部分中提供了文档链接，便于您继续阅读关于您感兴趣的任何主题的内容。
 
 ![](CascadeTutorial_header01.png)
 
@@ -21,13 +22,13 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 发射器
 [/VAR]
 
-发射器面板包含当前在Cascade打开的粒子系统中的每个粒子发射器。
+“发射器”（Emitters）面板包含粒子系统中当前在级联中打开的每个粒子发射器。
 
 ![](CascadeTutorial_Emitters.png)
 
-每列都代表使用一系列模块填充的单个粒子发射器。 顶部的发射器模块存储了发射器的主要属性，例如发射器的名称和类型，而其下方的每一个模块控制粒子系统操作的不同方面。
+每一列都表示填充了多个模块的单个粒子发射器。顶部的发射器模块包含发射器的主要属性，例如发射器的名称和类型，而下面的模块分别控制粒子系统行为的各个方面。
 
-[如需更多信息请查看Cascade粒子发射器文件。](DOCLINK:Engine\Rendering\ParticleSystems\Cascade#emitterspanel)
+[有关更多信息，请参阅“级联粒子编辑器文档”。](DOCLINK:Engine\Rendering\ParticleSystems\Cascade#emitterspanel)
 
 [/EXCERPT:Stage2]
 
@@ -37,7 +38,7 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 发射器
 [/VAR]
 
-如需添加发射器到粒子系统中，您可以在发射器面板的空白区域中通过右键点击，或通过右键点击发射器来使用关联菜单。
+要向粒子系统添加发射器，请在“发射器”（Emitters）面板中的空白区域单击右键或者右键单击发射器来使用情境菜单。
 
 ![](CascadeTutorial_Emitters02.png)
 
@@ -53,13 +54,13 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 模块
 [/VAR]
 
-模块通过插槽与发射器连接，修改粒子的外观和移动行为。
+模块嵌入到发射器中，修改了粒子的外观和行为方式。
 
 ![](CascadeTutorial_Modules01.png)
 
-模块可以影响粒子的以下属性：粒子生成位置，粒子如何移动，粒子颜色等等。  您可以通过在粒子发射器上右键点击来通过关联菜单添加它们。
+模块会影响一些属性，例如粒子在哪里产生，它们将会如何移动、它们的颜色等等。要添加模块，可以在粒子发射器上单击右键以调出情境菜单。
 
-[如需了解更多，请参阅粒子系统参考文件的模块部分。](DOCLINK:Engine\Rendering\ParticleSystems\Reference)
+[继续阅读“粒子系统参考”中的“模块”。](DOCLINK:Engine\Rendering\ParticleSystems\Reference)
 
 [/EXCERPT:Stage3]
 
@@ -70,7 +71,7 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 细节
 [/VAR]
 
-细节面板显示了当前选中的发射器或模块的属性。 
+“细节”（Details）面板显示当前选中的发射器或模块的属性。 
 
 ![](CascadeTutorial_Details.png)
 
@@ -84,13 +85,13 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 细节
 [/VAR]
 
-细节面板显示了当前选中的发射器或模块的属性。 
+“细节”（Details）面板显示当前选中的发射器或模块的属性。 
 
 ![](CascadeTutorial_Details02.png)
 
-在每个发射器和模块中包含的属性控制您如何创建粒子系统。 粒子系统中的许多属性为静态值，它们会影响整个系统，而另一些影响单个粒子的属性，一般在其生命周期内具有名称为"Distribution"（分布）的特殊属性。
+每个发射器和模块中包含的属性都表示了如何打造粒子系统。虽然许多粒子系统的属性都是会影响整个系统的静态值，但需要影响单个粒子的属性（通常是在整个生命周期中）会有一个特殊的属性，叫做“分布”（Distribution）。
 
-[如需更多信息请查看Cascade粒子编辑器文件。](DOCLINK:Engine\Rendering\ParticleSystems\Cascade#DetailsPanel)
+[有关更多信息，请参阅“级联粒子编辑器文档”。](DOCLINK:Engine\Rendering\ParticleSystems\Cascade#DetailsPanel)
 
 [/EXCERPT:Stage4.1]
 
@@ -101,13 +102,13 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 分布
 [/VAR]
 
-分布可以让您在粒子生命周期内调整值。
+分布使您可以在粒子生命周期中调整值。
 
 ![](CascadeTutorial_Details03.png)
 
-分布是一组数据类型，这些数据类型可以是常量值、某个范围内的随机值、沿着曲线上的插值及由参数驱动的值，从而提供了很好的灵活性。
+分布是一个数据类型组，十分灵活，允许使用常量值、一个范围内的随机值、沿着曲线插入的值和参数驱动的值。
 
-[请在引擎基础文件页面阅读更多关于分布的内容。](DOCLINK:Engine/Basics/Distributions)
+[继续阅读“引擎基础知识文档”页面上的“分布”内容。](DOCLINK:Engine/Basics/Distributions)
 
 [/EXCERPT:Stage4.2]
 
@@ -118,13 +119,13 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 曲线
 [/VAR]
 
-您可以通过曲线编辑器来将分布作为曲线以进行可视化处理。
+分布可以使用曲线编辑器显示为曲线形式。
 
 ![](CascadeTutorial_Curves01.png)
 
-如需在曲线编辑器中将它们可视化，请在模块上点击图表按钮。
+要在曲线编辑器中显示它们，单击模块上的图表图标。
 
-[如需了解更多使用细节，请参阅曲线编辑器文件。](DOCLINK:Engine/UI/CurveEditor)
+[关于使用详情，请参阅“曲线编辑器”文档。](DOCLINK:Engine/UI/CurveEditor)
 
 [/EXCERPT:Stage5]
 
@@ -135,16 +136,16 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 曲线
 [/VAR]
 
-在曲线编辑器左侧的部分为轨迹。
+曲线编辑器左侧的部分是轨迹。
 
 ![](CascadeTutorial_Curves02.png)
 
-在这些部分中，您将看到一些更小的框。 用数字"1"圈出的框可以显示或隐藏单独的数据曲线。 比如： 曲线颜色有红色，蓝色和绿色，左侧的小框将在曲线编辑器中显示或隐藏它们。
+在这些部分中，您会看到一些较小的框。用“1”表示的框显示或隐藏单个数据曲线。例如：可以有红色、蓝色和绿色曲线，左侧的框会在曲线编辑器中显示或隐藏它们。
 
-用数字"2"表示的小框将会隐藏轨迹的所有曲线。
+用“2”表示的框将隐藏轨迹的所有曲线。
 
 
-[如需了解更多使用细节，请参阅曲线编辑器文件。](DOCLINK:Engine/UI/CurveEditor)
+[关于使用详情，请参阅“曲线编辑器”文档。](DOCLINK:Engine/UI/CurveEditor)
 
 [/EXCERPT:Stage5.1]
 
@@ -155,33 +156,33 @@ Cascade是虚幻引擎4的粒子编辑器。本快速入门指南描述了常用
 曲线
 [/VAR]
 
-为能更方便地对曲线进行编辑，此处提供一些可用来控制它们的鼠标快捷方式。
+要更轻松地编辑曲线，可以使用一些鼠标快捷方式来操作。
 
 ![](CascadeTutorial_Curves03.png)
 
- 在关键帧上按鼠标左键: 选择关键帧  
- 对点按下Ctrl + 鼠标左键 : 切换对点的选择  
- 对曲线按下Ctrl + 鼠标左键 : 在点击位置处添加新关键帧  
- Ctrl + 鼠标左键 + 拖曳 : 移动当前选择内容  
- Ctrl+ Alt + 鼠标左键拖曳 : 框选  
- Ctrl+ Alt +Shift + 鼠标左键+ 拖曳 : 框选（添加到当前选择内容）  
+ 在键上按LMB：选择键  
+ 在点上按Ctrl+LMB：切换选择点  
+ 在曲线上按Ctrl+LMB：在单击位置添加新键  
+ Ctrl+LMB+拖拽：移动当前选择  
+ Ctrl+Alt+LMB拖拽：箱体选择  
+ Ctrl+Alt+Shift+LMB+拖拽：箱体选择（添加到当前选择）  
 
-[如需了解更多使用细节，请参阅曲线编辑器文件。](DOCLINK:Engine/UI/CurveEditor)
+[关于使用详情，请参阅“曲线编辑器”文档。](DOCLINK:Engine/UI/CurveEditor)
 
 [/EXCERPT:Stage5.2]
 
 
 [EXCERPT:Stage6]
 [VAR:StageTitle]
-结论
+总结
 [/VAR]
 
-这就是Cascade快速入门指南的所有内容。 要了解更多信息，请参阅以下文件：
+级联快速入门指南到此结束。有关更多信息，请参阅以下文档：
 
-[Cascade](DOCLINK:Engine/Rendering/ParticleSystems/Cascade)
+[级联](DOCLINK:Engine/Rendering/ParticleSystems/Cascade)
 [模块](DOCLINK:Engine/Rendering/ParticleSystems/Reference)
 [分布](DOCLINK:Engine/Basics/Distributions)
-[曲线编辑器](DOCLINK:Engine/Documentation/Source/Engine/UI/CurveEditor)
+[曲线编辑器](DOCLINK:Engine/UI/CurveEditor)
 
 ![](Stage1.png)
 

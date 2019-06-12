@@ -1,69 +1,203 @@
-﻿Availability:Public
-Title:衍生数据缓存
-Crumbs:%ROOT%, Engine
-Description: 由虚幻引擎4及其目标平台所使用的衍生数据缓存和资源存储格式的概述。 
+﻿INTSourceChangelist:6649752
+Availability:Public
+Title:派生数据缓存
+Crumbs:%ROOT%
+Description: 概述采用UE4及其目标平台所用格式的派生数据缓存和资源存储。 
+version: 4.17
+Parent:Engine
+skilllevel: Advanced
+type:overview
+order:24
+tags:Programming
 
-**衍生数据缓存** (DDC)以引擎及其目标平台使用的资源格式保存资源的各个版本， 这种格式和导入到编辑器并存储在`.uasset` 文件中的美术人员创建的资源的原有格式是不同的 。 存储在衍生数据缓存中的内容是可以随意丢弃的，因为 每当使用存储在 `.uasset` 文件中的数据时都会重新生成这些内容。 通过存储这些 _衍生数据_ 格式， 使得可以轻松地添加或改变引擎所使用的格式，而不必修改原有资源文件。
+ **派生数据缓存**(DDC)以虚幻引擎在其目标平台上使用的格式存储资源的版本，而不是由艺术家创建，然后导入编辑器并存储在“.uasset”中的源格式。存储在DDC中的内容允许使用后即丢弃，因为它可以随时使用存储在“.uasset”中的数据重新生成。将这些派生格式存储在外部可以轻松地添加或更改引擎使用的格式，而不需要修改源资源文件。
 
-## 使用共享的衍生数据缓存
+## 使用共享DDC
 
-工作室应该使用一个共享的衍生数据缓存，让位于特定位置的所有用户都可以访问。 这样，仅一个人需要 生成衍生数据资源格式，然后这些资源会自动和其他用户共享 。 当有资源需要处理时偶尔会出现停，但所获的结果会被记录并和其他人共享。 所以只要少数开发人员处理资源，大部分人就不会受到任何影响。
+Studio应该使用一个所有特定位置的用户都可以访问的共享DDC。这样，只有一个用户需要构建派生的资源格式，而这些格式将自动可供所有其他用户使用。虽然需要处理资源时偶尔会出现停顿，但是结果会被存储和共享。即使在相当小的团队中，以这种方式共享资源处理工作也会大大地减少处理时间。
 
 [REGION:warning]
-请不要从网络上拷贝整个衍生数据缓存、备份您的衍生数据缓存或者从备份中恢复衍生数据缓存。 尽管这 没有任何坏处，但却很浪费时间，因为相对于在本地重新简单地生成这些数据来说，从衍生数据缓存中转移大量数据会花费 更长的时间。
+不建议在Internet上复制整个DDC、备份DDC或从备份还原DDC。虽然上述操作不会造成任何损害，但它们会浪费时间，因为传输存储在DDC中的数据量要比在本地从头生成数据花费更长的时间。
 [/REGION]
 
-要想创建一个共享的衍生数据缓存，可以通过在您的游戏的 `DefaultEngine.ini` 文件中声明 `[DerivedDataBackendGraph]` 这部分内容 来覆盖`[DerivedDataBackendGraph]`的路径。 这个部分最初声明位于 `BaseEngine.ini` 文件中， 在该文件中路径设置为Epic的内部衍生数据缓存共享。 重新声明该部分，并修改其路径使其指向 你的网络上的共享位置(比如 `Path=\\mystudio.net\DDC`):
+若要设置一个共享的DDC，请通过在您游戏的“DefaultEngine.ini”文件中声明以下部分来覆盖“ [InstalledDerivedDataBackendGraph]”或“[DerivedDataBackendGraph]”的路径（这取决于是使用Epic Games Launcher中的二进制安装还是从源码编译）。此部分最初在“BaseEngine.ini”中声明，其中路径设置为Epic的内部DDC共享。重新声明此部分并更改路径以指向网络上的共享。
 
-	[DerivedDataBackendGraph]
-	MinimumDaysToKeepFile=7
-	Root=(Type=KeyLength, Length=120, Inner=AsyncPut)
-	AsyncPut=(Type=AsyncPut, Inner=Hierarchy)
-	Hierarchy=(Type=Hierarchical, Inner=Boot, Inner=Pak, Inner=EnginePak, Inner=Local, Inner=Shared)
-	Boot=(Type=Boot, Filename=\%GAMEDIR\%DerivedDataCache/Boot.ddc, MaxCacheSize=256)
-	Local=(Type=FileSystem, ReadOnly=false, Clean=false, Flush=false, PurgeTransient=true, DeleteUnused=true, UnusedFileAge=17, FoldersToClean=-1, Path=../../../Engine/DerivedDataCache)
-	Shared=(Type=FileSystem, ReadOnly=false, Clean=false, Flush=false, DeleteUnused=true, UnusedFileAge=19, FoldersToClean=-1, Path=\\mystudio.net\DDC, EnvPathOverride=UE-SharedDataCachePath)
-	AltShared=(Type=FileSystem, ReadOnly=true, Clean=false, Flush=false, DeleteUnused=true, UnusedFileAge=19, FoldersToClean=-1, Path=\\mystudio.net\DDC2, EnvPathOverride=UE-SharedDataCachePath2)
-	Pak=(Type=ReadPak, Filename=\%GAMEDIR\%DerivedDataCache/DDC.ddp)
-	EnginePak=(Type=ReadPak, Filename=../../../Engine/DerivedDataCache/DDC.ddp)
+* Windows: (`Path=\\mystudio.net\DDC`)
+* Mac: (`Path=/Volumes/UE4DDC`)
 
+%Globals:BinarySourceSelectVar%
 
-Satellite工作室制作了一个独立共享的基础代码，它可以将 `UE-SharedDataCachePath` 环境变量 设置为任何位置的所有用户都可以读写的地方。 这使得每个地方都可以访问 它共享的衍生数据缓存。 
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BinarySourceSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    binaryinstall
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+            [InstalledDerivedDataBackendGraph]
+            MinimumDaysToKeepFile=7
+            Root=(Type=KeyLength, Length=120, Inner=AsyncPut)
+            AsyncPut=(Type=AsyncPut, Inner=Hierarchy)
+            Hierarchy=(Type=Hierarchical, Inner=Boot, Inner=Pak, Inner=EnginePak, Inner=Local, Inner=Shared)
+            Boot=(Type=Boot, Filename=\%GAMEDIR\%DerivedDataCache/Boot.ddc, MaxCacheSize=256)
+            Local=(Type=FileSystem, ReadOnly=false, Clean=false, Flush=false, PurgeTransient=true, DeleteUnused=true, UnusedFileAge=17, FoldersToClean=-1, Path=../../../Engine/DerivedDataCache)
+            Shared=(Type=FileSystem, ReadOnly=false, Clean=false, Flush=false, DeleteUnused=true, UnusedFileAge=19, FoldersToClean=-1, Path=\\mystudio.net\DDC, EnvPathOverride=UE-SharedDataCachePath)
+            AltShared=(Type=FileSystem, ReadOnly=true, Clean=false, Flush=false, DeleteUnused=true, UnusedFileAge=19, FoldersToClean=-1, Path=\\mystudio.net\DDC2, EnvPathOverride=UE-SharedDataCachePath2)
+            Pak=(Type=ReadPak, Filename=\%GAMEDIR\%DerivedDataCache/DDC.ddp)
+            EnginePak=(Type=ReadPak, Filename=../../../Engine/DerivedDataCache/DDC.ddp)
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BinarySourceSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    sourceinstall
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+            [DerivedDataBackendGraph]
+            MinimumDaysToKeepFile=7
+            Root=(Type=KeyLength, Length=120, Inner=AsyncPut)
+            AsyncPut=(Type=AsyncPut, Inner=Hierarchy)
+            Hierarchy=(Type=Hierarchical, Inner=Boot, Inner=Pak, Inner=EnginePak, Inner=Local, Inner=Shared)
+            Boot=(Type=Boot, Filename=\%GAMEDIR\%DerivedDataCache/Boot.ddc, MaxCacheSize=256)
+            Local=(Type=FileSystem, ReadOnly=false, Clean=false, Flush=false, PurgeTransient=true, DeleteUnused=true, UnusedFileAge=17, FoldersToClean=-1, Path=../../../Engine/DerivedDataCache)
+            Shared=(Type=FileSystem, ReadOnly=false, Clean=false, Flush=false, DeleteUnused=true, UnusedFileAge=19, FoldersToClean=-1, Path=\\mystudio.net\DDC, EnvPathOverride=UE-SharedDataCachePath)
+            AltShared=(Type=FileSystem, ReadOnly=true, Clean=false, Flush=false, DeleteUnused=true, UnusedFileAge=19, FoldersToClean=-1, Path=\\mystudio.net\DDC2, EnvPathOverride=UE-SharedDataCachePath2)
+            Pak=(Type=ReadPak, Filename=\%GAMEDIR\%DerivedDataCache/DDC.ddp)
+            EnginePak=(Type=ReadPak, Filename=../../../Engine/DerivedDataCache/DDC.ddp)
+    [/PARAM]
+[/OBJECT]
 
-比如：
+使用单个共享代码库的附属工作室可以将“UE-SharedDataCachePath”环境变量设置为每个位置的所有用户都可以读写的路径。这允许每个位置都有自己的共享DDC。
 
-	UE-SharedDataCachePath=\\mystudio.net\DDC
+例如：
 
-## 使用本地的衍生数据缓存
+    UE-SharedDataCachePath=\\mystudio.net\DDC
 
-独立的开发人员或者远程工作的开发人员一般仅使用本地的衍生数据缓存。 要想让引擎不要尝试并 使用共享的衍生数据缓存，请使用以下方法：
+## 使用本地DDC
 
-* 在命令行里传入 `-ddc=noshared` 命令
-* 设置环境变量为本地硬盘驱动器: 
+单独的开发人员或远程工作的开发人员通常只使用本地DDC。若要告诉引擎不要使用共享的DDC，请使用以下方法之一：
+
+* 在命令行上传递“-ddc=noshared”。
+* 将环境变量设置为本地硬盘驱动器： 
     
-		UE-SharedDataCachePath=c:\DDC
+        UE-SharedDataCachePath=c:\DDC
 
 
-## 生成衍生数据
+## 构建派生数据
 
-一般，导入资源的用户负责生成衍生数据，因为他们一般会 在引擎中使用及测试这些资源。 但是，有些时候 可能需要处理某个新的资源。 当需要应用资源时会自动进行处理， 如果运行的硬件较快，应该不会带来太大的影响，尽管偶尔可能会出现停顿现象。  
+%Globals:osselect%
+
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+OS
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+导入资源的用户是构建派生数据的用户，因为他们最有可能在引擎中使用和测试该资源。但是，有时也可能会出现需要处理新资源的情况。这种情况根据需要自动发生，而且在高速硬件上运行时应当不会造成太大的影响，尽管可能会出现偶尔的停顿。
+
+
+您可以通过运行以下命令随时填充您的DDC：
  
-任何时候您都可以向可执行文件中传入以下参数来填充您的衍生数据缓存：
+    UE4\Engine\Binaries\Win64\UE4Editor.exe ProjectName -run=DerivedDataCache -fill
+
+[REGION:tip]
+虽然Epic Games每夜都会执行此操作，以确保DDC始终处于就绪状态，但这项工作并非必做不可，因为常规的自动缓存功能应当即已满足需要。
+[/REGION]
+
+[/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+操作系统
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+导入资源的用户是构建派生数据的用户，因为他们最有可能在引擎中使用和测试该资源。但是，有时也可能会出现需要处理新资源的情况。这种情况根据需要自动发生，而且在高速硬件上运行时不会造成太大的影响，尽管可能会出现偶尔的停顿。
+
+
+您可以通过运行以下命令随时填充您的DDC：
  
-	UE4\Engine\Binaries\Win64\UE4Editor.exe MyGame -run=DerivedDataCache -fill 
+    open -a "ProjectName.app" --args -run=DerivedDataCache -fill
 
-我们每天夜里执行一次这个过程，以确保总是可以准备好衍生数据缓存，但一般不需要这么做， 因为自动缓存应该会 _发挥作用的_ 。
+虽然Epic Games每夜都会执行此操作，以确保DDC始终处于就绪状态，但这项工作并非必做不可，因为常规的自动缓存功能应当即已满足需要。
 
-## 发布衍生数据缓存
+[/PARAM]
+[/OBJECT]
+
+## 加载DDC文件夹
+
+对于在内部网络中使用的DDC，包含DDC的文件夹必须被加载到一个网络驱动器。如果您对该操作不熟悉，请查看以下链接了解详情：
+
+*[Map A Network Drive on Windows](https://support.microsoft.com/en-us/help/4026635/windows-map-a-network-drive)
+
+
+## 使用DDC分配
  
-打包游戏时我们一般倾向于使用烘焙这种方法，因为烘焙过的版本不需要也不使用衍生数据缓存。 但是， 如果需要，也可以打包衍生数据缓存以进行发布。
+%Globals:osselect%
 
-**要想打包衍生数据缓存:**
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+OS
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+windows
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+烘焙是打包游戏的首选方法，因为烘焙的版本不需要（或不使用）DDC。但是，如果需要，可以将DDC打包分发。
+
+**若要将DDC打包，请执行以下操作：**
  
-1. 从 `UE4/Engine/Binaries/Win64`  目录运行 `UE4.exe` 并传入以下参数：
+1. 从“UE4/Engine/Binaries/Win64”目录运行“UE4Editor.exe”，传递如下所示的参数：
 
-		UE4Editor.exe [GameName] -run=DerivedDataCache -fill -DDC=CreatePak
+        UE4Editor.exe ProjectName -run=DerivedDataCache -fill -DDC=CreatePak
  
-1. 这将在 `UE4\[GameName]\DerivedDataCache` 文件夹中创建一个 `DDC.ddp` 文件。
+1. 这会在“UE4\ProjectName\DerivedDataCache”目录中创建“DDC.ddp”文件。
 
-1. 引擎会自动检测及使用该 `.ddp`  文件。
+1. 引擎将自动检测和使用“.ddp”文件。
+
+[/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+[PARAMLITERAL:category]
+OS
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+mac
+[/PARAMLITERAL]
+[PARAMLITERAL:active]
+[/PARAMLITERAL]
+[PARAM:content]
+烘焙是打包游戏的首选方法，因为烘焙的版本不需要（或不使用）DDC。但是，如果需要，可以将DDC打包分发。
+
+**若要将DDC打包，请执行以下操作：**
+ 
+1. 从“cd /PathToUE4/Engine/Binaries/Mac”目录运行“UE4Editor.app”，传递如下所示的参数：
+
+       `open -a UE4Editor.app --args -run=DerivedDataCache -fill -DDC=CreatePak`
+ 
+1. 这会在“UE4\ProjectName\DerivedDataCache”目录中创建“DDC.ddp”文件。
+
+1. 引擎将自动检测和使用“.ddp”文件。
+
+[/PARAM]
+[/OBJECT]

@@ -1,0 +1,80 @@
+INTSourceChangelist:3622529
+Availability: Public
+Crumbs: %ROOT%
+Title:将项与HMD相连接
+Description:将项与任意HMD相连接的相关信息。
+Type: Overview
+SkillLevel:Beginner
+Version:4.17
+parent:Platforms/VR/DevelopVR
+Order: 4
+Tags:VR
+
+[TOC(start:2)]
+
+虚幻引擎4（UE4）提供将项与HMD相连接的统一方法，无论你针对哪个头戴式显示器（HMD）进行开发，都可以使用该方法。该方法不仅可用于任何HMD，而且使用该方法连接的项将与HMD保持完全同步的移动。在以下文档中，我们将介绍为将项与HMD相连接你所需要了解的全部知识。
+
+[region:note]
+现在，如果你希望获取玩家在世界场景中的位置，你只能获取摄像机Actor的位置。
+[/region]
+
+
+(#settingupobjectstofollowthehmd)
+## 对对象进行设置，使它们跟随HMD
+
+你可以对静态网格体、粒子效果、UI元素和许多其他项进行设置，以使它们跟随HMD移动，方法如下。 
+
+1. 首先，打开Pawn蓝图并导航至 **视口（Viewport）** 选项卡。
+
+	[REGION:lightbox]
+	[![](VR_Follow_HMD_Setup_00.png)(w:737)](VR_Follow_HMD_Setup_00.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。
+	[/REGION]
+
+1.  在 **组件（Component）** 选项卡中，单击 **添加组件（Add Component）**，然后在搜索框中输入 **Cube** 并单击显示的 **立方体（Cube）** 网格体，以将它添加为组件。
+	
+	[REGION:lightbox]
+	[![](VR_Follow_HMD_Setup_01.png)(w:737)](VR_Follow_HMD_Setup_01.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。
+	[/REGION]
+
+1. 选中该立方体（Cube）静态网格体并将它拖到摄像机（Camera）上，以使摄像机（Camera）成为该立方体（Cube）静态网格体的父项。
+
+	![](VR_Follow_HMD_Setup_02.png)
+
+1. 现在，编译蓝图，然后使用UE4编辑器中的VR预览选项启动项目。当你戴上HMD，然后转动头部时，你连接的立方体（Cube）将紧随你的头部移动，如以下视频中所示。
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		5brQDHHFR0w
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+(#hmdandplayerworldposition)
+## HMD和玩家世界场景位置
+
+你也可以通过使用以下蓝图设置获取摄像机（Camera）组件的位置，从而快速获取玩家及其HMD的准确世界场景位置。
+
+![](VR_Get_Player_Location_00.png)
+
+在上图中，只要用户在键盘上按下T键，摄像机在世界场景中的X、Y和Z位置就将输出到屏幕及日志窗口中。
+
+![](VR_Follow_HMD_Setup_03.png)

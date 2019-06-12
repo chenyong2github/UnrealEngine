@@ -1,0 +1,100 @@
+Availability: Public
+Title: iOS Quick Start
+Description: Instructions on setting up and launching games on iOS devices.
+Type: quick start
+Version: 4.18
+Parent: Platforms/Mobile/iOS
+Tags: mobile
+Tags: iOS
+Tags: StartingOut
+Tags: QuickStart
+topic-image: iOS_QS_Editor_TopicImage.png
+Order: 4
+
+
+[TOC (start:2 end:2)]
+
+![](iOS_QS_Hero_Image.png "iOS_QS_Hero_Image.png")
+
+The focus of this Apple iOS Quick Start guide is to walk you through the basics of setting up your computer for iOS Development with Unreal Engine 4 (UE4). This guide also teaches you how to put a template game on your iOS device with the Unreal Editor's launching and packaging features.
+
+After completing this quick start developers will understand how to do the following tasks inside UE4:  
+
+*   Creating a new UE4 project that is targeted for iOS mobile development.
+
+*   Setting up a UE4 project for iOS mobile development.
+
+*   Deploying a single UE4 level to your iOS device for testing.
+
+[REGION:warning]
+The PC-only workflow described in this guide requires a pure Blueprint only project. If you wish to use any code in your project, you will also need a Mac to compile the code. You can follow the [Building for iOS on Windows](Platforms/Mobile/iOS/Windows) page to develop code-based projects for iOS on a PC.
+[/REGION]
+
+## 1 - Project Setup
+
+This section we will go over importing your mobile provision so that you can build and deploy UE4 projects to iOS devices.
+
+1.  First, make sure to connect your iOS device to your computer via a USB cable if it is not already connected.
+
+1.  Next, open the **iOSQuickStart **project in Unreal Editor.  
+    ![](open_project.png)
+
+1.  Open up your project settings by going to **Edit **> **Project** **Settings**.  
+    ![](Provision_01.png)
+
+1.  Then under **Platforms **> **iOS **in the **Mobile Provision** section, press the **Import Provision** button to import your provision and then do the same for the** Import Certificate**.  
+    ![](Provision_02.png)
+
+1.  If things have been setup and imported correctly, you should see the word **Valid **in the **Status**.  
+    ![](Provision_03.png)
+    
+    If you are having issues with the Mobile Provisions check out the official [Apple Help](https://help.apple.com/xcode/mac/current/#/devd1432da9a) for more troubleshooting information.
+
+	[REIGON:note] Note: As of 4.22 your iOS or tvOS IPA will be made with bitcode.  This behavior can be disabled in iOS Project Settings. [/REGION]
+    
+
+## 2 - Deploying
+
+To test your current level on an iOS-based device, you will need to do the following:
+
+1.  In the toolbar, click the arrow next to **Launch **to open the** Launch Options** menu and select the **iOS** device.
+    
+    ![](launch_ios.png)
+    
+1.  This will start the iOS cooking process using the current map. While the project is cooking, the status will be shown in the lower right-hand corner of the UE4 editor like in the images below.  
+      
+    ![](project_cooking.png)![](project_packaging.png)![](project_deploying.png)
+
+1.  When the project is done cooking and installed on your device, a message like the one below will be displayed.   
+    .![](project_success.png)
+
+1.  When completed, locate the app on your iOS device and open it up. Once opened, you should see something similar to the following image on your iOS device.  
+    ![](game_device.png)
+
+## 3 - On Your Own
+
+Now that we have gone over how to get your UE4 project packaged and ready to be tested on your iOS device, try and accomplish the following using what you have learned from this Quick Start guide.  
+
+*   Create a new project using one of the default templates and then try and get that project running on your iOS device.
+
+The following selection of links can help you with everything from which iOS devices will work with UE4 to things you should consider when creating content that is aimed at mobile devices. If you have not gone through these links before it is highly recommended that you do as they contain a plethora of valuable information.
+
+*   [iOS Device Compatibility](Platforms/Mobile/iOS/DeviceCompatibility)
+
+*   [Setting Device Profiles](Platforms/DeviceProfiles)
+
+*   [Performance Guidelines for Mobile Devices](Platforms/Mobile/Performance)
+
+For more information about designing game content and levels for mobile devices checkout the following links:  
+
+*   [Content Creation for Mobile Devices](Platforms/Mobile/Meshes)
+
+*   [Creating Materials for Mobile Devices](Platforms/Mobile/Materials)
+
+*   [Creating Textures for Mobile Devices](Platforms/Mobile/Textures)
+
+*   [Lighting for Mobile Devices](Platforms/Mobile/Lighting)
+
+You can also change how you preview your mobile game without deploying to a device by using the Mobile Previewer.  
+
+*   [Mobile Previewer](Platforms/Mobile/Previewer)

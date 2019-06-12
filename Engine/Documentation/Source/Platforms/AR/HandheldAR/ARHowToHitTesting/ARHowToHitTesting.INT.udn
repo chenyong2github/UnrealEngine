@@ -1,5 +1,4 @@
-Availability: Public
-Crumbs: 
+﻿Availability: Public
 Title: How To Perform AR Hit Testing
 Description: How to do hit testing of tracked geometry in augmented reality.
 Type: 
@@ -10,14 +9,11 @@ Tags: mobile
 Tags: iOS
 Tags: Android
 Tags: AR
+prereq:Platforms/AR/HandheldAR/ARKitPrerequisites
+prereq:Platforms/AR/HandheldAR/ARCorePrerequisites
+prereq:Platforms/AR/HandheldAR/ARQuickStart
 
-
-Prerequisite Topics  
-This page assumes that you have prior knowledge of the following topics. Please read them before proceeding.
-
-*   [](Platforms/AR/HandheldAR/ARKitPrerequisites)
-*   [](Platforms/AR/HandheldAR/ARCorePrerequisites)
-*   [](Platforms/AR/HandheldAR/ARQuickStart)
+[TOC (start:2 end:3)]
 
 ![](AR_HitTesting.png)
 [REGION:note]

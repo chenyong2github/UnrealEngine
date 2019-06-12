@@ -1,0 +1,47 @@
+﻿INTSourceChangelist:6430212
+Availability: Public
+Title: 툴바
+Description: 에디터 상단의 여러가지 기능을 하는 버튼이 모여있는 바입니다.
+Version: 4.9
+Parent: Engine/Blueprints/Editor
+Tags: Blueprints
+
+
+**툴바** 는 블루프린트 에디터 상단에 기본적으로 표시됩니다. 블루프린트 에디터 툴바 버튼에는 블루프린트 편집시 자주 쓰이는 명령에 대한 바로가기가 제공됩니다. 툴바에 표시되는 버튼은 현재 편집중인 블루프린트 유형과 어떤 모드에 있는가에 따라 각기 달라집니다.
+
+[REGION:fullwidth]
+![](ToolbarBP.png)
+[/REGION]
+
+툴바는 두 부분으로 이루어집니다:
+
+*   **툴바 옵션** - 블루프린트 작업에 쓰이는 툴입니다.    
+
+*   **모드 버튼** - 블루프린트의 모드 전환에 사용되는 버튼입니다.
+    
+
+## 툴바 버튼
+
+[REGION:simpletable]  
+| 버튼 | 설명 |
+| --- | --- |
+| ![Compile Successful Button](bp_compile_successful.png) | 컴파일에 성공했습니다. 버튼을 클릭하면 편집중인 블루프린트를 컴파일합니다. 컴파일 프로세스의 출력 결과가 메시지 로그의 블루프린트 로그에 표시됩니다. 이 버튼은 디버깅 도중에는 비활성화됩니다. |
+| ![Compile Needed Button](bp_needs_compile.png) | *블루프린트* 를 다시 컴파일해야 합니다. 버튼을 클릭하면 편집중인 블루프린트를 컴파일합니다. 컴파일 프로세스의 출력 결과가 메시지 로그의 블루프린트 로그에 표시됩니다. 이 버튼은 디버깅 도중에는 비활성화됩니다. |
+| ![Compile Warning Button](compile_warning.png) | 컴파일 도중 경고가 있었습니다. 버튼을 클릭하면 편집중인 블루프린트를 컴파일합니다. 컴파일 프로세스의 출력 결과가 메시지 로그의 블루프린트 로그에 표시됩니다. 이 버튼은 디버깅 도중에는 비활성화됩니다. |
+| ![Compile Failed Button](compile_failed.png) | 컴파일에 실패했습니다. 버튼을 클릭하면 편집중인 블루프린트를 컴파일합니다. 컴파일 프로세스의 출력 결과가 메시지 로그의 블루프린트 로그에 표시됩니다. 이 버튼은 디버깅 도중에는 비활성화됩니다. |
+| ![Save Button](bp_save.png) | 현재 블루프린트를 저장합니다. |
+| ![Find in Content Browser Button](bp_find_in_cb.png) | **콘텐츠 브라우저** 를 띄워 이 애셋 위치로 이동합니다. |
+| ![Search Button](bp_search.png) | 현재 블루프린트의 함수, 이벤트, 변수, 핀으로의 레퍼런스를 찾습니다. |
+| ![Blueprint Properties Button](bp_properties.png) | **디테일** 패널에서 블루프린트 프로퍼티를 엽니다. |
+| ![Blueprint Properties Button](defaults.png) | 디테일 탭에 클래스 디폴트 패널을 표시합니다. |
+| ![Simulate Button](bp_simulate.png) | Starts the game in simulation mode. 자세한 정보는 [에디터에서 시뮬레이트](Engine/UI/LevelEditor/InEditorTesting#에디터에서시뮬레이트) 부분을 참고하세요. |
+| ![Play In Editor Button](bp_play_in.png) | 게임을 일반 플레이 모드로 시작합니다. 화살표를 클릭하면 **플레이 옵션** 메뉴가 표시됩니다. 자세한 정보는 [에디터에서 플레이](Engine/UI/LevelEditor/InEditorTesting#에디터에서플레이) 부분을 참고하세요. |
+| ![Pause Button](bp_pause.png) | 시뮬레이션을 일시정지합니다. 시뮬레이션이 일시정지되면 툴바에 **재개** 또는 **프레임 건너뛰기** 버튼이 나타납니다. |
+| ![Resume Button](bp_resume.png) | 중단점에 걸리거나 일시정지 버튼을 누른 이후 실행을 재개합니다. |
+| ![Frame Skip Button](bp_frameskip.png) | 한 프레임, 또는 틱 단위로 진행시킵니다. 이 버튼은 시뮬레이션이 일시정지되었을 때, 또는 중단점에 걸렸을 때 나타납니다. |
+| ![Stop Button](bp_stop.png) | 게임 실행을 중단시키고 에디터에서 시뮬레이트 모드를 빠져나갑니다. |
+| ![Possess Button](bp_possess.png) | 에디터에서 시뮬레이트 모드를 에디터에서 플레이 모드로 전환합니다. 플레이어 컨트롤러에 부착되어 일반 게임플레이 조작이 가능합니다. **탈출** 로 토글시킵니다. |
+| ![Eject Button](bp_eject.png) | 에디터에서 플레이 모드를 에디터에서 시뮬레이트 모드로 전환합니다. 플레이어 컨트롤러에서 탈착되어 일반 에디터 조작이 가능합니다. **빙의** 로 토글시킵니다. |
+| ![Step Button](bp_step.png) | 그래프 실행을 한 번에 한 노드씩 단계별 진행합니다. 이 버튼은 시뮬레이션 도중 중단점에 걸린 이후 나타납니다. |
+| ![Debug Dropdown](bp_debug_dropdown.png) | 레벨에 *블루프린트* 인스턴스가 하나 이상 있는 경우, 이 드롭다운을 통해 디버깅할 인스턴스를 선택할 수 있습니다. |
+[/REGION]

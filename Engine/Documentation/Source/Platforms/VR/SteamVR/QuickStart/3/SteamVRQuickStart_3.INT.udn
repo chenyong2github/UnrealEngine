@@ -1,0 +1,50 @@
+Availability:Docs
+Title: 3. On Your Own!
+Crumbs:%ROOT%, Platforms/VR/SteamVR
+Description:Using the methods provided during this guide, polish up your level with additional content and read up on related topics. 
+Navigation:platform
+Version: 4.17
+Skilllevel: Beginner
+Platform:SteamVR
+type:multi-step
+parent:Platforms/VR/SteamVR/QuickStart
+order:3
+Checkpoint: SteamVRQS
+tags: SteamVR
+
+[nav]
+
+Now that you can view a UE4 project using SteamVR and the HTC Vive, try adding the following items to your project.
+
+* Use the [Migrate Tool](Engine/Content/Browser/UserGuide/Migrate/) to move content from one of the mobile content examples into your project for use.
+
+* Add support for [Motion Controllers](Platforms\VR\DevelopVR\MotionController) so that the user can move objects around in VR just like they would in real life.
+
+* Use the [GPU Profiler](Engine/Performance/GPU/) to help track your projects performance while you are building it.
+
+Here are some additional resources that provide useful information for developing VR projects inside of Unreal Engine 4.
+
+## Documentation
+
+[REGION:buttonlist]
+* [](Platforms\VR)
+	* [](Platforms\VR\DevelopVR\CheatSheet)
+	* [](Platforms\VR\OculusVR\OculusRift\BestPractices)
+* [Oculus Documentation](https://developer.oculus.com/documentation/)
+	* [User Guide](http://static.oculus.com/sdk-downloads/documents/Oculus_User_Guide_0.4.4.pdf)
+	* [Developer Guide](http://static.oculus.com/sdk-downloads/documents/Oculus_Developer_Guide_0.4.4.pdf)
+[/REGION]
+
+## Content to Try
+
+[REGION:imagetable]
+| ![](Platforms\VR\OculusVR\OculusRift\QuickStart\6\store_CouchKnights_screenshot_3.png)(w:420) | [![](Platforms\VR\OculusVR\OculusRift\QuickStart\6\store_Showdown_screenshot_5.png)(w:420)](https://www.unrealengine.com/marketplace/showdown-demo) |
+| ------------ | ---------------- |
+| CouchKnights | Showdown |
+| [![](Platforms\VR\OculusVR\OculusRift\QuickStart\6\store_VREditor_screenshot_5.png)(w:420)](https://docs.unrealengine.com/latest/INT/Engine/Editor/VR/index.html) | [![](Platforms\VR\OculusVR\OculusRift\QuickStart\6\store_RoboRecall_screenshot_5.png)(w:420)](https://docs.unrealengine.com/latest/INT/Modding/RoboRecall/) |
+| VR Mode |Robo Recall |
+[/REGION]
+
+[nav]
+
+![]()

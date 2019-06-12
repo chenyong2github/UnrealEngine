@@ -1,9 +1,9 @@
 Availability: Public
-Title:Beam Modules
-Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:These modules are used to configure the behavior of emitters using the Beam TypeData module.
+Title: Beam Modules
+Description: These modules are used to configure the behavior of emitters using the Beam TypeData module.
 Version: 4.9
-tags:Particles
+Parent: Engine/Rendering/ParticleSystems/Reference
+Tags: Particles
 
 [TOC(start:2 end:3)]
 
@@ -14,6 +14,7 @@ These modules are used to configure or modify the behavior of emitters using the
 
 The **Beam Modifier** module allows either the Source or Target of the beam to be modified. It provides the following properties:
 
+[REGION:simpletable]
 | Property | Description |
 | ---- | ---- |
 |[REGION:tablesection]Modifier[/REGION]||
@@ -28,7 +29,7 @@ The **Beam Modifier** module allows either the Source or Target of the beam to b
 |[REGION:tablesection]Strength[/REGION]||
 | **Strength Options** | Options associated with the _Strength_ property. Values includes:[INCLUDE:#TangentOptions] |
 | **Strength** |  The strength value used to modify the strength of the Source/Target.|
-
+[/REGION]
 
 
 [COMMENT:none]
@@ -99,6 +100,7 @@ TfgyUi-QAAg
 
 The **Beam Noise** module allows for injecting noise along the beam. It provides the following properties:
 
+[REGION:simpletable]
 | Property | Description |
 | ---- | ---- |
 |[REGION:tablesection]LowFreq[/REGION]||
@@ -121,7 +123,7 @@ The **Beam Noise** module allows for injecting noise along the beam. It provides
 | **FrequencyDistance** | The distance at which to place noise point. If this value is 0.0, then use the standard Frequency/Frequency_LowRange pair to determine the frequency of noise points. If not 0.0, noise points will be distributed at the given distance up to the static Frequency value. This allows for having fewer noise points on shorter beams, and to add noise points automatically as the beam grows.|
 | **Apply Noise Scale** | If _true_, apply the NoiseScale to the beam. |
 | **Noise Scale** | The scale factor to apply to the noise range when bApplyNoiseScale is _true_. The lookup value for this distribution is determined by dividing the number of noise points present by the maximum number of noise points (ie, the Frequency).|
-
+[/REGION]
 
 
 [COMMENT:none]
@@ -140,6 +142,7 @@ Currently, low-frequency noise is the only noise supported.
 
 The **Beam Source** module implements a single source for a beam emitter. (If a source module is not present in a beam emitter, the emitter location itself is used as the source.) It provides the following properties:
 
+[REGION:simpletable]
 | Property | Description |
 | ---- | ---- |
 |[REGION:tablesection]Source[/REGION]||
@@ -153,7 +156,7 @@ The **Beam Source** module implements a single source for a beam emitter. (If a 
 | **Lock Source Tangent** | If _true_, the source tangent will only be set at spawn time.|
 | **Source Strength** | A float distribution that provides the strength of the tangent from the source point for each beam. The value is retrieved using the current emitter time. This strength is used regardless of the method used to obtain the Source/SourceTangent.|
 | **Lock Source Strength** | If _true_, the source strength will only be set at spawn time.|
-
+[/REGION]
 
 
 
@@ -192,6 +195,7 @@ The **Beam Source** module implements a single source for a beam emitter. (If a 
 
 The **Beam Target** module implements a single target for a beam emitter. (If a target module is not present in a beam emitter, the emitter assumes that the beam is to be used directionally.) It provides the following properties:
 
+[REGION:simpletable]
 | Property | Description |
 | ---- | ---- |
 |[REGION:tablesection]Target[/REGION]||
@@ -206,7 +210,7 @@ The **Beam Target** module implements a single target for a beam emitter. (If a 
 |**Target Strength** | A float distribution that provides the strength of the tangent from the target point for each beam. The value is retrieved using the current emitter time. This strength is used regardless of the method used to obtain the Target/TargetTangent.|
 |**Lock Target Strength** | If _true_, the target strength will only be set at spawn time.|
 |**Lock Radius** | The radius of the sphere that the current beam-end should be in to be considered locked to the target point. Used when utilizing a beam that has a Speed value set.|
-
+[/REGION]
 
 
 

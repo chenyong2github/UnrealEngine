@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4308120
+﻿INTSourceChangelist:6278513
 Availability: Public
 Crumbs: %ROOT%
 Title:天空光照
@@ -6,7 +6,7 @@ Description:概述虚幻引擎4中的天空光照。
 Type: Overview
 SkillLevel:Beginner
 Version:4.18
-Parent:Engine/Rendering/LightingAndShadows
+Parent:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Rendering/LightingAndShadows/Lightmass
 Related:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
@@ -24,9 +24,7 @@ Social-Image:SkyLight_1.png
 
 
 天空光照（Sky Light）采集关卡的远处部分并将其作为光源应用于场景。这意味着，即使天空来自大气层、天空盒顶部的云层或者远山， 
-天空的外观及其光照/反射也会匹配。您还可以手动指定要使用的立方体贴图。 
-
-(#scenecapture)
+天空的外观及其光照/反射也会匹配。您还可以手动指定要使用的立方体贴图。
 
 ## 场景采集
 
@@ -41,8 +39,6 @@ Social-Image:SkyLight_1.png
 
 应使用天空光照而不是环境立方体贴图来表示天空的光照，因为天空光照支持局部阴影，局部阴影可以防止室内区域被天空照亮。
 
-
-(#mobility)
 
 ## 移动性
 
@@ -61,8 +57,6 @@ Social-Image:SkyLight_1.png
 [/REGION]
 
 
-(#staticskylight)
-
 ### 静态天空光照
 
 设置为 **静态（Static）** 的天空光照将被完全烘焙到关卡中的静态对象的光照图中，因此不需要任何成本。在对该光源的属性进行编辑后，所做的更改将不可见，
@@ -74,8 +68,6 @@ Social-Image:SkyLight_1.png
 使用静态天空光照时，将仅采集关卡中移动性设置为 **静态（Static）** 或 **静止（Stationary）** 的Actor和光源，并且将仅使用它们进行照明。此外，为了避免反馈循环， 
 使用静态天空光照时，只能采集材质的自发光贡献部分。因此，请确保任何天空盒具有设置为 **无光照（Unlit）** 的材质。
 [/REGION]
-
-(#stationaryskylight)
 
 ### 静止天空光照
 
@@ -92,14 +84,10 @@ Social-Image:SkyLight_1.png
 [/REGION]
 
 
-(#movableskylight)
-
 ### 可移动天空光照
 
 设置为 **可移动（Movable）** 的天空光照不使用任何形式的预计算。当设置为采集场景时，它采集具有任何移动性的组件和光源。
 
-
-(#distancefieldambientocclusion)
 
 #### 距离场环境遮挡
 
@@ -122,20 +110,16 @@ Social-Image:SkyLight_1.png
 
 
 
-(#precomputedskylight)
-
 ## 预计算天空光照
 
 使用烘焙光照和静态或静止天空光照时，照明和阴影数据将存储在光照图中。下面几个小节将讨论 
 [全局光照](Engine/Rendering/LightingAndShadows/Lightmass)支持的一些功能。
 
 
-(#improvedstaticskylightdirectionality)
-
 ### 增强型静态天空光照方向性
 
 在虚幻引擎4.18之前，静态天光通常用带3阶球谐（3rd Order Spherical Harmonic）的全局光照来表示，它无法采集日出或日落时可能出现的细节。 
-现在使用经过过滤的立方体贴图，默认情况下会得到更高的分辨率。全局光照还会基于最终聚集光线的大小选择相应的[立方体贴图MIP](Engine/Content/Types/Textures/Properties#levelofdetail)， 
+现在使用经过过滤的立方体贴图，默认情况下会得到更高的分辨率。全局光照还会基于最终聚集光线的大小选择相应的[立方体贴图MIP](Engine/Content/Types/Textures/Properties#细节级别)， 
 以避免任何失真。
 
 [REGION:tip]
@@ -153,12 +137,10 @@ Social-Image:SkyLight_1.png
 [/OBJECT]
 [REGION:caption]  [/REGION]
 [REGION:caption]
-使用Epic的[Robo Recall](Modding/RoboRecall)中的起始办公室关卡进行改进的示例 
+使用Epic的 **Robo Recall** 中的起始办公室关卡进行改进的示例 
 [/REGION]
 
 最大的区别可以在具有大量亮度和颜色变化之天空光照立方体贴图的严重遮挡场景中看到。 
-
-(#cameraobscura)
 
 #### 暗箱
 
@@ -171,8 +153,6 @@ Social-Image:SkyLight_1.png
 | 天空光照源立方体贴图 | 产生的光源构建 |
 | _单击图片以查看完整尺寸。_ | _单击图片以查看完整尺寸。_ |
 [/REGION]
-
-(#bentnormalforstationaryskylights)
 
 ### 静止天空光照的环境法线
 
@@ -192,8 +172,6 @@ Social-Image:SkyLight_1.png
 有关更多信息，请访问[环境法线贴图](Engine/Rendering/LightingAndShadows/BentNormalMaps)页面。
 [/REGION]
 
-
-(#multi-bounce)
 
 ### 多次反射
 
@@ -231,15 +209,11 @@ Social-Image:SkyLight_1.png
 [/OBJECT]
 [/COMMENT]
 
-(#properties)
-
 ## 属性
 
 天空光照组件的属性分为两类：光源和天空光照。您可以从Actor **详细信息（Details）** 面板访问它们。
 
 ![](SkyLightSettings.png)
-
-(#light)
 
 ### 光源
 
@@ -258,8 +232,6 @@ Social-Image:SkyLight_1.png
 | **体积散射强度（Volumetric Scattering Intensity）** | 该光源的体积散射的强度。它缩放强度（Intensity）和光源颜色（Light Color）。|
 | **投射体积阴影（Cast Volumetric Shadow）** | 光源是否投下体积雾（Volumetric Fog）阴影。|
 [/REGION]
-
-(#skylight)
 
 ### 天空光照
 
@@ -291,14 +263,10 @@ Social-Image:SkyLight_1.png
 [/COMMENT]
 
 
-(#shadowingfrommovableobjects)
-
 ## 来自可移动对象的阴影
 
 使用[胶囊体阴影](Engine/Rendering/LightingAndShadows/CapsuleShadows)（对于骨架网格体）或 
 [距离场间接阴影](Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo/DFHT_4)（对于刚性网格体），可实现从可移动对象到环境上的软阴影。它们需要单独设置才能正常工作。
-
-(#limitations)
 
 ## 限制
 
@@ -352,15 +320,11 @@ _此场景通过指定不同的HDR天空盒立方体贴图，仅使用静止天�
 
 [/COMMENT]
 
-(#staticskylight)
-
 ## 静态天空光照
 
 具有 **静态移动性（Static Mobility）** 的天空光照将被完全烘焙到静态对象的光照图中，因此不需要任何成本。在移动设备上，这是唯一一种受支持的天空光照。在再次构建光照之前，对该光源所做的编辑将不可见。
 
 注：只有具有 **静态（Static）** 或 **静止移动性（Stationary Mobility）** 的组件和光源将被采集并用于采用静态天空光照的照明。此外，为了避免反馈循环，使用**静态天空光照**时，只能采集材质的自发光贡献部分。请确保天空盒具有无光照材质。
-
-(#stationaryskylight)
 
 ## 静止天空光照
 
@@ -413,19 +377,13 @@ _顶部：仅直接光照，底部：直接光照以及由全局光照为静止�
 
 [/COMMENT]
 
-(#movableskylight)
-
 ## 可移动天空光照
 
  **可移动天空光照** 不使用任何形式的预计算。当设置为采集场景用作天空光照源时，它采集具有任何移动性的组件和光源。
 
-(#distancefieldambientocclusion)
-
 ### 距离场环境遮挡
 
 可移动天空光照的阴影由名为[**距离场环境遮挡（Distance Field Ambient Occlusion）**](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)的新功能从每个刚性对象周围预计算的有向距离场体积提供，该功能生成环境遮挡。它支持动态场景变化 — 刚性网格体可以移动或隐藏，同时它会影响遮挡。该功能在默认情况下为关闭状态，并且有若干设置步骤。
-
-(#limitations)
 
 ## 限制
 
@@ -433,13 +391,9 @@ _顶部：仅直接光照，底部：直接光照以及由全局光照为静止�
 * 从可移动对象（字符）到环境上的软阴影。
 * 为 **静态** 变体和 **可移动** 变体动态重新采集场景。SkyLightComponent上有一个名为RecaptureSky()的蓝图函数可以使用，然而这会造成卡顿。
 
-(#skylightproperties)
-
 ## 天空光照属性
 
 天空光照组件的属性分为2类：光源和天空光照。 
-
-(#light)
 
 ### 光源
 | 属性 | 说明 |
@@ -448,8 +402,6 @@ _顶部：仅直接光照，底部：直接光照以及由全局光照为静止�
 | **光源颜色（Light Color）** | 指定光源发出的颜色。|
 | **影响世界场景（Affects World）** | 光源是否能影响世界场景，或者光源是否被禁用。|
 | **投射阴影（Casts Shadows）** | 光源是否应投射任何阴影。|
-
-(#skylight)
 
 ### 天空光照
 | 属性 | 说明 |
