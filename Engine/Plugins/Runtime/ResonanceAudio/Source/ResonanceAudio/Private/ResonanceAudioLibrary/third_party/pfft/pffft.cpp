@@ -1895,13 +1895,16 @@ void pffft_transform_ordered(PFFFT_Setup *setup, const float *input, float *outp
 }
 
 #ifdef DEFINED_M_PI
+#undef DEFINED_M_PI
 #undef M_PI
 #endif
 
 #ifdef DEFINED_M_LN2
+#undef DEFINED_M_LN2
 #undef M_LN2
 #endif
 
 #ifdef DEFINED_M_SQRT2
+#undef DEFINED_M_SQRT2
 #undef M_SQRT2
 #endif
