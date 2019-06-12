@@ -36,19 +36,15 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
-#include "ProfilingDebugging/CsvProfiler.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "Animation/AnimStreamable.h"
 #define USE_SLERP 0
 #define LOCTEXT_NAMESPACE "AnimSequence"
 
-CSV_DEFINE_CATEGORY(Animation, false);
-
 DECLARE_CYCLE_STAT(TEXT("AnimSeq GetBonePose"), STAT_AnimSeq_GetBonePose, STATGROUP_Anim);
 DECLARE_CYCLE_STAT(TEXT("AnimSeq EvalCurveData"), STAT_AnimSeq_EvalCurveData, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("Build Anim Track Pairs"), STAT_BuildAnimTrackPairs, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("Extract Pose From Anim Data"), STAT_ExtractPoseFromAnimData, STATGROUP_Anim);
 
 int32 GPerformFrameStripping = 0;
 int32 GPerformFrameStrippingOddFramedAnimations = 0;
@@ -203,6 +199,41 @@ void OnCVarsChanged()
 }
 
 FAutoConsoleVariableSink AnimationCVarSink(FConsoleCommandDelegate::CreateStatic(&OnCVarsChanged));
+
+FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, const bool bPerformStripping)
+{
+	//Make up our content key consisting of:
+	//	* Global animation compression version
+	//  * Whether to strip frames
+	//	* Our raw data GUID
+	//	* Our skeleton GUID: If our skeleton changes our compressed data may now be stale
+	//	* Baked Additive Flag
+	//	* Additive ref pose GUID or hardcoded string if not available
+	//	* Compression Settings
+	//	* Curve compression settings
+
+	bool bIsValidAdditive = Seq.IsValidAdditive();
+	char AdditiveType = bIsValidAdditive ? NibbleToTChar(Seq.AdditiveAnimType) : '0';
+	char RefType = bIsValidAdditive ? NibbleToTChar(Seq.RefPoseType) : '0';
+
+	const int32 StripFrame = bPerformStripping ? 1 : 0;
+
+	FString Ret = FString::Printf(TEXT("%i_%i_%s%s%s_%c%c%i_%s_%s_%s"),
+		Seq.CompressCommandletVersion,
+		StripFrame,
+		*Seq.GetRawDataGuid().ToString(),
+		*Seq.GetSkeleton()->GetGuid().ToString(),
+		*Seq.GetSkeleton()->GetVirtualBoneGuid().ToString(),
+		AdditiveType,
+		RefType,
+		Seq.RefFrameIndex,
+		(bIsValidAdditive && Seq.RefPoseSeq) ? *Seq.RefPoseSeq->GetRawDataGuid().ToString() : TEXT("NoAdditiveGuid"),
+		*Seq.CompressionScheme->MakeDDCKey(),
+		*Seq.CurveCompressionSettings->MakeDDCKey()
+	);
+
+	return Ret;
+}
 #endif
 
 bool CompressRawAnimSequenceTrack(FRawAnimSequenceTrack& RawTrack, int32 NumFrames, FName ErrorName, float MaxPosDiff, float MaxAngleDiff)
@@ -1470,23 +1501,6 @@ void UAnimSequence::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& OutCu
 #endif
 }
 
-void UAnimSequence::ResetRootBoneForRootMotion(FTransform& BoneTransform, const FBoneContainer& RequiredBones, ERootMotionRootLock::Type InRootMotionRootLock) const
-{
-	switch (InRootMotionRootLock)
-	{
-		case ERootMotionRootLock::AnimFirstFrame: BoneTransform = ExtractRootTrackTransform(0.f, &RequiredBones); break;
-		case ERootMotionRootLock::Zero: BoneTransform = FTransform::Identity; break;
-		default:
-		case ERootMotionRootLock::RefPose: BoneTransform = RequiredBones.GetRefPoseArray()[0]; break;
-	}
-
-	if (IsValidAdditive() && InRootMotionRootLock != ERootMotionRootLock::AnimFirstFrame)
-	{
-		//Need to remove default scale here for additives
-		BoneTransform.SetScale3D(BoneTransform.GetScale3D() - FVector(1.f));
-	}
-}
-
 struct FRetargetTracking
 {
 	const FCompactPoseBoneIndex PoseBoneIndex;
@@ -1497,190 +1511,6 @@ struct FRetargetTracking
 	{
 	}
 };
-
-struct FGetBonePoseScratchArea : public TThreadSingleton<FGetBonePoseScratchArea>
-{
-	BoneTrackArray RotationScalePairs;
-	BoneTrackArray TranslationPairs;
-	BoneTrackArray AnimScaleRetargetingPairs;
-	BoneTrackArray AnimRelativeRetargetingPairs;
-	BoneTrackArray OrientAndScaleRetargetingPairs;
-	TArray<FRetargetTracking> RetargetTracking;
-	TArray<FVirtualBoneCompactPoseData> VirtualBoneCompactPoseData;
-};
-
-
-FTransform ExtractTransformForKey(int32 Key, const FRawAnimSequenceTrack &TrackToExtract)
-{
-	static const FVector DefaultScale3D = FVector(1.f);
-	const bool bHasScaleKey = TrackToExtract.ScaleKeys.Num() > 0;
-
-	const int32 PosKeyIndex = FMath::Min(Key, TrackToExtract.PosKeys.Num() - 1);
-	const int32 RotKeyIndex = FMath::Min(Key, TrackToExtract.RotKeys.Num() - 1);
-	if (bHasScaleKey)
-	{
-		const int32 ScaleKeyIndex = FMath::Min(Key, TrackToExtract.ScaleKeys.Num() - 1);
-		return FTransform(TrackToExtract.RotKeys[RotKeyIndex], TrackToExtract.PosKeys[PosKeyIndex], TrackToExtract.ScaleKeys[ScaleKeyIndex]);
-	}
-	else
-	{
-		return FTransform(TrackToExtract.RotKeys[RotKeyIndex], TrackToExtract.PosKeys[PosKeyIndex], DefaultScale3D);
-	}
-}
-
-template<bool bInterpolateT>
-void UAnimSequence::BuildPoseFromRawDataInternal(const TArray<FRawAnimSequenceTrack>& InAnimationData, FCompactPose& InOutPose, int32 KeyIndex1, int32 KeyIndex2, float Alpha) const
-{
-	const int32 NumTracks = InAnimationData.Num();
-	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
-
-	TArray<FRetargetTracking>& RetargetTracking = FGetBonePoseScratchArea::Get().RetargetTracking;
-	RetargetTracking.Reset(NumTracks);
-
-	TArray<FVirtualBoneCompactPoseData>& VBCompactPoseData = FGetBonePoseScratchArea::Get().VirtualBoneCompactPoseData;
-	VBCompactPoseData = RequiredBones.GetVirtualBoneCompactPoseData();
-
-	FCompactPose Key2Pose;
-	if (bInterpolateT)
-	{
-		Key2Pose.CopyBonesFrom(InOutPose);
-	}
-
-	for (int32 TrackIndex = 0; TrackIndex < NumTracks; TrackIndex++)
-	{
-		const int32 SkeletonBoneIndex = GetSkeletonIndexFromRawDataTrackIndex(TrackIndex);
-		// not sure it's safe to assume that SkeletonBoneIndex can never be INDEX_NONE
-		if ((SkeletonBoneIndex != INDEX_NONE) && (SkeletonBoneIndex < MAX_BONES))
-		{
-			const FCompactPoseBoneIndex PoseBoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
-			if (PoseBoneIndex != INDEX_NONE)
-			{
-				for (int32 Idx = 0; Idx < VBCompactPoseData.Num(); ++Idx)
-				{
-					FVirtualBoneCompactPoseData& VB = VBCompactPoseData[Idx];
-					if (PoseBoneIndex == VB.VBIndex)
-					{
-						// Remove this bone as we have written data for it (false so we dont resize allocation)
-						VBCompactPoseData.RemoveAtSwap(Idx, 1, false);
-						break; //Modified TArray so must break here
-					}
-				}
-				// extract animation
-
-				const FRawAnimSequenceTrack& TrackToExtract = InAnimationData[TrackIndex];
-
-				// Bail out (with rather wacky data) if data is empty for some reason.
-				if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
-				{
-#if WITH_EDITORONLY_DATA
-					UE_LOG(LogAnimation, Warning, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence '%s' Track '%s'"), *GetPathName(), *AnimationTrackNames[TrackIndex].ToString() );
-#endif
-
-					InOutPose[PoseBoneIndex].SetIdentity();
-
-					if (bInterpolateT)
-					{
-						Key2Pose[PoseBoneIndex].SetIdentity();
-					}
-				}
-				else
-				{
-					InOutPose[PoseBoneIndex] = ExtractTransformForKey(KeyIndex1, TrackToExtract);
-
-					if (bInterpolateT)
-					{
-						Key2Pose[PoseBoneIndex] = ExtractTransformForKey(KeyIndex2, TrackToExtract);
-					}
-				}
-
-				RetargetTracking.Add(FRetargetTracking(PoseBoneIndex, SkeletonBoneIndex));
-			}
-		}
-	}
-
-	//Build Virtual Bones
-	if (VBCompactPoseData.Num() > 0)
-	{
-		FCSPose<FCompactPose> CSPose1;
-		CSPose1.InitPose(InOutPose);
-
-		FCSPose<FCompactPose> CSPose2;
-		if (bInterpolateT)
-		{
-			CSPose2.InitPose(Key2Pose);
-		}
-
-		for (FVirtualBoneCompactPoseData& VB : VBCompactPoseData)
-		{
-			FTransform Source = CSPose1.GetComponentSpaceTransform(VB.SourceIndex);
-			FTransform Target = CSPose1.GetComponentSpaceTransform(VB.TargetIndex);
-			InOutPose[VB.VBIndex] = Target.GetRelativeTransform(Source);
-
-			if (bInterpolateT)
-			{
-				FTransform Source2 = CSPose2.GetComponentSpaceTransform(VB.SourceIndex);
-				FTransform Target2 = CSPose2.GetComponentSpaceTransform(VB.TargetIndex);
-				Key2Pose[VB.VBIndex] = Target2.GetRelativeTransform(Source2);
-			}
-		}
-	}
-
-	if (bInterpolateT)
-	{
-		for (FCompactPoseBoneIndex BoneIndex : InOutPose.ForEachBoneIndex())
-		{
-			InOutPose[BoneIndex].Blend(InOutPose[BoneIndex], Key2Pose[BoneIndex], Alpha);
-		}
-	}
-}
-
-void UAnimSequence::BuildPoseFromRawData(const TArray<FRawAnimSequenceTrack>& InAnimationData, FCompactPose& InOutPose, float InTime) const
-{
-	int32 KeyIndex1, KeyIndex2;
-	float Alpha;
-	FAnimationRuntime::GetKeyIndicesFromTime(KeyIndex1, KeyIndex2, Alpha, InTime, NumFrames, SequenceLength);
-
-	if (Interpolation == EAnimInterpolationType::Step)
-	{
-		Alpha = 0.f;
-	}
-
-	bool bInterpolate = true;
-
-	if (Alpha < KINDA_SMALL_NUMBER)
-	{
-		Alpha = 0.f;
-		bInterpolate = false;
-	}
-	else if (Alpha > 1.f - KINDA_SMALL_NUMBER)
-	{
-		bInterpolate = false;
-		KeyIndex1 = KeyIndex2;
-	}
-
-	if (bInterpolate)
-	{
-		BuildPoseFromRawDataInternal<true>(InAnimationData, InOutPose, KeyIndex1, KeyIndex2, Alpha);
-	}
-	else
-	{
-		BuildPoseFromRawDataInternal<false>(InAnimationData, InOutPose, KeyIndex1, KeyIndex2, Alpha);
-	}
-
-	const FBoneContainer& RequiredBones = InOutPose.GetBoneContainer();
-	const bool bDisableRetargeting = RequiredBones.GetDisableRetargeting();
-
-	if (!bDisableRetargeting)
-	{
-		const TArray<FRetargetTracking>& RetargetTracking = FGetBonePoseScratchArea::Get().RetargetTracking;
-
-		for (const FRetargetTracking& RT : RetargetTracking)
-		{
-			RetargetBoneTransform(InOutPose[RT.PoseBoneIndex], RT.SkeletonBoneIndex, RT.PoseBoneIndex, RequiredBones, false);
-		}
-	}
-
-}
 
 void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext, bool bForceUseRawData) const
 {
@@ -1747,6 +1577,8 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 		return;
 	}
 
+	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, ExtractRootTrackTransform(0.f, &RequiredBones), IsValidAdditive());
+
 #if WITH_EDITOR
 	// this happens only with editor data
 	// Slower path for disable retargeting, that's only used in editor and for debugging.
@@ -1755,209 +1587,30 @@ void UAnimSequence::GetBonePose(FCompactPose& OutPose, FBlendedCurve& OutCurve, 
 		const bool bShouldUseSourceData = (RequiredBones.ShouldUseSourceData() && SourceRawAnimationData.Num() > 0);
 		const TArray<FRawAnimSequenceTrack>& AnimationData = bShouldUseSourceData ? SourceRawAnimationData : RawAnimationData;
 
-		BuildPoseFromRawData(AnimationData, OutPose, ExtractionContext.CurrentTime);
+		// Warning if we have invalid data
 
-		if ((ExtractionContext.bExtractRootMotion && bEnableRootMotion) || bForceRootLock)
+		for (int32 TrackIndex = 0; TrackIndex < NumTracks; TrackIndex++)
 		{
-			ResetRootBoneForRootMotion(OutPose[FCompactPoseBoneIndex(0)], RequiredBones, RootMotionRootLock);
+			const FRawAnimSequenceTrack& TrackToExtract = AnimationData[TrackIndex];
+
+			// Bail out (with rather wacky data) if data is empty for some reason.
+			if (TrackToExtract.PosKeys.Num() == 0 || TrackToExtract.RotKeys.Num() == 0)
+			{
+				UE_LOG(LogAnimation, Warning, TEXT("UAnimSequence::GetBoneTransform : No anim data in AnimSequence '%s' Track '%s'"), *GetPathName(), *AnimationTrackNames[TrackIndex].ToString());
+			}
+		}
+
+		BuildPoseFromRawData(AnimationData, TrackToSkeletonMapTable, OutPose, ExtractionContext.CurrentTime, Interpolation, NumFrames, SequenceLength, RetargetSource);
+
+		if ((ExtractionContext.bExtractRootMotion && RootMotionReset.bEnableRootMotion) || RootMotionReset.bForceRootLock)
+		{
+			RootMotionReset.ResetRootBoneForRootMotion(OutPose[FCompactPoseBoneIndex(0)], RequiredBones);
 		}
 		return;
 	}
 #endif // WITH_EDITOR
 
-	TArray<int32> const& SkeletonToPoseBoneIndexArray = RequiredBones.GetSkeletonToPoseBoneIndexArray();
-
-	BoneTrackArray& RotationScalePairs = FGetBonePoseScratchArea::Get().RotationScalePairs;
-	BoneTrackArray& TranslationPairs = FGetBonePoseScratchArea::Get().TranslationPairs;
-	BoneTrackArray& AnimScaleRetargetingPairs = FGetBonePoseScratchArea::Get().AnimScaleRetargetingPairs;
-	BoneTrackArray& AnimRelativeRetargetingPairs = FGetBonePoseScratchArea::Get().AnimRelativeRetargetingPairs;
-	BoneTrackArray& OrientAndScaleRetargetingPairs = FGetBonePoseScratchArea::Get().OrientAndScaleRetargetingPairs;
-
-	// build a list of desired bones
-	RotationScalePairs.Reset();
-	TranslationPairs.Reset();
-	AnimScaleRetargetingPairs.Reset();
-	AnimRelativeRetargetingPairs.Reset();
-	OrientAndScaleRetargetingPairs.Reset();
-
-	// Optimization: assuming first index is root bone. That should always be the case in Skeletons.
-	checkSlow((SkeletonToPoseBoneIndexArray[0] == 0));
-	// this is not guaranteed for AnimSequences though... If Root is not animated, Track will not exist.
-	const bool bFirstTrackIsRootBone = (GetSkeletonIndexFromCompressedDataTrackIndex(0) == 0);
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_BuildAnimTrackPairs);
-
-		// Handle root bone separately if it is track 0. so we start w/ Index 1.
-		for (int32 TrackIndex = (bFirstTrackIsRootBone ? 1 : 0); TrackIndex < NumTracks; TrackIndex++)
-		{
-			const int32 SkeletonBoneIndex = GetSkeletonIndexFromCompressedDataTrackIndex(TrackIndex);
-			// not sure it's safe to assume that SkeletonBoneIndex can never be INDEX_NONE
-			if (SkeletonBoneIndex != INDEX_NONE)
-			{
-				const FCompactPoseBoneIndex BoneIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SkeletonBoneIndex);
-				//Nasty, we break our type safety, code in the lower levels should be adjusted for this
-				const int32 CompactPoseBoneIndex = BoneIndex.GetInt();
-				if (CompactPoseBoneIndex != INDEX_NONE)
-				{
-					RotationScalePairs.Add(BoneTrackPair(CompactPoseBoneIndex, TrackIndex));
-
-					// Skip extracting translation component for EBoneTranslationRetargetingMode::Skeleton.
-					switch (MySkeleton->GetBoneTranslationRetargetingMode(SkeletonBoneIndex))
-					{
-					case EBoneTranslationRetargetingMode::Animation:
-						TranslationPairs.Add(BoneTrackPair(CompactPoseBoneIndex, TrackIndex));
-						break;
-					case EBoneTranslationRetargetingMode::AnimationScaled:
-						TranslationPairs.Add(BoneTrackPair(CompactPoseBoneIndex, TrackIndex));
-						AnimScaleRetargetingPairs.Add(BoneTrackPair(CompactPoseBoneIndex, SkeletonBoneIndex));
-						break;
-					case EBoneTranslationRetargetingMode::AnimationRelative:
-						TranslationPairs.Add(BoneTrackPair(CompactPoseBoneIndex, TrackIndex));
-
-						// With baked additives, we can skip 'AnimationRelative' tracks, as the relative transform gets canceled out.
-						// (A1 + Rel) - (A2 + Rel) = A1 - A2.
-						if (!bIsBakedAdditive)
-						{
-							AnimRelativeRetargetingPairs.Add(BoneTrackPair(CompactPoseBoneIndex, SkeletonBoneIndex));
-						}
-						break;
-					case EBoneTranslationRetargetingMode::OrientAndScale:
-						TranslationPairs.Add(BoneTrackPair(CompactPoseBoneIndex, TrackIndex));
-
-						// Additives remain additives, they're not retargeted.
-						if (!bIsBakedAdditive)
-						{
-							OrientAndScaleRetargetingPairs.Add(BoneTrackPair(CompactPoseBoneIndex, SkeletonBoneIndex));
-						}
-						break;
-					}
-				}
-			}
-		}
-	}
-
-	{
-		SCOPE_CYCLE_COUNTER(STAT_ExtractPoseFromAnimData);
-		CSV_SCOPED_TIMING_STAT(Animation, ExtractPoseFromAnimData);
-		CSV_CUSTOM_STAT(Animation, NumberOfExtractedAnimations, 1, ECsvCustomStatOp::Accumulate);
-
-		FAnimSequenceDecompressionContext EvalDecompContext(SequenceLength, Interpolation, GetFName(), CompressedData.CompressedDataStructure);
-		EvalDecompContext.Seek(ExtractionContext.CurrentTime);
-
-		// Handle Root Bone separately
-		if (bFirstTrackIsRootBone)
-		{
-			const int32 TrackIndex = 0;
-			FCompactPoseBoneIndex RootBone(0);
-			FTransform& RootAtom = OutPose[RootBone];
-
-			AnimationFormat_GetBoneAtom(
-				RootAtom,
-				EvalDecompContext,
-				TrackIndex);
-
-			// @laurent - we should look into splitting rotation and translation tracks, so we don't have to process translation twice.
-			RetargetBoneTransform(RootAtom, 0, RootBone, RequiredBones, bIsBakedAdditive);
-		}
-
-		if (RotationScalePairs.Num() > 0)
-		{
-			// get the remaining bone atoms
-			FTransformArray LocalBones;
-			OutPose.MoveBonesTo(LocalBones);
-
-			AnimationFormat_GetAnimationPose(
-				LocalBones,
-				RotationScalePairs,
-				TranslationPairs,
-				RotationScalePairs,
-				EvalDecompContext);
-
-			OutPose.MoveBonesFrom(MoveTemp(LocalBones));
-		}
-	}
-
-	// Once pose has been extracted, snap root bone back to first frame if we are extracting root motion.
-	if ((ExtractionContext.bExtractRootMotion && bEnableRootMotion) || bForceRootLock)
-	{
-		ResetRootBoneForRootMotion(OutPose[FCompactPoseBoneIndex(0)], RequiredBones, RootMotionRootLock);
-	}
-
-	// Anim Scale Retargeting
-	int32 const NumBonesToScaleRetarget = AnimScaleRetargetingPairs.Num();
-	if (NumBonesToScaleRetarget > 0)
-	{
-		TArray<FTransform> const& AuthoredOnRefSkeleton = MySkeleton->GetRefLocalPoses(RetargetSource);
-
-		for (const BoneTrackPair& BonePair : AnimScaleRetargetingPairs)
-		{
-			const FCompactPoseBoneIndex BoneIndex(BonePair.AtomIndex); //Nasty, we break our type safety, code in the lower levels should be adjusted for this
-			int32 const& SkeletonBoneIndex = BonePair.TrackIndex;
-
-			// @todo - precache that in FBoneContainer when we have SkeletonIndex->TrackIndex mapping. So we can just apply scale right away.
-			float const SourceTranslationLength = AuthoredOnRefSkeleton[SkeletonBoneIndex].GetTranslation().Size();
-			if (SourceTranslationLength > KINDA_SMALL_NUMBER)
-			{
-				float const TargetTranslationLength = RequiredBones.GetRefPoseTransform(BoneIndex).GetTranslation().Size();
-				OutPose[BoneIndex].ScaleTranslation(TargetTranslationLength / SourceTranslationLength);
-			}
-		}
-	}
-
-	// Anim Relative Retargeting
-	int32 const NumBonesToRelativeRetarget = AnimRelativeRetargetingPairs.Num();
-	if (NumBonesToRelativeRetarget > 0)
-	{
-		TArray<FTransform> const& AuthoredOnRefSkeleton = MySkeleton->GetRefLocalPoses(RetargetSource);
-	
-		for (const BoneTrackPair& BonePair : AnimRelativeRetargetingPairs)
-		{
-			const FCompactPoseBoneIndex BoneIndex(BonePair.AtomIndex); //Nasty, we break our type safety, code in the lower levels should be adjusted for this
-			int32 const& SkeletonBoneIndex = BonePair.TrackIndex;
-
-			const FTransform& RefPose = RequiredBones.GetRefPoseTransform(BoneIndex);
-
-			// Apply the retargeting as if it were an additive difference between the current skeleton and the retarget skeleton. 
-			OutPose[BoneIndex].SetRotation(OutPose[BoneIndex].GetRotation() * AuthoredOnRefSkeleton[SkeletonBoneIndex].GetRotation().Inverse() * RefPose.GetRotation());
-			OutPose[BoneIndex].SetTranslation(OutPose[BoneIndex].GetTranslation() + (RefPose.GetTranslation() - AuthoredOnRefSkeleton[SkeletonBoneIndex].GetTranslation()));
-			OutPose[BoneIndex].SetScale3D(OutPose[BoneIndex].GetScale3D() * (RefPose.GetScale3D() * AuthoredOnRefSkeleton[SkeletonBoneIndex].GetSafeScaleReciprocal(AuthoredOnRefSkeleton[SkeletonBoneIndex].GetScale3D())));
-			OutPose[BoneIndex].NormalizeRotation();
-		}
-	}
-
-	// Translation 'Orient and Scale' Translation Retargeting
-	const int32 NumBonesToOrientAndScaleRetarget = OrientAndScaleRetargetingPairs.Num();
-	if (NumBonesToOrientAndScaleRetarget > 0)
-	{
-		const FRetargetSourceCachedData& RetargetSourceCachedData = RequiredBones.GetRetargetSourceCachedData(RetargetSource);
-		const TArray<FOrientAndScaleRetargetingCachedData>& OrientAndScaleDataArray = RetargetSourceCachedData.OrientAndScaleData;
-		const TArray<int32>& CompactPoseIndexToOrientAndScaleIndex = RetargetSourceCachedData.CompactPoseIndexToOrientAndScaleIndex;
-
-		// If we have any cached retargeting data.
-		if ((OrientAndScaleDataArray.Num() > 0) && (CompactPoseIndexToOrientAndScaleIndex.Num() == RequiredBones.GetCompactPoseNumBones()))
-		{
-			for (int32 Index = 0; Index < NumBonesToOrientAndScaleRetarget; Index++)
-			{
-				const BoneTrackPair& BonePair = OrientAndScaleRetargetingPairs[Index];
-				const FCompactPoseBoneIndex CompactPoseBoneIndex(BonePair.AtomIndex);
-				const int32 OrientAndScaleIndex = CompactPoseIndexToOrientAndScaleIndex[CompactPoseBoneIndex.GetInt()];
-				if (OrientAndScaleIndex != INDEX_NONE)
-				{
-					const FOrientAndScaleRetargetingCachedData& OrientAndScaleData = OrientAndScaleDataArray[OrientAndScaleIndex];
-					FTransform& BoneTransform = OutPose[CompactPoseBoneIndex];
-					const FVector AnimatedTranslation = BoneTransform.GetTranslation();
-
-					// If Translation is not animated, we can just copy the TargetTranslation. No retargeting needs to be done.
-					const FVector NewTranslation = (AnimatedTranslation - OrientAndScaleData.SourceTranslation).IsNearlyZero(BONE_TRANS_RT_ORIENT_AND_SCALE_PRECISION) ?
-						OrientAndScaleData.TargetTranslation :
-						OrientAndScaleData.TranslationDeltaOrient.RotateVector(AnimatedTranslation) * OrientAndScaleData.TranslationScale;
-
-					BoneTransform.SetTranslation(NewTranslation);
-				}
-			}
-		}
-	}
+	DecompressPose(OutPose, CompressedData, ExtractionContext, GetSkeleton(), SequenceLength, Interpolation, bIsBakedAdditive, RetargetSource, GetFName(), RootMotionReset);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2542,35 +2195,52 @@ void UAnimSequence::RequestAnimCompression(FRequestAnimCompressionParams Params)
 		const bool bPerformFrameStripping = Params.bPerformFrameStripping && bAllowFrameStripping;
 		const bool bPerformStrippingOnOddFramedAnims = Params.bPerformFrameStrippingOnOddNumberedFrames;
 
+		// Can only do stripping on animations that have an even number of frames once the end frame is removed)
+		const bool bIsEvenFramed = ((NumFrames - 1) % 2) == 0;
+		const bool bIsValidForStripping = bIsEvenFramed || bPerformStrippingOnOddFramedAnims;
+
+		const bool bStripCandidate = (NumFrames > 10) && bIsValidForStripping;
+
+		const bool bPerformStripping = bStripCandidate && bPerformFrameStripping;
+
 		const int32 PreviousCompressionSize = GetApproxCompressedSize();
 
-		// Filter RAW data to get rid of mismatched tracks (translation/rotation data with a different number of keys than there are frames)
-		// No trivial key removal is done at this point (impossible error metrics of -1), since all of the techniques will perform it themselves
-		CompressRawAnimData(-1.0f, -1.0f);
-
-		FCompressibleAnimData CompressibleData(this); //Build the data that the compression code will compress
+		FString AssetDDCKey = GetAnimSequenceSpecificCacheKeySuffix(*this, bPerformStripping);
 
 		TArray<uint8> OutData;
-		FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(CompressibleData, Params.CompressContext, PreviousCompressionSize, bPerformFrameStripping, bPerformStrippingOnOddFramedAnims);
-		// For debugging DDC/Compression issues		
-		const bool bSkipDDC = false;
-		if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
 		{
-			AnimCompressor->Build(OutData);
+			bool bNeedToCleanUpAnimCompressor = true;
+			FDerivedDataAnimationCompression* AnimCompressor = new FDerivedDataAnimationCompression(TEXT("AnimSeq"), AssetDDCKey, Params.CompressContext, PreviousCompressionSize);
 
-			delete AnimCompressor;
-			AnimCompressor = nullptr;
-		}
-		else
-		{
-			if (AnimCompressor->CanBuild())
+			const FString FinalDDCKey = FDerivedDataCacheInterface::BuildCacheKey(AnimCompressor->GetPluginName(), AnimCompressor->GetVersionString(), *AnimCompressor->GetPluginSpecificCacheKeySuffix());
+
+			// For debugging DDC/Compression issues		
+			const bool bSkipDDC = false;
+
+			if (bSkipDDC || !GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData))
 			{
-				GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData);
+				// Data does not exist, need to build it.
+				// Filter RAW data to get rid of mismatched tracks (translation/rotation data with a different number of keys than there are frames)
+				// No trivial key removal is done at this point (impossible error metrics of -1), since all of the techniques will perform it themselves
+				CompressRawAnimData(-1.0f, -1.0f);
+
+				TSharedRef<FCompressibleAnimData> CompressibleData = MakeShared<FCompressibleAnimData>(this, bPerformStripping);
+				AnimCompressor->SetCompressibleData(CompressibleData);
+
+				if (bSkipDDC || (CompressCommandletVersion == INDEX_NONE))
+				{
+					AnimCompressor->Build(OutData);
+				}
+				else if (AnimCompressor->CanBuild())
+				{
+					bNeedToCleanUpAnimCompressor = false; // GetSynchronous will handle this
+					GetDerivedDataCacheRef().GetSynchronous(AnimCompressor, OutData);
+				}
 			}
-			else
+			
+			if(bNeedToCleanUpAnimCompressor)
 			{
-				// If we dont perform compression we need to clean this up
-				delete AnimCompressor;
+				delete AnimCompressor; // Would really like to do auto mem management but GetDerivedDataCacheRef().GetSynchronous expects a point it can delete, every
 				AnimCompressor = nullptr;
 			}
 		}
@@ -2591,7 +2261,7 @@ void UAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCData)
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
-		CompressedData.SerializeCompressedData(Ar, bDDCData, this, CurveCompressionSettings);
+		CompressedData.SerializeCompressedData(Ar, bDDCData, this, this->GetSkeleton(), CurveCompressionSettings);
 	}
 }
 
@@ -2602,47 +2272,6 @@ bool UAnimSequence::CanBakeAdditive() const
 	return	(NumFrames > 0) &&
 			IsValidAdditive() &&
 			GetSkeleton();
-}
-
-FFloatCurve* GetFloatCurve(FRawCurveTracks& RawCurveTracks, USkeleton::AnimCurveUID& CurveUID)
-{
-	return static_cast<FFloatCurve *>(RawCurveTracks.GetCurveData(CurveUID, ERawCurveTrackTypes::RCT_Float));
-}
-
-bool IsNewKeyDifferent(const FRichCurveKey& LastKey, float NewValue)
-{
-	return LastKey.Value != NewValue;
-}
-
-template <typename ArrayType>
-void UpdateSHAWithArray(FSHA1& Sha, const TArray<ArrayType>& Array)
-{
-	Sha.Update((uint8*)Array.GetData(), Array.Num() * Array.GetTypeSize());
-}
-
-void UpdateSHAWithRawTrack(FSHA1& Sha, const FRawAnimSequenceTrack& RawTrack)
-{
-	UpdateSHAWithArray(Sha, RawTrack.PosKeys);
-	UpdateSHAWithArray(Sha, RawTrack.RotKeys);
-	UpdateSHAWithArray(Sha, RawTrack.ScaleKeys);
-}
-
-template<class DataType>
-void UpdateWithData(FSHA1& Sha, const DataType& Data)
-{
-	Sha.Update((uint8*)(&Data), sizeof(DataType));
-}
-
-void UAnimSequence::UpdateSHAWithCurves(FSHA1& Sha, const FRawCurveTracks& InRawCurveData) const
-{
-	for (const FFloatCurve& Curve : InRawCurveData.FloatCurves)
-	{
-		UpdateWithData(Sha, Curve.Name.UID);
-		UpdateWithData(Sha, Curve.FloatCurve.DefaultValue);
-		UpdateSHAWithArray(Sha, Curve.FloatCurve.GetConstRefOfKeys());
-		UpdateWithData(Sha, Curve.FloatCurve.PreInfinityExtrap);
-		UpdateWithData(Sha, Curve.FloatCurve.PostInfinityExtrap);
-	}
 }
 
 bool UAnimSequence::DoesSequenceContainZeroScale()
@@ -2663,21 +2292,8 @@ bool UAnimSequence::DoesSequenceContainZeroScale()
 
 FGuid UAnimSequence::GenerateGuidFromRawData() const
 {
-	FSHA1 Sha;
+	return GenerateGuidFromRawAnimData(RawAnimationData, RawCurveData);
 
-	for (const FRawAnimSequenceTrack& Track : RawAnimationData)
-	{
-		UpdateSHAWithRawTrack(Sha, Track);
-	}
-
-	UpdateSHAWithCurves(Sha, RawCurveData);
-
-	Sha.Final();
-
-	uint32 Hash[5];
-	Sha.GetHash((uint8*)Hash);
-	FGuid Guid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
-	return Guid;
 }
 
 void CopyTransformToRawAnimationData(const FTransform& BoneTransform, FRawAnimSequenceTrack& Track, int32 Frame)
@@ -2822,6 +2438,16 @@ void UAnimSequence::TestEvalauteAnimation() const
 		ExtractContext.CurrentTime = CurrentFrameTime;
 		GetAnimationPose(Pose, Curve, ExtractContext);
 	}
+}
+
+FFloatCurve* GetFloatCurve(FRawCurveTracks& RawCurveTracks, USkeleton::AnimCurveUID& CurveUID)
+{
+	return static_cast<FFloatCurve *>(RawCurveTracks.GetCurveData(CurveUID, ERawCurveTrackTypes::RCT_Float));
+}
+
+bool IsNewKeyDifferent(const FRichCurveKey& LastKey, float NewValue)
+{
+	return LastKey.Value != NewValue;
 }
 
 void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& NewRawTracks, TArray<FName>& NewAnimationTrackNames, TArray<FTrackToSkeletonMap>& NewTrackToSkeletonMapTable, FRawCurveTracks& NewCurveTracks, TArray<FRawAnimSequenceTrack>& AdditiveBaseAnimationData)
@@ -2979,6 +2605,18 @@ void UAnimSequence::FlagDependentAnimationsAsRawDataOnly() const
 		if (Seq->RefPoseSeq == this)
 		{
 			Seq->bUseRawDataOnly = true;
+		}
+	}
+}
+
+void UAnimSequence::UpdateDependentStreamingAnimations() const
+{
+	for (TObjectIterator<UAnimStreamable> Iter; Iter; ++Iter)
+	{
+		UAnimStreamable* Seq = *Iter;
+		if (Seq->SourceSequence == this)
+		{
+			Seq->InitFrom(this);
 		}
 	}
 }

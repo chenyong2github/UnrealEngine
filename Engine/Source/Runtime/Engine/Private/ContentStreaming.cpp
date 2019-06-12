@@ -17,6 +17,7 @@
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Streaming/StreamingManagerTexture.h"
 #include "AudioStreaming.h"
+#include "Animation/AnimationStreaming.h"
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -754,6 +755,9 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 	AudioStreamingManager = new FAudioStreamingManager();
 	AddStreamingManager( AudioStreamingManager );
+
+	AnimationStreamingManager = new FAnimationStreamingManager();
+	AddStreamingManager(AnimationStreamingManager);
 }
 
 /**
@@ -950,6 +954,12 @@ IAudioStreamingManager& FStreamingManagerCollection::GetAudioStreamingManager() 
 {
 	check(AudioStreamingManager);
 	return *AudioStreamingManager;
+}
+
+IAnimationStreamingManager& FStreamingManagerCollection::GetAnimationStreamingManager() const
+{
+	check(AnimationStreamingManager);
+	return *AnimationStreamingManager;
 }
 
 /** Don't stream world resources for the next NumFrames. */
