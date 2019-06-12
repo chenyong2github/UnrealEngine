@@ -224,7 +224,7 @@ public:
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
-		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates)
+		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates)
 	{
 		RepLayout.PreSendCustomDeltaProperties(Object, Connection, ChangelistMgr, CustomDeltaStates);
 	}
@@ -234,7 +234,7 @@ public:
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
-		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates)
+		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates)
 	{
 		RepLayout.PostSendCustomDeltaProperties(Object, Connection, ChangelistMgr, CustomDeltaStates);
 	}
@@ -426,19 +426,32 @@ void FObjectReplicator::InitRecentProperties(uint8* Source)
 
 		// Init custom delta property state
 		const uint16 NumLifetimeCustomDeltaProperties = FNetSerializeCB::GetNumLifetimeCustomDeltaProperties(LocalRepLayout);
+		SendingRepState->RecentCustomDeltaState.SetNum(NumLifetimeCustomDeltaProperties);
+
+		const bool bIsRecordingReplay = Connection->InternalAck;
+
+		if (bIsRecordingReplay)
+		{
+			SendingRepState->CDOCustomDeltaState.SetNum(NumLifetimeCustomDeltaProperties);
+			SendingRepState->CheckpointCustomDeltaState.SetNum(NumLifetimeCustomDeltaProperties);
+		}
+
 		for (uint16 CustomDeltaProperty = 0; CustomDeltaProperty < NumLifetimeCustomDeltaProperties; ++CustomDeltaProperty)
 		{
 			FOutBunch DeltaState(Connection->PackageMap);
-			TSharedPtr<INetDeltaBaseState>& NewState = SendingRepState->RecentCustomDeltaState.FindOrAdd(CustomDeltaProperty);
+			TSharedPtr<INetDeltaBaseState>& NewState = SendingRepState->RecentCustomDeltaState[CustomDeltaProperty];
 			NewState.Reset();
 
 			TSharedPtr<INetDeltaBaseState> OldState;
 
 			SendCustomDeltaProperty(UseObject, CustomDeltaProperty, DeltaState, NewState, OldState);
 
-			// Store the initial delta state in case we need it for when we're asked to resend all data since channel was first opened (bResendAllDataSinceOpen)
-			SendingRepState->CDOCustomDeltaState.Add(CustomDeltaProperty, NewState);
-			SendingRepState->CheckpointCustomDeltaState.Add(CustomDeltaProperty, NewState);
+			if (bIsRecordingReplay)
+			{
+				// Store the initial delta state in case we need it for when we're asked to resend all data since channel was first opened (bResendAllDataSinceOpen)
+				SendingRepState->CDOCustomDeltaState[CustomDeltaProperty] = NewState;
+				SendingRepState->CheckpointCustomDeltaState[CustomDeltaProperty] = NewState;
+			}
 		}
 	}
 }
@@ -855,13 +868,7 @@ void FObjectReplicator::ReceivedNak( int32 NakPacketId )
 
 						// The Nack'd packet did update this property, so we need to replace the buffer in RecentDynamic
 						// with the buffer we used to create this update (which was dropped), so that the update will be recreated on the next replicate actor
-						if (Rec->DynamicState.IsValid())
-						{
-							TSharedPtr<INetDeltaBaseState> & RecentState = SendingRepState->RecentCustomDeltaState.FindChecked(i);
-
-							RecentState.Reset();
-							RecentState = Rec->DynamicState;
-						}
+						SendingRepState->RecentCustomDeltaState[i] = Rec->DynamicState;
 
 						// We can get rid of the rest of the saved off base states since we will be regenerating these updates on the next replicate actor
 						while (Rec != nullptr)
@@ -1433,7 +1440,7 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 	check(OwningChannel);
 	check(Connection == OwningChannel->Connection);
 
-	TMap<int32, TSharedPtr<INetDeltaBaseState>>& UsingCustomDeltaStates =
+	TArray<TSharedPtr<INetDeltaBaseState>>& UsingCustomDeltaStates =
 		EResendAllDataState::None == Connection->ResendAllDataState ? SendingRepState->RecentCustomDeltaState :
 		EResendAllDataState::SinceOpen == Connection->ResendAllDataState ? SendingRepState->CDOCustomDeltaState :
 		SendingRepState->CheckpointCustomDeltaState;
@@ -1473,12 +1480,12 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 
 		TempBitWriter.Reset();
 
+		TSharedPtr<INetDeltaBaseState>& OldState = UsingCustomDeltaStates[CustomDeltaProperty];
+
 		if (Connection->ResendAllDataState != EResendAllDataState::None)
 		{
 			if (Connection->ResendAllDataState == EResendAllDataState::SinceCheckpoint)
 			{
-				TSharedPtr<INetDeltaBaseState>& OldState = UsingCustomDeltaStates.FindChecked(CustomDeltaProperty);
-
 				if (!SendCustomDeltaProperty(Object, CustomDeltaProperty, TempBitWriter, NewState, OldState))
 				{
 					continue;
@@ -1491,8 +1498,6 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 			{
 				// If we are resending data since open, we don't want to affect the current state of channel/replication, so just do the minimum and send the data, and return
 				// In this case, we'll send all of the properties since the CDO, so use the initial CDO delta state
-				TSharedPtr<INetDeltaBaseState>& OldState = UsingCustomDeltaStates.FindChecked(CustomDeltaProperty);
-
 				if (!SendCustomDeltaProperty(Object, CustomDeltaProperty, TempBitWriter, NewState, OldState))
 				{
 					continue;
@@ -1516,8 +1521,6 @@ void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, F
 		check(*LastNext == nullptr);
 
 		ValidateRetirementHistory(Retire, Object);
-
-		TSharedPtr<INetDeltaBaseState>& OldState = UsingCustomDeltaStates.FindOrAdd(CustomDeltaProperty);
 
 		//-----------------------------------------
 		//	Do delta serialization on dynamic properties
