@@ -50,12 +50,20 @@ class NullLogger {
   }
 };
 
+
+#define DISABLE_CHECKS 1
+
+#if DISABLE_CHECKS
+#define DCHECK(expr) 
+#else
 // If statement prevents unused variable warnings.
 #define DCHECK(expr)   \
   if (false && (expr)) \
     ;                  \
   else                 \
     NullLogger().GetStream()
+#endif
+
 #define DCHECK_OP(val1, val2, op) DCHECK((val1)op(val2))
 
 #define DCHECK_EQ(val1, val2) DCHECK_OP((val1), (val2), ==)
