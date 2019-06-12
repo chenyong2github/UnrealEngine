@@ -6,6 +6,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "OnlineSubsystem.h"
 #import "OnlineStoreKitHelper.h"
+#include "Misc/ConfigCacheIni.h"
 
 FOnlineStoreIOS::FOnlineStoreIOS(FOnlineSubsystemIOS* InSubsystem)
 	: StoreHelper(nullptr)
