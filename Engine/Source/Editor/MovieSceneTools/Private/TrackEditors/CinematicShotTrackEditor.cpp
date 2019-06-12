@@ -578,9 +578,9 @@ void FCinematicShotTrackEditor::HandleAddCinematicShotTrackMenuEntryExecute()
 	{
 		if (GetSequencer().IsValid())
 		{
-			GetSequencer()->OnAddTrack(ShotTrack);
+			// Cinematic Shot Tracks can't be placed in folders, they're only allowed in the root.
+			GetSequencer()->OnAddTrack(ShotTrack, FGuid());
 		}
-		GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 	}
 }
 

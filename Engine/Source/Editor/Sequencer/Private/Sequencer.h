@@ -974,8 +974,8 @@ protected:
 	/** Handles loading in previously recorded data. */
 	void OnLoadRecordedData();
 
-	/** Handles adding a newly created track to the outliner tree by assigning it into a folder and selecting it. */
-	void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack);
+	/** Adds the track to the selected folder (if FGuid is invalid) and selects the track, throbs it, and notifies the sequence to rebuild any necessary data. */
+	void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, const FGuid& ObjectBinding);
 
 	/** Determines the selected parent folders and returns the node path to the first folder. Also expands the first folder. */
 	void CalculateSelectedFolderAndPath(TArray<UMovieSceneFolder*>& OutSelectedParentFolders, FString& OutNewNodePath);

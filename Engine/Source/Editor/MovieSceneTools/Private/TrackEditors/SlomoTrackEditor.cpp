@@ -95,10 +95,8 @@ void FSlomoTrackEditor::HandleAddSlomoTrackMenuEntryExecute()
 
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(SlomoTrack);
+		GetSequencer()->OnAddTrack(SlomoTrack, FGuid());
 	}
-
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
 bool FSlomoTrackEditor::HandleAddSlomoTrackMenuEntryCanExecute() const
