@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "EdGraph/EdGraphSchema.h"
+#include "Styling/SlateTypes.h"
 
 class INiagaraStackItemGroupAddUtilities;
 

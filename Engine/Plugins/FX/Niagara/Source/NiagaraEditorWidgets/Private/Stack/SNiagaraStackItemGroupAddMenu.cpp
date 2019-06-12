@@ -8,6 +8,7 @@
 #include "SGraphActionMenu.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Styling/SlateTypes.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackItemGroupAddMenu"
 
