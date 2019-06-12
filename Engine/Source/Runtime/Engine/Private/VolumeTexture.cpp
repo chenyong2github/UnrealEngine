@@ -46,7 +46,7 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 			const int32 FormatDataSize = InitialSource.GetBytesPerPixel();
 			if (FormatDataSize > 0)
 			{
-				TArray<uint8> Ref2DData;
+				TArray64<uint8> Ref2DData;
 				if (InitialSource.GetMipData(Ref2DData, 0))
 				{
 					uint8* NewData = (uint8*)FMemory::Malloc(Source2DTileSizeX * Source2DTileSizeY * TileSizeZ * FormatDataSize);

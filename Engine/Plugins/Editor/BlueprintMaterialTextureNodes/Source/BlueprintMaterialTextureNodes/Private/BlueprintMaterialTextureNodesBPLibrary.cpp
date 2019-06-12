@@ -80,7 +80,7 @@ FLinearColor UBlueprintMaterialTextureNodesBPLibrary::Texture2D_SampleUV_EditorO
 		{
 			FTextureSource& TextureSource = Texture->Source;
 
-			TArray<uint8> SourceData;
+			TArray64<uint8> SourceData;
 			Texture->Source.GetMipData(SourceData, Mip);
 			ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
 			int32 Index = ((Y * MipWidth) + X) * TextureSource.GetBytesPerPixel();

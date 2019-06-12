@@ -127,7 +127,7 @@ void UAtmosphericFogComponent::PostLoad()
 			// Copy data from Previous data
 			if (TransmittanceTexture_DEPRECATED->Source.IsValid())
 			{
-				TArray<uint8> RawData;
+				TArray64<uint8> RawData;
 				TArray<FColor> OutData;
 				TransmittanceTexture_DEPRECATED->Source.GetMipData(RawData, 0);
 				// Convert from FFloat16Color to FColor
@@ -155,7 +155,7 @@ void UAtmosphericFogComponent::PostLoad()
 		{
 			if (IrradianceTexture_DEPRECATED->Source.IsValid())
 			{
-				TArray<uint8> RawData;
+				TArray64<uint8> RawData;
 				TArray<FColor> OutData;
 				IrradianceTexture_DEPRECATED->Source.GetMipData(RawData, 0);
 				// Convert from FFloat16Color to FColor

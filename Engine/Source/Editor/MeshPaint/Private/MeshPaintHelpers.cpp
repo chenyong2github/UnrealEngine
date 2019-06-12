@@ -1419,7 +1419,7 @@ void MeshPaintHelpers::ImportVertexColorsToStaticMesh(UStaticMesh* StaticMesh, c
 	checkf(StaticMesh && Options && Texture, TEXT("Invalid ptr"));
 
 	// Extract color data from texture
-	TArray<uint8> SrcMipData;
+	TArray64<uint8> SrcMipData;
 	Texture->Source.GetMipData(SrcMipData, 0);
 	const uint8* MipData = SrcMipData.GetData();
 
@@ -1464,7 +1464,7 @@ void MeshPaintHelpers::ImportVertexColorsToStaticMeshComponent(UStaticMeshCompon
 	checkf(StaticMeshComponent && Options && Texture, TEXT("Invalid ptr"));
 
 	// Extract color data from texture
-	TArray<uint8> SrcMipData;
+	TArray64<uint8> SrcMipData;
 	Texture->Source.GetMipData(SrcMipData, 0);
 	const uint8* MipData = SrcMipData.GetData();
 
@@ -1534,7 +1534,7 @@ void MeshPaintHelpers::ImportVertexColorsToSkeletalMesh(USkeletalMesh* SkeletalM
 	checkf(SkeletalMesh && Options && Texture, TEXT("Invalid ptr"));
 
 	// Extract color data from texture
-	TArray<uint8> SrcMipData;
+	TArray64<uint8> SrcMipData;
 	Texture->Source.GetMipData(SrcMipData, 0);
 	const uint8* MipData = SrcMipData.GetData();
 

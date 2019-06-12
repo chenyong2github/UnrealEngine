@@ -241,7 +241,7 @@ void CopyLightProfile( const ULightComponent* In, Lightmass::FLightData& Out, TA
 		{
 			Out.LightFlags |= Lightmass::GI_LIGHT_USE_LIGHTPROFILE;
 
-			TArray<uint8> MipData;
+			TArray64<uint8> MipData;
 
 			Source.GetMipData(MipData, 0);
 
@@ -1174,7 +1174,7 @@ void FLightmassExporter::WriteLights( int32 Channel )
 				{
 					//int32 i = SourceTexture.AddUninitialized( SizeX * SizeY );
 					
-					TArray< uint8 > MipData;
+					TArray64< uint8 > MipData;
 					Source.GetMipData( MipData, MipLevel );
 
 					uint8* Pixel = MipData.GetData();

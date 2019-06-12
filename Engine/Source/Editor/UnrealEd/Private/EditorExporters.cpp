@@ -847,7 +847,7 @@ static void AddActorToOBJs(AActor* Actor, TArray<FOBJGeom*>& Objects, TSet<UMate
 			OBJGeom->Faces.AddZeroed( FMath::Square(ComponentSizeQuads) * 2 );
 
 			// Check if there are any holes
-			TArray<uint8> RawVisData;
+			TArray64<uint8> RawVisData;
 			uint8* VisDataMap = NULL;
 			int32 TexIndex = INDEX_NONE;
 			int32 WeightMapSize = (SubsectionSizeQuads + 1) * Component->NumSubsections;

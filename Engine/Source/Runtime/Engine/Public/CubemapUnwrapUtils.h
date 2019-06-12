@@ -26,7 +26,7 @@ namespace CubemapHelpers
 	* @param	FormatOUT	Filled with the pixel format of the output bitmap.
 	* @return	true on success.
 	*/
-	ENGINE_API bool GenerateLongLatUnwrap(const UTextureCube* CubeTexture, TArray<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT);
+	ENGINE_API bool GenerateLongLatUnwrap(const UTextureCube* CubeTexture, TArray64<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT);
 
 	/**
 	* Creates an unwrapped 2D image of the cube map ( longitude/latitude )
@@ -37,7 +37,7 @@ namespace CubemapHelpers
 	* @param	FormatOUT	Filled with the pixel format of the output bitmap.
 	* @return	true on success.
 	*/
-	ENGINE_API bool GenerateLongLatUnwrap(const UTextureRenderTargetCube* CubeTarget, TArray<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT);
+	ENGINE_API bool GenerateLongLatUnwrap(const UTextureRenderTargetCube* CubeTarget, TArray64<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT);
 }
 
 /**
