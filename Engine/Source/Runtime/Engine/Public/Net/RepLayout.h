@@ -613,13 +613,13 @@ public:
 	TBitArray<> InactiveParents;
 
 	/** This is the delta state we need to compare with when determining what to send to a client for custom delta properties. */
-	TMap<int32, TSharedPtr<INetDeltaBaseState>> RecentCustomDeltaState;
+	TArray<TSharedPtr<INetDeltaBaseState>> RecentCustomDeltaState;
 
 	/** Same as RecentCustomDeltaState, but this will always remain as the initial CDO version. We use this to send all properties since channel was first opened (for bResendAllDataSinceOpen). */
-	TMap<int32, TSharedPtr<INetDeltaBaseState>>	CDOCustomDeltaState;
+	TArray<TSharedPtr<INetDeltaBaseState>>	CDOCustomDeltaState;
 
 	/** Same as RecentCustomDeltaState, but will represent the state at the last checkpoint. */
-	TMap<int32, TSharedPtr<INetDeltaBaseState>>	CheckpointCustomDeltaState;
+	TArray<TSharedPtr<INetDeltaBaseState>>	CheckpointCustomDeltaState;
 };
 
 /** Replication State that is unique Per Object Per Net Connection. */
@@ -1723,13 +1723,13 @@ private:
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
-		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
 
 	void PostSendCustomDeltaProperties(
 		UObject* Object,
 		UNetConnection* Connection,
 		FReplicationChangelistMgr& ChangelistMgr,
-		TMap<int32, TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
+		TArray<TSharedPtr<INetDeltaBaseState>>& CustomDeltaStates) const;
 
 	const uint16 GetNumLifetimeCustomDeltaProperties() const;
 
