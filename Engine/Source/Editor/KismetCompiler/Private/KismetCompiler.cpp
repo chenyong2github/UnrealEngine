@@ -1695,7 +1695,7 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_Tooltip, *FunctionMetaData.ToolTip.ToString());
 		}
 
-		// Set as blutility function
+		// Set as call in editor function
 		if (FunctionMetaData.bCallInEditor)
 		{
 			Context.Function->SetMetaData(FBlueprintMetadata::MD_CallInEditor, TEXT( "true" ));
