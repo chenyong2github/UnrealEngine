@@ -243,7 +243,8 @@ enum EBlendMode
 	BLEND_Translucent UMETA(DisplayName="Translucent"),
 	BLEND_Additive UMETA(DisplayName="Additive"),
 	BLEND_Modulate UMETA(DisplayName="Modulate"),
-	BLEND_AlphaComposite UMETA(DisplayName ="AlphaComposite (Premultiplied Alpha)"),
+	BLEND_AlphaComposite UMETA(DisplayName = "AlphaComposite (Premultiplied Alpha)"),
+	BLEND_AlphaHoldout UMETA(DisplayName = "AlphaHoldout"),
 	BLEND_MAX,
 };
 
@@ -354,7 +355,8 @@ enum ESceneCaptureSource
 	SCS_SceneDepth UMETA(DisplayName="SceneDepth in R"),
 	SCS_DeviceDepth UMETA(DisplayName = "DeviceDepth in RGB"),
 	SCS_Normal UMETA(DisplayName="Normal in RGB (Deferred Renderer only)"),
-	SCS_BaseColor UMETA(DisplayName="BaseColor in RGB (Deferred Renderer only)")
+	SCS_BaseColor UMETA(DisplayName = "BaseColor in RGB (Deferred Renderer only)"),
+	SCS_FinalColorHDR UMETA(DisplayName = "Final Color (HDR) in Linear sRGB gamut")
 };
 
 /** Specifies how scene captures are composited into render buffers */
@@ -549,10 +551,26 @@ enum EMaterialSamplerType
 	SAMPLERTYPE_DistanceFieldFont UMETA(DisplayName="Distance Field Font"),
 	SAMPLERTYPE_LinearColor UMETA(DisplayName = "Linear Color"),
 	SAMPLERTYPE_LinearGrayscale UMETA(DisplayName = "Linear Grayscale"),
+	SAMPLERTYPE_Data UMETA(DisplayName = "Data"),
 	SAMPLERTYPE_External UMETA(DisplayName = "External"),
+
+	SAMPLERTYPE_VirtualColor UMETA(DisplayName = "Virtual Color"),
+	SAMPLERTYPE_VirtualGrayscale UMETA(DisplayName = "Virtual Grayscale"),
+	SAMPLERTYPE_VirtualAlpha UMETA(DisplayName = "Virtual Alpha"),
+	SAMPLERTYPE_VirtualNormal UMETA(DisplayName = "Virtual Normal"),
+	SAMPLERTYPE_VirtualMasks UMETA(DisplayName = "Virtual Mask"),
+	/*No DistanceFiledFont Virtual*/
+	SAMPLERTYPE_VirtualLinearColor UMETA(DisplayName = "Virtual Linear Color"),
+	SAMPLERTYPE_VirtualLinearGrayscale UMETA(DisplayName = "Virtual Linear Grayscale"),
+	/*No External Virtual*/
+
 	SAMPLERTYPE_MAX,
 };
 
+inline bool IsVirtualSamplerType(EMaterialSamplerType Value)
+{
+	return ((int32)Value >= (int32)SAMPLERTYPE_VirtualColor && (int32)Value <= (int32)SAMPLERTYPE_VirtualLinearGrayscale);
+}
 UENUM()
 enum EMaterialStencilCompare
 {
@@ -566,6 +584,7 @@ enum EMaterialStencilCompare
 	MSC_Always			UMETA(DisplayName = "Always"),
 	MSC_Count			UMETA(Hidden),
 };
+
 /**	Lighting build quality enumeration */
 UENUM()
 enum ELightingBuildQuality

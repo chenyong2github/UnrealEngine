@@ -39,7 +39,7 @@ void TBasePassVertexShaderPolicyParamType<LightMapPolicyType>::GetShaderBindings
 	}
 	else
 	{
-		ensure(!ReflectionCaptureBuffer.IsBound());
+		ShaderBindings.Add(ReflectionCaptureBuffer, DrawRenderState.GetReflectionCaptureUniformBuffer());
 	}
 
 	LightMapPolicyType::GetVertexShaderBindings(
@@ -54,7 +54,7 @@ void TBasePassVertexShaderPolicyParamType<LightMapPolicyType>::GetElementShaderB
 	const FScene* Scene, 
 	const FSceneView* ViewIfDynamicMeshCommand, 
 	const FVertexFactory* VertexFactory,
-	bool bShaderRequiresPositionOnlyStream,
+	const EVertexInputStreamType InputStreamType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy,
 	const FMeshBatch& MeshBatch,
@@ -63,7 +63,7 @@ void TBasePassVertexShaderPolicyParamType<LightMapPolicyType>::GetElementShaderB
 	FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams) const
 {
-	FMeshMaterialShader::GetElementShaderBindings(Scene, ViewIfDynamicMeshCommand, VertexFactory, bShaderRequiresPositionOnlyStream, FeatureLevel, PrimitiveSceneProxy, MeshBatch, BatchElement, ShaderElementData, ShaderBindings, VertexStreams);
+	FMeshMaterialShader::GetElementShaderBindings(Scene, ViewIfDynamicMeshCommand, VertexFactory, InputStreamType, FeatureLevel, PrimitiveSceneProxy, MeshBatch, BatchElement, ShaderElementData, ShaderBindings, VertexStreams);
 }
 
 template<typename LightMapPolicyType>
@@ -86,7 +86,7 @@ void TBasePassPixelShaderPolicyParamType<LightMapPolicyType>::GetShaderBindings(
 	}
 	else
 	{
-		ensure(!ReflectionCaptureBuffer.IsBound());
+		ShaderBindings.Add(ReflectionCaptureBuffer, DrawRenderState.GetReflectionCaptureUniformBuffer());
 	}
 
 	LightMapPolicyType::GetPixelShaderBindings(

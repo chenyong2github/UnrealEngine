@@ -19,146 +19,156 @@ struct FWrapLayer
 	// Pass in VK_RESULT_MAX_ENUM for Prolog calls; for Epilog use a different value or the actual Result if available
 
 	static void CreateInstance(VkResult Result, const VkInstanceCreateInfo* CreateInfo, VkInstance* Instance) VULKAN_LAYER_BODY
-	static void EnumeratePhysicalDevices(VkResult Result, VkInstance Instance, uint32* PhysicalDeviceCount, VkPhysicalDevice* PhysicalDevices) VULKAN_LAYER_BODY
 	static void DestroyInstance(VkResult Result, VkInstance Instance) VULKAN_LAYER_BODY
+	static void EnumeratePhysicalDevices(VkResult Result, VkInstance Instance, uint32* PhysicalDeviceCount, VkPhysicalDevice* PhysicalDevices) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceFeatures(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures* Features) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceFormatProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkFormat Format, VkFormatProperties* FormatProperties) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceImageFormatProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageType Type, VkImageTiling Tiling, VkImageUsageFlags Usage, VkImageCreateFlags Flags, VkImageFormatProperties* pImageFormatProperties) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties* FormatProperties) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceQueueFamilyProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32* QueueFamilyPropertyCount, VkQueueFamilyProperties* QueueFamilyProperties) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceMemoryProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties* Properties) VULKAN_LAYER_BODY
 	static void GetInstanceProcAddr(VkResult Result, VkInstance Instance, const char* Name, PFN_vkVoidFunction VoidFunction) VULKAN_LAYER_BODY
+	static void GetDeviceProcAddr(VkResult Result, VkDevice Device, const char* Name, PFN_vkVoidFunction VoidFunction) VULKAN_LAYER_BODY
+	static void CreateDevice(VkResult Result, VkPhysicalDevice PhysicalDevice, const VkDeviceCreateInfo* CreateInfo, VkDevice* Device) VULKAN_LAYER_BODY
+	static void DestroyDevice(VkResult Result, VkDevice Device) VULKAN_LAYER_BODY
 	VULKAN_EXTERN_EXPORT static void EnumerateInstanceExtensionProperties(VkResult Result, const char* LayerName, uint32* PropertyCount, VkExtensionProperties* Properties) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void EnumerateDeviceExtensionProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, const char* LayerName, uint32* PropertyCount, VkExtensionProperties* Properties) VULKAN_LAYER_BODY
 	static void EnumerateInstanceLayerProperties(VkResult Result, uint32* PropertyCount, VkLayerProperties* Properties) VULKAN_LAYER_BODY
+	static void EnumerateDeviceLayerProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32* PropertyCount, VkLayerProperties* Properties) VULKAN_LAYER_BODY
+	static void GetDeviceQueue(VkResult Result, VkDevice Device, uint32 QueueFamilyIndex, uint32 QueueIndex, VkQueue* Queue) VULKAN_LAYER_BODY
+	static void QueueSubmit(VkResult Result, VkQueue Queue, uint32 SubmitCount, const VkSubmitInfo* Submits, VkFence Fence) VULKAN_LAYER_BODY
+	static void QueueWaitIdle(VkResult Result, VkQueue Queue) VULKAN_LAYER_BODY
+	static void DeviceWaitIdle(VkResult Result, VkDevice Device) VULKAN_LAYER_BODY
 	static void AllocateMemory(VkResult Result, VkDevice Device, const VkMemoryAllocateInfo* AllocateInfo, VkDeviceMemory* Memory) VULKAN_LAYER_BODY
+	static void FreeMemory(VkResult Result, VkDevice Device, VkDeviceMemory Memory) VULKAN_LAYER_BODY
+	static void MapMemory(VkResult Result, VkDevice Device, VkDeviceMemory Memory, VkDeviceSize Offset, VkDeviceSize Size, VkMemoryMapFlags Flags, void** Data) VULKAN_LAYER_BODY
+	static void UnmapMemory(VkResult Result, VkDevice Device, VkDeviceMemory Memory) VULKAN_LAYER_BODY
 	static void FlushMappedMemoryRanges(VkResult Result, VkDevice Device, uint32 MemoryRangeCount, const VkMappedMemoryRange* pMemoryRanges) VULKAN_LAYER_BODY
 	static void InvalidateMappedMemoryRanges(VkResult Result, VkDevice Device, uint32 MemoryRangeCount, const VkMappedMemoryRange* pMemoryRanges) VULKAN_LAYER_BODY
+	static void GetDeviceMemoryCommitment(VkResult Result, VkDevice Device, VkDeviceMemory Memory, VkDeviceSize* pCommittedMemoryInBytes);
+	static void BindBufferMemory(VkResult Result, VkDevice Device, VkBuffer Buffer, VkDeviceMemory Memory, VkDeviceSize MemoryOffset) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void BindImageMemory(VkResult Result, VkDevice Device, VkImage Image, VkDeviceMemory Memory, VkDeviceSize MemoryOffset) VULKAN_LAYER_BODY
 	static void GetBufferMemoryRequirements(VkResult Result, VkDevice Device, VkBuffer Buffer, VkMemoryRequirements* MemoryRequirements) VULKAN_LAYER_BODY
 	static void GetImageMemoryRequirements(VkResult Result, VkDevice Device, VkImage Image, VkMemoryRequirements* MemoryRequirements) VULKAN_LAYER_BODY
+	static void GetImageSparseMemoryRequirements(VkResult Result, VkDevice Device, VkImage Image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) VULKAN_LAYER_BODY
+	static void GetPhysicalDeviceSparseImageFormatProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageType Type, VkSampleCountFlagBits Samples, VkImageUsageFlags Usage, VkImageTiling Tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties) VULKAN_LAYER_BODY
+	static void QueueBindSparse(VkResult Result, VkQueue Queue, uint32_t BindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence Fence) VULKAN_LAYER_BODY
 	static void CreateFence(VkResult Result, VkDevice Device, const VkFenceCreateInfo* CreateInfo, VkFence* Fence) VULKAN_LAYER_BODY
+	static void DestroyFence(VkResult Result, VkDevice Device, VkFence Fence) VULKAN_LAYER_BODY
 	static void ResetFences(VkResult Result, VkDevice Device, uint32 FenceCount, const VkFence* Fences) VULKAN_LAYER_BODY
+	static void GetFenceStatus(VkResult Result, VkDevice Device, VkFence Fence) VULKAN_LAYER_BODY
 	static void WaitForFences(VkResult Result, VkDevice Device, uint32 FenceCount, const VkFence* Fences, VkBool32 bWaitAll, uint64_t Timeout) VULKAN_LAYER_BODY
 	static void CreateSemaphore(VkResult Result, VkDevice Device, const VkSemaphoreCreateInfo* CreateInfo, VkSemaphore* Semaphore) VULKAN_LAYER_BODY
+	static void DestroySemaphore(VkResult Result, VkDevice Device, VkSemaphore Semaphore) VULKAN_LAYER_BODY
+	static void CreateEvent(VkResult Result, VkDevice Device, const VkEventCreateInfo* CreateInfo, VkEvent* Event) VULKAN_LAYER_BODY
+	static void DestroyEvent(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
+	static void GetEventStatus(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
+	static void SetEvent(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
+	static void ResetEvent(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
 	static void CreateQueryPool(VkResult Result, VkDevice Device, const VkQueryPoolCreateInfo* CreateInfo, VkQueryPool* QueryPool) VULKAN_LAYER_BODY
+	static void DestroyQueryPool(VkResult Result, VkDevice Device, VkQueryPool QueryPool) VULKAN_LAYER_BODY
+	static void GetQueryPoolResults(VkResult Result, VkDevice Device, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount, size_t DataSize, void* Data, VkDeviceSize Stride, VkQueryResultFlags Flags) VULKAN_LAYER_BODY
 	static void CreateBuffer(VkResult Result, VkDevice Device, const VkBufferCreateInfo* CreateInfo, VkBuffer* Buffer) VULKAN_LAYER_BODY
+	static void DestroyBuffer(VkResult Result, VkDevice Device, VkBuffer Buffer) VULKAN_LAYER_BODY
 	static void CreateBufferView(VkResult Result, VkDevice Device, const VkBufferViewCreateInfo* CreateInfo, VkBufferView* BufferView) VULKAN_LAYER_BODY
+	static void DestroyBufferView(VkResult Result, VkDevice Device, VkBufferView BufferView) VULKAN_LAYER_BODY
 	VULKAN_EXTERN_EXPORT static void CreateImage(VkResult Result, VkDevice Device, const VkImageCreateInfo* CreateInfo, VkImage* Image) VULKAN_LAYER_BODY
 	static void DestroyImage(VkResult Result, VkDevice Device, VkImage Image) VULKAN_LAYER_BODY
 	static void GetImageSubresourceLayout(VkResult Result, VkDevice Device, VkImage Image, const VkImageSubresource* Subresource, VkSubresourceLayout* Layout) VULKAN_LAYER_BODY
 	static void CreateImageView(VkResult Result, VkDevice Device, const VkImageViewCreateInfo* CreateInfo, VkImageView* ImageView) VULKAN_LAYER_BODY
+	static void DestroyImageView(VkResult Result, VkDevice Device, VkImageView ImageView) VULKAN_LAYER_BODY
 	static void CreateShaderModule(VkResult Result, VkDevice Device, const VkShaderModuleCreateInfo* CreateInfo, VkShaderModule* ShaderModule) VULKAN_LAYER_BODY
+	static void DestroyShaderModule(VkResult Result, VkDevice Device, VkShaderModule ShaderModule) VULKAN_LAYER_BODY
 	static void CreatePipelineCache(VkResult Result, VkDevice Device, const VkPipelineCacheCreateInfo* CreateInfo, VkPipelineCache* PipelineCache) VULKAN_LAYER_BODY
+	static void DestroyPipelineCache(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache) VULKAN_LAYER_BODY
+	static void GetPipelineCacheData(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache, size_t* DataSize, void* Data) VULKAN_LAYER_BODY
+	static void MergePipelineCaches(VkResult Result, VkDevice Device, VkPipelineCache DestCache, uint32 SourceCacheCount, const VkPipelineCache* SrcCaches) VULKAN_LAYER_BODY
 	static void CreateGraphicsPipelines(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache, uint32 CreateInfoCount, const VkGraphicsPipelineCreateInfo* CreateInfos, VkPipeline* Pipelines) VULKAN_LAYER_BODY
+	static void CreateComputePipelines(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache, uint32 CreateInfoCount, const VkComputePipelineCreateInfo* CreateInfos, VkPipeline* Pipelines) VULKAN_LAYER_BODY
+	static void DestroyPipeline(VkResult Result, VkDevice Device, VkPipeline Pipeline) VULKAN_LAYER_BODY
 	static void CreatePipelineLayout(VkResult Result, VkDevice Device, const VkPipelineLayoutCreateInfo* CreateInfo, VkPipelineLayout* PipelineLayout) VULKAN_LAYER_BODY
+	static void DestroyPipelineLayout(VkResult Result, VkDevice Device, VkPipelineLayout PipelineLayout) VULKAN_LAYER_BODY
 	static void CreateSampler(VkResult Result, VkDevice Device, const VkSamplerCreateInfo* CreateInfo, VkSampler* Sampler) VULKAN_LAYER_BODY
+	static void DestroySampler(VkResult Result, VkDevice Device, VkSampler Sampler) VULKAN_LAYER_BODY
 	static void CreateDescriptorSetLayout(VkResult Result, VkDevice Device, const VkDescriptorSetLayoutCreateInfo* CreateInfo, VkDescriptorSetLayout* SetLayout) VULKAN_LAYER_BODY
+	static void DestroyDescriptorSetLayout(VkResult Result, VkDevice Device, VkDescriptorSetLayout DescriptorSetLayout) VULKAN_LAYER_BODY
 	static void CreateDescriptorPool(VkResult Result, VkDevice Device, const VkDescriptorPoolCreateInfo* CreateInfo, VkDescriptorPool* DescriptorPool) VULKAN_LAYER_BODY
+	static void DestroyDescriptorPool(VkResult Result, VkDevice Device, VkDescriptorPool DescriptorPool) VULKAN_LAYER_BODY
+	static void ResetDescriptorPool(VkResult Result, VkDevice Device, VkDescriptorPool DescriptorPool, VkDescriptorPoolResetFlags Flags) VULKAN_LAYER_BODY
 	static void AllocateDescriptorSets(VkResult Result, VkDevice Device, const VkDescriptorSetAllocateInfo* AllocateInfo, VkDescriptorSet* DescriptorSets) VULKAN_LAYER_BODY
 	static void FreeDescriptorSets(VkResult Result, VkDevice Device, VkDescriptorPool DescriptorPool, uint32 DescriptorSetCount, const VkDescriptorSet* DescriptorSets) VULKAN_LAYER_BODY
 	static void UpdateDescriptorSets(VkResult Result, VkDevice Device, uint32 DescriptorWriteCount, const VkWriteDescriptorSet* DescriptorWrites, uint32 DescriptorCopyCount, const VkCopyDescriptorSet* DescriptorCopies) VULKAN_LAYER_BODY
 	static void CreateFramebuffer(VkResult Result, VkDevice Device, const VkFramebufferCreateInfo* CreateInfo, VkFramebuffer* Framebuffer) VULKAN_LAYER_BODY
+	static void DestroyFramebuffer(VkResult Result, VkDevice Device, VkFramebuffer Framebuffer) VULKAN_LAYER_BODY
 	static void CreateRenderPass(VkResult Result, VkDevice Device, const VkRenderPassCreateInfo* CreateInfo, VkRenderPass* RenderPass) VULKAN_LAYER_BODY
+	static void DestroyRenderPass(VkResult Result, VkDevice Device, VkRenderPass RenderPass) VULKAN_LAYER_BODY
+	static void GetRenderAreaGranularity(VkResult Result, VkDevice Device, VkRenderPass RenderPass, VkExtent2D* pGranularity) VULKAN_LAYER_BODY
 	static void CreateCommandPool(VkResult Result, VkDevice Device, const VkCommandPoolCreateInfo* CreateInfo, VkCommandPool* CommandPool) VULKAN_LAYER_BODY
+	static void DestroyCommandPool(VkResult Result, VkDevice Device, VkCommandPool CommandPool) VULKAN_LAYER_BODY
+	static void ResetCommandPool(VkResult Result, VkDevice Device, VkCommandPool CommandPool, VkCommandPoolResetFlags Flags) VULKAN_LAYER_BODY
+	static void AllocateCommandBuffers(VkResult Result, VkDevice Device, const VkCommandBufferAllocateInfo* AllocateInfo, VkCommandBuffer* CommandBuffers) VULKAN_LAYER_BODY
+	static void FreeCommandBuffers(VkResult Result, VkDevice Device, VkCommandPool CommandPool, uint32 CommandBufferCount, const VkCommandBuffer* CommandBuffers) VULKAN_LAYER_BODY
 	static void BeginCommandBuffer(VkResult Result, VkCommandBuffer CommandBuffer, const VkCommandBufferBeginInfo* BeginInfo) VULKAN_LAYER_BODY
 	static void EndCommandBuffer(VkResult Result, VkCommandBuffer CommandBuffer) VULKAN_LAYER_BODY
-	static void BindDescriptorSets(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipelineLayout Layout, uint32 FirstSet, uint32 DescriptorSetCount, const VkDescriptorSet* DescriptorSets, uint32 DynamicOffsetCount, const uint32* DynamicOffsets) VULKAN_LAYER_BODY
-	static void BindVertexBuffers(VkResult Result, VkCommandBuffer CommandBuffer, uint32 FirstBinding, uint32 BindingCount, const VkBuffer* Buffers, const VkDeviceSize* pOffsets) VULKAN_LAYER_BODY
-	static void BindIndexBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer IndexBuffer, VkDeviceSize Offset, VkIndexType IndexType) VULKAN_LAYER_BODY
-	static void CopyBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer SrcBuffer, VkBuffer DstBuffer, uint32 RegionCount, const VkBufferCopy* Regions) VULKAN_LAYER_BODY
-	static void CopyBufferToImage(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer SrcBuffer, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkBufferImageCopy* Regions) VULKAN_LAYER_BODY
-	VULKAN_EXTERN_EXPORT static void BlitImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageBlit* Regions, VkFilter Filter) VULKAN_LAYER_BODY
-	static void CopyImageToBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkBuffer DstBuffer, uint32 RegionCount, const VkBufferImageCopy* Regions) VULKAN_LAYER_BODY
-	VULKAN_EXTERN_EXPORT static void ClearColorImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage Image, VkImageLayout ImageLayout, const VkClearColorValue* ColorValue, uint32 RangeCount, const VkImageSubresourceRange* Ranges) VULKAN_LAYER_BODY
-	static void ClearDepthStencilImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage Image, VkImageLayout ImageLayout, const VkClearDepthStencilValue* DepthStencil, uint32 RangeCount, const VkImageSubresourceRange* Ranges) VULKAN_LAYER_BODY
-	static void ClearAttachments(VkResult Result, VkCommandBuffer CommandBuffer, uint32 AttachmentCount, const VkClearAttachment* Attachments, uint32 RectCount, const VkClearRect* Rects) VULKAN_LAYER_BODY
-	static void ResolveImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageResolve* Regions) VULKAN_LAYER_BODY
-	static void WaitEvents(VkResult Result, VkCommandBuffer CommandBuffer, uint32 EventCount, const VkEvent* Events, VkPipelineStageFlags SrcStageMask, VkPipelineStageFlags DstStageMask, uint32 MemoryBarrierCount,
-			const VkMemoryBarrier* pMemoryBarriers, uint32 BufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) VULKAN_LAYER_BODY
-	static void PipelineBarrier(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineStageFlags SrcStageMask, VkPipelineStageFlags DstStageMask, VkDependencyFlags DependencyFlags, uint32 MemoryBarrierCount, const VkMemoryBarrier* MemoryBarriers, uint32 BufferMemoryBarrierCount, const VkBufferMemoryBarrier* BufferMemoryBarriers, uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* ImageMemoryBarriers) VULKAN_LAYER_BODY
-	static void BeginRenderPass(VkResult Result, VkCommandBuffer CommandBuffer, const VkRenderPassBeginInfo* RenderPassBegin, VkSubpassContents Contents) VULKAN_LAYER_BODY
-	static void EndRenderPass(VkResult Result, VkCommandBuffer CommandBuffer) VULKAN_LAYER_BODY
-	static void NextSubpass(VkResult Result, VkCommandBuffer CommandBuffer, VkSubpassContents Contents) VULKAN_LAYER_BODY
+	static void ResetCommandBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkCommandBufferResetFlags Flags) VULKAN_LAYER_BODY
+
+	static void CmdBindPipeline(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipeline Pipeline) VULKAN_LAYER_BODY
+	static void CmdSetViewport(VkResult Result, VkCommandBuffer CommandBuffer, uint32 FirstViewport, uint32 ViewportCount, const VkViewport* Viewports) VULKAN_LAYER_BODY
+	static void CmdSetScissor(VkResult Result, VkCommandBuffer CommandBuffer, uint32 FirstScissor, uint32 ScissorCount, const VkRect2D* Scissors) VULKAN_LAYER_BODY
+	static void CmdSetLineWidth(VkResult Result, VkCommandBuffer CommandBuffer, float LineWidth) VULKAN_LAYER_BODY
+	static void CmdSetDepthBias(VkResult Result, VkCommandBuffer CommandBuffer, float DepthBiasConstantFactor, float DepthBiasClamp, float DepthBiasSlopeFactor) VULKAN_LAYER_BODY
+	static void CmdSetBlendConstants(VkResult Result, VkCommandBuffer CommandBuffer, const float BlendConstants[4]) VULKAN_LAYER_BODY
+	static void CmdSetDepthBounds(VkResult Result, VkCommandBuffer CommandBuffer, float MinDepthBounds, float MaxDepthBounds) VULKAN_LAYER_BODY
+	static void CmdSetStencilCompareMask(VkResult Result, VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 CompareMask) VULKAN_LAYER_BODY
+	static void CmdSetStencilWriteMask(VkResult Result, VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 WriteMask) VULKAN_LAYER_BODY
+	static void CmdSetStencilReference(VkResult Result, VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 Reference) VULKAN_LAYER_BODY
+	static void CmdBindDescriptorSets(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipelineLayout Layout, uint32 FirstSet, uint32 DescriptorSetCount, const VkDescriptorSet* DescriptorSets, uint32 DynamicOffsetCount, const uint32* DynamicOffsets) VULKAN_LAYER_BODY
+	static void CmdBindIndexBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer IndexBuffer, VkDeviceSize Offset, VkIndexType IndexType) VULKAN_LAYER_BODY
+	static void CmdBindVertexBuffers(VkResult Result, VkCommandBuffer CommandBuffer, uint32 FirstBinding, uint32 BindingCount, const VkBuffer* Buffers, const VkDeviceSize* pOffsets) VULKAN_LAYER_BODY
+	static void CmdDraw(VkResult Result, VkCommandBuffer CommandBuffer, uint32 VertexCount, uint32 InstanceCount, uint32 FirstVertex, uint32 FirstInstance) VULKAN_LAYER_BODY
+	static void CmdDrawIndexed(VkResult Result, VkCommandBuffer CommandBuffer, uint32 IndexCount, uint32 InstanceCount, uint32 FirstIndex, int32_t VertexOffset, uint32 FirstInstance) VULKAN_LAYER_BODY
+	static void CmdDrawIndirect(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, uint32 DrawCount, uint32 Stride) VULKAN_LAYER_BODY
+	static void CmdDrawIndexedIndirect(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, uint32 DrawCount, uint32 Stride) VULKAN_LAYER_BODY
+	static void CmdDispatch(VkResult Result, VkCommandBuffer CommandBuffer, uint32 X, uint32 Y, uint32 Z) VULKAN_LAYER_BODY
+	static void CmdDispatchIndirect(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset) VULKAN_LAYER_BODY
+	static void CmdCopyBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer SrcBuffer, VkBuffer DstBuffer, uint32 RegionCount, const VkBufferCopy* Regions) VULKAN_LAYER_BODY
+	static void CmdCopyImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageCopy* Regions) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void CmdBlitImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageBlit* Regions, VkFilter Filter) VULKAN_LAYER_BODY
+	static void CmdCopyBufferToImage(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer SrcBuffer, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkBufferImageCopy* Regions) VULKAN_LAYER_BODY
+	static void CmdCopyImageToBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkBuffer DstBuffer, uint32 RegionCount, const VkBufferImageCopy* Regions) VULKAN_LAYER_BODY
+	static void CmdUpdateBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize DataSize, const void* pData) VULKAN_LAYER_BODY
+	static void CmdFillBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Size, uint32 Data) VULKAN_LAYER_BODY
+	VULKAN_EXTERN_EXPORT static void CmdClearColorImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage Image, VkImageLayout ImageLayout, const VkClearColorValue* ColorValue, uint32 RangeCount, const VkImageSubresourceRange* Ranges) VULKAN_LAYER_BODY
+	static void CmdClearDepthStencilImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage Image, VkImageLayout ImageLayout, const VkClearDepthStencilValue* DepthStencil, uint32 RangeCount, const VkImageSubresourceRange* Ranges) VULKAN_LAYER_BODY
+	static void CmdClearAttachments(VkResult Result, VkCommandBuffer CommandBuffer, uint32 AttachmentCount, const VkClearAttachment* Attachments, uint32 RectCount, const VkClearRect* Rects) VULKAN_LAYER_BODY
+	static void CmdResolveImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageResolve* Regions) VULKAN_LAYER_BODY
+	static void CmdSetEvent(VkResult Result, VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags StageMask) VULKAN_LAYER_BODY
+	static void CmdResetEvent(VkResult Result, VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags StageMask) VULKAN_LAYER_BODY
+	static void CmdWaitEvents(VkResult Result, VkCommandBuffer CommandBuffer, uint32 EventCount, const VkEvent* Events, VkPipelineStageFlags SrcStageMask, VkPipelineStageFlags DstStageMask, uint32 MemoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32 BufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) VULKAN_LAYER_BODY
+	static void CmdPipelineBarrier(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineStageFlags SrcStageMask, VkPipelineStageFlags DstStageMask, VkDependencyFlags DependencyFlags, uint32 MemoryBarrierCount, const VkMemoryBarrier* MemoryBarriers, uint32 BufferMemoryBarrierCount, const VkBufferMemoryBarrier* BufferMemoryBarriers, uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* ImageMemoryBarriers) VULKAN_LAYER_BODY
+	static void CmdBeginQuery(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 Query, VkQueryControlFlags Flags) VULKAN_LAYER_BODY
+	static void CmdEndQuery(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 Query) VULKAN_LAYER_BODY
+	static void CmdResetQueryPool(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount) VULKAN_LAYER_BODY
+	static void CmdWriteTimestamp(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineStageFlagBits PipelineStage, VkQueryPool QueryPool, uint32 Query) VULKAN_LAYER_BODY
+	static void CmdCopyQueryPoolResults(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Stride, VkQueryResultFlags Flags) VULKAN_LAYER_BODY
+	static void CmdPushConstants(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineLayout Layout, VkShaderStageFlags StageFlags, uint32_t Offset, uint32_t Size, const void* pValues) VULKAN_LAYER_BODY
+	static void CmdBeginRenderPass(VkResult Result, VkCommandBuffer CommandBuffer, const VkRenderPassBeginInfo* RenderPassBegin, VkSubpassContents Contents) VULKAN_LAYER_BODY
+	static void CmdNextSubpass(VkResult Result, VkCommandBuffer CommandBuffer, VkSubpassContents Contents) VULKAN_LAYER_BODY
+	static void CmdEndRenderPass(VkResult Result, VkCommandBuffer CommandBuffer) VULKAN_LAYER_BODY
+	static void CmdExecuteCommands(VkResult Result, VkCommandBuffer CommandBuffer, uint32 CommandBufferCount, const VkCommandBuffer* pCommandBuffers) VULKAN_LAYER_BODY
+
 	static void QueuePresent(VkResult Result, VkQueue Queue, const VkPresentInfoKHR* PresentInfo) VULKAN_LAYER_BODY
-	static void GetPhysicalDeviceMemoryProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceMemoryProperties* Properties) VULKAN_LAYER_BODY
-	static void CreateDevice(VkResult Result, VkPhysicalDevice PhysicalDevice, const VkDeviceCreateInfo* CreateInfo, VkDevice* Device) VULKAN_LAYER_BODY
-	static void QueueSubmit(VkResult Result, VkQueue Queue, uint32 SubmitCount, const VkSubmitInfo* Submits, VkFence Fence) VULKAN_LAYER_BODY
-	static void GetPhysicalDeviceFeatures(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceFeatures* Features) VULKAN_LAYER_BODY
 	static void GetSwapChainImagesKHR(VkResult Result, VkDevice Device, VkSwapchainKHR Swapchain, uint32_t* SwapchainImageCount, VkImage* SwapchainImages) VULKAN_LAYER_BODY
-	static void GetDeviceQueue(VkResult Result, VkDevice Device, uint32 QueueFamilyIndex, uint32 QueueIndex, VkQueue* Queue) VULKAN_LAYER_BODY
-	static void DeviceWaitIdle(VkResult Result, VkDevice Device) VULKAN_LAYER_BODY
-	static void MapMemory(VkResult Result, VkDevice Device, VkDeviceMemory Memory, VkDeviceSize Offset, VkDeviceSize Size, VkMemoryMapFlags Flags, void** Data) VULKAN_LAYER_BODY
-	static void UnmapMemory(VkResult Result, VkDevice Device, VkDeviceMemory Memory) VULKAN_LAYER_BODY
-	static void BindBufferMemory(VkResult Result, VkDevice Device, VkBuffer Buffer, VkDeviceMemory Memory, VkDeviceSize MemoryOffset) VULKAN_LAYER_BODY
-	VULKAN_EXTERN_EXPORT static void BindImageMemory(VkResult Result, VkDevice Device, VkImage Image, VkDeviceMemory Memory, VkDeviceSize MemoryOffset) VULKAN_LAYER_BODY
-	static void GetFenceStatus(VkResult Result, VkDevice Device, VkFence Fence) VULKAN_LAYER_BODY
-	static void GetQueryPoolResults(VkResult Result, VkDevice Device, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount, size_t DataSize, void* Data, VkDeviceSize Stride, VkQueryResultFlags Flags) VULKAN_LAYER_BODY
-	static void CreateComputePipelines(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache, uint32 CreateInfoCount, const VkComputePipelineCreateInfo* CreateInfos, VkPipeline* Pipelines) VULKAN_LAYER_BODY
-	static void AllocateCommandBuffers(VkResult Result, VkDevice Device, const VkCommandBufferAllocateInfo* AllocateInfo, VkCommandBuffer* CommandBuffers) VULKAN_LAYER_BODY
 	static void CreateSwapchainKHR(VkResult Result, VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, VkSwapchainKHR* Swapchain) VULKAN_LAYER_BODY
 	static void AcquireNextImageKHR(VkResult Result, VkDevice Device, VkSwapchainKHR Swapchain, uint64_t Timeout, VkSemaphore Semaphore, VkFence Fence, uint32_t* ImageIndex) VULKAN_LAYER_BODY
-	static void FreeMemory(VkResult Result, VkDevice Device, VkDeviceMemory Memory) VULKAN_LAYER_BODY
-	static void DestroyFence(VkResult Result, VkDevice Device, VkFence Fence) VULKAN_LAYER_BODY
-	static void DestroySemaphore(VkResult Result, VkDevice Device, VkSemaphore Semaphore) VULKAN_LAYER_BODY
-	static void CreateEvent(VkResult Result, VkDevice Device, const VkEventCreateInfo* CreateInfo, VkEvent* Event) VULKAN_LAYER_BODY
-	static void DestroyEvent(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
-	static void DestroyBuffer(VkResult Result, VkDevice Device, VkBuffer Buffer) VULKAN_LAYER_BODY
-	static void DestroyBufferView(VkResult Result, VkDevice Device, VkBufferView BufferView) VULKAN_LAYER_BODY
-	static void DestroyImageView(VkResult Result, VkDevice Device, VkImageView ImageView) VULKAN_LAYER_BODY
-	static void DestroyQueryPool(VkResult Result, VkDevice Device, VkQueryPool QueryPool) VULKAN_LAYER_BODY
-	static void DestroyPipeline(VkResult Result, VkDevice Device, VkPipeline Pipeline) VULKAN_LAYER_BODY
-	static void DestroyPipelineLayout(VkResult Result, VkDevice Device, VkPipelineLayout PipelineLayout) VULKAN_LAYER_BODY
-	static void DestroyPipelineCache(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache) VULKAN_LAYER_BODY
-	static void DestroySampler(VkResult Result, VkDevice Device, VkSampler Sampler) VULKAN_LAYER_BODY
-	static void DestroyShaderModule(VkResult Result, VkDevice Device, VkShaderModule ShaderModule) VULKAN_LAYER_BODY
-	static void DestroyFramebuffer(VkResult Result, VkDevice Device, VkFramebuffer Framebuffer) VULKAN_LAYER_BODY
-	static void DestroyRenderPass(VkResult Result, VkDevice Device, VkRenderPass RenderPass) VULKAN_LAYER_BODY
-	static void DestroyCommandPool(VkResult Result, VkDevice Device, VkCommandPool CommandPool) VULKAN_LAYER_BODY
-	static void DestroyDevice(VkResult Result, VkDevice Device) VULKAN_LAYER_BODY
 	static void DestroySurfaceKHR(VkResult Result, VkInstance Instance, VkSurfaceKHR SurfaceKHR) VULKAN_LAYER_BODY
-	static void DestroyDescriptorSetLayout(VkResult Result, VkDevice Device, VkDescriptorSetLayout DescriptorSetLayout) VULKAN_LAYER_BODY
-	static void DestroyDescriptorPool(VkResult Result, VkDevice Device, VkDescriptorPool DescriptorPool) VULKAN_LAYER_BODY
-	static void ResetDescriptorPool(VkResult Result, VkDevice Device, VkDescriptorPool DescriptorPool, VkDescriptorPoolResetFlags Flags) VULKAN_LAYER_BODY
 	static void DestroySwapchainKHR(VkResult Result, VkDevice Device, VkSwapchainKHR Swapchain) VULKAN_LAYER_BODY
-	static void FreeCommandBuffers(VkResult Result, VkDevice Device, VkCommandPool CommandPool, uint32 CommandBufferCount, const VkCommandBuffer* CommandBuffers) VULKAN_LAYER_BODY
-	static void GetPipelineCacheData(VkResult Result, VkDevice Device, VkPipelineCache PipelineCache, size_t* DataSize, void* Data) VULKAN_LAYER_BODY
-	static void MergePipelineCaches(VkResult Result, VkDevice Device, VkPipelineCache DestCache, uint32 SourceCacheCount, const VkPipelineCache* SrcCaches) VULKAN_LAYER_BODY
-	static void GetPhysicalDeviceQueueFamilyProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32* QueueFamilyPropertyCount, VkQueueFamilyProperties* QueueFamilyProperties) VULKAN_LAYER_BODY
-	static void QueueWaitIdle(VkResult Result, VkQueue Queue) VULKAN_LAYER_BODY
-	static void Draw(VkResult Result, VkCommandBuffer CommandBuffer, uint32 VertexCount, uint32 InstanceCount, uint32 FirstVertex, uint32 FirstInstance) VULKAN_LAYER_BODY
-	static void DrawIndexed(VkResult Result, VkCommandBuffer CommandBuffer, uint32 IndexCount, uint32 InstanceCount, uint32 FirstIndex, int32_t VertexOffset, uint32 FirstInstance) VULKAN_LAYER_BODY
-	static void DrawIndirect(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, uint32 DrawCount, uint32 Stride) VULKAN_LAYER_BODY
-	static void DrawIndexedIndirect(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, uint32 DrawCount, uint32 Stride) VULKAN_LAYER_BODY
-	static void Dispatch(VkResult Result, VkCommandBuffer CommandBuffer, uint32 X, uint32 Y, uint32 Z) VULKAN_LAYER_BODY
-	static void DispatchIndirect(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset) VULKAN_LAYER_BODY
-	static void CopyImage(VkResult Result, VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageCopy* Regions) VULKAN_LAYER_BODY
-	static void BeginQuery(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 Query, VkQueryControlFlags Flags) VULKAN_LAYER_BODY
-	static void EndQuery(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 Query) VULKAN_LAYER_BODY
 #if VULKAN_SUPPORTS_DEDICATED_ALLOCATION
 	static void GetImageMemoryRequirements2KHR(VkResult Result, VkDevice Device, const VkImageMemoryRequirementsInfo2KHR* Info, VkMemoryRequirements2KHR* MemoryRequirements) VULKAN_LAYER_BODY
 #endif
-	static void ResetQueryPool(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount) VULKAN_LAYER_BODY
-	static void WriteTimestamp(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineStageFlagBits PipelineStage, VkQueryPool QueryPool, uint32 Query) VULKAN_LAYER_BODY
-	static void BindPipeline(VkResult Result, VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipeline Pipeline) VULKAN_LAYER_BODY
-	static void ResetCommandBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkCommandBufferResetFlags Flags) VULKAN_LAYER_BODY
-	static void SetViewport(VkResult Result, VkCommandBuffer CommandBuffer, uint32 FirstViewport, uint32 ViewportCount, const VkViewport* Viewports) VULKAN_LAYER_BODY
-	static void GetPhysicalDeviceFormatProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkFormat Format, VkFormatProperties* FormatProperties) VULKAN_LAYER_BODY
-	static void GetPhysicalDeviceProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties* FormatProperties) VULKAN_LAYER_BODY
-	static void SetScissor(VkResult Result, VkCommandBuffer CommandBuffer, uint32 FirstScissor, uint32 ScissorCount, const VkRect2D* Scissors) VULKAN_LAYER_BODY
-	static void SetLineWidth(VkResult Result, VkCommandBuffer CommandBuffer, float LineWidth) VULKAN_LAYER_BODY
 #if VULKAN_HAS_PHYSICAL_DEVICE_PROPERTIES2
 	static void GetPhysicalDeviceProperties2KHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties2KHR* Properties) VULKAN_LAYER_BODY
 #endif
-	static void SetDepthBias(VkResult Result, VkCommandBuffer CommandBuffer, float DepthBiasConstantFactor, float DepthBiasClamp, float DepthBiasSlopeFactor) VULKAN_LAYER_BODY
-	static void SetBlendConstants(VkResult Result, VkCommandBuffer CommandBuffer, const float BlendConstants[4]) VULKAN_LAYER_BODY
-	static void SetDepthBounds(VkResult Result, VkCommandBuffer CommandBuffer, float MinDepthBounds, float MaxDepthBounds) VULKAN_LAYER_BODY
-	static void SetStencilCompareMask(VkResult Result, VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 CompareMask) VULKAN_LAYER_BODY
-	static void SetStencilWriteMask(VkResult Result, VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 WriteMask) VULKAN_LAYER_BODY
-	static void SetStencilReference(VkResult Result, VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 Reference) VULKAN_LAYER_BODY
-	static void UpdateBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize DataSize, const void* pData) VULKAN_LAYER_BODY
-	static void FillBuffer(VkResult Result, VkCommandBuffer CommandBuffer, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Size, uint32 Data) VULKAN_LAYER_BODY
-	static void SetEvent(VkResult Result, VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags StageMask) VULKAN_LAYER_BODY
-	static void ResetEvent(VkResult Result, VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags StageMask) VULKAN_LAYER_BODY
-	static void SetEvent(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
-	static void ResetEvent(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
-	static void GetEventStatus(VkResult Result, VkDevice Device, VkEvent Event) VULKAN_LAYER_BODY
-	static void CopyQueryPoolResults(VkResult Result, VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Stride, VkQueryResultFlags Flags) VULKAN_LAYER_BODY
-	static void GetDeviceProcAddr(VkResult Result, VkDevice Device, const char* Name, PFN_vkVoidFunction VoidFunction) VULKAN_LAYER_BODY
-	VULKAN_EXTERN_EXPORT static void EnumerateDeviceExtensionProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, const char* LayerName, uint32* PropertyCount, VkExtensionProperties* Properties) VULKAN_LAYER_BODY
-	static void EnumerateDeviceLayerProperties(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32* PropertyCount, VkLayerProperties* Properties) VULKAN_LAYER_BODY
 	static void GetPhysicalDeviceSurfaceCapabilitiesKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkSurfaceKHR Surface, VkSurfaceCapabilitiesKHR* SurfaceCapabilities) VULKAN_LAYER_BODY
 	static void GetPhysicalDeviceSurfaceFormatsKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, VkSurfaceKHR Surface, uint32_t* SurfaceFormatCountPtr, VkSurfaceFormatKHR* SurfaceFormats) VULKAN_LAYER_BODY
 	static void GetPhysicalDeviceSurfaceSupportKHR(VkResult Result, VkPhysicalDevice PhysicalDevice, uint32_t QueueFamilyIndex, VkSurfaceKHR Surface, VkBool32* SupportedPtr) VULKAN_LAYER_BODY
@@ -222,16 +232,14 @@ namespace VulkanRHI
 		FWrapLayer::GetPhysicalDeviceFormatProperties(VK_SUCCESS, PhysicalDevice, Format, FormatProperties);
 	}
 
-#if 0
-	static FORCEINLINE_DEBUGGABLE VkResult  vkGetPhysicalDeviceImageFormatProperties(
-		VkPhysicalDevice                            physicalDevice,
-		VkFormat                                    format,
-		VkImageType                                 type,
-		VkImageTiling                               tiling,
-		VkImageUsageFlags                           usage,
-		VkImageCreateFlags                          flags,
-		VkImageFormatProperties*                    pImageFormatProperties);
-#endif
+	static FORCEINLINE_DEBUGGABLE VkResult  vkGetPhysicalDeviceImageFormatProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageType Type, VkImageTiling Tiling, VkImageUsageFlags Usage, VkImageCreateFlags Flags, VkImageFormatProperties* pImageFormatProperties)
+	{
+		FWrapLayer::GetPhysicalDeviceImageFormatProperties(VK_RESULT_MAX_ENUM, PhysicalDevice, Format, Type, Tiling, Usage, Flags, pImageFormatProperties);
+		VkResult Result = VULKANAPINAMESPACE::vkGetPhysicalDeviceImageFormatProperties(PhysicalDevice, Format, Type, Tiling, Usage, Flags, pImageFormatProperties);
+		FWrapLayer::GetPhysicalDeviceImageFormatProperties(Result, PhysicalDevice, Format, Type, Tiling, Usage, Flags, pImageFormatProperties);
+		return Result;
+	}
+
 	static FORCEINLINE_DEBUGGABLE void  vkGetPhysicalDeviceProperties(VkPhysicalDevice PhysicalDevice, VkPhysicalDeviceProperties* Properties)
 	{
 		FWrapLayer::GetPhysicalDeviceProperties(VK_RESULT_MAX_ENUM, PhysicalDevice, Properties);
@@ -403,12 +411,14 @@ namespace VulkanRHI
 		FWrapLayer::InvalidateMappedMemoryRanges(Result, Device, MemoryRangeCount, MemoryRanges);
 		return Result;
 	}
-#if 0
-	static FORCEINLINE_DEBUGGABLE void  vkGetDeviceMemoryCommitment(
-		VkDevice                                    Device,
-		VkDeviceMemory                              Memory,
-		VkDeviceSize*                               pCommittedMemoryInBytes);
-#endif
+
+	static FORCEINLINE_DEBUGGABLE void  vkGetDeviceMemoryCommitment(VkDevice Device, VkDeviceMemory Memory, VkDeviceSize* pCommittedMemoryInBytes)
+	{
+		FWrapLayer::GetDeviceMemoryCommitment(VK_RESULT_MAX_ENUM, Device, Memory, pCommittedMemoryInBytes);
+		VULKANAPINAMESPACE::vkGetDeviceMemoryCommitment(Device, Memory, pCommittedMemoryInBytes);
+		FWrapLayer::GetDeviceMemoryCommitment(VK_SUCCESS, Device, Memory, pCommittedMemoryInBytes);
+	}
+
 	static FORCEINLINE_DEBUGGABLE VkResult  vkBindBufferMemory(VkDevice Device, VkBuffer Buffer, VkDeviceMemory Memory, VkDeviceSize MemoryOffset)
 	{
 		FWrapLayer::BindBufferMemory(VK_RESULT_MAX_ENUM, Device, Buffer, Memory, MemoryOffset);
@@ -439,29 +449,28 @@ namespace VulkanRHI
 		FWrapLayer::GetImageMemoryRequirements(VK_SUCCESS, Device, Image, MemoryRequirements);
 	}
 
-#if 0
-	static FORCEINLINE_DEBUGGABLE void  vkGetImageSparseMemoryRequirements(
-		VkDevice                                    Device,
-		VkImage                                     Image,
-		uint32*                                   pSparseMemoryRequirementCount,
-		VkSparseImageMemoryRequirements*            pSparseMemoryRequirements);
+	static FORCEINLINE_DEBUGGABLE void  vkGetImageSparseMemoryRequirements(VkDevice Device, VkImage Image, uint32* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements)
+	{
+		FWrapLayer::GetImageSparseMemoryRequirements(VK_RESULT_MAX_ENUM, Device, Image, pSparseMemoryRequirementCount, pSparseMemoryRequirements);
+		VULKANAPINAMESPACE::vkGetImageSparseMemoryRequirements(Device, Image, pSparseMemoryRequirementCount, pSparseMemoryRequirements);
+		FWrapLayer::GetImageSparseMemoryRequirements(VK_SUCCESS, Device, Image, pSparseMemoryRequirementCount, pSparseMemoryRequirements);
+	}
 
-	static FORCEINLINE_DEBUGGABLE void  vkGetPhysicalDeviceSparseImageFormatProperties(
-		VkPhysicalDevice                            physicalDevice,
-		VkFormat                                    format,
-		VkImageType                                 type,
-		VkSampleCountFlagBits                       samples,
-		VkImageUsageFlags                           usage,
-		VkImageTiling                               tiling,
-		uint32*                                   pPropertyCount,
-		VkSparseImageFormatProperties*              pProperties);
+	static FORCEINLINE_DEBUGGABLE void  vkGetPhysicalDeviceSparseImageFormatProperties(VkPhysicalDevice PhysicalDevice, VkFormat Format, VkImageType Type, VkSampleCountFlagBits Samples, VkImageUsageFlags Usage, VkImageTiling Tiling, uint32* pPropertyCount, VkSparseImageFormatProperties* pProperties)
+	{
+		FWrapLayer::GetPhysicalDeviceSparseImageFormatProperties(VK_RESULT_MAX_ENUM, PhysicalDevice, Format, Type, Samples, Usage, Tiling, pPropertyCount, pProperties);
+		VULKANAPINAMESPACE::vkGetPhysicalDeviceSparseImageFormatProperties(PhysicalDevice, Format, Type, Samples, Usage, Tiling, pPropertyCount, pProperties);
+		FWrapLayer::GetPhysicalDeviceSparseImageFormatProperties(VK_SUCCESS, PhysicalDevice, Format, Type, Samples, Usage, Tiling, pPropertyCount, pProperties);
+	}
 
-	static FORCEINLINE_DEBUGGABLE VkResult  vkQueueBindSparse(
-		VkQueue                                     queue,
-		uint32                                    bindInfoCount,
-		const VkBindSparseInfo*                     pBindInfo,
-		VkFence                                     Fence);
-#endif
+	static FORCEINLINE_DEBUGGABLE VkResult  vkQueueBindSparse(VkQueue Queue, uint32 BindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence Fence)
+	{
+		FWrapLayer::QueueBindSparse(VK_RESULT_MAX_ENUM, Queue, BindInfoCount, pBindInfo, Fence);
+		VkResult Result = VULKANAPINAMESPACE::vkQueueBindSparse(Queue, BindInfoCount, pBindInfo, Fence);
+		FWrapLayer::QueueBindSparse(Result, Queue, BindInfoCount, pBindInfo, Fence);
+		return Result;
+	}
+
 	static FORCEINLINE_DEBUGGABLE VkResult  vkCreateFence(VkDevice Device, const VkFenceCreateInfo* CreateInfo, const VkAllocationCallbacks* Allocator, VkFence* Fence)
 	{
 		FWrapLayer::CreateFence(VK_RESULT_MAX_ENUM, Device, CreateInfo, Fence);
@@ -836,12 +845,14 @@ namespace VulkanRHI
 		VULKANAPINAMESPACE::vkDestroyRenderPass(Device, RenderPass, Allocator);
 		FWrapLayer::DestroyRenderPass(VK_SUCCESS, Device, RenderPass);
 	}
-#if 0
-	static FORCEINLINE_DEBUGGABLE void  vkGetRenderAreaGranularity(
-		VkDevice                                    Device,
-		VkRenderPass                                renderPass,
-		VkExtent2D*                                 pGranularity);
-#endif
+
+	static FORCEINLINE_DEBUGGABLE void  vkGetRenderAreaGranularity(VkDevice Device, VkRenderPass RenderPass, VkExtent2D* pGranularity)
+	{
+		FWrapLayer::GetRenderAreaGranularity(VK_RESULT_MAX_ENUM, Device, RenderPass, pGranularity);
+		VULKANAPINAMESPACE::vkGetRenderAreaGranularity(Device, RenderPass, pGranularity);
+		FWrapLayer::GetRenderAreaGranularity(VK_SUCCESS, Device, RenderPass, pGranularity);
+	}
+
 	static FORCEINLINE_DEBUGGABLE VkResult  vkCreateCommandPool(VkDevice Device, const VkCommandPoolCreateInfo* CreateInfo, const VkAllocationCallbacks* Allocator, VkCommandPool* CommandPool)
 	{
 		FWrapLayer::CreateCommandPool(VK_RESULT_MAX_ENUM, Device, CreateInfo, CommandPool);
@@ -857,12 +868,14 @@ namespace VulkanRHI
 		FWrapLayer::DestroyCommandPool(VK_SUCCESS, Device, CommandPool);
 	}
 
-#if 0
-	static FORCEINLINE_DEBUGGABLE VkResult  vkResetCommandPool(
-		VkDevice                                    Device,
-		VkCommandPool                               commandPool,
-		VkCommandPoolResetFlags                     flags);
-#endif
+	static FORCEINLINE_DEBUGGABLE VkResult  vkResetCommandPool(VkDevice Device, VkCommandPool CommandPool, VkCommandPoolResetFlags Flags)
+	{
+		FWrapLayer::ResetCommandPool(VK_RESULT_MAX_ENUM, Device, CommandPool, Flags);
+		VkResult Result = VULKANAPINAMESPACE::vkResetCommandPool(Device, CommandPool, Flags);
+		FWrapLayer::ResetCommandPool(Result, Device, CommandPool, Flags);
+		return Result;
+	}
+
 	static FORCEINLINE_DEBUGGABLE VkResult  vkAllocateCommandBuffers(VkDevice Device, const VkCommandBufferAllocateInfo* AllocateInfo, VkCommandBuffer* CommandBuffers)
 	{
 		FWrapLayer::AllocateCommandBuffers(VK_RESULT_MAX_ENUM, Device, AllocateInfo, CommandBuffers);
@@ -904,205 +917,205 @@ namespace VulkanRHI
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdBindPipeline(VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipeline Pipeline)
 	{
-		FWrapLayer::BindPipeline(VK_RESULT_MAX_ENUM, CommandBuffer, PipelineBindPoint, Pipeline);
+		FWrapLayer::CmdBindPipeline(VK_RESULT_MAX_ENUM, CommandBuffer, PipelineBindPoint, Pipeline);
 		VULKANAPINAMESPACE::vkCmdBindPipeline(CommandBuffer, PipelineBindPoint, Pipeline);
-		FWrapLayer::BindPipeline(VK_SUCCESS, CommandBuffer, PipelineBindPoint, Pipeline);
+		FWrapLayer::CmdBindPipeline(VK_SUCCESS, CommandBuffer, PipelineBindPoint, Pipeline);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetViewport(VkCommandBuffer CommandBuffer, uint32 FirstViewport, uint32 ViewportCount, const VkViewport* Viewports)
 	{
-		FWrapLayer::SetViewport(VK_RESULT_MAX_ENUM, CommandBuffer, FirstViewport, ViewportCount, Viewports);
+		FWrapLayer::CmdSetViewport(VK_RESULT_MAX_ENUM, CommandBuffer, FirstViewport, ViewportCount, Viewports);
 		VULKANAPINAMESPACE::vkCmdSetViewport(CommandBuffer, FirstViewport, ViewportCount, Viewports);
-		FWrapLayer::SetViewport(VK_SUCCESS, CommandBuffer, FirstViewport, ViewportCount, Viewports);
+		FWrapLayer::CmdSetViewport(VK_SUCCESS, CommandBuffer, FirstViewport, ViewportCount, Viewports);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetScissor(VkCommandBuffer CommandBuffer, uint32 FirstScissor, uint32 ScissorCount, const VkRect2D* Scissors)
 	{
-		FWrapLayer::SetScissor(VK_RESULT_MAX_ENUM, CommandBuffer, FirstScissor, ScissorCount, Scissors);
+		FWrapLayer::CmdSetScissor(VK_RESULT_MAX_ENUM, CommandBuffer, FirstScissor, ScissorCount, Scissors);
 		VULKANAPINAMESPACE::vkCmdSetScissor(CommandBuffer, FirstScissor, ScissorCount, Scissors);
-		FWrapLayer::SetScissor(VK_SUCCESS, CommandBuffer, FirstScissor, ScissorCount, Scissors);
+		FWrapLayer::CmdSetScissor(VK_SUCCESS, CommandBuffer, FirstScissor, ScissorCount, Scissors);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetLineWidth(VkCommandBuffer CommandBuffer, float LineWidth)
 	{
-		FWrapLayer::SetLineWidth(VK_RESULT_MAX_ENUM, CommandBuffer, LineWidth);
+		FWrapLayer::CmdSetLineWidth(VK_RESULT_MAX_ENUM, CommandBuffer, LineWidth);
 		VULKANAPINAMESPACE::vkCmdSetLineWidth(CommandBuffer, LineWidth);
-		FWrapLayer::SetLineWidth(VK_SUCCESS, CommandBuffer, LineWidth);
+		FWrapLayer::CmdSetLineWidth(VK_SUCCESS, CommandBuffer, LineWidth);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetDepthBias(VkCommandBuffer CommandBuffer, float DepthBiasConstantFactor, float DepthBiasClamp, float DepthBiasSlopeFactor)
 	{
-		FWrapLayer::SetDepthBias(VK_RESULT_MAX_ENUM, CommandBuffer, DepthBiasConstantFactor, DepthBiasClamp, DepthBiasSlopeFactor);
+		FWrapLayer::CmdSetDepthBias(VK_RESULT_MAX_ENUM, CommandBuffer, DepthBiasConstantFactor, DepthBiasClamp, DepthBiasSlopeFactor);
 		VULKANAPINAMESPACE::vkCmdSetDepthBias(CommandBuffer, DepthBiasConstantFactor, DepthBiasClamp, DepthBiasSlopeFactor);
-		FWrapLayer::SetDepthBias(VK_SUCCESS, CommandBuffer, DepthBiasConstantFactor, DepthBiasClamp, DepthBiasSlopeFactor);
+		FWrapLayer::CmdSetDepthBias(VK_SUCCESS, CommandBuffer, DepthBiasConstantFactor, DepthBiasClamp, DepthBiasSlopeFactor);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetBlendConstants(VkCommandBuffer CommandBuffer, const float BlendConstants[4])
 	{
-		FWrapLayer::SetBlendConstants(VK_RESULT_MAX_ENUM, CommandBuffer, BlendConstants);
+		FWrapLayer::CmdSetBlendConstants(VK_RESULT_MAX_ENUM, CommandBuffer, BlendConstants);
 		VULKANAPINAMESPACE::vkCmdSetBlendConstants(CommandBuffer, BlendConstants);
-		FWrapLayer::SetBlendConstants(VK_SUCCESS, CommandBuffer, BlendConstants);
+		FWrapLayer::CmdSetBlendConstants(VK_SUCCESS, CommandBuffer, BlendConstants);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetDepthBounds(VkCommandBuffer CommandBuffer, float MinDepthBounds, float MaxDepthBounds)
 	{
-		FWrapLayer::SetDepthBounds(VK_RESULT_MAX_ENUM, CommandBuffer, MinDepthBounds, MaxDepthBounds);
+		FWrapLayer::CmdSetDepthBounds(VK_RESULT_MAX_ENUM, CommandBuffer, MinDepthBounds, MaxDepthBounds);
 		VULKANAPINAMESPACE::vkCmdSetDepthBounds(CommandBuffer, MinDepthBounds, MaxDepthBounds);
-		FWrapLayer::SetDepthBounds(VK_SUCCESS, CommandBuffer, MinDepthBounds, MaxDepthBounds);
+		FWrapLayer::CmdSetDepthBounds(VK_SUCCESS, CommandBuffer, MinDepthBounds, MaxDepthBounds);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetStencilCompareMask(VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 CompareMask)
 	{
-		FWrapLayer::SetStencilCompareMask(VK_RESULT_MAX_ENUM, CommandBuffer, FaceMask, CompareMask);
+		FWrapLayer::CmdSetStencilCompareMask(VK_RESULT_MAX_ENUM, CommandBuffer, FaceMask, CompareMask);
 		VULKANAPINAMESPACE::vkCmdSetStencilCompareMask(CommandBuffer, FaceMask, CompareMask);
-		FWrapLayer::SetStencilCompareMask(VK_SUCCESS, CommandBuffer, FaceMask, CompareMask);
+		FWrapLayer::CmdSetStencilCompareMask(VK_SUCCESS, CommandBuffer, FaceMask, CompareMask);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetStencilWriteMask(VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 WriteMask)
 	{
-		FWrapLayer::SetStencilWriteMask(VK_RESULT_MAX_ENUM, CommandBuffer, FaceMask, WriteMask);
+		FWrapLayer::CmdSetStencilWriteMask(VK_RESULT_MAX_ENUM, CommandBuffer, FaceMask, WriteMask);
 		VULKANAPINAMESPACE::vkCmdSetStencilWriteMask(CommandBuffer, FaceMask, WriteMask);
-		FWrapLayer::SetStencilWriteMask(VK_SUCCESS, CommandBuffer, FaceMask, WriteMask);
+		FWrapLayer::CmdSetStencilWriteMask(VK_SUCCESS, CommandBuffer, FaceMask, WriteMask);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetStencilReference(VkCommandBuffer CommandBuffer, VkStencilFaceFlags FaceMask, uint32 Reference)
 	{
-		FWrapLayer::SetStencilReference(VK_RESULT_MAX_ENUM, CommandBuffer, FaceMask, Reference);
+		FWrapLayer::CmdSetStencilReference(VK_RESULT_MAX_ENUM, CommandBuffer, FaceMask, Reference);
 		VULKANAPINAMESPACE::vkCmdSetStencilReference(CommandBuffer, FaceMask, Reference);
-		FWrapLayer::SetStencilReference(VK_SUCCESS, CommandBuffer, FaceMask, Reference);
+		FWrapLayer::CmdSetStencilReference(VK_SUCCESS, CommandBuffer, FaceMask, Reference);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdBindDescriptorSets(VkCommandBuffer CommandBuffer, VkPipelineBindPoint PipelineBindPoint, VkPipelineLayout Layout, uint32 FirstSet, uint32 DescriptorSetCount, const VkDescriptorSet* DescriptorSets, uint32 DynamicOffsetCount, const uint32* DynamicOffsets)
 	{
-		FWrapLayer::BindDescriptorSets(VK_RESULT_MAX_ENUM, CommandBuffer, PipelineBindPoint, Layout, FirstSet, DescriptorSetCount, DescriptorSets, DynamicOffsetCount, DynamicOffsets);
+		FWrapLayer::CmdBindDescriptorSets(VK_RESULT_MAX_ENUM, CommandBuffer, PipelineBindPoint, Layout, FirstSet, DescriptorSetCount, DescriptorSets, DynamicOffsetCount, DynamicOffsets);
 		VULKANAPINAMESPACE::vkCmdBindDescriptorSets(CommandBuffer, PipelineBindPoint, Layout, FirstSet, DescriptorSetCount, DescriptorSets, DynamicOffsetCount, DynamicOffsets);
-		FWrapLayer::BindDescriptorSets(VK_SUCCESS, CommandBuffer, PipelineBindPoint, Layout, FirstSet, DescriptorSetCount, DescriptorSets, DynamicOffsetCount, DynamicOffsets);
+		FWrapLayer::CmdBindDescriptorSets(VK_SUCCESS, CommandBuffer, PipelineBindPoint, Layout, FirstSet, DescriptorSetCount, DescriptorSets, DynamicOffsetCount, DynamicOffsets);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdBindIndexBuffer(VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, VkIndexType IndexType)
 	{
-		FWrapLayer::BindIndexBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset, IndexType);
+		FWrapLayer::CmdBindIndexBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset, IndexType);
 		VULKANAPINAMESPACE::vkCmdBindIndexBuffer(CommandBuffer, Buffer, Offset, IndexType);
-		FWrapLayer::BindIndexBuffer(VK_SUCCESS, CommandBuffer, Buffer, Offset, IndexType);
+		FWrapLayer::CmdBindIndexBuffer(VK_SUCCESS, CommandBuffer, Buffer, Offset, IndexType);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdBindVertexBuffers(VkCommandBuffer CommandBuffer, uint32 FirstBinding, uint32 BindingCount, const VkBuffer* Buffers, const VkDeviceSize* Offsets)
 	{
-		FWrapLayer::BindVertexBuffers(VK_RESULT_MAX_ENUM, CommandBuffer, FirstBinding, BindingCount, Buffers, Offsets);
+		FWrapLayer::CmdBindVertexBuffers(VK_RESULT_MAX_ENUM, CommandBuffer, FirstBinding, BindingCount, Buffers, Offsets);
 		VULKANAPINAMESPACE::vkCmdBindVertexBuffers(CommandBuffer, FirstBinding, BindingCount, Buffers, Offsets);
-		FWrapLayer::BindVertexBuffers(VK_SUCCESS, CommandBuffer, FirstBinding, BindingCount, Buffers, Offsets);
+		FWrapLayer::CmdBindVertexBuffers(VK_SUCCESS, CommandBuffer, FirstBinding, BindingCount, Buffers, Offsets);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdDraw(VkCommandBuffer CommandBuffer, uint32 VertexCount, uint32 InstanceCount, uint32 FirstVertex, uint32 FirstInstance)
 	{
-		FWrapLayer::Draw(VK_RESULT_MAX_ENUM, CommandBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance);
+		FWrapLayer::CmdDraw(VK_RESULT_MAX_ENUM, CommandBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance);
 		VULKANAPINAMESPACE::vkCmdDraw(CommandBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance);
-		FWrapLayer::Draw(VK_SUCCESS, CommandBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance);
+		FWrapLayer::CmdDraw(VK_SUCCESS, CommandBuffer, VertexCount, InstanceCount, FirstVertex, FirstInstance);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdDrawIndexed(VkCommandBuffer CommandBuffer, uint32 IndexCount, uint32 InstanceCount, uint32 FirstIndex, int32_t VertexOffset, uint32 FirstInstance)
 	{
-		FWrapLayer::DrawIndexed(VK_RESULT_MAX_ENUM, CommandBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
+		FWrapLayer::CmdDrawIndexed(VK_RESULT_MAX_ENUM, CommandBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
 		VULKANAPINAMESPACE::vkCmdDrawIndexed(CommandBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
-		FWrapLayer::DrawIndexed(VK_SUCCESS, CommandBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
+		FWrapLayer::CmdDrawIndexed(VK_SUCCESS, CommandBuffer, IndexCount, InstanceCount, FirstIndex, VertexOffset, FirstInstance);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdDrawIndirect(VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, uint32 DrawCount, uint32 Stride)
 	{
-		FWrapLayer::DrawIndirect(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset, DrawCount, Stride);
+		FWrapLayer::CmdDrawIndirect(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset, DrawCount, Stride);
 		VULKANAPINAMESPACE::vkCmdDrawIndirect(CommandBuffer, Buffer, Offset, DrawCount, Stride);
-		FWrapLayer::DrawIndirect(VK_SUCCESS, CommandBuffer, Buffer, Offset, DrawCount, Stride);
+		FWrapLayer::CmdDrawIndirect(VK_SUCCESS, CommandBuffer, Buffer, Offset, DrawCount, Stride);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdDrawIndexedIndirect(VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset, uint32 DrawCount, uint32 Stride)
 	{
-		FWrapLayer::DrawIndexedIndirect(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset, DrawCount, Stride);
+		FWrapLayer::CmdDrawIndexedIndirect(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset, DrawCount, Stride);
 		VULKANAPINAMESPACE::vkCmdDrawIndexedIndirect(CommandBuffer, Buffer, Offset, DrawCount, Stride);
-		FWrapLayer::DrawIndexedIndirect(VK_SUCCESS, CommandBuffer, Buffer, Offset, DrawCount, Stride);
+		FWrapLayer::CmdDrawIndexedIndirect(VK_SUCCESS, CommandBuffer, Buffer, Offset, DrawCount, Stride);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdDispatch(VkCommandBuffer CommandBuffer, uint32 X, uint32 Y, uint32 Z)
 	{
-		FWrapLayer::Dispatch(VK_RESULT_MAX_ENUM, CommandBuffer, X, Y, Z);
+		FWrapLayer::CmdDispatch(VK_RESULT_MAX_ENUM, CommandBuffer, X, Y, Z);
 		VULKANAPINAMESPACE::vkCmdDispatch(CommandBuffer, X, Y, Z);
-		FWrapLayer::Dispatch(VK_SUCCESS, CommandBuffer, X, Y, Z);
+		FWrapLayer::CmdDispatch(VK_SUCCESS, CommandBuffer, X, Y, Z);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdDispatchIndirect(VkCommandBuffer CommandBuffer, VkBuffer Buffer, VkDeviceSize Offset)
 	{
-		FWrapLayer::DispatchIndirect(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset);
+		FWrapLayer::CmdDispatchIndirect(VK_RESULT_MAX_ENUM, CommandBuffer, Buffer, Offset);
 		VULKANAPINAMESPACE::vkCmdDispatchIndirect(CommandBuffer, Buffer, Offset);
-		FWrapLayer::DispatchIndirect(VK_SUCCESS, CommandBuffer, Buffer, Offset);
+		FWrapLayer::CmdDispatchIndirect(VK_SUCCESS, CommandBuffer, Buffer, Offset);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdCopyBuffer(VkCommandBuffer CommandBuffer, VkBuffer SrcBuffer, VkBuffer DstBuffer, uint32 RegionCount, const VkBufferCopy* Regions)
 	{
-		FWrapLayer::CopyBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, SrcBuffer, DstBuffer, RegionCount, Regions);
+		FWrapLayer::CmdCopyBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, SrcBuffer, DstBuffer, RegionCount, Regions);
 		VULKANAPINAMESPACE::vkCmdCopyBuffer(CommandBuffer, SrcBuffer, DstBuffer, RegionCount, Regions);
-		FWrapLayer::CopyBuffer(VK_SUCCESS, CommandBuffer, SrcBuffer, DstBuffer, RegionCount, Regions);
+		FWrapLayer::CmdCopyBuffer(VK_SUCCESS, CommandBuffer, SrcBuffer, DstBuffer, RegionCount, Regions);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdCopyImage(VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageCopy* Regions)
 	{
-		FWrapLayer::CopyImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
+		FWrapLayer::CmdCopyImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
 		VULKANAPINAMESPACE::vkCmdCopyImage(CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
-		FWrapLayer::CopyImage(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
+		FWrapLayer::CmdCopyImage(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdBlitImage(VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkImageBlit* Regions, VkFilter Filter)
 	{
-		FWrapLayer::BlitImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions, Filter);
+		FWrapLayer::CmdBlitImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions, Filter);
 		VULKANAPINAMESPACE::vkCmdBlitImage(CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions, Filter);
-		FWrapLayer::BlitImage(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions, Filter);
+		FWrapLayer::CmdBlitImage(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions, Filter);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdCopyBufferToImage(VkCommandBuffer CommandBuffer, VkBuffer SrcBuffer, VkImage DstImage, VkImageLayout DstImageLayout, uint32 RegionCount, const VkBufferImageCopy* Regions)
 	{
-		FWrapLayer::CopyBufferToImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcBuffer, DstImage, DstImageLayout, RegionCount, Regions);
+		FWrapLayer::CmdCopyBufferToImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcBuffer, DstImage, DstImageLayout, RegionCount, Regions);
 		VULKANAPINAMESPACE::vkCmdCopyBufferToImage(CommandBuffer, SrcBuffer, DstImage, DstImageLayout, RegionCount, Regions);
-		FWrapLayer::CopyBufferToImage(VK_SUCCESS, CommandBuffer, SrcBuffer, DstImage, DstImageLayout, RegionCount, Regions);
+		FWrapLayer::CmdCopyBufferToImage(VK_SUCCESS, CommandBuffer, SrcBuffer, DstImage, DstImageLayout, RegionCount, Regions);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdCopyImageToBuffer(VkCommandBuffer CommandBuffer, VkImage SrcImage, VkImageLayout SrcImageLayout, VkBuffer DstBuffer, uint32 RegionCount, const VkBufferImageCopy* Regions)
 	{
-		FWrapLayer::CopyImageToBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstBuffer, RegionCount, Regions);
+		FWrapLayer::CmdCopyImageToBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstBuffer, RegionCount, Regions);
 		VULKANAPINAMESPACE::vkCmdCopyImageToBuffer(CommandBuffer, SrcImage, SrcImageLayout, DstBuffer, RegionCount, Regions);
-		FWrapLayer::CopyImageToBuffer(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstBuffer, RegionCount, Regions);
+		FWrapLayer::CmdCopyImageToBuffer(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstBuffer, RegionCount, Regions);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdUpdateBuffer(VkCommandBuffer CommandBuffer, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize DataSize, const void* pData)
 	{
-		FWrapLayer::UpdateBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, DstBuffer, DstOffset, DataSize, pData);
+		FWrapLayer::CmdUpdateBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, DstBuffer, DstOffset, DataSize, pData);
 		VULKANAPINAMESPACE::vkCmdUpdateBuffer(CommandBuffer, DstBuffer, DstOffset, DataSize, pData);
-		FWrapLayer::UpdateBuffer(VK_SUCCESS, CommandBuffer, DstBuffer, DstOffset, DataSize, pData);
+		FWrapLayer::CmdUpdateBuffer(VK_SUCCESS, CommandBuffer, DstBuffer, DstOffset, DataSize, pData);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdFillBuffer(VkCommandBuffer CommandBuffer, VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Size, uint32 Data)
 	{
-		FWrapLayer::FillBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, DstBuffer, DstOffset, Size, Data);
+		FWrapLayer::CmdFillBuffer(VK_RESULT_MAX_ENUM, CommandBuffer, DstBuffer, DstOffset, Size, Data);
 		VULKANAPINAMESPACE::vkCmdFillBuffer(CommandBuffer, DstBuffer, DstOffset, Size, Data);
-		FWrapLayer::FillBuffer(VK_SUCCESS, CommandBuffer, DstBuffer, DstOffset, Size, Data);
+		FWrapLayer::CmdFillBuffer(VK_SUCCESS, CommandBuffer, DstBuffer, DstOffset, Size, Data);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdClearColorImage(VkCommandBuffer CommandBuffer, VkImage Image, VkImageLayout ImageLayout, const VkClearColorValue* Color, uint32 RangeCount, const VkImageSubresourceRange* Ranges)
 	{
-		FWrapLayer::ClearColorImage(VK_RESULT_MAX_ENUM, CommandBuffer, Image, ImageLayout, Color, RangeCount, Ranges);
+		FWrapLayer::CmdClearColorImage(VK_RESULT_MAX_ENUM, CommandBuffer, Image, ImageLayout, Color, RangeCount, Ranges);
 		VULKANAPINAMESPACE::vkCmdClearColorImage(CommandBuffer, Image, ImageLayout, Color, RangeCount, Ranges);
-		FWrapLayer::ClearColorImage(VK_SUCCESS, CommandBuffer, Image, ImageLayout, Color, RangeCount, Ranges);
+		FWrapLayer::CmdClearColorImage(VK_SUCCESS, CommandBuffer, Image, ImageLayout, Color, RangeCount, Ranges);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdClearDepthStencilImage(VkCommandBuffer CommandBuffer, VkImage Image, VkImageLayout ImageLayout, const VkClearDepthStencilValue* DepthStencil, uint32 RangeCount, const VkImageSubresourceRange* Ranges)
 	{
-		FWrapLayer::ClearDepthStencilImage(VK_RESULT_MAX_ENUM, CommandBuffer, Image, ImageLayout, DepthStencil, RangeCount, Ranges);
+		FWrapLayer::CmdClearDepthStencilImage(VK_RESULT_MAX_ENUM, CommandBuffer, Image, ImageLayout, DepthStencil, RangeCount, Ranges);
 		VULKANAPINAMESPACE::vkCmdClearDepthStencilImage(CommandBuffer, Image, ImageLayout, DepthStencil, RangeCount, Ranges);
-		FWrapLayer::ClearDepthStencilImage(VK_SUCCESS, CommandBuffer, Image, ImageLayout, DepthStencil, RangeCount, Ranges);
+		FWrapLayer::CmdClearDepthStencilImage(VK_SUCCESS, CommandBuffer, Image, ImageLayout, DepthStencil, RangeCount, Ranges);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdClearAttachments(VkCommandBuffer CommandBuffer, uint32 AttachmentCount, const VkClearAttachment* Attachments, uint32 RectCount, const VkClearRect* Rects)
 	{
-		FWrapLayer::ClearAttachments(VK_RESULT_MAX_ENUM, CommandBuffer, AttachmentCount, Attachments, RectCount, Rects);
+		FWrapLayer::CmdClearAttachments(VK_RESULT_MAX_ENUM, CommandBuffer, AttachmentCount, Attachments, RectCount, Rects);
 		VULKANAPINAMESPACE::vkCmdClearAttachments(CommandBuffer, AttachmentCount, Attachments, RectCount, Rects);
-		FWrapLayer::ClearAttachments(VK_SUCCESS, CommandBuffer, AttachmentCount, Attachments, RectCount, Rects);
+		FWrapLayer::CmdClearAttachments(VK_SUCCESS, CommandBuffer, AttachmentCount, Attachments, RectCount, Rects);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdResolveImage(
@@ -1111,23 +1124,23 @@ namespace VulkanRHI
 		VkImage DstImage, VkImageLayout DstImageLayout,
 		uint32 RegionCount, const VkImageResolve* Regions)
 	{
-		FWrapLayer::ResolveImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
+		FWrapLayer::CmdResolveImage(VK_RESULT_MAX_ENUM, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
 		VULKANAPINAMESPACE::vkCmdResolveImage(CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
-		FWrapLayer::ResolveImage(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
+		FWrapLayer::CmdResolveImage(VK_SUCCESS, CommandBuffer, SrcImage, SrcImageLayout, DstImage, DstImageLayout, RegionCount, Regions);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdSetEvent(VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags StageMask)
 	{
-		FWrapLayer::SetEvent(VK_RESULT_MAX_ENUM, CommandBuffer, Event, StageMask);
+		FWrapLayer::CmdSetEvent(VK_RESULT_MAX_ENUM, CommandBuffer, Event, StageMask);
 		VULKANAPINAMESPACE::vkCmdSetEvent(CommandBuffer, Event, StageMask);
-		FWrapLayer::SetEvent(VK_SUCCESS, CommandBuffer, Event, StageMask);
+		FWrapLayer::CmdSetEvent(VK_SUCCESS, CommandBuffer, Event, StageMask);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdResetEvent(VkCommandBuffer CommandBuffer, VkEvent Event, VkPipelineStageFlags StageMask)
 	{
-		FWrapLayer::ResetEvent(VK_RESULT_MAX_ENUM, CommandBuffer, Event, StageMask);
+		FWrapLayer::CmdResetEvent(VK_RESULT_MAX_ENUM, CommandBuffer, Event, StageMask);
 		VULKANAPINAMESPACE::vkCmdResetEvent(CommandBuffer, Event, StageMask);
-		FWrapLayer::ResetEvent(VK_SUCCESS, CommandBuffer, Event, StageMask);
+		FWrapLayer::CmdResetEvent(VK_SUCCESS, CommandBuffer, Event, StageMask);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdWaitEvents(VkCommandBuffer CommandBuffer, uint32 EventCount, const VkEvent* Events,
@@ -1136,11 +1149,11 @@ namespace VulkanRHI
 		uint32 BufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers,
 		uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers)
 	{
-		FWrapLayer::WaitEvents(VK_RESULT_MAX_ENUM, CommandBuffer, EventCount, Events, SrcStageMask, DstStageMask,
+		FWrapLayer::CmdWaitEvents(VK_RESULT_MAX_ENUM, CommandBuffer, EventCount, Events, SrcStageMask, DstStageMask,
 			MemoryBarrierCount, pMemoryBarriers, BufferMemoryBarrierCount, pBufferMemoryBarriers, ImageMemoryBarrierCount, pImageMemoryBarriers);
 		VULKANAPINAMESPACE::vkCmdWaitEvents(CommandBuffer, EventCount, Events, SrcStageMask, DstStageMask, MemoryBarrierCount, pMemoryBarriers,
 			BufferMemoryBarrierCount, pBufferMemoryBarriers, ImageMemoryBarrierCount, pImageMemoryBarriers);
-		FWrapLayer::WaitEvents(VK_SUCCESS, CommandBuffer, EventCount, Events, SrcStageMask, DstStageMask,
+		FWrapLayer::CmdWaitEvents(VK_SUCCESS, CommandBuffer, EventCount, Events, SrcStageMask, DstStageMask,
 			MemoryBarrierCount, pMemoryBarriers, BufferMemoryBarrierCount, pBufferMemoryBarriers, ImageMemoryBarrierCount, pImageMemoryBarriers);
 	}
 
@@ -1150,85 +1163,81 @@ namespace VulkanRHI
 		uint32 BufferMemoryBarrierCount, const VkBufferMemoryBarrier* BufferMemoryBarriers,
 		uint32 ImageMemoryBarrierCount, const VkImageMemoryBarrier* ImageMemoryBarriers)
 	{
-		FWrapLayer::PipelineBarrier(VK_RESULT_MAX_ENUM, CommandBuffer, SrcStageMask, DstStageMask, DependencyFlags, MemoryBarrierCount, MemoryBarriers, BufferMemoryBarrierCount, BufferMemoryBarriers, ImageMemoryBarrierCount, ImageMemoryBarriers);
+		FWrapLayer::CmdPipelineBarrier(VK_RESULT_MAX_ENUM, CommandBuffer, SrcStageMask, DstStageMask, DependencyFlags, MemoryBarrierCount, MemoryBarriers, BufferMemoryBarrierCount, BufferMemoryBarriers, ImageMemoryBarrierCount, ImageMemoryBarriers);
 		VULKANAPINAMESPACE::vkCmdPipelineBarrier(CommandBuffer, SrcStageMask, DstStageMask, DependencyFlags, MemoryBarrierCount, MemoryBarriers, BufferMemoryBarrierCount, BufferMemoryBarriers, ImageMemoryBarrierCount, ImageMemoryBarriers);
-		FWrapLayer::PipelineBarrier(VK_SUCCESS, CommandBuffer, SrcStageMask, DstStageMask, DependencyFlags, MemoryBarrierCount, MemoryBarriers, BufferMemoryBarrierCount, BufferMemoryBarriers, ImageMemoryBarrierCount, ImageMemoryBarriers);
+		FWrapLayer::CmdPipelineBarrier(VK_SUCCESS, CommandBuffer, SrcStageMask, DstStageMask, DependencyFlags, MemoryBarrierCount, MemoryBarriers, BufferMemoryBarrierCount, BufferMemoryBarriers, ImageMemoryBarrierCount, ImageMemoryBarriers);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdBeginQuery(VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 Query, VkQueryControlFlags Flags)
 	{
-		FWrapLayer::BeginQuery(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, Query, Flags);
+		FWrapLayer::CmdBeginQuery(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, Query, Flags);
 		VULKANAPINAMESPACE::vkCmdBeginQuery(CommandBuffer, QueryPool, Query, Flags);
-		FWrapLayer::BeginQuery(VK_SUCCESS, CommandBuffer, QueryPool, Query, Flags);
+		FWrapLayer::CmdBeginQuery(VK_SUCCESS, CommandBuffer, QueryPool, Query, Flags);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdEndQuery(VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 Query)
 	{
-		FWrapLayer::EndQuery(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, Query);
+		FWrapLayer::CmdEndQuery(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, Query);
 		VULKANAPINAMESPACE::vkCmdEndQuery(CommandBuffer, QueryPool, Query);
-		FWrapLayer::EndQuery(VK_SUCCESS, CommandBuffer, QueryPool, Query);
+		FWrapLayer::CmdEndQuery(VK_SUCCESS, CommandBuffer, QueryPool, Query);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdResetQueryPool(VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount)
 	{
-		FWrapLayer::ResetQueryPool(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, FirstQuery, QueryCount);
+		FWrapLayer::CmdResetQueryPool(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, FirstQuery, QueryCount);
 		VULKANAPINAMESPACE::vkCmdResetQueryPool(CommandBuffer, QueryPool, FirstQuery, QueryCount);
-		FWrapLayer::ResetQueryPool(VK_SUCCESS, CommandBuffer, QueryPool, FirstQuery, QueryCount);
+		FWrapLayer::CmdResetQueryPool(VK_SUCCESS, CommandBuffer, QueryPool, FirstQuery, QueryCount);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdWriteTimestamp(VkCommandBuffer CommandBuffer, VkPipelineStageFlagBits PipelineStage, VkQueryPool QueryPool, uint32 Query)
 	{
-		FWrapLayer::WriteTimestamp(VK_RESULT_MAX_ENUM, CommandBuffer, PipelineStage, QueryPool, Query);
+		FWrapLayer::CmdWriteTimestamp(VK_RESULT_MAX_ENUM, CommandBuffer, PipelineStage, QueryPool, Query);
 		VULKANAPINAMESPACE::vkCmdWriteTimestamp(CommandBuffer, PipelineStage, QueryPool, Query);
-		FWrapLayer::WriteTimestamp(VK_SUCCESS, CommandBuffer, PipelineStage, QueryPool, Query);
+		FWrapLayer::CmdWriteTimestamp(VK_SUCCESS, CommandBuffer, PipelineStage, QueryPool, Query);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdCopyQueryPoolResults(VkCommandBuffer CommandBuffer, VkQueryPool QueryPool, uint32 FirstQuery, uint32 QueryCount,
 		VkBuffer DstBuffer, VkDeviceSize DstOffset, VkDeviceSize Stride, VkQueryResultFlags Flags)
 	{
-		FWrapLayer::CopyQueryPoolResults(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, FirstQuery, QueryCount, DstBuffer, DstOffset, Stride, Flags);
+		FWrapLayer::CmdCopyQueryPoolResults(VK_RESULT_MAX_ENUM, CommandBuffer, QueryPool, FirstQuery, QueryCount, DstBuffer, DstOffset, Stride, Flags);
 		VULKANAPINAMESPACE::vkCmdCopyQueryPoolResults(CommandBuffer, QueryPool, FirstQuery, QueryCount, DstBuffer, DstOffset, Stride, Flags);
-		FWrapLayer::CopyQueryPoolResults(VK_SUCCESS, CommandBuffer, QueryPool, FirstQuery, QueryCount, DstBuffer, DstOffset, Stride, Flags);
+		FWrapLayer::CmdCopyQueryPoolResults(VK_SUCCESS, CommandBuffer, QueryPool, FirstQuery, QueryCount, DstBuffer, DstOffset, Stride, Flags);
 	}
-#if 0
-	static FORCEINLINE_DEBUGGABLE void  vkCmdPushConstants(
-		VkCommandBuffer                             commandBuffer,
-		VkPipelineLayout                            layout,
-		VkShaderStageFlags                          stageFlags,
-		uint32                                    offset,
-		uint32                                    size,
-		const void*                                 pValues);
-#endif
-	static FORCEINLINE_DEBUGGABLE void  vkCmdBeginRenderPass(
-		VkCommandBuffer CommandBuffer,
-		const VkRenderPassBeginInfo* RenderPassBegin,
-		VkSubpassContents Contents)
+
+	static FORCEINLINE_DEBUGGABLE void  vkCmdPushConstants(VkCommandBuffer CommandBuffer, VkPipelineLayout Layout, VkShaderStageFlags StageFlags, uint32 Offset, uint32 Size, const void* pValues)
 	{
-		FWrapLayer::BeginRenderPass(VK_RESULT_MAX_ENUM, CommandBuffer, RenderPassBegin, Contents);
+		FWrapLayer::CmdPushConstants(VK_RESULT_MAX_ENUM, CommandBuffer, Layout, StageFlags, Offset, Size, pValues);
+		VULKANAPINAMESPACE::vkCmdPushConstants(CommandBuffer, Layout, StageFlags, Offset, Size, pValues);
+		FWrapLayer::CmdPushConstants(VK_SUCCESS, CommandBuffer, Layout, StageFlags, Offset, Size, pValues);
+	}
+
+	static FORCEINLINE_DEBUGGABLE void  vkCmdBeginRenderPass(VkCommandBuffer CommandBuffer, const VkRenderPassBeginInfo* RenderPassBegin, VkSubpassContents Contents)
+	{
+		FWrapLayer::CmdBeginRenderPass(VK_RESULT_MAX_ENUM, CommandBuffer, RenderPassBegin, Contents);
 		VULKANAPINAMESPACE::vkCmdBeginRenderPass(CommandBuffer, RenderPassBegin, Contents);
-		FWrapLayer::BeginRenderPass(VK_SUCCESS, CommandBuffer, RenderPassBegin, Contents);
+		FWrapLayer::CmdBeginRenderPass(VK_SUCCESS, CommandBuffer, RenderPassBegin, Contents);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdNextSubpass(VkCommandBuffer CommandBuffer, VkSubpassContents Contents)
 	{
-		FWrapLayer::NextSubpass(VK_RESULT_MAX_ENUM, CommandBuffer, Contents);
+		FWrapLayer::CmdNextSubpass(VK_RESULT_MAX_ENUM, CommandBuffer, Contents);
 		VULKANAPINAMESPACE::vkCmdNextSubpass(CommandBuffer, Contents);
-		FWrapLayer::NextSubpass(VK_SUCCESS, CommandBuffer, Contents);
+		FWrapLayer::CmdNextSubpass(VK_SUCCESS, CommandBuffer, Contents);
 	}
 
 	static FORCEINLINE_DEBUGGABLE void  vkCmdEndRenderPass(VkCommandBuffer CommandBuffer)
 	{
-		FWrapLayer::EndRenderPass(VK_RESULT_MAX_ENUM, CommandBuffer);
+		FWrapLayer::CmdEndRenderPass(VK_RESULT_MAX_ENUM, CommandBuffer);
 		VULKANAPINAMESPACE::vkCmdEndRenderPass(CommandBuffer);
-		FWrapLayer::EndRenderPass(VK_SUCCESS, CommandBuffer);
+		FWrapLayer::CmdEndRenderPass(VK_SUCCESS, CommandBuffer);
 	}
 
-#if 0
-	static FORCEINLINE_DEBUGGABLE void  vkCmdExecuteCommands(
-		VkCommandBuffer                             commandBuffer,
-		uint32                                    commandBufferCount,
-		const VkCommandBuffer*                      pCommandBuffers);
-#endif
+	static FORCEINLINE_DEBUGGABLE void  vkCmdExecuteCommands(VkCommandBuffer CommandBuffer, uint32 CommandBufferCount, const VkCommandBuffer* pCommandBuffers)
+	{
+		FWrapLayer::CmdExecuteCommands(VK_RESULT_MAX_ENUM, CommandBuffer, CommandBufferCount, pCommandBuffers);
+		VULKANAPINAMESPACE::vkCmdExecuteCommands(CommandBuffer, CommandBufferCount, pCommandBuffers);
+		FWrapLayer::CmdExecuteCommands(VK_SUCCESS, CommandBuffer, CommandBufferCount, pCommandBuffers);
+	}
 
 	static FORCEINLINE_DEBUGGABLE VkResult vkCreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain)
 	{

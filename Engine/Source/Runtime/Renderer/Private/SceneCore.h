@@ -181,6 +181,8 @@ public:
 		, bUseForMaterial(StaticMesh.bUseForMaterial)
 		, bUseForDepthPass(StaticMesh.bUseForDepthPass)
 		, bUseAsOccluder(StaticMesh.bUseAsOccluder)
+		, bRenderToVirtualTexture(StaticMesh.bRenderToVirtualTexture)
+		, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 		, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)
 	{
 	}
@@ -212,10 +214,15 @@ public:
 	/** Whether the mesh batch can be selected through editor selection, aka hit proxies. */
 	uint8 bSelectable : 1;
 
-	uint8 CastShadow		: 1; // Whether it can be used in shadow renderpasses.
+	uint8 CastShadow	: 1; // Whether it can be used in shadow renderpasses.
 	uint8 bUseForMaterial	: 1; // Whether it can be used in renderpasses requiring material outputs.
 	uint8 bUseForDepthPass	: 1; // Whether it can be used in depth pass.
 	uint8 bUseAsOccluder	: 1; // User hint whether it's a good occluder.
+
+	/** Whether the mesh batch can be used for rendering to a virtual texture. */
+	uint8 bRenderToVirtualTexture : 1;
+	/** What virtual texture material type this mesh batch should be rendered with. */
+	uint32 RuntimeVirtualTextureMaterialType : ERuntimeVirtualTextureMaterialType_NumBits;
 
 	/** Cached from vertex factory to avoid dereferencing VF in InitViews. */
 	uint8 bSupportsCachingMeshDrawCommands : 1;

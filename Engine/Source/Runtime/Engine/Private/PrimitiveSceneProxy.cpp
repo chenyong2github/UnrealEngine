@@ -7,12 +7,14 @@
 #include "PrimitiveSceneProxy.h"
 #include "Engine/Brush.h"
 #include "UObject/Package.h"
+#include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Components/BrushComponent.h"
 #include "SceneManagement.h"
 #include "PrimitiveSceneInfo.h"
 #include "Materials/Material.h"
 #include "SceneManagement.h"
+#include "VT/RuntimeVirtualTexture.h"
 
 static TAutoConsoleVariable<int32> CVarForceSingleSampleShadowingFromStationary(
 	TEXT("r.Shadow.ForceSingleSampleShadowingFromStationary"),
@@ -121,7 +123,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bStaticElementsAlwaysUseProxyPrimitiveUniformBuffer(false)
 ,	bVFRequiresPrimitiveUniformBuffer(true)
 ,	bAlwaysHasVelocity(false)
-,	bUseEditorDepthTest(true)
 ,	bSupportsDistanceFieldRepresentation(false)
 ,	bSupportsHeightfieldRepresentation(false)
 ,	bNeedsLevelAddedToWorldNotification(false)
@@ -209,10 +210,37 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	bRequiresVisibleLevelToRender = (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender);
 	bIsComponentLevelVisible = (!ComponentLevel || ComponentLevel->bIsVisible);
 
+	// Setup the runtime virtual texture information and flush the virtual texture if necessary
+	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
+	{
+		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetRuntimeVirtualTextures())
+		{
+			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
+			{
+				RuntimeVirtualTextures.Add(VirtualTexture);
+				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
+			
+				//todo[vt]: Only flush this specific virtual texture
+				//todo[vt]: Only flush primitive bounds 
+				GetRendererModule().FlushVirtualTextureCache();
+			}
+		}
+	}
+
+	// Conditionally remove from the main render pass based on the runtime virtual texture setup
+	ERuntimeVirtualTextureMainPassType MainPassType = InComponent->GetVirtualTextureRenderPassType();
+	const bool bRequestVirtualTexture = InComponent->GetRuntimeVirtualTextures().Num() > 0;
+	const bool bUseVirtualTexture = RuntimeVirtualTextures.Num() > 0;
+	if ((MainPassType == ERuntimeVirtualTextureMainPassType::Never && bRequestVirtualTexture) ||
+		(MainPassType == ERuntimeVirtualTextureMainPassType::Exclusive && bUseVirtualTexture))
+	{
+		bRenderInMainPass = false;
+	}
+
 #if WITH_EDITOR
 	const bool bGetDebugMaterials = true;
 	InComponent->GetUsedMaterials(UsedMaterialsForVerification, bGetDebugMaterials);
-#endif	
+#endif
 }
 
 #if WITH_EDITOR
@@ -227,6 +255,13 @@ void FPrimitiveSceneProxy::SetUsedMaterialForVerification(const TArray<UMaterial
 FPrimitiveSceneProxy::~FPrimitiveSceneProxy()
 {
 	check(IsInRenderingThread());
+
+	for (URuntimeVirtualTexture* VirtualTexture : RuntimeVirtualTextures)
+	{
+		//todo[vt]: Only flush Bounds 
+		//todo[vt]: Only flush specific virtual textures
+		GetRendererModule().FlushVirtualTextureCache();
+	}
 }
 
 HHitProxy* FPrimitiveSceneProxy::CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)
@@ -288,7 +323,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				HasDynamicIndirectShadowCasterRepresentation(), 
 				UseSingleSampleShadowFromStationaryLights(),
 				bHasPrecomputedVolumetricLightmap,
-				UseEditorDepthTest(), 
+				DrawsVelocity(), 
 				GetLightingChannelMask(),
 				LpvBiasMultiplier,
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,

@@ -41,7 +41,7 @@ public:
 class NiagaraEmitterInstanceBatcher : public FFXSystemInterface
 {
 public:
-	using FNiagaraBufferArray = TArray<FUnorderedAccessViewRHIParamRef, TMemStackAllocator<>>;
+	using FNiagaraBufferArray = TArray<FRHIUnorderedAccessView*, TMemStackAllocator<>>;
 	using FOverlappableTicks = TArray<FNiagaraGPUSystemTick*, TMemStackAllocator<>>;
 
 	NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform)

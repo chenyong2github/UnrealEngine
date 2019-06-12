@@ -39,6 +39,8 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual FString GetDescription() const override;
+
+	virtual FText GetPreviewOverlayText() const override;
 #endif
 	//~ End UMaterialExpression Interface
 
@@ -47,11 +49,7 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	 * This is used to link the compiled uniform expressions with their default texture values. 
 	 * Any UMaterialExpression whose compilation creates a texture uniform expression (eg Compiler->Texture, Compiler->TextureParameter) must implement this.
 	 */
-	virtual UTexture* GetReferencedTexture() override
-	{
-		return Texture;
-	}
-
+	virtual UObject* GetReferencedTexture() const override;
 	virtual bool CanReferenceTexture() const override { return true; }
 
 	/**
@@ -64,5 +62,5 @@ class ENGINE_API UMaterialExpressionTextureBase : public UMaterialExpression
 	 * @param Texture - The texture for which the default sampler type will be returned.
 	 * @returns the default sampler type for the specified texture.
 	 */
-	static EMaterialSamplerType GetSamplerTypeForTexture( const UTexture* Texture );
+	static EMaterialSamplerType GetSamplerTypeForTexture( const UTexture* Texture, bool ForceNoVT = false );
 };

@@ -215,7 +215,7 @@ namespace GPUFFT
 		{
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
@@ -240,7 +240,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -330,7 +330,7 @@ namespace GPUFFT
 
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
@@ -347,7 +347,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -426,7 +426,7 @@ namespace GPUFFT
 
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
@@ -448,7 +448,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -524,7 +524,7 @@ namespace GPUFFT
 		{
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
@@ -539,7 +539,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -613,7 +613,7 @@ namespace GPUFFT
 		{
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
@@ -625,7 +625,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -697,7 +697,7 @@ namespace GPUFFT
 		{
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			const uint32 DataLayoutValue = (bHorizontalScanlines) ? 1 : 0;
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
@@ -711,7 +711,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -769,7 +769,7 @@ namespace GPUFFT
 		{
 			using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 			FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
@@ -795,7 +795,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -940,7 +940,7 @@ namespace GPUFFT
 				TransformTypeValue |= 8;
 			}
 
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 			// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 
@@ -955,7 +955,7 @@ namespace GPUFFT
 		}
 
 		// Method for use with the FScopedUAVBind
-		FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+		FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 
 		// FShader interface.
@@ -1016,7 +1016,7 @@ namespace GPUFFT
 			FGSConvolutionBaseCS::SetCSParamters(RHICmdList, XFormType, SrcTexture, SrcRect, DstExtentValue);
 
 			// additional source input for sampling the spectral texture
-			const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+			FRHIComputeShader* ShaderRHI = GetComputeShader();
 			GPUFFTComputeShaderUtils::FComputeParamterValueSetter ParamSetter(RHICmdList, ShaderRHI);
 			// set the texture
 			ParamSetter(FilterSrcROTexture, FilterSrcTexture);
@@ -1309,7 +1309,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, SrcWindow, SrcTexture,  DstWindow, PreFilter);
 
@@ -1370,7 +1370,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, bHorizontalScanlines, SrcWindow, SrcTexture, KnlTexure);
 		
@@ -1439,7 +1439,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, FIntRect(FIntPoint(0, 0), DstExtent));
 
@@ -1490,7 +1490,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcWindow, FIntRect(FIntPoint(0, 0), DstExtent), TransformLength, PassLength, bScrubNaNs);
 
@@ -1543,7 +1543,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcWindow, DstWindow, TransformLength, SubLength, bScrubNaNs);
 			
@@ -1606,7 +1606,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, TransformLength, SubPassWindow, SrcTexture, NumSubRegions);
 		// The number of signals to transform simultaneously (i.e. number of scan lines)
@@ -1654,7 +1654,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 		// Bind output
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcRect, FIntRect(FIntPoint(0, 0), DstExtent));
 
@@ -1706,7 +1706,7 @@ namespace
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 
 
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, SrcTexture, SrcRect, DstRect, PreFilter);
 
 
@@ -1763,7 +1763,7 @@ namespace
 		UnbindRenderTargets(RHICmdList);
 		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 		
-		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		FScopedUAVBind ScopedBind = FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, FFTDesc.XFormType, PreTransformedKernel, SrcTexture, SrcRect, SrcRect.Size());
 

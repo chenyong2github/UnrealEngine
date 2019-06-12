@@ -35,6 +35,10 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	// RETURN_COLOR not needed unless writing to SceneColor
 	Out.MRT[0] = float4(Color, Opacity);
 
+#if USE_PREEXPOSURE
+	Out.MRT[0].xyz *= View.PreExposure;
+#endif
+
 #if (ES2_PROFILE || ES3_1_PROFILE)
 #if (COMPILER_GLSL_ES2 || COMPILER_GLSL_ES3_1) || (MOBILE_EMULATION)
 	// Do decal blending if encoding requires it.

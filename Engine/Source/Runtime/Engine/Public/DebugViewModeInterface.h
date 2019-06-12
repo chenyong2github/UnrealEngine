@@ -29,8 +29,8 @@ public:
 			: BlendState(nullptr)
 			, DepthStencilState(nullptr)
 		{}
-		FBlendStateRHIParamRef			BlendState;
-		FDepthStencilStateRHIParamRef	DepthStencilState;
+		FRHIBlendState*			BlendState;
+		FRHIDepthStencilState*	DepthStencilState;
 	};
 
 	FDebugViewModeInterface(

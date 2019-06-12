@@ -22,6 +22,11 @@
 
 float ScatteringScaling;
 
+Texture2D BokehLUT;
+
+float4 ScatterOcclusionSize;
+Texture2D ScatterOcclusion;
+
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -64,7 +69,7 @@ void ScatterMainPS(
 	#endif
 
 	#if DIM_SCATTER_OCCLUSION
-		float4 ScatterOcclusionSample = PostprocessInput3.SampleLevel(GlobalBilinearWrappedSampler, SvPosition.xy * PostprocessInput3Size.zw, 0);
+		float4 ScatterOcclusionSample = ScatterOcclusion.SampleLevel(GlobalBilinearWrappedSampler, SvPosition.xy * ScatterOcclusionSize.zw, 0);
 
 		float CocRadiusAvg = ScatterOcclusionSample.x;
 		float CocRadiusVariance = ScatterOcclusionSample.y;
@@ -86,7 +91,7 @@ void ScatterMainPS(
 			float2 LookUpUV = PixelOffset * (CONFIG_POINT_MIRROR_BOKEH * (0.5 - 1.0 / float(BOKEH_LUT_SIZE)) * SafeRcp(PixelDistance));
 
 			// TODO: might be faster without using view uniform buffer.
-			float4 LookupSample = PostprocessInput2.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV, 0);
+			float4 LookupSample = BokehLUT.SampleLevel(GlobalBilinearWrappedSampler, LookUpUV, 0);
 			float CocRadiusToBokehEdgeFactor = LookupSample.x;
 
 			Intersection = saturate(AbsCocRadius[i] * CocRadiusToBokehEdgeFactor - PixelDistance + ANTI_ALIASING_FEATHER_OFFSET);

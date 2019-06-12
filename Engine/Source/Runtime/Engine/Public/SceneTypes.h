@@ -196,6 +196,7 @@ enum ESimpleElementBlendMode
 	SE_BLEND_TranslucentDistanceField,
 	SE_BLEND_TranslucentDistanceFieldShadowed,
 	SE_BLEND_AlphaComposite,
+	SE_BLEND_AlphaHoldout,
 	// Like SE_BLEND_Translucent, but modifies destination alpha
 	SE_BLEND_AlphaBlend,
 	// Like SE_BLEND_Translucent, but reads from an alpha-only texture

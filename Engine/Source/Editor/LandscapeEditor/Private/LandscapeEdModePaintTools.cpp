@@ -17,6 +17,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "Misc/MapErrors.h"
+#include "EngineModule.h"
 
 #define LOCTEXT_NAMESPACE "LandscapeTools"
 
@@ -257,6 +258,16 @@ public:
 
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
+		
+		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
+
+		// If we render to a runtime virtual texture then we need to flush here
+		if (Landscape != nullptr && Landscape->RuntimeVirtualTextures.Num() > 0)
+		{
+			//todo[vt]: Only flush Bounds 
+			//todo[vt]: Only flush specific virtual textures
+			GetRendererModule().FlushVirtualTextureCache();
+		}
 	}
 };
 

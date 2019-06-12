@@ -100,10 +100,9 @@ const FPlatformAudioCookOverrides* FHoloLensTargetPlatform::GetAudioCompressionS
 	return nullptr;
 }
 
-void FHoloLensTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray<FName>& OutFormats) const
+void FHoloLensTargetPlatform::GetTextureFormats(const UTexture* InTexture, TArray< TArray<FName> >& OutFormats) const
 {
-	FName TextureFormatName = GetDefaultTextureFormatName(this, InTexture, EngineSettings, false);
-	OutFormats.Add(TextureFormatName);
+	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, EngineSettings, false);
 }
 
 void FHoloLensTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const

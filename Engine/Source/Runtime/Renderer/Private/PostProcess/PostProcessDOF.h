@@ -21,6 +21,8 @@ public:
 		: bFarBlur(bInFarBlur)
 		, bNearBlur(bInNearBlur)
 	{}
+	
+	static void ComputeDepthOfFieldParams(const FRenderingCompositePassContext& Context, FVector4 Out[2]);
 
 	// interface FRenderingCompositePass ---------
 

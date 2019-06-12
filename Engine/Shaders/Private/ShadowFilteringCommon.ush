@@ -147,6 +147,18 @@ float PCF1x1(float2 Fraction, float4 Values00)
 	return lerp(HorizontalLerp00.x, HorizontalLerp00.y, Fraction.y);
 }
 
+// Use fast approximation of exp(x)
+// http://www.humus.name/Articles/Persson_LowLevelThinking.pdf p.27
+float4 FastExp(float4 x)
+{
+	return exp2(1.442695f * x);
+}
+
+float3 FastExp(float3 x)
+{
+	return exp2(1.442695f * x);
+}
+
 float4 CalculateOcclusion(float4 ShadowmapDepth, FPCFSamplerSettings Settings)
 {
 	if (Settings.bSubsurface)
@@ -155,7 +167,7 @@ float4 CalculateOcclusion(float4 ShadowmapDepth, FPCFSamplerSettings Settings)
 		// This assumes that anything between this subsurface pixel and the light was also a subsurface material,
 		// As a result, subsurface materials receive leaked light based on how transparent they are
 		float4 Thickness = max(Settings.SceneDepth - ShadowmapDepth, 0);
-		float4 Occlusion = saturate(exp(-Thickness * Settings.DensityMulConstant));
+		float4 Occlusion = saturate(FastExp(-Thickness * Settings.DensityMulConstant));
 		// Never shadow from depths that were never written to (max depth value)
 		return ShadowmapDepth > .99f ? 1 : Occlusion;
 	}
@@ -188,8 +200,8 @@ float3 CalculateOcclusion(float3 ShadowmapDepth, FPCFSamplerSettings Settings)
 		// Determine the distance that the light traveled through the subsurface object
 		// This assumes that anything between this subsurface pixel and the light was also a subsurface material,
 		// As a result, subsurface materials receive leaked light based on how transparent they are
-		float3 Thickness = max(Settings.SceneDepth - (ShadowmapDepth - Settings.ProjectionDepthBiasParameters.x), 0);
-		float3 Occlusion = saturate(exp(-Thickness * Settings.DensityMulConstant));
+		float3 Thickness = max(Settings.SceneDepth - ShadowmapDepth, 0);
+		float3 Occlusion = saturate(FastExp(-Thickness * Settings.DensityMulConstant));
 		// Never shadow from depths that were never written to (max depth value)
 		return ShadowmapDepth > .99f ? 1 : Occlusion;
 	}
@@ -289,17 +301,12 @@ float Manual1x1PCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 
 float ManualPCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 {
-
 #if SHADOW_QUALITY == 1
 	return ManualNoFiltering(ShadowPosition, Settings);
-#endif
-
-#if SHADOW_QUALITY == 2
+#elif SHADOW_QUALITY == 2
 	// low quality, 2x2 samples, using and not using gather4
 	return Manual1x1PCF(ShadowPosition, Settings);
-#endif
-
-#if SHADOW_QUALITY == 3
+#elif SHADOW_QUALITY == 3
 	// medium quality, 4x4 samples, using and not using gather4
 	{
 		float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy - 0.5f;	// bias to be consistent with texture filtering hardware
@@ -326,9 +333,7 @@ float ManualPCF(float2 ShadowPosition, FPCFSamplerSettings Settings)
 #endif // FEATURE_GATHER4
 		}
 	}
-#endif
-
-#if FEATURE_GATHER4
+#elif FEATURE_GATHER4
 	// high quality, 6x6 samples, using gather4
 	{
 		float2 TexelPos = ShadowPosition * Settings.ShadowBufferSize.xy - 0.5f;	// bias to be consistent with texture filtering hardware

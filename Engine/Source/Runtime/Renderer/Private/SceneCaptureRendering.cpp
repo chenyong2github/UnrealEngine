@@ -52,7 +52,8 @@ const TCHAR* GShaderSourceModeDefineName[] =
 	TEXT("SOURCE_MODE_SCENE_DEPTH"),
 	TEXT("SOURCE_MODE_DEVICE_DEPTH"),
 	TEXT("SOURCE_MODE_NORMAL"),
-	TEXT("SOURCE_MODE_BASE_COLOR")
+	TEXT("SOURCE_MODE_BASE_COLOR"),
+	nullptr
 };
 
 static TAutoConsoleVariable<int32> CVarEnableViewExtensionsForSceneCapture(
@@ -151,7 +152,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FTextureRHIRef InLeftEyeTexture, const FTextureRHIRef InRightEyeTexture)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		
 		SetTextureParameter(
 			RHICmdList,
@@ -197,7 +198,7 @@ void FDeferredShadingSceneRenderer::CopySceneCaptureComponentToTarget(FRHIComman
 		SceneCaptureSource = SCS_SceneColorHDR;
 	}
 
-	if (SceneCaptureSource != SCS_FinalColorLDR)
+	if (SceneCaptureSource != SCS_FinalColorLDR && SceneCaptureSource != SCS_FinalColorHDR)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneComponent);
 
@@ -711,7 +712,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			BuildProjectionMatrix(CaptureSize, CaptureComponent->ProjectionType, FOV, CaptureComponent->OrthoWidth, ClippingPlane, ProjectionMatrix);
 		}
 
-		const bool bUseSceneColorTexture = CaptureComponent->CaptureSource != SCS_FinalColorLDR;
+		const bool bUseSceneColorTexture = CaptureComponent->CaptureSource != SCS_FinalColorLDR &&
+			CaptureComponent->CaptureSource != SCS_FinalColorHDR;
 
 		FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(
 			this, 
@@ -886,6 +888,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 			for (int32 faceidx = 0; faceidx < (int32)ECubeFace::CubeFace_MAX; faceidx++)
 			{
 				const ECubeFace TargetFace = (ECubeFace)faceidx;
+				const FVector Location = CaptureComponent->GetComponentToWorld().GetTranslation();
 
 				FMatrix ViewRotationMatrix;
 
@@ -908,8 +911,8 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 					StereoIPD = (CaptureIter == 1) ? CaptureComponent->IPD * -0.5f : CaptureComponent->IPD * 0.5f;
 				}
 
-			FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(this, CaptureComponent, TextureTarget->GameThread_GetRenderTargetResource(), CaptureSize, ViewRotationMatrix, ViewLocation, ProjectionMatrix, CaptureComponent->MaxViewDistanceOverride, true, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), StereoIPD);
-			SceneRenderer->ViewFamily.SceneCaptureSource = SCS_SceneColorHDR;
+				FSceneRenderer* SceneRenderer = CreateSceneRendererForSceneCapture(this, CaptureComponent, TextureTarget->GameThread_GetRenderTargetResource(), CaptureSize, ViewRotationMatrix, Location, ProjectionMatrix, CaptureComponent->MaxViewDistanceOverride, true, &PostProcessSettings, 0, CaptureComponent->GetViewOwner(), StereoIPD);
+				SceneRenderer->ViewFamily.SceneCaptureSource = CaptureComponent->CaptureSource;
 
 				FTextureRenderTargetCubeResource* TextureRenderTarget = static_cast<FTextureRenderTargetCubeResource*>(TextureTarget->GameThread_GetRenderTargetResource());
 				FString EventName;

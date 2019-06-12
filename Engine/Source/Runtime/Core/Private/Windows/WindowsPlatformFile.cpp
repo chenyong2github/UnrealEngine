@@ -887,7 +887,7 @@ public:
 		}
 	}
 
-#define USE_WINDOWS_ASYNC_IMPL (!IS_PROGRAM && !WITH_EDITOR)
+#define USE_WINDOWS_ASYNC_IMPL 0
 #if USE_WINDOWS_ASYNC_IMPL
 	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override
 	{

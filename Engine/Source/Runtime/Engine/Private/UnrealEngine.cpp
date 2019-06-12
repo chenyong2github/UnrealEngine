@@ -1706,6 +1706,11 @@ void UEngine::PreExit()
 	SetCustomTimeStep(nullptr);
 
 	ShutdownHMD();
+
+#if WITH_DYNAMIC_RESOLUTION
+	DynamicResolutionState.Reset();
+	NextDynamicResolutionState.Reset();
+#endif
 }
 
 void UEngine::ShutdownHMD()
@@ -2343,6 +2348,7 @@ void UEngine::InitializeObjectReferences()
 
 	// these one's are needed both editor and standalone 
 	LoadSpecialMaterial(TEXT("DebugMeshMaterialName"), DebugMeshMaterialName.ToString(), DebugMeshMaterial, false);
+	LoadSpecialMaterial(TEXT("EmissiveMeshMaterialName"), EmissiveMeshMaterialName.ToString(), EmissiveMeshMaterial, false);
 	LoadSpecialMaterial(TEXT("InvalidLightmapSettingsMaterialName"), InvalidLightmapSettingsMaterialName.ToString(), InvalidLightmapSettingsMaterial, false);
 	LoadSpecialMaterial(TEXT("ArrowMaterialName"), ArrowMaterialName.ToString(), ArrowMaterial, false);
 
@@ -2413,6 +2419,9 @@ void UEngine::InitializeObjectReferences()
 	LoadEngineTexture(MiniFontTexture, *MiniFontTextureName.ToString());
 	LoadEngineTexture(WeightMapPlaceholderTexture, *WeightMapPlaceholderTextureName.ToString());
 	LoadEngineTexture(LightMapDensityTexture, *LightMapDensityTextureName.ToString());
+#if RHI_RAYTRACING
+	LoadEngineTexture(BlueNoiseTexture, *BlueNoiseTextureName.ToString());
+#endif
 
 	if ( DefaultPhysMaterial == NULL )
 	{

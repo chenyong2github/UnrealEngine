@@ -561,7 +561,7 @@ int32 FUnixPlatformMisc::NumberOfCoresIncludingHyperthreads()
 
 const TCHAR* FUnixPlatformMisc::GetNullRHIShaderFormat()
 {
-	return TEXT("GLSL_150");
+	return TEXT("SF_VULKAN_SM5");
 }
 
 bool FUnixPlatformMisc::HasCPUIDInstruction()

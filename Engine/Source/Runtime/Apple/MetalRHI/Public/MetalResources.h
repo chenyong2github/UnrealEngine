@@ -296,6 +296,7 @@ public:
 	TRefCountPtr<FMetalRasterizerState> RasterizerState;
 	
 	inline EPrimitiveType GetPrimitiveType() { return Initializer.PrimitiveType; }
+	inline bool GetDepthBounds() const { return Initializer.bDepthBounds; }
 	
 	friend class FMetalDynamicRHI;
 	
@@ -515,7 +516,6 @@ public:
 	// iOS A9+ where depth resolve is available
 	// iOS < A9 where depth resolve is unavailable.
 	FMetalTexture MSAAResolveTexture;
-	FMetalTexture StencilTexture;
 	uint32 SizeX, SizeY, SizeZ;
 	bool bIsCubemap;
 	int32 volatile Written;
@@ -863,7 +863,7 @@ public:
 	/** Resource table containing RHI references. */
 	TArray<TRefCountPtr<FRHIResource> > ResourceTable;
 	
-	TSet<FTextureReferenceRHIParamRef> TextureReferences;
+	TSet<FRHITextureReference*> TextureReferences;
 
 	struct Argument
 	{

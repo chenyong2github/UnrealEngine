@@ -731,7 +731,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
 	{
-		SetUAVParameter(RHICmdList, GetComputeShader(), AtlasPaintListsParam, FUnorderedAccessViewRHIParamRef());
+		SetUAVParameter(RHICmdList, GetComputeShader(), AtlasPaintListsParam, nullptr);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -928,7 +928,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList)
 	{
-		SetUAVParameter(RHICmdList, GetComputeShader(), ComponentWeightmapParam, FUnorderedAccessViewRHIParamRef());
+		SetUAVParameter(RHICmdList, GetComputeShader(), ComponentWeightmapParam, nullptr);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override

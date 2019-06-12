@@ -436,6 +436,13 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	// Controls if we want analytics in the crash report client
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 	// If we are not an editor but still want to agree to upload for non-licensee check the settings
 	bool bAgreeToCrashUpload = false;
 	if (!UE_EDITOR && GConfig)
@@ -448,6 +455,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
 		bAgreeToCrashUpload = false;
+		bSendUsageData = false;
 	}
 
 	bool bSkipCRC = bUnattended && !bSendUnattendedBugReports && !bAgreeToCrashUpload;
@@ -565,6 +573,12 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 			FString CrashReportClientArguments = TEXT(" -Abslog=");
 			CrashReportClientArguments += TEXT("\"\"") + CrashReportLogFilepath + TEXT("\"\"");
 			CrashReportClientArguments += TEXT(" ");
+
+			// If the editor setting has been disabled to not send analytics extend this to the CRC
+			if (!bSendUsageData)
+			{
+				CrashReportClientArguments += TEXT(" -NoAnalytics ");
+			}
 
 			if (bImplicitSend)
 			{

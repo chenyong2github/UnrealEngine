@@ -50,7 +50,6 @@ static FAutoConsoleVariableRef CVarForceNiagaraTranslatorSingleThreaded(
 	ECVF_Default
 );
 
-
 static FCriticalSection TranslationCritSec;
 
 void FNiagaraCompileRequestData::VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage)
