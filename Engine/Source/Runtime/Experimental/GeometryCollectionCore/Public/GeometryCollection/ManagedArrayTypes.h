@@ -10,8 +10,37 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Math/Box.h"
+#include "Chaos/ImplicitObject.h"
+#include "Chaos/BVHParticles.h"
 
+inline FArchive& operator<<(FArchive& Ar, TArray<FVector>*& ValueIn)
+{
+	check(false);	//We don't serialize raw pointers to arrays. Use unique ptr
+	return Ar;
+}
 
+inline FArchive& operator<<(FArchive& Ar, TUniquePtr<TArray<FVector>>& ValueIn)
+{
+	bool bExists = ValueIn.Get() != nullptr;
+	Ar << bExists;
+	if (bExists)
+	{
+		if (Ar.IsLoading())
+		{
+			ValueIn = MakeUnique<TArray<FVector>>();
+		}
+		Ar << *ValueIn;
+	}
+
+	return Ar;
+}
+
+template <typename T, int d>
+inline FArchive& operator<<(FArchive& Ar, Chaos::TImplicitObject<T,d>*& ValueIn)
+{
+	check(false);	//We don't serialize raw pointers to implicit objects. Use unique ptr
+	return Ar;
+}
 // ---------------------------------------------------------
 //
 // General purpose EManagedArrayType definition. 
@@ -42,15 +71,31 @@ template<class T> inline EManagedArrayType ManagedArrayType();
 //     Returns a new EManagedArray shared pointer based on 
 //     passed type.
 //
-inline TSharedPtr<FManagedArrayBase> NewManagedTypedArray(EManagedArrayType ArrayType)
+inline FManagedArrayBase* NewManagedTypedArray(EManagedArrayType ArrayType)
 {
 	switch (ArrayType)
 	{
 #define MANAGED_ARRAY_TYPE(a,A)	case EManagedArrayType::F##A##Type:\
-		return TSharedPtr< TManagedArray<a> >(new TManagedArray<a>());
+		return new TManagedArray<a>();
 #include "ManagedArrayTypeValues.inl"
 #undef MANAGED_ARRAY_TYPE
 	}
 	check(false);
-	return TSharedPtr< FManagedArrayBase >();
+	return nullptr;
+}
+
+// ---------------------------------------------------------
+//     Makes a copy from one array to another
+//
+inline FManagedArrayBase* CopyManagedTypedArray(EManagedArrayType ArrayType, FManagedArrayBase* Dest, FManagedArrayBase* Src)
+{
+	switch (ArrayType)
+	{
+#define MANAGED_ARRAY_TYPE(a,A)	case EManagedArrayType::F##A##Type:\
+		return new TManagedArray<a>();
+#include "ManagedArrayTypeValues.inl"
+#undef MANAGED_ARRAY_TYPE
+	}
+	check(false);
+	return nullptr;
 }

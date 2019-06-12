@@ -50,7 +50,7 @@ enum EBoneAxis
 
 
 /** Enum for controlling which reference frame a controller is applied in. */
-UENUM()
+UENUM(BlueprintType)
 enum EBoneControlSpace
 {
 	/** Set absolute position of bone in world space. */

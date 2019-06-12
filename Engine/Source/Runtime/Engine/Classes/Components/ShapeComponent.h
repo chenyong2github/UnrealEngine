@@ -95,6 +95,7 @@ public:
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool IgnoreBoundsForEditorFocus() const override { return true; }
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 

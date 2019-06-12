@@ -14,8 +14,15 @@ UClass* FAssetTypeActions_GeometryCollection::GetSupportedClass() const
 
 UThumbnailInfo* FAssetTypeActions_GeometryCollection::GetThumbnailInfo(UObject* Asset) const
 {
-	UGeometryCollection* GeometryCollection = CastChecked<UGeometryCollection>(Asset);
-	return NewObject<USceneThumbnailInfo>(GeometryCollection, NAME_None, RF_Transactional);
+	UGeometryCollection * GeometryCollection = CastChecked<UGeometryCollection>(Asset);
+	UThumbnailInfo* ThumbnailInfo = GeometryCollection->ThumbnailInfo;
+	if (ThumbnailInfo == NULL)
+	{
+		ThumbnailInfo = NewObject<USceneThumbnailInfo>(GeometryCollection, NAME_None, RF_Transactional);
+		GeometryCollection->ThumbnailInfo = ThumbnailInfo;
+	}
+
+	return ThumbnailInfo;
 }
 
 void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& InObjects, FMenuBuilder& MenuBuilder)
@@ -26,8 +33,5 @@ void FAssetTypeActions_GeometryCollection::GetActions(const TArray<UObject*>& In
 	// IconPath = Plugin->GetBaseDir() / TEXT("Resources/Icon128.png");
 }
 
-void FAssetTypeActions_GeometryCollection::OpenAssetEditor(const TArray<UObject*>& InObjects, TSharedPtr<IToolkitHost> EditWithinLevelEditor)
-{
-}
 
 #undef LOCTEXT_NAMESPACE

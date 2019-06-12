@@ -3458,13 +3458,6 @@ void FRendererModule::RegisterOverlayRenderDelegate(const FPostOpaqueRenderDeleg
 	this->OverlayRenderDelegate = InOverlayRenderDelegate;
 }
 
-FPreSceneRenderValues FRendererModule::PreSceneRenderExtension()
-{
-	FPreSceneRenderValues Result;
-	PreSceneRenderDelegate.Broadcast(Result);
-	return Result;
-}
-
 void FRendererModule::RenderPostOpaqueExtensions(const FViewInfo& View, FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, TUniformBufferRef<FSceneTexturesUniformParameters>& SceneTextureUniformParams)
 {
 	check(IsInRenderingThread());

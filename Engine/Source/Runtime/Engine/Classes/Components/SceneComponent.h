@@ -992,6 +992,12 @@ public:
 	/** Calculate the bounds of the component. Default behavior is a bounding box/sphere of zero size. */
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const;
 
+	/** Calculate the local bounds of the component. Default behavior is calling CalcBounds with an identity transform. */
+	virtual FBoxSphereBounds CalcLocalBounds() const 
+	{ 
+		return CalcBounds(FTransform::Identity);
+	}
+
 	/**
 	 * Calculate the axis-aligned bounding cylinder of the component (radius in X-Y, half-height along Z axis).
 	 * Default behavior is just a cylinder around the box of the cached BoxSphereBounds.

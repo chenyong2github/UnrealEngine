@@ -45,11 +45,12 @@ public class ChaosNiagara : ModuleRules
 				"UtilityShaders",
                 "ChaosSolverEngine",
                 "Chaos",
-                "ChaosSolvers"
+                "ChaosSolvers",
+                "GeometryCollectionEngine",
+                "GeometryCollectionCore"
             }
-		);
-			
-		
+        );
+					
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
@@ -62,10 +63,10 @@ public class ChaosNiagara : ModuleRules
 				"RHI",
 				"UtilityShaders",
 				"NiagaraVertexFactories",
-                "ChaosSolverEngine"
+                "ChaosSolverEngine",
+                "GeometryCollectionEngine",
+                "GeometryCollectionCore"
             }
-		);
-			
-		
-	}
+        );
+    }
 }

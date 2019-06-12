@@ -11,7 +11,6 @@ GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
-#include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "Engine/SkeletalMesh.h"
 #include "Math/Box.h"
@@ -45,6 +44,7 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 {
 	UE_LOG(AGeometryCollectionActorLogging, Verbose, TEXT("AGeometryCollectionActor::Tick()"));
 
+#if 0	//we don't access dynamic collection directly anymore
 	UGeometryCollection* Collection = GeometryCollectionComponent->GetDynamicCollection();
 	if (Collection && !AGeometryCollectionActor::bInitializedState)
 	{
@@ -99,10 +99,12 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 	{
 		Scene.Tick(dt);
 	}
+#endif
 }
 
 void AGeometryCollectionActor::StartFrameCallback(float EndFrame)
 {
+#if 0	//we don't access dynamic collection directly anymore
 	UE_LOG(AGeometryCollectionActorLogging, Verbose, TEXT("AGeometryCollectionActor::StartFrameCallback()"));
 	UGeometryCollection* Collection = GeometryCollectionComponent->GetDynamicCollection();
 	if (!Scene.GetSimulation()->NumActors() && Collection->GetGeometryCollection()->HasAttribute("RigidBodyID", FGeometryCollection::TransformGroup))
@@ -112,7 +114,7 @@ void AGeometryCollectionActor::StartFrameCallback(float EndFrame)
 
 		TManagedArray<FTransform> & Transform = *Collection->GetGeometryCollection()->Transform;
 		TManagedArray<int32> & BoneMap = *Collection->GetGeometryCollection()->BoneMap;
-		TManagedArray<FVector> & Vertex = *Collection->GetGeometryCollection()->Vertex;
+		TManagedArray<FVector> & Vertex = Collection->GetGeometryCollection()->Vertex;
 
 		PxMaterial* NewMaterial = GPhysXSDK->createMaterial(0, 0, 0);
 
@@ -144,7 +146,7 @@ void AGeometryCollectionActor::StartFrameCallback(float EndFrame)
 		}
 
 
-		for (int32 i = 0; i < Collection->GetGeometryCollection()->Transform->Num(); ++i)
+		for (int32 i = 0; i < Collection->GetGeometryCollection()->TransformNum(); ++i)
 		{
 			if (SurfaceParticlesCount[i] && 0.f < Bounds[i].GetSize().SizeSquared())
 			{
@@ -167,6 +169,7 @@ void AGeometryCollectionActor::StartFrameCallback(float EndFrame)
 			}
 		}
 	}
+#endif
 }
 
 void AGeometryCollectionActor::CreateRigidBodyCallback(FSolverCallbacks::FParticlesType& Particles)
@@ -175,6 +178,7 @@ void AGeometryCollectionActor::CreateRigidBodyCallback(FSolverCallbacks::FPartic
 
 void AGeometryCollectionActor::EndFrameCallback(float EndFrame)
 {
+#if 0	//we don't use dynamic collection directly anymore
 	UE_LOG(AGeometryCollectionActorLogging, Log, TEXT("AGeometryCollectionActor::EndFrameFunction()"));
 	UGeometryCollection* Collection = GeometryCollectionComponent->GetDynamicCollection();
 	if (Collection->GetGeometryCollection()->HasAttribute("RigidBodyID", FGeometryCollection::TransformGroup))
@@ -194,6 +198,7 @@ void AGeometryCollectionActor::EndFrameCallback(float EndFrame)
 
 		GeometryCollectionComponent->SetRenderStateDirty();
 	}
+#endif
 }
 
 bool AGeometryCollectionActor::RaycastSingle(FVector Start, FVector End, FHitResult& OutHit) const
@@ -210,8 +215,14 @@ void AGeometryCollectionActor::ParameterUpdateCallback(FSolverCallbacks::FPartic
 
 void AGeometryCollectionActor::DisableCollisionsCallback(TSet<TTuple<int32, int32>>& CollisionPairs) {}
 
-void AGeometryCollectionActor::AddConstraintCallback(FSolverCallbacks::FParticlesType& Particles, const float Time) {}
-
 void AGeometryCollectionActor::AddForceCallback(FSolverCallbacks::FParticlesType& Particles, const float Dt, const int32 Index) {}
+
+#if WITH_EDITOR
+bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
+{
+	Super::GetReferencedContentObjects(Objects);
+	return true;
+}
+#endif
 
 #endif

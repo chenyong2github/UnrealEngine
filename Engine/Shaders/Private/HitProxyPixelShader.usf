@@ -15,7 +15,7 @@ float4 HitProxyId;
 
 void Main(
 	FVertexFactoryInterpolantsVSToPS Interpolants,
-#if USE_INSTANCING	
+#if USE_INSTANCING || USE_PER_VERTEX_HITPROXY_ID
 	float4 InstanceHitProxyId : HIT_PROXY_ID,
 #endif
 	float4 PixelPosition	: TEXCOORD6,
@@ -47,7 +47,7 @@ void Main(
 
 	GetMaterialCoverageAndClipping(MaterialParameters, PixelMaterialInputs);
 
-#if USE_INSTANCING
+#if USE_INSTANCING || USE_PER_VERTEX_HITPROXY_ID
 	OutColor = HitProxyId + InstanceHitProxyId;
 #else
 	OutColor = HitProxyId;

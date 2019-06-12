@@ -18,6 +18,7 @@
 
 typedef int32_t int32;
 #endif
+#include "Serializable.h"
 
 namespace Chaos
 {
@@ -44,4 +45,53 @@ static uint32 ToValue(T_ID Id)
     return Id.Value;
 }
 #endif
+template<class T>
+class TChaosPhysicsMaterial
+{
+public:
+	T Friction;
+	T Restitution;
+	T SleepingLinearThreshold;
+	T SleepingAngularThreshold;
+	T DisabledLinearThreshold;
+	T DisabledAngularThreshold;
+
+	TChaosPhysicsMaterial()
+		: Friction((T)0.5)
+		, Restitution((T)0.1)
+		, SleepingLinearThreshold((T)1)
+		, SleepingAngularThreshold((T)1)
+		, DisabledLinearThreshold((T)0)
+		, DisabledAngularThreshold((T)0)
+	{
+	}
+
+	static constexpr bool IsSerializablePtr = true;
+
+	static void StaticSerialize(FArchive& Ar, TSerializablePtr<TChaosPhysicsMaterial<T>>& Serializable)
+	{
+		TChaosPhysicsMaterial<T>* Material = const_cast<TChaosPhysicsMaterial<T>*>(Serializable.Get());
+		
+		if (Ar.IsLoading())
+		{
+			Material = new TChaosPhysicsMaterial<T>();
+			Serializable.SetFromRawLowLevel(Material);
+		}
+		
+		Material->Serialize(Ar);
+	}
+
+	void Serialize(FArchive& Ar)
+	{
+		Ar << Friction << Restitution << SleepingLinearThreshold << SleepingAngularThreshold << DisabledLinearThreshold << DisabledAngularThreshold;
+	}
+};
+
+
+template <typename T>
+FORCEINLINE FArchive& operator<<(FArchive& Ar, TChaosPhysicsMaterial<T>& Value)
+{
+	Value.Serialize(Ar);
+	return Ar;
+}
 }

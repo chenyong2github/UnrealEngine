@@ -1,15 +1,17 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "PhysXCooking.h"
+
+#if WITH_PHYSX
+
 #include "Serialization/MemoryWriter.h"
 #include "Modules/ModuleManager.h"
-#include "Interfaces/Interface_CollisionDataProvider.h"
-#include "Physics/IPhysXCookingModule.h"
-#include "PhysicsPublic.h"
-#include "PhysicsEngine/PhysXSupport.h"
-#include "Physics/PhysDerivedDataPublic.h"	//only needed so that touching DDC will automatically re-link the cooking module
-
-static_assert(WITH_PHYSX, "No point in compiling PhysX cooker, if we don't have PhysX.");
+#include "IPhysXCookingModule.h"
+#include "PhysicsPublicCore.h"
+#include "PhysXSupportCore.h"
+#include "PhysDerivedDataPublic.h"	//only needed so that touching DDC will automatically re-link the cooking module
+#include "PhysicsInitialization.h"
+#include "Interface_CollisionDataProviderCore.h"
 
 static FName NAME_PhysXGeneric(TEXT("PhysXGeneric"));
 static FName NAME_PhysXPC(TEXT("PhysXPC"));
@@ -90,35 +92,6 @@ void FPhysXCooking::GetSupportedFormats(TArray<FName>& OutFormats) const
 	OutFormats.Add(NAME_PhysXGeneric);
 }
 
-/** Utility wrapper for a uint8 TArray for saving into PhysX. */
-class FPhysXOutputStream : public PxOutputStream
-{
-public:
-	/** Raw byte data */
-	TArray<uint8>			*Data;
-
-	FPhysXOutputStream()
-		: Data(NULL)
-	{}
-
-	FPhysXOutputStream(TArray<uint8> *InData)
-		: Data(InData)
-	{}
-
-	PxU32 write(const void* Src, PxU32 Count)
-	{
-		check(Data);
-		if (Count)	//PhysX serializer can pass us 0 bytes to write
-		{
-			check(Src);
-			int32 CurrentNum = (*Data).Num();
-			(*Data).AddUninitialized(Count);
-			FMemory::Memcpy(&(*Data)[CurrentNum], Src, Count);
-		}
-
-		return Count;
-	}
-};
 
 template <bool bUseBuffer>
 EPhysXCookingResult FPhysXCooking::CookConvexImp(FName Format, EPhysXMeshCookFlags CookFlags, const TArray<FVector>& SrcBuffer, TArray<uint8>& OutBuffer, PxConvexMesh*& OutConvexMesh) const
@@ -460,14 +433,29 @@ void FPhysXPlatformModule::InitPhysXCooking()
 void FPhysXPlatformModule::ShutdownPhysXCooking()
 {
 #if WITH_PHYSX
-	if (PxCooking* PhysXCooking = GetPhysXCooking()->GetCooking())
+	if(IPhysXCooking* PhysXCookingWrapper = FPhysXPlatformModule::GetPhysXCooking())
 	{
-		PhysXCooking->release();
-		PhysXCooking = nullptr;
-	}
+		if (PxCooking* PhysXCooking = PhysXCookingWrapper->GetCooking())
+		{
+			PhysXCooking->release();
+			PhysXCooking = nullptr;
 
-	//TODO: is it worth killing all the TLS objects?
+			delete PhysXCookingWrapper;
+			FPlatformTLS::SetTlsValue(PhysXCookerTLS, nullptr);
+		}
+	}
 #endif
 }
 
 IMPLEMENT_MODULE(FPhysXPlatformModule, PhysXCooking);
+
+#else
+
+class FPhysXPlatformModule : public IModuleInterface
+{
+
+};
+
+IMPLEMENT_MODULE(FPhysXPlatformModule, PhysXCooking);
+
+#endif

@@ -542,6 +542,9 @@ void FSubUVDerivedData::Build(UTexture2D* SubUVTexture, int32 SubImages_Horizont
 		const int32 TextureSizeY = SubUVTexture->Source.GetSizeY();
 		const int32 SubImageSizeX = TextureSizeX / SubImages_Horizontal;
 		const int32 SubImageSizeY = TextureSizeY / SubImages_Vertical;
+		const float SubImageSizeXFloat = TextureSizeX / (float)SubImages_Horizontal;
+		const int32 SubImageSizeYFloat = TextureSizeY / (float)SubImages_Vertical;
+
 		const int32 NumSubImages = SubImages_Horizontal * SubImages_Vertical;
 		const uint8 AlphaThresholdByte = FMath::Clamp(FMath::TruncToInt(AlphaThreshold * 255.0f), 0, 255);
 
@@ -569,13 +572,13 @@ void FSubUVDerivedData::Build(UTexture2D* SubUVTexture, int32 SubImages_Horizont
 
 					for (int32 Y = 0; Y < SubImageSizeY; Y++)
 					{
-						int32 GlobalY = SubImageY * SubImageSizeY + Y;
-						int32 NextGlobalY = NextSubImageY * SubImageSizeY + Y;
+						int32 GlobalY = FMath::RoundToInt(SubImageY * SubImageSizeYFloat) + Y;
+						int32 NextGlobalY = FMath::RoundToInt(NextSubImageY * SubImageSizeYFloat) + Y;
 
 						for (int32 X = 0; X < SubImageSizeX; X++)
 						{
-							int32 GlobalX = SubImageX * SubImageSizeX + X;
-							int32 NextGlobalX = NextSubImageX * SubImageSizeX + X;
+							int32 GlobalX = FMath::RoundToInt(SubImageX * SubImageSizeXFloat) + X;
+							int32 NextGlobalX = FMath::RoundToInt(NextSubImageX * SubImageSizeXFloat) + X;
 							uint8 AlphaValue = ComputeOpacityValue(&MipData[(GlobalY * TextureSizeX + GlobalX) * 4], OpacitySourceMode);
 							uint8 NextAlphaValue = ComputeOpacityValue(&MipData[(NextGlobalY * TextureSizeX + NextGlobalX) * 4], OpacitySourceMode);
 

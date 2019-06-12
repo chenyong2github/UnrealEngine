@@ -32,7 +32,7 @@ struct FSubSequenceInstanceDataParams
 /**
  * Implements a section in sub-sequence tracks.
  */
-UCLASS()
+UCLASS(BlueprintType)
 class MOVIESCENE_API UMovieSceneSubSection
 	: public UMovieSceneSection
 {

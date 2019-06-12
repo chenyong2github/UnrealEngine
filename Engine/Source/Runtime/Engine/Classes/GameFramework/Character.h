@@ -621,7 +621,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Character)
 	virtual bool IsJumpProvidingForce() const;
 
-	/** Play Animation Montage on the character mesh **/
+	/** Play Animation Montage on the character mesh. Returns the length of the animation montage in seconds, or 0.f if failed to play. **/
 	UFUNCTION(BlueprintCallable, Category=Animation)
 	virtual float PlayAnimMontage(class UAnimMontage* AnimMontage, float InPlayRate = 1.f, FName StartSectionName = NAME_None);
 

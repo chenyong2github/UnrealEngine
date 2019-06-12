@@ -250,7 +250,7 @@ public:
 	/** Assignment operator. */
 	TSet& operator=(const TSet& Copy)
 	{
-		if(this != &Copy)
+		if (this != &Copy)
 		{
 			int32 CopyHashSize = Copy.HashSize;
 
