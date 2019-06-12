@@ -153,6 +153,7 @@ private:
 #pragma mark -
     void ConditionalSwitchToRender(void);
     void ConditionalSwitchToTessellation(void);
+	void ConditionalSwitchToSeparateTessellation(void);
     void ConditionalSwitchToCompute(void);
 	void ConditionalSwitchToBlit(void);
 	void ConditionalSwitchToAsyncBlit(void);
@@ -161,6 +162,8 @@ private:
     void PrepareToRender(uint32 PrimType);
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void PrepareToTessellate(uint32 PrimType);
+	void PrepareToStreamOut(uint32 PrimType);
+	void PrepareToSeparateTessellate(uint32 PrimType);
 #endif
     void PrepareToDispatch(void);
 	void PrepareToAsyncDispatch(void);
@@ -168,6 +171,8 @@ private:
     void CommitRenderResourceTables(void);
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
     void CommitTessellationResourceTables(void);
+	void CommitStreamOutResourceTables(void);
+	void CommitSeparateTessellationResourceTables(void);
 #endif
     void CommitDispatchResourceTables(void);
 	void CommitAsyncDispatchResourceTables(void);

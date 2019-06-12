@@ -210,6 +210,22 @@ public:
 	FMetalHullShader(const TArray<uint8>& InCode, mtlpp::Library InLibrary);
 	
 	mtlpp::Function GetFunction();
+	
+	// for VSHS
+	FMetalTessellationOutputs TessellationOutputAttribs;
+	float  TessellationMaxTessFactor;
+	uint32 TessellationOutputControlPoints;
+	uint32 TessellationDomain;
+	uint32 TessellationInputControlPoints;
+	uint32 TessellationPatchesPerThreadGroup;
+	uint32 TessellationPatchCountBuffer;
+	uint32 TessellationIndexBuffer;
+	uint32 TessellationHSOutBuffer;
+	uint32 TessellationHSTFOutBuffer;
+	uint32 TessellationControlPointOutBuffer;
+	uint32 TessellationControlPointIndexBuffer;
+	mtlpp::Winding TessellationOutputWinding;
+	mtlpp::TessellationPartitionMode TessellationPartitioning;
 };
 
 class FMetalDomainShader : public TMetalBaseShader<FRHIDomainShader, SF_Domain>
@@ -224,6 +240,9 @@ public:
 	mtlpp::TessellationPartitionMode TessellationPartitioning;
 	uint32 TessellationHSOutBuffer;
 	uint32 TessellationControlPointOutBuffer;
+	
+	uint32 TessellationDomain;
+	FMetalTessellationOutputs TessellationOutputAttribs;
 };
 #else
 typedef TMetalBaseShader<FRHIHullShader, SF_Hull> FMetalHullShader;

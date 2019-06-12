@@ -80,12 +80,6 @@ mtlpp::PrimitiveType TranslatePrimitiveType(uint32 PrimitiveType)
 		case PT_31_ControlPointPatchList:
 		case PT_32_ControlPointPatchList:
 		{
-			static uint32 Logged = 0;
-			if (!Logged)
-			{
-				Logged = 1;
-				UE_LOG(LogMetal, Warning, TEXT("Untested primitive type %d"), (int32)PrimitiveType);
-			}
 			return mtlpp::PrimitiveType::Triangle;
 		}
 		default:
@@ -504,6 +498,12 @@ void FMetalRHICommandContext::RHISetShaderParameter(FRHIHullShader* HullShaderRH
 {
 	// Just ignore Hull shader parameter sets - none of our Hull shaders have any loose parameters to bind.
 	// @todo Whenever we do put a shader parameter into a hull shader we'll need to map it into the vertex-shader parameter buffer so that it can be set on the device.
+	if (FMetalCommandQueue::SupportsFeature(EMetalFeaturesSeparateTessellation))
+	{
+		@autoreleasepool {
+			Context->GetCurrentState().GetShaderParameters(EMetalShaderStages::Hull).Set(BufferIndex, BaseIndex, NumBytes, NewValue);
+		}
+	}
 }
 
 void FMetalRHICommandContext::RHISetShaderParameter(FRHIPixelShader* PixelShaderRHI, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue)

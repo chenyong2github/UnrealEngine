@@ -276,6 +276,12 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
     {
         Features |= EMetalFeaturesMultipleViewports | EMetalFeaturesPipelineBufferMutability | EMetalFeaturesGPUCaptureManager;
 		
+		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Metal.ForceDXC"));
+		if (CVar && CVar->GetInt() != 0)
+		{
+			Features |= EMetalFeaturesSeparateTessellation;
+		}
+		
 		if (FParse::Param(FCommandLine::Get(),TEXT("metalfence")))
 		{
 			Features |= EMetalFeaturesFences;

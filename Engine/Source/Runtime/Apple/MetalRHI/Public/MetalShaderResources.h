@@ -206,12 +206,14 @@ struct FMetalAttribute
 	uint32 Components;
 	uint32 Offset;
 	EMetalComponentType Type;
+	uint32 Semantic;
 	
 	FMetalAttribute()
 	: Index(0)
 	, Components(0)
 	, Offset(0)
 	, Type(EMetalComponentType::Uint)
+	, Semantic(0)
 	{
 		
 	}
@@ -222,12 +224,14 @@ struct FMetalAttribute
 		Ar << Attr.Type;
 		Ar << Attr.Components;
 		Ar << Attr.Offset;
+		Ar << Attr.Semantic;
 		return Ar;
 	}
 };
 
 struct FMetalTessellationOutputs
 {
+	TArray<FMetalAttribute> HSIn;
 	TArray<FMetalAttribute> HSOut;
 	TArray<FMetalAttribute> PatchControlPointOut;
 	uint32 HSOutSize;
@@ -244,6 +248,7 @@ struct FMetalTessellationOutputs
 	
 	friend FArchive& operator<<(FArchive& Ar, FMetalTessellationOutputs& Attrs)
 	{
+		Ar << Attrs.HSIn;
 		Ar << Attrs.HSOut;
 		Ar << Attrs.PatchControlPointOut;
 		Ar << Attrs.HSOutSize;

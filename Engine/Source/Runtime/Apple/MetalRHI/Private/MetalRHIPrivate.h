@@ -154,6 +154,12 @@ struct FMetalDebugInfo
 // Get a compute pipeline state used to implement some debug features.
 mtlpp::ComputePipelineState GetMetalDebugComputeState();
 
+// Get the copy 32-bit indices function
+mtlpp::ComputePipelineState GetMetalCopyIndex32Function();
+
+// Get the copy 16-bit indices function
+mtlpp::ComputePipelineState GetMetalCopyIndex16Function();
+
 // Access the internal context for the device-owning DynamicRHI object
 FMetalDeviceContext& GetMetalDeviceContext();
 

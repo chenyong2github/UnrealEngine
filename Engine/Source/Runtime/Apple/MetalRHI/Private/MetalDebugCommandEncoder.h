@@ -43,8 +43,9 @@ enum EMetalShaderFrequency
     EMetalShaderVertex = 0,
     EMetalShaderFragment = 1,
     EMetalShaderCompute = 2,
+	EMetalShaderStream = 3,
     EMetalShaderRenderNum = 2,
-	EMetalShaderStagesNum = 3
+	EMetalShaderStagesNum = 4
 };
 
 /** A structure for quick mask-testing of shader-stage resource bindings */
