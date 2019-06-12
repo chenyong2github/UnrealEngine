@@ -539,7 +539,17 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunction
 
 		for (const UEdGraphPin* Pin : OutInputPins)
 		{
-			if (!CompilationPins.Contains(Pin))
+			bool bFoundPin = false;
+			for (const UEdGraphPin* CompiledPin : CompilationPins)
+			{
+				if (Pin->GetName() == CompiledPin->GetName() && 
+					Pin->PinType.PinCategory == CompiledPin->PinType.PinCategory && 
+					Pin->PinType.PinSubCategoryObject == CompiledPin->PinType.PinSubCategoryObject)
+				{
+					bFoundPin = true;
+				}
+			}
+			if (!bFoundPin)
 			{
 				OutHiddenPins.Add(Pin);
 			}
