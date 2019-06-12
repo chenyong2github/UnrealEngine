@@ -238,6 +238,7 @@ enum EPixelFormat
 	PF_PLATFORM_HDR_1,
 	PF_PLATFORM_HDR_2,
 	PF_NV12,
+	PF_R32G32_UINT,
 	PF_MAX,
 };
 

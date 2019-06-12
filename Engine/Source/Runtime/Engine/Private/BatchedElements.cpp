@@ -136,7 +136,10 @@ void FBatchedElements::AddTriangle(int32 V0,int32 V1,int32 V2,const FTexture* Te
 	case BLEND_AlphaComposite:
 		SimpleElementBlendMode = SE_BLEND_AlphaComposite;
 		break;
-	};	
+	case BLEND_AlphaHoldout:
+		SimpleElementBlendMode = SE_BLEND_AlphaHoldout;
+		break;
+	};
 	AddTriangle(V0,V1,V2,Texture,SimpleElementBlendMode);
 }
 
@@ -385,6 +388,9 @@ static void SetBlendState(FRHICommandList& RHICmdList, FGraphicsPipelineStateIni
 	case SE_BLEND_AlphaComposite:
 		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
 		break;
+	case SE_BLEND_AlphaHoldout:
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
+		break;
 	case SE_BLEND_TranslucentAlphaOnlyWriteAlpha:
 	case SE_BLEND_AlphaBlend:
 		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_InverseDestAlpha, BF_One>::GetRHI();
@@ -409,6 +415,7 @@ static void SetHitTestingBlendState(FRHICommandList& RHICmdList, FGraphicsPipeli
 		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
 		break;
 	case SE_BLEND_AlphaComposite:
+	case SE_BLEND_AlphaHoldout:
 	case SE_BLEND_AlphaBlend:
 	case SE_BLEND_Translucent:
 	case SE_BLEND_TranslucentDistanceField:
@@ -460,6 +467,8 @@ static TSimpleElementPixelShader* GetPixelShader(bool bEncoded, ESimpleElementBl
 				return *TShaderMapRef<FEncodedSimpleElement<TSimpleElementPixelShader, SE_BLEND_MaskedDistanceFieldShadowed> >(GetGlobalShaderMap(FeatureLevel));
 			case SE_BLEND_AlphaComposite:
 				return *TShaderMapRef<FEncodedSimpleElement<TSimpleElementPixelShader, SE_BLEND_AlphaComposite> >(GetGlobalShaderMap(FeatureLevel));
+			case SE_BLEND_AlphaHoldout:
+				return *TShaderMapRef<FEncodedSimpleElement<TSimpleElementPixelShader, SE_BLEND_AlphaHoldout> >(GetGlobalShaderMap(FeatureLevel));
 			case SE_BLEND_AlphaBlend:
 				return *TShaderMapRef<FEncodedSimpleElement<TSimpleElementPixelShader, SE_BLEND_AlphaBlend> >(GetGlobalShaderMap(FeatureLevel));
 			case SE_BLEND_TranslucentAlphaOnly:

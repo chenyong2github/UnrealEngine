@@ -335,7 +335,7 @@ enum ELandscapeClearMode
 	Clear_All = Clear_Weightmap | Clear_Heightmap UMETA(DisplayName = "All")
 };
 
-UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
+UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -596,6 +596,9 @@ public:
 	virtual ELightMapInteractionType GetStaticLightingType() const override { return LMIT_Texture;	}
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual bool IsPrecomputedLightingValid() const override;
+
+	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const override;
+	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const override;
 
 	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnEditingHeightmap = false) const;
 	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false);

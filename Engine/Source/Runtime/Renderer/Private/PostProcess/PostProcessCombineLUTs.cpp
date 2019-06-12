@@ -58,10 +58,12 @@ static TAutoConsoleVariable<int32> CVarMobileTonemapperFilm(
 	);
 
 // false:use 256x16 texture / true:use volume texture (faster, requires geometry shader)
-// USE_VOLUME_LUT: needs to be the same for C++ and HLSL
-bool UseVolumeTextureLUT(EShaderPlatform Platform) 
+// USE_VOLUME_LUT: needs to be the same for C++ and HLSL.
+// Safe to use at pipeline and run time.
+bool PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(EShaderPlatform Platform)
 {
-	return (IsFeatureLevelSupported(Platform,ERHIFeatureLevel::SM4) && GSupportsVolumeTextureRendering && (Platform != SP_METAL_MRT && Platform != SP_METAL_MRT_MAC && Platform != SP_VULKAN_SM5_LUMIN) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform)));
+	// This is used to know if the target shader platform does not support required volume texture features we need for sure (read, render to).
+	return RHIVolumeTextureRenderingSupportGuaranteed(Platform) && (RHISupportsGeometryShaders(Platform) || RHISupportsVertexShaderLayer(Platform));
 }
 
 // including the neutral one at index 0
@@ -92,15 +94,20 @@ struct FColorTransform
 FCombineLUTsShaderParameters
 -----------------------------------------------------------------------------*/
 
-template <uint32 BlendCount>
 class FCombineLUTsShaderParameters
 {
 public:
-	FCombineLUTsShaderParameters() {}
-
-	FCombineLUTsShaderParameters(const FShaderParameterMap& ParameterMap)
-		: ColorRemapShaderParameters(ParameterMap)
+	FCombineLUTsShaderParameters() : BlendCount(0)
 	{
+		// Called when serializing
+	}
+
+	FCombineLUTsShaderParameters(const FShaderParameterMap& ParameterMap, uint32 BlendCountParam)
+		: BlendCount(BlendCountParam)
+		, ColorRemapShaderParameters(ParameterMap)
+	{
+		check(BlendCount>0 && BlendCount <= GMaxLUTBlendCount);
+
 		// Suppress static code analysis warnings about a potentially ill-defined loop. BlendCount > 0 is valid.
 		CA_SUPPRESS(6294)
 
@@ -171,7 +178,7 @@ public:
 	}
 	
 	template <typename TRHICmdList, typename TRHIShader>
-	void Set(TRHICmdList& RHICmdList, const TRHIShader ShaderRHI, const FSceneView& View, FTexture* Textures[BlendCount], float Weights[BlendCount])
+	void Set(TRHICmdList& RHICmdList, const TRHIShader ShaderRHI, const FSceneView& View, FTexture** Textures, float* Weights)
 	{
 		const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
 		const FSceneViewFamily& ViewFamily = *(View.Family);
@@ -182,7 +189,7 @@ public:
 			if(i != 0)
 			{
 				// don't use texture asset sampler as it might have anisotropic filtering enabled
-				FSamplerStateRHIParamRef Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 1>::GetRHI();
+				FRHISamplerState* Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 1>::GetRHI();
 
 				SetTextureParameter(RHICmdList, ShaderRHI, TextureParameter[i], TextureParameterSampler[i], Sampler, Textures[i]->TextureRHI);
 			}
@@ -241,7 +248,17 @@ public:
 			static TConsoleVariableData<int32>* CVarOutputDevice = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.HDR.Display.OutputDevice"));
 			static TConsoleVariableData<float>* CVarOutputGamma = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.TonemapperGamma"));
 
-			int32 OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
+			int32 OutputDeviceValue;
+
+			if (ViewFamily.SceneCaptureSource == SCS_FinalColorHDR)
+			{
+				OutputDeviceValue = 8; //LinearNoToneCurve from FTonemapperOutputDevice
+			}
+			else
+			{
+				OutputDeviceValue = CVarOutputDevice->GetValueOnRenderThread();
+			}
+
 			float Gamma = CVarOutputGamma->GetValueOnRenderThread();
 
 			if (PLATFORM_APPLE && Gamma == 0.0f)
@@ -397,7 +414,9 @@ public:
 
 	friend FArchive& operator<<(FArchive& Ar,FCombineLUTsShaderParameters& P)
 	{
-		for(uint32 i = 0; i < BlendCount; ++i)
+		Ar << P.BlendCount;
+
+		for(uint32 i = 0; i < P.BlendCount; ++i)
 		{
 			Ar << P.TextureParameter[i];
 			Ar << P.TextureParameterSampler[i];
@@ -421,6 +440,7 @@ public:
 	}
 
 	// [0] is not used as it's the neutral one we do in the shader
+	uint32 BlendCount;
 	FShaderResourceParameter TextureParameter[GMaxLUTBlendCount];
 	FShaderResourceParameter TextureParameterSampler[GMaxLUTBlendCount];
 	FShaderParameter WeightsParameter;
@@ -491,7 +511,7 @@ FColorRemapShaderParameters::FColorRemapShaderParameters(const FShaderParameterM
 	MappingPolynomial.Bind(ParameterMap, TEXT("MappingPolynomial"));
 }
 
-void FColorRemapShaderParameters::Set(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef ShaderRHI)
+void FColorRemapShaderParameters::Set(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI)
 {
 	FColorTransform ColorTransform;
 	ColorTransform.MinValue = FMath::Clamp(CVarColorMin.GetValueOnRenderThread(), -10.0f, 10.0f);
@@ -511,7 +531,7 @@ void FColorRemapShaderParameters::Set(FRHICommandList& RHICmdList, const FPixelS
 }
 
 template <typename TRHICmdList>
-void FColorRemapShaderParameters::Set(TRHICmdList& RHICmdList, const FComputeShaderRHIParamRef ShaderRHI)
+void FColorRemapShaderParameters::Set(TRHICmdList& RHICmdList, FRHIComputeShader* ShaderRHI)
 {
 	FColorTransform ColorTransform;
 	ColorTransform.MinValue = FMath::Clamp(CVarColorMin.GetValueOnRenderThread(), -10.0f, 10.0f);
@@ -538,14 +558,15 @@ FArchive& operator<<(FArchive& Ar, FColorRemapShaderParameters& P)
 
 /**
 * A pixel shader for blending multiple LUT to one
-*
-* @param BlendCount >0
 */
-template<uint32 BlendCount>
 class FLUTBlenderPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FLUTBlenderPS,Global);
+	DECLARE_GLOBAL_SHADER(FLUTBlenderPS);
+
 public:
+
+	class FBlendCount : SHADER_PERMUTATION_RANGE_INT("BLENDCOUNT", 1, 5);
+	using FPermutationDomain = TShaderPermutationDomain<FBlendCount>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -554,14 +575,14 @@ public:
 
 	FLUTBlenderPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer) 
-		, CombineLUTsShaderParameters(Initializer.ParameterMap)
+		, CombineLUTsShaderParameters(Initializer.ParameterMap, FPermutationDomain(Initializer.PermutationId).Get<FBlendCount>())
 	{
 	}
 	
 	template <typename TRHICommandList>
-	void SetParameters(TRHICommandList& RHICmdList, const FSceneView& View, FTexture* Textures[BlendCount], float Weights[BlendCount])
+	void SetParameters(TRHICommandList& RHICmdList, const FSceneView& View, FTexture** Textures, float* Weights)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		CombineLUTsShaderParameters.Set(RHICmdList, ShaderRHI, View, Textures, Weights);
 	}
 
@@ -569,8 +590,8 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		OutEnvironment.SetDefine(TEXT("BLENDCOUNT"), BlendCount);
-		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeTextureLUT(Parameters.Platform));
+		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
+		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -583,26 +604,23 @@ public:
 private: // ---------------------------------------------------
 	FLUTBlenderPS() {}
 
-	FCombineLUTsShaderParameters<BlendCount> CombineLUTsShaderParameters;
+	FCombineLUTsShaderParameters CombineLUTsShaderParameters;
 };
 
-
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderPS<1>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainPS"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderPS<2>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainPS"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderPS<3>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainPS"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderPS<4>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainPS"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderPS<5>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainPS"),SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FLUTBlenderPS, "/Engine/Private/PostProcessCombineLUTs.usf", "MainPS", SF_Pixel);
 
 /**
 * A compute shader for blending multiple LUTs together
-* @param BlendCount [1 - 5]
 */
-template<uint32 BlendCount>
 class FLUTBlenderCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FLUTBlenderCS,Global);
+	DECLARE_GLOBAL_SHADER(FLUTBlenderCS);
 
 public:
+
+	class FBlendCount : SHADER_PERMUTATION_RANGE_INT("BLENDCOUNT", 1, 5);
+	using FPermutationDomain = TShaderPermutationDomain<FBlendCount>;
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
@@ -613,15 +631,14 @@ public:
 		// CS params
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GCombineLUTsComputeTileSize);
-		
-		// PS params
-		OutEnvironment.SetDefine(TEXT("BLENDCOUNT"), BlendCount);
-		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeTextureLUT(Parameters.Platform));
+
+		const int UseVolumeLut = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Parameters.Platform) ? 1 : 0;
+		OutEnvironment.SetDefine(TEXT("USE_VOLUME_LUT"), UseVolumeLut);
 	}
 
 	FLUTBlenderCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer) 
-		, CombineLUTsShaderParameters(Initializer.ParameterMap)
+		, CombineLUTsShaderParameters(Initializer.ParameterMap, FPermutationDomain(Initializer.PermutationId).Get<FBlendCount>())
 	{
 		// CS params
 		OutComputeTex.Bind(Initializer.ParameterMap, TEXT("OutComputeTex"));
@@ -629,9 +646,9 @@ public:
 	}
 
 	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FUnorderedAccessViewRHIParamRef DestUAV, FTexture* Textures[BlendCount], float Weights[BlendCount])
+	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FRHIUnorderedAccessView* DestUAV, FTexture** Textures, float* Weights)
 	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		// CS params
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
@@ -647,7 +664,7 @@ public:
 	template <typename TRHICmdList>
 	void UnsetParameters(TRHICmdList& RHICmdList)
 	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		OutComputeTex.UnsetUAV(RHICmdList, ShaderRHI);
 	}
 
@@ -669,14 +686,10 @@ private: // ---------------------------------------------------
 	FShaderParameter CombineLUTsComputeParams;
 
 	// PS params
-	FCombineLUTsShaderParameters<BlendCount> CombineLUTsShaderParameters;
+	FCombineLUTsShaderParameters CombineLUTsShaderParameters;
 };
 
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderCS<1>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainCS"),SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderCS<2>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainCS"),SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderCS<3>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainCS"),SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderCS<4>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainCS"),SF_Compute);
-IMPLEMENT_SHADER_TYPE(template<>,FLUTBlenderCS<5>,TEXT("/Engine/Private/PostProcessCombineLUTs.usf"),TEXT("MainCS"),SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FLUTBlenderCS, "/Engine/Private/PostProcessCombineLUTs.usf", "MainCS", SF_Compute);
 
 template <typename TRHICommandList>
 static void SetLUTBlenderShader(FRenderingCompositePassContext& Context, TRHICommandList& RHICmdList, uint32 BlendCount, FTexture* Texture[], float Weights[], const FVolumeBounds& VolumeBounds, bool bUseTriangleStrip)
@@ -690,34 +703,16 @@ static void SetLUTBlenderShader(FRenderingCompositePassContext& Context, TRHICom
 
 	check(BlendCount > 0);
 
-	FShader* LocalPixelShader = 0;
 	const FViewInfo& View = Context.View;
 
 	const auto FeatureLevel = Context.GetFeatureLevel();
 	auto ShaderMap = Context.GetShaderMap();
 
-	// A macro to handle setting the filter shader for a specific number of samples.
-#define CASE_COUNT(BlendCount) \
-	case BlendCount: \
-	{ \
-		TShaderMapRef<FLUTBlenderPS<BlendCount> > PixelShader(ShaderMap); \
-		LocalPixelShader = *PixelShader;\
-	}; \
-	break;
+	FLUTBlenderPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLUTBlenderPS::FBlendCount>(BlendCount);
+	TShaderMapRef<FLUTBlenderPS> PixelShader(ShaderMap, PermutationVector);
 
-	switch(BlendCount)
-	{
-		// starts at 1 as we always have at least the neutral one
-		CASE_COUNT(1);
-		CASE_COUNT(2);
-		CASE_COUNT(3);
-		CASE_COUNT(4);
-		CASE_COUNT(5);
-		//	default:
-		//		UE_LOG(LogRenderer, Fatal,TEXT("Invalid number of samples: %u"),BlendCount);
-	}
-#undef CASE_COUNT
-	if(UseVolumeTextureLUT(Context.View.GetShaderPlatform()))
+	if(PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(Context.View.GetShaderPlatform()))
 	{
 		TShaderMapRef<FWriteToSliceVS> VertexShader(ShaderMap);
 		TOptionalShaderMapRef<FWriteToSliceGS> GeometryShader(ShaderMap);
@@ -728,7 +723,7 @@ static void SetLUTBlenderShader(FRenderingCompositePassContext& Context, TRHICom
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 		GraphicsPSOInit.BoundShaderState.GeometryShaderRHI = GETSAFERHISHADER_GEOMETRY(*GeometryShader);
 #endif
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(LocalPixelShader);
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(RHICmdList, VolumeBounds, FIntVector(VolumeBounds.MaxX - VolumeBounds.MinX));
@@ -743,31 +738,13 @@ static void SetLUTBlenderShader(FRenderingCompositePassContext& Context, TRHICom
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(LocalPixelShader);
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 		VertexShader->SetParameters(Context);
 	}
-#define CASE_COUNT(BlendCount) \
-	case BlendCount: \
-	{ \
-	TShaderMapRef<FLUTBlenderPS<BlendCount> > PixelShader(ShaderMap); \
-	PixelShader->SetParameters(RHICmdList, View, Texture, Weights); \
-	}; \
-	break;
 
-	switch(BlendCount)
-	{
-		// starts at 1 as we always have at least the neutral one
-		CASE_COUNT(1);
-		CASE_COUNT(2);
-		CASE_COUNT(3);
-		CASE_COUNT(4);
-		CASE_COUNT(5);
-		//	default:
-		//		UE_LOG(LogRenderer, Fatal,TEXT("Invalid number of samples: %u"),BlendCount);
-	}
-#undef CASE_COUNT
+	PixelShader->SetParameters(RHICmdList, View, &Texture[0], &Weights[0]);
 }
 
 
@@ -901,7 +878,7 @@ void FRCPassPostProcessCombineLUTs::Process(FRenderingCompositePassContext& Cont
 	SCOPED_DRAW_EVENTF(Context.RHICmdList, PostProcessCombineLUTs, TEXT("PostProcessCombineLUTs%s [%d] %dx%dx%d"),
 		bIsComputePass?TEXT("Compute"):TEXT(""), LocalCount, GLUTSize, GLUTSize, GLUTSize);
 
-	const bool bUseVolumeTextureLUT = UseVolumeTextureLUT(ShaderPlatform);
+	const bool bUseVolumeTextureLUT = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(ShaderPlatform);
 	// for a 3D texture, the viewport is 16x16 (per slice), for a 2D texture, it's unwrapped to 256x16
 	FIntPoint DestSize(bUseVolumeTextureLUT ? GLUTSize : GLUTSize * GLUTSize, GLUTSize);
 
@@ -909,7 +886,7 @@ void FRCPassPostProcessCombineLUTs::Process(FRenderingCompositePassContext& Cont
 	// and the result is reused by eSSP_RIGHT_EYE.   Eye-adaptation for stereo works in a similar way.
 	// Fundamentally, this relies on the fact that the view is recycled when doing stereo rendering and the LEFT eye is done first.
 	const FSceneRenderTargetItem* DestRenderTarget = !bAllocateOutput ?
-		Context.View.GetTonemappingLUTRenderTarget(Context.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bIsComputePass) :
+		Context.View.GetTonemappingLUTRenderTarget(Context.RHICmdList, GLUTSize, bUseVolumeTextureLUT, bIsComputePass, ViewFamily.SceneCaptureSource == SCS_FinalColorHDR) :
 		&PassOutputs[0].RequestSurface(Context);
 	
 	check(DestRenderTarget);
@@ -994,37 +971,23 @@ void FRCPassPostProcessCombineLUTs::Process(FRenderingCompositePassContext& Cont
 }
 
 template <typename TRHICmdList>
-void FRCPassPostProcessCombineLUTs::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FUnorderedAccessViewRHIParamRef DestUAV, int32 BlendCount, FTexture* Textures[], float Weights[])
+void FRCPassPostProcessCombineLUTs::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV, int32 BlendCount, FTexture* Textures[], float Weights[])
 {
 	auto ShaderMap = Context.GetShaderMap();
 
+	const bool bRuntimeVolumeTextureLUTSupported = PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(ShaderPlatform);
+
 	FIntPoint DestSize(DestRect.Width(), DestRect.Height());
 	uint32 GroupSizeXY = FMath::DivideAndRoundUp(DestSize.X, GCombineLUTsComputeTileSize);
-	uint32 GroupSizeZ = UseVolumeTextureLUT(ShaderPlatform) ? GroupSizeXY : 1;
+	uint32 GroupSizeZ = bRuntimeVolumeTextureLUTSupported ? GroupSizeXY : 1;
 
-#define DISPATCH_CASE(A)																			\
-	case A:																							\
-	{																								\
-		TShaderMapRef<FLUTBlenderCS<A>> ComputeShader(ShaderMap);									\
-		RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());								\
-		ComputeShader->SetParameters(RHICmdList, Context, DestSize, DestUAV, Textures, Weights);	\
-		DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeXY, GroupSizeXY, GroupSizeZ);	\
-		ComputeShader->UnsetParameters(RHICmdList);													\
-	}																								\
-	break;
-
-	switch(BlendCount)
-	{
-	DISPATCH_CASE(1)
-	DISPATCH_CASE(2)
-	DISPATCH_CASE(3)
-	DISPATCH_CASE(4)
-	DISPATCH_CASE(5)
-	default:
-		check(0);
-	}
-
-#undef DISPATCH_CASE
+	FLUTBlenderCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLUTBlenderCS::FBlendCount>(BlendCount);
+	TShaderMapRef<FLUTBlenderCS> ComputeShader(ShaderMap, PermutationVector);
+	RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
+	ComputeShader->SetParameters(RHICmdList, Context, DestSize, DestUAV, Textures, Weights);
+	DispatchComputeShader(RHICmdList, *ComputeShader, GroupSizeXY, GroupSizeXY, GroupSizeZ);
+	ComputeShader->UnsetParameters(RHICmdList);
 }
 
 FPooledRenderTargetDesc FRCPassPostProcessCombineLUTs::ComputeOutputDesc(EPassOutputId InPassOutputId) const
@@ -1041,21 +1004,7 @@ FPooledRenderTargetDesc FRCPassPostProcessCombineLUTs::ComputeOutputDesc(EPassOu
 	}
 	else
 	{
-		EPixelFormat LUTPixelFormat = PF_A2B10G10R10;
-		if (!GPixelFormats[LUTPixelFormat].Supported)
-		{
-			LUTPixelFormat = PF_R8G8B8A8;
-		}
-		
-		Ret = FPooledRenderTargetDesc::Create2DDesc(FIntPoint(GLUTSize * GLUTSize, GLUTSize), LUTPixelFormat, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false);
-		
-		if(UseVolumeTextureLUT(ShaderPlatform))
-		{
-			Ret.Extent = FIntPoint(GLUTSize, GLUTSize);
-			Ret.Depth = GLUTSize;
-		}
-		Ret.Flags |= GFastVRamConfig.CombineLUTs;
-		Ret.DebugName = TEXT("CombineLUTs");
+		Ret =FSceneViewState::CreateLUTRenderTarget(GLUTSize, PipelineVolumeTextureLUTSupportGuaranteedAtRuntime(ShaderPlatform), false, bNeedFloatOutput);
 	}
 	Ret.ClearValue = FClearValueBinding::Transparent;
 

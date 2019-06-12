@@ -10,6 +10,14 @@
 // usually 1/2.2, the .y is used for inverse gamma when "gamma only" mode is not used
 half3 InverseGamma;
 
+// Scale factor for converting pixel values to nits. 
+// This value is required for PQ (ST2084) conversions, because PQ linear values are in nits. 
+// The purpose is to make good use of PQ lut entries. A scale factor of 100 conveniently places 
+// about half of the PQ lut indexing below 1.0, with the other half for input values over 1.0.
+// Also, 100nits is the expected monitor brightness for a 1.0 pixel value without a tone curve.
+static const float LinearToNitsScale = 100.0;
+static const float LinearToNitsScaleInverse = 1.0 / 100.0;
+
 // Film tonal and color control.
 half4 ColorMatrixR_ColorCurveCd1;
 half4 ColorMatrixG_ColorCurveCd3Cm3;

@@ -43,13 +43,13 @@ class FShaderBindingState
 {
 public:
 	int32 MaxSRVUsed = -1;
-	FShaderResourceViewRHIParamRef SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
+	FRHIShaderResourceView* SRVs[MAX_SRVs_PER_SHADER_STAGE] = {};
 	int32 MaxUniformBufferUsed = -1;
 	FUniformBufferRHIParamRef UniformBuffers[MAX_UNIFORM_BUFFERS_PER_SHADER_STAGE] = {};
 	int32 MaxTextureUsed = -1;
 	FTextureRHIParamRef Textures[MAX_SRVs_PER_SHADER_STAGE] = {};
 	int32 MaxSamplerUsed = -1;
-	FSamplerStateRHIParamRef Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
+	FRHISamplerState* Samplers[MAX_SAMPLERS_PER_SHADER_STAGE] = {};
 };
 
 class FReadOnlyMeshDrawSingleShaderBindings : public FMeshDrawShaderBindingsLayout
@@ -66,10 +66,10 @@ public:
 		return (const FUniformBufferRHIParamRef*)(Data + GetUniformBufferOffset());
 	}
 
-	inline const FSamplerStateRHIParamRef* GetSamplerStart() const
+	inline const FRHISamplerState** GetSamplerStart() const
 	{
 		const uint8* SamplerDataStart = Data + GetSamplerOffset();
-		return (const FSamplerStateRHIParamRef*)SamplerDataStart;
+		return (const FRHISamplerState**)SamplerDataStart;
 	}
 
 	inline const FRHIResource** GetSRVStart() const
@@ -119,7 +119,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		}
 	}
 
-	const FSamplerStateRHIParamRef* RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
+	const FRHISamplerState** RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
 	const FShaderParameterInfo* RESTRICT TextureSamplerParameters = SingleShaderBindings.ParameterMapInfo.TextureSamplers.GetData();
 	const int32 NumTextureSamplers = SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num();
 
@@ -127,7 +127,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	{
 		FShaderParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
 		checkSlow(Parameter.BaseIndex < ARRAY_COUNT(ShaderBindingState.Samplers));
-		FSamplerStateRHIParamRef Sampler = SamplerBindings[SamplerIndex];
+		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
 		if (Sampler != ShaderBindingState.Samplers[Parameter.BaseIndex])
 		{
@@ -152,7 +152,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
-			FShaderResourceViewRHIParamRef SRV = (FShaderResourceViewRHIParamRef)SRVBindings[SRVIndex];
+			FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
 
 			if (SRV != ShaderBindingState.SRVs[Parameter.BaseIndex])
 			{
@@ -211,14 +211,14 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 		RHICmdList.SetShaderUniformBuffer(Shader, Parameter.BaseIndex, UniformBuffer);
 	}
 
-	const FSamplerStateRHIParamRef* RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
+	const FRHISamplerState** RESTRICT SamplerBindings = SingleShaderBindings.GetSamplerStart();
 	const FShaderParameterInfo* RESTRICT TextureSamplerParameters = SingleShaderBindings.ParameterMapInfo.TextureSamplers.GetData();
 	const int32 NumTextureSamplers = SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num();
 
 	for (int32 SamplerIndex = 0; SamplerIndex < NumTextureSamplers; SamplerIndex++)
 	{
 		FShaderParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
-		FSamplerStateRHIParamRef Sampler = SamplerBindings[SamplerIndex];
+		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
 		RHICmdList.SetShaderSampler(Shader, Parameter.BaseIndex, Sampler);
 	}
@@ -237,7 +237,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 
 		if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 		{
-			FShaderResourceViewRHIParamRef SRV = (FShaderResourceViewRHIParamRef)SRVBindings[SRVIndex];
+			FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
 			RHICmdList.SetShaderResourceViewParameter(Shader, Parameter.BaseIndex, SRV);
 		}
 		else
@@ -269,10 +269,10 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 #if RHI_RAYTRACING
 void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	FRHICommandList& RHICmdList, 
-	FRayTracingSceneRHIParamRef Scene, 
+	FRHIRayTracingScene* Scene,
 	uint32 InstanceIndex, 
 	uint32 SegmentIndex,
-	FRayTracingPipelineStateRHIParamRef PipelineState, 
+	FRayTracingPipelineState* PipelineState,
 	uint32 HitGroupIndex,
 	uint32 ShaderSlot) const
 {
@@ -301,12 +301,47 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 
 	checkf(SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num() == 0, TEXT("Texture sampler parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
 	checkf(SingleShaderBindings.ParameterMapInfo.SRVs.Num() == 0, TEXT("SRV parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
-	checkf(SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers.Num() == 0, TEXT("Loose parameter buffers are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
+
+	const TArray<FShaderLooseParameterBufferInfo>& LooseParameterBuffers = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers;	
+
+	// This array must be alive until RHICmdList.SetRayTracingHitGroup() finishes
+	TArray<uint8> ReorderedLooseParameters;
+
+	if (LooseParameterBuffers.Num())
+	{
+		check(LooseParameterBuffers.Num() <= 1);
+
+		const FShaderLooseParameterBufferInfo& LooseParameterBuffer = SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers[0];
+		check(LooseParameterBuffer.BufferIndex == 0);
+
+		uint32 LooseParameterDataSize = 0;
+
+		for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
+		{
+			FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
+			LooseParameterDataSize = FMath::Max<uint32>(LooseParameterDataSize, LooseParameter.BaseIndex + LooseParameter.Size);
+		}
+
+		ReorderedLooseParameters.AddZeroed(LooseParameterDataSize);
+
+		const uint8* LooseDataOffset = SingleShaderBindings.GetLooseDataStart();
+
+		for (int32 LooseParameterIndex = 0; LooseParameterIndex < LooseParameterBuffer.Parameters.Num(); LooseParameterIndex++)
+		{
+			FShaderParameterInfo LooseParameter = LooseParameterBuffer.Parameters[LooseParameterIndex];
+			FMemory::Memcpy(ReorderedLooseParameters.GetData() + LooseParameter.BaseIndex, LooseDataOffset, LooseParameter.Size);
+
+			LooseDataOffset += LooseParameter.Size;
+		}
+	}
 
 	check(SegmentIndex < 0xFF);
 	uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
 	const uint32 UserData = 0; // UserData could be used to store material ID or any other kind of per-material constant. This can be retrieved in hit shaders via GetHitGroupUserData().
-	RHICmdList.SetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, PipelineState, HitGroupIndex, NumUniformBuffersToSet, LocalUniformBuffers, UserData);
+	RHICmdList.SetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, PipelineState, HitGroupIndex, 
+		NumUniformBuffersToSet, LocalUniformBuffers,
+		ReorderedLooseParameters.Num(), ReorderedLooseParameters.GetData(),
+		UserData);
 }
 #endif // RHI_RAYTRACING
 
@@ -591,12 +626,12 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 			}
 		}
 
-		const FSamplerStateRHIParamRef* SamplerBindings = SingleShaderBindings.GetSamplerStart();
+		const FRHISamplerState** SamplerBindings = SingleShaderBindings.GetSamplerStart();
 
 		for (int32 BindingIndex = 0; BindingIndex < ShaderLayout.ParameterMapInfo.TextureSamplers.Num(); BindingIndex++)
 		{
 			FShaderParameterInfo ParameterInfo = ShaderLayout.ParameterMapInfo.TextureSamplers[BindingIndex];
-			FSamplerStateRHIParamRef SamplerValue = SamplerBindings[BindingIndex];
+			const FRHISamplerState* SamplerValue = SamplerBindings[BindingIndex];
 			ensureMsgf(SamplerValue, TEXT("Shader %s with vertex factory %s never set sampler at BaseIndex %u.  This can cause GPU hangs, depending on how the shader uses it."), 
 				Shader->GetType()->GetName(), 
 				Shader->GetVertexFactoryType()->GetName(),
@@ -617,7 +652,7 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 
 			if (SRVType[TypeByteIndex] & (1 << TypeBitIndex))
 			{
-				FShaderResourceViewRHIParamRef SRV = (FShaderResourceViewRHIParamRef)SRVBindings[SRVIndex];
+				FRHIShaderResourceView* SRV = (FRHIShaderResourceView*)SRVBindings[SRVIndex];
 
 				ensureMsgf(SRV, TEXT("Shader %s with vertex factory %s never set SRV at BaseIndex %u.  This can cause GPU hangs, depending on how the shader uses it."), 
 					Shader->GetType()->GetName(), 
@@ -671,7 +706,7 @@ void FMeshDrawShaderBindings::CopyFrom(const FMeshDrawShaderBindings& Other)
 #endif
 }
 
-void FMeshDrawCommand::SetShaders(FVertexDeclarationRHIParamRef VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState)
+void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState)
 {
 	PipelineState.BoundShaderState = FBoundShaderStateInput(
 		VertexDeclaration
@@ -768,7 +803,7 @@ void FMeshDrawShaderBindings::SetOnCommandList(FRHICommandList& RHICmdList, FBou
 	}
 }
 
-void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHICommandList& RHICmdList, FComputeShaderRHIParamRef Shader) const
+void FMeshDrawShaderBindings::SetOnCommandListForCompute(FRHICommandList& RHICmdList, FRHIComputeShader* Shader) const
 {
 	check(ShaderLayouts.Num() == 1);
 	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
@@ -1100,15 +1135,20 @@ ERasterizerCullMode FMeshPassProcessor::ComputeMeshCullMode(const FMeshBatch& Me
 	return bMeshRenderTwoSided ? CM_None : (bInReverseCullModeOverride ? CM_CCW : CM_CW);
 }
 
-int32 FMeshPassProcessor::GetDrawCommandPrimitiveId(const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo, const FMeshBatchElement& BatchElement) const
+void FMeshPassProcessor::GetDrawCommandPrimitiveId(
+	const FPrimitiveSceneInfo* RESTRICT PrimitiveSceneInfo,
+	const FMeshBatchElement& BatchElement,
+	int32& DrawPrimitiveId,
+	int32& ScenePrimitiveId) const
 {
-	int32 DrawPrimitiveId;
+	DrawPrimitiveId = 0;
 
 	if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
 	{
 		if (BatchElement.PrimitiveIdMode == PrimID_FromPrimitiveSceneInfo)
 		{
 			ensureMsgf(BatchElement.PrimitiveUniformBufferResource == nullptr, TEXT("PrimitiveUniformBufferResource should not be setup when PrimitiveIdMode == PrimID_FromPrimitiveSceneInfo"));
+			check(PrimitiveSceneInfo);
 			DrawPrimitiveId = PrimitiveSceneInfo->GetIndex();
 		}
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData)
@@ -1118,15 +1158,10 @@ int32 FMeshPassProcessor::GetDrawCommandPrimitiveId(const FPrimitiveSceneInfo* R
 		else
 		{
 			check(BatchElement.PrimitiveIdMode == PrimID_ForceZero);
-			DrawPrimitiveId = 0;
 		}
 	}
-	else
-	{
-		DrawPrimitiveId = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetIndex() : INT32_MAX;
-	}
 
-	return DrawPrimitiveId;
+	ScenePrimitiveId = PrimitiveSceneInfo ? PrimitiveSceneInfo->GetIndex() : -1;
 }
 
 FCachedPassMeshDrawListContext::FCachedPassMeshDrawListContext(FCachedMeshDrawCommandInfo& InCommandInfo, FCachedPassMeshDrawList& InDrawList, FScene& InScene) :
@@ -1158,6 +1193,7 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	const FMeshBatch& MeshBatch, 
 	int32 BatchElementIndex,
 	int32 DrawPrimitiveId,
+	int32 ScenePrimitiveId,
 	ERasterizerFillMode MeshFillMode,
 	ERasterizerCullMode MeshCullMode,
 	FMeshDrawCommandSortKey SortKey,
@@ -1172,7 +1208,6 @@ void FCachedPassMeshDrawListContext::FinalizeCommand(
 	PipelineId = FGraphicsMinimalPipelineStateId::GetPersistentId(PipelineState);
 
 	MeshDrawCommand.SetDrawParametersAndFinalize(MeshBatch, BatchElementIndex, PipelineId, ShadersForDebugging);
-
 	if (bUseStateBuckets)
 	{
 		FSetElementId SetId = Scene.CachedMeshDrawCommandStateBuckets.FindId(MeshDrawCommand);

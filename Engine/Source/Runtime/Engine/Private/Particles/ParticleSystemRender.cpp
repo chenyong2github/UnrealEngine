@@ -1111,7 +1111,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 						const FMaterial* Material = MaterialResource ? MaterialResource->GetMaterial(FeatureLevel) : nullptr;
 
 						if (Material && 
-							(Material->GetBlendMode() == BLEND_Translucent || Material->GetBlendMode() == BLEND_AlphaComposite ||
+							(Material->GetBlendMode() == BLEND_Translucent || Material->GetBlendMode() == BLEND_AlphaComposite || Material->GetBlendMode() == BLEND_AlphaHoldout ||
 							((SourceData->SortMode == PSORTMODE_Age_OldestFirst) || (SourceData->SortMode == PSORTMODE_Age_NewestFirst)))
 							)
 						{
@@ -7279,7 +7279,7 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			false,
 			UseSingleSampleShadowFromStationaryLights(),
 			GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			UseEditorDepthTest(),
+			DrawsVelocity(),
 			GetLightingChannelMask(),
 			0,
 			INDEX_NONE,

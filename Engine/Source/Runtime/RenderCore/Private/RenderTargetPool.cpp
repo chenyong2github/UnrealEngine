@@ -268,7 +268,9 @@ static void ClobberAllocatedRenderTarget(FRHICommandList& RHICmdList, const FPoo
 
 	if (Out->GetDesc().TargetableFlags & TexCreate_RenderTargetable)
 	{
-		SetRenderTarget(RHICmdList, Out->GetRenderTargetItem().TargetableTexture, FTextureRHIRef());
+		// Needs conversion to Render Passes
+		check(0);
+		//SetRenderTarget(RHICmdList, Out->GetRenderTargetItem().TargetableTexture, FTextureRHIRef());
 		DrawClearQuad(RHICmdList, Color);
 	}
 	else if (Out->GetDesc().TargetableFlags & TexCreate_UAV)
@@ -278,7 +280,9 @@ static void ClobberAllocatedRenderTarget(FRHICommandList& RHICmdList, const FPoo
 
 	if (Desc.TargetableFlags & TexCreate_DepthStencilTargetable)
 	{
-		SetRenderTarget(RHICmdList, FTextureRHIRef(), Out->GetRenderTargetItem().TargetableTexture);
+		// Needs conversion to Render Passes
+		check(0);
+		//SetRenderTarget(RHICmdList, FTextureRHIRef(), Out->GetRenderTargetItem().TargetableTexture);
 		DrawClearQuad(RHICmdList, false, FLinearColor::Black, true, 0.0f, true, 0);
 	}
 }
@@ -327,7 +331,10 @@ bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPool
 		{
 			// we can reuse the same, but the debug name might have changed
 			Current->Desc.DebugName = InDebugName;
-			RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
+			if (Current->GetRenderTargetItem().TargetableTexture)
+			{
+				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
+			}
 			check(!Out->IsFree());
 			#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				ClobberAllocatedRenderTarget(RHICmdList, Desc, Out);

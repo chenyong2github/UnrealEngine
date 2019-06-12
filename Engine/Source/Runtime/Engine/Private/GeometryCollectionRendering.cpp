@@ -9,7 +9,7 @@ void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
 	const FSceneInterface* Scene,
 	const FSceneView* View,
 	const FMeshMaterialShader* Shader,
-	bool bShaderRequiresPositionOnlyStream,
+	const EVertexInputStreamType InputStreamType,
 	ERHIFeatureLevel::Type FeatureLevel,
 	const FVertexFactory* VertexFactory,
 	const FMeshBatchElement& BatchElement,
@@ -24,7 +24,7 @@ void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
 	VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
 
 
-	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, bShaderRequiresPositionOnlyStream, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
+	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
 
 
 	// We only want to set the SRV parameters if we support manual vertex fetch.

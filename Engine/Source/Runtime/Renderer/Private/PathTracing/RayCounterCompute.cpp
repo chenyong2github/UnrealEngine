@@ -51,9 +51,9 @@ public:
 		FRHICommandList& RHICmdList,
 		FTextureRHIParamRef RayCountPerPixelBuffer,
 		const FIntPoint& ViewSize,
-		FUnorderedAccessViewRHIParamRef TotalRayCountBuffer)
+		FRHIUnorderedAccessView* TotalRayCountBuffer)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		SetTextureParameter(RHICmdList, ShaderRHI, RayCountPerPixelParameter, RayCountPerPixelBuffer);
 		SetShaderValue(RHICmdList, ShaderRHI, ViewSizeParameter, ViewSize);
@@ -65,9 +65,9 @@ public:
 		EResourceTransitionAccess TransitionAccess,
 		EResourceTransitionPipeline TransitionPipeline,
 		FRWBuffer& TotalRayCountBuffer,
-		FComputeFenceRHIParamRef Fence)
+		FRHIComputeFence* Fence)
 	{
-		FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, TotalRayCountBuffer.UAV, Fence);
 	}
@@ -108,7 +108,7 @@ void FDeferredShadingSceneRenderer::ComputeRayCount(FRHICommandListImmediate& RH
 	int32 NumGroups = FMath::DivideAndRoundUp<int32>(ViewSize.Y, FRayCounterCS::GetGroupSize());
 	DispatchComputeShader(RHICmdList, *RayCounterComputeShader, NumGroups, 1, 1);
 
-	FRHIGPUMemoryReadback* RayCountGPUReadback = ViewState->RayCountGPUReadback;
+	FRHIGPUBufferReadback* RayCountGPUReadback = ViewState->RayCountGPUReadback;
 
 	// Read read count data from the GPU using a stage buffer to avoid stalls
 	if (!ViewState->bReadbackInitialized)

@@ -2,6 +2,7 @@
 
 #include "Materials/MaterialExpressionLandscapeLayerSwitch.h"
 #include "Engine/Engine.h"
+#include "Engine/Texture.h"
 #include "EngineGlobals.h"
 #include "MaterialCompiler.h"
 #include "Materials/Material.h"
@@ -79,7 +80,7 @@ int32 UMaterialExpressionLandscapeLayerSwitch::Compile(class FMaterialCompiler* 
 }
 #endif // WITH_EDITOR
 
-UTexture* UMaterialExpressionLandscapeLayerSwitch::GetReferencedTexture()
+UObject* UMaterialExpressionLandscapeLayerSwitch::GetReferencedTexture() const
 {
 	return GEngine->WeightMapPlaceholderTexture;
 }

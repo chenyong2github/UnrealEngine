@@ -329,11 +329,19 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 		GConfig->GetBool(TEXT("/Script/UnrealEd.CrashReportsPrivacySettings"), TEXT("bSendUnattendedBugReports"), bSendUnattendedBugReports, GEditorSettingsIni);
 	}
 
+	// Controls if we want analytics in the crash report client
+	bool bSendUsageData = true;
+	if (GConfig)
+	{
+		GConfig->GetBool(TEXT("/Script/UnrealEd.AnalyticsPrivacySettings"), TEXT("bSendUsageData"), bSendUsageData, GEditorSettingsIni);
+	}
+
 #if !UE_EDITOR
 	if (BuildSettings::IsLicenseeVersion())
 	{
 		// do not send unattended reports in licensees' builds except for the editor, where it is governed by the above setting
 		bSendUnattendedBugReports = false;
+		bSendUsageData = false;
 	}
 #endif
 
@@ -435,6 +443,12 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 
 			// Run Crash Report Client
 			FString CrashReportClientArguments = FString::Printf(TEXT("\"%s\""), *CrashFolderAbsolute);
+
+			// If the editor setting has been disabled to not send analytics extend this to the CRC
+			if (!bSendUsageData)
+			{
+				CrashReportClientArguments += TEXT(" -NoAnalytics ");
+			}
 
 			// Pass nullrhi to CRC when the engine is in this mode to stop the CRC attempting to initialize RHI when the capability isn't available
 			bool bNullRHI = !FApp::CanEverRender();
@@ -749,14 +763,15 @@ public:
 		, ExceptionInfo(nullptr)
 		, CrashHandledEvent(nullptr)
 	{
+		// Synchronization objects
+		CrashEvent = CreateEvent(nullptr, true, 0, nullptr);
+		CrashHandledEvent = CreateEvent(nullptr, true, 0, nullptr);
+
 		// Create a background thread that will process the crash and generate crash reports
 		Thread = CreateThread(NULL, 0, CrashReportingThreadProc, this, 0, &ThreadId);
 		if (Thread)
 		{
 			SetThreadPriority(Thread, THREAD_PRIORITY_BELOW_NORMAL);
-			// Synchronization objects
-			CrashEvent = CreateEvent(nullptr, true, 0, nullptr);
-			CrashHandledEvent = CreateEvent(nullptr, true, 0, nullptr);
 		}
 	}
 
@@ -770,13 +785,15 @@ public:
 			if (WaitForSingleObject(Thread, 1000) == WAIT_OBJECT_0)
 			{
 				CloseHandle(Thread);
-				CloseHandle(CrashEvent);
-				CloseHandle(CrashHandledEvent);
 			}
 			Thread = nullptr;
-			CrashEvent = nullptr;
-			CrashHandledEvent = nullptr;
 		}
+
+		CloseHandle(CrashEvent);
+		CrashEvent = nullptr;
+
+		CloseHandle(CrashHandledEvent);
+		CrashHandledEvent = nullptr;
 	}
 
 	/** The thread that crashed calls this function which will trigger the CR thread to report the crash */

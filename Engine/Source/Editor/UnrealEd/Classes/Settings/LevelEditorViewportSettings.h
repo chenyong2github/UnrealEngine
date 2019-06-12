@@ -126,6 +126,10 @@ struct UNREALED_API FLevelEditorViewportInstanceSettings
 	UPROPERTY(config)
 	FName BufferVisualizationMode;
 
+	/** The buffer visualization mode for the viewport. */
+	UPROPERTY(config)
+	FName RayTracingDebugVisualizationMode;
+
 	/** Setting to allow designers to override the automatic expose. */
 	UPROPERTY(config)
 	FExposureSettings ExposureSettings;

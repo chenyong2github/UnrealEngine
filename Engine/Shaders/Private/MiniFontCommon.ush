@@ -1,15 +1,14 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	TinyFontCommon.usf: TinyFont shared functions and structures.
+	MiniFontCommon.usf: TinyFont shared functions and structures.
 =============================================================================*/
 
-#ifndef __TINY_FONT_COMMON__
-#define __TINY_FONT_COMMON__
+#pragma once
 
 Texture2D MiniFontTexture;
 
-// useful with PrintCharacter
+// CharacterIDs for the MiniFont
 #define _0_ 0
 #define _1_ 1
 #define _2_ 2
@@ -46,6 +45,19 @@ Texture2D MiniFontTexture;
 #define _X_ 33
 #define _Y_ 34
 #define _Z_ 35
+#define _MINUS_ 59
+#define _COMMA_ 60
+#define _DOT_ 61
+#define _PLUS_ 62
+#define _SPC_ 63
+
+// sample from the MiniFont texture
+// @param CharacterID - the character to print
+// @param Position - the position within the 8x8 character
+float SampleMiniFont(int CharacterID, uint2 Position)
+{
+	return MiniFontTexture.Load(int3(CharacterID * 8 + Position.x, Position.y, 0)).r;
+}
 
 // for printf debugging in the shader
 // @param LeftTop - is advanced, in pixels
@@ -55,7 +67,7 @@ void PrintCharacter(int2 PixelPos, inout float3 OutColor, float3 FontColor, inou
 
 	FLATTEN if (Rel.x < 8 && Rel.y < 8)
 	{
-		OutColor = lerp(OutColor, FontColor, MiniFontTexture.Load(int3(CharacterID * 8 + Rel.x, Rel.y, 0)).r);
+		OutColor = lerp(OutColor, FontColor, SampleMiniFont(CharacterID, Rel));
 	}
 
 	LeftTop.x += 8;
@@ -76,7 +88,6 @@ uint ExtractDigitFromFloat(float Number, float DigitValue)
 #endif
 }
 
-
 // for printf debugging in the shader, has to be positive
 // outputs a float number in the form: xxx.yyy
 // @param LeftTop - in pixels
@@ -84,17 +95,12 @@ void PrintFloat(int2 PixelPos, inout float3 OutColor, float3 FontColor, int2 Lef
 {
 	int2 Cursor = LeftTop;
 
-	float BorderDistance = ComputeDistanceToRect(PixelPos, LeftTop, int2(7, 1) * 8 - 1);
-
-	// black border around number
-	//	OutColor = lerp(0, OutColor, saturate(BorderDistance - 2));
-
 	// before period
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 100));
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10));
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 1));
 	// period
-	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, 512 / 8 - 3);
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _DOT_);
 	// after period
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.1));
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.01));
@@ -107,11 +113,6 @@ void PrintFloat(int2 PixelPos, inout float3 OutColor, float3 FontColor, int2 Lef
 void PrintFloatNoFraction(int2 PixelPos, inout float3 OutColor, float3 FontColor, int2 LeftTop, float Number)
 {
 	int2 Cursor = LeftTop;
-
-	float BorderDistance = ComputeDistanceToRect(PixelPos, LeftTop, int2(7, 1) * 8 - 1);
-
-	// black border around number
-	//	OutColor = lerp(0, OutColor, saturate(BorderDistance - 2));
 
 	// before period
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10000));
@@ -129,11 +130,6 @@ void PrintSmallFloat(int2 PixelPos, inout float3 OutColor, float3 FontColor, int
 	Number = abs(Number) + 0.05; // Round up first digit
 	int2 Cursor = LeftTop;
 
-	float BorderDistance = ComputeDistanceToRect(PixelPos, LeftTop, int2(7, 1) * 8 - 1);
-
-	// black border around number
-	//	OutColor = lerp(0, OutColor, saturate(BorderDistance - 2));
-
 	// before period
 	FLATTEN
 	if (Number >= 10)
@@ -142,10 +138,7 @@ void PrintSmallFloat(int2 PixelPos, inout float3 OutColor, float3 FontColor, int
 	}
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 1));
 	// period
-	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, 512 / 8 - 3);
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _DOT_);
 	// after period
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.1));
 }
-
-
-#endif // __TINY_FONT_COMMON__

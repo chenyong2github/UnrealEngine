@@ -54,7 +54,7 @@ public:
 	/**
 	 * Set output buffers for this shader.
 	 */
-	void SetOutput(FRHICommandList& RHICmdList, FUnorderedAccessViewRHIParamRef OutKeysUAV, FUnorderedAccessViewRHIParamRef OutIndicesUAV);
+	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* OutKeysUAV, FRHIUnorderedAccessView* OutIndicesUAV);
 
 	/**
 	 * Set input parameters.
@@ -121,8 +121,8 @@ public:
 	 */
 	void SetParameters(
 		FRHICommandList& RHICmdList,	
-		const FShaderResourceViewRHIParamRef InSourceData, 
-		const FUnorderedAccessViewRHIParamRef* InDestDatas, 
+		FRHIShaderResourceView* InSourceData,
+		FRHIUnorderedAccessView* const* InDestDatas,
 		const int32* InUsedIndexCounts, 
 		int32 StartingIndex,
 		int32 DestCount);

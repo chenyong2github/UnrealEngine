@@ -2904,8 +2904,13 @@ bool mipmapped_texture::write_comp_texture(const char* pFilename, const crn_comp
   comp_params.m_width = get_width();
   comp_params.m_height = get_height();
 
-  image_u8 temp_images[cCRNMaxFaces][cCRNMaxLevels];
+  //UE4_BEGIN
+  vector<image_u8> temp_images[cCRNMaxFaces];
+  //UE4_END
   for (uint f = 0; f < get_num_faces(); f++) {
+    //UE4_BEGIN
+    temp_images[f].resize(get_num_levels());
+	//UE4_END
     for (uint l = 0; l < get_num_levels(); l++) {
       image_u8* p = get_level_image(f, l, temp_images[f][l]);
 

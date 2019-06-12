@@ -75,37 +75,68 @@ template void FD3D12TextureStats::D3D12TextureDeleted(TD3D12Texture2D<FD3D12Base
 struct FRHICommandUpdateTexture final : public FRHICommand<FRHICommandUpdateTexture>
 {
 	FD3D12TextureBase* TextureBase;
-	const D3D12_TEXTURE_COPY_LOCATION DestCopyLocation;
+	D3D12_TEXTURE_COPY_LOCATION DestCopyLocation;
 	uint32 DestX;
 	uint32 DestY;
 	uint32 DestZ;
-	FD3D12ResourceLocation SourceCopyLocation;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT SourceFootprint;
+	D3D12_TEXTURE_COPY_LOCATION SourceCopyLocation;
+	FD3D12ResourceLocation Source;
 
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateTexture(FD3D12TextureBase* InTextureBase, const D3D12_TEXTURE_COPY_LOCATION& InDestCopyLocation, uint32 InDestX, uint32 InDestY, uint32 InDestZ, FD3D12ResourceLocation& Source, D3D12_PLACED_SUBRESOURCE_FOOTPRINT& InSourceFootprint)
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateTexture(FD3D12TextureBase* InTextureBase,
+		const D3D12_TEXTURE_COPY_LOCATION& InDestCopyLocation, uint32 InDestX, uint32 InDestY, uint32 InDestZ,
+		const D3D12_TEXTURE_COPY_LOCATION& InSourceCopyLocation, FD3D12ResourceLocation* InSource)
 		: TextureBase(InTextureBase)
 		, DestCopyLocation(InDestCopyLocation)
 		, DestX(InDestX)
 		, DestY(InDestY)
 		, DestZ(InDestZ)
-		, SourceCopyLocation(nullptr)
-		, SourceFootprint(InSourceFootprint)
+		, SourceCopyLocation(InSourceCopyLocation)
+		, Source(nullptr)
 	{
 		DestCopyLocation.pResource->AddRef();
-		FD3D12ResourceLocation::TransferOwnership(SourceCopyLocation, Source);
+		if (InSource)
+		{
+			FD3D12ResourceLocation::TransferOwnership(Source, *InSource);
+		}
 	}
 
 	~FRHICommandUpdateTexture()
 	{
 		DestCopyLocation.pResource->Release();
-
 	}
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		CD3DX12_TEXTURE_COPY_LOCATION Location(SourceCopyLocation.GetResource()->GetResource(), SourceFootprint);
+		TextureBase->UpdateTexture(DestCopyLocation, DestX, DestY, DestZ, SourceCopyLocation);
+	}
+};
 
-		TextureBase->UpdateTexture(DestCopyLocation, DestX, DestY, DestZ, Location);
+struct FRHICommandCopySubTextureRegion final : public FRHICommand<FRHICommandCopySubTextureRegion>
+{
+	FD3D12TextureBase* DestTexture;
+	uint32 DestX;
+	uint32 DestY;
+	uint32 DestZ;
+	FD3D12TextureBase* SourceTexture;
+	D3D12_BOX SourceBox;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandCopySubTextureRegion(FD3D12TextureBase* InDestTexture, uint32 InDestX, uint32 InDestY, uint32 InDestZ, FD3D12TextureBase* InSourceTexture, const D3D12_BOX& InSourceBox)
+		: DestTexture(InDestTexture)
+		, DestX(InDestX)
+		, DestY(InDestY)
+		, DestZ(InDestZ)
+		, SourceTexture(InSourceTexture)
+		, SourceBox(InSourceBox)
+	{
+	}
+
+	~FRHICommandCopySubTextureRegion()
+	{
+	}
+
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		DestTexture->CopyTextureRegion(DestX, DestY, DestZ, SourceTexture, SourceBox);
 	}
 };
 
@@ -1648,6 +1679,28 @@ void FD3D12TextureBase::UpdateTexture(const D3D12_TEXTURE_COPY_LOCATION& DestCop
 	DEBUG_EXECUTE_COMMAND_CONTEXT(DefaultContext);
 }
 
+void FD3D12TextureBase::CopyTextureRegion(uint32 DestX, uint32 DestY, uint32 DestZ, FD3D12TextureBase* SourceTexture, const D3D12_BOX& SourceBox)
+{
+	FD3D12CommandContext& DefaultContext = GetParentDevice()->GetDefaultCommandContext();
+	FD3D12CommandListHandle& CommandListHandle = DefaultContext.CommandListHandle;
+
+	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(GetResource()->GetResource(), 0);
+	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SourceTexture->GetResource()->GetResource(), 0);
+
+	FConditionalScopeResourceBarrier ConditionalScopeResourceBarrierDest(CommandListHandle, GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, DestCopyLocation.SubresourceIndex);
+	FConditionalScopeResourceBarrier ConditionalScopeResourceBarrierSource(CommandListHandle, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, SourceCopyLocation.SubresourceIndex);
+
+	CommandListHandle.FlushResourceBarriers();
+	CommandListHandle->CopyTextureRegion(
+		&DestCopyLocation,
+		DestX, DestY, DestZ,
+		&SourceCopyLocation,
+		&SourceBox);
+
+	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
+	CommandListHandle.UpdateResidency(GetResource());
+}
+
 void FD3D12TextureBase::InitializeTextureData(FRHICommandListImmediate* RHICmdList, const void* InitData, uint32 InitDataSize, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumSlices, uint32 NumMips, EPixelFormat Format, D3D12_RESOURCE_STATES DestinationState)
 {
 	// each mip of each array slice counts as a subresource
@@ -1760,18 +1813,19 @@ void TD3D12Texture2D<RHIResourceType>::UnlockInternal(class FRHICommandListImmed
 			PlacedTexture2D.Footprint = BufferPitchDesc;
 
 			CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(Resource->GetResource(), Subresource);
+			CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadLocation.GetResource()->GetResource(), PlacedTexture2D);
 
 			FD3D12CommandListHandle& hCommandList = GetParentDevice()->GetDefaultCommandContext().CommandListHandle;
 
 			// If we are on the render thread, queue up the copy on the RHIThread so it happens at the correct time.
 			if (ShouldDeferCmdListOperation(RHICmdList))
 			{
-				ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateTexture)(this, DestCopyLocation, 0, 0, 0, UploadLocation, PlacedTexture2D);
+				// Same FD3D12ResourceLocation is used for all resources in the chain, therefore only the last command must be responsible for releasing it.
+				FD3D12ResourceLocation* Source = GetNextObject() ? nullptr : &UploadLocation;
+				ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateTexture)(this, DestCopyLocation, 0, 0, 0, SourceCopyLocation, Source);
 			}
 			else
 			{
-				CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadLocation.GetResource()->GetResource(), PlacedTexture2D);
-
 				UpdateTexture(DestCopyLocation, 0, 0, 0, SourceCopyLocation);
 			}
 
@@ -1795,15 +1849,19 @@ void TD3D12Texture2D<RHIResourceType>::UnlockInternal(class FRHICommandListImmed
 template<typename RHIResourceType>
 void TD3D12Texture2D<RHIResourceType>::UpdateTexture2D(class FRHICommandListImmediate* RHICmdList, uint32 MipIndex, const FUpdateTextureRegion2D& UpdateRegion, uint32 SourcePitch, const uint8* SourceData)
 {
-	check(UpdateRegion.Width  %	GPixelFormats[this->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.Height % GPixelFormats[this->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.DestX  %	GPixelFormats[this->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.DestY  %	GPixelFormats[this->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.SrcX   %	GPixelFormats[this->GetFormat()].BlockSizeX == 0);
-	check(UpdateRegion.SrcY   %	GPixelFormats[this->GetFormat()].BlockSizeX == 0);
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[this->GetFormat()];
+	check(UpdateRegion.Width  %	FormatInfo.BlockSizeX == 0);
+	check(UpdateRegion.Height % FormatInfo.BlockSizeY == 0);
+	check(UpdateRegion.DestX  %	FormatInfo.BlockSizeX == 0);
+	check(UpdateRegion.DestY  %	FormatInfo.BlockSizeY == 0);
+	check(UpdateRegion.SrcX   %	FormatInfo.BlockSizeX == 0);
+	check(UpdateRegion.SrcY   %	FormatInfo.BlockSizeY == 0);
 
-	const uint32 AlignedSourcePitch = Align(SourcePitch, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
-	const uint32 bufferSize = Align(UpdateRegion.Height*AlignedSourcePitch, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
+	const uint32 WidthInBlocks = UpdateRegion.Width / FormatInfo.BlockSizeX;
+	const uint32 HeightInBlocks = UpdateRegion.Height / FormatInfo.BlockSizeY;
+
+	const uint32 AlignedSourcePitch = Align(SourcePitch, FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT);
+	const uint32 bufferSize = Align(HeightInBlocks*AlignedSourcePitch, D3D12_TEXTURE_DATA_PLACEMENT_ALIGNMENT);
 
 	FD3D12Texture2D* Texture = this;
 	while (Texture)
@@ -1813,10 +1871,10 @@ void TD3D12Texture2D<RHIResourceType>::UpdateTexture2D(class FRHICommandListImme
 		check(nullptr != pData);
 
 		byte* pRowData = (byte*)pData;
-		byte* pSourceRowData = (byte*)SourceData;
-		uint32 CopyPitch = FMath::DivideAndRoundUp(UpdateRegion.Width, (uint32)GPixelFormats[this->GetFormat()].BlockSizeX) * GPixelFormats[this->GetFormat()].BlockBytes;
+		const byte* pSourceRowData = (byte*)SourceData;
+		const uint32 CopyPitch = WidthInBlocks * FormatInfo.BlockBytes;
 		check(CopyPitch <= SourcePitch);
-		for (uint32 i = 0; i < UpdateRegion.Height; i++)
+		for (uint32 i = 0; i < HeightInBlocks; i++)
 		{
 			FMemory::Memcpy(pRowData, pSourceRowData, CopyPitch);
 			pSourceRowData += SourcePitch;
@@ -1827,7 +1885,7 @@ void TD3D12Texture2D<RHIResourceType>::UpdateTexture2D(class FRHICommandListImme
 		SourceSubresource.Depth = 1;
 		SourceSubresource.Height = UpdateRegion.Height;
 		SourceSubresource.Width = UpdateRegion.Width;
-		SourceSubresource.Format = (DXGI_FORMAT)GPixelFormats[this->GetFormat()].PlatformFormat;
+		SourceSubresource.Format = (DXGI_FORMAT)FormatInfo.PlatformFormat;
 		SourceSubresource.RowPitch = AlignedSourcePitch;
 		check(SourceSubresource.RowPitch % FD3D12_TEXTURE_DATA_PITCH_ALIGNMENT == 0);
 
@@ -1836,15 +1894,15 @@ void TD3D12Texture2D<RHIResourceType>::UpdateTexture2D(class FRHICommandListImme
 		PlacedTexture2D.Footprint = SourceSubresource;
 
 		CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(Texture->GetResource()->GetResource(), MipIndex);
-		
+		CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadHeapResourceLocation.GetResource()->GetResource(), PlacedTexture2D);
+
 		// If we are on the render thread, queue up the copy on the RHIThread so it happens at the correct time.
 		if (ShouldDeferCmdListOperation(RHICmdList))
 		{
-			ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateTexture)(this, DestCopyLocation, UpdateRegion.DestX, UpdateRegion.DestY, 0, UploadHeapResourceLocation, PlacedTexture2D);
+			ALLOC_COMMAND_CL(*RHICmdList, FRHICommandUpdateTexture)(this, DestCopyLocation, UpdateRegion.DestX, UpdateRegion.DestY, 0, SourceCopyLocation, &UploadHeapResourceLocation);
 		}
 		else
 		{
-			CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(UploadHeapResourceLocation.GetResource()->GetResource(), PlacedTexture2D);
 			UpdateTexture(DestCopyLocation, UpdateRegion.DestX, UpdateRegion.DestY, 0, SourceCopyLocation);
 		}
 
@@ -2378,7 +2436,7 @@ FTextureReferenceRHIRef FD3D12DynamicRHI::RHICreateTextureReference(FLastRenderT
 	return new FD3D12TextureReference(GetRHIDevice(), LastRenderTime);
 }
 
-void FD3D12CommandContext::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
+void FD3D12CommandContext::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
 {
 #if 0
 	// Updating texture references is disallowed while the RHI could be caching them in referenced resource tables.
@@ -2749,3 +2807,95 @@ void FD3D12DynamicRHI::RHIAliasTextureResources(FTextureRHIParamRef DestTextureR
 		SrcTexture = SrcTexture->GetNextObject();
 	}
 }
+
+void FD3D12DynamicRHI::RHICopySubTextureRegion(FTexture2DRHIParamRef SourceTextureRHI, FTexture2DRHIParamRef DestTextureRHI, FBox2D SourceBox, FBox2D DestinationBox)
+{
+	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
+	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
+
+	const uint32 XOffset = (uint32)(DestinationBox.Min.X);
+	const uint32 YOffset = (uint32)(DestinationBox.Min.Y);
+	const uint32 Width = (uint32)(SourceBox.Max.X - SourceBox.Min.X);
+	const uint32 Height = (uint32)(SourceBox.Max.Y - SourceBox.Min.Y);
+
+	const CD3DX12_BOX SourceBoxD3D((LONG)SourceBox.Min.X, (LONG)SourceBox.Min.Y, (LONG)SourceBox.Max.X, (LONG)SourceBox.Max.Y);
+
+	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(DestTexture->GetResource()->GetResource(), 0);
+	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SourceTexture->GetResource()->GetResource(), 0);
+
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+	if (RHICmdList.Bypass())
+	{
+		FRHICommandCopySubTextureRegion RHICmd(DestTexture, XOffset, YOffset, 0, SourceTexture, SourceBoxD3D);
+		RHICmd.Execute(RHICmdList);
+	}
+	else
+	{
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandCopySubTextureRegion)(DestTexture, XOffset, YOffset, 0, SourceTexture, SourceBoxD3D);
+	}
+}
+
+void FD3D12CommandContext::RHICopyTexture(FTextureRHIParamRef SourceTextureRHI, FTextureRHIParamRef DestTextureRHI, const FRHICopyTextureInfo& CopyInfo)
+{
+	FD3D12TextureBase* SourceTexture = GetD3D12TextureFromRHITexture(SourceTextureRHI);
+	FD3D12TextureBase* DestTexture = GetD3D12TextureFromRHITexture(DestTextureRHI);
+
+	CD3DX12_TEXTURE_COPY_LOCATION SourceCopyLocation(SourceTexture->GetResource()->GetResource(), 0);
+	CD3DX12_TEXTURE_COPY_LOCATION DestCopyLocation(DestTexture->GetResource()->GetResource(), 0);
+
+	FConditionalScopeResourceBarrier ConditionalScopeResourceBarrierSource(CommandListHandle, SourceTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+	FConditionalScopeResourceBarrier ConditionalScopeResourceBarrierDest(CommandListHandle, DestTexture->GetResource(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+
+	numCopies++;
+	CommandListHandle.FlushResourceBarriers();
+
+	if (CopyInfo.Size != FIntVector::ZeroValue)
+	{
+		// Copy sub texture regions
+		CD3DX12_BOX SourceBoxD3D(
+			CopyInfo.SourcePosition.X,
+			CopyInfo.SourcePosition.Y,
+			CopyInfo.SourcePosition.Z,
+			CopyInfo.SourcePosition.X + CopyInfo.Size.X,
+			CopyInfo.SourcePosition.Y + CopyInfo.Size.Y,
+			CopyInfo.SourcePosition.Z + CopyInfo.Size.Z
+		);
+
+		for (uint32 SliceIndex = 0; SliceIndex < CopyInfo.NumSlices; ++SliceIndex)
+		{
+			uint32 SourceSliceIndex = CopyInfo.SourceSliceIndex + SliceIndex;
+			uint32 DestSliceIndex = CopyInfo.DestSliceIndex + SliceIndex;
+
+			for (uint32 MipIndex = 0; MipIndex < CopyInfo.NumMips; ++MipIndex)
+			{
+				uint32 SourceMipIndex = CopyInfo.SourceMipIndex + MipIndex;
+				uint32 DestMipIndex = CopyInfo.DestMipIndex + MipIndex;
+
+				SourceCopyLocation.SubresourceIndex = CalcSubresource(SourceMipIndex, SourceSliceIndex, SourceTextureRHI->GetNumMips());
+				DestCopyLocation.SubresourceIndex = CalcSubresource(DestMipIndex, DestSliceIndex, DestTextureRHI->GetNumMips());
+
+				SourceBoxD3D.right = CopyInfo.SourcePosition.X + FMath::Max(CopyInfo.Size.X >> MipIndex, 1);
+				SourceBoxD3D.bottom = CopyInfo.SourcePosition.Y + FMath::Max(CopyInfo.Size.Y >> MipIndex, 1);
+				SourceBoxD3D.back = CopyInfo.SourcePosition.Z + FMath::Max(CopyInfo.Size.Z >> MipIndex, 1);
+
+				CommandListHandle->CopyTextureRegion(
+					&DestCopyLocation,
+					CopyInfo.DestPosition.X,
+					CopyInfo.DestPosition.Y,
+					CopyInfo.DestPosition.Z,
+					&SourceCopyLocation,
+					&SourceBoxD3D
+				);
+			}
+		}
+	}
+	else
+	{
+		// Copy whole texture
+		CommandListHandle->CopyTextureRegion(&DestCopyLocation, 0, 0, 0, &SourceCopyLocation, nullptr);
+	}
+
+	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
+	CommandListHandle.UpdateResidency(DestTexture->GetResource());
+}
+

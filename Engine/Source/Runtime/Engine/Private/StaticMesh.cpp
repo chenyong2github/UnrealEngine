@@ -1158,7 +1158,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 				Initializer.VertexBufferByteOffset = 0;
 				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
 				Initializer.VertexBufferElementType = VET_Float3;
-				Initializer.PrimitiveType = PT_TriangleList;
+				Initializer.GeometryType = RTGT_Triangles;
 				Initializer.bFastBuild = false;
 				
 				TArray<FRayTracingGeometrySegment> GeometrySections;
@@ -2592,13 +2592,18 @@ void FStaticMeshRenderData::GetResourceSizeEx(FResourceSizeEx& CumulativeResourc
 		const int32 VBSize = LODRenderData.VertexBuffers.StaticMeshVertexBuffer.GetResourceSize() +
 			LODRenderData.VertexBuffers.PositionVertexBuffer.GetStride()			* LODRenderData.VertexBuffers.PositionVertexBuffer.GetNumVertices() +
 			LODRenderData.VertexBuffers.ColorVertexBuffer.GetStride()				* LODRenderData.VertexBuffers.ColorVertexBuffer.GetNumVertices();
-		int32 IBSize = LODRenderData.IndexBuffer.GetAllocatedSize();
+		
+		int32 NumIndicies = LODRenderData.IndexBuffer.GetNumIndices();
 
 		if (LODRenderData.AdditionalIndexBuffers)
 		{
-			IBSize += LODRenderData.AdditionalIndexBuffers->WireframeIndexBuffer.GetAllocatedSize()
-			+ (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? LODRenderData.AdditionalIndexBuffers->AdjacencyIndexBuffer.GetAllocatedSize() : 0);
+			NumIndicies += LODRenderData.AdditionalIndexBuffers->ReversedDepthOnlyIndexBuffer.GetNumIndices();
+			NumIndicies += LODRenderData.AdditionalIndexBuffers->ReversedIndexBuffer.GetNumIndices();
+			NumIndicies += LODRenderData.AdditionalIndexBuffers->WireframeIndexBuffer.GetNumIndices();
+			NumIndicies += (RHISupportsTessellation(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) ? LODRenderData.AdditionalIndexBuffers->AdjacencyIndexBuffer.GetNumIndices() : 0);
 		}
+
+		int32 IBSize = NumIndicies * (LODRenderData.IndexBuffer.Is32Bit() ? 4 : 2);
 
 		CumulativeResourceSize.AddUnknownMemoryBytes(VBSize + IBSize);
 		CumulativeResourceSize.AddUnknownMemoryBytes(LODRenderData.Sections.GetAllocatedSize());

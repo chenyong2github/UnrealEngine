@@ -13,21 +13,6 @@ RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWLuminanceUAV;
 RWTexture2D<float> RWRayDistanceUAV;
 
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
-
-// #patrick todo: move to RayTracingCommon.ush
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
-
 bool GenerateRectLightImportanceSampledRay(
 	float3 WorldPosition,
 	float3 WorldNormal,
@@ -145,8 +130,6 @@ bool GenerateRectLightImportanceSampledRay(
 		return false;
 	}
 
-	// #dxr_todo: Performing direct lighting here could save some recalculation
-
 	// Define ray
 	RayOrigin = WorldPosition;
 	RayDirection = LightDirection;
@@ -170,11 +153,11 @@ bool GenerateRectLightImportanceSampledRay(
 [shader("raygeneration")]
 void RectLightRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
@@ -183,7 +166,7 @@ void RectLightRGS()
 	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
 	float Depth = ScreenSpaceData.GBuffer.Depth;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0f);
+	float3 CameraOrigin = View.WorldCameraOrigin;
 	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
 	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
 	float3 BaseColor = ScreenSpaceData.GBuffer.BaseColor;
@@ -283,7 +266,7 @@ void RectLightRGS()
 
 		uint RayFlags = 0
 			| RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
 
 		FDefaultPayload Payload = (FDefaultPayload)0;
 
@@ -298,7 +281,7 @@ void RectLightRGS()
 			Payload    // Payload
 		);
 
-		if (Payload.HitT >= 0.0)
+		if (Payload.IsHit())
 		{
 			RayDistance += Payload.HitT;
 			HitCount += 1.0;
@@ -322,10 +305,6 @@ void RectLightRGS()
 			FDirectLighting LightingSample = EvaluateBxDF(ScreenSpaceData.GBuffer, N, V, L, NoL, ShadowTerms);
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;
 
-			// #dxr_todo: Determine best way to incorporate integrals:
-			// 1) Return combined contribution (current method)
-			// 2) Split the integral (defer specular contribution to another pass)
-			// 3) Store diffuse and specular contribution separately
 			float3 Irradiance = IncomingRadiance * NoL / RayPdf;
 			ExitantRadiance += Irradiance * Brdf;
 			DiffuseExitantRadiance += Irradiance * (LightingSample.Diffuse + LightingSample.Transmission);

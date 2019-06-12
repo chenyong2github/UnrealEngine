@@ -624,7 +624,7 @@ void NiagaraEmitterInstanceBatcher::SortGPUParticles(FRHICommandListImmediate& R
 
 		// Make sure our outputs are safe to write to.
 		const int32 InitialSortBufferIndex = 0;
-		FUnorderedAccessViewRHIParamRef OutputUAVs[2] = { ParticleSortBuffers.GetKeyBufferUAV(InitialSortBufferIndex), ParticleSortBuffers.GetVertexBufferUAV(InitialSortBufferIndex) };
+		FRHIUnorderedAccessView* OutputUAVs[2] = { ParticleSortBuffers.GetKeyBufferUAV(InitialSortBufferIndex), ParticleSortBuffers.GetVertexBufferUAV(InitialSortBufferIndex) };
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, OutputUAVs, 2);
 
 		// EmitterKey = (EmitterIndex & EmitterKeyMask) << EmitterKeyShift.
@@ -743,7 +743,7 @@ void NiagaraEmitterInstanceBatcher::ResolveParticleSortBuffers(FRHICommandListIm
 
 	for (int32 Index = 0; Index < SortedVertexBuffers.Num(); Index += NIAGARA_COPY_BUFFER_BUFFER_COUNT)
 	{
-		FUnorderedAccessViewRHIParamRef UAVs[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
+		FRHIUnorderedAccessView* UAVs[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
 		int32 UsedIndexCounts[NIAGARA_COPY_BUFFER_BUFFER_COUNT] = {};
 
 		const int32 NumBuffers = FMath::Min<int32>(NIAGARA_COPY_BUFFER_BUFFER_COUNT, SortedVertexBuffers.Num() - Index);
@@ -1014,7 +1014,8 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 			if (DestinationData.GetGPUBufferFloat().NumBytes > 0)
 			{
-				Context->GPUDebugDataReadbackFloat = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Debug Info Float Emitter Readback"));
+				static const FName ReadbackFloatName(TEXT("Niagara GPU Debug Info Float Emitter Readback"));
+				Context->GPUDebugDataReadbackFloat = new FRHIGPUBufferReadback(ReadbackFloatName);
 				Context->GPUDebugDataReadbackFloat->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferFloat().Buffer);
 				Context->GPUDebugDataFloatSize = DestinationData.GetGPUBufferFloat().NumBytes;
 				Context->GPUDebugDataFloatStride = DestinationData.GetFloatStride();
@@ -1022,13 +1023,15 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 			if (DestinationData.GetGPUBufferInt().NumBytes > 0)
 			{
-				Context->GPUDebugDataReadbackInt = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Debug Info Int Emitter Readback"));
+				static const FName ReadbackIntName(TEXT("Niagara GPU Debug Info Int Emitter Readback"));
+				Context->GPUDebugDataReadbackInt = new FRHIGPUBufferReadback(ReadbackIntName);
 				Context->GPUDebugDataReadbackInt->EnqueueCopy(RHICmdList, DestinationData.GetGPUBufferInt().Buffer);
 				Context->GPUDebugDataIntSize = DestinationData.GetGPUBufferInt().NumBytes;
 				Context->GPUDebugDataIntStride = DestinationData.GetInt32Stride();
 			}
 
-			Context->GPUDebugDataReadbackCounts = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Emitter Readback"));
+			static const FName ReadbackCountsName(TEXT("Niagara GPU Emitter Readback"));
+			Context->GPUDebugDataReadbackCounts = new FRHIGPUBufferReadback(ReadbackCountsName);
 			Context->GPUDebugDataReadbackCounts->EnqueueCopy(RHICmdList, GPUInstanceCounterManager.GetInstanceCountBuffer().Buffer);
 			Context->GPUDebugDataCountOffset = DestinationData.GetGPUInstanceCountBufferOffset();
 		}

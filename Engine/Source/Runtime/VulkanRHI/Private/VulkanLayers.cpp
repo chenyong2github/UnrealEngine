@@ -31,17 +31,19 @@ TAutoConsoleVariable<int32> GValidationCvar(
 
 static TAutoConsoleVariable<int32> GStandardValidationCvar(
 	TEXT("r.Vulkan.StandardValidation"),
-	1,
-	TEXT("1 to use VK_LAYER_LUNARG_standard_validation (default) if available\n")
-	TEXT("0 to use individual layers"),
+	2,
+	TEXT("2 to use VK_LAYER_KHRONOS_validation (default) if available\n")
+	TEXT("1 to use VK_LAYER_LUNARG_standard_validation if available, or \n")
+	TEXT("0 to use individual validation layers (deprecated)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
 #if VULKAN_ENABLE_DRAW_MARKERS
-	#define RENDERDOC_LAYER_NAME		"VK_LAYER_RENDERDOC_Capture"
+	#define RENDERDOC_LAYER_NAME				"VK_LAYER_RENDERDOC_Capture"
 #endif
 
-#define STANDARD_VALIDATION_LAYER_NAME	"VK_LAYER_LUNARG_standard_validation"
+#define KHRONOS_STANDARD_VALIDATION_LAYER_NAME	"VK_LAYER_KHRONOS_validation"
+#define STANDARD_VALIDATION_LAYER_NAME			"VK_LAYER_LUNARG_standard_validation"
 
 static const ANSICHAR* GIndividualValidationLayers[] =
 {
@@ -83,6 +85,10 @@ static const ANSICHAR* GDeviceExtensions[] =
 #if VULKAN_SUPPORTS_VALIDATION_CACHE
 	VK_EXT_VALIDATION_CACHE_EXTENSION_NAME,
 #endif
+#if VULKAN_SUPPORTS_MEMORY_PRIORITY
+	VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME,
+#endif
+
 	//VK_KHR_SAMPLER_MIRROR_CLAMP_TO_EDGE_EXTENSION_NAME,
 	nullptr
 };
@@ -310,30 +316,37 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 #endif	// VULKAN_ENABLE_API_DUMP
 
-	int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
-	if (FParse::Param(FCommandLine::Get(), TEXT("vulkandebug")))
-	{
-		// Match D3D and GL
-		GValidationCvar->Set(2, ECVF_SetByCommandline);
-	}
-	else if (FParse::Value(FCommandLine::Get(), TEXT("vulkanvalidation="), VulkanValidationOption))
-	{
-		GValidationCvar->Set(VulkanValidationOption, ECVF_SetByCommandline);
-	}
-
+	// At this point the CVar holds the final value
+#if VULKAN_HAS_DEBUGGING_ENABLED
+	const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
 	if (!bVkTrace && VulkanValidationOption > 0)
 	{
 		bool bStandardAvailable = false;
 		if (GStandardValidationCvar.GetValueOnAnyThread() != 0)
 		{
-			bStandardAvailable = FindLayerInList(GlobalLayerExtensions, STANDARD_VALIDATION_LAYER_NAME);
-			if (bStandardAvailable)
+			if (GStandardValidationCvar.GetValueOnAnyThread() == 2)
 			{
-				OutInstanceLayers.Add(STANDARD_VALIDATION_LAYER_NAME);
+				bStandardAvailable = FindLayerInList(GlobalLayerExtensions, KHRONOS_STANDARD_VALIDATION_LAYER_NAME);
+				if (bStandardAvailable)
+				{
+					OutInstanceLayers.Add(KHRONOS_STANDARD_VALIDATION_LAYER_NAME);
+				}
+				else
+				{
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s; trying individual layers..."), TEXT(STANDARD_VALIDATION_LAYER_NAME));
+				}
 			}
 			else
 			{
-				UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s; trying individual layers..."), TEXT(STANDARD_VALIDATION_LAYER_NAME));
+				bStandardAvailable = FindLayerInList(GlobalLayerExtensions, STANDARD_VALIDATION_LAYER_NAME);
+				if (bStandardAvailable)
+				{
+					OutInstanceLayers.Add(STANDARD_VALIDATION_LAYER_NAME);
+				}
+				else
+				{
+					UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance validation layer %s; trying individual layers..."), TEXT(STANDARD_VALIDATION_LAYER_NAME));
+				}
 			}
 		}
 
@@ -355,9 +368,10 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 			}
 		}
 	}
+#endif
 
 #if VULKAN_SUPPORTS_DEBUG_UTILS
-	if (!bVkTrace && GValidationCvar.GetValueOnAnyThread() > 0)
+	if (!bVkTrace && VulkanValidationOption > 0)
 	{
 		const char* FoundDebugUtilsLayer = nullptr;
 		bOutDebugUtils = FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME, FoundDebugUtilsLayer);
@@ -409,7 +423,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 #endif
 #if VULKAN_HAS_DEBUGGING_ENABLED
-	if (!bVkTrace && !bOutDebugUtils && GValidationCvar.GetValueOnAnyThread() > 0)
+	if (!bVkTrace && !bOutDebugUtils && VulkanValidationOption > 0)
 	{
 		if (FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
 		{
@@ -523,7 +537,8 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(TArray<const ANSICHAR*>& OutDev
 	#endif
 
 	// Verify that all requested debugging device-layers are available. Skip validation layers under RenderDoc
-	if (!GRenderDocFound && GValidationCvar.GetValueOnAnyThread() > 0)
+	const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
+	if (!GRenderDocFound && VulkanValidationOption > 0)
 	{
 		bool bStandardAvailable = false;
 		if (GStandardValidationCvar.GetValueOnAnyThread() != 0)
@@ -632,7 +647,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(TArray<const ANSICHAR*>& OutDev
 
 #if VULKAN_ENABLE_DRAW_MARKERS && VULKAN_HAS_DEBUGGING_ENABLED
 	if (!bOutDebugMarkers &&
-		(((GRenderDocFound || GValidationCvar.GetValueOnAnyThread() == 0) && ListContains(AvailableExtensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME)) || FVulkanPlatform::ForceEnableDebugMarkers()))
+		(((GRenderDocFound || VulkanValidationOption == 0) && ListContains(AvailableExtensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME)) || FVulkanPlatform::ForceEnableDebugMarkers()))
 	{
 		// HACK: Lumin Nvidia driver unofficially supports this extension, but will return false if we try to load it explicitly.
 #if !PLATFORM_LUMIN
@@ -728,5 +743,33 @@ void FVulkanDevice::ParseOptionalDeviceExtensions(const TArray<const ANSICHAR *>
 
 #if VULKAN_SUPPORTS_COLOR_CONVERSIONS
 	OptionalDeviceExtensions.HasYcbcrSampler = HasExtension(VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME) && HasExtension(VK_KHR_BIND_MEMORY_2_EXTENSION_NAME) && HasExtension(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+#endif
+
+#if VULKAN_SUPPORTS_MEMORY_PRIORITY
+	OptionalDeviceExtensions.HasMemoryPriority = HasExtension(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+	if (FParse::Param(FCommandLine::Get(), TEXT("disablememorypriority")))
+	{
+		OptionalDeviceExtensions.HasMemoryPriority = 0;
+	}
+#else
+	OptionalDeviceExtensions.HasMemoryPriority = 0;
+#endif
+}
+
+void FVulkanDynamicRHI::SetupValidationRequests()
+{
+#if VULKAN_HAS_DEBUGGING_ENABLED
+	int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
+
+	// Command line overrides Cvar
+	if (FParse::Param(FCommandLine::Get(), TEXT("vulkandebug")))
+	{
+		// Match D3D and GL
+		GValidationCvar->Set(2, ECVF_SetByCommandline);
+	}
+	else if (FParse::Value(FCommandLine::Get(), TEXT("vulkanvalidation="), VulkanValidationOption))
+	{
+		GValidationCvar->Set(VulkanValidationOption, ECVF_SetByCommandline);
+	}
 #endif
 }

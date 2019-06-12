@@ -271,7 +271,7 @@ struct FRHICommandMultiBufferUnlock final : public FRHICommand<FRHICommandMultiB
 
 	void Execute(FRHICommandListBase& CmdList)
 	{
-		FVulkanResourceMultiBuffer::InternalUnlock((FVulkanCommandListContext&)CmdList.GetContext(), PendingLock, MultiBuffer, DynamicBufferIndex);
+		FVulkanResourceMultiBuffer::InternalUnlock(VulkanRHI::GetVulkanContext(CmdList.GetContext()), PendingLock, MultiBuffer, DynamicBufferIndex);
 	}
 };
 

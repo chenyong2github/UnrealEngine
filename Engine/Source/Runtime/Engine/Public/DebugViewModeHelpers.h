@@ -28,6 +28,7 @@ enum EDebugViewShaderMode
 	DVSM_MaterialTextureScaleAccuracy, // Visualize the accuracy of the material texture scales used for texture streaming.
 	DVSM_OutputMaterialTextureScales, // Outputs the material texture scales.
 	DVSM_RequiredTextureResolution, // Visualize the accuracy of the material texture scales used for texture streaming.
+	DVSM_RayTracingDebug,			// Visualize ray tracing debug modes.
 	DVSM_MAX
 };
 

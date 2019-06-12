@@ -9,9 +9,9 @@ Functions for Transmission Thickness
 -------------------------------------------------------------------------------*/
 float4x4 ScreenToShadowMatrix;
 
-// x is start,y is end,From 1 to 32 sample
-// .x:DepthBias, y: MaxSubjectZ - MinSubjectZ
-float2 ProjectionDepthBiasParameters;
+// x is start, z is end,From 1 to 32 sample
+// .x:DepthBias, .y:SlopeDepthBias, .z:MaxSlopeDepthBias, .w: MaxSubjectZ - MinSubjectZ
+float4 ProjectionDepthBiasParameters;
 
 // Poisson disks generated with http://www.coderhaus.com/?p=11
 // Combine all Poisson disk togeather, borrow idea from Jorge's multiple sample single scattering 
@@ -150,7 +150,7 @@ float CalcTransmissionThickness(float3 ViewPos, float3 LightPos, FGBufferData GB
 
 
 	ShrinkedScreenPos.xy = ShrinkedScreenPos.xy / ShrinkedScreenPos.w;
-	Settings.DensityMulConstant = DepthScale * ProjectionDepthBiasParameters.y;
+	Settings.DensityMulConstant = DepthScale * ProjectionDepthBiasParameters.w;
 
 
 	Settings.SceneDepth = ShrinkedScreenPos.z + ProjectionDepthBiasParameters.x;
@@ -215,7 +215,7 @@ float CalcTransmissionThickness(FGBufferData GBufferData, float3 WorldPosition, 
 		Settings.bSubsurface = true;
 		//Shadow Depth range Near to far, so no need mul far here.
 		Settings.DensityMulConstant = TransmissionParams.ExtinctionScale * (10.0f / LightInvRadius);
-		Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters;
+		Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
 		Settings.SceneDepth = 0.0f;
 		Settings.SceneDepth = CalcShadowLinearDepth(CompareDistance + ShadowDepthBias, ProjParam) * LightInvRadius;
 

@@ -251,20 +251,20 @@ public:
 	uint32 GetTriangleCount() const { return TriangleCount; }
 	uint32 GetVertexCount() const { return VertexCount; }
 
-	FShaderResourceViewRHIParamRef GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
-	FShaderResourceViewRHIParamRef GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
-	FShaderResourceViewRHIParamRef GetBufferColorSRV() const { return MeshColorBufferSrv; }
+	FRHIShaderResourceView* GetBufferPositionSRV() const { return MeshVertexBufferSrv; }
+	FRHIShaderResourceView* GetBufferIndexSRV() const { return MeshIndexBufferSrv; }
+	FRHIShaderResourceView* GetBufferTangentSRV() const { return MeshTangentBufferSRV; }
+	FRHIShaderResourceView* GetBufferTexCoordSRV() const { return MeshTexCoordBufferSrv; }
+	FRHIShaderResourceView* GetBufferColorSRV() const { return MeshColorBufferSrv; }
 
 	uint32 GetNumTexCoord() const { return NumTexCoord; }
 	uint32 GetNumWeights() const { return NumWeights; }
 
 	uint32 GetNumSpecificBones() const { return NumSpecificBones; }
-	FShaderResourceViewRHIParamRef GetSpecificBonesSRV() const { return SpecificBonesSRV; }
+	FRHIShaderResourceView* GetSpecificBonesSRV() const { return SpecificBonesSRV; }
 
 	uint32 GetNumSpecificSocketBones() const { return NumSpecificSocketBones; }
-	FShaderResourceViewRHIParamRef GetSpecificSocketBonesSRV() const { return SpecificSocketBonesSRV; }
+	FRHIShaderResourceView* GetSpecificSocketBonesSRV() const { return SpecificSocketBonesSRV; }
 
 protected:
 
@@ -286,11 +286,11 @@ protected:
 	FShaderResourceViewRHIRef SpecificSocketBonesSRV;
 
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
-	FShaderResourceViewRHIRef MeshVertexBufferSrv;
-	FShaderResourceViewRHIRef MeshIndexBufferSrv;
-	FShaderResourceViewRHIRef MeshTangentBufferSRV;
-	FShaderResourceViewRHIRef MeshTexCoordBufferSrv;
-	FShaderResourceViewRHIRef MeshColorBufferSrv;
+	FRHIShaderResourceView* MeshVertexBufferSrv;
+	FRHIShaderResourceView* MeshIndexBufferSrv;
+	FRHIShaderResourceView* MeshTangentBufferSRV;
+	FRHIShaderResourceView* MeshTexCoordBufferSrv;
+	FRHIShaderResourceView* MeshColorBufferSrv;
 
 	uint32 NumTexCoord = 0;
 	uint32 NumWeights = 0;
@@ -394,7 +394,7 @@ struct FNDISkeletalMesh_InstanceData
 	/** True if the mesh we're using allows area weighted sampling on GPU. */
 	uint32 bIsGpuUniformlyDistributedSampling : 1;
 
-	FShaderResourceViewRHIParamRef MeshSkinWeightBufferSrv;
+	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
 	uint32 MeshWeightStrideByte;
 
 	/** Extra mesh data upload to GPU.*/
@@ -707,7 +707,7 @@ struct FNiagaraDISkeletalMeshPassedDataToRT
 {
 	FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers;
 	FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffer;
-	FShaderResourceViewRHIParamRef MeshSkinWeightBufferSrv;
+	FRHIShaderResourceView* MeshSkinWeightBufferSrv;
 
 	bool bIsGpuUniformlyDistributedSampling;
 

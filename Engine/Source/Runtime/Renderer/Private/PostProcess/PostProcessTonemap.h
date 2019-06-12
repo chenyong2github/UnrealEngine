@@ -57,7 +57,7 @@ public:
 	virtual void Release() override { delete this; }
 	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
 
-	virtual FComputeFenceRHIParamRef GetComputePassEndFence() const override { return AsyncEndFence; }
+	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
 
 	bool bDoGammaOnly;
 	bool bDoScreenPercentageInTonemapper;
@@ -170,7 +170,7 @@ public:
 
 	void SetVS(const FRenderingCompositePassContext& Context, const FPermutationDomain& PermutationVector )
 	{
-		const FVertexShaderRHIParamRef ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = GetVertexShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 

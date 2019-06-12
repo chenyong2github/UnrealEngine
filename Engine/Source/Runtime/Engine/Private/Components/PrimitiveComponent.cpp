@@ -33,6 +33,7 @@
 #include "Algo/Copy.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
+#include "EngineModule.h"
 
 #if WITH_EDITOR
 #include "Engine/LODActor.h"

@@ -49,6 +49,15 @@ struct FThreeBandSHVectorRGB
 	FThreeBandSHVector B;
 };
 
+FTwoBandSHVectorRGB MulSH(FTwoBandSHVectorRGB A, half Scalar)
+{
+	FTwoBandSHVectorRGB Result;
+	Result.R.V = A.R.V * Scalar;
+	Result.G.V = A.G.V * Scalar;
+	Result.B.V = A.B.V * Scalar;
+	return Result;
+}
+
 FTwoBandSHVectorRGB MulSH(FTwoBandSHVector A, half3 Color)
 {
 	FTwoBandSHVectorRGB Result;

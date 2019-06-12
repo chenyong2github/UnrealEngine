@@ -1,27 +1,20 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#pragma once 
+#pragma once
 
 #include "CoreMinimal.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterMacros.h"
 #include "SceneRendering.h"
 #include "LightSceneInfo.h"
+#include "RayTracingDefinitions.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 #if RHI_RAYTRACING
-
-const static uint32 GRaytracingLightCountMaximum = 64;
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, )
 	SHADER_PARAMETER(uint32, Count)
 	SHADER_PARAMETER(float, IESLightProfileInvCount)
-	SHADER_PARAMETER_ARRAY(FIntVector, Type_LightProfileIndex_RectLightTextureIndex, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, LightPosition_InvRadius, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, LightColor_SpecularScale, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, Direction_FalloffExponent, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, Tangent_SourceRadius, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, SpotAngles_SourceLength_SoftSourceRadius, [GRaytracingLightCountMaximum])
-	SHADER_PARAMETER_ARRAY(FVector4, DistanceFadeMAD_RectLightBarnCosAngle_RectLightBarnLength, [GRaytracingLightCountMaximum])
 	SHADER_PARAMETER_TEXTURE(Texture2D, LTCMatTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, LTCMatSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, LTCAmpTexture)
@@ -38,11 +31,41 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRaytracingLightDataPacked, )
 	SHADER_PARAMETER_TEXTURE(Texture2D, IESLightProfileTexture)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
+// Must match struct definition in RayTacedLightingCommon.ush
+struct FRTLightingData
+{
+	int32 Type;
+	int32 LightProfileIndex;
+	int32 RectLightTextureIndex;
+
+	// Force alignment before next vector
+	int32 Pad;
+
+	float LightPosition[3];
+	float InvRadius;
+	float Direction[3];
+	float FalloffExponent;
+	float LightColor[3];
+	float SpecularScale;
+	float Tangent[3];
+	float SourceRadius;
+	float SpotAngles[2];
+	float SourceLength;
+	float SoftSourceRadius;
+	float DistanceFadeMAD[2];
+	float RectLightBarnCosAngle;
+	float RectLightBarnLength;
+
+	// Align struct to 128 bytes to better match cache lines
+	float Dummy[4];
+};
+
 void SetupRaytracingLightDataPacked(
 	const TSparseArray<FLightSceneInfoCompact>& Lights,
 	const FViewInfo& View,
-	FRaytracingLightDataPacked* LightData);
+	FRaytracingLightDataPacked* LightData,
+	TResourceArray<FRTLightingData>& LightDataArray);
 
-TUniformBufferRef<FRaytracingLightDataPacked> CreateLightDataPackedUniformBuffer(const TSparseArray<FLightSceneInfoCompact>& Lights, const class FViewInfo& View, EUniformBufferUsage Usage);
+TUniformBufferRef<FRaytracingLightDataPacked> CreateLightDataPackedUniformBuffer(const TSparseArray<FLightSceneInfoCompact>& Lights, const class FViewInfo& View, EUniformBufferUsage Usage, FStructuredBufferRHIRef& LightDataArray);
 
 #endif

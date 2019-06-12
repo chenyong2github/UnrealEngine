@@ -324,12 +324,12 @@ void FD3D12CommandContext::RHISetMultipleViewports(uint32 Count, const FViewport
 }
 
 FD3D12BoundShaderState::FD3D12BoundShaderState(
-	FVertexDeclarationRHIParamRef InVertexDeclarationRHI,
-	FVertexShaderRHIParamRef InVertexShaderRHI,
-	FPixelShaderRHIParamRef InPixelShaderRHI,
-	FHullShaderRHIParamRef InHullShaderRHI,
-	FDomainShaderRHIParamRef InDomainShaderRHI,
-	FGeometryShaderRHIParamRef InGeometryShaderRHI,
+	FRHIVertexDeclaration* InVertexDeclarationRHI,
+	FRHIVertexShader* InVertexShaderRHI,
+	FRHIPixelShader* InPixelShaderRHI,
+	FRHIHullShader* InHullShaderRHI,
+	FRHIDomainShader* InDomainShaderRHI,
+	FRHIGeometryShader* InGeometryShaderRHI,
 	FD3D12Device* InDevice
 	) :
 	CacheLink(InVertexDeclarationRHI, InVertexShaderRHI, InPixelShaderRHI, InHullShaderRHI, InDomainShaderRHI, InGeometryShaderRHI, this)
@@ -371,12 +371,12 @@ FD3D12BoundShaderState::~FD3D12BoundShaderState()
 * @param GeometryShader - existing geometry shader
 */
 FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
-	FVertexDeclarationRHIParamRef VertexDeclarationRHI,
-	FVertexShaderRHIParamRef VertexShaderRHI,
-	FHullShaderRHIParamRef HullShaderRHI,
-	FDomainShaderRHIParamRef DomainShaderRHI,
-	FPixelShaderRHIParamRef PixelShaderRHI,
-	FGeometryShaderRHIParamRef GeometryShaderRHI
+	FRHIVertexDeclaration* VertexDeclarationRHI,
+	FRHIVertexShader* VertexShaderRHI,
+	FRHIHullShader* HullShaderRHI,
+	FRHIDomainShader* DomainShaderRHI,
+	FRHIPixelShader* PixelShaderRHI,
+	FRHIGeometryShader* GeometryShaderRHI
 	)
 {
 	//SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBoundShaderStateTime);

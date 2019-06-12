@@ -505,7 +505,7 @@ TArray<uint32> FShaderResource::GlobalUnusedIndicies;
 TArray<FRHIRayTracingShader*> FShaderResource::GlobalRayTracingMaterialLibrary;
 FCriticalSection FShaderResource::GlobalRayTracingMaterialLibraryCS;
 
-void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIParamRef>& RayTracingMaterials, FRayTracingShaderRHIParamRef DefaultShader)
+void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRHIRayTracingShader*>& RayTracingMaterials, FRHIRayTracingShader* DefaultShader)
 {
 	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
 	RayTracingMaterials = GlobalRayTracingMaterialLibrary;
@@ -516,7 +516,7 @@ void FShaderResource::GetRayTracingMaterialLibrary(TArray<FRayTracingShaderRHIPa
 	}
 }
 
-uint32 FShaderResource::AddToRayTracingLibrary(FRayTracingShaderRHIParamRef Shader)
+uint32 FShaderResource::AddToRayTracingLibrary(FRHIRayTracingShader* Shader)
 {
 	FScopeLock Lock(&GlobalRayTracingMaterialLibraryCS);
 
@@ -1010,7 +1010,9 @@ void FShaderResource::InitRHI()
 			checkf(ElementList.Num(), TEXT("Shader type %s was given GetStreamOutElements implementation that had no elements!"), SpecificType->GetName());
 
 			//@todo - not using the cache
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Shader = FShaderCodeLibrary::CreateGeometryShaderWithStreamOutput((EShaderPlatform)Target.Platform, OutputHash, UncompressedCode, ElementList, StreamStrides.Num(), StreamStrides.GetData(), RasterizedStream);
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
 		{
@@ -1024,7 +1026,7 @@ void FShaderResource::InitRHI()
 		UE_CLOG((bCodeInSharedLocation && !IsValidRef(Shader)), LogShaders, Fatal, TEXT("FShaderResource::SerializeShaderCode can't find shader code for: [%s]"), *LegacyShaderPlatformToShaderFormat((EShaderPlatform)Target.Platform).ToString());
 	}
 #if RHI_RAYTRACING
-	else if (Target.Frequency == SF_RayGen || Target.Frequency == SF_RayMiss || Target.Frequency == SF_RayHitGroup)
+	else if (Target.Frequency == SF_RayGen || Target.Frequency == SF_RayMiss || Target.Frequency == SF_RayHitGroup || Target.Frequency == SF_RayCallable)
 	{
 		if (GRHISupportsRayTracing)
 		{
@@ -1571,6 +1573,14 @@ FShaderPipelineType::FShaderPipelineType(
 	}
 	Stages.Add(InVertexShader);
 	AllStages[SF_Vertex] = InVertexShader;
+
+	for (uint32 FrequencyIndex = 0; FrequencyIndex < SF_NumStandardFrequencies; ++FrequencyIndex)
+	{
+		if (const FShaderType* ShaderType = AllStages[FrequencyIndex])
+		{
+			checkf(ShaderType->GetPermutationCount() == 1, TEXT("Shader '%s' has multiple shader permutations. Shader pipelines only support a single permutation."), ShaderType->GetName())
+		}
+	}
 
 	static uint32 TypeHashCounter = 0;
 	++TypeHashCounter;
@@ -2138,11 +2148,6 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-		KeyString += (CVar && CVar->GetValueOnAnyThread() != 0) ? TEXT("_VTLM") : TEXT("_NoVTLM");
-	}
-
-	{
 		KeyString += IsUsingBasePassVelocity(Platform) ? TEXT("_GV") : TEXT("");
 	}
 
@@ -2239,10 +2244,19 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	
 	if (IsD3DPlatform(Platform, false))
 	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));
-		if (CVar && CVar->GetInt() != 0)
 		{
-			KeyString += TEXT("_UnInt");
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.RemoveUnusedInterpolators"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				KeyString += TEXT("_UnInt");
+			}
+		}
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.D3D.ForceDXC"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				KeyString += TEXT("_DXC");
+			}
 		}
 	}
 
@@ -2383,6 +2397,13 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += TEXT("_ARCHIVE");
 		}
+		{
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Metal.ForceDXC"));
+			if (CVar && CVar->GetInt() != 0)
+			{
+				KeyString += TEXT("_DXC");
+			}
+		}
 	}
 
 	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4))
@@ -2460,5 +2481,36 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += TEXT("_2bi");
 		}
+	}
+	{
+		if(UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)))
+		{
+			KeyString += TEXT("_gs1");
+		}
+		else
+		{
+			KeyString += TEXT("_gs0");
+		}
+	}
+
+	{
+		static const auto CVarVirtualTextureLightmaps = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+		const bool VTLightmaps = CVarVirtualTextureLightmaps && CVarVirtualTextureLightmaps->GetValueOnAnyThread() != 0;
+
+		static const auto CVarVirtualTexture = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures"));
+		const bool VTTextures = CVarVirtualTexture && CVarVirtualTexture->GetValueOnAnyThread() != 0;
+
+		static const auto CVarVTFactor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.vt.FeedbackFactor")); check(CVarVTFactor);
+		const int32 VTFeedbackFactor = CVarVTFactor->GetInt(); 
+
+
+		ITargetPlatformManagerModule* TPM = GetTargetPlatformManager();
+		check(TPM);
+		auto TargetPlatform = TPM->GetRunningTargetPlatform();
+		check(TargetPlatform);
+		const bool VTSupported = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::VirtualTextureStreaming);
+
+		auto tt = FString::Printf(TEXT("_VT-%d-%d-%d-%d"), VTLightmaps, VTTextures, VTFeedbackFactor, VTSupported);
+ 		KeyString += tt;
 	}
 }

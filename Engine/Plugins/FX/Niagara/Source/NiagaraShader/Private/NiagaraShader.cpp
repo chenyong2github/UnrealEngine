@@ -26,13 +26,12 @@
 IMPLEMENT_SHADER_TYPE(, FNiagaraShader, TEXT("/Plugin/FX/Niagara/Private/NiagaraEmitterInstanceShader.usf"),TEXT("SimulateMain"), SF_Compute)
 
 
-
 int32 GCreateNiagaraShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateNiagaraShadersOnLoad(
 	TEXT("niagara.CreateShadersOnLoad"),
 	GCreateNiagaraShadersOnLoad,
 	TEXT("Whether to create Niagara's simulation shaders on load, which can reduce hitching, but use more memory.  Otherwise they will be created as needed.")
-	);
+);
 
 int32 GNiagaraSkipVectorVMBackendOptimizations = 0;
 static FAutoConsoleVariableRef CVarNiagaraSkipVectorVMBackendOptimizations(

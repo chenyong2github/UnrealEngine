@@ -67,6 +67,21 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 	}
 }
 
+bool FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(const FName& RayTracingDebugModeName)
+{
+	static TArray<FName> TonemappedRayTracingDebugVisualizationModes;
+	if (TonemappedRayTracingDebugVisualizationModes.Num() == 0)
+	{
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("World Normal", "World Normal").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("BaseColor", "BaseColor").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("DiffuseColor", "DiffuseColor").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("SpecularColor", "SpecularColor").ToString());
+		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("ShadingModelID", "ShadingModelID").ToString());
+	}
+
+	return TonemappedRayTracingDebugVisualizationModes.Contains(RayTracingDebugModeName);
+}
+
 void FRayTracingDebugVisualizationMenuCommands::BuildVisualisationSubMenu(FMenuBuilder& Menu)
 {
 	const FRayTracingDebugVisualizationMenuCommands& Commands = FRayTracingDebugVisualizationMenuCommands::Get();

@@ -156,13 +156,12 @@ return TSuper::SupportsFeature(Feature);
 		return StaticMeshLODSettings;
 	}
 
-	virtual void GetTextureFormats( const UTexture* Texture, TArray<FName>& OutFormats ) const override
+	virtual void GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const override
 	{
 		if (!IS_DEDICATED_SERVER)
 		{
 			// just use the standard texture format name for this texture (with DX11 support)
-			FName TextureFormatName = GetDefaultTextureFormatName(this, Texture, EngineSettings, true);
-			OutFormats.Add(TextureFormatName);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, EngineSettings, true);
 		}
 	}
 

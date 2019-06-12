@@ -196,7 +196,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				false,
 				false,
 				false,
-				SceneProxy->UseEditorDepthTest(),
+				SceneProxy->DrawsVelocity(),
 				SceneProxy->GetLightingChannelMask(),
 				0,
 				INDEX_NONE,
@@ -246,7 +246,7 @@ void FNiagaraRendererMeshes::GetDynamicMeshElements(const TArray<const FSceneVie
 				{
 					check(MaterialProxy);
 					EBlendMode BlendMode = MaterialProxy->GetMaterial(SceneProxy->GetScene().GetFeatureLevel())->GetBlendMode();
-					bHasTranslucentMaterials |= BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_Translucent;
+					bHasTranslucentMaterials |= BlendMode == BLEND_AlphaComposite || BlendMode == BLEND_AlphaHoldout || BlendMode == BLEND_Translucent;
 				}
 
 				//Sort particles if needed.

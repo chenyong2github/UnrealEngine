@@ -65,6 +65,9 @@ class ENGINE_API USceneCaptureComponent : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SceneCapture)
 	ESceneCapturePrimitiveRenderMode PrimitiveRenderMode;
 
+	UPROPERTY(interp, Category = SceneCapture, meta = (DisplayName = "Capture Source"))
+	TEnumAsByte<enum ESceneCaptureSource> CaptureSource;
+
 	/** The components won't rendered by current component.*/
  	UPROPERTY()
  	TArray<TWeakObjectPtr<UPrimitiveComponent> > HiddenComponents;
