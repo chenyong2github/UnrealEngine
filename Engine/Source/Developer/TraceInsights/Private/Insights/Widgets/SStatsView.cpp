@@ -1007,7 +1007,7 @@ void SStatsView::CreateGroups()
 	{
 		for (const FStatsNodePtr& StatsNodePtr : StatsNodes)
 		{
-			const FName GroupName = *StatsNodePtr->GetName().GetPlainNameString().Left(1);
+			const FName GroupName = *StatsNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
 
 			FStatsNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)

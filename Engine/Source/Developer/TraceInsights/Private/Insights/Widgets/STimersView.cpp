@@ -1016,7 +1016,7 @@ void STimersView::CreateGroups()
 	{
 		for (const FTimerNodePtr& TimerNodePtr : TimerNodes)
 		{
-			const FName GroupName = *TimerNodePtr->GetName().GetPlainNameString().Left(1);
+			const FName GroupName = *TimerNodePtr->GetName().GetPlainNameString().Left(1).ToUpper();
 
 			FTimerNodePtr* GroupPtr = GroupNodeSet.Find(GroupName);
 			if (!GroupPtr)

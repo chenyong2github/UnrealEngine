@@ -3403,10 +3403,12 @@ bool STimingView::SearchTimingEvent(const double InStartTime,
 void STimingView::OnSelectedTimingEventChanged()
 {
 	// Select the timer node coresponding to timing event type of selected timing event.
-	if (SelectedTimingEvent.IsValid() &&
+	if (!bAssetLoadingMode &&
+		SelectedTimingEvent.IsValid() &&
 		(SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Cpu ||
 		 SelectedTimingEvent.Track->GetType() == ETimingEventsTrackType::Gpu))
 	{
+		//TODO: make this a more generic (i.e. no hardocdings on TimingProfilerManager)
 		TSharedPtr<STimingProfilerWindow> Wnd = FTimingProfilerManager::Get()->GetProfilerWindow();
 		if (Wnd)
 		{
