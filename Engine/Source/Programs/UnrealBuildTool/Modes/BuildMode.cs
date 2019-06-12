@@ -610,6 +610,46 @@ namespace UnrealBuildTool
 			// Additional processing for hot reload
 			if (HotReloadMode == HotReloadMode.LiveCoding)
 			{
+				// Make sure we're not overwriting any lazy-loaded modules
+				if(TargetDescriptor.LiveCodingModules != null)
+				{
+					// Read the list of modules that we're allowed to build
+					string[] Lines = FileReference.ReadAllLines(TargetDescriptor.LiveCodingModules);
+
+					// Parse it out into a set of filenames
+					HashSet<FileReference> AllowedOutputFiles = new HashSet<FileReference>();
+					foreach (string Line in Lines)
+					{
+						string TrimLine = Line.Trim();
+						if (TrimLine.Length > 0)
+						{
+							AllowedOutputFiles.Add(new FileReference(TrimLine));
+						}
+					}
+
+					// Find all the binaries that we're actually going to build
+					HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
+					foreach (Action Action in TargetActionsToExecute)
+					{
+						if (Action.ActionType == ActionType.Link)
+						{
+							OutputFiles.UnionWith(Action.ProducedItems.Where(x => x.HasExtension(".exe") || x.HasExtension(".dll")).Select(x => x.Location));
+						}
+					}
+
+					// Find all the files that will be built that aren't allowed
+					List<FileReference> ProtectedOutputFiles = OutputFiles.Where(x => !AllowedOutputFiles.Contains(x)).ToList();
+					if (ProtectedOutputFiles.Count > 0)
+					{
+						FileReference.WriteAllLines(new FileReference(TargetDescriptor.LiveCodingModules.FullName + ".out"), ProtectedOutputFiles.Select(x => x.ToString()));
+						foreach(FileReference ProtectedOutputFile in ProtectedOutputFiles)
+						{
+							Log.TraceInformation("Module {0} is not currently enabled for Live Coding", ProtectedOutputFile);
+						}
+						throw new CompilationResultException(CompilationResult.Canceled);
+					}
+				}
+
 				// Filter the prerequisite actions down to just the compile actions, then recompute all the actions to execute
 				PrerequisiteActions = new List<Action>(TargetActionsToExecute.Where(x => x.ActionType == ActionType.Compile));
 				TargetActionsToExecute = ActionGraph.GetActionsToExecute(Makefile.Actions, PrerequisiteActions, CppDependencies, History, BuildConfiguration.bIgnoreOutdatedImportLibraries);

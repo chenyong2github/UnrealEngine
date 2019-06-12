@@ -11,6 +11,7 @@
 #include "LC_CommandMap.h"
 #include "LC_FileAttributeCache.h"
 #include "LiveCodingServer.h"
+#include "Containers/UnrealString.h"
 #include "LC_Shortcut.h"
 #include "LC_Key.h"
 #include "LC_ChangeNotification.h"
@@ -557,6 +558,48 @@ struct ClientProxyThread
 		m_pipe->SendCommandAndWaitForAck(commands::FinishedLazyLoadingModules(), nullptr, 0);
 	}
 };
+
+bool ServerCommandThread::EnableRequiredModules(const TArray<FString>& RequiredModules)
+{
+	bool bEnabledModule = false;
+	for (LiveProcess* liveProcess : m_liveProcesses)
+	{
+		types::vector<std::wstring> LoadModuleFileNames;
+		for (const FString& RequiredModule : RequiredModules)
+		{
+			std::wstring ModuleFileName = file::NormalizePath(*RequiredModule);
+			if (liveProcess->IsPendingLazyLoadedModule(ModuleFileName))
+			{
+				LoadModuleFileNames.push_back(ModuleFileName);
+			}
+		}
+		if (LoadModuleFileNames.size() > 0)
+		{
+			const std::wstring PipeName = primitiveNames::Pipe(m_processGroupName + L"_ClientProxy");
+
+			DuplexPipeServer ServerPipe;
+			ServerPipe.Create(PipeName.c_str());
+
+			DuplexPipeClient ClientPipe;
+			ClientPipe.Connect(PipeName.c_str());
+
+			ClientProxyThread ClientThread(liveProcess, &ClientPipe, LoadModuleFileNames);
+
+			CommandMap commandMap;
+			commandMap.RegisterAction<actions::EnableModules>();
+			commandMap.RegisterAction<actions::FinishedLazyLoadingModules>();
+			commandMap.HandleCommands(&ServerPipe, this);
+
+			for (const std::wstring& loadModuleFileName : LoadModuleFileNames)
+			{
+				liveProcess->SetLazyLoadedModuleAsLoaded(loadModuleFileName);
+			}
+
+			bEnabledModule = true;
+		}
+	}
+	return bEnabledModule;
+}
 // END EPIC MOD
 
 void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
@@ -586,46 +629,29 @@ void ServerCommandThread::CompileChanges(bool didAllProcessesMakeProgress)
 
 		GLiveCodingServer->GetStatusChangeDelegate().ExecuteIfBound(L"Compiling changes for live coding...");
 
+		// Keep retrying the compile until we've added all the required modules
 		TMap<FString, TArray<FString>> ModuleToObjectFiles;
-		if (!CompileDelegate.Execute(Targets, ModuleToObjectFiles))
+		for (;;)
 		{
-			GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
-			return;
-		}
-
-		// Enable any lazy-loaded modules that we need
-		for (LiveProcess* liveProcess : m_liveProcesses)
-		{
-			types::vector<std::wstring> LoadModuleFileNames;
-			for(const TPair<FString, TArray<FString>>& Pair : ModuleToObjectFiles)
+			// Build a list of modules which are enabled for live coding
+			TArray<FString> ValidModules;
+			for (LiveModule* liveModule : m_liveModules)
 			{
-				std::wstring ModuleFileName = file::NormalizePath(*Pair.Key);
-				if (liveProcess->IsPendingLazyLoadedModule(ModuleFileName))
-				{
-					LoadModuleFileNames.push_back(ModuleFileName);
-				}
+				ValidModules.Add(liveModule->GetModuleName().c_str());
 			}
-			if (LoadModuleFileNames.size() > 0)
+
+			// Execute the compile
+			TArray<FString> RequiredModules;
+			if (CompileDelegate.Execute(Targets, ValidModules, RequiredModules, ModuleToObjectFiles))
 			{
-				const std::wstring PipeName = primitiveNames::Pipe(m_processGroupName + L"_ClientProxy");
+				break;
+			}
 
-				DuplexPipeServer ServerPipe;
-				ServerPipe.Create(PipeName.c_str());
-
-				DuplexPipeClient ClientPipe;
-				ClientPipe.Connect(PipeName.c_str());
-
-				ClientProxyThread ClientThread(liveProcess, &ClientPipe, LoadModuleFileNames);
-
-				CommandMap commandMap;
-				commandMap.RegisterAction<actions::EnableModules>();
-				commandMap.RegisterAction<actions::FinishedLazyLoadingModules>();
-				commandMap.HandleCommands(&ServerPipe, this);
-
-				for (const std::wstring& loadModuleFileName : LoadModuleFileNames)
-				{
-					liveProcess->SetLazyLoadedModuleAsLoaded(loadModuleFileName);
-				}
+			// Enable any lazy-loaded modules that we need
+			if (!EnableRequiredModules(RequiredModules))
+			{
+				GLiveCodingServer->GetCompileFinishedDelegate().ExecuteIfBound(ELiveCodingResult::Error, L"Compilation error.");
+				return;
 			}
 		}
 
@@ -1516,24 +1542,29 @@ bool ServerCommandThread::actions::EnableModules::Execute(const CommandType* com
 		g_dependencyAllocator.PrintStats();
 	}
 
-	if (loadModuleTaskCount > 0u)
+	// BEGIN EPIC MOD - Suppress output when lazy loading modules
+	if (commandThread->m_compileThread == nullptr || thread::GetId() != thread::GetId(commandThread->m_compileThread))
 	{
-		LC_SUCCESS_USER("Loaded %zu module(s) (%.3fs, %zu translation units)", loadModuleTaskCount, moduleLoadingScope.ReadSeconds(), loadedTranslationUnits);
-	}
-
-	// EPIC REMOVED commandThread->PrewarmCompilerEnvironmentCache();
-
-	// tell user we are ready, but only once to not clutter the log
-	{
-		static bool showedOnce = false;
-		if (!showedOnce)
+		if (loadModuleTaskCount > 0u)
 		{
-			showedOnce = true;
-			const int shortcut = appSettings::g_compileShortcut->GetValue();
-			const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
-			LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+			LC_SUCCESS_USER("Loaded %zu module(s) (%.3fs, %zu translation units)", loadModuleTaskCount, moduleLoadingScope.ReadSeconds(), loadedTranslationUnits);
+		}
+
+		// EPIC REMOVED commandThread->PrewarmCompilerEnvironmentCache();
+
+		// tell user we are ready, but only once to not clutter the log
+		{
+			static bool showedOnce = false;
+			if (!showedOnce)
+			{
+				showedOnce = true;
+				const int shortcut = appSettings::g_compileShortcut->GetValue();
+				const std::wstring& shortcutText = shortcut::ConvertShortcutToText(shortcut);
+				LC_SUCCESS_USER("Live coding ready - Save changes and press %S to re-compile code", shortcutText.c_str());
+			}
 		}
 	}
+	// END EPIC MOD
 
 	// remove virtual drives once we're finished
 	RemoveVirtualDrive();
