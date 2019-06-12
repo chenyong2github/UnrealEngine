@@ -293,6 +293,11 @@ public:
 	FString GetFullName( const UObject* StopOuter=NULL ) const;
 
 	/**
+	 * Version of GetFullName() that eliminates unnecessary copies.
+	 */
+	void GetFullName(const UObject* StopOuter, FString& ResultString) const;
+
+	/**
 	 * Returns the fully qualified pathname for this object, in the format:
 	 * 'Outermost[.Outer].Name'
 	 *
@@ -302,6 +307,11 @@ public:
 	 * @note	safe to call on NULL object pointers!
 	 */
 	FString GetPathName( const UObject* StopOuter=NULL ) const;
+
+	/**
+	 * Version of GetPathName() that eliminates unnecessary copies.
+	 */
+	void GetPathName(const UObject* StopOuter, FString& ResultString) const;
 
 public:
 	/**
@@ -341,11 +351,6 @@ public:
 protected:
 	/** Helper function to create a cluster from UObject */
 	static void CreateClusterFromObject(UObjectBaseUtility* ClusterRootObject, UObjectBaseUtility* ReferencingObject);
-
-	/**
-	 * Internal version of GetPathName() that eliminates lots of copies.
-	 */
-	void GetPathName( const UObject* StopOuter, FString& ResultString ) const;
 
 public:
 	/**

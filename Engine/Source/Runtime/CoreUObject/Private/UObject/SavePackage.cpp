@@ -1631,6 +1631,8 @@ public:
 			Used.AddZeroed(Orig.Num());
 
 			TMap<FString,int32> OriginalImportIndexes;
+			OriginalImportIndexes.Reserve(Orig.Num());
+			ObjectToFullNameMap.Reserve(Orig.Num());
 			for ( int32 i = 0; i < Orig.Num(); i++ )
 			{
 				FObjectImport& Import = Orig[i];
@@ -1673,12 +1675,13 @@ public:
 		}
 		else
 		{
+			ObjectToFullNameMap.Reserve(Linker->ImportMap.Num());
 			for ( int32 ImportIndex = 0; ImportIndex < Linker->ImportMap.Num(); ImportIndex++ )
 			{
 				const FObjectImport& Import = Linker->ImportMap[ImportIndex];
 				if ( Import.XObject )
 				{
-					ObjectToFullNameMap.Add(Import.XObject, *Import.XObject->GetFullName());
+					ObjectToFullNameMap.Add(Import.XObject, Import.XObject->GetFullName());
 				}
 			}
 		}
@@ -1804,6 +1807,15 @@ public:
 	{
 		bUseFObjectFullName = InbUseFObjectFullName;
 
+		if (bUseFObjectFullName)
+		{
+			ObjectToObjectFullNameMap.Reserve(Linker->ExportMap.Num());
+		}
+		else
+		{
+			ObjectToFullNameMap.Reserve(Linker->ExportMap.Num());
+		}
+
 		int32 SortStartPosition=0;
 		if ( LinkerToConformTo )
 		{
@@ -1815,6 +1827,7 @@ public:
 
 			// Populate object to current index map.
 			TMap<FString,int32> OriginalExportIndexes;
+			OriginalExportIndexes.Reserve(Linker->ExportMap.Num());
 			for( int32 ExportIndex=0; ExportIndex < Linker->ExportMap.Num(); ExportIndex++ )
 			{
 				const FObjectExport& Export = Linker->ExportMap[ExportIndex];
@@ -1918,7 +1931,7 @@ public:
 					}
 					else
 					{
-						ObjectToFullNameMap.Add(Export.Object, *Export.Object->GetFullName());
+						ObjectToFullNameMap.Add(Export.Object, Export.Object->GetFullName());
 					}
 				}
 			}
@@ -4217,21 +4230,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							UE_LOG(LogSavePackage, Fatal, TEXT("%s"), *FString::Printf( TEXT("Transient object imported: %s"), *Obj->GetFullName() ) );
 						}
 
-						// add the list of dependencies to the dependency map
-						ObjectDependencies.Add(Obj, ImportTagger.Dependencies);
-						NativeObjectDependencies.Add(Obj, ImportTagger.NativeDependencies);
-
 						if (Obj->GetClass() != UObjectRedirector::StaticClass())
 						{
-							for ( auto DepIt = ImportTagger.Dependencies.CreateConstIterator(); DepIt; ++DepIt )
-							{
-								UObject* DependencyObject = *DepIt;
-								if ( DependencyObject )
-								{
-									DependenciesReferencedByNonRedirectors.Add(DependencyObject);
-								}
-							}
+							DependenciesReferencedByNonRedirectors.Append(ImportTagger.Dependencies);
 						}
+						ObjectDependencies.Add(Obj, MoveTemp(ImportTagger.Dependencies));
+						NativeObjectDependencies.Add(Obj, MoveTemp(ImportTagger.NativeDependencies));
 					}
 				}
 				if (PrestreamPackages.Num())
@@ -4801,6 +4805,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					checkf(SrcDepends,TEXT("Couldn't find dependency map for %s"), *Object->GetFullName());
 
 					// go through each object and...
+					DependIndices.Reserve(SrcDepends->Num());
 					for (int32 DependIndex = 0; DependIndex < SrcDepends->Num(); DependIndex++)
 					{
 						UObject* DependentObject = (*SrcDepends)[DependIndex];
@@ -5244,14 +5249,18 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					FStructuredArchive::FStream DepedenciesStream = StructuredArchiveRoot.EnterStream(FIELD_NAME_TEXT("PreloadDependencies"));
 					TArray<UObject*> Subobjects;
 					TArray<UObject*> Deps;
+					TSet<FPackageIndex> SerializationBeforeCreateDependencies;
+					TSet<FPackageIndex> SerializationBeforeSerializationDependencies;
+					TSet<FPackageIndex> CreateBeforeSerializationDependencies;
+					TSet<FPackageIndex> CreateBeforeCreateDependencies;
 					for (int32 i = 0; i < Linker->ExportMap.Num(); i++)
 					{
 						FObjectExport& Export = Linker->ExportMap[i];
 						if (Export.Object)
 						{
 							EDLCookChecker.AddExport(Export.Object);
-							TSet<FPackageIndex> SerializationBeforeCreateDependencies;
 							{
+								SerializationBeforeCreateDependencies.Reset();
 								IncludeIndexAsDependency(SerializationBeforeCreateDependencies, Export.ClassIndex);
 								UObject* CDO = Export.Object->GetArchetype();
 								IncludeObjectAsDependency(1, SerializationBeforeCreateDependencies, CDO, Export.Object, true, false);
@@ -5278,8 +5287,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									}
 								}
 							}
-							TSet<FPackageIndex> SerializationBeforeSerializationDependencies;
 							{
+								SerializationBeforeSerializationDependencies.Reset();
 								Deps.Reset();
 								Export.Object->GetPreloadDependencies(Deps);
 
@@ -5325,8 +5334,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								}
 							}
 
-							TSet<FPackageIndex> CreateBeforeSerializationDependencies;
 							{
+								CreateBeforeSerializationDependencies.Reset();
 								UClass* Class = Cast<UClass>(Export.Object);
 								UObject* ClassCDO = Class ? Class->GetDefaultObject() : nullptr;
 								{
@@ -5351,8 +5360,9 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									}
 								}
 							}
-							TSet<FPackageIndex> CreateBeforeCreateDependencies;
+
 							{
+								CreateBeforeCreateDependencies.Reset();
 								IncludeIndexAsDependency(CreateBeforeCreateDependencies, Export.OuterIndex);
 								IncludeIndexAsDependency(CreateBeforeCreateDependencies, Export.SuperIndex);
 							}
@@ -5467,6 +5477,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					FScopedSlowTask ExportScope(Linker->ExportMap.Num());
 
 					// Save exports.
+					FString ObjectName;
 					int32 LastExportSaveStep = 0;
 					for( int32 i=0; i<Linker->ExportMap.Num(); i++ )
 					{
@@ -5484,8 +5495,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							Linker->CurrentlySavingExport = FPackageIndex::FromExport(i);
 							// UE_LOG(LogSavePackage, Log, TEXT("export %s for %s"), *Export.Object->GetFullName(), *Linker->CookingTarget()->PlatformName());
 
-							//FString ObjectName = Export.Object->GetPathName(InOuter);
-							FString ObjectName = Export.Object->GetPathName(InOuter);
+							ObjectName.Reset();
+							Export.Object->GetPathName(InOuter, ObjectName);
 							FStructuredArchive::FSlot ExportSlot = StructuredArchiveRoot.EnterField(FIELD_NAME(*ObjectName));
 
 #if WITH_EDITOR
