@@ -2190,6 +2190,21 @@ void UObject::LoadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/
 
 	for ( UProperty* Property = ConfigClass->PropertyLink; Property; Property = Property->PropertyLinkNext )
 	{
+#if WITH_EDITOR
+		FSoftObjectPathSerializationScope SerializationScope(NAME_None, Property->GetFName(), Property->IsEditorOnlyProperty() ? ESoftObjectPathCollectType::EditorOnlyCollect : ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
+
+		if (Property->IsEditorOnlyProperty() && Property->IsA(USoftObjectProperty::StaticClass()))
+		{
+			static TSet<FName> Encountered;
+			FName FullName = *(GetClass()->GetName() + TEXT("::") + Property->GetName());
+			if (!Encountered.Contains(FullName))
+			{
+				UE_LOG(LogConfig, Display, TEXT("Editor only config property: %s"), *FullName.ToString());
+				Encountered.Add(FullName);
+			}
+		}
+#endif
+
 		if ( !Property->HasAnyPropertyFlags(CPF_Config) )
 		{
 			continue;
