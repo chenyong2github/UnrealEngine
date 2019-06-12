@@ -723,6 +723,9 @@ static bool SaveWorld(UWorld* World,
 			}
 		}
 
+		// Mark package as fully loaded, this is usually set implicitly by calling IsFullyLoaded before saving, but that path can get skipped for levels
+		Package->MarkAsFullyLoaded();
+
 		SlowTask.EnterProgressFrame(50);
 
 		// Save package.
