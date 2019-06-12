@@ -6,6 +6,7 @@
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraEmitterEditorData.h"
 #include "EdGraphSchema_Niagara.h"
+#include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraDataInterface.h"
@@ -80,7 +81,8 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 {
 	TSet<const UEdGraphPin*> HiddenPins;
 	TArray<const UEdGraphPin*> InputPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+	FCompileConstantResolver ConstantResolver(GetEmitterViewModel()->GetEmitter());
+	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
 
