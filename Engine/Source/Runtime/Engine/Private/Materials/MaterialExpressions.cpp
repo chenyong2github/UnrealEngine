@@ -216,6 +216,7 @@
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
 #include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
+#include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -13209,6 +13210,58 @@ void UMaterialExpressionShadowReplace::GetCaption(TArray<FString>& OutCaptions) 
 void UMaterialExpressionShadowReplace::GetExpressionToolTip(TArray<FString>& OutToolTip)
 {
 	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior when being rendered into ShadowMap."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionShaderStageSwitch
+//
+UMaterialExpressionShaderStageSwitch::UMaterialExpressionShaderStageSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionShaderStageSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!PixelShader.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input PixelShader"));
+	}
+	else if (!VertexShader.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing input VertexShader"));
+	}
+	else
+	{
+		const EShaderFrequency ShaderFrequency = Compiler->GetCurrentShaderFrequency();
+		return ShouldUsePixelShaderInput(ShaderFrequency) ? PixelShader.Compile(Compiler) : VertexShader.Compile(Compiler);
+	}
+}
+
+
+void UMaterialExpressionShaderStageSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Shader Stage Switch"));
+}
+
+void UMaterialExpressionShaderStageSwitch::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Allows material to define specialized behavior for certain shader stages."), 40, OutToolTip);
 }
 #endif // WITH_EDITOR
 

@@ -25,6 +25,7 @@
 #include "Materials/MaterialExpressionQualitySwitch.h"
 #include "Materials/MaterialExpressionFeatureLevelSwitch.h"
 #include "Materials/MaterialExpressionShadingPathSwitch.h"
+#include "Materials/MaterialExpressionShaderStageSwitch.h"
 #include "Materials/MaterialExpressionMakeMaterialAttributes.h"
 #include "Materials/MaterialExpressionParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
@@ -5052,7 +5053,8 @@ bool UMaterial::GetExpressionsInPropertyChain(EMaterialProperty InProperty,
 	if (StartingExpression->Expression)
 	{
 		ProcessedInputs.AddUnique(StartingExpression);
-		RecursiveGetExpressionChain(StartingExpression->Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath);
+		const EShaderFrequency ShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(InProperty);
+		RecursiveGetExpressionChain(StartingExpression->Expression, ProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath, ShaderFrequency);
 	}
 	return true;
 }
@@ -5192,7 +5194,7 @@ bool UMaterial::GetTexturesInPropertyChain(EMaterialProperty InProperty, TArray<
 
 bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, TArray<FExpressionInput*>& InOutProcessedInputs, 
 	TArray<UMaterialExpression*>& OutExpressions, struct FStaticParameterSet* InStaticParameterSet,
-	ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality, ERHIShadingPath::Type InShadingPath)
+	ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type InQuality, ERHIShadingPath::Type InShadingPath, EShaderFrequency InShaderFrequency)
 {
 	OutExpressions.AddUnique(InExpression);
 	TArray<FExpressionInput*> Inputs;
@@ -5201,6 +5203,7 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 	UMaterialExpressionQualitySwitch* QualitySwitchExp;
 	UMaterialExpressionShadingPathSwitch* ShadingPathSwitchExp;
 	UMaterialExpressionMakeMaterialAttributes* MakeMaterialAttributesExp;
+	UMaterialExpressionShaderStageSwitch* ShaderStageSwitchExp;
 
 	if (InFeatureLevel != ERHIFeatureLevel::Num && (FeatureLevelSwitchExp = Cast<UMaterialExpressionFeatureLevelSwitch>(InExpression)) != nullptr)
 	{
@@ -5233,6 +5236,17 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 		else
 		{
 			Inputs.Add(&ShadingPathSwitchExp->Default);
+		}
+	}
+	else if (InShaderFrequency != SF_NumFrequencies && (ShaderStageSwitchExp = Cast<UMaterialExpressionShaderStageSwitch>(InExpression)) != nullptr)
+	{
+		if (UMaterialExpressionShaderStageSwitch::ShouldUsePixelShaderInput(InShaderFrequency))
+		{
+			Inputs.Add(&ShaderStageSwitchExp->PixelShader);
+		}
+		else
+		{
+			Inputs.Add(&ShaderStageSwitchExp->VertexShader);
 		}
 	}
 	else if (InFeatureLevel <= ERHIFeatureLevel::ES3_1 && (MakeMaterialAttributesExp = Cast<UMaterialExpressionMakeMaterialAttributes>(InExpression)) != nullptr)
@@ -5306,7 +5320,7 @@ bool UMaterial::RecursiveGetExpressionChain(UMaterialExpression* InExpression, T
 					if (bProcessInput == true)
 					{
 						InOutProcessedInputs.Add(InnerInput);
-						RecursiveGetExpressionChain(InnerInput->Expression, InOutProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality);
+						RecursiveGetExpressionChain(InnerInput->Expression, InOutProcessedInputs, OutExpressions, InStaticParameterSet, InFeatureLevel, InQuality, InShadingPath, InShaderFrequency);
 					}
 				}
 			}
