@@ -195,18 +195,8 @@ public:
 	ENGINE_API virtual void HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Context, const float PreviousTime, const float MoveDelta, const FAnimTickRecord &Instance, struct FAnimNotifyQueue& NotifyQueue) const override;
 	virtual void GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const override;
 	virtual int32 GetNumberOfFrames() const override { return NumFrames; }
-	//virtual EAdditiveAnimationType GetAdditiveAnimType() const override;
-	//virtual bool IsValidAdditive() const override { return GetAdditiveAnimType() != AAT_None; }
-	//virtual bool HasRootMotion() const override;
-
 	//~ End UAnimSequenceBase Interface
-	//~ Begin UAnimSequence Interface
-#if WITH_EDITOR
-	//virtual class UAnimSequence* GetAdditiveBasePose() const override;
-	//virtual bool GetAllAnimationSequencesReferred(TArray<UAnimationAsset*>& AnimationAssets, bool bRecursive = true) override;
-	//virtual void ReplaceReferredAnimations(const TMap<UAnimationAsset*, UAnimationAsset*>& ReplacementMap) override;
-#endif
-	//~ End UAnimSequence Interface
+
 #if WITH_EDITOR
 	ENGINE_API void InitFrom(const UAnimSequence* InSourceSequence);
 #endif
