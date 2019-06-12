@@ -31,6 +31,7 @@ template<typename ChannelType> struct TMovieSceneChannelData;
 namespace fbxsdk
 {
 	class FbxCamera;
+	class FbxNode;
 }
 namespace UnFbx
 {
@@ -343,6 +344,15 @@ public:
 	*/
 	static FMovieSceneEvaluationTrack* GetEvaluationTrack(ISequencer *Sequencer, const FGuid& TrackSignature);
 
+	/*
+	 * Get the fbx cameras from the requested parent node
+	 */
+	static void GetCameras(fbxsdk::FbxNode* Parent, TArray<fbxsdk::FbxCamera*>& Cameras);
+
+	/*
+	 * Get the fbx camera name
+	 */
+	static FString GetCameraName(fbxsdk::FbxCamera* InCamera);
 };
 
 class FTrackEditorBindingIDPicker : public FMovieSceneObjectBindingIDPicker
