@@ -269,13 +269,24 @@ void FEventTrackEditor::HandleAddEventTrackMenuEntryExecute(TArray<FGuid> InObje
 	{
 		if (InObjectBindingID.IsValid())
 		{
-			NewTracks.Add(FocusedMovieScene->AddTrack<UMovieSceneEventTrack>(InObjectBindingID));
+			UMovieSceneEventTrack* NewObjectTrack = FocusedMovieScene->AddTrack<UMovieSceneEventTrack>(InObjectBindingID);
+			NewTracks.Add(NewObjectTrack);
+		
+			if (GetSequencer().IsValid())
+			{
+				GetSequencer()->OnAddTrack(NewObjectTrack, InObjectBindingID);
+			}
 		}
 	}
 
 	if (!NewTracks.Num())
 	{
-		NewTracks.Add(FocusedMovieScene->AddMasterTrack<UMovieSceneEventTrack>());
+		UMovieSceneEventTrack* NewMasterTrack = FocusedMovieScene->AddMasterTrack<UMovieSceneEventTrack>();
+		NewTracks.Add(NewMasterTrack);
+		if (GetSequencer().IsValid())
+		{
+			GetSequencer()->OnAddTrack(NewMasterTrack, FGuid());
+		}
 	}
 
 	check(NewTracks.Num() != 0);
@@ -286,13 +297,8 @@ void FEventTrackEditor::HandleAddEventTrackMenuEntryExecute(TArray<FGuid> InObje
 
 		NewTrack->SetDisplayName(LOCTEXT("TrackName", "Events"));
 
-		if (GetSequencer().IsValid())
-		{
-			GetSequencer()->OnAddTrack(NewTrack);
-		}
+		
 	}
-
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
 void FEventTrackEditor::CreateNewSection(UMovieSceneTrack* Track, int32 RowIndex, UClass* SectionType, bool bSelect)
