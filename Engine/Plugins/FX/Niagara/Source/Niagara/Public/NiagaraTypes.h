@@ -571,6 +571,7 @@ public:
 
 	static UEnum* GetExecutionStateEnum() { return ExecutionStateEnum; }
 	static UEnum* GetSimulationTargetEnum() { return SimulationTargetEnum; }
+	static UEnum* GetScriptUsageEnum() { return ScriptUsageEnum; }
 
 	static const FNiagaraTypeDefinition& GetCollisionEventDef() { return CollisionEventDef; }
 
@@ -619,6 +620,7 @@ private:
 	static UScriptStruct* NumericStruct;
 
 	static UEnum* SimulationTargetEnum;
+	static UEnum* ScriptUsageEnum;
 	static UEnum* ExecutionStateEnum;
 	static UEnum* ExecutionStateSourceEnum;
 
