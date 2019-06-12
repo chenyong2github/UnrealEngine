@@ -787,15 +787,7 @@ void FMovieSceneFloatChannel::AutoSetTangents(float Tension)
 			NewTangent = (NextKey.Value - ThisKey.Value) / NextTimeDiff;
 			ThisKey.Tangent.LeaveTangent = NewTangent;
 		}
-		else if (PrevKey.InterpMode == RCIM_Constant || ThisKey.InterpMode == RCIM_Constant)
-		{
-			if (PrevKey.InterpMode != RCIM_Cubic)
-			{
-				ThisKey.Tangent.ArriveTangent = 0.f;
-			}
 
-			ThisKey.Tangent.LeaveTangent  = 0.0f;
-		}
 		
 	}
 }
