@@ -628,9 +628,17 @@ struct CORE_API IConsoleManager
 	 * Unregisters a console object, if that object was registered. O(n), n is the console object count
 	 *
 	 * @param ConsoleObject - object to remove
-	 * @param bool bKeepState if the current state is kept in memory until a cvar with the same name is registered
+	 * @param bKeepState if the current state is kept in memory until a cvar with the same name is registered
 	 */
 	virtual void UnregisterConsoleObject( IConsoleObject* ConsoleObject, bool bKeepState = true) = 0;
+
+	/**
+	 * Unregisters a console variable or command by name, if an object of that name was registered.
+	 *
+	 * @param Name - name of object to remove
+	 * @param bKeepState if the current state is kept in memory until a cvar with the same name is registered
+	 */
+	virtual void UnregisterConsoleObject(const TCHAR* Name, bool bKeepState = true) = 0;
 
 	/**
 	 * Find a console variable
