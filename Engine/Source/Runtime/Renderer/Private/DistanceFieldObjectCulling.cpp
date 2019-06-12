@@ -141,13 +141,13 @@ public:
 		OutUAVs[1] = GAOCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GAOCulledObjectBuffers.Buffers.Data.UAV;
 		OutUAVs[3] = GAOCulledObjectBuffers.Buffers.BoxBounds.UAV;
-		OutUAVs[4] = Scene->DistanceFieldSceneData.ObjectBuffers->Data.UAV;
-		OutUAVs[5] = Scene->DistanceFieldSceneData.ObjectBuffers->Bounds.UAV;
+		OutUAVs[4] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.UAV;
+		OutUAVs[5] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.UAV;
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
 
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.ObjectBuffers), Scene->DistanceFieldSceneData.NumObjectsInBuffer);
+		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), Scene->DistanceFieldSceneData.NumObjectsInBuffer);
 		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GAOCulledObjectBuffers.Buffers);
 		AOParameters.Set(RHICmdList, ShaderRHI, Parameters);
 
@@ -160,7 +160,7 @@ public:
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FScene* Scene)
 	{
-		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.ObjectBuffers));
+		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()));
 		CulledObjectParameters.UnsetParameters(RHICmdList, GetComputeShader());
 
 		FRHIUnorderedAccessView* OutUAVs[6];
@@ -168,8 +168,8 @@ public:
 		OutUAVs[1] = GAOCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GAOCulledObjectBuffers.Buffers.Data.UAV;
 		OutUAVs[3] = GAOCulledObjectBuffers.Buffers.BoxBounds.UAV;
-		OutUAVs[4] = Scene->DistanceFieldSceneData.ObjectBuffers->Data.UAV;
-		OutUAVs[5] = Scene->DistanceFieldSceneData.ObjectBuffers->Bounds.UAV;		
+		OutUAVs[4] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.UAV;
+		OutUAVs[5] = Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.UAV;		
 		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
 	}
 
