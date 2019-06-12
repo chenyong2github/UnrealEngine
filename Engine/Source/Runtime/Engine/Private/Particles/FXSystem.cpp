@@ -361,7 +361,7 @@ void FFXSystem::DrawDebug( FCanvas* Canvas )
 	}
 }
 
-void FFXSystem::PreInitViews(FRHICommandListImmediate& RHICmdList)
+void FFXSystem::PreInitViews()
 {
 	if (RHISupportsGPUParticles())
 	{
