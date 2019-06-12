@@ -140,29 +140,61 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 	if (InActiveSound.bHasAttenuationSettings)
 	{
 		// If we are not using distance-based attenuation, this sound will be audible regardless of distance.
-		const FSoundAttenuationSettings* AttenuationSettingsToApply = InActiveSound.bHasAttenuationSettings ? &InActiveSound.AttenuationSettings : nullptr;
-		if (!AttenuationSettingsToApply->bAttenuate)
+		if (!InActiveSound.AttenuationSettings.bAttenuate)
 		{
 			return true;
 		}
 
-		DistanceScale = InActiveSound.FocusDistanceScale;
+		DistanceScale = InActiveSound.FocusData.DistanceScale;
 	}
 
-	DistanceScale = FMath::Max(DistanceScale, 0.0001f);
+	DistanceScale = FMath::Max(DistanceScale, KINDA_SMALL_NUMBER);
 	const FVector Location = InActiveSound.Transform.GetLocation();
 	return AudioDevice->LocationIsAudible(Location, InActiveSound.MaxDistance / DistanceScale);
 }
 
+void FAudioVirtualLoop::UpdateFocusData(float DeltaTime)
+{
+	check(ActiveSound);
+
+	if (!ActiveSound->bHasAttenuationSettings)
+	{
+		return;
+	}
+
+	// If we are not using distance-based attenuation, this sound will be audible regardless of distance.
+	if (!ActiveSound->AttenuationSettings.bAttenuate)
+	{
+		return;
+	}
+
+	check(ActiveSound->AudioDevice);
+	const FAudioDevice& AudioDevice = *ActiveSound->AudioDevice;
+
+	FAttenuationFocusData FocusData;
+	FTransform ListenerTransform;
+	const TArray<FListener>& Listeners = AudioDevice.GetListeners();
+	if (Listeners.Num() > 0)
+	{
+		int32 ClosestListenerIndex = FAudioDevice::FindClosestListenerIndex(ActiveSound->Transform, Listeners);
+		ListenerTransform = Listeners[ClosestListenerIndex].Transform;
+	}
+
+	FAttenuationListenerData ListenerData = FAttenuationListenerData::Create(AudioDevice, ListenerTransform, ActiveSound->Transform, ActiveSound->AttenuationSettings);
+	ActiveSound->UpdateFocusData(DeltaTime, ListenerData);
+}
+
 bool FAudioVirtualLoop::CanRealize(float DeltaTime, bool bForceUpdate)
 {
+	const float UpdateDelta = TimeSinceLastUpdate + DeltaTime;
+
 	if (bForceUpdate)
 	{
 		TimeSinceLastUpdate = 0.0f;
 	}
 	else if (UpdateInterval > 0.0f)
 	{
-		TimeSinceLastUpdate += DeltaTime;
+		TimeSinceLastUpdate = UpdateDelta;
 		if (UpdateInterval > TimeSinceLastUpdate)
 		{
 			return false;
@@ -173,6 +205,8 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime, bool bForceUpdate)
 #if ENABLE_AUDIO_DEBUG
 	FAudioDebugger::DrawDebugInfo(*this);
 #endif // ENABLE_AUDIO_DEBUG
+
+	UpdateFocusData(UpdateDelta);
 
 	// If not audible, update when will be checked again and return false
 	if (!IsInAudibleRange(*ActiveSound))
