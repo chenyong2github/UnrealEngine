@@ -1297,7 +1297,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 				{
 					// Start caching accessibility data so that it can be returned instantly to IOS. If not cached, the data takes too long
 					// to retrieve due to cross-thread waiting and IOS will timeout.
-					Delegate.AccessibilityCacheTimer = [NSTimer scheduledTimerWithTimeInterval:0.1f target:[FIOSAccessibilityCache AccessibilityElementCache] selector:@selector(UpdateAllCachedProperties) userInfo:nil repeats:YES];
+					Delegate.AccessibilityCacheTimer = [NSTimer scheduledTimerWithTimeInterval:0.25f target:[FIOSAccessibilityCache AccessibilityElementCache] selector:@selector(UpdateAllCachedProperties) userInfo:nil repeats:YES];
 				}
 			});
 		}, TStatId(), NULL, ENamedThreads::GameThread);

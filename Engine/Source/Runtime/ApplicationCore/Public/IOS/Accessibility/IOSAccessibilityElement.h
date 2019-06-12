@@ -29,7 +29,7 @@
 }
 
 /** This must be used instead of initWithAccessibilityContainer in order to work properly. */
--(id)initWithId:(AccessibleWidgetId)InId AndParentId:(AccessibleWidgetId)InParentId;
+-(id)initWithId:(AccessibleWidgetId)InId;
 /** Updates the accessibilityContainer property from UIAccessibilityElement. */
 -(void)SetParent:(AccessibleWidgetId)InParentId;
 /** Get the accessible version of this widget. */

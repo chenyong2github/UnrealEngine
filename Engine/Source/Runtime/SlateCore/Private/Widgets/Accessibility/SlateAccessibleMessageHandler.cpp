@@ -10,19 +10,23 @@
 #include "Widgets/SWindow.h"
 #include "Input/HittestGrid.h"
 
-DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Parent Updated"), STAT_AccessibilitySlateParentUpdated, STATGROUP_Accessibility);
-DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Children Updated"), STAT_AccessibilitySlateChildrenUpdated, STATGROUP_Accessibility);
-DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Behavior Changed"), STAT_AccessibilitySlateBehaviorChanged, STATGROUP_Accessibility);
+DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Tick"), STAT_AccessibilitySlateTick, STATGROUP_Accessibility);
 DECLARE_CYCLE_STAT(TEXT("Slate Accessibility: Event Raised"), STAT_AccessibilitySlateEventRaised, STATGROUP_Accessibility);
+
+FSlateAccessibleMessageHandler::FSlateAccessibleMessageHandler()
+	: FGenericAccessibleMessageHandler()
+	, bDirty(false)
+{
+}
 
 void FSlateAccessibleMessageHandler::OnActivate()
 {
-	// widgets are initialized when their accessible window is created
+	bDirty = true;
 }
 
 void FSlateAccessibleMessageHandler::OnDeactivate()
 {
-	FSlateAccessibleWidgetCache::Get().ClearAll();
+	FSlateAccessibleWidgetCache::ClearAll();
 }
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibleWindow(const TSharedRef<FGenericWindow>& InWindow) const
@@ -30,10 +34,7 @@ TSharedPtr<IAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibleWindo
 	if (IsActive())
 	{
 		TSharedPtr<SWindow> SlateWindow = FSlateWindowHelper::FindWindowByPlatformWindow(FSlateApplicationBase::Get().GetTopLevelWindows(), InWindow);
-		if (SlateWindow.IsValid())
-		{
-			return FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(SlateWindow);
-		}
+		return FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(SlateWindow);
 	}
 	return nullptr;
 }
@@ -50,119 +51,21 @@ AccessibleWidgetId FSlateAccessibleMessageHandler::GetAccessibleWindowId(const T
 
 TSharedPtr<IAccessibleWidget> FSlateAccessibleMessageHandler::GetAccessibleWidgetFromId(AccessibleWidgetId Id) const
 {
-	return FSlateAccessibleWidgetCache::Get().GetAccessibleWidgetFromId(Id);
+	return FSlateAccessibleWidgetCache::GetAccessibleWidgetFromId(Id);
 }
 
 void FSlateAccessibleMessageHandler::OnWidgetRemoved(SWidget* Widget)
 {
 	if (IsActive())
 	{
-		TSharedPtr<FSlateAccessibleWidget> RemovedWidget = FSlateAccessibleWidgetCache::Get().RemoveWidget(Widget);
+		TSharedPtr<FSlateAccessibleWidget> RemovedWidget = FSlateAccessibleWidgetCache::RemoveWidget(Widget);
 		if (RemovedWidget.IsValid())
 		{
-			RaiseEvent(StaticCastSharedPtr<IAccessibleWidget>(RemovedWidget).ToSharedRef(), EAccessibleEvent::WidgetRemoved);
+			RaiseEvent(RemovedWidget.ToSharedRef(), EAccessibleEvent::WidgetRemoved);
+			// If this ensure fails, bDirty = true must be called to ensure the tree is kept up to date.
+			ensureMsgf(!Widget->GetParentWidget().IsValid(), TEXT("A widget was unexpectedly deleted before detaching from its parent."));
 		}
 	}
-}
-
-void FSlateAccessibleMessageHandler::OnWidgetParentChanged(TSharedRef<SWidget> Widget)
-{
-	if (IsActive())
-	{
-		SCOPE_CYCLE_COUNTER(STAT_AccessibilitySlateParentUpdated);
-
-		TSharedPtr<SWidget> Parent = Widget->GetParentWidget();
-		while (Parent.IsValid() && !Parent->IsAccessible())
-		{
-			Parent = Parent->GetParentWidget();
-		}
-		
-		if (Widget->IsAccessible())
-		{
-			if (Parent.IsValid())
-			{
-				FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Widget)->UpdateParent(FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Parent));
-			}
-			else
-			{
-				FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Widget)->UpdateParent(nullptr);
-			}
-		}
-		else if (Parent.IsValid() && Parent->CanChildrenBeAccessible())
-		{
-			TSharedPtr<IAccessibleWidget> AccessibleParent = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Parent);
-			TArray<TSharedRef<SWidget>> AccessibleChildren = FSlateAccessibleWidget::GetAccessibleChildren(Widget);
-			for (int32 i = 0; i < AccessibleChildren.Num(); ++i)
-			{
-				FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(AccessibleChildren[i])->UpdateParent(AccessibleParent);
-			}
-		}
-	}
-}
-
-void FSlateAccessibleMessageHandler::OnWidgetChildrenChanged(TSharedRef<SWidget> Widget)
-{
-	if (IsActive())
-	{
-		SCOPE_CYCLE_COUNTER(STAT_AccessibilitySlateChildrenUpdated);
-
-		TSharedPtr<SWidget> Parent = Widget;
-		while (Parent.IsValid() && !Parent->IsAccessible())
-		{
-			Parent = Parent->GetParentWidget();
-		}
-		if (Parent.IsValid())
-		{
-			TSharedPtr<IAccessibleWidget> AccessibleParent = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Parent);
-			StaticCastSharedPtr<FSlateAccessibleWidget>(AccessibleParent)->MarkChildrenDirty();
-		}
-	}
-}
-
-void FSlateAccessibleMessageHandler::OnWidgetAccessibleBehaviorChanged(TSharedRef<SWidget> Widget)
-{
-	if (IsActive())
-	{
-		SCOPE_CYCLE_COUNTER(STAT_AccessibilitySlateBehaviorChanged);
-
-		TSharedPtr<SWidget> Parent = Widget->GetParentWidget();
-		while (Parent.IsValid())
-		{
-			if (Parent->IsAccessible())
-			{
-				break;
-			}
-
-			Parent = Parent->GetParentWidget();
-		}
-
-		if (Parent.IsValid())
-		{
-			TSharedPtr<IAccessibleWidget> AccessibleParent = FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Parent);
-			TArray<TSharedRef<SWidget>> AccessibleChildren = FSlateAccessibleWidget::GetAccessibleChildren(Widget);
-			if (Widget->IsAccessible())
-			{
-				TSharedPtr<FSlateAccessibleWidget> AccessibleWidget = StaticCastSharedPtr<FSlateAccessibleWidget>(FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Widget));
-				for (int32 i = 0; i < AccessibleChildren.Num(); ++i)
-				{
-					FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(AccessibleChildren[i])->UpdateParent(AccessibleWidget);
-				}
-				AccessibleWidget->UpdateParent(AccessibleParent);
-			}
-			else
-			{
-				for (int32 i = 0; i < AccessibleChildren.Num(); ++i)
-				{
-					FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(AccessibleChildren[i])->UpdateParent(AccessibleParent);
-				}
-			}
-		}
-	}
-}
-
-void FSlateAccessibleMessageHandler::OnWidgetEventRaised(TSharedRef<SWidget> Widget, EAccessibleEvent Event)
-{
-	OnWidgetEventRaised(Widget, Event, FVariant(), FVariant());
 }
 
 void FSlateAccessibleMessageHandler::OnWidgetEventRaised(TSharedRef<SWidget> Widget, EAccessibleEvent Event, FVariant OldValue, FVariant NewValue)
@@ -173,7 +76,80 @@ void FSlateAccessibleMessageHandler::OnWidgetEventRaised(TSharedRef<SWidget> Wid
 		// todo: not sure what to do for a case like focus changed to not-accessible widget. maybe pass through a nullptr?
 		if (Widget->IsAccessible())
 		{
-			FSlateAccessibleMessageHandler::RaiseEvent(FSlateAccessibleWidgetCache::Get().GetAccessibleWidget(Widget).ToSharedRef(), Event, OldValue, NewValue);
+			FSlateAccessibleMessageHandler::RaiseEvent(FSlateAccessibleWidgetCache::GetAccessibleWidget(Widget), Event, OldValue, NewValue);
+		}
+	}
+}
+
+int32 GAccessibleWidgetsProcessedPerTick = 100;
+FAutoConsoleVariableRef AccessibleWidgetsProcessedPerTickRef(
+	TEXT("Slate.AccessibleWidgetsProcessedPerTick"),
+	GAccessibleWidgetsProcessedPerTick,
+	TEXT("To reduce performance spikes, generating the accessible widget tree is limited to this many widgets per tick to update.")
+);
+
+void FSlateAccessibleMessageHandler::Tick()
+{
+	if (IsActive())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_AccessibilitySlateTick);
+		if (bDirty && ToProcess.Num() == 0)
+		{
+			bDirty = false;
+			// Process ALL windows, not just the top level ones. Otherwise we miss things like combo boxes.
+			TArray<TSharedRef<SWindow>> SlateWindows = FSlateApplicationBase::Get().GetTopLevelWindows();
+			while (SlateWindows.Num() > 0)
+			{
+				const TSharedRef<SWindow> CurrentWindow = SlateWindows.Pop(false);
+				ToProcess.Emplace(CurrentWindow, FSlateAccessibleWidgetCache::GetAccessibleWidget(CurrentWindow));
+				SlateWindows.Append(CurrentWindow->GetChildWindows());
+			}
+		}
+
+		if (ToProcess.Num() > 0)
+		{
+			for (int32 Counter = 0; ToProcess.Num() > 0 && Counter < GAccessibleWidgetsProcessedPerTick; ++Counter)
+			{
+				FWidgetAndParent WidgetAndParent = ToProcess.Pop(false);
+				if (WidgetAndParent.Widget.IsValid())
+				{
+					TSharedPtr<SWidget> SharedWidget = WidgetAndParent.Widget.Pin();
+					if (SharedWidget->CanChildrenBeAccessible())
+					{
+						FChildren* SharedChildren = SharedWidget->GetChildren();
+						for (int32 i = 0; i < SharedChildren->Num(); ++i)
+						{
+							TSharedRef<SWidget> Child = SharedChildren->GetChildAt(i);
+							if (Child->GetAccessibleBehavior() != EAccessibleBehavior::NotAccessible)
+							{
+								TSharedRef<FSlateAccessibleWidget> AccessibleChild = FSlateAccessibleWidgetCache::GetAccessibleWidget(Child);
+								AccessibleChild->SiblingIndex = WidgetAndParent.Parent->ChildrenBuffer.Num();
+								AccessibleChild->UpdateParent(WidgetAndParent.Parent);
+								// A separate children buffer is filled instead of the children array itself
+								// so that accessibility queries still work (using the old data) while updating
+								// accessible widget data.
+								WidgetAndParent.Parent->ChildrenBuffer.Add(AccessibleChild);
+								ToProcess.Emplace(Child, AccessibleChild);
+							}
+							else
+							{
+								// Keep a reference to the last-known accessible parent
+								ToProcess.Emplace(Child, WidgetAndParent.Parent);
+							}
+						}
+					}
+				}
+			}
+
+			// Once processing is finished, update each widget's children array with its children buffer
+			if (ToProcess.Num() == 0)
+			{
+				for (auto WidgetIterator = FSlateAccessibleWidgetCache::GetAllWidgets(); WidgetIterator; ++WidgetIterator)
+				{
+					TSharedRef<FSlateAccessibleWidget> AccessibleWidget = WidgetIterator.Value();
+					AccessibleWidget->Children = MoveTemp(AccessibleWidget->ChildrenBuffer);
+				}
+			}
 		}
 	}
 }

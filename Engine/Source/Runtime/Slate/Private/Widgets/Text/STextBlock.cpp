@@ -478,7 +478,7 @@ FTextBlockStyle STextBlock::GetComputedTextStyle() const
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> STextBlock::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> STextBlock::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleTextBlock(SharedThis(this)));
 }

@@ -512,7 +512,7 @@ void SSlider::SetRequiresControllerLock(bool RequiresControllerLock) {
 }
 
 #if WITH_ACCESSIBILITY
-TSharedPtr<FSlateAccessibleWidget> SSlider::CreateAccessibleWidget()
+TSharedRef<FSlateAccessibleWidget> SSlider::CreateAccessibleWidget()
 {
 	return MakeShareable<FSlateAccessibleWidget>(new FSlateAccessibleSlider(SharedThis(this)));
 }

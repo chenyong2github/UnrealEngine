@@ -539,7 +539,7 @@ HRESULT STDCALL FWindowsUIAWidgetProvider::get_FragmentRoot(IRawElementProviderF
 {
 	if (IsValid())
 	{
-		TSharedPtr<IAccessibleWidget> Window = Widget->GetTopLevelWindow();
+		TSharedPtr<IAccessibleWidget> Window = Widget->GetWindow();
 		if (Window.IsValid())
 		{
 			*pRetVal = static_cast<IRawElementProviderFragmentRoot*>(&static_cast<FWindowsUIAWindowProvider&>(UIAManager->GetWidgetProvider(Window.ToSharedRef())));
