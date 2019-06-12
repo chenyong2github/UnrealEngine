@@ -2095,11 +2095,23 @@ uint32_t CompilerMSL::add_interface_block(StorageClass storage, bool patch)
 					{
 						// The first member of the indirect buffer is always the number of vertices
 						// to draw.
-						statement("device ", to_name(ir.default_entry_point), "_", ib_var_ref, "& ", ib_var_ref, " = ",
-						          output_buffer_var_name, "[(", to_expression(builtin_instance_idx_id), " - ",
-						          to_expression(builtin_base_instance_id), ") * spvIndirectParams[0] + ",
-						          to_expression(builtin_vertex_idx_id), " - ", to_expression(builtin_base_vertex_id),
-						          "];");
+						/* UE Change Begin: We zero-base the InstanceID & VertexID variables for HLSL emulation elsewhere, so don't do it twice */
+						if (ir.source.hlsl == true)
+						{
+							statement("device ", to_name(ir.default_entry_point), "_", ib_var_ref, "& ", ib_var_ref, " = ",
+									  output_buffer_var_name, "[", to_expression(builtin_instance_idx_id), " * spvIndirectParams[0] + ",
+									  to_expression(builtin_vertex_idx_id),
+									  "];");
+						}
+						else
+						{
+							statement("device ", to_name(ir.default_entry_point), "_", ib_var_ref, "& ", ib_var_ref, " = ",
+									  output_buffer_var_name, "[(", to_expression(builtin_instance_idx_id), " - ",
+									  to_expression(builtin_base_instance_id), ") * spvIndirectParams[0] + ",
+									  to_expression(builtin_vertex_idx_id), " - ", to_expression(builtin_base_vertex_id),
+									  "];");
+						}
+						/* UE Change End: We zero-base the InstanceID & VertexID variables for HLSL emulation elsewhere, so don't do it twice */
 					}
 				});
 				break;
