@@ -129,7 +129,7 @@ struct FRayTracingGeometryInitializer
 	uint32 BaseVertexIndex = 0;
 	ERayTracingGeometryType GeometryType = RTGT_Triangles;
 	uint32 TotalPrimitiveCount = 0;
-	TArrayView<FRayTracingGeometrySegment> Segments;
+	TArray<FRayTracingGeometrySegment> Segments;
 	bool bFastBuild = false;
 	bool bAllowUpdate = false;
 };
