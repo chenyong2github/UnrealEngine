@@ -352,12 +352,9 @@ void FLandscapeEditorCustomNodeBuilder_Layers::FillAddBrushMenu(FMenuBuilder& Me
 {
 	for (ALandscapeBlueprintCustomBrush* Brush : Brushes)
 	{
-		if (Brush->GetOwningLandscape() == nullptr)
-		{
-			TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
-			FUIAction AddAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, Brush]() { SharedThis->AddBrushToCurrentLayer(Brush); }));
-			MenuBuilder.AddMenuEntry(FText::FromString(Brush->GetActorLabel()), FText(), FSlateIcon(), AddAction);
-		}
+		TSharedRef<FLandscapeEditorCustomNodeBuilder_Layers> SharedThis = AsShared();
+		FUIAction AddAction = FUIAction(FExecuteAction::CreateLambda([SharedThis, Brush]() { SharedThis->AddBrushToCurrentLayer(Brush); }));
+		MenuBuilder.AddMenuEntry(FText::FromString(Brush->GetActorLabel()), FText(), FSlateIcon(), AddAction);
 	}
 }
 
@@ -448,14 +445,15 @@ TSharedPtr<SWidget> FLandscapeEditorCustomNodeBuilder_Layers::OnLayerContextMenu
 		MenuBuilder.EndSection();
 
 		const TArray<ALandscapeBlueprintCustomBrush*>& Brushes = LandscapeEdMode->GetBrushList();
-		if (Brushes.ContainsByPredicate([](ALandscapeBlueprintCustomBrush* Brush) { return Brush->GetOwningLandscape() == nullptr; }))
+		TArray<ALandscapeBlueprintCustomBrush*> FilteredBrushes = Brushes.FilterByPredicate([](ALandscapeBlueprintCustomBrush* Brush) { return Brush->GetOwningLandscape() == nullptr; });
+		if (FilteredBrushes.Num())
 		{
 			MenuBuilder.BeginSection("LandscapeEditorBrushActions", LOCTEXT("LandscapeEditorBrushActions.Heading", "Brushes"));
 			{
 				MenuBuilder.AddSubMenu(
 					LOCTEXT("LandscaeEditorBrushAddSubMenu", "Add"),
 					LOCTEXT("LandscaeEditorBrushAddSubMenuToolTip", "Add brush to current layer"),
-					FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::FillAddBrushMenu, Brushes),
+					FNewMenuDelegate::CreateSP(this, &FLandscapeEditorCustomNodeBuilder_Layers::FillAddBrushMenu, FilteredBrushes),
 					false,
 					FSlateIcon()
 				);
