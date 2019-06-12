@@ -435,6 +435,7 @@ void FCurveEditorTransformTool::OnDragStart()
 	}
 	TransformWidget.StartSize = TransformWidget.Size;
 	TransformWidget.StartPosition = TransformWidget.Position;
+	SnappingState.Reset();
 }
 
 void FCurveEditorTransformTool::OnDrag(const FPointerEvent& MouseEvent)
@@ -452,7 +453,7 @@ void FCurveEditorTransformTool::OnDrag(const FPointerEvent& MouseEvent)
 	// Dragging the center is the easy case!
 	if (TransformWidget.SelectedAnchorFlags == ECurveEditorAnchorFlags::Center)
 	{
-		FVector2D AxisLockedMousePosition = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialMousePosition, MouseEvent.GetScreenSpacePosition(), MouseEvent);
+		FVector2D AxisLockedMousePosition = CurveEditor->GetAxisSnap().GetSnappedPosition(InitialMousePosition, MouseEvent.GetScreenSpacePosition(), MouseEvent, SnappingState);
 		{
 			FVector2D MouseDelta = AxisLockedMousePosition - InitialMousePosition;
 			TransformWidget.Position = TransformWidget.StartPosition + MouseDelta;
