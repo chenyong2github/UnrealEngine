@@ -648,6 +648,11 @@ protected:
 		/* UE Change Begin: Emulate texture2D atomic operations */
 		std::unordered_map<uint32_t, SPIRVariable*> image_pointers;
 		/* UE Change End: Emulate texture2D atomic operations */
+		/* UE Change Begin: Fix tessellation patch function processing */
+		std::unordered_map<uint32_t, uint32_t> invocation_ids;
+		std::unordered_set<uint32_t> variables_indexed_by_invocation;
+		bool passed_control_barrier = false;
+		/* UE Change End: Fix tessellation patch function processing */
 		bool suppress_missing_prototypes = false;
 		bool uses_atomics = false;
 		bool uses_resource_write = false;

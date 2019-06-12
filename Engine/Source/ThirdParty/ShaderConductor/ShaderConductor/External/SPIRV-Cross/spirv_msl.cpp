@@ -4558,8 +4558,11 @@ void CompilerMSL::emit_barrier(uint32_t id_exe_scope, uint32_t id_mem_scope, uin
 		if (get_execution_model() == ExecutionModelTessellationControl ||
 		    (mem_sem & (MemorySemanticsUniformMemoryMask | MemorySemanticsCrossWorkgroupMemoryMask)))
 			mem_flags += "mem_flags::mem_device";
-		if (mem_sem & (MemorySemanticsSubgroupMemoryMask | MemorySemanticsWorkgroupMemoryMask |
-		               MemorySemanticsAtomicCounterMemoryMask))
+		/* UE Change Begin: Fix tessellation patch function processing */
+		if (get_execution_model() == ExecutionModelTessellationControl ||
+			(mem_sem & (MemorySemanticsSubgroupMemoryMask | MemorySemanticsWorkgroupMemoryMask |
+		               MemorySemanticsAtomicCounterMemoryMask)))
+		/* UE Change End: Fix tessellation patch function processing */
 		{
 			if (!mem_flags.empty())
 				mem_flags += " | ";
@@ -8691,6 +8694,43 @@ bool CompilerMSL::OpCodePreprocessor::handle(Op opcode, const uint32_t *args, ui
 		break;
 	}
 
+	/* UE Change Begin: Fix tessellation patch function processing */
+	case OpLoad:
+	{
+		if(compiler.get_execution_model() == ExecutionModelTessellationControl)
+		{
+			uint32_t id = args[1];
+			uint32_t ptr = args[2];
+			
+			uint32_t source_id = ptr;
+			auto *var = compiler.maybe_get_backing_variable(source_id);
+			if (var)
+				source_id = var->self;
+			
+			// Only interested in standalone builtin variables.
+			if (compiler.has_decoration(source_id, DecorationBuiltIn))
+			{
+				auto builtin = static_cast<BuiltIn>(compiler.get_decoration(source_id, DecorationBuiltIn));
+				switch (builtin)
+				{
+					case BuiltInInvocationId:
+						invocation_ids[id] = ptr;
+						break;
+					default:
+						break;
+				}
+			}
+		}
+		break;
+	}
+			
+	case OpControlBarrier:
+	{
+		passed_control_barrier = true;
+		break;
+	}
+	/* UE Change End: Fix tessellation patch function processing */
+			
 	case OpInBoundsAccessChain:
 	case OpAccessChain:
 	case OpPtrAccessChain:
@@ -8699,6 +8739,54 @@ bool CompilerMSL::OpCodePreprocessor::handle(Op opcode, const uint32_t *args, ui
 		uint32_t result_type = args[0];
 		uint32_t id = args[1];
 		uint32_t ptr = args[2];
+		
+		/* UE Change Begin: Fix tessellation patch function processing */
+		if(compiler.get_execution_model() == ExecutionModelTessellationControl)
+		{
+			uint32_t source_id = args[3];
+			bool isIndexedByInvocation = variables_indexed_by_invocation.find(ptr) != variables_indexed_by_invocation.end() || invocation_ids.find(source_id) != invocation_ids.end();
+			if (!isIndexedByInvocation)
+			{
+				auto *var = compiler.maybe_get_backing_variable(source_id);
+				if (var)
+					source_id = var->self;
+				
+				// Only interested in standalone builtin variables.
+				if (compiler.has_decoration(source_id, DecorationBuiltIn))
+				{
+					auto builtin = static_cast<BuiltIn>(compiler.get_decoration(source_id, DecorationBuiltIn));
+					switch (builtin)
+					{
+						case BuiltInInvocationId:
+							isIndexedByInvocation = true;
+							break;
+						default:
+							break;
+					}
+				}
+			}
+			
+			if (isIndexedByInvocation)
+			{
+				if (passed_control_barrier)
+				{
+					auto *var = compiler.maybe_get_backing_variable(ptr);
+					if (var)
+					{
+						auto* var_type = compiler.maybe_get<SPIRType>(var->basetype);
+						var_type->storage = StorageClassWorkgroup;
+						var->storage = StorageClassWorkgroup;
+						variables_indexed_by_invocation.erase(ptr);
+					}
+				}
+				else
+				{
+					variables_indexed_by_invocation.insert(ptr);
+				}
+			}
+		}
+		/* UE Change End: Fix tessellation patch function processing */
+		
 		compiler.set<SPIRExpression>(id, "", result_type, true);
 		compiler.register_read(id, ptr, true);
 		compiler.ir.ids[id].set_allow_type_rewrite();
