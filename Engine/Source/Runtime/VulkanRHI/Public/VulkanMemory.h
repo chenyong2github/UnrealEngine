@@ -20,7 +20,7 @@ enum class EDelayAcquireImageType
 {
 	None,			// acquire next image on frame start
 	DelayAcquire,	// acquire next image just before presenting, rendering is done to intermediate image which is copied to real backbuffer
-	PreAcquire,		// acquire next image immediately after presenting current
+	LazyAcquire,	// acquire next image on first use
 };
 
 extern EDelayAcquireImageType GVulkanDelayAcquireImage;
