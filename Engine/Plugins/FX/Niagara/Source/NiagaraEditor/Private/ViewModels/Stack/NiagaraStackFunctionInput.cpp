@@ -882,11 +882,12 @@ UNiagaraNodeCustomHlsl* UNiagaraStackFunctionInput::GetExpressionNode() const
 	return InputValues.ExpressionNode.Get();
 }
 
-void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs)
+void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript*>& AvailableDynamicInputs, bool bIncludeNonLibraryInputs)
 {
 	TArray<FAssetData> DynamicInputAssets;
 	FNiagaraEditorUtilities::FGetFilteredScriptAssetsOptions DynamicInputScriptFilterOptions;
 	DynamicInputScriptFilterOptions.ScriptUsageToInclude = ENiagaraScriptUsage::DynamicInput;
+	DynamicInputScriptFilterOptions.bIncludeNonLibraryScripts = bIncludeNonLibraryInputs;
 	FNiagaraEditorUtilities::GetFilteredScriptAssets(DynamicInputScriptFilterOptions, DynamicInputAssets);
 
 	for (const FAssetData& DynamicInputAsset : DynamicInputAssets)
