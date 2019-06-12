@@ -121,9 +121,11 @@ class ENGINESETTINGS_API UGameMapsSettings
 
 public:
 
+#if WITH_EDITORONLY_DATA
 	/** If set, this map will be loaded when the Editor starts up. */
 	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, meta=(AllowedClasses="World"))
 	FSoftObjectPath EditorStartupMap;
+#endif
 
 	/** The default options that will be appended to a map being loaded. */
 	UPROPERTY(config, EditAnywhere, Category=DefaultMaps, AdvancedDisplay)
