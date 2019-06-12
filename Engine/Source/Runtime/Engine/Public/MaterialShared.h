@@ -1172,16 +1172,16 @@ private:
 };
 
 /** Returns whether the given expression class is allowed. */
-extern ENGINE_API bool IsAllowedExpressionType(UClass* Class, bool bMaterialFunction);
+extern ENGINE_API bool IsAllowedExpressionType(const UClass* const Class, const bool bMaterialFunction);
 
 /** Parses a string into multiple lines, for use with tooltips. */
-extern ENGINE_API void ConvertToMultilineToolTip(const FString& InToolTip, int32 TargetLineLength, TArray<FString>& OutToolTip);
+extern ENGINE_API void ConvertToMultilineToolTip(const FString& InToolTip, const int32 TargetLineLength, TArray<FString>& OutToolTip);
 
 /** Given a combination of EMaterialValueType flags, get text descriptions of all types */
-extern ENGINE_API void GetMaterialValueTypeDescriptions(uint32 MaterialValueType, TArray<FText>& OutDescriptions);
+extern ENGINE_API void GetMaterialValueTypeDescriptions(const uint32 MaterialValueType, TArray<FText>& OutDescriptions);
 
 /** Check whether a combination of EMaterialValueType flags can be connected */
-extern ENGINE_API bool CanConnectMaterialValueTypes(uint32 InputType, uint32 OutputType);
+extern ENGINE_API bool CanConnectMaterialValueTypes(const uint32 InputType, const uint32 OutputType);
 
 /**
  * FMaterial serves 3 intertwined purposes:
