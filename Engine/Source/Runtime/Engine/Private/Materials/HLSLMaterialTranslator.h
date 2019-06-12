@@ -253,6 +253,10 @@ protected:
 	uint32 NumUserVertexTexCoords;
 
 	uint32 DynamicParticleParameterMask;
+
+	/** Will contain all the shading models picked up from the material expression graph */
+	FMaterialShadingModelField ShadingModelsFromCompilation;
+
 public: 
 
 	FHLSLMaterialTranslator(FMaterial* InMaterial,
@@ -591,8 +595,8 @@ public:
 				}
 			}
 
+			
 			const EShaderFrequency NormalShaderFrequency = FMaterialAttributeDefinitionMap::GetShaderFrequency(MP_Normal);
-			const FMaterialShadingModelField MaterialShadingModels = Material->GetShadingModels();
 			const EMaterialDomain Domain = Material->GetMaterialDomain();
 			const EBlendMode BlendMode = Material->GetBlendMode();
 
@@ -625,6 +629,19 @@ public:
 			Chunk[MP_WorldPositionOffset]			= Material->CompilePropertyAndSetMaterialProperty(MP_WorldPositionOffset	,this);
 			Chunk[MP_WorldDisplacement]				= Material->CompilePropertyAndSetMaterialProperty(MP_WorldDisplacement		,this);
 			Chunk[MP_TessellationMultiplier]		= Material->CompilePropertyAndSetMaterialProperty(MP_TessellationMultiplier	,this);			
+
+			// Make sure to compile this property before using ShadingModelsFromCompilation
+			Chunk[MP_ShadingModel]					= Material->CompilePropertyAndSetMaterialProperty(MP_ShadingModel			,this);
+			
+			// Get shading models from material.
+			FMaterialShadingModelField MaterialShadingModels = Material->GetShadingModels(); 
+
+			// If the material gets its shading model from material expressions and we have compiled one or more shading model expressions, 
+			// then use that shading model field instead. It's the most optimal set of shading models
+			if (Material->IsShadingModelFromMaterialExpression() && ShadingModelsFromCompilation.IsValid())
+			{
+				MaterialShadingModels = ShadingModelsFromCompilation;
+			}
 
 			if (Domain == MD_Surface && IsSubsurfaceShadingModel(MaterialShadingModels))
 			{
@@ -667,7 +684,6 @@ public:
 
 			Chunk[MP_PixelDepthOffset] = Material->CompilePropertyAndSetMaterialProperty(MP_PixelDepthOffset, this);
 
-			Chunk[MP_ShadingModel] = Material->CompilePropertyAndSetMaterialProperty(MP_ShadingModel, this);
 
 			// No more calls to non-vertex shader CompilePropertyAndSetMaterialProperty beyond this point
 			const uint32 SavedNumUserTexCoords = NumUserTexCoords;
@@ -1092,6 +1108,89 @@ public:
 			FShaderUniformBufferParameter::ModifyCompilationEnvironment(*CollectionName, ParameterCollections[CollectionIndex]->GetUniformBufferStruct(), InPlatform, OutEnvironment);
 		}
 		OutEnvironment.SetDefine(TEXT("IS_MATERIAL_SHADER"), TEXT("1"));
+
+		// Set all the shading models for this material here 
+		FMaterialShadingModelField ShadingModels = Material->GetShadingModels();
+
+		// If the material gets its shading model from the material expressions, then we use the result from the compilation (assuming it's valid).
+		// This result will potentially be tighter than what GetShadingModels() returns, because it only picks up the shading models from the expressions that get compiled for a specific feature level and quality level
+		// For example, the material might have shading models behind static switches. GetShadingModels() will return both the true and the false paths from that switch, whereas the shading model field from the compilation will only contain the actual shading model selected 
+		if (Material->IsShadingModelFromMaterialExpression() && ShadingModelsFromCompilation.IsValid())
+		{
+			// Shading models fetched from the compilation of the expression graph
+			ShadingModels = ShadingModelsFromCompilation;
+		}
+
+		ensure(ShadingModels.IsValid());
+
+		if (ShadingModels.IsLit())
+		{	
+			int NumSetMaterials = 0;
+			if (ShadingModels.HasShadingModel(MSM_DefaultLit))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_DEFAULT_LIT"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_Subsurface))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_SUBSURFACE"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_PreintegratedSkin))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_SubsurfaceProfile))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_ClearCoat))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_CLEAR_COAT"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_TwoSidedFoliage))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_Hair))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_HAIR"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_Cloth))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_CLOTH"), TEXT("1"));
+				NumSetMaterials++;
+			}
+			if (ShadingModels.HasShadingModel(MSM_Eye))
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_EYE"), TEXT("1"));
+				NumSetMaterials++;
+			}
+
+			if (NumSetMaterials == 1)
+			{
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SINGLE_SHADINGMODEL"), TEXT("1"));
+			}
+
+			ensure(NumSetMaterials != 0);
+			if (NumSetMaterials == 0)
+			{
+				// Should not really end up here
+				UE_LOG(LogMaterial, Warning, TEXT("Unknown material shading model(s). Setting to MSM_DefaultLit"));
+				OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_DEFAULT_LIT"),TEXT("1"));
+			}
+		}
+		else
+		{
+			// Unlit shading model can only exist by itself
+			OutEnvironment.SetDefine(TEXT("MATERIAL_SINGLE_SHADINGMODEL"), TEXT("1"));
+			OutEnvironment.SetDefine(TEXT("MATERIAL_SHADINGMODEL_UNLIT"), TEXT("1"));
+		}
 	}
 
 	void GetSharedInputsMaterialCode(FString& PixelMembersDeclaration, FString& NormalAssignment, FString& PixelMembersInitializationEpilog)
@@ -5544,6 +5643,7 @@ protected:
 
 	virtual int32 ShadingModel(EMaterialShadingModel InSelectedShadingModel) override
 	{
+		ShadingModelsFromCompilation.AddShadingModel(InSelectedShadingModel);
 		return AddInlinedCodeChunk(MCT_ShadingModel, TEXT("%d"), InSelectedShadingModel);
 	}
 
