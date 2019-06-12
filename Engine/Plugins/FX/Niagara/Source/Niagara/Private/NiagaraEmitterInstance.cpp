@@ -387,7 +387,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting)
 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
-			GPUExecContext->Reset();
+			GPUExecContext->Reset(Batcher);
 		}
 	}
 }
@@ -678,7 +678,7 @@ FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulati
 		if (!bReadGPUSimulation || (GPUExecContext == nullptr))
 			return FBox(ForceInit);
 
-		ScopedGPUReadback.ReadbackData(GPUExecContext->MainDataSet);
+		ScopedGPUReadback.ReadbackData(Batcher, GPUExecContext->MainDataSet);
 		NumInstances = ScopedGPUReadback.GetNumInstances();
 	}
 	else
@@ -1017,15 +1017,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		check(GPUExecContext->GPUScript_RT == CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript());
 		GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
-
-		if (CachedEmitter->GetRenderers().Num() > 0 && CachedEmitter->GetRenderers()[0] != nullptr)
-		{
-			GPUExecContext->NumIndicesPerInstance = CachedEmitter->GetRenderers()[0]->GetNumIndicesPerInstance();
-		}
-		else
-		{
-			GPUExecContext->NumIndicesPerInstance = 0;
-		}
 
 		GPUExecContext->EventSpawnTotal_GT = EventSpawnTotal;
 		GPUExecContext->SpawnRateInstances_GT = SpawnTotal;
