@@ -1172,9 +1172,8 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 		if (Initializer.ParameterMap.ContainsParameterAllocation(StructIt->GetShaderVariableName()))
 		{
 			UniformBufferParameterStructs.Add(*StructIt);
-			UniformBufferParameters.Add(new FShaderUniformBufferParameter());
-			FShaderUniformBufferParameter* Parameter = UniformBufferParameters.Last();
-			Parameter->Bind(Initializer.ParameterMap, StructIt->GetShaderVariableName(), SPF_Mandatory);
+			FShaderUniformBufferParameter& Parameter = UniformBufferParameters.AddDefaulted_GetRef();
+			Parameter.Bind(Initializer.ParameterMap, StructIt->GetShaderVariableName(), SPF_Mandatory);
 		}
 	}
 
@@ -1188,11 +1187,6 @@ FShader::FShader(const CompiledShaderInitializerType& Initializer)
 FShader::~FShader()
 {
 	check(NumRefs == 0);
-
-	for (int32 StructIndex = 0; StructIndex < UniformBufferParameters.Num(); StructIndex++)
-	{
-		delete UniformBufferParameters[StructIndex];
-	}
 }
 
 
@@ -1266,13 +1260,10 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 				Struct = FindUniformBufferStructByFName(StructFName);
 				checkf(Struct, TEXT("Uniform Buffer Struct %s no longer exists, which shader of type %s was compiled with.  Modify ShaderVersion.ush to invalidate old shaders."), *StructFName.ToString(), Type->GetName());
 			}
-			
-			FShaderUniformBufferParameter* Parameter = new FShaderUniformBufferParameter();
-
-			Ar << *Parameter;
 
 			UniformBufferParameterStructs.Add(Struct);
-			UniformBufferParameters.Add(Parameter);
+			FShaderUniformBufferParameter& Parameter = UniformBufferParameters.AddDefaulted_GetRef();
+			Ar << Parameter;
 		}
 	}
 	else
@@ -1294,7 +1285,7 @@ bool FShader::SerializeBase(FArchive& Ar, bool bShadersInline, bool bLoadedByCoo
 				Ar << StructFName;
 			}
 
-			Ar << *UniformBufferParameters[StructIndex];
+			Ar << UniformBufferParameters[StructIndex];
 		}
 	}
 

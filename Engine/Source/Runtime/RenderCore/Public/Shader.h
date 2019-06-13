@@ -1000,9 +1000,14 @@ public:
 	template<typename UniformBufferStructType>
 	FORCEINLINE_DEBUGGABLE const TShaderUniformBufferParameter<UniformBufferStructType>& GetUniformBufferParameter() const
 	{
-		const FShaderParametersMetadata* SearchStruct = &UniformBufferStructType::StaticStructMetadata;
-		int32 FoundIndex = INDEX_NONE;
+		const FShaderUniformBufferParameter& FoundParameter = GetUniformBufferParameter(&UniformBufferStructType::StaticStructMetadata);
+		return static_cast<const TShaderUniformBufferParameter<UniformBufferStructType>&>(FoundParameter);
+	}
 
+	/** Finds an automatically bound uniform buffer matching the given uniform buffer struct if one exists, or returns an unbound parameter. */
+	FORCEINLINE_DEBUGGABLE const FShaderUniformBufferParameter& GetUniformBufferParameter(const FShaderParametersMetadata* SearchStruct) const
+	{
+		int32 FoundIndex = INDEX_NONE;
 		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
 		{
 			if (UniformBufferParameterStructs[StructIndex] == SearchStruct)
@@ -1014,7 +1019,7 @@ public:
 
 		if (FoundIndex != INDEX_NONE)
 		{
-			const TShaderUniformBufferParameter<UniformBufferStructType>& FoundParameter = (const TShaderUniformBufferParameter<UniformBufferStructType>&)*UniformBufferParameters[FoundIndex];
+			const FShaderUniformBufferParameter& FoundParameter = UniformBufferParameters[FoundIndex];
 			return FoundParameter;
 		}
 		else
@@ -1022,33 +1027,6 @@ public:
 			// This can happen if the uniform buffer was not bound
 			// There's no good way to distinguish not being bound due to temporary debugging / compiler optimizations or an actual code bug,
 			// Hence failing silently instead of an error message
-			static TShaderUniformBufferParameter<UniformBufferStructType> UnboundParameter;
-			UnboundParameter.SetInitialized();
-			return UnboundParameter;
-		}
-	}
-
-	/** Finds an automatically bound uniform buffer matching the given uniform buffer struct if one exists, or returns an unbound parameter. */
-	const FShaderUniformBufferParameter& GetUniformBufferParameter(const FShaderParametersMetadata* SearchStruct) const
-	{
-		int32 FoundIndex = INDEX_NONE;
-
-		for (int32 StructIndex = 0, Count = UniformBufferParameterStructs.Num(); StructIndex < Count; StructIndex++)
-		{
-			if (UniformBufferParameterStructs[StructIndex] == SearchStruct)
-			{
-				FoundIndex = StructIndex;
-				break;
-			}
-		}
-
-		if (FoundIndex != INDEX_NONE)
-		{
-			const FShaderUniformBufferParameter& FoundParameter = *UniformBufferParameters[FoundIndex];
-			return FoundParameter;
-		}
-		else
-		{
 			static FShaderUniformBufferParameter UnboundParameter;
 			UnboundParameter.SetInitialized();
 			return UnboundParameter;
@@ -1059,7 +1037,7 @@ public:
 	{
 		for (int32 i = 0; i < UniformBufferParameters.Num(); i++)
 		{
-			if (UniformBufferParameters[i]->GetBaseIndex() == BaseIndex)
+			if (UniformBufferParameters[i].GetBaseIndex() == BaseIndex)
 			{
 				return UniformBufferParameterStructs[i];
 			}
@@ -1094,7 +1072,7 @@ protected:
 
 	/** Indexed the same as UniformBufferParameters.  Packed densely for coherent traversal. */
 	TArray<const FShaderParametersMetadata*> UniformBufferParameterStructs;
-	TArray<FShaderUniformBufferParameter*> UniformBufferParameters;
+	TArray<FShaderUniformBufferParameter> UniformBufferParameters;
 
 private:
 	/** Hash of the material shader map this shader belongs to, stored so that an FShaderId can be constructed from this shader. */
