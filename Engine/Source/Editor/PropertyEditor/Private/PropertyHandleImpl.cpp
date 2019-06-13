@@ -1517,7 +1517,8 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 						}
 					}
 
-					SetHelper.RemoveAt(ChildNodePtr->GetArrayIndex());
+					int32 InternalIndex = SetHelper.FindInternalIndex(ChildNodePtr->GetArrayIndex());
+					SetHelper.RemoveAt(InternalIndex);
 					SetHelper.Rehash();
 				}
 				else if (MapProperty)
@@ -1536,7 +1537,8 @@ void FPropertyValueImpl::DeleteChild( TSharedPtr<FPropertyNode> ChildNodeToDelet
 						}
 					}
 
-					MapHelper.RemoveAt(ChildNodePtr->GetArrayIndex());
+					int32 InternalIndex = MapHelper.FindInternalIndex(ChildNodePtr->GetArrayIndex());
+					MapHelper.RemoveAt(InternalIndex);
 					MapHelper.Rehash();
 				}
 

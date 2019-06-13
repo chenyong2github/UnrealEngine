@@ -131,7 +131,8 @@ public:
 			{
 				FScriptSetHelper SetHelper(OuterSetProperty, PropertyValueAddresses.BaseAddress);
 				
-				if ( !SetHelper.IsValidIndex(PropertyNodeRef.GetArrayIndex()) )
+				bool bIsValidIndex = PropertyNodeRef.GetArrayIndex() >= 0 && PropertyNodeRef.GetArrayIndex() < SetHelper.Num();
+				if (!bIsValidIndex)
 				{
 					bPropertyValid = false;
 				}
@@ -140,7 +141,8 @@ public:
 			{
 				FScriptMapHelper MapHelper(OuterMapProperty, PropertyValueAddresses.BaseAddress);
 
-				if ( !MapHelper.IsValidIndex(PropertyNodeRef.GetArrayIndex()) )
+				bool bIsValidIndex = PropertyNodeRef.GetArrayIndex() >= 0 && PropertyNodeRef.GetArrayIndex() < MapHelper.Num();
+				if (!bIsValidIndex)
 				{
 					bPropertyValid = false;
 				}
