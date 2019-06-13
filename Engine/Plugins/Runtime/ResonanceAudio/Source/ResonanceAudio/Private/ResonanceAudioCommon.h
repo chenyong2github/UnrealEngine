@@ -4,13 +4,15 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 THIRD_PARTY_INCLUDES_START
 #include "api/resonance_audio_api.h"
 #include "platforms/common/room_properties.h"
 #include "platforms/common/room_effects_utils.h"
 THIRD_PARTY_INCLUDES_END
 
-#include "CoreMinimal.h"
+
 #include "UObject/ObjectMacros.h"
 #include "ResonanceAudioEnums.h"
 
