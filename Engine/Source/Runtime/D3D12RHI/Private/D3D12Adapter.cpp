@@ -50,8 +50,21 @@ FD3D12Adapter::FD3D12Adapter(FD3D12AdapterDesc& DescIn)
 			MaxGPUCount = MAX_NUM_GPUS;
 		}
 	}
+	if (FParse::Param(FCommandLine::Get(), TEXT("VMGPU")))
+	{
+		GVirtualMGPU = 1;
+		UE_LOG(LogD3D12RHI, Log, TEXT("Enabling virtual multi-GPU mode"), Desc.NumDeviceNodes);
+	}
 #endif
-	Desc.NumDeviceNodes = FMath::Min3<uint32>(Desc.NumDeviceNodes, MaxGPUCount, MAX_NUM_GPUS);
+
+	if (GVirtualMGPU)
+	{
+		Desc.NumDeviceNodes = FMath::Min<uint32>(MaxGPUCount, MAX_NUM_GPUS);
+	}
+	else
+	{
+		Desc.NumDeviceNodes = FMath::Min3<uint32>(Desc.NumDeviceNodes, MaxGPUCount, MAX_NUM_GPUS);
+	}
 }
 
 void FD3D12Adapter::Initialize(FD3D12DynamicRHI* RHI)
@@ -676,12 +689,15 @@ void FD3D12Adapter::GetLocalVideoMemoryInfo(DXGI_QUERY_VIDEO_MEMORY_INFO* LocalV
 
 	VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, LocalVideoMemoryInfo));
 
-	for (uint32 Index = 1; Index < GNumExplicitGPUsForRendering; ++Index)
+	if (!GVirtualMGPU)
 	{
-		DXGI_QUERY_VIDEO_MEMORY_INFO TempVideoMemoryInfo;
-		VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(Index, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &TempVideoMemoryInfo));
-		LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->Budget, TempVideoMemoryInfo.Budget);
-		LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->CurrentUsage, TempVideoMemoryInfo.CurrentUsage);
+		for (uint32 Index = 1; Index < GNumExplicitGPUsForRendering; ++Index)
+		{
+			DXGI_QUERY_VIDEO_MEMORY_INFO TempVideoMemoryInfo;
+			VERIFYD3D12RESULT(Adapter3->QueryVideoMemoryInfo(Index, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &TempVideoMemoryInfo));
+			LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->Budget, TempVideoMemoryInfo.Budget);
+			LocalVideoMemoryInfo->Budget = FMath::Min(LocalVideoMemoryInfo->CurrentUsage, TempVideoMemoryInfo.CurrentUsage);
+		}
 	}
 #endif
 }
