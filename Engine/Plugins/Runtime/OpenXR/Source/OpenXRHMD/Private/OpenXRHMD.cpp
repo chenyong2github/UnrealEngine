@@ -212,9 +212,9 @@ bool FOpenXRHMDPlugin::PreInit()
 	return true;
 }
 
-FOpenXRHMD::FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture) :
+FOpenXRHMD::FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture, XrSwapchain InHandle) :
 	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
-	Handle(nullptr), 
+	Handle(InHandle), 
 	IsAcquired(false)
 	
 {
@@ -778,8 +778,7 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 		TextureChain.Add(static_cast<FTextureRHIRef>(DynamicRHI->RHICreateTexture2DFromResource(SwapchainFormat->PixelFormat, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::Black, Image.texture)));
 	}
 
-	Swapchain = CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget);
-	static_cast<FOpenXRSwapchain*>(GetSwapchain())->SetHandle(SwapchainHandle);
+	Swapchain = CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget, SwapchainHandle);
 	
 	// Grab the presentation texture out of the swapchain.
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();

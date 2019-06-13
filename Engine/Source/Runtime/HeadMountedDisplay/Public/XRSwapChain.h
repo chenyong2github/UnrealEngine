@@ -37,11 +37,11 @@ protected:
 
 typedef TSharedPtr<FXRSwapChain, ESPMode::ThreadSafe> FXRSwapChainPtr;
 
-template<typename T = FXRSwapChain>
-FXRSwapChainPtr CreateXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & AliasedTexture)
+template<typename T = FXRSwapChain, typename ... Types>
+FXRSwapChainPtr CreateXRSwapChain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHIAliasedTexture, Types... InExtraParameters)
 {
 	check(InRHITextureSwapChain.Num() >= 1);
-	return MakeShareable(new T(MoveTemp(InRHITextureSwapChain), AliasedTexture));
+	return MakeShareable(new T(MoveTemp(InRHITextureSwapChain), InRHIAliasedTexture, InExtraParameters...));
 }
 
 
