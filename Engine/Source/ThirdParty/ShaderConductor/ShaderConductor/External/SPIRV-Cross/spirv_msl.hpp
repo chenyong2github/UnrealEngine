@@ -581,6 +581,9 @@ protected:
 	uint32_t patch_stage_out_var_id = 0;
 	uint32_t stage_in_ptr_var_id = 0;
 	uint32_t stage_out_ptr_var_id = 0;
+    /* UE Change Begin: Handle Metal frag-coord's w component being inverted. */
+	bool has_frag_coord = false;
+    /* UE Change End: Handle Metal frag-coord's w component being inverted. */
 	/* UE Change Begin: Handle HLSL-style 0-based vertex/instance index. */
 	int32_t needs_base_vertex_arg = 0;
 	int32_t needs_base_instance_arg = 0;

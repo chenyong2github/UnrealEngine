@@ -97,10 +97,12 @@ void CompilerMSL::build_implicit_builtins()
 	    active_input_builtins.get(BuiltInSubgroupLtMask);
 	bool need_subgroup_ge_mask = !msl_options.is_ios() && (active_input_builtins.get(BuiltInSubgroupGeMask) ||
 	                                                       active_input_builtins.get(BuiltInSubgroupGtMask));
+    /* UE Change Begin: Handle Metal frag-coord's w component being inverted. */
+	has_frag_coord = false;
+	
 	if (need_subpass_input || need_sample_pos || need_subgroup_mask || need_vertex_params || need_tesc_params ||
 	    needs_subgroup_invocation_id)
 	{
-		bool has_frag_coord = false;
 		bool has_sample_id = false;
 		bool has_vertex_idx = false;
 		bool has_base_vertex = false;
@@ -388,6 +390,23 @@ void CompilerMSL::build_implicit_builtins()
 			builtin_subgroup_size_id = var_id;
 		}
 	}
+	else if (get_execution_model() == ExecutionModelFragment)
+	{
+		ir.for_each_typed_id<SPIRVariable>([&](uint32_t, SPIRVariable &var) {
+			if (var.storage != StorageClassInput || !ir.meta[var.self].decoration.builtin)
+			return;
+			
+			/* UE Change Begin: Use Metal's native frame-buffer fetch API for subpass inputs. */
+			BuiltIn builtin = ir.meta[var.self].decoration.builtin_type;
+			if (builtin == BuiltInFragCoord)
+			{
+				builtin_frag_coord_id = var.self;
+				has_frag_coord = true;
+			}
+			/* UE Change End: Use Metal's native frame-buffer fetch API for subpass inputs. */
+		});
+    }
+    /* UE Change End: Handle Metal frag-coord's w component being inverted. */
 
 	if (needs_swizzle_buffer_def)
 	{
@@ -493,6 +512,13 @@ std::string CompilerMSL::get_tess_factor_struct_name()
 
 void CompilerMSL::emit_entry_point_declarations()
 {
+    /* UE Change Begin: Handle Metal frag-coord's w component being inverted. */
+	if (get_execution_model() == ExecutionModelFragment && has_frag_coord && ir.source.hlsl == true)
+	{
+		statement("gl_FragCoord.w = 1.0 / gl_FragCoord.w;");
+    }
+    /* UE Change End: Handle Metal frag-coord's w component being inverted. */
+	
 	// FIXME: Get test coverage here ...
 	/* UE Change Begin: Constant arrays of non-primitive types (i.e. matrices) won't link properly into Metal libraries */
 	declare_complex_constant_arrays();
