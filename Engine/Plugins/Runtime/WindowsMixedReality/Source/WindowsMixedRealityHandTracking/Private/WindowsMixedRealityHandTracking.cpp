@@ -125,7 +125,6 @@ FWindowsMixedRealityHandTracking::FWindowsMixedRealityHandTracking(const TShared
 	: MessageHandler(InMessageHandler)
 	, DeviceIndex(0)
 	, bIsHandTrackingStateValid(true)
-	, LiveLinkSkeletonStaticData(FLiveLinkSkeletonStaticData::StaticStruct())
 {
 	// Register "MotionController" modular feature manually
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
