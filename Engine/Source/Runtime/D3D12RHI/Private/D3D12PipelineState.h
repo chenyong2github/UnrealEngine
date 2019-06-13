@@ -3,6 +3,9 @@
 // Implementation of D3D12 Pipelinestate related functions
 
 #pragma once
+#if PLATFORM_HOLOLENS
+	#include "d3d12.h"
+#endif
 
 // FORT-101886
 // UE4 implemented high level PSO caches on the general RHI level already
@@ -62,7 +65,7 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 	D3D12_CACHED_PIPELINE_STATE CachedPSO;
 	D3D12_PIPELINE_STATE_FLAGS Flags;
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	FD3D12_GRAPHICS_PIPELINE_STATE_STREAM PipelineStateStream() const;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC GraphicsDescV0() const;
 #endif // PLATFORM_WINDOWS
@@ -90,7 +93,7 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 // Compute pipeline struct that represents the latest versions of PSO subobjects currently supported by the RHI.
 struct FD3D12_COMPUTE_PIPELINE_STATE_DESC : public D3D12_COMPUTE_PIPELINE_STATE_DESC
 {
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	FD3D12_COMPUTE_PIPELINE_STATE_STREAM PipelineStateStream() const;
 	D3D12_COMPUTE_PIPELINE_STATE_DESC ComputeDescV0() const;
 #endif
@@ -222,7 +225,7 @@ template <> struct equality_pipeline_state_desc<FD3D12ComputePipelineStateDesc>
 	bool operator()(const FD3D12ComputePipelineStateDesc& lhs, const FD3D12ComputePipelineStateDesc& rhs)
 	{
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.CS.BytecodeLength)
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.Flags)
 #endif
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.pRootSignature)

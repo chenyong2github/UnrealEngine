@@ -6,11 +6,11 @@
 #  PHYSX_ROOT_DIR - The PhysX root directory
 
 # First look for the feature branch, then for the trunk
-FIND_PATH(		PHYSX_ROOT_DIR Include/PxActor.h
-				HINTS 
-				${GW_DEPS_ROOT}/sw/physx/PhysXSDK/3.4/trunk
-				)
-				
+
+FIND_PATH(		PHYSX_ROOT_DIR 
+                NAMES "Include/PxActor.h"
+				PATHS "${GW_DEPS_ROOT}/PhysX_3.4")
+
 INCLUDE(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(PhysX DEFAULT_MSG PHYSX_ROOT_DIR)
 

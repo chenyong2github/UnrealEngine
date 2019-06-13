@@ -7,7 +7,17 @@ public class DX12 : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		string DirectXSDKDir = "";
+		if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			DirectXSDKDir = Target.WindowsPlatform.bUseWindowsSDK10 ?
+			Target.UEThirdPartySourceDirectory + "Windows/DirectXLegacy" :
+			Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
+		else
+		{
+			DirectXSDKDir = Target.UEThirdPartySourceDirectory + "Windows/DirectX";
+		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
@@ -21,6 +31,29 @@ public class DX12 : ModuleRules
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
 			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
+		}
+		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
+		{
+			bool PixAvalable = (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64);
+			if (PixAvalable &&
+			//Target.WindowsPlatform.bUseWindowsSDK10 &&
+			Target.WindowsPlatform.bPixProfilingEnabled &&
+			Target.Configuration != UnrealTargetConfiguration.Shipping &&
+			Target.Configuration != UnrealTargetConfiguration.Test)
+			{
+				string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
+				PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Include");
+				PublicLibraryPaths.Add(Target.UEThirdPartySourceDirectory + "/Windows/Pix/Lib/" + Arch);
+				PublicDelayLoadDLLs.Add("WinPixEventRuntime.dll");
+				PublicAdditionalLibraries.Add("WinPixEventRuntime.lib");
+				RuntimeDependencies.Add(System.String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/DirectX/{0}/WinPixEventRuntime.dll", Arch));
+				PublicDefinitions.Add("D3D12_PROFILING_ENABLED=1");
+				PublicDefinitions.Add("PROFILE");
+			}
+			else
+			{
+				PublicDefinitions.Add("D3D12_PROFILING_ENABLED=0");
+			}
 		}
 
 		// Always delay-load D3D12

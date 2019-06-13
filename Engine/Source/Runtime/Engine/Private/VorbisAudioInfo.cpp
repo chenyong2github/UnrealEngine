@@ -35,7 +35,7 @@
 #endif
 
 // Non-windows platform don't load Dlls
-#if !PLATFORM_WINDOWS
+#if !PLATFORM_WINDOWS && !PLATFORM_HOLOLENS
 static FThreadSafeBool bDllLoaded = true;
 #else
 static FThreadSafeBool bDllLoaded;
@@ -661,7 +661,7 @@ void LoadVorbisLibraries()
 	if (!bIsInitialized)
 	{
 		bIsInitialized = true;
-#if PLATFORM_WINDOWS  && WITH_OGGVORBIS
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && WITH_OGGVORBIS
 		//@todo if ogg is every ported to another platform, then use the platform abstraction to load these DLLs
 		// Load the Ogg dlls
 #  if _MSC_VER >= 1900
@@ -675,9 +675,22 @@ void LoadVorbisLibraries()
 		PlatformString = TEXT("Win64");
 		DLLNameStub = TEXT("_64.dll");
 #endif
+#if PLATFORM_HOLOLENS
+		PlatformString = TEXT("HoloLens");
+#endif
 
+#if PLATFORM_CPU_ARM_FAMILY
+#if PLATFORM_64BITS
+		FString RootOggPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Ogg/") / PlatformString / VSVersion / TEXT("arm64/");
+		FString RootVorbisPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Vorbis/") / PlatformString / VSVersion / TEXT("arm64/");
+#else
+		FString RootOggPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Ogg/") / PlatformString / VSVersion / TEXT("arm/");
+		FString RootVorbisPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Vorbis/") / PlatformString / VSVersion / TEXT("arm/");
+#endif
+#else
 		FString RootOggPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Ogg/") / PlatformString / VSVersion;
 		FString RootVorbisPath = FPaths::EngineDir() / TEXT("Binaries/ThirdParty/Vorbis/") / PlatformString / VSVersion;
+#endif
 
 		FString DLLToLoad = RootOggPath + TEXT("libogg") + DLLNameStub;
 		void* LibOggHandle = FPlatformProcess::GetDllHandle(*DLLToLoad);
@@ -705,7 +718,7 @@ void LoadVorbisLibraries()
 		}
 #elif WITH_OGGVORBIS
 		bDllLoaded = true;
-#endif	//PLATFORM_WINDOWS
+#endif	//(PLATFORM_WINDOWS || PLATFORM_HOLOLENS) && WITH_OGGVORBIS
 	}
 }
 

@@ -41,7 +41,12 @@
 #endif
 
 // We only support >= Windows XP, and we need this for critical section and
+// @ATG_CHANGE : BEGIN HoloLens support
+// Setting this hides some important APIs (e.g. LoadPackagedLibrary), so don't do it
+#if !PX_HOLOLENS
 #define _WIN32_WINNT 0x0501
+#endif
+// @ATG_CHANGE : END
 
 // turn off as much as we can for windows. All we really need is the thread functions(critical sections/Interlocked*
 // etc)
@@ -80,9 +85,14 @@
 #define NODEFERWINDOWPOS
 #define NOMCX
 #define WIN32_LEAN_AND_MEAN
+// @ATG_CHANGE : BEGIN HoloLens support
+// We need a slightly wider API surface for e.g. MultiByteToWideChar
+#if !PX_HOLOLENS
 #define NOUSER
 #define NONLS
 #define NOMSG
+#endif
+// @ATG_CHANGE : END
 
 #pragma warning(push)
 #pragma warning(disable : 4668) //'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'

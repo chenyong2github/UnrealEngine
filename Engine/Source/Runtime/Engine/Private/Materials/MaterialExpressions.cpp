@@ -210,6 +210,7 @@
 #include "Materials/MaterialExpressionAtmosphericLightColor.h"
 #include "Materials/MaterialExpressionMaterialLayerOutput.h"
 #include "Materials/MaterialExpressionCurveAtlasRowParameter.h"
+#include "Materials/MaterialExpressionMapARPassthroughCameraUV.h"
 #include "Materials/MaterialUniformExpressions.h"
 #include "EditorSupportDelegates.h"
 #include "MaterialCompiler.h"
@@ -551,7 +552,6 @@ int32 CompileShadingModelBlendFunction(FMaterialCompiler* Compiler, int32 A, int
 
 	return Compiler->If(Alpha, MidPoint, B, INDEX_NONE, A, INDEX_NONE);
 }
-
 
 UMaterialExpression::UMaterialExpression(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -8719,7 +8719,7 @@ uint32 UMaterialExpressionIf::GetInputType(int32 InputIndex)
 			(B.GetTracedInput().Expression && !B.Expression->ContainsInputLoop() && B.Expression->GetOutputType(0) == MCT_ShadingModel))
 		{
 			return MCT_ShadingModel;
-		}	
+		}
 		else
 		{
 			return MCT_Float;
@@ -15419,6 +15419,48 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 }
 #endif
 
+//
+//  UMaterialExpressionARPassthroughCameraUVs
+//
+
+UMaterialExpressionMapARPassthroughCameraUV::UMaterialExpressionMapARPassthroughCameraUV(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Coordinates;
+		FConstructorStatics()
+			: NAME_Coordinates(LOCTEXT("Coordinates", "Coordinates"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Coordinates);
+#endif // WITH_EDITORONLY_DATA
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionMapARPassthroughCameraUV::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Coordinates.GetTracedInput().Expression)
+	{
+		return CompilerError(Compiler, TEXT("UV input missing"));
+	}
+	else
+	{
+		int32 Index = Coordinates.Compile(Compiler);
+		return Compiler->MapARPassthroughCameraUV(Index);
+	}
+}
+
+void UMaterialExpressionMapARPassthroughCameraUV::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Map AR Passthrough Camera UVs"));
+}
+#endif // WITH_EDITOR
 //
 //	UMaterialExpressionShadingModel
 //

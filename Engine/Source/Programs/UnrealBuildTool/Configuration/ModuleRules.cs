@@ -954,9 +954,21 @@ namespace UnrealBuildTool
 					}
 					PrivateDependencyModuleNames.Add("APEX");
 					PublicDefinitions.Add("WITH_APEX=1");
+
+// @MIXEDREALITY_CHANGE : BEGIN - Do not use Apex Cloth for HoloLens.  TODO: can we enable this in the future?
+				if (Target.Platform == UnrealTargetPlatform.HoloLens)
+				{
+					PublicDefinitions.Add("WITH_APEX_CLOTHING=0");
+					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=0");
+				}
+				else
+				{
 					PublicDefinitions.Add("WITH_APEX_CLOTHING=1");
 					PublicDefinitions.Add("WITH_CLOTH_COLLISION_DETECTION=1");
-					PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
+				}
+// @MIXEDREALITY_CHANGE : END
+
+				PublicDefinitions.Add("WITH_PHYSX_COOKING=1");  // APEX currently relies on cooking even at runtime
 
 				}
 				else

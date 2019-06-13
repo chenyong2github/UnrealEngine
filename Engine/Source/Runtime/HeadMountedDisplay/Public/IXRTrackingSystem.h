@@ -154,7 +154,7 @@ public:
 	/**
 	 * Returns current tracking origin.
 	 */
-	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() = 0;
+	virtual EHMDTrackingOrigin::Type GetTrackingOrigin() const = 0;
 
 	/**
 	 * Returns the system's latest known tracking-to-world transform.

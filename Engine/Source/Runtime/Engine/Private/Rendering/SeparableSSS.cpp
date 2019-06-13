@@ -166,7 +166,11 @@ void ComputeMirroredSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSiz
 
 	// generate output (remove negative samples)
 	{
+		// @MIXEDREALITY_CHANGE : BEGIN - TODO: this is crashing on HoloLens.
+		#if !PLATFORM_HOLOLENS
 		check(kernel[0].A == 0.0f);
+		#endif
+		// @MIXEDREALITY_CHANGE : END
 
 		// center sample
 		TargetBuffer[0] = kernel[0];

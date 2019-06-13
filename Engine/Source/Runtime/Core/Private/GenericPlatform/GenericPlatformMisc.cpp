@@ -997,12 +997,12 @@ const TCHAR* FGenericPlatformMisc::GamePersistentDownloadDir()
 
 const TCHAR* FGenericPlatformMisc::GetUBTPlatform()
 {
-	return TEXT( PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM) );
+	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM));
 }
 
 const TCHAR* FGenericPlatformMisc::GetUBTTarget()
 {
-    return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
+	return TEXT(PREPROCESSOR_TO_STRING(UBT_COMPILED_TARGET));
 }
 
 const TCHAR* FGenericPlatformMisc::GetDefaultDeviceProfileName()

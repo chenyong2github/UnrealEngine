@@ -33,7 +33,7 @@ public:
 	{
 #if PLATFORM_APPLE || PLATFORM_UNIX
 		printf("%s", TCHAR_TO_UTF8(Str));
-#elif PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#elif PLATFORM_WINDOWS || PLATFORM_XBOXONE || PLATFORM_HOLOLENS
 		wprintf(TEXT("%ls"), Str);
 #else
 		// If this function ever gets more complicated, we could make a PlatformMisc::Printf, and each platform can then 

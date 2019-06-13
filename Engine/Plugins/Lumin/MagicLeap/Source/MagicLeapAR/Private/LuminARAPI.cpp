@@ -886,6 +886,43 @@ void FLuminARTrackedPlaneResource::UpdateGeometryData(FLuminARSession* InSession
 	UARPlaneGeometry* SubsumedByPlane = nullptr; // ARCore only
 	PlaneGeometry->UpdateTrackedGeometry(InSession->GetARSystem(), FrameNum, static_cast<double>(TimeStamp), LocalToTrackingTransform, InSession->GetARSystem()->GetAlignmentTransform(), FVector::ZeroVector, Extent, PlaneResult->BoundaryPolygon, SubsumedByPlane);
 	PlaneGeometry->SetDebugName(FName(TEXT("LuminARPlane")));
+	// Inspect the plane flags and set the scene understanding data based upon them
+	for (EPlaneQueryFlags Flag : PlaneResult->PlaneFlags)
+	{
+		switch (Flag)
+		{
+			case EPlaneQueryFlags::Vertical:
+			{
+				PlaneGeometry->SetOrientation(EARPlaneOrientation::Vertical);
+				break;
+			}
+			case EPlaneQueryFlags::Horizontal:
+			{
+				PlaneGeometry->SetOrientation(EARPlaneOrientation::Horizontal);
+				break;
+			}
+			case EPlaneQueryFlags::Arbitrary:
+			{
+				PlaneGeometry->SetOrientation(EARPlaneOrientation::Diagonal);
+				break;
+			}
+			case EPlaneQueryFlags::Ceiling:
+			{
+				PlaneGeometry->SetObjectClassification(EARObjectClassification::Ceiling);
+				break;
+			}
+			case EPlaneQueryFlags::Floor:
+			{
+				PlaneGeometry->SetObjectClassification(EARObjectClassification::Floor);
+				break;
+			}
+			case EPlaneQueryFlags::Wall:
+			{
+				PlaneGeometry->SetObjectClassification(EARObjectClassification::Wall);
+				break;
+			}
+		}
+	}
 }
 #endif
 

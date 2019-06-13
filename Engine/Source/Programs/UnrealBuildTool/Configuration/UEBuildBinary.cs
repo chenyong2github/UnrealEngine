@@ -31,6 +31,16 @@ namespace UnrealBuildTool
 		/// A static library (.lib or .a)
 		/// </summary>
 		StaticLibrary,
+
+		/// <summary>
+		/// Object files
+		/// </summary>
+		Object,
+
+		/// <summary>
+		/// Precompiled header
+		/// </summary>
+		PrecompiledHeader,
 	}
 
 	/// <summary>

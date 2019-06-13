@@ -73,6 +73,9 @@
 #if !defined(PLATFORM_UNIX)
 	#define PLATFORM_UNIX 0
 #endif
+#if !defined(PLATFORM_HOLOLENS)
+#define PLATFORM_HOLOLENS 0
+#endif
 
 // Platform specific compiler pre-setup.
 #include "PreprocessorHelpers.h"

@@ -18,6 +18,13 @@
 struct AndroidESPImpl;
 struct ANativeWindow;
 
+#ifndef USE_ANDROID_EGL_NO_ERROR_CONTEXT
+#if UE_BUILD_SHIPPING
+#define USE_ANDROID_EGL_NO_ERROR_CONTEXT 1
+#else
+#define USE_ANDROID_EGL_NO_ERROR_CONTEXT 0
+#endif
+#endif // USE_ANDROID_EGL_NO_ERROR_CONTEXT
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEGL, Log, All);
 
@@ -108,6 +115,7 @@ private:
 
 	bool bSupportsKHRCreateContext;
 	bool bSupportsKHRSurfacelessContext;
+	bool bSupportsKHRNoErrorContext;
 
 	int *ContextAttributes;
 };
