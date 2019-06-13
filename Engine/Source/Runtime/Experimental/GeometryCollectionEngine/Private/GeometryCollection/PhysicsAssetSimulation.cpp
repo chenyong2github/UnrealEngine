@@ -19,9 +19,7 @@
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "SolverObjects/SkeletalMeshPhysicsObject.h"
 
-#include "PxConvexMesh.h"
-#include "PxMaterial.h"
-#include "PxVec3.h"
+#include "PhysXIncludes.h"
 
 #include "DrawDebugHelpers.h"
 #include "Async/ParallelFor.h"
