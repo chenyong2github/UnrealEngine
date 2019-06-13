@@ -1316,11 +1316,11 @@ void pffft_zreorder(PFFFT_Setup *setup, const float *in, float *out, pffft_direc
   v4sf *vout = (v4sf*)out;
   assert(in != out);
   if (setup->transform == PFFFT_REAL) {
-    int k, dk = N/32;
+    int j, dk = N/32;
     if (direction == PFFFT_FORWARD) {
-      for (k=0; k < dk; ++k) {
-        INTERLEAVE2(vin[k*8 + 0], vin[k*8 + 1], vout[2*(0*dk + k) + 0], vout[2*(0*dk + k) + 1]);
-        INTERLEAVE2(vin[k*8 + 4], vin[k*8 + 5], vout[2*(2*dk + k) + 0], vout[2*(2*dk + k) + 1]);
+      for (j =0; j < dk; ++j) {
+        INTERLEAVE2(vin[j*8 + 0], vin[j*8 + 1], vout[2*(0*dk + j) + 0], vout[2*(0*dk + j) + 1]);
+        INTERLEAVE2(vin[j*8 + 4], vin[j*8 + 5], vout[2*(2*dk + j) + 0], vout[2*(2*dk + j) + 1]);
       }
       reversed_copy(dk, vin+2, 8, (v4sf*)(out + N/2));
       reversed_copy(dk, vin+6, 8, (v4sf*)(out + N));
@@ -1762,17 +1762,17 @@ void pffft_zconvolve_accumulate(PFFFT_Setup *s, const float *a, const float *b, 
                : "+r"(a_), "+r"(b_), "+r"(ab_), "+r"(N) : "r"(scaling) : "r8", "q0","q1","q2","q3","q4","q5","q6","q7","q8","q9", "q10","q11","q12","q13","q15","memory");
 #else // default routine, works fine for non-arm cpus with current compilers
   for (i=0; i < Ncvec; i += 2) {
-    v4sf ar, ai, br, bi;
-    ar = va[2*i+0]; ai = va[2*i+1];
-    br = vb[2*i+0]; bi = vb[2*i+1];
-    VCPLXMUL(ar, ai, br, bi);
-    vab[2*i+0] = VMADD(ar, vscal, vab[2*i+0]);
-    vab[2*i+1] = VMADD(ai, vscal, vab[2*i+1]);
-    ar = va[2*i+2]; ai = va[2*i+3];
-    br = vb[2*i+2]; bi = vb[2*i+3];
-    VCPLXMUL(ar, ai, br, bi);
-    vab[2*i+2] = VMADD(ar, vscal, vab[2*i+2]);
-    vab[2*i+3] = VMADD(ai, vscal, vab[2*i+3]);
+    v4sf xr, xi, yr, yi;
+	xr = va[2*i+0]; xi = va[2*i+1];
+	yr = vb[2*i+0]; yi = vb[2*i+1];
+    VCPLXMUL(xr, xi, yr, yi);
+    vab[2*i+0] = VMADD(xr, vscal, vab[2*i+0]);
+    vab[2*i+1] = VMADD(xi, vscal, vab[2*i+1]);
+	xr = va[2*i+2]; xi = va[2*i+3];
+	yr = vb[2*i+2]; yi = vb[2*i+3];
+    VCPLXMUL(xr, xi, yr, yi);
+    vab[2*i+2] = VMADD(xr, vscal, vab[2*i+2]);
+    vab[2*i+3] = VMADD(xi, vscal, vab[2*i+3]);
   }
 #endif
   if (s->transform == PFFFT_REAL) {
@@ -1905,6 +1905,6 @@ void pffft_transform_ordered(PFFFT_Setup *setup, const float *input, float *outp
 #endif
 
 #ifdef DEFINED_M_SQRT2
-#undef DEFINED_M_SQRT2
+#undef DEFINED_M_LN2
 #undef M_SQRT2
 #endif
