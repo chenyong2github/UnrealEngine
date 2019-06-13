@@ -410,7 +410,7 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	uint32 bDefaultFeatureLensFlare : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = DefaultSettings, meta = (
-		EditCondition = "DefaultFeatureAntiAliasing == AAM_TemporalAA",
+		EditCondition = "DefaultFeatureAntiAliasing == EAntiAliasingMethod::AAM_TemporalAA",
 		ConsoleVariable = "r.TemporalAA.Upsampling", DisplayName = "Temporal Upsampling",
 		ToolTip = "Whether to do primary screen percentage with temporal AA or not."))
 	uint32 bTemporalUpsampling : 1;
