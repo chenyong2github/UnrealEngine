@@ -212,28 +212,16 @@ bool FOpenXRHMDPlugin::PreInit()
 	return true;
 }
 
-FOpenXRHMD::FOpenXRSwapchain::FOpenXRSwapchain(XrSwapchain InSwapchain, FTexture2DRHIParamRef InRHITexture, const TArray<FTexture2DRHIRef>& InRHITextureSwapChain) :
-	Handle(InSwapchain), RHITexture(InRHITexture), RHITextureSwapChain(InRHITextureSwapChain), SwapChainIndex_RenderThread(0), IsAcquired(false)
+FOpenXRHMD::FOpenXRSwapchain::FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture) :
+	FXRSwapChain(MoveTemp(InRHITextureSwapChain), InRHITexture),
+	Handle(nullptr), 
+	IsAcquired(false)
+	
 {
-	IncrementSwapChainIndex_RenderThread(XR_NO_DURATION);
+	IncrementSwapChainIndex_RHIThread((int64)XR_NO_DURATION);
 }
 
-FOpenXRHMD::FOpenXRSwapchain::~FOpenXRSwapchain()
-{
-	if (IsInGameThread())
-	{
-		ExecuteOnRenderThread([this]()
-		{
-			ReleaseResources_RenderThread();
-		});
-	}
-	else
-	{
-		ReleaseResources_RenderThread();
-	}
-}
-
-void FOpenXRHMD::FOpenXRSwapchain::IncrementSwapChainIndex_RenderThread(XrDuration Timeout)
+void FOpenXRHMD::FOpenXRSwapchain::IncrementSwapChainIndex_RHIThread(int64 Timeout)
 {
 	check(IsInRenderingThread());
 
@@ -243,7 +231,7 @@ void FOpenXRHMD::FOpenXRSwapchain::IncrementSwapChainIndex_RenderThread(XrDurati
 	XrSwapchainImageAcquireInfo Info;
 	Info.type = XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO;
 	Info.next = nullptr;
-	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex_RenderThread));
+	XR_ENSURE(xrAcquireSwapchainImage(Handle, &Info, &SwapChainIndex_RHIThread));
 
 	IsAcquired = true;
 
@@ -253,10 +241,10 @@ void FOpenXRHMD::FOpenXRSwapchain::IncrementSwapChainIndex_RenderThread(XrDurati
 	WaitInfo.timeout = Timeout;
 	XR_ENSURE(xrWaitSwapchainImage(Handle, &WaitInfo));
 
-	GDynamicRHI->RHIAliasTextureResources(RHITexture, RHITextureSwapChain[SwapChainIndex_RenderThread]);
+	GDynamicRHI->RHIAliasTextureResources(RHITexture, RHITextureSwapChain[SwapChainIndex_RHIThread]);
 }
 
-void FOpenXRHMD::FOpenXRSwapchain::ReleaseSwapChainImage_RenderThread()
+void FOpenXRHMD::FOpenXRSwapchain::ReleaseCurrentImage_RHIThread()
 {
 	check(IsInRenderingThread());
 
@@ -271,12 +259,9 @@ void FOpenXRHMD::FOpenXRSwapchain::ReleaseSwapChainImage_RenderThread()
 	IsAcquired = false;
 }
 
-void FOpenXRHMD::FOpenXRSwapchain::ReleaseResources_RenderThread()
+void FOpenXRHMD::FOpenXRSwapchain::ReleaseResources_RHIThread()
 {
-	check(IsInRenderingThread());
-
-	RHITexture = nullptr;
-	RHITextureSwapChain.Empty();
+	FXRSwapChain::ReleaseResources_RHIThread();
 	xrDestroySwapchain(Handle);
 }
 
@@ -785,15 +770,19 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	XR_ENSURE(xrEnumerateSwapchainImages(SwapchainHandle, ChainCount, &ChainCount, reinterpret_cast<XrSwapchainImageBaseHeader*>(Images.GetData())));
 
 	FD3D11DynamicRHI* DynamicRHI = static_cast<FD3D11DynamicRHI*>(GDynamicRHI);
-	TArray<FTexture2DRHIRef> TextureChain;
-	FTexture2DRHIRef ChainTarget = DynamicRHI->RHICreateTexture2DFromResource(SwapchainFormat->PixelFormat, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::Black, Images[0].texture);
+	TArray<FTextureRHIRef> TextureChain;
+	// @todo: Once things settle down, the chain target will be created below in the CreateXRSwapChain call, via an RHI "CreateAliasedTexture" call.
+	FTextureRHIRef ChainTarget = static_cast<FTextureRHIRef>(DynamicRHI->RHICreateTexture2DFromResource(SwapchainFormat->PixelFormat, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::Black, Images[0].texture));
 	for (const auto& Image : Images)
 	{
-		TextureChain.Add(DynamicRHI->RHICreateTexture2DFromResource(SwapchainFormat->PixelFormat, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::Black, Image.texture));
+		TextureChain.Add(static_cast<FTextureRHIRef>(DynamicRHI->RHICreateTexture2DFromResource(SwapchainFormat->PixelFormat, TexCreate_RenderTargetable | TexCreate_ShaderResource, FClearValueBinding::Black, Image.texture)));
 	}
 
-	Swapchain = MakeShareable(new FOpenXRSwapchain(SwapchainHandle, ChainTarget, TextureChain));
-	OutTargetableTexture = OutShaderResourceTexture = ChainTarget;
+	Swapchain = CreateXRSwapChain<FOpenXRSwapchain>(MoveTemp(TextureChain), ChainTarget);
+	static_cast<FOpenXRSwapchain*>(GetSwapchain())->SetHandle(SwapchainHandle);
+	
+	// Grab the presentation texture out of the swapchain.
+	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();
 	return true;
 }
 
@@ -808,7 +797,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 	check(MainView);
 	BaseTransform = FTransform(MainView->BaseHmdOrientation, MainView->BaseHmdLocation);
 
-	Swapchain->IncrementSwapChainIndex_RenderThread(FrameStateRHI.predictedDisplayPeriod);
+	Swapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
 
 	ViewsRHI.SetNum(Views.Num());
 	int32 OffsetX = 0;
@@ -823,7 +812,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Projection.next = nullptr;
 		Projection.fov = View.fov;
 		Projection.pose = ToXrPose(ViewTransform * BaseTransform, GetWorldToMetersScale());
-		Projection.subImage.swapchain = Swapchain->Handle;
+		Projection.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetSwapchain())->GetHandle();
 		Projection.subImage.imageArrayIndex = 0;
 		Projection.subImage.imageRect = {
 			{ OffsetX, 0 },
@@ -934,7 +923,7 @@ void FOpenXRHMD::FinishRendering()
 	Layer.viewCount = ViewsRHI.Num();
 	Layer.views = ViewsRHI.GetData();
 
-	Swapchain->ReleaseSwapChainImage_RenderThread();
+	Swapchain->ReleaseCurrentImage_RHIThread();
 
 	XrFrameEndInfo EndInfo;
 	XrCompositionLayerBaseHeader* Headers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&Layer) };

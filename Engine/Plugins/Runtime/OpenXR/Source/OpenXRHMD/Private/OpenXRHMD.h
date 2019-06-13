@@ -7,6 +7,7 @@
 #include "XRTrackingSystemBase.h"
 #include "XRRenderTargetManager.h"
 #include "XRRenderBridge.h"
+#include "XRSwapChain.h"
 #include "SceneViewExtension.h"
 #include "DefaultSpectatorScreenController.h"
 
@@ -23,28 +24,24 @@ class UCanvas;
 class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase
 {
 public:
-	class FOpenXRSwapchain : public TSharedFromThis<FOpenXRSwapchain, ESPMode::ThreadSafe>
+	class FOpenXRSwapchain : public FXRSwapChain
 	{
 	public:
-		FOpenXRSwapchain(XrSwapchain InSwapchain, FTexture2DRHIParamRef InRHITexture, const TArray<FTexture2DRHIRef>& InRHITextureSwapChain);
-		virtual ~FOpenXRSwapchain();
+		FOpenXRSwapchain(TArray<FTextureRHIRef>&& InRHITextureSwapChain, const FTextureRHIRef & InRHITexture);
+		virtual ~FOpenXRSwapchain() {}
 
-		FRHITexture* GetTexture() const { return RHITexture.GetReference(); }
-		FRHITexture2D* GetTexture2D() const { return RHITexture->GetTexture2D(); }
-		FRHITextureCube* GetTextureCube() const { return RHITexture->GetTextureCube(); }
-		uint32 GetSwapchainLength() const { return (uint32)RHITextureSwapChain.Num(); }
+		virtual void IncrementSwapChainIndex_RHIThread(int64 Timeout) override final;
+		virtual void ReleaseCurrentImage_RHIThread() override final;
 
-		uint32 GetSwapchainIndex_RenderThread() { return SwapChainIndex_RenderThread; }
-		void IncrementSwapChainIndex_RenderThread(XrDuration Timeout);
-		void ReleaseSwapChainImage_RenderThread();
+		void SetHandle(XrSwapchain InHandle) { Handle = InHandle; }
+		XrSwapchain GetHandle() { return Handle; }
 		
-		XrSwapchain Handle;
 	protected:
-		void ReleaseResources_RenderThread();
+		virtual void ReleaseResources_RHIThread() override final;
 
-		FTextureRHIRef RHITexture;
-		TArray<FTexture2DRHIRef> RHITextureSwapChain;
-		uint32 SwapChainIndex_RenderThread;
+		FXRSwapChainPtr mSwapChain;
+		XrSwapchain Handle;
+
 		bool IsAcquired;
 	};
 
@@ -164,7 +161,7 @@ public:
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 
-	FOpenXRSwapchain* GetSwapchain() { return Swapchain.Get(); }
+	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -200,6 +197,5 @@ private:
 	TRefCountPtr<FXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
-	// TODO: Needs to be part of a custom present class
-	TSharedPtr<FOpenXRSwapchain, ESPMode::ThreadSafe> Swapchain;
+	FXRSwapChainPtr			Swapchain;
 };

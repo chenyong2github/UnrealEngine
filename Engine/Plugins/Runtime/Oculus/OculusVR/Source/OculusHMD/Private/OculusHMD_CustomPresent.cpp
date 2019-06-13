@@ -280,6 +280,7 @@ FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uin
 {
 	CheckInRenderThread();
 
+	// @todo: Once things settle down, the chain target will be created below in the CreateXRSwapChain call, via an RHI "CreateAliasedTexture" call.
 	FTextureRHIRef RHITexture;
 	{
 		RHITexture = CreateTexture_RenderThread(InSizeX, InSizeY, InFormat, InBinding, InNumMips, InNumSamples, InNumSamplesTileMem, InResourceType, InTextures[0], InTexCreateFlags);
@@ -293,7 +294,7 @@ FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uin
 		}
 	}
 
-	return MakeShareable(new FXRSwapChain(RHITexture, MoveTemp(RHITextureSwapChain)));
+	return CreateXRSwapChain(MoveTemp(RHITextureSwapChain), RHITexture);
 }
 
 
