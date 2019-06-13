@@ -1399,6 +1399,11 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 								LocalLayerMaskToPrefetch |= (1u << LocalLayerIndex);
 								++NumPrefetchPages;
 							}
+							else
+							{
+								// Need to mark the page as recently used, otherwise it may be evicted later this frame
+								AddPageUpdate(PageUpdateBuffers, PageUpdateFlushCount, PhysicalSpace->GetID(), pAddress);
+							}
 						}
 					}
 
