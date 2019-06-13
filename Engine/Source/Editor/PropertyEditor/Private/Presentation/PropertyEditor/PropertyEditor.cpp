@@ -449,56 +449,53 @@ void FPropertyEditor::ToggleEditConditionState()
 {
 	const FScopedTransaction Transaction(FText::Format(LOCTEXT("SetEditConditionState", "Set {0} edit condition state "), PropertyNode->GetDisplayName()));
 
-	// Propagate the value change to any instances if we're editing a template object.
-	FObjectPropertyNode* ObjectNode = PropertyNode->FindObjectItemParent();
-
-	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
-	check(ParentNode != nullptr);
-
 	PropertyNode->NotifyPreChange( PropertyNode->GetProperty(), PropertyUtilities->GetNotifyHook() );
 
 	const UBoolProperty* EditConditionProperty = EditConditionContext->GetSingleBoolProperty(EditConditionExpression);
 	check(EditConditionProperty != nullptr);
 
-	FComplexPropertyNode* ComplexParentNode = ParentNode->FindComplexParent();
+	FPropertyNode* ParentNode = PropertyNode->GetParentNode();
+	check(ParentNode != nullptr);
+
+	bool OldValue = true;
+
+	FComplexPropertyNode* ComplexParentNode = PropertyNode->FindComplexParent();
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
+		// ComplexParentNode points to the top-level object 
+		// ParentNode can point to a struct inside that object (which is stored as an FItemPropertyNode)
+		// We need all three pointers to get the value pointer
 		uint8* BaseAddress = ComplexParentNode->GetMemoryOfInstance(Index);
-		check(BaseAddress != nullptr);
+		uint8* ParentOffset = ParentNode->GetValueAddress(BaseAddress);
+		uint8* ValuePtr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ParentOffset);
 
-		// Get the address corresponding to the base of this property (i.e. if a struct property, set BaseOffset to the address of value for the whole struct)
-		uint8* BaseOffset = ParentNode->GetValueAddress(BaseAddress);
-		check(BaseOffset != NULL);
+		OldValue &= EditConditionProperty->GetPropertyValue(ValuePtr);
+		EditConditionProperty->SetPropertyValue(ValuePtr, !OldValue);
+	}
 
-		uint8* ValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(BaseOffset);
-
-		const bool OldValue = EditConditionProperty->GetPropertyValue(ValueAddr);
-		const bool NewValue = !OldValue;
-		EditConditionProperty->SetPropertyValue(ValueAddr, NewValue);
-
-		if (ObjectNode != nullptr)
+	// Propagate the value change to any instances if we're editing a template object
+	FObjectPropertyNode* ObjectNode = PropertyNode->FindObjectItemParent();
+	if (ObjectNode != nullptr)
+	{
+		for (int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
 		{
-			for (int32 ObjIndex = 0; ObjIndex < ObjectNode->GetNumObjects(); ++ObjIndex)
+			TWeakObjectPtr<UObject> ObjectWeakPtr = ObjectNode->GetUObject(ObjIndex);
+			UObject* Object = ObjectWeakPtr.Get();
+			if (Object != nullptr && Object->IsTemplate())
 			{
-				TWeakObjectPtr<UObject> ObjectWeakPtr = ObjectNode->GetUObject(ObjIndex);
-				UObject* Object = ObjectWeakPtr.Get();
-				if (Object != nullptr && Object->IsTemplate())
+				TArray<UObject*> ArchetypeInstances;
+				Object->GetArchetypeInstances(ArchetypeInstances);
+				for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
 				{
-					TArray<UObject*> ArchetypeInstances;
-					Object->GetArchetypeInstances(ArchetypeInstances);
-					for (int32 InstanceIndex = 0; InstanceIndex < ArchetypeInstances.Num(); ++InstanceIndex)
+					uint8* ArchetypeBaseOffset = ComplexParentNode->GetValueAddress((uint8*) ArchetypeInstances[InstanceIndex]);
+					uint8* ArchetypeParentOffset = ParentNode->GetValueAddress(ArchetypeBaseOffset);
+					uint8* ArchetypeValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ArchetypeParentOffset);
+
+					// Only propagate if the current value on the instance matches the previous value on the template.
+					const bool CurValue = EditConditionProperty->GetPropertyValue(ArchetypeValueAddr);
+					if (OldValue == CurValue)
 					{
-						// Only propagate if the current value on the instance matches the previous value on the template.
-						uint8* ArchetypeBaseOffset = ParentNode->GetValueAddress((uint8*)ArchetypeInstances[InstanceIndex]);
-						if(ArchetypeBaseOffset)
-						{
-							uint8* ArchetypeValueAddr = EditConditionProperty->ContainerPtrToValuePtr<uint8>(ArchetypeBaseOffset);
-							const bool CurValue = EditConditionProperty->GetPropertyValue(ArchetypeValueAddr);
-							if(OldValue == CurValue)
-							{
-								EditConditionProperty->SetPropertyValue(ArchetypeValueAddr, NewValue);
-							}
-						}
+						EditConditionProperty->SetPropertyValue(ArchetypeValueAddr, !OldValue);
 					}
 				}
 			}

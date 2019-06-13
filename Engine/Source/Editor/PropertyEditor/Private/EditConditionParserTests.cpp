@@ -404,4 +404,37 @@ bool FEditConditionParser_EvaluateUObject::RunTest(const FString& Parameters)
 	return bAllResults;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditConditionParser_SingleBool, "EditConditionParser.SingleBool", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+bool FEditConditionParser_SingleBool::RunTest(const FString& Parameters)
+{
+	UEditConditionTestObject* TestObject = NewObject<UEditConditionTestObject>();
+	TestObject->AddToRoot();
+
+	TSharedPtr<FObjectPropertyNode> ObjectNode(new FObjectPropertyNode);
+	ObjectNode->AddObject(TestObject);
+
+	FPropertyNodeInitParams InitParams;
+	ObjectNode->InitNode(InitParams);
+
+	static const FName BoolPropertyName(TEXT("BoolProperty"));
+	TSharedPtr<FPropertyNode> PropertyNode = ObjectNode->FindChildPropertyNode(BoolPropertyName, true);
+	FEditConditionContext Context(*PropertyNode.Get());
+
+	FEditConditionParser Parser;
+
+	{
+		TSharedPtr<FEditConditionExpression> Expression = Parser.Parse(FString(TEXT("BoolProperty")));
+		const UBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
+		TestNotNull(TEXT("Bool"), Property);
+	}
+
+	{
+		TSharedPtr<FEditConditionExpression> Expression = Parser.Parse(FString(TEXT("UintBitfieldProperty")));
+		const UBoolProperty* Property = Context.GetSingleBoolProperty(Expression);
+		TestNotNull(TEXT("Uint Bitfield"), Property);
+	}
+
+	return true;
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS
