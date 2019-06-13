@@ -38,4 +38,7 @@ class UEditConditionTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category=Test)
 	int32 IntegerProperty;
+
+	UPROPERTY(EditAnywhere, Category=Test)
+	uint8 UintBitfieldProperty : 1;
 };
