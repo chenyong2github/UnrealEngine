@@ -850,7 +850,7 @@ public:
 
 		if (InDesc.ViewDimension == D3D12_SRV_DIMENSION_BUFFER)
 		{
-			check(InResourceLocation.GetOffsetFromBaseOfResource() / Stride == InDesc.Buffer.FirstElement);
+			check(InResourceLocation.GetOffsetFromBaseOfResource() == InDesc.Buffer.FirstElement * Stride);
 		}
 #endif
 
