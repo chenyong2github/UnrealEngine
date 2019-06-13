@@ -8907,6 +8907,12 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 	bool tess_control_input_array = ((get_execution_model() == ExecutionModelTessellationControl || get_execution_model() == ExecutionModelTessellationEvaluation) && type->array.size() == 2 && type->array[0] >= 1);
 	uint32_t tess_control_input_array_num = type->array[0];
 	
+	bool tess_eval_input_array_deref = type && tess_eval_input_array && expr.find("({") == 0;
+	if (tess_eval_input_array_deref)
+	{
+		expr = type_to_glsl(*type) + expr;
+	}
+	
 	const auto append_index = [&](uint32_t index) {
 		std::string name;
 		
@@ -8919,14 +8925,7 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 			expr = to_expression(patch_stage_in_var_id) + ".gl_in";
 		}
 		
-		if (!tess_eval_input_array)
-		{
-			expr += "[";
-		}
-		else
-		{
-			expr += "_";
-		}
+		expr += "[";
 		
 		if (ssbo)
 		{
@@ -8973,11 +8972,8 @@ std::string CompilerMSL::access_chain_internal(uint32_t base, const uint32_t *in
 			ssbo = false;
 		}
 		
-		if (!tess_eval_input_array)
-		{
-			expr += "]";
-		}
-		else
+		expr += "]";
+		if (tess_eval_input_array)
 		{
 			tess_eval_input_array = false;
 		}
