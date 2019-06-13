@@ -455,7 +455,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 FSequencer::FSequencer()
 	: SequencerCommandBindings( new FUICommandList )
-	, SequencerSharedBindings( new FUICommandList )
+	, SequencerSharedBindings(new FUICommandList)
+	, CurveEditorSharedBindings(new FUICommandList)
 	, TargetViewRange(0.f, 5.f)
 	, LastViewRange(0.f, 5.f)
 	, ViewRangeBeforeZoom(TRange<double>::Empty())
@@ -10297,6 +10298,23 @@ void FSequencer::BindCommands()
 		Commands.SetPlaybackRangeToAllShots,
 		FExecuteAction::CreateSP( this, &FSequencer::SetPlaybackRangeToAllShots ),
 		FCanExecuteAction::CreateSP( this, &FSequencer::IsViewingMasterSequence ) );
+
+	// We want a subset of the commands to work in the Curve Editor too, but bound to our functions. This minimizes code duplication
+	// while also freeing us up from issues that result from Sequencer already using two lists (for which our commands might be spread
+	// across both lists which makes a direct copy like it already uses difficult).
+	CurveEditorSharedBindings->MapAction(Commands.TogglePlay,			*SequencerCommandBindings->GetActionForCommand(Commands.TogglePlay));
+	CurveEditorSharedBindings->MapAction(Commands.PlayForward,			*SequencerCommandBindings->GetActionForCommand(Commands.PlayForward));
+	CurveEditorSharedBindings->MapAction(Commands.JumpToStart,			*SequencerCommandBindings->GetActionForCommand(Commands.JumpToStart));
+	CurveEditorSharedBindings->MapAction(Commands.JumpToEnd,			*SequencerCommandBindings->GetActionForCommand(Commands.JumpToEnd));
+	CurveEditorSharedBindings->MapAction(Commands.ShuttleBackward,		*SequencerCommandBindings->GetActionForCommand(Commands.ShuttleBackward));
+	CurveEditorSharedBindings->MapAction(Commands.ShuttleForward,		*SequencerCommandBindings->GetActionForCommand(Commands.ShuttleForward));
+	CurveEditorSharedBindings->MapAction(Commands.Pause,				*SequencerCommandBindings->GetActionForCommand(Commands.Pause));
+	CurveEditorSharedBindings->MapAction(Commands.StepForward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepForward));
+	CurveEditorSharedBindings->MapAction(Commands.StepBackward,			*SequencerCommandBindings->GetActionForCommand(Commands.StepBackward));
+	CurveEditorSharedBindings->MapAction(Commands.StepToNextKey,		*SequencerCommandBindings->GetActionForCommand(Commands.StepToNextKey));
+	CurveEditorSharedBindings->MapAction(Commands.StepToPreviousKey, 	*SequencerCommandBindings->GetActionForCommand(Commands.StepToPreviousKey));
+
+	GetCurveEditor()->GetCommands()->Append(CurveEditorSharedBindings);
 
 	// bind widget specific commands
 	SequencerWidget->BindCommands(SequencerCommandBindings);
