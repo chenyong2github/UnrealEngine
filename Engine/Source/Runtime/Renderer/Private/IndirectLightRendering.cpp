@@ -178,11 +178,15 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(FRH
 		// Render RTAO that override any technic.
 		if (bApplyRTAO)
 		{
+			FRDGTextureRef AmbientOcclusionMask = nullptr;
+
 			RenderRayTracingAmbientOcclusion(
 				GraphBuilder,
 				View,
 				SceneTextures,
-				&DenoiserOutputs.AmbientOcclusionMask);
+				&AmbientOcclusionMask);
+
+			DenoiserOutputs.AmbientOcclusionMask = AmbientOcclusionMask;
 		}
 
 		// Extract the dynamic AO for application of AO beyond RenderDiffuseIndirectAndAmbientOcclusion()

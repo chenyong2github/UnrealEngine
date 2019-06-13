@@ -1183,8 +1183,6 @@ static void DenoiseSignalAtConstantPixelDensity(
 			PrevFrameHistory->SafeRelease();
 		} // for (uint32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 
-		PassParameters->PrevHistory = PassParameters->PrevHistory;
-		
 		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserTemporalAccumulation"));
 
 		FComputeShaderUtils::AddPass(
