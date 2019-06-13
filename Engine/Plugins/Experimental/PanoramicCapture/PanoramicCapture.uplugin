@@ -17,7 +17,7 @@
 	"Modules": [
 		{
 			"Name": "PanoramicCapture",
-			"Type": "RuntimeNoCommandlet",
+			"Type": "Developer",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
 				"Win64"
