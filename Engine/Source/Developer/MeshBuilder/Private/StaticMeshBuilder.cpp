@@ -451,6 +451,7 @@ void BuildVertexBuffer(
 				|| PointsEqual(CornerPositions[0], CornerPositions[2], OverlappingThresholds)
 				|| PointsEqual(CornerPositions[1], CornerPositions[2], OverlappingThresholds))
 			{
+				WedgeIndex += 3;
 				continue;
 			}
 
