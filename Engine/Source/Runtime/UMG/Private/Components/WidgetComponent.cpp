@@ -639,6 +639,10 @@ void UWidgetComponent::BeginPlay()
 	Super::BeginPlay();
 
 	InitWidget();
+
+	CurrentDrawSize = DrawSize;
+	UpdateBodySetup(true);
+	RecreatePhysicsState();
 }
 
 void UWidgetComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
