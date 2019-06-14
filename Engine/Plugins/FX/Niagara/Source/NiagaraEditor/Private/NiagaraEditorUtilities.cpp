@@ -623,7 +623,7 @@ void FNiagaraEditorUtilities::FixUpNumericPins(const UEdGraphSchema_Niagara* Sch
 	TraverseGraphFromOutputDepthFirst(Schema, Node, FixUpVisitor);
 }
 
-void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, FCompileConstantResolver* ConstantResolver)
+void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver)
 {
 	for (UEdGraphNode* Node : Graph->Nodes)
 	{
@@ -631,13 +631,13 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
 		if (SwitchNode)
 		{
-			SwitchNode->ClearSwitchValue();
-			if (SwitchNode->IsSetByCompiler() && ConstantResolver)
+			if (SwitchNode->IsSetByCompiler())
 			{
-				SwitchNode->SetSwitchValue(*ConstantResolver);
+				SwitchNode->SetSwitchValue(ConstantResolver);
 			}
 			else
 			{
+				SwitchNode->ClearSwitchValue();
 				for (UEdGraphPin* InputPin : CallInputs)
 				{
 					if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName))
@@ -810,7 +810,7 @@ void FNiagaraEditorUtilities::ResolveNumerics(UNiagaraGraph* SourceGraph, bool b
 	}
 }
 
-void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage)
+void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver)
 {
 	// Change any numeric inputs or outputs to match the types from the call node.
 	TArray<UNiagaraNodeInput*> InputNodes;
@@ -860,9 +860,9 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 			}
 		}
 	}
-
+	
 	FNiagaraEditorUtilities::FixUpNumericPins(Schema, OutputNode);
-	FNiagaraEditorUtilities::SetStaticSwitchConstants(Graph, CallInputs);
+	FNiagaraEditorUtilities::SetStaticSwitchConstants(Graph, CallInputs, ConstantResolver);
 }
 
 void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets)
