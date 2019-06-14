@@ -82,6 +82,12 @@ namespace UnrealBuildTool.Rules
                 PrivateDefinitions.Add("SUPPORTS_PROCEDURAL_MESH=1");
             }
 
+			if(Target.Platform == UnrealTargetPlatform.Android)
+            {
+                PrivateDefinitions.Add("PFFFT_SIMD_DISABLE=1");
+                PrivateDefinitions.Add("EIGEN_HAS_CXX11_MATH=0");
+            }
+
             //Embree support:
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
