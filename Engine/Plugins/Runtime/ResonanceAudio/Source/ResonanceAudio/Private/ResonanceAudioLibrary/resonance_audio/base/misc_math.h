@@ -29,13 +29,7 @@ limitations under the License.
 #include <vector>
 
 #include "base/integral_types.h"
-
-#include "CoreMinimal.h"
-
-THIRD_PARTY_INCLUDES_START
 #include "Eigen/Dense"
-THIRD_PARTY_INCLUDES_END
-
 #include "base/constants_and_types.h"
 #include "base/logging.h"
 
