@@ -307,7 +307,6 @@ namespace UnrealBuildTool
 					if(Def.EndsWith("_API", StringComparison.Ordinal))
 					{
                         CurDef = Def + "=";
-                        CurDef = Def + "_TYPE=";
 						Value = "";
 					}
 
