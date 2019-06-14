@@ -44,6 +44,8 @@ public:
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime);
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
 
+	virtual bool ProcessEditDelete();
+
 	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
 
 	virtual bool MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y);

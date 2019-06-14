@@ -16,6 +16,7 @@
 
 #include "EditorToolAssetAPI.h"
 #include "EditorComponentSourceFactory.h"
+#include "InteractiveToolObjects.h"
 
 //#include "PhysicsEngine/BodySetup.h"
 //#include "Interfaces/Interface_CollisionDataProvider.h"
@@ -459,6 +460,32 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	GizmoManager->Render(&RenderContext);
 }
 
+
+
+bool UEdModeInteractiveToolsContext::ProcessEditDelete()
+{
+	if (ToolManager->HasAnyActiveTool() == false)
+	{
+		return false;
+	}
+
+	bool bSkipDelete = false;
+
+	// Test if any of the selected actors are AInternalToolFrameworkActor
+	// subclasses. In this case we do not want to allow them to be deleted,
+	// as generally this will cause problems for the Tool.
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (int i = 0; i < SelectedActors->Num(); ++i)
+	{
+		UObject* SelectedActor = SelectedActors->GetSelectedObject(i);
+		if ( Cast<AInternalToolFrameworkActor>(SelectedActor) != nullptr) 
+		{
+			bSkipDelete = true;
+		}
+	}
+
+	return bSkipDelete;
+}
 
 
 
