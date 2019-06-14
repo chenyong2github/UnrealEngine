@@ -20,8 +20,7 @@ limitations under the License.
 #include <array>
 #include <vector>
 
-#include "embree2/rtcore.h"
-#include "embree2/rtcore_ray.h"
+#include "ResonanceEmbreeHelper.h"
 
 #include "base/constants_and_types.h"
 
