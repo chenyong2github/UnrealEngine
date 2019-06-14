@@ -1,11 +1,11 @@
-﻿INTSourceChangelist:4499937
+INTSourceChangelist:6622979
 Availability: Public
 Crumbs: 
 Title: 시그니피컨스 매니저
 Description: Significance Manager 는 프로젝트에 맞는 방식으로 퍼포먼스를 조정할 수 있는 툴입니다.
 Type: 
 Version: 4.20
-Parent: Performance
+Parent: Engine/Performance
 Order: 1
 Tags: Performance
 Tags: Significance Manager
@@ -35,7 +35,7 @@ Tags: CPU
 플러그인을 활성화한 상태에서 프로젝트의 "Build.cs" 파일 `PublicDependencyModuleNames` 에 "SignficanceManager" 를 추가합니다. 다음 예제는 "기본 C++" 프로젝트 템플릿이 시그니피컨스 매니저를 사용하도록 수정한 것입니다.
 
 
-PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "SignificanceManager" });
+    PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "SignificanceManager" });
 
 
 ## 시그니피컨스 매니저 기본 함수 기능
@@ -64,30 +64,30 @@ PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engi
 `Update` 함수는 자동 실행되지 않습니다. 대부분의 경우 개발자는 매 프레임, 프레임당 한 번만 호출하고 싶어합니다. 그렇게 호출하기 좋은 장소는 `UGameViewportClient` 오버라이드 버전으로, 다음 코드와 같습니다.
 
 
-#include "MyGameViewportClient.h"
-#include "SignificanceManager.h"
-#include "Kismet/GameplayStatics.h"
-void UMyGameViewportClient::Tick(float DeltaTime)
-{
-// 상위 클래스의 Tick 함수를 호출합니다.
-Super::Tick(DeltaTime);
-// 유효한 월드 및 시그니피컨스 매니저 인스턴스가 있는지 확인합니다.
-if (UWorld* World = GetWorld())
-{
-if (USignificanceManager* SignificanceManager = FSignificanceManagerModule::Get(World))
-{
-// 프레임당 한 번 업데이트하며, 플레이어 0 의 월드 트랜스폼만 사용합니다.
-if (APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0))
-{
-// 시그니피컨스 매니저가 배열 뷰를 사용합니다. 엘리먼트가 하나인 배열을 생성하여 트랜스폼을 저장합니다.
-TArray<FTransform> TransformArray;
-TransformArray.Add(PlayerPawn->GetTransform());
-// 시그니피컨스 매니저를 배열 뷰를 통해 엘리먼트가 하나인 배열로 업데이트합니다.
-SignificanceManager->Update(TArrayView<FTransform>(TransformArray));
-}
-}
-}
-}
+    #include "MyGameViewportClient.h"
+    #include "SignificanceManager.h"
+    #include "Kismet/GameplayStatics.h"
+    void UMyGameViewportClient::Tick(float DeltaTime)
+    {
+        // 상위 클래스의 Tick 함수를 호출합니다.
+        Super::Tick(DeltaTime);
+        // 유효한 월드 및 시그니피컨스 매니저 인스턴스가 있는지 확인합니다.
+        if (UWorld* World = GetWorld())
+        {
+            if (USignificanceManager* SignificanceManager = FSignificanceManagerModule::Get(World))
+            {
+                // 프레임당 한 번 업데이트하며, 플레이어 0 의 월드 트랜스폼만 사용합니다.
+                if (APawn *PlayerPawn = UGameplayStatics::GetPlayerPawn(World, 0))
+                {
+                    // 시그니피컨스 매니저가 배열 뷰를 사용합니다. 엘리먼트가 하나인 배열을 생성하여 트랜스폼을 저장합니다.
+                    TArray<FTransform> TransformArray;
+                    TransformArray.Add(PlayerPawn->GetTransform());
+                    // 시그니피컨스 매니저를 배열 뷰를 통해 엘리먼트가 하나인 배열로 업데이트합니다.
+                    SignificanceManager->Update(TArrayView<FTransform>(TransformArray));
+                }
+            }
+        }
+    }
 
 [/REGION]
 

@@ -10,7 +10,7 @@ Order: 4
 Tags: 
 
 
-ビルド システムからアーティストが使用できるようにエディタ バイナリを Perforce にサブミットする場合に利用できるよう、バイナリのコンパイル、ステージング ディレクトリへのコピー、Perforce へのサブミット (任意) のプロセスを紹介する [BuildGraph](Programming/Development/BuildGraph) スクリプトの例が `Engine\Build\Graph\Examples\BuildEditorAndTools.xml` に用意されています。
+ビルド システムからアーティストが使用できるようにエディタ バイナリを Perforce にサブミットする場合に利用できるよう、バイナリのコンパイル、ステージング ディレクトリへのコピー、Perforce へのサブミット (任意) のプロセスを紹介する [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) スクリプトの例が `Engine\Build\Graph\Examples\BuildEditorAndTools.xml` に用意されています。
 
 このスクリプト例の冒頭には、これを使用して利用可能になるさまざまなオプションの使用例とドキュメントが記されています。
 

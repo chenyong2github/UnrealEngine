@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6572591
 Availability:Public
 Title: 파티클 시스템
 Crumbs: %ROOT%, Engine, Engine/Rendering 
@@ -12,10 +12,7 @@ tags:Particles
 related:Engine/Basics/Distributions
 related:Engine/Rendering/Materials/Editor
 topic-image:particles_topic.png
-
-[REGION:banner]
-![](effects_landing_banner.png)(convert:false)
-[/REGION]
+hero-image:effects_landing_banner.png
 
 [EXCERPT:Intro]
 언리얼 엔진에는 매우 강력하고 탄탄한 파티클 시스템이 탑재되어 있어, 연기, 스파크, 화염에서부터 좀 더 복잡하고 이색적인 예제까지 놀라운 비주얼 이펙트를 아티스트가 만들어 낼 수 있습니다.

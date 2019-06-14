@@ -2,13 +2,13 @@ Availability: Public
 Crumbs: 
 Title: Blackmagic Video I/O Quick Start
 Description: A step-by-step guide to getting video from a supported Blackmagic media card into the Unreal Engine, and sending captured video output from the Unreal Engine out to a port on the Blackmagic card.
-Type: 
+Type: quick start
 Version: 4.21
 Parent: Engine/ProVideoIO
-Order: 
+Order: 1
 Tags: Getting Started
-Tags: Early Access
 Tags: professional video
+topic-image: blackmagic-qs-topic.png
 
 
 ![](blackmagic-qs-banner.png)
@@ -20,7 +20,7 @@ In this Quick Start guide, we walk through the process of setting up an Unreal E
 *   you'll know where to go when you want to set up more advanced adjustments to your video inputs, such as correcting lens deformation and applying chroma-keying effects.
 
 [REGION:tip]
-For a working example that shows many of the elements described below put into practice, see the [Virtual Studio](Resources/Showcases/VirtualStudio) showcase, available on the Learn tab of the Epic Games Launcher.
+For a working example that shows many of the elements described below put into practice, see the **[Virtual Studio](Resources/Showcases/VirtualStudio)** showcase, available on the Learn tab of the Epic Games Launcher.
 [/REGION]
 
 [REGION:note]
@@ -78,7 +78,7 @@ In this process, we'll make video input from the Blackmagic card visible in the 
 6.  Once you've identified the type of Media Source you want the Media Bundle to handle, you can then set up any configuration properties offered by that type of source.   
     The most important thing to set here for the Blackmagic Media Source is the **Configuration** setting, to make sure that the bundle is set up to capture video from the right device and input port, using the same resolution and frame rate as the actual video feed. Click the arrow to open the settings submenu, select the options that match your setup, then click **Apply** in the submenu.  
     ![Blackmagic Media Source Configuration](blackmagic-qs-2-5.png "Blackmagic Media Source Configuration")  
-    The options you see may vary depending on the devices you have installed. For details on all of the properties you can set for a Blackmagic Media Source, see the [Blackmagic Media Reference](Engine/ProVideoIO/BlackmagicIOReference) page.
+    The options you see may vary depending on the devices you have installed. For details on all of the properties you can set for a Blackmagic Media Source, see the [Blackmagic Media Reference](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/BlackmagicIOReference) page.
 7.  If you want to apply any compensation to the incoming video to account for lens distortion, you can set up the physical properties of the lens in the **Lens Parameters** section.   
     ![Lens undistortion parameters](aja-qs-2b-6-lensdistortion.png "Lens undistortion parameters")  
     These Lens Parameters just set up the physical properties of the lens. You'll actually activate the lens compensation later, when you edit the Material Instance used by the Media Bundle.  
@@ -124,7 +124,7 @@ In this process, you'll set up an Blackmagic Media Output object, and use the **
 1.  Right-click in the Content Browser, and select **Media > Blackmagic Media Output**.   
     ![New Blackmagic Media Output](blackmagic-qs-3-1.png "New Blackmagic Media Output")  
     Name your new Asset **BlackmagicMediaOutput**.
-2.  Double-click your new Asset to open it up for editing. Just like when you created your Blackmagic Media Source, you have to set up the **Configuration** property to control the properties of the video feed that the Unreal Engine sends to your Blackmagic card. Click the arrow to open the submenu, select the options that match your video setup, then click **Apply** in the submenu.   
+2.  Double-click your new Asset to open it up for editing. Just like when you created your Blackmagic Media Source, you have to set up the **Configuration **property to control the properties of the video feed that the Unreal Engine sends to your Blackmagic card. Click the arrow to open the submenu, select the options that match your video setup, then click **Apply **in the submenu.   
     ![Blackmagic Media Output Configuration](blackmagic-qs-3-2.png "Blackmagic Media Output Configuration")  
     The options you see may vary depending on the devices you have installed. For details on all of the properties you can set in the Blackmagic Media Output, see the [Blackmagic Media Reference](Engine/ProVideoIO/BlackmagicIOReference) page.  
     Save and close your Media Output when you're done.
@@ -152,7 +152,7 @@ In this process, you'll set up an Blackmagic Media Output object, and use the **
     ![Active Media Capture](blackmagic-qs-output-8.png "Active Media Capture")
 9.  Each camera that you added to the Locked Camera Actors list for this viewport capture is represented by a corresponding button above the video preview. Click the buttons to switch the capture back and forth between the two views.
 
-![Switch Cameras](blackmagic-qs-output-9.png "Switch Cameras")
+    ![Switch Cameras](blackmagic-qs-output-9.png "Switch Cameras")
 
   
 
@@ -165,7 +165,7 @@ Now you've set up the Unreal Editor to stream output from cameras in your Level 
 The **Media Capture** window that you used in the last section is a practical and easy way to send captures to the Blackmagic card. However, it only works inside the Unreal Editor. To do the same thing when you're running your Project as a standalone application, you'll need to use the Blueprint API provided by the Media Output. In this procedure, we'll set up a simple toggle switch in the Level Blueprint that starts and stops capturing when the player presses a key on the keyboard.
 
 [REGION:tip]
-The [Virtual Studio](Resources/Showcases/VirtualStudio) showcase, available on the **Learn** tab of the Epic Games Launcher, contains a UMG interface widget that demonstrates how you could control capturing from an on-screen user interface.
+The **[Virtual Studio](Resources/Showcases/VirtualStudio)** showcase, available on the **Learn** tab of the Epic Games Launcher, contains a UMG interface widget that demonstrates how you could control capturing from an on-screen user interface.
 [/REGION]
 
 ### Steps
@@ -208,7 +208,8 @@ The [Virtual Studio](Resources/Showcases/VirtualStudio) showcase, available on 
     [REGION:note]
     Video capture from the Editor will only work when you play your Project in a **New Editor Window (PIE)** or a **Standalone Game**. It won't work in the default **Selected Viewport** mode, or in **Simulate** mode.  
     In addition, the viewport resolution of your Project (that is, the size of the rendered image the Unreal Engine generates each frame) must match the output resolution set in the active Media Profile, so that it will be the right size for the output video feed.
-    [/REGION]After your project starts up, you should be able to press the **P** button on your keyboard to toggle sending the output from the Engine to the Blackmagic card.
+    [/REGION]  
+    After your project starts up, you should be able to press the **P** button on your keyboard to toggle sending the output from the Engine to the Blackmagic card.
 
 ### End Result
 
@@ -219,4 +220,4 @@ At this point, you should have a basic idea of how to work with Blackmagic Media
 Now that you've seen the basics of how to get a new Project exchanging video input and output with a Blackmagic card, you can continue learning on your own:
 
 *   Explore the in-engine keying solution in the Material Instance created by your Media Bundle. Try passing some green-screen video into your card's input port, and use the keying controls in the Material Instance to remove the background.
-*   Explore the [Virtual Studio](Resources/Showcases/VirtualStudio) showcase to see what it adds to this basic setup, like its on-screen UI that switches cameras and controls video capture at runtime.
+*   Explore the **[Virtual Studio](Resources/Showcases/VirtualStudio)** showcase to see what it adds to this basic setup, like its on-screen UI that switches cameras and controls video capture at runtime.

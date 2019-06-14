@@ -1,121 +1,131 @@
-﻿INTSourceChangelist:2714483
-Availability:Public
-Title: 版本控制
-Crumbs:%ROOT%, Engine, Engine/UI
-Description:此文档为源控制功能概览。
-Version:4.9
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![](SourceControlTopic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/UI/SourceControl:title%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/UI/SourceControl]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+﻿INTSourceChangelist:3489755
+Availability: Public
+Title:源码管理
+Crumbs: %ROOT%
+Description:本文概述源码管理的功能。
+type:overview
+skilllevel:Beginner
+Version: 4.16
+parent:Engine/UI
+order:
+tags:User Interface
+topic-image:SourceControlTopic.png
 
 [TOC(start:2)]
 
-
-
-虚幻编辑器支持版本控制，便于各个团队协调游戏开发和设计工作，以及处理版本控制。
+虚幻编辑器内置了对源码管理包的支持。源码管理用于管理代码和数据随时间的变化，使团队能够协调他们的游戏开发工作。
 
 [REGION:note]
-	默认支持 Perforce 和 SVN。
+	默认情况下支持Perforce和SVN。
 [/REGION]
 
-## 启用版本控制
+(#activatingsource Control)
 
-可以以下两种方式启用版本控制：
-* 在关卡编辑器的 **Preferences** 窗口中启用。
-* 在 **Content Browser** 中启用。
+## 启用源码管理
 
-### 通过 Editor Preferences 启用版本控制
+您可以通过两种方式之一来启用源码管理：
+* 在关卡编辑器的 **偏好设置（Preferences）** 窗口。
+* 在 **内容浏览器（Content Browser）** 中。
 
-可通过编辑器的主 Preferences 窗口启用版本控制（**Edit > Editor Preferences > Loading & Saving**）。
+(#activatingsourcecontrolviaeditorpreferences)
+
+### 通过编辑器偏好设置（Editor Preferences）启用源码管理
+
+您可以通过编辑器偏好设置（Editor Preferences）窗口（**编辑（Edit）> 编辑器偏好设置（Editor Preferences）> 加载和保存（Loading & Saving）**）启用源码管理。
 
 ![SourceControlPreferences.png](SourceControlPreferences.png)
 
-| 项目 | 描述 |
+| 项目 | 说明 |
 | --- | --- |
-| **Automatically Checkout on Asset Modification** | 勾选后将自动对修改的资源进行签出。|
-| **Prompt for Checkout on Package Modification** | 勾选后，对源控制包进行修改时将弹出提示询问是否需要签出（锁定）该包。|
-| **Add New Files when Modified** | 文件被修改后，将添加新文件到源控制。|
-| **Use Global Settings** | 使用全局源控制登陆设置替代单个项目设置。修改此项后需要重新登陆。|
-| **Tool for diff'ing text** | 指定工具的文件路径，用于区分文本文件。|
+| **资源修改时是否自动签出（Automatically Checkout on Asset Modification）** | 选中后，它将自动签出任何已修改的资源。|
+| **包修改签出提示（Prompt for Checkout on Package Modification）** | 选中后，当您对源码管理包进行更改时，将出现一条提示，询问您是否希望签出（锁定）该包。|
+| **修改时添加新文件（Add New Files when Modified）** | 它将在修改时向源码管理添加新的文件。|
+| **使用全局设置（Use Global Settings）** | 使用全局源码管理登录设置，而不非逐项目设置。修改后需重新登录。|
+| **对比文本工具（Tool for diffing text）** | 为对比文本文件的工具指定文件路径。|
 
-### 通过 Content Browser 启用版本控制
+(#Activating Source Control via the Content Browser)
 
-也可在 **Content Browser** 中启用版本控制。操作方法为：**右键单击** 任意资源或文件夹。在快捷菜单底部的 **Source Control** 部分点击 **Connect to Source Control**。 
+### 通过内容浏览器启用源码管理
+
+您还可以在 **内容浏览器（Content Browser）** 中启用源码管理。为此，右键单击任何资源或文件夹。在上下文菜单底部的 **源码管理（Source Control）** 部分，单击 **连接到源码管理（Connect to Source Control）**。
 
 ![Connect to Source Control](CB_SourceControl.png)
 
-此操作将打开一个登陆画面，可选择源控制系统并输入恰当设置和其他信息。
+这将打开一个登录屏幕，您可以在其中选择源码管理系统并输入任何适当的设置和其他信息。
 
 ![Source Control Login](CB_SourceControlLogin.png)
 
-输入信息后点击 **Accept Settings**。版本控制启用后，**Content Browser** 中资源显示将发生变化，反映源控制状态；部分版本控制选项将出现在 **右键** 快捷菜单中。
+输入适当的信息，然后单击 **接受设置（Accept Settings）**。启用源码管理后，**内容浏览器（Content Browser）** 中资源的显示将发生变化，以反映其源码管理状态，右键单击上下文菜单中将包含一些源码管理选项。
 
+
+(#statusicons)
 
 ## 状态图标
 
-**Content Browser** 将在资源的 **右上角** 显示特殊图标，表明源控制状态。以下为图标及它们的含义：
-
+*内容浏览器（Content Browser）** 将在资源的右上角显示特殊图标，以提供源码管理的状态。下面是可用的图标以及它们的含义：
 
 
 [REGION:imagetable]
-| ![CheckedOutByYou.png](CheckedOutByYou.png)(w:178) | ![CheckedOut.png](CheckedOut.png)(w:178) | ![MarkedForAdd.png](MarkedForAdd.png)(w:178) | ![notInDepot.png](notInDepot.png)(w:178) | ![NotHadRevision.png](NotHadRevision.png)(w:178) 
+| ![CheckedOutByYou.png](CheckedOutByYou.png)(w:178) | ![CheckedOut.png](CheckedOut.png)(w:178) | ![MarkedForAdd.png](MarkedForAdd.png)(w:178) | ![NotInTheDepot.png](NotInTheDepot.png)(w:178) | ![NotHeadRevision.png](NotHeadRevision.png)(w:178) 
 | --- | --- | --- | --- | --- |
-| 由您签出 | 由其他用户签出 | 标记为添加 | 不在存储目录中 | 源控制中存在新版本文件
-
+| 已被您签出 | 已被另一用户签出 | 已标记进行添加 | 不在Depot库中 | 源码管理中存在新版本的文件
 [/REGION]
 
-## 版本控制操作
+(#sourcecontrolactions)
 
-启用源控制后，**右键单击** 资源将出现以下快捷菜单：
+## 源码管理操作
+
+当源码管理处于活动状态，如果您右键单击一个资源，将有以下上下文菜单可用：
 
 ![SourceControlMenu.png](SourceControlMenu.png)
 
-| 项目 | 描述 |
+| 项目 | 说明 |
 | --- | --- |
-| **Check Out** | 签出（锁定）资源进行编辑。可防止其他用户同时编辑资源。|
-| **Refresh** | 刷新资源的源控制状态。|
-| **History** | 获取所选资源的修改历史列表，以便查看历史编辑。|
-| **Diff Against Depot** | 将资源和当前保存在源控制存储目录中的版本进行对比检查。|
+| **签出（Check Out）** | 签出（锁定）此资源进行编辑。它将防止其他用户同时编辑此资源。|
+| **刷新（Refresh）** | 刷新资源的源码管理状态。|
+| **历史记录（History）** | 提供所选资源的修改历史列表，允许您查看之前的编辑。|
+| **和Depot中文件进行比较（Diff Against Depot）** | 它允许您根据当前存储在源码管理Depot的版本检查资源。|
+
+(#checkingoutandcheckingin)
 
 ## 签出和签入
 
-**右键单击** 并选择 **Check Out**，即可签出资源进行编辑。然而，重新签入时须遵守特定协议。
+要签出资源进行编辑，只需右键单击它并选择 **签出（Check Out）**。在迁回资源时，请遵守以下方案：
 
-* 在资源上 **单击右键** 并选择 **Check In**。将出现一个对话，包含签入所需的变更列表描述。 
-* 输入描述，它将被添加到资源的修改历史。
-* 完成后点击 **OK**。
-
+* 右键单击资源并选择 **签入（Check In）**。将出现一个对话框，其中包含签入所需的变更列表描述。
+* 输入描述，它将被添加到资源的修改历史记录。
+* 完成后，单击 **确定（OK）**。
 
 
 ![ChangelistDescription.png](ChangelistDescription.png)
 
 [REGION:note]
-	变更列表描述为必须，因此描述被输入之前 *OK* 按钮不会启动。
+需要变更列表描述，因此在输入描述之后方才启用 **确定（OK）** 按钮。
 [/REGION]
 
+(#contenthotreloading)
 
-## 停用版本控制
+## 内容热重载
 
-启动版本控制后，有时可能需要将其停用。
+ **内容热重载（Content Hot Reloading）** 是一项新功能，当内容被源码管理操作修改时，编辑器内的源码管理使用该功能来自动重载内容。目前，自动重载仅在通过编辑器内的源码管理集成执行源码管理操作时有效，任何外部更改都不会触发重载。我们打算在以后的引擎版本中删除这一需求，这样外部更改也会触发热重载。
+
+内容热重载还提供了从命令中的前一保存状态重载资源的能力。可以通过在 **内容浏览器（Content Browser）** 中右键单击资源并在 **资源操作（Asset Actions）** 组下选择 **重载（Reload）** 选项来实现该功能。如果您对资源进行了未保存的更改并且想要放弃这些修改以恢复到磁盘上的版本，该功能非常有用。
+
+![ContentHotReload.png](ContentHotReload.png)
+
+[REGION:note]目前，该功能要求您为您的项目启用源码管理。[/REGION:note]
+
+(#deactivatingsourcecontrol)
+
+## 停用源码管理
+
+您可能会发现在启用源码管理之后想要停用它。
 
 [REGION:warning]
-建议您只在绝对肯定不需要使用源控制时使用此选项。停用源控制将使内容失去与源控制系统的同步，无法签入变更。
+只有在绝对确定不想要使用源码管理时，才使用此选项。停用源码管理将使您的内容与源码管理系统不同步，并且无法签入更改。
 [/REGION]
 
-**停用版本控制：**
+ **停用源码管理**：
 
-1. 点击关卡编辑器窗口右上角的绿色双箭头图标 (![](icon_SourceControl.png)) 打开 **Source Control Login** 画面。
-1. 点击 **Run Without Source Control** 按钮。关卡编辑器窗口中的绿色图标将变为带斜杠的一个红圈 (![](icon_CB_SourceControlOff.png))，代表版本控制已被停用。
-
-
+1. 在关卡编辑器窗口的右上角，单击绿色双箭头图标(![](icon_SourceControl.png))。这将打开 **源码管理登录（Source Control Login）** 屏幕。
+1. 单击 **脱离源码管理运行（Run Without Source Control）** 按钮。关卡编辑器窗口中的绿色图标将变成一个带斜杠的红色圆圈(![](icon_CB_SourceControlOff.png))，指示没有使用源码管理。

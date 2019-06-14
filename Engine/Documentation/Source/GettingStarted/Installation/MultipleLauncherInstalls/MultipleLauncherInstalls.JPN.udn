@@ -1,0 +1,121 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Multiple Launcher Installs
+Description: An overview showing users how to enable the Launcher's PCB Mode, and if needed, how to add a Windows Registry Install Path Override.
+Type: overview
+Version: 4.20
+Parent: GettingStarted/Installation
+Tags: Installation
+Order: 0
+
+
+[TOC (start:2 end:3)]
+
+![](MultiLauncherInstall_OverviewImg-1.png "MultiLauncherInstall_OverviewImg-1.png")
+
+Installing the Epic Games Launcher and Unreal Engine on multiple computers can be time-consuming and difficult to maintain, especially for IT staff and developers managing dozens or even hundreds of computers in academic, office or Internet cafe environments. To help those users, we've updated the Launcher with functionality that makes it easier to set up and update applications, such as Unreal Engine 4 (UE4). The following overview describes how to install the Launcher on multiple computers so that you can set up and maintain applications with ease. 
+
+By the end of this document, you'll learn how to enable **Launcher PCB Mode** and if necessary, you'll know how to set the **Windows Registry Install Path Override** after enabling the PCB Mode feature.
+
+[REGION:note]
+At this time, these features are only supported on the Windows operating system.
+[/REGION]
+
+## Launcher PCB Mode
+
+On Windows, the Launcher typically stores manifest, dynamic, and temporary files in the system's **ProgramData** folder (for example, **\%programdata%\\Epic** or **C:\\ProgramData\\Epic**). Often, if an office, academic, or Internet cafe administrator installs the Launcher and Unreal Engine on a server without mirroring the program data to client machines, they will encounter installation issues, including a client's inability to find game installs and re-installs of applications.
+
+Sometimes, system administrators need to run a series of complicated steps to mirror the program data folder onto client machines. To simplify their workflow, the Launcher now supports **PCB Mode**. After enabling PCB Mode, the Launcher stores the program data folder inside of its install folder. Internet cafe owners, for example, will be able to set up the Launcher once on the server machine, such that the server's install folder will be cloned to its clients. With all of the program data files in the install folder, no additional work is necessary.
+
+[REGION:prereq]
+If you've never installed UE4 before, take some time to read through our initial installation guide, which goes through the basics of [Installing Unreal Engine](GettingStarted/Installation).
+[/REGION]
+
+### Enabling Launcher PCB Mode
+
+Perform the following steps to enable Launcher PCB Mode:
+
+1.  Prior to moving onto the next step, install the Launcher on at least one machine (this can be a server). Later on, we'll call this machine the 'original computer'.
+
+1.  Before moving onto the next step, make sure that the Launcher is closed.
+
+1.  To enable **Launcher PCB Mode**, move (or copy) the **Epic** folder into the Launcher's install directory. For illustrative purposes, we're moving the Epic folder from `C:\ProgramData\Epic` to `C:\Program Files (x86)\Epic Games\Launcher`.  
+    ![](MultiLauncherInstall_Step3.png "MultiLauncherInstall_Step3.png")
+
+[REGION:note]
+PCB Mode attempts to simplify a user's workflow for installing multiple Engines from a Launcher. Read through the Launcher PCB Mode section to learn more about this new Launcher mode.
+[/REGION]
+1.  Using the Launcher, install the engine(s)-of-choice into the new computer(s).
+
+1.  Finally, copy the Launcher's and Engine's install directory to the new computer(s).
+
+[REGION:note]
+If the new computer's Engine install path is different from the original computer's path or if the new computer has different drive letters, you'll need to add a **Registry Install Path Override** after enabling the Launcher PCB Mode.
+[/REGION]
+
+### Disabling Launcher PCB Mode
+
+To disable this mode, close the Launcher, and move the **Epic** folder from the Launcher's install directory back into the **Program** directory, making sure to restart the Launcher after the move.
+
+[REGION:tip]
+We encourage you to move the **Epic** folder rather than deleting it, because if you delete the folder from the Launcher install directory, you will probably lose manifest files (binary files that can't be modified), which tell the Launcher where your game or application is installed.
+[/REGION]
+
+## Windows Registry Install Path Override
+
+The Launcher stores game and application install location information in manifest files living in the system's **ProgramData** folder. At this time, if you move an installed game or application to a new location, the Launcher can't discover the moved installs. This can be problamatic, especially for users who are moving the Launcher and game (or application) installs to machines that don't have the same drive letter or directory structure as the original install machine. If you find yourself having problems moving (or copying) the Launcher or its installs onto new machines, you may need to specify a registry install path override to point to the copied or moved game or application folder.
+
+[REGION:note]
+Typically, registry install path overrides are used with PCB Mode.
+[/REGION]
+
+Install path (InstallLocation) overrides are specified in the Windows registry on a per game (or per application) basis, and the **InstallLocation** overrides may be added to any one of the following registry locations:
+
+*   `HKEY_LOCAL_MACHINE\SOFTWARE\Epic Games\EpicGamesLauncher\Overrides`
+
+*   `HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides`
+
+*   `HKEY_CURRENT_USER\SOFTWARE\Epic Games\EpicGamesLauncher\Overrides`
+
+*   `HKEY_CURRENT_USER\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides`
+
+[REGION:note]
+The next section uses the [Registry](https://docs.microsoft.com/en-us/windows/desktop/sysinfo/registry) Editor in Windows 10.
+[/REGION]
+
+### Adding a Registry Install Path Override
+
+Perform the following steps to add a Registry Install Path Override:
+
+1.  In the search bar on the taskbar, type `regedit`.
+
+1.  Select the **regedit Run command** to open the **Registry Editor**.
+
+[REGION:note]
+You're going to use the **Registry Editor** to add the InstallLocation Override Subkey, which can be added to any one of the registry locations being listed in the Registry Install Path Override section. For the purposes of illustration, we're adding the Subkey to the following Key:
+
+`HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides`
+[/REGION]
+1.  Navigate to the following registry location: `HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher`, making sure to select the **EpicGamesLauncher** Key.
+
+1.  To create a new Subkey for the **EpicGamesLauncher** Key, select the **Edit** menu, hover over the **New** option, and select the **Key** command.
+
+1.  Name the new Subkey, `Overrides`.
+
+1.  Now, repeat the previous two steps to create a new Subkey for Overrides, which you'll name `UE_4.18`.
+
+[REGION:tip]
+The registry path's format must include UE4's mandatory folder name, which you can find in the Launcher's **Install Dialog**. As you can see in the following image, the mandatory folder name for this example is **UE_4.18**:  
+
+![](LauncherInstallDialog.png "LauncherInstallDialog.png")
+[/REGION]
+1.  Select the **Edit** menu, hover over the **New** option, and select the **String Value** command.
+
+1.  Name the new String Value name, `InstallLocation`.
+
+1.  Finally, define the data value for **InstallLocation**, matching UE4's mandatory folder name. In this example, we're using **C:\\Epic Games\\UE_4.18**.  
+    ![](InstallLocOverride_Step9.png "InstallLocOverride_Step9.png")
+
+[REGION:note]
+The Launcher only reads registry values once on start-up, so if you update the registry, you need to restart the Launcher for it to discover the changes.
+[/REGION]

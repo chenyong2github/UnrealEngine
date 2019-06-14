@@ -1,0 +1,311 @@
+﻿INTSourceChangelist:6409500
+Availability: Public
+Title: 多用户编辑概述
+Description: 关于多用户编辑系统工作方式的概念概述。
+Type: overview
+Version: 4.22
+Parent: Engine/Editor/MultiUser
+Tags: Getting Started
+Tags: Early Access
+Tags: Multi-User Editing
+topic-image: multiuserediting-workflow-topic.png
+Order: 0
+hero-image:multiuserediting-workflow-banner.png
+
+多用户编辑工作流程基于客户端-服务器模型而构建，其中一个 *服务器* 托管任意数量的 *会话*。每个会话是单独的虚拟工作空间，位于同一个网络上的任何虚幻编辑器实例都可以连接到这个空间，以便在一个共享环境内就同一个项目内容进行协作。
+
+![Multi-User Editing network server and clients](multiuser-editing-overview.png "Multi-User Editing network server and clients")
+
+在会话工作空间内时，每个用户都可以虚幻编辑器实例支持的任意方式与项目内容互动。例如：
+
+*   某些用户可能使用标准台式机设置中的键盘和鼠标工作，或根据需要使用其他平台工作。
+
+*   其他用户可能选择使用编辑器的VR编辑模式来显示场景，以及使用VR头显和控制器在场景中工作，或者可能使用移动设备通过[虚拟摄像机](Engine/Plugins/VirtualCameraPlugin)等插件进入同一个场景。
+
+每当有任何连接的用户更改项目中的关卡或保存资源时，他们的虚幻编辑器实例会自动将关于该更改的信息转发到服务器。服务器负责跟踪所有这些更改记录，或者 **事务**，并将这些事务发送到所有其他连接的客户端。然后，每个客户端在其自己的环境内部本地应用相同的更改。这样，每个人看到的当前关卡和项目中的其他资源都是最新的，包含了最新更改。
+
+## 同步事务
+
+多用户编辑系统选择不同的策略来在连接的客户端之间同步更改，具体取决于您处理的资源类型和所做的更改类型。
+
+### 关卡：即时同步
+
+您对关卡内容所做的所有更改都会立即与会话中的所有其他计算机同步。如果您添加或移除Actor，四处移动Actor，切换材质，或更改Actor的属性，会话中的所有其他用户都会看到这些更改立即生效。拖动工具来移动、旋转或缩放Actor会导致您在拖动时发生多个事务。即使您还没未松开鼠标，其他用户也会看到这些更改。
+
+例如，在以下视频中，当左侧用户四处拖动Actor以进行更改时，右侧用户会在他们的视口中立即看到这些变化，即使左侧用户没有松开鼠标。同样，当右侧用户旋转对象，左侧用户也会立即看到更改。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 12Hg4v45CfI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[REGION:note]
+仅当处于同一种编辑器模式，才会看到其他用户更改的效果：即，两人都处于编辑模式，或者都处于 **在编辑器中运行（PIE）** 或 **模拟** 模式。
+[/REGION]
+
+### 其他资源：保存时同步
+
+在虚幻引擎项目中更改大多数资源类型时，多用户编辑系统不会立即将更改同步。这包括材质和材质实例、静态网格体资源、蓝图类等资源类型。在这些情况下，当您对这些资源进行更改时，您是唯一一个看到这些更改在环境中立即生效的人。当您保存更改时，多用户编辑系统会发送事务给会话中的所有其他用户。 
+
+在这种情况下，事务实际上是保存的资源，而不是简单的更改记录。每个接收这些更新包的编辑器实例都会立即对更新进行热重载，让更改立即显示出来。
+
+例如，在以下视频中，当左侧用户更改材质时，更改不会立即同步。但是，当用户保存对资源的更改时，事务会被处理，更改会立即显示给右侧用户。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 8f1ImAFu4rU
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[REGION:note]
+在保存资源后，资源会自动锁定。此外，当某些类型资源存在未保存的更改时，多用户编辑系统会为其他用户将这些资源标记为“脏”。请参阅下文的[避免冲突](#避免冲突)。
+[/REGION]
+
+### Sequencer：播放同步和可选UI同步
+
+多用户编辑系统将关卡序列和主序列视为关卡：当任意用户对序列进行更改时，如添加或移除轨迹，或者添加新的关键帧，它会立即将该更改同步到会话中的所有其他用户。 
+
+此外，当一个用户播放序列时，同一个序列会对打开该序列的所有用户立即播放。只有开始播放的用户才能够停止播放。序列停止后，所有用户都可以重新开始播放。
+
+您还可以选择让多用户编辑系统在一个用户打开Sequencer UI时在所有客户端上同时打开该UI。由于多用户编辑系统会为打开同一个序列的所有用户同步播放，因此启用该UI同步选项可帮助您确保所有用户同时看到相同的序列播放。
+
+以下视频显示了多用户编辑系统如何同步Sequencer UI事件、播放事件和编辑事件。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ _RPKUze91n8
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[REGION:note]
+要按如上所示为Sequencer启用UI同步，请使用 `Concert.EnableOpenRemoteSequencer` 控制台命令。有关详细信息，请参阅[多用户编辑参考](Engine/Editor/MultiUser/Reference)的[控制台命令](Engine/Editor/MultiUser/Reference#控制台命令)部分。
+[/REGION]
+[REGION:note]
+多用户编辑系统同步播放事件，但不同的计算机可能会按不同帧速播放动画。不要认为各个虚幻编辑器实例都拥有帧准确结果。
+[/REGION]
+
+## 在线状态
+
+多用户编辑系统提供一些不同的方法查看会话中的其他用户在进行的操作。
+
+[REGION:tip]
+以下部分中描述的在线状态信息使用显示名称和颜色来区分连接的用户。每个用户可以使用 **项目设置（Project Settings）** 中的 **显示名称（Display Name）** 和 **头像颜色（Avatar Color）** 设置来自定义这些值。有关详细信息，请参阅[多用户编辑参考](Engine/Editor/MultiUser/Reference#项目设置)。
+[/REGION]
+
+### 位置和视点
+
+当您与另一个用户在同一关卡中操作时，会看到表示其在场景中位置和视点的头像。他们与场景互动时，您还会看到激光束，指示通过鼠标光标或运动控制器高亮显示的对象。
+
+例如，下图显示了在同一个关卡中操作的两个台式机用户的头像：
+
+![Multi-User Editing desktop avatars](multiuserediting-ov-presence-avatars.png "Multi-User Editing desktop avatars")
+
+您可以随时使用 **连接的客户端（Connected Clients）** 面板中的功能按钮来处理该在线状态信息。（当您选中当前服务器名称和会话名称时，您可以在 **多用户会话（Multi-User Session）** 窗口和 **多用户浏览器（Multi-User Browser）** 窗口中找到此面板。）
+
+![Multi-User Editing Connected Clients panel](multiuserediting-ov-presence-connectedclients.png "Multi-User Editing Connected Clients panel")
+
+| 图标 | 描述 |
+| --- | --- |
+| ![Teleport to user's point of view](multiuserediting-ov-presence-location.png "Teleport to user's point of view") | 立即传送到与该用户相同的位置和视点。|
+| ![Toggle presence visibility](multiuserediting-ov-presence-visibility.png "Toggle presence visibility") | 切换显示该用户的头像和激光指针。|
+
+### 会话更改历史记录
+
+在 **多用户会话（Multi-User Session）** 窗口中，您可以找到当前会话中发生的各个编辑事务的列表，以及每次用户连接会话或断开会话连接的事务。
+
+![Session change history](multiuserediting-ov-presence-sessionhistory.png "Session change history")
+
+### 资源更改历史记录
+
+您还可以查看各个资源的更改列表。在内容浏览器中右键单击资源，然后选择 **多用户（Multi-User）>资源历史记录（Asset History）**。您将获得修改该特定资源的所有事务的列表。
+
+![Asset change history](multiuserediting-ov-presence-assethistory.png "Asset change history")
+
+## 避免冲突
+
+当您允许多个人同时就同一内容协作时，他们最后可能会同时更改相同的内容。如果过于放松而允许发生这种情况，可能会导致因为大家争夺控制权而崩溃，或者丢失他们所做的更改。另一方面，如果过于严格，则会限制大家在需要时修改内容的能力，导致工作变慢或完全阻碍了工作。
+
+多用户编辑系统尝试在这两种极端情况之间寻求平衡，防止大多数用户争用情况下发生争夺和覆盖。
+
+### 锁定拖拽的选择
+
+当您主动在关卡视口中拖拽选择时——例如，移动、旋转或调整大小——您就获得了对这些Actor的独占控制权。如果另一个用户尝试修改其中的任意Actor，无论是使用 **关卡视口** 中的工具拖拽还是在 **细节（Details）** 面板中设置属性，它们的更改都会立即被还原。
+
+停止拖拽交互后，其他用户便立即可以自由使用这些Actor，即使您仍选中它们也毫无影响。
+
+### 锁定资源
+
+如果想要防止其他用户修改某些资源，可以将它们锁定。资源被锁定期间，只有锁定它的用户可以保存新修改。其他用户仍可以在其自己的项目本地修改锁定资源，但不能保存修改，直到拥有锁定的用户解锁为止。
+
+您可以根据 **内容浏览器** 中的资源缩略图上的覆层来判断锁定和修改的资源。将鼠标移到资源上可以看到关于拥有锁定或修改资源的用户的详细信息。
+
+![Asset locks and dirty flag](multiuserediting-assetlocking.png "Asset locks and dirty flag")
+
+| 覆层 | 描述 |
+| --- | --- |
+| ![Locked by you](icon_ConcertMyLock_16x.png "Locked by you") | 绿色表示您锁定了资源。您可以随时继续修改。其他用户不能修改此资源，直到您将其解锁。|
+| ![Locked by someone else](icon_ConcertOtherLock_16x.png "Locked by someone else") | 橙色表示另一个用户锁定了该资源。您可以在项目本地修改，但不能保存修改并将此更改同步到其他用户，除非拥有锁定的用户释放锁定。|
+| ![Modified but unsaved on another computer](icon_ConcertModifiedByOther_16x.png "Modified but unsaved on another computer") | [INCLUDE:#excerpt_0] |
+
+<!--
+[EXCERPT:excerpt_0]
+橙色星号表示资源在另一台计算机上标记为“脏”（修改但未保存）。  
+[REGION:note]
+只有选中的资源类型会用这个图标进行标记。在修改这个状态的资源时务必小心——保存更改的用户首先会锁定文件，他们的更改传播到所有其他客户端，因此可能会失去其他用户所做的更改。
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
+
+要锁定和解锁资源，在 **内容浏览器** 中右键单击并选择 **多用户（Multi-User）>锁定资源（Lock Asset(s)）** 或 **多用户（Multi-User）>解锁资源（Unlock Asset(s)）**。
+
+![Lock and unlock Assets](multiuserediting-assetlocking-menu.png "Lock and unlock Assets")
+
+[REGION:tip]
+每当保存对未锁定资源的修改时，多用户编辑系统会自动为您锁定，并假设您可能很想再次对它进行修改。要释放资源以供其他用户修改，必须手动释放锁定。
+[/REGION]
+
+### 撤销和重做
+
+每个连接的用户都只能访问他们自己的操作历史记录。在该历史记录中，每个用户都可以自由地撤销和重做他们自己的操作，就像他们没有参与任何会话一样脱机工作。但是，用户不能撤销或重做会话中任何其他用户执行的操作。
+
+## 从常见状态开始
+
+为避免长时间延迟和高带宽利用，多用户编辑系统中的服务器不会在连接用户之间传输项目的整个内容。相反，当需要实现即时同步时依靠交换轻量级事务记录，并且仅在关卡、静态网格体、蓝图等资源在会话期间被修改和保存时，才传播这些资源。
+
+要确保传入事务完全按照对所有连接用户相同的方式应用，从而使每个用户内容与所有其他用户的内容保持同步，唯一方法是让每个连接用户以完全相同的状态使用完全相同的内容 *开始* 操作。这样，将同一列事务按照相同顺序应用于每个客户端时，每个用户内容的总体状态会保证保持同步。
+
+让所有用户以相同内容开始的典型方法是使用源控制系统，如Perforce、Git或SVN，并确保每个用户像其他所有人一样将本地副本同步到同一个更改列表或修订，然后再连接到一个会话。请参阅下面的[多用户编辑和源控制](Engine/Editor/MultiUser/Overview#多用户编辑和源控制)部分了解更多信息。
+
+使用源控制不是绝对要求；您可以仅使用多用户编辑，而不使用外部源控制系统。但是，这样就由您自行寻找在组织内共享项目内容的方法，以便需要协作的所有用户都能够可靠地使用相同项目内容开始操作。
+
+### 会话验证
+
+每次用户尝试连接到会话时，服务器都会检查其内容和工作环境的某些属性，以确认它们是否与会话最开始启动时的内容相匹配。如果任何检查失败，则服务器不会允许用户加入会话。
+
+*   **UE4版本 -** 服务器检查尝试连接到会话的用户是否与启动会话的用户使用相同版本的虚幻引擎。例如，如果启动会话的用户使用的是版本4.22，而另一个使用4.23的用户尝试加入，则服务器不会允许连接。这有助于避免因为不同版本资源格式更改而引起的问题。
+
+*   **项目名称 -** 服务器检查尝试连接到会话的用户是否打开了一个项目，其名称与用来创建会话的项目的名称相匹配。如果该检查失败，服务器会假设两个项目中的内容不相同，因此拒绝连接。  
+    ![Failure to connect - invalid Project name](multiuserediting-ov-projectname.png "Failure to connect - invalid Project name")
+
+*   **源控制版本 -** 如果启动会话的用户连接到了虚幻编辑器中的源控制提供者，服务器会将他们的项目更改列表或修订版与会话关联起来。当另一个拥有活跃源控制提供者的用户尝试连接到该会话时，服务器会检查他们的更改列表或修订版是否与会话关联的对应项匹配。 
+
+*   **本地修改的文件 -** 如果您已连接到源控制提供者，并且您有任何本地修改的文件，服务器将阻止您创建新会话和加入现有会话。这样可以避免让使用不同版本特定资源的多个用户处理同一个变更列表。  
+    ![Failure to connect - locally modified files](multiuserediting-ov-locallymodified.png "Failure to connect - locally modified files")
+
+## 事务和持久更改
+
+当您和您的团队成员在一个实时会话中工作时，编辑器在类似于虚拟沙箱的环境中，在本地项目内容的基础上应用事务。只要您仍在会话中，磁盘上的项目文件实际上完全没有修改。多用户编辑系统负责跟踪更改，并在虚幻编辑器中向您显示对项目内容应用这些事务的结果。  
+
+任何会话参与方随时可以选择 **持久存储** 会话更改：获取当前会话中所作的所有修改，并将这些更改应用到磁盘上的本地文件。如果您在仍与源控制提供者相连时开始会话，还可以选择在新更改列表或修订版中检入这些相同的更改。  
+
+![Persist Session Changes from the Toolbar](multiuserediting-ov-persist.png "Persist Session Changes from the Toolbar")
+
+如果您离开会话而不持久存储更改，编辑器会自动将项目恢复为开始或加入会话时的状态。它会将您在会话期间修改的所有资源热重载到项目中，废弃会话修改。虽然您退出会话后不会再看到会话更改，但事务不会完全丢失。每个会话仍保留其所有事务的记录，即使在所有用户退出后，每个会话仍会保留其所有事务的记录。如果稍后重新加入同一个会话，多用户编辑系统会在编辑器中重新应用所有这些事务。
+
+### 冗余
+
+服务器会保留每个会话，直到创建会话的用户将其显式删除，或者直到服务器自身关闭。因此，任何一个甚至所有客户端崩溃或断开连接，都不会导致丢失修改。用户只需重新连接到服务器，并从退出的地方继续即可。
+
+服务器还会自我保护，将会话记录保存到磁盘，这可以防止信息因意外关闭而丢失。
+
+*   如果服务器异常关闭，下一次重新启动服务器时，它会立即按照关机时的状态恢复之前打开的所有会话。
+
+*   如果彻底关闭服务器，将删除所有打开的会话。但是，如果您选择让服务器保存新会话，则稍后能够恢复会话。请参阅下一部分，了解详细信息。
+
+### 保存和恢复会话
+
+如果在创建新会话之前您就知道，稍后可能需要从退出的地方恢复会话，可以让多用户编辑服务器按名称保存会话事务记录。
+
+要保存会话记录，创建新会话时，选中 **创建会话（Create a Session）** 窗口中的 **将会话另存为（Save Session As）** 框。其名称默认设置为与您在 **会话名称（Session Name）** 框中输入的名称相匹配，但如果需要其他值，可以覆盖此值。
+
+![Save Session As](multiuserediting-ov-savesession.png "Save Session As")
+
+从服务器删除会话后，或者彻底关闭服务器后，不会再看到 **会话浏览器（Session Browser）** 窗口中列出原始会话，因此无法连接到它，除非将其复原。
+
+要复原会话，打开 **创建会话（Create a Session）** 窗口，就像从头创建新会话一样。但这一次选中 **要复原的会话（Session to Restore）** 框，从列表中选择要复原的会话的名称。
+
+![Restore a saved session](multiuserediting-ov-restoresession.png "Restore a saved session")
+
+[REGION:note]
+需要记住的是，复原会话时，就像加入现有会话一样，磁盘上的项目内容状态必须与最初创建会话时项目内容的状态一样。
+[/REGION]
+
+服务器将会话记录保存在虚幻引擎安装文件夹下的 `Engine/Programs/UnrealMultiUserServer/Saved/Concert`。如果想要完全删除保存的会话，使其永远无法复原，请从该位置删除其文件夹。
+
+## 多用户编辑和源控制
+
+多用户编辑系统提供了类似于源控制系统的一些功能，例如，用一个服务器存储事务历史记录，让用户获得对所处理资源的锁定以减少争用。但是，**多用户编辑不能取代源控制**。
+
+多用户编辑最好用于增强您在其中使用专用源控制系统（如Perforce、SVN或Git）的标准协作工作流，以定期记录您对项目的更改。
+
+[REGION:tip]
+如果您正在使用Perforce，也可以考虑使用虚幻游戏同步工具（UGS）来简化这个过程。有关详细信息，请参阅[UGS文档](Programming/Deployment/UnrealGameSync)。
+[/REGION]
+
+当您在团队中设置了这样的版本控制系统时，使用多用户编辑对特定的定义更改列表进行限时实时协作。
+
+*   在每个实时会话开始时（拍摄、一天的工作、审查会议或者适用于您与团队共同工作的任何工作），所有参与者共同决定作为起点的变更列表（通常是最新的）并同步到该修订版。
+
+*   在实时会话结束时，一个人将这些更提交到团队的常规源控制系统以进行保存。
+
+*   从一个会话将更改提交到源控制后，您可以删除该会话——已经不再需要该会话。
+
+*   下一次需要转到实时会话时，根据最新更改列表建立新会话。
+
+我们建议您不要长时间（数天或数周）持续使用一个多用户编辑会话。定期暂停并将更改提交到源控制。
+
+[REGION:note]
+有关将虚幻编辑器UI连接到源控制提供者的更多信息，请参阅[虚幻引擎4中的协作](Engine/Basics/SourceControl)和[源控制](Engine/UI/SourceControl)。
+[/REGION]
+
+## 网络连接
+
+当您上线时，虚幻编辑器实例通过UDP在端口 **6666** 上连接到您选择的服务器。
+
+*   运行虚幻编辑器并且想要连接到服务器的每台电脑都必须能够看到该服务器计算机的专用IP地址。
+
+*   服务器计算机必须向来自本地网络的UDP流量打开端口 **6666**。
+
+[REGION:note]
+这个连接应该仅在本地局域网（LAN）上有效，或者两个端点都位于同一个虚拟私有网络（VPN）中。**不能** 通过开放式互联网连接共享虚幻编辑器会话。
+[/REGION]
+[REGION:tip]
+“入门”页面中的说明应该足以帮助您在简单LAN中启动并运行。如果您在客户端和服务器之间建立连接时遇到问题，可以调整虚幻编辑器实例和服务器的UDP消息设置。请参阅[多用户编辑参考](Engine/Editor/MultiUser/Reference)页面的[高级联网](Engine/Editor/MultiUser/Reference#高级联网)部分。
+[/REGION]

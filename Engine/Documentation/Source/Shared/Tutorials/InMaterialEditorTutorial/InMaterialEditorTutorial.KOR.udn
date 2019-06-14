@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:머티리얼 에디터 환영 튜토리얼
 Crumbs:
@@ -176,7 +176,7 @@ A, D, 또는 M : Add, Divide, Multiply 노드
 
 ![](params.png)
 
-[자세한 정보는 파라미터 참고서를 확인하세요.](DOCLINK:Engine/Rendering/Materials/ExpressionReference/Parameters)
+[자세한 정보는 파라미터 레퍼런스를 확인하세요.](DOCLINK:Engine/Rendering/Materials/ExpressionReference/Parameters)
 
 [/EXCERPT:Stage8]
 

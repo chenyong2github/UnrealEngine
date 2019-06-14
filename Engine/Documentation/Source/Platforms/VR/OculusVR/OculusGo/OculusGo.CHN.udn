@@ -1,0 +1,21 @@
+﻿INTSourceChangelist:6113709
+Availability: Docs
+Title: Oculus Go
+Description: 关于Oculus Go平台的信息。
+Version: 4.22
+Parent: Platforms/VR/OculusVR
+Tags: Platform
+Tags: VR
+Tags: OculusVRLanding
+topic-image: OculusGo.png
+topic-icon: OculusGo.png
+Order: 1
+
+
+
+
+![](OculusGo.png "OculusGo.png")
+
+虚幻引擎4现在将原生支持Oculus Go头显设备和控制器。 
+
+关于在UE4中配置Oculus Go的完整信息，请参阅Oculus的[Oculus Go：新手入门](https://developer.oculus.com/documentation/unreal/latest/concepts/unreal-quick-start-guide-go/)。

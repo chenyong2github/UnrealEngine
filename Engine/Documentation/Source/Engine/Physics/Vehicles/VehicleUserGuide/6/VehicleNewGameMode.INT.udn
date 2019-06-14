@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 crumbs:%ROOT%
 Title: 6 - Setting up a New Game Mode
 Description: In this step, you'll setup a new Game Mode to spawn our Vehicle.
@@ -61,7 +61,7 @@ vehicles in UE4. As you worked your way through this guide, you learned:
 
 For additional resources with Vehicles you can take a look at the following pages: 
 
-* [Vehicle Content Creation](Engine/Physics/Vehicles/VehcileContentCreation)
+* [Vehicle Content Creation](Engine/Physics/Vehicles/VehicleContentCreation)
 * [How to Build a Double Wishbone Suspension Vehicle](Engine/Physics/Vehicles/DoubleWishboneVehicle)
 * [Vehicle Center of Mass](Engine\Physics\Vehicles\VehicleCenterOfMass)
 

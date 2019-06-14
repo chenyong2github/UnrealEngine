@@ -1,6 +1,6 @@
 INTSourceChangelist:3801260
 Availability:Public
-Title: 인바이런먼트 쿼리 시스템 노드 참고서
+Title: 인바이런먼트 쿼리 시스템 노드 레퍼런스
 Crumbs:%ROOT%, Engine, Gameplay/AI, Engine/AI/EnvironmentQuerySystem
 Description:인바이런먼트 쿼리 시스템 에디터에서 사용할 수 있는 여러가지 노드에 대한 분석 및 설명입니다.
 version: 4.9
@@ -8,7 +8,7 @@ version: 4.9
 
 [toc]
 
-인바이런먼트 쿼리 에디터에서 사용할 수 있는 노드와 테스트에 대한 간략 참고서입니다.
+인바이런먼트 쿼리 에디터에서 사용할 수 있는 노드와 테스트에 대한 간략 레퍼런스입니다.
 
 ## Generators
 

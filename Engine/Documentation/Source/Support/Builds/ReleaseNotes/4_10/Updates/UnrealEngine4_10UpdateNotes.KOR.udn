@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3367470
+INTSourceChangelist:3367470
 Availability:Public
 Title: 언리얼 엔진 4.10 업데이트 노트
 Description:
@@ -24,7 +24,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.10.1-release](
 
 *  UE-23364	VS2015 로 컴파일 시 SSL 접속 포함 Perforce 통합이 작동되는지 확인
 
-*  UE-21181	[CrashReport] PIE 레벨에서의 오브젝트가 여전히 레퍼런싱됨 (아마 UEngine::AddReferencedObjects 의 FWorldContext 를 통해서?)
+*  UE-21181	[CrashReport] PIE 레벨에서의 오브젝트가 여전히 참조됨 (아마 UEngine::AddReferencedObjects 의 FWorldContext 를 통해서?)
 
 *  UE-23371	[CrashReport] UE4Editor_GraphEditor!FNodeFactory::CreateNodeWidget() nodefactory.cpp:91
 
@@ -120,7 +120,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/tree/4.10.2-release](https://
 
 *  UE-24685 마티네 무비 레코딩이 4.10 에서 깨짐
 
-*  UE-22573 서로를 레퍼런싱하는 노드에서 REINST 오류 발생
+*  UE-22573 서로를 참조하는 노드에서 REINST 오류 발생
 
 *  UE-24115 Xcode 에서 DebugGame Editor 구성으로 에디터 실행 불가
 

@@ -1,182 +1,208 @@
-INTSourceChangelist:3782314
-Availability: Docs
-Crumbs: %ROOT%
+INTSourceChangelist:6622979
+Availability: Public
+Crumbs: 
 Title: 코어 리디렉트
 Description: Core Redirect 는 로드 시간에 클래스, 열거형, 함수, 패키지, 프로퍼티, 구조체를 리매핑할 수 있습니다.
-Type: Overview
-SkillLevel: Intermediate
+Type: 
 Version: 4.18
 Parent: Programming
-Order: 0
-Tags: CoreRedirects
+Order: 
 Tags: Assets
-
-[TOC(start:2)]
-
-
-개발 도중 기존 클래스, 프로퍼티, 함수, 이름, 비슷한 코드 멤버의 이름을 변경해야 할 경우가 있습니다. 이 변경에 영향받는 애셋 수가 많으면 코드 멤버 이름만 변경하고 프로젝트를 리컴파일해도 언리얼 엔진이 더이상 기존 애셋을 인식하지 못해 엄청난 데이터가 손실됩니다. 이 문제를 해결하기 위해 엔진에서는 **Core Redirect** (코어 리디렉트)를 사용합니다. 코어 리디렉트는 프로젝트의 `DefaultEngine.ini`, 플러그인의 경우 그 플러그인 이름의 `.ini` (예로 Paper2D 플러그인은 `Paper2D.ini`) 에 구성해야 합니다. 이 코어 리디렉트는 애셋을 로드하는 동안 폐기된 데이터를 자동 리매핑하여 이름변경 프로세스로 인한 데이터 손실을 방지합니다.
+Tags: CoreRedirects
 
 
-### 지원하는 코어 리디렉트 유형
+개발 도중 기존 클래스, 프로퍼티, 함수, 이름, 비슷한 코드 멤버의 이름을 변경해야 할 경우가 있습니다.
+이 변경에 영향받는 애셋 수가 많으면 코드 멤버 이름만 변경하고 프로젝트를 리컴파일해도 언리얼 엔진이 더이상 기존 애셋을 인식하지 못해 엄청난 데이터가 손실됩니다.
+이 문제를 해결하기 위해 엔진에서는 **Core Redirect** (코어 리디렉트)를 사용합니다.
+코어 리디렉트는 프로젝트의 `DefaultEngine.ini`, 플러그인의 경우 그 플러그인 접두사 이름의 `.ini` (예로 엔진의 Paper2D 플러그인은 `BasePaper2D.ini`, 게임 플러그인은 `DefaultGamePluginName.ini`) 에 구성해야 합니다.
+어느 경우든, 코어 리디렉트는 "\[CoreRedirects\]" 섹션에 배치됩니다.
+이 코어 리디렉트는 애셋을 로드하는 동안 폐기된 데이터를 자동 리매핑하여 이름변경 프로세스로 인한 데이터 손실을 방지합니다.
+현재 사용되는 코어 리디렉트 실제 예는, `BaseEngine.ini` 파일을 확인하세요.
 
-[REGION:note]코어 리디렉트에 클래스 또는 구조체 이름을 지정할 때, 그 이름은 언리얼 엔진의 리플렉션 시스템에 나타난 그대로, 즉 접두사 글자를 떼고 써야 합니다. 예를 들어 `AMyActor` 는 `MyActor` 로, `FMyStruct` 는 `MyStruct` 로 씁니다. 언리얼 엔진의 리플렉션 시스템은 열거형에 접두사를 사용하지 않으므로, 열거형은 코드에 나타난 그대로 코어 리디렉트에 나타납니다. 예로 `ESampleEnum` 은 코어 리디렉트에서 레퍼런싱할 때도 `ESampleEnum` 입니다.[/REGION]
+## 지원하는 코어 리디렉트 유형
+
+[REGION:note]
+코어 리디렉트에 클래스 또는 구조체 이름을 지정할 때, 그 이름은 언리얼 엔진의 리플렉션 시스템에 나타난 그대로, 즉 접두사 글자를 떼고 써야 합니다. 예를 들어 `AMyActor` 는 `MyActor` 로, `FMyStruct` 는 `MyStruct` 로 씁니다. 언리얼 엔진의 리플렉션 시스템은 열거형에 접두사를 사용하지 않으므로, 열거형은 코드에 나타난 그대로 코어 리디렉트에 나타납니다. 예로 `ESampleEnum` 은 코어 리디렉트에서 참조할 때도 `ESampleEnum` 입니다.
+[/REGION]
 
 현재 지원하는 코어 리디렉트 포맷은 다음과 같습니다.
 
-* `ClassRedirects` - 폐기( 또는 제거)된 UCLASS 를 사용하여 오브젝트와 프로퍼티가 새 UCLASS 를 가리키도록 변경합니다.
-	| 칸 | 유형 | 용도 |
-	| --- | --- | --- |
-	| `OldName` | 스트링 | 폐기( 또는 제거)된 UCLASS 이름을 지정합니다. |
-	| `NewName` | 스트링 | 새 UCLASS 이름을 지정합니다. |
-	| `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 인 경우, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 클래스에 적용합니다. |
-	| `OverrideClassName` | 스트링 | (옵션) UCLASS 의 내재된 클래스에 대한 변경을 지정합니다. 일반적으로 블루프린트 클래스를 네이티브 클래스로 (`/Script/CoreUObject.Class`) 변경하는 데 사용됩니다. |
-	| `InstanceOnly` | 부울 | (옵션) 존재하고 `true` 인 경우, 원본 클래스가 아직 존재하고 참조될 수 있지만, (레벨에 배치한 Actor 또는 Component 와 같은) 이전 클래스의 기존 인스턴스는 새 클래스로 리매핑해야 합니다. 엔진에 특수 버전 클래스가 있는 프로젝트에서 레벨의 원본 클래스 인스턴스 전부를 프로젝트 전용 버전으로 변경하고자 할 때 특히 좋습니다. |
-	| `ValueChanges` | 스트링 짝 목록 | (옵션) 한 짝의 첫 스트링에 일치하는 이전 클래스의 인스턴스 이름을 변경합니다. 새 이름은 그 짝의 두 번째 스트링이 됩니다. |
-		[CoreRedirects]
-		ClassRedirects=(OldName="Pawn",NewName="MyPawn",InstanceOnly=true)
-		ClassRedirects=(OldName="/Script/MyModule.MyOldClass",NewName="/Script/MyModule.MyNewClass")
-		ClassRedirects=(OldName="PointLightComponent",NewName="PointLightComponent",ValueChanges=(("PointLightComponent0","LightComponent0")))
-		ClassRedirects=(OldName="AnimNotify_PlayParticleEffect_C",NewName="/Script/Engine.AnimNotify_PlayParticleEffect",OverrideClassName="/Script/CoreUObject.Class")
-[COMMENT:none]
-- Are CollisionChannelRedirects still considered current/supported/endorsed? -
-[/COMMENT]
-* `EnumRedirects` - 폐기된 UENUM 유형 및/또는 열거형 내 폐기된 값을 리매핑합니다.
-	| 칸 | 유형 | 용도 |
-	| --- | --- | --- |
-	| `OldName` | 스트링 | (`NewName` 이 지정된 경우) 폐기된 UENUM 이름 또는 (값만 리매핑하는 경우) 기존 UENUM 의 이름을 지정합니다. |
-	| `NewName` | 스트링 | (옵션) 폐기된 UENUM 에서 새 UENUM 으로 리매핑하는 경우, 새 UENUM 이름을 지정합니다. |
-	| `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 인 경우, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 열거형에 적용합니다. |
-	| `ValueChanges` | String 짝 목록 | 짝의 첫 스트링은 이전 열거형 값이고 두 번째 스트링은 새 값입니다. 두 값이 같은 클래스에 있는 경우, 이전 값은 더 이상 코드에 없어야 합니다. |	
-		[CoreRedirects]
-		EnumRedirects=(OldName="ENumbers",NewName="ELetters",ValueChanges=(("ENumberTwo","ELetterB")))
-* `FunctionRedirects` - 폐기된 UFUNCTION 을 새 것으로 리매핑합니다.
-	| 칸 | 유형 | 용도 |
-	| --- | --- | --- |
-	| `OldName` | 스트링 | 폐기( 또는 제거)된 UFUNCTION 이름을 지정합니다. 함수 이름은 클래스 이름을 포함하도록 점으로 구분합니다. |
-	| `NewName` | 스트링 | 새 UFUNCTION 이름을 지정합니다. 함수 이름을 점으로 구분하면 한 클래스에서 다른 클래스로 함수를 리매핑할 수 있습니다. |
-	| `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 인 경우, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 함수에 적용합니다. |
-		[CoreRedirects]
-		FunctionRedirects=(OldName="MyOldActor.OldFunction",NewName="MyNewActor.NewFunction")
-		FunctionRedirects=(OldName="MyActor.OldFunction",NewName="NewFunction")
-* `PackageRedirects` - 한 패키지에서 다른 패키지로 리매핑하거나, 삭제된 패키지로의 레퍼런스 관련 경고를 표시하지 않습니다 (레퍼런스를 지우거나 null 로 설정합니다).
-	| 칸 | 유형 | 용도 |
-	| --- | --- | --- |
-	| `OldName` | 스트링 | 폐기( 또는 제거)된 패키지 이름을 지정합니다. |
-	| `NewName` | 스트링 | (옵션) 리매핑이 필요한 경우 폐기( 또는 제거)된 패키지를 대체할  이름을 지정합니다. 존재하지 않으면 `Removed` 가 존재하고 `true` 여야 합니다. |
-	| `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 면, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 패키지에 적용합니다. |
-	| `Removed` | 부울 | (옵션) 존재하고 `true` 면, 지정한 패키지는 제거된 것입니다. 경고나 오류를 생성하지 않고 제거된 콘텐츠로의 레퍼런스를 null 로 설정합니다. 이 경우 `NewName` 인수는 존재하지 않습니다. |
-		[CoreRedirects]
-		PackageRedirects=(OldName="/OldPlugin/", NewName="/NewPlugin/", MatchSubstring=true)
-		PackageRedirects=(OldName="/Game/DeletedContentPackage", Removed=true)
-* `PropertyRedirects` - 제거된 프로퍼티를 새 프로퍼티로 리매핑합니다.
-	| 칸 | 유형 | 용도 |
-	| --- | --- | --- |
-	| `OldName` | 스트링 | 제거된 프로퍼티 이름입니다. 이 이름은 점으로 구분하여 클래스 이름과 하위 변수 이름을 포함할 수 있습니다. 예: `MyActor.MyStruct.MyProperty` |
-	| `NewName` | 스트링 | 새 프로퍼티 이름입니다. 이 이름은 `OldName` 처럼 완전히 점으로 구분할 수도 있고, 같은 네임스페이스에 존재한다면 변수 이름만일 수도 있습니다. |
-	| `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 면, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 프로퍼티에 적용합니다. |
-		[CoreRedirects]
-		PropertyRedirects=(OldName="MyOldActor.OldIntProperty",NewName="MyNewActor.NewIntProperty")
-		PropertyRedirects=(OldName="MyActor.OldFloatProperty",NewName="NewFloatProperty")
+*    `ClassRedirects` \- 폐기( 또는 제거)된 UCLASS 를 사용하여 오브젝트와 프로퍼티가 새 UCLASS 를 가리키도록 변경합니다.
+    
+    | 칸 | 유형 | 용도 |
+    | --- | --- | --- |
+    | `OldName` | 스트링 | 폐기( 또는 제거)된 UCLASS 이름을 지정합니다. |
+    | `NewName` | 스트링 | 새 UCLASS 이름을 지정합니다. |
+    | `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 인 경우, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 클래스에 적용합니다. |
+    | `OverrideClassName` | 스트링 | (옵션) UCLASS 의 내재된 클래스에 대한 변경을 지정합니다. 일반적으로 블루프린트 클래스를 네이티브 클래스로 (`/Script/CoreUObject.Class`) 변경하는 데 사용됩니다. |
+    | `InstanceOnly` | 부울 | (옵션) 존재하고 `true` 인 경우, 원본 클래스가 아직 존재하고 참조될 수 있지만, (레벨에 배치한 Actor 또는 Component 와 같은) 이전 클래스의 기존 인스턴스는 새 클래스로 리매핑해야 합니다. 엔진에 특수 버전 클래스가 있는 프로젝트에서 레벨의 원본 클래스 인스턴스 전부를 프로젝트 전용 버전으로 변경하고자 할 때 특히 좋습니다. |
+    | `ValueChanges` | 스트링 짝 목록 | (옵션) 한 짝의 첫 스트링에 일치하는 이전 클래스의 인스턴스 이름을 변경합니다. 새 이름은 그 짝의 두 번째 스트링이 됩니다. |
+
+        [CoreRedirects]
+        +ClassRedirects=(OldName="Pawn",NewName="MyPawn",InstanceOnly=true)
+        +ClassRedirects=(OldName="/Script/MyModule.MyOldClass",NewName="/Script/MyModule.MyNewClass")
+        +ClassRedirects=(OldName="PointLightComponent",NewName="PointLightComponent",ValueChanges=(("PointLightComponent0","LightComponent0")))
+        +ClassRedirects=(OldName="AnimNotify_PlayParticleEffect_C",NewName="/Script/Engine.AnimNotify_PlayParticleEffect",OverrideClassName="/Script/CoreUObject.Class")
+
+*   `EnumRedirects` \- 폐기된 UENUM 유형 및/또는 열거형 내 폐기된 값을 리매핑합니다.
+    
+    | 칸 | 유형 | 용도 |
+    | --- | --- | --- |
+    | `OldName` | 스트링 | (`NewName` 이 지정된 경우) 폐기된 UENUM 이름 또는 (값만 리매핑하는 경우) 기존 UENUM 의 이름을 지정합니다. |
+    | `NewName` | 스트링 | (옵션) 폐기된 UENUM 에서 새 UENUM 으로 리매핑하는 경우, 새 UENUM 이름을 지정합니다. |
+    | `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 인 경우, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 열거형에 적용합니다. |
+    | `ValueChanges` | 스트링 짝 목록 | 짝의 첫 스트링은 이전 열거형 값이고 두 번째 스트링은 새 값입니다. 두 값이 같은 클래스에 있는 경우, 이전 값은 더 이상 코드에 없어야 합니다. |    
+
+        [CoreRedirects]
+        +EnumRedirects=(OldName="ENumbers",NewName="ELetters",ValueChanges=(("NumberTwo","LetterB"),("NumberThree","LetterC")))
+
+*   `FunctionRedirects` \- 폐기된 UFUNCTION 을 새 것으로 리매핑합니다.
+    
+    | 칸 | 유형 | 용도 |
+    | --- | --- | --- |
+    | `OldName` | 스트링 | 폐기( 또는 제거)된 UFUNCTION 이름을 지정합니다. 함수 이름은 클래스 이름을 포함하도록 점으로 구분합니다. |
+    | `NewName` | 스트링 | 새 UFUNCTION 이름을 지정합니다. 함수 이름을 점으로 구분하면 한 클래스에서 다른 클래스로 함수를 리매핑할 수 있습니다. |
+    | `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 인 경우, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 함수에 적용합니다. |
+
+        [CoreRedirects]
+        +FunctionRedirects=(OldName="MyOldActor.OldFunction",NewName="MyNewActor.NewFunction")
+        +FunctionRedirects=(OldName="MyActor.OldFunction",NewName="NewFunction")
+    
+*   `PackageRedirects` \- 한 패키지에서 다른 패키지로 리매핑하거나, 삭제된 패키지로의 레퍼런스 관련 경고를 표시하지 않습니다 (레퍼런스를 지우거나 null 로 설정합니다).
+    
+    | 칸 | 유형 | 용도 |
+    | --- | --- | --- |
+    | `OldName` | 스트링 | 폐기( 또는 제거)된 패키지 이름을 지정합니다. |
+    | `NewName` | 스트링 | (옵션) 리매핑이 필요한 경우 폐기( 또는 제거)된 패키지를 대체할  이름을 지정합니다. 존재하지 않으면 `Removed` 가 존재하고 `true` 여야 합니다. |
+    | `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 면, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 패키지에 적용합니다. |
+    | `Removed` | 부울 | (옵션) 존재하고 `true` 면, 지정한 패키지는 제거된 것입니다. 경고나 오류를 생성하지 않고 제거된 콘텐츠로의 레퍼런스를 null 로 설정합니다. 이 경우 `NewName` 인수는 존재하지 않습니다. |
+
+        [CoreRedirects]
+        +PackageRedirects=(OldName="OldPlugin",NewName="/NewPlugin/",MatchSubstring=true)
+        +PackageRedirects=(OldName="/Game/DeletedContentPackage",Removed=true)
+
+*   `PropertyRedirects` \- 제거된 프로퍼티를 새 프로퍼티로 리매핑합니다.
+    
+    | 칸 | 유형 | 용도 |
+    | --- | --- | --- |
+    | `OldName` | 스트링 | 제거된 프로퍼티 이름입니다. 이 이름은 점으로 구분하여 클래스 이름과 하위 변수 이름을 포함할 수 있습니다. 예: `MyActor.MyStruct.MyProperty` |
+    | `NewName` | 스트링 | 새 프로퍼티 이름입니다. 이 이름은 `OldName` 처럼 완전히 점으로 구분할 수도 있고, 같은 네임스페이스에 존재한다면 변수 이름만일 수도 있습니다. |
+    | `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 면, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 프로퍼티에 적용합니다. |
+    
+        [CoreRedirects]
+        +PropertyRedirects=(OldName="MyOldActor.OldIntProperty",NewName="MyNewActor.NewIntProperty")
+        +PropertyRedirects=(OldName="MyActor.OldFloatProperty",NewName="NewFloatProperty")
+    
 * `StructRedirects` - 폐기( 또는 제거)된 USTRUCT 를 사용하는 프로퍼티가 새 USTRUCT 를 가리키도록 변경합니다.
-	| 칸 | 유형 | 용도 |
-	| --- | --- | --- |
-	| `OldName` | 스트링 | 폐기( 또는 제거)된 USTRUCT 이름을 지정합니다. |
-	| `NewName` | 스트링 | 새 USTRUCT 이름을 지정합니다. |
-	| `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 면, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 구조체에 적용합니다. |
-		[CoreRedirects]
-		StructRedirects=(OldName="MyStruct",NewName="MyNewStruct")
+    
+    | 칸 | 유형 | 용도 |
+    | --- | --- | --- |
+    | `OldName` | 스트링 | 폐기( 또는 제거)된 USTRUCT 이름을 지정합니다. |
+    | `NewName` | 스트링 | 새 USTRUCT 이름을 지정합니다. |
+    | `MatchSubstring` | 부울 | (옵션) 존재하고 `true` 면, 이 코어 리디렉트는 정확히 일치하기 보다는 `OldName` 값이 들어있는 구조체에 적용합니다. |
+    
+        [CoreRedirects]
+        +StructRedirects=(OldName="MyStruct",NewName="MyNewStruct")
+    
+## 이름 유연성 및 특이성
 
-
-### 이름 유연성 및 특이성
-
-클래스, 구조체, 프로퍼티, 또는 함수를 설명하는 이름은 다양한 정도의 특이성으로 쓸 수 있으며, 코어 리디렉트 시스템은 딱 제공한 만큼의 정보를 사용합니다. 이러한 특이성 정도의 예는 다음 표와 같습니다.
+클래스, 구조체, 프로퍼티, 함수를 설명하는 이름은 다양한 정도의 특이성으로 작성할 수 있습니다.
+추가적으로, 코어 리디렉트 시스템은 딱 제공한 만큼의 정보를 사용합니다. 이러한 특이성 정도의 예는 다음 표와 같습니다.
 
 | 예제 포맷 | 적용 범위 |
 | --- | --- |
 | `/Script/MyModule.MyActor.MyFunctionOrProperty` | `MyModule` 모듈의 `MyActor` 클래스 내 `MyFunctionOrProperty` 라는 함수 또는 프로퍼티에만 적용합니다. |
 | `MyActor.MyFunctionOrProperty` | 모듈은 관계 없이 `MyActor` 클래스 내 `MyFunctionOrProperty` 라는 함수 또는 프로퍼티에 적용합니다. |
 | `MyFunctionOrProperty` | 어떤 모듈 어떤 클래스든 `MyFunctionOrProperty` 라는 함수 또는 프로퍼티에 적용합니다. |
-		
-[REGION:warning]일부 폐기된 코어 리디렉트는 4.16 이전 게임 및 샘플의 특정 `.ini` 파일에서 찾을 수 있습니다. 그 포맷이 아직 지원되는 것은 하위 호환성 때문이므로, 코어 리디렉트를 직접 작성할 때는 그 파일을 템플릿으로 사용하지 않는 것이 좋습니다. 이 페이지에 지정된 포맷을 따라주세요.[/REGION]
 
+[REGION:warning]
+일부 폐기된 코어 리디렉트는 4.16 이전 게임 및 샘플의 특정 `.ini` 파일에서 찾을 수 있습니다. 그 포맷이 아직 지원되는 것은 하위 호환성 때문이므로, 코어 리디렉트를 직접 작성할 때는 그 파일을 템플릿으로 사용하지 않는 것이 좋습니다. 이 페이지에 지정된 포맷을 따라주세요.
+[/REGION]
 
-### 서브스트링 일치
+## 서브스트링 일치
 
 어떤 코어 리디렉트 유형이든 `MatchSubstring` 인수를 사용할 수 있습니다. 존재하고 `true` 인 경우, `OldName` 및 `NewName` 칸은 정확한 일치가 아닌 서브스트링, 부분 일치로 간주합니다. 이로써 하나의 코어 리디렉트로 다수의 일치가 가능합니다. 다음 예제에서는 구조체와 클래스로 시작합니다.
 
 원본 코드 및 값:
 
-		USTRUCT()
-		struct FMyStruct
-		{
-			GENERATED_BODY()
+        USTRUCT()
+        struct FMyStruct
+        {
+            GENERATED_BODY()
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 TestInt;
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 TestInt;
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 TestIntFromStruct;
-		};
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 TestIntFromStruct;
+        };
 
-		UCLASS()
-		class REDIRECTORSTEST_API AMyActor : public AActor
-		{
-			GENERATED_BODY()
-			
-		public:
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 TestInt;
+        UCLASS()
+        class REDIRECTORSTEST_API AMyActor : public AActor
+        {
+            GENERATED_BODY()
+            
+        public:
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 TestInt;
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 MainClassTestInt;
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 MainClassTestInt;
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			FMyStruct TestStruct;
-		};
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            FMyStruct TestStruct;
+        };
 
 ![Original Values](OriginalValues.png)
 
-[REGION:caption]여기 `AMyActor` 애셋에 저장하려는 원본 코드와 원본 값 세트입니다.[/REGION]
+[REGION:caption]
+여기 `AMyActor` 애셋에 저장하려는 원본 코드와 원본 값 세트입니다.
+[/REGION]
 
 위에 표시된 값으로 `AMyActor` 애셋을 생성 및 저장한 뒤, 에디터를 닫고 `.h` 파일의 코드와 게임 `.ini` 파일 코어 리디렉트를 변경할 수 있습니다. `int32` 이름을 변경한 코드는 다음과 같습니다.
 
-		USTRUCT()
-		struct FMyStruct
-		{
-			GENERATED_BODY()
+        USTRUCT()
+        struct FMyStruct
+        {
+            GENERATED_BODY()
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 TestInteger;
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 TestInteger;
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 TestIntegerFromStruct;
-		};
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 TestIntegerFromStruct;
+        };
 
-		UCLASS()
-		class REDIRECTORSTEST_API AMyActor : public AActor
-		{
-			GENERATED_BODY()
-			
-		public:
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 TestInteger;
+        UCLASS()
+        class REDIRECTORSTEST_API AMyActor : public AActor
+        {
+            GENERATED_BODY()
+            
+        public:
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 TestInteger;
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			int32 MainClassTestInteger;
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            int32 MainClassTestInteger;
 
-			UPROPERTY(EditAnywhere, Category = "Documentation")
-			FMyStruct TestStruct;
-		};
+            UPROPERTY(EditAnywhere, Category = "Documentation")
+            FMyStruct TestStruct;
+        };
 
 이 변경으로 코어 리디렉트의 효과, 구체적으로 `MatchSubstring` 의 영향을 확인할 수 있습니다. 결과는 다음과 같습니다.
 
 ![](NoCoreRedirect.png)
-[REGION:caption]코드의 프로퍼티 이름을 변경했지만, 코어 리디렉트는 생성하지 않았습니다. 그 결과 새 프로퍼티로 이주된 데이터 값이 없습니다.[/REGION]
-
+[REGION:caption]
+코드의 프로퍼티 이름을 변경했지만, 코어 리디렉트는 생성하지 않았습니다. 그 결과 새 프로퍼티로 이주된 데이터 값이 없습니다.
+[/REGION]
 ![](CoreRedirectWithoutMatchSubstring.png)
-[REGION:caption]`PropertyRedirects=(OldName="TestInt",NewName="TestInteger")` 는 이름이 정확히 일치하는 두 프로퍼티만 데이터를 이주하도록 합니다.[/REGION]
-
+[REGION:caption]
+`PropertyRedirects=(OldName="TestInt",NewName="TestInteger")` 는 이름이 정확히 일치하는 두 프로퍼티만 데이터를 이주하도록 합니다.
+[/REGION]
 ![](CoreRedirectWithMatchSubstring.png)
-[REGION:caption]`PropertyRedirects=(OldName="TestInt",NewName="TestInteger",MatchSubstring=true)` 는 서브스트링 일치로 인해 네 개의 프로퍼티 전부 이주하도록 합니다.[/REGION]
-		
-[REGION:tip]`MatchSubtring` 은 입력 애셋을 훨씬 철저히 검사하므로 시작 시간에 영향을 줄 수 있습니다. `MatchSubstring` 은 일제 변경을 할 때의 임시 수정 용도입니다.  이 변경에 관련된 애셋은 즉시 다시 저장하고 관련된 코드 변경사항과 함께 프로젝트의 소스 컨트롤 데이터베이스에 체크인할 것을, 코어 리디렉트는 소스 컨트롤 입력 없이 삭제할 것을 권장합니다.[/REGION]
+[REGION:caption]
+`PropertyRedirects=(OldName="TestInt",NewName="TestInteger",MatchSubstring=true)` 는 서브스트링 일치로 인해 네 개의 프로퍼티 전부 이주하도록 합니다.
+[/REGION]
+[REGION:tip]
+`MatchSubtring` 은 입력 애셋을 훨씬 철저히 검사하므로 시작 시간에 영향을 줄 수 있습니다. `MatchSubstring` 은 일제 변경을 할 때의 임시 수정 용도입니다. 이 변경에 관련된 애셋은 즉시 다시 저장하고 관련된 코드 변경사항과 함께 프로젝트의 소스 컨트롤 데이터베이스에 체크인할 것을, 코어 리디렉트는 소스 컨트롤 입력 없이 삭제할 것을 권장합니다.
+[/REGION]

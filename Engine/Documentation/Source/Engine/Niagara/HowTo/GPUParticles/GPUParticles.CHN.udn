@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4703316
+﻿INTSourceChangelist:6417095
 Availability: Public
 Crumbs: 
 Title: 创建GPU粒子效果
@@ -10,20 +10,12 @@ Parent: Engine/Niagara/HowTo
 Order: 2
 Tags: Niagara
 Tags: Early Access
-
-
-先决条件主题
-
-本页假定您已对以下主题有一定的了解。请先阅读这些主题，然后继续进行操作。
-
-*   [启用Niagara插件](Engine/Niagara/HowTo/EnableNiagara "描述如何启用Niagara插件。")
+prereq: Engine/Niagara/HowTo/EnableNiagara
     
 
 要获得某些效果，您可能需要生成数万个粒子。然而，使用标准的CPU生成这么多粒子会导致游戏变慢。在以下教程中，我们将演示如何使用GPU而非CPU生成粒子。
 
 ![](GPU_Banner_01-1.png)
-
-(#steps)
 
 ## 步骤
 
@@ -57,8 +49,6 @@ Tags: Early Access
     ![](CreateGPUParticle_Steps_Step10-AddEmitterToSystem.png)(w:400)
 15. 单击 **编译（Compile）** 和 **保存（Save）** 按钮以编译并保存您的作业，然后关闭GPU Niagara系统。在 **内容浏览器（Content Browser）** 中，将 **GPU Niagara系统（GPU Niagara System）** 拖动到关卡视口中。完成后，应可看到如下图所示的一些内容。  
     ![](CreateGPUParticle_Steps_Step11-AddSystemToLevel.png)(w:600)
-
-(#endresult)
 
 ## 最终结果
 

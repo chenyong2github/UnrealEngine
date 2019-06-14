@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3259022
-availability:Public
+﻿INTSourceChangelist:6077448
+availability:docs
 title:4.纹理创建和最终结果
 description:了解如何创建并保存纹理。
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -11,6 +11,8 @@ Navigation:multi-step
 tags:Render Targets
 Order:4
 checkpoint:CTUB
+
+## 页面已被合并，标记为Docs。 
 
 [NAV]
 

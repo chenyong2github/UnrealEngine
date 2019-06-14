@@ -1,0 +1,71 @@
+INTSourceChangelist:6536708
+Availability: Public
+Crumbs:
+Title: 글로벌 블류틸리티 클래스와 블류틸리티 셸프
+Description: 글로벌 Blutility, 블루프린트 유틸리티 클래스를 생성하는 법과 콘텐츠 브라우저 또는 커스터마이징 가능한 셸프에서 그 함수를 호출하는 법입니다.
+Type: how-to
+Version: 4.22
+Parent: Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities
+SkillLevel: Beginner
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Blutilities
+Order:0
+
+
+
+[TOC]
+
+![Global Editor Utilities](blutility-classes-banner.png "Global Editor Utilities")
+
+여기서는 **Global Editor Utility** (글로벌 에디터 유틸리티) 블루프린트 클래스를 생성하고 사용하는 법을 설명합니다.
+
+일반적인 블루프린트 클래스를 사용하면, 에디터 내 함수와 커스텀 이벤트를 호출하기 위해 블루프린트 클래스의 인스턴스를 [](Engine/Editor/ScriptingAndAutomation/Blueprints) 문서의 설명대로 레벨에 드롭해야 합니다. 그러나 유틸리티를 만들어 에디터를 확장할 때, 스크립트는 특정 레벨에 대한 종속성이 없는 경우가 종종 있습니다. 예를 들어, 프로젝트의 콘텐츠 브라우저에서 애셋을 조작하는 유틸리티 스크립트를 만든 경우, 해당 클래스의 인스턴스를 레벨에 드롭해도 작업을 수행하는 데 도움이 되지 않습니다.
+
+글로벌 에디터 유틸리티 블루프린트 클래스를 만들면 콘텐츠 브라우저에서 그 에디터 내 함수 및 커스텀 이벤트를 호출할 수도 있고, 또는 필요한 글로벌 에디터 유틸리티 클래스를 저장하도록 커스터마이징할 수 있는 새로운 Blutility Shelf (블루프린트 셸프) 패널에서 호출할 수도 있습니다.
+
+[REGION:note]
+**전제조건:**
+
+*   Blutility (블류틸리티) 실험단계 기능을 활성화해야 합니다. [](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities) 문서를 참고하세요.
+[/REGION]
+
+## 단계
+
+1.  **콘텐츠 브라우저** 에서, 새 블루프린트 유틸리티 클래스를 만들려는 폴더에 우클릭하고, 컨텍스트 메뉴에서 **Blueprints > Blutility** (블루프린트 > 블류틸리티)를 선택합니다.  
+    ![새 블류틸리티 생성](bp-blutility-menu.png "새 블류틸리티 생성")
+
+2.  `GlobalEditorUtilityBase` 를 부모 클래스로 선택하고 **Select** (선택)을 클릭합니다.  
+    ![GlobalEditorUtilityBase 부모 클래스](bp-global-editor-utility-base.png "GlobalEditorUtilityBase 부모 클래스")
+
+3.  새 클래스의 블루프린트 그래프를 편집하려면 우클릭하고 컨텍스트 메뉴에서 **Edit Blueprint** (블루프린트 편집)을 선택합니다.
+    [REGION:note]
+    일반적인 블루프린트와 달리, 글로벌 에디터 유틸리티 클래스를 더블클릭해도 그 그래프를 편집할 수 없습니다. 대신, 해당 블루프린트에 **Call in Editor** (에디터에서 호출) 체크된 모든 함수와 커스텀 이벤트를 액세스할 수 있는 창이 열립니다.
+    [/REGION]
+    
+4.  블루프린트 클래스에 대한 새 함수를 생성하거나, 이벤트 그래프에 **Custom Event** (커스텀 이벤트)를 새로 생성하고 그 **Call in Editor** (에디터에서 호출) 세팅을 체크합니다. 이 함수나 커스텀 이벤트의 출력 포트에서, 블루프린트로 수행할 블루프린트 로직을 만듭니다.  
+    예를 들어, 프로젝트의 각 애셋에 대해 반복 처리하여 모든 스태틱 메시 애셋에 할당된 콜리전 셰이프를 전부 제거하려면:
+    [REGION:lightbox]
+    [![Global utility example](blutility-classes-example.png "Global utility example")](blutility-classes-example.png)
+    [/REGION]
+	[REGION:caption]
+	*클릭하면 이미지 원본을 확인합니다.*
+	[/REGION]
+    [REGION:note]
+    커스텀 이벤트 또는 함수는 입력이 있을 수 없습니다. 입력이 있어도, 나중에 **콘텐츠 브라우저** 또는 **블류틸리티 셸프** 에서 블류틸리티를 열 때 나타나지 않습니다.
+    [/REGION]
+    
+5.  블루프린트 클래스를 **저장**, **컴파일** 합니다.
+
+## 최종 결과
+
+콘텐츠 브라우저에서 블루프린트를 더블클릭하면 **Call In Editor** (에디터에서 호출) 세팅이 활성화된 모든 함수와 커스텀 이벤트가 나열되는 창이 새로 열립니다. 버튼을 클릭하면 블류틸리티 클래스에 생성한 그에 상응하는 블루프린트 그래프가 트리거됩니다.  
+
+![](blutility-classes-trigger.png "blutility-classes-trigger.png")
+
+**콘텐츠 브라우저** 의 블류틸리티 클래스를 탐색하여 유틸리티 함수를 실행하는 대신, **블류틸리티 셸프** 패널에서 생성된 모든 블류틸리티 클래스에 액세스할 수 있습니다.
+
+![블류틸리티 셸프](bp-blutility-shelf.png "블류틸리티 셸프")
+
+이 패널은 메인 메뉴의 **창 > 블류틸리티 셸프** 를 선택하면 열립니다.

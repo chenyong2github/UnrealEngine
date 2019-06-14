@@ -1,0 +1,481 @@
+Availability: Public
+Crumbs: 
+Title: UMG Rich Text Block Properties
+Description: This page lists the Rich Text Block and Data Table Asset properties used in UMG Rich Text Block widgets.
+Type: 
+Version: 4.20
+Parent: Engine/UMG/UserGuide/UMGRichTextBlock
+Order: 
+Tags: UMG
+Tags: Rich Text Block
+
+
+This reference page lists the properties that can be set for the Rich Text Block Widget. It also lists properties for the Rich Image Row and Rich Test Style Row data types used in a Data Table Asset.
+
+## Rich Text Block Properties
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Slot (Canvas Panel Slot)[/REGION]||
+| **Anchors** |[INCLUDE:#excerpt_0]|
+| **Alignment** |Alignment is the pivot point of the widget. Starting in the upper left at (0,0) and ending in the lower right at (1,1). Moving the alignment point enables you to move the origin of the widget. |
+| **Size To Content** |When AutoSize is true, it uses the widget's desired size. |
+| **ZOrder** |This indicates the order priority for rendering this widget. Higher values are rendered last, appearing on top, with lower values rendering first and appearing on the bottom. |
+| [REGION:tablesection]Content[/REGION]||
+| **Text** |This is the text to display in the widget. |
+| [REGION:tablesection]Appearance[/REGION]||
+| **Text Style Set** | This holds the Data Table Asset, which enables rich text decorators to be used for text and image styles. |
+| [REGION:tablesection]Decorator Classes[/REGION]||
+| **Justification** | This sets how the text is aligned with the margin. |
+| **Margin** | This sets the amount of blank space left around the edges of the text area. |
+| **Line Height Percentage** | This sets the amount each line's height is scaled by. |
+| [REGION:tablesection]Wrapping[/REGION]||
+| **Auto Wrap Text** | This is set to true if the text wraps automatically based on the computed horizontal space for this widget. |
+| **Wrap Text At** | This determines whether text wraps onto a new line when its length exceeds this width. If this value is zero or negative, no wrapping occurs. |
+| **Wrapping Policy** | [INCLUDE:#excerpt_1] |
+| [REGION:tablesection]Behavior[/REGION]||
+| **Tool Tip Text** | Tooltip text that shows when the user hovers the mouse cursor over the widget. |
+| **Is Enabled** | This sets whether this widget can be modified interactively by the user. |
+| **Visibility** | [INCLUDE:#excerpt_2] |
+| **Render Opacity** | The opacity of the widget. |
+| **Tool Tip Widget** | Tooltip widget to show when the user hovers over the widget with the mouse. |
+| **Cursor** | [INCLUDE:#excerpt_3] |
+| [REGION:tablesection]Render Transform[/REGION]||
+| **Transform** | [INCLUDE:#excerpt_4] |
+| **Pivot** | The render transform pivot controls the location about which transforms are applied. It is a normalized coordinate about which things like rotations will occur. |
+| [REGION:tablesection]Performance[/REGION]||
+| **Is Volatile** | If true, it prevents the widget or its child’s geometry or layout information from being cached. If this widget changes every frame but you want it to still be in an invalidation panel, you should mark it volatile instead of invalidating it every frame, which would prevent the invalidation panel from actually every caching anything. |
+| [REGION:tablesection]Clipping[/REGION]||
+| **Clipping** | [INCLUDE:#excerpt_5] |
+| [REGION:tablesection]Navigation[/REGION]||
+| **Left** | [INCLUDE:#excerpt_6] |
+| **Right** | [INCLUDE:#excerpt_7] |
+| **Up** | [INCLUDE:#excerpt_8] |
+| **Down** | [INCLUDE:#excerpt_9] |
+| **Next** | [INCLUDE:#excerpt_10] |
+| **Previous** | [INCLUDE:#excerpt_11] |
+| [REGION:tablesection]Localization[/REGION]||
+| **Text Shaping Method** | [INCLUDE:#excerpt_12] |
+| **Text Flow Direction** | [INCLUDE:#excerpt_13] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_13]
+Which text flow direction should the text within this widget use? When unset, the default is used that is set by Get Default Text Flow Direction.
+
+*   **Auto** \- Automatically detect the flow direction for each paragraph from its text.
+*   **Left to Right** \- Force text to be flowed left-to-right.
+*   **Right to Left** \- Force text to be flowed right-to-left.
+
+[/EXCERPT:excerpt_13]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_12]
+Which text shaping method should the text within this widget use? When unset, the default is used that is set by Get Default Text Shaping Method.
+
+*   **Auto** \- Automatically picks the fastest possible shaping method (either Kerning Only or Full Shaping) based on the reading direction of the text. Left-to-right text uses the Kerning Only method and right-to-left uses the Full Shaping method.
+*   **Kerning Only** \- Provides fake shaping using only kerning data. This can be faster than full shaping but won’t render complex right-to-left or bi-directional glyphs (such as Arabic) correctly. It can be useful as an optimization when you know your text block will only show simple glyphs (such as numbers).
+*   **Full Shaping** \- Provides full text shaping allowing accurate rendering of complex right-to-left or bi-directional glyphs (such as Arabic). It will perform ligature replacement for all languages (such as the combined “fi” glyph in English).
+
+[/EXCERPT:excerpt_12]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+Defines navigation when using Previous:
+
+*   **Escape** \- Navigation is allowed to escape the bounds of this widget.
+*   **Stop** \- Navigation stops at the bounds of this widget.
+*   **Wrap** \- Navigation will wrap to the opposite bound of this object.
+*   **Explicit** \- Navigation will go to a specific widget.
+*   **Custom** \- Custom function can determine what widget is navigated to when itself or its children are navigated away from.
+
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+Defines navigation when using Next:
+
+*   **Escape** \- Navigation is allowed to escape the bounds of this widget.
+*   **Stop** \- Navigation stops at the bounds of this widget.
+*   **Wrap** \- Navigation will wrap to the opposite bound of this object.
+*   **Explicit** \- Navigation will go to a specific widget.
+*   **Custom** \- Custom function can determine what widget is navigated to when itself or its children are navigated away from.
+*   **Custom Boundary** \- Custom Function can determine what widget is navigated to when the boundary is hit.
+
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+Defines navigation when using Down:
+
+*   **Escape** \- Navigation is allowed to escape the bounds of this widget.
+*   **Stop** \- Navigation stops at the bounds of this widget.
+*   **Wrap** \- Navigation will wrap to the opposite bound of this object.
+*   **Explicit** \- Navigation will go to a specific widget.
+*   **Custom** \- Custom function can determine what widget is navigated to when itself or its children are navigated away from.
+*   **Custom Boundary** \- Custom Function can determine what widget is navigated to when the boundary is hit.
+
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+Defines navigation when using Up:
+
+*   **Escape** \- Navigation is allowed to escape the bounds of this widget.
+*   **Stop** \- Navigation stops at the bounds of this widget.
+*   **Wrap** \- Navigation will wrap to the opposite bound of this object.
+*   **Explicit** \- Navigation will go to a specific widget.
+*   **Custom** \- Custom function can determine what widget is navigated to when itself or its children are navigated away from.
+*   **Custom Boundary** \- Custom Function can determine what widget is navigated to when the boundary is hit.
+
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+Defines navigation when using Right:
+
+*   **Escape** \- Navigation is allowed to escape the bounds of this widget.
+*   **Stop** \- Navigation stops at the bounds of this widget.
+*   **Wrap** \- Navigation will wrap to the opposite bound of this object.
+*   **Explicit** \- Navigation will go to a specific widget.
+*   **Custom** \- Custom function can determine what widget is navigated to when itself or its children are navigated away from.
+*   **Custom Boundary** \- Custom Function can determine what widget is navigated to when the boundary is hit.
+
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+Defines navigation when using Left:
+
+*   **Escape** \- Navigation is allowed to escape the bounds of this widget.
+*   **Stop** \- Navigation stops at the bounds of this widget.
+*   **Wrap** \- Navigation will wrap to the opposite bound of this object.
+*   **Explicit** \- Navigation will go to a specific widget.
+*   **Custom** \- Custom function can determine what widget is navigated to when itself or its children are navigated away from.
+*   **Custom Boundary** \- Custom Function can determine what widget is navigated to when the boundary is hit.
+
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+Controls how the clipping behavior of this widget works. Normally, content that overflows the bounds of the widget continues rendering, enabling clipping prevents that overflowing content from being seen.
+[REGION:note]
+Elements in different clipping spaces can not be batched together, so there is performance costs when clipping is applied. Do not enable clipping unless a panel actually needs to prevent content from showing up outside its bounds.
+[/REGION]
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+The render transform of the widget allows for arbitrary 2D transforms to be applied to the widget.
+
+*   **Translation** \- The amount to translate the widget in X and Y in Slate Units.
+*   **Scale** \- The amount of scale to apply to the widget in X and Y in Slate Units.
+*   **Shear** \- The amount of shear to apply to the widget in X and Y in Slate Units.
+*   **Angle** \- The degree angle to rotate the widget.
+
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+The cursor to show when the mouse is over the widget.
+
+*   **None** \- Causes no mouse cursor to be visible.
+*   **Default** \- Default arrow cursor.
+*   **Text Edit Beam** \- Indicates text that can be edited.
+*   **Resize Left Right** \- Resize horizontal arrows cursor.
+*   **Resize Up Down** \- Resize vertical arrows cursor.
+*   **Resize South East** \- Bi-directional forward resize arrow cursor.
+*   **Resize South West** \- Bi-directional back resize arrow cursor.
+*   **Cardinal Cross** \- Indicates something is being moved.
+*   **Crosshairs** \- Indicates precision selection, usually by dragging a selection box around something.
+*   **Hand** \- Uses the hand cursor with pointing finger.
+*   **Grab Hand** \- Uses the open hand cursor indicating something can be grabbed.
+*   **Grab Hand Closed** \- Uses the closed hand cursor indicating something is grabbed.
+*   **Slashed Circle** \- Cursor indicates the action cannot be completed.
+*   **Eye Dropper** \- Indicates a color can be selected.
+
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+Sets the visibility of this widget.
+
+*   **Visible** \- The widget is visible and can interact with the cursor.
+*   **Collapsed** \- The widget is not visible and takes up no space in the layout. It can never be clicked on because it takes up no space.
+*   **Hidden** \- The widget is not visible but occupies layout space. It is not interactive because it is hidden.
+*   **Hit Test Invisible** \- The widget is visible to the user but only as art. The cursor’s hit tests will never see this widget.
+*   **Self Hit Test Invisible** \- The widget is the same as Hit Test Invisible but doesn’t apply to child widgets.
+
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]
+The wrapping policy to use:
+
+*   **Default Wrapping** \- No fallback, just use the given line-break iterator.
+*   **Allow per-Character Wrapping** \- Fallback to per-character wrapping if a word is too long.
+
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+This sets the anchor location for the selected widget.
+
+*   **Minimum** \- Holds the minimum anchors, left and top.
+*   **Maximum** \- Holds the maximum anchors, right and bottom.
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+
+## Data Table Asset Properties
+
+### Rich Image Row
+
+Set the following properties in the Rich Image Row Data Table Asset to control the styling for images used with a Rich Text Block widget.
+
+  
+| Property | Description |
+| --- | --- |
+| **Image** | The image to render for this brush. The assigned Asset can be a Texture, Material Interface, or an object implementing the Atlased Texture Interface. |
+| **Image Size** | The size of the resource in Slate units. |
+| **Tint** | Tinting applied to the image. |
+| **Draw As** | [INCLUDE:#excerpt_14] |
+| **Tiling** | [INCLUDE:#excerpt_15] |
+| **Preview** | [INCLUDE:#excerpt_16] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_16]
+Set how the image should be displayed in the preview box. 
+**Horizontal Alignment:**
+
+*   **Fill** \- The image will fill the preview box horizontally.
+*   **Left** \- The image will be aligned to the left in the preview box.
+*   **Center** \- The image will be positioned in the center of the preview box.
+*   **Right** \- The image will be aligned to the right in the preview box.
+
+**Vertical Alignment:**
+
+*   **Fill** \- The image will fill the preview box vertically.
+*   **Top** \- The image will be aligned to the top in the preview box.
+*   **Center** \- The image will be positioned in the center of the preview box.
+*   **Bottom** \- The image will be aligned to the bottom in the preview box.
+
+[/EXCERPT:excerpt_16]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_86]
+
+[/EXCERPT:excerpt_86]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_15]
+How to tile the image while in Image mode.
+
+*   **Horizontal** \- Tiles the image horizontally.
+*   **Vertical** \- Tiles the image vertically.
+*   **Both** \- Tiles the image in both directions.
+
+[/EXCERPT:excerpt_15]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_14]
+How to draw the image.
+
+*   **Box** \- Draw a 3x3 box where the sides and the middle stretch based on the margin.
+*   **Border** \- Draw a 3x3 border where the sides tile and the middle is empty.
+*   **Image** \- Draw an image; the margin is ignored.
+
+[/EXCERPT:excerpt_14]
+-
+[/COMMENT]
+
+
+### Rich Text Style Row
+
+Set the following properties in the **Rich Text Style Row** Data Table Asset to control the styling for text used with **Rich Text Block** widget.
+
+| Property | Description |
+| --- | --- |
+| [REGION:tablesection]Font[/REGION] ||
+| **Font Family** | The font object (valid when used from UMG or a Slate widget style asset). |
+| **Typeface** | The name of the font to use from the default typeface. If none is initially selected, the first entry (Bold) will be used. |
+| **Size** | The font size is a measure in point values. The conversion of points to Slate Units is done at 96 dpi. So, if you’re using a tool like Photoshop to prototype layouts and UI mockups, be sure to change the default dpi measurements from 72 dpi to 96 dpi. |
+| **Font Material** | The material to use when rendering this font. |
+| **Outline Settings** | [INCLUDE:#excerpt_17] |
+| **Color** | The color and opacity of this the text. |
+| **Shadow Offset** | How much should the shadow be offset? An offset of 0 implies no shadow. |
+| **Shadow Color and Opacity** | The color and opacity of the shadow. |
+| **Shadow Background Color** | The background color of selected text. |
+| **Highlight Color** | The color of highlighted text. |
+| [REGION:tablesection]Highlight Shape[/REGION] ||
+| **Image** | The image to render for this brush. The assigned Asset can be a Texture, Material Interface, or an object implementing the Atlased Texture Interface. |
+| **Image Size** | The size of the resource in Slate units. |
+| **Tint** | Tinting applied to the image. |
+| **Draw As** | [INCLUDE:#excerpt_18] |
+| **Tiling** | [INCLUDE:#excerpt_19] |
+| **Preview** | [INCLUDE:#excerpt_20] |
+| [REGION:tablesection]Underline Brush[/REGION] ||
+| **Image** | The image to render for this brush. The assigned Asset can be a Texture, Material Interface, or an object implementing the Atlased Texture Interface. |
+| **Image Size** | The size of the resource in Slate units. |
+| **Tint** | Tinting applied to the image. |
+| **Draw As** | [INCLUDE:#excerpt_21] |
+| **Tiling** | [INCLUDE:#excerpt_22] |
+| **Preview** | [INCLUDE:#excerpt_23] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_23]
+Set how the image should be displayed in the preview box:  
+**Horizontal Alignment:**
+
+*   **Fill** \- The image will fill the preview box horizontally.
+*   **Left** \- The image will be aligned to the left in the preview box.
+*   **Center** \- The image will be positioned in the center of the preview box.
+*   **Right** \- The image will be aligned to the right in the preview box.
+
+**Vertical Alignment:**
+
+*   **Fill** \- The image will fill the preview box vertically.
+*   **Top** \- The image will be aligned to the top in the preview box.
+*   **Center** \- The image will be positioned in the center of the preview box.
+*   **Bottom** \- The image will be aligned to the bottom in the preview box.
+
+[/EXCERPT:excerpt_23]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_22]
+How to tile the image while in Image mode.
+
+*   **Horizontal** \- Tiles the image horizontally.
+*   **Vertical** \- Tiles the image vertically.
+*   **Both** \- Tiles the image in both directions.
+
+[/EXCERPT:excerpt_22]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+How to draw the image.
+
+*   **Box** \- Draw a 3x3 box where the sides and the middle stretch based on the margin.
+*   **Border** \- Draw a 3x3 border where the sides tile and the middle is empty.
+*   **Image - Draw an image; the margin is ignored.**
+
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_20]
+Set how the image should be displayed in the preview box:  
+**Horizontal Alignment:**
+
+*   **Fill** \- The image will fill the preview box horizontally.
+*   **Left** \- The image will be aligned to the left in the preview box.
+*   **Center** \- The image will be positioned in the center of the preview box.
+*   **Right** \- The image will be aligned to the right in the preview box.
+
+**Vertical Alignment:**
+
+*   **Fill** \- The image will fill the preview box vertically.
+*   **Top** \- The image will be aligned to the top in the preview box.
+*   **Center** \- The image will be positioned in the center of the preview box.
+*   **Bottom** \- The image will be aligned to the bottom in the preview box.
+
+[/EXCERPT:excerpt_20]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_19]
+How to tile the image while in Image mode.
+
+*   **Horizontal** \- Tiles the image horizontally.
+*   **Vertical** \- Tiles the image vertically.
+*   **Both** \- Tiles the image in both directions.
+
+[/EXCERPT:excerpt_19]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_18]
+How to draw the image.
+
+*   **Box** \- Draw a 3x3 box where the sides and the middle stretch based on the margin.
+*   **Border** \- Draw a 3x3 border where the sides tile and the middle is empty.
+*   **Image - Draw an image; the margin is ignored.**
+
+[/EXCERPT:excerpt_18]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_17]
+Settings for applying an outline to a font.
+
+*   **Outline Size** \- Size of the outline in Slate Units (at 1.0 font scale, this unit is a pixel).
+*   **Separate Fill Alpha** \- If enabled, the outline will be completely translucent where the filled area will be. It allows for a separate fill alpha value to be used. The tradeoff when enabling this is slightly worse quality for completely opaque fills where the inner outline border meets the fill area.
+*   **Outline Color - The color of the outline for any character in this font.**
+
+[/EXCERPT:excerpt_17]
+-
+[/COMMENT]

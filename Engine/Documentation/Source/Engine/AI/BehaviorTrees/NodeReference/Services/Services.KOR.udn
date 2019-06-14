@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:Public
-Title: 비헤이비어 트리 노드 참고서: 서비스
+Title: 비헤이비어 트리 노드 레퍼런스: 서비스
 Crumbs:%ROOT%, Engine, Gameplay, Engine/AI/BehaviorTrees
-Description:비헤이비어 트리의 Service, 서비스 노드에 대한 참고서입니다.
+Description:비헤이비어 트리의 Service, 서비스 노드에 대한 레퍼런스입니다.
 version: 4.9
 
 **Service** 서비스는 [**Composite**](Engine/AI/BehaviorTrees/NodeReference/Composites) 컴포짓 노드에 붙어 분기가 실행되는 한 정해진 빈도에 따라 실행됩니다. 보통 검사를 하고 블랙보드를 업데이트하는 데 사용됩니다. 다른 비헤이비어 트리 시스템에서 보통 Parallel 이라는 노드에 해당하는 것입니다.
@@ -16,7 +16,7 @@ Default Focus, 디폴트 포커스는 AI 컨트롤러의 포커스를 설정하�
 
 | 프로퍼티 | 설명 |
 | -------- | ----------- |
-| **Blackboard Key**| 블랙보드 키 - `GetFocusActor` 를 사용하여 AI 컨트롤러에서 빠르게 레퍼런싱할 액터 키(와 베이스 클래스가 액터로 설정된 오브젝트 키)를 받습니다. |
+| **Blackboard Key**| 블랙보드 키 - `GetFocusActor` 를 사용하여 AI 컨트롤러에서 빠르게 참조할 액터 키(와 베이스 클래스가 액터로 설정된 오브젝트 키)를 받습니다. |
 | **Node Name** | 노드 이름 - 비헤이비어 트리 그래프에 표시할 노드 이름입니다. |
 
 [REGION:note]

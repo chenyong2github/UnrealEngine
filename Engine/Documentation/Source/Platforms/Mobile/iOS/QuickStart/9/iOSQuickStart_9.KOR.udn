@@ -1,0 +1,45 @@
+INTSourceChangelist:6549201
+Title:9. 추가 자료
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS, Platforms/Mobile/iOS/QuickStart
+Description:언리얼 엔진으로 iOS 개발을 하는 데 관련된 추가 자료입니다.
+Availability:Docs
+Version: 4.18
+SkillLevel:Intermediate
+checkpoint:iOSQS
+order:9
+
+[VAR:Steps]
+[OBJECT:Navigation]
+	[PARAM:previous]
+		[이전 단계](Platforms/Mobile/iOS/QuickStart/8 "%Platforms/Mobile/iOS/QuickStart/8:title%")
+	[/PARAM]
+	[PARAM:current]
+	[/PARAM]
+	[PARAM:home]
+		[퀵스타트 홈](Platforms/Mobile/iOS/QuickStart)
+	[/PARAM]
+	[PARAM:next]
+	[/PARAM]
+[/OBJECT]
+[/VAR]
+
+%Steps%
+
+
+디바이스 호환성 및 퍼포먼스 관련 상세 정보입니다:
+* [](Platforms/Mobile/iOS\DeviceCompatibility)
+* [](Platforms\DeviceProfiles)
+* [](Platforms\Mobile\Performance)
+
+모바일 디바이스용 게임 콘텐츠와 레벨 디자인 관련 상세 정보입니다:
+* [](Platforms\Mobile\Meshes)
+* [](Platforms\Mobile\Lighting)
+* [](Platforms\Mobile\Materials)
+* [](Platforms\Mobile\PostProcessEffects)
+* [](Platforms\Mobile\Textures)
+
+[](Platforms\Mobile\Previewer) 사용을 통해 디바이스에 디플로이하지 않고도 모바일 게임을 미리보는 것도 가능합니다.
+
+
+
+%Steps%

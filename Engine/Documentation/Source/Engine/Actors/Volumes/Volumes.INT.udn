@@ -155,7 +155,7 @@ A **Post Process Volume** is a space in which the Post Process settings applied 
 
 [EXCERPT:LSV]
 **Level Streaming Volumes** are used to aid in the [level streaming](Engine/LevelStreaming) process. They provide a simple way to encapsulate a level, as well as control when it streams in and out of memory, based on when a Player enters or exits the Volume.
-[/EXCERPT]
+[/EXCERPT:LSV]
 
 #### Nav Mesh Bounds Volume
 

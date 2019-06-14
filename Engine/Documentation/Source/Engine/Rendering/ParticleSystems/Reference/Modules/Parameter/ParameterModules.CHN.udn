@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:2750701
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:Parameter 模块
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
 Description:将数据从粒子系统中传出到其他方面（如材质）的模块。
 Version:4.9
+tags:Particles
 
 [TOC(start:2 end:3)]
 

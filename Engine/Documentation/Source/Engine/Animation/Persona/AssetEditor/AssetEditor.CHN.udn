@@ -1,41 +1,66 @@
-﻿INTSourceChangelist:1997499
+﻿INTSourceChangelist:3215532
 Availability:Public
-Title:资源编辑器
+Title:动画资源编辑器
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
-Crumbs:%ROOT%, Engine, Engine/Animation/Persona
-Description: 关于Persona(角色)动画编辑器中的资源浏览器的用户指南。
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Animation/Persona/AssetBrowser:title%](Engine/Animation/animation_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/content_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Animation/Persona/AssetBrowser:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Animation/Persona/AssetBrowser:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Animation/Persona/AssetBrowser]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-当您在资源浏览器中双击一个动画资源时，会打开Persona(角色)动画编辑器的资源编辑器。关于资源编辑器的更多信息，请参照 [](Engine/Animation/Persona\AssetBrowser) 。
-
-您可以使用资源编辑器即时地将Notifies(通知)添加到动画资源轨迹的特定点上，这些通知包括粒子系统、声效及动画通知。
+Description:动画编辑器中资源编辑器的用户指南。
+version: 4.14
+related:Engine/Animation/Persona/AssetBrowser
+related:Engine/Animation/Persona/AssetEditor
+related:Engine/Animation/Sequences/Notifies
+related:Engine/Animation/Sequences/Curves
+related:Engine/Animation/AnimHowTo/LayerEditing
+tags:Animation
+type:reference
+topic-image:asseteditorsmall.png
 
 ![](AssetEditor.png)
 
-要想添加通知到动画轨迹上，请右击该动画轨迹，并选择 **Add Notify(添加通知)** ，然后执行以下操作之一：
-* 要想添加一个新的粒子系统，请点击 **PlayParticleEffect** 。
-* 要想添加一个新的Sound Cue(音效)，请点击 **PlaySound** 。
-* 要想添加一个新的自定义的Animation Notify（动画通知）, 请点击 **New Notify（新建通知）**, 并给新的动画通知赋予一个名称。
+动画编辑器中的 **资源编辑器（Asset Editor）** 提供了基于所选动画资源类型执行以动画为焦点的编辑的能力。 
+在 **内容浏览器（Content Browser）**（或者在[](Engine/Animation/Persona/AssetBrowser)）中 **双击** 一个动画资源，**资源编辑器（Asset Editor）** 窗口将根据打开的资源类型发生变化。 
+例如，当您打开任何[动画序列](Engine/Animation/Sequences)时，**资源编辑器（Asset Editor）** 将显示如下。 
 
-![](AssetEditor_AddNotify.png)
+[REGION:lightbox]
+[![](AnimSequenceEditor.png)(w:800)](AnimSequenceEditor.png)
+[/REGION]
 
-关于动画通知的更多信息，请参照 [](Engine/Animation/Sequences\Notifies)。
+[REGION:caption]
+单击显示全图。 
+[/REGION]
+
+在动画序列的 **资源编辑器（Asset Editor）** 中，您可以： 
+
+* 创建[](Engine/Animation/Sequences/Notifies)，它类似于在动画中定义的点上触发的事件。 
+* 创建[](Engine/Animation/Sequences/Curves)，它允许您在动画播放时更改材质参数或变形对象的值。 
+* 创建[动画图层](Engine/Animation/AnimHowTo/LayerEditing)，它允许您将任何动画序列作为附加图层轨迹的一部分进行修改。 
+
+打开[混合空间](Engine/Animation/Blendspaces)时，**资源编辑器（Asset Editor）** 发生更改，允许您修改混合空间函数。 
+
+[REGION:lightbox]
+[![](BlendSpaceEditor.png)(w:800)](BlendSpaceEditor.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。 
+[/REGION]
+
+打开[](Engine/Animation/AnimMontage)，**资源编辑器（Asset Editor）** 将为您提供一种构建蒙太奇函数的方法。 
+
+[REGION:lightbox]
+[![](AnimMontageEditor.png)(w:800)](AnimMontageEditor.png)
+[/REGION]
+
+[REGION:caption]
+单击显示全图。 
+[/REGION]
+
+[REGION:note]
+有关使用该资源类型的更多信息，请参阅每个动画资源的文档页面。 
+[/REGION]
+
+不论您打开哪种类型的动画资源，您都会在底部看到 **播放工具栏（Playback Toolbar）**。 
+
+![](AnimationPlayback.png)
+
+您可以在正向或反向模式下播放动画，也可以逐帧逐帧地遍历动画。 
+您还可以使用 **记录（Record）** 选项，根据您当前选择的动画创建一个新的动画对象。这将提示您为新资源定义一个名称和保存位置，并开始从当前资源进行记录。 
+若要停止记录，请再次单击 **记录（Record）** 按钮，系统将创建新的动画资源。

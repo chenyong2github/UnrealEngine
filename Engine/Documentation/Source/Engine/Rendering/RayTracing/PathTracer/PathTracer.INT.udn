@@ -1,0 +1,71 @@
+Availability: Public
+Title: Path Tracer
+Description: An overview of the Path Tracer in Unreal Engine 4.
+Type: overview
+Version: 4.22
+Parent: Engine/Rendering/RayTracing
+Tags: Early Access
+Tags: Ray Tracing
+Order: 0
+
+
+
+[TOC (start:2 end:4)]
+
+Unreal Engine 4 (UE4) provides a companion tool to the [Ray Tracer](Engine/Rendering/RayTracing) that includes a full **Path Tracer**. This tool is useful to generate reference images called a **Ground Truth**. The Path Tracer is similar to other offline renderers in how it is used, like V-Ray and Arnold. It works by casting many rays into the scene to gather information about light and color to shade a given pixel. Where ray tracing is great for real-time graphics, path tracing techniques are better for generating an unbiased target result because it's not limited by the number of samples it can use, making it good for comparing against real-time ray tracing features. 
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Ray Tracer](RayTracer.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Path Tracer](PathTracer.png) 
+ [/PARAM]
+[/OBJECT]
+
+
+[REGION:note]
+Note that in this comparison, some materials or lighting effects are not fully supported at this time.
+[/REGION]
+For artists and programmers, the unbiased nature of the Path Tracer’s ground truth image makes it invaluable to have built right into the Engine for comparison. It also removes the need for additional third-party software or plugins to generate these comparison results. For artists, it means being able to fine-tune materials and lighting setups more quickly. For programmers, it improves workflow and iteration times when tuning and validating the look of their real-time algorithms for techniques like Denoising.
+
+## Using the Path Tracer
+
+[REGION:warning]
+To use the Path Tracer, first be sure that you meet the prerequisites to do so and then follow the steps to [Enable Ray Tracing in your Project](Engine/Rendering/RayTracing#enablingraytracinginyourproject) that can be found in the Real-Time Ray Tracing documentation.
+[/REGION]
+
+Enable the Path Tracer from the **Level Viewport** by selecting the **View Modes** dropdown and choosing **Path Tracing**.  
+
+
+![PathTracerViewMode](PathTracerViewMode.png "PathTracerViewMode")
+
+
+The Path Tracer uses a progressive accumulation method whereby it's continuously adding samples while the camera is not moving. It also uses adaptive sampling to trace additional rays for the pixels that produce a higher amount of noise. 
+
+
+![PathTracerConvergence](PathTracerConvergence.gif "PathTracerConvergence")
+
+
+The pixels start to fill in with final shading color after a few moments depending on the complexity of the scene and the materials being sampled.
+
+In a **Post Process Volume** under **Rendering Features > Path Tracing**, you can set the **Max Bounces** that rays should travel and the number of **Samples Per Pixel** that should be used for convergence.   
+
+
+![](Snag_5ab390dc.png)
+
+
+
+For additional information, see [Ray Tracing Settings](Engine/Rendering/RayTracing/RayTracingSettings).   
+
+## Additional Notes
+
+Below are some additional considerations when using the in-engine reference Path Tracer.
+
+*   Additional properties and adjustable settings can be found under the under `r.PathTracing.*` console variables.  
+
+*   The current implementation of the Path Tracer is missing features or workflows that would make it a production-ready replacement for final pixel renders. Instead, it’s current implementation is best suited for comparison reference.
+
+*   The Path Tracer enables future research and development to be considered for content creation workflows such as progressive light builds, cinematic rendering, and even for non-rendering applications such as audio simulation in virtual reality (VR), physics collision and hit detection, and artificial intelligence (AI).
+

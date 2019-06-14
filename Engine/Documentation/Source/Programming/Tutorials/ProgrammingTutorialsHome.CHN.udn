@@ -7,17 +7,14 @@ version:4.9
 topic-icon:%ROOT%/prog_icon.png
 
 
-(#StartingOut)
 ## 入门
 
 [DIR(output:"topic" parent:"Programming" type:"quick start")]
 
-(#Beginner)
 ## 初级
 
 [DIR(output:"fancy" parent:"Programming/Tutorials" skilllevel:"Beginner" org:"hierarchy" end:"1")]
 
-(#Intermediate)
 ## 中级
 
 [DIR(output:"fancy" parent:"Programming/Tutorials" skilllevel:"Intermediate" org:"hierarchy" end:"1")]

@@ -1,72 +1,49 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:5823259
 Availability: Public
 Title: HTML5 게임 개발
-Crumbs:%ROOT%, Platforms
-Description:HTML5 플랫폼용 게임 개발하기 입니다.
-Platform:HTML5
-Navigation:platform
-Version: 4.9
-type:landing
-parent:Platforms
-tags:HTML5
-tags:Desktop
-Topic-image:HTML5Development_topic.png
+Description: HTML5 플랫폼용 게임 개발 안내입니다.
+Type: landing
+Version: 4.22
+Parent: Platforms
+Tags: HTML5
+Tags: Desktop
+topic-image: HTML5Development_topic.png
 
-HTML5 는 [Mozilla](https://www.mozilla.org/en-US/) 의 emscripten 툴 체인을 사용하여 C++ 를 Javascript 로 크로스 컴파일합니다.
+
+HTML5 는 [Mozilla](https://www.mozilla.org/en-US/) 의 [Emscripten Toolchain](https://emscripten.org/docs/introducing_emscripten/about_emscripten.html#emscripten-toolchain) 을 활용하여 C++ 를 Javascript 로 크로스 컴파일합니다.
 
 ## 시작하기
 
-[DIR(output:"listbutton" type:"quickstart" parent:"Platforms/HTML5")]
+*   [](Platforms/HTML5/GettingStarted)
 
-## 샘플
-
-[REGION:topics third]
-
-%TopicCompact%
-[/REGION]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![](TappyChicken.png)
-	[/PARAM]
-	[PARAM:title]
-		HTML5 에서의 태피 치킨
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://www.unrealengine.com/html5/
-	[/PARAMLITERAL]
-[/OBJECT]
-[/VAR]
-
+*   [](Platforms/HTML5/HTML5SDKRequirements)
 
 ## 콘텐츠 개발
 
-HTML5 는 WebGL 을 사용합니다. HTML5 플랫폼용 콘텐츠 제작시에는 보통 모바일용 콘텐츠 제작 지침이 마찬가지로 적용됩니다.
+HTML5 플랫폼에 쓸 콘텐츠를 만드는 경우, 모바일용 콘텐츠 개발에 적용되는 제약 다수가 HTML5 개발에도 적용됩니다.
 
-[DIR(end:"1" output:"listbutton" type:"overview" parent:"Platforms/Mobile")]
+*   [](Platforms/Mobile/Materials)
 
+*   [](Platforms/Mobile/Textures)
 
+*   [](Platforms/Mobile/Lighting)
 
+*   [](Platforms/Mobile/Meshes)
 
+*   [](Platforms/Mobile/PostProcessEffects)
 
-	      
+*   [](Platforms/Mobile/Performance)
 
-	       
+*   [](Platforms/Mobile/Performance/TipsAndTricks)
 
-	   
+*   [](Platforms/Mobile/Previewer)
 
-	   
+*   [](Platforms/Mobile/MobilePackagingWizard)
 
-	  
+## 샘플
 
-		
+![ActionRPG.jpg](ActionRPG-resize514x289.jpg "ActionRPG.jpg")
 
-		
+웹 브라우저에서 바로 플레이할 수 있는 Action RPG HTML5 버전 링크입니다:
 
-		
-
-		
-
-		
-
+[HTML5 버전 Action RPG](https://epiclearningresources.000webhostapp.com/ActionRPG/ActionRPG-HTML5-Shipping.html)

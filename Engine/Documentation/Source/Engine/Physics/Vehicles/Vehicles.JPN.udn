@@ -1,0 +1,12 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Vehicles
+Description: Vehicles
+Parent: Engine/Physics
+Type: landing
+hero-image: Vehicles_Banner.png
+
+
+The following topics can help you get started developing your own vehicles in Unreal Engine 4 for your projects. This includes a guide to walk you through the entire creation process in UE4, setting up your vehicle in an external modeling program, adjusting center of mass for your vehicle and debugging it, and much more.
+
+[DIR(output:"topic" parent:"Engine/Physics/Vehicles")]

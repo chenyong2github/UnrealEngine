@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4273092
+﻿INTSourceChangelist:6341512
 Availability:Public
 Title:骨架网格体资源细节
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
@@ -180,7 +180,7 @@ tags:FBX Importing
 
 ![](AddApex.png)
 
-导入Apex文件后，可以调整[物理属性](Engine/Physics/PhAT/Reference)以获得所需的效果。
+导入Apex文件后，可以调整[物理属性](Engine/Physics/PhysicsAssetEditor/Reference)以获得所需的效果。
 
 ![](OwenApexCloth.png)
 
@@ -196,7 +196,7 @@ tags:FBX Importing
 
 ## 物理
 
-在 **物理（Physics）** 部分中，你可以为使用皮肤数据作为碰撞信息的网格体 **启用按多边形碰撞（Enable Per Poly Collision）**。“按多边形碰撞”不能用于模拟。在多数情况下，最好使用 **物理资源（Physics Asset）**。你还可以将[物理资源](Engine/Physics/PhAT)分配给骨架网格体，以用于处理物理和碰撞信息。这个功能可用于按骨骼碰撞检测，精确的边界框计算，以及布偶系统。
+在 **物理（Physics）** 部分中，你可以为使用皮肤数据作为碰撞信息的网格体 **启用按多边形碰撞（Enable Per Poly Collision）**。“按多边形碰撞”不能用于模拟。在多数情况下，最好使用 **物理资源（Physics Asset）**。你还可以将[物理资源](Engine/Physics/PhysicsAssetEditor)分配给骨架网格体，以用于处理物理和碰撞信息。这个功能可用于按骨骼碰撞检测，精确的边界框计算，以及布偶系统。
 
 ![](PhysicsSection.png)
 

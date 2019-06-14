@@ -1,40 +1,175 @@
-﻿INTSourceChangelist:1915556
+INTSourceChangelist:3108692
 Availability:NoPublish
-Title:教程主页
+Title:欢迎教程
 Crumbs:
-Description: 虚幻引擎4所有初级教程内容
+Description:虚幻引擎4的所有入门教程的内容
 
-[EXCERPT:TutorialsHome]
+[EXCERPT:Stage1]
+[VAR:StageTitle]
+欢迎使用虚幻编辑器
+[/VAR]
 
-## 欢迎使用虚幻引擎4
+本教程介绍虚幻编辑器的每个关键界面元素。
 
-下文为刚开始使用虚幻引擎4的用户所准备的初级教程。
+![](UEDInterface.png)
 
-
-
-您可以通过选择帮助 >教程从菜单栏打开此窗口。
-
-
----
-### 编辑器教程： 基础信息
-![](InEditorBasicsTutorialTopic.png)
-
-本文是虚幻引擎4编辑器教程的第一篇。 本文涵盖了摄像机控制，放置和操作actor，使用内容浏览器，场景Outliner以及细节面板的基础信息。
-[In Editor Tutorial: The Basics](Shared\Tutorials\inEditorTutorial)
-
-
----
-
-### 编辑器教程： 游戏化基础信息
-![](GamifiedTutorial.png)
+本教程的每个部分都将为您简短描述界面元素，并提供更详细文档的链接，以方便您了解更多详情。
 
 
 
-![](warning.png)
+[/EXCERPT:Stage1]
 
----
 
-本文是虚幻引擎4编辑器的游戏化教程系列的第一篇。 本教程将涵盖放置，平移，旋转以及缩放actor，和内容浏览器以及细节面板的内容。 
-[In Editor Tutorial: Gamified Basics](Shared\Tutorials\inEditorGamifiedTutorial)
 
-[/EXCERPT:TutorialsHome]
+[EXCERPT:Stage2]
+[VAR:StageTitle]
+视口
+[/VAR]
+
+屏幕中央是主3D视口。透过这个窗口，您可以查看在虚幻中创建的世界。视口可以像在游戏中一样进行浏览，也可以一种更偏向原理图的设计感进行使用，就像建筑蓝图一样。它们还包含多种工具和可视化器来帮助您了解所需的确切数据。 
+
+[您是否想要进一步了解？](DOCLINK:Engine/UI/LevelEditor/Viewports)
+
+
+
+[VAR:ToolTipFullLink]
+Engine/UI/LevelEditor/Viewports
+[/VAR]
+
+
+[/EXCERPT:Stage2]
+
+
+[EXCERPT:Stage2.1]
+[VAR:StageTitle]
+模式
+[/VAR]
+
+“模式”（Modes）面板包含适用于编辑器的各种工具模式。这些更改关卡编辑器的主要行为以完成特殊任务，例如，在场景中放置新资源，创建几何结构和体积，给网格体着色，生成植被和雕刻地形。
+
+[您是否想要进一步了解？](DOCLINK:Engine/UI/LevelEditor/Modes)
+
+
+
+[/EXCERPT:Stage2.1]
+
+
+
+[EXCERPT:Stage3]
+[VAR:StageTitle]
+内容浏览器
+[/VAR]
+
+内容浏览器是在虚幻编辑器中创建、导入、组织、查看和修改内容资源的主要区域。它可管理内容文件夹，在资源上执行其他实用操作（如重命名、移动、复制和查看引用）。
+
+内容浏览器可以搜索游戏项目中的所有资源并进行互动。
+
+[您是否想要进一步了解？](DOCLINK:Engine/Content/Browser/UI)
+
+
+
+[/EXCERPT:Stage3]
+
+
+
+
+[EXCERPT:Stage4]
+[VAR:StageTitle]
+细节（Details）面板
+[/VAR]
+
+细节（Details）面板包含特定于当前选择的信息、实用工具和功能。它包含用于移动、旋转和缩放Actor的变换编辑框，显示所选Actor的所有可编辑属性，根据视口中选中的Actor类型提供对其他编辑功能的快速访问。
+
+[您是否想要进一步了解？](DOCLINK:Engine/UI/LevelEditor/Details)
+
+
+
+[/EXCERPT:Stage4]
+
+
+
+
+[EXCERPT:Stage5]
+[VAR:StageTitle]
+场景大纲视图
+[/VAR]
+
+场景大纲视图（Scene Outliner）面板以分层树视图显示场景中的所有Actor。Actor可以直接从场景大纲视图（Scene Outliner）选择和修改。您还可以使用“信息”（Info）下拉菜单来显示一个额外列，其中显示“关卡”（Levels）、“层”（Layers）或“ID名称”（ID Names）。
+
+[您是否想要进一步了解？](DOCLINK:Engine/UI/LevelEditor/SceneOutliner)
+
+
+
+[/EXCERPT:Stage5]
+
+
+
+
+[EXCERPT:Stage6.1]
+[VAR:StageTitle]
+工具栏
+[/VAR]
+
+工具栏提供对常用工具和操作的快速访问。工具栏上的选项甚至可以自定义以适应您的特定工作流。
+
+[您是否想要进一步了解？](DOCLINK:Engine/UI/LevelEditor/Toolbar)
+
+
+
+[/EXCERPT:Stage6.1]
+
+
+[EXCERPT:Stage6.2]
+[VAR:StageTitle]
+菜单栏
+[/VAR]
+
+菜单栏类似于许多计算机应用程序中的菜单栏，它允许用户访问在编辑器中处理关卡时使用的一般工具和命令。
+
+[您是否想要进一步了解？](DOCLINK:Engine/UI/LevelEditor/MenuBar)
+
+
+
+[/EXCERPT:Stage6.2]
+
+
+
+[EXCERPT:Stage6.3]
+[VAR:StageTitle]
+菜单栏附加功能
+[/VAR]
+
+最后，在菜单栏最右侧有一个子部分，包含控制台命令的输入字段，并显示源控制连接状态。
+
+
+
+
+[/EXCERPT:Stage6.3]
+
+
+
+[EXCERPT:Stage6.4]
+[VAR:StageTitle]
+增强工具提示
+[/VAR]
+
+如果您任何时候需要了解更多信息，界面元素（图标、按钮、选项卡、菜单条目等）都有增强工具提示，可以按住Ctrl + Alt，同时将鼠标光标移到界面元素上可以访问增强工具提示。立即尝试：
+
+**按住Ctrl + Alt并将鼠标光标移到“播放”（Play）按钮上。**
+
+
+
+[/EXCERPT:Stage6.4]
+
+
+
+
+
+[EXCERPT:Stage7]
+[VAR:StageTitle]
+完成
+[/VAR]
+
+您可以单击该窗口底部的“主页”（Home）按钮，试试其他教程和逐步说明，或者关闭本教程，直接开始使用虚幻编辑器。
+
+[/EXCERPT:Stage7]

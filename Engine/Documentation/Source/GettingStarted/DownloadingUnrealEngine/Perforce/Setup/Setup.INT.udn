@@ -2,9 +2,8 @@ Availability: Licensee
 Title:Setting Up a Perforce Connection
 Crumbs:%ROOT%, Engine, Programming, Programming/Basics, GettingStarted/DownloadingUnrealEngine/Perforce
 Description:Guide to connecting to Epic's Perforce server to obtain Unreal Engine 4 builds.
-version: 4.9
-
-[TOC(start:2)]
+version: 4.20
+Order: 3
 
 Epic Games makes QA-approved builds of Unreal Engine 4, as well as other specialized code drops, available to 
 licensees through a Perforce depot that can be accessed externally. This is the method licensees use to first 
@@ -26,7 +25,7 @@ should sync full builds. Multiple machines syncing full builds is a violation of
 as well as with Epic.
 
 The complete process for downloading builds or revisions of Unreal Engine 4 from Epic's Perforce depot is detailed 
-on the [Syncing Builds with Perforce](GettingStarted/DownloadingUnrealEngine/Perforce/Syncing) page.
+on the [Downloading Unreal Engine with Perforce](GettingStarted/DownloadingUnrealEngine/Perforce/Basics) page.
 
 [REGION:warning]
 	In order to keep our Perforce server running smoothly and efficiently, we have a tiered policy in place with regard 
@@ -74,15 +73,6 @@ The full P4V installer can be downloaded from the [Perforce Downloads: The Essen
 NOTE: Be sure to download the version that applies to your operating system, including 32- or 64-bit.
 
 For a guide to setting up the P4V client to connect to Epic's Perforce depot, please see the [Setting up P4V](GettingStarted/DownloadingUnrealEngine/Perforce/P4V) page.
-
-
-### Setting Up P4Win
-
-P4Win is the Windows-only graphical interface that preceded the current multi-platform P4V client. If you prefer 
-to use the latest version of the P4Win Windows Client application, it can be downloaded from the [Legacy Software](http://www.perforce.com/perforce/downloads/legacy.html) 
-page from the Perforce web site.
-
-For a guide to setting up the P4Win client to connect to Epic's Perforce depot, please see the [Setting up P4Win](GettingStarted/DownloadingUnrealEngine/Perforce/P4Win) page.
 
 
 ### Additional Downloads

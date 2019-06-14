@@ -41,8 +41,6 @@ SkillLevel:Beginner
 
 エピック ゲームズの有効なアカウントをお持ちの場合は、インストーラ (エピック ゲームズのランチャーのセットアップ プログラム) をダウンロードすることができます。
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

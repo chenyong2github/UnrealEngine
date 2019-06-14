@@ -1,11 +1,14 @@
-﻿INTSourceChangelist:3810557
+﻿INTSourceChangelist:6549201
 Title: 앱 내 구매 사용법
 Description: 앱 내 구매를 사용하여 게임의 부가 유료 콘텐츠를 제공하는 법입니다.
 Crumbs:
 Availability:Public
 parent:Platforms/Mobile
+skilllevel:Advanced
+version:4.9
 order:1
 type:how-to
+tags:in-app purchase
 tags:mobile
 topic-image:iap_topic.png
 
@@ -16,8 +19,8 @@ In-App Purchase (앱 내 구매)를 통해 플레이어에게 부가 콘텐츠�
 각 플랫폼 별 앱 내 구매 환경설정 관련 자세한 내용은 아래 플랫폼별 페이지를 참고하세요:
 
 [REGION:buttonlist]
-* [](Platforms/Android/InAppPurchases)
-* [](Platforms/iOS/InAppPurchases)
+* [](Platforms/Mobile/Android/InAppPurchases)
+* [](Platforms/Mobile/iOS/InAppPurchases)
 [/REGION]
 
 [EXCERPT:usage]

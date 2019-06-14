@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4400408
+﻿INTSourceChangelist:6549201
 Availability: Public
 Crumbs: 
 Title: ARKit 전제 조건 
@@ -16,7 +16,7 @@ Tags: AR
 
 ## 일반 전제 조건
 
-언리얼 엔진 및 iOS 디바이스 기본 구성 관련 자세한 내용은 [](Platforms/iOS) 문서를 참고하세요.
+언리얼 엔진 및 iOS 디바이스 기본 구성 관련 자세한 내용은 [](Platforms/Mobile/iOS) 문서를 참고하세요.
 
 **ARKit 1.5 전제 조건**
 

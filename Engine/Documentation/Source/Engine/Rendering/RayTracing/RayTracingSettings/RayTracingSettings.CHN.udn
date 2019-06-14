@@ -1,0 +1,167 @@
+﻿INTSourceChangelist:5952936
+Availability: Public
+Title: 光线追踪功能设置
+Description: 光线追踪功能和路径追踪器在虚幻引擎4中的设置和属性参考。
+Type: reference
+Version: 4.22
+Parent: Engine/Rendering/RayTracing
+Tags: Early Access
+Tags: Ray Tracing
+Order: 1
+
+
+[TOC (start:2 end:4)]
+
+在本页面中，您可以找到[光线追踪器](Engine/Rendering/RayTracing)和[路径追踪器](Engine/Rendering/RayTracing/PathTracer)功能的属性和设置。  
+
+(#postprocessvolume)
+
+## 后期处理体积
+
+后期处理体积使用以下属性来影响光线追踪功能。  
+
+![PPV_Settings636892585207724016](PPV_Settings636892585207724016.png "PPV_Settings636892585207724016")(w:400)
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]环境光遮挡[/REGION] ||
+| **强度（Intensity）** | 定义光线追踪的环境光遮挡对非直接光照的影响程度。值越低，效果越弱；值越大，效果越强。|
+| **半径（Radius）** | 控制环境光遮挡影响的距离，按虚幻引擎单位计。|
+| [REGION:tablesection]光线追踪环境光遮挡[/REGION] ||
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于光线追踪的环境光遮挡(RTAO)的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+| [REGION:tablesection]光线追踪全局光照[/REGION] ||
+| **启用（Enabled）** | 启用光线追踪全局光照（Ray Tracing Global Illumination）(RTGI)。|
+| **最大反射次数（Max Bounces）** | 设置RTGI将使用的光源的最大反射数量。|
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于RTGI的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+| [REGION:tablesection]反射[/REGION] ||
+| **类型（Type）** | 设置在该体积内反射是使用 **光线追踪（Ray Tracing）** 还是 **屏幕空间（Screen Space）** 方法。选择栅格化（Raster）时，将使用屏幕空间反射(SSR)，而不是光线追踪反射。|
+| [REGION:tablesection]光线追踪反射[/REGION] ||
+| **最大粗糙度（Max Roughness）** | 设置在返回到开销更低的栅格化方法之前光线追踪反射为可见状态的最大粗糙度。当接近粗糙度阈值时，反射贡献将平滑地消退，此参数的作用与SSR的最大粗糙度（Max Roughness）相似。值越低，就越快返回到其他方法。|
+| **最大反射次数（Max Bounces）** | 设置光线追踪反射使用的最大反射数量。高反射会产生相互反射，但开销更高。默认情况下设置为1个反射。|
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于光线追踪反射的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+| **阴影（Shadows）** | [INCLUDE:#excerpt_0] |
+| [REGION:tablesection]半透明[/REGION] ||
+| **类型（Type）** | 设置在该体积内反射是使用 **光线追踪（Ray Tracing）** 还是 **栅格化（Raster）** 方法。选择栅格化（Raster）时，将使用默认的半透明方法，而不是光线追踪方法。|
+| [REGION:tablesection]光线追踪半透明[/REGION] ||
+| **最大粗糙度（Max Roughness）** | 设置在返回到开销更低的栅格化方法之前光线追踪半透明为可见状态的最大粗糙度。当接近粗糙度阈值时，半透明贡献将平滑地消退，此参数的作用与SSR的最大粗糙度（Max Roughness）相似。值越低，就越快返回到其他方法。|
+| **最大折射光线数量（Max Refraction Rays）** | 设置光线追踪半透明使用的最大折射光线数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为3个折射光线。|
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于光线追踪半透明的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+| **阴影（Shadows）** | [INCLUDE:#excerpt_1] |
+| **折射（Refraction）** | 设置光线追踪半透明是否应启用折射。如果禁用，光线将不会散射，只会按相交事件前的相同方向行进。|
+| [REGION:tablesection]路径追踪[/REGION] ||
+| **最大反射次数（Max Bounces）** | 设置路径追踪器使用的最大反射数量。|
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于路径追踪器的样本数量。|
+
+<!--
+[EXCERPT:excerpt_0]
+
+设置阴影的反射方式。在以下选项中选择：
+
+*   **硬阴影（Hard Shadows）**，没有柔和阴影
+
+*   **区域阴影（Area Shadows）**，具有光线追踪阴影等柔和阴影
+
+*   **禁用（Disable）**，在光线追踪反射中禁用阴影
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+设置阴影的反射方式。在以下选项中选择：
+
+*   **硬阴影（Hard Shadows）**，没有柔和阴影
+
+*   **区域阴影（Area Shadows）**，具有光线追踪阴影等柔和阴影
+
+*   **禁用（Disable）**，在光线追踪半透明中禁用阴影
+
+[/EXCERPT:excerpt_1]
+-->
+
+(#typesoflights)
+
+## 光源类型
+
+(#directionallight)
+
+### 定向光源
+
+ **定向光源** 使用以下属性来影响光线追踪功能。  
+
+![Directional_Settings](Directional_Settings.png "Directional_Settings")(w:400)
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **光源角度（Source Angle）** | 由光源对向的角度，以度为单位（也称角直径）。较小的角度产生更清晰的阴影接触，而较大的角度产生更柔和的阴影。|
+| **投射光线追踪阴影（Cast Ray Traced Shadow）** | 光照阴影是否通过阴影贴图或光线追踪计算。|
+| **影响反射（Affects Reflections）** | 当启用光线追踪反射时，光源是否影响反射中的物体。|
+| [REGION:tablesection]光线追踪[/REGION] ||
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于来自定向光源的光线追踪阴影的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+
+(#pointandspotlights)
+
+### 点光源和聚光源
+
+ **点光源** 和 **聚光源** 使用以下属性来影响光线追踪功能。  
+
+![Point_Spot_Settings](Point_Spot_Settings.png "Point_Spot_Settings")(w:400)
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **光源半径（Source Radius）** | 光源形态的半径。较小的半径产生更清晰的阴影接触，而较大的半径产生更柔和的阴影。|
+| **投射光线追踪阴影（Cast Ray Traced Shadow）** | 光照阴影是否通过阴影贴图或光线追踪计算。|
+| **影响反射（Affects Reflections）** | 当启用光线追踪反射时，光源是否影响反射中的物体。|
+| [REGION:tablesection]光线追踪[/REGION] ||
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于来自点光源和聚光源的光线追踪阴影的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+
+(#rectlight)
+
+### 矩形光源
+
+ **矩形光源** 使用以下属性来影响光线追踪功能。
+
+![RectLight_Settings](RectLight_Settings.png "RectLight_Settings")(w:400)
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **光源宽度（Source Width）** | 光源形态的宽度。|
+| **光源高度（Source Height）** | 光源形态的高度。|
+| **挡光板角度（Barn Door Angle）** | 附加到光源的挡光板的角度。|
+| **挡光板长度（Barn Door Length）** | 附加到光源的挡光板的长度。|
+| **投射光线追踪阴影（Cast Ray Traced Shadow）** | 光照阴影是否通过阴影贴图或光线追踪计算。|
+| **影响反射（Affects Reflections）** | 当启用光线追踪反射时，光源是否影响反射中的物体。|
+| [REGION:tablesection]光线追踪[/REGION] ||
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于来自矩形光源的光线追踪阴影的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+
+(#skylight)
+
+### 天空光照
+
+ **天空光照** 使用以下属性来影响光线追踪功能。
+
+![SkyLight_Settings](SkyLight_Settings.png "SkyLight_Settings")(w:400)
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **投射光线追踪阴影（Cast Ray Traced Shadow）** | 光照阴影是否通过阴影贴图或光线追踪计算。|
+| **影响反射（Affects Reflections）** | 当启用光线追踪反射时，光源是否影响反射中的物体。|
+| [REGION:tablesection]光线追踪[/REGION] ||
+| **逐像素采样（Samples Per Pixel）** | 设置逐像素用于来自天空光照的光线追踪阴影的样本数量。额外的样本会降低性能，但会提高质量和准确度。默认情况下设置为逐像素1个样本。|
+
+(#actors)
+
+## Actor
+
+ **Actor** 使用以下属性来影响光线追踪功能。  
+
+![Actor_Settings](Actor_Settings.png "Actor_Settings")(w:400)
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]Light[/REGION] ||
+| **在光线追踪中可见（Visible in Ray Tracing）** | 当启用时，该组件将在光线追踪效果中可见。当禁用时，它将从光线追踪效果（例如反射、半透明、阴影等）中移除。|

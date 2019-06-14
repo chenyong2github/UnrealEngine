@@ -1,0 +1,159 @@
+Availability: Docs
+Title: EQS Node Reference: Contexts
+Description: Describes how Contexts are used within Tests and Generators in the EQS system. 
+Type: reference
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/EQS/EQNodeReference
+Tags: Experimental
+Tags: EQS
+Tags: AI
+Tags: Environmental Query System
+Tags: EQS Node Reference List
+topic-image: Context_Topic.png
+social-image: Context_Topic.png
+topic-icon: Context_Topic.png
+Order: 2
+
+
+[TOC (start:2 end:2)]
+
+Within the Environment Query System (EQS), **Contexts** provide a frame of reference for any [Tests](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceTests) or [Generators](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators) used. A Context can be as simple as the **Querier **(who is performing the Test) or more complex such as **All Actors of a Type**. A Generator, such as a **Points: Grid**, can use a Context that returns multiple locations or Actors. This will create a grid (of the defined size and density) at the location of each Context. In addition to Engine supplied Contexts, you can create custom Contexts in Blueprint with the **EnvQueryContext_BlueprintBase **class or through C++ code. 
+
+## EnvQueryContext_Item
+
+**Items **are created by the Generator, and if using the **EQS Testing Pawn**, they are the spheres that appear in the Editor. An EnvQueryContext_Item is either a location (FVector) or an Actor (AActor).
+
+## EnvQueryContext_Querier
+
+The **Querier** is the Pawn that is currently possessed by an AI Controller and is executing the [Behavior Tree](Engine/ArtificialIntelligence/BehaviorTrees) that initiated the Environment Query. An example of where Querier as the Context could be used is if you want to search the environment around the AI character for an item they can use, or to find a place that provides cover from the player, or just to determine the current location of the AI performing the query.
+
+In the **Details** panel for a Generator type, you can assign the Querier as a Context for the following properties:
+
+| Generator | Property |
+| --- | --- |
+| **Actors of Class** | [INCLUDE:#excerpt_0] |
+| **Current Location** | [INCLUDE:#excerpt_1] |
+| **Points: Circle** | [INCLUDE:#excerpt_2] |
+| **Points: Cone** | [INCLUDE:#excerpt_3] |
+| **Points: Donut** | [INCLUDE:#excerpt_4] |
+| **Points: Grid** | [INCLUDE:#excerpt_5] |
+| **Points: Pathing Grid** | [INCLUDE:#excerpt_6] |
+
+<!--
+[EXCERPT:excerpt_0]
+**Search Center**  
+
+![](Querier_SearchCenter.png "Querier_SearchCenter.png")
+
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+**Query Context**  
+
+![](Querier_CurrentLocation.png "Querier_CurrentLocation.png")
+
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+**Circle Center**  
+
+![](Querier_Circle.png "Querier_Circle.png")
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+**Center Actor**  
+
+![](Querier_Cone.png "Querier_Cone.png")
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+**Center**  
+
+![](Querier_Donut.png "Querier_Donut.png")
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_5]
+**Generate Around**  
+
+![](Querier_Grid.png "Querier_Grid.png")
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_6]
+**Generate Around**  
+
+![](Querier_PathingGrid.png "Querier_PathingGrid.png")
+
+[/EXCERPT:excerpt_6]
+-->
+
+## EnvQueryContext_BlueprintBase
+
+You can create a custom Context through Blueprint using the **EnvQueryContext_BlueprintBase** Class. This provides four functions that can be overridden, enabling you to add your own custom Contexts for use within Tests in a query.
+
+To use a custom Context:
+
+1.  Create a new Blueprint of the **EnvQueryContext_BlueprintBase** class.  
+    ![](BlueprintBase_Create.png "BlueprintBase_Create.png")
+
+1.  In EnvQueryContext_BlueprintBase, click **Override** and select the type of function you wish to use.  
+    ![](BlueprintBase_Function.png "BlueprintBase_Function.png")
+
+Refer to the table below a description of each function override:
+
+| Function | Description |
+| --- | --- |
+| Provide Single Location | [INCLUDE:#excerpt_7] |
+| Provide Single Actor | [INCLUDE:#excerpt_8] |
+| Provide Locations Set | [INCLUDE:#excerpt_9] |
+| Provide Actors Set | [INCLUDE:#excerpt_10] |
+
+<!--
+[EXCERPT:excerpt_7]
+
+This returns a single location (vector). How you generate that location is up to you. For example, the function below will return the trace hit location of a random Actor (one that is found in the DesiredObjectType array, such as Pawn, Vehicle) found within 1500 cm of the Querier:
+
+[REGION:lightbox]
+[![](ProvideSingleLocation.png "ProvideSingleLocation.png")(w:640)](ProvideSingleLocation.png)
+
+*Click for full image.*
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+This returns a single Actor. You can obtain that Actor through any method you desire. In this example, the function will return Player 0's controlled Actor:
+
+[![](ProvideSingleActor.png "ProvideSingleActor.png")](ProvideSingleActor.png)
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+This returns an array of locations (vectors). How you generate these locations is up to you. In the example below, this function will trace from 16 evenly spaced locations on a circle with a radius of 1500 units, returning successful hits on the environment:
+
+[REGION:lightbox]
+[![](ProvideLocationsSet.png "ProvideLocationsSet.png")(w:640)](ProvideLocationsSet.png)
+
+*Click for full image.*
+[/REGION]
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_10]
+
+This returns an array of Actors. You can use any desired method to obtain those Actors. In the example below, we use a Get All Actors of Class node to retrieve our specified class as the Actors to return:
+
+[![](ProvideActorsSet.png "ProvideActorsSet.png")](ProvideActorsSet.png)
+[/EXCERPT:excerpt_10]
+-->

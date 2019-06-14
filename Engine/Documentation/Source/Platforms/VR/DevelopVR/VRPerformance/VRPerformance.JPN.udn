@@ -1,0 +1,137 @@
+﻿INTSourceChangelist:3622884
+Availability:Public
+Crumbs: %ROOT%
+Title:VR パフォーマンス機能
+Description:VR パフォーマンスの最適化について
+Type:Overview
+SkillLevel:Advanced
+Version:4.17
+Parent:Platforms/VR/DevelopVR
+Order:4
+Tags:VR
+
+[TOC(start:2)]
+
+仮想現実 (VR) はレンダリング要件が厳しいため、様々なパフォーマンスの最適化が必要であり、VR 用の新しいレンダリング モードがアンリアル エンジン (UE4) に導入されました。これらの機能および UE4 VR プロジェクトでの使用方法について、次のセクションで説明します。
+
+
+## VR Instanced Stereo
+
+VR のパフォーマンス負荷を減らすために Instanced Stereo レンダリングが実装されました。この機能は、**[Edit (編集)] -> [Project Settings (プロジェクト設定)] -> [Rendering (レンダリング)] -> VR** の [Instanced Stereo] オプションにチェックを入れて有効にします。 
+
+[REGION:lightbox]
+[![](Platforms\VR\DevelopVR\ContentSetup\VR_ISR.png)(w:376)](Platforms\VR\DevelopVR\ContentSetup\VR_ISR.png)
+[/REGION]
+
+[REGION:caption]
+クリックしてフルサイズで表示
+[/REGION]
+
+**Instanced Stereo** レンダリングを有効にした後、エンジンを再起動し、シェーダーを再コンパイルする必要があります。
+ この機能を有効にすると、ベース パスと Early-Z パス (両方ともシリアルおよび並列レンダリング パス) がスタティック メッシュ、スケルタル メッシュ、スプライト パーティクル、メッシュ パーティクルで使用できます。 
+ 現在、**Instanced Stereo** は PC (DirectX) と PS4 で使用できます。それ以外のプラットフォームのサポートは 4.11 初回リリースの後になります。 
+ VR における Standard Stereo レンダリングおよび Instanced Stereo レンダリングを以下の動画で紹介しています。 
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	nmajnglJeyE
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]
+
+## VR マルチビューのモバイル向けサポート
+
+(サポート対象の) モバイル デバイスのいくつかで VR マルチウィンドウがサポートされました。モバイル マルチビューはデスクトップ PC で使用できる Instanced Stereo レンダリングと似ており、ステレオ レンダリング用に最適化したパスをモバイル デバイスの CPU 上に提供して機能します。この機能を有効にするには、以下の手順を行います。
+
+[region:warning]
+この機能は実験的なので、最新のメール ベースの GPU でのみ動作します。機能が成熟し、オンラインでより多くのモバイルをサポートするようになると、この警告は出なくなります。
+[/region]
+
+1. メイン ツールバー から **[Edit (編集)]** > **[Project Settings (プロジェクト設定)]** を選んで、エディタのプロジェクト設定を開きます。
+
+1. 次に、**[Engine]** > **[Rendering]** > **[VR]** を開き、**[Mobile Multi-View (実験的)]** オプションを探します。 
+
+1. [Mobile Multi-View (実験的)] オプションは、名前の横のチェックボックスにチェックを入れて有効にしたら、変更を反映させるために再起動します。
+
+	[REGION:lightbox]
+	[![](Platforms\VR\DevelopVR\ContentSetup\VR_MobileMultiView.png)(w:379)](Platforms\VR\DevelopVR\ContentSetup\VR_MobileMultiView.png)
+	[/REGION]
+
+	[REGION:caption]
+	クリックしてフルサイズで表示
+	[/REGION]
+
+この機能を使うためには、Android のビルド設定を以下のようにする必要があります。
+
+* **[Android]** > **[Build]** セクションの **[Support OpenGL ES2]** が有効になっていることを確認してください。 
+* **[Mobile HDR]** と **[Instanced Stereo Rendering]** が無効になっているか確認してください。
+* 現時点では、Mobile Multiview は最新のメール ベースの GPU でのみ動作します。 
+* 互換性のある GPU を搭載せずに本機能でプロジェクトをパッケージ化した場合、この機能はランタイムで無効になります。 
+
+## VR フォワード レンダリング
+
+![](Engine\Performance\ForwardRenderer\ForwardRenderingBanner.png)(w:840)
+
+[INCLUDE:Engine\Performance\ForwardRenderer#intro]
+
+[REGION:note]
+詳細は [](Engine\Performance\ForwardRenderer) のドキュメントをご覧ください。 
+[/REGION]
+
+## VR パフォーマンスのプロファイル
+
+VR に使うには負荷が大きすぎるアセットを追跡するために、プロジェクトのライフタイム中ずっと CPU と GPU へのプロジェクトの負荷要因をプロファイルする必要があります。 
+
+* **GPU Profiling** - プロジェクト実行中に **CTRL + SHIFT + , (カンマ キー)** を一緒に押すと、GPU プロファイラが有効になります。キーを押すと新規ウィンドウが開き、以下の画像のようになります。 
+	![](Platforms\VR\DevelopVR\ContentSetup\VR_GPU_Profiler.png)
+
+* **CPU Profiler** - CPU 上のプロジェクトの負荷分析は、GPU のプロファイルよりも若干複雑になります。この方法についての詳細については、[パフォーマンス プロファイラ](https://docs.unrealengine.com/latest/INT/Engine/Performance/Profiler/index.html) をご覧ください。 
+
+## VR ポストプロセス設定
+
+VR のレンダリング要件は厳しいので、デフォルトで有効設定にされている高度なポスト プロセス機能のほとんどを無効にしておかないと、
+ プロジェクトのパフォーマンスに問題が生じる可能性があります。無効にするには、以下の手順に従います。
+
+ 1. Post Process(PP) ボリュームがレベルにない場合は、レベルに追加します。
+ 1. PP ボリュームを選択し、**[Post Process Volume]** セクションで **[Unbound (境界なし)]** オプションを有効にして、PP ボリュームの設定がレベル全体に適用されるようにします。 
+
+	![](Platforms\VR\DevelopVR\ContentSetup\VR_PP_Unbound.png)
+
+ 1. **[Post Process Volume]** の **[Settings (設定)]** を展開し、各セクションをクリックしてプロパティを有効にしてデフォルト値を設定します。デフォルト値 (通常 1.0) を **0** にすれば、この機能は無効になります。
+
+	![](Platforms\VR\DevelopVR\ContentSetup\VR_Disable_PP_Settings.png)
+	[region:note]
+	ただし、この場合、すべてのセクションのプロパティを 0 にする必要はありません。まず最初に、レンズフレア、スクリーン スペース反射、テンポラル アンチエイリアシング、SSAO、ブルームなどの非常に負荷の高い機能、またはパフォーマンスに影響を与える機能を無効にします。
+	[/region]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

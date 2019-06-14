@@ -1,9 +1,9 @@
-﻿INTSourceChangelist:4372182
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title: 蓝图简介
 Crumbs: %ROOT%, Engine, Engine/Blueprints
 Description:初识蓝图时，可参考本文中蓝图及其作用的高阶概览，以便进行了解。 
-version: 4.9
+version: 4.22
 parent:Engine/Blueprints
 order:1
 tags:Blueprints
@@ -18,24 +18,25 @@ topic-image:Engine/Blueprints/intro_topic.png
 该系统灵活而强大，使设计师能够使用通常仅面向程序员的几乎所有概念和工具。此外，程序员可借助虚幻引擎C++实现中可用的蓝图特定标记创建基线系统，而此系统又可被设计师加以拓展。
 [/EXCERPT:Intro]
 
-参见[](Engine/Blueprints\Overview)，了解蓝图剖析、关于蓝图如何与UE3的Kismet及虚幻脚本关联的讨论等蓝图相关详情。
+[REGION:note]
+请参阅[蓝图总览](Engine/Blueprints/Overview)，了解蓝图剖析、关于蓝图如何与UE3的Kismet及虚幻脚本关联的讨论等蓝图相关详情。
+[/REGION]
 
 
-(#howdoblueprintswork?)
 ## 蓝图的用法
 在其基本形式中，蓝图是游戏的可视化脚本附加。使用引线连接节点、实践、函数和变量后即可创建复杂的游戏性元素。
 
 蓝图使用节点图表来达到蓝图每个实例特有的诸多目的（如目标构建、个体函数，以及通用gameplay事件），以便实现行为和其他功能。
 
 
-(#commonlyusedblueprinttypes)
 ## 常用蓝图类型
 
-最常使用的蓝图类型是关卡蓝图和蓝图类。  
+最常使用的蓝图类型是 **关卡蓝图** 和 **蓝图类**。  
 
+[REGION:note]
 它们仅是诸多[蓝图类型](Engine/Blueprints/UserGuide/Types)中的两类，其他还有[蓝图宏](Engine/Blueprints/UserGuide/Types/MacroLibrary)及[蓝图界面](Engine/Blueprints/UserGuide/Types/Interface)。
+[/REGION]
 
-(#levelblueprint)
 ## 关卡蓝图
 
 [REGION:lightbox]
@@ -44,7 +45,6 @@ topic-image:Engine/Blueprints/intro_topic.png
 
 关卡蓝图的作用与虚幻引擎3中Kismet的相同，两者功能相同。每个关卡拥有各自的关卡蓝图，其可在关卡中引用并操作Actor、使用Matinee Actor控制过场动画，还能对关卡流送、检查点及其他关卡相关系统等事务进行管理。此外，关卡蓝图还能与关卡中放置的蓝图类（参见下一部分中的范例）进行交互，例如读取/设置其可能包含的变量，或触发其中的自定义事件。
 
-(#blueprintclass)
 ## 蓝图类
 
 [REGION:lightbox]
@@ -55,12 +55,10 @@ topic-image:Engine/Blueprints/intro_topic.png
 		
 在此情况中，按下按钮将触发门蓝图中的事件，门因此开启——但其他类型的蓝图或关卡蓝图序列同样可轻易触发门的事件。因蓝图的自含性质，将其拖入关卡中便可构建蓝图，进行最小设置后即能生效。这也意味着对项目中使用的蓝图进行编辑后，该项目的所有实例均会更新。
 
-(#whatelsecanblueprintsdo)
 ## 蓝图的其他作用
 
 前文已对关卡蓝图和蓝图类进行了初步讲解，下文则列出了可使用蓝图系统完成一些实用实例。 
 
-(#createcustomizableprefabswithconstructionscripts)
 ## 使用构造脚本创建可自定义的预设
 
 ![](Construction_Script.png)
@@ -71,7 +69,6 @@ topic-image:Engine/Blueprints/intro_topic.png
 
 最初创建这种蓝图会很耗时，但如果经常使用该蓝图，创建关卡时将节省大量时间、进行修改时也更为便利，其价值便凸显于此。
 
-(#createaplayablegamecharacter)
 ## 创建可操作角色
 
 ![](Game_Characters.png)
@@ -80,7 +77,6 @@ Pawn同样也是蓝图类的其中一种，其可将蓝图图表中可操作角�
 
 新建角色蓝图时，其附带了内置多数移动、跳跃、游泳和坠落所需行为的角色组件，而这些行为都需要依照控制角色的方式添加输入事件。
 
-(#createahud)
 ## 创建HUD
 
 ![](Create_HUDs.png)
@@ -89,9 +85,10 @@ Pawn同样也是蓝图类的其中一种，其可将蓝图图表中可操作角�
 
 可设置HUD来读取其他蓝图中的变量，并将读取的变量用于显示体力条、更新分数、显示任务标志等。HUD还可用于添加元素的命中框，如可以点击的按钮；在移动平台游戏中，则用于响应触摸输入。
 
-以上图片展示的所有范例均为UE4中可用的样本内容，若想了解更多信息，可在 **内容范例（Content Examples）** 中的 **第一人称射击游戏（First Person Shooter）** 和 **Swing Ninja** 项目中进行查找。
+[REGION:note]
+虽然蓝图充满了可能性，但[虚幻运动图形](Engine\UMG\)系统在UI布局方面对于设计师更加友好，它同样基于蓝图可视化脚本。  
+[/REGION]
 
-(#blueprinteditorsandgraphs)
 ## 蓝图编辑器和图表
 
 构建关卡蓝图或蓝图类时，需要使用[蓝图编辑器](Engine/Blueprints/Editor)中集成的[蓝图元素](Engine/Blueprints\UserGuide)。  
@@ -132,16 +129,32 @@ mac
 
 依据正在使用的不同蓝图类型，可用的 **蓝图编辑器** 类型也有所不同。多数 **蓝图编辑器** 的核心功能为 **图表** 模式，其中央的 **图表（Graph）** 选项卡将对蓝图的网络进行布局。  
 
-(#blueprintsamplesandtutorials)
 ## 蓝图样本和教程
 
-以下是可协助了解蓝图系统的其他资源。 
-
+以下是可协助了解蓝图系统的其他资源。
+ 
 * [](Resources/Showcases/BlueprintExamples)
 * [蓝图升起教程](http://wiki.unrealengine.com/Blueprint_Lift_Tutorial)
 * [蓝图加强教程](http://wiki.unrealengine.com/Blueprint_Power_Up_Tutorial)
 
-
-
+<!-- disabling link for now.
+[REGION:tip]
+如果您是蓝图或可视化脚本方面的新手，还可以查看 **蓝图基础概念** 系列视频教程。此系列涵盖了在虚幻引擎4中使用蓝图的基础与核心概念、如果将蓝图与传统编程的关联、蓝图编辑器UI导览、组件、图表以及一些使用蓝图的禁忌。
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		蓝图基础概念课程
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
 
 

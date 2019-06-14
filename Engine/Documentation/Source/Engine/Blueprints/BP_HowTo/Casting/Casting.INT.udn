@@ -1,13 +1,12 @@
 Availability: Public
 Title:Blueprint Casting Example
-Crumbs: %ROOT%, Engine, Engine\Blueprints, Engine\Blueprints\BP_HowTo
 Description:Using Blueprint Casting to communicate from one Blueprint to multiple Blueprints. 
 Related: Engine/Blueprints/UserGuide/CastNodes
 Related: Engine/Blueprints/UserGuide/BlueprintCommsUsage
 Related: Engine/Blueprints/UserGuide
 skilllevel: Advanced
 version: 4.9
-Parent:Engine/Blueprints/HowTo
+Parent:Engine/Blueprints/BP_HowTo
 type:how-to
 tags:Data Types
 tags:Blueprints

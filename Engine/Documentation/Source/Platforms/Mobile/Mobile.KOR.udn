@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6549201
 Availability:Public
 Title:모바일 게임 개발
 Crumbs:%ROOT%, Platforms
@@ -18,17 +18,24 @@ topic-image:MobileGameDevelopment_topic.png
 
 ## 시작하기
 
-[DIR(output:"topiccompact" type:"quick start" tags:"mobile")]
+[DIR(output:"topic" parent:"Platforms/Mobile/Android" type:"quick start")]
+[DIR(output:"topic" parent:"Platforms/Mobile/iOS" type:"quick start")]
 
 ## 모바일 플랫폼
 
-[DIR(output:"listbutton" type:"landing" parent:"Platforms/Mobile")]
+%Platforms/Mobile/Android:topic%
+%Platforms/Mobile/iOS:topic%
 
 ## 모바일 서비스
 
-[DIR(end:"1" output:"listbutton" type:"how-to" parent:"Platforms/Mobile")]
+[DIR(output:"fancy" parent:"Platforms/Mobile/iOS" tags:"mobileservices")]
+[DIR(output:"fancy" parent:"Platforms/Mobile" tags:"mobileservices")]
+[DIR(output:"fancy" parent:"Platforms/Mobile/Android" tags:"leaderboards")]
+[DIR(output:"fancy" tags:in-app purchase" parent:"Platforms/Mobile")]
 
 ## 일반 모바일 개발
 
-[DIR(end:"1" output:"listbutton" type:"overview" parent:"Platforms/Mobile")]
+[DIR(end:"1" output:"fancy" skilllevel:"Beginner" parent:"Platforms/Mobile")]
+[DIR(end:"1" output:"fancy" skilllevel:"Intermediate" parent:"Platforms/Mobile" tags:"!mobileservices")]
+[DIR(end:"1" output:"fancy" skilllevel:"Intermediate" parent:"Platforms/Mobile/Performance")]
 

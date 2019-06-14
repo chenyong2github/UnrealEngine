@@ -1,0 +1,467 @@
+﻿INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 데이터스미스에 3ds Max 사용
+Description: 데이터스미스로 Autodesk 3ds Max 씬을 언리얼 에디터에 가져올 때만 적용되는 특수 사항을 설명합니다.
+Type: 
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 0
+Tags: Enterprise
+Tags: 3DS Max
+Tags: Unreal Studio
+Tags: Datasmith
+Tags: overview
+Tags: interop
+topic-image: max_datasmith_topic.png
+topic-icon: %ROOT%/ue4_icon.png
+hero-image:max_datasmith_compare_unreal.png
+
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![3ds Max 의 V-Ray](max_datasmith_compare_vray.png) 
+[/PARAM]
+[PARAM:after]
+![UE4](max_datasmith_compare_unreal.png) 
+[/PARAM]
+[/OBJECT]
+
+*이미지 제공: Litrix.*
+
+여기서는 데이터스미스가 Autodesk 3ds Max 씬을 언리얼 에디터로 가져오는 방식을 설명합니다. [](Studio/Datasmith/Overview), [](Studio/Datasmith/Overview/ImportProcess) 문서의 기본적인 프로세스를 따르지만, 3ds Max 전용 특수 변환 동작이 추가됩니다. 데이터스미스를 사용해서 3ds Max 씬을 언리얼 에디터로 가져오려는 경우, 변환 방식은 어떻게 되는지, 언리얼 에디터에서 그 결과물을 어떻게 활용하는지 이해하는 데 도움이 될 것입니다.
+
+## 3ds Max 워크플로
+
+데이터스미스는 3ds Max 에 **Export Plugin** (익스포트 플러그인) 워크플로를 사용합니다. 데이터스미스로 3ds Max 콘텐츠를 언리얼에 가져오는 방법은 다음과 같습니다.
+
+1.  3ds Max 용 플러그인을 설치합니다. [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/InstallingExporterPlugin) 문서를 참고하세요.
+2.  3ds Max 콘텐츠를 *.udatasmith* 파일로 익스포트합니다. [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ExportingDatasmithContentfrom3dsMax) 문서를 참고하세요.
+3.  데이터스미스 임포터로 그 *.udatasmith* 파일을 언리얼 에디터로 가져옵니다. [](Studio/Datasmith/HowTo/ImportingContent) 문서를 참고하세요.
+
+## 지오메트리
+
+여기서는 데이터스미스가 3ds Max 씬의 지오메트리 오브젝트를 언리얼 엔진 프로젝트의 스태틱 메시 애셋과 액터로 변환할 때 특별한 점을 설명합니다.
+
+### 인스턴스
+
+데이터스미스가 3ds Max 씬의 동일한 마스터 오브젝트의 인스턴스를 여럿 감지한 경우, 언리얼에서는 그 오브젝트에 대해 스태틱 메시 애셋은 하나만 만듭니다. 그런 다음 레벨에 그 인스턴스를 여럿 배치합니다. 이렇게 하면 보통 프로젝트의 런타임 메모리 사용량이나 퍼포먼스 측면에서 더 좋을 뿐만 아니라, 스태틱 메시 수를 줄여 콘텐츠 관리가 쉬워집니다.
+
+가급적 3ds Max 의 씬 반복 요소 (유리창, 문, 체인 등) 모두에 인스턴스를 활용할 것을 추천합니다.
+
+### 피벗 포인트
+
+3ds Max 에서 씬의 각 오브젝트에 커스텀 피벗 포인트를 설정할 수 있습니다. 그 오브젝트가 동일한 마스터 오브젝트의 인스턴스일 경우도 마찬가지입니다. 하지만 언리얼 엔진에서, 같은 지오메트리의 모든 인스턴스는 같은 피벗 포인트를 사용해야 합니다. 데이터스미스가 오브젝트를 언리얼로 전환할 때, 피벗 포인트도 다음과 같이 처리합니다.
+
+*   3ds Max 의 **모든** 인스턴스에 커스텀 피벗 포인트가 동일하다면, 데이터스미스는 단순히 생성하는 스태틱 메시 애셋의 피벗 위치로 설정합니다. 데이터스미스가 그 오브젝트에 대해 언리얼 엔진 레벨에 생성한 스태틱 메시 액터를 회전하면, 예상대로 그 커스텀 피벗 위치를 중심으로 회전합니다.
+*   인스턴스 중 하나 이상이 피벗 위치가 다르다면, 데이터스미스는 언리얼에서 생성하는 스태틱 메시 애셋이 3ds Max 오브젝트의 기본 피벗 위치를 사용하도록 설정합니다. 이 애셋을 레벨에 배치할 때마다 스태틱 메시 액터를 만드는 대신, 그 인스턴스의 커스텀 피벗 위치에 기본 부모 액터를 새로 만듭니다. 그런 다음 이 부모 액터에 그 스태틱 메시 애셋을 참조하는 스태틱 메시 컴포넌트를 주고, 거기에 부모 액터에서 이동 오프셋 값을 줘서 3D 씬의 위치를 지정합니다. 데이터스미스는 자손 컴포넌트 이름에 `_pivot` 접미사를 붙입니다.
+
+예를 들어 왼쪽 찻주전자의 커스텀 피벗 위치는 뚜껑 위입니다.
+
+![Custom pivot points on instanced objects](InstancedObjectPivotPoint.png "Custom pivot points on instanced objects")
+
+데이터스미스가 그 씬을 언리얼로 가져올 때, 3D 월드 그 피벗 포인트 위치에 `Teapot002` 라는 액터를 새로 만듭니다. 이 액터에 `Teapot002_Pivot` 라는 스태틱 메시 컴포넌트를 주고, 여기서 찻주전자 스태틱 메시 애셋을 참조하며, 부모 액터에서 정확한 양만큼 오프셋을 줘서 씬의 다른 지오메트리에 비해 올바른 위치에 나타나도록 합니다.
+
+![Parent Actor to represent the custom pivot](PivotPointSubComponent.png "Parent Actor to represent the custom pivot")
+
+언리얼 엔진 레벨에서 부모 액터를 이동, 회전, 스케일 조절하면 모델이 예상대로 작동합니다. 여기서 주목할 점은, 모델이 부모 액터의 **컴포넌트** 라는 점, 스태틱 메시 액터 자체가 아니라는 점입니다. 예를 들어 위의 경우에서, 오른쪽 찻주전자는 레벨에 스태틱 메시 액터로 인스턴싱한 것이지, 액터에 스태틱 메시 컴포넌트를 붙인 것은 아닙니다.
+
+데이터스미스는 3ds Max 에서 피벗 포인트도 다르고 스케일이 균등하지도 않은 인스턴스 임포트를 지원하지 않습니다. 이런 인스턴스가 있는 경우, [Reset XForm Utility](http://help.autodesk.com/view/3DSMAX/2018/ENU/?guid=GUID-B98414B9-4F28-45F4-A1F4-9DA994548ED9) 를 먼저 사용한 뒤 익스포트하세요.
+
+### UV 채널
+
+데이터스미스가 언리얼로 가져오는 모든 스태틱 메시는 라이트맵 텍스처에 스태틱 라이팅을 구워넣을 때 사용할 수 있는 UV 세트가 있습니다. 데이터스미스 파일을 임포트할 때, 언리얼 엔진은 그 UV 채널을 자동 생성하며, 각 스태틱 메시 애셋이 라이트맵을 구울 때 그 새 채널을 사용하도록 설정합니다.
+
+하지만 3ds Max 에서 직접 커스텀 라이트맵 UV 를 생성할 수 있습니다. 그러면 이음새의 위치나 지오메트리의 트라이앵글에 할당된 상대 공간에 대해 완벽한 미적 제어를 할 수 있습니다. 그런 경우, 언리얼에서 3ds Max 로 UV 를 가져오는 법과 그 동작을 덮어쓰는 방법을 알아야 합니다.
+
+언리얼 엔진은 스태틱 메시당 UV 채널을 8 개까지 지원합니다. 그리고 데이터스미스가 3ds Max 의 지오메트리 오브젝트를 언리얼 엔진의 스태틱 메시 애셋으로 임포트할 때마다, 두 개의 UV 채널을 사용하여 그 스태틱 메시에 대한 라이트맵 UV 를 생성합니다. 그러므로 데이터스미스는 3ds Max 에서 언리얼로 임포트하는 오브젝트 각각에서 기존 UV 채널을 6 개까지 보존할 수 있습니다.
+
+하지만 3ds Max 에서 오브젝트당 UV 채널은 최대 99 개까지 만들 수 있습니다. 즉 데이터스미스는 3ds Max 에서 찾은 채널을 인덱스 순 처음 여섯 개만 언리얼로 가져옵니다.
+
+예를 들어, 아래 3ds Max 오브젝트는 모디파이어 리스트에 UV 채널이 다섯 개입니다. 이 채널 각각에는 0 부터 99 까지 번호가 할당되어 있습니다. 데이터스미스는 이 UV 채널 다섯 개를 임포트하고, 번호를 0 부터 시작하도록 리셋합니다. 즉 언리얼에서 UV 채널 세트 번호가 0-4 입니다. 마지막으로, 임포트 프로세스에서 자동 생성 라이트맵을 위해 UV 채널을 둘, 여기서는 5 와 6 을 추가 생성합니다.
+
+![UV channel numbering in 3ds Max and Unreal](UVChannels_MaxVsUnreal.png "UV channel numbering in 3ds Max and Unreal")(w:500)
+
+3ds Max 와 언리얼 사이 UV 채널 번호 관계를 나타내는 분석표입니다.
+
+| 3DS Max UV 채널 | 결과 언리얼 UV 채널 |
+| --- | --- |
+| 1 | 0 |
+| 2 | 1 |
+| 3 | 2 |
+| 10 | 3 |
+| 99 | 4 |
+| -- | [INCLUDE:#excerpt_1] |
+| -- | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_1]
+5
+[REGION:note]
+임포트 도중 언리얼에서 UV 채널 5 를 생성하여, 데이터스미스 씬에 들어있는 지오메트리를 자동으로 펼친 것을 생성합니다. UV 채널 6 이 사용하는 라이트맵 UV 생성의 기반이 됩니다.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
+6
+[REGION:note]
+언리얼의 UV 채널 6 은 UV 채널 5 를 기반으로 생성하며, 스태틱 메시 라이트맵 해상도 값에 사용되는 데이터스미스 임포트 옵션에 따라 UV 차트에 패딩을 적당히 넣고 패킹합니다.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+[REGION:tip]
+임포트한 스태틱 메시가 3ds Max 에서 만든 기존 UV 채널을 사용하도록 하는 방법은 두 가지입니다.
+
+1.  3ds Max 에서 씬을 익스포트하기 전, **Datasmith Attributes** 모디파이어를 통해 언리얼 엔진에서 라이트맵에 사용하려는 UV 채널 인덱스를 지정할 수 있습니다. 자세한 내용은 [오브젝트별 변환 세팅](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings) 문서를 참고하세요.
+2.  언리얼 에디터에 씬을 임포트한 이후, 언리얼 엔진에서 라이트맵에 사용하려는 UV 채널 인덱스를 변경할 수 있습니다. 방법은 다음과 같습니다.
+    *   스태틱 메시 에디터에서: **디테일** 패널의 고급 제어판을 펼치고 **General Settings** (일반 세팅) 그룹 아래 **Light Map Coordinate Index** (라이트 맵 좌표 인덱스)를 사용하고자 하는 UV 채널로 설정합니다.
+    *   Python 에서 다음 함수를 호출합니다:
+        
+            static_mesh.set_editor_property("light_map_coordinate_index", index)
+[/REGION]
+
+### 커스텀 콜리전 모양
+
+3ds Max 의 오브젝트에 커스텀 지오메트리 모델을 사용하고, 그 커스텀 지오메트리를 언리얼 엔진에서 그 스태틱 메시의 콜리전 메시로 사용하고픈 경우가 있습니다. 그렇게 하면 씬 오브젝트의 표현을 원본 씬 오브젝트의 볼륨에 최대한 일치시키면서 트라이앵글 수는 최소화시킬 수 있습니다. 이렇게 하면 게임 엔진에서 물리 시뮬레이션의 동작과 성능을 향상시킬 수 있습니다.
+
+데이터스미스로 이 작업을 하는 방법은 두 가지입니다.
+
+*   3ds Max 에서 **Datasmith Attributes** 모디파이어를 씬의 오브젝트 하나 이상에 할당한 다음, 그 모디파이어를 사용하여 언리얼 엔진에서 그 콜리전 메시로 사용하려는 다른 오브젝트를 지정합니다. 자세한 내용은 [오브젝트별 변환 세팅](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings) 문서를 참고하세요.
+*   FBX 임포트와 같은 명명 규칙을 사용하여 데이터스미스가 그 지오메트리를 해당 스태틱 메시 애셋에 자동 할당하도록 할 수 있습니다.  
+    컨벡스 지오메트리 오브젝트가 씬의 다른 오브젝트와 이름은 같지만 접두사 `UCX_` 가 붙은 경우, 데이터스미스는 그 `UCX_` 오브젝트를 다른 오브젝트의 콜리전 표현이라 간주합니다. 그래서 그 다른 오브젝트만 스태틱 메시 애셋으로 임포트합니다. 그런 다음 `UCX_` 접두사가 붙은 오브젝트는 그 스태틱 메시 애셋의 콜리전 메시로 할당합니다.  
+
+어떤 방법을 사용하든, 콜리전 메시로 할당하는 오브젝트는 완전 폐쇄형 컨벡스(볼록) 3D 모양이면 무엇이든 가능합니다. 예를 들어, 박스는 컨벡스 오브젝트가 될 수 있습니다. 아래 도표는 컨벡스 여부를 판단하는 기준을 나타냅니다.  
+
+![Convex and non-convex examples](Convex-resize334x269.gif "Convex and non-convex examples")
+
+또한 커스텀 지오메트리 오브젝트의 피벗 포인트가 원본 오브젝트의 피벗 포인트와 같은 볼륨을 기준으로 동일한 위치에 있는지 확인하세요. 예를 들어, 다음 이미지에서 오른쪽에 있는 의자의 피벗 포인트는 오브젝트의 아래쪽 표면과 정렬되며, 볼륨의 중앙에 있습니다. 따라서 왼쪽의 단순화된 지오메트리 볼륨의 피벗 포인트는 전체 볼륨 기준 동일한 위치에 정렬되어야 합니다.
+
+![Pivot points on custom collision volumes](collision-pivots.png "Pivot points on custom collision volumes")
+
+콜리전 지오메트리의 피벗 포인트를 전체 볼륨 기준 동일한 위치에 두지 않으면, 물리 세계의 객체 표현이 오브젝트의 표시 범위와 맞지 않습니다. 그러면 예상치 못한 곳에서 충돌이 발생할 수 있습니다.
+
+[REGION:tip]
+레벨 뷰포트에서 콜리전 렌더링을 켜 보면 커스텀 모양이 제대로 임포트되었는지 확인할 수 있습니다. 뷰포트 오버레이 메뉴에서 **표시 > 콜리전** 을 선택합니다. 커스텀 콜리전 볼륨이 씬 오브젝트 위에 렌더링되는 것이 보입니다. 이 예제에서는, 박스 오브젝트에 구체 모델을 커스텀 콜리전 볼륨으로 할당했습니다.
+[REGION:lightbox]
+[![Show Collisions in the Level Viewport](modifier-collision-viewport.png "Show Collisions in the Level Viewport")  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/REGION]
+
+### 버텍스 컬러
+
+3ds Max 오브젝트에 버텍스 컬러를 할당한 경우, 데이터스미스는 언리얼 엔진에서 해당 스태틱 메시 애셋을 생성할 때 그 컬러를 보존합니다.
+
+언리얼 에디터에서 커스텀 머티리얼을 생성할 때 머티리얼 그래프에 **Constants >**  **Vertex Color** 노드를 포함시키면 이 버텍스 컬러를 사용할 수도 있습니다.  
+
+예를 들어, 왼쪽 아래 이미지는 버텍스 컬러를 표시하도록 설정된 3ds Max 의 오브젝트를 보여줍니다. 오른쪽 이미지는 그 버텍스 컬러를 가져와 **베이스 컬러** 출력에 바로 전달하는 간단한 커스텀 머티리얼을 보여줍니다.
+
+[REGION:lightbox]
+[![](vertex-colors_max.png)](vertex-colors_max.png "Vertex colors displayed in 3ds Max ")
+[/REGION]
+
+3ds Max 에 표시되는 버텍스 컬러
+
+[REGION:lightbox]
+[![](vertex-colors-unreal.png)](vertex-colors-unreal.png " Vertex colors displayed in Unreal Engine")
+[/REGION]
+
+언리얼 엔진에 표시되는 버텍스 컬러
+
+자체 커스텀 머티리얼 그래프는 단순히 위와 같이 표면에 보이는 색을 제공하기 위해 버텍스 컬러를 사용하지 않아도 됩니다. 머티리얼 그래프는 다른 표면 프로퍼티와 버텍스 컬러를 합치고 블렌딩할 수 있습니다. 또한 버텍스 컬러를 사용해서 컬러 값을 그대로 전달할 필요도 없습니다. 대신, 소스 오브젝트의 지오메트리에 커스텀 데이터 값을 할당하고, 그 값을 언리얼 에디터에서 만든 커스텀 머티리얼을 통해 전달하여 특수 시각 효과를 구동하는 메커니즘으로써 버텍스 컬러를 사용할 수 있습니다. 예를 들어 버텍스 컬러를 사용해서 나무 줄기와 잎에 가중치를 적용하고, 그 가중치를 통해 버텍스 셰이더에서 적용하는 바람 애니메이션 효과에 변화를 줄 수 있습니다.
+
+스태틱 메시 에디터에서 스태틱 메시 애셋을 열고 툴바의 **Vert Colors** (버텍스 컬러) 토글 버튼을 활성화하면 버텍스 컬러가 제대로 변환되었는지 시각화시켜 볼 수 있습니다.
+
+![Vert Colors in the Static Mesh Editor Toolbar](vertex-colors-sm-toolbar.png "Vert Colors in the Static Mesh Editor Toolbar")
+
+데이터스미스는 **Vertex Alpha**, **Map Channel Color**, 또는 **Soft Selection Color** 와 같은 다른 3ds Max 메시 채널에서 데이터를 변환하지 않습니다.
+
+### 레벨 오브 디테일
+
+데이터스미스는 현재 3ds Max 에서 구성한 커스텀 레벨 오브 디테일을 임포트하지 않습니다. 하지만 언리얼 에디터에서 새로운 레벨 오브 디테일을 자동 생성할 수 있습니다. 자세한 내용은 [](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration), [](Engine/Editor/ScriptingAndAutomation/HowTos/CreatingLODs) 문서를 참고하세요.
+
+### Forest Pack 및 RailClone 오브젝트
+
+[Forest Pack](https://www.itoosoft.com/forestpack) 및 [RailClone](https://www.itoosoft.com/railclone) 은 [iToo Software](https://www.itoosoft.com/) 가 제작한 선택적으로 사용할 수 있는 3ds Max 서드파티 플러그인으로, 3ds Max 씬을 다수의 지오메트리 오브젝트를 절차적 배치하거나 분산시켜 쉽게 채울 수 있습니다. 디자인 시각화 업계의 이 플러그인 인기 덕에, 데이터스미스는 Forest Pack 및 Railclone 오브젝트에 대한 특수 처리를 제공합니다.
+
+데이터스미스를 사용해서 Forest Pack 또는 RailClone 오브젝트가 있는 씬을 익스포트하고, 그 씬을 언리얼 엔진으로 임포트할 때:
+
+*   데이터스미스는 언리얼 엔진 레벨에 액터를 하나 만들고, 이름은 3ds Max 의 그 오브젝트 이름을 땁니다.
+*   그 액터 안에서, 오브젝트가 처리하는 지오메트리 유형 각각에 대해 **Hierarchical Instanced Static Mesh (HISM)** (계층형 인스턴스 스태틱 메시) 컴포넌트를 만듭니다. 지오메트리 각 유형에 대해 프로젝트의 콘텐츠에 스태틱 메시 애셋도 하나 만들고, HISM 컴포넌트가 이 스태틱 메시 애셋을 가리키도록 설정합니다.  
+    예를 들어, 이 이미지는 **월드 아웃라이너 (1)** 에 선택된 Forest Pack 오브젝트에서 만든 액터, 그리고 **디테일 패널 (2)** 에서 선택된 해당 HISM 컴포넌트 중 하나를 보여줍니다. 하단에는 **스태틱 메시 세팅 (3)** 에서 선택된 HISM 컴포넌트에 할당된 스태틱 메시 애셋도 볼 수 있습니다.  
+    [REGION:lightbox]
+    [![Hierarchical Instanced Static Mesh for a Forest Pack object](max-forestpack-hism.png "Hierarchical Instanced Static Mesh for a Forest Pack object")](max-forestpack-hism.png)  
+    *클릭하면 이미지 원본을 확인합니다.*
+    [/REGION]
+    [REGION:tip]
+    계층형 인스턴스 스태틱 메시 (HISM) 컴포넌트는 매우 효율적인 방식으로 똑같은 스태틱 메시의 인스턴스 다수를 렌더링할 수 있습니다. 언리얼 엔진 렌더러는 같은 HISM 컴포넌트가 관리하는 모든 인스턴스를 하나의 드로 콜(, 사실상 그 스태틱 메시 애셋에 할당된 머티리얼 당 하나의 드로 콜)에 일괄 배치합니다. 그러면 GPU 퍼포먼스나 프레임 속도 영향 없이 렌더러가 처리할 수 있는 인스턴스 수가 증가합니다. HISM 컴포넌트 내부적으로 언리얼 엔진의 폴리지 시스템에 사용되는 것과 똑같은 기술을 사용합니다.
+    [/REGION]
+    
+*   각 HISM 컴포넌트 안에서, 데이터스미스는 3ds Max 씬에 보이는 해당 지오메트리 각 인스턴스의 동일한 위치와 회전 값에 인스턴스를 추가합니다.
+
+이 프로세스를 통한 언리얼 엔진의 결과물은 원본 3ds Max 씬과 비교할 때 (하나의 Forest Pack 또는 RailClone 오브젝트가 내부적으로 모든 인스턴스를 관리하는) 씬 계층구조도 시각적 결과물도 매우 비슷합니다. 예를 들어, 아래 왼쪽 이미지는 3ds Max 에서 두 가지 다른 오브젝트 유형을 분산시키는 하나의 Forest Pack 오브젝트를 보여줍니다. 오른쪽 이미지는 언리얼 엔진에서 그 씬을 임포트한 시각적 결과물을 보여줍니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![3ds Max 의 Forest Pack](datasmith-max-forestpack-before.png) 
+[/PARAM]
+[PARAM:after]
+![언리얼 엔진](datasmith-max-forestpack-after.png) 
+[/PARAM]
+[/OBJECT]
+
+[REGION:tip]
+Forest Pack 또는 RailClone 로 관리하던 나무같은 복잡한 오브젝트를 언리얼 엔진에서 실시간 효율을 높이기 위해 단순한 지오메트리로 대체하고 싶을 수 있습니다.  
+이 경우 **Datasmith Attributes** 모디파이어를 3ds Max 의 Forest Pack 또는 RailClone 오브젝트에 적용하고 지오메트리의 바운딩 박스만 익스포트하도록 설정합니다. Forest Pack 또는 RailClone 액터가 관리하는 모든 인스턴스는 단순화된 바운딩 볼륨을 사용합니다. 예:  
+![](datasmith-max-forestpack-bbox.png "datasmith-max-forestpack-bbox.png")  
+**Datasmith Attributes** 모디파이어 사용법 관련 자세한 정보는 [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ObjectSettings) 문서를 참고하세요.  
+임포트 이후, 언리얼 엔진 레벨의 모든 인스턴스가 새로운 스태틱 메시 애셋을 사용하도록 업데이트하려면 HISM 컴포넌트의 **Static Mesh** 세팅을 한 번 변경하면 됩니다.
+[/REGION]
+
+## 라이팅 및 렌더링 환경
+
+3ds Max 는 데이터스미스가 지원하는 다른 서드파티 소프트웨어보다 훨씬 세밀하고 정교한 라이팅 및 렌더링 기능을 제공합니다. 여기서는 이 라이팅 및 렌더링 환경을 언리얼 엔진으로 가져올 때 데이터스미스가 시도하는 특별한 방법 몇 가지를 설명합니다.
+
+### 라이트
+
+데이터스미스는 3ds Max 씬의 라이트 관련 풍부한 정보 세트를 유지하여, 언리얼 레벨의 라이팅이 3ds Max 에서 구성한 라이팅과 가급적 흡사해 보이도록 만드는 것을 목표로 합니다.
+
+데이터스미스는 여러가지 다양한 3ds Max 라이트 유형을 변환하며, Standard, Photometric, V-Ray, Corona 라이트를 포함합니다. 각 라이트에 대해 언리얼로 가져오는 것은 다음과 같습니다.
+
+*   3D 공간의 위치, 방향, 모양, 크기.
+*   라이트 유형 (예를 들어 포인트 라이트 또는 스포트 라이트).
+*   강도, 단위, 램프 색, 온도, 필터 색.
+*   렌더 모양 가시성.
+*   IES 라이트 프로파일.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![3ds Max](3DS_LightCharacteristics.png) 
+[/PARAM]
+[PARAM:after]
+![언리얼 엔진 4](UE4_LightCharacteristics.png) 
+[/PARAM]
+[/OBJECT]
+
+*위: IES 프로파일과 스케일 적용 켈빈 온도를 사용한 포인트 라이트.  
+가운데: IES 프로파일과 스케일 적용 라이트 강도를 사용한 포인트 라이트.  
+아래: 필터 색을 사용한 스포트 라이트.*
+
+하지만 라이팅 시스템마다 약간 다른 결과를 냅니다. 데이터스미스가 라이트 배치, 유형, 프로퍼티를 언리얼 엔진에 가급적 그대로 가져온다 해도, 임포트 후 원하는 결과를 얻기 위해서는 아마 직접 레벨의 라이팅을 조정하고, 런타임에 레벨의 라이팅 퍼포먼스를 최적화해야 할 것입니다.
+
+데이터스미스를 사용할 때 3ds Max 와 언리얼 사이 눈에 띄는 차이점은 다음과 같습니다.
+
+*   언리얼 엔진은 현재 라이트에 인스턴스를 지원하지 않습니다. 3ds Max 씬의 라이트 인스턴스 각각에 대해 데이터스미스는 언리얼 엔진 레벨에 별도의 라이트 액터를 만듭니다.
+*   3ds Max 의 표준 라이트는 단위가 없으며, 언리얼 엔진에 지원하지 않는 사용자 정의 감쇠 파라미터를 허용합니다.
+*   Vertical Cylinder (수직 원기둥), Spheroid (회전 타원체), Custom Mesh (커스텀 메시) 라이트 등 몇 가지 V-Ray 모양은 지원하지 않습니다.
+*   에리어 라이트는 특별한 방식으로 처리합니다 (아래 참고).
+
+### 에리어, 플레인, 볼륨 라이트
+
+3ds Max 는 2D 모양 또는 3D 볼륨에서 방출되는 라이트를 지원하는데, 언리얼 엔진에는 그에 해당하는 것이 없습니다. Mental Ray 에리어 라이트, V-Ray 플레인, 디스크, 돔, 스피어 라이트 등이 그렇습니다. 데이터스미스가 3ds Max 의 그 에리어 라이트 중 하나를 임포트할 때, 특수한 커스텀 블루프린트 클래스 **DatasmithAreaLightMesh** 를 사용하여 그 라이트의 작동방식을 흉내냅니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![에리어 라아트 끔](max_datasmith_arealightmesh_off.png) 
+[/PARAM]
+[PARAM:after]
+![에리어 라이트 켬](max_datasmith_arealightmesh_on.png) 
+[/PARAM]
+[/OBJECT]
+
+이 블루프린트는 기본적으로 자동 생성 이미시브 표면과 자동 생성 렉트 라이트, 포인트 라이트, 또는 스포트 라이트 짝을 자동 생성합니다.
+
+*   이미시브 표면의 역할은 레벨의 3D 공간에, 그리고 다른 표면에 반사되어 보이는 라이트의 물리적 크기를 나타냅니다.  
+*   렉트 라이트, 포인트 라이트, 또는 스포트 라이트의 역할은 씬에서 실제 빛을 내뿜는 것입니다.
+
+이미시브 글로우의 모양, 크기, 색, 강도 및 라이트 액터의 프로퍼티를 제어할 수 있습니다. **레벨 뷰포트** 또는 **월드 아웃라이너** 에서 **DatasmithAreaLightMesh** 액터를 선택하고, **디테일** 패널의 **Light** 카테고리에 있는 세팅을 사용합니다. 예:
+
+[REGION:lightbox]
+[![DatasmithAreaLightMesh settings](max-datasmith-area-light-422.png "DatasmithAreaLightMesh settings")](max-datasmith-area-light-422.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[REGION:note]
+*   라이트 프로퍼티 관련 자세한 내용은 [](Engine/Rendering/LightingAndShadows/LightTypes/RectLights), [](Engine/Rendering/LightingAndShadows/LightTypes/Point), [](Engine/Rendering/LightingAndShadows/LightTypes/Spot) 문서를 참고하세요.
+*   **Color**, **Intensity** 같은 일부 세팅은 이미시브 글로우와 라이트 액터 양쪽에 영향을 줍니다.
+[/REGION]
+
+이렇게 구성하면 눈에 보이는 라이트가 씬에 만들어지고, 주변 오브젝트를 밝게 비춥니다. 하지만 3ds Max 의 오프라인 렌더러와 달리 **DatasmithAreaLightMesh** 가 스포트 라이트 또는 포인트 라이트를 사용하는 경우, 레벨에 실제 내뿜는 빛은 전체 표면이 아닌 한 점에서 나옵니다.
+
+[REGION:note]
+이미시브 표면은 현재 씬에 아무런 빛을 내뿜지 않으며, 라이트매스를 사용해 라이트를 구웠든 다이내믹 라이팅을 사용하든 상관 없습니다. 레벨의 주변 오브젝트를 실제 밝히는 것은 포인트 라이트 또는 스포트 라이트 컴포넌트 뿐입니다.
+[/REGION]
+
+### 노출
+
+데이터스미스는 3ds Max 에서 언리얼 엔진으로 가져온 라이트의 강도를 보존합니다. 그러나 라이트 강도 자체로는 씬의 좋은 렌더링을 보장하기에 충분하지 않습니다. 언리얼 엔진 렌더러가 그 라이트 강도를 해석할 때는 씬의 휘도, 즉 최종 렌더링에서 그 씬이 얼마나 밝게 또는 어둡게 보일지를 결정하는 컨텍스트에서 이루어져야 합니다. 이 컨텍스트의 일부는 카메라 또는 뷰의 *노출* 값, 즉 씬의 라이트 강도 대비 최종 이미지의 민감도를 제어하는 물리적 특성 집합으로 제공됩니다.
+
+씬의 라이트 강도가 언리얼 엔진이 만드는 이미지 렌더링에서 기대하는 밝기 수준으로 나오도록 하기 위해, 데이터스미스는 3ds Max 에서 여러가지 다른 노출 값도 변환합니다. 자세한 내용은 다음과 같습니다.
+
+*   [피지컬 카메라 노출 세팅](#피지컬카메라노출세팅)
+*   [전역 노출 세팅](#전역노출세팅)
+*   [자동 노출](#자동노출)
+
+#### 피지컬 카메라 노출 세팅
+
+3ds Max 씬에 Physical Camera 가 있는 경우, 데이터스미스는 그 카메라에 대한 노출 및 화이트 밸런스 세팅을 보존하여 언리얼 레벨에서 그 피지컬 카메라를 나타내는 **CineCameraActor** 로 가져옵니다.
+
+각 카메라에 대해 데이터스미스는 **WhiteBalance > Temp**, **Shutter Speed**, **ISO**, **Aperture (f-stop)** 세팅이 3ds Max 의 해당 세팅에 일치하도록 설정합니다. **Exposure > Metering Mode** 를 **Manual** 로 설정하여 자동 노출 기능을 비활성화하기도 합니다.
+
+| 3ds Max 의 Physical Camera 노출 세팅 | UE4 의 CineCameraActor 노출 세팅 |
+| --- | --- |
+| [INCLUDE:#excerpt_3] | [INCLUDE:#excerpt_4] |
+
+<!--
+[EXCERPT:excerpt_3]
+[REGION:lightbox]
+[![Physical Camera exposure settings in 3ds Max](params-camera-max.png "Physical Camera exposure settings in 3ds Max")(w:450)](params-camera-max.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+[REGION:lightbox]
+[![CineCameraActor exposure settings in UE4](params-camera-ue4.png "CineCameraActor exposure settings in UE4")(w:450)](params-camera-ue4.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+
+결과적으로 이 카메라를 통해 레벨을 보면, 라이팅이 3ds Max 렌더링과 비슷한 것을 확인할 수 있습니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![3ds Max Physical Camera](datasmith-max-exposure-camera.png) 
+[/PARAM]
+[PARAM:after]
+![언리얼 엔진 CineCameraActor](datasmith-ue4-exposure-camera.png) 
+[/PARAM]
+[/OBJECT]
+
+#### 전역 노출 세팅
+
+*	3ds Max 의 **Exposure Control** 세팅이 **Physical Camera Exposure Control** 또는 **VRay Exposure Control** 를 사용하는 경우, 데이터스미스는 이제 데이터스미스 씬에 포스트 프로세스 볼륨을 생성하여 그 전역 노출 값을 전체 언리얼 엔진 레벨에 적용합니다.
+
+Physical Camera 와 마찬가지로 데이터스미스는 포스트 프로세스 볼륨에 대한 **WhiteBalance > Temp**, **Shutter Speed**, **ISO**, **Aperture (f-stop)** 세팅이 3ds Max 의 해당 세팅에 일치하도록 설정합니다. **Exposure > Metering Mode** 를 **Manual** 로 설정하여 자동 노출 기능을 비활성화하기도 합니다.
+
+[REGION:tip]
+이 컨트롤 위치는 3ds Max 의 **Environment and Effects** 대화창입니다. 메인 메뉴의 **Rendering > Exposure Control...** 로 열 수 있습니다.
+[/REGION]
+
+| 3ds Max 의 Physical Camera 노출 제어 | 3ds Max VRay 노출 제어 | UE4 의 PostProcessVolume 노출 세팅 |
+| --- | --- | --- |
+| [INCLUDE:#excerpt_5] | [INCLUDE:#excerpt_6] | [INCLUDE:#excerpt_7] |
+
+<!--
+[EXCERPT:excerpt_5]
+[REGION:lightbox]
+[![Physical Camera Exposure Control in 3ds Max](params-global-max-physcam.png "Physical Camera Exposure Control in 3ds Max")(w:300)](params-global-max-physcam.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_6]
+[REGION:lightbox]
+[![VRay Exposure Control in 3ds Max](params-global-max-vray.png "VRay Exposure Control in 3ds Max")(w:300)](params-global-max-vray.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_7]
+[REGION:lightbox]
+[![](params-global-ue4.png "params-global-ue4.png")(w:300)](params-global-ue4.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+
+그 결과 언리얼 에디터 뷰포트에서 기본 원근 카메라로 레벨을 볼 때, 다시 한 번 라이트 강도가 3ds Max 렌더링 결과와 거의 일치하는 것을 볼 수 있습니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![3ds Max 원근 카메라의|전역 노출](datasmith-max-exposure-global.png) 
+[/PARAM]
+[PARAM:after]
+![언리얼 엔진의|포스트 프로세스 볼륨 노출](datasmith-ue4-exposure-global.png) 
+[/PARAM]
+[/OBJECT]
+
+3ds Max 에서 글로벌 화이트 밸런스 및 노출 세팅은 Physical Camera 에 할당한 세팅에 일치하지 않아도 됩니다. 이 경우 원근 카메라 시점에서 씬을 렌더링할 때, 특정 Physical Camera 에 할당된 세팅보다 전역 노출 세팅을 사용합니다.  
+언리얼 엔진에 임포트한 이후에도 똑같습니다. 레벨 뷰포트의 기본 카메라를 통해 씬을 볼 때, (위 이미지처럼) 전역 노출 세팅을 사용합니다. 하지만 **CineCameraActor** 를 통해 씬을 볼 때는, 3ds Max 에서 해당 Physical Camera 에 할당한 노출 세팅을 사용합니다.
+
+#### 자동 노출
+
+언리얼 엔진에는 카메라에 닿는 빛의 양을 모니터링하고 최종 이미지의 광도를 적정 수준으로 자동 조정하는 자동 노출 시스템이 내장되어 있습니다. 이 시스템은 언리얼 엔진에 기본 활성화되어 있습니다. 데이터스미스가 3ds Max 씬에서 가져올 수 있는 적합한 피지컬 카메라 또는 전역 노출 세팅을 찾지 못한 경우, 프로젝트는 이 기본 자동 노출 시스템을 사용합니다.
+
+3ds Max 씬에 피지컬 카메라 또는 전역 노출 세팅이 들어있지 않고 자동 노출로 전환하려는 경우, **CineCameraActor** 또는 **PostProcessVolume** 의 **Metering Mode** 세팅을 **Manual** 에서 **Auto Exposure** 옵션 중 하나로 (기본값은 보통 **Auto Exposure Histogram**) 바꿔주기만 하면 됩니다.
+
+*   **CineCameraActor** 에서는 **Post Process > Lens > Exposure > Metering Mode** 아래 있습니다.
+*   **PostProcessVolume** 에서는 **Lens > Exposure > Metering Mode** 아래 있습니다.
+
+[](Engine/Rendering/PostProcessEffects/AutomaticExposure) 문서도 참고해 보세요.
+
+[REGION:tip]
+자동 노출을 사용하는 도중 씬의 노출이 과다 또는 과소로 보이는 경우, 자동 노출 시스템이 기본 감도로 처리하기에 씬의 라이팅이 너무 밝거나 어둡기 때문일 수 있습니다. 이 문제를 해결하려면 메인 메뉴의 **편집 > 프로젝트 세팅** 에서 **엔진 > 렌더링** 섹션을 찾습니다. **Default Settings** (기본 세팅) 카테고리 아래 **Extend default luminance range in Auto Exposure settings** (자동 노출 세팅의 기본 휘도 범위 확장) 옵션을 활성화합니다.  
+[REGION:lightbox]
+[![Extend default luminance range in Auto Exposure settings](auto-exposure-extend-range.png "Extend default luminance range in Auto Exposure settings")](auto-exposure-extend-range.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[/REGION]
+
+## 카메라
+
+데이터스미스가 3ds Max 씬에서 찾은 모든 카메라에 대해, 언리얼 엔진의 데이터스미스 씬에 **CineCameraActor** 를 3D 공간 똑같은 위치와 회전으로 생성합니다. 데이터스미스는 그 카메라의 초점 속성을 유지하려고 시도합니다. 그 카메라를 통해 레벨을 보는 결과물이 3ds Max 에서 그 카메라를 통해 씬을 렌더링하는 결과물에 최대한 일치하도록 하기 위해서입니다.
+
+또한 3ds Max 에서 카메라에 대상이 구성된 경우, 데이터스미스는 그 대상 액터를 추적하도록 **CineCameraActor** 를 구성합니다. 3ds Max 에서와 마찬가지로, 언리얼 엔진 레벨에서 대상 액터를 움직이면, 대상 액터가 가운데 오도록 **CineCameraActor** 가 자동 회전합니다.
+
+예를 들어, 여기서 이름이 **PhysCamera001** 인 **CineCameraActor** 는 **PhysCamera001_Target** 액터를 바라보도록 구성되어 있습니다.
+
+![Look at target for a CineCameraActor](datasmith-max-camera-tracking.png "Look at target for a CineCameraActor")
+
+데이터스미스가 피지컬 카메[라의 노출 세팅을 변환하는 방법 관련 자세한 내용은 [피지컬 카메라 노출 세팅](#피지컬카메라노출세팅) 부분을 참고하세요.
+
+## 머티리얼
+
+3ds Max 씬의 머티리얼 각각에 대해, 데이터스미스는 언리얼 엔진 프로젝트에 머티리얼 인스턴스를 새로 만듭니다. 이 머티리얼 애셋 각각은 데이터스미스가 프로젝트의 `Materials/Master` 폴더에 만드는 부모 머티리얼의 인스턴스이기도 합니다. 데이터스미스는 언리얼 엔진의 물리 기반 렌더러에서 3ds Max 로 렌더링할 때 볼 수 있는 것과 동일한 결과를 얻기 위해 이 부모 머티리얼 각각에 대해 머티리얼 그래프를 생성합니다.
+
+모든 인스턴스드 머티리얼마다 부모가 있는 것은 아닙니다. 가급적 두 개의 머티리얼 인스턴스가 같은 머티리얼 그래프를 공유할 수 있다면, 데이터스미스는 그 두 머티리얼 인스턴스에 하나의 부모 머티리얼을 사용하도록 시도합니다.
+
+셰이딩 모델이 하나이고 그래프가 상대적으로 단순한 머티리얼은 변환이 아주 잘 될 것입니다. 예를 들어, 다음과 같은 3ds Max 머티리얼은 부모 머티리얼의 그래프로 잘 전환됩니다.
+
+![Simple material in 3ds Max](3DS_SimpleMaterial-resize526x484.png "Simple material in 3ds Max")
+
+임포트한 부모 머티리얼 애셋을 열면, 종종 그래프가 3ds Max 에서 시작했던 것과 약간 달라 보입니다. 위와 같이 단순한 머티리얼도 마찬가지입니다. 셰이딩 모델을 변환하는 일반적인 결과는 이렇습니다. 데이터스미스는 시각적 결과물이 가급적 비슷하게 나오도록 보존하려 합니다. 가끔은 그래프에 상수나 다른 뭔가를 추가 연결할 수도 있습니다.  
+
+즉, 3ds Max 는 머티리얼에 여러가지 셰이딩 모델을 지원하는데, V-Ray, Corona, Arnold, Mental Ray 같은 것입니다. 셰이딩 모델 각각은 별개의 소프트웨어 조각으로, 기능이 저마다 고유하고 항상 다른 것과 일치하지 않습니다. 가끔 데이터스미스는 그 기능을 언리얼 엔진이 제공하는 유사 기능으로 변환할 수도 있습니다.
+
+하지만 데이터스미스가 이러한 셰이딩 모델의 난해한 기능을 항상 제대로 처리하는 것은 아닙니다. 다음 예제처럼 여러가지 출력 셰이더가 뒤섞인 복잡한 그래프의 머티리얼이라면 언리얼에서 똑같은 결과를 내지 못할 수도 있습니다.
+
+[REGION:lightbox]
+[![Complex material in 3ds Max](3DS_ComplexMaterial.png "Complex material in 3ds Max")](3DS_ComplexMaterial.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+이와 같은 경우, 임포트 후 언리얼 에디터에서 약간의 추가 작업으로 그 머티리얼을 조정 또는 대체해야 합니다.
+
+[REGION:note]
+데이터스미스는 3ds Max 의 **Autodesk Material** 또는 **Arnold Materials/Shaders** 변환을 하지 않습니다. 보통 Revit 씬을 3ds Max 로 임포트한 경우에 씬이 사용하는 머티리얼이기 때문입니다. 이런 머티리얼은 3ds Max 에서 데이터스미스로 익스포트하기 전, 또는 씬 임포트 후 언리얼 에디터에서 대체해야 합니다.
+[/REGION]
+
+## 변환 경고 및 참고 사항
+
+데이터스미스가 3ds Max 씬 익스포트를 마친 이후, 프로세스 도중 발생한 참고 사항, 문제, 경고, 오류를 나열하는 창을 띄웁니다.
+
+![3ds Max conversion notes and warnings](max_datasmith_conversion_notes.png "3ds Max conversion notes and warnings")
+
+이 창의 목표는 씬에 있는 요소 중 언리얼에 예상대로 넘어가지 않을 수 있는 부분을 알리는 것입니다.
+
+*   위 이미지에서 비트맵 누락과 같은 몇 줄은 3ds Max 에서 소스 씬을 고친 뒤 데이터스미스로 다시 익스포트하면 좋을 문제를 나타냅니다.
+*   3ds Max 씬에 있는 것 중 데이터스미스나 언리얼 엔진에서 지원하지 않는 것, 또는 데이터스미스가 변환한 방식이 기대에 어긋날 수 있는 것을 나타내는 줄도 있습니다.
+
+데이터스미스 씬을 언리얼 에디터에 임포트한 후, 정리가 필요할 수 있는 변환 이슈를 찾는다면, **출력 경고** 창에서 시작하면 됩니다.
+
+[](#)[](#)

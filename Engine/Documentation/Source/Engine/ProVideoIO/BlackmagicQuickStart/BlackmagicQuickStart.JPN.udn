@@ -1,0 +1,224 @@
+﻿INTSourceChangelist:6366408
+Availability: Public
+Crumbs: 
+Title: Blackmagic Video I/O クイック スタート
+Description: サポート対象の Blackmagic メディア カードから Unreal Engine にビデオを取り込む、さらに、Unreal Engine から Blackmagic カードのポートにキャプチャしたビデオ出力を送信する方法についてステップごとに順に説明するガイドです。
+Type: quick start
+Version: 4.21
+Parent: Engine/ProVideoIO
+Order: 
+Tags: Getting Started
+Tags: professional video
+topic-image: blackmagic-qs-topic.png
+
+
+![](blackmagic-qs-banner.png)
+
+このクイック スタート ガイドでは、Blackmagic Design 社のプロ向けビデオ カードと連携する Unreal Engine プロジェクトのセットアップ プロセスを順に説明します。このガイドの最後には、以下が実行できるようになります。
+
+* Blackmagic カードからのビデオ入力を Unreal Engine プロジェクト内部で再生する。
+* エディタおよび実行アプリケーションのカメラの視点でキャプチャし、それら両方を Blackmagic カードの SDI ポートに送出する。
+* レンズの歪みの補正やクロマキー エフェクトの適用など、ビデオ入力を詳細に調整するためのセットアップ手順を把握する。
+
+[REGION:tip]
+以下で説明する多くの要素の実例を実行するには、Epic Games Launcher の [Learn (ラーニング)] タブにある **[Virtual Studio](Resources/Showcases/VirtualStudio)** ショーケースを参照してください。
+[/REGION]
+
+[REGION:note]
+**前提条件：**
+
+* Blackmagic Design 社のサポート対象のカードであること、必要なドライバとソフトウェアがインストールされていることを確認します。 詳細は、「[Blackmagic メディア リファレンス](Engine/ProVideoIO/BlackmagicIOReference)」を参照してください。
+* カードが正常に動作していること、カードの SDI ポートの少なくとも 1 つからビデオ入力を取り込めることを確認します。
+* ビデオ フィードと統合する Unreal Engine プロジェクトを開きます。 このページでは **Third Person** ブループリント テンプレートでのステップを示します。ただしどのプロジェクトでも同様のステップを実行できます。
+
+このガイドで使用する Blackmagic メディアの各コンポーネントは [Media Framework](Engine/MediaFramework) の最上位に構築され、実行時のビデオ キャプチャ プロセスのスクリプトを作成するために、[ブループリント](Engine/Blueprints)を使用します。 これらのトピックに関する知識があると便利ですが、必須ではありません。
+[/REGION]
+
+## 1 - プロジェクトをセットアップする
+
+Blackmagic カードからビデオ入力を Unreal Engine のレベルに取り込む、Unreal Engine から Blackmagic カードの SDI ポートの 1 つに出力を送る前に、Blackmagic Media Player Plugin を入手し、プロジェクトで有効にするための基本セットアップを実行する必要があります。
+
+### ステップ
+
+1.  Blackmagic Media Player Plugin はマーケットプレイスで配布されています。 そこからインストールする必要があります。  
+    Epic Games Launcher を開き、**[Marketplace (マーケットプレイス)]** タブに移動し、「**Blackmagic Media Player**」を検索します。 Launcher の指示に従って、Unreal Engine の使用するバージョンにプラグインをインストールします。
+2.  Unreal Editor で Blackmagic video I/O を利用するプロジェクトを開きます。
+3.  **[Plugins (プラグイン)]** ウィンドウで、**Blackmagic Media Player** プラグインを見つけます。 **[Enabled (有効)]** チェックボックスをオンにします。  
+    ![Blackmagic Media Player プラグインの有効化](blackmagic-qs-enable-plugin-1.png "Blackmagic Media Player プラグインの有効化")  
+    
+4.  **[Media Framework Utilities (メディア フレームワーク ユーティリティ)]** プラグインを **[Media (メディア)]** カテゴリで見つけます。 **[Enabled (有効)]** チェックボックスがオンになっていない場合はオンにします。  
+    ![Media Framework Utilities プラグインの有効化](media-qs-utilities-enabled.png "Media Framework Utilities プラグインの有効化")
+5.  **[Restart Now (すぐに再起動)]** をクリックして Unreal Editor を再起動し、プロジェクトを再度開きます。  
+    ![Restart Now (すぐに再起動)](media-qs-utilities-restart.png "Restart Now （すぐに再起動）")
+
+### 最終結果
+
+プロジェクトでは Blackmagic カードからビデオを取り込む、およびカードにレンダリングした出力を送る準備ができました。 次のセクションでは、カードを接続してビデオの再生と出力を開始します。
+
+## 2 - Unreal Engine でビデオ入力をレンダリングする
+
+このプロセスで、Unreal Editor の現在のレベルに、Blackmagic カードからのビデオ入力が表示されるようにします。このプロセスはメディア バンドルを使用します。これは Media Framework に関連する多様なアセットをパッケージにまとめた一種のアセットで、レンズ歪みの除去、クロマキー、色補正などの高度な機能を制御できるようにするものです。 
+
+### ステップ
+
+1.  **[Content Browser(コンテンツ ブラウザ)]** で、**[Sources (ソース)]** パネル (1) を展開します。 右クリックして、コンテキスト メニューから **[New Folder (新規フォルダ)]** (2) を選択します。  
+    ![New Folder (新規フォルダ)](aja-qs-2b-1-newfolder.png "New Folder （新規フォルダ）")  
+    新規フォルダを「**Blackmagic**」に名前を変更します。  
+    
+2.  新規フォルダを開き、**[Content Browser (コンテンツ ブラウザ)]** を右クリックして、**[Media (メディア)] > [Media Bundle (メディア バンドル)]** を選択します。  
+    ![新しい Media Bundle (メディア バンドル)](blackmagic-qs-2-2.png "新しい Media Bundle （メディア バンドル）")  
+    
+3.  新しいアセット名がコンテンツ ブラウザで自動的に選択されるので、内容がわかる名前を付けます。  
+    ![メディア バンドルに名前を付ける](blackmagic-qs-2-3.png "メディア バンドルに名前を付ける") 「**BlackmagicMediaBundle**」のように新しい名前を入力し、**Enter** を押します。  
+    メディア バンドルの隣に、サフィックス「**_InnerAssets**」が付いた、Media Framework アセットの新規フォルダが自動的に作成されます。 これらのアセットは後で説明します
+4.  **[Content Browser (コンテンツブラウザ)]** の **[Save All (すべて保存)]** ボタンをクリックして、新しいアセットを保存します。  
+    ![アセットをすべて保存する](blackmagic-qs-2-4-saveall.png "アセットをすべて保存する")
+5.  新しいメディア バンドルをダブルクリックしてそのプロパティを編集します。 メディア バンドルはエンジンがサポートする多様なメディア ソースのビデオを再生できます。したがって Blackmagic カードからビデオを取り込むことを指示する必要があります。  
+    **[Media Source (メディア ソース)]** プロパティのドロップダウン リストから **[Blackmagic Media Source (Blackmagic メディア ソース)]** を選択します。  
+    ![Blackmagic メディア ソースを設定する](blackmagic-qs-2-4.png "Blackmagic メディア ソースを設定する")
+6.  メディア バンドルで処理するメディア ソースのタイプを特定したら、そのソースのタイプで利用できるコンフィギュレーション プロパティをセットアップできます。   
+    Blackmagic メディア ソースの設定で一番重要なのは、**[Configuration (コンフィギュレーション)]** 設定です。実際のビデオ フィードと同じ解像度とフレーム レートを使用して、適切なデバイスと入力ポートから、ビデオをキャプチャするようにバンドルがセットアップされていることを確認します。 矢印をクリックして、設定のサブメニューを開き、セットアップに合うオプションを選択してから、サブメニューで **[Apply (適用)]** をクリックします。  
+    ![Blackmagic メディア ソース コンフィギュレーション](blackmagic-qs-2-5.png "Blackmagic メディア ソース コンフィギュレーション")  
+    ここに表示されているオプションは、取り付けたデバイスにより変わることがあります。 Blackmagic メディア ソースに設定できるすべてのプロパティの詳細は、「[Blackmagic メディア リファレンス](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/BlackmagicIOReference)」を参照してください。
+7.  入力ビデオからレンズの歪みの原因を補正する場合は、**[Lens Parameters (レンズ パラメータ)]** セクションのレンズの物理プロパティをセットアップできます。   
+    ![レンズの歪みを除去するパラメータ](aja-qs-2b-6-lensdistortion.png "レンズの歪みを除去するパラメータ")  
+    これらの [Lens Parameters (レンズ パラメータ)] はレンズの物理プロパティをセットアップするだけです。 メディア バンドルで使用されるマテリアル インスタンスを編集する際、後からレンズの補正を実際に有効にします。  
+    プロパティのセットアップが完了したら、メディア バンドルを保存してから、閉じます。
+8.  **BlackmagicMediaBundle** アセットを**[Content Browser (コンテンツ ブラウザ)]**からレベルのビューポートにドラッグします。   
+    ![メディア バンドルのドラッグ＆ドロップ](blackmagic-qs-2-9.png "メディア バンドルのドラッグ＆ドロップ データ確認")  
+    新しいプレーンに、メディア バンドルで設定されたポートで現在再生されているビデオが表示されます。ビューポート ツールバーのトランスフォーム ツールを使用して移動、回転、サイズ変更します。  
+    メディア バンドルが自動的に再生を開始しない場合は、選択して、**[Details (詳細)]** パネルで、**[Media Bundle (メディア バンドル)] > [Request Play Media (メディア再生のリクエスト)]** ボタンをクリックします。  
+    ![Request Play Media (メディア再生のリクエスト)](blackmagic-request-play-media.png "Request Play Media （メディア再生のリクエスト）")
+9.  ここではビデオ ストリームにキーイングおよびコンポジティング エフェクトを適用する方法を説明します。  
+    メディア バンドル エディタに戻り、ツールバーの **[Open Material Editor (マテリアル エディタを開く)]** ボタンをクリックし、マテリアル インスタンスを編集します。これはこのメディア バンドルが入力ビデオ フィードをレベルのオブジェクトに描画するために使用するものです。  
+    ![Open Material Editor (マテリアル エディタを開く)](blackmagic-open-material-editor.png "Open Material Editor （マテリアル エディタを開く）")
+    [REGION:tip]
+    このマテリアル インスタンスは、メディア バンドルとともに自動的に作成された「**BlackmagicMediaBundle_InnerAssets**」フォルダに保存されます。  
+    ![Material Instance (マテリアル インスタンス)](blackmagic-qs-2-7.png "Material Instance")
+    [/REGION]
+10.  マテリアル インスタンス エディタで、キーイング、トリミング、色補正を設定するために、さらにメディア バンドルでセットアップするレンズの歪みの補正を有効にするために公開されている多くのプロパティがあります。  
+    ![マテリアル インスタンス エディタ](blackmagic-qs-2-8.png "マテリアル インスタンス エディタ")   
+    マテリアル インスタンス エディタの設定を調整する際、再生するビデオ フィードの変更のエフェクトをメイン レベルのビューポートで確認できます。
+    [REGION:tip]
+    代わりに便利なマテリアル インスタンス エディタのプレビュー パネルで、変更のエフェクトを確認することもできます。 実行するには、**[IsValid]** 設定を一時的に有効にして、値を「1.0」に設定します。  
+    ![IsValid](video-qs-preview-isvalid.png "IsValid")  
+    ビューポート ツールバーの左上にある矢印をクリックして、メニューの **[Realtime (リアルタイム)]** オプションを有効にします。  
+    ![Realtime viewport](blackmagic-qs-2-8a.png "Realtime viewport")  
+    プレビュー メッシュをプレーンまたはキューブに変更して、変更のエフェクトを簡単に判断することができます。 ビューポートの一番下にあるコントロールを使用します。  
+    ![Preview mesh](blackmagic-qs-2-8b.png "Preview mesh")  
+    完了したら、**[IsValid]** 設定を元の値に戻します。
+    [/REGION]
+11.  マテリアル インスタンスのプロパティの変更が完了したら、ツールバーの **[Save (保存)]** ボタンをクリックします。
+
+### 最終結果
+
+ここまでで、Unreal Engine のレベル内で、SDI ポート経由で再生されるビデオを表示し、レンズ歪みやクロマーキーなどに対する高度な機能をセットアップする手順について説明しました。
+
+メディア フレームワークの知識がある場合は、別の方法で、レベルにビデオを取り込むことができます。プロジェクトで新しい「**BlackmagicMediaSource**」アセットを作成し、前の手順でメディア バンドル内でセットアップした同じソース プロパティを設定します。次に、レベルで対象ソースの再生を処理する、独自の **MediaPlayer** と **MediaTexture** アセットを作成します。 詳細については、「[メディア フレームワーク](Engine/MediaFramework)」のドキュメントを参照してください。 ただし、使いやすさとプロ品質のビデオ機能の最適なバランスを考慮すると、前に示したメディア バンドルを使用することをお勧めします。  
+
+## 3 - Unreal Editor からキャプチャを出力する
+
+このプロセスでは、Blackmagic メディア出力オブジェクトをセットアップし、Unreal Editor の **[Media Captures (メディア キャプチャ)]** パネルを使用して、レベルの選択したカメラのビューを Blackmagic カードに出力します。
+
+### ステップ
+
+1.  コンテンツ ブラウザを右クリックし、**[Media (メディア)] > [Blackmagic Media Output (Blackmagic メディア出力)]** を選択します。   
+    ![新しい Blackmagic メディア出力](blackmagic-qs-3-1.png "新しい Blackmagic メディア出力")  
+    新しいアセットに「**BlackmagicMediaOutput**」と名前を付けます。
+2.  新しいアセットを編集するためにダブルクリックして開きます。Blackmagic メディア ソースを作成したときと同様に、**Configuration (コンフィギュレーション)** プロパティをセットアップして、Unreal Engine が AJA カードに送るビデオ フィードのプロパティをコントロールする必要があります。 矢印をクリックしてサブメニューを開き、ビデオ セットアップに合うオプションを選択してから、サブメニューの **[Apply (適用)]** をクリックします。   
+    ![BlackmagicMediaOutput コンフィギュレーション](blackmagic-qs-3-2.png "BlackmagicMediaOutput コンフィギュレーション")  
+    ここに表示されているオプションは、取り付けたデバイスにより変わることがあります。 Blackmagic メディア出力で設定できるすべてのプロパティの詳細は、「[Blackmagic メディア リファレンス](Engine/ProVideoIO/BlackmagicIOReference)」を参照してください。  
+    完了したら、メディア出力を保存して閉じます。
+3.  ここでは Blackmagic カードに送信する出力の視点になる 2 台のカメラをレベルに配置します。 **[Mode (モード)]** パネルで、**[Cinematic （シネマティック）]** タブを開き、**[Cine Camera Actor (シネカメラ アクタ)]** をビューポートにドラッグして 2 つのインスタンスを作成します。  
+    ![Cine Camera アクタのドラッグ＆ドロップ](aja-qs-3-3-cinecameras.png "Cine Camera アクタのドラッグ＆ドロップ")  
+    シーンで異なる視点が得られるように、レベルに 2 台のカメラを配置します。
+    [REGION:tip]
+    カメラの **パイロット** は、正確に希望どおりに視点を設定する、素早く簡単な方法です。 「[ビューポートのパイロットアクタ](Engine/UI/LevelEditor/Viewports/ActorLocking)」を参照してください。
+    [/REGION]
+4.  メイン メニューから **[Window (ウィンドウ)] > [Media Capture (メディア キャプチャ)]** を選択します。 **[Media Capture (メディア キャプチャ)]** ウィンドウを使用して、エディタが出力を Blackmagic デバイスに送信するタイミングと、レベルで使用するカメラの種類をコントロールします。  
+    ![Media Capture (メディア キャプチャ) ウィンドウ](aja-qs-3-4-mediacapture.png "Media Capture （メディア キャプチャ） ウィンドウ")
+5.  **[Media Viewport Capture (メディア ビューポート キャプチャ)]** セクションで、**[Viewport Captures (ビューポート キャプチャ)]** コントロールを見つけます。 **[+]** ボタンをクリックして、新しいキャプチャをこのリストに追加します。  
+    ![ビューポート キャプチャを追加する](aja-qs-3-5-newcapture.png "ビューポート キャプチャを追加する")
+6.  新しいエントリを展開します。 まず、キャプチャ元のカメラを追加します。 **[Locked Camera Actors (ロックされたカメラ アクタ)]** コントロールで、**[+]** ボタンをクリックし、新しいエントリを追加します。  
+    ![カメラ アクタを追加する](aja-qs-3-6-newcamera.png "カメラ アクタを追加する")  
+    次に、ドロップダウン リストから、レベルに配置するカメラを 1 台選択します。  
+    ![カメラ アクタを選択する](aja-qs-3-6-selectcamera.png "カメラ アクタを選択する")  
+    同じステップを繰り返して、もう 1 台カメラをリストに追加します。
+7.  ここで、これらのカメラをキャプチャする出力をセットアップします。 **[Media Output (メディア出力)]** コントロールを、前に作成した新しい Blackmagic メディア出力アセットを指すように設定します。 ドロップダウン リストから選択するか、コンテンツ ブラウザから Blackmagic メディア出力アセットをドラッグして、このスロットにドロップします。  
+    ![Blackmagic メディア出力を設定する](blackmagic-qs-3-7.png "Blackmagic メディア出力を設定する")  
+    
+8.  ウィンドウの一番上で、**[Capture (キャプチャ)]** ボタンをクリックします。  
+    ![キャプチャを開始する](aja-qs-3-8-capture.png "キャプチャを開始する")  
+    Blackmagic カードに送信されている出力のプレビューを表示する、ウィンドウの一番下に新しいフレームが表示されます。 このポートを別のダウンストリーム デバイスに接続している場合は、到着する出力を確認を開始する必要があります。  
+    ![アクティブ メディア キャプチャ](blackmagic-qs-output-8.png "アクティブ メディア キャプチャ")
+9.  このビューポート キャプチャの [Locked Camera Actors (ロックされたカメラ アクタ)] リストに追加したカメラは、ビデオ プレビューの上にあるそれぞれの対応ボタンで示されます。ボタンをクリックして、2 つのビューの間でキャプチャを交互に切り替えます。
+
+![カメラを切り替える](blackmagic-qs-output-9.png "カメラを切り替える")
+
+  
+
+### 最終結果
+
+Unreal Editor をセットアップして、レベルのカメラからの出力を Blackmagic カードのポートにストリーミングできるようになりました。 次に、動作している Unreal Engine プロジェクトで同じことを実行するため、ブループリント スクリプトを使用する方法を説明します。
+
+## 4 - 実行時にキャプチャを出力する
+
+前のセクションで使用した **[Media Capture (メディア キャプチャ)]** ウィンドウは、Blackmagic カードにキャプチャを送信する実用的で簡単な方法です。 ただし、これを使用できるのは Unreal Editor の内部だけです。 プロジェクトをスタンドアロン アプリケーションとして実行しているときに同じことを実行するには、メディア出力で提供されるブループリント API を使用する必要があります。この手順では、プレイヤーがキーボードのキーを押したときに、キャプチャを開始および停止する、シンプルなトグル スイッチをレベルのブループリントでセットアップします。
+
+[REGION:tip]
+Epic Games Launcher の **[Learn (ラーニング)]** タブで利用できる **[Virtual Studio](Resources/Showcases/VirtualStudio)** ショーケースにはオンスクリーン ユーザーインターフェースからキャプチャをコントロールする方法を示す UMG インターフェース ウィジェットが含まれます。
+[/REGION]
+
+### ステップ
+
+1.  Unreal Editor のメイン ツールバーから、**[Blueprints (ブループリント)] > [Open Level Blueprint (レベル ブループリントを開く)]** を選択します。  
+    ![Open Level Blueprint (レベル ブループリントを開く)](aja-qs-4-1-levelbp.png "Open Level Blueprint （レベル ブループリントを開く）")
+2.  出力先のポートを特定するように作成した Blackmagic メディア出力アセットから開始する必要があります。 **[My Blueprint (マイ ブループリント)]** の **[Variables (変数)]** リストで、**[+]** ボタンをクリックして新しい変数を追加します。  
+    ![新規変数](aja-qs-4-2-newvar.png "新規変数")
+3.  **[Details (詳細)]** パネルで、**[Variable Name (変数名)]** を「**BlackmagicMediaOutput**」に設定し、**[Variable Type (変数タイプ)]** ドロップダウン リストで、「**Blackmagic Media Output Object Reference**」に設定します。  
+    ![Blackmagic メディア出力オブジェクト リファレンス](blackmagic-qs-4-3.png "Blackmagic メディア出力オブジェクト リファレンス")  
+    
+4.  **[Instance Editable (編集可能インスタンス)]** 設定 (1) をオンにして、ブループリントをコンパイルします。 次に、**[Default Value (デフォルト値)]** セクションで、コンテンツ ブラウザで作成した Blackmagic メディア出力アセットを指す変数を設定します。 (2)  
+    ![デフォルト値を設定する](blackmagic-qs-4-4.png "デフォルト値を設定する")  
+    
+5.  **Ctrl** キーを押したままにして、**[My Blueprint (マイ ブループリント)]** パネルの変数リストから **BlackmagicMediaOutput** をドラッグして、**[Event Graph (イベント グラフ)]** にドロップします。  
+    ![Ctrl を押したままにして BlackmagicMediaOutput をドラッグする](blackmagic-qs-4-5.png "Ctrl を押したままにして BlackmagicMediaOutput をドラッグする")  
+    
+6.  **BlackmagicMediaOutput** 変数ノードの出力ポートからクリックしてドラッグして、**[Media (メディア)] > [Output (出力)] > [Create Media Capture (メディア キャプチャの作成)]** を選択します。   
+    ![メディア キャプチャを作成する](blackmagic-qs-4-6.png "メディア キャプチャを作成する")  
+    以下に示すとおり、作成したノードを **Event BeginPlay** ノードに接続します。  
+    ![Event Begin Play](blackmagic-qs-4-6b.png "Event Begin Play")  
+    これにより新しいメディア キャプチャ オブジェクトが Blackmagic メディア出力から作成されます。 メディア キャプチャでは、キャプチャをコントロールするために使用する 2 つのメイン ブループリント関数 **Capture Active Scene Viewport** および **Stop Capture** が用意されています。
+7.  まずは、新しいメディア キャプチャ オブジェクトを専用変数に保存し、他のどこからでも再びアクセスできるようにします。 **Create Media Capture** ノードの出力ポートをクリックしてドラッグして、**[Promote to Variable (変数へ昇格)]** を選択します。  
+    ![Promote to variable (変数へ昇格)](aja-qs-4-7-promote.png "Promote to variable （変数へ昇格）")  
+    **[My Blueprint (マイ ブループリント)]** パネルの変数リストで、新しい変数を **MediaCapture** に名前を変更します。
+    [REGION:tip]
+    メディア キャプチャをここの変数に保存することが重要です。 保存しない場合、処理を完了する前に、Unreal Engine のガーベージ コレクタで自動的に破棄されることがあります。
+    [/REGION]
+8.  **Ctrl** を押したままにして、**MediaCapture** 変数を **[Event Graph (イベント グラフ)]** にドラッグします。  
+    ![Ctrl を押したままにして MediaCapture をドラッグする](blackmagic-qs-4-8-mediacapture.png "Ctrl を押したままにして MediaCapture をドラッグする")  
+    
+9.  **MediaCapture** 変数ノードの出力ポートをクリックしてドラッグして、**[Media (メディア] > [Output (出力)] > [Capture Active Scene Viewport (アクティブ シーン ビューポートのキャプチャ)]** を選択します。 同じことを繰り返して、**[Media (メディア)] > [Output (出力)] > [Stop Capture (キャプチャの停止)]** を選択します。  
+    ![キャプチャの開始と停止](aja-qs-4-9-capturestop-1.png "キャプチャの開始と停止")
+10.  **[Event Graph (イベント グラフ)]** を右クリックして、**[Input (入力)] > [Keyboard Events (キーボード イベント)] > [P]** を選択します。**[P]** ノードの **[Pressed]** 出力をクリックしてドラッグして、**[Flow Control (フロー コントロール)] > [FlipFlop]** を選択します。   
+    ![FlipFlop](aja-qs-4-10-pflipflop.png "FlipFlop")
+11.  以下に示すように、**[FlipFlop]** ノードの **[A]** 出力を **[Capture Active Scene Viewport]** ノードの入力イベントに接続し、**[FlipFlop]** ノードの **[B]** 出力を **[Stop Capture]** ノードの入力イベントに接続します。  
+    ![ノードの接続](aja-qs-4-11-done.png "ノードの接続")
+12.  ブループリントをコンパイルしてから保存し、プロジェクトの再生を試します。 メイン ツールバーの [Play (プレイ)] ボタンの隣にある矢印をクリックし、**[New Editor Window (PIE) (新規エディタ ウィンドウ (PIE))]** または **[Standalone Game (スタンドアロン ゲーム)]** オプションを選択します。  
+    ![プロジェクトを起動する](aja-qs-4-12-pie.png "プロジェクトを起動する")  
+    [REGION:note]
+    **New Editor Window (PIE)** または **Standalone Game** でプロジェクトをプレイするときのみ、エディタからビデオ キャプチャが動作します。 デフォルトの **Selected Viewport** モード、または **Simulate** モードでは機能しません。  
+    さらに、プロジェクトのビューポート解像度 (つまり、Unreal Engine が各フレームを生成するレンダリング画像のサイズ) は、これが出力ビデオ フィードの適切なサイズになるように、アクティブなメディア プロファイルの出力解像度に一致する必要があります。
+    [/REGION]
+    プロジェクトをスタートアップした後、キーボードの **P** キーを押して、エンジンからの出力を Blackmagic カードに送信することを切り替えることができます。
+
+### 最終結果
+
+ここまでで、Blackmagic メディア ソース、メディア バンドル、メディア キャプチャ システムの作業方法の基本アイデアを把握し、Unreal Engine との間でプロレベルのビデオの入出力を実行するためこれらの要素すべてが連携する方法について説明しました。
+
+## 次の作業
+
+Blackmagic カードとの間で、ビデオ入力と出力を新しいプロジェクトで実行し切り替える方法の基本について説明しました。ここからは、次のとおり、引き続き独自に学習できます。
+
+* メディア バンドルで作成されたマテリアル インスタンスのエンジン内キーイング ソリューションを調査します。 緑画面のビデオをカードの入力ポートに渡してみて、マテリアル インスタンスのキーイング コントロールを使用して、背景を取り除きます。
+* **[Virtual Studio](Resources/Showcases/VirtualStudio)**ショーケースを調べて、実行時にカメラを切り替え、ビデオ キャプチャをコントロールする、オンスクリーン UI など、基本セットアップに追加する項目を確認します。

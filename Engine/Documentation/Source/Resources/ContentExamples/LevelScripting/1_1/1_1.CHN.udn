@@ -1,7 +1,9 @@
-﻿Availability: Docs
-Title:1.1 - 触发器盒体
+﻿INTSourceChangelist:3108692
+Availability: Docs
+Title:1.1 - 触发框
 Crumbs:%ROOT%, Resources, Resources/ContentExamples/LevelScripting
-Description: 关卡脚本示例关卡概述，示例1.1： 用来开门的触发器盒体
+Description:概述关卡脚本编写的示例关卡，示例1.1：触发框用于开门
+Version: 4.9
 
 
 [VAR:TopicCompact]
@@ -26,28 +28,31 @@ Description: 关卡脚本示例关卡概述，示例1.1： 用来开门的触发
 
 ![](levelscripting_1_1.png)
 
-## 概述
+触发框被放置在包含一组门的蓝图的前面。当玩家触摸触发框时，门打开，当玩家离开触发框时，门关闭。门蓝图包含设置动画所需的所有脚本，这些脚本连接到自定义事件，关卡脚本可以调用这些事件。
 
-触发器盒体actor被放置在包含一组门的蓝图前。当玩家触碰触发器盒体时，门会打开，而当玩家离开该盒体时，门关闭。门的蓝图包含了进行动画的所有必需脚本，它们与自定义事件相连，这些事件可由关卡脚本调用。
+
+(#levelscript)
 
 ## 关卡脚本
 
 ![](LevelScript_1_1_LS.png)
 
-当我们对蓝图Actor提供引用时（上图中的小的蓝色变量节点），关卡脚本可以调用任何该蓝图内的自定义事件，并在关卡脚本内绑定事件到特定情况。本例中，我们使用重叠事件，这些事件会在玩家进入和退出触发器体积（围绕门体的绿色盒体）时触发。这些事件触发后，我们会触发 _BP_Double_Doors_ 蓝图Actor的相关自定义事件。
+当提供了对一个蓝图Actor的引用时（在这里为蓝色的小变量节点），关卡脚本可以调用该蓝图中的任何自定义事件，以及将关卡脚本中的事件绑定到特定条件。在本例中，我们使用了重叠事件，这些事件在玩家进入和离开触发器体积时触发（门周围的绿色框）。一旦触发了这些事件，我们将在 _BP_Double_Doors_ 蓝图Actor上触发相应的自定义事件。
 
 
 [EXCERPT:bpDoubleDoors]
+(#bp_double_doorseventgraph)
+
 ## BP_Double_Doors事件图表
 
 [REGION:lightbox]
 [![](DoubleDoorsBlueprint.png)](DoubleDoorsBlueprint.png)
 [/REGION]
 [REGION:caption]
-点击以查看完整尺寸图片或 **右键点击** 并另存。
+单击查看完整尺寸或 **右键单击** 并按另存为（Save As）。
 [/REGION]
 
-BP_Double_Door蓝图Actor包含了对略显复杂的门体的设置。您可以看到如何使用[时间轴](Engine/Blueprints\UserGuide\Timelines)来驱动不同的内容，包括每扇门的位置，螺栓机械装置的旋转以及应用到螺栓的材质。当蓝图接收到 **Open Doors** （开门）或 **Close Doors** （关门）事件时（这两个事件是为此蓝图创建的自定义事件），该网络被触发。
+BP_Double_Doors蓝图Actor包含一个稍微复杂的门的设置。您可以看到如何使用[时间轴](Engine/Blueprints\UserGuide\Timelines)来驱动一些内容，包括每个门的位置、螺栓机构的旋转，以及应用于螺栓的材质。每当蓝图接收到开门或关门事件时，就会触发网络，这些事件是为该蓝图创建的自定义事件。
 
 [/EXCERPT:bpDoubleDoors]
 [/REGION]

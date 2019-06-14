@@ -1,49 +1,240 @@
-﻿INTSourceChangelist:2713308
-Availability:Public
-Title:本地化系统概述
-Crumbs:%ROOT%, Gameplay, Gameplay/Localization
-Description:关于项目本地化过程中涉及要素的概述。 
-version: 4.9
-
-每个项目的本地化工作都会涉及一些关键概念：
-
-* [文本_Text](#文本_Text_)
-* [目标 (Targets)](#目标_Targets_)
-* [语言 (Cultures)](#语言_Cultures_)
-* [清单 (Manifests)](#清单_Manifests_)
-* [存档 (Archives)](#存档_Archives_)
-* [本地化资源 (Localization Resources)](#本地化资源_locres_)
-
-[REGION:raw]
-![](OverviewDiagram.png)
-[/REGION:raw]
+﻿INTSourceChangelist:5661443
+Availability: Public
+Crumbs: 
+Title: 本地化概述
+Description: 
+Type: 
+Version: 4.21
+Parent: Gameplay/Localization
+Order: 0
+Tags: 
 
 
+(#localizationandinternationalization)
 
-## 文本 (Text)
-文本是本地化的基本元素。文本是由命名空间、键名、源字符串和显示字符串共同组成。通过命名空间和键名便能为文本定义唯一的标识索引。
-通过使用不同的命名空间，可以帮助在不同上下文的环境下同样的文本单来表达不同的意思。键提供了与文本有关的特定上下文。
-源字符串是尚未翻译原文形式的字符串。显示字符串是将要呈现的字符串形式，通常是根据源字符串翻译而来。
+## 本地化和国际化
 
-例如，对话框可显示为英语或西班牙语。对话框中可能有一条消息，一个 “OK” 按钮和一个 “CANCEL” 按钮。所有三个文本可能使用了同一个命名空间 “MyProject”。消息文本可以使用一个 “MyMessage” 键，“OK” 文本可以使用一个 “DialogBox.AffirmativeButtonLabel” 键，“CANCEL” 文本可使用一个 “DialogBox.NegatoryButtonLabel” 键。根据命名空间和键，每个文本就可以获得唯一的标识和翻译。
+本地化和国际化（L10N和I18N）是在“本地化”大概念下往往会结合使用的两个概念。但是，这两者是有区别的，虚幻引擎4(UE4)对两者的处理方式不同。UE4中的本地化系统以我们的“文本”类型为中心，而我们的国际化支持使用[International Components for Unicode](http://site.icu-project.org/)(ICU)库。
 
-## 目标 (Targets)
-目标指的是经过命名的独立的本地化数据模块。目标中的文本是从一组特定来源中收集，存储在 Manifest 文件内，在针对特定语言 (Culture) 的存档文件中翻译，编译成针对特定语言的本地化资源文件，然后由系统加载以供显示。 
+虽然它们是独立的，但在UE4中，如果没有适当的国际化支持，就无法在运行时进行本地化。
 
-一个项目可以只有一个目标以便简化实施，也可以有多个目标以便将项目的本地化数据分成各个独立部分。Unreal 编辑器就有一个独立于虚幻引擎其他部分的目标，因此可以在对编辑器进行本地化的同时，避免将编辑器的本地化数据随游戏一起分发。通常来讲，游戏会用一个目标用于游戏本体的本地化数据，并使用额外的目标来实现游戏的扩展包内容。
+(#icuandinternationalizationsupport)
 
-## 语言 (Cultures)
-语言 (Cultures，以下使用 Culture 来指代避免语义混淆) 也被理解为语言环境 (locale)，负责定义文字、脚本和地区之类的细节信息。Culture 是特定编码格式的字符串，必需符合语言编码（ISO-639 标准）、可选脚本编码（ISO-15924 标准）和可选地区编码（ISO-3166 标准），以横线或下划线进行分隔。
+## ICU和国际化支持
 
-Culture 编码的举例：“en”（英语）、“es-MX”（西班牙语，墨西哥地区）、“zh-Hans-CN”（中文，简体，中国地区）。
+ICU是一个成熟而稳健的国际化库，UE4使用ICU处理任何涉及特定语言的数据或处理，包括以下操作：
 
-## 清单 (Manifests)
-清单文件是一种可读的 JSON 格式文本文件，保存了由命名空间和键的映射下整理的文本 (Text) 。清单文件由一个特定的 commandlet 通过收集文本生成。清单文件每次都完全重新创建，不应当以手动方式更改。
+*   获取平台/OS的当前语言。
 
-## 存档 (Archives)
-存档用于存储源字符串及其翻译，由命名空间映射，并采用可读的 JSON 格式。存档由一个 commandlet 生成，它将从指定的清单中去除所有条目。由于存档中的条目没有键，因此清单中共享命名空间内同一个源的所有条目将合并为一个存档条目，如果文本之间只有键的差别，就会被认为它们在字面上是一样的，并将使用相同的翻译。已经存在的存档将被更新而非截断。存档应该按原样提供，或是转换为其他格式提供给翻译人员进行处理，并返回译文取代空白存根条目。
+*   处理文化的优先备份。
 
-## 本地化资源 (LocRes)
-LocRes 可将翻译后的文本存储为二进制格式并由系统加载。LocRes 由一个 commandlet 生成，它能编译一个指定的清单和一些指定存档。
+*   处理文化正确的数字（包括百分比和货币）、日期和时间（包括时区数据）格式化。
 
-系统会根据项目设置和当前 Culture 选择加载 LocRes 文件。LocRes 中对应当前文化的本地化文本可以和 LocRes 中对应当前所有文化的父文化的本地化文本一起使用。这样既可以针对某一语言提供一般性翻译，同时还能针对某一区域提供更加具体的翻译。举一个基本的例子，假设有一个目标中包含文本 “Color” 并支持 “en”（英语）和 “en-UK”（英语，英国地区）的 Culture，那么 “en” LocRes 可能会将 “Color” 本地化成 “Color”，而 “en-UK” LocRes 可能会采用 “Colour” 这一本地化文本。如果用户切换到 “en-CA”（英语，加拿大地区），但 “en-CA” 的 LocRes 缺少对于 “Color” 的本地化信息，那么将会使用 “en” LocRes 里的 “Color”。
+*   处理文化正确的数字复数（在文本格式化期间）。
+
+*   处理符合Unicode的文本转换（例如ToUpper、ToLower）。
+
+*   处理符合Unicode的文本比较和排序。
+
+*   处理符合Unicode的[边界分析](http://userguide.icu- project.org/borderyanalysis)（字符、词语和换行符）。
+
+*   处理符合Unicode的双向(BiDi)文本检测。
+
+ICU需要使用的特定文化的数据存储在ICU本身之外，UE4提供了一些粗略的数据集，您可以使用这些数据集将您的项目大小最小化：
+
+*   英语(~1.77MB)
+
+*   EFIGS - 英语、法语、意大利语、德语和西班牙语(~2.38MB)
+
+EFIGSCJK - 英语、法语、意大利语、德语、西班牙语、中文、日语和韩语(~5.99MB)
+
+*   CJK - 中文、日语和韩语(~5.16MB)
+
+*   所有语言(~15.3MB)
+
+您选择哪一种文化取决于您本地化项目的区域，这些选项可以在项目设置（Project Settings）中设置。详情请参阅[打包本地化数据](#packaginglocalizationdata)。
+
+(#cultures)
+
+## 文化
+
+UE4中的文化包含特定区域的国际化信息。文化名称由三个连字符隔开的部分组成（一个[IETF语言标签](https://en.wikipedia.org/wiki/IETF_language_tag)：
+
+*   一个2字母[ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes)语言代码（如“zh”）
+
+*   一个可选的4字母[ISO 15924](https://en.wikipedia.org/wiki/ISO_15924)脚本代码（如“Hans”）
+
+*   一个可选的2字母[ISO 3166-1](https://en.wikipedia.org/wiki/ISO_3166-1)国家代码（如“CN”）。
+
+当UE4查找特定文化的本地化数据时，它将从最特定到最不特定的顺序进行处理。例如：
+
+*   zh-Hans-CN的处理顺序是“zh-Hans-CN”，接着是“zh-CN”，然后是“zh-Hans”，再然后是“zh”。
+
+*   en-GB的处理顺序是“en-GB”，然后是“en”。
+
+为了实现对特定文化的最广泛覆盖，请使用最不特定的有效文化代码。通常这只是语言代码，但您应该注意需要考虑的区域语言差异。
+
+在大多数情况下，这些区域差异仅限于特定的国家代码，这使得差异很容易解决。然而，还有一些情况更复杂，如下所示。
+
+(#chinese)
+
+### 中文
+
+中文有简体和繁体之分，分别用“Hans”和“Hant”ISO-15924脚本表示。简体本地化使用“zh-Hans”，繁体本地化使用“zh-Hant”。
+
+(#spanish)
+
+### 西班牙语
+
+西班牙语有两种：欧洲西班牙语和拉丁美洲西班牙语。但是，没有方便的脚本代码可以用来区分两者。对于拉丁美洲西班牙语，有一个IETF语言标签(“es-419”)，但大多数平台不提供该标签，而是提供一个实际的国家代码(“es-MX”)。
+
+为了解决这一问题，欧洲西班牙语使用“es”，拉丁美洲西班牙语使用“es-419”。然后，使用UE4的[文化重映射](Gameplay/Localization/ManageActiveCultureRuntime#cultureremapping)功能将拉丁美洲西班牙语国家映射到“es-419”。
+
+这可以通过在“DefaultGame”文件中添加以下内容来实现：
+
+    [Internationalization]
+    +CultureMappings="es-AR;es-419"
+    +CultureMappings="es-BO;es-419"
+    +CultureMappings="es-CL;es-419"
+    +CultureMappings="es-CO;es-419"
+    +CultureMappings="es-CR;es-419"
+    +CultureMappings="es-CU;es-419"
+    +CultureMappings="es-DO;es-419"
+    +CultureMappings="es-EC;es-419"
+    +CultureMappings="es-GT;es-419"
+    +CultureMappings="es-HN;es-419"
+    +CultureMappings="es-MX;es-419"
+    +CultureMappings="es-NI;es-419"
+    +CultureMappings="es-PA;es-419"
+    +CultureMappings="es-PE;es-419"
+    +CultureMappings="es-PR;es-419"
+    +CultureMappings="es-PY;es-419"
+    +CultureMappings="es-SV;es-419"
+    +CultureMappings="es-US;es-419"
+    +CultureMappings="es-UY;es-419"
+    +CultureMappings="es-VE;es-419"
+
+(#localizationtargets)
+
+## 本地化目标
+
+ **本地化目标（Localization Targets）** 是本地化数据的指定自含式模块。本地化目标具有以下特性：
+
+*   它们从一组指定的源中收集文本；
+
+*   它们存储在一个清单文件中；
+
+*   它们被翻译成特定文化的存档文件；
+
+*   它们被编译成特定文化的本地化资源文件，系统显示编译后的特定文化的资源文件。
+
+为了简单起见，一个项目可以有一个本地化目标，也可以有多个本地化目标，以便将项目的本地化数据分成多个部分。虚幻编辑器有一个与UE4的其他部分分开来的本地化目标，因此编辑器可以进行本地化，而无需与游戏一起发布本地化数据。通常，游戏会为基础项目的所有本地化数据提供一个本地化目标，并为任何扩展提供额外的本地化目标。
+
+(#localizationpipeline)
+
+## 本地化管道
+
+UE4本地化管道是围绕“在源文本中编写”的本地化方法建模的。这意味着，如果需要在UI中显示“Hello World!”的文本，只需在文本属性中输入“Hello World!”（或者使用C++中的“NSLOCTEXT”或“LOCTEXT”宏），本地化收集程序将负责采集文本，以便对其进行本地化。
+
+“在源文本中编写”的方法是非常动态的，这种方法允许开发人员在开发过程中避免过多地考虑本地化。然而，对于希望严格控制项目中使用的文本的团队来说，这也可能会令人沮丧。为了解决这一问题，UE4支持[字符串表(Gameplay/Localization/StringTables)，允许使用“编写一次并引用”的方法进行本地化（尽管在内部，管道只是将字符串表视为另一个“author-at-source”源)。
+
+[REGION:warning]
+有一个用于解决缺乏本地字符串表的旧方法（不再支持），就是用一个带ID的“假”原生语言（最有可能是“es-US-POSIX”)作为源文本，然后使用UE在4.14版本之前提供的字符串合并函数将这些ID转化为各种语言。您可以在旧的支持问题中找到对该方法引用，但不应该再使用它。使用该方法的项目应该迁移到字符串表。
+[/REGION]
+
+本地化管道本身处理本地化目标，本地化目标由两部分组成：配置（存储在“Config/Localization/”中）和数据（存储在“Content/Localization/{TargetName}/”中)。
+
+如果我们假设本地化目标使用英语(“en”)和法语(“fr”)，那么它在Content/Localization/”文件夹中的布局将如下所示：
+
+    {TargetName}/{TargetName}.manifest
+       {TargetName}.locmeta
+       en/{TargetName}.archive
+          {TargetName}.po
+          {TargetName}.locres
+       fr/{TargetName}.archive
+          {TargetName}.po
+          {TargetName}.locres
+
+以上所有文件和文件夹都是由本地化管道的各个部分生成的。
+
+| 文件夹 | 说明 |
+| --- | --- |
+| **{TargetName}.manifest** | [INCLUDE:#excerpt_1] |
+| **{TargetName}.archive** | [INCLUDE:#excerpt_2] |
+| **{TargetName}.po** | [INCLUDE:#excerpt_3] |
+| **{TargetName}.locres** | [INCLUDE:#excerpt_4] |
+| **{TargetName}.locmeta** | [INCLUDE:#excerpt_5] |
+
+<!--
+[EXCERPT:excerpt_5]
+
+*   LocMeta是自定义二进制文件，它存储编译后的目标元数据（当前仅存储目标的原生语言），以便在运行时使用。
+
+*   每次编译本地化数据时都会重新生成LocMeta文件，并将其暂存到打包构建中。
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+*   LocRes是自定义二进制文件，它存储编译后的每种文化的翻译，以便在运行时使用。
+
+*   每次运行本地化编译步骤时都会重新生成LocRes文件，并将其暂存到打包构建中。
+
+*   LocRes是您的项目将在运行时（包括在编辑器中）从中加载本地化数据的唯一文件，因此必须对源数据的任何编辑或更改（例如导入PO文件）必须进行编译，之后方能生效。
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+*   PO（[可移植对象](https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)）文件包含要翻译的每种文化文本及其当前翻译。
+
+*   PO文件由本地化导出文本步骤生成，并通过本地化导入文本步骤重新导入到存档中。
+
+
+
+*   PO是一种常见格式，可以手动在本地编辑，可以通过[Poedit](https://poedit.net/)等翻译工具在本地编辑，还可以通过[OneSky](https://www.oneskyapp.com/)或[XLOC](http://www.xloc.com/)等工具协作在本地编辑。
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+*   存档是自定义JSON文件，用于存储收集到清单中的文本的每种文化翻译。
+
+*   每次运行本地化收集或导入步骤以移除旧源的条目时，都会对存档进行整理。
+
+*   存档可以手动编辑，但我们强烈建议您不要手动编辑。我们推荐的工作流程是编辑导出的PO文件，然后再重新导入。
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+*   清单是自定义JSON文件，存储本地化管道从源代码和资源中收集的所有文本。
+
+*   每次运行本地化收集步骤时都会重新生成清单，不应该手动编辑。
+
+[/EXCERPT:excerpt_1]
+-->
+
+本地化目标还会指定一种“原生”语言，应该将其设置为编写内容（通常称为“源文本”或“源数据”）所使用的文化。
+
+原生文化可以像任何其他文化一样包含“翻译”，尽管原生文化翻译的存在只是为了方便复制编辑源文本，而不直接编辑源代码或资源。
+
+外国语言使用原生语言文本作为翻译的源文本，如果更改了原生语言文本，外国语言会变成“旧”状态（本地化编译步骤中有一个设置允许使用旧翻译）。
+
+有关优化本地化管道的更多信息，请参阅[管道优化](Gameplay/Localization/LocalizationPipelineOptimization)。
+
+(#packaginglocalizationdata)
+
+## 打包本地化数据
+
+若要为您的项目打包正确的本地化和国际化数据，需要在您的 **项目设置（Project Settings）** 的高级 **打包（Packaging）** 部分中调整一些设置。
+
+您需要验证的两个设置是：
+
+*  **要打包的本地化（Localizations to Package）** \- 使用该设置，您可以选择要为哪些文化暂存本地化数据。您可以使用 **显示本地化文本（Show Localized）** 选项来过滤列表，以仅显示您有“LocRes”文件的文化。
+
+*   **国际化支持（Internationalization Support）** \- 使用该设置，您可以选择要暂存的ICU国际化数据集。该选项必须与要暂存的本地化数据一致。

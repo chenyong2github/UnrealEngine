@@ -8,10 +8,8 @@ order:9
 topic-image:exp_ref_topic.png
 type:overview
 tags:Materials
+hero-image:compendium.png
 
-[REGION:banner]
-![Materials Compendium](compendium.png)
-[/REGION]
 
 [TOC (start:2 end:3)]
 
@@ -313,7 +311,7 @@ This list exists as a mere convenience for those who would like to bookmark this
 
 [**Custom**](Engine/Rendering/Materials\ExpressionReference\Custom)
 [REGION:indentedlist]
-* [Custom](Engine/Rendering/Materials\ExpressionReference\Custom#Custom)
+* [Custom](Engine/Rendering/Materials\ExpressionReference\Custom)
 [/REGION]
 
 

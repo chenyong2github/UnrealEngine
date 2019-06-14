@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3454749
+﻿INTSourceChangelist:6341512
 Availability:public
 Title:2 - 您的角色 - 创建阴影物理资源
 Crumbs:
@@ -7,7 +7,7 @@ SkillLevel:Intermediate
 Version:4.15
 checkpoint: capsuleshadowsqs
 parent:Engine/Rendering/LightingAndShadows/CapsuleShadows/QuickStart
-Prereq:Engine/Physics/PhAT/HowTo/
+Prereq: Engine/Physics/PhysicsAssetEditor/HowTo/
 type:quick start
 order:2
 tags:Lighting
@@ -34,7 +34,7 @@ tags:Lighting
 	仅限使用长菱体，以获得最佳效果。也可使用球体，但结合角色骨架网格体使用时不够灵活。
 	[/REGION]
 
-1. 之后，[物理资源工具](Engine/Physics/PhAT)（PhAT）将打开骨架网格体 `SK_Mannequin` 的新物理资源。 
+1. 之后，[物理资源工具](Engine/Physics/PhysicsAssetEditor)（PhAT）将打开骨架网格体 `SK_Mannequin` 的新物理资源。 
 
 	![](PA_Character.png)(w:500)
 

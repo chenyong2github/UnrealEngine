@@ -1,8 +1,11 @@
 Availability:Public
 Title: Animation Node Technical Guide
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description: Guide to creating new nodes for use within graphs in Anim Blueprints.
-Version: 4.9
+Type:reference
+Version: 4.22
+Parent:Programming
+Tags:Animation
+Tags:Programming
 
 [REGION:banner]
 ![Anim Nodes](animnodes_banner.png)(convert:false)
@@ -51,14 +54,14 @@ A node can have a single pose input:
 	UPROPERTY(Category=Links)
 	FPoseLink BasePose;
 
-![Pose Input Pin](node_posepin.png)
+![Pose Input Pin](node_Rotate_Root_Bone-Base_Pose_callout.png)
 
 **Component Space**
 
 	UPROPERTY(Category=Links)
 	FComponentSpacePoseLink ComponentPose;
 
-![Pose Input Pins](node_posepin_component.png)
+![Pose Input Pins](node_Spring_Controller-Component_Pose_callout.png)
 [REGION:caption]
 	Component space pose pins are shaded blue.
 [/REGION]
@@ -71,7 +74,7 @@ Or, more than one input for nodes that blend between multiple animations:
 	UPROPERTY(Category=Links)
 	FPoseLink Additive;
 
-![Pose Input Pins](node_posepin_multiple.png)
+![Pose Input Pins](node_Apply_Additive_default-Base_Additive_Callout.png)
 
 Each of these properties will cause a pose link to be displayed. Properties of this type are always 
 exposed as input pins. They cannot be optionally hidden or used only as editable properties in the 
@@ -81,12 +84,12 @@ exposed as input pins. They cannot be optionally hidden or used only as editable
 
 Animation nodes can have any number of properties, such as an alpha or transformation data, that are used 
 to perform the operations of the node. These properties are declared just like any other property, using 
-the `UPROPERTY()` macro.
+the `UPROPERTY` macro.
 
 	UPROPERTY(Category=Settings, meta(PinShownByDefault))
 	mutable float Alpha;
 
-![Property Pin](node_propertypin.png)
+![Property Pin](node_Apply_Additive_default-Alpha_callout.png)
 
 Properties of animation nodes can be exposed as data inputs using special metadata keys to allow values to 
 be passed to the node. This allows properties used by the node to use values calculated outside the node. 
@@ -102,11 +105,11 @@ The following metadata keys are available:
 (#OptionalPins)
 **Optional Pins**
 [REGION:none]
-	For properties with `PinHiddenByDefault` or `PinShownByDefault`, a check box will show up next 
-	to the property in the **Details** panel, allowing you to show or hide it.
+	For properties with `PinHiddenByDefault` or `PinShownByDefault`, the eye icon shows up next 
+	to the Alpha property in the **Details** panel, allowing you to show or hide it.
 [/REGION]	
 [REGION:none]
-	![Property Details](node_property_details.png)
+	![Property Details](node_Options-Alpha_pin_callout.png)
 [/REGION]
 
 ## Editor Node
@@ -121,10 +124,10 @@ The editor-time class should contain an instance of your runtime node exposed as
 
 ### Title
 
-![Node Title](node_title.png)
+![Node Title](node_Apply_Additive_default-title_callout.png)
 
 The background color and text of the title of the animation node displayed in the graph of the Animation Blueprint in 
-Persona are defined by overriding the `GetNodeTitle()` and `GetNodeTitleColor()` functions.
+Persona are defined by overriding the `GetNodeTitle` and `GetNodeTitleColor` functions.
 
 For example, the `UAnimGraphNode_ApplyAdditive` node uses a gray background and displays "Apply Additive":
 
@@ -140,11 +143,11 @@ For example, the `UAnimGraphNode_ApplyAdditive` node uses a gray background and 
 
 ### Tooltip
 
-![Node Tooltip](node_tooltip.png)
+![Node Tooltip](node_Apply_Additive_hover_callout.png)
 
-The tooltip displayed when hovering over the node in Persona is defined by overriding the `GetTooltip()` function:
+The tooltip displayed when hovering over the node in Persona is defined by overriding the `GetTooltip` function:
 
-	FString UAnimGraphNode_ApplyAdditive::GetTooltip() const
+	FString UAnimGraphNode_ApplyAdditive::GetTooltip const
 	{
 		return TEXT("Apply additive animation to normal pose");
 	}
@@ -152,10 +155,10 @@ The tooltip displayed when hovering over the node in Persona is defined by overr
 ### Context Menu
 
 Each animation node can add node-specific options to the context menu displayed when **Right-clicking** on the 
-node in a graph in Persona. Options are added using the `GetContextMenuActions()` function which is a 
+node in a graph in Persona. Options are added using the `GetContextMenuActions` function which is a 
 member of all Blueprint nodes.
 
-![Node Context Menu Entry](node_menu.png)
+![Node Context Menu Entry](node_node_actions-context_callout.png)
 
 For example, the `UAnimGraphNode_LayeredBoneBlend` node adds menu entries for adding a new input or removing an existing one:
 

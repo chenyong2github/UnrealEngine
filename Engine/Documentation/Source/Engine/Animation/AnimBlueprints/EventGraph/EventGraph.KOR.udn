@@ -1,48 +1,53 @@
-﻿INTSourceChangelist:3226913
-Availability:Public
-Title:이벤트 그래프
-Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/AnimBlueprints
-Description:애님 그래프에서 사용할 값을 계산하고 애니메이션 블루프린트를 업데이트하는 데 사용되는 이벤트 기반 그래프입니다.
-related:Engine\Animation\AnimBlueprints
-related:Engine\Animation\AnimBlueprints\AnimGraph
-related:Engine\Animation\AnimBlueprints\Interface
-related:Engine\Animation\AnimBlueprints\Creation
-version: 4.14
-type:reference
-topic-image:EventGraphTopic.png
-tags:Animation
-tags:Animation Blueprint
-tags:Blueprints
+INTSourceChangelist:6413578
+Availability: Public
+Title: 이벤트 그래프
+Description: 애님 그래프에서 사용할 값을 계산하고 애니메이션 블루프린트를 업데이트하는 데 사용되는 이벤트 기반 그래프입니다.
+Type: reference
+Version: 4.14
+Parent: Engine/Animation/AnimBlueprints
+Tags: Blueprints
+Tags: Animation
+Tags: Animation Blueprint
+topic-image: EventGraphTopic.png
 
-[TOC(start:2 end:3)]
 
-[EXCERPT:Intro]
-모든 애니메이션 블루프린트에는 하나의 **EventGraph** (이벤트 그래프)가 있는데, 이는 노드 시퀀스 초기화용 특수 애니메이션 관련 이벤트 모음을 사용하는 
-표준 [그래프](Engine/Blueprints/Editor/UIComponents/GraphEditor) 입니다. 이벤트 그래프가 가장 흔하게 사용되는 곳은 
-애님 그래프 안의 애니메이션 구동을 위해 [블렌드 스페이스](Engine/Animation/Blendspaces) 나 다른 블렌드 노드가 사용하는 값을 업데이트할 때입니다.
-[/EXCERPT:Intro]
-		
-![EventGraph](eventgraph.png)
+[TOC (start:2 end:3)]
 
-사용 예제로 애니메이션 블루프린트의 이벤트 그래프는 소유중인 폰의 속도를 사용하여 방향과 속력을 결정할 수 있습니다. 그 후 이 두 값을 애님 그래프 내 블렌드 스페이스 속으로 가는 입력으로 사용하여 빈둥(idle) 애니메이션과 여러 방향 이동 애니메이션을 블렌딩할 수 있습니다. 
-비슷하게 소유중인 폰의 핏치와 요를 다른 블렌드 스페이스로의 입력으로 사용하여, 앞서 언급한 이동 애니메이션을 유지하면서 바라보는 곳을 메시가 조준하게 하기 위해 더하기 식으로 조준 포즈를 블렌딩할 수도 있습니다.
+모든 애니메이션 블루프린트에는 하나의 **EventGraph** (이벤트 그래프)가 있는데, 이는 노드 시퀀스 초기화용 특수 애니메이션 관련 이벤트 모음을 사용하는 표준 [그래프](Engine/Blueprints/Editor/UIComponents/GraphEditor) 입니다. 이벤트 그래프가 가장 흔하게 사용되는 곳은 애님 그래프 안의 애니메이션 구동을 위해 [블렌드 스페이스](Engine/Animation/Blendspaces) 나 다른 블렌드 노드가 사용하는 값을 업데이트할 때입니다.
+
+![Graph Panel](k2_graphview.png)
 
 ## 애니메이션 이벤트
 
 애니메이션 시스템이 애니메이션 블루프린트 초기화 및 업데이트를 위해 호출하는 다양한 이벤트입니다. 이벤트 그래프에 배치하여 함수성 구현 또는 덮어쓰기 가능합니다.
 
-
 ### 블루프린트 애니메이션 초기화
 
-[INCLUDE:Engine/Animation/NodeReference/Events#Initialize]
+**Blueprint Initialize Animation** (블루프린트 애니메이션 초기화) 이벤트는 연산 초기화를 위해 _애니메이션 블루프린트_ 인스턴스가 생성될 때 한 번 실행됩니다.
 
+![Initialize Anim Event](event_initializeanim.png)
+
+[REGION:simpletable]  
+| 핀 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**출력 핀**[/REGION] ||
+| Exec (Blank) | 코드에서 `BlueprintInitializeAnimation()` 이벤트가 실행되면 각 프레임마다 한 번 호출됩니다. |
+[/REGION]
 
 ### 블루프린트 애니메이션 업데이트
 
-[INCLUDE:Engine/Animation/NodeReference/Events#Update]
+**Blueprint Update Animation** (블루프린트 애니메이션 업데이트) 이벤트는 _애니메이션 블루프린트_ 에 필요한 값 계산이나 업데이트를 할 수 있도록 하기 위해 매 프레임 실행되는 이벤트입니다. 이 이벤트는 EventGraph 의 업데이트 루프 도입부입니다. **DeltaTimeX** 핀을 통해 지난 업데이트 이후 경과한 시간을 알 수 있어, 시간에 관계된 보간이나 점증식 업데이트 작업을 할 수 있습니다.
 
-[REGION:note]
-일반 블루프린트 스크립팅 정보에 대해서는 [](Engine/Blueprints/Scripting) 문서를, 노드 기반 그래프 명령에 대해서는 [](Engine/Blueprints/Editor/UIComponents/GraphEditor) 문서를 참고하시기 바랍니다.
+![Update Anim Event](event_updateanim.png)
+
+[REGION:simpletable]  
+| 핀 | 설명 |
+| --- | --- |
+| [REGION:tablesection]**출력 핀**[/REGION] ||
+| Exec (Blank) | 코드에서 `BlueprintUpdateAnimation()` 이벤트가 실행되면 각 프레임에 한 번 발동됩니다. |
+| Delta Time X | 지난 실행 주기 이후 경과된 시간을 출력합니다. |
 [/REGION]
 
+레벨 블루프린트의 **이벤트 그래프** 에는 이벤트와 함수 호출을 사용해서 게임플레이 이벤트 반응 동작을 수행하는 노드 그래프가 있습니다. 이를 사용해서 레벨 전체에 대한 이벤트를 처리하고 월드 내 블루프린트와 액터 특정 인스턴스에 대한 함수 기능을 추가할 수 있습니다.
 
+어떤 경우든, **이벤트 그래프** 를 사용해서 하나 이상의 이벤트를 엔트리 포인트 역할로 추가한 뒤, Function Calls, Flow Control 노드 및 변수를 연결하여 원하는 동작을 만듭니다.

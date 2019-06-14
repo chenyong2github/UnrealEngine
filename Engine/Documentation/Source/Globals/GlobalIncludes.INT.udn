@@ -14,94 +14,18 @@ Description:
 
 
 [VAR:OSSelect]
-[REGION:section]
-	[REGION:titlesection]
-	Choose Your Operating System
-	[/REGION]
-	[OBJECT:ToggleButton]
-		[PARAMLITERAL:category]
-		OS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:id]
-		windows
-		[/PARAMLITERAL]
-		[PARAMLITERAL:active]
-		active_button
-		[/PARAMLITERAL]
-		[PARAM:label]
-		Windows
-		[/PARAM]
-	[/OBJECT]
-	[OBJECT:ToggleButton]
-		[PARAMLITERAL:category]
-		OS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:id]
-		mac
-		[/PARAMLITERAL]
-		[PARAMLITERAL:active]
-		[/PARAMLITERAL]
-		[PARAM:label]
-		Mac OS
-		[/PARAM]
-	[/OBJECT]
-[/REGION]
 [/VAR]
 
 [VAR:OSSelect_Linux]
-[REGION:section]
-	[REGION:titlesection]
-	Choose Your Operating System
-	[/REGION]
-	[OBJECT:ToggleButton]
-		[PARAMLITERAL:category]
-		OS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:id]
-		windows
-		[/PARAMLITERAL]
-		[PARAMLITERAL:active]
-		active_button
-		[/PARAMLITERAL]
-		[PARAM:label]
-		Windows
-		[/PARAM]
-	[/OBJECT]
-	[OBJECT:ToggleButton]
-		[PARAMLITERAL:category]
-		OS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:id]
-		mac
-		[/PARAMLITERAL]
-		[PARAMLITERAL:active]
-		[/PARAMLITERAL]
-		[PARAM:label]
-		Mac OS
-		[/PARAM]
-	[/OBJECT]
-	[OBJECT:ToggleButton]
-		[PARAMLITERAL:category]
-		OS
-		[/PARAMLITERAL]
-		[PARAMLITERAL:id]
-		linux
-		[/PARAMLITERAL]
-		[PARAMLITERAL:active]
-		[/PARAMLITERAL]
-		[PARAM:label]
-		Linux
-		[/PARAM]
-	[/OBJECT]
-[/REGION]
 [/VAR]
 
 
 [VAR:DCCSelect]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose Your 3D Art Tool
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		DCC
@@ -129,15 +53,17 @@ Description:
 		Autodesk 3ds Max
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 
 
 [VAR:BinarySourceSelectVar]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose your installation method:
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		BinarySourceSelect
@@ -165,15 +91,17 @@ Description:
 		Compiling from Source
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 
 
 [VAR:BlueprintOrCPPSelectVar]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose your implementation method:
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		BlueprintOrCPPSelect
@@ -201,14 +129,16 @@ Description:
 		C++
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 
 [VAR:BlueprintOrPythonSelectVar]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose your implementation method:
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		BlueprintOrCPPSelect
@@ -236,14 +166,16 @@ Description:
 		Python
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 
 [VAR:MobileSelect]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose Your mobile platform
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		Platform
@@ -271,14 +203,16 @@ Description:
 		iOS
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 
 [VAR:VRSelect]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose Your VR platform
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		VRPlatform
@@ -332,14 +266,16 @@ Description:
 		Steam VR
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 
 [VAR:MethodSelect]
-[REGION:section]
-	[REGION:titlesection]
+[REGION:togglesection]
+	[REGION:normaltitle]
 	Choose Implementation Method
 	[/REGION]
+	[REGION:toggleButtons]
 	[OBJECT:ToggleButton]
 		[PARAMLITERAL:category]
 		Method
@@ -367,6 +303,7 @@ Description:
 		Method 2
 		[/PARAM]
 	[/OBJECT]
+	[/REGION]
 [/REGION]
 [/VAR]
 

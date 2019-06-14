@@ -1,0 +1,69 @@
+Availability: Public
+Title: Real-Time Compositing with Sequencer
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: multi-step
+Parent: Engine/Composure
+Tags: Early Access
+Tags:Getting Started
+Order: 2
+reference-image:image1.gif
+reference-image:image4.gif
+
+[TOC (start:2 end:4)]
+
+[Sequencer](Engine/Sequencer/Overview), our in-engine cinematic editor, can be used in conjunction with the Composure compositing system.   
+
+[REGION:asyncgif]
+![](image1.gif "image1.gif")
+[/REGION]
+
+Primarily, Sequencer can be used to: 
+
+1.  Control the scene camera (referenced by the compositing system).
+
+1.  Render out composites and their contributing pieces, including Arbitrary Output Values (AOVs). This can be useful for compositing outside of the engine.
+
+## Rendering Out Elements and AOVs
+
+Any Composure element can be added to a sequence to indicate that its output should be exported when rendering out the sequence using the **Render Movie Settings** dialog with the **ComposureExport** output format.
+
+![](image2.png "image2.png")
+
+When such elements are rendered as part of this process, their final output will be written out to disk as an EXR image using the filename format specified in the dialog. Additional format specifiers can be included in the directory and filename options for the **{element}** and **{pass}**.
+[REGION:note]
+When multiple elements are included for **Export Output** in Sequencer, they will write over the same image file if **{element}** is not included in the name.
+[/REGION]
+
+![](image3.png "image3.png")
+
+Additional AOVs to be exported with each element can be specified on each element by configuring the **Buffers to Export** on any CG Capture.
+
+[REGION:asyncgif]
+![](image4.gif "image4.gif")
+[/REGION]
+
+Custom AOVs may be implemented by adding new Buffer Visualization materials, and adding them to the `[Engine.BufferVisualizationMaterials]` config section with the following format:
+
+`CustomAOV=(Material="/Game/AOVs/CustomAOV.CustomAOV", Name=LOCTEXT("CustomAOV", "CustomAOV"))`
+
+## Compositing with Sequencer
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:videoid]
+    4zWPlcnJ5is
+    [/PARAMLITERAL]
+    [PARAMLITERAL:width]
+    78
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+[/OBJECT]
+
+

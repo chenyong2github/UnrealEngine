@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6409500
 Availability:Public
 Title: Actor和几何体
 Crumbs:%ROOT%, Engine
@@ -8,12 +8,7 @@ parent:Engine/Editor
 order:5
 type:landing
 topic-image:Engine/Actors/Placement/actorplacement_topic.png
-track:LevelDesign_Beginner|7
-
-
-[REGION:banner]
-![](actorBanner.png)
-[/REGION]
+hero-image:actorBanner.png
 
 [COMMENT:none]
  在最基本的关卡中，[**Actor**](Gameplay/UnrealTerminology)是你能够放置的任意游戏性对象，或关卡中的[衍生物/示例](Gameplay/HowTo/SpawnAndDestroyActors)。虚幻引擎4会自从处理最常见的情况，例如当你从 **内容浏览器** 中拖曳一个静态网格体到关卡中，你将获得一个 **静态网格体Actor**。
@@ -26,12 +21,11 @@ track:LevelDesign_Beginner|7
 
 这涉及到几部分操作：放置Actor、选择Actor、调整Actor位置、修改Actor。换句话说，要创建关卡，就需要把Actor放到地图中并各处摆放来创建环境，并按需要修改它们的属性。
 
-(#WorkingwithActors)
 ## 使用Actor
 
-[DIR(output:"topic" parent:"Engine/Actors" org:"hierarchy" end:"1")]
+[DIR(output:"topic" parent:"Engine/Actors" org:"hierarchy" end:"1" path:"!Engine/Actors/Types")]
 
-(#ActorTypes)
 ## Actor类型
 
+%Engine/Actors/Types:topic%
 [DIR(output:"topic" parent:"Engine/Actors/Types")]

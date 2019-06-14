@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6341512
 Availability:NoPublish
 Title:UBodySetup RTTs
 Crumbs:
@@ -7,7 +7,7 @@ Crumbs:
 
 본 이름 - 이 피직스 바디와 연관된 본의 이름입니다. 블루프린트 작업시 피직스 애셋 내 본의 피직스 바디에 접근하기 위해서는 본 이름을 넣어줘야 합니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:BoneName]
@@ -19,7 +19,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 바운드 고려 - 스켈레탈 메시의 바운드를 계산하는 데 피직스 애셋 내 각 피직스 바디를 사용할 수는 있지만, 그 피직스 바디마다 퍼포먼스 비용이 발생합니다. 많은 경우 올바른 적중 감지 보조용 (팔의 트위스트 본과 같은) 피직스 바디를 두거나, 스켈레탈 메시의 애니메이션이 일부 피직스 바디가 다른 피직스 바디에 의해 생성된 바운드를 절대 벗어나지 않도록 만들 수도 있습니다. 이러한 경우, 비효율적인 피직스 바디가 바운드 계산에 들어가는 기능을 꺼서 약간의 퍼포먼스 이득을 볼 수 있습니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:bConsiderForBounds]
@@ -35,7 +35,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 피직스 애셋 툴 안에서 디폴트와 (컨스트레인트가 있는) 비고정은 동일해 보입니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:PhysicsType]
@@ -48,7 +48,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 심플 콜리전 피지컬 머티리얼 - 이 특정 피직스 바디에 대해 심플 콜리전(, 즉 구체, 박스, 스필린더와 같은 기본 피직스 모양이나 컨벡스 헐이 포함된 콜리전)에 사용할 피지컬 머티리얼을 덮어씁니다. 이를 통해 특정 피직스 바디에 좀 더 고무같은 속성의 신발을 정의한다던가 하는 다른 속성을 줄 수 있습니다. 아니면 하나의 피직스 바디가 메탈 바디 갑옷을 포괄하는 경우, 같은 속성을 가질 수도 있습니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:PhysMaterial]
@@ -61,7 +61,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 이 피직스 바디에 대한 Walkable Slope (보행가능 경사면) 세팅을 덮어씁니다. 어느 정도까지의 각도를 걸어갈 수 있도록 할 것인지 자체적으로 설정할 수 있습니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:WalkableSlopeOverride]
@@ -78,7 +78,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 이 탈것의 뒷바퀴에는 Collision Response 옵션이 꺼져 있습니다.
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:CollisionReponse]

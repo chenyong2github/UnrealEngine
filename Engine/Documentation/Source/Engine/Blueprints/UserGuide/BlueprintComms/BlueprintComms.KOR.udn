@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:블루프린트 직접 통신
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/UserGuide
@@ -70,7 +70,7 @@ topic-image:Engine/Blueprints/UserGuide/direct_comm_topic.png
 
 ![](ToggleLight.png)
 [REGION:caption]
-위에서, **F** 키가 눌리면, **ToggleLight** 함수를 호출하되, 타깃은 공개 노출된 변수로 합니다.
+위에서, **F** 키가 눌리면, **ToggleLight** 함수를 호출하지만, 타깃은 공개 노출된 변수로 합니다.
 [/REGION]
 
 

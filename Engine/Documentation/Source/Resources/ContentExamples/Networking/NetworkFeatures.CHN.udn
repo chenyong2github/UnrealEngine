@@ -1,80 +1,61 @@
-﻿Availability: Public
-Title:网络特性内容实例
-Crumbs: %ROOT%, Resources
-Description:在网络特性内容实例地图中提供的样本概述。
+INTSourceChangelist:3782314
+Availability: Public
+Title:联网内容示例
+Crumbs:%ROOT%, Resources, Resources/ContentExamples
+Description:网络功能内容示例图中提供的示例概述。
+Related: Gameplay/Networking
+Related: Gameplay/Networking/Actors/Components
+Related: Gameplay/Networking/Actors
+Related: Gameplay/Networking/Actors/RPCs
+Related: Engine/UI/LevelEditor/InEditorTesting/NetworkedPlayInEditor
+Version: 4.9
+topic-image:Blueprint_Networking_Compact.png
+
 
 [REGION:banner]
 ![](NetworkFeatures_Header.png)(convert:false)
 [/REGION]
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/ContentExamples/Networking:title%](Blueprint_Networking_Compact.png)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/Networking:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/Networking:description%
-	[/PARAM]
-	[PARAM:path]
-	[RELATIVE:Resources/ContentExamples/Networking]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/ContentExamples/Networking:title%](Blueprint_Networking_Compact.png)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/Networking:title%
-	[/PARAM]
-	[PARAM:path]
-	[RELATIVE:Resources/ContentExamples/Networking]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
 
 [TOC(start:2 end:3)]
 
 
-## 概述
-在 **Content Examples** （内容示例）项目中的 **Network_Features** （网络特性）地图展现了如何通过蓝图完全实现网络功能。 它在 **Replication** （复制）中提供了关键实例，这些实例包括了可以在Actors上进行设置的 **Replicates** （复制）布尔值，检测 **Network Authority** （网络授权）并基于该授权端执行不同的逻辑，使用 **Variable Replication** （变量复制）以及它如何在游戏中进行使用，使用 **RepNotify** 的变量复制对基于复制的变量更新执行逻辑，以及使用 **Function Replication** （函数复制）来处理非关键游戏要素或"一次性"的事件。
 
-地图的另一部分提供了关于 **Relevancy** （关联性）的观点，以及如何正确处理在服务器和客户端间的信息沟通。 很多情况下，服务器并不需要把每条信息都要传送到每个客户端中（例如，在地图一侧的玩家不需要了解在地图另一侧的玩家打开宝箱的事情）。 然而有时会产生与该玩家产生关联性的情况（例如，如果该玩家移动到被打开的箱子的地图那侧），此地图中的内容实例将显示如何处理类似于此的情况以及如何处理玩家加入已在进行中的游戏的情况。 
+内容示例项目中的 **网络_功能** 图展示了如何通过蓝图全面实现网络功能。在它的 **复制（Replication）** 部分中提供了一些重要的示例，包括可以在 Actor 上设置的 **Replicates** 布尔吗，检测 **网络权限** 并根据权限执行不同的逻辑，**变量复制** 的用法及其在Gameplay中如何运用，变量复制中使用 **RepNotify** 根据对所复制变量进行的更新来执行逻辑，以及使用 **函数复制** 来处理非关键性Gameplay元素或“一次性”事件。
+
+该图中的其他部分提供了关于 **相关性** 的见解，以及如何正确处理服务器和客户端之间的往来信息交流。在很多时候，将无论什么信息都从服务器传递到每个客户端并无必要（例如，在地图一端的玩家不需要知道另一个玩家在地图另一端开了一个宝箱的事）。不过在有些情况下，这些信息可能变得对该玩家很重要（例如，该玩家从地图另一端移动到了打开的宝箱旁边），此图中的内容示例就将展示如何处理这类情况，以及如何处理玩家在会话进行时加入的情况。 
 
 [region:note]
-您可以通过点击各表格中示例的名称来找到关于示例是如何构建的额外资源。
+你可以单击相应表格中的示例名称，来找到关于示例构造的更多资源。
 [/region]
  |
 
 
+(#replication)
 ### 复制
-在 **复制** 部分的示例展示了在服务器和客户端间的信息沟通的合理方式以及何时采用不同的技术。 
+**复制（Replication）** 部分中的示例展示了在服务器和客户端之间正确交流信息的方法，以及应在何时应用不同的技巧。 
 
- 示例 |  展示的内容 |
+ 示例 | 展示的内容 |
 | ------- | ------------ |
-| **[1.1 Actor复制](Resources\ContentExamples\Networking\1_1)** | 在本实例中有两个Actors，一个是 **Replicated** （复制的），另一个不是（例如，同时出现在客户端/服务器的Actor，以及仅出现在服务器的Actor）。 |
-| **[1.2 检测蓝图中的网络权限和远程客户端](Resources\ContentExamples\Networking\1_2)** | 本实例中，蓝图基于 **Network Authority** （网络授权）执行不同的逻辑（例如，Actor基于服务器或客户端而进行不同的显示）。 |
-| **[1.3 变量复制](Resources\ContentExamples\Networking\1_3)** | 本示例展示了从服务器到客户端对生命值变量进行 **Replicating** （复制）的实例（例如，当服务器更新变量时，显示Actor的生命值并在客户端上进行更新）。 |
-| **[1.4 变量复制 (RepNotify)](Resources\ContentExamples\Networking\1_4)** | 本实例中，变量被标记为 **RepNotify** ，它在服务器和客户端上自动更新（例如，使用 **RepNotify** 变量的街道灯光可确保在服务器和客户端查看相同的内容）。  |
-| **[1.5 函数复制 (RPCs)](Resources\ContentExamples\Networking\1_5)** | 本示例中， **Replicated Function** （复制的函数）被用来在客户端或服务器按下按钮时进行通讯。 |
+| **[1.1 Actor复制](Resources\ContentExamples\Networking\1_1)** | 两个Actor的示例，其中一个是复制的，另一个不是（例如，一个Actor在客户端和服务器上都显示，而另一个只在服务器上显示）。|
+| **[1.2 在蓝图中检测网络权限和远程客户端](Resources\ContentExamples\Networking\1_2)** | 根据网络权限执行不同逻辑的蓝图示例（例如，Actor根据在服务器上查看还是在客户端上查看，会有不同的显示）。|
+| **[1.3 变量复制](Resources\ContentExamples\Networking\1_3)** | 将生命值变量从服务器复制到客户端的示例（例如，当服务器更新某个Actor的生命值变量时，在客户端上显示并更新该Actor的生命值）。|
+| **[1.4 变量复制（RepNotify）](Resources\ContentExamples\Networking\1_4)** | 标记为RepNotify的变量在服务器以及客户端上自动更新的示例（例如，街灯使用RepNotify变量来确保客户端和服务器都查看同一物体）。|
+| **[1.5 函数复制（RPC）](Resources\ContentExamples\Networking\1_5)** | 某个复制函数的示例，它用于通报服务器或客户端何时按下某个按钮的信息。|
 
 
-### 关联性
-在 **Relevancy** （关联性）部分展示的示例展现了如何处理在打开箱子时的 **Network Relevancy** （网络关联性）以及如何在服务器和客户端间沟通状态。 主要是解决了一个非常常见的问题，如何处理Actor一开始不关联并在随后成为关联的情况。 这和处理玩家加入存在的进行中的游戏的情况非常类似。
+(#relevancy)
+### 相关性
+**相关性（Relevancy）** 部分中显示的示例展示了如何处理打开宝箱的 **网络相关性** 并在服务器和客户端之间交流状态。它解决了一个非常普遍的问题，即如何处理某个Actor先是无关、后来又变为相关的情况。这与处理玩家在现有游戏进行过程中加入的问题非常相似。
 
-下方的示例提供了对以上所述问题的可能解决方案以及为何它们无法产生作用。 最终的示例通过混合多种技术而解决了此问题。 
+下面的示例提供了上述问题的可能解决方案，以及这些方案有效或无效的原因。最后一个示例通过运用多种技巧的混合解决方案解决了问题。 
 
-| 示例 |  展示的内容 |
+| 示例 | 展示的内容 |
 | ------- | ------------ |
-| **[2.1 网络关联性 - 根本未被复制](Resources\ContentExamples\Networking\2_1)** | 使用 **No Replication** （无复制）的相关性示例（例如，服务器打开箱子，客户端不认为箱子已打开）。  |
-| **[2.2 	网络关联性 - 函数复制解决方案的尝试](Resources\ContentExamples\Networking\2_2)** | 如何使用 **Function Replication** （函数复制）的相关性示例 (例如，在服务器侧打开了箱子，但客户端不认为箱子已打开，并在移近它时不认为它已打开)。 |
-| **[2.3 	网络关联性 - 变量复制解决方案的尝试](Resources\ContentExamples\Networking\2_3)** | 如何使用 **Variable Replication** （变量复制）的相关性示例 。例如，在服务器侧打开了箱子，但客户端不认为箱子已打开，但在移近它时认为它已打开。 粒子特效也会播放，由于此盒体在之前由另一个玩家打开过，因此对此实例不需要这样。 |
-| **[2.4 网络关联性 - 组合方案](Resources\ContentExamples\Networking\2_4) ** | 使用组合方式的关联性示例，包括使用 **Function Replication** （函数复制）来播放与开箱关联的特效，并使用 **Replicated Variable** （复制变量）来保存箱子的状态以及其是否已打开。 |
+| **[2.1 网络相关性——完全不复制](Resources\ContentExamples\Networking\2_1)** | 一个相关性示例，在其中使用“不复制”方法（例如，当服务器打开宝箱时，客户端不会看到宝箱被打开）。|
+| **[2.2 网络相关性——函数复制解决方案尝试](Resources\ContentExamples\Networking\2_2)** | 一个相关性示例，在其中使用“函数复制”方法（例如，服务器打开宝箱，客户端不会看到宝箱打开，移动到宝箱附近时也不会看到它打开）。|
+| **[2.3 网络相关性——变量复制解决方案尝试](Resources\ContentExamples\Networking\2_3)** | 一个相关性示例，在其中使用“变量复制”方法（例如，服务器打开宝箱，客户端不会看到宝箱打开，但移动到宝箱附近时会看到它打开。此时还会播放粒子效果，而在这个示例中这是我们不希望看到的，因为宝箱先前已经被另一个玩家打开了）。|
+| **[2.4 网络相关性——综合解决方案](Resources\ContentExamples\Networking\2_4)** | 一个相关性示例，在其中既使用了函数复制来播放与打开宝箱相关的效果，也使用了复制的变量来保存宝箱的状态和它是否已被打开的信息。|
 
 
 

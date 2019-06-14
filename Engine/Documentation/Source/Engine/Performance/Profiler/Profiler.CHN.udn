@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2956400
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:分析工具参考 
 Crumbs: %ROOT%, Engine, Engine/Performance
@@ -34,6 +34,7 @@ Parent:Engine/Performance
 也可从 **C:\Program Files\Unreal Engine\4.3\Engine\Binaries\Win64** 文件夹运行单独的 **UnrealFrontEnd.exe**，以便访问 **Session FrontEnd** 和 **Profiler** 标签。（注意：上述路径中的版本号与您实际的版本号可能不一致）。
 [/REGION]
 	
+(#ProfilerWindow)
 ## 分析工具窗口
 
 下图即为 **Profiler** 窗口和 UI 组件： 
@@ -52,6 +53,7 @@ _点击图片查看全图。_
 6. **事件图表** 窗口 - 以事件图表显示所选帧。 
 
 
+(#MainToolbar)
 ## 主工具栏
 
 ![](Profiler_MainToolbar.png)
@@ -73,6 +75,7 @@ _点击图片查看全图。_
 **数据采集** 文件保存在下列路径中 **...\UE4\Engine\Programs\UnrealFrontend\Saved\Profiling\UnrealStats\Received\...**
 [/REGION]
 
+(#FiltersandPresets)
 ## 过滤和预设
 
 ![](FilterPresetsWindow.png)
@@ -90,6 +93,7 @@ _点击图片查看全图。_
 | ![](Icon_Int.png) | 切换显示整数 stats、字计数器和累加器。 |
 | ![](Icon_Mem.png) | 切换显示内存 memory stats (**此选项功能仍在完善中**). |
 
+(#HowtoTrackStats)
 ### 如何追踪 Stats
 
 追踪 stats 的方法有三种： 
@@ -111,6 +115,7 @@ _点击图片查看全图。_
 _上图的 **Audio** 群组中存在 11 个项目，有 1 个正被追踪。_ 
 
 
+(#DataGraph)
 ## 数据图表
 
 **数据图表** 视图显示所有被追踪的 stats。在 stats 的文本前按下（X）按钮即可停止追踪 stat。 
@@ -151,6 +156,7 @@ Stat 的文本包含下列信息，详解如下：
 * **Select All Frames** - 此选项可选中所有帧并更新 **事件图表视图**。 
 * **Live Preview** - 此选项与主工具栏中的选项相同。 
 
+(#EventGraph)
 ## 事件图表
 
 ![](EventGraphView.png)
@@ -162,6 +168,7 @@ Stat 的文本包含下列信息，详解如下：
 1. **函数细节** - 所选事件/函数的细节视图。 
 1. **主事件图表** - 所选单帧或多帧的层级视图。 
 
+(#EventGraphToolbar)
 ### 事件图表工具栏
 
 [REGION:fullwidth]
@@ -185,6 +192,7 @@ Stat 的文本包含下列信息，详解如下：
 | ![](EG_Icon_HistoryMenu.png) | 显示操作历史菜单。 |
 | ![](EG_Icon_HotPath.png) | 基于包含时间展开所选事件的热路径，并启用按包含时间进行的降序排序（这是性能消耗最高的路径）。 |
 
+(#FunctionDetails)
 ### 函数细节
 **函数细节** 显示用户所选函数/事件和执行所选函数/事件的调用函数之间的关系。这些关系通过按钮展示（这些按钮根据百分比数值相应缩放）。 
 
@@ -201,6 +209,7 @@ Stat 的文本包含下列信息，详解如下：
 在 ![](Icon_Tag.png) 图标上悬停鼠标即可显示项目的额外信息。
 [/REGION]
 
+(#MainEventGraph)
 ### 主事件图表
 
 [REGION:fullwidth]

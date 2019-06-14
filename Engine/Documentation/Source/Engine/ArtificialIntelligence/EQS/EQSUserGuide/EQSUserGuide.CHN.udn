@@ -1,0 +1,117 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:场景查询系统用户指南
+Description:场景查询系统用户指南的占位页面。 
+Type: overview
+Version:4.21
+Parent:Engine/ArtificialIntelligence/EQS
+Tags:Experimental
+Tags:AI
+Tags:EQS
+Tags:Environment Query System
+Tags:EQS Essentials
+topic-image:EQS_UserGuide_Image.png
+social-image:EQS_UserGuide_Image.png
+topic-icon:EQS_UserGuide_Image.png
+Order:2
+
+
+[TOC (start:2 end:2)]
+
+本页面讲述了启用、创建和编辑场景查询系统（EQS）资源的常规工作流程。 
+
+## 启用EQS
+
+在使用EQS之前，需要从 **编辑器首选项（Editor Preferences）** 菜单将其启用。
+
+*   在 **编辑器首选项（Editor Preferences）> 试验性（Experimental）> AI** 部分，启用 **场景查询系统（Environmental Query System）** 选项。  
+    
+	![](EQSUG_EnableEQS.png "EQSUG_EnableEQS.png")
+
+## 创建EQS查询
+
+创建EQS资源的方法： 
+
+1.  在 **内容浏览器** 中单击 **新增（Add New）** 按钮，然后在 **AI（Artificial Intelligence）** 下面选择 **场景查询（Environment Query）**。   
+    
+	![](EQSUG_CreateEQSAsset.png "EQSUG_CreateEQSAsset.png")  
+    
+
+1.  输入新EQS资源的名称。   
+    
+	![](EQSUG_EnterEQSName.png "EQSUG_EnterEQSName.png")  
+    
+[REGION:note]
+除场景查询外，还可以在内容浏览器中创建自定义[生成器](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators#customgenerators)和[情境](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceContexts#envquerycontext_blueprintbase)蓝图资源。
+[/REGION]
+
+## 编辑EQS查询
+
+在EQS资源中，可以使用[生成器](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators)来生成将要测试和加权的位置或Actor，提供[情境](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceContexts)或参考框架，并进行[测试](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceTests)来决定生成器产生的哪个项目（Item）是最佳选择。下节将说明如何在EQS资源中创建它们。
+
+添加生成器的方法：
+
+*   在EQS图表中右键单击，然后选择需要的生成器类型。  
+    
+	![](EQSUG_AddGenerator.png "EQSUG_AddGenerator.png")  
+    
+	添加生成器之后，拖出Root节点，把它连接到你的生成器。   
+    
+	![](EQSUG_ConnectGenerator.png "EQSUG_ConnectGenerator.png")  
+
+    [REGION:note]
+    虽然可以将多个生成器连接到Root，但查询中只会使用最左侧的生成器。
+    [/REGION]
+    
+
+添加测试的方法：
+
+*   右键单击生成器，并选择要添加的测试。   
+    
+	![](EQSUG_AddTest.png "EQSUG_AddTest.png")  
+    
+	添加测试后，它将出现并连接到生成器。选择测试，在 **细节（Details）** 面板中调节其属性。   
+    
+	![](EQSUG_AddTestDetails.png "EQSUG_AddTestDetails.png")
+
+定义情境的方法：
+
+*   在测试的 **细节（Details）** 面板中，将 **EnvQueryContext** 更改为需要的情境。   
+    
+	![](EQSUG_Context.png "EQSUG_Context.png")  
+    
+	[REGION:note]
+    属性名称可能根据测试类型而变化。请参见[测试](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceTests)了解更多信息。
+    [/REGION]
+    
+
+## 预览EQS查询
+
+可以在编辑器中预览EQS查询的结果，会以调试球体显示加权/过滤后的结果。 
+
+![](EQSUG_Preview.png "EQSUG_Preview.png")
+
+在上图中，我们调试了一个EQS查询，它返回了能看到关卡中角色的一个位置。 
+
+[REGION:note]
+欲知更多信息，请参见[AI调试](Engine/ArtificialIntelligence/AIDebugging)或[EQS测试Pawn](Engine/ArtificialIntelligence/EQS/EQSTestingPawn)。
+[/REGION]
+
+## 将EQS用于行为树
+
+创建EQS查询后，可以在[行为树](Engine/ArtificialIntelligence/BehaviorTrees)中将查询作为 **任务** 的一部分来运行。
+
+1.  在行为树中右键单击并添加 **运行EQS查询（Run EQS Query）** 任务节点。  
+    
+	![](EQSUG_RunEQS.png "EQSUG_RunEQS.png")
+
+1.  针对 **运行EQS查询（Run EQS Query）******，分配要执行的 **查询模板（Query Template）**（所需的EQS资源）和它应该返回的 **黑板键（Blackboard Key）**。  
+    
+	![](EQSUG_EditEQSBT.png "EQSUG_EditEQSBT.png")  
+    
+	返回的黑板键是权重最高的结果（对象或矢量）。在上面的示例中，我们有一个EQS查询用于定位玩家，并将该位置重新提供给一个黑板键，其名为 **MoveToLocation。 **  
+    
+	[REGION:tip]
+    可以通过 **查询配置（Query Config）** 选项选择性地添加要传递到EQS测试的参数。
+    [/REGION]
+    

@@ -1,41 +1,221 @@
 Availability: Public
-Title:Using Dialogue Voices and Waves
-Crumbs: %ROOT%, Engine, Engine/Audio
-Description:Example of a dialogue setup with different listeners and dialogue contexts
-version: 4.13
-checkpoint:dialogueqs
-prereq: Engine/Blueprints/QuickStart
-type:how-to
-type:landing
-parent:Engine/Audio
-skilllevel:Intermediate
-related:Engine/Audio/Overview
-related:Engine/Audio/SoundCues/Editor
-related:Engine/Audio/SoundCues/NodeReference
-topic-image: Engine/Audio/audio_topic.png
+Title: Using Dialogue Voices and Waves
+Description: Example of a dialogue setup with different listeners and dialogue contexts
+Type: how-to
+Version: 4.13
+Parent: Engine/Audio
+topic-image: audio_topic.png
+SkillLevel: Intermediate
+Order: 1
+Related: Engine/Audio/SoundCues/Editor
+Related: Engine/Audio/SoundCues/NodeReference
+Related: Engine/Audio/Overview
 
 
-This example goes over a very basic dialogue setup. For longer conversations, you will likely want to create a conversation manager system. 
-In this scenario, we will set up a quest NPC and two possible playable characters, and show how using Dialogue Voices and Dialogue Waves enables
-you to adjust the quest giver's tone depending on who he is speaking to.
+[TOC (start:2 end:2)]
+
+Prerequisite Topics
+
+This page assumes you have prior knowledge of the following topics. Please read them before proceeding.
+
+*   [Blueprints Quick Start Guide](Engine/Blueprints/QuickStart "Get up and running by creating your first Blueprint")
+    
+
+This example goes over a very basic dialogue setup. For longer conversations, you will likely want to create a conversation manager system. In this scenario, we will set up a quest NPC and two possible playable characters, and show how using Dialogue Voices and Dialogue Waves enables you to adjust the quest giver's tone depending on who he is speaking to.
 
 [REGION:imagetable]
-| ![](QuestGiver.png)(h:300)| ![](Adam.png)(h:300)|![](Zoe.png)(h:300) |
-|---|----|----|
-|Quest NPC | Adam | Zoe | 
+| ![](QuestGiver.png)(h:300) | ![](Adam.png)(h:300) | ![](Zoe.png)(h:300) |
+| --- | --- | --- |
+| Quest NPC | Adam | Zoe |
 [/REGION]
 
 Also, here's a snippet of our example design document:
 
-		- Quest NPC is a female soldier who wants to hire someone from Adam's team as backup on a supply escort mission.
-		- Adam is a mercenary who has a stealth-first, attacking only when necessary policy.
-		- Zoe is an ex-soldier who joined Adam's team after the last major Galactic Skirmish.
+    - Quest NPC is a female soldier who wants to hire someone from Adam's team as backup on a supply escort mission.
+        - Adam is a mercenary who has a stealth-first, attacking only when necessary policy.
+        - Zoe is an ex-soldier who joined Adam's team after the last major Galactic Skirmish.
 
+## 1 - Create Dialogue Voices
 
-## Steps
+In this example, we are using characters from the [Mixamo Animation Pack](https://www.unrealengine.com/marketplace/mixamo-animation-pack), available for free on the Unreal Engine Marketplace. In the Mixamo Animation Pack, all the characters inherit from a general character Blueprint. Working in your own project, or with a C++ setup, you would need to adjust the following steps, but the primary concepts still apply.
 
-[DIR(output:"checkpoint" parent:"Engine/Audio/Dialogue" org:"hierarchy")]
+Each character has their own value for a Dialogue Voice variable. Even if you don't localize your audio content, having a distinct voice for each character means that you can associate a given voice actor's recordings with that voice, so Zoe will always sound like Zoe.
 
-[REGION:call_to_action]
-	[Click to Start](Engine/Audio/Dialogue/1 "%Engine/Audio/Dialogue/1:title%")
+1.  In the **MixamoAnimPack** folder in the **Content Browser**, double-click on **MixamoCharacter_Master** to open the Blueprint.  
+    
+    ![](MixamoMaster.png)(w:700)
+
+1.  Add a new [variable](Engine/Blueprints/UserGuide/Variables) to the Blueprint.  
+    
+    ![](NewVariable.png)
+
+1.  Name the new variable **DialogueVoice**, then set its type to a **DialogueVoice Reference**.  
+    
+    ![](DialogueVoiceRef.png)
+
+1.  Compile and save your Blueprint. Now, we need to create the Dialogue Voice assets to use for each of our three characters.
+
+1.  Go back to the **Content Browser**, and create a new **Dialogue Voice** asset.  
+    
+    ![](DialogueVoiceNew.png)
+
+1.  Name the new asset **QuestNPC**, then double-click to open it.
+
+1.  Referring to our design document, we know that the quest NPC's voice is **Feminine** and **Singular**. Use the drop-down menus to set the **Gender** and **Plurality** accordingly.  
+    
+    ![](QuestNPC.png)
+
+1.  Repeat the process two more times to create a **Dialogue Voice** asset for Adam that is **Masculine** and **Singular**, and a **Dialogue Voice** asset for Zoe that is **Feminine** and **Singular**.  
+    
+    ![](AdamVoice.png) ![](ZoeVoice.png)
+
+1.  Save and close all your new **Dialogue Voice** assets.
+
+Now that our **Dialogue Voices** have been created, we can associate them with our characters.
+
+1.  Back in the **Content Browser**, in the **Mixamo_SWAT** folder, open the **Mixamo_SWAT** Blueprint.  
+    
+    ![](MixamoSWAT.png)
+
+1.  If your Blueprint is not a data-only Blueprint and the defaults are not already visible, click on the **Class Defaults** button in the **Toolbar** to open the Blueprint's default properties.  
+    
+    ![](ClassDefaults.png)
+
+1.  Set **Dialogue Voice** in the **Details** panel to **Quest NPC**.  
+    
+    ![](DialogueVoiceSetSwat.png)
+
+1.  Repeat the process to set the **Mixamo_Adam** Blueprint's **Dialogue Voice** to **Adam**, and to set the **Mixamo_Zoe** Blueprint's **Dialogue Voice** to **Zoe**.  
+    
+    ![](AdamVoiceSet.png) ![](ZoeVoiceSet.png)
+
+[REGION:tip]
+To help identify your Dialogue Voice characters:
+
+1.  Place your character in the world, then frame them in the viewport.
+
+1.  Right-click on the **Dialogue Voice** asset in the **Content Browser**.
+
+1.  Select **Asset Actions > Capture Thumbnail**.  
+    ![](ThumbnailCapture.png)(w:500)
 [/REGION]
+
+## 2 - Build Dialogue Waves
+
+For this example, we are just going to implement a greeting from Quest NPC to Adam and Zoe. For more information about complex dialogue, see the "Next Steps: Sound Cues and Dialogue" section below. Each line of dialogue needs a **Dialogue Wave** asset associated with it.
+
+1.  Go back to the **Content Browser**, and create a new **Dialogue Wave** asset.  
+    
+    ![](DialogueWaveNew.png)
+
+1.  Name the new asset **QuestGreeting**, then double-click to open it.
+
+1.  For the **Spoken Text**, enter "Hey! Could you come over here? I need your help with something important." Although the same text would be spoken when the NPC is talking to Adam and Zoe, the game design document gives us some hints that the way the text is spoken might be different for each listener. That means we should set up two different **Dialogue Contexts**.
+
+1.  One context is already created by default. Fill in the **Speaker** entry with **Quest NPC**. 
+    
+    ![](Context1Speaker.png)
+
+1.  Click on the plus sign icon to add a listener. 
+    
+    ![](Context1ListenerAdd.png)
+
+1.  Set the **Directed At** entry to **Adam**. 
+
+    ![](Context1Listener.png)
+
+1.  Click on **Add Dialogue Context** to add a new **Dialogue Context**. 
+    
+    ![](AddDialogueContext.png)
+
+1.  Set this context's **Speaker** to **Quest NPC**, and **Directed At** to **Zoe**. 
+    
+    ![](ZoeContext.png)
+
+We could also make some notes about how the voice actor should sound friendlier toward Zoe, as they have a shared military background, and be more abrupt with Adam, who she doesn't trust because of his mercenary past. These would go in the **Voice Actor Direction** field. Finally, after the voice actor recordings come back, we would import those as **Sound Waves** and set them in the **Sound Wave** field for each context. In this example, we are not going to create **Sound Waves**, but you could use **Sound Waves** from the **Starter Content** to test.
+
+![](GreetingAudio.png)
+
+[REGION:tip]
+The **Dialogue Wave** is also where you can set a **Subtitle Override**. This is useful for effort sounds, as well as some other cases, such as characters speaking in a foreign language not known to the player.
+[/REGION]
+
+## 3 - Set the Context
+
+Now that we have our **Dialogue Voices** and **Dialogue Wave** set up, we can give our quest NPC some logic to create the right context for her greeting. Again, a **Dialogue Context** involves at least two **Dialogue Voices**, a **Speaker** and at least one **Dialogue Voice** that the dialogue is **Directed At**.
+
+1.  Add a **Box** component to the **Mixamo_SWAT** Blueprint.  
+    
+    ![](AddBoxComponent.png)
+
+1.  In the **Viewport**, adjust the **Box** component so it is around the height of the character, and extends some distance in front of her. Make sure it doesn't overlap her, or set her Capsule component to not generate overlap events, or she will trigger the conversation logic herself. 
+    
+    ![](TriggerVolume.png)
+
+1.  Add a new **Dialogue Wave** variable named **Greeting**.
+
+1.  Compile your Blueprint and set the default value to the **QuestGreeting** **Dialogue Wave** you made previously. 
+
+    ![](QuestGreetingDetails.png)
+
+1.  Set up the following Blueprint graph.
+    [REGION:lightbox]
+    [![](DialogueContextBP.png "DialogueContextBP.png")(w:720)](DialogueContextBP.png)
+    [/REGION]
+    This graph:  
+    *   Fires after something overlaps the Box component
+    
+    *   Casts the **Overlapping Actor** to our **MixamoCharacter_Master**, where we added the **Dialogue Voice** variable
+    
+    *   Gets the voice from the **Overlapping Actor** and uses it as the **Target** for our **Dialogue Context**.
+    
+    *   Uses the Quest NPC's voice for the **Speaker** for our **Dialogue Context**.
+    
+    *   Plays the **Dialogue Wave** named **Greeting** at our Quest NPC's location, using the correct **Dialogue Context**The Mixamo Animation pack comes with a Game Mode we can use to test our dialogue setup.
+
+1.  Open **World Settings**.
+
+1.  Set the **GameMode Override** to **MixamoGame**.
+
+1.  Set the **Default Pawn Class** to **Mixamo_Adam** or **Mixamo_Zoe**.  
+    ![](SetDefaultPawn.png)  
+    Now, if the QuestNPC is placed in the level, you can run up to them with either Adam or Zoe and trigger the dialogue.
+
+## 4 - Displaying Subtitles
+
+Subtitles should be enabled by default, but if you need to check that they are on, there is a checkbox in **Project Settings**.
+
+1.  Open **Project Settings**.    
+
+1.  Under **General Settings**, locate the **Subtitles** section, then make sure the **Subtitles Enabled** box is checked.
+    
+    ![](SubtitlesOn.png)
+    
+
+Now, when you trigger the Quest NPC's dialogue, the accompanying subtitle text shows at the bottom of the screen.
+
+![](SubtitlesPlaying.png)
+
+[REGION:note]
+Subtitles will not display unless there is a **Sound Wave** set in your **Dialogue Wave** for the context that is currently happening.
+[/REGION]
+
+## 5 - Next Steps: Sound Cues and Dialogue
+
+For a more complex conversation, you will likely want to use Sound Cues and Audio Components. Audio Components enable you to bind some functionality to when audio is finished playing, using the **On Audio Finished** delegate.
+
+[REGION:note]
+One thing to consider, however, is that you cannot dynamically change the **Dialogue Context** when using Sound Cues, so your Blueprints or C++ logic will look different than the above example.
+[/REGION]
+
+To play **Dialogue Waves** using **Sound Cues**, there is a **Dialogue Player** node in the **Sound Cue Editor**.
+
+![](DialoguePlayerNode.png)
+
+Select the **Dialogue Player** node and look at the **Details** panel. Here is where you can set the **Dialogue Wave** to use, as well as the **Speaker** and **Directed At** entries for the **Context**.
+
+![](DialogueNodeDetails.png)
+
+Here is some example Blueprint logic that shows how you could bind events to play the next piece of dialogue after the previous audio finishes playing.
+
+![](AudioNextSteps.png)

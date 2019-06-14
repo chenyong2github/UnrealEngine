@@ -1,58 +1,59 @@
-Availability: Docs
+INTSourceChangelist:3244370
+Availability: Public
 Title:分屏
-Crumbs: %ROOT%, Engine, Engine/Rendering, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Optimization
+Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Optimization
+Description:使用细节模式和分析命令优化分屏效果。
+Version: 4.9
+tags:Particles
 
 [TOC]
 
 
 
+(#detailmodeoverview)
 ## 细节模式概述
 
-虚幻引擎 3 当前可以在 3 个细节模式之间切换。低质量、中等质量和高质量。通常将相关的效果细节模式设置为 Medium（中等质量）和 High（高质量）细节。它主要用于绘制函数调用可以达到性能下降等级的分屏情况。主要目标使通过剔除或降低散发速率减少中级细节模式中的绘制函数调用。
+虚幻引擎4当前支持在3种细节模式之间切换：低（Low）、中（Medium）和高（High）。如果涉及到特效，则设置为中（Medium）和高（High）细节模式。这主要用于绘制调用会达到性能下降级别的分屏情况。其主要目的是通过剔除或降低发射速率来减少中（Medium）细节模式下的绘制调用。
 
-在 cascade 中更改发射器上的 Medium Detail Spawn Rate Scale（中等质量细节生成速率比）字段中的设置将会降低您的散发速率，前提是游戏在 Medium Detail Mode（中等质量细节模式）中运行的时候。可以使用这些设置减少过度描画，然后根据需要绘制函数调用。在分屏的情况中，绘制函数调用简化是关键。
+如果在级联中更改发射器的“中细节产生速率比例”（Medium Detail Spawn Rate Scale）字段值，则游戏在“中”（Medium）细节模式下运行时，会降低发射速率。这些设置可以用于根据需求减少过度绘制和绘制调用。在分屏模式下，绘制调用减少十分关键。
 
-[我如何确定 Draw Calls（绘制函数调用）？](Engine/Rendering/ParticleSystems/Optimization/Results#RenderThread)
+[如何确定绘制调用？](Engine/Rendering/ParticleSystems/Optimization/Results#RenderThread)
 
-可以在 Cascade 中使用视图下拉菜单或 ![cascadedetail.jpg](cascadedetail.jpg)图标查看 Medium Detail Mode（中级细节模式）。视图模式可以在编辑器中使用 View（视图）菜单/Detail（细节）模式设置进行设置。更改为 Medium（中级）查看 Medium Detail Spawn Rate Scale（中级细节生成速率比），您应该会看到红色的文本显示当前处于激活状态的细节模式。重点是只在调整 Medium Detail Mode（中级细节模式）的效果时才在这个模式中进行操作。默认情况下在游戏中将不会看到更改，除非您的项目默认为 Medium Detail Mode（中级细节模式）。
+要设置细节模式，可以在级联中使用 **视图菜单（View Menu）**->**细节模式（Detail Mode）** 设置，或者在整个虚幻编辑器中，更改 **快速设置（Quick Settings）**->**引擎可延展性设置（Engine Scalability Settings）**->**效果（Effects）** 质量级别。更改为“中”（Medium）可看到“中细节产生速率比例”（Medium Detail Spawn Rate Scale），您应当看到用红色文本显示当前活跃的细节模式。仅当在调节“中”（Medium）细节模式的效果时，才必须使用这种模式。在默认情况下，变化在游戏中不可见，除非项目默认为“中”（Medium）细节模式。
 
-Medium Detail Spawn Rate Scale（中级细节生成速率比）是一个乘法器，将范围控制在 0-1 将会设置适当的值。基本上，设置为 .5 会将粒子发射数量减少一半，值为 1 则会使用当前发射率。对这个值进行限定，使其不会超出 1。
+“中细节产生速率比例”（Medium Detail Spawn Rate Scale）是一个乘数，限制在0-1范围内将设置适当的值。基本上设置为0.5会让粒子发射数量减半，设置为1将使用当前发射速率。这些值将限制在1以内。
 
-在放置 Ambient（环境）效果的过程中考虑分屏是一个好习惯。如果这个效果对于分屏而言不是必需的而且绘制函数调用数量很大，那么它可能是开始减少发射数量的好地方，尤其是在效果中只包含网格物体发射器的情况下。
+比较好的做法是在放置环境效果的过程中考虑分屏。如果效果对分屏而言并不重要，并且会有大量绘制调用，或许首先减少发射数量是一种不错的做法，尤其是效果仅包含网格体发射器时。
 
-重要的是记住粒子的 Draw Call（绘制函数调用）由材质确定，而且它的性能消耗是固定的，与发射数量无关。例如，在发射率为 30 的发射器上的 1 pass 材质只是一个绘制函数调用。
+需要记住的是，粒子的绘制调用由材质确定，并且无论发射数量是多少，成本均保持不变。例如，在发射速率为30的发射器上，单通道材质只有一个绘制调用。
 
 
 
+(#commands)
 ## 命令
 
-这里有一些可以用来确定 Draw Call 性能消耗的命令。
+有一些命令可以用于确定绘制调用成本。
 
-要想在 PIE 或游戏中切换到 SplitScreen Mode（分屏模式），请使用命令 **`debugCreatePlayer1`**
+要在“在编辑器中运行”（Play in Editor）或游戏中切换到“分屏模式”（Split Screen Mode），请使用控制台命令`debugCreatePlayer 1`。
 
-如果您只有 1 个控制器，那么请使用命令 **`ssswapControllers`** 在 Player（玩家）之间跳转。
+如果您只有一个控制器，请使用命令`ssswapControllers`切换玩家。
 
-使用命令 **`STAT SPLITSCREEN`** 启用分屏图层
+要查看指定区域的绘制调用，请使用命令`DumpParticleFrameRenderingStats`。该命令会转存关于发生操作的位置的电子表格和截屏。该截屏是估算值，因为是在转存数据后截取的，更多的是用作视觉参考。
 
-对于粒子效果，引用 Particle Draw Call（粒子绘制函数调用）项，注意 MeshParticle 项，通过设置 MediumDetailSpawnRateScale 可以在这里快速生成最多细节。
+在电子表格中查看统计信息一目了然。应该类似于以下内容：
 
-使用命令 **`DumpParticleFrameRenderingStats`** 查看给定区域的 drawCall
+![particlestats.jpg](particlestats.jpg)(w:960)
 
-这个命令会转存电子表格以及进行该操作的地方的屏幕截图。如果启用了 **`STAT SPLITSCREEN`** 命令，那么在拍摄截图的时候会看到 Draw Call（绘制函数调用）的读数。这个屏幕截图是估算，因为它是在数据转存后截取的，而且它不仅仅是一个可视参考。
 
-查看电子表格中的统计数据非常简单，电子表格应该看起来像下面图片中显示的一样。
+在这种情况下，解决办法非常简单。我们有一种效果，必须调用一些网格体，它们很可能会循环产生。但这可能很棘手，因为如果一种效果是根本原因，而您希望保留该效果的当前视觉效果，那么只有一种选择，将网格体转换为Sprite。
 
-![particlestats.jpg](particlestats.jpg)(w:624 h:176)
+但如果发射器并不是分屏所必需的，则将`mediumDetailSpawn`速率设置为0.00。
 
-在这种情况下，补救方法非常简单，我们会使用一个必须调用一系列网格物体并且很可能循环生成的效果。但是它可能比较难处理，因为如果 1 效果是引起问题的主要原因，那么您想要保持当前的视觉效果，只有一个选择，就是将网格物体转换为平面实例。
+电子表格统计列以适当的描述命名。
 
-但是，如果分屏不需要发射器，那么将 **`mediumDetailSpawn`** 速率设置为 0.00。
-
-使用适当的描述为 Spread Sheet（电子表格）统计数据栏命名：
-
-$ **RenderTime ms** : 渲染这个效果需要多长时间（毫秒）
-$ **NumComponents** : 处于查看和激活状态中的粒子系统的实例数量。
-$ **NumPasses** : 材质中被发射器调用的 pass 数量
-$ **NumEmitters** : 粒子系统中的发射器数量
-$ **NumDraws** : 所有粒子系统实例的绘制函数调用的累计数量
+$ **RenderTime ms**：渲染效果所需的毫秒数。
+$ **NumComponents**：视图中保持活跃的粒子系统数量。
+$ **NumPasses**：由发射器调用的材质中有多少通道。
+$ **NumEmitters**：粒子系统中有多少发射器。
+$ **NumDraws**：粒子系统的所有实例的累计绘制调用数量。
 

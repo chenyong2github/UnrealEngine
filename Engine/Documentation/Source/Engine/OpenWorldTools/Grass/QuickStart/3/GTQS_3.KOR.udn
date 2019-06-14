@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title:3. 랜드스케이프 머티리얼과 그래스 툴
 Crumbs:
@@ -15,7 +15,7 @@ Version: 4.8
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[비법 홈](Engine\OpenWorldTools\Grass\QuickStart "Engine\OpenWorldTools\Grass\QuickStart:Title%")
+		[하우투 홈](Engine\OpenWorldTools\Grass\QuickStart "Engine\OpenWorldTools\Grass\QuickStart:Title%")
 	[/PARAM]
 	[PARAM:next]
 	[다음 단계](Engine\OpenWorldTools\Grass\QuickStart\4 "%Engine\OpenWorldTools\Grass\QuickStart\4:title%") 

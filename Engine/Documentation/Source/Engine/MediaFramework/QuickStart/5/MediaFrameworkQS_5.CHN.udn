@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3750348
-Availability:Public
+﻿INTSourceChangelist:6083686
+Availability:Docs
 Crumbs: %ROOT%
 Title:5 - 电视机蓝图功能及测试
 Description:在本节中，我们将完成对电视机蓝图的功能设置并在关卡中进行测试。
@@ -12,6 +12,8 @@ type:multi-step
 order:5
 tags:Media Framework
 tags:Blueprints
+
+## 页面已被合并，标记为Docs。 
  
 [NAV]
 

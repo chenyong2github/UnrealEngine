@@ -1,0 +1,187 @@
+Availability: Public
+Title: Modifying Static Mesh Geometry
+Description: Describes how to use the Edit Mode controls in the Static Mesh Editor to change the geometry of a Static Mesh Asset.
+Type: how-to
+Version: 4.22
+Parent: Studio/Datasmith/HowTo
+Tags: Static Mesh
+Tags: how to
+Tags: Datasmith
+Tags: beginner
+SkillLevel: Beginner
+Related: Studio/Datasmith/HowTo/Jacketing
+Related: Studio/Datasmith/HowTo/Defeaturing
+Order: 5
+
+
+[TOC (start:2 end:3)]
+
+You may sometimes find small problems with the geometry of your Static Meshes after you import them into Unreal. For example, this could include:
+
+*   Extra triangles that you don’t really need at runtime, which could be removed in order to optimize the model.
+
+*   Triangles that are unexpectedly facing the wrong direction, so they disappear at unexpected times due to back-face culling.
+
+One way to fix these kinds of issues is to go back to a design tool, correct the problems there, re-export the model, then reimport it into Unreal. However, that process can be time-consuming. And when your Static Mesh Assets originally come to Unreal directly from CAD formats, this may mean adding entirely new design tools to your Asset preparation workflow.
+
+To make it easier for you to fix these kinds of minor issues without leaving the Unreal Editor, the Static Mesh Editor includes some basic geometry editing tools.
+
+This page describes how to use these tools to make minor edits to a Static Mesh Asset in your Project.
+
+[REGION:note]
+*   These mesh editing operations modify the raw geometry of the Static Mesh, but they don't immediately update any other data based on that geometry. For example, deleted triangles will still take up space in auto-generated lightmap UV layouts, and will still appear in lower Levels of Detail (LODs) assigned to the Static Mesh. Depending on the kind of changes you make to your geometry, you may need to re-create these kinds of data, rebuild lighting for your Level, and so on.
+
+*   The Static Mesh editing mode described on this page is currently only available in Unreal Studio Projects. For details on creating an Unreal Studio Project, or converting an existing Project, see [Setting Up an Unreal Project to Use Datasmith](Studio/Datasmith/HowTo/SettingUpUnrealProject).
+[/REGION]
+
+## Editor Workflow
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 2TI90dVXJPY
+ [/PARAMLITERAL]
+[/OBJECT]
+
+1.  Open the Static Mesh Asset that you want to modify in the Static Mesh Editor.  
+    To do this, you can double-click it in the **Content Browser**, or you can right-click a Static Mesh object in the Level Viewport and select **Edit** from the contextual menu.
+
+2.  Behind the main Toolbar in the Static Mesh Editor UI, you'll see a tab for a secondary toolbar named **Mesh Editing**.  
+    
+	![Open the Mesh Editing Toolbar](mesh-editing-toolbar-open.png "Open the Mesh Editing Toolbar")  
+    
+	Click this tab to open the Mesh Editing Toolbar:  
+    
+	![The Mesh Editing Toolbar](mesh-editing-toolbar.png "The Mesh Editing Toolbar")
+
+3.  Click the **Edit Mode** icon in the Mesh Editing Toolbar.  
+    
+	![Edit Mode](mesh-editing-toggle-editing-mode.png "Edit Mode")  
+    
+	While you're in editing mode, the viewport shows your model overlaid with a wireframe that shows the outlines of all triangles visible to the camera.
+
+4.  Select one or more triangles that you want to modify. See [Selecting Faces to Edit](#selectingfacestoedit) below.
+
+5.  Choose a face editing operation to apply. See [Face Editing Operations](#faceeditingoperations) below.
+
+6.  To leave editing mode, click the **Edit Mode** button in the Mesh Editing Toolbar again.
+
+7.  To keep your modifications, save your Static Mesh Asset before you close the Unreal Editor.
+
+## Selecting Faces to Edit
+
+As you move the mouse over the triangles in your Static Mesh, the triangle under the mouse cursor is highlighted in yellow.
+
+You can use the following shortcuts to control your current selection:
+
+[REGION:simpletable]
+| Control | Result |
+| --- | --- |
+| **Left-click** | Clears your current selection and starts a new selection based on the triangle you have highlighted and the current selection mode. |
+| **Control and left-click** | Adds new triangles to the current selection, or removes highlighted triangles from the current selection. |
+| **Control and +** | Expands the selection to include adjacent triangles: that is, all triangles that share at least one vertex with a triangle that is currently selected. |
+| **Control and -** | Makes the selection smaller by deselecting triangles at the outermost extents of the selected area. |
+| **Left-click and drag** | Selects all faces (front-facing and back-facing) that overlap the selection rectangle. |
+[/REGION]
+
+
+Selected faces are rendered in orange:  
+
+![Mesh editing selection and highlights](mesh-editing-selection.png "Mesh editing selection and highlights")
+
+The Toolbar offers several different selection modes:
+
+[REGION:simpletable]
+| Icon | Meaning | Description |
+| --- | --- | --- |
+| ![Single face selection mode](mesh-editing-selection-single.png "Single face selection mode")   | Single Face | Selects or deselects only the triangle that you currently have highlighted. |
+| ![Material selection mode](mesh-editing-selection-material.png "Material selection mode") | By Material | Selects or deselects all triangles in the Static Mesh that share the same Material with the triangle you currently have highlighted, regardless of whether they are connected to the highlighted triangle. |
+| ![Connected faces selection mode](mesh-editing-selection-element.png "Connected faces selection mode") | By Connected Faces | Selects or deselects all triangles that are connected to the triangle you currently have highlighted, regardless of whether they share the same Material. |
+| ![Smoothing group selection mode](icon_smoothing_group.png "Smoothing group selection mode") | By Smoothing Group | Selects or deselects all triangles that are in the same smoothing group as the triangle you currently have highlighted. |
+[/REGION]
+
+[REGION:tip]
+You can switch modes while a selection is active. So, you could use the **Element** mode to select all connected triangles in a given part of the Static Mesh, then switch back to **Single** mode and hold the **Control** key to deselect individual triangles.
+[/REGION]
+
+### Selecting Back-Facing Triangles
+
+Typically, any time the Unreal Engine renders a Static Mesh, it only draws the triangles whose primary faces are visible to the camera. All triangles that face away from the camera are *culled* — that is, removed from the scene — in order to increase rendering performance. However, some modeling applications do not make the same clear distinction between the front face and the back face of a triangle. Therefore, when you import Static Meshes from those applications, you may end up with triangles that are not rendered where you expect them to be, or extra triangles that are rendered at unexpected angles. For example, the base of this cylinder is facing toward the interior of the object:
+
+![Missing backfaces](cylinder-missing-faces.png "Missing backfaces")
+
+When you enter **Edit Mode**, the Static Mesh Editor viewport overlays your model with a wireframe view of all triangles that are currently visible to the camera: both the ones that face the camera and the ones that face away from the camera:
+
+![Backfaces rendered in EditMode](cylinder-editmode.png "Backfaces rendered in EditMode")
+
+By default, you can only select triangles that are facing toward the camera. However, you can enable the **Backfaces** toggle button in the Mesh Editing Toolbar.
+
+![Toggle button for selecting backfaces](icon-backfaces.png "Toggle button for selecting backfaces")
+
+When this setting is enabled, you can select triangles in the viewport of the Static Mesh Editor even when they are facing away from the camera:
+
+![Selecting a backface](cylinder-backfaces.png "Selecting a backface")
+
+This setting can make it much easier to select the back-facing triangles in your model, so that you can use the [Flip](#flip) command to make them point in the opposite direction.  
+
+## Face Editing Operations
+
+The Static Mesh Editor offers the following operations for modifying selected triangles in your model.
+
+### Delete
+
+![Delete](mesh-editing-delete-faces.png "Delete")
+
+Removes all selected triangles from the Static Mesh.
+
+### Flip
+
+![Flip](mesh-editing-flip-faces.png "Flip")
+
+Flips all selected triangles so that they face the opposite direction. For each triangle:
+
+*   The normal is inverted, so that it points out from the opposite face of the triangle.
+
+*   The winding direction of the triangle's vertices is inverted.
+
+### Assign a New Material
+
+![Assign Material](mesh-editing-assign-materials-faces.png "Assign Material")
+
+Assigns a new Material to all selected triangles. This creates a new Material Slot in the Static Mesh for those triangles.
+
+If you have a Material already selected in the **Content Browser**, that Material is automatically assigned to the new Material Slot. If not, you can set the new Material for the triangles by assigning it to the new Material Slot in the **Details** panel.
+
+### Unify Normals
+
+![Unify Normals](icon_unify_normals.png "Unify Normals")
+
+Attempts to unify the facing direction of the triangles adjacent to your selection. This tool identifies each of the triangles that shares at least one edge or one vertex with your selected triangles. If the surface normal of any of the identified triangles faces in the opposite direction to your selection, the tool flips the orientation of that face, and restarts the operation starting with the flipped triangle.
+
+To use this tool most effectively:
+
+1.  Find a triangle or an area of triangles that need to be flipped.
+
+2.  Select one or more triangles that are adjacent to those back-facing triangles, and that are pointing in the right direction. 
+
+3.  Press **Unify Normals** to flip all areas of back-facing triangles that are adjacent to your selection.
+
+### Defeaturing
+
+Although the **Defeaturing** tool appears in the **Mesh Editing** Toolbar, it is not one of the **Edit Mode** face operation tools. The Defeaturing tool operates on the entire geometry of the Static Mesh, not just on selected triangles. To use it, you must *not* be in **Edit Mode**. For details, see [Simplifying Static Meshes by Defeaturing](Studio/Datasmith/HowTo/Defeaturing).
+
+## Other Mesh Editing Shortcuts
+
+While working in Edit Mode, you can also use the following shortcuts:
+
+[REGION:simpletable]
+| Control | Result |
+| --- | --- |
+| **F** | Zooms the viewport to show the current selection. |
+| **Delete** | Deletes the selected triangles from the Static Mesh. Identical to using the [**Delete**](#delete) button in the Toolbar. |
+[/REGION]

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6429916
 Availability:Public
 Title: 오픈 월드 툴
 Crumbs:
@@ -9,9 +9,8 @@ Version: 4.8
 parent:Engine
 order:9
 topic-image:Engine\OpenWorldTools\Overview\T_Kite_Demo_00.png
-
-
-![](T_OWT_Header_00.png)
+hero-image:T_OWT_Header_00.png
+tags:Experimental
 
 2015 GDC 동안 에픽에서는 언리얼 엔진 4 의 동식물상이 가득한 대규모 오픈 월드 렌더링 기능을 선보였습니다.
 언리얼 엔진 4.8 릴리즈와 함께 이 데모를 만드는 데 사용된 툴인 소위 **오픈 월드 툴** 을 이제 여러분의 UE4 프로젝트에 사용하실 수 있게 되었습니다.

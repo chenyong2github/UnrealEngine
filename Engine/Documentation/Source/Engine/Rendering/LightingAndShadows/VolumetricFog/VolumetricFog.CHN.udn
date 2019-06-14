@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3458296
+﻿INTSourceChangelist:3677919
 Availability:Public
 Crumbs:%ROOT%
 Title:体积雾
-Description:使用指数高度雾（Exponential Height Fog）时可用的体积雾功能总览。 
+Description:使用指数高度雾（Exponential Height Fog）时可用的体积雾功能概览。 
 Type:Overview
 Version:4.16
 Parent:Engine/Rendering/LightingAndShadows
@@ -15,116 +15,173 @@ SkillLevel:Advanced
 
 [TOC(start:1 end:2)]
 
-虚幻引擎从 4.16 版本起开始支持体积雾（Volumetric Fog）。此法将计算计算机视锥中每个点上参与媒介的密度和光照，以便支持影响雾的各种密度以及任意数量的光照。 
+从虚幻引擎4.16版本开始，我们支持体积雾。此方法在摄像机视锥的每个点上都计算参与媒介的密度和光照，以便 
+支持对雾产生影响的各种密度和任意数量的光源。 
 
 [REGION:fullwidth raw]
 ![](VolumetricFog.png)(w:1339)
 [/REGION]
+[REGION:caption] 此场景中的体积雾来自于穿过拱门的定向光源，在周边区域中生成带阴影效果的雾气。[/REGION]
 
-## 全局控制
 
-调整 **指数高度雾** 以及每个 **光照** 上的属性控制光照的参与量，即可控制体积雾。 
+(#volumetricfogcontrols)
+## 体积雾控制
 
-### 指数高度雾
+设置和调整体积雾时，你可以全局控制它，也可以在场景中局部控制它。全局控制功能使你能够使用指数高度雾（Exponential Height Fog）组件控制整个场景的雾。 
+局部控制功能使你能够通过在可以生成粒子的区域中使用粒子系统的方式控制雾。
 
-指数高度雾组件中 **Volumetric Fog** 部分中有体积雾的功能按钮。指数高度分布提供体积雾的整体密度。
+(#globalcontrols)
+### 全局控制
+
+要控制体积雾，你可以调整 **指数高度雾（Exponential Height Fog）** 中的属性和每个 **光源** 上的属性，以控制光源的贡献量。 
+
+
+(#exponentialheightfog)
+#### 指数高度雾（Exponential Height Fog）
+
+体积雾功能按钮位于 **指数高度雾（Exponential Height Fog）** 组件的 **体积雾（Volumetric Fog）** 部分下。指数高度Distribution规定体积雾的全局密度。
 
 ![](VolumetricFogProperties.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | --- | --- |
-| **Scattering Distribution** | 这决定着体积散射的方向性强弱。值为 0 则意味着光线散射在各个方向均等，而接近于 1 的值则会导致散射，主要来自光线的方向（要看向光线才能识别出散射）。|
-| **Albedo** | 这是参与媒介的整体反射度。基于水粒子的云层、雾气和薄雾的反射率接近 1。|
-| **Extinction Scale** | 决定参与媒介对光线的阻挡程度。|
-| **View Distance** | 离摄像机的距离，超过此距离将计算体积雾。体积纹理中 Z 轴切片数量有限，因此拉远 View Distance 将增加摄像机附近的向下采样穿帮。|
-| **Override Light Colors with Fog Inscattering Colors** | 启用后，使用 **Fog Inscattering Color**、**Directional Inscattering Color** 和 **Inscattering Texture** 属性用体积雾覆盖光照颜色。|
+| **散射Distribution（Scattering Distribution）** | 此属性决定体积散射的定向程度；如果值为0，光线将在所有方向上平均散射，如果值接近1，光线主要在光源方向上散射（你必须看着光源才能看到其散射的光线）。|
+| **反射率（Albedo）** | 此为参与媒介的总体反光度。云、雾及基于水粒子的水雾的反射率（Albedo）都接近1。|
+| **消光比例（Extinction Scale）** | 控制参与媒介阻挡光线的程度。|
+| **可视距离（View Distance）** | 距摄像机的距离，将计算两者之间的体积雾。在为雾创建的体积纹理中，Z轴切片的数量有限，具体取决于此距离。增大此距离会导致欠采样，从而导致出现瑕疵。可以使用r.VolumetricFog.GridSizeZ调整Z轴切片的数量，数值越大，质量越高，但是渲染成本也会越高。|
+| **使用雾内散射颜色覆盖光源颜色（Override Light Colors with Fog Inscattering Colors）** | 如启用，将使用 **雾内散射颜色（Fog Inscattering Color）**、**定向内散射颜色（Directional Inscattering Color）** 和 **内散射纹理（Inscattering Texture）** 属性覆盖体积雾的光源颜色。|
 
-### 光照
 
-每个光照对场景的参与量（以及其是否对雾投射阴影）可通过以下属性进行控制。
+(#lights)
+#### 光源
+
+可通过调整每个光源的“细节（Details）”面板上 **光源（Light）** 部分下的下列属性控制每个光源对场景的贡献量（以及它是否向雾投射阴影）。
 
 ![](VolumetricFogLightProperties.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | --- | --- |
-| **Volumetric Scattering Intensity** | 控制此光照对体积雾的参与量。设为零时便没有光照参与量。|
-| **Cast Volumetric Shadow** | 切换对体积雾形成参与的光照是否投射体积阴影。启用后，点光源和聚光源的开销约为不投射阴影光照的三倍。|
-
+| **体积散射强度（Volumetric Scattering Intensity）** | 控制此光源对体积雾的贡献量。设为0时，则无贡献。|
+| **投射体积阴影（Cast Volumetric Shadow）** | 为对体积雾进行贡献的光源切换是否投射体积阴影。启用阴影投射时，点光源和聚光源的渲染成本要高出大约三倍，因为它们对体积纹理阴影投射进行贡献，而不投射阴影的光源仅对雾进行贡献，但不投射阴影。|
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
-	![Volumetric Scattering Intensity: 1 (Default)](VolumetricFogEnabled.png)(w:800)
+	![体积散射强度（Volumetric Scattering Intensity）：1（默认）](VolumetricFogEnabled.png)(w:950)
 	[/PARAM]
 	[PARAM:after]
-	![Volumetric Scattering Intensity: 0 ](VolumetricFogDisabled.png)(w:800)
+	![体积散射强度（Volumetric Scattering Intensity）：0 ](VolumetricFogDisabled.png)(w:950)
 	[/PARAM]
 [/OBJECT]
 
-在此例中，**Volumetric Scattering Intensity** 设为 0，聚光源对体积雾的参与量已被禁用。
+在本示例中，我们已通过将 **体积散射强度（Volumetric Scattering Intensity）** 设置为0禁用了聚光源对体积雾的贡献。
 
-## 本地控制
 
-使用 **Volume** 域的材质可描述空间中一个给定点的反射率（Albedo）、自发光（Emissive）和熄灭（Extinction）。Albedo 的范围在 [0-1]，而 Emissive 和 Extinction 是任意数值大于 0 的世界空间密度。 
+
+(#localcontrols)
+### 本地控制
+
+使用 **体积** 域的材质会为空间中的给定点描述反射率（Albedo）、自发光（Emissive）和消光（Extinction）。反射率（Albedo）介于[0-1]的范围中，而自发光（Emissive）和消光（Extinction）是
+值大于0的全局空间密度。 
 
 
 ![](VolumetricFogParticleMaterial.png)(w:700)
 [REGION:caption]
-这是一个粒子系统最简单体积材质的范例。
+本示例展示了用于粒子系统的最简单的体积材质。
 [/REGION]
 
 [REGION:note]
-体积材质当前只能在粒子上使用，只有粒子半径中的位置为有效（通常由 SphereMask 处理）。 
+当前，体积材质只能在粒子上使用，位于粒子半径（通常由SphereMask处理）内的位置为有效位置。
 [/REGION]
 
-放置单个带材质的粒子系统将导致一个密度球体被添加到体积雾。此效果为纯 3D，不涉及布告板。 
 
-![](VF_ParticleInGame.png)(w:700)
+放置使用该材质的单个粒子系统会导致密度球体添加到体积雾。效果完全是三维（3D）的，不涉及公告板。 
 
-借此方法进行拓展，可使用多个带纹理噪点的球形雾粒子来限制场景中特定区域雾的量。 
+![](VF_ParticleInGame.png)(w:900)
 
-## 临时二次投影
+你可以更进一步，通过将多个球体雾粒子与纹理噪点配合使用来将雾限制在场景的特定区域之内。 
 
-体积雾使用的体积纹理（体素）分辨率相对较低，与摄像机视锥对齐。体积雾使用极强的临时二次投影滤波，带不同的每帧子体素抖动，以平滑锯齿。负面效果则是变化速度快的光照（如闪光和枪口火舌）将留下光照拖尾。可将 **Volumetric Scattering Intensity** 设为 0，禁用这些光照的参与量。
+![](FogParticles.png)(w:900)
 
+在此场景中，雾粒子填充了那些地势较低的区域，以创建使用体积雾投射阴影的局部雾效果。 
+
+(#temporalreprojection)
+## 临时二次投影（Temporal Reprojection）
+
+体积雾使用的体积纹理（体素）的分辨率相对较低，而且与摄像机视锥一致。体积雾逐帧使用具有不同次体素抖动的极强临时二次投影过滤器，
+以平滑锯齿。但它也会产生负面影响——闪光灯和枪口火舌等变化速度快的光源将会留下光线轨迹。要禁用这些光源的贡献，将 **体积散射强度（Volumetric Scattering Intensity）** 设置为0。
+
+(#precomputedlightingonvolumetricfog)
+## 体积雾上的预计算光照
+
+[INCLUDE:Engine/Rendering/LightingAndShadows/VolumetricLightmaps#Volumetricfog]
+
+(#performance)
 ## 性能
 
-体积雾的 GPU 开销主要由体积纹理分辨率控制，而此分辨率则由引擎阴影可延展性（Engine Shadow Scalability）等级决定。PlayStation 4 上高设置的体积雾开销为 1 毫秒，Nvidia 970 GTX 上 Epic 设置的体积雾开销为 3 毫米（因为需要操作的体素量是八倍之多）。
+体积雾的GPU开销主要通过体积纹理分辨率控制，可在[引擎可延展性](Engine/Performance/Scalability/ScalabilityReference)的阴影级别中设置它。设置为 **高（High）** 时，体积雾在PlayStation 4上需要花费1毫秒，
+设置为 **Epic** 时在NVIDIA 970 GTX上需要花费3毫秒（因为需要运算的体素量是八倍之多）。
 
-* 使用 **Volume** 域的粒子可能添加较大的 GPU 开销，具体视 3D 过度绘制和指令数而定。使用控制台命令 `profilegpu` 可查看此开销。
-* 启用了 **Cast Volumetric Shadow** 的点光源和聚光源开销约为未投射阴影点光源和聚光源开销的三倍。 
+* 使用 **体积（Volume）** 域的粒子会导致GPU开销显著增高，具体取决于它们的3D过度绘制和指令数。使用控制台命令`profilegpu`可查看此开销。
+* 启用了 **投射体积阴影（Cast Volumetric Shadow）** 的点光源和聚光源的开销约为不投射阴影的点光源和聚光源的开销的三倍。 
 
-## 当前支持的特性
+(#currentlysupportedfeatures)
+## 当前受支持的功能
 
-此列表中包含体积雾当前所支持的特性：
+以下列表中包含了体积雾的当前受支持的功能：
 
-* 单一定向光源，带级联阴影贴图或静态阴影产生的阴影，带光照函数。
-* 任意数量的点光源和聚光源，带动态或静态阴影（如已启用 **Cast Volumetric Shadowing**）。
-* 单一天光，带距离场环境遮挡产生的阴影（如启用）。 
-* 粒子光照（如 **Volumetric Scattering Intensity** 大于 0）。
+* 单个定向光源，具有来自级联阴影贴图的阴影投射或静态阴影投射，带光源函数。
+* 任意数量的点光源和聚光源，具有动态或静态阴影投射（如果启用了 **投射体积阴影（Cast Volumetric Shadowing）**）。
+* 静止天空光照的阴影投射。
+* 通过体积光照贴图实现的预计算光照（静态光源的直接光照，固定光源的间接光照）。
+* 单一天空光照，具有来自距离场环境光遮蔽（Distance Field Ambient Occlusion）（如启用）的阴影投射。 
+* 粒子光源（如果 **体积散射强度（Volumetric Scattering Intensity）** 大于0）。
 
-此外，半透明度将受到体积雾的影响，具体取决于其在场景中的位置。半透明度默认计算顶点处的雾气，因此曲面细分低的水平面可能导致穿帮。这些材质可设为计算逐像素的雾，在材质细节中启用 **Compute Fog Per-Pixel** 即可解决此问题。
+另外，半透明度可能会受到体积雾影响，具体取决于它在场景中的位置。默认情况下，半透明度按顶点计算雾，因此曲面细分低的水平面可能导致 
+瑕疵。要解决此问题，可将这些材质设置为逐像素计算雾，方法是在“材质细节（Details）”中启用 **逐像素计算雾（Compute Fog Per-Pixel）**。
 
+(#knownissues)
 ## 已知问题
 
-**尚不支持** 体积雾的以下特性：
+使用体积雾时，下列功能 **尚不受支持**：
 
-* 预计算全局照明。
-* 静态天光产生阴影。
-* 点光源和聚光源上的 IES 配置文件和光照函数。 
-* 光线追踪距离场阴影产生阴影。
-* 体积雾自身产生阴影。
-* 点光源和聚光源上的源半径。
-* 指数高度雾（Exponential Height Fog）中的部分设置，如 Fog Cutoff Distance、Start Distance 和 Fog Max Opacity。
+* 在点光源和聚光源上使用IES配置文件和光源函数。 
+* 从光线追踪距离场阴影（Ray Traced Distance Field Shadows）投射阴影。
+* 从体积雾（本身）投射阴影。
+* 在点光源和聚光源上使用源半径（Source Radius）。
+* “指数高度雾（Exponential Height Fog）”中的“雾中断距离（Fog Cutoff Distance）”、“开始距离（Start Distance）”和“雾最大不透明度（Fog Max Opacity）”等设置。
 
+(#commonquestions)
 ### 常见问题
 
-以下是使用体积雾的常见问题。 
+以下是使用体积雾时可能会碰到的部分常见问题。 
 
-* **如何在没有全局浓雾的情况下实现较强的光束？**
-	* 雾的整体密度增加后，雾将变浓，因此只有在雾足够浓到将场景中物体遮挡时才会出现光束效果。脱离浓雾实现较强光束有两种方式：
-		1. 将全局雾的密度调低，但为定向光照使用较高的 **Volumetric Scattering Intensity**。此外，在 Exponential Height Fog Actor 中将 **Scattering Distritbution** 调至 **0.9** 左右。
-		1. 将全局雾的密度调低，但通过体力粒子增加特定区域的密度。
-* **能否同时使用指数高度雾和体积雾？** 
-	* 此时，体积雾将在体积雾 **View Distance** 中替代 **Fog Inscattering Color**。体积雾基于物理而指数高度雾并非基于物理，因此无法精准匹配远处的内容。这意味着指数高度雾中的部分设置在体积雾上并无效果。
-* **能否将体积雾的中心从摄像机处分离？这对顶视角游戏十分有用...**
-	* 当前版本不能。但可用独立体积进行操作。然而如果它们带半透明度，则难以进行有效整合。
+* **如何在不使用全局浓雾的情况下实现更强的光束？**
+	* 增强雾的全局密度时，雾气更强，因此只有在雾气浓密到严重笼罩一切时你才会注意到光束（光影）。不使用浓雾就可实现更强的光束的方法有两种：
+		1.降低全局雾密度，但是为定向光源使用较高的 **体积散射强度（Volumetric Scattering Intensity）**。另外，在指数高度雾（Exponential Height Fog）Actor中，调整 **散射Distribution（Scattering Distribution）**，使它接近于 **0.9**。
+		1.降低全局雾密度，但是使用体积粒子在特定区域中增强它。
+* **可以同时使用指数高度雾（Exponential Height Fog）和体积雾吗？** 
+	* 现在，体积雾会在体积雾**可视距离（View Distance）** 内替换 **雾内散射颜色（Fog Inscattering Color）**。因为体积雾基于物理而指数雾并不基于物理，所以无法在远处混合两个系统 
+	以使它们精确匹配。这也意味着指数高度雾（Exponential Height Fog）组件中的部分设置对体积雾没有影响。 
+* **能否将体积雾的中心从摄像机处分离？这对俯视角游戏十分有用...**
+	* 当前不行，但是可以使用独立体积来实现这一目的。但是，此方法的缺点是无法高效将它们与半透明度融合。
+
+(#trainingstream)
+## 培训视频
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	N4mkgbwLg7U
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	50
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]

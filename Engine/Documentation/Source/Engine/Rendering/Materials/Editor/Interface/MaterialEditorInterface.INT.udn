@@ -1,165 +1,204 @@
 Availability: Public
-Title:Material Editor UI
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/Editor
-Description:Guide to using the Material Editor UI.
+Title: Material Editor UI
+Description: Guide to using the Material Editor UI.
 Version: 4.9
-tags:Materials
-
-
-[TOC(start:2)]
-
+Parent: Engine/Rendering/Materials/Editor
+Tags: Materials
 
 
 The Material Editor UI consists of a menu bar, a toolbar, and, by default, four open panels.
 
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](MaterialEditor_Windows.png)
-[/PARAM]
-[/OBJECT]
+![](MaterialEditor_Windows.png "MaterialEditor_Windows.png")
 
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](MaterialEditor_Mac.png)
-[/PARAM]
-[/OBJECT]
+| **Number** | **Description** |
+| --- | --- |
+| 1 | Menu Bar |
+| 2 | Toolbar |
+| 3 | Viewport Panel |
+| 4 | Details Panel |
+| 5 | Graph Panel |
+| 6 | Palette Panel |
 
-1. [Menu Bar](#MenuBar) - Lists the menu options for the current Material.
-1. [Toolbar](#Toolbar) - Contains tools that you can use to work with your Material.
-1. [Viewport Panel](#ViewportPanel) - Previews the Material on a mesh.
-1. [Details Panel](#DetailsPanel) - Lists the properties of the Material or the selected material expression or function nodes.
-1. [Graph Panel](#GraphPanel) - Displays the material expression and function nodes that create shader instructions for your Material.
-1. [Palette Panel](#PalettePanel) - Lists all the available material expression and function nodes.
-[REGION:note]
-There is also an HLSL Code panel, but by default, it is not visible. To display it, on the **Window** menu, click **HLSL Code**. For more information, see [HLSL Code](#hlslcodepanel).
+[REGION:tip]
+* You can close any panel by clicking the small "X" in the upper-right corner of the tab. You can also hide any panel by right-clicking on the tab, and then clicking **Hide Tab** on the context menu that appears. To once again display a panel that you have closed, click that panel's name on the **Window** menu.
+* Pressing **F1** will display the Unreal Engine 4 (UE4) Material documentation.
 [/REGION]
-
-[INCLUDE:Shared/Editors/Common/EditorMenuItems#UITabTips]
 
 ## Menu Bar
 
 ### File
 
-%Shared/Editors/Common/EditorMenuItems:MenuFileSave%
-%Shared/Editors/Common/EditorMenuItems:MenuFileSaveOptions%
+[REGION:lightbox]
+[![](Material_Editor_1.png)(w:400px)](Material_Editor_1.png)
+[/REGION]
+
+*   **Save** - Saves the asset you are currently working on.
+*   **Save As** - Saves this asset under a different name.
+*   **Open Asset** - Opens the Global Asset Picker to quickly find an asset and open the appropriate editor.
+*   **Save All** - Saves all unsaved levels and assets for your project.
+*   **Choose Files to Save** - Brings up a dialog box that allows you to choose which levels and assets you want to save for your project.
+*   **Submit To Source Control** - Will check the current asset into Source Control.
 
 ### Edit
 
-%Shared/Editors/Common/EditorMenuItems:MenuEditUndo%
-%Shared/Editors/Common/EditorMenuItems:MenuEditSettings%
+*   **Undo** - Undoes the most recent action.
+*   **Redo** - If it was the last action taken, this option redoes the most recent Undo.
+*   **Undo History** - Shows the history of the Undo actions.
+*   **Editor Preferences** - Gives you a list of options, any of which open that part of the **Editor Preferences** window, where you can modify your Unreal Editor preferences.
+*   **Project Settings** - Gives you a list of options, any of which open that part of the **Project Settings** window, where you can modify various settings for your Unreal Engine project.
+*   **Plugins** - Opens the Plugins Browser tab.
 
-### Assets
+### Asset
 
-%Shared/Editors/Common/EditorMenuItems:MenuAssetContentBrowser%
+*   **Find in Content Browser** - Locates and selects the current asset in the **Content Browser**.
+*   **Reference Viewer** - Launches the reference viewer showing the selected assets' references.
+*   **Size Map** - Displays an interactive map showing the approximate size of this asset and everything it references.
+*   **Audit Assets** - Opens the Asset Audio UI and displays information about the selected assets.
 
 ### Window
 
-%Shared/Editors/Common/EditorMenuItems:MenuWindowToolbar%
-%Shared/Editors/Common/EditorMenuItems:MenuWindowViewport%
-* **Graph** - Toggles the display of the **Graph** panel.
-%Shared/Editors/Common/EditorMenuItems:MenuWindowDetails%
-* **Palette** - Toggles the display of the **Palette** panel.
-* **Stats** - Toggles the display of the **Stats** panel.
-* **HLSL Code** - Toggles the display of the **HLSL Code** panel (which is closed by default).
-%Shared/Editors/Common/EditorMenuItems:MenuWindow%
+*   **Toolbar** - Toggles the **Toolbar** display.
+*   **Viewport** - Toggles the **Viewport** panel display.
+*   **Graph** - Toggles the **Graph** panel display.
+*   **Details** - Toggles the **Details** panel display.
+*   **Palette** - Toggles the **Palette** panel display.
+*   **Find Results**- Allows you to search for items in the Material Graph.
+*   **Stats** - Toggles the **Stats** panel display.
+*   **Preview Scene Settings** - Adjusts the **Material preview** viewport options.
+*   **Parameter Defaults**- Toggles displaying the **Materials** global parameters.
+*   **Platform Stats** - Toggles displaying the **Material** cost per platform.
+*   **Stats ** - Toggles the **Material** cost.
+*   **Shader Code ****-** Toggles displaying the **Material HLSL** code for the selected platform.
+    *   **HLSL Code** - Toggles displaying the **HLSL** code.
+        *   **Desktop** - Toggles displaying the **HLSL** code for the various desktop renders.
+            *   **DirectX SM5** - Toggles displaying the **HLSL** code for **Windows SM5**.
+            *   **DirectX SM4** - Toggles displaying the **HLSL** code for **Windows SM4**.
+            *   **Vulkan SM5** - Toggles displaying the **HLSL** code for **Vulkan SM5**.
+            *   **Vulkan SM4** - Toggles displaying the **HLSL** code for Vulkan SM4.
+            *   **OpenGL SM5** - Toggles displaying the **HLSL** code for **OpenGL ****SM5**.
+            *   **OpenGL SM4** - Toggles displaying  the **HLSL** code for **OpenGL ****SM4**.
+        *   **Android **- Toggles displaying the **HLSL** code for the various **Android** renders.
+            *   **Android GLES 3.1** - Toggles displaying the **HLSL** code for **Android GLES 3.1**.
+            *   **Android GLES 2.0 **- Toggles displaying the **HLSL** code for **Android ****GLES 2.0**.
+            *   **Android Vulkan** - Toggles displaying the **HLSL** code for **Android ****Vulkan**.
+        *   **iOS** - Toggles displaying the **HLSL** code for the various **iOS** renders.
+            *   **Metal SM5** - Toggles displaying the **HLSL** code for **Metal SM5**.
+*   **Content Browser** - Brings up the **Content Browser** in a separate window.
+*   **Developer Tools** - Brings up the selected **Developer Tool** in a separate window.
+    *   **Blueprint Debugger** - Brings up the **Blueprint Debugger** in a separate window.
+    *   **Collision Analyzer** - Brings up the **Collision Analyzer** in a separate window.
+    *   **Debug Tools** - Brings up the **Debug Tools** in a separate window.
+    *   **Profiler Data Visualizer** - Open the **Profiler Data Visualize**r tab in a separate window.
+    *   **Message Log** - Brings up the **Message Log** in a separate window.
+    *   **Output Log** - Brings up the **Output Log** in a separate window.
+    *   **Visual Logger** - Bring up the **Visual Logger** tool in a separate window.
+    *   **Class Viewer** - Brings up the **Class Viewer** in a separate window.
+    *   **Device Manager** - Brings up **Device Manager** in a separate window.
+    *   **Device Profiles** - Brings up the **Device Profiles** in a separate window.
+    *   **Merge Actors **- Brings up **Merge Actors** tool in a separate window.
+    *   **Session Frontend** - Brings up **Unreal Frontend** in a separate window.
+    *   **Widget Reflector** - Brings up **Widget Reflector** in a separate window.
+*   **Find in Blueprints** - Find references to functions, events and variables in all Blueprints.
+*   **GameplayCue Editor** - Opens the **Gameplay Cue** Editor tab in a separate window.
+*   **Project Launcher** - The **Project Launcher** provides advanced workflows for packaging, deploying and launching your projects.
+*   **Localization Dashboard** - Open the **Localization Dashboard** for this Project.
+*   **Reset Layout** - Resets your layout to a default arrangement. Requires the editor to restart after saving your changes and creating a backup of your settings.
+*   **Save Layout** - Saves the current layout of the panels as the new default layout.
+*   **Enable Fullscreen** - Enables fullscreen mode for the application, expanding across the entire monitor.
 
 ### Help
 
-%Shared/Editors/Common/EditorMenuItems:MenuHelp%
-
+*   **Browse Material Editor Documentation** - Opens a browser window and navigates to the documentation about this tool.
+*   **Support** - Opens a browser window to the Unreal Developers Network (UDN) forum page where you can ask a question about the Unreal Engine.
+*   **Forums** - Go to the Unreal Engine forums to view announcements and engage in discussions with other developers.
+*   **Answer HUB** - Go to the AnswerHub to  ask questions, search existing answers, and share your knowledge with other UE4 developers.
+*   **Wiki **- Go to the Unreal Engine Wiki page to view community-created resources, or to create your own.
+*   **Visit UnrealEngine.com** - Navigates to UnrealEngine.com where you can learn more about Unreal Technology.
+*   **Credits** - Displays application credits.
+*   **About Unreal Editor** - Displays application credits, copyright information, and build information.
 
 ## Toolbar
 
-![Material Editor Toolbar](MaterialEditor_Toolbar.png)
+[REGION:lightbox]
+[![](Material_Editor_2.png)(w:800px)](Material_Editor_2.png)
+[/REGION]
 
 The following table lists the options in the Toolbar and what they do.
 
-| **Icon** | **Description** | 
+[REGION:simpletable]
+| **Icon** | **Description** |
 | --- | --- |
-| [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarSaveIcon] | [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarSaveDescription] |
-| [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarCBIcon] | [Include:Shared/Editors/Common/EditorToolbarItems/#ToolbarCBDescription] |
-| ![toolbar_apply.png](toolbar_apply.png)| Applies any changes made in the Material Editor to the original Material and any uses of that Material in the world. |
-|![toolbar_search.png](Material_Toolbar_Button_Search.png) | Finds expressions and comments in the current Material. |
-| ![toolbar_home.png](toolbar_home.png)| Centers the base Material node in the **Graph** panel. |
-| ![toolbar_clean.png](toolbar_clean.png)| Deletes any material nodes that are not connected to the Material. |
-| ![toolbar_show.png](toolbar_show.png)| Shows or hides material nodes that are not connected to anything. |
-| ![toolbar_live_nodes.png](Engine/Rendering/Materials/Editor/toolbar_live_nodes.png)| If enabled, updates the Materials in each material node in real time.  Disable this option for faster Material Editor performance. See the [Live Nodes and Live Update](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) section.|
-| ![toolbar_live_update.png](Engine/Rendering/Materials/Editor/toolbar_live_update.png)|If enabled, compiles the shaders of all subexpressions every time nodes are added, deleted, connected, or disconnected, or have their property values changed.  Disable this option for faster Material Editor performance.  See the [Live Nodes and Live Update](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) section. |
-| ![toolbar_stats.png](Engine/Rendering/Materials/Editor/toolbar_stats.png)| Shows or hides Material statistics in the **Graph** panel. |
-| ![toobar_release_stats](Material_Toolbar_Button_Release_Stats.png)| Toggles use of release or development shaders in stats reporting. |
-| ![toolbar_built_in_stats](Material_Toolbar_Button_Built_In_Stats.png)| Toggles displaying of stats for an empty Material. Helps identify cost of changes in the graph.|
-| ![toolbar_mobile_stats](Material_Toolbar_Button_Mobile_Stats.png)| Toggles Material stats and compilation errors for mobile. |
+| ![](Common_Toolbar_Save.png) | Saves the current asset. |
+| ![](UE4_Browse_Icon_01.png "UE4_Browse_Icon_01.png") | Finds and selects the current asset in the Content Browser. |
+| ![](toolbar_apply.png) | Applies any changes made in the Material Editor to the original Material and any uses of that Material in the world. |
+| ![toolbar_search.png](Material_Toolbar_Button_Search.png) | Finds expressions and comments in the current Material. |
+| ![](toolbar_home.png) | Centers the base Material node in the **Graph** panel. |
+| ![](toolbar_clean.png) | Deletes any material nodes that are not connected to the Material. |
+| ![](toolbar_show.png) | Shows or hides material nodes that are not connected to anything. |
+| ![](MaterailEditor_LivePreview.png "MaterailEditor_LivePreview.png") | If enabled, toggles real time update of the preview Material. Disable this option for faster Material Editor performance. See the [Live Nodes and Live Update](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) section. |
+| ![](MaterailEditor_LiveNodes.png "MaterailEditor_LiveNodes.png") | Toggles real time update of the graph canvas. |
+| ![](toolbar_live_update.png) | If enabled, compiles the shaders of all subexpressions every time nodes are added, deleted, connected, or disconnected, or have their property values changed. Disable this option for faster Material Editor performance. See the [Live Nodes and Live Update](Engine/Rendering/Materials/Editor/#LiveNodesAndLiveUpdate) section. |
+| ![](toolbar_stats.png) | Shows or hides Material statistics in the **Graph** panel. |
+| ![](MaterialEditor_PlatformStats.png "MaterialEditor_PlatformStats.png") | Toggles the window that shows Material stats and compilation errors for multiple platforms. |
+[/REGION]
 
 ## Viewport Panel
 
-![Material Editor Preview Panel](MaterialEditor_Preview.png)
+![](Material_Editor_3.png "Material_Editor_3.png")
 
-The **Viewport** panel displays the Material being edited applied to a mesh. 
+The **Viewport** panel displays the Material that is currently being edited.
 
 You can navigate in the **Viewport** panel by using the options in the following table.
 
-| **Action** | **Description** |
-| ----- | ----- |
-| Drag with the left mouse button |  Rotate the mesh  |
+[REGION:simpletable]
+| Action | Description |
+| --- | --- |
+| Drag with the left mouse button | Rotate the mesh |
 | Drag with the middle mouse button | Pan |
 | Drag with the right mouse button | Zoom |
-| Hold down **L** and drag with the left mouse button | Rotate the light direction  |
+| Hold down **L** and drag with the left mouse button | Rotate the light direction |
+[/REGION]
 
+The viewport mesh can be changed by using the associated toolbar controls (the shape buttons, **Select Preview Mesh** combo, and **Use Selected StaticMesh** button). The viewport mesh is saved with the Material so that the next time the Material is opened in a Material Editor, it will be previewed on the same mesh.
 
-The viewport mesh can be changed by using the associated toolbar controls (the shape buttons, **Select Preview Mesh** combo, and **Use Selected StaticMesh** button).  The viewport mesh is saved with the Material so that the 
-next time the Material is opened in a Material Editor, it will be previewed on the same mesh.
+Several icons appear along the top of the **Preview** panel and the following table details their usage.
 
-Several icons appear along the top of the **Preview** panel; the following table details their usage.
-
-| **Icon** | **Description** | 
+[REGION:simpletable]
+| **Icon** | **Description** |
 | --- | --- |
-| ![toolbar_cylinder.png](toolbar_cylinder.png)![toolbar_sphere.png](toolbar_sphere.png)![toolbar_plane.png](toolbar_plane.png)![toolbar_cube.png](toolbar_cube.png)| Shows the result of your current Material on the respective primitive shape in the **Preview** panel. |
-| ![toolbar_mesh.png](toolbar_mesh.png)| Makes the selected Static Mesh in the **Content Browser** the preview mesh. |
-| ![toolbar_grid.png](toolbar_grid.png)| Toggles the background grid in the **Preview** panel. |
-| ![toolbar_realtime_preview.png](toolbar_realtime_preview.png)| If enabled, updates the Material on the preview mesh in real time.  Disable this option for faster Material Editor performance. |
+| ![](toolbar_cylinder.png)![](toolbar_sphere.png)![](toolbar_plane.png)![](toolbar_cube.png) | Shows the result of your current Material on the respective primitive shape in the **Preview** panel. |
+| ![](toolbar_mesh.png) | Makes the selected Static Mesh in the **Content Browser** the preview mesh. |
+| ![](MaterailEditor_ViewportOptions.png "MaterailEditor_ViewportOptions.png") | Toggles the Material **Viewport Options** |
+| ![](MaterailEditor_ViewportType.png "MaterailEditor_ViewportType.png") | Changes the type of **Viewport** that is used. |
+| ![](MaterailEditor_ViewportLightingType.png "MaterailEditor_ViewportLightingType.png") | Changes the type of lighting the  **Viewport** is using. |
+| ![](MaterailEditor_ViewportShow.png "MaterailEditor_ViewportShow.png") | Enables additional options to the Material Viewport. |
+[/REGION]
 
 ## Details Panel
 
-![Material Editor Details Panel](MaterialEditor_Details.png)
+![](Material_Editor_4.png "Material_Editor_4.png")
 
-This panel contains a property window for all currently selected material expression and function nodes.  If no nodes are selected, the 
-properties of the Material being edited will be displayed.
+This panel contains a property window for all currently selected material expression and function nodes. If no nodes are selected, the properties of the Material being edited will be displayed.
 
-See [](Engine/Rendering/Materials/MaterialProperties) for descriptions of 
-all Material properties.
+See [Material Properties](Engine/Rendering/Materials/MaterialProperties) for descriptions of all Material properties.
 
 ## Graph Panel
 
-![](MaterialGraph1.jpg)
+![](Material_Editor_5.png "Material_Editor_5.png")
 
-This panel contains a graph of all material expressions that belong to this Material. By default, each Material contains a single base Material node. This node has a series of inputs, each associated with 
-a different aspect of the Material, that other material nodes can connect to.
+  
+This panel contains a graph of all material expressions that belong to this Material. By default, each Material contains a single base Material node. This node has a series of inputs, each associated with a different aspect of the Material that other material nodes can connect to.
 
-![Material Editor Material Node](MaterialEditor_MaterialNode.png)
+![](MaterialEditor_MaterialNode.png "MaterialEditor_MaterialNode.png")
 
-See [](Engine/Rendering/Materials\MaterialInputs) for descriptions 
-of the various inputs of the base Material node.
+See [Material Inputs](Engine/Rendering/Materials/MaterialInputs) for descriptions of the various inputs of the base Material node.  
 
 ## Palette Panel
 
-The **Palette** panel contains a list of material nodes that can be placed in a Material via "drag and drop".  To place 
-a new material node, drag it into the **Graph** panel.
+![](Material_Editor_6.png "Material_Editor_6.png")
+
+  
+The **Palette** panel contains a list of material nodes that can be placed in a Material via "drag and drop". To place a new material node, drag it into the **Graph** panel.
 
 [REGION:tip]
 You can filter the material nodes listed in the **Palette** panel by choosing either **Expressions** or **Functions** in the **Category** drop-down list.
@@ -167,78 +206,100 @@ You can filter the material nodes listed in the **Palette** panel by choosing ei
 
 For more information about material functions, see [Material Functions](Engine/Rendering/Materials/Functions).
 
+### Stats Panel
 
-## Stats Panel
+![](StatsPanel.png "StatsPanel.png")
 
-![](StatsPanel.jpg)
+The number of shader instructions used in the Material as well as any [Compiler Errors](Engine/Rendering/Materials/Editor/#CompilerErrors) are displayed in this panel. The fewer the number of instructions, the less costly the Material. Material expression nodes that are not connected to the base material node do not contribute to the instruction count (cost) of the Material.
 
-The number of shader instructions used in the Material as well as any [Compiler Errors](Engine/Rendering/Materials/Editor/#CompilerErrors) are displayed in this panel. The fewer the number of instructions, the less costly the Material.  Material expression 
-nodes that are not connected to the base material node do not contribute to the instruction count (cost) of 
-the Material.
+### HLSL Code Panel
 
+![](MaterialEditor_HLSLPanel.png "MaterialEditor_HLSLPanel.png")
 
-## HLSL Code Panel
-
-![](MaterialEditor_HLSLPanel.png)
-
-This panel shows the **High Level Shader Language** (HLSL) code that is generated by the current Material. Be 
-aware that this is not an editor; you will not be able to change the HLSL code. Rather, this is merely a viewer to 
-allow you to visualize the code defined by your material network.
+This panel shows the **High Level Shader Language** (HLSL) code that is generated by the current Material. Be aware that this is not an editor; you will not be able to change the HLSL code. Rather, this is merely a viewer to allow you to visualize the code defined by your Material network.
 
 [REGION:note]
-The Code View panel is not visible by default. To display it, on the **Window** menu, click **HLSL Code**.
+By default the **Code View** panel is not visible. To display the **Code Vie****w** panel, on the **Window** menu, and then click on the **HLSL Code**.
 [/REGION]
 
+### Platform Stats
+
+You can view the cost of your Material on various platforms by clicking on the Platform Stats icon. 
+
+ ![](PlatformStats.png "PlatformStats.png")
+
+You can view stats for each rendering API UE4 supports by clicking on the **Settings** option and then selecting the render you want to see stats for. 
+
+![](PlatformStats_More.png "PlatformStats_More.png")
+
+In order to see the stat for **Android** you will need to first install **Mali Offline Compiler** by doing the following:
+
+1.  Download and install the [Mali Offline Compiler](https://developer.arm.com/products/software-development-tools/graphics-development-tools/mali-offline-compiler/downloads).
+
+1.  After the Mali Offline Compiler has been installed, open up UE4 and from the **Main Menu** go **Edit** \> **Editor Preferences** \> **Content Editors** \> **Material Editor**.
+
+    ![](PlatformStats_CEMaterialEditor.png "PlatformStats_CEMaterialEditor.png")
+
+1.  Click the **three dots** to the right of the **Mali Offline Compiler** option and then locate the **malisc.exe** file that was installed when the Mali Offline Compiler was installed.
+
+    ![](PlatformStats_LoadOfflineCompiler.png "PlatformStats_LoadOfflineCompiler.png")
+
+1.  After the previous steps have been completed, you will be able to see stats for the various Android renders that UE4 supports.
+
+    ![](PlatformStats_SeeingStatsr.png "PlatformStats_SeeingStatsr.png")  
+      
+[REGION:note]
+You will not be able to see the Android Platform stats without the offline compiler.
+[/REGION]
 
 ## Graph Controls
 
-Controls in the Material Editor generally match the controls of other tools in the Unreal Editor.  For example, the material 
-expression graph can be navigated as with other linked object editors, the material preview mesh can be oriented as 
-per other mesh tools, etc.
-
+Controls in the Material Editor generally match the controls of other tools in the Unreal Editor. For example, the Material Expression graph can be navigated as with other linked object editors, the Material preview mesh can be oriented as per other mesh tools.
 
 ### Mouse Controls
 
+[REGION:simpletable]
 | **Control** | **Action** |
 | --- | --- |
-| **LMB or RMB drag on background**  | Pan material expression graph |
-| **Rotate Mouse Wheel**  | Zoom in and out  |
-| **LMB + RMB drag**  | Zoom in and out  |
-| **LMB on object**  | Select expression/comment |
-| **Ctrl + LMB on object**  | Toggle selection of expression/comment |
-| **Ctrl + LMB drag**  | Move current selection/comment  |
-| **Ctrl + Alt + LMB drag**  | Box select  |
-| **Ctrl + Alt + Shift + LMB drag**  | Box select (add to current selection)  |
-| **LMB drag on connector**  | Create connection (release on connector)  |
-| **LMB drag from connection**  | Move connection (release on same type connector)  |
-| **Shift + Double-Click LMB on connector**  | Marks the connector. Performing the action again with a connector marked will create connection between the two connectors. This is a quick way of making connections over large distances.  |
-| **RMB on background**  | Bring up **New Expression** menu  |
-| **RMB on object**  | Bring up **Object** menu  |
-| **RMB on connector**  | Bring up **Object** menu |
-| **Alt + LMB on connector**  | Break all connections to connector  |
-
+| **LMB or RMB drag on background** | Pan material expression graph |
+| **Rotate Mouse Wheel** | Zoom in and out |
+| **LMB + RMB drag** | Zoom in and out |
+| **LMB on object** | Select expression/comment |
+| **Ctrl + LMB on object** | Toggle selection of expression/comment |
+| **Ctrl + LMB drag** | Move current selection/comment |
+| **Ctrl + Alt + LMB drag** | Box select |
+| **Ctrl + Alt + Shift + LMB drag** | Box select (add to current selection) |
+| **LMB drag on connector** | Create connection (release on connector) |
+| **LMB drag from connection** | Move connection (release on same type connector) |
+| **Shift + Double-Click LMB on connector** | Marks the connector. Performing the action again with a connector marked will create connection between the two connectors. This is a quick way of making connections over large distances. |
+| **RMB on background** | Bring up **New Expression** menu |
+| **RMB on object** | Bring up **Object** menu |
+| **RMB on connector** | Bring up **Object** menu |
+| **Alt + LMB on connector** | Break all connections to connector |
+[/REGION]
 
 ### Keyboard Controls
 
+[REGION:simpletable]
 | **Control** | **Action** |
 | --- | --- |
-| **Ctrl + B**  | Find in Content Browser |
-| **Ctrl + C**  | Copy selected expressions |
-| **Ctrl + S**  | Save all |
-| **Ctrl + V**  | Paste  |
-| **Ctrl + W**  | Duplicate selected objects  |
-| **Ctrl + Y**  | Redo  |
-| **Ctrl + Z**  | Undo  |
-| **Delete**  | Delete selected objects  |
-| **Spacebar**  | Force update all material expression previews |
-| **Enter**  | (same as clicking apply) |
-
+| **Ctrl + B** | Find in Content Browser |
+| **Ctrl + C** | Copy selected expressions |
+| **Ctrl + S** | Save all |
+| **Ctrl + V** | Paste |
+| **Ctrl + W** | Duplicate selected objects |
+| **Ctrl + Y** | Redo |
+| **Ctrl + Z** | Undo |
+| **Delete** | Delete selected objects |
+| **Spacebar** | Force update all material expression previews |
+| **Enter** | (same as clicking apply) |
+[/REGION]
 
 ### Hotkeys
 
-You can use hotkeys to place commonly used material expression types.  Hold down the hotkey and **left-click** to 
-drop in the node.  The hotkeys are as follows:
+You can use hotkeys to place commonly used material expression types. Hold down the hotkey and **left-click** to drop in the node. The hotkeys are as follows:
 
+[REGION:simpletable]
 | **Hotkey** | **Expression** |
 | --- | --- |
 | **A** | Add |
@@ -262,5 +323,5 @@ drop in the node.  The hotkeys are as follows:
 | **2** | Constant2Vector |
 | **3** | Constant3Vector |
 | **4** | Constant4Vector |
-| **Shift + C**  | ComponentMask |
-
+| **Shift + C** | ComponentMask |
+[/REGION]

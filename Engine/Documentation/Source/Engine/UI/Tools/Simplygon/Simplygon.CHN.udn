@@ -1,29 +1,23 @@
-﻿Availability:Licensee
-Title:Simplygon
-Crumbs:%ROOT%, Engine
-Description:用于网格物体简化和融合的第三方工具，该工具已经集成到虚幻引擎4中。
+﻿INTSourceChangelist:6091072
+Availability: Licensee
+Crumbs: 
+Title: Simplygon
+Description: 虚幻引擎中已经集成的用于网格体简化和合并的第三方工具。
+Type: 
+Version: 4.22
+Parent: Engine/UI/Tools
 
-[REGION:raw]
-![](SimplygonLogo.png)
-[/REGION]
 
-## 要点知识
-
-[REGION:buttonlist]
-
-		* [](Engine/UI/Tools/Simplygon/Compiling "%Engine/UI/Tools/Simplygon/Compiling:description%")
-	
-[/REGION]
-
-[COMMENT:none]
-
-[EXCERPT:License]
 [REGION:warning]
-尽管随同虚幻引擎发行了Simplygon,但是授权用户必须首先从Donya Labs ([](http://simplygon.com/)) 获得授权才能使用这个功能。 请联系它们了解关于获得授权的详细信息。 
-[PUBLISH:Licensee] 
-请查看[编译Simplygon](Engine/UI/Tools/Simplygon/Compiling)获得更多信息。 
-[/PUBLISH:Licensee]
+在4.22版本中，UE4已经停止支持Simplygon。您可以继续从Simplygon获得更新，但必须自行将其整合到引擎中。作为替代方案，我们推出了自己开发的内部解决方案。更多详情，请参阅[骨架网格体简化](Engine/Content/Types/SkeletalMeshes/SkeletalMeshReductionTool) 文档页面。
 [/REGION]
-[/EXCERPT:License]
 
-[/COMMENT]
+![](SimplygonLogo.png)
+
+(#Essentials)
+## 要素
+
+*   [编译Simplygon](Engine/UI/Tools/Simplygon/Compiling "Instructions on compiling and terms of use for the Simplygon integration in Unreal Engine 4.")
+    
+
+[](#)[](#)

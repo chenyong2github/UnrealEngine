@@ -1,111 +1,99 @@
-﻿Availability: Public
-Title:4. 从关卡传递信息到角色
+﻿INTSourceChangelist:3782314
+Availability: Public
+Title:4. 将信息从关卡传递到角色
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
-Description:在这个步骤中，我们使用关卡蓝图来获取生成点的位置，并将其中一个移动到角色蓝图。 
+Description:在这一步中，我们将使用关卡蓝图获取我们的生成点位置，并将一个位置传递到我们的角色蓝图。 
+version: 4.9
+tags:Blueprints
+parent:Engine\Blueprints\HowTo
+type:how-to
+type:multi-step
+order:4
+
+[NAV]
 
 
-[VAR:Steps]
-[OBJECT:Navigation]
-	[PARAM:previous]
-	[Previous Step](Engine\Blueprints\HowTo\BPHT_3 "%Engine\Blueprints\HowTo\BPHT_3:title%") 
-	[/PARAM]
-	[PARAM:current]
-	[/PARAM]
-	[PARAM:home]
-		[How-To Home](Engine\Blueprints\HowTo "%Engine\Blueprints\HowTo:Title%")
-	[/PARAM]
-	[PARAM:next]
-	[Next Step](Engine\Blueprints\HowTo\BPHT_5 "%Engine\Blueprints\HowTo\BPHT_5:title%") 
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-
-
-
-1. 在主编辑器视图的工具栏中，点击 **Blueprints** （蓝图）按钮并选择 **Open Level Blueprint** （打开关卡蓝图）。 
+1. 在编辑器主视图的工具栏中，单击 **蓝图（Blueprints）** 按钮，然后选择 **打开关卡蓝图（Open Level Blueprint）**。 
 
 	![](OpenLevelBlueprint.png)
 
-1. 在图表中， **右键点击** 并添加 **Event Begin Play** （开始播放事件）节点以及 **Get Player Character** （获取玩家角色）节点。 
+1. 在图表中，**右键单击** 并添加一个 **事件开始播放（Event Begin Play）** 节点和一个 **获取玩家角色（Get Player Character）** 节点。 
 
 	![](GetPlayerCharacter.png)
 
-1. 从  **Get Player Character** （获取玩家角色）节点的 **Return Value** （返回值）引脚进行拖拽，并添加一个 **Cast To FirstPersonCharacter**  （投射到第一人称角色）节点。 
+1. 拖出 **获取玩家角色（Get Player Character）** 的 **返回值（Return Value）**，然后添加一个 **转换为第一人称角色（Cast To FirstPersonCharacter）** 节点。 
 
 	![](CastToNode.png)
 
-	在此我们使用 **Cast** （投射）节点来首先获取玩家角色，然后获取由该玩家使用的角色蓝图（本例中被称为 **FirstPersonCharacter** ，并且我们使用它来对可玩角色设置其它脚本）。 通过使用投射节点，我们得以访问玩家角色的蓝图以及变量、事件和其中的函数。 
+	在这里我们使用 **转换** 节点先获取玩家角色，然后获取该玩家使用的角色蓝图（在这个示例中名为 **FirstPersonCharacter**，我们将在其中设置可操作角色的其他脚本）。通过使用转换节点，我们可以访问玩家角色的蓝图和其中的变量、事件和函数。 
 
 	[REGION:note]
-	关于 **Casting** （投射）的更多信息，请参照[](Engine/Blueprints/UserGuide/CastNodes)文档页面。 
+	有关 **转换** 的更多信息，请参见[](Engine/Blueprints/UserGuide/CastNodes)文档页面。 
 	[/REGION]
 
-1. 按照下图显示内容来连接节点，然后在 **Cast To** 节点的 **Return Value** （返回值）处，选择 **Promote to variable** （添加到变量中）。 
+1. 按下图所示连接节点，然后从**转换为（Cast To）** 节点拖出 **返回值（Return Value）**，选择 **提升为变量（Promote to variable）**。 
 
 	![](PromoteToVariable.png)
 
-	我们会创建一个变量，从而保存对玩家正在使用的 **FirstPersonCharacter** 蓝图的引用，这样我们就不必每次使用投射来获取结果。 通过在 Event Begin Play （开始播放事件）执行此操作，它将会在稍后为我们节省时间。 
+	我们将要创建一个变量，其中存在对玩家使用的 **FirstPersonCharacter** 蓝图的引用，这样我们就不必每次都使用转换为节点来获取它了。如果对事件开始播放节点进行此操作，以后可以节省时间。 
 
-1. 选择添加的变量，然后在 **详细信息** 面板中，将其重命名为 **MyCharacter** 。 
+1. 选择提升的变量，然后在 **细节（Details）** 面板中，将它重命名为 **MyCharacter**。 
 
 	![](RenamedMyCharacter.png)
 
-1. 在 **MyCharacter** 节点的 **Return Value** （返回值）处，添加 **Assign Get Spawn Location** （分配获取生成位置）节点。 
+1. 拖出 **MyCharacter** 节点的 **返回值（Return Value）**，然后添加 **指定获取生成位置（Assign Get Spawn Location）** 节点。 
 
 	![](AssignSpawnLocation.png)
 
-	这就是我们创建的 **Event Dispatcher** （事件调度器）。 当您选择它时，将会添加两个额外的节点。 
+	这就是我们创建的 **事件调度器**。当你选择它时，还会添加两个节点。 
 	
 	[REGION:note]
-	如果您在列表中没有看到这个节点，请确认您点击了 **FirstPersonCharacter** 蓝图中的 **Compile** （编译）并再次尝试。 
+	如果你在列表中没有看到此节点，请确保在 **FirstPersonCharacter** 蓝图中单击 **编译（Compile）**，然后重试。 
 	[/REGION]
 
-1. 请确认您连接了 **Bind Event** （绑定事件）的新增加的节点。 
+1. 确保从 **绑定事件（Bind Event）** 连接新添加的节点。 
 
 	![](ConnectAddedNodes.png)
 
-	现在，当我们在角色蓝图中调用 **GetSpawnLocation** 时，也会同时调用这个新的自定义事件。 
+	现在，当系统在我们的角色蓝图中调用 **GetSpawnLocation** 时，也会调用这个新的自定义事件。 
 
-1. 按住 **Control** 键，从 **MyBlueprint** 窗口中拖入 **MyCharacter** 变量，然后添加 **Set Spawn Location** （设置生成位置）节点。 
+1. 按住 **Control** 并从 **MyBlueprint** 窗口拖入 **MyCharacter** 变量，然后从其拖出，添加 **设置生成位置（Set Spawn Location）** 节点。 
 
 	![](SetSpawnLocation.png)
 
-1. 返回主编辑器窗口，并在 **World Outliner** （世界大纲视图）中，搜索并选择每个 **Target Points** （目标点）。 
+1. 回到编辑器主窗口，在 **世界大纲视图** 中，搜索 **目标点**，然后按住 **Ctrl** 并单击每个目标点，将它们全部选中。 
 
 	![](SelectAllTargetPoints.png)
 
-1. 返回 **Level Blueprint** （关卡蓝图）并在图表中 **右键点击** 并选择 **Create References to 3 selected Actors** （创建到3个选择的Actor的引用）。 
+1. 回到 **关卡蓝图**，在图表中 **右键单击**，然后选择 **创建对3个所选Actor的引用（Create References to 3 selected Actors）**。 
 
 	![](AddReferences.png)
 
-1. 在图表中 **右键点击** 并添加 **Make Array** （生成数组）节点，然后将其与每个 **Target Points** （目标点）连接。 
+1. 在图表中 **右键单击**，然后添加 **设置数组（Make Array）** 节点，将每个 **目标点** 连接到它。 
 
 	![](MakeArray.png)
 
-	您可以通过点击 **Add Pin** （添加引脚）按钮来添加更多引脚。 这个数组会存储我们可以访问的目标点集合。 
+	你可以单击 **添加引脚（Add Pin）** 按钮来添加更多引脚。此数组将会存储我们可以访问的一系列目标点。 
 
-1.	在 **Array** （数组）引脚，添加 **Get** （获取）节点。 
+1.	从 **数组（Array）** 引脚拖出，添加 **获取（Get）** 节点。 
 
-1.	在 **Get** 节点，添加 **Random Integer in Range** （范围内的随机整数）节点， **Min** 设置为 **0** ， **Max** 设置为 **2** 。 
+1.	从 **获取（Get）** 拖出，添加一个 **范围内的随机整数（Random Integer in Range）** 节点，并将 **最小值** 设置为“0”，**最大值** 设置为“2”。 
 
 	![](GetNodeAdded.png)
 
-	在这里我们获得了可用作生成点的随机目标点。 如果您有更多的生成位置，您可以将它们添加到数组中，并增大Range（范围）节点中的 **Max** 值从而包含它们。 
+	在这里我们将获取一个随机的目标点，用作我们的生成点。如果你有更多生成位置，可以将它们添加到数组，并增大“范围内的随机整数（Random Integer in Range）”节点的 **最大** 值来包含它们。 
 
-1.	从 **Get** 节点，添加 **Get Actor Transform** （获取Actor变换）节点，并将其连接到 **Set Spawn Location** （设置生成位置）节点。 
+1.	从 **获取（Get）** 节点拖出，添加 **获取Actor变换（Get Actor Transform）** 节点，然后将它连接到 **设置生成位置（Set Spawn Location）** 节点。 
 
 	[REGION:lightbox]
 	[![](FullScript.png)(w:640)](FullScript.png)
 	[/REGION]
 
-	您的完整脚本应该和上图类似，请点击以查看完整内容。 
+	你的完整脚本应该和上面的内容类似，单击可查看大图。 
 
-在这个页面里我们进行了许多操作！ 我们使用 **Cast** 节点来访问角色蓝图，然后绑定自定义事件到其中的事件调度器。 这样我们可以在事件调度器被调用时，触发关卡蓝图中的自定义事件。 我们随后获取随机生成位置之一，并将其放置在角色蓝图中作为变量生成位置（它用于我们生成岩石的位置）。 
+我们在这个页面上已经做了很多工作！我们使用了一个 **转换（Cast）** 节点访问我们的角色蓝图，然后将一个自定义事件绑定到了其中的事件调度器。这样一来，每当调用事件调度器时，我们都可以在关卡蓝图中触发自定义事件。然后我们随机获取生成位置之一，将它以生成位置变量的形式传递回我们的角色蓝图（它将用作生成石头的位置）。 
 
-在下一步，我们会让岩石变得可射击，并能够使用名称为 **OnHit** 的绑定事件进行销毁（也就是在岩石被射击时的事件）。 
-
-
+在下一步中，我们将使用从一个名为 **OnHit** 的事件引出的绑定事件，使我们的石头能够被射击摧毁（在石头被击中时）。 
 
 
-
+[NAV]

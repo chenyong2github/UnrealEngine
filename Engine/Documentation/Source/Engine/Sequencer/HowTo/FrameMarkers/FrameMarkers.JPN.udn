@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4677954
 Availability: Public
 Crumbs: 
-Title: Using Frame Markers in Sequencer
-Description: Describes how to use Frame Markers in Sequencer to denote special frames within your cinematic Sequences. 
+Title: シーケンサでフレーム マーカーを使用する
+Description: シーケンサのフレーム マーカーを使用して、シネマティック シーケンス内のフレームを特別にする方法を説明します。
 Type: 
 Version: 4.21
 Parent: Engine/SEquencer/HowTo
@@ -11,41 +11,41 @@ Tags: Sequencer
 Tags: Frame Markers
 
 
-Occasionally when working with Sequencer, there may be frames within your cinematic that you want to keep track of. Maybe you want to come back and make changes at a later time or perhaps you want to insert different content at a particular time in your cinematic. Whatever your case may be, you can use **Frame Markers **to add a mark to your Sequence at a desired time, enabling you to see from a glance, "points of interest" that you define.   
+シーケンサでの作業中に、シネマティック シーケンス内のフレームを追跡したい場合があります。シネマティック内で後から戻って変更を加えたり、ある時点に別のコンテンツを挿入したりするなどの場合です。このような場合、 **フレーム マーカー** を使用して任意の時点にマークを付けることで、指定した重要な箇所がひと目でわかるようになります。   
 
-In this How-to, we'll show you how to add, toggle, and remove Frame Markers as well as shortcuts for jumping between markers. 
+この操作ガイドでは、フレーム マーカーの追加、解除、削除およびマーカー間を移動するショートカットについて説明します。 
 
-## Steps
+## 手順
 
-1.  Inside any Project and Sequence, move the Timeline to any location, and press the **M **key to add a marker.   
+1. プロジェクトとシーケンス内で、タイムラインを任意の場所に移動させて **M** キーを押してマーカーを追加します。   
     [REGION:lightbox]
     [![](MarkedFrame_01-2.png)(w:900)](MarkedFrame_01-2.png)
     [/REGION]
     [REGION:caption]
-    Click image for full view.
-    [/REGION]A teal marker indicates where we have added a marker (see above, at frame 15).
-2.  Scrub the Timeline forward and right-click, then from the context menu, select **Add Mark** to add a marker.  
+    クリックして拡大
+    [/REGION]マーカーを追加した場所が青緑色のマーカーで示されます (上図の 15 フレーム目を参照)。
+2. タイムラインをスクラブして右クリックし、コンテキスト メニューから **[Add Mark (マークの追加)]** を選択してマーカーを追加します。
     [REGION:lightbox]
     [![](MarkedFrame_01b.png)(w:900)](MarkedFrame_01b.png)
     [/REGION]
     [REGION:caption]
-    Click image for full view.
-    [/REGION]You can add markers by pressing **M **or through the context menu by selecting the **Add Mark **option.
+    クリックして拡大
+    [/REGION]**M** キーを押すか、コンテキスト メニューから **[Add Mark]** オプションを選択してマーカーを追加します。
     [REGION:note]
-    You can press **CTRL + SHIFT + , (COMMA)** to jump to the previous Marker or **CTRL + SHIFT + . (PERIOD)** to jump to the next Marker.
+    **CTRL + SHIFT + , (コンマ)** を押すと、前のマーカーに移動し、 **CTRL + SHIFT + .(ピリオド)** を押すと、次のマーカーに移動します。
     [/REGION]
-3.  Right-click on the Timeline to bring up the context menu and select **Clear All Marks**.   
+3. タイムラインで右クリックしてコンテキスト メニューを表示して、**[Clear All Marks (すべてのマークを削除)]** を選択します。   
     [REGION:lightbox]
     [![](MarkedFrame_02.png)(w:900)](MarkedFrame_02.png)
     [/REGION]
     [REGION:caption]
-    Click image for full view.
-    [/REGION]This will clear all markers that you have added to the Sequence. If you want to clear a specific marker, move to the marker and press the **M **key to toggle the marker off.   
+    クリックして拡大
+    [/REGION]シーケンスに追加したマーカーがすべてクリアされます。特定のマーカーだけをクリアする場合は、目的のマーカーに移動して **M** キーを押し、そのマーカーを解除します。   
     
 
-5.  Add a marker and a keyframed property, then slide the keyed property to the marker. 
+5. マーカーでキーフレームにしたプロパティを追加して、キーにしたプロパティをマーカーまでスライドさせます。 
 
-## End Result
+## まとめ
 
 [OBJECT:EmbeddedVideo]
  [PARAMLITERAL:width]
@@ -59,6 +59,6 @@ In this How-to, we'll show you how to add, toggle, and remove Frame Markers as w
  [/PARAMLITERAL]
 [/OBJECT]
 
-In the video above, we create a couple keyframes to have our camera move from one position to another. Since we have markers already set up, we move the keyframes to those markers that we've defined as our ideal positions for the camera movement. 
+上のビデオでは、一組のキーフレームを作成して、ある位置から別の位置へカメラを移動させています。マーカーは設定済みなので、カメラが動くのに望ましい位置であるそれらのマーカーまでキーフレームを移動させます。 
 
-When repositioning keys by dragging, the keys will be snapped to marked frames along with keys and sections if the snapping option is enabled for keys and sections. Using **CTRL + SHIFT + , (COMMA) **and **CTRL + SHIFT + . (PERIOD) **to navigate between our markers, we can quickly jump between the start and end markers.
+スナップ オプションがキーとセクションで有効な場合、キーをドラッグして位置を変えると、マークキングしたフレームに、キーがキーとセクションとともにスナップされます。**CTRL + SHIFT + , (コンマ)** および **CTRL + SHIFT + .(ピリオド)** を使用すると、開始位置と終了位置を示すマーカー間を素早く移動することができます。

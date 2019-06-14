@@ -1,0 +1,24 @@
+﻿Availability: Public
+Crumbs: 
+Title: Windows Mixed Reality
+Description: Information on using UE4 to develop for Windows Mixed Reality platforms.
+Type: overview
+Version: 4.21
+Parent: Platforms/VR
+Order: 
+Tags: Platform
+Tags: Desktop VR
+topic-image: WindowsMixedReality.png
+
+
+![](WindowsMixedReality.png "WindowsMixedReality.png")
+
+Unreal Engine 4 now natively supports the Windows Mixed Reality (WMR) platform and headsets, including the HP Mixed Reality and the Samsung Odyssey headsets. 
+
+For complete information on installing and configuring the Windows Mixed Reality platform and headsets, see Microsoft's [Getting Started Guide](https://docs.microsoft.com/en-us/windows/mixed-reality/enthusiast-guide/before-you-start).
+
+[REGION:warning]
+To use Unreal Engine's WMR support, you must be on the **April 2018 Windows 10 update or later**, and have a supported headset.
+[/REGION]
+
+[](#)[](#)
