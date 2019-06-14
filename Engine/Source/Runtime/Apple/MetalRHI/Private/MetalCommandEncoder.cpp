@@ -209,7 +209,7 @@ FMetalCommandBufferMarkers FMetalCommandBufferMarkers::Get(mtlpp::CommandBuffer 
 
 #pragma mark - Public C++ Boilerplate -
 
-FMetalCommandEncoder::FMetalCommandEncoder(FMetalCommandList& CmdList)
+FMetalCommandEncoder::FMetalCommandEncoder(FMetalCommandList& CmdList, EMetalCommandEncoderType InType)
 : CommandList(CmdList)
 , bSupportsMetalFeaturesSetBytes(CmdList.GetCommandQueue().SupportsFeature(EMetalFeaturesSetBytes))
 , RingBuffer(EncoderRingBufferSize, BufferOffsetAlignment, FMetalCommandQueue::GetCompatibleResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::HazardTrackingModeUntracked | BUFFER_RESOURCE_STORAGE_MANAGED)))
@@ -226,6 +226,7 @@ FMetalCommandEncoder::FMetalCommandEncoder(FMetalCommandList& CmdList)
 , FenceStage(mtlpp::RenderStages::Fragment)
 , EncoderNum(0)
 , CmdBufIndex(0)
+, Type(InType)
 {
 	for (uint32 Frequency = 0; Frequency < uint32(mtlpp::FunctionType::Kernel)+1; Frequency++)
 	{
@@ -494,7 +495,7 @@ bool FMetalCommandEncoder::IsImmediate(void) const
 
 bool FMetalCommandEncoder::IsParallel(void) const
 {
-	return CommandList.IsParallel();
+	return CommandList.IsParallel() && (Type == EMetalCommandEncoderCurrent);
 }
 
 bool FMetalCommandEncoder::IsRenderPassDescriptorValid(void) const
@@ -596,7 +597,7 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 	
 	FenceResources.Append(TransitionedResources);
 	
-	if (!CommandList.IsParallel())
+	if (!CommandList.IsParallel() || Type == EMetalCommandEncoderPrologue)
 	{
 		RenderCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, RenderCommandEncoder(RenderPassDesc));
 		METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, RenderEncoderDebug = FMetalRenderCommandEncoderDebugging(RenderCommandEncoder, RenderPassDesc, CommandBufferDebug));
@@ -644,7 +645,7 @@ void FMetalCommandEncoder::BeginRenderCommandEncoding(void)
 	}
 }
 
-void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Type)
+void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType DispatchType)
 {
 	check(CommandBuffer);
 	check(IsRenderCommandEncoderActive() == false && IsComputeCommandEncoderActive() == false && IsBlitCommandEncoderActive() == false);
@@ -652,7 +653,7 @@ void FMetalCommandEncoder::BeginComputeCommandEncoding(mtlpp::DispatchType Type)
 	FenceResources.Append(TransitionedResources);
 	TransitionedResources.Empty();
 	
-	if (Type == mtlpp::DispatchType::Serial)
+	if (DispatchType == mtlpp::DispatchType::Serial)
 	{
 		ComputeCommandEncoder = MTLPP_VALIDATE(mtlpp::CommandBuffer, CommandBuffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, ComputeCommandEncoder());
 	}
