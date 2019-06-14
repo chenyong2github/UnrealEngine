@@ -24,6 +24,7 @@ enum class EInstallBundleModuleInitResult : int
 	ManifestDownloadError,
 	BackgroundDownloadsIniDownloadError,
 	NoInternetConnectionError,
+	ConfigurationError,
 	Count
 };
 
@@ -42,6 +43,7 @@ inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 		TEXT("ManifestDownloadError"),
 		TEXT("BackgroundDownloadsIniDownloadError"),
 		TEXT("NoInternetConnectionError"),
+		TEXT("ConfigurationError"),
 	};
 	static_assert(static_cast<UnderType>(EInstallBundleModuleInitResult::Count) == ARRAY_COUNT(Strings), "");
 
