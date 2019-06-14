@@ -411,8 +411,9 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()
 {
-	checkf(IsInRenderingThread(), TEXT("Can only delete the gpu readback from the render thread"));
-	check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
+	// EmitterInstanceReadback.GPUCountOffset should be INDEX_NONE at this point to ensure the index is reused.
+	// When the batcher is being destroyed though, we don't free the index, but this would not be leaking.
+	// check(EmitterInstanceReadback.GPUCountOffset == INDEX_NONE);
 
 #if WITH_EDITORONLY_DATA
 	if (GPUDebugDataReadbackFloat)
