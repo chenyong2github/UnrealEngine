@@ -129,6 +129,11 @@ namespace UnrealBuildTool.Rules
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
 			}
+
+			if(Target.Platform == UnrealTargetPlatform.Win32)
+            {
+				PrecompileForTargets = PrecompileTargetsType.None;
+            }
 		}
 	}
 }
