@@ -14,7 +14,7 @@ public class ShaderConductor : ModuleRules
 		{
 			string[] DynamicLibrariesMac = new string[] {
 				"/libdxcompiler.dylib",
-				"/libShaderConductor.dylib",
+                "/libShaderConductor.dylib",
 			};
 
 			string BinariesDir = Target.UEThirdPartyBinariesDirectory + "../Mac";
@@ -26,6 +26,7 @@ public class ShaderConductor : ModuleRules
 				RuntimeDependencies.Add(LibraryPath);
 				PublicAdditionalLibraries.Add(LibraryPath);
 			}
+			RuntimeDependencies.Add(BinariesDir + "/libdxcompiler.3.7.dylib");
 		}
         else if (Target.Platform == UnrealTargetPlatform.Win64)
         {
