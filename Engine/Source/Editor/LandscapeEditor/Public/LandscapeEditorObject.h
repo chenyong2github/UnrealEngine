@@ -8,7 +8,7 @@
 #include "LandscapeProxy.h"
 #include "Editor/LandscapeEditor/Private/LandscapeEdMode.h"
 #include "LandscapeFileFormatInterface.h"
-#include "LandscapeBlueprintBrush.h"
+#include "LandscapeBPCustomBrush.h"
 
 #include "LandscapeEditorObject.generated.h"
 
@@ -454,7 +454,7 @@ class ULandscapeEditorObject : public UObject
 	// Blueprint Brush Tool
 
 	UPROPERTY(Category = "Tool Settings", EditAnywhere, Transient, meta = (DisplayName = "Blueprint Brush", ShowForTools = "BlueprintBrush"))
-	TSubclassOf<ALandscapeBlueprintBrush> BlueprintBrush;
+	TSubclassOf<ALandscapeBlueprintCustomBrush> BlueprintCustomBrush;
 
 	// Resize Landscape Tool
 

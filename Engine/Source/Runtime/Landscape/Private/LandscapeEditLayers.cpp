@@ -23,7 +23,7 @@ LandscapeEditLayers.cpp: Landscape editing layers mode
 #include "LandscapeEditorModule.h"
 #include "LandscapeToolInterface.h"
 #include "ComponentRecreateRenderStateContext.h"
-#include "LandscapeBlueprintBrushBase.h"
+#include "LandscapeBPCustomBrush.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "LandscapeMaterialInstanceConstant.h"
 #include "Materials/MaterialExpressionLandscapeVisibilityMask.h"
@@ -2762,6 +2762,12 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 					// TODO: handle conversion/handling of RT not same size as internal size
 
 					FLandscapeLayerBrush& Brush = Layer.Brushes[i];
+
+					if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingHeightmap() || !Brush.BPCustomBrush->IsVisible())
+					{
+						continue;
+					}
+
 					UTextureRenderTarget2D* BrushOutputNonAtlasRT = Brush.Render(true, LandscapeSize, CombinedHeightmapNonAtlasRT);
 					if (BrushOutputNonAtlasRT == nullptr || BrushOutputNonAtlasRT->SizeX != CombinedHeightmapNonAtlasRT->SizeX || BrushOutputNonAtlasRT->SizeY != CombinedHeightmapNonAtlasRT->SizeY)
 					{
@@ -2770,7 +2776,7 @@ int32 ALandscape::RegenerateLayersHeightmaps(const TArray<ULandscapeComponent*>&
 
 					INC_DWORD_STAT(STAT_LandscapeLayersRegenerateDrawCalls); // Brush Render
 
-					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s %s -> BrushNonAtlas %s"), *Layer.Name.ToString(), *Brush.GetBrush()->GetName(), *BrushOutputNonAtlasRT->GetName()) : GEmptyDebugName, BrushOutputNonAtlasRT);
+					PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Height: %s %s -> BrushNonAtlas %s"), *Layer.Name.ToString(), *Brush.BPCustomBrush->GetName(), *BrushOutputNonAtlasRT->GetName()) : GEmptyDebugName, BrushOutputNonAtlasRT);
 
 					// Resolve back to Combined heightmap
 					CopyLayersTexture(BrushOutputNonAtlasRT, CombinedHeightmapNonAtlasRT);
@@ -3500,7 +3506,13 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 					for (int32 i = 0; i < Layer.Brushes.Num(); ++i)
 					{
 						FLandscapeLayerBrush& Brush = Layer.Brushes[i];
-						if (Brush.IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
+
+						if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsVisible())
+						{
+							continue;
+						}
+
+						if (Brush.BPCustomBrush->IsAffectingWeightmapLayer(InfoLayerSettings.GetLayerName()) && !LayerInfoObjects.Contains(InfoLayerSettings.LayerInfoObj))
 						{
 							LayerInfoObjects.Add(InfoLayerSettings.LayerInfoObj, LayerInfoSettingsIndex + 1); // due to visibility layer that is at 0
 						}
@@ -3632,17 +3644,23 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 							// TODO: handle conversion/handling of RT not same size as internal size
 
 							FLandscapeLayerBrush& Brush = Layer.Brushes[i];
-							UTextureRenderTarget2D* BrushOutputRT = Brush.Render(false, LandscapeSize, LandscapeScratchRT3, LayerInfoObj->LayerName);
-							if (BrushOutputRT == nullptr || BrushOutputRT->SizeX != LandscapeScratchRT3->SizeX || BrushOutputRT->SizeY != LandscapeScratchRT3->SizeY)
+
+							if (Brush.BPCustomBrush == nullptr || !Brush.BPCustomBrush->IsAffectingWeightmap() || !Brush.BPCustomBrush->IsAffectingWeightmapLayer(LayerInfoObj->LayerName) || !Brush.BPCustomBrush->IsVisible())
 							{
 								continue;
 							}
 
 							BrushRequiredAllocations.AddUnique(LayerInfoObj);
 
+							UTextureRenderTarget2D* BrushOutputRT = Brush.Render(false, LandscapeSize, LandscapeScratchRT3);
+							if (BrushOutputRT == nullptr || BrushOutputRT->SizeX != LandscapeScratchRT3->SizeX || BrushOutputRT->SizeY != LandscapeScratchRT3->SizeY)
+							{
+								continue;
+							}
+
 							INC_DWORD_STAT(STAT_LandscapeLayersRegenerateDrawCalls); // Brush Render
 
-							PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s %s -> Brush %s"), *Layer.Name.ToString(), *Brush.GetBrush()->GetName(), *BrushOutputRT->GetName()) : GEmptyDebugName, BrushOutputRT);
+							PrintLayersDebugRT(OutputDebugName ? FString::Printf(TEXT("LS Weight: %s %s -> Brush %s"), *Layer.Name.ToString(), *Brush.BPCustomBrush->GetName(), *BrushOutputRT->GetName()) : GEmptyDebugName, BrushOutputRT);
 
 							SourceDebugName = OutputDebugName ? FString::Printf(TEXT("Weight: %s PaintLayer: %s Brush: %s"), *Layer.Name.ToString(), *LayerInfoObj->LayerName.ToString(), *BrushOutputRT->GetName()) : GEmptyDebugName;
 							DestDebugName = OutputDebugName ? LandscapeScratchRT3->GetName() : GEmptyDebugName;
@@ -5330,7 +5348,7 @@ void ALandscape::SetEditingLayer(const FGuid& InLayerGuid)
 
 void ALandscape::SetGrassUpdateEnabled(bool bInGrassUpdateEnabled)
 {
-#if WITH_EDITORONLY_DATA
+#ifdef WITH_EDITORONLY_DATA
 	bGrassUpdateEnabled = bInGrassUpdateEnabled;
 #endif
 }
@@ -5382,7 +5400,7 @@ void ALandscape::CreateDefaultLayer()
 	RequestLayersInitialization();
 }
 
-FLandscapeLayer* ALandscape::DuplicateLayerAndMoveBrushes(const FLandscapeLayer& InOtherLayer)
+FLandscapeLayer* ALandscape::DuplicateLayer(const FLandscapeLayer& InOtherLayer)
 {
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 	if (!LandscapeInfo || !CanHaveLayersContent())
@@ -5395,10 +5413,18 @@ FLandscapeLayer* ALandscape::DuplicateLayerAndMoveBrushes(const FLandscapeLayer&
 	FLandscapeLayer NewLayer(InOtherLayer);
 	NewLayer.Guid = FGuid::NewGuid();
 
-	// Update owning landscape and reparent to landscape's level if necessary
+	// Copy Brush and reparent to the new landscape level if required
 	for (FLandscapeLayerBrush& Brush : NewLayer.Brushes)
 	{
-		Brush.SetOwner(this);
+		if (Brush.BPCustomBrush != nullptr)
+		{
+			if (Brush.BPCustomBrush->GetTypedOuter<ULevel>() != GetTypedOuter<ULevel>())
+			{
+				Brush.BPCustomBrush = DuplicateObject<ALandscapeBlueprintCustomBrush>(Brush.BPCustomBrush, GetTypedOuter<ULevel>());
+			}
+
+			Brush.BPCustomBrush->SetOwningLandscape(this);
+		}
 	}
 
 	int32 AddedIndex = LandscapeLayers.Add(NewLayer);
@@ -5544,7 +5570,7 @@ bool ALandscape::ReorderLayerBrush(int32 InLayerIndex, int32 InStartingLayerBrus
 	return false;
 }
 
-void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBase* InBrush)
+void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintCustomBrush* InBrush)
 {
 	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
@@ -5555,7 +5581,7 @@ void ALandscape::AddBrushToLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBas
 	}
 }
 
-void ALandscape::RemoveBrush(ALandscapeBlueprintBrushBase* InBrush)
+void ALandscape::RemoveBrush(ALandscapeBlueprintCustomBrush* InBrush)
 {
 	for (int32 LayerIndex = 0; LayerIndex < LandscapeLayers.Num(); ++LayerIndex)
 	{
@@ -5563,13 +5589,13 @@ void ALandscape::RemoveBrush(ALandscapeBlueprintBrushBase* InBrush)
 	}
 }
 
-void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, ALandscapeBlueprintBrushBase* InBrush)
+void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, ALandscapeBlueprintCustomBrush* InBrush)
 {
 	if (FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
 		for (int32 i = 0; i < Layer->Brushes.Num(); ++i)
 		{
-			if (Layer->Brushes[i].GetBrush() == InBrush)
+			if (Layer->Brushes[i].BPCustomBrush == InBrush)
 			{
 				Modify();
 				Layer->Brushes.RemoveAt(i);
@@ -5581,104 +5607,55 @@ void ALandscape::RemoveBrushFromLayer(int32 InLayerIndex, ALandscapeBlueprintBru
 	}
 }
 
-void ALandscape::OnBlueprintBrushChanged()
+void ALandscape::OnBPCustomBrushChanged()
 {
 #if WITH_EDITORONLY_DATA
-	LandscapeBlueprintBrushChangedDelegate.Broadcast();
+	LandscapeBPCustomBrushChangedDelegate.Broadcast();
 	RequestLayersContentUpdateForceAll();
 #endif
 }
 
-ALandscapeBlueprintBrushBase* ALandscape::GetBrushForLayer(int32 InLayerIndex, int8 InBrushIndex) const
+ALandscapeBlueprintCustomBrush* ALandscape::GetBrushForLayer(int32 InLayerIndex, int8 InBrushIndex) const
 {
 	if (const FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
 		if (Layer->Brushes.IsValidIndex(InBrushIndex))
 		{
-			return Layer->Brushes[InBrushIndex].GetBrush();
+			return Layer->Brushes[InBrushIndex].BPCustomBrush;
 		}
 	}
 	return nullptr;
 }
 
-TArray<ALandscapeBlueprintBrushBase*> ALandscape::GetBrushesForLayer(int32 InLayerIndex) const
+TArray<ALandscapeBlueprintCustomBrush*> ALandscape::GetBrushesForLayer(int32 InLayerIndex) const
 {
-	TArray<ALandscapeBlueprintBrushBase*> Brushes;
+	TArray<ALandscapeBlueprintCustomBrush*> Brushes;
 	if (const FLandscapeLayer* Layer = GetLayer(InLayerIndex))
 	{
 		Brushes.Reserve(Layer->Brushes.Num());
 		for (const FLandscapeLayerBrush& Brush : Layer->Brushes)
 		{
-			Brushes.Add(Brush.GetBrush());
+			Brushes.Add(Brush.BPCustomBrush);
 		}
 	}
 	return Brushes;
 }
 
-ALandscapeBlueprintBrushBase* FLandscapeLayerBrush::GetBrush() const
+UTextureRenderTarget2D* FLandscapeLayerBrush::Render(bool InIsHeightmap, const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget)
 {
-#if WITH_EDITORONLY_DATA
-	return BlueprintBrush;
-#else
-	return nullptr;
-#endif
-}
-
-void FLandscapeLayerBrush::SetOwner(ALandscape* InOwner)
-{
-#if WITH_EDITORONLY_DATA
-	if (BlueprintBrush && InOwner)
-	{
-		if (BlueprintBrush->GetTypedOuter<ULevel>() != InOwner->GetTypedOuter<ULevel>())
-		{
-			BlueprintBrush->Rename(nullptr, InOwner->GetTypedOuter<ULevel>());
-		}
-		BlueprintBrush->SetOwningLandscape(InOwner);
-	}
-#endif
-}
-
-bool FLandscapeLayerBrush::IsAffectingHeightmap() const
-{
-#if WITH_EDITORONLY_DATA
-	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->IsAffectingHeightmap();
-#else
-	return false;
-#endif
-}
-
-bool FLandscapeLayerBrush::IsAffectingWeightmapLayer(const FName& InWeightmapLayerName) const
-{
-#if WITH_EDITORONLY_DATA
-	return BlueprintBrush && BlueprintBrush->IsVisible() && BlueprintBrush->IsAffectingWeightmap() && BlueprintBrush->IsAffectingWeightmapLayer(InWeightmapLayerName);
-#else
-	return false;
-#endif
-}
-
-UTextureRenderTarget2D* FLandscapeLayerBrush::Render(bool InIsHeightmap, const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget, const FName& InWeightmapLayerName)
-{
-#if WITH_EDITORONLY_DATA
-	if ((InIsHeightmap && !IsAffectingHeightmap()) ||
-		(!InIsHeightmap && !IsAffectingWeightmapLayer(InWeightmapLayerName)))
-	{
-		return nullptr;
-	}
 	if (Initialize(InLandscapeSize, InLandscapeRenderTarget))
 	{
 		TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-		return BlueprintBrush->Render(InIsHeightmap, InLandscapeRenderTarget);
+		return BPCustomBrush->Render(InIsHeightmap, InLandscapeRenderTarget);
 	}
-#endif
 	return nullptr;
 }
 
 bool FLandscapeLayerBrush::Initialize(const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget)
 {
-#if WITH_EDITORONLY_DATA
-	if (BlueprintBrush && InLandscapeRenderTarget)
+	if (BPCustomBrush && InLandscapeRenderTarget)
 	{
-		if (ALandscape* Landscape = BlueprintBrush->GetOwningLandscape())
+		if (ALandscape* Landscape = BPCustomBrush->GetOwningLandscape())
 		{
 			const FIntPoint NewLandscapeRenderTargetSize = FIntPoint(InLandscapeRenderTarget->SizeX, InLandscapeRenderTarget->SizeY);
 			const FTransform NewLandscapeTransform = Landscape->GetTransform();
@@ -5689,12 +5666,11 @@ bool FLandscapeLayerBrush::Initialize(const FIntPoint& InLandscapeSize, UTexture
 				LandscapeSize = InLandscapeSize;
 				
 				TGuardValue<bool> AutoRestore(GAllowActorScriptExecutionInEditor, true);
-				BlueprintBrush->Initialize(LandscapeTransform, LandscapeSize, LandscapeRenderTargetSize);
+				BPCustomBrush->Initialize(LandscapeTransform, LandscapeSize, LandscapeRenderTargetSize);
 			}
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 
