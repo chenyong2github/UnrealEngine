@@ -45,6 +45,7 @@
 #include "NiagaraShaderCompilationManager.h"
 
 #include "NiagaraEditorSettings.h"
+#include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -5430,6 +5431,14 @@ int32 FHlslNiagaraTranslator::CompilePin(const UEdGraphPin* Pin)
 int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_CompileOutputPin);
+
+	if (InPin)
+	{
+		if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(InPin->GetOwningNode()))
+		{
+			SwitchNode->UpdateCompilerConstantValue(this);
+		}
+	}
 
 	// The incoming pin to compile may be pointing to a reroute node. If so, we just jump over it
 	// to where it really came from.
