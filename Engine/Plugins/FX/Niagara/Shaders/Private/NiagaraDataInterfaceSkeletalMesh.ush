@@ -28,8 +28,8 @@ struct FDISkelMeshContext
 	uint			MeshNumWeights;
 	uint			NumSpecificBones;
 	Buffer<uint>	SpecificBones;
-	uint			NumSpecificSocketBones;
-	Buffer<uint>	SpecificSocketBones;
+	uint			NumSpecificSockets;
+	uint			SpecificSocketBoneOffset;
 	float4x4		InstanceTransform;
 	float4x4		InstancePrevTransform;
 	float			InstanceInvDeltaTime;
@@ -426,18 +426,18 @@ void DISkelMesh_RandomSpecificBone(in FDISkelMeshContext DIContext, out int Bone
 
 void DISkelMesh_GetSpecificSocketCount(in FDISkelMeshContext DIContext, out int Count)
 {
-    Count = DIContext.NumSpecificSocketBones;
+    Count = DIContext.NumSpecificSockets;
 }
 
 void DISkelMesh_GetSpecificSocketBoneAt(in FDISkelMeshContext DIContext, in int InSocketIndex, out int Bone)
 {
-    Bone = (int)DIContext.SpecificSocketBones[InSocketIndex];
+    Bone = (int)DIContext.SpecificSocketBoneOffset + clamp(InSocketIndex, 0, (int)DIContext.NumSpecificSockets);
 }
 
 void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out int SocketBone)
 {
     float RandT0 = NiagaraInternalNoise(1, 2, 3);
-    SocketBone = min(uint(RandT0 * float(DIContext.NumSpecificSocketBones)), DIContext.NumSpecificSocketBones - 1); // avoid % by using mul/min to Tri = MeshVertexCount
+    SocketBone = min(uint(RandT0 * float(DIContext.NumSpecificSockets)), DIContext.NumSpecificSockets - 1); // avoid % by using mul/min to Tri = MeshVertexCount
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -463,8 +463,8 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	uint			MeshNumWeights_ ## NAME; \
 	uint			NumSpecificBones_ ## NAME; \
 	Buffer<uint>	SpecificBones_ ## NAME; \
-	uint			NumSpecificSocketBones_ ## NAME; \
-	Buffer<uint>	SpecificSocketBones_ ## NAME; \
+	uint			NumSpecificSockets_ ## NAME; \
+	uint			SpecificSocketBoneOffset_ ## NAME; \
 	float4x4		InstanceTransform_ ## NAME; \
 	float4x4		InstancePrevTransform_ ## NAME; \
 	float			InstanceInvDeltaTime_ ## NAME; \
@@ -491,8 +491,8 @@ void DISkelMesh_RandomSpecificSocketBone(in FDISkelMeshContext DIContext, out in
 	DIContext.MeshNumWeights = MeshNumWeights_ ## NAME; \
 	DIContext.NumSpecificBones	= NumSpecificBones_ ## NAME; \
 	DIContext.SpecificBones	= SpecificBones_ ## NAME; \
-	DIContext.NumSpecificSocketBones = NumSpecificSocketBones_ ## NAME; \
-	DIContext.SpecificSocketBones = SpecificSocketBones_ ## NAME; \
+	DIContext.NumSpecificSockets = NumSpecificSockets_ ## NAME; \
+	DIContext.SpecificSocketBoneOffset = SpecificSocketBoneOffset_ ## NAME; \
 	DIContext.MeshWeightStride = MeshWeightStride_ ## NAME; \
 	DIContext.InstanceTransform = InstanceTransform_ ## NAME; \
 	DIContext.InstancePrevTransform = InstancePrevTransform_ ## NAME; \
