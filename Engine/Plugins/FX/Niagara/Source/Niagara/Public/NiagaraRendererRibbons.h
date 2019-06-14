@@ -48,6 +48,12 @@ private:
 	FVector2D UV1Offset;
 	ENiagaraRibbonAgeOffsetMode UV1AgeOffsetMode;
 	ENiagaraRibbonDrawDirection DrawDirection;
+	ENiagaraRibbonTessellationMode TessellationMode;
+	float CustomCurveTension;
+	int32 CustomTessellationFactor;
+	bool bCustomUseConstantFactor;
+	float CustomTessellationMinAngle;
+	bool bCustomUseScreenSpace;
 
 	int32 PositionDataOffset;
 	int32 VelocityDataOffset;
