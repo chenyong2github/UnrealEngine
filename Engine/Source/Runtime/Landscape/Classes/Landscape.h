@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "LandscapeProxy.h"
-#include "LandscapeBlueprintBrushBase.h"
+#include "LandscapeBPCustomBrush.h"
 #include "Delegates/DelegateCombinations.h"
 
 #include "Landscape.generated.h"
@@ -89,38 +89,28 @@ struct FLandscapeLayerBrush
 	GENERATED_USTRUCT_BODY()
 
 	FLandscapeLayerBrush()
-#if WITH_EDITORONLY_DATA
-		: BlueprintBrush(nullptr)
+		: BPCustomBrush(nullptr)
+#if WITH_EDITOR
 		, LandscapeSize(MAX_int32, MAX_int32)
 		, LandscapeRenderTargetSize(MAX_int32, MAX_int32)
 #endif
 	{}
 
-	FLandscapeLayerBrush(ALandscapeBlueprintBrushBase* InBlueprintBrush)
-#if WITH_EDITORONLY_DATA
-		: BlueprintBrush(InBlueprintBrush)
-		, LandscapeSize(MAX_int32, MAX_int32)
-		, LandscapeRenderTargetSize(MAX_int32, MAX_int32)
-#endif
+	FLandscapeLayerBrush(ALandscapeBlueprintCustomBrush* InBrush)
+		: BPCustomBrush(InBrush)
 	{}
 
 #if WITH_EDITOR
-	UTextureRenderTarget2D* Render(bool InIsHeightmap, const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget, const FName& InWeightmapLayerName = NAME_None);
-	ALandscapeBlueprintBrushBase* GetBrush() const;
-	bool IsAffectingHeightmap() const;
-	bool IsAffectingWeightmapLayer(const FName& InWeightmapLayerName) const;
-	void SetOwner(ALandscape* InOwner);
+	UTextureRenderTarget2D* Render(bool InIsHeightmap, const FIntPoint& InLandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget);
 #endif
+
+	UPROPERTY()
+	ALandscapeBlueprintCustomBrush* BPCustomBrush;
 
 private:
 
 #if WITH_EDITOR
 	bool Initialize(const FIntPoint& LandscapeSize, UTextureRenderTarget2D* InLandscapeRenderTarget);
-#endif
-
-#if WITH_EDITORONLY_DATA
-	UPROPERTY()
-	ALandscapeBlueprintBrushBase* BlueprintBrush;
 
 	FTransform LandscapeTransform;
 	FIntPoint LandscapeSize;
@@ -269,7 +259,7 @@ public:
 	LANDSCAPE_API void RequestLayersContentUpdateForceAll(ELandscapeLayerUpdateMode InModeMask = ELandscapeLayerUpdateMode::Update_All);
 	LANDSCAPE_API void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InModeMask);
 	LANDSCAPE_API bool ReorderLayer(int32 InStartingLayerIndex, int32 InDestinationLayerIndex);
-	LANDSCAPE_API FLandscapeLayer* DuplicateLayerAndMoveBrushes(const FLandscapeLayer& InOtherLayer);
+	LANDSCAPE_API FLandscapeLayer* DuplicateLayer(const FLandscapeLayer& InOtherLayer);
 	LANDSCAPE_API void CreateLayer(FName InName = NAME_None);
 	LANDSCAPE_API void CreateDefaultLayer();
 	LANDSCAPE_API void CopyOldDataToDefaultLayer();
@@ -312,13 +302,13 @@ public:
 	LANDSCAPE_API bool IsLayerBlendSubstractive(int32 InLayerIndex, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj) const;
 	LANDSCAPE_API void SetLayerSubstractiveBlendStatus(int32 InLayerIndex, bool InStatus, const TWeakObjectPtr<ULandscapeLayerInfoObject>& InLayerInfoObj);
 
-	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, class ALandscapeBlueprintBrushBase* InBrush);
-	LANDSCAPE_API void RemoveBrush(class ALandscapeBlueprintBrushBase* InBrush);
-	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, class ALandscapeBlueprintBrushBase* InBrush);
+	LANDSCAPE_API void AddBrushToLayer(int32 InLayerIndex, class ALandscapeBlueprintCustomBrush* InBrush);
+	LANDSCAPE_API void RemoveBrush(class ALandscapeBlueprintCustomBrush* InBrush);
+	LANDSCAPE_API void RemoveBrushFromLayer(int32 InLayerIndex, class ALandscapeBlueprintCustomBrush* InBrush);
 	LANDSCAPE_API bool ReorderLayerBrush(int32 InLayerIndex, int32 InStartingLayerBrushIndex, int32 InDestinationLayerBrushIndex);
-	LANDSCAPE_API class ALandscapeBlueprintBrushBase* GetBrushForLayer(int32 InLayerIndex, int8 BrushIndex) const;
-	LANDSCAPE_API TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForLayer(int32 InLayerIndex) const;
-	LANDSCAPE_API void OnBlueprintBrushChanged();
+	LANDSCAPE_API class ALandscapeBlueprintCustomBrush* GetBrushForLayer(int32 InLayerIndex, int8 BrushIndex) const;
+	LANDSCAPE_API TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForLayer(int32 InLayerIndex) const;
+	LANDSCAPE_API void OnBPCustomBrushChanged();
 	
 	LANDSCAPE_API void OnPreSave();
 
@@ -400,8 +390,8 @@ public:
 	UPROPERTY(EditAnywhere, Category=Landscape)
 	bool bCanHaveLayersContent = false;
 
-	DECLARE_EVENT(ALandscape, FLandscapeBlueprintBrushChangedDelegate);
-	FLandscapeBlueprintBrushChangedDelegate& OnBlueprintBrushChangedDelegate() { return LandscapeBlueprintBrushChangedDelegate; }
+	DECLARE_EVENT(ALandscape, FLandscapeBPCustomBrushChangedDelegate);
+	FLandscapeBPCustomBrushChangedDelegate& OnBPCustomBrushChangedDelegate() { return LandscapeBPCustomBrushChangedDelegate; }
 
 	/** Target Landscape Layer for Landscape Splines */
 	UPROPERTY()
@@ -423,7 +413,7 @@ public:
 	TArray<UTextureRenderTarget2D*> WeightmapRTList;
 
 private:
-	FLandscapeBlueprintBrushChangedDelegate LandscapeBlueprintBrushChangedDelegate;
+	FLandscapeBPCustomBrushChangedDelegate LandscapeBPCustomBrushChangedDelegate;
 
 	/** Components affected by landscape splines (used to partially clear Layer Reserved for Splines) */
 	UPROPERTY(Transient)
