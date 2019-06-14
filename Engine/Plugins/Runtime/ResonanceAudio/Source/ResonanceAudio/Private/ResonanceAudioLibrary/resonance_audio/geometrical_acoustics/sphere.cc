@@ -19,7 +19,7 @@ limitations under the License.
 #include <cmath>
 #include <utility>
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 
 namespace vraudio {
 

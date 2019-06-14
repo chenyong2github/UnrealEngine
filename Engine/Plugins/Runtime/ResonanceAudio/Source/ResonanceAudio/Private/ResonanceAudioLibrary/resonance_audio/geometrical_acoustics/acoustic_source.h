@@ -22,7 +22,9 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
-#include "Eigen/Core"
+
+#include "ResonanceEigenHelper.h"
+
 #include "base/constants_and_types.h"
 #include "geometrical_acoustics/acoustic_ray.h"
 #include "geometrical_acoustics/sampling.h"

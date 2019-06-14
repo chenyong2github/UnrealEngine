@@ -20,7 +20,7 @@ limitations under the License.
 #include <cmath>
 #include <vector>
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include "base/constants_and_types.h"
 #include "base/logging.h"
 

@@ -17,7 +17,7 @@ limitations under the License.
 #ifndef RESONANCE_AUDIO_GEOMETRICAL_ACOUSTICS_REFLECTION_KERNEL_H_
 #define RESONANCE_AUDIO_GEOMETRICAL_ACOUSTICS_REFLECTION_KERNEL_H_
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include "base/constants_and_types.h"
 #include "base/logging.h"
 #include "geometrical_acoustics/acoustic_ray.h"
