@@ -1264,7 +1264,7 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 					{
 						if (CVar_ForceConnectionViewerPriority.GetValueOnAnyThread() > 0)
 						{
-							AccumulatedPriority = MIN_flt;
+							AccumulatedPriority = -MAX_FLT;
 						}
 						else
 						{
