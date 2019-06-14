@@ -186,14 +186,15 @@ public:
 		SetSRVParameter(RHICmdList, ShaderRHI, UploadOperationData, InUploadOperationData);
 
 
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.ObjectBuffers), Scene->DistanceFieldSceneData.NumObjectsInBuffer, true);
+		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), Scene->DistanceFieldSceneData.NumObjectsInBuffer, true);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FScene* Scene)
 	{
-		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.ObjectBuffers), true);
+		const FDistanceFieldObjectBuffers& ObjectBuffers = *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers());
 
-		const FDistanceFieldObjectBuffers& ObjectBuffers = *(Scene->DistanceFieldSceneData.ObjectBuffers);
+		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), ObjectBuffers, true);
+
 		FRHIUnorderedAccessView* OutUAVs[2];
 		OutUAVs[0] = ObjectBuffers.Bounds.UAV;
 		OutUAVs[1] = ObjectBuffers.Data.UAV;
@@ -477,14 +478,14 @@ public:
 
 		SetShaderValue(RHICmdList, ShaderRHI, NumRemoveOperations, NumRemoveOperationsValue);
 		SetSRVParameter(RHICmdList, ShaderRHI, RemoveOperationIndices, InRemoveOperationIndices);
-		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.ObjectBuffers), Scene->DistanceFieldSceneData.NumObjectsInBuffer, true);
+		ObjectBufferParameters.Set(RHICmdList, ShaderRHI, *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), Scene->DistanceFieldSceneData.NumObjectsInBuffer, true);
 		SetSRVParameter(RHICmdList, ShaderRHI, ObjectBounds2, InObjectBounds2);
 		SetSRVParameter(RHICmdList, ShaderRHI, ObjectData2, InObjectData2);
 	}
 
 	void UnsetParameters(FRHICommandList& RHICmdList, const FScene* Scene)
 	{
-		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.ObjectBuffers), true);
+		ObjectBufferParameters.UnsetParameters(RHICmdList, GetComputeShader(), *(Scene->DistanceFieldSceneData.GetCurrentObjectBuffers()), true);
 	}
 
 	virtual bool Serialize(FArchive& Ar) override
@@ -592,7 +593,6 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 	FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 
 	TArray<FIntRect> RemoveObjectIndices;
-	FDistanceFieldObjectBuffers* TemporaryCopySourceBuffers = NULL;
 
 	if (DistanceFieldSceneData.PendingRemoveOperations.Num() > 0)
 	{
@@ -632,6 +632,8 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 			// We have multiple remove requests enqueued in PendingRemoveOperations, can only use the RemoveAtSwap version when there won't be collisions
 			const bool bUseRemoveAtSwap = PendingRemoveOperations.Last() < DistanceFieldSceneData.NumObjectsInBuffer - PendingRemoveOperations.Num();
 
+			FDistanceFieldObjectBuffers*& CurrentObjectBuffers = DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex];
+
 			if (bUseRemoveAtSwap)
 			{
 				// Remove everything in parallel in the same buffer with a RemoveAtSwap algorithm
@@ -657,13 +659,31 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 			{
 				const double StartTime = FPlatformTime::Seconds();
 
-				// Have to copy the object data to allow parallel removing
-				TemporaryCopySourceBuffers = DistanceFieldSceneData.ObjectBuffers;
-				DistanceFieldSceneData.ObjectBuffers = new FDistanceFieldObjectBuffers();
-				DistanceFieldSceneData.ObjectBuffers->MaxObjects = TemporaryCopySourceBuffers->MaxObjects;
-				DistanceFieldSceneData.ObjectBuffers->Initialize();
+				TArray<FPrimitiveAndInstance> OriginalPrimitiveInstanceMapping;
 
-				TArray<FPrimitiveAndInstance> OriginalPrimitiveInstanceMapping = DistanceFieldSceneData.PrimitiveInstanceMapping;
+				// Have to copy the object data to allow parallel removing
+				int32 NextObjectBufferIndex = (DistanceFieldSceneData.ObjectBufferIndex + 1) & 1;
+				FDistanceFieldObjectBuffers*& NextObjectBuffers = DistanceFieldSceneData.ObjectBuffers[NextObjectBufferIndex];
+				
+				check(CurrentObjectBuffers != nullptr);
+
+				DistanceFieldSceneData.ObjectBufferIndex = NextObjectBufferIndex;
+
+				if (NextObjectBuffers != nullptr && NextObjectBuffers->MaxObjects < CurrentObjectBuffers->MaxObjects)
+				{
+					NextObjectBuffers->Release();
+					delete NextObjectBuffers;
+					NextObjectBuffers = nullptr;
+				}
+
+				if (NextObjectBuffers == nullptr)
+				{
+					NextObjectBuffers = new FDistanceFieldObjectBuffers();
+					NextObjectBuffers->MaxObjects = CurrentObjectBuffers->MaxObjects;
+					NextObjectBuffers->Initialize();
+				}
+
+				OriginalPrimitiveInstanceMapping = DistanceFieldSceneData.PrimitiveInstanceMapping;
 				DistanceFieldSceneData.PrimitiveInstanceMapping.Reset();
 
 				const int32 NumDestObjects = DistanceFieldSceneData.NumObjectsInBuffer - PendingRemoveOperations.Num();
@@ -742,7 +762,6 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 
 				if (bUseRemoveAtSwap)
 				{
-					check(!TemporaryCopySourceBuffers);
 					TShaderMapRef<TRemoveObjectsFromBufferCS<true> > ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
 					RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
 					ComputeShader->SetParameters(RHICmdList, Scene, RemoveObjectIndices.Num(), GDistanceFieldRemoveIndices.RemoveIndices.BufferSRV, NULL, NULL);
@@ -752,23 +771,13 @@ void UpdateGlobalDistanceFieldObjectRemoves(FRHICommandListImmediate& RHICmdList
 				}
 				else
 				{
-					check(TemporaryCopySourceBuffers);
 					TShaderMapRef<TRemoveObjectsFromBufferCS<false> > ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
 					RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, Scene, RemoveObjectIndices.Num(), GDistanceFieldRemoveIndices.RemoveIndices.BufferSRV, TemporaryCopySourceBuffers->Bounds.SRV, TemporaryCopySourceBuffers->Data.SRV);
+					ComputeShader->SetParameters(RHICmdList, Scene, RemoveObjectIndices.Num(), GDistanceFieldRemoveIndices.RemoveIndices.BufferSRV, CurrentObjectBuffers->Bounds.SRV, CurrentObjectBuffers->Data.SRV);
 
 					DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp<uint32>(RemoveObjectIndices.Num(), UpdateObjectsGroupSize), 1, 1);
 					ComputeShader->UnsetParameters(RHICmdList, Scene);
 				}
-			}
-			
-			// make sure to delete the temporary buffer (even if RemoveObjectIndices is empty)
-			if (TemporaryCopySourceBuffers)
-			{
-				check(bUseRemoveAtSwap == false);
-				TemporaryCopySourceBuffers->Release();
-				delete TemporaryCopySourceBuffers;
-				TemporaryCopySourceBuffers = nullptr;
 			}
 		}
 	}
@@ -1026,9 +1035,9 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateObjectData);
 		SCOPED_DRAW_EVENT(RHICmdList, UpdateSceneObjectData);
 
-		if (!DistanceFieldSceneData.ObjectBuffers)
+		if (DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex]==nullptr)
 		{
-			DistanceFieldSceneData.ObjectBuffers = new FDistanceFieldObjectBuffers();
+			DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex] = new FDistanceFieldObjectBuffers();
 		}
 
 		if (!DistanceFieldSceneData.SurfelBuffers)
@@ -1241,9 +1250,11 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 				DistanceFieldSceneData.PendingThrottledOperations.Empty();
 			}
 
-			if (DistanceFieldSceneData.ObjectBuffers->MaxObjects < DistanceFieldSceneData.NumObjectsInBuffer)
+			FDistanceFieldObjectBuffers*& ObjectBuffers = DistanceFieldSceneData.ObjectBuffers[DistanceFieldSceneData.ObjectBufferIndex];
+
+			if (ObjectBuffers->MaxObjects < DistanceFieldSceneData.NumObjectsInBuffer)
 			{
-				if (DistanceFieldSceneData.ObjectBuffers->MaxObjects > 0)
+				if (ObjectBuffers->MaxObjects > 0)
 				{
 					// Realloc
 					FDistanceFieldObjectBuffers* NewObjectBuffers = new FDistanceFieldObjectBuffers();
@@ -1253,21 +1264,21 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 					{
 						TShaderMapRef<FCopyObjectBufferCS> ComputeShader(GetGlobalShaderMap(Scene->GetFeatureLevel()));
 						RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-						ComputeShader->SetParameters(RHICmdList, *(DistanceFieldSceneData.ObjectBuffers), *NewObjectBuffers, OriginalNumObjects);
+						ComputeShader->SetParameters(RHICmdList, *ObjectBuffers, *NewObjectBuffers, OriginalNumObjects);
 
 						DispatchComputeShader(RHICmdList, *ComputeShader, FMath::DivideAndRoundUp<uint32>(OriginalNumObjects, UpdateObjectsGroupSize), 1, 1);
 						ComputeShader->UnsetParameters(RHICmdList, *NewObjectBuffers);
 					}
 
-					DistanceFieldSceneData.ObjectBuffers->Release();
-					delete DistanceFieldSceneData.ObjectBuffers;
-					DistanceFieldSceneData.ObjectBuffers = NewObjectBuffers;
+					ObjectBuffers->Release();
+					delete ObjectBuffers;
+					ObjectBuffers = NewObjectBuffers;
 				}
 				else
 				{
 					// First time allocate
-					DistanceFieldSceneData.ObjectBuffers->MaxObjects = DistanceFieldSceneData.NumObjectsInBuffer * 5 / 4;
-					DistanceFieldSceneData.ObjectBuffers->Initialize();
+					ObjectBuffers->MaxObjects = DistanceFieldSceneData.NumObjectsInBuffer * 5 / 4;
+					ObjectBuffers->Initialize();
 				}
 			}
 		}
