@@ -39,6 +39,8 @@ FCurveEditor::FCurveEditor()
 	, ActiveCurvesSerialNumber(0)
 {
 	Settings = GetMutableDefault<UCurveEditorSettings>();
+	CommandList = MakeShared<FUICommandList>();
+
 	OutputSnapEnabledAttribute = true;
 	InputSnapEnabledAttribute  = true;
 	OutputSnapIntervalAttribute = 0.1;
@@ -255,8 +257,6 @@ bool FCurveEditor::ShouldAutoFrame() const
 void FCurveEditor::BindCommands()
 {
 	UCurveEditorSettings* CurveSettings = Settings;
-
-	CommandList = MakeShared<FUICommandList>();
 
 	CommandList->MapAction(FGenericCommands::Get().Undo,   FExecuteAction::CreateLambda([]{ GEditor->UndoTransaction(); }));
 	CommandList->MapAction(FGenericCommands::Get().Redo,   FExecuteAction::CreateLambda([]{ GEditor->RedoTransaction(); }));
