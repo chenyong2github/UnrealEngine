@@ -726,23 +726,22 @@ TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> FNiagaraEditorModul
 	return TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe>();
 }
 
-TSharedRef<SWidget> FNiagaraEditorModule::CreateStackWidget(UNiagaraStackViewModel* StackViewModel) const
+
+void FNiagaraEditorModule::RegisterWidgetProvider(TSharedRef<INiagaraEditorWidgetProvider> InWidgetProvider)
 {
-	checkf(OnCreateStackWidget.IsBound(), TEXT("Can not create stack widget.  Stack creation delegate was never set."));
-	return OnCreateStackWidget.Execute(StackViewModel);
+	checkf(WidgetProvider.IsValid() == false, TEXT("Widget provider has already been set."));
+	WidgetProvider = InWidgetProvider;
 }
 
-FDelegateHandle FNiagaraEditorModule::SetOnCreateStackWidget(FOnCreateStackWidget InOnCreateStackWidget)
-{
-	checkf(OnCreateStackWidget.IsBound() == false, TEXT("Stack creation delegate already set."));
-	OnCreateStackWidget = InOnCreateStackWidget;
-	return OnCreateStackWidget.GetHandle();
+void FNiagaraEditorModule::UnregisterWidgetProvider(TSharedRef<INiagaraEditorWidgetProvider> InWidgetProvider)
+{	
+	checkf(WidgetProvider.IsValid() && WidgetProvider == InWidgetProvider, TEXT("Can only unregister the widget provider that was originally registered."));
+	WidgetProvider.Reset();
 }
 
-void FNiagaraEditorModule::ResetOnCreateStackWidget(FDelegateHandle Handle)
+TSharedRef<INiagaraEditorWidgetProvider> FNiagaraEditorModule::GetWidgetProvider() const
 {
-	checkf(OnCreateStackWidget.GetHandle() == Handle, TEXT("Can only reset the stack creation module with the handle it was created with."));
-	OnCreateStackWidget.Unbind();
+	return WidgetProvider.ToSharedRef();
 }
 
 TSharedRef<FNiagaraScriptMergeManager> FNiagaraEditorModule::GetScriptMergeManager() const
