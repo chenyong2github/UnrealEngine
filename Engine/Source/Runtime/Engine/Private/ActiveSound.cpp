@@ -1479,9 +1479,9 @@ void FActiveSound::UpdateFocusData(float DeltaTime, const FAttenuationListenerDa
 	FocusDataToUpdate->VolumeScale = ListenerData.AttenuationSettings->GetFocusAttenuation(FocusSettings, FocusDataToUpdate->FocusFactor);
 }
 
-void FActiveSound::ParseAttenuation(FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings& AttenuationSettings)
+void FActiveSound::ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings)
 {
-	UpdateAttenuation(0.0f, ParseParams, Listener, &AttenuationSettings);
+	UpdateAttenuation(0.0f, OutParseParams, InListener, &InAttenuationSettings);
 }
 
 void FActiveSound::UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode)
