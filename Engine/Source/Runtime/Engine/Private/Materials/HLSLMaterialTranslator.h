@@ -3560,6 +3560,29 @@ protected:
 		return ParticleSubUV;
 	}
 
+	virtual int32 ParticleSubUVProperty(int32 PropertyIndex) override
+	{
+		int32 Result = INDEX_NONE;
+		switch (PropertyIndex)
+		{
+		case 0:
+			Result = AddCodeChunk(MCT_Float2, TEXT("Parameters.Particle.SubUVCoords[0].xy"));
+			break;
+		case 1:
+			Result = AddCodeChunk(MCT_Float2, TEXT("Parameters.Particle.SubUVCoords[1].xy"));
+			break;
+		case 2:
+			Result = AddCodeChunk(MCT_Float, TEXT("Parameters.Particle.SubUVLerp"));
+			break;
+		default:
+			checkNoEntry();
+			break;
+		}
+
+		bUsesParticleSubUVs = true;
+		return Result;
+	}
+
 	virtual int32 ParticleColor() override
 	{
 		if (ShaderFrequency != SF_Vertex && ShaderFrequency != SF_Pixel && ShaderFrequency != SF_Compute)
