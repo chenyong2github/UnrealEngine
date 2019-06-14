@@ -755,7 +755,6 @@ struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInter
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumSpecificBones, StaticBuffers->GetNumSpecificBones());
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, SpecificBones, SpecificBonesSRV);
 
-			FShaderResourceViewRHIParamRef SpecificSocketBonesSRV = StaticBuffers->GetNumSpecificSockets() > 0 ? StaticBuffers->GetSpecificSocketBonesSRV() : FNiagaraRenderer::GetDummyUIntBuffer().SRV.GetReference();
 			SetShaderValue(RHICmdList, ComputeShaderRHI, NumSpecificSockets, StaticBuffers->GetNumSpecificSockets());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, SpecificSocketBoneOffset, StaticBuffers->GetSpecificSocketBoneOffset());
 
