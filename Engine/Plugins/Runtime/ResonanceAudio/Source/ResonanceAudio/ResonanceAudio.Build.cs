@@ -56,9 +56,6 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-            // Resonance's Eigen usage is only valid with Eigen 2, so we set Eigen to backwards compatibility mode:
-            // PublicDefinitions.Add("EIGEN2_SUPPORT=1");
-
             if (Target.bBuildEditor == true)
             {
                 PrivateDependencyModuleNames.Add("UnrealEd");
