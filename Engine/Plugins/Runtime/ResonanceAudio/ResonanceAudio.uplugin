@@ -18,16 +18,7 @@
     {
       "Name": "ResonanceAudio",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": [
-        "Android",
-        "iOS",
-        "Linux",
-        "Mac",
-        "Win32",
-        "Win64",
-        "Lumin"
-      ]
+      "LoadingPhase": "Default"
     },
     {
       "Name": "ResonanceAudioEditor",
