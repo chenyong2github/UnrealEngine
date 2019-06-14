@@ -343,8 +343,6 @@ void FWindowsPlatformMemory::FPlatformVirtualMemoryBlock::FreeVirtual()
 	if (Ptr)
 	{
 		check(GetActualSize() > 0);
-		// this is an iffy assumption, we don't know how much of this memory is really committed, we will assume none of it is
-		//LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, Ptr));
 
 		CA_SUPPRESS(6001)
 		// Windows maintains the size of allocation internally, so Size is unused
@@ -360,9 +358,7 @@ void FWindowsPlatformMemory::FPlatformVirtualMemoryBlock::Commit(size_t InOffset
 	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
 	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
 
-	// There are no guarantees LLM is going to be able to deal with this
 	uint8* UsePtr = ((uint8*)Ptr) + InOffset;
-	LLM(FLowLevelMemTracker::Get().OnLowLevelAlloc(ELLMTracker::Platform, UsePtr, InSize));
 	if (VirtualAlloc(UsePtr, InSize, MEM_COMMIT, PAGE_READWRITE) != UsePtr)
 	{
 		FPlatformMemory::OnOutOfMemory(InSize, 0);
@@ -374,8 +370,6 @@ void FWindowsPlatformMemory::FPlatformVirtualMemoryBlock::Decommit(size_t InOffs
 	check(IsAligned(InOffset, GetCommitAlignment()) && IsAligned(InSize, GetCommitAlignment()));
 	check(InOffset >= 0 && InSize >= 0 && InOffset + InSize <= GetActualSize() && Ptr);
 	uint8* UsePtr = ((uint8*)Ptr) + InOffset;
-	// There are no guarantees LLM is going to be able to deal with this
-	LLM(FLowLevelMemTracker::Get().OnLowLevelFree(ELLMTracker::Platform, UsePtr));
 	VirtualFree(UsePtr, InSize, MEM_DECOMMIT);
 }
 
