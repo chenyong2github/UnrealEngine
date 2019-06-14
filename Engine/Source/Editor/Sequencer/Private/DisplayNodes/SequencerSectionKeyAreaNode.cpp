@@ -21,11 +21,18 @@ FSequencerSectionKeyAreaNode::FSequencerSectionKeyAreaNode(FName NodeName, FSequ
 
 void FSequencerSectionKeyAreaNode::AddKeyArea(TSharedRef<IKeyArea> KeyArea)
 {
+	KeyArea->TreeSerialNumber = TreeSerialNumber;
 	KeyAreas.Add(KeyArea);
+}
 
-	if (KeyEditorSwitcher.IsValid())
+void FSequencerSectionKeyAreaNode::RemoveStaleKeyAreas()
+{
+	for (int32 Index = KeyAreas.Num() - 1; Index >= 0; --Index)
 	{
-		KeyEditorSwitcher->Rebuild();
+		if (KeyAreas[Index]->TreeSerialNumber != TreeSerialNumber)
+		{
+			KeyAreas.RemoveAt(Index, 1, false);
+		}
 	}
 }
 
@@ -49,26 +56,22 @@ bool FSequencerSectionKeyAreaNode::CanRenameNode() const
 	return false;
 }
 
-TSharedRef<SWidget> FSequencerSectionKeyAreaNode::GetOrCreateKeyAreaEditorSwitcher()
+EVisibility FSequencerSectionKeyAreaNode::GetKeyEditorVisibility() const
 {
-	if (!KeyEditorSwitcher.IsValid())
-	{
-		KeyEditorSwitcher = SNew(SKeyAreaEditorSwitcher, SharedThis(this));
-	}
-	return KeyEditorSwitcher.ToSharedRef();
+	return KeyAreas.Num() == 0 ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 TSharedRef<SWidget> FSequencerSectionKeyAreaNode::GetCustomOutlinerContent()
 {
-	if (GetAllKeyAreas().Num() > 0)
-	{
-		return SNew(SHorizontalBox)
+	// Even if this key area node doesn't have any key areas right now, it may in the future, so we always create the switcher, and just hide it if it is not relevant
+	return SNew(SHorizontalBox)
+		.Visibility(this, &FSequencerSectionKeyAreaNode::GetKeyEditorVisibility)
 
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		[
-			GetOrCreateKeyAreaEditorSwitcher()
+			SNew(SKeyAreaEditorSwitcher, SharedThis(this))
 		]
 
 		+ SHorizontalBox::Slot()
@@ -77,9 +80,6 @@ TSharedRef<SWidget> FSequencerSectionKeyAreaNode::GetCustomOutlinerContent()
 		[
 			SNew(SKeyNavigationButtons, SharedThis(this))
 		];
-	}
-
-	return FSequencerDisplayNode::GetCustomOutlinerContent();
 }
 
 

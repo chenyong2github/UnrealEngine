@@ -141,6 +141,12 @@ void FSequencerSectionLayoutBuilder::AddChannel( const FMovieSceneChannelHandle&
 
 void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSectionKeyAreaNode> KeyAreaNode, const FMovieSceneChannelHandle& Channel)
 {
+	const FMovieSceneChannelMetaData* MetaData = Channel.GetMetaData();
+	if (!ensureAlwaysMsgf(MetaData, TEXT("Attempting to update an expired channel handle to the node tree")))
+	{
+		return;
+	}
+
 	KeyAreaNode->TreeSerialNumber = RootNode->TreeSerialNumber;
 
 	TSharedPtr<IKeyArea> KeyArea = KeyAreaNode->GetKeyArea(Section);
@@ -149,8 +155,11 @@ void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSec
 		// No key area for this section exists - create a new one
 		TSharedRef<IKeyArea> NewKeyArea = MakeShared<IKeyArea>(Section, Channel);
 		KeyAreaNode->AddKeyArea(NewKeyArea);
+		return;
 	}
-	else if (KeyArea->GetChannel() != Channel)
+
+	KeyArea->TreeSerialNumber = RootNode->TreeSerialNumber;
+	if (KeyArea->GetChannel() != Channel)
 	{
 		// A key area exists but for a different channel handle so this needs re-creating
 		KeyArea->Reinitialize(Section, Channel);
@@ -158,12 +167,6 @@ void FSequencerSectionLayoutBuilder::AddOrUpdateChannel(TSharedRef<FSequencerSec
 	else
 	{
 		// Just ensure the name is up to date
-		const FMovieSceneChannelMetaData* MetaData = Channel.GetMetaData();
-		if (!ensureAlwaysMsgf(MetaData, TEXT("Attempting to update an expired channel handle to the node tree")))
-		{
-			return;
-		}
-
 		KeyArea->SetName(MetaData->Name);
 	}
 }
