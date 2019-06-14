@@ -72,7 +72,7 @@ void SFrameTrack::Reset()
 	bIsLMB_Pressed = false;
 	bIsRMB_Pressed = false;
 
-	bIsRMB_Scrolling = false;
+	bIsScrolling = false;
 
 	SelectionStartFrameIndex = 0;
 	SelectionEndFrameIndex = 0;
@@ -134,7 +134,7 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	ThisGeometry = AllottedGeometry;
 
-	if (!bIsRMB_Scrolling)
+	if (!bIsScrolling)
 	{
 		// Elastic snap to horizontal limits (+15%).
 
@@ -583,7 +583,12 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			// Release the mouse.
 			Reply = FReply::Handled().ReleaseMouseCapture();
 
-			if (bIsValidForMouseClick)
+			if (bIsScrolling)
+			{
+				bIsScrolling = false;
+				CursorType = EFrameTrackCursor::Default;
+			}
+			else if (bIsValidForMouseClick)
 			{
 				SelectFrameAtMousePosition(MousePositionOnButtonUp.X, MousePositionOnButtonUp.Y);
 			}
@@ -598,10 +603,10 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			// Release mouse as we no longer scroll.
 			Reply = FReply::Handled().ReleaseMouseCapture();
 
-			if (bIsRMB_Scrolling)
+			if (bIsScrolling)
 			{
+				bIsScrolling = false;
 				CursorType = EFrameTrackCursor::Default;
-				bIsRMB_Scrolling = false;
 			}
 			else if (bIsValidForMouseClick)
 			{
@@ -633,8 +638,18 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 	{
 		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
 		{
-			// Inform other widgets that we have moved the selection box.
-			//SelectionBoxChangedEvent.Broadcast(SelectionBoxFrameStart, SelectionBoxFrameEnd);
+			if (!bIsScrolling)
+			{
+				bIsScrolling = true;
+				CursorType = EFrameTrackCursor::Hand;
+
+				HoveredSample.Reset();
+			}
+
+			float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
+			UpdateHorizontalScrollBar();
+			bIsStateDirty = true;
 
 			Reply = FReply::Handled();
 		}
@@ -643,10 +658,13 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 	{
 		if (HasMouseCapture() && !MouseEvent.GetCursorDelta().IsZero())
 		{
-			bIsRMB_Scrolling = true;
-			CursorType = EFrameTrackCursor::Hand;
+			if (!bIsScrolling)
+			{
+				bIsScrolling = true;
+				CursorType = EFrameTrackCursor::Hand;
 
-			HoveredSample.Reset();
+				HoveredSample.Reset();
+			}
 
 			float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
 			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
