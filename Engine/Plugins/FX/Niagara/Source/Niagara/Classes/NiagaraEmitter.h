@@ -322,6 +322,9 @@ public:
 
 	/** Whether or not this emitter uses the supplied emitter */
 	bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
+
+	/** Duplicates this emitter, but prevents the duplicate from merging in changes from the parent emitter.  The resulting duplicate will have no parent information. */
+	NIAGARA_API UNiagaraEmitter* DuplicateWithoutMerging(UObject* InOuter);
 #endif
 
 	/** Is this emitter allowed to be enabled by the current system detail level. */
@@ -374,7 +377,7 @@ private:
 
 	void SyncEmitterAlias(const FString& InOldName, const FString& InNewName);
 
-	void UpdateChangeId();
+	void UpdateChangeId(const FString& Reason);
 
 	void ScriptRapidIterationParameterChanged();
 
