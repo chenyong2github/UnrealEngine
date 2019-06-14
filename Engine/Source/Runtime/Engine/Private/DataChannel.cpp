@@ -73,7 +73,7 @@ FAutoConsoleVariableRef CVarNetSkipReplicatorForDestructionInfos(
 	TEXT("If enabled, skip creation of object replicator in SetChannelActor when we know there is no content payload and we're going to immediately destroy the actor."));
 
 extern TAutoConsoleVariable<int32> CVarFilterGuidRemapping;
-extern TAutoConsoleVariable<int32> CVarEnableDetailedScopeCounters;
+extern TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
 /*-----------------------------------------------------------------------------
 	UChannel implementation.
@@ -3762,7 +3762,7 @@ FObjectReplicator & UActorChannel::GetActorReplicationData()
 
 TSharedRef< FObjectReplicator > & UActorChannel::FindOrCreateReplicator( UObject* Obj, bool* bOutCreated )
 {
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat_ActorChanFindOrCreateRep, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
 	SCOPE_CYCLE_UOBJECT(ActorChannelFindOrCreateRep, Obj);
 
 	// First, try to find it on the channel replication map
