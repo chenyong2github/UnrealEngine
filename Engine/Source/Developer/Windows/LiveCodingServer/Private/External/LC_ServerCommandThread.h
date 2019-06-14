@@ -134,6 +134,10 @@ private:
 	bool m_active = true;
 	// END EPIC MOD
 
+	// BEGIN EPIC MOD - Lazy loading modules
+	bool EnableRequiredModules(const TArray<FString>& RequiredModules);
+	// END EPIC MOD
+
 	// for triggering recompiles using the API
 	bool m_manualRecompileTriggered;
 	types::unordered_map<std::wstring, types::vector<LiveModule::ModifiedObjFile>> m_liveModuleToModifiedOrNewObjFiles;
