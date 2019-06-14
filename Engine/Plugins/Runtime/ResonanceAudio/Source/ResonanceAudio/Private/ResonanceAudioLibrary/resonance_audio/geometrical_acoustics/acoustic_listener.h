@@ -21,7 +21,7 @@ limitations under the License.
 #include <cstddef>
 #include <vector>
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include "base/constants_and_types.h"
 
 namespace vraudio {
