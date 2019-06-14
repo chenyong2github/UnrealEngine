@@ -365,11 +365,14 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 
 FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
 	: NumObjectsInBuffer(0)
-	, ObjectBuffers(NULL)
+	, ObjectBufferIndex(0)
 	, SurfelBuffers(NULL)
 	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
 {
+	ObjectBuffers[0] = nullptr;
+	ObjectBuffers[1] = nullptr;
+
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
 	bTrackAllPrimitives = (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform)) && CVar->GetValueOnGameThread() != 0 && IsUsingDistanceFields(ShaderPlatform);
@@ -379,7 +382,8 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 
 FDistanceFieldSceneData::~FDistanceFieldSceneData() 
 {
-	delete ObjectBuffers;
+	delete ObjectBuffers[0];
+	delete ObjectBuffers[1];
 }
 
 void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
@@ -459,9 +463,13 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 void FDistanceFieldSceneData::Release()
 {
-	if (ObjectBuffers)
+	if (ObjectBuffers[0]!=nullptr)
 	{
-		ObjectBuffers->Release();
+		ObjectBuffers[0]->Release();
+	}
+	if (ObjectBuffers[1] != nullptr)
+	{
+		ObjectBuffers[1]->Release();
 	}
 }
 
