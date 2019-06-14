@@ -237,8 +237,7 @@ public:
 
 	virtual ~FSkeletalMeshGpuSpawnStaticBuffers();
 
-	FORCEINLINE_DEBUGGABLE void Initialise(const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, 
-		bool bIsGpuUniformlyDistributedSampling, const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData, const TArray<int32>& SpecificBones, const TArray<int32>& SpecificSocketBones);
+	FORCEINLINE_DEBUGGABLE void Initialise(struct FNDISkeletalMesh_InstanceData* InstData, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData,const FSkeletalMeshSamplingLODBuiltData& SkeletalMeshSamplingLODBuiltData);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -263,8 +262,8 @@ public:
 	uint32 GetNumSpecificBones() const { return NumSpecificBones; }
 	FRHIShaderResourceView* GetSpecificBonesSRV() const { return SpecificBonesSRV; }
 
-	uint32 GetNumSpecificSocketBones() const { return NumSpecificSocketBones; }
-	FRHIShaderResourceView* GetSpecificSocketBonesSRV() const { return SpecificSocketBonesSRV; }
+	uint32 GetNumSpecificSockets() const { return NumSpecificSockets; }
+	uint32 GetSpecificSocketBoneOffset() const { return SpecificSocketBoneOffset; }
 
 protected:
 
@@ -280,10 +279,8 @@ protected:
 	FVertexBufferRHIRef SpecificBonesBuffer;
 	FShaderResourceViewRHIRef SpecificBonesSRV;
 
-	uint32 NumSpecificSocketBones = 0;
-	TResourceArray<uint16> SpecificSocketBonesArray;
-	FVertexBufferRHIRef SpecificSocketBonesBuffer;
-	FShaderResourceViewRHIRef SpecificSocketBonesSRV;
+	uint32 NumSpecificSockets = 0;
+	uint32 SpecificSocketBoneOffset = 0;
 
 	/** Cached SRV to gpu buffers of the mesh we spawn from */
 	FRHIShaderResourceView* MeshVertexBufferSrv;
@@ -316,7 +313,7 @@ public:
 	FSkeletalMeshGpuDynamicBufferProxy();
 	virtual ~FSkeletalMeshGpuDynamicBufferProxy();
 
-	void Initialise(const FReferenceSkeleton& RefSkel, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData);
+	void Initialise(const FReferenceSkeleton& RefSkel, const FSkeletalMeshLODRenderData& SkeletalMeshLODRenderData, uint32 InSamplingSocketCount);
 
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;
@@ -340,6 +337,7 @@ public:
 
 private:
 	uint32 SamplingBoneCount = 0;
+	uint32 SamplingSocketCount = 0;
 	uint32 SectionBoneCount = 0;
 
 	enum { BufferBoneCount = 2 };
@@ -384,10 +382,15 @@ struct FNDISkeletalMesh_InstanceData
 	/** Indices of the bones specifically referenced by the interface. */
 	TArray<int32> SpecificBones;
 
-	/** Indices of the sockets specifically referenced by the interface. */
-	TArray<int32> SpecificSockets;
-	/** The bone indices for the specific sockets. */
-	TArray<int32> SpecificSocketBones;
+	/** Name of all the sockets we use. */
+	TArray<FName> SpecificSockets;
+	/** Bone index of the first socket, sockets are appended to the end of the bone array */
+	int32 SpecificSocketBoneOffset = 0;
+
+	/** Index into which socket transforms to use.  */
+	uint32 SpecificSocketTransformsIndex = 0;
+	/** Transforms for sockets. */
+	TStaticArray<TArray<FTransform>, 2> SpecificSocketTransforms;
 
 	uint32 ChangeId;
 
@@ -422,6 +425,11 @@ struct FNDISkeletalMesh_InstanceData
 		}
 		return Ret;
 	}
+
+	void UpdateSpecificSocketTransforms();
+	TArray<FTransform>& GetSpecificSocketsWriteBuffer() { return SpecificSocketTransforms[SpecificSocketTransformsIndex]; }
+	const TArray<FTransform>& GetSpecificSocketsCurrBuffer() const { return SpecificSocketTransforms[SpecificSocketTransformsIndex]; }
+	const TArray<FTransform>& GetSpecificSocketsPrevBuffer() const { return SpecificSocketTransforms[(SpecificSocketTransformsIndex + 1) % SpecificSocketTransforms.Num()]; }
 
 	bool HasColorData();
 };
@@ -464,7 +472,6 @@ public:
 	/** Set of specific sockets that can be used for sampling. Select from these with GetSpecificSocketAt and RandomSpecificSocket. */
 	UPROPERTY(EditAnywhere, Category = "Skeleton")
 	TArray<FName> SpecificSockets;
-	
 
 	/** Whether any triangle sampling function is bound. Only used in game. */
 	UPROPERTY()
@@ -534,8 +541,8 @@ public:
 	static const FString MeshNumWeightsName;
 	static const FString NumSpecificBonesName;
 	static const FString SpecificBonesName;
-	static const FString NumSpecificSocketBonesName;
-	static const FString SpecificSocketBonesName;
+	static const FString NumSpecificSocketsName;
+	static const FString SpecificSocketBoneOffsetName;
 	static const FString InstanceTransformName;
 	static const FString InstancePrevTransformName;
 	static const FString InstanceInvDeltaTimeName;
