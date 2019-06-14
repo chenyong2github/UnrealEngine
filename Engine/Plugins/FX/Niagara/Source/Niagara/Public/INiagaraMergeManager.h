@@ -5,15 +5,24 @@
 class INiagaraMergeManager
 {
 public:
+	enum class EMergeEmitterResult
+	{
+		SucceededNoDifferences,
+		SucceededDifferencesApplied,
+		FailedToDiff,
+		FailedToMerge,
+		None
+	};
+
 	struct FMergeEmitterResults
 	{
 		FMergeEmitterResults()
-			: bSucceeded(true)
+			: MergeResult(EMergeEmitterResult::None)
 			, bModifiedGraph(false)
 		{
 		}
 
-		bool bSucceeded;
+		EMergeEmitterResult MergeResult;
 		TArray<FText> ErrorMessages;
 		bool bModifiedGraph;
 		UNiagaraEmitter* MergedInstance;
