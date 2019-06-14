@@ -155,7 +155,44 @@ FAutoConsoleVariableRef CVarDisableBinauralSpatialization(
 namespace
 {
 	using FVirtualLoopPair = TPair<FActiveSound*, FAudioVirtualLoop>;
+
+#if !UE_BUILD_SHIPPING
+	int32 PrecachedRealtime = 0;
+	int32 PrecachedNative = 0;
+	int32 TotalNativeSize = 0;
+	float AverageNativeLength = 0.f;
+	TMap<int32, int32> NativeChannelCount;
+	TMap<int32, int32> NativeSampleRateCount;
+#endif // !UE_BUILD_SHIPPING
 } // namespace <>
+
+
+FAttenuationListenerData FAttenuationListenerData::Create(const FAudioDevice& AudioDevice, const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
+{
+	FAttenuationListenerData ListenerData(InListenerTransform, InSoundTransform, InAttenuationSettings);
+
+	const FVector SoundTranslation = InSoundTransform.GetTranslation();
+	FVector ListenerToSound = SoundTranslation - InListenerTransform.GetTranslation();
+	ListenerToSound.ToDirectionAndLength(ListenerData.ListenerToSoundDir, ListenerData.ListenerToSoundDistance);
+
+	// Store the actual distance for surround-panning sources with spread (AudioMixer)
+	ListenerData.ListenerToSoundDistanceForPanning = ListenerData.ListenerToSoundDistance;
+
+	if (AudioDevice.IsUsingListenerAttenuationOverride())
+	{
+		const FVector& AttenuationOverride = AudioDevice.GetListenerAttenuationOverride();
+		ListenerData.ListenerToSoundDistance = (SoundTranslation - AttenuationOverride).Size();
+	}
+
+	const FSoundAttenuationSettings& AttenuationSettings = *ListenerData.AttenuationSettings;
+	if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
+	{
+		ListenerData.AttenuationDistance = FMath::Max(ListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.0f);
+	}
+
+	return MoveTemp(ListenerData);
+}
+
 
 /*-----------------------------------------------------------------------------
 	FAudioDevice implementation.
@@ -940,13 +977,6 @@ void FAudioDevice::ShowSoundClassHierarchy(FOutputDevice& Ar, USoundClass* InSou
 		}
 	}
 }
-
-int32 PrecachedRealtime = 0;
-int32 PrecachedNative = 0;
-int32 TotalNativeSize = 0;
-float AverageNativeLength = 0.f;
-TMap<int32, int32> NativeChannelCount;
-TMap<int32, int32> NativeSampleRateCount;
 
 bool FAudioDevice::HandleDumpSoundInfoCommand(const TCHAR* Cmd, FOutputDevice& Ar)
 {
@@ -4658,10 +4688,6 @@ void FAudioDevice::GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld*
 
 		if (AttenuationSettingsToApply->bSpatialize && AttenuationSettingsToApply->bEnableListenerFocus)
 		{
-			// Now scale the max distance based on the focus settings in the attenuation settings
-			FAttenuationListenerData ListenerData;
-			float Azimuth = 0.0f;
-			float AbsoluteAzimuth = 0.0f;
 			const int32 ClosestListenerIndex = FindClosestListenerIndex(SoundTransform);
 			if (ClosestListenerIndex >= ListenerTransforms.Num())
 			{
@@ -4669,8 +4695,12 @@ void FAudioDevice::GetMaxDistanceAndFocusFactor(USoundBase* Sound, const UWorld*
 				return;
 			}
 
-			const FTransform& ListenerTransform = ListenerTransforms[ClosestListenerIndex];
-			GetAzimuth(ListenerData, SoundTransform, *AttenuationSettingsToApply, ListenerTransform, Azimuth, AbsoluteAzimuth);
+			// Now scale the max distance based on the focus settings in the attenuation settings
+			FAttenuationListenerData ListenerData = FAttenuationListenerData::Create(*this, ListenerTransforms[ClosestListenerIndex], SoundTransform, *AttenuationSettingsToApply);
+
+			float Azimuth = 0.0f;
+			float AbsoluteAzimuth = 0.0f;
+			GetAzimuth(ListenerData, Azimuth, AbsoluteAzimuth);
 			OutFocusFactor = GetFocusFactor(Azimuth, *AttenuationSettingsToApply);
 		}
 	}
@@ -4741,7 +4771,7 @@ bool FAudioDevice::SoundIsAudible(const FActiveSound& NewActiveSound)
 		return true;
 	}
 
-	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusDistanceScale;
+	const float ApparentMaxDistance = NewActiveSound.MaxDistance * NewActiveSound.FocusData.DistanceScale;
 	if (LocationIsAudible(NewActiveSound.Transform.GetLocation(), ApparentMaxDistance))
 	{
 		return true;
@@ -4801,71 +4831,18 @@ int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform) c
 	return INDEX_NONE;
 }
 
-void FAudioDevice::GetAttenuationListenerData(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform* InListenerTransform) const
+void FAudioDevice::GetAzimuth(const FAttenuationListenerData& ListenerData, float& OutAzimuth, float& OutAbsoluteAzimuth) const
 {
-	// Only compute various components of the listener of it hasn't been computed yet
-	if (!OutListenerData.bDataComputed)
-	{
+	const FVector& ListenerForwardDir = ListenerData.ListenerTransform.GetUnitAxis(EAxis::X);
 
-		// Use the optional input listener param
-		if (InListenerTransform)
-		{
-			OutListenerData.ListenerTransform = *InListenerTransform;
-		}
-		// If not set, then we need to find the closest listener
-		else
-		{
-			const int32 ClosestListenerIndex = FindClosestListenerIndex(SoundTransform);
-			if (IsInAudioThread())
-			{
-				OutListenerData.ListenerTransform = Listeners[ClosestListenerIndex].Transform;
-			}
-			else if (IsInGameThread())
-			{
-				OutListenerData.ListenerTransform = ListenerTransforms[ClosestListenerIndex];
-			}
-		}
-
-		FVector ListenerToSound;
-		const FVector ListenerLocation = OutListenerData.ListenerTransform.GetTranslation();
-		ListenerToSound = SoundTransform.GetTranslation() - ListenerLocation;
-		ListenerToSound.ToDirectionAndLength(OutListenerData.ListenerToSoundDir, OutListenerData.ListenerToSoundDistance);
-
-		// store the actual distance for surround-panning sources with spread (AudioMixer)
-		OutListenerData.ListenerToSoundDistanceForPanning = OutListenerData.ListenerToSoundDistance;
-
-		if (bUseListenerAttenuationOverride)
-		{
-			ListenerToSound = SoundTransform.GetTranslation() - ListenerAttenuationOverride;
-			FVector Temp;
-			ListenerToSound.ToDirectionAndLength(Temp, OutListenerData.ListenerToSoundDistance);
-		}
-
-		OutListenerData.AttenuationDistance = 0.0f;
-
-		if ((AttenuationSettings.bAttenuate && AttenuationSettings.AttenuationShape == EAttenuationShape::Sphere) || AttenuationSettings.bAttenuateWithLPF)
-		{
-			OutListenerData.AttenuationDistance = FMath::Max(OutListenerData.ListenerToSoundDistance - AttenuationSettings.AttenuationShapeExtents.X, 0.f);
-		}
-
-		OutListenerData.bDataComputed = true;
-	}
-}
-
-void FAudioDevice::GetAzimuth(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& OutAbsoluteAzimuth) const
-{
-	GetAttenuationListenerData(OutListenerData, SoundTransform, AttenuationSettings, &ListenerTransform);
-
-	const FVector& ListenerForwardDir = OutListenerData.ListenerTransform.GetUnitAxis(EAxis::X);
-
-	const float SoundToListenerForwardDotProduct = FVector::DotProduct(ListenerForwardDir, OutListenerData.ListenerToSoundDir);
+	const float SoundToListenerForwardDotProduct = FVector::DotProduct(ListenerForwardDir, ListenerData.ListenerToSoundDir);
 	const float SoundListenerAngleRadians = FMath::Acos(SoundToListenerForwardDotProduct);
 
 	// Normal azimuth only goes to 180 (0 is in front, 180 is behind).
 	OutAzimuth = FMath::RadiansToDegrees(SoundListenerAngleRadians);
 
-	const FVector& ListenerRightDir = OutListenerData.ListenerTransform.GetUnitAxis(EAxis::Y);
-	const float SoundToListenerRightDotProduct = FVector::DotProduct(ListenerRightDir, OutListenerData.ListenerToSoundDir);
+	const FVector& ListenerRightDir = ListenerData.ListenerTransform.GetUnitAxis(EAxis::Y);
+	const float SoundToListenerRightDotProduct = FVector::DotProduct(ListenerRightDir, ListenerData.ListenerToSoundDir);
 
 	FVector AbsAzimuthVector2D = FVector(SoundToListenerForwardDotProduct, SoundToListenerRightDotProduct, 0.0f);
 	AbsAzimuthVector2D.Normalize();
@@ -5104,7 +5081,7 @@ void FAudioDevice::PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float V
 
 	const FSoundAttenuationSettings* AttenuationSettingsToApply = (AttenuationSettings ? &AttenuationSettings->Attenuation : Sound->GetAttenuationSettingsToApply());
 	float MaxDistance = 0.0f;
-	float FocusFactor = 0.0f;
+	float FocusFactor = 1.0f;
 
 	GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
 
@@ -5130,8 +5107,8 @@ void FAudioDevice::PlaySoundAtLocation(USoundBase* Sound, UWorld* World, float V
 			const FGlobalFocusSettings& FocusSettings = GetGlobalFocusSettings();
 
 			NewActiveSound.AttenuationSettings = *AttenuationSettingsToApply;
-			NewActiveSound.FocusPriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(FocusSettings, FocusFactor);
-			NewActiveSound.FocusDistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(FocusSettings, FocusFactor);
+			NewActiveSound.FocusData.PriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(FocusSettings, FocusFactor);
+			NewActiveSound.FocusData.DistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(FocusSettings, FocusFactor);
 		}
 
 		NewActiveSound.MaxDistance = MaxDistance;
@@ -5778,8 +5755,8 @@ void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 			// actively playing sounds in concurrency checks.
 			ActiveSound.PlaybackTime += DeltaTime * ActiveSound.MinCurrentPitch;
 
-			// If the loop is ready to realize, add to array to be re-triggered outside of the loop
-			// to avoid map manipulation while iterating.
+			// If the loop is ready to realize, add to array to be re-triggered
+			// outside of the loop to avoid map manipulation while iterating.
 			if (VirtualLoop.CanRealize(DeltaTime, bForceUpdate))
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
