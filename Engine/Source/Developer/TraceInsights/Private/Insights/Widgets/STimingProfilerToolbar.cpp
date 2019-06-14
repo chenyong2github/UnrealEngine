@@ -10,6 +10,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SToolTip.h"
 
 // Insights
 #include "Insights/InsightsCommands.h"
@@ -37,18 +38,10 @@ STimingProfilerToolbar::~STimingProfilerToolbar()
 
 void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 {
-	CreateCommands();
-
 	struct Local
 	{
-		static void FillToolbar1(FToolBarBuilder& ToolbarBuilder)
+		static void FillViewToolbar(FToolBarBuilder& ToolbarBuilder)
 		{
-			//ToolbarBuilder.BeginSection("Session");
-			//{
-			//	ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Live);
-			//	ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().InsightsManager_Load);
-			//}
-			//ToolbarBuilder.EndSection();
 			ToolbarBuilder.BeginSection("View");
 			{
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleFramesTrackVisibility);
@@ -59,16 +52,11 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 				ToolbarBuilder.AddToolBarButton(FTimingProfilerCommands::Get().ToggleLogViewVisibility);
 			}
 			ToolbarBuilder.EndSection();
-			//ToolbarBuilder.BeginSection("Options");
-			//{
-			//	ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().OpenSettings);
-			//}
-			//ToolbarBuilder.EndSection();
 		}
 
-		static void FillToolbar2(FToolBarBuilder& ToolbarBuilder)
+		static void FillRightSideToolbar(FToolBarBuilder& ToolbarBuilder)
 		{
-			ToolbarBuilder.BeginSection("Options");
+			ToolbarBuilder.BeginSection("Debug");
 			{
 				ToolbarBuilder.AddToolBarButton(FInsightsCommands::Get().ToggleDebugInfo);
 			}
@@ -78,11 +66,12 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 
 	TSharedPtr<FUICommandList> CommandList = FInsightsManager::Get()->GetCommandList();
 
-	FToolBarBuilder ToolbarBuilder1(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
-	Local::FillToolbar1(ToolbarBuilder1);
+	FToolBarBuilder ToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	Local::FillViewToolbar(ToolbarBuilder);
+	FillModulesToolbar(ToolbarBuilder);
 
-	FToolBarBuilder ToolbarBuilder2(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
-	Local::FillToolbar2(ToolbarBuilder2);
+	FToolBarBuilder RightSideToolbarBuilder(CommandList.ToSharedRef(), FMultiBoxCustomization::None);
+	Local::FillRightSideToolbar(RightSideToolbarBuilder);
 
 	// Create the tool bar!
 	ChildSlot
@@ -100,7 +89,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 			[
-				ToolbarBuilder1.MakeWidget()
+				ToolbarBuilder.MakeWidget()
 			]
 		]
 
@@ -115,7 +104,7 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
 			.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 			[
-				ToolbarBuilder2.MakeWidget()
+				RightSideToolbarBuilder.MakeWidget()
 			]
 		]
 	];
@@ -123,31 +112,124 @@ void STimingProfilerToolbar::Construct(const FArguments& InArgs)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingProfilerToolbar::ShowStats()
+bool STimingProfilerToolbar::ToggleModule_CanExecute(FName ModuleName) const
 {
-	// do nothing
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	if (!SessionService->IsRecorderServerRunning())
+	{
+		return false;
+	}
+
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (!Session.IsValid())
+	{
+		return false;
+	}
+
+	Trace::FSessionHandle SessionHandle = FInsightsManager::Get()->GetSessionHandle();
+	if (SessionHandle == 0)
+	{
+		return false;
+	}
+
+	Trace::FSessionInfo SessionInfo;
+	SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+	return SessionInfo.bIsLive;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingProfilerToolbar::ShowMemory()
+void STimingProfilerToolbar::ToggleModule_Execute(FName ModuleName)
 {
-	// do nothing
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	Trace::FSessionHandle SessionHandle = FInsightsManager::Get()->GetSessionHandle();
+
+	bool bState = SessionService->IsModuleEnabled(SessionHandle, ModuleName);
+	return SessionService->SetModuleEnabled(SessionHandle, ModuleName, !bState);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingProfilerToolbar::CreateCommands()
+bool STimingProfilerToolbar::ToggleModule_IsChecked(FName ModuleName) const
 {
-	//TSharedPtr<FUICommandList> ProfilerCommandList = FTimingProfilerManager::Get()->GetCommandList();
-	//const FTimingProfilerCommands& Commands = FTimingProfilerCommands::Get();
-	//
-	//// Stats command
-	//ProfilerCommandList->MapAction(Commands.StatsProfiler,
-	//	FExecuteAction::CreateRaw(this, &STimingProfilerToolbar::ShowStats),
-	//	FCanExecuteAction(),
-	//	FIsActionChecked::CreateRaw(this, &STimingProfilerToolbar::IsShowingStats)
-	//);
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	Trace::FSessionHandle SessionHandle = FInsightsManager::Get()->GetSessionHandle();
+
+	return SessionService->IsModuleEnabled(SessionHandle, ModuleName);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+ECheckBoxState STimingProfilerToolbar::ToggleModule_IsChecked2(FName ModuleName) const
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	Trace::FSessionHandle SessionHandle = FInsightsManager::Get()->GetSessionHandle();
+
+	return SessionService->IsModuleEnabled(SessionHandle, ModuleName) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerToolbar::ToggleModule_OnCheckStateChanged(ECheckBoxState NewRadioState, FName ModuleName)
+{
+	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+	TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	Trace::FSessionHandle SessionHandle = FInsightsManager::Get()->GetSessionHandle();
+
+	bool bState = (NewRadioState == ECheckBoxState::Checked);
+	return SessionService->SetModuleEnabled(SessionHandle, ModuleName, bState);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingProfilerToolbar::FillModulesToolbar(FToolBarBuilder& ToolbarBuilder)
+{
+	ToolbarBuilder.BeginSection("Modules");
+	{
+		TSharedRef<Trace::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
+
+		TArray<Trace::FModuleInfo> AvailableModules;
+		ModuleService->GetAvailableModules(AvailableModules);
+
+		for (int32 ModuleIndex = 0; ModuleIndex < AvailableModules.Num(); ++ModuleIndex)
+		{
+			const Trace::FModuleInfo& Module = AvailableModules[ModuleIndex];
+
+			FText Label = FText::FromName(Module.DisplayName);
+			FText ToggleModuleToolTip = FText::Format(LOCTEXT("ToggleModuleToolTip", "Enable/disable {0} trace module (only for live sessions)."), FText::FromName(Module.DisplayName));
+
+			// TODO: Uncomment this when adding icons to toolbar.
+			//ToolbarBuilder.AddToolBarButton(
+			//	FUIAction(
+			//		FExecuteAction::CreateRaw(this, &STimingProfilerToolbar::ToggleModule_Execute, Module.Name),
+			//		FCanExecuteAction::CreateRaw(this, &STimingProfilerToolbar::ToggleModule_CanExecute, Module.Name),
+			//		FIsActionChecked::CreateRaw(this, &STimingProfilerToolbar::ToggleModule_IsChecked, Module.Name)
+			//	),
+			//	NAME_None, // ExtensionHook
+			//	Label,
+			//	ToggleModuleToolTip,
+			//	TAttribute<FSlateIcon>(), // Icon -- empty icon is not really empty :(
+			//	EUserInterfaceActionType::ToggleButton,
+			//	NAME_None); // TutorialHighlightName
+
+			// Workaround for having toogle buttons without icons.
+			ToolbarBuilder.AddWidget(SNew(SCheckBox)
+				.IsEnabled(this, &STimingProfilerToolbar::ToggleModule_CanExecute, Module.Name)
+				.IsChecked(this, &STimingProfilerToolbar::ToggleModule_IsChecked2, Module.Name)
+				.OnCheckStateChanged(this, &STimingProfilerToolbar::ToggleModule_OnCheckStateChanged, Module.Name)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(Label)
+					.ToolTip(SNew(SToolTip).Text(ToggleModuleToolTip))
+				]
+			);
+		}
+	}
+	ToolbarBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

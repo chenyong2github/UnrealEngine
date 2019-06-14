@@ -84,6 +84,9 @@ public:
 	/** @return an instance of the trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> GetSession() const;
 
+	/** @return the session handle of the trace analysis session. */
+	Trace::FSessionHandle GetSessionHandle() const;
+
 	/** @returns UI command list for the main manager. */
 	const TSharedRef<FUICommandList> GetCommandList() const;
 
@@ -186,6 +189,9 @@ private:
 
 	/** The trace analysis session. */
 	TSharedPtr<const Trace::IAnalysisSession> Session;
+
+	/** The session handle. */
+	Trace::FSessionHandle CurrentSessionHandle;
 
 	/** List of UI commands for this manager. This will be filled by this and corresponding classes. */
 	TSharedRef<FUICommandList> CommandList;

@@ -85,6 +85,13 @@ TSharedPtr<const Trace::IAnalysisSession> FInsightsManager::GetSession() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Trace::FSessionHandle FInsightsManager::GetSessionHandle() const
+{
+	return CurrentSessionHandle;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const TSharedRef<FUICommandList> FInsightsManager::GetCommandList() const
 {
 	return CommandList;
@@ -127,6 +134,7 @@ void FInsightsManager::ResetSession()
 	if (Session.IsValid())
 	{
 		Session.Reset();
+		CurrentSessionHandle = 0;
 		OnSessionChanged();
 	}
 }
@@ -269,6 +277,7 @@ void FInsightsManager::LoadSession(Trace::FSessionHandle SessionHandle)
 	if (DataStream)
 	{
 		Session = AnalysisService->StartAnalysis(SessionInfo.Name, MoveTemp(DataStream));
+		CurrentSessionHandle = SessionHandle;
 		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}
@@ -284,6 +293,7 @@ void FInsightsManager::LoadTraceFile(const FString& TraceFilepath)
 	if (DataStream)
 	{
 		Session = AnalysisService->StartAnalysis(*TraceFilepath, MoveTemp(DataStream));
+		CurrentSessionHandle = 0;
 		SpawnAndActivateTabs();
 		OnSessionChanged();
 	}

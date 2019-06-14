@@ -846,6 +846,12 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			UpdateStatsText();
 		}
 	}
+	else if (bIsDirty && !FilteringAsyncTask.IsValid())
+	{
+		bIsDirty = false;
+		DirtyStopwatch.Reset();
+		UpdateStatsText();
+	}
 
 	if (FilteringAsyncTask.IsValid() &&
 		FilteringAsyncTask->IsDone())

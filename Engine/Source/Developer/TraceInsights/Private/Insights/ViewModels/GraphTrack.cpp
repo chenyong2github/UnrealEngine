@@ -529,7 +529,8 @@ void FGraphTrackBuilder::AddConnectedLine(double Time, double Value)
 		return;
 	}
 
-	const float Y = Track.GetYForValue(Value);
+	// Transform Value to Y coordinate (local track space) and ensure Y is not infinite.
+	const float Y = FMath::Clamp<float>(Track.GetYForValue(Value), -FLT_MAX, FLT_MAX);
 
 	const float X = Viewport.TimeToSlateUnitsRounded(Viewport.RestrictEndTime(Time));
 
