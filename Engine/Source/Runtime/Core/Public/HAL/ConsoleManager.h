@@ -127,11 +127,12 @@ private: // ----------------------------------------------------
 	IConsoleObject* FindConsoleObjectUnfiltered(const TCHAR* Name) const;
 
 	/**
-	 * Unregisters a console variable or command, if that object was registered.  In the case of variables, this will actually only
-	 * "deactivate" the variable, so if it becomes registered again the state may persist.
+	 * Unregisters a console variable or command, if that object was registered.  For console variables, this will
+	 * actually only "deactivate" the variable so if it becomes registered again the state may persist
+	 * (unless bKeepState is false).
 	 *
 	 * @param	Name	Name of the console object to remove (not case sensitive)
-	 * @param bool bKeepState if the current state is kept in memory until a cvar with the same name is registered
+	 * @param	bKeepState	if the current state is kept in memory until a cvar with the same name is registered
 	 */
 	void UnregisterConsoleObject(const TCHAR* Name, bool bKeepState);
 
