@@ -625,6 +625,8 @@ void FNiagaraEditorUtilities::FixUpNumericPins(const UEdGraphSchema_Niagara* Sch
 
 void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver)
 {
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+
 	for (UEdGraphNode* Node : Graph->Nodes)
 	{
 		// if there is a static switch node its value must be set by the caller
@@ -637,17 +639,18 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, con
 			}
 			else
 			{
+				FEdGraphPinType VarType = Schema->TypeDefinitionToPinType(SwitchNode->GetInputType());
 				SwitchNode->ClearSwitchValue();
 				for (UEdGraphPin* InputPin : CallInputs)
 				{
-					if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName))
+					if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName) && InputPin->PinType == VarType)
 					{
 						int32 SwitchValue = 0;
 						if (ResolveConstantValue(InputPin, SwitchValue))
 						{
 							SwitchNode->SetSwitchValue(SwitchValue);
+							break;
 						}
-						break;
 					}
 				}
 			}
