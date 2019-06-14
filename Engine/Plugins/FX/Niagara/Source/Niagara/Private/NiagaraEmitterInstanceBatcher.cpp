@@ -952,6 +952,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	//
 	if (Shader->InstanceCountsParam.IsBound())
 	{
+		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EComputeToCompute, GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
 		RHICmdList.SetUAVParameter(Shader->GetComputeShader(), Shader->InstanceCountsParam.GetUAVIndex(), GPUInstanceCounterManager.GetInstanceCountBuffer().UAV);
 		const uint32 ReadOffset = CurrentData.GetGPUInstanceCountBufferOffset();
 		const uint32 WriteOffset = DestinationData.GetGPUInstanceCountBufferOffset();
