@@ -4246,7 +4246,13 @@ protected:
 		}
 		else
 		{
-			// Non-VT MipValueMode logic
+			// Non-VT MipValueMode logic			
+
+			// Re-route decal texture sampling so platforms may add specific workarounds there
+			if (ShaderFrequency == SF_Pixel && Material->GetMaterialDomain() == MD_DeferredDecal && MipValueMode == TMVM_None)
+			{
+				SampleCode += TEXT("_Decal");
+			}
 
 			SamplerStateCode = ", " + SamplerStateCode;
 
