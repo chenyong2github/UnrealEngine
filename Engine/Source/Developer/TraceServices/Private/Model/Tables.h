@@ -374,14 +374,15 @@ public:
 	{
 		if (!CurrentRow)
 		{
-			return nullptr;
+			return TEXT("");
 		}
 		ETableColumnType ColumnType = Layout.GetColumnTypeConstExpr(ColumnIndex);
 		if (ColumnType == TableColumnType_CString)
 		{
-			return Layout.GetColumnValue(*CurrentRow, ColumnIndex).CStringValue;
+			const TCHAR* CStringValue = Layout.GetColumnValue(*CurrentRow, ColumnIndex).CStringValue;
+			return CStringValue ? CStringValue : TEXT("");
 		}
-		return nullptr;
+		return TEXT("");
 	}
 
 private:
@@ -482,15 +483,9 @@ public:
 };
 
 template<typename LayoutType>
-class TTableView
+class TTableBase
 	: public ITable<typename LayoutType::RowType>
 {
-public:
-	TTableView(const TPagedArray<typename LayoutType::RowType>& InRows)
-		: Rows(InRows)
-	{
-	}
-
 	virtual const ITableLayout& GetLayout() const override
 	{
 		return Layout;
@@ -498,22 +493,42 @@ public:
 
 	virtual uint64 GetRowCount() const override
 	{
-		return Rows.Num();
+		return GetRows().Num();
 	}
 
 	virtual ITableReader<typename LayoutType::RowType>* CreateReader() const override
 	{
-		return new TTableReader<LayoutType>(Layout, Rows);
+		return new TTableReader<LayoutType>(Layout, GetRows());
 	}
 
 private:
+	virtual const TPagedArray<typename LayoutType::RowType>& GetRows() const = 0;
+
 	LayoutType Layout;
+};
+
+template<typename LayoutType>
+class TTableView
+	: public TTableBase<LayoutType>
+{
+public:
+	TTableView(const TPagedArray<typename LayoutType::RowType>& InRows)
+		: Rows(InRows)
+	{
+	}
+
+private:
+	virtual const TPagedArray<typename LayoutType::RowType>& GetRows() const override
+	{
+		return Rows;
+	}
+
 	const TPagedArray<typename LayoutType::RowType>& Rows;
 };
 
 template<typename LayoutType>
 class TTable
-	: public ITable<typename LayoutType::RowType>
+	: public TTableBase<LayoutType>
 {
 public:
 	TTable()
@@ -523,28 +538,17 @@ public:
 
 	}
 
-	virtual const ITableLayout& GetLayout() const override
-	{
-		return Layout;
-	}
-
-	virtual uint64 GetRowCount() const override
-	{
-		return Rows.Num();
-	}
-
-	virtual ITableReader<typename LayoutType::RowType>* CreateReader() const override
-	{
-		return new TTableReader<LayoutType>(Layout, Rows);
-	}
-
 	typename LayoutType::RowType& AddRow()
 	{
 		return Rows.PushBack();
 	}
 
 private:
-	LayoutType Layout;
+	virtual const TPagedArray<typename LayoutType::RowType>& GetRows() const override
+	{
+		return Rows;
+	}
+
 	FSlabAllocator Allocator;
 	TPagedArray<typename LayoutType::RowType> Rows;
 };

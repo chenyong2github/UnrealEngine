@@ -1032,8 +1032,6 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::CreateLoader(
 					Loader = IFileManager::Get().CreateFileReader(*Filename);
 				}
 
-				TRACE_LOADTIME_LINKER_ARCHIVE_ASSOCIATION(this, Loader);
-
 				if (!Loader)
 				{
 					UE_LOG(LogLinker, Warning, TEXT("Error opening file '%s'."), *Filename);

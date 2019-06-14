@@ -16,7 +16,7 @@ class UPackage;
 
 struct FLoadTimeProfilerTracePrivate
 {
-	static void Init(bool bStartEnabled);
+	static void Init();
 	static void OutputStartAsyncLoading();
 	static void OutputSuspendAsyncLoading();
 	static void OutputResumeAsyncLoading();
@@ -27,11 +27,9 @@ struct FLoadTimeProfilerTracePrivate
 	static void OutputBeginRequest(uint64 RequestId);
 	static void OutputEndRequest(uint64 RequestId);
 	static void OutputPackageSummary(const FLinkerLoad* Linker, uint32 TotalHeaderSize, uint32 NameCount, uint32 ImportCount, uint32 ExportCount);
-	static void OutputLoadImportDependency(const FAsyncPackage* Package, const FAsyncPackage* DependentPackage);
+	static void OutputAsyncPackageImportDependency(const FAsyncPackage* Package, const FAsyncPackage* ImportedPackage);
 	static void OutputAsyncPackageRequestAssociation(const FAsyncPackage* AsyncPackage, uint64 RequestId);
 	static void OutputAsyncPackageLinkerAssociation(const FAsyncPackage* AsyncPackage, const FLinkerLoad* Linker);
-	static void OutputLinkerArchiveAssociation(const FLinkerLoad* Linker, const FArchive* Archive);
-	static void OutputQueueEvent(const FAsyncPackage* AsyncPackage, ELoadTimeProfilerPackageEventType EventType, TAsyncLoadPriority UserPriority, int32 PackageSerialNumber, int32 EventSystemPriority);
 	static void OutputClassInfo(const UClass* Class, const TCHAR* Name);
 
 	struct FAsyncPackageScope
@@ -60,12 +58,6 @@ struct FLoadTimeProfilerTracePrivate
 		FLinkerScope(const FLinkerLoad* Linker);
 		~FLinkerScope();
 	};
-
-	struct FFlushAsyncLoadingScope
-	{
-		FFlushAsyncLoadingScope(uint64 RequestId);
-		~FFlushAsyncLoadingScope();
-	};
 };
 
 #define TRACE_LOADTIME_START_ASYNC_LOADING() \
@@ -86,9 +78,6 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_PACKAGE_SUMMARY(Linker, TotalHeaderSize, NameCount, ImportCount, ExportCount) \
 	FLoadTimeProfilerTracePrivate::OutputPackageSummary(Linker, TotalHeaderSize, NameCount, ImportCount, ExportCount);
 
-#define TRACE_LOADTIME_LINKER_ARCHIVE_ASSOCIATION(Linker, Archive) \
-	FLoadTimeProfilerTracePrivate::OutputLinkerArchiveAssociation(Linker, Archive);
-
 #define TRACE_LOADTIME_BEGIN_REQUEST(RequestId) \
 	FLoadTimeProfilerTracePrivate::OutputBeginRequest(RequestId);
 
@@ -107,8 +96,8 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(AsyncPackage, Linker) \
 	FLoadTimeProfilerTracePrivate::OutputAsyncPackageLinkerAssociation(AsyncPackage, Linker);
 
-#define TRACE_LOADTIME_QUEUE_EVENT(AsyncPackage, EventType, UserPriority, PackageSerialNumber, EventSystemPriority)
-//	FLoadTimeProfilerTracePrivate::OutputQueueEvent(AsyncPackage, EventType, UserPriority, PackageSerialNumber, EventSystemPriority);
+#define TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(AsyncPackage, ImportedAsyncPackage) \
+	FLoadTimeProfilerTracePrivate::OutputAsyncPackageImportDependency(AsyncPackage, ImportedAsyncPackage);
 
 #define TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(AsyncPackage, EventType) \
 	FLoadTimeProfilerTracePrivate::FAsyncPackageScope __LoadTimeTraceAsyncPackageScope(AsyncPackage, EventType);
@@ -118,9 +107,6 @@ struct FLoadTimeProfilerTracePrivate
 
 #define TRACE_LOADTIME_OBJECT_SCOPE(Object, EventType) \
 	FLoadTimeProfilerTracePrivate::FObjectScope __LoadTimeTraceObjectScope(Object, EventType);
-
-#define TRACE_LOADTIME_FLUSH_ASYNCLOADING_SCOPE(RequestId) \
-	FLoadTimeProfilerTracePrivate::FFlushAsyncLoadingScope __LoadTimeTraceFlushAsyncLoadingScope(RequestId);
 
 #define TRACE_LOADTIME_CLASS_INFO(Class, Name) \
 	FLoadTimeProfilerTracePrivate::OutputClassInfo(Class, Name);
@@ -134,15 +120,13 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_NEW_LINKER(...)
 #define TRACE_LOADTIME_DESTROY_LINKER(...)
 #define TRACE_LOADTIME_PACKAGE_SUMMARY(...)
-#define TRACE_LOADTIME_LINKER_ARCHIVE_ASSOCIATION(...)
 #define TRACE_LOADTIME_BEGIN_REQUEST(...)
 #define TRACE_LOADTIME_END_REQUEST(...)
 #define TRACE_LOADTIME_NEW_ASYNC_PACKAGE(...)
 #define TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(...)
 #define TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(...)
 #define TRACE_LOADTIME_ASYNC_PACKAGE_LINKER_ASSOCIATION(...)
-#define TRACE_LOADTIME_FLUSH_ASYNCLOADING_SCOPE(...)
-#define TRACE_LOADTIME_QUEUE_EVENT(...)
+#define TRACE_LOADTIME_ASYNC_PACKAGE_IMPORT_DEPENDENCY(...)
 #define TRACE_LOADTIME_ASYNC_PACKAGE_SCOPE(...)
 #define TRACE_LOADTIME_TIMER_SCOPE(...)
 #define TRACE_LOADTIME_CREATE_EXPORT_SCOPE(...)

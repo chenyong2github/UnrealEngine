@@ -58,12 +58,15 @@ struct FClassInfo
 	const TCHAR* Name;
 };
 
+struct FPackageInfo;
+
 struct FPackageExportInfo
 {
 	uint32 Id;
 	const FClassInfo* Class = nullptr;
 	uint64 SerialOffset = 0;
 	uint64 SerialSize = 0;
+	const FPackageInfo* Package = nullptr;
 	bool IsAsset = false;
 };
 
@@ -72,7 +75,36 @@ struct FPackageInfo
 	uint32 Id;
 	const TCHAR* Name = nullptr;
 	FPackageSummaryInfo Summary;
-	TArray<FPackageExportInfo*> Exports;
+	TArray<const FPackageExportInfo*> Exports;
+};
+
+struct FLoadRequest
+{
+	const TCHAR* Name = nullptr;
+	uint32 ThreadId = uint32(-1);
+	double StartTime = 0.0;
+	double EndTime = 0.0;
+	TArray<const FPackageInfo*> Packages;
+};
+
+struct FExportsTableRow
+{
+	const FPackageExportInfo* ExportInfo = nullptr;
+	uint64 SerializedSize = 0;
+	double MainThreadTime = 0.0;
+	double AsyncLoadingThreadTime = 0.0;
+	ELoadTimeProfilerObjectEventType EventType = LoadTimeProfilerObjectEventType_None;
+};
+
+struct FPackagesTableRow
+{
+	const FPackageInfo* PackageInfo = nullptr;
+	uint64 SerializedHeaderSize = 0;
+	uint64 SerializedExportsCount = 0;
+	uint64 SerializedExportsSize = 0;
+	double MainThreadTime = 0.0;
+	double AsyncLoadingThreadTime = 0.0;
+	ELoadTimeProfilerPackageEventType EventType = LoadTimeProfilerPackageEventType_None;
 };
 
 struct FLoadTimeProfilerCpuEvent
@@ -94,6 +126,9 @@ struct FLoadTimeProfilerAggregatedStats
 	double Median;
 };
 
+TRACESERVICES_API const TCHAR* GetLoadTimeProfilerPackageEventTypeString(ELoadTimeProfilerPackageEventType EventType);
+TRACESERVICES_API const TCHAR* GetLoadTimeProfilerObjectEventTypeString(ELoadTimeProfilerObjectEventType EventType);
+
 class ILoadTimeProfilerProvider
 	: public IProvider
 {
@@ -101,14 +136,15 @@ public:
 	typedef ITimeline<FLoadTimeProfilerCpuEvent> CpuTimeline;
 
 	virtual ~ILoadTimeProfilerProvider() = default;
-	virtual uint64 GetPackageCount() const = 0;
-	virtual void EnumeratePackages(TFunctionRef<void(const FPackageInfo&)> Callback) const = 0;
 	virtual uint32 GetMainThreadId() const = 0;
 	virtual void ReadMainThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
 	virtual uint32 GetAsyncLoadingThreadId() const = 0;
 	virtual void ReadAsyncLoadingThreadCpuTimeline(TFunctionRef<void(const CpuTimeline&)> Callback) const = 0;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateEventAggregation(double IntervalStart, double IntervalEnd) const = 0;
 	virtual ITable<FLoadTimeProfilerAggregatedStats>* CreateObjectTypeAggregation(double IntervalStart, double IntervalEnd) const = 0;
+	virtual ITable<FPackagesTableRow>* CreatePackageDetailsTable(double IntervalStart, double IntervalEnd) const = 0;
+	virtual ITable<FExportsTableRow>* CreateExportDetailsTable(double IntervalStart, double IntervalEnd) const = 0;
+	virtual const ITable<FLoadRequest>& GetRequestsTable() const = 0;
 };
 
 TRACESERVICES_API const ILoadTimeProfilerProvider* ReadLoadTimeProfilerProvider(const IAnalysisSession& Session);

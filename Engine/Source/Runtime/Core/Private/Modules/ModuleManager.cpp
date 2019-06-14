@@ -11,6 +11,7 @@
 #include "Modules/ModuleManifest.h"
 #include "Misc/ScopeLock.h"
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
+#include "Serialization/LoadTimeTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogModuleManager, Log, All);
 
@@ -445,6 +446,7 @@ IModuleInterface* FModuleManager::LoadModuleWithFailureReason(const FName InModu
 		if (ModuleInfo->Module.IsValid())
 		{
 			FScopedBootTiming BootScope("LoadModule  - ", InModuleName);
+			TRACE_LOADTIME_REQUEST_GROUP_SCOPE(TEXT("LoadModule - %s"), *InModuleName.ToString());
 #if USE_PER_MODULE_UOBJECT_BOOTSTRAP
 			{
 				ProcessLoadedObjectsCallback.Broadcast(InModuleName, bCanProcessNewlyLoadedObjects);
