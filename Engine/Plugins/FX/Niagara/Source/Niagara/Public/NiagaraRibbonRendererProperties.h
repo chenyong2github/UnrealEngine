@@ -14,7 +14,12 @@ UENUM()
 enum class ENiagaraRibbonFacingMode : uint8
 {
 	Screen,
-	Custom
+
+	/** Use Particles.RibbonFacing as the facing vector. */
+	Custom,
+
+	/** Use Particles.RibbonSideVector to determine facing vector. */
+	FromSideVector
 };
 
 /** Defines different modes for offsetting UVs by age when ordering ribbon particles using normalized age. */
@@ -170,6 +175,10 @@ public:
 	/** Which attribute should we use for ribbon facing when generating ribbons?*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
 	FNiagaraVariableAttributeBinding RibbonFacingBinding;
+
+	/** Which attribute should we use for ribbon side vector when generating ribbons?*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
+	FNiagaraVariableAttributeBinding SideVectorBinding;
 	
 	/** Which attribute should we use for ribbon id when generating ribbons?*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
