@@ -35,6 +35,17 @@ enum class ENiagaraRibbonDrawDirection : uint8
 	BackToFront
 };
 
+UENUM()
+enum class ENiagaraRibbonTessellationMode : uint8
+{
+	/** Default tessellation parameters. */
+	Automatic,
+	/** Custom tessellation parameters. */
+	Custom,
+	/** Disable tessellation entirely. */
+	Disabled
+};
+
 UCLASS(editinlinenew)
 class UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
 {
@@ -47,6 +58,7 @@ public:
 	virtual void PostInitProperties() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual bool CanEditChange(const UProperty* InProperty) const override;
 #endif
 	//UObject Interface END
 
@@ -100,6 +112,36 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	ENiagaraRibbonDrawDirection DrawDirection;
 
+	/** Defines the curve tension, or how long the curve's tangents are.
+	  * Ranges from 0 to 1. The higher the value, the sharper the curve becomes.
+	  */
+	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (ClampMin = "0", ClampMax = "1"))
+	float CurveTension;
+
+	/** Defines the tessellation mode allowing custom tessellation parameters or disabling tessellation entirely. */
+	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (DisplayName = "Mode"))
+	ENiagaraRibbonTessellationMode TessellationMode;
+
+	/** Custom tessellation factor.
+	  * Ranges from 1 to 16. Greater values increase amount of tessellation.
+	  */
+	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (DisplayName = "Max Tessellation Factor", ClampMin = "1", ClampMax = "16"))
+	int32 TessellationFactor;
+
+	/** If checked, use the above constant factor. Otherwise, adaptively select the tessellation factor based on the below parameters. */
+	UPROPERTY(EditAnywhere, Category = "Tessellation")
+	bool bUseConstantFactor;
+
+	/** Defines the angle in degrees at which tessellation occurs.
+	  * Ranges from 1 to 180. Smaller values increase amount of tessellation.
+	  * If set to 0, use the maximum tessellation set above.
+	  */
+	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (EditCondition = "!bUseConstantFactor", ClampMin = "0", ClampMax = "180", UIMin = "1", UIMax = "180"))
+	float TessellationAngle;
+
+	/** If checked, use the ribbon's screen space percentage to adaptively adjust the tessellation factor. */
+	UPROPERTY(EditAnywhere, Category = "Tessellation", meta = (DisplayName = "Screen Space", EditCondition = "!bUseConstantFactor"))
+	bool bScreenSpaceTessellation;
 
 	/** Which attribute should we use for position when generating ribbons?*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Bindings")
