@@ -63,6 +63,7 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				.HAlign(HAlign_Left)
+				.Padding(0, 0, 8, 0)
 				[
 					SNew(SImage)
 					.Image(ImageBrush)
