@@ -17,8 +17,7 @@ limitations under the License.
 #ifndef RESONANCE_AUDIO_GEOMETRICAL_ACOUSTICS_SPHERE_H_
 #define RESONANCE_AUDIO_GEOMETRICAL_ACOUSTICS_SPHERE_H_
 
-#include "embree2/rtcore.h"
-#include "embree2/rtcore_ray.h"
+#include "ResonanceEmbreeHelper.h"
 
 namespace vraudio {
 
