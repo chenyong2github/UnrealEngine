@@ -659,7 +659,7 @@ TArray<UEdGraphNode*> UNiagaraGraph::FindReachbleNodes() const
 		}
 		
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
-		if (SwitchNode && !SwitchNode->IsSetByCompiler())
+		if (SwitchNode)
 		{
 			TArray<UEdGraphPin*> OutPins;
 			SwitchNode->GetOutputPins(OutPins);

@@ -50,6 +50,31 @@ void UNiagaraNodeStaticSwitch::SetSwitchValue(int Value)
 	SwitchValue = Value;
 }
 
+void UNiagaraNodeStaticSwitch::SetSwitchValue(const FCompileConstantResolver& ConstantResolver)
+{
+	if (!IsSetByCompiler())
+	{
+		return;
+	}
+	IsValueSet = false;
+
+	const FNiagaraVariable* Found = FNiagaraConstants::FindStaticSwitchConstant(SwitchTypeData.SwitchConstant);
+	FNiagaraVariable Constant = Found ? *Found : FNiagaraVariable();
+	if (Found && ConstantResolver.ResolveConstant(Constant))
+	{
+		if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
+		{
+			SwitchValue = Constant.GetValue<bool>();
+			IsValueSet = true;
+		}
+		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer || SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+		{
+			SwitchValue = Constant.GetValue<int32>();
+			IsValueSet = true;
+		}
+	}
+}
+
 void UNiagaraNodeStaticSwitch::ClearSwitchValue()
 {
 	IsValueSet = false;
