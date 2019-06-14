@@ -1051,6 +1051,9 @@ private:
 	/** Command list for sequencer commands (shared by non-Sequencer). */
 	TSharedRef<FUICommandList> SequencerSharedBindings;
 
+	/** Command list privately shared with the Curve Editor to allow a subset of keybinds to have matching behavior there. */
+	TSharedRef<FUICommandList> CurveEditorSharedBindings;
+
 	/** List of tools we own */
 	TArray<TSharedPtr<ISequencerTrackEditor>> TrackEditors;
 
