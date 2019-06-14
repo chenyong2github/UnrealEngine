@@ -98,7 +98,7 @@ public:
 	virtual void OnBeginDrag(const FPointerEvent& MouseEvent, FVector2D LocalMousePos, const FVirtualTrackArea& VirtualTrackArea) override
 	{
 		// Start a new marquee selection
-		InitialPosition =  VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
+		InitialPosition = CurrentPosition = VirtualTrackArea.PhysicalToVirtual(LocalMousePos);
 		CurrentMousePos = LocalMousePos;
 
 		if (MouseEvent.IsShiftDown())
