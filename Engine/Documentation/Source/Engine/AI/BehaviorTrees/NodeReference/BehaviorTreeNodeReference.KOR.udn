@@ -1,12 +1,12 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
-Title: 비헤이비어 트리 노드 참고서
+Title: 비헤이비어 트리 노드 레퍼런스
 Crumbs:%ROOT%, Engine, Gameplay, Engine/AI/BehaviorTrees
-Description:비헤이비어 트리 노드에 대한 참고서입니다.
+Description:비헤이비어 트리 노드에 대한 레퍼런스입니다.
 version: 4.9
 
 
-비헤이비어 트리 에디터에서 사용할 수 있는 기본 노드에 대한 참고서입니다. 작업중인 프로젝트에 따라 (예를 들면 Shooter Game 처럼) 추가 확인이 가능할 수도 있습니다. 비헤이비어 트리 노드 유형은 총 5 가지입니다:
+비헤이비어 트리 에디터에서 사용할 수 있는 기본 노드에 대한 레퍼런스입니다. 작업중인 프로젝트에 따라 (예를 들면 Shooter Game 처럼) 추가 확인이 가능할 수도 있습니다. 비헤이비어 트리 노드 유형은 총 5 가지입니다:
 
 | 노드 유형 | 설명 |
 | --- | --- |

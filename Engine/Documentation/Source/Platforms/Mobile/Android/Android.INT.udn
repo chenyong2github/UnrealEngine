@@ -1,0 +1,29 @@
+Availability: Public
+Title: Android Game Development
+Crumbs:%ROOT%, Platforms
+Description:Developing games for the Android platform.
+Platform:Android
+Navigation:platform
+version: 4.9
+tags:Android
+tags:Mobile
+parent:Platforms/Mobile
+type:landing
+Topic-image:AndroidGameDevelopment_topic.png
+
+## Starting Out
+
+[DIR(output:"topic" parent:"Platforms/Mobile/Android" type:"quick start")]
+
+## Guides
+	
+[DIR(end:"1" output:"fancy" type:"how-to" parent:"Platforms/Mobile/Android" skill_level:"Beginner")]
+[DIR(end:"1" output:"fancy" type:"how-to" parent:"Platforms/Mobile/Android" skill_level:"Intermediate")]
+[DIR(end:"1" output:"fancy" type:"how-to" parent:"Platforms/Mobile/Android" skill_level:"Advanced")]
+
+## Reference
+
+%Platforms/Mobile/UnrealPluginLanguage:topic%
+[DIR(end:"1" output:"topic" type:"overview" parent:"Platforms/Mobile/Android")]
+[DIR(end:"1" output:"topic" type:"reference" parent:"Platforms/Mobile/Android")]
+

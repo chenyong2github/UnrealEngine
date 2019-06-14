@@ -1,0 +1,40 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Proxy Geometry Tool Algorithmic Details
+Description: This section attempts to impart familiarity with the algorithmic details and underlying tradeoffs that will allow users to get the most of the system and will give insight to licensees and others who wish to modify the code to better suit their needs. 
+Type: reference
+Version: 
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: Proxy Geometry Tool
+
+
+## Intro
+
+This section attempts to impart familiarity with the algorithmic details and underlying tradeoffs that will allow users to get the most of the system and will give insight to licensees and others who wish to modify the code to better suit their needs.  The source code for the system is a mixture of our own algorithms and open source third party software with liberal licenses.
+
+## Steps in Producing the Proxy Geometry and Textures
+
+Below you will find a high level breakdown of the steps involved in the Proxy Geometry Tool mesh and texture generation.
+
+*   Facilitate the generation of textures for the proxy, the materials from source models are initially baked into textures.
+*   Remesh into a single Static Mesh: To produce manifold geometry befitting parameterization.
+    *   Source Geometry is spatially sampled into a distance field  representation.  In this way, a watertight outer skin of the geometry is captured. The sampling rate is automatically chosen based on the target screen size, but the user may override using the **Override Spatial Sampling Distance** option in either UI.  
+        *   Note: currently the spatial sample distance used by the system will be echoed in the the output log, e.g. **LogProxyLODMeshReduction: Spatial Sampling Distance Scale used 5.670509**
+    *   Small sampling distances will have a large impact on computational time and memory.  
+        
+    *   The watertight surface is extracted from the distance field in the form of a poly mesh.  This has the benefit that any part of the source geometry which inaccessible from the outside is automatically culled.
+    *   The new surface may have more polys than the original geometry, but distinct models that intersect will now be represented by a single mesh and as such any simplification should not cause cracking. By contrast, independent simplification of distinct meshes that appear to touch or intersect can produce unwanted results.
+    *   Simplification of the watertight surface. This is done using quadric mesh simplification based on an edge collapse algorithm The simplification actually utilizes code already in use within UE4 (for the static mesh simplification) and the error threshold is automatically computed from the target screen size.
+    *   Segment the simplified manifold geometry into UV islands. 
+        *   Note: This produces duplicate vertices on the UV seams.
+*   Generate tangent space for the simplified geometry.
+*   Generate textures for the proxy geometry.
+    *   Create correspondence between texels in the UV Atlas for the simplified geometry and locations on the source geometry.
+        *   The proxy geometry UVs are conservatively rasterized into a two-dimensional grid.
+        *   A second two-dimensional grid records hit points on the original source geometry when rays are fired from locations on the proxy geometry the correspond the texel centers in UV space.
+    *   Transfer materials to the proxy textures as specified by the user interface (e.g. base, normal, specular, etc).
+
+[](#)[](#)

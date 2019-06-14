@@ -1,41 +1,44 @@
-﻿Availability:Public
+INTSourceChangelist:3244370
+Availability:Public
 Title:蓝图接口迁移
-Crumbs: %ROOT%, Engine/Blueprints, Engine/Blueprints/UserGuide, Engine/Blueprints/UserGuide/BlueprintComms
-Description: 将蓝图接口函数移动到蓝图中的迁移途径。
-
+Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/UserGuide, Engine/Blueprints/UserGuide/BlueprintComms
+Description:将蓝图接口函数移动到蓝图的迁移路径。
+Version: 4.9
+tags:Blueprints
 
 [TOC(start:2)]
 
-## 概述
 
-如果你正在使用Blueprint Interface（蓝图接口）来让蓝图之间彼此通信，那么您可以轻松地把蓝图接口中的函数转换成正常的蓝图函数，以便您的蓝图间可以直接通信。
 
-## 迁移过程
+如果你一直使用蓝图接口来使蓝图相互通信，你可以轻松将蓝图接口中的函数转换为一般蓝图函数，以使蓝图可以直接相互通信。
 
-**要想从一个蓝图接口中进行迁移**:
+(#migrationprocess)
+## 迁移流程
 
-1. 打开引用该蓝图接口的蓝图。
+**要从蓝图接口进行迁移**：
 
-1. 在蓝图编辑器中，点击工具条中的 **Blueprint Props（蓝图属性）** 按钮，来在 **详细信息** 面板中显示蓝图的属性。
+1. 打开引用蓝图接口的蓝图。
 
-	![Blueprint Properties Panel](BP_BPProps.png)
+1. 在蓝图编辑器中，单击工具栏中的 **蓝图属性（Blueprint Props）** 按钮以使蓝图的属性在 **细节（Details）** 面板中显示。
 
-1. 在 **详细信息** 面板中的  **Interfaces（接口）** 下，找到您想转换的蓝图接口。点击其名称旁边的白色 "X" 图标。
+	![蓝图属性面板](BP_BPProps.png)
 
-	![Convert Interface Icon](BP_InterfaceRef.png)
+1. 在 **细节（Details）** 面板中的 **接口（Interfaces）** 部分下，找到要转换的蓝图接口。单击其名称旁的白色“X”。
 
-1. 在出现的对话框中，点击 **是** 。
+	![转换接口图标](BP_InterfaceRef.png)
 
-	![Transfer Functions Dialog Box](BP_ConvertDialog.png)
+1. 在显示的对话框中，单击 **是（Yes）**。
 
-如果您点击 **Function（函数）** 按钮来添加蓝图接口中的函数，那么它们会被转换为正常的蓝图函数。现在您可以像应用其他任何蓝图函数一样来应用它们了。
+	![变换函数对话框](BP_ConvertDialog.png)
+
+蓝图接口中的函数将被转换为普通蓝图函数，它们与通过单击 **函数（Function）** 按钮添加的函数相同。现在，你可以按照使用任何其他蓝图函数的方法使用它们。
 
 [REGION:tip]
 **在蓝图中查找**
 
-在蓝图编辑器中，您可以使用 "Find in Blueprints(在蓝图中查找)" 功能( **在蓝图中查找** 功能在 **编辑** 菜单上，或者按下Ctrl+F调出该功能)，来查找您应用的所有接口信息及所有蓝图接口实现，这会使得迁移变得更加简单。
+在蓝图编辑器中，你可以使用“在蓝图中查找（Find in Blueprints）”功能（通过单击 **编辑（Edit）** 菜单中的 **在蓝图中查找（Find in Blueprints）** 或按下 **Ctrl+F**）来查找接口信息的所有使用及蓝图接口的所有实现，这会简化迁移。
 
-当使用 "在蓝图中查找" 功能时，通过取消选中 **Find In Current Blueprint Only（仅在当前蓝图中查找）** 复选框，您可以同时在所有蓝图中查找您正在搜索的接口信息。
+使用“在蓝图中查找（Find in Blueprints）”功能时，你可以通过取消选中 **仅在当前蓝图中查找（Find In Current Blueprint Only）** 复选框来同时在所有蓝图中查找你搜索的接口信息。
 
-![Find In Current Blueprint Only](BP_FindInBlueprint.png)
+![仅在当前蓝图中查找（Find In Current Blueprint Only）](BP_FindInBlueprint.png)
 [/REGION]

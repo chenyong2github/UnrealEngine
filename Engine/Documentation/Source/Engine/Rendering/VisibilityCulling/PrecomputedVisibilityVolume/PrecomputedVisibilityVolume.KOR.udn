@@ -1,0 +1,246 @@
+INTSourceChangelist:6627413
+Availability: Public
+Crumbs: 
+Title: 프리컴퓨티드 비저빌리티 볼륨
+Description: 레벨에서 오프라인 컬링 메서드를 사용하여 오브젝트를 동적으로 컬링하는 Precomputed Visibility Volume, 프리컴퓨티드 비저빌리티 볼륨 개요입니다.
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/VisibilityCulling
+Order: 
+Tags: Performance
+
+
+다른 컬링 메서드와 마찬가지로 **Precomputed Visibility Volume** (프리컴퓨티드 비저빌리티 볼륨)은 소형에서 중형 정도 크기의 월드, 그리고 보통 하드웨어 제약으로 인해 다이내믹 오클루전 컬링을 사용할 수 없는 모바일에서의 퍼포먼스 최적화에 사용됩니다. 프리컴퓨티드 비저빌리티 볼륨은 플레이어 또는 카메라 위치에 따라 월드 액터 위치의 비저빌리티(가시성) 상태를 저장합니다. 그래서 프리컴퓨티드 비저빌리티는 배경에 대부분 스태틱 라이팅을 사용하고, 플레이어 이동이 제한적이며 어느 정도 2D 플레이 영역으로 한정된 프로젝트에 가장 좋습니다.  
+  
+비저빌리티 셀은 라이트 빌드 도중 그림자를 드리우는 지오메트리 위에 생성됩니다. 각 셀 위치로부터 액터의 비저빌리티를 저장합니다. 프리컴퓨티드 비저빌리티는 오프라인 생성되므로, 보통 하드웨어 오클루전 쿼리가 차지하는 렌더링 스레스 시간을 런타임 메모리 및 라이팅 빌드 시간의 증가와 맞바꾸는 것입니다. 이를 염두에 두고, 비저빌리티 컬링을 유지하려면 플레이어 또는 카메라가 접근할 수 있는 영역에만 볼륨을 배치하는 것이 좋습니다. 
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![예제 씬 뷰](PVis_VisualizationDisabled.png) 
+[/PARAM]
+[PARAM:after]
+![프리컴퓨티드 비저빌리티 시각화 활성화](PVis_VisualizationEnabled.png) 
+[/PARAM]
+[/OBJECT]
+
+## 구성 및 사용법
+
+시작하려면 먼저 레벨에 프리컴퓨티드 비저빌리티를 활성화합니다. **월드 세팅** 의 **프리컴퓨티드 비저빌리티** 섹션에서 찾을 수 있습니다. **Precompute Visibility** (프리컴퓨티드 비저빌리티) 옵션 옆 박스를 체크하면 됩니다.
+
+![](WS_EnablePVIS.png "WS_EnablePVIS.png")
+
+**모드** 패널에서 **프리컴퓨티드 비저빌리티 볼륨** 을 끌어 레벨에 놓고 플레이 가능 영역에 맞게 크기를 조절합니다.  
+
+[REGION:note]
+아래 [배치](#배치) 부분에서 최적의 결과를 얻기 위한 팁과 제안사항을 확인할 수 있습니다.
+[/REGION]
+
+![](PVIS_AddVolume.png "PVIS_AddVolume.png")
+
+프리컴퓨티드 비저빌리티 작동 전, 먼저 **라이팅 빌드** 를 하고 레벨 뷰포트에서 **표시 > 고급 > 프리컴퓨티드 비저빌리티** 를 선택하면 프리컴퓨티드 비저빌리티 셀 (파랑 박스) 표시를 활성화할 수 있습니다.  
+[REGION:note]
+볼륨을 배치할 때는, 하나의 볼륨으로 전체 영역을 아우르기 보다는 플레이어가 접근할 수 있는 영역에만 배치하세요. 그래야 사용되지 않는 비저빌리티 데이터를 런타임에 저장하고 로드하지 않습니다.
+[/REGION]
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![라이팅 빌드 이전 프리컴퓨티드 비저빌리티 시각화](PVis_VisualizationBeforeLightBuild.png) 
+[/PARAM]
+[PARAM:after]
+![라이팅 빌드 이후 프리컴퓨티드 비저빌리티 시각화](PVis_VisualizationAfterLightBuild.png) 
+[/PARAM]
+[/OBJECT]
+
+[REGION:tip]
+이미 라이팅을 빌드했다면, 메인 툴바의 **빌드** 드롭다운에서 **Precompute Static Visibility** (스태틱 비저빌리티 미리계산)을 선택하면 매번 라이팅을 리빌드하지 않고 비저빌리티 셀을 생성할 수 있습니다.
+
+![](Tip_buildJustPVIS.png "Tip_buildJustPVIS.png")
+[/REGION]
+
+### 비저빌리티 셀
+
+레벨에 라이팅 정보를 최소 한 번 빌드한 이후, 프리컴퓨티드 비저빌리티 볼륨은 몇 개든 배치하여 정적 그림자를 드리우는 액터의 표면을 채우는 비저빌리티 셀을 생성할 수 있습니다. 스태틱 비저빌리티를 생성하려면 메인 툴바의 빌드 드롭다운 메뉴에서 **스태틱 비저빌리티 미리계산** 옵션을 선택하면 됩니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![프리컴퓨티드 비저빌리티 셀 시각화: 비활성화](VisibilityCellsViewEnabled.png) 
+[/PARAM]
+[PARAM:after]
+![프리컴퓨티드 비저빌리티 셀 시각화: 활성화](VisibilityCellsViewDisabled.png) 
+[/PARAM]
+[/OBJECT]
+
+[REGION:tip]
+**r.ShowRelevantPrecomputedVisibilityCells** 은 **Precomputed Visibility Cells** (프리컴퓨티드 비저빌리티 셀) 표시 플래그가 활성화된 경우 카메라 근처의 비저빌리티 셀만 표시합니다. 한 번에 많은 셀이 화면에 표시되는 것을 줄일 수 있습니다.
+[/REGION]
+
+이 씬의 경우, 프리컴퓨티드 비저빌리티 볼륨을 (초록) 배치하고 라이팅을 빌드하니 벽과 통로에 가려지는 액터가 있습니다.
+
+아래는 셀에 액터 위치를 저장하는 프리컴퓨티드 비저빌리티 작동 방식을 파악하기 위하는 것으로, 벽과 통로 일부가 숨겨졌습니다. 슬라이더를 드래그하여 카메라 위치를 이동하면 카메라 위치 및 그 셀에 따라 비저빌리티 상태가 변하는 것이 보입니다.  
+
+[REGION:note]
+프리컴퓨티드 비저빌리티 셀은 예제 이미지에 보이지 않는데, 가려지는 액터의 비저빌리티 상태를 더욱 잘 표시하기 위해서입니다.
+[/REGION]
+
+[EXCERPT:Pvis_visibilitycellsliderSlider]
+[OBJECT:SliderSequence]
+[PARAMLITERAL:max]
+6
+[/PARAMLITERAL]
+[PARAMLITERAL:ext]
+jpg
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+Pvis_visibilitycellslider
+[/PARAMLITERAL]
+    [PARAM:caption]
+    
+
+[/PARAM]
+    [PARAM:image_list]
+    ![](PVIS_1.png)
+![](PVIS_2.png)
+![](PVIS_3.png)
+![](PVIS_4.png)
+![](PVIS_5.png)
+![](PVIS_6.png)
+[/PARAM]
+[/OBJECT]
+[/EXCERPT:Pvis_visibilitycellsliderSlider]
+
+프리컴퓨티드 비저빌리티가 생성된 이후, 셀에는 해당 위치에서 보이는 액터가 저장됩니다. 이 예제에서 셀은 무엇이 보이고 안보이는지 알고 있으므로, (벽과 문같은) 가리는 액터를 숨겨도 카메라가 프리컴퓨티드 비저빌리티 셀 안에 있는 한 가려진 액터는 보이지 않고 있는데, 그래서 이런 컬링 메서드가 일부 게임 유형과 플랫폼에 적합하다는 것을 알 수 있습니다.
+
+### 게임플레이용 셀 플레이 영역 높이 설정
+
+프리컴퓨티드 비저빌리티를 사용할 때 한 가지 유념할 점은, 스케일이 게임에 따라 다르므로 비저빌리티 파라미터도 그에 맞게 설정해야 한다는 점입니다.
+
+그 방법은 `[언리얼 엔진 루트 디렉터리]/Engine/Config` 폴더 아래 `BaseLightmass.ini` 파일의 세팅을 변경하면 됩니다. 위치는 `DevOptions.PrecomputedVisibility` 섹션입니다.
+
+~~~
+[DevOptions.PrecomputedVisibility]
+bVisualizePrecomputedVisibility=False
+bCompressVisibilityData=True
+bPlaceCellsOnOpaqueOnly=True
+NumCellDistributionBuckets=800
+CellRenderingBucketSize=5
+NumCellRenderingBuckets=5
+PlayAreaHeight=220
+MeshBoundsScale=1.2
+VisibilitySpreadingIterations=1
+MinMeshSamples=14
+MaxMeshSamples=40
+NumCellSamples=24
+NumImportanceSamples=40
+~~~
+
+이 세팅 중 집중할 것은 `PlayAreaHeight` (플레이 영역 높이)입니다. 이 값은 비저빌리티 셀 배치 위치가 표면 위로 얼마나 높은지 (언리얼 유닛 단위)입니다. 게임에서 카메라가 표면 위로 올라갈 수 있는 최대 높이이며, 보통 키가 가장 큰 플레이어의 눈 높이에 점프 높이를 더한 값입니다.
+[REGION:tip]
+환경설정 파일의 `PlayAreaHeight` 또는 다른 세팅을 설정해도 엔진 재시작이 필요치 않습니다. .ini 파일을 수정하고 저장한 다음 메인 툴바 **빌드** 드롭다운의 **스태틱 비저빌리티 미리계산** 을 선택하면 됩니다.
+[/REGION]
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![플레이 영역 높이: 220 (기본)](Pvis_PlayAreaHeightDefault.png) 
+[/PARAM]
+[PARAM:after]
+![플레이 영역 높이: 650](Pvis_PlayAreaHeightAdjusted.png) 
+[/PARAM]
+[/OBJECT]
+
+**ThirdPerson** (삼인칭) 템플릿을 사용하는 경우, 이런 게임 유형의 PlayAreaHeight 를 결정할 때 고려할 사항이 몇 가지 있습니다.
+
+![](pvis_findingcameraheight.png "pvis_findingcameraheight.png")
+
+1.  **카메라의 가장 높은 회전 지점을 찾습니다.**
+    1.  카메라는 삼인칭 템플릿의 캐릭터를 360 도 회전할 수 있습니다. 가장 높은 지점은 지표면 위로 약 **395** 유닛입니다.
+2.  **플레이어의 점프 높이입니다.**  
+    1.  플레이어가 점프할 수 있는 높이는 약 **210** 유닛입니다.
+3.  **카메라가 갈 수 있는 최대 높이입니다.**
+    
+    1.  여기에 카메라의 최고 위치(365 유닛)에 플레이어의 점프 높이(210 유닛)을 더하면, 카메라가 셀을 벗어나지 않고 갈 수 있는 최대 높이는 **615** 유닛입니다. 
+    
+
+PlayAreaHeight 이 최소 615 유닛은 되어야 카메라를 (어느 수직 회전에서도) 유지할 수 있다는 것을 알았으니, 약간의 버퍼를 두어 카메라를 비저빌리티 셀 안에 유지합니다. 버퍼를 포함한 높이는 **650** 유닛이 됩니다. 이 게임 유형과 카메라 이동에 대해서는 셀의 높이를 그렇게 크게 잡는 것이 좋습니다. 그러나 PlayAreaHeight 값이 클 수록 저장해야 하는 액터 비저빌리티 상태가 많아지므로 런타임 메모리 요구량도 많아진다는 점 유의하세요.
+
+## 프리컴퓨티드 비저빌리티 오버라이드 볼륨 사용
+
+**Precomputed Visibility Override Volume** (프리컴퓨티드 비저빌리티 오버라이드 볼륨)은 프리컴퓨티드 비저빌리티 볼륨의 자동 생성 결과가 마음에 들지 않을 경우 월드의 해당 액터 위치에 있는 비저빌리티를 수동으로 덮어쓸 수 있습니다. 퍼포먼스 최적화 용이기도 하며, 플레이어가 갈 수 있는 영역에만 배치해야 합니다.
+
+### 배치
+
+이 볼륨을 사용하려면, **모드** 패널에서 **프리컴퓨티드 비저빌리티 오버라이드 볼륨** 을 레벨로 드래그하고 플레이 영역에 맞게 크기를 조절합니다.
+
+![](pvis_overridevolume_addtoscene.png "pvis_overridevolume_addtoscene.png")
+
+**더하기** (**+**) 버튼으로 배열 목록에 엘리먼트를 얼마든지 추가할 수 있습니다. 
+
+![pvis_overridesettings.png](pvis_overridesettings.png)
+
+추가되는 각 엘리먼트에 대해, 스포이드 아이콘 또는 드롭다운을 사용해 액터 또는 레벨을 추가합니다.
+
+![](pvis_overridesettings_selectActor.png "pvis_overridesettings_selectActor.png")
+
+  
+
+[REGION:note]
+추가 정보는 [](Engine/Rendering/VisibilityCulling/VisibilityCullingReference) 문서를 참고하세요.
+[/REGION]
+
+## 관련 통계
+
+프리컴퓨티드 비저빌리티의 퍼포먼스를 점검할 때, **Initviews** 및 **Memory** 통계부터 보기 시작하는 것이 좋습니다. 이 두 통계 패널에서 프리컴퓨티드 비저빌리티의 퍼포먼스가 얼마나 좋은지, 프로세스에서 런타임에 사용하는 메모리가 얼마나 되는지 알려줍니다.
+
+### Stat Initviews
+
+**stat initviews** 명령으로 레벨의 프리컴퓨티드 비저빌리티 효율을 확인할 수 있습니다.
+
+[REGION:lightbox]
+[![](Pvis_StatInitviews.png "Pvis_StatInitviews.png")](Pvis_StatInitviews.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+| 통계 | 설명 |
+| --- | --- |
+| **Statically Occluded Primitives** | 정적으로 가려진 프리미티브 - 프러스텀 컬링이 일어난 후 프리컴퓨티드 비저빌리티가 안보이는 것으로 판단한 프리미티브 개수를 표시합니다. 카메라 뷰가 비저빌리티 셀 안에 있을 때만 표시됩니다. |
+| **Occluded Primitives** | 가려진 프리미티브 - 프리컴퓨티드 비저빌리티 및 다이내믹 오클루전 시스템 양쪽에 의해 안보이는 것으로 판단된 프리미티브 개수를 표시합니다. |
+| **Decompress Occlusion** | 오클루전 압축해제 - 프리컴퓨티드 비저빌리티 압축해제에 걸린 시간을 표시합니다. 볼륨이 크거나 셀 크기가 작으면 메모리 사용량이 늘어 압축해제에 걸리는 시간에 영향을 줄 수 있습니다. |
+
+
+[REGION:note]
+값이 보이지 않으면, 카메라가 비저빌리티 셀 밖에 있거나 프리컴퓨티드 비저빌리티가 생성되지 않은 경우입니다.
+[/REGION]
+
+![](StatInitviews2.png "StatInitviews2.png")
+
+정적으로 가려진 프리미티브 개수가 예상보다 낮으면, **월드 세팅 > 프리컴퓨티드 비저빌리티** 에서 **Visibility Aggressiveness** (비저빌리티 적극성)을 찾으면 됩니다.]]]] 적극성을 높이면 컬링되는 액터 수가 많아지지만 코너 주위 액터 팝핑 현상같은 비저빌리티 오류도 늘어납니다.  
+
+### Stat Memory
+
+**stat memory** 명령으로 게임, 보다 구체적으로 프리컴퓨티드 비저빌리티에 할당되고 있는 메모리 사용량을 파악할 수 있습니다.
+
+[REGION:lightbox]
+[![](StatMemory.png "StatMemory.png")](StatMemory.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+**Precomputed Visibility Memory** (프리컴퓨티드 비저빌리티 메모리) 통계에는 프리컴퓨티드 비저빌리티에 현재 사용되고 있는 실제 런타임 메모리 사용량이 표시됩니다.
+
+![](StatMemory2.png "StatMemory2.png")
+
+[REGION:tip]
+에디터에서 플레이(PIE) 모드는 메모리 사용량이 에디터와 PIE 동시에 잡히므로 안정적이지 **않습니다**. 대신 에디터의 게임 뷰 모드나 독립형 게임을 사용하면 가장 정확한 결과를 얻을 수 있습니다.
+[/REGION]
+
+## 한계
+
+프리컴퓨티드 비저빌리티의 한계는 다음과 같습니다.
+
+*   무버블 액터는 처리하지 않습니다.
+*   불투명이 아닌 머티리얼, 즉 반투명이나 마스크드 머티리얼은 처리하지 않습니다.
+*   셀은 표면 위에만 배치됩니다. 비행 모드가 있는 프로젝트에는 별 도움이 되지 않습니다.
+*   레벨 스트리밍을 효율적으로 처리하지 않습니다. 모든 데이터가 퍼시스턴드 레벨에 저장됩니다.
+*  스태틱 섀도를 드리우는 트라이앵글만 오클루전이 일어납니다.

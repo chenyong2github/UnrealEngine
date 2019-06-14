@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4326187
+﻿INTSourceChangelist:6184420
 Availability: Public
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona, Engine/Animation/Persona/Modes
 Title:애니메이션 에디터
@@ -12,10 +12,6 @@ tags:Skeletal Mesh
 tags:FBX Importing
 tags:Tools
 topic-image:animEditor_topic.png
-
-[REGION:banner]
-![](AnimationBanner.png)
-[/REGION]
 
 
 [EXCERPT:Overview]

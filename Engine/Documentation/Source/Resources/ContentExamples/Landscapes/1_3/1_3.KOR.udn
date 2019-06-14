@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:1.3 - 폴리지
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Landscapes
@@ -60,7 +60,7 @@ Version: 4.9
 [![](1_3_Foilage.png)](1_3_Foilage.png)
 [/REGION]
 
-스케일, 랜덤 요, 오프셋, 랜덤 핏치 범위, 표면에 정렬시킬 것인지 등등의 프로퍼티 모두, 대부분의 표면에 폴리지 배치를 위한 툴 안에 존재합니다.
+스케일, 랜덤 요, 오프셋, 랜덤 피치 범위, 표면에 정렬시킬 것인지 등등의 프로퍼티 모두, 대부분의 표면에 폴리지 배치를 위한 툴 안에 존재합니다.
 
 [REGION:fullwidth lightbox]
 [![](1_3_FoilageCloseUp.png)](1_3_FoilageCloseUp.png)

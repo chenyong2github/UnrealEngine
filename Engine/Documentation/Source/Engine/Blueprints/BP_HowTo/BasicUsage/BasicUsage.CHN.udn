@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4305416
+﻿INTSourceChangelist:6480262
 Availability: Public
 Title:蓝图基本用户指南
 Crumbs: %ROOT%, Engine, Engine\Blueprints, Engine\Blueprints\BP_HowTo
@@ -20,8 +20,6 @@ tags:Blueprints
 本页面包含 **蓝图** 的最基本用例和常用操作，帮助你快速上手。 
 
 有关蓝图的更多详细信息，请参阅 [](Engine/Blueprints) 文档。 
-
-(#creatingblueprints)
 
 ## 创建蓝图
 
@@ -52,8 +50,6 @@ tags:Blueprints
 
 [/COMMENT]
 
-(#createblueprintusingassets)
-
 ### 使用资源创建蓝图
 
 也可以通过在 **内容浏览器** 中 **右键单击** 资源，然后在 _资源操作（Asset Actions）_ 下选择 **使用此资源创建蓝图...（Create Blueprint Using This...）** 选项的方法创建蓝图。 
@@ -67,8 +63,6 @@ tags:Blueprints
 选择 **使用此资源创建蓝图...（Create Blueprint Using This...）** 选项之后，你将收到选择保存位置的提示。确认保存位置之后，蓝图将自动在蓝图编辑器中打开。
 
 [COMMENT:none]
-
-(#replaceassetswithcompositedblueprint)
 
 ### 使用合成蓝图替换资源
 
@@ -90,8 +84,6 @@ tags:Blueprints
 
 [/COMMENT]
 
-(#placingblueprintsinlevels)
-
 ## 在关卡中放置蓝图
 
 要在关卡中放置蓝图，你可以...
@@ -106,8 +98,6 @@ tags:Blueprints
 
 [COMMENT:none]
 
-(#editingablueprint)
-
 ## 编辑蓝图
 
 取决于处理的蓝图的类型，可以使用不同的 **蓝图模式** 确定蓝图的作用或它的功能。本部分主要关注使用上述的方法创建的蓝图，要获取有关不同蓝图类型的更多信息，请参阅下面的链接。 
@@ -117,8 +107,6 @@ tags:Blueprints
 * 有关关卡蓝图、蓝图接口、宏库或其他类型，请参阅 [](Engine/Blueprints/UserGuide) 来查看更多文档。 
 
 蓝图创建好之后，**双击** 它以在 **蓝图编辑器** 中将其打开，你可以在其中的三个选项卡中的其中一个选项卡上进行处理：  
-
-(#componentsmode)
 
 ### 组件模式（Components Mode）
 
@@ -130,8 +118,6 @@ tags:Blueprints
 * 另请参阅 [](Engine/Blueprints/UserGuide/Components) 了解在此模式中使用 **组件** 的信息。  
  
 
-(#defaultsmode)
-
 ### 默认值模式（Defaults Mode）
 
 ![](DefaultsTab.png)(w:740)
@@ -142,16 +128,12 @@ tags:Blueprints
 
 [/COMMENT]
 
-(#placingblueprintnodes)
-
 ## 放置蓝图节点
 
 在 **图表模式（Graph Mode）** 下放置节点的方法有多种（请参阅 [](Engine\Blueprints\BP_HowTo\PlacingNodes) 了解更多信息），本部分将介绍最常用的方法以及如何连接节点。 
 
 [INCLUDE:Engine\Blueprints\BP_HowTo\PlacingNodes#context]
 
-
-(#connectingblueprintnodes)
 
 ## 连接蓝图节点
 
@@ -168,19 +150,17 @@ tags:Blueprints
 * 请参阅 [](Engine/Blueprints/UserGuide/CheatSheet) 获取基于节点的更多操作和快捷键。 
 
 
-(#creatingvariables)
-
 ## 创建变量
 
 [INCLUDE:Engine/Blueprints/UserGuide/Variables#intro]
 
-你可以在 **MyBlueprint** 窗口中为蓝图创建变量，方法是单击变量列表标题 ![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\myblueprint_variable.png) 上的 **“添加（Add）”按钮 ** ![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\plus_Button.png)。
+你可以在 **MyBlueprint** 窗口中为蓝图创建变量，方法是单击变量列表标题上的 **添加按钮 （+）**。
+
+![](Engine\Blueprints\Editor\UIComponents\MyBlueprint\myblueprint_variable.png)
 
 创建好变量之后，需要能够定义变量的属性。 
 
-[INCLUDE:Engine/Blueprints/UserGuide/Variables#addvariables]
-
-* 有关变量类型和使用变量的更多信息，请参阅 [](Engine/Blueprints/UserGuide/Variables)。 
+* 有关变量类型和使用变量的更多信息，请参阅 [蓝图变量](Engine/Blueprints/UserGuide/Variables)。 
 
 
 

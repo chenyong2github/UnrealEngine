@@ -1,47 +1,52 @@
-﻿Availability:Public
+﻿INTSourceChangelist:3108692
+Availability:Public
 Title: Slate概述
 Crumbs:%ROOT%, Programming, Programming/Slate
-Description:跨平台的Slate用户界面架构的概述。
+Description:概述跨平台的Slate UI框架。
+Version:4.9
 
 [REGION:fullwidth]
 ![Slate UI](editor.png)
 [/REGION]
 
-[TOC(start:2)]
+[TOC (start:2)]
 
-## 概述
 
 [EXCERPT:Intro]
-**Slate** 是一种完全自定义的、平台无关的用户界面架构，其设计目的是使得构建工具及应用程序（比如虚幻编辑器）的用户界面或者游戏中的用户界面变得更加有趣、高效。它结合了一种可以轻松设计、布局及风格化组件的声明式语法，使得可以轻松地创建用户界面并进行迭代开发。
+ **Slate** 是完全自定义、与平台无关的用户界面框架，旨在让工具和应用程序（比如虚幻编辑器）的用户界面或游戏中用户界面的构建过程变得有趣、高效。它将声明性语法与轻松设计、布局和风格组件的功能相结合，允许在UI上轻松实现创建和迭代。
 [/EXCERPT:Intro]
 
-Slate用户界面解决方案使得为工具及应用程序创建图形用户界面变得非常简单，并且可以快速地在界面上进行迭代开发。
+Slate UI解决方案使得为工具和应用程序组合图形用户界面和快速迭代这些界面变得极其简单。 
 
-## 声明式语法
+(#declarativesyntax)
 
-Slate的 **声明式语法** 使得程序员可以直接构建用户界面，而不需要添加中间层来进行处理。提供了一套完整的宏来简化声明及创建新控件的过程。
+## 声明性语法
+
+Slate的声明性语法使得程序员可以访问构建UI，而无需添加间接层。提供了一组完整的宏来简化声明和创建新控件的过程。
 
 	SLATE_BEGIN_ARGS( SSubMenuButton )
 		: _ShouldAppearHovered( false )
 		{}
-		/** The label to display on the button */
+		/** 将显示在按钮上的标签 */
 		SLATE_ATTRIBUTE( FString, Label )
-		/** Called when the button is clicked */
+		/** 单击按钮时调用 */
 		SLATE_EVENT( FOnClicked, OnClicked )
-		/** Content to put in the button */
+		/** 将放置在按钮上的内容 */
 		SLATE_NAMED_SLOT( FArguments, FSimpleSlot, Content )
-		/** Whether or not the button should appear in the hovered state */
+		/** 在悬停状态下是否应显示按钮 */
 		SLATE_ATTRIBUTE( bool, ShouldAppearHovered )
 	SLATE_END_ARGS()
 
 
-## 构成
+(#composition)
 
-Slate的构成架构使得可以轻松地快速排列用户界面元素来进行原型设计和迭代开发。
+## 合成
 
-这里是一个正在构建的用户界面的片段:
+Slate的合成框架使得快速重新排列UI元素以进行原型和迭代变得简单。
 
-	// Add a new section for static meshes
+下面是正在合成的UI的一部分的示例：
+
+	// 为静态网格体添加一个新的部分
 	ContextualEditingWidget->AddSlot()
 	.Padding( 2.0f )
 	[
@@ -75,32 +80,34 @@ Slate的构成架构使得可以轻松地快速排列用户界面元素来进行
 		]
 	];
 
-上面的语法创建了以下用户界面元素：
+上面的合成创建以下UI元素：
 
 ![Rendered UI](Slate_composition.png)
 
+(#styles)
+
 ## 风格
 
-您可以创建风格，并将其应用到一个控件的各个部分上。这使得在用户界面上迭代处理组件的外观、共享及重用风格变得更加容易。
+可以创建风格并将它们应用于控件的各个部分。这使得迭代UI中组件的外观以及共享和重复使用风格变得很容易。
 
-	// Tool bar
+	// 工具栏
 	{
 		Set( "ToolBar.Background", FSlateBoxBrush( TEXT("Common/GroupBorder"), FMargin(4.0f/16.0f) ) );
 
-		Set( "ToolBarButton.Normal", FSlateNoResource() );		// Note: Intentionally transparent background
+		Set( “ToolBarButton.Normal”, FSlateNoResource() );		// 注意：有意透明的背景
 		Set( "ToolBarButton.Pressed", FSlateBoxBrush( TEXT("Old/MenuItemButton_Pressed"), 4.0f/32.0f ) );
 		Set( "ToolBarButton.Hovered", FSlateBoxBrush( TEXT("Old/MenuItemButton_Hovered"), 4.0f/32.0f ) );
 
-		// Tool bar buttons are sometimes toggle buttons, so they need styles for "checked" state
+		// 工具栏按钮有时为切换按钮，因此它们需要用到“勾选”状态的风格。
 		Set( "ToolBarButton.Checked", FSlateBoxBrush( TEXT("Old/MenuItemButton_Pressed"),  4.0f/32.0f, FLinearColor( 0.3f, 0.3f, 0.3f ) ) );
 		Set( "ToolBarButton.Checked_Hovered", FSlateBoxBrush( TEXT("Old/MenuItemButton_Hovered"),  4.0f/32.0f ) );
 		Set( "ToolBarButton.Checked_Pressed", FSlateBoxBrush( TEXT("Old/MenuItemButton_Pressed"),  4.0f/32.0f, FLinearColor( 0.5f, 0.5f, 0.5f ) ) );
 
-		// Tool bar button label font
+		// 工具栏按钮标签字体
 		Set( "ToolBarButton.LabelFont", FSlateFontInfo( TEXT("Roboto-Regular"), 8 ) );
 	}
 
-构建界面时使用的风格：
+合成中使用的风格：
 
 	SNew( SBorder )
 	.BorderImage( FEditorStyle::GetBrush( "ToolBar.Background" ) )
@@ -108,7 +115,7 @@ Slate的构成架构使得可以轻松地快速排列用户界面元素来进行
 	[
 		SNew(SHorizontalBox)
 
-		// Compile button (faked to look like a multibox button)
+		// 编译按钮（虚拟为多框按钮）
 		+SHorizontalBox::Slot()
 		[
 			SNew(SButton)
@@ -139,23 +146,29 @@ Slate的构成架构使得可以轻松地快速排列用户界面元素来进行
 		]
 	]
 
+(#input)
+
 ## 输入
 
-Slate支持接收鼠标和键盘输入。它提供了一个灵活的按键绑定系统，使得它可以将任何按键组合绑定到任何命令上；且提供了动态修改这些按键绑定的功能。
+Slate支持接受鼠标输入和键盘输入。它提供了一个灵活的键绑定系统，可以将任何键组合绑定到任何命令，包括动态修改这些绑定的能力。
+
+(#output)
 
 ## 输出
 
-Slate应用目标平台无关的渲染图元，使得它可以在任何平台上运行。它目前针对的平台是 Unreal Engine 4 RHI，所以它可以在任何虚幻引擎4运行的平台上运行。
+Slate使用目标未知的渲染基元，使得它可以在任何平台上运行。它目前针对的是虚幻引擎4 (UE4)渲染硬件接口(RHI)，因此它可以在运行UE4的任何平台上运行。
 
-## 布局图元
+(#layoutprimitives)
 
-布局图元使得它可以轻松地创建静态及动态布局。
+## 布局基元
+
+布局基元使得构建静态和动态布局变得很简单。
 
 	FString DefaultLayout =
 					TEXT( "	{" )
 					TEXT( "		\"type\": \"tabstack\"," )
 					TEXT( "		\"sizecoeff\": 1," )
-					TEXT( "		\"children\":" )
+					TEXT( "		\"children\":")
 					TEXT( "		[" )
 					TEXT( "			{" )
 					TEXT( "				\"type\": \"tab\"," )
@@ -172,34 +185,40 @@ Slate应用目标平台无关的渲染图元，使得它可以在任何平台上
 					TEXT( "		]" )
 					TEXT( "	}" );
 
-上面的布局创建了以下用户界面：
+上面的布局创建以下UI：
 
 ![UI Layout](Slate_layout.png)
 
-## 用户驱动的布局
+(#userdrivenlayout)
 
-Slate的 **停靠布局** 功能将布局设置的权利交到了用户的手中，允许用户重新排列选卡面板并停靠到任何可能的布局中。自定义用户工作环境的功能，使得用户可以按他们喜欢的方式来应用工具。
+## 用户驱动型布局
 
-**浮动的选卡**
+Slate的停靠框架通过允许将它的选项卡式窗格重新排列和停靠到几乎任何您能想象到的布局中，将权力交到用户手中。自定义环境的能力允许用户以他们想要的方式使用他们想要使用的工具。
+
+浮动选项卡：
 
 ![Docking](docking_before.png)
 
-**拖拽选卡到停靠目标**
+将选项卡拖动到停靠目标：
 
 ![Drag to Docking Area](docking_place.png)
 
-**停靠后的选卡**
+已停靠的选项卡：
 
 ![Docked](docking_after.png)
 
+(#developertools)
+
 ## 开发者工具
 
-**Slate Widget Inspector（Slate控件检查器）** 提供了调试及分析用户界面和相关代码的方法。这可以辅助跟踪缺陷和不需要的行为，并且可以分析及优化您的用户界面。
+ **Slate控件反射器（Slate Widget Reflector）** 提供一种调试和分析UI和相关代码的方法。这有助于追踪错误和不良行为，以及分析和优化用户接口。
 
 [REGION:fullwidth]
 ![Widget Inspector](widget_inspector.png)
 [/REGION]
 
-## 引擎访问
+(#engineaccess)
 
-Slate用户界面系统为程序员提供了到引擎和编辑器的直接访问权；使得它可以更轻松地实现新功能和工具来适应任何开发团队的工作流程及任何项目的需求。
+## 引擎访问权限
+
+Slate UI系统向程序员提供引擎和编辑器的直接访问权限，使得更容易实现新的功能和工具，以适应任何开发团队的工作流程和任何项目的需求。

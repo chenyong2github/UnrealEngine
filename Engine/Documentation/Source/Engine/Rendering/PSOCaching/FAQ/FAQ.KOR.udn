@@ -1,0 +1,46 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: PSO Questions and Answers
+Description: Going over common questions about using PSO caching in your UE4 project.
+Type: reference
+Version: 4.21
+Parent: Engine/Rendering/PSOCaching
+Order: 6
+
+
+[TOC (start:2 end:2)]
+
+The following document covers some common questions that you might have when using PSO caching in your Unreal Engine 4 (UE4) project.
+
+## Do I need to achieve 100% PSO coverage?
+
+While trying to achieve 100% PSO coverage for your UE4 project would be ideal, in many instances, it is simply not possible to achieve 100% PSO coverage and this okay. For example, in Fortnite 100% PSO coverage is never fully achieved because some content is dynamically generated while playing. Because of this mobile Fortnite players could encounter anywhere between 10 to 30 uncached PSO's hitches during a match. While this might sound like a lot, the effect it has on players is very subtle and typically goes unnoticed.
+
+## When do I need to re-capture PSO data?
+
+Ideally, you would want to re-capture your project's PSO data each time content has been added, updated or changed in a significant way. However, in practice, this is not possible due to the rapid pace at which development happens. Since each project will have different PSO re-capture requirements, establishing when a PSO re-capture should happen can be difficult to determine. The following table shows an example timetable for when a project's PSO data could be re-captured during development and release.
+
+  
+| Production Stage | Time |
+| --- | --- |
+| **Pre-Production** | 2 - 3 Weeks |
+| **Production** | 1 - 2 Weeks |
+| **Release** | [INCLUDE:#excerpt_0] |
+
+<!--
+[EXCERPT:excerpt_0]
+During all QA playthroughs
+[/EXCERPT:excerpt_0]
+-->
+
+[REGION:note]
+The PSO caching system will still work fairly well even if you have not re-captured the PSO data for your projects most recent content updates.
+[/REGION]
+
+## Do I need to make special PSO caching levels?
+
+While you can capture all needed PSO data from your project's standard levels, some projects might benefit from creating special PSO capture levels. These levels could be set up so that they spawn all assets of a particular type and then capture their PSO data. This is especially true if your project has content that takes time to unlock or is dynamically spawn.
+
+## Can players send me their PSO data?
+
+Since PSO data has to be generated from the shipped version of your project, it would be possible to have players generate and send their PSO data back to you so that it can be included in a future update. However, while this is technically possible to do, UE4 offers no tools or code frameworks that would allow you to do this.

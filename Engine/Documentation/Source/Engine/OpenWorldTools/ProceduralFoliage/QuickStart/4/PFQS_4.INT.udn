@@ -1,10 +1,12 @@
-Availability:Public
+Availability:Docs
 Title: 4. Using Multiple Foliage Types
 Crumbs:
 Description:In this step we will set up our Foliage Spawner to work with multiple Foliage Types.
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## Set to Docs as the pages have been combined into one. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

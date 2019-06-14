@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Crumbs: %ROOT%, Engine, Engine/Animation
 Title: 포즈 드라이버
@@ -153,7 +153,7 @@ Pose Driver 섹션에 있는 프로퍼티는 다음과 같습니다:
 | 옵션 | 설명 |
 | --- |--- |
 | **Pose Source** | 포즈 소스 - 포즈 데이터 소스로 사용되는 **포즈 애셋** 입니다. | 
-| **Sync Group Name** | 싱크 그룹 이름 - 레퍼런싱할 싱크 그룹 이름입니다. | 
+| **Sync Group Name** | 싱크 그룹 이름 - 참조할 싱크 그룹 이름입니다. | 
 | **Sync Group Role** | 싱크 그룹 역할 - 그룹 내 멤버십 유형입니다. | 
 | **Ignore for Relevancy Test** | 연관성 테스트 무시 - true 면 스테이트에서 가중치가 가장 높은 애니메이션을 찾는 Relevant anim 노드는 이 노드를 무시합니다. | 
 

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6581674
 Availability: Docs
 Title:디스트럭터블 액터
 Crumbs: %ROOT%, Engine
@@ -16,7 +16,6 @@ Description:
 ## 토픽
 
 %Engine/Physics\Destructibles\Intro:topic%
-%Engine/Physics\Destructibles\DestructibleTutorial:topic%
 %Engine/Physics\Destructibles\FractureFX:topic%
 %Engine/Physics\Destructibles\Support:topic%
 %Engine/Physics\Destructibles\DestructibleProperties:topic%

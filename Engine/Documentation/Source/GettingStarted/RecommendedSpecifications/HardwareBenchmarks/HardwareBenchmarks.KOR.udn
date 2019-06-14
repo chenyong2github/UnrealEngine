@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6278513
 Availability: Licensee
 Crumbs: %ROOT%
 Title: 하드웨어 벤치마크 (2017년 중반)
@@ -98,7 +98,7 @@ XGE 컴파일의 일정치 않아서, 이 드라이브에서 컴파일하는 것
 ![](HB_6.png)
 [/REGION]
 
-[IWYU (Include-What-You-Use)](Programming/UnrealBuildSystem/IWYUReferenceGuide) 리팩터링 이후, **에디터** 컴파일이 고도로 병렬화되어 PCH (Precompiled Header) 병목현상이 매우 적어, 위에서 보이는 상관관계는 예상된 것입니다.
+[IWYU (Include-What-You-Use)](Programming/BuildTools/UnrealBuildTool/IWYU) 리팩터링 이후, **에디터** 컴파일이 고도로 병렬화되어 PCH (Precompiled Header) 병목현상이 매우 적어, 위에서 보이는 상관관계는 예상된 것입니다.
 
 ###메모리
 

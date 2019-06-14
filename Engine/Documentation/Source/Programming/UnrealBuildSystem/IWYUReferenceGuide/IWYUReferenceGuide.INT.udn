@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title: IWYU Reference Guide
 Crumbs:
 Description:An overview of the updated codebase for UE4, which uses an Include-What-You-Use (IWYU) dependency model.

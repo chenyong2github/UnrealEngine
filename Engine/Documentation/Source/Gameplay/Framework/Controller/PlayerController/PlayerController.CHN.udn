@@ -1,13 +1,17 @@
-﻿INTSourceChangelist:2099361
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:PlayerController(玩家控制器)
 Crumbs:%ROOT%, Gameplay, Gameplay/Framework, Gameplay/Framework/Controller
 Description:PlayerController实现了从玩家获得输入数据并把它们转换为动作(比如运动、使用道具、开射武器)的功能。
+Related: Gameplay\Framework\Controller\AIController
+Related: Gameplay\Framework\Controller
+Related: Gameplay\Framework\Pawn
+Related: Gameplay\Framework\Pawn\Character
+Version: 4.9
 
+**PlayerController（玩家控制器）** 是Pawn和控制它的人类玩家间的接口。PlayerController本质上代表了人类玩家的意愿。
 
-PlayerController（玩家控制器）是Pawn和控制它的人类玩家间的接口。PlayerController本质上代表了人类玩家的意愿。
-
-当您设置PlayerController时，您需要考虑的一个事情就是您想在PlayerController中包含哪些功能及内容。您可以在Pawn中处理所有输入， 
+当您设置PlayerController时，您需要考虑的一个事情就是您想在PlayerController中包含哪些功能及内容。您可以在 **Pawn** 中处理所有输入， 
 尤其是不太复杂的情况下。但是，如果您的需求非常复杂，比如在一个游戏客户端上的多玩家、或实时地动态修改角色的功能，那么最好
 PlayerController中处理输入。在这种情况中，PlayerController决定要干什么，然后将命令（比如“开始蹲伏”、“跳跃”）发布给Pawn。
 

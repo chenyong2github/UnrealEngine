@@ -14,4 +14,4 @@ topic-image:Resources/ContentExamples/PostProcessing/PP_6.png
 [![](1_6_01.png)(w:302)](1_6_01.png) [![](1_6_02.png)(w:302)](1_6_02.png) [![](1_6_03.png)(w:302)](1_6_03.png)
 [/REGION:lightbox]
 
-[INCLUDE:Engine/Rendering\PostProcessEffects\AutomaticExposure#EyeAdaptation_Desc]
+**Eye Adaptation**, or automatic exposure, causes the exposure of the scene to automatically adjust to recreate the effect experienced as human eyes adjust when going from a bright environment into a dark environment or vice versa.

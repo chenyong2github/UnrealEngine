@@ -1,8 +1,9 @@
 Availability:Public
 Title:Non-Uniform Scale Animation
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Overview of how non-uniform scale animations can be used.
 version: 4.9
+tags:Animation
+tags:Animation Features
 topic-image:NonUniformScaleAnimation_topic.png
 
 

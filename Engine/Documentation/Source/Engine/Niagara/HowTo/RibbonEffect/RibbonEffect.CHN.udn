@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4703316
+﻿INTSourceChangelist:6417095
 Availability: Public
 Crumbs: 
 Title: 在Niagara中创建条带效果
@@ -10,18 +10,11 @@ Parent:Engine/Niagara/HowTo
 Order: 5
 Tags: Niagara
 Tags: Early Access
-
-先决条件主题
-
-本页假定您已对以下主题有一定的了解。请先阅读这些主题，然后继续进行操作。
-
-*   [启用Niagara插件](Engine/Niagara/HowTo/EnableNiagara "描述如何启用Niagara插件。")
+prereq: Engine/Niagara/HowTo/EnableNiagara
 
 模拟自然现象是很有挑战性的，特别是当使用基于sprite或网格体的粒子来模拟烟雾或蒸汽轨迹时。**条带发射器（Ribbon Emitters）** 是模拟这些对象的优秀解决方案。在接下来的教程中，您将了解如何设置Niagara发射器以将连续的条带状粒子效果发射到世界场景中。
 
 ![](Ribbon_Banner_01.png "Ribbon_Banner_01.png")
-
-(#steps)
 
 ## 步骤
 
@@ -114,8 +107,6 @@ Tags: Early Access
     ![](CreateRibbonBasedEffect_Steps_Step22-AddtoSystem.png)
 28. 单击 **编译（Compile）** 和 **保存（Save）** 按钮以编译并保存您的作业，然后关闭条带Niagara系统。在 **内容浏览器（Content Browser）** 中，将 **条带Niagara系统（Ribbon Niagara System）** 拖动到关卡视口中。  
     ![](CreateRibbonBasedEffect_Steps_Step23-AddToLevel.png)
-
-(#endresult)
 
 ## 最终结果
 

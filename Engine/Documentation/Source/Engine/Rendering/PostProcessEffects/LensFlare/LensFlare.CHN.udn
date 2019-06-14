@@ -1,8 +1,14 @@
-﻿INTSourceChangelist:1903238
-Availability:Public
+﻿INTSourceChangelist:3782314
+Availability: Public
+Crumbs: %ROOT%
 Title:镜头眩光
-Crumbs: %ROOT%, Engine, Engine/Rendering, Engine/Rendering/PostProcessEffects
-Description:由于摄像机镜头的缺陷而模拟明亮对象上的散射光
+Description: 由于摄像机镜头的缺陷而模拟明亮对象上的散射光
+Type: Overview
+SkillLevel:Beginner
+Version:4.16
+Parent:Engine/Rendering/PostProcessEffects
+Order:6
+Tags:Post Process
 
 [REGION:fullwidth]
 ![Lens Flare](lens_flare.png)(w:1182)
@@ -19,39 +25,55 @@ Description:由于摄像机镜头的缺陷而模拟明亮对象上的散射光
 | **Bokeh Size** (散景尺寸）|缩放散景形状的半径。 可用于： 基于镜头眩光的外观和性能表现来调整图像（2x半径->4x填充率）。 [INCLUDE:#BokehSize] |
 | **Bokeh Shape** （散景形状）| 用来定义镜头眩光形状的贴图。 [INCLUDE:#BokehShape] |
 | **Lens Flare Tints 1/2/3/4/5/6/7/8** |（镜头眩光着色）对每个单独的镜头眩光着色。 |
+| **Intensity**（强度） | 封装了镜头眩光（线性）的图像的亮度标度。|
+
+
 
 [COMMENT:none]
 
+
 [EXCERPT:Tint]
-[REGION:imagetable]
-| ![Lens Flare Tint - (1.0, 1.0, 1.0)](lens_flare_tint_off_small.png)(w:385) | ![Lens Flare Tint - (0.25, 1.0, 1.0)](lens_flare_tint_on_small.png)(w:385)
-| ------ | ------ |
-| (1.0, 1.0, 1.0) | (0.25, 1.0, 1.0) |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Lens Flare Tint (1.0, 1.0, 1.0)](lens_flare_tint_off_small.png)(w:500)
+	[/PARAM]
+	[PARAM:after]
+	![Lens Flare Tint (0.25, 1.0, 1.0)](lens_flare_tint_on_small.png)(w:500)
+	[/PARAM]
+[/OBJECT]
 [/EXCERPT:Tint]
 
 [EXCERPT:Threshold]
-[REGION:imagetable]
-| ![Lens Flare Threshold - 0.1](lens_flare_threshold_0_small.png)(w:385) | ![Lens Flare Threshold - 8](lens_flare_threshold_8_small.png)(w:385) |
-| ------ | ------ |
-| 0.1 | 8.0 |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Lens Flare Threshold - 0.1](lens_flare_threshold_0_small.png)(w:500)
+	[/PARAM]
+	[PARAM:after]
+	![Lens Flare Threshold - 8](lens_flare_threshold_8_small.png)(w:500)
+	[/PARAM]
+[/OBJECT]
 [/EXCERPT:Threshold]
 
 [EXCERPT:BokehSize]
-[REGION:imagetable]
-| ![Lens Flare Size - 1](lens_flare_bokehsize_1_small.png)(w:385) | ![Lens Flare Size - 8](lens_flare_bokehsize_8_small.png)(w:385) |
-| ------ | ------ |
-| 1.0 | 8.0 |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Lens Flare Size - 1](lens_flare_bokehsize_1_small.png)(w:500)
+	[/PARAM]
+	[PARAM:after]
+	![Lens Flare Size - 8](lens_flare_bokehsize_8_small.png)(w:500)
+	[/PARAM]
+[/OBJECT]
 [/EXCERPT:BokehSize]
 
 [EXCERPT:BokehShape]
-[REGION:imagetable]
-| ![Lens Flare Shape - Default](lens_flare_bokehshape_default_small.png)(w:385) | ![Lens Flare Shape - Square](lens_flare_bokehshape_square_small.png)(w:385) |
-| ------ | ------ |
-| 散景形状- 默认| 散景形状- 正方形 |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Lens Flare Shape - Default](lens_flare_bokehshape_default_small.png)(w:500)
+	[/PARAM]
+	[PARAM:after]
+	![Lens Flare Shape - Square](lens_flare_bokehshape_square_small.png)(w:500)
+	[/PARAM]
+[/OBJECT]
 [/EXCERPT:BokehShape]
 
 [/COMMENT]

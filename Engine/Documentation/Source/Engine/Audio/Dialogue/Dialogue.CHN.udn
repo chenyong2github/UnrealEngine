@@ -1,39 +1,223 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:使用对话语音和和Waves
-Crumbs: %ROOT%, Engine, Engine/Audio
-Description:不同听者和对话语境的对话设置范例
-type:how-to
-type:landing
-parent:Engine/Audio
-skilllevel:Intermediate
-related:Engine/Audio/Overview
-related:Engine/Audio/SoundCues/Editor
-related:Engine/Audio/SoundCues/NodeReference
-topic-image: Engine/Audio/audio_topic.png
+﻿INTSourceChangelist:6601362
+Availability: Public
+Title: 使用对话音效和声波
+Description: 使用不同听众和对话情境的对话设置示例。
+Type: how-to
+Version: 4.13
+Parent: Engine/Audio
+topic-image: audio_topic.png
+SkillLevel: Intermediate
+Order: 1
+Related: Engine/Audio/SoundCues/Editor
+Related: Engine/Audio/SoundCues/NodeReference
+Related: Engine/Audio/Overview
 
-此范例说明基础对话设置。对于较长的对话，则需要创建一个对话管理员系统。 
-在此情景中，我们将设置一个任务 NPC 和两个可操作角色，说明如何使用 Dialogue Voices 和 Dialogue Waves 根据谈话对象调整任务发布者的语气。
+
+[TOC (start:2 end:2)]
+
+先决条件主题
+
+本页面假设您已经预先了解以下主题。请先阅读这些主题，然后继续进行操作。
+
+*   [蓝图快速入门指南](Engine/Blueprints/QuickStart "Get up and running by creating your first Blueprint")
+    
+
+此例介绍一个非常基本的对话设置。对于较长时间的对话，您可能需要创建一个对话管理器系统。在这个场景中，我们将设置一个任务NPC和两个可玩角色，并展示如何使用对话音效和对话声波，让您能够根据任务发出者的交谈对象来调整任务发出者的声调。
 
 [REGION:imagetable]
-| ![](QuestGiver.png)(h:300)| ![](Adam.png)(h:300)|![](Zoe.png)(h:300) |
-|---|----|----|
-|任务 NPC | Adam | Zoe | 
+| ![](QuestGiver.png)(h:300) | ![](Adam.png)(h:300) | ![](Zoe.png)(h:300) |
+| --- | --- | --- |
+| 任务NPC | Adam | Zoe |
 [/REGION]
 
-这是我们范例设计文档的一部分：
+此外，下面是示例设计文档的一个片段：
 
-		- 任务NPC是一名女性士兵，希望从Adam的团队中雇佣人手作为供给品护送任务的后备力量。
-		- Adam是一名雇佣兵，执行任务时专注于潜行，只在必要时进行攻击。
-		- Zoe是一名退伍士兵，在最后一次大型银河冲突后加入Adam的团队。
+    - 任务NPC是一名女兵，她想从Adam的团队中雇佣一人作为补给护送任务的后援。
+        - Adam是个佣兵，奉行潜行隐匿，一击必中的策略。
+        - Zoe是个退役士兵，在上一次重大银河冲突事件后加入了Adam的团队。
 
+## 1 - 创建对话音效
 
+本例中，我们使用[Mixamo动画包](https://www.unrealengine.com/marketplace/mixamo-animation-pack)中的角色，可从虚幻引擎市场免费获取。在Mixamo动画包中，所有角色都继承自一个通用角色蓝图。在您自己的项目中工作，或者使用C++设置时，您需要调整以下步骤，但是基本概念仍然适用。
 
-(#Steps)
-## 步骤
+每个角色的对话音效（Dialogue Voice）变量值都各有不同。即使您没有将音频内容本地化，使每个角色拥有不同的音效也意味着您可以将给定配音员的录音与该音效相关联，使Zoe的声音总是听起来像Zoe。
 
-[DIR(output:"checkpoint" parent:"Engine/Audio/Dialogue" org:"hierarchy")]
+1.  在 **内容浏览器** 中的 **MixamoAnimPack** 文件夹中，双击 **MixamoCharacter_Master** 打开蓝图。  
+    
+    ![](MixamoMaster.png)(w:700)
 
-[REGION:call_to_action]
-	[Click to Start](Engine/Audio/Dialogue/1 "%Engine/Audio/Dialogue/1:title%")
+1.  将一个新[变量](Engine/Blueprints/UserGuide/Variables)添加到该蓝图。  
+    
+    ![](NewVariable.png)
+
+1.  将该新变量命名为 **DialogueVoice**，然后将其类型设置为 **DialogueVoice Reference**。  
+    
+    ![](DialogueVoiceRef.png)
+
+1.  编译并保存您的蓝图。现在，我们需要创建对话音效资源，以用于我们的这三个角色。
+
+1.  返回 **内容浏览器**，创建一个新的 **对话音效（Dialogue Voice）** 资源。  
+    
+    ![](DialogueVoiceNew.png)
+
+1.  将该新资源命名为 **QuestNPC**，然后双击打开它。
+
+1.  参考我们的设计文档，我们知道任务NPC的音效是 **女性化（Feminine）** 和 **单一（Singular）**。使用下拉菜单相应地设置 **性别（Gender）** 和 **多元性（Plurality）**。  
+    
+    ![](QuestNPC.png)
+
+1.  再重复此过程两次，为Adam创建一个 **男性化（Masculine）** 和 **单一的（Singular）** 的 **对话音效（Dialogue Voice）** 资源，并为Zoe创建一个 **女性化（Feminine）** 和 **单一（Singular）** 的 **对话音效（Dialogue Voice）** 资源。  
+    
+    ![](AdamVoice.png) ![](ZoeVoice.png)
+
+1.  保存并关闭您的所有新 **对话音效（Dialogue Voice）** 资源。
+
+创建 **对话音效（Dialogue Voices）** 后，现在可以将它们与我们的角色关联。
+
+1.  返回 **内容浏览器**，在 **Mixamo_SWAT** 文件夹中，打开 **Mixamo_SWAT** 蓝图。  
+    
+    ![](MixamoSWAT.png)
+
+1.  如果您的蓝图不是一个纯数据蓝图，并且默认值还不可见，那么单击 **工具栏（Toolbar）** 中的 **类默认值（Class Defaults）** 按钮，打开蓝图的默认属性。  
+    
+    ![](ClassDefaults.png)
+
+1.  在 **详情（Details）** 面板中将 **对话音效（Dialogue Voice）** 设置为 **任务NPC（Quest NPC）**。  
+    
+    ![](DialogueVoiceSetSwat.png)
+
+1.  重复此流程，将 **Mixamo_Adam** 蓝图的 **对话音效（Dialogue Voice）** 设置为 **Adam**，将 **Mixamo_Zoe** 蓝图的 **对话音效（Dialogue Voice）** 设置为 **Zoe**。  
+    
+    ![](AdamVoiceSet.png) ![](ZoeVoiceSet.png)
+
+[REGION:tip]
+要帮助识别您的对话音效角色，请执行以下操作：
+
+1.  将您的角色放置于世界场景中，然后在视口中制作角色的帧。
+
+1.  在 **内容浏览器** 中右键单击 **对话音效（Dialogue Voice）** 资源。
+
+1.  选择 **资源操作（Asset Actions）> 采集缩略图（Capture Thumbnail）**。  
+    ![](ThumbnailCapture.png)(w:500)
 [/REGION]
+
+## 2 - 构建对话声波
+
+本例中，我们将实现任务NPC对Adam和Zoe的问候。有关复杂对话的更多信息，请参阅下面的“后续步骤：声音提示和对话”部分。每一行对话都需要一个与之关联的 **对话声波（Dialogue Wave）** 资源。
+
+1.  返回 **内容浏览器**，并创建一个新的 **对话声波（Dialogue Wave）** 资源。  
+    
+    ![](DialogueWaveNew.png)
+
+1.  将该新资源命名为 **QuestGreeting**，然后双击打开它。
+
+1.  在 **口语文本（Spoken Text）** 中，输入“喂！您能来一下吗？我有件很重要的事情需要您的帮助。（Hey!Could you come over here?I need your help with something important.）”虽然NPC在与Adam和Zoe对话时使用用的文本是相同的，但游戏设计文档给了我们一些提示，即说出这些文本的方式可能会因听众的不同而有所不同。这意味着我们应该设置两个不同的 **对话情境（Dialogue Contexts）**。
+
+1.  已默认创建一个情境。将 **任务NPC（Quest NPC）** 填入 **发言人（Speaker）** 条目。 
+    
+    ![](Context1Speaker.png)
+
+1.  单击加号图标添加一个听众。 
+    
+    ![](Context1ListenerAdd.png)
+
+1.  将 **用于（Directed At）** 条目设置为 **Adam**。 
+
+    ![](Context1Listener.png)
+
+1.  单击 **添加对话情境（Add Dialogue Context）** 新增一个 **对话情境（Dialogue Context）**。 
+    
+    ![](AddDialogueContext.png)
+
+1.  将该情境的 **发言人（Speaker）** 设置为 **任务NPC（Quest NPC）**，并将 **用于（Directed At）** 设置为 **Zoe**。 
+    
+    ![](ZoeContext.png)
+
+我们还可以做一些笔记，说明配音员的语气应该如何对Zoe更友好，因为他们有共同的军事背景，对亚当更生硬一些，因为他过去做过佣兵，不受信任。这些将在 **配音员方向（Voice Actor Direction）** 字段中配置。最后，在配音员录音返回后，我们将它们导入为 **声波（Sound Waves）**，并在 **声波（Sound Waves）** 字段中针对各个情境设置它们。在本例中，我们不打算创建 **声波（Sound Waves）**，但是您可以使用 **初学者内容包（Starter Content）** 中的 **声波（Sound Waves）** 来测试。
+
+![](GreetingAudio.png)
+
+[REGION:tip]
+您还可在 **对话声波（Dialogue Wave）** 中设置 **字幕覆盖（Subtitle Override）**。如果要制作效果声音或角色说的是玩家不了解的外语等情况，则此功能非常有用。
+[/REGION]
+
+## 3 - 设置情境
+
+现在我们已经设置了 **对话音效（Dialogue Voices）** 和 **对话声波（Dialogue Wave）**，可以赋予任务NPC一些逻辑，为她的问候创建合适的情境。同样，一个 **对话情境（Dialogue Context）** 涉及至少两个 **对话音效（Dialogue Voice）**，即一个 **发言人（Speaker）** 和至少一个（该对话所作 **用于（Directed At）** 的）**对话音效（Dialogue Voice）**。
+
+1.  将一个 **框（Box）** 组件添加到 **Mixamo_SWAT** 蓝图。  
+    
+    ![](AddBoxComponent.png)
+
+1.  在 **视口（Viewport）** 中，调整 **框（Box）** 组件，使其接近角色高度，并在角色前方延伸一段距离。确保框不与角色重叠，或者将角色的胶囊体组件设置为不生成重叠事件，否则角色将自己触发对话逻辑。 
+    
+    ![](TriggerVolume.png)
+
+1.  添加一个名为 **问候（Greeting）** 的新 **对话声波（Dialogue Wave）** 变量。
+
+1.  编译您的蓝图，并将默认值设置为您之前创建的 **QuestGreeting** **对话声波（Dialogue Wave）**。 
+
+    ![](QuestGreetingDetails.png)
+
+1.  设置以下蓝图图表。
+    [REGION:lightbox]
+    [![](DialogueContextBP.png "DialogueContextBP.png")(w:720)](DialogueContextBP.png)
+    [/REGION]
+    该图表：  
+    *   在某些内容与框组件重叠后触发
+    
+    *   将 **重叠Actor（Overlapping Actor）** 转换为我们添加了 **对话音效（Dialogue Voice）** 变量的 **MixamoCharacter_Master**。
+    
+    *   从 **重叠Actor（Overlapping Actor）** 获取音效，并将其用作 **对话情境（Dialogue Context）** 的 **目标（Target）**。
+    
+    *   针对我们的 **对话情境（Dialogue Context）**，为 **发言人（Speaker）** 使用任务NPC的音效。
+    
+    *   使用正确的 **对话情境（Dialogue Context）**，在任务NPC的位置播放名为 **问候（Greeting）** 的 **对话声波（Dialogue Wave）**。Mixamo动画包附带一个游戏模式，可以用它来测试我们的对话设置。
+
+1.  打开 **世界设置（World Settings）**。
+
+1.  将 **游戏模式覆盖（GameMode Override）** 设置为 **MixamoGame**。
+
+1.  将 **默认Pawn类（Default Pawn Class）** 设置为 **Mixamo_Adam** 或 **Mixamo_Zoe**。  
+    ![](SetDefaultPawn.png)  
+    现在，如果该任务NPC被放置在关卡中，您可以用Adam或Zoe跑到他们面前并触发对话。
+
+## 4 - 显示字幕
+
+默认情况下应该启用字幕，但是如果您需要检查字幕是否打开，可查看 **项目设置（Project Settings）** 中的一个复选框。
+
+1.  打开 **项目设置（Project Settings）**。    
+
+1.  在 **常规设置（General Settings）** 下，找到 **字幕（Subtitles）** 部分，然后确保选中了 **启用字幕（Subtitles Enabled）** 框。
+    
+    ![](SubtitlesOn.png)
+    
+
+现在，当您触发任务NPC的对话时，屏幕底部会显示相应的字幕文本。
+
+![](SubtitlesPlaying.png)
+
+[REGION:note]
+除非您的 **对话声波（Dialogue Wave）** 中已针对当前正在发生的情境设置了 **声波（Sound Wave）**，否则不会显示字幕。
+[/REGION]
+
+## 5 - 后续步骤：声音提示和对话
+
+对于更复杂的对话，您可能想要使用声音提示和音频组件。音频组件使您能够使用 **音频完成时（On Audio Finished）** 委托绑定一些在音频播放完成时可以使用的功能。
+
+[REGION:note]
+但是，需要考虑到的是，在使用声音提示时，您不能动态地更改 **对话情境（Dialogue Context）**，因此您的蓝图或C++逻辑看起来与上述示例不同。
+[/REGION]
+
+要使用 **声音提示（Sound Cues）** 播放 **对话声波（Dialogue Waves）**，可使用 **声音提示编辑器（Sound Cue Editor）** 中的 **Dialogue Player** 节点。
+
+![](DialoguePlayerNode.png)
+
+选择该 **Dialogue Player** 节点并查看 **详情（Details）** 面板。这里您可以设置要使用的 **对话声波（Dialogue Wave）**，以及 **情境（Context）** 的 **发言人（Speaker）** 和 **用于（Directed At）** 条目。
+
+
+![](DialogueNodeDetails.png)
+
+以下是一些蓝图逻辑示例，展示如何绑定事件以在上一个音频播放结束后播放下一段对话。
+
+![](AudioNextSteps.png)

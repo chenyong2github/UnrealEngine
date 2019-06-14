@@ -1,0 +1,105 @@
+INTSourceChangelist:6674855
+Availability: Public
+Crumbs: 
+Title: 틈 채우기
+Description: 프록시 지오메트리 툴에서 새 지오메트리를 만들 때 틈을 자동으로 채우는 기능입니다.
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+빈틈 없는 지오메트리의 경우 프록시 지오메트리 툴은 내부 벽, 가구 등 닫힌 구조 안에 있어서 접근할 수 없는 구조물을 자동으로 버립니다. 이상적인 결과를 위해서는 소스 지오메트리를 구성 또는 변경할 때 이 점을 주의해야 하지만, 게임 제작 제약 상 힘들 수도 있습니다. 거의 빈틈 없는 소스 지오메트리에서 효율적인 프록시 LOD 생성을 용이하게 하기 위해, 이제 프록시 LOD 툴의 옵션 중 레벨 세트 기반 팽창 및 침식 기법을 사용하여 틈을 메울 수 있습니다. 주 용도는 원거리 빌딩의 문과 창문을 위한 것이며, 여기서는 생성되는 지오메트리에 생길 수 있는 틈을 자동으로 메우도록 프록시 지오메트리 툴을 구성하는 법을 살펴 보겠습니다.
+
+![](GapFilling_10.png)(w:400px)
+
+## 단계
+
+여기서는 열린 지오메트리가 프록시 지오메트리 툴로 생성한 스태틱 메시에서 닫혀 있는지 확인하는 방법을 살펴봅니다.
+
+1.  먼저 닫고자 하는 열린 부분이 있는 구조물 또는 오브젝트를 찾습니다. 이 예제에서는 시작용 콘텐츠에서 찾을 수 있는 스태틱 메시만 사용해서 구성한 작은 집을 사용합니다.
+
+    ![](GapFilling_01.png "GapFilling_01.png")
+
+1.  **창 > 개발자 툴 > 액터 병합** 을 선택해서 **액터 병합** 툴을 엽니다.
+
+    ![](GapFilling_02.png "GapFilling_02.png")
+
+1.  레벨 안에서 새 지오메트리를 생성하려는 오브젝트를 이루는 모든 스태틱 메시 액터를 선택합니다.
+
+    ![](GapFilling_03.png "GapFilling_03.png")
+
+1.  액터 병합 툴에서 **2 번째 아이콘** 을 클릭하여 프록시 지오메트리 툴에 액세스한 뒤 **프록시 세팅** 을 펼칩니다.
+
+    ![](GapFilling_04.png "GapFilling_04.png")
+
+1.  프록시 세팅에서 **Merge Distance** (메시 거리)를 **120** 으로 설저
+
+    ![](GapFilling_05.png "GapFilling_05.png")
+
+    [REGION:note]
+    메시 거리 파라미터는 프록시 지오메트리 툴에 닫을 틈의 거리를 알려줍니다. 수치가 작을 수록 작은 틈을, 클 수록 큰 틈을 메웁니다.
+    [/REGION]
+
+1.  **액터 병합** 버튼을 클릭하고 **콘텐츠 브라우저** 에서 새로 생성할 스태틱 메시의 이름과 위치를 입력합니다. 그런 다음 **저장** 버튼을 눌러 병합 프로세스를 시작합니다. 
+
+    ![](GapFilling_06.png "GapFilling_06.png")
+
+1.  병합이 완료되면, 콘텐츠 브라우저에서 새로 생성된 스태틱 메시를 찾아 더블클릭하여 **스태틱 메시 에디터** 에서 엽니다.
+
+    ![](GapFilling_07.png "GapFilling_07.png")     
+
+1.  선택한 오브젝트에 따라 프록시 지오메트리 툴이 생성한 지오메트리에 (다음 이미지처럼) 예상보다 멀리 뻗어나가는 문제가 생길 수 있습니다.  
+
+    ![](GapFilling_08.png "GapFilling_08.png")
+
+1.  이런 문제를 해결하려면, 먼저 오브젝트를 이루는 모든 스태틱 메시를 다시 선택합니다. 그런 다음 액터 병합 툴에서 **Merge Distance** (병합 거리) 값을 **175** 로 설정합니다. 그런 다음 **Transfer Distance Override** (전환 거리 오버라이드)를 활성화하고 **100** 값으로 설정합니다.
+
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+      
+    [REGION:note]
+    어떤 값을 사용할지 쉽게 파악하라면 출력 로그를 확인하세요. **Spatial Sampling Distance** (재생성된 메시의 복셀 크기) 및 **Transfer Distance Override** (머티리얼 거리)에 사용된 값을 알 수 있습니다. 사용된 값을 알았으면, 원하는 결과에 따라 값을 높이거나 낮추면 됩니다.
+
+    ![](SamplingScaleMatDistance.png "SamplingScaleMatDistance.png")
+    [/REGION]
+    
+1.  완료되면 액터 병합 버튼을 클릭하여 프로세스를 다시 시작합니다. 프록시 지오메트리 생성이 완료되면 오브젝트는 이렇게 보입니다.
+
+    ![](GapFilling_10.png "GapFilling_10.png")
+
+    [REGION:note]
+    지오메트리 구성 방식에 따라 Merge Distance 와 Transfer Distance Override 에 다른 값을 사용하면서 결과에 만족할 때까지 위 프로세스를 몇 번 반복해야 할 수도 있습니다.
+    [/REGION]
+
+## 최종 결과
+
+최상의 결과를 얻는 데는 약간의 시간과 반복처리가 필요한데, 프록시 지오메트리를 생성하려는 각 오브젝트마다 Merge Distance 및 Transfer Distance Override 에 약간씩 다른 값이 필요하기 때문입니다. 다음 이미지 비교에서 Merge Distance 및 Transfer Distance Override 값을 **0, 100, 200, 300** 으로 설정한 결과를 확인할 수 있습니다.
+
+[EXCERPT:FillingGapsExampleSlider]
+[OBJECT:SliderSequence]
+[PARAMLITERAL:max]
+4
+[/PARAMLITERAL]
+[PARAMLITERAL:ext]
+jpg
+[/PARAMLITERAL]
+[PARAMLITERAL:id]
+FillingGapsExample
+[/PARAMLITERAL]
+    [PARAM:caption]
+    Merge Distance 및 Transfer Distance Override 값을 둘 다 0, 100, 200, 300 으로 설정한 경우 발생하는 예
+    [/PARAM]
+    [PARAM:image_list]
+    ![](SetTo0.png)
+    ![](SetTo100.png)
+    ![](SetTo200.png)
+    ![](SetTo300.png)
+[/PARAM]
+[/OBJECT]
+[/EXCERPT:FillingGapsExampleSlider]
+
+[](#)[](#)

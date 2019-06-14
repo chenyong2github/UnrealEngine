@@ -1,16 +1,15 @@
-﻿INTSourceChangelist:1547582
+﻿INTSourceChangelist:3108692
 Availability: Public
 Title:3路混合材质
 Crumbs:%ROOT%, Engine, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor, Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup
 Description:关于设置材质进行3路(RGB)贴图混合的指南。
-
+Version: 4.9
+SkillLevel: Intermediate
 
 
  通过网格物体描画工具可以轻松地混合3张单独的贴图，但这要求在材质中进行一项特殊设置。请考虑以下设置：
 
- **点击查看完整尺寸**
-
-[![](3-WayBlend.png)(w:720)](3-WayBlend.png)
+![](3-WayBlend.png)
 
 以下是该设置的概述：
 

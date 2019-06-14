@@ -1,18 +1,132 @@
-﻿Availability:NoPublish
-Title:安装XCode 
+INTSourceChangelist:3108692
+Availability:NoPublish
+Title:iOS证书和移动设备信息提供
 Crumbs:
-Description: 虚幻引擎4所有初级教程内容
+Description:虚幻引擎4的所有入门教程的内容
 
 [EXCERPT:Stage1]
-##安装XCode
+[VAR:StageTitle]
+缺少证书和移动设备信息提供
+[/VAR]
 
-我们发现XCode未被安装。 
+似乎您缺少有效的签名证书或移动设备信息提供。 
 
-安装XCode将可以让您查看虚幻头文件，以及创建并编译您自己的代码项目。
+如果您还不是注册的iOS开发者，首先需要在以下网站上注册Apple IOS Developer Program：
 
-您可以使用以下链接从Apple处下载并安装XCode:
-[安装XCode](https://developer.apple.com/xcode/)
+[Apple IOS Developer Program](https://developer.apple.com/programs/ios/)
 
-[![](DownloadXCode.png)](https://developer.apple.com/xcode/)
+[![](developer_portal.png)](https://developer.apple.com/programs/ios/)
 
 [/EXCERPT:Stage1]
+
+
+[EXCERPT:Stage2]
+[VAR:StageTitle]
+创建证书和移动设备信息提供
+[/VAR]
+注册为iOS开发者后，您还需要完成以下操作（根据Apple的说明）：
+
+* 使用 `Engine\Binaries\DotNET\IOS` 中的虚幻iOS配置向导（iPhonePackager.exe）创建证书。如果您是新开发者，使用“生成证书请求”（Generate Certificate Request）窗口来生成用来对iOS应用签名的密钥对，以及用于在Apple Developer网站上生成证书的证书请求。 
+![](generate_cert.png)
+* 创建App ID（可以使用 * 表示用户指定部分）。
+* 创建信息提供描述文件。
+* 添加设备。
+* 向信息提供描述文件添加所有设备。
+* 下载证书和信息提供描述文件。
+
+[/EXCERPT:Stage2]
+
+
+[EXCERPT:Stage2.1]
+[VAR:StageTitle]
+创建证书和移动设备信息提供
+[/VAR]
+注册为iOS开发者后，您还需要完成以下操作（根据Apple的说明）：
+
+* 使用 `Engine\Binaries\DotNET\IOS` 中的虚幻iOS配置向导（iPhonePackager.exe）创建证书。如果您是新开发者，使用“生成证书请求”（Generate Certificate Request）窗口来生成用来对iOS应用签名的密钥对，以及用于在Apple Developer网站上生成证书的证书请求。 
+![](generate_cert.png)
+* 创建App ID（可以使用 * 表示用户指定部分）。
+* 创建信息提供描述文件。
+* 添加设备。
+* 向信息提供描述文件添加所有设备。
+* 下载证书和信息提供描述文件。
+
+有关更多信息，请参阅Apple网站上的以下页面：
+
+[应用分发指南](https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40012582-CH1-SW1)
+[维护标识符、设备和描述文件](https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/MaintainingProfiles/MaintainingProfiles.html#//apple_ref/doc/uid/TP40012582-CH30-SW1)
+[在设备上启动您的应用](https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/LaunchingYourApponDevices/LaunchingYourApponDevices.html#//apple_ref/doc/uid/TP40012582-CH27-SW4)
+
+[/EXCERPT:Stage2.1]
+
+
+[EXCERPT:Stage3]
+[VAR:StageTitle]
+安装签名证书和移动设备信息提供
+[/VAR]
+
+要在Windows安装证书，使用 `Engine\Binaries\DotNET\IOS` 中的虚幻iOS配置向导（iPhonePackager.exe）创建证书。
+
+![](ipp.png)
+
+[/EXCERPT:Stage3]
+
+[EXCERPT:Stage3.1]
+[VAR:StageTitle]
+安装签名证书和移动设备信息提供
+[/VAR]
+
+要在Windows安装证书，使用 `Engine\Binaries\DotNET\IOS` 中的虚幻iOS配置向导（iPhonePackager.exe）创建证书。
+
+![](ipp.png)
+
+iPhone Packager包含以下选项卡：
+
+* 新用户（New User）——新用户（New User）选项卡包含适用于之前未开发过iOS应用的开发者的工具。
+* 已是注册的iOS开发者（Already a registered iOS developer）——已是注册的iOS开发者（Already a Registered iOS Developer）选项卡包含适用于之前曾使用虚幻或通过其他方法开发过iOS应用的开发者的工具，并且他们已经有了开发证书和信息提供描述文件。 
+[/EXCERPT:Stage3.1]
+
+[EXCERPT:Stage4.1]
+[VAR:StageTitle]
+证书和信息提供设置
+[/VAR]
+
+1. 导入从Apple Developer 网站下载的信息提供描述文件。
+![](install_provision.png)
+
+[/EXCERPT:Stage4.1]
+
+[EXCERPT:Stage4.2]
+[VAR:StageTitle]
+证书和信息提供设置
+[/VAR]
+
+1. 导入从Apple Developer 网站下载的信息提供描述文件。
+![](install_provision.png)
+1. 导入之前从Apple Developer网站下载的开发证书和密钥对或者从Keychain Access导出的.p12文件。
+![](install_certificate.png)
+
+[/EXCERPT:Stage4.2]
+
+[EXCERPT:Stage4.3]
+[VAR:StageTitle]
+证书和信息提供设置
+[/VAR]
+
+1. 导入从Apple Developer 网站下载的信息提供描述文件。
+![](install_provision.png)
+1. 导入之前从Apple Developer网站下载的开发证书和密钥对或者从Keychain Access导出的.p12文件。
+![](install_certificate.png)
+
+注：有一个选项可以打开编辑器Info.plist窗口，但这是一个不再需要的旧选项。最终，iPhone Packager的功能将集成到虚幻编辑器中。 
+[/EXCERPT:Stage4.3]
+
+[EXCERPT:Stage5]
+[VAR:StageTitle]
+证书和信息提供设置完成
+[/VAR]
+
+这样就可以了！您现在应该可以连接设备并测试游戏了。
+
+![](launch.png)
+[/EXCERPT:Stage5]

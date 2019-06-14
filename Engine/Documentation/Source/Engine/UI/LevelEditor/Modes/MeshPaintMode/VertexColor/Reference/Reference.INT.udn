@@ -1,0 +1,177 @@
+Availability: Docs
+Title: Mesh Paint Tool Reference
+Description: This page describes settings for various parts of the Mesh Paint Tool.
+Version: 4.22
+Parent: Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor
+Tags: Reference
+Tags: mesh paint tool
+Tags: vertex color
+
+
+[TOC]
+
+Inside the Mesh Paint mode panel, there are several options available for using the mesh paint system, each of which has its own settings available for painting vertex color, blending between textures, or painting directly onto the texture file.
+
+Listed below are each of the painting methods available, the tools you can use to work with your vertex color data, the brush settings available while painting, and the view modes available.
+
+## Vertex Painting Methods
+
+The Mesh Paint Tool has three different painting modes: **Vertex Color Painting**, which paints color data directly onto a Mesh’s vertices; **Vertex Weight Painting**, which blends different textures while you are painting; and **Texture Weight Painting**, which allows painting on textures. The default mode is Vertex Color Painting. The sections below display the options available in each mode.  
+![](PaintingModeIcons.png)(w:200)
+
+When you select a method, its settings will populate in the panel under the painting section.
+
+### Vertex Color Painting
+
+The **Vertex Color Painting** mode enables you to paint vertex colors on your mesh, and access its available properties while doing so.  
+![](VertexPaintingSettings.png)(w:300)
+
+   
+| Setting | Description |
+| --- | --- |
+| **Paint Color** | The color that will be applied while painting (**LMB + Drag**). A rectangular swatch displays a preview of the current color. Click on the swatch to open the Color Picker. You can also type values into the R, G, B, and A fields. If you can’t see the R, G, B, and A fields, click the triangle to the left to expand the setting. |
+| **Erase Color** | The color to use as your "eraser" color while erasing (**Shift + LMB + Drag**). A rectangular swatch displays a preview of the current color. Click on the swatch to open the Color Picker. You can also type values into the R, G, B, and A fields. If you can’t see the R, G, B, and A fields, click the triangle to the left to expand the setting. |
+| **Channels** | These check boxes set which color/alpha channels are affected by the paint brush. |
+| **LOD Model Painting** | This is the specific Level of Detail (LOD) that vertex color painting will be applied to. |
+
+### Vertex Weight Painting
+
+The Vertex Weight Painting mode enables you to paint vertex weights on your mesh and access its available properties while doing so.  
+![](VertexWeightPaintingSettings.png)(w:300)
+
+   
+| Setting | Description |
+| --- | --- |
+| **Texture Weight Type** | This configures the blend weight "strategy" by setting the number of textures you are blending between in the material associated with the mesh. When you change this option, the choices available for **Paint Texture** and **Erase Texture** will update. Each setting requires a different type of material to be in place in order to be used properly. See the **[Material Setup](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup)** page for more information. |
+| **Alpha (Two Textures)** | This provides 2 texture channels, which will be controlled by painting alpha. This means the material will use only alpha values of 0 (black) and 1 (white) for blending. This setting requires that the object have a 2-way alpha lerp blend material applied, similar to the one demonstrated on the **[2-Way Texture Blend Material Setup page](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/2Way)**[page](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/2Way).**** |
+| **RGB (Three Textures)** | This provides 3 texture channels, which will be controlled by painting RGB values. This means the material will use only RGB values to blend textures. This setting requires that the object have a 3-way lerp blend material applied, similar to the one demonstrated on the **[3-Way Texture Blend Material Setup](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/3Way)** page. |
+| **ARGB (Four Textures)** | This provides 4 texture channels, which will be controlled by painting ARGB values. This means the material will use RGB values - and alpha - to blend textures. This setting requires that the object have a 4-way lerp blend material applied, similar to the one demonstrated on the **[4-Way Texture Blend Material Setup](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/4Way)** page. |
+| **ARGB - 1 (Five Textures)** | This provides 5 texture channels, which will be controlled by painting ARGB values. This means the material will use RGB values - and alpha - to blend the first four textures. An internal one minus calculation on the alpha provides a fifth channel for blending. This setting requires that the object have a 5-way lerp blend material applied, similar to the one demonstrated on the **[5-Way Texture Blend Material Setup](Engine/UI/LevelEditor/Modes/MeshPaintMode/VertexColor/MaterialSetup/5Way)** page. |
+| **Paint Texture Weight Index** | The texture Blend Weight index that will be used when applied during painting. |
+| **Erase Texture Weight Index** | The texture Blend Weight index that will be used when erased during painting. |
+
+### Texture Painting
+
+The Texture Painting mode enables you to paint on textures and access its available properties while doing so.  
+![](TexturePaintingSettings.png)(w:350)
+
+   
+| Setting | Description |
+| --- | --- |
+| **Paint Color** | The color that will be applied while painting (**LMB + Drag**). A rectangular swatch displays a preview of the current color. Click on the swatch to open the Color Picker. You can also type values into the **R, G, B, and A** fields. If you can’t see the R, G, B, and A fields, click the triangle to the left to expand the setting. |
+| **Erase Color** | The color that will be applied while erasing (**LMB + Drag**). A rectangular swatch displays a preview of the current color. Click on the swatch to open the Color Picker. You can also type values into the **R, G, B, and A** fields. If you can’t see the R, G, B, and A fields, click the triangle to the left to expand the setting. |
+| **Enable Seam Painting** | If this box is checked, dilation is used to allow the painting of texture seams. |
+| **Channels** | These check boxes set which color/alpha channels are affected by the paint brush. |
+| **UV Channel** | The UV channel of the selected Actor that will be used for the painted texture. |
+| **Paint Texture** | This swatch shows the texture to apply painting to. To change the texture, click the name field to the right of the swatch. |
+
+## Mesh Paint Tools
+
+This section describes the tools you can use for your vertex color data. This includes copying color data from one instance and pasting it to another, filling the Static Mesh color data with a single color value, propagating your applied paint values from the instance to the base asset, and more.  
+![](MeshPaintTools.png)(w:300)
+
+  
+| Setting | Description |
+| --- | --- |
+| [INCLUDE:#excerpt_0] | This fills the Mesh or instance being painted using the **Paint color**, respecting the **Channels** settings. |
+| [INCLUDE:#excerpt_1] | This propagates Instance vertex colors to the source Meshes. |
+| [INCLUDE:#excerpt_2] | This imports a TGA image file to populate the vertex colors of the selected instance(s). |
+| [INCLUDE:#excerpt_3] | This saves the source Meshes for the selected Mesh instances. |
+| [INCLUDE:#excerpt_4] | This copies the vertex colors from the selected instance(s) to the source mesh asset. |
+| [INCLUDE:#excerpt_5] | This attempts to paste vertex colors on the selected mesh instances. |
+| [INCLUDE:#excerpt_6] | This removes vertex colors from the selected Mesh instances. |
+| [INCLUDE:#excerpt_7] | If necessary, this fixes vertex colors applied to the selected Meshes. |
+| [INCLUDE:#excerpt_8] | This applies the vertex colors from LOD0 to all LOD levels. |
+
+<!--
+[EXCERPT:excerpt_8]
+**Apply**  
+![](ApplyTool.png)(w:30)
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+**Fix**  
+![](FixTool.png)(w:30)
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+**Remove**  
+![](RemoveTool.png)(w:30)
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+**Paste**  
+![](PasteTool.png)(w:30)
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+**Copy**  
+![](CopyTool.png)(w:30)
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+**Save**  
+![](SaveTool.png)(w:30)
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+**Import**  
+![](ImportTool.png)(w:30)
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+**Propagate**  
+![](PropagateTool.png)(w:30)
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_0]
+**Fill**  
+![](FillTool.png)(w:30)
+[/EXCERPT:excerpt_0]
+-->
+
+## Brush Settings
+
+The Mesh Paint tool is a brush-based system. Using the included settings, you can establish a brush designed for wide areas or fine details. Because the Mesh Paint Tool paints color on actual vertices, you might need to adjust settings based on the vertex density of your mesh.
+
+This section describes the brush settings common between all the tool's modes while painting on your meshes.
+
+![](BrushSettings.png)(w:350)
+[REGION:note]
+For the options controlled by sliders, you can click and drag the slider to change the value quickly, or you can click the field and type in a number.
+[/REGION]
+
+   
+| Setting | Description |
+| --- | --- |
+| **Radius** | This sets the radius of the brush in Unreal units. In addition, the brush has a **depth-based falloff** that is equal to half of this radius. |
+| **Strength** | This sets the amount of paint to apply each time you click or move the mouse cursor while painting is enabled. Also if **brush flow** is enabled, a percentage (flow amount) of the brush's strength will be applied to the surface. |
+| **Falloff** | This sets how the brush's strength falls off with distance. A falloff value of 1.0 means that the center of the brush is 100% strong and fades linearly towards the radius of the brush. A falloff value of 0.5 means that the brush is 100% strong halfway towards the radius, then falls off linearly. A falloff value of 0.0 means the brush is 100% strong over the entire radius. Remember that **depth-based falloff** is always active, regardless of this setting. |
+| **Enable Brush Flow** | Checking this box configures the brush to apply paint every single render frame, even when you are not moving the cursor. It yields results similar to an airbrush. |
+| **Ignore Back-Facing** | Check this box to ignore triangles facing away from the camera, so they will not be affected by the paint brush. |
+
+## View Modes
+
+This section describes the view mode settings common between all the tool's modes, which you can use to view the painted vertex colors individually or all together.  
+![](ViewModeSettings.png)(w:350)
+
+  
+| Setting | Description |
+| --- | --- |
+| **Color View Mode** | This setting enables different view modes, to help you visualize how vertex color is being applied to your meshes within the viewport. You can choose to display just the vertex colors, or you can view individual color channels. |
+| **Off** | This is the first option in the Color View Mode list. It restores the default editor view mode. |
+| **RGB Channels** | This is the second option in the Color View Mode list. It displays the Actors unlit, with RGB vertex colors. |
+| **Alpha Channel** | This is the third option in the Color View Mode list. It displays the Actors unlit, with only vertex alpha. |
+| **Red Channel** | This is the fourth option in the Color View Mode list. It displays the Actors unlit, with Red vertex color. |
+| **Green Channel** | This is the fifth option in the Color View Mode list. It displays the Actors unlit, with Green vertex color. |
+| **Blue Channel** | This is the sixth option in the Color View Mode list. It displays the Actors unlit, with Blue vertex color. |
+
+![viewmodes_demo.png](ViewModes_Demo.png)(w:500)

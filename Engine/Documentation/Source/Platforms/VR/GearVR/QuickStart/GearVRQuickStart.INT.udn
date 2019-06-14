@@ -1,0 +1,221 @@
+Availability: Public
+Title: Samsung Gear VR UE4 Quick Start
+Description: Instructions on how to quickly setup and deploy projects for use with the Samsung Gear VR Headset.
+Type: quick start
+Version: 4.17
+Parent: Platforms/VR/GearVR
+Tags: VR
+Tags: Getting Started
+Tags: Gear VR
+topic-image: SamsungGearVRDevelopment_topic.png
+Order: 5
+
+[TOC (start:2 end:2)]
+
+![](GearVRHT_BannerImage_00.png "GearVRHT_BannerImage_00.png")
+
+## Goals
+
+The Gear VR Quick Start will walk you through how to set up your development PC and Samsung Smartphone to work with the Gear VR headset.
+
+## Objectives
+
+* Create a new UE4 project that is targeted towards Gear VR development.
+* Setting the required project settings so your project can be used with Gear VR.
+* Deploying and viewing your UE4 project with the Gear VR HMD.
+
+## 1 - Gear VR Project Creation
+
+In the following part of the Gear VR Quick Start, we will go over setting up a new Unreal Engine 4 (UE4) project that can be used with Gear VR.
+
+### Steps
+
+1.  From the [Unreal Engine Launcher](http://tinyurl.com/oawb7x2) make sure that you have UE4 version **4.17** or later downloaded and installed. Then press the **Launch** button to open the **Unreal Project Browser**.
+    [REGION:lightbox]
+    [![](GVR_New_Project_00.png)(w:550)](GVR_New_Project_00.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+2.  From the New Project tab of the Unreal Project Browser, create a new **Blueprint** based project that is **Blank** and uses the following settings.
+    [REGION:lightbox]
+    [![](GVR_New_Project_01.png)(w:550)](GVR_New_Project_01.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    *   **Blank Project**
+    
+    *   **Mobile / Tablet**
+    
+    *   **Scalable 3D / 2D**
+    
+    *   **No Starter Content**
+
+3.  Next, set the project's location and give it a name. For this example, the name will be **GearVRQS** but feel free to pick any name you want. When that has been completed, press the **Create Project** button to create the project and load the UE4 Editor.
+    [REGION:lightbox]
+    [![](GVR_New_Project_02.png)(w:550)](GVR_New_Project_02.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+### End Result
+
+When completed you should now have a new Blank project created that is ready to be set up for use with Gear VR.
+
+## 2 - Gear VR Project Setup
+
+In the following part of the Gear VR Quick Start, we will go over setting up an Unreal Engine 4 project so that it can be used with the Gear VR HMD.
+
+### Steps
+
+1.  Once the Editor has loaded, go to the **Main Toolbar** and select **Edit** \> **Plugins** to open up the Plugin Menu. From the Plugin Menu, choose the **Virtual Reality** section and make sure that the **OculusVR Plugin** is enabled.
+    [REGION:lightbox]
+    [![](GVR_Plugin_Options_Toggle.png)(w:703)](GVR_Plugin_Options_Toggle.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    In previous versions of the Engine, Gear VR had its own Plugin that needed to be enabled. If you are not able to use Gear VR with the version of Unreal Engine 4 that you are using, make sure to check the VR Plugins section and enable the Gear VR plugin if it is available.
+    [/REGION]
+
+2.  For any Unreal Engine project to run when it is deployed to a device, you will need to have at least one Level saved. To keep the current Level, go to the **Toolbar** and press the **Save** icon to save it, naming it **GearVRQSMap**.
+    [REGION:lightbox]
+    [![](GVR_QS_Saved_Map.png)(w:299)](GVR_QS_Saved_Map.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+ 
+3.  Next, from the Main Menu, go to **Edit** \> **Project Settings**. Under **Project** in the **Maps & Modes** section, find **Default Maps** and set it to the Level that was just saved in the **Editor Start Up** and **Game Default Map**.
+    [REGION:lightbox]
+    [![](GVR_QS_Default_Maps.png)(w:546)](GVR_QS_Default_Maps.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+4.  Now, go to **Engine** \> **Input**. In the **Mobile** section, set the **Default Touch Interface** to **None** by clicking on the **Default Touch Interface** input box and selecting **None** from the drop down.
+    [REGION:lightbox]
+    [![](GVR_QS_Remove_Touch.png)(w:546)](GVR_QS_Remove_Touch.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+5.  In **Platforms**, under **Android**, go to the **ApkPackaging** section and press the **Configure Now** button then set the following settings:
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Version.png)(w:546)](GVR_Android_SDK_Version.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    *   **Minimum SDK Version:** 19
+    
+    *   **Target SDK Version:** 19
+    
+    *   **Enable FullScreen Immersive on KitKat and above devices:** True
+
+6.  Next, go to the **Advanced APKPackaging** section and enable the **Configure the AndroidManifest for deployment to Gear VR** check mark box.
+    [REGION:lightbox]
+    [![](GVR_Deployment_Checkbox.png)(w:546)](GVR_Deployment_Checkbox.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+7.  Now, click on the **Android SDK** section and make sure that Android SDK tools that are needed to build your project point to the correct folder on your PC and set to the following API levels:
+    [REGION:lightbox]
+    [![](GVR_Android_SDK_Setup.png)(w:546)](GVR_Android_SDK_Setup.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+
+### End Result
+
+When completed, you will have an Unreal Engine 4 project that is ready to be deployed and viewed with your Gear VR HMD.
+
+## 3 - Gear VR Project Packaging & Deployment
+
+In the following part of the Gear VR Quick Start, we will go over how to launch your UE4 project so that it can be viewed with the Gear VR HMD.
+
+### Steps
+
+1.  First, make sure that your Samsung Galaxy Smartphone is connected to your development PC via a USB cable and that your PC can see the device using the **ADB** command **ADB Devices**.
+    [REGION:note]
+    If you are not sure how to do this, make sure to check out the [Gear VR Prerequisite](Platforms/VR/GearVR/Prerequisites)s page for more information.
+    [/REGION]
+ 
+2.  From the **Main Toolbar**, click on the small white triangle next to the **Launch** icon to open the **Options for Launching on a Device**.
+    [REGION:lightbox]
+    [![](GVR_Deploy_To_Android.png)(w:550)](GVR_Deploy_To_Android.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+3.  From the drop down list, select the device you want to deploy to by clicking on it.
+    [REGION:lightbox]
+    [![](GVR_Deployed_Files.png)(w:550)](GVR_Deployed_Files.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    If prompted to save, make sure that you do even if you just saved before to ensure that the latest content makes it onto your device.
+    [/REGION]
+    
+4.  Check in the lower corner of the UE4 Editor; a progress window will be displayed that will tell you what stage the packaging is currently on. If this is the first time you are packaging your project, this could take a few minutes depending on the size of your project.
+    [REGION:lightbox]
+    [![](GVR_Deployment_Window.png)(w:550)](GVR_Deployment_Window.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    To see detailed information about what is currently happening during the packing process, click on the **Show Output Log** link in the progress window.
+    [/REGION]
+	
+5.  When the packing and installing process has completed, a notification will be displayed, and a sound will be played. 
+
+### End Result
+
+Once your project has finished being packaged and installed to your device, you will now be able to launch the project and view it using your Samsung Galaxy smartphone and the Gear VR HMD.  When you do this you should see something similar to the following video.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ Bq3Ov32Bwy8
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 4 - On Your Own!
+
+Now that you can deploy a UE4 project and view it with your Gear VR HMD, try and do the following with your project.
+
+*   Use the [Migrate Tool](Engine/Content/Browser/UserGuide/Migrate) to move content from one of the mobile content examples into your project for use.
+
+*   Adjust the settings of the [Default Device Profiles](Platforms/Mobile/Performance/TipsAndTricks) to ensure that your project will run as fast as possible when deployed to your Android based smartphone.
+
+*   Use the [GPU Profiler](Engine/Performance/GPU) to help track your project's performance while you are building it.
+
+As for specifics covered in this quick start:
+
+*   For more information on setting up the Android SDK, see: [Install the Android SDK](Platforms/Mobile/Android/InstallingAndroidCodeWorksAndroid)
+
+*   For more information on setting up your Android Device for UE4 Development, see: [Set Up Your Android Device](Platforms/Mobile/Android/SettingAndroidDeviceDevelopment)
+
+*   For more information on what features Android devices support, see: [Android Device Compatibility](Platforms/Mobile/Android/DeviceCompatibility)
+
+*   For more information on reducing the packaged size of your project, see: [Reducing APK Package Size](Platforms/Mobile/Android/ReducingAPKSize)

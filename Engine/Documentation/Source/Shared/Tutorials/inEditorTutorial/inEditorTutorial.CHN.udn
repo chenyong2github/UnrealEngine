@@ -1,69 +1,69 @@
-﻿INTSourceChangelist:1930343
+INTSourceChangelist:3108692
 Availability:NoPublish
-Title:虚幻4基础介绍
-Description: 本文为虚幻4教程的测试
+Title:简介
+Description:此为UE4教程测试
 Crumbs:
 
 [EXCERPT:Stage1]
 
 [VAR:TimeRemaining1]
-~ 6 Minutes
+~ 6分钟
 [/VAR]
 
 [VAR:StageTitle]
-稍后补图
+简介
 [/VAR]
 
-### %StageTitle%
-
-在本教程中，我们会谈到一些基本术语，比如导航，使用内容浏览器，在世界中放置和处理目标的操作，启用目标的物理系统，以及使用编辑器中的仿真。
+在此教程中，我们将介绍一些基本术语、导航、内容浏览器的用法、世界场景中对象的放置和操纵、在对象上启用物理和在编辑器中使用“模拟（Simulate）”。
 
 ![](Stage1.png)
 
 [/EXCERPT:Stage1]
 
+
+
+
+
 [EXCERPT:Stage1.1]
 
 [VAR:TimeRemaining1]
-~ 6 Minutes
+~ 6分钟
 [/VAR]
 
 [VAR:StageTitle]
-稍后补图
+简介
 [/VAR]
 
-### %StageTitle%
 
-在本教程的任何阶段，您都可以通过关闭教程窗口来退出教程，或点击此窗口底部的"主页"按钮。
 
----
-
-注意--如果您关闭教程窗口或点击"主页"按钮，您将会失去本教程内的所有进度。
+你可以随时通过关闭教程窗口或单击此窗口底部的“主页（Home）”按钮的方法退出此教程。
 
 ---
 
-点击"下一步"来继续。
+注——如果关闭教程窗口或单击“主页（Home）”按钮，你在此教程中的所有进度都将丢失。
+
+---
+
+
 
 [/EXCERPT:Stage1.1]
 
 
 
+
+
 [EXCERPT:Stage1.2]
 
-[VAR:TimeRemaining1]
-~ 6 Minutes
-[/VAR]
-
 [VAR:StageTitle]
-稍后补图
+简介
 [/VAR]
 
-### %StageTitle%
+此教程要求你创建新关卡，如果希望保留当前正在进行中的工作，现在就应保存：
 
-本教程要求您创建一个新关卡，如果你您想要保存您之前制作的任何内容，现在您可以开始保存了：
-1. 在文件菜单，选择“保存所有内容”。
-1. 为您的地图取名并点击“保存“。
-如您不想保存您的工作，则在您创建新关卡后，点击弹出对话框中的”不要保存“。
+1. 在“文件（File）”菜单中，选择“全部保存（Save All）”。
+1. 为地图命名，然后单击“保存（Save）”。
+如果不希望保存工作内容，创建新关卡时，可在弹出的对话框中单击“不保存（Don't Save）”。
+1. 单击“下一步（Next）”以继续。
 
 [/EXCERPT:Stage1.2]
 
@@ -76,26 +76,115 @@ Crumbs:
 创建新关卡
 [/VAR]
 
-### %StageTitle%
-
-让我们开始创建一个关卡。 要创建一个新关卡：
-1. 在”文件“菜单，点击”新建关卡“。
-1. 在”新建关卡“窗口，点击”默认“。
-
-**在”文件“菜单，点击”新建关卡“，然后选择”默认“模板。**
+我们首先创建新关卡。要创建新关卡：
+1. 在“文件（File）”菜单中，单击“新关卡（New Level）”。
+1. 在“新关卡（New Level）”窗口中，单击“默认（Default）”。
+1. 单击“下一步（Next）”以继续。
 
 [/EXCERPT:Stage2]
+
+
+[EXCERPT:Stage2.01]
+
+[VAR:StageTitle]
+
+[/VAR]
+
+新关卡就绪后，你需要可放置到世界场景中的网格体。如果你使用过内容示例或使用初学者资源创建了新项目，也许你已经拥有了一些网格体。但是，保险起见，我们将逐步介绍导入过程，以使你具备可以使用的网格体。
+
+
+
+[/EXCERPT:Stage2.01]
+
+
+[EXCERPT:Stage2.02]
+
+[VAR:StageTitle]
+下载
+[/VAR]
+
+为此，单击下面的链接并获取TutorialShape，向下滚动到“教程内容（Tutorial Content）”部分，然后下载TutorialShape.zip文件。
+
+[前往下载页面获取示例网格体。](DOCLINK:Resources\Downloads)
+
+1. 单击上面的链接。
+1. 下载TutorialShape.zip文件。
+1. 单击“下一步（Next）”以继续。
+
+[/EXCERPT:Stage2.02]
+
+
+[EXCERPT:Stage2.03]
+
+[VAR:StageTitle]
+解压缩
+[/VAR]
+
+你需要从Zip文件中提取TutorialShape.fbx并将它放在易于访问的位置。
+
+1. 将TutorialShape.fbx文件解压缩到易于访问的位置。
+1. 单击“下一步（Next）”以继续。
+
+[/EXCERPT:Stage2.03]
+
+
+[EXCERPT:Stage2.04]
+
+[VAR:StageTitle]
+“单击并拖动”导入
+[/VAR]
+
+导入操作非常简单，只需将FBX从硬盘驱动器拖到内容浏览器中即可。
+
+![](DnDContentBrowser.png)
+
+1. 单击TutorialShape.fbx并将其拖到内容浏览器中。
+1. 单击“下一步（Next）”以继续。
+
+[/EXCERPT:Stage2.04]
+
+
+[EXCERPT:Stage2.05]
+
+[VAR:StageTitle]
+导入对话框
+[/VAR]
+
+此时将弹出导入对话框，对于此对象，保留默认值即可。
+
+![](ImportDia.png)
+
+1. 单击“导入（Import）”。对于此网格体，保留默认导入设置即可。
+1. 单击“下一步（Next）”以继续。
+
+[/EXCERPT:Stage2.05]
+
+
+[EXCERPT:Stage2.06]
+
+[VAR:StageTitle]
+“导入（Import）”按钮
+[/VAR]
+
+你也可以使用内容浏览器中的“导入（Import）”按钮来导入文件。
+
+![](ContentBrowserImport.png)
+
+
+
+[/EXCERPT:Stage2.06]
+
 
 
 [EXCERPT:Stage3]
 
 [VAR:StageTitle]
-创建新关卡
+视口
 [/VAR]
 
-### %StageTitle%
 
-您现在所看到的的就是”3D视口“，您正在通过”场景摄像机“来观察它。 您看到的应为类似下图的内容：
+
+你看到的窗口部分叫做“3D视口”，你通过“场景摄像机”查看它。你应该能看到与以下类似的界面：
 
 ---
 
@@ -110,12 +199,12 @@ Crumbs:
 视口导航
 [/VAR]
 
-### %StageTitle%
 
-让我们一起来学习如何使用场景摄像机在3D视口中导航。
-1. 鼠标指针可停留在视口内的任意位置，右键点击并按住不放。
-1. 移动鼠标，变更场景摄像机面对的方向。
-1. 按住鼠标右键不放，使用您键盘上的W, A, S,和D键来四处浏览。
+
+我们来学习一下如何借助场景摄像机在3D视口中导航。
+1. 使鼠标指针位于视口中的任意位置，右键单击并按住。
+1. 移动鼠标以更改场景摄像机朝向的方向。
+1. 按住鼠标右键的同时使用键盘上的W、A、S和D键来飞行。
 
 
 [/EXCERPT:Stage4]
@@ -127,11 +216,11 @@ Crumbs:
 快速聚焦
 [/VAR]
 
-### %StageTitle%
 
-为快速将目标在视口中居中，先点击它来选择，然后按下您键盘上的F键。 让我们现在就对地面进行此操作（平面白色盒体）：
-1. 点击地面。
-1. 按下F键来将地面在视口中居中。
+
+要快速使某个对象位于视口的中心，单击该对象以选中它，然后按下键盘上的F键。现在，让我们对地板（扁平白色盒体）执行该操作。
+1. 单击地板。
+1. 按下F键，以使地板位于视口的中心。
 
 ![](Stage5.png)
 
@@ -144,10 +233,10 @@ Crumbs:
 缩放
 [/VAR]
 
-### %StageTitle%
 
-当鼠标指针停留在视口上时，您可以通过滚动鼠标滚轮来缩放。
-1. 滚动鼠标滚轮来缩放。
+
+鼠标指针位于视口上时，你可以滚动鼠标滚轮来进行放大和缩小。
+1. 滚动鼠标滚轮来进行放大和缩小。
 
 
 [/EXCERPT:Stage6]
@@ -156,12 +245,12 @@ Crumbs:
 [EXCERPT:Stage7]
 
 [VAR:StageTitle]
-熟悉摄像机控制
+适应摄像机功能按钮
 [/VAR]
 
-### %StageTitle%
 
-如需要，您可以花一点时间来使用摄像机导航控制。 当您准备好继续时，点击本窗口底部的"下一步"按钮。
+
+如果你愿意，可以花费一些时间来对摄像机导航功能按钮进行一些试验。当你准备好继续时，按下此窗口底部的“下一步（Next）”按钮。
 
 
 
@@ -171,12 +260,12 @@ Crumbs:
 [EXCERPT:Stage8]
 
 [VAR:StageTitle]
-场景Outliner基础信息
+场景大纲视图简介
 [/VAR]
 
-### %StageTitle%
 
-如果您移动地距世界中心过远，或有个大场景且想要快速访问，场景Outliner可以帮助您到达您想要的地方。
+
+如果你移动得距离世界场景的中心过远，或者场景规模较大而你需要快速穿越它，场景大纲视图可帮助你快速到达目标位置。
 
 ![](Stage8.png)
 
@@ -186,13 +275,14 @@ Crumbs:
 [EXCERPT:Stage9]
 
 [VAR:StageTitle]
-场景Outliner基础信息
+场景大纲视图简介
 [/VAR]
 
-### %StageTitle%
 
-场景Outliner是一个虚幻4工具，包含了您关卡中所有目标的列表。 您可以在虚幻编辑器窗口的左下角处找到它。 您可以双击列表中的任何目标来聚焦该目标。 
-1. 在场景Outliner中，双击"地面网格物体"。
+
+场景大纲视图是一个UE4工具，它包含关卡中的所有对象（以列表形式）。在其中，你可以双击任意对象来聚焦它。
+
+1. 在场景大纲视图中，双击“地板（Floor）网格体”。
 
 
 [/EXCERPT:Stage9]
@@ -201,12 +291,12 @@ Crumbs:
 [EXCERPT:Stage10]
 
 [VAR:StageTitle]
-放置目标
+放置对象
 [/VAR]
 
-### %StageTitle%
 
-非常好！  让我们找一个目标来放置在世界中。 我们使用内容浏览器来完成该操作。
+
+太棒了！我们来查找一个对象并将它放置到世界场景中。为此，我们需要使用内容浏览器。
 
 [/EXCERPT:Stage10]
 
@@ -214,155 +304,79 @@ Crumbs:
 [EXCERPT:Stage11]
 
 [VAR:StageTitle]
-放置目标： 内容浏览器
+放置对象：内容浏览器
 [/VAR]
 
-### %StageTitle%
 
-在虚幻编辑器窗口的右下角，您可以找到内容浏览器。 它包含了您在此项目中可以访问的所有内容。
+
+这就是内容浏览器。它包含你在此项目中可以使用的所有内容。
 
 
 
 [/EXCERPT:Stage11]
 
 
-[EXCERPT:Stage12]
-
-[VAR:StageTitle]
-放置目标： 内容浏览器
-[/VAR]
-
-### %StageTitle%
-
-在内容浏览器的左上角，您可以找到”显示或隐藏资源面板“按钮。 资源面板显示了对您创建内容进行组织的文件夹结构。
-1. 点击”显示或隐藏资源面板“按钮来显示文件夹结构。
-
-
-[/EXCERPT:Stage12]
-
-
-[EXCERPT:Stage13]
-
-[VAR:StageTitle]
-放置目标： 内容浏览器
-[/VAR]
-
-### %StageTitle%
-
-我们想要放置在关卡中的目标位于"Engine"文件夹下。
-1. 点击 "Engine"文件夹。
-
-![](Stage13.png)
-[/EXCERPT:Stage13]
-
-
-[EXCERPT:Stage14]
-
-[VAR:StageTitle]
-放置目标： 内容浏览器
-[/VAR]
-
-### %StageTitle%
-
-内容浏览器窗口现在可以显示"Engine" 目录下的所有内容及其子目录。
-
-![](Stage14.png)
-
-[/EXCERPT:Stage14]
 
 
 [EXCERPT:Stage15]
 
 [VAR:StageTitle]
-放置目标： 内容浏览器
+放置对象：内容浏览器
 [/VAR]
 
-### %StageTitle%
-
-您现在可以使用过滤器来筛选在内容浏览器中显示的内容。 在本例中，我们想要找到特定的静态网格物体。
-1. 点击"过滤器"。
-1. 点击"静态网格物体“勾选框。
-
+你可以使用过滤器来缩小内容浏览器中显示的内容的范围。在本示例中，我们需要查找某个特定静态网格体。
+1. 单击“过滤器（Filters）”。
+1. 选中“静态网格体（Static Mesh）”复选框。
 
 ![](Stage15.png)
 
 [/EXCERPT:Stage15]
 
 
-[EXCERPT:Stage15.1]
-
-[VAR:StageTitle]
-放置目标： 内容浏览器
-[/VAR]
-
-### %StageTitle%
-
-1. 如果过滤器面板仍然打开，可通过在"过滤器"弹出窗口外的任意位置点击来关闭。
-
-
-[/EXCERPT:Stage15.1]
-
-
 [EXCERPT:Stage16]
 
 [VAR:StageTitle]
-放置目标： 内容浏览器
+放置对象：内容浏览器
 [/VAR]
 
-### %StageTitle%
-
-现在内容浏览器只显示Engine目录及其子目录的静态网格物体，这些静态网格物体按字母顺序进行排列。 您可以在"搜索资源”框体中输入文本来进一步筛选此列表。
-1. 在内容浏览器顶端的"搜索资源”框体中点击。
-1. 输入"Shape_Wedge_E"（不要输入双引号）。 现在，只有名称中包含"Shape_Wedge_E"的静态网格物体会在内容浏览器中显示。
+现在，内容浏览器仅显示游戏中的静态网格体（按字母顺序排列）。你可以进一步对此列表进行过滤，方法是在“搜索资源（Search Assets）”框中输入文本。
+1. 在内容浏览器顶部的“搜索资源（Search Assets）”框中单击。
+1. 输入“Tutorial”（不加引号）。现在，内容浏览器中应仅显示名称中包含“Tutorial”的静态网格体。
 
 
 
 [/EXCERPT:Stage16]
 
 
-[EXCERPT:Stage16.1]
-
-[VAR:StageTitle]
-放置目标： 内容浏览器
-[/VAR]
-
-### %StageTitle%
-
-现在，只有名称中包含"Shape_Wedge_E"的静态网格物体会在内容浏览器中显示。
-
-
-
-[/EXCERPT:Stage16.1]
-
-
 
 [EXCERPT:Stage17]
 
 [VAR:StageTitle]
-放置目标： 内容浏览器
+放置对象：内容浏览器
 [/VAR]
 
-### %StageTitle%
 
-让我们在关卡中放置灰色的"Shape_Wedge_E"目标。
-1. 拖动内容浏览器的"Shape_Wedge_E"目标到视口中，并放置在地面上方。 在您拖动该目标时，虚幻编辑器将会把"Shape_Wedge_E"与地面对齐。
-1. 将目标"Shape_Wedge_E"移动到您想要的位置，松开鼠标左键来将其放置到您的场景中。
+
+我们来将灰色的“TutorialShape”对象放置到关卡中。
+1. 将“TutorialShape”对象从内容浏览器拖到视口中并使其位于地板上面。
+1. “TutorialShape”对象处于目标位置后，释放鼠标左键来将它放置在场景中。
 
 ![](Stage18.png)
 
+
+
 [/EXCERPT:Stage17]
+
 
 
 
 [EXCERPT:Stage17.1]
 
 [VAR:StageTitle]
-放置目标： 内容浏览器
+放置对象：内容浏览器
 [/VAR]
 
-### %StageTitle%
-
-选中"Shape_Wedge_E"并鼠标左键双击，或在选中它后点击F键来让视口中的目标"Shape_Wedge_E"居中。
+单击“TutorialShape”对象以确保选中它，然后按下F键，使视口摄像机聚焦于此对象。
 
 
 
@@ -372,46 +386,34 @@ Crumbs:
 
 [EXCERPT:Stage18]
 
-[VAR:StageTitle18]
-放置目标： 移动
+[VAR:StageTitle]
+放置对象：移动
 [/VAR]
 
-### %StageTitle18%
 
-关卡中已有"Shape_Wedge_E" ，我们现在可以到处移动它：
-1. 沿着视口上方，在右侧，您会看到几个按钮。 点击第一个按钮，该按钮代表移动工具。
+
+“TutorialShape”已放置到关卡中，我们现在可以移动它：
+1. 在视口右上角，你将看到几个按钮。单击第一个按钮——它是移动工具。
+
+
 
 
 [/EXCERPT:Stage18]
 
 
-
-[EXCERPT:Stage18.1]
-
-[VAR:StageTitle18]
-放置目标： 移动
-[/VAR]
-
-### %StageTitle18%
-
-1. 点击"Shape_Wedge_E"目标以确认您已经选中该目标。
-
-[/EXCERPT:Stage18.1]
-
-
-
-
 [EXCERPT:Stage19]
 
 [VAR:StageTitle]
-放置目标： 移动
+放置对象：移动
 [/VAR]
 
-### %StageTitle%
 
-您应该能在对象的中间位置看到移动工具的方向箭头。 方向箭头标明了x (红), y (绿), 和z (蓝)方向的3D轴。
+
+在对象的中间位置，你应能够看到移动工具的方向箭头。这些方向箭头分别指示X（红色）、Y（绿色）和Z（蓝色）3D轴。
 
 ![](Stage20.png)
+
+
 
 [/EXCERPT:Stage19]
 
@@ -419,66 +421,50 @@ Crumbs:
 [EXCERPT:Stage20]
 
 [VAR:StageTitle]
-放置目标： 移动
+放置对象：移动
 [/VAR]
 
-### %StageTitle%
-
-在启用了移动工具后，您现在可以把"Shape_Wedge_E"四处移动。
-1. 通过旋转鼠标滚轮来缩小一点"Shape_Wedge_E"。
-1. 把鼠标指针移动到3个方向箭头的每个箭头处。 请注意在您把鼠标移动到每个箭头上时，该箭头会变黄色。
-1. 将鼠标指针移动到移动工具中心位置附近，红线，绿线和蓝线与箭头连接于该位置。 请注意当您在每对线上移动时，两个箭头都会变为黄色。
+启用移动工具后，你就可以移动“TutorialShape”了。
+1. 滚动鼠标滚轮，从“TutorialShape”移离一点点。
+1. 单击“TutorialShape”对象以确保选中它。
+1. 分别在三个方向箭头上移动鼠标指针。在每个箭头上移动时，箭头都将变成黄色。
+1. 使鼠标指针靠近移动工具的中心，在此处，红色、绿色和蓝色线条分别与各个箭头相连接。注意，在每对线条上移动时，它们的箭头也会变成黄色。
+1. 左键单击并拖动移动工具的3个方向箭头中的任意一个。
 
 ![](Stage21.1.png)
 
+
+
 [/EXCERPT:Stage20]
+
 
 
 [EXCERPT:Stage23]
 
 [VAR:StageTitle]
-放置目标： 变换细节
+放置对象：变换“细节（Details）”
 [/VAR]
 
-### %StageTitle%
-
-细节面板包含了选中目标的属性信息。 当您改变目标的位置时，这些变更会在细节面板中体现出来。
-1. 查看位置部分的Z轴值。 该值为目标"Shape_Wedge_E"的当前Z轴位置值。
+“细节（Details）”面板中包含与选中对象的属性相关的信息。当你更改对象的位置时，这些更改将在“细节（Details）”面板中反映出来。
+1. 在“位置（Location）”部分中查看Z数值。此为“TutorialShape”对象的当前Z位置数值。
 
 ![](Stage24.png)
 
 [/EXCERPT:Stage23]
 
 
-[EXCERPT:Stage24]
-
-[VAR:StageTitle]
-放置目标： 内容浏览器
-[/VAR]
-
-### %StageTitle%
-
-如果您不再选中"Shape_Wedge_E"，您可以在场景Outliner中重新选择它。
-1. 在场景Outliner中，点击"Shape_Wedge_E"。
-1. 按下F键将"Shape_Wedge_E"在视口中居中。
-
-![](ReselectTheObject.png)
-
-[/EXCERPT:Stage24]
-
-
 [EXCERPT:Stage25]
 
 [VAR:StageTitle]
-放置目标： 空中的形状
+放置对象：在空中调整
 [/VAR]
 
-### %StageTitle%
 
-让我们把"Shape_Wedge_E"移动到地面上：
-1. 点击视口右上部分的图标来启用移动工具。
-1. 使用蓝色方向箭头，向上拖曳"Shape_Wedge_E"（沿z轴方向）。 在您拖动的时候，查看细节面板。 表示Z方位的数字变化反映了"Shape_Wedge_E"的位置。
-1. 继续向上拖动"Shape_Wedge_E"直到Z轴位置数据为1000或更高。
+
+我们将“TutorialShape”向上移离地板：
+1. 在视口的右上角部分中单击移动工具的图标以启用它。
+1. 使用蓝色方向箭头将“TutorialShape”沿Z轴向上拖动。拖动时，观察“细节（Details）”面板。“位置（Location）”部分中Z旁边的数字发生了变化，以反映“TutorialShape”的位置。
+1. 继续将“TutorialShape”向上拖动，直至“位置（Location）”部分中Z框中的数字达到1000或更高。
 
 ![](Stage26.png)
 
@@ -489,12 +475,12 @@ Crumbs:
 [EXCERPT:Stage22]
 
 [VAR:StageTitle]
-放置目标： 空中的形状
+放置对象：在空中调整
 [/VAR]
 
-### %StageTitle%
 
-如需要，您可以花点时间使用移动工具来在地面附近及您关卡的其它位置处移动"Shape_Wedge_E"。 当您准备好继续时，点击本窗口底部的"下一步"按钮。
+
+如果愿意，你可以花费一些时间来对移动工具进行一些试验，在地板上移动“TutorialShape”或移动关卡中的剩余对象。当你准备好继续时，单击此窗口底部的“下一步（Next）”按钮。
 
 
 
@@ -505,14 +491,14 @@ Crumbs:
 [EXCERPT:Stage26]
 
 [VAR:StageTitle]
-放置目标： 空中的形状
+放置对象：在空中调整
 [/VAR]
 
-### %StageTitle%
 
-如"Shape_Wedge_E"仍在您的视图中，尝试在视口中双击它来对其聚焦。
 
-或者，如其不在您的视图中，您可以双击场景 Outliner的"Shape_Wedge_E"。
+如果“TutorialShape”仍在你的视野中，可以尝试按下F键以聚焦它。
+
+或者，如果它不在你的视野中，在场景大纲视图中双击“TutorialShape”。
 
 ![](Stage27.png)
 
@@ -522,16 +508,16 @@ Crumbs:
 [EXCERPT:Stage27]
 
 [VAR:StageTitle]
-放置目标： 旋转
+放置对象：旋转
 [/VAR]
 
-### %StageTitle%
 
-现在，让我们通过旋转工具来旋转"Shape_Wedge_E"。
-1. 在视口的右上方，寻找操作工具。
-1. 点击第二个按钮，该按钮为旋转工具。
 
-请注意当您这样做的时候，旋转工具的方向弧线将会取代移动工具的方向箭头。
+现在，我们使用旋转工具来旋转“TutorialShape”。
+1. 在视口的右上角部分中，找到操纵工具。
+1. 单击第二个工具，它是旋转工具。
+
+当你执行此操作时，旋转工具的方向弧形将替代移动工具的方向箭头。
 
 
 [/EXCERPT:Stage27]
@@ -542,14 +528,14 @@ Crumbs:
 [EXCERPT:Stage28]
 
 [VAR:StageTitle]
-放置目标： 旋转
+放置对象：旋转
 [/VAR]
 
-### %StageTitle%
 
-在启用了旋转工具后，您现在可以把"Shape_Wedge_E"自由旋转。
-1. 移动鼠标指针到旋转工具上。 请注意当您的鼠标移动到代表x, y和z轴的弧线上时，这些不同的方向弧线会变成黄色。 当弧线变黄时，您可以拖动它来沿该轴旋转"Shape_Wedge_E"。
-1. 沿着任意轴来旋转目标"Shape_Wedge_E"。
+
+启用旋转工具后，你就可以旋转“TutorialShape”了。
+1. 在旋转工具上移动鼠标指针。请注意不同方向弧形（分别代表X、Y和Z轴）如何在你在其上移动鼠标时变成黄色。当弧形变成黄色时，你可以拖动它以沿该轴旋转“TutorialShape”。
+1. 沿任意轴旋转“TutorialShape”对象。
 
 ![](Stage29.png)
 
@@ -559,12 +545,12 @@ Crumbs:
 [EXCERPT:Stage29]
 
 [VAR:StageTitle]
-放置目标： 旋转
+放置对象：旋转
 [/VAR]
 
-### %StageTitle%
 
-如需要，您可以花点时间使用旋转工具来沿着不同的轴旋转"Shape_Wedge_E"。 当您准备好继续时，点击本窗口底部的"下一步"按钮。
+
+如果愿意，你可以花费一些时间来对旋转工具进行一些试验，沿其不同轴旋转“TutorialShape”。当你准备好继续时，按下此窗口底部的“下一步（Next）”按钮。
 
 
 
@@ -574,14 +560,14 @@ Crumbs:
 [EXCERPT:Stage30]
 
 [VAR:StageTitle]
-放置目标： 缩放
+放置对象：缩放
 [/VAR]
 
-### %StageTitle%
 
-现在，让我们通过缩放工具来改变"Shape_Wedge_E"的大小。
-1. 在视口的右上方，寻找操作工具。
-1. 点击第三个按钮，该按钮为缩放工具。
+
+现在，我们使用缩放工具来更改“TutorialShape”的大小。
+1. 在视口的右上角部分中找到操纵工具。
+1. 单击第三个工具，它是缩放工具。
 
 
 
@@ -592,15 +578,15 @@ Crumbs:
 [EXCERPT:Stage31]
 
 [VAR:StageTitle]
-放置目标： 缩放
+放置对象：缩放
 [/VAR]
 
-### %StageTitle%
 
-启用缩放工具后，我们现在可以改变"Shape_Wedge_E"的大小。
-1. 移动鼠标指针到缩放工具上。 请注意当您的鼠标移动到缩放工具上时，它的一部分会变黄色。
-1. 对移动和旋转工具来说，您可以沿任何轴拖动来缩放该轴向的目标。 您也可以通过移动鼠标指针直到两轴均变为黄色来同时沿两轴缩放，然后再进行拖曳操作。
-1. 要同时沿着三轴来均匀缩放，您可以在缩放工具的三轴相交处拖动小白色立方体。
+
+启用缩放工具后，我们现在就可以更改“TutorialShape”的大小了。
+1. 在缩放工具上移动鼠标指针。注意当你在其上移动鼠标时，缩放工具的部件如何变成黄色。
+1. 与移动和旋转工具一样，你可以沿任意轴进行拖动以沿该轴对对象进行缩放。你也可以同时沿两个轴进行缩放，方法是，移动鼠标指针直至两个轴都变成黄色以后再进行拖动。
+1. 要沿所有三个轴均匀地进行缩放，拖动缩放工具的所有三个轴相交处的小白色立方体。
 
 ![](Stage32.png)
 
@@ -610,12 +596,12 @@ Crumbs:
 [EXCERPT:Stage32]
 
 [VAR:StageTitle]
-放置目标： 缩放
+放置对象：缩放
 [/VAR]
 
-### %StageTitle%
 
-如需要，您可以花点时间来使用缩放工具，它可以帮助您改变"Shape_Wedge_E"的尺寸和形状。 当您准备好继续时，点击本窗口底部的"下一步"按钮。
+
+如果愿意，你可以花费一些时间来对缩放工具进行一些试验，更改“TutorialShape”的大小和形状。当你准备好继续时，按下此窗口底部的“下一步（Next）”按钮。
 
 
 
@@ -626,13 +612,13 @@ Crumbs:
 [EXCERPT:Stage32.1]
 
 [VAR:StageTitle]
-放置目标： 热键
+放置对象：热键
 [/VAR]
 
-### %StageTitle%
 
-您可以通过使用键盘的"W," "E" 和"R" 键来在工具间切换。 "W" 键为移动工具热键，"E" 键为旋转工具热键，"R"键为缩放工具热键。
-1. 使用热键之一来切换到任意其它工具。
+
+你可以使用“W”、“E”和“R”键在工具间进行切换。按“W”键切换到移动工具，按“E”键切换到旋转工具，按“R”键切换到缩放工具。
+1. 使用任意热键来切换到任何其他工具。
 
 [/EXCERPT:Stage32.1]
 
@@ -640,13 +626,12 @@ Crumbs:
 [EXCERPT:Stage32.2]
 
 [VAR:StageTitle]
-放置目标： 热键
+放置对象：热键
 [/VAR]
 
-### %StageTitle%
 
-按空格键将可以在工具间循环。
-1. 按下空格键来切换工具。
+
+如果愿意，你可以花费一些时间来对这三个对象操纵工具进行一些试验，更改“TutorialShape”的规模、旋转和位置。当你准备好继续时，按下此窗口底部的“下一步（Next）”按钮。
 
 [/EXCERPT:Stage32.2]
 
@@ -655,12 +640,12 @@ Crumbs:
 [EXCERPT:Stage33]
 
 [VAR:StageTitle]
-放置目标： 仿真
+放置对象：模拟
 [/VAR]
 
-### %StageTitle%
 
-现在，"Shape_Wedge_E" 应该至少在空中有1000个单位，做了旋转操作，并沿着不同的轴向进行了放大或缩小操作。
+
+到目前为止，“TutorialShape”应位于距离地面至少1000单位的空中，进行了一些旋转，并且被沿其不同轴进行了缩放。
 
 ![](Stage34.png)
 
@@ -670,12 +655,12 @@ Crumbs:
 [EXCERPT:Stage34]
 
 [VAR:StageTitle]
-放置目标： 仿真
+放置对象：模拟
 [/VAR]
 
-### %StageTitle%
 
-在本教程的最后，我们会使用由虚幻引擎仿真的重力来使目标"Shape_Wedge_E"坠入地面。
+
+在本教程的最后部分中，我们将使用虚幻引擎模拟的重力使“TutorialShape”对象掉落到地面上。
 
 ![](Stage35.png)
 
@@ -685,14 +670,14 @@ Crumbs:
 [EXCERPT:Stage35]
 
 [VAR:StageTitle]
-放置目标： 仿真
+放置对象：模拟（Simulate）
 [/VAR]
 
-### %StageTitle%
 
-让我们开始设置"Shape_Wedge_E"的物理行为。
-1. 选中"Shape_Wedge_E"后，在细节面板，下滚到物理行为部分。 如需要，点击左侧的小箭头来展开该部分。
-1. 对"仿真物理行为" 旁的勾选框进行勾选。  这样可以启用虚幻编辑器来对此目标的物理行为进行仿真。
+
+我们首先来为“TutorialShape”设置物理。
+1. 选中“TutorialShape”后，在“细节（Details）”面板中，向下滚动到“物理（Physics）”部分。如有必要，可单击它左侧的小箭头来扩大该部分。
+1. 选中“模拟物理（Simulate Physics）”旁边的复选框。此操作使虚幻编辑器能够为此对象模拟物理。
 
 ![](Stage36.png)
 
@@ -702,14 +687,14 @@ Crumbs:
 [EXCERPT:Stage36]
 
 [VAR:StageTitle]
-放置目标： 仿真
+放置对象：模拟
 [/VAR]
 
-### %StageTitle%
 
-为能对"Shape_Wedge_E"进行物理仿真，您可以使用虚幻编辑器的“仿真”模式。
-1. 点击虚幻编辑器窗口顶部工具栏的“仿真”按钮。
-1. 如果您无法看到"Shape_Wedge_E"下拉框，您可以在视口中进行寻找，直到您找到为止。 您可以将它和移动工具一起向上拖动并再次放下它。
+
+为了为“TutorialShape”模拟物理，你可以使用虚幻编辑器的“模拟（Simulate）”模式。
+1. 在虚幻编辑器窗口顶部的工具栏中单击“模拟（Simulate）”按钮。
+1. 如果无法看到“TutorialShape”掉落，在视口中导航，直至你找到它。你可以使用移动工具将它向上拖动，然后再次使它掉落。
 
 [/EXCERPT:Stage36]
 
@@ -718,12 +703,12 @@ Crumbs:
 [EXCERPT:Stage37]
 
 [VAR:StageTitle]
-放置目标： 仿真
+放置对象：模拟（Simulate）
 [/VAR]
 
-### %StageTitle%
 
-在您完成对物理行为的仿真后，点击窗口顶端工具栏的停止按钮来终止“仿真”模式。
+
+模拟完物理后，单击窗口顶部的工具栏中的“停止（Stop）”按钮，以使“模拟（Simulate）”模式停止。
 
 ![](Stage39.png)
 
@@ -734,15 +719,16 @@ Crumbs:
 [EXCERPT:Stage39]
 
 [VAR:StageTitle]
-放置目标： 结束
+结束
 [/VAR]
 
-### %StageTitle%
 
-虚幻引擎4编辑器指南的内容全部结束。 您现在了解了创建新关卡的基础；如何在视口中进行导航；如何使用内容浏览器，场景Outliner,以及细节面板；如何把目标放入关卡；如何移动，旋转并缩放世界中的目标；以及如何使用“仿真”来了解关卡是如何在运行时进行操作的。
 
-恭喜你！
+虚幻引擎4编辑器基本教程到此结束。现在你了解了如何创建新关卡，如何在视口中导航，如何使用内容浏览器、场景大纲视图和“细节（Details）”面板，如何将对象放置到关卡中，如何移动，旋转和缩放世界场景中的对象，以及如何使用“模拟（Simulate）”了解关卡在运行时的运行状况等基本知识。
+
+ 你可以单击此窗口底部的“主页（Home）”按钮，尝试其他教程和逐步演示，或者，你可以关闭此教程，开始使用虚幻编辑器。
 
 ![](Stage1.png)
+
 
 [/EXCERPT:Stage39]

@@ -1,0 +1,207 @@
+﻿INTSourceChangelist:3740727
+Availability: Public
+Crumbs: %ROOT%
+Title:三星Gear VR最佳实践
+Description:如何充分发挥Gear VR头戴显示器的性能。
+Type: Reference
+Version:4.17
+Parent:Platforms/VR/GearVR
+Order:1
+tags:VR
+tags:GearVR
+Related: Platforms/Mobile/Performance
+Related: Engine/Performance
+Related: Engine/Performance/StatCommands
+Related: Platforms/Mobile/Textures
+Related: Platforms/Mobile/Materials
+Related: Engine/Rendering/Materials/MaterialProperties/BlendModes
+Related: Engine/Rendering/Materials/CustomizedUVs
+
+
+[TOC(start:2 end:3)]
+
+开发虚拟现实（VR）项目时，必须执行特定操作，确保用户获得上佳的VR体验。以下的“最佳实践”指南包含全部信息，可确保用户在使用三星Gear Virtual Reality（VR）头戴显示器和三星Galaxy智能手机时获得上佳的项目体验。
+
+
+(#gearvrrenderingoptions)
+
+## Gear VR渲染选项
+将Gear VR头戴显示器和三星Galaxy智能手机结合可带来引人入胜的VR体验，但由于硬件受限，使用Gear VR头戴显示器时UE4无法执行部分渲染功能。 
+所受限制大多与[移动设备](Platforms/Mobile/Performance)的限制相似。
+以下章节将讲述这些要求，以及它们对Gear VR项目产生的影响。 
+
+(#mobilemulti-view&multi-viewdirectrendering)
+
+## 移动多视图和多视图直接渲染
+如您的UE4 GearVR项目CPU受限，可启用 **移动多视图** 或 **移动多视图直接** 来改善性能。前往 **项目设置** > **渲染** > **VR**，点击“移动多视图”将其启用。 
+
+![](MobileMultiView.png)(w:900)
+
+* **移动多视图**：启用移动多视图后，将渲染物体一次到左眼缓冲，然后自动复制到右眼缓冲，并含正确的顶点位置修改，以及依赖于视图的变量（如反射）。
+
+* **移动多视图直接**：移动多视图的增强版，减少必须渲染的全屏副本的数量。多数情况下它都能削减大量GPU开销。
+
+[region:note]
+注意：只有在启动了“移动多视图”后才能启用“移动多视图直接”。如欲了解[移动多视图](https://developer.oculus.com/documentation/unreal/latest/concepts/unreal-multi-view/)详情，请登陆[Oculus开发者官网](https://developer.oculus.com/documentation/unreal/latest/concepts/unreal-multi-view/)。
+[/region]
+
+(#monoscopicfarfield)
+
+## 单视场远景
+**单视场远景** 渲染（更准确的称谓是“混合单视场渲染”）是虚幻引擎4内置的VR移动应用程序高级渲染功能。整体而言，单视场远景渲染可以改善包含大量远景内容的关卡的性能。单视场远景渲染能改善远景关卡性能的原因是其只为双眼渲染一次远景物体。我们已在Epic进行测试，以此法渲染远景物体将使VR移动应用程序获得极大性能提升。欲知如何启用和使用单视场远景，请参阅以下文档页面。
+
+* [**单视场远景**](Platforms\VR\MonoFarFieldRendering) 
+
+
+(#mobilehdr)
+
+### 移动HDR
+Gear VR项目不支持移动HDR，其不应被启用。 
+
+(#postprocessing)
+
+### 后期处理
+由于Gear VR头戴显示器的渲染要求较高，许多后期处理功能均无法使用。以下是Gear VR头戴显示器支持的后期处理功能。
+
+|后期处理 |功能名称| 描述 |
+| -------- | ---------- |------|
+| 自动曝光|曝光偏差 | 用于增强或减弱场景的亮度。 |
+
+(#materials)
+
+### 材质
+Gear VR项目的材质创建和交互方式与其他项目十分相似。 
+同样使用材质编辑器创建材质，也同样使用材质编辑器中的诸多材质节点。 
+制作Gear VR材质时须遵守一些注意事项/限制，以确保制作的材质可在Gear VR头戴显示器中正常使用。 
+举例而言，Gear VR头戴显示器只支持以下材质输入。
+
+| 材质输入名称 | 描述 |
+| -------- | ---------- |
+| **底色（Base Color）** |定义材质整体颜色的基础色彩。 |
+| **粗糙度（Roughness）** |定义材质的粗糙度/平滑度。 |
+| **金属感（Metallic）** | 定义材质的金属感。 |
+| **高光度（Specular）** |定义材质的反射强度。 |
+| **法线（Normal）** |无需进行复杂建模便能获得更多材质细节。|
+| **自发光（Emissive）** |使材质部分发出辉光，形成光线发射的效果。 |
+| **不透明度（Opacity）** |定义材质的透明程度。 |
+| **不透明蒙版（Opacity Mask）** |定义特定像素是否透明。 |
+
+[REGION:note]
+请注意：半透明和遮罩材质的渲染开销可能极高，在智能手机之类的硬件上尤其如此。应尽量使用[不透明材质](Engine/Rendering/Materials/MaterialProperties/BlendModes)，其渲染开销更低。
+[/region]
+
+(#materialshadingmodels)
+
+### 材质着色模型
+由于硬件受限，Gear VR项目中仅可使用以下 **材质着色模型**。
+| 着色模型名称 | 描述 |
+| -------- | ---------- |
+| **默认** |默认着色模型最为常用。此着色模型利用直接和间接光照，以及反射的高光度。 |
+| **无光照** | 无光照着色模型只输出自发光的颜色，适用于如火焰或发光物体等特效。
+
+[region:note]
+无光照着色模型的开销较低，在Gear VR项目中应尽量多使用。 
+[/region]
+
+(#materialblendmodes)
+
+### 材质混合模式
+材质混合模式定义当前材质输出与背景中已绘制内容的混合方式。 
+构建Gear VR头戴显示器的内容时，可使用以下材质混合模式。
+
+| 混合模式 | 描述 |
+| ---- | ----- |
+| **不透明（Opaque）** | 对固体而言，不透明材质的开销最低。但其不具有半透明度。意味着将不会出现过度绘制，每个材质像素的渲染时间均相同，具体取决于 **节点图表** 的复杂度。 |
+| **被遮罩（Masked）** | 无需在材质的部分上绘制像素时可使用此模式。材质只在被遮罩的区域创建过度绘制。但材质为100%不透明或100%透明。被遮罩的区域越大，出现的过度绘制越多。同时意味着开销更高。 |
+| **半透明（Translucent）** | 这是开销最高的 **混合模式**。它与 **被遮罩** 和 **不透明** 相似，但会无视实际是否透明，对性能产生额外影响。 |
+| **Additive** | 半透明的替代品，开销更低。无需对像素进行分类即可直接添加到场景中。但这意味着它只能增加亮度。材质上的黑色像素对场景没有影响。|
+| **调制（Modulated）** | 半透明的替代品，开销比Additive更低，但它的像素将随场景增加。意味着它只能使场景变暗。|
+[region:note]
+使用调制混合模式时须禁用 **单独半透明**，否则材质无法正确编译。
+  ![](T_Separate_Trans.png)
+[/region]
+
+(#mobilespecificmaterialsettings)
+
+### 移动设备专用材质设置
+在 **细节面板** 下的 **主材质节点** 上可找到一个名为 **移动平台（Mobile）** 的部分。
+此处的设置有助于减少移动设备上的材质渲染开销。  
+| 属性 | 描述 |
+| -------- | ---------- |
+| **完全粗糙（Fully Rough）** | 启用后将保存一些着色器ALU指令和一个采样器。它能够在禁用反射的同时有效保持整体反射能量。 |
+| **使用光照贴图方向性（Use Lightmap Directionality）** | 禁用此属性后，来自光照贴图的光照将变为平面，但开销更低。 |
+
+(#customizeduvs)
+
+### 自定义UV
+使用[自定义UV](Engine/Rendering/Materials/CustomizedUVs)可在顶点着色器（而非像素着色器）中执行特定着色器操作，避免出现附属纹理获取。 
+执行简单操作时（如进行UV修改略微提升纹理效果），使用自定义UV能对至关重要的性能进行有效弥补。请尽量使用自定义UV进行UV修改，开发Gear VR内容时尤其如此。
+
+[region:note]
+自定义UV当前只应用于部分组件类型，如静态网格体、骨架网格体、BSP、地形，以及网格体粒子。
+[/region]
+
+(#reflections)
+
+### 反射
+Gear VR不支持屏幕空间反射（SSR），意味着只能生成来自关卡中[反射采集Actor](Resources/ContentExamples/Reflections/1_4/)的反射。 
+请注意，由于硬件受限，反射Actor生成的反射保真度不高。 
+
+(#gearvr&contentsetup)
+
+## Gear VR和内容设置
+制作Gear VR项目的美术资源时需要注意几点，以确保项目在Gear VR头戴显示器上运行流畅。 
+以下部分将讲述制作Gear VR项目美术资源时需要注意的要点。
+
+(#contenthardlimits)
+
+### 资源硬性限制
+由于移动设备存在特定的硬件限制，创建资源时必须遵守以下要求。 
+如未严格遵守，可能导致Gear VR项目无法正常使用。
+
+* 由于移动硬件缺少32位索引支持，所有网格体类型最多只能拥有65000个顶点，不能超过此数字。
+* 骨架网格体最多可拥有75块骨骼，不能超过此数字。
+
+(#meshconsiderations)
+
+### 网格体注意事项
+为Gear VR项目创建网格体时须牢记下列信息，以确保创建的内容在Gear VR头戴显示器上可用。 
+
+* 在3D网格体上尽量少使用[材质ID](Engine/Content/FBX/Materials)，节约绘制调用的次数。
+* 应尽量使用[静态网格体LOD](Engine/Content/FBX/StaticMeshes)。
+* 注意3D网格体多边形数量，尽量将其保持为[低多边形](https://en.wikipedia.org/wiki/Low_poly)。
+* 为所有静态模型设置第二个UV集，以便其使用[光照贴图](Engine/Content/Types/StaticMeshes/LightmapUnwrapping)。
+* 尽量尝试用[Imposter Sprites](Engine/Content/Tools/RenderToTextureTools/3)替换远景的静态网格体，降低渲染开销。
+
+(#textureconsiderations)
+
+### 纹理注意事项
+为Gear VR项目创建纹理时须牢记以下信息，以确保创建的内容不会对项目整体性能产生不良影响。 
+
+* X轴或Y轴上的纹理尺寸均不可大于2048像素。
+* 纹理尺寸必须为二的幂次方（例如2、4、8、16、32、64、128、256、512、1024、2048）。
+* Gear VR可将最大512 MB的纹理载入内存，但建议您将载入量控制在128 MB以内。
+* 尽量使用方形纹理，因其内存使用效率更高。 
+* 尽量尝试使用 [纹理图谱](http://en.wikipedia.org/wiki/Texture_atlas)，减少内存中所需的纹理数量。
+* [RGB纹理遮罩/打包](Engine/Rendering/Materials/HowTo/Masking)可有效减少内存中的单一纹理。
+* 仅限使用移动平台支持的 **TC_Default** 和 **TC_NormalMap** 压缩设置。 
+
+(#levelconsiderations)
+
+### 关卡注意事项
+在Gear VR项目中，从关卡榨取最大性能是注重平衡的一个操作，需要花费大量时间才能调整到最佳状态。 
+以下建议/操作能帮助您快速锁定可能引起Gear VR性能问题的关卡区域。
+
+* 必须确认关卡光照已[构建](Engine/Rendering/LightingAndShadows/Lightmass)，以便获得最佳性能。如屏幕上出现红色的 **需要重新构建光照** 错误信息，则意味着需要重新构建光照。
+* 将关卡中所有光照设为[静态](Engine/Rendering/LightingAndShadows/LightMobility/StaticLights)，因为其他光照选项的渲染开销可能较高。
+* 检查关卡是否使用[预计算可视性](Engine/Actors/Volumes)。如未使用，须将其添加至关卡，然后重新构建灯光，将其在关卡的“场景设置”中启用。 
+* 整个场景的绘制调用数在任何视图中均不可大于100。在设备上可通过[stat openglrhi](Engine/Performance/StatCommands)命令查看，在电脑上可通过ES2预览器的[stat d3d11rhi](Engine/Performance/StatCommands)命令查看。
+* 关卡的总三角形数在任何视图中均不可大于100000。在设备上可通过[stat openglrhi](Engine/Performance/StatCommands)命令查看，在电脑上可通过ES2预览器的[stat d3d11rhi](Engine/Performance/StatCommands)命令查看。
+* 在关卡中须谨慎使用渲染开销极高的半透明和不透明遮罩材质。
+* 经常对关卡执行[性能分析](Engine/Performance)，以及时发现性能问题。
+
+
+
+
+
+

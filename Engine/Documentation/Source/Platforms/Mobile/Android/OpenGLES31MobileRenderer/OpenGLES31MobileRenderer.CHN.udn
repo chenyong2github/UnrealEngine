@@ -1,0 +1,143 @@
+﻿INTSourceChangelist:3807090
+Title: Android OpenGL ES 3.1移动渲染器
+Description:将UE4 Android项目设置为使用OpenGL ES 3.1移动渲染器
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/Android, Platforms/Mobile/Android/OpenGLES31MobileRenderer/
+Availability:Public
+version:4.16
+Parent:Platforms/Mobile/Android
+tags:Mobile
+tags:Android
+type:reference
+SkillLevel: Intermediate
+Related:Platforms/Mobile/Android\VulkanMobileRenderer
+Related:Platforms/Mobile/Android\DeviceCompatibility
+Related:Engine/Basics/Projects/Packaging
+Related:Platforms\Mobile\Performance
+Related:Programming/Development/BuildingUnrealEngine
+
+[TOC(start:2 end:3)]
+
+虽然虚幻引擎4(UE4)长期以来支持Android上的许多OpenGL ES 3.0和3.1功能，但在构建UE4 Android项目时，现在可以专门针对ES 3.1。这为高端Android设备带来了与Metal和Vulkan相同的特性，让您能够访问16个纹理采样器，并通过使用统一的缓冲区提高了性能。在下面的文档中，我们将了解如何在支持UE4的Android设备上运行UE4项目时设置UE4项目，以使用OpenGL ES 3.1。
+
+
+(#enablingtheopengles3.1ue4editorpreview)
+
+## 启用OpenGL ES 3.1 UE4编辑器预览 
+
+为了在UE4编辑器中预览OpenGL ES 3.1的外观，您首先需要执行以下操作来启用它：
+
+1. 转到 **主工具栏（Main Tool Bar）**，单击 **设置（Settings）** 选项，并转到 **预览渲染关卡（Preview Rendering Level）** 选项，选择 **高端移动/金属（High-End Mobile / Metal）**，最后选择 **高端移动（High-End Mobile）** 选项。
+
+	[REGION:lightbox]
+	[![](OGL3_10.png)(w:391)](OGL3_10.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 一旦重新编译完着色器，如果您查看UE4编辑器视口的右下角，您应该会看到文本 **功能级别：ES3_1（Feature Level: ES3_1）**，这表示您现在正在使用OpenGL ES 3.1的特性集预览该关卡。
+
+	[REGION:lightbox]
+	[![](OGL3_02.png)(w:404)](OGL3_02.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+(#settingupaue4projectwithopengles3.1support)
+
+## 使用OpenGL ES 3.1支持建立UE4项目
+
+要在UE4 Android项目中使用OpenGL ES 3.1，您需要确保您的UE4项目设置了以下选项：
+
+[region:warning]
+请注意，OpenGL ES 3.1支持只适用于从Github下载和编译的基于代码的项目。如果您不熟悉如何做到这一点，请查看[下载虚幻引擎源代码](GettingStarted/DownloadingUnrealEngine)获取详细说明。
+[/region]
+
+1. 转到 **主工具栏（Main Toolbar）**，单击 **编辑（Edit）** 选项，并选择 **项目设置（Project Settings）** 选项。 
+
+	![](OGL3_03.png)
+
+1. 从 **项目设置（Project Settings）** 菜单中，转到 **平台（Platforms）** 部分，并单击 **Android** 部分。
+
+	[REGION:lightbox]
+	[![](Platforms/Mobile/Android\VulkanMobileRenderer\VMP_Android_Settings_00.png)(w:639)](Platforms/Mobile/Android\VulkanMobileRenderer\VMP_Android_Settings_00.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 现在在 **APKPackaging** 部分中，将 **最小SDK（Minimum SDK）** 和 **目标SDK（Target SDK）** 版本设置为 **21**。
+
+	[REGION:lightbox]
+	[![](OGL3_04.png)(w:639)](OGL3_04.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 在 **APKPackaging** 部分下，找到 **构建（Build）** 部分，并确保选中了以下选项： 
+	
+	* 支持armv7（Support armv7）
+	* 支持OpenGL ES3.1（Support OpenGL ES3.1）
+
+	[REGION:lightbox]
+	[![](OGL3_05.png)(w:640)](OGL3_05.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 单击 **Android SDK** 部分，并对 **SDK API级别（SDK API Level）** 和 **NDK API级别（NDK API Level）** 进行以下设置：
+
+	* SDK API级别（SDK API Level）= matchndk
+	* NDK API级别（NDK API Level）= android-21
+
+	[REGION:lightbox]
+	[![](OGL3_06.png)(w:640)](OGL3_06.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+(#buildinganddeployingaue4projectwithopengles3.1support)
+
+## 使用OpenGL ES 3.1支持构建和部署UE4项目
+
+现在项目已经设置为使用OpenGL ES 3.1，是时候构建项目并将其部署到基于Android的智能手机上了。要构建具有OpenGL ES 3.1支持的项目，您需要执行以下操作：
+
+[region:note]
+在开始下一部分之前，请确保您的Android智能手机通过USB线连接到您的开发PC上。如果做不到这一点，将导致您的项目无法部署。
+[/region]
+
+
+1. 找到 **工具栏（Toolbar）** 菜单最右边的 **启动（Launch）** 选项。  
+
+	[REGION:lightbox]
+	[![](OGL3_07.png)(w:640)](OGL3_07.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击显示全图。
+	[/REGION]
+
+1. 单击 **启动（Launch）** 按钮左侧的白色小三角形，以展示可以在其上启动项目的设备，然后单击Android设备以启动构建流程。
+
+	![](OGL3_08.png)
+
+1. 完成此操作后，将在UE4编辑器的右下角显示构建状态进度条。单击 **显示输出日志（Show Output Log）**，可以查看构建流程中发生的更详细的情况。
+
+	![](OGL3_09.png)
+
+
+
+
+
+
+

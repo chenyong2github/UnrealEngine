@@ -1,0 +1,40 @@
+Availability: Public
+Crumbs:
+Title: Editor Utility Widgets
+Description: Describes Editor Utility Widgets, and how to create them.
+Version: 4.22
+Parent: Engine/UMG/UserGuide
+SkillLevel:Intermediate
+Tags: Experimental
+Tags: UMG
+Tags: Landing Page
+Tags: Blutilities
+Tags: Editor Utility
+
+
+[TOC]
+
+If you want to modify the User Interface (UI) of the Unreal Editor, you can use **Editor Utility Widgets** to add new UI elements. Editor Utility Widgets are based on **Unreal Motion Graphics** (UMG), so you can set up Widgets in a Blueprint like you would for any other UMG Widget Blueprint.
+
+These Widgets are specifically for the Editor UI, and you can use them to create custom Editor tabs. You can then select these custom tabs from the Windows menu, like you would select existing Editor tabs.
+
+## Create an Editor Utility Widget
+
+1.  Right-click in the **Content Browser** and select **Editor Utilities > Editor Widget**.  
+    ![](Menu-EditorWidget.png)(w:200)
+
+2.  Name your Editor Utility Widget Asset. In this example, the Asset is named **TestEditorUtility**. Double-click the **Editor Utility Widget Asset** to open the Widget Blueprint for editing.  
+    ![](TestEditorUtility-AssetIcon.png)(w:100)
+
+3.  Edit your Widget Blueprint as needed.  
+    [REGION:lightbox]
+    [![](EditEditorUtilityWidgetBlueprint.png)](EditEditorUtilityWidgetBlueprint.png)
+    
+    *Click for full image.*
+    [/REGION]
+    
+4.  Right-click the **Editor Utility Widget Asset** and select **Run** to open an Editor tab with your Editor Utility displayed. The tab is only dockable with Level Editor tabs.  
+    ![](RunEditorUtilityWidget.png)(w:200)
+
+5.  Once you have run the Editor Utility Widget, it appears in the Level Editor's Windows dropdown, under the Editor Utility Widgets category.  
+    ![EditorUtilityWidgets/WindowsMenu-EditorUtilities.png](WindowsMenu-EditorUtilities.png)(w:300)

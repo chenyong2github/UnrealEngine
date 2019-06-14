@@ -1,7 +1,7 @@
-﻿INTSourceChangelist:3489715
+INTSourceChangelist:3489715
 Availability:Public
-Title:블루프린트 Set
-Description:블루프린트의 고급 컨테이너 유형인 Set 컨테이너의 생성 및 편집, 그리고 프로퍼티 개요입니다.
+Title:블루프린트 세트
+Description:블루프린트의 고급 컨테이너 유형인 Set, 세트 컨테이너의 생성 및 편집, 그리고 프로퍼티 개요입니다.
 Crumbs:%ROOT%
 Parent:Engine/Blueprints/Scripting
 Order:1
@@ -33,7 +33,7 @@ Related:Programming/UnrealArchitecture/TSet
 
 [REGION:note]
 
-데모 목적 상 (아래 세팅을 적용한) **공백 블루프린트 프로젝트** 를 사용하여 블루프린트 세트 생성 및 편집 방법을 보여드리고 있습니다.
+데모 목적 상 (아래 세팅을 적용한) **기본 블루프린트 프로젝트** 를 사용하여 블루프린트 세트 생성 및 편집 방법을 보여드리고 있습니다.
 
 [REGION:lightbox]
 	[![](sampleProject.png)(w:370)](sampleProject.png)
@@ -143,7 +143,7 @@ Related:Programming/UnrealArchitecture/TSet
 	클릭하면 원본 이미지를 확인합니다.
 	[/REGION]
 
-1.	블루프린트를 컴파일한 이후 Set 의 (**디테일** 패널에 위치한) **Default Value** (기본 값)에 `MyStringSet` 이 공백임을 알 수 있습니다.
+1.	블루프린트를 컴파일한 이후 Set 의 (**디테일** 패널에 위치한) **Default Value** (기본 값)에 `MyStringSet` 이 비어 있음을 알 수 있습니다.
 
 	[REGION:lightbox]
 	[![](creatingSets_Step12.png)(w:600)](creatingSets_Step12.png)
@@ -198,5 +198,5 @@ UE4 에서 블루프린트 Set 사용을 시작하려면 다음 프로퍼티 목
 *	세트의 아이템 값은 검색에 사용되는 키이기도 합니다.
 *	현재 블루프린트 세트는 변경불가(immutable)합니다. 생성한 후에는 변경할 수 없다는 뜻입니다.
 
-블루프린트에서 세트를 생성 및 편집하는 법을 배웠으니, [](Engine/Blueprints/UserGuide/Sets/SetNodes) 참고서에서 블루프린트 Set 노드 인터페이스에 대해 더욱 자세히 배워보실 수 있습니다.
+블루프린트에서 세트를 생성 및 편집하는 법을 배웠으니, [](Engine/Blueprints/UserGuide/Sets/SetNodes) 레퍼런스에서 블루프린트 Set 노드 인터페이스에 대해 더욱 자세히 배워보실 수 있습니다.
 

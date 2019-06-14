@@ -1,0 +1,36 @@
+﻿INTSourceChangelist:6604630
+Availability:Docs
+Title:场景查询系统
+Description:介绍场景查询系统（EQS）及如何用其查询场景数据。随后这些数据可给人工智能提供决策数据，用于后续动作的决策过程。 
+Version:4.21
+Parent:Engine/ArtificialIntelligence
+Tags:Experimental
+Tags:AI
+Tags:Behavior Trees
+Tags:EQS
+Tags:Environment Query System
+Tags:AI Systems
+topic-image:EQS_Topic_Image.png
+social-image:EQS_Topic_Image.png
+topic-icon:EQS_Topic_Image.png
+Order:1
+
+
+[TOC (start:2 end:2)]
+
+**场景查询系统（EQS）** 是UE4 AI系统的一个功能，可将其用于从环境中收集数据。在EQS中，可以通过不同种类的测试向收集的数据提问，这些测试会根据提出问题的类型来生成最适合的项目。 
+
+可以从[行为树](Engine/ArtificialIntelligence/BehaviorTrees)中调用EQS查询，并根据测试的结果将其用于后续操作的决定。EQS查询主要由[生成器](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceGenerators)节点（用于生成将被测试及加权的位置或Actor）和[情境](Engine/ArtificialIntelligence/EQS/EQSNodeReference/EQSNodeReferenceContexts)节点（被用作各种测试和生成器引用的框架）组成。可以用EQS查询指引AI角色找到能够发现玩家并发起攻击的最佳位置、找到距离最近的体力值或弹药拾取物，或找到最近的掩体（以及其他可进行的动作）。 
+
+对UE4中行为树的工作方式有大致了解后，如果希望AI进行环境查询，建议从 **场景查询系统快速入门** 指南开始，它会向您全程展示一个案例，该案例中的AI会找到对玩家发起远程攻击的最佳位置。您还可以查阅“概要”部分，其中包含EQS的概述、讲述EQS用法的用户指南、以及详解EQS中可用节点和属性的节点参考页面。 
+
+## 开始
+
+%Engine\ArtificialIntelligence\EQS\EQSQuickStart:topic%
+
+## 概要
+
+%Engine\ArtificialIntelligence\EQS\EQSOverview:topic%
+%Engine\ArtificialIntelligence\EQS\EQSUserGuide:topic%
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference:topic%
+%Engine\ArtificialIntelligence\EQS\EQSTestingPawn:topic%

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2742006
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title: 调整引擎功能的级别
 Crumbs: %ROOT%, Engine
@@ -7,6 +7,7 @@ Navigation:topic
 version: 4.9
 
 
+(#ConsoleVariablesandCommands)
 ## 控制台变量和命令
 
 有些功能可以在运行时，由游戏的控制台或者编辑器的输出日志窗口/控制台进行开关切换。
@@ -35,6 +36,7 @@ version: 4.9
 
 
 
+(#CommandLineOptions)
 ## 命令行选项
 
 有些功能可以在命令行中进行关闭，比如 **_UE4.exe -NoSound_**
@@ -49,6 +51,7 @@ version: 4.9
 | **-NoVSync** | 能够更快的渲染但会导致画面撕裂，尤其是在高帧数下。|
 | **-Streaming** | 在使用 StartFPSChart/StopFPSChart 很有用，能够从一个非 windows 设备上来获取数据并用于进一步检测（假设我们是实时的 cook 数据）。|
 
+(#CompileOptions)
 ## 编译选项
 
 请不要在 Debug 版本下进行性能的分析和测量。为了方便起见，我们建议针对 Development 版本做性能分析。在 Shipping 下的性能实际上会因为开发特性进一步的移除而更快。

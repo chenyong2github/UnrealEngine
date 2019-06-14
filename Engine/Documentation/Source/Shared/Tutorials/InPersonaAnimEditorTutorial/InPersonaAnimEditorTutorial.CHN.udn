@@ -1,16 +1,17 @@
-﻿Availability:NoPublish
-Title:欢迎使用动画集工具
+﻿INTSourceChangelist:3108692
+Availability:NoPublish
+Title:欢迎使用Persona
 Crumbs:
-Description: 虚幻引擎4所有初级教程内容
+Description:虚幻引擎4所有指导教程的内容
 
 
 
 [EXCERPT:Animation1]
 [VAR:StageTitle]
-欢迎使用动画集工具:动画模式
+欢迎使用Persona：动画模式
 [/VAR]
 
-欢迎使用动画集工具的动画编辑器部分。 本快速指南描述了对常用接口元素的基础使用。 在大多数章节中都提供了到文件的链接，这样您可以阅读任何您感兴趣的主题。
+欢迎使用Persona的动画编辑器。此快速入门指南讲述常用接口元素的基本用法。多数章节中均有文档链接，便于您对感兴趣的要点进行延伸阅读。
 
 ![](animHeader.png)
 
@@ -23,11 +24,11 @@ Description: 虚幻引擎4所有初级教程内容
 资源浏览器
 [/VAR]
 
-左键点击资源浏览器中的动画将可以预览该动画。 双击资源浏览器的动画将会打开基于选择的资源类型的额外编辑器选项卡。
+在资源浏览器中左键点击动画即可预览动画。在资源浏览器中双击动画将基于选择的资源类型打开一个额外的编辑器选项卡。
 
 ![](AssetBrowser.png)
 
-[请参阅资源浏览器文件文件以获得使用信息。](DOCLINK:Engine/Animation/Persona/AssetBrowser)
+[参见“资源浏览器”文档了解使用信息。](DOCLINK:Engine/Animation/Persona/AssetBrowser)
 
 [/EXCERPT:Animation1.1]
 
@@ -38,13 +39,13 @@ Description: 虚幻引擎4所有初级教程内容
 动画序列
 [/VAR]
 
-动画序列是可以在骨架网格物体上播放的单个动画资源。 它们包含了一些关键帧，这些关键帧可以在特定的时间点处指定骨骼的位置、旋转度及缩放比例。 通过在序列中播放这些关键帧，让骨架网格物体的骨骼之间进行混合，使得骨骼可以产生平滑的动画效果。
+AnimationSequence是能在骨架网格体上播放的单个动画资源。它们包含关键帧，可在特定时间点上指定骨骼的位置、旋转和缩放。在序列中播放这些关键帧并对其进行混合，即可为骨架网格体的骨骼设置平顺的动画。
 
 ![](sequence01.png)
 
-动画序列在动画集工具资源浏览器中有绿色的图标。 当您在动画集工具资源浏览器双击动画序列时，编辑器将会包含动画通知以及添加浮点轨迹的能力。
+AnimationSequences在Persona资源浏览器中拥有绿色图标。双击Persona资源浏览器中的AnimationSequence时，编辑器将包含动画通知，并能添加浮动轨迹。
 
-[请参阅动画序列文件以获得进一步信息。](DOCLINK:Engine/Animation/Sequences)
+[参见动画序列文档，了解更多信息。](DOCLINK:Engine/Animation/Sequences)
 
 [/EXCERPT:Animation2]
 
@@ -55,13 +56,13 @@ Description: 虚幻引擎4所有初级教程内容
 混合空间
 [/VAR]
 
-混合空间是特殊的资源，它们可以在动画图表中进行取样，使得可基于两个输入值来混合动画。 混合空间提供了基于多个值（当前仅限两个）在多个动画间进行更为复杂的混合的方法。
+混合空间是可在AnimGraphs中采样的特殊资源，以便基于两个输入的值来混合动画。利用混合空间可以基于多个值（当前限定为两个值）在多个动画之间进行更复杂的混合。
 
-混合空间在动画集资源浏览器中为粉红色按钮，双击可打开它以供编辑。
+混合空间在Persona资源浏览器中拥有一个桃形图表，双击即可打开进行编辑。
 
 ![](blendSpaceEditor.png)
 
-[请参阅混合空间文件以获得进一步的信息。](DOCLINK:Engine/Animation/Blendspaces)
+[参见混合空间文档，了解更多信息。](DOCLINK:Engine/Animation/Blendspaces)
 
 [/EXCERPT:Animation3]
 
@@ -73,11 +74,11 @@ Description: 虚幻引擎4所有初级教程内容
 动画蒙太奇
 [/VAR]
 
-动画蒙太奇是多用途的工具，可用于一系列动画特效，主要与代码或蓝图内显示的动画控制相关。 它也可被用于创建一系列包括动画智能循环，基于逻辑的动画切换，根骨骼运动处理等等的动画特效。
+动画蒙太奇（AnimMontage）是一个多功能工具，可实现大量动画效果，主要与代码或蓝图中公开动画控制相关。其也可用于创建大量动画效果，如动画的智能循环、基于逻辑的动画切换、根运动处理等等。
 
 ![](montage01.png)
 
-[请查阅动画蒙太奇文件以获得更多信息。](DOCLINK:Engine/Animation/AnimMontage)
+[参见动画蒙太奇文档，了解更多信息。](DOCLINK:Engine/Animation/AnimMontage)
 
 [/EXCERPT:Animation4]
 
@@ -89,11 +90,11 @@ Description: 虚幻引擎4所有初级教程内容
 通知
 [/VAR]
 
-动画通知(简称AnimNotifies或通知)使得动画相关的程序员可以设置在动画序列的特定点处发生的事件。 通知一般用于添加这样的特效，比如走动或跑动动画时的脚步声或在动画中生成粒子系统。 然而，它有无限种不同的用途，因为您可以使用自定义的通知类型来扩展该系统，从而满足任何类型游戏的需求。
+动画通知（简称AnimNotifies或通知）为动画程序员提供了一种方式，以便设置事件在动画序列中的特定点上发生。通知常用于在行走或跑步动画中添加脚步声之类的效果，或在动画中生成粒子系统。它们用途广泛，系统可随自定义通知类型进行延展，以满足各种游戏的需求。
 
 ![](notifies.png)
 
-[请查阅动画通知文件以获得更多信息。](DOCLINK:Engine/Animation/Sequences/Notifies)
+[参见动画通知文档，了解更多信息。](DOCLINK:Engine/Animation/Sequences/Notifies)
 
 [/EXCERPT:Animation4.1]
 
@@ -102,18 +103,18 @@ Description: 虚幻引擎4所有初级教程内容
 
 [EXCERPT:Mesh3.25]
 [VAR:StageTitle]
-插槽
+Sockets
 [/VAR]
 
-通常在游戏中，您会想要把一个对象附加到人物的骨骼上。 这或许是把一个武器附加到手上，或者是把一个帽子附加到头上。 基于此目的，虚幻引擎允许您在动画工具集中创建sockets（插槽），它在骨架网格物体内从骨骼位置处偏移。 然后可以相对于此骨骼平移、旋转和缩放插槽。 这使得内容创建者可以轻松地对骨架网格物体设置插槽，并随后使程序员了解需附加对象的插槽名称。
+在游戏中，通常需要将物体附加到角色的骨骼。可能是将武器附加到手上，或将帽子附加到头上。为达到此目的，使用者可在虚幻引擎的Persona中创建插槽，它是骨架网格体中骨骼的偏移。插槽可相对于骨骼进行平移、旋转和缩放。这样内容创建者便能轻松设置骨架网格体的插槽，然后告知程序员要附加物体的插槽的名称。
 
 ![](details.png)
 
-右键点击骨架树的骨骼将会弹出关联菜单，您可以使用菜单来添加插槽。 随后可使用变换工具来操控它们，或者在细节面板中直接输入其偏移值。
+在骨架树中的骨骼上点击右键呼出快捷菜单便可添加插槽。可使用变换工具进行操纵，或将其偏移直接输入到细节面板中。
 
 
 
-[查看插槽文件以获得使用细节。](DOCLINK:Engine/Content/Types/SkeletalMeshes/Sockets)
+[查看插槽文档，了解其使用的详情。](DOCLINK:Engine/Content/Types/SkeletalMeshes/Sockets)
 
 
 [/EXCERPT:Mesh3.25]
@@ -126,11 +127,11 @@ Description: 虚幻引擎4所有初级教程内容
 重定向动画
 [/VAR]
 
-动画重定向是可以让使用同一骨架资源的角色重复使用动画的功能，但具有完全不同的比例。 通过重定向，您可以防止经动画处理的骨架丢失其比例或在使用来自不同形状的角色的动画时发生不必要的变形。
+利用动画重定向功能可在共享相同骨架资源（但比例各不相同）的角色之间重复使用动画。使用重定向功能后，使用来自不同形状的角色的动画时动画骨骼便不会丢失自身的比例、也不会发生不必要的变形。
 
 ![](RetargetingHeader.png)
 
-[请参阅动画重定向文件以获得更多信息。](DOCLINK:Engine/Animation/AnimationRetargeting)
+[参见动画重定向文档，了解更多信息。](DOCLINK:Engine/Animation/AnimationRetargeting)
  
 [/EXCERPT:Mesh3.5]
 
@@ -141,7 +142,7 @@ Description: 虚幻引擎4所有初级教程内容
 结论
 [/VAR]
 
-如需获得更多此概述中涵盖的信息，请参阅以下这些文件：
+欲知此概览中要点的详情，请参见以下文档：
 
 [动画序列](DOCLINK:Engine/Animation/Sequences)
 [动画通知](DOCLINK:Engine/Animation/Sequences/Notifies)

@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6537038
 Title: 언리얼 엔진 4.5 릴리즈 노트
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.5
-order:5
-
+Order: 39
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -76,7 +75,7 @@ QA_APPROVED_UE4_BUILD_MINIMUM
 
 **생성**
 
-디스턴스 필드 생성 기능은 비동기식으로 작동합니다. 대부분의 CPU 코어를 사용하되, 에디터에서도 사용할 수 있도록 몇 개는 남겨둡니다.
+디스턴스 필드 생성 기능은 비동기식으로 작동합니다. 대부분의 CPU 코어를 사용하지만, 에디터에서도 사용할 수 있도록 몇 개는 남겨둡니다.
 
 ![](DistanceFieldAOimprovements01.png)
 

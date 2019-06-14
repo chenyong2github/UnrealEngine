@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3750407
+INTSourceChangelist:3750407
 Availability:Public
 Title: 파티클 시스템 사용 안내서
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems
@@ -79,7 +79,7 @@ topic-image:ParticleSystemUserGuide_topic.png
 ![](Shared/Tutorials/InParticleSystemEditorTutorial/CascadeTutorial_Modules01.png)
 [/REGION]
 
-각각의 모듈에 대한 상세 정보는 [파티클 참고서](Engine/Rendering/ParticleSystems/Reference#모듈) 를 확인하세요.
+각각의 모듈에 대한 상세 정보는 [파티클 레퍼런스](Engine/Rendering/ParticleSystems/Reference#모듈) 를 확인하세요.
 
 
 
@@ -144,7 +144,7 @@ Distributions(분포)를 통해 파티클의 수명에 따라 값을 조절할 �
 ![](typeData.png)
 [/REGION]
 
-사용가능한 TypeData 모듈 관련 상세 정보는, [파티클 시스템 참고서: TypeData 모듈](Engine/Rendering/ParticleSystems/Reference#TypeData모듈) 을 참고해 주시기 바랍니다.
+사용가능한 TypeData 모듈 관련 상세 정보는, [파티클 시스템 레퍼런스: TypeData 모듈](Engine/Rendering/ParticleSystems/Reference#TypeData모듈) 을 참고해 주시기 바랍니다.
 
 
 ## 이미터와 모듈 삭제
@@ -182,7 +182,7 @@ Distributions(분포)를 통해 파티클의 수명에 따라 값을 조절할 �
 	[![](LODDetails.png)(w:880)](LODDetails.png)
 	[/REGION]
 
-	1. 이미터 목록 끝의 검정 공백 부분을 클릭합니다.
+	1. 이미터 목록 끝의 검정 부분을 클릭합니다.
 	1. 디테일 패널을 고정시켜 파티클 시스템에 대한 세팅을 찾습니다.
 	1. LOD 카테고리에서 파티클 시스템 내 각 LOD 에 대한 거리 세팅을 변경할 수 있을 것입니다.
 

@@ -1,25 +1,37 @@
-﻿Availability:Public
-Title:抗锯齿
-Crumbs: %ROOT%, Engine, Engine/Rendering, Engine/Rendering/PostProcessEffects
-Description:使用FXAA方式对锯齿边缘进行平滑处理
-
-抗锯齿 (AA) 指的是对电脑显示器中显示的失真或锯齿线性图形进行平滑处理。
-
-[REGION:imagetable]
-| ![Without Anti-Aliasing](aa_off.png)(w:460) | ![With Anti-Aliasing](aa_on.png)(w:460) |
-| :----: | :----: |
-| 不启用抗锯齿| 启用抗锯齿|
-[/REGION]
-
-虚幻引擎4中的抗锯齿是在后期处理中使用FXAA来执行的，它是由高效的GPU MLAA来实现的。 
-这种方式可以解决大多数的锯齿失真，但无法完全防止时间性锯齿。
-
-其他技术： 虚幻引擎4当前仅提供对几个编辑器3d图元的MSAA支持(如3D小工具)。
-
-此特性可通过显示标识"Post-process Anti-aliasing"（后期处理抗锯齿）来禁用。
+﻿INTSourceChangelist:3474032
+Availability: Public
+Crumbs: %ROOT%
+Title: 抗锯齿
+Description: 使用FXAA方法平滑锯齿状边缘。
+Type: Overview
+SkillLevel:Beginner
+Version:4.16
+Parent:Engine/Rendering/PostProcessEffects
+Order:1
+Tags:Post Process
+topic-image:AntiAliasing_Topic.png
 
 
-要了解更多信息，请参阅： [FXAA白皮书](http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf) (外部链接)
+ **抗锯齿** (AA) 是指当计算机显示器上显示锯齿状线条时这些线条的平滑处理。
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![无抗锯齿](aa_off.png)(w:800)
+	[/PARAM]
+	[PARAM:after]
+	![有抗锯齿](aa_on.png)(w:800)
+	[/PARAM]
+[/OBJECT]
+
+在虚幻引擎4中，使用FXAA在后期处理中执行抗锯齿，这是一种高效的GPU MLAA实现。 
+该方法解决了造成失真穿帮的大部分原因，但不能完全防止临时失真。
+
+其他技术：UE4目前只针对少数几个编辑器3D原语（例如3D Gizmo）和临时AA支持MSAA。
+
+可以通过显示标签 **后期处理抗锯齿（Post-process Anti-aliasing*）** 来禁用该功能。
+
+
+更多信息请参阅：[**FXAA白皮书（FXAA Whitepaper）**](http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf)（外部链接）
 
 
 

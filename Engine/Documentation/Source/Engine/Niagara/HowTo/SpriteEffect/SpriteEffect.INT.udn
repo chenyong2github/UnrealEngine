@@ -6,18 +6,13 @@ Type:how-to
 Version: 4.21
 Parent: Engine/Niagara/HowTo
 Order: 6
+skilllevel:Beginner
 Tags: Niagara
 Tags: Early Access
-
-Prerequisite Topics
-
-This page assumes you have prior knowledge of the following topics. Please read them before proceeding.
-
-*   [Enable the Niagara Plugin](Engine/Niagara/HowTo/EnableNiagara "Describes how you can enable the Niagara.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
+hero-image:Sprite_Banner_01.png
 
 A commonly used visual effects technique is rendering Texture and Materials to 2D camera-facing planes, which are called *sprites*. In the following How-To, we will set up a Niagara Emitter to work with sprites. When you place the Niagara System containing the Niagara Emitter into a level, you will see the effect displayed in that level.
-
-![](Sprite_Banner_01.png "Sprite_Banner_01.png")
 
 [REGION:note]
 **Prerequisite Steps:**

@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6480801
 Availability: Public
 Title:6. HUD 와의 통신
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
 Description:이번 단계에서는 캐릭터 블루프린트에 저장된 값에 따라 HUD 를 업데이트합니다.
 version: 4.9
+order:6
 tags:Blueprints
 
 [VAR:Steps]
@@ -14,7 +15,7 @@ tags:Blueprints
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[비법 홈](Engine\Blueprints\HowTo "%Engine\Blueprints\HowTo:Title%")
+		[하우투 홈](Engine\Blueprints\HowTo "%Engine\Blueprints\HowTo:Title%")
 	[/PARAM]
 	[PARAM:next]
 	[다음 단계](Engine\Blueprints\HowTo\BPHT_7 "%Engine\Blueprints\HowTo\BPHT_7:title%") 

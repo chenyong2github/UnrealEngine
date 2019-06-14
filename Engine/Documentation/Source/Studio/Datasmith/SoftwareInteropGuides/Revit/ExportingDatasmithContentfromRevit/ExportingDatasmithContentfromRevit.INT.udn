@@ -1,0 +1,35 @@
+Availability: Public
+Crumbs: 
+Title: Exporting Datasmith Content from Revit
+Description: Describes how to export a Revit scene into a Datasmith file that you can then import into the Unreal Editor.
+Type: 
+skilllevel:Beginner
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 1
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+Once you've installed the Datasmith Exporter plugin for Revit, you'll have a new option available in the **Add-Ins** ribbon that you can use to export a selected 3D view to a *.udatasmith* file.
+
+Follow the steps below in Revit to export your scene using this file type.
+
+1.  In the **Project Browser**, select the 3D View that you want to export.  
+    ![Select a 3D View](revit-select-3d-view.png "Select a 3D View")  
+    The Datasmith Exporter plugin uses the visibility settings defined for the current 3D View to determine what parts of the scene it should export. For details, see [Using Datasmith with Revit](Studio/Datasmith/SoftwareInteropGuides/Revit).
+2.  Open the **Add-Ins** ribbon. In the **Unreal Datasmith** section, click **Export 3D View**.  
+    ![Add-ins | Export 3D View](revit-toolbar.png "Add-ins | Export 3D View")
+3.  In the **Export 3D View to Unreal Datasmith** window, browse to the location you want to save your .udatasmith file, and use the **File Name box** to give your new file a name.  
+    ![Set the location and file name](revit-ds-export-location.png "Set the location and file name")
+4.  Click **Save**.
+
+### End Result
+
+You should now be ready to try importing your new *.udatasmith* file into the Unreal Editor. See [Importing Datasmith Content into Unreal Engine 4](Studio/Datasmith/HowTo/ImportingContent) and [Reimporting Datasmith Content](Studio/Datasmith/HowTo/ReimportingContent).
+
+[REGION:note]
+Along with your new *.udatasmith* file, you'll see a folder that has the same name but with the suffix *_Assets*. If you move your *.udatasmith* file to a new location, make sure that you also move this folder to the same location.
+[/REGION]

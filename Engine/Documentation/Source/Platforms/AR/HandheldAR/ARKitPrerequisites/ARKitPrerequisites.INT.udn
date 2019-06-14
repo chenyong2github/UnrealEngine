@@ -15,7 +15,7 @@ Support for iOS devices is not new to the Unreal Engine. If you are already wor
 
 ## General Prerequisites
 
-The basic configuration of Unreal Engine and iOS devices is covered in detail in the [iOS Game Development](Platforms/iOS) section of the Unreal Engine documentation.
+The basic configuration of Unreal Engine and iOS devices is covered in detail in the [iOS Game Development](Platforms/Mobile/iOS) section of the Unreal Engine documentation.
 
 **ARKit 1.5 Prerequisites**
 

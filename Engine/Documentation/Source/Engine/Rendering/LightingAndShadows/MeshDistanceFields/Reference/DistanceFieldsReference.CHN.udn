@@ -1,78 +1,98 @@
-﻿INTSourceChangelist:3810467
+﻿INTSourceChangelist:6537156
 Availability: Public
-Crumbs: %ROOT%
-Title: 网格体距离场参考
+Title: 网格体距离场设置
 Description: 关于项目设置、光照组件、静态网格体编辑器和单个Actor中可用的所有网格体距离场设置的参考页面。
-Type: Reference
-Version:4.18
-Parent:Engine/Rendering/LightingAndShadows/MeshDistanceFields
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields
-Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
-Related:Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing
-Order:3
-Tags:Lighting
-Tags:Distance Fields
-Tags:Getting Started
-Topic-image:DFRef_Topic.png
+Type: reference
+Version: 4.20
+Parent: Engine/Rendering/LightingAndShadows/MeshDistanceFields
+Tags: Lighting
+Tags: Getting Started
+Tags: Distance Fields
+topic-image: DFRef_Topic.png
+Order: 3
+Related: Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields
+Related: Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing
 
-[TOC(start:2 end:3)]
 
+[TOC (start:2 end:3)]
 
 虚幻引擎4（UE4）中的[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)系统能够与许多不同的可以启用或禁用的系统结合使用。这些设置和属性可以用于为项目实现特定风格或用于优化目的。 
 
 下面将详细介绍菜单系统和可以使用的特定于网格体距离场（Mesh Distance Field）的设置。
 
-## 项目设置（Project Settings）
+## 项目设置
 
-**项目设置（Project Settings）** 中包含可用来为项目中的资源启用网格体距离场（Mesh Distance Field）生成的设置，以及在启用后可以在某些情况下让你更加高效地使用它们的优化选项。 
+**项目设置（Project Settings）** 面板中包含可用来为项目中的资源启用网格体距离场（Mesh Distance Field）生成的设置，以及在启用后可以在某些情况下让你更加高效地使用它们的优化选项。 
 
-这些设置位于 **项目设置（Project Settings）** > **渲染（Rendering）** > **照明（Lighting）** 部分中。
+这些设置可通过点击 **项目设置（Project Settings）> 渲染（Rendering）> 照明（Lighting）** 找到。下方的表格详细介绍了可用的设置。
 
 [REGION:lightbox]
 [![](ProjectSettings.png)(w:500)](ProjectSettings.png)
 [/REGION]
-[REGION:caption] 单击图片可查看大图。[/REGION]
-
+[REGION:caption]
+*点击查看全图*
+[/REGION]
 [REGION:raw]
-| 属性                                       | 说明                                       |
-| ---------------------------------------- | ---------------------------------------- |
-| **生成网格体距离场（Generate Mesh Distance Fields）** | 是否构建静态网格体距离场，可与距离场阴影（Distance Field Shadow）和距离场环境光遮蔽（Distance Field Ambient Occlusion）结合使用。启用该选项会增加网格体构建时间和内存用量，而且需要重启编辑器才能使更改生效。 |
-| **八位网格体距离场（Eight Bit Mesh Distance Fields）** | 是否以8位定点格式代替16位浮点格式存储网格体距离场。八位格式仅使用一半的内存，但是会导致大型网格体或较薄的网格体出现瑕疵。更改该设置后需要重启编辑器。 |
-| **生成地形实时GI数据（Generate Landscape Real-time GI Data）** | 是否为地形生成低分辨率底色纹理以用于渲染实时全局光照。启用该选项会增加网格体构建时间和内存用量。更改该设置后需要重启编辑器。 |
-| **压缩网格体距离场（Compress Mesh Distance Fields）** | 存储网格体距离场时是否使其在内存中保持压缩状态，这会减少它们占用的内存量，但是会在显示新关卡时引起严重卡顿。仅可在项目不在游戏内流送关卡时才可启用该选项。更改该设置后需要重启编辑器。 |
+| 属性 | 说明 |
+| -------- | ----------- |
+| **生成网格体距离场（Generate Mesh Distance Fields）** | [INCLUDE:#excerpt_0] |
+| **八位网格体距离场（Eight Bit Mesh Distance Fields）** | 这决定了是否以8位定点格式代替16位浮点格式存储网格体距离场。八位格式仅使用一半的内存，但是会导致大型网格体或较薄的网格体出现瑕疵。更改该设置后需要重启编辑器。 |
+| **生成地形实时GI数据（Generate Landscape Real-time GI Data）** | 这决定了是否为地形生成低分辨率底色纹理以用于渲染实时全局光照。启用该选项会增加网格体构建时间和内存用量。更改该设置后需要重启编辑器。 |
+| **压缩网格体距离场（Compress Mesh Distance Fields）** | 这决定了存储网格体距离场时是否使其在内存中保持压缩状态，这会减少它们占用的内存量，但是会在显示新关卡时引起严重卡顿。仅可在项目不在游戏内流送关卡时才可启用该选项。更改该设置后需要重启编辑器。 |
+
+<!--
+[EXCERPT:excerpt_0]
+这决定了系统是否构建静态网格体距离场，可与距离场阴影（Distance Field Shadow）和距离场环境光遮蔽（Distance Field Ambient Occlusion）结合使用。启用该选项会增加网格体构建时间和内存用量，而且需要重启编辑器才能使更改生效。 
+
+[REGION:note]
+如果为项目启用 **生成网格体距离场** 设置，那么即使不在任何Actor上使用任何距离场渲染功能，内存占用仍会上升。如果关闭此设置并重启虚幻编辑器，网格体距离场将不再被加载，内存占用就会下降。
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
 [/REGION]
 
-(#LightComponents)
 ## 光源组件
 
-以下是可用的[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)设置和属性，可为每个可用的[光源类型](Engine/Rendering/LightingAndShadows/LightTypes)设置它们。 
+以下是可用的[网格体距离场（Mesh Distance Field）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)设置和属性，可为每个可用的[光源类型](Engine/Rendering/LightingAndShadows/LightTypes)设置它们。
 
-(#directionallight)
 ### 定向光源
 
-以下的 **定向光源** 设置会影响[光线追踪距离场阴影（Ray Traced Distance Field Shadowing）](Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing)。 
+以下的 **定向光源** 设置会影响[光线追踪距离场阴影（Ray Traced Distance Field Shadowing）](Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing)。
 
 ![Distance Field Shadow Settings](DirectionalLight.png)
 
-
 [REGION:raw]
-| 属性                                       | 说明                                       |
-| ---------------------------------------- | ---------------------------------------- |
-| [REGION:tablesection]光源[/REGION]         |                                          |
-| **光源角度（Light Source Angle）**          | 这是以度数为单位的光源角度，用于支持使用距离场或胶囊体阴影的动态阴影方法的柔和区域阴影。 |
-| [REGION:tablesection]距离场阴影（Distance Field Shadow）[/REGION] |                                          |
+| 属性 | 说明 |
+| :-- | :-- |
+| [REGION:tablesection]光源[/REGION] ||
+| **光源角度（Light Source Angle）** | 这是以度数为单位的光源角度，用于支持使用距离场或胶囊体阴影的动态阴影方法的柔和区域阴影。 |
+| [REGION:tablesection]距离场阴影（Distance Field Shadow）[/REGION] ||
 | **距离场阴影距离（DistanceField Shadow Distance）** | 这是能够拥有距离场阴影的最远距离。对于CSM阴影，距离场阴影也会覆盖该值与 **动态阴影距离可移动光源（Dynamic Shadow Distance Movable Light）** 之间的距离。 |
-| **光线追踪距离场阴影（RayTraced DistanceField Shadows）** | 该属性将为光源启用距离场阴影。                          |
-| [REGION:tablesection]高级属性[/REGION]       |                                          |
+| **光线追踪距离场阴影（RayTraced DistanceField Shadows）** | 该属性将为光源启用距离场阴影。 |
+| [REGION:tablesection]高级属性[/REGION] |                                          |
 | **距离场追踪距离（Distance Field Trace Distance）** | 该属性会按全局单位设置阴影从其阴影投射体能够投射的距离。使用的值越大，场景的阴影成本就越高。 |
-| **Ray Start Offset Depth Scale**      | 该属性会控制摄像机离远时接收表面光线追踪阴影所拥有的偏移量。可以使用该属性来隐藏大型静态网格体中来自低分辨率距离场的自身阴影瑕疵。 |
+| **Ray Start Offset Depth Scale** | 该属性会控制摄像机离远时接收表面光线追踪阴影所拥有的偏移量。可以使用该属性来隐藏大型静态网格体中来自低分辨率距离场的自身阴影瑕疵。 |
 [/REGION]
 
+#### 光源角度
 
-#### 级联阴影贴图（Cascaded Shadow Maps）与光线追踪距离场阴影（Ray Traced Distance Field Shadows）对比
+**光源角度（Light Source Angle）** 会基于光源的旋转角度和输入的值柔化或锐化阴影。这使得距离阴影接收表面较远的网格体的点能出现非常柔和的阴影。距离网格体和接收表面较近的阴影会更加清晰。 
 
-级联阴影贴图（Cascaded Shadow Maps）可提供非常详细的遮蔽，但是可视距离较大时其表现并不佳，而光线追踪距离场阴影（Ray Traced Distance Field Shadows）能够高效遮蔽远得多的距离，但是严重依赖为网格体距离场生成的体积纹理的分辨率以保证质量。[网格体距离场（Mesh Distance Field）质量](Engine/Rendering/LightingAndShadows/MeshDistanceFields#quality)
-可能需要较高的分辨率来捕捉通常情况下会随着阴影贴图显示的重要细节。因此，我们建议你结合使用两者，将级联阴影贴图（Cascaded Shadow Maps）用于距离摄像机较近的区域，将距离场阴影（Distance Field Shadowing）用于较远的距离。
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![光源角度： | 1 （默认）](LightSourceAngle_1.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![光源角度： | 2](LightSourceAngle_2.png) 
+ [/PARAM]
+[/OBJECT]
+
+阴影距离网格体越远或者阴影距离阴影接收表面越远，阴影就越柔和。
+
+#### 级联阴影贴图与光线追踪距离场阴影对比
+
+**级联阴影贴图（Cascaded Shadow Maps）** 可提供非常详细的遮蔽，但是可视距离较大时其表现并不佳。而 **光线追踪距离场阴影（Ray Traced Distance Field Shadows）** 能够更高效地远距离投射阴影，但其质量严重依赖为网格体距离场生成的体积纹理的分辨率。[网格体距离场（Mesh Distance Field）质量](Engine/Rendering/LightingAndShadows/MeshDistanceFields#质量)可能需要较高的分辨率来捕捉通常情况下会随着阴影贴图显示的重要细节。因此，我们建议你结合使用两者，将级联阴影贴图（Cascaded Shadow Maps）用于距离摄像机较近的区域，将光线追踪距离场阴影（Ray Traced Distance Field Shadowing）用于较远的距离。
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
@@ -85,111 +105,91 @@ Topic-image:DFRef_Topic.png
 
 尽管级联阴影贴图（Cascaded Shadow Mapping）会将所有点从地面提升一段距离，但是阴影仍然保持清晰和详细。光线追踪距离场阴影（Ray Traced Distance Field Shadows）可以基于 **光源半径（Light Source Radius）** 和阴影从表面投射的距离柔化阴影，以提供自然的外观。
 
-(#lightsourceangle)
-#### 光源角度（Light Source Angle）
+#### 距离场追踪距离
 
-**光源角度（Light Source Angle）** 会基于光源的旋转角度和输入的值柔化或锐化阴影。这使得距离阴影接收表面较远的网格体的点能出现非常柔和的阴影。距离网格体和接收表面较近的阴影会更加清晰。 
-
-[OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![光源角度（Light Source Angle）：| 1 (默认)](LightSourceAngle_1.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![光源角度（Light Source Angle）：| 2 ](LightSourceAngle_2.png)(w:1000)
-	[/PARAM]
-[/OBJECT]
-
-阴影距离网格体越远或者阴影距离阴影接收表面越远，阴影就越柔和。
-
-#### 距离场追踪距离（Distance Field Trace Distance）
-
-**距离场追踪距离（Distance Field Trace Distance）** 控制阴影的光线追踪能从任意阴影投射网格体延展多远的距离。因为阴影能够沿着接收表面延展很长的距离，对于对象较多的场景，这会导致更高的阴影成本。缩短追踪距离可限制距离场阴影的任何一个点从特定网格体能够投射的距离，而无需缩短 **距离场阴影距离（Distance Field Shadow Distance）**。
+**距离场追踪距离（Distance Field Trace Distance）** 控制任意投射阴影的网格体的光线追踪阴影能够延伸得多远。因为阴影能够沿着接收表面延展很长的距离，对于对象较多的场景，这可能会导致光线追踪阴影提高性能开销。缩短距离场追踪距离可限制距离场阴影的任何一个点从特定网格体能够投射的距离，而无需缩短 **距离场阴影距离（Distance Field Shadow Distance）**。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![距离场追踪距离（Distance Field Trace Distance）：| 10000 (默认) ](DistanceTrace_10k.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![距离场追踪距离（Distance Field Trace Distance）：| 5000](DistanceTrace_1k.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![距离场追踪距离：| 10000 （默认） ](DistanceTrace_10k.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![距离场追踪距离：| 5000](DistanceTrace_1k.png) 
+ [/PARAM]
 [/OBJECT]
 
-这是一棵非常高的树，定向光源从一个较小的角度照亮了它（例如在日出或日落时）。缩短追踪距离能够限制树顶无限投射。
+在这个示例中，有一棵非常高的树，定向光源从一个较小的角度照亮了它（例如在日出或日落时）。缩短距离场追踪距离能够限制树顶无限投射。
 
-(#point/spotlight)
 ### 点/聚光源
 
-以下是 **点光源** 和 **聚光源** 设置，它们会影响 [光线追踪距离场阴影（Ray Traced Distance Field Shadowing）](Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing)。 
+以下是 **点光源** 和 **聚光源** 设置，它们会影响 [光线追踪距离场阴影（Ray Traced Distance Field Shadowing）](Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing)。
 
 ![](PointSpotLight.png)(w:450)
 
 [REGION:raw]
-| 属性                                       | 说明                                       |
-| ---------------------------------------- | ---------------------------------------- |
-| [REGION:tablesection]光源[/REGION]         |                                          |
-| **源半径（Source Radius）**                   | 该属性会被用作光源球体的大小。使用的值越大，半影就越大，但是性能成本也会越高。  |
-| [REGION:tablesection]距离场阴影（Distance Field Shadow）[/REGION] |                                          |
-| **光线追踪距离场阴影（RayTraced DistanceField Shadows）** | 是否使用光线追踪距离场区域阴影。                         |
-| **Ray Start Offset Depth Scale**      | 控制摄像机离远时接收表面光线追踪阴影所拥有的偏移量。可以使用该属性来隐藏大型静态网格体中来自低分辨率距离场的自身阴影瑕疵。 |
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]光源[/REGION] |                                          |
+| **源半径（Source Radius）** | 该属性会被用作光源球体的大小。使用的值越大，半影就越大，但是这可能会略微降低性能。  |
+| [REGION:tablesection]距离场阴影（Distance Field Shadow）[/REGION] | |
+| **光线追踪距离场阴影（Ra yTraced Distance Field Shadows）** | 这控制是否使用光线追踪距离场区域阴影。 |
+| **Ray Start Offset Depth Scale** | 这控制摄像机离远时接收表面光线追踪阴影所拥有的偏移量。可以使用该属性来隐藏大型静态网格体中来自低分辨率距离场的自身阴影瑕疵。 |
 [/REGION]
 
-#### 传统阴影贴图与光线追踪距离场阴影（Ray Traced Distance Field Shadows）对比
+#### 源半径
 
-点光源和聚光源的阴影贴图非常详细和清晰，与定向光源的级联阴影贴图相似。光线追踪距离场阴影（Ray Traced Distance Field Shadows） 严重依赖为网格体距离场生成的体积纹理的分辨率以保证质量。[网格体距离场（Mesh Distance Field）质量](Engine/Rendering/LightingAndShadows/MeshDistanceFields#quality) 可能需要较高的分辨率来捕捉通常情况下会在阴影贴图中显示的重要细节。
-
-[OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![传统阴影贴图](ShadowMap_SpotLight.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![距离场阴影](DistanceFieldShadow_SpotLight.png)(w:1000)
-	[/PARAM]
-[/OBJECT]
-
-尽管使用阴影贴图时会将所有点从地面提升一段距离，但是阴影仍然保持清晰和详细。距离场阴影可以基于 **源半径（Light Source Radius）** 和阴影从表面投射的距离柔化阴影，以提供自然的外观。
-
-#### 源半径（Light Source Radius）
-
-光源的 **源半径（Light Source Radius）** 可用于柔化或锐化区域阴影，方法是调整光源本身的大小表示。与定向光源的[光源角度（Light Source Angle）](#lightsourceangle)一样，阴影投射点距离接收表面越远，阴影柔化的程度就越高。
+光源的 **源半径（Light Source Radius）** 可用于柔化或锐化区域阴影，方法是调整光源本身的大小表示。与定向光源的[光源角度](#光源角度)一样，阴影投射点距离接收表面越远，阴影柔化的程度就越高。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![源半径（Source Radius）：| 0 (默认) ](SourceRadius_0.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![源半径（Source Radius）：| 50 ](SourceRadius_50.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![源半径：| 0 （默认） ](SourceRadius_0.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![源半径：| 50 ](SourceRadius_50.png) 
+ [/PARAM]
 [/OBJECT]
 
-在该演示中，默认值0使用了硬编码源半径20来自动提供柔和区域阴影，相比之下，使用较大的50光源半径时，阴影要柔和得多。
+在该演示中，默认值0使用了硬编码源半径20，来自动提供柔和区域阴影。在使用较大的50光源半径时，阴影要柔和得多。
 
 [REGION:note]
 默认源半径0拥有固定的硬编码值20。使用介于0和20之间的值时，区域阴影会相应地锐化。
-[/REGION] 
+[/REGION]
+
+#### 传统阴影贴图与光线追踪距离场阴影对比
+
+点光源和聚光源的阴影贴图非常详细和清晰，与定向光源的级联阴影贴图相似。光线追踪距离场阴影（Ray Traced Distance Field Shadows）的质量严重依赖为网格体距离场生成的体积纹理的分辨率以保证质量。[网格体距离场质量](Engine/Rendering/LightingAndShadows/MeshDistanceFields#质量) 可能需要较高的分辨率来捕捉通常情况下会在阴影贴图中显示的重要细节。
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![传统阴影贴图](ShadowMap_SpotLight.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![距离场阴影](DistanceFieldShadow_SpotLight.png) 
+ [/PARAM]
+[/OBJECT]
+
+尽管使用阴影贴图时会将所有点从地面提升一段距离，但是阴影仍然保持清晰和详细。距离场阴影可以基于 **源半径（Light Source Radius）** 和阴影从表面投射的距离柔化阴影，以提供自然的外观。
 
 #### Ray Start Offset Depth Scale
 
 **Ray Start Offset Depth Scale** 控制摄像机离远时接收表面光线追踪阴影光线开始的位置。它有助于防止低分辨率网格体距离场或具有在体积纹理中无法正常捕捉的复杂几何体的网格体出现自身阴影瑕疵。
 
-在某些情况下，调整[网格体距离场（Mesh Distance Field）质量](Engine/Rendering/LightingAndShadows/MeshDistanceFields#quality)就可以减少或去除这些瑕疵，无需调整光线开始的位置。请记住，你可能也不希望付出需要生成体积纹理的较高成本，而 **Ray Start Offset Depth Scale** 恰恰可以为该光源限制这一情况的发生。
+在某些情况下，调整[网格体距离场（Mesh Distance Field）质量](Engine/Rendering/LightingAndShadows/MeshDistanceFields#quality)就可以减少或去除这些瑕疵，无需调整光线开始的位置。请记住，你可能也不希望付出需要生成体积纹理的较高内存开销，而Ray Start Offset Depth Scale恰恰可以为该光源限制这一情况的发生。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Ray Start Offset Depth Scale：| 0.003 (默认) ](RayStartOffset003.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![Ray Start Offset Depth Scale：| 0.007 ](RayStartOffset007.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![Ray Start Offset Depth Scale: | 0.003 （默认） ](RayStartOffset003.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Ray Start Offset Depth Scale: | 0.007 ](RayStartOffset007.png) 
+ [/PARAM]
 [/OBJECT]
 
-岩壁有裂隙的地方可能会出现一些自身阴影瑕疵，距离场的分辨率无法捕捉这么多的细节。微量调整 **Ray Start Offset Depth Scale** 就可以更改阴影追踪开始的位置，方法是将它向内移动。 
+岩壁有裂隙的地方可能会出现一些自身阴影瑕疵，距离场的分辨率无法捕捉这么多的细节。微量调整 **Ray Start Offset Depth Scale** 就可以更改阴影追踪开始的位置，方法是将它向内移动。
 
 [REGION:note]
-应该按极小的值来调整该设置，它可以影响从调整了该设置的光源投射阴影的任意网格体的阴影投射。调整该属性时应十分谨慎，并在使用它时检查关卡的不同区域，尤其是可能会对视觉效果质量产生重大影响的定向光源和远距离对象。
+应该按极小的值来调整该设置，它可以影响从调整了该设置的光源投射阴影的任意网格体的阴影投射。调整该属性时应十分谨慎，并在使用它时检查关卡的不同区域，这种检查对可能会对视觉效果质量产生重大影响的定向光源和远距离对象尤其重要。
 [/REGION]
 
-
-(#SkyLight)
 ### 天空光照
 
 以下 **天空光照** 设置会影响 [距离场环境光遮蔽（Distance Field Ambient Occlusion）](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)。这些设置可对关卡中的DFAO提供最多的艺术控制。
@@ -197,167 +197,152 @@ Topic-image:DFRef_Topic.png
 ![](SkyLight.png)(w:450)
 
 [REGION:raw]
-| 属性                                  | 说明                                       |
-| ----------------------------------- | ---------------------------------------- |
-| **遮蔽最大距离（Occlusion Max Distance）**  | 距离遮挡物的最大距离，用于计算遮蔽影响。增大该数值将增加距离场AO成本，但可实现远处的遮挡。 |
-| **遮蔽最大对比度（Occlusion Max Contrast）** | 可用于增加计算遮蔽的对比度。                           |
-| **遮蔽指数（Occlusion Exponent）**        | 应用于AO的一个指数。低于1的数值会在不减少接触阴影的情况下使遮蔽变亮。     |
-| **最小遮蔽（Min Occlusion）**             | 可根据需求防止遮蔽出现全黑区域。可用于模拟多反射光照，它可以阻止在现实中出现全黑区域。 |
-| **遮蔽色调（Occlusion Tint）**            | 用于对遮蔽进行着色的常量颜色。为符合物理学，该属性应设置为黑色；设置其他值可提供艺术风格效果。 |
+| 属性 | 说明 |
+| --- | --- |
+| **遮蔽最大距离（Occlusion Max Distance）**  | 这是距离遮挡物的最大距离，用于计算遮蔽影响。增大该数值将增加距离场AO成本，但可实现远处的遮挡。 |
+| **遮蔽最大对比度（Occlusion Max Contrast）** | 这可用于增加计算遮蔽的对比度。 |
+| **遮蔽指数（Occlusion Exponent）** | 这是应用于AO的一个指数。低于1的数值会在不减少接触阴影的情况下使遮蔽变亮。 |
+| **最小遮蔽（Min Occlusion）** | 这可根据需求防止遮蔽出现全黑区域。可用于模拟多反射光照，它可以阻止在现实中出现全黑区域。 |
+| **遮蔽色调（Occlusion Tint）** | 这用于对遮蔽进行着色的常量颜色。为符合物理学，该属性应设置为黑色；设置其他值可提供艺术风格效果。 |
 | **遮蔽结合模式（Occlusion Combine Mode）**  | 该属性控制距离场环境光遮蔽与屏幕空间环境光遮蔽的结合方式。[INCLUDE:#combinemode] |
 [/REGION]
 
 [COMMENT:none]
 -
 [EXCERPT:combinemode]
-| 选项               | 说明                                       |
-| ---------------- | ---------------------------------------- |
+| 选项 | 说明 |
+| --- | --- |
 | **OCM Minimum**  | 采用最小的遮蔽数值。这对于避免由于多种方法而导致的过度遮蔽非常有效，但是可能会导致室内看起来过于平坦。 |
 | **OCM Multiply** | 用距离场环境光遮蔽的遮蔽数值乘以屏幕空间环境光遮蔽的遮蔽数值。这可以为任何位置赋予深度感，但是可能会造成过度遮蔽。应对屏幕空间环境光遮蔽进行微调，以使其与Minimum相比起来弱一点。 |
 [/EXCERPT:combinemode]
 -
 [/COMMENT]
 
+#### 遮蔽最大距离
 
-
-
-(#OcclusionMaxDistance)
-#### 遮蔽最大距离（Occlusion Max Distance）
-
-**遮蔽最大距离（Occlusion Max Distance）** 在遮蔽一个点会影响另外一个点的情况下控制两点间的最大距离。调整最大距离时，就是调整对于场景中其他对象DFAO将拥有的精度，这意味着也会增加它的成本。
+**遮蔽最大距离（Occlusion Max Distance）** 在遮蔽一个点会影响另外一个点的情况下控制两点间的最大距离。在调整遮蔽最大距离时，它还会调整对于场景中其他对象DFAO将拥有的精度，这意味着也会增加它的性能成本。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽最大距离（Occlusion Max Distance）：| 1000 (默认) ](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽最大距离（Occlusion Max Distance）：| 500 ](MaxDist_500.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽最大距离：| 1000 （默认） ](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽最大距离：| 500 ](MaxDist_500.png) 
+ [/PARAM]
 [/OBJECT]
 
-缩小最大距离会导致无法为遮蔽捕捉阴影投射细节，因为这些点间的距离不会导致它们影响另外一个。 
+缩小遮蔽最大距离会导致无法为遮蔽捕捉阴影投射细节，因为这些点间的距离不会导致它们影响另外一个。 
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽最大距离（Occlusion Max Distance）：| 1000 (默认) ](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽最大距离（Occlusion Max Distance）：| 1500 ](MaxDist_1500.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽最大距离：| 1000 （默认） ](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽最大距离：| 1500 ](MaxDist_1500.png) 
+ [/PARAM]
 [/OBJECT]
 
-增大最大距离会提高遮蔽精度，因为能够考虑对更多点进行阴影投射，但是会导致成本上升。
+增大遮蔽最大距离会提高遮蔽精度，因为能够考虑对更多点进行阴影投射，但是会导致性能成本上升。
 
+#### 遮蔽最大对比度
 
-
-
-
-
-
-
-
-
-
-#### 遮蔽最大对比度（Occlusion Max Contrast）
-
-**遮蔽最大对比度（Occlusion Max Contrast）** 控制受DFAO影响的对象间的亮度方面的差异。 
+**遮蔽最大对比度（Occlusion Max Contrast）** 控制受DFAO影响的对象间的亮度方面的差异。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽最大对比度（Occlusion Max Contrast）：| 0 (默认)](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽最大对比度（Occlusion Max Contrast）：| 0.65](Contrast_065.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽最大对比度：| 0 （默认）](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽最大对比度：| 0.65](Contrast_065.png) 
+ [/PARAM]
 [/OBJECT]
 
 增大对比度的数值会导致场景中许多裂隙和遮蔽较多的区域变暗。
 
-
-#### 遮蔽指数（Occlusion Exponent）
+#### 遮蔽指数
 
 **遮蔽指数（Occlusion Exponent）** 控制应用于环境光遮蔽的数值的幂。降低数值会在不减少表面附近的任何接触阴影的细节的情况下使遮蔽阴影变亮。
 
 遮蔽指数（Occlusion Exponent）使用对大部分场景都效果良好的默认中间值。以下是一些较低和较高范围数值的对比：
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽指数（Occlusion Exponent）：| 1 (默认) ](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽指数（Occlusion Exponent）：| 0.6](Exponent_06.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽指数：| 1 （默认） ](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽指数：| 0.6](Exponent_06.png) 
+ [/PARAM]
 [/OBJECT]
 
-场景中使用DFAO进行阴影投射的位置的遮蔽变浅了。
+在值较低时，场景中使用DFAO进行阴影投射的位置的遮蔽变浅了。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽指数（Occlusion Exponent）：| 1 (默认) ](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽指数（Occlusion Exponent）：| 1.6](Exponent_16.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽指数： | 1 （默认） ](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽指数：| 1.6](Exponent_16.png) 
+ [/PARAM]
 [/OBJECT]
 
-场景中使用DFAO进行阴影投射的位置的遮蔽变暗了。 
+在值较高时，场景中使用DFAO进行阴影投射的位置的遮蔽变暗了。 
 
-#### 最小遮蔽（Min Occlusion）
+#### 最小遮蔽
 
-**最小遮蔽（Min Occlusion）** 控制关卡中完全遮蔽的区域的黑暗程度。它使美工们能够更好地控制遮蔽区域的DFAO的明暗程度。当与 **遮蔽最大对比度（Occlusion Max Contrast）** 结合使用时，该设置非常有用，因为遮蔽区域可能过暗，而使用最小遮蔽（Min Occlusion）可以使阴影变亮一些。
+**最小遮蔽（Min Occlusion）** 控制关卡中完全遮蔽的区域的黑暗程度。它使美术们能够更好地控制遮蔽区域的DFAO的明暗程度。当与 **遮蔽最大对比度（Occlusion Max Contrast）** 结合使用时，该设置非常有用。因为使用遮蔽最大对比度的遮蔽区域可能过暗，而使用最小遮蔽（Min Occlusion）可以使阴影变亮一些。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![最小遮蔽（Min Occlusion）：| 0 (默认)](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![最小遮蔽（Min Occlusion）：| 1](MinOcclusion__05.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![最小遮蔽：| 0 （默认）](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![最小遮蔽：| 1](MinOcclusion__05.png) 
+ [/PARAM]
 [/OBJECT]
 
 在该示例中，最小遮蔽（Min Occlusion）使该场景中使用DFAO遮蔽的区域变亮了。
 
-
-#### 遮蔽色调（Occlusion Tint）
+#### 遮蔽色调
 
 **遮蔽色调（Occlusion Tint）** 使遮蔽区域的颜色可以调节，从而让美工们可以最大限度控制DFAO外观。 
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽色调（Occlusion Tint）颜色：| 黑色(默认)](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽色调（Occlusion Tint）颜色：| 紫色](Tint_Purple.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽色调颜色：| 黑色（默认）](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽色调颜色：| 紫色](Tint_Purple.png) 
+ [/PARAM]
 [/OBJECT]
 
-只有使用DFAO投射阴影的遮蔽区域会基于使用的颜色值着色。 
+只有使用DFAO投射阴影的遮蔽区域会基于使用的颜色值着色。
 
-#### 遮蔽结合模式（Occlusion Combine Mode）
+#### 遮蔽结合模式
 
 **遮蔽结合模式（Occlusion Combine Mode）** 使你能够选择在场景中将屏幕空间环境光遮蔽与距离场环境光遮蔽结合起来。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![遮蔽结合模式（Occlusion Combine Mode）：| OCM Minimum](DefaultView.png)(w:1000)
-	[/PARAM]
-	[PARAM:after]
-	![遮蔽结合模式（Occlusion Combine Mode）：| OCM Multiply](CombineMode_Multiply.png)(w:1000)
-	[/PARAM]
+ [PARAM:before]
+ ![遮蔽结合模式：| OCM Minimum](DefaultView.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![遮蔽结合模式：| OCM Multiply](CombineMode_Multiply.png) 
+ [/PARAM]
 [/OBJECT]
 
-## 静态网格体编辑器（Static Mesh Editor）
+## 静态网格体编辑器
 
-**静态网格体编辑器（Static Mesh Editor）** 中包含多个特定于Actor的设置，它们会影响放置在关卡中的该Actor的实例。这些设置包含在构建设置和通用设置中。
+**静态网格体编辑器（Static Mesh Editor）** 中包含多个特定于Actor的设置，它们会影响放置在关卡中的该Actor的实例。这些特定于Actor的设置位于静态网格体编辑器的 **细节** 面板中的 **构建设置** 和 **通用设置** 分段。
 
 这些设置位于“静态网格体编辑器（Static Mesh Editor）”的 **细节（Details）** 面板中。
 
 [REGION:lightbox]
 [![](StaticMeshEditor.png)(w:450)](StaticMeshEditor.png)
 [/REGION]
-[REGION:caption] 单击图片可查看大图。[/REGION]
+[REGION:caption]
+*点击查看全图*
+[/REGION]
 
-(#buildsettings)
 ### 构建设置
 
 **构建设置** 使你能够控制网格体距离场的质量，为植物叶子等对象启用双面生成，甚至将另一个网格体的距离场指定为当前距离场。 
@@ -365,13 +350,12 @@ Topic-image:DFRef_Topic.png
 ![](BuildSettings.png)(w:400)
 
 [REGION:raw]
-| 属性                                       | 说明                                       |
-| ---------------------------------------- | ---------------------------------------- |
+| 属性 | 说明 |
+| --- | --- |
 | **距离场分辨率比例（Distance Field Resolution Scale）** | 使你能够调整该Actor的生成网格体距离场的质量。该设置会对创建的体积纹理的大小产生影响。 |
 | **双面距离场生成（Two-Sided Distance Field Generation）** | 使你能够控制生成的网格体距离场是否为双面。该属性允许在有多个会重叠的平面的实例中产生柔和阴影，但是会导致较高的性能成本。 |
 | **Distance Field Replacement Mesh**   | 使你能够选择另外一个静态网格体的距离场并用其替代当前Actor自身的网格体距离场。 |
 [/REGION]
-
 
 ### 通用设置
 
@@ -380,23 +364,22 @@ Topic-image:DFRef_Topic.png
 ![](GeneralSettings.png)(w:400)
 
 [REGION:raw]
-| 属性                                       | 说明                                       |
-| ---------------------------------------- | ---------------------------------------- |
+| 属性 | 说明 |
+| --- | --- |
 | **生成网格体距离场（Generate Mesh Distance Field）** | 是否为该网格体生成距离场，它可以与[距离场间接阴影（Distance Field Indirect Shadows）](Engine/Rendering/LightingAndShadows/MeshDistanceFields)结合使用。如果启用了 **生成网格体距离场（Generate Mesh Distance Fields）** 的项目设置，该属性会被忽略。 |
-| **距离场自身阴影偏移（Distance Field Self Shadow Bias）** | 用于减少使用全局位置偏移移动网格体的顶点时距离场方法造成的自身阴影。       |
+| **距离场自身阴影偏移（Distance Field Self Shadow Bias）** | 用于减少使用全局位置偏移移动网格体的顶点时距离场方法造成的自身阴影。 |
 [/REGION]
 
-(#ActorComponents)
-## Actor组件（Actor Components）
+## Actor组件
 
-以下是可以为放置在关卡中的个体Actor切换或覆盖的可用距离场设置。 
+以下是可以为放置在关卡中的个体Actor切换或覆盖的可用距离场设置。
 
 ![](Actors.png)(w:450)
 
 [REGION:raw]
-| 属性                                       | 说明                                       |
-| ---------------------------------------- | ---------------------------------------- |
-| **距离场间接阴影（Distance Field Indirect Shadow）** | 是否使用网格体距离场表示（如果存在）在可移动组件上投射间接照明（来自光照贴图或天空光照）的阴影。其工作原理与骨架网格体上的[胶囊体阴影](Engine/Rendering/LightingAndShadows/CapsuleShadows)一样，但是使用网格体距离场，所以无需物理资源。要使该功能有效，必须在构建设置中为该静态网格体启用 **生成网格体距离场（Generate Mesh Distance Field）** 或为项目启用 **生成网格体距离场（Generate Mesh Distance Fields）**。 |
+| 属性 | 说明 |
+| --- | --- |
+| **距离场间接阴影（Distance Field Indirect Shadow）** | 是否使用网格体距离场表示（如果存在）在可移动组件上投射间接照明（例如来自光照贴图或天空光照）的阴影。其工作原理与骨架网格体上的[胶囊体阴影](Engine/Rendering/LightingAndShadows/CapsuleShadows)一样，但是使用网格体距离场，所以无需物理资源。要使该功能有效，必须在构建设置中为该静态网格体启用 **生成网格体距离场（Generate Mesh Distance Field）** 或为项目启用 **生成网格体距离场（Generate Mesh Distance Fields）**。 |
 | **Distance Field Indirect Shadow Min Visibility** | 该属性控制距离场间接阴影的黑暗程度。                       |
 | **覆盖距离场自身阴影偏移（Override Distance Field Self Shadow Bias）** | 是否用该组件的距离场阴影偏移覆盖该静态网格体资源的距离场自身阴影偏移设置。    |
 | **距离场自身阴影偏移（Distance Field Self Shadow Bias）** | 用于减少使用全局位置偏移移动网格体的顶点时距离场方法造成的自身阴影。       |
@@ -405,17 +388,17 @@ Topic-image:DFRef_Topic.png
 
 #### Distance Field Indirect Shadow Min Visibility
 
-使用[距离场间接阴影（Distance Field Indirect Shadows）](Engine\Rendering\LightingAndShadows\MeshDistanceFields\HowTo\DFHT_4)时，可使用 **Distance Field Indirect Shadow Min Visibility** 设置来调整阴影色调。它使美工们可以最大限度控制阴影黑暗程度，使它们能够与周围的静态阴影混合。 
+使用[距离场间接阴影（Distance Field Indirect Shadows）](Engine/Rendering/LightingAndShadows/MeshDistanceFields/HowTo/DFHT_4)时，可使用 **Distance Field Indirect Shadow Min Visibility** 设置来调整阴影色调。它使美术们可以最大限度控制阴影黑暗程度，使间接阴影能够与周围的静态阴影混合。 
 
 ![](DFISMinVisibilitySetting.png)(w:450)
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Min Visibility：0.1 ](DFISMinVisibility_1.png)(w:710)
-	[/PARAM]
-	[PARAM:after]
-	![Min Visibility：0.6 ](DFISMinVisibility_2.png)(w:710)
-	[/PARAM]
+ [PARAM:before]
+ ![Min Visibility: 0.1 ](DFISMinVisibility_1.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Min Visibility: 0.6 ](DFISMinVisibility_2.png) 
+ [/PARAM]
 [/OBJECT]
 
 

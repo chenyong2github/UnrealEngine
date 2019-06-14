@@ -1,19 +1,17 @@
-INTSourceChangelist:3782314
-Availability: Docs
-Crumbs: %ROOT%
+INTSourceChangelist:6510187
+Availability: Public
 Title: 로우 레벨 메모리 트래커
 Description: 언리얼 엔진 프로젝트에 로우 레벨 메모리 트래커를 사용하는 방법입니다.
 Type: Overview
 SkillLevel: Advanced
 Version:4.18
 Parent:Programming\Development\Tools
-Order:2
 Tags:Mobile
 Tags:Optimization
 
-[TOC(start:1 end:2)]
-
+[REGION:banner]
 ![](LLM_00.png)
+[/REGION]
 
 [REGION:caption]
 LLM 은 PlayStation 4 및 XboxOne 을 지원합니다. Windows 지원은 실험단계입니다.
@@ -32,19 +30,23 @@ LLM 은 PlayStation 4 및 XboxOne 을 지원합니다. Windows 지원은 실험�
 
 프로젝트에 LLM 을 활성화하려면, 다음 명령줄 인수와 콘솔 명령을 사용하세요.
 
+[REGION:simpletable]
 | 명령줄 인수 | 설명 |
 |--|--|
 |`-LLM`|LLM 을 활성화합니다.|
 |`-LLMCSV`|모든 값을 CSV 파일에 계속해서 씁니다. -LLM 을 자동 활성화합니다.|
 |`-llmtagsets=Assets`|실험단계 기능입니다. 각 애셋의 할당 총합을 표시합니다.|
 |`-llmtagsets=AssetClasses`|실험단계 기능입니다. 각 UObject 클래스 유형의 총합을 표시합니다.|
+[/REGION]
 
+[REGION:simpletable]
 | 콘솔 명령 | 설명 |
 |--|--|
 |`stat LLM`| LLM 요약을 표시합니다. 모든 로우 레벨 엔진 통계는 단일 Engine 통계 아래 그룹으로 묶입니다.|
 |`stat LLMFULL`|모든 LLM 통계를 표시합니다.|
 |`stat LLMPlatform`|OS 에서의 모든 메모리 할당에 대한 통계를 표시합니다.|
 |`stat LLMOverhead`|LLM 이 내부적으로 사용하는 메모리를 표시합니다.|
+[/REGION]
 
 `-LLMCSV` 명령줄 인수를 사용하면 `saved/profiling/llm/` 안에 `.CSV` 파일을 생성합니다. 이 파일의 각 태그 열은 현재 값을 MB 단위로 표시합니다. 새 줄은 (기본) 5 초마다 갱신합니다. 빈도는 `LLM.LLMWriteInterval` 콘솔 변수로 바꿀 수 있습니다.
 
@@ -55,12 +57,14 @@ LLM 은 PlayStation 4 및 XboxOne 을 지원합니다. Windows 지원은 실험�
 
 태그 적용에는 태그 범위 매크로를 사용합니다. 그 범위 안에서 이루어진 할당은 지정한 태그를 붙입니다. LLM 은 태그 범위 스택을 유지하고 상단 태그를 할당에 적용합니다. LLM 통계는 게임 내에서 `stat LLM` 또는 `stat LLMFULL` 콘솔 명령으로 볼 수 있습니다. 현재 각 태그 총합은 MB 단위로 표시합니다. LLM 은 통계 값을 `.CSV` 파일로 출력할 수도 있어, 나중에 값을 분석할 수 있습니다. 현재 엔진 내 존재하는 태크 카테고리는 다음과 같습니다.
 
+[REGION:simpletable]
 | 태그 이름 | 설명 |
 |--|--|
 |**UObject**| `UObject` 를 상속하는 클래스 및 프로퍼티를 포함해서 그 클래스가 시리얼라이즈하는 것이면 무엇이든 들어갑니다. **UObject** 는 다른 카테고리에 추적되지 않는 모든 엔진 및 게임 메모리를 전부 담습니다. 참고로 여기에는 별도 추적되는 메시 또는 애니메이션 데이터가 포함되지 않습니다. 레벨에 배치되는 오브젝트 수에 해당합니다.|
 |**EngineMisc**|다른 카테고리에 추적되지 않는 로우 레벨 메모리입니다. |
 |**TaskGraphTasksMisc**|자체 카테고리가 없는 태스크 그래프에서 발동된 태스크입니다. 보통 상당히 낮습니다. |
 |**StaticMesh**|`UStaticMesh` 클래스 및 관련 프로퍼티로, 실제 메시 데이터는 포함하지 않습니다.|
+[/REGION]
 
 새 태그를 추가하는 방법은 다음과 같습니다.
 
@@ -102,6 +106,7 @@ Tag Set (태그 세트)를 사용하려면 `LowLevelMemory.h` 에 `LLM_ALLOW_ASS
 
 LLM 은 포인터로 인덱싱한 모든 할당의 맵을 유지하는 식으로 작동합니다. 현재 맵은 각 할당의 크기와 그 할당 태그를 포함합니다. 게임은 언제든 한 번에 4 백만 회의 라이브 할당이 될 수도 있으므로, 메모리 오버헤드는 가급적 줄이는 것이 중요합니다. 현재 구현은 할당당 21 바이트를 사용합니다.
 
+[REGION:simpletable]
 | 할당 | 크기 |
 |--|--|
 |포인터|8 바이트|
@@ -109,6 +114,7 @@ LLM 은 포인터로 인덱싱한 모든 할당의 맵을 유지하는 식으로
 |크기|4 바이트|
 |태그|1 바이트|
 |해시 맵 인덱스|4 바이트|
+[/REGION]
 
 `OnLowLevelAlloc` 함수로 할당을 추적할 때, 태그 스택 상단의 태그를 현재 태그로 하고 그 포인터를 키로 하여 할당 맵에 저장합니다. 경쟁 조건을 피하기 위해 각 태그의 프레임 델타를 별도의 `FLLMThreadState` 클래스 인스턴스로 추적합니다. 프레임 끝에서 이 델타를 합하여 통계 시스템과 `.CSV` 파일로 게시합니다.
 
@@ -129,12 +135,8 @@ LLM 이 내부적으로 사용하는 모든 메모리는 플랫폼에 제공되�
 LLM 을 사용할 때 알아야 하는 여러가지 추가 정보입니다.
 
 * LLM 오버헤드가 100MB 이상일 수 있으므로 콘솔에서는 대용량 메모리 모드로 실행할 것을 강력 추천합니다.
-
     * PlayStation 4 의 경우 콘솔의 Target Settings 에서 "Memory Budget Mode" 를 "LARGE" 로 바꿉니다.
     * XBox One 의 경우, XBox One Manager 의 Settings 탭에서 "Debug Memory Mode" 를 "Pix and Title" 로 설정합니다.
-
 * LLM 의 Test 구성에서는 화면 위 통계 페이지는 표시되지 않지만, `.CSV` 파일로 출력합니다. LLM 은 Shipping 에서 완전 비활성화됩니다.
-
 * PlayStation 4 에서 LLM 은 내부 사용을 위해 메모리를 미리 예약해야 합니다 (현재 600MB). 새 메모리 시스템으로 (`PS4Memory2.cpp`) 옮기면 더이상 그럴 필요가 없습니다.
-
 * 애셋 태그 추적은 아직 초기 실험단계 상태입니다.

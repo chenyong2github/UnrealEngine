@@ -1,72 +1,232 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:4642517
 Availability:Public
-Crumbs: %ROOT%
-Title:自動露光 (別名：明暗順応)
-Description:輝度の変更から視覚の順応をシミュレートするためにシーンの露出を自動調整します。
-Type:Overview
-SkillLevel:Beginner
-Version:4.16
-Parent:Engine/Rendering/PostProcessEffects
-Order:2
-Tags:Post Process
-Topic-image:EyeAdap_Topic.png
+Crumbs: 
+Title: 明暗順応 (自動露出)
+Description: 輝度の変更から明暗順応をシミュレートするためにシーンの露出を自動調整します。
+Type:
+Version:
+Parent: Engine/Rendering/PostProcessEffects
+Order: 1
+Tags: Post Process
 
+**明暗順応**、または自動露出は、明るい環境から暗い環境へそして逆もまた同様に、人間の視覚が体験する効果を再現するために、シーンの露出を自動的に調整します。
 
-[EXCERPT:EyeAdaptation_Desc]
-**自動露光**、または明暗順応は、明るい環境から暗い環境へそして逆もまた同様に、人間の視覚が体験する効果を再現するために、シーンの露出を自動的に調整します。
-[/EXCERPT:EyeAdaptation_Desc]
+## カメラの露出
 
-[REGION:fullwidth]
-![Eye Adaption](eye_adaptation.png)
+#### エディタの設定
+
+レベル エディタの露出制御では、**[EV100]** スライダーと **[View Mode (ビューモード)]** ドロップダウンメニューの [Game Settings (ゲーム設定)] チェックボックスを使用します。
+
+[REGION:lightbox]
+[![](EA_CameraExposure_01.png)(w:200px)](EA_CameraExposure_01.png)
+[/REGION]
+[REGION:caption]
+*クリックして最大化*
 [/REGION]
 
-| プロパティ | 説明 |
-| -------- | ----------- |
-| **Low Percent** | シーンカラーの輝度ヒストグラムから抽出した値へ視覚を順応させます。値はヒストグラムの低い方の割合を定義します。この割合はシーン輝度の平均値の検知に使用されます。明るい画像部分のクランプを避けたいため、暗い領域のほとんどの部分を無視するのが最良です。例えば、80 の値は暗部の 80 ％を回避します。設定値は、[0, 100] の範囲でなくてはいけません。70 から 80 の範囲の値で最高の結果を得られます。
-| **High Percent** | シーンカラーの輝度ヒストグラムから抽出した値へ視覚を順応させます。値はヒストグラムの高い方の割合を定義します。この割合はシーン輝度の平均値の検知に使用されます。いくつかの明るいピクセルがあっても問題ないため (大抵は太陽)、数パーセント縮小させます。設定値は、[0, 100] の範囲でなくてはいけません。80 から 98 の範囲の値で最高の結果を得られます。|
-| **Min Brightness** | この値は視覚が順応する範囲内の低い方の輝度を制限します。値は 0 より大きく、かつ **EyeAdaptationMinBrightness** 以下であることが必須です。実際の値はコンテンツが使用している HDR 範囲で決定します。 |
-| **Max Brightness** | この値は視覚が順応する範囲内の低い方の輝度を制限します。値は 0 より大きく、かつ **EyeAdaptationMinBrightness** 以上であることが必須です。実際の値はコンテンツが使用している HDR 範囲で決定します。 |
-| **Speed Up** | 暗い環境から明るい環境へ明順応が起こる速度です。 |
-| **Speed Down** | 明るい環境から暗い環境へ暗順応が起こる速度です。 |
-| **Auto Exposure Bias** | 露光設定のバイアスを制御します。値は対数で表されています。 [INCLUDE:#ExposureOffset] つまり 1.5 などの小数値、または表示例の外側の値でも機能します。自動露光がアクティブな時、値は自動露出に加算されます。 |
+**[Game Settings]** が有効になると、レベル ビューポートは露出の動作に対してゲーム設定の構成を使用します (以下のセクション参照)。 [GameSettings] を有効にしなかった場合、ユーザーは **[EV100]** スライダーで **-10** から **20** の範囲内で上書きが可能となります。そして、リアルなシーンの照明を使うことで、非常に暗いシーンから明るいシーンまでカバーできます。
 
-[COMMENT:none]
-
-[EXCERPT:ExposureOffset]
-[REGION:simpletable]
-| 値 | 効果 |
-| ----- | ------ |
-| 0 | 変化はありません |
-| -1 | 明るさが半減します |
-| -2 | 4 分の 1 の明るさになります |
-| 1 | 2 倍の明るさになります |
-| 2 | 4 倍の明るさになります |
+[REGION:note]
+レベル ビューポート以外のビューポートでは、[Game Settings] チェックボックスは [Auto] チェックボックスに置き換えられ、自動露出の動作を実装します。
 [/REGION]
-[/EXCERPT:ExposureOffset]
 
-[/COMMENT]
+#### ゲーム設定
 
-自動露光は [ヒストグラム](#ヒストグラム) ベースで、以下の手法を使用します。
+[REGION:note]
+バージョン 4.19 以降のリリースでは、一部の設定の名前が変更されましたが、以前に使用した設定と互換性があります。
+[/REGION]
 
-* **EyeAdaptationLowPercent** が 80%、EyeAdaptationHighPercent が 95% とします。
-* ここで 2 つの値のヒストグラムを検索します。
-    * 80% のスクリーン ピクセルは、輝度値 A よりも色が暗くなります。
-    * 95% のスクリーン ピクセルは、輝度値 B よりも色が暗くなります。
-    * A と B の平均値は現在のシーンの輝度値 (C) です。
-* 時間が経つにつれて目がこの値に順応していきます。暗い環境への順応には時間を要する場合が多いので、**[EyeAdaptionSpeedUp]** と **[EyeAdaptionSpeedDown]** の 2 つの値を調整します。
-* 暗すぎる、または明るすぎる環境へ完全に順応しないように、**[EyeAdaptationMinBrightness]** と **[EyeAdaptationMaxBrightness]** で指定した範囲内で自動露光をクランプします。
+露出のゲーム内設定は、ポストプロセス設定内で制御されます。 様々な **[Metering Modes (測光モード)]** を選択すると、選択したメソッドに関連する設定は編集可能になり、そうでないものはグレーアウトします。 
 
+![](EA_CameraExposure_02.png)
+
+次の Metering Modes から選択可能です。   
+
+*   **[Auto Exposure Histogram (自動露出ヒストグラム)]** は 64 bin のヒストグラムを構成して、高度な設定できめ細かく自動露出を制御することができます。 
+*   **[Auto Exposure Basic (自動露出ベーシック)]** はダウン サンプリングによる単一値を計算する高速なメソッドです。
+*   **[Manual]** を使用することで、露出設定ではなくポストプロセス ボリューム内の **カメラ** 設定で露出を制御できるようになります。
+
+#### マニュアル測光モード
+
+**マニュアル** 測光モードはポストプロセス **カメラ** の、 **[Shutter Speed (シャッター スピード) (1/t)]** 、 **[ISO (S)]** および **[Aperture (絞り値)(N)]** の設定により定義されたカメラ露出の値を使用します。
+
+カメラ露出スケールの計算に使用される公式は次のとおりです。    
+
+*   露出= 1 / (1.2 * 2^EV100)
+
+および、  
+
+*   EV100 = log2( N²/t * 100/S )
+
+ここでの **露出** は、トーンマッパーと露出補正 (下記参照) が適用される前のシーンのサーフェイスの輝度 (cd/m² あたりの L) とピクセルの明るさ (B) の関係を定義しています。  
+
+*   B = Exposure * L
+
+このことは、[Show Flags] の [Tonemapper] を無効にして、ピクセル インスペクターでシーンの明るさを調べれば確かめられます。 注： EV100 エディタは 直接上書きしてこの式の EV100 設定します。
+
+[REGION:lightbox]
+[![](EA_CameraExposure_03.png)(w:200px)](EA_CameraExposure_03.png)
+[/REGION]
+[REGION:caption]
+*クリックして最大化*
+[/REGION]
+
+[REGION:note]
+**露出補正** (ExpComp) は、現行の測光モードにより計算された露出に加えて、 2^ExpComp の尺度を追加で定義します。ただし、EV100 エディタの上書き使用時を除きます。
+[/REGION]
+
+## 事前露出
+
+前のフレームのシーンの露出が、シーン カラーに書き込まれる前にシェーダー内に適用されることにより、エンジンが (露出後に) 最後に使用した色の 1 つと同様の範囲内でシーンをレンダリングできます。 これにより、非常に明るいライトの使用時に精度の低いレンダー ターゲット フォーマットによる算術桁あふれのリスクを減らします。 また、 **Auto Exposure Basic ** の測光モードの質を高めます。 
+
+シェーダー内で適用される露出の量を **事前露出** といい、[プロジェクト設定] の **[Apply Pre-exposure before writing to the scene color (シーンカラーに書き込む前に事前露出を適用する)]** または、コンソールの変数 **[r.UsePreExposure]** によって有効化できます。 事前露出は **r.EyeAdaptation.PreExposureOverride** で上書きできます。
+
+[REGION:note]
+現状、 **[Apply Pre-exposure before writing to the scene color]** は Windows のみでサポートされています。
+[/REGION]
+
+[OBJECT:ComparisonSlider]
+    [PARAM:before]
+    ![暗く](AutoExposure_Dark1.png) 
+    [/PARAM]
+    [PARAM:after]
+    ![明るく](AutoExposure_Bright1.png) 
+    [/PARAM]
+[/OBJECT]
+
+[REGION:caption]
+上の比較は、暗い環境から明るい環境へ進む例を示しています。
+[/REGION]
+
+明暗順応は [ヒストグラム](Engine/Rendering/PostProcessEffects/AutomaticExposure#ヒストグラム) ベースで、以下の手法を使用します。
+
+*   たとえば、露出の **［Low Percent (最低割合)]** を 80% とし、 **[High Percent (最高割合)]** を 95% とします。
+*   ここで 2 つの値のヒストグラムを検索します。 
+    *   80% のスクリーン ピクセルは、輝度値 A よりも色が暗くなります。
+    *   95% のスクリーン ピクセルは、輝度値 B よりも色が暗くなります。
+    *   A と B の平均値は現在の輝度値 (C) です。
+*   時間が経つにつれて目が現在の輝度値に順応していきます。 暗い環境への順応には時間を要する場合が多いので、移行期間を調節するための 2 つの値、すなわち **[Speed Up]** と **[Speed Down]** があります。
+*   暗すぎる、または明るすぎる環境へ完全に順応しないように、適用範囲は、 **[Min Brightness]** と **[Max Brightness]** (またはプロジェクト設定で拡張した輝度範囲が自動露出で有効になっている場合は **[EV100 Min]** と **[EV100 Max]**) を使用して定義された範囲にクランプされます。
 
 ## ヒストグラム
 
-**Histogram** プロパティは自動露光 (EyeAdaptation) 機能に使用されます。この機能は、シーンの色のヒストグラムを調査してカメラまたは視覚をシーンへ適用させます。ヒストグラムはコンソール コマンド `ShowFlag.VisualizeHDR 1` で表示できます。
+**[Histogram]** プロパティは **自動露出ヒストグラム** に使用されます。この機能は、シーン カラーのヒストグラムを調査してカメラまたは視覚をシーンへなじませます。 有効にするには、レベル ビューポートの **[Show \> Visualize \> HDR (Eye Adaptation)]** を使用します。
 
-[REGION:fullwidth]
-![Histogram](histogram.png)
+[REGION:lightbox]
+[![](HDR_Visualization1.png)](HDR_Visualization1.png)
+[/REGION]
+[REGION:caption]
+ クリックしてフルサイズ表示
 [/REGION]
 
-| プロパティ | 説明 |
-| -------- | ----------- |
-| **Histogram Log Min** | 作成されたヒストグラムの輝度範囲の下限領域を定義します。 |
-| **Hstogram Log Max** | 生成されたヒストグラムの輝度範囲の上限領域を定義します。|
+1.  ポストプロセスの露出設定とそれらの設定値や範囲。
+1.  最小値、最大値で範囲を設定したヒストグラム。
+1.  ピクチャーインピクチャーの HDR シーンを表示
 
+シーンのヒストグラムの **最小** **最大** の範囲を定義するには、 **Histogram Log Min / Max** または **Histogram EV100 Min / Max** (プロジェクト設定で有効の場合) を使用します。
+
+![](HDRSceneRepresentation1.png)
+
+この HDR シーンの表示では、ヒストグラムの輝度の範囲を表すために色を使用しています。 青色はヒストグラムの輝度レベルが最低、一方赤色はヒストグラムの範囲で輝度レベルが最高であることを示しています。
+
+## 測光モードの設定
+
+自動露出で使用される輝度計算メソッドを設定する **[Metering Mode (測光モード)]** を利用可能なものから選択します。 これらは **[Lens > Exposure]** および **[Lens > Camera]** のポストプロセス ボリュームの設定から設定可能です。
+
+#### Auto Exposure Histogram (自動露出ヒストグラム)
+
+**[Metering Mode]** に **[Auto Exposure Histogram] ** を使用すると以下の設定が利用できます。
+
+![](Exposure_Histogram.png)
+
+[COMMENT:none]
+| プロパティ | 説明 |
+| --- | --- |
+| 露出 ||
+| **Exposure Compensation** | 露出を対数で調節します。 トーンマッパー指定時のみ使用されます。 0: 調整なし、 -1:2x 暗め, -2:4 暗め, 1:2x 明るめ, 2:4x 明るめ。 |
+| **Min EV100** | [INCLUDE:#minEV100] |
+| **Max EV100** | [INCLUDE:#maxEV100] |
+| **Min Brightness** | 眼が順応できる暗さを制限する自動露出の暗さの下限です。 値は 0 より大きく、かつ **Max Brightness** 以下であることが必須です。 適切な値は 0 付近の正の値となるはずです。ライティングが暗い場所で調整してください。 値が小さ過ぎるとイメージが明るくなり過ぎ、大き過ぎると暗くなり過ぎます。 実際の値は使用されるコンテンツの HDR 範囲で決定します。 Min Brightness = Max Brightness のとき、自動露出は無効になります。 |
+| **Max Brightness** | [INCLUDE:#MaxBrightness] |
+| **Speed Up** | 	暗い環境から明るい環境へ明順応が起こる速度です。 |
+| **Speed Down** | 明るい環境から暗い環境へ暗順応が起こる速度です。 |
+| **Calibration Constant** | 18% アルベドのキャリブレーション定数。 |
+| **Low Precent** | [INCLUDE:#LowPercent] |
+| **High Percent** | [INCLUDE:#HighPercent] |
+| **Histogram Min EV100** | [INCLUDE:#HistoMinEV100] |
+| **Histogram Max EV100** | [INCLUDE:#HistoMaxEV100] |
+| **Histogram Log Min** | **[HDR (Eye Adaptation)]** ビジュアリゼーション モード使用時に作成されたヒストグラムの輝度範囲の下限領域を定義します。 |
+| **Histogram Log Max** | **[HDR (Eye Adaptation)]** ビジュアリゼーション モード使用時に生成されたヒストグラムの輝度範囲の上限領域を定義します。 |
+
+[COMMENT:none]
+[EXCERPT:minEV100]
+[REGION:note]
+プロジェクト設定の **[Extend default luminance range in Auto Exposure settings]** が有効な時に **Min Brightness** の代わりに使用されます。
+[/REGION]
+平均輝度が **Constant Calibration** 値と等しいピクセルの明るさを生成するための露出値を選択することで実装される最小自動露出の順応です。 この値はピクセル輝度 (cd/㎡) で表されます。
+Min EV100 = Max EV100 のとき、自動露出は無効になります。
+[/EXCERPT:minEV100]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:maxEV100]
+[REGION:note]
+プロジェクト設定の **[Extend default luminance range in Auto Exposure settings]** が有効な時に **Max Brightness** の代わりに使用されます。
+[/REGION]
+平均輝度が **Constant Calibration** 値と等しいピクセルの明るさを生成するための露出値を選択することで実装される最大自動露出の順応です。 この値はピクセル輝度 (cd/㎡) で表されます。 Max EV100 = Min EV100 のとき、自動露出は無効になります。
+[/EXCERPT:maxEV100]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:MaxBrightness]
+視覚が順応できる明るさを制限する自動露出の明るさの上限です。 値は 0 より大きく、かつ **Min Brightness** 以上であることが必須です。 適切な値は正の値になるはずです (2 は適切な値です)。ライティングが明るい場所で調整してください。 値が小さ過ぎるとイメージが明るくなり過ぎ、大き過ぎると暗くなり過ぎます。 実際の値は使用されるコンテンツの HDR 範囲で決定します。 
+Max Brightness = Mix Brightness のとき、自動露出は無効になります。
+[/EXCERPT:MaxBrightness]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:LowPercent]
+シーンカラーの輝度ヒストグラムから抽出した値へ明暗順応させます。 値はヒストグラムの低い方の割合を定義します。この割合はシーン輝度の平均値の検知に使用されます。 明るい画像部分のクランプは避けた方が良いため、暗い領域のほとんどの部分を無視するのがベストです。 例えば、80 の値は暗部の 80 ％を回避します。 設定値は、0 から 100 の範囲でなくてはいけません。
+[REGION:note]
+70 から 80 の範囲の値で最高の結果を得られます。
+[/REGION]
+[/EXCERPT:LowPercent]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:HighPercent]
+シーンカラーの輝度ヒストグラムから抽出した値へ明暗順応させます。 値はヒストグラムの高い方の割合を定義します。この割合はシーン輝度の平均値の検知に使用されます。 いくつかの明るいピクセルがあっても問題ないため (大抵は太陽)、上限の数パーセントを縮小させます。 設定値は、0 から 100 の範囲でなくてはいけません。
+[REGION:note]
+70 から 80 の範囲の値で最高の結果を得られます。
+[/REGION]
+[/EXCERPT:HighPercent]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:HistoMinEV100]
+プロジェクト設定の **[Extend default luminance range in Auto Exposure settings]** が有効な時に **Histogram Log Min** の代わりに使用されます。
+[HDR (Eye Adaptation)] ビジュアリゼーション モード使用時に作成されたヒストグラムの輝度範囲の下限領域を定義します。
+[/EXCERPT:HistoMinEV100]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:HistoMaxEV100]
+プロジェクト設定の **Extend default luminance range in Auto Exposure settings** が有効な時に **Histogram Log Max** の代わりに使用されます。
+[HDR (Eye Adaptation)] ビジュアリゼーション モード使用時に生成されたヒストグラムの輝度範囲の上限領域を定義します。
+[/EXCERPT:HistoMaxEV100]
+[/COMMENT]
+
+
+#### Auto Exposure Basic (自動露出ベーシック)
+
+**[Metering Mode]** で **[Auto Exposure Basic] ** を使用すると以下の設定が利用できます。
+
+![](Exposure_Basic.png "Exposure_Basic.png") 
+
+#### Manual (マニュアル)
+
+**[Metering Mode]** で **[Manual] ** を使用すると以下の設定が利用できます。
+
+![](Exposure_Manual.png)
+
+[/COMMENT]

@@ -10,10 +10,7 @@ type:landing
 tags:Blueprints
 topic-image:Engine/Blueprints/kismet_topic.png
 topic-icon:%ROOT%/blueprint_icon.png
-
-[REGION:banner]
-![](k2_banner.gif)
-[/REGION]
+hero-image:k2_banner.gif
 
 [EXCERPT:Intro]
 The **Blueprints Visual Scripting** system in Unreal Engine is a complete gameplay scripting system based on the concept of using 
@@ -24,75 +21,60 @@ This system is extremely flexible and powerful as it provides the ability for de
 Blueprint-specific markup available in Unreal Engine's C++ implementation enables programmers to create baseline systems that can be extended by designers.
 [/EXCERPT:Intro]
 
+<!-- removing link for now
+[REGION:tip]
+If you are new to Blueprints or Visual Scripting, you may want to also check out the **Blueprint Essential Concepts** video tutorial series. This series covers the fundamentals and core concepts to working with Blueprints in Unreal Engine 4, how Blueprints relate to traditional programming, a tour of the Blueprint Editor UI, Components, Graphs, and some of the caveats to using Blueprint. 
+
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	blueprint-essential-concepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7144
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	Blueprints Essential Concepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	Dive into what Blueprints are and what you can expect when working with them.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	8
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
+
 ## Getting Started
 
 [REGION:topics third]
-%Engine/Blueprints/QuickStart:TopicCompact%
-%Engine/Blueprints/GettingStarted:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Blueprints:title%](BPVid.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		Videos: Introduction to Blueprints (v4.8)
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gY35ezlSQn1sWOGfh4C7ewO/EFXMW_UEDco/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/QuickStart:Topic%
+%Engine/Blueprints/GettingStarted:Topic%
 [/REGION]
 
 ## General Scripting
 
 [REGION:topics third]
-%Engine/Blueprints/Scripting:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Blueprints:title%](BlueprintEssentials.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		Videos: Blueprint Essentials
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1ga2b_ZaJoaR5dLHOFw4-MMl/zaVY5A0hqiI/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/Scripting:Topic%
 [/REGION]
 
 ## Building Blueprints
 [REGION:topics third]
-%Engine/Blueprints/Anatomy:TopicCompact%
-%Engine/Blueprints/Workflow:TopicCompact%
-%Engine/Blueprints/BP_HowTo:TopicCompact%
-%Engine/Blueprints/UserGuide/CheatSheet:TopicCompact%
-%Engine/Blueprints/BestPractices:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![Blueprint Video Tutorials](BPTutorials.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		Blueprint Video Tutorials
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/Blueprints/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/Anatomy:Topic%
+%Engine/Blueprints/Workflow:Topic%
+%Engine/Blueprints/BP_HowTo:Topic%
+%Engine/Blueprints/UserGuide/CheatSheet:Topic%
+%Engine/Blueprints/BestPractices:Topic%
 [/REGION]
 
 ## Blueprint Communication
 [REGION:topics third]
-%Engine\Blueprints\UserGuide\BlueprintCommsUsage:topiccompact%
-%Engine/Blueprints\HowTo:topiccompact%
-[OBJECT:TopicCompact]
+%Engine\Blueprints\UserGuide\BlueprintCommsUsage:Topic%
+%Engine/Blueprints\HowTo:Topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![Livestream: Blueprint Communications](CommStream.png)
 	[/PARAM]
@@ -103,20 +85,19 @@ Blueprint-specific markup available in Unreal Engine's C++ implementation enable
 		Livestream: Blueprint Communications
 	[/PARAM]
 	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu/EM_HYqQdToE/index.html
+		https://www.youtube.com/watch?v=EM_HYqQdToE&list=PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu
 	[/PARAMLITERAL]
 [/OBJECT]
-%Engine\Blueprints\UserGuide\BlueprintComms:topiccompact%
-%Engine\Blueprints\UserGuide\EventDispatcher:topiccompact%
-%Engine/Blueprints/UserGuide/Types/Interface:topiccompact%
+%Engine\Blueprints\UserGuide\BlueprintComms:Topic%
+%Engine\Blueprints\UserGuide\EventDispatcher:Topic%
+%Engine/Blueprints/UserGuide/Types/Interface:Topic%
 [/REGION]
 
 ## Doing More With Blueprints
 
-[REGION:topics third]
-%BlueprintAPI:TopicCompact%
-%Engine/Blueprints/Editor:TopicCompact%
-[OBJECT:TopicCompact]
+%BlueprintAPI:Topic%
+%Engine/Blueprints/Editor:Topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![Live Training Streams: Blueprints](BPLiveStream.png)
 	[/PARAM]
@@ -127,10 +108,9 @@ Blueprint-specific markup available in Unreal Engine's C++ implementation enable
 		Live Training Streams: Blueprints
 	[/PARAM]
 	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu/index.html
+		https://www.youtube.com/playlist?list=PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu
 	[/PARAMLITERAL]
 [/OBJECT]
-[/REGION]
 
 [DIR(output:"topic" parent:"Engine/Blueprints" type:"overview" org:"hierarchy")]
 

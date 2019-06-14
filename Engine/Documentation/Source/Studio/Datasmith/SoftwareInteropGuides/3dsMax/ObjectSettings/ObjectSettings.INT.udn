@@ -1,0 +1,126 @@
+Availability: Public
+Crumbs: 
+Title: Per-Object Conversion Settings
+Description: Describes how to use the Datasmith Attributes Modifier in 3ds Max to specify selected conversion options for specific objects in your 3ds Max scene.
+Type: How-To
+skilllevel:Beginner
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Order: 2
+Tags: 3DS Max
+Tags: how to
+Tags: Datasmith
+topic-image: placeholder_topic.png
+topic-icon: ue4_icon.png
+
+
+When you have the Datasmith Exporter Plugin for 3ds Max installed, you also have access to the **Datasmith Attributes modifier**. You can use this modifier to customize the way individual scene objects are translated from 3ds Max to Unreal Engine. For example:
+
+*   You can specify the index of a UV channel that you want to use for lightmaps you create in Unreal Engine. See [Specifying a Lightmap UV Index](#specifyingalightmapuvindex).
+*   You can assign custom collision geometry for objects in your scene. See [Setting a Custom Collision Volume](#settingacustomcollisionvolume).
+*   You can export objects as simplified bounding boxes only, instead of their full geometry. See [Export the Bounding Box Only](#exporttheboundingboxonly).
+
+The following image shows the **Datasmith Attributes** modifier assigned to a selected scene object.
+
+[REGION:lightbox]
+[![Datasmith Attributes Modifier](modifier-in-context.png "Datasmith Attributes Modifier")(w:1000)](modifier-in-context.png)  
+*Click for full image.*
+[/REGION]
+
+## Applying the Datasmith Attributes Modifier
+
+You apply the Datasmith Attributes modifier to objects in your 3ds Max scene exactly the same way as you apply any other kind of modifier. For background information, see the 3ds Max help topics about [Modifiers](http://help.autodesk.com/view/3DSMAX/2019/ENU/?guid=GUID-79998C44-22AA-4485-9608-51630079E5A7).
+
+### Steps
+
+1.  Select the object or objects whose export settings you want to customize.
+2.  Open the **Modify** panel.
+3.  From the Modifier List drop-down menu, find and select **OBJECT-SPACE MODIFIERS > Datasmith Attributes**.  
+    ![Modifier List](modifier-menu.png "Modifier List")
+
+### End Result
+
+The default settings of the Datasmith Attributes modifier are set so that they do not change the behavior described in [Using Datasmith with 3ds Max](Studio/Datasmith/SoftwareInteropGuides/3dsMax). You need to change the settings for the modifier in order to customize that default behavior. See the following sections for details on what you can do with the modifier.
+
+## Specifying a Lightmap UV Index
+
+By default, Datasmith creates two new UV channels for each geometric object in your scene, as described in [Using Datasmith with 3ds Max](Studio/Datasmith/SoftwareInteropGuides/3dsMax). One of these channels is a lightmap UV, which stores pre-computed lighting. This ensures that every object in your imported scene within Unreal Engine is compatible with Static and Stationary lighting. For more information, see also [Working with UV Channels](Engine/Content/Types/StaticMeshes/HowTo/UVChannels).
+
+However, 3ds Max allows you to create your own lightmap UVs for your objects. If you've chosen to do this, you may not want Datasmith to auto-generate additional UV sets on import. Instead, you may want to set your objects to use the lightmap UVs that you've already created.
+
+### Steps
+
+1.  Select and assign the Datasmith Attributes modifier to the objects whose lightmap UVs you've created in 3ds Max. See [Applying the Datasmith Attributes Modifier](#applyingthedatasmithattributesmodifier).
+2.  In the settings for the Datasmith Attributes modifier, change the **Lightmap UVs** setting to **Specify Lightmap Channel**.  
+    ![Specify Lightmap Channel](modifier-lightmap-uvs-select.png "Specify Lightmap Channel")
+3.  Use the **Map Channel** setting to specify the index of the UV channel that you want the object or objects using this modifier to use for storing pre-computed lighting.  
+    ![Map Channel](modifier-lightmap-uvs-index.png "Map Channel")
+
+### End Result
+
+The next time you export this scene and import it into Unreal, Datasmith will not create any new UV channels for the scene objects you applied these modifier settings to. Instead, it will set those objects to use the **Map Channel** you specified.
+
+[REGION:tip]
+To verify that your settings were carried over correctly, open your Static Mesh Asset in the Static Mesh Editor. In the Details panel, look for the **General Settings > Light Map Coordinate Index** setting.  
+![Light Map Coordinate Index](modifier-uv-coordinateindex.png "Light Map Coordinate Index")  
+This value should reflect the UV channel that you identified in 3ds Max.
+[/REGION]
+[REGION:note]
+The actual index number shown in the **Light Map Coordinate Index** setting may not match the number you set in the Datasmith Attributes modifier, depending on how the UV channels in 3ds Max were re-indexed during the import process (see the UV channel overview in [Using Datasmith with 3ds Max](Studio/Datasmith/SoftwareInteropGuides/3dsMax#uvchannels)).  
+To verify that the index refers to the UV layout that you're expecting, click the **UVs** button in the Toolbar of the Static Mesh Editor, then select the index number shown in the **Light Map Coordinate Index** setting. You should see your custom lightmap in the bottom left of the viewport.
+[REGION:lightbox]
+[![Visualize UV index](modifier-uv-verify-select.png "Visualize UV index")(w:1000)](modifier-uv-verify-select.png)  
+*Click for full image.*
+[/REGION]
+[/REGION]
+
+## Setting a Custom Collision Volume
+
+You can use the Datasmith Attributes modifier to specify an object that you want the Unreal Engine to use as the collision mesh for other scene objects. For background information, see the Custom Collision Shapes section on the [Using Datasmith with 3ds Max](Studio/Datasmith/SoftwareInteropGuides/3dsMax#customcollisionshapes) page.
+
+### Steps
+
+1.  Select the object or objects in your scene that you want to replace in the Unreal Engine physics simulation with a different object, and apply the Datasmith Attributes modifier. See [Applying the Datasmith Attributes Modifier](#applyingthedatasmithattributesmodifier).
+2.  Under the **Collisions** section of the Datasmith Attributes modifier settings, enable the **Use Custom Collision Mesh** checkbox.  
+    ![Use Custom Collision Mesh](modifier-collisions-use.png "Use Custom Collision Mesh")
+3.  Click **Pick Geometric Object**.  
+    ![Pick Geometric Object](modifier-collisions-pick.png "Pick Geometric Object")
+4.  Select the object in the 3ds Max viewport or Outliner panel that you want to act as the collision mesh.
+    [REGION:note]
+    Make sure that this object meets the requirements outlined on the [Using Datasmith with 3ds Max](Studio/Datasmith/SoftwareInteropGuides/3dsMax#customcollisionshapes) page: it must be fully convex, and it must have its pivot located at the same location relative to its volume.
+    [/REGION]
+    
+
+### End Result
+
+The next time you export this scene and re-import it into Unreal Editor, the object you assigned the Datasmith Attributes modifier to in step 1 above will have a new collision volume in the shape of the object you selected in step 4 above.
+
+## Export the Bounding Box Only
+
+In some cases, you may want to use different geometry for certain scene objects in 3ds Max than you do in Unreal Engine. For example, you may want to replace highly complex or very dense geometry that you use in offline rendering in 3ds Max with lighter versions that perform more efficiently in realtime.
+
+In these cases, you still need these objects to be included in your scene, so that you can replace the objects in the Unreal Editor at their correct locations. However, translating the full geometry of complex objects makes the export and import process take longer. It also leaves you with large, unnecessary Static Mesh Assets in your Project content.
+
+You can get the best of both worlds by using the Datasmith Attributes modifier to mark certain objects for special handling during the export process. Instead of exporting the full geometry, you can have Datasmith create a new, lightweight geometric representation of the object based on the object's 3D bounding box. The objects are still included in the Datasmith scene, with their original names, at their original locations, but with their geometry aggressively reduced to a simple bounding volume.
+
+### Steps
+
+1.  Select the object or objects in your scene that you want to replace in the Unreal Engine physics simulation with a different object, and apply the Datasmith Attributes modifier. See [Applying the Datasmith Attributes Modifier](#applyingthedatasmithattributesmodifier).
+2.  Under the **Export Geometry As** section of the Datasmith Attributes modifier settings, select **Bounding Geometry**.  
+    ![Export Geometry As Bounding Box](modifier-export-bb-setting.png "Export Geometry As Bounding Box")
+
+### End Result
+
+After you use Datasmith to import your scene into Unreal Editor, you should see that the scene objects you marked with the Datasmith Attributes modifier don't show up in your Level with their original geometry. Their geometry is replaced by simple grey bounding volumes.
+
+For example, in the image below, the lift objects in the center of the 3ds Max scene have been marked for export as bounding boxes only. In the Unreal Engine Level after import, they appear only as simplified volumes with default Materials.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](modifier-export-bb-before.png)(w:450)](modifier-export-bb-before.png "Geometry in 3ds Max")[/REGION] | [REGION:lightbox][![](modifier-export-bb-after.png)(w:450)](modifier-export-bb-after.png "Bounding boxes in UE4")[/REGION] |
+| Geometry in 3ds Max | Bounding boxes in UE4 |
+[/REGION]
+
+At this point, you can make use of these simplified scene elements in many different ways. For example, you might want to replace the simplified objects with instances of your own custom Static Mesh Assets. Or, you might want to hide the simplified Actors from view, but make use of the information they contain (like their placement in 3D space and the extents of their bounding boxes) for other purposes.
+

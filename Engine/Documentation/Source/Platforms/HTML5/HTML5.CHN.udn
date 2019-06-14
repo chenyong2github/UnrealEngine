@@ -1,49 +1,49 @@
-﻿INTSourceChangelist:2463144
+﻿INTSourceChangelist:5823259
 Availability: Public
-Title: HTML5 游戏开发
-Crumbs:%ROOT%, Platforms
-Description: 为 HTML5 平台开发游戏。
-Platform:HTML5
-Navigation:platform
-Version: 4.9
+Title: HTML5游戏开发
+Description: 为HTML5平台开发游戏。
+Type: landing
+Version: 4.22
+Parent: Platforms
+Tags: HTML5
+Tags: Desktop
+topic-image: HTML5Development_topic.png
 
 
-## HTML5必备知识
+HTML5使用来自[Mozilla](https://www.mozilla.org/en-US/)的[Emscripten工具链](https://emscripten.org/docs/introducing_emscripten/about_emscripten.html#emscripten-toolchain)以将C++交叉编译为Javascript。
 
-[REGION:buttonlist]
+## 开始
 
-	* [](Platforms/HTML5/GettingStarted "%Platforms/HTML5/GettingStarted:description%")
-[COMMENT:none]
+*   [开发HTML5项目](Platforms/HTML5/GettingStarted)
 
-	[PUBLISH:Docs]
-	* [](Platforms/HTML5/BuildingEmscripten "%Platforms/HTML5/BuildingEmscripten:description%")
-	[/PUBLISH:Docs]
+*   [HTML5开发要求](Platforms/HTML5/HTML5SDKRequirements)
 
-[/COMMENT]
-	
-[/REGION]
+## 内容开发
 
-	
+当构建针对HTML5平台的内容时，您可以使用创建面向移动内容的指南，因为移动开发的许多限制适用于HTML5开发。
 
-		
+*   [移动平台的材质](Platforms/Mobile/Materials)
 
-	      
+*   [移动平台的纹理](Platforms/Mobile/Textures)
 
-	       
+*   [移动平台的照明](Platforms/Mobile/Lighting)
 
-	   
+*   [移动平台的网格体](Platforms/Mobile/Meshes)
 
-	   
+*   [移动平台上的后期处理效果](Platforms/Mobile/PostProcessEffects)
 
-	  
+*   [移动平台的性能指南](Platforms/Mobile/Performance)
 
-		
+*   [移动平台的提示和技巧](Platforms/Mobile/Performance/TipsAndTricks)
 
-		
+*   [移动预览器](Platforms/Mobile/Previewer)
 
-		
+*   [移动打包向导](Platforms/Mobile/MobilePackagingWizard)
 
-		
+## 样本
 
-		
+![ActionRPG.jpg](ActionRPG-resize514x289.jpg "ActionRPG.jpg")
 
+下面的链接将允许您在Web浏览器中直接播放HTML5版本的操作RPG。 
+
+[HTML5中的操作RPG](https://epiclearningresources.000webhostapp.com/ActionRPG/ActionRPG-HTML5-Shipping.html)

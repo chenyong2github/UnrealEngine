@@ -1,58 +1,262 @@
-Availability:Public
-Title:Creating Drag and Drop UI
-Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
-Description:Shows how you can create drag and droppable UI widgets with UMG. 
+Availability: Public
+Title: Creating Drag and Drop UI
+Description: Shows how you can create drag and droppable UI widgets with UMG.
+Type: how-to
 Version: 4.15
+Parent: Engine/UMG/HowTo
+Tags: UMG UI Designer
+Tags: UI
 SkillLevel: Intermediate
-parent:Engine/UMG/HowTo
-order:1
-checkpoint: editorqs
-Related: Engine/UMG
+Order: 6
 Related: Engine/UMG/UserGuide
-tags:UMG UI Designer
-tags:UI
-type:how-to
+Related: Engine/UMG
 
 
+[TOC (start:2 end:2)]
 
-There may be instances in your project where you want your players to be able to interact with UI elements by dragging and dropping them onscreen. 
-This could be to customize interface layouts (positioning health bars or unit frames) or interacting with gameplay systems like inventory screens (adding/removing items around). 
-With UMG you can create these types of interactions with the **DragAndDropOperation** node and override some of the inherited Blueprint Functions based on your method of interaction. 
+There may be instances in your project where you want your players to be able to interact with UI elements by dragging and dropping them onscreen. This could be to customize interface layouts (positioning health bars or unit frames) or interacting with gameplay systems like inventory screens (adding/removing items around). With UMG you can create these types of interactions with the **DragAndDropOperation** node and override some of the inherited Blueprint Functions based on your method of interaction.
 
 In this example, we take a look at how a player can drag and reposition a health bar on screen with the Left Mouse Button.
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	kYkhxuJsVs4
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	100
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	56.25
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ kYkhxuJsVs4
+ [/PARAMLITERAL]
 [/OBJECT]
 
-_At the end of this guide, you will have a UI widget that you can drag around inside the viewport and drop at a new location._
+*At the end of this guide, you will have a UI widget that you can drag around inside the viewport and drop at a new location.*
 
-## Steps
+## 1 - Project Setup
 
-[REGION:buttonlist]
-* [](Engine\UMG\HowTo\DragAndDrop\ProjectSetup)
-* [](Engine\UMG\HowTo\DragAndDrop\WidgetSetup)
-* [](Engine\UMG\HowTo\DragAndDrop\OnDragDetected)
-* [](Engine\UMG\HowTo\DragAndDrop\OnDrop)
-* [](Engine\UMG\HowTo\DragAndDrop\FinishingUp)
-[/REGION]
+Before we get started, there are a couple assets that we'll need to create as part of our project setup.
 
-[REGION:call_to_action]
-	[Click to Start](Engine\UMG\HowTo\DragAndDrop\ProjectSetup "%Engine\UMG\HowTo\DragAndDrop\ProjectSetup:title%")
-[/REGION]
+1.  In the **Content Browser**, create three **Widget Blueprints** called: **DragWidget**, **HealthBar** and **HUD**.
 
+    ![](DragDrop1.png)
 
+    In this example, the element that we want to be drag and droppable is our **HealthBar** widget that will be placed in our **HUD**. We are going to create and drag a widget called **DragWidget** in the same shape as our Health Bar rather than dragging the actual Health Bar around.
+
+1.  Right-click in the **Content Browser** and create a new **Blueprint Class** of the **DragDropOperation** class and call it **WidgetDrag**.
+
+    ![](DragDrop2.png)
+
+    This specialized Blueprint Class will allow us to pass through information as part of our drag and drop action.
+
+1.  Open **WidgetDrag** then create a **User Widget** variable called **WidgetReference** and make it **Editable** and **Expose on Spawn**.
+
+    ![](DragDrop3a.png)
+
+    This will be used to hold the UMG Widget that we want to drag around on screen.
+
+1.  Create another variable called **DragOffset** of the **Vector 2D** type that is **Editable** and **Exposed on Spawn**.
+
+    ![](DragDrop3b.png)
+
+    This will be used to offset the location in which we start dragging and when we drop our widget.
+
+With our project setup done, next we will start working on the HealthBar Widget Blueprint which is the piece of UI that we want to be draggable.
+
+## 2 - Widget Setup
+
+In this step, we determine when the Left Mouse Button is pressed and store the location where it was pressed in screen space. We also use the **DetectDragIfPressed** to determine if the player is dragging with a specified key.
+
+1.  Open the **HealthBar** Widget Blueprint and delete the **Canvas Panel** in the **Hierarchy** window.
+
+1.  Add a **Progress Bar**, then **Right-click** on it and **Wrap With** a **Size Box** set to **500 x 50** in the **Details** panel.
+
+    ![](DragDrop4a.png)
+
+    Optionally you can stylize the Progress Bar. Below we set the adjusted preview to **Desired on Screen**, set the **Percent** to **1.0** so the progress bar is filled and changed the color to green. 
+
+    ![](DragDrop4b.png)
+
+    [REGION:note]
+    In this tutorial, we will not be creating a functional Health Bar and this is intended for demonstration purposes only.
+    [/REGION]
+
+1.  Switch to the **Graph** Mode, then in the **My Blueprint** panel add the **OnMouseButtonDown** and **OnDragDetected** overrides.
+
+    ![](DragDrop5.png)
+
+    There are several functions that you can override to call your own custom script. Here we will perform some checking when the Mouse Button is pressed and what happens when a widget drag is detected.
+
+1.  Inside the **OnMouseButtonDown** node, drag off the **My Geometry** pin and add the **Absolute to Local** node.
+
+1.  Drag off the **Mouse Event** pin and add the **Get Screen Space Position** node and connect as shown below.
+
+    ![](DragDrop6.png)
+
+    Here we are converting the absolute coordinates of the Health Bar widget to local space by getting the screen space position in which the mouse button registered a button down key press. This will tell us where on the widget the player actually clicked so that we can use that to determine where we should place the widget when we choose to drop it so we will store it as a variable.
+
+1.  Right-click the **Return Value** of the **Absolute to Local** pin and **Promote to Variable** called **Drag Offset**.
+
+    ![](DragDrop7.png)
+
+    [REGION:note]
+    Don't worry if you see an error on the On Mouse Button Down node, once we complete the function it will go away.
+    [/REGION]
+
+1.  Right-click in the graph and add a **Detect Drag if Pressed** node.
+
+1.  Set the **Drag Key** to **Left Mouse Button** and connect the **Mouse Event** and remaining pins as shown below. 
+
+    ![](DragDrop8.png)
+
+    Here we are determining if the player is dragging the Left Mouse Button before which will start the On Drag Detected script.
+
+With the ability to detect if the player is dragging in place, next we will finish off what happens when the drag is detected.
+
+## 3 - On Drag Detect
+
+In this step, we determine what happens when the player is, in fact, dragging the HealthBar around on the screen.
+
+1.  Open the **OnDragDetected** function, right-click and add a **Create Widget** node set to **Drag Widget**, then **Browse** to it.
+
+    ![](UpdatedDragDrop1.png)
+
+    When drag is detected, we will create our DragWidget (which will hold our drag widget). Before we continue with our OnDragDetected function, we need to pass through the Health Bar widget as a reference when the DragWidget is created.
+
+1.  Open **DragWidget** and add a **User Widget** variable called **WidgetReference** set to **Expose on Spawn** and **Editable**.
+
+    ![](UpdatedDragDrop2.png)
+
+1.  **Compile** and close **DragWidget**, then open the **HealthBar** Widget Blueprint and the **OnDragDetected** function again.
+
+1.  Assign **Self** as the **Widget Reference** and **Promote** the **Return Value** to a variable called **Dragged Widget** and connect as shown.
+
+    ![](UpdatedDragDrop3.png)
+
+    Now when our drag widget is created, it will have a reference to the existing Health Bar widget. We also promote the dummy drag widget to a variable so that we have access to it later and can remove it from display when we choose to drop the widget.
+
+1.  Right-click and create a **DragAndDropOperation** node set to **Widget Drag** with **Pivot** set to **Mouse Down**.
+
+    ![](UpdatedDragDrop4.png)
+
+    Pivot determines where the Drag Widget Visual will appear when being dragged relative to the pointer performing the drag operation.
+
+1.  Add **Self** as the **Widget Reference**, **DraggedWidget** as the **Default Drag Visual** and **Drag Offset** as the **Drag Offset** on the node.
+
+    [REGION:lightbox]
+    [![](UpdatedDragDrop5.png)](UpdatedDragDrop5.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full view.
+    [/REGION]
+
+    Above we indicated what Widget Blueprint is our reference, what the drag visual should be and provided an offset in which to start dragging. There is an offset pin on the node by default, however, we are using our own in our own calculation to determine the position in which to start dragging when Mouse Button Down is pressed.
+
+The last few things we need to do is to determine what happens when the player releases the Left Mouse Button and performs the OnDrop function. We also need to add the HealthBar Widget to our Main HUD Widget Blueprint and tell that to be displayed before testing everything out.
+
+## 4 - On Drop
+
+Here we set up our main **HUD** Widget Blueprint and override what happens when we perform the **OnDrop** function.
+
+1.  Open the **HUD** Widget Blueprint, then in the **Details** panel for the **Canvas Panel**, set its **Visibility** to **Visible**.
+
+    ![](DragDrop13.png)
+
+    We are doing our drag detection inside the Health Bar widget, however, when we release the Left Mouse Button we want to drop it in our HUD Widget Blueprint. In order for our HUD to receive hit detection, we need to set its **Visibility** setting to **Visible**.
+
+1.  From the **Palette** window, add the **Health Bar** widget to the graph in your desired location.
+
+    ![](DragDrop14.png)
+
+1.  Go to the **Graph** Mode, then add a **OnDrop** function override from the **My Blueprint** panel.
+
+    ![](DragDrop15.png)
+
+1.  Inside **OnDrop** drag off **Operation** and **Cast to WidgetDrag**, then **Get Widget Reference** and **Get Drag Offset**.
+
+    ![](DragDrop16.png)
+
+    We cast here to check which type of operation is being performed as part of the **OnDrop** function, is it **Widget Drag**? If so, we get the **WidgetReference** (which we passed through as the widget being dragged) as well as the **DragOffset** (or position in which we started the drag from).
+
+1.  Off **My Geometry** and **Pointer Event**, use the **Absolute to Local** and **GetScreenSpacePosition** nodes and connect as shown.
+
+    ![](DragDrop17.png)
+
+    This will tell us the position in 2D space where we released the Left Mouse Button to drop the widget. We will use this minus the **DragOffset** to determine where we should place the widget when it is dropped.
+
+1.  Subtract the **DragOffset** from the **Return Value** of **Absolute to Local**.
+
+    ![](UpdateDragDrop1.png)
+
+1.  Off **Widget Reference**, add a **Remove from Parent** followed by **Add to Viewport** and **Set Position in Viewport** nodes.
+
+1.  Connect the nodes as shown below and uncheck **Remove DPIScale** and check the **Return Value** on the **Return Node**.
+
+    [REGION:lightbox]
+    [![](UpdateDragDrop2.png)](UpdateDragDrop2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full view.
+    [/REGION]
+
+    We uncheck **Remove DPIScale** and check the **Return Value** checkboxes as we do not need to remove the [DPI Scaling](Engine/UMG/UserGuide/DPIScaling) and we have handled this function so we return as true. With this script, we first remove the existing Health Bar widget before re-adding it to the screen in the new location relative to our Drag Offset.
+
+Our HUD is set up to handle dropping our dragged widget and it displays our Health Bar. In the next and final step in this tutorial, we set up our Dragged Widget to mimic the shape of our Health Bar as well as instruct our Character Blueprint to add the HUD to the viewport.
+
+## 5 - Finishing Up
+
+In this final step, we configure our **DragWidget** (which is the visual widget we are dragging). We then tell our Character Blueprint to add the **HUD** Widget Blueprint to the viewport as well as enable the Mouse Cursor so we can see where we are dragging.
+
+1.  Open the **DragWidget** Widget Blueprint and replace the **Canvas Panel** with a **Size Box** with a child **Border**.
+
+1.  Rename the **SizeBox** to **WidgetSize** and set **isVariable** to true, then check both **Width Override** and **Height Override**.
+
+    ![](UpdateDragDrop3.png)
+
+    We are going to set the Width and Height of the Size Box to reflect the size of our Health Bar widget.
+
+1.  For the **Border**, set the **Brush Color** to **Black** with an **Alpha** of **0.5** for some transparency.
+
+    ![](UpdateDragDrop4.png)
+
+    In our example, we will have a silhouette of our Health Bar as the drag visual while keeping the actual Health Bar in the same location.
+
+1.  On the **Graph**, drag in **Widget Reference** then off **Event Construct**, cast to the **HealthBar** to get the **Desired Size** and **Break Vector**. 
+
+    ![](UpdateDragDrop5.png)
+
+    This will give us the size of our Health Bar which we can then set our Size Box to. We could have manually entered the overrides, however, if we change the size of our Health Bar we would then have to also change it here.
+
+1.  Drag in the **Widget Size** and off is **Set Height Override** and **Set Width Override** and connect as shown below.
+
+    [REGION:lightbox]
+    [![](UpdateDragDrop6.png)](UpdateDragDrop6.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full view.
+    [/REGION]
+
+1.  In the **Content Browser** under **Content/ThirdPersonBP/Blueprints**, open the **ThirdPersonCharacter** Blueprint.
+
+1.  Off an **Event Begin Play**, **Create Widget** (set to **HUD**) then **Add to Viewport** and **Get Player Controller** to **Show Mouse Cursor**. 
+
+    ![](DragDrop19.png)
+
+1.  **Compile**, **Save** then click the **Play** button to play in the Editor.
+
+### End Result
+
+When you play in the Editor, you can left-click and drag the health bar on screen then drop it in a new location.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ kYkhxuJsVs4
+ [/PARAMLITERAL]
+[/OBJECT]
+
+This is just an example of the elements you will need to start the Drag and Drop process. Additional checking may be needed to ensure that players do not drag the widget outside of Safe Zones or potentially on top of other widgets.

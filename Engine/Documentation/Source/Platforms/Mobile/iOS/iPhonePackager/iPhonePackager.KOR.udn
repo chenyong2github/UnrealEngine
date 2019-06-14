@@ -1,0 +1,54 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: iPhone Packager
+Description: A How - To guide that walks you through using the IPhonePackager tool to put an IPA on your iOS device for testing.
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: 
+topic-image: iOS_QS_Editor_TopicImage.png
+topic-icon: %ROOT%/ue4_icon.png
+
+
+![](IPhonePackager_Hero_Image.png "IPhonePackager_Hero_Image.png")
+
+Due to Software Development Kit (SDK) changes by Apple, it is no longer possible to load your IPA using Itunes when using a Windows-based PC. To load your IPA from a Windows-based PC you will instead have to use the **IPhonePackager** tool and in the following How - To guide we will take a look at how this is done.
+
+[REGION:note]
+This How-To assumes that you have completed the all of the items in the [Starting Out](Platforms/Mobile/iOS/QuickStart) section of the iOS Game Development documentation and as a result, have an IPA that can be deployed to an iOS device.
+[/REGION]
+
+## Steps
+
+In the following section, we will take a look at where the iPhone Packager tool is located and how you can use it to deploy your UE4 iOS project to your iPhone or iPad.
+
+1.  You will first need to locate the **IPhonePackager** tool by going to **Engine\\Binaries\\DotNET\\IOS** of your **UE4 Engine** install folder.
+![IPhonePackager_Tool_Location .png](IPhonePackager_Tool_Location%20.png "IPhonePackager_Tool_Location .png")
+2.  Next, locate the **IPhonePackager.exe** and double-click on it to open it up.
+![](IPhonePackager_EXE-1.png "IPhonePackager_EXE-1.png")
+    
+3.  Once the IPhonePackager tool has opened, immediately press the **Cancel** button to display the tool in its entirety.
+![](IPhonePackager_CancleButton.png "IPhonePackager_CancleButton.png")
+    
+4.  With the IPhonePackager tool now open, look for the three tabs at the top and click on the **Advanced Tools** tab.
+![](IPhonePackager_Advanced_Tools.png "IPhonePackager_Advanced_Tools.png")
+    
+5.  With the Advanced Tools tab open, click on the **Install IPA to hardware…** option.
+![](IPhonePackager_InstallIPAToHardware.png "IPhonePackager_InstallIPAToHardware.png")
+    
+6.  Locate the IPA you want to install, select it and then press the **Open** button to start the install process. 
+![](IPhonePackager_LocateIPA.png "IPhonePackager_LocateIPA.png")
+    
+7.  You can check the install progress of the IPA by clicking on the **command line window** that is opened when the IPhonePackager tool is launched.
+![](IPhonePackager_CommandLineWindow.png "IPhonePackager_CommandLineWindow.png")  
+    
+
+## End Result
+
+Once the IPhonePackager tool has completed you should now see the installed IPA on your iPhone or iPad like in the following image.
+
+![IPhonePackager_EndResult.png](IPhonePackager_EndResult-resize283x502.png "IPhonePackager_EndResult.png")
+
+[](#)[](#)

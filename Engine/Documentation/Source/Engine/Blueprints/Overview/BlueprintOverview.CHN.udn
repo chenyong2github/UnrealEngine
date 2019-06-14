@@ -1,9 +1,9 @@
-﻿INTSourceChangelist:4305436
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title: 蓝图总览
 Crumbs: %ROOT%, Engine, Engine/Blueprints
 Description: 蓝图总览页面包含蓝图剖析和可用的不同蓝图类型。 
-version: 4.9
+version: 4.22
 parent:Engine/Blueprints
 order:2
 tags:Blueprints
@@ -36,89 +36,90 @@ topic-image:blueprint_topic.png
 | 默认组件  | 组件列表          | 本地构造函数 |
 [/EXCERPT:GameplayEquivalents]
 
+<!-- removing link for now
+[REGION:tip]
+如果您是蓝图或可视化脚本方面的新手，还可以查看 **蓝图基础概念** 系列视频教程。此系列涵盖了在虚幻引擎4中使用蓝图的基础与核心概念、如果将蓝图与传统编程的关联、蓝图编辑器UI导览、组件、图表以及一些使用蓝图的禁忌。 
+[OBJECT:TopicCompact]
+	[PARAM:image]
+		![](BlueprintEssentialsUA.png)
+	[/PARAM]
+	[PARAM:icon]
+		![](%ROOT%/blueprint_icon.png)(convert:false)
+	[/PARAM]
+	[PARAM:title]
+		蓝图基础概念课程
+	[/PARAM]
+	[PARAMLITERAL:path]
+		https://academy.unrealengine.com/Class/blueprint-essential-concepts
+	[/PARAMLITERAL]
+[/OBJECT]
+[/REGION]
+-->
 
-请查阅[](Engine/Blueprints\GettingStarted)，了解蓝图高阶指导内容。
-
-(#typesofblueprints)
 ## 蓝图类型
 
 蓝图有数种类型，每种均有其独特用法，包括创建新类型编写关卡事件脚本，或是定义其他蓝图使用的接口和宏。
 
 
-(#blueprintclass)
 ### 蓝图类
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/ClassBlueprint#Intro]
 
 
-(#data-onlyblueprint)
 ### 纯数据蓝图
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/ClassBlueprint#DataBlueprint]
 
-(#levelblueprint)
 ### 关卡蓝图
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/LevelBlueprint#Intro]
 
-(#blueprintinterface)
 ### 蓝图接口
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/Interface#Intro]
 
-(#blueprintmacrolibrary)
 ### 蓝图宏库
 
 [INCLUDE:Engine/Blueprints/UserGuide/Types/MacroLibrary#Intro]
 
-(#blueprintutilities)
 ### 蓝图工具
 
-**蓝图工具**（又名 **Blutility**），是用于执行编辑器行为或延展编辑器功能的纯编辑器蓝图。其可将不带参数的[](Engine/Blueprints/UserGuide/Events)作为 UI 按键公开，并能执行对 _蓝图_ 公开的任意函数，同时对视口中当前选定的 Actor 集产生作用。
+**蓝图工具**（简称 **Blutility**），是用于执行编辑器行为或延展编辑器功能的纯编辑器蓝图。其可将不带参数的[](Engine/Blueprints/UserGuide/Events)作为 UI 按键公开，并能执行对 _蓝图_ 公开的任意函数，同时对视口中当前选定的 Actor 集产生作用。
 
-(#blueprintanatomy)
 ## 蓝图剖析
 
 蓝图功能由诸多元素定义。部分元素默认存在，其余可按需添加。这些元素可用于定义组件、执行初始化和设置操作、对事件作出响应、组织并模块化操作，以及定义属性等行为。
 
 [EXCERPT:Sections]
-(#componentswindow)
 ### 组件窗口
 
 [INCLUDE:Engine/Blueprints/UserGuide/Components#Intro]
 
-(#constructionscript)
 ### 构造脚本
 
 [INCLUDE:Engine/Blueprints/UserGuide/UserConstructionScript#Intro]
 
-(#eventgraph)
 ### 事件图表
 
 [INCLUDE:Engine/Blueprints/UserGuide/EventGraph#Intro]
 
-(#functions)
 ### 函数
 
 [INCLUDE:Engine/Blueprints/UserGuide/Functions#Intro]
 
-(#variables)
 ### 变量
 
 [INCLUDE:Engine/Blueprints/UserGuide/Variables#Intro]
 
 [/EXCERPT:Sections]
 
-[COMMENT:none]
-
-(#blueprintmodes)
 ### 蓝图模式
 
 蓝图的 _模式_ 决定其窗口中显示的内容。关卡蓝图仅包含一个模式（图表模式），而蓝图类包含三种不同模式：
 
-* **[默认模式](Engine/Blueprints\Editor\Modes\Defaults)**——可在此设置蓝图默认选项。
-* **[组件模式](Engine/Blueprints\Editor\Modes\Components)**——可在此添加、移除和编辑构成蓝图的组件。
+* [默认模式](Engine/Blueprints\Editor\Modes\Defaults)——可在此设置蓝图默认选项。
+* [组件模式](Engine/Blueprints\Editor\Modes\Components)——可在此添加、移除和编辑构成蓝图的组件。
 
-请查阅[](Engine/Blueprints\Editor\Modes)，了解蓝图类模式详情。
-
-[/COMMENT]
+[REGION:note]
+更多详情，请参阅[蓝图类模式](Engine/Blueprints\Editor\Modes)文档。
+[/REGION]

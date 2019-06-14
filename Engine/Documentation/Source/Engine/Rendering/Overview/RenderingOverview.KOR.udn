@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Title: 렌더링 개요
 Crumbs: %ROOT%, Engine
@@ -110,9 +110,9 @@ UE4 는 GPU 상에서 파티클 시뮬레이션을 지원합니다. 이전의 CP
 
 **Bloom Dirt Mask** 이펙트는 화면상에 정의된 일정 구역의 블룸을 밝게 만들기 위해 텍스처를 사용합니다. 이 효과를 사용할 수 있는 곳은 전장의 안개(미탐험 지역을 가리는) 효과, HDR 이펙트를 더욱 강렬하게 하는 효과, 카메라 결함 효과 등입니다.
 
-### 눈 순응
+### 시각 순응
 
-**Eye Adaptation** (눈 순응), 또는 **Automatic Exposure** (자동 노출)은 사람의 눈이 밝은 곳에서 어두운 곳으로, 또는 그 반대로 이동할 때 느낄 수 있는 효과를 재현하기 위해 씬의 노출을 자동으로 조절하는 기능입니다.
+**Eye Adaptation** (시각 순응), 또는 **Automatic Exposure** (자동 노출)은 사람의 눈이 밝은 곳에서 어두운 곳으로, 또는 그 반대로 이동할 때 느낄 수 있는 효과를 재현하기 위해 씬의 노출을 자동으로 조절하는 기능입니다.
 
 ### 렌즈 플레어
 

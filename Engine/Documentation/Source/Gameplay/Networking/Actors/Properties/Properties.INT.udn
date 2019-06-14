@@ -12,11 +12,13 @@ order: 1
 
 [TOC(start:1 end:4)]
 
-Each actor maintains a list of properties that can be marked for replication to clients. Whenever the value of the variable changes on the server side, the server sends the client the updated value. The variable may have changed on the client side, in which case the new value will overwrite it. Property updates only come from the server (i.e., the client will never send property updates to the server).
+Each Actor maintains a list of all properties that include the [`Replicated` Specifier](Programming/UnrealArchitecture/Reference/Properties/Specifiers). The server will send an update to each client whenever a replicated property changes its value, which the client will apply to its local version of the Actor. These updates only come from the server; the client will never send property updates to the server or other clients.
 
-Some properties replicate by default (e.g., Location, Rotation, Owner, etc.). These are properties that the framework generally depends on to make basic multiplayer work. From there, you can mark additional properties to replicate as needed.
+[REGION:warning]
+Changing a replicated variable's value on the client is not recommended. The value will continue to differ from the server's value until the next time the server detects a change and sends an update. If the server's copy of the property does not change very often, it could be a long time before the client receives a correction.
+[/REGION]
 
-Actor property replication is reliable. This means that the property of the client version of the Actor will eventually reflect the value on the server - but it's possible that some individual property value changes will be skipped.
+Actor property replication is reliable. This means that the property of the client version of the Actor will eventually reflect the value on the server, but the client will not necessarily receive notification of every individual change that happens to a property on the server. For example, if an integer property rapidly changes its value from 100 to 200, and then to 300, the client will eventually receive an update with the value of 300, but there is no guarantee that the client will know about the change to 200.
 
 ## Setting up properties for replication
 
@@ -53,6 +55,10 @@ Actors will observe a maximum update frequency set in their `NetUpdateFrequency`
 
 ### Adaptive Network Update Frequency
 
+[REGION:note]
+By default, this feature is deactivated. Setting the console variable `net.UseAdaptiveNetUpdateFrequency` to `1` will activate it.
+[/REGION]
+
 With Adaptive Network Update Frequency, we can save CPU cycles that would normally be wasted in redundant attempts to replicate an actor when nothing is really changing. When this feature is enabled, the system will dynamically adapt the update frequencies of individual Actors based on whether or not their updates are meaningful. In this context, a "meaningful" update is any update which initializes the Actor, adds or removes a subobject (i.e. an owned Component), or changes the value of a replicated field on the Actor or any of its subobjects. Each Actor’s possible range of update rates is determined by two variables on the Actor itself: `NetUpdateFrequency` and `MinNetUpdateFrequency`. `NetUpdateFrequency` indicates the maximum number of times per second that the Actor will attempt to update itself, while `MinNetUpdateFrequency` indicates the minimum number of update attempts per second. Using this feature can result in massive replication performance improvement.
 
 #### (Advanced) Update Frequency Decrease Algorithm
@@ -62,3 +68,5 @@ During update attempts, Actors determine how long it has been since the most rec
 #### (Advanced) Update Frequency Increase Algorithm
 
 After sending a meaningful update, an Actor will schedule its next update to happen in 30-percent less time than the time between the last two meaningful updates, clamped between the minimum and maximum update frequencies. For example, if an Actor went exactly one second between meaningful updates, it would schedule its next update attempt for 0.7 seconds in the future (or a time near the specified minimum and maximum update frequencies). With each successive meaningful update, this calculation will be repeated, quickly reducing the time between updates if an Actor starts to have frequent data or subobject changes.
+
+[DIR(output:"topic" parent:"Gameplay/Networking/Actors/Properties" org:"hierarchy" end:"1")]

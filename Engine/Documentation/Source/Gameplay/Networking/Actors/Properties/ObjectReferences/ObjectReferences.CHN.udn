@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2713422
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:复制对象引用
 Crumbs:%ROOT%, Gameplay, Gameplay/Networking, Gameplay/Networking/Actors, Gameplay/Networking/Actors/Properties
@@ -29,6 +29,7 @@ version: 4.9
 * 任何未复制的组件都必须有可靠命名。
 * 其他所有 UObject（非 actor 或组件）必须由加载的数据包直接提供
 
+(#StablyNamedObjects)
 ### 拥有可靠命名的对象
 
 拥有可靠命名的对象指的是存在于服务器和客户端上的同名对象。 

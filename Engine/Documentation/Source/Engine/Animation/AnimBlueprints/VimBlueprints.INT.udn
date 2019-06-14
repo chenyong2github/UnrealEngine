@@ -1,6 +1,5 @@
 Availability:Public
 Title: Animation Blueprints
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Animation Blueprints are visual scripts that are used for the creation and control of complex animation behaviors.
 Related: Engine/Blueprints/Overview
 Related: Engine/Content/FBX/Animations
@@ -15,7 +14,7 @@ tags:Animation
 tags:Animation Blueprint
 tags:Blueprints
 tags:State Machine
-tags:Assets
+tags:Animation Assets
 topic-image:Engine/Animation/Overview/AnimationBlueprintTopic.png
 
 [COMMENT:none]

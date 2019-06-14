@@ -26,6 +26,7 @@ How you choose to distribute UGS is up to you, but there are a couple of things 
 
 We use the following tools to deploy Unreal projects internally:
 
+[REGION:simpletable]
 | **Tool** | **Description** |
 | --- | --- |
 | **UnrealGameSync (UGS)** | Main tool to sync and build from **Perforce**. |
@@ -33,6 +34,7 @@ We use the following tools to deploy Unreal projects internally:
 | **UnrealGameSyncMetadataServer** | [INCLUDE:#excerpt_0] |
 | **Installer** | [INCLUDE:#excerpt_1] |
 | **PostBadgeStatus** | Small utility to poke CIS results into the database that UGS reads from. |
+[/REGION]
 
 [COMMENT:none]
 [EXCERPT:excerpt_1]
@@ -109,7 +111,7 @@ This functionality does not require use of a database, but reads the matching co
 The same restrictions are enforced with zipped editor binaries as with local builds, in that UGS won't allow you to sync any changelist (even a content changelist) after a code change unless there are matching binaries for it. It will allow you to sync content-only changes using previously submitted binaries as long as no `*.cpp`, `*.h`, `*.cs`, `*.usf`, `*.ush` files are modified.
 [/REGION]
 
-We've provided an example [BuildGraph](Programming/Development/BuildGraph) script that you're free to use, demonstrating how to create and submit editor binaries in the correct format from a build machine. You can find our sample script at the following location:  
+We've provided an example [BuildGraph](Programming/BuildTools/AutomationTool/BuildGraph) script that you're free to use, demonstrating how to create and submit editor binaries in the correct format from a build machine. You can find our sample script at the following location:  
 
 `Engine/Build/Graph/Examples/BuildEditorAndTools.xml`
 
@@ -147,7 +149,8 @@ You can customize the way that a project is presented to users with a project-sp
 			+DescriptionBadges=(Pattern="(?i)#\\s*jira\\s*:?\\s+([A-Za-z]+-[0-9]+)", Name="$1", Group="Jira", Color="#c0c0c0", HoverColor="#e0e0e0", Url="https://jira.it.yourcompany.net/browse/$1")
 	
 	The following attributes were used in this example:
-    
+
+    [REGION:simpletable]
     | Attribute | Description |
     | --- | --- |
     | **Pattern** | Specifies a regex to match, it may capture portions of the matched text, which can be substituted later. |
@@ -156,6 +159,7 @@ You can customize the way that a project is presented to users with a project-sp
     | **Color** | Specifies hexadecimal RGB values for badges. |
     | **HoverColor** | 	Specifies hexadecimal RGB values for badges on hover. |
     | **Url** | Specifies the path to open with a C# Process.Open call when the badge is clicked. |
+	[/REGION]
     
 *   Add a "Message of the day" along with a status panel color corresponding to a particular branch:
     
@@ -173,8 +177,7 @@ You can customize the way that a project is presented to users with a project-sp
     
     Finally, icons are supported using `:icon:` syntax; however, `:alert:` is the only icon that is currently available.
 
-*   Customize the CIS display column:
-    
+*   Customize the CIS display column:    
 
 		[Default]
 		ColumnWidth_CIS=580

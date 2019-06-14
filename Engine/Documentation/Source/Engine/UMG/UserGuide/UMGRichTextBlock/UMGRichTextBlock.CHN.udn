@@ -1,0 +1,175 @@
+﻿INTSourceChangelist:4899106
+Availability: Public
+Crumbs: 
+Title:UMG富文本块
+Description:UMG RichTextBlock提供一种更灵活的文本块，支持样式更改、内联图像、超链接等标记。UMG RichTextBlock接受装饰器类，您可以编写装饰器类来定义项目所需的标记行为。
+Type: 
+Version: 4.21
+Parent: Engine/UMG/UserGuide
+Order: 
+Tags: UMG UI Designer
+Tags: UMG
+Tags: Rich Text Block
+
+
+虽然虚幻示意图形（UMG）中提供的文本块提供了各种样式选项和自定义，但您可能需要一种更灵活的文本块选项来支持样式更改、内联图像和超链接等标记。
+
+**RichTextBlock** 使用数据表资源来管理添加的样式和自定义。通过数据表资源，您可以创建自己的样式，或编写自己的装饰器类来定义项目所需的标记行为。我们附上了一个示例装饰器类 **RichTextBlockImageDecorator**，您可以用作编写自己的装饰器类的起点。按照以下步骤，进一步了解UMG中的RichTextBlock，以及如何编写自己的装饰器类。
+
+(#creatingandassigningadatatableasset)
+## 创建和分配数据表资源
+
+在能够对富文本块控件应用样式之前，您需要创建一个 **数据表** 资源。通过该数据表资源，您可以创建不同类型的数据标记以与UMG中的富文本块一起使用。数据表资源可以指定文本样式，或者可以指定您可以内联方式与富文本一起使用的图像。  
+
+[REGION:lightbox]
+[![](CreateDataTableAsset_DTAEditor.png)(w:500)](CreateDataTableAsset_DTAEditor.png) 
+
+*单击此处查看大图。*
+[/REGION]
+
+数据表资源可以像任何其他资源一样创建，在内容浏览器中单击 **新增（Add New）** 即可。然后选择 **其他（Miscellaneous）>数据表（Data Table）**。  
+![](AddNewDataTableAsset.png)(w:350)
+
+当显示 **选取结构（Pick Structure）** 框时，您可以选择 **富图像行（Rich Image Row）** 或 **富文本样式行（Rich Text Style Row）**。  
+![](CreateDataTableAsset_PickStructure.png)
+
+[REGION:note]
+“富图像行（Rich Image Row）”使用自定义装饰器类，您可以在“装饰器类（Decorator Classes）”部分中查找更多相关详细信息。
+[/REGION]
+
+(#richimagerowdatatype)
+### 富图像行数据类型
+
+富图像行数据类型是作为示例提供的自定义装饰器类，用于存储使用不同自定义选项的图像，这些图像可以与内联文字一起在UMG中的RichTextBlock中使用。以下步骤显示了如何使用富图像行数据类型的示例。  
+
+[REGION:lightbox]
+[![CreateDataTableAsset_DTAEditor.png](InlineImages_RichImageRowDT.png)(w:450)](InlineImages_RichImageRowDT.png) 
+
+*单击此处查看大图。*
+[/REGION]
+
+1.  创建数据表资源，当显示 **选取结构（Pick Structure）** 框时，选择 **富图像行（Rich Image Row）**。
+2.  在数据表资源中为所有想要在富文本块中使用的内联图像创建行，并在 **外观（Appearance）** 下面设置在想要用于图像的属性。
+3.  当您完成添加行时，单击 **保存（Save）**，然后关闭数据表资源。
+
+[REGION:note]
+请参阅[UMG富文本块属性](Engine/UMG/UserGuide/UMGRichTextBlock)以了解关于这些设置的更多信息。
+[/REGION]
+
+(#richtextstylerowdatatype)
+### 富文本样式行数据类型
+
+富文本样式行数据类型是默认的装饰器类，使您可以为字体设置各种样式和自定义，以便在UMG中的RichTextBlock中用于各种文字。
+
+[REGION:lightbox]
+[![](CreateDataTableAsset_DTAEditor.png)](CreateDataTableAsset_DTAEditor.png) 
+
+*富文本样式行。单击查看大图。*
+[/REGION]
+
+在数据表资源中为您想要在RichTextBlock中使用的所有样式创建行，并在 **外观（Appearance）** 下面设置想要用于每种字体的不同属性。
+
+[REGION:note]
+请参阅[UMG富文本块属性](Engine/UMG/UserGuide/UMGRichTextBlock)以了解关于这些设置的更多信息。
+[/REGION]
+
+(#addstyleorimagerowsinthedatatableasset)
+### 在数据表资源中添加样式或图像行
+
+执行以下步骤以向数据表资源添加样式或图像行。
+
+1.  在您创建 **数据表** 资源后，双击以在 **数据表编辑器** 中打开。
+2.  在 **行编辑器（Row Editor）** 面板中，单击 **加号**（**+**）图标以添加行。
+3.  对于富文本样式数据表资源中的第一行，在 **行名称（Row Name）** 字段中输入 **默认（Default）**。这将为项目中的文本设置详细的默认样式，前提是没有应用其他样式。在富文本数据表资源和富图像数据表资源中，每个行的行名称将是您对富文本控件应用行样式或图像时在括号中使用的标记。
+
+[REGION:note]
+除了将第一行命名为“Default”，其他行可以自由命名。您不必非要使用前缀、特定大小写或任何其他约定。
+[/REGION]
+[REGION:lightbox]
+[![](CreateDataTableAsset_AddStyleRows.png)(w:500)](CreateDataTableAsset_AddStyleRows.png)
+
+*单击查看大图。*
+[/REGION]
+
+(#removestyleorimagerowsinthedatatableasset)
+### 从数据表资源中移除样式或图像行
+
+如果您想要删除数据表资源中的行，首先选择想要删除的行。然后单击 **行编辑器（Row Editor）** 面板中的 **加号**（**+**）图标旁边的 **X** 图标。  
+
+[REGION:lightbox]
+[![CreateDataTableAsset_AddStyleRows.png](CreateDataTableAsset_DeleteStyleRows.png)(w:600)](CreateDataTableAsset_DeleteStyleRows.png)
+[/REGION]*单击查看大图。*
+
+(#usingrichtextblockwidgetsinumguidesigner)
+## 在UMG UI设计器中使用富文本块控件
+
+您创建了包含富文本块行或富图像行的数据表资源后，可以使用[UMG UI设计器](Engine/UMG)向设计器视口添加富文本块控件。
+
+(#addarichtextblockwidget)
+### 添加富文本块控件
+
+在左侧的 **控制板（Palette）** 面板中，向下滚动，直到您看到 **富文本块（Rich Text Block）**。将富文本块拖到 **图表（Graph）** 上方。如果您使用更大的文本大小，则可以缩放或调解富文本块的大小。
+
+![](AddRichTextBlock_DragRichTextBoxToGraph.png)
+[REGION:note]
+文本框不会自动缩放以适应文本大小。如果您不调节框的大小以适应文本大小，某些文本可能会被剪裁掉，不能正确显示。
+[/REGION]
+
+(#assignadatatableassettoarichtextblock)
+### 向富文本块分配数据表资源
+
+您将富文本块控件添加到图表后，将其选中，使用右侧的“细节（Details）”面板以在 **外观（Appearance）** 部分中应用 **富文本样式行（Rich Text Style Row）** 或 **富图像行（Rich Image Row）** 数据类型。  
+![](UMGRTB-AssignDataTable-01.png)(w:400)
+
+使用 **文本样式集（Text Style Set）** 以应用富文本样式行。您在数据表资源中创建的任何样式都可以使用您为其指定的 **行名称（Row Name）** 引用。
+
+使用 **装饰器类（Decorator Classes）** 应用您为项目创建的任何自定义装饰器类。在该示例中，我们使用已经提供的富图像行装饰器类以便创建带有富文本的内联图像。
+
+(#applystyletotext)
+### 向文本应用样式
+
+您将数据表资源分配给富文本块控件后，需要对文本应用样式。根据以下步骤应用样式。
+
+1.  在 **细节（Details）** 面板上找到 **内容（Content）** 部分。  
+    ![](ApplyStyleToText_01.png)
+2.  在富文本块的 **文本（Text）** 字段中输入文本。
+3.  您会看到，文字的显示样式使您在数据表资源中为 **默认（Default）** 行选择的样式。例如，如果我们输入“这是一些富文本！”，则仅使用数据表资源引用的默认 **外观（Appearance）** 值来显示。
+4.  要对文本应用不同的样式，使用格式 **<StyleName>Text</>** 在成对括号中输入样式行的名称。  
+    例如：`This is some <RichText.Emphasis>rich</> text!`  
+    ![](AddStyleToRTB_1.png)
+    [REGION:tip]
+    在富文本块中引用数据表资源行名称时，行名称不区分大小写。
+    [/REGION]
+
+(#decoratorclasses)
+## 装饰器类
+
+如果您想要在富文本块中包含除了样式文本之外的其他内容，可以创建装饰器类。当您创建装饰器类时，可以设置自己的标记，允许您使用[Slate](Programming/Slate)在文本中无缝渲染其他元素。 
+
+(#usingdecorators)
+### 使用装饰器
+
+为帮助您开始使用自己的装饰器类，我们提供了一个**RichTextBlockImageDecorator**内置示例，让您可以在使用富文本块时向文本添加内联图像。
+
+要创建引用自己的装饰器类的数据表资源，请参考上述[创建和分配数据表资源](Engine/UMG/UserGuide/UMGRichTextBlock#creatingandassigningadatatableasset)部分。
+
+要创建自己的装饰器类，需要扩展示例RichTextBlockImageDecorator类，然后将子类指向数据表资源。一种方法是执行以下步骤。
+
+1.  创建新的蓝图类，选择RichTextBlockImageDecorator作为父类。
+2.  打开新蓝图，并将数据表分配给 **图像集（Image Set）** 属性。
+    [REGION:note]
+    RichTextBlockImageDecorator类不会出现在父类列表中。相反，您可以将其扩展为C++类。然后，在C++文件中分配数据表资源，或在标题顶部向UCLASS宏添加 **可设蓝图（Blueprintable）**，然后将子类扩展为蓝图。
+    [/REGION]
+3.  装饰器类设置妥当后，将其添加到UMG中的富文本块装饰器类数组。然后，使用标记 **<img id="*ImageNameFromTable*"/>**（其中“*ImageNameFromTable*”是您分配的行名称）从数据表插入图像，重新编译控件后，图像就会立即显示出来。  
+    ![](UsingDecorators_InlineImage.png)
+
+(#addingnewdecorators)
+### 添加新装饰器
+
+虽然，虚幻引擎提供`RichTextBlockImageDecorator`作为示例装饰器类，您可以定义自己的自定义装饰器类，利用Slate来添加您想要以内联方式与文本一起使用的任何内容。为此，您需要编写两个类：`URichTextBlockDecorator`和`FRichTextDecorator`。设置这些类后，就能够使用`DecoratorClasses`数组向任何RichTextBlock添加装饰器，并使用标记通过装饰器来解析文本。
+
+`URichTextBlockDecorator`定义`UObject`来实现`CreateDecorator`，它应将`SharedPtr`返回给您将创建以完成主要任务的`FRichTextDecorator`实例。您还可以在这里实现任何属性和效用函数，这样将使设计师将您的装饰器设为蓝图子类。然后，他们可以传递所需的任何数据。请记住，`RichTextBlockImageDecorator`定义数据表属性，以便我们传递图像表。您想要在蓝图中修改的任何东西都应该存在于`UObject`上。
+
+[REGION:note]
+请参阅[UMG富文本块属性](Engine/UMG/UserGuide/UMGRichTextBlockProperties)页面以获取所有富文本块和数据表资源属性的完整列表。
+[/REGION]

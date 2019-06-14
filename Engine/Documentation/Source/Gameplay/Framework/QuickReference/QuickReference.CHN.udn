@@ -1,94 +1,77 @@
-﻿INTSourceChangelist:2100967
+﻿INTSourceChangelist:3429254
 Availability:Public
-Title:游戏架构快速指南
+Title:Gameplay框架快速参考
 Crumbs:%ROOT%, Gameplay, Gameplay/Framework
-Description:关于构成游戏架构的游戏规则、角色、控制器、用户界面等类的概述。
+Description:简要概述构成游戏框架的游戏规则、角色、控制器、用户界面等的类。
 Version: 4.9
 type:overview
 parent:Gameplay/Framework
 order:0
 tags:Gameplay Framework
 
-基本游戏类包括表示玩家、盟友、敌人的功能以及使用玩家输入或AI逻辑控制这些角色的功能。还有一些类用于为玩家创建 
-抬头显示信息及相机。最后，像GameMode、GameState及PlayerState这样的类用于设置游戏规则，并且跟踪游戏及玩家的进展情况。
+基本的Gameplay类包括用于表示玩家、盟友和敌人的功能，以及通过玩家输入或AI逻辑控制这些化身的功能。还包括为玩家创建 
+抬头显示和摄像机的类。总之，Gameplay类（如**游戏模式**、**游戏状态** 和 **玩家状态**）可用于设置游戏规则，并追踪游戏和玩家的进展情况。 
 
-这些类都会创建某种类型的Actor，这些Actor可以放置到关卡中或者根据需要来生成。
+这些类创建所有类型的Actor，它们可以放置在关卡中，也可以在在需要时生成。
 
 
 
-[OBJECT:IconSection]
-	[PARAM:icon]
-		![](Gameplay/Framework/pawn_lander.png)(w:300)
-	[/PARAM]
-	[PARAM:title]
-		代表世界中的玩家、好友及敌人
-	[/PARAM]
-	[PARAM:description]
-		$ Pawn : [](Gameplay/Framework/Pawn)是可以作为世界中的一个 “代理”的Actor。Pawn可以由控制器处理，它们可以轻松地接受输入，并且可以执行各种各样的类似于玩家的动作。
-注意，没有假定Pawn是类人的。
+(#representingplayers,friends,andfoesintheworld)
 
-$ Character（角色） : [](Gameplay/Framework/Pawn/Character)是类人的Pawn。它本身默认具有一个用于碰撞的CapsuleComponent（胶囊体组件）和CharacterMovementComponent （角色运动组件）。它可以进行基本的拟人运动，它可以平滑地在网络上复制运动，并且它具有一些动画相关的功能。
+## 在世界场景中表示玩家、好友和敌人
 
-	[/PARAM]
-[/OBJECT]
+![](Gameplay/Framework/pawn_lander.png)(w:300)
 
-[OBJECT:IconSection]
-	[PARAM:icon]
-		![](Gameplay/Framework/controller_lander.png)(w:300)
-	[/PARAM]
-	[PARAM:title]
-		使用玩家输入或AI逻辑控制Pawn
-	[/PARAM]
-	[PARAM:description]
+|||
+| --- | --- |
+| **Pawn** | [](Gameplay/Framework/Pawn)是可作为世界场景中“代理”的Actor。Pawn可被控制器所有，且可将其设置为易于接受输入，用于执行各种各样类似于玩家的任务。请注意，Pawn不被认定为具有人的特性。|
+| **角色（Character）** | [](Gameplay/Framework/Pawn/Character)是类人式的Pawn。默认情况下，它带有一个用于碰撞的胶囊组件和一个角色移动组件。它可以执行类似人类的基本动作，可以流畅地复制网络上的动作，还具有一些与动画相关的功能。|
+
+(#controllingpawnswithplayerinputorailogic)
+
+## 使用玩家输入或AI逻辑控制Pawn
+
+![](Gameplay/Framework/controller_lander.png)(w:300)
 	
-$ Controller(控制器) : [](Gameplay/Framework/Controller)是负责管理Pawn的Actor。一般有两种控制器：AIController 和PlayerController。控制器可以“具有”一个Pawn并控制他。
+|||
+| --- | --- |
+| **控制器（Controller）** | [](Gameplay/Framework/Controller)是负责定向Pawn的Actor。它们通常有两种风格：AI控制器和玩家控制器。一个控制器可以“拥有”一个Pawn来控制它。|
+| **玩家控制器** | [](Gameplay/Framework/Controller/PlayerController)是Pawn和控制Pawn的人类玩家之间的界面。玩家控制器基本上代表人类玩家的意愿。|
+| **AI控制器** | AI控制器和听起来一样；可以控制Pawn的模拟“意愿”。|
 
-$ PlayerController（玩家控制器） : PlayerController（玩家控制器）是Pawn和控制它的人类玩家间的接口。PlayerController本质上代表了人类玩家的意愿。
+(#displayinginformationtoplayers)
 
-$ AIController （人工智能控制器）: AIController正如其名，是控制Pawn的一个仿真“意愿”。
+## 向玩家显示信息
 
-	[/PARAM]
-[/OBJECT]
+![](Gameplay/Framework/camera_lander.png)(w:300)
+	
+|||
+| --- | --- |
+| **HUD** | [HUD](Gameplay/Framework/UIAndHUD)是指“抬头显视”或二维屏幕显示，在许多游戏中较为常用。例如显示血条、弹药指示器、枪准星等。每个玩家控制器通常都配有其中一种显示。|
+| **摄像机（Camera）** | 玩家摄像机管理器是玩家的“眼球”，负责管理它的行为。通常情况下，每个玩家控制器也有一个此类型的摄像机。请参见[摄像机工作流程](Gameplay/Framework/Camera)页面，了解更多信息。|
 
-[OBJECT:IconSection]
-	[PARAM:icon]
-		![](Gameplay/Framework/camera_lander.png)(w:300)
-	[/PARAM]
-	[PARAM:title]
-		向玩家显示信息
-	[/PARAM]
-	[PARAM:description]
-$ HUD : [HUD](Gameplay/Framework/UIAndHUD)是一种“平头显示信息”，或者说是二维的屏幕显示信息，在很多游戏中都很常见。想一下生命值、弹药量、枪支十字准线等。每个PlayerController一般都具有一些这样的信息。
-$ Camera（相机） : PlayerCameraManager是玩家的眼睛，管理玩家如何表现。每个PlayerController一般也具有一个这样的类。关于更多信息，请参照[相机工作流程](Gameplay/Framework/Camera)页面。
-	[/PARAM]
-[/OBJECT]
+(#settingandtrackingtherulesofthegame)
 
-[OBJECT:IconSection]
-	[PARAM:icon]
-		![](Gameplay/Framework/hud_lander.png)(w:300)
-	[/PARAM]
-	[PARAM:title]
-		设置及跟踪游戏规则
-	[/PARAM]
-	[PARAM:description]
+## 设置并追踪游戏的规则
 
-$ GameMode（游戏模式） : 游戏这个概念划分为两个类。[](Gameplay/Framework/GameMode)是游戏的定义，包括像游戏规则及获胜条件这样的内容。它仅存在于服务器上。它一般在游戏过程中不会有太多数据改变，并且它一定不应该具有客户端需要的临时数据。
+![](Gameplay/Framework/hud_lander.png)(w:300)
 
-$ GameState（游戏状态） : [GameState](Gameplay/Framework/GameMode#GameState) 包含了游戏状态，这包括像关联玩家的列表、分数、象棋游戏中的象棋位置或者在开放世界游戏中已经完成的任务列表。GameState存在于服务器和所有客户端上，可以自由地进行复制来保持同步。
+|||
+| --- | --- |
+| **游戏模式** | “游戏”的概念分为两类。[](Gameplay/Framework/GameMode)是游戏的定义，包括游戏规则和获胜条件等内容。它仅存在于服务器上。它通常不应有太多在游戏过程中会发生变化的数据，也绝对不应有客户端需要了解的临时数据。|
+| **游戏状态** | [GameState](Gameplay/Framework/GameMode#GameState)包含游戏的状态，其中可以包括联网玩家列表、得分、棋类游戏中棋子的位置，或者在开放世界场景中完成的任务列表。游戏状态存在于服务器和所有客户端上，可以自由复制以保持所有机器处于最新状态。|
+| **玩家状态** | **玩家状态** 是游戏玩家的状态，例如人类玩家或模拟玩家的机器人。作为游戏的一部分而存在的非玩家AI将不会拥有玩家状态。在玩家状态中适当的示例数据包括玩家姓名或得分、比赛中MOBA等的等级，或玩家当前是否在CTF游戏中携带旗帜。所有玩家的玩家状态存在于所有机器上（与玩家控制器不同），并且可以自由复制以保持同步。|
 
-$ PlayerState（玩家状态） : PlayerState是游戏中的一个参与者的状态，比如人类玩家或者模拟人类玩家的机器人。作为游戏一部分存在的非人类玩家AI没有PlayerState。PlayerState中适合包含的示例数据有：玩家姓名、分数、像多人在线竞技场这样的比赛中的级别、或在夺旗模式游戏中玩家当前是否正占领旗帜。所有玩家的PlayerStates在所有机器上都存在(和PlayerControllers不同)，并且可以自由地进行复制来保持同步。
+(#frameworkclassrelationships)
 
-	[/PARAM]
-[/OBJECT]
+## 框架类关系
 
-## 架构中类的关系
-
-这个流程图解释了这些核心游戏类之间的关系。一个游戏由GameMode和GameState构成。加入游戏的人类玩家同PlayerController相关联。
-这些PlayerController允许玩家在游戏中占有pawn，以便它们在游戏中有物理表示。PlayerController也为玩家提供了输入控制、平头显示信息或HUD、
-及处理相机视图的PlayerCameraManager。
+此流程图说明了这些Gameplay类是如何相互关联的。游戏由游戏模式和游戏状态组成。加入游戏的人类玩家与玩家控制器相关联。
+这些玩家控制器允许玩家在游戏中拥有Pawn，这样他们就可以在关卡中拥有物理代表。玩家控制器还向玩家提供输入控制、抬头显示（HUD），
+以及用于处理摄像机视图的玩家摄像机管理器。
 
 [REGION:raw]
 ![](GameFramework.png)(w:550)
 [/REGION]
 
-关于游戏架构类的更多信息，请参照[](Gameplay/Framework)。
+有关Gameplay框架类的更多信息，请参阅[](Gameplay/Framework)。

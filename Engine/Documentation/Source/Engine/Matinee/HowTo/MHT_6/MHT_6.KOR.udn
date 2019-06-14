@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:머티리얼 애니메이션
 Crumbs: %ROOT%, Engine, Engine/Matinee, Engine/Matinee/HowTo
@@ -153,13 +153,13 @@ SkillLevel: Intermediate
 
 	_이 이벤트는 **액터** (이 경우 우리 플레이어)가 트리거 박스에 겹치면 실행됩니다._
 
-1.	기존 단계를 반복하되, 이번에는 **Add OnActorEndOverlap** 을 선택합니다. 
+1.	기존 단계를 반복하지만, 이번에는 **Add OnActorEndOverlap** 을 선택합니다. 
 
 1.	**MatineeActor** 노드의 출력 핀을 클릭한 뒤 끌어 놓은 다음, 컨텍스트 메뉴에서 **Play** 를 검색 추가합니다.
 
 	![](MHT6_PlayMatinee.png)
 
-1.	기존 단계를 반복하되, 이번에는 **Reverse** 를 검색 추가합니다.
+1.	기존 단계를 반복하지만, 이번에는 **Reverse** 를 검색 추가합니다.
 
 	![](MHT6_PlayAndReverse.png)
 
@@ -169,7 +169,7 @@ SkillLevel: Intermediate
 
 	![](MHT6_HookUpPlay.png)
 
-1.	기존 단계를 반복하되, **OnActorEndOverlap** 노드를 끌어 **Reverse** 노드에 연결합니다.
+1.	기존 단계를 반복하지만, **OnActorEndOverlap** 노드를 끌어 **Reverse** 노드에 연결합니다.
 
 	![](MHT6_BlueprintComplete.png)
 

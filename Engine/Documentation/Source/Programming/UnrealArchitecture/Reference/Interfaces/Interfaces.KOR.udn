@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3688188
+INTSourceChangelist:3688188
 Availability:Public
 Title: 인터페이스
 Crumbs:%ROOT%
-Description:인터페이스 생성 및 구현 관련 참고서입니다.
+Description:인터페이스 생성 및 구현 관련 레퍼런스입니다.
 Tags: Programming
 Version: 4.14
 Parent:Programming/UnrealArchitecture/Reference
@@ -25,7 +25,7 @@ Type:overview
 		GENERATED_BODY()
 	};
 
-둘째, UINTERFACE 클래스는 실제 인터페이스가 아닙니다. 언리얼 엔진의 리플렉션 시스템에 보이도록 하기 위해서만 존재하는 공백 클래스입니다. 다른 클래스에서 상속하게 되는 실제 인터페이스는 같은 클래스 이름에 첫 글자만 "U" 에서 "I" 로 바뀝니다.
+둘째, UINTERFACE 클래스는 실제 인터페이스가 아닙니다. 언리얼 엔진의 리플렉션 시스템에 보이도록 하기 위해서만 존재하는 비어 있는 클래스입니다. 다른 클래스에서 상속하게 되는 실제 인터페이스는 같은 클래스 이름에 첫 글자만 "U" 에서 "I" 로 바뀝니다.
 
 .h 파일에서 (예: `ReactToTriggerInterface.h`):
 
@@ -49,7 +49,7 @@ Type:overview
         bool ReactToTrigger() const;
     };
 
-함수를 .h 파일에 직접 작성할 수 있는데, 기본적으로 아무 것도 하지 않는 함수이거나 false, 0, 공백 스트링 반환처럼 사소한 동작을 하는 함수의 경우 종종 그렇게 합니다. 보다 복잡한 함수는 .cpp 파일에 작성하여 컴파일 시간을 줄일 수 있습니다. 순수 가상 (pure virtual) 함수가 지원됩니다. 여기 샘플 함수는 .h 파일에 작성해도 될만큼 간단하긴 하지만, .cpp 파일에 작성하도록 하겠습니다. (`ReactToTriggerInterface.cpp` 와 같은) cpp 파일에 이제 다음과 같은 부분이 있을 것입니다:
+함수를 .h 파일에 직접 작성할 수 있는데, 기본적으로 아무 것도 하지 않는 함수이거나 false, 0, 비어 있는 스트링 반환처럼 사소한 동작을 하는 함수의 경우 종종 그렇게 합니다. 보다 복잡한 함수는 .cpp 파일에 작성하여 컴파일 시간을 줄일 수 있습니다. 순수 가상 (pure virtual) 함수가 지원됩니다. 여기 샘플 함수는 .h 파일에 작성해도 될만큼 간단하긴 하지만, .cpp 파일에 작성하도록 하겠습니다. (`ReactToTriggerInterface.cpp` 와 같은) cpp 파일에 이제 다음과 같은 부분이 있을 것입니다:
 
     #include "ReactToTriggerInterface.h"
 	

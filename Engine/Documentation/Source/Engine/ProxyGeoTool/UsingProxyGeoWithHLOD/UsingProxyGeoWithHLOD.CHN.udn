@@ -1,0 +1,57 @@
+﻿INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title: 结合HLOD使用代理几何体工具
+Description: 包括虚幻引擎4适用参考和指南在内的产品文档
+Type: how-to
+SkillLevel:Advanced
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: ProxyGeometry
+Tags: Optmization
+
+
+在下面的教程中，我们将了解如何结合[层级细节层级](Engine/HLOD)(HLOD)系统使用代理几何体工具。将这两个工具结合在一起使用，将通过减少绘制调用次数和每帧绘制到屏幕的三角形数量，帮助提高虚幻引擎4 (UE4)项目的渲染性能。
+
+## 步骤
+
+1. 首先，转到项目的[世界设置](Engine/Levels/WorldSettings)，并展开 **LOD系统（LODSystem）** 菜单选项。  
+
+    ![](Proxy_Geo_HT_WHLOD_01.png)
+
+1.  在LOD系统（LODSystem）菜单中，启用以下两个选项：   
+    ![](Proxy_Geo_HT_WHLOD_02.png)
+    
+    | **属性名称** | **说明** |
+	|---|---|
+    | **启用层级LOD系统（Enable Hierarchical LOD System）** | 启用与该层级一起使用的HLOD。|
+    | **简化网格体（Simplify Mesh）** | 启用代理几何体静态网格体（Proxy Geometry Static Mesh）简化。|
+    
+1.  通过转到 **窗口（Window）> 层级LOD大纲视图（Hierarchical LOD Outliner）**，打开 **层级LOD大纲视图（Hierarchical LOD Outliner）** 工具。
+
+    ![](Proxy_Geo_HT_WHLOD_03.png "Proxy_Geo_HT_WHLOD_03.png")
+
+1.  按 **层级LOD大纲视图（Hierarchical LOD Outliner）** 上的 **生成群集（Generate Clusters）** 按钮，完成后，按 **生成代理网格体（Generate Proxy Meshes）** 按钮，以启动HLOD和代理几何体创建过程。  
+
+    ![](Proxy_Geo_HT_WHLOD_04.png "Proxy_Geo_HT_WHLOD_04.png")
+
+## 最终结果
+
+当层级LOD工具完成处理后，您可以看到删除的三角形数量，并通过前后移动滑块将结果与原始情况进行比较。  
+
+![](Proxy_Geo_HT_WHLOD_05.png "Proxy_Geo_HT_WHLOD_05.png")
+
+下面的图像比较滑块显示了一个示例，该示例说明当您启用了 **简化网格体（Simplify Mesh）** 且仅使用默认设置时可获得的结果类型。  
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Before Running HLOD & Proxy Geo](Proxy_Geo_HT_WHLOD_Before.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After Running HLOD & Proxy Geo](Proxy_Geo_HT_WHLOD_After.png) 
+ [/PARAM]
+[/OBJECT]
+
+[](#)[](#)

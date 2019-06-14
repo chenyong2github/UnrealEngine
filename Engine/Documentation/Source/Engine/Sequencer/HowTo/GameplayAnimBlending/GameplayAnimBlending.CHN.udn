@@ -1,23 +1,21 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6133068
 Availability: Public
-Title:混合游戏玩法与Sequencer动画
-Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
-Description:介绍如何将游戏玩法的动画平滑地混合进关卡序列动画中。 
+Title: 混合Gameplay和Sequencer动画
+Description: 说明如何将游戏进程中的动画平滑地混合到基于关卡序列的动画中。
+Type: how-to
 Version: 4.17
+Parent: Engine/Sequencer/HowTo
+Tags: Sequencer
+Tags: Animation
 SkillLevel: Advanced
-parent:Engine/Sequencer/HowTo
-order:1
-checkpoint: editorqs
-tags:Sequencer
-tags:Animation
-type:how-to
+Related: Engine/Sequencer/Overview
 
-创建过场动画序列时，可能需要将现有的游戏动画与关卡序列中包含的动画混合起来。 
-例如，一个可操作角色在游戏中走向一扇门，你希望Sequencer制作角色动画让这个角色打开门。 
-或者，一个第三人称射击游戏中的玩家正在控制其角色，但是走到了死角，你想要混入死亡过场动画序列。 
-通过结合使用Sequencer、蓝图和动画蓝图，可以将角色的任意游戏动作与Sequencer定义的 **插槽** 动画混合起来。 
+[TOC (start:2 end:2)]
 
-在本示例中，我们将角色进入触发器体积时的任意游戏动作与Sequencer中的死亡动画混合起来。
+在创建过场动画序列时，您可能希望将现有的游戏进程动画与包含在关卡序列中的动画混合在一起。例如，一个可操作的角色在游戏过程中走到一扇门前，您想要Sequencer显示该角色的动画并打开这扇门。或者玩家在第三人称射击游戏中控制他们的角色绕过一个死角，而您想要混入一个死亡的过场动画序列。通过使用Sequencer、蓝图和动画蓝图的组合，您可以将您的角色所处的任何游戏姿势与Sequencer定义的 **插槽（Slot）** 动画混合在一起。
+
+在本例中，我们获取角色在进入触发体积时所处的任何游戏姿势，并将其与Sequencer中的死亡动画混合在一起。
+
 
 [OBJECT:EmbeddedVideo]
 	[PARAMLITERAL:videoid]
@@ -37,14 +35,175 @@ type:how-to
 	[/PARAMLITERAL]
 [/OBJECT]
 
-## 步骤
+## 1 - 序列设置
 
-[DIR(output:"checkpoint" parent:"/Engine/Sequencer/HowTo/GameplayAnimBlending" org:"hierarchy")]
+在这一步中，我们设置关卡序列，并添加我们想要混合的可操作角色和动画。
 
-[REGION:call_to_action]
-	[单击开始](Engine/Sequencer/HowTo/GameplayAnimBlending/01_SequenceSetup "%Engine/Sequencer/HowTo/GameplayAnimBlending/01_SequenceSetup:title%")
+[REGION:note]
+本教程指南中使用的是 **蓝图第三人称模板（Blueprint Third Person Template）** 和可从Epic市场免费获得的 **动画初学者包（Animation Starter Pack）**。
+
+![](AnimStarterPack.png)
 [/REGION]
 
+1.  在您的项目中，从关卡中删除 **第三人称角色（ThirdPersonCharacter）** 并添加 **Ue4ASP_Character**，将 **自动拥有玩家（Auto Possess Player）** 设置为 **玩家0（Player 0）**。
+    
+    ![](GameBlend_01.png)
+    
+    您可以选择禁止显示胶囊体组件，方法是选择该胶囊体组件，然后勾选 **游戏中隐藏（Hidden in Game）** 选项。
+    
+    ![](GameBlend_01b.png)
+    
+2.  在主工具栏中，单击 **过场动画（Cinematics）** 按钮，然后选择 **添加关卡序列（Add Level Sequence）** 并使用任意名称保存它。
+    
+    ![](GameBlend_02.png)
+    
+3.  在您的关卡序列中，添加 **Ue4ASP_Character** 和一个 **动画轨迹（Animation Track）**，并将 **Death_3** 指定为该动画。
+    
+    ![](GameBlend_03.png)
+    
+4.  右键单击关键帧窗口中的动画，然后在属性下，将 **完成时（When Finished）** 更改为 **保持状态（Keep State）**。
+    
+    ![](GameBlend_03b.png)
+    
+    这将使我们能够在关卡序列结束时保存动画状态。另外，请注意下面突出显示的 **插槽名称（Slot Name）** 属性。
+    
+    ![](GameBlend_03c.png)
+    
+    当动画蓝图控制一个骨架网格体时，Sequencer在该蓝图中的插槽上播放动画，并可通过 **插槽名称（Slot Name）** 属性进行控制。然后动画蓝图可以混合插槽动画和任何游戏逻辑驱动的动画（您的角色恰好在该动画中）。
+    
+
+在下一步中，我们设置动画蓝图和角色蓝图，以便我们可以将游戏进程动画混合到我们在这一步中创建的死亡动画中。
+
+## 2 - 动画和角色蓝图设置
+
+在这一步中，我们将设置动画蓝图，以便能够获取我们的游戏进程姿势，并混合到我们的关卡序列所定义的某个插槽动画中。
+
+1.  在 **内容浏览器（Content Browser）** 中，找到并打开 **UE4ASP\_HeroTPP\_AnimBlueprint**，然后双击 **我的蓝图（My Blueprint）** 窗口中的 **动画图表（AnimGraph）**。 
+    
+    ![](GameBlend_04.png)
+    
+2.  在现有 **Locomotion** 状态机的 **动画图表（AnimGraph）** 中，创建一个 **新保存的缓存姿势（New Save cached pose）** 并称其为 **lococache**。
+    
+    ![](GameBlend_05.png)
+    
+3.  使用 **lococache** 两次，并将其中一个连接到提供 **最终动画姿势（Final Animation Pose）** 的 **Blend** 节点的 **A** 引脚。
+    
+    ![](GameBlend_06.png)
+    
+4.  离开另一个 **lococache**，使用一个 **Slot** 节点并将其连接到该 **Blend** 节点的 **B** 引脚，然后右键单击 **Alpha** 和 **提升到变量（Promote to Variable）**，并称其为 **Blend Interp**。
+    
+    ![](GameBlend_07.png)
+    
+5.  在 **内容浏览器（Content Browser）** 中，打开 **Ue4ASP_Character** 蓝图并将 **蹲伏（Crouching）** 部分替换为以下图表。
+    
+    ![](GameBlend_08.png)
+    
+    上文中，我们将 **InputAction Crouch** 节点替换为 **C** 键盘事件和一个 **Flip Flop** 节点，以切换蹲伏状态。
+    
+    [REGION:note]
+    该蓝图最初是为另一个项目创建的，其中包含蹲伏的输入绑定，而我们的模板项目不包含该输入绑定。通过将InputAction Crouch替换为标准的C键盘事件，我们将消除蓝图警告消息，并使我们能够按下C键以在蹲伏和非蹲伏状态之间切换。
+    [/REGION]
+    
+6.  创建一个名为 **DefaultSlotInterp** 的新 **Float** 变量，并将 **可编辑实例（Instance Editable）** 和 **向过场动画公开（Expose to Cinematics）** 设置为 **True**。
+    
+    ![](GameBlend_09.png)
+    
+    我们将在Sequencer中使用该变量进行混合，并将值传递给用于处理实际混合的动画蓝图变量 **Blend Interp**。
+    
+7.  在 **细节（Details）** 面板中创建一个名为 **SetDefaultSlotInterp** 的新函数，并添加一个名为 **Interp**，类型为 **浮点（Float）** 的 **输入（Input）**。
+    
+    ![](GameBlend_10.png)
+    
+    通过创建一个名为 **Set (Property Value Name)** 的函数，我们创建了一个 **Proxy** 函数，当相关属性值发生更改时，Sequencer将调用该函数。该函数仅在属性值发生更改时才调用，并且比使用 **时钟事件（Even Tick）** 或某个 **自定义事件（Custom Event）** 和 **时间轴（Timeline）** 更能有效地反映 **DefaultSlotInterp** 属性值中的变化。
+    
+8.  从 **组件（Components）** 窗口中，拖入 **网格体（Mesh）** 并使用 **获取动画实例（Get Anim Instance）** 和 **转换为UE4ASP\_HeroTPP\_AnimBlueprint（Cast to UE4ASP\_HeroTPP\_AnimBlueprint）**。
+    
+    ![](GameBlend_11.png)
+    
+9.  离开 **As UE4ASP Hero TPP Anim Blueprint** 节点，使用 **Set Blend Interp** 节点并将 **Interp** 值传递到 **Blend Interp** 输入。
+    
+    ![](GameBlend_12.png)
+    
+    当我们的 **DefaultSlotInterp** 值通过Sequencer进行更改时，将调用 **SetDefaultSlotInterp** 代理函数，并将浮点值传递给动画蓝图的 **Blend Interp** 值，该值将影响姿势的混合。
+    
+
+在下一步中，我们将添加 **默认插槽插值（Default Slot Interp）** 属性到我们的关卡序列中，以便我们能够控制动画蓝图中的 **混合插值（Blend Interp）**。我们还将在关卡中添加一个触发框，这样我们就可以激活关卡序列并在玩家进入触发框体积时播放它。
+
+## 3 - 使用过场动画公开变量
+
+这里我们添加浮点型变量 **Default Slot Interp**，它在动画蓝图中提供插值，确定何时将游戏进程姿势与插槽动画混合。我们还向关卡添加了一个触发框，该触发框仅在下一个步骤中使用，以允许玩家在进入关卡序列体积时触发该关卡序列的播放。
+
+1.  在 **Ue4ASP_Character** 的关卡序列中，单击 **追踪（Track）** 按钮并分配新的 **默认插槽插值（Default Slot Interp）** 属性。
+    
+    ![](GameBlend_13.png)
+    
+2.  将时间轴向前拉动到帧 **25**（或您喜欢的任何帧），并为 **默认插槽插值（Default Slot Interp）** 添加一个值为 **1.0** 的键。
+    
+    ![](GameBlend_14.png)
+    
+3.  从主关卡编辑器的 **模式（Modes）** 面板中，将一个 **触发框（Triggerbox）** 拖动到关卡中，并根据需要调整其大小和位置。
+    
+    ![](GameBlend_15.png)
+    
+    如果您要在播放过程中看到触发体积，您可以选择将 **隐藏在游戏中的Actor（Actor Hidden In Game）** 设置为false。
+    
+
+在本指南的下一个也是最后一个步骤中，我们设置关卡蓝图，以便在进入触发框体积时播放关卡序列。
+
+## 4 - 触发序列播放和混合
+
+在测试设置之前的最后一步中，当玩家进入触发框时，我们使用关卡蓝图来激活关卡序列。当序列开始时，公开给过场动画的属性 **DefaultSlotInterp** 被更改，从而启动更新插值的过程。这会告知我们的动画蓝图开始从游戏进程动画混合到插槽动画。
+
+1.  选中 **触发框（Triggerbox）** 后，从主工具栏中单击 **蓝图（Blueprint）** 按钮，然后单击 **打开关卡蓝图（Open Level Blueprint）**。
+    
+    ![](GameBlend_16.png)
+    
+2.  在图表中右键单击，然后在触发框的 **碰撞（Collision）** 下，选择 **在Actor开始重叠时添加（Add On Actor Begin Overlap）**。
+    
+    ![](GameBlend_17.png)
+    
+3.  返回关卡视口并选择您的关卡序列，然后在 **关卡蓝图（Level Blueprint）** 中右键单击并向您的关卡序列添加一个引用。
+    
+    ![](GameBlend_18.png)
+    
+4.  离开您的关卡序列，使用 **获取序列玩家（Get Sequence Player）**，然后离开它，使用 **Play** 节点，并连接如下。
+    
+    ![](GameBlend_19.png)
+    
+5.  **编译（Compile）** 并 **保存（Save）**，然后单击 **运行（Play）** 以在编辑器中运行。
+    
+
+### 最终结果
+
+当我们的角色进入触发体积时，无论它们当前的动画状态如何，我们都开始将游戏进程姿势混合到由Sequencer定义的死亡姿势中。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ KxmKS4hnSHk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+我们可以通过向我们的序列添加一个摄像机以更进一步，并通过更改死亡动画在序列中的起始点位置来改善混合。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ ZQX4CB0s9b0
+ [/PARAMLITERAL]
+[/OBJECT]
+
+在上例中，玩家可以行走、奔跑、蹲着走或者跳到触发器中，每一种情况下，他们都会在进入触发体积时混合到死亡动画中。
 
 
 

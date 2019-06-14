@@ -1,0 +1,127 @@
+﻿INTSourceChangelist:5287135
+Availability: Public
+Crumbs: 
+Title: マルチユーザー ビューア テンプレートで独自のコンテンツを使う
+Description: 独自の 3D モデル、Unreal Engine のレベル、Unreal Engine のプロジェクトを使ってマルチユーザー ビューアを機能させる方法を説明します。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: how to
+Tags: multi-user viewer
+
+
+マルチユーザー ビューア テンプレートには、設定済みのコンテンツが同梱されているため、すぐにテンプレートを使い始めることができるようになっています。 ( [マルチユーザー ビューア入門](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) にその詳しい手順が掲載されています。) しかし、共同レビューのエクスペリエンスに習熟してくると、今度は独自のコンテンツをそのエクスペリエンスで機能するようにしたくなるはずです。
+
+このページでは、以下のような最も必要とされる関連作業について説明します。
+
+*  独自の 3D モデルをテンプレートに加え、テンプレートに備わっているナビゲーション モードに対応できるように 3D モデルを設定する。 [独自の 3D モデルを使う](#独自の3Dモデルを使う) をご覧ください。
+*  デフォルトの設定済みコンテンツが入っているレベルとは異なるレベルからマルチユーザー ビューア テンプレートが起動するようにします。 [開始レベルを変更する](#開始レベルを変更する) をご覧ください。
+*  使いたいコンテンツが備わった Unreal Engine プロジェクトがすでにある場合は、マルチユーザー ビューア テンプレートをそのプロジェクトに追加します。新規プロジェクトを一から作成する必要はありません。 [マルチユーザービューアを別のプロジェクトに追加する](#マルチユーザービューアを別のプロジェクトに追加する) をご覧ください。
+
+## 独自の 3D モデルを使う
+
+マルチユーザー ビューア テンプレートには、設定済みコンテンツが同梱されているため、テンプレートは直ちに使い始めることができます。しかし、やがて同梱のコンテンツに代えて独自のコンテンツを同じ共同ビューアで体験してみたくなるはずです。
+
+そうするためには、忘れてはならない非常に重要な条件があります。それは、コリジョンメッシュおよびナビメッシュが設定されたサーフェス (表面) でのみプレイヤーが歩いたりテレポート (瞬間移動) したりできる、ということです。人々が探索してもらいたいフロアーやサーフェスにはもれなくコリジョン ボリュームおよびナビメッシュを関連づけるようにしなければなりません。
+
+### 手順
+
+マルチユーザー ビューア テンプレートに入っているデフォルトのレベルの中で独自のコンテンツを機能させるためには、以下の手順に従う必要があります。
+
+1.  レベルにすでに入っているコンテンツ (たとえば、3D モデルや ブロッキング ボリュームなど) を除去し、独自のコンテンツを追加する必要があります。
+テンプレートに備わっているコンテンツは、メインのパーシスタント レベルの中にあるサブレベルの中に整理されて入っています。具体的には、**GeometryMap ** サブレベルには、建物と環境を構成しているスタティック メッシュ アセットが入っており、 **Lighting** サブレベルには、ライトとスカイ スフィア (天球) が入っています。 
+    ![Sublevels inside the main persistent Level](multiuserviewer-sublevels.png "Sublevels inside the main persistent Level")  
+    独自のコンテンツのために、サブレベルの配置構成をこれと同じままにしておいても構いません。あるいは、これら既存のサブレベルを削除して、メインのパーシスタント レベルに独自のコンテンツを配置することも可能です。 (Lighting サブレベルを削除する場合は、必要に応じて、このサブレベルから BP_SkySphere、ディレクショナル ライト、スカイ ライトをパーシスタント レベルにまず移しておきます。) 
+2.  パッケージングされたアプリケーションで、ユーザーに見せたい姿と正確に同じになるようにコンテンツをセットアップします。
+3.  少なくても 1 個の **Player Start** (プレイヤースタート) アクタをレベルに追加します。そのためには、このアクタを **Modes** (モード) パネルの **Basic** (基本) タブからビューポートにドラッグします。 
+    ![Dragging and dropping a Player Start](multiuserviewer-playerstart.png "Dragging and dropping a Player Start")  
+    各ユーザーは、セッションに参加すると、ランダムに選択された **Player Start** アクタの位置に最初現われることになります。レベルの中でユーザーが最初に登場する場所としてふさわしい場所に最低 1 個はこのアクタを配置してください。 
+    [REGION:tip]
+    ある位置を中心としてその回りにこのアクタをいくつか追加する、というやり方をおすすめします。そうすることによって、新たなユーザーがセッションに参加したときに他プレイヤーとまったく同じ位置で重なり合ってしまうということが起きづらくなります。
+    [/REGION]
+4.  プレイヤーたちがその上を歩いたり、そこにテレポートしたりできるようにしたいサーフェスは、それぞれ、コリジョン メッシュが設定されている必要があります。
+	このことは、独自コンテンツをどのようにインポートするかによりますが、ジオメトリをモデリングするために使用している 3D デザイン アプリケーションを使ってできる場合があります。あるいは、スタティック メッシュ エディタでスタティック メッシュを開き、 **Collision** (コリジョン) のメニューにあるツールを使うことによっても可能です。 
+    ![Collision options in the Static Mesh Editor](multiuserviewer-collision.png "Collision options in the Static Mesh Editor")  
+    コリジョンの設定を自動化したい場合は、 [Setting up Collisions with Static Meshes](Engine/Content/Types/StaticMeshes/HowTo/SettingCollision) (スタティック メッシュにコリジョンを設定する) および [Setting up Collisions with Static Meshes in Blueprints and Python](Engine/Editor/ScriptingAndAutomation/HowTos/SettingUpCollisionProperties) (ブループリントおよび Python を使ってスタティック メッシュにコリジョンを設定する) をご覧ください。
+    [REGION:tip]
+    他のやり方としては、 **Blocking Volumes** (ブロッキング ボリューム) を使って、目には見えない箱型のコリジョン ボリュームをレベルに配置するという方法があります。このやり方では、スタティック メッシュに手を加えなくても簡単にコリジョンをレベルで機能させることができます。マルチユーザー ビューア テンプレートに備わっているデフォルトのコンテンツでも、このような Blocking Volumes がいくつか利用されて壁のコリジョンがシミュレートされています。ただし、このようなボリュームはスタティック メッシュに付属しているものではないため、レベル内でそのジオメトリを移動させる場合は必要に応じて、手動でそれらボリュームも移動しなければなりません。
+    [/REGION]
+5.  プレイヤーのテレポート先にしたいサーフェスにはナビメッシュを設定する必要があります。そのためには、 そのようなサーフェスが Nav Mesh Bounds Volume (ナビメッシュ バウンズ ボリューム) に含まれるようにします。このようなボリュームは、レベルに必要なだけいくつでも作成することができます。 
+    ナビメッシュを作成するには次のようにします。
+    1.  レベルに Nav Mesh Bounds Volume (ナビメッシュ バウンズ ボリューム) がまだない場合は、 **Modes** (モード) パネルの **Volumes** (ボリューム) タブからビューポートにドラッグして追加します。
+        [REGION:lightbox]
+        [![Dragging and dropping a Nav Mesh Bounds Volume](multiuserviewer-navmeshbounds.png "Dragging and dropping a Nav Mesh Bounds Volume")](multiuserviewer-navmeshbounds.png) *クリックするとフルサイズで表示されます。*
+        [/REGION]
+    2.  ビューポートまたは **World Outliner** (ワールド アウトライナー) で Nav Mesh Bounds Volume (ナビメッシュ バウンズ ボリューム) を選択し、それの移動ツールを、覆うべきエリアのおよそ中心まで移動させます。
+    3.  **Details** (詳細) パネルで **Brush Settings** (ブラシの設定) を使って、このボリュームのサイズと形状を変更します。 
+        ![Nav Mesh Bounds Volume brush settings](multiuserviewer-brushsettings.png "Nav Mesh Bounds Volume brush settings")
+    4.  ツールバーにある **Build** (ビルド) のアイコンをクリックして、レベルのために事前計算されたデータを再ビルドします。あるいは、 **Build** (ビルド) > **Navigation** (ナビゲーション) > **Build Paths** (パスをビルド) を選択し、ナビゲーション データのみを再ビルドします。  
+        ![Build Paths](build-paths.png "Build Paths")
+    5.  **P** を押すと、生成されたナビメッシュを表示して、望み通りのエリアを覆っているか確認できます。ナビメッシュは、緑色のサーフェスとしてレンダリングされます。このボリュームと交差するコリジョン メッシュのわずかに上方に浮いた状態でレンダリングされます。  
+        ![Nav Mesh visualization](multiuserviewer-navmesh.png "Nav Mesh visualization")
+6.  必要に応じてライティングをビルドしてください。
+7.  [マルチユーザー ビューア入門](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) のページで説明されているように、プロジェクトを再度パッケージングし配布します。
+
+### 最終的な結果
+
+上記手順をすべて実行すると、複数のユーザーが単一のデザイン レビュー セッションに接続されながら、レベルに追加された独自のコンテンツを全員で見ることができるようになります。
+
+## 開始レベルを変更する
+
+マルチユーザー ビューア テンプレートのメインメニューは、ユーザーがメインメニューを終えると、自動的に **MultiUserViewer_P** レベルから始まるように設定されています。しかし、デフォルトのレベルはそのままにしておき、新たなレベルを作成して、独自のコンテンツが配置されるようにする必要が生じる場合があります。もしそのようなことが必要ならば、メインメニューのロジックを変更することによって、ユーザーがセッションに参加したときにカスタムの独自のレベルが開かれるようにすることが可能です。
+
+### 手順
+
+マルチユーザー ビューアの開始レベルを設定するには以下のようにします。
+
+1.  *MultiUserViewer/UMG/MainMenu* フォルダの  **Content Browser** (コンテンツ ブラウザ) から **Widget_MainMenu** を見つけます。 
+    ![Main Menu widget](multiuserviewer-mainmenuwidget.png "Main Menu widget")
+2.  このアセットをダブルクリックして開き、 **Graph** (グラフ) をクリックして、ウィジェット ブループリントのビューを開きます。
+    ![Graph](multiuserviewer-graphbutton.png "Graph")
+3.  **Commit user selections** (ユーザーの選択に対応する) というラベルが付いているグループを探します。さらにその中から **Begin hosting a session** (セッションのホストを開始する) というサブグループを探します。
+    [REGION:lightbox]
+    [![Begin hosting a session](multiuserviewer-client-beginhosting.png "Begin hosting a session")](multiuserviewer-client-beginhosting.png) *クリックするとフルサイズで表示されます。*
+    [/REGION]
+4.  **OpenLevel** というノードに付いている **Level Name** という入力項目に入っている値を、ユーザーがセッションに接続したときに始まるべきレベルの名前に変更します。
+    [REGION:lightbox]
+    [![OpenLevel node](multiuserviewer-openlevel.png "OpenLevel node")](multiuserviewer-openlevel.png) *クリックするとフルサイズで表示されます。*
+    [/REGION]
+5.  このウィジェットを **Compile** (コンパイル) および **Save** (保存) してから、プロジェクトを再度パッケージングします。
+
+### 最終的な結果
+
+次回プロジェクトを起動してメインメニューを終えると、上記手順で設定したカスタムのレベルから始まるようになります。
+
+## マルチユーザー ビューアを別のプロジェクトに追加する
+
+デザインをレビューするために共有したいコンテンツが備わっているプロジェクトをすでにお持ちの場合があるかもしれません。そのような場合は、マルチユーザー ビューア テンプレートから新たなプロジェクトを立ち上げ、Unreal Editor の移植機能を使ってコンテンツを移植し、 [独自の 3D モデルを使う](#独自の3Dモデルを使う) で説明されているようにしてテンプレートでコンテンツを設定する、というやり方が考えられます。しかし、マルチユーザー ビューア テンプレートから、すでにお持ちのプロジェクトにコンテンツをインポートするほうがもっと簡単です。
+
+### 手順
+
+テンプレートのコンテンツを既存のプロジェクトにインポートするには次のようにします。
+
+1.  マルチユーザー ビューアのコントロールによって機能強化したいプロジェクトおよびレベルを開きます。
+2.  **Content Browser** (コンテンツ ブラウザ) で、 **Add New** (新規追加) > **Add Feature or Content Pack** (機能またはコンテンツ パックを追加) を選択します。 
+    ![Add New Feature or Content Pack](multiuserviewer-addcontentpack.png "Add New Feature or Content Pack")
+3.   **Add Content to the Project** (プロジェクトにコンテンツを追加) ウィンドウで、 **Unreal Studio Feature** (Unreal Studio の機能) タブを開き、 **Multi-User Viewer** (マルチユーザー ビューア) のサムネイルをクリックして、さらに **\+ Add to Project** (プロジェクトに追加) をクリックします。
+    ![Add to Project](multiuserviewer-add-content-window.png "Add to Project")
+4.  **X** ボタンをクリックして、 **Add Content to the Project** (プロジェクトにコンテンツを追加) ウィンドウを閉じます。
+5.  Unreal Editor のメインメニューから **Edit** (編集) > **Project Settings...** (プロジェクト設定…) を選択します。
+6.   **Project Settings...** (プロジェクト設定…) パネルで、 **Project** (プロジェクト) > **Maps & Modes** (マップ & モード) を開きます。
+    ![Maps and Modes](multiuserviewer-projectsettings.png "Maps and Modes")  
+    以下の変更を加えます。 
+    
+    *   **1 -** **Default GameMode** (デフォルトのゲームモード) を **BP_MultiUserGameMode** に設定します。
+    *   **2 -** **Game Default Map** (ゲームのデフォルトのマップ) を **MultiUserViewer/MainMenu** に設定します。
+    *   **3 -** **Game Instance Class** (Game Instance クラス) を **BP\_MultiUser\_GameInstance** に設定します。
+    
+    また、 各レベルの **World Settings** (ワールド セッティング) パネルによって、上記のプロジェクトの設定が上書きされないようにしてください。 
+    ![World Settings](multiuserviewer-worldsettings-nooverride.png "World Settings")  
+    
+7.  上の [独自の 3D モデルを使う](#独自の3Dモデルを使う) の説明に従って、マルチユーザー ビューア テンプレートのナビゲーション モードに対応できるようにインポートしたコンテンツを設定します。
+8.  上の [開始レベルを変更する](#開始レベルを変更する) の説明に従って、パッケージングされたアプリケーションを起動してウェルカム メニューを終えたユーザーが最初に位置するレベルを設定します。
+
+### 最終的な結果
+
+パッケージングされたプロジェクトを起動すると、すぐにマルチユーザー ビューアによるウェルカム メニューが表示されます。このメニューを終えたら、メインメニューのために設定したデフォルト レベルの中に入ります。 マルチユーザー ビューア テンプレートによって提供されている [デスクトップのコントロール](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#デスクトップでの制御) および [VR のコントロール](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#VRでの制御) を使って、レベル内を動き回ることができるようになります。

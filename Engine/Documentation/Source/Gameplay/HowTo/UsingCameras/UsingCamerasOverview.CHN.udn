@@ -62,7 +62,6 @@ order:12
 现在，您已经了解了如何在关卡中放置摄像机 Actor，以及用于改变其外观的一些设置，而下面的示例则介绍了一些摄像机的使用方法，包括如何使用摄像机作为玩家视点，如何将摄像机组件用作蓝图的一部分，如何将弹簧臂组件（Spring Arm Component）与摄像机组件一起使用（通常用于创建第三人称视角），以及如何在游戏过程中切换不同的摄像机。 
 
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/UsingCameras" org:"hierarchy" end:"1")]
