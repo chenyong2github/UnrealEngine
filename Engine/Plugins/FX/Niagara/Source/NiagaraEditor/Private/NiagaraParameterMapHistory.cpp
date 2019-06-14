@@ -1377,6 +1377,11 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 
 bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) const
 {
+	if (Translator)
+	{
+		return Translator->GetLiteralConstantVariable(OutConstant);
+	}
+
 	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Localspace")))
 	{
 		OutConstant.SetValue(Emitter->bLocalSpace ? FNiagaraBool(true) : FNiagaraBool(false));
