@@ -1099,6 +1099,8 @@ public:
 	/** Removes stale entries from DormantReplicatorMap. */
 	void CleanupStaleDormantReplicators();
 
+	void PostTickDispatch();
+
 	/**
 	 * Flush the cache of sequenced packets waiting for a missing packet. Will flush only up to the next missing packet, unless bFlushWholeCache is set.
 	 *
@@ -1134,6 +1136,19 @@ public:
 
 	/** Resets the current saturation analytics. */
 	ENGINE_API void ResetSaturationAnalytics();
+
+	/**
+	 * Returns the current packet stability analytics and resets them.
+	 * This would be similar to calls to Get and Reset separately, except that the caller
+	 * will assume ownership of the data in this case.
+	 */
+	ENGINE_API void ConsumePacketAnalytics(FNetConnectionPacketAnalytics& Out);
+
+	/** Returns the current packet stability analytics. */
+	ENGINE_API const FNetConnectionPacketAnalytics& GetPacketAnalytics() const;
+
+	/** Resets the current packet stability analytics. */
+	ENGINE_API void ResetPacketAnalytics();
 
 	/**
 	 * Called to notify the connection that we attempted to replicate its actors this frame.
@@ -1259,6 +1274,7 @@ private:
 	int32 PacketOrderCacheCount;
 
 	FNetConnectionSaturationAnalytics SaturationAnalytics;
+	FNetConnectionPacketAnalytics PacketAnalytics;
 
 	/** Whether or not PacketOrderCache is presently being flushed */
 	bool bFlushingPacketOrderCache;

@@ -1727,16 +1727,18 @@ void UNetDriver::PostTickDispatch()
 	// Flush out of order packet caches for connections that did not receive the missing packets during TickDispatch
 	if (ServerConnection != nullptr)
 	{
-		ServerConnection->FlushPacketOrderCache(true);
+		if (!ServerConnection->IsPendingKill())
+		{
+			ServerConnection->PostTickDispatch();
+		}
 	}
 
 	TArray<UNetConnection*> ClientConnCopy = ClientConnections;
-
 	for (UNetConnection* CurConn : ClientConnCopy)
 	{
 		if (!CurConn->IsPendingKill())
 		{
-			CurConn->FlushPacketOrderCache(true);
+			CurConn->PostTickDispatch();
 		}
 	}
 
