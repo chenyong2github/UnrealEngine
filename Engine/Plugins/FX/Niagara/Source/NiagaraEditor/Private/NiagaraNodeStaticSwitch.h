@@ -57,6 +57,7 @@ public:
 	void OnSwitchParameterTypeChanged(const FNiagaraTypeDefinition& OldType);
 
 	void SetSwitchValue(int Value);
+	void SetSwitchValue(const FCompileConstantResolver& ConstantResolver);
 	void ClearSwitchValue();
 	/** If true then the value of this static switch is not set by the user but directly by the compiler via one of the engine constants (e.g. Emitter.Determinism). */
 	bool IsSetByCompiler() const;
