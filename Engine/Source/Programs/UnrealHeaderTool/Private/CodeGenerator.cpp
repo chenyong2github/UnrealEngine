@@ -5235,7 +5235,7 @@ FNativeClassHeaderGenerator::FNativeClassHeaderGenerator(
 			{
 				if (!bAddedStructuredArchiveFromArchiveHeader && !bHasSerializeToFArchive)
 				{
-					RelativeIncludes.AddUnique(TEXT("Serialization/StructuredArchiveFromArchive.h"));
+					RelativeIncludes.AddUnique(TEXT("Serialization/StructuredArchive.h"));
 					bAddedStructuredArchiveFromArchiveHeader = true;
 				}
 

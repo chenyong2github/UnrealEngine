@@ -6,7 +6,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/Crc.h"
 #include "Containers/UnrealString.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 class FArchive;
 class FOutputDevice;

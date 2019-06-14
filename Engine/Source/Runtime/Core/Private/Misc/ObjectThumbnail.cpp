@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/ObjectThumbnail.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 /** Static: Thumbnail compressor */
 FThumbnailCompressionInterface* FObjectThumbnail::ThumbnailCompressor = NULL;

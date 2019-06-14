@@ -2,7 +2,7 @@
 
 #include "UObject/PackageFileSummary.h"
 #include "UObject/Linker.h"
-#include "Serialization/ArchiveFromStructuredArchive.h"
+#include "Serialization/StructuredArchive.h"
 #include "UObject/UObjectGlobals.h"
 
 FPackageFileSummary::FPackageFileSummary()

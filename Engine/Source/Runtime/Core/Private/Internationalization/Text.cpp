@@ -19,7 +19,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "Internationalization/TextGeneratorRegistry.h"
 
-#include "Serialization/ArchiveFromStructuredArchive.h"
+#include "Serialization/StructuredArchive.h"
 
 #include "UObject/EditorObjectVersion.h"
 #include "HAL/PlatformProcess.h"

@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "Serialization/CustomVersion.h"
-#include "Serialization/StructuredArchiveFromArchive.h"
+#include "Serialization/StructuredArchive.h"
 #include "Algo/Sort.h"
 
 namespace

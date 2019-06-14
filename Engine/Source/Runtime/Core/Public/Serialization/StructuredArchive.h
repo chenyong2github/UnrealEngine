@@ -6,9 +6,12 @@
 #include "Serialization/StructuredArchiveFormatter.h"
 #include "Formatters/BinaryArchiveFormatter.h"
 #include "Misc/Optional.h"
+#include "Concepts/Insertable.h"
 #include "Concepts/Serializable.h"
 #include "Templates/Models.h"
 #include "Containers/Array.h"
+#include "Serialization/ArchiveProxy.h"
+#include "Templates/UniqueObj.h"
 
 /**
  * Class to contain a named value for serialization. Intended to be created as a temporary and passed to object serialization methods.
@@ -404,6 +407,130 @@ private:
 	FStructuredArchive* Archive;
 	TOptional<FStructuredArchive::FSlot> Root;
 };
+
+class CORE_API FStructuredArchiveFromArchive
+{
+	struct FImpl;
+
+public:
+	explicit FStructuredArchiveFromArchive(FArchive& Ar);
+	~FStructuredArchiveFromArchive();
+
+	// Non-copyable
+	FStructuredArchiveFromArchive(FStructuredArchiveFromArchive&&) = delete;
+	FStructuredArchiveFromArchive(const FStructuredArchiveFromArchive&) = delete;
+	FStructuredArchiveFromArchive& operator=(FStructuredArchiveFromArchive&&) = delete;
+	FStructuredArchiveFromArchive& operator=(const FStructuredArchiveFromArchive&) = delete;
+
+	FStructuredArchive::FSlot GetSlot();
+
+private:
+	// Implmented as a pimpl in order to reduce dependencies
+	TUniqueObj<FImpl> Pimpl;
+};
+
+#if WITH_TEXT_ARCHIVE_SUPPORT
+
+class CORE_API FArchiveFromStructuredArchive : public FArchiveProxy
+{
+	struct FImpl;
+
+public:
+	explicit FArchiveFromStructuredArchive(FStructuredArchive::FSlot Slot);
+	virtual ~FArchiveFromStructuredArchive();
+
+	// Non-copyable
+	FArchiveFromStructuredArchive(FArchiveFromStructuredArchive&&) = delete;
+	FArchiveFromStructuredArchive(const FArchiveFromStructuredArchive&) = delete;
+	FArchiveFromStructuredArchive& operator=(FArchiveFromStructuredArchive&&) = delete;
+	FArchiveFromStructuredArchive& operator=(const FArchiveFromStructuredArchive&) = delete;
+
+	virtual void Flush() override;
+	virtual bool Close() override;
+
+	virtual int64 Tell() override;
+	virtual int64 TotalSize() override;
+	virtual void Seek(int64 InPos) override;
+	virtual bool AtEnd() override;
+
+	virtual FArchive& operator<<(class FName& Value) override;
+	virtual FArchive& operator<<(class UObject*& Value) override;
+	virtual FArchive& operator<<(class FText& Value) override;
+
+	virtual void Serialize(void* V, int64 Length) override;
+
+	virtual FArchive* GetCacheableArchive() override;
+
+	bool ContainsData() const;
+
+protected:
+	virtual void SerializeInternal(FStructuredArchive::FRecord Record);
+	void OpenArchive();
+
+private:
+	void Commit();
+
+	// Implmented as a pimpl in order to reduce dependencies
+	TUniqueObj<FImpl> Pimpl;
+};
+
+#else
+
+class CORE_API FArchiveFromStructuredArchive
+{
+public:
+	explicit FArchiveFromStructuredArchive(FStructuredArchive::FSlot InSlot)
+		: Ar(InSlot.GetUnderlyingArchive())
+	{
+
+	}
+
+	operator FArchive& () { return Ar; }
+
+private:
+	FArchive& Ar;
+};
+
+#endif
+
+/**
+ * Adapter operator which allows a type to stream to an FArchive when it already supports streaming to an FStructuredArchive::FSlot.
+ *
+ * @param  Ar   The archive to read from or write to.
+ * @param  Obj  The object to read or write.
+ *
+ * @return  A reference to the same archive as Ar.
+ */
+template <typename T>
+typename TEnableIf<
+	!TModels<CInsertable<FArchive&>, T>::Value && TModels<CInsertable<FStructuredArchive::FSlot>, T>::Value,
+	FArchive&
+>::Type operator<<(FArchive& Ar, T& Obj)
+{
+	FStructuredArchiveFromArchive ArAdapt(Ar);
+	ArAdapt.GetSlot() << Obj;
+	return Ar;
+}
+
+/**
+ * Adapter operator which allows a type to stream to an FStructuredArchive::FSlot when it already supports streaming to an FArchive.
+ *
+ * @param  Slot  The slot to read from or write to.
+ * @param  Obj   The object to read or write.
+ */
+template <typename T>
+typename TEnableIf<
+	TModels<CInsertable<FArchive&>, T>::Value &&
+	!TModels<CInsertable<FStructuredArchive::FSlot>, T>::Value
+>::Type operator<<(FStructuredArchive::FSlot Slot, T& Obj)
+{
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	FArchiveFromStructuredArchive Ar(Slot);
+#else
+	FArchive& Ar = Slot.GetUnderlyingArchive();
+#endif
+	Ar << Obj;
+}
 
 #if !WITH_TEXT_ARCHIVE_SUPPORT
 	FORCEINLINE FStructuredArchiveChildReader::FStructuredArchiveChildReader(FStructuredArchive::FSlot InSlot)

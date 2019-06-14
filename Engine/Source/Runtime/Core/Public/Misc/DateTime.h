@@ -6,7 +6,6 @@
 #include "Containers/UnrealString.h"
 #include "Misc/Timespan.h"
 #include "Templates/TypeHash.h"
-#include "Serialization/ArchiveAdapters.h"
 
 class FArchive;
 class FOutputDevice;

@@ -1,16 +1,41 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "Serialization/ArchiveFromStructuredArchive.h"
+#include "Serialization/StructuredArchive.h"
 #include "Internationalization/Text.h"
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
+struct FArchiveFromStructuredArchive::FImpl
+{
+	explicit FImpl(FStructuredArchive::FSlot Slot)
+		: RootSlot(Slot)
+	{
+	}
+
+	TOptional<FStructuredArchive::FRecord> Root;
+
+	static constexpr int32 MaxBufferSize = 128;
+
+	bool bPendingSerialize = true;
+	bool bWasOpened        = false;
+
+	TArray<uint8> Buffer;
+	int32 Pos = 0;
+
+	TArray<FName> Names;
+	TMap<FName, int32> NameToIndex;
+
+	TArray<FString> ObjectNames;
+	TArray<UObject*> Objects;
+	TBitArray<> ObjectsValid;
+	TMap<UObject*, int32> ObjectToIndex;
+
+	FStructuredArchive::FSlot RootSlot;
+};
+
 FArchiveFromStructuredArchive::FArchiveFromStructuredArchive(FStructuredArchive::FSlot Slot)
 	: FArchiveProxy(Slot.GetUnderlyingArchive())
-	, bPendingSerialize(true)
-	, bWasOpened(false)
-	, Pos(0)
-	, RootSlot(Slot)
+	, Pimpl(Slot)
 {
 	// For some reason, the FArchive copy constructor will copy all the trivial members of the source archive, but then specifically set ArIsFilterEditorOnly to false, with a comment saying
 	// they don't know why it's doing this... make sure we inherit this flag here!
@@ -39,7 +64,7 @@ int64 FArchiveFromStructuredArchive::Tell()
 {
 	if (InnerArchive.IsTextFormat())
 	{
-		return Pos;
+		return Pimpl->Pos;
 	}
 	else
 	{
@@ -57,8 +82,8 @@ void FArchiveFromStructuredArchive::Seek(int64 InPos)
 {
 	if (InnerArchive.IsTextFormat())
 	{
-		check(Pos >= 0 && Pos <= Buffer.Num());
-		Pos = InPos;
+		check(Pimpl->Pos >= 0 && Pimpl->Pos <= Pimpl->Buffer.Num());
+		Pimpl->Pos = InPos;
 	}
 	else
 	{
@@ -70,7 +95,7 @@ bool FArchiveFromStructuredArchive::AtEnd()
 {
 	if (InnerArchive.IsTextFormat())
 	{
-		return Pos == Buffer.Num();
+		return Pimpl->Pos == Pimpl->Buffer.Num();
 	}
 	else
 	{
@@ -88,15 +113,15 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class FName& Value)
 		{
 			int32 NameIdx = 0;
 			Serialize(&NameIdx, sizeof(NameIdx));
-			Value = Names[NameIdx];
+			Value = Pimpl->Names[NameIdx];
 		}
 		else
 		{
-			int32* NameIdxPtr = NameToIndex.Find(Value);
+			int32* NameIdxPtr = Pimpl->NameToIndex.Find(Value);
 			if (NameIdxPtr == nullptr)
 			{
-				NameIdxPtr = &(NameToIndex.Add(Value));
-				*NameIdxPtr = Names.Add(Value);
+				NameIdxPtr = &Pimpl->NameToIndex.Add(Value);
+				*NameIdxPtr = Pimpl->Names.Add(Value);
 			}
 			Serialize(NameIdxPtr, sizeof(*NameIdxPtr));
 		}
@@ -120,13 +145,13 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class UObject*& Value)
 			Serialize(&ObjectIdx, sizeof(ObjectIdx));
 
 			// If this object has already been accessed, return the cached value
-			if (ObjectsValid[ObjectIdx])
+			if (Pimpl->ObjectsValid[ObjectIdx])
 			{
-				Value = Objects[ObjectIdx];
+				Value = Pimpl->Objects[ObjectIdx];
 			}
 			else
 			{
-				FStructuredArchive::FStream Stream = Root->EnterStream(FIELD_NAME_TEXT("Objects"));
+				FStructuredArchive::FStream Stream = Pimpl->Root->EnterStream(FIELD_NAME_TEXT("Objects"));
 
 				// We know exactly which stream index we want to load here, but because of the API we need to read through them
 				// in order, consuming the string name until we reach the entry we want and then load it as a uobject reference.
@@ -138,12 +163,12 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class UObject*& Value)
 				// pointer.
 
 				FString Dummy;
-				for (int32 Index = 0; Index < Objects.Num(); ++Index)
+				for (int32 Index = 0; Index < Pimpl->Objects.Num(); ++Index)
 				{
 					if (Index == ObjectIdx)
 					{
 						Stream.EnterElement() << Value;
-						Objects[ObjectIdx] = Value;
+						Pimpl->Objects[ObjectIdx] = Value;
 					}
 					else
 					{
@@ -151,17 +176,17 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class UObject*& Value)
 					}
 				}
 
-				Objects[ObjectIdx] = Value;
-				ObjectsValid[ObjectIdx] = true;
+				Pimpl->Objects[ObjectIdx] = Value;
+				Pimpl->ObjectsValid[ObjectIdx] = true;
 			}
 		}
 		else
 		{
-			int32* ObjectIdxPtr = ObjectToIndex.Find(Value);
+			int32* ObjectIdxPtr = Pimpl->ObjectToIndex.Find(Value);
 			if (ObjectIdxPtr == nullptr)
 			{
-				ObjectIdxPtr = &(ObjectToIndex.Add(Value));
-				*ObjectIdxPtr = Objects.Add(Value);
+				ObjectIdxPtr = &Pimpl->ObjectToIndex.Add(Value);
+				*ObjectIdxPtr = Pimpl->Objects.Add(Value);
 			}
 			Serialize(ObjectIdxPtr, sizeof(*ObjectIdxPtr));
 		}
@@ -196,21 +221,21 @@ void FArchiveFromStructuredArchive::Serialize(void* V, int64 Length)
 	{
 		if (IsLoading())
 		{
-			if (Pos + Length > Buffer.Num())
+			if (Pimpl->Pos + Length > Pimpl->Buffer.Num())
 			{
 				checkf(false, TEXT("Attempt to read past end of archive"));
 			}
-			FMemory::Memcpy(V, Buffer.GetData() + Pos, Length);
-			Pos += Length;
+			FMemory::Memcpy(V, Pimpl->Buffer.GetData() + Pimpl->Pos, Length);
+			Pimpl->Pos += Length;
 		}
 		else
 		{
-			if (Pos + Length > Buffer.Num())
+			if (Pimpl->Pos + Length > Pimpl->Buffer.Num())
 			{
-				Buffer.AddUninitialized(Pos + Length - Buffer.Num());
+				Pimpl->Buffer.AddUninitialized(Pimpl->Pos + Length - Pimpl->Buffer.Num());
 			}
-			FMemory::Memcpy(Buffer.GetData() + Pos, V, Length);
-			Pos += Length;
+			FMemory::Memcpy(Pimpl->Buffer.GetData() + Pimpl->Pos, V, Length);
+			Pimpl->Pos += Length;
 		}
 	}
 	else
@@ -221,22 +246,22 @@ void FArchiveFromStructuredArchive::Serialize(void* V, int64 Length)
 
 void FArchiveFromStructuredArchive::Commit()
 {
-	if (bWasOpened && InnerArchive.IsTextFormat())
+	if (Pimpl->bWasOpened && InnerArchive.IsTextFormat())
 	{
-		SerializeInternal(Root.GetValue());
+		SerializeInternal(Pimpl->Root.GetValue());
 	}
 }
 
 void FArchiveFromStructuredArchive::SerializeInternal(FStructuredArchive::FRecord Record)
 {
-	check(bWasOpened);
+	check(Pimpl->bWasOpened);
 
-	if (bPendingSerialize)
+	if (Pimpl->bPendingSerialize)
 	{
 		FStructuredArchive::FSlot DataSlot = Record.EnterField(FIELD_NAME_TEXT("Data"));
-		DataSlot.Serialize(Buffer);
+		DataSlot.Serialize(Pimpl->Buffer);
 
-		TOptional<FStructuredArchive::FSlot> ObjectsSlot = Record.TryEnterField(FIELD_NAME_TEXT("Objects"), Objects.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> ObjectsSlot = Record.TryEnterField(FIELD_NAME_TEXT("Objects"), Pimpl->Objects.Num() > 0);
 		if (ObjectsSlot.IsSet())
 		{
 			if (IsLoading())
@@ -249,48 +274,58 @@ void FArchiveFromStructuredArchive::SerializeInternal(FStructuredArchive::FRecor
 				// when we enter the array here. We never read them, so I'm assuming they just sit there
 				// until we destroy this archive wrapper. Perhaps we need something in the API here to just access
 				// the size of the array but not preparing to access it's values?
-				ObjectsSlot.GetValue() << ObjectNames;
+				ObjectsSlot.GetValue() << Pimpl->ObjectNames;
 				//int32 NumEntries = 0;
 				//ObjectsSlot.GetValue().EnterArray(NumEntries);
-				Objects.AddUninitialized(ObjectNames.Num());
-				ObjectsValid.Init(false, ObjectNames.Num());
+				Pimpl->Objects.AddUninitialized(Pimpl->ObjectNames.Num());
+				Pimpl->ObjectsValid.Init(false, Pimpl->ObjectNames.Num());
 			}
 			else
 			{
-				ObjectsSlot.GetValue() << Objects;
+				ObjectsSlot.GetValue() << Pimpl->Objects;
 			}
 		}
 
-		TOptional<FStructuredArchive::FSlot> NamesSlot = Record.TryEnterField(FIELD_NAME_TEXT("Names"), Names.Num() > 0);
+		TOptional<FStructuredArchive::FSlot> NamesSlot = Record.TryEnterField(FIELD_NAME_TEXT("Names"), Pimpl->Names.Num() > 0);
 		if (NamesSlot.IsSet())
 		{
-			NamesSlot.GetValue() << Names;
+			NamesSlot.GetValue() << Pimpl->Names;
 		}
 
-		bPendingSerialize = false;
+		Pimpl->bPendingSerialize = false;
 	}
 }
 
 void FArchiveFromStructuredArchive::OpenArchive()
 {
-	if (!bWasOpened)
+	if (!Pimpl->bWasOpened)
 	{
-		bWasOpened = true;
+		Pimpl->bWasOpened = true;
 
 		if (InnerArchive.IsTextFormat())
 		{
-			Root = RootSlot.EnterRecord();
+			Pimpl->Root = Pimpl->RootSlot.EnterRecord();
 
 			if (IsLoading())
 			{
-				SerializeInternal(Root.GetValue());
+				SerializeInternal(Pimpl->Root.GetValue());
 			}
 		}
 		else
 		{
-			RootSlot.EnterStream();
+			Pimpl->RootSlot.EnterStream();
 		}
 	}
+}
+
+FArchive* FArchiveFromStructuredArchive::GetCacheableArchive()
+{
+	return IsTextFormat() ? nullptr : Pimpl->Root->GetUnderlyingArchive().GetCacheableArchive();
+}
+
+bool FArchiveFromStructuredArchive::ContainsData() const
+{
+	return Pimpl->Buffer.Num() > 0;
 }
 
 #endif

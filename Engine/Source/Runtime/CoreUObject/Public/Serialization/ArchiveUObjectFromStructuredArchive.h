@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Serialization/ArchiveFromStructuredArchive.h"
+#include "Serialization/StructuredArchive.h"
 #include "Serialization/ArchiveUObject.h"
 #include "UObject/ObjectResource.h"
 
@@ -18,7 +18,6 @@ class COREUOBJECT_API FArchiveUObjectFromStructuredArchive : public FArchiveFrom
 public:
 
 	FArchiveUObjectFromStructuredArchive(FStructuredArchive::FSlot Slot);
-	virtual ~FArchiveUObjectFromStructuredArchive();
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 

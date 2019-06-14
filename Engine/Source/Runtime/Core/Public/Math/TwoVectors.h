@@ -7,7 +7,6 @@
 #include "Math/UnrealMathUtility.h"
 #include "Containers/UnrealString.h"
 #include "Math/Vector.h"
-#include "Serialization/ArchiveAdapters.h"
 
 /**
  * A pair of 3D vectors.

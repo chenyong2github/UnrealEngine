@@ -10,11 +10,6 @@ FArchiveUObjectFromStructuredArchive::FArchiveUObjectFromStructuredArchive(FStru
 {
 }
 
-FArchiveUObjectFromStructuredArchive::~FArchiveUObjectFromStructuredArchive()
-{
-	Commit();
-}
-
 FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FLazyObjectPtr& Value)
 {
 	OpenArchive();
