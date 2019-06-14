@@ -1,10 +1,9 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6537038
 Title: 언리얼 엔진 4.6 릴리즈 노트
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
-order:6
-
+Order: 38
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
@@ -134,7 +133,7 @@ Alex Silkin (alexSilkin), alwei, Allegorithmic, Artem V. Navrotskiy (bozaro), Ce
 
 * 이제 함수에 머티리얼 인스턴스 파라미터가 지원됩니다. 그 덕에 머티리얼 인스턴스에 파라미터를 노출시키기가 정말 쉬워졌습니다. 함수를 머티리얼과 동급으로 끌어내려서, 같은 노드 그래프를 어디서도 사용할 수 있게 된 것입니다. 유일한 예외라면, 원래부터 함수에만 있는 함수 입력과 출력 노드 정도입니다.
 
-* 참고로 머티리얼 안에서 파라미터는 이름별로 설정되므로, 그 머티리얼이 레퍼런싱하는 각기 다른 함수에 'wetness' 라는 이름의 파라미터가 둘 있는 경우, 그 둘 다 머티리얼 인스턴스에서는 같은 값으로 덮어써집니다. 알고 쓴다면 의도적으로 쓸 수도 있지만, 파라미터를 공유하고 싶지 않다면 고유한 이름을 지어야 합니다.
+* 참고로 머티리얼 안에서 파라미터는 이름별로 설정되므로, 그 머티리얼이 참조하는 각기 다른 함수에 'wetness' 라는 이름의 파라미터가 둘 있는 경우, 그 둘 다 머티리얼 인스턴스에서는 같은 값으로 덮어써집니다. 알고 쓴다면 의도적으로 쓸 수도 있지만, 파라미터를 공유하고 싶지 않다면 고유한 이름을 지어야 합니다.
 
 
 #### 애니메이션: 복수 몽타주 재생
@@ -337,7 +336,7 @@ Alex Silkin (alexSilkin), alwei, Allegorithmic, Artem V. Navrotskiy (bozaro), Ce
 * 신규! [현지화](https://docs.unrealengine.com/latest/INT/Gameplay/Localization/index.html)
 * 신규! 소스 컨트롤
 * 신규! 게임내 분석
-* [블루프린트 비법](https://docs.unrealengine.com/latest/INT/Engine/Blueprints/BP_HowTo/index.html) 추가
+* [블루프린트 하우투](https://docs.unrealengine.com/latest/INT/Engine/Blueprints/BP_HowTo/index.html) 추가
 	* [노드 배치](https://docs.unrealengine.com/latest/INT/Engine/Blueprints/BP_HowTo/PlacingNodes/index.html)
 	* [그래프 이동](https://docs.unrealengine.com/latest/INT/Engine/Blueprints/BP_HowTo/NavigatingGraphs/index.html)
 	* [액터 레퍼런스 변수 작업](https://docs.unrealengine.com/latest/INT/Engine/Blueprints/BP_HowTo/ActorReference/index.html)
@@ -345,7 +344,7 @@ Alex Silkin (alexSilkin), alwei, Allegorithmic, Artem V. Navrotskiy (bozaro), Ce
 	* [함수 만들기](https://docs.unrealengine.com/latest/INT/Engine/Blueprints/BP_HowTo/MakingFunctions/index.html)
 	* 블루프린트 기본 사용법
 	* 노드 연결
-* [머티리얼 비법](https://docs.unrealengine.com/latest/INT/Engine/Rendering/Materials/HowTo/index.html) 추가
+* [머티리얼 하우투](https://docs.unrealengine.com/latest/INT/Engine/Rendering/Materials/HowTo/index.html) 추가
 	* [머티리얼 표현식과 함수 배치](https://docs.unrealengine.com/latest/INT/Engine/Rendering/Materials/HowTo/Placing_Expressions_Functions/index.html)
 	* [머티리얼 함수 생성](https://docs.unrealengine.com/latest/INT/Engine/Rendering/Materials/HowTo/Making_Functions/index.html)
 	* [머티리얼 파라미터 생성](https://docs.unrealengine.com/latest/INT/Engine/Rendering/Materials/HowTo/Making_Parameters/index.html)

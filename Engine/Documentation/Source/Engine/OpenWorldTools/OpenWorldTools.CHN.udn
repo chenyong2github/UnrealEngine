@@ -1,17 +1,16 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6429916
 Availability:Public
 Title:开放世界场景工具
 Crumbs:
 Description:用于创建大型室外场景的工具。
 Navigation:topic
 SkillLevel:Intermediate
-Version:4.8
+Version: 4.8
 parent:Engine
 order:9
 topic-image:Engine\OpenWorldTools\Overview\T_Kite_Demo_00.png
-
-
-![](T_OWT_Header_00.png)
+hero-image:T_OWT_Header_00.png
+tags:Experimental
 
 在 2015 游戏开发者大会（GDC 2015），Epic 向世界展示了由虚幻引擎 4 渲染、充满动植物群的大型开放世界。
 在虚幻引擎 4.8 版本中，已可在 UE4 项目中使用创建此 demo 的 **开放世界场景工具（Open World Tools）**。 

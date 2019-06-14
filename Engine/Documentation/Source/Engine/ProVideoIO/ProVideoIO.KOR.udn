@@ -1,0 +1,35 @@
+INTSourceChangelist:6259944
+Availability: Public
+Crumbs: 
+Title: 전문 비디오 I/O
+Description: 언리얼 엔진에 전문가급 퀄리티의 비디오를 입출력하는 법에 대한 정보입니다.
+Type: landing
+Version: 4.20
+Parent: Engine
+Order: 
+
+
+![](pro-video-banner.png "pro-video-banner.png")
+
+전통적인 2D 비디오와 실시간 3D 환경을 혼합하는 증강 현실 체험이 영화 및 방송 미디어 애플리케이션에도 수요가 점차 늘고 있습니다. 이 글에서는 비디오 프로덕션 파이프라인의 일부로 언리얼 엔진을 매끄럽게 활용하는 법을 설명합니다.
+
+*   전문가급 비디오 및 오디오를 언리얼 엔진에 라이브로 재생하고, 가상 3D 세계로 즉시 합성합니다.
+*   크로마 키 작업, 렌즈 왜곡 및 색 보정과 같은 효과를 언리얼 엔진에 임포트된 비디오에 바로 적용합니다.
+*   언리얼 엔진을 입력 비디오의 타임코드 및 프레임 속도와 동기화하여 타이밍 문제를 해결합니다.
+*   언리얼 에디터 또는 실행 중인 게임 프로젝트의 비디오 피드를 스튜디오의 비디오 파이프라인으로 다시 렌더링 출력합니다.
+
+## 시작하기
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Getting Started" end:"1")]
+
+## 가이드
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Guide" end:"1")]
+
+## 레퍼런스
+
+[DIR(output:"topic" parent:"Engine/ProVideoIO" tags:"Reference" end:"1")]
+
+## 샘플 프로젝트
+
+%Resources/Showcases/VirtualStudio:topic%

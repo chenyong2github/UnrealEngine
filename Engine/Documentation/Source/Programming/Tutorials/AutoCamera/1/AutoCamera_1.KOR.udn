@@ -1,9 +1,11 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6061750
+Availability: docs
 Title:1. 월드에 카메라 배치
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/AutoCamera
 Description:카메라가 여럿 있는 월드를 준비합니다.
 version: 4.9
+
+## No longer needed as page has been combined.
 
 [VAR:Steps]
 [OBJECT:Navigation]

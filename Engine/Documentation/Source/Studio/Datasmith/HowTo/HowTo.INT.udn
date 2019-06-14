@@ -1,0 +1,31 @@
+Availability: Public
+Title: Datasmith How-Tos
+Description: How to carry out tasks in the Datasmith workflow.
+Type: landing
+Version: 4.21
+Parent: Studio/Datasmith
+Tags: Datasmith
+Tags: overview
+Tags: Guides
+Order: 2
+
+
+## Beginner
+[DIR(output:"fancy" parent:"Studio/Datasmith/HowTo" org:"hierarchy" tags:"beginner" type:"how-to" end:"1" skilllevel:"Beginner")]
+
+## Intermediate
+[DIR(output:"fancy" parent:"Studio/Datasmith/HowTo" end:"1" skilllevel:"Intermediate")]
+
+## 3ds Max How-Tos
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/3dsMax" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+## SketchUp How-Tos
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/SketchUp" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+## Revit How-Tos
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/Revit" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+## Deltagen and VRED How-Tos
+[DIR(output:"fancy" parent:"Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED" org:"hierarchy" end:"1" skilllevel:"Beginner")]
+
+

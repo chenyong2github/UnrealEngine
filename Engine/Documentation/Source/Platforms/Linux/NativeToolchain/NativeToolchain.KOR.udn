@@ -1,0 +1,25 @@
+﻿INTSourceChangelist:6373414
+Availability: Public
+Title: Native Toolchain
+Description: 
+Type: reference
+tags:native toolchain
+Version: 4.22
+Parent: Platforms/Linux
+Order: 6
+Tags: Linux
+topic-image: LinuxDevelopment_topic.png
+
+
+언리얼 엔진 4.20 이후 컴파일러와 링커가 코드베이스와 정상 작동하도록 셋업 셸 스크립트가 (Setup.sh) 네이티브 툴 체인을 자동 다운로드합니다. 네이티브 툴체인을 사용하면 고정 sysroot (최소한 glibc) 를 대상으로 컴파일하므로, 예를 들어 Ubuntu 18.04 에서 게임을 컴파일하는 경우 CentOS 7 에서 바이너리를 시작할 수 있을 것입니다.
+
+## 툴체인 받기
+
+적합한 툴체인 다운로드를 위한 표는 다음과 같습니다.
+
+[REGION:simpletable]  
+| UE4 버전 | 툴체인 |
+| --- | --- |
+| 4.22 | **-v13** [clang-7.0.1 기반](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v13_clang-7.0.1-centos7.tar.gz) |
+| 4.21 | **-v12** [clang-6.0.1 기반](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v12_clang-6.0.1-centos7.tar.gz) |
+| 4.20 | **-v11** [clang-5.0.0 기반](http://cdn.unrealengine.com/Toolchain_Linux/native-linux-v11_clang-5.0.0-centos7.tar.gz) |[/REGION]

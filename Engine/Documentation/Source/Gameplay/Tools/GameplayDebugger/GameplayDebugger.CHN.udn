@@ -1,4 +1,4 @@
-INTSourceChangelist:3967023
+﻿INTSourceChangelist:3967023
 Title:Gameplay调试程序
 Availability:Public
 Crumbs:
@@ -35,7 +35,6 @@ Gameplay调试程序用于监控运行时的实时数据，可用于使用复制
 
 Gameplay调试程序默认可以使用撇号（'）键或*EnableGDT*作弊激活。键绑定在文件中设置，可以轻松更改。要选择调试的敌人，在指向屏幕上的敌人的同时按 ' 键。数字键盘用于切换可见类别。GameplayDebugger模块必须添加到项目的依赖性模块才能激活和使用。 
 
-(#editor-workingwithgameplaydebugger)
 ## 编辑器——使用Gameplay调试程序 
 
 在编辑器中工作时，可以在PIE或模拟中使用GDT。在PIE中，可以使用绑定键或*EnableGDT*作弊来激活GDT。模拟模式与PIE稍有不同，因此激活该调试工具需要启用“*调试AI（Debug AI）*”显示标志。模拟中还有一个选项可以更改可见类别。*GameplayDebuggingReplicator* Actor可以用于此目的。该Actor可以在“场景大纲”（Scene Outliner）中找到，其属性用来控制GDT：
@@ -43,7 +42,6 @@ Gameplay调试程序默认可以使用撇号（'）键或*EnableGDT*作弊激活
 ![image alt text](image_3.jpg)
 
 
-(#basicextension)
 ## 基础扩展
 
 Gameplay调试程序只能使用C++代码扩展。对于蓝图项目，它只能原样使用，目前用于显示基本调试信息。扩展Gameplay调试程序很简单，扩展后可以收集和显示游戏特定数据。为此，需要使用继承自*UGameplayDebuggingComponent*类和*AGameplayDebuggingHUDComponent*类的自定义类。第一个类用于收集并最终复制数据，第二个类用于在屏幕上显示所有收集的数据。
@@ -145,7 +143,6 @@ DefaultEngine.ini
 	DebugComponentClassName="/Script/MyGameProject.GDTComponent"
 	DebugComponentHUDClassName="/Script/MyGameProject.GDTHUDComponent" |
 
-(#customcategories)
 ## 自定义类别
 
 还需要再执行一些步骤来将项目特定类别添加到Gameplay调试程序。 

@@ -1,129 +1,159 @@
-﻿Availability:Docs
+﻿INTSourceChangelist:3244370
+Availability:Public
 Title:蓝图编译器概述
-Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/TechnicalGuide
-Description:为扩展蓝图的程序员提供的指南。
+Crumbs: %ROOT%, Programming, Engine/Blueprints/TechnicalGuide
+Description:蓝图编译过程的步骤
+version: 4.9
+tags:Blueprints
 
 [TOC(start:2 end:2)]
 
-蓝图和常规的C++类一样，在游戏中使用它们之前需要进行编译。当您点击 
-**蓝图编辑器** 中的 **编译** 按钮时，就会执行把 _蓝图_ 资源的属性及图表转换为 
-类的过程。
+与普通C++类一样，蓝图在游戏中使用之前需要进行编译。当您单击 
+ **蓝图编辑器（Blueprint Editor）** 中的 **编译（Compile）** 按钮时，系统将执行把蓝图资源的属性和图表 
+转换为类的过程。
+
+(#terminology)
 
 ## 术语
 
-$ FKismetCompilerContext : 该类执行编译工作。每次编译产生一个新实例。存放到正在编译的类、蓝图等的引用。
+$ FKismetCompilerContext : 执行编译工作的类。系统为每次编译生成一个新实例。存储对正在编译的类、蓝图等的引用。
 
-$ FKismetFunctionContext : 存放编译一个函数时的相关信息，像到相关图表、属性及生成的UFunction的引用。
+$ FKismetFunctionContext : 保存用于编译单个函数的信息，例如对关联图表、属性和生成的UFunction的引用。
 
-$ FNodeHandlingFunctor : 一个辅助类，处理编译器中的一类节点(一个单例)。包含注册引脚连接及生成编译好的语句的函数。
+$ FNodeHandlingFunctor : 一个辅助工具类，用于处理编译器中的一个节点类（单件）。包含用于注册引脚连接和生成编译语句的函数。
 
-$ FKismetCompiledStatement : 编译器中的工作单位。编译器把节点转换成一组编译好的状态，这在后端是转换为字节码操作。
+$ FKismetCompiledStatement : 编译器中的工作单元。编译器将节点转换为一组已编译语句，后端将这些语句转换为字节码操作。
 	
-	**示例:**  变量赋值、Goto语句、调用
+	**示例：**变量赋值（Variable assignment）、转到（Goto）、调用（Call）
 
-$ FKismetTerm : 图表中的一个术语 (文字、常量或变量引用)。每个数据引脚连接和其中一种类型相关联。您也可以在 `NodeHandlingFunctor` 中为临时变量或中间结果等创建您自己的术语。
+$ FKismetTerm : 图表中的终端（文字、常量或变量引用）。每个数据引脚连接都与其中一个终端关联！您还可以在“NodeHandlingFunctor”中为Scratch变量、中间结果等创建自己的术语。
 
 
+(#compilationprocess)
 ## 编译过程
 
-编译蓝图的基本过程如下所示：
+下面概述了编译蓝图的基本过程：
 
 [REGION:caption]
-(点击条目来进行查看)
+（单击项目以查看）
 [/REGION]
 [REGION:flowlist]
-* [REGION:listitem][清理类](#清理类)[/REGION]
-* [REGION:listitem][创建类属性](#创建类属性)[/REGION]
-* [REGION:listitem][创建函数列表](#创建函数列表)[/REGION]
-* [REGION:listitem][绑定及连接类](#绑定及连接类)[/REGION]
-* [REGION:listitem special][编译函数*](#编译函数)[/REGION]
-* [REGION:listitem][完成编译类](#完成编译类)[/REGION]
-* [REGION:listitem special][后端产生生成代码*](#后端产生生成代码)[/REGION]
-* [REGION:listitem][复制类的默认对象属性](#复制类的默认对象属性)[/REGION]
-* [REGION:listitem][重新实例化](#重新实例化)[/REGION]
-
-
-**\* 仅针对完全编译**
+* [REGION:listitem][清理类](#CleantheClass)[/REGION]
+* [REGION:listitem][创建类属性](#CreateClassProperties)[/REGION]
+* [REGION:listitem][创建函数列表](#CreateFunctionList)[/REGION]
+* [REGION:listitem][绑定和链接类](#BindandLinktheClass)[/REGION]
+* [REGION:listitem special][编译函数*](#CompileFunctions)[/REGION]
+* [REGION:listitem][完成编译类](#FinishCompilingClass)[/REGION]
+* [REGION:listitem special][后端发出生成的代码*](#BackendEmitsGeneratedCode)[/REGION]
+* [REGION:listitem][复制类默认对象属性](#CopyClassDefaultObjectProperties)[/REGION]
+* [REGION:listitem][重新实例化](#Re-instance)[/REGION]
 [/REGION]
+[REGION:caption clear]
+*仅完整编译
+[/REGION]
+
+(#cleantheclass)
 
 ### 清理类
 
-类是 _适当地进行编译的_ ，这意味着同样的 `UBlueprintGeneratedClass` 会被清理掉，并不断地进行重用 
-，以便不必修复到这个类的指针。`CleanAndSanitizeClass()` 会把属性和函数从类中移除， 
-并将其移入到临时包中的垃圾类中，然后清除该类中的所有数据。
+类是现场编译的，这意味着相同的 **UBlueprintGeneratedClass** 会被一次又一次地清理和重用， 
+因此指向类的指针不必固定。**CleanAndSanitizeClass()** 将属性和函数从类中移到临时包中的垃圾类中， 
+然后清除类中的任何数据。
+
+(#createclassproperties)
 
 ### 创建类属性
 
-编译器迭代蓝图的 `NewVariables` 数组及其它地方(构建脚本等)来 
-查找该类需要的所有UProperties，然后在函数CreateClassVariablesFromBlueprint()中在Uclass的作用范围内 
-创建UProperties 。
+编译器在蓝图的 **新变量（NewVariables）** 阵列以及其他一些地方（构造脚本等）上进行迭代， 
+以查找类所需的所有UProperty，然后在 
+函数 **CreateClassVariablesFromBlueprint()** 中创建UClass作用域上的UProperty。
+
+(#createfunctionlist)
 
 ### 创建函数列表
 
-编译器通过处理事件图表、处理正常的函数图表及 _重新编译函数_ (也就是为每种情况调用 `PrecompileFunction()`) 
-来创建类的函数列表。
+编译器通过处理事件图表，处理正则函数图表和_预编译_函数（即为每个上下文调用 **PrecompileFunction()**） 
+来为类创建函数列表。
+
+(#processeventgraphs)
 
 #### 处理事件图表
 
-处理事件图表由  `CreateAndProcessUberGraph()` 函数执行。这个函数可以 
-所有事件图表复制到一个大图表中，这样就有机会扩展节点。然后，为图表中的每个Event节点创建一个函数存根， 
-并为每个事件图表创建一个 `FKismetFunctionContext` 。
+事件图表的处理由 **CreateAndProcessUberGraph()** 函数执行。此 
+函数将所有事件图表复制到一个大图表中，在此之后，节点将获得机会而展开。然后， 
+此函数为图表中的每个事件节点创建一个函数存根，并为每个事件图表创建一个 **FKismetFunctionContext**。
+
+(#processfunctiongraphs)
 
 #### 处理函数图表
 
-常规函数图表的处理是通过 `ProcessOneFunctionGraph()`  函数完成的。
-每个图表会被复制到临时图表中，在那里可以扩展节点。同时，为每个函数图表创建一个 
-`FKismetFunctionContext` 。
+正则函数图表的处理由 **ProcessOneFunctionGraph()** 函数完成， 
+此函数将每个图表复制到一个临时图表中，其中节点将获得机会而展开。此函数还将为每个函数图表都创建一个 **FKismetFunctionContext** 
+。
+
+(#pre-compilefunctions)
 
 #### 预编译函数
 
-函数的预编译是由每种情况的 `PrecompileFunction()` 函数处理的。这个函数执行 
-以下动作：
+函数的预编译由每个上下文的 **PrecompileFunction()** 处理。此函数执行 
+以下操作：
 
-* 规划执行并计算数据依赖
-* 删除任何没有规划的或者不是数据依赖的节点。
-* 在剩余的每个节点上运行节点处理器的 `RegisterNets()` 
-* 这会为函数中的值创建  `FKismetTerms` 
-* 创建 `UFunction` 和相关属性
+* 计划执行并计算数据依赖性。
+* 删除任何计划外的或不是数据依赖项的节点。
+* 在每个剩余节点上运行节点处理器的 **RegisterNets()**。
+* 此操作将为函数内的值创建 **FKismetTerms**。
+* 创建 **UFunction** 和关联属性。
 
 
-### 绑定及连接类
+(#bindandlinktheclass)
 
-由于编译器知道了该类的所有 UProperties和UFunctions，所以它可以绑定及连接该类， 
-这涉及到填充属性链、属性大小、函数映射等。此时，基于此点，它实际上有一个类头 
-（精简化的标志和元数据）和一个类默认对象（CDO）。
+### 绑定和链接类
+
+现在编译器已经了解类的所有UProperty和UFunction，因此它可以绑定和链接该类， 
+这包括填充属性链、属性大小、函数图等。此时，从本质上看，它具有一个类标头 -  
+减去最终的标记和元数据 - 以及一个类默认对象(CDO)。
+
+(#compilefunctions)
 
 ### 编译函数
 
-为剩余节点生成  `FKismetCompiledStatment` 对象的下一步是通过使用 `AppendStatementForNode()` 的节点处理器的 `Compile()` 函数完成的 
-。这个函数可以 
-在编译函数中创建  `FKismetTerm` 对象，只是这些对象仅能在本地使用。
+下一步是为剩余的节点生成 **FKismetCompiledStatment** 对象， 
+此操作使用 **AppendStatementForNode()** 通过节点处理器的 **Compile()** 函数完成。此 
+函数可以在编译函数中创建 **FKismetTerm** 对象，但前提是这些对象仅在本地使用。
+
+(#finishcompilingclass)
 
 ### 完成编译类
 
-要想完成编译该类，编译器在最终执行几次终极检查来确定编译过程中一切正常之前，它会最终确定 
-父类的类标志及元数据。
+为了完成编译类，编译器将确定类标记，并从父类传播标记和元数据， 
+最后执行一些最终检查，以确保编译过程中一切正常。
 
-###后端产生生成代码
+(#backendemitsgeneratedcode)
 
-后端将每个函数情境的状态集合转换成代码。有两种 
-可用后端：
+### 后端发出生成的代码
 
-* `FKismetCompilerVMBackend` - 把FKCS转换为UnrealScript虚拟机字节码，然后将这些字节码序列化为函数的脚本数组。
-* `FKismetCppBackend` - 仅在调试过程中生成 _类似C++_ 的代码。
+后端将每个函数上下文中的语句集合转换为代码。有两个后端 
+在使用：
 
-### 复制类的默认对象属性
+* **FKismetCompilerVMBackend** - 将FKCS转换为UnrealScript VM字节码，然后将其序列化为函数的脚本阵列。
+* **FKismetCppBackend** - 发出_类似C++_的代码，仅用于调试用途。
 
-通过使用一个特殊函数 `CopyPropertiesForUnrelatedObjects()` ，编译器可以将类的之前的类默认对象(CDO) 
-复制到新的类默认对象中。属性是通过标记序列化进行复制的， 
-只要名称一致，就应该能正确转换。类默认对象的组件会重新进行实例化，且 
-会在这个阶段进行适当的修复。GeneratedClass 的类默认对象是权威的。
+(#copyclassdefaultobjectproperties)
+
+### 复制类默认对象属性
+
+编译器使用一个特殊的函数 **CopyPropertiesForUnrelatedObjects()** 将类的旧CDO中的值 
+复制到新CDO中。属性通过标记序列化复制， 
+因此只要名称一致，它们就应当会被正确地传输。在此阶段， 
+CDO的组件将被重新实例化并进行适当的修复。操作时以GeneratedClass CDO为准。
+
+(#re-instance)
 
 ### 重新实例化
 
-因为类的大小可能已经发生改变，可能已经添加或删除了一些属性，所以编译器需要使用刚刚编译的类 
-来重新实例化所有对象。这个过程使用 `TObjectIterator` 来查找该类的所有实例 
-，生成一个新的实例，然后使用  `CopyPropertiesForUnrelatedObjects()` 函数把旧的实例复制为 
-新实例。
+由于类可能已经更改了大小，且属性可能已经过添加或删除， 
+因此编译器需要用刚编译的类重新实例化所有对象。这个过程使用 **TObjectIterator** 查找类的所有实例， 
+生成一个新实例，然后使用 **CopyPropertiesForUnrelatedObjects()** 函数 
+将旧实例复制到新实例。
 
-关于更多细节，请参照 `FBlueprintCompileReinstancer` 类。
+有关详细信息，请参阅 **FBlueprintCompileReinstancer** 类。

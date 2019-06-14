@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2601374
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:多播分析服务商
 Crumbs: %ROOT%, Gameplay, Gameplay/Analytics
@@ -11,6 +11,7 @@ Description:提供一组蓝图节点，以允许您与分析服务通讯
 拥有不同的优势和劣势。通过使用多个服务商，您可以获取运行应用程序业务所需的所有功能。
 
 
+(#Configuration)
 ## 配置
 
 配置服务商非常直接。只需要知道您要发送数据至的服务商列表即可。此列表提供形式为逗号分隔的列表， 

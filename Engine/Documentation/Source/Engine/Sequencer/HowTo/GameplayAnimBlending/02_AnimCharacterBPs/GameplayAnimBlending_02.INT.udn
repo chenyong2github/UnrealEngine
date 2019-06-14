@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:2. Animation and Character Blueprint Setup
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:In this step we set up our Character and Animation Blueprints to determine how we blend from gameplay to our Slot animation in Sequencer.
@@ -9,7 +9,7 @@ order:2
 checkpoint: editorqs
 tags:Sequencer
 tags:Animation
-type:how-to
+type:multi-step
 
 [VAR:Steps]
 [OBJECT:Navigation]

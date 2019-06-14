@@ -1,100 +1,155 @@
-﻿INTSourceChangelist:3102822
+﻿INTSourceChangelist:3718323
 Availability:Public
-Title:在关卡中流送视频
+Title:播放视频流
 Crumbs:%ROOT%, Engine
-Description:说明如何在虚幻引擎 4 中使用流媒体资源从互联网流送视频。 
-parent:Engine/MediaFramework/HowTo
-order:3
-checkpoint: editorqs
-Version:4.13
-SkillLevel:Beginner
-Related:Engine\MediaFramework
+Description:展示如何流送互联网上的视频并在UI元素中播放。 
+Type: how-to
+SkillLevel: Beginner
+Version: 4.18
+Parent: Engine/MediaFramework/HowTo
+Order: 3
+Tags: Media Framework
+Tags: Video Playback
+Related: Engine\MediaFramework
+Related: Engine\UMG
 
-此指南中游戏开始时视频将在关卡中的一个静态网格体上进行播放。源视频将来自提供的 URL 流。我们使用一些 **蓝图可视化脚本** 在载入关卡时打开流并开始播放。 
+**流媒体源（Stream Media Source）** 是一种资源，允许你在虚幻引擎4（UE4）中流送[支持的 URL](Engine\MediaFramework\TechReference)格式视频。 
+定义流后，你可以将其加载并使用 **媒体播放器** 资源在UE4中播放，并可（通过关联的 **媒体纹理**）将其分配给关卡的各个方面。 
+流可以作为UI元素的一部分加载和播放，并且可以全屏播放，甚至在静态网格体（例如电视）中播放，在关卡中播放。 
 
-[REGION:note]
-在此指南中，我们使用的是启用了 **Starter Content** 的 **Blueprint Third Person Template** 项目。
-[/REGION]
+在本操作指南中，我们将使用[虚幻示意图形](Engine\UMG)（UMG）创建一个全屏播放流式视频的UI元素。 
 
+![](StreamSourceHero.png)
 
+(#steps)
 ## 步骤
 
-1.	在 **Content Browser** 中展开 **Sources Panel**，然后在 **Content** 文件夹中新建一个名为 **Media** 的文件夹。
+[REGION:note]
+在本操作指南中，我们使用启用了 **初学者内容包** 的 **蓝图第三人称模板（Blueprint Third Person Template）** 项目。
+[/REGION]
+
+1.	在 **内容浏览器** 中展开 **源面板（Sources Panel）**，然后在 **内容（Content）** 文件夹下创建名为 **媒体（Media）** 的新文件夹。
 
 	![](StreamMedia_01.png)
 	
-1.	在 **Content/Media** 文件夹中 **点击右键**，然后在 **Media** 下创建一个 **Stream Media Source** 并将其命名为 **MediaStream**。 
+1.	在空的“媒体”文件夹中右键单击，然后在 **媒体（Media）** 下选择 **流媒体源（Stream Media Source）** 并将资源命名为 **MediaStream**。 
 
 	![](StreamMedia_02.png)
 
-1.	打开 **MediaStream** 输入所需的 **流送 URL**。如没有可链接的文件，**右键单击** 该 [范例视频](Infiltrator Demo.mp4)，复制链接地址并将其粘贴到流送 URL 栏中。
+1.	打开 **MediaStream**，然后输入想用的 **流URL（Stream URL）**。 
 
 	![](StreamMedia_03.png) 
+
+	如果你没有要链接的URL文件，右键单击此[样本视频](Infiltrator Demo.mp4)，复制链接地址，然后将其粘贴到“流URL”字段中。
 	
 	[REGION:note]
-	我们使用的是虚拟地址，但流送 URL 必须直接链接到支持的格式进行视频播放。 
-	例如 PS4Media（PS4）现在只支持通过 HLS 流送 Mp4，而 WmfMedia（Windows）支持大量其他流送源。 
-	如需了解平台/播放器插件支持格式的更多信息，请查阅 [](Engine\MediaFramework\TechReference\) 页面。 
+	流URL必须直接链接到支持的格式才能播放视频。 
+	例如，PS4Media（PS4）在最新版引擎中仅支持基于HLS的MP4，而WmfMedia（Windows）可支持许多不同的流源。 
+	有关平台/播放器插件所支持格式的更多信息，请参阅[](Engine\MediaFramework\TechReference\)页面。 
 	[/REGION]
 
-1.	在 **Content Browser** 中 **点击右键**，然后在 **Media** 下选择 **Media Player** 资源。 
+1.	在“媒体（Media）”文件夹中右键单击，然后选择 **媒体（Media）** 下的 **媒体播放器（Media Player）** 资源。 
 
 	![](StreamMedia_04.png)
 
-1.	在 **Create Media Player** 窗口中勾选 **Audio output SoundWave asset** 和 **Video output Media Texture asset**。此操作将自动创建一个声波和媒体纹理资源（它将链接到播放必需的媒体播放器资源）。
+1.	在 **创建媒体播放器（Create Media Player）** 窗口中，启用 **视频输出媒体纹理资源（Video output Media Texture asset）**，然后单击 **确定（Ok）**。 
 
 	![](StreamMedia_05.png)
+
+	这将自动创建并关联链接到此 **媒体播放器** 资源的媒体纹理资源以进行播放。
 	
-1.为新的媒体播放器资源命名。我们将媒体播放器资源称为 **SampleStream**，也应用到声波和媒体纹理。 
+1. 将新的媒体播放器资源命名为 **MyPlayer**，它将自动应用于创建的 **媒体纹理** 资源。 
 
 	![](StreamMedia_06.png) 
 
-1.	在 **Content Browser** 的 **StarterContent/Shapes** 中，将一个 **Shape_Plane** 拖入关卡。我们将在此静态网格体上播放视频。
+1.	在“媒体”文件夹中右键单击，然后在 **用户界面（User Interface）** 下选择 **小部件蓝图（Widget Blueprint）** 并将其命名为 **HUD**。
 
 	![](StreamMedia_07.png) 
 
-1.	使用 **平移（W）**、**旋转（E）** 和 **缩放（R）** 工具将网格体调到所需的大小和位置。
+	**小部件蓝图** 是与[](Engine/UMG)一起使用的资源，用于在虚幻引擎4中创建将应用流式视频的UI元素。  
 
-1.	按住 **Ctrl** 选中 **Sound Wave** 和 **Media Texture** 资源，将它们放置在关卡中的 **静态网格体** 上。此操作将自动创建一个 **材质** 并将其应用到静态网格体。
+1.	在 **HUD** 小部件蓝图中，从 **选用板（Palette）** 窗口将 **图像** 拖到图中，并将其拉伸以适合网格的宽高比。 
 
 	![](StreamMedia_08.png) 
 
-1.	在工具栏上，点击 **Blueprints** 按钮和 **Open Level Blueprint**。 
+	将媒体纹理应用于此图像。在玩游戏时，图像将在玩家的视口上最大化（创建全屏播放视频）。 
+
+1.	在 **图像** 的 **细节（Details）** 面板中，展开 **外观（Appearance）** 下的 **笔刷（Brush）**，并将 **图像** 设置为 **MyPlayer_Video**。 
 
 	![](StreamMedia_09.png)
 
-1.	添加 **Media Player Reference** 类型的一个 **变量**（名为 **Media Player**），并将其设为 **SampleStream** 媒体播放器资源。指定 **默认值** 之前可能需要进行 **编译**。 
+1.	在 **图像** 的 **细节（Details）** 面板中，单击 **插槽（Slot）** 下的 **锚点（Anchors）** 下拉列表，然后选择“固定在中心（anchor middle）”选项。 
+
+	![](StreamMedia_08b.png)
+
+	这将保证无论视口大小如何，图像都固定在视口的中心。 
+
+1.	关闭 **HUD** 小部件蓝图，然后在关卡编辑器工具栏中选择 **蓝图（Blueprints）** 和 **打开关卡蓝图（Open Level Blueprint）**。 
 
 	![](StreamMedia_10.png)
 
-1.	按住 **Ctrl** 拖入 **MediaPlayer** 变量，再 **点击右键** 添加一个 **Event Begin Play** 节点。 
+1.	创建一个名为 **MediaPlayer** 的变量，类型为 **媒体播放器参考（Media Player Reference）**，并将 **默认值（Default Value）** 设置为 **MyPlayer** 媒体播放器资源。 
 
 	![](StreamMedia_11.png)
 
-1.	从 **MediaPlayer** 变量连出引线，使用设置为 **MediaStream** 媒体源的 **Open Source** 节点，然后按下图所示进行连接。 
+	你可能需要单击 **编译（Compile）** 才能查看 **MediaPlayer** 变量的默认值。 
+
+1.	按住 **Ctrl** 键并将 **MediaPlayer** 变量拖到图上，创建此变量的 **获取（Get）** 节点，然后右键单击并添加 **事件开始播放（Event Begin Play）** 节点。 
 
 	![](StreamMedia_12.png)
 
-1.	关闭关卡蓝图，然后在编辑器中进行游戏。 
+	当游戏开始时，我们将创建和显示 **HUD**，为流设置声音，然后打开流并播放。 
 
+1.	右键单击并添加 **创建小部件（Create Widget）** 节点，将 **类（Class）** 设置为 **HUD**，然后在 **返回值（Return Value）** 中，使用 **添加到视口（Add to Viewport）** 并按图所示进行连接。 
+
+	![](StreamMedia_13.png)
+
+1.	在 **添加到视口（Add to Viewport）** 节点后，右键单击并使用 **添加媒体声音组件（Add Media Sound Component）**，然后在 **细节（Details）** 面板中将 **媒体播放器（Media Player）** 设置为 **MyPlayer**。 
+
+	![](StreamMedia_14.png)
+
+	要随同视频一起收听音频，你需要使用指向媒体播放器资源的媒体声音组件。 
+	在这里，我们是在运行时动态创建和添加的。但是，你也可以在 **组件（Components）** 面板中将此组件添加到关卡中存在的Actor或添加为蓝图的一部分。
 	
+1.	在 **添加媒体声音组件（Add Media Sound Component）** 节点后，使用 **媒体播放器（Media Player）** 参考节点中的 **开源（Open Source）**，将 **媒体源（Media Source）** 设置为 **MediaStream** 资源。 
+
+	[REGION:lightbox]
+	[![](StreamMedia_15.png)](StreamMedia_15.png)
+	[/REGION]
+
+	[REGION:caption]
+	单击查看大图。 
+	[/REGION]
+
+	节点网络完成后，将在游戏开始时创建并显示 **HUD**，并在打开和播放媒体流时播放声音。
+
+1.	关闭关卡蓝图，然后单击 **播放（Play）** 以在关卡中播放。 	
+
+(#end result)
 ## 最终结果
 
-在编辑器中进行游戏时，视频将在静态网格体上进行播放。 
+在编辑器中播放后，视频将作为 **HUD** 小部件蓝图的一部分再次全屏播放。 
 
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-ncHIQ0QteC8
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	fuFYggIC23Q
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	58
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
-和使用从磁盘播放视频文件的 [File Media Source](Engine\MediaFramework\HowTo\FileMediaSource) 相似，如流媒体源相关的 **媒体播放器** 资源设为 **Play on Open**（默认启用），调用 **Open Source** 时它们将自动播放。
-播放开始后可对媒体播放器资源发出更多命令，如暂停、倒回、停止。从 Media Player Reference 连出引线时，可从 **Media Player** 部分找到这些命令。
+
+与使用[文件媒体源](Engine\MediaFramework\HowTo\FileMediaSource)从磁盘播放视频文件相同，如果默认情况下启用的关联 **媒体播放器** 资源设置为 **打开时播放（Play on Open）**，在调用 **开源** 时将自动播放媒体源。
+视频播放开始后，你可以向媒体播放器资源发出其他命令，例如暂停、快退、停止等。在拖出媒体播放器参考（Media Player Reference）时，这些命令将显示在 **媒体播放器（Media Player）** 部分中。
 
 

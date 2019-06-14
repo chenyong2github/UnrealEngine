@@ -5,7 +5,7 @@ Description: Describes the components that make up the Pixel Streaming system an
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 0
 topic-image:pixelstreaming-overview-topic.png
 Tags: Getting Started
 Tags: Early Access

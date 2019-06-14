@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2659205
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:骨架网格模型组件
 Crumbs:%ROOT%, Engine, Engine/Components
@@ -12,6 +12,7 @@ Version: 4.9
 
 骨架网格模型组件可用于任何拥有复杂动画数据并使用骨架的情形。 
 
+(#SkeletalMeshComponents)
 ## Skeletal Mesh Components （骨架网格模型组件）
 
 **SkeletalMeshComponents** 用于创建 `USkeletalMesh` 的实例。骨架网格模型（外观）具有一个复杂的骨架（互连骨骼），在其内部可以移动骨架网格模型的单个顶点来匹配当前播放的动画。 

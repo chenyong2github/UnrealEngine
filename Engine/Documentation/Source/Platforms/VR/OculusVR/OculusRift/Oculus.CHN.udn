@@ -1,0 +1,34 @@
+﻿INTSourceChangelist:6179138
+Title:Oculus Rift
+Availability: Public
+Crumbs: %ROOT%, Platforms
+Description:关于使用UE4为Oculus Rift HMD进行开发的信息。
+Navigation: platform
+Platform: Oculus
+Version: 4.17
+type: landing
+parent: Platforms/VR/OculusVR
+order:2
+tags:VR
+Tags: Desktop VR
+tags: Oculus Rift
+tags: Platform
+Tags: VR
+topic-image: OculusRiftDevelopment_topic.png
+
+![](Rift_Touch_Tracker.png)(w:1000)
+
+## 开始
+
+[DIR(end:"1" output:"topic" type:"quick start" parent:"Platforms/VR/OculusVR/OculusRift")]
+
+## Oculus Rift开发
+
+[DIR(end:"1" output:"topic" type:"reference,overview" parent:"Platforms/VR/OculusVR/OculusRift")]
+
+## 指南
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Advanced" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Expert" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]

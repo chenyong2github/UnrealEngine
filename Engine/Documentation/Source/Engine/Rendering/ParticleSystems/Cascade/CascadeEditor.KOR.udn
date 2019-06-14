@@ -1,6 +1,6 @@
-﻿INTSourceChangelist:3801260
+INTSourceChangelist:3801260
 Availability: Public
-Title:캐스케이드 파티클 에디터 참고서
+Title:캐스케이드 파티클 에디터 레퍼런스
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems
 Description:캐스케이드 에디터의 UI 를 핵심 영역별로 나눠 보는 개요입니다.
 Version: 4.9
@@ -133,7 +133,7 @@ topic-image:cascade_topic.png
 | **마우스 왼쪽 버튼** | 카메라를 파티클 시스템 중심으로 텀블링합니다. |
 | **마우스 가운데 버튼** | 카메라를 파티클 시스템 중심으로 패닝합니다. |
 | **마우스 오른쪽 버튼** | 카메라 회전입니다. |
-| **Alt + 마우스 왼쪽 버튼** | 파티클 시스템을 중심으로 공전합니다. |
+| **Alt + 마우스 왼쪽 버튼** | 파티클 시스템을 중심으로 궤도를 돕니다. |
 | **Alt + 마우스 오른쪽 버튼** | 파티클 시스템 가까이 또는 멀리로 카메라를 이동시킵니다. |
 | **F** | 파티클 시스템에 포커스를 맞춥니다. |
 | **L + 마우스 왼쪽 버튼** | 라이트를 회전시킵니다. 라이팅포함 머티리얼을 사용하는 파티클에만 작동합니다. (대부분의 화염, 스파크 등) 라이팅제외 파티클에는 효과가 없습니다. |
@@ -303,7 +303,7 @@ topic-image:cascade_topic.png
 
 [/COMMENT]
 
-파티클 모듈 관련 자세한 정보는 [모듈 참고서](Engine/Rendering/ParticleSystems/Reference) 를 확인해 주시기 바랍니다.
+파티클 모듈 관련 자세한 정보는 [모듈 레퍼런스](Engine/Rendering/ParticleSystems/Reference) 를 확인해 주시기 바랍니다.
 
 
 

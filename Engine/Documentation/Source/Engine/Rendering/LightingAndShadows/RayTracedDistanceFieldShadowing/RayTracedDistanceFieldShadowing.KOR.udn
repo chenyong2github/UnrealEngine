@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6429227
 Availability: Public
 Crumbs: %ROOT%
 Title: 레이 트레이스 디스턴스 필드 소프트 섀도우
@@ -17,13 +17,8 @@ Tags:Distance Fields
 Tags:Getting Started
 Topic-image:DistanceFieldShadowing_Topic.jpg
 Social-Image:DirectionalLightAreaShadows.jpg
+hero-image: DistanceFieldShadowing_Header.jpg
  
-
-[REGION:fullwidth raw]
-![](DistanceFieldShadowing_Header.jpg)
-[/REGION]
-
-[TOC(start:2 end:2)]
 
 무버블 라이트 소스에서의 그림자는 각 스태틱 메시의 오브젝트 디스턴스 필드를 사용하여 다이내믹 라이트 소스에서 효율적인 에리어 섀도우를 계산하는 식으로 제공됩니다. 언리얼 엔진 4 (UE4) 에서 이는 
 **Ray Traced Distance Field Shadows** (레이 트레이스 디스턴스 필드 섀도우, RTDF) 라 합니다. 그림자 계산을 위해 그림자를 받을 점에서 각 라이트 방향 씬의 Signed Distance Fields (부호화 디스턴스 필드, SDF)를 통해 레이 트레이싱을 합니다.

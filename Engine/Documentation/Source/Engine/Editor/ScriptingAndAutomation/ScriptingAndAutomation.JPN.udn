@@ -7,7 +7,9 @@ type: landing
 Version: 4.20
 Parent: Engine/Editor
 Order: 1
-Tags: Blueprints, Python, scripting
+Tags: Blueprints
+Tags: Python
+Tags: scripting
 
 
 Unreal Editor のユーザーインターフェースからは、プロジェクトの設定、レベルの設計と構築、ゲームプレイのインタラクションの作成など、さまざまなビジュアル ツールにアクセスすることができます。ただ、一度エディタ上で行うべき操作は何かがわかったら、再利用可能なスクリプトで、プログラム的にツールとコマンドを呼び出したいと思うかもしれません。

@@ -1,140 +1,169 @@
-﻿INTSourceChangelist:4261534
+﻿INTSourceChangelist:6574346
 Availability: Public
-Crumbs: %ROOT%
-Title: 移动设备预览器
-Description: 在UE4编辑器中预览基于所选移动平台的游戏。
-Type: Overview
+Title: 移动预览器
+Description: 基于所选的移动平台，在UE4编辑器中预览游戏。
+Type: overview
+Version: 4.22
+Parent: Platforms/Mobile
+Tags: mobile
 skilllevel:Beginner
-Version:4.16
-Parent:Platforms/Mobile
-Related:Platforms/Mobile
-Related:Engine/Rendering
-Related:Engine/UI/LevelEditor
-Order:7
-Tags:Mobile
-Topic-image:MobilePreview_topic.png
-Social-Image:T_Rendering_Level_Examples.png
+topic-image: MobilePreview_topic.png
+social-image: T_Rendering_Level_Examples.png
+Order: 16
+Related: Engine/UI/LevelEditor
+Related: Engine/Rendering
+Related: Platforms/Mobile
 
-[TOC(start:2 end:2)]
+
+[TOC (start:2 end:2)]
 
 ![](T_Rendering_Level_Examples.png)
 
 [REGION:caption]
-1：Mobile / HTML5 - Open GL ES2；2：Shader Model 4.0 - DX10/ OpenGL 3.3+；3：Shader Model 5.0 - DX11/ OpenGL 4.3+。
+1：移动/HTML5 - Open GL ES2，2：着色器模型4.0 - DX10/ OpenGL 3.3+，3：着色器模型5.0 - DX11/ OpenGL 4.3+。
 [/REGION]
 
-在虚幻引擎4（UE4）中，你可以使用 **移动设备预览器（Mobile Previewer）** 直接在UE4编辑器视口中预览场景在不同移动设备上看起来的效果。启用不同预览渲染等级时，场景中的材质将重新编译，以最大程度模拟所选择的渲染器预览的外观和特性集。“移动设备预览器（Mobile Previewer）”允许你无缝地在不同渲染等级间来回切换，而无需重启编辑器。
+在虚幻引擎4(UE4)中，您可以使用 **移动预览器（Mobile Previewer）** 直接在UE4编辑器视口中预览您的场景在不同移动设备上的显示情况。在启用不同的预览渲染关卡时，场景中的材质将被重新编译，以最大程度上模拟所选择的渲染器预览的外观和特性集。移动预览器使您能够在渲染关卡之间无缝切换，而无需重新启动编辑器。
 
-## 使用“移动设备预览器（Mobile Previewer）”
 
-**移动设备预览器（Mobile Previewer）** 使你能够针对当前UE4会话在不同渲染器间快速切换，方便你了解游戏在你针对其进行开发的目标设备上将会具有的效果，而且你还可以在编辑器中同时工作。要了解如何在不同渲染器预览间切换，请按照以下步骤进行操作：
+## 使用移动预览器
+
+ **移动预览器（Mobile Previewer）** 使您能够针对当前UE4会话在不同渲染器之间快速切换，以便您在编辑器中工作的同时，还能够了解您的游戏在目标设备上的显示情况。
+要了解如何更改到不同的渲染器预览，请遵循以下步骤：
 
 [REGION:note]
-虽然无需重启编辑器就可使新的预览渲染等级生效，但是首次更改为某个预览渲染等级时，编辑器需要花些时间来重新编译着色器。随后对先前使用过的渲染等级进行更改时，应该即时就可完成。
+虽然您不需要重新启动编辑器以使新的预览渲染关卡生效，但是当您第一次更改到某个预览渲染关卡时，编辑器将需要时间重新编译着色器。对以前使用的渲染关卡的后续更改应该几乎是即时的。
 [/REGION]
 
-1. 在主工具栏中，选择 **设置（Settings）** 按钮来展开列表式菜单项。在 **可延展性（Scalability）** 部分下，将光标悬停在 **预览渲染等级（Preview Rendering Level）** 上，让可供你选择的不同渲染等级选项显示出来。
+1.  从主工具栏中，选择 **设置（Settings）** 按钮以展开列示的菜单项。在 **可扩展性（Scalability）** 部分下，将鼠标悬停在 **预览渲染关卡（Preview Rendering Level）** 以公开可以从中选择的不同渲染关卡选项。  
+    ![](mobile_preview_level.png "mobile_preview_level.png")  
     
-    ![](PreviewRenderingLevel.png)(w:475)
-2. 将鼠标悬停在要用来进行预览的渲染等级部分上，然后使用鼠标左键单击以选中它。在此示例中，我们选择了 **Android Vulkan预览（Android Vulkan Preview）**。
-    
-    ![](SelectTargetPlatform.png)
-    
-    你将看到 **正在更改预览渲染等级（Changing Preview Rendering Level）** 进度条弹出。等待进度条跑完而且着色器重新编译完成。
-    
-    ![](ChangingPreviewRenderingLevel.png)(w:450)
-3. 选择某个渲染等级之后，视口中的材质将自动更新，以使用为该目标平台启用或禁用的材质质量来反映新的渲染方法。(请参阅本页的[平台材质质量设置](Platforms/Mobile/Previewer#platformmaterialqualitysettings)部分来获取有关如何进一步调整材质质量的更多详细信息。)
-    
-    [OBJECT:ComparisonSlider]
-     [PARAM:before]
-     ![Android Vulkan Preview](VulkanPreview.png) 
-     [/PARAM]
-     [PARAM:after]
-     ![Desktop Shader Model 5 (SM5) Preview](Sm5Preview.png) 
-     [/PARAM]
-    [/OBJECT]
-    
+1.  将鼠标悬停在要预览的部分渲染关卡上，然后单击鼠标左键选择它。  
+    将弹出“正在更改预览渲染关卡（Changing Preview Rendering Level）”进度条。等待该进度条完成并重新编译着色器。  
+    ![](ChangingPreviewRenderingLevel.png)(w:450)  
+    **预览模式（Preview Mode）** 按钮显示在 **设置（Settings）** 按钮旁边，该按钮显示所选预览模式的图标。单击它以禁用移动预览器。   
+    ![](previewer_icon.png "previewer_icon.png")
 
+1.  一旦选择了渲染关卡，视口中的材质将自动更新，以通过为该目标平台启用或禁用的材质质量，反映新的渲染方法。（有关如何进一步调整这些设置的更多详情，请参阅本页面的[平台材质质量设置](Platforms/Mobile/Previewer#platformmaterialqualitysettings)部分。）
+
+	[OBJECT:ComparisonSlider]
+		[PARAM:before]
+		![Android Vulkan Preview](VulkanPreview.png)
+		Android Vulkan预览
+		[/PARAM]
+		[PARAM:after]
+		![Desktop Shader Model 5 (SM5) Preview](Sm5Preview.png)
+		桌面着色器模型5(SM5)预览
+		[/PARAM]
+	[/OBJECT]
+    
 [REGION:note]
-尽管我们已让“移动设备预览器（Mobile Previewer）”在各方面尽可能接近移动设备，但这不一定意味着你的项目在目标设备上看起来与预览时的效果相同。你一定要确保在目标设备上全面测试你的项目，而仅使用“移动设备预览器（Mobile Previewer）”来了解作品是否在朝着正确的方向前进。
+移动预览器旨在尽可能地匹配移动设备，但它也许不一定能预示您的项目在目标设备上的显示情况。您应该始终确保在目标设备上全面测试您的项目，并且仅使用移动预览器来查看您的工作是否朝着正确的方向发展。
 [/REGION]
 
-### 在4.8或更早版本中使用“移动设备预览器（Mobile Previewer）”
+### PIE中的移动预览器
 
-在虚幻引擎4.8版本中，你不具备更改编辑器视口渲染方法来模拟移动设备渲染的能力。要查看项目在移动设备上的潜在效果，你必须使用 **启用移动设备预览（Enable Mobile Preview）** 选项来启动独立游戏。
+您可以使用 **移动预览ES2（PIE）（Mobile Preview ES2 (PIE)）** 选项启动UE4移动项目的独立版本，该版本将使用与在移动设备上运行的项目相同的渲染路径。这是一个很好的方法，可以预览您正在进行的更改，而不必经历整个烘焙和部署过程。要在使用移动预览的独立游戏中启动UE4项目，您需要执行以下操作：
 
-要启用移动设备预览模式，需要执行以下步骤：
+1.  从 **主工具栏（Main Toolbar）** 中，单击 **运行（Play）** 按钮旁边的下拉按钮，以公开 **修改游戏模式和游戏设置（Change Play Mode and Play Settings）** 的设置。  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
 
-1. 在主工具栏中，选择 **运行（Play）** 按钮旁边的箭头以让不同的运行模式显示出来。
+1.  选择 **移动预览ES2（PIE）（Mobile Preview ES2 (PIE)）** 选项，然后您的项目将在一个新窗口中启动，该窗口模拟您的项目在移动设备上的显示情况。  
     
-2. 选择 **移动设备预览（Mobile Preview）**，然后项目将在模拟项目在移动设备上的效果的新窗口中启动。
+    ![](T_Activate_Mobile_Preview-1.png "T_Activate_Mobile_Preview-1.png")  
     
-    ![](T_Activate_Mobile_Preview.png)
-    
+## 启用Vulkan移动预览
 
-## 启用高端移动设备预览平台
+您可以使用 **Vulkan移动预览（PIE）（Vulkan Mobile Preview (PIE)）** 选项，以使用Vulkan渲染启动UE4移动项目的独立版本。这是一个很好的方法，可以预览您正在进行的更改，而不必经历整个烘焙和部署过程。要在使用Vulkan移动预览的独立游戏中启动UE4项目，您需要执行以下操作：
 
-对于部分平台（例如，支持Android OPENGLES 3.1、Android Vulkan和iOS Metal的高端平台），你可以单独地选择启用或禁用，它们作为“预览渲染等级（Preview Rendering Level）”包含在 **高端移动设备/ Metal（High-End Mobile / Metal）** 预览列表中。当启用或禁用这些目标平台时，系统将相应地将它们添加到该列表中或从该列表中将它们移除。
+1.  要启用Vulkan预览器，首先需要打开 **编辑器偏好设置（Editor Preferences）**，方法是转到 **主工具栏（Main Toolbar）** 并单击 **编辑（Edit）**，然后选择 **编辑器偏好设置（Editor Preferences）**。  
+    ![](VulkanMobilePreview_EditorPreferences-2.png "VulkanMobilePreview_EditorPreferences-2.png")
 
-使用以下步骤来启用或禁用这些目标平台，以在“移动设备预览器（Mobile Previewer）”中使用或停止使用它们。
-
-1. 首先打开 **项目设置（Project Settings）** 窗口，方法是转至文件菜单 > **编辑（Edit）** \> **窗口（Window）** \> **项目设置（Project Settings）**。
-    
-    ![](OpenProjectSettings.png)(w:300)
-2. 在 **项目设置（Project Settings）** 中的 **平台（Platforms）** 部分下，选择 **Android** 或 **iOS** 部分。
-    
+1.  在编辑器偏好设置（Editor Preferences）菜单中，找到 **一般（General）** 标题，然后单击 **实验性（Experimental）** 部分。  
     [REGION:lightbox]
-    [![](PS_SelectPlatform.png)(w:900)](PS_SelectPlatform.png)
+    [![](VulkanMobilePreview_ExpermentalOptions.png)(w:500px)](VulkanMobilePreview_ExpermentalOptions.png)
     [/REGION]
     [REGION:caption]
-    单击查看大图。
+    单击显示全图。
     [/REGION]
     
-    对于 **Android OPENGLES 3.1** 和 **VULKAN** 预览，在 **Android** 部分的 **版本（Build）** 部分下，选中 **支持OpenGLES 3.1（Support OpenGLES 3.1）** 或 **支持Vulkan（Support Vulkan）** 的复选框。
+1.  找到 **PIE** 部分，然后单击 **允许Vulkan移动预览（Allow Vulkan Mobile Preview）** 选项以启用它。  
+    [REGION:lightbox]
+    [![](VulkanMobilePreview_EnableVulkan.png)(w:500px)](VulkanMobilePreview_EnableVulkan.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
     
-    ![](AndroidTarget.png)(w:650)
-    
-    对于 **iOS Metal**，在 **iOS** 部分的 **渲染（Rendering）** 部分下，选中 **支持使用Metal的正向渲染（配备A7及以上的设备）（Support Forward Rendering with Metal (A7 and up devices)）** 的复选框。
-    
-    ![](MetalTarget.png)(w:650)
-3. 启用或禁用平台后，在“预览渲染等级（Preview Rendering Level）”列表中受支持的平台列表将会更新。
-    
-    ![](HighEndPreviewEnabled.png)
-    
+1.  关闭编辑器偏好设置（Editor Preferences）菜单，然后从 **主工具栏（Main Toolbar）** 中，单击 **运行（Play）** 按钮旁边的下拉按钮，以公开 **修改游戏模式和游戏设置（Change Play Mode and Play Settings）** 的设置。  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
 
-(#platformmaterialqualitysettings)
+1.  选择 **Vulkan移动预览(PIE)（Vulkan Mobile Preview (PIE)）** 选项，然后您的项目将在一个新窗口中启动，该窗口模拟您的项目在移动设备上的显示情况。  
+    ![](VulkanMobilePreview_UseVulkanMobilePreview.png "VulkanMobilePreview_UseVulkanMobilePreview.png")  
+    
 ## 平台材质质量设置
 
-在 **项目设置（Project Settings）** 的 **平台（Platforms）** 类别下，你可以选择不同平台 **材质质量（Material Quality）** 部分来为目标平台启用或禁用特定特性。
-
+在 **项目设置（Project Settings）** 中的 **平台（Platforms）** 类别下，您可以选择不同的平台 **材质质量（Material Quality）** 部分来启用或禁用目标平台的特定功能。  
 [REGION:lightbox]
-[![](MaterialQualityProjectSettings.png)(w:900)](MaterialQualityProjectSettings.png)
+[![](MaterialQualityProjectSettings.png)(w:500px)](MaterialQualityProjectSettings.png)
 [/REGION]
 [REGION:caption]
-单击查看大图。
+单击显示全图。
 [/REGION]
 
-要使这些更改生效，请务必单击 **更新预览着色器（Update Preview Shaders）** 按钮。
+要使这些更改生效，请确保单击 **更新预览着色器（Update Preview Shaders）** 按钮。
 
 ![](UpdatePreviewShadersButton.png)
 
-## “预览渲染等级（Preview Rendering Level）”选择
+## 预览渲染关卡选择
 
-选择“预览渲染等级（Preview Rendering Level）”时，有多个选项可供选择。使用下表来选择最适合你的目标设备的选项。
+当您选择预览渲染关卡时，将有几个选项可供您选择。使用下表选择最适合您的目标设备的选项。
 
-| 设备目标 | 描述 |
+[REGION:raw]
+| 目标设备 | 说明 |
 | --- | --- |
-| [REGION:tablesection]高端移动设备/ Metal（High-End Mobile / Metal） [/REGION] ||
-| **默认高端移动设备（Default High-End Mobile）** | 该选项将模拟默认高端移动设备材质质量设置，不使用任何在“项目设置（Project Settings）”中指定的材质质量覆盖。|
-| **Android GLES 3.1** | 提供受支持的Android OpenGL ES3.1质量设置的预览模拟。可以在 **项目设置（Project Settings）** \> **Android材质质量 - ES31（Android Material Quality - ES31）** 部分中设置“材质质量（Material Quality）”设置。|
-| **Android Vulkan** | 提供受支持的Android Vulkan质量设置的预览模拟。可以在 **项目设置（Project Settings）** \> **Android材质质量 - Vulkan（Android Material Quality - Vulkan）** 部分中设置“材质质量（Material Quality）”设置。|
-| **iOS Metal** | 提供受支持的iOS Metal质量设置的预览模拟。可以在 **项目设置（Project Settings）** \> **iOS材质质量 - Metal（iOS Material Quality - Metal）** 部分中设置“材质质量（Material Quality）”设置。|
-| [REGION:tablesection]Mobile / HTML5[/REGION]||
-| **默认移动设备 / HTML5（Default Mobile / HTML5）** | 该选项将模拟默认移动设备材质质量设置，不使用任何在 **项目设置（Project Settings）** 中指定的材质质量覆盖。|
-| **Android** | 提供受支持的Android OpenGL ES2质量设置的预览模拟。可以在 **项目设置（Project Settings）** \> **Android材质质量 - ES2（Android Material Quality - ES2）** 部分中设置“材质质量（Material Quality）”设置。|
-| **iOS ES2** | 提供受支持的iOS OpenGL ES2质量设置的预览模拟。可以在 **项目设置（Project Settings）** \> **iOS材质质量 - ES2（iOS Material Quality - ES2）** 部分中设置“材质质量（Material Quality）”设置。|
-
-
-[REGION: note]
-部分可用的“预览渲染等级（Preview Rendering Level）”处于不可见状态，除非你在“项目设置（Project Settings）”中将它们作为目标平台启用，这些预览渲染等级包括Android OpenGLES 3.1和Android Vulkan。iOS Metal默认处于启用状态，但是，如果禁用了其目标平台，它也将从可用预览选项中移除。
+| [REGION:tablesection]High-End Mobile / Metal[/REGION] ||
+| **默认高端移动设备（Default High-End Mobile）** | 模拟默认的高端移动材质质量设置，而不使用项目设置（Project Settings）中指定的任何材质质量覆盖。|
+| **Android GLES 3.1** | 提供支持的Android OpenGL ES3.1质量设置的预览模拟。材质质量（Material Quality）设置可在 **项目设置（Project Settings）** > **Android材质质量 - ES31（Android Material Quality - ES31）** 部分中设置。|
+| **Android Vulkan** | 提供支持的Android Vulkan质量设置的预览模拟。材质质量（Material Quality）设置可在 **项目设置（Project Settings）** > **Android材质质量 - Vulkan（Android Material Quality - Vulkan）** 部分中设置。|
+| **iOS Metal** | 提供支持的iOS Metal质量设置的预览模拟。材质质量（Material Quality）设置可在 **项目设置（Project Settings）** > **iOS材质质量 - Metal（iOS Material Quality - Metal）** 部分中设置。|
+| [REGION:tablesection]Mobile / HTML5[/REGION] ||
+| **默认移动设备/HTML5（Default Mobile/HTML5）** | 模拟默认的移动材质质量设置，而不使用 **项目设置（Project Settings）** 中指定的任何材质质量覆盖。|
+| **Android** | 提供支持的Android OpenGL ES2质量设置的预览仿真。材质质量（Material Quality）设置可在 **项目设置（Project Settings）** > **Android材质质量 - ES2（Android Material Quality - ES2）** 部分中设置。|
+| **iOS ES2** | 提供支持的iOS OpenGL ES2质量设置的预览仿真。材质质量（Material Quality）设置可在 **项目设置（Project Settings）** > **iOS材质质量 - ES2（iOS Material Quality - ES2）** 部分中设置。|
 [/REGION]
+[REGION:note]
+在通过项目设置（Project Settings）将一些可用的预览渲染关卡启用作为目标平台（即Android OpenGLES 3.1和Android Vulkan）之前，这些关卡是不可见的。然而，iOS Metal默认为开启，如果其目标平台被禁用，它也将作为一个可用的预览选项被移除。
+[/REGION]
+
+## 移动设备预览选项
+
+由于手机边框设计多种多样，确保用户界面的某些部分不会被手机边框遮挡有较大的难度。为了确保用户界面不会被设备遮挡，您可以使用 **设备启动（Device Launch）** 选项来覆盖不同的手机边框设计。要在UE4项目中使用该选项，您需要做的就是执行以下操作。
+
+1.  首先，打开您的 **编辑器偏好设置（Editor Preferences）**，方法是转到 **主工具栏（Main Toolbar）** 并单击 **编辑（Edit）**，然后选择 **编辑器** **偏好设置（Editor Preferences）**。  
+    ![](VulkanMobilePreview_EditorPreferences-2.png "VulkanMobilePreview_EditorPreferences-2.png")
+
+1. 在 **编辑器偏好设置（Editor Preferences）** 菜单中，找到 **一般（General）** 标题，然后单击 **实验性（Experimental）** 部分。  
+    [REGION:lightbox]
+    [![](VulkanMobilePreview_ExpermentalOptions.png)(w:500px)](VulkanMobilePreview_ExpermentalOptions.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  找到 **PIE** 部分，然后单击 **使用预览设备启动选项启用移动PIE（Enable mobile PIE with preview device launch options）** 以启用边框覆层。  
+    [REGION:lightbox]
+    [![](EnableDevicePreview.png)(w:500px)](EnableDevicePreview.png)
+    [/REGION]
+    [REGION:caption]
+    单击显示全图。
+    [/REGION]
+    
+1.  关闭编辑器偏好设置（Editor Preferences）菜单，然后从 **主工具栏（Main Toolbar）** 中，单击 **运行（Play）** 按钮旁边的下拉按钮，以公开 **修改游戏模式和游戏设置（Change Play Mode and Play Settings）** 的设置。  
+    ![](ShowPlayModeOptions.png "ShowPlayModeOptions.png")
+
+1.  从显示的菜单中，转到 **移动预览(PIE)（Mobile Preview (PIE)）** > **Android**，然后从列表中选择您要进行测试的设备。  
+    ![](SelectDevicePreview.png "SelectDevicePreview.png")
+
+1.  现在，单击 **启动（Launch）** 按钮启用您的项目。当您的项目加载时，它将使用设备预览，如下图中所示。  
+    ![](PhoneBezel.png "PhoneBezel.png")

@@ -1,32 +1,28 @@
-INTSourceChangelist:3782314
-Availability:Public
-Title:Texture 표현식
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
-Description:텍스처 샘플을 뽑아 출력하는 표현식입니다.
+INTSourceChangelist:6527536
+Availability: Public
+Title: Texture 표현식
+Description: 텍스처 샘플을 뽑아 출력하는 표현식입니다.
 Version: 4.9
-tags:Materials
+Parent: Engine/Rendering/Materials/ExpressionReference
+Tags: Materials
 
-[EXCERPT:TOC]
-[TOC(start:2)]
-[/EXCERPT:TOC]
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Font#FontSample]
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Font#FontSampleParameter]
 
+![](FontSampleParameterExample.png)
 
 ## SceneColor
 
 SceneColor 는 기존 씬 컬러를 출력하는 표현식입니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]입력[/REGION] ||
 | **OffsetFraction** | 오프셋 부분 - 스크린 스페이스의 씬 컬러를 오프셋시킬 2D 벡터를 받습니다. 이 값을 0,1 이나 1,0 으로 설정하면 약간 밝은 버전의 씬 컬러가 나옵니다. 1,1 로 설정하면 훨씬 밝은 결과가 나옵니다. |
 
-
-![SceneColorExample.png](SceneColorExample.png)
-
+![](SceneColorExample.png)
 
 ## SpriteTextureSampler
 
@@ -54,24 +50,12 @@ SceneColor 는 기존 씬 컬러를 출력하는 표현식입니다.
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Functions#TextureObject]
 
-
-[COMMENT:none]
--
-## Scene Texture
-
-
-## Texture Object
-
-
--
-[/COMMENT]
-
 ## TextureSample
 
 TextureSample 표현식은 텍스처에서 색 값을 출력합니다. 이 텍스처는 (노멀 맵 포함) 정규 Texture2D, 큐브맵, 무비 텍스처가 될 수 있습니다.
 
 | 항목 | 설명 |
-| ---- | ---- |
+| --- | --- |
 | [REGION:tablesection]프로퍼티[/REGION] ||
 | **Texture** | 텍스처 - 표현식이 샘플을 뽑는 텍스처를 나타냅니다. 텍스처를 설정하려면 먼저 콘텐츠 브라우저에서 텍스처를 선택합니다. 그런 다음 표현식의 프로퍼티 창에서 Texture 프로퍼티를 선택한 다음 '현재 선택 사용' 버튼을 클릭합니다. |
 | **Sampler Type** | 샘플러 유형 - 노드에서 샘플링하여 출력시킬 데이터 유형입니다. |
@@ -87,18 +71,17 @@ TextureSample 표현식은 텍스처에서 색 값을 출력합니다. 이 텍�
 | **B** | 색의 파랑 채널을 출력합니다. |
 | **A** | 색의 알파 채널을 출력합니다. 텍스처에 알파 채널이 들어있지 않은 경우, 'Alpha' 채널을 무언가에 연결하면 엄밀히 잘못된 것은 아니지만 항상 0 (검정)으로 나옵니다. |
 
-
-![TextureSampleExample.png](TextureSampleExample.png)
+![](TextureSampleExample.png)
 
 DDX(UVs) 와 DDY(UVs) 입력의 이해를 돕기 위해, 이렇게 해 보면 됩니다. 참고로 이렇게 하면 **MipValueMode** = **None** 일 때와 결과물은 같지만 더 느립니다. DDX(UVs) 와 DDY(UVs) 는 DDX/DDY 머티리얼 표현식을 사용할 때와는 다른 방식으로 계산을 하기에, 기본 하드웨어 계산을 덮어쓸 필요가 있을 때만 사용해야 할 것입니다.
 
-![SampleTextureDerivative.png](SampleTextureDerivative.png)
+![](SampleTextureDerivative.png)
 
 ## TextureProperty
 
 **TextureProperty** (텍스처 프로퍼티)는 선택한 텍스처의 프로퍼티, 이를테면 텍스처의 크기나 텍셀 크기같은 것을 노출시킵니다.
 
-![TextureProperty.png](TextureProperty.png)
+![](TextureProperty.png)
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Particles#ParticleSubUV]
 
@@ -113,6 +96,5 @@ DDX(UVs) 와 DDY(UVs) 입력의 이해를 돕기 위해, 이렇게 해 보면 �
 
 
 [INCLUDE:Engine/Rendering/Materials/ExpressionReference/Parameters#TextureSampleParameterCube]
-
 
 

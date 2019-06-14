@@ -1,12 +1,14 @@
-﻿INTSourceChangelist:2872149
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:Collision 模块
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
 Description:这些模块处理粒子与其他 actor 之间的碰撞。
 Version:4.9
+tags:Particles
 
 [TOC(start:2 end:3)]
 
+(#CollisionModules)
 ## Collision 模块
 
 这些模块处理粒子与其他 actor 之间的碰撞。
@@ -74,6 +76,7 @@ uD7MQf6sZZU
     }
 
 
+(#ParticleCollisionOniOSMobileDevices)
 ### iOS 移动设备上的粒子碰撞
 
 结合 VFX 使用 **iOS** 移动设备端的 Particle Collision 模块时，需将 **Min Desired Frame Rate** 调至 30 FPS 以下。否则，粒子和世界场景中的对象无法产生碰撞的可能性较大。 
@@ -96,7 +99,7 @@ Framerate 部分打开后，将 **Min Desired Frame Rate** 设为低于 **30** F
 [COMMENT:none]
 ---------
 
-#### 包括
+#### Includes
 
 [EXCERPT:ApplyPhysicsNote]
 [REGION:note]
@@ -113,8 +116,8 @@ Framerate 部分打开后，将 **Min Desired Frame Rate** 设为低于 **30** F
 |_EPCC_Freeze_|就地冻结粒子。|
 |_EPCC_HaltCollisions_|停止碰撞检测，但保持更新。这可能会导致粒子 `下坠并穿过` 对象。|
 |_EPCC_FreezeTranslation_|停止粒子平移，但保持其他所有更新。|
-|_EPCC_FreeRotation_|停止粒子旋转，但保持其他所有更新。|
-|_EPCC_FreeMovement_|停止粒子平移/旋转，但保持其他所有更新。|
+|_EPCC_FreezeRotation_|停止粒子旋转，但保持其他所有更新。|
+|_EPCC_FreezeMovement_|停止粒子平移/旋转，但保持其他所有更新。|
 [/REGION]
 [/EXCERPT:CollisionCompletionOption]
 

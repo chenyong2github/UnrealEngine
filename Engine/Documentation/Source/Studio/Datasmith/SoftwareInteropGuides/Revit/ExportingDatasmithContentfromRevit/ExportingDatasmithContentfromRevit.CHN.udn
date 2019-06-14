@@ -1,0 +1,39 @@
+﻿INTSourceChangelist:5370932
+Availability: Public
+Crumbs: 
+Title: 从Revit导出Datasmith内容
+Description: 讲述如何将Revit场景导出到一个Datasmith文件中，然后再导入虚幻编辑器。
+Type: 
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+![](datasmith-setup-export-rvt-421.png) [](Enterprise "Sign up for Unreal Studio") [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/InstallingExporterPlugin "Install the Datasmith Plugin for 3ds Max") [](Studio/Datasmith/SoftwareInteropGuides/SketchUp/InstallingExporterPlugin "Install the Datasmith Plugin for SketchUp") [](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin "Install the Datasmith Plugin for Revit") [](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED "Install the Datasmith Plugin for VRED") [](Studio/Datasmith/SoftwareInteropGuides/3dsMax/ExportingDatasmithContentfrom3dsMax "Export Datasmith content from 3ds Max") [](Studio/Datasmith/SoftwareInteropGuides/SketchUp/ExportingDatasmithContentfromSketchUp "Export Datasmith content from SketchUp") [](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingContentfromRevit "Export Datasmith content from Revit") [](Studio/Datasmith/SoftwareInteropGuides/DeltagenVRED/ExportingDatasmithContentfromVRED "Export Datasmith content from VRED") [](Studio/Datasmith/SupportedSoftwareAndFileTypes "See the supported software and file types") [](Studio/Datasmith/HowTo/DownloadandInstall "Install Unreal Engine and the Datasmith Plugin") [](Studio/Datasmith/HowTo/SettingUpUnrealProject "Create an Unreal Studio Project") [](Studio/Datasmith/HowTo/ImportingContent "Use Datasmith to import your content")
+
+安装Revit的Datasmith Exporter插件后，**插件（Add-Ins）** 条带中便有可用的新选项，用于将选定的3D视图导出到一个 *.udatasmith* 文件。
+
+在Revit中执行以下步骤，导出场景使用此文件类型。
+
+1.  在 **项目浏览器** 中选择需要导出的3D视图。  
+    ![Select a 3D View](revit-select-3d-view.png "Select a 3D View")  
+    Datasmith Exporter插件使用为当前3D视图定义的可视性设置来确定场景的哪些部分需要导出。欲知详情，请参见[结合Revit使用Datasmith](Studio/Datasmith/SoftwareInteropGuides/Revit)。
+2.  打开 **插件（Add-Ins）** 条带。在 **Unreal Datasmith** 部分中点击 **导出3D视图（Export 3D View）**。  
+    ![Add-ins | Export 3D View](revit-toolbar.png "Add-ins | Export 3D View")
+3.  在 **将3D视图导出到Unreal Datasmith（Export 3D View to Unreal Datasmith）** 窗口中，浏览到要保存 .udatasmith 文件的位置，然后使用 **文件名框** 来为新文件命名。  
+    ![Set the location and file name](revit-ds-export-location.png "Set the location and file name")
+4.  点击 **保存**。
+
+(#endresult)
+
+### 最终结果
+
+现在便已准备好将新的 *.udatasmith* 文件导入到虚幻编辑器中。请参阅[将Datasmith内容导入虚幻引擎4](Studio/Datasmith/HowTo/ImportingContent)和[重新导入Datasmith内容](Studio/Datasmith/HowTo/ReimportingContent)部分。
+
+[REGION:note]
+新的 *.udatasmith* 文件拥有一个命名相同的文件夹，但带有后缀 *_Assets*。如果将 *.udatasmith* 文件移动到一个新位置，则必须将此文件夹移动到相同位置。
+[/REGION]

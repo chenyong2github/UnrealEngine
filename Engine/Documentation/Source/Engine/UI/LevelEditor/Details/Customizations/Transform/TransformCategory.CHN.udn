@@ -1,15 +1,16 @@
-﻿INTSourceChangelist:1635970
+﻿INTSourceChangelist:3108692
+Availability:Public
 Title: 变换类别
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor, Engine/UI/LevelEditor/Details
 Description: 用于修改Actor位置、旋转度、及缩放大小的自定义控制。
-Availability:Public
+Version: 4.9
 
 [EXCERPT:Transform]
-**Details（详细信息）** 面板的Transform(变换)部分允许您查看及编辑选中Actor的这些变换属性 - **Location（位置）** 、 **Rotation（旋转度）** 和 **Scale（比例）** 。
+Details（详细信息）面板的 **Transform(变换)** 部分允许您查看及编辑选中Actor的这些变换属性 - **Location（位置）** 、 **Rotation（旋转度）** 和 **Scale（比例）** 。在适用的情况下，也会包含Actor移动性的设置。
 
 ![Transform Properties](Transform_Properties.png)
 
-每种变换属性具有针对  **X** 、 **Y** 和 **Z** 轴的数值文本框。您可以直接在这些文本框中输入精确的数值来 
+每种 **变换** 属性具有针对X、Y和Z轴的数值文本框。您可以直接在这些文本框中输入精确的数值来 
 调整选中的Actors。当选中了多个Actor且其属性值各不相同时， 
 这些文本框将会显示 _多个值_ 。在这些情况下，输入一个值将会导致为所有选中的Actor输入这个值。
 
@@ -22,4 +23,15 @@ _滚动_ 这个值，根据您移动鼠标的距离来增加或减小该值。
 变换属性默认是 _相对_ 变换。这意味着，变换是相对于组件的父项进行的。
 每个属性标签都有超链接，可以点击该链接来在 _绝对变换_ 和 _相对变换_ 之间切换。当使用 _绝对_ 变换时，变换是相对于世界空间进行的而不是相对于父项。
 
+
+
 [/EXCERPT:Transform]
+
+
+
+(#Mobility)
+## 移动性
+
+[INCLUDE:Engine/Actors/Mobility#intro]
+
+更多详情，请参阅 **[](Engine/Actors/Mobility)**。

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:4649792
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 crumbs:%ROOT%
 Title: 6 - 设置新游戏模式
 Description: 在此步骤中，您将设置新模式以生成我们的载具。
@@ -61,7 +61,7 @@ Tags: Vehicles
 
 有关载具的更多资源，可以查看以下页面： 
 
-* [载具内容创建](Engine/Physics/Vehicles/VehcileContentCreation)
+* [载具内容创建](Engine/Physics/Vehicles/VehicleContentCreation)
 * [如何构建双叉臂悬挂载具](Engine/Physics/Vehicles/DoubleWishboneVehicle)
 * [载具质量重心](Engine\Physics\Vehicles\VehicleCenterOfMass)
 

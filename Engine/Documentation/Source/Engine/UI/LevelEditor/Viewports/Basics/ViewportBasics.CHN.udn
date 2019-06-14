@@ -1,84 +1,50 @@
-﻿Availability:Public
+﻿INTSourceChangelist:3782314
+Availability:Public
 Title:视口基础知识
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor/Viewports
 Description:虚幻编辑器中视口的基本概念和功能。
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![](viewport_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/editor_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/UI/LevelEditor/Viewports/Basics:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/UI/LevelEditor/Viewports/Basics:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/UI/LevelEditor/Viewports/Basics]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![](viewport_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/editor_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/UI/LevelEditor/Viewports/Basics:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/UI/LevelEditor/Viewports/Basics:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/UI/LevelEditor/Viewports/Basics]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+Version: 4.9
+SkillLevel: Beginner
+topic-image:viewport_topic.png
 
 [TOC(start:2 end:3)]
-
-## 概述
 
 [INCLUDE:Engine/UI/LevelEditor/Viewports#intro]
 
 ![](Engine/UI/LevelEditor/Viewports/Viewports_Topic.png)(w:640)
 
+(#viewporttypes)
+
 ## 视口类型
 
-虚幻编辑器中有两种主要的视口类型： 透视视口和正交视口。透视视图是游戏世界的 
-三维窗口。正交视图 - 顶视图、前视图及侧视图 - 是顺着每个主要坐标轴(X、Y或 Z) 
-看到的二维视口。
+虚幻编辑器中主要有两种视口类型：透视和正交。透视视图是进入游戏场景 
+的一个3D窗口。正交视图（正面视图、侧面视图和顶部视图）是2D视口， 
+每个视图俯视一个主轴（X轴、Y轴或Z轴）
 
 [REGION:imagetable]
 | ![](Engine/UI/LevelEditor/Viewports/view_perspective.png)(w:225) | ![](Engine/UI/LevelEditor/Viewports/view_front.png)(w:225) | ![](Engine/UI/LevelEditor/Viewports/view_side.png)(w:225) | ![](Engine/UI/LevelEditor/Viewports/view_top.png)(w:225) |
 | --- | --- | --- | --- |
-| 透视视口(3D) | 前视口(X-轴) | 侧视口(Y-轴) | 顶视口(Z-轴) |
+| 透视 (3D) | 正面（X轴）| 侧面（Y轴）| 顶部（Z轴）|
 [/REGION]
 
-您可以通过按下 **Alt** 和 **G** 、**H** 、 **J** 或 **K** 键来循环调换视口类型。这些操作将会把视口分别设置为 
-透视口、前视口、顶视口或侧视口。
+您可以通过按 **Alt** 和 **G**、**H**、**J** 或 **K** 循环查看视口的类型。它们分别将视口设置为 
+透视、正面、侧面或顶部。
+
+(#viewportlayout)
 
 ## 视口布局
 
-默认情况下，当您打开虚幻编辑器时会看到一个单独的透视视口。
+默认情况下，当您打开虚幻编辑器时，您会看到一个透视视口。 
 
 ![](viewport_1.png)(w:640)
 
-**视口** 面板实际上包含了多个视口，这些视口排列于一个网格中，任何一个视口都可以进行 
-放大。默认布局是4x4，包含了每种类型的视口 - 透视口、顶视口、前视口和侧视口。
+实际上，**视口（Viewport）** 面板包含多个视口，它们被放置在一个网格中，任何一个都可以最大化 
+显示。默认布局是4x4，其中每种类型的视口包含一个一个——透视、顶部、正面和侧面。
 
 ![](viewport_4.png)(w:640)
 
-通过使用位于每个视口右上角的按钮 ![Minimize Viewport](button_minimize.png)和![Maximize Viewport](button_maximize.png) 
-可以缩小和放大视口。
+可以使用位于每个视口右上角的![Minimize Viewport](button_minimize.png)和![Maximize Viewport](button_maximize.png)按钮 
+将视口最小化和最大化。
 
 [COMMENT:none]
 
@@ -91,10 +57,10 @@ Description:虚幻编辑器中视口的基本概念和功能。
 	jpg
 	[/PARAMLITERAL]
 	[PARAMLITERAL:id]
-	viewport
+	视口
 	[/PARAMLITERAL]
 	[PARAM:caption]
-	**拖拽滑块来最小化透视视口。**
+	**拖动滑条以最小化透视视口。**
 	[/PARAM]
 	[PARAM:image_list]
 	![](viewport_1.png)
@@ -107,6 +73,8 @@ Description:虚幻编辑器中视口的基本概念和功能。
 
 [/COMMENT]
 
+(#viewmodes)
+
 ## 视图模式
 
 [INCLUDE:Engine/UI/LevelEditor/Viewports/ViewModes#intro]
@@ -116,16 +84,18 @@ Description:虚幻编辑器中视口的基本概念和功能。
 [REGION:imagetable]
 | ![](Engine/UI/LevelEditor/Viewports/ViewModes/VM_Lit.png)(w:305) | ![](Engine/UI/LevelEditor/Viewports/ViewModes/VM_Unlit.png)(w:305) | ![](Engine/UI/LevelEditor/Viewports/ViewModes/VM_Wireframe.png)(w:305) |
 | --- | --- | --- |
-| 带光照| 不带光照| 线框|
+| 光照 | 无光照 | 线框 |
 [/REGION]
 
-请参照[视图模式](Engine/UI/LevelEditor/Viewports/ViewModes)获得所有可用模式的列表及描述。
+请参阅[视图模式](Engine/UI/LevelEditor/Viewports/ViewModes)了解所有可用模式的列表和描述。
+
+(#gameview)
 
 ## 游戏视图
 
-**Game View（游戏视图）** 使得视口显示的场景就像在游戏中显示的场景一样。这意味着，不会显示任何针对 
-编辑器的元素，比如Actor图标。这为您提供了一种查看您在游戏中运行关卡时 
-关卡所呈现效果的简单方法。
+ **游戏视图（Game View）** 使视口像在游戏中一样显示场景。这意味着不显示任何 
+特定于编辑器的元素，例如Actor图标。当您在游戏中运行关卡时，它提供一种简单的方法 
+来查看关卡的外观。
 
 [REGION:fullwidth]
 [OBJECT:SliderSequence]
@@ -139,7 +109,7 @@ Description:虚幻编辑器中视口的基本概念和功能。
 	game_view
 	[/PARAMLITERAL]
 	[PARAM:caption]
-	**拖拽滑块来开启‘游戏视图’模式。**
+	**拖动滑条以切换游戏视图。**
 	[/PARAM]
 	[PARAM:image_list]
 	![](game_view_1.png)
@@ -148,43 +118,92 @@ Description:虚幻编辑器中视口的基本概念和功能。
 [/OBJECT]
 [/REGION]
 
-要想启用游戏视图，只要在聚焦视口时简单地按下  **G** 键(默认)或者从 
-[视口选项菜单](Engine/UI/LevelEditor/Viewports/ViewportOptions)中选择 **Game View（游戏视图）** 选项即可： 
+要启用游戏视图，只需在聚焦视口的同时按 **G** 键（默认情况下），或者 
+从[视口选项菜单](Engine/UI/LevelEditor/Viewports/ViewportOptions)中选择 **游戏视图（Game View）** 选项：
 
-![](viewport_options_gameview.png)
+![](GamemodeViewport.png)
 
-## 浸入式模式
+(#immersivemode)
 
-除了最大化视口和最小化视口外，视口还有另一种状态，称之为 **Immersive Mode（浸入式模式）** 这是指 
-将视口最大化到为包含该 **视口** 面板的整个窗口。当您最大化关卡编辑器时， 
-这使得您视口全屏运行，获得真正的 _浸入式_ 编辑体验！
+## 沉浸模式
 
-要想启用浸入式模式，只要在聚焦视口时简单地按下  **F11**  键(默认)或者从 
-[视口选项菜单](Engine/UI/LevelEditor/Viewports/ViewportOptions)中选择 **Immersive Mode（浸入式模式）** 选项即可： 
+除了最大化和最小化外，视口还有另一种状态，叫做 **沉浸模式（Immersive Mode）**。这是指 
+视口被最大化到窗口的全部范围，包含 **视口（Viewport）** 面板。当您将关卡编辑器最大化时， 
+这将使您能够在全屏幕上运行视口，以获得真正的 _immersive_ 编辑体验！
 
-![](viewport_options_immersive.png)
+要启用沉浸模式，只需在聚焦视口的同时按下 **F11** 键（默认情况下），或者 
+从[视口选项菜单](Engine/UI/LevelEditor/Viewports/ViewportOptions)中选择 **沉浸模式（Immersive Mode）** 选项：
 
-当您处于浸入式模式时，您可以使用上述的同样过程或者通过按下视口右上角的![Restore Viewport](button_restore.png) 
-按钮来使得视口恢复正常大小。
+![](ImmersiveModeOptions.png)
 
-[OBJECT:SliderSequence]
-	[PARAMLITERAL:max]
-	5
-	[/PARAMLITERAL]
-	[PARAMLITERAL:ext]
-	jpg
+在沉浸模式下，您可以使用与上面相同的过程，或者按下位于视口右上方的![Restore Viewport](button_restore.png) 
+按钮，将视口恢复为正常状态。
+
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
 	[/PARAMLITERAL]
 	[PARAMLITERAL:id]
-	immersive
+	windows
 	[/PARAMLITERAL]
-	[PARAM:caption]
-	**拖曳滑块来查看正在运行中的浸入式模式。**
+	[PARAM:content]
+	[OBJECT:SliderSequence]
+		[PARAMLITERAL:max]
+		5
+		[/PARAMLITERAL]
+		[PARAMLITERAL:ext]
+		jpg
+		[/PARAMLITERAL]
+		[PARAMLITERAL:id]
+		沉浸
+		[/PARAMLITERAL]
+		[PARAM:caption]
+		**拖动滑条以看到沉浸式模式的效果！**
+		[/PARAM]
+		[PARAM:image_list]
+		![](immersive_1.png)
+		![](immersive_2.png)
+		![](immersive_3.png)
+		![](immersive_4.png)
+		![](immersive_5.png)
+		[/PARAM]
+	[/OBJECT]
 	[/PARAM]
-	[PARAM:image_list]
-	![](immersive_1.png)
-	![](immersive_2.png)
-	![](immersive_3.png)
-	![](immersive_4.png)
-	![](immersive_5.png)
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[OBJECT:SliderSequence]
+		[PARAMLITERAL:max]
+		5
+		[/PARAMLITERAL]
+		[PARAMLITERAL:ext]
+		jpg
+		[/PARAMLITERAL]
+		[PARAMLITERAL:id]
+		mac_immersive
+		[/PARAMLITERAL]
+		[PARAM:caption]
+		**拖动滑条以看到沉浸式模式的效果！**
+		[/PARAM]
+		[PARAM:image_list]
+		![](mac_immersive_1.png)
+		![](mac_immersive_2.png)
+		![](mac_immersive_3.png)
+		![](mac_immersive_4.png)
+		![](mac_immersive_5.png)
+		[/PARAM]
+	[/OBJECT]
 	[/PARAM]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
 [/OBJECT]

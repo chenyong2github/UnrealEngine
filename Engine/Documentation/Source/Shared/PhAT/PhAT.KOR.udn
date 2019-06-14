@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6341512
 Availability:NoPublish
 Title:PhAT RTTs
 Crumbs:
@@ -14,7 +14,7 @@ Crumbs:
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNormal]
@@ -33,7 +33,7 @@ Engine\Physics\PhAT\UserGuide#testing
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNoGravity]
@@ -147,7 +147,7 @@ Engine\Physics\PhAT\UserGuide#testing
 
 현재 선택된 피직스 바디가 충돌할 수 있는 피직스 바디는 파랗게 나타나는 반면, 충돌하지 않는 것들은 회색으로 나타납니다. 노랑 피직스 바디는 현재 선택된 피직스 바디에 결합됩니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:EnableCollision]
 
@@ -162,7 +162,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 현재 선택된 피직스 바디가 충돌할 수 있는 피직스 바디는 파랗게 나타나는 반면, 충돌하지 않는 것들은 회색으로 나타납니다. 노랑 피직스 바디는 현재 선택된 피직스 바디에 결합됩니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:DisableCollision]
 
@@ -174,7 +174,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 노랑 피직스 바디가 현재 선택된 피직스 바디에 결합됩니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#welding
+Engine/Physics/PhysicsAssetEditor/UserGuide#welding
 [/VAR]
 [/EXCERPT:WeldToBody]
 
@@ -219,7 +219,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 컨스트레인트의 속성을 볼 앤 소켓 조인트 운동을 모방하도록 설정합니다. 선 운동은 고정되어 있으나 모든 축의 각 운동은 자유롭습니다.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToBallAndSocket]
 
@@ -229,7 +229,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 "Q" 키를 사용하여 힌지 축을 순환시킬 수 있습니다.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToHinge]
 
@@ -239,7 +239,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 "Q" 키를 사용하여 프리즈매틱 축을 순환시킬 수 있습니다.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToPrismatic]
 
@@ -249,7 +249,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 "Q" 키를 사용하면 트위스트 운동 축을 순환시킬 수 있습니다.
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToSkeletal]
 

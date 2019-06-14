@@ -5,7 +5,7 @@ Description: Supported browsers, networking ports, and configuration options for
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
-Order: 
+Order: 4
 topic-image:pixelstreaming-reference-topic.png
 Tags: Reference
 Tags: Early Access

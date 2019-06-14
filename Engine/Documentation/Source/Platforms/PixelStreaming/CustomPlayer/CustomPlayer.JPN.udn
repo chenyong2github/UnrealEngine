@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4684214
 Availability: Public
 Crumbs: 
-Title: Customizing the Player Web Page
-Description: How to customize the web page that plays back streamed video and audio, and how to exchange events between the page and the UE4 application.
+Title: プレイヤー Web ページをカスタマイズする
+Description: ストリーム ビデオとオーディオを再生する Web ぺージをカスタマイズする方法と、カスタマイズした Web ページと UE4 アプリケーション間でイベントを交換する方法を説明します。
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
@@ -12,280 +12,260 @@ Tags: Guide
 Tags: Early Access
 Tags: Pixel Streaming
 
+Pixel Streaming の Signaling and Web サーバーにはサンプル プレイヤー ページが用意されており、Unreal Engine アプリケーションからメディアをストリームして、マウス、キーボード、タッチ イベントをアプリケーションに送り返すように設定されています。(手順については、「[Pixel Streaming 入門](Platforms/PixelStreaming/PixelStreamingIntro)」を参照) ニーズに合うようであれば、このデフォルト プレイヤー ページをそのまま使用できます。 
 
-The Pixel Streaming Signaling and Web Server provides a sample player page that is already set up to stream in media from your Unreal Engine application and to send mouse, keyboard, and touch events back to the application. (For instructions, see [Getting Started with Pixel Streaming](https://docs.unrealengine.com/en-us/Platforms/PixelStreaming/PixelStreamingIntro).) You can use this default player page as-is, if it meets your needs. 
+JavaScript や HTML など Web テクノロジーに関する十分な知識があり、独自の工夫を取り入れたい場合は、プレイヤー ページをカスタマイズして、Unreal Engine のコンテンツをリモートから操作する独自のカスタム UI を作成できます。ゲームプレイ イベントのトリガーやそれへの応答、Unreal Engine の動作をコントロールするコンソール コマンドの発行など、多くの操作を実行できます。
 
-However, with a little creativity and some knowledge of web technologies like JavaScript and HTML, you can take full control over the player page, creating your own custom UIs for interacting with your Unreal Engine content remotely. You can trigger and respond to gameplay events, issue console commands to control the Unreal Engine's behavior, and more.
-
-We recommend using the default player page as a starting point for creating your own custom player page. You'll find this page at `Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer/player.htm` under your Unreal Engine installation folder. Then, use the information on this page to learn how to extend your page and tie it in with your Project's gameplay logic.  
+デフォルト プレイヤー ページをベースとして独自のカスタム プレイヤー ページを作成することをお勧めします。このページは Unreal Engine インストール フォルダの「`Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer/player.htm`」にあります。このページに記載されている情報を読むことで、ページを拡張してプロジェクトのゲームプレイ ロジックと連携させる方法を把握できます。
 
 [REGION:lightbox]
 [![](pixelstreaming-customplayer-example-template.png)](pixelstreaming-customplayer-example-template.png)
 [/REGION]
 
-Default player page
+デフォルト プレイヤー ページ
 
 [REGION:lightbox]
 [![](pixelstreaming-customplayer-example-mclaren.png)](pixelstreaming-customplayer-example-mclaren.png)
 [/REGION]
 
-Customized player with HTML5 UI
+HTML5 UI でカスタマイズしたプレイヤー ページ
 
-## HTML Page Requirements
+## HTML ページ要件
 
-Your custom HTML player page must follow a few minimal requirements.
+カスタム HTML プレイヤー ページでは、いくつかの最低限の要件に従う必要があります。
 
-* You must include the `/scripts/webRtcPlayer.js` file. This file handles communication between the browser and the WebRTC Proxy Server, receiving and showing the media stream from the server. Do not modify this JavaScript file unless absolutely necessary.  
-		
-		<script type="text/javascript" src="scripts/webRtcPlayer.js"></script>
-    
-* We highly recommend that you also include the */scripts/app.js* file as well. This file sets up event listeners that process the keyboard, mouse, and touch events. It also contains several functions and hooks that you can take advantage of in your player page, described in the sections below on this page.  If you have some knowledge of JavaScript, you should feel free to dig into the code of this file and modify the default behavior to suit your needs. For example, if you want to disable keyboard inputs but leave mouse and touch events working, you will need to customize this file by finding and commenting out the code that handles keyboard events.  
-		
-		<script type="text/javascript" src="scripts/app.js"></script>
+* 「`/scripts/webRtcPlayer.js`」ファイルを含める必要があります。このファイルはブラウザと WebRTC Proxy サーバー間の通信を処理します。サーバーからのメディア ストリームを受信して表示します。必要な場合を除き、この JavaScript ファイルは変更しないでください。
 
-* The page must have a `div` element with the ID `player`. This element is replaced with the video frames streamed from the WebRTC Proxy Server.
+        <script type="text/javascript" src="scripts/webRtcPlayer.js"></script>
 
-		<div id="player"></div>
+* 「*/scripts/app.js*」ファイルを同様に含めることを強くお勧めします。このファイルでは、キーボード、マウス、タッチのイベントを処理するイベント リスナーが設定されます。このページの以下のセクションで説明するように、プレイヤー ページで利用可能な複数の関数やフックも含まれます。JavaScript に関して十分な知識がある場合は、ニーズに合わせてこのファイルのコードをカスタマイズして、デフォルトの動作を変更できます。例えば、キーボード入力を無効にして、マウスとタッチ イベントはそのまま動作するようにする場合は、このファイルをカスタマイズして、キーボード イベントを処理するコードを見つけてコメントアウトする必要があります。
 
-* You must call the `load` function provided by the `app.js` file when your page loads. For example, you can do this by adding an `onload` handler to the `<body>` tag:
-	
-		<body onload="load()">
+        <script type="text/javascript" src="scripts/app.js"></script>
 
+* このページでは ID が `player` の `div` 要素が必要です。この要素は、WebRTC Proxy サーバーからストリームされたビデオ フレームで置き換えられます。
 
-## Player File Location and URL
+        <div id="player"></div>
 
-You have a few options for where you can place your custom HTML player page, and how client browsers can access it.
+* ページのロード時には、「`app.js`」ファイルにより提供される `load` 関数を呼び出す必要があります。例えば、これを実行するには、`onload` ハンドラを `<body>` タグに追加します。
 
-*   You can make a folder called `custom_html` inside the root folder of your Signaling and Web Server, and place your custom HTML player page inside this folder. It will then be accessible by appending its filename to the IP address or hostname of the computer running the Signaling and Web Server.  
-    For example, a file named `custom_html/myplayerpage.html` would be accessible at `http://127.0.0.1/myplayerpage.html`.
-*   You can customize the `HomepageFile` parameter for the Signaling and Web Server, and set the path to the filename of your custom HTML player page relative to the root folder of the Signaling and Web Server. It will then be accessible when you access the IP address or hostname of the computer running the Signaling and Web Server.  
-    For example, if you save a file to `Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer/myfolder/myplayerpage.html`, and you set the `HomepageFile` parameter to `myfolder/myplayerpage.html`, the page would be accessible without needing to provide a file name in the URL: `http://127.0.0.1/`.
-*   You can also use the **AdditionalRoutes** parameter for the Signaling and Web Server to customize the mapping between URL paths and local folders on your computer.
+        <body onload="load()">
 
-For additional details on these parameters, see also the [Pixel Streaming Reference](https://docs.unrealengine.com/en-us/Platforms/PixelStreaming/PixelStreamingReference).
+## プレイヤー ファイルの場所と URL
 
-## Customizing Player Input Options
+カスタム HTML プレイヤー ページを配置する場所と、クライアント ブラウザからアクセスする方法についてオプションがいくつかあります。
 
-The `app.js` file offers some JavaScript configuration parameters that you can override in your custom player page to control the way the player widget responds to user interactions. The `inputOptions` object exposes the following properties:
+* Signaling and Web サーバーの「root」フォルダ内に「`custom_html`」というフォルダを作成し、このフォルダ内にカスタム HTML プレイヤー ページを配置できます。Signaling and Web サーバーが動作するコンピュータの IP アドレスまたはホスト名にこのファイル名を追加することで、アクセスできるようになります。
+    例えば、「`custom_html/myplayerpage.html`」というファイルは `http://127.0.0.1/myplayerpage.html` でアクセスできます。
+* Signaling and Web サーバー用の「`HomepageFile`」パラメータをカスタマイズして、そのパスを、Signaling and Web サーバーの「root」フォルダに対して相対的なカスタム HTML プレイヤー ページのファイル名に設定できます。こうすることで、Signaling and Web サーバーが動作しているコンピュータの IP アドレスまたはホスト名にアクセスした際に、これにアクセスできるようになります。
+    例えば、ファイルを「`Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer/myfolder/myplayerpage.html`」に保存する場合、「`HomepageFile`」パラメータを「`myfolder/myplayerpage.html`」に設定すると、URL にファイル名を指定することなく、ページにアクセスできます。`http://127.0.0.1/`
+* Signaling and Web サーバーの「**AdditionalRoutes**」パラメータを使用して、URL パスとコンピュータのローカル フォルダのマッピングをカスタマイズできます。
 
-| Property | Default | Description |
-| --- | --- | --- |
-| controlScheme | `ControlSchemeType.LockedMouse` | [INCLUDE:#excerpt_5] |
-| suppressBrowserKeys | true | [INCLUDE:#excerpt_8] |
-| fakeMouseWithTouches | false | When this option is enabled, and the user is viewing the stream on a device with a touch screen such as a smartphone or tablet, this setting causes single-finger touch events to be interpreted by the Unreal Engine application as mouse clicks and drag events. Enabling this setting can provide users on mobile devices with the ability to partially control your Unreal Engine application, even when the application's input controller does not specifically handle touch input events. |
+これらのパラメータの詳細については、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference)」も参照してください。
 
-<!--
+## プレイヤー入力オプションをカスタマイズする
+
+「`app.js`」ファイルにはいくつかの JavaScript コンフィギュレーション パラメータが用意されていて、カスタム プレイヤー ページでオーバーライドすることで、プレイヤー ウィジェットがユーザー入力に相互に応答する方法をコントロールできます。`inputOptions` オブジェクトでは次のプロパティが公開されています。
+
+| プロパティ| デフォルト| 説明|
+| ---| ---| ---|
+| controlScheme| `ControlSchemeType.LockedMouse` | [INCLUDE:#excerpt_5] |
+| suppressBrowserKeys| true| [INCLUDE:#excerpt_8] |
+| fakeMouseWithTouches| false| このオプションが有効な場合、スマートフォンやタブレットなどタッチ スクリーンのあるデバイスでユーザーがストリームを表示すると、Unreal Engine アプリケーションにより、シングルフィンガー タッチ イベントがマウス クリック イベントおよびドラッグ イベントとして解釈されます。この設定を有効にすると、モバイル デバイスのユーザーは Unreal Engine アプリケーションを部分的にコントロールできます。アプリケーションの入力コントローラーが特にタッチ入力イベントを処理しない場合でもこのようなコントロールが可能です。|
+
+[COMMENT:none]
 [EXCERPT:excerpt_5]
-Determines whether or not the player widget captures and locks the mouse when the player interacts with the widget. Accepts the following values:
-* `ControlSchemeType.LockedMouse` - When this control scheme is active, clicking on the player widget causes it to capture and lock the mouse cursor. Any further movements of the mouse are passed immediately to the input controller in the Unreal Engine application. This typically allows the user to move and rotate the camera by simply dragging the mouse. To release the cursor from the control of the player widget, the user can press the **Esc** key.
-* `ControlSchemeType.HoveringMouse` - When this control scheme is active, the mouse cursor hovers over the player widget without interacting with it. In order to send the mouse movements to the input controller of the Unreal Engine application, the user needs to click and hold the left button of the mouse.
+プレイヤーがウィジェットとやりとりする際に、プレイヤー ウィジェットがマウスをキャプチャし、ロックするかどうかを指定します。以下の値を受け入れます。
+* `ControlSchemeType.LockedMouse` - このコントロール スキームがアクティブであるとき、プレイヤー ウィジェットをクリックすると、マウス カーソルをキャプチャしてロックします。その後のマウスの動きは、Unreal Engine アプリケーションの入力コントローラーに迅速に渡されます。これにより、通常、ユーザーはマウスをドラッグするだけで、カメラを移動し回転できます。プレイヤー ウィジェットのコントロールからカーソルを解放するには、**Esc** キーを押します。
+* `ControlSchemeType.HoveringMouse` - このコントロール スキームがアクティブな場合は、マウス カーソルがプレイヤー ウィジェットの上に置かれます (それ以上の操作は行われません)。マウスの動きを Unreal Engine アプリケーションの入力コントローラーに送信するために、ユーザーはマウスの左ボタンをクリックしたままにする必要があります。
 [/EXCERPT:excerpt_5]
--->
+[/COMMENT]
 
-<!--
+[COMMENT:none]
 [EXCERPT:excerpt_8]
-When this setting is enabled, the player widget will intercept function keys (**F1** to **F12**) and the **Tab** key, and pass those keypress events through to the Unreal Engine application rather than allowing the browser to process them normally.
-This means, for example, that while this setting is active, pressing **F5** will not refresh the player page in the browser. Instead, that event is passed through to the Unreal Engine application, and has its usual function of switching the view to visualize shader complexity.
+この設定が有効であるとき、プレイヤー ウィジェットはファンクション キー (**F1** から **F12**) および **Tab** キーを捉え、これらのキープレス イベントを Unreal Engine アプリケーションに渡します。これによって、ブラウザでこれらのキー操作に対する通常の処理が行われないようになります。
+例えば、この設定がアクティブであると、**F5** を押しても、ブラウザのプレイヤー ページが更新されないということです。代わりに、このイベントが Unreal Engine アプリケーションに渡され、一般的な機能である、シェーダの複雑さを可視化するビューの切り替えが実行されます。
 [/EXCERPT:excerpt_8]
--->
+[/COMMENT]
 
-You can set these values in your player page by including a code block like the following. Make sure that you run this code any time after you load the `app.js` file into the page, but before you call its `load` function.
+次のようにコード ブロックに含めることで、これらの値をプレイヤー ページで設定できます。「`app.js`」ファイルをページにロードした後、`load` 関数を呼び出す前に、このコードを必ず実行してください。
 
-	<script>
-	inputOptions.controlScheme = ControlSchemeType.HoveringMouse;
-	inputOptions.fakeMouseWithTouches = true; 
-	</script>
+    <script>
+    inputOptions.controlScheme = ControlSchemeType.HoveringMouse;
+    inputOptions.fakeMouseWithTouches = true;
+    </script>
 
+### ユーザーの入力を無効にする
 
-### Disabling User Input
+1 つ以上のタイプの入力デバイスに対してユーザー入力を完全に無効にするには、プレイヤー ページの JavaScript 環境で次の関数を空の実装でオーバーライドします。
 
-To disable user input entirely for one or more types of input device, you can override the following functions in the JavaScript environment for your player page with empty implementations:
+* **registerHoveringMouseEvents** - inputOptions.controlScheme を ControlSchemeType.HoveringMouse に設定すると、すべての入力マウス イベントが無効になります。
+* **registerLockedMouseEvents** - inputOptions.controlScheme を ControlSchemeType.LockedMouse に設定すると、すべての入力マウス イベントが無効になります。
+* **registerTouchEvents** - モバイル デバイスとタブレットでタッチ イベントが無効になります。
+* **registerKeyboardEvents** - すべてのキーボード イベントが無効になります。
 
-*   **registerHoveringMouseEvents -** Disables all input mouse events when the inputOptions.controlScheme is set to ControlSchemeType.HoveringMouse.
-*   **registerLockedMouseEvents -** Disables all input mouse events when the inputOptions.controlScheme is set to ControlSchemeType.LockedMouse.
-*   **registerTouchEvents -** Disables touch events on mobile devices and tablets.
-*   **registerKeyboardEvents -** Disables all keyboard events.
+例えば、JavaScript の次のブロックをプレイヤー HTML ページに含めると、すべての入力を無効にできます。前に示したように、「`app.js`」ファイルをページにロードした後、`load` 関数を呼び出す前にこのコードを実行します。
 
-For example, you could include this block of JavaScript in your player HTML page to disable all inputs. As above, run this code any time after you load the `app.js` file into the page, but before you call its `load`function.
+    <script>
+    registerHoveringMouseEvents = function() {}
+    registerLockedMouseEvents = function() {}
+    registerTouchEvents = function() {}
+    registerKeyboardEvents = function() {}
+    </script>
 
-	<script>
-	registerHoveringMouseEvents = function() {}
-	registerLockedMouseEvents = function() {}
-	registerTouchEvents = function() {}
-	registerKeyboardEvents = function() {} 
-	</script>
+1 つ以上のタイプの入力をアクティブのままにするには、対象の入力タイプに対応する行をコメントアウトまたは削除します。
 
+## プレイヤー ウィジェット スタイルをカスタマイズする
 
-To keep one or more types of inputs active, comment out or remove the line that corresponds to the type of input you want to keep.
+カスタム HTML プレイヤー ページで Pixel Streaming プレイヤー ウィジェット、`id="player"` の `<div>` 要素を定義しておきます。標準 HTML と CSS メソッドを使用して、このウィジェットにスタイリングを追加できます。
 
-## Customizing the Player Widget Style
+ただし、ウィジェットのサイズを初期化し直す必要がある場合もあります。通常、これが起きるのは、ブラウザ ウィンドウのサイズが変更された場合 (ウィジェットが自動的に利用可能なスペースを埋めるように設定されている場合)、または入力ビデオ ストリームの解像度が更新された場合です。これが起きるとき、プレイヤー要素の `style` 属性は新しい値で上書きされます。つまり独自の HTML や JavaScript で設定した値を上書きする可能性があります。
 
-In your custom HTML player page, you should have defined the Pixel Streaming player widget: a `<div>` element with `id="player"`. You can use standard HTML and CSS methods to add styling to this widget.
+これを回避するために、`styleAdditional` と呼ばれる特別なグローバル変数にカスタム CSS 値を設定できます。`app.js` がプレイヤーのサイズを変更し、スタイルをクリアする必要がある場合は常に、`styleAdditional` 変数に設定した値が、プレイヤー要素に割り当てられる新しいスタイル属性の最後に追加されます。例えば、次の値を設定すると、ユーザーがマウスをプレイヤー ウィジェットの上に置いたときに、マウス カーソルが手の形に変更されます。
 
-However, the widget may occasionally need to reinitialize its size. This typically occurs when the browser window is resized (if the widget is set to automatically fill the available space), or when the resolution of the input video stream is updated. When this happens, the `style` attribute of the player element is overwritten with new values, which can potentially overwrite values that you have set in your own HTML or JavaScript.
+    styleAdditional = 'cursor:grab; cursor:-moz-grab; cursor:-webkit-grab';
 
-To avoid this, you can set your custom CSS values in a special global variable named `styleAdditional`. Whenever `app.js` needs to resize the player and clear its style, it will append the values you set in the `styleAdditional` variable to the end of the new style attributes it assigns to the player element. For example, the following value changes the mouse cursor to a hand when the user hovers the mouse over the player widget:
+## Pixel Streaming ブループリント API にアクセスする
 
-	styleAdditional = 'cursor: grab; cursor: -moz-grab; cursor: -webkit-grab';
+Unreal Engine 内で動作する Pixel Streaming プラグインはブループリント API を公開します。この API はゲームプレイ ロジックで使用して、プレイヤー HTML ページで送信されるカスタム UI イベントを処理し、Unreal Engine からプレイヤー ページにイベントを発信できます。
 
-## Accessing the Pixel Streaming Blueprint API
+このブループリント API にアクセスする方法
 
-The Pixel Streaming Plugin that runs within the Unreal Engine exposes a Blueprint API that you can use in your gameplay logic to handle custom UI events sent by the player HTML page, and to emit events from the Unreal Engine to the player page.
-
-To access this Blueprint API:
-
-1.  On startup, the Pixel Streaming Plugin always adds a component to the current Player Controller. You can retrieve it from the Player Controller using the **Actor > Get Component by Class** node. Click the **Component Class** input, and look for the **PixelStreamingInputComponent** in the list:  
-    ![PixelStreamingInputComponent](pixelstreaming-getcomponentbyclass.png "PixelStreamingInputComponent")  
+1. スタートアップで、Pixel Streaming プラグインは常にコンポーネントを現在の Player Controller に追加します。Player Controller から **Actor (アクタ) > Get Component by Class (クラスごとにコンポーネントを取得)** ノードを使用して取得できます。**Component Class (コンポーネント クラス)** 入力をクリックして、リストで **PixelStreamingInputComponent** を探します。
+    ![PixelStreamingInputComponent](pixelstreaming-getcomponentbyclass.png "PixelStreamingInputComponent")
     [REGION:tip]
-    If you need a reference to the current Player Controller, use the **Game > Get Player Controller** node as shown above.
+    現在の Player Controller への参照が必要な場合は、前に示したとおり **Game (ゲーム) > Get Player Controller (Player Controller の取得)** ノードを使用します。
     [/REGION]
-2.  Drag right from the output port of the **Get Component by Class** node, and look for the **Pixel Streaming** category.  
+2. **Get Component by Class** ノードの出力ポートからドラッグして、**Pixel Streaming** カテゴリを検索します。
     [REGION:lightbox]
-    [![Pixel Streaming Blueprint API](pixelstreaming-bpapi.png "Pixel Streaming Blueprint API")](pixelstreaming-bpapi.png)
+    [![Pixel Streaming ブループリント API](pixelstreaming-bpapi.png "Pixel Streaming ブループリント API")](pixelstreaming-bpapi.png)
     [/REGION]
-	[REGION:caption]
-    *Click for full image.*
+    [REGION:caption]
+    *クリックしてフルサイズで表示*
     [/REGION]
 
-## Communicating from the Player Page to UE4
+## プレイヤー ページから UE4 に通信する
 
-The `app.js` file provides two JavaScript functions that you can call in your HTML player page to allow the user to send events and commands from the browser to the Unreal Engine application:
+「`app.js`」ファイルには 2 つの JavaScript 関数が用意されています。HTML プレイヤー ページで呼び出して、ユーザーがイベントとコマンドをブラウザから Unreal Engine アプリケーションに送信できます。
 
-*   `emitCommand` can send a preset list of commands to the game, to change resolution, execute a console command, or reduce the bitrate of the encoder. See [Using the emitCommand Function below](#usingtheemitcommandfunction).
-*   `emitUIInteraction` sends any arbitrary string or JavaScript object to the game. Use this function to send your own custom commands from your player UI, which you can respond to in your gameplay logic to produce any effect you need in your application. See [Using the emitUIInteraction Function below](#usingtheemituiinteractionfunction).
+* `emitCommand` では、コマンドの事前設定リストをゲームに送信したり、解像度を変更したり、コンソール コマンドを実行したり、エンコーダのビットレートを低下したりすることができます。以下の「[emitCommand 関数を使用する](#emitCommand関数を使用する)」を参照してください。
+* `emitUIInteraction` は任意の文字列や JavaScript オブジェクトをゲームに送信します。この関数を使用して、独自のカスタム コマンドをプレイヤー UI から送信します。これにより、ゲームプレイ ロジックで応答して、アプリケーションで必要なエフェクトを生み出すことができます。以下の「[emitUIInteraction 関数を使用する](#emitUIInteraction関数を使用する)」を参照してください。
 
-### Using the emitCommand Function
+### emitCommand 関数を使用する
 
-When you call the `emitCommand` function, you must pass it a JavaScript object. This object must contain a key that matches one of the following strings:
+`emitCommand` 関数を呼び出す際は、関数に JavaScript オブジェクトを渡す必要があります。このオブジェクトには、次の文字列の 1 つに一致するキーを含む必要があります。
 
-*   `ConsoleCommand` \- Use this key to execute a console command on the remote Unreal Engine application. The value of this key should be a string that contains the command you want to run, along with any parameters it needs. For example:
-    
+* `ConsoleCommand` \- このキーを使用して、コンソール コマンドをリモート Unreal Engine アプリケーションで実行します。このキーの値は、実行するコマンドと必要なパラメータを含む文字列です。例：
 
-		let descriptor = {
-			ConsoleCommand: 'stat fps'
-		}
-		emitCommand(descriptor);
+        let descriptor = {
+            ConsoleCommand:'stat fps'
+        }
+        emitCommand(descriptor);
 
-    
-*   `Resolution` \- Use this key to reset the rendering resolution of the Unreal Engine application. The value of this key should be an object that contains `Width` and `Height` properties. For example:
-    
+* `Resolution` \- このキーを使用して、Unreal Engine アプリケーションのレンダリング解像度をリセットします。このキーの値は `Width` および `Height` プロパティを含むオブジェクトです。例：
 
-		let descriptor = {
-			Resolution: {
-				Width: 1024,
-				Height: 768
-			}
-		}
-		emitCommand(descriptor);
+        let descriptor = {
+            Resolution:{
+                Width:1024,
+                Height:768
+            }
+        }
+        emitCommand(descriptor);
 
-    
-*   `Encoder` \- Use this key to send commands to the encoder to control the quality of the media stream. This currently supports one command: `BitrateReduction`. This value specifies what percentage of the measured available bandwidth should be allocated to the video encoder bitrate. Setting this value too high may cause network congestion and packet drops, which in turn lead to increased latency and video artifacts on the clients. By default, this value is set to 50 percent. If you notice problems with latency and video artifacts in your deployment, you can try reducing this value further. For example:
-    
+* `Encoder` \- このキーを使用して、エンコーダにメディア ストリームの品質をコントロールするコマンドを送信します。現時点では次の 1 つのコマンドをサポートしています。`BitrateReduction`この値は、利用可能な帯域幅の測定値の何 % をビデオ エンコーダ ビットレートに割り当てるかを指定します。この値の設定が高すぎるとネットワークが輻輳し、パケットが失われることがあります。その結果、レイテンシーが増えて、クライアントでビデオにアーティファクトが発生します。デフォルトではこの値は 50 パーセントに設定されています。デプロイメントでレイテンシーとビデオ アーティファクトの問題が検出される場合は、この値をさらに小さくしてみてください。例：
 
-		let descriptor = {
-			Encoder: {
-				BitrateReduction: 20
-			}
-		}
-		emitCommand(descriptor);
-
-    
+        let descriptor = {
+            Encoder:{
+                BitrateReduction:20
+            }
+        }
+        emitCommand(descriptor);
 
 [REGION:note]
-Due to the power of the Unreal Engine console commands, the `emitCommand` function can present a security risk. In order for this function to work, you also need to provide the `-AllowPixelStreamingCommands` parameter on the command line when you launch your Unreal Engine application or start it from the Unreal Editor using the Standalone Game option.
+Unreal Engine コンソール コマンドには強力な権限があるため、`emitCommand` 関数によりセキュリティ リスクが生じることがあります。この関数を機能させるには、Unreal Engine アプリケーションを起動する際、または Standalone Game オプションで Unreal Editor から起動する際に、コマンドラインで「`-AllowPixelStreamingCommands`」パラメータを指定する必要もあります。
 [/REGION]
 
-### Using the emitUIInteraction Function
+### emitUIInteraction 関数を使用する
 
-When you call the `emitUIInteraction` function, you can pass it a single string or JavaScript object. For example:
+`emitUIInteraction` 関数を呼び出す際に、関数に単一の文字列または JavaScript オブジェクトを渡すことができます。例：
 
+    emitUIInteraction("MyCustomCommand");
 
-	emitUIInteraction("MyCustomCommand");
+または
 
+    let descriptor = {
+        LoadLevel:"/Game/Maps/Level_2"
+        PlayerCharacter:{
+            Name:"Shinbi"
+            Skin:"Dynasty"
+        }
+    }
+    emitUIInteraction(descriptor);
 
-or
-
-
-	let descriptor = {
-		LoadLevel: "/Game/Maps/Level_2"
-		PlayerCharacter: {
-			Name: "Shinbi"
-			Skin: "Dynasty"
-		}
-	}
-	emitUIInteraction(descriptor);
-
-
-If you pass a JavaScript object, the `emitUIInteraction` function converts it to a JSON string internally. It then passes the resulting string back to the Pixel Streaming Plugin in your Unreal Engine application, which raises an event on the input controller. In your application's gameplay logic, you bind your own custom event to handle these inputs, using the **Bind Event to OnPixelStreamingInputEvent** node. For example:
+JavaScript オブジェクトを渡す場合、`emitUIInteraction` 関数はそれを内部で JSON 文字列に変換します。続いて、結果の文字列が Unreal Engine アプリケーションの Pixel Streaming プラグインに渡されます。これにより、入力コントローラーにイベントが発生します。アプリケーションのゲームプレイ ロジックで、**Bind Event to OnPixelStreamingInputEvent** ノードを使用して、独自のカスタム イベントをこれらの入力を処理するようにバインドします。例：
 
 [REGION:lightbox]
-[![Bind Event to OnPixelStreamingInputEvent](pixelstreaming-uiinteractionrespond.png "Bind Event to OnPixelStreamingInputEvent")](pixelstreaming-uiinteractionrespond.png) 
+[![イベントを OnPixelStreamingInputEvent にバインド](pixelstreaming-uiinteractionrespond.png "イベントを OnPixelStreamingInputEvent にバインド")](pixelstreaming-uiinteractionrespond.png)
 
-*Click for full image.*
+*クリックしてフルサイズで表示*
 [/REGION]
 
-You need to bind this event once, typically at the start of your game. Each time any player HTML page connected to an instance of your Unreal Engine application calls the `emitUIInteraction`function, your custom event is automatically invoked, regardless of the input passed to `emitUIInteraction`.  
+通常は、このイベントをゲーム開始時に 1 回バインドする必要があります。Unreal Engine アプリケーションのインスタンスに接続されたプレイヤー HTML ページが `emitUIInteraction` 関数を呼び出すたびに、カスタム イベントが自動的に呼び出されます。`emitUIInteraction` に渡される入力は関係ありません。
 
-The custom event you assign (for example, the **UI Interaction** node in the image above) has an output named **Descriptor**, which you can use to retrieve the string that was sent to your Unreal Engine application by the `emitUIInteraction` function. You can use that value to determine how your gameplay code needs to respond each time `emitUIInteraction` is called.
+割り当てるカスタム イベント (例えば、前の画像にある **UI Interaction** ノード) には **Descriptor** と呼ばれる出力があります。これは、`emitUIInteraction` 関数によって Unreal Engine アプリケーションに送信された文字列を取得する際に使用できます。その値を使用して、`emitUIInteraction` が呼び出されるたびにゲームプレイ コードが応答する方法を決定できます。
 
-For example, the following Blueprint tests to see whether the input given to `emitUIInteraction` contains the string "MyCustomCommand", and calls a custom function to handle the event:
+例えば、次のブループリントは `emitUIInteraction` に対する入力が文字列「MyCustomCommand」を含むかどうかを確認するためにテストし、イベントを処理するためのカスタム関数を呼び出します。
 
 [REGION:lightbox]
-[![Search for substring](pixelstreaming-respond-searchsubstring.png "Search for substring")](pixelstreaming-respond-searchsubstring.png) 
+[![サブ文字列の検索](pixelstreaming-respond-searchsubstring.png "サブ文字列の検索")](pixelstreaming-respond-searchsubstring.png)
 
-*Click for full image.*
+*クリックしてフルサイズで表示*
 [/REGION]
 
-If you originally passed a JavaScript object to `emitUIInteraction`, you can retrieve the value of any key from that JSON object using the **Pixel Streaming > Get Json String Value** node. For example, the following Blueprint tests for a key named LoadLevel. If that key is present, it calls a custom function to handle the event:
+元の JavaScript オブジェクトを `emitUIInteraction` に渡す場合、**Pixel Streaming > Get Json String Value (JSON 文字列値の取得)** ノードで JSON オブジェクトからキーの値を取得できます。例えば、次のブループリントでは LoadLevel というキーをテストします。そのキーが存在する場合は、そのキーによってイベントを処理するためにカスタム関数が呼び出されます。
 
 [REGION:lightbox]
-[![Get a JSON field value](pixelstreaming-respond-json.png "Get a JSON field value")](pixelstreaming-respond-json.png)
+[![JSON フィールド値の取得](pixelstreaming-respond-json.png "JSON フィールド値の取得")](pixelstreaming-respond-json.png)
 
-*Click for full image.*
+*クリックしてフルサイズで表示*
 [/REGION]
 [REGION:tip]
-If you need to retrieve a nested key, use the dot notation common in JavaScript for your key. For example, `PlayerCharacter.Name` or `PlayerCharacter.Skin`.
+ネスト構造のキーを取得する必要がある場合、JavaScript で一般的なドット記法がキーで使用されます。例えば `PlayerCharacter.Name` や `PlayerCharacter.Skin` です。
 [/REGION]
 
-## Communicating from UE4 to the Player Page
+## UE4 からプレイヤー ページに通信する
 
-You can make your Unreal Engine application emit custom events to all connected player HTML pages, which you can respond to in the player's JavaScript environment. This lets you change your web page UI in response to gameplay events.
+接続されたすべてのプレイヤー HTML ページにカスタム イベントを発信するように、Unreal Engine アプリケーションを設定できます。これらには、プレイヤーの JavaScript 環境で応答できます。これにより Web ページ UI をゲームプレイ イベントに応じて変更できます。
 
-To set this up:
+設定方法
 
-1.  In your Unreal Engine application, any time you want to emit an event to the player page, use the **Pixel Streaming > Send Pixel Streaming Response** node. Specify a custom string argument to the node to indicate to the player page what event has happened.  
+1. 使用する Unreal Engine アプリケーションで、イベントをプレイヤー ページに発信する場合は常に、**Pixel Streaming > Send Pixel Streaming Response (Pixel Streaming 応答を送信)** ノードを使用します。プレイヤー ページに発生したイベントの内容を示すには、ノードにカスタム文字列引数を指定します。
     [REGION:lightbox]
-    [![](pixelstreaming-send-game-event.png "pixelstreaming-send-game-event.png")](pixelstreaming-send-game-event.png) *Click for full image.*
+    [![](pixelstreaming-send-game-event.png "pixelstreaming-send-game-event.png")](pixelstreaming-send-game-event.png)
+
+    *クリックしてフルサイズで表示*
     [/REGION]
-2.  In the JavaScript of your player page, you'll need to write a custom event handler function that will be invoked each time the page receives a response event from the Unreal Engine application. It will be passed the original string argument that was sent by the **Send Pixel Streaming Response** node. For example:
-    
+2. プレイヤー ページの JavaScript で、ページが Unreal Engine アプリケーションから応答イベントを受信するたびに、起動されるカスタム イベント ハンドラ関数を記述する必要があります。**Send Pixel Streaming Response** ノードにより送信された、オリジナルの文字列引数を渡します。例：
 
-		function myHandleResponseFunction(data) {
-			console.warn("Response received!");
-			switch (data) {
-				case "MyCustomEvent":
-					... // handle one type of event
-				case "AnotherEvent":
-					... // handle another event
-			}
-		}
+        function myHandleResponseFunction(data) {
+            console.warn("Response received!");
+            switch (data) {
+                case "MyCustomEvent":
+                    ...// handle one type of event
+                case "AnotherEvent":
+                    ...// handle another event
+            }
+        }
 
-    
-3.  Register your listener function by calling the `addResponseEventListener` function provided by `app.js`. You pass this function a unique name for your event listener, and your function. For example:
-    
+3. `app.js` で提供される `addResponseEventListener` 関数を呼び出すことで、リスナー関数を登録します。この関数にイベント リスナーの固有の名前と独自の関数を渡します。例：
 
-		addResponseEventListener("handle_responses", myHandleResponseFunction);
+        addResponseEventListener("handle_responses", myHandleResponseFunction);
 
-    
-4.  If you ever need to remove your event listener, call `removeResponseEventListener` and pass the same name. For example:
-    
+4. イベント リスナーを削除する必要がある場合は、`removeResponseEventListener` を呼び出して同じ名前を渡します。例：
 
-		removeResponseEventListener("handle_responses");
-
-    
+        removeResponseEventListener("handle_responses");
 
 [REGION:tip]
-If you want to pass more complex data, you can format the string you pass to the **Send Pixel Streaming Response** node as JSON. For example:  
-![Send Pixel Streaming response using JSON](pixelstreaming-send-game-event-json.png "Send Pixel Streaming response using JSON")  
-Then, in your JavaScript event handler function, use  `JSON.parse(data)` to decode the string back into a JavaScript object.
+より複雑なデータを渡す必要がある場合は、**Send Pixel Streaming Response** ノードに渡す文字列を JSON 形式にフォーマットできます。例：
+![JSON を使用した Pixel Streaming 応答の送信](pixelstreaming-send-game-event-json.png "JSON を使用した Pixel Streaming 応答の送信")
+次に、JavaScript イベント ハンドラ関数で `JSON.parse(data)` を使用し、文字列をデコードして JavaScript オブジェクトに戻します。
 [/REGION]

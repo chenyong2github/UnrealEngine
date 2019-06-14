@@ -8,7 +8,7 @@ Parent: Engine/Animation/Persona
 Related: Engine/Animation/Persona
 Related: Engine/Content/Types/SkeletalMeshes
 Related: Engine/Animation/AnimBlueprints
-Related: Engine/Physics/PhAT
+Related: Engine/Physics/PhysicsAssetEditor
 Order: 1
 Tags:animation
 topic-image:SkeletonToolbar.png

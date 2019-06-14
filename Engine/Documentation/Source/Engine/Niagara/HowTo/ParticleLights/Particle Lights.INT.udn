@@ -9,12 +9,7 @@ Parent: Engine/Niagara/HowTo
 Order: 4
 Tags: Niagara
 Tags: Early Access
-
-Prerequisite Topics
-
-This page assumes you have prior knowledge of the following topics. Please read them before proceeding.
-
-*   [Enable the Niagara Plugin](Engine/Niagara/HowTo/EnableNiagara "Describes how you can enable the Niagara Plugin.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
 
 Giving particles the ability to illuminate the world around them can add an extra layer of realism to any of your project's visual effects. In the following How-To, we will take a look at setting up a Niagara emitter so that particles and lights are spawned at the same time.
 

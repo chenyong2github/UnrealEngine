@@ -1,514 +1,1321 @@
-﻿INTSourceChangelist:4276998
+﻿INTSourceChangelist:6095016
 Availability: Public
 Crumbs:
 Title: 使用nDisplay在多显示屏上进行渲染
-Description: 描述如何使用nDisplay系统同时在多个显示器上渲染您的虚幻引擎项目。
-Version: 4.20
+Description: 介绍如何使用nDisplay系统在多显示屏上同时渲染虚幻引擎项目。
+Version: 4.22
 Parent: Engine/Rendering
-Order: 0
+Order: 12
 Tags: Rendering 
 Tags: Graphics 
-Tags: Experimental 
-Tags: Landing 
-Tags: Page
 
+[TOC (start:2 end:3)]
 
-![](ndisplay_banner.png)
+![Rendering to Multiple Displays with nDisplay](ndisplay_banner.png "Rendering to Multiple Displays with nDisplay")
 
 互动式内容不仅限于显示在一个屏幕上，或者像VR头显这样的双屏设备上。越来越多的视觉化系统想要通过多个同步显示屏实时渲染内容，更高效地让观众沉浸在游戏世界中。这些系统可能由多个相邻的物理显示屏组成，如[Powerwall](https://en.wikipedia.org/wiki/Powerwall)显示屏；或者可能使用多个投影仪将3D环境投影到穹顶、倾斜幕墙、曲面屏等物理表面，如[Cave](https://en.wikipedia.org/wiki/Cave_automatic_virtual_environment)虚拟环境。
 
-虚幻引擎通过一个系统 **nDisplay** 为这些使用场景提供支持。该系统可以解决将3D内容同时渲染到多个显示屏的一些最重要的挑战：
+虚幻引擎通过一个名为 **nDisplay** 的系统为这些使用场景提供支持。该系统可以解决将3D内容同时渲染到多个显示屏的一些最重要的挑战：
 
-* 它有助于完成在网络中的不同计算机上部署和启动多个项目实例的过程，并且这些计算机各自可以渲染到一个或多个显示设备。
-* 它管理根据显示硬件的空间布局，实时计算每个屏幕的视锥体所涉及的所有计算工作。
-* 它确保各个屏幕上显示的内容保持 *完全* 同步，将确定性内容分发到所有引擎实例。
-* 它提供无源和有源立体声渲染。
-* 它可以受VR跟踪系统输入的驱动，这样显示屏中的视点就可以准确地实时跟随移动观众的视点。
-* 它足够灵活，可以支持任意相对方向的任意数量的屏幕，并可以在任意数量的项目中轻松复用。
+*   它有助于完成在网络中的不同计算机上部署和启动多个项目实例的过程，并且这些计算机各自可以渲染到一个或多个显示设备。
+
+*   它根据显示硬件的空间布局，管理实时计算每个屏幕的视锥体所涉及的所有计算工作。
+
+*   它确保各个屏幕上显示的内容保持“完全”同步，将确定性内容分发到所有引擎实例。
+
+*   它提供无源和有源立体声渲染。
+
+*   它可以受VR跟踪系统输入的驱动，这样显示屏中的视点就可以准确地实时跟随移动观众的视点。
+
+*   它足够灵活，可以支持任意相对方向的任意数量的屏幕，并可以在任意数量的项目中轻松复用。
+
+[REGION:tip]
+nDisplay是[Childish Gambino备受赞誉的2018 Pharo演出](https://www.unrealengine.com/en-US/spotlights/childish-gambino-mesmerizes-fans-with-real-time-animation)的实时渲染的重要组成部分。请参阅下面的项目聚光灯视频！
+[/REGION]
+
+[OBJECT:EmbeddedVideo]
+    [PARAMLITERAL:width]
+    100
+    [/PARAMLITERAL]
+    [PARAMLITERAL:height]
+    56.25
+    [/PARAMLITERAL]
+    [PARAMLITERAL:units]
+    %
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    simple
+    [/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	DTAW0i7NSoo
+	[/PARAMLITERAL]
+[/OBJECT]
+
+(#ndisplaysystemoverview)
 
 ## nDisplay系统概述
 
-每个nDisplay设置都有一台 *主* 计算机和任意数量的附加计算机。  
+每个nDisplay设置都有一台 *主* 计算机和任意数量的附加计算机。
 
-* 网络中的每一台计算机都运行项目封装可执行文件的一个或多个实例。其中每一个虚幻引擎实例都负责将同一3D场景的一个分段渲染到单一屏幕或显示屏。
-* 主节点还负责从VRPN设备接收输入，然后将该输入复制到所有其他相连的计算机。
+*   网络中的每一台计算机都运行项目打包可执行文件的一个或多个实例。
 
-![nDisplay network overview](image5.png "nDisplay network overview")
+*   每一个虚幻引擎实例都处理一个或多个显示设备的渲染，例如屏幕或投影仪。
 
-为此，nDisplay向普通虚幻系统架构添加了多个组件：
+*   对于虚幻引擎的实例处理的各个设备，它在同一3D场景中渲染单个视点。通过设置这些视点，使它们在3D世界场景中的位置与现实世界中屏幕或投影表面的物理位置相匹配，您可以给观众一种身处虚拟世界中的错觉。
 
-* 一个网络配置和管理应用程序，名为 **nDisplayLauncher**。您在网络的一台计算机上运行该应用程序，以自动在网络中的所有计算机上部署和启动您的项目。 
-* 一个独立的侦听器应用程序，名为 **nDisplayListener**，在每一台计算机上运行。该应用程序侦听从nDisplayLauncher传入的请求，并在本地计算机上处理这些请求。
-* 一个包含所有设置的共享配置文件，nDisplay需要这些设置才能在正确的计算机上启动正确数量的实例，这些计算机各自渲染游戏3D世界中的正确视点，以产生在所有显示屏或投影仪上无缝渲染的错觉。请参阅下文[关于nDisplay配置文件](#aboutthendisplayconfigurationfile)。
+*   主节点还负责通过虚拟现实外围网络(VRPNs)的链接从空间跟踪器及控制器接受输入，然后将该输入复制到所有其他相连的计算机。
+
+![nDisplay network overview](ndisplay-setup.png "nDisplay network overview")(w:800)
+
+上图显示了一个可能的nDisplay网络。像所有的nDisplay网络一样，它的一台PC充当主节点。这个主节点接受来自VRPN服务器的输入，VRPN服务器中继来自空间跟踪设备和其他控制器设备的信号。该网络还包含其他几台PC，它们运行虚幻引擎项目的其他实例。每个群集节点驱动一个或多个显示投影仪。
+
+|||
+| --- | --- |
+| ![One instance, one device](ndisplay-oneinstance-onedevice.png)(w:300) | [INCLUDE:#excerpt_1] |
+| ![Multiple instances, multiple devices](ndisplay-multipleinstances-multipledevices-2.png)(w:300) | [INCLUDE:#excerpt_2] |
+| ![One instance, multiple devices](ndisplay-oneinstance-multipledevices.png)(w:300) | [INCLUDE:#excerpt_3] |
+
+[COMMENT:none]
+[EXCERPT:excerpt_3]
+ **渲染到多个显示设备的一个应用程序实例。**  
+使用此选项，您在计算机上运行虚幻引擎应用程序的单个实例，但是您将它设置为在一个大窗口内将场景的3D空间的多个单独矩形渲染到不同的区域。然后使用类似[NVIDIA Mosaic](https://www.nvidia.com/en-us/design-visualization/solutions/nvidia-mosaic-technology/)或[NVIDIA Surround](https://www.nvidia.com/object/3d-vision-surround-technology.html)的技术将单个大窗口拆分，在不同的显示设备上渲染每个单独的区域。  
+在这个场景中，将nDisplay与Mosaic或Surround结合使用的好处是，您可以渲染与不同显示器的物理布局精确匹配的视图，即使这些显示器不在同一平面上。但是，所有的视口都是由同一个虚幻引擎实例渲染的，所以在同一台计算机上安装多个显卡并没有用处。  
+[/EXCERPT:excerpt_3]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_2]
+ **多个应用程序实例，每个渲染到一个显示设备**  
+如果您的网络中的计算机具有多个显卡，能够驱动多个显示设备，那么您可以在这些计算机上运行多个虚幻引擎实例。您将指导虚幻引擎的每个实例渲染不同的3D空间矩形，并将每个实例分派到不同的显卡。  
+如果项目的CPU和内存需求足够小，可以在同一台计算机上运行多个实例，那么这种方法很有用。
+[/EXCERPT:excerpt_2]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_1]
+**渲染到一个显示设备的一个应用程序实例。**  
+这是为nDisplay设置主机的最直接的方法。对于您需要的每个投影仪或显示设备，设置一台计算机来处理对该设备的渲染。在该计算机上，您运行虚幻引擎的一个实例。通常，在这个场景中，您将设置该应用程序实例，以将一个3D空间矩形渲染到一个视口中。
+[/EXCERPT:excerpt_1]
+[/COMMENT]
+
+(#ndisplaycomponents)
+
+### nDisplay组件
+
+nDisplay向通常的虚幻系统架构添加了几个组件：
+
+*   一个在虚幻引擎中工作的插件。它在组成群集的所有应用程序实例之间通信和同步信息，确保所有实例同时渲染相同的帧，确保每个显示设备渲染游戏世界场景的正确视锥，等等。
+*   一个名为 **nDisplayLauncher** 的网络供应和管理应用程序。您可以在网络中的一台计算机上运行此应用程序，以便在网络中的所有计算机上自动启动和退出您打包的虚幻引擎应用。
+*   在每台计算机上运行一个单独的监听器应用程序 **nDisplayListener**。此应用程序监听来自nDisplayLauncher的传入请求，并在本地计算机上处理这些请求。
+*   一个包含nDisplay所需的所有设置的共享配置文件，需要在正确的计算机上启动正确数量的实例，每个实例在游戏的3D世界场景中渲染正确的视点，从而在所有显示屏或投影仪上产生无缝渲染的假象。请参阅下方的[关于nDisplay配置文件](#aboutthendisplayconfigurationfile)。
 
 (#gettingstarted)
-## 入门
 
-本节介绍如何首次启动和运行nDisplay。准备工作：
+## 新手入门
 
-* 确保您的物理设备（屏幕、投影仪等）已正确设置并能正常工作。
-* 确保您打算在主计算机上使用的Windows帐户在您打算在nDisplay网络中使用的 *所有* 计算机上都有管理权限。
-* 确保您想要在nDisplay网络中使用的所有计算机能够通过端口41000、41001和41002接收TCP/IP通信。(您可以使用不同的端口；请参阅下文[更改通信端口](#changingcommunicationports)。) 
+本节描述如何第一次使用nDisplay启动和运行。
 
-### 第1步. 设置项目以便使用nDisplay
+[REGION:note]
+ **先决条件：**
 
-设置项目以使用nDisplay的最简单方法是根据nDisplay模板项目创建项目：
+*   确保您的物理设备（屏幕、投影仪等）都已设置好并正常工作。
 
-![根据模板创建nDisplay项目](ndisplay-create-from-template.png "Create an nDisplay Project from the Template")
+*   确保您打算在主计算机上使用的Windows帐户对您打算在nDisplay网络中使用的 *所有* 计算机具有管理权限。
 
-这样会自动启用nDisplay插件，向项目添加一些样本配置文件，并提供已经配置有默认设置的默认关卡。
+*   确保要在nDisplay网络中使用的所有计算机都可以通过端口41000、41001、41002和41003接收TCP/IP通信。（您可以使用不同的端口；请参阅下面的[更改通信端口](#changingcommunicationports)）。
 
-如果您有现成的项目想要使用nDisplay，可以手动进行相同配置。请参阅下文[向现有项目添加nDisplay](#addingndisplaytoanexistingproject)。
+[/REGION]
 
-### 第2步. 设置配置文件
+(#step1)
 
-您需要将以下信息告知nDisplay：想要在网络中使用的不同计算机、这些计算机将渲染到的屏幕或投影仪的尺寸和分辨率、关卡3D空间中这些屏幕之间的空间关系等。为此，需要创建一个配置文件，用一系列设置表达所有这些信息。
+### 步骤1 - 为nDisplay设置项目
 
-创建该配置文件可能是nDisplay设置中最棘手的部分，因此需谨慎操作。有关详细信息，请参阅下文[关于nDisplay配置文件](#aboutthendisplayconfigurationfile)。
+将项目设置为使用nDisplay的最简单方法是从 **nDisplay** 模板项目创建：
 
-通常，设置好配置文件后，您只需在网络拓扑发生变化时修改配置文件即可：例如，当您需要更改想要渲染到的计算机时，或者如果您更改真实世界中的屏幕和显示屏的物理布局。
+![Create an nDisplay Project from the Template](ndisplay-create-from-template.png "Create an nDisplay Project from the Template")
 
-将配置文件保存到项目的内容文件夹中。您将在下一步中用到该文件。  
+这将自动启用nDisplay插件，向您的项目添加一些示例配置文件，并提供一个已经配置了默认设置的默认关卡。
 
-### 第3步. 封装和部署
+如果您有一个想要与nDisplay一起使用的现有项目，您可以手动完成相同的配置。请参阅下面的[将nDisplay添加到现有项目](#addingndisplaytoanexistingproject)。
 
-每次更改项目中的内容时，都需要封装游戏并部署到已在配置文件中标识的所有计算机。
+(#step2)
 
-1. 在虚幻编辑器中，为Windows烘焙和封装游戏。有关详细信息，请参阅[构建操作：烘焙、封装、部署和运行](https://docs.unrealengine.com/en-us/Engine/Deployment/BuildOperations)。  
-   然后，在将应用程序部署到从属计算机时，nDisplay会将其复制到每个目标计算机上的相同位置。因此，最好将项目封装到所有机器上都存在的位置。
-1. 在虚幻引擎安装文件夹下面找到 *Engine\\Binaries\\DotNET\\nDisplayListener.exe* 应用程序。将该应用程序复制到包含您已为游戏封装的  *.exe* 文件的文件夹。
-1. 将nDisplay配置文件复制到相同文件夹。  
-   您应将封装项目的 *.exe* 文件、*nDisplayListener.exe* 应用程序和配置文件全部并排放在同一个文件夹中。
-1. 运行虚幻引擎安装文件夹下面的 *Engine\\Binaries\\DotNET\\nDisplayLauncher.exe* 应用程序。
-   [REGION:lightbox]
-   [![在nDisplay Launcher中部署](ndisplay_launcher_config-1.png "Deploy in the nDisplay Launcher")](ndisplay_launcher_config-1.png)  *单击查看大图。*
-   [/REGION]
-1. 将封装项目的 *.exe* 文件添加到“应用程序（Applications）”列表。  
-   单击 **应用程序（Applications）** 列表下面的 **添加（Add）**，然后浏览并选择您为项目封装的 *.exe* 文件。
-1. 指定配置文件。  
-   单击 **配置文件（Config Files）** 控件右侧的 **添加（Add）**，然后浏览并选择您的配置文件。
-1. 单击 **部署应用程序（Deploy application）**。  
-   nDisplay将包含项目可执行文件的文件夹的所有内容复制到您在配置文件中标识的所有其他计算机上的相同位置。
-    
+### 步骤2 - 设置配置文件
 
-### 第4步. 启动所有节点
+您需要告诉nDisplay要在网络中使用的不同计算机，这些计算机渲染到的屏幕或投影仪的大小和分辨率，这些屏幕在3D空间中的空间关系，等等。为此，您需要创建一个配置文件，该文件在一系列设置中表达所有这些信息。
+
+创建这个配置文件可能是nDisplay设置中最棘手的部分，所以处理时务必要细心。详情请参阅下面的[关于nDisplay配置文件](#aboutthendisplayconfigurationfile)。
+
+通常，一旦设置好配置文件，您只需在网络拓扑发生变化时修改即可：例如，当您需要更改渲染到的计算机时，或者当您更改真实世界中屏幕和显示器的物理布局时。
+
+将配置文件保存在项目的内容文件夹中。您将在下一步中使用它。  
+
+(#step3-packageanddeploy)
+
+### 步骤3 - 打包和部署
+
+每次更改项目中的内容时，都需要打包游戏并将其部署到配置文件中已标识的所有计算机上。
+
+1.  在虚幻编辑器中，为Windows打包游戏。详情请参阅[构建操作：烘焙、打包、部署和运行](Engine/Deployment/BuildOperations)。
+
+2.  在虚幻引擎安装文件夹下面找到 *Engine\\Binaries\\DotNET\\nDisplayListener.exe* 应用程序。将该应用程序复制到包含您已为游戏打包的 *.exe* 文件的文件夹。
+
+3.  将包含您的项目的已打包的 *.exe* 文件和 **nDisplay Listener** 应用程序的文件夹复制到标识为配置文件中的群集节点的每台计算机。  
+    您必须在所有计算机上将该文件夹放在完全相同的路径上。
+
+4.  在各台计算机上启动 *nDisplayListener.exe* 文件。
+
+现在，您已经将nDisplay所需的所有内容部署到群集中的每台计算机上：应用程序的打包版本、定义nDisplay群集设置的配置文件，以及正在运行的 **nDisplay Listener**（它正在等待来自 **nDisplay Launcher** 的传入指令）。在下一节中，您将使用 **nDisplay Launcher** 来指示每个监听器在其自己的群集节点上启动项目。
+
+(#step4)
+
+### 步骤4 - 启动所有群集节点
 
 当您将项目成功部署到已在配置文件中标识的所有计算机后，可以使用 **nDisplayLauncher** 应用程序同时在所有计算机上启动该项目。
 
-1. 如果您尚未运行 **nDisplayLauncher** 应用程序，请启动该程序并按上一节所述设置应用程序和配置文件。  
-   [REGION:lightbox]
-   [![使用nDisplay Launcher运行](ndisplay_launcher_launch.png "Run with the nDisplay Launcher")](ndisplay_launcher_launch.png) *单击查看大图。*
-   [/REGION]
-1. 单击 **启动侦听器（Start listeners）**。这样会在您已在nDisplay配置文件中标识的每台计算机上运行nDisplayListener应用程序。
-1. 当nDisplay确认已在所有计算机上启动所有侦听器后，单击 **运行（Run）** 以启动所有实例。
+1.  如果您尚未运行 **nDisplayLauncher** 应用程序，请启动它。  
+    [REGION:lightbox]
+    [![nDisplay Launcher](ndisplay-launch.png "nDisplay Launcher")](ndisplay-launch.png)  
+    *单击显示全图。*
+    [/REGION]
+    
+2.  添加打包的项目 *.exe* 文件到应用程序列表。  
+    单击 **应用程序（Applications）** 列表下的 **添加（Add）**，然后浏览并选择为项目打包的 *.exe* 文件。nDisplay Launcher将把您的新应用程序添加到列表。单击名称以选择。
 
-完成后：
+3.  指定您的配置文件。  
+    单击 **配置文件（Config Files）** 控件右侧的 **添加（Add）**，然后浏览并选择您的配置文件。
 
-1. 单击 **终止（Kill）** 会自动关闭所有计算机上的所有虚幻引擎实例，或者直接关闭主计算机上运行的虚幻引擎实例即可。
-1. 单击 **停止侦听器（Stop listeners）** 以关闭所有计算机上的nDisplayListener应用程序。 
+4.  单击 **运行（Run）**。
+
+ **nDisplay Launcher** 向配置文件中的每个群集节点上的 **nDisplay Listener ** 发送一条消息，指示它启动打包的项目。您应该看到每个 **nDisplay Listener** 在其状态窗口中显示命令：
+
+![nDisplay Listener receiving the Run command](ndisplay-listener.png "nDisplay Listener receiving the Run command")
+
+然后，每个主机上的nDisplay Listener应该启动您的虚幻引擎应用程序，该程序将开始渲染您为其主窗口配置的一个或多个视口。
+
+完成后，单击 **终止（Kill）** 自动关闭所有计算机上虚幻引擎的所有实例，或者简单地关闭主计算机上运行的虚幻引擎实例。
 
 (#aboutthendisplayconfigurationfile)
+
 ## 关于nDisplay配置文件
 
 [REGION:tip]
-开始了解并创建自己的nDisplay配置文件的最佳方法是从nDisplay插件提供的示例配置入手。如果您已根据nDisplay模板创建了项目，会在项目文件夹 *Content/ConfigExamples* 中找到这些文件。如果还未创建，可以在虚幻引擎安装文件夹中的 *Templates/TP_nDisplayBP/Content/ConfigExamples* 下面找到这些文件。
+开始了解并创建自己的nDisplay配置文件的最佳方法是从nDisplay插件提供的示例配置入手。如果您已根据nDisplay模板创建了项目，您会在项目文件夹“Content/ConfigExamples”中找到这些文件。如果还未创建，可以在虚幻引擎安装文件夹中的“Templates/TP_nDisplayBP/Content/ConfigExamples”下面找到这些文件。
 [/REGION]
 
 nDisplay配置文件的结构与它用来渲染视觉化的不同类型组件有直接关系。
 
-* 您配置的每种不同类型的组件在该文件中都有自己的行，并以您指定的字符串ID标识。当一个配置节需要引用另一个配置节时，使用这些字符串ID。
-* 在该文件中配置的许多组件已在3D空间中定义了位置（通常也定义了旋转）。每个对象的位置和旋转都相对于该对象的 *父代*。默认情况下，所有对象的父代都是VR空间原点：VR空间中被视为起点的3D场景空间中的任意点。您还可以配置3D空间中特定的命名变换，称为scene_node，它们可以充当一个或多个组件的父代。这有助于简化屏幕、摄像机和其他组件的空间布局。
-* 除非另有说明，否则所有参数都需使用以米和度为单位的值。
+*   您配置的每种不同类型的组件在该文件中都有自己的行，并以您指定的字符串ID标识。当一个配置部分需要引用另一个配置部分时，使用这些字符串ID。
 
-### 摄像机配置
+*   在该文件中配置的许多组件已在虚拟3D空间中定义了位置（通常也定义了旋转）。每个对象的位置和旋转都相对于该对象的 *父项*。默认情况下，所有对象的父项都是VR空间原点：VR空间中被视为起点的3D世界场景空间中的任意点。您还可以配置3D空间中特定的命名变换，称为scene_node，它们可以充当一个或多个组件的父项。这有助于简化屏幕、摄像机和其他组件的空间布局。  
+    要查看该如何使用scene_node构建全部从虚拟空间中的同一点开始的3D变换的层级，请参阅下文[示例](#example)部分。
 
-nDisplay一次从一个视点渲染场景。每个潜在的视点都由一个 **camera** 配置文件定义。  
+*   除非另有说明，否则引用虚拟3D空间或真实物理空间中的测量值的所有参数都需使用以米和度为单位的值。这包括屏幕、场景节点、摄像机等。
 
-您可以在运行时切换这些视点。每个视点也都可以由跟踪设备驱动。
+*   所有在屏幕空间中引用测量值的参数都应使用以像素为单位的值。这包括窗口和视口。
+
+(#clusternodeconfigurations)
+### 群集节点配置
+
+对于您将在nDisplay网络中使用的虚幻引擎应用程序的每个不同实例，您需要定义一个 **cluster_node** 配置。每个cluster_node配置必须包含对定义主应用程序窗口属性的 **[窗口](#windowconfigurations)** 配置部分的引用。
+
+cluster\_node配置还定义将运行该应用程序实例的计算机的主机名或IP地址。您可以为每个cluster\_node配置设置不同的物理计算机，或者在同一主机上运行多个cluster_node配置。
+
+(#exampleconfiguration:)
 
 #### 示例配置：
 
-	[camera] id=camera_static loc="X=0.Y=0,Z=1.7" tracker_id=VRPNTracking tracker_ch=0
+本例配置一个主节点（每个网络一个）：
+
+    [cluster_node] id=node_front addr=192.168.0.1 window=wnd_LT sound=true port_cs=41001 port_ss=41002 master=true
+
+本例显示一个非主群集节点：
+
+    [cluster_node] id=node_left addr=192.168.0.2 window=wnd_large sound=false
+
+(#parameters:)
 
 #### 参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| **id** | 该摄像机配置的唯一名称。|
-| **loc** | 该摄像机在VR空间中相对于其父代的位置。|
-| **tracker_id** | **input** 配置的名称，该配置定义您需要用于随着时间驱动摄像机位置的VR设备。可选参数。如果省略该参数，摄像机位置在VR空间中将保持不变。|
-| **tracker_ch** | 当您提供 **tracker_id** 时，该参数指定nDisplay将从中读取跟踪数据的设备信道。|
-| **parent** | 您希望用作该对象父代的 **scene_node** 配置的名称。该参数是可选的。如果指定父代，您在loc参数中设置的值将相对于该父代的位置。如果省略父代，您在loc参数中设置的值将相对于VR根。|
+| **id** | 此集群节点配置的唯一名称。|
+| **addr** | 将运行此虚幻引擎实例的计算机的IP地址。这必须是一个IPv4地址。不支持IPv6。|
+| **窗口（window）** | **[窗口](#windowconfigurations)** 配置的名称，该配置为您的虚幻引擎应用程序的这个实例定义主窗口的大小和位置。|
+| **音效（sound）** | 确定此虚幻引擎实例是否播放音效。可选；默认值为“false”。|
+| **port\_cs port\_ss port\_ce** | 主节点用于与群集中的其他节点通信的端口。**port_cs** 用于群集同步；**port_ss** 用于交换同步；**port_ce** 用于群集事件。可选；默认值为“14001”、“14002”、和“14003”。|
+| **主（master）** | 确定此虚幻引擎实例是否为群集的主节点。只有一个 **cluster_node** 部分可以将该参数设置为“true”。可选；默认值为“false”。|
+| **eye_swap** | 确定为左眼和右眼生成的图像是否交换。可选；默认值为“false”。|
 
-### 屏幕配置
+(#windowconfigurations)
 
-每个不同的输出显示屏都使用在3D VR空间中定义了大小和位置的矩形所定义的视锥体，从当前摄像机位置渲染场景。每个矩形都由一个 **screen** 配置定义。通常，每个投影屏在VR空间中都有与您用来渲染的物理屏幕相同的尺寸。  
+### 窗口配置
 
-屏幕轴心点始终是最中心点。
+每个 **窗口（window）** 配置为虚幻引擎应用程序实例的主窗口定义一组属性。当nDisplay启动您的应用程序时，您可以使用它来配置窗口的初始大小和位置等设置，以及该窗口是否应该占据整个屏幕。
 
-#### 示例配置：
+您还提供一个或多个 **[视口](#viewportconfigurations)** 配置，这些配置辨识主应用程序窗口中的特定区域，nDisplay将用场景的渲染填充这些区域。
 
-该定义描述的是3*3米并直接位于其父代前面的屏幕。由于屏幕轴心点位于size参数定义的矩形中心，因此我们在Z轴上添加1.5米的偏移，以将屏幕向上移动一半高度。
-
-	[screen] id=screen_front loc="X=1.5.Y=0,Z=1.5" rot="P=0,Y=0,R=0" size="X=3,Y=3" parent=screens
-
-要将屏幕定义在观众左侧，将其向左移动（Y轴用负值），并围绕着局部Y轴旋转（yaw）。 
-
-	[screen] id=screen_left loc="X=0,y=-1.5,Z=1.5" rot="P=0,Y=-90,R=0" size="X=3,Y=3" parent=screens
-
-#### 参数：
-
-| **参数** | **说明** |
-| --- | --- |
-| **id** | 该屏幕配置的唯一名称。|
-| **loc** | 该屏幕中心在VR空间中相对于其父代的位置。|
-| **rot** | 屏幕所面向方向的Pitch（P）、Yaw（Y）和Roll（R）角度，以度为单位。|
-| **size** | 屏幕矩形的局部X和Y轴的总大小，以米为单位。|
-| **parent** | 您希望用作该对象父代的 **scene_node** 配置的名称。该参数是可选的。如果指定父代，您在loc和rot参数中设置的值将相对于该父代的位置。如果省略父代，您在loc和rot参数中设置的值将相对于VR根。|
-
-
-### 集群节点配置
-
-上述定义的每个投影屏通常都由虚幻引擎应用程序的不同实例渲染。对于每个实例，您需要定义一个 **cluster_node** 配置。每个集群节点都引用它应该渲染的投影屏配置。 
-
-cluster_node 配置还定义将运行该应用程序实例的计算机的主机名或IP地址。您可以为每个cluster_node配置设置不同的物理计算机，也可以让多个cluster_node配置在同一个主机上运行。
+(#exampleconfiguration:)
 
 #### 示例配置：
 
-该示例配置主节点（每个网络一个）：
+本例配置一个包含单个视口的应用程序窗口：
 
-	[cluster_node] id=node_front addr=192.168.0.1 screen=screen_front viewport=vp_front sound=true port_cs=41001 port_ss=41002 master=true
+    [window] id=wnd_one fullscreen=false WinX=0 WinY=0 ResX=640 ResY=480 viewports=vp_LT
 
-该示例显示非主集群节点：
+本例配置了一个包含四个独立视口的应用程序窗口：
 
-	[cluster_node] id=node_left addr=192.168.0.2 screen=screen_left viewport=vp sound=false
+    [window] id=wnd_four fullscreen=false WinX=0 WinY=0 ResX=640 ResY=480 viewports="vp_LT,vp_RB,vp_LB,vp_RT"
+
+(#parameters:)
 
 #### 参数：
 
-| **参数** | **说明** |
+| 参数 | 说明 |
 | --- | --- |
-| **id** | 该集群节点配置的唯一名称。|
-| **addr** | 将运行该虚幻引擎实例的计算机的IP地址。这必须是IPv4地址。不支持IPv6。|
-| **screen** | **screen** 配置的名称，该配置定义应该由该虚幻实例负责渲染的投影屏。|
-| **viewport** | **viewport** 配置的名称，该配置定义该虚幻引擎实例运行的应用程序窗口中的渲染框架位置。|
-| **sound** | 确定该虚幻引擎实例是否应播放声音。这是可选参数，默认值为`false`。|
-| **Winx WinY** | 指定应用程序窗口左上角在桌面上的位置，以屏幕空间像素为单位。|
-| **ResX ResY**	| 指定应用程序窗口的大小，以屏幕空间像素为单位。确保您用于该集群节点的视口定义不会超过该窗口的大小。|
-| **port_cs port_ss** | port_ss	集群同步端口，主节点必须使用这些端口来与集群中的其他节点通信。这是可选参数：默认值为`14001`和`14002`。|
-| **master** | 确定该虚幻引擎实例是否是集群的主节点。只有一个cluster_node节可以将该参数设置为true。这是可选参数，默认值为`false`。|
+| **id** | 此窗口配置的唯一名称。|
+| **全屏（fullscreen）** | 确定此窗口是否应在全屏模式下运行。如果将此值设置为“false”，您必须提供下述的 **WinX**、**WinY**、**ResX** 和 **RexY** 设置。|
+| **Winx WinY** | 指定桌面应用程序窗口左上角的位置，以屏幕空间的像素为单位。|
+| **ResX ResY** | 指定应用程序窗口的大小，以屏幕空间的像素为单位。|
+| **视口（viewports）** | [INCLUDE:#excerpt_7] |
+
+<!--
+[EXCERPT:excerpt_7]
+引用一个或多个 **[视口](#viewportconfigurations)** 配置部分，这些配置部分定义主应用程序窗口的区域，nDisplay应该用渲染的场景视图填充这些区域。  
+如果指定了多个视口，则必须使用逗号分隔的 **视口** 配置部分名称列表，该列表用引号括起来。请参阅上文第二个示例。  
+注意，列表的顺序不影响视口的视觉顺序或位置。父窗口中视口的位置在已命名的 **视口（viewport）** 配置中定义。  
+确保使用的视口定义不超过窗口的大小。
+[/EXCERPT:excerpt_7]
+-->
+
+(#viewportconfigurations)
 
 ### 视口配置
 
-以上所述的每个 **cluster_node** 配置都引用 **viewport** 配置，视口配置定义游戏窗口中将映射渲染框架的矩形区域。 
+以上所述的每个 **窗口** 配置都引用一个或多个 **视口** 配置，每个视口配置定义nDisplay会用渲染的场景视图填充的游戏窗口内的矩形区域。
 
-通常，每个具有不同分辨率设置的显示设备都需要一个不同的视口配置。例如，如果所有显示屏都相同，则只需一个视口配置，您可以从所有集群节点配置引用该视口配置。
+一般而言，视口从应用程序窗口左上角算起，宽度和高度已经设定好，这样就可以填充父窗口。但是，在某些情况下，您可能需要在父应用程序窗口中偏移视口。例如，如果需要设置两个部分重叠的投影仪，或者需要一个应用程序窗口在不同位置上托管多个独立的视口，那么您可能需要这样做。  
 
-一般而言，视口从应用程序窗口左上角算起，宽度和高度已经设定好，这样就可以填充父窗口。但是，在某些情况下，您可能需要在父应用程序窗口中偏移视口。例如，如果需要设置两个部分重叠的投影仪，就需要这样操作。  
-
-#### 示例配置：
-
-	[viewport] id=vp_left X=0 Y=0 width=1920 height=1080
-
-#### 参数：
-
-| **参数** | **说明** |
-| --- | --- |
-| **id** | 该视口配置的唯一名称。|
-| **X Y** | 视口左上角在主应用程序窗口的屏幕空间中的坐标，以像素为单位。|
-| **width height** | 渲染框架的高度和宽度，以像素为单位。该尺寸不应该大于使用该视口的任何 **cluster_node** 配置的size参数所定义的游戏窗口大小。|
-
-### 场景节点配置
-
-在配置文件中，您可以定义场景节点的层级，每个场景节点表示3D空间中的一个变换。如果您在配置文件中设置的任何对象在3D空间中需要有位置和旋转，例如摄像机或投影屏，可以使用其中一个 *scene_node* 配置作为其父代。这样可以帮助您定义视觉化系统所有不同组件之间的空间关系。
-
-像摄像机一样，场景节点也可以由VR跟踪设备驱动。
+(#exampleconfiguration:)
 
 #### 示例配置：
 
-以下代码行定义两个节点的层级，其中子节点在其父代前面有2米偏移。
+    [viewport] id=vp_LT X=0 Y=0 width=300 height=220 screen=scr_LT
 
-	[scene_node] id=vr_space_root loc="X=0.Y=0,Z=0" rot="P=0,Y=0,R=0"
-	[scene_node] id=walls_front_group loc="X=2.Y=0,Z=0" rot="P=0,Y=0,R=0" parent= vr_space_root
-
-以下代码行显示了配置为由VR跟踪设备驱动的场景节点：
-
-	[scene_node] id=cave_wand loc="X=0, Y=0,Z=1" tracker_id=CaveTracking tracker_ch=1
-
-#### 参数：
-
-| **参数** | **说明** |
-| --- | --- |
-| **id** | 该场景节点配置的唯一名称。|
-| **loc** | 该场景节点在VR空间中相对于其父代的位置。|
-| **rot** | 场景节点所面向方向的Pitch（P）、Yaw（Y）和Roll（R）角度，以度为单位。|
-| **parent** | 您希望用作该场景节点父代的另一个 **scene_node** 配置的名称。该参数是可选的。如果指定父代，您在 **loc** 和 **rot** 参数中设置的值将相对于该父代的位置。如果省略父代，您在 **loc** 和 **rot** 参数中设置的值将相对于VR根。|
-| **tracker_id** | **input** 配置的名称，该配置定义您需要用于随着时间驱动场景节点位置的VR设备。可选参数。如果省略该参数，场景节点位置和旋转将在VR空间中相对于其父代保持不变。|
-| **tracker_ch** | 当您提供 **tracker_id** 时，该参数指定nDisplay将从中读取跟踪数据的设备信道。|
-
-### 输入配置
-
-每个 **camera** 和每个 **scene_node** 可以选择性由VR跟踪设备驱动。为此，您为每个VR设备定义一个 **input** 节，并在 **camera** 或 **scene_node** 配置中引用该节。
-
-#### 示例配置：
-
-	[input] id=CaveTracking type=tracker addr=Tracker0@192.168.0.1 loc="X=-1.5,Y=0,Z=3.4" rot="P-0,Y=0,R=0" front=X right=Y up=-Z
+(#parameters:)
 
 #### 参数：
 
 | 参数 | 说明 |
 | --- | --- |
-| **id** | 该输入设备配置的唯一名称。|
-| **type** | [INCLUDE:#Excerpt_2] |
-| **addr** | [INCLUDE:#Excerpt_3] |
-| **remap** | [INCLUDE:#Excerpt_4] |
+| **id** | 此视口配置的唯一名称。|
+| **X Y** | 视口左上角在主应用程序窗口的屏幕空间中的坐标，以像素为单位。注意，这些值相对于应用程序窗口的左上角，而非相对于屏幕左上角。|
+| **宽度高度（width height）** | 渲染框架的宽度和高度，以像素为单位。该尺寸不应该大于使用该视口的任何 **窗口** 配置的 **大小（size）** 参数所定义的游戏窗口大小。|
+| **屏幕（screen）** | 定义3D空间视锥的 **屏幕** 配置的名称，虚幻引擎应用程序应该将该视锥渲染到此视口中。|
 
-[COMMENT:none]
+(#screenconfigurations)
 
-[EXCERPT:Excerpt_2]
-该VRPN输入设备的类型：
-* `tracker`表示跟踪设备。
-* `analog`表示产生轴数据的设备。
-* `button`表示产生布尔按钮数据的设备。
-[/EXCERPT]
+### 屏幕配置
 
-[EXCERPT:Excerpt_3]
-该VRPN输入设备的类型：	负责处理该特定设备的VRPN服务器的地址。该值必须采用以下格式：
-`DEVICENAME@SERVER_ADDRESS`
-`其中：`
-* `DEVICENAME`是该设备的VRPN名称。
-* `SERVER_ADDRESS`是VRPN服务器的IPv4地址。
-[/EXCERPT]
+每个不同的输出显示屏都使用在3D VR空间中定义了大小和位置的矩形所定义的视锥体，从当前摄像机位置渲染场景。每个矩形都由一个 **屏幕** 配置定义。通常，每个投影屏在VR空间中都有与您用来渲染的物理屏幕相同的尺寸。  
 
-[EXCERPT:Excerpt_4]
-该参数重新映射跟踪设备的信道编号，以便在虚幻中可以从不同信道读取其输入。例如，某些控制器使用信道0进行头部跟踪，信道1用于控制器，其他则将信道1用于头部跟踪，信道5用于控制器。来回切换这两类设备可能需要更改配置和运行时代码以便匹配。为避免在此类情况下进行任何其他更改，可以使用该参数来重新映射信道。
-例如，值：
-`remap[0:1, 5:2]`
-会将跟踪设备信道1的数据转发到虚幻中的信道0，将跟踪设备信道2的数据转发到虚幻中的信道5。
-[/EXCERPT]
+屏幕轴心点始终是最中心点。
 
-[/COMMENT]
+(#exampleconfiguration:)
 
-`type=tracker`的设备还接受以下附加参数：
+#### 示例配置：
 
-| **参数** | **说明** |
+该定义描述的是3*3米并直接位于其父项前面的屏幕。由于屏幕轴心点位于大小参数定义的矩形中心，因此我们在Z轴上添加1.5米的偏移，以将屏幕向上移动一半高度。
+
+    [screen] id=screen_front loc="X=1.5.Y=0,Z=1.5" rot="P=0,Y=0,R=0" size="X=3,Y=3" parent=screens
+
+要将屏幕定义在观众左侧，将其向左移动（Y轴用负值），并围绕着局部Y轴旋转（yaw）。 
+
+    [screen] id=screen_left loc="X=0,y=-1.5,Z=1.5" rot="P=0,Y=-90,R=0" size="X=3,Y=3" parent=screens
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
 | --- | --- |
-| **loc rot** | 类似于其他配置节，**loc** 和 **rot** 参数指定该输入设备在局部空间中的位置和旋转偏移。但是，对于输入设备，通常使用这些偏移来调整跟踪设备在VR空间中的根位置，以匹配您希望它在场景节点层级中应该具有的位置。|
-| **front right up** | [INCLUDE:#Excerpt_5] |
+| **id** | 此屏幕配置的唯一名称。|
+| **loc** | 该屏幕中心在VR空间中相对于其父项的位置。|
+| **rot** | 屏幕所面向方向的Pitch（P）、Yaw（Y）和Roll（R）角度，以度为单位。|
+| **大小（size）** | 屏幕矩形的局部X和Y轴的总大小，以米为单位。|
+| **父项（parent）** | 您希望用作该对象父项的 **[scene_node](#scenenodeconfigurations)** 配置的名称。该参数是可选的。如果指定父项，您在 **loc** 和 **rot** 参数中设置的值将相对于该父项的位置。如果省略父项，您在 **loc** 和 **rot** 参数中设置的值将相对于VR根。|
 
+(#cameraconfigurations)
+
+### 摄像机配置
+
+nDisplay群集中的所有实例从虚拟世界中的同一位置渲染场景。每个潜在的视点都由一个 **摄像机** 配置行定义。  
+
+您可以在运行时切换这些视点。每个摄像机视点也可以由跟踪设备驱动。
+
+(#exampleconfiguration:)
+
+#### 示例配置：
+
+    [camera] id=camera_static loc="X=0.Y=0,Z=1.7" tracker_id=VRPNTracking tracker_ch=0
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **id** | 此摄像机配置的唯一名称。|
+| **loc** | 该摄像机在VR空间中相对于其父项的位置。|
+| **tracker_id** | **[输入](#inputconfigurations)** 配置的名称，该配置定义您需要用于随着时间驱动摄像机位置的VR设备。可选参数。如果省略该参数，摄像机位置在VR空间中将保持不变。|
+| **tracker_ch** | 当您提供 **tracker_id** 时，该参数指定nDisplay将从中读取跟踪数据的设备信道。|
+| **父项（parent）** | 您希望用作该对象父项的 **[scene_node](#scenenodeconfigurations)** 配置的名称。该参数是可选的。如果指定父项，您在loc参数中设置的值将相对于该父项的位置。如果省略父项，您在loc参数中设置的值将相对于VR根。|
+
+(#scenenodeconfigurations)
+
+### 屏幕节点配置
+
+在您的配置文件中，您可以定义场景节点的层级，每个场景节点表示3D空间中的转换。您在配置文件中设置的任何需要在3D空间中位置和旋转的东西，例如摄像机或投影屏，都可以使用这些 *scene_node* 配置中的一个作为其父项。这可以帮助您定义可视化系统中所有不同组件之间的空间关系。
+
+与摄像机一样，场景节点也可以由VR跟踪设备驱动。
+
+(#exampleconfiguration:)
+
+#### 示例配置：
+
+下面的几行定义了一个由两个节点组成的层级，其中子节点在其父节点前面的偏移量为2米。
+
+    [scene_node] id=vr_space_root loc="X=0.Y=0,Z=0" rot="P=0,Y=0,R=0"
+    [scene_node] id=walls_front_group loc="X=2.Y=0,Z=0" rot="P=0,Y=0,R=0" parent= vr_space_root
+
+下面的行显示了一个场景节点，配置为由VR跟踪设备驱动：
+
+    [scene_node] id=cave_wand loc="X=0, Y=0,Z=1" tracker_id=CaveTracking tracker_ch=1
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **id** | 此场景节点配置的唯一名称。|
+| **loc** | 该场景节点在VR空间中相对于其父项的位置。|
+| **rot** | 场景节点朝向的Pitch（P）、Yaw（Y）和Roll（R）角度，以度为单位。|
+| **父项（parent）** | 您希望用作该场景节点父项的另一个 **[scene_node](#scenenodeconfigurations)** 配置的名称。该参数是可选的。如果指定父项，您在 **loc** 和 **rot** 参数中设置的值将相对于该父项的位置。如果省略父项，您在 **loc** 和 **rot** 参数中设置的值将相对于VR根。|
+| **tracker_id** | **[输入](#inputconfigurations)** 配置的名称，该配置定义您需要用于随着时间驱动场景节点位置的VR设备。可选参数。如果省略此参数，场景节点的位置和旋转相对于其父节点在VR空间中是静态的。|
+| **tracker_ch** | 当您提供 **tracker_id** 时，该参数指定nDisplay将从中读取跟踪数据的设备信道。|
+
+
+(#inputconfigurations)
+
+### 输入配置
+
+您为需要向nDisplay系统提供输入的每个设备定义一个 **输入** 部分。例如，各个 **[摄像机](#cameraconfigurations)** 和 **[scene_node](#scenenodeconfigurations)** 可以由VR跟踪设备驱动，您可在 **输入** 部分设置该设备，并在 **摄像机** 或 **scene_node** 配置中引用该设备。或者，您可能希望设置跟踪器、控制器和键盘，将通用的输入事件发送到虚幻引擎输入系统，或者将它们的事件和输入值绑定到通用的nDisplay蓝图节点，您可以在项目的游戏进程脚本中响应这些节点。
+
+您还可以使用 **[input_setup](#inputsetupconfigurations)** 部分以控制来自这些输入设备的特定信道、按钮和键绑定到虚幻引擎中特定类型的输入事件和值。
+
+有关如何使用nDisplay输入的概述，请参阅[使用VRPN输入](#usingvrpninputs)。  
+
+(#exampleconfiguration:)
+
+#### 示例配置：
+
+此配置设置nDisplay以从VRPN位置跟踪设备获取输入。通常这种设备挂载在摄像机或观众的头部，或由观众手持。通过引用 **[摄像机](#cameraconfigurations)** 或 **[scene_node](#scenenodeconfigurations)** 配置中的 **输入** 配置，您可以从跟踪器中自动驱动摄像机或场景节点的位置。或者，您可以在项目的蓝图代码中检索此跟踪器的值。
+
+    [input] id=CaveTracking type=tracker addr=Tracker0@192.168.0.1 loc="X=-1.5,Y=0,Z=3.4" rot="P-0,Y=0,R=0" front=X right=Y up=-Z
+
+该配置设置nDisplay以从设置为VRPN设备的键盘读取键盘输入，并通过内置的虚幻引擎键盘输入路由该输入。
+
+    [input] id=ControlKeyboard type=keyboard addr=Keyboard0@192.168.0.1 reflect=ue4
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **id** | 此输入设备配置的唯一名称。|
+| **type** | [INCLUDE:#excerpt_11] |
+| **addr** | [INCLUDE:#excerpt_12] |
 
 [COMMENT:none]
-[EXCERPT:Excerpt_5]
-这些参数将虚幻中跟踪器的每个局部轴（前、右和上）与跟踪器坐标系中的相应轴匹配。虚幻使用右手惯用Z轴向上的坐标系。如果您的跟踪器使用其他坐标系，可以使用这些参数将跟踪器坐标系映射到虚幻坐标系。
-例如，以下代码行将跟踪器Y轴映射到虚幻前（X）轴，将跟踪器X轴映射到虚幻右（Y）轴，将跟踪器负Z轴映射到虚幻上（Z）轴：
-`front=Y right=X up=-Z`
-[/EXCERPT]
+[EXCERPT:excerpt_12]
+处理此特定设备的VRPN服务器的地址。值必须匹配以下格式：  
+`DEVICENAME@SERVER_ADDRESS:SERVER_PORT`   
+其中：  
+
+*   `DEVICENAME` 是该设备的VRPN名称。
+*   `SERVER_ADDRESS` 是VRPN服务器的IPv4地址。
+*   `:SERVER_PORT` 是VRPN服务器监听接入链接的端口。  
+    这是可选的。如果您不提供，nDisplay会默认使用 `3883` 端口。
+
+[/EXCERPT:excerpt_12]
 [/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_11]
+此VRPN输入设备的类型：  
+
+*   `tracker` 表示跟踪设备。
+*   `analog` 表示产生轴数据的设备。
+*   `button` 表示产生布尔按钮数据的设备。
+*   `keyboard` 表示标准计算机键盘。
+
+[/EXCERPT:excerpt_11]
+[/COMMENT]
+
+“type=tracker”的设备还接受以下附加参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **loc rot** | 类似于其他配置部分，**loc** 和 **rot** 参数指定该输入设备在局部空间中的位置和旋转偏移。但是，对于输入设备，通常使用这些偏移来调整跟踪设备在VR空间中的根位置，以匹配您希望它在场景节点层级中应该存在的位置。|
+| **前右上** | [INCLUDE:#excerpt_14] |
+
+[COMMENT:none]
+[EXCERPT:excerpt_14]
+这些参数将虚幻中跟踪器的每个局部轴（前、右和上）与跟踪器坐标系中的相应轴匹配。虚幻使用右手惯用Z轴向上的坐标系。如果您的跟踪器使用其他坐标系，可以使用这些参数将跟踪器坐标系映射到虚幻坐标系。  
+例如，以下代码行将跟踪器Y轴映射到虚幻前（X）轴，将跟踪器X轴映射到虚幻右（Y）轴，将跟踪器负Z轴映射到虚幻上（Z）轴：  
+“front=Y right=X up=-Z”
+[/EXCERPT:excerpt_14]
+[/COMMENT]
+
+“type=keyboard”的设备还接受以下附加参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **反映（reflect）** | [INCLUDE:#excerpt_15] |
+
+[COMMENT:none]
+[EXCERPT:excerpt_15]
+确定如何将来自该键盘的输入传递到虚幻引擎，以及如何响应这些事件。  
+此设置接受以下任何一个值：  
+
+*   **nDisplay**
+*   **ue4**
+*   **两者（both）**
+*   **无（none）**
+
+更多信息请参阅[反映键盘事件](#reflectingkeyboardevents)。  
+
+[/EXCERPT:excerpt_15]
+[/COMMENT]
+
+(#inputsetupconfigurations)
+
+### 输入设置配置
+
+每个 **input_setup** 配置部分为指定的 **[输入](#inputconfigurations)** 设备提供额外的配置参数，通常将该设备的信道或键绑定到一个通用的nDisplay蓝图输入节点。
+
+(#exampleconfiguration:)
+
+#### 示例配置：
+
+此配置使用ID控制器设置输入设备，当按下在信道0上生成事件的按钮时，将从蓝图中的 **Input > **N Display Events > **nDisplay Button 0** 节点生成事件。
+
+    [input_setup] id=controller ch=0 bind="nDisplay Button 0"
+
+这种配置类似于上面的配置，只是它将模拟值（通常是控制器的轴）绑定到nDisplay模拟值。您可以使用蓝图中的 **Input > N Display Events > nDisplay Analog 0** 节点来检测何时使用该控制器轴，或者用 **Input > N Display Values > nDisplay Analog 0** 节点来检索当前帧的值。
+
+    [input_setup] id=test_axes ch=0 bind="nDisplay Analog 0"
+
+如果您使用的是键盘设备，则不必专门绑定它的每个键。相反，您只需使用 **输入** 部分中的 **反映（reflect）** 设置来确定键事件应该路由到内置的虚幻引擎键盘事件，还是路由到nDisplay键盘事件。但是，如果希望更改绑定或添加新绑定，则可以这样做。例如，本部分使空格键触发 **Input > N Display Events > nDisplay Button 3** 事件。
+
+    [input_setup] id=keyboard0 key=Space bind="nDisplay Button 3"
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **id** | [INCLUDE:#excerpt_16] |
+| **ch** | 确定将绑定到您在 **绑定（bind）** 设置中设置的事件的指定输入设备的信道。|
+| **键（key）** | 类似于 **ch**，但仅用于type=keyboard的输入设备。|
+| **绑定（bind）** | [INCLUDE:#excerpt_17] |
+
+[COMMENT:none]
+[EXCERPT:excerpt_17]
+确定上述指定的信道或键绑定到的虚幻引擎中的事件。这个值可以是您在 **输入（Input）** 类别中看到的任何蓝图节点的名称，例如 **F1**、**nDisplay F1**、**nDisplay Button 0**、**Gamepad Left Thumbstick X-Axis**、**Gamepad Face Button Top** 等。  
+如果名称包含空格，则必须用双引号括起来。
+[/EXCERPT:excerpt_17]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_16]
+请参见本 **input_setup** 部分配置的 **[输入](#inputconfigurations)** 配置的ID。  
+注意，与nDisplay配置文件中的大多数其他部分不同，这个 **id** 值不为包含它的 **input_setup** 部分提供ID。相反，它引用文件中其他地方定义的 **输入** 部分的ID。
+[/EXCERPT:excerpt_16]
+[/COMMENT]
+
+[REGION:tip]
+您还可以使用输入模块API中的节点，在项目的蓝图代码中设置这些信道和键绑定。详情请参阅[将设备信道绑定到UE4输入](#bindingdevicechannelstoue4inputs)。
+[/REGION]
+
+(#generalconfiguration)
 
 ### 常规配置
 
-**general** 配置行包含用于控制nDisplay集群总体运行的参数。
+**常规（general）** 配置行包含控制nDisplay群集整体操作的参数。
+
+(#exampleconfiguration:)
 
 #### 示例配置：
 
-	[general] swap_sync_policy=1
+    [general] swap_sync_policy=1
+
+(#parameters:)
 
 #### 参数：
 
-| **参数** | **说明** |
+| 参数 | 说明 |
 | --- | --- |
-| **swap_sync_policy** | [INCLUDE:#Excerpt_6] |
+| **swap\_sync\_policy** | [INCLUDE:#excerpt_18] |
 
 [COMMENT:none]
-[EXCERPT:Excerpt_6]
-确定输出在网络中的同步方式。
-* 0：不同步。
-* 1：软件交换同步
-* 2：NV交换锁定（仅适用于使用OpenGL的NVIDIA卡渲染）
-[/EXCERPT]
+[EXCERPT:excerpt_18]
+确定如何在网络上同步输出。  
+
+*   0：无同步。
+*   1：软件交换同步
+*   2：NV交换锁（仅用于NVIDIA卡用OpenGL渲染）
+
+[/EXCERPT:excerpt_18]
 [/COMMENT]
+
+(#stereoconfiguration)
 
 ### 立体声配置
 
-**stereo** 配置行设置立体声渲染的可选全局参数。
+ **立体声（stereo）** 配置行设置立体声渲染的可选全局参数。
+
+(#exampleconfiguration:)
 
 #### 示例配置：
 
-\[stereo\] eye\_swap=True eye\_dist=0.064
+    [stereo] eye_dist=0.064
+
+(#parameters:)
 
 #### 参数：
 
-| **参数** | **说明** |
+| 参数 | 说明 |
 | --- | --- |
-| **eye_swap** | 确定是否交换为左右眼生成的图像。可选参数。默认值为false。|
-| **eye_dist** | 用于调整为左右眼生成的图像偏移的瞳距值，以米为单位。|
+| **eye_dist** | 瞳孔间距离，用来偏移为左眼和右眼生成的图像，以米为单位。|
 
-### 结构
+(#networkconfiguration)
 
-以上概述的不同配置类型之间的引用即暗含了结构，红色箭头是必须存在的引用，绿色箭头是可选引用：
+### 网络配置
 
-![配置引用结构](ndisplay-configuration-references.png "Configuration reference structure")
+ **网络（network）** 配置部分提供了一些设置，您可以使用这些设置来控制超时和与nDisplay群集节点之间的网络通信相关的其他设置。
+
+您的nDisplay配置文件中只能有0个或1个 **网络** 部分。
+
+(#exampleconfiguration:)
+
+#### 示例配置：
+
+    [network] cln_conn_tries_amount=10 cln_conn_retry_delay=1000 game_start_timeout=30000 barrier_wait_timeout=5000
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **cln\_conn\_tries_amount** | [INCLUDE:#excerpt_tries] |
+| **cln\_conn\_retry_delay** | [INCLUDE:#excerpt_delay] |
+| **game\_start\_timeout** | [INCLUDE:#excerpt_starttimeout] |
+| **barrier\_wait\_timeout** | [INCLUDE:#excerpt_barriertimeout] |
+ 
+<!--
+[EXCERPT:excerpt_tries]
+当非主群集节点启动时，此设置确定该节点尝试连接到主节点的次数。  
+可选参数；默认值为10
+[/EXCERPT:excerpt_tries]
+-->
+<!--
+[EXCERPT:excerpt_delay]
+当非主群集节点启东时，此设置确定节点每次连续尝试重新连接到其主节点之间的时间间隔（以毫秒为单位）。
+可选参数；默认值为1000。
+[/EXCERPT:excerpt_delay]
+-->
+<!--
+[EXCERPT:excerpt_starttimeout]
+设置一个时间间隔，每个虚幻引擎应用程序将等待它开始游戏循环的第一帧，并开始渲染到主窗口，以毫秒为单位。这会让你所有的群集节点有机会在渲染开始前连接到主节点。在此期间，主窗口将为黑色。如果在此时间间隔结束后，没有任何节点连接成功，群集内所有的实例都将关闭。  
+可选参数；默认值为30000。如果您的群集的初始化时间异常漫长，则可能需要提高此值。
+[/EXCERPT:excerpt_starttimeout]
+-->
+<!--
+[EXCERPT:excerpt_barriertimeout]
+设置游戏和渲染线程的障碍超时（以毫秒为单位）。此障碍超时会在群集节点间同步游戏和渲染线程。它会在每一帧内被使用数次。换言之，它是在运行时使用的，以侦测节点无法访问的情况。如果发生此种情况，群集状态的状态将被视为失效，所有节点将自行关闭。  
+可选参数；默认值为5000。
+[/EXCERPT:excerpt_barriertimeout]
+-->
+
+**cln\_conn\_tries_amount** 和 **cln\_conn\_retry_delay** 设置将共同决定您的群集节点在启动时尝试连接到主节点的最大时长。例如，假设您将 **cln\_conn\_tries_amount** 设置为10，将 **cln\_conn\_retry_delay** 设置为1000毫秒。在启动时，每个节点会尝试连接到主节点。如果连接失败，它会等待1000毫秒后再试一次。如果该尝试再次失败，它会再等到1000毫秒。在连续失败10次后，群集节点会自动退出。一旦群集节点连接到主节点，计数就将终止。
+
+(#infoconfiguration)
+
+### 信息配置
+
+**信息（info）** 配置行包含关于最新版本的nDisplay和虚幻引擎的可选信息，已知该配置文件与之兼容。
+
+(#exampleconfiguration:)
+
+#### 示例配置：
+
+    [info] version=22
+
+(#parameters:)
+
+#### 参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| **版本（version）** | [INCLUDE:#excerpt_21] |
+
+[COMMENT:none]
+[EXCERPT:excerpt_21]
+已知此配置文件与最新版本的nDIsplay和虚幻引擎兼容。  
+数字应该理解为“4.”后面的点版本。例如，值22表示该文件与nDisplay和虚幻引擎的4.22版本兼容。
+[REGION:note]
+不要手动设置此值。**nDisplay Launcher** 会自动设置它。如果您使用的配置文件没有版本，或者文件中的版本低于您正在使用的nDisplay和虚幻引擎的版本，则 ****nDisplay Launcher** 会自动尝试更新您的配置文件以使用最新版本。如果成功，则将更新后的配置保存到新文件中，并将此值更新到最新版本。
+[/REGION]
+[/EXCERPT:excerpt_21]
+[/COMMENT]
+
+(#example)
 
 ### 示例
 
-为了举一个具体示例，打开 *wall_flat_3x2.cfg* 样本文件。该文件定义了六个投影屏，每个屏幕将由单独的物理计算机渲染。
+以一个特定的例子为例，打开 *wall\_flat\_3x2.cfg* 样本文件。这个文件定义了六个投影屏，每个屏幕都由一台单独的物理计算机渲染。
 
-它还定义了多个scene_node，它们共同形成了以下层级：
+它还定义了几个scene_node，这些节点一起创建了以下层级：
 
-![nDisplay示例场景层级](ndisplay-scene-hierarchy.png "nDisplay example scene hierarchy")
+![nDisplay example scene hierarchy](ndisplay-scene-hierarchy.png "nDisplay example scene hierarchy")
 
-该层级中节点的相对位置和旋转决定了摄像机的布局和VR空间中的六个屏幕的布局，因此六个投影屏是并排放置的，距离摄像机1米。 
+节点在这个层级中的相对位置和旋转决定了摄像机和六个屏幕在VR空间中的布局，使六个投影屏并排放置，距离摄像机1米。 
 
 [REGION:lightbox]
-[![nDisplay示例布局](ndisplay-example-layout.png)](ndisplay-example-layout.png)
+[![nDisplay example layout](ndisplay-example-layout.png "nDisplay example layout")](ndisplay-example-layout.png)  
+*单击显示全图。*
 [/REGION]
 
-[REGION:caption]
-单击查看大图。
-[/REGION]
+注意，这种配置意味着在每一对相邻的投影屏之间有较小空间（考虑到渲染场景的显示器的边缘）。
 
-请注意，该配置暗示着每对相邻的投影屏之间存在一小块间隙，以便容纳渲染场景的显示器边缘。
+(#blueprintapi)
 
 ## 蓝图API
 
-您可以使用蓝图API控制nDisplay系统在游戏运行时逻辑中的行为。
+您可以使用游戏的蓝图API在游戏运行时逻辑中控制nDisplay系统的行为。
 
-要在该API中公开用于管理集群、输入和渲染的函数：
+要获取这些API中公开的函数，请执行以下操作：
 
-1. 在蓝图中创建新的 **显示集群（Display Cluster）>获取插件API（Get Plugin API）** 节点。
-2. 从 **输出API（Out API）** 引脚拖出一根引线，并在 **显示集群（Display Cluster）** 类别下查找所需选项：  
-    ![nDisplay获取插件API](ndisplay-get-plugin-api.png "nDisplay Get Plugin API")
+1.  对于大多数与群集管理、查询输入设备、nDisplay渲染等相关的nDisplay蓝图函数，请在蓝图中新建一个 **N Display > Get DisplayCluster Module API** 节点。  
+    对于在VRPN输入设备和虚幻引擎输入事件之间设置绑定和反映的函数，请在蓝图中创建一个新的 **N Display > Get DisplayClusterInput Module API** 节点。另请参阅[将设备信道绑定到UE4输入](#bindingdevicechannelstoue4inputs)。
+2.  从节点的 **输出API（Out API）** 引脚拖动，然后查看 **显示群集（Display Cluster）** 或 **显示群集输入（Display Cluster Input）** 类别下：
+    [REGION:lightbox]
+    [![](bp_apis.png "bp_apis.png")](bp_apis.png)
+    *点击查看全图。*
+    [/REGION]
+    
+
+(#actorreplication)
 
 ## Actor复制
 
-所有nDisplay系统输入都只有主节点处理。如果不进行复制，则只有主节点会看到场景变化。因此，主节点需要能够将更改复制到nDisplay网络的所有其他部分。
+nDisplay系统的所有输入仅由主节点处理。没有任何复制，只有主节点才能看到场景中的更改。因此，主节点需要能够将更改复制到nDisplay网络的所有其他部分。
 
-为此，nDisplay提供了两种可以连接到Actor的不同组件：
+为了做到这一点，nDisplay提供了两种不同的组件，您可以将它们附加到您的Actor：
 
-*   **DisplayClusterSceneComponentSyncParent** 组件跟踪其父组件的3D变换更改，并将这些更改推送到网络中的其他集群节点。  
-    nDisplay系统使用的默认DisplayClusterPawn使用该组件。  
+*   **DisplayClusterSceneComponentSyncParent** 组件跟踪其父组件的3D变换中的更改，并将这些更改推送到网络中的其他群集节点。  
+    nDisplay系统使用的默认DisplayClusterPawn使用此组件。  
     
-*   **DisplayClusterSceneComponentSyncParent** 组件跟踪其子组件的3D变换更改，并将这些更改推送到网络中的其他集群节点。
+*   **DisplayClusterSceneComponentSyncParent** 组件跟踪其子组件的3D变换中的更改，并将这些更改推送到网络中的其他群集节点。
 
-例如，在下面显示的Actor中，**DisplayClusterSceneComponentSyncParent_DefaultSceneRoot** 组件跟踪并复制其父Actor在关卡中四处移动时它的3D变换的更改。**DisplayClusterSceneComponentSyncThis** 组件跟踪并同步其子立方体组件相对于场景图形根移动时的运动。
+例如，在如下所示的Actor中，当Actor在关卡中移动时，**DisplayClusterSceneComponentSyncParent_DefaultSceneRoot** 组件跟踪并复制其父Actor的3D变换更改。**DisplayClusterSceneComponentSyncThis** 组件跟踪并同步其子立方体组件相对于场景图根的移动。
 
 ![DisplayClusterSceneComponentSyncParent ](ndisplay-actor-replication.png "DisplayClusterSceneComponentSyncParent ")
 
-如果您的场景中包含可能在游戏期间受到影响的其他Actor，必须使用上述两个组件之一来将这些更改复制到所有节点。为此：
+如果您的场景中有其他Actor可能会在游戏进程中受到影响，那么您必须使用这两个组件之一来将这些更改复制到所有节点。为此，请执行以下操作：
 
-1. 在关卡视口或 **世界大纲视图** 面板中选择需要复制的Actor。
-2. 在 **细节（Details）** 面板中，单击 **添加组件（\+ Add Component）**。搜索 **DisplayClusterSceneComponentSyncParent** 或 **DisplayClusterSceneComponentSyncThis** 并从列表中选择它。  
-    ![添加nDisplay同步组件](ndisplay-actor-replication-selection.png "Add an nDisplay sync Component")
+1.  在关卡视口或 **世界大纲视图（World Outliner）** 面板中选择您需要复制的Actor。
+2.  在 **详情（Details）** 面板中，单击 **\+ 添加组件（\+ Add Component）**。搜索 **DisplayClusterSceneComponentSyncParent** 或 **DisplayClusterSceneComponentSyncThis**，并从列表中选择它。  
+    ![Add an nDisplay sync Component](ndisplay-actor-replication-selection.png "Add an nDisplay sync Component")
 
 [REGION:note]
-这些组件不执行完全复制。只会将父Actor或子组件的变换发送到集群。
+这些组件不执行完全复制。只有父Actor或子组件的变换被发送到群集。
 [/REGION]
 
+(#usingvrpninputs)
 ## 使用VRPN输入
 
-要将[VRPN](https://en.wikipedia.org/wiki/VRPN)输入设备与nDisplay一起使用：
+要使用带nDisplay的[VRPN](https://en.wikipedia.org/wiki/VRPN)输入设备，请执行以下操作：
 
-1. 在网络中安装VRPN服务器。  
-   当前版本的nDisplay需要VRPN **版本33**。
-1. 在服务器的 *vrpn.cfg* 文件中（该文件位于服务器可执行文件附近），启用输入设备并指定名称。
-1. 在nDisplay配置文件中，添加一个条目来设置VRPN输入设备，调整它的坐标系并将其连接到摄像机。
+1.  在您的网络上安装VRPN服务器。  
+    这个版本的nDisplay需要VRPN **版本7.33**。
+2.  在服务器的 *vrpn.cfg* 文件中（该文件位于服务器可执行文件附近），启用输入设备并指定名称。
+3.  在nDisplay配置文件中，添加一个 [**输入**](#inputconfigurations) 条目来设置VRPN输入设备。
+
+根据您要设置的输入类型种类，以及您要如何将来自该设备的输入应用到虚幻引擎项目，您可能需要对您的输入配置使用不同的设置，并执行一些其他步骤。有关您拥有的所有不同选项，请参阅以下各节。
+
+(#mappingavrpntrackertoanndisplaycameraorscenenode)
+
+### 将VRPN跟踪器映射到nDisplay摄像机或场景节点
+
+如果您有一个VRPN跟踪设备，您可以将其当前位置直接映射到您在nDisplay配置文件中设置的任何nDisplay摄像机或场景节点。当您在真实空间中移动跟踪器时，摄像机或场景节点的位置将在虚拟空间中自动更新以跟进。
+
+可以在nDisplay配置文件中通过设置 **[输入](#inputconfigurations)** 和 **[摄像机](#cameraconfigurations)** 部分来实现。
 
 以下示例演示了设置ART DTrack跟踪系统的一种方法：
 
-* 在vrpn服务器exe附近的Vrpn.cfg中，添加以下行：
-		vrpn_Tracker_DTrack DTrack  5000	
-  这样会让VRPN接收来自于端口5000的DTrack输入，并将它们映射到名为DTrack的VRPN设备。(确保将DTrack配置为在端口5000上输出其跟踪数据。)
-* 在nDisplay配置文件中，添加以下行：
-		[input] id=CaveTracking type=tracker addr=DTrack@127.0.0.1 loc="X=1.32,Y=0,Z=0.93735" rot="P=0,Y=0,R=0" front=Z right=-X up=Y
-		[camera] id=camera_dynamic loc="X=0,Y=0,Z=0" tracker_id=CaveTracking tracker_ch=0
-  第一行创建名为CaveTracking的nDisplay输入设备，它从VRPN地址DTrack@127.0.01获取数据。您必须在这里调整坐标系以适应您的跟踪系统和偏移。第二行告知nDisplay在信道0上从CaveTracking输入获取摄像机位置。
+*   在VRPN服务器可执行文件附近的“Vrpn.cfg”中，添加以下行：
+    
+        vrpn_Tracker_DTrack DTrack  5000
+    
+    这样会让VRPN接收来自于端口5000的DTrack输入，并将它们映射到名为DTrack的VRPN设备。（确保将DTrack配置为在端口5000上输出其跟踪数据。）
+*   在nDisplay配置文件中，添加以下行：
+    
+        [input] id=CaveTracking type=tracker addr=DTrack@127.0.0.1 loc="X=1.32,Y=0,Z=0.93735" rot="P=0,Y=0,R=0" front=Z right=-X up=Y
+        [camera] id=camera_dynamic loc="X=0,Y=0,Z=0" tracker_id=CaveTracking tracker_ch=0
+    
+    第一行创建名为 **CaveTracking** 的nDisplay输入设备，它从VRPN地址 **DTrack@127.0.01** 获取数据。您必须在这里调整坐标系以适应您的跟踪系统和偏移。第二行告知nDisplay在信道 **0** 上从 **CaveTracking** 输入获取摄像机位置。
 
-要从游戏代码管理VRPN设备的状态，并检测按按钮等输入事件：
+(#reflectingkeyboardevents)
 
-* 在C++中，使用`IDisplayClusterInputManager`类。
-* 在蓝图中，使用 **显示集群（DisplayCluster）>输入（Input）** 下面的节点。确保您在节点中设置的ID与配置文件中设置的ID值相匹配。例如：  
-  ![](ndisplay_vrpn_api.png "ndisplay_vrpn_api.png")
+### 反映键盘事件
 
-(#changingcommunicationports)
+如果您为您的VRPN服务器设置了键盘设备，那么您可以控制来自该键盘的事件（当按下和释放键时）如何反映到您的虚幻引擎项目中。您可以让键盘按键触发标准的UE4键盘输入系统，您可以直接按键触发nDisplay提供的新的键盘输入，可以两者都做，也可以两者都不做。
+
+可以用两种等同的方法来设置它：
+
+*   您可以在您的nDisplay配置文件通过设置用于定义您的键盘设备的 **输入（input）** 部分的 **反映（reflect）** 选项来实现：
+    
+        [input] id=ControlKeyboard type=keyboard addr=Keyboard0@192.168.0.1 reflect=ue4
+    
+*   或者您也可以在项目蓝图代码通过调用 **Set VRPN Keyboard Reflection** 函数来实现：  
+    ![Keyboard reflection in Blueprint](keyboard-reflection-bp.png "Keyboard reflection in Blueprint")
+
+反映设置接受以下任何一个值：
+
+| \[input\] 设置 | 蓝图选项 | 说明 |
+| --- | --- | --- |
+| **nDisplay** | **仅nDisplay按钮（nDisplay buttons only）** | 键盘事件被路由到nDisplay创建的新的键盘输入事件。您可以使用 **输入（Input）> N显示键盘事件（N Display Keyboard Events）** 类别中的节点在蓝图脚本中响应这些事件。|
+| **ue4** | **原生UE4键盘事件（Native UE4 keyboard events）** | 键盘事件通过内置的输入系统路由到虚幻引擎。您可以在应用程序中使用的 **InputController** 类中响应这些事件，也可以在蓝图脚本中使用 **输入（Input）> 键盘事件（Keyboard Events）** 类别中的节点响应它们。|
+| **两者（both）** | **同时使用nDisplay按钮与原生UE4键盘事件（Both nDisplay and UE4 native）** | 键盘事件都通过nDisplay键盘处理系统和内置到虚幻引擎的输入系统路由。您可以使用上面两行中描述的任一方法来响应它们的事件。|
+| **无（none）** | **无反映（No reflection）** | [INCLUDE:#excerpt_23] |
+
+<!--
+[EXCERPT:excerpt_23]
+键盘事件不会通过nDisplay键盘处理系统或内置输入系统路由。  
+如果您使用这个选项，您需要：  
+
+*   使用nDisplay蓝图API中的蓝图节点查询特定事件，如 **Display Cluster > Input > Was VRPN Button Pressed** or **Display Cluster > Input > Was VRPN Button Released**。另请参阅[查询设备输入](#queryingfordeviceinputs)。
+*   将单独的键绑定到UE4中的其他输入事件。详情请参阅[将设备信道绑定到UE4输入](#bindingdevicechannelstoue4inputs)。
+
+[/EXCERPT:excerpt_23]
+-->
+
+当您为键盘设备设置反映时，您的设置应用于设备上的所有键。但是，您仍可将单独的键重新绑定到UE4中的其他输入事件。详情请参阅[将设备信道绑定到UE4输入](#bindingdevicechannelstoue4inputs)。
+
+(#bindingdevicechannelstoue4inputs)
+
+### 将设备信道绑定到UE4输入
+
+您可以通过将VRPN设备的特定信道绑定到虚幻引擎事件和运动源，来使项目响应VRPN输入设备。您可以使用以下两种等效的方法之一来创建这些绑定：
+
+*   通过在nDisplay配置文件中为要绑定到运动源或事件的每个信道设置一个 **[input_setup](#inputsetupconfigurations)** 部分。
+*   通过使用nDisplay输入模块API中的函数：  
+    ![Bind VRPN device channel](input-module-api.png "Bind VRPN device channel")
+
+(#example:)
+
+#### 示例：将追踪设备绑定到运动源
+
+您可以将VRPN运动追踪设备绑定到虚幻引擎中的任何现有运动源。然后，您可以使用该运动源来驱动您指定给关卡中的Actor的MotionControllerComponent。
+
+要进行这一设置，请执行以下操作：
+
+1.  您需要您的nDisplay配置文件有一个定义追踪器的 **[输入](#inputconfigurations)** 部分。例如：
+    
+        [input] id=TestTrack type=tracker addr=Tracker0@127.0.0.1 loc="X=0,Y=0,Z=0" rot="P=0,Y=0,R=0" front=X right=Y up=Z
+    
+2.  您还需要将要追踪的设备和信道绑定到希望接收其输入的运动源。  
+    您可以通过在配置文件中添加 **[input_source](#inputsetupconfigurations)** 来实现：  
+    
+        [input_setup] id=TestTrack ch=0 bind="Special_1"
+    
+    您也可以通过调用 **Bind VRPN Tracker** 函数并设置相同的值，来在项目的蓝图代码中实现：  
+    ![Bind VRPN Tracker](input-bind-tracker.png "Bind VRPN Tracker")
+
+(#example:)
+
+#### 示例：绑定模拟设备
+
+模拟VRPN设备提供范围为0到1的输入值，类似于虚幻引擎中的鼠标或摇杆输入。
+
+nDisplay包含一组20个通用模拟输入，您可以将模拟VRPN设备绑定到这些模拟输入。您将在 **输入（Input）> N Display事件（N Display Events）** 和 **输入（Input） > N Display值（N Display Values）** 类别下找到它们。
+
+![nDisplay generic analog events and values](input-bind-analog-events.png "nDisplay generic analog events and values")
+
+您不需要使用这些nDisplay模拟输入；您还可以将VRPN设备绑定到其他UE4输入。以下示例显示了这两种方式。  
+
+要进行这一设置，请执行以下操作：
+
+1.  您需要您的nDisplay配置文件有一个定义模拟设备的 **[输入](#inputconfigurations)** 部分。例如：
+    
+        [input] id=TestAxes type=analog addr=Mouse0@127.0.0.1
+    
+2.  您还需要将要追踪的设备和信道绑定到希望接收其输入的模拟输入。模拟设备通常有两个信道，一个用于X轴上的输入，另一个用于Y轴上的输入。在本例中，您通常希望将两个轴分别绑定到不同的nDisplay模拟输入。  
+    您可以通过在配置文件中添加两个 **[input_source](#inputsetupconfigurations)** 部分来实现：  
+    
+        [input_setup] id=TestAxes ch=0 bind="nDisplay Analog 0"
+        [input_setup] id=TestAxes ch=1 bind="Gamepad Left Thumbstick Y-Axis".
+    
+    您也可以通过调用 **Bind VRPN Channel** 函数并设置相同的值，来在项目的蓝图代码中实现：  
+    ![Bind VRPN Channel for analog device](input-bind-analog.png "Bind VRPN Channel for analog device")
+3.当需要检测发生的输入事件或需要沿相应的轴获取输入的实际值时，使用VRPN轴信道已绑定到的输入事件。  
+    例如，在本例中，您将使用：
+    *   对于第一个轴，使用 **Input > N Display Events > nDisplay Analog 0** 来响应输入事件，使用 ***Input > N Display Values >  nDisplay Analog 0** 来检索当前轴值。
+    *   对于第二个轴，使用 **Input > Gamepad Events > Gamepad Left Thumbstick Y-Axis** 来响应输入事件，使用 **Input > Gamepad Values > Gamepad Left Thumbstick Y-Axis** 来检索当前轴值。
+
+(#example:)
+
+#### 示例：绑定按钮设备
+
+每次按下或释放按钮时，按钮VRPN设备都会在给定的信道上触发一个事件。
+
+nDisplay包含一组20个通用按钮事件输入，您可以将按钮设备绑定到这些事件输入。您将在 **输入（Input）> N Display事件（N Display Events）** 类别中找到它们。
+
+![nDisplay generic button events](input-bind-button-events.png "nDisplay generic button events")
+
+您不需要使用这些nDisplay按钮输入；您还可以将VRPN设备绑定到其他UE4输入。以下示例显示了这两种方式。  
+
+要进行这一设置，请执行以下操作：
+
+1.  您需要您的nDisplay配置文件有一个定义按钮设备的 **[输入](#inputconfigurations)** 部分。例如：
+    
+        [input] id=TestBtn type=buttons addr=Mouse0@127.0.0.1
+    
+2.  您还需要将要追踪的设备和信道绑定到希望接收其输入的按钮输入。  
+    您可以通过在配置文件中添加 **[input_source](#inputsetupconfigurations)** 部分来实现：  
+    
+        [input_source] id=TestBtn ch=0 bind="nDisplay Button 0"
+        [input_source] id=TestBtn ch=2 bind="Gamepad Face Button Top"
+    
+    您也可以通过调用 **Bind VRPN Channel** 函数并设置相同的值，来在项目的蓝图代码中实现：  
+    ![Bind VRPN Channel for button device](input-bind-buttons.png "Bind VRPN Channel for button device")
+3.当需要检测发生的输入事件时，使用VRPN按钮信道已绑定到的输入事件。  
+    例如，在本例中，您将使用 **Events > N Display Events > nDisplay Button 0** 和 **Events > Gamepad Events > Gamepad Face Button Top** 节点。
+
+(#example:)
+
+#### 示例：绑定键盘设备
+
+如上文[反映键盘事件](#reflectingkeyboardevents)所述，您可以让VRPN键盘将它们的输入映射到内置的虚幻引擎键盘输入，或者映射到新的nDisplay键盘输入，或者同时映射到这两者，或者同时不映射到这两者。无论您设置何种反映，您还可以将键盘上的各个键绑定到其他虚幻引擎或nDisplay输入事件。
+
+要进行这一设置，请执行以下操作：
+
+1.  您需要您的nDisplay配置文件有一个定义键盘设备的 **[输入](#inputconfigurations)** 部分。例如：
+    
+        [input] id=TestKb type=keyboard addr=Keyboard0@127.0.0.1
+    
+2.  您还需要将要追踪的设备和键绑定到希望该键触发的虚幻引擎输入事件。  
+    您可以通过在配置文件中添加 **[input_source](#inputsetupconfigurations)** 部分来实现：  
+    
+        [input_source] id=TestBtn key="Space Bar" bind="Gamepad Left Trigger"
+    
+    您也可以通过调用 **Bind VRPN Keyboard** 函数并设置相同的值，来在项目的蓝图代码中实现：  
+    ![Bind VRPN Keyboard](input-bind-keyboard.png "Bind VRPN Keyboard")
+3.当需要检测发生的输入事件时，使用VRPN按钮信道已绑定到的输入事件。  
+    例如，在本例中，您将使用 **Event > Gamepad Events > Gamepad Left Trigger** 节点。
+
+(#queryingfordeviceinputs)
+
+### 查询设备输入
+
+您可以直接查询VRPN设备来找出它们的当前状态，而不是依赖于绑定到输入事件。
+
+*   在C++中，使用“IDisplayClusterInputManager”类。
+*   在蓝图中，使用nDisplay API中 **显示群集（DisplayCluster）> 输入（Input）** 下的函数。确保在这些节点中为 **设备ID（Device ID）** 和 **设备（Device）****通道（Channel）** 提供的输入值必须与您在nDisplay配置文件的 **[输入](#inputconfigurations)** 部分中为设备设置的值匹配。  
+    例如：
+    [REGION:lightbox]
+    [![](query-input-devices.png "query-input-devices.png")](query-input-devices.png)
+    *点击查看全图。*
+    [/REGION]
+    
+
+(#keyboardbuttonsanddevicechannels)
+
+#### 键盘按钮和设备信道
+
+VRPN键盘输入本质上是一种特殊类型的按钮设备。如果需要查询是否按下了给定的键盘按钮，使用 **Was VRPN Button Pressed** 函数：
+
+![Detecting whether a VRPN button was pressed](vrpn_keyboard_button_pressed.png "Detecting whether a VRPN button was pressed")
+
+为此，您需要将 **设备信道（Device Channel）** 输入设置为VRPN指定给要测试的按钮的数字ID。
+
+要确定与要在键盘上测试的按钮对应的 **设备信道（Device Channel）** 的数字ID，可以运行VRPN提供的“vrpn_print_devices.exe”应用程序。当该工具运行时，它将向控制台输出您在键盘上按下的任何按钮的数字ID。
+
+例如，空格键对应键号57：
+
+![Find the numeric ID of a keyboard button](vrpn_keyboard_console.png "Find the numeric ID of a keyboard button")
+
+(#usingclusterevents)
+
+## 使用群集事件
+
+群集事件是使nDisplay群集中的所有节点同时响应事件的一种方法。
+
+1.  您可以从群集中的节点生成群集事件，也可以通过从外部应用程序向主节点发送群集事件来生成群集事件。请参阅[从蓝图发出群集事件](#emittingclustereventsfromblueprints)或[从外部应用程序发出群集事件](#emittingclustereventsfromexternalapplications)。  
+    当您启动并运行了一个nDisplay群集时，您还可以使用 **nDisplay Launcher** 应用程序为群集节点发送新的群集事件来进行响应。请参阅[从nDisplay Launcher发出群集事件](#emittingclustereventsfromthendisplaylauncher)。  
+    
+2.  当群集的主节点接收到一个群集事件时，它将该事件传播到群集中的每个节点，以便该事件在同一帧中在每个节点上发生。
+3.  在虚幻引擎应用程序的蓝图或C++逻辑中，您设置监听器来检测这些群集事件并使用项目所需的任何游戏进程逻辑响应它们。请参阅[响应蓝图中的群集事件](#respondingtoclustereventsinblueprints)。
+
+(#clustereventstab)
+
+### 群集事件结构
+
+每个nDisplay群集事件都可以包含以下几个属性：
+
+| 设置 | 类型 |
+| --- | --- |
+| **名称（Name）** | 字符串 |
+| **类型（Type）** | 字符串 |
+| **类别（Category）** | 字符串 |
+| **参数（Parameters）** | 键值对的可选映射，其中键和值都是字符串。|
+
+您可以在项目中决定要向每个属性发送什么数据，以及您希望监听器如何解释这些数据。
+
+当您与蓝图中的一个群集事件交互时，您将使用 *Make DisplayClusterClusterEvent** 和 **Break DisplayClusterClusterEvent** 节点来构造和解构群集事件。例如：  
+
+![A Cluster Event in Blueprint](cluster-event-bp.png "A Cluster Event in Blueprint")
+
+在C++中，或者当您从自己的应用程序中发出群集事件时，您将使用JSON来表示相同的结构。例如，上述群集事件的等效JSON为：
+
+    {"Name":"activate","Type":"command","Category":"particles","Parameters":{"rate":"200","speed":"3"}}
+
+(#EmittingClusterEventsfromBlueprints)
+
+### 从蓝图发出群集事件
+
+要从项目中的蓝图类发出一个群集事件，请执行以下操作：
+
+1.  获得 **DisplayCluster Module API**（请参阅上文的[蓝图API](#blueprintapi)），并调用其 **Cluster >** **Emits cluster event** 函数。该节点向主节点发出群集事件，主节点将该群集事件传播回群集中的所有节点。  
+    ![Emits cluster event](clusterevent-emit-bp-emitnode.png "Emits cluster event")
+2.  默认情况下，虚幻引擎应用程序的每个在游戏进程逻辑中会计算该蓝图节点的实例都会触发这一群集事件。如果在群集中的许多不同节点上计算了该蓝图图表，则可能导致发生该事件的多个副本。  
+    为了避免触发该群集事件的多个副本，您可以在 **Emits cluster event** 节点上设置 **仅主节点（Master Only）** 布尔值。当该值设置为 **true** 时，将只有主节点会发出该群集事件。如果任何其他非主节点的群集节点计算了相同的蓝图图表，这些节点将不会发出事件。  
+    ![Master Only](clusterevent-emit-bp-masteronly.png "Master Only")
+3.  从 **Emits cluster event** 节点的 **事件（Event）** 端口向右拖动，并选择 **Make DisplayClusterClusterEvent**。  
+    ![Make DisplayClusterClusterEvent](clusterevent-emit-bp-makeevent.png "Make DisplayClusterClusterEvent")
+4.  使用 **Make DisplayClusterClusterEvent** 节点中的设置来设置群集事件，并为其 **名称（Name）**、**类型（Type）** 和 **类别（Category）** 设置字符串值。如果需要随群集事件传递任意键值数据，还可以将这些键和值的映射传递给 **参数（Parameters）** 输入。  
+    ![Creating and emitting a Cluster Event](clusterevent-emit-bp-graph.png "Creating and emitting a Cluster Event")
+5.  **编译（Compile）** 并 **保存（Save）** 蓝图。
+
+下次重新打包项目并重新启动nDisplay群集时，该蓝图代码将触发您设置的群集事件。要响应蓝图代码中其他位置的该事件，请参阅[响应蓝图中的群集事件](#respondingtoclustereventsinblueprints)。
+
+(#emittingclustereventsfromexternalapplications)
+
+### 从外部应用程序发出群集事件
+
+当您启动nDisplay群集时，主节点开始监听特定的本地端口上传入的群集事件。您可以通过连接该端口并发送消息，从网络中任何其他计算机上运行的另一个应用程序向nDisplay系统发出新的群集事件。  
+
+对于您想要发出的每个群集节点，您的消息必须遵守以下约定：
+
+*   前两个字节必须给出消息其余部分的总长度。
+*   消息的其余部分应该是群集事件的内容，用JSON对象表示。
+
+例如，要发出一个名为“quit”和类型为“command”的群集事件，您需要：
+
+1.  构造一个JSON字符串，其中包含群集节点的值。在本例中：
+    
+        {"Name":"quit","Type":"command","Category":"","Parameters":{}}
+    
+    [REGION:tip]
+    **名称（Name）**、**类型（Type）** 和 **类别（Category）** 字段为必填字段，但您可以忽略参数（Parameters）字段。
+    [/REGION]
+    
+2.  获取JSON字符串的长度，在本例中为62个字符，并将该长度发送到nDisplay主节点。
+3.  将JSON字符串本身发送到nDisplay主节点。
+
+如果主节点能够接收和处理您的消息，它将按照相同的约定向您的应用程序发送响应：
+
+*   前两个字节告知响应消息其余部分的长度（字节数）。
+*   消息的其余部分是一个JSON对象，通常包含一个字段：“错误（Error）”。该字段的值是一个错误代码，用于表明您的消息是否得到了正确处理：
+    
+    | 代码 | 含义 |
+    | --- | --- |
+    | 0 | 没有发生错误。消息已成功处理。|
+    | 2 | 您发送的群集事件缺少一个或多个必填字段。确保它有 **名称（Name）**、**类别（Category）** 和 **类型（Type）** 的字段，即使它们的值是空的。|
+    | 255 | 发生了无法识别的错误。|  
+
+[REGION:tip]
+默认情况下，主节点监听端口14003上的群集事件。您可以在nDisplay配置文件中更改此默认设置。请参阅下文的[更改通信端口](#changingcommunicationports)。
+[/REGION]
+
+要响应项目的蓝图代码中的这些群集事件，请参阅[响应蓝图中的群集事件](#respondingtoclustereventsinblueprints)。
+
+(#emittingclustereventsfromthendisplaylauncher)
+
+### 从nDisplay Launcher发出群集事件
+
+当您的nDisplay群集正在运行时，可以使用 **nDisplayLauncher** 应用程序在任何时候将群集事件发送到主节点。  
+
+1.  像往常一样启动nDisplay群集。
+2.  切换到 **群集事件（Cluster events）** 选项卡。您将使用此选项卡设置群集事件并根据需要将它们发送到您的群集。
+3.  单击 **新建（New）** 以向此选项卡上的列表添加一个新的群集事件。  
+    ![Cluster events tab](clusterevent-emit-launcher.png "Cluster events tab")
+4.  使用 **群集事件编辑器（Cluster event editor）** 窗口为该群集事件设置 **名称（Name）**、**类型（Type）** 和 **类别（Category）** 值。  
+    ![Settings in the Cluster event editor](clusterevent-emit-launcher-settings.png "Settings in the Cluster event editor")
+5.  您还可以向群集事件的列表或参数添加键值对。在 **参数（Argument）** 字段中设置键，在 **值（Value）** 字段中设置值，然后单击 **+** 按钮。  
+    ![Parameters in the Cluster event editor](clusterevent-emit-launcher-params.png "Parameters in the Cluster event editor")
+    [REGION:tip]
+    如果在创建参数之后需要修改，在右侧列表中选中，然后单击 **-** 删除。然后使用所需的设置重新创建新参数。
+    [/REGION]
+    
+6.  单击 **应用（Apply）** 以保存新的群集事件。
+7.  回到 **群集事件（Cluster events）** 选项卡，在列表中选择您的群集事件，然后单击 **发送（Send）**。  
+    ![Send the Cluster Event](clusterevent-emit-launcher-send.png "Send the Cluster Event")
+    [REGION:tip]
+    您还可以单击 **修改（Modify）** 以重新打开选择的群集事件来编辑其值。
+    [/REGION]
+    
+8.  查看nDisplayLauncher底部的日志输出面板，以查看来自主节点的响应。  
+    ![](clusterevent-emit-launcher-response.png "clusterevent-emit-launcher-response.png")
+
+要响应项目的蓝图代码中的这些群集事件，请参阅[响应蓝图中的群集事件](#respondingtoclustereventsinblueprints)。  
+
+(#respondingtoclustereventsinblueprints)
+
+### 响应蓝图中的群集事件
+
+一旦您设置了上述其中一种方法来将群集事件发送到您的nDisplay网络，您需要设置蓝图（或C++）游戏进程逻辑来检测这些群集事件并以某种方式响应它们。为此，您需要创建并注册一个监听器：一个实现 **DisplayClusterClusterEventListener** 接口的类。您可以通过从nDisplay API调用 **添加群集事件监听器（Add Cluster Event Listener）** 函数来注册监听器，然后使用 **Event On Cluster Event** 节点来检测群集事件并响应它们。
+
+例如，要创建一个新的蓝图类并将其注册为监听器，请执行以下操作：
+
+1.  在 **内容浏览器（Content Browser）** 中，右键单击并选择 **创建基础资源（Create a Basic Asset）> 蓝图类（Blueprint Class）**。  
+    ![Create Blueprint Class](clusterevent-respond-newclass.png "Create Blueprint Class")
+
+2.  选择 **Actor** 作为父类。  
+    ![Actor](clusterevent-respond-parentactor.png "Actor")
+
+3.  在 **内容浏览器（Content Browser）** 中为新的监听器类键入名称。  
+    ![Rename the class](clusterevent-respond-rename.png "Rename the class")
+
+4.  将您的类拖放到关卡视口中，并将其拖放到关卡中。  
+    ![Drag and drop the Blueprint into the Level](clusterevent-respond-spawn.png "Drag and drop the Blueprint into the Level")
+
+5.  双击新的蓝图类可编辑。
+6.  在工具栏中，单击 **类设置（Class Settings）**。  
+    ![Class Settings](clusterevent-respond-settings.png "Class Settings")
+
+7.  在 **详细信息（Details）** 面板中，找到 **接口（Interfaces）> 应用的接口（Implemented Interfaces）** 设置，然后单击 **添加（Add）**。  
+    ![Add interface](clusterevent-respond-addinterface.png "Add interface")
+
+8.  在列表中找到并选择 **DisplayClusterClusterEventListener** 接口。  
+    ![DisplayClusterClusterEventListener](clusterevent-respond-clusterinterface.png "DisplayClusterClusterEventListener")
+9.  单击工具栏中的 **编译（Compile）** 以编译您的类。
+
+10.  在 **构造脚本（Construction Script）** 选项卡中，设置下图来注册监听器：
+    [REGION:lightbox]
+    [![Construction Script](clusterevent-respond-construction.png "Construction Script")](clusterevent-respond-construction.png)  
+    *单击显示全图。*
+    [/REGION]
+    要进行这一设置，请执行以下操作：  
+    1.  从 **Construction Script** 节点的输出向右拖动，并选择 **N Display > Get DisplayCluster Module API**。
+    2.  从该节点的 **输出API（Out API）** 端口向右拖动，并选择 **显示群集（Display Cluster）> 群集（Cluster）> 添加群集事件监听器（Add cluster event listener）**。
+    3.  最后，从 **Add cluster event listener** 节点的 **监听器（Listener）** 端口向左拖动，并选择 **变量（Variables）> 获得一个到自身的引用（Get a reference to self）**。
+
+11.  切换到事件图表（Event Graph）选项卡，并添加 **Add Event > N Display > Event On Cluster Event** 节点。每次在nDisplay群集中发生群集事件时，都会触发该事件。  
+    您可能想要读取指定给该事件的设置和参数，以便您可以用来确定蓝图需要采取的操作。为此，从Event **On Cluster Event** 节点的 **事件（Event）** 端口向右拖动，并选择 **Break DisplayClusterClusterEvent**。  
+    例如，该图表只是将每个群集事件的名称（Name）值输出到屏幕上：
+    [REGION:lightbox]
+    [![Respond to the Cluster Event](clusterevent-respond-event.png "Respond to the Cluster Event")](clusterevent-respond-event.png)
+	
+	*单击显示全图。*
+    [/REGION]
+    
+12.  **编译（Compile）** 并 **保存（Save）** 蓝图类。
+
+下次在群集中从任何源发出群集事件时，该群集事件的名称将打印到屏幕上。
+
+(#ChangingCommunicationPorts)
+
 ## 更改通信端口
 
-nDisplay系统主机之间通过三个TCP/IP端口通信：14000、14001和14002。您需要确保在所有计算机上打开这些端口。
+nDisplay系统通过三个TCP/IP端口在主机之间通信：14000、14001和14002。您需要确保在所有计算机上打开这些端口。
 
-如果想要自己更改端口号，可以在以下位置进行更改。
+如果您想要自己更改端口号，可以在以下位置进行更改。
 
-* **运行时同步端口**。主节点使用两个端口与集群中的其他节点同步数据。要设置这两个端口，在配置文件中用于定义主节点的 **cluster_node** 行上包含 **port_cs** 和 **port_ss** 配置参数。例如：
-		[cluster_node] id=node_front addr=192.168.0.1 screen=screen_front viewport=vp_front port_cs=42001 port_ss=42002 master=true
-
-* **nDisplay Launcher和nDisplay Listener端口**。nDisplay Launcher和nDisplay Listener都需要配置为使用相同的通信端口。您可以在启动这些应用程序时，在命令行上进行指定。  
-  当您启动nDisplay Launcher时，使用`listener_port`参数。例如：
-	nDisplayLauncher.exe listener_port=15003
-
-  此外，您还需要在每个主机上使用`port`参数自行启动nDisplayListener应用程序。例如：
-	nDisplayListener.exe port=15003
+*   **运行时同步端口 -** 主节点使用两个端口与群集中的其他节点同步数据。要设置这两个端口，在配置文件中用于定义主节点的 **cluster_node ** 行上包含 **port_cs** 和 **port_ss** 配置参数。例如：
+    
+        [cluster_node] id=node_front addr=192.168.0.1 screen=screen_front viewport=vp_front port_cs=42001 port_ss=42002 master=true
+    
+*   **群集事件端口 -** 主节点始终使用同一端口与连接的客户端交换群集事件。这包括nDisplay群集中的其他节点，以及为发送和检索群集事件而编写的任何外部应用程序。要设置此端口，在配置文件中用于定义主节点的cluster_node行上包含 **port_ce** 配置参数。例如：
+    
+        [cluster_node] id=node_front addr=192.168.0.1 screen=screen_front viewport=vp_front port_ce=42003 master=true
+    
+*   **nDisplay Launcher和nDisplay Listener端口 -** Display Launcher和nDisplay Listener都需要配置为使用同一通信端口。您可以在启动这些应用程序时，在命令行上进行指定。  
+    当您启动nDisplay Launcher时，使用“listener_portlistener_port”参数。例如：
+    
+        nDisplayLauncher.exe listener_port=15003
+    
+    此外，您还需要在每个主机上使用“port”参数自行启动nDisplayListener应用程序。例如：
+    
+        nDisplayListener.exe port=15003
+    
 
 (#addingndisplaytoanexistingproject)
+
 ## 向现有项目添加nDisplay
 
-将现有项目设置为使用nDisplay：
+要将现有项目设置为使用nDisplay，请执行以下操作：
 
-1. 启用nDisplay插件。  
-    在虚幻编辑器中，从主菜单中选择 **编辑（Edit）>插件（Plugins）**。搜索“nDisplay”，选中 **启用（Enabled）** 复选框。  
+1.  启用nDisplay插件。  
+    在虚幻编辑器中，从主菜单中选择 **编辑（Edit）>插件（Plugins）**。搜索“nDisplay”，并选中 **启用（Enabled）** 复选框。  
 	[REGION:lightbox]
-    [![启用nDisplay插件](ndisplay-enable-plugin.png "Enable the nDisplay Plugin")](ndisplay-enable-plugin.png)  
-	*单击查看大图。*
-    [/REGION]
-2. 为项目启用nDisplay。  
+	[![Enable the nDisplay Plugin](ndisplay-enable-plugin.png "Enable the nDisplay Plugin")](ndisplay-enable-plugin.png) 
+        *点击查看全图。*
+	[/REGION]
+
+2.  为项目启用nDisplay。  
     从主菜单中选择 **编辑（Edit）>项目设置（Project Settings）**，找到 **插件（Plugins）> nDisplay** 部分。选中 **启用（Enabled）** 复选框。  
-    [REGION:lightbox]
-    [![nDisplay项目设置](ndisplay-project-settings.png "nDisplay Project Settings")](ndisplay-project-settings.png)  
-	*单击查看大图。*
-    [/REGION]
-3. 还是在 **项目设置（Project Settings）** 窗口中，转至 **项目（Project）>说明（Description）** 部分，选中 **设置（Settings）>使用无边框窗口（Use Borderless Window）** 复选框。  
-    [REGION:lightbox]
-    [![使用无边框窗口](ndisplay-project-settings-borderless.png "Use Borderless Window")](ndisplay-project-settings-borderless.png)  
-	*单击查看大图。*
-    [/REGION]
-4. 重新启动虚幻编辑器，重新打开项目，然后打开项目的默认关卡。
-5. 在 **场景设置（World Settings）** 面板中，将 **游戏模式（Game Mode）>游戏模式覆盖（GameMode Override）** 设置为 **DisplayClusterGameModeDefault**。  
-    [REGION:lightbox]
-    [![nDisplay场景设置](ndisplay-world-settings.png "nDisplay World Settings")](ndisplay-world-settings.png)  
-	*单击查看大图。*
-    [/REGION]    
-6. 向关卡添加新的 **DisplayClusterSettings** Actor。  
-    您可以在 **模式（Modes）** 面板上的 **所有类（All Classes）** 列表中找到这个Actor。
-7. 继续完成上文[入门](#gettingstarted)中所述的其余设置操作。
+	[REGION:lightbox]
+	[![nDisplay Project Settings](ndisplay-project-settings.png "nDisplay Project Settings")](ndisplay-project-settings.png)
+        *点击查看全图。*
+	[/REGION]
+
+3.  还是在 **项目设置（Project Settings）** 窗口中，转至 **项目（Project）>说明（Description）** 部分，勾选 **设置（Settings）> 使用无边框窗口（Use Borderless Window）** 复选框。  
+	[REGION:lightbox]
+	[![Use Borderless Window](ndisplay-project-settings-borderless.png "Use Borderless Window")](ndisplay-project-settings-borderless.png)
+        *点击查看全图。*
+	[/REGION]
+
+4.  重新启动虚幻编辑器，重新打开项目，然后打开项目的默认关卡。
+
+5.  在 **场景设置（World Settings）** 面板中，将 **游戏模式（Game Mode）> 游戏模式覆盖（GameMode Override）** 设置为 **DisplayClusterGameModeDefault**。  
+	[REGION:lightbox]
+	[![nDisplay World Settings](ndisplay-world-settings.png "nDisplay World Settings")](ndisplay-world-settings.png) 
+        *点击查看全图。*
+	[/REGION]  
+    
+6.  向关卡添加新的 **DisplayClusterSettings** Actor。  
+    您可以在 **模式（Modes）** 面板上的 **所有类（All Classes）** 列表中找到该Actor。
+
+7.  继续完成上文[入门](#gettingstarted)中所述的其余设置说明。
+
+(#ndisplaylauncheruireference)
 
 ## nDisplay Launcher UI参考
 
-本节介绍nDisplay Launcher用户界面中提供的所有设置和选项。
+本节介绍 **nDisplay Launcher** 用户界面中提供的所有设置和选项。
+
+(#launchertab)
+
+### Launcher选项卡
 
 [REGION:lightbox]
-[![nDisplay Launcher UI](ndisplay-launcher-ui.png)](ndisplay-launcher-ui.png) 
+[![Launcher tab](launcher-tab.png "Launcher tab")](launcher-tab.png) 
+*单击显示全图。*
 [/REGION]
 
-| **控件** | **描述** |
+| 功能按钮 | 说明 |
 | --- | --- |
 | **渲染API（Render API）** | 指定下次单击“运行（Run）”时使用的渲染API。|
-| **渲染模式（Render mode）** | [INCLUDE:#excerpt_9] |
-| **使用所有可用核心（Use All Available Cores）** | 强制每个虚幻实例使用其主机上所有可用的处理器。选择该选项时，nDisplay Launcher会在用于启动每个实例的命令行中添加USEALLAVAILABLECORES选项。|
-| **无纹理流送（No Texture Streaming）** | 禁用每个虚幻实例的纹理流送。始终加载最高质量的纹理。选择该选项时，nDisplay Launcher会在用于启动每个实例的命令行中添加NOTEXTURESTREAMING选项。|
-| **自定义命令行参数（Custom command line arguments）** | 如果想要nDisplay Launcher在用来启动每个虚幻实例的命令行上传递任何其他参数，请在此注明这些参数。有关详细信息，请参阅[命令行参数]("Programming/Basics/CommandLineArguments")参考。|
-| **应用程序（Applications）** | 列出通过nDisplay Launcher运行的所有封装的虚幻应用程序。使用“添加（Add）”和“删除（Delete）”按钮编辑该列表。有关更多信息，请参见上文[第3步. 封装和部署]("Engine/Rendering/nDisplay#step3packageanddeploy")。|
-| **配置文件（Config Files）** | 列出您已经为nDisplay Launcher设置的所有配置文件。使用“添加（Add）”和“删除（Delete）”按钮编辑该列表。有关更多信息，请参见上文[第3步. 封装和部署]("Engine/Rendering/nDisplay#step3packageanddeploy")。|
-| **运行（Run）** | 在您已从 **配置文件（Config Files）** 列表中选择的文件中配置的所有主机上，启动您从 **应用程序（Applications）** 列表中选择的应用程序。|
-| **终止（Kill）** | 关闭nDisplay Launcher启动的所有虚幻引擎实例。|
-| **启动侦听器（Start listeners）** | 在您从 **配置文件（Config Files）** 列表中选择的文件中配置的每台主机上启动一个nDisplay Listener应用程序实例。|
-| **停止侦听器（Stop listeners）** | 关闭该nDisplay Launcher启动的所有nDisplay Listener应用程序实例。|
-| **部署应用程序（Deploy application）** | 将您从 **应用程序（Applications）** 列表中选择的应用程序复制到您从 **配置文件（Config Files）** 列表中选择的文件中配置的每台主机。|
+| **渲染模式（Render mode）** | [INCLUDE:#excerpt_25] |
+| **使用所有可用核心（Use All Available Cores）** | [INCLUDE:#excerpt_26] |
+| **无纹理流送（No Texture Streaming）** | [INCLUDE:#excerpt_27] |
+| **自定义命令行参数（Custom command line arguments）** | 如果想要 **nDisplay Launcher** 在用来启动每个虚幻实例的命令行上传递任何其他参数，请在此注明这些参数。有关详细信息，请参阅[命令行参数](Programming/Basics/CommandLineArguments)参考。|
+| **自定义ExecCmds（Custom ExecCmds）** | 如果想要 **nDisplay Launcher** 传递任何需要虚幻引擎在启动时执行的控制台命令，请在此输入此参数。nDisplay Launcher会使用 `-ExecCmds` 命令行参数将这些命令传递给虚幻引擎应用的每一个实例。 |
+| **应用程序（Applications）** | 列出通过 **nDisplay Launcher** 运行的所有打包的虚幻应用程序。使用面板下面的 **添加（Add）** 和 **删除（Delete）** 按钮编辑该列表。更多信息，请参阅上文[第3步.打包和部署](#step3-packageanddeploy)。|
+| **配置文件（Config Files）** | 列出您已经为 **nDisplay Launcher** 设置的所有配置文件。使用下拉框右侧的 **添加（Add）** 和 **删除（Delete）** 按钮编辑该列表。更多信息，请参阅上文[第3步.打包和部署](Engine/Rendering/nDisplay#step3-packageanddeploy)。|
+| **运行（Run）** | 尝试连接到您在 **配置文件（Config Files）** 列表中选择的文件中配置的每个群集节点， 并告知 **nDisplay Listener** 应用程序启动您在 **应用程序（Applications）** 列表中选择的打包虚幻引擎应用程序。|
+| **终止（Kill）** | 尝试连接到您在 **配置文件（Config Files）** 列表中选择的文件中配置的每个群集节点，并告知 **nDisplay Listener** 应用程序关闭您在 **应用程序（Applications）** 列表中选择的打包虚幻引擎应用程序。|
+
+[COMMENT:none]
+[EXCERPT:excerpt_27]
+禁用每个虚幻实例的纹理流送。始终加载最高质量的纹理。  
+选择该选项时，**nDisplay Launcher** 会在用于启动每个实例的命令行中添加“NOTEXTURESTREAMING”选项。  
+[/EXCERPT:excerpt_27]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_26]
+强制每个虚幻引擎实例使用其主机上所有可用的处理器。  
+选择该选项时，**nDisplay Launcher** 会在用于启动每个实例的命令行中添加“USEALLAVAILABLECORES”选项。
+[/EXCERPT:excerpt_26]
+[/COMMENT]
+
+[COMMENT:none]
+[EXCERPT:excerpt_25]
+指定nDisplay在每个群集节点上产生的输出类型：   
+
+*   **单视场（Mono）-** 从摄像机的视角对场景进行单视角渲染。
+*  **帧连续（Frame sequential）-** 有源四缓冲立体声。
+*   **并排（Side-by-side）-** 无源水平一致立体声
+*   **自顶向下（Top-bottom）-** 无源垂直一致立体声
+
+单视场（Mono）不需要任何特定的硬件功能，但帧连续（Frame sequential）需要。确保您的显示设备、GPU和驱动程序设置与您选择的渲染模式兼容。
+[/EXCERPT:excerpt_25]
+[/COMMENT]
+
+(#clustereventstab)
+
+### 群集事件选项卡
+
+您可以使用 **群集事件（Cluster events）** 选项卡设置新的群集事件并将它们发送到nDisplay群集。另请参阅[从nDisplay Launcher发出群集事件](#emittingclustereventsfromthendisplaylauncher)。
+
+[REGION:lightbox]
+[![Cluster events tab](clusterevents-tab.png "Cluster events tab")](clusterevents-tab.png)
+*单击显示全图。*
+[/REGION]
+
+| 功能按钮 | 说明 |
+| --- | --- |
+| **新建（New）** | [INCLUDE:#excerpt_33] |
+| **修改（Modify）** | 如果您在列表视图中选择了一个群集事件，单击 **修改（Modify）** 可在 **群集事件编辑器（Cluster event editor）** 中打开该群集事件，以编辑其值。|
+| **删除（Delete）** | 如果您在列表视图中选择了一个群集事件，单击 **删除（Delete）** 可将该群集事件从列表中删除。|
+| **发送（Send）** | 如果您在列表视图中选择了一个群集事件，并且当前有一个nDisplay群集正在运行，单击 **发送（Send）** 可将所选群集节点发送到您的nDisplay群集。检查输出日志面板以查看主节点发回的响应。|
+
+[COMMENT:none]
+[EXCERPT:excerpt_33]
+单击以在 **群集事件编辑器（Cluster event editor）** 中设置一个新的群集事件，并将其添加到列表视图中。  
+![Cluster event editor](cluster-event-editor.png "Cluster event editor")  
+请参阅[从nDisplay Launcher发出群集事件](#emittingclustereventsfromthendisplaylauncher)。
+[/EXCERPT:excerpt_33]
+[/COMMENT]
+
+(#logstab)
+
+### 日志选项卡
+
+默认情况下，nDisplay将来自各个源的日志消息保存到打包应用程序旁边的 **Saved/Logs** 文件夹。您可以使用 **日志（Logs）** 选项卡来配置nDisplay记录的来自每个不同源的信息的级别。
+
+[REGION:lightbox]
+[![Logs tab](logs-tab.png "Logs tab")](logs-tab.png)
+*单击显示全图。*
+[/REGION]
+
+| 功能按钮 | 说明 |
+| --- | --- |
+| **使用自定义日志设置（Use custom log settings）** | 当选中时，nDisplay将使用您在此页上为左侧列出的每个不同源设置的日志级别。|
+| **适用于每项（For each）** | 单击其中任何一个按钮来设置左侧的所有源，以记录所选严重性或更高严重性的消息。|
+
+(#logoutputpanel)
+
+### 日志输出面板
+
+日志输出面板将列出您在 **nDisplay Launcher** 中执行的所有命令的结果。
+
+[REGION:lightbox]
+[![The log output panel](log-output.png "The log output panel")](log-output.png)
+*单击显示全图。*
+[/REGION]
+
+| 功能按钮 | 说明 |
+| --- | --- |
 | **复制（Copy）** | 将左侧日志窗口中列出的所有消息复制到剪贴板。|
 | **清理（Clean）** | 从左侧日志窗口中清除所有消息。|
-[COMMENT:none]
-[EXCERPT:Excerpt_9]
-指定nDisplay产生的输出类型：
-* 单视场（Monoscopic）：无立体声渲染
-* 帧连续（Frame sequential）：有源四缓冲立体声
-* 并排（Side-by-side）：无源水平一致立体声
-* 自顶向下（Top-bottom）：无源垂直一致立体声
 
-单视场（Monoscopic）不需要任何特定的硬件功能，但帧连续（Frame sequential）需要。确保您的显示设备、GPU和驱动程序设置与您选择的渲染模式兼容。
-[/EXCERPT]
-[/COMMENT]
+

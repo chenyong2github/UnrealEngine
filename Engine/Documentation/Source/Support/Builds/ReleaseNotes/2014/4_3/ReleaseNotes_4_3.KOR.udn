@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:6537038
 Title: 언리얼 엔진 4.3 릴리즈 노트
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.3
-order:3
-
+Order: 41
 [TOC(start:2 end:2)]
 
 ## 4.3 릴리즈 노트
@@ -342,7 +341,7 @@ Get Data Table Row 는 개별 컴포넌트 변수들로 나눌 수 있는 Row �
 * Math 표현식 노드 문서 추가
 * 퍼포먼스 &amp; 프로파일링 문서 추가
 * 월드 컴포지션 문서 추가
-* 마티네 트랙 참고서 추가
+* 마티네 트랙 레퍼런스 추가
 * Android 퀵스타트 가이드 추가
 * 라이팅 문서 업데이트 &amp; 개선
 	* 라이팅 퀵스타트 가이드 추가
@@ -564,8 +563,8 @@ Get Data Table Row 는 개별 컴포넌트 변수들로 나눌 수 있는 Row �
 	* 이제 가속도의 기여를 제한시킵니다. 종단 속도에 대한 초기 속도가 허용은 되지만, 추가적인 가속도가 적용되지는 않습니다.
 * 캐릭터는 이제 기본적으로 수영 가능합니다 (NavAgentProps 에서 bCanSwim = true 입니다).
 * PhysX 관통 처리가 개선, 관통시 보고되는 노멀이 개선됩니다.
-* 이제 프락시 메시 툴이 별도의 패키지에 애셋을 만듭니다.
-* '프락시 메시' 및 '액터 병합' 툴은 생성되는 애셋에 좀 더 일관된 이름을 사용합니다 (데모렛 작명 규칙).
+* 이제 프록시 메시 툴이 별도의 패키지에 애셋을 만듭니다.
+* '프록시 메시' 및 '액터 병합' 툴은 생성되는 애셋에 좀 더 일관된 이름을 사용합니다 (데모렛 작명 규칙).
 * 축 및 액션 매핑 그룹이 섞이지 않도록 고유한 이름으로 생성되도록 했습니다.
 * SoundWave Compression Quality 를 변경하여 대화식으로 프로퍼티를 변경할 때 재압축되지 않도록, 다음 번 사운드 재생시 새로운 압축 세팅이 적용되도록 했습니다.
 * 월드를 애셋으로 간주하도록 지원하기 위해 더욱 많은 작업이 있었습니다. 앞으로 월드를 콘텐츠 브라우저에서 관리하게 될 것입니다.
@@ -775,7 +774,7 @@ Get Data Table Row 는 개별 컴포넌트 변수들로 나눌 수 있는 Row �
 * 여러 디바이스의 호환성이 향상되었습니다.
 * **FOnlineAchievementsGooglePlay::QueryAchievements** 함수가 Android에서 작동합니다.
 * 기본 Android 뎁스 버퍼 정밀도를 24 비트로 변경하고, Android Platform Setting 을 추가하여 개인설정을 선택하도록 했습니다.
-* Android 태블릿에서 세로방향 전용을 허용하되, 기본적으로 가로방향 출력 디바이스(NVidia Shield, Google TV, Kindle Fire TV, Ouya)에서는 가로방향을 강제시킵니다.
+* Android 태블릿에서 세로방향 전용을 허용하지만, 기본적으로 가로방향 출력 디바이스(NVidia Shield, Google TV, Kindle Fire TV, Ouya)에서는 가로방향을 강제시킵니다.
 * 패키징으로 생성되는 Android APK 용 인스톨 배치 파일은 이제 옵션으로 ADB 에 전해줄 디바이스 시리얼 번호를 받습니다.
 * 엔진은 이제 시작시 더 나은 EGL 환경설정을 선택, 신형 Android 디바이스에서의 퍼포먼스 문제가 해결됩니다.
 * Android 인스톨 배치 파일의 오류 처리를 (출력에 제안사항을 포함시켜) 개선했습니다.

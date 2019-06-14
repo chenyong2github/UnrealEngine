@@ -1,46 +1,314 @@
-﻿INTSourceChangelist:3075225
+INTSourceChangelist:3492049
 Availability:Public
 Title:原生化蓝图
-Crumbs: %ROOT%, Programming, Engine/Blueprints/TechnicalGuide
-Description:游戏性程序员将游戏性元素对蓝图公开的技术教程。
-Version:4.12
-Parent:Engine/Blueprints/TechnicalGuide
+Crumbs:
+Description:面向程序员的技术指南，介绍如何将Gameplay元素公开到蓝图。
+Version: 4.15
+Parent: Engine/Blueprints/TechnicalGuide
 type:overview
+tags:Blueprints
+Skilllevel:Intermediate
+Related: Engine/Blueprints/TechnicalGuide/NativizingBlueprints/Advanced
+social-image:social_bp_nativization.png
+topic-image:NativizingBlueprints_topic.png
 
-[REGION:warning]
-这是一个实验性 beta 功能。所有虚幻引擎 4 游戏实例和部分中等大小的 demo 均已成功原生化，但我们仍在努力，力求在大型项目中使用此功能。
+[TOC(start:1 end:4)]
+
+当团队用蓝图脚本编写Gameplay时，他们不必编写或编译原生C++代码即可创建新的UClass。因此，蓝图非常适用于 
+没有原生C++程序员技术专业知识的游戏团队。非程序员完全可以使用蓝图的原因是蓝图节点 
+在虚拟机（VM）中运行，让它们能够调用C++函数。但弊端是，依赖VM将蓝图转换为原生C++代码需要付出一些代价， 
+将蓝图代码转换为原生C++函数可能会拖慢每一帧的游戏性能。 
+
+如果在VM中运行蓝图的成本可以忽略，则VM开销就在可接受的范围内；但是，有时您会希望游戏运行速度尽可能快 
+（尤其是要交付到硬件能力有限的设备时）。这正是虚幻引擎蓝图原生化工具发挥作用的地方。 
+
+[REGION:note]
+Epic在开发最新的VR游戏[《Robo Recall》](https://www.epicgames.com/roborecall/en-US/home)时成功使用了蓝图原生化。
 [/REGION]
 
+(#reducingvmoverhead)
+## 减少VM开销
 
-全新的蓝图原生化工具可从项目蓝图生成本地 C++ 代码。完成项目后在编辑器外进行测试或进行发布时，将使用生成的代码对项目进行编译。所有蓝图类将被新生成的本地类替代。蓝图原生化的主要目的是降低项目运行时版本中的虚拟机（VM）开销。因此，生成的代码并未设计为“友好”或可重复使用。 
+蓝图原生化的主要目的是根据项目蓝图生成原生C++代码，从而降低项目运行时版本中的虚拟机开销。一般来说， 
+所有蓝图类都会被新生成的原生C++类所取代，然后在[烘焙过程](Engine/Deployment/Cooking)中将这些C++类编译到项目中。 
+虽然您能够用文本编辑器阅读转换后的C++代码，但您会注意到，该代码并没有设计为可重用（或者生成为“读者友好型”）。
 
-此页面将助您上手项目蓝图的原生化。对纯蓝图项目而言，这应该是透明度最高的一个流程。如项目中也使用了 C++，或需要对原生化代码进行调试，请查阅 [](Engine/Blueprints/TechnicalGuide/NativizingBlueprints/Advanced) 中的更多内容。
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![蓝图](Blueprint.png)(w:1200)
+	[/PARAM]
+	[PARAM:after]
+	![原生化蓝图](NativizedBlueprint.png)(w:1200)
+	[/PARAM]
+[/OBJECT]
 
+_这里，我们对比的是玩家角色蓝图及其原生化代码。_
 
+本页将向您介绍如何开始原生化项目蓝图，对于仅使用蓝图的项目，这应该是非常简单的任务。首先，您需要知道 
+在哪里查找禁用和启用蓝图原生化所需的用户界面（UI）。
+
+(#enablingblueprintnativization)
 ## 启用蓝图原生化
 
-如需启用蓝图原生化，使用 **Edit 菜单** 打开 **Project Settings**。在 **Packaging** 下启用 **Nativize Blueprint Assets** 复选框。
+首次创建项目时，蓝图原生化默认是禁用的。要找到蓝图原生化设置，从虚幻编辑器打开 **项目设置（Project Settings）** 菜单，然后从左侧栏选择 
+**打包（Packaging）**。从 **项目——打包（Project - Packaging）** 菜单内部，您应能够看到 **蓝图（Blueprints）** 下拉菜单。
 
+[REGION:lightbox]
+	[![](BPNativization_DisabledUI.png)(w:600)](BPNativization_DisabledUI.png)
+[/REGION]
 
-之后打包项目时，以下蓝图资源将被原生化： 
+[REGION:caption]
+	单击查看大图。
+[/REGION]
+
+开发期间您可以随时选择禁用蓝图原生化，方法是从 **蓝图原生化方法（Blueprint Nativization Method）** 下拉列表中选择 **禁用（Disable）**。 
+
+![](BPNativization_DisabledUI1.png)(w:900)
+
+如您所见，该下拉列表中有两个额外选项可供您使用：分别是
+
+* **包含（Inclusive）** 原生化
+* **排他（Exclusive）** 原生化
+
+(#inclusivenativization)
+## 包含原生化
+
+当您选择 **包含（Inclusive）** 原生化时，您选择的是原生化项目中支持的所有蓝图类。 
+
+![](BPNativization_InclusiveUI.png)(w:900)
+
+选择 **包含（Inclusive）** 原生化方法后，在[打包过程](Engine/Basics/Projects/Packaging)中注意务必要注意的是， 
+虚幻自动化工具（UAT）将对以下支持的蓝图资源进行原生化：
 
 * 蓝图类
 * 蓝图函数库
 * 蓝图接口
 * 动画蓝图 
-* 控件蓝图
-* 用户定义结构
-* 用户定义枚举
+* 小部件蓝图
+* 用户定义的结构
+* 用户定义的枚举值
 
-当前 _关卡蓝图_ 将不会被转换。原生化代码保存的路径为 `[项目目录]\Intermediate\[制作平台]\NativizedAssets\Source\NativizedAssets\`。
+[REGION:note]
+目前，关卡蓝图和蓝图宏不受蓝图原生化工具的支持，不会转换为原生C++代码。 
+[/REGION]
 
-## 从转换中排除蓝图
+(#excludingblueprintsfromconversion)
+### 从转换中排除蓝图
 
-也可从转换中排除特定 _蓝图_。在项目的 `DefaultEditor.ini` 文件中创建一个 `[BlueprintNativizationSettings]` 标题。
+蓝图原生化工具将蓝图节点转换为原生C++代码，产生的可执行文件使用更多机器指令、 
+依赖项和嵌入式元数据来支持转换。 
 
-* 如需排除特定类型的资源，设置 `ExcludedBlueprintTypes`。例如，`+ExcludedBlueprintTypes=/Script/UMGEditor.WidgetBlueprint` 不会转换 _控件蓝图_。
-* 如需排除单个资源，设置 `ExcludedAssets`。例如，`+ExcludedAssets=/Engine/Tutorial/SubEditors/TutorialAssets/Character/TutorialCharacter` 不会转换 **教程角色**。
+[REGION:warning]
+因此，务必注意如果选择 **包含（Inclusive）** 蓝图原生化方法， 
+可执行文件大小将增长到您的目标平台无法接受的大小。
+[/REGION]
 
-资源只有在被制成后才可进行原生化。如果未指定制作器制作资源/地图，它将对项目 **Content** 目录下的所有内容进行制作。如发现部分未使用的蓝图正被原生化，也可使用地图列表进行打包，排除资源。 
+您可以指定要从转换过程中排除的蓝图来缓解可执行文件大小激增的情况。要从转换中排除蓝图， 
+打开项目的`DefaultEditor.ini`文件，创建包含以下列配置属性的`[BlueprintNativizationSettings]`标头：
 
+* 要排除特定类型的蓝图资源，设置`ExcludedBlueprintTypes`配置属性。  
+  例如，`+ExcludedBlueprintTypes=/Script/UMGEditor.WidgetBlueprint`不会转换任何小部件蓝图资源。
+* 要排除特定蓝图资源，设置`ExcludedAssets`配置属性。  
+  例如，`+ExcludedAssets=/Engine/Tutorial/SubEditors/TutorialAssets/Character/TutorialCharacter`不会转换 **教程角色** 蓝图资源。
 
+![](DefaultEngineINI.png)(w:900)
+
+请注意，仅当蓝图资源作为打包过程的一部分进行烘焙时，才会在打包过程中原生化。因此，如果您没有指定要烘焙的任何蓝图资源或贴图，虚幻引擎 
+将烘焙 **Content** 目录中的所有内容。如果选择 **包含（Inclusive）** 方法后，您注意到未使用的蓝图被原生化，或许应选择 
+**排他（Exclusive）** 蓝图原生化方法。
+
+(#exclusivenativization)
+## 排他原生化
+
+如果要向硬件资源有限的设备交付更大的项目，我们建议您选择 **排他（Exclusive）** 蓝图原生化方法。
+
+![](BPNativization_ExclusiveUI.png)(w:900)
+
+虽然 **包含（Inclusive）** 方法适用于较小项目，即不会因为可执行文件大小激增而超过目标硬件容纳该应用的容量，但选择 
+使用 **排他（Exclusive）** 蓝图原生化方法也有一些优势。部分优势包括：
+
+* 限制可执行文件的最终大小。
+* 有效防止转换未使用蓝图资源。
+* 能够显式选择要转换的蓝图资源。
+
+一般来说，如果您的蓝图较为占用计算资源，则建议选择排他（Exclusive）蓝图原生化方法；包括（但不限于）：
+
+* 有大量节点的蓝图。
+* 需要优化循环的蓝图。
+* 执行复杂数学运算的蓝图。 
+
+(#selectingblueprintstonativize)
+### 选择要原生化的蓝图
+
+[REGION:note]
+如果您还没有包含蓝图资源的项目，请使用一个可用的项目模板创建一个新项目。为便于说明， 
+我们使用 **解密（Puzzle）** 项目模板。
+[/REGION]
+
+执行以下步骤选择想要使用 **排他（Exclusive）** 蓝图原生化方法进行原生化的蓝图资源。 
+
+1.	首先，打开 **编辑（Edit）** 菜单，并选择 **项目设置...（Project Settings...）**。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_1.png)(w:900)](BPNativization_ExclusiveStep_1.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	打开 **项目设置（Project Settings）** 菜单，单击 **打包（Packaging）**，打开 **项目设置——打包（Project Settings - Packaging）** 菜单。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_2.png)(w:900)](BPNativization_ExclusiveStep_2.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	从 **蓝图（Blueprints）** 子菜单，单击 **蓝图原生化菜单（Blueprint Nativization Menu）** 下拉列表。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_3.png)(w:900)](BPNativization_ExclusiveStep_3.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	选择 **排他（Exclusive）** 选项以选择排他蓝图原生化方法。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_4.png)(w:900)](BPNativization_ExclusiveStep_4.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	继续选择子菜单底部的展开箭头，显示空数组。 
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_5.png)(w:900)](BPNativization_ExclusiveStep_5.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+	该数组将包含您显式选择进行原生化的蓝图资源列表。
+	![](BPNativization_ExclusiveStep_5Note.png)(w:900)
+
+1.	退出 **项目设置（Project Properties）** 菜单后，导航到包含您的蓝图资源的文件夹。 
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_6.png)(w:900)](BPNativization_ExclusiveStep_6.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	现在，打开您想要原生化的蓝图资源。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_7.png)(w:900)](BPNativization_ExclusiveStep_7.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	在 **蓝图编辑器** 打开后，单击 **类设置（Class Settings）** 按钮。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_8.png)(w:900)](BPNativization_ExclusiveStep_8.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	要将该蓝图资源标记为需要原生化，单击 **细节（Details）** 面板 **打包（Packaging）** 子菜单中的 **原生化（Nativize）** 复选框。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_9.png)(w:900)](BPNativization_ExclusiveStep_9.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	确保先单击 **保存（Save）** 按钮，再关闭该资源的 **蓝图编辑器**。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_10.png)(w:900)](BPNativization_ExclusiveStep_10.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+1.	要核实您选择进行排他原生化的蓝图资源，打开 **项目设置（Project Settings）** 菜单以查看您已标记为需要原生化的蓝图资源列表的数组。
+
+	[REGION:lightbox]
+		[![](BPNativization_ExclusiveStep_11.png)(w:900)](BPNativization_ExclusiveStep_11.png)
+	[/REGION]
+	
+	[REGION:caption]
+		单击查看大图。
+	[/REGION]
+
+到这里，您已准备好使用 **排他（Exclusive）** 蓝图原生化方法烘焙和打包项目了。
+
+[REGION:note]
+请注意，为了构建您选择进行原生化的蓝图，所有受支持的依赖项也会标记为需要原生化。 
+[/REGION]
+
+(#locatingnativizedcode)
+## 查找原生化代码
+
+您可以在`[ProjectDirectory]\Intermediate\\[烘焙所针对的目标平台]\NativizedAssets\Source\NativizedAssets\`中找到原生化代码
+
+![](NativizedAssetsLocation.png)(w:900)
+
+(#settingthenativizationflag)
+## 设置原生化标志
+
+如果回到 **项目设置（Project Settings）>项目——打包（Project - Packaging）** 菜单，您会注意到 **如果打包时没有原生化标志则警告（Warn if Packaged Without Nativization Flag）** 标签旁边有一个复选框。 
+
+[REGION:lightbox]
+	[![](NativizationFlag.png)(w:900)](NativizationFlag.png)
+[/REGION]
+
+[REGION:caption]
+	单击查看大图。
+[/REGION]
+
+这个标志适用于从命令行构建/烘焙项目的高级用户（如服务器端构建工程师）。基本上，如果启用了该标志，同时也在 
+**项目设置（Project Settings）** 菜单中启用了原生化，则在构建/烘焙时不从命令行使用原生化标志就会发出警告。要了解如何从命令行使用原生化开关，请阅读 
+[](Engine/Blueprints/TechnicalGuide/NativizingBlueprints/Advanced)文档。
+
+(#additionalresource)
+## 其他资源
+
+在以下功能亮点视频中，您可以找到包含蓝图原生化的更多信息。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:videoid]
+	Ut_CRt7o8PA
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
+[/OBJECT]

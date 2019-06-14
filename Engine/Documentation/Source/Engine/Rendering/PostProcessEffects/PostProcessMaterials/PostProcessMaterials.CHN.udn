@@ -1,87 +1,115 @@
-﻿INTSourceChangelist:2944039
+﻿INTSourceChangelist:3782314
 Availability:Public
+Crumbs:
 Title:后期处理材质
-Crumbs: %ROOT%, Engine, Engine/Rendering/PostProcessEffects
-Description:如何使用材质编辑器制作和混合自定义后期处理通路。
-Version:4.9
+Description:如何使用材质编辑器创建和混合自定义后期处理通道。 
+Type:reference
+Version:4.16
+Parent:Engine/Rendering/PostProcessEffects
+Order:8
+Tags:Post Process
+Topic-image:PPMaterials_Topic.png
 
+[TOC(start:2 end:4)]
+
+[REGION:banner]
+![](Teaser_Banner.png)
+[/REGION]
+
+[COMMENT:none]
+-
 ![](Teaser3.png)
 ![](Teaser0.png)
 ![](Teaser1.png)
 ![](Teaser2.png)
 
-[TOC(start:2 end:4)]
+[/COMMENT]
+
+
+后期处理材质使您能够设置与后期处理一起使用的材质，以创建破坏的视觉屏幕效果、区域类型效果或
+只能通过后置处理材质才能实现的游戏整体外观。 
+
+在下面的部分中，您将了解如何设置后期处理材质，您可以使用的可用设置，以及如何使用不同的缓冲区设置您自己的一些后期处理材质，
+混合各种后期处理材质，等等。 
+
+(#postprocessinggraph)
 
 ## 后期处理图表
 
 [EXCERPT:PostProcessMaterials_Desc]
-引擎已经拥有基于后期处理节点图表的复杂后期处理功能。**后期处理材质** 可
-被额外插入部分特定位置。查看 [FAQ](#FAQ) **r.CompositionGraphDebug** 部分获得全图表的 dump 文件。
-实际上，图表不仅执行后期处理，还执行部分灯光操作。我们计划利用材质编辑器
-将更多部分变为自定义化。
+该引擎已经具有基于后期处理节点图表的复杂后期处理功能。**后期处理材质（Post Processing Materials）**
+可以额外插入到某些特定位置。有关 **r.CompositionGraphDebug**，请参阅[常见问题部分](#FAQ)，获取完整图表的转储。
+这张图表实际上不仅在做后期处理，还在做部分照明事宜。 
 [/EXCERPT:PostProcessMaterials_Desc]
 
-在多数情况下，图表自动创建中间的渲染目标。意味着如要与之前的色彩混合，
-需要在选色器中执行混合（使用来自 PostProcessInput0 的输入）。
+大多数时候，图表会自动创建中间渲染目标。这意味着，如果您想与前一种颜色混合，您需要在着色器中进行混合
+（使用来自PostProcessInput0的输入）。
 
 [EXCERPT:PostMatWarning]
 [REGION:warning]
-后期处理材质应尽少使用，在极其需要时使用方位上策。在处理颜色校正或调整、光晕、景深和多种其他效果时，应尽可能使用后期处理体积域的固有设置（因为它们已经过优化，效率较高）。 
+后期处理材质应该节约使用，仅在真正需要时使用。在可能的情况下，如颜色校正或调整、泛光、景深和各种其他效果，您应该使用后期处理体积中固有的设置，这些设置已经过优化，而且更有效。 
 [/REGION]
 [/EXCERPT:PostMatWarning]
 
-(#UsingaPostProcessMaterial)
+(#usingapostprocessmaterial)
+
 ## 使用后期处理材质
 
-通过后期处理设置（通常以后期处理体积域或摄像机设置定义）可对所谓的可混合资源进行混合。
-当前只有 **材质** 和 **材质实例** 为可混合资源。引擎提供了一些后期处理材质，但也可利用
-此功能创建 **自定义后期处理**，无需程序员的协助。
+通过后期处理设置（通常用后期处理体积或摄像机设置定义），可以混合（所谓的）可混合资源。
+目前，只有 **材质（Materials）** 和 **材质实例（Material Instances）** 是可混合资源。该引擎提供了一些后期处理材质，但有了这个特性，
+您可以创建自己的 **自定义后期处理**，无需任何程序员的帮助。
 
-只需在 **Blendables** 部分将一个或多个后期处理材质指定到后期处理体积域上。首先按下 **+** 添加新的槽，
-在 **Content Browser** 中选择一个材质，然后按下左箭头进行指定。顺序无关紧要，可无视未使用的槽。
+只需将一个或多个后期处理材质分配到 **可混合（Blendables）** 部分的后期处理体积中。首先按 **+** 添加新槽，
+在 **内容浏览器（Content Browser）** 中选择一个材质，然后按左箭头进行分配。这里的顺序并不重要，未使用的插槽将被忽略。
 
 ![](PostProcessSettings.png)
 
+(#makingasimplepostprocessmaterial)
+
 ## 制作简单的后期处理材质
 
-可在 [](Engine/Rendering/PostProcessEffects/PostProcessMaterials/PostProcessDemoMaterialOverview) 中了解从零创建简单后期处理材质效果的综述。
+有关从头开始创建简单的后期处理材质效果的概述，请参阅[](Engine/Rendering/PostProcessEffects/PostProcessMaterials/PostProcessDemoMaterialOverview)。
 
 ![](Engine/Rendering/PostProcessEffects/PostProcessMaterials/PostProcessDemoMaterialOverview/FinalPostEffect.png)(w:640)
 
-(#CriticalSettingsforPostProcessMaterials)
+(#criticalsettingsforpostprocessmaterials)
+
 ## 后期处理材质的关键设置
 
 后期处理材质需要指定材质域 **后期处理**：
 
 ![](DomainPostProcess.png)
 
-材质只应使用 *EmissiveColor* 输出新色彩。此外，可定义在后期处理中何处应用此通路；
-如有多个存在，定义其处理顺序（优先级）：
+材质只能使用 **自发光颜色（Emissive Color）** 输出新颜色。此外，您还可以定义在后期处理过程中应在何处应用此通道，
+如果有多个通道，则应按什么顺序处理（优先级）：
 
 ![](PostProcessMaterialProps.png)
 
-| 混合位置| 描述 |
+
+| 可混合位置| 说明 |
 | -------- | ----------- |
-| **Before Tonemapping** | PostProcessInput0 提供带 HDR 中所有灯光的场景颜色。使用它修复临时抗锯齿和 GBuffer 查找（如深度、法线）的问题。|
-| **After Tonemapping** | 性能优选位置，颜色为 LDR，因此需要的精确度和带宽较小。这发生在色调映射和颜色分级后。|
-| **Before Translucency** | 在流程中比“Before Tonemapping”更早，在半透明度和场景颜色组合之前。注意：SeparateTranslucency 晚于正常半透明度合成。|
-| **Replacing the Tonemapper** | PostProcessInput0 提供 HDR 场景颜色，PostProcessInput1 拥有 SeparateTranslucency（透明度为遮罩），PostprocessInput2 拥有低分辨率光晕输入。|
+| **色调映射前（Before Tonemapping）** | PostProcessInput0为HDR中的所有照明提供场景颜色。用它来修复时间抗锯齿和GBuffer查找的问题，如深度，法线。|
+| **色调映射后（After Tonemapping）** | 首选性能位置，因为颜色是LDR，因此需要的精度和带宽较少。这是在色调映射和颜色分级之后。|
+| **半透明前（Before Translucency）** | 这在通道中甚至比半透明与场景颜色结合之前的“色调映射前”还要早。注意SeparateTranslucency的混合比法线透明度要晚。|
+| **替换色调映射器（Replacing the Tonemapper）** | PostProcessInput0为HDR提供场景颜色，PostProcessInput1具有SeparateTranslucency（Alpha是遮罩），PostprocessInput2具有低分辨率泛光输入。|
 
-典型的 postprocess 输入来自之前的通路。使用 **PostProcessInput0** 时，可通过 SceneTexture 材质表现获取颜色。使用 SceneColor 可能无法获得正确结果。
+典型的后期处理输入来自以前的通道。当使用 **PostProcessInput0** 时，可以通过SceneTexture材质表达式访问该颜色。使用SceneColor可能不会得到正确的结果。
 
-## 在不同材质实例之间进行混合
+(#blendingbetweendifferentmaterialinstances)
+
+## 混合不同的材质实例
 
 [使用后期处理材质](#UsingaPostProcessMaterial)
 
-利用后期处理体积域可轻松在多个后期处理材质之间设置柔和过渡。在此例中我们使用一个标记为 unbound 的体积域和一个拥有较大混合半径的体积域（如 1000）：
+使用后期处理体积，很容易在多个后期处理材质之间设置软过渡。这里我们使用一个标记为未绑定的体积和一个具有更大混合半径的体积（例如，1000）：
 
 [REGION:imagetable]
 | ![](BlendingAVolume.png) | ![](BlendingAVolume1.png) |
 |----|----|
-| 后期处理设为 Unbound | 后期处理束缚体积域 |
+| 后期处理设置为未绑定 | 后期处理绑定体积 |
 [/REGION]
 
-每个体积域我们都将指定相同材质的一个不同材质实例。颜色作为一个材质参数进行指定，可在两个材质实例上进行不同设置。
+我们为每个体积指定了相同材质的不同材质实例。颜色被指定为一个材质参数，它允许对两个材质实例进行不同的设置。
 
 [REGION:lightbox]
 ![](PP_BlendedMaterial.png)
@@ -90,15 +118,15 @@ Version:4.9
 [REGION:imagetable]
 | ![](BlendMatInst1.png)(w:400) | ![](BlendMatInst2.png)(w:400) |
 |----|----|
-| 材质实例红 | 材质实例绿 |  
+| 材质实例RED | 材质实例GREEN |  
 [/REGION]
 
-处于混合半径中时，一个体积域设置将被使用和混合（基于摄像机位置）：
+根据摄像机位置，在混合半径范围内使用和混合一个体积的设置：
 
 [REGION:imagetable]
 | ![](Blend1.png)(w:300) | ![](Blend2.png)(w:300) | ![](Blend3.png)(w:300) |
 |----|----|----|
-| 未束缚后期处理体积域材质实例（红色）设为 0.75 | 混合半径 1000  | 后期处理体积域材质实例（绿色）设为 0.75 |  
+| 未绑定后期处理材质实例(RED)设置为0.75 | 混合半径1000  | 后期处理体积材质实例(GREEN)设置为0.75 |  
 [/REGION]
 
 
@@ -115,13 +143,13 @@ Version:4.9
 -
 [/COMMENT]
 
-伴随着摄像机运动可感受到两个效果设置之间柔和的线性过渡。
+随着摄像机的移动，您可以感知到两个效果设置之间的软线性过渡。
 
-以下展示了一个拥有两个体积域的关卡顶视图。较大的未束缚体积域拥有一个红色材质实例，较小的体积域拥有一个指定为可混合的绿色材质实例。
-较小的体积域拥有更高的优先级。材质参数基于摄像机位置进行混合。
-模糊边界由体积域中指定的 BlendRadius 属性定义，可延伸体积域外形。
+下面显示了一个关卡的自上而下视图，其中有两个体积。大的未绑定体积有一个红色的材质实例，小的体积有一个指定为可混合的绿色材质实例。
+较小的体积具有较高的优先级。材质参数根据摄像机位置进行混合。
+模糊边界由体积中指定的混合半径属性定义，并扩展体积形状。
 
-设置正确后，全部混合将按预期进行。
+使用了正确的设置，所有的混合都按预期进行。
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
@@ -133,117 +161,161 @@ Version:4.9
 [/OBJECT]
 
 
-两个设置之间的差别是材质参数（标量或矢量）上指定的默认值。 
-良好设置的数值可使通路不存在任何效果（如乘以白色或以 0 插值）
+这两种设置之间的区别是在材质（标量或矢量）参数上指定的默认值。 
+良好设置有一些值使通道看似没有任何效果（例如，乘以白色或用使用插值0）。
 
-**在两个设置中我们将看到：**摄像机处于任意体积域的影响之外时，将不会对 postprocess 通路执行渲染（以灰色网格显示）。
-如完全处于任意一个体积域内，我们也将看到正确的混合。
+ **这两种设置中，我们都能看到：**当摄像机不受任一体积的影响时，后期处理通道不会被渲染（用灰色网格表示）。
+如果我们完全在任一体积内，我们也会看到正确的混合。
 
-**较差设置：**摄像机进入影响半径后，将出现一个硬性过渡，因其使用的是错误指定的默认参数。
+ **不良设置：**当摄像机进入影响半径时，我们看到一个硬过渡，因为使用了错误指定的默认参数。
 
-**较好设置：**进入摄像机影响半径的过渡被良好地隐藏起来，到体积域颜色的过渡流畅。
+ **良好设置：**使摄像机进入影响半径的过渡隐藏得很好，我们会看到向体积颜色的平滑过渡。
 
 [REGION:note]
-无论属性复选框是否勾选，所有材质实例属性皆被混合
-（如未勾选，其将对父项的属性进行混合）。这与后期处理设置（未勾选的属性没有效果）不同。
-这意味着如果混合一个材质实例，所有属性均将被混合。
+所有材质实例属性都将混合，无论是否选中属性复选框（在这种情况下，
+它混合了来自父项的属性）。这与未选中属性没有任何效果的后期处理设置不同。
+这意味着如果混合一个材质实例，所有属性都将被混合。
 [/REGION]
 
-## 材质表现“SceneTexture”
+(#thematerialexpression"scenetexture")
 
-可在材质中添加 **SceneTexture** 材质表现，并在表现属性中选择需要引用的纹理：
+## 材质表达式“SceneTexture”
+
+您可以将 **SceneTexture** 材质表达式添加到材质中，并在表达式属性中选择要引用的纹理：
 
 ![](SceneTextureProps.png)
 
-节点拥有一个可选输入和多个输出： 
+节点有一个可选输入和多个输出： 
 
 ![](SceneTextureExpression.png)
 
-利用 **UV** 输入可指定进行纹理查找的位置（只用于颜色输出）。
-颜色输出为 4 通道输出（实际的通道分配取决于场景纹理 id）。**Size** 是带纹理宽度和高度的 2 组件
-矢量。其倒转 (1/width, 1/height) 在 **InvSize** 输出中可用。以下例中的方式引用
-临近样本非常便利：
+ **UV** 输入允许您指定要进行纹理查找的位置（仅用于颜色输出）。
+颜色输出是4通道输出（实际的通道分配取决于场景纹理id）。**大小（Size）** 是一个包含纹理宽度和高度的
+两分量矢量。该两分量矢量的倒数（1/宽度、1/高度）在 **InvSize** 输出中获得。在引用如下例所示的邻近样本时，
+它非常方便：
 
 ![](DepthNextTo.png)
 
-材质表现计算当前像素到临近像素的深度差（如：In = 0,1 将透明度返回）
+材质表达式计算当前像素与相邻像素的深度差（例如In = 0,1会将delta返回到下面的像素）。
 
-## 使用 GBuffer 属性
+(#usinggbufferproperties)
 
-GBuffer 由存储材质（如表面下/镜面颜色、平整度...）和物体属性（如法线、深度）的多个纹理构成，
-不存在进行着色计算的灯光（灯光如何与材质交互）。在延迟渲染器中，首先渲染 GBuffer，然后使用 GBuffer 属性
-计算所有灯光（延迟）。如 UE4 使用延迟着色路径（如 DirectX 11 或高端 OpenGL），则可在后期处理中使用这些缓冲。
+## 使用GBuffer属性
 
-抗锯齿将使其变得更加困难一些，因为 GBuffer 像素/纹素与输出像素不再是 1:1 相关（查看以下部分）。
+GBuffer由多个存储材质的纹理组成（例如次表面颜色/高光颜色、粗糙度...）和对象属性（例如法线、深度）
+没有光照来计算阴影（光源如何与材质相互作用）。在延迟渲染器中，我们首先渲染GBuffer，
+然后使用GBuffer属性计算所有的照明（延迟）。如果UE4使用延迟着色路径（例如DirectX 11或高端OpenGL），我们可以在后期处理期间访问这些缓冲区。
 
+抗锯齿通常会使这一操作更加困难，因为GBuffer像素/纹素不再是与输出像素呈1:1关联（参见下面的部分）。
+
+(#customdepth)
 ## 自定义深度
 
-这个单独功能可将特定物体渲染成另一个深度缓冲，从而形成遮罩（称作自定义深度缓冲）。
-这会添加额外的绘制调用，但不会添加更多材质。因为只输出深度，渲染的消耗相当低。此功能可在网格体上启用
-（如静态网格体属性 / 渲染自定义深度）：
+这个单独的特性通过将某些对象渲染到另一个深度缓冲区（称为自定义深度缓冲区）来屏蔽它们。
+这增加了额外的绘制调用，但不使用更多材质。渲染相当便宜，因为我们只输出深度。该特性可以在网格体上激活
+（例如静态网格体属性/渲染自定义深度）：
 
 ![](CustomDepth.png)
 
-在此场景中，我们在两个物体上启用此功能；但没有显示内容的后期处理通路，该功能仍为不可见：
+在这个场景中，我们在两个对象上激活了这个特性，但是如果没有后期处理通道对内容进行可视化处理，此特性仍然是不可见的：
 
 ![](scene.png)
 
-下图为自定义深度的展示：
+这里我们可以看到自定义深度的可视化效果，如下：
 
 ![](sceneCustomDepth.png)
 
-下图是用于展示的材质：
+这是我们用来对其进行可视化的材质：
 
 ![](CustomDepthMat.png)
 
-## 临时抗锯齿 / GBuffer 为何抖动
+(#customdepthstencil)
 
-临时抗锯齿是 UE4 的独特功能，可在中等性能消耗的基础上极大地提高图像质量。
+## 自定义深度模具
 
-后期处理材质被默认插入后期处理图表的末尾（在色调映射器之后）。这意味着应用色调映射、颜色分级和临时抗锯齿后可获得最终
-的 LDR 颜色。这是许多简单后期处理效果的最佳点 - 性能与易用。
+自定义深度模具（Custom Depth Stencil）是自定义深度（Custom Depth）的扩展，您可以在其中使用渲染对象的模具或挖剪，然后做一些视觉效果上比较有趣的东西（如下例所示）， 
+使您能够可视化遮挡对象，绘制对象轮廓，或仅从特定视角可见。通过访问场景中Actor的模具，您可以做很多事情
+。使用以下设置启用并分配模具值。
 
-在此可了解如何使用自定义深度输入在特定物体周围显示轮廓：
+![](CustomStencilSettings.png)
+
+在这个场景中，在三个对象上启用了自定义深度（Custom Depth），并且为每个对象设置了 **自定义深度模具值（Custom Depth Stencil Value）**，但是如果没有任何后期处理来可视化内容，这个特性仍然是不可见的。
+
+![](CustomDepthStencilScene.png)(w:520)
+
+一旦设置好您的后期处理材质，您就可以可视化自定义深度模具的外观，根据使用的 **自定义深度模具值（Custom Depth Stencil Value）**，使用随机分配的颜色渲染被遮挡的对象。 
+
+![](CustomDepthStencilVisualization.png)(w:520)
+
+这是我们用来对其进行可视化的材质设置：
+
+[REGION:lightbox]
+[![](CustomDepthStencilMaterial.png)(w:768)](CustomDepthStencilMaterial.png)
+[/REGION]
+[REGION:caption]
+_单击图像以查看完整尺寸。_
+[/REGION]
+
+这绝不是使用自定义深度模具（Custom Depth Stencil）的唯一方法，在这个特殊的材质设置中，对该模具进行划分，使其使用1到255之间的值，对介于这些值之间的任何值使用一个蒙板， 
+并为这些值创建一个随机颜色，以便当自定义深度模具值（Custom Depth Stencil Value）更改时，颜色也随之更改，
+最后，所创建的蒙板仅在对象被遮挡时才对模具进行着色。
+
+
+(#temporalanti-aliasingorwhythegbufferjitters)
+
+## 时间抗锯齿或为何GBuffer抖动
+
+时间抗锯齿是一个独特的UE4功能，它能大大提高图像质量，而性能成本非常适中。
+
+默认情况下，后期处理材质被插入到后期处理图表的末尾（在色调映射器之后）。这意味着在色调映射、颜色分级和应用时间抗锯齿之后，
+您将得到最终的LDR颜色。这是许多简单的后期处理效果的最佳位置，以提高性能和易用性。
+
+这里您可以看到我们如何使用自定义深度输入来可视化特定对象周围的轮廓：
 
 ![](sceneAfterTonemapper.png)
 
-注意前一张图轮廓上并不存在抗锯齿，但在动态下将看到轮廓出现一个像素左右的抖动。
-这是因为临时抗锯齿按每帧一亚像素的频率移动整个场景的渲染。多张序列帧将合并在一起，形成最终的抗锯齿图像。
-然而，我们可将材质移动到后期处理图表中更早的位置，以便修复此问题。
+注意，之前的图像中，轮廓上没有抗锯齿效果，但在运动中，您也会看到轮廓抖动约1像素。
+这是因为时间抗锯齿将整个场景的渲染每帧移动一个亚像素。将多个帧组合在一起生成最终的抗锯齿图像。
+不过，我们可以将材质移到后期处理图表中较早的位置来解决这个问题。
 
-下图为最终结果：
+结果如下：
 
 ![](sceneBeforeTonemapper.png)
 
-我们获得了一个稳定的抗锯齿图像。在动态中临时抗锯齿可能出现一些穿帮。此功能使用深度缓冲替代旧图像。在物体内渲染边界时此功能正常，
-但在物体外时我们需要调整深度缓冲（功能未完善，性能消耗较高），
-功能完善后无需进行调整。 
+我们得到一个稳定的抗锯齿图像。在运动中，我们可能会看到一些带时间抗锯齿的瑕疵。这个特性使用深度缓冲区来替换旧图像。在对象内部渲染了边框时，此特性可以正常工作，
+但在对象外部，我们还需要调整深度缓冲区（尚未完成，需要额外的性能），
+但理想情况下不应该这样做。 
 
-## UV 和屏幕位置
+(#uvandscreenposition)
 
-可在屏幕中看到的后期处理材质为缓冲对齐，但需要知晓正确的 UV。 
-**ScreenPosition** 材质表现输出所需的 UV（0,0 位于视口左上方，1,1 位于右下方）。
-使用 **texture coordinate** 材质表现可能获得不同的结果。这是因为实际纹理（正确而言其应为一个渲染目标）可能比视口更大。
-它在编辑器中可能更大，因为我们在多个视口上共享这个纹理，最大的延展用于所有视口。
-即时在游戏中，它有时也可能更大（如 SceneCaptureActors 可能拥有一个更小的视口、Matinee 黑边、分屏、VR...）。
-纹理坐标材质表现为这个较大的纹理提供 UV。如只需要一个相对偏移（如像素尺寸边沿检测），需要缩放至正确的尺寸。
-**SceneTexture** 材质表现拥有对尺寸的输出和尺寸的倒转（对像素偏移有效有用）。
-如希望获得视口 UV（如向视口映射纹理），可使用 **ScreenPosition** 材质表现或手动进行所需的计算（更多操控将使运行减慢）。
-因此需要 **ViewSize** 材质表现。可使用控制台变量 **r.ViewPortTest**（可用于测试各种视口配置）进行全面测试。
+## UV和ScreenPosition
+
+使用后期处理材质，您可以查看屏幕对齐的缓冲区，但您需要知道正确的UV。 
+将映射选项设置为 **ViewportUV** 时，**ScreenPosition** 材质表达式输出UV，其中0,0位于视口的左上角，1,1位于右下角。
+相反，在这个材质表达式中使用 **SceneTextureUV** 映射可能会得到不同的结果。这是因为实际的纹理（更准确地说是渲染目标）可能比视口更大。
+它在编辑器中可以更大，因为我们为多个视口共享这个纹理，而最大的范围是用于所有视口。
+即使在游戏中，它在某些情况下也可能更大（例如SceneCaptureActor可能拥有更小的视口、Matinee黑边框、分屏、VR等等）。
+**SceneTextureUV** 选项为这个较大的纹理提供UV。如果您只需要一个相对偏移（如像素大小的边缘检测），您需要用正确的大小缩放。
+**SceneTexture** 材质表达式输出大小和大小的倒数（对于像素偏移非常有效且有用）。
+要测试所有这些，可以使用控制台变量 **r.ViewPortTest**，它允许您测试各种视口配置。
+
+(#filteredtexturelookups)
 
 ## 过滤纹理查找
 
-SceneTexture 材质表现拥有一个复选框，可获得 [双线性] 过滤查找。使用此选项将使渲染变慢，建议只在必要时使用。
-许多屏幕空间纹理不支持过滤（如 GBuffer）。不公开此属性可使引擎根据需求压缩数据（打包将防止过滤）。
+SceneTexture材质表达式有一个复选框用于获取[双线性]过滤查找。使用此选项会导致渲染较慢，因此应仅在需要时使用。
+许多屏幕空间纹理不支持过滤（例如GBuffer）。不公开此属性允许引擎在需要时压缩数据（打包会防止过滤）。
 
-## 替代色调映射器
+(#replacingthetonemapper)
 
-使用“Replacing the Tonemapper”可混合位置即可使用自定义色调映射器覆盖引擎色调映射器。此功能尚在开发中，功能仍不齐全，并可能进行修改。
+## 替换色调映射器
+
+通过使用“替换色调映射器”可混合位置，可以用您自己的色调映射器覆盖引擎色调映射器。这是一个正在开发的特性，意味着它可能会发生变化，而且还没有全部的功能。
 
 ![](ReplacingTheTonemapper.png)
 
-我们已开始将部分后期处理设置参数对色调映射器公开，但这部分仍可能进行较大幅度的修改。
-这些数值作为材质参数公开，须设置准确的命名。 
+我们开始向色调映射器公开一些后期处理设置参数，但是这部分可能会发生很大的变化。
+这些值作为材质参数公开，需要有确切的名称。 
 
 矢量参数：
 	Engine.FilmWhitePoint
@@ -254,90 +326,94 @@ SceneTexture 材质表现拥有一个复选框，可获得 [双线性] 过滤查
 	
 [EXCERPT:PostMatWarning]
 [REGION:warning]
-如要获得参数，须从后期处理材质创建材质实例！
+为了获得这些参数，您需要根据后期处理材质创建一个材质实例。
 [/REGION]
 [/EXCERPT:PostMatWarning]
 
-仍可使用自身的参数并以其他后期处理材质设定的方式进行混合。
+您仍然可以使用自己的参数，并让它们像其他后期处理材质设置那样混合。
+
+(#knownissues)
 
 ## 已知问题
-以下问题仍需修复：
+以下问题仍需解决：
 
-  * **材质表现 SceneTexture**
-    * SeparateTranslucency 无法使用。
-    * 部分查找无法在一些通路中使用（我们不会对一部分进行修复，因为它们对性能的消耗过大）。
-    * MaterialFunction 可能报错，但仍能在有后期处理域的材质中使用。
-  * **材质**
-    * PostProcessMaterial 中的 UV 可能不在 0-1 范围内（如在编辑器中减小视口尺寸时），它与查找对齐，但难以应用晕映之类的效果。
-    * 后期处理材质的资源缩略图显示不正确。
-    * 不支持透明度输出（须通过不透明度）。
-    * 材质编辑器中的预览材质显示不正确。
-    * 存在这样的情况 - 材质变更未反映到后期处理的变更中。应对方法：重启编辑器。
-	* 利用 **Content Browser** 可对后期处理材质进行简单过滤。
-  * **混合**
-    * 将两个后期处理体积域和一个混合半径混合时，可能出现非柔和过渡。结合默认材质实例设置使用未束缚的体积域可防止这种情况的发生。
+  * **材质表达式SceneTexture（Material expression SceneTexture）**
+    * SeparateTranslucency无法正常工作。
+    * 某些查找在某些通道中不起作用（例如，有些我们可能无法修复，因为它们会花费太多的性能）。
+    * MaterialFunction可能会报告错误，但它仍然可以用于具有后期处理域的材质中。
+  * **材质（Material）**
+    * PostProcesMaterial中的UV可能不在0-1范围内（例如，在编辑器中减小视口大小时），这与查找一致，但会导致难以实施类似于晕映效果的东西。
+    * 后期处理材质的资源缩略图看起来不正确。
+    * 还不支持输出alpha（应该支持不透明）。
+    * 材质编辑器中的预览材质看起来不正确。
+    * 曾经出现过这样一种情况，即材质更改并未导致后期处理发生变化。变通方案：重启编辑器。
+	* **内容浏览器（Content Browser）** 应允许方便地过滤后期处理材质。
+  * **混合（Blending）**
+    * 当使用混合半径混合两个后期处理体积时，可能会看到非软过渡。这可以通过使用带有表示默认值的材质实例设置的未绑定体积来防止。
 
-(#FAQ)
-## 常见问题
-  * **能将“Lighting only mode”纹理作为输入吗？**
 
-    不行，没有作为中间步骤的可用数据。对此查看模式，我们无视材质颜色将其
-	生成。如需将此作为快速选项，需要重建较大部分的渲染代码。
+(#faq)
 
-  * **为什么 SceneColor 查找显示有条带，但使用 PostProcessInput0 时却未显示？**
+## 常见问题解答
+  * **我可以用“仅照明模式”纹理作为输入吗？**
 
-    使用 SceneColor 时，我们创建了一个场景的低精度副本，使查找进入当前写入的纹理中
+    不，我们没有这个数据作为中间步骤。对于这个视图模式，我们通过忽略材质颜色来生成它
+	。要使其成为一个快速选项，需要重新构造大部分渲染代码。
+
+  * **为什么SceneColor查找显示条带，但当使用PostProcessInput0时，却没有显示？**
+
+    使用SceneColor时，我们创建一个较低质量的场景副本，以允许对我们当前写入的纹理进行查找
 	（通常情况是在不可能的位置进行网格体渲染）。
-	在后期处理中应该使用 PostProcessInput0。
+	在后期处理中，您应使用PostProcessInput0。
 
-  * **一次后期处理的内存消耗是多少？**
+  * **后期处理要消耗多少内存？**
 
-    内存消耗取决于屏幕分辨率。色调映射前使用 HDR（每像素 8 字节），之后使用 LDR（每像素 4 字节）。
+    内存消耗取决于屏幕分辨率。在色调映射之前，我们使用HDR（每个像素8字节），之后我们使用LDR（每个像素4字节）。
 
-  * **如何降低后期处理的渲染消耗？**
+  * **如何降低后期处理的渲染成本？**
 
-    测量目标平台、保持较低的纹理查找数、执行较少的数学运算、减少相关纹理查找、
-	避免随机纹理查找（可能因为纹理缓存缺失而变慢）。
+    在目标平台上测量，保持纹理查找计数低，执行较少的数学运算，减少依赖性纹理查找，
+	避免随机纹理查找（会由于纹理缓存丢失而变得更慢）。
 
-  * **能使用多少次通路？**
+  * **我可以使用多少通道？**
 
-    每次通路均会增加性能消耗。建议只在必要时组合通路和启动通路。总体游戏功能
-	（为获得更佳的性能，可将 noise 添加到引擎通路）。
+    每条通道都会增加性能消耗。尝试仅在需要时组合通道和激活通道。一般游戏功能
+	例如，为了获得更好的性能，可以在引擎的通道上增加噪音。
 
-  * **后期处理和混合的 CPU 性能消耗如何？**
+  * **每个后期处理和混合需要多少CPU性能？**
 
-    混合材质的性能消耗极低。所有材质实例属性都将被混合，只有一个包含这些设置的后期处理材质通路被渲染。
+    混合材质所需的性能成本消耗很低。所有的材质实例属性都被混合，只需渲染一个使用这些设置的后期处理材质通道。
 
-  * **我需要使用“Before Tonemapper”获得有效的临时抗锯齿。使用一种颜色时，它已经被色调映射，因此看起来存在色差。如何避免这些情况的出现？**
+  * **我需要使用“色调映射器之前（Before Tonemapper）”来获取适当的时间抗锯齿。当我使用一种颜色，它会经过色调映射，因此看起来不同。如何避免出现该情况？**
     
-	没有简单的解决方案。需要执行倒转色调映射操作（高消耗）。由于人眼存在适应性，
-	颜色可能仍然存在色差。可将 EyeAdaptation 层级对 SceneTextures 公开，以便对其进行补偿。
+	没有简单的解决办法。你需要做一个逆向色调映射运算（高消耗）。根据人眼适应度，
+	颜色也可能看起来不同。您可以把眼睛适应度水平对SceneTexture公开以弥补这一点。
 
-  * **如何获得后期处理图表的完整 dump 文件？**
+  * **我如何得到后期处理图表的完整转储？**
 
-	**r.CompositionGraphDebug** 可将图表日志存入控制台。范例：
+	**r.CompositionGraphDebug** 可将图表记录到控制台。示例：
 
 		FRenderingCompositePassContext:Debug 'PostProcessing' ---------
 		Node#1 'SceneColor'
-			ePId_Output0 (2D 1136x768 PF_FloatRGBA RT) SceneColor Dep:2
+			ePId_Output0 (2D 1136x768 PF_FloatRGBA RT) SceneColor Dep: 2
 		Node#4 'Velocity'
-			ePId_Output0 (2D 1136x768 PF_G16R16 RT) Velocity Dep:1
+			ePId_Output0 (2D 1136x768 PF_G16R16 RT) Velocity Dep: 1
 		Node#2 'SceneDepthZ'
-			ePId_Output0 (2D 1136x768 PF_DepthStencil) SceneDepthZ Dep:1
+			ePId_Output0 (2D 1136x768 PF_DepthStencil) SceneDepthZ Dep: 1
 		Node#5 'MotionBlurSetup0MotionBlurSetup1'
-			ePId_Input0:Node#4 @ ePId_Output0 'Velocity'
-			ePId_Input1:Node#1 @ ePId_Output0 'SceneColor'
-			ePId_Input2:Node#2 @ ePId_Output0 'SceneDepthZ'
-			ePId_Output0 (2D 568x384 PF_FloatRGBA RT) MotionBlurSetup0 Dep:2
-			ePId_Output1 (2D 568x384 PF_FloatRGBA RT) MotionBlurSetup1 Dep:1
+			ePId_Input0: Node#4 @ ePId_Output0 'Velocity'
+			ePId_Input1: Node#1 @ ePId_Output0 'SceneColor'
+			ePId_Input2: Node#2 @ ePId_Output0 'SceneDepthZ'
+			ePId_Output0 (2D 568x384 PF_FloatRGBA RT) MotionBlurSetup0 Dep: 2
+			ePId_Output1 (2D 568x384 PF_FloatRGBA RT) MotionBlurSetup1 Dep: 1
 		Node#6 'QuarterResVelocity'
-			ePId_Input0:Node#5 @ ePId_Output0 'MotionBlurSetup0MotionBlurSetup1'
+			ePId_Input0: Node#5 @ ePId_Output0 'MotionBlurSetup0MotionBlurSetup1'
 			ePId_Input1:
-			ePId_Output0 (2D 284x192 PF_FloatRGBA RT) QuarterResVelocity Dep:1
+			ePId_Output0 (2D 284x192 PF_FloatRGBA RT) QuarterResVelocity Dep: 1
 		Node#7 'VelocityBlurX'
-			ePId_Input0:Node#6 @ ePId_Output0 'QuarterResVelocity'
+			ePId_Input0: Node#6 @ ePId_Output0 'QuarterResVelocity'
 			ePId_Input1:
-			ePId_Output0 (2D 284x192 PF_FloatRGBA RT) VelocityBlurX Dep:1
+			ePId_Output0 (2D 284x192 PF_FloatRGBA RT) VelocityBlurX Dep: 1
 		...
 
 

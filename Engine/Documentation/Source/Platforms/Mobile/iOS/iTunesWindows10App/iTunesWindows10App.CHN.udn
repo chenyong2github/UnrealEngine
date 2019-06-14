@@ -1,0 +1,48 @@
+﻿INTSourceChangelist:5558461
+Availability: Public
+Crumbs: 
+Title: iTunes Windows 10应用程序
+Description: 了解将IPP与Windows 10 iTunes一起配合使用。
+Type: 
+Version: 4.21
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: mobile
+Tags: iOS
+Tags: iTunes
+
+
+由于Windows 10处理用户访问控制(UAC)的方式，如果您从Windows 10商店下载了iTunes应用程序，将无法使用iPhone打包工具(IPP)将iOS项目部署到iOS设备。默认情况下，您的Windows用户帐户没有读取和写入WindowsApps文件夹所需的权限。在本教程中，您将了解如何设置WindowsApps文件夹的权限，以便使用IPP工具。
+
+(#steps)
+
+## 步骤
+
+ 下面说明了如何更改 **WindowsApps** 文件夹的权限以便IPP可以访问该目录的内容。
+
+[REGION:note]
+如果您从Apple网站下载了iTunes，则您 **不** 需要执行以下操作。
+[/REGION]
+
+1.  首先，确保您在 **文件夹选项（Folder Options）** 中启用了 **显示隐藏的文件、文件夹和驱动器（Show hidden files, folders and drives）**。   
+    ![](iTunesWindows10App_FolderOptions.png "iTunesWindows10App_FolderOptions.png")
+2.  接下来，前往 **C:\\Program Files** 并找到 **WindowsApps** 文件夹。  
+    ![](iTunesWindows10App_CDriveWindowsApps.png "iTunesWindows10App_CDriveWindowsApps.png")
+3.  右键单击WindowsApps文件夹，并从上下文菜单中选择 **属性（Properties）**。  
+    ![](iTunesWindows10App_Properties.png "iTunesWindows10App_Properties.png")
+4.  从属性（Properties）窗口中，单击 **安全（Security）** 选项卡，然后单击 **高级（Advanced）** 按钮。  
+    ![](iTunesWindows10App_SecuritySettings.png "iTunesWindows10App_SecuritySettings.png")
+5.  在 **WindowsApps的高级安全设置（Advanced Security Settings for WindowsApps）** 对话框中，确保选择了 **TrustedInstaller**，然后单击顶部 **所有者（Owner）** 旁边的 **更改（Change）** 选项。  
+    ![](iTunesWindows10App_ChangeSecuritySettings.png "iTunesWindows10App_ChangeSecuritySettings.png")
+6.  这将打开 **选择用户或组（Select User or Group）** 对话框。在此处，输入您的 **管理员用户名**，然后单击 **检查名称（Check Names）** 以自动填写对象名称。完成后，单击 **确定（OK）** 按钮继续。  
+    ![](iTunesWindows10App_ChangeName.png "iTunesWindows10App_ChangeName.png")
+7.  现在文件夹的所有者已更改为指定的管理员帐户，接下来，确保选中 **用此对象的可继承权限项替换所有子对象项（Replace all child object entries with inheritable permission entries from this object）** 复选框，然后单击 **应用（Apply）** 按钮。  
+    ![](iTunesWindows10App_ApplyChanges.png "iTunesWindows10App_ApplyChanges.png")
+
+(#endresult)
+
+## 最终结果
+
+一旦单击 **确定（OK）** 按钮后，您可能需要等待几分钟才能更新权限。权限完成更新后您即可将IPP工具与从Windows 10商店下载的iTunes版本一起配合使用。
+
+[](#)[](#)

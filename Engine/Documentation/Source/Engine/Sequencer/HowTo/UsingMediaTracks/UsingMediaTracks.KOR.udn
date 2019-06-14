@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4385347
+INTSourceChangelist:4385347
 Availability: Public
 Crumbs: 
 Title: 미디어 트랙 사용법
@@ -19,7 +19,7 @@ Tags: Sequencer
 ## 단계
 
 [REGION:note]
-여기서는 새 **공백 블루프린트 프로젝트** 를 사용합니다. 미디어 소스로 사용할 EXR 또는 PNG 이미지 시리즈도 필요합니다. 사용할 이미지 세트가 없으면, 이 가이드에서 사용한 [UE4 로고](https://epicgames.box.com/s/fsxw4c9llathxzk8dwof302d1tba4ow1) 이미지 세트를 다운로드하세요.
+여기서는 새 **기본 블루프린트 프로젝트** 를 사용합니다. 미디어 소스로 사용할 EXR 또는 PNG 이미지 시리즈도 필요합니다. 사용할 이미지 세트가 없으면, 이 가이드에서 사용한 [UE4 로고](https://epicgames.box.com/s/fsxw4c9llathxzk8dwof302d1tba4ow1) 이미지 세트를 다운로드하세요.
 [/REGION]
 
 1.  프로젝트 안에서 **콘텐츠 브라우저** 에 우클릭하고 **미디어** 아래 **Img Media Source** (이미지 미디어 소스)를 선택한 뒤 아무 이름이나 짓습니다.  

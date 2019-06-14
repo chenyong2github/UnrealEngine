@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:Public
 Title:UObject 인스턴스 생성
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture
@@ -92,15 +92,15 @@ Version: 4.9
 | *RF_Transient* | `0x00000040` | 이 **Object** 는 디스크에 저장되지 않습니다. |
 | [REGION:tablesection]가비지 컬렉션[/REGION] |||
 | *RF_RootSet* | `0x00000080` | 이 **Object** 는 어느 것에 레퍼런스되지 않아도 가비지 콜렉팅되지 않습니다. |
-| *RF_IsLazyReferenced* | `0x00000100` | 이 **Object** 는 게으른 포인터로 레퍼런싱되어, 삭제 후에도 청소 작업을 해 줘야 합니다. |
+| *RF_IsLazyReferenced* | `0x00000100` | 이 **Object** 는 게으른 포인터로 참조되어, 삭제 후에도 청소 작업을 해 줘야 합니다. |
 | *RF_Unreachable* | `0x00000200` | 이 **Object** 는 오브젝트 그래프 상에서 도달할 수 없습니다. |
 | *RF_TagGarbageTemp* | `0x00000400` | 이 **Object** 는 가비지 컬렉션을 사용하는 다양한 유틸리티가 사용할 수 있도록 마킹됩니다. 이 플래그는 가비지 콜렉터 자체적으로는 해석하지 않습니다. |
 | [REGION:tablesection]오브젝트 수명[/REGION] |||
 | *RF_NeedLoad* | `0x00000800` | 이 **Object** 는 로딩이 필요합니다. |
 | *RF_AsyncLoading* | `0x00001000` | 이 **Object** 는 비동기 로딩중입니다. |
 | *RF_NeedPostLoad* | `0x00002000` | 이 **Object** 는 사후 로딩이 필요합니다. |
-| *RF_NeedPostLoadSubobjects* | `0x00004000` | 이 **Object** 는 여전히 서브 오브젝트를 레퍼런싱하여 serialize 된 컴포넌트 레퍼런스를 고쳐줘야 합니다. |
-| *RF_PendingKill* | `0x00008000` | 이 **Object** 는 소멸 대기중입니다. **Object** 를 게임플레이 용도로는 사용할 수 없는 것으로 마킹은 하되, 여전히 유효한 **Object** 입니다. |
+| *RF_NeedPostLoadSubobjects* | `0x00004000` | 이 **Object** 는 여전히 서브 오브젝트를 참조하여 serialize 된 컴포넌트 레퍼런스를 고쳐줘야 합니다. |
+| *RF_PendingKill* | `0x00008000` | 이 **Object** 는 소멸 대기중입니다. **Object** 를 게임플레이 용도로는 사용할 수 없는 것으로 마킹은 하지만, 여전히 유효한 **Object** 입니다. |
 | *RF_BeginDestroyed* | `0x00010000` | 이 **Object** 에서 `BeginDestroy()` 가 호출되었습니다. |
 | *RF_FinishDestroyed* | `0x00020000` | 이 **Object** 에서 `FinishDestroy()` 가 호출되었습니다. |
 | [REGION:tablesection]특수 마스크[/REGION] |||

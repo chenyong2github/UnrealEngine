@@ -1,0 +1,79 @@
+﻿INTSourceChangelist:5286457
+Availability: Public
+Crumbs: 
+Title: マルチユーザー ビューア テンプレートで Bookmark を使う
+Description: レベルに Bookmark を配置することによって視点をあらかじめ設定しておく方法、および、それらの Bookmark をホットキーに割り当てる方法について解説します。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: how to
+Tags: multi-user viewer
+
+
+マルチユーザー ビューアには、Bookmark と呼ばれるブループリント アセットが備わっています。この Bookmark を使うと、レベル内で場所とカメラ ビューをあらかじめ指定しておき、デスクトップのユーザーがアプリケーション実行時に、これらの事前設定された場所に簡単にテレポート (瞬間移動) できるようにすることが可能です。
+
+このページでは、新たな Bookmark をレベルに配置する方法、ならびに、ユーザーがキーボードの数字キーを押すことによって異なる Bookmark 間にテレポートできるようにするために、ホットキーを設定する方法について説明します。
+
+## Bookmark を配置する
+
+レベル内のどこにでも新たな Bookmark を配置することができます。ただし、新たな Bookmark はそれぞれ以下のようにして置くように留意してください。
+
+*   地表の高さに配置。
+*   コリジョン メッシュが設定されているスタティック メッシュのすぐ上に配置。なお、このことについては [マルチユーザー ビューア テンプレートで独自のコンテンツを使う](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent) に解説があります。
+
+以上のことを守らないと、キャラクターが歩きのナビゲーション モードにある場合、テレポート後にキャラクターが地表まで落下したり、地表を突き抜けてしまうことがあります。
+
+### 手順
+
+Bookmark を配置するためには以下のようにします。
+
+1.  各 Bookmark はレベル内で、 **BP_Bookmark** ブループリント クラスのインスタンスによって表現されます。このクラスは、 **Content Browser** (コンテンツ ブラウザ) の *MultiUserViewer/Blueprints/Bookmark* フォルダ内に置かれています。
+    ![BP_Bookmark Asset](multiuserviewer-bookmark-asset.png "BP_Bookmark Asset")
+2.  新たな Bookmark を配置するには、 **Content Browser** (コンテンツ ブラウザ) から **BP_Bookmark** をドラッグしてレベルにドロップしてください。
+    ![Drag a Bookmark into the Level](multiuserviewer-bookmark-place.png "Drag a Bookmark into the Level")
+3.  ビューポートまたは **World Outliner** (ワールド アウトライナー) でこの Bookmark アクタを選択し、レベル内で望ましい位置まで移動し、回転させてください。
+    [REGION:note]
+    必ず Bookmark アクタを動かすようにしてください。子のカメラ コンポーネントを動かすだけではいけません。
+    [/REGION]
+    [REGION:tip]
+    アクタを **パイロット** (自動的に導く) する機能を使うと、簡単に望みどおりの視点に設定することができます。 [](Engine/UI/LevelEditor/Viewports/ActorLocking) を参考にしてください。
+    [/REGION]
+
+### 最終的な結果
+
+デスクトップ モードでセッションに参加しているユーザーであれば、キーボードの方向キーを使って、レベルに追加されているすべての Bookmark を循環選択して (最後まで選択すると最初に戻ります) 、次々とそこにテレポートすることができます。
+
+## 順番とホットキーを Bookmark に割り当てる
+
+デフォルトの状態では、ユーザーが左右の方向キーを押してレベル内の Bookmark を循環選択していく場合、それら一連の Bookmark は事前設定されている順番には従いません。しかし、Bookmark Directory を使うと、順番を指定し、個々の Bookmark をキーボードの数字キーに割り当てることができます。
+
+### 手順
+
+順番とホットキーを設定するには、以下の手順に従ってください。
+
+1.  レベルの中に **BP_BookmarkDirectory** アクタがすでにある場合は、ビューポートまたは **World Outliner** (ワールド アウトライナー) でそれを見つけて選択してください。  
+    ![Bookmark Directory in the World Outliner](multiuserviewer-directory-select.png "Bookmark Directory in the World Outliner")  
+    まだない場合は、 **Content Browser** (コンテンツ ブラウザ) の *MultiUserViewer/Blueprints/Bookmark* フォルダから **BP_BlueprintDirectory** を見つけて、それをレベルの中にドラッグすることによって新たなインスタンスを作成してください。 
+    ![Dropping a bookmark directory into the Level](multiuserviewer-directory-place.png "Dropping a bookmark directory into the Level")
+2.  **Details** (詳細) パネルには、Bookmark の 2 つのリストが表示されます。それらの中の Bookmark はそれぞれ、レベルに配置されている **BP_Bookmark** のインスタンスに対応しています。  
+    ![Bookmark directory details](multiuserviewer-directory-details.png "Bookmark directory details")
+    *   **1 - All Bookmarks (Left Or Right Arrows To Cycle) -** (すべての Bookmark (左または右方向キーで循環選択)) このリストは、	レベル内の Bookmark を方向キーで循環選択するときの順番を指定するために使います。
+        ユーザーが初めて右方向キーを押すと、このリスト内での位置が `0` になっている Bookmark に移動します。右方向キーをもう一度押すと、リスト内では次の要素になっている Bookmark に移動します。左方向キーを押すと、リスト内では前の要素になっている Bookmark に移動します。一連の Bookmark の最後に達すると、リストの最初の Bookmark に戻ります。 
+        [REGION:note]
+        レベル内に **BP_BookmarkDirectory** を配置した後は、このリストにない Bookmark は方向キーの対象になりません。
+        [/REGION]
+        [REGION:tip]
+        **Refresh All Bookmarks List** (All Bookmarks のリストを更新する) ボタンを押すと、現在レベルに置かれているすべての Bookmark が自動的にリストに追加されるので、配列 (Array) に要素を一つずつ追加する必要はありません。
+        [/REGION]
+    *   **2 - Hot Key Bookmarks (0-9 Keys) -** (ホットキー Bookmarks (0~9 のキー)) このリストを使うと、Bookmark を特定の数字のホットキーに割り当てることができます。
+        ユーザーがキーボードの数字キーのどれかを押すと、その数字がこのリスト内で、レベル内の Bookmark にマッピングされている場合、ユーザーはその Bookmark にテレポートできるようになります。
+        [REGION:tip]
+         **All Bookmarks** リストに一続きの Bookmark が入っている場合は、 **Auto Assign Hot Key Bookmarks** (Hot Key Bookmarks で自動割り当て) ボタンを押すと、それらの Bookmark の最初の 10 個が自動的にこのホットキーのリストに順番に追加されます。
+        [/REGION]
+
+### 最終的な結果
+
+**All Bookmarks (Left Or Right Arrows To Cycle)** の配列に Bookmark が追加されているならば、ユーザーがデスクトップ モードでセッションに参加して右および左方向キーを押すと、配列に追加された Bookmark が、追加された順番どおりに循環選択されます。
+
+**Hot Key Bookmarks (0-9 Keys)** の配列に Bookmark が追加されているならば、ユーザーがデスクトップ モードでセッションに参加して、配列で設定されている数字のホットキーのどれかを押すと、その数字キーにバインドされている Bookmark の位置に直ちにテレポートします。

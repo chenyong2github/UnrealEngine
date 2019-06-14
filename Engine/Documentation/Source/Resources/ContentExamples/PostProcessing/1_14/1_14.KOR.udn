@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6409498
 Availability: Public
 Title:1.14 - 안티에일리어싱 메서드
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/PostProcessing
@@ -7,7 +7,7 @@ Related: Engine/Rendering/Overview
 Related: Engine/Rendering/PostProcessEffects
 Related: Engine/Rendering/PostProcessEffects/PostProcessMaterials
 Version: 4.9
-topic-image:(Resources/ContentExamples/PostProcessing/PP_14.png
+topic-image:Resources/ContentExamples/PostProcessing/PP_14.png
 
 
 

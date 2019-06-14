@@ -88,7 +88,6 @@ See [View Modes](Engine/UI/LevelEditor/Viewports/ViewModes) for a listing and de
 editor-specific elements - such as the Actor icons - are shown. It gives you an easy way to see just how your level 
 will look when you run it in the game.
 
-[REGION:fullwidth]
 [OBJECT:SliderSequence]
 	[PARAMLITERAL:max]
 	2
@@ -107,7 +106,6 @@ will look when you run it in the game.
 	![](game_view_2.png)
 	[/PARAM]
 [/OBJECT]
-[/REGION]
 
 To enable Game View, simply press the **G** key (by default) with the Viewport focused or choose the **Game View** option from the 
 [Viewport Options menu](Engine/UI/LevelEditor/Viewports/ViewportOptions):

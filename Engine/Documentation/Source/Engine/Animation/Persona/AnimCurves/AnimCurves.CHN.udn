@@ -1,87 +1,126 @@
-﻿INTSourceChangelist:3169600
+﻿INTSourceChangelist:3473488
 Availability:Public
-Title:动画曲线（Anim Curves）
-Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
-Description:Persona 动画编辑器中动画曲线（Anim Curves）面板的用户指南。
-version:4.13
-Related:Engine/Animation/Sequences/Curves/
+Crumbs:
+Title:动画曲线
+Description:说明动画曲线窗口中的可用操作
+Type:overview
+SkillLevel:Intermediate
+Version:4.16
+Parent:Engine/Animation/Sequences/Curves
+Order:
+Tags:Animation
+Tags:Morph Target
+Topic-image:AnimCurves_Topic.png
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Animation/Persona/Toolbar:title%](Engine/Animation/animation_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/content_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Animation/Persona/Toolbar:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Animation/Persona/Toolbar:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Animation/Persona/Toolbar]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-
-**Anim Curves** 面板显示项目 **Morph Target**、**AttributeAttribute** 和 **Material** 曲线的曲线值。可在此处删除或重命名曲线，并预览曲线数值。
-点击 **All Curves** 取消选择即可过滤可视曲线，只显示启用的曲线。此操作还可通过勾选框按 **Morph Target**、**AttributeAttribute** 和 **Material** 曲线进行过滤。
+[TOC(start:2)]
 
 ![](AnimCurvesAlone.png)
 
+ **动画曲线（Anim Curves）** 面板显示选定骨架的 **变形目标（Morph Target）**、**属性（Attribute）** 和 **材质（Material）** 曲线的曲线值。 
+您可以在此处删除和重命名曲线，以及预览曲线数据。
+您可以通过单击 **所有曲线（All curves）** 取消选中它来过滤可见曲线，从而只显示活动曲线，这也使得您可以使用复选框来按 **变形目标（Morph Target）**、**属性（Attribute）** 和 **材质（Material）** 曲线进行过滤。
+此外，您可以定义[材质曲线](Engine/Animation/Sequences/Curves)，使您能够驱动材质参数或变形曲线。 
 
-在 Persona 中打开 **Anim Curves** 面板的方法：
+在 **骨架编辑器（Skeleton Editor）** 或 **动画编辑器（Animation Editor）** 中打开 **动画曲线（Anim Curves）** 面板： 
 
-* 点击 **Window** 菜单，然后从下拉菜单选择 **Anim Curves**。
+* 单击 **窗口（Window）** 菜单，然后从下拉菜单中选择 **动画曲线（Anim Curves）**。
 
 	![](OpenAnimCurve.png)
 
 
-在 Persona 中播放动画时，曲线值默认沿播放更新。下图中，**R_cheek_up_pose**、**R_lip_corner_wide_pose** 和 **R_smile_pose** 的曲线
-用于在面部模型上创建笑容。这些曲线的数值在 **Anim Curves** 面板中相应显示为 **0.36**、**0.47** 和 **0.55**。
+默认情况下，当您播放动画时，曲线值将随着播放而更新。在下图中，**L_smile_pose** 和 **R_smile_pose** 的曲线正被用于面部网格体上创建微笑。 
+这些曲线的值显示在动画中当前点的 **动画曲线（Anim Curves）** 面板中（当动画结束时，在 **1.0** 处进行加权获得完整的微笑）。 
 
 ![](AllAnimCurve.png)
 
-如取消勾选特定曲线的 **Auto** 复选框，它将不再从曲线提取数据。这样可选择性地关闭曲线的影响并预览结果。也可手动输入数值或
-点击并拖动 **Weight** 域。在下图中，**L_brow_up_pose** 曲线值已手动设为 1.0。可在视口中查看效果，因为面部的左眉一直向上抬起。
+如果您针对一个特定曲线取消选中了 **自动（Auto）** 复选框，将不再从曲线中提取数据。这允许您选择性地关闭曲线的影响并预览结果。您还可以
+通过手动或者通过单击并拖动 **权重** 字段来输入值。在下图中，**L_brow_up_pose** 曲线值已被手动设置为1.0。您可以在视口中
+看到效果，即脸部的左边眉毛上扬。
 
 ![](UncheckAuto.png)
 
+(#managingcurves)
+
 ## 管理曲线
 
-**命名曲线的步骤：**
+ **重命名曲线：**
 
-1. 在曲线上点击右键，从下拉菜单中选择 **Rename**。
+1. 右键单击曲线并从下拉菜单中选择 **重命名（Rename）**。
 
 	![](RenameCurve.png)
 
-1. 输入新命名。
+1. 输入新名称。
 
 	![](NewNameCurve.png)
 
-1. 按下 **Enter** 保存新游戏。
+1. 按下 **Enter** 以保存新名称。
 
-**添加曲线的步骤：**
+ **添加曲线**：
 
-1. 在曲线上点击右键，从下拉菜单中选择 **Add**。
+1. 右键单击任意曲线并从下拉菜单中选择 **添加（Add）**。
 
 	![](AddCurve.png)
 
-1. 输入新曲线的命名。
+1. 输入新曲线的名称。
 
 	![](NewNameAddCurve.png)
 
-1. 按下 **Enter** 保存新游戏。
+1. 按下 **Enter** 以保存新名称。
 
-这样将会把曲线添加到当前的骨架，但您需要添加曲线并在 **Anim Sequence Editor** 中设置其信息。新建曲线默认为 **Attribute** 曲线。如需了解曲线数据的使用方法，请查阅 [](Engine/Animation/Sequences/Curves/)。 
+这将向当前骨架添加一个曲线，但接着您需要在 **动画编辑器（Animation Editor）** 中添加该曲线并设置其信息，以确定该曲线的影响。
 
-**删除曲线的步骤：**
+ **删除曲线：**
 
-1. 在曲线上点击右键，从下拉菜单中选择 **Delete**。
+1. 右键单击曲线并从下拉菜单中选择 **删除（Delete）**。
 	
 	![](DeleteCurve.png)
 
-1. 如曲线当前用于项目中的任意资源，将弹出一个确认警告窗口，提醒曲线将从这些资源上移除。点击 **Yes** 继续删除，或 **No** 取消。
+	如果您的项目中的任何资源正在使用该曲线，那么将出现一个确认窗口，警告您该曲线将从这些资源中删除。 
+
+1. 单击 **是（Yes）** 继续删除，单击 **否（No）** 取消删除。
+
+
+(#linkingcurvestobones)
+
+## 将曲线链接到骨骼
+
+您可以将动画曲线链接到骨架中的特定骨骼，以便在更改骨架网格体的细节级别(LOD)时可以将它们与骨骼一起剔除，
+这在设置较低的LOD不需要的面部动画时非常有用。该功能还可以与图层混合一起使用，以防止
+从错误的图层中覆盖曲线值。 
+
+1. 在 **动画曲线（Anim Curves）** 查看器窗口中，选择要链接到骨架中的特定骨骼的曲线。
+
+	![](AnimCurveViewer_CurveSelected.png)(w:400)
+
+1. 选择曲线后，在 **详细信息（Details）** 面板中，单击 **添加（add）** (**+**) 按钮以添加连接的骨骼元素。
+
+	![](DetailsPanel_AddConnectedBone.png)(w:400)
+
+	然后，使用添加的骨骼旁边的下拉菜单，选择要链接到曲线的骨骼。此处列表将基于骨架的骨骼等级进行填充。 
+
+	![](DP_SelectBones.png)(w:400)
+
+1. 现在您的曲线已被指定给您已添加到连接的骨骼，您可以将摄像机移向或移离网格体，当网格体的LOD发生变化时，您可以看到链接的曲线从视图中剔除。
+
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		V1SLxdRI8-4
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+
+
+
+

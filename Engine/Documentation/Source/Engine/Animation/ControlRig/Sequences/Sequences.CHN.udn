@@ -1,0 +1,69 @@
+﻿INTSourceChangelist:5295800
+Availability: Public
+Crumbs: 
+Title:Control Rig序列
+Description: Control Rig序列可用于设置属性动画，并通过Sequencer工具中的关键帧来驱动Control Rig动画。
+Type: 
+Version: 4.21
+Parent: Engine/Animation/ControlRig
+Order: 
+Tags: Sequencer
+Tags: Experimental
+Tags: Rigging
+Tags: Control Rigs
+topic-image:ControlRigSequenceTopic.png
+
+
+创建[Control Rig蓝图](Engine/Animation/ControlRig/Blueprint)后，可使用[Sequencer](Engine/Sequencer)借助名为 **Control Rig序列** 的特殊类型序列来对属性设置动画。动画的实现方式是在时间轴上多个设置了关键帧的值之间进行内插，方式与传统动画软件包类似。
+
+(#creatingacontrolrigsequence)
+
+## 创建Control Rig序列
+
+创建Control Rig序列的步骤：
+
+1.  首先确保已从“插件”菜单中[启用Control Rig插件](Engine/Animation/ControlRig#enablingthecontrolrigplugin)。 
+2.  在 **内容浏览器** 中点击 **新增（Add New）**，然后在 **动画（Animation）** 中选择 **ControlRig序列（ControlRig Sequence）** 并设置任意命名。  
+    ![](CreateRigSequence.png "CreateRigSequence.png")
+3.  双击 **ControlRig序列** 资源将其在 **Sequencer** 中打开。  
+    ![](OpenRigSequence.png "OpenRigSequence.png")  
+    
+4.  点击 **追踪（Track）** 按钮，然后在 **Control Rig** 下指定所需的 **Control Rig蓝图** 资源。  
+    ![](AssignRigBlueprint.png "AssignRigBlueprint.png")  
+    序列将更新并添加Control Rig蓝图。**模式（Modes）** 面板也将更新，显示可用和可设置关键帧的属性。  
+    ![](ModesPanel.png "ModesPanel.png")
+
+(#animatinganactor)
+
+## 设置actor动画
+
+创建Control Rig序列后，要设置actor动画，首先需要在关卡中放置于Control Rig序列相关联的骨架网格体并在 **模式（Modes）** 面板的 **动画（Animation）** 选项卡中将其指定为目标actor。 
+
+![](AssignedActor.png "AssignedActor.png")
+
+所有可设置关键帧的属性将显示在 **单元（Units）** 部分中，点击需要设置关键帧的属性旁的 **添加关键帧（Add Key）** 图标即可进行添加。 
+
+[REGION:lightbox]
+[![](AddedKey.png)(w:900)](AddedKey.png)
+[/REGION]
+[REGION:caption]
+点击图片查看全图。
+[/REGION]  
+
+此操作将在Control Rig序列的特定时间处添加一个属性的关键帧。可以将时间轴拖动到新时间处，然后使用视口中的“变换（Transform）”控件（或在Sequencer中手动输入一个值）来移动Control Rig的相关部分并对新值设置关键帧。
+
+![](NewKeyAdded.png "NewKeyAdded.png")
+
+在上例中，我们正在移动与骨架网格体右臂相关联的末端执行器并对新值设置关键帧，使角色从初值内插到新的键值。
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	Mk2ulJ7D12g
+	[/PARAMLITERAL]
+[/OBJECT]

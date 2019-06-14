@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3426963
+﻿INTSourceChangelist:6369794
 Availability:Public
 Title:게임 코드 관리
 Crumbs: %ROOT%, Programming, Programming\Development
@@ -7,6 +7,7 @@ Version: 4.16
 Parent:Programming/Development
 Order:
 type:overview
+tags:managing game code
 
 %Globals:OSSelect%
 
@@ -134,7 +135,7 @@ type:overview
 1. `UE4` 루트 디렉터리에 위치한 `GenerateProjectFiles.bat` 배치 파일을 실행합니다.
 1. `UE4` 루트 디렉터리에 위치한 `UE4.sln` Visual Studio 솔루션 파일을 엽니다.
 
-[](Programming/UnrealBuildSystem/ProjectFileGenerator) 용 고급 옵션을 통해 발매용 (또는 추가 플랫폼용) 프로젝트 파일을 생성할 수 있습니다.
+[](Programming/BuildTools/UnrealBuildTool/ProjectFilesForIDEs) 용 고급 옵션을 통해 발매용 (또는 추가 플랫폼용) 프로젝트 파일을 생성할 수 있습니다.
 
 [/PUBLISH:Licensee]
 
@@ -196,7 +197,7 @@ type:overview
 [PUBLISH:Licensee]
 [REGION:note]
 UE4 루트 디렉터리 밖에 있는 프로젝트에 대한 고급 프로젝트 파일 생성 옵션을 위해서는 `RegisterShellCommands.bat` 배치 파일을 수정합니다. `Generate Visual Studio projects (all platforms)` 항목에 
-추가적인 메뉴 항목에 대한 예제가 보이며, 이 경우에는 `-AllPlatforms` 플래그입니다. [사용가능한 옵션](Programming/UnrealBuildSystem/ProjectFileGenerator) 은 메인 `GenerateProjectFiles.bat` 파일과 똑같습니다.
+추가적인 메뉴 항목에 대한 예제가 보이며, 이 경우에는 `-AllPlatforms` 플래그입니다. [사용가능한 옵션](Programming/BuildTools/UnrealBuildTool/ProjectFilesForIDEs) 은 메인 `GenerateProjectFiles.bat` 파일과 똑같습니다.
 [/REGION:note]
 [/PUBLISH:Licensee]
 

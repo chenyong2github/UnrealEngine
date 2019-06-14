@@ -1,0 +1,199 @@
+﻿﻿INTSourceChangelist:6604018
+Availability: Public
+Title: 교육 기관 설치
+Description: 교육 기관에서 언리얼 엔진 4 와 런처를 설치하는 방법 개요입니다.
+Type: overview
+Version: 4.20
+Parent: GettingStarted/Installation
+Tags: Installation
+Order: 1
+
+
+[TOC (start:2 end:3)]
+
+![](UE4AcademicInstallation_banner.png "UE4AcademicInstallation_banner.png")
+
+대학, 전문 대학, 전문 학원이 학생과 기관에 언리얼 엔진 4 (UE4)를 계속 제공하는 과정에서, 엔진에 액세스할 때 교육 기관 계정을 노출시키지 않고 학교 컴퓨터에 UE4 를 배포하는 방법에 대한 질문을 가장 많이 받고 있습니다. 이 문서는 교육 환경에서 UE4 를 설치하는 경우, UE4 교육용 설치 배포를 자동화시키는 방법을 설명합니다.
+
+## UE4 및 콘텐츠 설치
+
+일반적으로 학교는 컴퓨터실이나 강의실에 있는 여러 대의 컴퓨터에 UE4 를 설치합니다. 현재 UE4 무인 (또는 원스텝) 인스톨러를 제공하지는 않으므로, 교육 환경의 머신에서 인스톨러를 수동으로 최소 한 번은 실행해야 한다는 뜻입니다. 설치 머신을 미러링하거나 교실의 나머지 컴퓨터에 인스톨러를 수동 실행하지 않도록, 디플로이 프로세스 일부를 자동화시켰습니다. 
+
+교육 환경에서 UE4 를 설치하는 단계는 다음과 같습니다.
+
+### 런처 사용
+
+[REGION:note]
+학교 네트워크가 프록시 서버 뒤에 있는 경우 런처가 실행되지 않으므로, [GitHub 의 UE4](https://www.unrealengine.com/en-US/ue4-on-github) 빌드를 사용하는 것이 가장 좋습니다. 그러나 프록시 서버 뒤에서 런처 버전을 사용하려면 IT 부서에 문의하여 7777 또는 7778 포트를 열어달라고 해야 합니다. 하지만 이 포트를 열어도 런처가 프록시 서버 뒤에서 열리거나 업데이트된다는 보장은 없습니다.
+[/REGION]
+
+1.  다음 링크로 최신 인스톨러를 다운로드합니다.
+    *   [PC 버전](https://launcher-service-prod06.ol.epicgames.com/launcher/api/installer/download/UnrealEngineInstaller.msi)
+    
+    *   [macOS 버전](https://launcher-service-prod06.ol.epicgames.com/launcher/api/installer/download/UnrealEngine.dmg)
+
+1.  이미지를 만들려는 머신에서 [인스톨러를 실행](GettingStarted/Installation) 합니다.
+
+1.  인스톨러가 루틴을 완료하면 런처가 자동 실행되고, 에픽게임즈 계정으로 로그인할 수 있습니다.
+
+1.  최신 버전의 UE4 가 자동으로 다운로드되지 않으면, **엔진 설치** 버튼 (1) 또는 **라이브러리** 슬라이더 옵션을 (2) 선택하여 학생들이 사용할 엔진 버전을 다운로드합니다.   
+    [REGION:lightbox]
+    [![](AcademicInstallLauncher_Step4.png)(w:720)](AcademicInstallLauncher_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    1.  예를 들어 [언리얼 엔진 4.20.2](Support/Builds/ReleaseNotes/4_20) 를 다운로드라혀면 먼저 **라이브러리** 사이드바 옵션을 선택합니다.  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step4a.png)(w:720)](AcademicInstallLauncher_Step4a.png)
+        [/REGION]
+        [REGION:caption]
+        클릭하면 이미지 원본을 확인합니다.
+        [/REGION]
+          
+    1.  이제 **엔진 버전** (**+**) 아이콘을 선택합니다.  
+        ![](AcademicInstallLauncher_Step4b.png "AcademicInstallLauncher_Step4b.png")
+    
+    1.  드롭다운 목록을 열어 다운로드할 엔진 버전을 선택합니다. 여기서는 **4.20.2** 버전을 선택합니다.  
+        ![](AcademicInstallLauncher_Step4c.png "AcademicInstallLauncher_Step4c.png")
+    
+    1.  마지막으로 **설치** 버튼을 눌러 인스톨러의 지시에 따라 언리얼 엔진 4.20.2 를 머신에 설치합니다.  
+        ![](AcademicInstallLauncher_Step4d.png "AcademicInstallLauncher_Step4d.png")
+
+1.  커리큘럼에 학습 샘플을 사용하는 강사가 있는데, 예를 들어 횡스크롤 게임플레이를 가르치기 위해 런처의 Platformer (플랫포머) 샘플을 활용하고 싶다 칩시다. 횡스크롤 플랫포머를 다운로드하려면, **학습** 사이드바 옵션을 (1) 선택한 뒤 아래로 스크롤하여 [플랫포머 게임](Resources/SampleGames/PlatformerGame) (2) 을 선택합니다..  
+    [REGION:lightbox]
+    [![](AcademicInstallLauncher_Step5.png)(w:720)](AcademicInstallLauncher_Step5.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    1.  플랫포머 게임의 콘텐츠 디테일 메뉴에서, **프로젝트 생성** 을 누르면 프로젝트 구성이 시작됩니다.  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step5a.png "AcademicInstallLauncher_Step5a.png")(w:720)](AcademicInstallLauncher_Step5a.png)
+        [/REGION]
+        [REGION:caption]
+        클릭하면 이미지 원본을 확인합니다.
+        [/REGION]
+        [REGION:note]
+        학습 샘플 다운로드 전, **Content Detail** (콘텐츠 디테일) 메뉴에서 **Supported Platforms** (지원 플랫폼) 및 **Supported Engine Version** (지원 엔진 버전) 섹션을 참고합니다. 이 부분은 새 버전이 출시되면 업데이트됩니다.
+        [/REGION]
+        
+    1.  프로젝트의 이름, 설치 폴더, 엔진 버전(지금은 4.20)을 설정하고, **생성** 버튼을 선택합니다.  
+        ![](AcademicInstallLauncher_Step5b.png "AcademicInstallLauncher_Step5b.png")
+    
+    1.  플랫포머 게임 설치가 끝나면, **라이브러리 > 보관함** 메뉴에서 확인할 수 있습니다.  
+        [REGION:lightbox]
+        [![](AcademicInstallLauncher_Step5c.png)(w:720)](AcademicInstallLauncher_Step5c.png)
+        [/REGION]
+        [REGION:caption]
+        클릭하면 이미지 원본을 확인합니다.
+        [/REGION]
+        
+
+1.  **라이브러리 > 내 프로젝트** 메뉴에 자동 생성된 프로젝트가 보이면, 삭제합니다.  
+    [REGION:warning]
+    런처가 자동 생성하는 프로젝트를 삭제하지 않으면 같은 프로젝트를 사용하는 공유 머신 사용자에게 문제가 생길 수 있습니다.
+    [/REGION]
+    
+
+1.  자동 생성 프로젝트를 전부 제거한 이후, 이 머신의 구성 상태를 나머지 강의실 컴퓨터에 미러링합니다. 또는 이 머신 이미지를 저장한 뒤 컴퓨터실 다른 컴퓨터에 배포할 수도 있습니다.
+
+### GitHub 에서
+
+다음 페이지를 (순서대로) 방문하면 GitHub 에서 UE4 를 다운로드, 설치, 업데이트하는 법을 배울 수 있습니다.  
+
+1.  [GitHub 의 언리얼 엔진 4 액세스](https://www.unrealengine.com/en-US/ue4-on-github)
+
+1.  [언리얼 엔진 소스 코드 다운로드](GettingStarted/DownloadingUnrealEngine)
+
+1.  [에픽의 최신 변경사항 업데이트](GettingStarted/DownloadingUnrealEngine/UpdatingSourceCode)
+
+## 업데이트 수행
+
+UE4 설치 이후, 교육 환경에서 엔진과 일부 무료 콘텐츠를 사용할 준비가 되었습니다. 그러나 업데이트 계획을 세우는 것이 중요한데, UE4 새 버전이나 엔진 콘텐츠가 출시되면 미러를 업데이트하거나 새 콘텐츠를 푸시하여 연관된 파일을 머신에 설치할 때 스크립트로 자동화할 수 있기 때문입니다.
+
+교육 환경에서 UE4 및 엔진 콘텐츠를 업데이트하는 방법은 다음 부분을 참고하세요.
+
+### 런처 사용
+
+1.  중앙 머신에서 런처를 열고 **라이브러리** 메뉴로 이동합니다.
+
+1.  **엔진 버전** (**+**) 아이콘을 선택합니다.
+
+1.  런처가 UE4 최신 버전을 다운로드한 이후, 미러를 업데이트할 수 있습니다.
+
+[REGION:tip]
+런처를 사용한 업데이트를 수행하지 않으려면, 다음 섹션에서 업데이트를 UE4 설치 머신에 복사하는 법을 참고하세요.
+[/REGION]
+
+### UE4 및 콘텐츠 복사
+
+1.  기본 머신의 다음 디렉터리를 업데이트하려는 모든 머신에 복사합니다.
+    *   C:\\Program Files (x86)\\Epic Games\\Launcher\\VaultCache
+    
+    *   C:\\Program Files (x86)\\Epic Games\\<Engine Version>  
+        [REGION:note]
+        특정 버전을 지정하는 경우, 예를 들어 4.20 이면 C:\\Program Files (x86)\\Epic Games\\4.20 을, 아니면 와일드카드 (*****) 문자로 모든 엔진 버전에 대한 복사 작업을 자동화할 수 있습니다. 예: C:\\Program Files (x86)\\Epic Games\**4.***
+        [/REGION]
+        
+
+1.  업데이트하려는 모든 머신에서 다음 디렉터리를 만듭니다: \[Local Drive Letter\]\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests.
+
+1.  엔진을 최근 다운로드했다 가정하고, 가장 최근 다운로드한 manifest 를 C:\\ProgramData\\Epic\\EpicGamesLauncher\\Data\\Manifests 에서 머신의 (전 단계에서 만든) 로컬 manifest 디렉터리로 복사합니다.  
+    [REGION:note]
+    manifest 파일의 예입니다: ~\\Manifests\**6CB2FA12345680D212345678B525AE86.manifest**.
+    [/REGION]
+    
+
+1.  가장 최근 다운로드한 manifest 를 검증하려면, 텍스트 에디터에서 열고 "AppNameString" 을 검색합니다.
+
+이 단계 이후, 런처를 실행하면 업데이트를 자동 감지합니다. 이는 새 엔진 버전과 마켓플레이스에서 다운로드한 콘텐츠에 해당합니다. 
+
+[REGION:tip]
+런처의 업데이트 자동 감지를 해제하는 방법은 다음 섹션을 참고하세요.
+[/REGION]
+
+## 자동 업데이트 비활성화
+
+기본적으로 런처는 시작 루틴 동안 업데이트를 자동 확인합니다. 런처 업데이트로 인해 수업 시간에 지장받지 않도록 하려면, 다음 단계를 수행하세요.
+
+1.  **EpicGamesLauncher - 바로 가기** 를 우클릭하여 컨텍스트 메뉴를 엽니다.
+
+1.  **Properties** (속성) 명령을 선택하여 파일의 **속성** 메뉴를 엽니다.
+
+1.  **Target:** (대상) 속성 줄 끝에 -noselfupdate 명령을 추가합니다.
+
+[REGION:tip]
+수업이 끝나면 런처 업데이트 재활성화 잊지 마세요.
+[/REGION]
+
+## 학생들을 위한 모범 사례
+
+학생이 UE4 (또는 다운로드 콘텐츠)에 액세스하는 데 영향을 줄 수 있는 상황이 있습니다. 예를 들면 학교에서 보안 (또는 자원) 상의 이유로 컴퓨터를 정기적으로 지운다면 학생들의 수업 진행률에 영향을 줄 수 있습니다. 그런 학생들을 돕기 위해, 교육 환경에서 UE4 를 사용할 때 겪을 수 있는 몇 가지 일반적인 상황에 대한 모범 사례를 모아 봤습니다.
+
+### 네트워크 중단 도중
+
+네트워크 중단 도중에도 런처의 **Skip Sign In** (로그인 생략) 옵션을 선택하면 런처를 실행할 수 있습니다. 이 옵션은 런처의 네트워크 연결 대화창에서 찾을 수 있습니다. 
+
+[REGION:lightbox]
+[![](AcademicInstallLauncher_StudentBP_NetOut.png)(w:720)](AcademicInstallLauncher_StudentBP_NetOut.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+**오프라인** 모드로 로그인한 후 UE4, 프로젝트, 이전에 다운로드한 콘텐츠에 액세스할 수 있습니다.
+
+### 메모리 삭제 대비
+
+학교에서 정기적으로 컴퓨터 (또는 드라이브) 메모리를 삭제하는 정책이 있어서 컴퓨터가 기본 이미지로 돌아간 경우, 학생들은 지워지지 않는 디렉터리에 작업을 저장해야 합니다. 
+
+1.  예를 들어, 학생이 라이브러리 탭의 저장함에서 새로운 전략 게임 프로젝트를 만드는 경우를 가정해 봅시다.  
+    ![](AcademicInstall_PreparingforMemWipes-1.png "AcademicInstall_PreparingforMemWipes-1.png")
+
+1.  새 프로젝트를 생성할 때, 학생은 컴퓨터 이미지가 복구될 때 제거되지 않는 폴더 (또는 Sandbox 드라이브 등의 네트워크 디렉터리)를 지정해야 합니다.  
+    ![](AcademicInstall_PreparingforMemWipes_1-1.png "AcademicInstall_PreparingforMemWipes_1-1.png")
+
+[REGION:note]
+학교 정책에 따라 일반적으로 런처를 사용해서 추가 콘텐츠를 다운로드할 수는 있지만, 미러링되는 드라이브 밖에 있지 않으면 다운로드 콘텐츠는 이미지를 재적용할 때 지워질 것입니다.
+[/REGION]

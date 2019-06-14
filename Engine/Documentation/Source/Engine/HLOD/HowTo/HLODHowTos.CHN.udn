@@ -1,34 +1,30 @@
-﻿INTSourceChangelist:3782314
-title:分层细节级别指南
-description:启用分层细节级别（HLOD）系统和在游戏中设置 HLOD 的指南。
-crumbs:
-availability:Public
-version:4.13
-parent:Engine/HLOD
-tags:HLOD
-type:how-to
-order:3
-topic-image:Engine/HLOD/HowTo/HLOD_howto_Topic_02.png
-
+﻿INTSourceChangelist:6492307
+Availability: Public
+Title: 分层细节级别指南
+Description: 启用分层细节级别（HLOD）系统和在游戏中设置 HLOD 的指南。
+Type: landing
+Version: 4.22
+Parent: Engine/HLOD
+Tags: HLOD
+topic-image: HLOD_HowTo_Topic.png
+social-image: HLOD_HowTo_Topic.png
+topic-icon: HLOD_HowTo_Topic.png
+SkillLevel: Beginner
+ 
 ![](Engine/HLOD/HowTo/HLOD_howto_Topic_02.png)
 
 这些指南将说明启用 **分层细节级别**（HLOD）系统和在游戏中设置 HLOD 的方法。
 
-(#Beginner)
 ## 初级
 
-[DIR(output:"fancy" parent:"Engine/HLOD/HowTo" skill_level:"beginner")]
+[DIR(output:"fancy" parent:"Engine/HLOD/HowTo" tags:"HLOD" skill_level:"beginner")]
 
-(#Intermediate)
 ## 中级
 
 [DIR(output:"fancy" parent:"Engine/HLOD/HowTo" skill_level:"intermediate")]
 
-[COMMENT:none]
 
-(#Advanced)
+<!--
 ## 高级
-
 [DIR(output:"fancy" parent:"Engine/HLOD/HowTo" skill_level:"advanced")]
-
-[/COMMENT]
+-->

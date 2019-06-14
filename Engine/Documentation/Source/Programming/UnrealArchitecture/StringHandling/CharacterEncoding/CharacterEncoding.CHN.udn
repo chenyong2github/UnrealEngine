@@ -1,141 +1,155 @@
+﻿INTSourceChangelist:3599948
 Availability: Public
-Title: 字符编码
+Title:字符编码
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference, Programming/UnrealArchitecture/Reference/Properties, Programming/UnrealArchitecture/StringHandling
-Description:在虚幻引擎中使用的字符编码概述。
+Description:关于虚幻引擎中使用的字符编码的概述。
+Version: 4.9
 
 [TOC(start:2)]
 
-## 概述
-
-本文档介绍了虚幻引擎所使用的字符编码。
-
-基础知识： [每个软件开发人员必须知道的关于 Unicode 和字符集最小限度的知识(没有理由不知道!)](http://www.joelonsoftware.com/articles/Unicode.html)
 
 
+本文概括介绍了虚幻使用的字符编码。
 
+知识点预览：[每一个软件开发者都必须了解的关于Unicode和字符集的基本知识（没有任何借口！）](http://www.joelonsoftware.com/articles/Unicode.html)
+
+
+
+(#textformats)
 ## 文本格式
 
-可以使用几种格式来表示文本和字符。了解这些格式及其内在优缺点可能会对确定在您的项目中使用什么格式有所帮助。
+有几种格式可以用来表示文本和字符串。了解这些格式及其各自的优劣有助于决定在项目中使用哪种格式。
 
-这些不是格式的专业定义，而是适用于这个页面的简化版。
+以下并非格式的技术定义，而是适用于本页的相对简单的说法。
 
-$ **ASCII** : 在32和126之间的字符（32和126包括在内）以及0、9、10和13。（P4型文本）（它在迁入的时候通过P4触发器才有效）
-$ **ANSI** : ASCII及当前编码页面。（例如，Western European high ASCII）（在P4服务器上需要作为二进制来存储）
-$ **UTF-8** : 一个由可以使用特殊字符序列获取非ANSI字符的单独字节组成的字符串（P4型Unicode）
-$ **UTF-16** : 
-一个由两个字节组成，其中每个字符都附带一个[BOM](http://en.wikipedia.org/wiki/Byte-order_mark)。（虽然可以使用星形字符变为4个字节）（P4 型 UTF-16）（它在迁入的时候通过P4触发器才有效）
-
-
-### 二进制的情况
-
-| **优点** | **缺点** |
-| --- | --- |
-| 没有定义内部格式，可以下载每个文件，无论是什么格式。| 不可以进行合并。需要将所有此类型的文件独占迁出。|
-| | 没有定义内部格式；每个文件可以是不同的格式。|
-| | P4 可以存储所有版本的完整内容， 这样可能会没必要地使库大小膨胀得很大。|
+$ **ASCII**：介于32-126（含端点）之间的字符以及 0、9、10和13。（P4类型文本）（检入时通过P4触发器验证）
+$ **ANSI**：ASCII和当前代码页（如，Western European high ASCII）需要以二进制形式存储在P4服务器上。
+$ **UTF-8**：由单字节组成的字符串，可以使用特殊字符序列来获取非ANSI字符。（ASCII超集）（P4类型Unicode）
+$ **UTF-16**： 
+由每个字符最多2个字节的字符和[BOM](http://en.wikipedia.org/wiki/Byte-order_mark)构成的字符串。（但astral字符可以达到4个字节）（P4类型UTF-16）（检入时通过P4触发器验证）
 
 
-### 文本的情况
+(#thecaseforbinary)
+### 二进制
 
 | **优点** | **缺点** |
 | --- | --- |
-| 可合并。不需要独占迁出。| 非常有限；只允许 ASCII 字符。|
+| 不定义内部格式；无论什么格式都可以加载所有文件。| 不能合并。要求所有此类文件都进行排他检出。|
+| | 不定义内部格式，每个文件都可以采用不同格式。|
+| | P4存储每个版本的完整内容，可能会不必要地使库大小膨胀。|
 
 
-### UTF-8的情况
-
-| **优点** | **缺点** |
-| --- | --- |
-| 只会访问我们将会需要的所有字符。| 对于亚洲语言而言有不同的内存分析。|
-| 使用更少的内存。| 在我们的 Perforce 服务器上没有启用 P4 类型 Unicode 。|
-| 是一个 ASCII 的超级集合；一个纯 ASCII 字符是一个完全有效的 UTF-8 字符串 | 字符串操作符更复杂；必须解析这个字符串进行一些像长度计算一样的操作。|
-| 在游戏检测到字符串是 ASCII 并且就这样将它输出时仍然可以正常工作 | MSDev 在亚洲区域无法正常处理除 ASCII 之外的字符编码。这就是为什么我们在迁入的过程中将文本审核为 ASCII。|
-| 如果我们没有一个启用 Unicode 的服务器，文件可以合并，而且不会要求独占迁出。| |
-| 可以通过解析检测字符串是否是 UTF-8（有或者没有 BOM）。| |
-
-
-### UTF-16的情况
+(#thecasefortext)
+### 文本
 
 | **优点** | **缺点** |
 | --- | --- |
-| 只会访问我们将会需要的所有字符。| 使用更少的内存。|
-| 简单。内存使用是字符数量的两倍（至于我们使用的字符，它们全部在[基础多语言面板](http://en.wikipedia.org/wiki/Mapping_of_Unicode_character_planes)). |  如果这个格式没有 BOM，那么很难检测到它。|
-| 简单。字符串操作可以进行分割/合并，不需要解析这个字符串。| 当游戏检测到字符串是 ASCII 而且就这样将其输出的时候不能工作（现在是在迁入的时候通过 UTF-16 验证器进行检测）。|
-| 与游戏中使用的格式相同，不需要转换、解析或内存操作。| MSDev 在亚洲区域无法正常处理除 ASCII 之外的字符编码。这就是为什么我们在迁入的过程中将文本审核为 ASCII。|
-| 可合并。不需要独占迁出。| |
-| C# 会在内部使用 UTF-16。| |
+| 可合并。不需要排他检出。| 限制性极强；仅允许ASCII字符。|
+
+
+(#thecaseforutf-8)
+### UTF-8
+
+| **优点** | **缺点** |
+| --- | --- |
+| 仅访问我们将需要的所有字符。| 亚洲语言有不同的内存描述文件。|
+| 使用较少内存。| 我们的Perforce服务器上未启用P4类型Unicode。|
+| 属于ASCII超集；纯ASCII字符串是完全有效的UTF-8字符串。| 字符串运算更加复杂；必须解析字符串才能完成像长度计算一样简单的运算。|
+| 游戏检测到字符串是ASCII时仍能工作，并原样输出。| 在亚洲区域，除了ASCII，MSDev对其他字符集的处理不太理想。因此我们才在检入期间将文本验证为ASCII。|
+| 如果我们有启用了Unicode的服务器，则文件将是可以合并的，并且不需要排他检出。| |
+| 可以通过解析检测字符串是否是UTF-8（有或没有BOM）。| |
+
+
+(#thecaseforutf-16)
+### UTF-16
+
+| **优点** | **缺点** |
+| --- | --- |
+| 仅访问我们将需要的所有字符。| 使用较多内存。|
+| 简单。内存占用是字符数的两倍（对于我们是用的字符，全部位于[基本多文种平面](http://en.wikipedia.org/wiki/Mapping_of_Unicode_character_planes)中）。| 如果不包含BOM，则难以检测到这种格式。|
+| 简单。字符串运算可以拆分/合并，而不必解析字符串。| 游戏检测到字符串是ASCII时无效，并原样输出（现在在检入时通过UTF-16验证器检测）。|
+| 与游戏中使用的格式相同，不翻译，不解析，也不需要内存运算。| 在亚洲区域，除了ASCII，MSDev对其他字符集的处理不太理想。因此我们才在检入期间将文本验证为ASCII。|
+| 可合并。不需要排他检出。| |
+| C#在内部使用UTF-16。| |
 
 
 
+(#ue4internalstringrepresentation)
 ## UE4内部字符串表示
 
-虚幻引擎4中的所有字符串都以 [UTF-16](http://en.wikipedia.org/wiki/UTF-16/UCS-2) 的格式作为 FStrings 或 TCHAR 字符串存储在内存中。大多数代码假设两个字节是一个 codepoint（码点），所以仅支持Basic Multilingual Plane (BMP)，可以将 Unreal 的内部编码更精确地描述为 UCS-2。字符串存储按照适于当前平台的字节序进行存储。
+虚幻引擎4（UE4）中的所有字符串都作为FStrings或TCHAR数组以[UTF-16](http://en.wikipedia.org/wiki/UTF-16/UCS-2)格式存储在内存中。大多数代码假设2个字节等于一个代码点，因此只支持基本多文种平面（BMP），这样虚幻内部编码可以更准确地描述为UCS-2。字符串以适合于当前平台的字节次序存储。
 
-当把包 到/从 磁盘或网络上进行序列化时，具有所有 TCHAR 字符 < 0xff 的字符串都存储为一连串 8 位字节，其它的字符串存储为 2 位的 UTF-16 字符串。序列化代码可以根据需要处理任何字节序转换。
-
-
-
-## 由UE4载入的文本文件
-
-当 Unreal 加载外部文本文件(比如在运行时读取一个.INT 文件)时，这些操作基本上都是通过 UnMisc.cpp 中的 appLoadFileToString() 函数来完成。主要的工作发生在appBufferToString()函数中。
-
-这个函数将会在一个 UTF-16 文件中识别 Unicode byte-order-mark (BOM)（字节顺序标记），如果存在，它将以任何字节排序把文件按照 UTF-16 的格式进行加载。
-
-BOM 不存在时所发生的现象由平台决定。
-
-在 Windows 上，它将尝试使用默认的 Window MBCS 编码将文本转换为 UTF-16（比如，将 US English 和 Western Europe 转换为 [Windows-1252](http://en.wikipedia.org/wiki/Windows-1252)，将韩文转换为 CP949 以及将日文转换为 CP932）并使用 MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS...)。在 2009 年 7 月的 QA 版本中添加了这个功能。
-
-如果在平台非 Window的情况下转换失败，它将仅读取每个字节并把它填充为 16 位来构成一组 TCHAR。
-
-注意，没有代码可以检测或解码使用 appLoadFileToString() 函数加载的 UTF-8 格式编码的贴图文件。
+当向/从磁盘序列化到程序包，或在联网期间序列化时，TCHAR字符小于0xff的字符串均存储为一串8位字节，否则存储为双字节UTF-16字符串。序列化代码可以根据需要处理任何字节次序转换。
 
 
 
-## Unreal 保存的文本文件
+(#textfilesloadedbyue4)
+## UE4加载的文本文件
 
-大多数引擎产生的文本文件都使用 appSaveStringToFile() 函数来进行保存。
+当虚幻加载外部文本文件（例如，运行时读取.INT文件）时，几乎总是使用UnMisc.cpp中的appLoadFileToString()函数来完成这个过程。主要操作由appBufferToString()函数完成。
 
-通过一个字节可以展现的具有所有 TCHAR 字符的字符串将被存储为一连串的 8 位字节；除了 `bAlwaysSaveAsAnsi`标志传入的值为 _true_ 外，其它的字符串将会存储为 UTF-16，在这种情况下，它将首先会被转换为默认的 Window 编码。目前，这个操作仅在着色器文件上执行，用于解决着色器编译器上的 UTF-16 文件的问题。
+该函数识别UTF-16文件中的Unicode字节顺序标记（BOM），如果存在，则按任一字节次序作为UTF-16加载文件。 
+
+BOM不存在时作何处理则取决于平台。 
+
+在Windows上，使用默认的Windows MBCS编码（如[Windows-1252](http://en.wikipedia.org/wiki/Windows-1252)表示美国英语和西欧，CP949表示韩语，CP932表示日语）尝试将文本转换为，并使用MultiByteToWideChar(CP_ACP, MB_ERR_INVALID_CHARS...)。这种处理方式是在2009年7月QA构建时添加的。
+
+如果在非Windows平台上这种转换失败，则读取每个字节并填补到16位，形成TCHAR数组。
+
+请注意，对于使用appLoadFileToString()加载的UTF-8编码文本文件，没有可以用于检测或解码的代码。
 
 
 
-## Unreal 推荐使用的文本文件编码
+(#textfilessavedbyunreal)
+## 虚幻使用的文本文件
+
+引擎生成的大部分文本文件将使用appSaveStringToFile()保存。
+
+所有TCHAR字符都可以用单字节表示的字符串将存储为一串8位字节，否则存储为UTF-16，除非传递了值为true的bAlwaysSaveAsAnsi，在这种情况下，字符串将先转换为默认的Windows编码。该操作当前仅对着色器文件执行，以解决着色器编译器在处理UTF-16文件时存在的问题。
 
 
+
+(#recommendedencodingfortextfilesusedbyunreal)
+## 建议用于虚幻使用的文本文件的编码
+
+
+(#intandinifiles)
 ### INT和INI文件
 
-任何字节排序的 UTF-16 格式。尽管 Asian（亚洲）语言（比如 CP932）的默认 MBCS 编码可以在 Windows 上工作，但是这些文件需要在 PS3 和 Xbox360 上加载，而转换代码却仅在 Windows 上运行。
+按任一字节次序的UTF-16。针对亚洲语言的默认MBCS编码（如CP932）在Windows上有效，但这些文件需要在PS3和Xbox360上加载，因此转换代码仅在Windows上运行。
 
 
+(#sourcecode)
 ### 源代码
-一般，我们不推荐 C++ 源码文件中存在的字符串文字，我们推荐您把这些数据放到 INT 文件中。
+一般而言，我们不建议在C++源代码中使用字符串文字，这类数据可以存储在INT文件中。 
 
 
+(#c++sourcecode)
 #### C++源代码
 
-UTF-8 或默认的 Windows 编码。Xbox360 的编译器 MSVC 和 gcc 应该都很容易处理 UTF-8 编码的源文件。Latin-1 编码的文件的字符具有高位集，比如应该避免在源码文件中出现版权、商标或者度数的符号，因为在具有不同编码的系统上，编码将会中断。某些这样的实例在第三方软件中是不可避免的（比如，版权标志），所以，我们仅用了 MSVC 的警告 4819，否则当我们在 Asian Windows 上进行编译时将会出现这个警告。
+UTF-8或默认Windows编码。MSVC、Xbox360编译器和gcc应该可以顺利处理UTF-8编码的源文件。在Latin-1编码的文件中，如果有高位字符，例如版权、商标或度数符号，则应当尽可能避免在源代码中使用这类文件，因为这种编码在多语言环境系统上会被破坏。第三方软件中有一些这种情况是无法避免的（如版权声明），因此对于MSVC，我们禁止了警告4819，否则在亚洲版本Windows上编译时会发生问题。
 
 
 
-##  在Perforce 中存储 UTF-16 文本文件
+(#storingutf-16textfilesinperforce)
+## 用Perforce存储UTF-16文本文件
 
 
-* 请 **不** 要使用‘文本’格式。
-    * 如果迁入了一个UTF-x文件并把它保存为文本文件，那么在同步后将会发生崩溃。
-* 如果您使用'二进制'格式，那么请把文件标记为独占迁出。
-    * 人们可以迁入ASCII、UTF-8、UTF-16格式的文件，它们是可以在引擎中正常工作的。
-    * 但是，二进制文件不能被融合，所以如果没有把文件标记为独占迁出，那么修改将会重叠到一起。
-* 如果您使用'UTF-16'格式，请确保其他人没有迁入不是'UTF-16'格式的文件。
-    * 我们有个Perforce触发器，它不允许迁入非UTF-16格式的文件作为UTF-16文件。
-        * //depot/UnrealEngine3/Development/Tools/P4Utils/CheckUTF16/
-*  'Unicode'类型是 UTF-8，当然这里对我们没有什么用途。
+* 不要使用“文本”
+    * 如果UTF-x文件被检入并存储为文本，将在同步后损坏。
+* 如果使用“二进制”，则将文件标记为排他检出
+    * 可以检入ASCII、UTF-8、UTF-16，这在引擎中可以正常工作。
+    * 但是，二进制文件不能合并，因此如果文件不标记为排他检出，更改会重复出现。
+* 如果使用“UTF-16”，则确保没有人检入非UTF-16文件
+* “Unicode”类型是UTF-8，在这里对我们没有用处。
 
 
 
 
-## 转换机制
+(#conversionroutines)
+## 转换例程
 
-我们有许多宏来把字符串转换为各种编码以及从各种编码转换回字符串。这些宏使用在本地范围内声明的类实例并且在栈上分配空间，所以不要保留指向它们的指针是很重要的！ 它们的作用仅仅是将字符串传递给调用函数。
+我们有一些宏可以将字符串转换为各种编码或从各种编码转换字符串。这些宏使用局部范围内声明的类实例，在堆栈上分配空间，因此保留指向这些宏的指针非常重要！它们仅用于将字符串传递给函数调用。
 
 
 * TCHAR_TO_ANSI(str)
@@ -145,96 +159,98 @@ UTF-8 或默认的 Windows 编码。Xbox360 的编译器 MSVC 和 gcc 应该都�
 * UTF8_TO_TCHAR(str)
 
 
-这些使用 UnStringConv.h 中的以下辅助类：
+以下是UnStringConv.h中的助手类：
 
 
-* typedef TStringConversion<TCHAR,ANSICHAR,FANSIToTCHAR_Convert> FANSIToTCHAR;
-* typedef TStringConversion<ANSICHAR,TCHAR,FTCHARToANSI_Convert> FTCHARToANSI;
-* typedef TStringConversion<ANSICHAR,TCHAR,FTCHARToOEM_Convert> FTCHARToOEM;
-* typedef TStringConversion<ANSICHAR,TCHAR,FTCHARToUTF8_Convert> FTCHARToUTF8;
-* typedef TStringConversion<TCHAR,ANSICHAR,FUTF8ToTCHAR_Convert> FUTF8ToTCHAR;
+* `typedef TStringConversion<TCHAR,ANSICHAR,FANSIToTCHAR_Convert> FANSIToTCHAR;`
+* `typedef TStringConversion<ANSICHAR,TCHAR,FTCHARToANSI_Convert> FTCHARToANSI;`
+* `typedef TStringConversion<ANSICHAR,TCHAR,FTCHARToOEM_Convert> FTCHARToOEM;`
+* `typedef TStringConversion<ANSICHAR,TCHAR,FTCHARToUTF8_Convert> FTCHARToUTF8;`
+* `typedef TStringConversion<TCHAR,ANSICHAR,FUTF8ToTCHAR_Convert> FUTF8ToTCHAR;`
 
 
-当使用 TCHAR_TO_ANSI 时，不要假设字节的数量和 TCHAR 字符串的长度一样也是很重要的。多字节的字符集的每个 TCHAR 字符可以对应多个字节。如果您需要知道最终字符串的字节长度，您可以使用辅助类而不是使用宏。比如：
+使用TCHAR_TO_ANSI时还必须注意的是，不要假设字节数将等于TCHAR字符串长度。多字节字符集可能要求每个TCHAR字符占多个字节。如果您需要知道所产生字符串的字节长度，可以使用助手类，而不是宏。例如：
 
 
     
     FString String;
     ...
     FTCHARToANSI Convert(*String);
-    Ar->Serialize((ANSICHAR*)Convert, Convert.Length());  // FTCHARToANSI::Length()函数返回编码字符串的字节的数量，包括null文字。
+    Ar->Serialize((ANSICHAR*)Convert, Convert.Length());  // FTCHARToANSI::Length() 返回已编码字符串的字节数，排除空终止符。
     
 
 
 
 
 
-## Unicode 中的 ToUpper() 和 ToLower() Non-Trivial
+(#toupper()andtolower()non-trivialinunicode)
+## Unicode中的ToUpper()和ToLower() Non-Trivial
 
-UE4 目前只会处理 ANSI（ASCII | 代码页 1252 | | 西方欧洲）。
+UE4目前只能处理ANSI（ASCII | 代码页1252 | | 西欧）。
 
-对所有语言进行这项操作的最糟糕的方法应该在这里 http://en.wikipedia.org/wiki/ISO/IEC_8859 有所提及。
-
-
-* ISO/IEC 8859-1 适用于英语、法语、德语、意大利语、葡萄牙语以及西班牙语
-* ISO/IEC 8859-2 适用于波兰语、捷克语和匈牙利语
-* ISO/IEC 8859-5 适用于俄语
+此文章似乎提到了适用于所有语言的最差做法[](http://en.wikipedia.org/wiki/ISO/IEC_8859)
 
 
-ftp://ftp.unicode.org/Public/MAPPINGS/ISO8859/ 中的映射包含上面提到的语言的转换规则。'CAPITAL LETTER' 和 'SMALL LETTER' 信息将会与对应的 unicode 字符相互对照获取希望得到的结果。
+* ISO/IEC 8859-1适用于英语、法语、德语、意大利语、葡萄牙语和两种西班牙语
+* ISO/IEC 8859-2适用于波兰语、捷克语和匈牙利语
+* ISO/IEC 8859-5适用于俄语
+
+
+[](ftp://ftp.unicode.org/Public/MAPPINGS/ISO8859/)中的映射包含上述语言的转换规则。“大写字母”和“小写字母”信息应该在相应unicode字符中进行交叉引用以获得所需结果。
 
 
 
-## 针对 East Asian 编码的 C++ 源码的注意事项
+(#notesaboutc++sourcecodespecifictoeastasianencodings)
+## 特定于东亚编码的C++源代码说明
 
-UTF-8 和默认的 Windows 编码都可能导致 C++ 编译器出现问题，如下所示：
+UTF-8和默认的Windows编码都可能会使C++编译器出现问题，如下所示：
 
 **默认Windows编码**
   
-如果源代码中有 EastAsian 双字节字符编码，比如 CP932（日文）、CP936（简体中文）或 CP950（繁体中文），那么当在运行单字节字符代码页（比如CP437 United States）的 Windows 上编译的 C++ 源码时要格外小心。
+在运行单字节字符代码页（如CP437美国英语）的Windows上，如果C++源代码包含东亚双字节字符编码，如 CP932（日语）、CP936（简体中文）或CP950（繁体中文），则编译源代码时务必小心。
 
-这些 East Asian 字符编码系统为第一字节使用 0x81-0xFE ，为第二个字节使用 0x40-0xFE。在第二个字节中的 0x5C 的值在 ASCII/latin-1 中将会被作为反斜线符号解释，并且它对 C++ 来说有特殊的意义。（如果在一行的末位使用它，将会决定一个字符串中的文字换码顺序及行连续性）。 
-当在单字节代码页的 Windows 上编译源码时，编译器不关心 East Asian 的双字节编码，这将可能会导致编译错误或者更糟糕的情况，在 EXE 中产生 bug。
+这些东亚字符编码系统使用0x81-0xFE表示第一个字节，使用0x40-0xFE表示第二个字节。第二个字节中的0x5C值将解译为ASCII/latin-1中的反斜杠，这在C++中有特殊的含义。（将字符串文字中的序列进行转义，如果在行末使用则保持不断行）。   
+在单字节代码页Windows上编译这种源代码时，编译器不会考虑东亚双字节字符编码，这可能导致编译错误，甚至在EXE中产生错误。
 
-单行注释:  
-如果在 East Asian 的注释的尾部有 0x5c，这可能会由于丢失的行导致很难发现的 bug 或错误，
+单行注释：  
+如果东亚注释末尾有0x5c，则会导致难以找到因为缺失行而引起的错误。
 
     
         // EastAsianCharacterCommentThatContains0x5cInTheEndOfComment0x5c'\'
-        important_function(); /* this line would be connected to above line as part of comment */
+        important_function(); /*这一行会作为注释的一部分与上一行连接起来*/
     
 
 
 
-在一个字符串文字中：  
-使用一个可识别的 0x5c 换码顺序，这可能会导致断裂的字符串或者其它错误。
+在字符串文字内部：  
+这可能会导致字符串损坏或被识别的0x5c转义序列错误。
 
     
         printf("EastAsianCharacterThatContains0x5c'\'AndIfContains0x5cInTheEndOfString0x5c'\'");
         function();
-        printf("Compiler recognizes left double quotation mark in this line as the end of string literal that continued from first line, and expected this message is C++ code.（编译器将会把左侧的双引号作为从第一行连续的字符串文字的尾部，并且编辑器将会把这个消息作为C++代码。）");
+        printf("Compiler recognizes left double quotation mark in this line as the end of string literal that continued from first line, and expected this message is C++ code.");
     
 
 
-如果跟随 0x5c 的字符指定了换码顺序，编译器将会把换码顺序字符集转换为单个的指定字符。
-（如果没有指定换码顺序，记过由实现决定，但是 MSVC 删除了 0x5c，将会出现警告“不能识别的字符换码顺序”）。
-在上面的例子中，字符串的尾部有 0x5c 反斜杠，并且下一个字符是双引号，所以换码顺序\"被转换为字符数据中的双引号，并且在下一个双引号或文件结尾之前，编译器将继续把它们当做字符串数据，从而导致了错误。
+如果0x5c后面的字符不指定转义序列，编译器会将转义序列字符集转换为一个指定的字符。  
+（如果不指定，则结果是定义的实现，但MSVC会移除0x5c，并发出警告“未识别的字符转移序列”。）  
+在上述情况中，字符串结尾有一个0x5c反斜杠，下一个字符是双引号，因此转义序列\"转换为字符串数据中的双引号，编译器继续产生字符串数据，直到遇到下一个双引号或文件结束，并引起错误。
 
-危险字符的实例：  
-CP932（日语 Shift-JIS） "?" 是 0x955C，所以很多 CP932 字符有 0x5C。
-CP936（简体中文 GBK） "?" 是 0x815C，所以很多 CP936 字符有 0x5C。
-CP950（繁体中文 Big5） "?" 是 0xA55C，所以很多 CP950 字符有 0x5C。
-CP949（韩文, EUC-KR）是很好的，因为 EUC-KR 没有为第二个字节使用 0x5C。
+危险字符示例：  
+CP932（日语Shift-JIS）“?”是0x955C，因此许多CP932字符都有0x5C。  
+CP936（简体中文GBK）“?”是0x815C，因此许多CP936字符都有0x5C。  
+CP950（繁体中文Big5）“?”是0xA55C，因此许多CP950字符都有0x5C。  
+CP949（韩语EUC-KR）没问题，因为EUC-KR不使用0x5C表示第二个字节。
 
-__没有 BOM 的UTF-8__ （某些文本编辑器将 ROM 作为识别标志）
+__没有BOM的UTF-8__（某些文本编辑器将BOM描述为签名）
   
-如果源码中有存储为 UTF-8 的 East Asian 字符，那么在 East Asian 代码页面 CP949（韩语）、CP932（日语）、CP936（简体中文）或 CP950（繁体中文）的 Windows 上编译 C++ 源码时一定要格外小心。
+在东亚代码页CP949（韩语）、CP932（日语）、CP936（简体中文）或CP950（繁体中文）Windows上，如果C++源代码将东亚字符存储为UTF-8，则编译该代码时务必小心。
 
-UTF-8 字符编码为 East Asian 字符使用 3 个字节： 为第一个字节使用 0xE0-0xEF 、第二个字节使用 0x80-0xBF 、第三个字节使用 0x80-0xBF。如果没有 BOM，East Asian 的 Windows 的默认编码将把 3 个 UTF-8 编码字节和接下来的字节作为 2 个字节的 East Asian 编码字符，第一个和第二个字节成对组成了第一个 East Asian 字符，第三个字节和接下来的字节成对组成第二个 East Asian 字符。
-如果遵循 UTF-8 编码的三个字节在字符串字符或注释中有特殊的意义时，可能会出现一些问题。
+UTF-8字符编码使用三个字节来表示东亚字符：0xE0-0xEF表示第一个字节，0x80-0xBF表示第二个字节，0x80-0xBF表示第三个字节。如果没有BOM，东亚Windows默认编码会将三个UTF-8编码字节和后面的一个字节识别为两个双字节东亚编码字符，第一个和第二个字节作为一对，表示第一个东亚字符，第三个和随后字节作为一对，形成第二个东亚字符。  
+如果三个UTF-8编码字节后面的字符在字符串文字或注释中有特殊含义，则可能会发生问题。
 
-比如，在一行的注释中：  
-如果注释文本包含了奇数个 East Asian 字符，并且下一个字符作为注释的结束标志时，丢失的代码将会导致很难发现的 bug 或错误。
+示例：在内嵌注释中：  
+如果注释文本包含奇数个东亚字符，而下一个字符标记注释结束，则可能会导致与缺失代码有关的难以找到的错误。
 
     
         /*OddNumberOfEastAsianCharacterComment*/
@@ -243,11 +259,11 @@ UTF-8 字符编码为 East Asian 字符使用 3 个字节： 为第一个字节�
     
 
 
-在 East Asian 编码页面的 Windows 上，编译器会将 UTF-8 的最后一个字节解码的 East Asian 字符注释和星号‘*’作为一个单独的 East Asian 字符，并且它接下来的字符将仍然作为注释的一部分对待。在上面的例子中，编译器删除了 important_function()，因为它似乎是注释的一部分。
-这种行为是非常危险的，而且很难找到丢失的代码。
+东亚代码页Windows上的编译器将UTF-8编码的东亚字符注释的最后一个字节和星号*识别为一个东亚字符，下一个字符仍被视为注释的一部分。在上述示例中，编译器移除了important_function()，因为它似乎是注释的一部分。  
+这种行为是非常危险的，难以找到缺失的代码。
 
-在一个单独行中的注释：  
-在一个 East Asian 的结尾处使用反斜杠'\'会在没有丢失代码行的情况下导致很难发现的 bug 或错误。
+在单行注释中：  
+在东亚注释末尾使用反斜杠“\”会导致一些没有缺失行但却难以找到的错误。
 
     
         // OddNumberOfEastAsianCharacterComment\
@@ -255,10 +271,10 @@ UTF-8 字符编码为 East Asian 字符使用 3 个字节： 为第一个字节�
     
 
 
-这是很少发生的情况，因为程序员应该不会故意地在注释的尾部书写反斜杠 '\'。
+这是非常少见的情况，因为程序员不会故意在注释末尾使用反斜杠“\”。
 
-在字符串字符内部：  
-当在一个字符串文字中有奇数个 UTF-8 编码的 East Asian 字符并且接下来的字符有特殊意义时，这将会导致断开的字符串、错误或警告。
+在字符串文字内部：  
+如果字符串文字内包含奇数个UTF-8编码的东亚字符，并且以下字符有特殊含义，会导致字符串遭到破坏、错误或警告。
 
     
         printf("OddNumberOfEastAsiaCharacterString");
@@ -267,21 +283,23 @@ UTF-8 字符编码为 East Asian 字符使用 3 个字节： 为第一个字节�
     
 
 
-在 East Asian 字符编码的 Windows 上，编译器会将 UTF-8 最后一字节的解码的 East Asian 字符串和一个字符作为一个单独的 East Asian 字符。如果您幸运，编译器将会出现 "C4819" 警告（如果没有禁用）或者一个错误来提示您该问题。如果您不走运，那么字符串将会被破坏。
+东亚代码页Windows上的C++编译器将UTF-8编码的东亚字符串的最后一个字节和下一个字符识别为一个东亚字符。如果运气好，会看到编译器警告“C4819”（如果未禁用）或错误，提醒您发生了问题。如果运气不好，字符串会遭到破坏。
 
 __总结__
   
-您可以为 CV++ 源码使用 UTF-8 或默认的 Windows 编码，但是知道这些可能出现的问题。再次说明，我们不推荐在 C++ 源码中加入字符串字符。如果您必须在 C++ 源码中使用 East Asian 字符编码，请一定要使用 East Asian 作为您的默认字符编码。
-另一个很好的方法是，使用具有 BOM 的 UTF-8（某些文本编辑器将 BOM 作为 Unicode 识别标志）。
+您可以对C++源代码使用UTF-8或默认Windows编码，但请注意上述问题。再次强调，我们不建议在C++源代码内部使用字符串文字。如果在C++源代码中使用东亚字符编码，请确保使用东亚作为默认代码页。  
+另一种好方法是使用带有BOM的UTF-8（某些文本编辑器将BOM描述为Unicode签名）。
 
-__注意__
+[REGION:note]
   
-我们在 2010 年 2 月 18 日的版本中使用 UTF-8 和 UTF-16 测试了几个编译器。
+我们在2010年2月18日用UTF-8和UTF-16测试了一些编译器。  
 
-PC 和 Xbox 360 的 MSVC 以及 PS3 的 gcc 或 slc 可以编译 UTF-8 编码的源代码（有或没有 BOM 都可以）。
-但是 UTF-16（小尾字节序/大尾字节序）仅受 MSVC 的支持。
+面向PC和Xbox 360的MSVC和面向PS3的gcc或slc能够编译UTF-8编码的源代码（无论是否有BOM）。
+但UTF-16（小端字节/大端字节）仅受MSVC支持。  
 
-Perforce 既可以使用 UTF-16 工作也可以使用 UTF-8，但是 p4 diff 会将 UTF-8 文件中的 BOM 显示为可见字符。
+Perforce能够处理UTF-16和UTF-8，但p4 diff将UTF-8文件中的BOM显示为可见字符。
 
-外部资源： [Windows支持的编码页面](http://msdn.microsoft.com/en-us/goglobal/bb964654.aspx)
+外部参考：[Windows支持的代码页](http://msdn.microsoft.com/en-us/goglobal/bb964654.aspx)
+
+[/REGION]
 

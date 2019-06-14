@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6581694
 Availability: Docs
 Title:关卡流送用户指南
 Crumbs:
@@ -108,7 +108,7 @@ Description:设置关卡实时异步流送的指南。
 
 在2007年1月经QA核准的构建版本之前的构建版本中，一次性移动大量Actor时，你可能遇到过 _内存不足（out of memory）_ 问题；但是我们在提升编辑器事务缓存的性能（和内存使用率）时修复了该问题（变更列表#206829）。
 
-另外，在2007年1月经QA核准的构建版本中，你可以使用 [关卡浏览器](Editor/Browsers/Levels) 中的 _从选中的Actor新建关卡（New Level from Selected Actors）_ 按钮将Actor移动到新关卡中（变更列表#206324）。
+另外，在2007年1月经QA核准的构建版本中，你可以使用关卡浏览器中的 _从选中的Actor新建关卡（New Level from Selected Actors）_ 按钮将Actor移动到新关卡中（变更列表#206324）。
 
 
 ### 优化

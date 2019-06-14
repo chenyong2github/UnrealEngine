@@ -1,4 +1,4 @@
-INTSourceChangelist:3108692
+INTSourceChangelist:5628437
 Availability:Public
 Title: 델리게이트
 Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference, Programming/UnrealArchitecture/Reference/Functions
@@ -136,7 +136,7 @@ WriteToLog 함수를 호출하려면, 해당 함수의 시그너처에 맞는 �
 그 메서드의 실제 함수 주소 역시도 전해줘야 합니다. 그래서 여기서는 우리 'FLogWriter' 클래스의 인스턴스를 생성한 다음, 그 오브젝트 인스턴스의 'WriteToLog' 
 메서드에 대한 델리게이트를 생성하겠습니다.
 
-	FSharedRef< FLogWriter > LogWriter( new FLogWriter() );
+	TSharedRef< FLogWriter > LogWriter( new FLogWriter() );
 
 	WriteToLogDelegate.BindSP( LogWriter, &FLogWriter::WriteToLog );
 

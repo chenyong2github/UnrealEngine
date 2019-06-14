@@ -1,0 +1,64 @@
+﻿INTSourceChangelist:6038552
+Availability: Public
+Title: HTML5开发要求
+Description: HTML5开发所需的硬件、软件和SDK信息。 
+Type: reference
+Version: 4.22
+Parent: Platforms/HTML5
+Tags: Specifications
+Tags: HTML5
+Tags: StartingOut
+Order: 1
+
+
+[TOC (start:2 end:2)] 
+
+
+在本页中，您将了解开始为[HTML5](Platforms/HTML5)平台开发所需的硬件和软件开发工具包(SDK)要求。 
+
+  
+
+(#unrealengine4.22)
+
+## 虚幻引擎4.22
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **SDK版本** | Emscripten 1.38.20 |
+| **支持的Web浏览器** | [Google Chrome 64位](https://www.google.com/chrome/beta/)，[Firefox64位](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+您可以在 `UEBuildHTML5.cs` 文件中找到当前支持的SDK版本。您可以在 `[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/HTML5` 文件夹中找到它。
+[/REGION]
+
+(#unrealengine4.21)
+
+## 虚幻引擎4.21
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **SDK版本** | Emscripten 1.37.19 |
+| **支持的Web浏览器** | [Google Chrome 64位](https://www.google.com/chrome/beta/)，[Firefox64位](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+您可以在 `UEBuildHTML5.cs` 文件中找到当前支持的SDK版本。您可以在 `[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/HTML5` 文件夹中找到它。
+[/REGION]
+
+(#unrealengine4.20)
+
+## 虚幻引擎4.20
+
+| 硬件要求 ||
+| --- | --- |
+| **推荐桌面硬件** | 请参阅[硬件和软件规格](GettingStarted/RecommendedSpecifications)。|
+| [REGION:tablesection]软件要求[/REGION] ||
+| **SDK版本** | Emscripten 1.37.19 |
+| **支持的Web浏览器** | [Google Chrome 64位](https://www.google.com/chrome/beta/)，[Firefox64位](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+您可以在 `UEBuildHTML5.cs` 文件中找到当前支持的SDK版本。您可以在 `[UE4根目录]/Engine/Source/Programs/UnrealBuildTool/Platforms/HTML5` 文件夹中找到它。
+[/REGION]

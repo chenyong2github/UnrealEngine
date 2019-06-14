@@ -1,12 +1,6 @@
 Availability: Public
 Title:Materials How-To's
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials
 Description:A How To Guide for using different aspects of the Material Editor in Unreal Engine 4. 
-prereq: Engine/Rendering/Materials/Editor/Interface
-prereq: Engine/Rendering/Materials/MaterialInputs
-prereq: Engine/Rendering/Materials/Editor
-prereq: Engine/Rendering/Materials/IntroductionToMaterials
-prereq: Engine/Rendering/Materials/MaterialProperties
 Version: 4.15
 parent:Engine/Rendering/Materials
 order:3

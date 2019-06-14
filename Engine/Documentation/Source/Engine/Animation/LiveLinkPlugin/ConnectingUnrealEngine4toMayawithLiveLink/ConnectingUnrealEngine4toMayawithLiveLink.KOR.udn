@@ -1,4 +1,4 @@
-INTSourceChangelist:4404731
+INTSourceChangelist:6604544
 Availability: Public
 Crumbs: 
 Title: 언리얼 엔진 4 를 라이브 링크로 Maya 에 연결
@@ -26,34 +26,34 @@ Tags: Animation, Maya, Live Link
 [/OBJECT]
 
 [REGION:note]
-이 가이드에서는 블루프린트 삼인칭 템플릿 프로젝트와 Maya 2017 을 사용합니다. Maya 다른 버전 및 다른 DDC 툴용 라이브 링크도 있습니다. 자세한 정보는 [(Engine/Animation/LiveLinkPlugin) 문서를 참고하세요.
+이 가이드에서는 블루프린트 삼인칭 템플릿 프로젝트와 Maya 2017 을 사용합니다. Maya 다른 버전 및 다른 DDC 툴용 라이브 링크도 있습니다. 자세한 정보는 [](Engine/Animation/LiveLinkPlugin) 문서를 참고하세요.
 [/REGION]
 
 ## 1 - 라이브 링크 플러그인 활성화
 
 1. 프로젝트에서 **메뉴** > **편집** > **플러그인** 을 선택합니다.
 
-![](Step_01-1.png)
+    ![](Step_01-1.png)
 
-2. **Animation** (애니메이션) 섹션 아래 **Live Link** 옆의 **Enabled** 박스를 클릭하고 확인 창이 뜨면 **예** 를 눌러 에디터를 재시작합니다.
+1. **Animation** (애니메이션) 섹션 아래 **Live Link** 옆의 **Enabled** 박스를 클릭하고 확인 창이 뜨면 **예** 를 눌러 에디터를 재시작합니다.
 
-![](Step_02-3.png)
+    ![](Step_02-3.png)
 
-라이브 링크 플러그인이 활성화되어 외부 DDC 툴에 연결할 수 있습니다. DDC 툴을 UE4 에 연결하기 위해서는, 그에 맞는 플러그인을 활성화해야 합니다. 여기서는 Maya 에만 초점을 맞추며, 그 안에서 플러그인 활성화해야 합니다.
+    라이브 링크 플러그인이 활성화되어 외부 DDC 툴에 연결할 수 있습니다. DDC 툴을 UE4 에 연결하기 위해서는, 그에 맞는 플러그인을 활성화해야 합니다. 여기서는 Maya 에만 초점을 맞추며, 그 안에서 플러그인 활성화해야 합니다.
 
-Maya 라이브 링크 플러그인을 미리 빌드한 바이너리가 언리얼 엔진과 함께 제공되며, UE4 설치 폴더 아래에서 찾을 수 있습니다.
+    Maya 라이브 링크 플러그인을 미리 빌드한 바이너리가 언리얼 엔진과 함께 제공되며, UE4 설치 폴더 아래에서 찾을 수 있습니다.
 
-3. UE4 설치 폴더로 이동한 다음 **Engine\Extras\MayaLiveLink** 폴더 아래 **LiveLinkMaya.zip** 파일 압축을 풉니다.
+1. UE4 설치 폴더로 이동한 다음 **Engine\Extras\MayaLiveLink** 폴더 아래 **LiveLinkMaya.zip** 파일 압축을 풉니다.
 
-[REGION:warning]
-4.19 출시 당시 Maya 라이브 링크 플러그인이 Engine\Extras\MayaLiveLink 폴더에 포함되지 않았습니다. 이 문제를 해결한 핫픽스는 [이 링크에서](https://epicgames.app.box.com/s/awdz97dguh6k61opwy66ovfhn3gpk1hg) 콘텐츠를 다운로드할 수 있습니다.
-[/REGION]
+    [REGION:warning]
+    4.19 출시 당시 Maya 라이브 링크 플러그인이 Engine\Extras\MayaLiveLink 폴더에 포함되지 않았습니다. 이 문제를 해결한 핫픽스는 [이 링크에서](https://epicgames.app.box.com/s/awdz97dguh6k61opwy66ovfhn3gpk1hg) 콘텐츠를 다운로드할 수 있습니다.
+    [/REGION]
 
-![](Step_03-1.png)
+    ![](Step_03-1.png)
 
 4. 사용하는 **Maya** 버전에 대한 폴더를 복사한 다음 **Maya** 설치 폴더로 이동한 뒤 **plug-ins** 폴더를 붙여넣습니다.
 
-![](Step_04-1.png)
+    ![](Step_04-1.png)
 
 다음 단계에서는 Maya 안에서 라이브 링크 플러그인을 활성화하고 Maya Live Link UI 창을 열면 실행 중인 UE4 에디터 버전으로의 연결 상태를 확인할 수 있습니다.
 

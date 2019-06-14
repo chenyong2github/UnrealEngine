@@ -1,70 +1,64 @@
-INTSourceChangelist:3801137
-Availability:Public
-Title:编程指南
-Crumbs: %ROOT%
-Description:供使用虚幻引擎进行开发的程序员参考的信息。
-version: 4.18
-parent:%ROOT%
-order:4
-type:landing
-topic-icon:%ROOT%/prog_icon.png
-Topic-image:ProgrammingGuide_topic.png
+﻿INTSourceChangelist:3801137
+Availability: Public
+Title: 编程指南
+Description: 供使用虚幻引擎进行开发的程序员参考的信息。
+Type: landing
+Version: 4.18
+Parent: %ROOT%
+topic-image: ProgrammingGuide_topic.png
+topic-icon: %ROOT%/prog_icon.png
+Order: 3
 
-虚幻引擎4为程序员提供了两套工具集，可联合使用来加速开发工作流。新的Gameplay类、Slate和Canvas用户接口元素
-以及编辑器功能可以使用C++语言来编写，并且在使用Visual Studio或XCode编译后可以在虚幻编辑器中反映出全部变更内容。蓝图可视化脚本系统
-是一个强大的工具，可通过连接函数区块和属性引用在编辑器中实现类的创建。 
 
-C++类可以作为蓝图类的基类使用。因此，程序员可以设置基本的Gameplay类，随后再由关卡设计师来对它们进行子类和迭代处理。  
+虚幻引擎4为程序员提供了两套工具集，可联合使用来加速开发工作流。新的Gameplay类、Slate和Canvas用户接口元素以及编辑器功能可以使用C++语言来编写，并且在使用Visual Studio或XCode编译后可以在虚幻编辑器中反映出全部变更内容。蓝图可视化脚本系统是一个强大的工具，可通过连接函数区块和属性引用在编辑器中实现类的创建。
 
-(#gettingstarted)
+C++类可以作为蓝图类的基类使用。因此，程序员可以设置基本的Gameplay类，随后再由关卡设计师来对它们进行子类和迭代处理。
+
 ## 入门
 
 %Programming/QuickStart:role%
 %Programming/Introduction:role%
 
-(#developmentsetup)
 ## 开发设置
 
 [DIR(output:"role" parent:"Programming/Development" org:"hierarchy")]
 
-(#unrealenginearchitecture)
 ## 虚幻引擎架构
-	
+
 无论是用C++、蓝图还是结合两者进行编程，底层的虚幻架构都是相同的。
 
 [DIR(output:"role" parent:"Programming/UnrealArchitecture/Reference" org:"hierarchy" end:"1")]
 
-(#gameplayarchitecture)
 ## Gameplay架构
 
 [DIR(output:"role" parent:"Programming/UnrealArchitecture" org:"hierarchy" end:"1")]
+[DIR(output:"role" parent:"Programming/UnrealArchitecture/Objects" org:"hierarchy" end:"1")]
 
-(#gameplayguides)
 ## Gameplay指南
 
 [DIR(output:"fancy" parent:"Programming/Tutorials" org:"hierarchy" end:"1" skilllevel:"Beginner")]
 [DIR(output:"fancy" parent:"Programming/Tutorials" org:"hierarchy" end:"1" skilllevel:"Intermediate")]
 [DIR(output:"fancy" parent:"Programming/Tutorials" org:"hierarchy" end:"1" skilllevel:"Advanced")]
 
-(#unrealengineapireference)
-## 虚幻引擎API参考
+## 虚幻引擎API引用
+
+<!--- 注意：我们有意不在此列出Core、CoreUObject和引擎API页面，否则会过于杂乱。 --->
 
 [OBJECT:Role]
-	[PARAM:icon]
-	![](%ROOT%/ue4_icon.png)
-	[/PARAM]
-	[PARAM:title]
-		虚幻引擎C++ API参考
-	[/PARAM]
-	[PARAM:description]
-	虚幻引擎C++源代码的API编程参考
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://api.unrealengine.com/cpp
-	[/PARAMLITERAL]
+[PARAM:icon]
+![](%ROOT%/ue4_icon.png)
+[/PARAM]
+[PARAM:title]
+	虚幻引擎C++ API引用
+[/PARAM]
+[PARAM:description]
+虚幻引擎C++源代码的API编程引用
+[/PARAM]
+[PARAM:path]
+	[RELATIVE:API]
+[/PARAM]
 [/OBJECT]
 
-(#Systemguides)
 ## 系统指南
 
 %Programming/Animation/AnimNodes:role%
@@ -74,10 +68,16 @@ C++类可以作为蓝图类的基类使用。因此，程序员可以设置基�
 %Programming/Online/Steam:role%
 %Programming/Rendering:role%
 %Programming/Slate:role%
-%Programming/UnrealBuildSystem:role%
+%Programming/BuildTools:role%
 
+## 自动化编译
 
-(#assethandlingreferenceguides)
+%Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Conditions:role%
+%Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Elements:role%
+%Programming/BuildTools/AutomationTool/BuildGraph/ScriptAnatomy/Types:role%
+%Programming/BuildTools/AutomationTool/BuildGraph:role%
+%Programming/BuildTools/AutomationTool/BuildGraph/Usage:role%
+
 ## 资源处理参考指南
 
 [REGION:buttonlist]

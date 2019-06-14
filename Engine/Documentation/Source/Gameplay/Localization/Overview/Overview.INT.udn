@@ -1,63 +1,225 @@
-Availability:Public
-Title:Localization System Overview
-Crumbs:%ROOT%, Gameplay, Gameplay/Localization
-Description:An overview of the elements involved in localizing your project. 
-version: 4.9
-Parent:Gameplay/Localization
-Order:1
-
-Localization of a project involves a few key concepts:
-
-* [Text](#text)
-* [Targets](#targets)
-* [Cultures](#cultures)
-* [Manifests](#manifests)
-* [Archives](#archives)
-* [Localization Resources](#localizationresources_locres_)
-
-[REGION:raw]
-![](OverviewDiagram.png)
-[/REGION:raw]
+Availability: Public
+Crumbs: 
+Title: Localization Overview
+Description: An overview of the elements involved in localizing your project.
+Type: 
+Version: 4.21
+Parent: Gameplay/Localization
+Order: 0
+Tags: Localization
+Tags: Overview
 
 
+## Localization and Internationalization
 
-## Text
-Text is the basic unit of localization. Text is defined by a namespace, a key, a source string, and a display string. Together, the namespace and key form a unique identity by which a text can be referred by. 
-The namespace allows text to be translated differently in the case of homographs (identical strings with different meanings) by offering a different identity. The key provides specific context regarding the text. 
-The source string is the string in its native form, without having been translated. The display string is the string which will be shown, typically a translated form of the source string.
+Localization and Internationalization (L10N and I18N) are two concepts that are often combined under the umbrella of “localization”. However, they are two distinct things, and Unreal Engine 4 (UE4) handles them in different ways. The localization system in UE4 is centered around our “text” type, whereas our internationalization support makes use of the [International Components for Unicode](http://site.icu-project.org/) (ICU) library.
 
-For example, a dialog box may appear in English or Spanish. The dialog box may have a message, an "Ok" button, and a "Cancel" button. All three pieces of text may use the namespace "MyProject". The message text 
-may use a key of "MyMessage", the "Ok" text may use a key of "DialogBox.AffirmativeButtonLabel", and the "Cancel" text may use a key of "DialogBox.NegatoryButtonLabel". Based on the namespace and key, each piece 
-of text can be uniquely identified and translated.
+While they are separate, in UE4 you cannot have localization at runtime without the appropriate internationalization support.
 
-## Targets
-Targets are named, self-contained modules of localization data. Targets have their text gathered from a specified set of sources, stored in a manifest file, translated in culture-specific archive files, compiled 
-into culture-specific localization resource files, which are then loaded by the system for display. 
+## ICU and Internationalization Support
 
-A project can have a single target for simplicity or multiple targets in order to break up the project's localization data into separable sections. The Unreal Editor has a separate target from the rest of the 
-Unreal Engine so that the editor can be localized yet the editor's localization data can be withheld from distribution with games. Typically, a game will have one target for all of the base game's localization
- data and additional targets for expansions.
+ICU is a mature and robust internationalization library that UE4 uses to deal with anything involving culture-specific data or processing, including the following:
+
+*   Obtaining the current culture for the platform/OS.
+
+*   Handling the prioritized fallback of cultures.
+
+*   Handling the culture correct formatting of numbers (including percentages and currency), and dates and times (including timezone data).
+
+*   Handling the culture correct plurarity of numbers (during text formatting).
+
+*   Handling Unicode compliant transformation of text (eg, ToUpper, ToLower).
+
+*   Handling Unicode compliant comparison and collation of text.
+
+*   Handling Unicode compliant [boundary analysis](http://userguide.icu-project.org/boundaryanalysis) (characters, words, and line-breaks).
+
+*   Handling Unicode compliant bi-directional (BiDi) text detection.
+
+The culture-specific data that ICU needs to function is stored outside of ICU itself, and UE4 provides some coarse data sets that you can use to minimize your project size:
+
+*   English (~1.77MB)
+
+*   EFIGS - English, French, Italian, German, and Spanish (~2.38MB)
+
+*   EFIGSCJK - English, French, Italian, German, Spanish, Chinese, Japanese, and Korean (~5.99MB)
+
+*   CJK - Chinese, Japanese, and Korean (~5.16MB)
+
+*   All (~15.3MB)
+
+Which one of these you choose depends on what regions you localize your project for, and these choices can be set in your Project Settings. See [Packaging Localization Data](#packaginglocalizationdata) for more information.
 
 ## Cultures
-Cultures, also known as locales, define details such as language, script, and region. Cultures are identified by formatted strings as a required language code (ISO-639 standard), optional script code 
-(ISO-15924 standard), and optional region code (ISO-3166 standard), each delimited by dashes or underscores.
 
-Examples of culture codes include "en" (English language), "es-MX" (Spanish language, Mexican region), "zh-Hans-CN" (Chinese language, Simplified script, Chinese region).
+Cultures in UE4 contain internationalization information for a particular locale. Culture names are composed of three hyphen-separated parts (an [IETF language tag](https://en.wikipedia.org/wiki/IETF_language_tag)):
 
-## Manifests
-Manifests store gathered text as source strings, mapped by namespace and key, in human-readable JSON format. Manifests are generated by a commandlet using gathered text from special text gathering 
-commandlets. Manifests are truncated and created from scratch each time and should not be manually updated.
+*   A two-letter [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639-1_codes) language code (such as "zh").
 
-## Archives
-Archives store source strings and their translations, mapped by namespace, in human-readable JSON format. Archives are generated by a commandlet that stubs out all entries from a specified manifest.
- Because entries in archives do not have keys, all entries from a manifest sharing the same source within a namespace are collapsed into a single archive entry; if text only differs by key, it is assumed 
- they are superficially identical and will use the same translation. Archives are updated if they already exist, not truncated. Archives should be provided, as-is or converted into other formats, to translators 
- for processing and returned with translations in place of empty stub entries.
+*   An optional four-letter [ISO 15924](https://en.wikipedia.org/wiki/ISO_15924) script code (such as "Hans").
 
-## Localization Resources (LocRes)
-LocRes store translated text in a binary format to be loaded by the system. LocRes are generated by a commandlet that compiles a specified manifest and some number of specified archives.
+*   An optional two-letter [ISO 3166-1](https://en.wikipedia.org/wiki/ISO_3166-1) country code (such as “CN”).
 
-The system loads LocRes files based on the project settings and the current culture. Localized text from the LocRes of the current culture is used in addition to localized text from the LocRes of
- all of the current culture's parent cultures. This allows general translations to be made for a language in tandem with having more specific translations made for a region. As a basic example, 
- for a single target containing the text "Color" and supporting the cultures "en" (English) and "en-UK" (English for the United Kingdom), the "en" LocRes may have "Color" localized as "Color" while 
- the "en-UK" LocRes may have it localized as "Colour". If the user switches to "en-CA" (English for Canada), but the LocRes for "en-CA" lacks a localization for "Color", the LocRes for "en" will provide "Color".
+When UE4 looks for localization data for a particular culture, it processes them from most to least specific. For example:
+
+*   zh-Hans-CN is processed as "zh-Hans-CN", then "zh-CN", then "zh-Hans", then "zh".
+
+*   en-GB is processed as "en-GB", then "en".
+
+In order to achieve the widest coverage for a particular culture, use the least specific culture code that is valid. Usually that is just the language code, but you should be aware of regional language variations that need to be considered.
+
+In most cases these regional variations are limited to a specific country code, which makes them easy to resolve. However, there are some more complex cases as shown below.
+
+### Chinese
+
+Chinese has two variants, Simplified and Traditional, represented by the “Hans” and “Hant” ISO-15924 script codes. Use “zh-Hans” for your Simplified localization, and “zh-Hant” for your Traditional localization.
+
+### Spanish
+
+Spanish has two main variants: European and Latin American. However, there is no convenient script code that can be used to distinguish one from the other. There is an IETF language tag for Latin American Spanish ("es-419"), but most platforms will not provide this, and instead will give you an actual country code ("es-MX").
+
+To solve this, use "es" for European Spanish, and "es-419" for Latin American Spanish. Then use the [culture remapping](Gameplay/Localization/ManageActiveCultureRuntime#cultureremapping) feature of UE4 to map the Latin American Spanish speaking countries to "es-419".
+
+This can be done by adding the following to your `DefaultGame.ini` file:
+
+    [Internationalization]
+    +CultureMappings="es-AR;es-419"
+    +CultureMappings="es-BO;es-419"
+    +CultureMappings="es-CL;es-419"
+    +CultureMappings="es-CO;es-419"
+    +CultureMappings="es-CR;es-419"
+    +CultureMappings="es-CU;es-419"
+    +CultureMappings="es-DO;es-419"
+    +CultureMappings="es-EC;es-419"
+    +CultureMappings="es-GT;es-419"
+    +CultureMappings="es-HN;es-419"
+    +CultureMappings="es-MX;es-419"
+    +CultureMappings="es-NI;es-419"
+    +CultureMappings="es-PA;es-419"
+    +CultureMappings="es-PE;es-419"
+    +CultureMappings="es-PR;es-419"
+    +CultureMappings="es-PY;es-419"
+    +CultureMappings="es-SV;es-419"
+    +CultureMappings="es-US;es-419"
+    +CultureMappings="es-UY;es-419"
+    +CultureMappings="es-VE;es-419"
+
+## Localization Targets
+
+**Localization Targets** are named, self-contained modules of localization data. Localization Targets have the following properties:
+
+*   They have text gathered from a specified set of sources;
+
+*   They are stored in a manifest file;
+
+*   They are translated in culture-specific archive files;
+
+*   They are compiled into culture-specific localization resource files, and the compiled culture-specific resource files are what the system displays.
+
+A project can have a single Localization Target for simplicity, or it can have multiple Localization Targets in order to break up the project's localization data into sections. The Unreal Editor has a separate Localization Target from the rest of UE4, so that the Editor can be localized without distributing that localization data with games. Typically, a game will have one Localization Target for all of the base project's localization data, and additional Localization Targets for any expansions.
+
+## Localization Pipeline
+
+The UE4 localization pipeline is modeled around an “author-at-source” approach to localization. This means that if you need some text saying "Hello World!" in your UI, you just type "Hello World!" into the text property (or use the `NSLOCTEXT` or `LOCTEXT` macros in C++) and the localization gatherer takes care of capturing the text so that it can be localized.
+
+The "author-at-source" approach is very dynamic, and this approach allows developers to avoid thinking much about localization during development. However, it can also be frustrating for teams that want strict control over the text used in their project. To address this, UE4 has support for [String Tables](Gameplay/Localization/StringTables) to allow an "author-once-and-reference" approach to localization (although internally, the pipeline just treats String Tables as another "author-at-source" source).
+
+[REGION:warning]
+An older (and no longer supported) method to work around the lack of native String Tables was to use a "fake" native culture (most likely "es-US-POSIX") with IDs as the source text, and then use the string collapsing functions UE4 had prior to version 4.14 to translate these IDs into each language. You may find references to this method in older support questions, but it should no longer be used. Projects using that method should migrate to String Tables.
+[/REGION]
+
+The localization pipeline itself works on Localization Targets, and a Localization Target is made up of two parts: its configuration (stored in `Config/Localization/`), and its data (stored in `Content/Localization/{TargetName}/`).
+
+If we assume a Localization Target working with English ("en") and French ("fr"), then its layout in the `Content/Localization/` folder would look like this:
+
+    {TargetName}/
+       {TargetName}.manifest
+       {TargetName}.locmeta
+       en/
+          {TargetName}.archive
+          {TargetName}.po
+          {TargetName}.locres
+       fr/
+          {TargetName}.archive
+          {TargetName}.po
+          {TargetName}.locres
+
+All of the above files and folders are generated by the various parts of the localization pipeline.
+
+| Folder | Description |
+| --- | --- |
+| **{TargetName}.manifest** | [INCLUDE:#excerpt_1] |
+| **{TargetName}.archive** | [INCLUDE:#excerpt_2] |
+| **{TargetName}.po** | [INCLUDE:#excerpt_3] |
+| **{TargetName}.locres** | [INCLUDE:#excerpt_4] |
+| **{TargetName}.locmeta** | [INCLUDE:#excerpt_5] |
+
+<!--
+[EXCERPT:excerpt_5]
+
+*   LocMeta are custom binary files that store the compiled target meta-data (currently only the native culture for the target) for use at runtime.
+
+*   LocMeta files are regenerated each time the localization data is compiled, and is staged into a packaged build.
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+*   LocRes are custom binary files that store the compiled per-culture translations for use at runtime.
+
+*   LocRes files are re-generated each time the localization compile step is run, and get staged into a packaged build.
+
+*   LocRes are the only files that your project will load localization data from at runtime (including in the editor), so any edits or changes to your source data (such as from importing a PO file) must be compiled before they take effect.
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+*   PO ([Portable Object](https://www.gnu.org/software/gettext/manual/html_node/PO-Files.html)) files contain the per-culture text to be translated, along with their current translations.
+
+*   PO files are generated by the localization export text step, and are re-imported into the archives by the localization import text step.
+
+*   PO is a common format, and may be edited locally either by-hand or via a translation tool like [Poedit](https://poedit.net/), or collaboratively via something like [OneSky](https://www.oneskyapp.com/) or [XLOC](http://www.xloc.com/).
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+*   Archives are custom JSON files that store per-culture translations for the text gathered into the manifest.
+
+*   Archives are trimmed each time the localization gather or import steps are run to remove entries for old sources.
+
+*   Archives can be hand-edited, but we strongly suggest that you do not hand-edit. Our recommended workflow is to edit the exported PO files and re-import them.
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+*   Manifests are custom JSON files that store all of the text gathered from your source code and assets by the localization pipeline.
+
+*   Manifests are re-generated each time the localization gather step is run, and shouldn’t be hand-edited.
+
+[/EXCERPT:excerpt_1]
+-->
+
+Localization Targets also specify a “native” culture, which should be set to the culture that you author your content in (commonly referred to as your “source text” or “source data”).
+
+Native cultures can contain “translations” just like any other culture, although native culture translations only exist to facilitate copy-editing your source text without editing the source code or assets directly.
+
+Foreign cultures use the native culture text as their source text for translation, and will become "stale" if the native culture text is changed (there’s a setting in the localization compile step to allow stale translations if required).
+
+For more information on optimizing your localization pipeline, see [Pipeline Optimization](Gameplay/Localization/LocalizationPipelineOptimization).
+
+## Packaging Localization Data
+
+Packaging the correct localization and internationalization data for your project requires adjusting some settings under the advanced **Packaging** section of your **Project Settings**.
+
+The two settings you’ll want to verify are:
+
+*   **Localizations to Package** \- With this you can choose which cultures you want to stage localization data for. You can use the **Show Localized** option to filter the list to only show cultures that you have `LocRes` files for.
+
+*   **Internationalization Support** \- With this you can choose which set of ICU internationalization data you want to stage. This option must overlap with the localization data you intend to stage.

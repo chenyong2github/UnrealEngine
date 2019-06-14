@@ -1,13 +1,13 @@
 Availability:Public
 Title:Simple Wheeled Vehicle Movement Component
-Crumbs:
+Parent: Engine/Physics/Vehicles
 Description:The Unreal Engine 4 Blueprint Vehicles User Guide for SimpleWheeledVehicleMovement Component.
-Parent: Engine/Vehicles/
 type:how-to
 prereq: Engine/Physics/Vehicles/VehicleUserGuide
 Version: 4.15
 SkillLevel: Advanced
 tags: vehicles
+Order:2
 
 The **SimpleWheeledVehicleMovement** component provides wheel suspension and tire friction without the complexities of engine or drivetrain simulation. Instead, it
 lets you easily apply torque to individual tires for components inheriting from Wheeled Vehicle Movement component, which can give you vehicle-like movement

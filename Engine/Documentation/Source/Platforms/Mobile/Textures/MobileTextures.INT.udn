@@ -1,126 +1,127 @@
-Availability:Public
-Title:Texture Guidelines for Mobile Platforms
-Crumbs:%ROOT%, Platforms, Platforms/Mobile
-Description:Texture creation and properties for mobile games.
-Platform:Mobile
+Availability: Public
+Title: Textures for Mobile Platforms
+Description: Texture creation and properties for mobile games.
+Type: overview
 Version: 4.9
-parent:Platforms/Mobile
-order:2
-type:overview
-tags:mobile
+skilllevel:Beginner
+Parent: Platforms/Mobile
+Tags: mobile
 
-[TOC(start:2)]
+When creating Textures for mobile platforms you will need to make sure that the Textures you create adhere to the following restrictions:
 
+*   Textures can only be a maximum size of 2048 in either dimension as this is the largest size allowed by the PVR compressor.
+*   Texture sizes need to be a power of 2 (for example, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, or 2048).
+    *   You can have non-square Textures like 512 x 64, just as long as the size remains a power of 2.
+*   You should use square Textures whenever possible as they make more efficient use of memory.
 
-Since mobile platforms use OpenGL ES2, there are restrictions imposed on textures. Some of the restrictions come into play 
-when creating textures:
+When importing Textures into Unreal Engine 4 (UE4) the following Texture settings need to be applied to your Textures to ensure they work and perform correctly:
 
-* A maximum size of 2048 in either dimension. This is the largest size allowed by the PVR compressor.
-* Dimensions must both be a power of 2 (i.e. 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, or 2048).
-* You should use square textures whenever possible as they make more efficient use of memory. 
+*   It is recommended that you only use **TC_Default** or **TC_NormalMap** in the **Compression Settings** to help ensure that your Textures take up as little memory as possible.
+*   The **sRGB** property should be enabled on all Texture maps except for Normal Maps and Masks.
 
-In addition, texture settings need to be set up properly to work on mobile platforms:
-
-* It is recommended that you only use  **TC_Default** or **TC_NormalMap** in the **Compression Settings** as any other setting could cause your Texture to take up more memory than expected on your target device.
-* The **sRGB** property should be enabled.
- 
 ## Texture Usage in Materials
 
-Most opaque Materials should only need BaseColor, Roughness, and Normal to come from textures. Specular should not be specified 
-and Metallic can be a constant. Given that base set of Material properties, most Materials that only have one layer should use 
-the following setup which only requires two textures:
+Generally speaking when utilizing Textures inside of your Materials meant for mobile devices, you should try and use a few Texture as possible. This will help reduce the memory footprint of your project and will also help cut down on the amount of Textures fetches that are needed. Generally speaking, most opaque (non-transparent) Materials that have only one layer should only need the **Base Color**, **Roughness**, and **Normal** inputs to come from Textures. All other inputs like **Metallic** should use **Constant's Material Expression** nodes. The image below shows how the Textures used in the M\_Metal\_Steel Material that can be found with the Mobile Starter content have been setup. 
 
-* **Texture 1**
-	* BaseColor in RGB
-	* Roughness in alpha
-	* TC_Default compression
-* **Texture 2**
-	* Normal map in RGB
-	* TC_NormalMap compression
+![](TextureUsageinMaterialsExample_01.png "TextureUsageinMaterialsExample_01.png")
 
-Additional layers will need to use more textures, with the option of only layering in BaseColor + Roughness to avoid multiple normal map texture fetches.
+Most Materials that only have one layer like the Material shown above, should have their Textures setup in the following manner as it only requires two Textures:
+
+*   **Texture 1**
+    *   BaseColor in RGB.   
+    *   Roughness in Alpha Channel.    
+    *   Compression set to **Default** (DXT 1/5, BC1/3 on DX11).
+*   **Texture 2**
+    *   Normal map in RGB   
+    *   Compression set to **Normalmap** (DXT5, BC5 on DX11) .
 
 ## Per-Device Texture LOD
 
-With the release of Unreal Engine 4.8 you can now specify Texture LOD settings on a per-device basis as opposed to per-platform. 
-To set the Texture LOD settings per-device you will need to do the following.
+With the release of Unreal Engine 4.8 you can now specify Texture LOD settings on a per-device basis as opposed to per-platform. To set the Texture LOD settings per-device you will need to do the following.
 
-1. From the main Tool Bar open the **Devices Profiles** manager by going to **Windows** > **Developer Tools** and then clicking on **Device Profiles**.
-
-	[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
+1.  From the main Tool Bar open the **Devices Profiles** manager by going to **Windows** \> **Developer Tools** and then clicking on **Device Profiles**.
+    
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]      
+    
 	![](T_Device_Profiles_Manager.png)
-	[/PARAM]
+    
+		[/PARAM]
 	[/OBJECT]
-
-	[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	![](T_Device_Profiles_Manager_Mac.png)
-	[/PARAM]
-	[/OBJECT]
-
-1. After clicking on the **Device Profiles** option the following menu will be displayed.
-
-	[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	windows
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	![](T_DPM.png)
-	[/PARAM]
-	[/OBJECT]
-
-	[OBJECT:ToggleButtonContent]
-	[PARAMLITERAL:category]
-	OS
-	[/PARAMLITERAL]
-	[PARAMLITERAL:id]
-	mac
-	[/PARAMLITERAL]
-	[PARAMLITERAL:active]
-	[/PARAMLITERAL]
-	[PARAM:content]
-	![](T_Device_Profiles_Manager_Mac.png)
-	[/PARAM]
-	[/OBJECT]
-
-1. From this menu select the device you want to edit and then click on the three dots that are to the left of the device name to open that devices profile.
-
-1. To make a change just click on the property you want to adjust and then input what you want the setting to be.
-
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	5FgGi68G8ZY
-	[/PARAMLITERAL]
-	[/OBJECT]
-
-
-
-
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+           
+    ![](T_Device_Profiles_Manager_Mac.png)
+    
+        [/PARAM]
+    [/OBJECT]
+1.  After clicking on the **Device Profiles** option the following menu will be displayed.
+    
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+          
+    ![](T_DPM.png)
+    
+        [/PARAM]
+    [/OBJECT]
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+           
+    ![](T_DPM.png)
+    
+        [/PARAM]
+    [/OBJECT]
+1.  From this menu select the device you want to edit and then click on the three dots that are to the left of the device name to open that devices profile.
+1.  To make a change just click on the property you want to adjust and then input what you want the setting to be.
+    
+    [OBJECT:EmbeddedVideo]
+     [PARAMLITERAL:videoid]
+     5FgGi68G8ZY
+     [/PARAMLITERAL]
+     [PARAMLITERAL:width]
+     100
+     [/PARAMLITERAL]
+     [PARAMLITERAL:height]
+     56.25
+     [/PARAMLITERAL]
+     [PARAMLITERAL:units]
+     %
+     [/PARAMLITERAL]
+     [PARAMLITERAL:type]
+     simple
+     [/PARAMLITERAL]
+    [/OBJECT]

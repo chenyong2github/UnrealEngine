@@ -1,0 +1,534 @@
+INTSourceChangelist:6189681
+Availability: Public
+Crumbs: 
+Title: 애니메이션 셰어링 플러그인
+Description: 
+Type: overview
+Version: 4.22
+Parent: Engine/Animation
+Order: 33
+Tags: Animation
+Tags: Animation Features
+Tags: Animation Optimization
+Tags: Animation Sharing
+topic-image: AnimSharing_Topic.png
+social-image: AnimSharing_Topic.png
+topic-icon: AnimSharing_Topic.png
+Related: Engine/Animation/AnimBlueprints
+Related: Engine/Animation/AnimBlueprints/AnimGraph
+Related: Engine/Animation/AnimBlueprints/Creation
+
+
+Animation Sharing (애니메이션 셰어링) 플러그인은 공유 애니메이션 시스템을 만들어 크라우드 액터에 필요한 애니메이션 전체 작업량을 줄이는 방법을 제공합니다. [Master Pose Component](Engine/Animation/WorkingwithModularCharacters) (마스터 포즈 컴포넌트) 시스템을 기반으로 하는 애니메이션 공유 시스템은, 애니메이션 스테이트 버킷 세트를 활용하여 애니메이션 인스턴스를 평가합니다. 그 결과 포즈를 버킷의 일부인 모든 자손 컴포넌트에 전송합니다.  
+
+아래 다이어그램은 시스템 작동 방식을 일반적인 관점에서 분석한 것입니다.
+
+[REGION:lightbox]
+[![](AnimSharingDiagram-1.png)(w:900)](AnimSharingDiagram-1.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+1.  개별 크라우드 액터 (AActor)
+
+2.  애니메이션 셰어링 셋업의 일부인 UAnimationStateProcessor 인스턴스
+
+3.  애니메이션 셰어링 셋업을 사용해 초기화되는 런타임 매니저
+
+4.  사용자가 구성한 스테이트 (열거형 이름)
+
+5.  스켈레탈 메시 컴포넌트의 형태를 취하는 스테이트의 런타임 표현
+
+6.  자손 스켈레탈 메시 컴포넌트와 애니메이션을 공유하는 데 사용되는 마스터 포즈 컴포넌트 시스템
+
+아래 비디오 예제에서, 스켈레탈 메시 컴포넌트를 사용하는 블루프린트가 여러 애니메이션 스테이트를 순환합니다. 개별 액터 그룹 역시 표시되며, 여기서 블루프린트에 있는 스켈레탈 메시 컴포넌트의 애니메이션 스테이트에 따라 각 액터의 애니메이션 스테이트를 결정합니다.
+
+[OBJECT:EmbeddedVideo]
+[PARAMLITERAL:width]
+640
+[/PARAMLITERAL]
+[PARAMLITERAL:height]
+360
+[/PARAMLITERAL]
+[PARAMLITERAL:videoid]
+-2LZyV8SJ5o
+[/PARAMLITERAL]
+[/OBJECT]
+
+## 애니메이션 셰어링 플러그인 활성화
+
+애니메이션 셰어링을 사용하려면, **편집 > 플러그인** 메뉴의 **Programming** 섹션에서 Animation Sharing Plugin 을 활성화해야 합니다.
+
+[REGION:lightbox]
+[![](AnimSharingPlugin.png)(w:900)](AnimSharingPlugin.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+[REGION:note]
+플러그인을 활성화한 후 에디터를 재시작해야 합니다.
+[/REGION]
+
+## 애니메이션 셰어링 셋업 애셋
+
+**Animation Sharing Setup** (애니메이션 셰어링 셋업) 애셋에는 지정된 액터에 공유할 모든 정보가 들어 있습니다. 애니메이션 셰어링 셋업 애셋은 **콘텐츠 브라우저** 의 **애니메이션** 카테고리에서 만들 수 있습니다.
+
+![](AnimSharingSetup.png "AnimSharingSetup.png")
+
+애니메이션 셰어링 셋업 애셋 안에서 정의할 수 있는 프로퍼티는 다음과 같습니다.  
+
+![](NewAnimSharingAsset.png "NewAnimSharingAsset.png")
+
+### Skeleton Setups
+
+**+** (더하기 부호)를 클릭하면 여러 스켈레톤과 그에 해당하는 세팅을 추가할 수 있습니다. 애니메이션 공유 도중 애니메이션을 구동할 스켈레톤과 스켈레탈 메시가 여럿인 경우 좋습니다.
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Skeleton** | [INCLUDE:#excerpt_1] |
+| **Skeletal Mesh** | [INCLUDE:#excerpt_2] |
+| **Animation Blueprint for Blending** | [INCLUDE:#excerpt_3] |
+| **Animation Blueprint for Additive Animation** | [INCLUDE:#excerpt_4] |
+| **State Processor Class** | [INCLUDE:#excerpt_5] |
+| **Animation States** | 액터가 있을 수 있는 모든 상태를 저장하는 배열입니다. 각 상태는 별도의 버킷입니다. |
+
+
+<!--
+[EXCERPT:excerpt_5]
+
+액터가 있는 상태를 결정할 때 사용되는 인터페이스 클래스입니다.  
+
+[REGION:note]
+애니메이션 스테이트를 추가하려면 이 설정이 필요합니다.
+[/REGION]
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+애디티브 애니메이션에 사용되는 AnimSharingAdditiveInstance 의 자손인 애니메이션 블루프린트입니다.   
+
+[REGION:note]
+**애니메이션 셰어링 셋업** 애셋 안에서 **Animation State** (애니메이션 스테이트)도 **On Demand** (온 디맨드) 설정하고 **Additive** (애디티브) 옵션도 활성화해야 합니다.
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+AnimSharingTransitionInstance 의 자손인 애니메이션 블루프린트입니다.   
+
+[REGION:note]
+스테이트 사이 블렌드 처리를 위해서는 이들 중 하나를 생성해서 구성해야 합니다. 추가로 블렌드를 요청이 있을 때마다, 이들 중 하나를 생성하고 실행해서 트랜지션을 처리하여 비용이 추가됩니다.
+[/REGION]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+대체할 스켈레탈 메시입니다.  
+
+[REGION:note]
+포즈 디버깅에만 사용됩니다.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+리플리케이트할 스켈레톤 애셋입니다.  
+
+[REGION:note]
+애니메이션 셰어링 셋업은 지정된 스켈레톤에만 적용됩니다.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+  
+
+### Animation States
+
+![](AnimationStateSection.png "AnimationStateSection.png")
+
+**Skeleton Setup** 안에 **State Processor Class** 를 정의한 이후에는, 현재 스테이트에 따라 각 **애니메이션 스테이트** 에 대해 다음과 같은 프로퍼티를 정의할 수 있습니다. 
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **State** | [INCLUDE:#excerpt_6] |
+| **Animation Setups** | 재생할 애니메이션 시퀀스, 애님 시퀀스 재생에 사용할 애니매이션 블루프린트, (원하는 경우) 무작위 인스턴스의 수, 특정 플랫폼에 대한 셋업 활성화 여부와 같은 스테이트별 애니메이션 정보를 정의할 수 있습니다. |
+| **On Demand** | [INCLUDE:#excerpt_7] |
+| **Additive** | [INCLUDE:#excerpt_8] |
+| **Blend Time** | 스테이트로 블렌딩할 때의 블렌딩 지속 시간입니다. |
+| **Maximum Number Of Concurrent Instances** | 스테이트에 대해 생성할 (플랫폼별) 인스턴스 수입니다. |
+| **Requires Curves** | 이 애니메이션이 슬레이브 컴포넌트에 대해 정상 작동하기 위해 커브 또는 모프 타깃이 필요한지 여부입니다. |
+
+
+<!--
+[EXCERPT:excerpt_8]
+
+스테이트가 애디티브 스테이트인지 여부입니다.
+
+[REGION:note]
+On Demand 옵션이 활성화되고 애디티브 애니메이션 블루프린트가 있어야 블렌딩을 처리할 수 있습니다.
+[/REGION]
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+
+이 스테이트를 On Demand, 즉 필요할 때 고유 애니메이션을 발동할 수 있는 것으로 분류할지 여부입니다. On Demand 애니메이션당 고유 인스턴스를 회전시킵니다.
+
+[REGION:note]
+최대값에 도달하면 가장 가까운 애니메이션으로 스냅됩니다.
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+배열의 인덱스에 정보를 포함시킬 스테이트를 정의합니다.
+
+[REGION:note]
+State Processor Class 및 할당된 Animation State Enum 에서 상속됩니다.
+[/REGION]
+[/EXCERPT:excerpt_6]
+-->
+  
+
+### Scalability Settings
+
+![](ScalabilitySettingsSection.png "ScalabilitySettingsSection.png")
+
+Scalability Settings 섹션에서 사용할 수 있는 프로퍼티는 다음과 같습니다. 
+
+  
+| 프로퍼티 | 설명 |
+| --- | --- |
+| **Use Blend Transitions** | 애니메이션이 한 스테이트에서 다른 스테이트로의 트랜지션을 위해 블렌드를 재생해야 하는 경우입니다. |
+| **Blend Significance Value** | 트랜지션 블렌딩 여부에 묶인 시그니피컨스 값입니다. |
+| **Maximum Number Concurrent Blends** | [INCLUDE:#excerpt_9] |
+| **Tick Significance Value** | [시그니피컨스 매니저](Engine/Performance/SignificanceManager) 와 같이 사용됩니다. 지정된 값을 초과하면 틱이 일어나지 않습니다. |
+
+<!--
+[EXCERPT:excerpt_9]
+
+동시에 실행될 수 있는 블렌드 수입니다. 
+
+[REGION:note]
+이 제한을 초과하는 각 애니메이션은 가장 가까운 애니메이션으로 스냅됩니다.
+[/REGION]
+[/EXCERPT:excerpt_9]
+-->
+  
+
+## Animation Sharing State Processor
+
+**AnimationSharingStateProcessor** 클래스는 현재 있는 상태를 결정하는 데 사용되는 특수 블루프린트 클래스입니다 (네이티브 C++ 클래스를 사용할 수도 있습니다). 이 블루프린트 클래스를 생성하려면, **AnimationSharingStateProcessor** 클래스 기반 블루프린트를 새로 만들고 원하는 이름을 입력합니다.
+
+[REGION:warning]
+Animation Sharing State Processor 블루프린트는 프로토타입 제작에만 사용해야 합니다. 블루프린트 구현과 달리 네이티브 구현을 사용하면 런타임 퍼포먼스가 크게 향상됩니다.
+[/REGION]
+
+![](AnimSharingStateProcessorClass.png "AnimSharingStateProcessorClass.png")
+
+블루프린트의 **디테일** 패널에서 **Animation State Enum** 를 애니메이션 스테이트가 들어있는 열거형으로 설정합니다.  
+
+![](ProcessorDefaults.png "ProcessorDefaults.png")
+
+Animation Sharing State Processor 블루프린트는 **애니메이션 셰어링 셋업** 애셋의 **State Processor Class** 안에 정의하는 블루프린트 클래스이기도 합니다 (아래 그림). State Processor 클래스 정의 이후, + (더하기 부호)를 클릭하여 애니메이션을 추가해 열거형의 각 스테이트를 표현할 수 있습니다.  
+
+![](AnimationStatesDefined.png "AnimationStatesDefined.png")
+
+Animation Sharing State Processor 블루프린트는 두 가지 함수를 덮어쓸 수 있습니다. 첫째, **Process Actor State** 함수는 (아래 그림) 스테이트를 편집 중인 액터를 찾는 데 사용할 수 있습니다. 둘째, **Get Animation State Enum** 함수는 네이티브 Animation Sharing State Processor 에서 Enum 클래스를 반환하는 데 사용해야 하며, 네이티브 구현과의 인터페이스에 사용할 수 있습니다.  
+
+[REGION:lightbox]
+[![](ProcessActorStateExample.png)(w:900)](ProcessActorStateExample.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+위 이미지에서 **Process Actor State** 함수를 오버라이드하고 **Husk_BP** 라는 블루프린트로 [형변환](Engine/Blueprints/UserGuide/CastNodes) 하여 (만들어 둔 변수에 저장되는) 그 애니메이션 스테이트를 얻습니다. Animation Sharing State Processor 블루프린트는 애니메이션 셰어링 셋업 안에 **State Processor Class** 로도 할당됩니다.  
+
+## 애니메이션 블루프린트 셋업
+
+애니메이션 스테이트 사이 블렌딩을 처리하려면 [애니메이션 블루프린트](Engine/Animation/AnimBlueprints) 를 구성해야 합니다. 여기에는 **Anim Sharing Transition Instance** 라는 애니메이션 블루프린트 특수 클래스가 필요합니다. **콘텐츠 브라우저** 에서 애니메이션 블루프린트를 만든 다음 **부모 클래스 선택** 메뉴에서 원하는 스켈레톤 애셋을 선택하고 **AnimSharingTransitionInstance** 를 클래스로 선택합니다. 
+
+![](AnimBPCreation.png "AnimBPCreation.png")
+
+**AnimSharingTransitionInstance** 애니메이션 블루프린트의 **애님 그래프** 에 아래와 같은 구성을 복사하거나 사용합니다.
+
+노드 그래프 복사
+
+[REGION:lightbox]
+[![](AnimSharingTransitionInstance_BP.png)](AnimSharingTransitionInstance_BP.png)
+[/REGION]
+
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_Root Name="AnimGraphNode\_Root_0"  
+    ShowPinForProperties(0)=(PropertyName="Result",PropertyFriendlyName="Result",PropertyTooltip="Result",CategoryName="Links",bShowPin=True)  
+    NodePosX=-144  
+    ErrorType=4  
+    NodeGuid=0FCF00194AC285A9A163E7B694738C10  
+    CustomProperties Pin (PinId=9FC69ADD403386DE35C76DBC40EC0979,PinName="Result",PinFriendlyName="Result",PinToolTip="Result\\nPose Link Structure\\n\\nResult",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_BlendListByBool\_0 DD6EA15242C95BC4958C309F37456CD3,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_BlendListByBool Name="AnimGraphNode\_BlendListByBool_0"  
+    ShowPinForProperties(0)=(PropertyName="bActiveValue",PropertyFriendlyName="Active Value",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_BlendListByBool:bActiveValue", "Which input should be connected to the output?"),CategoryName="Runtime",bShowPin=True)  
+    ShowPinForProperties(1)=(PropertyName="BlendPose",PropertyFriendlyName="Blend Pose",PropertyTooltip="Blend Pose",CategoryName="Links",bShowPin=True)  
+    ShowPinForProperties(2)=(PropertyName="BlendTime",PropertyFriendlyName="Blend Time",PropertyTooltip="Blend Time",CategoryName="Config",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(3)=(PropertyName="BlendType",PropertyFriendlyName="Blend Type",PropertyTooltip="Blend Type",CategoryName="BlendType")  
+    ShowPinForProperties(4)=(PropertyName="bResetChildOnActivation",PropertyFriendlyName="Reset Child on Activation",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_BlendListBase:bResetChildOnActivation", "This reinitializes child pose when re-activated. For example, when active child changes"),CategoryName="Option")  
+    ShowPinForProperties(5)=(PropertyName="CustomBlendCurve",PropertyFriendlyName="Custom Blend Curve",PropertyTooltip="Custom Blend Curve",CategoryName="BlendType")  
+    ShowPinForProperties(6)=(PropertyName="BlendProfile",PropertyFriendlyName="Blend Profile",PropertyTooltip="Blend Profile",CategoryName="BlendType")  
+    NodePosX=-368  
+    NodePosY=16  
+    NodeGuid=3AF80FBE453C5BF351B74AB41ABCC2DB  
+    CustomProperties Pin (PinId=42CC2B874A21AE5E1F7958B6A97A5302,PinName="bActiveValue",PinFriendlyName="Active Value",PinToolTip="Active Value\\nBoolean\\n\\nWhich input should be connected to the output?",PinType.PinCategory="bool",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="False",AutogeneratedDefaultValue="False",LinkedTo=(K2Node\_VariableGet\_0 9E7EA92B4CD9BC7BA4307D8E5DC8F005,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=925ED2414617452C6DF0A392C0EDD131,PinName="BlendPose\_0",PinFriendlyName=LOCGEN\_FORMAT\_NAMED(NSLOCTEXT("A3Nodes", "BoolPoseFriendlyName", "{TrueFalse} Pose"), "TrueFalse", NSLOCTEXT("A3Nodes", "True", "True")),PinToolTip="Blend Pose 0\\nPose Link Structure\\n\\nBlend Pose",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_CopyPoseFromMesh_0 4E472A1840B3F6EF24C86E8FA2694DE5,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=500C56AA43BFCFD5D1AF558CB451A02A,PinName="BlendPose\_1",PinFriendlyName=LOCGEN\_FORMAT\_NAMED(NSLOCTEXT("A3Nodes", "BoolPoseFriendlyName", "{TrueFalse} Pose"), "TrueFalse", NSLOCTEXT("A3Nodes", "False", "False")),PinToolTip="Blend Pose 1\\nPose Link Structure\\n\\nBlend Pose",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_CopyPoseFromMesh_1 29C385EE451B16B5AC069EA108C775F2,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=1D9FB4E64CF1FBDED841639A772E142B,PinName="BlendTime\_0",PinFriendlyName=LOCGEN\_FORMAT\_NAMED(NSLOCTEXT("A3Nodes", "BoolBlendTimeFriendlyName", "{TrueFalse} Blend Time"), "TrueFalse", NSLOCTEXT("A3Nodes", "True", "True")),PinToolTip="Blend Time 0\\nFloat\\n\\nBlend Time",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="0.100000",AutogeneratedDefaultValue="0.100000",LinkedTo=(K2Node\_VariableGet_1 0107072B4F8D93B6C75E59995402C55D,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=5DA4ACBD4A41973C0319A08EFEC4EE85,PinName="BlendTime\_1",PinFriendlyName=LOCGEN\_FORMAT\_NAMED(NSLOCTEXT("A3Nodes", "BoolBlendTimeFriendlyName", "{TrueFalse} Blend Time"), "TrueFalse", NSLOCTEXT("A3Nodes", "False", "False")),PinToolTip="Blend Time 1\\nFloat\\n\\nBlend Time",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="0.100000",AutogeneratedDefaultValue="0.100000",LinkedTo=(K2Node\_VariableGet_1 0107072B4F8D93B6C75E59995402C55D,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=DD6EA15242C95BC4958C309F37456CD3,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_Root_0 9FC69ADD403386DE35C76DBC40EC0979,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_0"  
+    VariableReference=(MemberName="bBlendBool",bSelfContext=True)  
+    NodePosX=-704  
+    NodePosY=-64  
+    NodeGuid=821953DA498F727F31C7BBAC251D20E4  
+    CustomProperties Pin (PinId=9E7EA92B4CD9BC7BA4307D8E5DC8F005,PinName="bBlendBool",Direction="EGPD\_Output",PinType.PinCategory="bool",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="false",AutogeneratedDefaultValue="false",LinkedTo=(AnimGraphNode\_BlendListByBool_0 42CC2B874A21AE5E1F7958B6A97A5302,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=26B993D349EB00A2C207B7883949A890,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingTransitionInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_1"  
+    VariableReference=(MemberName="BlendTime",bSelfContext=True)  
+    NodePosX=-592  
+    NodePosY=208  
+    NodeGuid=9BD298FF438FBD6A5B54C084EB18C615  
+    CustomProperties Pin (PinId=0107072B4F8D93B6C75E59995402C55D,PinName="BlendTime",Direction="EGPD\_Output",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="0.0",AutogeneratedDefaultValue="0.0",LinkedTo=(AnimGraphNode\_BlendListByBool\_0 1D9FB4E64CF1FBDED841639A772E142B,AnimGraphNode\_BlendListByBool_0 5DA4ACBD4A41973C0319A08EFEC4EE85,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=AFEFF55445A86C7492FDE4B97C1289E0,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingTransitionInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_2"  
+    VariableReference=(MemberName="FromComponent",bSelfContext=True)  
+    NodePosX=-880  
+    NodePosY=32  
+    NodeGuid=4F27808B4EF2180632DC08A96888FE32  
+    CustomProperties Pin (PinId=313057EE4F41F0DDE072C6834733C7C7,PinName="FromComponent",Direction="EGPD\_Output",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SkeletalMeshComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,LinkedTo=(AnimGraphNode\_CopyPoseFromMesh_0 420BA23743193D552593829A53F8F68C,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=CF3DE59A4B883F00976CDFADDF43B2E8,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingTransitionInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_CopyPoseFromMesh Name="AnimGraphNode\_CopyPoseFromMesh_0"  
+    ShowPinForProperties(0)=(PropertyName="SourceMeshComponent",PropertyFriendlyName="Source Mesh Component",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:SourceMeshComponent", "This is used by default if it\\'s valid"),CategoryName="Copy",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(1)=(PropertyName="bUseAttachedParent",PropertyFriendlyName="Use Attached Parent",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:bUseAttachedParent", "If SourceMeshComponent is not valid, and if this is true, it will look for attahced parent as a source"),CategoryName="Copy")  
+    ShowPinForProperties(2)=(PropertyName="bCopyCurves",PropertyFriendlyName="Copy Curves",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:bCopyCurves", "Copy curves also from SouceMeshComponent. This will copy the curves if this instance also contains"),CategoryName="Copy")  
+    NodePosX=-688  
+    NodePosY=16  
+    NodeGuid=0CB5F4EB4092B28B3ACF2DAA47E5A3A3  
+    CustomProperties Pin (PinId=420BA23743193D552593829A53F8F68C,PinName="SourceMeshComponent",PinFriendlyName="Source Mesh Component",PinToolTip="Source Mesh Component\\nSkeletal Mesh Component Weak object\\n\\nThis is used by default if it\\'s valid",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SkeletalMeshComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,AutogeneratedDefaultValue="None",LinkedTo=(K2Node\_VariableGet\_2 313057EE4F41F0DDE072C6834733C7C7,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=4E472A1840B3F6EF24C86E8FA2694DE5,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_BlendListByBool_0 925ED2414617452C6DF0A392C0EDD131,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_3"  
+    VariableReference=(MemberName="ToComponent",bSelfContext=True)  
+    NodePosX=-864  
+    NodePosY=112  
+    NodeGuid=3E19B7E141965AF034C503A930E8E45A  
+    CustomProperties Pin (PinId=14584B5442ACDBFDA04E85963CDB4DBF,PinName="ToComponent",Direction="EGPD\_Output",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SkeletalMeshComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,LinkedTo=(AnimGraphNode\_CopyPoseFromMesh_1 541B298D40CB962059D422B7A276CA59,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=6E39D3D44FEF3F7E975C89A5B923E1F8,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingTransitionInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_CopyPoseFromMesh Name="AnimGraphNode\_CopyPoseFromMesh_1"  
+    ShowPinForProperties(0)=(PropertyName="SourceMeshComponent",PropertyFriendlyName="Source Mesh Component",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:SourceMeshComponent", "This is used by default if it\\'s valid"),CategoryName="Copy",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(1)=(PropertyName="bUseAttachedParent",PropertyFriendlyName="Use Attached Parent",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:bUseAttachedParent", "If SourceMeshComponent is not valid, and if this is true, it will look for attahced parent as a source"),CategoryName="Copy")  
+    ShowPinForProperties(2)=(PropertyName="bCopyCurves",PropertyFriendlyName="Copy Curves",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:bCopyCurves", "Copy curves also from SouceMeshComponent. This will copy the curves if this instance also contains"),CategoryName="Copy")  
+    NodePosX=-688  
+    NodePosY=96  
+    NodeGuid=A4D7DD8348E8D17BC173869171B5FF52  
+    CustomProperties Pin (PinId=541B298D40CB962059D422B7A276CA59,PinName="SourceMeshComponent",PinFriendlyName="Source Mesh Component",PinToolTip="Source Mesh Component\\nSkeletal Mesh Component Weak object\\n\\nThis is used by default if it\\'s valid",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SkeletalMeshComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,AutogeneratedDefaultValue="None",LinkedTo=(K2Node\_VariableGet\_3 14584B5442ACDBFDA04E85963CDB4DBF,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=29C385EE451B16B5AC069EA108C775F2,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_BlendListByBool_0 500C56AA43BFCFD5D1AF558CB451A02A,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+
+### Anim Sharing Additive Instance
+
+애디티브 애니메이션을 사용할 때, **AnimSharingAdditiveInstance** 클래스의 **애니메이션 블루프린트** 를 사용해야 합니다.
+
+![](AnimSharingAdditiveBP.png "AnimSharingAdditiveBP.png")
+
+[REGION:note]
+**애니메이션 셰어링 셋업** 애셋 안에서 **Animation State** 는 **On Demand** 로 설정하고 **Additive** 를 활성화해야 합니다.
+
+![](OnDemandCheckbox.png "OnDemandCheckbox.png")
+[/REGION]
+
+**AnimSharingAdditiveInstance** 애니메이션 블루프린트의 **애님 그래프** 에 아래 그림과 같은 구성을 복사하거나 재현합니다.
+
+노드 그래프 복사
+
+[REGION:lightbox]
+[![](AnimSharingAdditive_Graph.png)](AnimSharingAdditive_Graph.png)
+[/REGION]
+
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_Root Name="AnimGraphNode\_Root_0"  
+    ShowPinForProperties(0)=(PropertyName="Result",PropertyFriendlyName="Result",PropertyTooltip="Result",CategoryName="Links",bShowPin=True)  
+    NodePosX=160  
+    NodePosY=16  
+    ErrorType=4  
+    ErrorMsg="Result was visible but ignored"  
+    NodeGuid=9B9C0A274EFE3D4893B338B63E4BA534  
+    CustomProperties Pin (PinId=D28554294AFBA1C3D8B9799438DD3B84,PinName="Result",PinFriendlyName="Result",PinToolTip="Result\\nPose Link Structure\\n\\nResult",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_ApplyMeshSpaceAdditive\_0 66A1DDE64223F117AA0060AAD022EB98,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_0"  
+    VariableReference=(MemberName="BaseComponent",bSelfContext=True)  
+    NodePosX=-560  
+    NodePosY=32  
+    NodeGuid=3CDA48D04E4DC54B07E1A8B387D7F4B1  
+    CustomProperties Pin (PinId=50C8662E4549FB4C825F12B859F469F4,PinName="BaseComponent",Direction="EGPD\_Output",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SkeletalMeshComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,LinkedTo=(AnimGraphNode\_CopyPoseFromMesh_0 7B3EDF7D4DC4CA4FD772CEAC8A5A5380,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=F163231644191CE37FF1E8A0011AE6E8,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingAdditiveInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_1"  
+    VariableReference=(MemberName="AdditiveAnimation",bSelfContext=True)  
+    NodePosX=-544  
+    NodePosY=160  
+    NodeGuid=CEBFE47048DE6DB8C4D7A59FE7B08D1F  
+    CustomProperties Pin (PinId=0292554C4B9777F0B2A45381E54369C8,PinName="AdditiveAnimation",Direction="EGPD\_Output",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.AnimSequence"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,LinkedTo=(AnimGraphNode\_SequencePlayer_0 1844AF8D4D95F2AD70353B9286320E36,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=BE8F997544CD3B8CFD492F908AB3CD9D,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingAdditiveInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_SequencePlayer Name="AnimGraphNode\_SequencePlayer_0"  
+    ShowPinForProperties(0)=(PropertyName="Sequence",PropertyFriendlyName="Sequence",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:Sequence", "The animation sequence asset to play"),CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(1)=(PropertyName="PlayRateBasis",PropertyFriendlyName="Play Rate Basis",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:PlayRateBasis", "The Basis in which the PlayRate is expressed in. This is used to rescale PlayRate inputs.\\nFor example a Basis of 100 means that the PlayRate input will be divided by 100."),CategoryName="Settings",bCanToggleVisibility=True)  
+    ShowPinForProperties(2)=(PropertyName="PlayRate",PropertyFriendlyName="Play Rate",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:PlayRate", "The play rate multiplier. Can be negative, which will cause the animation to play in reverse."),CategoryName="Settings",bCanToggleVisibility=True)  
+    ShowPinForProperties(3)=(PropertyName="PlayRateScaleBiasClamp",PropertyFriendlyName="Play Rate Scale Bias Clamp",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:PlayRateScaleBiasClamp", "Additional scaling, offsetting and clamping of PlayRate input.\\nPerformed after PlayRateBasis."),CategoryName="Settings")  
+    ShowPinForProperties(4)=(PropertyName="StartPosition",PropertyFriendlyName="Start Position",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:StartPosition", "The start up position, it only applies when reinitialized\\nif you loop, it will still start from 0.f after finishing the round"),CategoryName="Settings",bCanToggleVisibility=True)  
+    ShowPinForProperties(5)=(PropertyName="bLoopAnimation",PropertyFriendlyName="Loop Animation",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:bLoopAnimation", "Should the animation continue looping when it reaches the end?"),CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(6)=(PropertyName="bIgnoreForRelevancyTest",PropertyFriendlyName="Ignore for Relevancy Test",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_AssetPlayerBase:bIgnoreForRelevancyTest", "If true, \\"Relevant anim\\" nodes that look for the highest weighted animation in a state will ignore\\nthis node"),CategoryName="Relevancy",bCanToggleVisibility=True)  
+    ShowPinForProperties(7)=(PropertyName="BlendWeight",PropertyFriendlyName="Blend Weight",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_AssetPlayerBase:BlendWeight", "Last encountered blendweight for this node"),CategoryName="DoNotEdit")  
+    ShowPinForProperties(8)=(PropertyName="InternalTimeAccumulator",PropertyFriendlyName="Internal Time Accumulator",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_AssetPlayerBase:InternalTimeAccumulator", "Accumulated time used to reference the asset in this node"),CategoryName="DoNotEdit")  
+    NodePosX=-368  
+    NodePosY=144  
+    NodeGuid=47045FB34243DFC4BEC84CB78381A3F8  
+    CustomProperties Pin (PinId=1844AF8D4D95F2AD70353B9286320E36,PinName="Sequence",PinFriendlyName="Sequence",PinToolTip="Sequence\\nAnim Sequence Base Object Reference\\n\\nThe animation sequence asset to play",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.AnimSequenceBase"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,AutogeneratedDefaultValue="None",LinkedTo=(K2Node\_VariableGet\_1 0292554C4B9777F0B2A45381E54369C8,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=DBD0DAAA49710060F33B60AA668E45AF,PinName="bLoopAnimation",PinFriendlyName="Loop Animation",PinToolTip="Loop Animation\\nBoolean\\n\\nShould the animation continue looping when it reaches the end?",PinType.PinCategory="bool",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="True",AutogeneratedDefaultValue="True",LinkedTo=(K2Node\_VariableGet\_2 9381C28C4F30F5FD0C5A68A7381B6138,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=049010254D1E4691A221DABB85B83D8A,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_ApplyMeshSpaceAdditive_0 E6944886459A7E961A9C3DB02C0D7CC4,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_2"  
+    VariableReference=(MemberName="bStateBool",bSelfContext=True)  
+    NodePosX=-544  
+    NodePosY=224  
+    NodeGuid=0273BA7540AEC2775B6F9EB931288F90  
+    CustomProperties Pin (PinId=9381C28C4F30F5FD0C5A68A7381B6138,PinName="bStateBool",Direction="EGPD\_Output",PinType.PinCategory="bool",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="false",AutogeneratedDefaultValue="false",LinkedTo=(AnimGraphNode\_SequencePlayer_0 DBD0DAAA49710060F33B60AA668E45AF,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=5106B68649084F8569A641A85D692898,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingAdditiveInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_CopyPoseFromMesh Name="AnimGraphNode\_CopyPoseFromMesh_0"  
+    ShowPinForProperties(0)=(PropertyName="SourceMeshComponent",PropertyFriendlyName="Source Mesh Component",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:SourceMeshComponent", "This is used by default if it\\'s valid"),CategoryName="Copy",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(1)=(PropertyName="bUseAttachedParent",PropertyFriendlyName="Use Attached Parent",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:bUseAttachedParent", "If SourceMeshComponent is not valid, and if this is true, it will look for attahced parent as a source"),CategoryName="Copy")  
+    ShowPinForProperties(2)=(PropertyName="bCopyCurves",PropertyFriendlyName="Copy Curves",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_CopyPoseFromMesh:bCopyCurves", "Copy curves also from SouceMeshComponent. This will copy the curves if this instance also contains"),CategoryName="Copy")  
+    NodePosX=-384  
+    NodePosY=32  
+    NodeGuid=90ADF65345FD2F533071F8B374EE570E  
+    CustomProperties Pin (PinId=7B3EDF7D4DC4CA4FD772CEAC8A5A5380,PinName="SourceMeshComponent",PinFriendlyName="Source Mesh Component",PinToolTip="Source Mesh Component\\nSkeletal Mesh Component Weak object\\n\\nThis is used by default if it\\'s valid",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.SkeletalMeshComponent"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=True,AutogeneratedDefaultValue="None",LinkedTo=(K2Node\_VariableGet\_0 50C8662E4549FB4C825F12B859F469F4,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=6475E73042C07EC60F1B00B7275BAE4A,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_ApplyMeshSpaceAdditive_0 A6BB6F8444DC735CB13205AD0AEB7AEE,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_ApplyMeshSpaceAdditive Name="AnimGraphNode\_ApplyMeshSpaceAdditive_0"  
+    ShowPinForProperties(0)=(PropertyName="Base",PropertyFriendlyName="Base",PropertyTooltip="Base",CategoryName="Links",bShowPin=True)  
+    ShowPinForProperties(1)=(PropertyName="Additive",PropertyFriendlyName="Additive",PropertyTooltip="Additive",CategoryName="Links",bShowPin=True)  
+    ShowPinForProperties(2)=(PropertyName="Alpha",PropertyFriendlyName="Alpha",PropertyTooltip="Alpha",CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(3)=(PropertyName="AlphaScaleBias",PropertyFriendlyName="Alpha Scale Bias",PropertyTooltip="Alpha Scale Bias",CategoryName="Settings")  
+    ShowPinForProperties(4)=(PropertyName="LODThreshold",PropertyFriendlyName="LOD Threshold",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_ApplyMeshSpaceAdditive:LODThreshold", "* Max LOD that this node is allowed to run\\n* For example if you have LODThreadhold to be 2, it will run until LOD 2 (based on 0 index)\\n* when the component LOD becomes 3, it will stop update/evaluate\\n* currently transition would be issue and that has to be re-visited"),CategoryName="Performance")  
+    NodePosX=-112  
+    NodePosY=48  
+    NodeGuid=D7D1068341115E71D18678828BA52D6E  
+    CustomProperties Pin (PinId=A6BB6F8444DC735CB13205AD0AEB7AEE,PinName="Base",PinFriendlyName="Base",PinToolTip="Base\\nPose Link Structure\\n\\nBase",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_CopyPoseFromMesh\_0 6475E73042C07EC60F1B00B7275BAE4A,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=E6944886459A7E961A9C3DB02C0D7CC4,PinName="Additive",PinFriendlyName="Additive",PinToolTip="Additive\\nPose Link Structure\\n\\nAdditive",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_SequencePlayer\_0 049010254D1E4691A221DABB85B83D8A,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=8124738645DB8E1DDAEE4BA5B937C6E4,PinName="Alpha",PinFriendlyName="Alpha",PinToolTip="Alpha\\nFloat\\n\\nAlpha",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="1.000000",AutogeneratedDefaultValue="1.000000",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=66A1DDE64223F117AA0060AAD022EB98,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_Root_0 D28554294AFBA1C3D8B9799438DD3B84,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+
+### Anim Sharing State Instance
+
+애니메이션 블루프린트 (AnimBP) 클래스는 사용자가 원하는 경우 AnimBP 동작을 추가하는 기능을 활성화하며, **Animation to Play** (재생할 애니메이션) 및 **Permutation Time Offset** (순열 시간 오프셋) 두 가지 프로퍼티가 기본 노출됩니다. 이걸로도 기초적인 수준의 포즈 구동은 될 것입니다.
+
+네이티브 구현에 노출되는 **GetInstancedActors** 는 현재 이 스테이트에 구동 중인 모든 AActor (들)을 반환합니다. 이런 식으로, 노티파이가 있는 경우 올바르게 처리해서 고유 인스턴스에 전파할 수 있습니다. 
+
+**HandleNotify** 를 오버라이드하고 알맞게 처리하면 됩니다.
+
+노드 그래프 복사
+
+[REGION:lightbox]
+[![](AnimSharingInstance_Image-2.png)](AnimSharingInstance_Image-2.png)
+[/REGION]
+
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_Root Name="AnimGraphNode\_Root_0"  
+    ShowPinForProperties(0)=(PropertyName="Result",PropertyFriendlyName="Result",PropertyTooltip="Result",CategoryName="Links",bShowPin=True)  
+    NodePosX=32  
+    NodePosY=32  
+    ErrorType=4  
+    ErrorMsg="Result was visible but ignored"  
+    NodeGuid=DE41DB3A41F39C4A62BA7B9077C84BD9  
+    CustomProperties Pin (PinId=27C7B571443BF030935D8E88B162B83C,PinName="Result",PinFriendlyName="Result",PinToolTip="Result\\nPose Link Structure\\n\\nResult",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="(LinkID=-1,SourceLinkID=-1)",AutogeneratedDefaultValue="(LinkID=-1,SourceLinkID=-1)",LinkedTo=(AnimGraphNode\_SequencePlayer\_0 24D116474E793A938AD4A88A854C06CA,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/AnimGraph.AnimGraphNode\_SequencePlayer Name="AnimGraphNode\_SequencePlayer_0"  
+    ShowPinForProperties(0)=(PropertyName="Sequence",PropertyFriendlyName="Sequence",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:Sequence", "The animation sequence asset to play"),CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(1)=(PropertyName="PlayRateBasis",PropertyFriendlyName="Play Rate Basis",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:PlayRateBasis", "The Basis in which the PlayRate is expressed in. This is used to rescale PlayRate inputs.\\nFor example a Basis of 100 means that the PlayRate input will be divided by 100."),CategoryName="Settings",bCanToggleVisibility=True)  
+    ShowPinForProperties(2)=(PropertyName="PlayRate",PropertyFriendlyName="Play Rate",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:PlayRate", "The play rate multiplier. Can be negative, which will cause the animation to play in reverse."),CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(3)=(PropertyName="PlayRateScaleBiasClamp",PropertyFriendlyName="Play Rate Scale Bias Clamp",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:PlayRateScaleBiasClamp", "Additional scaling, offsetting and clamping of PlayRate input.\\nPerformed after PlayRateBasis."),CategoryName="Settings")  
+    ShowPinForProperties(4)=(PropertyName="StartPosition",PropertyFriendlyName="Start Position",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:StartPosition", "The start up position, it only applies when reinitialized\\nif you loop, it will still start from 0.f after finishing the round"),CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(5)=(PropertyName="bLoopAnimation",PropertyFriendlyName="Loop Animation",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_SequencePlayer:bLoopAnimation", "Should the animation continue looping when it reaches the end?"),CategoryName="Settings",bShowPin=True,bCanToggleVisibility=True)  
+    ShowPinForProperties(6)=(PropertyName="bIgnoreForRelevancyTest",PropertyFriendlyName="Ignore for Relevancy Test",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_AssetPlayerBase:bIgnoreForRelevancyTest", "If true, \\"Relevant anim\\" nodes that look for the highest weighted animation in a state will ignore\\nthis node"),CategoryName="Relevancy",bCanToggleVisibility=True)  
+    ShowPinForProperties(7)=(PropertyName="BlendWeight",PropertyFriendlyName="Blend Weight",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_AssetPlayerBase:BlendWeight", "Last encountered blendweight for this node"),CategoryName="DoNotEdit")  
+    ShowPinForProperties(8)=(PropertyName="InternalTimeAccumulator",PropertyFriendlyName="Internal Time Accumulator",PropertyTooltip=NSLOCTEXT("UObjectToolTips", "AnimNode_AssetPlayerBase:InternalTimeAccumulator", "Accumulated time used to reference the asset in this node"),CategoryName="DoNotEdit")  
+    NodePosX=-224  
+    NodePosY=48  
+    NodeGuid=A850AF6B4C825A179186BB81C98FF3F6  
+    CustomProperties Pin (PinId=0D8111A54C7DFA2D6B140EA2C7C6E653,PinName="Sequence",PinFriendlyName="Sequence",PinToolTip="Sequence\\nAnim Sequence Base Object Reference\\n\\nThe animation sequence asset to play",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.AnimSequenceBase"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,AutogeneratedDefaultValue="None",LinkedTo=(K2Node\_VariableGet\_0 8AE1B97B4294C41A196264AFBD43A3F7,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=F5DBF18D40111BA32FFDCC9D403C3887,PinName="PlayRate",PinFriendlyName="Play Rate",PinToolTip="Play Rate\\nFloat\\n\\nThe play rate multiplier. Can be negative, which will cause the animation to play in reverse.",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="1.000000",AutogeneratedDefaultValue="1.000000",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=17DE90B14DA26A39C6B2BE83A081C55A,PinName="StartPosition",PinFriendlyName="Start Position",PinToolTip="Start Position\\nFloat\\n\\nThe start up position, it only applies when reinitialized\\nif you loop, it will still start from 0.f after finishing the round",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="0.000000",AutogeneratedDefaultValue="0.000000",LinkedTo=(K2Node\_VariableGet\_1 2F07F25F42F0FF3B622578AE1C7B613F,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=E1D6F7D84350F6E3ADDDD89414811B06,PinName="bLoopAnimation",PinFriendlyName="Loop Animation",PinToolTip="Loop Animation\\nBoolean\\n\\nShould the animation continue looping when it reaches the end?",PinType.PinCategory="bool",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="True",AutogeneratedDefaultValue="True",PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=24D116474E793A938AD4A88A854C06CA,PinName="Pose",Direction="EGPD\_Output",PinType.PinCategory="struct",PinType.PinSubCategory="",PinType.PinSubCategoryObject=ScriptStruct'"/Script/Engine.PoseLink"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_Root_0 27C7B571443BF030935D8E88B162B83C,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_0"  
+    VariableReference=(MemberName="AnimationToPlay",bSelfContext=True)  
+    NodePosX=-448  
+    NodePosY=64  
+    NodeGuid=A08474964A2A101532B19ABE1DAC52F9  
+    CustomProperties Pin (PinId=8AE1B97B4294C41A196264AFBD43A3F7,PinName="AnimationToPlay",Direction="EGPD\_Output",PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/Engine.AnimSequence"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(AnimGraphNode\_SequencePlayer_0 0D8111A54C7DFA2D6B140EA2C7C6E653,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=C4FC0774474B4ACF5514B9A36A748B8E,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingStateInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+    Begin Object Class=/Script/BlueprintGraph.K2Node\_VariableGet Name="K2Node\_VariableGet_1"  
+    VariableReference=(MemberName="PermutationTimeOffset",bSelfContext=True)  
+    NodePosX=-432  
+    NodePosY=128  
+    NodeGuid=F6116F504B7758FA4C1B5E83F42D2D2F  
+    CustomProperties Pin (PinId=2F07F25F42F0FF3B622578AE1C7B613F,PinName="PermutationTimeOffset",Direction="EGPD\_Output",PinType.PinCategory="float",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,DefaultValue="0.0",AutogeneratedDefaultValue="0.0",LinkedTo=(AnimGraphNode\_SequencePlayer_0 17DE90B14DA26A39C6B2BE83A081C55A,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    CustomProperties Pin (PinId=3061887F4515A5A621DC74B2F5B2DC62,PinName="self",PinFriendlyName=NSLOCTEXT("K2Node", "Target", "Target"),PinType.PinCategory="object",PinType.PinSubCategory="",PinType.PinSubCategoryObject=Class'"/Script/AnimationSharing.AnimSharingStateInstance"',PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=True,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,)  
+    End Object  
+
+## Animation Sharing Manager
+
+런타임에 애니메이션 셰어링을 실행하려면, **애니메이션 셰어링 애셋** 을 가리키는 **Animation Sharing Manager** 를 만들어야 합니다. 어느 액터 안의 블루프린트(나 레벨 블루프린트)에서도 **Create Animation Sharing Manager** 로 호출할 수 있습니다.
+
+![](CreateAnimationSharingManager.png "CreateAnimationSharingManager.png")
+
+Animation Sharing Manager 를 대상으로 해서 다음 함수를 호출해도 됩니다.
+
+  
+| 함수 | 설명 |
+| --- | --- |
+| **Animation Sharing Enabled** | 애니메이션 셰어링 활성화 여부를 반환합니다. |
+| **Get Animation Sharing Manager** | Animation Sharing Manager (구성되지 않았으면 null)를 반환합니다. |
+| **Register Actor** | 액터를 지정된 **Sharing Skeleton** 에 따라 Animation Sharing Manager 에 등록합니다. |
+
+아래 이미지에서 **Get Animation Sharing Manager** 및 **Register Actor** 를 사용하여 Husk Actor 를 Animation Sharing Manager 에 등록합니다 (키 누름으로 애니메이션 스테이트를 변경할 수 있도록 블루프린트에 입력을 활성화하기도 했습니다).  
+[REGION:lightbox]
+[![](ExampleActorRegistered.png)(w:900)](ExampleActorRegistered.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ -2LZyV8SJ5o
+ [/PARAMLITERAL]
+[/OBJECT]

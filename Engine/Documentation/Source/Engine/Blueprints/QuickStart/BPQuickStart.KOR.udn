@@ -1,32 +1,281 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6437789
+Availability: Public
 Title: 블루프린트 퀵스타트 가이드
-Crumbs: %ROOT%, Engine, Engine/Blueprints
-version: 4.9
 Description: 블루프린트를 처음 만들어 봅니다.
-parent:Engine/Blueprints
-order:1
-type:quick start
-tags:Blueprints
-topic-image:QuickStart.png
+Type: quick start
+Version: 4.9
+Parent: Engine/Blueprints
+Tags: Blueprints
+topic-image: QuickStart.png
+Order: 20
 
 
+[TOC (start:2 end:2)]
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	390
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	Ax4Xgu2Zb4g
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ EGhp2U2rNpI
+ [/PARAMLITERAL]
 [/OBJECT]
 
-이 퀵스타트 가이드에서 안내해 드릴 것은, 다양한 컴포넌트로 액터를 만든 다음 블루프린트 클래스로 변환시키고, 거기에 캐릭터가 레벨을 날아다니도록 만드는 발구름(launch) 동작을 추가시켜 봅니다.
-블루프린트 클래스로 만든다는 것은 발구름판(Launchpad)을 그냥 **콘텐츠 브라우저** 에서 레벨에 끌어다 놓기만 하면 원하는 만큼 생성할 수 있다는 뜻입니다.
+이 퀵스타트 가이드에서 안내해 드릴 것은, 다양한 컴포넌트로 액터를 만든 다음 블루프린트 클래스로 변환시키고, 거기에 캐릭터가 레벨을 날아다니도록 만드는 발구름(launch) 동작을 추가시켜 봅니다. 블루프린트 클래스로 만든다는 것은 발구름판(Launchpad)을 그냥 **콘텐츠 브라우저** 에서 레벨에 끌어다 놓기만 하면 원하는 만큼 생성할 수 있다는 뜻입니다.
 
-## 단계
+## 1 - 필수 프로젝트 구성
 
-[DIR(end:"1" output:"listbutton" type:"multi-step" parent:"Engine/Blueprints/QuickStart" org:"hierarchy")]
+1.  [새 프로젝트를 만듭니다](Engine/Basics/Projects/Browser).
+
+1.  새 프로젝트 마법사에서 블루프린트 횡스크롤 템플릿을 선택 합니다.
+
+1.  대상 디바이스 및 엔진 퀄리티 설정은 가장 잘 맞는대로 설정하시되, **시작용 콘텐츠** 를 포함하여 선택합니다.
+
+    [REGION:note]
+    어느 세팅이 맞는지 확실히 모르겠는 경우, [](Engine/Basics/Projects/Browser) 문서에서 자세한 정보를 참고하실 수 있습니다.
+    [/REGION]
+
+1.  프로젝트의 이름을 짓고, **프로젝트 생성** 버튼을 눌러서 만들어 줍니다. 
+
+횡스크롤 레벨이 나타나며, 이제 추가 작업을 시작하면 됩니다.
+
+![](BPQS_1_FinalResult.png "BPQS_1_FinalResult.png")
+
+## 2 - 발구름판 만들기
+
+레벨 에디터에서 발구름판을 만든 다음 블루프린트로 전환하여 게임플레이 작동방식을 추가하도록 하겠습니다.
+
+1.  먼저, 제일 위 바닥이 나올 때 까지 뷰포트를 옮깁니다.
+
+    ![](TopPlatforms.png)(w:500)
+
+    빈 액터를 만들어서 발구름판의 모든 파트를 담아두도록 하겠습니다. 필요한 파트(또는 컴포넌트) 둘은 발구름판을 나타내는 모양이고, 캐릭터가 겹쳤을 때에 대한 트리거입니다.
+
+1.  **모드** 패널에서, **기본**, 그리고 **기본 액터** 를 찾습니다.
+
+    ![](EmptyActor.png)
+
+1.  제일 위 바닥에 끌어다 놓습니다.
+
+    ![](BPQS_2_Step3.png "BPQS_2_Step3.png")
+
+1.  레벨에 방금 만든 액터가 선택이 된 상태이므로, 디테일 패널에 세부 설정이 보입니다. 디테일 패널의 제일 위에서 이름을 변경할 수 있습니다. 박스를 누르고 새 이름을 LaunchPad 정도로 입력합니다.
+
+    ![](NameLaunchpad.png)
+
+1.  **디테일** 패널에서, **컴포넌트 추가** 버튼을 누르고, **기본** 에서 **Cube** 를 선택합니다.
+
+    ![](BPQS_2_Step5.png "BPQS_2_Step5.png")
+
+1.  새로 추가된 **큐브** 를 **DefaultSceneRoot** 에 드래그하여 새 루트로 만듭니다.
+
+    ![](BPQS_2_Step6.png "BPQS_2_Step6.png")
+
+1.  **큐브** 컴포넌트를 선택한 채, **스케일** 을 (X: 1.0, Y: 1.0, Z: 0.1) 으로 변경합니다.
+
+    ![](BPQS_2_Step7.png "BPQS_2_Step7.png")
+
+1.  어떤 물체든 충돌하면 이벤트를 호출할 박스 콜리전 컴포넌트를(Box Collision Component) 추가할 것입니다. **디테일** 패널에서 **컴포넌트 추가** 버튼을 누르고, **Collision** 아래에 있는 **Box Collision** 을 선택합니다.
+
+    ![](BPQS_2_Step8.png "BPQS_2_Step8.png")
+
+1.  **박스 콜리전** 스케일을 (X: 1.25, Y: 1.25, Z: 9.75), 위치를 (X: 0, Y: 0, Z: 200) 로 변경하여 박스가 발구름판 위로 뻗도록 합니다.
+
+    ![](BPQS_2_Step9.png "BPQS_2_Step9.png")
+
+[REGION:tip]
+언제든 발구름판의 전체 스케일을 변경한다던가 하는 등 액터의 세부 설정을 바꿔야 되는 경우에는 **디테일** 패널의 **컴포넌트 추가** 버튼 바로 아래에 있는 **LaunchPad (인스턴스)** 을 누르시면 됩니다.
+[/REGION]
+
+원하는 상태의 액터를 만들었으니, 이를 블루프린트 클래스로 변환하겠습니다. 여러분은 블루프린트 에디터 안에서 원하는 컴포넌트를 더 추가하고, 레벨에서처럼 설정을 변경할 수 있습니다.
+
+## 3 - 액터를 블루프린트 클래스로 변환하기
+
+블루프린트 내부에서 설정을 변경하는 것은 새로운 발구름판을 만들 때 마다, 변경된 설정이 적용된다는 뜻입니다. 발구름판을 레벨에서 복사할 수는 있지만, 특정 발구름판에 적용한 변경사항은 그 발구름판에만 영향을 끼칩니다.
+
+1.  **디테일** 패널에서, **Blueprint/Add Script** 버튼을 누릅니다.
+
+    ![](BPButton.png)
+
+1.  **SideScrollerBP** 폴더 아래 **Blueprints** 폴더를 선택합니다.
+
+1.  여기서 블루프린트 이름을 변경하거나 기본값인 **LaunchPad_Blueprint**로 나둬도 됩니다.
+
+1.  **블루프린트 생성** 버튼을 누릅니다. 
+
+    ![](CreateBlueprint.png)
+
+블루프린트가 이제 **콘텐츠 브라우저** 에 나타납니다. 지금 바로 콘텐츠 브라우저에서 레벨로 블루프린트를 끌어 놓는 것으로 발구름판과 트리거를 복사할 수는 있지만, 아직 아무 특성도 설정된 것이 없습니다. 다음 단계에서는, 캐릭터가 발구름판을 지날 때 튀어오르도록 하는 그래프 노드 구성을 블루프린트 안에서 해 주도록 하겠습니다.
+
+![](BPQS_3_FinalResult.png "BPQS_3_FinalResult.png")
+
+## 4 - 시작점 만들기
+
+블루프린트 클래스에 작동방식을 추가하기 위해서는 먼저 블루프린트 에디터에서 열어줘야 합니다.
+
+1.  콘텐츠 브라우저에서 **블루프린트 클래스** 를 더블클릭합니다. 
+
+1.  블루프린트 에디터가 열리고, 뷰포트에 **Cube** 와 **Box** 컴포넌트가 보입니다. 여기서 **Box** 컴포넌트의 위치를 조정하면, 이 블루프린트 클래스로 만들어진 모든 발구름판에 적용됩니다. 발구름판 액터에서 컴포넌트 작업을 할 때와 마찬가지로, **컴포넌트** 리스트의 **Box** 컴포넌트를 선택하고 위치를 수정할 수 있습니다. **위치** 를 (X: 0, Y: 0, Z: 350) 으로 입력 해 보시기 바랍니다.
+
+    ![](BPQS_4_Step2.png "BPQS_4_Step2.png")
+
+1.  **뷰포트** 탭 옆에는 **컨스트럭션 스크립트** 탭과 **이벤트 그래프** 탭입니다. 게임플레이 작동방식을 만들 것이므로, **이벤트 그래프** 부터 설정을 시작해야 할 것입니다. 이벤트 그래프 탭을 눌러 주세요.
+
+    ![](EventGraphStart.png)(w:500)
+
+    이벤트는 블루프린트 그래프 실행의 시작점이고, 게임 플레이 중 여러 다양한 경우들과 연관되어 있습니다. 지금 반투명한 상태로 보이는 이벤트 노드는 자주 사용되는 것들인데, 블루프린트 사용에 매우 편리할 것이지만, 지금 우리는 직접 만들어 보도록 하겠습니다.
+
+1.  **Box** 컴포넌트와 겹치면 발생하는 이벤트가 필요합니다. 먼저, **컴포넌트** 탭에서 **Box** 컴포넌트를 선택합니다.
+
+1.  그래프의 빈 곳에 우클릭을 하여 컨텍스트 메뉴를 띄우면 컨텍스트에 맞게 그래프에 추가할 수 있는 컨텍스트 메뉴가 뜹니다.
+
+    [REGION:note]
+    그래프에서 화면을 이동하려면, 우클릭 드래그를 하면 됩니다. 여기에서, 그래프를 왼쪽으로 드래그 하면, 이미 만들어진 이벤트 노드들이 왼쪽으로 밀리면서 발구름판 로직을 추가할 빈 공간이 더 나타납니다.
+    [/REGION]
+
+    ![](RightClickContext.png)
+
+1.  이 컴포넌트를 위한 이벤트를 추가합니다. 컨텍스트 메뉴에서 **Add Event for Box** 를 확장하고, **Collision** 을 선택합니다. 컨텍스트 메뉴 위에 있는 검색바를 사용해서 "Component Begin Overlap"을 검색해도 됩니다.
+
+1.  **On Component Begin Overlap** 을 선택합니다.
+
+    ![](BPQS_4_Step7.png "BPQS_4_Step7.png")
+
+여러분의 그래프에는 **OnComponentBeginOverlap** 노드가 생성되었을 것입니다. 무언가가 이 발구름판 박스와 겹치면 이 이벤트에 연결된 노드가 실행 될 것입니다. 
+
+![](EventNode.png)
+
+이 퀵스타트의 다음 단계에서는 여러분은 이 노드의 반환 핀 연결을 시작하고, 블루프린트에서 노드를 설정하는 방법을 배울 것입니다.
+
+## 5 - 액터가 겹치는지 확인하기
+
+지금부터 **OnComponentBeginOverlap** 이벤트가 Box 트리거와 겹치는 순간 발생할 것입니다. 겹치는 것이 우리의 아바타이거나, 폰일 때에만 튕겨서 점프하는 특성을 추가하려고 합니다. "Box 트리거와 겹치는 액터가 우리 캐릭터의 폰과 일치하는가?" 라고 묻는 것을 생각 해 보세요.
+
+Other Actor 출력 핀을 가지고 **OnComponentBeginOverlap** 이벤트에서 이를 확인 할 것입니다. 
+
+1.  **OnComponentBeginOverlap** 이벤트의 **Other Actor** 핀을 끌어서 빈 곳에 놓아서 컨텍스트 메뉴가 뜨게 합니다.
+
+    ![](OtherActorContext.png)
+
+    [REGION:tip]
+    컨텍스트 메뉴는 컨텍스트에 맞게 변할 수 있고, 여러분이 현재 작업하려는 핀에 맞도록 필터링을 해서 사용 가능한 노드만 보여 줍니다.
+    [/REGION]
+
+1.  컨텍스트 메뉴 상단의 검색 창에 "=" 를 입력해서 사용 가능한 노드를 검색합니다. 그리고 나서 **Equals (Object)** 노드를 선택합니다.
+
+    ![](BPQS_5_Step2.png "BPQS_5_Step2.png")  
+
+    **Equals** 노드의 다른 입력으로 **Side Scroller Character** 를 설정할 수도 있지만, 만약 그런 경우 우리가 사용하는 캐릭터를 바꾼다면 다시 이 블루프린트를 열고 수동으로 업데이트를 해 줘야 합니다. 대신에, 우리가 현재 사용하고 있는 폰의 레퍼런스를 구하도록 하겠습니다.
+
+1.  그래프의 빈 곳에 우클릭하고, 컨텍스트 메뉴를 띄웁니다.
+1.  메뉴의 검색 바에 "Pawn" 이라고 입력하고, (**Game** 아래의) **Get Player Pawn** 을 선택합니다.
+
+    ![](GetPlayerPawnMenu.png)
+
+1.  **Get Player Pawn** 의 반환값인 **Return Value** 를 **Equals** 노드의 두 번째 입력 핀에 연결 해 줍니다.
+
+    ![](BPQS_5_Step5.png "BPQS_5_Step5.png")  
+
+    플레이어 컨트롤의 폰인지 확인하는 노드를 만들었으므로, 이에 따라 그래프의 실행 흐름을 제어할 것입니다. 그 것은, On Component Begin Overlap 에서 뻗어 나가는 실행의 흐름입니다. 그러기 위해서, Flow Control 노드를 만들어 줍니다. 특히 **분기** 노드를 사용합니다. 
+
+1.  **OnComponentBeginOverlap** 노드의 실행 핀을 끌어다 그래프의 빈 곳에 놓습니다.
+
+    ![](BPQS_5_Step6.png "BPQS_5_Step6.png")
+
+1.  검색 창에 "Branch" 라고 입력하고, 컨텍스트 메뉴에서 **분기** 를 선택합니다.
+
+    ![](BPQS_5_Step7.png "BPQS_5_Step7.png")
+
+1.  **Equals** 노드의 반환 핀을 끌어서 **Condition** 노드의 부울 입력 핀에 연결합니다.
+
+    ![](BPQS_5_Step8.png "BPQS_5_Step8.png")
+
+그래프가 여러분의 폰인지 아닌지에 따라 서로 다른 특성을 가지도록 설정될 준비가 되었습니다. 다음 단계에서는 그것을 설정하고, **Equals** 노드의 반환 값이 **True** 인 경우에 캐릭터를 공중으로 띄우는 블루프린트 노드를 설정 할 것입니다.
+
+## 6 - 캐릭터 띄우기
+
+발구름판에 **Launch Character** 함수를 사용하면 동작 할 것입니다. **Launch Character** 함수는 캐릭터의 현재 속도에 더할 속도를 특정해 줘서, 원하는 방향으로 대상을 날릴 수 있게 해 줍니다. 이 함수는 캐릭터에 한정되어 동작하지만, 우리의 폰(아바타)는 캐릭터(인간형 아바타)의 일종입니다. 
+
+이 것을 형변환에 의해 합니다. 형변환은 입력한 것을 다른 형으로 바꿔서, 특정한 형에서만 사용할 수 있는 함수 등을 사용할 수 있도록 해 줍니다. 지정한 형에 해당 될 경우에만 형변환이 성공할 수 있습니다.
+
+레벨에 놓을 수 있는 모든 것은 액터이고, 기타 다른 특성은 나중에 추가가 됩니다. 그것은, **Actor**로 형변환 하면 레벨에 있는 어떤 것이라도 참조할 수 있다는 것을 의미하고, 형변환이 성공할 것입니다. 하지만, 레벨에 있는 모든 폰이 캐릭터라고 할 수 있는 것은 아니기 때문에, 폰으로 형변환 하면 성공할 수도 있고 실패할 수도 있습니다.
+
+1.  **Get Player Pawn** 노드의 **Return Value** 핀을 끌어서 빈 곳에 놓습니다.
+
+1.  검색 바에 "Cast" 라고 입력하고, 컨텍스트 메뉴에서 **Character로 형변환** 를 선택합니다.
+
+    ![](CasttoCharacterMenu.png)
+
+1.  **형변환** 노드의 **As Character** 핀을 드래그 합니다.
+
+1.  검색 바에 "Launch" 라고 입력하고, 컨텍스트 메뉴에서 **Launch Character** 를 선택합니다.
+
+    [REGION:lightbox]
+    [![](BPQS_6_Step4.png "BPQS_6_Step4.png")](BPQS_6_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+    [REGION:note]
+    형변환 노드의 실행 순서 핀이 자동으로 **Launch Character** 노드에 연결 된 것을 봐 주세요.
+    [/REGION]
+
+1.  **Launch Character** 노드의 Z 값에 "3000"을 입력 합니다.
+
+1.  마지막으로, **분기** 노드의 **True** 실행 순서 핀을 **Character로 형변환** 노드에 연결 해 줘서, 겹치는 액터가 우리의 폰인 경우에만 **Character로 형변환** 과 **Launch Character** 가 실행이 되도록 합니다.
+
+    [REGION:lightbox]
+    [![](BPQS_6_Step6.png "BPQS_6_Step6.png")](BPQS_6_Step6.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+    여기서, 툴바 버튼을 이용해 블루프린트를 **컴파일** 과 **저장** 해 주고 블루프린트 에디터를 닫아 줍니다.
+
+1.  콘텐츠 브라우저에서 발구름판을 레벨로 여러번 가져다 놓습니다.
+
+    ![](BPQS_6_Step7.png "BPQS_6_Step7.png")
+
+1.  툴바에서 **플레이**를 누르고, (WASD 키로) 레벨에서 돌아다녀 봅니다. 점프도 해 보고 (Spacebar). 발구름판에 올라가 보고 하늘로 발사되는 걸 보세요!
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ EGhp2U2rNpI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 7 - 직접 만들기!
+
+퀵 스타트 가이드에서 배우신 것을 이용하여, 아래에 있는 것들을 시도 해 보세요.
+
+1.  캐릭터가 발사될 때 [오디오 컴포넌트](Engine/Components/Audio) 를 이용해서 소리를 내기.
+
+1.  [변수](Engine/Blueprints/UserGuide/Variables) 를 생성해서 발사 속도를 저장하고, 레벨에서 각 복사본을 따로 설정할 수 있도록 편집 가능하게 만들기.
+
+1.  [파티클 시스템 컴포넌트](Engine/Components/Rendering) 를 블루프린트에 추가하여 시작용 콘텐츠에 포함된 [파티클 시스템](Engine/Rendering/ParticleSystems) 중 하나를 사용하기.
+
+1.  [Arrow 컴포넌트](Engine/Components/Shapes) 를 추가하고 그것의 로테이션으로 캐릭터를 발사할 방향을 표시하기.
+
+1.  [타임라인](Engine/Blueprints/UserGuide/Timelines) 을 추가하여, 박스에 애니메이션을 추가해서 캐릭터를 발사하는 것을 표현하기.
+
+블루프린트 비주얼 스크립팅에 대한 더 많은 정보는 [](Engine/Blueprints) 페이지를 보세요.
+
+이 퀵스타트에서 배운 내용을 더 알아보기:
+
+1.  제작할 수 있는 블루프린트 클래스들에 대한 간략 개요: [](Engine/Blueprints/GettingStarted)
+
+1.  블루프린트 클래스에 대한 정보: [](Engine/Blueprints/UserGuide/Types/ClassBlueprint)
+
+1.  블루프린트 클래스 생성 및 작업에 대한 간단 튜토리얼: [](Engine/Blueprints/BP_HowTo)
+
+1.  블루프린트 에디터에 대한 정보: [](Engine/Blueprints/Editor)

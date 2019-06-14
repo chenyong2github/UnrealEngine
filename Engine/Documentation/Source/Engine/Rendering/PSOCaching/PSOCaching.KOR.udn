@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4678589
+﻿INTSourceChangelist:6537224
 Availability: Public
 Crumbs: 
 Title: PSO 캐시
@@ -9,9 +9,9 @@ Parent: Engine/Rendering
 Order: 
 Tags: Rendering
 Tags: Graphics
+hero-image:PSO_Caching_Header.png
+topic-image: PSO_Topic_Image.png
 
-
-![](PSO_Caching_Header.png "PSO_Caching_Header.png")
 
 **Pipeline State Object** (파이프라인 스테이트 오브젝트, PSO) 캐시 툴은 언리얼 엔진 4 (UE4) 레벨에서 콘텐츠를 로드할 때 발생할 수 있는 멈춤 현상을 줄이는 데 도움이 되는 툴입니다. 여기서는 UE4 프로젝트에 PSO 데이터를 만들고 사용하는 데 관련된 다양한 범위의 정보를 찾을 수 있습니다.
 

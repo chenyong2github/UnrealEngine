@@ -1,0 +1,64 @@
+﻿INTSourceChangelist:4992181
+Availability: Public
+Crumbs: 
+Title: IncludeTool
+Description: IncludeTool参考指南，IncludeTool用于将现有的C++项目转换成一种Include-What-You-Use(IWYU)样式。
+Type: 
+Version: 4.19
+Parent: Programming/UnrealBuildSystem/IWYUReferenceGuide
+Order: 
+Tags: 
+
+
+[REGION:warning]
+IncludeTool已用于转换大量内部Epic项目，包括虚幻引擎4(UE4)。虽然我们提供该工具是出于好意，但我们能够提供的支持是有限的。
+[/REGION]**IncludeTool** 工具可用于将现有的C++项目转换为[Include-What-You-Use (IWYU)](Programming/UnrealBuildSystem/IWYUReferenceGuide)样式。它通过尝试从每个头文件中形成自包含的翻译单元，来实现这一点。
+
+虽然它可以节省很多时间，但它是基于启发法的，并且不太可能产生完美的输出，相反，它可能产生一个起始点，您可以从这一起始点进行手动编辑以完成转换。即使这样，它仍是通过大量外力来运行的（相当慢，对于大型项目来说需要几天才能完成），迭代非常痛苦，可能需要对项目进行特定的修改，并且很难调试。
+
+(#operatingthetool)
+
+## 操作该工具
+
+IncludeTool分几个阶段运行，如下所述：
+
+*   [UnrealBuildTool](Programming/UnrealBuildSystem) 与目标一起调用，以生成一个构建步骤列表。推荐使用项目的编辑器目标，因为它通常比任何其他目标类型包含更多的代码路径。我们还推荐[Linux的交叉编译](Platforms/Linux/GettingStarted)使用Windows的交叉编译工具链，以便使用Clang工具链。使用Clang很重要，因为Visual C++不执行两个阶段的名称查找，在实例化模板之前，就无法从依赖类的模板类中找到依赖项，从而导致高度不可读的输出。 
+*   源文件使用内部预处理器进行部分预处理。这并不会转换标记化的源文件本身，而是为当前目标确定哪些代码块是活跃的、哪些代码块是不活跃的，并将每个文件分割成一系列片段。每个片段定义源文件中“#include”指令之间的行范围，这意味着，任何源文件的单文件版本都可以通过递归方式遵循“#include”指令并串联遇到的片段列表，在任何位置进行组合。  
+    
+*   这一步很重要，因为IncludeTool要优化的是片段列表。IncludeTool在该阶段进行验证和发出警告有一些限制条件。一些看起来很迂腐而且是样式上的警告，但却是确保输出有效所必需的。下面是特别值得注意的方面：  
+    *   头文件之间不应该有循环包含。
+    *   每个翻译单元必须以相同的方式预处理所包含的源文件（例如，在所包含的每个上下文中必须以相同的方式定义任何宏）。
+*   每个片段都被写入工作文件夹。每个源文件以其原始布局输出，以保留行号，属于其他片段的行被注释掉。
+*   标记源文件，并搜索源文件以查找类似可前向声明的符号的模式。（例如，“class Foo { ...”）
+*   每个源文件都是强力编译的，以确定成功编译所依赖的片段。这是转换过程中最耗费人力的部分，但是这一分析的结果将存储在工作目录中，如果源文件没有更改，则应该可重复使用。该工具还支持“分片”模式，用于使用多台PC计算依赖性数据（见下文）。
+*   搜索的结构如下：
+    *   输入翻译单元展开为由片段序列(1…n)表示。
+    *   一组所需的片段(r)只初始化为输入文件中的片段（而不是由输入文件包含的片段）。
+    *   执行二进制搜索，查找源文件成功编译所需的最长片段序列（1...m，包含r）。
+    *   序列中的最后一个片段(m)被添加到所需的集合(r)中。如果“m”已进行优化，它的依赖关系也会被添加到r中。
+    *   为片段序列(1…m - 1)重复执行二进制搜索。
+*   每个输出文件都是用最小的包含集编写的，以便独立编译。启发式尝试直接包含任何依赖项的标头，其中包含由名称显式引用的符号，并且仅在没有递归包含时才包含其他依赖项。
+
+(#sampleusage)
+
+## 使用示例
+
+执行片段分析并输出诊断信息：
+
+~~~
+-Mode=Scan -Target=FooEditor -Platform=Linux -Configuration=Development -WorkingDir=D:\Working
+~~~
+
+优化基本代码：
+
+~~~
+-Mode=Optimize -Target=FooEditor -Platform=Linux -Configuration=Development -WorkingDir=D:\Working -OutputDir=D:\Output -SourceFiles=-/Engine/...-OptimizeFiles=-/Engine/...-OutputFiles=-/Engine/...
+~~~
+
+可以传递几个过滤参数来限制源文件的迭代（“-SourceFiles”、“-OptimizeFiles”、“-OutputFiles”）。每项都可以使用一个用分号间隔的P4样式通配符列表来包含（“`/Engine/...”）或排除（“-/Engine/Foo.cpp”）文件，也可以使用规则指定一个响应文件，逐行进行编写（“D:\Filter.txt”）。一般来说，您可能不想重新优化引擎代码，因此将所有这些都排除在分析之外是有道理的。  
+
+由于程序运行时间很长，所以它有一个在“分片”模式下运行的工具。如果您有多台计算机都同步到同一个源树，那么您可以使用“-Shard=N”和“-NumShards=M”来配置一台机器，使其只考虑输入集的一部分。在每台机器上，工作目录应该位于相同的位置，生成的工作目录可以复制在一起用于在一台机器上进行最终的运行，以生成输出文件。
+
+[REGION:note]
+请参阅“Program.cs”中的注释以了解其他模式（查找“ToolMode”枚举）和命令行选项（“CommandLineOptions”类）。
+[/REGION]

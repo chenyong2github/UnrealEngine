@@ -1,0 +1,60 @@
+﻿INTSourceChangelist:6081004
+Availability: Public
+Crumbs: 
+Title: Vivox插件
+Description: 支持将语音通信和文本通信集成到游戏中的Vivox插件的文档。
+Type: 
+Version: 4.22
+Parent: Engine/Plugins
+Order: 
+Tags: Vivox
+topic-image: Vivox_Topic_01.png
+
+
+![](Vivox_Banner_01.png "Vivox_Banner_01.png")
+
+本文档提供有关注册Vivox开发人员门户、集成规划、实现选项和安全细节的信息。
+
+(#pluginavailability)
+
+## 插件可用性
+
+在以下情况下，Vivox的虚幻引擎插件可用：
+
+| 项目 | 可用性 |
+| --- | --- |
+| **虚幻引擎版本** | 4.22或更高版本|
+| **操作系统** | [INCLUDE:#excerpt_1] |
+| **控制台** | [INCLUDE:#excerpt_2] |
+
+<!--
+[EXCERPT:excerpt_2]
+
+*   Xbox One
+*   PlayStation 4
+*   Nintendo Switch
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+*   Microsoft Windows 7、8、10（32位和64位）
+*   macOS
+*   iOS
+*   Android
+
+[/EXCERPT:excerpt_1]
+-->
+
+(#gettingstarted)
+
+## 新手入门
+
+[DIR(output:"topic" org:"hierarchy" parent:"Engine/Plugins/Vivox" tags:"getting started")]
+
+(#reference)
+
+## 参考
+
+[DIR(output:"topic" org:"hierarchy" parent:"Engine/Plugins/Vivox" type:"reference")]

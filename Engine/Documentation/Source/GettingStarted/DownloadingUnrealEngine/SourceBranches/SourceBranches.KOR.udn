@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3426963
+INTSourceChangelist:3426963
 Availability: NoPublish
-Title: 소스 브랜치 참고서
+Title: 소스 브랜치 레퍼런스
 Crumbs: %ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine
-Description: 소스 코드 브랜치 설명에 대한 참고서입니다.
+Description: 소스 코드 브랜치 설명에 대한 레퍼런스입니다.
 Prereq: GettingStarted/RecommendedSpecifications
 Related: GettingStarted/DownloadingUnrealEngine
 Related: Programming/Development/BuildingUnrealEngine

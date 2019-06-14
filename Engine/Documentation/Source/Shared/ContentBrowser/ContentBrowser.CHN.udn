@@ -1,11 +1,13 @@
-﻿Availability:NoPublish
+INTSourceChangelist:3108692
+Availability:NoPublish
 Title:
 Crumbs:
 Description:
 
 [EXCERPT:Tab]
+(#contentbrowser)
 ### 内容浏览器
-Content Browser（内容浏览器）是虚幻编辑器内创建、导入、组织、查看、及修改内容资源的主要区域。 它同时提供了管理内容文件夹及在资源上执行其他有用操作的功能，比如重命名、移动、复制及查看引用。 内容浏览器可以和游戏中的所有资源进行搜索和交互。
+内容浏览器是虚幻编辑器的主要区域，用于在虚幻编辑器中创建、导入、组织、查看和修改内容资源。它可管理内容文件夹，在资源上执行其他实用操作（如重命名、移动、复制和查看引用）。内容浏览器可以搜索游戏中的所有资源以及与资源互动。
 
 [VAR:ToolTipFullLink]
 Engine/Content/Browser

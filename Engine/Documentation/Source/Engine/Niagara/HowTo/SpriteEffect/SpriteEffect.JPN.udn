@@ -1,116 +1,125 @@
-﻿INTSourceChangelist:4323617
+﻿INTSourceChangelist:4703316
 Availability: Public
 Crumbs: %ROOT%, 
-Title:ナイアガラを使ってスプライト ベースのエフェクトを作る
-Description:ナイアガラを使ってスプライト ベースの視覚効果を作る方法を説明します。
-Type: how-to
-SkillLevel:Beginner
-Version:4.17
-parent:Engine/Niagara/HowTo
-order:2
-tags:Niagara
-topic-image:
-prereq: Engine/Niagara/HowTo/EnableNiagara
+Title:ナイアガラでのスプライトパーティクルエフェクトの作成
+Description:ナイアガラを使ってスプライトパーティクルの視覚効果を作る方法を説明します。
+Type:how-to
+Version:4.21
+Parent:Engine/Niagara/HowTo
+Order:6
+Tags:Niagara
+Tags:Early Access
 
-使用頻度が高い視覚効果テクニックとして、スプライトという 2D カメラに正対する平面にテクスチャとマテリアルをレンダリングするというものがあります。この操作ガイドでは、ナイアガラエミッタをセットアップして、スプライトで機能するようにし、エフェクトをレベルに配置したら正しく動作し、表示されるようにします。 
+前提トピックス
+
+このページでは以下のトピックについての知識があることを前提としています。以下のページをあらかじめ確認することをおすすめします。
+
+*   [ナイアガラプラグインを有効にする方法](Engine/Niagara/HowTo/EnableNiagara "ナイアガラプラグインを有効にする方法")
+
+使用頻度が高い視覚効果テクニックとして、 *スプライト* という 2D カメラに正対する平面にテクスチャとマテリアルをレンダリングするというものがあります。この操作ガイドでは、ナイアガラエミッタがスプライトを使用するように設定する方法を説明します。ナイアガラエミッタを含むナイアガラシステムをレベルに配置すると、レベル内でエフェクトが表示されます。
 
 ![](Sprite_Banner_01.png "Sprite_Banner_01.png")
 
 [REGION:note]
-**事前準備:**
-この操作ガイドでは、**スターター コンテンツ** にある **M_smoke_subUV** マテリアルを使用します。まだ行っていない場合は、このマテリアルまたはスターター コンテンツをプロジェクトに追加するようにします。
+** 事前準備 **
+
+この操作ガイドでは、 **スターター コンテンツ** にある **M\_smoke\_subUV** マテリアルを使用します。まだ行っていない場合は、このマテリアルまたはスターター コンテンツをプロジェクトに追加するようにします。
 [/REGION]
 
 ## ステップ
 
-1. まず、**ナイアガラエミッタ** を作成する必要があります。これを行うには、**コンテンツ ブラウザ** で右クリックして、表示されるメニューから、 ** [FX]** に進み、**[Niagara Emitter]** をクリックします。 
-    ![](SE_01.png)
-1. 新規作成したナイアガラエミッタに **FX_Smoke** という名前を付けて、その上でダブルクリックして開きます。
+1. まず **コンテンツ ブラウザ** を 右クリックして、コンテキスト メニューから **[FX > Niagara Emitter]** を選択して **ナイアガラエミッタ** を作成します。ナイアガラ システム ウィザードが表示されます。  
+    ![](SE_01.png)(w:400)
+2. **[Create a new emitter from an emitter template]** の横にあるラジオボタンをクリックします。**Select a Template Emitter** から **Fountain** テンプレートを選択します。 **OK** をクリックして、コンテンツ ブラウザで、新規のエミッタを作成します。  
+    ![](NiagaraEmitter_FountainTemplate.png)(w:400)
+3. 新規作成したナイアガラエミッタに **FX_Smoke** という名前を付けて、その上でダブルクリックして開きます。   
     ![](SE_02.png)
-1. Niagara Editor を開いた状態で、**[Selected Emitter]** パネルに進み、**[Render]** セクションを探します。
-1. **Sprite Rendering** セクションを展開し、以下のプロパティを以下のオプションで設定します。
-    ![](CreateSpriteBasedEffect_Steps_Step4-SpriteRender.png) 
-
-    | プロパティ名| 値|
-    |------|-----|
-    |**Material**|M_smoke_subUV|
-    |**Sub Image Size**| X:8, Y:8|
-    |**Sub UV Blending Enabled**| Checked|
-
-1. **[Emitter Update]** セクションで、**[Spawn Rate]** セクションを展開します。
-1. **[Spawn Rate]*** を値 **50** に設定します。
-    ![](CreateSpriteBasedEffect_Steps_Step6-EmitterUpdate.png)
-1. 次に、**[Particle Spawn]** セクションに進み、**[Add Velocity]** セクションを展開します。
-1. **[Minimum]** と **[Maximum]** を以下のように設定します。
+4. ナイアガラエディタを開いた状態で、**[Selected Emitter]** パネルに進み、**[Render]** セクションを探します。
+5. **Sprite Rendering** セクションを展開し、以下のプロパティに以下の値を設定します。  
+    ![](CreateSpriteBasedEffect_Steps_Step4-SpriteRender.png)(w:400)  
+    
+    | **プロパティ** | **値** |
+    | --- | --- |
+    | Material | M_smoke_subUV |
+    | Sub Image Size | X:8.0, Y:8.0 |
+    | Sub UV Blending Enabled | Checked |
+    
+6. Render セクションを折りたたみ、 **Emitter Update** セクションを見つけて展開します。 **Spawn Rate**  モジュールを見つけます。
+7. **Spawn Rate** モジュールで **Spawn Rate** の値に **50** を設定します。  
+    ![](CreateSpriteBasedEffect_Steps_Step6-EmitterUpdate.png)(w:400)
+8.  Emitter Update セクションを折りたたみ、 **Particle Spawn** セクションを見つけて展開します。**Add Velocity** セクションを展開します。
+9. **Minimum** と **Maximum** velocity に以下の値を設定します。  
     ![](CreateSpriteBasedEffect_Steps_Step8-AddVelocityMinMax.png)
+    
+    | **プロパティ** | **値** |
+    | --- | --- |
+    | Minimum | X:0.0, Y:0.0, Z:50.0 |
+    | Maximum | X:0.0, Y:0.0, Z:200.0 |
 
-    | プロパティ名| 値|
-    |------|-----|
-    |**Minimum**|0,0,50|
-    |**Maximum**|0,0,200|
-
-1. **[Sphere Location]** セクションに移動します。
-1. **[Sphere Radius]** を **64** に設定します。次に、 小さな白い三角を押してオプションをさらに展開し、**[Surface Only]** が有効になっていることを確認します。
+10. **Sphere Location** セクションを展開します。**Sphere Radius** を **64.0** に変更します。モジュール下部の白い矢印をクリックして展開し、 **Surface Only** ボックスがチェックされていることを確認します。  
     ![](CreateSpriteBasedEffect_Steps_Step10-SphereRadius.png "CreateSpriteBasedEffect_Steps_Step10-SphereRadius.png")
-1. **[Set Variables]** セクションに移動します。
-1. **[Particles.Lifetime]** を展開して、*[Minimum]** と **[Maximum]** フィールドを表示します。
-1. **[Minimum]** 値 と **[Maximum]** 値を以下のように設定します。
+11. **Set Variables** セクションを見つけて展開します。**Particles.Lifetime** 変数を展開し、**Minimum** と **Maximum** フィールドを表示します。
+12. **Minimum** と **Maximum** フィールドに以下の値を設定します。  
     ![](CreateSpriteBasedEffect_Steps_Step13-ParticlesLifetimeMinMax.png)
     
-    | プロパティ名 | 値 |
+    | **プロパティ** | **値** |
     | --- | --- |
-    | **Minimum** | 2.0 |
-    | **Maximum** | 3.0 |
-
-1. **Particles.Sprit Size** を展開して、*[Minimum]** と **[Maximum]** フィールドを表示します。
-1. **[Minimum]** 値 と **[Maximum]** 値を以下のように設定します。
-
+    | Minimum | 2.0 |
+    | Maximum | 3.0 |
+    
+13. **Particles.SpriteSize** 変数を展開し、**Minimum** と **Maximum** フィールドを表示します。
+14. **Minimum** と **Maximum** フィールドに以下の値を設定します。  
     ![](CreateSpriteBasedEffect_Steps_Step15-ParticlesSpriteSizeMinMax.png)
     
-    | プロパティ名 | 値 |
+    | **プロパティ** | **値** |
     | --- | --- |
-    | **Minimum** | X: 200.0, Y: 200.0 |
-    | **Maximum** | X: 700.0, Y: 700.0 |
+    | Minimum | X:200.0, Y:200.0 |
+    | Maximum | X:700.0, Y:700.0 |
 
-1. [Particle Update] セクション下部にある **プラス** 記号のアイコンを押して、新しいモジュールをリストに追加します。表示されるリストから **[Set Particles.SubImageIndex]** オプションを選択します。Particles.SubImageIndex に **Set Variables** セクションが追加されます。
+15. Particle Spawn セクションを折りたたみ、 **Particle Update** セクションを見つけて展開します。
+16. **Acceleration Force** セクションを展開します。**Acceleration Z** 値を **500** に変更します。  
+    ![](CreateSpriteBasedEffect_Steps_Step17_AccelerationForce.png)
+    [REGION:note]
+    パーティクルが上に流れてから落ちる（噴水のように）状態の場合は、 **Z** の値が負ではなく **正** の値であるか確認してください。正の値は上に、負の値は下に行きます。
+    [/REGION]
+17. **Particle Update** の横にある **プラス** (**+**) アイコンをクリックしてオプションを表示します。 **Set Specific Parameters > Particles.SubImageIndex** を選択します。これで  Particles.SubImageIndex に **Set Variables** セクションが追加されます。  
     [REGION:imagetable]
-    | ![](CreateSpriteBasedEffect_Steps_Step18-ParticlesSubImageIndex1.png) | ![](CreateSpriteBasedEffect_Steps_Step18-ParticlesSubImageIndex2.png) |
+    | ![](CreateSpriteBasedEffect_Steps_Step18-ParticlesSubImageIndex1.jpg)(w:555) | ![](CreateSpriteBasedEffect_Steps_Step18-ParticlesSubImageIndex2.jpg)(w:550) |
     | --- | --- |
     [/REGION]
-1. [Set Particles.SubImageIndex] セクションで、**[SubImagIndex]** オプションの隣にある小さな白い三角を押します。表示されるリストから **[Dynamic Inputs > Float From Curve]** オプションを選択します。
+18. **Particles.SubImageIndex** 変数で、 **Particle.SubImageIndex** の横にある白三角をクリックしてオプションを再び表示します。 **Dynamic Inputs > Float From Curve** を選択します。  
     ![](CreateSpriteBasedEffect_Steps_Step19-ParticlesSubImageIndexFloatCurve.png)
-1. **Curve** の入力ウィンドウから最初のキーを選び、その **Time** と **Value** を両方とも 0 に設定するようにします。
-    ![](CreateSpriteBasedEffect_Steps_Step20-FloatCurveFirstKey.png)
-1. 次に 2 つめのキーを選び、Time を **1.0** に、Value を **0.64** に設定します。 
+19. **Curve** インプットウィンドウで、カーブの左側にある最初のキーをクリックします。このキーで、 **Time** と **Value** を **0.0** に設定します。  
+    ![](CreateSpriteBasedEffect_Steps_Step21-FloatCurveFirstKey2.png)
+20. 次にカーブの右側の 2 つめのキーを選び、Time を **1.0** に、Value を **0.64** に設定します。  
     ![](CreateSpriteBasedEffect_Steps_Step21-FloatCurveSecondKey.png)
-1. 次に [Set Particles.SubImageIndex] セクションの下部で、**CurveIndex** の隣にある小さなグレイの三角を押して、ドロップダウン リストから、**[Link Inputs > Particle Attributes > Normalized Age]** オプションを選択します。
-    ![](CreateSpriteBasedEffect_Steps_Step22-CurveIndexNormalizedAge.png)
-1. 次に **[Compile]**、 **[Apply]**、および **[Save]** の各ボタンを押して、変更を適用し、保存してから **FX_Smoke** エミッターを閉じます。
+21. **Particles.SubImageIndex** 変数で、 **CurveIndex** の横にある白三角をクリックしてオプションを再び表示します。 **Link Inputs > Particle Attributes > Normalized Age** を選択します。  
+    ![](CreateSpriteBasedEffect_Steps_Step21-CurveIndexNormalizedAge.png)
+22. 次に **[Compile]**、 **[Apply]**、および **[Save]** の各ボタンをクリックして、変更を適用し、保存してから **FX_Smoke** エミッタを閉じます。  
     ![](SE_15.png)
-1. コンテンツ ブラウザで右クリックして、表示されるリストから **[FX]** に進み、**[Niagara System]** オプションを選択し、**[Smoke]** の名前を付けます。
+23. **コンテンツ ブラウザ** を 右クリックして、コンテキスト メニューから **[FX > Niagara System]** を選択します。ナイアガラ システム ウィザードが表示されます。  
     ![](SE_16.png)
-1. **Smoke** ナイアガラシステム上でダブルクリックして開きます。開いたら、コンテンツ ブラウザから **FX_Smoke** を **タイムライン** にドラッグします。
-    ![](SE_17.png)
-1. **[Compile]** ボタンと **[Save]** ボタンをクリックして変更を適用して保存し、Smoke ナイアガラシステム を閉じます。コンテンツ ブラウザ で **Smoke**ナイアガラシステムをレベル ビューポートにドラッグします。
+24. **[Create an empty system with no emitters]** の横にあるラジオボタンをクリックします。**[Ok]** をクリックします。  
+    ![](NiagaraSystem_EmptySystem.png)(w:400)
+25. 新規のナイアガラシステムに **Smoke** と名前を付けます。  
+    ![](NiagaraSystem_NewSmokeSystem.png)(w:75)
+26. この **Smoke** ナイアガラシステムをダブルクリックして開きます。開いたら、コンテンツ ブラウザから **FX_Smoke** エミッタを **タイムライン** までドラッグします。  
+    ![](SE_17.png)(w:400)
+27. **[Compile]** ボタンと **[Save]** ボタンをクリックし、変更の適用と保存をしてから、Smokeナイアガラシステム を閉じます。
+28.コンテンツ ブラウザ で **Smoke** ナイアガラシステムをレベル ビューポートにドラッグします。
 
 ## 最終結果
 
-完了すると、以下の動画のようになります。ナイアガラシステムをレベルに配置するとナイアガラエミッタが再生されます。
+このガイドのステップを完了すると、以下の動画のようになります。ナイアガラシステムがレベルに配置され、ナイアガラエミッタが再生されます。
 
 [OBJECT:EmbeddedVideo]
-    [PARAMLITERAL:videoid]
-    3mGxYRZDORY
-    [/PARAMLITERAL]
-    [PARAMLITERAL:width]
-    100
-    [/PARAMLITERAL]
-    [PARAMLITERAL:height]
-    56.25
-    [/PARAMLITERAL]
-    [PARAMLITERAL:units]
-    %
-    [/PARAMLITERAL]
-    [PARAMLITERAL:type]
-    simple
-    [/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 3mGxYRZDORY
+ [/PARAMLITERAL]
 [/OBJECT]
