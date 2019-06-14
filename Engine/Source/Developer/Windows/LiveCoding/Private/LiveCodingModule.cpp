@@ -291,6 +291,25 @@ bool FLiveCodingModule::StartLiveCoding()
 		}
 		LppSetBuildArguments(*Arguments);
 
+		// Create a mutex that allows UBT to detect that we shouldn't hot-reload into this executable. The handle to it will be released automatically when the process exits.
+		FString ExecutablePath = FPaths::ConvertRelativePathToFull(FPlatformProcess::ExecutablePath());
+
+		FString MutexName = TEXT("Global\\LiveCoding_");
+		for (int Idx = 0; Idx < ExecutablePath.Len(); Idx++)
+		{
+			TCHAR Character = ExecutablePath[Idx];
+			if (Character == '/' || Character == '\\' || Character == ':')
+			{
+				MutexName += '+';
+			}
+			else
+			{
+				MutexName += Character;
+			}
+		}
+
+		ensure(CreateMutex(NULL, Windows::FALSE, *MutexName));
+
 		// Configure all the current modules. For non-commandlets, schedule it to be done in the first Tick() so we can batch everything together.
 		if (IsRunningCommandlet())
 		{

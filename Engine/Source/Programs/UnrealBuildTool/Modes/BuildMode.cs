@@ -537,6 +537,12 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Guard against a live coding session for this target being active
+			if(HotReloadMode != HotReloadMode.LiveCoding && HotReload.IsLiveCodingSessionActive(Makefile))
+			{
+				throw new BuildException("Unable to start regular build while Live Coding is active. Press Ctrl+Alt+F11 to trigger a Live Coding compile.");
+			}
+
 			// Get the root prerequisite actions
 			List<Action> PrerequisiteActions = GatherPrerequisiteActions(TargetDescriptor, Makefile);
 
