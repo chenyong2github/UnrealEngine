@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Templates/SharedPointer.h"
+#include "Misc/DateTime.h"
 
 namespace Trace
 {
@@ -19,13 +20,17 @@ typedef uint64 FStoreSessionHandle;
 struct FStoreSessionInfo
 {
 	/** A handle to identify the trace */
-	FStoreSessionHandle Handle;
+	FStoreSessionHandle Handle = FStoreSessionHandle(-1);
 	/** Fully qualified path to the trace store item */
-	const TCHAR* Uri;
+	const TCHAR* Uri = nullptr;
 	/** Friendly-ish name of the trace */
-	const TCHAR* Name;
+	const TCHAR* Name = nullptr;
+	/** Timestamp of the trace */
+	FDateTime TimeStamp;
+	/** Size of the trace */
+	uint64 Size = 0;
 	/** True if the trace is currently being written to */
-	bool bIsLive;
+	bool bIsLive = false;
 };
 
 /**

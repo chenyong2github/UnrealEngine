@@ -103,6 +103,8 @@ bool FSessionService::GetSessionInfo(FSessionHandle SessionHandle, FSessionInfo&
 	}
 	OutSessionInfo.Uri = FindIt->Uri;
 	OutSessionInfo.Name = FindIt->Name;
+	OutSessionInfo.TimeStamp = FindIt->TimeStamp;
+	OutSessionInfo.Size = FindIt->Size;
 	OutSessionInfo.bIsLive = FindIt->bIsLive;
 	return true;
 }
@@ -246,6 +248,8 @@ void FSessionService::UpdateSessions()
 		SessionsToRemove.Remove(StoreSession.Handle);
 		Session.Uri = StoreSession.Uri;
 		Session.Name = StoreSession.Name;
+		Session.TimeStamp = StoreSession.TimeStamp;
+		Session.Size = StoreSession.Size;
 		Session.bIsLive = StoreSession.bIsLive;
 		Session.RecorderSessionHandle = 0;
 	}

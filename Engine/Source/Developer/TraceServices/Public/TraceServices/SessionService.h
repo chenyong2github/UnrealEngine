@@ -14,9 +14,11 @@ typedef uint64 FSessionHandle;
 
 struct FSessionInfo
 {
-	const TCHAR* Uri;
-	const TCHAR* Name;
-	bool bIsLive;
+	const TCHAR* Uri = nullptr;
+	const TCHAR* Name = nullptr;
+	FDateTime TimeStamp;
+	uint64 Size = 0;
+	bool bIsLive = false;
 };
 
 class ISessionService

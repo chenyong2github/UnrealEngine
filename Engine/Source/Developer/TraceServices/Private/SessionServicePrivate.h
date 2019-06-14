@@ -41,6 +41,8 @@ private:
 		const TCHAR* Uri;
 		const TCHAR* Name;
 		TMap<FName, TSet<FString>> EnabledModuleLoggersMap;
+		FDateTime TimeStamp;
+		uint64 Size;
 		bool bIsLive;
 	};
 
