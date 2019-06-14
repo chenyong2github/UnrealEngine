@@ -530,7 +530,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	}
 
 	{
-		SCOPE_CYCLE_COUNTER(STAT_GenerateVisibleRayTracingMeshCommands);
+		SCOPE_CYCLE_COUNTER(STAT_GatherRayTracingWorldInstances);
 		RayTracingCollector.ClearViewMeshArrays();
 		TArray<int> DynamicMeshBatchStartOffset;
 		TArray<int> VisibleDrawCommandStartOffset;
