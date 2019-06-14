@@ -723,23 +723,22 @@ void FHoloLensARSystem::ReconcileKnownMeshes(const TArray<FGuid>& KnownMeshes)
 	LastKnownMeshes.Append(KnownMeshes);
 }
 
-// QR code tracking
-void FHoloLensARSystem::QRCodeAdded_Raw(QRCodeData* code)
+void FHoloLensARSystem::QRCodeAdded_Raw(QRCodeData* InCode)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeAdded(code);
+	HoloLensARThis->QRCodeAdded(InCode);
 }
 
-void FHoloLensARSystem::QRCodeUpdated_Raw(QRCodeData* code)
+void FHoloLensARSystem::QRCodeUpdated_Raw(QRCodeData* InCode)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeUpdated(code);
+	HoloLensARThis->QRCodeUpdated(InCode);
 }
 
-void FHoloLensARSystem::QRCodeRemoved_Raw(QRCodeData* code)
+void FHoloLensARSystem::QRCodeRemoved_Raw(QRCodeData* InCode)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
-	HoloLensARThis->QRCodeRemoved(code);
+	HoloLensARThis->QRCodeRemoved(InCode);
 }
 
 void FHoloLensARSystem::SetupQRCodeTracking()
@@ -747,69 +746,113 @@ void FHoloLensARSystem::SetupQRCodeTracking()
 	check(WMRInterop != nullptr);
 
 	WMRInterop->StartQRCodeTracking(&QRCodeAdded_Raw, &QRCodeUpdated_Raw, &QRCodeRemoved_Raw);
-	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
+	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::SetupQRCodeTracking() called"));
 }
 
-static void DebugDumpQRData(QRCodeData* code)
+static void DebugDumpQRData(QRCodeData* InCode)
 {
-	FGuid g(code->Id.Data1, code->Id.Data2, code->Id.Data3, *((uint32*)code->Id.Data4));
-	UE_LOG(LogHoloLensAR, Log, TEXT("  Id = %s"), *(g.ToString(EGuidFormats::DigitsWithHyphensInBraces)));
-	UE_LOG(LogHoloLensAR, Log, TEXT("  Version = %d"), code->Version);
-	UE_LOG(LogHoloLensAR, Log, TEXT("  SizeM = %0.3f"), code->SizeInMeters);
-	UE_LOG(LogHoloLensAR, Log, TEXT("  Timestamp = %0.6f"), code->LastSeenTimestamp);
-	UE_LOG(LogHoloLensAR, Log, TEXT("  DataSize = %d"), code->DataSize);
-	if ((code->DataSize > 0) && (code->Data != nullptr))
+	FGuid Guid = GUIDToFGuid(InCode->Id);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Id = %s"), *(Guid.ToString(EGuidFormats::DigitsWithHyphensInBraces)));
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Version = %d"), InCode->Version);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  SizeM = %0.3f"), InCode->SizeInMeters);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  Timestamp = %0.6f"), InCode->LastSeenTimestamp);
+	UE_LOG(LogHoloLensAR, Log, TEXT("  DataSize = %d"), InCode->DataSize);
+	if ((InCode->DataSize > 0) && (InCode->Data != nullptr))
 	{
-		UE_LOG(LogHoloLensAR, Log, TEXT("  Data = %s"), code->Data);
+		UE_LOG(LogHoloLensAR, Log, TEXT("  Data = %s"), InCode->Data);
 	}
 
-	FVector Translation = WindowsMixedReality::WMRUtility::FromMixedRealityVector(DirectX::XMFLOAT3(code->Translation[0], code->Translation[1], code->Translation[2])) * 100.0f;
-	FQuat Orientation = WindowsMixedReality::WMRUtility::FromMixedRealityQuaternion(DirectX::XMFLOAT4(code->Rotation[0], code->Rotation[1], code->Rotation[2], code->Rotation[3]));
+	FVector Translation(InCode->Translation[0], InCode->Translation[1], InCode->Translation[2]);
+	FQuat Orientation(InCode->Rotation[0], InCode->Rotation[1], InCode->Rotation[2], InCode->Rotation[3]);
 	Orientation.Normalize();
 	UE_LOG(LogHoloLensAR, Log, TEXT("  Location = %s"), *Translation.ToString());
 	UE_LOG(LogHoloLensAR, Log, TEXT("  Orientation = %s"), *Orientation.ToString());
 }
 
-//
-// Currently, only relatively large sized codes can be tracked (at least 4 inches on a side but even that seems barely usable even at very close range (<30cm or so))
-// Codes also seem to update at randomly slow intervals when moved in the environment...testing seemed to show less than 1 update per second even if you are looking directly at it and moving it around
-// Sometimes it would update faster and sometimes super slowly
-// Codes would sometimes trigger an Added or Updated event even if they weren't visible at all
-//
-// @todo: Once the MS-provided library is more stable and consistent, do the following:
-// - add each new code to a list along with it's needed data
-// - update already found codes with new data
-// - remove dead/very old/unseen codes (however, MS says the Removed event is not currently implemented, so this is unclear right now when codes 'expire')
-// - provide Blueprint functionality to get the transform and data content of a code by name so content can be pinned to it
-// - Text-type codes can have an arbitrary string in them which can be used for naming or other metadata
-//
-void FHoloLensARSystem::QRCodeAdded(QRCodeData* code)
+void FHoloLensARSystem::QRCodeAdded(QRCodeData* InCode)
 {
-	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeAdded() called"));
+	UE_LOG(LogHoloLensAR, Verbose, TEXT("FHoloLensARSystem::QRCodeAdded() called"));
 
-	if (code != nullptr)
+	if (InCode != nullptr)
 	{
-//		DebugDumpQRData(code);
+		FGuid Id = GUIDToFGuid(InCode->Id);
+		UARTrackedQRCode* NewQRCode = NewObject<UARTrackedQRCode>();
+		TrackedGeometries.Add(Id, NewQRCode);
+
+		FVector Translation(InCode->Translation[0], InCode->Translation[1], InCode->Translation[2]);
+		FQuat Orientation(InCode->Rotation[0], InCode->Rotation[1], InCode->Rotation[2], InCode->Rotation[3]);
+		Orientation.Normalize();
+		FTransform Transform(Orientation, Translation);
+		FString QRData = InCode->Data;
+		FVector2D Size(InCode->SizeInMeters * 100.f, InCode->SizeInMeters * 100.f);
+
+		NewQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+			GFrameCounter,
+			FPlatformTime::Seconds(),
+			Transform,
+			// @todo JoeG - add support for an alignment transform
+			FTransform::Identity,
+			Size,
+			QRData,
+			InCode->Version);
+
+		TriggerOnTrackableAddedDelegates(NewQRCode);
+
+		//		DebugDumpQRData(InCode);
 	}
 }
 
-void FHoloLensARSystem::QRCodeUpdated(QRCodeData* code)
+void FHoloLensARSystem::QRCodeUpdated(QRCodeData* InCode)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeUpdated() called"));
 
-	if (code != nullptr)
+	if (InCode != nullptr)
 	{
-//		DebugDumpQRData(code);
+		FGuid Id = GUIDToFGuid(InCode->Id);
+		UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(Id);
+		if (FoundGeometry != nullptr)
+		{
+			UARTrackedQRCode* UpdatedQRCode = Cast<UARTrackedQRCode>(*FoundGeometry);
+
+			FVector Translation(InCode->Translation[0], InCode->Translation[1], InCode->Translation[2]);
+			FQuat Orientation(InCode->Rotation[0], InCode->Rotation[1], InCode->Rotation[2], InCode->Rotation[3]);
+			Orientation.Normalize();
+			FTransform Transform(Orientation, Translation);
+			FString QRData = InCode->Data;
+			FVector2D Size(InCode->SizeInMeters * 100.f, InCode->SizeInMeters * 100.f);
+
+			UpdatedQRCode->UpdateTrackedGeometry(TrackingSystem->GetARCompositionComponent().ToSharedRef(),
+				GFrameCounter,
+				FPlatformTime::Seconds(),
+				Transform,
+				// @todo JoeG - add support for an alignment transform
+				FTransform::Identity,
+				Size,
+				QRData,
+				InCode->Version);
+
+			TriggerOnTrackableUpdatedDelegates(UpdatedQRCode);
+		}
+		//		DebugDumpQRData(InCode);
 	}
 }
 
-void FHoloLensARSystem::QRCodeRemoved(QRCodeData* code)
+void FHoloLensARSystem::QRCodeRemoved(QRCodeData* InCode)
 {
 	UE_LOG(LogHoloLensAR, Log, TEXT("FHoloLensARSystem::QRCodeRemoved() called"));
 
-	if (code != nullptr)
+	if (InCode != nullptr)
 	{
-//		DebugDumpQRData(code);
+		FGuid Id = GUIDToFGuid(InCode->Id);
+		UARTrackedGeometry** FoundGeometry = TrackedGeometries.Find(Id);
+		if (FoundGeometry != nullptr)
+		{
+			(*FoundGeometry)->SetTrackingState(EARTrackingState::NotTracking);
+
+			TrackedGeometries.Remove(Id);
+			TriggerOnTrackableRemovedDelegates(*FoundGeometry);
+		}
+		//		DebugDumpQRData(InCode);
 	}
 }
 

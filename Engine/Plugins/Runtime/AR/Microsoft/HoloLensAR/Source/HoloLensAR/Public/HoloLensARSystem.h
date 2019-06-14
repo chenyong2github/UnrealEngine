@@ -143,12 +143,12 @@ private:
 	void SetupQRCodeTracking();
 
 	// QR Code observer callback support
-	static void QRCodeAdded_Raw(QRCodeData* code);
-	static void QRCodeUpdated_Raw(QRCodeData* code);
-	static void QRCodeRemoved_Raw(QRCodeData* code);
-	void QRCodeAdded(QRCodeData* code);
-	void QRCodeUpdated(QRCodeData* code);
-	void QRCodeRemoved(QRCodeData* code);
+	static void QRCodeAdded_Raw(QRCodeData* InCode);
+	static void QRCodeUpdated_Raw(QRCodeData* InCode);
+	static void QRCodeRemoved_Raw(QRCodeData* InCode);
+	void QRCodeAdded(QRCodeData* InCode);
+	void QRCodeUpdated(QRCodeData* InCode);
+	void QRCodeRemoved(QRCodeData* InCode);
 
 	/**
 	 * Callback from the WinRT layer notifying us of a new camera frame.
