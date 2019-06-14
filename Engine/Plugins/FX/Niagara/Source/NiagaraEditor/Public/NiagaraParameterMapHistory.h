@@ -5,11 +5,23 @@
 #include "CoreMinimal.h"
 #include "NiagaraCommon.h"
 #include "Templates/Tuple.h"
+#include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 
 class UNiagaraNodeOutput;
 class UEdGraphPin;
 class UEdGraphNode;
 class UNiagaraParameterCollection;
+
+class FCompileConstantResolver
+{
+public:
+	FCompileConstantResolver() : Emitter(nullptr) {}
+	FCompileConstantResolver(UNiagaraEmitter* Emitter) : Emitter(Emitter) {}
+
+	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
+private:
+	UNiagaraEmitter* Emitter;
+};
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
 * 	This class is meant to aid in UI and compilation of the graph. There are several main script types and each one interacts
@@ -340,6 +352,8 @@ public:
 	/** Register any user or other external variables that could possibly be encountered but may not be declared explicitly. */
 	void RegisterEncounterableVariables(const TArray<FNiagaraVariable>& Variables);
 	const TArray<FNiagaraVariable>& GetEncounterableVariables() const {	return EncounterableExternalVariables;}
+
+	FCompileConstantResolver ConstantResolver;
 
 protected:
 	/**

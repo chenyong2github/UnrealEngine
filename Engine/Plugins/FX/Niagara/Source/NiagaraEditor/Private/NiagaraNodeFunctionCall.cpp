@@ -682,7 +682,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		TArray<UEdGraphPin*> InputPins;
 		GetInputPins(InputPins);
-		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins);
+		FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, &OutHistory.ConstantResolver);
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
