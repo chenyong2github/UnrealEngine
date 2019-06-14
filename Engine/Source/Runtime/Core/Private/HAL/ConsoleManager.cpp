@@ -999,9 +999,9 @@ IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, cons
 }
 
 
-IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name) const
+IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls) const
 {
-	IConsoleObject* Obj = FindConsoleObject(Name);
+	IConsoleObject* Obj = FindConsoleObject(Name, bTrackFrequentCalls);
 
 	if(Obj)
 	{
@@ -1016,11 +1016,12 @@ IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name) const
 	return 0;
 }
 
-IConsoleObject* FConsoleManager::FindConsoleObject(const TCHAR* Name) const
+IConsoleObject* FConsoleManager::FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls) const
 {
 	IConsoleObject* CVar = FindConsoleObjectUnfiltered(Name);
 
 #if TRACK_CONSOLE_FIND_COUNT
+	if (bTrackFrequentCalls)
 	{
 		const bool bEarlyAppPhase = GFrameCounter < 1000;
 		if(CVar)
