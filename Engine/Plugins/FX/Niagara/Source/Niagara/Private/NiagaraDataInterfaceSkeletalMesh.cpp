@@ -1144,7 +1144,8 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 	FSkeletalMeshLODRenderData& LODData = GetLODRenderDataAndSkinWeights(SkinWeightBuffer);
 
 	//Check for the validity of the Mesh's cpu data.
-	if ( Interface->bUseTriangleSampling || Interface->bUseVertexSampling )
+	//-TODO: These values are currently created too late in the editor so we can't use them to validate the DI correctly
+	//if ( Interface->bUseTriangleSampling || Interface->bUseVertexSampling )
 	{
 		bool LODDataNumVerticesCorrect = LODData.GetNumVertices() > 0;
 		bool LODDataPositonNumVerticesCorrect = LODData.StaticVertexBuffers.PositionVertexBuffer.GetNumVertices() > 0;
