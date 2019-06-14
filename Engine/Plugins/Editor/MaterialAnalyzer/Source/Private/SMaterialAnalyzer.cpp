@@ -136,6 +136,7 @@ void SMaterialAnalyzer::Construct(const FArguments& InArgs, const TSharedRef<SDo
 						.TreeItemsSource(&MaterialTreeRoot)
 						.OnGenerateRow(this, &SMaterialAnalyzer::HandleReflectorTreeGenerateRow)
 						.OnGetChildren(this, &SMaterialAnalyzer::HandleReflectorTreeGetChildren)
+						.OnSetExpansionRecursive(this, &SMaterialAnalyzer::HandleReflectorTreeRecursiveExpansion)
 						.HeaderRow
 						(
 							SNew(SHeaderRow)
@@ -588,6 +589,23 @@ TSharedRef<ITableRow> SMaterialAnalyzer::HandleReflectorTreeGenerateRow(FAnalyze
 void SMaterialAnalyzer::HandleReflectorTreeGetChildren(FAnalyzedMaterialNodeRef InMaterialNode, TArray<FAnalyzedMaterialNodeRef>& OutChildren)
 {
 	OutChildren = InMaterialNode->GetChildNodes();
+}
+
+void SMaterialAnalyzer::HandleReflectorTreeRecursiveExpansion(FAnalyzedMaterialNodeRef InTreeNode, bool bIsItemExpanded)
+{
+	TArray< FAnalyzedMaterialNodeRef > Children = InTreeNode->GetChildNodes();
+
+	if (Children.Num())
+	{
+		MaterialTree->SetItemExpansion(InTreeNode, bIsItemExpanded);
+		const bool bShouldSaveState = true;
+
+		for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
+		{
+			FAnalyzedMaterialNodeRef Child = Children[ChildIndex];
+			MaterialTree->SetItemExpansion(Child, bIsItemExpanded);
+		}
+	}
 }
 
 FAnalyzedMaterialNodePtr FBuildBasicMaterialTreeAsyncTask::FindOrMakeBranchNode(FAnalyzedMaterialNodePtr ParentNode, const FAssetData* ChildData)
