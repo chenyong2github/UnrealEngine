@@ -317,6 +317,7 @@ private:
 
 	void MakeRecentPythonScriptMenu(FMenuBuilder& InMenuBuilder)
 	{
+		InMenuBuilder.BeginSection("Files");
 		for (int32 Index = RecentsFiles.Num() - 1; Index >= 0; --Index)
 		{
 			InMenuBuilder.AddMenuEntry(
@@ -326,7 +327,16 @@ private:
 				FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ExecutePythonRecent, Index))
 			);
 		}
-		int32 Variable1 = 1;
+		InMenuBuilder.EndSection();
+
+		InMenuBuilder.BeginSection("Clear");
+		InMenuBuilder.AddMenuEntry(
+			LOCTEXT("ClearRecentPython", "Clear Recent Python Scripts"),
+			FText::GetEmpty(),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ClearRecentPython))
+		);
+		InMenuBuilder.EndSection();
 	}
 
 	void CreateMenu(FMenuBuilder& MenuBuilder)
@@ -354,6 +364,15 @@ private:
 		{
 			FString PyCopied = RecentsFiles[Index];
 			GEngine->Exec(NULL, *FString::Printf(TEXT("py \"%s\""), *PyCopied));
+		}
+	}
+
+	void Menu_ClearRecentPython()
+	{
+		if (RecentsFiles.Num() > 0)
+		{
+			RecentsFiles.Reset();
+			bRecentsFilesDirty = true;
 		}
 	}
 
