@@ -27,6 +27,7 @@ struct FMeshUpdate;
 struct FMeshUpdateSet;
 // Forward declaration of the QR code data from the interop layer
 struct QRCodeData;
+struct FQRCodeData;
 
 UCLASS()
 class HOLOLENSAR_API UWMRARPin : public UARPin
@@ -146,9 +147,10 @@ private:
 	static void QRCodeAdded_Raw(QRCodeData* InCode);
 	static void QRCodeUpdated_Raw(QRCodeData* InCode);
 	static void QRCodeRemoved_Raw(QRCodeData* InCode);
-	void QRCodeAdded(QRCodeData* InCode);
-	void QRCodeUpdated(QRCodeData* InCode);
-	void QRCodeRemoved(QRCodeData* InCode);
+	void QRCodeAdded_GameThread(FQRCodeData* InCode);
+	void QRCodeUpdated_GameThread(FQRCodeData* InCode);
+	void QRCodeRemoved_GameThread(FQRCodeData* InCode);
+	//~ QR Code observer callback support
 
 	/**
 	 * Callback from the WinRT layer notifying us of a new camera frame.
