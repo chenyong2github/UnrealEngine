@@ -4362,7 +4362,7 @@ void FMaterialEditor::OnAlignBottom()
 {
 	if (GraphEditor.IsValid())
 	{
-		GraphEditor->OnAlignMiddle();
+		GraphEditor->OnAlignBottom();
 	}
 }
 
