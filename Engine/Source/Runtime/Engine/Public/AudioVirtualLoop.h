@@ -43,7 +43,7 @@ public:
 	static bool IsEnabled();
 
 	/**
-	 * Returns the internally-managed active sound.
+	 * Returns the internally-managed active sound
 	 */
 	FActiveSound& GetActiveSound();
 
@@ -53,14 +53,19 @@ public:
 	float GetUpdateInterval() const { return UpdateInterval; }
 
 	/**
-	 * Returns the internally-managed active sound.
 	 */
 	const FActiveSound& GetActiveSound() const;
 
 	/**
-	 * Overrides the update interval to the provided length.
+	 * Overrides the update interval to the provided length
 	 */
 	void CalculateUpdateInterval();
+
+	/**
+	 * Takes aggregate update delta and updates focus so that realization
+	 * check can test if ready to play.
+	 */
+	void UpdateFocusData(float DeltaTime);
 
 	/**
 	  * Updates the loop and checks if ready to play (or 'realize').

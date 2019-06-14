@@ -390,7 +390,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			const FSoundAttenuationSettings* AttenuationSettingsToApply = bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr;
 
 			float MaxDistance = 0.0f;
-			float FocusFactor = 0.0f;
+			float FocusFactor = 1.0f;
 			FVector Location = GetComponentTransform().GetLocation();
 
 			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
@@ -454,7 +454,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			if (NewActiveSound.bHasAttenuationSettings)
 			{
 				NewActiveSound.AttenuationSettings = *AttenuationSettingsToApply;
-				NewActiveSound.FocusPriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(AudioDevice->GetGlobalFocusSettings(), FocusFactor);
+				NewActiveSound.FocusData.PriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(AudioDevice->GetGlobalFocusSettings(), FocusFactor);
 			}
 
 			NewActiveSound.EnvelopeFollowerAttackTime = FMath::Max(EnvelopeFollowerAttackTime, 0);

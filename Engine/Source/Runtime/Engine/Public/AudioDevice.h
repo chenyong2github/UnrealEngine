@@ -26,6 +26,7 @@
  */
 
 class FArchive;
+class FAudioDevice;
 class FAudioEffectsManager;
 class FCanvas;
 class FOutputDevice;
@@ -49,6 +50,7 @@ class USoundWave;
 class UWorld;
 
 struct FActiveSound;
+struct FAttenuationFocusData;
 struct FAudioComponentParam;
 struct FAudioQualitySettings;
 struct FRotator;
@@ -268,7 +270,6 @@ struct FActivatedReverb
 struct FAttenuationListenerData
 {
 	FVector ListenerToSoundDir;
-	FTransform ListenerTransform;
 	float AttenuationDistance;
 	float ListenerToSoundDistance;
 
@@ -276,30 +277,24 @@ struct FAttenuationListenerData
 	// Non-attenuation distance for calculating surround sound speaker maps for sources w/ spread
 	float ListenerToSoundDistanceForPanning;
 
-	bool bDataComputed;
+	FTransform ListenerTransform;
+	const FTransform SoundTransform;
+	const FSoundAttenuationSettings* AttenuationSettings;
 
-	FAttenuationListenerData()
+	/** Computes and returns some geometry related to the listener and the given sound transform. */
+	static FAttenuationListenerData Create(const FAudioDevice& AudioDevice, const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings);
+
+private:
+	FAttenuationListenerData(const FTransform& InListenerTransform, const FTransform& InSoundTransform, const FSoundAttenuationSettings& InAttenuationSettings)
 		: ListenerToSoundDir(FVector::ZeroVector)
 		, AttenuationDistance(0.0f)
 		, ListenerToSoundDistance(0.0f)
 		, ListenerToSoundDistanceForPanning(0.0f)
-		, bDataComputed(false)
-	{}
-};
-
-struct FAttenuationFocusData
-{
-	float FocusFactor;
-	float DistanceScale;
-	float PriorityScale;
-	float VolumeScale;
-
-	FAttenuationFocusData()
-		: FocusFactor(1.0f)
-		, DistanceScale(1.0f)
-		, PriorityScale(1.0f)
-		, VolumeScale(1.0f)
-	{}
+		, ListenerTransform(InListenerTransform)
+		, SoundTransform(InSoundTransform)
+		, AttenuationSettings(&InAttenuationSettings)
+	{
+	}
 };
 
 /*
@@ -325,7 +320,8 @@ struct FGlobalFocusSettings
 		, NonFocusVolumeScale(1.0f)
 		, FocusPriorityScale(1.0f)
 		, NonFocusPriorityScale(1.0f)
-	{}
+	{
+	}
 };
 
 /** Interface to register a device changed listener to respond to audio device changes. */
@@ -505,8 +501,8 @@ public:
 	 */
 	void Flush(UWorld* WorldToFlush, bool bClearActivatedReverb = true);
 
-	/** 
-	 * Allows audio rendering command queue to flush during audio device flush. 
+	/**
+	 * Allows audio rendering command queue to flush during audio device flush.
 	 * @param bPumpSynchronously must be called in situations where the audio render thread is not being called.
 	 */
 	virtual void FlushAudioRenderingCommands(bool bPumpSynchronously = false) {}
@@ -988,11 +984,8 @@ public:
 
 	void SetDeviceMuted(bool bMuted);
 
-	/** Computes and returns some geometry related to the listener and the given sound transform. */
-	void GetAttenuationListenerData(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform* InListenerTransform = nullptr) const;
-
 	/** Returns the azimuth angle of the sound relative to the sound's nearest listener. Used for 3d audio calculations. */
-	void GetAzimuth(FAttenuationListenerData& OutListenerData, const FTransform& SoundTransform, const FSoundAttenuationSettings& AttenuationSettings, const FTransform& ListenerTransform, float& OutAzimuth, float& AbsoluteAzimuth) const;
+	void GetAzimuth(const FAttenuationListenerData& OutListenerData, float& OutAzimuth, float& AbsoluteAzimuth) const;
 
 	/** Returns the focus factor of a sound based on its position and listener data. */
 	float GetFocusFactor(const float Azimuth, const FSoundAttenuationSettings& AttenuationSettings) const;
@@ -1473,6 +1466,18 @@ public:
 
 	/** Returns the game's delta time */
 	float GetGameDeltaTime() const;
+
+	/** Whether device is using listener attenuation override or not. */
+	bool IsUsingListenerAttenuationOverride() const
+	{
+		return bUseListenerAttenuationOverride;
+	}
+
+	/** Returns the listener attenuation override */
+	const FVector& GetListenerAttenuationOverride() const
+	{
+		return ListenerAttenuationOverride;
+	}
 
 	void UpdateVirtualLoops(bool bForceUpdate);
 
