@@ -156,7 +156,11 @@ namespace UnrealBuildTool
 		/// <returns>string    The name of the platform that VisualStudio recognizes</returns>
 		public override string GetVisualStudioPlatformName(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfiguration)
 		{
-			return "x64";
+			if (InPlatform == UnrealTargetPlatform.HoloLens)
+			{
+				return "arm64";
+			}
+			return InPlatform.ToString();
 		}
 
 		private bool IsValidHoloLensTarget(UnrealTargetPlatform InPlatform, TargetType InTargetType, FileReference InTargetFilePath)
