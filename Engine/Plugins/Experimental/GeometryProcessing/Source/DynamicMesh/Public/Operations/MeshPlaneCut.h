@@ -38,9 +38,11 @@ public:
 	FDynamicMesh3 *Mesh;
 	FVector3d PlaneOrigin, PlaneNormal;
 	
-
 	bool bCollapseDegenerateEdgesOnCut = true;
 	double DegenerateEdgeTol = FMathd::ZeroTolerance;
+
+	/** UVs on any hole fill surfaces are scaled by this amount */
+	float UVScaleFactor = 1.0f;
 
 	// TODO support optionally restricting plane cut to a mesh selection
 	//MeshFaceSelection CutFaceSet;

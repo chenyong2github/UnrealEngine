@@ -202,6 +202,8 @@ bool FMeshPlaneCut::FillHoles(int ConstantGroupID)
 
 	HoleFillTriangles.Empty();
 
+	FFrame3d ProjectionFrame(PlaneOrigin, PlaneNormal);
+
 	for (const FEdgeLoop& Loop : CutLoops)
 	{
 		FSimpleHoleFiller Filler(Mesh, Loop);
@@ -209,6 +211,14 @@ bool FMeshPlaneCut::FillHoles(int ConstantGroupID)
 		if (Filler.Fill(GID))
 		{
 			HoleFillTriangles.Add(Filler.NewTriangles);
+
+			if (Mesh->HasAttributes())
+			{
+				FDynamicMeshEditor Editor(Mesh);
+				Editor.SetTriangleNormals(Filler.NewTriangles, (FVector3f)PlaneNormal);
+				Editor.SetTriangleUVsFromProjection(Filler.NewTriangles, ProjectionFrame, UVScaleFactor);
+			}
+
 		}
 		else
 		{

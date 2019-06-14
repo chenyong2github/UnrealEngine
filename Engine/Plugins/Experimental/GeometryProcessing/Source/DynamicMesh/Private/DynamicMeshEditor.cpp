@@ -367,10 +367,55 @@ void FDynamicMeshEditor::SetTriangleNormals(const TArray<int>& Triangles, const 
 }
 
 
+void FDynamicMeshEditor::SetTriangleUVsFromProjection(const TArray<int>& Triangles, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
+{
+	if (!Triangles.Num())
+	{
+		return;
+	}
+
+	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex);
+	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
+
+	TMap<int, int> BaseToOverlayVIDMap;
+	TArray<int> AllUVIndices;
+
+	FAxisAlignedBox2f UVBounds(FAxisAlignedBox2f::Empty());
+
+	for (int TID : Triangles)
+	{
+		FIndex3i BaseTri = Mesh->GetTriangle(TID);
+		FIndex3i ElemTri;
+		for (int j = 0; j < 3; ++j)
+		{
+			const int* FoundElementID = BaseToOverlayVIDMap.Find(BaseTri[j]);
+			if (FoundElementID == nullptr)
+			{
+				FVector2f UV = ProjectionFrame.ToPlaneUV(Mesh->GetVertex(BaseTri[j]), 2);
+				UVBounds.Contain(UV);
+				ElemTri[j] = UVs->AppendElement(UV, BaseTri[j]);
+				AllUVIndices.Add(ElemTri[j]);
+				BaseToOverlayVIDMap.Add(BaseTri[j], ElemTri[j]);
+			}
+			else
+			{
+				ElemTri[j] = *FoundElementID;
+			}
+		}
+		UVs->SetTriangle(TID, ElemTri);
+	}
+
+	// shift UVs so that their bbox min-corner is at origin and scaled by external scale factor
+	for (int UVID : AllUVIndices)
+	{
+		FVector2f UV = UVs->GetElement(UVID);
+		FVector2f TransformedUV = (UV - UVBounds.Min) * UVScaleFactor;
+		UVs->SetElement(UVID, TransformedUV);
+	}
+}
 
 
-
-void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3f& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
+void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, const FFrame3d& ProjectionFrame, float UVScaleFactor, int UVLayerIndex)
 {
 	check(Mesh->HasAttributes() && Mesh->Attributes()->NumUVLayers() > UVLayerIndex );
 	FDynamicMeshUVOverlay* UVs = Mesh->Attributes()->GetUVLayer(UVLayerIndex);
@@ -383,7 +428,7 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 	FIndex3i UVTriangle1;
 	for (int j = 0; j < 3; ++j)
 	{
-		FVector2f UV = ProjectionFrame.ToPlaneUV( (FVector3f)Mesh->GetVertex(Triangle1[j]), 2);
+		FVector2f UV = ProjectionFrame.ToPlaneUV(Mesh->GetVertex(Triangle1[j]), 2);
 		UVTriangle1[j] = UVs->AppendElement(UV, Triangle1[j]);
 		AllUVs[j] = UV;
 		AllUVIndices[j] = UVTriangle1[j];
@@ -400,7 +445,7 @@ void FDynamicMeshEditor::SetQuadUVsFromProjection(const FIndex2i& QuadTris, cons
 			int i = Triangle1.IndexOf(Triangle2[j]);
 			if (i == -1)
 			{
-				FVector2f UV = ProjectionFrame.ToPlaneUV( (FVector3f)Mesh->GetVertex(Triangle2[j]), 2);
+				FVector2f UV = ProjectionFrame.ToPlaneUV(Mesh->GetVertex(Triangle2[j]), 2);
 				UVTriangle2[j] = UVs->AppendElement(UV, Triangle2[j]);
 				AllUVs[3] = UV;
 				AllUVIndices[3] = UVTriangle2[j];
