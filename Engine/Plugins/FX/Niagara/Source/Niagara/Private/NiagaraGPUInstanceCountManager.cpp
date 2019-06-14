@@ -27,17 +27,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("Max Num GPU Renderers"), STAT_NiagaraMaxNumGPUR
 //*****************************************************************************
 
 FNiagaraGPUInstanceCountManager::FNiagaraGPUInstanceCountManager() 
-{
-#if RHI_RAYTRACING
-	// GetDynamicRayTracingInstances()
-	++DrawIndirectArgsIncrement;
-#endif
-	if (GIsEditor)
-	{
-		// Hit proxies
-		++DrawIndirectArgsIncrement;
-	}
-}
+{}
 
 FNiagaraGPUInstanceCountManager::~FNiagaraGPUInstanceCountManager()
 {
@@ -145,7 +135,15 @@ void FNiagaraGPUInstanceCountManager::ResizeBuffers(int32 ReservedInstanceCounts
 uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance)
 {
 	checkSlow(IsInRenderingThread());
-	if (DrawIndirectArgGenTasks.Num() < AllocatedDrawIndirectArgs)
+
+	const FArgGenTaskInfo Info(InstanceCountBufferOffset, NumIndicesPerInstance);
+
+	uint32& CachedOffset = DrawIndirectArgMap.FindOrAdd(Info, INDEX_NONE);
+	if (CachedOffset != INDEX_NONE)
+	{
+		return CachedOffset;
+	}
+	else if (DrawIndirectArgGenTasks.Num() < AllocatedDrawIndirectArgs)
 	{
 #if !UE_BUILD_SHIPPING
 		if (DrawIndirectArgGenTasks.Num() >= MaxDrawIndirectArgs)
@@ -153,9 +151,9 @@ uint32 FNiagaraGPUInstanceCountManager::AddDrawIndirect(uint32 InstanceCountBuff
 			UE_LOG(LogNiagara, Warning, TEXT("More draw indirect args then expected (%d / %d)"), DrawIndirectArgGenTasks.Num() + 1, MaxDrawIndirectArgs);
 		}
 #endif
-
-		DrawIndirectArgGenTasks.Add(FArgGenTaskInfo(InstanceCountBufferOffset, NumIndicesPerInstance));
-		return (DrawIndirectArgGenTasks.Num() - 1) * NIAGARA_DRAW_INDIRECT_ARGS_SIZE * sizeof(uint32);
+		DrawIndirectArgGenTasks.Add(Info);
+		CachedOffset = (DrawIndirectArgGenTasks.Num() - 1) * NIAGARA_DRAW_INDIRECT_ARGS_SIZE * sizeof(uint32);
+		return CachedOffset;
 	}
 	else
 	{
@@ -204,6 +202,7 @@ void FNiagaraGPUInstanceCountManager::UpdateDrawIndirectBuffer(FRHICommandList& 
 		FreeEntries.Append(InstanceCountClearTasks);
 
 		DrawIndirectArgGenTasks.Empty();
+		DrawIndirectArgMap.Empty();
 		InstanceCountClearTasks.Empty();
 	}
 }
