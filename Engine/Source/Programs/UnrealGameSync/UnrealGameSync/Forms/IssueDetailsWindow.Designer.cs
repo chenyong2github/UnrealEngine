@@ -42,18 +42,13 @@ namespace UnrealGameSync
             this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
             this.tabControl1 = new System.Windows.Forms.TabControl();
             this.OutputTabPage = new System.Windows.Forms.TabPage();
-            this.DetailsTextBox = new System.Windows.Forms.RichTextBox();
+            this.DetailsTextBox = new UnrealGameSync.RichTextBox41();
             this.ChangesTabPage = new System.Windows.Forms.TabPage();
             this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
             this.tableLayoutPanel3 = new System.Windows.Forms.TableLayoutPanel();
+            this.FilterTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.FilterTypeComboBox = new System.Windows.Forms.ComboBox();
             this.StreamComboBox = new System.Windows.Forms.ComboBox();
-            this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
-            this.JobContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
-            this.JobContextMenu_StepSeparatorMin = new System.Windows.Forms.ToolStripSeparator();
-            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
-            this.FilterTextBox = new UnrealGameSync.TextBoxWithCueBanner();
             this.BuildListView = new UnrealGameSync.CustomListViewControl();
             this.IconHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.TypeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -61,6 +56,11 @@ namespace UnrealGameSync
             this.TimeHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.AuthorHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.DescriptionHeader = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
+            this.JobContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.JobContextMenu_ViewJob = new System.Windows.Forms.ToolStripMenuItem();
+            this.JobContextMenu_StepSeparatorMin = new System.Windows.Forms.ToolStripSeparator();
+            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripMenuItem();
             this.BuildListContextMenu.SuspendLayout();
             this.tableLayoutPanel1.SuspendLayout();
             this.tableLayoutPanel4.SuspendLayout();
@@ -360,6 +360,7 @@ namespace UnrealGameSync
             // 
             this.DetailsTextBox.BackColor = System.Drawing.SystemColors.Window;
             this.DetailsTextBox.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.DetailsTextBox.DetectUrls = false;
             this.DetailsTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.DetailsTextBox.Font = new System.Drawing.Font("Courier New", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.DetailsTextBox.Location = new System.Drawing.Point(8, 8);
@@ -370,6 +371,7 @@ namespace UnrealGameSync
             this.DetailsTextBox.TabIndex = 0;
             this.DetailsTextBox.Text = "This is an error";
             this.DetailsTextBox.WordWrap = false;
+            this.DetailsTextBox.LinkClicked += new System.Windows.Forms.LinkClickedEventHandler(this.DetailsTextBox_LinkClicked);
             // 
             // ChangesTabPage
             // 
@@ -417,6 +419,16 @@ namespace UnrealGameSync
             this.tableLayoutPanel3.Size = new System.Drawing.Size(1052, 29);
             this.tableLayoutPanel3.TabIndex = 0;
             // 
+            // FilterTextBox
+            // 
+            this.FilterTextBox.CueBanner = "Enter search terms. Use wildcards to match paths of modified files.";
+            this.FilterTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.FilterTextBox.Location = new System.Drawing.Point(3, 3);
+            this.FilterTextBox.Name = "FilterTextBox";
+            this.FilterTextBox.Size = new System.Drawing.Size(919, 23);
+            this.FilterTextBox.TabIndex = 0;
+            this.FilterTextBox.TextChanged += new System.EventHandler(this.FilterTextBox_TextChanged);
+            // 
             // FilterTypeComboBox
             // 
             this.FilterTypeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
@@ -442,67 +454,6 @@ namespace UnrealGameSync
             this.StreamComboBox.Size = new System.Drawing.Size(1046, 23);
             this.StreamComboBox.TabIndex = 0;
             this.StreamComboBox.SelectedIndexChanged += new System.EventHandler(this.StreamComboBox_SelectedIndexChanged);
-            // 
-            // tableLayoutPanel5
-            // 
-            this.tableLayoutPanel5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
-            this.tableLayoutPanel5.AutoSize = true;
-            this.tableLayoutPanel5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.tableLayoutPanel5.ColumnCount = 5;
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
-            this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 0, 0);
-            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 3, 0);
-            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 4, 0);
-            this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 1, 0);
-            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 611);
-            this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 8, 3, 3);
-            this.tableLayoutPanel5.Name = "tableLayoutPanel5";
-            this.tableLayoutPanel5.RowCount = 1;
-            this.tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableLayoutPanel5.Size = new System.Drawing.Size(1076, 33);
-            this.tableLayoutPanel5.TabIndex = 1;
-            // 
-            // JobContextMenu
-            // 
-            this.JobContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.JobContextMenu_ViewJob,
-            this.JobContextMenu_StepSeparatorMin,
-            this.toolStripMenuItem1});
-            this.JobContextMenu.Name = "JobContextMenu";
-            this.JobContextMenu.Size = new System.Drawing.Size(130, 54);
-            // 
-            // JobContextMenu_ViewJob
-            // 
-            this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
-            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(129, 22);
-            this.JobContextMenu_ViewJob.Text = "View Job...";
-            this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
-            // 
-            // JobContextMenu_StepSeparatorMin
-            // 
-            this.JobContextMenu_StepSeparatorMin.Name = "JobContextMenu_StepSeparatorMin";
-            this.JobContextMenu_StepSeparatorMin.Size = new System.Drawing.Size(126, 6);
-            // 
-            // toolStripMenuItem1
-            // 
-            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
-            this.toolStripMenuItem1.Size = new System.Drawing.Size(129, 22);
-            this.toolStripMenuItem1.Text = "Step: XYZ";
-            // 
-            // FilterTextBox
-            // 
-            this.FilterTextBox.CueBanner = "Enter search terms. Use wildcards to match paths of modified files.";
-            this.FilterTextBox.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.FilterTextBox.Location = new System.Drawing.Point(3, 3);
-            this.FilterTextBox.Name = "FilterTextBox";
-            this.FilterTextBox.Size = new System.Drawing.Size(919, 23);
-            this.FilterTextBox.TabIndex = 0;
-            this.FilterTextBox.TextChanged += new System.EventHandler(this.FilterTextBox_TextChanged);
             // 
             // BuildListView
             // 
@@ -568,6 +519,57 @@ namespace UnrealGameSync
             this.DescriptionHeader.Text = "Description";
             this.DescriptionHeader.Width = 550;
             // 
+            // tableLayoutPanel5
+            // 
+            this.tableLayoutPanel5.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right)));
+            this.tableLayoutPanel5.AutoSize = true;
+            this.tableLayoutPanel5.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.tableLayoutPanel5.ColumnCount = 5;
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 20F));
+            this.tableLayoutPanel5.Controls.Add(this.AssignToMeBtn, 0, 0);
+            this.tableLayoutPanel5.Controls.Add(this.MarkFixedBtn, 3, 0);
+            this.tableLayoutPanel5.Controls.Add(this.OkBtn, 4, 0);
+            this.tableLayoutPanel5.Controls.Add(this.AssignToOtherBtn, 1, 0);
+            this.tableLayoutPanel5.Location = new System.Drawing.Point(3, 611);
+            this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(3, 8, 3, 3);
+            this.tableLayoutPanel5.Name = "tableLayoutPanel5";
+            this.tableLayoutPanel5.RowCount = 1;
+            this.tableLayoutPanel5.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel5.Size = new System.Drawing.Size(1076, 33);
+            this.tableLayoutPanel5.TabIndex = 1;
+            // 
+            // JobContextMenu
+            // 
+            this.JobContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.JobContextMenu_ViewJob,
+            this.JobContextMenu_StepSeparatorMin,
+            this.toolStripMenuItem1});
+            this.JobContextMenu.Name = "JobContextMenu";
+            this.JobContextMenu.Size = new System.Drawing.Size(130, 54);
+            // 
+            // JobContextMenu_ViewJob
+            // 
+            this.JobContextMenu_ViewJob.Name = "JobContextMenu_ViewJob";
+            this.JobContextMenu_ViewJob.Size = new System.Drawing.Size(129, 22);
+            this.JobContextMenu_ViewJob.Text = "View Job...";
+            this.JobContextMenu_ViewJob.Click += new System.EventHandler(this.JobContextMenu_ViewJob_Click);
+            // 
+            // JobContextMenu_StepSeparatorMin
+            // 
+            this.JobContextMenu_StepSeparatorMin.Name = "JobContextMenu_StepSeparatorMin";
+            this.JobContextMenu_StepSeparatorMin.Size = new System.Drawing.Size(126, 6);
+            // 
+            // toolStripMenuItem1
+            // 
+            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(129, 22);
+            this.toolStripMenuItem1.Text = "Step: XYZ";
+            // 
             // IssueDetailsWindow
             // 
             this.AcceptButton = this.OkBtn;
@@ -627,7 +629,7 @@ namespace UnrealGameSync
 		private System.Windows.Forms.ToolStripMenuItem JobContextMenu_ViewJob;
 		private System.Windows.Forms.TabControl tabControl1;
 		private System.Windows.Forms.TabPage OutputTabPage;
-		private System.Windows.Forms.RichTextBox DetailsTextBox;
+		private RichTextBox41 DetailsTextBox;
 		private System.Windows.Forms.TabPage ChangesTabPage;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel2;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel3;
