@@ -22,7 +22,7 @@ limitations under the License.
 #include "base/audio_buffer.h"
 #include "base/logging.h"
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include <array>
 
 namespace vraudio {

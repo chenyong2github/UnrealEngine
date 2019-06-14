@@ -19,7 +19,7 @@ limitations under the License.
 #include <algorithm>
 #include <cmath>
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include "base/logging.h"
 #include "platforms/common/room_effects_utils.h"
 
