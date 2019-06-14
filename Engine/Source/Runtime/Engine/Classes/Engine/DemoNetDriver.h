@@ -475,7 +475,14 @@ private:
 
 	TArray<TUniquePtr<FDeltaCheckpointData>> PlaybackDeltaCheckpointData;
 	
-public:	
+	TSharedPtr<struct FReplayPlaylistTracker> PlaylistTracker;
+
+public:
+
+	void SetPlayingPlaylist(TSharedPtr<struct FReplayPlaylistTracker> InPlaylistTracker)
+	{
+		PlaylistTracker = InPlaylistTracker;
+	}
 
 	virtual void Serialize(FArchive& Ar) override;
 
