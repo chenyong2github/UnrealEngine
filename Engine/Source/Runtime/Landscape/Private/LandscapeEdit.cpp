@@ -2803,7 +2803,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 		{
 			for (const FLandscapeLayer& OldLayer : *InImportLayers)
 			{
-				FLandscapeLayer* NewLayer = LandscapeActor->DuplicateLayer(OldLayer);
+				FLandscapeLayer* NewLayer = LandscapeActor->DuplicateLayerAndMoveBrushes(OldLayer);
 				check(NewLayer != nullptr);
 
 				FLayerImportSettings ImportSettings;
