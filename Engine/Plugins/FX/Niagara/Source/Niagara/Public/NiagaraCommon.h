@@ -37,8 +37,7 @@ UENUM()
 enum class ENiagaraSimTarget : uint8
 {
 	CPUSim,
-	GPUComputeSim,
-	DynamicLoadBalancedSim UMETA(Hidden)
+	GPUComputeSim
 };
 
 

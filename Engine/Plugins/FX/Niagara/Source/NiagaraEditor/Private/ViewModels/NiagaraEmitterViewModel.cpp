@@ -294,7 +294,7 @@ ENiagaraScriptCompileStatus FNiagaraEmitterViewModel::GetLatestCompileStatus()
 	check(SharedScriptViewModel.IsValid());
 	ENiagaraScriptCompileStatus UnionStatus = SharedScriptViewModel->GetLatestCompileStatus();
 
-	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim || Emitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (UnionStatus != ENiagaraScriptCompileStatus::NCS_Dirty)
 		{
