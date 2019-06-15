@@ -190,7 +190,7 @@ public:
 	{
 		return Header.bIsWide;
 	}
-	
+
 	FORCEINLINE int32 GetNameLength() const
 	{
 		return Header.Len;
@@ -229,7 +229,7 @@ public:
 	 * @param	bIsPureAnsi		Whether name is pure ANSI or not
 	 * @return	required size of FNameEntry structure to hold this string (might be wide or ansi)
 	 */
-	static int32 GetSize(int32 Length, bool bIsPureAnsi);
+	static int32 GetSize( int32 Length, bool bIsPureAnsi );
 	static CORE_API int32 GetSize(const TCHAR* Name);
 
 	CORE_API int32 GetSizeInBytes() const;
@@ -314,7 +314,7 @@ struct FNameEntrySerialized
  * This is smaller than FName, but you lose the case-preserving behavior
  */
 struct FMinimalName
-{
+	{
 	FMinimalName() {}
 
 	CORE_API FMinimalName(EName N);
@@ -348,9 +348,9 @@ struct FScriptName
 	CORE_API FScriptName(EName N);
 
 	FScriptName(FNameEntryId InComparisonIndex, FNameEntryId InDisplayIndex, int32 InNumber)
-	: ComparisonIndex(InComparisonIndex)
-	, DisplayIndex(InDisplayIndex)
-	, Number(InNumber)
+		: ComparisonIndex(InComparisonIndex)
+		, DisplayIndex(InDisplayIndex)
+		, Number(InNumber)
 	{
 	}
 
@@ -611,8 +611,8 @@ public:
 			return ComparisonDiff;
 		}
 
-		return GetNumber() - Other.GetNumber();
-	}
+			return GetNumber() - Other.GetNumber();
+		}
 
 	/**
 	 * Create an FName with a hardcoded string index.
@@ -734,7 +734,7 @@ public:
 	 * this version skips calculating the hashes of the names if possible
 	 */
 	FName(const FNameEntrySerialized& LoadedEntry);
-	
+
 	/**
 	 * Equality operator.
 	 *
@@ -785,7 +785,7 @@ public:
 	static FNameEntry const* GetEntry(FNameEntryId Id);
 
 	//@}
-	
+
 	/** Run autotest on FNames. */
 	static void AutoTest();
 	
@@ -805,15 +805,15 @@ public:
 
 private:
 
-	/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
+			/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
 	FNameEntryId	ComparisonIndex;
-#if WITH_CASE_PRESERVING_NAME
-	/** Index into the Names array (used to find String portion of the string/number pair used for display) */
+		#if WITH_CASE_PRESERVING_NAME
+			/** Index into the Names array (used to find String portion of the string/number pair used for display) */
 	FNameEntryId	DisplayIndex;
-#endif
-	/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
-	uint32			Number;
-	
+		#endif
+			/** Number portion of the string/number pair (stored internally as 1 more than actual, so zero'd memory will be the default, no-instance case) */
+			uint32			Number;
+
 	friend const TCHAR* DebugFName(int32);
 	friend const TCHAR* DebugFName(int32, int32);
 	friend const TCHAR* DebugFName(FName&);
@@ -918,7 +918,7 @@ typedef FNameFastLess FNameSortIndexes;
 
 /** Slow alphabetical order that is stable / deterministic over process runs */
 struct FNameLexicalLess
-{
+	{
 	FORCEINLINE bool operator()(const FName& A, const FName& B) const
 	{
 		return A.Compare(B) < 0;
@@ -938,7 +938,7 @@ inline void FNameEntry::Decode(WIDECHAR*, uint32) {}
 #endif
 
 struct FNameDebugVisualizer
-{
+	{
 	CORE_API static uint8** GetBlocks();
 private:
 	static constexpr uint32 EntryStride = alignof(FNameEntry);
