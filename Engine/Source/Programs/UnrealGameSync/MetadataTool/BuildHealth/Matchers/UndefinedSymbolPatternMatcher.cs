@@ -6,10 +6,11 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Tools.DotNETCommon.Perforce;
 
 namespace MetadataTool
 {
-	class UndefinedSymbolPatternMatcher : PatternMatcher
+	class UndefinedSymbolPatternMatcher : GenericCodePatternMatcher
 	{
 		public override string Category => "UndefinedSymbol";
 
@@ -70,6 +71,9 @@ namespace MetadataTool
 			{
 				string SymbolName = SymbolMatch;
 
+				// Remove any __declspec qualifiers
+				SymbolName = Regex.Replace(SymbolName, "(?<![^a-zA-Z_])__declspec\\([^\\)]+\\)", "");
+
 				// Remove any argument lists for functions (anything after the first paren)
 				SymbolName = Regex.Replace(SymbolName, "\\(.*$", "");
 
@@ -83,7 +87,7 @@ namespace MetadataTool
 			// If we found any symbol names, create a fingerprint for them
 			if (SymbolNames.Count > 0)
 			{
-				BuildHealthIssue Issue = new BuildHealthIssue(Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, Diagnostic.Message, Diagnostic.Url));
+				BuildHealthIssue Issue = new BuildHealthIssue(Job.Project, Category, Job.Url, new BuildHealthDiagnostic(JobStep.Name, JobStep.Url, Diagnostic.Message, Diagnostic.Url));
 				Issue.Identifiers.UnionWith(SymbolNames);
 				Issues.Add(Issue);
 				return true;
@@ -91,6 +95,40 @@ namespace MetadataTool
 
 			// Otherwise pass
 			return false;
+		}
+
+		public override List<ChangeInfo> FindCausers(PerforceConnection Perforce, BuildHealthIssue Issue, IReadOnlyList<ChangeInfo> Changes)
+		{
+			SortedSet<string> FileNamesWithoutPath = new SortedSet<string>(StringComparer.Ordinal);
+			foreach(string Identifier in Issue.Identifiers)
+			{
+				Match Match = Regex.Match(Identifier, "^[AUFS]([A-Z][A-Za-z_]*)::");
+				if(Match.Success)
+				{
+					FileNamesWithoutPath.Add(Match.Groups[1].Value + ".h");
+					FileNamesWithoutPath.Add(Match.Groups[1].Value + ".cpp");
+				}
+			}
+
+			if(FileNamesWithoutPath.Count > 0)
+			{
+				List<ChangeInfo> Causers = new List<ChangeInfo>();
+				foreach (ChangeInfo Change in Changes)
+				{
+					DescribeRecord DescribeRecord = GetDescribeRecord(Perforce, Change);
+					if (ContainsFileNames(DescribeRecord, FileNamesWithoutPath))
+					{
+						Causers.Add(Change);
+					}
+				}
+
+				if (Causers.Count > 0)
+				{
+					return Causers;
+				}
+			}
+
+			return base.FindCausers(Perforce, Issue, Changes);
 		}
 
 		public override string GetSummary(BuildHealthIssue Issue)
