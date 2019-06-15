@@ -67,6 +67,12 @@ namespace MetadataTool
 	class InputJob
 	{
 		/// <summary>
+		/// Project that this build belongs to
+		/// </summary>
+		[DataMember(IsRequired = true)]
+		public string Project;
+
+		/// <summary>
 		/// Name of this build. Displayed in the UI.
 		/// </summary>
 		[DataMember(IsRequired = true)]

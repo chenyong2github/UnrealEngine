@@ -54,10 +54,10 @@ namespace MetadataTool
 		public abstract bool TryMatch(InputJob Job, InputJobStep JobStep, InputDiagnostic Diagnostic, List<BuildHealthIssue> Issues);
 
 		/// <summary>
-		/// Determines if one fingerprint can be merged with another one
+		/// Determines if one issue can be merged into another
 		/// </summary>
-		/// <param name="Source">The source fingerprint</param>
-		/// <param name="Target">The fingerprint to merge into</param>
+		/// <param name="Source">The source issue</param>
+		/// <param name="Target">The target issue</param>
 		public virtual bool CanMerge(BuildHealthIssue Source, BuildHealthIssue Target)
 		{
 			// Make sure the categories match
@@ -67,14 +67,23 @@ namespace MetadataTool
 			}
 
 			// Check that a filename or message matches
-			if (Source.InitialJobUrl != Target.InitialJobUrl)
+			if (!Source.FileNames.Any(x => Target.FileNames.Contains(x)) && !Source.Identifiers.Any(x => Target.Identifiers.Contains(x)))
 			{
-				if (!Source.FileNames.Any(x => Target.FileNames.Contains(x)) && !Source.Identifiers.Any(x => Target.Identifiers.Contains(x)))
-				{
-					return false;
-				}
+				return false;
 			}
+
 			return true;
+		}
+
+		/// <summary>
+		/// Determines if an issue can be merged into another issue that occurred at the same initial job
+		/// </summary>
+		/// <param name="Source">The source issue</param>
+		/// <param name="Target">The target issue</param>
+		/// <returns>True if the two new issues can be merged</returns>
+		public virtual bool CanMergeInitialJob(BuildHealthIssue Source, BuildHealthIssue Target)
+		{
+			return Source.Category == Target.Category;
 		}
 
 		/// <summary>
@@ -99,26 +108,30 @@ namespace MetadataTool
 
 			Target.FileNames.UnionWith(Source.FileNames);
 			Target.Identifiers.UnionWith(Source.Identifiers);
+			Target.References.UnionWith(Source.References);
 		}
 
 		/// <summary>
 		/// Filters all the likely causers from the list of changes since an issue was created
 		/// </summary>
 		/// <param name="Perforce">The perforce connection</param>
-		/// <param name="Fingerprint">Fingerprint for the issue</param>
+		/// <param name="Issue">The build issue</param>
 		/// <param name="Changes">List of changes since the issue first occurred.</param>
 		/// <returns>List of changes which are causers for the issue</returns>
 		public virtual List<ChangeInfo> FindCausers(PerforceConnection Perforce, BuildHealthIssue Issue, IReadOnlyList<ChangeInfo> Changes)
 		{
-			SortedSet<string> FileNamesWithoutPath = GetFileNamesWithoutPath(Issue.FileNames);
-
 			List<ChangeInfo> Causers = new List<ChangeInfo>();
-			foreach (ChangeInfo Change in Changes)
+
+			SortedSet<string> FileNamesWithoutPath = GetFileNamesWithoutPath(Issue.FileNames);
+			if (FileNamesWithoutPath.Count > 0)
 			{
-				DescribeRecord Description = Perforce.Describe(Change.Record.Number).Data;
-				if (ContainsFileNames(Description, FileNamesWithoutPath))
+				foreach (ChangeInfo Change in Changes)
 				{
-					Causers.Add(Change);
+					DescribeRecord DescribeRecord = GetDescribeRecord(Perforce, Change);
+					if (ContainsFileNames(DescribeRecord, FileNamesWithoutPath))
+					{
+						Causers.Add(Change);
+					}
 				}
 			}
 
@@ -130,6 +143,42 @@ namespace MetadataTool
 			{
 				return new List<ChangeInfo>(Changes);
 			}
+		}
+
+		/// <summary>
+		/// Utility method to get the describe record for a change. Caches it on the ChangeInfo object as necessary.
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Change">The change to query</param>
+		public DescribeRecord GetDescribeRecord(PerforceConnection Perforce, ChangeInfo Change)
+		{
+			if(Change.CachedDescribeRecord == null)
+			{
+				Change.CachedDescribeRecord = Perforce.Describe(Change.Record.Number).Data;
+			}
+			return Change.CachedDescribeRecord;
+		}
+
+		/// <summary>
+		/// Tests whether a change is a code change
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Change">The change to query</param>
+		/// <returns>True if the change is a code change</returns>
+		public bool ContainsAnyFileWithExtension(PerforceConnection Perforce, ChangeInfo Change, string[] Extensions)
+		{
+			DescribeRecord Record = GetDescribeRecord(Perforce, Change);
+			foreach(DescribeFileRecord File in Record.Files)
+			{
+				foreach(string Extension in Extensions)
+				{
+					if(File.DepotFile.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
+					{
+						return true;
+					}
+				}
+			}
+			return false;
 		}
 
 		/// <summary>
