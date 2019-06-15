@@ -428,7 +428,7 @@ void FNiagaraEmitterInstance::CheckForErrors()
 		return;
 	}
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim || CachedEmitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		bool bFailed = false;
 		if (!CachedEmitter->SpawnScriptProps.Script->DidScriptCompilationSucceed(false))
@@ -462,7 +462,7 @@ void FNiagaraEmitterInstance::CheckForErrors()
 		}
 	}
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim || CachedEmitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (CachedEmitter->GetGPUComputeScript()->IsScriptCompilationPending(true))
 		{
