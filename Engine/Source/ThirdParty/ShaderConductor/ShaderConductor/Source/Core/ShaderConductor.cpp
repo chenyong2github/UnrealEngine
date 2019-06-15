@@ -563,6 +563,9 @@ namespace
         case ShadingLanguage::Essl:
         case ShadingLanguage::Msl:
             dxcArgStrings.push_back(L"-spirv");
+			/* UE Change Begin: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
+			dxcArgStrings.push_back(L"-fvk-use-dx-position-w");
+			/* UE Change End: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
 			/* UE Change Begin: Specify SPIRV reflection so that we retain semantic strings! */
 			dxcArgStrings.push_back(L"-fspv-reflect");
 			/* UE Change End: Specify SPIRV reflection so that we retain semantic strings! */
