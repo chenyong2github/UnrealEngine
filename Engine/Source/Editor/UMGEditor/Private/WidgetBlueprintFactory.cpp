@@ -7,6 +7,7 @@
 #include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "WidgetBlueprint.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Modules/ModuleManager.h"
 
 #include "Blueprint/WidgetTree.h"
 #include "UMGEditorProjectSettings.h"
