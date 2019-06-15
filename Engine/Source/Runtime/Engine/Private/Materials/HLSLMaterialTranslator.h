@@ -6848,7 +6848,7 @@ protected:
 
 		if( ShaderFrequency != SF_Pixel )
 		{
-			NonPixelShaderExpressionError();
+			return NonPixelShaderExpressionError();
 		}
 
 		MaterialCompilationOutput.bUsesEyeAdaptation = true;

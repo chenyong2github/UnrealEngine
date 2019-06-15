@@ -166,6 +166,17 @@ public:
 		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
 		ESceneTextureSetupMode SceneTextureSetupMode);
 
+	/** Like SetParameters above, but takes a FViewInfo rather than FSceneView, which allows additional per-view parameters to be set */
+	template< typename TRHIShader >
+	void SetParameters(
+		FRHICommandList& RHICmdList,
+		TRHIShader* ShaderRHI,
+		const FMaterialRenderProxy* MaterialRenderProxy,
+		const FMaterial& Material,
+		const FViewInfo& View,
+		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+		ESceneTextureSetupMode SceneTextureSetupMode);
+
 	void GetShaderBindings(
 		const FScene* Scene,
 		ERHIFeatureLevel::Type FeatureLevel,

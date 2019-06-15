@@ -326,6 +326,22 @@ void FMaterialShader::SetParameters(
 	SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, SceneTextureSetupMode);
 }
 
+template<typename TRHIShader>
+void FMaterialShader::SetParameters(
+	FRHICommandList& RHICmdList,
+	TRHIShader* ShaderRHI,
+	const FMaterialRenderProxy* MaterialRenderProxy,
+	const FMaterial& Material,
+	const FViewInfo& View,
+	const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer,
+	ESceneTextureSetupMode SceneTextureSetupMode)
+{
+	SetViewParameters(RHICmdList, ShaderRHI, View, ViewUniformBuffer);
+	FMaterialShader::SetParametersInner(RHICmdList, ShaderRHI, MaterialRenderProxy, Material, View);
+
+	SceneTextureParameters.SetWithView(RHICmdList, ShaderRHI, SceneTextureSetupMode, View);
+}
+
 // Doxygen struggles to parse these explicit specializations. Just ignore them for now.
 #if !UE_BUILD_DOCS
 
@@ -357,6 +373,15 @@ IMPLEMENT_MATERIAL_SHADER_SetParametersInner(FRHIComputeShader);
 		const FMaterialRenderProxy* MaterialRenderProxy,\
 		const FMaterial& Material,						\
 		const FSceneView& View,							\
+		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer, \
+		ESceneTextureSetupMode SceneTextureSetupMode		\
+	); \
+	template RENDERER_API void FMaterialShader::SetParameters< TRHIShader >( \
+		FRHICommandList& RHICmdList,					\
+		TRHIShader* ShaderRHI,							\
+		const FMaterialRenderProxy* MaterialRenderProxy,\
+		const FMaterial& Material,						\
+		const FViewInfo& View,							\
 		const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer, \
 		ESceneTextureSetupMode SceneTextureSetupMode		\
 	);
