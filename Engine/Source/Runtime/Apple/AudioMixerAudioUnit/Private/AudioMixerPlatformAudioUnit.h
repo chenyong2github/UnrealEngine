@@ -75,11 +75,10 @@ namespace Audio
 		// This is required for devices that require frame counts per callback that are not powers of two.
 		Audio::TCircularAudioBuffer<int8> CircularOutputBuffer;
 
-		// This is the buffer we pop CircularOutputBuffer into in SubmitBuffer.
-		TArray<int8> DeviceBuffer;
-
 		int32 NumSamplesPerRenderCallback;
 		int32 NumSamplesPerDeviceCallback;
+        mutable bool bInternalPlatformSettingsInitialized{ false };
+        mutable FAudioPlatformSettings InternalPlatformSettings;
         
 		bool PerformCallback(AudioBufferList* OutputBufferData);
 		void HandleError(const TCHAR* InLogOutput, bool bTeardown = true);
