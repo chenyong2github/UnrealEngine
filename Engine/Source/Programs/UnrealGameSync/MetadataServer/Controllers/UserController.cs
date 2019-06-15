@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data.SQLite;
 using System.Web.Http;
 using MetadataServer.Connectors;
 using MetadataServer.Models;

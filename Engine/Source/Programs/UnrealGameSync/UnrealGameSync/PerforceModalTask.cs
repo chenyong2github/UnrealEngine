@@ -17,94 +17,23 @@ namespace UnrealGameSync
 
 	class PerforceModalTask : IModalTask
 	{
-		public string ProjectFileName;
-		public string ServerAndPort;
-		public string UserName;
+		public PerforceConnection Perforce;
 		public string Password;
 		public LoginResult LoginResult;
 		public IPerforceModalTask InnerTask;
 		public TextWriter Log;
 
-		public PerforceModalTask(string ProjectFileName, string ServerAndPort, string UserName, IPerforceModalTask InnerTask, TextWriter Log)
+		public PerforceModalTask(PerforceConnection Perforce, IPerforceModalTask InnerTask, TextWriter Log)
 		{
-			this.ProjectFileName = ProjectFileName;
-			this.ServerAndPort = ServerAndPort;
-			this.UserName = UserName;
+			this.Perforce = Perforce;
 			this.InnerTask = InnerTask;
 			this.Log = Log;
-		}
-
-		public static bool TryGetServerSettings(string ProjectFileName, ref string ServerAndPort, ref string UserName, TextWriter Log)
-		{
-			// Read the P4PORT setting for the server, if necessary. Change to the project folder if set, so we can respect the contents of any P4CONFIG file.
-			if(ServerAndPort == null)
-			{
-				string PrevDirectory = Directory.GetCurrentDirectory();
-				try
-				{
-					PerforceConnection Perforce = new PerforceConnection(UserName, null, null);
-					if(ProjectFileName != null)
-					{
-						try
-						{
-							Directory.SetCurrentDirectory(Path.GetDirectoryName(ProjectFileName));
-						}
-						catch
-						{
-							// Just ignore
-						}
-					}
-
-					string NewServerAndPort;
-					if (Perforce.GetSetting("P4PORT", out NewServerAndPort, Log))
-					{
-						ServerAndPort = NewServerAndPort;
-					}
-				}
-				finally
-				{
-					Directory.SetCurrentDirectory(PrevDirectory);
-				}
-			}
-
-			// If the server setting is still null, user the default
-			if(ServerAndPort == null)
-			{
-				ServerAndPort = PerforceConnection.DefaultServerAndPort;
-			}
-
-			// Update the server and username from the reported server info if it's not set
-			if(UserName == null)
-			{
-				PerforceConnection Perforce = new PerforceConnection(UserName, null, ServerAndPort);
-
-				PerforceInfoRecord PerforceInfo;
-				if(!Perforce.Info(out PerforceInfo, Log) || String.IsNullOrEmpty(PerforceInfo.UserName))
-				{
-					return false;
-				}
-
-				UserName = PerforceInfo.UserName;
-			}
-
-			// Otherwise succeed
-			return true;
 		}
 
 		public bool Run(out string ErrorMessage)
 		{
 			// Set the default login state to failed
 			LoginResult = LoginResult.Failed;
-
-			// Get the server settings
-			if(!TryGetServerSettings(ProjectFileName, ref ServerAndPort, ref UserName, Log))
-			{
-				ErrorMessage = "Unable to get Perforce server settings.";
-				return false;
-			}
-
-			// Create the connection
-			PerforceConnection Perforce = new PerforceConnection(UserName, null, ServerAndPort);
 
 			// If we've got a password, execute the login command
 			if(Password != null)
@@ -139,9 +68,9 @@ namespace UnrealGameSync
 			return InnerTask.Run(Perforce, Log, out ErrorMessage);
 		}
 
-		public static ModalTaskResult Execute(IWin32Window Owner, string ProjectFileName, string ServerAndPort, string UserName, IPerforceModalTask PerforceTask, string Title, string Message, TextWriter Log, out string ErrorMessage)
+		public static ModalTaskResult Execute(IWin32Window Owner, PerforceConnection Perforce, IPerforceModalTask PerforceTask, string Title, string Message, TextWriter Log, out string ErrorMessage)
 		{
-			PerforceModalTask Task = new PerforceModalTask(ProjectFileName, ServerAndPort, UserName, PerforceTask, Log);
+			PerforceModalTask Task = new PerforceModalTask(Perforce, PerforceTask, Log);
 			for(;;)
 			{
 				string TaskErrorMessage;
@@ -154,7 +83,7 @@ namespace UnrealGameSync
 				}
 				else if(Task.LoginResult == LoginResult.MissingPassword)
 				{
-					PasswordWindow PasswordWindow = new PasswordWindow(String.Format("Enter the password for user '{0}' on server '{1}'.", Task.UserName, Task.ServerAndPort), Task.Password);
+					PasswordWindow PasswordWindow = new PasswordWindow(String.Format("Enter the password for user '{0}' on server '{1}'.", Perforce.UserName, Perforce.ServerAndPort), Task.Password);
 					if(Owner == null)
 					{
 						PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
@@ -168,7 +97,7 @@ namespace UnrealGameSync
 				}
 				else if(Task.LoginResult == LoginResult.IncorrectPassword)
 				{
-					PasswordWindow PasswordWindow = new PasswordWindow(String.Format("Authentication failed. Enter the password for user '{0}' on server '{1}'.", Task.UserName, Task.ServerAndPort), Task.Password);
+					PasswordWindow PasswordWindow = new PasswordWindow(String.Format("Authentication failed. Enter the password for user '{0}' on server '{1}'.", Perforce.UserName, Perforce.ServerAndPort), Task.Password);
 					if (Owner == null)
 					{
 						PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
@@ -186,6 +115,21 @@ namespace UnrealGameSync
 					return ModalTaskResult.Failed;
 				}
 			}
+		}
+
+		public static bool ExecuteAndShowError(IWin32Window Owner, PerforceConnection Perforce, IPerforceModalTask Task, string Title, string Message, TextWriter Log)
+		{
+			string ErrorMessage;
+			ModalTaskResult Result = Execute(Owner, Perforce, Task, Title, Message, Log, out ErrorMessage);
+			if (Result != ModalTaskResult.Succeeded)
+			{
+				if (!String.IsNullOrEmpty(ErrorMessage))
+				{
+					MessageBox.Show(ErrorMessage);
+				}
+				return false;
+			}
+			return true;
 		}
 	}
 }
