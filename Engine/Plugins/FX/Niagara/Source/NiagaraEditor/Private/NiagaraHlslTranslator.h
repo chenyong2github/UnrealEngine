@@ -543,6 +543,8 @@ private:
 
 	bool ShouldInterpolateParameter(const FNiagaraVariable& Parameter);
 
+	void UpdateStaticSwitchConstants(UEdGraphNode* Node);
+
 	bool IsBulkSystemScript() const;
 	bool IsSpawnScript() const;
 	bool RequiresInterpolation() const;
