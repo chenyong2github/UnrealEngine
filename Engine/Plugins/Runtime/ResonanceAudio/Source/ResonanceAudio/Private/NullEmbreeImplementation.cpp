@@ -5,7 +5,7 @@
 
 #if !USE_EMBREE
 
-#include "ResonanceEmbreeHelpers.h"
+#include "ResonanceEmbreeHelper.h"
 #include "CoreMinimal.h"
 
 void rtcCommit(RTCScene scene)
