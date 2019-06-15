@@ -46,6 +46,9 @@ struct SpirvCodeGenOptions {
   bool disableValidation;
   bool enable16BitTypes;
   bool enableReflect;
+  /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+  bool enableFMAPass;
+  /* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
   bool invertY; // Additive inverse
   bool invertW; // Multiplicative inverse
   bool noWarnEmulatedFeatures;

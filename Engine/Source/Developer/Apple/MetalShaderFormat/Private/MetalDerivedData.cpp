@@ -506,6 +506,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		Options.enableDebugInfo = false;
 		Options.enable16bitTypes = false;
 		Options.disableOptimizations = false;
+		Options.enableFMAPass = true;
 		
         ShaderConductor::Compiler::SourceDesc SourceDesc;
 		
@@ -1753,8 +1754,36 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				MetaData += ALNString;
 				MetaData += TEXT("\n\n");
 			}
+			
 			MetalSource = TCHAR_TO_UTF8(*MetaData);
 			MetalSource += std::string((const char*)Results.target->Data(), Results.target->Size());
+			
+			// Tessellation vertex & hull shaders must always use FMA
+			if (!((bUsingTessellation && Frequency == HSF_VertexShader) || Frequency == HSF_HullShader))
+			{
+				std::string FMADefine;
+				// Fragment shaders and compute shaders need not use FMAs.
+				if (Frequency == HSF_PixelShader || Frequency == HSF_ComputeShader)
+				{
+					FMADefine = "#include <metal_stdlib>\n\n"
+								"#define fma(a, b, c) ((a * b) + c)\n\n";
+				}
+				// Plain vertex & domain shaders need only use FMAs on Metal 1.2-2.0
+				else
+				{
+					FMADefine = std::string("#include <metal_stdlib>\n\n"
+									 "#if __METAL_VERSION__ < 120 || __METAL_VERSION__ >= 210\n"
+									 "\t#define fma(a, b, c) ((a * b) + c)\n"
+									 "#else\n"
+									 "\t#define fma(a, b, c) fma(a, b, c)\n"
+									 "#endif\n\n");
+				}
+			
+				std::string IncludeString = "#include <metal_stdlib>";
+				size_t IncludePos = MetalSource.find(IncludeString);
+				if (IncludePos != std::string::npos)
+					MetalSource.replace(IncludePos, IncludeString.length(), FMADefine);
+			}
 			
 			if (Frequency == HSF_DomainShader)
 			{

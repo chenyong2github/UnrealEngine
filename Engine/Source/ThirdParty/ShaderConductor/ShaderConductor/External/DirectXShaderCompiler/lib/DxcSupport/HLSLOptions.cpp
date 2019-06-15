@@ -673,6 +673,9 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
   opts.SpirvOptions.useDxLayout = Args.hasFlag(OPT_fvk_use_dx_layout, OPT_INVALID, false);
   opts.SpirvOptions.useScalarLayout = Args.hasFlag(OPT_fvk_use_scalar_layout, OPT_INVALID, false);
   opts.SpirvOptions.enableReflect = Args.hasFlag(OPT_fspv_reflect, OPT_INVALID, false);
+  /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+  opts.SpirvOptions.enableFMAPass = Args.hasFlag(OPT_fspv_fusemuladd, OPT_INVALID, false);
+  /* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
   opts.SpirvOptions.noWarnIgnoredFeatures = Args.hasFlag(OPT_Wno_vk_ignored_features, OPT_INVALID, false);
   opts.SpirvOptions.noWarnEmulatedFeatures = Args.hasFlag(OPT_Wno_vk_emulated_features, OPT_INVALID, false);
 

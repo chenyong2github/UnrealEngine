@@ -564,11 +564,16 @@ namespace
         case ShadingLanguage::Msl:
             dxcArgStrings.push_back(L"-spirv");
 			/* UE Change Begin: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
-			dxcArgStrings.push_back(L"-fvk-use-dx-position-w");
+			if (targetLanguage != ShadingLanguage::Hlsl)
+				dxcArgStrings.push_back(L"-fvk-use-dx-position-w");
 			/* UE Change End: Proper fix for SV_Position.w being inverted in SPIRV & Metal vs. D3D. */
 			/* UE Change Begin: Specify SPIRV reflection so that we retain semantic strings! */
 			dxcArgStrings.push_back(L"-fspv-reflect");
 			/* UE Change End: Specify SPIRV reflection so that we retain semantic strings! */
+			/* UE Change Begin: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
+			if (targetLanguage == ShadingLanguage::Msl || options.enableFMAPass)
+				dxcArgStrings.push_back(L"-fspv-fusemuladd");
+			/* UE Change End: Specify the Fused-Multiply-Add pass for Metal - we'll define it away later when we can. */
 			/* UE Change Begin: Emit SPIRV debug info when asked to */
 			if (options.enableDebugInfo)
 				dxcArgStrings.push_back(L"-fspv-debug=line");

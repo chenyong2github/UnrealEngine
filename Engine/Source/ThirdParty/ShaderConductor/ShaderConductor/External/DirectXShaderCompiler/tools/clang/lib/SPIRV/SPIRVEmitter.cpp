@@ -191,6 +191,30 @@ bool spirvToolsOptimize(spv_target_env env, std::vector<uint32_t> *module,
   return optimizer.Run(module->data(), module->size(), module, options);
 }
 
+/* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+bool spirvToolsFuseMultiplyAdd(spv_target_env env, std::vector<uint32_t> *module,
+                        std::string *messages) {
+  spvtools::Optimizer optimizer(env);
+
+  optimizer.SetMessageConsumer(
+      [messages](spv_message_level_t /*level*/, const char * /*source*/,
+                 const spv_position_t & /*position*/,
+                 const char *message) { *messages += message; });
+
+  spvtools::OptimizerOptions options;
+  options.set_run_validator(false);
+
+  optimizer.RegisterPass(spvtools::CreateFusedMultiplyAddPass());
+  optimizer.RegisterPass(spvtools::CreateDeadVariableEliminationPass());
+  optimizer.RegisterPass(spvtools::CreateSimplificationPass());
+  optimizer.RegisterPass(spvtools::CreateAggressiveDCEPass());
+
+  optimizer.RegisterPass(spvtools::CreateCompactIdsPass());
+
+  return optimizer.Run(module->data(), module->size(), module, options);
+}
+/* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+
 bool spirvToolsValidate(spv_target_env env, const SpirvCodeGenOptions &opts,
                         bool beforeHlslLegalization, bool relaxLogicalPointer,
                         std::vector<uint32_t> *module, std::string *messages) {
@@ -618,6 +642,13 @@ void SpirvEmitter::HandleTranslationUnit(ASTContext &context) {
   // Addressing and memory model are required in a valid SPIR-V module.
   spvBuilder.setMemoryModel(spv::AddressingModel::Logical,
                             spv::MemoryModel::GLSL450);
+	
+  /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+  if (spirvOptions.enableFMAPass) {
+    // Import the GLSL.std.450 extended instruction set.
+	  spvBuilder.getGLSLExtInstSet();
+  }
+  /* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
 
   // Even though the 'workQueue' grows due to the above loop, the first
   // 'numEntryPoints' entries in the 'workQueue' are the ones with the HLSL
@@ -673,6 +704,17 @@ void SpirvEmitter::HandleTranslationUnit(ASTContext &context) {
                  {});
         return;
       }
+
+      /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+      if (spirvOptions.enableFMAPass && !spirvToolsFuseMultiplyAdd(targetEnv, &m, &messages)) {
+        emitFatalError("failed to fuse multiply-add pairs in SPIR-V: %0", {}) << messages;
+        emitNote("please file a bug report on "
+                 "https://github.com/Microsoft/DirectXShaderCompiler/issues "
+                 "with source code if possible",
+                 {});
+        return;
+      }
+      /* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
     }
   }
 
