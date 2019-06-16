@@ -19,6 +19,7 @@
 #include "Slate/WidgetTransform.h"
 #include "UObject/UObjectThreadContext.h"
 #include "GameFramework/PlayerController.h"
+#include "Blueprint/WidgetNavigation.h"
 
 #if WITH_EDITOR
 // This violates IWYU, but the alternative is .cpp includes that are invariably not within #if WITH_EDITOR and cause non-editor build failures
@@ -613,8 +614,41 @@ public:
 	 *	@param Rule The rule to use when navigation is taking place
 	 *	@param WidgetToFocus When using the Explicit rule, focus on this widget
 	 */
+	UE_DEPRECATED(4.23, "SetNavigationRule is deprecated. Please use either SetNavigationRuleBase or SetNavigationRuleExplicit or SetNavigationRuleCustom or SetNavigationRuleCustomBoundary.")
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	void SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for non Explicit, non Custom and non CustomBoundary Rules.
+	 *	@param Direction
+	 *	@param Rule The rule to use when navigation is taking place
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for Explicit Rule.
+	 *	@param Direction
+	 *	@param InWidget Focus on this widget instance
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleExplicit(EUINavigation Direction, UWidget* InWidget);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for Custom Rule.
+	 *	@param Direction
+	 *	@param InCustomDelegate Custom Delegate that will be called
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleCustom(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
+
+	/**
+	 *	Sets the widget navigation rules for a specific direction. This can only be called on widgets that are in a widget tree. This works only for CustomBoundary Rule.
+	 *	@param Direction
+	 *	@param InCustomDelegate Custom Delegate that will be called
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Widget")
+	void SetNavigationRuleCustomBoundary(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate);
 
 	/** Gets the parent widget */
 	UFUNCTION(BlueprintCallable, Category="Widget")
@@ -954,7 +988,7 @@ protected:
 		return FSlateColor(InLinearColor.Get());
 	}
 
-	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus);
+	void SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus = NAME_None, UWidget* InWidget = nullptr, FCustomWidgetNavigationDelegate InCustomDelegate = FCustomWidgetNavigationDelegate());
 
 #if WITH_ACCESSIBILITY
 	/** Gets the widget that accessibility properties should synchronize to. */
