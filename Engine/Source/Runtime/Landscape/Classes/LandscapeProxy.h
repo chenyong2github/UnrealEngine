@@ -12,7 +12,6 @@
 #include "Async/AsyncWork.h"
 #include "Engine/Texture.h"
 #include "PerPlatformProperties.h"
-#include "LandscapeBPCustomBrush.h"
 #include "LandscapeComponent.h"
 #include "LandscapeWeightmapUsage.h"
 #include "VT/RuntimeVirtualTextureEnum.h"
