@@ -18,6 +18,12 @@
 	#define MINIMAL_WINDOWS_API extern "C" __declspec(dllimport)
 #endif
 
+// Set up the default struct packing on Win32
+#if PLATFORM_WINDOWS && PLATFORM_32BITS
+	#pragma pack(push)
+	#pragma pack(8)
+#endif
+
 // Undefine Windows types that we're going to redefine. This should be done by HideWindowsPlatformTypes.h after including any system headers, 
 // but it's less friction to just undefine them here.
 #pragma push_macro("TRUE")
@@ -203,3 +209,8 @@ namespace Windows
 // Restore the definitions for TRUE and FALSE
 #pragma pop_macro("FALSE")
 #pragma pop_macro("TRUE")
+
+// Restore the packing setting
+#if PLATFORM_WINDOWS && PLATFORM_32BITS
+	#pragma pack(pop)
+#endif
