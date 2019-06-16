@@ -65,7 +65,7 @@ public class UnrealEd : ModuleRules
 				"NavigationSystem",
 				"Media",
 				"VirtualTexturingEditor",
-            }
+			}
 		);
 
 		PublicDependencyModuleNames.AddRange(
@@ -169,8 +169,9 @@ public class UnrealEd : ModuleRules
 				"PIEPreviewDeviceProfileSelector",
 				"PakFileUtilities",
 				"TimeManagement",
+                "LandscapeEditorUtilities",
                 "DerivedDataCache",
-            }
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -253,7 +254,7 @@ public class UnrealEd : ModuleRules
 			DynamicallyLoadedModuleNames.Add("LuminPlatformEditor");
 		}
 
-        CircularlyReferencedDependentModules.AddRange(
+		CircularlyReferencedDependentModules.AddRange(
 			new string[]
 			{
 				"GraphEditor",
@@ -333,5 +334,5 @@ public class UnrealEd : ModuleRules
         {
 			PrivateIncludePathModuleNames.Add("LiveCoding");
         }
-    }
+	}
 }
