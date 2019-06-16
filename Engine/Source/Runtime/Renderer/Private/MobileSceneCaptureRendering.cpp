@@ -27,6 +27,7 @@ MobileSceneCaptureRendering.cpp - Mobile specific scene capture code.
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
+#include "GenerateMips.h"
 
 /**
 * Shader set for the copy of scene color to capture target, decoding mosaic or RGBE encoded HDR image as part of a
@@ -346,7 +347,9 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	FRenderTarget* RenderTarget,
 	FTexture* RenderTargetTexture,
 	const FString& EventName,
-	const FResolveParams& ResolveParams)
+	const FResolveParams& ResolveParams,
+	bool bGenerateMips,
+	const FGenerateMipsParams& GenerateMipsParams)
 {
 	FMemMark MemStackMark(FMemStack::Get());
 
@@ -456,6 +459,11 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			// Copy the captured scene into the destination texture
 			SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneColor);
 			CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
+		}
+
+		if (bGenerateMips)
+		{
+			FGenerateMips::Execute(RHICmdList, RenderTarget->GetRenderTargetTexture(), GenerateMipsParams);
 		}
 
 		RHICmdList.CopyToResolveTarget(RenderTarget->GetRenderTargetTexture(), RenderTargetTexture->TextureRHI, ResolveParams);
