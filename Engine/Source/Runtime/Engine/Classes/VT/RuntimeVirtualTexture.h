@@ -24,13 +24,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Layout, meta = (DisplayName = "Enable BC texture compression"))
 	bool bCompressTextures = true;
 
-	/** Width of virtual texture. (Actual values increase in powers of 2) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "8", DisplayName = "Width of the virtual texture"))
-	int32 Width = 6; // 65536
-
-	/** Height of virtual texture. (Actual values increase in powers of 2) */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "8", DisplayName = "Height of the virtual texture"))
-	int32 Height = 6; // 65536
+	/** Size of virtual texture along the largest axis. (Actual values increase in powers of 2) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "8", DisplayName = "Size of the virtual texture"))
+	int32 Size = 6; // 65536
 
 	/** Page tile size. (Actual values increase in powers of 2) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Size, meta = (UIMin = "0", UIMax = "4", DisplayName = "Size of each virtual texture tile"))
@@ -55,10 +51,8 @@ public:
 	/** Get the material set that this virtual texture stores. */
 	ERuntimeVirtualTextureMaterialType GetMaterialType() const { return MaterialType; }
 
-	/** Public getter for virtual texture width */
-	int32 GetWidth() const { return 1 << FMath::Clamp(Width + 10, 10, 18); }
-	/** Public getter for virtual texture height */
-	int32 GetHeight() const { return 1 << FMath::Clamp(Height + 10, 10, 18); }
+	/** Public getter for virtual texture size */
+	int32 GetSize() const { return 1 << FMath::Clamp(Size + 10, 10, 18); }
 	/** Public getter for virtual texture tile size */
 	int32 GetTileSize() const { return 1 << FMath::Clamp(TileSize + 6, 6, 10); }
 	/** Public getter for virtual texture tile border size */
@@ -71,13 +65,13 @@ public:
 	/** Returns an approximate estimated value for the memory used by the physical texture. */
 	int32 GetEstimatedPhysicalTextureMemoryKb() const;
 
-	/** Get virtual texture description based on the properties of this object. */
-	void GetProducerDescription(FVTProducerDescription& OutDesc) const;
+	/** Get virtual texture description based on the properties of this object and the passed in volume transform. */
+	void GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const;
 	/** Return true if the virtual texture layer should be sampled as sRGB */
 	bool IsLayerSRGB(int32 LayerIndex) const;
 
 	/** (Re)Initialize this object. Call this whenever we modify the producer or transform. */
-	void Initialize(IVirtualTexture* InProducer, FTransform const& BoxToWorld);
+	void Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
 
 	/** Release the resources for this object This will need to be called if our producer becomes stale and we aren't doing a full reinit with a new producer. */
 	void Release();
@@ -92,7 +86,7 @@ public:
 
 protected:
 	/** Initialize the render resources. This kicks off render thread work. */
-	void InitResource(IVirtualTexture* InProducer);
+	void InitResource(IVirtualTexture* InProducer, FTransform const& VolumeToWorld);
 	/** Initialize the render resources with a null producer. This kicks off render thread work. */
 	void InitNullResource();
 
