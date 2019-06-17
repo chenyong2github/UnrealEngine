@@ -430,10 +430,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneColor = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture : SceneContext.GetSceneColorSurface();
 			SceneColorResolve = GetMultiViewSceneColor(SceneContext);
 			ColorTargetAction = ERenderTargetActions::Clear_Resolve;
+			// Rendering to a backbuffer, make sure it's writeable
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColorResolve);
 		}
 		else
 		{
 			SceneColor = GetMultiViewSceneColor(SceneContext);
+			// Rendering to a backbuffer, make sure it's writeable
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColor);
 		}
 		SceneDepth = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture : static_cast<FTextureRHIRef>(SceneContext.GetSceneDepthSurface());
 	}
