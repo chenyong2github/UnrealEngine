@@ -2464,6 +2464,8 @@ public:
 	 */
 	void UpdateLevelStreaming();
 
+	/** Releases PhysicsScene manually */
+	void ReleasePhysicsScene();
 public:
 	/**
 	 * Flushes level streaming in blocking fashion and returns when all levels are loaded/ visible/ hidden
