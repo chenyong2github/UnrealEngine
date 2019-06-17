@@ -10,7 +10,6 @@
 
 #include "Animation/AnimCompressionTypes.h"
 
-class UAnimSequence;
 struct FAnimCompressContext;
 
 #if WITH_EDITOR
@@ -20,7 +19,14 @@ struct FAnimCompressContext;
 class FDerivedDataAnimationCompression : public FDerivedDataPluginInterface
 {
 private:
-	FCompressibleAnimData DataToCompress;
+	// The anim data to compress
+	TSharedPtr<FCompressibleAnimData> DataToCompressPtr;
+
+	// The Type of anim data to compress (makes up part of DDC key)
+	const TCHAR* TypeName;
+
+	// Bulk of asset DDC key
+	const FString AssetDDCKey;
 
 	// FAnimCompressContext to use during compression if we don't pull from the DDC
 	TSharedPtr<FAnimCompressContext> CompressContext;
@@ -35,12 +41,18 @@ private:
 	bool bIsEvenFramed;
 
 public:
-	FDerivedDataAnimationCompression(const FCompressibleAnimData& InDataToCompress, TSharedPtr<FAnimCompressContext> InCompressContext, int32 InPreviousCompressedSize, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims);
+	FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext, int32 InPreviousCompressedSize);
 	virtual ~FDerivedDataAnimationCompression();
+
+	void SetCompressibleData(TSharedRef<FCompressibleAnimData> InCompressibleAnimData)
+	{
+		DataToCompressPtr = InCompressibleAnimData;
+		check(DataToCompressPtr->Skeleton != nullptr);
+	}
 
 	virtual const TCHAR* GetPluginName() const override
 	{
-		return *DataToCompress.TypeName;
+		return TypeName;
 	}
 
 	virtual const TCHAR* GetVersionString() const override
@@ -48,10 +60,13 @@ public:
 		// This is a version string that mimics the old versioning scheme. If you
 		// want to bump this version, generate a new guid using VS->Tools->Create GUID and
 		// return it here. Ex.
-		return TEXT("1F1656B9E10142729AB16650D9821B1F");
+		return TEXT("1F1656B9E10142729AB16650D9821B1Ff");
 	}
 
-	virtual FString GetPluginSpecificCacheKeySuffix() const override;
+	virtual FString GetPluginSpecificCacheKeySuffix() const override
+	{
+		return AssetDDCKey;
+	}
 
 
 	virtual bool IsBuildThreadsafe() const override
@@ -64,7 +79,7 @@ public:
 	/** Return true if we can build **/
 	bool CanBuild()
 	{
-		return true;
+		return DataToCompressPtr.IsValid();
 	}
 };
 

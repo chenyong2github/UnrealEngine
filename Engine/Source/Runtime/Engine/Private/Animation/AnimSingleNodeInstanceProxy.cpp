@@ -5,6 +5,7 @@
 #include "Animation/AnimComposite.h"
 #include "Animation/BlendSpaceBase.h"
 #include "Animation/PoseAsset.h"
+#include "Animation/AnimStreamable.h"
 #include "Animation/AnimSingleNodeInstance.h"
 #include "AnimEncoding.h"
 
@@ -299,6 +300,37 @@ void FAnimNode_SingleNode::Evaluate_AnyThread(FPoseContext& Output)
 				Sequence->GetAnimationPose(Output.Pose, Output.Curve, FAnimExtractContext(Proxy->CurrentTime, Sequence->bEnableRootMotion));
 			}
 		}
+		else if (UAnimStreamable* Streamable = Cast<UAnimStreamable>(Proxy->CurrentAsset))
+		{
+			// No Additive support yet
+			/*if (Streamable->IsValidAdditive())
+			{
+				FAnimExtractContext ExtractionContext(Proxy->CurrentTime, Streamable->bEnableRootMotion);
+
+				if (bCanProcessAdditiveAnimationsLocal)
+				{
+					Sequence->GetAdditiveBasePose(Output.Pose, Output.Curve, ExtractionContext);
+				}
+				else
+				{
+					Output.ResetToRefPose();
+				}
+
+				FCompactPose AdditivePose;
+				FBlendedCurve AdditiveCurve;
+				AdditivePose.SetBoneContainer(&Output.Pose.GetBoneContainer());
+				AdditiveCurve.InitFrom(Output.Curve);
+				Streamable->GetAnimationPose(AdditivePose, AdditiveCurve, ExtractionContext);
+
+				FAnimationRuntime::AccumulateAdditivePose(Output.Pose, AdditivePose, Output.Curve, AdditiveCurve, 1.f, Sequence->AdditiveAnimType);
+				Output.Pose.NormalizeRotations();
+			}
+			else*/
+			{
+				// if SkeletalMesh isn't there, we'll need to use skeleton
+				Streamable->GetAnimationPose(Output.Pose, Output.Curve, FAnimExtractContext(Proxy->CurrentTime, Streamable->bEnableRootMotion));
+			}
+		}
 		else if (UAnimComposite* Composite = Cast<UAnimComposite>(Proxy->CurrentAsset))
 		{
 			FAnimExtractContext ExtractionContext(Proxy->CurrentTime, Proxy->ShouldExtractRootMotion());
@@ -485,6 +517,20 @@ void FAnimNode_SingleNode::Update_AnyThread(const FAnimationUpdateContext& Conte
 			{
 				const float CombinedPlayRate = NewPlayRate*Sequence->RateScale;
 				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Sequence->SequenceLength))
+				{
+					Proxy->SetPlaying(false);
+				}
+			}
+		}
+		else if (UAnimStreamable* Streamable = Cast<UAnimStreamable>(Proxy->CurrentAsset))
+		{
+			FAnimTickRecord& TickRecord = Proxy->CreateUninitializedTickRecord(INDEX_NONE, /*out*/ SyncGroup);
+			Proxy->MakeSequenceTickRecord(TickRecord, Streamable, Proxy->bLooping, NewPlayRate, 1.f, /*inout*/ Proxy->CurrentTime, Proxy->MarkerTickRecord);
+			// if it's not looping, just set play to be false when reached to end
+			if (!Proxy->bLooping)
+			{
+				const float CombinedPlayRate = NewPlayRate * Streamable->RateScale;
+				if ((CombinedPlayRate < 0.f && Proxy->CurrentTime <= 0.f) || (CombinedPlayRate > 0.f && Proxy->CurrentTime >= Streamable->SequenceLength))
 				{
 					Proxy->SetPlaying(false);
 				}
