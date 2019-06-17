@@ -220,6 +220,9 @@ public:
 	//~ UNiagaraStackEntry interface
 	virtual void GetSearchItems(TArray<FStackSearchItem>& SearchItems) const override;
 
+	/** If false then the stack parameter is not visible */
+	bool bIsVisible = true;
+
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void FinalizeInternal() override;
