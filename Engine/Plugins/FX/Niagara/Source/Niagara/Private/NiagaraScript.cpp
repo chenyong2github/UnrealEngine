@@ -491,6 +491,10 @@ void UNiagaraScript::PostLoad()
 				}
 			}
 		}
+		if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty)
+		{
+			bExposeToLibrary = true;
+		}
 	}
 
 	// Invalidate the CachedScriptVM if it's out of date to fix some cook errors, a further investigation is required in how to handle this correctly
