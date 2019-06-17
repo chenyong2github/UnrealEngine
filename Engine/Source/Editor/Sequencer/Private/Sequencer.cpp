@@ -5113,6 +5113,7 @@ TArray<FGuid> FSequencer::AddActors(const TArray<TWeakObjectPtr<AActor> >& InAct
 		{
 			for (const FGuid& Possessable : PossessableGuids)
 			{
+				SelectedParentFolders[0]->Modify();
 				SelectedParentFolders[0]->AddChildObjectBinding(Possessable);
 			}
 		}
