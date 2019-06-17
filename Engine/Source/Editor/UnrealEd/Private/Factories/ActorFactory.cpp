@@ -1902,7 +1902,7 @@ UActorFactoryRuntimeVirtualTextureVolume::UActorFactoryRuntimeVirtualTextureVolu
 
 void UActorFactoryRuntimeVirtualTextureVolume::PostSpawnActor(UObject* Asset, AActor* NewActor)
 {
-	FText ActorName = LOCTEXT("VirtualTextureVolume_DefaultActorName", "Virtual Texture");
+	FText ActorName = LOCTEXT("VirtualTextureVolume_DefaultActorName", "Virtual Texture Volume");
 	NewActor->SetActorLabel(ActorName.ToString());
 
 	// Good default size to see object in editor
