@@ -764,7 +764,7 @@ static void Writer_WorkerThread()
 {
 	while (!GWorkerThreadQuit)
 	{
-		const uint32 SleepMs = 100;
+		const uint32 SleepMs = 60;
 		ThreadSleep(SleepMs);
 
 		Writer_UpdateControl();
