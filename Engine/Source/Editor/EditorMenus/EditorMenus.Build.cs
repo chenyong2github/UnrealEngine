@@ -6,9 +6,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public EditorMenus(ReadOnlyTargetRules Target) : base(Target)
 		{
-			//bFasterWithoutUnity = true;
-			//PCHUsage = PCHUsageMode.NoPCHs;
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
@@ -16,15 +13,10 @@ namespace UnrealBuildTool.Rules
 					"Slate",
 					"SlateCore",
 					"EditorSubSystem",
-					"Engine", // For Subsystems
+					"Engine",
 					"UnrealEd",
 				}
 			);
-
-			//PrivateIncludePathModuleNames.AddRange(
-			//	new string[] {
-			//	"UnrealEd",
-			//	});
 		}
 	}
 }

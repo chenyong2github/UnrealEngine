@@ -63,14 +63,17 @@ FEditorMenuEntry& FEditorMenuSection::AddEntryObject(UEditorMenuEntryScript* InO
 		DestObject = DuplicateObject<UEditorMenuEntryScript>(InObject, UEditorMenuSubsystem::Get());
 	}
 
+	// Refresh widgets next tick so that toolbars and menu bars are updated
+	UEditorMenuSubsystem::Get()->RefreshAllWidgets();
+
 	FEditorMenuEntry Args;
 	DestObject->ToMenuEntry(Args);
 	return AddEntry(Args);
 }
 
-FEditorMenuEntry& FEditorMenuSection::AddMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand)
+FEditorMenuEntry& FEditorMenuSection::AddMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const TAttribute<FSlateIcon>& InIconOverride, const FName InTutorialHighlightName, const FName InNameOverride)
 {
-	return AddEntry(FEditorMenuEntry::InitMenuEntry(InCommand));
+	return AddEntry(FEditorMenuEntry::InitMenuEntry(InCommand, InLabelOverride, InToolTipOverride, InIconOverride, InTutorialHighlightName, InNameOverride));
 }
 
 FEditorMenuEntry& FEditorMenuSection::AddDynamicEntry(const FName InName, const FNewEditorMenuSectionDelegate& InConstruct)

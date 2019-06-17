@@ -36,18 +36,18 @@ FEditorUIActionChoice::FEditorUIActionChoice(const TSharedPtr< const FUICommandI
 
 UEditorMenuSubsystem::UEditorMenuSubsystem() :
 	UEditorSubsystem(),
-	bRefreshWidgetsNextTick(false)
+	bNextTickTimerIsSet(false),
+	bRefreshWidgetsNextTick(false),
+	bCleanupStaleWidgetsNextTick(false)
 {
 }
 
 void UEditorMenuSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
-
 }
 
 void UEditorMenuSubsystem::Deinitialize()
 {
-	bRefreshWidgetsNextTick = false;
 	GeneratedMenuWidgets.Reset();
 	WidgetObjectReferences.Reset();
 	Menus.Reset();
@@ -784,7 +784,7 @@ void UEditorMenuSubsystem::ExecuteStringCommand(const FEditorMenuStringCommand S
 	}
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorMenuStringCommand& StringCommand, const FEditorMenuContext& Context) const
+FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorMenuStringCommand& StringCommand, const FEditorMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -894,6 +894,8 @@ TSharedRef<SWidget> UEditorMenuSubsystem::GenerateWidget(const TArray<UEditorMen
 
 TSharedRef<SWidget> UEditorMenuSubsystem::GenerateWidget(UEditorMenu* GeneratedMenu)
 {
+	CleanupStaleWidgetsNextTick();
+
 	FGeneratedEditorMenuWidgets& WidgetsForMenuName = GeneratedMenuWidgets.FindOrAdd(GeneratedMenu->MenuName);
 
 	// Store a copy so that we can call 'Refresh' on menus not in the database
@@ -933,16 +935,56 @@ TSharedRef<SWidget> UEditorMenuSubsystem::GenerateWidget(UEditorMenu* GeneratedM
 	return SNullWidget::NullWidget;
 }
 
-void UEditorMenuSubsystem::RefreshAllWidgets()
+void UEditorMenuSubsystem::SetNextTickTimer()
 {
-	if (bRefreshWidgetsNextTick == false)
+	if (!bNextTickTimerIsSet)
 	{
-		bRefreshWidgetsNextTick = true;
-		GEditor->GetTimerManager()->SetTimerForNextTick(this, &UEditorMenuSubsystem::HandleRefreshAllWidgetsNextTick);
+		bNextTickTimerIsSet = true;
+		GEditor->GetTimerManager()->SetTimerForNextTick(this, &UEditorMenuSubsystem::HandleNextTick);
 	}
 }
 
-void UEditorMenuSubsystem::CleanupStaleGeneratedMenus()
+void UEditorMenuSubsystem::CleanupStaleWidgetsNextTick()
+{
+	bCleanupStaleWidgetsNextTick = true;
+	SetNextTickTimer();
+}
+
+void UEditorMenuSubsystem::RefreshAllWidgets()
+{
+	bRefreshWidgetsNextTick = true;
+	SetNextTickTimer();
+}
+
+void UEditorMenuSubsystem::HandleNextTick()
+{
+	if (bCleanupStaleWidgetsNextTick || bRefreshWidgetsNextTick)
+	{
+		CleanupStaleWidgets();
+		bCleanupStaleWidgetsNextTick = false;
+
+		if (bRefreshWidgetsNextTick)
+		{
+			for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
+			{
+				FGeneratedEditorMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
+				for (auto Instance = WidgetsForMenuName.Instances.CreateIterator(); Instance; ++Instance)
+				{
+					if (Instance->Widget.IsValid())
+					{
+						RefreshMenuWidget(WidgetsForMenuNameIt->Key, *Instance);
+					}
+				}
+			}
+
+			bRefreshWidgetsNextTick = false;
+		}
+	}
+
+	bNextTickTimerIsSet = false;
+}
+
+void UEditorMenuSubsystem::CleanupStaleWidgets()
 {
 	for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
 	{
@@ -960,28 +1002,6 @@ void UEditorMenuSubsystem::CleanupStaleGeneratedMenus()
 		{
 			WidgetsForMenuNameIt.RemoveCurrent();
 		}
-	}
-}
-
-void UEditorMenuSubsystem::HandleRefreshAllWidgetsNextTick()
-{
-	if (bRefreshWidgetsNextTick)
-	{
-		CleanupStaleGeneratedMenus();
-
-		for (auto WidgetsForMenuNameIt = GeneratedMenuWidgets.CreateIterator(); WidgetsForMenuNameIt; ++WidgetsForMenuNameIt)
-		{
-			FGeneratedEditorMenuWidgets& WidgetsForMenuName = WidgetsForMenuNameIt->Value;
-			for (auto Instance = WidgetsForMenuName.Instances.CreateIterator(); Instance; ++Instance)
-			{
-				if (Instance->Widget.IsValid())
-				{
-					RefreshMenuWidget(WidgetsForMenuNameIt->Key, *Instance);
-				}
-			}
-		}
-
-		bRefreshWidgetsNextTick = false;
 	}
 }
 

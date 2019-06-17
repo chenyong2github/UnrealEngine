@@ -24,7 +24,7 @@ public:
 USTRUCT(BlueprintType)
 struct EDITORMENUS_API FEditorMenuSection
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 public:
 
@@ -34,7 +34,7 @@ public:
 
 	FEditorMenuEntry& AddEntryObject(UEditorMenuEntryScript* InObject);
 	FEditorMenuEntry& AddEntry(const FEditorMenuEntry& Args);
-	FEditorMenuEntry& AddMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand);
+	FEditorMenuEntry& AddMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), const FName InTutorialHighlightName = NAME_None, const FName InNameOverride = NAME_None);
 
 	FEditorMenuEntry& AddDynamicEntry(const FName InName, const FNewEditorMenuSectionDelegate& InConstruct);
 	FEditorMenuEntry& AddDynamicEntry(const FName InName, const FNewEditorMenuDelegateLegacy& InConstruct);
@@ -47,6 +47,7 @@ public:
 	}
 
 private:
+
 	void InitGeneratedSectionCopy(const FEditorMenuSection& Source, FEditorMenuContext& InContext);
 
 	int32 RemoveEntry(const FName InName);
@@ -62,6 +63,7 @@ private:
 	friend class UEditorMenu;
 
 public:
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	FName Name;
 

@@ -15,6 +15,8 @@
 
 #include "EditorMenuEntry.generated.h"
 
+class UEditorMenuEntryScript;
+
 USTRUCT(BlueprintType)
 struct EDITORMENUS_API FSubMenuEntryData
 {
