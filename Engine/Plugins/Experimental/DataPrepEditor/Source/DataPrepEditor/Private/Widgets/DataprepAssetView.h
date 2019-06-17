@@ -21,36 +21,59 @@ class SDataprepConsumerWidget;
 class FProducerStackEntry
 {
 public:
-	FProducerStackEntry(int32 ProducerIndex, const FDataprepAssetProducer& Producer, FDataprepEditor* InDataprepEditor)
-		: Label( Producer.Producer->GetLabel().ToString() )
-		, ProducerIndex( ProducerIndex )
-		, bIsEnabled( Producer.bIsEnabled )
-		, bIsSelected( false )
-		, DataprepEditorPtr( InDataprepEditor )
+	FProducerStackEntry(int32 InProducerIndex, UDataprepAsset* InDataprepAssetPtr)
+		: ProducerIndex( InProducerIndex )
+		, bIsEnabled( false )
+		, bIsSuperseded( false )
+		, DataprepAssetPtr( InDataprepAssetPtr )
 	{
+		if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+		{
+			if( const UDataprepContentProducer* Producer = DataprepAsset->GetProducer( ProducerIndex ) )
+			{
+				bIsEnabled = DataprepAsset->IsProducerEnabled( ProducerIndex );
+				bIsSuperseded = DataprepAsset->IsProducerSuperseded( ProducerIndex );
+				Label = Producer->GetLabel().ToString();
+			}
+		}
 	}
 
 	bool HasValidData()
 	{
-		return DataprepEditorPtr->GetDataprepAsset()->Producers.IsValidIndex( ProducerIndex );
+		return DataprepAssetPtr.IsValid() && DataprepAssetPtr->GetProducer( ProducerIndex ) != nullptr;
 	}
 
 	UDataprepContentProducer* GetProducer()
 	{
-		return HasValidData() ? DataprepEditorPtr->GetDataprepAsset()->Producers[ProducerIndex].Producer : nullptr;
+		return DataprepAssetPtr.IsValid() ? DataprepAssetPtr->GetProducer( ProducerIndex ) : nullptr;
 	}
 
-	FDataprepAssetProducer& GetDataprepAssetProducer()
+	bool WillBeRun() { return bIsEnabled && !bIsSuperseded; }
+
+	void ToggleProducer()
 	{
-		// #ueent_todo: Add defensive code
-		return DataprepEditorPtr->GetDataprepAsset()->Producers[ProducerIndex];
+		if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+		{
+			DataprepAsset->EnableProducer(ProducerIndex, !bIsEnabled);
+
+			// #ueent_todo: Cache previous value to report failed enabling/disabling
+			bIsEnabled = DataprepAsset->IsProducerEnabled(ProducerIndex);
+		}
+	}
+
+	void RemoveProducer()
+	{
+		if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+		{
+			DataprepAsset->RemoveProducer( ProducerIndex );
+		}
 	}
 
 	FString Label;
 	int32 ProducerIndex;
 	bool bIsEnabled;
-	bool bIsSelected;
-	FDataprepEditor* DataprepEditorPtr;
+	bool bIsSuperseded;
+	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 };
 
 typedef TSharedRef<FProducerStackEntry> FProducerStackEntryRef;
@@ -84,7 +107,7 @@ public:
 	SLATE_BEGIN_ARGS(SProducerStackEntryTreeView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, SDataprepAssetView* InDataprepAssetView, FDataprepEditor* InDataprepEditorPtr);
+	void Construct(const FArguments& InArgs, SDataprepAssetView* InDataprepAssetView, UDataprepAsset* InDataprepAssetPtr);
 
 	int32 GetDisplayIndexOfNode(FProducerStackEntryRef InNode);
 
@@ -101,7 +124,7 @@ private:
 	void OnDataprepAssetProducerChanged();
 
 private:
-	FDataprepEditor* DataprepEditorPtr;
+	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 	TArray<FProducerStackEntryRef> RootNodes;
 };
 
@@ -111,26 +134,30 @@ public:
 	SLATE_BEGIN_ARGS(SDataprepAssetView) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, FDataprepEditor* InDataprepEditor);
+	void Construct(const FArguments& InArgs, UDataprepAsset* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList);
 
-	~SDataprepAssetView()
-	{
-	}
+	~SDataprepAssetView();
 
 	/** Set the renderer when we change selection */
-	void OnSelectionChanged( TSharedPtr< FProducerStackEntry > InItem, ESelectInfo::Type InSeletionInfo, FDataprepEditor* DataprepEditor );
+	void OnSelectionChanged( TSharedPtr< FProducerStackEntry > InItem, ESelectInfo::Type InSeletionInfo );
 
 private:
-	TSharedRef<SWidget> CreateAddProducerMenuWidget();
-	void OnConsumerChanged( TSharedPtr<FString> NewConsumer, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> CreateAddProducerMenuWidget(TSharedPtr<FUICommandList> CommandList);
+
+	void OnNewConsumerSelected( TSharedPtr<FString> NewConsumer, ESelectInfo::Type SelectInfo);
+
+	void OnAddProducer( UClass* ProducerClass );
+
+	/** Handles changes in the Dataprep asset */
+	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index );
 
 private:
-	FDataprepEditor* DataprepEditorPtr;
+	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 	TSharedPtr<SProducerStackEntryTreeView> TreeView;
-	TSharedPtr<IDetailsView> DetailsView;
 	TSharedPtr< STextBlock > CheckBox;
-	TArray< TSharedPtr< FString > > ConsumerList;
-	TSharedPtr< FString > SelectedProducer;
+	TArray< TSharedPtr< FString > > ConsumerDescriptionList;
+	TMap< TSharedPtr< FString >, UClass* > ConsumerDescriptionMap;
+	TSharedPtr< FString > SelectedConsumerDescription;
 	TSharedPtr< STextComboBox > ProducerSelector;
 	bool bIsChecked;
 	TSharedPtr< FProducerStackEntry > SelectedEntry;
