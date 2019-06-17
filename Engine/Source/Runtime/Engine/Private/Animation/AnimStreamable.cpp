@@ -357,6 +357,7 @@ int32 UAnimStreamable::GetChunkIndexForTime(const TArray<FAnimStreamableChunk>& 
 #if WITH_EDITOR
 void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 {
+	Modify();
 	SetSkeleton(InSourceSequence->GetSkeleton());
 	SourceSequence = InSourceSequence;
 
