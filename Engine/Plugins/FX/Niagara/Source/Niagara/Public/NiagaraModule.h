@@ -165,7 +165,6 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonWidth() { return Particles_RibbonWidth; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonTwist() { return Particles_RibbonTwist; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonFacing() { return Particles_RibbonFacing; }
-	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonSideVector() { return Particles_RibbonSideVector; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonLinkOrder() { return Particles_RibbonLinkOrder; }
 	
 	FORCEINLINE static const FNiagaraVariable&  GetVar_DataInstance_Alive() { return DataInstance_Alive; }
@@ -263,7 +262,6 @@ private:
 	static FNiagaraVariable Particles_RibbonWidth;
 	static FNiagaraVariable Particles_RibbonTwist;
 	static FNiagaraVariable Particles_RibbonFacing;
-	static FNiagaraVariable Particles_RibbonSideVector;
 	static FNiagaraVariable Particles_RibbonLinkOrder;
 
 	static FNiagaraVariable ScriptUsage;
