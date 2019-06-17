@@ -35,6 +35,8 @@ public:
 	virtual bool UsesTransformWidget() const override { return false; }
 	virtual bool UsesTransformWidget(FWidget::EWidgetMode /*CheckMode*/) const override { return false; }
 
+	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
+
 	virtual bool HandleClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
 	virtual bool MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y) override;
 

@@ -41,11 +41,14 @@ struct FGeometryCollectionDebugDrawActorSelectedRigidBody
 {
 	GENERATED_USTRUCT_BODY()
 
-	explicit FGeometryCollectionDebugDrawActorSelectedRigidBody(int32 InId = -1) : Id(InId) {}
+	explicit FGeometryCollectionDebugDrawActorSelectedRigidBody(int32 InId = -1) : Id(InId), GeometryCollectionActor(nullptr) {}
 	
 	/** Id of the selected rigid body whose to visualize debug informations. Use -1 to visualize all Geometry Collections. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw", meta = (ClampMin="-1"))
 	int32 Id;
+
+	UPROPERTY(EditAnywhere, Category = "Debug Draw")
+	AActor* GeometryCollectionActor;
 };
 
 /**
