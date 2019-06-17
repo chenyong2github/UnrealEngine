@@ -653,9 +653,8 @@ void FSubTrackEditor::HandleAddSubTrackMenuEntryExecute()
 
 	if (GetSequencer().IsValid())
 	{
-		GetSequencer()->OnAddTrack(NewTrack);
+		GetSequencer()->OnAddTrack(NewTrack, FGuid());
 	}
-	GetSequencer()->NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 
 /** Helper function - get the first PIE world (or first PIE client world if there is more than one) */
