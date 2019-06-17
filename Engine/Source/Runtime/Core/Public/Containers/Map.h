@@ -101,7 +101,15 @@ struct TDefaultMapHashableKeyFuncs : TDefaultMapKeyFuncs<KeyType, ValueType, bIn
 
 /** 
  * The base class of maps from keys to values.  Implemented using a TSet of key-value pairs with a custom KeyFuncs, 
- * with the same O(1) addition, removal, and finding. 
+ * with the same O(1) addition, removal, and finding.
+ *
+ * The ByHash() functions are somewhat dangerous but particularly useful in two scenarios:
+ * -- Heterogeneous lookup to avoid creating expensive keys like FString when looking up by const TCHAR*.
+ *	  You must ensure the hash is calculated in the same way as ElementType is hashed.
+ *    If possible put both ComparableKey and ElementType hash functions next to each other in the same header
+ *    to avoid bugs when the ElementType hash function is changed.
+ * -- Reducing contention around hash tables protected by a lock. It is often important to incur
+ *    the cache misses of reading key data and doing the hashing *before* acquiring the lock.
  **/
 template <typename KeyType, typename ValueType, typename SetAllocator, typename KeyFuncs>
 class TMapBase
@@ -301,6 +309,12 @@ public:
 	FORCEINLINE ValueType& Add(      KeyType&& InKey, const ValueType&  InValue) { return Emplace(MoveTempIfPossible(InKey),                    InValue ); }
 	FORCEINLINE ValueType& Add(      KeyType&& InKey,       ValueType&& InValue) { return Emplace(MoveTempIfPossible(InKey), MoveTempIfPossible(InValue)); }
 
+	/** See Add() and class documentation section on ByHash() functions */
+	FORCEINLINE ValueType& AddByHash(uint32 KeyHash, const KeyType&  InKey, const ValueType&  InValue) { return EmplaceByHash(KeyHash, InKey, InValue); }
+	FORCEINLINE ValueType& AddByHash(uint32 KeyHash, const KeyType&  InKey,		  ValueType&& InValue) { return EmplaceByHash(KeyHash, InKey, MoveTempIfPossible(InValue)); }
+	FORCEINLINE ValueType& AddByHash(uint32 KeyHash,	   KeyType&& InKey, const ValueType&  InValue) { return EmplaceByHash(KeyHash, MoveTempIfPossible(InKey), InValue); }
+	FORCEINLINE ValueType& AddByHash(uint32 KeyHash,	   KeyType&& InKey,		  ValueType&& InValue) { return EmplaceByHash(KeyHash, MoveTempIfPossible(InKey), MoveTempIfPossible(InValue)); }
+
 	/**
 	 * Set a default value associated with a key.
 	 *
@@ -309,6 +323,10 @@ public:
 	 */
 	FORCEINLINE ValueType& Add(const KeyType&  InKey) { return Emplace(                   InKey ); }
 	FORCEINLINE ValueType& Add(      KeyType&& InKey) { return Emplace(MoveTempIfPossible(InKey)); }
+
+	/** See Add() and class documentation section on ByHash() functions */
+	FORCEINLINE ValueType& AddByHash(uint32 KeyHash, const KeyType&  InKey) { return EmplaceByHash(KeyHash, InKey); }
+	FORCEINLINE ValueType& AddByHash(uint32 KeyHash,	   KeyType&& InKey)	{ return EmplaceByHash(KeyHash, MoveTempIfPossible(InKey)); }
 
 	/**
 	 * Set the value associated with a key.
@@ -333,6 +351,15 @@ public:
 		return Pairs[PairId].Value;
 	}
 
+	/** See Emplace() and class documentation section on ByHash() functions */
+	template <typename InitKeyType, typename InitValueType>
+	ValueType& EmplaceByHash(uint32 KeyHash, InitKeyType&& InKey, InitValueType&& InValue)
+	{
+		const FSetElementId PairId = Pairs.EmplaceByHash(KeyHash, TPairInitializer<InitKeyType&&, InitValueType&&>(Forward<InitKeyType>(InKey), Forward<InitValueType>(InValue)));
+
+		return Pairs[PairId].Value;
+	}
+
 	/**
 	 * Set a default value associated with a key.
 	 *
@@ -347,6 +374,15 @@ public:
 		return Pairs[PairId].Value;
 	}
 
+	/** See Emplace() and class documentation section on ByHash() functions */
+	template <typename InitKeyType>
+	ValueType& EmplaceByHash(uint32 KeyHash, InitKeyType&& InKey)
+	{
+		const FSetElementId PairId = Pairs.EmplaceByHash(KeyHash, TKeyInitializer<InitKeyType&&>(Forward<InitKeyType>(InKey)));
+
+		return Pairs[PairId].Value;
+	}
+
 	/**
 	 * Remove all value associations for a key.
 	 *
@@ -356,6 +392,14 @@ public:
 	FORCEINLINE int32 Remove(KeyConstPointerType InKey)
 	{
 		const int32 NumRemovedPairs = Pairs.Remove(InKey);
+		return NumRemovedPairs;
+	}
+
+	/** See Remove() and class documentation section on ByHash() functions */
+	template<typename ComparableKey>
+	FORCEINLINE int32 RemoveByHash(uint32 KeyHash, const ComparableKey& Key)
+	{
+		const int32 NumRemovedPairs = Pairs.RemoveByHash(KeyHash, Key);
 		return NumRemovedPairs;
 	}
 
@@ -402,7 +446,28 @@ public:
 		return const_cast<TMapBase*>(this)->Find(Key);
 	}
 
+	/** See Find() and class documentation section on ByHash() functions */
+	template<typename ComparableKey>
+	FORCEINLINE ValueType* FindByHash(uint32 KeyHash, const ComparableKey& Key)
+	{
+		if (auto* Pair = Pairs.FindByHash(KeyHash, Key))
+		{
+			return &Pair->Value;
+		}
+
+		return nullptr;
+	}
+	template<typename ComparableKey>
+	FORCEINLINE const ValueType* FindByHash(uint32 KeyHash, const ComparableKey& Key) const
+	{
+		return const_cast<TMapBase*>(this)->FindByHash(KeyHash, Key);
+	}
+
 private:
+	FORCEINLINE static uint32 HashKey(const KeyType& Key)
+	{
+		return KeyFuncs::GetKeyHash(Key);
+	}
 
 	/**
 	 * Find the value associated with a specified key, or if none exists, 
@@ -411,13 +476,15 @@ private:
 	 * @param Key The key to search for.
 	 * @return A reference to the value associated with the specified key.
 	 */
-	template <typename ArgType>
-	FORCEINLINE ValueType& FindOrAddImpl(ArgType&& Arg)
+	template <typename InitKeyType>
+	ValueType& FindOrAddImpl(uint32 KeyHash, InitKeyType&& Key)
 	{
-		if (auto* Pair = Pairs.Find(Arg))
+		if (auto* Pair = Pairs.FindByHash(KeyHash, Key))
+		{
 			return Pair->Value;
+		}
 
-		return Add(Forward<ArgType>(Arg));
+		return AddByHash(KeyHash, Forward<InitKeyType>(Key));
 	}
 
 	/**
@@ -429,12 +496,14 @@ private:
 	 * @return A reference to the value associated with the specified key.
 	 */
 	template <typename InitKeyType, typename InitValueType>
-	FORCEINLINE ValueType& FindOrAddImpl(InitKeyType&& Key, InitValueType&& Value)
+	ValueType& FindOrAddImpl(uint32 KeyHash, InitKeyType&& Key, InitValueType&& Value)
 	{
-		if (auto* Pair = Pairs.Find(Key))
+		if (auto* Pair = Pairs.FindByHash(KeyHash, Key))
+		{
 			return Pair->Value;
+		}
 
-		return Add(Forward<InitKeyType>(Key), Forward<InitValueType>(Value));
+		return AddByHash(KeyHash, Forward<InitKeyType>(Key), Forward<InitValueType>(Value));
 	}
 
 public:
@@ -446,8 +515,12 @@ public:
 	 * @param Key The key to search for.
 	 * @return A reference to the value associated with the specified key.
 	 */
-	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key) { return FindOrAddImpl(                   Key ); }
-	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key) { return FindOrAddImpl(MoveTempIfPossible(Key)); }
+	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key) { return FindOrAddImpl(HashKey(Key),					  Key); }
+	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key) { return FindOrAddImpl(HashKey(Key), MoveTempIfPossible(Key)); }
+
+	/** See FindOrAdd() and class documentation section on ByHash() functions */
+	FORCEINLINE ValueType& FindOrAddByHash(uint32 KeyHash, const KeyType&  Key) { return FindOrAddImpl(KeyHash,                    Key); }
+	FORCEINLINE ValueType& FindOrAddByHash(uint32 KeyHash,       KeyType&& Key) { return FindOrAddImpl(KeyHash, MoveTempIfPossible(Key)); }
 
 	/**
 	 * Find the value associated with a specified key, or if none exists, 
@@ -457,31 +530,16 @@ public:
 	 * @param Value The value to associate with the key.
 	 * @return A reference to the value associated with the specified key.
 	 */
-	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key, const ValueType&  Value) { return FindOrAddImpl(                   Key ,                    Value  ); }
-	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key, ValueType&&       Value) { return FindOrAddImpl(                   Key , MoveTempIfPossible(Value) ); }
-	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key, const ValueType&  Value) { return FindOrAddImpl(MoveTempIfPossible(Key),                    Value  ); }
-	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key, ValueType&&       Value) { return FindOrAddImpl(MoveTempIfPossible(Key), MoveTempIfPossible(Value) ); }
+	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key, const ValueType&  Value) { return FindOrAddImpl(HashKey(Key),						Key,                    Value  ); }
+	FORCEINLINE ValueType& FindOrAdd(const KeyType&  Key, ValueType&&       Value) { return FindOrAddImpl(HashKey(Key),						Key, MoveTempIfPossible(Value) ); }
+	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key, const ValueType&  Value) { return FindOrAddImpl(HashKey(Key), MoveTempIfPossible(Key),                    Value  ); }
+	FORCEINLINE ValueType& FindOrAdd(      KeyType&& Key, ValueType&&       Value) { return FindOrAddImpl(HashKey(Key), MoveTempIfPossible(Key), MoveTempIfPossible(Value) ); }
 
-	/**
-	 * Find the value associated with a specified key, or if none exists, 
-	 * adds a value using the key as the constructor parameter.
-	 *
-	 * @param Key The key to search for.
-	 * @return A reference to the value associated with the specified key.
-	 */
-	//@todo UE4 merge - this prevents FConfigCacheIni from compiling
-	/*ValueType& FindOrAddKey(KeyInitType Key)
-	{
-		TPair* Pair = Pairs.Find(Key);
-		if( Pair )
-		{
-			return Pair->Value;
-		}
-		else
-		{
-			return Set(Key, ValueType(Key));
-		}
-	}*/
+	/** See FindOrAdd() and class documentation section on ByHash() functions */
+	FORCEINLINE ValueType& FindOrAddByHash(uint32 KeyHash, const KeyType&  Key, const ValueType&  Value) { return FindOrAddImpl(KeyHash,                     Key,                    Value); }
+	FORCEINLINE ValueType& FindOrAddByHash(uint32 KeyHash, const KeyType&  Key,       ValueType&& Value) { return FindOrAddImpl(KeyHash,                     Key, MoveTempIfPossible(Value)); }
+	FORCEINLINE ValueType& FindOrAddByHash(uint32 KeyHash,       KeyType&& Key, const ValueType&  Value) { return FindOrAddImpl(KeyHash, MoveTempIfPossible(Key),                    Value); }
+	FORCEINLINE ValueType& FindOrAddByHash(uint32 KeyHash,       KeyType&& Key,       ValueType&& Value) { return FindOrAddImpl(KeyHash, MoveTempIfPossible(Key), MoveTempIfPossible(Value)); }
 
 	/**
 	 * Find a reference to the value associated with a specified key.
@@ -534,6 +592,13 @@ public:
 	FORCEINLINE bool Contains(KeyConstPointerType Key) const
 	{
 		return Pairs.Contains(Key);
+	}
+
+	/** See Contains() and class documentation section on ByHash() functions */
+	template<typename ComparableKey>
+	FORCEINLINE bool ContainsByHash(uint32 KeyHash, const ComparableKey& Key) const
+	{
+		return Pairs.ContainsByHash(KeyHash, Key);
 	}
 
 	/**
