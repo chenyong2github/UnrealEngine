@@ -26,6 +26,7 @@ public:
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	);
 	/** Called to move the bounding volume that surrounds the player */
@@ -52,6 +53,8 @@ private:
 	void(*OnStartMeshUpdates)();
 	/** Function pointer for asking UE4 to allocate buffers (avoids an extra copy) */
 	void(*OnAllocateBuffers)(MeshUpdate*);
+	/** Function pointer for telling UE4 that the mesh was removed */
+	void(*OnRemovedMesh)(MeshUpdate*);
 	/** Function pointer for telling UE4 updates have completed */
 	void(*OnFinishMeshUpdates)();
 

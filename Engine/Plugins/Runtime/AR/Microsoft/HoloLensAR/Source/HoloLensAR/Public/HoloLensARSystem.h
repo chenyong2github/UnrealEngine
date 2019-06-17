@@ -121,9 +121,11 @@ private:
 	// Mesh observer callback support
 	static void StartMeshUpdates_Raw();
 	static void AllocateMeshBuffers_Raw(MeshUpdate* InMeshUpdate);
+	static void RemovedMesh_Raw(MeshUpdate* InMeshUpdate);
 	static void EndMeshUpdates_Raw();
 	void StartMeshUpdates();
 	void AllocateMeshBuffers(MeshUpdate* InMeshUpdate);
+	void RemovedMesh_GameThread(FMeshUpdate* RemovedMesh);
 	void ProcessMeshUpdates_GameThread();
 	void EndMeshUpdates();
 	void AddOrUpdateMesh(FMeshUpdate* CurrentMesh);

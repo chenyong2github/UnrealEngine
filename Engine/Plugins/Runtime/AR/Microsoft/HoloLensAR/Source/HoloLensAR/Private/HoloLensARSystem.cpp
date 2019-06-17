@@ -524,6 +524,16 @@ void FHoloLensARSystem::AllocateMeshBuffers_Raw(MeshUpdate* InMeshUpdate)
 	HoloLensARThis->AllocateMeshBuffers(InMeshUpdate);
 }
 
+void FHoloLensARSystem::RemovedMesh_Raw(MeshUpdate* InMeshRemoved)
+{
+	FMeshUpdate* MeshUpdate = new FMeshUpdate();
+	MeshUpdate->Id = GUIDToFGuid(InMeshRemoved->Id);
+
+	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
+	auto GTTask = FSimpleDelegateGraphTask::FDelegate::CreateThreadSafeSP(HoloLensARThis, &FHoloLensARSystem::RemovedMesh_GameThread, MeshUpdate);
+	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(GTTask, GET_STATID(STAT_FHoloLensARSystem_ProcessMeshUpdates), nullptr, ENamedThreads::GameThread);
+}
+
 void FHoloLensARSystem::EndMeshUpdates_Raw()
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
@@ -542,7 +552,7 @@ void FHoloLensARSystem::SetupMeshObserver()
 	float VolumeSize = 1.f;
 	GConfig->GetFloat(TEXT("/Script/HoloLensTargetPlatform.HoloLensTargetSettings"), TEXT("SpatialMeshingVolumeSize"), VolumeSize, GEngineIni);
 
-	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &EndMeshUpdates_Raw);
+	WMRInterop->StartSpatialMapping(TriangleDensity, VolumeSize, &StartMeshUpdates_Raw, &AllocateMeshBuffers_Raw, &RemovedMesh_Raw, &EndMeshUpdates_Raw);
 }
 
 void FHoloLensARSystem::StartMeshUpdates()
@@ -639,10 +649,6 @@ void FHoloLensARSystem::ProcessMeshUpdates_GameThread()
 				AddOrUpdateMesh(CurrentMeshUpdate);
 				delete CurrentMeshUpdate;
 			}
-			// Now remove any meshes that weren't present this time around
-			TArray<FGuid> KnownMeshes;
-			UpdateToProcess->GuidToMeshUpdateList.GetKeys(KnownMeshes);
-			ReconcileKnownMeshes(KnownMeshes);
 
 			// This update is done, so delete it
 			delete UpdateToProcess;
@@ -715,37 +721,25 @@ void FHoloLensARSystem::AddOrUpdateMesh(FMeshUpdate* CurrentMesh)
 	}
 }
 
-void FHoloLensARSystem::ReconcileKnownMeshes(const TArray<FGuid>& KnownMeshes)
+void FHoloLensARSystem::RemovedMesh_GameThread(FMeshUpdate* RemovedMesh)
 {
-	// Loop through the current set removing them from last known
-	// Any remaining meshes are no longer tracked
-	for (const FGuid& Guid : KnownMeshes)
+	UARTrackedGeometry** TrackedGeometry = TrackedGeometries.Find(RemovedMesh->Id);
+	if (TrackedGeometry != nullptr)
 	{
-		LastKnownMeshes.Remove(Guid);
-	}
-	// Now iterate through the remainder marking those tracked geometries as not tracked and remove from our map
-	for (TSet<FGuid>::TConstIterator Iter(LastKnownMeshes); Iter; ++Iter)
-	{
-		UARTrackedGeometry** TrackedGeometry = TrackedGeometries.Find(*Iter);
-		if (TrackedGeometry != nullptr)
+		(*TrackedGeometry)->SetTrackingState(EARTrackingState::NotTracking);
+
+		// Detach the mesh component from our scene if it's valid
+		UMRMeshComponent* MRMesh = (*TrackedGeometry)->GetUnderlyingMesh();
+		if (MRMesh != nullptr)
 		{
-			(*TrackedGeometry)->SetTrackingState(EARTrackingState::NotTracking);
-
-			// Detach the mesh component from our scene if it's valid
-			UMRMeshComponent* MRMesh = (*TrackedGeometry)->GetUnderlyingMesh();
-			if (MRMesh != nullptr)
-			{
-				MRMesh->UnregisterComponent();
-				(*TrackedGeometry)->SetUnderlyingMesh(nullptr);
-			}
-
-			TrackedGeometries.Remove(*Iter);
-			TriggerOnTrackableRemovedDelegates(*TrackedGeometry);
+			MRMesh->UnregisterComponent();
+			(*TrackedGeometry)->SetUnderlyingMesh(nullptr);
 		}
+
+		TrackedGeometries.Remove(RemovedMesh->Id);
+		TriggerOnTrackableRemovedDelegates(*TrackedGeometry);
 	}
-	// Update our last know list to the currently known set of meshes
-	LastKnownMeshes.Empty();
-	LastKnownMeshes.Append(KnownMeshes);
+	delete RemovedMesh;
 }
 
 void FHoloLensARSystem::QRCodeAdded_Raw(QRCodeData* InCode)

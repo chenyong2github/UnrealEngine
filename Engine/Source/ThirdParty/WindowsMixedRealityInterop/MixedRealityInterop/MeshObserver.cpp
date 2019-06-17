@@ -221,8 +221,20 @@ void MeshUpdateObserver::OnSurfacesChanged(SpatialSurfaceObserver^ Observer, Pla
 			else
 			{
 				// This will tell the UE4 side that the mesh still exists, but there was no update
-				// This will prevent the UE4 code from marking it as no longer tracked and remove it from its list
 				OnAllocateBuffers(&CurrentMesh);
+			}
+		}
+		// Iterate through the last known guids to find ones that have been removed
+		std::map<Guid, long long>::iterator It = LastGuidToLastUpdateMap.begin();
+		while (It != LastGuidToLastUpdateMap.end())
+		{
+			Guid Id = It->first;
+			// If this one is not in the new set, then it was removed
+			if (CurrentGuidToLastUpdateMap.find(Id) == CurrentGuidToLastUpdateMap.end())
+			{
+				MeshUpdate RemovedMesh;
+				RemovedMesh.Id = Id;
+				OnRemovedMesh(&RemovedMesh);
 			}
 		}
 		OnFinishMeshUpdates();
@@ -236,6 +248,7 @@ void MeshUpdateObserver::StartMeshObserver(
 	float InVolumeSize,
 	void(*StartFunctionPointer)(),
 	void(*AllocFunctionPointer)(MeshUpdate*),
+	void(*RemovedMeshPointer)(MeshUpdate*),
 	void(*FinishFunctionPointer)()
 )
 {
@@ -253,6 +266,13 @@ void MeshUpdateObserver::StartMeshObserver(
 	if (OnAllocateBuffers == nullptr)
 	{
 		Log(L"Null allocate buffers function pointer passed to StartMeshObserver(). Aborting.");
+		return;
+	}
+
+	OnRemovedMesh = RemovedMeshPointer;
+	if (OnRemovedMesh == nullptr)
+	{
+		Log(L"Null removed mesh function pointer passed to StartMeshObserver(). Aborting.");
 		return;
 	}
 

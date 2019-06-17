@@ -458,6 +458,7 @@ namespace WindowsMixedReality
 		// Spatial Mapping
 		void StartSpatialMapping(float InTriangleDensity, float InVolumeSize, void(*StartFunctionPointer)(),
 			void(*AllocFunctionPointer)(MeshUpdate*),
+			void(*RemovedMeshPointer)(MeshUpdate*),
 			void(*FinishFunctionPointer)());
 		void StopSpatialMapping();
 		//~ Spatial Mapping

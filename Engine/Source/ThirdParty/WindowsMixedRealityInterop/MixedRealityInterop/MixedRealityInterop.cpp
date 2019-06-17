@@ -91,6 +91,7 @@ namespace WindowsMixedReality
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	);
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 Position);
@@ -3122,6 +3123,7 @@ namespace WindowsMixedReality
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	)
 	{
@@ -3130,6 +3132,7 @@ namespace WindowsMixedReality
 			InVolumeSize,
 			StartFunctionPointer,
 			AllocFunctionPointer,
+			RemovedMeshPointer,
 			FinishFunctionPointer
 		);
 	}
@@ -3161,6 +3164,7 @@ namespace WindowsMixedReality
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovedMeshPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	)
 	{
@@ -3174,6 +3178,7 @@ namespace WindowsMixedReality
 			InVolumeSize,
 			StartFunctionPointer,
 			AllocFunctionPointer,
+			RemovedMeshPointer,
 			FinishFunctionPointer
 		);
 #endif
