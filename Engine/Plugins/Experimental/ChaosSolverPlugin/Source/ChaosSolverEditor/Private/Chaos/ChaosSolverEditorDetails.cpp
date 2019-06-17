@@ -23,25 +23,24 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 	// Hide reset-to-default
 	StructPropertyHandle->MarkResetToDefaultCustomized();
 
-	// Refresh pause button callback
-	const FSimpleDelegate OnPauseChanged = FSimpleDelegate::CreateSP(this, &FChaosDebugSubstepControlCustomization::RefreshPauseButton, PropertyHandlePause);
-	PropertyHandlePause->SetOnPropertyValueChanged(OnPauseChanged);
-
-	// Refresh pause delegate for changes made through code to the actor
-	// The struct property does not refresh when values are set through code, hence the need for this delegate
-	AChaosSolverActor* ChaosSolverActor = nullptr;
+	// Find associated actor
+	bool bHasBegunPlay = false;
 	for (const TWeakObjectPtr<UObject> SelectedObject: StructCustomizationUtils.GetPropertyUtilities()->GetSelectedObjects())
 	{
-		AChaosSolverActor* const SelectedChaosSolverActor = Cast<AChaosSolverActor>(SelectedObject.Get());
-		if (SelectedChaosSolverActor)
+		if (AChaosSolverActor* const ChaosSolverActor = Cast<AChaosSolverActor>(SelectedObject.Get()))
 		{
-			ChaosSolverActor = SelectedChaosSolverActor;
+			// Refresh pause button callback
+			const FSimpleDelegate OnPauseChanged = FSimpleDelegate::CreateSP(this, &FChaosDebugSubstepControlCustomization::RefreshPauseButton, PropertyHandlePause, SelectedObject);
+			PropertyHandlePause->SetOnPropertyValueChanged(OnPauseChanged);
+
+			// Refresh pause delegate for changes made through code to the actor
+			// The struct property does not refresh when values are set through code, hence the need for this delegate
+			ChaosSolverActor->ChaosDebugSubstepControl.OnPauseChanged = OnPauseChanged;
+
+			// Check whether the actor has begun play
+			bHasBegunPlay = ChaosSolverActor->HasActorBegunPlay();
 			break;
 		}
-	}
-	if (ChaosSolverActor)
-	{
-		ChaosSolverActor->ChaosDebugSubstepControl.OnPauseChanged = OnPauseChanged;
 	}
 
 	// Retrieve the current pause state
@@ -83,7 +82,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 			.FillWidth(28.0f)
 			[
 				SAssignNew(ButtonSubstep, SButton)
-				.IsEnabled_Lambda([bPaused]() { return bPaused; })
+				.IsEnabled_Lambda([bPaused, bHasBegunPlay]() { return bPaused && bHasBegunPlay; })
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(4.0f)
@@ -103,7 +102,7 @@ void FChaosDebugSubstepControlCustomization::CustomizeHeader(TSharedRef<IPropert
 			.FillWidth(28.0f)
 			[
 				SAssignNew(ButtonStep, SButton)
-				.IsEnabled_Lambda([bPaused]() { return bPaused; })
+				.IsEnabled_Lambda([bPaused, bHasBegunPlay]() { return bPaused && bHasBegunPlay; })
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 				.ForegroundColor(FSlateColor::UseForeground())
 				.ContentPadding(4.0f)
@@ -132,8 +131,6 @@ FReply FChaosDebugSubstepControlCustomization::OnPause(TSharedRef<IPropertyHandl
 	bPaused = !bPaused;
 	PropertyHandle->SetValue(bPaused);
 
-	RefreshPauseButton(PropertyHandle);
-
 	return FReply::Handled();
 }
 
@@ -149,8 +146,11 @@ FReply FChaosDebugSubstepControlCustomization::OnStep(TSharedRef<IPropertyHandle
 	return FReply::Handled();
 }
 
-void FChaosDebugSubstepControlCustomization::RefreshPauseButton(TSharedRef<IPropertyHandle> PropertyHandle)
+void FChaosDebugSubstepControlCustomization::RefreshPauseButton(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UObject> Object)
 {
+	const AChaosSolverActor* const ChaosSolverActor = Cast<AChaosSolverActor>(Object.Get());
+	const bool bHasBegunPlay = ChaosSolverActor && ChaosSolverActor->HasActorBegunPlay();
+
 	bool bPaused = false;
 	PropertyHandle->GetValue(bPaused);
 
@@ -160,10 +160,10 @@ void FChaosDebugSubstepControlCustomization::RefreshPauseButton(TSharedRef<IProp
 	}
 	if (ButtonSubstep.IsValid())
 	{
-		ButtonSubstep->SetEnabled(bPaused);
+		ButtonSubstep->SetEnabled(bPaused && bHasBegunPlay);
 	}
 	if (ButtonStep.IsValid())
 	{
-		ButtonStep->SetEnabled(bPaused);
+		ButtonStep->SetEnabled(bPaused && bHasBegunPlay);
 	}
 }
