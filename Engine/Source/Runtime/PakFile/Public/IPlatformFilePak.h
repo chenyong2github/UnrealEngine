@@ -659,6 +659,8 @@ public:
 		return Files.Num();
 	}
 
+	void GetFilenames(TArray<FString>& OutFileList) const;
+
 	void GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
 
 	/**
@@ -2355,6 +2357,7 @@ public:
 
 	// Get a list of which files live in a given chunk
 	void GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList);
+	void GetFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList) ;
 
 	void UnloadPakEntryFilenames(TArray<FString>* DirectoryRootsToKeep = nullptr);
 	void ShrinkPakEntriesMemoryUsage();
