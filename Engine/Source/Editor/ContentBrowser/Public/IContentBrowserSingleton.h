@@ -184,6 +184,12 @@ struct FAssetPickerConfig
 	/** The asset that should be initially selected */
 	FAssetData InitialAssetSelection;
 
+	/** The handle to the property that opened this picker. Needed for contextual filtering. */
+	TSharedPtr<class IPropertyHandle> PropertyHandle;
+
+	/** The passed in property handle will be used to gather referencing assets. If additional referencing assets should be reported, supply them here. */
+	TArray<FAssetData> AdditionalReferencingAssets;
+
 	/** The delegate that fires when an asset was selected */
 	FOnAssetSelected OnAssetSelected;
 
