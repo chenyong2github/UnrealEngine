@@ -29,6 +29,16 @@ public:
 	UPROPERTY()
 	FString PropagatedName;
 
+	FNiagaraVariable ToVariable() const
+	{
+		FNiagaraVariable Copy = SwitchParameter;
+		if (!PropagatedName.IsEmpty())
+		{
+			Copy.SetName(FName(*PropagatedName));
+		}
+		return Copy;
+	}
+
 	bool operator==(const FNiagaraPropagatedVariable& Other)const
 	{
 		return SwitchParameter == Other.SwitchParameter;
@@ -94,7 +104,7 @@ public:
 
 	bool FindAutoBoundInput(UNiagaraNodeInput* InputNode, UEdGraphPin* PinToAutoBind, FNiagaraVariable& OutFoundVar, ENiagaraInputNodeUsage& OutNodeUsage);
 
-	void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const;
+	void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
 	FString GetFunctionName() const { return FunctionDisplayName; }
 	UNiagaraGraph* GetCalledGraph() const;

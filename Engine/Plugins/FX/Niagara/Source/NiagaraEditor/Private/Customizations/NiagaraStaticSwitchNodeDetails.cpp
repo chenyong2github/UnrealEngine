@@ -14,6 +14,7 @@
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
+#include "NiagaraConstants.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStaticSwitchNodeDetails"
 
@@ -25,7 +26,10 @@ TSharedRef<IDetailCustomization> FNiagaraStaticSwitchNodeDetails::MakeInstance()
 FNiagaraStaticSwitchNodeDetails::FNiagaraStaticSwitchNodeDetails()
 {
 	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Bool")));
+	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Bool Constant")));
 	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Integer")));
+	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Integer Constant")));
+	DropdownOptions.Add(MakeShareable(new SwitchDropdownOption("Enum Constant")));
 
 	for (FNiagaraTypeDefinition Type : FNiagaraTypeRegistry::GetRegisteredParameterTypes())
 	{
@@ -53,6 +57,7 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 		FDetailWidgetRow& DropdownWidget = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeTypeFilterText", "Input parameter type"));
 		FDetailWidgetRow& IntValueOption = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeIntFilterText", "Max integer value"));
 		FDetailWidgetRow& DefaultValueOption = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeDefaultFilterText", "Default value"));
+		FDetailWidgetRow& ConstantSelection = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeConstantFilterText", "Compiler constant"));
 
 		NameWidget
 		.NameContent()
@@ -145,6 +150,7 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 			.Padding(FMargin(0.0f, 2.0f))
 			[
 				SNew(STextBlock)
+				.IsEnabled(this, &FNiagaraStaticSwitchNodeDetails::GetDefaultOptionEnabled)
 				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
 				.Text(LOCTEXT("NiagaraSwitchNodeDefaultOptionText", "Default value"))
 			]
@@ -155,6 +161,7 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 			.Padding(FMargin(0.0f, 2.0f))
 			[
 				SNew(SWidgetSwitcher)
+				.IsEnabled(this, &FNiagaraStaticSwitchNodeDetails::GetDefaultOptionEnabled)
 		  		.WidgetIndex(this, &FNiagaraStaticSwitchNodeDetails::GetDefaultWidgetIndex)
 
 		  		+ SWidgetSwitcher::Slot()
@@ -190,7 +197,41 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 			]
 		];
 
-		RefreshDefaultDropdownValues();
+		ConstantSelection
+		.NameContent()
+		[
+			SNew(SBox)
+			.Padding(FMargin(0.0f, 2.0f))
+			[
+				SNew(STextBlock)
+				.IsEnabled(this, &FNiagaraStaticSwitchNodeDetails::IsConstantSelection)
+				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
+				.Text(LOCTEXT("NiagaraSwitchNodeConstantText", "Compiler constant"))
+			]
+		]
+		.ValueContent()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoWidth()
+			.Padding(FMargin(0.0f, 2.0f))
+			[
+				SNew(SComboBox<TSharedPtr<ConstantDropdownOption>>)
+				.IsEnabled(this, &FNiagaraStaticSwitchNodeDetails::IsConstantSelection)
+				.OptionsSource(&ConstantOptions)
+				.OnSelectionChanged(this, &FNiagaraStaticSwitchNodeDetails::OnSelectionChanged)
+				.OnGenerateWidget(this, &FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOption)
+				.InitiallySelectedItem(SelectedConstantItem)
+				[
+					SNew(STextBlock)
+					.Margin(FMargin(0.0f, 2.0f))
+					.Text(this, &FNiagaraStaticSwitchNodeDetails::GetConstantSelectionItemLabel)
+				]
+			]
+		];
+
+		RefreshDropdownValues();
 	}
 }
 
@@ -240,6 +281,23 @@ TSharedRef<SWidget> FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOpti
 	return SNew(STextBlock).Text(InOption->DisplayName);
 }
 
+TSharedRef<SWidget> FNiagaraStaticSwitchNodeDetails::CreateWidgetForDropdownOption(TSharedPtr<ConstantDropdownOption> InOption)
+{
+	return SNew(STextBlock)
+		.Text(InOption->DisplayName)
+		.ToolTipText(InOption->Tooltip);
+}
+
+FText FNiagaraStaticSwitchNodeDetails::GetConstantSelectionItemLabel() const
+{
+	if (SelectedConstantItem.IsValid())
+	{
+		return SelectedConstantItem->DisplayName;
+	}
+
+	return LOCTEXT("InvalidNiagaraStaticSwitchNodeComboEntryText", "<Invalid selection>");
+}
+
 void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<DefaultEnumOption> NewValue, ESelectInfo::Type)
 {
 	SelectedDefaultValue = NewValue;
@@ -268,23 +326,46 @@ void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<SwitchDropdo
 	}
 	
 	FNiagaraTypeDefinition OldType = Node->GetInputType();
-	if (SelectedDropdownItem == DropdownOptions[0])
+	Node->SwitchTypeData.Enum = nullptr;
+	Node->SwitchTypeData.SwitchConstant = NAME_None;
+	if (SelectedDropdownItem == DropdownOptions[0] || SelectedDropdownItem == DropdownOptions[1])
 	{
 		Node->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Bool;
-		Node->SwitchTypeData.Enum = nullptr;
 	}
-	else if (SelectedDropdownItem == DropdownOptions[1])
+	else if (SelectedDropdownItem == DropdownOptions[2] || SelectedDropdownItem == DropdownOptions[3])
 	{
 		Node->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Integer;
-		Node->SwitchTypeData.Enum = nullptr;
 	}
 	else
 	{
 		Node->SwitchTypeData.SwitchType = ENiagaraStaticSwitchType::Enum;
-		Node->SwitchTypeData.Enum = SelectedDropdownItem->Enum;
+		if (!IsConstantSelection())
+		{
+			Node->SwitchTypeData.Enum = SelectedDropdownItem->Enum;
+		}
 	}
+	RefreshDropdownValues();
 	Node->OnSwitchParameterTypeChanged(OldType);
-	RefreshDefaultDropdownValues();
+}
+
+void FNiagaraStaticSwitchNodeDetails::OnSelectionChanged(TSharedPtr<ConstantDropdownOption> NewValue, ESelectInfo::Type)
+{
+	SelectedConstantItem = NewValue;
+	if (!NewValue.IsValid() || !Node.IsValid())
+	{
+		return;
+	}
+	Node->SwitchTypeData.SwitchConstant = NewValue->Constant.GetName();
+
+	// in case of an enum constant we also need the enum type
+	if (SelectedDropdownItem == DropdownOptions[4])
+	{
+		Node->SwitchTypeData.Enum = NewValue->Constant.GetType().Enum;
+	}
+	else
+	{
+		Node->SwitchTypeData.Enum = nullptr;
+	}
 }
 
 FText FNiagaraStaticSwitchNodeDetails::GetDropdownItemLabel() const
@@ -307,9 +388,50 @@ FText FNiagaraStaticSwitchNodeDetails::GetDefaultSelectionItemLabel() const
 	return LOCTEXT("InvalidNiagaraStaticSwitchNodeComboEntryText", "<Invalid selection>");
 }
 
-void FNiagaraStaticSwitchNodeDetails::RefreshDefaultDropdownValues()
+void FNiagaraStaticSwitchNodeDetails::RefreshDropdownValues()
 {
-	if (!Node.IsValid() || Node->SwitchTypeData.SwitchType != ENiagaraStaticSwitchType::Enum)
+	if (!Node.IsValid())
+	{
+		return;
+	}
+
+	// refresh the constant value dropdown values
+	ENiagaraStaticSwitchType SwitchType = Node->SwitchTypeData.SwitchType;
+	if (IsConstantSelection())
+	{
+		ConstantOptions.Empty();
+		SelectedConstantItem.Reset();
+
+		TArray<FNiagaraVariable> AllConstants;
+		AllConstants.Append(FNiagaraConstants::GetStaticSwitchConstants());
+
+		for (const FNiagaraVariable& Var : AllConstants)
+		{
+			FText DisplayName = FText::FromName(Var.GetName());
+			FText Tooltip = FNiagaraConstants::GetEngineConstantDescription(Var);
+			if ((SwitchType == ENiagaraStaticSwitchType::Bool && Var.GetType() == FNiagaraTypeDefinition::GetBoolDef()) ||
+				(SwitchType == ENiagaraStaticSwitchType::Integer && Var.GetType() == FNiagaraTypeDefinition::GetIntDef()) ||
+				(SwitchType == ENiagaraStaticSwitchType::Enum && Var.GetType().IsEnum()))
+			{				
+				ConstantOptions.Add(MakeShared<ConstantDropdownOption>(DisplayName, Tooltip, Var));
+				if (Node->SwitchTypeData.SwitchConstant == Var.GetName())
+				{
+					SelectedConstantItem = ConstantOptions.Last();
+				}
+			}
+		}
+		if (!SelectedConstantItem.IsValid() && ConstantOptions.Num() > 0)
+		{
+			OnSelectionChanged(ConstantOptions[0], ESelectInfo::Type::Direct);
+		}
+		if (ConstantOptions.Num() == 0)
+		{
+			OnSelectionChanged(MakeShared<ConstantDropdownOption>(LOCTEXT("NiagaraNoConstantsForTypeText", "<No entries>"), FText(), FNiagaraVariable()), ESelectInfo::Type::Direct);
+		}
+	}
+
+	// refresh the default options dropdown values
+	if (SwitchType != ENiagaraStaticSwitchType::Enum)
 	{
 		return;
 	}
@@ -336,7 +458,7 @@ void FNiagaraStaticSwitchNodeDetails::RefreshDefaultDropdownValues()
 		}
 		if (!SelectedDefaultValue.IsValid() && DefaultEnumDropdownOptions.Num() > 0)
 		{
-			SelectedDefaultValue = DefaultEnumDropdownOptions[0];
+			OnSelectionChanged(DefaultEnumDropdownOptions[0], ESelectInfo::Type::Direct);
 		}
 	}
 }
@@ -364,32 +486,45 @@ void FNiagaraStaticSwitchNodeDetails::UpdateSelectionFromNode()
 {
 	SelectedDropdownItem.Reset();
 	ENiagaraStaticSwitchType SwitchType = Node->SwitchTypeData.SwitchType;
+	bool IsConstantSelection = Node->IsSetByCompiler();
 
 	if (SwitchType == ENiagaraStaticSwitchType::Bool)
 	{
-		SelectedDropdownItem = DropdownOptions[0];
+		SelectedDropdownItem = IsConstantSelection ? DropdownOptions[1] : DropdownOptions[0];
 	}
 	else if (SwitchType == ENiagaraStaticSwitchType::Integer)
 	{
-		SelectedDropdownItem = DropdownOptions[1];
+		SelectedDropdownItem = IsConstantSelection ? DropdownOptions[3] : DropdownOptions[2];
 	}
 	else if (SwitchType == ENiagaraStaticSwitchType::Enum && Node->SwitchTypeData.Enum)
 	{
-		FString SelectedName = Node->SwitchTypeData.Enum->GetName();
-		for (TSharedPtr<SwitchDropdownOption>& Option : DropdownOptions)
+		if (IsConstantSelection)
 		{
-			if (SelectedName.Equals(*Option->Name))
+			SelectedDropdownItem = DropdownOptions[4];
+		}
+		else
+		{
+			FString SelectedName = Node->SwitchTypeData.Enum->GetName();
+			for (TSharedPtr<SwitchDropdownOption>& Option : DropdownOptions)
 			{
-				SelectedDropdownItem = Option;
-				return;
+				if (SelectedName.Equals(*Option->Name))
+				{
+					SelectedDropdownItem = Option;
+					return;
+				}
 			}
 		}
 	}
 }
 
+bool FNiagaraStaticSwitchNodeDetails::IsConstantSelection() const
+{
+	return SelectedDropdownItem == DropdownOptions[1] || SelectedDropdownItem == DropdownOptions[3] || SelectedDropdownItem == DropdownOptions[4];
+}
+
 bool FNiagaraStaticSwitchNodeDetails::GetIntOptionEnabled() const
 {
-	return Node.IsValid() && Node->SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer;
+	return Node.IsValid() && Node->SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer && (!IsConstantSelection() || SelectedDropdownItem == DropdownOptions[3]);
 }
 
 TOptional<int32> FNiagaraStaticSwitchNodeDetails::GetIntOptionValue() const
@@ -417,6 +552,11 @@ void FNiagaraStaticSwitchNodeDetails::OnParameterNameCommited(const FText& InTex
 	{
 		Node->ChangeSwitchParameterName(FName(*InText.ToString()));
 	}
+}
+
+bool FNiagaraStaticSwitchNodeDetails::GetDefaultOptionEnabled() const
+{
+	return !IsConstantSelection();
 }
 
 #undef LOCTEXT_NAMESPACE

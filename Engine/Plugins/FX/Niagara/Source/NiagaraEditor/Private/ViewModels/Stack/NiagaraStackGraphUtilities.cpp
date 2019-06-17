@@ -532,7 +532,10 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunction
 		FNiagaraParameterMapHistoryBuilder BuilderCompiled;
 		FunctionCallNode.BuildParameterMapHistory(BuilderCompiled, false, true);
 		TArray<const UEdGraphPin*> CompilationPins;
-		ExtractInputPinsFromHistory(BuilderCompiled.Histories[0], FunctionCallNode.GetCalledGraph(), Options, CompilationPins);
+		if (BuilderCompiled.Histories.Num() == 1)
+		{
+			ExtractInputPinsFromHistory(BuilderCompiled.Histories[0], FunctionCallNode.GetCalledGraph(), Options, CompilationPins);
+		}
 
 		for (const UEdGraphPin* Pin : OutInputPins)
 		{
@@ -549,7 +552,9 @@ void FNiagaraStackGraphUtilities::GetStackFunctionStaticSwitchPins(UNiagaraNodeF
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(FunctionCallNode.GetSchema());
 	UNiagaraGraph* FunctionCallGraph = FunctionCallNode.GetCalledGraph();
 	if (FunctionCallGraph == nullptr)
+	{
 		return;
+	}
 
 	TArray<FNiagaraVariable> ReachableInputs = FunctionCallGraph->FindStaticSwitchInputs(true);
 	for (FNiagaraVariable SwitchInput : FunctionCallGraph->FindStaticSwitchInputs(false))
