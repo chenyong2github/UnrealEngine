@@ -1921,10 +1921,6 @@ int32 UMaterialExpressionRuntimeVirtualTextureOutput::Compile(class FMaterialCom
 	}
 	else if (OutputIndex == 4)
 	{
-		CodeInput = Height.IsConnected() ? Height.Compile(Compiler) : Compiler->Constant(0.f);
-	}
-	else if (OutputIndex == 5)
-	{
 		CodeInput = Opacity.IsConnected() ? Opacity.Compile(Compiler) : Compiler->Constant(1.f);
 	}
 
@@ -1941,7 +1937,7 @@ void UMaterialExpressionRuntimeVirtualTextureOutput::GetCaption(TArray<FString>&
 
 int32 UMaterialExpressionRuntimeVirtualTextureOutput::GetNumOutputs() const
 {
-	return 6; 
+	return 5; 
 }
 
 FString UMaterialExpressionRuntimeVirtualTextureOutput::GetFunctionName() const
@@ -1996,7 +1992,6 @@ void UMaterialExpressionRuntimeVirtualTextureSample::InitOutputs()
 	Outputs.Add(FExpressionOutput(TEXT("Specular"), 1, 0, 0, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Normal")));
-	Outputs.Add(FExpressionOutput(TEXT("Height")));
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -2091,9 +2086,6 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			return Compiler->Constant3(0.f, 0.f, 1.f);
 		}
 		break;
-	case 4:
-		//todo[vt]: Implement virtual texture displacement map support
-		return Compiler->Constant(0.f);
 	default:
 		return INDEX_NONE;
 	}
