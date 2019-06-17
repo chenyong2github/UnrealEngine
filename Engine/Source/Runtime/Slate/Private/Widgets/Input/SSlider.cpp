@@ -7,6 +7,13 @@
 #include "Widgets/Accessibility/SlateAccessibleWidgets.h"
 #endif
 
+SSlider::SSlider()
+{
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
+#endif
+}
+
 void SSlider::Construct( const SSlider::FArguments& InDeclaration )
 {
 	check(InDeclaration._Style);

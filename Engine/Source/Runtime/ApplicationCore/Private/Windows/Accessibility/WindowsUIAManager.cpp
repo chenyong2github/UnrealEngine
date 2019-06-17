@@ -117,7 +117,9 @@ FWindowsUIAWindowProvider& FWindowsUIAManager::GetWindowProvider(TSharedRef<FWin
 		WindowsApplication.GetAccessibleMessageHandler()->SetActive(true);
 	}
 
-	return static_cast<FWindowsUIAWindowProvider&>(GetWidgetProvider(WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWindow(InWindow).ToSharedRef()));
+	TSharedPtr<IAccessibleWidget> AccessibleWindow = WindowsApplication.GetAccessibleMessageHandler()->GetAccessibleWindow(InWindow);
+	checkf(AccessibleWindow.IsValid(), TEXT("%s is not an accessible window. All windows must be accessible."), *InWindow->GetDefinition().Title);
+	return static_cast<FWindowsUIAWindowProvider&>(GetWidgetProvider(AccessibleWindow.ToSharedRef()));
 }
 
 void FWindowsUIAManager::OnWidgetProviderRemoved(TSharedRef<IAccessibleWidget> InWidget)

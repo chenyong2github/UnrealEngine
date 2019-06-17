@@ -291,7 +291,7 @@ public:
 		const bool InForceVolatile,
 		const EWidgetClipping InClipping,
 		const EFlowDirectionPreference InFlowPreference,
-		const FAccessibleWidgetData& InAccessibleData,
+		const TOptional<FAccessibleWidgetData>& InAccessibleData,
 		const TArray<TSharedRef<ISlateMetaData>>& InMetaData);
 
 	void SWidgetConstruct(const TAttribute<FText>& InToolTipText,
@@ -306,7 +306,7 @@ public:
 		const bool InForceVolatile,
 		const EWidgetClipping InClipping,
 		const EFlowDirectionPreference InFlowPreference,
-		const FAccessibleWidgetData& InAccessibleData,
+		const TOptional<FAccessibleWidgetData>& InAccessibleData,
 		const TArray<TSharedRef<ISlateMetaData>>& InMetaData);
 
 	//
