@@ -1027,14 +1027,19 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	uint32 LOD = 0;
 	const int32 InstanceCount = InstancedRenderData.Component->PerInstanceSMData.Num();
 
-	//preallocate the worst-case to prevent an explosion of reallocs
-	//#dxr_todo: possibly track used instances and reserve based on previous behavior
-	OutRayTracingInstances.Reserve(InstanceCount);
-
+	if (InstanceCount == 0)
+	{
+		return;
+	}
 	//setup a 'template' for the instance first, so we aren't duplicating work
 	//#dxr_todo: when multiple LODs are used, template needs to be an array of templates, probably best initialized on-demand via a lamda
 	FRayTracingInstance RayTracingInstanceTemplate;
 	RayTracingInstanceTemplate.Geometry = &RenderData->LODResources[LOD].RayTracingGeometry;
+
+	//preallocate the worst-case to prevent an explosion of reallocs
+	//#dxr_todo: possibly track used instances and reserve based on previous behavior
+	RayTracingInstanceTemplate.InstanceTransforms.Reserve(InstanceCount);
+
 
 	int32 SectionCount = InstancedRenderData.LODModels[LOD].Sections.Num();
 
@@ -1047,7 +1052,6 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		RayTracingInstanceTemplate.Materials.Add(MeshBatch);
 	}
 	RayTracingInstanceTemplate.BuildInstanceMaskAndFlags();
-	RayTracingInstanceTemplate.InstanceTransforms.AddZeroed(1);
 
 	if (CVarRayTracingRenderInstancesCulling.GetValueOnRenderThread() > 0 && RayTracingCullClusterInstances.Num() > 0)
 	{
@@ -1108,8 +1112,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 							continue;
 					}
 
-					OutRayTracingInstances.Emplace(RayTracingInstanceTemplate);
-					OutRayTracingInstances.Last().InstanceTransforms[0] = InstanceTransform;
+					RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 				}
 			}
 		}
@@ -1125,11 +1128,12 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 				FMatrix ComponentLocalToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
 				FMatrix InstanceTransform = InstanceData.Transform * ComponentLocalToWorld;
 
-				OutRayTracingInstances.Emplace(RayTracingInstanceTemplate);
-				OutRayTracingInstances.Last().InstanceTransforms[0] = InstanceTransform;
+				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 			}
 		}
 	}
+
+	OutRayTracingInstances.Add(RayTracingInstanceTemplate);
 }
 
 void FInstancedStaticMeshSceneProxy::SetupRayTracingCullClusters()
