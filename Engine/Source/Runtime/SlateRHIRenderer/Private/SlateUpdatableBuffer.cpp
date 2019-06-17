@@ -5,29 +5,6 @@
 
 DECLARE_CYCLE_STAT(TEXT("UpdateInstanceBuffer Time"), STAT_SlateUpdateInstanceBuffer, STATGROUP_Slate);
 
-struct FSlateUpdateInstanceBufferCommand final : public FRHICommand<FSlateUpdateInstanceBufferCommand>
-{
-	FVertexBufferRHIRef VertexBufferRHI;
-	const TArray<FVector4>& InstanceData;
-
-	FSlateUpdateInstanceBufferCommand(TSlateElementVertexBuffer<FVector4>& InInstanceBuffer, const TArray<FVector4>& InInstanceData )
-		: VertexBufferRHI(InInstanceBuffer.VertexBufferRHI)
-		, InstanceData(InInstanceData)
-	{}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		SCOPE_CYCLE_COUNTER( STAT_SlateUpdateInstanceBuffer );
-
-		int32 RequiredVertexBufferSize = InstanceData.Num()*sizeof(FVector4);
-		uint8* InstanceBufferData = (uint8*)GDynamicRHI->RHILockVertexBuffer( VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly );
-
-		FMemory::Memcpy( InstanceBufferData, InstanceData.GetData(), InstanceData.Num()*sizeof(FVector4) );
-	
-		GDynamicRHI->RHIUnlockVertexBuffer( VertexBufferRHI );
-	}
-};
-
 FSlateUpdatableInstanceBuffer::FSlateUpdatableInstanceBuffer( int32 InitialInstanceCount )
 	: FreeBufferIndex(0)
 {
@@ -100,7 +77,20 @@ void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommand
 	}
 	else
 	{
-		ALLOC_COMMAND_CL(RHICmdList, FSlateUpdateInstanceBufferCommand)(InstanceBufferResource, RenderThreadBufferData);
+		FVertexBufferRHIParamRef VertexBufferRHI = InstanceBufferResource.VertexBufferRHI;
+		RHICmdList.EnqueueLambda([VertexBufferRHI, &InstanceData = RenderThreadBufferData](FRHICommandListImmediate& RHICmdList)
+		{
+			SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer);
+
+			int32 RequiredVertexBufferSize = InstanceData.Num() * sizeof(FVector4);
+			uint8* InstanceBufferData = (uint8*)RHICmdList.LockVertexBuffer(VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+
+			FMemory::Memcpy(InstanceBufferData, InstanceData.GetData(), InstanceData.Num() * sizeof(FVector4));
+
+			RHICmdList.UnlockVertexBuffer(VertexBufferRHI);
+		});
+
+		RHICmdList.RHIThreadFence(true);
 	}
 }
 

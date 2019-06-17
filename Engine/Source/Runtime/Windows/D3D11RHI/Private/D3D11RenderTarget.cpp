@@ -142,7 +142,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	TShaderMapRef<FResolveVS> ResolveVertexShader(ShaderMap);
 	TShaderMapRef<TPixelShader> ResolvePixelShader(ShaderMap);
 
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GScreenVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GResolveVertexBuffer.VertexDeclarationRHI;
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*ResolveVertexShader);
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*ResolvePixelShader);
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
@@ -152,6 +152,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	RHICmdList.SetBlendFactor(FLinearColor::White);
 
 	ResolvePixelShader->SetParameters(RHICmdList, PixelShaderParameter);
+	ResolveVertexShader->SetParameters(RHICmdList, FVector4(MinX, MinY, MaxX, MaxY), FVector4(MinU, MinV, MaxU, MaxV));
 	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.
 
 	// Set the source texture.
@@ -162,35 +163,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 		SetShaderResourceView<SF_Pixel>(SourceTexture, SourceTexture->GetShaderResourceView(), TextureIndex, SourceTexture->GetName());
 	}
 
-	FRHIResourceCreateInfo CreateInfo;
-	FVertexBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FScreenVertex) * 4, BUF_Volatile, CreateInfo);
-	void* VoidPtr = RHILockVertexBuffer(VertexBufferRHI, 0, sizeof(FScreenVertex) * 4, RLM_WriteOnly);
-
-	// Generate the vertices used
-	FScreenVertex* Vertices = (FScreenVertex*)VoidPtr;
-
-	Vertices[0].Position.X = MaxX;
-	Vertices[0].Position.Y = MinY;
-	Vertices[0].UV.X       = MaxU;
-	Vertices[0].UV.Y       = MinV;
-
-	Vertices[1].Position.X = MaxX;
-	Vertices[1].Position.Y = MaxY;
-	Vertices[1].UV.X       = MaxU;
-	Vertices[1].UV.Y       = MaxV;
-
-	Vertices[2].Position.X = MinX;
-	Vertices[2].Position.Y = MinY;
-	Vertices[2].UV.X       = MinU;
-	Vertices[2].UV.Y       = MinV;
-
-	Vertices[3].Position.X = MinX;
-	Vertices[3].Position.Y = MaxY;
-	Vertices[3].UV.X       = MinU;
-	Vertices[3].UV.Y       = MaxV;
-
-	RHIUnlockVertexBuffer(VertexBufferRHI);
-	RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
+	RHICmdList.SetStreamSource(0, GResolveVertexBuffer.VertexBufferRHI, 0);
 	RHICmdList.DrawPrimitive(0, 2, 1);
 
 	RHICmdList.Flush(); // always call flush when using a command list in RHI implementations before doing anything else. This is super hazardous.

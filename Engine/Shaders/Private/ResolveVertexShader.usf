@@ -6,13 +6,15 @@
 
 #include "Common.ush"
 
+float4 PositionMinMax; // xy = min [x, y], zw = max [x, y]
+float4 UVMinMax;       // xy = min [u, v], zw = max [u, v]
+
 void Main(
 	float2 InPosition : ATTRIBUTE0,
-	float2 InUV       : ATTRIBUTE1,
 	out float2 OutUV       : TEXCOORD0,
 	out float4 OutPosition : SV_POSITION
 	)
 {
-	OutPosition = float4( InPosition, 0, 1 );
-    OutUV = InUV;
+	OutPosition = float4(lerp(PositionMinMax.xy, PositionMinMax.zw, InPosition), 0, 1);
+    OutUV = lerp(UVMinMax.xy, UVMinMax.zw, InPosition);
 }

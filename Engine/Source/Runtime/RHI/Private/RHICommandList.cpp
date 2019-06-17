@@ -1870,7 +1870,7 @@ void FRHICommandListBase::operator delete(void *RawMemory)
 FVertexBufferRHIRef FDynamicRHI::CreateAndLockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 {
 	FVertexBufferRHIRef VertexBuffer = CreateVertexBuffer_RenderThread(RHICmdList, Size, InUsage, CreateInfo);
-	OutDataBuffer = LockVertexBuffer_RenderThread(RHICmdList, VertexBuffer, 0, Size, RLM_WriteOnly);
+	OutDataBuffer = RHILockVertexBuffer(RHICmdList, VertexBuffer, 0, Size, RLM_WriteOnly);
 
 	return VertexBuffer;
 }
@@ -1878,7 +1878,7 @@ FVertexBufferRHIRef FDynamicRHI::CreateAndLockVertexBuffer_RenderThread(class FR
 FIndexBufferRHIRef FDynamicRHI::CreateAndLockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Stride, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 {
 	FIndexBufferRHIRef IndexBuffer = CreateIndexBuffer_RenderThread(RHICmdList, Stride, Size, InUsage, CreateInfo);
-	OutDataBuffer = LockIndexBuffer_RenderThread(RHICmdList, IndexBuffer, 0, Size, RLM_WriteOnly);
+	OutDataBuffer = RHILockIndexBuffer(RHICmdList, IndexBuffer, 0, Size, RLM_WriteOnly);
 	return IndexBuffer;
 }
 
@@ -1918,172 +1918,239 @@ FShaderResourceViewRHIRef FDynamicRHI::CreateShaderResourceView_RenderThread(cla
 	return GDynamicRHI->RHICreateShaderResourceView(Buffer);
 }
 
-struct FRHICommandUpdateVertexBuffer final : public FRHICommand<FRHICommandUpdateVertexBuffer>
-{
-	FVertexBufferRHIParamRef VertexBuffer;
-	void* Buffer;
-	uint32 BufferSize;
-	uint32 Offset;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateVertexBuffer(FVertexBufferRHIParamRef InVertexBuffer, void* InBuffer, uint32 InOffset, uint32 InBufferSize)
-		: VertexBuffer(InVertexBuffer)
-		, Buffer(InBuffer)
-		, BufferSize(InBufferSize)
-		, Offset(InOffset)
-	{
-	}
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateVertexBuffer_Execute);
-		void* Data = GDynamicRHI->RHILockVertexBuffer(VertexBuffer, Offset, BufferSize, RLM_WriteOnly);
-		FMemory::Memcpy(Data, Buffer, BufferSize);
-		FMemory::Free(Buffer);
-		GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
-	}
-};
-
-struct FRHICommandUpdateIndexBuffer final : public FRHICommand<FRHICommandUpdateIndexBuffer>
-{
-	FIndexBufferRHIParamRef IndexBuffer;
-	void* Buffer;
-	uint32 BufferSize;
-	uint32 Offset;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateIndexBuffer(FIndexBufferRHIParamRef InIndexBuffer, void* InBuffer, uint32 InOffset, uint32 InBufferSize)
-		: IndexBuffer(InIndexBuffer)
-		, Buffer(InBuffer)
-		, BufferSize(InBufferSize)
-		, Offset(InOffset)
-	{
-	}
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateIndexBuffer_Execute);
-		void* Data = GDynamicRHI->RHILockIndexBuffer(IndexBuffer, Offset, BufferSize, RLM_WriteOnly);
-		FMemory::Memcpy(Data, Buffer, BufferSize);
-		FMemory::Free(Buffer);
-		GDynamicRHI->RHIUnlockIndexBuffer(IndexBuffer);
-	}
-};
-
 static FLockTracker GLockTracker;
 
-
-void* FDynamicRHI::LockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void* FDynamicRHI::RHILockVertexBuffer(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockVertexBuffer_RenderThread);
-	check(IsInRenderingThread());
-	bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockVertexBuffer);
+
 	void* Result;
-	if (!bBuffer || LockMode != RLM_WriteOnly || RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+	if (RHICmdList.IsTopOfPipe())
 	{
+		bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+		if (!bBuffer || LockMode != RLM_WriteOnly)
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockVertexBuffer_Flush);
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockVertexBuffer_FlushAndLock);
+
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			Result = GDynamicRHI->LockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer, Offset, SizeRHI, LockMode);
 		}
+		else
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockVertexBuffer_Lock);
-			Result = GDynamicRHI->RHILockVertexBuffer(VertexBuffer, Offset, SizeRHI, LockMode);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockVertexBuffer_Malloc);
+			Result = FMemory::Malloc(SizeRHI, 16);
 		}
+
+		// Only use the lock tracker at the top of the pipe. There's no need to track locks
+		// at the bottom of the pipe, and doing so would require a critical section.
+		GLockTracker.Lock(VertexBuffer, Result, Offset, SizeRHI, LockMode);
 	}
 	else
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockVertexBuffer_Malloc);
-		Result = FMemory::Malloc(SizeRHI, 16);
+		Result = GDynamicRHI->LockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer, Offset, SizeRHI, LockMode);
 	}
+
 	check(Result);
-	GLockTracker.Lock(VertexBuffer, Result, Offset, SizeRHI, LockMode);
-	return Result;
+	return Result;	
 }
 
-void FDynamicRHI::UnlockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBuffer)
+void FDynamicRHI::RHIUnlockVertexBuffer(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBuffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockVertexBuffer_RenderThread);
-	check(IsInRenderingThread());
-	bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
-	FLockTracker::FLockParams Params = GLockTracker.Unlock(VertexBuffer);
-	if (!bBuffer || Params.LockMode != RLM_WriteOnly || RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+
+	if (RHICmdList.IsTopOfPipe())
 	{
+		FLockTracker::FLockParams Params = GLockTracker.Unlock(VertexBuffer);
+
+		bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+		if (!bBuffer || Params.LockMode != RLM_WriteOnly)
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockVertexBuffer_Flush);
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockVertexBuffer_Unlock);
-			GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockVertexBuffer_FlushAndUnlock);
+
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			GDynamicRHI->UnlockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer);
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
-	}	
-	else
-	{
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandUpdateVertexBuffer)(VertexBuffer, Params.Buffer, Params.Offset, Params.BufferSize);
-		RHICmdList.RHIThreadFence(true);
+		else
+		{
+			RHICmdList.EnqueueLambda([VertexBuffer, Params](FRHICommandListImmediate& RHICmdList)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateVertexBuffer_Execute);
+				void* Data = GDynamicRHI->LockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
+				FMemory::Memcpy(Data, Params.Buffer, Params.BufferSize);
+				FMemory::Free(Params.Buffer);
+				GDynamicRHI->UnlockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer);
+			});
+			RHICmdList.RHIThreadFence(true);
+		}
+
 		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockVertexBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 			GLockTracker.TotalMemoryOutstanding = 0;
-		}
-	}
-}
-
-void* FDynamicRHI::LockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockIndexBuffer_RenderThread);
-	check(IsInRenderingThread());
-	bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
-	void* Result;
-	if (!bBuffer || LockMode != RLM_WriteOnly || RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
-	{
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockIndexBuffer_Flush);
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockIndexBuffer_Lock);
-			Result = GDynamicRHI->RHILockIndexBuffer(IndexBuffer, Offset, SizeRHI, LockMode);
 		}
 	}
 	else
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockIndexBuffer_Malloc);
-		Result = FMemory::Malloc(SizeRHI, 16);
+		GDynamicRHI->UnlockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer);
 	}
+}
+
+void* FDynamicRHI::RHILockIndexBuffer(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockIndexBuffer);
+
+	void* Result;
+	if (RHICmdList.IsTopOfPipe())
+	{
+		bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+		if (!bBuffer || LockMode != RLM_WriteOnly)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockIndexBuffer_FlushAndLock);
+
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			Result = GDynamicRHI->LockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer, Offset, SizeRHI, LockMode);
+		}
+		else
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockIndexBuffer_Malloc);
+			Result = FMemory::Malloc(SizeRHI, 16);
+		}
+
+		// Only use the lock tracker at the top of the pipe. There's no need to track locks
+		// at the bottom of the pipe, and doing so would require a critical section.
+		GLockTracker.Lock(IndexBuffer, Result, Offset, SizeRHI, LockMode);
+	}
+	else
+	{
+		Result = GDynamicRHI->LockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer, Offset, SizeRHI, LockMode);
+	}
+
 	check(Result);
-	GLockTracker.Lock(IndexBuffer, Result, Offset, SizeRHI, LockMode);
 	return Result;
 }
 
-void FDynamicRHI::UnlockIndexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer)
+void FDynamicRHI::RHIUnlockIndexBuffer(class FRHICommandListImmediate& RHICmdList, FIndexBufferRHIParamRef IndexBuffer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockIndexBuffer_RenderThread);
-	check(IsInRenderingThread());
-	bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
-	FLockTracker::FLockParams Params = GLockTracker.Unlock(IndexBuffer);
-	if (!bBuffer || Params.LockMode != RLM_WriteOnly || RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+
+	if (RHICmdList.IsTopOfPipe())
 	{
+		FLockTracker::FLockParams Params = GLockTracker.Unlock(IndexBuffer);
+
+		bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+		if (!bBuffer || Params.LockMode != RLM_WriteOnly)
 		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockIndexBuffer_Flush);
-			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
-		}
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockIndexBuffer_Unlock);
-			GDynamicRHI->RHIUnlockIndexBuffer(IndexBuffer);
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockIndexBuffer_FlushAndUnlock);
+
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			GDynamicRHI->UnlockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer);
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
-	}	
-	else
-	{
-		ALLOC_COMMAND_CL(RHICmdList, FRHICommandUpdateIndexBuffer)(IndexBuffer, Params.Buffer, Params.Offset, Params.BufferSize);
-		RHICmdList.RHIThreadFence(true);
+		else
+		{
+			RHICmdList.EnqueueLambda([IndexBuffer, Params](FRHICommandListImmediate& RHICmdList)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateIndexBuffer_Execute);
+				void* Data = GDynamicRHI->LockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
+				FMemory::Memcpy(Data, Params.Buffer, Params.BufferSize);
+				FMemory::Free(Params.Buffer);
+				GDynamicRHI->UnlockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer);
+			});
+			RHICmdList.RHIThreadFence(true);
+		}
+
 		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockIndexBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 			GLockTracker.TotalMemoryOutstanding = 0;
 		}
+	}
+	else
+	{
+		GDynamicRHI->UnlockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer);
+	}
+}
+
+void* FDynamicRHI::RHILockStructuredBuffer(class FRHICommandListImmediate& RHICmdList, FStructuredBufferRHIParamRef StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockStructuredBuffer);
+
+	void* Result;
+	if (RHICmdList.IsTopOfPipe())
+	{
+		bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+		if (!bBuffer || LockMode != RLM_WriteOnly)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_FlushAndLock);
+
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			Result = GDynamicRHI->LockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer, Offset, SizeRHI, LockMode);
+		}
+		else
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Malloc);
+			Result = FMemory::Malloc(SizeRHI, 16);
+		}
+		
+		// Only use the lock tracker at the top of the pipe. There's no need to track locks
+		// at the bottom of the pipe, and doing so would require a critical section.
+		GLockTracker.Lock(StructuredBuffer, Result, Offset, SizeRHI, LockMode);
+	}
+	else
+	{
+		Result = GDynamicRHI->LockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer, Offset, SizeRHI, LockMode);
+	}
+
+	check(Result);
+	return Result;
+}
+
+void FDynamicRHI::RHIUnlockStructuredBuffer(class FRHICommandListImmediate& RHICmdList, FStructuredBufferRHIParamRef StructuredBuffer)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockStructuredBuffer_RenderThread);
+
+	if (RHICmdList.IsTopOfPipe())
+	{
+		FLockTracker::FLockParams Params = GLockTracker.Unlock(StructuredBuffer);
+
+		bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+		if (!bBuffer || Params.LockMode != RLM_WriteOnly)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_FlushAndUnlock);
+
+			FRHICommandListScopedFlushAndExecute Flush(RHICmdList);
+			GDynamicRHI->UnlockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer);
+			GLockTracker.TotalMemoryOutstanding = 0;
+		}
+		else
+		{
+			RHICmdList.EnqueueLambda([StructuredBuffer, Params](FRHICommandListImmediate& RHICmdList)
+			{
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateStructuredBuffer_Execute);
+				void* Data = GDynamicRHI->LockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
+				FMemory::Memcpy(Data, Params.Buffer, Params.BufferSize);
+				FMemory::Free(Params.Buffer);
+				GDynamicRHI->UnlockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer);
+			});
+			RHICmdList.RHIThreadFence(true);
+		}
+
+		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_FlushForMem);
+			// we could be loading a level or something, lets get this stuff going
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+			GLockTracker.TotalMemoryOutstanding = 0;
+		}
+	}
+	else
+	{
+		GDynamicRHI->UnlockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer);
 	}
 }
 

@@ -537,6 +537,7 @@ private:
 
 	friend class FRHICommandListExecutor;
 	friend class FRHICommandListIterator;
+	friend class FRHICommandListScopedFlushAndExecute;
 
 protected:
 	bool bAsyncPSOCompileAllowed;
@@ -3508,25 +3509,27 @@ public:
 	//Queue the given async compute commandlists in order with the current immediate commandlist
 	void QueueAsyncCompute(FRHIAsyncComputeCommandList& RHIComputeCmdList);
 
-	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE bool EnqueueLambda(bool bRunOnCurrentThread, LAMBDA&& Lambda)
+	FORCEINLINE bool IsBottomOfPipe()
 	{
-		if (bRunOnCurrentThread)
+		return Bypass() || IsExecuting();
+	}
+
+	FORCEINLINE bool IsTopOfPipe()
+	{
+		return !IsBottomOfPipe();
+	}
+
+	template <typename LAMBDA>
+	FORCEINLINE_DEBUGGABLE void EnqueueLambda(LAMBDA&& Lambda)
+	{
+		if (IsBottomOfPipe())
 		{
 			Lambda(*this);
-			return false;
 		}
 		else
 		{
 			ALLOC_COMMAND(TRHILambdaCommand<LAMBDA>)(Forward<LAMBDA>(Lambda));
-			return true;
 		}
-	}
-
-	template <typename LAMBDA>
-	FORCEINLINE_DEBUGGABLE bool EnqueueLambda(LAMBDA&& Lambda)
-	{
-		return EnqueueLambda(Bypass(), Forward<LAMBDA>(Lambda));
 	}
 
 	FORCEINLINE FSamplerStateRHIRef CreateSamplerState(const FSamplerStateInitializerRHI& Initializer)
@@ -3690,12 +3693,12 @@ public:
 	
 	FORCEINLINE void* LockIndexBuffer(FIndexBufferRHIParamRef IndexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->LockIndexBuffer_RenderThread(*this, IndexBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockIndexBuffer(*this, IndexBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockIndexBuffer(FIndexBufferRHIParamRef IndexBuffer)
 	{
-		GDynamicRHI->UnlockIndexBuffer_RenderThread(*this, IndexBuffer);
+		GDynamicRHI->RHIUnlockIndexBuffer(*this, IndexBuffer);
 	}
 	
 	FORCEINLINE void* LockStagingBuffer(FRHIStagingBuffer* StagingBuffer, uint32 Offset, uint32 SizeRHI)
@@ -3720,12 +3723,12 @@ public:
 	
 	FORCEINLINE void* LockVertexBuffer(FVertexBufferRHIParamRef VertexBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
-		return GDynamicRHI->LockVertexBuffer_RenderThread(*this, VertexBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockVertexBuffer(*this, VertexBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockVertexBuffer(FVertexBufferRHIParamRef VertexBuffer)
 	{
-		GDynamicRHI->UnlockVertexBuffer_RenderThread(*this, VertexBuffer);
+		GDynamicRHI->RHIUnlockVertexBuffer(*this, VertexBuffer);
 	}
 	
 	FORCEINLINE void CopyVertexBuffer(FVertexBufferRHIParamRef SourceBuffer,FVertexBufferRHIParamRef DestBuffer)
@@ -3744,19 +3747,13 @@ public:
 	FORCEINLINE void* LockStructuredBuffer(FStructuredBufferRHIParamRef StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
-		 
-		return GDynamicRHI->RHILockStructuredBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
+		return GDynamicRHI->RHILockStructuredBuffer(*this, StructuredBuffer, Offset, SizeRHI, LockMode);
 	}
 	
 	FORCEINLINE void UnlockStructuredBuffer(FStructuredBufferRHIParamRef StructuredBuffer)
 	{
 		LLM_SCOPE(ELLMTag::RHIMisc);
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_Flush);
-		ImmediateFlush(EImmediateFlushType::FlushRHIThread); 
-		  
-		GDynamicRHI->RHIUnlockStructuredBuffer(StructuredBuffer);
+		GDynamicRHI->RHIUnlockStructuredBuffer(*this, StructuredBuffer);
 	}
 	
 	FORCEINLINE FUnorderedAccessViewRHIRef CreateUnorderedAccessView(FStructuredBufferRHIParamRef StructuredBuffer, bool bUseUAVCounter, bool bAppendBuffer)
@@ -4360,7 +4357,25 @@ public:
 	void UpdateRHIResources(FRHIResourceUpdateInfo* UpdateInfos, int32 Num, bool bNeedReleaseRefs);
 };
 
- struct FScopedGPUMask
+class FRHICommandListScopedFlushAndExecute
+{
+	FRHICommandListImmediate& RHICmdList;
+
+public:
+	FRHICommandListScopedFlushAndExecute(FRHICommandListImmediate& InRHICmdList)
+		: RHICmdList(InRHICmdList)
+	{
+		check(RHICmdList.IsTopOfPipe());
+		RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		RHICmdList.bExecuting = true;
+	}
+	~FRHICommandListScopedFlushAndExecute()
+	{
+		RHICmdList.bExecuting = false;
+	}
+};
+
+struct FScopedGPUMask
 {
 	FRHICommandListImmediate& RHICmdList;
 	FRHIGPUMask PrevGPUMask;

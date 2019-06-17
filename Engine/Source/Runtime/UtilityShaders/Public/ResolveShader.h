@@ -249,8 +249,35 @@ public:
 	
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
 	
-	FResolveVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-	FGlobalShader(Initializer)
-	{}
+	FResolveVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{
+		PositionMinMax.Bind(Initializer.ParameterMap, TEXT("PositionMinMax"), SPF_Mandatory);
+		UVMinMax.Bind(Initializer.ParameterMap, TEXT("UVMinMax"), SPF_Mandatory);
+	}
 	FResolveVS() {}
+
+	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FVector4 PositionMinMax, FVector4 UVMinMax);
+
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
+		Ar << PositionMinMax;
+		Ar << UVMinMax;
+		return bShaderHasOutdatedParameters;
+	}
+
+	FShaderParameter PositionMinMax;
+	FShaderParameter UVMinMax;
 };
+
+struct FResolveVertexBuffer : public FRenderResource
+{
+	FVertexBufferRHIRef VertexBufferRHI;
+	FVertexDeclarationRHIRef VertexDeclarationRHI;
+
+	virtual void InitDynamicRHI() override;
+	virtual void ReleaseDynamicRHI() override;
+};
+
+extern UTILITYSHADERS_API TGlobalResource<FResolveVertexBuffer> GResolveVertexBuffer;

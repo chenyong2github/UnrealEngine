@@ -1128,38 +1128,6 @@ public:
 	}
 };
 
-/*
- * Copies provided vertex data (assumed to be on MemStack) to a vertex buffer.
- */
-struct FRHICommandUpdatePrimitiveIdBuffer : public FRHICommand<FRHICommandUpdatePrimitiveIdBuffer>
-{
-	FVertexBufferRHIParamRef VertexBuffer;
-	void* VertexBufferData;
-	int32 VertexBufferDataSize;
-
-	virtual ~FRHICommandUpdatePrimitiveIdBuffer() {}
-
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdatePrimitiveIdBuffer(
-		FVertexBufferRHIParamRef InVertexBuffer,
-		void* InVertexBufferData,
-		int32 InVertexBufferDataSize)
-		: VertexBuffer(InVertexBuffer)
-		, VertexBufferData(InVertexBufferData)
-		, VertexBufferDataSize(InVertexBufferDataSize)
-	{
-	}
-
-	void Execute(FRHICommandListBase& CmdList)
-	{
-		// Upload vertex buffer data.
-		void* RESTRICT Data = (void* RESTRICT)GDynamicRHI->RHILockVertexBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly);
-		FMemory::Memcpy(Data, VertexBufferData, VertexBufferDataSize);
-		GDynamicRHI->RHIUnlockVertexBuffer(VertexBuffer);
-
-		FMemory::Free(VertexBufferData);
-	}
-};
-
 void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* ParallelCommandListSet, FRHICommandList& RHICmdList) const
 {
 	if (MaxNumDraws <= 0)
@@ -1182,11 +1150,18 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 				RHICommandList.AddDispatchPrerequisite(TaskEventRef);
 			}
 
-			new (RHICommandList.AllocCommand<FRHICommandUpdatePrimitiveIdBuffer>())FRHICommandUpdatePrimitiveIdBuffer(
-				PrimitiveIdVertexBufferRHI,
-				TaskContext.PrimitiveIdBufferData,
-				TaskContext.PrimitiveIdBufferDataSize
-			);
+			RHICommandList.EnqueueLambda([
+				VertexBuffer = PrimitiveIdsBuffer,
+				VertexBufferData = TaskContext.PrimitiveIdBufferData, 
+				VertexBufferDataSize = TaskContext.PrimitiveIdBufferDataSize](FRHICommandListImmediate& CmdList)
+			{
+				// Upload vertex buffer data.
+				void* RESTRICT Data = (void* RESTRICT)CmdList.LockVertexBuffer(VertexBuffer, 0, VertexBufferDataSize, RLM_WriteOnly);
+				FMemory::Memcpy(Data, VertexBufferData, VertexBufferDataSize);
+				CmdList.UnlockVertexBuffer(VertexBuffer);
+
+				FMemory::Free(VertexBufferData);
+			});
 
 			RHICommandList.RHIThreadFence(true);
 

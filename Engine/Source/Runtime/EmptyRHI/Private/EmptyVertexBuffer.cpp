@@ -51,7 +51,7 @@ FVertexBufferRHIRef FEmptyDynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 	return VertexBuffer;
 }
 
-void* FEmptyDynamicRHI::RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FEmptyDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	FEmptyVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 
@@ -59,7 +59,7 @@ void* FEmptyDynamicRHI::RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBuffe
 	return (uint8*)VertexBuffer->Lock(LockMode, Size) + Offset;
 }
 
-void FEmptyDynamicRHI::RHIUnlockVertexBuffer(FVertexBufferRHIParamRef VertexBufferRHI)
+void FEmptyDynamicRHI::UnlockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBufferRHI)
 {
 	FEmptyVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 

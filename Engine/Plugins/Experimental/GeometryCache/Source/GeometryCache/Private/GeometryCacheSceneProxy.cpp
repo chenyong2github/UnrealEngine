@@ -210,6 +210,7 @@ FGeometryCacheSceneProxy::~FGeometryCacheSceneProxy()
 	Tracks.Empty();
 }
 
+#if 0
 struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpdateGeometryCacheBuffer>
 {
 	FGraphEventRef BufferGenerationCompleteFence;
@@ -270,6 +271,7 @@ struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpda
 		BufferGenerationCompleteFence = nullptr;
 	}
 };
+#endif
 
 class FGeometryCacheVertexFactoryUserDataWrapper : public FOneFrameResource
 {
