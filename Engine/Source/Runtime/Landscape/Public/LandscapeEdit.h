@@ -47,6 +47,7 @@ namespace ELandscapeToolTargetType
 class ILandscapeEdModeInterface
 {
 public:
+	virtual void PostUpdateLayerContent() = 0;
 	virtual ELandscapeToolTargetType::Type GetLandscapeToolTargetType() const = 0;
 	virtual const FLandscapeLayer* GetLandscapeSelectedLayer() const = 0;
 	virtual ULandscapeLayerInfoObject* GetSelectedLandscapeLayerInfo() const = 0;

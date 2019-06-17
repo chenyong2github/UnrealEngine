@@ -309,6 +309,7 @@ FEdModeLandscape::FEdModeLandscape()
 	, ToolActiveViewport(nullptr)
 	, bIsPaintingInVR(false)
 	, InteractorPainting( nullptr )
+	, bNeedsUpdateShownLayerList(false)
 {
 	GLayerDebugColorMaterial = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterial>(nullptr, TEXT("/Engine/EditorLandscapeResources/LayerVisMaterial.LayerVisMaterial")));
 	GSelectionColorMaterial  = LandscapeTool::CreateMaterialInstance(LoadObject<UMaterialInstanceConstant>(nullptr, TEXT("/Engine/EditorLandscapeResources/SelectBrushMaterial_Selected.SelectBrushMaterial_Selected")));
@@ -478,6 +479,14 @@ void FEdModeLandscape::OnCanHaveLayersContentChanged()
 {
 	RefreshDetailPanel();
 	UpdateToolModes();
+}
+
+void FEdModeLandscape::PostUpdateLayerContent()
+{
+	if (bNeedsUpdateShownLayerList)
+	{
+		UpdateShownLayerList();
+	}
 }
 
 ELandscapeToolTargetType::Type FEdModeLandscape::GetLandscapeToolTargetType() const
@@ -2800,8 +2809,20 @@ void FEdModeLandscape::OnLandscapeMaterialChangedDelegate()
 	UpdateShownLayerList();
 }
 
+void FEdModeLandscape::RequestUpdateShownLayerList()
+{
+	bNeedsUpdateShownLayerList = true;
+
+	if (CurrentToolTarget.LandscapeInfo.IsValid() && !CurrentToolTarget.LandscapeInfo->CanHaveLayersContent())
+	{
+		UpdateShownLayerList(); // do it sync when not in lanscape mode.
+	}
+}
+
 void FEdModeLandscape::UpdateShownLayerList()
 {
+	bNeedsUpdateShownLayerList = false;
+
 	if (!CurrentToolTarget.LandscapeInfo.IsValid())
 	{
 		return;
@@ -2856,9 +2877,7 @@ void FEdModeLandscape::UpdateLayerUsageInformation(TWeakObjectPtr<ULandscapeLaye
 	}
 
 	bool DetailPanelRefreshRequired = false;
-	TArray<ULandscapeComponent*> AllComponents;
-	CurrentToolTarget.LandscapeInfo->XYtoComponentMap.GenerateValueArray(AllComponents);
-
+	
 	TArray<TWeakObjectPtr<ULandscapeLayerInfoObject>> LayerInfoObjectToProcess;
 	const TArray<TSharedRef<FLandscapeTargetListInfo>>& TargetList = GetTargetList();
 
@@ -2883,43 +2902,23 @@ void FEdModeLandscape::UpdateLayerUsageInformation(TWeakObjectPtr<ULandscapeLaye
 			LayerInfoObjectToProcess.Add(TargetInfo->LayerInfoObj);
 		}
 	}
-
-
+	
+	TArray<ULandscapeLayerInfoObject*> UsedLayerInfos;
+	CurrentToolTarget.LandscapeInfo->GetUsedPaintLayers(FGuid(), UsedLayerInfos);
+		
 	for (const TWeakObjectPtr<ULandscapeLayerInfoObject>& LayerInfoObj : LayerInfoObjectToProcess)
-	{		
-		for (ULandscapeComponent* Component : AllComponents)
+	{
+		if (ULandscapeLayerInfoObject* LayerInfo = LayerInfoObj.Get())
 		{
-			TArray<uint8> WeightmapTextureData;
-			FLandscapeComponentDataInterface DataInterface(Component);
-			DataInterface.GetWeightmapTextureData(LayerInfoObj.Get(), WeightmapTextureData);
-
-			bool IsUsed = false;
-
-			for (uint8 Value : WeightmapTextureData)
+			bool bUsed = UsedLayerInfos.Contains(LayerInfo);
+			if (LayerInfo->IsReferencedFromLoadedData != bUsed)
 			{
-				if (Value > 0)
-				{
-					IsUsed = true;
-					break;
-				}
-			}
-
-			bool PreviousValue = LayerInfoObj->IsReferencedFromLoadedData;
-			LayerInfoObj->IsReferencedFromLoadedData = IsUsed;
-
-			if (PreviousValue != LayerInfoObj->IsReferencedFromLoadedData)
-			{
+				LayerInfo->IsReferencedFromLoadedData = bUsed;
 				DetailPanelRefreshRequired = true;
-			}
-
-			// Early exit as we already found a component using this layer
-			if (LayerInfoObj->IsReferencedFromLoadedData)
-			{
-				break;
 			}
 		}
 	}
-
+	
 	if (DetailPanelRefreshRequired)
 	{
 		if (Toolkit.IsValid())
