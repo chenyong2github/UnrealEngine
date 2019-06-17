@@ -1042,7 +1042,7 @@ public:
 //
 // UMaterialExpressionLandscapeGrassOutput
 //
-FName UMaterialExpressionLandscapeGrassOutput::PinDefaultName = TEXT("Pin");
+FName UMaterialExpressionLandscapeGrassOutput::PinDefaultName = TEXT("Input");
 
 UMaterialExpressionLandscapeGrassOutput::UMaterialExpressionLandscapeGrassOutput(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
