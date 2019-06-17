@@ -99,6 +99,10 @@ protected:
 private:
 	void RebuildModeToolBar();
 	void SpawnOrUpdateModeToolbar();
+
+	/** Updates the widget's position for changes in location during simulation */
+	void UpdateModeWidgetLocation();
+
 public:
 
 	/**
@@ -531,6 +535,11 @@ protected:
 
 	/** if true the current selection has a scene component */
 	bool bSelectionHasSceneComponent;
+
+	/** Compare for transformation of selected actor to mode widget */
+	TWeakObjectPtr<AActor>	LastSelectedActor;
+	FVector					LastSelectedActorLocation;
+
 private:
 	struct FEdModeToolbarRow
 	{
