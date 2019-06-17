@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 /**
- * Blueprint for Blutility editor utilities
+ * Blueprint for editor utilities
  */
 
 #pragma once
