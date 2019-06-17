@@ -142,12 +142,12 @@ FStructuredBufferRHIRef FMetalDynamicRHI::CreateStructuredBuffer_RenderThread(cl
 			else
 			{
 				// make a buffer usable by CPU
-				void* Buffer = RHILockStructuredBuffer(VertexBuffer, 0, Size, RLM_WriteOnly);
+				void* Buffer = RHILockStructuredBuffer(RHICmdList, VertexBuffer, 0, Size, RLM_WriteOnly);
 				
 				// copy the contents of the given data into the buffer
 				FMemory::Memcpy(Buffer, CreateInfo.ResourceArray->GetResourceData(), Size);
 				
-				RHIUnlockStructuredBuffer(VertexBuffer);
+				RHIUnlockStructuredBuffer(RHICmdList, VertexBuffer);
 			}
 			
 			// Discard the resource array's contents.
