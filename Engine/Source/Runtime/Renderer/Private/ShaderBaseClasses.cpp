@@ -339,20 +339,22 @@ void FMaterialShader::SetParameters(
 	SetViewParameters(RHICmdList, ShaderRHI, View, ViewUniformBuffer);
 	FMaterialShader::SetParametersInner(RHICmdList, ShaderRHI, MaterialRenderProxy, Material, View);
 
-	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred && SceneTextureParameters.GetUniformBufferParameter().IsBound())
+	if (SceneTextureParameters.IsBound())
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		FSceneTexturesUniformParameters UniformParameters;
-		SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, SceneTextureSetupMode, UniformParameters);
-		UniformParameters.EyeAdaptation = GetEyeAdaptation(View);
-		TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleDraw);
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
-	}
-
-	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile && SceneTextureParameters.GetMobileUniformBufferParameter().IsBound())
-	{
-		TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetMobileUniformBufferParameter(), UniformBuffer);
+		if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred)
+		{
+			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+			FSceneTexturesUniformParameters UniformParameters;
+			SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, SceneTextureSetupMode, UniformParameters);
+			UniformParameters.EyeAdaptation = GetEyeAdaptation(View);
+			TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleDraw);
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
+		}
+		else if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
+		{
+			TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
+			SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
+		}
 	}
 }
 
