@@ -380,7 +380,7 @@ FText UNiagaraNodeStaticSwitch::GetTooltipText() const
 
 FText UNiagaraNodeStaticSwitch::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return FText::FormatOrdered(LOCTEXT("StaticSwitchTitle", "Static Switch ({0})"), FText::FromName(InputParameterName));
+	return FText::FormatOrdered(LOCTEXT("StaticSwitchTitle", "Static Switch ({0})"), FText::FromName(IsSetByCompiler() ? SwitchTypeData.SwitchConstant : InputParameterName));
 }
 
 FLinearColor UNiagaraNodeStaticSwitch::GetNodeTitleColor() const
