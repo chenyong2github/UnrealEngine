@@ -14,9 +14,6 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 {
 	if (VirtualTexture != nullptr)
 	{
-		FVTProducerDescription Desc;
-		VirtualTexture->GetProducerDescription(Desc);
-
 		// We store a ProducerId here so that we will be able to find our SceneIndex from the Producer during rendering.
 		// We will need the SceneIndex to determine which primitives should render to this Producer.
 		ProducerId = ProducerIdGenerator++;
@@ -26,8 +23,12 @@ FRuntimeVirtualTextureSceneProxy::FRuntimeVirtualTextureSceneProxy(URuntimeVirtu
 		// Transform is based on bottom left of the URuntimeVirtualTextureComponent unit box (which is centered on the origin)
 		FTransform Transform = FTransform(FVector(-0.5f, -0.5f, 0.f)) * InComponent->GetComponentTransform();
 
-		// The Producer object created here will be passed into the Virtual Texture system which will take ownership.
-		// The Initialize() call will allocate the VT by spawning work on the render thread.
+		// The producer description is calculated using the transform to determine the aspect ratio
+		FVTProducerDescription Desc;
+		VirtualTexture->GetProducerDescription(Desc, Transform);
+
+		// The Producer object created here will be passed into the virtual texture system which will take ownership.
+		// The Initialize() call will allocate the virtual texture by spawning work on the render thread.
 		FRuntimeVirtualTextureProducer* Producer = new FRuntimeVirtualTextureProducer(Desc, ProducerId, MaterialType, InComponent->GetScene(), Transform);
 		VirtualTexture->Initialize(Producer, Transform);
 	}
