@@ -525,7 +525,8 @@ typename TEnableIf<
 >::Type operator<<(FStructuredArchive::FSlot Slot, T& Obj)
 {
 #if WITH_TEXT_ARCHIVE_SUPPORT
-	FArchiveFromStructuredArchive Ar(Slot);
+	FArchiveFromStructuredArchive Adapter(Slot);
+	FArchive& Ar = Adapter;
 #else
 	FArchive& Ar = Slot.GetUnderlyingArchive();
 #endif
