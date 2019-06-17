@@ -326,6 +326,22 @@ void FMaterialShader::SetParameters(
 	SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, SceneTextureSetupMode);
 }
 
+template <typename ShaderRHIParamRef, typename TRHICmdList>
+void FSceneTextureShaderParameters::SetWithView(TRHICmdList& RHICmdList, const ShaderRHIParamRef& ShaderRHI, ESceneTextureSetupMode SetupMode, const FViewInfo& View) const
+{
+	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred && SceneTexturesUniformBuffer.IsBound())
+	{
+		TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = CreateSceneTextureUniformBufferSingleDrawWithView(RHICmdList, SetupMode, View);
+		SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTexturesUniformBuffer, UniformBuffer);
+	}
+
+	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile && MobileSceneTexturesUniformBuffer.IsBound())
+	{
+		TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
+		SetUniformBufferParameter(RHICmdList, ShaderRHI, MobileSceneTexturesUniformBuffer, UniformBuffer);
+	}
+}
+
 template<typename TRHIShader>
 void FMaterialShader::SetParameters(
 	FRHICommandList& RHICmdList,
