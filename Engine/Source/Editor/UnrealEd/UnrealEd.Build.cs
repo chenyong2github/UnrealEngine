@@ -168,6 +168,7 @@ public class UnrealEd : ModuleRules
 				"PakFileUtilities",
 				"TimeManagement",
                 "DerivedDataCache",
+				"EditorMenus",
             }
 		);
 
