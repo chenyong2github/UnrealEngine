@@ -3078,27 +3078,12 @@ TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBuff
 	return TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(SceneTextureParameters, UniformBuffer_SingleDraw);
 }
 
-template< typename TRHICmdList >
-TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDrawWithView(TRHICmdList& RHICmdList, ESceneTextureSetupMode SceneTextureSetupMode, const FViewInfo& View)
-{
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	FSceneTexturesUniformParameters SceneTextureParameters;
-	SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, SceneTextureSetupMode, SceneTextureParameters);
-	SceneTextureParameters.EyeAdaptation = GetEyeAdaptation(View);
-	return TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(SceneTextureParameters, UniformBuffer_SingleDraw);
-}
-
 #define IMPLEMENT_CreateSceneTextureUniformBuffer( TRHICmdList ) \
 	template TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDraw< TRHICmdList >(\
 		TRHICmdList& RHICmdList,						\
 		ESceneTextureSetupMode SceneTextureSetupMode,	\
 		ERHIFeatureLevel::Type FeatureLevel				\
-	); \
-	template TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDrawWithView< TRHICmdList >(\
-		TRHICmdList& RHICmdList,						\
-		ESceneTextureSetupMode SceneTextureSetupMode,	\
-		const FViewInfo& View							\
-	);
+	)
 
 IMPLEMENT_CreateSceneTextureUniformBuffer( FRHICommandList );
 IMPLEMENT_CreateSceneTextureUniformBuffer( FRHICommandListImmediate );

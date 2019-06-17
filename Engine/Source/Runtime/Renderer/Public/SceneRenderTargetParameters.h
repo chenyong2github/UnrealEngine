@@ -101,9 +101,6 @@ extern RENDERER_API TUniformBufferRef<FSceneTexturesUniformParameters> CreateSce
 template< typename TRHICmdList >
 RENDERER_API TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDraw(TRHICmdList& RHICmdList, ESceneTextureSetupMode SceneTextureSetupMode, ERHIFeatureLevel::Type FeatureLevel);
 
-template< typename TRHICmdList >
-RENDERER_API TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDrawWithView(TRHICmdList& RHICmdList, ESceneTextureSetupMode SceneTextureSetupMode, const FViewInfo& View);
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileSceneTextureUniformParameters, RENDERER_API)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SceneColorTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorTextureSampler)
@@ -141,6 +138,9 @@ public:
 		BindSceneTextureUniformBufferDependentOnShadingPath(Initializer, SceneTexturesUniformBuffer, MobileSceneTexturesUniformBuffer);
 	}
 
+	const TShaderUniformBufferParameter<FSceneTexturesUniformParameters>& GetUniformBufferParameter() const { return SceneTexturesUniformBuffer; }
+	const TShaderUniformBufferParameter<FMobileSceneTextureUniformParameters>& GetMobileUniformBufferParameter() const { return MobileSceneTexturesUniformBuffer; }
+
 	template< typename ShaderRHIParamRef, typename TRHICmdList >
 	void Set(TRHICmdList& RHICmdList, const ShaderRHIParamRef& ShaderRHI, ERHIFeatureLevel::Type FeatureLevel, ESceneTextureSetupMode SetupMode) const
 	{
@@ -156,9 +156,6 @@ public:
 			SetUniformBufferParameter(RHICmdList, ShaderRHI, MobileSceneTexturesUniformBuffer, UniformBuffer);
 		}
 	}
-
-	template< typename ShaderRHIParamRef, typename TRHICmdList >
-	void SetWithView(TRHICmdList& RHICmdList, const ShaderRHIParamRef& ShaderRHI, ESceneTextureSetupMode SetupMode, const FViewInfo& View) const;
 
 	/** Serializer. */
 	friend FArchive& operator<<(FArchive& Ar,FSceneTextureShaderParameters& P)

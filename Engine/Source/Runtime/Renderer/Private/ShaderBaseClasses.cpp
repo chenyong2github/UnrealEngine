@@ -326,22 +326,6 @@ void FMaterialShader::SetParameters(
 	SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, SceneTextureSetupMode);
 }
 
-template <typename ShaderRHIParamRef, typename TRHICmdList>
-void FSceneTextureShaderParameters::SetWithView(TRHICmdList& RHICmdList, const ShaderRHIParamRef& ShaderRHI, ESceneTextureSetupMode SetupMode, const FViewInfo& View) const
-{
-	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred && SceneTexturesUniformBuffer.IsBound())
-	{
-		TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = CreateSceneTextureUniformBufferSingleDrawWithView(RHICmdList, SetupMode, View);
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTexturesUniformBuffer, UniformBuffer);
-	}
-
-	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile && MobileSceneTexturesUniformBuffer.IsBound())
-	{
-		TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
-		SetUniformBufferParameter(RHICmdList, ShaderRHI, MobileSceneTexturesUniformBuffer, UniformBuffer);
-	}
-}
-
 template<typename TRHIShader>
 void FMaterialShader::SetParameters(
 	FRHICommandList& RHICmdList,
@@ -355,7 +339,21 @@ void FMaterialShader::SetParameters(
 	SetViewParameters(RHICmdList, ShaderRHI, View, ViewUniformBuffer);
 	FMaterialShader::SetParametersInner(RHICmdList, ShaderRHI, MaterialRenderProxy, Material, View);
 
-	SceneTextureParameters.SetWithView(RHICmdList, ShaderRHI, SceneTextureSetupMode, View);
+	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Deferred && SceneTextureParameters.GetUniformBufferParameter().IsBound())
+	{
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FSceneTexturesUniformParameters UniformParameters;
+		SetupSceneTextureUniformParameters(SceneContext, View.FeatureLevel, SceneTextureSetupMode, UniformParameters);
+		UniformParameters.EyeAdaptation = GetEyeAdaptation(View);
+		TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = TUniformBufferRef<FSceneTexturesUniformParameters>::CreateUniformBufferImmediate(UniformParameters, UniformBuffer_SingleDraw);
+		SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetUniformBufferParameter(), UniformBuffer);
+	}
+
+	if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile && SceneTextureParameters.GetMobileUniformBufferParameter().IsBound())
+	{
+		TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, View.FeatureLevel);
+		SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTextureParameters.GetMobileUniformBufferParameter(), UniformBuffer);
+	}
 }
 
 // Doxygen struggles to parse these explicit specializations. Just ignore them for now.
