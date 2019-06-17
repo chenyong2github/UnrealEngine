@@ -32,9 +32,9 @@ IMPLEMENT_SHADER_TYPE(, FDirectComposePS, PostProcessShaderFileName, TEXT("Direc
 
 void FPicpBlurPostProcess::ApplyCompose_RenderThread(
 	FRHICommandListImmediate& RHICmdList, 
-	FTextureRHIParamRef OverlayTexture,
-	FTexture2DRHIParamRef DstRenderTarget, 
-	FTexture2DRHIParamRef CopyTexture
+	FRHITexture* OverlayTexture,
+	FRHITexture2D* DstRenderTarget,
+	FRHITexture2D* CopyTexture
 )
 {
 	check(IsInRenderingThread());
@@ -79,8 +79,8 @@ void FPicpBlurPostProcess::ApplyCompose_RenderThread(
 template<uint32 ShaderType>
 static void PicpBlurPostProcess_RenderThread(
 	FRHICommandListImmediate& RHICmdList,
-	FTexture2DRHIParamRef InOutTexture,
-	FTexture2DRHIParamRef TempTexture,
+	FRHITexture2D* InOutTexture,
+	FRHITexture2D* TempTexture,
 	int KernelRadius,
 	float KernelScale
 )
@@ -127,7 +127,7 @@ static void PicpBlurPostProcess_RenderThread(
 	}	
 }
 
-void FPicpBlurPostProcess::ApplyBlur_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef InOutRT, FTexture2DRHIParamRef TempRT, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType)
+void FPicpBlurPostProcess::ApplyBlur_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutRT, FRHITexture2D* TempRT, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType)
 {
 	switch (BlurType)
 	{
@@ -156,8 +156,8 @@ void FPicpBlurPostProcess::ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, 
 	ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 		[InOutRT, TempRT, KernelRadius, KernelScale, BlurType](FRHICommandListImmediate& RHICmdList)
 		{
-			FTexture2DRHIParamRef RenderTarget = InOutRT->GetRenderTargetTexture()->GetTexture2D();
-			FTexture2DRHIParamRef TempTexture = TempRT->GetRenderTargetTexture()->GetTexture2D();
+		FRHITexture2D* RenderTarget = InOutRT->GetRenderTargetTexture()->GetTexture2D();
+		FRHITexture2D* TempTexture = TempRT->GetRenderTargetTexture()->GetTexture2D();
 			if (nullptr==RenderTarget || nullptr==TempTexture)
 			{
 				//@todo handle error
@@ -184,9 +184,9 @@ void FPicpBlurPostProcess::ApplyCompose(UTexture* InputTexture, UTextureRenderTa
 	ENQUEUE_RENDER_COMMAND(CaptureCommand)(
 		[OverlayTextureResource, TextureRenderTarget, TextureRenderResult](FRHICommandListImmediate& RHICmdList)
 	{
-		FTexture2DRHIParamRef RTTexture = TextureRenderTarget ? TextureRenderTarget->GetRenderTargetTexture()->GetTexture2D(): nullptr;
-		FTexture2DRHIParamRef ResultTexture = TextureRenderResult ? TextureRenderResult->GetRenderTargetTexture()->GetTexture2D() : nullptr;
-		FTextureRHIParamRef   OverlayTexture = OverlayTextureResource ? OverlayTextureResource->TextureRHI : nullptr;;
+		FRHITexture2D* RTTexture = TextureRenderTarget ? TextureRenderTarget->GetRenderTargetTexture()->GetTexture2D(): nullptr;
+		FRHITexture2D* ResultTexture = TextureRenderResult ? TextureRenderResult->GetRenderTargetTexture()->GetTexture2D() : nullptr;
+		FRHITexture*   OverlayTexture = OverlayTextureResource ? OverlayTextureResource->TextureRHI : nullptr;;
 		
 		if (nullptr == RTTexture)
 		{

@@ -113,8 +113,8 @@ public:
 		const FViewInfo& View,
 		FRayTracingShaderBindingsWriter& GlobalResources,
 		const FRayTracingScene& RayTracingScene,
-		FUniformBufferRHIParamRef ViewUniformBuffer,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer,
+		FRHIUniformBuffer* ViewUniformBuffer,
+		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		// Light buffer
 		const TSparseArray<FLightSceneInfoCompact>& Lights,
 		// Adaptive sampling
@@ -348,13 +348,13 @@ class FPathTracingCompositorPS : public FGlobalShader
 	void SetParameters(
 		TRHICommandList& RHICmdList,
 		const FViewInfo& View,
-		FTextureRHIParamRef RadianceRedRT,
-		FTextureRHIParamRef RadianceGreenRT,
-		FTextureRHIParamRef RadianceBlueRT,
-		FTextureRHIParamRef RadianceAlphaRT,
-		FTextureRHIParamRef SampleCountRT,
-		FTextureRHIParamRef CumulativeIrradianceRT,
-		FTextureRHIParamRef CumulativeSampleCountRT)
+		FRHITexture* RadianceRedRT,
+		FRHITexture* RadianceGreenRT,
+		FRHITexture* RadianceBlueRT,
+		FRHITexture* RadianceAlphaRT,
+		FRHITexture* SampleCountRT,
+		FRHITexture* CumulativeIrradianceRT,
+		FRHITexture* CumulativeSampleCountRT)
 	{
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
@@ -448,7 +448,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 	FSceneTexturesUniformParameters SceneTextures;
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
-	FUniformBufferRHIParamRef SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
+	FRHIUniformBuffer* SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	RayGenShader->SetParameters(
 		Scene,
@@ -538,7 +538,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FPathTracingCompositorPS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[3] =
+	FRHITexture* RenderTargets[3] =
 	{
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture,
 		OutputRadianceRT->GetRenderTargetItem().TargetableTexture,

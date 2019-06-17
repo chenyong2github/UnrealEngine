@@ -87,7 +87,7 @@ public:
 	 */
 	void SetParameters(
 		const FVectorFieldVisualizationParameters& InUniformParameters,
-		FTexture3DRHIParamRef InVectorFieldTextureRHI );
+		FRHITexture3D* InVectorFieldTextureRHI );
 
 private:
 
@@ -97,7 +97,7 @@ private:
 	/** Uniform buffer. */
 	FUniformBufferRHIRef UniformBuffer;
 	/** Texture containing the vector field. */
-	FTexture3DRHIParamRef VectorFieldTextureRHI;
+	FRHITexture3D* VectorFieldTextureRHI;
 };
 
 /*------------------------------------------------------------------------------

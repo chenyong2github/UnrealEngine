@@ -2641,9 +2641,9 @@ template <typename ResourceBinderType>
 static void SetRayTracingShaderResources(
 	FD3D12CommandContext& CommandContext,
 	const FD3D12RayTracingShader* Shader,
-	uint32 InNumTextures, const FTextureRHIParamRef* Textures,
+	uint32 InNumTextures, FRHITexture* const* Textures,
 	uint32 InNumSRVs, FRHIShaderResourceView* const* SRVs,
-	uint32 InNumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+	uint32 InNumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
 	uint32 InNumSamplers, FRHISamplerState* const* Samplers,
 	uint32 InNumUAVs, FRHIUnorderedAccessView* const* UAVs,
 	uint32 InLooseParameterDataSize, const void* InLooseParameterData,
@@ -2673,7 +2673,7 @@ static void SetRayTracingShaderResources(
 
 	for (uint32 SRVIndex = 0; SRVIndex < InNumTextures; ++SRVIndex)
 	{
-		FTextureRHIParamRef Resource = Textures[SRVIndex];
+		FRHITexture* Resource = Textures[SRVIndex];
 		if (Resource)
 		{
 			FD3D12TextureBase* Texture = CommandContext.RetrieveTextureBase(Resource);
@@ -2699,7 +2699,7 @@ static void SetRayTracingShaderResources(
 
 	for (uint32 CBVIndex = 0; CBVIndex < InNumUniformBuffers; ++CBVIndex)
 	{
-		FUniformBufferRHIParamRef Resource = UniformBuffers[CBVIndex];
+		FRHIUniformBuffer* Resource = UniformBuffers[CBVIndex];
 		if (Resource)
 		{
 			FD3D12UniformBuffer* CBV = CommandContext.RetrieveObject<FD3D12UniformBuffer>(Resource);
@@ -3113,7 +3113,7 @@ void FD3D12CommandContext::RHIRayTraceDispatch(FRHIRayTracingPipelineState* InRa
 void FD3D12CommandContext::RHISetRayTracingHitGroup(
 	FRHIRayTracingScene* InScene, uint32 InstanceIndex, uint32 SegmentIndex, uint32 ShaderSlot,
 	FRHIRayTracingPipelineState* InPipeline, uint32 HitGroupIndex,
-	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+	uint32 NumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
 	uint32 LooseParameterDataSize, const void* LooseParameterData,
 	uint32 UserData)
 {
@@ -3150,7 +3150,7 @@ void FD3D12CommandContext::RHISetRayTracingHitGroup(
 void FD3D12CommandContext::RHISetRayTracingCallableShader(
 	FRHIRayTracingScene* InScene, uint32 ShaderSlotInScene,
 	FRHIRayTracingPipelineState* InPipeline, uint32 ShaderIndexInPipeline,
-	uint32 NumUniformBuffers, const FUniformBufferRHIParamRef* UniformBuffers,
+	uint32 NumUniformBuffers, FRHIUniformBuffer* const* UniformBuffers,
 	uint32 UserData)
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);

@@ -724,7 +724,7 @@ private:
 		// Accessors.
 		UMaterialInterface* GetMaterial() const { return Material; }
 
-		FUniformBufferRHIParamRef GetVertexFactoryUniformBuffer() const { return VertexFactoryUniformBuffer; }
+		FRHIUniformBuffer* GetVertexFactoryUniformBuffer() const { return VertexFactoryUniformBuffer; }
 
 	private:
 

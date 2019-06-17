@@ -60,7 +60,7 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpOverl
 		FTextureRenderTargetResource* overlayRTTRes = capture.CameraOverlayFrame->GameThread_GetRenderTargetResource();
 		FTextureRenderTarget2DResource* overlayRTTRes2D = (FTextureRenderTarget2DResource*)overlayRTTRes;
 
-		FTexture2DRHIParamRef CameraTextureRef = overlayRTTRes2D->GetTextureRHI();
+		FRHITexture2D* CameraTextureRef = overlayRTTRes2D->GetTextureRHI();
 		FPicpProjectionOverlayCamera* overlayCamera = new FPicpProjectionOverlayCamera(CameraRotation, CameraLocation, Prj, CameraTextureRef);
 
 		// add inner camera
@@ -73,7 +73,7 @@ void UPicpProjectionAPIImpl::SetupOverlayCaptures(const TArray<struct FPicpOverl
 			FTextureRenderTargetResource* res = layer.SourceFrameCapture->GameThread_GetRenderTargetResource();
 
 			FTextureRenderTarget2DResource* rtt2d = (FTextureRenderTarget2DResource*)res;
-			FTexture2DRHIParamRef paramRef = rtt2d->GetTextureRHI();
+			FRHITexture2D* paramRef = rtt2d->GetTextureRHI();
 			FPicpProjectionOverlayViewport* overlayViewport = new FPicpProjectionOverlayViewport(paramRef);
 
 			if (layer.OverlayBlendMode == ECameraOverlayRenderMode::Over)

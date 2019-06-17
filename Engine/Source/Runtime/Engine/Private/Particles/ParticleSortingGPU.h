@@ -67,7 +67,7 @@ public:
 	/**
 	 * Retrieve the sorted vertex buffer that results will always be located at.
 	 */
-	FVertexBufferRHIParamRef GetSortedVertexBufferRHI(int32 BufferIndex)
+	FRHIVertexBuffer* GetSortedVertexBufferRHI(int32 BufferIndex)
 	{
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return VertexBuffers[BufferIndex];
@@ -145,7 +145,7 @@ struct FParticleSimulationSortInfo
 void SortParticlesGPU(
 	FRHICommandListImmediate& RHICmdList,
 	FParticleSortBuffers& ParticleSortBuffers,
-	FTexture2DRHIParamRef PositionTextureRHI,
+	FRHITexture2D* PositionTextureRHI,
 	const TArray<FParticleSimulationSortInfo>& SimulationsToSort,
 	ERHIFeatureLevel::Type FeatureLevel
 	);

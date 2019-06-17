@@ -233,7 +233,7 @@ int32 FUniformMeshConverter::Convert(
 	int32 LODIndex,
 	FUniformMeshBuffers*& OutUniformMeshBuffers,
 	const FMaterialRenderProxy*& OutMaterialRenderProxy,
-	FUniformBufferRHIParamRef& OutPrimitiveUniformBuffer)
+	FRHIUniformBuffer*& OutPrimitiveUniformBuffer)
 {
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
 	const auto FeatureLevel = View.GetFeatureLevel();
@@ -263,7 +263,7 @@ int32 FUniformMeshConverter::Convert(
 		UnbindRenderTargets(RHICmdList);
 
 		uint32 Offsets[1] = {0};
-		const FVertexBufferRHIParamRef StreamOutTargets[1] = {GUniformMeshTemporaryBuffers.TriangleData.GetReference()};
+		FRHIVertexBuffer* const StreamOutTargets[1] = {GUniformMeshTemporaryBuffers.TriangleData.GetReference()};
 		RHICmdList.SetStreamOutTargets(1, StreamOutTargets, Offsets);
 
 		for (int32 MeshIndex = 0; MeshIndex < MeshElements.Num(); MeshIndex++)
@@ -290,7 +290,7 @@ int32 FUniformMeshConverter::Convert(
 			}
 		}
 
-		RHICmdList.SetStreamOutTargets(1, (const FVertexBufferRHIParamRef*)NULL, Offsets);
+		RHICmdList.SetStreamOutTargets(1, nullptr, Offsets);
 	}
 
 	OutUniformMeshBuffers = &GUniformMeshTemporaryBuffers;
@@ -336,7 +336,7 @@ public:
 		int32 SurfelStartIndexValue,
 		int32 NumSurfelsToGenerateValue,
 		const FMaterialRenderProxy* MaterialProxy,
-		FUniformBufferRHIParamRef PrimitiveUniformBuffer,
+		FRHIUniformBuffer* PrimitiveUniformBuffer,
 		const FMatrix& Instance0Transform
 		)
 	{
@@ -395,7 +395,7 @@ void FUniformMeshConverter::GenerateSurfels(
 	FViewInfo& View, 
 	const FPrimitiveSceneInfo* PrimitiveSceneInfo, 
 	const FMaterialRenderProxy* MaterialProxy,
-	FUniformBufferRHIParamRef PrimitiveUniformBuffer, 
+	FRHIUniformBuffer* PrimitiveUniformBuffer,
 	const FMatrix& Instance0Transform,
 	int32 SurfelOffset,
 	int32 NumSurfels)

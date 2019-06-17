@@ -160,7 +160,7 @@ public:
 		if (Context.View.HasValidEyeAdaptation())
 		{
 			IPooledRenderTarget* EyeAdaptationRT = Context.View.GetEyeAdaptation(Context.RHICmdList);
-			FTextureRHIParamRef EyeAdaptationRTRef = EyeAdaptationRT->GetRenderTargetItem().TargetableTexture;
+			FRHITexture* EyeAdaptationRTRef = EyeAdaptationRT->GetRenderTargetItem().TargetableTexture;
 			if (EyeAdaptationRTRef)
 			{
 				Context.RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, &EyeAdaptationRTRef, 1);
@@ -192,7 +192,7 @@ public:
 		if (Context.View.HasValidEyeAdaptation())
 		{
 			IPooledRenderTarget* EyeAdaptationRT = Context.View.GetEyeAdaptation(Context.RHICmdList);
-			FTextureRHIParamRef EyeAdaptationRTRef = EyeAdaptationRT->GetRenderTargetItem().TargetableTexture;
+			FRHITexture* EyeAdaptationRTRef = EyeAdaptationRT->GetRenderTargetItem().TargetableTexture;
 			if (EyeAdaptationRTRef)
 			{
 				//Context.RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, &EyeAdaptationRTRef, 1);
