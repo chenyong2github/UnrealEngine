@@ -302,7 +302,10 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 
 	for ( FDataprepAssetProducer& AssetProducer : Producers )
 	{
-		if (AssetProducer.Producer && ( AssetProducer.bIsEnabled && AssetProducer.SupersededBy == INDEX_NONE ) )
+		const bool bIsOkToRun = AssetProducer.Producer && AssetProducer.bIsEnabled &&
+			( AssetProducer.SupersededBy == INDEX_NONE || !Producers[AssetProducer.SupersededBy].bIsEnabled );
+
+		if ( bIsOkToRun )
 		{
 			FString OutReason;
 			if (AssetProducer.Producer->Initialize( InContext, OutReason ))
@@ -516,13 +519,13 @@ void UDataprepAsset::OnBlueprintChanged( UBlueprint* InBlueprint )
 	}
 }
 
-void UDataprepAsset::ValidateProducerChanges( int32 Index, bool &bChangeAll )
+void UDataprepAsset::ValidateProducerChanges( int32 InIndex, bool &bChangeAll )
 {
 	bChangeAll = false;
 
-	if( Producers.IsValidIndex( Index ) && Producers.Num() > 1 )
+	if( Producers.IsValidIndex( InIndex ) && Producers.Num() > 1 )
 	{
-		FDataprepAssetProducer& InAssetProducer = Producers[Index];
+		FDataprepAssetProducer& InAssetProducer = Producers[InIndex];
 
 		// Check if input producer is still superseded if applicable
 		if( InAssetProducer.SupersededBy != INDEX_NONE )
@@ -539,7 +542,10 @@ void UDataprepAsset::ValidateProducerChanges( int32 Index, bool &bChangeAll )
 		int32 SupersederIndex = 0;
 		for( FDataprepAssetProducer& AssetProducer : Producers )
 		{
-			if( AssetProducer.Producer != InAssetProducer.Producer && AssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
+			if( AssetProducer.Producer != InAssetProducer.Producer &&
+				AssetProducer.bIsEnabled == true && 
+				AssetProducer.SupersededBy == INDEX_NONE && 
+				AssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
 			{
 				// Disable found producer if another producer supersedes its production
 				InAssetProducer.SupersededBy = SupersederIndex;
@@ -554,7 +560,7 @@ void UDataprepAsset::ValidateProducerChanges( int32 Index, bool &bChangeAll )
 		{
 			if( AssetProducer.Producer != InAssetProducer.Producer )
 			{
-				if( AssetProducer.SupersededBy == Index )
+				if( AssetProducer.SupersededBy == InIndex )
 				{
 					if( !InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
 					{
@@ -562,10 +568,10 @@ void UDataprepAsset::ValidateProducerChanges( int32 Index, bool &bChangeAll )
 						AssetProducer.SupersededBy = INDEX_NONE;
 					}
 				}
-				else if( InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
+				else if( InAssetProducer.SupersededBy == INDEX_NONE && InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
 				{
 					bChangeAll = true;
-					AssetProducer.SupersededBy = Index;
+					AssetProducer.SupersededBy = InIndex;
 				}
 			}
 		}
