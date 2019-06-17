@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "ProxyLODMeshParameterization.h"
+#include "CoreMinimal.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <UVAtlasCode/UVAtlas/inc/UVAtlas.h>
@@ -10,6 +11,157 @@ THIRD_PARTY_INCLUDES_END
 
 #include "ProxyLODThreadedWrappers.h"
 #include "ProxyLODMeshUtilities.h"
+
+
+bool ProxyLOD::GenerateUVs(const FTextureAtlasDesc& TextureAtlasDesc,
+	                       const TArray<FVector>&   VertexBuffer, 
+	                       const TArray<int32>&     IndexBuffer, 
+						   const TArray<int32>&     AdjacencyBuffer,
+	                       TFunction<bool(float)>&  Callback, 
+	                       TArray<FVector2D>&       UVVertexBuffer, 
+	                       TArray<int32>&           UVIndexBuffer, 
+	                       TArray<int32>&           VertexRemapArray, 
+	                       float&                   MaxStretch, 
+	                       int32&                   NumCharts)
+{
+	const int32 NumVerts   = VertexBuffer.Num();
+	const int32 NumIndices = IndexBuffer.Num();
+	const int32 NumFaces   = IndexBuffer.Num() / 3;
+
+	// Copy data into DirectX library format
+	DirectX::XMFLOAT3* PosArray = new DirectX::XMFLOAT3[NumVerts];
+	uint32* Indices             = new uint32[NumIndices];
+	uint32* AdjacencyArray      = new uint32[3 * NumFaces];
+	{
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			const FVector& Vertex = VertexBuffer[i];
+			PosArray[i] = DirectX::XMFLOAT3(Vertex.X, Vertex.Y, Vertex.Z);
+		}
+		for (int32 i = 0; i < NumIndices; ++i)
+		{
+			Indices[i] = (uint32)IndexBuffer[i];
+		}
+		for (int32 i = 0, I = NumFaces * 3; i <  I; ++i)
+		{
+			AdjacencyArray[i] = static_cast<uint32>(AdjacencyBuffer[i]);
+		}
+
+	}
+
+
+	// Verify the mesh is valid
+	{
+		HRESULT ValidateHR = DirectX::Validate(Indices, NumFaces, NumVerts, AdjacencyArray, DirectX::VALIDATE_BOWTIES, NULL);
+		if (FAILED(ValidateHR))
+		{
+			return false;
+		}
+	}
+
+	// Capture the callback and convert result type
+	auto StatusCallBack = [&Callback](float percentComplete)->HRESULT
+	{
+		//return S_OK;
+		return (Callback(percentComplete)) ? S_OK : S_FALSE;
+	};
+
+	
+
+	// Translate controls into corret types
+	const size_t NumChartsIn  = (size_t)NumCharts;
+	const float  MaxStretchIn = MaxStretch;
+
+	const size_t Width  = TextureAtlasDesc.Size.X;
+	const size_t Height = TextureAtlasDesc.Size.Y;
+	const float  Gutter = TextureAtlasDesc.Gutter;
+
+	// Symmetric Identity matrix used for the signal
+	float * pIMTArray = new float[NumFaces * 3];
+	{
+		for (int32 f = 0; f < NumFaces; ++f)
+		{
+			int32 offset = 3 * f;
+			{
+				pIMTArray[offset + 0] = 1.f;
+				pIMTArray[offset + 1] = 0.f;
+				pIMTArray[offset + 2] = 1.f;
+			}
+		}
+	}
+
+
+	size_t NumChartsOut = 0;
+	float MaxStretchOut = 0.f;
+	
+	// info to capture
+	std::vector<DirectX::UVAtlasVertex> VB;
+	std::vector<uint8>  IB;
+	std::vector<uint32> RemapArray;
+	std::vector<uint32> FacePartitioning;
+
+	// Generate UVs
+	HRESULT hr = DirectX::UVAtlasCreate(PosArray, NumVerts,
+		                                Indices, DXGI_FORMAT_R32_UINT, NumFaces,
+		                                NumChartsIn, MaxStretchIn,
+		                                Width, Height, Gutter,
+		                                AdjacencyArray, NULL /*false adj*/, pIMTArray /*IMTArray*/,
+		                                StatusCallBack, DirectX::UVATLAS_DEFAULT_CALLBACK_FREQUENCY,
+		                                DirectX::UVATLAS_DEFAULT, VB, IB,
+		                                &FacePartitioning, &RemapArray, &MaxStretchOut, &NumChartsOut);
+
+
+	// Translate results to output form.
+	if (hr == S_OK)
+	{
+		const int32 NumUVverts    = (int32)VB.size();
+		const int32 NumUVindices  = (int32)IB.size();
+		const int32 NumRemapArray = (int32)RemapArray.size();
+
+		// empty and resize
+
+		UVVertexBuffer.Empty(NumUVverts);
+		UVIndexBuffer.Empty(NumUVindices);
+		VertexRemapArray.Empty(NumRemapArray);
+
+		for (const DirectX::UVAtlasVertex& UVvertex : VB)
+		{
+			const auto& UV = UVvertex.uv;
+			UVVertexBuffer.Emplace(FVector2D(UV.x, UV.y));
+		}
+
+		// This part is weird
+		{
+			std::vector<uint32> indices;
+			indices.resize(3 * NumFaces);
+			std::memcpy(indices.data(), IB.data(), sizeof(uint32) * 3 * NumFaces);
+
+			for (uint32 i : indices)
+			{
+				UVIndexBuffer.Add(i);
+			}
+		}
+
+		for (const uint32 i : RemapArray)
+		{
+			int32 r = i;
+			VertexRemapArray.Add(r);
+		}
+
+		MaxStretch = MaxStretchOut;
+		NumCharts  = (int32)NumChartsOut;
+	}
+
+	// Clean up
+	delete[] pIMTArray;
+	delete[] PosArray;
+	delete[] Indices;
+	delete[] AdjacencyArray;
+	
+
+	return (hr == S_OK) ? true : false;
+}
+
 
 bool ProxyLOD::GenerateUVs(FVertexDataMesh& InOutMesh, const FTextureAtlasDesc& TextureAtlasDesc, const bool VertexColorParts)
 {
