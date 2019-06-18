@@ -745,6 +745,15 @@ bool UEdGraphNode::CanDuplicateNode() const
 	return true;
 }
 
+bool UEdGraphNode::GetCanRenameNode() const
+{
+#if WITH_EDITORONLY_DATA
+	return bCanRenameNode;
+#else
+	return false;
+#endif
+}
+
 bool UEdGraphNode::CanUserDeleteNode() const
 {
 	return true;
