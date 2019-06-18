@@ -81,6 +81,7 @@ static const TMap<FString, FDataDrivenPlatformInfoRegistry::FPlatformInfo>& GetA
 				// cache info
 				FDataDrivenPlatformInfoRegistry::FPlatformInfo& Info = DataDrivenPlatforms.Add(PlatformName, FDataDrivenPlatformInfoRegistry::FPlatformInfo());
 				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bIsConfidential"), Info.bIsConfidential);
+				IniFile.GetBool(TEXT("DataDrivenPlatformInfo"), TEXT("bRestrictLocalization"), Info.bRestrictLocalization);
 
 				// get the parent to build list later
 				FString IniParent;
