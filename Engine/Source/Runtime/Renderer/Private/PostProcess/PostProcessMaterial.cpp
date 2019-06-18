@@ -18,8 +18,12 @@
 #include "RHI/Public/PipelineStateCache.h"
 #include "PostProcessing.h"
 #include "PostProcessMobile.h"
+#include "BufferVisualizationData.h"
 
-static TAutoConsoleVariable<int32> CVarPostProcessAllowStencilTest(
+namespace
+{
+
+TAutoConsoleVariable<int32> CVarPostProcessAllowStencilTest(
 	TEXT("r.PostProcessAllowStencilTest"),
 	1,
 	TEXT("Enables stencil testing in post process materials.\n")
@@ -28,7 +32,7 @@ static TAutoConsoleVariable<int32> CVarPostProcessAllowStencilTest(
 	TEXT("2: allow stencil testing and, if necessary, making a copy of custom depth/stencil buffer\n")
 	);
 
-static TAutoConsoleVariable<int32> CVarPostProcessAllowBlendModes(
+TAutoConsoleVariable<int32> CVarPostProcessAllowBlendModes(
 	TEXT("r.PostProcessAllowBlendModes"),
 	1,
 	TEXT("Enables blend modes in post process materials.\n")
@@ -36,610 +40,748 @@ static TAutoConsoleVariable<int32> CVarPostProcessAllowBlendModes(
 	TEXT("1: allow blend modes\n")
 	);
 
-enum class EPostProcessMaterialTarget
-{
-	HighEnd,
-	Mobile
-};
+TAutoConsoleVariable<int32> CVarPostProcessingDisableMaterials(
+	TEXT("r.PostProcessing.DisableMaterials"),
+	0,
+	TEXT(" Allows to disable post process materials. \n"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static bool ShouldCachePostProcessMaterial(EPostProcessMaterialTarget MaterialTarget, EShaderPlatform Platform, const FMaterial* Material)
+bool IsPostProcessStencilTestAllowed()
 {
-	if (Material->GetMaterialDomain() == MD_PostProcess)
-	{
-		switch (MaterialTarget)
-		{
-		case EPostProcessMaterialTarget::HighEnd:
-			return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4);
-		case EPostProcessMaterialTarget::Mobile:
-			return IsMobilePlatform(Platform) && IsMobileHDR();
-		}
-	}
-
-	return false;
+	return CVarPostProcessAllowStencilTest.GetValueOnRenderThread() != 0;
 }
 
-template<EPostProcessMaterialTarget MaterialTarget, bool bSwitchVerticalAxis>
-class FPostProcessMaterialVS : public FMaterialShader
+bool IsPostProcessStencilTestWithCopyAllowed()
 {
-	DECLARE_SHADER_TYPE(FPostProcessMaterialVS, Material);
-public:
+	return CVarPostProcessAllowStencilTest.GetValueOnRenderThread() == 2;
+}
 
-	/**
-	  * Only compile these shaders for post processing domain materials
-	  */
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
-	{
-		return ShouldCachePostProcessMaterial(MaterialTarget, Parameters.Platform, Parameters.Material)
-			// compile mobile axis switched versions only for after tonemapper passes
-			&& (bSwitchVerticalAxis == false || (RHINeedsToSwitchVerticalAxis(Parameters.Platform) && Parameters.Material->GetBlendableLocation() == BL_AfterTonemapping));
-	}
+bool IsCustomDepthEnabled()
+{
+	static const IConsoleVariable* CVarCustomDepth = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
 
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	check(CVarCustomDepth);
 
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
-		OutEnvironment.SetDefine(TEXT("NEEDTOSWITCHVERTICLEAXIS"), bSwitchVerticalAxis);
+	return CVarCustomDepth->GetInt() == 3;
+}
 
-		if (MaterialTarget == EPostProcessMaterialTarget::Mobile)
-		{
-			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
-		}
-	}
-	
-	FPostProcessMaterialVS( )	{ }
-	FPostProcessMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMaterialShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-	}
+enum class ECustomDepthPolicy : uint32
+{
+	// Custom depth is disabled.
+	Disabled,
 
-	void SetParameters(FRHICommandList& RHICmdList, const FRenderingCompositePassContext& Context, const FMaterialRenderProxy* Proxy)
-	{
-		FRHIVertexShader* ShaderRHI = GetVertexShader();
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Proxy, *Proxy->GetMaterial(Context.View.GetFeatureLevel()), Context.View, Context.View.ViewUniformBuffer, ESceneTextureSetupMode::All);
-		PostprocessParameter.SetVS(ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-	}
+	// Custom Depth-Stencil is enabled; potentially simultaneous SRV / DSV usage.
+	Enabled,
 
-	// Begin FShader interface
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		Ar << PostprocessParameter;
-		return bShaderHasOutdatedParameters;
-	}
-	//  End FShader interface 
-private:
-	FPostProcessPassParameters PostprocessParameter;
+	// Custom Depth-Stencil is enabled; but makes a copy of the target to avoid simultaneous SRV / DSV usage.
+	EnabledWithCopy
 };
 
-typedef FPostProcessMaterialVS<EPostProcessMaterialTarget::HighEnd, false> FPostProcessMaterialVS_HighEnd;
-typedef FPostProcessMaterialVS<EPostProcessMaterialTarget::Mobile, false> FPostProcessMaterialVS_Mobile;
-typedef FPostProcessMaterialVS<EPostProcessMaterialTarget::Mobile, true> FPostProcessMaterialVS_Mobile_AxisSwitch;
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FPostProcessMaterialVS_HighEnd,TEXT("/Engine/Private/PostProcessMaterialShaders.usf"),TEXT("MainVS"),SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FPostProcessMaterialVS_Mobile,TEXT("/Engine/Private/PostProcessMaterialShaders.usf"),TEXT("MainVS_ES2"),SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>,FPostProcessMaterialVS_Mobile_AxisSwitch,TEXT("/Engine/Private/PostProcessMaterialShaders.usf"),TEXT("MainVS_ES2"),SF_Vertex);
-
-/**
- * A pixel shader for rendering a post process material
- */
-template<EPostProcessMaterialTarget MaterialTarget, uint32 UVPolicy, bool bSwitchVerticalAxis>
-class FPostProcessMaterialPS : public FMaterialShader
+ECustomDepthPolicy GetMaterialCustomDepthPolicy(const FMaterial* Material, ERHIFeatureLevel::Type FeatureLevel)
 {
-	DECLARE_SHADER_TYPE(FPostProcessMaterialPS,Material);
-public:
+	check(Material);
 
-	/**
-	  * Only compile these shaders for post processing domain materials
-	  */
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	// Material requesting stencil test and post processing CVar allows it.
+	if (Material->IsStencilTestEnabled() && IsPostProcessStencilTestAllowed())
 	{
-		return ShouldCachePostProcessMaterial(MaterialTarget, Parameters.Platform, Parameters.Material)
-			// compile mobile axis switched versions only for after tonemapper passes
-			&& (bSwitchVerticalAxis == false || (RHINeedsToSwitchVerticalAxis(Parameters.Platform) && Parameters.Material->GetBlendableLocation() == BL_AfterTonemapping));
-	}
-
-	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_UV_POLICY"), UVPolicy);
-
-		EBlendableLocation Location = EBlendableLocation(Parameters.Material->GetBlendableLocation());
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE"), (Location == BL_AfterTonemapping || Location == BL_ReplacingTonemapper) ? 1 : 0);
-
-		OutEnvironment.SetDefine(TEXT("NEEDTOSWITCHVERTICLEAXIS"), bSwitchVerticalAxis);
-
-		if (MaterialTarget == EPostProcessMaterialTarget::Mobile)
+		// Custom stencil texture allocated and available.
+		if (IsCustomDepthEnabled())
 		{
-			OutEnvironment.SetDefine(TEXT("MOBILE_FORCE_DEPTH_TEXTURE_READS"), 1); // Ensure post process materials will not attempt depth buffer fetch operations.
-			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Location != BL_AfterTonemapping) ? 1 : 0);
+			if (FeatureLevel == ERHIFeatureLevel::SM4)
+			{
+				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
+
+				const bool bIsDepthStencilReadByShader = MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
+
+				if (!bIsDepthStencilReadByShader)
+				{
+					return ECustomDepthPolicy::Enabled;
+				}
+				else if (IsPostProcessStencilTestWithCopyAllowed())
+				{
+					return ECustomDepthPolicy::EnabledWithCopy;
+				}
+			}
+			else
+			{
+				return ECustomDepthPolicy::Enabled;
+			}
+		}
+		else
+		{
+			UE_LOG(LogRenderer, Warning, TEXT("PostProcessMaterial uses stencil test, but stencil not allocated. Set r.CustomDepth to 3 to allocate custom stencil."));
 		}
 	}
 
-	FPostProcessMaterialPS() {}
-	FPostProcessMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FMaterialShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-	}
+	return ECustomDepthPolicy::Disabled;
+}
 
-	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FMaterialRenderProxy* Proxy)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Proxy, *Proxy->GetMaterial(Context.View.GetFeatureLevel()), Context.View, Context.View.ViewUniformBuffer, ESceneTextureSetupMode::All);
-		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		Ar << PostprocessParameter;
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FPostProcessPassParameters PostprocessParameter;
-};
-
-typedef FPostProcessMaterialPS<EPostProcessMaterialTarget::HighEnd, 0, false> FFPostProcessMaterialPS_HighEnd0;
-typedef FPostProcessMaterialPS<EPostProcessMaterialTarget::HighEnd, 1, false> FFPostProcessMaterialPS_HighEnd1;
-typedef FPostProcessMaterialPS<EPostProcessMaterialTarget::Mobile, 0, false> FPostProcessMaterialPS_Mobile0;
-typedef FPostProcessMaterialPS<EPostProcessMaterialTarget::Mobile, 1, false> FPostProcessMaterialPS_Mobile1;
-typedef FPostProcessMaterialPS<EPostProcessMaterialTarget::Mobile, 0, true> FPostProcessMaterialPS_Mobile0_AxisSwitch;
-typedef FPostProcessMaterialPS<EPostProcessMaterialTarget::Mobile, 1,true> FPostProcessMaterialPS_Mobile1_AxisSwitch;
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FFPostProcessMaterialPS_HighEnd0, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FFPostProcessMaterialPS_HighEnd1, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FPostProcessMaterialPS_Mobile0, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_ES2"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FPostProcessMaterialPS_Mobile1, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_ES2"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FPostProcessMaterialPS_Mobile0_AxisSwitch, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_ES2"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FPostProcessMaterialPS_Mobile1_AxisSwitch, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_ES2"), SF_Pixel);
-
-FRCPassPostProcessMaterial::FRCPassPostProcessMaterial(UMaterialInterface* InMaterialInterface, ERHIFeatureLevel::Type InFeatureLevel, EPixelFormat OutputFormatIN)
-: MaterialInterface(InMaterialInterface), OutputFormat(OutputFormatIN)
+void GetMaterialInfo(
+	const UMaterialInterface* InMaterialInterface,
+	ERHIFeatureLevel::Type InFeatureLevel,
+	EPixelFormat InOutputFormat,
+	const FMaterial*& OutMaterial,
+	const FMaterialRenderProxy*& OutMaterialProxy,
+	const FMaterialShaderMap*& OutMaterialShaderMap)
 {
-	FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy();
-	check(Proxy);
+	const FMaterialRenderProxy* MaterialProxy = InMaterialInterface->GetRenderProxy();
+	check(MaterialProxy);
 
-	const FMaterial* Material = Proxy->GetMaterialNoFallback(InFeatureLevel);
-	
-	if (!Material || Material->GetMaterialDomain() != MD_PostProcess)
+	const FMaterial* Material = MaterialProxy->GetMaterialNoFallback(InFeatureLevel);
+
+	if (!Material || Material->GetMaterialDomain() != MD_PostProcess || !Material->GetRenderingThreadShaderMap())
 	{
-		MaterialInterface = UMaterial::GetDefaultMaterial(MD_PostProcess);
+		// Fallback to the default post process material.
+		const UMaterialInterface* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_PostProcess);
+		check(DefaultMaterial);
+		check(DefaultMaterial != InMaterialInterface);
+
+		return GetMaterialInfo(
+			DefaultMaterial,
+			InFeatureLevel,
+			InOutputFormat,
+			OutMaterial,
+			OutMaterialProxy,
+			OutMaterialShaderMap);
 	}
 
-	if (Material && (Material->IsStencilTestEnabled() || Material->GetBlendableOutputAlpha()))
+	if (Material->IsStencilTestEnabled() || Material->GetBlendableOutputAlpha())
 	{
 		// Only allowed to have blend/stencil test if output format is compatible with ePId_Input0. 
 		// PF_Unknown implies output format is that of EPId_Input0
-		ensure(OutputFormat == PF_Unknown);
+		ensure(InOutputFormat == PF_Unknown);
 	}
+
+	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();;
+	check(MaterialShaderMap);
+
+	OutMaterial = Material;
+	OutMaterialProxy = MaterialProxy;
+	OutMaterialShaderMap = MaterialShaderMap;
 }
-		
-/** The filter vertex declaration resource type. */
+
+FRHIDepthStencilState* GetMaterialStencilState(const FMaterial* Material)
+{
+	static FRHIDepthStencilState* StencilStates[] =
+	{
+		TStaticDepthStencilState<false, CF_Always, true, CF_Less>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_LessEqual>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_Greater>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_GreaterEqual>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_Equal>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_NotEqual>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_Never>::GetRHI(),
+		TStaticDepthStencilState<false, CF_Always, true, CF_Always>::GetRHI(),
+	};
+	static_assert(EMaterialStencilCompare::MSC_Count == ARRAY_COUNT(StencilStates), "Ensure that all EMaterialStencilCompare values are accounted for.");
+
+	check(Material);
+
+	return StencilStates[Material->GetStencilCompare()];
+}
+
+bool IsMaterialBlendEnabled(const FMaterial* Material)
+{
+	check(Material);
+
+	return Material->GetBlendableOutputAlpha() && CVarPostProcessAllowBlendModes.GetValueOnRenderThread() != 0;
+}
+
+FRHIBlendState* GetMaterialBlendState(const FMaterial* Material)
+{
+	static FRHIBlendState* BlendStates[] =
+	{
+		TStaticBlendState<>::GetRHI(),
+		TStaticBlendState<>::GetRHI(),
+		TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(),
+		TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI(),
+		TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI(),
+		TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI(),
+		TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI(),
+	};
+	static_assert(EBlendMode::BLEND_MAX == ARRAY_COUNT(BlendStates), "Ensure that all EBlendMode values are accounted for.");
+
+	check(Material);
+
+	return BlendStates[Material->GetBlendMode()];
+}
+
+class FPostProcessMaterialShader : public FMaterialShader
+{
+public:
+	using FParameters = FPostProcessMaterialParameters;
+	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FPostProcessMaterialShader, FMaterialShader);
+
+	class FMobileDimension : SHADER_PERMUTATION_BOOL("POST_PROCESS_MATERIAL_MOBILE");
+	using FPermutationDomain = TShaderPermutationDomain<FMobileDimension>;
+
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
+		if (Parameters.Material->GetMaterialDomain() == MD_PostProcess)
+		{
+			const FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+			if (PermutationVector.Get<FMobileDimension>())
+			{
+				return IsMobilePlatform(Parameters.Platform) && IsMobileHDR();
+			}
+			else
+			{
+				return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+			}
+		}
+		return false;
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+		if (PermutationVector.Get<FMobileDimension>())
+		{
+			OutEnvironment.SetDefine(TEXT("MOBILE_FORCE_DEPTH_TEXTURE_READS"), 1); // Ensure post process materials will not attempt depth buffer fetch operations.
+			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+		}
+	}
+
+protected:
+	template <typename TRHIShader>
+	void SetParameters(FRHICommandList& RHICmdList, TRHIShader* ShaderRHI, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
+	{
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Proxy, *Proxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::All);
+		SetShaderParameters(RHICmdList, this, ShaderRHI, Parameters);
+	}
+};
+
+class FPostProcessMaterialVS : public FPostProcessMaterialShader
+{
+public:
+	DECLARE_MATERIAL_SHADER(FPostProcessMaterialVS);
+
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
+	{
+		FPostProcessMaterialShader::SetParameters(RHICmdList, GetVertexShader(), View, Proxy, Parameters);
+	}
+
+	FPostProcessMaterialVS() = default;
+	FPostProcessMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FPostProcessMaterialShader(Initializer)
+	{}
+};
+
+class FPostProcessMaterialPS : public FPostProcessMaterialShader
+{
+public:
+	DECLARE_MATERIAL_SHADER(FPostProcessMaterialPS);
+
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* Proxy, const FParameters& Parameters)
+	{
+		FPostProcessMaterialShader::SetParameters(RHICmdList, GetPixelShader(), View, Proxy, Parameters);
+	}
+
+	FPostProcessMaterialPS() = default;
+	FPostProcessMaterialPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FPostProcessMaterialShader(Initializer)
+	{}
+};
+
+IMPLEMENT_MATERIAL_SHADER(FPostProcessMaterialVS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainVS", SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER(FPostProcessMaterialPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS", SF_Pixel);
+
 class FPostProcessMaterialVertexDeclaration : public FRenderResource
 {
 public:
 	FVertexDeclarationRHIRef VertexDeclarationRHI;
-	
-	/** Destructor. */
-	virtual ~FPostProcessMaterialVertexDeclaration() {}
-	
-	virtual void InitRHI()
+
+	void InitRHI() override
 	{
 		FVertexDeclarationElementList Elements;
 		uint32 Stride = sizeof(FFilterVertex);
-		Elements.Add(FVertexElement(0,STRUCT_OFFSET(FFilterVertex,Position),VET_Float4,0,Stride));
+		Elements.Add(FVertexElement(0, STRUCT_OFFSET(FFilterVertex, Position), VET_Float4, 0, Stride));
 		VertexDeclarationRHI = PipelineStateCache::GetOrCreateVertexDeclaration(Elements);
 	}
-	
-	virtual void ReleaseRHI()
+
+	void ReleaseRHI() override
 	{
 		VertexDeclarationRHI.SafeRelease();
 	}
 };
+
 TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVertexDeclaration;
 
-template<typename TVertexShader, typename TPixelShader>
-FShader* SetMobileShaders(const FMaterialShaderMap* MaterialShaderMap, FGraphicsPipelineStateInitializer &GraphicsPSOInit, FRenderingCompositePassContext &Context, FMaterialRenderProxy* Proxy)
+} //! namespace
+
+FPostProcessMaterialInput GetPostProcessMaterialInput(FIntRect ViewportRect, FRDGTextureRef Texture, FRHISamplerState* Sampler)
 {
-	TPixelShader* PixelShader_Mobile = MaterialShaderMap->GetShader<TPixelShader>();
-	TVertexShader* VertexShader_Mobile = MaterialShaderMap->GetShader<TVertexShader>();
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader_Mobile);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader_Mobile);
-
-	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-	VertexShader_Mobile->SetParameters(Context.RHICmdList, Context, Proxy);
-	PixelShader_Mobile->SetParameters(Context.RHICmdList, Context, Proxy);
-	return VertexShader_Mobile;
+	FPostProcessMaterialInput Input;
+	Input.Viewport = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(ViewportRect, Texture));
+	Input.Texture = Texture;
+	Input.Sampler = Sampler;
+	return Input;
 }
 
-void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context)
+FRDGTextureRef ComputePostProcessMaterial(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const UMaterialInterface* MaterialInterface,
+	const FPostProcessMaterialInputs& Inputs)
 {
-	FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy();
-	check(Proxy);
+	Inputs.Validate();
+
+	FRDGTextureRef SceneColorTexture = nullptr;
+	FIntRect SceneColorViewportRect;
+	Inputs.GetInput(EPostProcessMaterialInput::SceneColor, SceneColorTexture, SceneColorViewportRect);
+
+	const FScreenPassTextureViewport SceneColorViewport(SceneColorViewportRect, SceneColorTexture);
+
+	const ERHIFeatureLevel::Type FeatureLevel = ScreenPassView.View.GetFeatureLevel();
+
+	const FMaterial* Material = nullptr;
+	const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
+	const FMaterialShaderMap* MaterialShaderMap = nullptr;
+	GetMaterialInfo(MaterialInterface, FeatureLevel, Inputs.OverrideOutputFormat, Material, MaterialRenderProxy, MaterialShaderMap);
+
+	RDG_EVENT_SCOPE(GraphBuilder, "PostProcessMaterial %dx%d Material=%s", SceneColorViewport.Rect.Width(), SceneColorViewport.Rect.Height(), *Material->GetFriendlyName());
+
+	FRHIDepthStencilState* DefaultDepthStencilState = FScreenPassDrawInfo::FDefaultDepthStencilState::GetRHI();
+	FRHIDepthStencilState* DepthStencilState = DefaultDepthStencilState;
+
+	FRDGTextureRef DepthStencilTexture = nullptr;
+	FRDGTextureRef DepthStencilTextureForSRV = nullptr;
+
+	// Allocate custom depth stencil texture(s) and depth stencil state.
+	const ECustomDepthPolicy CustomStencilPolicy = GetMaterialCustomDepthPolicy(Material, FeatureLevel);
+
+	if (CustomStencilPolicy != ECustomDepthPolicy::Disabled)
+	{
+		check(Inputs.CustomDepthTexture);
+
+		DepthStencilTexture = Inputs.CustomDepthTexture;
+
+		if (CustomStencilPolicy == ECustomDepthPolicy::EnabledWithCopy)
+		{
+			// NOTE: SM4 does not allow depth stencil to be a destination for a copy. Therefore,
+			// we create a shader resource texture and copy into that.
+			FRDGTextureDesc CopyDesc = Inputs.CustomDepthTexture->Desc;
+			CopyDesc.Flags = TexCreate_None;
+			CopyDesc.TargetableFlags = TexCreate_ShaderResource;
+
+			DepthStencilTextureForSRV = GraphBuilder.CreateTexture(CopyDesc, TEXT("CustomDepthCopy"));
+
+			AddCopyTexturePass(GraphBuilder, DepthStencilTexture, DepthStencilTextureForSRV);
+		}
+		else
+		{
+			DepthStencilTextureForSRV = DepthStencilTexture;
+		}
+
+		DepthStencilState = GetMaterialStencilState(Material);
+	}
+
+	FRHIBlendState* DefaultBlendState = FScreenPassDrawInfo::FDefaultBlendState::GetRHI();
+	FRHIBlendState* BlendState = GetMaterialBlendState(Material);
+
+	const FViewInfo& View = ScreenPassView.View;
+
+	// Blend / Depth Stencil usage requires that the render target have primed color data.
+	const bool bIsCompositeWithInput = DepthStencilState != DefaultDepthStencilState || BlendState != DefaultBlendState;
+
+	// Multiple views are composited onto the same target.
+	const bool bIsNotPrimaryView = (&View != View.Family->Views[0]);
+
+	// We only prime color on the output texture if we are using fixed function Blend / Depth-Stencil,
+	// or we need to retain previously rendered views.
+	const bool bPrimeOutputColor = bIsCompositeWithInput || bIsNotPrimaryView;
+
+	FRDGTextureRef OutputTexture = Inputs.OverrideOutputTexture;
+
+	// We can re-use the scene color texture as the render target if we're not simultaneously reading from it.
+	if (!OutputTexture && !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0))
+	{
+		OutputTexture = SceneColorTexture;
+	}
+	else
+	{
+		// Allocate new transient output texture if none exists.
+		if (!OutputTexture)
+		{
+			const EPixelFormat OverrideOutputFormat = Inputs.OverrideOutputFormat;
+
+			FRDGTextureDesc OutputTextureDesc = SceneColorTexture->Desc;
+			if (OverrideOutputFormat != PF_Unknown)
+			{
+				OutputTextureDesc.Format = OverrideOutputFormat;
+			}
+			OutputTextureDesc.Reset();
+			OutputTextureDesc.ClearValue = FClearValueBinding(FLinearColor::Black);
+			OutputTextureDesc.Flags |= GFastVRamConfig.PostProcessMaterial;
+
+			OutputTexture = GraphBuilder.CreateTexture(OutputTextureDesc, TEXT("PostProcessMaterialOutput"));
+		}
+
+		if (bPrimeOutputColor)
+		{
+			// Copy existing contents to new output and use load-action to preserve untouched pixels.
+			AddDrawTexturePass(GraphBuilder, ScreenPassView, SceneColorTexture, OutputTexture);
+		}
+	}
+
+	ERenderTargetLoadAction OutputLoadAction = ERenderTargetLoadAction::ENoAction;
+
+	// We have color data that needs to be loaded.
+	if (bPrimeOutputColor)
+	{
+		OutputLoadAction = ERenderTargetLoadAction::ELoad;
+	}
+	// HMD masks leave unrendered pixels; perform a clear instead.
+	else if (ScreenPassView.bHasHMDMask)
+	{
+		OutputLoadAction = ERenderTargetLoadAction::EClear;
+	}
+
+	FPostProcessMaterialParameters* PostProcessMaterialParameters = GraphBuilder.AllocParameters<FPostProcessMaterialParameters>();
+
+	PostProcessMaterialParameters->PostProcessOutput = GetScreenPassTextureViewportParameters(SceneColorViewport);
+	PostProcessMaterialParameters->CustomDepth = DepthStencilTextureForSRV;
+
+	PostProcessMaterialParameters->RenderTargets[0] = FRenderTargetBinding(
+		OutputTexture,
+		OutputLoadAction,
+		ERenderTargetStoreAction::EStore);
+
+	if (DepthStencilTexture)
+	{
+		PostProcessMaterialParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+			DepthStencilTexture,
+			ERenderTargetLoadAction::ENoAction,
+			ERenderTargetStoreAction::ENoAction,
+			ERenderTargetLoadAction::ELoad,
+			ERenderTargetStoreAction::ENoAction,
+			FExclusiveDepthStencil::DepthRead_StencilRead);
+	}
+
+	PostProcessMaterialParameters->PostProcessInput_BilinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();;
+
+	FRDGTextureRef BlackTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+
+	FRHISamplerState* PointClampSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	for (uint32 InputIndex = 0; InputIndex < kPostProcessMaterialInputCountMax; ++InputIndex)
+	{
+		FRDGTextureRef InputTexture = nullptr;
+		FIntRect InputViewportRect;
+		Inputs.GetInput((EPostProcessMaterialInput)InputIndex, InputTexture, InputViewportRect);
+
+		// Need to provide valid textures for when shader compilation doesn't cull unused parameters.
+		if (!InputTexture || !MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0 + InputIndex))
+		{
+			InputTexture = BlackTexture;
+		}
+
+		PostProcessMaterialParameters->PostProcessInput[InputIndex] = GetPostProcessMaterialInput(InputViewportRect, InputTexture, PointClampSampler);
+	}
+
+	const bool bIsMobile = FeatureLevel <= ERHIFeatureLevel::ES3_1;
+
+	const bool bFlipYAxis = Inputs.bFlipYAxis && RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]);
+
+	PostProcessMaterialParameters->bFlipYAxis = bFlipYAxis;
+
+	FPostProcessMaterialShader::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FPostProcessMaterialShader::FMobileDimension>(bIsMobile);
+
+	FPostProcessMaterialVS* VertexShader = MaterialShaderMap->GetShader<FPostProcessMaterialVS>(PermutationVector);
+	FPostProcessMaterialPS* PixelShader = MaterialShaderMap->GetShader<FPostProcessMaterialPS>(PermutationVector);
+
+	const uint32 MaterialStencilRef = Material->GetStencilRefValue();
+
+	const auto SetupFunction = [VertexShader, PixelShader, &ScreenPassView, MaterialRenderProxy, PostProcessMaterialParameters, MaterialStencilRef]
+		(FRHICommandListImmediate& RHICmdList)
+	{
+		VertexShader->SetParameters(RHICmdList, ScreenPassView.View, MaterialRenderProxy, *PostProcessMaterialParameters);
+		PixelShader->SetParameters(RHICmdList, ScreenPassView.View, MaterialRenderProxy, *PostProcessMaterialParameters);
+		RHICmdList.SetStencilRef(MaterialStencilRef);
+	};
+
+	const FScreenPassDrawInfo ScreenPassDraw(
+		VertexShader,
+		PixelShader,
+		BlendState,
+		DepthStencilState,
+		bFlipYAxis ? FScreenPassDrawInfo::EFlags::FlipYAxis : FScreenPassDrawInfo::EFlags::None);
+
+	ScreenPassDraw.Validate();
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("PostProcessMaterial"),
+		PostProcessMaterialParameters,
+		ERenderGraphPassFlags::None,
+		[ScreenPassView, SceneColorViewport, ScreenPassDraw, PostProcessMaterialParameters, DepthStencilTexture, DepthStencilTextureForSRV, SetupFunction, bFlipYAxis]
+		(FRHICommandListImmediate& RHICmdList)
+	{
+		const bool bUsesDepthStencilCopy = DepthStencilTexture != DepthStencilTextureForSRV;
+
+		if (bUsesDepthStencilCopy)
+		{
+			// Swap in the new copied SRV just prior to rendering.
+			FSceneRenderTargets::Get(RHICmdList).CustomDepth = DepthStencilTextureForSRV->GetPooledRenderTarget();
+		}
+
+		DrawScreenPass<decltype(SetupFunction)>(
+			RHICmdList,
+			ScreenPassView,
+			SceneColorViewport,
+			SceneColorViewport,
+			ScreenPassDraw,
+			SetupFunction);
+
+		if (bUsesDepthStencilCopy)
+		{
+			// Swap back to the up-to-date target.
+			FSceneRenderTargets::Get(RHICmdList).CustomDepth = DepthStencilTexture->GetPooledRenderTarget();
+		}
+	});
+
+	return OutputTexture;
+}
+
+FRenderingCompositePass* AddPostProcessMaterialPass(
+	const FPostprocessContext& PostProcessContext,
+	const UMaterialInterface* MaterialInterface,
+	EPixelFormat OverrideOutputFormat)
+{
+	const FMaterial* Material = nullptr;
+
+	{
+		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;
+		const FMaterialShaderMap* MaterialShaderMap = nullptr;
+		GetMaterialInfo(MaterialInterface, PostProcessContext.View.GetFeatureLevel(), OverrideOutputFormat, Material, MaterialRenderProxy, MaterialShaderMap);
+		check(Material);
+	}
+
+	if (Material->NeedsGBuffer())
+	{
+		FSceneRenderTargets::Get(PostProcessContext.RHICmdList).AdjustGBufferRefCount(PostProcessContext.RHICmdList, 1);
+	}
+
+	return PostProcessContext.Graph.RegisterPass(new(FMemStack::Get()) TRCPassForRDG<kPostProcessMaterialInputCountMax, 1>(
+		[MaterialInterface, Material, OverrideOutputFormat](FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
+	{
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
+
+		FPostProcessMaterialInputs Inputs;
+		Inputs.OverrideOutputFormat = OverrideOutputFormat;
+
+		// Either finds the overridden frame buffer target or returns null.
+		Inputs.OverrideOutputTexture = Pass->FindRDGTextureForOutput(GraphBuilder, ePId_Output0, TEXT("FrameBufferOverride"));
+
+		for (uint32 InputIndex = 0; InputIndex < kPostProcessMaterialInputCountMax; ++InputIndex)
+		{
+			FRDGTextureRef InputTexture = Pass->CreateRDGTextureForOptionalInput(GraphBuilder, EPassInputId(InputIndex), TEXT("PostProcessInput"));
+
+			/**
+			 * TODO: Propagate each texture viewport through the graph setup instead of guessing. This is wrong for
+			 * any scaled target (e.g. half resolution bloom). We deal with the upsample from TAAU explicitly here,
+			 * but it's a band-aid at best. The problem is that we rely too heavily on the ViewRect--in pixels--which
+			 * only applies to the primary screen resolution viewport.
+			 */
+			const FIntRect InputViewportRect = (InputIndex == 0) ? InContext.SceneColorViewRect : InContext.View.ViewRect;
+
+			Inputs.SetInput((EPostProcessMaterialInput)InputIndex, InputTexture, InputViewportRect);
+		}
+
+		Inputs.bFlipYAxis = ShouldMobilePassFlipVerticalAxis(Pass);
+
+		if (TRefCountPtr<IPooledRenderTarget> CustomDepthTarget = FSceneRenderTargets::Get(InContext.RHICmdList).CustomDepth)
+		{
+			Inputs.CustomDepthTexture = GraphBuilder.RegisterExternalTexture(CustomDepthTarget, TEXT("CustomDepth"));
+		}
+
+		FRDGTextureRef OutputTexture = ComputePostProcessMaterial(GraphBuilder, FScreenPassViewInfo(InContext.View), MaterialInterface, Inputs);
+
+		Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
+
+		GraphBuilder.Execute();
+
+		if (Material->NeedsGBuffer())
+		{
+			FSceneRenderTargets::Get(InContext.RHICmdList).AdjustGBufferRefCount(InContext.RHICmdList, -1);
+		}
+	}));
+}
+
+static FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPostProcessSettings& Dest, EBlendableLocation Location, FBlendableEntry*& Iterator)
+{
+	for (;;)
+	{
+		FPostProcessMaterialNode* DataPtr = Dest.BlendableManager.IterateBlendables<FPostProcessMaterialNode>(Iterator);
+
+		if (!DataPtr || DataPtr->GetLocation() == Location)
+		{
+			return DataPtr;
+		}
+	}
+}
+
+FRenderingCompositeOutputRef AddPostProcessMaterialReplaceTonemapPass(
+	FPostprocessContext& Context,
+	FRenderingCompositeOutputRef SeparateTranslucency,
+	FRenderingCompositeOutputRef CombinedBloom)
+{
+	if (!Context.View.Family->EngineShowFlags.PostProcessing || !Context.View.Family->EngineShowFlags.PostProcessMaterial)
+	{
+		return Context.FinalOutput;
+	}
+
+	FBlendableEntry* Iterator = nullptr;
+	FPostProcessMaterialNode PPNode;
+	while (FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, BL_ReplacingTonemapper, Iterator))
+	{
+		check(Data->GetMaterialInterface());
+
+		if (PPNode.IsValid())
+		{
+			FPostProcessMaterialNode::FCompare Dummy;
+
+			// take the one with the highest priority
+			if (!Dummy.operator()(PPNode, *Data))
+			{
+				continue;
+			}
+		}
+
+		PPNode = *Data;
+	}
+
+	if (UMaterialInterface* MaterialInterface = PPNode.GetMaterialInterface())
+	{
+		FRenderingCompositePass* Pass = AddPostProcessMaterialPass(Context, MaterialInterface);
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SceneColor), Context.FinalOutput);
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SeparateTranslucency), SeparateTranslucency);
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::CombinedBloom), CombinedBloom);
+
+		return FRenderingCompositeOutputRef(Pass);
+	}
+
+	return Context.FinalOutput;
+}
+
+FRenderingCompositeOutputRef AddPostProcessMaterialChain(
+	FPostprocessContext& Context,
+	EBlendableLocation Location,
+	FRenderingCompositeOutputRef SeparateTranslucency,
+	FRenderingCompositeOutputRef PreTonemapHDRColor,
+	FRenderingCompositeOutputRef PostTonemapHDRColor,
+	FRenderingCompositeOutputRef PreFlattenVelocity)
+{
+	if (!Context.View.Family->EngineShowFlags.PostProcessing ||
+		!Context.View.Family->EngineShowFlags.PostProcessMaterial ||
+		Context.View.Family->EngineShowFlags.VisualizeShadingModels ||
+		CVarPostProcessingDisableMaterials.GetValueOnRenderThread() != 0)
+	{
+		return Context.FinalOutput;
+	}
+
+	// hard coded - this should be a reasonable limit
+	const uint32 MAX_PPMATERIALNODES = 10;
+	FBlendableEntry* Iterator = 0;
+	FPostProcessMaterialNode PPNodes[MAX_PPMATERIALNODES];
+	uint32 PPNodeCount = 0;
+	bool bVisualizingBuffer = false;
+
+	if (Context.View.Family->EngineShowFlags.VisualizeBuffer)
+	{
+		// Apply requested material to the full screen
+		UMaterial* Material = GetBufferVisualizationData().GetMaterial(Context.View.CurrentBufferVisualizationMode);
+
+		if (Material && Material->BlendableLocation == Location)
+		{
+			PPNodes[0] = FPostProcessMaterialNode(Material, Location, Material->BlendablePriority);
+			++PPNodeCount;
+			bVisualizingBuffer = true;
+		}
+	}
+	for (; PPNodeCount < MAX_PPMATERIALNODES; ++PPNodeCount)
+	{
+		FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, Location, Iterator);
+
+		if (!Data)
+		{
+			break;
+		}
+
+		check(Data->GetMaterialInterface());
+
+		PPNodes[PPNodeCount] = *Data;
+	}
+
+	::Sort(PPNodes, PPNodeCount, FPostProcessMaterialNode::FCompare());
 
 	ERHIFeatureLevel::Type FeatureLevel = Context.View.GetFeatureLevel();
 
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-	
-	const FMaterial* Material = Proxy->GetMaterial(FeatureLevel);
-	check(Material);
+	FRenderingCompositeOutputRef LastOutput = Context.FinalOutput;
 
-	const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
-
-	int32 AllowStencilTest = CVarPostProcessAllowStencilTest.GetValueOnRenderThread();
-	bool bReadsCustomDepthStencil = MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
-	bool bDoStencilTest = false;
-	if (Material->IsStencilTestEnabled() && AllowStencilTest > 0)
+	for (uint32 i = 0; i < PPNodeCount; ++i)
 	{
-		static const IConsoleVariable* CVarCustomDepth = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CustomDepth"));
+		const UMaterialInterface* MaterialInterface = PPNodes[i].GetMaterialInterface();
 
-		int32 CustomDepthSetting = CVarCustomDepth->GetInt();
-		if (CustomDepthSetting == 3)
+		FRenderingCompositePass* Pass = AddPostProcessMaterialPass(Context, MaterialInterface);
+
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SceneColor), LastOutput);
+		Pass->SetInput(EPassInputId(EPostProcessMaterialInput::SeparateTranslucency), SeparateTranslucency);
+
+		// This input is only needed for visualization and frame dumping
+		if (bVisualizingBuffer)
 		{
-			bool AllowStencilTestWithCopy = AllowStencilTest == 2;
-
-			// do the stencil test if 
-			// not SM4 
-			//   OR 
-			// reads DS but allowed make DS copy 
-			//   OR 
-			// DS not read at all.
-			bDoStencilTest = (FeatureLevel != ERHIFeatureLevel::SM4) || 
-				((bReadsCustomDepthStencil == AllowStencilTestWithCopy) || AllowStencilTestWithCopy);
-		}
-		else
-		{
-			UE_LOG(LogRenderer, Warning, TEXT("PostProcessMaterial uses stencil test, but custom stencil not allocated. Set r.CustomDepth to 3 to allocate custom stencil."));
-		}
-	}
-
-	FIntPoint RectSize = Context.SceneColorViewRect.Size();
-	SCOPED_DRAW_EVENTF(Context.RHICmdList, PostProcessMaterial, TEXT("PostProcessMaterial %dx%d Material=%s"), RectSize.X, RectSize.Y, *Material->GetFriendlyName());
-
-	// Copy of custom depth/stencil buffer if HW does not support simultaneously a texture bound as DepthRead_StencilRead and SRV
-	TRefCountPtr<IPooledRenderTarget> CustomDepthStencilCopy;
-
-	const FSceneRenderTargetItem* CustomDepthStencilTarget = nullptr;
-
-	FRHIDepthStencilState* DepthStencilState;
-	uint32 StencilRefValue = 0;
-
-	if (bDoStencilTest)
-	{
-		CustomDepthStencilTarget = &SceneContext.CustomDepth->GetRenderTargetItem();
-
-		// SM4 HW lacks support for texture bound as DepthRead_StencilRead and SRV simultaneously thus make a copy of DS buffer
-		if (FeatureLevel == ERHIFeatureLevel::SM4 && bReadsCustomDepthStencil)
-		{
-			// Dest param of CopyResource() call can only be an SRV (No render target flags) on DX10.0 (SM4)
-			FPooledRenderTargetDesc DSCopyDesc = SceneContext.CustomDepth->GetDesc();
-			DSCopyDesc.Flags = TexCreate_None;
-			DSCopyDesc.TargetableFlags = TexCreate_ShaderResource;
-
-			GRenderTargetPool.FindFreeElement(Context.RHICmdList, DSCopyDesc, CustomDepthStencilCopy, TEXT("CustomDepthStencilCopy"));
-
-			Context.RHICmdList.CopyTexture(
-				SceneContext.CustomDepth->GetRenderTargetItem().ShaderResourceTexture,
-				CustomDepthStencilCopy->GetRenderTargetItem().ShaderResourceTexture,
-				FRHICopyTextureInfo()
-				);
-
-			// The copy DS buffer was created only as a SRV (no render target flags), thus swap with real CustomDepth buffer
-			// with copy to allow DS buffer with render target flag to be set as DepthRead_StencilRead and DS buffer copy to
-			// be set as SRV for post process material.
-			Swap(SceneContext.CustomDepth, CustomDepthStencilCopy);
+			Pass->SetInput(EPassInputId(EPostProcessMaterialInput::PreTonemapHDRColor), PreTonemapHDRColor);
+			Pass->SetInput(EPassInputId(EPostProcessMaterialInput::PostTonemapHDRColor), PostTonemapHDRColor);
 		}
 
-		static FRHIDepthStencilState* StencilStates[] =
+		if (!FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel))
 		{
-			TStaticDepthStencilState<false, CF_Always, true, CF_Less>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_LessEqual>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_Greater>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_GreaterEqual>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_Equal>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_NotEqual>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_Never>::GetRHI(),
-			TStaticDepthStencilState<false, CF_Always, true, CF_Always>::GetRHI(),
-		};
-		static_assert(EMaterialStencilCompare::MSC_Count == ARRAY_COUNT(StencilStates), "Ensure that all EMaterialStencilCompare values are accounted for.");
-
-		DepthStencilState = StencilStates[Material->GetStencilCompare()];
-		StencilRefValue = Material->GetStencilRefValue();
-	}
-	else
-	{
-		DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	}
-
-	FRHIBlendState* BlendState = TStaticBlendState<>::GetRHI();
-	bool bDoOutputBlend = Material->GetBlendableOutputAlpha() && CVarPostProcessAllowBlendModes.GetValueOnRenderThread() != 0;
-	if (bDoOutputBlend)
-	{
-		static FRHIBlendState* BlendStates[] =
-		{
-			TStaticBlendState<>::GetRHI(),
-			TStaticBlendState<>::GetRHI(),
-			TStaticBlendState<CW_RGB, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(),
-			TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_One>::GetRHI(),
-			TStaticBlendState<CW_RGB, BO_Add, BF_DestColor, BF_Zero>::GetRHI(),
-			TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI(),
-			TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI(),
-		};
-		static_assert(EBlendMode::BLEND_MAX == ARRAY_COUNT(BlendStates), "Ensure that all EBlendMode values are accounted for.");
-
-		BlendState = BlendStates[Material->GetBlendMode()];
-	}
-
-	// The PP target - either from the render target pool or the ePId_Input0
-	const FSceneRenderTargetItem* DestRenderTarget = nullptr;
-	ERenderTargetLoadAction DestRenderTargetLoadAction = ERenderTargetLoadAction::Num;
-		
-	if (bDoStencilTest || bDoOutputBlend)
-	{
-		if (!MaterialShaderMap->UsesSceneTexture(PPI_PostProcessInput0) && !PassOutputs[0].PooledRenderTarget)
-		{
-			PassOutputs[0].PooledRenderTarget = GetInput(ePId_Input0)->GetOutput()->RequestInput();
-			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
-		}
-		else
-		{
-			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
-
-			FRHITexture* DstTexture = DestRenderTarget->TargetableTexture;
-			FRHITexture* SrcTexture = GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture;
-
-			// CopyResource() can only be called when format and size match. Otherwise must use shader to do stretch & format conversion.
-			if (DstTexture->GetFormat() == SrcTexture->GetFormat() && DstTexture->GetSizeXYZ() == SrcTexture->GetSizeXYZ())
-			{
-			Context.RHICmdList.CopyTexture(
-					SrcTexture,
-					DstTexture,
-				FRHICopyTextureInfo()
-				);
-		}
-			else
-			{
-				TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(Context.View.FeatureLevel);
-
-				FIntRect DstRect = Context.GetSceneColorDestRect(*DestRenderTarget);
-				FIntRect SrcRect = Context.SceneColorViewRect;
-
-				FRHIRenderPassInfo RPInfo = FRHIRenderPassInfo(
-					DstTexture,
-					MakeRenderTargetActions(Context.GetLoadActionForRenderTarget(*DestRenderTarget), ERenderTargetStoreAction::EStore)
-					);
-
-				Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("Copy Rect"));
-				{
-					Context.SetViewportAndCallRHI(DstRect);
-
-					FGraphicsPipelineStateInitializer GraphicsPSOInit;
-					Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-					GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-					auto VS = GlobalShaderMap->GetShader<FPostProcessVS>();
-					auto PS = GlobalShaderMap->GetShader<FCopyRectPS>();
-
-					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VS);
-					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PS);
-					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-					SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-					FCopyRectPS::FParameters PixelParams;
-					PixelParams.SrcTexture = SrcTexture;
-					PixelParams.SrcSampler = TStaticSamplerState<>::GetRHI();
-
-					SetShaderParameters(Context.RHICmdList, PS, PS->GetPixelShader(), PixelParams);
-
-					DrawRectangle(
-						Context.RHICmdList,
-						DstRect.Min.X,
-						DstRect.Min.Y,
-						DstRect.Width(),
-						DstRect.Height(),
-						SrcRect.Min.X,
-						SrcRect.Min.Y,
-						SrcRect.Width(),
-						SrcRect.Height(),
-						DstTexture->GetTexture2D()->GetSizeXY(),
-						SrcTexture->GetTexture2D()->GetSizeXY(),
-						VS,
-						EDRF_UseTriangleOptimization
-						);
-				}
-				Context.RHICmdList.EndRenderPass();
-				Context.RHICmdList.CopyToResolveTarget(DestRenderTarget->TargetableTexture, DestRenderTarget->ShaderResourceTexture, FResolveParams());
-			}
+			Pass->SetInput(EPassInputId(EPostProcessMaterialInput::Velocity), PreFlattenVelocity);
 		}
 
-		DestRenderTargetLoadAction = ERenderTargetLoadAction::ELoad;
-	}
-	else
-	{
-		DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
-		DestRenderTargetLoadAction = Context.GetLoadActionForRenderTarget(*DestRenderTarget);
+		LastOutput = FRenderingCompositeOutputRef(Pass);
 	}
 
-	FIntRect SrcRect = Context.SceneColorViewRect;
-	FIntRect DestRect = Context.GetSceneColorDestRect(*DestRenderTarget);
-	FIntPoint DestPos(0, 0);
-	FIntPoint DestSize = DestRect.Size();
-	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
-
-	checkf(DestRect.Size() == SrcRect.Size(), TEXT("Post process material should not be used as upscaling pass."));
-	
-	FRHIRenderPassInfo RPInfo;
-	if (CustomDepthStencilTarget)
-	{
-		RPInfo = FRHIRenderPassInfo(
-			DestRenderTarget->TargetableTexture,
-			MakeRenderTargetActions(DestRenderTargetLoadAction, ERenderTargetStoreAction::EStore),
-			CustomDepthStencilTarget->TargetableTexture,
-			MakeDepthStencilTargetActions(
-				MakeRenderTargetActions(ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction),
-				MakeRenderTargetActions(ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::ENoAction)
-				),
-			FExclusiveDepthStencil::DepthRead_StencilRead
-			);
-	}
-	else
-	{
-		RPInfo = FRHIRenderPassInfo(
-			DestRenderTarget->TargetableTexture,
-			MakeRenderTargetActions(Context.GetLoadActionForRenderTarget(*DestRenderTarget), ERenderTargetStoreAction::EStore)
-			);
-	}
-
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessMaterial"));
-	{
-		Context.SetViewportAndCallRHI(DestRect);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = BlendState;
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = DepthStencilState;
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		const FViewInfo& View = Context.View;
-		const FSceneViewFamily& ViewFamily = *(View.Family);
-
-		FIntPoint SrcSize = GetInputDesc(ePId_Input0)->Extent;
-
-		FShader* VertexShader = nullptr;
-
-		const bool bViewSizeMatchesBufferSize = (View.ViewRect == Context.SceneColorViewRect && View.ViewRect.Size() == SrcSize && View.ViewRect.Min == FIntPoint::ZeroValue);
-		if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
-		{
-			bool bNeedsVerticalAxisFlip = ShouldMobilePassFlipVerticalAxis(this) && RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[Context.GetFeatureLevel()]);
-			if (bNeedsVerticalAxisFlip)
-			{
-				if (EBlendableLocation(Material->GetBlendableLocation()) == EBlendableLocation::BL_AfterTonemapping)
-				{
-					// flip dest rect y axis.
-					GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-					DestPos.Y = DestRect.Max.Y;
-					DestSize.Y = -DestRect.Max.Y;
-					// triangle optimization currently doesn't work when flipped.
-					DrawRectangleFlags = EDRF_Default;
-				}
-			}
-
-			// use mobile's post process material.
-			if (bViewSizeMatchesBufferSize)
-			{
-				if(bNeedsVerticalAxisFlip)
-				{
-					VertexShader = SetMobileShaders<FPostProcessMaterialVS_Mobile_AxisSwitch, FPostProcessMaterialPS_Mobile0_AxisSwitch>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
-				}
-				else
-				{
-					VertexShader = SetMobileShaders<FPostProcessMaterialVS_Mobile, FPostProcessMaterialPS_Mobile0>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
-				}
-			}
-			else
-			{
-				if (bNeedsVerticalAxisFlip)
-				{
-					VertexShader = SetMobileShaders<FPostProcessMaterialVS_Mobile_AxisSwitch, FPostProcessMaterialPS_Mobile1_AxisSwitch>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
-				}
-				else
-				{
-					VertexShader = SetMobileShaders<FPostProcessMaterialVS_Mobile, FPostProcessMaterialPS_Mobile1>(MaterialShaderMap, GraphicsPSOInit, Context, Proxy);
-				}
-			}
-			Context.RHICmdList.SetStencilRef(StencilRefValue);
-		}
-		// Uses highend post process material that assumed ViewSize == BufferSize.
-		else if (bViewSizeMatchesBufferSize)
-		{
-			FFPostProcessMaterialPS_HighEnd0* PixelShader_HighEnd = MaterialShaderMap->GetShader<FFPostProcessMaterialPS_HighEnd0>();
-			FPostProcessMaterialVS_HighEnd* VertexShader_HighEnd = MaterialShaderMap->GetShader<FPostProcessMaterialVS_HighEnd>();
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GPostProcessMaterialVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader_HighEnd);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader_HighEnd);
-
-			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-			Context.RHICmdList.SetStencilRef(StencilRefValue);
-
-			VertexShader_HighEnd->SetParameters(Context.RHICmdList, Context, Proxy);
-			PixelShader_HighEnd->SetParameters(Context.RHICmdList, Context, Proxy);
-			VertexShader = VertexShader_HighEnd;
-		}
-		// Uses highend post process material that handle ViewSize != BufferSize.
-		else
-		{
-			FFPostProcessMaterialPS_HighEnd1* PixelShader_HighEnd = MaterialShaderMap->GetShader<FFPostProcessMaterialPS_HighEnd1>();
-			FPostProcessMaterialVS_HighEnd* VertexShader_HighEnd = MaterialShaderMap->GetShader<FPostProcessMaterialVS_HighEnd>();
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GPostProcessMaterialVertexDeclaration.VertexDeclarationRHI;
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader_HighEnd);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader_HighEnd);
-
-			SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-			Context.RHICmdList.SetStencilRef(StencilRefValue);
-
-			VertexShader_HighEnd->SetParameters(Context.RHICmdList, Context, Proxy);
-			PixelShader_HighEnd->SetParameters(Context.RHICmdList, Context, Proxy);
-			VertexShader = VertexShader_HighEnd;
-		}
-
-		DrawPostProcessPass(
-			Context.RHICmdList,
-			DestPos.X, DestPos.Y,
-			DestSize.X, DestSize.Y,
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DestRect.Size(),
-			SrcSize,
-			VertexShader,
-			View.StereoPass,
-			Context.HasHmdMesh(),
-			DrawRectangleFlags);
-	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget->TargetableTexture, DestRenderTarget->ShaderResourceTexture, FResolveParams());
-
-	if (CustomDepthStencilCopy.IsValid() && CustomDepthStencilCopy->GetRenderTargetItem().IsValid())
-	{
-		Swap(SceneContext.CustomDepth, CustomDepthStencilCopy);
-	}
-
-	if(Material->NeedsGBuffer())
-	{
-		FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList,-1);
-	}
+	return LastOutput;
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessMaterial::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+void AddHighResScreenshotMask(FPostprocessContext& Context)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-
-	if (OutputFormat != PF_Unknown)
+	if (Context.View.Family->EngineShowFlags.HighResScreenshotMask != 0)
 	{
-		Ret.Format = OutputFormat;
-	}
-	Ret.Reset();
-	Ret.AutoWritable = false;
-	Ret.DebugName = TEXT("PostProcessMaterial");
-	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
-	Ret.Flags |= GFastVRamConfig.PostProcessMaterial;
+		check(Context.View.FinalPostProcessSettings.HighResScreenshotMaterial);
 
-	return Ret;
+		FRenderingCompositeOutputRef Input = Context.FinalOutput;
+
+		FRenderingCompositePass* CompositePass = AddPostProcessMaterialPass(Context, Context.View.FinalPostProcessSettings.HighResScreenshotMaterial);
+		CompositePass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Input));
+		Context.FinalOutput = FRenderingCompositeOutputRef(CompositePass);
+
+		if (GIsHighResScreenshot)
+		{
+			check(Context.View.FinalPostProcessSettings.HighResScreenshotMaskMaterial);
+
+			FRenderingCompositePass* MaskPass = AddPostProcessMaterialPass(Context, Context.View.FinalPostProcessSettings.HighResScreenshotMaskMaterial);
+			MaskPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Input));
+			CompositePass->AddDependency(MaskPass);
+
+			FString BaseFilename = FString(Context.View.FinalPostProcessSettings.BufferVisualizationDumpBaseFilename);
+			MaskPass->SetOutputColorArray(ePId_Output0, FScreenshotRequest::GetHighresScreenshotMaskColorArray());
+		}
+	}
+
+	// Draw the capture region if a material was supplied
+	if (Context.View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial)
+	{
+		auto Material = Context.View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial;
+
+		FRenderingCompositePass* CaptureRegionVisualizationPass = AddPostProcessMaterialPass(Context, Material);
+		CaptureRegionVisualizationPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
+		Context.FinalOutput = FRenderingCompositeOutputRef(CaptureRegionVisualizationPass);
+	}
 }

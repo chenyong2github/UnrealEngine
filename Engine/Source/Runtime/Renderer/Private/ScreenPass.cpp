@@ -6,6 +6,7 @@
 #include "RendererModule.h"
 #include "IXRTrackingSystem.h"
 #include "IHeadMountedDisplay.h"
+#include "RenderGraphUtils.h"
 
 extern bool ShouldDoComputePostProcessing(const FViewInfo& View);
 
@@ -135,3 +136,70 @@ FScreenPassViewInfo::FScreenPassViewInfo(const FViewInfo& InView)
 	, bHasHMDMask(IsHMDHiddenAreaMaskActive())
 	, bUseComputePasses(ShouldDoComputePostProcessing(InView))
 {}
+
+void SetScreenPassPipelineState(FRHICommandListImmediate& RHICmdList, const FScreenPassDrawInfo& ScreenPassDraw)
+{
+	FRHIPixelShader* PixelShaderRHI = GETSAFERHISHADER_PIXEL(ScreenPassDraw.PixelShader);
+	FRHIVertexShader* VertexShaderRHI = GETSAFERHISHADER_VERTEX(ScreenPassDraw.VertexShader);
+
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	GraphicsPSOInit.BlendState = ScreenPassDraw.BlendState;
+	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+	GraphicsPSOInit.DepthStencilState = ScreenPassDraw.DepthStencilState;
+	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShaderRHI;
+	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShaderRHI;
+	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+}
+
+void AddDrawTexturePass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	FIntPoint InputPosition,
+	FIntPoint OutputPosition,
+	FIntPoint Size)
+{
+	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
+	const FRDGTextureDesc& OutputDesc = OutputTexture->Desc;
+
+	// Use a hardware copy if formats match.
+	if (InputDesc.Format == OutputDesc.Format)
+	{
+		return AddCopyTexturePass(GraphBuilder, InputTexture, OutputTexture, InputPosition, OutputPosition, Size);
+	}
+
+	if (Size == FIntPoint::ZeroValue)
+	{
+		// Copy entire input texture to output texture.
+		Size = InputTexture->Desc.Extent;
+	}
+
+	// Don't prime color data if the whole texture is being overwritten.
+	const ERenderTargetLoadAction LoadAction = (OutputPosition == FIntPoint::ZeroValue && Size == OutputDesc.Extent)
+		? ERenderTargetLoadAction::ENoAction
+		: ERenderTargetLoadAction::ELoad;
+
+	const FScreenPassTextureViewport InputViewport(FIntRect(InputPosition, InputPosition + Size), InputTexture);
+	const FScreenPassTextureViewport OutputViewport(FIntRect(OutputPosition, OutputPosition + Size), OutputTexture);
+
+	TShaderMapRef<FCopyRectPS> PixelShader(ScreenPassView.View.ShaderMap);
+
+	FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
+	Parameters->InputTexture = InputTexture;
+	Parameters->InputSampler = TStaticSamplerState<>::GetRHI();
+	Parameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, LoadAction, ERenderTargetStoreAction::EStore);
+
+	AddDrawScreenPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("DrawTexturePass"),
+		ScreenPassView,
+		OutputViewport,
+		InputViewport,
+		*PixelShader,
+		Parameters);
+}

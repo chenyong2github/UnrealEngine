@@ -5,6 +5,65 @@
 =============================================================================*/
 
 #include "Common.ush"
+#include "ScreenPass.ush"
+
+#ifndef POST_PROCESS_MATERIAL
+#define POST_PROCESS_MATERIAL 0
+#endif
+
+#ifndef POST_PROCESS_MATERIAL_MOBILE
+#define POST_PROCESS_MATERIAL_MOBILE 0
+#endif
+
+#if (POST_PROCESS_MATERIAL == 0)
+#error POST_PROCESS_MATERIAL must be defined to non-zero in the shader compilation environment.
+#endif
+
+#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1) != POST_PROCESS_MATERIAL_MOBILE
+#error POST_PROCESS_MATERIAL_MOBILE define does not match feature level.
+#endif
+
+// Must match ESceneTextureId
+#define PPI_PostProcessInput0 14
+#define PPI_PostProcessInput1 15
+#define PPI_PostProcessInput2 16
+#define PPI_PostProcessInput3 17
+#define PPI_PostProcessInput4 18
+
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_0)
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_1)
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_2)
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_3)
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_4)
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessOutput)
+
+Texture2D PostProcessInput_0_Texture;
+Texture2D PostProcessInput_1_Texture;
+Texture2D PostProcessInput_2_Texture;
+Texture2D PostProcessInput_3_Texture;
+Texture2D PostProcessInput_4_Texture;
+
+SamplerState PostProcessInput_0_Sampler;
+SamplerState PostProcessInput_1_Sampler;
+SamplerState PostProcessInput_2_Sampler;
+SamplerState PostProcessInput_3_Sampler;
+SamplerState PostProcessInput_4_Sampler;
+SamplerState PostProcessInput_BilinearSampler;
+
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+	#define PostProcessInput_0_SharedSampler PostProcessInput_0_Sampler
+	#define PostProcessInput_1_SharedSampler PostProcessInput_0_Sampler
+	#define PostProcessInput_2_SharedSampler PostProcessInput_0_Sampler
+	#define PostProcessInput_3_SharedSampler PostProcessInput_0_Sampler
+	#define PostProcessInput_4_SharedSampler PostProcessInput_0_Sampler
+#else
+	#define PostProcessInput_0_SharedSampler PostProcessInput_0_Sampler
+	#define PostProcessInput_1_SharedSampler PostProcessInput_1_Sampler
+	#define PostProcessInput_2_SharedSampler PostProcessInput_2_Sampler
+	#define PostProcessInput_3_SharedSampler PostProcessInput_3_Sampler
+	#define PostProcessInput_4_SharedSampler PostProcessInput_4_Sampler
+#endif
+
 #include "/Engine/Generated/Material.ush"
 
 struct FPostProcessMaterialVSToPS
@@ -110,7 +169,7 @@ void MainPS(
 
 	// can be optimized
 	float4 SvPosition = Input.Position;
-	float2 ViewportUV = (SvPosition - ViewportRect.xy) * ViewportSize.zw;
+	float2 ViewportUV = (SvPosition - PostProcessOutput_ViewportMin) * PostProcessOutput_ViewportSizeInverse;
 
 #if NUM_TEX_COORD_INTERPOLATORS
 	UNROLL
@@ -185,14 +244,12 @@ void MainPS_VideoOverlay(
 
 #else // FEATURE_LEVEL_ES3_1
 
-#ifndef NEEDTOSWITCHVERTICLEAXIS
-#define NEEDTOSWITCHVERTICLEAXIS 0
-#endif
+uint bFlipYAxis;
 
 //
 // Mobile version
 //
-void MainVS_ES2(
+void MainVS(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out FPostProcessMaterialVSToPS Output,
@@ -229,7 +286,7 @@ void MainVS_ES2(
 #endif
 }
 
-void MainPS_ES2(
+void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	in float2 InViewportUV : TEXCOORD8,
 	out half4 OutColor : SV_Target0
@@ -250,9 +307,10 @@ void MainPS_ES2(
 	Parameters.VertexColor = 1;
 	
 	float4 SvPosition = Input.Position;
-#if NEEDTOSWITCHVERTICLEAXIS
-		SvPosition.y = View.ViewSizeAndInvSize.y - SvPosition.y; 
-#endif
+	if (bFlipYAxis)
+	{
+		SvPosition.y = PostProcessOutput_ViewportSize.y - SvPosition.y;
+	}
 	SvPosition.z = LookupDeviceZ(InViewportUV);
 	SvPosition.z = max(SvPosition.z, 1e-18);
 	// fill out other related material parameters

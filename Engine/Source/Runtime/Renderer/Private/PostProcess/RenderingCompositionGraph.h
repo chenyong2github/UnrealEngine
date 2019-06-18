@@ -372,6 +372,12 @@ struct FRenderingCompositePass
 		const FRDGTextureDesc& TextureDesc,
 		const TCHAR* TextureName);
 
+	/** Finds an allocated output texture if one exists. Otherwise, returns null */
+	FRDGTextureRef FindRDGTextureForOutput(
+		FRDGBuilder& GraphBuilder,
+		EPassOutputId OutputId,
+		const TCHAR* TextureName);
+
 	/**
 	 * Registers a RDG texture to be extracted to the assigned output during graph execution.
 	 */
@@ -451,6 +457,16 @@ struct FRenderingCompositeOutputRef
 	FRHIComputeFence* GetComputePassEndFence() const
 	{
 		return IsValid() ? Source->GetComputePassEndFence() : nullptr;
+	}
+
+	bool operator==(const FRenderingCompositeOutputRef& Other) const
+	{
+		return Source == Other.Source && PassOutputId == Other.PassOutputId;
+	}
+
+	bool operator!=(const FRenderingCompositeOutputRef& Other) const
+	{
+		return !(*this == Other);
 	}
 
 private:

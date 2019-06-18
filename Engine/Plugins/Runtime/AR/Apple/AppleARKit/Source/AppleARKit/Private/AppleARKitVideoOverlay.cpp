@@ -20,6 +20,7 @@
 #include "ScreenRendering.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/PostProcessMaterial.h"
 #include "PostProcessParameters.h"
 #include "CommonRenderResources.h"
 #if SUPPORTS_ARKIT_1_0
@@ -38,12 +39,12 @@ FAppleARKitVideoOverlay::FAppleARKitVideoOverlay()
 	check(RenderingOverlayMaterial != nullptr);
 }
 
-// We use something similar to the PostProcessMaterial to render the color camera overlay.
 template <bool bIsMobileRenderer>
-class FARKitCameraOverlayVS : public FMaterialShader
+class TPostProcessMaterialShader : public FMaterialShader
 {
-	DECLARE_SHADER_TYPE(FARKitCameraOverlayVS, Material);
 public:
+	using FParameters = FPostProcessMaterialParameters;
+	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(TPostProcessMaterialShader, FMaterialShader);
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
@@ -61,102 +62,71 @@ public:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_MOBILE"), bIsMobileRenderer);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+	}
+};
+
+// We use something similar to the PostProcessMaterial to render the color camera overlay.
+template <bool bIsMobileRenderer>
+class TARKitCameraOverlayVS : public TPostProcessMaterialShader<bIsMobileRenderer>
+{
+public:
+	DECLARE_MATERIAL_SHADER(TARKitCameraOverlayVS);
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		TPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_AR_PASSTHROUGH"), 1);
 	}
 
-	FARKitCameraOverlayVS() { }
-	FARKitCameraOverlayVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMaterialShader(Initializer)
-	{
-	}
+	TARKitCameraOverlayVS() = default;
+	TARKitCameraOverlayVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: TPostProcessMaterialShader(Initializer)
+	{}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View)
 	{
 		FRHIVertexShader* ShaderRHI = GetVertexShader();
-		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
-	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		const bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
+		TPostProcessMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 	}
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FARKitCameraOverlayVS<true>, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainVS_ES2"), SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FARKitCameraOverlayVS<false>, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainVS_VideoOverlay"), SF_Vertex);
+using FARKitCameraOverlayVS = TARKitCameraOverlayVS<false>;
+using FARKitCameraOverlayMobileVS = TARKitCameraOverlayVS<true>;
+
+IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayVS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainVS_VideoOverlay", SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayMobileVS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainVS", SF_Vertex);
 
 template <bool bIsMobileRenderer>
-class FARKitCameraOverlayPS : public FMaterialShader
+class TARKitCameraOverlayPS : public TPostProcessMaterialShader<bIsMobileRenderer>
 {
-	DECLARE_SHADER_TYPE(FARKitCameraOverlayPS, Material);
 public:
-
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
-	{
-		if (bIsMobileRenderer)
-		{
-			return Parameters.Material->GetMaterialDomain() == MD_PostProcess && IsMobilePlatform(Parameters.Platform);
-		}
-		else
-		{
-			return Parameters.Material->GetMaterialDomain() == MD_PostProcess && !IsMobilePlatform(Parameters.Platform);
-		}
-	}
+	DECLARE_MATERIAL_SHADER(TARKitCameraOverlayPS);
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+		TPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_HDR"), IsMobileHDR() ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
 	}
 
-	FARKitCameraOverlayPS() {}
-	FARKitCameraOverlayPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FMaterialShader(Initializer)
-	{
-		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
-		{
-			PostprocessInputParameter[InputIter].Bind(Initializer.ParameterMap, *FString::Printf(TEXT("PostprocessInput%d"), InputIter));
-			PostprocessInputParameterSampler[InputIter].Bind(Initializer.ParameterMap, *FString::Printf(TEXT("PostprocessInput%dSampler"), InputIter));
-		}
-	}
+	TARKitCameraOverlayPS() = default;
+	TARKitCameraOverlayPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: TPostProcessMaterialShader(Initializer)
+	{}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView View, const FMaterialRenderProxy* Material)
 	{
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
-
-		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
-		{
-			if (PostprocessInputParameter[InputIter].IsBound())
-			{
-				SetTextureParameter(
-					RHICmdList, 
-					ShaderRHI, 
-					PostprocessInputParameter[InputIter],
-					PostprocessInputParameterSampler[InputIter],
-					TStaticSamplerState<>::GetRHI(),
-					GBlackTexture->TextureRHI);
-			}
-		}
+		TPostProcessMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
 	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		const bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FShaderResourceParameter PostprocessInputParameter[ePId_Input_MAX];
-	FShaderResourceParameter PostprocessInputParameterSampler[ePId_Input_MAX];
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FARKitCameraOverlayPS<true>, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_ES2"), SF_Pixel);
-IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FARKitCameraOverlayPS<false>, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_VideoOverlay"), SF_Pixel);
+using FARKitCameraOverlayPS = TARKitCameraOverlayPS<false>;
+using FARKitCameraOverlayMobilePS = TARKitCameraOverlayPS<true>;
+
+IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_VideoOverlay", SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayMobilePS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_ES2", SF_Pixel);
 
 void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView)
 {
@@ -221,18 +191,18 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 	FMaterialShader* PixelShader = nullptr;
 	if (bIsMobileRenderer)
 	{
-		VertexShader = MaterialShaderMap->GetShader<FARKitCameraOverlayVS<true>>();
+		VertexShader = MaterialShaderMap->GetShader<FARKitCameraOverlayMobileVS>();
 		check(VertexShader != nullptr);
-		PixelShader = MaterialShaderMap->GetShader<FARKitCameraOverlayPS<true>>();
+		PixelShader = MaterialShaderMap->GetShader<FARKitCameraOverlayMobilePS>();
 		check(PixelShader != nullptr);
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
 	}
 	else
 	{
-		VertexShader = MaterialShaderMap->GetShader<FARKitCameraOverlayVS<false>>();
+		VertexShader = MaterialShaderMap->GetShader<FARKitCameraOverlayVS>();
 		check(VertexShader != nullptr);
-		PixelShader = MaterialShaderMap->GetShader<FARKitCameraOverlayPS<false>>();
+		PixelShader = MaterialShaderMap->GetShader<FARKitCameraOverlayPS>();
 		check(PixelShader != nullptr);
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
@@ -250,21 +220,21 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 
 	if (bIsMobileRenderer)
 	{
-		FARKitCameraOverlayVS<true>* const VertexShaderPtr = static_cast<FARKitCameraOverlayVS<true>*>(VertexShader);
+		FARKitCameraOverlayVS<true>* const VertexShaderPtr = static_cast<FARKitCameraOverlayMobileVS*>(VertexShader);
 		check(VertexShaderPtr != nullptr);
 		SetUniformBufferParameterImmediate(RHICmdList, VertexShaderPtr->GetVertexShader(), VertexShaderPtr->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
 		VertexShaderPtr->SetParameters(RHICmdList, InView);
-		FARKitCameraOverlayPS<true>* PixelShaderPtr = static_cast<FARKitCameraOverlayPS<true>*>(PixelShader);
+		FARKitCameraOverlayPS<true>* PixelShaderPtr = static_cast<FARKitCameraOverlayMobilePS*>(PixelShader);
 		check(PixelShaderPtr != nullptr);
 		PixelShaderPtr->SetParameters(RHICmdList, InView, RenderingOverlayMaterial->GetRenderProxy());
 	}
 	else
 	{
-		FARKitCameraOverlayVS<false>* const VertexShaderPtr = static_cast<FARKitCameraOverlayVS<false>*>(VertexShader);
+		FARKitCameraOverlayVS<false>* const VertexShaderPtr = static_cast<FARKitCameraOverlayVS*>(VertexShader);
 		check(VertexShaderPtr != nullptr);
 		SetUniformBufferParameterImmediate(RHICmdList, VertexShaderPtr->GetVertexShader(), VertexShaderPtr->GetUniformBufferParameter<FDrawRectangleParameters>(), Parameters);
 		VertexShaderPtr->SetParameters(RHICmdList, InView);
-		FARKitCameraOverlayPS<false>* PixelShaderPtr = static_cast<FARKitCameraOverlayPS<false>*>(PixelShader);
+		FARKitCameraOverlayPS<false>* PixelShaderPtr = static_cast<FARKitCameraOverlayPS*>(PixelShader);
 		check(PixelShaderPtr != nullptr);
 		PixelShaderPtr->SetParameters(RHICmdList, InView, RenderingOverlayMaterial->GetRenderProxy());
 	}

@@ -107,13 +107,12 @@ END_SHADER_PARAMETER_STRUCT()
 
 FScreenPassTextureViewportParameters GetScreenPassTextureViewportParameters(const FScreenPassTextureViewport& InViewport);
 
-/**
- * Contains a transform that maps UV coordinates from one screen pass texture viewport to another.
- * Assumes normalized UV coordinates [0, 0]x[1, 1] where [0, 0] maps to the source view min
- * coordinate and [1, 1] maps to the source view rect max coordinate.
+/** Contains a transform that maps UV coordinates from one screen pass texture viewport to another.
+ *  Assumes normalized UV coordinates [0, 0]x[1, 1] where [0, 0] maps to the source view min
+ *  coordinate and [1, 1] maps to the source view rect max coordinate.
  *
- * Example Usage:
- *    float2 DestinationUV = SourceUV * UVScaleBias.xy + UVScaleBias.zw;
+ *  Example Usage:
+ *     float2 DestinationUV = SourceUV * UVScaleBias.xy + UVScaleBias.zw;
  */
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, )
 	// A scale / bias factor to apply to the input UV coordinate, converting it to a output UV coordinate.
@@ -133,6 +132,7 @@ FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
 	FVector2D DestinationUVOffset,
 	FVector2D DestinationUVExtent);
 
+// View information cached off for use by screen passes.
 class FScreenPassViewInfo
 {
 public:
@@ -154,62 +154,66 @@ public:
 	const bool bUseComputePasses;
 };
 
-/**
- * Draws a full-viewport triangle with the provided pixel shader type. The destination full-viewport triangle
- * and interpolated source UV coordinates are derived from the viewport and texture rectangles, respectively.
- * @param ViewportRect The rectangle, in pixels, of the viewport drawn onto the destination render target.
- * @param TextureRect The rectangle, in pixels, of the source texture mapped to the [0, 1]x[0, 1] UV space.
- * @param TextureSize The total size, in pixels, of the source texture.
- * @param PixelShader The pixel shader instance assigned to the pipeline state.
- * @param PixelShaderParameters The parameter block assigned to the pixel shader prior to draw.
+/** Draw information for the more advanced DrawScreenPass variant. Allows customizing the blend / depth stencil state,
+ *  providing a custom vertex shader, and more fine-grained control of the underlying draw call.
  */
-template<typename TPixelShaderType>
-void DrawScreenPass(
-	FRHICommandListImmediate& RHICmdList,
-	const FScreenPassViewInfo& ScreenPassView,
-	FIntRect OutputRect,
-	FIntRect InputRect,
-	FIntPoint InputSize,
-	TPixelShaderType* PixelShader,
-	const typename TPixelShaderType::FParameters& PixelShaderParameters)
+struct FScreenPassDrawInfo
 {
-	const FIntPoint OutputSize = OutputRect.Size();
-	FRHIPixelShader* PixelShaderRHI = GETSAFERHISHADER_PIXEL(PixelShader);
-	FScreenPassVS* VertexShader = *(ScreenPassView.ScreenPassVS);
+	enum class EFlags : uint8
+	{
+		None,
 
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(VertexShader);
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShaderRHI;
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		// Flips the Y axis of the rendered quad. Used by mobile rendering.
+		FlipYAxis = 0x1
+	};
 
-	RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Max.X, OutputRect.Max.Y, 1.0f);
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	SetShaderParameters(RHICmdList, PixelShader, PixelShaderRHI, PixelShaderParameters);
+	using FDefaultBlendState = TStaticBlendState<>;
+	using FDefaultDepthStencilState = TStaticDepthStencilState<false, CF_Always>;
 
-	DrawPostProcessPass(
-		RHICmdList,
-		0, 0, OutputSize.X, OutputSize.Y,
-		InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
-		OutputSize,
-		InputSize,
-		VertexShader,
-		ScreenPassView.StereoPass,
-		ScreenPassView.bHasHMDMask,
-		EDRF_UseTriangleOptimization);
-}
+	FScreenPassDrawInfo() = default;
 
-/**
- * Helper variant of @ref DrawScreenPass. All other parameters are forwarded.
- * @param DestinationViewDesc The destination texture view descriptor, for viewport generation.
- * @param SourceViewDesc The source view descriptor, for UV generation.
+	FScreenPassDrawInfo(
+		FShader* InVertexShader,
+		FShader* InPixelShader,
+		FRHIBlendState* InBlendState = FDefaultBlendState::GetRHI(),
+		FRHIDepthStencilState* InDepthStencilState = FDefaultDepthStencilState::GetRHI(),
+		EFlags InFlags = EFlags::None)
+		: VertexShader(InVertexShader)
+		, PixelShader(InPixelShader)
+		, BlendState(InBlendState)
+		, DepthStencilState(InDepthStencilState)
+		, Flags(InFlags)
+	{}
+
+	void Validate() const
+	{
+		check(VertexShader);
+		check(PixelShader);
+		check(BlendState);
+		check(DepthStencilState);
+	}
+
+	FShader* VertexShader = nullptr;
+	FShader* PixelShader = nullptr;
+	FRHIBlendState* BlendState = nullptr;
+	FRHIDepthStencilState* DepthStencilState = nullptr;
+	EFlags Flags = EFlags::None;
+};
+
+ENUM_CLASS_FLAGS(FScreenPassDrawInfo::EFlags);
+
+// Helper function which sets the pipeline state object on the command list prior to invoking a screen pass.
+void SetScreenPassPipelineState(FRHICommandListImmediate& RHICmdList, const FScreenPassDrawInfo& ScreenPassDraw);
+
+/** Draws a full-viewport triangle with the provided pixel shader type. The destination full-viewport triangle
+ *  and interpolated source UV coordinates are derived from the viewport and texture rectangles, respectively.
+ *  @param OutputViewport The output viewport defining the render target extent and viewport rect.
+ *  @param InputViewport The input viewport defining the rect region to map UV coordinates into.
+ *  @param PixelShader The pixel shader instance assigned to the pipeline state.
+ *  @param PixelShaderParameters The parameter block assigned to the pixel shader prior to draw.
  */
 template <typename TPixelShaderType>
-inline void DrawScreenPass(
+void DrawScreenPass(
 	FRHICommandListImmediate& RHICmdList,
 	const FScreenPassViewInfo& ScreenPassView,
 	const FScreenPassTextureViewport& OutputViewport,
@@ -217,28 +221,93 @@ inline void DrawScreenPass(
 	TPixelShaderType* PixelShader,
 	const typename TPixelShaderType::FParameters& PixelShaderParameters)
 {
-	DrawScreenPass(
+	const FIntRect InputRect = InputViewport.Rect;
+	const FIntPoint InputSize = InputViewport.Extent;
+	const FIntRect OutputRect = OutputViewport.Rect;
+	const FIntPoint OutputSize = OutputRect.Size();
+
+	RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Max.X, OutputRect.Max.Y, 1.0f);
+
+	SetScreenPassPipelineState(RHICmdList, FScreenPassDrawInfo(*ScreenPassView.ScreenPassVS, PixelShader));
+
+	SetShaderParameters(RHICmdList, PixelShader, PixelShader->GetPixelShader(), PixelShaderParameters);
+
+	DrawPostProcessPass(
 		RHICmdList,
-		ScreenPassView,
-		OutputViewport.Rect,
-		InputViewport.Rect,
-		InputViewport.Extent,
-		PixelShader,
-		PixelShaderParameters);
+		0, 0, OutputSize.X, OutputSize.Y,
+		InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
+		OutputSize,
+		InputSize,
+		*ScreenPassView.ScreenPassVS,
+		ScreenPassView.StereoPass,
+		ScreenPassView.bHasHMDMask,
+		EDRF_UseTriangleOptimization);
 }
 
-/**
- * Adds a new Render Graph pass which internally calls @ref DrawScreenPass.
- * Parameters are forwarded to @ref DrawScreenPass.
+/** More advanced variant of screen pass drawing. Supports overriding blend / depth stencil
+ *  pipeline state, and providing a custom vertex shader. Shader parameters are not bound by
+ *  this method, instead the user provides a setup function that is called prior to draw, but
+ *  after setting the PSO. This setup function should assign shader parameters.
+ */
+template<typename TSetupFunction>
+void DrawScreenPass(
+	FRHICommandListImmediate& RHICmdList,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
+	const FScreenPassDrawInfo& ScreenPassDraw,
+	TSetupFunction SetupFunction)
+{
+	ScreenPassDraw.Validate();
+
+	const FIntRect InputRect = InputViewport.Rect;
+	const FIntPoint InputSize = InputViewport.Extent;
+	const FIntRect OutputRect = OutputViewport.Rect;
+	const FIntPoint OutputSize = OutputRect.Size();
+
+	RHICmdList.SetViewport(OutputRect.Min.X, OutputRect.Min.Y, 0.0f, OutputRect.Max.X, OutputRect.Max.Y, 1.0f);
+
+	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
+
+	FIntPoint LocalOutputPos(FIntPoint::ZeroValue);
+	FIntPoint LocalOutputSize(OutputSize);
+
+	if ((ScreenPassDraw.Flags & FScreenPassDrawInfo::EFlags::FlipYAxis) == FScreenPassDrawInfo::EFlags::FlipYAxis)
+	{
+		// Draw the quad flipped. Requires that the cull mode be disabled.
+		LocalOutputPos.Y = OutputSize.Y;
+		LocalOutputSize.Y = -OutputSize.Y;
+
+		// Triangle optimization currently doesn't work when flipped.
+		DrawRectangleFlags = EDRF_Default;
+	}
+
+	SetScreenPassPipelineState(RHICmdList, ScreenPassDraw);
+
+	SetupFunction(RHICmdList);
+
+	DrawPostProcessPass(
+		RHICmdList,
+		LocalOutputPos.X, LocalOutputPos.Y, LocalOutputSize.X, LocalOutputSize.Y,
+		InputRect.Min.X, InputRect.Min.Y, InputRect.Width(), InputRect.Height(),
+		OutputSize,
+		InputSize,
+		ScreenPassDraw.VertexShader,
+		ScreenPassView.StereoPass,
+		ScreenPassView.bHasHMDMask,
+		DrawRectangleFlags);
+}
+
+/** Render graph variant of simpler DrawScreenPass function. Clears graph resources unused by the
+ *  pixel shader prior to adding the pass.
  */
 template <typename TPixelShaderType>
-inline void AddDrawScreenPass(
+void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	const FScreenPassViewInfo& ScreenPassView,
-	FIntRect OutputViewportRect,
-	FIntRect InputViewportRect,
-	FIntPoint InputExtent,
+	const FScreenPassTextureViewport& OutputViewport,
+	const FScreenPassTextureViewport& InputViewport,
 	TPixelShaderType* PixelShader,
 	typename TPixelShaderType::FParameters* PixelShaderParameters)
 {
@@ -251,40 +320,81 @@ inline void AddDrawScreenPass(
 		Forward<FRDGEventName>(PassName),
 		PixelShaderParameters,
 		ERenderGraphPassFlags::None,
-		[ScreenPassView, OutputViewportRect, InputViewportRect, InputExtent, PixelShader, PixelShaderParameters]
-		(FRHICommandListImmediate& RHICmdList)
+		[ScreenPassView, OutputViewport, InputViewport, PixelShader, PixelShaderParameters]
+	(FRHICommandListImmediate& RHICmdList)
 	{
 		DrawScreenPass(
 			RHICmdList,
 			ScreenPassView,
-			OutputViewportRect,
-			InputViewportRect,
-			InputExtent,
+			OutputViewport,
+			InputViewport,
 			PixelShader,
 			*PixelShaderParameters);
 	});
 }
 
-/**
- * Helper variants of @ref AddDrawScreenPass. All other parameters are forwarded.
+/** Render graph variant of more advanced DrawScreenPass function. Does *not* clear unused graph
+ *  resources, since the parameters might be shared between the vertex and pixel shaders.
  */
-template <typename TPixelShaderType>
-inline void AddDrawScreenPass(
+template <typename TSetupFunction, typename TPassParameterStruct>
+void AddDrawScreenPass(
 	FRDGBuilder& GraphBuilder,
 	FRDGEventName&& PassName,
 	const FScreenPassViewInfo& ScreenPassView,
 	const FScreenPassTextureViewport& OutputViewport,
 	const FScreenPassTextureViewport& InputViewport,
-	TPixelShaderType* PixelShader,
-	typename TPixelShaderType::FParameters* PixelShaderParameters)
+	const FScreenPassDrawInfo& ScreenPassDraw,
+	TPassParameterStruct* PassParameterStruct,
+	TSetupFunction SetupFunction)
 {
-	AddDrawScreenPass(
-		GraphBuilder,
+	ScreenPassDraw.Validate();
+	check(PassParameterStruct);
+
+	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(PassName),
+		PassParameterStruct,
+		ERenderGraphPassFlags::None,
+		[ScreenPassView, OutputViewport, InputViewport, ScreenPassDraw, SetupFunction]
+		(FRHICommandListImmediate& RHICmdList)
+	{
+		DrawScreenPass(
+			RHICmdList,
+			ScreenPassView,
+			OutputViewport,
+			InputViewport,
+			ScreenPassDraw,
+			SetupFunction);
+	});
+}
+
+/** Helper function which copies a region of an input texture to a region of the output texture,
+ *  with support for format conversion. If formats match, the method falls back to a simple DMA
+ *  (CopyTexture); otherwise, it rasterizes using a pixel shader. Use this method if the two
+ *  textures may have different formats.
+ */
+void AddDrawTexturePass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	FIntPoint InputPosition = FIntPoint::ZeroValue,
+	FIntPoint OutputPosition = FIntPoint::ZeroValue,
+	FIntPoint Size = FIntPoint::ZeroValue);
+
+/** Helper variant which takes a shared viewport instead of unique input / output positions. */
+inline void AddDrawTexturePass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	FIntRect ViewportRect)
+{
+	AddDrawTexturePass(
+		GraphBuilder,
 		ScreenPassView,
-		OutputViewport.Rect,
-		InputViewport.Rect,
-		InputViewport.Extent,
-		PixelShader,
-		PixelShaderParameters);
+		InputTexture,
+		OutputTexture,
+		ViewportRect.Min,
+		ViewportRect.Min,
+		ViewportRect.Size());
 }

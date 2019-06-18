@@ -1199,19 +1199,24 @@ FRDGTextureRef FRenderingCompositePass::FindOrCreateRDGTextureForOutput(
 	const FRDGTextureDesc& TextureDesc,
 	const TCHAR* TextureName)
 {
+	if (FRDGTextureRef OutputTexture = FindRDGTextureForOutput(GraphBuilder, OutputId, TextureName))
+	{
+		return OutputTexture;
+	}
+	return GraphBuilder.CreateTexture(TextureDesc, TextureName);
+}
+
+FRDGTextureRef FRenderingCompositePass::FindRDGTextureForOutput(
+	FRDGBuilder& GraphBuilder,
+	EPassOutputId OutputId,
+	const TCHAR* TextureName)
+{
 	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
 	{
-		const TRefCountPtr<IPooledRenderTarget>& ExistingTarget = Output->PooledRenderTarget;
-
-		if (ExistingTarget)
+		if (const TRefCountPtr<IPooledRenderTarget>& ExistingTarget = Output->PooledRenderTarget)
 		{
 			return GraphBuilder.RegisterExternalTexture(ExistingTarget, TextureName);
 		}
-		else
-		{
-			return GraphBuilder.CreateTexture(TextureDesc, TextureName);
-		}
 	}
-
 	return nullptr;
 }

@@ -171,12 +171,6 @@ TAutoConsoleVariable<int32> CVarHalfResFFTBloom(
 	TEXT(" 1: Half-resolution convoltuion that excludes the center of the kernel.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarPostProcessingDisableMaterials(
-	TEXT("r.PostProcessing.DisableMaterials"),
-	0,
-	TEXT(" Allows to disable post process materials. \n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
-
 TAutoConsoleVariable<int32> CVarTemporalAAAllowDownsampling(
 	TEXT("r.TemporalAA.AllowDownsampling"),
 	1,
@@ -189,8 +183,6 @@ static TAutoConsoleVariable<float> CVarTemporalAAHistorySP(
 	TEXT("Size of temporal AA's history."),
 	ECVF_RenderThreadSafe
 );
-
-static bool HasPostProcessMaterial(FPostprocessContext& Context, EBlendableLocation InLocation);
 
 // -------------------------------------------------------
 
@@ -799,246 +791,12 @@ static void AddTemporalAA( FPostprocessContext& Context, FRenderingCompositeOutp
 	}
 }
 
-FPostProcessMaterialNode* IteratePostProcessMaterialNodes(const FFinalPostProcessSettings& Dest, EBlendableLocation InLocation, FBlendableEntry*& Iterator)
-{
-	for(;;)
-	{
-		FPostProcessMaterialNode* DataPtr = Dest.BlendableManager.IterateBlendables<FPostProcessMaterialNode>(Iterator);
-
-		if(!DataPtr || DataPtr->GetLocation() == InLocation)
-		{
-			return DataPtr;
-		}
-	}
-}
-
-
-static FRenderingCompositePass* AddSinglePostProcessMaterial(FPostprocessContext& Context, EBlendableLocation InLocation)
-{
-	if(!Context.View.Family->EngineShowFlags.PostProcessing || !Context.View.Family->EngineShowFlags.PostProcessMaterial)
-	{
-		return 0;
-	}
-
-	FBlendableEntry* Iterator = 0;
-	FPostProcessMaterialNode PPNode;
-
-	while(FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, InLocation, Iterator))
-	{
-		check(Data->GetMaterialInterface());
-
-		if(PPNode.IsValid())
-		{
-			FPostProcessMaterialNode::FCompare Dummy;
-
-			// take the one with the highest priority
-			if(!Dummy.operator()(PPNode, *Data))
-			{
-				continue;
-			}
-		}
-
-		PPNode = *Data;
-	}
-
-	if(UMaterialInterface* MaterialInterface = PPNode.GetMaterialInterface())
-	{
-		FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy();
-
-		check(Proxy);
-
-		const FMaterial* Material = Proxy->GetMaterial(Context.View.GetFeatureLevel());
-
-		check(Material);
-
-		if(Material->NeedsGBuffer())
-		{
-			// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-			FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, 1);
-		}
-
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessMaterial(MaterialInterface, Context.View.GetFeatureLevel()));
-
-		return Node;
-	}
-
-	return 0;
-}
-
-// simplied version of AddPostProcessMaterialChain(), side effect free
-static bool HasPostProcessMaterial(FPostprocessContext& Context, EBlendableLocation InLocation)
-{
-	if(!Context.View.Family->EngineShowFlags.PostProcessing || !Context.View.Family->EngineShowFlags.PostProcessMaterial)
-	{
-		return false;
-	}
-
-	if(Context.View.Family->EngineShowFlags.VisualizeBuffer)
-	{	
-		// Apply requested material to the full screen
-		UMaterial* Material = GetBufferVisualizationData().GetMaterial(Context.View.CurrentBufferVisualizationMode);
-		
-		if(Material && Material->BlendableLocation == InLocation)
-		{
-			return true;
-		}
-	}
-
-	FBlendableEntry* Iterator = 0;
-	FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, InLocation, Iterator);
-
-	if(Data)
-	{
-		return true;
-	}
-	
-	return false;
-}
-
-static FRenderingCompositeOutputRef AddPostProcessMaterialChain(
+static void AddGBufferVisualizationOverview(
 	FPostprocessContext& Context,
-	EBlendableLocation InLocation,
-	FRenderingCompositeOutputRef SeparateTranslucency = FRenderingCompositeOutputRef(),
-	FRenderingCompositeOutputRef PreTonemapHDRColor = FRenderingCompositeOutputRef(),
-	FRenderingCompositeOutputRef PostTonemapHDRColor = FRenderingCompositeOutputRef(),
-	FRenderingCompositeOutputRef PreFlattenVelocity = FRenderingCompositeOutputRef())
-{
-	if( !Context.View.Family->EngineShowFlags.PostProcessing ||
-		!Context.View.Family->EngineShowFlags.PostProcessMaterial ||
-		Context.View.Family->EngineShowFlags.VisualizeShadingModels || 
-		CVarPostProcessingDisableMaterials.GetValueOnRenderThread() != 0)		// we should add more
-	{
-		return Context.FinalOutput;
-	}
-
-	// hard coded - this should be a reasonable limit
-	const uint32 MAX_PPMATERIALNODES = 10;
-	FBlendableEntry* Iterator = 0;
-	FPostProcessMaterialNode PPNodes[MAX_PPMATERIALNODES];
-	uint32 PPNodeCount = 0;
-	bool bVisualizingBuffer = false;
-
-	if(Context.View.Family->EngineShowFlags.VisualizeBuffer)
-	{	
-		// Apply requested material to the full screen
-		UMaterial* Material = GetBufferVisualizationData().GetMaterial(Context.View.CurrentBufferVisualizationMode);
-		
-		if(Material && Material->BlendableLocation == InLocation)
-		{
-			PPNodes[0] = FPostProcessMaterialNode(Material, InLocation, Material->BlendablePriority);
-			++PPNodeCount;
-			bVisualizingBuffer = true;
-		}
-	}
-	for(;PPNodeCount < MAX_PPMATERIALNODES; ++PPNodeCount)
-	{
-		FPostProcessMaterialNode* Data = IteratePostProcessMaterialNodes(Context.View.FinalPostProcessSettings, InLocation, Iterator);
-
-		if(!Data)
-		{
-			break;
-		}
-
-		check(Data->GetMaterialInterface());
-
-		PPNodes[PPNodeCount] = *Data;
-	}
-	
-	::Sort(PPNodes, PPNodeCount, FPostProcessMaterialNode::FCompare());
-
-	ERHIFeatureLevel::Type FeatureLevel = Context.View.GetFeatureLevel();
-
-	FRenderingCompositeOutputRef LastestOutput = Context.FinalOutput;
-
-	for(uint32 i = 0; i < PPNodeCount; ++i)
-	{
-		UMaterialInterface* MaterialInterface = PPNodes[i].GetMaterialInterface();
-
-		FMaterialRenderProxy* Proxy = MaterialInterface->GetRenderProxy();
-
-		check(Proxy);
-
-		const FMaterial* Material = Proxy->GetMaterial(Context.View.GetFeatureLevel());
-
-		check(Material);
-
-		if(Material->NeedsGBuffer())
-		{
-			// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-			FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, 1);
-		}
-
-		FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessMaterial(MaterialInterface,FeatureLevel));
-		Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(LastestOutput));
-
-		// We are binding separate translucency here because the post process SceneTexture node can reference 
-		// the separate translucency buffers through ePId_Input1. 
-		// TODO: Check if material actually uses this texture and only bind if needed.
-		Node->SetInput(ePId_Input1, SeparateTranslucency);
-
-		// This input is only needed for visualization and frame dumping
-		if (bVisualizingBuffer)
-		{
-			Node->SetInput(ePId_Input2, PreTonemapHDRColor);
-			Node->SetInput(ePId_Input3, PostTonemapHDRColor);
-		}
-
-		if (Material->GetRenderingThreadShaderMap()->UsesVelocitySceneTexture() && !FVelocityRendering::BasePassCanOutputVelocity(FeatureLevel))
-		{
-			Node->SetInput(ePId_Input4, PreFlattenVelocity);
-		}
-
-		LastestOutput = FRenderingCompositeOutputRef(Node);
-	}
-
-	return LastestOutput;
-}
-
-static void AddHighResScreenshotMask(FPostprocessContext& Context, FRenderingCompositeOutputRef& SeparateTranslucencyInput)
-{
-	if (Context.View.Family->EngineShowFlags.HighResScreenshotMask != 0)
-	{
-		check(Context.View.FinalPostProcessSettings.HighResScreenshotMaterial);
-
-		FRenderingCompositeOutputRef Input = Context.FinalOutput;
-
-		FRenderingCompositePass* CompositePass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessMaterial(Context.View.FinalPostProcessSettings.HighResScreenshotMaterial, Context.View.GetFeatureLevel()));
-		CompositePass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Input));
-		Context.FinalOutput = FRenderingCompositeOutputRef(CompositePass);
-
-		if (GIsHighResScreenshot)
-		{
-			check(Context.View.FinalPostProcessSettings.HighResScreenshotMaskMaterial); 
-
-			FRenderingCompositePass* MaskPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessMaterial(Context.View.FinalPostProcessSettings.HighResScreenshotMaskMaterial, Context.View.GetFeatureLevel()));
-			MaskPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Input));
-			CompositePass->AddDependency(MaskPass);
-
-			FString BaseFilename = FString(Context.View.FinalPostProcessSettings.BufferVisualizationDumpBaseFilename);
-			MaskPass->SetOutputColorArray(ePId_Output0, FScreenshotRequest::GetHighresScreenshotMaskColorArray());
-		}
-	}
-
-	// Draw the capture region if a material was supplied
-	if (Context.View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial)
-	{
-		auto Material = Context.View.FinalPostProcessSettings.HighResScreenshotCaptureRegionMaterial;
-
-		FRenderingCompositePass* CaptureRegionVisualizationPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessMaterial(Material, Context.View.GetFeatureLevel()));
-		CaptureRegionVisualizationPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
-		Context.FinalOutput = FRenderingCompositeOutputRef(CaptureRegionVisualizationPass);
-
-		auto Proxy = Material->GetRenderProxy();
-		const FMaterial* RendererMaterial = Proxy->GetMaterial(Context.View.GetFeatureLevel());
-		if (RendererMaterial->NeedsGBuffer())
-		{
-			// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-			FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, 1);
-		}
-	}
-}
-
-static void AddGBufferVisualizationOverview(FPostprocessContext& Context, FRenderingCompositeOutputRef& SeparateTranslucencyInput, FRenderingCompositeOutputRef& PreTonemapHDRColorInput, FRenderingCompositeOutputRef& PostTonemapHDRColorInput, FRenderingCompositeOutputRef& PreFlattenVelocity)
+	FRenderingCompositeOutputRef SeparateTranslucencyInput,
+	FRenderingCompositeOutputRef PreTonemapHDRColorInput,
+	FRenderingCompositeOutputRef PostTonemapHDRColorInput,
+	FRenderingCompositeOutputRef PreFlattenVelocity)
 {
 	static const auto CVarDumpFrames = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BufferVisualizationDumpFrames"));
 	static const auto CVarDumpFramesAsHDR = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BufferVisualizationDumpFramesAsHDR"));
@@ -1062,7 +820,7 @@ static void AddGBufferVisualizationOverview(FPostprocessContext& Context, FRende
 	}
 	
 	if (bDumpFrames || bVisualizationEnabled)
-	{	
+	{
 		FRenderingCompositeOutputRef IncomingStage = Context.FinalOutput;
 
 		if (bDumpFrames || bOverviewModeEnabled)
@@ -1075,28 +833,20 @@ static void AddGBufferVisualizationOverview(FPostprocessContext& Context, FRende
 			// Loop over materials, creating stages for generation and downsampling of the tiles.			
 			for (TArray<UMaterialInterface*>::TConstIterator It = Context.View.FinalPostProcessSettings.BufferVisualizationOverviewMaterials.CreateConstIterator(); It; ++It)
 			{
-				auto MaterialInterface = *It;
+				const UMaterialInterface* MaterialInterface = *It;
 				if (MaterialInterface)
 				{
 					// Apply requested material
-					FRenderingCompositePass* MaterialPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessMaterial(*It, Context.View.GetFeatureLevel(), OutputFormat));
-					MaterialPass->SetInput(ePId_Input0, FRenderingCompositeOutputRef(IncomingStage));
-					MaterialPass->SetInput(ePId_Input1, FRenderingCompositeOutputRef(SeparateTranslucencyInput));
-					MaterialPass->SetInput(ePId_Input2, FRenderingCompositeOutputRef(PreTonemapHDRColorInput));
-					MaterialPass->SetInput(ePId_Input3, FRenderingCompositeOutputRef(PostTonemapHDRColorInput));
-					MaterialPass->SetInput(ePId_Input4, FRenderingCompositeOutputRef(PreFlattenVelocity));
+					FRenderingCompositePass* MaterialPass = AddPostProcessMaterialPass(Context, MaterialInterface, OutputFormat);
+					MaterialPass->SetInput(EPassInputId(EPostProcessMaterialInput::SceneColor), IncomingStage);
+					MaterialPass->SetInput(EPassInputId(EPostProcessMaterialInput::SeparateTranslucency), SeparateTranslucencyInput);
+					MaterialPass->SetInput(EPassInputId(EPostProcessMaterialInput::PreTonemapHDRColor), PreTonemapHDRColorInput);
+					MaterialPass->SetInput(EPassInputId(EPostProcessMaterialInput::PostTonemapHDRColor), PostTonemapHDRColorInput);
+					MaterialPass->SetInput(EPassInputId(EPostProcessMaterialInput::Velocity), PreFlattenVelocity);
 
-					auto Proxy = MaterialInterface->GetRenderProxy();
-					const FMaterial* Material = Proxy->GetMaterial(Context.View.GetFeatureLevel());
-					if (Material->NeedsGBuffer())
-					{
-						// AdjustGBufferRefCount(-1) call is done when the pass gets executed
-						FSceneRenderTargets::Get(Context.RHICmdList).AdjustGBufferRefCount(Context.RHICmdList, 1);
-					}
+					FString VisualizationName = MaterialInterface->GetName();
 
-					FString VisualizationName = (*It)->GetName();
-
-					const TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe>* OutputPipe = Context.View.FinalPostProcessSettings.BufferVisualizationPipes.Find((*It)->GetFName());
+					const TSharedPtr<FImagePixelPipe, ESPMode::ThreadSafe>* OutputPipe = Context.View.FinalPostProcessSettings.BufferVisualizationPipes.Find(MaterialInterface->GetFName());
 					if (OutputPipe && OutputPipe->IsValid())
 					{
 						MaterialPass->SetOutputDumpPipe(ePId_Output0, *OutputPipe);
@@ -1742,23 +1492,16 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 
 			if(bAllowTonemapper)
 			{
-				auto Node = AddSinglePostProcessMaterial(Context, BL_ReplacingTonemapper);
-
-				if(Node)
 				{
-					// a custom tonemapper is provided
-					Node->SetInput(ePId_Input0, Context.FinalOutput);
+					FRenderingCompositeOutputRef FinalOutputPrev = Context.FinalOutput;
 
-					// We are binding separate translucency here because the post process SceneTexture node can reference 
-					// the separate translucency buffers through ePId_Input1. 
-					// TODO: Check if material actually uses this texture and only bind if needed.
-					Node->SetInput(ePId_Input1, SeparateTranslucency);
-					Node->SetInput(ePId_Input2, BloomOutputCombined);
-					Context.FinalOutput = Node;
-				}
-				else
-				{
-					Tonemapper = AddTonemapper(Context, BloomOutputCombined, AutoExposure.EyeAdaptation, AutoExposure.MethodId, false, bHDRTonemapperOutput);
+					Context.FinalOutput = AddPostProcessMaterialReplaceTonemapPass(Context, SeparateTranslucency, BloomOutputCombined);
+
+					// No-op from post process material pass; run built-in tonemapper instead.
+					if (Context.FinalOutput == FinalOutputPrev)
+					{
+						Tonemapper = AddTonemapper(Context, BloomOutputCombined, AutoExposure.EyeAdaptation, AutoExposure.MethodId, false, bHDRTonemapperOutput);
+					}
 				}
 
 				PostTonemapHDRColor = Context.FinalOutput;
@@ -1961,7 +1704,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
 		}
 
-		AddHighResScreenshotMask(Context, SeparateTranslucency);
+		AddHighResScreenshotMask(Context);
 
 		FIntPoint PrimaryUpscaleViewSize = Context.View.GetSecondaryViewRectSize();
 
@@ -2572,13 +2315,8 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 			}
 		}
 
-		// Screenshot mask
-		{
-			FRenderingCompositeOutputRef EmptySeparateTranslucency;
-			AddHighResScreenshotMask(Context, EmptySeparateTranslucency);
-		}
-		
-	
+		AddHighResScreenshotMask(Context);
+
 #if WITH_EDITOR
 		// Show the selection outline if it is in the editor and we aren't in wireframe 
 		// If the engine is in demo mode and game view is on we also do not show the selection outline

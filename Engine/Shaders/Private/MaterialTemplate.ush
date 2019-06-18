@@ -18,6 +18,41 @@
 	#include "/Engine/Private/SpeedTreeCommon.ush"
 #endif
 
+//////////////////////////////////////////////////////////////////////////
+//! Must match ESceneTextureId
+
+#define PPI_SceneColor 0
+#define PPI_SceneDepth 1
+#define PPI_DiffuseColor 2
+#define PPI_SpecularColor 3
+#define PPI_SubsurfaceColor 4
+#define PPI_BaseColor 5
+#define PPI_Specular 6
+#define PPI_Metallic 7
+#define PPI_WorldNormal 8
+#define PPI_SeparateTranslucency 9
+#define PPI_Opacity 10
+#define PPI_Roughness 11
+#define PPI_MaterialAO 12
+#define PPI_CustomDepth 13
+#define PPI_PostProcessInput0 14
+#define PPI_PostProcessInput1 15
+#define PPI_PostProcessInput2 16
+#define PPI_PostProcessInput3 17
+#define PPI_PostProcessInput4 18
+#define PPI_PostProcessInput5 19 // (UNUSED)
+#define PPI_PostProcessInput6 20 // (UNUSED)
+#define PPI_DecalMask 21
+#define PPI_ShadingModelColor 22
+#define PPI_ShadingModelID 23
+#define PPI_AmbientOcclusion 24
+#define PPI_CustomStencil 25
+#define PPI_StoredBaseColor 26
+#define PPI_StoredSpecular 27
+#define PPI_Velocity 28
+
+//////////////////////////////////////////////////////////////////////////
+
 #define NUM_MATERIAL_TEXCOORDS_VERTEX %s
 #define NUM_MATERIAL_TEXCOORDS %s
 #define NUM_CUSTOM_VERTEX_INTERPOLATORS %s
@@ -36,11 +71,6 @@
 #endif
 
 #include "/Engine/Private/PaniniProjection.ush"
-
-#if POST_PROCESS_MATERIAL
-	// only Postprocess material bind PostprocessInput0, PostprocessInput0Size, PostprocessInput0MinMax ...
-	#include "/Engine/Private/PostProcessCommon.ush"			// PostprocessInput0
-#endif
 
 #ifndef USE_DITHERED_LOD_TRANSITION
     #if USE_INSTANCING
@@ -458,16 +488,16 @@ float2 GetPixelPosition(FMaterialVertexParameters Parameters)
 }
 
 
-#if defined(POST_PROCESS_MATERIAL) && POST_PROCESS_MATERIAL && POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE
+#if POST_PROCESS_MATERIAL
 
 float2 GetPixelPosition(FMaterialPixelParameters Parameters)
 {
-	return Parameters.SvPosition.xy - float2(ViewportRect.xy);
+	return Parameters.SvPosition.xy - float2(PostProcessOutput_ViewportMin);
 }
 
 float2 GetViewportUV(FMaterialPixelParameters Parameters)
 {
-	return GetPixelPosition(Parameters) * ViewportSize.zw;
+	return GetPixelPosition(Parameters) * PostProcessOutput_ViewportSizeInverse;
 }
 
 #else
@@ -484,92 +514,99 @@ float2 GetViewportUV(FMaterialPixelParameters Parameters)
 
 #endif
 
-
 // Returns whether a scene texture id is a for a post process input or not.
 bool IsPostProcessInputSceneTexture(const uint SceneTextureId)
 {
-	return (SceneTextureId >= 14 && SceneTextureId <= 20);
+	return (SceneTextureId >= PPI_PostProcessInput0 && SceneTextureId <= PPI_PostProcessInput6);
 }
-
 
 // Returns the view size and texel size in a given scene texture.
 float4 GetSceneTextureViewSize(const uint SceneTextureId)
 {
-	#if POST_PROCESS_MATERIAL && POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE
+	#if POST_PROCESS_MATERIAL
 	if (IsPostProcessInputSceneTexture(SceneTextureId))
 	{
-		return ViewportSize;
+		switch (SceneTextureId)
+		{
+		case PPI_PostProcessInput0:
+			return float4(PostProcessInput_0_ViewportSize, PostProcessInput_0_ViewportSizeInverse);
+		case PPI_PostProcessInput1:
+			return float4(PostProcessInput_1_ViewportSize, PostProcessInput_1_ViewportSizeInverse);
+		case PPI_PostProcessInput2:
+			return float4(PostProcessInput_2_ViewportSize, PostProcessInput_2_ViewportSizeInverse);
+		case PPI_PostProcessInput3:
+			return float4(PostProcessInput_3_ViewportSize, PostProcessInput_3_ViewportSizeInverse);
+		case PPI_PostProcessInput4:
+			return float4(PostProcessInput_4_ViewportSize, PostProcessInput_4_ViewportSizeInverse);
+		default:
+			return float4(0, 0, 0, 0);
+		}
 	}
 	#endif
 	return ResolvedView.ViewSizeAndInvSize;
 }
 
-
 // Return the buffer UV min and max for a given scene texture id.
 float4 GetSceneTextureUVMinMax(const uint SceneTextureId)
 {
 	#if POST_PROCESS_MATERIAL
+	if (IsPostProcessInputSceneTexture(SceneTextureId))
 	{
-		const uint PostProcessInputIndex = SceneTextureId - 14;
-
-			 if (PostProcessInputIndex == 0)	return PostprocessInput0MinMax;
-		else if (PostProcessInputIndex == 1)	return PostprocessInput1MinMax;
-		else if (PostProcessInputIndex == 2)	return PostprocessInput2MinMax;
-		else if (PostProcessInputIndex == 3)	return PostprocessInput3MinMax;
-		else if (PostProcessInputIndex == 4)	return PostprocessInput4MinMax;
-		else if (PostProcessInputIndex == 5)	return PostprocessInput5MinMax;
-		else if (PostProcessInputIndex == 6)	return PostprocessInput6MinMax;
+		switch (SceneTextureId)
+		{
+		case PPI_PostProcessInput0:
+			return float4(PostProcessInput_0_UVViewportBilinearMin, PostProcessInput_0_UVViewportBilinearMax);
+		case PPI_PostProcessInput1:
+			return float4(PostProcessInput_1_UVViewportBilinearMin, PostProcessInput_1_UVViewportBilinearMax);
+		case PPI_PostProcessInput2:
+			return float4(PostProcessInput_2_UVViewportBilinearMin, PostProcessInput_2_UVViewportBilinearMax);
+		case PPI_PostProcessInput3:
+			return float4(PostProcessInput_3_UVViewportBilinearMin, PostProcessInput_3_UVViewportBilinearMax);
+		case PPI_PostProcessInput4:
+			return float4(PostProcessInput_4_UVViewportBilinearMin, PostProcessInput_4_UVViewportBilinearMax);
+		default:
+			return float4(0, 0, 1, 1);
+		}
 	}
 	#endif
 
 	return View.BufferBilinearUVMinMax;
 }
 
-
 // Transforms viewport UV to scene texture's UV.
 MaterialFloat2 ViewportUVToSceneTextureUV(MaterialFloat2 ViewportUV, const uint SceneTextureId)
 {
 	#if POST_PROCESS_MATERIAL
+	if (IsPostProcessInputSceneTexture(SceneTextureId))
 	{
-		// If compiling for material permutation that assume BufferSize == ViewSize.
-		#if POST_PROCESS_MATERIAL_UV_POLICY == 0
+		switch (SceneTextureId)
 		{
+		case PPI_PostProcessInput0:
+			return ViewportUV * PostProcessInput_0_UVViewportSize + PostProcessInput_0_UVViewportMin;
+		case PPI_PostProcessInput1:
+			return ViewportUV * PostProcessInput_1_UVViewportSize + PostProcessInput_1_UVViewportMin;
+		case PPI_PostProcessInput2:
+			return ViewportUV * PostProcessInput_2_UVViewportSize + PostProcessInput_2_UVViewportMin;
+		case PPI_PostProcessInput3:
+			return ViewportUV * PostProcessInput_3_UVViewportSize + PostProcessInput_3_UVViewportMin;
+		case PPI_PostProcessInput4:
+			return ViewportUV * PostProcessInput_4_UVViewportSize + PostProcessInput_4_UVViewportMin;
+		default:
 			return ViewportUV;
 		}
-		#endif
-
-		#if POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE
-		if (IsPostProcessInputSceneTexture(SceneTextureId))
-		{
-			return ViewportUVToPostProcessingSceneColorBufferUV(ViewportUV);
-		}
-		#endif
 	}
 	#endif
 
 	return ViewportUVToBufferUV(ViewportUV);
 }
 
-
 // Manually clamp scene texture UV as if using a clamp sampler.
 MaterialFloat2 ClampSceneTextureUV(MaterialFloat2 BufferUV, const uint SceneTextureId)
 {
-	#if POST_PROCESS_MATERIAL
-	{
-		// If compiling for material permutation that assume BufferSize == ViewSize, then there is no need to clamp.
-		#if POST_PROCESS_MATERIAL_UV_POLICY == 0
-		{
-			return BufferUV;
-		}
-		#endif
-	}
-	#endif
-
 	float4 MinMax = GetSceneTextureUVMinMax(SceneTextureId);
 
 	return clamp(BufferUV, MinMax.xy, MinMax.zw);
 }
-
 
 // Get default scene texture's UV.
 MaterialFloat2 GetDefaultSceneTextureUV(FMaterialVertexParameters Parameters, const uint SceneTextureId)
@@ -577,24 +614,13 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialVertexParameters Parameters, co
 	return GetSceneTextureUV(Parameters);
 }
 
-
 // Get default scene texture's UV.
 MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, const uint SceneTextureId)
 {
 	#if POST_PROCESS_MATERIAL
+	if (IsPostProcessInputSceneTexture(SceneTextureId))
 	{
-		// If compiling for material permutation that assume BufferSize == ViewSize, then return scene texture UV.
-		#if POST_PROCESS_MATERIAL_UV_POLICY == 0
-		{
-			return GetSceneTextureUV(Parameters);
-		}
-		#endif
-
-		#if POST_PROCESS_MATERIAL_AFTER_TAA_UPSAMPLE
-		{
-			return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
-		}
-		#endif
+		return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
 	}
 	#endif
 
@@ -1378,53 +1404,35 @@ float EyeAdaptationLookup()
 
 #if NEEDS_SCENE_TEXTURES
 
-float4 GetPostProcessInputMinMax(uint Index)
-{
-#if POST_PROCESS_MATERIAL
-		 if (Index == 0)	return PostprocessInput0MinMax;
-	else if (Index == 1)	return PostprocessInput1MinMax;
-	else if (Index == 2)	return PostprocessInput2MinMax;
-	else if (Index == 3)	return PostprocessInput3MinMax;
-	else if (Index == 4)	return PostprocessInput4MinMax;
-	else if (Index == 5)	return PostprocessInput5MinMax;
-	else if (Index == 6)	return PostprocessInput6MinMax;
-#endif
-	return 1.0f;
-}
-
 #if SHADING_PATH_MOBILE
 
 MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameters, int SceneTextureId, float2 UV)
 {
 #if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
-	
-	//PPI_SceneDepth
-	if (SceneTextureId == 1)
+
+	if (SceneTextureId == PPI_SceneDepth)
 	{
 		MaterialFloat Depth = Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, UV).a;
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
-	//PPI_CustomDepth
-	else if (SceneTextureId == 13)
+	else if (SceneTextureId == PPI_CustomDepth)
 	{
 		MaterialFloat Depth = ConvertFromDeviceZ(Texture2DSample(MobileSceneTextures.CustomDepthTexture, MobileSceneTextures.CustomDepthTextureSampler, UV).r);
 		return MaterialFloat4(Depth.rrr, 0.f);
 	}
-	// PPI_PostprocessInput
-	else if (SceneTextureId == 14)
+	else if (SceneTextureId == PPI_PostProcessInput0)
 	{
-#if POST_PROCESS_MATERIAL	
-		MaterialFloat4 Input0 = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV);
+#if POST_PROCESS_MATERIAL
+		MaterialFloat4 Input0 = Texture2DSample(PostProcessInput_0_Texture, PostProcessInput_0_SharedSampler, UV);
 		#if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 		Input0 = Decode32BPPHDR(Input0);
 		#endif
-		// We need to preserve original SceneColor Alpha as it's used by tonemaper on mobile
+		// We need to preserve original SceneColor Alpha as it's used by tonemapper on mobile
 		Parameters.BackupSceneColorAlpha = Input0.a;
 		return Input0;
-#endif// POST_PROCESS_MATERIAL	
+#endif// POST_PROCESS_MATERIAL
 	}
-	// PPI_CustomStencil
-	else if (SceneTextureId == 25)
+	else if (SceneTextureId == PPI_CustomStencil)
 	{
 		MaterialFloat Stencil = Texture2DSample(MobileSceneTextures.MobileCustomStencilTexture, MobileSceneTextures.MobileCustomStencilTextureSampler, UV).r*255.0;
 		Stencil = floor(Stencil + 0.5);
@@ -1449,7 +1457,7 @@ float2 PostProcessVelocityLookup(float Depth, float2 UV)
 #if GBUFFER_HAS_VELOCITY
 	float2 Velocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct.GBufferVelocityTextureSampler, UV, 0).xy;
 #else
-	float2 Velocity = Texture2DSample(PostprocessInput4, PostprocessInput4Sampler, UV).xy;
+	float2 Velocity = Texture2DSample(PostProcessInput_4_Texture, PostProcessInput_4_SharedSampler, UV).xy;
 #endif
 
 	if( Velocity.x > 0.0 )
@@ -1480,67 +1488,63 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 	{
 		// order needs to match to ESceneTextureId
 
-		// PPI_SceneColor
-		case 0: return float4(CalcSceneColor(UV), 0);
-		// PPI_SceneDepth
-		case 1: return ScreenSpaceData.GBuffer.Depth;
-		// PPI_DiffuseColor
-		case 2: return float4(ScreenSpaceData.GBuffer.DiffuseColor, 0);
-		// PPI_SpecularColor
-		case 3: return float4(ScreenSpaceData.GBuffer.SpecularColor, 0);
-		// PPI_SubsurfaceColor
-		case 4: return IsSubsurfaceModel(ScreenSpaceData.GBuffer.ShadingModelID) ? float4( ExtractSubsurfaceColor(ScreenSpaceData.GBuffer), ScreenSpaceData.GBuffer.CustomData.a ) : ScreenSpaceData.GBuffer.CustomData;
-		// PPI_BaseColor
-		case 5: return float4(ScreenSpaceData.GBuffer.BaseColor, 0);
-		// PPI_Specular
-		case 6: return ScreenSpaceData.GBuffer.Specular;
-		// PPI_Metallic
-		case 7: return ScreenSpaceData.GBuffer.Metallic;
-		// PPI_WorldNormal
-		case 8: return float4(ScreenSpaceData.GBuffer.WorldNormal, 0);
-		// PPI_SeparateTranslucency
-		case 9: return float4(1, 1, 1, 1);	// todo
-		// PPI_Opacity
-		case 10: return ScreenSpaceData.GBuffer.CustomData.a;
-		// PPI_Roughness
-		case 11: return ScreenSpaceData.GBuffer.Roughness;
-		// PPI_MaterialAO
-		case 12: return ScreenSpaceData.GBuffer.GBufferAO;
-		// PPI_CustomDepth
-		case 13: return ScreenSpaceData.GBuffer.CustomDepth;
+		case PPI_SceneColor:
+			return float4(CalcSceneColor(UV), 0);
+		case PPI_SceneDepth:
+			return ScreenSpaceData.GBuffer.Depth;
+		case PPI_DiffuseColor:
+			return float4(ScreenSpaceData.GBuffer.DiffuseColor, 0);
+		case PPI_SpecularColor:
+			return float4(ScreenSpaceData.GBuffer.SpecularColor, 0);
+		case PPI_SubsurfaceColor:
+			return IsSubsurfaceModel(ScreenSpaceData.GBuffer.ShadingModelID) ? float4( ExtractSubsurfaceColor(ScreenSpaceData.GBuffer), ScreenSpaceData.GBuffer.CustomData.a ) : ScreenSpaceData.GBuffer.CustomData;
+		case PPI_BaseColor:
+			return float4(ScreenSpaceData.GBuffer.BaseColor, 0);
+		case PPI_Specular:
+			return ScreenSpaceData.GBuffer.Specular;
+		case PPI_Metallic:
+			return ScreenSpaceData.GBuffer.Metallic;
+		case PPI_WorldNormal:
+			return float4(ScreenSpaceData.GBuffer.WorldNormal, 0);
+		case PPI_SeparateTranslucency:
+			return float4(1, 1, 1, 1);	// todo
+		case PPI_Opacity:
+			return ScreenSpaceData.GBuffer.CustomData.a;
+		case PPI_Roughness:
+			return ScreenSpaceData.GBuffer.Roughness;
+		case PPI_MaterialAO:
+			return ScreenSpaceData.GBuffer.GBufferAO;
+		case PPI_CustomDepth:
+			return ScreenSpaceData.GBuffer.CustomDepth;
 #if POST_PROCESS_MATERIAL
-		// PPI_PostprocessInput0
-		case 14: return Texture2DSample(PostprocessInput0, bFiltered ? BilinearTextureSampler : PostprocessInput0Sampler, UV);
-		// PPI_PostprocessInput1
-		case 15: return Texture2DSample(PostprocessInput1, bFiltered ? BilinearTextureSampler : PostprocessInput1Sampler, UV);
-		// PPI_PostprocessInput2
-		case 16: return Texture2DSample(PostprocessInput2, bFiltered ? BilinearTextureSampler : PostprocessInput2Sampler, UV);
-		// PPI_PostprocessInput3
-		case 17: return Texture2DSample(PostprocessInput3, bFiltered ? BilinearTextureSampler : PostprocessInput3Sampler, UV);
-		// PPI_PostprocessInput4
-		case 18: return Texture2DSample(PostprocessInput4, bFiltered ? BilinearTextureSampler : PostprocessInput4Sampler, UV);
-		// PPI_PostprocessInput5
-		case 19: return Texture2DSample(PostprocessInput5, bFiltered ? BilinearTextureSampler : PostprocessInput5Sampler, UV);
-		// PPI_PostprocessInput6
-		case 20: return Texture2DSample(PostprocessInput6, bFiltered ? BilinearTextureSampler : PostprocessInput6Sampler, UV);
+		case PPI_PostProcessInput0:
+			return Texture2DSample(PostProcessInput_0_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_0_SharedSampler, UV);
+		case PPI_PostProcessInput1:
+			return Texture2DSample(PostProcessInput_1_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_1_SharedSampler, UV);
+		case PPI_PostProcessInput2:
+			return Texture2DSample(PostProcessInput_2_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_2_SharedSampler, UV);
+		case PPI_PostProcessInput3:
+			return Texture2DSample(PostProcessInput_3_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_3_SharedSampler, UV);
+		case PPI_PostProcessInput4:
+			return Texture2DSample(PostProcessInput_4_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_4_SharedSampler, UV);
 #endif // __POST_PROCESS_COMMON__
-		// PPI_DecalMask
-		case 21: return 0;  // material compiler will return an error
-		// PPI_ShadingModelColor
-		case 22: return float4(GetShadingModelColor(ScreenSpaceData.GBuffer.ShadingModelID), 1);
-		// PPI_ShadingModelID
-		case 23: return float4(ScreenSpaceData.GBuffer.ShadingModelID, 0, 0, 0);
-		// PPI_AmbientOcclusion
-		case 24: return ScreenSpaceData.AmbientOcclusion;
-		// PPI_CustomStencil
-		case 25: return ScreenSpaceData.GBuffer.CustomStencil;
-		// PPI_StoredBaseColor
-		case 26: return float4(ScreenSpaceData.GBuffer.StoredBaseColor, 0);
-		// PPI_StoredSpecular
-		case 27: return float4(ScreenSpaceData.GBuffer.StoredSpecular.rrr, 0);
+		case PPI_DecalMask:
+			return 0;  // material compiler will return an error
+		case PPI_ShadingModelColor:
+			return float4(GetShadingModelColor(ScreenSpaceData.GBuffer.ShadingModelID), 1);
+		case PPI_ShadingModelID:
+			return float4(ScreenSpaceData.GBuffer.ShadingModelID, 0, 0, 0);
+		case PPI_AmbientOcclusion:
+			return ScreenSpaceData.AmbientOcclusion;
+		case PPI_CustomStencil:
+			return ScreenSpaceData.GBuffer.CustomStencil;
+		case PPI_StoredBaseColor:
+			return float4(ScreenSpaceData.GBuffer.StoredBaseColor, 0);
+		case PPI_StoredSpecular:
+			return float4(ScreenSpaceData.GBuffer.StoredSpecular.rrr, 0);
 #if POST_PROCESS_MATERIAL
-		// PPI_Velocity
-		case 28: return float4(PostProcessVelocityLookup(ScreenSpaceData.GBuffer.Depth, UV), 0, 0);
+		case PPI_Velocity:
+			return float4(PostProcessVelocityLookup(ScreenSpaceData.GBuffer.Depth, UV), 0, 0);
 #endif
 		default:
 			return float4(0, 0, 0, 0);

@@ -25,6 +25,7 @@
 #include "ScreenRendering.h"
 #include "Containers/DynamicRHIResourceArray.h"
 #include "PostProcess/SceneFilterRendering.h"
+#include "PostProcess/PostProcessMaterial.h"
 #include "PostProcessParameters.h"
 #include "EngineModule.h"
 
@@ -60,13 +61,11 @@ TAutoConsoleVariable<int32> CVarJPEGGpu(
 	TEXT("1 (default) compresses on the GPU, 0 on the CPU"),
 	ECVF_Default);
 
-/** Shaders to render our post process material */
-class FRemoteSessionARCameraVS :
-	public FMaterialShader
+class FPostProcessMaterialShader : public FMaterialShader
 {
-	DECLARE_SHADER_TYPE(FRemoteSessionARCameraVS, Material);
-
 public:
+	using FParameters = FPostProcessMaterialParameters;
+	SHADER_USE_PARAMETER_STRUCT_WITH_LEGACY_BASE(FPostProcessMaterialShader, FMaterialShader);
 
 	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
@@ -77,94 +76,63 @@ public:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_MOBILE"), 0);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
+	}
+};
+
+/** Shaders to render our post process material */
+class FRemoteSessionARCameraVS :
+	public FPostProcessMaterialShader
+{
+public:
+	DECLARE_MATERIAL_SHADER(FRemoteSessionARCameraVS);
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("POST_PROCESS_AR_PASSTHROUGH"), 1);
 	}
 
-	FRemoteSessionARCameraVS() { }
+	FRemoteSessionARCameraVS() = default;
 	FRemoteSessionARCameraVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FMaterialShader(Initializer)
-	{
-	}
+		: FPostProcessMaterialShader(Initializer)
+	{}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View)
 	{
 		FRHIVertexShader* ShaderRHI = GetVertexShader();
 		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		const bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRemoteSessionARCameraVS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainVS_VideoOverlay"), SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER(FRemoteSessionARCameraVS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainVS_VideoOverlay", SF_Vertex);
 
 class FRemoteSessionARCameraPS :
-	public FMaterialShader
+	public FPostProcessMaterialShader
 {
-	DECLARE_SHADER_TYPE(FRemoteSessionARCameraPS, Material);
-
 public:
-
-	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
-	{
-		return Parameters.Material->GetMaterialDomain() == MD_PostProcess && !IsMobilePlatform(Parameters.Platform);
-	}
+	DECLARE_MATERIAL_SHADER(FRemoteSessionARCameraPS);
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL"), 1);
+		FPostProcessMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("OUTPUT_MOBILE_HDR"), IsMobileHDR() ? 1 : 0);
-		OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_BEFORE_TONEMAP"), (Parameters.Material->GetBlendableLocation() != BL_AfterTonemapping) ? 1 : 0);
 	}
 
-	FRemoteSessionARCameraPS() {}
-	FRemoteSessionARCameraPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FMaterialShader(Initializer)
-	{
-		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
-		{
-			PostprocessInputParameter[InputIter].Bind(Initializer.ParameterMap, *FString::Printf(TEXT("PostprocessInput%d"), InputIter));
-			PostprocessInputParameterSampler[InputIter].Bind(Initializer.ParameterMap, *FString::Printf(TEXT("PostprocessInput%dSampler"), InputIter));
-		}
-	}
+	FRemoteSessionARCameraPS() = default;
+	FRemoteSessionARCameraPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FPostProcessMaterialShader(Initializer)
+	{}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* Material)
 	{
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, Material, *Material->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::None);
-
-		for (uint32 InputIter = 0; InputIter < ePId_Input_MAX; ++InputIter)
-		{
-			if (PostprocessInputParameter[InputIter].IsBound())
-			{
-				SetTextureParameter(
-						RHICmdList,
-						ShaderRHI,
-						PostprocessInputParameter[InputIter],
-						PostprocessInputParameterSampler[InputIter],
-						TStaticSamplerState<>::GetRHI(),
-						GBlackTexture->TextureRHI);
-			}
-		}
 	}
-
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		const bool bShaderHasOutdatedParameters = FMaterialShader::Serialize(Ar);
-		return bShaderHasOutdatedParameters;
-	}
-
-private:
-	FShaderResourceParameter PostprocessInputParameter[ePId_Input_MAX];
-	FShaderResourceParameter PostprocessInputParameterSampler[ePId_Input_MAX];
 };
 
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FRemoteSessionARCameraPS, TEXT("/Engine/Private/PostProcessMaterialShaders.usf"), TEXT("MainPS_VideoOverlay"), SF_Pixel);
+IMPLEMENT_MATERIAL_SHADER(FRemoteSessionARCameraPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_VideoOverlay", SF_Pixel);
 
 class FARCameraSceneViewExtension :
 	public FSceneViewExtensionBase

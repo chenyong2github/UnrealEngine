@@ -14,68 +14,68 @@ ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImm
 
 namespace
 {
-	TAutoConsoleVariable<int32> CVarSubsurfaceScattering(
-		TEXT("r.SubsurfaceScattering"),
-		1,
-		TEXT(" 0: disabled\n")
-		TEXT(" 1: enabled (default)"),
-		ECVF_RenderThreadSafe | ECVF_Scalability);
+TAutoConsoleVariable<int32> CVarSubsurfaceScattering(
+	TEXT("r.SubsurfaceScattering"),
+	1,
+	TEXT(" 0: disabled\n")
+	TEXT(" 1: enabled (default)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-	TAutoConsoleVariable<float> CVarSSSScale(
-		TEXT("r.SSS.Scale"),
-		1.0f,
-		TEXT("Affects the Screen space subsurface scattering pass")
-		TEXT("(use shadingmodel SubsurfaceProfile, get near to the object as the default)\n")
-		TEXT("is human skin which only scatters about 1.2cm)\n")
-		TEXT(" 0: off (if there is no object on the screen using this pass it should automatically disable the post process pass)\n")
-		TEXT("<1: scale scatter radius down (for testing)\n")
-		TEXT(" 1: use given radius form the Subsurface scattering asset (default)\n")
-		TEXT(">1: scale scatter radius up (for testing)"),
-		ECVF_Scalability | ECVF_RenderThreadSafe);
+TAutoConsoleVariable<float> CVarSSSScale(
+	TEXT("r.SSS.Scale"),
+	1.0f,
+	TEXT("Affects the Screen space subsurface scattering pass")
+	TEXT("(use shadingmodel SubsurfaceProfile, get near to the object as the default)\n")
+	TEXT("is human skin which only scatters about 1.2cm)\n")
+	TEXT(" 0: off (if there is no object on the screen using this pass it should automatically disable the post process pass)\n")
+	TEXT("<1: scale scatter radius down (for testing)\n")
+	TEXT(" 1: use given radius form the Subsurface scattering asset (default)\n")
+	TEXT(">1: scale scatter radius up (for testing)"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-	TAutoConsoleVariable<int32> CVarSSSHalfRes(
-		TEXT("r.SSS.HalfRes"),
-		1,
-		TEXT(" 0: full quality (not optimized, as reference)\n")
-		TEXT(" 1: parts of the algorithm runs in half resolution which is lower quality but faster (default)"),
-		ECVF_RenderThreadSafe | ECVF_Scalability);
+TAutoConsoleVariable<int32> CVarSSSHalfRes(
+	TEXT("r.SSS.HalfRes"),
+	1,
+	TEXT(" 0: full quality (not optimized, as reference)\n")
+	TEXT(" 1: parts of the algorithm runs in half resolution which is lower quality but faster (default)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-	TAutoConsoleVariable<int32> CVarSSSQuality(
-		TEXT("r.SSS.Quality"),
-		0,
-		TEXT("Defines the quality of the recombine pass when using the SubsurfaceScatteringProfile shading model\n")
-		TEXT(" 0: low (faster, default)\n")
-		TEXT(" 1: high (sharper details but slower)\n")
-		TEXT("-1: auto, 1 if TemporalAA is disabled (without TemporalAA the quality is more noticable)"),
-		ECVF_RenderThreadSafe | ECVF_Scalability);
+TAutoConsoleVariable<int32> CVarSSSQuality(
+	TEXT("r.SSS.Quality"),
+	0,
+	TEXT("Defines the quality of the recombine pass when using the SubsurfaceScatteringProfile shading model\n")
+	TEXT(" 0: low (faster, default)\n")
+	TEXT(" 1: high (sharper details but slower)\n")
+	TEXT("-1: auto, 1 if TemporalAA is disabled (without TemporalAA the quality is more noticable)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-	TAutoConsoleVariable<int32> CVarSSSFilter(
-		TEXT("r.SSS.Filter"),
-		1,
-		TEXT("Defines the filter method for Screenspace Subsurface Scattering feature.\n")
-		TEXT(" 0: point filter (useful for testing, could be cleaner)\n")
-		TEXT(" 1: bilinear filter"),
-		ECVF_RenderThreadSafe | ECVF_Scalability);
+TAutoConsoleVariable<int32> CVarSSSFilter(
+	TEXT("r.SSS.Filter"),
+	1,
+	TEXT("Defines the filter method for Screenspace Subsurface Scattering feature.\n")
+	TEXT(" 0: point filter (useful for testing, could be cleaner)\n")
+	TEXT(" 1: bilinear filter"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-	TAutoConsoleVariable<int32> CVarSSSSampleSet(
-		TEXT("r.SSS.SampleSet"),
-		2,
-		TEXT("Defines how many samples we use for Screenspace Subsurface Scattering feature.\n")
-		TEXT(" 0: lowest quality (6*2+1)\n")
-		TEXT(" 1: medium quality (9*2+1)\n")
-		TEXT(" 2: high quality (13*2+1) (default)"),
-		ECVF_RenderThreadSafe | ECVF_Scalability);
+TAutoConsoleVariable<int32> CVarSSSSampleSet(
+	TEXT("r.SSS.SampleSet"),
+	2,
+	TEXT("Defines how many samples we use for Screenspace Subsurface Scattering feature.\n")
+	TEXT(" 0: lowest quality (6*2+1)\n")
+	TEXT(" 1: medium quality (9*2+1)\n")
+	TEXT(" 2: high quality (13*2+1) (default)"),
+	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-	TAutoConsoleVariable<int32> CVarSSSCheckerboard(
-		TEXT("r.SSS.Checkerboard"),
-		2,
-		TEXT("Enables or disables checkerboard rendering for subsurface profile rendering.\n")
-		TEXT("This is necessary if SceneColor does not include a floating point alpha channel (e.g 32-bit formats)\n")
-		TEXT(" 0: Disabled (high quality) \n")
-		TEXT(" 1: Enabled (low quality). Surface lighting will be at reduced resolution.\n")
-		TEXT(" 2: Automatic. Non-checkerboard lighting will be applied if we have a suitable rendertarget format\n"),
-		ECVF_RenderThreadSafe);
-}
+TAutoConsoleVariable<int32> CVarSSSCheckerboard(
+	TEXT("r.SSS.Checkerboard"),
+	2,
+	TEXT("Enables or disables checkerboard rendering for subsurface profile rendering.\n")
+	TEXT("This is necessary if SceneColor does not include a floating point alpha channel (e.g 32-bit formats)\n")
+	TEXT(" 0: Disabled (high quality) \n")
+	TEXT(" 1: Enabled (low quality). Surface lighting will be at reduced resolution.\n")
+	TEXT(" 2: Automatic. Non-checkerboard lighting will be applied if we have a suitable rendertarget format\n"),
+	ECVF_RenderThreadSafe);
+} //! namespace
 
 enum class ESubsurfaceMode : uint32
 {
@@ -186,7 +186,7 @@ bool IsSubsurfaceCheckerboardFormat(EPixelFormat SceneColorFormat)
 }
 
 // Returns the SS profile texture with a black fallback texture if none exists yet.
-FTextureRHIRef GetSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList)
+FRHITexture* GetSubsurfaceProfileTexture(FRHICommandListImmediate& RHICmdList)
 {
 	const IPooledRenderTarget* ProfileTextureTarget = GetSubsufaceProfileTexture_RT(RHICmdList);
 
@@ -646,8 +646,9 @@ FRDGTextureRef ComputeSubsurface(
 				{
 					const FViewInfo& View = Views[ViewIndex];
 					const FScreenPassViewInfo ScreenPassView(View);
+					const FScreenPassTextureViewport TextureViewport(View.ViewRect, InputTextureSize);
 
-					DrawScreenPass(RHICmdList, ScreenPassView, View.ViewRect, View.ViewRect, InputTextureSize, *PixelShader, *PassParameters);
+					DrawScreenPass(RHICmdList, ScreenPassView, TextureViewport, TextureViewport, *PixelShader, *PassParameters);
 				}
 			}
 		});
