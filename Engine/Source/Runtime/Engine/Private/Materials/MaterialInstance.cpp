@@ -1167,6 +1167,11 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 	const UMaterial* Material = GetMaterial();
 	const FMaterialResource* CurrentResource = Material->GetMaterialResource(InFeatureLevel);
 
+	if (!CurrentResource)
+	{
+		return;
+	}
+
 	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[] =
 	{
 		&CurrentResource->GetUniform2DTextureExpressions(),
