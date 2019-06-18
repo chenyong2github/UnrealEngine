@@ -84,6 +84,8 @@ struct DATASMITHCONTENT_API FDatasmithObjectTemplateUtils
 {
 	static bool HasObjectTemplates( UObject* Outer );
 
+	static class UDatasmithAssetUserData* FindOrCreateDatasmithUserData( UObject* Outer );
+
 	static TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >* FindOrCreateObjectTemplates( UObject* Outer );
 
 	static UDatasmithObjectTemplate* GetObjectTemplate( UObject* Outer, TSubclassOf< UDatasmithObjectTemplate > Subclass );
