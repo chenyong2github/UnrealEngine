@@ -413,7 +413,7 @@ void FD3D12QueryHeap::CreateQueryHeap()
 	D3D12_QUERY_HEAP_DESC QueryHeapDesc;
 	QueryHeapDesc.Type = (QueryType == D3D12_QUERY_TYPE_OCCLUSION)? D3D12_QUERY_HEAP_TYPE_OCCLUSION : D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 	QueryHeapDesc.Count = QueryHeapCount;
-	QueryHeapDesc.NodeMask = (uint32)GetGPUMask();
+	QueryHeapDesc.NodeMask = GetGPUMask().GetNative();
 
 	// Create the upload heap
 	VERIFYD3D12RESULT(GetParentDevice()->GetDevice()->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(&QueryHeap)));
@@ -426,12 +426,13 @@ void FD3D12QueryHeap::CreateQueryHeap()
 
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
 
-	const D3D12_HEAP_PROPERTIES ResultBufferHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, (uint32)GetGPUMask(), (uint32)GetVisibilityMask());
+	const D3D12_HEAP_PROPERTIES ResultBufferHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 	const D3D12_RESOURCE_DESC ResultBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(ResultSize * QueryHeapDesc.Count); // Each query's result occupies ResultSize bytes.
 
 	// Create the readback heap
 	VERIFYD3D12RESULT(Adapter->CreateCommittedResource(
 		ResultBufferDesc,
+		GetGPUMask(),
 		ResultBufferHeapProperties,
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
@@ -626,7 +627,7 @@ void FD3D12LinearQueryHeap::CreateQueryHeap(int32 NumQueries, ID3D12QueryHeap** 
 	D3D12_QUERY_HEAP_DESC Desc;
 	Desc.Type = QueryHeapType;
 	Desc.Count = static_cast<uint32>(NumQueries);
-	Desc.NodeMask = static_cast<uint32>(GetGPUMask());
+	Desc.NodeMask = GetGPUMask().GetNative();
 	VERIFYD3D12RESULT(GetParentDevice()->GetDevice()->CreateQueryHeap(&Desc, IID_PPV_ARGS(OutHeap)));
 	SetName(*OutHeap, TEXT("FD3D12LinearQueryHeap"));
 
@@ -639,11 +640,12 @@ void FD3D12LinearQueryHeap::CreateQueryHeap(int32 NumQueries, ID3D12QueryHeap** 
 void FD3D12LinearQueryHeap::CreateResultBuffer(uint64 SizeInBytes, FD3D12Resource** OutBuffer)
 {
 	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
-	const D3D12_HEAP_PROPERTIES ResultBufferHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, (uint32)GetGPUMask(), (uint32)GetVisibilityMask());
+	const D3D12_HEAP_PROPERTIES ResultBufferHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK, GetGPUMask().GetNative(), GetVisibilityMask().GetNative());
 	const D3D12_RESOURCE_DESC ResultBufferDesc = CD3DX12_RESOURCE_DESC::Buffer(SizeInBytes);
 
 	VERIFYD3D12RESULT(Adapter->CreateCommittedResource(
 		ResultBufferDesc,
+		GetGPUMask(),
 		ResultBufferHeapProperties,
 		D3D12_RESOURCE_STATE_COPY_DEST,
 		nullptr,
@@ -748,7 +750,7 @@ void FD3D12BufferedGPUTiming::InitDynamicRHI()
 		TimestampQueryHeap = Adapter->CreateLinkedObject<QueryHeap>(FRHIGPUMask::All(), [&] (FD3D12Device* Device)
 		{
 			QueryHeap* NewHeap = new QueryHeap(Device);
-			QueryHeapDesc.NodeMask = (uint32)Device->GetGPUMask();
+			QueryHeapDesc.NodeMask = Device->GetGPUMask().GetNative();
 			VERIFYD3D12RESULT(D3DDevice->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(NewHeap->Heap.GetInitReference())));
 			SetName(NewHeap->Heap, L"FD3D12BufferedGPUTiming: Timestamp Query Heap");
 

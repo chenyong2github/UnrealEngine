@@ -318,7 +318,7 @@ void FD3D12Heap::BeginTrackingResidency(uint64 Size)
 //	FD3D12 Adapter
 /////////////////////////////////////////////////////////////////////
 
-HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, const D3D12_HEAP_PROPERTIES& HeapProps, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name)
+HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc, FRHIGPUMask CreationNode, const D3D12_HEAP_PROPERTIES& HeapProps, const D3D12_RESOURCE_STATES& InitialUsage, const D3D12_CLEAR_VALUE* ClearValue, FD3D12Resource** ppOutResource, const TCHAR* Name)
 {
 	if (!ppOutResource)
 	{
@@ -337,7 +337,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 		SetName(pResource, Name);
 
 		// Set the output pointer
-		*ppOutResource = new FD3D12Resource(GetDevice(FRHIGPUMask(HeapProps.CreationNodeMask).ToIndex()), FRHIGPUMask(HeapProps.VisibleNodeMask), pResource, InitialUsage, InDesc, nullptr, HeapProps.Type);
+		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InitialUsage, InDesc, nullptr, HeapProps.Type);
 		(*ppOutResource)->AddRef();
 
 		// Only track resources that cannot be accessed on the CPU.
@@ -388,18 +388,19 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const D3D12_RESOURCE_DESC& InDesc, F
 
 HRESULT FD3D12Adapter::CreateBuffer(D3D12_HEAP_TYPE HeapType, FRHIGPUMask CreationNode, FRHIGPUMask VisibleNodes, uint64 HeapSize, FD3D12Resource** ppOutResource, const TCHAR* Name, D3D12_RESOURCE_FLAGS Flags)
 {
-	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, (uint32)CreationNode, (uint32)VisibleNodes);
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, CreationNode.GetNative(), VisibleNodes.GetNative());
 	const D3D12_RESOURCE_STATES InitialState = DetermineInitialResourceState(HeapProps.Type, &HeapProps);
-	return CreateBuffer(HeapProps, InitialState, HeapSize, ppOutResource, Name, Flags);
+	return CreateBuffer(HeapProps, CreationNode, InitialState, HeapSize, ppOutResource, Name, Flags);
 }
 
 HRESULT FD3D12Adapter::CreateBuffer(D3D12_HEAP_TYPE HeapType, FRHIGPUMask CreationNode, FRHIGPUMask VisibleNodes, D3D12_RESOURCE_STATES InitialState, uint64 HeapSize, FD3D12Resource** ppOutResource, const TCHAR* Name, D3D12_RESOURCE_FLAGS Flags)
 {
-	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, (uint32)CreationNode, (uint32)VisibleNodes);
-	return CreateBuffer(HeapProps, InitialState, HeapSize, ppOutResource, Name, Flags);
+	const D3D12_HEAP_PROPERTIES HeapProps = CD3DX12_HEAP_PROPERTIES(HeapType, CreationNode.GetNative(), VisibleNodes.GetNative());
+	return CreateBuffer(HeapProps, CreationNode, InitialState, HeapSize, ppOutResource, Name, Flags);
 }
 
 HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
+	FRHIGPUMask CreationNode,
 	D3D12_RESOURCE_STATES InitialState,
 	uint64 HeapSize,
 	FD3D12Resource** ppOutResource,
@@ -413,6 +414,7 @@ HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 
 	const D3D12_RESOURCE_DESC BufDesc = CD3DX12_RESOURCE_DESC::Buffer(HeapSize, Flags);
 	return CreateCommittedResource(BufDesc,
+		CreationNode,
 		HeapProps,
 		InitialState,
 		nullptr,

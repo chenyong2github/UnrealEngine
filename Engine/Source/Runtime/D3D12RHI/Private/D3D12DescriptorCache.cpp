@@ -909,7 +909,7 @@ void FD3D12GlobalOnlineHeap::Init(uint32 TotalSize, D3D12_DESCRIPTOR_HEAP_TYPE T
 	Desc.Flags = HeapFlags;
 	Desc.Type = Type;
 	Desc.NumDescriptors = TotalSize;
-	Desc.NodeMask = (uint32)GetGPUMask();
+	Desc.NodeMask = GetGPUMask().GetNative();
 
 	//LLM_SCOPE(ELLMTag::DescriptorCache);
 
@@ -1068,7 +1068,7 @@ void FD3D12ThreadLocalOnlineHeap::Init(uint32 NumDescriptors, D3D12_DESCRIPTOR_H
 	Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	Desc.Type = Type;
 	Desc.NumDescriptors = NumDescriptors;
-	Desc.NodeMask = (uint32)GetGPUMask();
+	Desc.NodeMask = GetGPUMask().GetNative();
 
 	//LLM_SCOPE(ELLMTag::DescriptorCache);
 	VERIFYD3D12RESULT(GetParentDevice()->GetDevice()->CreateDescriptorHeap(&Desc, IID_PPV_ARGS(Heap.GetInitReference())));

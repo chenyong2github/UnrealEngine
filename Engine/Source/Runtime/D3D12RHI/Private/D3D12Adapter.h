@@ -181,6 +181,7 @@ public:
 
 	// Resource Creation
 	HRESULT CreateCommittedResource(const D3D12_RESOURCE_DESC& Desc,
+		FRHIGPUMask CreationNode,
 		const D3D12_HEAP_PROPERTIES& HeapProps,
 		const D3D12_RESOURCE_STATES& InitialUsage,
 		const D3D12_CLEAR_VALUE* ClearValue,
@@ -213,6 +214,7 @@ public:
 		D3D12_RESOURCE_FLAGS Flags = D3D12_RESOURCE_FLAG_NONE);
 
 	HRESULT CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
+		FRHIGPUMask CreationNode,
 		D3D12_RESOURCE_STATES InitialState,
 		uint64 HeapSize,
 		FD3D12Resource** ppOutResource,

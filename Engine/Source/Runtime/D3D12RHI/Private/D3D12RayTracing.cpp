@@ -773,7 +773,7 @@ public:
 		Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		Desc.Type = Type;
 		Desc.NumDescriptors = NumDescriptors;
-		Desc.NodeMask = (uint32)GetParentDevice()->GetGPUMask();
+		Desc.NodeMask = GetParentDevice()->GetGPUMask().GetNative();
 
 		ID3D12DescriptorHeap* D3D12Heap = nullptr;
 

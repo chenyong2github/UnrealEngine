@@ -233,7 +233,7 @@ void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* Graphic
 		if (!DiskCaches[PSO_CACHE_GRAPHICS].IsInErrorState())
 		{
 			// Only reload PSOs that match the LDA mask, or else it will fail.
-			if ((uint32)FRHIGPUMask::All() == Desc->Desc.NodeMask)
+			if (FRHIGPUMask::All().GetNative() == Desc->Desc.NodeMask)
 			{
 				// Add PSO to low level cache.
 				FD3D12PipelineState* PipelineState = nullptr;
@@ -287,7 +287,7 @@ void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* Graphic
 		if (!DiskCaches[PSO_CACHE_COMPUTE].IsInErrorState())
 		{
 			// Only reload PSOs that match the LDA mask, or else it will fail.
-			if ((uint32)FRHIGPUMask::All() == Desc->Desc.NodeMask)
+			if (FRHIGPUMask::All().GetNative() == Desc->Desc.NodeMask)
 			{
 				Desc->CombinedHash = FD3D12PipelineStateCache::HashPSODesc(*Desc);
 

@@ -52,7 +52,7 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	, StartTimeQueryIdx(INDEX_NONE)
 #endif
 {
-	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList((uint32)GetGPUMask(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
+	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList(GetGPUMask().GetNative(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
 
 #if PLATFORM_WINDOWS

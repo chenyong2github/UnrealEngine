@@ -598,7 +598,7 @@ FD3D12GraphicsPipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(
 {
 	// TODO: For now PSOs will be created on every node of the LDA chain.
 	OutLowLevelDesc = GetLowLevelGraphicsPipelineStateDesc(Initializer, RootSignature);
-	OutLowLevelDesc.Desc.NodeMask = (uint32)FRHIGPUMask::All();
+	OutLowLevelDesc.Desc.NodeMask = FRHIGPUMask::All().GetNative();
 
 	OutLowLevelDesc.CombinedHash = FD3D12PipelineStateCacheBase::HashPSODesc(OutLowLevelDesc);
 
@@ -677,7 +677,7 @@ FD3D12ComputePipelineState* FD3D12PipelineStateCacheBase::FindInLoadedCache(FD3D
 {
 	// TODO: For now PSOs will be created on every node of the LDA chain.
 	OutLowLevelDesc = GetComputePipelineStateDesc(ComputeShader);
-	OutLowLevelDesc.Desc.NodeMask = (uint32)FRHIGPUMask::All();
+	OutLowLevelDesc.Desc.NodeMask = FRHIGPUMask::All().GetNative();
 	OutLowLevelDesc.CombinedHash = FD3D12PipelineStateCacheBase::HashPSODesc(OutLowLevelDesc);
 
 	// First try to find the PSO in the low level cache that can be populated from disk.

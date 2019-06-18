@@ -186,7 +186,7 @@ private: // Types
 		Desc.Type = Type;
 		Desc.NumDescriptors = NumDescriptorsPerHeap;
 		Desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;// None as this heap is offline
-		Desc.NodeMask = (uint32)Node;
+		Desc.NodeMask = Node.GetNative();
 
 		return Desc;
 	}
