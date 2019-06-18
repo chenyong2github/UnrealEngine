@@ -326,6 +326,10 @@ namespace UnrealBuildTool
 			{
 				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "x86", "Store", "references");
 			}
+			else if (Compiler >= WindowsCompiler.VisualStudio2019)
+			{
+				return DirectoryReference.Combine(SelectedToolChainDir, "lib", "x86", "Store", "references");
+			}
 			else
 			{
 				return null;
