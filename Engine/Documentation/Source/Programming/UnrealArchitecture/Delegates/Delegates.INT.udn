@@ -135,7 +135,7 @@ Now, to assign the delegate, simply create an instance of your delegate class, p
 instance of your object and the actual function address of the method.  So, here we will create an instance of our 'FLogWriter' class, then create a delegate for the 'WriteToLog' 
 method of that object instance:
 
-	FSharedRef< FLogWriter > LogWriter( new FLogWriter() );
+	TSharedRef< FLogWriter > LogWriter( new FLogWriter() );
 
 	WriteToLogDelegate.BindSP( LogWriter, &FLogWriter::WriteToLog );
 

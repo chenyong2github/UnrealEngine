@@ -3001,10 +3001,7 @@ public:
 	virtual ~FPakProcessedReadRequest()
 	{
 		check(!MyCanceledBlocks.Num());
-		if (!bHasCancelled)
-		{
-			DoneWithRawRequests();
-		}
+		DoneWithRawRequests();
 		if (Memory && !bUserSuppliedMemory)
 		{
 			// this can happen with a race on cancel, it is ok, they didn't take the memory, free it now
@@ -3013,11 +3010,6 @@ public:
 			FMemory::Free(Memory);
 		}
 		Memory = nullptr;
-	}
-
-	bool WasCanceled()
-	{
-		return bHasCancelled;
 	}
 
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
@@ -3413,8 +3405,8 @@ public:
 					bAnyUnfinished = true;
 				}
 			}
-			check(!LiveRequests.Contains(Result))
-				LiveRequests.Add(Result);
+			check(!LiveRequests.Contains(Result));
+			LiveRequests.Add(Result);
 			if (!bAnyUnfinished)
 			{
 				Result->RequestIsComplete();
@@ -3506,7 +3498,8 @@ public:
 
 			if( !FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize) )
 			{
-				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile: %s. EntryOffset: %lld, EntrySize: %lld, CompressionMethod:%s Output:%p  ProcessedSize:%d  Buf:%p  Block.DecompressionRawSize:%d  Crc32:%u"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ) );
+				const FString HexBytes = BytesToHex(Block.Raw,FMath::Min(Block.DecompressionRawSize,32));
+				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile:%s, EntryOffset:%lld, EntrySize:%lld, Method:%s, ProcessedSize:%d, RawSize:%d, Crc32:%u, BlockIndex:%d, Encrypt:%d, Delete:%d, Output:%p, Raw:%p, Processed:%p, Bytes:[%s...]"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Block.ProcessedSize, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ), Block.BlockIndex, FileEntry.IsEncrypted()?1:0, FileEntry.IsDeleteRecord()?1:0, Output, Block.Raw, Block.Processed, *HexBytes );
 			}
 			FMemory::Free(Block.Raw);
 			Block.Raw = nullptr;
@@ -3574,6 +3567,7 @@ public:
 	{
 		check(!Block.RawRequest);
 		Block.RawRequest = nullptr;
+		//check(!Block.CPUWorkGraphEvent || Block.CPUWorkGraphEvent->IsComplete());
 		Block.CPUWorkGraphEvent = nullptr;
 		if (Block.Raw)
 		{
@@ -3598,9 +3592,15 @@ public:
 		Block.bInFlight = false;
 	}
 
-	void RemoveRequest(FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead)
+	void RemoveRequest(FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead, const bool& bAlreadyCancelled)
 	{
 		FScopeLock ScopedLock(&CriticalSection);
+		if (bAlreadyCancelled)
+		{
+			check(!LiveRequests.Contains(Req));
+			return;
+		}
+
 		check(LiveRequests.Contains(Req));
 		LiveRequests.Remove(Req);
 		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
@@ -3626,9 +3626,11 @@ public:
 		}
 	}
 
-	void HandleCanceledRequest(TSet<FCachedAsyncBlock*>& MyCanceledBlocks, FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead)
+	void HandleCanceledRequest(TSet<FCachedAsyncBlock*>& MyCanceledBlocks, FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead, bool& bHasCancelledRef)
 	{
 		FScopeLock ScopedLock(&CriticalSection);
+		check(!bHasCancelledRef);
+		bHasCancelledRef = true;
 		check(LiveRequests.Contains(Req));
 		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
 		int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
@@ -3705,8 +3707,7 @@ public:
 
 void FPakProcessedReadRequest::CancelRawRequests()
 {
-	bHasCancelled = true;
-	Owner->HandleCanceledRequest(MyCanceledBlocks, this, Offset, BytesToRead);
+	Owner->HandleCanceledRequest(MyCanceledBlocks, this, Offset, BytesToRead, bHasCancelled);
 }
 
 void FPakProcessedReadRequest::GatherResults()
@@ -3723,7 +3724,7 @@ void FPakProcessedReadRequest::GatherResults()
 
 void FPakProcessedReadRequest::DoneWithRawRequests()
 {
-	Owner->RemoveRequest(this, Offset, BytesToRead);
+	Owner->RemoveRequest(this, Offset, BytesToRead, bHasCancelled);
 }
 
 bool FPakProcessedReadRequest::CheckCompletion(const FPakEntry& FileEntry, int32 BlockIndex, TArray<FCachedAsyncBlock*>& Blocks)
@@ -6024,9 +6025,9 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 		}
 
 		PendingEncryptedPakFiles.RemoveAll([InGuid](const FPakListDeferredEntry& Entry) { return Entry.EncryptionKeyGuid == InGuid; });
-	}
 
-	UE_CLOG(InGuid.IsValid(), LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
+		UE_CLOG(InGuid.IsValid(), LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
+	}
 }
 
 IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)

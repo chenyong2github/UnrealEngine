@@ -92,7 +92,7 @@ public:
 	/** Get the spline component we are currently editing */
 	USplineComponent* GetEditedSplineComponent() const;
 
-	TSet<int32> GetSelectedKeys() const { return SelectedKeys; }
+	const TSet<int32>& GetSelectedKeys() const { return SelectedKeys; }
 
 protected:
 

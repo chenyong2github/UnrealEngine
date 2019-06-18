@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:레벨 애셋 작업
 Crumbs: %ROOT%, Engine
@@ -115,8 +115,8 @@ topic-icon:%ROOT%/levels_icon.png
 	[/OBJECT]
 
 	* **Default** (기본): 플레이어 스타트, 라이트, 스카이 돔, 그 외 레벨의 정상 작동을 위해 필요한 여러가지 액터가 들어있는 기본 구성 레벨을 새로 만들 수 있습니다.
-	* **VR-Basic** (VR-기본): VR 에디터 조작법 학습용 액터가 들어있는 새 레벨입니다.
-	* **Blank** (공백): 완전히 비어있는 새 레벨입니다.
+	* **VR-Basic** (VR 기본): VR 에디터 조작법 학습용 액터가 들어있는 새 레벨입니다.
+	* **Empty Level** (빈 레벨): 완전히 비어있는 새 레벨입니다.
 
 1. 시작하고자 하는 템플릿 레벨을 좌클릭하여 선택합니다.
 
@@ -124,7 +124,7 @@ topic-icon:%ROOT%/levels_icon.png
 소스 컨트롤에 연결되어 있을 때 새 레벨을 만들어 저장하면 소스 컨트롤에 자동 추가됩니다.
 [/region]
 
-[레벨 창](Engine/Levels/LevelsWindow) 을 사용하여 기존 레벨의 일부분을 분할하거나 새로운 공백 레벨을 만들 수도 있습니다.
+[레벨 창](Engine/Levels/LevelsWindow) 을 사용하여 기존 레벨의 일부분을 분할하거나 새로운 기본 레벨을 만들 수도 있습니다.
 
 
 

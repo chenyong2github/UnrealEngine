@@ -1305,16 +1305,15 @@ void MeshPaintHelpers::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& Geo
 	}
 }
 
-int32 MeshPaintHelpers::GetNumberOfLODs(const UMeshComponent* MeshComponent)
+bool MeshPaintHelpers::TryGetNumberOfLODs(const UMeshComponent* MeshComponent, int32& OutNumLODs)
 {
-	int32 NumLODs = 1;
-
 	if (const UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
 	{
 		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 		if (StaticMesh != nullptr)
 		{
-			NumLODs = StaticMesh->GetNumLODs();
+			OutNumLODs = StaticMesh->GetNumLODs();
+			return true;
 		}
 	}
 	else if (const USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
@@ -1322,10 +1321,18 @@ int32 MeshPaintHelpers::GetNumberOfLODs(const UMeshComponent* MeshComponent)
 		const USkeletalMesh* SkeletalMesh = SkeletalMeshComponent->SkeletalMesh;
 		if (SkeletalMesh != nullptr)
 		{
-			NumLODs = SkeletalMesh->GetLODNum();
+			OutNumLODs = SkeletalMesh->GetLODNum();
+			return true;
 		}
 	}
 
+	return false;
+}
+
+int32 MeshPaintHelpers::GetNumberOfLODs(const UMeshComponent* MeshComponent)
+{
+	int32 NumLODs = 1;
+	TryGetNumberOfLODs(MeshComponent, NumLODs);
 	return NumLODs;
 }
 

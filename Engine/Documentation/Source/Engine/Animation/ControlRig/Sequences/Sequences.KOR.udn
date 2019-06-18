@@ -1,0 +1,65 @@
+INTSourceChangelist:5295800
+Availability: Public
+Crumbs: 
+Title: 컨트롤 릭 시퀀스
+Description: Control Rig Sequence, 컨트롤 릭 시퀀스는 시퀀서 툴 안에서 키프레임을 통한 컨트롤 릭 애니메이션 및 프로퍼티 애니메이션에 쓰입니다.
+Type: 
+Version: 4.21
+Parent: Engine/Animation/ControlRig
+Order: 
+Tags: Sequencer
+Tags: Experimental
+Tags: Rigging
+Tags: Control Rigs
+topic-image:ControlRigSequenceTopic.png
+
+
+[컨트롤 릭 블루프린트](Engine/Animation/ControlRig/Blueprint) 생성 이후, [시퀀서](Engine/Sequencer) 에서 **Control Rig Sequence** (컨트롤 릭 시퀀스)라는 특수 유형 시퀀스를 통해 프로퍼티 애니메이션이 가능합니다. 애니메이션은 타임라인에서 다양한 키 값 사이를 보간하는 식으로 이루어지며, 전통적인 애니메이션 소프트웨어 패키지와 비슷합니다.
+
+## 컨트롤 릭 시퀀스 생성
+
+컨트롤 릭 시퀀스를 만들려면:
+
+1.  먼저 플러그인 메뉴에서 [컨트롤 릭 플러그인을 활성화](Engine/Animation/ControlRig) 합니다. 
+2.  **콘텐츠 브라우저** 에서 **신규 추가** 버튼을 누른 뒤 **애니메이션** 아래 **ControlRig Sequence** (컨트롤 릭 시퀀스)를 선택하고 아무 이름이나 짓습니다.  
+    ![](CreateRigSequence.png "CreateRigSequence.png")
+3.  **컨트롤 릭 시퀀스** 애셋을 더블클릭하여 **시퀀서** 에서 엽니다.  
+    ![](OpenRigSequence.png "OpenRigSequence.png")  
+    
+4.  **트랙** 버튼을 클릭하고 **컨트롤 릭** 아래 원하는 **컨트롤 릭 블루프린트** 애셋을 할당합니다.  
+    ![](AssignRigBlueprint.png "AssignRigBlueprint.png")  
+    시퀀스가 업데이트되고 컨트롤 릭 블루프린트가 추가됩니다. **모드** 패널 역시 업데이트되어 사용 및 키 설정 가능한 프로퍼티가 표시됩니다.  
+    ![](ModesPanel.png "ModesPanel.png")
+
+## 액터 애니메이션
+
+컨트롤 릭 시퀀스를 생성한 상태에서 액터 애니메이션을 위해서는, 레벨에 컨트롤 릭 시퀀스와 연관된 스켈레탈 메시를 배치하고 **모드** 패널의 **애니메이션** 탭에서 대상 액터로 할당해야 합니다. 
+
+![](AssignedActor.png "AssignedActor.png")
+
+**Units** (유닛) 섹션 아래 키 설정 가능 프로퍼티가 표시되며, 키프레임 설정하려는 프로퍼티 옆 **키 추가** 아이콘을 클릭하여 추가할 수 있습니다. 
+
+[REGION:lightbox]
+[![](AddedKey.png)(w:900)](AddedKey.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]  
+
+그러면 프로퍼티에 대한 키를 컨트롤 릭 시퀀스의 지정한 시간에 추가합니다. 타임라인을 새로운 시간으로 스크럽 이동한 다음 뷰포트의 트랜스폼 위젯을 사용(또는 시퀀서에 값을 수동 입력)하여 컨트롤 릭과 키프레임에 연관된 부분을 새 값으로 이동합니다.
+
+![](NewKeyAdded.png "NewKeyAdded.png")
+
+위 예제에서, 스켈레탈 메시 오른팔과 새 값에 연관된 엔드 이펙터를 이동하여 캐릭터가 시작 값에서 새로운 키 값으로 보간하고 있습니다.
+
+[OBJECT:EmbeddedVideo]
+	[PARAMLITERAL:width]
+	640
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	360
+	[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	Mk2ulJ7D12g
+	[/PARAMLITERAL]
+[/OBJECT]

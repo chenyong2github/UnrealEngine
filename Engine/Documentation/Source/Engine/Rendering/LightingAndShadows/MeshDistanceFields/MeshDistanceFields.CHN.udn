@@ -1,31 +1,27 @@
-﻿INTSourceChangelist:3809606
+﻿INTSourceChangelist:6537156
 Availability: Public
-Crumbs: %ROOT%
 Title: 网格体距离场
 Description: 概述网格体距离场以及您在开发游戏可以用到的相关功能。
-Type: Overview
-SkillLevel:Intermediate
-Version:4.18
-Parent:Engine/Rendering/LightingAndShadows
-Related:Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing
-Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
-Related:Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
-Order:
-Tags:Lighting
-Tags:Distance Fields
+Type: overview
+Version: 4.20
+Parent: Engine/Rendering/LightingAndShadows
+Tags: Lighting
+Tags: Distance Fields
+Order: 21
+Related: Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference
+Related: Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
+Related: Engine/Rendering/LightingAndShadows/RayTracedDistanceFieldShadowing
 
+
+[TOC]
 
 [REGION:banner]
 ![](DistanceFieldsBanner.png)
 [/REGION]
 
-
-[TOC(start:2 end:3)]
-
-
 虚幻引擎4（Ue4）使用 **距离场（Distance Fields）** 的强大功能来实现游戏中静态网格体Actor的动态环境光遮蔽和阴影。除此之外，Actor的网格体距离场表达还可用于其他一些特性，例如GPU粒子碰撞，甚至还可以使用材质编辑器创建动态流动贴图等等。 
 
-继续阅读下面的内容可以了解网格体距离场在UE4中的工作原理，以及可通过哪些方法把它应用在游戏中。 
+继续阅读下面的内容可以了解网格体距离场在UE4中的工作原理，以及可通过哪些方法把它应用在游戏中。
 
 ## 它的工作原理是什么？
 
@@ -37,35 +33,14 @@ SDF首个实用属性的作用是，在追踪光线时安全地跳过空白空�
 
 ![](RayTrace.jpg)(w:400)
 
-距离场第二个实用属性的作用是，在追踪光线时，通过追踪经过遮挡物的距离最近的光线就可以计算出近似的锥体交叉点，而不产生额外成本。这种近似法可以利用距离场来实现非常柔和的区域阴影和天空遮蔽。这个属性是[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)的关键，因为少量的锥体即可为接收器点的整个半球计算出柔和的可见性。 
+距离场第二个实用属性的作用是，在追踪光线时，通过追踪经过遮挡物的距离最近的光线就可以计算出近似的锥体交叉点，而不产生额外成本。这种近似法可以利用距离场来实现非常柔和的区域阴影和天空遮蔽。这个属性是[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)的关键，因为少量的锥体即可为接收器点的整个半球计算出柔和的可见性。
 
 ![](ConeTrace.jpg)(w:400)
-
-[COMMENT:none]
---
-
-整个关卡由保存在体积纹理中的范例距离场进行表达。地形通过[高度场]()单独表达，专门用于距离场环境光遮蔽，但是不会影响光线追踪的距离场柔和阴影。
-
-
-[OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![Scene View](TriangleScene.jpg)(w:750)
-	[/PARAM]
-	[PARAM:after]
-	![Mesh Distance Fields View](MeshDistanceFieldScene.jpg)(w:750)
-	[/PARAM]
-[/OBJECT]
-
--
-[/COMMENT]
-
-
 [REGION:note]
 [使用距离场进行灯光设置](http://iquilezles.org/www/articles/raymarchingdf/raymarchingdf.htm)的延伸阅读。
 [/REGION]
 
 [EXCERPT:scenerepresentation]
-(#scenerepresentation)
 ### 场景表达
 
 每个创建的关卡都由所放置Actor的所有这些网格体距离场组成。网格体距离场是离线生成的，使用了将效果保存在体积纹理中的三角形光线追踪。因此，网格体距离场是无法在运行时生成的。这种方法会计算所有方向上的有向距离场，找到距离最近的表面，然后将该信息保存起来。
@@ -73,82 +48,120 @@ SDF首个实用属性的作用是，在追踪光线时安全地跳过空白空�
 你可以使用视口将表达场景的网格体距离场可视化，只需依次选择 **显示（Show）** > **可视化（Visualize）** > **网格体距离场（Mesh Distance Fields）**。
 
 [REGION:imagetable]
-| [REGION:lightbox] [![](EnableMDFViewMode.png)(w:400)](EnableMDFViewMode.png) [/REGION] | [REGION:lightbox] [![](VisualizeMeshDistanceFields.jpg)(w:750)](VisualizeMeshDistanceFields.jpg) [/REGION] |
-| ---------------------------------------- | ---------------------------------------- |
-| 可视化启用菜单                                  | 网格体距离场可视化                                |
-| _单击查看大图。_                                | _单击查看大图。_                                |
+| [INCLUDE:#excerpt_0] | [INCLUDE:#excerpt_1] |
+| --- | --- |
+| 启用可视化的菜单 | 网格体距离场可视化 |
+
+<!--
+[EXCERPT:excerpt_0]
+[REGION:lightbox]
+[![](EnableMDFViewMode.png)(w:400)](EnableMDFViewMode.png)
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+[REGION:lightbox]
+[![](VisualizeMeshDistanceFields.jpg)(w:750)](VisualizeMeshDistanceFields.jpg)
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
 [/REGION]
 
-如果看到较白而不是较灰的区域，意味着需要通过多个步骤才能找到网格体表面的交点。与相对简单的网格体相比，掠射角光线需要更多的步骤才能和平面相交。 
-[/EXCERPT:scenerepresentation]
+*点击查看全图*
 
-(#quality)
+如果看到较白而不是较灰的区域，意味着需要通过多个步骤才能找到网格体表面的交点。与相对简单的网格体相比，掠射角光线需要更多的步骤才能和平面相交。
+[/EXCERPT:scenerepresentation] 
+
 #### 质量
 
-网格体距离场表达的质量由其体积纹理分辨率控制，也可以通过 **距离场分辨率比例（Distance Field Resolution Scale）** 进行控制，该选项位于[构建设置](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#buildsettings)（在 **静态网格体编辑器** 中）。 
+网格体距离场表达的质量由其体积纹理分辨率控制，也可以通过 **距离场分辨率比例（Distance Field Resolution Scale）** 进行控制，该选项位于[构建设置](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#构建设置)（在 **静态网格体编辑器** 中）。 
 
-![](Engine\Rendering\LightingAndShadows\MeshDistanceFields\Reference\BuildSettings.png)(w:400)
+![](BuildSettings.png)(w:400)
 
-
-网格体距离场在使用大小相似的网格体构建的关卡中质量最佳，因为较大的网格体往往会产生很多错误。例如，[《堡垒之夜》](https://www.epicgames.com/fortnite)中的网格体要么与网格一致，要么是放置在关卡中某些部分的道具，这样可以获得最佳效果并且几乎没有错误。地形由[高度场](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion#landscapes)单独处理，不受距离场分辨率的影响。
+网格体距离场在使用大小相似的网格体构建的关卡中质量最佳，因为较大的网格体往往会产生错误。例如，[《堡垒之夜》](https://www.epicgames.com/fortnite)中的网格体要么与网格一致，要么是放置在关卡中某些部分的道具，这样可以获得最佳效果并且几乎没有错误。地形由[高度场](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion#landscapes)单独处理，不受距离场分辨率的影响。
 
 [REGION:imagetable]
-| [REGION:lightbox] [![](Mesh.jpg)(w:375)](Mesh.jpg) [/REGION] | [REGION:lightbox] [![](LowResDistanceField.jpg)(w:375)](LowResDistanceField.jpg) [/REGION] | [REGION:lightbox] [![](HighResDistanceField.jpg)(w:375)](HighResDistanceField.jpg) [/REGION] |
-| ---------------------------------------- | ---------------------------------------- | ---------------------------------------- |
-| 原始网格体                                    | 分辨率过低，重要特征丢失。                            | 分辨率已经提高，显示了重要的特征                         |
-| 单击查看大图。                                  | 单击查看大图。                                  | 单击查看大图。                                  |
+| [INCLUDE:#excerpt_2] | [INCLUDE:#excerpt_3] | [INCLUDE:#excerpt_4] |
+| --- | --- | --- |
+| 原始网格体 | 分辨率过低，重要特征丢失 | 分辨率提升，重要特征再现 |
+
+<!--
+[EXCERPT:excerpt_2]
+[REGION:lightbox]
+[![](Mesh.jpg)](Mesh.jpg)
 [/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+[REGION:lightbox]
+[![](LowResDistanceField.jpg)](LowResDistanceField.jpg)
+[/REGION]
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_4]
+[REGION:lightbox]
+[![](HighResDistanceField.jpg)](HighResDistanceField.jpg)
+[/REGION]
+[/EXCERPT:excerpt_4]
+-->
+[/REGION]
+
+*点击查看全图*
 
 网格体距离场的分辨率应调整到足够捕捉重要的特征。网格体的分辨率提高后，网格体距离场占用的内存量也会随之增加。在静态网格体编辑器中，视口的左上角列出了可供查看的网格体距离场的大小。
 
 [REGION:lightbox]
 [![](SMEditorDFSize.png)(w:500)](SMEditorDFSize.png)
 [/REGION]
-[REGION:caption] 单击查看大图。[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
 
 网格体距离场生成后，将根据分辨率对角进行打磨。这可以通过提高其分辨率来进行调整，但在多数情况下应该不是问题，具体取决于网格体的复杂度。任意单个网格体的体积纹理最大为8兆字节，分辨率为128x128x128。
 
 [REGION:imagetable]
 | ![](QualityCorners1.png)(h:250) | ![](QualityCorners2.png)(h:250) | ![](QualityCorners4.png)(h:250) |
-| ------------------------------- | ------------------------------- | ------------------------------- |
-|                                 |                                 |                                 |
+| --- | --- | --- |
+||||
 [/REGION]
 
-较薄的表面只能使用网格体内部的负纹素表达，这样才能找到根。此例中增加分辨率可以更准确地捕捉更多的细节，但是在仅使用[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)时，则无法正确地对表面进行表现。距离表面较远的遮蔽可以获得准确的效果，因此使用天空遮蔽通常不会引起注意。 
+较薄的表面只能使用网格体内部的负纹素表达，这样才能找到根。此例中增加分辨率可以更准确地捕捉更多的细节，但是在仅使用[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)时，则无法正确地对表面进行表现。距离表面较远的遮蔽可以获得准确的效果，因此使用天空遮蔽通常不会引起注意。
 
 ![](QualityCorners3.png)(w:400)
 
 
-(#GlobalDistanceField)
 #### 全局距离场
 
 [EXCERPT:visualizeGlobalDF1]
-全局距离场是分辨率较低的距离场，跟随摄像机的同时，在关卡中使用有向距离场遮蔽。这会创建每个Object网格体距离场的缓存，然后将它们合成到围绕摄像机的若干体积纹理中，称为裁剪图。由于只有新的可见区域或受到场景修改影响的可见区域才需要更新，合成过程不会有太多消耗。  
+全局距离场是分辨率较低的距离场，跟随摄像机的同时，在关卡中使用有向距离场遮蔽。这会创建每个Object网格体距离场的缓存，然后将它们合成到围绕摄像机的若干体积纹理中，称为裁剪图。由于只有新的可见区域或受到场景修改影响的可见区域才需要更新，合成过程不会有太多消耗。
 [/EXCERPT:visualizeGlobalDF1]
-
 
 [EXCERPT:visualizeGlobalDF2]
 Object距离场的分辨率较低意味着它可用于所有物体，但是在计算天空遮蔽的锥体轨迹时，它们在阴影点附近采样，而全局距离场是在更远的地方采样。 
+[/EXCERPT:visualizeGlobalDF2]
 
-你可以单击 **显示（Show）** > **可视化（Visualize）** > **全局距离场（Global Distance Field）**将全局距离场显示在视口中。 
+你可以单击 **显示（Show）** \> **可视化（Visualize）** \> **全局距离场（Global Distance Field）**将全局距离场显示在视口中。 
 
-[REGION:lightbox] 
-[![](EnableGDFViewMode.png)(w:400)](EnableGDFViewMode.png) 
+[REGION:lightbox]
+[![](EnableGDFViewMode.png "EnableGDFViewMode.png")](EnableGDFViewMode.png)
 [/REGION]
-[REGION:caption] 单击查看大图。[/REGION]
+[REGION:caption]
+点击查看全图
+[/REGION]
 
 下面是每个Object网格体距离场可视化与全局距离场可视化的比较图，根据摄像机视图和距离将其合并到裁剪图。
 
 [OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![网格体距离场可视化](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion/ODFVisualization.png)(w:750)
-	[/PARAM]
-	[PARAM:after]
-	![全局距离场可视化](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion/GDFVisualization.png)(w:750)
-	[/PARAM]
+ [PARAM:before]
+ ![网格体距离场可视化](ODFVisualization.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![全局距离场可视化](GDFVisualization.png) 
+ [/PARAM]
 [/OBJECT]
-
-[/EXCERPT:visualizeGlobalDF2]
 
 [REGION:note]
 有关更多信息，请访问[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)页面。
@@ -156,146 +169,119 @@ Object距离场的分辨率较低意味着它可用于所有物体，但是在�
 
 #### 植物叶子
 
-植物叶子资源也可以利用距离场实现动态遮蔽，甚至可以使距离的阴影超出级联阴影贴图可以产生的阴影。 
+植物叶子资源也可以利用距离场实现动态遮蔽，甚至可以使距离的阴影超出级联阴影贴图可以产生的阴影。
 
-当在游戏中使用植物叶子资源时，可以考虑使用下面的选项，以达到最佳的性能和质量。 
+当在游戏中使用植物叶子资源时，可以考虑使用下面的选项，以达到最佳的性能和质量。
 
 #### 双面距离场
 
 在高密度网格体（如树木）中，表面通常由蒙版材质构成来表现树叶或树枝之间的许多孔，这些孔不能表现为实体表面。因此，你可以启用[构建设置](Engine/Rendering/LightingAndShadows/MeshDistanceFields/Reference#BuildSettings) **双面距离场生成** （在 **静态网格体编辑器** 中）。这个选项对于植物的叶子非常有效，但确实会增加光线行进的消耗。
 
+![](BuildSettings_TwoSided.png)
+
 [REGION:imagetable]
-| ![](BuildSettings_TwoSided.png) |      |      |      | [INCLUDE:#twosided] |
-| ------------------------------- | ---- | ---- | ---- | ------------------- |
-|                                 |      |      |      |                     |
+| [REGION:lightbox][![](DFTwoSided1.png)(h:250)](DFTwoSided1.png)[/REGION] | [REGION:lightbox][![](DFTwoSided2.png)(h:250)](DFTwoSided2.png)[/REGION] |
+| --- | --- |
+|||
 [/REGION]
 
 在这个示例中，左侧树木使用默认的不透明网格体距离场表现。右侧树木启用了 **双面距离场生成（Two-Sided Distance Field Generation）**。你会注意到双面网格体距离场呈现较白而不是较灰的颜色，而表面现在是半透明的。这意味着与不透明表面相比，需要更多的步骤才能找到网格体的交叉点，而消耗也会随之增加。
 
-
-[COMMENT:none]
-[EXCERPT:twosided]
-[OBJECT:ComparisonSlider]
-	[PARAM:before]
-	![不透明网格体距离场](DFTwoSided1.png)(h:404)
-	[/PARAM]
-	[PARAM:after]
-	![双面网格体距离场](DFTwoSided2.png)(h:404)
-	[/PARAM]
-[/OBJECT]
-[/EXCERPT:twosided]
-[/COMMENT]
-
-(#foliagetoolsettings)
 ##### 植物叶子工具设置
 
 在[植物叶子工具](Engine/Foliage)中，必须启用要使用“距离场”照明功能实现环境光遮蔽和阴影的每种叶子类型。默认情况下，该设置处于禁用状态，因为有些拥有成千上万个实例的植物叶子资源（比如草）会溢出图块剔除缓冲区。如果发生这种情况，你看到的东西可能会因失真而非常难看。因此，请仅为需要的植物叶子资源启用 **影响距离场照明（Affect Distance Field Lighting）**。
 
 ![](FoliageToolSettings.png)
 
-[COMMENT:none]
-#### 地形
+### 启用距离场
 
-地形表达使用的是高度场，而不是网格体距离场。它使用了近似锥体交叉点，近似锥体交叉点是针对高度场计算得出，无需距离场表达来接收遮蔽就能显示像素，但是不会投射自阴影或距离场阴影。因此，地形应该使用 **远阴影** 投射远距离的阴影。
-
-![](Landscape.png)(w:700)
-[REGION:caption] “距离场环境光遮蔽”视图模式下的地形高度场表达。[/REGION]
-[/COMMENT]
-
-[COMMENT:none]
-### 剔除
-
-构成场景的Object完全在 GPU 上进行管理，因此剔除这些要查看Object的速度比在CPU上运行时快100倍。 
-
-
-* 场景Object完全在GPU上进行管理
-  - CPU发送更新增量
-  - 只需更新矩阵即可移动Object
-* 剔除要查看Object的速度比CPU快100倍
-  - Kite Demo中有200万个树木实例 > 在PS4屏幕上每0.1毫秒50000个实例
-  - 流程中Object的所有操作都在GPU上完成，这使之成为可能
-  - 未针对Object使用图形API调用，因为光线在SDF行进时没有形成三角形。这让Object的管理和剔除可在GPU上进行（结合
-    其他技术）。
-[/COMMENT]
-
-
-(#EnablingDistanceFields)
-### 启用距离场 
-
-要为项目启用“网格体距离场”，请使用文件菜单打开“项目设置（Project Settings）”窗口，只需转至 **编辑（Edit）** > **项目设置（Project Settings）**，然后选择 **渲染（Rendering）** 部分。 
+要为项目启用“网格体距离场”，请使用文件菜单打开“项目设置（Project Settings）”窗口，只需转至 **编辑（Edit）** > **项目设置（Project Settings）**，然后选择 **渲染（Rendering）** 部分。
 
 [REGION:lightbox]
 [![](ProjectSettingsWindow.png)(w:450)](ProjectSettingsWindow.png)
 [/REGION]
-[REGION:caption] 单击查看大图。[/REGION]
+[REGION:caption]
+点击查看全图
+[/REGION]
 
-在 **光照（Lighting）** 类别下，勾选 **生成网格体距离场（Generate Mesh Distance Fields）** 旁边的复选框。 
+在 **光照（Lighting）** 类别下，勾选 **生成网格体距离场（Generate Mesh Distance Fields）** 旁边的复选框。
 
 ![](GeneratedMeshDF.png)(w:450)
 
-启用此功能后，系统将提示重新启动项目。 
+启用此功能后，系统将提示重新启动项目。
 
 ![](RestartEditorButton.png)(w:450)
 
-下次加载项目时，你将在下角处看到以下弹出窗口，表示正在生成网格体距离场。 
+下次加载项目时，你将在下角处看到以下弹出窗口，表示正在生成网格体距离场。
 
 ![](BuildingMeshDFs.png)(w:450)
 
-完成后，你可以单击 **显示（Show）** > **可视化（Visualize）** > **网格体距离场（Mesh DistanceFields）**将网格体距离场显示在视口中。你应该能看到与以下类似的视图。
+完成后，你可以单击 **显示（Show）** \> **可视化（Visualize）** \> **网格体距离场（Mesh DistanceFields）**将网格体距离场显示在视口中。你应该能看到与以下类似的视图。
 
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
-	![Scene View](TriangleScene.jpg)(w:750)
+	![Scene View](TriangleScene.jpg)
 	[/PARAM]
 	[PARAM:after]
-	![网格体距离场可视化](MeshDistanceFieldScene.jpg)(w:750)
+	![网格体距离场可视化](MeshDistanceFieldScene.jpg)
 	[/PARAM]
 [/OBJECT]
 
-[REGION:caption] 该关卡整体是由保存在体积纹理中的范例距离场表达。[/REGION]
-
+[REGION:caption]
+该关卡整体是由保存在体积纹理中的范例距离场表达。
+[/REGION]
 
 ### 内存使用和优化
 
-* **r.AOListMeshDistanceFields** 可将按内容大小排序的网格体距离场导出到输出日志。这有助于优化内容。
+*   **r.AOListMeshDistanceFields** 可将按内容大小排序的网格体距离场导出到输出日志。这有助于优化内容。
+    
 [EXCERPT:optimizations]
-* 在 **项目设置（Project Settings）** > **渲染（Rendering）** 中启用已选选项。 
-  [REGION:lightbox]
-  [![](Engine\Rendering\LightingAndShadows\MeshDistanceFields\Reference\ProjectSettings.png)(w:500)](Engine\Rendering\LightingAndShadows\MeshDistanceFields\Reference\ProjectSettings.png)
-  [/REGION]
-  [REGION:caption] 单击查看大图。[/REGION]
-  * **压缩网格体距离场（Compress Mesh Distance Fields）** 启用后，可以保存在内存中压缩的距离场体积纹理。这会减少距离场占用的内存量，但如果使用关卡流送，当流送切入这些关卡时，会在游戏中造成卡顿。
-  * **八位网格体距离场（Eight Bit Mesh Distance Fields）** 启用后，能够以8位定点格式代替默认的16位 浮点格式保存“距离场”体积纹理。它占用的内存量仅为之前的一半，却可以减少较大或较薄网格体中的某些失真。
+*   在 **项目设置（Project Settings）** > **渲染（Rendering）** 中启用已选选项。 
+    
+    [REGION:lightbox]
+    [![](ProjectSettings.png)(w:500)](ProjectSettings.png)
+    [/REGION]
+    [REGION:caption]
+    点击查看全图
+    [/REGION]
+    *   **压缩网格体距离场（Compress Mesh Distance Fields）** 启用后，可以保存在内存中压缩的距离场体积纹理。这会减少距离场占用的内存量，但如果使用关卡流送，当流送切入这些关卡时，会在游戏中造成卡顿。
+        
+    *   **八位网格体距离场（Eight Bit Mesh Distance Fields）** 启用后，能够以8位定点格式代替默认的16位 浮点格式保存“距离场”体积纹理。它占用的内存量仅为之前的一半，却可以减少较大或较薄网格体中的某些失真。
+        
+*   全局距离场主要缓存移动性设置为静态或固定的静态图元。整个全局距离场主要继承了静态缓存，因此当修改可移动图元时，只需要将附近的其他可移动图元重新合成到全局距离场中。 
 [/EXCERPT:optimizations]
-* 全局距离场主要缓存移动性设置为静态或固定的静态图元。整个全局距离场主要继承了静态缓存，因此当修改可移动图元时，只需要将附近的其他可移动图元重新合成到全局距离场中。 
 
-
-(#Limitations)
 ### 局限性
 
 **距离场技术的局限性：**
-* 仅支持feature level 5平台（DX-11及更高版本）
-* 仅投射刚性网格体的阴影。对于骨架网格体，可以将[关节囊阴影](Engine/Rendering/LightingAndShadows/CapsuleShadows)用于具有距离场环境光遮挡（DFAO）和柔和直接阴影的间接照亮区域。 
-* 通过全局位置偏移或置换使网格体变形的材质可能会导致自阴影失真，因为距离场表达是离线生成的，并不知道有这些变形。 
+
+*   仅支持feature level 5平台（DX-11及更高版本）
+    
+
+*   仅投射刚性网格体的阴影。对于骨架网格体，可以将[关节囊阴影](Engine/Rendering/LightingAndShadows/CapsuleShadows)用于具有距离场环境光遮挡（DFAO）和柔和直接阴影的间接照亮区域。 
+    
+
+*   通过全局位置偏移或置换使网格体变形的材质可能会导致自阴影失真，因为距离场表达是离线生成的，并不知道有这些变形。 
 
 **当前实现中存在但可在未来改进的局限性：**
-* 无法正确处理不一致的比例缩放（尽管可以正确处理镜像）。将网格体缩放两倍或不到两倍产生的效果通常不明显。 
-* 仅支持静态网格体、实例静态网格体、植物叶子和地形（高度场）。植物叶子必须启用“植物叶子工具”设置中的 **影响距离场照明（Affect Distance Field Lighting）**。 
+
+*   无法正确处理不一致的比例缩放（尽管可以正确处理镜像）。将网格体缩放两倍或不到两倍产生的效果通常不明显。 
+    
+
+*   仅支持静态网格体、实例静态网格体、植物叶子和地形（高度场）。植物叶子必须启用“植物叶子工具”设置中的 **影响距离场照明（Affect Distance Field Lighting）**。 
+    
 
 **硬件局限性：**
-* 英特尔显卡上禁用了所有网格体距离场功能，因为HD 4000在RHICreateTexture3D调用中会挂起以分配大型图集。
+
+*   英特尔显卡上禁用了所有网格体距离场功能，因为HD 4000在RHICreateTexture3D调用中会挂起以分配大型图集。
 
 
 ### 参考
 
-* [Quilez,Inigo.“Raymarching Distance Fields."N.p, 2008](http://iquilezles.org/www/articles/raymarchingdf/raymarchingdf.htm)
-
-
+*   [Quilez,Inigo.“Raymarching Distance Fields."N.p, 2008](http://iquilezles.org/www/articles/raymarchingdf/raymarchingdf.htm)
+    
 
 ## 基础
 
 [DIR(output:"topiccompact" parent:"Engine/Rendering/LightingAndShadows/MeshDistanceFields" org:"hierarchy" end:"1")]
-
-
-

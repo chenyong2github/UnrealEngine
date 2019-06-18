@@ -1,0 +1,114 @@
+Availability: Public
+Title: Android Quick Start
+Description: Setting up for development for the Android platform.
+Type:quick start
+Version: 4.19
+Parent: Platforms/Mobile/Android
+Tags: mobile
+Tags: Android
+Tags: StartingOut
+topic-image: Android_QS_Editor_TopicImage.png
+Order: 13
+prereq: Platforms/Mobile/Android/SettingAndroidDeviceDevelopment
+prereq: Platforms/Mobile/Android/InstallingAndroidCodeWorksAndroid
+
+[TOC (start:2 end:2)]
+
+![](Android_QS_Editor_TopicImage.png "Android_QS_Editor_TopicImage.png")
+
+The focus of this Android Quick Start guide is to walk you through the basics of setting up your computer for Android Development with Unreal Engine 4 (UE4). This guide also teaches you how to put a template game on your Android device with the Unreal Editor's launching and packaging features. After completing this quick start developers will understand how to do the following tasks inside UE4:
+
+*   How - To create a new Unreal Engine 4 (UE4) project that is targeted for Android mobile development.
+
+*   How - To setup a UE4 project and level for Android mobile development.  
+
+*   How - To deploy a single UE4 level to your Android device for testing.
+
+## 1 - Create Your Project
+
+In the following section we will be creating a new UE4 project that will use the Blueprint Third Person template to show how quickly you can get a UE4 project running on an Android device.
+
+1.  From the **Unreal Projects Browser** create a new Blueprint based project with the following options.
+    
+    *   Use the Third Person Template
+    
+    *   Set target hardware to Mobile / Tablet
+    
+    *   Set the Graphics level to Scalable 3D or 2D
+    
+    *   Do not include the Starter Content
+    
+    *   Give the project a name of AndroidProject
+    
+    [REGION:lightbox]
+    [![](new_android_project.png)(w:300px")](new_android_project.png)
+    [/REGION]
+
+1.  Once that is completed, press the **Create Project** button to create the project.
+
+[REGION:tip]
+While we have selected a Blueprint based project for this example, any type of project, C++ or Blueprint, can be deployed to an Android device using the information in this quick start.
+[/REGION]
+
+## 2 - Project Setup
+
+In the following section we will take a look at some of the project settings that will need to be adjusted before we can deploy our UE4 level to an Android device.  
+
+1.  Before you can package your project  you will need to first accept the Gradle SDK license agreement. To do this you will need to go to **Project Settings** \> **Platforms Android** \> **APKPackaging** and press the **Accept SDK License** button (The button is disabled if the agreement has been previously accepted). Once you press the Accept SDK License button you will be shown the license agreement. Once you have read it and if you agree with it press the **Accept** button to continue. 
+    [REGION:lightbox]
+    [![](AndroidDevelopment_QS_2_SDK_License.png)(w:500px)](AndroidDevelopment_QS_2_SDK_License.png)
+    [/REGION]
+    [REGION:note]
+    You can still use the Ant build system by clearing the Enable Gradle instead of Ant check box  
+    ![](AndroidDevelopment_QS_2_RevertGradle.png)
+    [/REGION]
+
+1.  Next, in **APKPackaging **section locate the Minimum SDK Version and Target SDK Version and input 14 in both.
+    [REGION:lightbox]
+    [![](AndroidDevelopment_QS_2_SetMinTargetSDK.png)(w:500px")](AndroidDevelopment_QS_2_SetMinTargetSDK.png)
+    [/REGION]
+
+1.  When that has all been completed, you can now close the Project Settings window.
+
+## 3 - Deploying
+
+To test your current level on an Android-based device, you will need to do the following:
+
+1.  First need to make sure you have the level you want to test open. From this example, we will be using the **ThirdPersonExampleMap** level from the Blueprint based project that was created in the last step.  
+    ![](Correct_Level_Open.png)
+
+1.  With the **ThirdPersonExampleMap** now open go to the **Main Toolbar** and next to the **Launch** icon click on the small triangle that displays more options.  
+    ![](Level_Deploy_Options.png)
+
+1.  From the **Launch** menu under the **Devices** section select your Android device from the list by clicking on it.  
+    ![](launch_rightformat.png)
+
+1.  While your level is being launched on your device, the progress will be displayed in the bottom right-hand corner of the screen like in the following image.  
+    ![](AndroidDevelopment_QS_4_PackingProgress.png "AndroidDevelopment_QS_4_PackingProgress.png")
+
+1.  When the deployment has finished, the project should automatically start running on your Android device. If the project fails to automatically start, you can start it by finding the App on your device and tapping on it to launch it.
+    [REGION:lightbox]
+    [![](AndroidDevelopment_QS_4_EndResult.png)(w:200px)](AndroidDevelopment_QS_4_EndResult.png)
+    [/REGION]
+
+## 4 - On Your Own
+
+Now that we have gone over how to get your UE4 project packaged and ready to be tested on your Android device, try and accomplish the following using what you have learned from this Quick Start guide.
+
+*   Create a new project using one of the default templates and then try and get that project running on your Android device.
+
+The following selection of links can help you with everything from which Android devices will work with UE4 to things you should consider when creating content that is aimed at mobile devices. If you have not gone through these links before it is highly recommended that you do as they contain a plethora of valuable information.
+
+For more information about designing game content and levels for mobile devices checkout the following links:  
+
+*   [Content Creation for Mobile Devices](Platforms/Mobile/Meshes)
+
+*   [Creating Materials for Mobile Devices](Platforms/Mobile/Materials)
+
+*   [Creating Textures for Mobile Devices](Platforms/Mobile/Textures)
+
+*   [Lighting for Mobile Devices](Platforms/Mobile/Lighting)
+
+You can also change how you preview your mobile game without deploying to a device by using the Mobile Previewer.  
+
+*   [Mobile Previewer](Platforms/Mobile/Previewer)

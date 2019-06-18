@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:4649792
-Availability: Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 crumbs:%ROOT%
 Title: 2 - 创建一个TireConfig数据资源和轮子蓝图
 Description: 在此步骤中，我们将创建可以用于载具的轮子蓝图的TireConfig数据资源。 

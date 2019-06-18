@@ -1,12 +1,12 @@
 Availability:Public
 Title:Vertex Animation Tool
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description: User guide for the 3D Max Vertex Animation tool set.
 Related: Engine\Animation\Tools\VertexAnimationTool\VAT_KF_Meshes
 Related: Engine\Animation\Tools\VertexAnimationTool\VAT_TL_Meshes
 SkillLevel:Advanced
 Version: 4.9
 tags: Tools
+type:overview
 topic-image:VertexAnimationTool_topic.png
 
 [TOC(start:2 end:3)]

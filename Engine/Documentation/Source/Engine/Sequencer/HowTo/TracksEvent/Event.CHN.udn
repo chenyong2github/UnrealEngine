@@ -1,166 +1,129 @@
-﻿INTSourceChangelist:3439709
-Availability:Public
-Title:使用自定义事件和结构体
-Crumbs:%ROOT%
-Description:说明如何使用事件轨迹在蓝图中调用带自定义结构体的自定义事件进行使用。 
-Version:4.15
-SkillLevel:Intermediate
-parent:Engine/Sequencer/HowTo
-order:1
-checkpoint: editorqs
-Related:Engine/Sequencer/Overview
-Related:Engine/Sequencer/ReferenceEditor
-tags:Sequencer
-type:how-to
+﻿INTSourceChangelist:5531959
+Availability: Public
+Crumbs: 
+Title:通过Sequencer调用事件
+Description:如何使用Sequencer的事件轨迹触发蓝图中的事件的示例。 
+Type: 
+Version: 4.21
+Parent: Engine/Sequencer/HowTo
+Order: 
+Tags: Sequencer
+Tags: Event Track
 
-**事件轨迹** 可用于调用 [自定义事件](Engine/Blueprints/UserGuide/Events/Custom)，它能在 [关卡蓝图](Engine/Blueprints/UserGuide/Types/LevelBlueprint) 中发射 [蓝图脚本](Engine/Blueprints)。调用自定义事件后，为其附加的任意脚本也将被执行，可基于需求用于各种情况。使用事件轨迹并调用自定义事件时，也可传递您自己的自定义 [结构体](Engine/Blueprints/UserGuide/Variables/Structs)，用于更新其中包含的变量。需要在关卡序列播放中更新其他变量时，它将十分实用。 
 
-在此例中，我们将使用事件轨迹调用一个自定义结构体的自定义事件，用于在播放序列时移动关卡中的物体。 
+通过Sequencer播放过场动画时，有时你可能需要触发可启动一些脚本功能的 **事件**。在过场动画的特定时刻，你可能希望门打开，粒子效果生成并播放，或者以某种方式影响玩家。借助 **事件轨迹**，你可以在你希望事件在其中被调用的过场动画中设置这样的关键帧。然后，你可以使用 **导演** 类蓝图提供你希望发生的脚本功能（使用 **事件端点**）。
 
- ![](EndResultImage.png)
+在本指南中，我们将使用事件轨迹向屏幕输出指示角色死亡的文本。同时，我们将禁止玩家移动并在角色上模拟物理。
 
-在以下指南中，按下键后关卡序列将播放，而每次皆会执行向上移动立方体的事件。 
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ dj0DHI-h26Y
+ [/PARAMLITERAL]
+[/OBJECT]
 
+(#steps)
 ## 步骤
 
 [REGION:note]
-在此指南中，我们使用的是启用了 **Starter Content** 的 **Blueprint Third Person Template** 项目。 
+在本指南中，我们使用 **蓝图第三人称（Third Person）模板** 项目。
 [/REGION]
 
-1.	在 **Content Browser** 的 **Content/StarterContent/Shapes** 中，将任意网格体拖入关卡。 
+2.  从主工具栏中，单击 **过场动画（Cinematics）** 按钮，然后选择 **添加关卡序列（Add Level Sequence）**（使用任意名称和保存位置）。  
+    ![](UsingEventTracks_01.png "UsingEventTracks_01.png")
 
-	![](EventTrack1.png)
+5.  在关卡序列的 **细节（Details）** 面板中，启用 **自动播放（Auto Play）** 选项。   
+    ![](UsingEventTracks_02.png "UsingEventTracks_02.png")
 
-	将网格体放置在关卡中任意位置。 
+8.  在关卡中选中 **ThirdPersonCharacter**，然后使用 **+轨迹（+ Track）** 按钮将它添加到Sequencer中。   
+    ![](NewEventTrack_03.png "NewEventTrack_03.png")  
+ 
+11.  在关卡中右键单击 **ThirdPersonCharacter**，然后选择 **编辑ThirdPersonCharacter（Edit ThirdPersonCharacter）**。   
+    ![](NewEventTrack_04.png "NewEventTrack_04.png")  
+    在 **第三人称角色（Third Person Character）蓝图** 中，我们将添加将从Sequencer中调用的自定义事件。 
 
-1.	在网格体的 **Details** 面板中将其设为 **Movable**。 
+14.  在 **事件图表** 中右键单击，然后搜索并添加 **自定义事件**。   
+    ![](NewEventTrack_05.png "NewEventTrack_05.png")
 
-	![](EventTrack1b.png)
+17.  将自定义事件命名为 **KillPlayerText**，然后连接 **输出字符串（Print String）** 节点（以 *杀死我的玩家！（Kill My Player!）* 文本作为字符串）。   
+    ![](NewEventTrack_06.png "NewEventTrack_06.png")  
+    在此示例中，当自定义事件被调用时，我们将向屏幕输出文本。你可以根据需要提供任何脚本功能，并将它与自定义事件相连接，使得当事件被从Sequencer调用时，脚本功能执行。   
 
-	进行此设置后便可在游戏进程中移动网格体。
+20.  在 **Sequencer** 中，单击 **ThirdPersonCharacter** 轨迹上的 **+轨迹（+ Track）** 按钮，然后选择 **事件（Event）**。   
+    ![](NewEventTrack_07.png "NewEventTrack_07.png")
 
-1.	点击 **Add New** 按钮。然后在 **Blueprints** 下选中 **Structure** 选项。 
+23.  将时间轴移动到第 **60** 帧处，然后单击 **事件（Events）** 轨迹的 **+** 号，以添加事件关键帧。   
+    ![](NewEventTrack_08.png "NewEventTrack_08.png")
 
-	![](EventTrack2.png)
+26.  右键单击新关键帧，在 **属性（Properties）** 下，单击 **未绑定（Unbound）** 并选择 **创建新端点（Create New Endpoint）**。   
+    ![](NewEventTrack_09.png "NewEventTrack_09.png")
+    
+    然后你将看到新 **导演类** 蓝图。   
 
-1.	输入名称 **MyStruct**，然后打开资源并添加一个名为 **MoveCube** 的 **Vector** 变量。 
+    [REGION:lightbox]
+    [![](UsingEventTracks_06b.png)(w:900)](UsingEventTracks_06b.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
 
-	![](EventTrack3.png)
+    在导演蓝图中，你可为一个或多个给定目标提供希望发生的脚本功能。你也可以使用导演蓝图调用其他蓝图实现的并且可在受到调用时执行的[蓝图接口](Engine/Blueprints/UserGuide/Types/Interface)。   
 
-	[REGION:note]
-	此处的变量命名非常重要，因为它们将在以后起到参考指示的作用。 
-	[/REGION]
+    [REGION:note]
+    请参阅[事件轨迹概述](Engine/Sequencer/Workflow/EventTrackOverview)以了解更多信息。
+    [/REGION]
 
-1.	通过 **Cinematics** 按钮新增一个名为 **Master** 的 **关卡序列** 到关卡，然后在 **Sequencer** 中添加一个 **事件轨迹**。 
+36.  在 **我的蓝图（My Blueprint）** 面板中，将函数名称更改为 **PrintKillPlayer**，然后从 **目标（Target）** 引脚调用 **杀死玩家文本（Kill Player Text）**。
+    ![](NewEventTrack_10.png "NewEventTrack_10.png")  
+    此示例以 **ThirdPersonCharacter** 蓝图作为目标。我们也可以将使我们可以访问相关函数的 **目标（Target）** 类型更改为我们指定的目标类型。 
 
-	![](EventTrack4.png)
+39.  在 **ThirdPersonCharacter** 轨迹的 **Sequencer** 中，添加 **CharacterMesh0**。   
+    ![](NewEventTrack_11.png "NewEventTrack_11.png")
 
-1.	将时间轴移至第 **5** 帧并添加一个键，然后右键点击键将事件命名为 **LiftCube**。然后指定 **MyStruct** 并将 **Z 轴** 值设为 **100**。 
+42.  对于 **CharacterMesh0**，单击 **+轨迹（+ Track）** 按钮并添加 **事件（Event）** 轨迹。   
+    ![](NewEventTrack_12.png "NewEventTrack_12.png")
 
-	![](EventTrack5.png)
+45.  在第 **60** 帧处为 **事件（Events）** 轨迹添加关键帧，然后右键单击它，在 **属性（Properties） > 创建快速绑定（Create Quick Binding）** 下，选择 **SetAllBodiesSimulatePhysics**。   
+    ![](NewEventTrack_13.png "NewEventTrack_13.png")  
+    由于此事件轨迹的对象绑定为骨架网格体组件（Skeletal Mesh Component），我们现在可以访问与骨架网格体相关的 **快速绑定**。选择此函数之后，此节点将自动添加到事件端点，并且图表将自动打开。 
 
-	到达序列中的这个关键帧时，我们将把网格体沿 Z 轴上移 100 个单位。 
+48.  将 **新模拟（New Simulate）** 设为启用，然后添加 **将碰撞设置为启用（Set Collision Enabled）** 节点，以 **启用碰撞（查询和物理）（Collision Enabled (Query and Physics)）** 作为 **新类型（New Type）**。   
+    ![](NewEventTrack_14.png "NewEventTrack_14.png")  
+    此设置将指示骨架网格体模拟物理并启用碰撞，以使它不会穿透地板掉下去。 
 
-1.	移动时间轴到第 **10** 帧，然后按下 **]** 键让序列在第 10 帧处结束。 
+51.  在 Sequencer 中，单击 **ThirdPersonCharacter** 的 **+轨迹（+ Track）** 按钮并添加 **CharMoveComp** 轨迹。
+   ![](NewEventTrack_15.png "NewEventTrack_15.png")
 
-	![](EventTrack6.png)
+54.  为 **CharMoveComp** 添加 **事件（Event）** 轨迹，在第 **60** 帧处添加事件关键帧，并且创建调用 **DisableMovement** 的 **快速绑定**。
+   ![](NewEventTrack_16.png "NewEventTrack_16.png")  
+    在此处，我们以 **角色移动组件（Character Movement Component）** 作为目标，并且使用事件在角色模拟物理时禁止它四处移动的能力。   
+   
+57.  单击 **播放（Play）** 按钮以在编辑器中播放。 
 
-1.	选中添加的网格体（以及关卡中的关卡序列），然后点击工具栏中的 **Blueprints** 按钮，最后选中 **Open Level Blueprint**。 
-
-	![](EventTrack7.png)
-
-1.	在 **关卡蓝图** 中点击右键并搜索 **Reference**，然后选择 **Create References to 2 selected Actors**。 
-
-	![](EventTrack8.png)
-
-1.	在图表中点击右键并添加一个 **1** 键盘事件，然后从 **Master** 关卡序列连出引线，搜索并添加 **Set Playback Position** 节点。 
-
-	![](EventTrack9.png)
-
-	[REGION:note]
-	它将用于开始播放时、发出播放函数调用前重设序列。 
-	[/REGION]	
-	
-1.	从添加的 **Sequence Player** 节点连出引线，然后使用 **Play** 节点，按下图所示进行连接。 
-
-	![](EventTrack10.png)
-
-1.	在图表中点击右键并创建一个名为 **LiftCube** 的 **自定义事件**。 
-
-	![](EventTrack11.png)
-
-	[REGION:warning]
-	自定义事件的命名必须和在 **Event Name** 下为 Sequencer 中的键指定的命名相同（否则它将无法被调用）。 
-	[/REGION]
-
-1.	在自定义事件的 **Details** 面板中，点击 **+** 按钮添加一个输入，将其命名设为 **MoveCube**、变量类型设为 **Vector**。 
-
-	![](EventTrack12.png)
-
-	[REGION:warning]
-	如未满足以下条件，则事件不会被调用：
-	*	输入命名必须和结构体中使用的命名相同。 
-	*	输入的数字必须和自定义结构体中定义的变量数相同。  
-	
-	例如，如结构体中有 2 个变量，那么自定义事件必须拥有 2 个带正确变量名和类型的输入。 
-	[/REGION]
-	
-1.	从网格体参考连出引线，搜索并使用 **AddActorLocalOffset** 节点。 
-
-	![](EventTrack13.png)
-
-1.	按下图所示，将 **MoveCube** 矢量引脚连至 **Delta Location** 引脚、**LiftCube** 可执行引脚连至 **AddActorLocalOffset** 节点。 
-
-	![](EventTrack14.png)
-
-1.	在主工具栏中点击 **Play** 按钮进入 Play in Editor（PIE）模式。 
-
-
+(#endresult)
 ## 最终结果
 
-在编辑器中进行游戏时，每次按下 **1** 键立方体都会沿 **Z** 轴移动。 
-
+在编辑器中播放时，片刻之后，窗口左上角将显示文本，而且角色将倒在地上，其移动能力已被禁止。 
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	wlLcUr8BXvY
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	100
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	56.25
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ dj0DHI-h26Y
+ [/PARAMLITERAL]
 [/OBJECT]
 
-在此例中我们并未指定摄像机查看影片，而是使用 Sequencer 和蓝图执行已编辑脚本的序列。在项目中，带自定义事件和自定义结构体的事件轨迹可用于更新过场动画中的玩家信息（如玩家体力增加、获得新武器，或用户选择的其他游戏性相关的效果）。 
+在Sequencer中为对象添加事件轨迹将创建对象绑定，在对象绑定中，你可以调用事件、函数或者访问你绑定到的对象的属性。事件轨迹也可用于执行关卡蓝图、UI小部件蓝图中的脚本，或者通过蓝图接口与多个蓝图通信。 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+[REGION:note]
+请参阅[事件轨迹概述](Engine/Sequencer/Workflow/EventTrackOverview)以了解更多信息。
+[/REGION]

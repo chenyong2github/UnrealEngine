@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3243860
+﻿INTSourceChangelist:6572591
 Availability:Public
 Title: 级联粒子系统
 Crumbs: %ROOT%, Engine, Engine/Rendering 
@@ -9,50 +9,10 @@ parent:Engine/Rendering
 order:4
 type:landing
 tags:Particles
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Rendering/ParticleSystems:title%](Engine/Rendering/ParticleSystems/particles_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/fx_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/ParticleSystems:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/ParticleSystems:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/ParticleSystems]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Rendering/ParticleSystems:title%](Engine/Rendering/ParticleSystems/particles_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/fx_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/ParticleSystems:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/ParticleSystems:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/ParticleSystems]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[REGION:banner]
-![](effects_landing_banner.png)(convert:false)
-[/REGION]
+related:Engine/Basics/Distributions
+related:Engine/Rendering/Materials/Editor
+topic-image:particles_topic.png
+hero-image:effects_landing_banner.png
 
 [EXCERPT:Intro]
 虚幻引擎内包含了一套极为强大并健壮的粒子系统，让美术人员能够创建令人瞠目结舌的视觉特效，从烟雾、火星、火焰，到极其复杂的幻想中才有的效果。
@@ -62,80 +22,7 @@ tags:Particles
 
 粒子系统也和每个粒子上使用的各种材质以及贴图紧密相关。粒子系统自身主要的功能是要控制粒子的行为，然后整体的看粒子系统最终的展现效果则通常取决于材质的做法。因此，我们在文档的后面也放了材质文档的链接。
 
-[REGION:topics third]
-[OBJECT:Topic]
-	[PARAM:image]
-		![](Engine/Rendering/ParticleSystems/particles_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/start_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/ParticleSystems/Overview:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/ParticleSystems/Overview:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/ParticleSystems/Overview]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Rendering/ParticleSystems/Cascade:title%](Engine/Rendering/ParticleSystems/Cascade/cascade_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/editor_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/ParticleSystems/Cascade:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/ParticleSystems/Cascade:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/ParticleSystems/Cascade]
-	[/PARAM]
-[/OBJECT]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Rendering/ParticleSystems/Reference:title%](Engine/Rendering/ParticleSystems/Reference/particlereference_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/reference_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/ParticleSystems/Reference:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/ParticleSystems/Reference:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/ParticleSystems/Reference]
-	[/PARAM]
-[/OBJECT]
-[/REGION]
+## 入门
 
-## 粒子特效相关的主题
-
-[REGION:buttonlist]
-
-	* [](Engine/Rendering/ParticleSystems/UserGuide "%Engine/Rendering/ParticleSystems/UserGuide:Description%")
-	* [](Engine/Rendering/ParticleSystems/LODs "%Engine/Rendering/ParticleSystems/LODs:Description%")
-	* [](Engine/Rendering/ParticleSystems/ParticleLights "%Engine/Rendering/ParticleSystems/ParticleLights:Description%")
-	
-[/REGION]
-
-## 其他相关的主题
-
-[REGION:buttonlist]
-
-	* [](Engine/Basics/Distributions "%Engine/Basics/Distributions:Description%")
-	* [](Engine/Rendering/Materials/Editor "%Engine/Rendering/Materials/Editor:Description%")
-	* [](Engine/Rendering/ParticleSystems/Optimization "%Engine/Rendering/ParticleSystems/Optimization:Description%")
-	
-[/REGION]
-
-
-
+[DIR(output:"topic" parent:"Engine/Rendering/ParticleSystems" end:"1" org:"hierarchy")]
 

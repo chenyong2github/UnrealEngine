@@ -44,6 +44,18 @@ class STimingView : public SCompoundWidget
 private:
 	static constexpr float MinTooltipWidth = 110.0f;
 
+protected:
+	struct FAssetLoadingEventAggregationRow
+	{
+		FString Name;
+		int32 Count;
+		double Total;
+		double Min;
+		double Max;
+		double Avg;
+		double Med;
+	};
+
 public:
 	/** Default constructor. */
 	STimingView();
@@ -276,7 +288,7 @@ protected:
 	void DrawIoOverviewTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
 	void DrawIoActivityTrack(FTimingViewDrawHelper& Helper, FTimingEventsTrack& Track) const;
 
-	void DrawTimeRangeSelection(FDrawContext& DH) const;
+	void DrawTimeRangeSelection(FDrawContext& DrawContext) const;
 
 	void ShowContextMenu(const FVector2D& ScreenSpacePosition, const FPointerEvent& MouseEvent);
 
@@ -302,6 +314,8 @@ protected:
 	void UpdateVerticalScrollBar();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	float DrawAssetLoadingAggregationTable(FDrawContext& DrawContext, float RightX, float BottomY, const TCHAR* TableName, const TArray<FAssetLoadingEventAggregationRow>& Aggregation, int32 TotalRowCount) const;
 
 	void UpdateAggregatedStats();
 
@@ -390,9 +404,12 @@ protected:
 
 	struct FThreadGroup
 	{
-		const TCHAR* Name; /**< the thread group name; pointer to string owned by ThreadProvider */
-		bool bIsVisible;
-		uint32 NumTimelines;
+		const TCHAR* Name; /**< The thread group name; pointer to string owned by ThreadProvider. */
+		bool bIsVisible;  /**< Toggle to show/hide all thread timelines associated with this group at once. Used also as default for new thread timelines. */
+		uint32 NumTimelines; /**< Number of thread timelines associated with this group. */
+		int32 Order; //**< Order index used for sorting. Inherited from last thread timeline associated with this group. **/
+
+		int32 GetOrder() const { return Order; }
 	};
 
 	TMap<const TCHAR*, FThreadGroup> ThreadGroups; /**< maps thread group name to thread group info */
@@ -410,8 +427,11 @@ protected:
 
 	bool bAssetLoadingMode;
 
-	FString EventAggregationStr;
-	FString ObjectTypeAggregationStr;
+	int32 EventAggregationTotalCount;
+	TArray<FAssetLoadingEventAggregationRow> EventAggregation;
+
+	int32 ObjectTypeAggregationTotalCount;
+	TArray<FAssetLoadingEventAggregationRow> ObjectTypeAggregation;
 
 	////////////////////////////////////////////////////////////
 	// File activity (I/O)

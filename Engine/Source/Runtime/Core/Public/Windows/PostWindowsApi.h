@@ -73,6 +73,11 @@ THIRD_PARTY_INCLUDES_END
 #pragma pop_macro("TRUE")
 #pragma pop_macro("FALSE")
 
+// Restore the struct packing setting
+#if PLATFORM_WINDOWS && PLATFORM_32BITS
+	#pragma pack(pop)
+#endif
+
 // Redefine CDECL to our version of the #define.  <AJS> Is this really necessary?
 #define CDECL	    __cdecl					/* Standard C function */
 

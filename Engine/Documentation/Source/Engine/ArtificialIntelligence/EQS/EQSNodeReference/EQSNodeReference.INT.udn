@@ -1,0 +1,31 @@
+Availability: Docs
+Title: Environment Query System Node Reference
+Description: Environment  Query System Node Reference page. 
+Type: reference
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/EQS
+Tags: Experimental
+Tags: AI
+Tags: EQS
+Tags: Environment Query System
+Tags: EQS Essentials
+topic-image: EQS_NodeReference_Image.png
+social-image: EQS_NodeReference_Image.png
+topic-icon: EQS_NodeReference_Image.png
+Order: 3
+
+
+
+An **Environment Query** is actually made up a number of different pieces. You must call an Environment Query from a [Behavior Tree](Engine/ArtificialIntelligence/BehaviorTrees), and then the actual Environment Query will use its **Generator**, reference its **Contexts**, and use its **Tests** to give the Behavior Tree the highest weighted result.
+
+| Node Type | Description |
+| --- | --- |
+| **Generator** | Produces the locations or Actors, referred to as **Items**, that will be actually tested and weighted. |
+| **Contexts** | Provides a frame of reference for the various Tests and Generators. |
+| **Tests** | Establishes how the Environment Query decides which Item from the Generator is the best option. |
+
+Please refer to the links below for additional information on each subject. 
+
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceGenerators:topic%
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceTests:topic%
+%Engine\ArtificialIntelligence\EQS\EQSNodeReference\EQSNodeReferenceContexts:topic%

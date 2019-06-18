@@ -61,7 +61,7 @@ delegate 接口也比较简单明了，每个接口的前面都有一个 delegat
 
 在线服务平台的会话功能的接口。会话功能是用来管理任何和会话相关的信息，以及会话自身的状态。（译者：会话，Session，通常在网游中也被理解为“房间”）
 
-详细信息可以查看 [](Programming/Online/Interfaces/Session) 页面。
+详细信息可以查看 [](Programming/Online/SessionInterface) 页面。
 
 (#SharedCloud)
 #### 共享云
@@ -99,7 +99,7 @@ delegate 接口也比较简单明了，每个接口的前面都有一个 delegat
 如果在线平台的外部界面可用的话，提供方位外部界面的接口。
 
 [COMMENT:none]
-Details can be found on the [](Programming/Online/Interfaces/ExternalUI) page.
+Details can be found on the [](Programming/Online/ExternalUIInterface) page.
 [/COMMENT]
 
 
@@ -107,6 +107,6 @@ Details can be found on the [](Programming/Online/Interfaces/ExternalUI) page.
 ## 参考
 
 [REGION:buttonlist]
-* [](Programming/Online/Interfaces/Session "%Programming/Online/Interfaces/Session:Description%")
+* [](Programming/Online/SessionInterface "%Programming/Online/SessionInterface:Description%")
 * [](Programming/Online/Types/ "%Programming/Online/Types:Description%")	
 [/REGION]

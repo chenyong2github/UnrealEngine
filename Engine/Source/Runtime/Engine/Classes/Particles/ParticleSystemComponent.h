@@ -488,7 +488,7 @@ private:
 	volatile bool bAsyncWorkOutstanding;
 	
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent);
+	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
 
 	/** Handle into the FParticleSystemWorldManager. INDEX_NONE if this component does not have managed ticks. */
 	int32 ManagerHandle : 30;
@@ -1232,6 +1232,18 @@ public:
 		ENSURE_AND_STALL,
 		SILENT, // this would only be appropriate for editor only or other unusual things that we never see in game
 	};
+	/** If there is async work outstanding, force it to be completed now **/
+	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread, bool InSkipUpdateDynamicDataDuringTick)
+	{
+		if (AsyncWork.GetReference())
+		{
+			const bool bSavedSkipUpdate = bSkipUpdateDynamicDataDuringTick;
+			bSkipUpdateDynamicDataDuringTick |= InSkipUpdateDynamicDataDuringTick;
+			WaitForAsyncAndFinalize(Behavior, bDefinitelyGameThread);
+			bSkipUpdateDynamicDataDuringTick = bSavedSkipUpdate;
+		}
+	}
+
 	/** If there is async work outstanding, force it to be completed now **/
 	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread = true) const
 	{

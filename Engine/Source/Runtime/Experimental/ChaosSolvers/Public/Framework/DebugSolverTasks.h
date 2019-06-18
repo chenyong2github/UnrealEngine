@@ -55,7 +55,7 @@ namespace Chaos
 		~FDebugSolverTasks() { Shutdown(); }
 
 		/** Add debug task entry for the specified solver. */
-		FORCEINLINE void Add(FPBDRigidsSolver* Solver) { SolverToTaskMap.Add(Solver, nullptr); }
+		void Add(FPBDRigidsSolver* Solver);
 
 		/** Remove the debug task entry for the specified solver, and delete its task if any was created. */
 		void Remove(FPBDRigidsSolver* Solver);

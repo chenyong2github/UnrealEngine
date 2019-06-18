@@ -1,0 +1,19 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Unreal Studio Release Notes
+Description: Release notes for the Unreal Studio offering.
+Type: reference
+Parent: Studio
+Tags: Release Notes
+Tags: Builds
+topic-icon: %ROOT%/outline_icon.png
+Order: 3
+
+
+*   [Unreal Studio 4.22 Release Notes](Studio/Builds/UnrealStudioReleaseNotes4_22)
+
+*   [Unreal Studio 4.21 Release Notes](Studio/Builds/StudioRN421)
+
+*   [Unreal Studio 4.20 Release Notes](Studio/Builds/UnrealStudioReleaseNotes4_20)
+
+*   [Unreal Studio 4.19 Release Notes](Studio/Builds/UnrealStudioReleaseNotes4_19)

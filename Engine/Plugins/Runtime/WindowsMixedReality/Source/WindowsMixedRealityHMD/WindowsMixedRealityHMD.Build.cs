@@ -42,10 +42,13 @@ namespace UnrealBuildTool.Rules
 					PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=0");
 				}
 
-				PublicDelayLoadDLLs.Add("HolographicAppRemoting.dll");
-                PublicDelayLoadDLLs.Add("PerceptionDevice.dll");
-				RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/{0}/HolographicAppRemoting.dll", DllSubpath));
-                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/{0}/PerceptionDevice.dll", DllSubpath));
+				if(Target.Platform != UnrealTargetPlatform.Win32)
+                {
+					PublicDelayLoadDLLs.Add("HolographicAppRemoting.dll");
+					PublicDelayLoadDLLs.Add("PerceptionDevice.dll");
+					RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/{0}/HolographicAppRemoting.dll", DllSubpath));
+					RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/{0}/PerceptionDevice.dll", DllSubpath));
+                }
             }
 
             PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");

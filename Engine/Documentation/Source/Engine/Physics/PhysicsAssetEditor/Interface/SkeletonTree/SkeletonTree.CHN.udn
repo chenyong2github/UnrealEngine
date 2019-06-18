@@ -1,0 +1,221 @@
+﻿INTSourceChangelist:6343699
+Availability: Public
+Crumbs: %ROOT%
+Title: 物理资源编辑器 - 骨架树
+Description: 物理资源编辑器中骨架树的使用指南。
+Type: Reference
+Version:4.18
+Parent:Engine/Physics/PhysicsAssetEditor/Interface
+Related:Engine/Physics/PhysicsAssetEditor/Interface
+Related:Engine/Physics/PhysicsAssetEditor
+Related:Engine/Animation/Persona
+Related:Engine/Physics/PhysicsAssetEditor/HowTo
+Related:Engine/Animation/Persona/Modes
+Order:
+Tags:Physics
+Tags:Animation
+
+[TOC(start:2 end:3)]
+
+![](SkeletonTree.png)
+
+
+**骨架树** 面板位于[物理资源编辑器（Physics Asset Editor）](Engine/Physics/PhysicsAssetEditor)中，显示当前[骨架](Engine/Animation/Skeleton)资源的骨骼层级以及碰撞形体、Primitive和约束等其他资源。在其中，你可以执行以下操作：
+
+* 在骨骼层级中选中并查看特定骨骼及其连接的形体和约束。
+* 创建和编辑形体、Primitive和约束，可以在视口中模拟它们以查看布偶动画、约束和碰撞交互的结果。
+* 创建暂时连接的预览资源，它们非常有用，例如，可以预览武器拿在角色手中的效果。
+
+
+## 界面详细介绍
+
+![](SkeletonTreeInterface.png)
+
+1. [搜索行](#searchline)
+1. [骨骼层级列表](#bonehierarchylist)
+1. [骨架选项](#skeletonshow/hideoptions)
+
+### 搜索行
+
+![](SearchLine.png)
+
+**搜索** 行使你能够快速对骨骼层级进行过滤，从而仅过滤出包含基于输入文本的名称的层级。 
+
+![](SearchExample.png)
+[REGION:caption] 如上图所示，我们对层级进行了过滤，使其仅显示包含文本 **Pelvis** 的所有骨骼名称、形体或约束。[/REGION]
+
+### 骨骼层级列表
+
+![](BoneHierarchyList.png)
+
+该窗口显示所选物理资源当前使用的所有骨骼、形体、约束、Primitive和预览对象。在该窗口中，你可以添加和指定碰撞形体、Primitive、约束和预览对象。在骨骼层级列表中进行的大部分调整都通过右击快捷菜单进行，菜单选项因右键单击的对象而异（请参阅下方的各个快捷菜单部分）。  
+
+
+### 选择快捷菜单
+
+在骨骼层级列表中，当你在骨骼、形体、Primitive或约束上右键单击时，可以访问特定于选择对象的快捷菜单。
+
+以下是可用的快捷菜单及其相关选项。
+
+#### 骨骼快捷菜单
+
+当你在某个骨骼上右键单击时，将会看到以下快捷菜单：
+
+![](BoneContextMenu.png)
+
+[REGION:raw]
+| 选项 | 说明 |
+| -------- | ----------- |
+| **Copy Selected Bone Names** | 将选中的骨骼名称复制到剪贴板。|
+| **Reset Selected Bone Transforms** | 重置选中的骨骼的变换。|
+| **Add Preview Asset** | 打开一个菜单，其中包含能够暂时连接到某个骨骼以进行预览的所有符合条件的资源。例如，如果你希望查看某件盔甲在连接到某个骨骼时的效果，就可以使用该选项。但是请注意，这不是永久连接，仅在预览时可见。|
+| **Remove All Attached Assets** | 从骨架和网格体中删除所有已连接的资源。|
+| **Add/Replace Bodies** | 使用[工具（Tools）](Engine/Physics/PhysicsAssetEditor/Interface/ToolsAndProfiles#工具选项卡)选项卡中的当前生成设置为选中的骨骼添加或替换形体。|
+| **Select All Bodies** | 选择骨架树中的所有形体。|
+| **Select All Constraints** | 选择骨架树中的所有约束。|
+[/REGION]
+
+
+
+#### 形体快捷菜单
+
+在某个形体上右键单击时，将会看到以下快捷菜单：
+
+![](BodyContextMenu.png)
+
+[REGION:raw]
+| 选项 | 说明 |
+| -------- | ----------- |
+| **Regenerate Bodies** | 使用[工具（Tools）](Engine/Physics/PhysicsAssetEditor/Interface/ToolsAndProfiles#工具选项卡)选项卡中的当前生成设置重新生成选中的形体。|
+| **Add Shape** | 为该形体添加形状。可以选择盒体、球体或胶囊体。|
+| **Collision** | 调整形体间的碰撞。[INCLUDE:#collisionbody] |
+| **Constraints** | 在选中的形体和从层级列表中选择的形体间创建约束。|
+| **Physics Type** | 要为该形体使用的物理类型；运动或仿真。|
+| **Physical Material** | 选择要应用于所有形体的物理材质。|
+| **Copy Properties** | 将当前选中的对象的属性复制给下一个选中的对象。|
+| **Paste Properties** | 将前一个选中的对象的属性粘贴到当前选中的对象。|
+| **Delete** | 删除当前选中的形体。|
+| **Delete All Bodies Below** | 删除骨骼层级树中当前选中的形体下面的所有形体。|
+| **Mirror** | 找到另一侧的形体并复制其约束和形体。|
+| **Assign** | 将选中的形体指定给当前物理动画配置文件。|
+| **Unassign** | 从当前物理动画配置文件取消指定选中的形体。|
+| **Copy Collision From Static Mesh** | 从特定静态网格体复制凸面碰撞。|
+| **Select All Bodies** | 选择骨架树中的所有形体。|
+| **Select All Constraints** | 选择骨架树中的所有约束。|
+[/REGION]
+
+
+[COMMENT:none]
+-
+[INCLUDE:#collisionbody]
+[EXCERPT:collisionbody]
+| --- | --- |
+| **Weld** | 将当前选中的形体焊接在一起。|
+| **Enable Collision** | 在当前选中的形体间启用碰撞。|
+| **Enable Collision All** | 在当前选中的形体和所有形体间启用碰撞。|
+| **Disable Collision** | 禁用当前选中的形体间的碰撞。|
+| **Disable Collision All** | 禁用当前选中的形体和所有形体间的碰撞。|
+
+[/EXCERPT:collisionbody]
+
+-
+[/COMMENT]
+
+#### Primitive快捷菜单
+
+当你在某个Primitive上右键单击时，将会看到以下快捷菜单：
+
+![](PrimitiveContextMenu.png)
+
+[REGION:raw]
+| 选项 | 说明 |
+| -------- | ----------- |
+| **Duplicate** | 复制选中的Primitive。|
+| **Delete** | 删除选中的Primitive。|
+| **Select All Bodies** | 选择骨架树中的所有形体。|
+| **Select All Constraints** | 选择骨架树中的所有约束。|
+[/REGION]
+
+
+#### 约束快捷菜单
+
+当你在某个约束上右键单击时，将会看到以下快捷菜单：
+
+![](ConstraintContextMenu.png)
+
+[REGION:raw]
+| 选项 | 说明 |
+| -------- | ----------- |
+| **Snap** | 将当前选中的约束附着到骨骼。|
+| **Reset** | 将约束重置为默认状态。|
+| **Axes and Limits** | 编辑轴和该约束的限制。[INCLUDE:#constraint] |
+| **Convert** | 将约束转换为不同的预置值。[INCLUDE:#convert]  |
+| **Copy Properties** | 将当前选中的对象的属性复制给下一个选中的对象。|
+| **Paste Properties** | 将前一个选中的对象的属性粘贴到当前选中的对象。|
+| **Delete** |  删除当前选中的约束。|
+| **Assign** | 将选中的约束指定给当前物理动画配置文件。|
+| **Unassign** | 从当前物理动画配置文件取消指定选中的约束。|
+| **Copy Collision From Static Mesh** | 从特定静态网格体复制凸面碰撞。|
+| **Select All Bodies** | 选择骨架树中的所有形体。|
+| **Select All Constraints** | 选择骨架树中的所有约束。|
+[/REGION]
+
+
+[COMMENT:none]
+-
+[INCLUDE:#convert]
+[EXCERPT:constraint]
+| --- | --- |
+| **Cycle Constraint Orientation** |  在不同的主轴间循环约束朝向。|
+| **Cycle Active Constraint** | 单独循环每个约束轴是否活动。|
+| **Lock Swing** | 将摇摆1或2设置为锁定或受限。|
+| **Lock Twist** | 将扭曲设置为锁定或受限。|
+
+[/EXCERPT:constraint]
+
+[EXCERPT:convert]
+* 球体和骨臼
+* 铰链
+* 棱柱体
+* 骨骼
+[/EXCERPT:convert]
+
+-
+[/COMMENT]
+
+
+#### 预览资源快捷菜单
+
+**预览资源** 是静态网格体或骨架网格体等暂时连接到骨骼或骨臼以进行预览的资源。
+
+当你在某个预览资源上右键单击时，将会看到以下快捷菜单：
+
+![](PreviewAssetContextMenu.png)
+
+[REGION:raw]
+| 选项 | 说明 |
+| -------- | ----------- |
+| **Add Preview Asset** | 打开一个菜单，其中包含能够暂时连接到某个骨骼以进行预览的所有符合条件的资源。例如，如果你希望查看某件盔甲在连接到某个骨骼时的效果，就可以使用该选项。但是请注意，这不是永久连接，仅在预览时可见。|
+| **Remove All Attached Assets** | 删除当前位于网格体上的所有预览资源。|
+[/REGION]
+
+### 骨架显示/隐藏选项
+
+“骨架选项（Skeleton Options）”窗口使你可以显示或隐藏骨骼、形体、约束和Primitive。 
+
+![](ShowHideOptions.png)
+
+[REGION:raw]
+| 选项 | 说明 |
+| -------- | ----------- |
+| **Filtering Flattens Hierarchy** | 搜索树项时保留层级结构还是使其扁平化。|
+| **Hide Parents When Filtering** | 过滤时将父项显示为灰色还是完全隐藏它们。|
+| **Show Bodies** | 在树形视图中显示形体。形体是用于碰撞的一系列基本形状。|
+| **Show Constraints** | 在树形视图中显示约束。约束用于控制形体相互移动的方式。|
+| **Show Primitives** | 在树形视图中显示基本形状（球体、盒体、胶囊体等）。|
+| **Show All Bones** | 显示骨架中的每个骨骼。|
+| **Show Mesh Bones** | 显示在网格体中使用的骨骼。|
+| **Show LOD Bones** | 显示在显示的LOD（细节层级）中使用的骨骼。|
+| **Show Weighted Bones** | 显示具有顶点加权的骨骼。|
+| **Hide Bones** | 隐藏所有骨骼（骨臼和连接的资源仍将列示）。|
+[/REGION]

@@ -28,7 +28,7 @@ namespace AssetPreviewWidget
 	public:
 		void Construct(const FArguments& InArgs);
 
-		void SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToTempFolder);
+		void SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToReplace, const FString& InSubstitutePath);
 		void ClearAssetList();
 
 		FOnSelectionChanged& OnSelectionChanged() { return OnSelectionChangedDelegate; };
@@ -60,7 +60,8 @@ namespace AssetPreviewWidget
 		TSharedPtr< STreeView< FAssetTreeItemPtr > > TreeView;
 
 		FText FilterText;
-		FString PathToTempFolder;
+		FString PathToReplace;
+		FString SubstitutePath;
 
 		FOnSelectionChanged OnSelectionChangedDelegate;
 	};

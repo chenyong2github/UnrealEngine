@@ -281,6 +281,11 @@ protected:
 
 	void ClearLoginSession();
 
+	// Log spam avoidance
+	FString LastLogMessage;
+	LogLevel LastLogLevel;
+	int LogSpamCount = 0;
+
 	// ~Begin FSelfRegisteringExec Interface
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 	// ~End FSelfRegisteringExec Interface

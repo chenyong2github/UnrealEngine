@@ -53,7 +53,6 @@ public:
 		, _UndeterminedHoveredImage( nullptr )
 		, _UndeterminedPressedImage( nullptr )
 	{
-		_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
 	}
 
 		/** Content to be placed next to the check box, or for a toggle button, the content to be placed inside the button */
@@ -131,6 +130,7 @@ public:
 
 	SLATE_END_ARGS()
 
+	SCheckBox();
 
 	/**
 	 * Construct this widget

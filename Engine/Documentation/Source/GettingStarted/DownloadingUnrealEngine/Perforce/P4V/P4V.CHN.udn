@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6534317
 Availability: Licensee
 Title:为虚幻引擎4设置P4V
 Crumbs:%ROOT%, Engine, Programming, Programming/Basics, GettingStarted/DownloadingUnrealEngine/Perforce
 Description:使用与虚幻引擎4联用的Perforce P4V windows客户端安装、设置和同步构建的指南。
-version: 4.9
+version: 4.20
+Parent: GettingStarted/DownloadingUnrealEngine/Perforce
+Order: 2
 
-[TOC(start:2)]
+[TOC (start:2 end:3)]
 
 本文档介绍了设置P4V客户端以连接到虚幻引擎4库并获得引擎构建的步骤。
 
@@ -17,51 +19,53 @@ version: 4.9
 
 有关其他一般提示，请参阅[设置Perforce](GettingStarted/DownloadingUnrealEngine/Perforce/Setup)页面。
 
-
-(#installation)
-
 ### 安装
 
-1. 运行P4Vinst可执行安装程序。 
+1. 运行P4Vinst可执行安装程序。
+
+
 1. 在Perforce **选择特性（Select Features）** 页面上，默认情况下选择所有特性。 
+    
+    ![](install_features.jpg)(w:514)
+    
+    按 **下一步（Next）** 按钮继续。
+    
+    如果您以前使用过P4Win，可能会提示您替换SCC插件。
+    
+    ![](install_plugin_warning.jpg)(w:362)
 
-	![install_features.jpg](install_features.jpg)(w:514)
-
-	按 **下一步>（Next >） ** 按钮继续。
-
-	如果您以前使用过P4Win，可能会提示您替换SCC插件。
-
-	![install_plugin_warning.jpg](install_plugin_warning.jpg)(w:362)
-
-1. 在 **Perforce客户端配置（Perforce Client Configuration）** 页面上，输入以下信息并按 **下一步>（Next >）** 按钮继续：
-
-	* **服务器端口（Server Port）** - _ssl:p4-licensee.epicgames.com:1667_
+1. 在 **Perforce客户端配置（Perforce Client Configuration）** 页面上，输入以下信息并按 **下一步（Next）** 按钮继续：
+    
+	*	**服务器端口（Server Port）** \- *ssl:p4-licensee.epicgames.com:1667*
 		
-		[REGION:tip]
-			上面的地址应该会根据您的地理位置自动将您引导到具有最佳延迟的区域代理。如果由于某种原因需要连接到特定的区域代理，可以使用下面的地址连接：
-			* **美国东部（弗吉尼亚州）**：_ssl:p4-licensee-east.us.epicgames.com:1667_
-			* **美国西部（俄勒冈州）**：_ssl:p4-licensee-west.us.epicgames.com:1667_
-			* **亚太东北部（东京）**：_ssl:p4-licensee-northeast.ap.epicgames.com:1667_
-			* **欧洲中部（法兰克福）**：_ssl:p4-licensee-central.eu.epicgames.com:1667_
-		[/REGION]
-
-	* **用户名（Username）** - Epic Games提供的Perforce用户名。
+        [REGION:tip]
+        上面的地址应该会根据您的地理位置自动将您引导到具有最佳延迟的区域代理。如果由于某种原因需要连接到特定的区域代理，可以使用下面的地址连接：
+        
+        *   **美国东部（弗吉尼亚州）**: *ssl:p4-licensee-east.us.epicgames.com:1667*
+            
+        *   **美国西部（俄勒冈州）**: *ssl:p4-licensee-west.us.epicgames.com:1667*
+            
+        *   **亚太东北部（东京）**: *ssl:p4-licensee-northeast.ap.epicgames.com:1667*
+            
+        *   **欧洲中部（法兰克福）**: *ssl:p4-licensee-central.eu.epicgames.com:1667*
+        [/REGION]
+        
+	*   **用户名（Username）** \- Epic Games提供的Perforce用户名。
+        
 	[REGION:note]
 	这与您的UDN登录信息不同
 	[/REGION]
 
 1. 您已经准备好开始安装了。按 **开始（Start）** 按钮开始。
-
-	![install_complete.jpg](install_complete.jpg)(w:514)
-
-	安装过程中可能会提示您关闭其他程序。如果没有这个选项，您必须在安装后重新启动。
-
+    
+    ![](install_complete.jpg)(w:514)
+    
+    安装过程中可能会提示您关闭其他程序。如果没有这个选项，您必须在安装后重新启动。
+    
 
 [REGION:note]
 稍后您可以根据需要通过 **设置（Settings）** 菜单重新配置IP地址。请使用名称连接到服务器，而不是解析的IP地址。如果服务器计算机发生变化，IP地址可能也会变化；但名称将保持不变！
 [/REGION]
-
-(#configuration-workspaces)
 
 ### 配置 - 工作区
 
@@ -70,144 +74,41 @@ version: 4.9
 [/REGION]
 
 1. 运行P4V。第一次启动时，可能会提示您运行 **连接设置向导（Connection Setup Wizard）**。您可以选择_否（No）_，因为在安装过程中已经建立了连接。
+    
 1. 将显示 **打开连接（Open Connection）** 对话框。
 
-![connect_dialog.jpg](connect_dialog.jpg)(w:512)
+![](connect_dialog.jpg)(w:512)
 
 验证 **服务器（Server）** 和 **用户（User）** 字段是否与所需信息匹配。
 1. 对于客户端工作区，如果您以前使用过P4Win或重新安装过P4V，您可以按 **浏览...（Browse...）** 按钮查找与您的用户关联的工作区。
-
-	如果不存在工作区，请按 **新建（New）** 按钮创建新的工作区。在打开的对话框中，根据以下信息输入要创建的工作区名称：
-
-	* 如果您是授权用户：**客户端名称（Client Name）**：**UE4_Licensee_[TEAMNAME]**（或者以您的UDN用户名或团队名称结尾）
-	* 如果您是承包商：**客户端名称（Client Name）**：**UE4_Contractor_[USERNAME]**（或者以您的UDN用户名或团队名称结尾）
-
-	![connect_workspace.jpg](connect_workspace.jpg)(w:219)
-
+    
+    如果不存在工作区，请按 **新建（New）** 按钮创建新的工作区。在打开的对话框中，根据以下信息输入要创建的工作区名称：
+    
+    * 如果您是授权用户：**客户端名称（Client Name）**：**UE4\_Licensee\_\[TEAMNAME\]**（或者以您的UDN用户名或团队名称结尾）
+        
+    * 如果您是承包商：**客户端名称（Client Name）**：**UE4\_Contractor\_\[USERNAME\]**（或者以您的UDN用户名或团队名称结尾）
+        
+    ![](connect_workspace.jpg)(w:219)
+    
 	按 **确定（Ok）** 按钮创建新工作区。
+    
 1. 工作区现在显示在 **打开连接（Open Connection）** 对话框中。
+ 
+    ![](connect_complete.jpg)(w:512)
+    
+    您可以选择在以后启动P4V时再次打开窗口。
+    
+    ![](connect_startup.jpg)(w:140)
 
-	![connect_complete.jpg](connect_complete.jpg)(w:512)
+	按 **确定（Ok）** 按钮打开连接和P4V客户端。
 
-	您可以选择在以后启动P4V时再次打开窗口。
-
-	![connect_startup.jpg](connect_startup.jpg)(w:140)
-
-按 **确定（Ok）** 按钮打开连接和P4V客户端。
-1. 可能会提示您的票快到期了。只需选择以后不再看到该消息，并按下 **确定（Ok）** 按钮。
-
-	如果提示您填充最近创建的工作区，请拒绝该提议。这将避免接收到几GB不得不很快替换的数据。
-
+1.  可能会提示您的票快到期了。只需选择以后不再看到该消息，并按下 **确定（Ok）** 按钮。
+    
+    如果提示您填充最近创建的工作区，请拒绝该提议。这将避免接收到几GB不得不很快替换的数据。
+    
 
 工作空间是单独在各个机器上创建的，因为它们跟踪所选目录中存储在该机器硬盘上的每个文件的精确修订。因此，如果您需要从不同的PC开始同步，您将需要重复这个过程，以在该计算机上创建一个新的工作区。
 
 [REGION:note]
-如果您是匿名用户，您将希望创建一个工作区，名为：UE4_Anonymous_#，其中#与您的匿名用户id匹配（例如UE4_Anonymous_8）。此外，您不希望在任何字段中放入任何url名称。您可能不想要一个可识别的机器名。如果其他用户搜索用户或工作区列表，他们可以看到所有这些字段。
+如果您是匿名用户，您将希望创建一个工作区，名为：UE4\_Anonymous\_#，其中#与您的匿名用户id匹配（例如UE4\_Anonymous\_8）。此外，您不希望在任何字段中放入任何url名称。您可能不想要一个可识别的机器名。如果其他用户搜索用户或工作区列表，他们可以看到所有这些字段。
 [/REGION]
-
-(#troubleshooting)
-
-#### 故障排除
-
-选择带有整个库树筛选器的库视图应该会显示您可以访问的所有文件夹。或者，在创建/编辑工作区时，您可以使用 **视图（View）** 选项卡来可视化地映射您可以访问的任何文件。
-
-
-
-(#buildsandsyncing)
-
-## 构建和同步
-
-标识文件修订集的两种主要方法是通过标签和变更列表。在较高的级别上，标签标识构成引擎特定构建的所有更改，例如QA批准的构建，而变更列表标识特定的变更集。这两个概念之间的实际区别在Perforce网站的[代码线和分支](http://www.perforce.com/perforce/doc.current/manuals/p4guide/06_codemgmt.html)页面上有更详细的解释。要同步到Epic的Perforce库，您需要了解以下内容：
-
-
-* **标签（Labels）** - 要更新到经过QA批准的新版本，您需要同步到一个标签。
-* **变更列表（Changelists）** - 要更新到对引擎的特定方面所做更改的特定集合，您将同步到变更列表。
-
-
-
-(#p4vandthedepot)
-
-### P4V和库
-
-P4V中的树窗格包含您的工作区（Workspace）和库树（Depot Tree）。在库树（Depot Tree）视图中，单击库（Depot）节点以展开并查看可用目录。
-
-![p4v_depot_tree.jpg](p4v_depot_tree.jpg)(w:374)
-
-
-* **CodeDrop** - 包含由Epic创建的可作为示例的各种游戏快照。
-* **PhysX** - 包含物理中间件的公共文件；根据您的协议，您还可以看到其他目录和文件。
-* **UnrealEngine3** - 包含构建和运行UnrealEngine3的所有内容。还包括ExampleGame和UDKGame示例。
-* **UnrealMCP** - 包含UnrealMCP的源码，UnrealMCP是一种SOA（面向服务的架构），侧重于提供高度可扩展和可用的服务集，以增强玩家的在线体验。
-
-
-有关更多信息，请参阅[目录布局](Engine/Basics/DirectoryStructure)页面。
-
-UnrealEngine3目录中有几个子目录：Binaries、Development和Engine子目录；以及两个游戏目录：ExampleGame和UDKGame。
-
-![p4v_depot_tree_ue3.jpg](p4v_depot_tree_ue3.jpg)(w:374)
-
-ExampleGame是Epic提供的最小的游戏实现，如果您的游戏与虚幻锦标赛（Unreal Tournament）不是很相似，它会成为您创建自己的游戏项目的良好开端。  
-
-UDKGame是Epic当前虚幻引擎4的基于虚幻锦标赛3（Unreal Tournament 3）的用法演示。这提供了一个复杂的示例，展示了Epic打算如何使用该引擎。我们建议以UDKGame为例，而不是从UDKGame扩展。欢迎您在UDKGame中为您的游戏项目使用任何C++或UnrealScript代码，但您不能在游戏中发布Epic的任何内容（纹理、网格体、关卡、声音等）。
-
-对于UnrealEngine3，Epic的大部分内容都位于特定于游戏的目录中，因此如果您只想要引擎源码，那么只需同步到//depot/UnrealEngine3/Development目录即可。您可以根据需要突出显示特定的目录，例如，在不更新UDKGame内容的情况下获取ExampleGame的最新内容。
-
-![p4v_depot_tree_ue3_examplegame.jpg](p4v_depot_tree_ue3_examplegame.jpg)(w:374)
-
-在获得修订时，日志窗口中会进行大量下载。当它完成，您想要的是“同步完成，没有任何警告或错误（Sync completed with no warnings or errors）”。
-
-
-(#syncingtoaqabuild)
-
-### 同步到QA构建
-
-要同步到QA批准的构建，请执行以下步骤：
-
-1. 在库树中，**右键单击** UnrealEngine3目录，然后从上下文菜单中选择 **获取修订...（Get Revision...）**。或者，也可以选择UnrealEngine3目录，并从 **操作（Actions）** 菜单中选择 **获取修订...（Get Revision...）**。
-
-	![p4v_depot_menu.jpg](p4v_depot_menu.jpg)(w:304)
-1. **获取修订（Get Revision）** 窗口将打开。
-
-	![p4v_get_revision.jpg](p4v_get_revision.jpg)(w:634)
-
-	使用 **使用...指定修订（Specify revision using）** 单选按钮启用组合框和文本字段。
-
-	![p4v_specify_revision.jpg](p4v_specify_revision.jpg)(w:513)
-1. 从下拉框中选择 **标签（Label）**。
-
-	![p4v_revision_label.jpg](p4v_revision_label.jpg)(w:100)
-
-	按 **浏览...（Browse...）** 按钮打开 **选择标签（Select Label）** 窗口。
-
-	![p4v_select_label.jpg](p4v_select_label.jpg)(w:800)
-1. 选择您要同步到的标签。通常这是最新的QA批准的构建，由一个标签指定，其形式为_QA_APPROVED_BUILD_[月]_[年]_。为了加载所有标签，您可能需要在列表中向下滚动几次。
-
-	![p4v_label_build.jpg](p4v_label_build.jpg)(w:800)
-
-	按 **确定（Ok）** 按钮选择标签并关闭窗口。
-1. 按 **获取修订（Get Revision）** 按钮关闭 **获取修订（Get Revision）** 窗口并开始同步。**日志（Log）** 显示同步进度。
-
-	![p4v_sync_progress.jpg](p4v_sync_progress.jpg)(w:800)
-
-
-(#workingwithsourcecontrol)
-
-## 使用源码控制
-
-几乎任何文件都可以集成到源码控制中。
-
-项目中文件的生命周期可以通过公共命令进行管理：
-
-* 检出
-* 提交，或检入
-* 恢复，或回滚
-* 修订 - 历史记录
-
-
-除了在Perforce中直接使用源码控制之外，还可以使用编辑器工具。有关如何从编辑器本身管理内容包的信息，请参阅[SCC集成](Engine/UI/SourceControl)。
-
- 
-
-
-
-

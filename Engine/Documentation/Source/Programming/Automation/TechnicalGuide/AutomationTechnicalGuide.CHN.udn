@@ -1,64 +1,74 @@
-﻿Availability:Public
-Title:自动测试技术指南
-Crumbs: %ROOT%, Programming, Programming/Automation
-Description:创建新的自动测试的程序员指南。
+﻿INTSourceChangelist:3656883
+Availability:Public
+Title:自动化技术指南
+Crumbs: %ROOT%
+Description:有关如何创建引擎级自动化测试的程序员指南。
+type:overview
+skilllevel:Advanced
+Version: 4.17
+parent:Programming/Automation
+order:1
+tags:Automation
+tags:Testing
 
-自动测试有两种： **简单** 和 **复杂** 。简单测试用来描述单个原子测试，而复杂测试是用来运行基于多个输入的相同代码。
+[TOC (start:2 end:3)]
 
-简单测试可用来确认特定功能如预期般可操作。一般都是单元测试或功能测试。例如，简单测试可被用来测试在 _Play In Editor_ 中载入的当前地图或文本换行功能是否能在Slate中正常运行。
+(#automationtesting)
 
-复杂测试可被用来对一系列物品迭代并对每个物品运行相同的功能。一般就是内容压力测试。例如，载入所有地图或编译所有蓝本将会非常适合于复杂的自动测试。
+## 自动化测试
 
-## 结构和执行
+ **自动化测试（Automation Testing）** 是自动化测试的最低级别，最适合对引擎的核心功能进行低级别测试。此系统存在于“UObject”生态系统之外，所以它对 **蓝图** 或引擎的 **反射系统** 不可见。这些测试是在代码中编译的，可以通过 **控制台命令行（Console Command Line）** 在编辑器中运行或者使用操作系统中的命令行参数运行。自动化测试可以分为两种类型：简单型和复杂型。这两种类型都是基于“FAutomationTestBase”而作为派生类实现。
 
-所有`FAutomationTestBase`类中的自动测试定义通用功能并执行一系列命令。在建立新的自动测试时，`FAutomationTestBase`类使用的重要功能为：
+(#creatinganewautomationtest)
 
-| 成员函数 | 描述 |
-| ---------------- | ----------- |
-| `GetTests()` | 逐个把待传入`RunTest()`的参数来填充命令列表。|
-| `RunTest()` | 使用传入的命令字符串来执行测试逻辑。|
+### 创建新的自动化测试
 
-执行自动测试的基本流程为：
+自动化测试由宏声明，并通过覆盖来自“FAutomationTestBase”类的虚拟函数来实现。简单测试使用“IMPLEMENT_SIMPLE_AUTOMATION_TEST”宏声明，而复杂测试需要“IMPLEMENT_COMPLEX_AUTOMATION_TEST”宏。这两个宏具有相同的三个参数，顺序如下：
 
-	/-----------------\       /--------------\       /---------------\
-	|  Automation UI  |       |  GetTests()  |       |   RunTest()   |
-	+-----------------+       +--------------+       +---------------+
-	|                 |       |              |       |               |
-	|         o Start +-------+ o Commands   +---+-->+ o Parameters  +--\
-	|                 |       |              |   |   |               |  |
-	\-----------------/       \--------------/   |   \---------------/  |
-	                                             |                      |
-	                                             \----------------------/
-
-## 目录
-
-当前的规则是将所有的自动测试放置到相关模块内的`Private\Tests`目录。当您的测试与某特定类一一对应时，请将测试文件命名为`[ClassFilename]Test.cpp`。
-
-## 创建测试
-
-每个自动测试都使用一个特殊宏来进行声明。该宏根据简单测试或复杂测试而不同，但每个宏所需的参数都是一样的。
-
-| 参数 | 描述 |
+| 参数 | 说明 |
 | --------- | ----------- |
-| `TClass` | 测试的类名。|
-| `PrettyName` | 定义在UI中出现的层次化测试名称的字符串 。|
-| `TFlags` | 定义自动测试需求/行为的`EAutomationTestFlags`（请参阅`AutomationTest.h`以获得细节）。|
+| “TClass” | 测试的所需类名称。宏将创建使用此名称的类，即“FPlaceholderTest”，您可在此类中实施测试。|
+| “PrettyName” | 一个指定了将在UI中显示的层级测试名称的字符串。例如，我们最低限度示例（如下所示）中的“TestGroup.TestSubgroup.Placeholder Test”。|
+| “TFlags” | “EAutomationTestFlags”值的组合，用于指定自动化测试要求和行为。有关详情，请参阅[“EAutomationTestFlags”API页面](API:EAutomationTestFlags)。|
+
+一旦新的自动化测试类被两个宏之一声明，其功能便可实现。必须写入以下函数：
+
+| 函数 | 参数 | 说明 |
+| --- | --- | --- |
+| “RunTest” |  | 此函数执行实际的测试，返回“真（true）”表示测试通过，返回“假（false）”表示测试失败。|
+|  | “Parameters” | 此参数可以被解析或者传递给其他适用于特定功能测试的函数。|
+| --- | --- | --- |
+| “GetTests” |  | 仅对于复杂测试，才必须覆盖此函数；简单测试的声明宏中内置了此函数的自动生成版本。|
+|  | “OutBeautifiedNames” | 此字符串数组必须填充每个测试的UI可见的“PrettyName”。|
+|  | “OutTestCommands” | 此字符串数组应该与“OutBeautifiedNames”并行，并且必须填充要传递到“RunTest”中的“Parameters”。|
+
+(#sourcefilelocations)
+
+#### 源文件位置
+
+当前的惯例是将所有自动化测试放置到相关模块的“Private\Tests”目录中。当自动化测试与特定的类一对一匹配时，请将测试文件命名为“[ClassFilename]Test.cpp”。例如，只适用于“FText”的测试将写入到“TextTest.cpp”中。
+
+(#minimalexample)
+
+#### 最低限度示例
+
+最低限度和最简单的测试可能是会自动成功（或失败）的简单测试。在构建更有意义的测试之前，构建这样的测试可以起到确保测试设置正确的第一步之作用。
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FPlaceholderTest, "TestGroup.TestSubgroup.Placeholder Test", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+	bool FPlaceholderTest::RunTest(const FString& Parameters)
+	{
+		// 通过返回“真（true）”使测试通过，或者返回“假（false）”使测试失败。
+		return true;
+	}
+
+(#simpletests)
 
 ### 简单测试
 
-简单测试使用`IMPLEMENT_SIMPLE_AUTOMATION_TEST`宏来进行声明:
-
-	IMPLEMENT_SIMPLE_AUTOMATION_TEST( TClass, PrettyName, TFlags )
-
-这些测试通过应用`RunTest()`函数来单独定义其功能，而且`Parameters`字符串将保持为空字符串。
-
-**示例:**
-
-例如，`SetRes`命令功能的新简单测试的声明可能为：
+简单测试用于描述单个原子测试，而且也可以用作单元测试或特性测试。例如，可以使用简单测试来测试当前地图是否在在编辑器中运行（Play in Editor）中加载，或者文本换行是否在Slate中正常工作。以下示例测试了“SetRes”命令的功能：
 
 	IMPLEMENT_SIMPLE_AUTOMATION_TEST( FSetResTest, "Windows.SetResolution", ATF_Game )
-
-使用上述的  _SetRes_ 示例， 实现方式可以为：
 
 	bool FSetResTest::RunTest(const FString& Parameters)
 	{
@@ -77,21 +87,13 @@ Description:创建新的自动测试的程序员指南。
 		return true;
 	}
 
+(#complextests)
+
 ### 复杂测试
 
-复杂测试使用与简单测试声明宏类似的宏：
+复杂测试用于在许多输入上运行相同的代码。这些测试通常是内容压力测试。例如，加载所有地图或编译所有蓝图将非常适合复杂的自动化测试。注意，必须覆盖“RunTest”和“GetTests”函数。以下示例测试了加载所有项目地图：
 
-	IMPLEMENT_COMPLEX_AUTOMATION_TEST( TClass, PrettyName, TFlags )
-
-如需定义复杂测试的功能，您必须应用`GetTests()`函数来枚举除`RunTest()`函数外的UI测试来定义执行每次迭代的逻辑。
-
-**示例:**
-
-在游戏中载入所有地图的复杂测试的示例声明如下：
-
-	IMPLEMENT_COMPLEX_AUTOMATION_TEST( FLoadAllMapsInGameTest, "Maps.LoadAllInGame", ATF_Game )
-
-使用地图载入示例， 实现方式可以为：
+	IMPLEMENT_COMPLEX_AUTOMATION_TEST(FLoadAllMapsInGameTest, "Maps.LoadAllInGame", ATF_Game)
 
 	void FLoadAllMapsInGameTest::GetTests(TArray<FString>& OutBeautifiedNames, TArray <FString>& OutTestCommands) const
 	{
@@ -99,7 +101,7 @@ Description:创建新的自动测试的程序员指南。
 		TArray<FString> FileList;
 		FileList = GPackageFileCache->GetPackageFileList();
 
-		// Iterate over all files, adding the ones with the map extension..
+		// 迭代所有文件，并添加带有地图扩展名的文件。
 		for( int32 FileIndex=0; FileIndex< FileList.Num(); FileIndex++ )
 		{
 			const FString& Filename = FileList[FileIndex];
@@ -126,26 +128,43 @@ Description:创建新的自动测试的程序员指南。
 		return true;
 	}
 
-## Latent命令
+[REGION:tip]“Parameters”参数可以按照特定测试情况所需的任何方式构建和解析。对于复杂测试，这是使用相同代码测试多个数据点的预期方法。[/REGION]
 
-Latent命令可以让自动测试的一部分在多帧间运行。它们应在 _RunTest_ 调用时排队。
+(#latentcommands)
 
-第一步是使用以下语法来声明Latent命令：
+### 潜在命令
 
-	DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FExecStringLatentCommand, FString, ExecCommand);
+在“RunTest”期间，系统可以对 **潜在命令** 进行排队，从而使代码的某些部分跨多个帧运行。若要创建一个潜在操作，则必须通过“DEFINE_LATENT_AUTOMATION_COMMAND”宏来定义它。此宏接受一个名为“CommandName”的参数，该参数定义将为此类潜在命令创建的类名。若要完成潜在命令的创建，新类的“Update”函数将需要一个函数体。以下是一个简单的潜在命令示例，该命令将运行直至 **单元测试管理器（Unit Test Manager）** 完成运行测试：
 
-	bool FExecStringLatentCommand::Update()
+	DEFINE_LATENT_AUTOMATION_COMMAND(FNUTWaitForUnitTests);
 
-Update（更新）调用应该能在其完成执行后返回 _true_ 值，而在其停止自动测试时返回 _false_ 值，然后在下帧再次尝试。命令按顺序执行，如latent命令从 _Update_ (更新）中返回 _false_ 值，则该命令的执行不会继续进行。
+	bool FNUTWaitForUnitTests::Update()
+	{
+		return GUnitTestManager == NULL || !GUnitTestManager->IsRunningUnitTests();
+	}
 
-第二步是添加latent命令到队列中来执行。它们都被封装到宏中，以防止如下的样板式代码:
+如果您希望创建的潜在命令需要参数，例如需要一个参数字符串，则可以使用“DEFINE_LATENT_AUTOMATION_COMMAND”宏。这个宏接受两个额外的参数，名为“ParamType”和“ParamName”，它们定义要传入的参数的类型和名称。在本例中，我们使用一个潜在命令开始连接到源码管理提供方，然后等待，直至连接尝试完成：
 
-	ADD_LATENT_AUTOMATION_COMMAND(FExecStringLatentCommand(TEXT("setres 640x480")));
+	DEFINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FConnectLatentCommand, SourceControlAutomationCommon::FAsyncCommandHelper, AsyncHelper);
 
-您可以在`EngineAutomationTests.cpp中找到`FSetResTest`作为示例。
+	bool FConnectLatentCommand::Update()
+	{
+		// 尝试登录并等待结果。
+		if(!AsyncHelper.IsDispatched())
+		{
+			if(ISourceControlModule::Get().GetProvider().Login( FString(), EConcurrency::Asynchronous, FSourceControlOperationComplete::CreateRaw( &AsyncHelper, &SourceControlAutomationCommon::FAsyncCommandHelper::SourceControlOperationComplete ) ) != ECommandResult::Succeeded)
+			{
+				return false;
+			}
+			AsyncHelper.SetDispatched();
+		}
 
-## 注意事项
+		return AsyncHelper.IsDone();
+	}
 
-[REGION:warning]
-在编辑器内，载入地图是立即发生的。在游戏中，载入地图在下一帧发生，因此必须使用[Latent命令](#Latent命令)。
-[/REGION]
+当“Update”函数返回“真（true）”时，则视为潜在命令已完成。返回值“假（false）”表示自动化测试应该立即停止执行，并在下一帧重试。若要在测试代码中使用潜在命令，请使用希望运行的潜在命令的构造函数调用“ADD_LATENT_AUTOMATION_COMMAND”。如果使用参数建立潜在命令，则传入该参数应用作构造函数参数的值。在“RunTest”函数中，以下代码将等待所有单元测试完成，然后尝试连接到之前指定的源码管理提供方：
+
+	ADD_LATENT_AUTOMATION_COMMAND(FNUTWaitForUnitTests());
+	ADD_LATENT_AUTOMATION_COMMAND(FConnectLatentCommand(SourceControlAutomationCommon::FAsyncCommandHelper()));
+
+[REGION:note]潜在命令用途的候选项包括与加载或流送数据相关的活动，或任何不能保证在单个框架中运行的活动。例如，在编辑器中，加载地图是即时发生的，但在游戏中，加载地图发生在下一帧，因此必须使用潜在命令来确保当自动化测试需要加载地图时行为一致。[/REGION]

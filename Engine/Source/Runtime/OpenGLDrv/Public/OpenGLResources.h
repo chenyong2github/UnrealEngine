@@ -1818,7 +1818,7 @@ class FOpenGLTextureUnorderedAccessView : public FOpenGLUnorderedAccessView
 {
 public:
 
-	FOpenGLTextureUnorderedAccessView(FTextureRHIParamRef InTexture);
+	FOpenGLTextureUnorderedAccessView(FRHITexture* InTexture);
 
 	FTextureRHIRef TextureRHI; // to keep the texture alive
 };
@@ -1830,7 +1830,7 @@ public:
 
 	FOpenGLVertexBufferUnorderedAccessView();
 
-	FOpenGLVertexBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FVertexBufferRHIParamRef InVertexBuffer, uint8 Format);
+	FOpenGLVertexBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIVertexBuffer* InVertexBuffer, uint8 Format);
 
 	virtual ~FOpenGLVertexBufferUnorderedAccessView();
 
@@ -1846,7 +1846,7 @@ class FOpenGLStructuredBufferUnorderedAccessView : public FOpenGLUnorderedAccess
 public:
 	FOpenGLStructuredBufferUnorderedAccessView();
 
-	FOpenGLStructuredBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FStructuredBufferRHIParamRef InBuffer, uint8 Format);
+	FOpenGLStructuredBufferUnorderedAccessView(	FOpenGLDynamicRHI* InOpenGLRHI, FRHIStructuredBuffer* InBuffer, uint8 Format);
 
 	virtual ~FOpenGLStructuredBufferUnorderedAccessView();
 
@@ -1888,7 +1888,7 @@ public:
 	,	OwnsResource(true)
 	{}
 
-	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FVertexBufferRHIParamRef InVertexBuffer, uint8 InFormat )
+	FOpenGLShaderResourceView( FOpenGLDynamicRHI* InOpenGLRHI, GLuint InResource, GLenum InTarget, FRHIVertexBuffer* InVertexBuffer, uint8 InFormat )
 	:	Resource(InResource)
 	,	Target(InTarget)
 	,	LimitMip(-1)
@@ -1951,7 +1951,7 @@ struct TIsGLProxyObject<FOpenGLShaderResourceViewProxy>
 void OPENGLDRV_API OpenGLTextureDeleted(FRHITexture* Texture);
 void OPENGLDRV_API OpenGLTextureAllocated( FRHITexture* Texture , uint32 Flags);
 
-void OPENGLDRV_API ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FTextureRHIParamRef TextureRHI);
+void OPENGLDRV_API ReleaseOpenGLFramebuffers(FOpenGLDynamicRHI* Device, FRHITexture* TextureRHI);
 
 /** A OpenGL event query resource. */
 class FOpenGLEventQuery : public FRenderResource

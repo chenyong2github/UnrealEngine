@@ -69,6 +69,7 @@ private:
 	FTransform CurrentTransform;
 	FTransform PreviousTransform;
 
+	UPhysicsAsset* UsePhysicsAsset;
 public:
 	/** Override gravity*/
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault, editcondition = "bOverrideWorldGravity"))

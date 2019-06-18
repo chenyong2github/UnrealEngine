@@ -26,8 +26,8 @@ The Cirrus server to connect to. If not specified. it defaults to 127.0.0.1:8888
 -StunServer=<IP:Port>\n\
 Stun server to use.\n\
 \n\
--UE4Port=<Port>\n\
-The port UE4 is listening on\n\
+-UE4=<IP:Port>\n\
+The address and port UE4 is listening on. If not specified it defaults to 127.0.0.1:8124\n\
 \n\
 -AutoSetBitrate\n\
 If specified, it forcibly sends a bitrate request to UE4 once a client gets\n\
@@ -53,8 +53,8 @@ If specified, it will use local time in logging, instead of UTC.\n\
 TCHAR GInternalProjectName[64] = TEXT("WebRTCProxy");
 IMPLEMENT_FOREIGN_ENGINE_DIR();
 
-std::pair<std::string, uint16_t> PARAM_Cirrus{"127.0.0.1", 8888};
-uint16_t PARAM_UE4Port = 8124;
+std::pair<std::string, uint16_t> PARAM_Cirrus{ "127.0.0.1", 8888 };
+std::pair<std::string, uint16_t> PARAM_UE4{ "127.0.0.1", 8124 };
 bool PARAM_PlanB = false;
 bool PARAM_DbgWindow_Proxy = true;
 bool PARAM_DbgWindow_WebRTC = true;
@@ -117,7 +117,10 @@ bool ParseParameters(int argc, char* argv[])
 		return false;
 	}
 
-	PARAM_UE4Port = Params.GetAsInt("UE4Port", 8124).second;
+	if (!ProcessAddressParameter("UE4", PARAM_UE4))
+	{
+		return false;
+	}
 
 	PARAM_PlanB = Params.Has("PlanB");
 

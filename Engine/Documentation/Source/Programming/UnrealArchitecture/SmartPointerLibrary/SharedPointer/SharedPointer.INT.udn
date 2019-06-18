@@ -1,94 +1,139 @@
-Availability:Public
-Title:Shared Pointers
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/SmartPointerLibrary
-Description:Smart pointers that support shared ownership, automatic invalidation, weak references, and more.
-Type:reference
-Version: 4.9
-Parent:Programming/UnrealArchitecture/SmartPointerLibrary
-Order:
-Tags:Programming
-
-[TOC(start:2)]
-
-A **shared pointer** is a fancy type of non-intrusive, reference-counted smart pointer that supports both strong and weak references. Shared pointers inherently include all the benefits of basic smart pointers in that they prevent memory leaks, uninitialized memory, etc., but also bring additional features, such as:
-
-* Shared ownership - reference counting
-* Automatic invalidation - volatile objects can be safely referenced
-* Weak references - allows avoidance of cycles via [](Programming/UnrealArchitecture/SmartPointerLibrary/WeakPointer)
-* Improved indication of programmer intent - distinguishes owners from observers and provides non-nullable references ( [](Programming/UnrealArchitecture/SmartPointerLibrary/SharedReference) )
+Availability: Public
+Title: Shared Pointers
+Description: Smart pointers that support shared ownership, automatic invalidation, weak references, and more.
+Type: overview
+Version: 4.21
+Parent: Programming/UnrealArchitecture/SmartPointerLibrary
+Tags: Programming
+Order: 0
 
 
-Some other basic characteristics of shared pointers:
+[TOC]
 
-* Very robust syntax
-* Non-intrusive  (but reflection is possible)
-* Thread-safe (conditionally)
-* Good performance, light on memory
+**Shared Pointers** are Smart Pointers that are both strong and nullable. Shared pointers inherently include all the benefits of basic Smart Pointers in that they prevent memory leaks, dangling pointers, and pointers to uninitialized memory, but they also provide additional features, such as:
 
+*   **Shared Ownership:** Reference counting enables multiple Shared Pointers to ensure that the data object they reference will never be deleted as long as any of them still points to it.
+
+*   **Automatic Invalidation:** Volatile objects can be safely referenced without worrying about dangling pointers.
+
+*   **Weak References:** [Weak Pointers](Programming/UnrealArchitecture/SmartPointerLibrary/WeakPointer) can break reference cycles.
+
+*   **Indication of Intent:** Distinguishes owners (see [Shared References](Programming/UnrealArchitecture/SmartPointerLibrary/SharedReference)) from observers and provides non-nullable references.
+
+Shared pointers have some basic characteristics worth noting, including:
+
+*   Very robust syntax
+
+*   Non-intrusive (but reflection is possible)
+
+*   Thread-safe (conditionally)
+
+*   Good performance, light on memory
+
+[REGION:note]
+Shared Pointers are similar to [Shared References](Programming/UnrealArchitecture/SmartPointerLibrary/SharedReference), the main distinction being that Shared References are not nullable and therefore always reference valid objects. When choosing between Shared References and Shared Pointers, Shared References are the preferred option unless you need an empty or nullable object.
+[/REGION]
 
 ## Declaration and Initialization
 
-Shared references are always initialized with a valid object and cannot be declared without being initialized.
+Because Shared Pointers are nullable, you can intialize them with or without a data object. Here are some examples of creating new shared pointers:
 
-Examples of creating new shared pointers:
+    // Create an empty shared pointer
+    TSharedPtr<FMyObjectType> EmptyPointer;
+    // Create a shared pointer to a new object
+    TSharedPtr<FMyObjectType> NewPointer(new FMyObjectType());
+    // Create a Shared Pointer from a Shared Reference
+    TSharedRef<FMyObjectType> NewReference(new FMyObjectType());
+    TSharedPtr<FMyObjectType> PointerFromReference = NewReference;
+    // Create a Thread-safe Shared Pointer
+    TSharedPtr<FMyObjectType, ESPMode::ThreadSafe> NewThreadsafePointer = MakeShared<FMyObjectType, ESPMode::ThreadSafe>(MyArgs);
 
-	// Create an empty shared pointer
-	TSharedPtr<FTreeNode> EmptyNode;
+In the second example, `NodePtr` effectively owns the new `FMyObjectType` object, since no other Shared Pointer references that object. If `NodePtr` goes out of scope without another Shared Pointer or Shared Reference pointing to the object, the object will be destroyed.
 
-	// Create a shared pointer to a new object
-	TSharedPtr<FTreeNode> Node( new FTreeNode() );
+When you copy a Shared Pointer, the system adds one reference to the object that it references.
 
-In the second example, the new FTreeNode object is actually owned by the shared pointer pointing to it. When the shared pointer goes out of scope, the object is destroyed.
+    // Increase the reference count of whatever object ExistingSharedPointer references.
+    TSharedPtr<FMyObjectType> AnotherPointer = ExistingSharedPointer;
 
-When you copy a shared pointer, a reference to the object being pointed to is added.
+The object will persist until no more Shared Pointers (or Shared References) reference it.
 
-	TSharedPtr<FTreeNode> OtherNodeRef = Node;
+You can reset a Shared Pointer with the `Reset` function, or by assigning a null pointer to them, as follows:
 
-The object will persist until no more shared pointers are referencing it.
+    PointerOne.Reset();
+    PointerTwo = nullptr;
+    // Both PointerOne and PointerTwo now reference nullptr.
 
-Shared pointers can be reset using the **Reset()** method or by assigning null.
+You can transfer the contents of one Shared Pointer to another, leaving the original Shared Pointer empty, with the `MoveTemp` (or `MoveTempIfPossible`) function:
 
-	Node.Reset();
-	Node = null;
+    // Move the contents of PointerOne over to PointerTwo. PointerOne will reference nullptr after this.
+    PointerTwo = MoveTemp(PointerOne);
+    // Move the contents of PointerTwo over to PointerOne. PointerTwo will reference nullptr after this.
+    PointerOne = MoveTempIfPossible(PointerTwo);
 
-## Dereferencing and Accessing
+[REGION:note]
+`MoveTemp` and `MoveTempIfPossible` differ only in that `MoveTemp` includes static asserts to enforce that it can only execute on a non-const left-value (lvalue).
+[/REGION]
 
-Dereferencing, calling methods, and accessing members is done in the same manner you would with regular C++ pointers.
+### Converting Between Shared Pointers and Shared References
 
-	Node->ListChildren();
-	Node.Get()->ListChildren();
-	( *Node ).ListChildren();
+Converting between Shared Pointers and Shared References is a common practice. Shared References implicitly convert to Shared Pointers, and provide the additional guarantee that the new Shared Pointer will reference a valid object. Conversion is handled by the normal syntax:
+
+    TSharedPtr<FMyObjectType> MySharedPointer = MySharedReference;
+
+You can create a Shared Reference from a Shared Pointer with the `Shared Pointer` function, `ToSharedRef`, as long as the Shared Pointer references a non-null object. Attempting to create a Shared Reference from a null Shared Pointer will cause the program to assert.
+
+    // Ensure your shared pointer is valid before dereferencing to avoid a potential assertion.
+    if (MySharedPointer.IsValid())
+    {
+        MySharedReference = MySharedPointer.ToSharedRef();
+    }
 
 ## Comparison
 
-Shared pointers can be tested for equality, i.e. whether they point to the same object.
+You can test Shared Pointers against each other for equality. In this context, equality is defined as both Shared Pointers referencing the same object.
 
-	TSharedPtr<FTreeNode NodeA, NodeB;
+    TSharedPtr<FTreeNode> NodeA, NodeB;
+    if (NodeA == NodeB)
+    {
+        // ...
+    }
 
-	if( NodeA == NodeB )
-	{
-		...
-	}
+The `IsValid` function and the `bool` operator will establish whether or not the Shared Pointer references a valid object. You can also call `Get` and see if it returns a valid (non-null) object pointer.
 
-Shared pointers can be tested for null by using the **IsValid()** method or accessing the raw pointer and performing a comparison.
+    if (Node.IsValid())
+    {
+        // ...
+    }
+    if (Node)
+    {
+        // ...
+    }
+    if (Node.Get() != nullptr)
+    {
+        // ...
+    }
 
-	if( Node.IsValid() )
-	{
-		...
-	}
+## Dereferencing and Accessing
 
-	if( Node.Get() != null )
-	{
-		...
-	}
+You can dereference, call methods, and access members in the same way you would with regular C++ pointers. You should also perform null-checking as you would for any C++ pointer, by calling the `IsValid` function or using the overloaded `bool` operator, before dereferencing it.
 
-## Conversion
+    // Check that Node references a valid object before dereferencing.
+    if (Node)
+    {
+        // Any of the following three lines of code will dereference Node and call ListChildren on its object:
+        Node->ListChildren();
+        Node.Get()->ListChildren();
+        (*Node).ListChildren();
+    }
 
-Implicit conversion is not allowed as it is extremely dangerous. For example, the following will not compile:
+## Custom Deleters
 
-	TSharedPtr<float> Height = 45.0f;
+Shared Pointers and Shared References support custom deleters for the objects they reference. To run custom deletion code, provide the lambda function you wish to run as a parameter when creating your Smart Pointer, like this:
 
-However, the MakeShareable() method can be used to be explicit.
-
-	TSharedPtr<float> Height = MakeShareable( new float( 45.0f ) );
-
+    void DestroyMyObjectType(FMyObjectType* ObjectAboutToBeDeleted)
+    {
+        // Custom deletion code goes here.
+    }
+    // These functions create Smart Pointers with custom deleters.
+    TSharedRef<FMyObjectType> NewReference(new FMyObjectType(), [](FMyObjectType* Obj){ DestroyMyObjectType(Obj); });
+    TSharedPtr<FMyObjectType> NewPointer(new FMyObjectType(), [](FMyObjectType* Obj){ DestroyMyObjectType(Obj); });

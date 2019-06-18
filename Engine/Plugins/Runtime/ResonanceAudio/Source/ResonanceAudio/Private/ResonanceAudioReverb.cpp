@@ -170,7 +170,11 @@ namespace ResonanceAudio
 					SetReverbTimeModifier();
 					SetReverbBrightness();
 
-					ResonanceAudioApi->SetRoomProperties(RoomProperties);
+					ReflectionProperties = vraudio::ComputeReflectionProperties(RoomProperties);
+					ReverbProperties = vraudio::ComputeReverbProperties(RoomProperties);
+
+					ResonanceAudioApi->SetReflectionProperties(ReflectionProperties);
+					ResonanceAudioApi->SetReverbProperties(ReverbProperties);
 				}
 			}
 			else
@@ -222,32 +226,32 @@ namespace ResonanceAudio
 		if (ReverbSettings.LeftWallMaterial != ReverbPluginPreset->Settings.LeftWallMaterial)
 		{
 			ReverbSettings.LeftWallMaterial = ReverbPluginPreset->Settings.LeftWallMaterial;
-			RoomProperties.material_names[0] = ConvertToResonanceAudioMaterialName(ReverbSettings.LeftWallMaterial);
+			RoomProperties.material_names[0] = ConvertToResonanceMaterialName(ReverbSettings.LeftWallMaterial);
 		}
 		if (ReverbSettings.RightWallMaterial != ReverbPluginPreset->Settings.RightWallMaterial)
 		{
 			ReverbSettings.RightWallMaterial = ReverbPluginPreset->Settings.RightWallMaterial;
-			RoomProperties.material_names[1] = ConvertToResonanceAudioMaterialName(ReverbSettings.RightWallMaterial);
+			RoomProperties.material_names[1] = ConvertToResonanceMaterialName(ReverbSettings.RightWallMaterial);
 		}
 		if (ReverbSettings.FloorMaterial != ReverbPluginPreset->Settings.FloorMaterial)
 		{
 			ReverbSettings.FloorMaterial = ReverbPluginPreset->Settings.FloorMaterial;
-			RoomProperties.material_names[2] = ConvertToResonanceAudioMaterialName(ReverbSettings.FloorMaterial);
+			RoomProperties.material_names[2] = ConvertToResonanceMaterialName(ReverbSettings.FloorMaterial);
 		}
 		if (ReverbSettings.CeilingMaterial != ReverbPluginPreset->Settings.CeilingMaterial)
 		{
 			ReverbSettings.CeilingMaterial = ReverbPluginPreset->Settings.CeilingMaterial;
-			RoomProperties.material_names[3] = ConvertToResonanceAudioMaterialName(ReverbSettings.CeilingMaterial);
+			RoomProperties.material_names[3] = ConvertToResonanceMaterialName(ReverbSettings.CeilingMaterial);
 		}
 		if (ReverbSettings.FrontWallMaterial != ReverbPluginPreset->Settings.FrontWallMaterial)
 		{
 			ReverbSettings.FrontWallMaterial = ReverbPluginPreset->Settings.FrontWallMaterial;
-			RoomProperties.material_names[4] = ConvertToResonanceAudioMaterialName(ReverbSettings.FrontWallMaterial);
+			RoomProperties.material_names[4] = ConvertToResonanceMaterialName(ReverbSettings.FrontWallMaterial);
 		}
 		if (ReverbSettings.BackWallMaterial != ReverbPluginPreset->Settings.BackWallMaterial)
 		{
 			ReverbSettings.BackWallMaterial = ReverbPluginPreset->Settings.BackWallMaterial;
-			RoomProperties.material_names[5] = ConvertToResonanceAudioMaterialName(ReverbSettings.BackWallMaterial);
+			RoomProperties.material_names[5] = ConvertToResonanceMaterialName(ReverbSettings.BackWallMaterial);
 		}
 	}
 
@@ -270,7 +274,6 @@ namespace ResonanceAudio
 	{
 		RoomProperties.reverb_brightness = ReverbPluginPreset->Settings.ReverbBrightness;
 	}
-
 } // namespace ResonanceAudio
 
   /******************************************************/

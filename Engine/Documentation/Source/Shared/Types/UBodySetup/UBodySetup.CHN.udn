@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2574188
+﻿INTSourceChangelist:3108692
 Availability:NoPublish
 Title:UBodySetup RTTs
 Crumbs:
@@ -7,7 +7,7 @@ Crumbs:
 
 此物理形体相关骨骼的名称。在蓝图交互中，如需在物理资源中获得对骨骼物理形体的访问，需要提供一个骨骼名。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:BoneName]
@@ -19,7 +19,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 物理资源中的每个物理形体可用于计算骨架网格体的边界，但此计算中使用的每个物理形体都存在性能开销。在许多设置中可能存在一个协助恰当命中检测的物理形体（手臂上扭曲的骨骼），又或是骨架网格体的动画进行了如此设置，使部分物理形体不会离开其他物理形体创建的边界。在这些情况下，禁用这些无效物理形体添加到边界计算可节约少量性能开销。
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:bConsiderForBounds]
@@ -35,7 +35,7 @@ Unfixed - 不跟随拥有者，但不进行修复。
 在物理资源工具中，默认（Default）和未修复（Unfixed）（带约束）相同。
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:PhysicsType]
@@ -48,7 +48,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 覆盖此物理形体 PhysMaterial 在简单碰撞中的使用（涉及凸包或球体、方块和长菱形等默认物理形状的碰撞）。这能为特定的物理形体赋予不同属性，如赋予一个物理形体，为一双鞋定义更多的橡胶属性。或者，如果物理形体包含金属盔甲，则它将拥有相同的属性。
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:PhysMaterial]
@@ -61,7 +61,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 覆盖此物理形体的可行走斜面（Walkable Slope）设置。使得斜面确定为可行走的角度可自定义。 
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:WalkableSlopeOverride]
@@ -78,7 +78,7 @@ Engine/Physics/PhAT/Properties#physicsbodyproperties
 此载具的后轮已禁用 Collision Response。
 
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsbodyproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsbodyproperties
 [/VAR]
 
 [/EXCERPT:CollisionReponse]

@@ -1,0 +1,127 @@
+Availability: Public
+Crumbs: 
+Title: Using Your Own Content with the Multi-User Viewer Template
+Description: Describes how to make the Multi-User Viewer work with your own 3D models, Unreal Engine Levels, and Unreal Engine Projects.
+Type: how-to
+SkillLevel: beginner
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 1
+Tags: how to
+Tags: multi-user viewer
+
+
+The Multi-User Viewer template comes with some pre-set content so that you can get started with it right away — see the [Getting Started](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) for step-by-step instructions. However, once you're familiar with the collaborative review experience, you'll want to get your own content working inside that experience.
+
+This page describes how to do some of the most common related tasks:
+
+*   Getting your own 3D models into the template, and setting them up to be compatible with the built-in navigation modes. See [Using Your Own 3D Models](#usingyourown3dmodels).
+*   Changing the Multi-User Template to start in a different Level from the one that contains the default pre-set content. See [Changing the Starting Level](#changingthestartinglevel).
+*   If you already have an Unreal Engine Project set up with the content you want to use, you can add the Multi-User Viewer Template into that Project instead of starting a new Project from scratch. See [Adding the Multi-User Viewer to a Different Project](#addingthemulti-userviewertoadifferentproject).
+
+## Using Your Own 3D Models
+
+The Multi-User Viewer template comes with some pre-set content so that you can get started with it right away, but you'll want to swap in your own models so that you can experience them in the same collaborative viewer.
+
+The most important thing to keep in mind about this process is that players can only walk and teleport to surfaces that have collision meshes and Nav Meshes. You'll need to make sure that each floor or surface that you want people to be able to explore has a collision volume and Nav Mesh associated with it.
+
+### Steps
+
+Getting your own content to work inside the default Level in the Multi-User Viewer Template involves the following conceptual steps:
+
+1.  You'll need to remove the existing content from the Level, such as 3D models and Blocking Volumes, and add your own content.  
+    The Template content is organized into sublevels inside the main persistent Level: a **GeometryMap **that contains the Static Mesh Assets that make up the building and its surroundings, and a **Lighting** sublevel that contains the lights and sky sphere.  
+    ![Sublevels inside the main persistent Level](multiuserviewer-sublevels.png "Sublevels inside the main persistent Level")  
+    You can keep the same arrangement of sublevels for your content, or you can simply remove these existing sublevels and place your content into the main persistent Level. (If you remove the Lighting sublevel, you may want to move the BP_SkySphere, Directional Light, and Sky Light from the sublevel to the persistent Level first.)
+2.  Set up your content exactly as you want people to see it in the packaged application.
+3.  Add at least one **Player Start** Actor to the Level by dragging it from the **Basic** tab of the **Modes** panel into the Viewport.  
+    ![Dragging and dropping a Player Start](multiuserviewer-playerstart.png "Dragging and dropping a Player Start")  
+    When each new person joins a session, they start at the position of a randomly selected **Player Start** Actor. You should have at least one in your Level, wherever it makes sense for new people to begin.  
+    [REGION:tip]
+    It's a good idea to add a few of these Actors around the same location, so that new people are less likely to overlap the exact location of other players when they join the session.
+    [/REGION]
+4.  Make sure that each surface you want players to be able to walk on or teleport to has a collision mesh set up for it.  
+    Depending on how you import your content, you may be able to do this in the 3D design application you use to model the geometry. Otherwise, you can do this by opening your Static Mesh in the Static Mesh Editor, and using the tools in the **Collision** menu.  
+    ![Collision options in the Static Mesh Editor](multiuserviewer-collision.png "Collision options in the Static Mesh Editor")  
+    See also [Setting up Collisions with Static Meshes](Engine/Content/Types/StaticMeshes/HowTo/SettingCollision), or [Setting up Collisions with Static Meshes in Blueprints and Python](Engine/Editor/ScriptingAndAutomation/HowTos/SettingUpCollisionProperties) if you want to automate the collision setup.
+    [REGION:tip]
+    As an alternative, you can use **Blocking Volumes** to add invisible box-shaped collision volumes into the Level. This is a simple way to get collisions working in your Level without the need to modify your Static Meshes. The default content in the Multi-User Viewer Template uses some of these Blocking Volumes to simulate collisions on the walls. However, since these volumes aren't attached to your Static Meshes, you may need to move them by hand if you move the geometry in your Level around.
+    [/REGION]
+5.  Make sure that each surface you want players to be able to teleport to has a Nav Mesh by including it in a Nav Mesh Bounds Volume. You can create as many of these volumes as you need for your Level.  
+    To create a Nav Mesh:
+    1.  If your Level doesn't already have a Nav Mesh Bounds Volume, add one by dragging it into the Viewport from the **Volumes** tab of the **Modes** panel.
+        [REGION:lightbox]
+        [![Dragging and dropping a Nav Mesh Bounds Volume](multiuserviewer-navmeshbounds.png "Dragging and dropping a Nav Mesh Bounds Volume")](multiuserviewer-navmeshbounds.png) *Click for full image.*
+        [/REGION]
+    2.  Select the Nav Mesh Bounds Volume in the Viewport or the **World Outliner**, and move its Transform gizmo to the approximate center of the area you want to cover.
+    3.  In the **Details** panel, use the **Brush Settings** to change the size and shape of the volume.  
+        ![Nav Mesh Bounds Volume brush settings](multiuserviewer-brushsettings.png "Nav Mesh Bounds Volume brush settings")
+    4.  Click the **Build** icon in the Toolbar to rebuild pre-calculated data for your Level, or select **Build > Navigation > Build Paths** to rebuild only the navigation data.  
+        ![Build Paths](build-paths.png "Build Paths")
+    5.  Press **P** to see the generated Nav Mesh and verify that it covers the areas you're expecting. It is rendered as a green surface that hovers slightly above the collision meshes that intersect the volume.  
+        ![Nav Mesh visualization](multiuserviewer-navmesh.png "Nav Mesh visualization")
+6.  Build your lighting if necessary.
+7.  Repackage and redistribute your Project as instructed in the [Getting Started](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) page.
+
+### End Result
+
+If you've followed all the steps above, you should be able to get multiple users connected to a single design review session, with everyone seeing the custom content you added to the Level.
+
+## Changing the Starting Level
+
+The main menu of the Multi-User Template is set up to start automatically in the **MultiUserViewer_P** Level when users complete the main menu. However, you may want to leave the default Level as it is, and create a new Level to hold your content. If you choose to do this, you'll need to change the logic in the main menu so that it opens your own custom Level when the user joins the session.
+
+### Steps
+
+To set the starting Level for the Multi-User Viewer:
+
+1.  Find the **Widget_MainMenu** Asset in the **Content Browser**, in the *MultiUserViewer/UMG/MainMenu* folder.  
+    ![Main Menu widget](multiuserviewer-mainmenuwidget.png "Main Menu widget")
+2.  Double-click the Asset to open it, and click **Graph** to open the Widget Blueprint view.  
+    ![Graph](multiuserviewer-graphbutton.png "Graph")
+3.  Find the group labeled **Commit user selections**. Within this group, find a subgroup named **Begin hosting a session**.  
+    [REGION:lightbox]
+    [![Begin hosting a session](multiuserviewer-client-beginhosting.png "Begin hosting a session")](multiuserviewer-client-beginhosting.png) *Click for full image.*
+    [/REGION]
+4.  Change the **Level Name** input on the **OpenLevel** node to the name of the Level you want viewers to start in when they connect to a session.
+    [REGION:lightbox]
+    [![OpenLevel node](multiuserviewer-openlevel.png "OpenLevel node")](multiuserviewer-openlevel.png) *Click for full image.*
+    [/REGION]
+5.  **Compile** and **Save** the widget, then repackage your Project.
+
+### End Result
+
+The next time you start your Project and complete the main menu, you will start inside the custom Level that you set up in the procedure above.
+
+## Adding the Multi-User Viewer to a Different Project
+
+You may already have a Project set up with content that you'd like to share for design review. If so, you could start a new Project from the Multi-User Viewer Template, migrate your content over using the Unreal Editor's migration feature, then set up your content in the template as described under [Using your own 3D Models](#usingyourown3dmodels). However, you may find it simpler to import the content from the Multi-User Viewer Template into your existing Project.
+
+### Steps
+
+To import the Template content into an existing Project:
+
+1.  Open the Project and Level you want to enhance with the Multi-User Viewer controls.
+2.  In the **Content Browser**, choose **Add New > Add Feature or Content Pack**.  
+    ![Add New Feature or Content Pack](multiuserviewer-addcontentpack.png "Add New Feature or Content Pack")
+3.  In the **Add Content to the Project** window, open the **Unreal Studio Feature** tab. Click the **Multi-User Viewer** thumbnail, then click **\+ Add to Project**.  
+    ![Add to Project](multiuserviewer-add-content-window.png "Add to Project")
+4.  Click the **X** to close the **Add Content to the Project** window.
+5.  From the main menu in the Unreal Editor, select **Edit > Project Settings...**.
+6.  In the **Project Settings** panel, open the **Project > Maps & Modes** category.  
+    ![Maps and Modes](multiuserviewer-projectsettings.png "Maps and Modes")  
+    Make the following changes:  
+    
+    *   **1 -** Set the **Default GameMode** to **BP_MultiUserGameMode**.
+    *   **2 -** Set the **Game Default Map** to **MultiUserViewer/MainMenu**.
+    *   **3 -** Set the **Game Instance Class** to **BP\_MultiUser\_GameInstance**.
+    
+    Also, make sure that the **World Settings** panel for each Level doesn't override any of these Project settings.  
+    ![World Settings](multiuserviewer-worldsettings-nooverride.png "World Settings")  
+    
+7.  Follow the instructions under [Using Your Own 3D Models](#usingyourown3dmodels) above to make sure that your content is set up to work with the navigation modes provided by the Multi-User Viewer Template.
+8.  Follow the instructions under [Changing the Starting Level](#changingthestartinglevel) above to set the Level that you want viewers to start in when they run the packaged application and complete the welcome menu.
+
+### End Result
+
+When you launch your packaged Project, you should immediately see the welcome menu provided by the Multi-User Viewer. After you complete the menu, you'll start in the default Level you set up for the main menu. You'll be able to move around in your Level using the [desktop controls](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#desktopcontrols) and [VR controls](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#vrcontrols) provided by the Multi-User Viewer Template.

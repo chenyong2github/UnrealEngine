@@ -1,0 +1,21 @@
+Availability: Public
+Title: Build Tools
+Description: Tools for compiling Unreal Engine and game projects.
+Type: overview
+Parent: Programming
+Order: 22
+
+
+[REGION:fullwidth]
+![Unreal Build System](build.png)
+[/REGION]
+
+There are a collection of tools for automating the process of building Unreal Engine 4 (UE4), including **UnrealBuildTool** and **UnrealHeaderTool** (among others), and this guide provides an overview of these build tools, including a brief overview of UE4's modular architecture. 
+
+[REGION:note]
+**Note:** If you would like to debug UnrealBuildTool or **AutomationTool** on Mac OS X, please install [MonoDevelop 4.2.2](http://monodevelop.com/Download) and [Mono 3.2.7](http://www.go-mono.com/mono-downloads/download.html).
+[/REGION]
+
+## Topics
+
+[DIR(output:"topic" parent:"Programming/BuildTools" end:"1")]

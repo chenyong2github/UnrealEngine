@@ -38,6 +38,7 @@
 #include "Misc/EngineVersion.h"
 #include "Stats/Stats2.h"
 #include "Engine/ChildConnection.h"
+#include "Net/ReplayPlaylistTracker.h"
 
 DEFINE_LOG_CATEGORY( LogDemo );
 
@@ -3747,6 +3748,18 @@ static FCsvDemoSettings GetCsvDemoSettings()
 }
 #endif // (CSV_PROFILER && (!UE_BUILD_SHIPPING))
 
+class FDemoNetDriverReplayPlaylistHelper
+{
+private:
+
+	friend class UDemoNetDriver;
+
+	static void RestartPlaylist(FReplayPlaylistTracker& ToRestart)
+	{
+		ToRestart.Restart();
+	}
+};
+
 void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 {
 	LLM_SCOPE(ELLMTag::Networking);
@@ -3838,24 +3851,44 @@ void UDemoNetDriver::TickDemoPlayback(float DeltaSeconds)
 		if (!ReplayStreamer->IsLive() && bIsAtEnd)
 		{
 			OnDemoFinishPlaybackDelegate.Broadcast();
+			FReplayPlaylistTracker* LocalPlaylistTracker = PlaylistTracker.Get();
 
 			// checking against 1 so the count will mean total number of playthroughs, not additional loops
 			if (GDemoLoopCount > 1)
 			{
-				--GDemoLoopCount;
-
-				GotoTimeInSeconds(0.0f);
+				if (LocalPlaylistTracker)
+				{
+					if (LocalPlaylistTracker->IsOnLastReplay())
+					{
+						--GDemoLoopCount;
+						FDemoNetDriverReplayPlaylistHelper::RestartPlaylist(*LocalPlaylistTracker);
+					}
+				}
+				else
+				{
+					--GDemoLoopCount;
+					GotoTimeInSeconds(0.0f);
+				}	
 			}
 			else
 			{
-				if (FParse::Param(FCommandLine::Get(), TEXT("ExitAfterReplay")))
+				if (FParse::Param(FCommandLine::Get(), TEXT("ExitAfterReplay")) && (!LocalPlaylistTracker || LocalPlaylistTracker->IsOnLastReplay()))
 				{
 					FPlatformMisc::RequestExit(false);
 				}
-
-				if (CVarLoopDemo.GetValueOnGameThread() > 0)
+				else
 				{
-					GotoTimeInSeconds(0.0f);
+					if (CVarLoopDemo.GetValueOnGameThread() > 0)
+					{
+						if (!LocalPlaylistTracker)
+						{
+							GotoTimeInSeconds(0.0f);
+						}
+						else if (LocalPlaylistTracker->IsOnLastReplay())
+						{
+							FDemoNetDriverReplayPlaylistHelper::RestartPlaylist(*LocalPlaylistTracker);
+						}
+					}
 				}
 			}
 		}
@@ -5791,7 +5824,14 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 
 	int32 SavedNetSpeed = LocalPlayer ? LocalPlayer->CurrentNetSpeed : 0;
 
-	Super::HandleClientPlayer(PC, NetConnection);
+	if (LocalPlayer != nullptr)
+	{
+		Super::HandleClientPlayer(PC, NetConnection);
+	}
+	else
+	{
+		DemoDriver->RestoreConnectionPostScrub(PC, NetConnection);
+	}
 	
 	// Restore the netspeed if we're a local replay
 	if (DemoDriver->bIsLocalReplay && LocalPlayer)

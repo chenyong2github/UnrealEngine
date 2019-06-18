@@ -221,7 +221,7 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, FTextureRHIParamRef());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 		CameraImage = nullptr;
 		CopyTextureRef.SafeRelease();
 		DecodedTextureRef.SafeRelease();

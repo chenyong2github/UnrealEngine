@@ -1,0 +1,31 @@
+﻿INTSourceChangelist:3108692
+Availability:Public
+Title:移动平台的内容创建
+Crumbs:%ROOT%, Platforms, Platforms/Mobile
+Description:移动平台的内容创建指南。
+Platform:Mobile
+version: 4.9
+parent:Platforms/Mobile
+order:4
+type:overview
+tags:mobile
+
+(#MeshTypes)
+## 网格体类型
+
+下方列表显示了移动平台支持的所有网格体类型。**其他的网格体类型都不支持**
+
+* [骨骼网格体](Engine/Content/Types/SkeletalMeshes)
+* [静态网格体](Engine/Content/Types/StaticMeshes)
+* [地形](Engine/Landscape)
+* [CPU 粒子子画面、粒子网格体](Engine/Rendering/ParticleSystems)
+
+这些类型在移动平台上的 [导入过程](Engine/Content/FBX) 或资产创建过程与在其他平台上是相同的。
+
+(#MeshLimitations)
+## 网格体限制
+
+移动平台支持的网格体类型因硬件而存在某些限制。
+
+* 由于移动硬件不支持 32 位索引，所有网格体类型均可拥有多达 65k 个顶点。
+* 骨骼网格体可以拥有多达 75 个骨骼。

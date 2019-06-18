@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:4 - Finishing Up
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:In this final section, we will update our Character Blueprint to change how controller rotation is handled as well as fix some minor issues before testing. 

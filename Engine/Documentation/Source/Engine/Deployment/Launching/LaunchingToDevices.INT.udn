@@ -14,7 +14,7 @@ In the drop down menu, you will see a list of possible platforms you can launch 
  map on. Generally, you would not need Windows or Mac, as you can use the Play button for that without needing to cook your data. This page will primarily cover the information you need for launching on 
  mobile platforms.
 
-For Android, there will be multiple selections. See the [**Android Texture Formats**](Platforms\Android\Reference#androidtextureformats) page for more information.
+For Android, there will be multiple selections. See the [**Android Texture Formats**](Platforms/Mobile/Android\Reference#androidtextureformats) page for more information.
 
 If you have multiple devices for a particular platform, you can choose between them here. Clicking on the platform (and device), the editor will start to cook the map, install the data on the device, and 
 then run the map on the device.

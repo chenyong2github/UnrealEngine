@@ -45,6 +45,7 @@
 #include "NiagaraShaderCompilationManager.h"
 
 #include "NiagaraEditorSettings.h"
+#include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
 
@@ -2640,6 +2641,32 @@ bool FHlslNiagaraTranslator::ShouldInterpolateParameter(const FNiagaraVariable& 
 	}
 
 	return true;
+}
+
+void FHlslNiagaraTranslator::UpdateStaticSwitchConstants(UEdGraphNode* Node)
+{
+	if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
+	{
+		TArray<UNiagaraNodeStaticSwitch*> NodesToUpdate;
+		NodesToUpdate.Add(SwitchNode);
+
+		for (int i = 0; i < NodesToUpdate.Num(); i++)
+		{
+			SwitchNode->UpdateCompilerConstantValue(this);
+			
+			// also check direct upstream static switches, because they are otherwise skipped during the compilation and
+			// might be evaluated without their values set correctly.
+			TArray<UEdGraphPin*> InPins;
+			SwitchNode->GetInputPins(InPins);
+			for (UEdGraphPin* Pin : InPins)
+			{
+				if (UNiagaraNodeStaticSwitch* ConnectedNode = Cast<UNiagaraNodeStaticSwitch>(Pin->GetOwningNode()))
+				{
+					NodesToUpdate.AddUnique(ConnectedNode);
+				}
+			}
+		}
+	}
 }
 
 int32 FHlslNiagaraTranslator::GetRapidIterationParameter(const FNiagaraVariable& Parameter)
@@ -5430,6 +5457,11 @@ int32 FHlslNiagaraTranslator::CompilePin(const UEdGraphPin* Pin)
 int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_CompileOutputPin);
+
+	if (InPin)
+	{
+		UpdateStaticSwitchConstants(InPin->GetOwningNode());
+	}
 
 	// The incoming pin to compile may be pointing to a reroute node. If so, we just jump over it
 	// to where it really came from.

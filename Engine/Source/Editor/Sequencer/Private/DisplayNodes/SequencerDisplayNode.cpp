@@ -258,14 +258,17 @@ void SSequencerCombinedKeysTrack::GenerateCachedKeyPositions(const FGeometry& Al
 
 		UMovieSceneSection* Section = KeyArea->GetOwningSection();
 
-		if (Section->HasStartFrame())
+		if (Section)
 		{
-			SectionBoundTimes.Add(Section->GetInclusiveStartFrame() / CachedTickResolution);
-		}
+			if (Section->HasStartFrame())
+			{
+				SectionBoundTimes.Add(Section->GetInclusiveStartFrame() / CachedTickResolution);
+			}
 
-		if (Section->HasEndFrame())
-		{
-			SectionBoundTimes.Add(Section->GetExclusiveEndFrame() / CachedTickResolution);
+			if (Section->HasEndFrame())
+			{
+				SectionBoundTimes.Add(Section->GetExclusiveEndFrame() / CachedTickResolution);
+			}
 		}
 
 		FNameAndSignature CacheKey{ CachePair.Value, KeyArea->GetName() };
@@ -383,7 +386,7 @@ void FSequencerDisplayNode::SetParentDirectly(TSharedPtr<FSequencerDisplayNode> 
 	ParentNode = InParent;
 }
 
-void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent)
+void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent, int32 DesiredChildIndex)
 {
 	TSharedPtr<FSequencerDisplayNode> CurrentParent = ParentNode.Pin();
 	if (CurrentParent != InParent)
@@ -398,12 +401,36 @@ void FSequencerDisplayNode::SetParent(TSharedPtr<FSequencerDisplayNode> InParent
 		if (InParent)
 		{
 			// Add to new parent
-			InParent->ChildNodes.Add(ThisNode);
+			if (DesiredChildIndex != INDEX_NONE && ensureMsgf(DesiredChildIndex <= InParent->ChildNodes.Num(), TEXT("Invalid insert index specified")))
+			{
+				InParent->ChildNodes.Insert(ThisNode, DesiredChildIndex);
+			}
+			else
+			{
+				InParent->ChildNodes.Add(ThisNode);
+			}
+
 			bExpanded = ParentTree.GetSavedExpansionState( *this );
 		}
 	}
 
 	ParentNode = InParent;
+}
+
+void FSequencerDisplayNode::MoveChild(int32 InChildIndex, int32 InDesiredNewIndex)
+{
+	check(ChildNodes.IsValidIndex(InChildIndex) && InDesiredNewIndex >= 0 && InDesiredNewIndex <= ChildNodes.Num());
+
+	TSharedRef<FSequencerDisplayNode> Child = ChildNodes[InChildIndex];
+	ChildNodes.RemoveAt(InChildIndex, 1, false);
+
+	if (InDesiredNewIndex > InChildIndex)
+	{
+		// Decrement the desired index to account for the removal
+		--InDesiredNewIndex;
+	}
+
+	ChildNodes.Insert(Child, InDesiredNewIndex);
 }
 
 FSequencer& FSequencerDisplayNode::GetSequencer() const

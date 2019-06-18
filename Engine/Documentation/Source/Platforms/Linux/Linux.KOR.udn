@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3719888
+INTSourceChangelist:6373426
 Availability: Public
 Title: Linux 게임 개발
 Crumbs:%ROOT%
@@ -19,15 +19,21 @@ Topic-image:LinuxDevelopment_topic.png
 
 ## 시작하기
 
-%Platforms/Linux/BeginnerLinuxDeveloper/SettingUpAnUnrealWorkflow:topic%
-%Platforms/Linux/BeginnerLinuxDeveloper/SettingUpQtCreator:topic%
-%Platforms/Linux/IntermediateLinuxDeveloper/AndroidOnLinux:topic%
+[DIR(output:"topic" parent:"Platforms/Linux" skilllevel:"Beginner" end:"1")]
+[DIR(output:"topic" parent:"Platforms/Linux/IntermediateLinuxDeveloper" skilllevel:"Intermediate" end:"1")]
 
-## 고급 토픽
+
+## 고급 주제
 
 %Platforms/Linux/GettingStarted:topic%
 %Platforms/Linux/AdvancedLinuxDeveloper/LinuxCrossCompileLegacy:topic%
+<!--
+[DIR(output:"topic" parent:"Platforms/Linux/AdvancedLinuxDeveloper" skilllevel:"Advanced" end:"1")]
+[DIR(output:"topic" parent:"Platforms/Linux" tags:"Linux" type:"overview" end:"1")]
+-->
 
-## 참고서
+## 레퍼런스
 
-%Platforms/Linux/BeginnerLinuxDeveloper/SupportedGfxDrivers:topic%
+[DIR(output:"topic" parent:"Platforms/Linux/BeginnerLinuxDeveloper" type:"reference" end:"1")]
+[DIR(output:"topic" parent:"Platforms/Linux" tags:"native toolchain" end:"1")]
+

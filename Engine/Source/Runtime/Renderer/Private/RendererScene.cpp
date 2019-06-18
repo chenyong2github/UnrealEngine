@@ -365,11 +365,14 @@ bool FPixelInspectorData::AddPixelInspectorRequest(FPixelInspectorRequest *Pixel
 
 FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform) 
 	: NumObjectsInBuffer(0)
-	, ObjectBuffers(NULL)
+	, ObjectBufferIndex(0)
 	, SurfelBuffers(NULL)
 	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
 {
+	ObjectBuffers[0] = nullptr;
+	ObjectBuffers[1] = nullptr;
+
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
 
 	bTrackAllPrimitives = (DoesPlatformSupportDistanceFieldAO(ShaderPlatform) || DoesPlatformSupportDistanceFieldShadowing(ShaderPlatform)) && CVar->GetValueOnGameThread() != 0 && IsUsingDistanceFields(ShaderPlatform);
@@ -379,7 +382,8 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 
 FDistanceFieldSceneData::~FDistanceFieldSceneData() 
 {
-	delete ObjectBuffers;
+	delete ObjectBuffers[0];
+	delete ObjectBuffers[1];
 }
 
 void FDistanceFieldSceneData::AddPrimitive(FPrimitiveSceneInfo* InPrimitive)
@@ -459,9 +463,13 @@ void FDistanceFieldSceneData::RemovePrimitive(FPrimitiveSceneInfo* InPrimitive)
 
 void FDistanceFieldSceneData::Release()
 {
-	if (ObjectBuffers)
+	if (ObjectBuffers[0]!=nullptr)
 	{
-		ObjectBuffers->Release();
+		ObjectBuffers[0]->Release();
+	}
+	if (ObjectBuffers[1] != nullptr)
+	{
+		ObjectBuffers[1]->Release();
 	}
 }
 
@@ -1230,18 +1238,6 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 	ensureMsgf(!Primitive->Bounds.BoxExtent.ContainsNaN() && !Primitive->Bounds.Origin.ContainsNaN() && !FMath::IsNaN(Primitive->Bounds.SphereRadius) && FMath::IsFinite(Primitive->Bounds.SphereRadius),
 			TEXT("Nans found on Bounds for Primitive %s: Origin %s, BoxExtent %s, SphereRadius %f"), *Primitive->GetName(), *Primitive->Bounds.Origin.ToString(), *Primitive->Bounds.BoxExtent.ToString(), Primitive->Bounds.SphereRadius);
 
-	// Create any RenderThreadResources required.
-	ENQUEUE_RENDER_COMMAND(CreateRenderThreadResourcesCommand)(
-		[Params](FRHICommandListImmediate& RHICmdList)
-	{
-		FPrimitiveSceneProxy* SceneProxy = Params.PrimitiveSceneProxy;
-		FScopeCycleCounter Context(SceneProxy->GetStatId());
-		SceneProxy->SetTransform(Params.RenderMatrix, Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
-
-		// Create any RenderThreadResources required.
-		SceneProxy->CreateRenderThreadResources();
-	});
-
 	INC_DWORD_STAT_BY( STAT_GameToRendererMallocTotal, PrimitiveSceneProxy->GetMemoryFootprint() + PrimitiveSceneInfo->GetMemoryFootprint() );
 
 	// Verify the primitive is valid (this will compile away to a nop without CHECK_FOR_PIE_PRIMITIVE_ATTACH_SCENE_MISMATCH)
@@ -1250,16 +1246,22 @@ void FScene::AddPrimitive(UPrimitiveComponent* Primitive)
 	// Increment the attachment counter, the primitive is about to be attached to the scene.
 	Primitive->AttachmentCounter.Increment();
 
-	// Send a command to the rendering thread to add the primitive to the scene.
+	// Create any RenderThreadResources required and send a command to the rendering thread to add the primitive to the scene.
 	FScene* Scene = this;
 
 	// If this primitive has a simulated previous transform, ensure that the velocity data for the scene representation is correct
 	TOptional<FTransform> PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(Primitive);
 
 	ENQUEUE_RENDER_COMMAND(AddPrimitiveCommand)(
-		[Scene, PrimitiveSceneInfo, PreviousTransform](FRHICommandListImmediate& RHICmdList)
+		[Params, Scene, PrimitiveSceneInfo, PreviousTransform](FRHICommandListImmediate& RHICmdList)
 		{
-			FScopeCycleCounter Context(PrimitiveSceneInfo->Proxy->GetStatId());
+			FPrimitiveSceneProxy* SceneProxy = Params.PrimitiveSceneProxy;
+			FScopeCycleCounter Context(SceneProxy->GetStatId());
+			SceneProxy->SetTransform(Params.RenderMatrix, Params.WorldBounds, Params.LocalBounds, Params.AttachmentRootPosition);
+
+			// Create any RenderThreadResources required.
+			SceneProxy->CreateRenderThreadResources();
+
 			Scene->AddPrimitiveSceneInfo_RenderThread(RHICmdList, PrimitiveSceneInfo);
 
 			if (PreviousTransform.IsSet())
@@ -1380,12 +1382,8 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 			UpdateParams.PreviousTransform = FMotionVectorSimulation::Get().GetPreviousTransform(Primitive);
 
 			// Help track down primitive with bad bounds way before the it gets to the Renderer
-			// @MIXEDREALITY_CHANGE : BEGIN - This check is blocking HoloLens apps from launching in Development mode.
-#if !PLATFORM_HOLOLENS
-			// @MIXEDREALITY_CHANGE : END
 			ensureMsgf(!Primitive->Bounds.BoxExtent.ContainsNaN() && !Primitive->Bounds.Origin.ContainsNaN() && !FMath::IsNaN(Primitive->Bounds.SphereRadius) && FMath::IsFinite(Primitive->Bounds.SphereRadius),
 				TEXT("Nans found on Bounds for Primitive %s: Origin %s, BoxExtent %s, SphereRadius %f"), *Primitive->GetName(), *Primitive->Bounds.Origin.ToString(), *Primitive->Bounds.BoxExtent.ToString(), Primitive->Bounds.SphereRadius);
-#endif
 
 			ENQUEUE_RENDER_COMMAND(UpdateTransformCommand)(
 				[UpdateParams](FRHICommandListImmediate& RHICmdList)
@@ -3153,7 +3151,7 @@ void FScene::UpdateSpeedTreeWind(double CurrentTime)
 	#undef SET_SPEEDTREE_TABLE_FLOAT4V
 }
 
-FUniformBufferRHIParamRef FScene::GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const
+FRHIUniformBuffer* FScene::GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const
 {
 	if (VertexFactory != NULL)
 	{
@@ -3168,7 +3166,7 @@ FUniformBufferRHIParamRef FScene::GetSpeedTreeUniformBuffer(const FVertexFactory
 		}
 	}
 
-	return FUniformBufferRHIParamRef();
+	return nullptr;
 }
 
 /**
@@ -3668,7 +3666,7 @@ public:
 	virtual void AddSpeedTreeWind(class FVertexFactory* VertexFactory, const class UStaticMesh* StaticMesh) override {}
 	virtual void RemoveSpeedTreeWind_RenderThread(class FVertexFactory* VertexFactory, const class UStaticMesh* StaticMesh) override {}
 	virtual void UpdateSpeedTreeWind(double CurrentTime) override {}
-	virtual FUniformBufferRHIParamRef GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const override { return FUniformBufferRHIParamRef(); }
+	virtual FRHIUniformBuffer* GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const override { return nullptr; }
 
 	virtual void Release() override {}
 

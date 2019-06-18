@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3367470
+INTSourceChangelist:3367470
 Availability:Public
 Title: 언리얼 엔진 4.15 업데이트 노트
 Description:
@@ -84,7 +84,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.15.1-release](
 
 * UE-41950 GitHub 3252 : UsedMaterials 에 MobileMaterialInterface 추가
 
-* UE-29491 PIE 중 전체화면 이외의 크기에서 눈 순응이 제대로 나오지 않던 것을 고쳤습니다.
+* UE-29491 PIE 중 전체화면 이외의 크기에서 시각 순응이 제대로 나오지 않던 것을 고쳤습니다.
 
 * UE-42554 퇴보: Visibility 프로퍼티가 UMG 의 애니메이션 트랙에 보이지 않던 것을 고쳤습니다.
 
@@ -96,7 +96,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.15.1-release](
 
 * UE-42428 "Show Only Modified Properties" 옵션을 켜면 디테일 메뉴가 사라지던 것을 고쳤습니다.
 
-* UE-42312 Data Table Row Handle 에서 자신을 레퍼런싱하는 Data Table 저장 시의 크래시를 고쳤습니다.
+* UE-42312 Data Table Row Handle 에서 자신을 참조하는 Data Table 저장 시의 크래시를 고쳤습니다.
 
 * UE-35606 파일 > 레벨로 임포트 옵션으로 .OBJ 임포트 시의 크래시를 고쳤습니다.
 

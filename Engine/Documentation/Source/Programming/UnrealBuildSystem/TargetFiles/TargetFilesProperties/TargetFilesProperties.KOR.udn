@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4241091
+INTSourceChangelist:4241091
 Availability: NoPublish
 Title: 빌드 환경설정 페이지
 Crumbs:
@@ -13,7 +13,7 @@ $ Platform (UnrealTargetPlatform): 이 타깃의 빌드 대상 플랫폼입니�
 
 $ Configuration (UnrealTargetConfiguration): 빌드 중인 구성입니다.
 
-$ Architecture (String): 타깃의 빌드 대상 아키텍처입니다 (공백 스트링이면 기본값입니다).
+$ Architecture (String): 타깃의 빌드 대상 아키텍처입니다 (빈 스트링이면 기본값입니다).
 
 $ ProjectFile (FileReference): 이 타깃이 들어있는 프로젝트에 대한 프로젝트 파일 경로입니다.
 
@@ -39,9 +39,9 @@ $ UndecoratedConfiguration (UnrealTargetConfiguration): 바이너리에 "-Platfo
 
 $ bBuildAllPlugins (Boolean): 활성화되지 않았더라도 찾을 수 있는 모든 플러그인을 빌드합니다. UE4Editor 타깃을 빌드하면서 플러그인을 활성화시켜 실행시키는 콘텐츠 전용 프로젝트에 특히 유용합니다.
 
-$ AdditionalPlugins (List&lt;String&gt;): 이 타깃에 포함시켜야 하는 부가 플러그인 목록입니다. 비활성화시킬 수 없는 최적이 아닌 플러그인 모듈 레퍼런싱이 가능하며, ModuleHostType 범주에 맞지 않는 프로그램 타깃의 특정 모듈에 대해 빌드할 수 있습니다.
+$ AdditionalPlugins (List&lt;String&gt;): 이 타깃에 포함시켜야 하는 부가 플러그인 목록입니다. 비활성화시킬 수 없는 최적이 아닌 플러그인 모듈 참조이 가능하며, ModuleHostType 범주에 맞지 않는 프로그램 타깃의 특정 모듈에 대해 빌드할 수 있습니다.
 
-$ ExcludePlugins (List&lt;String&gt;): 이 타깃에서 제외시킬 플러그인 목록입니다. 참고로 프로젝트 파일에서 계속 레퍼런싱할 수도 있으므로, 옵션 마킹해야 실행시간에 검색됩니다.
+$ ExcludePlugins (List&lt;String&gt;): 이 타깃에서 제외시킬 플러그인 목록입니다. 참고로 프로젝트 파일에서 계속 참조할 수도 있으므로, 옵션 마킹해야 실행시간에 검색됩니다.
 
 $ PakSigningKeysFile (String): 실행파일에 삽입할 pak 사이닝 키 세트 경로입니다.
 

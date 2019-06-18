@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Localize ‘plist’ and ‘NSLocalizedString’ in an iOS Project
+Description: This page shows how to identify strings in the project code that need to be translated.
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/iOS
+Order: 
+Tags: mobile
+Tags: iOS
+
+
+There may be situations where you want to deploy your iOS project with different languages. If you are localizing your iOS project, you must identify and translate any strings in your code. This is a requirement for submitting your iOS app. In this How-To, you will learn how to create files that translate strings in your code.
+
+## Steps
+
+1.  Create a folder for each language in the `{UEProjectDir}/Build/IOS/Resources/Localization/` directory. Name each folder `{LanguageCode}.lproj`. For example, `EN.lproj`, where `EN` is the language code for English; `FR.lproj`, where `FR` is the language code for French; `JA.lproj`, where `JA` is the language code for Japanese, and so on.
+    [REGION:note]
+    The language codes used here are the two character codes used in the [ISO 639-2 standard](http://www.loc.gov/standards/iso639-2/php/code_list.php).
+    [/REGION]
+2.  In each language folder, create a text file named `InfoPlist.strings` . The `InfoPlist.strings` file translates all strings in the `info.plist` file of your iOS project.
+3.  In each language folder, create a text file named `Localizable.strings`. The `Localizable.strings` file translates all strings in all the code files of your iOS project.
+
+For example, for an application named "Lovely Game" your object-c code contains the following lines:
+
+    NSString* allRightText = NSLocalizedString(@"All right", @"All right");
+    NSString* cancelText = NSLocalizedString(@"Cancel", @"Cancel");
+
+The following table shows some examples of how you modify the `InfoPlist.strings` file and `Localizable.strings` file for various languages.
+
+  
+| Language | InfoPlist.strings File Code | Localizable.strings File Code |
+| --- | --- | --- |
+| English | [INCLUDE:#excerpt_4] | [INCLUDE:#excerpt_5] |
+| Chinese | [INCLUDE:#excerpt_7] | [INCLUDE:#excerpt_8] |
+| French | [INCLUDE:#excerpt_10] | [INCLUDE:#excerpt_11] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+`/* All right */`  
+`"All right" = "D'accord";`  
+`/* Cancel */`  
+`"Cancel" = "Annuler";`  
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+`"CFBundleDisplayName" = "Beau Jeu";`
+`"NSCameraUsageDescription" = "L'appareil photo est nécessaire pour prendre une photo";`
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+`/* OK */ ` 
+`"OK" = "确定";`  
+`/* Cancel */`  
+`"Cancel" = "取消";`
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+`"CFBundleDisplayName" = "可爱的游戏";`
+`"NSCameraUsageDescription" = "需要摄像头用于拍照";`
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+`/* All right */`  
+`"All right" = "All right"; ` 
+`/* Cancel */`  
+`"Cancel" = "Cancel";`
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+`"CFBundleDisplayName" = "Lovely Game";`
+`"NSCameraUsageDescription" = "The camera is needed to take a picture";`
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+## End Result
+
+The `[UEProjectDir]/Build/IOS/Resources/Localization/` folder, created using this How-To, is copied when the Unreal Engine packages your project to create an `.IPA` file. Your packaged iOS project will have all strings translated, and so your iOS project will be ready to submit to Apple.

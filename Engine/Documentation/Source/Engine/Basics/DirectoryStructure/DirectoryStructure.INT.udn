@@ -16,7 +16,7 @@ At the top level, there is the Engine directory as well as any game projects you
 
 * **Engine** - Contains all source code, content, etc. that makes up the engine.
 * **Templates** - Collection of project templates available when [creating new projects](Engine/Basics/Projects/Browser#creatingnewprojects).
-* **GenerateProjectFiles.bat** - Used to create the UE4 solution and project files necessary for working with the engine and your game(s) in Visual Studio. See [](Programming/UnrealBuildSystem/ProjectFileGenerator) for details. 
+* **GenerateProjectFiles.bat** - Used to create the UE4 solution and project files necessary for working with the engine and your game(s) in Visual Studio. See [](Programming/BuildTools/UnrealBuildTool/ProjectFilesForIDEs) for details. 
 * **UE4Games.uprojectdirs** - Helper file that instructs the UnrealBuildTool where to look for projects by default.
 
 ## Common Directories

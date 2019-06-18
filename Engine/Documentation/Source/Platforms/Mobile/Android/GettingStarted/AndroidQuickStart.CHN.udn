@@ -1,0 +1,115 @@
+﻿INTSourceChangelist:6573004
+Availability: Public
+Title: Android快速入门
+Description: 为Android平台的开发进行设置。
+Type:quick start
+Version: 4.19
+Parent: Platforms/Mobile/Android
+Tags: mobile
+Tags: Android
+Tags: StartingOut
+topic-image: Android_QS_Editor_TopicImage.png
+Order: 13
+prereq: Platforms/Mobile/Android/SettingAndroidDeviceDevelopment
+prereq: Platforms/Mobile/Android/InstallingAndroidCodeWorksAndroid
+
+[TOC (start:2 end:2)]
+
+![](Android_QS_Editor_TopicImage.png "Android_QS_Editor_TopicImage.png")
+
+本Android快速入门指南的重点是带领您了解设置您计算机的基础知识，以便使用虚幻引擎4（UE4）进行Android开发。本指南还教您如何使用虚幻编辑器的启动和打包功能在Android设备上安装模板游戏。完成本快速入门指南后，开发人员将了解如何在UE4中执行以下任务：
+
+*   如何创建一个新的虚幻引擎4（UE4）项目，专门针对Android移动开发。
+
+*   如何设置一个UE4项目和关卡，用于进行Android移动开发。  
+    
+*   如何将一个UE4关卡部署到您的Android设备上进行测试。
+
+## 1 - 创建项目
+
+在下面部分，我们将创建一个新的UE4项目，它将使用蓝图第三人称模板，以显示在Android设备上运行UE4项目的速度。
+
+1.  在 **虚幻项目浏览器（Unreal Project Browser）** 中，使用以下选项新建一个基于蓝图的项目。
+    
+    *   使用第三人称模板
+    
+    *   将目标硬件设置为 **移动设备/平板电脑（Mobile / Tablet）**
+    
+    *   将 **图像级别** 设置为“可缩放的3D或2D（Scalable 3D or 2D）”
+    
+    *   不包含初学者内容
+    
+    *   给项目起一个AndroidProject名称
+    
+    [REGION:lightbox]
+    [![](new_android_project.png)(w:300px")](new_android_project.png)
+    [/REGION]
+
+1.  完成后，按 **创建（Create）** 按钮以创建此项目。
+
+[REGION:tip]
+虽然我们在本例中选择了一个基于蓝图的项目，但可以使用本快速入门中的信息向Android设备部署任何类型的项目，即C++或蓝图项目。
+[/REGION]
+
+## 2 - 项目设置
+
+在下面部分，我们将介绍在将UE4关卡部署到Android设备之前需要进行调整的一些项目设置。  
+
+1.  您需要先接受Gradle SDK证书协议才可以打包您的项目。要做到这一点，您需要转到 **项目设置（Project Settings）** \> **平台Android（Platforms Android）** \> **APK打包（APKPackaging）**，然后按下 **接受SDK证书（Accept SDK License）** 按钮（如果之前已经接受此证书，该按钮将被禁用）。按下“接受SDK证书（Accept SDK License）按钮”，您将看到此证书协议。阅读此协议后，如果您同意它，请按下 **接受（Accept）** 按钮继续。 
+    [REGION:lightbox]
+    [![](AndroidDevelopment_QS_2_SDK_License.png)(w:500px)](AndroidDevelopment_QS_2_SDK_License.png)
+    [/REGION]
+    [REGION:note]
+    您仍然可以通过清除“启用Gradle代替Ant（Enable Gradle instead of Ant）”复选框来使用Ant构建系统  
+    ![](AndroidDevelopment_QS_2_RevertGradle.png)
+    [/REGION]
+    
+1.  接下来，在 **APK打包（APKPackaging）** 部分找到最低SDK版本和目标SDK版本，并在两者中输入14。
+    [REGION:lightbox]
+    [![](AndroidDevelopment_QS_2_SetMinTargetSDK.png)(w:500px")](AndroidDevelopment_QS_2_SetMinTargetSDK.png)
+    [/REGION]
+
+1.	当这些都完成后，您现在可以关闭“项目设置（Project Settings）”窗口。
+
+## 3 - 部署
+
+要在基于Android的设备上测试当前关卡，您需要执行以下操作：
+
+1.  首先需要确保您已打开想要进行测试的关卡。在本例中，我们将使用上一步创建的基于蓝图项目中的 **ThirdPersonExampleMap** 关卡。  
+    ![](Correct_Level_Open.png)
+
+1.  当 **ThirdPersonExampleMap** 处于打开状态时，转到 **主菜单栏（Main Toolbar）**，再转到 **启动（Launch）** 图标，单击小三角形，会显示更多选项。  
+    ![](Level_Deploy_Options.png)
+
+1.  在 **启动（Launch） ** 菜单的 **设备（Devices）** 部分下，通过从列表中单击您的Android设备来选择它。  
+    ![](launch_rightformat.png)
+
+1.  当在您的设备上启动您的关卡时，将在屏幕的右下角显示进度，如下图所示。  
+    ![](AndroidDevelopment_QS_4_PackingProgress.png "AndroidDevelopment_QS_4_PackingProgress.png")
+
+1.  当部署完成后，项目应该自动开始在您的Android设备上运行。如果项目无法自动启动，您可以在您的设备上找应用程序并点击它来进行启动。
+    [REGION:lightbox]
+    [![](AndroidDevelopment_QS_4_EndResult.png)(w:200px)](AndroidDevelopment_QS_4_EndResult.png)
+    [/REGION]
+    
+## 4 - 看你的了
+
+现在我们已经介绍了如何打包UE4项目，并准备在Android设备上进行测试，请尝试使用您从本快速入门指南中学到的知识来完成以下任务。
+
+*   使用其中一个默认模板创建一个新项目，然后尝试在Android设备上运行该项目。
+
+下面选择的链接可以帮助您处理各种问题，包括哪些Android设备可与UE4一起使用，以及在针对移动设备创建内容时应该考虑的事项。如果您之前没有浏览过这些链接，强烈建议您浏览一下它们，因为它们包含了大量有价值的信息。
+
+有关为移动设备设计游戏内容和关卡的更多信息，请查看以下链接：  
+
+*   [为移动设备创建内容](Platforms/Mobile/Meshes)
+
+*   [为移动设备创建材质](Platforms/Mobile/Materials)
+
+*   [为移动设备创建纹理](Platforms/Mobile/Textures)
+
+*   [移动平设备的照明](Platforms/Mobile/Lighting)
+
+您还可以使用移动预览器来更改预览移动游戏的方式，而无需将移动游戏部署到设备上。  
+
+*   [移动预览器](Platforms/Mobile/Previewer)

@@ -92,7 +92,7 @@ topic-image:blueprint_ce_compact.png
 | ------- | ------------ |
 | **1.1 Basic Communication (Target Blueprint)** | 기본적인 통신 (타겟 블루프린트) - Custom Event 를 통해 라이트 **블루프린트** 를 껐다 켰다 토글하는 버튼 **블루프린트** 예제입니다. |
 | **1.2 Basic Communication (Actor Casting)** | 기본적인 통신 (액터 형변환) - 오버랩 이벤트를 사용하여 특정 클래스의 **블루프린트** 를 감지하는 법입니다 (예: 배터리를 연결하여 켜지고 꺼지는 전구입니다). |
-| **1.3 Communication (Actor Casting To Child Blueprints)** | 통신 (자손 블루프린트로 형변환되는 액터) - 부모의 함수성은 공유하되 독립적인 함수성을 갖기도 하는 **자손 블루프린트** 사용 방법입니다 (예: 에너지 값이 각기 다른 배터리를 연결하여 켜지고 꺼지는 전구입니다). |
+| **1.3 Communication (Actor Casting To Child Blueprints)** | 통신 (자손 블루프린트로 형변환되는 액터) - 부모의 함수성은 공유하지만 독립적인 함수성을 갖기도 하는 **자손 블루프린트** 사용 방법입니다 (예: 에너지 값이 각기 다른 배터리를 연결하여 켜지고 꺼지는 전구입니다). |
 | **1.4 Communication with All Actors of a Specific Class** | 모두 특정 클래스의 액터인 경우의 통신 - 특정 클래스의 액터 다수를 가지고 통신하는 방법입니다 (예: 각기 다른 함수성을 지닌 전구 다수를 한꺼번에 켭니다). |
 
 

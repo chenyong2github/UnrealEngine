@@ -4409,7 +4409,7 @@ void UMaterial::RebuildShadingModelField()
 		GetAllExpressionsInMaterialAndFunctionsOfType(ShadingModelExpressions);
 
 		for (UMaterialExpressionShadingModel* MatExpr : ShadingModelExpressions)
-			{
+		{
 			ShadingModels.AddShadingModel(MatExpr->ShadingModel);
 		}
 

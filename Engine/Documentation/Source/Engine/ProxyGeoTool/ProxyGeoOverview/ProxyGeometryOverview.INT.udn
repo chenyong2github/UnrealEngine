@@ -1,0 +1,65 @@
+Availability: Public
+Crumbs: 
+Title: Proxy Geometry Overview
+Description: Overview of the Proxy Geometry system in Unreal Engine 4.
+Type: overview
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 0
+Tags: Optimization
+Tags: ProxyGeometryTool
+Tags: ProxyGeo
+topic-image: ProxyLOD_TopicImage.png
+
+
+## Proxy Geometry Tool
+
+The goal of the Proxy Geometry tool is to help reduce the runtime rendering cost of Static Meshes and their corresponding Materials and Textures. The Proxy Geometry tool achieves this by combining multiple Static Meshes and their corresponding Materials into one single Static Mesh with one single set of Textures and Materials that still matches the original Static Mesh's shape and look but with a reduced number of triangles. This reduced result can be used as a proxy for the original geometry in cases were the difference in quality is either acceptable or not appreciable, for example structures that are distant from the camera.  
+![Proxy_Geometry_OV_01.png](Proxy_Geometry_OV_01.png)
+
+### Proxy Geometry Tool Static Mesh Generation
+
+The results that you get when using the Proxy Geometry tool can vary depending on the settings used in the tool. The images below where created using just the default settings of the Proxy Geometry tool.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Before Using Proxy Geo](ProxyGeo_Orginal_01.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After Using Proxy Geo](ProxyGeo_Crunched_01.png) 
+ [/PARAM]
+[/OBJECT]
+
+  
+[REGION:simpletable]
+| **Before Proxy**|| **After Proxy** ||
+|---|---|---|---|
+| **Object Count** | 22 | **Object Count** | 1 |
+| **Triangle Count** | 27,308 | **Triangle Count** | 4,032 |
+| **Material Count** | 6 | **Material Count** | 1 |
+[/REGION]
+
+While the Static Mesh might not look exactly like the original object, the savings that you get from using the Proxy Geometry tool are quite significant. In this testing scene, we took 22 Static Meshes with six Materials and over 27k triangles and transformed that into a single Static Mesh with one Material and a triangle count of 4k.
+
+### Proxy Geometry Tool Texture Generation
+
+The Proxy Geometry Tool will also generate a new set of Textures that correspond to the new Static Mesh geometry that was created. The image below shows an example of what this generated Texture looks like when compared to the original Textures that where used. 
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Before Using Proxy Geometry](ProxyGeo_Default_Texture_01.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After Using Proxy Geometry](ProxyGeo_Crunched_Texture_01.png) 
+ [/PARAM]
+[/OBJECT]
+
+### A Brief Note on Tool Performance
+
+The first time the proxy system processes an item of geometry, a shader cache on the game thread is populated, incurring a one-time cost.  This means that subsequent iterations (For example, changing some parameter and rebuilding that proxy) can be much faster.  When comparing against the existing 3rd party options, a 2x to 3x speed improvement is seen with this new system on modest spatial sized geometry clusters, but on very large geometry the time to completion is similar.
+
+[REGION:note]
+Please note that the above information on speed improvements only relates to generating proxies inside of the UE4 Editor, not their use in game. In game performance benefits from the use of proxies will depend on quantities such as the final polygon count and texture sizes.
+[/REGION]
+
+[](#)[](#)

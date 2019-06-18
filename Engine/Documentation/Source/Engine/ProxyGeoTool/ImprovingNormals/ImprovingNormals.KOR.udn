@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:6674941
+Availability: Public
+Crumbs: 
+Title: 노멀 개선
+Description: 프록시 지오메트리 툴을 사용해 생성되는 지오메트리의 노멀을 개선하는 방법입니다.
+Type: how-to
+SkillLevel:Advanced
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+포트나이트의 극단적인 메모리 용량 제한으로 인해 레벨 오브 디테일 (LOD) 메시를 매우 효율적으로 사용해야 했습니다. 대부분 프록시의 경우, 아주 작은 베이스 컬러 텍스처를 생성하고 노멀 맵은 사용하지 않습니다. 그래서 이 방법은 프록시 메시 자체에 최고 퀄리티의 노멀이 필요합니다. 여기서는 프록시 지오메트리 툴을 사용할 때 스태틱 메시의 노멀을 어떻게 계산할지 지정하는 방법을 살펴봅니다.
+
+![](HardEdgeSplit_10.png)(w:400px)
+
+## 단계
+
+여기서는 프록시 지오메트리 툴을 사용해서 생성되는 스태틱 메시의 노멀 계산 방식을 조정하는 법을 살펴봅니다.
+
+1.  먼저 프록시 스태틱 메시를 생성해야 하는 오브젝트를 찾습니다. 이 예제에서는 시작용 콘텐츠에서 찾을 수 있는 스태틱 메시만 사용해서 구성한 작은 집을 사용합니다.
+
+    ![](GapFilling_01.png "GapFilling_01.png")
+
+2.  **창 > 개발자 툴 > 액터 병합** 을 선택하여 **액터 병합** 툴을 엽니다.
+
+    ![](GapFilling_02.png "GapFilling_02.png")
+
+3.  레벨 안에서 지오메트리를 새로 생성할 오브젝트를 이루는 스태틱 메시 액터를 전부 선택합니다.
+
+    ![](GapFilling_03.png "GapFilling_03.png")
+  
+4.  액터 병합 툴에서 **2 번째 아이콘** 을 클릭하여 프록시 지오메트리 툴에 액세스한 뒤 **프록시 세팅** 을 펼칩니다.
+
+    ![](GapFilling_04.png "GapFilling_04.png")
+
+5.  프록시 세팅 아래 **Material Settings** (머티리얼 세팅) 섹션을 펼치고 **Normal Map** (노멀 맵) 옵션을 비활성화합니다.
+
+    ![](HardEdegeSplit_01.png "HardEdegeSplit_01.png")
+
+    [REGION:note]
+    여기서 노멀을 비활성화하지 않으면, 생성되는 스태틱 메시가 아닌 노멀 맵의 노멀이 보이므로 결과물이 올바르지 않습니다.
+    [/REGION]
+  
+6.  **Hard Edge Angle** (하드 에지 앵글) 옆 박스를 클릭하여 비활성화합니다. 생성되는 스태틱 메시의 모든 노멀 계산을 비활성화합니다.
+
+    ![](HardEdegeSplit_02.png "HardEdegeSplit_02.png")
+
+7.  **액터 병합** 버튼을 클릭하고 **콘텐츠 브라우저** 에서 새로 생성할 스태틱 메시의 이름과 위치를 입력합니다. 그런 다음 **저장** 버튼을 눌러 병합 프로세스를 시작합니다. 
+
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+
+8.  모든 것이 완료된 후 새로 생성되는 스태틱 메시를 열어 보면, 다음 이미지같은 것이 보입니다.
+
+    ![](HardEdegeSplit_03.png "HardEdegeSplit_03.png")
+
+9.  위 이미지는 원하는 결과가 아니며, 생성되는 오브젝트의 노멀이 원래 오브젝트의 노멀과 거의 동일하기를 원합니다. 이 문제를 해결하려면, 액터 병합 툴에서 Hard Edge Angle 옵션을 다시 활성화합니다.
+
+    ![](HardEdegeSplit_04.png "HardEdegeSplit_04.png")
+
+10.  Hard Edge Angle 를 다시 활성화하고 액터 병합 툴을 다시 실행합니다. 완료되면 다음 이미지와 같은 건물이 보일 것입니다.
+
+    ![](HardEdegeSplit_05.png "HardEdegeSplit_05.png")
+
+## 최종 결과
+
+최상의 결과를 얻으려면 각 오브젝트마다 약간씩 다른 세팅이 필요할 수 있으므로 시간과 반복처리가 조금 필요합니다. 또 한가지 Hard Edge Angle 값을 지정할 때 스새틱 메시 생성에 사용되는 버텍스 수를 늘리거나 줄일 수 있습니다. 다음은 Hard Edge Angle 값을 **0**, **5**, **10**, **50**, **80**, **130**, **180** 으로 설정했을 때 스태틱 메시와 그 버텍스 수에 어떤 일이 벌어지는지를 나타내는 비교 이미지입니다. 
+
+[EXCERPT:HardEdgeAngleComparisonSlider]
+[OBJECT:SliderSequence]
+    [PARAMLITERAL:max]
+    7
+    [/PARAMLITERAL]
+    [PARAMLITERAL:ext]
+    jpg
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    HardEdgeAngleComparison
+    [/PARAMLITERAL]
+    [PARAM:caption]
+    Hard Edge Angle 값을 0, 5, 10, 50, 80, 130, 180 으로 설정했을 때의 셰이딩 및 버텍스 수 변화를 나타내는 비교 이미지입니다.
+    [/PARAM]
+    [PARAM:image_list]
+    ![](HardEdgeSplit_0.png)
+![](HardEdgeSplit_5.png)
+![](HardEdgeSplit_10.png)
+![](HardEdgeSplit_50.png)
+![](HardEdgeSplit_80.png)
+![](HardEdgeSplit_130.png)
+![](HardEdgeSplit_180.png)
+    [/PARAM]
+[/OBJECT]
+[/EXCERPT:HardEdgeAngleComparisonSlider]
+
+[](#)[](#)

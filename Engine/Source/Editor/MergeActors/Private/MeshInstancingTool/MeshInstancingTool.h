@@ -38,7 +38,7 @@ public:
 	{
 		if (bInitialized)
 		{
-			if (DefaultSettings)
+			if (UObjectInitialized() && DefaultSettings)
 			{
 				DefaultSettings->RemoveFromRoot();
 				DefaultSettings->MarkPendingKill();

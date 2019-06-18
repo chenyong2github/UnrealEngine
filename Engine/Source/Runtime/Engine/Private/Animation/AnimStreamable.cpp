@@ -9,6 +9,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "UObject/LinkerLoad.h"
 #include "Animation/AnimCompressionDerivedData.h"
 #include "DerivedDataCacheInterface.h"
 #include "Animation/AnimCurveCompressionSettings.h"
@@ -24,7 +25,7 @@ DECLARE_CYCLE_STAT(TEXT("AnimStreamable GetAnimationPose"), STAT_AnimStreamable_
 // set it here
 const TCHAR* StreamingAnimChunkVersion = TEXT("1F1656B9E10142729AB16650D9821B1Fuf");
 
-const float MINIMUM_CHUNK_SIZE = 1.0f;
+const float MINIMUM_CHUNK_SIZE = 2.0f;
 
 float GChunkSizeSeconds = MINIMUM_CHUNK_SIZE;
 
@@ -234,7 +235,7 @@ void UAnimStreamable::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& Out
 	FRootMotionReset RootMotionReset(bEnableRootMotion, RootMotionRootLock, bForceRootLock, FTransform(), false); // MDW Does not support root motion yet
 
 #if WITH_EDITOR
-	if (!HasRunningPlatformData())
+	if (!HasRunningPlatformData() || RequiredBones.ShouldUseRawData())
 	{
 		//Need to evaluate raw data
 		RawCurveData.EvaluateCurveData(OutCurve, ExtractionContext.CurrentTime);
@@ -318,6 +319,24 @@ void UAnimStreamable::PostLoad()
 	Super::PostLoad();
 
 #if WITH_EDITOR
+	if (UAnimSequence* NonConstSeq = const_cast<UAnimSequence*>(SourceSequence))
+	{
+		if (FLinkerLoad* Linker = NonConstSeq->GetLinker())
+		{
+			Linker->Preload(NonConstSeq);
+		}
+		NonConstSeq->ConditionalPostLoad();
+	}
+
+	if (SourceSequence && (GenerateGuidFromRawAnimData(SourceSequence->GetRawAnimationData(), SourceSequence->RawCurveData) != RawDataGuid))
+	{
+		InitFrom(SourceSequence);
+	}
+	else
+	{
+		RequestCompressedData(); // Grab compressed data for current platform
+	}
+
 	RequestCompressedData(); // Grab compressed data for current platform
 #else
 	IStreamingManager::Get().GetAnimationStreamingManager().AddStreamingAnim(this); // This will be handled by RequestCompressedData in editor builds

@@ -236,7 +236,7 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
         FTexture2DRHIRef DoubleBuffer;
         if (GMetalSupportsIntermediateBackBuffer)
         {
-            NewBackBuffer = (FMetalTexture2D*)(FTexture2DRHIParamRef)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, CreateInfo);
+            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, CreateInfo);
             
             if (GMetalSeparatePresentThread)
             {
@@ -246,7 +246,7 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
         }
         else
         {
-            NewBackBuffer = (FMetalTexture2D*)(FTexture2DRHIParamRef)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable | TexCreate_Presentable, CreateInfo);
+            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable | TexCreate_Presentable, CreateInfo);
         }
         ((FMetalTexture2D*)NewBackBuffer.GetReference())->Surface.Viewport = this;
         
@@ -508,46 +508,28 @@ void FMetalViewport::Present(FMetalCommandQueue& CommandQueue, bool bLockToVsync
 #endif
 						};
 						
-#if WITH_EDITOR			// The Editor needs the older way to present otherwise we end up with bad behaviour of the completion handlers that causes GPU timeouts.
-						if (GIsEditor)
+#if PLATFORM_MAC		// Mac needs the older way to present otherwise we end up with bad behaviour of the completion handlers that causes GPU timeouts.
+						mtlpp::CommandBufferHandler H = [LocalDrawable](mtlpp::CommandBuffer const&)
 						{
-#if !PLATFORM_IOS
-							mtlpp::CommandBufferHandler H = [LocalDrawable](mtlpp::CommandBuffer const&)
-							{
-#else
-							mtlpp::CommandBufferHandler H = [LocalDrawable, MinPresentDuration, FramePace](mtlpp::CommandBuffer const&)
-							{
-								if (MinPresentDuration && GEnablePresentPacing)
-								{
-									[LocalDrawable presentAfterMinimumDuration:1.0f/(float)FramePace];
-								}
-								else
-#endif
-								{
-									[LocalDrawable present];
-								};
-							};
+							[LocalDrawable present];
+						};
 								
-							CurrentCommandBuffer.AddCompletedHandler(C);
-							CurrentCommandBuffer.AddScheduledHandler(H);
+						CurrentCommandBuffer.AddCompletedHandler(C);
+						CurrentCommandBuffer.AddScheduledHandler(H);
+
+#else // PLATFORM_MAC
+						CurrentCommandBuffer.AddCompletedHandler(C);
+
+						if (MinPresentDuration && GEnablePresentPacing)
+						{
+							CurrentCommandBuffer.PresentAfterMinimumDuration(LocalDrawable, 1.0f/(float)FramePace);
 						}
 						else
-#endif
 						{
-							CurrentCommandBuffer.AddCompletedHandler(C);
-#if PLATFORM_IOS
-							if (MinPresentDuration && GEnablePresentPacing)
-							{
-								CurrentCommandBuffer.PresentAfterMinimumDuration(LocalDrawable, 1.0f/(float)FramePace);
-							}
-							else
-#endif
-							{
-								CurrentCommandBuffer.Present(LocalDrawable);
-							}
+							CurrentCommandBuffer.Present(LocalDrawable);
 						}
-						
-						
+#endif // PLATFORM_MAC
+
 						METAL_GPUPROFILE(Stats->End(CurrentCommandBuffer));
 						CommandQueue.CommitCommandBuffer(CurrentCommandBuffer);
 					}
@@ -624,12 +606,12 @@ void FMetalDynamicRHI::RHITick( float DeltaTime )
  *	Viewport functions.
  *=============================================================================*/
 
-void FMetalRHICommandContext::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FTextureRHIParamRef RenderTargetRHI)
+void FMetalRHICommandContext::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITexture* RenderTargetRHI)
 {
 	check(false);
 }
 
-void FMetalRHIImmediateCommandContext::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FTextureRHIParamRef RenderTargetRHI)
+void FMetalRHIImmediateCommandContext::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI, FRHITexture* RenderTargetRHI)
 {
 	@autoreleasepool {
 	FMetalViewport* Viewport = ResourceCast(ViewportRHI);

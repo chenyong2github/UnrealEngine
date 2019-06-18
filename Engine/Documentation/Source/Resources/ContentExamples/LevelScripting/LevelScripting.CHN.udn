@@ -1,7 +1,10 @@
-﻿Availability: Docs
-Title:关卡脚本
+﻿INTSourceChangelist:3782314
+Availability: Docs
+Title:关卡脚本编写
 Crumbs:%ROOT%, Resources
-Description:关卡脚本示例关卡概述
+Description:概述关卡脚本编写的示例关卡
+Version: 4.9
+topic-image:level_scripting_topic.png
 
 [REGION:banner]
 ![](level_scripting_header.png)(convert:false)
@@ -9,61 +12,27 @@ Description:关卡脚本示例关卡概述
 
 [TOC(start:2 end:2)]
 
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources/ContentExamples/LevelScripting:title%](level_scripting_topic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/LevelScripting:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/LevelScripting:description%
-	[/PARAM]
-	[PARAM:path]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources/ContentExamples/LevelScripting:title%](level_scripting_topic.png)
-	[/PARAM]
-	[PARAM:title]
-		%Resources/ContentExamples/LevelScripting:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources/ContentExamples/LevelScripting:description%
-	[/PARAM]
-	[PARAM:path]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[COMMENT:none]
-Insert path when done! [RELATIVE:Resources/ContentExamples/LevelScripting]
-[/COMMENT]
-
-欢迎来到 **关卡脚本** 示例关卡！
+欢迎来到 **Level Scripting（关卡脚本编写）** 示例关卡！
 
 
 [INCLUDE:Resources\ContentExamples\ExampleLevelOverview#ExampleLevel]
 
-本内容示例着重于如何使用关卡脚本，使其成为对您的游戏关卡创建游戏性的一种方式。这非常类似于创建[类蓝图](Engine/Blueprints\UserGuide\Types\ClassBlueprint)，但仍有所不同，为关卡而创建的关卡脚本将 _总是_ 来源于关卡中。这表示，您的关卡脚本并不是类蓝图那样的可放置资源，它们本身为不可放置资源，也不能放置资源在它们中。
+本内容示例侧重于使用关卡脚本编写作为为游戏关卡创建游戏进程的一种方法。这与创建[蓝图类](Engine/Blueprints\UserGuide\Types\ClassBlueprint)非常相似，但在该关卡脚本编写中不同的是，它 _始终_ 是创建它的关卡本地的。这意味着您的关卡脚本本身不是可放置的资源，而类蓝图 _是_ 可放置的资产。
 
-您可以[打开关卡蓝图](Engine/Blueprints\UserGuide\Types\LevelBlueprint)以查看本内容示例的所有关卡脚本设置。
+您可以[打开脚本蓝图](Engine/Blueprints\UserGuide\Types\LevelBlueprint)查看为该内容示例设置的所有关卡脚本编写。
+
+(#examples)
 
 ## 示例
 
-[REGION:topics fourth]
 %Resources/ContentExamples/LevelScripting/1_1:TopicCompact%
 %Resources/ContentExamples/LevelScripting/1_2:TopicCompact%
 %Resources/ContentExamples/LevelScripting/1_3:TopicCompact%
 %Resources/ContentExamples/LevelScripting/1_4:TopicCompact%
-[/REGION]
 
+(#relatedtopicsandfurtherreading)
 
-## 相关主题及扩展阅读
+## 相关主题及进一步阅读
+
 * [蓝图](Engine/Blueprints)
-* [Matinee和动画处理工具](Engine/Matinee)
+* [Matinee和电影](Engine/Matinee)

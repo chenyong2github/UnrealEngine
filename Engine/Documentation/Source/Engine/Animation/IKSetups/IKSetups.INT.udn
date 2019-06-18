@@ -1,6 +1,5 @@
 Availability:Public
 Title: IK Setups
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Inverse Kinematic systems allow for reactive animation, such as foot placement on non-planar terrain.
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
@@ -9,6 +8,8 @@ Related: Engine/Content/Tools/MayaRiggingTool
 Related: Engine/Animation/AnimBlueprints
 Related: Engine/Animation/AnimBlueprints/EventGraph
 version: 4.9
+tags:Animation
+tags:Animation Features
 topic-image:IKSetups_topic.png
 
 [REGION:fullwidth]

@@ -79,6 +79,8 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 		
 		Viewport->AcquireImageIndex();
 		int32 AcquiredImageIndex = Viewport->AcquiredImageIndex;
+		check(AcquiredImageIndex >= 0 && AcquiredImageIndex < Viewport->TextureViews.Num());
+
 		FVulkanTextureView& ImageView = Viewport->TextureViews[AcquiredImageIndex];
 
 		Surface.Image = ImageView.Image;

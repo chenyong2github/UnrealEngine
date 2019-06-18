@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+INTSourceChangelist:3810557
 Availability: Public
 Title:머티리얼 블렌드 모드
 Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/IntroductionToMaterials,  Engine/Rendering/Materials/MaterialProperties
@@ -76,7 +76,7 @@ _투명한 것_ 과 _렌더링되지 않은 것_ 사이의 차이점을 아는 �
 
 ![](TranslucentNetwork.png)(w:400)
 
-이 블렌드 모드는 오파시티 값이나 텍스처를 받은 다음 검정 부분은 완전히 투명하고 하양 부분은 완전히 불투명, 그 중간의 다양한 그라데이션 값은 그에 상응하는 투명도 식으로 표면에 적용하는 것입니다. 즉 회색 오파시티 텍스처가 있으면, 배경의 일부만 보이도록 하는 반투명 오브젝트를 만들 수 있다는 뜻입니다.
+이 블렌드 모드는 오파시티 값이나 텍스처를 받은 다음 검정 부분은 완전히 투명하고 하양 부분은 완전히 불투명, 그 중간의 다양한 그러데이션 값은 그에 상응하는 투명도 식으로 표면에 적용하는 것입니다. 즉 회색 오파시티 텍스처가 있으면, 배경의 일부만 보이도록 하는 반투명 오브젝트를 만들 수 있다는 뜻입니다.
 
 [REGION:imagetable]
 | ![](TranslucentSetup.png)(w:500) | ![](TranslucentCamera.png)(h:192) |

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3489715
+INTSourceChangelist:3489715
 Availability:Public
 Title:블루프린트 맵
 Description:블루프린트의 고급 컨테이너 유형인 Map, 맵 컨테이너 생성 및 편집 방법을 포함해서 이 컨테이너의 프로퍼티 개요입니다.
@@ -32,7 +32,7 @@ Related:Programming/UnrealArchitecture/TMap
 
 [REGION:note]
 
-데모 목적 상 (아래 세팅을 적용한) **공백 블루프린트 프로젝트** 를 사용하여 블루프린트 맵 생성 및 편집 방법을 보여드리고 있습니다.
+데모 목적 상 (아래 세팅을 적용한) **기본 블루프린트 프로젝트** 를 사용하여 블루프린트 맵 생성 및 편집 방법을 보여드리고 있습니다.
 
 [REGION:lightbox]
 	[![](sampleProject.png)(w:370)](sampleProject.png)  
@@ -146,7 +146,7 @@ Related:Programming/UnrealArchitecture/TMap
 	클릭하면 원본 이미지를 확인합니다.
 	[/REGION]
 
-1.	블루프린트를 컴파일한 이후 Map 의 (**디테일** 패널에 위치한) **Default Value** (기본 값)에 `MyStringIntegerMap` 이 공백임을 알 수 있습니다.
+1.	블루프린트를 컴파일한 이후 Map 의 (**디테일** 패널에 위치한) **Default Value** (기본 값)에 `MyStringIntegerMap` 이 비어 있음을 알 수 있습니다.
 
 	[REGION:lightbox]
 		[![](creatingMaps_Step12.png)(w:600)](creatingMaps_Step12.png)
@@ -200,4 +200,4 @@ UE4 에서 블루프린트 Map 사용을 시작하려면 다음 프로퍼티 목
 *	현재 맵 값은 변경불가(immutable)합니다. 생성한 후에는 변경할 수 없다는 뜻입니다.
 *	키 유형은 값 유형과 다를 수 있지만, 한 맵의 모든 키는 성질(유형)이 같아야 합니다. 다른 말로 특정 맵의 키가 스트링 유형, 그 값은 인티저 유형으로 지정된 경우, 잇따르는 모든 키 역시 스트링, 값은 인티저가 될 것입니다.
 
-블루프린트에서 맵을 생성 및 편집하는 법을 배웠으니, [](Engine/Blueprints/UserGuide/Maps/MapNodes) 참고서에서 블루프린트 Map 노드 인터페이스에 대해 더욱 자세히 배워보실 수 있습니다.
+블루프린트에서 맵을 생성 및 편집하는 법을 배웠으니, [](Engine/Blueprints/UserGuide/Maps/MapNodes) 레퍼런스에서 블루프린트 Map 노드 인터페이스에 대해 더욱 자세히 배워보실 수 있습니다.

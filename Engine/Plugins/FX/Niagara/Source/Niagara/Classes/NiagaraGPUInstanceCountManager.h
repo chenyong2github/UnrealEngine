@@ -13,6 +13,11 @@ NiagaraGPUInstanceCountManager.h: GPU particle count handling
 
 class FRHIGPUMemoryReadback;
 
+FORCEINLINE uint32 GetTypeHash(const FNiagaraDrawIndirectArgsGenCS::FArgGenTaskInfo& Info)
+{
+	return (Info.InstanceCountBufferOffset << 8) | Info.NumIndicesPerInstance;
+}
+
 /** 
  * A manager that handles the buffer containing the GPU particle count. 
  * Also provides related functionalities like the generation of the draw indirect buffer.
@@ -53,18 +58,8 @@ public:
 	 * Called on the renderthread from FNiagaraRenderer::CreateRenderThreadResources()
 	 * or FNiagaraRenderer::ReleaseRenderThreadResources()
 	 */
-	void IncrementMaxDrawIndirectCount() 
-	{ 
-		checkSlow(IsInRenderingThread()); 
-		MaxDrawIndirectArgs += DrawIndirectArgsIncrement; 
-	}
-
-	void DecrementMaxDrawIndirectCount() 
-	{ 
-		checkSlow(IsInRenderingThread()); 
-		MaxDrawIndirectArgs -= DrawIndirectArgsIncrement; 
-
-	}
+	void IncrementMaxDrawIndirectCount() { checkSlow(IsInRenderingThread()); ++MaxDrawIndirectArgs; }
+	void DecrementMaxDrawIndirectCount() { checkSlow(IsInRenderingThread()); --MaxDrawIndirectArgs; }
 
 	// Resize instance count and draw indirect buffers to ensure it is big enough to hold all draw indirect args.
 	void ResizeBuffers(int32 ReservedInstanceCounts);
@@ -95,12 +90,12 @@ protected:
 
 	/** The list of all draw indirected tasks that are to be run in UpdateDrawIndirectBuffer() */
 	typedef FNiagaraDrawIndirectArgsGenCS::FArgGenTaskInfo FArgGenTaskInfo;
+
 	TArray<FArgGenTaskInfo> DrawIndirectArgGenTasks;
+	/** The map between each task FArgGenTaskInfo and entry offset from DrawIndirectArgGenTasks. Used to reuse entries. */
+	TMap<FArgGenTaskInfo, uint32> DrawIndirectArgMap;
 	/** The list of all instance count clear tasks that are to be run in UpdateDrawIndirectBuffer() */
 	TArray<uint32> InstanceCountClearTasks;
 	/** A buffer holding drawindirect data to render GPU emitter renderers. */
 	FRWBuffer DrawIndirectBuffer;
-
-	// A multiplier applied to each increment/decrement in IncrementMaxDrawIndirectCount()/DecrementMaxDrawIndirectCount()
-	int32 DrawIndirectArgsIncrement = 1;
 };

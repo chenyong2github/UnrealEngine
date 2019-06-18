@@ -34,6 +34,7 @@
 #include "NiagaraNodeWriteDataSet.h"
 #include "NiagaraNodeStaticSwitch.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraParameterMapHistory.h"
 
 #define LOCTEXT_NAMESPACE "FNiagaraEditorUtilities"
 
@@ -622,28 +623,37 @@ void FNiagaraEditorUtilities::FixUpNumericPins(const UEdGraphSchema_Niagara* Sch
 	TraverseGraphFromOutputDepthFirst(Schema, Node, FixUpVisitor);
 }
 
-void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs)
+void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const FCompileConstantResolver& ConstantResolver)
 {
+	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+
 	for (UEdGraphNode* Node : Graph->Nodes)
 	{
 		// if there is a static switch node its value must be set by the caller
 		UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node);
 		if (SwitchNode)
 		{
-			SwitchNode->ClearSwitchValue();
-			for (UEdGraphPin* InputPin : CallInputs)
+			if (SwitchNode->IsSetByCompiler())
 			{
-				if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName))
+				SwitchNode->SetSwitchValue(ConstantResolver);
+			}
+			else
+			{
+				FEdGraphPinType VarType = Schema->TypeDefinitionToPinType(SwitchNode->GetInputType());
+				SwitchNode->ClearSwitchValue();
+				for (UEdGraphPin* InputPin : CallInputs)
 				{
-					int32 SwitchValue = 0;
-					if (ResolveConstantValue(InputPin, SwitchValue))
+					if (InputPin->GetFName().IsEqual(SwitchNode->InputParameterName) && InputPin->PinType == VarType)
 					{
-						SwitchNode->SetSwitchValue(SwitchValue);
+						int32 SwitchValue = 0;
+						if (ResolveConstantValue(InputPin, SwitchValue))
+						{
+							SwitchNode->SetSwitchValue(SwitchValue);
+							break;
+						}
 					}
-					break;
 				}
 			}
-			
 		}
 
 		// if there is a function node, it might have delegated some of the static switch values inside its script graph
@@ -803,7 +813,7 @@ void FNiagaraEditorUtilities::ResolveNumerics(UNiagaraGraph* SourceGraph, bool b
 	}
 }
 
-void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage)
+void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage, const FCompileConstantResolver& ConstantResolver)
 {
 	// Change any numeric inputs or outputs to match the types from the call node.
 	TArray<UNiagaraNodeInput*> InputNodes;
@@ -853,46 +863,9 @@ void FNiagaraEditorUtilities::PreprocessFunctionGraph(const UEdGraphSchema_Niaga
 			}
 		}
 	}
-
+	
 	FNiagaraEditorUtilities::FixUpNumericPins(Schema, OutputNode);
-	FNiagaraEditorUtilities::SetStaticSwitchConstants(Graph, CallInputs);
-}
-
-const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& FNiagaraEditorUtilities::GetCompiledGraphParameterMapReferences(UNiagaraGraph* Graph)
-{
-	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
-
-	// We clone the graph to prevent any destructive changes to the source
-	UNiagaraGraph* NodeGraphDeepCopy = CastChecked<UNiagaraGraph>(FEdGraphUtilities::CloneGraph(Graph, GetTransientPackage(), 0, true));
-
-	// We copy some transient data over here because the copied graph loses some data. Since the result of this function is
-	// also used to build the ui, the user will otherwise lose changes to yet unused parameters (e.g. in the metadata panel).
-	CastChecked<UNiagaraGraph>(Graph)->CopyCachedReferencesMap(NodeGraphDeepCopy);
-
-	TArray<UNiagaraNodeFunctionCall*> Nodes;
-	NodeGraphDeepCopy->GetNodesOfClass(Nodes);
-	for (int32 i = 0; i < Nodes.Num(); i++)
-	{
-		UNiagaraNodeFunctionCall* Node = Nodes[i];
-		ENiagaraScriptUsage ScriptUsage = Node->GetCalledUsage();
-		UNiagaraGraph* FunctionGraph = Node->GetCalledGraph();
-		if (FunctionGraph)
-		{
-			// We append all function nodes we find to the end of the queue, basically traversing the graph breadth-first
-			TArray<UNiagaraNodeFunctionCall*> SubFunctionNodes;
-			FunctionGraph->GetNodesOfClass(SubFunctionNodes);
-			for (UNiagaraNodeFunctionCall* SubNode : SubFunctionNodes)
-			{
-				Nodes.AddUnique(SubNode);
-			}
-
-			// We set the static switch values based on the function call inputs to prepare the parameter map history generation
-			TArray<UEdGraphPin*> CallInputs;
-			Node->GetInputPins(CallInputs);
-			SetStaticSwitchConstants(FunctionGraph, CallInputs);
-		}
-	}
-	return NodeGraphDeepCopy->GetParameterReferenceMap();
+	FNiagaraEditorUtilities::SetStaticSwitchConstants(Graph, CallInputs, ConstantResolver);
 }
 
 void FNiagaraEditorUtilities::GetFilteredScriptAssets(FGetFilteredScriptAssetsOptions InFilter, TArray<FAssetData>& OutFilteredScriptAssets)

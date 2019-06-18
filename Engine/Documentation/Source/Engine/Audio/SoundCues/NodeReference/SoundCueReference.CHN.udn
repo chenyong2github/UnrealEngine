@@ -1,429 +1,456 @@
-﻿Availability: Public
-Title: Sound Cue参考指南
+INTSourceChangelist:3782314
+Availability: Public
+Title:Sound Cue参考
 Crumbs: %ROOT%, Engine, Engine/Audio
-Description: 介绍了SoundCue中可以使用的节点及其属性。
+Description:参考，介绍可在SoundCue中使用的节点及其属性。
+version: 4.9
+Parent:Engine/Audio
+type:reference
+order:6
 
 [TOC (start:2)]
 
-## 概述
 
-虚幻引擎提供了各种节点，您可以通过修改这些节点的属性来在音效编辑器中创建有趣、复杂的Sound Cue。您可以在 **Palette（控制面板）** 中找到这些节点。
+虚幻引擎提供各种声音节点，你可以在 **Sound Cue编辑器** 中修改它们的属性来创建有趣和复杂的Sound Cue。你可在 **选用板（Palette）** 面板中找到这些声音节点。
 
-![Sound node list](SoundCueEditor_NodeList.png)
+![声音节点列表](SoundCueEditor_NodeList.png)
 
-	本文介绍了可以使用的各种音效节点及其属性。
+本页面介绍可供使用的声音节点及其属性。
 
-关于音效编辑器的更多信息，请参照[](Engine/Audio\SoundCues\Editor)。关于音效编辑器用户界面的更多信息，请参照[](Engine/Audio\SoundCues\Editor\Interface)。
+有关 **Sound Cue编辑器** 的更多信息，请参阅[](Engine/Audio\SoundCues\Editor)。有关 **Sound Cue编辑器** UI的更多信息，请参阅[](Engine/Audio\SoundCues\Editor\Interface)。
 
 [REGION:tip]
-对于一些节点，您可以通过右击该节点并点击 **Add Input（添加输入）** 来添加额外的输入端。
+对于部分节点，你可以添加额外输入，方法是 **右键单击** 节点，然后单击 **添加输入（Add Input）**。
 [/REGION]
 
-## Attenuation（衰减）节点
+(#attenuationnode)
+## 衰减（Attenuation）节点
 
-**Attenuation(衰减)**  节点用于控制空间化、衰减、及半径属性。
+**衰减（Attenuation）** 节点用于控制空间化、衰减和半径属性。
 
 [REGION:note]
-如果您想使用Attenuation节点来覆盖Sound Cue的衰减设置，则必须在音效编辑器中将 Attenuation 节点的 **Override Attenuation（覆盖衰减设置）** 选择框设置为 _True（真）_ ，并且在编辑器的 **详细信息** 面板中要将Sound Cue资源的  **Override Attenuation（覆盖衰减）** 复选框设置为  _False（假）_ 。
+如果希望通过使用“衰减（Attenuation）”节点的方法覆盖Sound Cue的衰减设置，必须在 **Sound Cue编辑器** 中选中“衰减（Attenuation）”节点的 **覆盖衰减（Override Attenuation）** 复选框，而且必须在关卡编辑器的 **细节（Details）** 面板中取消选中Sound Cue资源的 **覆盖衰减（Override Attenuation）** 复选框。
 [/REGION]
 
-![Attenuation Node](SoundCueEditor_Attenuation.png)
+![衰减（Attenuation）节点](SoundCueEditor_Attenuation.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | --- | --- |
-| [REGION:tablesection]Attenuation（衰减）[/REGION] ||
-| **Attenuation Settings（衰减设置）** | 从Sound Attenuation（音效衰减） 资源复制而来的衰减设置。如果您想使用预先存在的衰减设置请使用该属性。|
-| **Attenuate（衰减）** | 如果设置为 _true（真）_, 则随着距离不断增大衰减输入音效。|
-| **Spatialize（空间化）** | 如果设置为 _true（真）_ ，则将该输入音效至于三维空间中。|
-| **Distance Algorithm(距离算法)** | 当衰减输入音效时所使用的插值方法。请参照[距离模型衰减曲线](Engine/Audio/DistanceModelAttenuation)来获得关于各种距离算法的介绍。|
-| **Attenuation Shape（衰减形状）** | 从下拉列表中选择的衰减区域形状。|
-| **Radius（半径）** | 衰减半径。|
-| **Falloff Distance（衰减距离）** | 发生衰减的距离。|
-| **Non-Spatialized Radius（非空间化的半径）** | 距离声源处多远时对音源进行空间化处理。|
-| **Attenuate with LPF（使用低通滤波器衰减）** | 如果为 _True（真）_ ，则通过低通滤波器启用衰减。|
-| **LPFRadius Min** | 距离声源多远时开始应用低通滤波器。|
-| **LPFRadius Max** |距离声源多远时开始应用最大低通滤波器。|
-| **Override Attenuation（覆盖衰减）** |如果为 _true_, 则覆盖现有衰减设置。|
+| [REGION:tablesection]衰减（Attenuation）[/REGION] ||
+| **衰减设置（Attenuation Settings）** | 从“声音衰减（Sound Attenuation）”资源复制的衰减设置。如果希望使用预先存在的衰减设置，请使用此属性。|
+| **衰减（Attenuate）** | 如果为true，输入声音将随距离增大逐渐淡出。|
+| **空间化（Spatialize）** | 如果为true，会将输入声音放置在3D空间中。|
+| **距离算法（Distance Algorithm）** | 当对输入声音进行衰减时使用的插值方法。请参阅[距离模型衰减曲线](Engine/Audio/DistanceModelAttenuation)，查看各种类型距离算法的说明。|
+| **衰减形状（Attenuation Shape）** | 从下拉列表中选择的衰减区域的形状。|
+| **半径（Radius）** | 衰减半径。|
+| **衰减距离（Falloff Distance）** | 衰减的衰减距离。|
+| **非空间化半径（Non-Spatialized Radius）** | 距声源的距离，在该距离处，将声源作为“空间化”对待。|
+| **通过LPF衰减（Attenuate with LPF）** | 如果为true，启用通过低通滤波器（LPF）进行的衰减。|
+| **最小LPF半径（LPFRadius Min）** | 距声源的距离，在该距离处，应开始应用低通滤波器。|
+| **最大LPF半径（LPFRadius Max）** | 距声源的距离，在该距离处，应应用最大量的低通滤波器。|
+| **覆盖衰减（Override Attenuation）** | 如果为true，会覆盖现有衰减设置。|
 
 
-Stereo(立体声)文件可以在左右通道上均匀地播放，并且衰减设置允许音量在MinR和MaxR值之间进行衰减，但是它们不能进行空间化处理。不包含Attenuation Node的音效没有本地化处理，它们会以Sound Cue的音量设置持续播放。
+立体声文件在左声道和右声道上均匀地播放并且会衰减，从而允许音量在 **最小半径（Radius Min）** 和 **最大半径（Radius Max）** 数值间消退，但是它们未空间化。不包含“衰减（Attenuation）”节点的Sound Cue未局部化，它们将始终如一地基于Sound Cue音量设置播放。
 
-## Branch（分支）节点
+(#branchnode)
+## 分支（Branch）节点
 
-**Branch（分支）** 节点基于布尔参数的值选择一个子节点。
+**分支（Branch）** 节点基于布尔参数的数值选择子节点。
 
-![Branch Node](SoundCueEditor_Branch.png)
+![分支（Branch）节点](SoundCueEditor_Branch.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Sound Node Branch(音效节点-分支)[/REGION] ||
-| **Bool Parameter Name（布尔参数名称）** | 用于决定使用哪个子节点的布尔参数的名称。|
+| [REGION:tablesection]声音节点分支（Sound Node Branch）[/REGION] ||
+| **布尔参数名称（Bool Parameter Name）** | 用于确定要使用的子节点的布尔参数的名称。|
 
 
-## Concatenator（连接器）节点
+(#concatenatornode)
+## 串联器（Concatenator）节点
 
- **Concatenator（连接器）** 节点用于连续地播放音效(比如，创建一个播放一系列指定音频的简单的背景音乐播放列表) 。尽管该节点处理连续播放，但是它不会从一个音效资源混合到下一个音效资源。
+**串联器（Concatenator）** 节点用于按顺序播放声音（例如，创建在一系列指定的轨迹上从头至尾播放的简单BGM播放列表）。虽然此节点处理顺序播放，但是它不将一个声音资源与后面的声音资源进行混合。 
 
-![Concatenator Node](concatenator_node.png)
+![串联器（Concatenator）节点](concatenator_node.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Sound Node Concatenator（音效节点 - 连接器）[/REGION] ||
-| **Input Volume（输入音量）** | 允许为连接到  **Concatenator** 节点的每个资源设置单独的音量。|
+| [REGION:tablesection]声音节点串联器（Sound Node Concatenator）[/REGION] ||
+| **输入音量（Input Volume）** | 允许为与串联器连接的每个声音资源单独设置音量设置。|
 
-## Continuous Modulator（连续调制器）节点
+(#continuousmodulatornode)
+## 连续调制器（Continuous Modulator）节点
 
-Continuous Modulator (持续调制器节点)允许游戏参数实时地控制音量和音高调制。典型的例子是使载具速度和引擎音高相对应。这个调制器需要附加到代码中来达到期望的结果，在SoundCue编辑器中不能独立工作。
+**连续调制器（Continuous Modulator）** 节点允许游戏性参数实时控制音量和音高调制。一个常见示例是，使用载具的速度对应引擎声音的音高。为了达到所需目的，需要在代码中对此调制器进行连接，它无法单独在Sound Cue编辑器中发挥作用。
 
 [REGION:note]
-输入音效的音高和音量默认是一个均匀分布，但是您可以在音效曲线编辑器中将它们修改成任何其他类型。
+输入声音的音高和音量默认设置为均匀分布，但是，你可在Sound Cue编辑器中将它们更改为任何其他类型。
 [/REGION]
 
-![Continuous Modulator Node](SoundCueEditor_ContinuousModulation.png)
+![连续调制器（Continuous Modulator）节点](SoundCueEditor_ContinuousModulation.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]音效节点 - Modulator Continuous（连续调制器）[/REGION] ||
-| [REGION:tablesection]Pitch Modulation Params（音高调制参数）[/REGION] ||
-| **Parameter Name（参数名称）** | 用于调制音高的参数。|
-| **Default（默认）** | 音高调制的默认级别。|
-| **Min Input（最小输入）** | 输入声音的最小音高。|
-| **Max Input（最大输入）** | 输入音效的最大音高。|
-| **Min Output（最小输出）** | 输出音频的最小音高。|
-| **Max Output（最大输出）** | 输出音频的最小音高。|
-| **Param Mode（参数模式）** | [INCLUDE:Engine/Audio/SoundCues/NodeReference/#ParamMode] |
-| [REGION:tablesection]音量调制参数[/REGION] ||
-| **Parameter Name（参数名称）** | 用于调制音量的参数。|
-| **Default（默认）** | 音量调制的默认级别。|
-| **Min Input（最小输入）** | 输入声音的最小音量。|
-| **Max Input（最大输入）** | 输入音效的最大音量。|
-| **Min Output（最小输出）** | 输出音频的最小音量。|
-| **Max Output（最大输出）** | 输出音频的最小音量。|
-| **Param Mode（参数模式）** | [INCLUDE:Engine/Audio/SoundCues/NodeReference/#ParamMode] |
+| [REGION:tablesection]声音节点调制器连续（Sound Node Modulator Continuous）[/REGION] ||
+| [REGION:tablesection]音高调制参数（Pitch Modulation Params）[/REGION] ||
+| **参数名称（Parameter Name）** | 用于操纵音高的参数。|
+| **默认（Default）** | 音高调制的默认级别。|
+| **最小输入（Min Input）** | 输入声音的最低音高。|
+| **最大输入（Max Input）** | 输入声音的最高音高。|
+| **最小输出（Min Output）** | 输出声音的最低音高。|
+| **最大输出（Max Output）** | 输出声音的最高音高。|
+| **参数模式（Param Mode）** | [INCLUDE:Engine/Audio/SoundCues/NodeReference/#ParamMode] |
+| [REGION:tablesection]音量调制参数（Volume Modulation Params）[/REGION] ||
+| **参数名称（Parameter Name）** | 用于操纵音量的参数。|
+| **默认（Default）** | 音量调制的默认级别。|
+| **最小输入（Min Input）** | 输入声音的最低音量。|
+| **最大输入（Max Input）** | 输入声音的最高音量。|
+| **最小输出（Min Output）** | 输出声音的最低音量。|
+| **最大输出（Max Output）** | 输出声音的最高音量。|
+| **参数模式（Param Mode）** | [INCLUDE:Engine/Audio/SoundCues/NodeReference/#ParamMode] |
 
 [REGION:note]
-**Min（最大）** 和 **Max最大** 文本域用于随机化选择。
+“最小（Min）”和“最大（Max）”字段旨在用于提供随机化。 
 [/REGION]
 
 
 [COMMENT:none]
 -
 [EXCERPT:ParamMode]
-应用参数的模式： 
-* **MPM_Normal** - 区间限定输入值到(MinOutput, MaxOutput)范围之间，然后映射到范围 (MinOutput, MaxOutput)。
-* **MPM_Abs** - 和 **MPM_Normal** 一样，但输入值被作为绝对值处理。
-* **MPM_Direct** - 直接使用输入值，而不必缩放或参照Min（最小）或Max（最大）输入值或Min（最小）或Max（最大）输出值。
+应用参数时使用的模式： 
+* **MPM_Normal**——将输入值限制在该范围中（MinInput, MaxInput），然后映射到该范围中（MinOutput, MaxOutput）。 
+* **MPM_Abs**——与MPM_Normal相同，只不过输入值被当作绝对值对待。
+* **MPM_Direct**——直接使用输入值，不缩放或引用最小或最大输入或输出值。
 [/EXCERPT:ParamMode]
 -
 [/COMMENT]
 
 
 
-## Crossfade by Distance（按距离交叉渐变）节点
+(#crossfadebydistancenode)
+## 按距离交叉淡入淡出（Crossfade by Distance）节点
 
-Distance CrossFade (按距离交叉渐变)节点可以根据到声效原点的距离在两个或多个输入声效淡入淡出。默认情况下，该节点上有两个输入，但是您可以通过右击 Crossfade by Distance(按距离交叉渐变)节点并点击关联菜单上的 **Add Input（添加输入）** 来添加多个输入。您可以把声效节点直接连接到Distance CrossFade Node输入端上，但是您也可以在它们之间添加节点来基于每个层独立控制。
+**按距离交叉淡入淡出（Crossfade by Distance）** 节点提供基于距Sound Cue源头的距离在两个或多个输入声音间淡入淡出的功能。默认情况下，此节点上有两个输入，但是你可以添加更多输入，方法是 **右键单击**“按距离交叉淡入淡出（Crossfade by Distance）”节点并在情境菜单上单击 **添加输入（Add Input）**。声音节点可以直接连接到“按距离交叉淡入淡出（Crossfade by Distance）”节点输入，但你也可以在它们之间添加节点，以针对每一层实现独立控制。
 
-![Crossfade by Distance Node](SoundCueEditor_CrossfadeDistance.png)
+![按距离交叉淡入淡出（Crossfade by Distance）节点](SoundCueEditor_CrossfadeDistance.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]音效节点 -  Distance Cross Fade（按距离交叉渐变）[/REGION] ||
-| [REGION:tablesection]Cross Fade Input（交叉渐变输入）[/REGION] ||
-| **Fade in Distance Start（淡入距离起始位置）** | 距离听者所在位置多远处时听者开始可以听到音效。|
-| **Fade in Distance End（淡入距离结束位置）** | 距离听者所在位置多远时听者可以听到最大音量。|
-| **Fade Out Distance Start（淡出距离起始位置）** | 距离听者所在位置多远处时音效开始淡出。|
-| **Fade Out Distance End（淡出距离结束位置）** | 距离听者所在位置多远时听者不能再听到该音效。|
+| [REGION:tablesection]声音节点距离交叉淡入淡出（Sound Node Distance Cross Fade）[/REGION] ||
+| [REGION:tablesection]交叉淡入淡出输入（Cross Fade Input）[/REGION] ||
+| **淡入开始距离（Fade in Distance Start）** | 距听者所处位置的距离，在该距离处，开始能够听到声音。|
+| **淡入结束距离（Fade in Distance End）** | 距听者所处位置的距离，在该距离处，声音达到最大音量。|
+| **淡出开始距离（Fade Out Distance Start）** | 距听者所处位置的距离，在该距离处，声音开始淡出。|
+| **淡出结束距离（Fade Out Distance End）** | 距听者所处位置的距离，在该距离处，不再能够听到声音。|
 
 
 
 
-## Crossfade by Param（按参数交叉渐变）节点
+(#crossfadebyparamnode)
+## 按参数交叉淡入淡出（Crossfade by Param）节点
 
- **Crossfade by Param（按参数交叉渐变）** 节点的工作原理和 Crossfade by Distance（按距离交叉渐变）节点类似，只是Crossfade by Distance节点允许您通过使用代码或蓝图来操作参数的值，从而程序化地控制渐变。
+**按参数交叉淡入淡出（Crossfade by Param）** 节点的工作原理与“按距离交叉淡入淡出（Crossfade by Distance）”节点的工作原理相似，但除了一点——“按参数交叉淡入淡出（Crossfade by Param）”节点允许你操纵通过代码或蓝图以编程方式控制淡入淡出的参数的数值。
 
-![Crossfade by Param Node](SoundCueEditor_CrossfadeParam.png)
+![按参数交叉淡入淡出（Crossfade by Param）节点](SoundCueEditor_CrossfadeParam.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Cross Fade(交叉渐变)[/REGION] ||
-| **Param Name（参数名称）** | 用于控制交叉渐变的参数的名称。|
-| [REGION:tablesection]音效节点 -  Distance Cross Fade（按距离交叉渐变）[/REGION] ||
-| [REGION:tablesection]Cross Fade Input（交叉渐变输入）[/REGION] ||
-| **Fade in Distance Start（淡入距离起始位置）** | 距离听者所在位置多远处时听者开始可以听到音效。|
-| **Fade in Distance End（淡入距离结束位置）** | 距离听者所在位置多远时听者可以听到最大音量。|
-| **Fade Out Distance Start（淡出距离起始位置）** | 距离听者所在位置多远处时音效开始淡出。|
-| **Fade Out Distance End（淡出距离结束位置）** | 距离听者所在位置多远时听者不能再听到该音效。|
+| [REGION:tablesection]交叉淡入淡出（Cross Fade）[/REGION] ||
+| **参数名称（Param Name）** | 用于控制交叉淡入淡出的参数的名称。|
+| [REGION:tablesection]声音节点距离交叉淡入淡出（Sound Node Distance Cross Fade）[/REGION] ||
+| [REGION:tablesection]交叉淡入淡出输入（Cross Fade Input）[/REGION] ||
+| **淡入开始距离（Fade in Distance Start）** | 距听者所处位置的距离，在该距离处，开始能够听到声音。|
+| **淡入结束距离（Fade in Distance End）** | 距听者所处位置的距离，在该距离处，声音达到最大音量。|
+| **淡出开始距离（Fade Out Distance Start）** | 距听者所处位置的距离，在该距离处，声音开始淡出。|
+| **淡出结束距离（Fade Out Distance End）** | 距听者所处位置的距离，在该距离处，不再能够听到声音。|
 
 
-## Delay（延迟）节点
+(#delaynode)
+## 延迟（Delay）节点
 
- **Delay(延迟)** 节点简单地向音频节点链中插入一个延迟，从而在输入音效传导到输出端之前产生停顿。延迟量是属性中所指定的min(最小值)和max(最大值)之间的随机值。
+**延迟（Delay）** 节点会在音频节点链中插入延迟，以在将输入声音传递到输出之前引起一次暂停。延迟时长是介于在 **细节（Details）** 面板中指定的 **最小延迟值（Delay Min）** 和 **最大延迟值（Delay Max）** 之间的随机值。
 
-![Delay Node](SoundCueEditor_Delay.png)
+![延迟（Delay）节点](SoundCueEditor_Delay.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Delay（延迟）[/REGION] ||
-| **Delay Min（最小延迟）** |设置Delay节点应该暂停的最小时间量。|
-| **Delay Min（最大延迟）** |设置Delay节点应该暂停的最大时间量。|
+| [REGION:tablesection]延迟（Delay）[/REGION] ||
+| **最小延迟值（Delay Min）** | 设置延迟（Delay）节点应暂停的最短时间。|
+| **最大延迟值（Delay Max）** |设置延迟（Delay）节点应暂停的最长时间。|
 
 
-## DialoguePlayer（对话播放器） 节点
+(#dialogueplayernode)
+## 对话播放器（DialoguePlayer）节点
 
- **DialoguePlayer（对话播放器）** 节点设置一个Dialogue Wave(对话波形)音效资源，以在指定条件下进行播放。由于Dialogue Waves(对话波形)预期目的是仅用于口语对话，所以DialoguePlayer节点要求用户指出说话者和播放该对话的目标听众。这使得Dialogue Wave可以根据说话者的声音、及本地化过程中需要发生的任何 性别/人数/敬语 处理，来播放正确的音频。
+**对话播放器（DialoguePlayer）** 节点将“对话声波（Dialogue Wave）”声音资源设置为在特定条件下播放。由于“对话声波（Dialogue Wave）”应该仅用于口头对话，对话播放器（DialoguePlayer）节点要求用户指定说话者以及播放对话的目标。这使得“对话声波（Dialogue Wave）”能够根据说话者的声音和出于本地化目的需要发生的性别/复数/敬语处理播放正确的音频。
 
-![DialoguePlayer Node](SoundCueEditor_DialoguePlayer.png)
+![对话播放器（DialoguePlayer）节点](SoundCueEditor_DialoguePlayer.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Dialogue Player（对话播放器）[/REGION] ||
-| **Dialogue Wave（对话波形）** | 该节点将播放的Dialogue Wave（对话波形）。|
-| **Context（情境）** | 说话者及收听者。|
-| **Looping（循环）** | 如果为 _true_, 则循环播放该对话。|
+| [REGION:tablesection]对话播放器（Dialogue Player）[/REGION] ||
+| **对话声波（Dialogue Wave）** | 该节点将播放的对话声波（Dialogue Wave）。|
+| **情境（Context）** | 说话者是谁以及对象是谁。|
+| **循环（Looping）** | 如果为true，将循环播放对话。|
 
-## Doppler（多普勒效应）节点
+(#dopplernode)
+## 多普勒（Doppler）节点
 
-**Doppler（多普勒）** 节点模拟多普勒效应，也就是当您加速靠近音效时听到的音高会提高，当您远离时音高会降低。在真实世界中，当您听到一个从您身边走过的救护车的汽笛时，就会听到这种效果。
+**多普勒（Doppler）** 节点模拟多普勒效应，随着你高速靠近它们，声音的音高将会增高，随着你与它们的距离拉大，音高将会降低。你可在真实世界中感受到这一现象：救急车辆驶过你身边时你听到的警报器声音的变化。
 
-![Doppler Node](SoundCueEditor_Doppler.png)
+![多普勒（Doppler）节点](SoundCueEditor_Doppler.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Doppler（多普勒效应）[/REGION] ||
-| **Doppler Intensity（多普勒效应强度）** |用于听到的多普勒效应强度的系数值。增高该值，会使得该效应更显著。|
+| [REGION:tablesection]多普勒（Doppler）[/REGION] ||
+| **多普勒强度（Doppler Intensity）** | 用于听到的多普勒效应的强度的乘数数值。增大该数值会使该效应更加显著。|
 
-## Enveloper（包络线）节点
+(#envelopernode)
+## 包络线（Enveloper）节点
 
- **Enveloper（包络线）** 节点允许您创建一个可以具有循环功能的包络线，来通过分布曲线随着时间变化控制音效的音量和音高。这些曲线即可以通过小的嵌入式曲线编辑器进行编辑，也可以基于 **内容浏览器** 中现有浮点型曲线资源中定义的曲线。
+**包络线（Enveloper）** 节点允许你创建具有可选循环功能的包络，以通过分布曲线随时间推移控制声音的音量和音高。这些曲线可以使用内嵌的小型曲线编辑器编辑或基于 **内容浏览器** 中的“现有浮点曲线（Float Curve）”资源中定义的曲线。
 
 [REGION:note]
-您可以使用 **Modulation（调制）** 类目中的属性来在envelope(包络线)上定义的所有点上随机分布预定义的值。
+你可以使用 **调制（Modulation）** 类别中的属性来使预定义数值随机分布在包络上的所有已定义点上。
 [/REGION]
 
-![Enveloper Node](SoundCueEditor_Enveloper.png)
+![包络线（Enveloper）节点](SoundCueEditor_Enveloper.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Looping[/REGION] ||
-| **Loop Start（循环起点）** | 包络线开始循环的时间点，以秒为单位。|
-| **Loop Start（循环终点）** | 包络线结束循环的时间点，以秒为单位。|
-| **Duration After Loop（循环后的时间间隔）** |包络线在完成最后一次循环后淡出时所需的时间，以秒为单位。|
-| **Loop Count（循环次数）** | 如果包络线启用了循环且没有设置为无限循环，该项指出了循环次数。|
-| **Loop Indefinitely（无限循环）** | 如果启用该项，那么无论 **Loop Count** 的值为多少，包络线都将会进行无限循环。|
-| **Loop（循环）** | 如果启用该项，那么该包络线将使用循环设置进行循环。|
-| [REGION:tablesection]Envelope（包络线）[/REGION] ||
-| **Volume Curve（音量曲线）** | 定义音量包络线的分布。|
-| **Pitch Curve（音高曲线）** | 定义音高包络线的分布。|
-| [REGION:tablesection]Modulation（调制） [/REGION] ||
-| **Pitch Min（最小音高）** | 输入音效的最小音高。|
-| **Pitch Max（最大音高）** | 输入音效的最大音高。|
-| **Volume Min（最小音量）** |输入音效的最小音量。|
-| **Volume Max（最大音量）** | 输入音效的最大音量。|
+| [REGION:tablesection]循环（Looping）[/REGION] ||
+| **循环起点（Loop Start）** | 包络循环开始的位置，以秒为单位。|
+| **循环终点（Loop End）** | 包络循环结束的位置，以秒为单位。|
+| **循环完成后的时长（Duration After Loop）** | 包络在最后一次循环完成后淡出所需花费的时间，以秒为单位。|
+| **循环次数（Loop Count）** | 包络应循环的次数（如果循环已启用并且包络未设置为无限循环（Loop Indefinitely））。|
+| **无限循环（Loop Indefinitely）** | 如果启用，包络将持续无限循环，无论“循环次数（Loop Count）”数值为何。|
+| **循环（Loop）** | 如果启用，包络将使用循环设置循环。|
+| [REGION:tablesection]包络（Envelope）[/REGION] ||
+| **音量曲线（Volume Curve）** | 定义音量包络的分布。|
+| **音高曲线（Pitch Curve）** | 定义音高包络的分布。|
+| [REGION:tablesection]调制（Modulation） [/REGION] ||
+| **最低音高（Pitch Min）** | 输入声音的最低音高。|
+| **最高音高（Pitch Max）** | 输入声音的最高音高。|
+| **最低音量（Volume Min）** | 输入声音的最低音量。|
+| **最高音量（Volume Max）** | 输入声音的最高音量。|
 
 
 [REGION:note]
-Enveloper 节点的  **Details（详细信息）** 面板包含了各种用于创建包络线曲线的选项。
+包络线（Enveloper）节点的 **细节（Details）** 面板中包含各种可用于创建包络曲线的选项。
 
 ![](Engine/Audio\SoundCues\NodeReference\SoundCueEditor_Curve.png)
 
-1. **Curve Editor(曲线编辑器)** - 您可以使用曲线编辑器来手动地定义曲线。
-1. **Float Curve picker（浮点型曲线选择器）** - 您可以选择一个现有的Float Curve(浮点曲线)资源来定义曲线。
-1. **Create External Curve button（创建外部曲线按钮）** - 如果您手动地创建您自己的曲线，那么您可以将它保存为 Float Curve(浮点型)曲线资源，以便在其他地方重用。
+1. **曲线编辑器** - 你可以使用曲线编辑器手动定义曲线。
+1. **浮点曲线（Float Curve）选取器** - 你可以选择现有的浮点曲线（Float Curve）资源来定义曲线。
+1. **“创建外部曲线（Create External Curve）”按钮** - 如果你自己手动创建了曲线，可以将它保存为“浮点曲线（Float Curve）”资源，以在其它地方重复使用。
 
-关于曲线编辑器的更多信息，请参照[](Engine/UI/CurveEditor)。
+有关使用曲线编辑器的更多信息，请参阅 [](Engine/UI/CurveEditor)。
 
 [/REGION]
 
-## Group Control(组控制)节点
+(#groupcontrolnode)
+## 组控制（Group Control）节点
 
- **Group Control（组控制）** 节点根据所定义的组中已经播放的音效及其它们到听者的接近程度来决定播放哪个Sound Wave(音效波形)。
+**组控制（Group Control）** 节点根据已定义的组中的哪些声音正在播放以及它们与听者的接近度来确定要播放的声波。 
 
 
-![Group Control Node](SoundCueEditor_GroupControl.png)
+![组控制（Group Control）节点](SoundCueEditor_GroupControl.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]音效节点 -  Group Control（组控制）[/REGION] ||
-| **Group Sizes（组大小）** | 组中的Sound Wave节点的数量减去1 (第一个Sound Wave节点时"0")。|
+| [REGION:tablesection]声音节点组控制（Sound Node Group Control）[/REGION] ||
+| **组大小（Group Sizes）** | 组中声波节点的数量减去1（第一个声波节点是节点“0”）。
 
 [COMMENT:none]
- 从这里获得更多信息 
+ 在此处获取更多信息 
 [/COMMENT]
 
 
-## Looping（循环）节点
+(#loopingnode)
+## 循环（Looping）节点
 
- Looping (循环)节点用于设置Sound Node Wave(音效节点波形)循环播放。当将该节点和Mixer Node（混合器节点）协同使用时可以独立循环多个音频文件。
+**循环（Looping）** 节点用于将声波设置为循环。当与“混音器（Mixer）”节点配合使用时，可以使用它来独立循环多个音频文件。
 
-![Looping Node](SoundCueEditor_LoopingNode.png)
+![循环（Looping）节点](SoundCueEditor_LoopingNode.png)
 
 [REGION:warning]
-Looping(循环)节点应该仅用于逻辑或程序化的循环，比如引入一个延迟。这些音效将不会进行无缝播放。如果您想让一个音效进行无限地无缝循环，那么为该音效应用Wave Player(波形播放器)节点上的 **Looping（循环）** 标志。
+应仅将“循环（Looping）”节点用于逻辑或程序性循环，例如，引入延迟。这些声音将不会无缝播放。如果你希望某个声音无限无缝循环，请使用该声音的“声波播放器（Wave Player）”节点上的“循环（Looping）”标记。
 [/REGION]
 
-## Mature（成年人）节点
+(#maturenode)
+## 成熟期（Mature）节点
 
-**Mature** 使您可以将一个指定节点或Sound Cue标记为由娱乐软件评分委员会评定为“成年人”级别的内容。您可以使用该节点来在您的某些游戏版本中过滤掉评级为仅成年人可用的内容。
+**成熟期（Mature）** 节点使你能够将特定节点或Sound Cue标记为“包含按照娱乐软件分级委员会（ESRB）分级体系会被标记为“成熟期（Mature）”的内容”。你可以使用此节点来将游戏特定版本中的“成熟期（Mature）”级内容过滤掉。
 
-![Mature Node](SoundCueEditor_Mature.png)
+![成熟期（Mature）节点](SoundCueEditor_Mature.png)
 
-## Mixer（混合器）节点
+(#mixernode)
+## 混音器（Mixer）节点
 
-Mixer（混合器）节点用于同时触发多个Sound Node Waves(声效节点波形)。您可以把声效节点直接连接到Mixer节点的输入端上，但是您也可以在它们之间添加节点来基于每个层次独立控制。
+**混音器（Mixer）** 节点用于同时触发多个声波节点。声音节点可以直接连接到“混音器（Mixer）”节点输入，但你也可以在它们之间添加节点，以针对每一层实现独立控制。
 
 
-![Mixer Node](SoundCueEditor_Mixer.png)
+![混音器（Mixer）节点](SoundCueEditor_Mixer.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]音效节点 - Mixer（混合器）[/REGION] ||
-| **Input Volume(输入音量)** | 每个输入音效所使用的音量列表，可以标准化具有不同源音量的音效。|
+| [REGION:tablesection]声音节点混音器（Sound Node Mixer）[/REGION] ||
+| **输入音量（Input Volume）** | 用于每个输入声音的音量列表，允许对具有不同源音量的声音进行规范化。|
 
-## Modulator（调制器）节点
+(#modulatornode)
+## 调制器（Modulator）节点
 
-Modulator(调制器)节点用于添加随机音量和音高调制。每项都有一个最大值和最小值，用于决定随机化范围。当触发该Sound Cue时，它将在那个范围内随机选择一个值。您可以使用Modulator节点将Min和Max设置为同样的值来一致地调整音量和音高。也可以使用这个节点来调整一个Sound Cue中包含的多个Sound Node Wave（声音节点波形）的相对音量。如果将Modulator(调制器)节点和Looping(循环)节点结合使用，那么它将随机地选择一个要触发的声效，而不是循环播放声效。
+**调制器（Modulator）** 节点用于添加随机音量和音高调制。每个都有用以确定随机化范围的最大和最小值。当Sound Cue被触发时，它随机选择一个位于该范围内的数值。你可以使用调制器（Modulator）节点来持续调整音量和音高，方法是将最小和最大值设置为相同的数值。它也可用于调整包含在某个Sound Cue中的多个声波节点的相对音量。如果将调制器（Modulator）节点与循环（Looping）节点配合使用，它将在Sound Cue触发时随机选择，而非根据循环周期选择。
 
-![Modulator Node](SoundCueEditor_Modulator.png)
+![调制器（Modulator）节点](SoundCueEditor_Modulator.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Modulation（调制） [/REGION] ||
-| **Pitch Min（最小音高）** | 设置输入音效的最小音高。|
-| **Pitch Max（最大音高）** | 设置输入音效的最大音高。|
-| **Volume Min（最小音量）** |设置输入音效的最小音量。|
-| **Volume Max（最大音量）** | 设置输入音效的最大音量。|
+| [REGION:tablesection]调制（Modulation）[/REGION] ||
+| **最低音高（Pitch Min）** | 设置输入声音的最低音高。|
+| **最高音高（Pitch Max）** | 设置输入声音的最高音高。|
+| **最低音量（Volume Min）** | 设置输入声音的最低音量。|
+| **最高音量（Volume Max）** | 设置输入声音的最高音量。|
 
 
-## Oscillator（振荡器）节点
+(#oscillatornode)
+## 振荡器（Oscillator）节点
 
- Oscillator (振荡器)节点用于随着时间变化添加连续的音调和音量振荡。这在循环音效上是最有用的，可以创建出更大幅度的、不间断的运动效果。
+**振荡器（Oscillator）** 节点用于随时间推移添加连续音高和音量振荡。它对于循环声音通常很有用，可创建更高级别的持续运动。
 
-![Oscillator Node](SoundCueEditor_Oscillator.png)
+![振荡器（Oscillator）节点](SoundCueEditor_Oscillator.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]振荡器[/REGION] ||
-| **Modulate Volume(调制音量)** | 如果为 _true_, 则启用音量调制。|
-| **Modulate Pitch(调制音高)** | 如果为 _true_, 则启用音高调制。|
-| **AmplitudeMin(最小振幅)_   |正弦波调制的最小振幅，以值1为中心振荡。
-| **AmplitudeMin(最大振幅)_   |正弦波调制的最大振幅，以值1为中心振荡。
-| **Frequency Min（最小频率）** | 正弦波调制的最小频率，该值除以2等于赫兹数。|
-| **Frequency Max（最大频率）** | 正弦波调制的最大频率，该值除以2等于赫兹数。|
-| **Offset Min（最小偏移量）** | 正弦波的最小偏移量值；一般称为相位。这里所提供的任何值都将和2*pi相乘。|
-| **Offset Min（最大偏移量）** | 正弦波的最大偏移量值；一般称为相位。这里所提供的任何值都将和2*pi相乘。|
-| **Center Min（最小中心值）** |围绕器振荡的中心的最小值。|
-| **Center Max（最大中心值）** | 围绕器振荡的中心的最大值。|
+| [REGION:tablesection]振荡器（Oscillator）[/REGION] ||
+| **调制音量（Modulate Volume）** | 如果为 _true_，将启用音量调制。|
+| **调制音高（Modulate Pitch）** | 如果为 _true_，将启用音高调制。|
+| **最小振幅（Amplitude Min）** | 正弦波调制的最小振幅，以值1为中心振荡。|
+| **最大振幅（Amplitude Max）** | 正弦波调制的最大振幅，以值1为中心振荡。|
+| **最小频率（Frequency Min）** | 正弦波调制的最小频率，该值除以2等于赫兹数。|
+| **最大频率（Frequency Max）** | 正弦波调制的最大频率，该值除以2等于赫兹数。|
+| **最小偏移量（Offset Min）** | 正弦波的最小偏移量值；一般称为相位。这里所提供的任何数值都将和 2*Pi 相乘。|
+| **最大偏移量（Offset Max）** | 正弦波的最大偏移量值；一般称为相位。这里所提供的任何数值都将和 2*Pi 相乘。|
+| **最小中心值（Center Min）** | 中心围绕其振荡的最小值。|
+| **最大中心值（Center Max）** | 中心围绕其振荡的最大值。|
 
 [REGION:note]
-**Min（最大）** 和 **Max（最大）** 文本域用于随机化选择。
+“最小（Min）”和“最大（Max）”字段旨在用于提供随机化。 
 [/REGION]
 
 
-## Random（随机）节点
+(#randomnode)
+## 随机（Random）节点
 
- Random(随机)节点用于从一组Sound Node Waves(声音节点波形)中随机地触发一个声效节点。Weight(权重)控制相对于Sound Cue中的其他声音波形节点来说触发某个Sound Wave节点的几率。复选框 **RandomWithoutReplacement** 将确保在再次上进行重复随机选择已选节点前先穷尽整个列表中所有可能的音效节点。通过右击Random（随机）节点并选择Add Input(添加输入端)可以为每个音频文件添加输入端。Sound Wave节点可以直接连接到Random节点上，但是您也可以在它们之间添加节点来获得其他控制。
+**随机（Random）** 节点用于从一组可能的声波节点中随机触发一个声波节点。权重控制相对于Sound Cue中的其它声波节点，某个声波节点被触发的可能性。**RandomWithoutReplacement** 复选框将在重复前彻底考虑可能的所有一系列声音节点。添加针对每个音频文件的输入的方法是，**右键单击** 随机（Random）节点并选择 **添加输入（Add Input）**。声波节点可以直接连接到“随机（Random）”节点，但你也可以在它们之间添加节点，以增强控制力。
 
 
-![Random Node](SoundCueEditor_Random.png)
+![随机（Random）节点](SoundCueEditor_Random.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]音效节点 - Random（随机）[/REGION] ||
-| **Weights（权重）** | 每个输入声效的权重列表，决定了选择特定声效的几率。|
-| **Preselect at Level Load（在关卡加载时预先选择）** | 一个在加载关卡时随机选择的Sound Wave节点，在游戏会话中将总是使用该节点。注意，这个设置在 Play In Editor(在编辑器中运行)或Simulate(模拟)时并不会应用；它应用于虚幻编辑器之外的游戏版本中。|
-| **Randomize Without Replacement（无重复的随机化）** | 如果为 _true_, 则防止在所有输入Sound Wave节点播放完之前再次重复播放该输入Sound Wave(音频波形)。这保证了在重复播放音效之前先播放完所有音效。|
+| [REGION:tablesection]声音节点随机（Sound Node Random）[/REGION] ||
+| **权重（Weights）** | 针对每个输入声音的一系列权重，它们会确定某个特定的声音被选择的可能性。|
+| **在关卡加载时预先选择（Preselect at Level Load）** | 在关卡加载时选择的随机声波节点，将在该游戏会话期间始终被使用。请注意，此设置在“在编辑器中运行（Play in Editor）”或“模拟（Simulate）”期间不应用，它仅在虚幻编辑器之外的游戏构建版本中应用。|
+| **无重复的随机化（Randomize Without Replacement）** | 如果为true，阻止某个输入声波节点播放，直至所有输入声波节点都已被播放。这可以确保在重复播放任何一个声音之前，所有声音都已播放过一遍。|
 
 [COMMENT:none]
- 获得更多信息 
+ 获取更多信息 
 [/COMMENT]
 
-## SoundClass 节点
+(#soundclassnode)
+## 声音类（SoundClass）节点
 
- **SoundClass** 节点允许您重新映射您正在使用的Sound Class资源和Sound Wave输入节点。
+**声音类（SoundClass）** 节点允许你重新映射用于声波输入节点的声音类（Sound Class）资源。
 
-![SoundClass Node](SoundCueEditor_SoundClass.png)
+![声音类（SoundClass）节点](SoundCueEditor_SoundClass.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Sound Class（音效类）[/REGION] ||
-| **Sound Class Override（音效类覆盖）** | 一个Sound Class，它将会覆盖Sound Wave输入节点当前的Sound Class。|
+| [REGION:tablesection]声音类（SoundClass）[/REGION] ||
+| **声音类覆盖（Sound Class Override）** | 将覆盖声波输入节点的当前声音类（Sound Class）的声音类（Sound Class）资源。|
 
 
 [COMMENT:none]
- 获得更多信息 
-[/COMMENT]
-
-
-## Switch (开关)节点
-
- **Switch(开关)** 节点基于一个整型参数的值选择一个输入节点。
-
-![Switch Node](SoundCueEditor_Switch.png)
-
-| 属性 | 描述 |
-| -------- | ----------- |
-| [REGION:tablesection]音效节点 - Switch（开关）[/REGION] ||
-| **Int Parameter Name（整型参数名称）** | 用于决定使用哪个输入的整形参数的名称。|
-
-[COMMENT:none]
- 获得更多信息 
+ 获取更多信息 
 [/COMMENT]
 
 
+(#switchnode)
+## 开关（Switch）节点
 
-## Wave Param（波形参数）节点
+**开关（Switch）** 节点基于整数参数的数值选择输入节点。
 
-**Wave Param(波形参数)** 取入一个运行时参数来决定是否播放一个有别于连入到输入引脚的Sound Wave。如果该指定参数名称设置为一个有效的Sound Wave资源，那么则会播放该Sound Wave，而不会播放 Sound Wave输入节点。
+![开关（Switch）节点](SoundCueEditor_Switch.png)
+
+| 属性 | 说明 |
+| -------- | ----------- |
+| [REGION:tablesection]声音节点开关（Sound Node Switch）[/REGION] ||
+| **整数参数名称（Int Parameter Name）** | 用于确定要使用的输入的整数参数的名称。|
+
+[COMMENT:none]
+ 获取更多信息 
+[/COMMENT]
+
+
+
+(#waveparamnode)
+## 波参数（Wave Param）节点
+
+**波参数（Wave Param）** 节点采用运行时参数来确定是否播放异于送入输入引脚的声波的不同声波。如果指定的参数名称设置为有效声波资源，那么，将播放该声波资源，而非声波输入节点。 
 
 
 
 [REGION:note]
-您可以在代码或蓝图中设置该参数。
+你可以在代码或蓝图中设置该参数。
 [/REGION]
 
-![Wave Param Node](SoundCueEditor_WaveParam.png)
+![波参数（Wave Param）节点](SoundCueEditor_WaveParam.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]音效节点- Wave Param（波形参数）[/REGION] ||
-| **Wave Parameter Name（波形参数名称）** | 用于决定播放哪个Sound Wave的参数。如果该参数不存在或者指向了一个无效的Sound Wave，那么则计算由连接到输入节点的树指定的Sound Wave 来决定播放哪个Sound Wave以代之。|
+| [REGION:tablesection]声音节点波参数（Sound Node Wave Param）[/REGION] ||
+| **波参数名称（Wave Parameter Name）** | 用于确定要播放的声波的参数。如果参数不存在或指向无效的声波，那么将改为对由连接到输入节点的树指定的声波进行求值，以确定要播放的声波。|
 
 [COMMENT:none]
- 获得更多信息 
+ 获取更多信息 
 [/COMMENT]
 
 
 
-## Wave Player（声音波形播放器）节点
+(#waveplayernode)
+## 波播放器（Wave Player）节点
 
-**Wave Player(声音波形播放器)** 节点包含了一个 **内容浏览器** 中的Sound Wave资源。
+**波播放器（Wave Player）** 节点包含来自 **内容浏览器** 的声波资源。
 
 ![](SoundCueEditor_WavePlayer.png)
 
-| 属性 | 描述 |
+| 属性 | 说明 |
 | -------- | ----------- |
-| [REGION:tablesection]Wave Player（音效波形播放器）[/REGION] ||
-| **Sound Wave（声音波形）** | 要在该节点中使用的Sound Wave资源。|
-| [INCLUDE:Engine/Audio/SoundCues/NodeReference/#TableSpacing] **Looping（循环）** | 如果为 _true_ ，则循环播放该Sound Wave。| 
+| [REGION:tablesection]波播放器（Wave Player）[/REGION] ||
+| **声波（Sound Wave）** | 要在此节点中使用的声波资源。|
+| [INCLUDE:Engine/Audio/SoundCues/NodeReference/#TableSpacing] **循环（Looping）** | 如果为true，循环播放该声波。| 
 
 
 [EXCERPT:TableSpacing]
 <*> 
 [/EXCERPT:TableSpacing]
 
+(#examples)
 ## 示例
 
-以下是更复杂的SoundCue示例：
+以下是更加复杂的Sound Cue布局的示例：
 
-![Example 1](SoundCueEditor_Example1.png)(w:900)
+![示例1](SoundCueEditor_Example1.png)(w:900)
 
-该Sound Cue将Sound Wave和各种属性混合到一起，包括衰减、随机化、循环 及延迟。
+此Sound Cue将声波与衰减、随机化、循环和延迟等各种属性进行混合。
 
-![Example 2](SoundCueEditor_Example2.png)(w:900)
+![示例2](SoundCueEditor_Example2.png)(w:900)
 
-该Sound Cue改变了Sound Wave（音效波形）的Sound Class（音效类别）。
+此Sound Cue更改声波的声音类。
 
-![Example 3](SoundCueEditor_Example3.png)(w:900)
+![示例3](SoundCueEditor_Example3.png)(w:900)
 
-如果一个参数设置为 _True_ ，则该Sound Cue播放一个音效，如果它设置为 _False_  则播放另一个音效。
+此Sound Cue在某个参数设置为True时播放一个声音，在某个参数设置为False时播放另一个声音。
+
 

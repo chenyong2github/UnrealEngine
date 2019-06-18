@@ -24,7 +24,6 @@ class SDockableTab;
 class SGraphNodeDetailsWidget;
 class SInspectorView;
 class SWidget;
-class UDataprepRecipe;
 class UWorld;
 class UEdGraphNode;
 
@@ -76,12 +75,6 @@ public:
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 
-	/** @return the documentation location for this editor */
-	virtual FString GetDocumentationLink() const override
-	{
-		return FString(TEXT("Engine/Content/Types/StaticMeshes/Editor"));
-	}
-
 	/** @return Returns the color and opacity to use for the color that appears behind the tab text for this toolkit's tab in world-centric mode. */
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 
@@ -90,29 +83,8 @@ public:
 		return DataprepAssetPtr.IsValid() ? DataprepAssetPtr.Get() : nullptr;
 	}
 
-	const TArray< DataprepEditorClassDescription >& GetProducerDescriptions()
-	{
-		return ProducerDescriptions;
-	}
-
-	const TArray< DataprepEditorClassDescription >& GetConsumerDescriptions()
-	{
-		return ConsumerDescriptions;
-	}
-
 	/** Gets or sets the flag for context sensitivity in the graph action menu */
 	bool& GetIsContextSensitive() { return bIsActionMenuContextSensitive; }
-
-	bool OnChangeConsumer( TSharedPtr<FString>& NewConsumer );
-
-	void OnAddProducer( int32 Index );
-
-	void OnRemoveProducer( int32 Index );
-
-	void OnDataprepAssetChanged( UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
-
-	/** Indicates one or all the producers have changed */
-	void OnProducerChanged( int32 Index = INDEX_NONE );
 
 private:
 	void BindCommands();
@@ -124,8 +96,9 @@ private:
 	void CleanPreviewWorld();
 	void OnExecutePipeline();
 	void OnCommitWorld();
+
 	/** Updates asset preview and scene outliner */
-	void OnWorldChanged();
+	void UpdatePreviewPanels();
 
 	void CreateTabs();
 
@@ -164,8 +137,6 @@ private:
 
 	virtual bool OnRequestClose() override;
 
-	void DeleteRegisteredAsset( UObject* Object );
-
 	/** Returns content folder under which all assets are stored after execution of all producers */
 	FString GetTransientContentFolder();
 
@@ -174,6 +145,9 @@ private:
 
 	/** Recreate preview world from snapshot */
 	void RestoreFromSnapshot();
+
+	/** Handles changes in the Dataprep asset */
+	void OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index );
 
 private:
 	bool bWorldBuilt;
@@ -214,9 +188,6 @@ private:
 
 	/** flag raised to prevent this editor to be closed */
 	bool bIgnoreCloseRequest;
-
-	/** Array of UClasses deriving from UDataprepContentProducer */
-	TArray< DataprepEditorClassDescription > ProducerDescriptions;
 
 	/** Array of UClasses deriving from UDataprepContentConsumer */
 	TArray< DataprepEditorClassDescription > ConsumerDescriptions;

@@ -284,7 +284,7 @@ public:
 	 * Looks up the SpeedTree uniform buffer for the passed in vertex factory.
 	 * @param VertexFactory - The vertex factory registered for SpeedTree.
 	 */
-	virtual FUniformBufferRHIParamRef GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const = 0;
+	virtual FRHIUniformBuffer* GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const = 0;
 
 	/**
 	 * Release this scene and remove it from the rendering thread

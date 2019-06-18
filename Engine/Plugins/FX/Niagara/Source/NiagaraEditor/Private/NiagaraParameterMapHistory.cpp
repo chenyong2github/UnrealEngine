@@ -1375,4 +1375,31 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 	}
 }
 
+bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) const
+{
+	if (Translator)
+	{
+		return Translator->GetLiteralConstantVariable(OutConstant);
+	}
+
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Localspace")))
+	{
+		OutConstant.SetValue(Emitter->bLocalSpace ? FNiagaraBool(true) : FNiagaraBool(false));
+		return true;
+	}
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Determinism")))
+	{
+		OutConstant.SetValue(Emitter->bDeterminism ? FNiagaraBool(true) : FNiagaraBool(false));
+		return true;
+	}
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetSimulationTargetEnum(), TEXT("Emitter.SimulationTarget")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)Emitter->SimTarget;
+		OutConstant.SetValue(EnumValue);
+		return true;
+	}
+	return false;
+}
+
 #undef LOCTEXT_NAMESPACE

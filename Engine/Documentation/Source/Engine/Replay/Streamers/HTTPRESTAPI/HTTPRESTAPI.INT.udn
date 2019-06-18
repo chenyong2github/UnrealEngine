@@ -4,7 +4,6 @@ Crumbs: %ROOT%, Engine, Engine/Replay, Engine/Replay/Streamers
 Description:Overview of the REST API for the HTTP Streamer
 Version: 4.14
 parent:Engine/Replay/Streamers
-topic-image:replay_topic.png
 tags:Replays
 
 [TOC (start:2 end:3)]

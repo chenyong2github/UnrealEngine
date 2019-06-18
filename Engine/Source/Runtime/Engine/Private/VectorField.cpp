@@ -808,8 +808,8 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		const FCompositeAnimatedVectorFieldUniformBufferRef& UniformBuffer,
-		FTextureRHIParamRef AtlasTextureRHI,
-		FTextureRHIParamRef NoiseVolumeTextureRHI )
+		FRHITexture* AtlasTextureRHI,
+		FRHITexture* NoiseVolumeTextureRHI )
 	{
 		FRHIComputeShader* ComputeShaderRHI = GetComputeShader();
 		FRHISamplerState* SamplerStateLinear = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
@@ -988,7 +988,7 @@ public:
 				FCompositeAnimatedVectorFieldUniformBufferRef::CreateUniformBufferImmediate(Parameters, UniformBuffer_SingleDraw);
 
 			TShaderMapRef<FCompositeAnimatedVectorFieldCS> CompositeCS(GetGlobalShaderMap(GetFeatureLevel()));
-			FTextureRHIParamRef NoiseVolumeTextureRHI = GBlackVolumeTexture->TextureRHI;
+			FRHITexture* NoiseVolumeTextureRHI = GBlackVolumeTexture->TextureRHI;
 			if (AnimatedVectorField->NoiseField && AnimatedVectorField->NoiseField->Resource)
 			{
 				NoiseVolumeTextureRHI = AnimatedVectorField->NoiseField->Resource->VolumeTextureRHI;

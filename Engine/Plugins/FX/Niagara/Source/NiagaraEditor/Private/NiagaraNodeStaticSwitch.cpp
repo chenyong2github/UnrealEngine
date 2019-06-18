@@ -50,6 +50,31 @@ void UNiagaraNodeStaticSwitch::SetSwitchValue(int Value)
 	SwitchValue = Value;
 }
 
+void UNiagaraNodeStaticSwitch::SetSwitchValue(const FCompileConstantResolver& ConstantResolver)
+{
+	if (!IsSetByCompiler())
+	{
+		return;
+	}
+	IsValueSet = false;
+
+	const FNiagaraVariable* Found = FNiagaraConstants::FindStaticSwitchConstant(SwitchTypeData.SwitchConstant);
+	FNiagaraVariable Constant = Found ? *Found : FNiagaraVariable();
+	if (Found && ConstantResolver.ResolveConstant(Constant))
+	{
+		if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
+		{
+			SwitchValue = Constant.GetValue<bool>();
+			IsValueSet = true;
+		}
+		else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer || SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum)
+		{
+			SwitchValue = Constant.GetValue<int32>();
+			IsValueSet = true;
+		}
+	}
+}
+
 void UNiagaraNodeStaticSwitch::ClearSwitchValue()
 {
 	IsValueSet = false;
@@ -266,6 +291,20 @@ bool UNiagaraNodeStaticSwitch::GetVarIndex(FHlslNiagaraTranslator* Translator, i
 		int32 MaxValue = SwitchTypeData.Enum->NumEnums() - 1;
 		if (MaxValue > 0)
 		{
+			// do a sanity check here if the number of pins actually matches the enum count (which might have changed in the meantime without us noticing)
+			TArray<UEdGraphPin*> LocalOutputPins;
+			GetOutputPins(LocalOutputPins);
+			int32 OutputPinCount = LocalOutputPins.Num() - 1;
+			int32 ReservedValues = (InputPinCount / OutputPinCount);
+			if (OutputPinCount > 0 && (MaxValue > ReservedValues || MaxValue < ReservedValues))
+			{
+				MaxValue = ReservedValues;
+				if (Translator)
+				{
+					Translator->Error(FText::Format(LOCTEXT("InvalidSwitchEnumDefinition", "The number of pins on the static switch does not match the number of values defined in the enum."), FText::FromString(FString::FromInt(SwitchValue))), this, nullptr);
+				}
+			}
+			
 			if (Value <= MaxValue && Value >= 0)
 			{
 				VarIndexOut = Value * (InputPinCount / MaxValue);

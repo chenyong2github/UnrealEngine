@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:2750697
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:Orientation 模块
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
 Description:这些模块控制粒子的方向，阻止旋转在特定的轴上发生。
 Version:4.9
+tags:Particles
 
 
 这些模块控制粒子的方向，阻止旋转在特定的轴上发生。

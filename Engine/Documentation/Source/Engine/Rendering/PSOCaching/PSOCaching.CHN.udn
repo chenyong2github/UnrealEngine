@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4678589
+﻿INTSourceChangelist:6537224
 Availability: Public
 Crumbs: 
 Title: PSO缓存
@@ -9,13 +9,11 @@ Parent: Engine/Rendering
 Order: 
 Tags: Rendering
 Tags: Graphics
+hero-image:PSO_Caching_Header.png
+topic-image: PSO_Topic_Image.png
 
-
-![](PSO_Caching_Header.png "PSO_Caching_Header.png")
 
 **管线状态对象**（PSO）缓存工具可用于减轻虚幻引擎4关卡加载内容块时出现的卡顿。以下页面包含在UE4项目中编译和使用PSO数据的大量相关信息。
-
-(#psocachingoverview)
 
 ## PSO缓存总览
 
@@ -28,8 +26,6 @@ PSO缓存的原理是首先创建UE4项目中使用的[材质](Engine/Rendering/
 点击查看全图。
 [/REGION]
 
-(#guides)
-
 ## 指南
 
 %Engine/Rendering/PSOCaching/GatheringPSOData:topic%
@@ -37,8 +33,6 @@ PSO缓存的原理是首先创建UE4项目中使用的[材质](Engine/Rendering/
 %Engine/Rendering/PSOCaching/CompilingUsingPSOCachingData:topic%
 %Engine/Rendering/PSOCaching/BuildingPSOCache:topic%
 %Engine/Rendering/PSOCaching/BuildingUE4ProjectWithPSOCaching:topic%
-
-(#reference)
 
 ## 参考
 

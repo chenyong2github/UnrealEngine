@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3452211
+﻿INTSourceChangelist:6428568
 Availability: NoPublish
 Title: Windows指南
 Crumbs: %ROOT%
@@ -17,9 +17,9 @@ Order:
 
 	如果您倾向于不使用Git，可以通过右侧的“下载ZIP”（Download ZIP）按钮获取源代码。内置Windows zip工具会将从网上下载的zip文件内容标记为不安全而不宜执行，因此右键单击zip文件，并选择“属性...”和“解锁”，然后再进行解压。第三方zip工具通常不需要进行这个操作。
 
-1. 	安装 **Visual Studio 2015**。 
+1. 	安装 **Visual Studio 2017**。 
    
-	所有桌面版Visual Studio 2015都可以构建UE4，包括[Visual Studio Community 2015](http://www.visualstudio.com/products/visual-studio-community-vs)，这是面向小型团队和个人开发者免费提供的工具。
+	所有桌面版Visual Studio 2017都可以构建UE4，包括[Visual Studio Community 2017](http://www.visualstudio.com/products/visual-studio-community-vs)，这是面向小型团队和个人开发者免费提供的工具。
 	请确保作为安装的一部分包含C++支持，这在默认情况下是禁用的。
   
 1.	在资源管理器中打开您的源代码文件夹，并运行 **Setup.bat**。 

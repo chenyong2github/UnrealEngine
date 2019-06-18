@@ -1,0 +1,108 @@
+﻿INTSourceChangelist:5287135
+Availability: Public
+Crumbs: 
+Title: マルチユーザー ビューア入門
+Description: マルチユーザー ビューア テンプレートを利用開始するための手順を詳しく解説したガイド
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 
+Tags: Getting Started
+Tags: multi-user viewer
+topic-image:Studio/UnrealStudioProjectTemplates/MultiUserViewer/multiuserviewer-getstarted-topic.png
+
+このページでは、マルチユーザー ビューア テンプレートをローカル ネットワーク上で利用開始する方法について詳しく手順を追って説明しています。コンテンツはマルチユーザー ビューア テンプレートに同梱されているものを使います。
+
+*   [1 - パッケージングと配布](#1-パッケージングと配布)
+*   [2 - 一人がサーバーを起動する](#2-一人がサーバーを起動する)
+*   [3 - 他の人たちが参加する](#3-他の人たちが参加する)
+
+## 1 - パッケージングと配布
+
+同じマルチユーザー ビューアのセッションに参加しなければならない人たちは、パッケージングされている  *.exe* ファイルからアプリケーションを実行する必要があります。そのためチームのうち一人が Unreal Editor を使ってプロジェクトをパッケージングし、そのパッケージングされたビルドを他の人たち配布する必要があります。
+
+1.  マルチユーザー ビューア テンプレートから新規プロジェクトを作成して (プロジェクトがまだ用意できていない場合)、Unreal Editor でそのプロジェクトを開いてください。
+2.  メインメニューから **File (ファイル) > Package Project (プロジェクトをパッケージ化) > Windows > Windows (64-bit)** を選択してください。
+    [REGION:lightbox]
+    [![Package for Windows 64-bit](multiuserviewer-package-win64.png "Package for Windows 64-bit")](multiuserviewer-package-win64.png) *クリックするとフルサイズで表示されます。*
+    [/REGION]
+3.  パッケージングされたバージョンのプロジェクトを Unreal Editor に配置させるための、コンピュータ上のフォルダを参照して、 **Select Folder** (フォルダの選択) をクリックしてください。 
+    ![Select a folder](multiuserviewer-package-select-folder.png "Select a folder")
+
+	Unreal Editor がパッケージングのプロセスを開始します。
+
+    ![Packaging progress](multiuserviewer-packagestatus.png "Packaging progress")
+4.  パッケージングのプロセスが完了したら、上記 3 のステップで選択したフォルダを開いてください。 **WindowsNoEditor** というフォルダができているはずです。その中身は下の画像のようになっているはずです。  
+    ![Package contents](multiuserviewer-package-contents.png "Package contents")  
+    同じマルチユーザー ビューアのセッションに参加する必要のある人たちは、各自のコンピュータ上にこのフォルダがあり、その中に上記のファイルがすべて入っていなければなりません。この条件を組織のためにどう満たすべきかは、ユーザーのみなさんが検討すべき事項です。
+    たとえば、このフォルダでこれらファイルを圧縮して、ローカル ネットワーク上にある共有のための場所に置くことによって、各ユーザーが自分のコンピュータにそれらをコピーした後に解凍してもらうようにすることも考えられます。
+
+[REGION:tip]
+パッケージングおよびパッケージング プロセスの設定方法に関する詳細な情報は、 [プロジェクトのパッケージング](Engine/Basics/Projects/Packaging) にも記載されています。
+[/REGION]
+[REGION:note]
+プロジェクトのコンテンツを変更した場合は、その都度、上記のパッケージングと配布の手順に **必ず** 従う必要があります。レベル内の 3D モデルは、ネットワークでつながったユーザー間で自動的にレプリケートされることはありません。それら 3D モデルは、パッケージングされたアプリケーションに組み入れられるものです。セッションに参加している人全員が最新のコンテンツを見ることができるようにするためには、全員が同一バージョンのパッケージングされたアプリケーションを使用している必要があります。
+[/REGION]
+
+
+
+## 2 - 一人がサーバーを起動する
+
+このステップでは、サーバーを起動します。この場合のサーバーとは、他のユーザーが接続できるマルチユーザー ビューア アプリケーションの特別なインスタンスのことになります。
+
+1.  パッケージングされたアプリケーションの  *.exe* ファイルをダブルクリックしてください。
+    下の例では、プロジェクト名が **MultiUserProject** なので、パッケージングされたアプリケーションは *MultiUserProject.exe* となっています。  
+    ![Packaged executable](multiuserviewer-exe.png "Packaged executable")
+2. ようこそ画面であなた自身の表示名 (DISPLAY NAME) を設定してください。この名前は、あなたのアバターの頭上に表示されるものです。同じセッションに加わっている他のユーザーは、この表示名によってあなたを認識できます。  
+    ![Set a display name](multiuserviewer-displayname.png "Set a display name")矢印をクリックして次のステップに進んでください。
+3.  サポートされている VR システムがコンピュータにセットアップされている場合は、起動のモードを Desktop モードと VR モードから選択できます。 (VR システムがインストールされていない場合はこの項目が表示されません。このステップを飛ばして、次のステップに進んでください。)  
+    ![Choose desktop or VR mode](multiuserviewer-server-desktopvr.png "Choose desktop or VR mode")  
+    モードを選択してから矢印をクリックし、次のステップに進んでください。
+4.  次の設定項目は、デフォルト値の **Host a session** (セッションをホストする) のままにしておきます。 
+    ![Host a session](multiuserviewer-server-host.png "Host a session")  
+    矢印をクリックしてサーバーのセットアップを完了してください。
+
+以上により、メインのレベルが開かれます。あなたのコンピュータは、ネットワーク上の他のコンピュータからはサーバーとして見えるようになります。他の人がこのセッションに参加すると、その人のアバターが表示されるようになります。 [デスクトップでの制御](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#デスクトップでの制御) または [VR での制御](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#VRでの制御) を使ってシーン内を動き回り、インタラクトできます。
+
+![Server session opened](multiuserviewer-server-joined.png "Server session opened")
+
+
+
+## 3 - 他の人たちが参加する
+
+このステップでは、同じセッションに参加する必要がある他ユーザーがそれぞれ、パッケージングされたアプリケーションの別のインスタンスを異なるコンピュータ上で実行し、全員が同じサーバーに接続します。
+
+このセッションに参加する人は、各自で以下の説明のとおりにする必要があります。
+
+1.  パッケージングされたアプリケーションの *.exe* ファイルをダブルクリックしてください。下の例では、プロジェクト名が **MultiUserProject** なので、パッケージングされたアプリケーションは *MultiUserProject.exe* となっています。 
+    ![Packaged executable](multiuserviewer-exe.png "Packaged executable")
+2.  ようこそ画面であなた自身の表示名 (DISPLAY NAME) を設定してください。この名前は、あなたのアバターの頭上に表示されるものです。同じセッションに加わっている他のユーザーは、この表示名によってあなたを認識できます。
+    ![Set a display name](multiuserviewer-displayname.png "Set a display name")  
+    矢印をクリックして次のステップに進んでください。
+3.  サポートされている VR システムがコンピュータにセットアップされている場合は、起動のモードを Desktop モードと VR モードから選択できます。 (VR システムがインストールされていない場合はこの項目が表示されません。このステップを飛ばして、次のステップに進んでください。) 
+    ![Choose desktop or VR mode](multiuserviewer-client-desktopvr.png "Choose desktop or VR mode")  
+    モードを選択してから矢印をクリックし、次のステップに進んでください。
+4.  次の設定値を **Join a session** (セッションに参加) に変更してください。
+    ![Choose Join a session](multiuserviewer-client-join.png "Choose Join a session")矢印をクリックして次のステップに進んでください。
+5.  アプリケーションによってネットワークがスキャンされて、利用可能なサーバーがすべてリスト表示されます。
+    ![Select a server to join](multiuserviewer-client-serverlist.png "Select a server to join")  
+    *   利用したいサーバーがリストに見つかったら、その名前をクリックしてセッションに参加してください。 
+        ![Click the server name](multiuserviewer-client-servername-1.png "Click the server name")
+    *   利用したいサーバーがリストに見つからなかった場合は、 **Refresh** (更新) ボタンをクリックすることによって、ネットワークを再度スキャンしてサーバーを見つけてください。  
+        ![Refresh the list of servers](multiuserviewer-client-refresh.png "Refresh the list of servers")
+    *   アプリケーションがサーバーを検出できないものの、サーバーの IP アドレスが分かっている場合は、 **Manually specify an IP Address** (IP アドレスを手動で指定する) のスイッチを有効にしてください。 
+        ![Switch to manual IP mode](multiuserviewer-client-manualip.png "Switch to manual IP mode")  
+        所定の欄に IP アドレスを入力して、 **Join** (参加) をクリックしてください。 
+        ![Enter server IP Address and join](multiuserviewer-client-manualipjoin.png "Enter server IP Address and join")
+
+以上により、メインのレベルが開かれます。サーバーを起動している人のアバターおよびセッションに参加している各ユーザーのアバターが表示されているはずです。
+
+[デスクトップでの制御](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#デスクトップでの制御) または [VRでの制御](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling#VRでの制御) を使ってシーン内を動き回り、インタラクトできます。
+
+![](multiuserviewer-client-joined.png "multiuserviewer-client-joined.png")
+
+
+
+## 4 - 独自のコンテンツを使う
+
+マルチユーザー テンプレートの利用方法が分かれば、同じランタイム エクスペリエンスを使って独自のコンテンツをレビューする準備が整ったことになります。引き続いて [マルチユーザー ビューア テンプレートで独自のコンテンツを使う](https://docs.unrealengine.com/en-us/Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent) の説明を参照してください。

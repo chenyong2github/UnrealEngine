@@ -611,7 +611,7 @@ public:
 		check(BatchUserData);
 
 		const auto* LocalVertexFactory = static_cast<const FGPUSkinPassthroughVertexFactory*>(VertexFactory);
-		FUniformBufferRHIParamRef VertexFactoryUniformBuffer = nullptr;
+		FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
 		VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
 
 		// #dxr_todo do we need this call to the base?

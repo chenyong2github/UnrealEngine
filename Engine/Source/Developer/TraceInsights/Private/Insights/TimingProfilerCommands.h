@@ -49,6 +49,25 @@ public:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FTimingViewCommands : public TCommands<FTimingViewCommands>
+{
+public:
+	/** Default constructor. */
+	FTimingViewCommands();
+
+	/** Initialize commands. */
+	virtual void RegisterCommands() override;
+
+public:
+	/** Toggles visibility for GPU thread track. */
+	TSharedPtr<FUICommandInfo> ShowAllGpuTracks;
+
+	/** Toggles visibility for all CPU thread tracks at once. */
+	TSharedPtr<FUICommandInfo> ShowAllCpuTracks;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * Menu builder. Helper class for adding a customized menu entry using the global UI command info.
  */

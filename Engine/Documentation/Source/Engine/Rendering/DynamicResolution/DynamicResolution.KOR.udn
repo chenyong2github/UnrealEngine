@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4684265
+﻿INTSourceChangelist:6537224
 Availability: Public
 Crumbs: 
 Title: 동적 해상도
@@ -8,6 +8,7 @@ Version: 4.19
 Parent: 
 Order: 
 Tags: Rendering, Graphics
+topic-image:DynamicRes_Topic.png
 
 ![](DynamicRes_FN1.png "DynamicRes_FN1.png")
 

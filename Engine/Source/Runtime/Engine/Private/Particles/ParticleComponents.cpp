@@ -3719,7 +3719,7 @@ void UParticleSystemComponent::Serialize( FArchive& Ar )
 
 void UParticleSystemComponent::BeginDestroy()
 {
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, true, true);
 	Super::BeginDestroy();
 
 	if (PoolingMethod == EPSCPoolMethod::AutoRelease || PoolingMethod == EPSCPoolMethod::ManualRelease)
@@ -3738,7 +3738,7 @@ void UParticleSystemComponent::BeginDestroy()
 
 void UParticleSystemComponent::FinishDestroy()
 {
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, true, true);
 	for (int32 EmitterIndex = 0; EmitterIndex < EmitterInstances.Num(); EmitterIndex++)
 	{
 		FParticleEmitterInstance* EmitInst = EmitterInstances[EmitterIndex];
@@ -3822,18 +3822,22 @@ void UParticleSystemComponent::OnRegister()
 				AutoAttachSocketName = GetAttachSocketName();
 			}
 
-			// Prevent attachment before Super::OnRegister() tries to attach us, since we only attach when activated.
-			if (GetAttachParent()->GetAttachChildren().Contains(this))
+			// If in a game world, detach now if necessary. Activation will cause auto-attachment.
+			if (World->IsGameWorld())
 			{
-				// Only detach if we are not about to auto attach to the same target, that would be wasteful.
-				if (!bAutoActivate || (AutoAttachLocationRule != EAttachmentRule::KeepRelative && AutoAttachRotationRule != EAttachmentRule::KeepRelative && AutoAttachScaleRule != EAttachmentRule::KeepRelative) || (AutoAttachSocketName != GetAttachSocketName()) || (AutoAttachParent != GetAttachParent()))
+				// Prevent attachment before Super::OnRegister() tries to attach us, since we only attach when activated.
+				if (GetAttachParent()->GetAttachChildren().Contains(this))
 				{
-					DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bCallModify=*/ false));
+					// Only detach if we are not about to auto attach to the same target, that would be wasteful.
+					if (!bAutoActivate || (AutoAttachLocationRule != EAttachmentRule::KeepRelative && AutoAttachRotationRule != EAttachmentRule::KeepRelative && AutoAttachScaleRule != EAttachmentRule::KeepRelative) || (AutoAttachSocketName != GetAttachSocketName()) || (AutoAttachParent != GetAttachParent()))
+					{
+						DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bCallModify=*/ false));
+					}
 				}
-			}
-			else
-			{
-				SetupAttachment(nullptr, NAME_None);
+				else
+				{
+					SetupAttachment(nullptr, NAME_None);
+				}
 			}
 		}
 
@@ -3892,7 +3896,7 @@ void UParticleSystemComponent::CreateRenderState_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_CreateRenderState_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	check( GetWorld() );
 	UE_LOG(LogParticles,Verbose,
 		TEXT("CreateRenderState_Concurrent @ %fs %s"), GetWorld()->TimeSeconds,
@@ -3927,7 +3931,7 @@ void UParticleSystemComponent::SendRenderTransform_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_SendRenderTransform_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	if (bIsActive)
 	{
 		if (bSkipUpdateDynamicDataDuringTick == false)
@@ -3945,7 +3949,7 @@ void UParticleSystemComponent::SendRenderDynamicData_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_SendRenderDynamicData_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	Super::SendRenderDynamicData_Concurrent();
 
 	check(!bAsyncDataCopyIsValid);
@@ -3980,7 +3984,8 @@ void UParticleSystemComponent::DestroyRenderState_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_DestroyRenderState_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 
-	ForceAsyncWorkCompletion(ENSURE_AND_STALL);
+	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
+
 	check( GetWorld() );
 	UE_LOG(LogParticles,Verbose,
 		TEXT("DestroyRenderState_Concurrent @ %fs %s"), GetWorld()->TimeSeconds,
@@ -4615,7 +4620,13 @@ FBoxSphereBounds UParticleSystemComponent::CalcBounds(const FTransform& LocalToW
 	FBox BoundingBox;
 	BoundingBox.Init();
 
-	if (FXConsoleVariables::bAllowCulling == false)
+	const USceneComponent* UseAutoParent = (bAutoManageAttachment && GetAttachParent() == nullptr) ? AutoAttachParent.Get() : nullptr;
+	if (UseAutoParent)
+	{
+		// We use auto attachment but have detached, don't use our own bogus bounds (we're off near 0,0,0), use the usual parent's bounds.
+		return UseAutoParent->Bounds;
+	}
+	else if (FXConsoleVariables::bAllowCulling == false)
 	{
 		BoundingBox.Min = FVector(-HALF_WORLD_MAX);
 		BoundingBox.Max = FVector(+HALF_WORLD_MAX);
@@ -5898,7 +5909,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 		// Auto attach if requested
 		const bool bWasAutoAttached = bDidAutoAttach;
 		bDidAutoAttach = false;
-		if (bAutoManageAttachment)
+		if (bAutoManageAttachment && bIsGameWorld)
 		{
 			USceneComponent* NewParent = AutoAttachParent.Get();
 			if (NewParent)
@@ -5907,7 +5918,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 				if (!bAlreadyAttached)
 				{
 					bDidAutoAttach = bWasAutoAttached;
-					CancelAutoAttachment(true);
+					CancelAutoAttachment(true, World);
 					SavedAutoAttachRelativeLocation = RelativeLocation;
 					SavedAutoAttachRelativeRotation = RelativeRotation;
 					SavedAutoAttachRelativeScale3D = RelativeScale3D;
@@ -5919,7 +5930,7 @@ void UParticleSystemComponent::ActivateSystem(bool bFlagAsJustAttached)
 			}
 			else
 			{
-				CancelAutoAttachment(true);
+				CancelAutoAttachment(true, World);
 			}
 		}
 
@@ -6088,7 +6099,7 @@ void UParticleSystemComponent::Complete()
 	}
 	else if (bAutoManageAttachment)
 	{
-		CancelAutoAttachment(/*bDetachFromParent=*/ true);
+		CancelAutoAttachment(/*bDetachFromParent=*/ true, World);
 	}
 }
 
@@ -6162,9 +6173,9 @@ void UParticleSystemComponent::DeactivateSystem()
 	SetLastRenderTime(World->GetTimeSeconds());
 }
 
-void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent)
+void UParticleSystemComponent::CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld)
 {
-	if (bAutoManageAttachment)
+	if (bAutoManageAttachment && MyWorld && MyWorld->IsGameWorld())
 	{
 		if (bDidAutoAttach)
 		{

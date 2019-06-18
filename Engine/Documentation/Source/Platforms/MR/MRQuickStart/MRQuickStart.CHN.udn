@@ -62,7 +62,7 @@ reference-image:Platforms/MR/MROverview/MR_RoboRecall.gif
 ## 4.启用混合现实捕捉框架插件
 
 将混合现实捕捉（MRC）框架集成到项目中的过程非常简单，只需启用混合现实捕捉框架插件即可。在已启用MRC插件并且已将校准设置文件复制到正确的位置后，游戏应会在MRC模式下启动，并且会在旁观者窗口中显示合成的场景。  
-默认情况下，MRC播放使用[VR观众画面](Platforms/VR/VRSpectatorScreen)来显示合成的场景。如果游戏不处在VR模式下，那么就不会显示混合现实捕捉。MRC插件在进行捕捉，只是不会显示。
+默认情况下，MRC播放使用[VR观众画面](Platforms/VR/DevelopVR/VRSpectatorScreen)来显示合成的场景。如果游戏不处在VR模式下，那么就不会显示混合现实捕捉。MRC插件在进行捕捉，只是不会显示。
 [REGION:tip]
 只要启用了MRC插件，混合现实捕捉在编辑器（VR PIE）和打包的游戏中都受支持。
 [/REGION]

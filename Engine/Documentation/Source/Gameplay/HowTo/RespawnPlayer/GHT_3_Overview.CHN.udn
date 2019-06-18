@@ -11,7 +11,6 @@ order:2
 
 在大部分游戏中，玩家人物有时会被杀死，而您想使其在世界中重生。此“操作指南”将向您介绍如何为单人游戏设置简单的重生系统。 
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/RespawnPlayer" org:"hierarchy" end:"1")]

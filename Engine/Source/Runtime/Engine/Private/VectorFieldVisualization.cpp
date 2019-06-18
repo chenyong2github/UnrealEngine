@@ -131,7 +131,7 @@ void FVectorFieldVisualizationVertexFactory::InitRHI()
 void FVectorFieldVisualizationVertexFactory::ReleaseRHI()
 {
 	UniformBuffer.SafeRelease();
-	VectorFieldTextureRHI = FTexture3DRHIParamRef();
+	VectorFieldTextureRHI = nullptr;
 	FVertexFactory::ReleaseRHI();
 }
 
@@ -165,7 +165,7 @@ FVertexFactoryShaderParameters* FVectorFieldVisualizationVertexFactory::Construc
  */
 void FVectorFieldVisualizationVertexFactory::SetParameters(
 	const FVectorFieldVisualizationParameters& InUniformParameters,
-	FTexture3DRHIParamRef InVectorFieldTextureRHI )
+	FRHITexture3D* InVectorFieldTextureRHI )
 {
 	UniformBuffer = FVectorFieldVisualizationBufferRef::CreateUniformBufferImmediate(InUniformParameters, UniformBuffer_SingleFrame);
 	VectorFieldTextureRHI = InVectorFieldTextureRHI;

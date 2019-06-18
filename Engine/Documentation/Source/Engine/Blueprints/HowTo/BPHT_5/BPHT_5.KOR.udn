@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:6480801
 Availability: Public
 Title:5. 바위 파괴하기
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
 Description:이번 섹션에서는 Bind Event 를 사용하여 OnHit 에 바인딩, 바위가 총에 맞으면 파괴되도록 하겠습니다.
 version: 4.9
+order:5
 tags:Blueprints
 
 
@@ -15,7 +16,7 @@ tags:Blueprints
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[비법 홈](Engine\Blueprints\HowTo "%Engine\Blueprints\HowTo:Title%")
+		[하우투 홈](Engine\Blueprints\HowTo "%Engine\Blueprints\HowTo:Title%")
 	[/PARAM]
 	[PARAM:next]
 	[다음 단계](Engine\Blueprints\HowTo\BPHT_6 "%Engine\Blueprints\HowTo\BPHT_6:title%") 
@@ -25,7 +26,7 @@ tags:Blueprints
 
 
 
-이번 단계에서는, 플레이어가 발사하는 발사체에 바위가 맞으면 파괴될 수 있도록 만들겠습니다. 그러기 위해 또다른 **Bind Event** 를 사용하되, 이벤트 디스패처에는 바인딩하지 않도록 하겠습니다. 대신 바위의 콜리전이 무언가에 맞으면 발동되는, 상황에 완벽히 들어맞는 **OnHit** 라는 콜리전 이벤트를 사용하겠습니다.
+이번 단계에서는, 플레이어가 발사하는 발사체에 바위가 맞으면 파괴될 수 있도록 만들겠습니다. 그러기 위해 또다른 **Bind Event** 를 사용하지만, 이벤트 디스패처에는 바인딩하지 않도록 하겠습니다. 대신 바위의 콜리전이 무언가에 맞으면 발동되는, 상황에 완벽히 들어맞는 **OnHit** 라는 콜리전 이벤트를 사용하겠습니다.
 
 그러면 폭파시켜 봅시다!
 

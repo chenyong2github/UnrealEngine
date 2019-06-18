@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4678085
 Availability: Public
 Crumbs: 
-Title: Getting Started with Pixel Streaming
-Description: Get up and running streaming an Unreal Engine application from one computer to other computers and mobile devices on the same network. 
+Title: Pixel Streaming 入門
+Description: コンピュータから同じネットワークにある他のコンピュータやモバイル デバイスに、Unreal Engine アプリケーションのストリーミングを設定して実行します。
 Type: 
 Version: 4.21
 Parent: Platforms/PixelStreaming
@@ -12,161 +12,161 @@ Tags: Getting Started
 Tags: Early Access
 Tags: Pixel Streaming
 
-Follow the steps below to stream the rendered output from your Unreal Engine Project over your local network to browsers and mobile devices.
+以下のステップに従って、Unreal Engine プロジェクトからローカル ネットワークを通じて、ブラウザとモバイル デバイスにレンダリング出力をストリームします。
 
-![Getting Started with Pixel Streaming](pixelstreaming-gs-banner.png "Getting Started with Pixel Streaming")
-
-[REGION:note]
-The images for the steps on this page illustrate the procedure using a Project built from the **Third-Person Blueprint** template. However, the same steps should work for any Unreal Engine Project.
-[/REGION]
-
-## Prerequisites
-
-*   **Check your OS and hardware -** The Pixel Streaming Plugin can only encode video on computers running Windows operating systems, with certain specific types of GPU hardware. For details, see the [Pixel Streaming Reference](Platforms/PixelStreaming/PixelStreamingReference).
-*   **Install node.js -** If you don't already have **node.js** installed on your computer, you'll need to [download and install it](https://nodejs.org/en/download/).
-*   **Open network ports -** Make sure you have the following network ports open for communication on your local network: 80, 8124, 8888. If you need to change these defaults, see the [Pixel Streaming Reference](Platforms/PixelStreaming/PixelStreamingReference).
-*   **Stop other web servers -** If your computer is running any other Web servers, stop them for now.
-*   **IP addresses -** You'll need to know the IP address of your computer.  
-    It's a good idea to get started with Pixel Streaming within a LAN or VPN, which means that you'll need the *internal* IP address of your computer. You can get this by running the `ipconfig` command from a command prompt or console window, and finding the line that starts with `IPv4 Address`.  
-    If you're trying to connect from a computer or mobile device on a different network, you'll need your external IP address. To find this, you can try visiting [this helpful external page](http://net.ipcalf.com/).
-
-## 1 - Prepare Your Unreal Engine Application
-
-In this step, you'll create a standalone executable file for your Project.
+![Pixel Streaming 入門](pixelstreaming-gs-banner.png "Pixel Streaming 入門")
 
 [REGION:note]
-*   The Pixel Streaming Plugin only works when you run your Project as a packaged application, or when you launch it from the Unreal Editor using the **Standalone Game** option.
-*   In order for the Pixel Streaming Plugin to extract and stream audio from your application, you need to start the Unreal Engine with a special command-line flag: `-AudioMixer`. The procedure below shows how to set this up for both scenarios.
+このぺージのステップで使用される画像は、**Third-Person ブループリント** テンプレートから構築されたプロジェクトを使用する手順を示しています。ただし、どの Unreal Engine プロジェクトでも同じステップを使用できます。
 [/REGION]
 
-1.  Open your Project in the Unreal Editor.
-2.  From the main menu in the Unreal Editor, select **Edit > Plugins**.
-3.  Under the **Graphics** category, find the **Pixel Streaming** Plugin and check its **Enabled** box.  
-    ![Enable the Pixel Streaming plugin](pixelstreaming-gs-prepare-enable.png "Enable the Pixel Streaming plugin")
-4.  Click **Yes** to confirm.  
-    ![Confirm the install](pixelstreaming-gs-prepare-confirm.png "Confirm the install")
-5.  Click **Restart Now** to restart your Project and apply the change.  
-    ![Restart now](pixelstreaming-gs-prepare-restart.png "Restart now")
-6.  Back in the Unreal Editor, choose **Edit > Project Settings** from the main menu. 
-7.  If your Project involves a character, and you want to enable input from touch devices such as phones and tablets to move that character around the Level, you may want to show the on-screen touch controllers.  
-    Under the **Engine > Input category**, find and enable the **Always Show Touch Interface** setting.  
-    ![Always Show Touch Interface](pixelstreaming-gs-prepare-showtouch.png "Always Show Touch Interface")
-    This is optional, and not required for all Projects. However, for Projects like the Third-Person Template, this makes sure that users with touch devices can control the streamed application (as long as the Project's Player Controller supports touch input).
-8.  From the main menu, choose **Edit > Editor Preferences...**
-9.  Under the **Level Editor > Play** category, find the **Additional Launch Parameters** setting, and set its value to `-AudioMixer`.  
-    ![Additional Launch Parameters](pixelstreaming-gs-prepare-audiomixer.png "Additional Launch Parameters")
-10.  Package your Project for Windows. From the main menu in the Unreal Editor, choose **Files > Package Project > Windows > Windows (64-bit)**.  
-    ![Package for Windows 64-bit](pixelstreaming-gs-prepare-package.png "Package for Windows 64-bit")
-11.  Browse to the folder on your computer where you want the Unreal Editor to place the packaged version of your Project, and click **Select Folder**.  
-    ![Select a folder](pixelstreaming-gs-prepare-selectfolder.png "Select a folder")
-12.  The Unreal Editor begins the packaging process.  
-    ![Packaging progress indicator](multiuserviewer-packagestatus.png "Packaging progress indicator")
-13.  When the packaging process is finished, go to the folder that you selected in step 6 above. You'll find a folder called `WindowsNoEditor` with contents similar to the following:  
-    ![Packaged output](pixelstreaming-gs-package.png "Packaged output")
-14.  Every time you start your packaged application, you need to pass it the `-AudioMixer` command-line flag. One way to do this is to set up a shortcut:
-    1.  Press **Alt** and drag your *.exe* file to create a new shortcut in the same folder (or anywhere else you like on your computer).  
-        ![Create a shortcut](pixelstreaming-gs-prepare-shortcut.png "Create a shortcut")         
-    2.  Right-click the shortcut and choose **Properties** from the contextual menu.  
-        ![Shortcut properties](pixelstreaming-gs-prepare-shortcutprops.png "Shortcut properties")
-    3.  On the **Shortcut** tab of the **Shortcut Properties** window, append the text `-AudioMixer` at the end of the **Target** field, and click **OK**.  
+## 前提条件
+
+* **OS とハードウェアを確認する -** Pixel Streaming プラグインが動画をエンコードできるのは、Windows オペレーティング システムが動作する、特定のタイプの GPU ハードウェアが搭載されたコンピュータだけです。詳細については、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference)」を参照してください。
+* **node.js をインストールする -** 使用するコンピュータに **node.js** がインストールされていない場合、[ダウンロードしてインストールする](https://nodejs.org/en/download/)必要があります。
+* **ネットワーク ポートを開く -** ローカル ネットワークで次のネットワーク ポートが通信用にオープンになっていることを確認します。80, 8124, 8888.これらのデフォルト値を変更する必要がある場合は、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference)」を参照してください。
+* **他の Web サーバーを停止する -** 使用するコンピュータで他の Web サーバーが動作している場合は、いったん停止します。
+* **IP アドレス -** 使用するコンピュータの IP アドレスを把握しておく必要があります。
+    まず LAN や VPN 内で Pixel Streaming を開始することをお勧めします。この場合、使用するコンピュータの *内部* IP アドレスが必要です。コマンド プロンプトまたはコンソール ウィンドウで `ipconfig` コマンドを実行し、`IPv4 Address` で始まる行を確認します。
+    別のネットワーク上にあるコンピュータやモバイル デバイスから接続しようとする場合は、外部 IP アドレスが必要です。外部 IP アドレスを確認するには、[この外部ページ](http://net.ipcalf.com/)に記載されている情報が役立ちます。
+
+## 1 - Unreal Engine アプリケーションを準備する
+
+このステップでは、プロジェクト用のスタンドアロン実行可能ファイルを作成します。
+
+[REGION:note]
+* Pixel Streaming プラグインが動作するのは、プロジェクトがパッケージ アプリケーションとして実行されているとき、または Unreal Editor から **Standalone Game** オプションで起動されているときだけです。
+* Pixel Streaming プラグインがアプリケーションからオーディオを抽出しストリームするには、特別なコマンドライン フラグ `-AudioMixer` を指定して Unreal Engine を起動する必要があります。以下の手順では、2 つのシナリオでこれを設定する方法を示します。
+[/REGION]
+
+1. Unreal Editor でプロジェクトを開きます。
+2. Unreal Editor のメイン メニューから、**[Edit (編集)] > [Plugins (プラグイン)]** を選択します。
+3. **[Graphics (グラフィック)]** カテゴリで **[Pixel Streaming]** プラグインを見つけ、**[Enabled (有効)]** チェックボックスをオンにします。
+    ![Pixel Streaming プラグインを有効にする](pixelstreaming-gs-prepare-enable.png "Pixel Streaming プラグインを有効にする")
+4. 確認画面で **[Yes (はい)]** をクリックします。
+    ![インストールを確認する](pixelstreaming-gs-prepare-confirm.png "インストールを確認する")
+5. **[Restart Now (すぐに再起動)]** をクリックしてプロジェクトを再起動し、変更を適用します。
+    ![Restart now （すぐに再起動）](pixelstreaming-gs-prepare-restart.png "Restart now （すぐに再起動）")
+6. Unreal Editor に戻り、メイン メニューから **[Edit (編集)] > [Project Settings (プロジェクト設定)]** を選択します。 
+7. プロジェクトにキャラクターが含まれ、スマートフォンやタブレットなどのタッチ デバイスからの入力を有効にして、キャラクターをレベル内で移動させる場合は、オンスクリーンのタッチ コントローラーを表示させると便利です。
+    **[Engine (エンジン)] > [Input category (入力カテゴリ)]** で、**[Always Show Touch Interface (タッチ インターフェースを常に表示)]** 設定を見つけてオンにします。
+    ![Always Show Touch Interface （タッチ インターフェースを常に表示）](pixelstreaming-gs-prepare-showtouch.png "Always Show Touch Interface （タッチ インターフェースを常に表示）")
+    これはオプションで、すべてのプロジェクトで必要になる訳ではありません。ただし Third-Person テンプレートのようなプロジェクトでは、この設定を有効にすることで、タッチ デバイスを使用するユーザーがストリームされたアプリケーションを確実にコントロールできます (プロジェクトの Player Controller がタッチ入力をサポートする場合に限る)。
+8. メイン メニューから **[Edit (編集)] > [Editor Preferences... (エディタ設定)]** を選択します。
+9. **[Level Editor (レベル エディタ)] > [Play (プレイ)]** カテゴリで、**[Additional Launch Parameters (追加起動パラメータ)]** 設定を見つけ、その値を「`-AudioMixer`」に設定します。
+    ![Additional Launch Parameters (追加起動パラメータ)](pixelstreaming-gs-prepare-audiomixer.png "Additional Launch Parameters （追加起動パラメータ）")
+10. Windows 用プロジェクトをパッケージ化します。Unreal Editor のメイン メニューで、**[Files (ファイル)] > [Package Project (プロジェクトをパッケージ化)] > [Windows] > [Windows (64-bit)]** を選択します。
+    ![Windows 64-bit 用パッケージ](pixelstreaming-gs-prepare-package.png "Windows 64-bit 用パッケージ")
+11. コンピュータで、Unreal Editor がプロジェクトのパッケージ バージョンを配置するフォルダを参照して、**[Select Folder (フォルダの選択)]** をクリックします。
+    ![フォルダの選択](pixelstreaming-gs-prepare-selectfolder.png "フォルダの選択")
+12. Unreal Editor でパッケージ化プロセスが開始されます。
+    ![パッケージ化進捗インジケーター](multiuserviewer-packagestatus.png "パッケージ化進捗インジケーター")
+13. パッケージ化プロセスが完了したら、前のステップ 11 で選択したフォルダに移動します。「`WindowsNoEditor`」フォルダに次に示すような内容が含まれます。
+    ![パッケージされた出力](pixelstreaming-gs-package.png "パッケージされた出力")
+14. パッケージ化されたアプリケーションを起動するたびに、`-AudioMixer` コマンドライン フラグを渡す必要があります。これを実行する方法の 1 つとして、ショートカットを設定できます。
+    1. **Alt** キーを押したままにして対象の *.exe* ファイルをドラッグして、同じフォルダ (またはコンピュータの他の場所) に新しいショートカットを作成します。
+        ![ショートカットを作成する](pixelstreaming-gs-prepare-shortcut.png "ショートカットを作成する")
+    2. ショートカットを右クリックして、コンテキスト メニューから **[Properties (プロパティ)]** を選択します。
+        ![ショートカットのプロパティ](pixelstreaming-gs-prepare-shortcutprops.png "ショートカットのプロパティ")
+    3. **[Shortcut (ショートカット)]** タブ (**Shortcut Properties (ショートカット プロパティ)]** ウィンドウ) で、「`-AudioMixer`」を **[Target (リンク先)]** フィールドの最後に追加して、**[OK]** をクリックします。
         ![-AudioMixer](pixelstreaming-gs-shortcut-target.png "-AudioMixer")
 
 [REGION:tip]
-Once you've gotten the Pixel Streaming system up and running, you may also want to add the `-RenderOffScreen` command-line parameter. If your Unreal Engine application window ever gets accidentally minimized, the Pixel Streaming video and input streams will stop working. `-RenderOffScreen` avoids this possibility by running the application in a headless mode without any visible window.
+Pixel Streaming システムを起動したら、場合によっては「`-RenderOffScreen`」コマンドライン パラメータも追加する必要があります。Unreal Engine アプリケーションのウィンドウが誤って最小化された場合、Pixel Streaming ビデオと入力ストリームの動作が停止しますが、「`-RenderOffScreen`」によって、表示ウィンドウがないヘッドレス モードでもアプリケーションが動作するため、停止する可能性がなくなります。
 [/REGION]
 
-### End Result
+### まとめ
 
-You now have a packaged, standalone Unreal Engine application that has the Pixel Streaming Plugin enabled, ready to stream its rendered frames and audio.
+Pixel Streaming プラグインが有効な、スタンドアロン Unreal Engine アプリケーションのパッケージ化が完了し、レンダリングしたフレームとオーディオをストリームする準備ができました。
 
-## 2 - Start the Servers
+## 2 - 各サーバーを起動する
 
-In this step, you'll start the web services that will accept client connections and stream rendered frames and audio from your Unreal Engine application to the clients' browsers.
+このステップでは、クライアント接続を受け入れ、レンダリングされたフレームとオーディオを Unreal Engine アプリケーションからクライアントのブラウザにストリームする Web サービスを開始します。
 
-1.  In your Unreal Engine installation folder, find the location of the Signaling Server under `Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer`.  
-    ![Signaling and Web Server](pixelstreaming-gs-servers-signalling.png "Signaling and Web Server")
-2.  Start the Signaling Server by running the `run.bat` file. The first time you run the server, it will download all the dependencies it needs. When the server has started and is ready to accept connections, you'll see the following lines in the console window:
+1. Unreal Engine のインストール フォルダにある Signaling サーバーの場所「`Engine/Source/Programs/PixelStreaming/WebServers/SignallingWebServer`」に移動します。
+    ![Signaling and Web サーバー](pixelstreaming-gs-servers-signalling.png "Signaling and Web サーバー")
+2. 「`run.bat`」ファイルを実行して、Signaling サーバーを起動します。サーバーを初めて実行したときに、必要なすべての依存関係ファイルがダウンロードされます。サーバーが開始されて接続を受け入れる準備ができると、コンソール ウィンドウに次の行が表示されます。
 
-    Listening to proxy connections on: 8888
-    Http listening on *: 80
+    Listening to proxy connections on:8888
+    Http listening on *:80
     
-3.  In your Unreal Engine installation folder, find the location of the WebRTC Proxy Server binaries under `Engine/Source/Programs/PixelStreaming/WebRTCProxy/bin`.  
-    ![WebRTC Proxy Server](pixelstreaming-gs-servers-proxy.png "WebRTC Proxy Server")
-4.  Start the WebRTC Proxy Server by running the `Start_WebRTCProxy.bat` file. When the server has started, you'll see the following line in the console window:
+3. Unreal Engine のインストール フォルダにある WebRTC Proxy サーバーのバイナリの場所「`Engine/Source/Programs/PixelStreaming/WebRTCProxy/bin`」に移動します。
+    ![WebRTC Proxy サーバー](pixelstreaming-gs-servers-proxy.png "WebRTC Proxy サーバー")
+4. 「`Start_WebRTCProxy.bat`」ファイルを実行して、WebRTC Proxy サーバーを起動します。サーバーが起動すると、コンソール ウィンドウに次の行が表示されます。
 
-    LOG: LogDefault     : Connecting to UE4 127.0.0.1:8124
+    LOG:LogDefault     :Connecting to UE4 127.0.0.1:8124
 
-5.  Now, start the Unreal Engine application from the shortcut that you created in the previous step.
+5. ここで、前のステップで作成したショートカットから、Unreal Engine アプリケーションを起動します。
 
 [REGION:tip]
-For convenience, when you package your Unreal Engine application, these servers are also copied to the folder that contains your packaged executable. You'll find them under the *Engine* sub-folder, at the same paths indicated above. You can launch the servers from there instead of launching them from your Unreal Engine installation folder.  
-However, remember that if you need to modify any files in these folders, particularly the player page or configuration file for the Signaling and Web Server, you should modify them in the original location. If you modify them in your package folder, your changes may be overwritten the next time you package your application.
+利便上、Unreal Engine アプリケーションをパッケージ化する際に、これらのサーバーもパッケージ実行可能ファイルを含むフォルダにコピーされます。これらは、前に示した同じパスにある「*Engine*」サブフォルダに配置され、そこからサーバーを起動することができます。Unreal Engine インストール フォルダから起動する必要はありません。
+ただし、これらのフォルダにある何らかのファイル、特に Signaling and Web サーバー用のコンフィギュレーション ファイルやプレイヤー ページを変更する必要がある場合は、元の場所にあるファイルを変更する必要があります。パッケージ フォルダでそれらを変更した場合は、次回アプリケーションをパッケージ化するときに変更が上書きされます。
 [/REGION]
 
-### End Result
+### まとめ
 
-When the WebRTC Proxy Server detects that the Unreal application is running, it connects to the Signaling Server to tell it that it is ready to stream content from the application.
+Unreal Engine アプリケーションが動作していることを WebRTC Proxy サーバーが検出した場合に、Signaling サーバーに接続して、アプリケーションからコンテンツのストリームを受信する準備ができていることを通知します。
 
-You should see the following lines of output in the console window for the WebRTC Proxy Server:
+WebRTC Proxy サーバーのコンソール ウィンドウに次の出力行が表示されます。
 
-    LOG: LogDefault     : Connected to UE4
-    LOG: LogDefault     : Connecting to Cirrus 127.0.0.1:8888
-    LOG: LogDefault     : Connected to Cirrus
-    LOG: LogDefault     : Cirrus config: {
-    "peerConnectionConfig" : {}
+    LOG:LogDefault     :Connected to UE4
+    LOG:LogDefault     :Connecting to Cirrus 127.0.0.1:8888
+    LOG:LogDefault     :Connected to Cirrus
+    LOG:LogDefault     :Cirrus config:{
+    "peerConnectionConfig" :{}
     }
 
-And the following lines of output in the console window for the Signaling Server:
+さらに、Signaling サーバーのコンソール ウィンドウに次の出力行が表示されます。
 
     proxy connected
-    config to Proxy: {"peerConnectionConfig":{}}
+    config to Proxy:{"peerConnectionConfig":{}}
 
-At this point, you have everything you need set up and working on your computer. All that's left is to connect a browser.
+この時点で、コンピュータで必要なすべてのものが設定されて動作します。後はブラウザを接続するだけです。
 
-## 3 - Connect!
+## 3 - 接続する！
 
-In this step, you'll connect Web browsers running on multiple different devices to your Pixel Streaming broadcast.
+このステップで、複数の異なるデバイスで動作している Web ブラウザを Pixel Streaming ブロードキャストに接続します。
 
-1.  On the same computer that is running your Unreal Engine application, Alt-Tab to switch the focus away from the Unreal Engine application, and start a supported Web browser (Google Chrome and Mozilla Firefox are safe choices).
-2.  In the address bar, navigate to `http://127.0.0.1`. This IP address of the local machine, so the request should be served by the Signaling Server:  
-    ![Connect to the localhost](pixelstreaming-gs-connect-127001.png "Connect to the localhost")
-3.  Click the page to connect, then click again on the Play button to start the stream. 
-4.  You'll now be connected to your application, and you should see the rendered output streaming into the middle of the player Web page:  
-    ![Media streaming to localhost](pixelstreaming-gs-connect-streaming.png "Media streaming to localhost")
-    The default player page is already set up to forward keyboard, mouse, and touchscreen input to the Unreal Engine, so you can control the application and navigate around exactly the way you would if you were controlling the app directly. 
-5.  Click the **+** button at the right of the window to expand some built-in options for controlling the stream:
+1. Unreal Engine アプリケーションが動作しているコンピュータ上で、Alt + Tab キーを使用してフォーカスを Unreal Engine アプリケーションから切り替え、サポートされている Web ブラウザ (Google Chrome と Mozilla Firefox が安全な選択) を起動します。
+2. アドレス バーに「`http://127.0.0.1`」と入力して接続します。これはローカル マシンの IP アドレスなので、リクエストは Signaling サーバーにより処理されます。
+    ![localhost への接続](pixelstreaming-gs-connect-127001.png "localhost への接続")
+3. ページをクリックして接続し、[Play (再生)] ボタンを再びクリックして、ストリームを開始します。 
+4. アプリケーションに接続されました。レンダリングされた出力ストリーミングがプレイヤー Web ページの中央に表示されます。
+    ![localhost へのメディア ストリーミング](pixelstreaming-gs-connect-streaming.png "localhost へのメディア ストリーミング")
+    デフォルト プレイヤー ページは、キーボード、マウス、タッチスクリーン入力を Unreal Engine に転送するように設定されています。その結果、アプリケーションを直接コントロールする場合と同じように正確に操作できます。 
+5. ウィンドウの右にある **[+]** ボタンをクリックして、ストリームをコントロールする、いくつかのビルトイン オプションを展開します。
     
-    | **Setting** | **Description** |
-    | --- | --- |
-    | **Kick all other players** | Causes the WebRTC Proxy Server to close all connections with all other browsers except for the current one. |
-    | **Enlarge Display to Fill Window** | Determines whether the media player should resize to fit the current size of the browser window, or whether it should remain at a fixed size and position. |
-    | **Quality control ownership** | [INCLUDE:#excerpt_7] |
-    | **Show Stats** | Visualizes statistics about the connection between the browser and the WebRTC Proxy Server. |
+    | **設定**| **説明**|
+    | ---| ---|
+    | **Kick all other players (他のすべてのプレイヤーを停止)**| WebRTC Proxy サーバーで、現在のブラウザ以外のブラウザとの接続を閉じます。|
+    | **Enlarge Display to Fill Window (表示をウィンドウ全体に拡大)**| メディア プレイヤーのサイズをブラウザ ウィンドウの現在のサイズに合わせて変更するか、固定サイズで同じ位置のままにするのかを決定します。|
+    | **Quality control ownership (品質コントロール オーナーシップ)**| [INCLUDE:#excerpt_7] |
+    | **Show Stats (統計情報を表示)**| ブラウザと WebRTC Proxy サーバー間の接続に関する統計情報を表示します。|
     
 [COMMENT:none]
 [EXCERPT:excerpt_7]
-Makes the encoder of the Pixel Streaming Plugin use the current browser connection to determine the bandwidth available, and therefore the quality of the stream encoding.  
-Although Pixel Streaming adapts the quality of the stream to match the available bandwidth, the video frames are only encoded once by the Pixel Streaming Plugin. That one encoding is used for all clients. Therefore, only one client connection can "own" the quality used for adaptive streaming. If the other clients have a much better connection to the server, they may end up seeing a lower quality stream than necessary. On the other hand, if other clients have a much worse connection to the server, they may end up with lag or jitter.  
-By default, each time a new browser connects, it adopts the ownership of the stream. Use this checkbox from any other connected browser to retake ownership.
+利用可能な帯域幅、つまりストリーム エンコーディングの品質を判断するために、現在のブラウザ接続を使用するよう Pixel Streaming プラグインのエンコーダを設定します。
+Pixel Streaming はストリームの品質を利用可能な帯域幅に適応させますが、ビデオ フレームは Pixel Streaming プラグインで 1 回エンコードされるだけです。この 1 回のエンコーディングがすべてのクライアントで使用されます。したがって、1 つのクライアント接続のみが、適応可能なストリーミングで使用される品質を「所有」することになります。他のクライアントとサーバーの接続がはるかに良好な状態である場合、これらのクライアントでは必要なレベルよりも低品質のストリームが表示される結果になることがあります。一方、他のクライアントとサーバーの接続がにはるかに悪い状態である場合、それらのクライアントでは遅延やジッタリングが発生することがあります。
+デフォルトでは、新しいブラウザが接続するたびに、それがストリームの所有権を獲得します。このチェックボックスを使用して、他の接続済みブラウザから所有権を再び取得します。
 [/EXCERPT:excerpt_7]
 [/COMMENT]
     
 [REGION:tip]
-    See the contents of the `player.htm` and `app.js` files under the Signaling Web Server folder to find out how these controls are implemented.
+    Signaling and Web サーバー フォルダの「`player.htm`」と「`app.js`」ファイルの内容を参照することで、これらのコントロールがどのように実装されているかを確認できます。
 [/REGION]
 
-6.  Now, find other computers and/or mobile devices in your network. Repeat the same steps, but instead of using `127.0.0.1`, direct the browser to the IP address of the computer running the Unreal Engine application and the Signaling Server.  
-    ![Media streaming to remote host](pixelstreaming-gs-connect-others.png "Media streaming to remote host")
+6. 次に、ネットワークにある他のコンピュータやモバイル デバイスを見つけます。同じステップを繰り返しますが、`127.0.0.1` を使用するのではなく、Unreal Engine アプリケーションと Signaling サーバーが動作しているコンピュータの IP アドレスにブラウザを接続します。
+    ![リモート ホストへのメディア ストリーミング](pixelstreaming-gs-connect-others.png "リモート ホストへのメディア ストリーミング")
 
-### End Result
+### まとめ
 
-You now have one instance of the Unreal Engine running on your computer, broadcasting a media stream to multiple devices over your local network. Each connected device sees the same view of the same Level, all rendered on the same original desktop PC.
+コンピュータで動作している Unreal Engine のインスタンスが 1 つあり、ローカル ネットワークを通じて、複数デバイスにメディア ストリームをブロードキャストできるようになりました。接続済みデバイスそれぞれで、元のデスクトップ PC と同じレンダリングで同じレベルの同じビューが表示されます。
 
-By default, all connected devices share control over the Unreal Engine application, forwarding all keyboard, mouse, and touchscreen inputs.
+デフォルトでは、すべての接続済みデバイスで Unreal Engine アプリケーションに対するコントロールを共有し、すべてのキーボード、マウス、タッチスクリーン入力が転送されます。
 
 ![](pixelstreaming-endresult-chrome.png)
 
-Desktop
+デスクトップ
 
 ![](pixelstreaming-endresult-iossafari.png)
 
@@ -176,13 +176,13 @@ iPhone
 
 Pixel
 
-## 4 - On Your Own
+## 4 - 次の作業
 
-The steps above walk you through a relatively simple setup that uses a single server host and a default player page. With a little more effort, you can take the Pixel Streaming system much farther. For example:
+前の各ステップでは、単一のサーバー ホストとデフォルト プレイヤー ページを使用する比較的簡単な設定を順にたどりました。もう少し手を加えることで、Pixel Streaming システムのさらなるパワーを引き出すことができます。例：
 
-*   You can completely redesign the player HTML page to meet the needs of your Project. Control who can send input to the Unreal Engine application, and even create HTML5 UI elements on the page that emit custom gameplay events to the Unreal Engine.  
-    For details, see [Customizing the Player Web Page](Platforms/PixelStreaming/CustomPlayer).
-*   If you need to provide pixel streaming services over the open Internet, or across subnets, you will likely need to do some more advanced network configuration.  Or, you may prefer to have each connecting client stream content from a separate instance of the Unreal Engine, or through a separate player page that offers different controls.  
-    For details on topics like these, see the [Hosting and Networking Guide](Platforms/PixelStreaming/Hosting).
-*   Each component of the Pixel Streaming system has a number of configuration properties that you can use to control encoding resolution, screen size, IP addresses and communication ports, and more.  
-    For information on all these properties and how to set them, see the [Pixel Streaming Reference](Platforms/PixelStreaming/PixelStreamingReference).
+* プロジェクトのニーズを満たすように、プレイヤー HTML ページを大幅に設計し直すことができます。入力を Unreal Engine アプリケーションに送信できるユーザーをコントロールしたり、カスタム ゲームプレイ イベントを Unreal Engine に発信するページに HTML5 UI エレメントを作成するユーザーをコントロールしたりすることもできます。
+    詳細については、「[プレイヤー Web ページのカスタマイズ](Platforms/PixelStreaming/CustomPlayer)」を参照してください。
+* オープンなインターネット、あるいはサブネットにまたがって Pixel Streaming サービスを提供する必要がある場合は、さらに高度なネットワーク設定が必要になります。さらに、Unreal Engine の別のインスタンスから、または異なるコントロールを備えた別のプレイヤー ページを通じて、接続クライアント ストリーム コンテンツを提供することも可能です。
+    これらのトピックの詳細については、「[ホスティングおよびネットワーキング ガイド](Platforms/PixelStreaming/Hosting)」を参照してください。
+* Pixel Streaming システムの各コンポーネントには多くのコンフィギュレーション プロパティがあり、これらを使用して、エンコーディング解像度、画面サイズ、各 IP アドレスと通信ポートなどをコントロールできます。
+    これらのプロパティと設定方法の詳細については、「[Pixel Streaming リファレンス](Platforms/PixelStreaming/PixelStreamingReference)」を参照してください。

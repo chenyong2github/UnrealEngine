@@ -1,0 +1,98 @@
+﻿INTSourceChangelist:6674941
+Availability: Public
+Crumbs: 
+Title: 改善法线
+Description: 讨论如何改进使用代理几何体工具集生成的几何体上的法线。
+Type: how-to
+SkillLevel:Advanced
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: 
+
+
+对《堡垒之夜》内存使用的极端限制要求非常有效地使用细节层级(LOD)网格体。对于大多数代理，生成非常小的基础颜色纹理和未使用法线贴图。因此，这种方法要求代理网格体本身具有最高质量的法线。在下面的教程中，我们将了解如何使用代理几何体工具指定如何计算静态网格体的法线。
+
+![](HardEdgeSplit_10.png)(w:400px)
+
+## 步骤
+
+在下面部分，我们将了解如何调整使用代理几何体工具计算生成静态网格体法线的方式。
+
+1. 首先，找到需要为其创建代理静态网格体的对象。对于本例，下面的小房子仅使用可以在初学者内容包中找到的静态网格体构建。
+
+    ![](GapFilling_01.png "GapFilling_01.png")
+
+2. 接下来，转到 **窗口（Window）> 开发者工具（Developer Tools）> 合并Actor（Merge Actors）**，打开 **合并Actor（Merge Actor）** 工具。
+
+    ![](GapFilling_02.png "GapFilling_02.png")
+
+3. 在关卡内部，选择所有构成要为其生成新几何体的对象的静态网格体Actor。
+
+    ![](GapFilling_03.png "GapFilling_03.png")
+  
+4. 在合并Actor工具中，单击 **第二个图标** 访问代理几何体工具，然后展开 **代理设置（Proxy Settings）**。
+
+    ![](GapFilling_04.png "GapFilling_04.png")
+
+5. 在代理设置（Proxy Settings）下，展开 **材质设置（Material Settings）** 部分，并禁用 **法线贴图（Normal Map）** 选项。
+
+    ![](HardEdegeSplit_01.png "HardEdegeSplit_01.png")
+
+    [REGION:note]
+    如果这里没有禁用法线，您不会看到正确的结果，因为您会看到法线贴图中的法线，而非生成的静态网格体中的法线。
+    [/REGION]
+    
+6. 下一步，单击 **硬边角度（Hard Edge Angle）** 选项旁的方框禁用它。这会禁用生成的静态网格体上的所有法线计算。
+
+    ![](HardEdegeSplit_02.png "HardEdegeSplit_02.png")
+
+7. 接下来，单击 **合并Actor（Merge Actors）** 按钮，并在 **内容浏览器（Content Browser）** 中为新创建的静态网格体输入一个名称和位置。然后单击 **保存（Save）** 按钮启动合并流程。
+
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+    [](GapFilling_06.png) 
+8. 上述操作全部完成后，打开新创建的静态网格体，它应该类似于下图。
+
+    ![](HardEdegeSplit_03.png "HardEdegeSplit_03.png")
+
+9. 上图不是我们的预期结果；我们想要生成的对象的法线与生成它的对象的法线看起来几乎相同。要修复此问题，请转到合并Actor工具并重新启用硬边角度（Hard Edge Angle）选项。
+
+    ![](HardEdegeSplit_04.png "HardEdegeSplit_04.png")
+
+10. 重新启用硬边角度（Hard Edge Angle）后，重新运行合并Actor工具。完成后，您现在应该有了一个如下图所示的建筑物：
+
+    ![](HardEdegeSplit_05.png "HardEdegeSplit_05.png")
+
+## 最终结果
+
+获得最好的结果需要一些时间和迭代，因为每个对象会需要略有不同的设置才能获得最佳结果。还请记住，当您为硬边角度（Hard Edge Angle）指定一个值时，您可以增加或减少生成的静态网格体中使用的顶点数量。下图的对比显示了将硬边角度（Hard Edge Angle）的值设置为 **0**、**5**、**10**、**50**、**80**、**130** 和 **180** 时，静态网格体及其顶点的情况。 
+
+[EXCERPT:HardEdgeAngleComparisonSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	7
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	HardEdgeAngleComparison
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    下图的对比显示了将硬边角度（Hard Edge Angle）的值设置为 0、5、10、50、80、130和180时，不同的着色和顶点数量。
+    [/PARAM]
+    [PARAM:image_list]
+    ![](HardEdgeSplit_0.png)
+![](HardEdgeSplit_5.png)
+![](HardEdgeSplit_10.png)
+![](HardEdgeSplit_50.png)
+![](HardEdgeSplit_80.png)
+![](HardEdgeSplit_130.png)
+![](HardEdgeSplit_180.png)
+    [/PARAM]
+[/OBJECT]
+[/EXCERPT:HardEdgeAngleComparisonSlider]
+
+[](#)[](#)

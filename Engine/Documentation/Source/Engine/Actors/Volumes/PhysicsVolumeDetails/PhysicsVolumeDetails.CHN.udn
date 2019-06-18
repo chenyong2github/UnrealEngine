@@ -1,17 +1,13 @@
-﻿INTSourceChangelist:3804170
-Availability: Docs
-Title:体积概述
-Crumbs:%ROOT%, Engine, Engine/Actors, Engine/Actors/Volumes
-Description:物理体积参考细节
+﻿INTSourceChangelist:6535113
+Availability: Public
+Title:物理体积参数
+Parent: Engine/Actors/Volumes
+Description:物理体积参数细节
 version:4.16
 type:reference
 
 
-### 物理体积
-
 有一些针对该体积设置的属性，你可以从 **细节（Details）** 面板中调整这些属性，如下图所示。
-
-![](PhysicsVolumeDetails.png)
 
 |属性| 描述 |
 | ------- | ------------ |

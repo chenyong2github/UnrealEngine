@@ -1,0 +1,58 @@
+﻿INTSourceChangelist:6038552
+Availability: Public
+Title: HTML5 개발 요구 사항
+Description: 하드웨어, 소프트웨어, SDK 정보를 포함한 HTML5 개발 요구 사항입니다.
+Type: reference
+Version: 4.22
+Parent: Platforms/HTML5
+Tags: Specifications
+Tags: HTML5
+Tags: StartingOut
+Order: 1
+
+
+[TOC (start:2 end:2)] 
+
+이 페이지에서는 [HTML5](Platforms/HTML5) 플랫폼용 개발을 시작하기 위해 필요한 하드웨어 및 소프트웨어 개발 키트 (SDK) 요구 사항을 확인할 수 있습니다. 
+
+  
+
+## 언리얼 엔진 4.22
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| [REGION:tablesection]소프트웨어 요구 사항[/REGION] ||
+| **SDK 버전** | Emscripten 1.38.20 |
+| **지원 웹 브라우저** | [Google Chrome 64 비트](https://www.google.com/chrome/beta/), [Firefox 64 비트](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildHTML5.cs` 파일에서 찾을 수 있습니다. 위치는 `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/HTML5` 폴더입니다.
+[/REGION]
+
+## 언리얼 엔진 4.21
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| [REGION:tablesection]소프트웨어 요구 사항[/REGION] ||
+| **SDK 버전** | Emscripten 1.37.19 |
+| **지원 웹 브라우저** | [Google Chrome 64 비트](https://www.google.com/chrome/beta/), [Firefox 64 비트](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildHTML5.cs` 파일에서 찾을 수 있습니다. 위치는 `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/HTML5` 폴더입니다.
+[/REGION]
+
+## 언리얼 엔진 4.20
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| [REGION:tablesection]소프트웨어 요구 사항[/REGION] ||
+| **SDK 버전** | Emscripten 1.37.19 |
+| **지원 웹 브라우저** | [Google Chrome 64 비트](https://www.google.com/chrome/beta/), [Firefox 64 비트](https://www.mozilla.org/en-US/firefox/all/) |
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildHTML5.cs` 파일에서 찾을 수 있습니다. 위치는 `[UE4 Root Director]/Engine/Source/Programs/UnrealBuildTool/Platforms/HTML5` 폴더입니다.
+[/REGION]
+

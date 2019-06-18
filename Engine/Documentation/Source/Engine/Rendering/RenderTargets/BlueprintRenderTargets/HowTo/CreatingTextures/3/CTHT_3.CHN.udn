@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3259022
-availability:Public
+﻿INTSourceChangelist:6077448
+availability:docs
 title:3.蓝图设置
 description:了解如何设置蓝图与渲染目标共用。
 crumbs:%ROOT%, Engine, Engine\Rendering\RenderTargets
@@ -12,6 +12,7 @@ tags:Render Targets
 Order:3
 checkpoint:CTUB
 
+## 页面已被合并，标记为Docs。 
 [NAV]
 
 这部分我们将说明如何创建蓝图，使其能和之前步骤中创建的内容共用。

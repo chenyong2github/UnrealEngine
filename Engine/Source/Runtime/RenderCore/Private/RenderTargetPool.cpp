@@ -197,7 +197,7 @@ void FRenderTargetPool::TransitionTargetsWritable(FRHICommandListImmediate& RHIC
 		FPooledRenderTarget* PooledRT = PooledRenderTargets[i];
 		if (PooledRT && PooledRT->GetDesc().AutoWritable)
 		{
-			FTextureRHIParamRef RenderTarget = PooledRT->GetRenderTargetItem().TargetableTexture;
+			FRHITexture* RenderTarget = PooledRT->GetRenderTargetItem().TargetableTexture;
 			if (RenderTarget)
 			{				
 				TransitionTargets.Add(RenderTarget);
@@ -309,14 +309,13 @@ bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPool
 	FPooledRenderTargetDesc ModifiedDesc;
 	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc, TransienceHint);
 	if (bMakeTransient)
-			{
-				ModifiedDesc = InputDesc;
-				ModifiedDesc.Flags |= TexCreate_Transient;
+	{
+		ModifiedDesc = InputDesc;
+		ModifiedDesc.Flags |= TexCreate_Transient;
 	}
 
 	// Override the descriptor if necessary
 	const FPooledRenderTargetDesc& Desc = bMakeTransient ? ModifiedDesc : InputDesc;
-
 
 	// if we can keep the current one, do that
 	if(Out)
@@ -642,7 +641,6 @@ Done:
 		{
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, Found->GetRenderTargetItem().TargetableTexture);
 		}
-
 	}
 
 	// Transient RTs have to be targettable

@@ -1,0 +1,63 @@
+﻿INTSourceChangelist:6013829
+Availability: Public
+Title:Live Link Curve Debugger
+Description:使用Live Link Curve Debugger，您可以易于调试的方式，快速查看各种Live Link曲线的输出。 
+Type: overview
+Version: 4.22
+Parent: Engine/Animation/LiveLinkPlugin
+Tags: Animation
+Tags: Live Link
+Tags: Experimental
+topic-image: CurveDebugger-1.png
+social-image: CurveDebugger-1.png
+topic-icon: CurveDebugger-1.png
+Order: 4
+
+
+[TOC (start:2 end:2)]
+
+在使用[Live Link](Engine/Animation/LiveLinkPlugin)插件将内容流送到虚幻引擎4（UE4）时，您可能需要查看各种活跃曲线和值。**Live Link Curve Debugger** 工具让您能够以一种易于调试的方式查看各种Live Link曲线的输出。 
+
+## 启用Live Link Curve Debugger
+
+为了使用Live Link Curve Debugger，您首先需要从 **插件（Plugins）** 菜单启用它：
+
+1.  从 **编辑（Edit）** 菜单，选择 **插件（Plugins）**。
+    
+	![](01_PluginMenu.png "01_PluginMenu.png")
+
+1.  在 **插件（Plugins）** 菜单的 **动画（Animation）** 下面，启用 **Live Link** 和 **Live Link Curve Debug UI** 选项，并重启编辑器。   
+    
+	![](02_EnableLiveLinkOptions.png "02_EnableLiveLinkOptions.png")
+
+1.  从 **窗口（Window）** 选项，在 **开发者工具（Developer Tools）** 下面，选择 **Live Link Curve Debugger**。   
+    
+	![](03_DebuggerWindow.png "03_DebuggerWindow.png")  
+    
+	**Live Link Curve Debugger** 窗口将会打开。   
+    
+	![](04_DebuggerWindowOpen.png "04_DebuggerWindowOpen.png")
+
+## 使用Live Link Curve Debugger
+
+与[Maya with Live Link](Engine\Animation\LiveLinkPlugin\ConnectingUnrealEngine4toMayawithLiveLink)或[Motion Builder with Live Link](Engine\Animation\LiveLinkPlugin\ConnectingLiveLinktoMobu)连接后，您就可以在UE4中访问该应用程序中的内容，包括任何动画曲线。通过Live Link Curve Debugger，您可以查看当前所选 **主题名称** 的所有曲线和曲线值的列表，单击 **Live Link主题名称（Live Link Subject Name）** 下拉菜单并选择“主题（Subject）”可以定义主题名称。 
+
+![](DebuggerWindowSubject.png "DebuggerWindowSubject.png")
+
+选择主题后，将在窗口中显示任何曲线及其值。 
+
+[REGION:lightbox]
+[![](CurveDebugger-1.png)(w:900)](CurveDebugger-1.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
+[REGION:note]
+如果尚未指定主题名称，当某个主题与部分曲线相连后，调试器将切换到该主题。您可以单击 **Live Link主题名称（Live Link Subject Name）** 下拉菜单（在编辑器或桌面构建中），或在命令行中输入 **LiveLinkDebugger Next** 来循环浏览不同的主题名称（在其他客户端构建上），从而更改该选择
+[/REGION]
+
+在客户端内部，还可以使用命令行，通过以下命令显示Live Link Debugger：**LiveLinkDebugger Show**
+
+[REGION:tip]
+您可以选择在命令行中使用命令 **LiveLinkDebugger Show** *SubjectName*（主题名称）来指定要使用的Live Link主题名称。
+[/REGION]

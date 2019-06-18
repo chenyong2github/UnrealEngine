@@ -8,8 +8,9 @@ namespace UnrealBuildTool.Rules
     {
         public ResonanceAudio(ReadOnlyTargetRules Target) : base(Target)
         {
-
-            OptimizeCode = CodeOptimization.Never;
+            string ResonanceAudioPath = ModuleDirectory + "/Private/ResonanceAudioLibrary";
+            string ResonanceAudioLibraryPath = ModuleDirectory + "/Private/ResonanceAudioLibrary/resonance_audio";
+            string PFFTPath = ModuleDirectory + "/Private/ResonanceAudioLibrary/third_party/pfft";
 
             PublicIncludePaths.AddRange(
                 new string[] {
@@ -19,6 +20,9 @@ namespace UnrealBuildTool.Rules
             PrivateIncludePaths.AddRange(
                 new string[] {
                     "ResonanceAudio/Private",
+                    ResonanceAudioPath,
+                    ResonanceAudioLibraryPath,
+                    PFFTPath,
                     "../../../../Source/Runtime/AudioMixer/Private"
                 }
             );
@@ -47,7 +51,8 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
                     "Projects",
                     "AudioMixer",
-                    "ProceduralMeshComponent",
+                    "ProceduralMeshComponent"
+					
                 }
             );
 
@@ -55,10 +60,68 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateDependencyModuleNames.Add("UnrealEd");
                 PrivateDependencyModuleNames.Add("Landscape");
-                PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
             }
 
-            AddEngineThirdPartyPrivateStaticDependencies(Target, "ResonanceAudioApi");
+            bEnableShadowVariableWarnings = false;
+
+            AddEngineThirdPartyPrivateStaticDependencies(Target,
+                    "UEOgg",
+                    "Vorbis",
+                    "VorbisFile",
+                    "Eigen"
+                    );
+
+			// Check whether Procedural Mesh is supported:
+			if(Target.Platform == UnrealTargetPlatform.HTML5)
+            {
+                PrivateDefinitions.Add("SUPPORTS_PROCEDURAL_MESH=0");
+            }
+            else
+            {
+                PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
+                PrivateDefinitions.Add("SUPPORTS_PROCEDURAL_MESH=1");
+            }
+
+			if(Target.Platform == UnrealTargetPlatform.Android)
+            {
+                PrivateDefinitions.Add("PFFFT_SIMD_DISABLE=1");
+                PrivateDefinitions.Add("EIGEN_HAS_CXX11_MATH=0");
+            }
+
+            //Embree support:
+            if (Target.Platform == UnrealTargetPlatform.Win64)
+            {
+                string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/Win64/";
+
+                PublicIncludePaths.Add(SDKDir + "include");
+                PublicLibraryPaths.Add(SDKDir + "lib");
+                PublicAdditionalLibraries.Add("embree.2.14.0.lib");
+                RuntimeDependencies.Add("$(TargetOutputDir)/embree.2.14.0.dll", SDKDir + "lib/embree.2.14.0.dll");
+                RuntimeDependencies.Add("$(TargetOutputDir)/tbb.dll", SDKDir + "lib/tbb.dll");
+                RuntimeDependencies.Add("$(TargetOutputDir)/tbbmalloc.dll", SDKDir + "lib/tbbmalloc.dll");
+                PublicDefinitions.Add("USE_EMBREE=1");
+            }
+            else if (Target.Platform == UnrealTargetPlatform.Mac)
+            {
+                string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/MacOSX/";
+
+                PublicIncludePaths.Add(SDKDir + "include");
+                PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.2.14.0.dylib");
+                PublicAdditionalLibraries.Add(SDKDir + "lib/libtbb.dylib");
+                PublicAdditionalLibraries.Add(SDKDir + "lib/libtbbmalloc.dylib");
+                RuntimeDependencies.Add("$(TargetOutputDir)/libembree.2.14.0.dylib", SDKDir + "lib/libembree.2.14.0.dylib");
+                RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.dylib", SDKDir + "lib/libtbb.dylib");
+                RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.dylib", SDKDir + "lib/libtbbmalloc.dylib");
+                PublicDefinitions.Add("USE_EMBREE=1");
+            }
+            else
+            {
+				// In platforms that don't support Embree, we implement no-op versions of the functions.
+                string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/Win64/";
+                PublicIncludePaths.Add(SDKDir + "include");
+                PublicDefinitions.Add("USE_EMBREE=0");
+				PublicDefinitions.Add("EMBREE_STATIC_LIB=1");
+            }
         }
     }
 }

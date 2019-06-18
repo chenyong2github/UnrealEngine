@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2702588
+﻿INTSourceChangelist:3810467
 Availability:Public
 Title:3.对地形造型
 Crumbs:%ROOT%, GettingStarted, Engine/Landscape/QuickStart
@@ -25,12 +25,13 @@ version:4.9
 
 
 
+(#SculptingtheLandscape)
 ## 对地形造型
 对 **地形** 造型相当简单，但却十分耗时。在地形工具的 **造型** 图标下可找到所有用于造型的工具。如需了解每个造型工具的具体功能，可阅读 [Sculpt 模式](Engine/Landscape/Editing/SculptMode) 页面。为便于查阅，以下是地形造型常用按键和鼠标操作的列表。   
 
 | **常用功能键** | **操作** |
 | --- | --- |
-| ** Ctrl**| 用于选择地形组件。|
+| **Ctrl**| 用于选择地形组件。|
 | **鼠标左键** | 增加高度图或所选图层的权重。例如在 Sculpting 模式中，此键将增加地形的高度图。在 Paint 模式中，此键将把所选材质应用至地形。|
 | **Shift + 鼠标左键** | 减小高度图或所选图层的权重。例如在 Sculpting 模式中，此键将减小地形的高度图。在 Paint 模式中，此键将移除应用至地形特定部分的所选材质。|
 | **Ctrl + Z** | 撤销上步操作。|

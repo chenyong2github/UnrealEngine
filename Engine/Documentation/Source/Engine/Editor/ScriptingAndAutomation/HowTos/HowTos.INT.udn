@@ -4,7 +4,7 @@ Title: Editor Scripting How-Tos
 Description: Provides a list of example pages that show how to use Blueprints and Python to script and automate content production tasks in the Unreal Editor.
 Version: 4.20
 Parent: Engine/Editor/ScriptingAndAutomation
-Order: 0
+Order: 2
 Tags: scripting
 Tags: editor
 

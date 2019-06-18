@@ -49,6 +49,7 @@ struct FLandscapeToolMode
 
 	TArray<FName>			ValidTools;
 	FName					CurrentToolName;
+	FName					CurrentTargetLayerName;
 
 	FLandscapeToolMode(FName InToolModeName, int32 InSupportedTargetTypes)
 		: ToolModeName(InToolModeName)
@@ -500,8 +501,9 @@ public:
 	void SetCurrentToolMode(FName ToolModeName, bool bRestoreCurrentTool = true);
 
 	/** Change current tool */
-	void SetCurrentTool(FName ToolName);
-	void SetCurrentTool(int32 ToolIdx);
+	void SetCurrentTool(FName ToolName, FName TargetLayerName = NAME_None);
+	void SetCurrentTool(int32 ToolIdx, FName TargetLayerName = NAME_None);
+	void SetCurrentTargetLayer(FName TargetLayerName, TWeakObjectPtr<ULandscapeLayerInfoObject> LayerInfo);
 
 	void SetCurrentBrushSet(FName BrushSetName);
 	void SetCurrentBrushSet(int32 BrushSetIndex);
@@ -510,7 +512,7 @@ public:
 	void SetCurrentBrush(int32 BrushIndex);
 
 	void UpdateBrushList();
-	const TArray<ALandscapeBlueprintCustomBrush*>& GetBrushList() const;
+	const TArray<ALandscapeBlueprintBrushBase*>& GetBrushList() const;
 
 	const TArray<TSharedRef<FLandscapeTargetListInfo>>& GetTargetList() const;
 	const TArray<FName>* GetTargetDisplayOrderList() const;
@@ -564,10 +566,10 @@ public:
 	void AutoUpdateDirtyLandscapeSplines();
 	bool CanEditLayer(FText* Reason = nullptr, FLandscapeLayer* InLayer = nullptr);
 
-	void AddBrushToCurrentLayer(class ALandscapeBlueprintCustomBrush* InBrush);
-	void RemoveBrushFromCurrentLayer(class ALandscapeBlueprintCustomBrush* InBrush);
-	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentLayer(int8 BrushIndex) const;
-	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer();
+	void AddBrushToCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
+	void RemoveBrushFromCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
+	class ALandscapeBlueprintBrushBase* GetBrushForCurrentLayer(int8 BrushIndex) const;
+	TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForCurrentLayer();
 	
 	bool NeedToFillEmptyMaterialLayers() const;
 	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
@@ -619,7 +621,7 @@ public:
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;
 	TArray<FLandscapeListInfo> LandscapeList;
-	TArray<ALandscapeBlueprintCustomBrush*> BrushList;
+	TArray<ALandscapeBlueprintBrushBase*> BrushList;
 	TArray<FName> ShownTargetLayerList;
 	
 	/** Represent the index offset of the target layer in LandscapeTargetList */

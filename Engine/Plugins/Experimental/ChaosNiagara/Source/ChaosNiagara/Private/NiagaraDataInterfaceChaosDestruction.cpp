@@ -4090,7 +4090,7 @@ void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,
 	Buffer.Unlock();
 }
 
-void SetBuffer(FRHICommandList& CmdList,
+static void SetBuffer(FRHICommandList& CmdList,
 	const FShaderResourceParameter& Param,
 	FRHIComputeShader* Shader,
 	FDynamicReadBuffer& Buffer)
@@ -4102,7 +4102,7 @@ void SetBuffer(FRHICommandList& CmdList,
 }
 
 template <typename T>
-void SetBuffer(FRHICommandList& CmdList,
+static void SetBuffer(FRHICommandList& CmdList,
 	const FShaderResourceParameter& Param,
 	FRHIComputeShader* Shader,
 	FDynamicReadBuffer& Buffer,

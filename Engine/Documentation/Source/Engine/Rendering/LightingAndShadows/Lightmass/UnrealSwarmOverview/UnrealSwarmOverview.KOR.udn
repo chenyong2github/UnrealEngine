@@ -1,0 +1,333 @@
+INTSourceChangelist:6429227
+Availability: Public
+Crumbs: 
+Title: 언리얼 스웜
+Description: 언리얼 엔진 4 의 고품질 정적 전역 조명 솔버인 Unreal Lightmass, 언리얼 라이트매스처럼 연산량이 많은 애플리케이션의 작업을 분산하는 시스템인 Unreal Swarm, 언리얼 스웜 개요입니다.
+Type: 
+Version: 4.19
+Parent: Engine/Rendering/LightingAndShadows/Lightmass
+Order: 
+Tags: 
+
+
+![](UnrealSwarm_OverviewImage-2.png "UnrealSwarm_OverviewImage-2.png")
+
+개발 환경에 따라 커다란 야외 환경 렌더링은 빛과 그림자, 지오메트리 연산량이 많아 시간이 오래 걸릴 수 있습니다. 프로젝트 빌드 시간을 줄이는 방법은 여러가지 있습니다. 하드웨어를 [권장 사양](GettingStarted/RecommendedSpecifications) 이상으로 업그레이드할 수도 있지만, 작업 분산 시스템을 활용할 수도 있는데 그게 바로 **Unreal Swarm** (언리얼 스웜)입니다. [고품질 정적 전역 조명](Engine/Rendering/LightingAndShadows/Lightmass/) 솔버와 같은 비싼 연산 작업 시간이 단축됩니다.
+
+## 언리얼 스웜이란?
+
+범용 애플리케이션 및 작업 분산 시스템을 말하며, 두 가지 애플리케이션 유형으로 구성됩니다. 하나는 빌드 task (작업)을 분산하는 coordinator (코디네이터)이고, 다른 하나는 할당된 job (잡)을 완료하기 위해 호스트 시스템의 자원을 활용하는 agent (에이전트)입니다.
+
+![](UnrealSwarm_Scheme.png "UnrealSwarm_Scheme.png")
+
+스웜 구성 이후, 스웜 코디네이터가 네트워크 상의 스웜 에이전트의 잡 및 작업을 관리합니다.
+
+## 요구 사항
+
+언리얼 스웜 구성을 시작하기 전에 네트워크의 머신 최소 한 대에는 언리얼 엔진 4(UE4)를 설치해야 합니다.
+
+[REGION:note]
+연산량이 많은 작업용 렌더 팜을 구성하려면, IT 부서와 협의하여 스웜 코디네이터 및 에이전트 호스팅에 필요한 머신에 적절한 권한을 구성해야 합니다.
+[/REGION]
+
+## 스웜 코디네이터 구성
+
+사용하려는 머신을 확인하고 UE4 를 설치했다면, 스웜 코디네이터를 구성하는 방법은 다음과 같습니다.
+
+1.  UE4 설치 이후 `[UE4ROOT]\Engine\Binaries\DotNET` 폴더로 이동합니다.
+2.  작업을 네트워크의 다른 머신에 분산해 줄 머신에 새 디렉터리를 만듭니다. 여기서는 설명을 위해 그 이름을 `Swarm Coordinator` 라 합니다.
+3.  이제 `[UE4ROOT]\Engine\Binaries\DotNET` 폴더에서 새로 만든 디렉터리로 다음과 같은 파일을 이동( 또는 복사)합니다.  
+    *   **AgentInterface.dll**
+    *   **SwarmCommonUtils.dll**
+    *   **SwarmCoordinator.exe**
+    *   **SwarmCoordinator.exe.config**
+    *   **SwarmCoordinatorInterface.dll**
+    *   **SwarmInterface.dll**
+    *   **UnrealControls.dll**
+4.  마지막으로, 머신에서 애플리케이션이 실행되는지 **Swarm Coordinator** 실행파일을 더블클릭해서 확인합니다.  
+    ![](UnrealSwarm_CoordSetup-1.png "UnrealSwarm_CoordSetup-1.png")
+
+[REGION:note]
+스웜 에이전트가 이미 디플로이된 경우, 스웜 코디네이터에 자체 **Agent Dialog Window** (에이전트 대화창, 1) 및 **Restart Options Area** (재시작 옵션 영역, 2) 가 표시됩니다.
+
+[REGION:lightbox]
+[![](SwarmCoordinator_UIFinal.png "SwarmCoordinator_UIFinal.png")](SwarmCoordinator_UIFinal.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+[/REGION]
+
+이제 여기서는 더 할 일이 없으니, 다음 섹션으로 넘어가 스웜 에이전트를 구성합니다.
+
+## 스웜 에이전트 디플로이
+
+스웜 코디네이터를 구성했으니 스웜 에이전트 디플로이 준비가 되었습니다. 에이전트의 호스트 머신을 확인한 이후 단계는 다음과 같습니다.
+
+1.  스웜 에이전트를 호스팅하려는 머신 각각에 새 디렉터리를 만듭니다. 여기서는 설명을 위해 이름을 `Swarm Agent` 라 짓습니다.
+2.  `[UE4ROOT]\Engine\Binaries\DotNET` 폴더에서 새로 만든 디렉터리로 다음 파일을 이동( 또는 복사)합니다: **SwarmAgent.exe**, **AgentInterface.dll**, **SwarmCommonUtils.dll**, **SwarmCoordinatorInterface.dll**, **SwarmInterface.dll**, **UnrealControls.dll**.
+3.  디플로이하려면, **Swarm Agent** 실행파일에 더블클릭합니다.
+4.  실행되면 **Windows 알림 영역** 에 **Swarm** 아이콘이 나타납니다. **Swarm** 아이콘을 더블클릭하여 애플리케이션의 메인 메뉴를 엽니다.  
+    ![](UnrealSwarm_AgentSetup_4-1.png "UnrealSwarm_AgentSetup_4-1.png")
+5.  환경설정은 **Settings** 탭을 클릭합니다.  
+    ![](UnrealSwarm_AgentSetup_5-2.png "UnrealSwarm_AgentSetup_5-2.png")  
+    [REGION:note]
+    **Developer Settings** 를 활성화하려면, (**Settings > Developer Settings** 의) **ShowDeveloperMenu** 플래그를 **True** 설정합니다.  
+    ![](SwarmAgent_DeveloperSettings-2.png "SwarmAgent_DeveloperSettings-2.png")
+    [/REGION]
+설정을 업데이트하면, 스웜 에이전트가 그 설정을 `SwarmAgent.Options.xml` (또는 Developer Settings 가 활성화된 경우 `SwarmAgent.DeveloperOptions.xml`) 에 저장합니다.  
+    
+6.  **Distribution Settings** 드롭다운 메뉴에서 **CoordinatorRemotingHost** 필드를 찾아 호스트 머신의 **IPv4 Address** 를 입력합니다.  
+    ![](UnrealSwarm_AgentSetup_6-2.png "UnrealSwarm_AgentSetup_6-2.png")
+    [REGION:tip]
+    머신의 **IPv4 Address** 를 모르는 경우, **cmd** 창에서 `ipconfig` 를 입력합니다.
+    [/REGION]
+7.  시스템의 **IPv4 Address** 를 **CoordinatorRemotingHost** 필드에 입력하고 싶지 않은 경우, Coordinator 의 **DNS Name** 을 입력하면 됩니다.
+8.  **스웜 코디네이터** 를 열면 디플로이된 스웜 에이전트에 대한 세부 정보를 찾을 수 있습니다.  
+    [REGION:lightbox]
+    [![](UnrealSwarm_AgentSetup_8-2.png "UnrealSwarm_AgentSetup_8-2.png")](UnrealSwarm_AgentSetup_8-2.png)
+    [/REGION]
+    [REGION:caption]
+    클릭하면 이미지 원본을 확인합니다.
+    [/REGION]
+
+### 에이전트 그룹 구성
+
+에이전트 그룹을 구성하면 실행 클러스터 생성에 유용합니다. 예를 들어, 한 세트의 머신은 렌더 팜 일부가 아닌 그룹에 속하고, 다른 클러스터는 렌더 팜에 속한 머신이 있을 수 있습니다. 
+
+시작하려면 **Settings > Distribution Settings** 메뉴를 엽니다.  
+
+![](SwarmAgent_Settings_DistributionSettings.png "SwarmAgent_Settings_DistributionSettings.png")
+
+에이전트 그룹을 구성하려면, 먼저 이 에이전트를 디플로이하려는 그룹 잡을 지정해야 합니다. 예를 들어, **AllowedRemoteAgentGroup** 세팅에서 이 에이전트를 "FarmGroup" 잡에 디플로이한다고 지정합니다.  
+
+![](UnrealSwarm_FarmGroup.png "UnrealSwarm_FarmGroup.png")
+
+이 에이전트를 "FarmGroup" 잡에 디플로이하려면, **AgentGroupName** (에이전트 그룹 이름)이 **AllowedRemoteAgentGroup** (허용된 원격 에이전트 그룹)과 일치하는지 확인합니다. 다음 예제에서는 이 에이전트가 "FarmGroup" 그룹에 디플로이되지 않도록 하겠습니다.  
+
+![](UnrealSwarm_NonFarmGroup.png "UnrealSwarm_NonFarmGroup.png")
+
+다음 표에서 에이전트의 **Distribution Settings** 에 대한 유용한 정보와, 실행 클러스터의 각 에이전트에 지정할 수 있는 나머지 프로퍼티를 다룹니다.
+
+| **세팅** | **기본 값** | **설명** |
+| --- | --- | --- |
+| **AgentGroupName** | Default | 에이전트 그룹 이름 - 이 스웜 에이전트가 속하는 에이전트 그룹 이름입니다. |
+| **AllowedRemoteAgentGroup** | DefaultDeployed | 허용된 원격 에이전트 그룹 - 이 스웜 에이전트를 디플로이할 수 있는 에이전트 그룹 이름입니다. |
+| **AllowedRemoteAgentNames** | RENDER* | 허용된 원격 에이전트 이름 - 원격 머신이 사용 중인 (' ', ',' 또는 ';' 로 구분되는) 필터 문자열입니다. |
+| **AvoidLocalExecution** | False | [INCLUDE:#excerpt_0] |
+| **CoordinatorRemotingHost** | RENDER-01 | 코디네이터 원격 호스트 - 스웜 코디네이터를 호스팅하는 머신 이름입니다. 이 필드에는 코디네이터의 DNS 이름 또는 IPv4 주소를 입력할 수 있습니다. |
+| **EnableStandaloneMode** | False | 독립형 모드 활성화 - 이 플래그를 `True` 설정하면 나가고 들어오는 작업에 대한 분산 시스템이 비활성화됩니다. |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+
+로컬 실행 금지 - 이 플래그를 `True` 설정하면 이 Swarm Agent 에서 (로컬 실행 없이) 잡과 작업의 분산만 허용한다는 뜻입니다.
+
+[REGION:note]
+이 플래그를 설정하면 스레드 우선순위를 `Idle` 로 설정해서 자신보다 스웜에 연결된 다른 에이전트를 우선하므로 (필수라기 보단) 제안 사항에 가깝습니다. 사용할 수 있는 다른 에이전트가 없는 (또는 스웜이 코디네이터를 찾지 못한) 경우, 무한 대기( 또는 실패)가 아닌 여전히 그 에이전트에서 빌드가 실행된다는 사실 때문입니다.
+[/REGION]
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+### 스웜 캐시 관리
+
+스웜 에이전트를 디플로이한 이후, 에이전트의 스웜 캐시를 관리하는 것이 좋습니다. 일반적으로 에이전트의 스웜 캐시 관리에는 에이전트의 캐시 설정 업데이트, 캐시 지우기, 캐시 유효성 검사가 포함됩니다.
+
+에이전트의 캐시 설정을 업데이트하려면, **Settings > Cache settings** 메뉴로 이동합니다.
+
+![](SwarmAgent_Settings_CacheSettings.png "SwarmAgent_Settings_CacheSettings.png")
+
+이 메뉴에서 에이전트의 **Cache Settings** 를 (다음과 같이) 업데이트할 수 있습니다.
+
+| **세팅** | **기본 값** | **설명** |
+| --- | --- | --- |
+| **CacheFolder** | [디스크의 폴더]/SwarmCache | 캐시 폴더 - 캐시 폴더 위치로, 여유가 많은 빠른 드라이브가 좋습니다. |
+| **MaximumCacheSize** | 10 | 최대 캐시 크기 - 기가바이트 단위로, 캐시 폴더의 대략적인 최대 크기입니다. |
+| **MaximumJobsToKeep** | 5 | 유지할 최대 잡 수 - 로그와 출력 데이터를 기록할 잡 수입니다. |
+
+또한 **스웜 에이전트** 가 할당된 작업을 완료하기 위해 사용하는 호스트 머신의 캐시를 지우려면, **Cache** 메뉴의 **Clean** 명령을 호출합니다.
+
+![](SwarmAgent_CacheMenu_Clean.png "SwarmAgent_CacheMenu_Clean.png")
+
+마지막으로, 머신의 캐시 유효성을 검사하려면, command **Cache** 메뉴의 **Validate** 명령을 호출합니다.
+
+![](SwarmAgent_CacheMenu_Validate.png "SwarmAgent_CacheMenu_Validate.png")
+
+[REGION:tip]
+특히 언리얼 라이트매스 크래시가 나서 빌드가 실패하는 경우 , 정기적으로 스웜 캐시를 지우고 유효성 검사를 해 주는 것이 좋습니다.
+[/REGION]
+
+### 에이전트 로그 읽기
+
+**Log** 탭을 클릭하면 스웜 에이전트 로그 메시지가 플러시되는 로그 창이 열립니다.
+
+![](SwarmAgent_LogWindow.png "SwarmAgent_LogWindow.png")
+
+**로그** 창에 플러시되는 출력 양 지정은, (**Developer Settings > Log Settings**  메뉴의) **MaximumJobApplicationLogLines** 변수 값을 업데이트하면, 잡 애플리케이션은 이만큼의 출력 줄을 잘라서 **로그** 창에 보냅니다.
+
+![](SwarmAgent_DeveloperSettings_LogSettings.png "SwarmAgent_DeveloperSettings_LogSettings.png")
+
+디버그 또는 유지 보수 목적으로 **AgentLog*** 텍스트 파일을 찾을 때 한 가지 중요한 점은, 모든 잡의 시작과 끝에 에이전트 활동이 `[디스크의 폴더]\SwarmCache\Logs` 의 파일에 기록된다는 점입니다.
+
+[REGION:lightbox]
+[![](SwarmAgent_LogWindowFiles.png "SwarmAgent_LogWindowFiles.png")](SwarmAgent_LogWindowFiles.png)
+[/REGION]
+[REGION:caption]
+클릭하면 이미지 원본을 확인합니다.
+[/REGION]
+
+일반적으로 디스크 파일에 대한 기본 로깅 수준은 **ExtraVerbose** (매우 상세)인 반면, 스웜 에이전트의 로그 창에 대해서는 **Informative** (정보성)입니다. **로그** 출력의 세부 정도를 변경하려면, **Settings > Log Settings** 메뉴의 **Verbosity** 변수를 업데이트합니다.
+
+![](SwarmAgent_Settings_LogSettings.png "SwarmAgent_Settings_LogSettings.png")
+
+### 진행률 모니터링
+
+에이전트에게 할당되고 있는 잡과 작업의 진행률을 모니터링하려면, Swarm Status (스웜 상태) 창을 엽니다. 
+
+![](SwarmAgent_SwarmStatusMenu.png "SwarmAgent_SwarmStatusMenu.png")
+
+에이전트가 실행 중이면 머신 별 진행률 표시줄이 보이며, 모든 표시줄마다 애플리케이션 초기화(1), 작업 수행 준비(2) (둘 다 분산 작업은 아닙니다), 분산 작업 수행(3) 여부가 반영된 구역이 있습니다.  
+
+![](SwarmAgent_SwarmStatusWindowExample.png "SwarmAgent_SwarmStatusWindowExample.png")
+
+[REGION:tip]
+잡 진행률을 자세히 보려면 마우스 커서를 진행률 표시줄에 올립니다.
+[/REGION]
+
+마지막으로, 하단의 분산 진행률 표시줄을 통해 완료된 잡의 비율(4) 대비 현재 진행 중인 잡의 비율(5)을 알 수 있습니다.
+
+![](SwarmAgent_DistributedProgress.png "SwarmAgent_DistributedProgress.png")
+
+  
+
+## 스웜 에이전트 중지
+
+스웜 에이전트를 중지하려면, **File > Exit** 를 클릭해서 애플리케이션을 닫고 프로세스를 종료합니다.
+
+![](SwarmAgent_ExitProcess.png "SwarmAgent_ExitProcess.png")
+
+[REGION:tip]
+또는 **Windows 알림 영역** 에서 **Swarm** 아이콘을 우클릭하고 **Exit** 명령을 선택합니다.
+[/REGION]
+
+이 시점에서, 스웜 코디네이터와 스웜 에이전트는 최소한의 개입으로 실행할 수 있습니다. 처리가 필요한 라이트와 오브젝트 수, 계산 퀄리티에 따라 에이전트 수가 충분하다면, 언리얼 라이트매스 빌드가 몇 시간 아니 몇 분밖에 걸리지 않을 것입니다.
+
+[REGION:tip]
+개발 환경에 따라 (작업 중인 씬의 크기와 복잡도를 포함해서), 빌드 퍼포먼스 향상을 위해서는 로컬 머신에 예약할 코어 수를 업데이트하는 것이 좋습니다. **Developer Settings > Local Performance Settings** 메뉴의 **LocalJobsDefaultProcessorCount** 변수를 조정하면 됩니다.   
+  
+![](SwarmAgent_DeveloperSettings_LocalPerformanceSettings-1.png "SwarmAgent_DeveloperSettings_LocalPerformanceSettings-1.png")
+[/REGION]
+
+언리얼 스웜 실행 관련 일반적인 질문에 대해서는, 다음 자주 묻는 질문을 먼저 확인해 보세요.  
+
+## 자주 묻는 질문
+
+*   [스웜 에이전트 및 코디네이터를 사용할 때 빌드 시간을 향상시킬 수 있는 방법은 무엇인가요?](#스웜에이전트및코디네이터를사용할때빌드시간을향상시킬수있는방법은무엇인가요?)
+*   [에이전트 분산이 안되는 이유는 무엇인가요?](#에이전트분산이안되는이유는무엇인가요?)
+*   [라이팅을 빌드할 때 CPU 사용량을 어떻게 제한하나요?](#라이팅을빌드할때CPU사용량을어떻게제한하나요?)
+*   [스웜 에이전트를 실행할 때 UnrealLightmass.exe 애플리케이션 오류가 나는데, 무슨 뜻인가요?](#스웜에이전트를실행할때unreallightmassstopexe애플리케이션오류가나는데,무슨뜻인가요?)
+*   [스웜 에이전트 및 코디네이터가 Mac 또는 Linux 를 지원하나요?](#스웜에이전트및코디네이터가mac또는linux를지원하나요?)
+*   [라이팅 빌드에 GPU 를 사용할 수 있나요?](#라이팅빌드에GPU를사용할수있나요?)
+*   [다음 오류는 무슨 뜻인가요?](#다음오류는무슨뜻인가요?)
+
+(#improvebuildtimes)
+##### 스웜 에이전트 및 코디네이터를 사용할 때 빌드 시간을 향상시킬 수 있는 방법은 무엇인가요?
+
+*   플레이어가 접근할 수 있는 영역에 [라이트매스 임포턴스 볼륨](Engine/Rendering/LightingAndShadows/Lightmass/Basics) 을 추가합니다.
+    *   이 볼륨은 라이트매스가 정확도와 퀄리티를 높이기 위해 집중할 부분을 지정할 때 사용합니다. 플레이어가 있을 수 있는 영역을 커버해야 합니다. 볼륨 밖 영역은 광자를 적게 받아 퀄리티가 떨어집니다. 참고로 큰 볼륨 하나로 넓은 영역을 포괄하면 핵심 영역에 광자 계산을 집중한다는 목적이 사라집니다.
+*   [라이트맵](Engine/Content/Types/StaticMeshes/LightmapUnwrapping) 해상도를 조정합니다.
+    *   씬의 개별 스태틱 메시에 라이트맵 해상도가 높고 기여하는 라이트 수가 많으면, 씬뿐만 아니라 단일 액터에 대해서도 빌드 시간이 늘어날 수 있습니다. 가급적 적합한 수준으로 라이트맵 해상도를 낮추고 통계 창을 활용해서 레벨의 단일 액터를 빌드하는 데 시간이 얼마나 걸릴지 파악해 보세요. 라이트맵 해상도가 높게 설정된 커다란 (또는 복잡한) 스태틱 메시에 좋은 결과를 얻으려면, 작은 메시 여러 개로 나누거나 (가능하면) 라이트맵 UV 를 수정하여 중요한 부분을 더욱 잘 커버하도록 하는 것이 좋습니다.
+*   [폴리지 툴](Engine/Foliage) 라이트맵 해상도를 활성화합니다.
+    *   레벨에 폴리지를 칠할 때 사용되는 인스턴스드 스태틱 메시는 자동으로 참조된 스태틱 메시의 라이트맵 해상도를 사용합니다. 이렇게 칠한 메시가 레벨에 수백( 또는 수천)개 있으면, 그 해상도가 시스템이 처리하기에 너무 높아질 수 있습니다. 빌드 시간이 기하 급수적으로 길어지며, 메모리 제약과 높아진 텍스처 메모리 소모량으로 인해 라이트맵 크래시가 날 수도 있습니다.  
+          
+        **Light Map Resolution** (라이트맵 해상도)를 활성화하고 기본값 8 대신 4 정도로 낮추는 것이 좋습니다. 모든 인스턴스의 해상도가 낮아지지만, 스태틱 섀도잉은 원거리에만 표시하고 다이내믹 섀도잉은 카메라 근처에만 처리하면 되므로 눈에 보이는 퀄리티 손실은 적습니다.  
+          
+        [REGION:lightbox]
+        [![](FoliageTool_LMResolution.png "FoliageTool_LMResolution.png")(w:150)](FoliageTool_LMResolution.png)
+        [/REGION]
+        [REGION:caption]
+        이미지를 클릭하면 원본을 확인합니다.
+        [/REGION]
+*   씬의 액터 및(또는) 라이트 수를 줄입니다.
+    *   레벨에 [그림자를 드리우는](Engine/Rendering/LightingAndShadows/Shadows) 액터 및(또는) 라이트의 수는 곧 라이팅을 계산할 때 그만큼의 상호작용을 고려해야 한다는 뜻입니다. 라이트를 줄이는 것이 하나의 라이트와 상호작용하는 액터 수를 제한하기 위한 핵심입니다. 넓은 영역에 영향을 줄 필요가 없는 광원의 영향 반경을 줄이면 계산 횟수가 줄어들어 처리되는 라이트 빌드 속도가 빨라집니다.
+*   권장 사양 이상의 시스템을 사용합니다.
+    *   스웜 에이전트는 연산량이 많은 CPU 집약적인 프로세스입니다. 로컬 머신만 사용하는 경우, 좋은 CPU 와 RAM 이 많으면 빌드 처리 시간을 향상시킬 수 있습니다. 앞에서 언급한 다른 요소들 또한 빌드 처리 시간에 중요한 역할을 합니다.
+
+(#agentdistribution)
+##### 에이전트 분산이 안되는 이유는 무엇인가요?
+
+원격 스웜 에이전트가 잡을 맡기를 거절하는 이유는 여러가지 있지만, 가장 흔한 것은 다른 일로 바쁘기 때문입니다. 또 다른 가능성은 그 때 잡을 맡기가 너무 바쁘다고 판단한 경우인데, 보통 머신이 컴파일 또는 [콘텐츠 쿠킹](Engine/Deployment/Cooking) 처럼 자원 소모가 심한 작업을 하는 경우입니다. 에이전트 창의 **Swarm Status** (스웜 상태) 탭에서, 빌드에 동원될 수 있는 원격 에이전트 전체 목록을 확인할 수 있을 것입니다. 그 중 하나가 현재 사용할 수 없는 경우 빌드 나머지 옆에 깜박이는 흰색 줄이 보이며, 그 위에 커서를 올리면 "Waiting for remote to become available" (원격 머신이 사용 가능할 때까지 기다리는 중)이라고 표시됩니다.  
+  
+또한, 가용 원격 에이전트를 (빌드 중이지 않을 때도) 확인할 수 있는 고급 방법은, **Log** 탭을 클릭하고 **Network** 메뉴의 **Ping Remote Agents** 를 선택하는 것입니다. 원격 머신 목록과 그 현재 상태가 표시됩니다.
+
+(#limitcpuusage)
+##### 라이팅을 빌드할 때 CPU 사용량을 어떻게 제한하나요?
+
+**Swarm > DeveloperSettings** 탭의 **LocalJobDefaultProcessCount** 및 **RemoteJobDefaultProcessorCount** 옵션으로 로컬 및 원격 머신이 라이팅 빌드 도중 사용할 CPU 코어 수를 제한할 수 있습니다.  
+  
+로컬 머신의 경우, 기여할 코어를 제한시켜야 다른 작업을 편하게 할 수 있습니다. 그래서 기본적으로 코어 두 개는 남겨놓지만, 로컬에 사용할 수 있는 코어를 더 많이 확보하면 라이트 빌드 계산 더 많은 부분을 분산 작업 처리에 맡길 수 있습니다.
+
+(#applicationerror)
+##### 스웜 에이전트를 실행할 때 UnrealLightmass.exe 애플리케이션 오류가 나는데, 무슨 뜻인가요?
+
+![](UnrealLightmassEXEError.png "UnrealLightmassEXEError.png")
+
+*   이런 유형의 오류는 Windows 에서 UE4 이외 다른 이유로 애플리케이션을 열지 못했다는 뜻입니다. 이 문제를 해결하는 단계는 다음과 같습니다.
+    *   적합한 최신 Visual Studio 종속성이 설치되었는지 확인합니다. 언리얼 엔진 4.9 이하는 **VS2013**, 4.10 이상은 **VS2015** 종속성이 있어야 합니다.
+    *   그래도 문제가 해결되지 않는 경우, ([Dependency Walker](http://www.dependencywalker.com) 와 같은) 무료 애플리케이션을 사용해서 UnrealLightmass.exe 로드를 방해하는 DLL 문제를 해결해 봅니다.
+
+(#maclinux)
+##### 스웜 에이전트 및 코디네이터가 Mac 또는 Linux 를 지원하나요?
+
+**현재 스웜 에이전트 및 코디네이터는 **Windows** 만 지원합니다. 라이트 빌드는 여전히 **Mac** 및 **Linux** 용 스웜을 사용하지만, 사용자가 액세스할 수 없습니다.**
+
+(#gpubuild)
+##### 라이팅 빌드에 GPU 를 사용할 수 있나요?
+
+스웜은 현재 라이팅 데이터의 GPU 연산을 지원하지 않습니다.
+
+(#errors)
+##### 다음 오류는 무슨 뜻인가요?
+
+*   “Ran out of memory allocating [some value]” ("[어떤 값]을 할당하던 중 메모리 부족")이라며 라이트매스 크래시가 발생했습니다.
+
+[REGION:lightbox]
+[![](SA_RanOutOfMemory.png)](SA_RanOutOfMemory.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+
+
+*   이 상황은, 스웜 에이전트가 메모리 부족으로 라이트매스용 데이터 처리에 실패한 것입니다. 보통 스웜 코디네이터를 사용하지 않을 때 발생하는데, 여러 에이전트에 빌드를 분산할 때 하나의 컴퓨터가 모든 작업을 하기 때문입니다. 라이트매스는 액터와 라이트가 많은 커다란 레벨을 계산할 때나 이나 이트맵 해상도가 너무 높은 경우 메모리가 부족해질 수 있습니다.  
+      
+    이런 오류 발생 확률을 낮추려면 로컬 머신의 RAM 용량을 늘리거나, 분산할 에이전트를 추가하거나, 가능하면 액터의 라이트맵 해상도를 낮추거나, 심지어 라이트매스 임포턴스 볼륨을 추가해서 플레이어가 접근할 수 있는 핵심 영역에 계산을 집중시키면 됩니다.
+
+*   `“Assertion Failed: (Index >=0)&(Index<ArrayNum))”` 라면서 라이트매스 크래시가 발생했습니다.
+
+[REGION:lightbox]
+[![](SA_ArrayIndexOutOfBounds.png)](SA_ArrayIndexOutOfBounds.png)
+[/REGION]
+[REGION:caption]
+이미지를 클릭하면 원본을 확인합니다.
+[/REGION]
+  
+
+*   이 오류가 발생하면 스웜 캐시를 Clean (지우기) 및 Validate (유효성 검사)해야 합니다.
+
+*   에디터 토스트 팝업에 “Light Build Failed. Swarm failed to kick off.” (라이트 빌드 실패. 스웜 발동에 실패했습니다)라고 뜹니다.  
+    ![](FailedToKickOff.jpg)
+    *   언리얼 에디터에서 라이팅 빌드를 시도할 때, 이런 메시지가 나타날 수 있습니다. 흔한 몇 가지 이유는 다음과 같습니다.
+        *   실행 중인 스웜 에이전트 인스턴스가 여러 개 있지 않은지 확인합니다. 실행 중인 작업 프로세스를 살펴보거나 **Windows** 에서 **Windows 알림 영역** 에서 확인할 수 있습니다.
+        *   레벨에 깨진 레벨 및/또는 액터가 있습니다.
+        *   방화벽 또는 안티바이러스 소프트웨어에 **SwarmAgent.exe** 에 대한 예외 처리를 올바르게 해주지 않았습니다.
+        *   엔진 설치 또는 손상 문제입니다. 런처 사용자의 경우 엔진 버전 드롭다운에서 **Verify** (검증)을 선택합니다.  
+            ![](VerifyEngine.png)
+        *   언리얼 라이트매스의 소스 빌드 문제입니다. UnrealLightmass 솔루션을 다시 빌드하세요.
+    *   그래도 스웜 시작에 계속 실패한다면, 다른 시스템 프로세스가 그 포트를 점유하고 있을 수가 있습니다.
+        *   스웜 로그를 열어 다음과 같은 오류 메시지를 확인합니다. 
+        *   Exception details: System.Net.Sockets.SocketException (0x80004005): No connection could be made because the target machine actively refused it 123.456.7.89:8009
+                        
+            IT 부서와 포트 할당 관련 문제를 해결해야 할 수 있습니다. 특히 스웜은 정상 작동에 8008 및 8009 포트가 필요합니다. 이 포트가 없으면 에이전트 또는 코디네이터 초기화에 실패합니다. 딱히 UE4 로 인해 발생하는 문제는 아닙니다.

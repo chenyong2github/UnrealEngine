@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "IMediaOptions.h"
+#include "Misc/Variant.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "IMediaOptions.h"
@@ -58,4 +59,34 @@ public:
 	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
 	virtual FText GetMediaOption(const FName& Key, const FText& DefaultValue) const override;
 	virtual bool HasMediaOption(const FName& Key) const override;
+
+	/** Set a boolean parameter to pass to the player. */
+	UFUNCTION(BlueprintCallable, meta=(DisplayName = "SetMediaOption (boolean)"), Category = "Media|MediaSource")
+	void SetMediaOptionBool(const FName& Key, bool Value);
+	/** Set a float parameter to pass to the player. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "SetMediaOption (float)"), Category = "Media|MediaSource")
+	void SetMediaOptionFloat(const FName& Key, float Value);
+	/** Set a double parameter to pass to the player. */
+	void SetMediaOptionDouble(const FName& Key, double Value);
+	/** Set an integer64 parameter to pass to the player. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "SetMediaOption (integer64)"), Category = "Media|MediaSource")
+	void SetMediaOptionInt64(const FName& Key, int64 Value);
+	/** Set a string parameter to pass to the player. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "SetMediaOption (string)"), Category = "Media|MediaSource")
+	void SetMediaOptionString(const FName& Key, const FString& Value);
+
+private:
+	/** Holds our media options. */
+	TMap<FName, FVariant> MediaOptionsMap;
+
+	/**
+	 * Get the media option specified by the Key as a Variant.
+	 * Returns nullptr if the Key does not exist.
+	 */
+	const FVariant* GetMediaOptionDefault(const FName& Key) const;
+
+	/**
+	 * Sets the media option specified by Key to the supplied Variant.
+	 */
+	void SetMediaOption(const FName& Key, FVariant& Value);
 };

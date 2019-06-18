@@ -600,6 +600,13 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 			return false;
 		}
 
+#if PLATFORM_MAC
+		if(PSO.GraphicsDesc.PrimitiveType >= PT_Num)
+		{
+			return false;
+		}
+#endif
+
 		GraphicsInitializer.SubpassHint = (ESubpassHint)PSO.GraphicsDesc.SubpassHint;
 		GraphicsInitializer.SubpassIndex = PSO.GraphicsDesc.SubpassIndex;
 		

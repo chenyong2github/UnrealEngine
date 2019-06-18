@@ -1,28 +1,21 @@
-Availability:Licensee
-Title:Simplygon
-Crumbs:%ROOT%, Engine
-Description:Third-party tools for mesh simplification and merging that have been integrated into Unreal Engine 4.
-Version: 4.9
+Availability: Licensee
+Crumbs: 
+Title: Simplygon
+Description: Third-party tools for mesh simplification and merging that have been integrated into Unreal Engine 4.
+Type: 
+Version: 4.22
+Parent: Engine/UI/Tools
 
-[REGION:raw]
-![](SimplygonLogo.png)
+
+[REGION:warning]
+As of engine release 4.22, UE4 support for Simplygon has been deprecated and will no longer be supported. You can continue to get updates from Simplygon but will have to do your own integration into the engine. As an alternative, we have our own internal solution which you can read more about on the [Skeletal Mesh Simplification](Engine/Content/Types/SkeletalMeshes/SkeletalMeshReductionTool) documentation pages.
 [/REGION]
+
+![](SimplygonLogo.png)
 
 ## Essentials
 
-[REGION:buttonlist]
-* [](Engine/UI/Tools/Simplygon/Compiling "%Engine/UI/Tools/Simplygon/Compiling:description%")	
-[/REGION]
+*   [Compiling Simplygon](Engine/UI/Tools/Simplygon/Compiling "Instructions on compiling and terms of use for the Simplygon integration in Unreal Engine 4.")
+    
 
-[COMMENT:none]
-
-[EXCERPT:License]
-[REGION:warning]
-Simplygon is distributed with Unreal Engine but licensees must first obtain a license from Donya Labs ([](http://simplygon.com/)) to use this feature. Please contact them for details on obtaining a license. 
-[PUBLISH:Licensee] 
-See [CompilingSimplygon](Engine/UI/Tools/Simplygon/Compiling) for more information. 
-[/PUBLISH:Licensee]
-[/REGION]
-[/EXCERPT:License]
-
-[/COMMENT]
+[](#)[](#)

@@ -94,9 +94,9 @@ public:
 	class UNiagaraGraph* GetPrecomputedNodeGraph() { return NodeGraphDeepCopy; }
 	const class UNiagaraGraph* GetPrecomputedNodeGraph() const { return NodeGraphDeepCopy; }
 	const FString& GetUniqueEmitterName() const { return EmitterUniqueName; }
-	void VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage);
-	void DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, ENiagaraScriptUsage InUsage);
-	void FinishPrecompile(UNiagaraScriptSource* ScriptSource, const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage);
+	void VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver);
+	void DeepCopyGraphs(UNiagaraScriptSource* ScriptSource, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver);
+	void FinishPrecompile(UNiagaraScriptSource* ScriptSource, const TArray<FNiagaraVariable>& EncounterableVariables, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver);
 	virtual int32 GetDependentRequestCount() const override {
 		return EmitterData.Num();
 	};
@@ -132,7 +132,7 @@ public:
 	TMap<const UNiagaraGraph*, TArray<FunctionData>> PreprocessedFunctions;
 	TArray<UNiagaraGraph*> ClonedGraphs;
 protected:
-	void VisitReferencedGraphsRecursive(UNiagaraGraph* InGraph);
+	void VisitReferencedGraphsRecursive(UNiagaraGraph* InGraph, const FCompileConstantResolver& ConstantResolver);
 };
 
 
@@ -542,6 +542,8 @@ private:
 	UNiagaraGraph* CloneGraphAndPrepareForCompilation(const UNiagaraScript* InScript, const UNiagaraScriptSource* InSource, bool bClearErrors);
 
 	bool ShouldInterpolateParameter(const FNiagaraVariable& Parameter);
+
+	void UpdateStaticSwitchConstants(UEdGraphNode* Node);
 
 	bool IsBulkSystemScript() const;
 	bool IsSpawnScript() const;

@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:ParticleEmitter 클래스
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Reference
-Description:캐스케이드의 이미터 리스트를 이루는 성분들인 ParticleEmitter (파티클 이미터) 프로퍼티 참고서입니다.
+Description:캐스케이드의 이미터 리스트를 이루는 성분들인 ParticleEmitter (파티클 이미터) 프로퍼티 레퍼런스입니다.
 Version: 4.9
 tags:Particles
 

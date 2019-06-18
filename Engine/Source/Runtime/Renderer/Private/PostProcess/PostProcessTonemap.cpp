@@ -830,7 +830,7 @@ public:
 	}
 
 	template <typename TRHICmdList>
-	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FRHIUnorderedAccessView* DestUAV, FTextureRHIParamRef EyeAdaptationTex)
+	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FRHIUnorderedAccessView* DestUAV, FRHITexture* EyeAdaptationTex)
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		const FPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
@@ -934,7 +934,7 @@ static inline void ShaderTransitionResources(const FRenderingCompositePassContex
 } // PostProcessTonemapUtil
 
 template <typename TRHICmdList>
-inline void DispatchComputeShader(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV, const TonemapperPermutation::FDesktopDomain& DesktopPermutationVector, FTextureRHIParamRef EyeAdaptationTex, bool bDoEyeAdaptation)
+inline void DispatchComputeShader(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV, const TonemapperPermutation::FDesktopDomain& DesktopPermutationVector, FRHITexture* EyeAdaptationTex, bool bDoEyeAdaptation)
 {
 	FPostProcessTonemapCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<TonemapperPermutation::FDesktopDomain>(DesktopPermutationVector);

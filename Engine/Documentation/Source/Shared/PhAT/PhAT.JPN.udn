@@ -14,7 +14,7 @@ Crumbs:
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNormal]
@@ -33,7 +33,7 @@ Engine\Physics\PhAT\UserGuide#testing
 ![](PhAT_Sim.png)
 
 [VAR:ToolTipFullLink]
-Engine\Physics\PhAT\UserGuide#testing
+Engine\Physics\PhysicsAssetEditor\UserGuide#testing
 [/VAR]
 
 [/EXCERPT:SimulationNoGravity]
@@ -147,7 +147,7 @@ Body Editing モードも Constraint Editing モードも、ビューポート�
 
 選択中の物理ボディが衝突する物理ボディは青みがかって見え、衝突しない物理ボディはグレーに表示されます。黄色のボディは、選択中の物理ボディに結合された物理ボディです。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:EnableCollision]
 
@@ -162,7 +162,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 選択中の物理ボディが衝突する物理ボディは青みがかって見え、衝突しない物理ボディはグレーに表示されます。黄色のボディは、選択中の物理ボディに結合された物理ボディです。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
+Engine/Physics/PhysicsAssetEditor/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 [/VAR]
 [/EXCERPT:DisableCollision]
 
@@ -174,7 +174,7 @@ Engine/Physics/PhAT/UserGuide#enablinganddisablingcollisionbetweenphysicsbodies
 
 黄色のボディは、選択中の物理ボディに結合された物理ボディです。
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/UserGuide#welding
+Engine/Physics/PhysicsAssetEditor/UserGuide#welding
 [/VAR]
 [/EXCERPT:WeldToBody]
 
@@ -219,7 +219,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 玉継ぎ手の動きを真似るように、コンストレイントのプロパティを設定します。直線運動はの自由度はロックされますが、角運動はすべての軸上でフリーです。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToBallAndSocket]
 
@@ -229,7 +229,7 @@ Engine/Physics/PhAT/UserGuide#welding
 
 [Q] キーを使って、ヒンジの軸を循環します。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToHinge]
 
@@ -239,7 +239,7 @@ Prismatic ジョイントの動きを真似るように、コンストレイン�
 
 [Q] を使って prismatic 軸となる軸を循環させます。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToPrismatic]
 
@@ -249,7 +249,7 @@ Prismatic ジョイントの動きを真似るように、コンストレイン�
 
 [Q] キーを使うと、Twist Motion 軸となる軸を循環させます。
 [VAR:ToolTipFullLink]
-/Engine/Physics/PhAT/Reference#constraintmodetoolbar
+/Engine/Physics/PhysicsAssetEditor/Reference#constraintmodetoolbar
 [/VAR]
 [/EXCERPT:ConvertToSkeletal]
 

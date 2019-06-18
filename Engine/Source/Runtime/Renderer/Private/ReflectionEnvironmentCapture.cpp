@@ -181,7 +181,7 @@ void CreateCubeMips( FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Typ
 {	
 	SCOPED_DRAW_EVENT(RHICmdList, CreateCubeMips);
 
-	FTextureRHIParamRef CubeRef = Cubemap.TargetableTexture.GetReference();
+	FRHITexture* CubeRef = Cubemap.TargetableTexture.GetReference();
 
 	auto* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 

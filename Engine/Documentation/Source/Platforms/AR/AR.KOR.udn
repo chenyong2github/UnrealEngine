@@ -1,4 +1,4 @@
-INTSourceChangelist:4359079
+INTSourceChangelist:6402108
 Availability: Public
 Crumbs: 
 Title: 증강 현실 개발
@@ -18,4 +18,5 @@ Tags: AR
 ## 플랫폼
 
 %Platforms/AR/HandheldAR:topic%
+%Platforms/AR/HoloLens:topic%
 %Platforms/AR/MagicLeap:topic%

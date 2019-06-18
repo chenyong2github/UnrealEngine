@@ -9,6 +9,7 @@
 
 // Insights
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -39,7 +40,7 @@ void FTimingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const T
 FTimingProfilerCommands::FTimingProfilerCommands()
 	: TCommands<FTimingProfilerCommands>(
 		TEXT("TimingProfilerCommand"), // Context name for fast lookup
-		NSLOCTEXT("Contexts", "TimingProfilerCommand", "Timing Profiler Command"), // Localized context name for displaying
+		NSLOCTEXT("Contexts", "TimingProfilerCommand", "Timing Insights"), // Localized context name for displaying
 		NAME_None, // Parent
 		FEditorStyle::GetStyleSetName() // Icon Style Set
 	)
@@ -58,6 +59,31 @@ void FTimingProfilerCommands::RegisterCommands()
 	UI_COMMAND(ToggleTimersViewVisibility, "Timers", "Toggles the visibility of the Timers view", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleStatsCountersViewVisibility, "Stats", "Toggles the visibility of the Stats Counters view", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ToggleLogViewVisibility, "Log", "Toggles the visibility of the Log view", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::L));
+}
+PRAGMA_ENABLE_OPTIMIZATION
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FTimingViewCommands
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FTimingViewCommands::FTimingViewCommands()
+	: TCommands<FTimingViewCommands>(
+		TEXT("TimingViewCommand"), // Context name for fast lookup
+		NSLOCTEXT("Contexts", "TimingViewCommand", "Timing Insights"), // Localized context name for displaying
+		NAME_None, // Parent
+		FInsightsStyle::GetStyleSetName() // Icon Style Set
+	)
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FTimingViewCommands::RegisterCommands()
+{
+	UI_COMMAND(ShowAllGpuTracks, "GPU Track", "Show/hide the GPU track", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Y));
+	UI_COMMAND(ShowAllCpuTracks, "CPU Thread Tracks", "Show/hide all CPU tracks (and all CPU thread groups)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

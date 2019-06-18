@@ -1,53 +1,147 @@
-﻿Availability: Public
-Title:1. 创建新项目
+﻿INTSourceChangelist:6277736
+Availability: Docs
+Title:1.必要设置
 Crumbs:%ROOT%, GettingStarted, Engine\Rendering\LightingAndShadows\QuickStart
-Description:光照快速入门指南的第一步是创建一个新项目。
+Description:在这里，我们将创建几个小房间，在本指南的稍后部分，我们将照亮它们。 
+SkillLevel: Beginner
+Version: 4.9
 
 
 [VAR:Steps]
-[OBJECT:TopicList]
-	[PARAM:icon]
-		![](%ROOT%/build_icon.png)(convert:false)
+[OBJECT:Navigation]
+	[PARAM:previous]
 	[/PARAM]
-	[PARAM:title]
-		步骤
+	[PARAM:current]
 	[/PARAM]
-	[PARAM:description]
+	[PARAM:home]
+		[快速入门主页](Engine/Rendering/LightingAndShadows/QuickStart)
 	[/PARAM]
-	[PARAM:links]
-		* **当前步骤 - %Engine\Rendering\LightingAndShadows\QuickStart\1:Title%**
-		* [下一步 - %Engine\Rendering\LightingAndShadows\QuickStart\2:Title%](Engine\Rendering\LightingAndShadows\QuickStart\2 "%Engine\Rendering\LightingAndShadows\QuickStart\2:description%") 
+	[PARAM:next]
+		[下一步](Engine/Rendering/LightingAndShadows/QuickStart/2 “%Engine/Rendering/LightingAndShadows/QuickStart/2:title%”)
 	[/PARAM]
 [/OBJECT]
 [/VAR]
 
 
 
----
-
-
-1. 在虚幻引擎启动程序中，点击 ![](LQS_Launch.png)(w:128)按钮。
-
-1. [虚幻项目浏览器](Engine/Basics/Projects/Browser)将会出现。点击  **New Project(新建项目)** 选卡。
-
-	[REGION:lightbox]
-	![](LQS_NewProject.png)(w:600)
-	[/REGION]
-
-1. 在该指南中，我们将使用 **Blueprint First Person** 模板。滚动该列表，并 **左击** 它来选中它。
-
-	[REGION:lightbox]
-	[![](LQSG_01.png)(w:600)](LQSG_01.png)
-	[/REGION]
-	
-1. 请确保启用了 **包含初学者内容** 项(1)，在 **名称** 域中为您的项目输入一个名称(2)，然后选择 **创建项目** (3)。
-
-1. 新项目将会在虚幻编辑器中打开。
-
-[REGION: note]
-如果这是您第一次运行该编辑器，那么您将会看到虚幻编辑器4的  **欢迎指南** 。这是一个界面引导，是您了解及学习如何导航编辑器的好方法。
+[REGION:note]
+对于本系列教程，我们将使用一个新的 **空白（Blank）** 项目，其中已启用 **初学者内容（Starter Content）**。有关创建新项目、使用模板和定义项目设置（包括 **初学者内容（Starter Content）**）的信息，请参阅[](Engine/Basics/Projects/Browser)页面。 
 [/REGION]
 
----
+在您的 **空白（Blank）** 项目（包括 **初学者内容（Starter Content）**）中，按照以下步骤创建我们将用于照明的简单公寓。 
+
+1.	打开您的项目后，按 **Ctrl+N** 创建一个新的关卡，然后选择 **空关卡（Empty Level）**。 
+
+1.	在 **内容浏览器（Content Browser）** 中，在 **初学者内容（StarterContent） > 架构（Architecture）** 文件夹下，将一个 **Floor_400x400** 拖动至该关卡中。 
+
+	![](setup1.png)
+
+1.	在 **世界大纲视图（World Outliner）** 中，选择地板并按 **Ctrl+W** 6次，以创建如下所示的地板。 
+
+	![](floors.png)
+
+1.	选择 **Floor_400x400**，然后在 **详细信息（Details）** 面板中，按如下所示设置其 **变换（Transform）**。 
+
+	![](SetTransform1.png)
+
+1.	按下表所示为其余地板设置 **变换（Transform）**。 
+
+	| 地板 | 变换 |
+	| ------- | ------------ |
+	| **400x401** | ![](setup4.png) |
+	| **400x402** | ![](setup5.png) |
+	| **400x403** | ![](setup6.png) |
+	| **400x404** | ![](setup8.png) |
+	| **400x405** | ![](setup9.png) |
+	| **400x406** | ![](setup10.png)|
+
+	添加所有地板后，您现在应该有如下所示的地板和屋顶。 
+
+	![](floorandroof.png)
+
+	要更好地查看您的资源，从视图选项切换到 **线框（Wireframe）** 视图模式。 
+
+	![](setup3.png)
+
+1.	从 **内容浏览器（Content Browser）** 中，将一个 **Wall_400x400** 拖动到视口中。 
+
+	![](setup11.png)
+
+1.	在 **世界大纲视图（World Outliner）** 中，选择墙壁并按 **Ctrl+W** 11次，以创建如下所示的墙壁。 
+
+	![](wallsOutliner.png)
+
+1.	选择 **Wall_400x400**，然后在 **详细信息（Details）** 面板中，按如下所示设置其 **变换（Transform）**。 
+
+	![](wall1Details.png)
+	
+1.	按下表所示为其余墙壁设置 **变换（Transform）**。 
+
+	| 墙壁 | 变换 |
+	| ------- | ------------ |
+	| **400x401** | ![](setup13.png) |
+	| **400x402** | ![](setup14.png) |
+	| **400x403** | ![](setup15.png) |
+	| **400x404** | ![](setup16.png) |
+	| **400x405** | ![](setup17.png) |
+	| **400x406** | ![](setup18.png) |
+	| **400x407** | ![](setup19.png) |
+	| **400x408** | ![](setup20.png) |
+	| **400x409** | ![](setup21.png) |
+	| **400x410** | ![](setup23.png) | 
+	| **400x411** | ![](setup24.png) |
+
+	添加所有墙壁（下面高亮显示）后，您现在应该有外墙和一个小角落房间。 
+
+	![](wallsAdded.png)
+
+1.	从 **内容浏览器（Content Browser）** 中，将一个 **Pillar_50x500** 拖动到视口中。 
+
+	![](setup25.png)
+
+1.	在 **世界大纲视图（World Outliner）** 中，选择支柱并按 **Ctrl+W** 5次，以创建如下所示的支柱。 
+
+	![](pillarsAdded.png)
+
+1.	选择 **Pillar_50x500**，然后在 **详细信息（Details）** 面板中，按如下所示设置其 **变换（Transform）**。 
+
+	![](pillar1Details.png)
+
+1.	按下表所示为其余支柱设置 **变换（Transform）**。 
+
+	| 支柱 | 变换 |
+	| ------- | ------------ |
+	| **50x501** | ![](setup27.png) |
+	| **50x502** | ![](setup28.png) |
+	| **50x503** | ![](setup29.png) |
+	| **50x504** | ![](setup30.png) |
+	| **50x505** | ![](setup31.png) |
+
+	添加所有支柱（下面高亮显示）后，您现在应该有一个与下面类似的结构。 
+
+	![](setup32.png)
+	
+1.	在 **世界大纲视图（World Outliner）** 中，选择 **Wall_400x407** 墙壁。 
+
+	![](setup33.png)
+
+1.	在 **内容浏览器（Content Browser）** 中，选择 **Wall_Door_400x400**，然后在407墙壁的 **详细信息（Details）** 面板中，单击 **指定（Assign）** 按钮。 
+
+	![](setup34.png)
+
+1.	为 **Wall_400x410** 墙壁重复前面的两个步骤，以将其切换为一个同样带门的墙壁。 
+
+	![](setup36.png)
+
+1.	选择 **Wall_400x405**，然后在 **内容浏览器（Content Browser）** 中选择 **Wall_Window_400x400**，并将其指定给关卡中的墙壁。 
+
+	![](setup39.png)
+
+	您现在应该有两个门道和一个窗户。 
+
+我们的简单公寓已完成，其中包括一间小浴室和一个通往露台的通路。在 **下一步（Next Step）** 中，我们将照亮它。 
+
+
+
 
 

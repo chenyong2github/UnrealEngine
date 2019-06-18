@@ -1,7 +1,7 @@
-﻿INTSourceChangelist:3801260
-Availability:Docs
+﻿INTSourceChangelist:6535113
+Availability:Public
 Crumbs: %ROOT%
-Title: Project启动器参考
+Title: 项目启动器
 Description: 关于部署用于虚幻引擎4的项目所使用的项目启动器。
 Type: reference
 Version:4.18
@@ -39,12 +39,11 @@ Topic-image:ProjectLauncher_Topic.png
 
 ![](AdvancedDefautlLaunchProfile.png)
 
-在 **自定义启动配置文件（Custom Launch Profiles）** 窗口中，可以创建自己的配置文件，为内容的构建和部署指定更多选项，请参阅 [自定义启动配置文件](#customlaunchprofiles) 部分了解详细信息。
+在 **自定义启动配置文件（Custom Launch Profiles）** 窗口中，可以创建自己的配置文件，为内容的构建和部署指定更多选项，请参阅 [自定义启动配置文件](#自定义启动配置文件) 部分了解详细信息。
 
 
 
 
-(#customlaunchprofiles)
 ## 自定义启动配置文件
 
 在项目启动器中，可以创建 **自定义启动配置文件（Custom Launch Profile）**，以便与所有平台甚至特定的平台（如Nintendo Switch）配合使用。借助这些配置文件，可以使用可用的构建操作设置内容的转化、打包甚至部署方式，从而以特定方式构建内容。
@@ -112,7 +111,7 @@ Topic-image:ProjectLauncher_Topic.png
 
 在 **转化（Cook）** 部分，可通过两种方式转化项目内容：**按常规（By the Book）** 和 **动态（on the fly）**。
 
-#### 按常规（By the Book）
+#### 按常规
 
 **按常规（By the Book）** 转化选项可指定应转化的内容，并在启动游戏之前转化所有内容。
 

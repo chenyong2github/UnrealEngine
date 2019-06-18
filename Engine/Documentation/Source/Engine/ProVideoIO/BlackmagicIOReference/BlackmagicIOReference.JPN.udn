@@ -1,0 +1,152 @@
+﻿INTSourceChangelist:6426502
+Availability: Public
+Crumbs: 
+Title: Blackmagic メディア リファレンス
+Description: Blackmagic Design メディア フレームワーク コンポーネントで公開されるオプションと設定について説明します。
+Type:reference
+Version: 4.21
+Parent: Engine/ProVideoIO
+Order: 
+Tags: Reference
+Tags: professional video
+topic-image: blackmagic_reference_topic.png
+
+
+このページでは Blackmagic メディア フレームワーク オブジェクトで公開されるオプションと設定について説明します。
+
+## サポート対象の Blackmagic カード
+
+Blackmagic メディア ソースおよび Blackmagic メディア出力は、次のカードでテストされています。
+
+* **DeckLink 4K Extreme 12G**
+* **DeckLink Duo 2**
+* **DeckLink 8K Pro**
+
+他のデバイスは期待どおりの動作をしない場合があります。
+
+## Blackmagic メディア ソース設定
+
+作成した各 Blackmagic メディア ソース オブジェクトでは次のコンフィギュレーション設定が公開されています。
+
+  
+| プロパティ | 説明 |
+| --- | --- |
+| [REGION:tablesection]コンフィギュレーション オプション[/REGION] ||
+| [INCLUDE:#excerpt_0]||
+| **Device (デバイス)** | Unreal Engine にビデオを取り込むためにメディア ソースが使用する Blackmagic デバイスと SDI 接続を設定します。 使用するコンピュータに複数のカードやデバイスが接続されている場合、ここで使用する対象を選択できます。 |
+| **Resolution (解像度)** | 入力ビデオ フィードの解像度を設定します。 これは実際のビデオ フィードに必ず一致する必要があることに注意してください。 |
+| **Standard (規格)** | 入力ビデオ フィードがプログレッシブ方式かインターレース方式かを設定します。これは実際のビデオ フィードに必ず一致する必要があることに注意してください。 |
+| **Frame Rate (フレーム レート)** | 入力フィードの秒あたりのビデオ フレーム数を設定します。これは実際のビデオ フィードに必ず一致する必要があることに注意してください。 |
+| [REGION:tablesection]他の Blackmagic オプション[/REGION] ||
+| **Timecode Format (タイムコード形式)** | ビデオ信号に付随するタイムコードのタイプを指定します。 |
+| [REGION:tablesection]オーディオ[/REGION] ||
+| **Capture Audio (オーディオのキャプチャ)** | Unreal Engine がメディア ポートからオーディオをキャプチャするかどうかを指定します。 |
+| **Audio Channel (オーディオ チャネル)** | Unreal Engine がキャプチャする信号に含まれるオーディオ チャネルを指定します。 |
+| **Max Num Audio Frame Buffer (オーディオ フレーム バッファの最大数)** | Unreal Engine が常にメモリに保存するオーディオ データの最大フレーム数を設定します。 入力ビデオに飛びや処理落ちがある場合、この値を増やして試すことができます。 |
+| [REGION:tablesection]ビデオ[/REGION] ||
+| **Capture Video (ビデオのキャプチャ)** | Unreal Engine がメディア ポートからビデオをキャプチャするかどうかを指定します。 |
+| **Color Format (カラー形式)** | 入力ビデオの各ピクセルを構成するカラー チャネルのオーダーと各チャネルのビット数を指定します。 |
+| **Max Num Video Frame Buffer (ビデオ フレーム バッファの最大数)** |Unreal Engine が常にメモリに保存するビデオ データの最大フレーム数を設定します。 入力ビデオに飛びや処理落ちがある場合、この値を増やして試すことができます。 |
+| [REGION:tablesection]デバッグ[/REGION] ||
+| **Log Drop Frame (ドロップ フレームのログ)** | 有効にすると、入力フィードにドロップしたフレームを検出するたびにメッセージが Unreal Engine の出力ログに記録されます。 |
+| **Encode Timecode in Texel (テクセルにタイムコードをエンコード)** | 有効にすると、エンジンはキャプチャしたビデオの各フレームにそのタイムコードを埋め込みます。これを使用して、入力の各フレームのタイムコードが期待する値と一致するかどうかをチェックできます。 「[タイムコード テクセル エンコーディング](https://docs.unrealengine.com/en-us/Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding)」を参照してください。 |
+| [REGION:tablesection]同期[/REGION] ||
+| **Synchronize with Engine's Timecode (エンジンのタイムコードと同期)** | デフォルトでは、Unreal Engine は入力したとおりにビデオ フレームの再生を試みます。この設定を有効にすると、入力フレームをバッファリングし、Unreal Engine の内部タイムコードに合わせようとします。 バッファリングされたフレームのタイムコードが、フレームの Unreal Engine の内部タイムコードに一致する場合、ビデオ入力は転送されるそのフレームに同期されます。 |
+| [REGION:tablesection]プラットフォーム[/REGION] ||
+| **Player Overrides (プレイヤー オーバーライド)** | Blackmagic メディア ソースではデフォルト値のままにします。 |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0] 
+
+![Blackmagic メディア ソース コンフィギュレーション](bm-source-settings.png "Blackmagic メディア ソース コンフィギュレーション")
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+## Blackmagic メディア出力設定
+
+作成した各 Blackmagic メディア出力オブジェクトには次のコンフィギュレーション設定が公開されています。
+
+  
+|** プロパティ **|** 説明 **|
+| --- | --- |
+| [REGION:tablesection]コンフィギュレーション設定[/REGION] ||
+| [INCLUDE:#excerpt_1]||
+| **Output Type (出力タイプ)** | [INCLUDE:#excerpt_2]| 
+| **Device (デバイス)** | メディア ソースがビデオ フィードを送信する Blackmagic デバイスと SDI 接続を設定します。 使用するコンピュータに複数のカードやデバイスが接続されている場合、ここで使用する対象を選択できます。 |
+| **Resolution (解像度)** | このメディア出力で生成されるビデオ フィードの解像度を設定します。 |
+| **Standard (規格)** | このメディア出力で生成される出力フィードがプログレッシブ方式かインターレース方式かどうかを設定します。 |
+| **Frame Rate (フレーム レート)** | このメディア出力で生成されるビデオ フィードの FPS (フレーム/秒) 数を設定します。 |
+| **Key Source (キー ソース)** | Unreal Engine からキー イメージを受け取るポートを設定します (**Output Type** が **Fill and Key** に設定されているときのみ)。 |
+| [REGION:tablesection]出力[/REGION] ||
+| **Timecode Format (タイムコード形式)** | Unreal Engine が出力フィードにタイムコードを埋め込むかどうか、さらに埋め込む場合に使用するタイムコード形式を指定します。 |
+| **Pixel Format (ピクセル形式)** | [INCLUDE:#excerpt_3] |
+| **Number of Blackmagic Buffers (Blackmagic バッファ数)** | [INCLUDE:#excerpt_4] |
+| **Interlaced Fields Timecode Need to Match (インターレース フィールドのタイムコードの一致が必要)** | インターレース方式のビデオ フィードを生成する際、この設定では、単一インターレース方式フレームの両方のフィールドに対するタイムコード値が一致する必要があるかどうかを指定します。 |
+| **Number of Texture Buffers (テクスチャ バッファ数)** | [INCLUDE:#excerpt_5] |
+| [REGION:tablesection]同期[/REGION] ||
+| **Wait for Sync Event (同期イベントの待機)** | [INCLUDE:#excerpt_6] |
+| [REGION:tablesection]デバッグ[/REGION] ||
+| **Encode Timecode in Pixel (ピクセルでのタイムコードのエンコード)** | 有効にすると、エンジンは出力信号の各フレームにタイムコードを埋め込みます。「[タイムコード テクセル エンコーディング](Engine/ProVideoIO/TimecodeGenlock#timecodetexelencoding)」を参照してください。 |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+このオプションが無効で、Unreal Engine が入力信号をゲンロックしていない場合、エンジンは対応可能な最高のフレーム レートで動作し、生成されるフレームはすべて Blackmagic カードに送られます。 カードで新しいフレームを出力する準備ができるたびに、エンジンで生成されるフレームの 1 つを選択します。
+
+このオプションが有効であると、Blackmagic カードで新しいフレームを受け付ける準備ができるまで、Unreal Engine は出力の新しいフレームを生成しません。 この効果はゲンロックと同様ですが、このオプションでは、Unreal Engine のフレーム レートを入力信号にロックするのではなく、エンジンのフレーム レートを Blackmagic カードの出力タイミングにロックします。  
+
+このオプションが一番便利なのは、Unreal Engine のフレーム レートにロックできる入力信号がまだないときに、出力ビデオ フィードの各フレームに対して、確実に 1 つの出力フレームだけをエンジンで生成するようにする場合です。  
+
+カスタム タイムステップを使用して、入力フィードに Unreal Engine がゲンロックされている場合にこのオプションを有効にできません。
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+GPU からメイン スレッド メモリに各フレーム画像を転送するために使用するバッファ数を設定します。  
+値を小さくすると、各転送が完了するまで待機するときに GPU サイドのボトルネックになることがあります。数値が大きいと、レイテンシーが増える可能性があります。
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+メイン スレッド メモリから Blackmagic カードに各フレーム画像を転送するために使用するバッファ数を設定します。  
+
+値を小さくすると、各転送が完了するまで待機するときに、フレームの消失につながることがあります。数値が大きいと、レイテンシーが増える可能性があります。
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+各ピクセルを構成するカラー チャネルのオーダーと各チャネルのビット数を指定します。
+
+[REGION:tip]
+アルファを出力する場合、**Output Type ** 設定を **Fill and Key** に設定し、**Key Source **を使用し、アルファを Blackmagic カードの出力ポートに送信します。
+[/REGION]
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+Unreal Engine がフィル画像のみを出力するか、フィルおよびキー画像の両方を出力するかどうかを指定します。  
+これを **Fill Only (フィルのみ)** に設定すると、フィル画像のみが以下で設定した **Source** に出力されます。  
+これを **Fill and Key (フィルとキー)** に設定すると、フィル画像が **Source** に出力され、キーは **Key Source** に出力されます。
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]  
+
+![BlackmagicMediaOutput コンフィギュレーション](bm-output-settings.png "BlackmagicMediaOutput コンフィギュレーション")
+
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]

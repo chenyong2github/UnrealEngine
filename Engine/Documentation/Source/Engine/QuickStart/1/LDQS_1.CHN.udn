@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6077702
+Availability:docs
 Title:1 - 必要设置
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:在此步骤中我们将使用项目浏览器来新建一个项目。 
@@ -9,6 +9,8 @@ Related:Engine/Basics/Projects
 Related:Engine/Basics/Projects/Browser
 Related:GettingStarted/Installation
 checkpoint: editorqs
+
+## 页面已被合并，标记为docs。 
  
 [VAR:Steps]
 [OBJECT:Navigation]

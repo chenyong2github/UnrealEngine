@@ -327,7 +327,7 @@ public:
 		int32 NumMeshDistanceFieldCastersValue,
 		FRHIShaderResourceView* MeshDistanceFieldCasterIndicesSRV,
 		FRHIShaderResourceView* LightDirectionDataSRV,
-		FTextureRHIParamRef ReceiverBentNormalTextureValue)
+		FRHITexture* ReceiverBentNormalTextureValue)
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
@@ -424,9 +424,9 @@ public:
 		float IndirectCapsuleSelfShadowingIntensityValue = Scene->DynamicIndirectShadowsSelfShadowingIntensity;
 		SetShaderValue(RHICmdList, ShaderRHI, IndirectCapsuleSelfShadowingIntensity, IndirectCapsuleSelfShadowingIntensityValue);
 
-		if (Scene->DistanceFieldSceneData.ObjectBuffers)
+		if (Scene->DistanceFieldSceneData.GetCurrentObjectBuffers())
 		{
-			DistanceFieldObjectParameters.Set(RHICmdList, ShaderRHI, *Scene->DistanceFieldSceneData.ObjectBuffers, Scene->DistanceFieldSceneData.NumObjectsInBuffer);
+			DistanceFieldObjectParameters.Set(RHICmdList, ShaderRHI, *Scene->DistanceFieldSceneData.GetCurrentObjectBuffers(), Scene->DistanceFieldSceneData.NumObjectsInBuffer);
 		}
 		else
 		{
@@ -1293,8 +1293,8 @@ void FDeferredShadingSceneRenderer::SetupIndirectCapsuleShadows(
 
 void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 	FRHICommandListImmediate& RHICmdList, 
-	FTextureRHIParamRef IndirectLightingTexture, 
-	FTextureRHIParamRef ExistingIndirectOcclusionTexture) const
+	FRHITexture* IndirectLightingTexture,
+	FRHITexture* ExistingIndirectOcclusionTexture) const
 {
 	check(RHICmdList.IsOutsideRenderPass());
 
@@ -1331,7 +1331,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 			}
 
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-			TArray<FTextureRHIParamRef, TInlineAllocator<2>> RenderTargets;
+			TArray<FRHITexture*, TInlineAllocator<2>> RenderTargets;
 
 			if (IndirectLightingTexture)
 			{
@@ -1358,7 +1358,7 @@ void FDeferredShadingSceneRenderer::RenderIndirectCapsuleShadows(
 
 				// #todo is this transition really needed?
 				{
-					FTextureRHIParamRef Transitions[MaxSimultaneousRenderTargets + 1];
+					FRHITexture* Transitions[MaxSimultaneousRenderTargets + 1];
 					int32 TransitionIndex = 0;
 					for (int32 Index = 0; Index < RenderTargets.Num(); Index++)
 					{

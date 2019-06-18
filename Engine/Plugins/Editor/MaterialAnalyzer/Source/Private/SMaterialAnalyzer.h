@@ -273,6 +273,14 @@ private:
 	/** Callback for getting the child items of the given reflector tree node. */
 	void HandleReflectorTreeGetChildren(FAnalyzedMaterialNodeRef InReflectorNode, TArray<FAnalyzedMaterialNodeRef>& OutChildren);
 
+	/**
+	 * Called to recursively expand/collapse the children of the given item
+	 *
+	 * @param InTreeNode		The node that was expanded or collapsed
+	 * @param bIsItemExpanded	True if the item is expanded, false if it is collapsed
+	 */
+	void HandleReflectorTreeRecursiveExpansion(FAnalyzedMaterialNodeRef InTreeNode, bool bIsItemExpanded);
+
 	bool IsMaterialSelectionAllowed() const
 	{
 		return bAllowMaterialSelection;

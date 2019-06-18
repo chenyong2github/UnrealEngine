@@ -60,6 +60,8 @@ static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxMissingPackets(TEXT("net
 
 static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxCachedPackets(TEXT("net.PacketOrderMaxCachedPackets"), 32, TEXT("(NOTE: Must be power of 2!) The maximum number of packets to cache while waiting for missing packet sequences, before treating missing packets as lost."));
 
+TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters(TEXT("net.EnableDetailedScopeCounters"), 1, TEXT("Enables detailed networking scope cycle counters. There are often lots of these which can negatively impact performance."));
+
 extern int32 GNetDormancyValidate;
 
 DECLARE_CYCLE_STAT(TEXT("NetConnection SendAcks"), Stat_NetConnectionSendAck, STATGROUP_Net);
@@ -1167,6 +1169,15 @@ void UNetConnection::ReceivedRawPacket( void* InData, int32 Count )
 	}
 }
 
+void UNetConnection::PostTickDispatch()
+{
+	if (!InternalAck)
+	{
+		FlushPacketOrderCache(/*bFlushWholeCache=*/true);
+		PacketAnalytics.Tick();
+	}
+}
+
 void UNetConnection::FlushPacketOrderCache(bool bFlushWholeCache/*=false*/)
 {
 	if (PacketOrderCache.IsSet() && PacketOrderCacheCount > 0)
@@ -1421,6 +1432,8 @@ void UNetConnection::ReceivedAck(int32 AckPacketId)
 	// Process the bunch.
 	LastRecvAckTime = Driver->Time;
 
+	PacketAnalytics.TrackAck(AckPacketId);
+
 	if (PackageMap != NULL)
 	{
 		PackageMap->ReceivedAck( AckPacketId );
@@ -1464,6 +1477,8 @@ void UNetConnection::ReceivedNak( int32 NakPacketId )
 	UE_LOG(LogNetTraffic, Verbose, TEXT("   Received nak %i"), NakPacketId);
 
 	SCOPE_CYCLE_COUNTER(Stat_NetConnectionReceivedNak);
+
+	PacketAnalytics.TrackNak(NakPacketId);
 
 	// Update pending NetGUIDs
 	PackageMap->ReceivedNak(NakPacketId);
@@ -1725,7 +1740,6 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 				return;
 			}
 
-
 			if (MissingPacketCount > 10)
 			{
 				UE_LOG(LogNetTraffic, Verbose, TEXT("High single frame packet loss. PacketsLost: %i %s" ), MissingPacketCount, *Describe());
@@ -1736,6 +1750,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader )
 			Driver->InPacketsLost += MissingPacketCount;
 			Driver->InTotalPacketsLost += MissingPacketCount;
 			InPacketId += PacketSequenceDelta;
+
+			PacketAnalytics.TrackInPacket(InPacketId, MissingPacketCount);
 		}
 		else
 		{
@@ -3527,6 +3543,22 @@ const FNetConnectionSaturationAnalytics& UNetConnection::GetSaturationAnalytics(
 void UNetConnection::ResetSaturationAnalytics()
 {
 	SaturationAnalytics.Reset();
+}
+
+void UNetConnection::ConsumePacketAnalytics(FNetConnectionPacketAnalytics& Out)
+{
+	Out = MoveTemp(PacketAnalytics);
+	PacketAnalytics.Reset();
+}
+
+const FNetConnectionPacketAnalytics& UNetConnection::GetPacketAnalytics() const
+{
+	return PacketAnalytics;
+}
+
+void UNetConnection::ResetPacketAnalytics()
+{
+	PacketAnalytics.Reset();
 }
 
 void UNetConnection::TrackReplicationForAnalytics(const bool bWasSaturated)

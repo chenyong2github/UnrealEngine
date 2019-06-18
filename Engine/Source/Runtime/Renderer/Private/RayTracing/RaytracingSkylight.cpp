@@ -91,7 +91,7 @@ bool ShouldRenderRayTracingSkyLight(const FSkyLightSceneProxy* SkyLightSceneProx
 		else
 		{
 
-			bRayTracingSkyEnabled = GRayTracingSkyLight >= 0 ? GRayTracingSkyLight : SkyLightSceneProxy->bCastRayTracedShadow;
+			bRayTracingSkyEnabled = GRayTracingSkyLight >= 0 ? (GRayTracingSkyLight != 0) : SkyLightSceneProxy->bCastRayTracedShadow;
 		}
 
 		return IsRayTracingEnabled() && bRayTracingSkyEnabled;
@@ -720,7 +720,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightMipTree(
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FVisualizeSkyLightMipTreePS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[2] =
+	FRHITexture* RenderTargets[2] =
 	{
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture,
 		SkyLightMipTreeRT->GetRenderTargetItem().TargetableTexture

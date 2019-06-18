@@ -1,0 +1,60 @@
+﻿INTSourceChangelist:6083465
+Availability: Public
+Title: 合成材质节点参考
+Description: 产品文档，包括用于虚幻引擎4的参考和指南
+Type: reference
+Parent: Engine/Composure
+Tags: Early Access
+Tags:Reference
+Order: 4
+
+
+[TOC (start:2 end:4)]
+
+为了简化合成操作，我们添加了一系列节点来提供最常见的一些合成操作。我们将在这里简要地重点介绍各个节点及其用途。
+
+![](image1.png "image1.png")
+
+[REGION:note]
+合成材质节点需要 **float4** 输入，因此确保传递 **RGBA**，而不仅仅是 **RGB**。
+[/REGION]
+
+##Over
+
+该节点使用输入A的alpha将一个图像（A）叠加到另一个图像（B）。
+
+![](image7.png "image7.png")
+
+[REGION:note]
+该节点需要输入颜色通道预乘图像的alpha。
+[/REGION]
+
+##In
+
+该节点返回A在B形状以部的部分。
+
+![](image2.png "image2.png")
+
+##Out
+
+该节点返回A在B形状以外的部分。
+
+![](image3.png "image3.png")
+
+##PreMult
+
+该节点将输入的RGBA通道乘以其alpha。
+
+![](image6.png "image6.png")
+
+##UnPreMult
+
+该节点将用输入的RGBA通道除以其alpha。
+
+![](image5.png "image5.png")
+
+##KeyMix
+
+该节点使用指定的遮罩将两个图像叠加在一起。
+
+![](image4.png "image4.png")

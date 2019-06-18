@@ -275,7 +275,7 @@ public:
 	}
 };
 
-UCLASS(config = Editor, Transient)
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, Transient)
 class DATASMITHCONTENT_API UDatasmithCommonTessellationOptions : public UObject
 {
 	GENERATED_BODY()
@@ -328,9 +328,6 @@ public:
 
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Options", meta = (ShowOnlyInnerProperties))
 	FDatasmithImportBaseOptions BaseOptions;
-
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "NotVisible", meta = (ShowOnlyInnerProperties))
-	FDatasmithTessellationOptions TessellationOptions;
 
 	/** Options specific to the reimport process */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "NotVisible", meta = (ShowOnlyInnerProperties))

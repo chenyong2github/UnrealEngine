@@ -52,9 +52,9 @@ C++ クラスはブループリント クラスの基底として使用できま
 	[PARAM:description]
 	アンリアル エンジン C++ ソースコードの API プログラミングのリファレンス
 	[/PARAM]
-	[PARAMLITERAL:path]
-		https://api.unrealengine.com/cpp
-	[/PARAMLITERAL]
+	[PARAM:path]
+		[RELATIVE:API]
+	[/PARAM]
 [/OBJECT]
 
 ## システムガイド

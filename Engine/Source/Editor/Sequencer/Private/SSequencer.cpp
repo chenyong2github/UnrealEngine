@@ -434,6 +434,13 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 				[
 					SNew(SCurveEditorTree, InSequencer->GetCurveEditor())
 				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Center)
+				[
+					InSequencer->MakeTransportControls(true)
+				]
 			];
 
 			// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.
@@ -605,7 +612,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								.BorderImage(nullptr)
 								[
 									// Current Play Time 
-									SAssignNew(PlayTimeDisplay, SSpinBox<double>)
+									SAssignNew(PlayTimeDisplay, STemporarilyFocusedSpinBox<double>)
 									.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.PlayTimeSpinBox"))
 									.Value_Lambda([this]() -> double {
 										return SequencerPtr.Pin()->GetLocalTime().Time.GetFrame().Value;
@@ -613,6 +620,9 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									.OnValueChanged(this, &SSequencer::SetPlayTimeClampedByWorkingRange)
 									.OnValueCommitted_Lambda([this](double InFrame, ETextCommit::Type) {
 										SetPlayTimeClampedByWorkingRange(InFrame);
+
+										// Refocus on the previously focused widget so that user can continue on after setting a time
+										PlayTimeDisplay->Refocus();
 									})
 									.MinValue(TOptional<double>())
 									.MaxValue(TOptional<double>())
@@ -852,7 +862,7 @@ void SSequencer::BindCommands(TSharedRef<FUICommandList> SequencerCommandBinding
 
 	SequencerCommandBindings->MapAction(
 		FSequencerCommands::Get().ToggleShowGotoBox,
-		FExecuteAction::CreateLambda([this] { FSlateApplication::Get().SetKeyboardFocus(PlayTimeDisplay, EFocusCause::SetDirectly); })
+		FExecuteAction::CreateLambda([this] { PlayTimeDisplay->Setup();  FSlateApplication::Get().SetKeyboardFocus(PlayTimeDisplay, EFocusCause::SetDirectly); })
 	);
 
 	SequencerCommandBindings->MapAction(

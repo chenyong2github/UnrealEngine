@@ -29,8 +29,8 @@ topic-image:ads_topic.png
 在下方页面中查看在每个平台上进行游戏内购配置的详细内容：
 
 [REGION:buttonlist]
-* [](Platforms/Android/Ads)
-* [](Platforms/iOS/Ads)
+* [](Platforms/Mobile/Android/Ads)
+* [](Platforms/Mobile/iOS/Ads)
 [/REGION]
 
 [EXCERPT:Usage]

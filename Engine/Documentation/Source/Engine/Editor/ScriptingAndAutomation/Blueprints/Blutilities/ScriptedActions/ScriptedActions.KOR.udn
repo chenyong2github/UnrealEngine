@@ -1,0 +1,125 @@
+﻿INTSourceChangelist:6536708
+Availability: Public
+Crumbs:
+Title: 스크립트 액션
+Description: 레벨의 액터 또는 콘텐츠 브라우저의 애셋에 우클릭하여 호출할 수 있는 블루프린트 유틸리티를 만드는 법입니다.
+Type: how-to
+Version: 4.22
+Parent: Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities
+Tags: Experimental
+Tags: scripting
+Tags: editor
+Tags: Blutilities
+SkillLevel: Intermediate
+Order:1
+
+
+[TOC]
+
+![](scripted-actions-banner.png)
+
+**Scripted Action** (스크립트 액션)은 언리얼 에디터의 **콘텐츠 브라우저** 에서 하나 이상의 애셋에 우클릭하거나, **레벨 뷰포트** 또는 **월드 아웃라이너** 에서 하나 이상의 액터에 우클릭했을 때 실행할 수 있는 블루프린트 유틸리티입니다.
+
+이런 워크플로 유형은 특정 애셋이나 액터에 대해 컨텍스트에 따라 다르게 작동하는 블루프린트 유틸리티를 만들 때 특히나 좋습니다. 일반적으로 스크립트 액션은 실행 당시 선택된 애셋 또는 액터 목록을 가져온 다음 해당 오브젝트를 수정하거나 그래프에서 다른 방식으로 처리할 수 있도록 합니다.
+
+여기서는 이러한 블루프린트 유틸리티 유형을 생성하고 실행하는 방법과, 그 유틸리티를 특정 애셋이나 액터 유형에만 적용하도록 사용자 정의하는 방법을 설명합니다.
+
+[REGION:note]
+**전제조건:** Blutility (블류틸리티) 실험단계 기능을 활성화해야 합니다. [](Engine/Editor/ScriptingAndAutomation/Blueprints/Blutilities) 문서를 참고하세요.
+[/REGION]
+
+## 단계
+
+여기서는 스크립트 액션을 지원하는 부모 클래스 중 하나에서 블루프린트 클래스를 새로 만들고, 스크립트 액션으로 표시되는 클래스에 대한 이벤트 그래프를 새로 구성하겠습니다.
+
+1.  **콘텐츠 브라우저** 에서, 새 블루프린트 유틸리티 클래스를 만들려는 폴더에 우클릭하고, 컨텍스트 메뉴에서 **Blueprints > Blutility** (블루프린트 > 블류틸리티)를 선택합니다.  
+    ![Create Blutility](scripted-actions-createclass.png "Create Blutility")
+
+2.  스크립트 액션을 작동시킬 곳이 **콘텐츠 브라우저** 에서 선택한 애셋인지, 아니면 **레벨 뷰포트** 또는 **월드 아웃라이너** 에 선택한 액터인지 결정합니다.
+    
+    *   스크립트 액션을 애셋에 작동시키려면, **AssetActionUtility** 를 부모 클래스로 선택하고 **선택** 을 누릅니다.
+    
+    *   스크립트 액션을 액터에 작동시키려면, **ActorActionUtility** 를 부모 클래스로 선택하고 **선택** 을 누릅니다.
+    
+    ![Choose ActorActionUtility or AssetActionUtility](scripted-actions-parent-1.png "Choose ActorActionUtility or AssetActionUtility")
+
+3.  **콘텐츠 브라우저** 에서 새 클래스에 설명이 되는 이름을 짓습니다.  
+    ![Name your new class](scripted-actions-rename.png "Name your new class")  
+    스크립트 액션을 실행할 때 이 클래스 이름이 보이지는 않습니다. 나중에 스크립트 액션을 수정하거나 새로 추가할 수 있도록 프로젝트의 다른 블루프린트 클래스와 구분할 수만 있으면 됩니다.
+
+4.  새 클래스에 우클릭하고, 컨텍스트 메뉴에서 **블루프린트 편집** 을 선택합니다.  
+    ![Edit Blueprint](scripted-actions-editbp.png "Edit Blueprint")
+
+5.  이 클래스에 대한 스크립트 액션을 생성하려면, 새 함수를 생성하거나 이 클래스에 대한 이벤트 그래프에서 **Custom Event** 노드를 새로 생성합니다.  
+    [REGION:note]
+    Custom Event 노드의 함수 엔트리 노드에 **Call In Editor** (에디터에서 호출) 박스가 체크되어 있는지 확인하세요. 새 함수를 만들 때 자동 설정되지만, Custom Event 를 사용할 때는 직접 해야 합니다.
+    [/REGION]
+    예를 들어, **AssetActionUtility** 의 이 새로운 함수는 콘텐츠 브라우저에 선택된 애셋 목록을 반복 처리하여 **레벨 뷰포트** 에 그 이름을 단순히 출력합니다.
+    [REGION:lightbox]
+    [![Asset Action example](scripted-actions-asset-example.png "Asset Action example")](scripted-actions-asset-example.png)*이미지를 클릭하면 원본을 확인합니다.*
+    [/REGION]
+    아래 이미지는 **ActorActionUtility** 의 비슷한 함수 구현을 보여줍니다.
+    [REGION:lightbox]
+    [![Actor Action example](scripted-actions-actor-example.png "Actor Action example")](scripted-actions-actor-example.png)*이미지를 클릭하면 원본을 확인합니다.*
+    [/REGION]
+    [REGION:tip]
+    **개발 > 에디터** 카테고리 아래 스크립트 액션에 쓸 수 있는 유용한 블루프린트 노드를 몇 가지 찾을 수 있습니다. 위 예제의 노드 중 스크립트 액션 실행 당시 선택된 오브젝트 목록을 반환할 때 사용한 **Get Selected Assets** 는 **콘텐츠 브라우저** 에 선택된 모든 애셋으로의 레퍼런스 배열을 반환하고, **Get Selection Set** 는 레벨에 현재 선택된 액터 배열을 반환합니다.
+    [/REGION]
+    
+6.  블루프린트 클래스를 **저장**, **컴파일** 합니다.
+
+## 최종 결과
+
+블루프린트 클래스를 저장하고 컴파일했으면, 애셋이나 액터의 컨텍스트 메뉴에 새로운 **Scripted Actions** (스크립트 액션) 서브메뉴가 표시되며, 블루프린트 클래스에 대해 선택한 부모 클래스에 따라 달라집니다. 이 서브메뉴에는 블루프린트 클래스에 구성한 함수 또는 커스텀 이벤트 각각이 들어 있습니다.
+
+예를 들어, **콘텐츠 브라우저** 에서 하나 이상의 애셋에 우클릭하거나:
+
+![Run a Scripted Action on selected Assets](scripted-actions-run-assets-1.png "Run a Scripted Action on selected Assets")
+
+또는 **레벨 뷰포트** 또는 **월드 아웃라이너** 의 액터 하나 이상에 우클릭하는 경우입니다.
+
+![Run a Scripted Action on selected Actors](scripted-actions-run-actors-1.png "Run a Scripted Action on selected Actors")
+
+[REGION:tip]
+**AssetActionUtility** 또는 **ActorActionUtility** 클래스에 구성한 함수와 Custom Event 각각은 컨텍스트 메뉴에 별도의 옵션이 됩니다. 하나의 블루프린트 클래스 안에 필요한 만큼 여러가지 다양한 스크립트 액션을 만들 수 있습니다.
+[/REGION]
+
+## 액터를 특정 클래스로 제한
+
+스크립트 액션이 수행해야 하는 작업에 따라, 컨텍스트 메뉴에서 지정한 유형의 오브젝트에만 표시되도록 하면 좋습니다.
+
+예를 들어, 선택된 액터에 따라 머티리얼을 변경하는 스크립트 액션을 만든다고 가정하겠습니다. 이 경우, 그 액션은 스태틱 메시 액터에 우클릭했을때만 나타나야지, 라이트 액터나 블루프린트에는 나타나지 않는 것이 좋습니다.
+
+**AssetActionUtility** 및 **ActorAssetUtility** 베이스 클래스 둘 다 **GetSupportedClass** 라는 내장 함수를 제공합니다. 어떤 오브젝트 클래스를 선택했을 때 그 컨텍스트 메뉴에 블루프린트 클래스의 스크립트 액션을 표시할지 결정하는 함수입니다. 사용자가 애셋 또는 액터 세트에 우클릭할 때마다, 이 함수를 호출하여 **AssetActionUtility** 또는 **ActorAssetUtility** 클래스가 지원하는 클래스 유형을 가져옵니다. 클래스 유형을 반환하면, 그 반환 값을 사용자가 현재 선택한 애셋 또는 액터 세트와 비교합니다. 그 애셋이나 액터 중 **GetSupportedClass** 에 반환된 클래스에 일치하는 클래스가 하나라도 있으면, 컨텍스트 메뉴에 스크립트 액션이 나타납니다. 기본적으로 **GetSupportedClass** 함수는 아무 것도 반환하지 않습니다. 그러면 어떤 애셋이나 액터를 선택하든 모든 스크립트 액션이 나타납니다.
+
+이 기본 동작을 변경하려면, 클래스의 **GetSupportedClass** 함수가 특정 클래스 유형을 반환하도록 오버라이드하면 됩니다.
+
+![Override GetSupportedClass](scripted-actions-override-getsupported.png "Override GetSupportedClass")
+
+예를 들어, **ActorAssetUtility** 의 이 구현은 **StaticMeshActor** 클래스를 반환하므로, 사용자가 스태틱 메시 액터를 하나라도 선택한 상태에서 컨텍스트 메뉴를 열 때 이 클래스의 스크립트 액션이 나타납니다.
+
+![Scripted Actions appear for the supported class](scripted-actions-supportedclass-1.png "Scripted Actions appear for the supported class")
+
+하지만 다른 종류의 액터만 선택한 상태라면 스크립트 액션이 나타나지 않습니다.
+
+![Scripted Actions do not appear for other classes](scripted-actions-unsupportedclass-1.png "Scripted Actions do not appear for other classes")
+
+[REGION:note]
+여러 개의 애셋 또는 액터를 선택한 경우 허용되는 동작은 다음과 같습니다. 선택된 항목 중 *최소 하나* 라도 **GetSupportedClass** 에 반환된 클래스에 일치하는 경우, 컨텍스트 메뉴에 스크립트 액션이 표시됩니다. **GetSupportedClass** 를 오버라이드하여 액션에 처리되는 클래스를 제한한다 하더라도, *오직* 해당 클래스가 선택된 경우에만 액션이 실행된다는 보장이 없습니다. 블루프린트 그래프를 구현할 때 이 점에 유의하세요.
+[/REGION]
+
+## 동적 입력
+
+다른 종류의 에디터 블루프린트 유틸리티와 달리, 스크립트 액션에는 입력이 있을 수 있습니다. 함수 엔트리 노드 또는 Custom Event 노드에 입력을 하나 이상 추가하는 경우, 에디터에서 스크립트 액션을 실행할 때마다 해당 입력을 제공하라는 메시지가 표시됩니다. 스크립트가 액션을 호출할 때마다 다를 수 있는 추가 정보가 필요할 때 유용합니다.  
+
+예를 들어, 이 함수는 입력이 스트링, 액터 오브젝트 레퍼런스, 머티리얼 오브젝트 레퍼런스 세 가지입니다.
+
+![A function with inputs](scripted-actions-inputs-1.png "A function with inputs")
+
+이 함수에 대해 스크립트 액션을 실행하면, 그 입력 값을 설정할 수 있도록 작은 창이 표시됩니다.
+
+![Set input values](scripted-actions-inputs-window-1.png "Set input values")
+
+[REGION:note]
+에디터는 값을 입력할 때마다 예상되는 값 유형에 맞는지 유효성을 검사합니다. 그러나 어떤 값이 유효한 값이 되거나, 특정 컨텍스트에 맞도록 보장해 주지는 못합니다. 지정되지 않은 입력 값을 처리하고 유효성을 검사하도록 스크립트에서 처리해야 합니다.
+[/REGION]

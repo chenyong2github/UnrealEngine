@@ -7,11 +7,9 @@ struct FFoliageActor : public FFoliageImpl
 {
 	TArray<TWeakObjectPtr<AActor>> ActorInstances;
 	UClass* ActorClass;
-	bool bInitialized;
-
+	
 	FFoliageActor()
 		: ActorClass(nullptr)
-		, bInitialized(false)
 	{
 	}
 

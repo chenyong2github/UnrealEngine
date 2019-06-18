@@ -1,0 +1,25 @@
+﻿INTSourceChangelist:3782314
+Availability:Public
+Crumbs: %ROOT%, Platforms
+Title:Oculus の操作ガイド
+Description:Rift およびアンリアル エンジン 4 の段階的な操作ガイド
+Type: how-to
+Version:4.17
+Parent:Platforms/VR/OculusVR/OculusRift
+Order:1
+Tags:Platform
+topic-image:Oculus_How_To_Header.png
+
+Oculus Rift およびアンリアル エンジン 4 を連携して使用するを段階的に説明します。
+
+## 初心者向け
+
+初心者向けガイドでは、UE4 プロジェクトを Rift HMD、Touch Controllers、 Guardian システムで使用できるように設定します。
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]
+
+## 中級者向け
+
+中級者向けガイドでは、Chaperone システムの色の調節方法、Touch コントローラーでオブジェクトを拾う方法、および Stereo Layers を使ってユーザーに情報を表示する方法を説明します。
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/OculusVR/OculusRift" org:"flat")]

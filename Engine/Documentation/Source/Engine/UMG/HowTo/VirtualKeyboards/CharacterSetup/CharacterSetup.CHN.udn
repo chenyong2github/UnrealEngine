@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6109847
+Availability: Docs
 Title:1.角色设置
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:我们将在本步中为角色添加Widget Interaction组件并创建我们将会用到的其他资源。 

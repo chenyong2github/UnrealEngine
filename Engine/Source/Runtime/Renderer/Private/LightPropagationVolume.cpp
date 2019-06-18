@@ -302,7 +302,7 @@ public:
 		{
 			if ( LpvBufferSRVParameters[i].IsBound() )
 		    {
-				RHICmdList.SetShaderTexture(ShaderRHI, LpvBufferSRVParameters[i].GetBaseIndex(), FTextureRHIParamRef());
+				RHICmdList.SetShaderTexture(ShaderRHI, LpvBufferSRVParameters[i].GetBaseIndex(), nullptr);
 		    }
 			if ( LpvBufferUAVs[i].IsBound() )
 		    {
@@ -332,7 +332,7 @@ public:
 		{
 			if ( GvBufferSRVParameters[i].IsBound() )
 			{
-					RHICmdList.SetShaderTexture(ShaderRHI, GvBufferSRVParameters[i].GetBaseIndex(), FTextureRHIParamRef());
+					RHICmdList.SetShaderTexture(ShaderRHI, GvBufferSRVParameters[i].GetBaseIndex(), nullptr);
 			}
 			if ( GvBufferUAVs[i].IsBound() )
 			{
@@ -479,9 +479,9 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		FLpvBaseWriteShaderParams& BaseParams,
-		FTextureRHIParamRef RsmDiffuseTextureRHI,
-		FTextureRHIParamRef RsmNormalTextureRHI,
-		FTextureRHIParamRef RsmDepthTextureRHI )
+		FRHITexture* RsmDiffuseTextureRHI,
+		FRHITexture* RsmNormalTextureRHI,
+		FRHITexture* RsmDepthTextureRHI )
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		FLpvWriteShaderCSBase::SetParameters(RHICmdList, BaseParams );

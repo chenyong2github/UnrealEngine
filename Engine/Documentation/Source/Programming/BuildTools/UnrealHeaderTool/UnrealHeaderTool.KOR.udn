@@ -1,0 +1,16 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: UnrealHeaderTool
+Description: UnrealHeaderTool (UHT) is a custom parsing and code-generation tool supporting the UObject system.
+Type: landing
+Parent: Programming/BuildTools
+Order: 1
+
+
+**UnrealHeaderTool (UHT)** is a custom parsing and code-generation tool that supports the UObject system. Code compilation happens in two phases:
+
+1.  UHT is invoked, which parses the C++ headers for Unreal-related class metadata and generates custom code to implement the various UObject-related features.
+
+1.  The normal C++ compiler is invoked to compile the results.
+
+When compiling, it is possible for either tool to emit errors, so be sure to look carefully.

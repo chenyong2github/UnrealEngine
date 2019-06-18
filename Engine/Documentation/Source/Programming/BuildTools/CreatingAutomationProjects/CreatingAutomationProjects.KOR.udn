@@ -1,0 +1,502 @@
+﻿INTSourceChangelist:0
+Availability: Docs
+Title: Creating Automation Projects
+Description: This guide demonstrates how to extend AutomationTool by showing developers how to create a new automation project.
+Type: how-to
+Version: 4.22
+Parent: Programming/BuildTools/AutomationTool
+Tags: AutomationTool
+SkillLevel: Advanced
+Order: 1
+Related: Programming/BuildTools/AutomationTool/ReferenceManual
+Crumbs:
+
+
+[TOC (start:2 end:4)]
+
+[REGION:quote]
+**Prerequisite: **Set up your [Development Environment](Programming/Development) to [Build Unreal Engine from Source](Programming/Development/BuildingUnrealEngine) with proper [Build Configurations](Programming/Development/BuildConfigurations).
+[/REGION]
+Using **AutomationTool** for processes, such as building, cooking, and testing your game, is a great way to improve your team's productivity. Also, creating and running your own AutomationTool commands enables your team to tailor and deploy automation for your project's needs.
+
+  
+Keep reading to learn how to set up and create automation projects.
+
+[REGION:warning]
+**Warning:** AutomationTool has been used to automate a number of processes and tasks for internal Epic projects. While we provide this tool as a courtesy, the level of support we can provide is limited.
+[/REGION]
+
+## What is AutomationTool?
+
+When referring to "Automation Projects," we are referring to standalone code projects that are extensions of AutomationTool, which is a generic utility tool that executes specific C# commands (scripts). Common scripts might include: Building, Cooking, and Running a game project, building a Derived Data Cache (DDC), or running automation tests.
+
+## Automation Project Setup
+
+[REGION:note]
+**Note: **Before continuing, make sure to build the engine at least once before opening the Unreal Engine 4 solution file (`UE4.sln`) in **Visual Studio 2017**.
+[/REGION]
+
+Developers typically want to contain and organize domain-specific scripts when planning an automation project; and to get what they want, they implement standalone projects. To make script commands available when running the automation tool, developers need to link that project with AutomationTool by adding their script with the appropriate settings.
+
+### Adding a New Project
+
+1.  Inside Visual Studio, right click on your project folder and select **Add > New Project...**
+
+1.  With the **Add New Project** menu open, select the **Class Library (.NET Framework)** Visual C# option: The following settings are being used for illustrative purposes:
+    *   **Name:** `SampleScript.Automation`
+    
+    *   **Location:** `~\..\Engine\Source\Programs\`
+    
+    *   **Framework:** .NET Framework 4.5
+    
+    *   [REGION:note]
+        **Note:** 
+        
+        *   **Name:** The project's generation script looks for a `*.csproj` file with the `*.Automation.csproj` extension
+        
+        *   **Location:** You can save the project either in a **Build** or a **Source** directory. For `Build` directories, it needs to be within a `Build` directory that is alongside a discoverable `*.uproj` file, which means that the game is under one of the directories listed in the `UE4Games.uprojdirs` file
+        
+        *   **Framework:** At the time of this writing, we are using the **.NET 4.5** framework
+        
+        *   Finally, note that the project cannot be under (or in a folder) with a `*.build.cs` or a `*.target.cs` file
+        [/REGION]
+        
+
+1.  For illustrative purposes, right click the `SampleScript.Automation` \> `Class1.cs` file, select **Rename**, and rename the file to read `SampleScript.Automation.cs`.
+
+### Updating Project Properties
+
+Now that the solution has a new automation project, it is time to update the project's properties, including its build configuration and assembly information.
+
+#### Build Configuration Settings
+
+With the **SampleScript** automation project selected:
+
+1.  Open **Build** \> **Configuration Manager...**.
+
+1.  From the **Configuration Manager** menu, select **Release** \> from the **Configuration** dropdown menu, which is in the `SampleScript.Automation` **Project** configuration row.
+
+1.  After the **Edit Project Configurations** menu opens, select **Development** (1) before clicking **Close** (2).
+
+1.  At this point, you need to verify that the Development build configuration does not optimize your code, and to verify this, open the project's property menu by right-clicking on `SampleScript.Automation`, and selecting **Properties**.
+
+1.  Now, click on the **Build** tab to verify that the Development Build Configuration's **Optimize code** setting is not enabled. If **Optimize code** is enabled, clear the checkbox.
+
+Now, you can update the assembly information with the following steps.
+
+#### Assembly Information Settings
+
+With the **Application** tab selected from the project's property menu:
+
+1.  Click **Assembly Information...**.
+
+1.  With the **Assembly Information** dialog open, update your project's assembly information as needed. For illustrative purposes, we updated the assembly information fields with the following values:
+    *   **Title:** `SampleScript.Automation`
+    
+    *   **Description:** This is a sample automation script.
+    
+    *   **Company:** Epic Games, Inc.
+    
+    *   **Product:** `SampleScript.Automation`
+    
+    *   **Copyright:** Copyright © Epic Games, Inc. 2019
+    
+    *   **Trademark:** Unreal Engine 4
+    
+    *   [REGION:note]
+        **Note:** To learn more about assembly information fields, read Microsoft's overview, which covers the [Assembly Information Dialog Box](https://docs.microsoft.com/en-us/visualstudio/ide/reference/assembly-information-dialog-box).
+        [/REGION]
+        
+
+1.  Verify that **Make assembly COM-Visible** is disabled (1) before clicking **Ok** (2) to close the **Assembly Information** dialog box.
+
+### Setting the Project Build Output Path
+
+With the **Build** tab selected in the project's property menu:
+
+1.  Select **All Configurations**.
+
+1.  Now, set the **Output path:** to your project's automation script directory (see example below).
+    [REGION:note]
+    **Note:** 
+    
+    *   You can either use **Browse...** or type in the output path
+    
+    *   The output path is relative to your project's root directory, so make sure to navigate through parent directories using '`..`'
+    
+    *   If you do not set the project's output path properly, AutomationTool will not discover your automation commands
+    [/REGION]
+    
+
+1.  Close Visual Studio and run `GenerateProjectFiles.bat`.
+
+1.  To verify the set up, open the generated Unreal Engine 4 solution file (`UE4.sln`), and navigate to `UE4 > Programs > Automation` in the **Solution Explorer** to locate the Automation project (see example below).
+
+## AutomationTool Commands
+
+To create a new command (or "script"), you will need to create a new command class derived from AutomationTool's `BuildCommand` class, but before you do, you first need to link the `AutomationUtils` library by adding the required assembly references.
+
+### Adding Required Assembly Reference
+
+1.  Locate your project in the **Solution Explorer** under `Programs > Automation`.
+
+1.  Under the project's listing, right click on **References** and select **Add Reference...**.
+
+1.  From the **Reference Manager** **Projects** menu, locate and select **AutomationUtils.Automation** (1) before clicking **OK** (2).
+
+At this point, you are ready to author your first command class.
+
+### Authoring a Command Class
+
+Before beginning these steps, make sure that there is a `*.cs` source file in the scope of your automation project. In the following example, we have a source file named `SampleScript.Automation.cs`, where we will write a sample command that prints out a Fibonacci sequence of numbers before exiting successfully.
+
+1.  To begin adding the new sample command, open `SampleScript.Automation.cs`, where you should find the following code:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        
+        namespace SampleScript.Automation
+        {
+            public class Class1
+            {
+            }
+        }
+    
+
+1.  First, include the `AutomationTool` namespace:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class Class1
+            {
+            }
+        }
+    
+
+1.  Now, replace `Class1` with a `BuildCommand` sub-class named `SampleCommand`:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+            }
+        }
+    
+
+1.  Add the following code to `SampleCommand`:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+        
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+        
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    Console.Write(" ..." + System.Environment.NewLine);
+                    
+                    return ExitCode.Success;
+                }
+            }
+        }
+    
+    [REGION:note]
+    **Note:** Overriding the `Execute()` method provides a good "hook point" to help you verify that a command successfully runs.
+    [/REGION]
+    
+
+1.  Finally, to compile the automation project, right-click on `SampleScript.Automation` and select **Build**.
+
+You are now ready to run `SampleCommand`, which prints out a Fibonacci sequence of numbers before returning the `Success` exit code.
+
+### Running a Command
+
+The following steps describe one of several ways that you can run `SampleCommand` with AutomationTool:
+
+1.  First, open **Command Prompt**.
+
+1.  Now, navigate to `[UE4 Root]\Engine\Build\BatchFiles`, where you will find the `RunUAT` batch file.
+
+1.  To run the command, enter `RunUAT.bat SampleCommand -nocompile`.
+
+#### End Result
+
+At this point, the batch file runs AutomationTool (1), parses the command line with the `-nocompile` argument (2), prints the Fibonacci sequence (3), confirms the successful build (4), and prints the `Success` exit code.
+
+### Updating a Command
+
+Now, let's say you want to update `SampleCommand` to recursively compute and print the next value in the Fibonacci sequence.
+
+1.  To update the existing command, open `SampleScript.Automation.cs`, where you should find the following code:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    Console.Write(" ..." + System.Environment.NewLine);
+                    
+                    return ExitCode.Success;
+                }
+            }
+        }
+    
+
+1.  First, delete the following statement:
+    
+        Console.Write(" ..." + System.Environment.NewLine);
+    
+
+1.  Now, add the following code to `SampleCommand`:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    //Test base case
+                    //n /= 0;
+                    Console.Write(" " + F(n) + ", ..." + System.Environment.NewLine);
+        
+                    return ExitCode.Success;
+                }
+        
+                public static int F(int n)
+                {
+                    if (n <= 1) //Base condition
+                    {
+                        return n;
+                    }
+                    else
+                    {
+                        return F(n - 1) + F(n - 2);
+                    }
+                }
+            }
+        }
+    
+
+1.  Finally, save your source file before compiling and running `SampleCommand` from the **Command Prompt**.
+
+#### RunUAT Batch File
+
+1.  Open **Command Prompt**, and navigate to `[UE4 Root]\Engine\Build\BatchFiles`.
+
+1.  Now, to compile and run the updated command, enter `RunUAT.bat SampleCommand`.
+
+At this point, the batch file runs AutomationTool (1), parses the command line with the `-nocompile` argument (2), prints the Fibonacci sequence with the recursively computed n-th value (3), confirms the successful build (4), and prints the `Success` exit code (5).
+
+##### Notes
+
+Now that you have used the RunUAT batch file in a couple of different scenarios, there some additional things to keep in mind when using it:
+
+*   It serves as the AutomationTool setup script.
+
+*   If you copy it to a different location before running it, the batch file will not work because by default, it is expected to be in the `[UE4 Root]/Engine/Build/BatchFiles` directory.
+
+*   If you are running UE4 from a compiled build, it defaults to using the `-compile` argument. Otherwise, if you are running UE4 from an installed build, it uses the `-nocompile` argument.
+
+### Debugging a Command
+
+Now that the `SampleCommand` was updated with a recursive version of the Fibonacci sequence generator, consider a scenario where the developer wants to test the the recursive algorithm's base condition with the following steps:
+
+1.  Open `SampleScript.Automation.cs`, where you should find the following code:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    //Test base case
+                    //n /= 0;
+                    Console.Write(" " + F(n) + ", ..." + System.Environment.NewLine);
+        
+                    return ExitCode.Success;
+                }
+        
+                public static int F(int n)
+                {
+                    if (n <= 1)
+                    {
+                        return n;
+                    }
+                    else
+                    {
+                        return F(n - 1) + F(n - 2);
+                    }
+                }
+            }
+        }
+    
+
+1.  Now, to test the recursive algorithm's base case, uncomment the following statement:
+    
+        //n /= 0;
+    
+
+1.  We have just introduced undefined behavior into the following code:
+    
+        using System;
+        using System.Collections.Generic;
+        using System.Linq;
+        using System.Text;
+        using System.Threading.Tasks;
+        using AutomationTool;
+        
+        namespace SampleScript.Automation
+        {
+            public class SampleCommand : BuildCommand
+            {
+                public override ExitCode Execute()
+                {
+        
+                    int F0 = 0, F1 = 1, Fn = 0, i = 2, n = 12;
+                    Console.Write("Fibonacci Sequence: ({0},) {1},", F0, F1);
+                    while(i < n)
+                    {
+                        Fn = F0 + F1;
+                        Console.Write(" {0},", Fn);
+                        F0 = F1;
+                        F1 = Fn;
+                        ++i;
+                    }
+        
+                    //Test base case
+                    n /= 0;
+                    Console.Write(" " + F(n) + ", ..." + System.Environment.NewLine);
+        
+                    return ExitCode.Success;
+                }
+        
+                public static int F(int n)
+                {
+                    if (n <= 1)
+                    {
+                        return n;
+                    }
+                    else
+                    {
+                        return F(n - 1) + F(n - 2);
+                    }
+                }
+            }
+        }
+    
+
+1.  Now, for the sake of illustration, let us say that no one noticed the divide-by-zero bug before saving the source file and executing `RunUAT.bat` from the **Command Prompt**.
+    *   At this point, the batch file runs AutomationTool (1), parses the command line with the `-compile` argument (2), prints the non-recursive Fibonacci sequence (3), and throws a "Divide by Zero" exception (4) before printing the `Error_Unknown` exit code (5), confirming that the build failed (6).
+
+1.  AutomationTool's log tells us that we need to fix the code at a specific line (line 27 in the image above), so go ahead and make sure the statement reads:
+    
+        n = 0;
+    
+
+1.  After fixing the bug, compile and run AutomationTool by entering `RunUAT.bat SampleCommand` into the **Command Prompt**.
+
+#### End Result
+
+At this point, the batch file runs AutomationTool (1), parses the command line with the `-compile` argument (2), compiles the automation scripts (3), prints the Fibonacci sequence (4), prints the recursive Fibonacci method's base case output (5), confirms the successful build (6), and prints the Success exit code (7).
+
+## Additional Notes
+
+*   If AutomationTool reports that it cannot find your command, make sure that you set the output path correctly, because if the `*.dll` file is not saved to the right folder, AutomationTool will not load it.
+
+*   To read through some example scripts, navigate to `[UE4 Root]\Engine\Source\Programs\AutomationTool\Scripts`.
+
+*   You can run the tool with different levels of verbosity, to learn more, check out the [AutomationTool Reference Manual](Programming/BuildTools/AutomationTool/ReferenceManual).

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3454749
+﻿INTSourceChangelist:6341512
 Availability:Public
 Title:胶囊体阴影总览
 Crumbs:  
@@ -17,7 +17,7 @@ tags:Lighting
 
 ## 角色胶囊体代表物
 
-[物理资源](Engine/Physics/PhAT/) 用于创建角色的近似代表物，以支持极为柔和的阴影。因为胶囊体被附加到角色的骨骼，这将使阴影在场景中进行精确的移动和投射。 
+[物理资源](Engine/Physics/PhysicsAssetEditor/) 用于创建角色的近似代表物，以支持极为柔和的阴影。因为胶囊体被附加到角色的骨骼，这将使阴影在场景中进行精确的移动和投射。 
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]

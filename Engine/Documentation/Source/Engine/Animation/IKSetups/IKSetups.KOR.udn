@@ -1,7 +1,6 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6412555
 Availability:Public
 Title: IK 셋업
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Inverse Kinematic 시스템으로 고르지 않은 지형에서의 발딛기같은 반응형 애니메이션이 가능합니다.
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
@@ -10,6 +9,8 @@ Related: Engine/Content/Tools/MayaRiggingTool
 Related: Engine/Animation/AnimBlueprints
 Related: Engine/Animation/AnimBlueprints/EventGraph
 version: 4.9
+tags:Animation
+tags:Animation Features
 topic-image:IKSetups_topic.png
 
 [REGION:fullwidth]

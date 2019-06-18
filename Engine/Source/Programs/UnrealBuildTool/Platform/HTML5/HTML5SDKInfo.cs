@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 	public class HTML5SDKInfo
 	{
 		static string NODE_VER = "8.9.1_64bit";
-//		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
+		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
 
 		static string LLVM_VER = "e1.38.31_64bit";
 		static string SDKVersion = "1.38.31";
@@ -177,7 +177,8 @@ namespace UnrealBuildTool
 				string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
+//					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
+					return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe"); // UE-76260
 				}
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{

@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6480801
 Availability: Public
 Title:7. 发挥想象！
 Crumbs: %ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/HowTo
 Description:在教程的最后一篇，我们会给出一些示例，让您可以更好地学习这个项目，并提供了到额外文档的链接。
 version: 4.9
-tags:Blueprints 
+order:7
+tags:Blueprints
 
 
 [VAR:Steps]

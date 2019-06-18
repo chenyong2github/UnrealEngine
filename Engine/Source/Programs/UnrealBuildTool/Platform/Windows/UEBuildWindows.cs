@@ -233,6 +233,16 @@ namespace UnrealBuildTool
 		public bool bCreateHotPatchableImage = false;
 
 		/// <summary>
+		/// Strip unreferenced symbols (/OPT:REF)
+		/// </summary>
+		public bool bStripUnreferencedSymbols = false;
+
+		/// <summary>
+		/// Merge identical COMDAT sections together (/OPT:ICF)
+		/// </summary>
+		public bool bMergeIdenticalCOMDATs = false;
+
+		/// <summary>
 		/// Whether to put global symbols in their own sections (/Gw), allowing the linker to discard any that are unused.
 		/// </summary>
 		public bool bOptimizeGlobalData = true;
@@ -440,6 +450,16 @@ namespace UnrealBuildTool
 			get { return Inner.bCreateHotPatchableImage; }
 		}
 
+		public bool bStripUnreferencedSymbols
+		{
+			get { return Inner.bStripUnreferencedSymbols; }
+		}
+
+		public bool bMergeIdenticalCOMDATs
+		{
+			get { return Inner.bMergeIdenticalCOMDATs; }
+		}
+
 		public bool bOptimizeGlobalData
 		{
 			get { return Inner.bOptimizeGlobalData; }
@@ -592,6 +612,11 @@ namespace UnrealBuildTool
 				Target.bWithLiveCoding = true;
 				Target.WindowsPlatform.bCreateHotPatchableImage = true;
 			}
+			else if (Target.Configuration == UnrealTargetConfiguration.Test || Target.Configuration == UnrealTargetConfiguration.Shipping)
+			{
+				Target.WindowsPlatform.bStripUnreferencedSymbols = true;
+				Target.WindowsPlatform.bMergeIdenticalCOMDATs = true;
+			}
 		}
 
 		/// <summary>
@@ -735,62 +760,6 @@ namespace UnrealBuildTool
 			    }
 			}
 
-			FileReference Solution = null;
-
-			do
-			{
-				if (ProjectFile != null)
-				{
-					Solution = FileReference.Combine(ProjectFile.Directory, ProjectFile.GetFileNameWithoutExtension() + ".sln");
-					if (FileReference.Exists(Solution))
-					{
-						break;
-					}
-				}
-
-				Solution = FileReference.Combine(UnrealBuildTool.RootDirectory, "UE4.sln");
-				if (FileReference.Exists(Solution))
-				{
-					break;
-				}
-			}
-			while (false);
-
-			if (FileReference.Exists(Solution))
-			{
-				foreach (var Line in FileReference.ReadAllLines(Solution))
-				{
-					if (!Line.StartsWith("VisualStudioVersion"))
-					{
-						continue;
-					}
-
-					string[] Pair = Line.Split('=');
-
-					if (Pair.Length != 2)
-					{
-						continue;
-					}
-
-					Version VersionValue;
-
-					if (!Version.TryParse(Pair[1].Trim(), out VersionValue))
-					{
-						break;
-					}
-
-					switch (VersionValue.Major)
-					{
-						case 15:
-							return WindowsCompiler.VisualStudio2017;
-						case 16:
-							return WindowsCompiler.VisualStudio2019;
-						default:
-							break;
-					}
-				}
-			}
-
 			// Second, default based on what's installed, test for 2015 first
 			if (HasCompiler(WindowsCompiler.VisualStudio2017))
 			{
@@ -931,7 +900,7 @@ namespace UnrealBuildTool
 
 									int SortOrder = SortedInstallDirs.Count;
 
-									ISetupInstanceCatalog Catalog = (ISetupInstanceCatalog)Instance as ISetupInstanceCatalog;
+									ISetupInstanceCatalog Catalog = Instance as ISetupInstanceCatalog;
 									if (Catalog != null && Catalog.IsPrerelease())
 									{
 										SortOrder |= (1 << 16);
