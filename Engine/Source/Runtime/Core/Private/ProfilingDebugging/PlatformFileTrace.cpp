@@ -6,32 +6,31 @@
 #include "Misc/CString.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/PlatformTLS.h"
+#include "Misc/Parse.h"
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginOpen, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginOpen)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndOpen, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndOpen)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
-	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginClose, Always)
-	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndClose, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginClose)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint64, TempHandle)
+	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginRead, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndClose)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginRead)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ReadHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
@@ -40,14 +39,14 @@ UE_TRACE_EVENT_BEGIN(PlatformFile, BeginRead, Always)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndRead, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndRead)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, ReadHandle)
 	UE_TRACE_EVENT_FIELD(uint64, SizeRead)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, BeginWrite, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, BeginWrite)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, WriteHandle)
 	UE_TRACE_EVENT_FIELD(uint64, FileHandle)
@@ -56,45 +55,43 @@ UE_TRACE_EVENT_BEGIN(PlatformFile, BeginWrite, Always)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-UE_TRACE_EVENT_BEGIN(PlatformFile, EndWrite, Always)
+UE_TRACE_EVENT_BEGIN(PlatformFile, EndWrite)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, WriteHandle)
 	UE_TRACE_EVENT_FIELD(uint64, SizeWritten)
 	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
-void FPlatformFileTrace::BeginOpen(uint64 TempHandle, const TCHAR* Path)
+void FPlatformFileTrace::BeginOpen(const TCHAR* Path)
 {
 	uint16 PathSize = (FCString::Strlen(Path) + 1) * sizeof(TCHAR);
 	UE_TRACE_LOG(PlatformFile, BeginOpen, PathSize)
 		<< BeginOpen.Cycle(FPlatformTime::Cycles64())
-		<< BeginOpen.TempHandle(TempHandle)
 		<< BeginOpen.Attachment(Path, PathSize)
 		<< BeginOpen.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
-void FPlatformFileTrace::EndOpen(uint64 TempHandle, uint64 FileHandle)
+void FPlatformFileTrace::EndOpen(uint64 FileHandle)
 {
 	UE_TRACE_LOG(PlatformFile, EndOpen)
 		<< EndOpen.Cycle(FPlatformTime::Cycles64())
-		<< EndOpen.TempHandle(TempHandle)
-		<< EndOpen.FileHandle(FileHandle);
+		<< EndOpen.FileHandle(FileHandle)
+		<< EndOpen.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
-void FPlatformFileTrace::BeginClose(uint64 TempHandle, uint64 FileHandle)
+void FPlatformFileTrace::BeginClose(uint64 FileHandle)
 {
 	UE_TRACE_LOG(PlatformFile, BeginClose)
 		<< BeginClose.Cycle(FPlatformTime::Cycles64())
-		<< BeginClose.TempHandle(TempHandle)
 		<< BeginClose.FileHandle(FileHandle)
 		<< BeginClose.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
-void FPlatformFileTrace::EndClose(uint64 TempHandle)
+void FPlatformFileTrace::EndClose()
 {
 	UE_TRACE_LOG(PlatformFile, EndClose)
 		<< EndClose.Cycle(FPlatformTime::Cycles64())
-		<< EndClose.TempHandle(TempHandle);
+		<< EndClose.ThreadId(FPlatformTLS::GetCurrentThreadId());
 }
 
 void FPlatformFileTrace::BeginRead(uint64 ReadHandle, uint64 FileHandle, uint64 Offset, uint64 Size)
@@ -135,6 +132,22 @@ void FPlatformFileTrace::EndWrite(uint64 WriteHandle, uint64 SizeWritten)
 		<< EndWrite.WriteHandle(WriteHandle)
 		<< EndWrite.SizeWritten(SizeWritten)
 		<< EndWrite.ThreadId(FPlatformTLS::GetCurrentThreadId());
+}
+
+void FPlatformFileTrace::Init(const TCHAR* CmdLine)
+{
+	if (FParse::Param(CmdLine, TEXT("filetrace")))
+	{
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginOpen);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndOpen);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginClose);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndClose);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginRead);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndRead);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, BeginWrite);
+		UE_TRACE_EVENT_IS_ENABLED(PlatformFile, EndWrite);
+		Trace::ToggleEvent(TEXT("PlatformFile"), true);
+	}
 }
 
 #endif

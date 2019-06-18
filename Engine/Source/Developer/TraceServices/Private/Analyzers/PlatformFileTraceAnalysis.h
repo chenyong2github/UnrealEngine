@@ -46,8 +46,8 @@ private:
 	Trace::IAnalysisSession& Session;
 	Trace::FFileActivityProvider& FileActivityProvider;
 	TMap<uint64, uint32> OpenFilesMap;
-	TMap<uint64, FPendingActivity> PendingOpenMap;
-	TMap<uint64, FPendingActivity> PendingCloseMap;
+	TMap<uint32, FPendingActivity> PendingOpenMap;
+	TMap<uint32, FPendingActivity> PendingCloseMap;
 	TMap<uint64, FPendingActivity> ActiveReadsMap;
 	TMap<uint64, FPendingActivity> ActiveWritesMap;
 };

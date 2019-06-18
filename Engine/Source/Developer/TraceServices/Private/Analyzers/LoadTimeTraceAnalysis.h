@@ -79,60 +79,12 @@ private:
 		Trace::FLoadTimeProfilerCpuEvent CurrentEvent;
 		TArray<TSharedPtr<FRequestGroupState>> RequestGroupStack;
 		
-		TSharedPtr<Trace::FLoadTimeProfilerProvider::CpuTimelineInternal> CpuTimeline;
+		Trace::FLoadTimeProfilerProvider::CpuTimelineInternal* CpuTimeline;
 
-		void EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType)
-		{
-			FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
-			StackEntry.Event.Export = nullptr;
-			StackEntry.Event.ExportEventType = LoadTimeProfilerObjectEventType_None;
-			StackEntry.Event.Package = PackageInfo;
-			StackEntry.Event.PackageEventType = EventType;
-			CurrentEvent = StackEntry.Event;
-			CpuTimeline->AppendBeginEvent(Time, StackEntry.Event);
-		}
-
-		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType)
-		{
-			FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
-			StackEntry.Event.Export = ExportInfo;
-			StackEntry.Event.ExportEventType = EventType;
-			StackEntry.Event.Package = ExportInfo ? ExportInfo->Package : nullptr;
-			StackEntry.Event.PackageEventType = CurrentEvent.PackageEventType;
-			if (EventType == LoadTimeProfilerObjectEventType_PostLoad && StackEntry.Event.PackageEventType == LoadTimeProfilerPackageEventType_None)
-			{
-				StackEntry.Event.PackageEventType = LoadTimeProfilerPackageEventType_DeferredPostLoad;
-			}
-			CurrentEvent = StackEntry.Event;
-			CpuTimeline->AppendBeginEvent(Time, StackEntry.Event);
-		}
-
-		void LeaveScope(double Time)
-		{
-			FScopeStackEntry& StackEntry = CpuScopeStack[--CpuScopeStackDepth];
-			CpuTimeline->AppendEndEvent(Time);
-			if (CpuScopeStackDepth > 0)
-			{
-				CurrentEvent = CpuScopeStack[CpuScopeStackDepth - 1].Event;
-			}
-			else
-			{
-				CurrentEvent = Trace::FLoadTimeProfilerCpuEvent();
-			}
-		}
-
-		Trace::FPackageExportInfo* GetCurrentExportScope()
-		{
-			if (CpuScopeStackDepth > 0)
-			{
-				FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth - 1];
-				return const_cast<Trace::FPackageExportInfo*>(StackEntry.Event.Export);
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
+		void EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType);
+		void EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType);
+		void LeaveScope(double Time);
+		Trace::FPackageExportInfo* GetCurrentExportScope();
 	};
 
 	void PackageRequestAssociation(const FOnEventContext& Context, TSharedRef<FAsyncPackageState> AsyncPackageState, TSharedRef<FRequestState> RequestState);

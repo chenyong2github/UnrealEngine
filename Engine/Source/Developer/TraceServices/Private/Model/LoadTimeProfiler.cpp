@@ -124,7 +124,7 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 				Row->SerializedExportsSize += Event.Export->SerialSize;
 			}
 
-			if (Event.PackageEventType == LoadTimeProfilerPackageEventType_CreateLinker)
+			if (!Event.Export && Event.PackageEventType == LoadTimeProfilerPackageEventType_CreateLinker)
 			{
 				Row->SerializedHeaderSize += Event.Package->Summary.TotalHeaderSize;
 			}
@@ -251,6 +251,20 @@ Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 	FPackageExportInfo& Export = Exports.PushBack();
 	Export.Id = ExportId;
 	return Export;
+}
+
+FLoadTimeProfilerProvider::CpuTimelineInternal& FLoadTimeProfilerProvider::EditAdditionalCpuTimeline(uint32 ThreadId)
+{
+	if (AdditionalCpuTimelinesMap.Contains(ThreadId))
+	{
+		return AdditionalCpuTimelinesMap[ThreadId].Get();
+	}
+	else
+	{
+		TSharedRef<CpuTimelineInternal> Timeline = MakeShared<CpuTimelineInternal>(Session.GetLinearAllocator());
+		AdditionalCpuTimelinesMap.Add(ThreadId, Timeline);
+		return Timeline.Get();
+	}
 }
 
 uint64 FLoadTimeProfilerProvider::PackageSizeSum(const FLoadRequest& Row)

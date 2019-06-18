@@ -30,6 +30,7 @@
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.h"
 #include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
 #if WITH_ENGINE
 #include "HAL/PlatformSplash.h"
 #endif
@@ -1161,6 +1162,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 #if CPUPROFILERTRACE_ENABLED
 	FCpuProfilerTrace::Init(FParse::Param(CmdLine, TEXT("cpuprofilertrace")));
 #endif
+	TRACE_PLATFORMFILE_INIT(CmdLine);
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
 

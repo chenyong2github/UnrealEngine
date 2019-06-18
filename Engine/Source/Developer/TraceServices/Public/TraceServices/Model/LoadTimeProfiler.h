@@ -13,8 +13,8 @@ namespace Trace
 
 struct FFileInfo
 {
-	uint32 Id;
-	const TCHAR* Path;
+	uint32 Id = uint32(-1);
+	const TCHAR* Path = nullptr;
 };
 
 enum EFileActivityType
@@ -25,24 +25,31 @@ enum EFileActivityType
 	FileActivityType_Write,
 
 	FileActivityType_Count,
+	FileActivityType_Invalid = FileActivityType_Count
 };
+
+TRACESERVICES_API const TCHAR* GetFileActivityTypeString(EFileActivityType ActivityType);
 
 struct FFileActivity
 {
-	uint64 Offset;
-	uint64 Size;
-	EFileActivityType ActivityType;
-	bool Failed;
+	const FFileInfo* File = nullptr;
+	double StartTime = 0.0;
+	double EndTime = 0.0;
+	uint64 Offset = 0;
+	uint64 Size = 0;
+	EFileActivityType ActivityType = FileActivityType_Invalid;
+	bool Failed = false;
 };
 
 class IFileActivityProvider
 	: public IProvider
 {
 public:
-	typedef ITimeline<FFileActivity> Timeline;
+	typedef ITimeline<FFileActivity*> Timeline;
 
 	virtual ~IFileActivityProvider() = default;
 	virtual void EnumerateFileActivity(TFunctionRef<bool(const FFileInfo&, const Timeline&)> Callback) const = 0;
+	virtual const ITable<FFileActivity>& GetFileActivityTable() const = 0;
 };
 
 struct FPackageSummaryInfo

@@ -9,6 +9,8 @@
 #include "Common/FormatArgs.h"
 #include <limits>
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 FAsyncLoadingTraceAnalyzer::FAsyncLoadingTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FLoadTimeProfilerProvider& InLoadTimeProfilerProvider)
 	: Session(InSession)
 	, LoadTimeProfilerProvider(InLoadTimeProfilerProvider)
@@ -30,11 +32,15 @@ TSharedRef<FAsyncLoadingTraceAnalyzer::FThreadState> FAsyncLoadingTraceAnalyzer:
 		{
 			MainThreadId = ThreadId;
 			LoadTimeProfilerProvider.SetMainThreadId(MainThreadId);
-			ThreadState->CpuTimeline = LoadTimeProfilerProvider.EditMainThreadCpuTimeline();
+			ThreadState->CpuTimeline = &LoadTimeProfilerProvider.EditMainThreadCpuTimeline();
 		}
 		else if (ThreadId == AsyncLoadingThreadId)
 		{
-			ThreadState->CpuTimeline = LoadTimeProfilerProvider.EditAsyncLoadingThreadCpuTimeline();
+			ThreadState->CpuTimeline = &LoadTimeProfilerProvider.EditAsyncLoadingThreadCpuTimeline();
+		}
+		else
+		{
+			ThreadState->CpuTimeline = &LoadTimeProfilerProvider.EditAdditionalCpuTimeline(ThreadId);
 		}
 		return ThreadState;
 	}
@@ -350,6 +356,59 @@ void FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& 
 		ClassInfosMap.Add(ClassPtr, &ClassInfo);
 		break;
 	}
+	}
+}
+
+void FAsyncLoadingTraceAnalyzer::FThreadState::EnterPackageScope(double Time, const Trace::FPackageInfo* PackageInfo, ELoadTimeProfilerPackageEventType EventType)
+{
+	FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
+	StackEntry.Event.Export = nullptr;
+	StackEntry.Event.ExportEventType = LoadTimeProfilerObjectEventType_None;
+	StackEntry.Event.Package = PackageInfo;
+	StackEntry.Event.PackageEventType = EventType;
+	CurrentEvent = StackEntry.Event;
+	CpuTimeline->AppendBeginEvent(Time, StackEntry.Event);
+}
+
+void FAsyncLoadingTraceAnalyzer::FThreadState::EnterExportScope(double Time, const Trace::FPackageExportInfo* ExportInfo, ELoadTimeProfilerObjectEventType EventType)
+{
+	FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth++];
+	StackEntry.Event.Export = ExportInfo;
+	StackEntry.Event.ExportEventType = EventType;
+	StackEntry.Event.Package = ExportInfo ? ExportInfo->Package : nullptr;
+	StackEntry.Event.PackageEventType = CurrentEvent.PackageEventType;
+	if (EventType == LoadTimeProfilerObjectEventType_PostLoad && StackEntry.Event.PackageEventType == LoadTimeProfilerPackageEventType_None)
+	{
+		StackEntry.Event.PackageEventType = LoadTimeProfilerPackageEventType_DeferredPostLoad;
+	}
+	CurrentEvent = StackEntry.Event;
+	CpuTimeline->AppendBeginEvent(Time, StackEntry.Event);
+}
+
+void FAsyncLoadingTraceAnalyzer::FThreadState::LeaveScope(double Time)
+{
+	FScopeStackEntry& StackEntry = CpuScopeStack[--CpuScopeStackDepth];
+	CpuTimeline->AppendEndEvent(Time);
+	if (CpuScopeStackDepth > 0)
+	{
+		CurrentEvent = CpuScopeStack[CpuScopeStackDepth - 1].Event;
+	}
+	else
+	{
+		CurrentEvent = Trace::FLoadTimeProfilerCpuEvent();
+	}
+}
+
+Trace::FPackageExportInfo* FAsyncLoadingTraceAnalyzer::FThreadState::GetCurrentExportScope()
+{
+	if (CpuScopeStackDepth > 0)
+	{
+		FScopeStackEntry& StackEntry = CpuScopeStack[CpuScopeStackDepth - 1];
+		return const_cast<Trace::FPackageExportInfo*>(StackEntry.Event.Export);
+	}
+	else
+	{
+		return nullptr;
 	}
 }
 

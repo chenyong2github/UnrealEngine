@@ -33,8 +33,9 @@ public:
 	FLoadRequest& CreateRequest();
 	FPackageInfo& CreatePackage(const TCHAR* PackageName);
 	FPackageExportInfo& CreateExport();
-	TSharedRef<CpuTimelineInternal> EditMainThreadCpuTimeline() { return MainThreadCpuTimeline; }
-	TSharedRef<CpuTimelineInternal> EditAsyncLoadingThreadCpuTimeline() { return AsyncLoadingThreadCpuTimeline; }
+	CpuTimelineInternal& EditMainThreadCpuTimeline() { return MainThreadCpuTimeline.Get(); }
+	CpuTimelineInternal& EditAsyncLoadingThreadCpuTimeline() { return AsyncLoadingThreadCpuTimeline.Get(); }
+	CpuTimelineInternal& EditAdditionalCpuTimeline(uint32 ThreadId);
 	virtual uint32 GetMainThreadId() const override { return MainThreadId; }
 	void SetMainThreadId(uint32 ThreadId) { MainThreadId = ThreadId; }
 	virtual uint32 GetAsyncLoadingThreadId() const override { return AsyncLoadingThreadId; }
@@ -89,6 +90,7 @@ private:
 	TPagedArray<FPackageExportInfo> Exports;
 	TSharedRef<CpuTimelineInternal> MainThreadCpuTimeline;
 	TSharedRef<CpuTimelineInternal> AsyncLoadingThreadCpuTimeline;
+	TMap<uint32, TSharedRef<CpuTimelineInternal>> AdditionalCpuTimelinesMap;
 	uint32 MainThreadId = uint32(-1);
 	uint32 AsyncLoadingThreadId = uint32(-1);
 	TTableView<FRequestsTableLayout> RequestsTable;
