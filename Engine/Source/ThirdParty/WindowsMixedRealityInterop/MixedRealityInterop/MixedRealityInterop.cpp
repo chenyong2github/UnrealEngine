@@ -97,6 +97,19 @@ namespace WindowsMixedReality
 	void UpdateMeshObserverBoundingVolume(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem, winrt::Windows::Foundation::Numerics::float3 Position);
 	void StopMeshObserver();
 
+	void StartSceneUnderstandingObserver(
+		bool bGeneratePlanes,
+		bool bGenerateSceneMeshes,
+		float InVolumeSize,
+		void(*StartFunctionPointer)(),
+		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	);
+	void StopSceneUnderstandingObserver();
+
 	void StartQRCodeObserver(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*));
 	void UpdateQRCodeObserverCoordinateSystem(winrt::Windows::Perception::Spatial::SpatialCoordinateSystem InCoordinateSystem);
 	void StopQRCodeObserver();
@@ -3206,6 +3219,49 @@ namespace WindowsMixedReality
 	}
 }
 
+/** Include this down here so there's no confusion between WinRT/C++ and C++/CX types */
+#include "SceneUnderstandingObserver.h"
+
+namespace WindowsMixedReality
+{
+	void StartSceneUnderstandingObserver(
+		bool bGeneratePlanes,
+		bool bGenerateSceneMeshes,
+		float InVolumeSize,
+		void(*StartFunctionPointer)(),
+		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	)
+	{
+#if PLATFORM_HOLOLENS
+		SceneUnderstandingObserver& Instance = SceneUnderstandingObserver::Get();
+		// Pass any logging callback on
+		Instance.SetOnLog(m_logCallback);
+
+		Instance.StartSceneUnderstandingObserver(
+			bGeneratePlanes,
+			bGenerateSceneMeshes,
+			InVolumeSize,
+			StartFunctionPointer,
+			AddPlaneFunctionPointer,
+			RemovePlaneFunctionPointer,
+			AllocMeshFunctionPointer,
+			RemoveMeshFunctionPointer,
+			FinishFunctionPointer
+		);
+#endif
+	}
+	void StopSceneUnderstandingObserver()
+	{
+#if PLATFORM_HOLOLENS
+		SceneUnderstandingObserver& Instance = SceneUnderstandingObserver::Get();
+		Instance.StopSceneUnderstandingObserver();
+#endif
+	}
+}
 
 #include "QRCodeObserver.h"
 

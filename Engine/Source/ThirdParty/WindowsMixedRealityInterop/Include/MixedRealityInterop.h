@@ -463,6 +463,21 @@ namespace WindowsMixedReality
 		void StopSpatialMapping();
 		//~ Spatial Mapping
 
+		// Scene understanding
+		void StartSceneUnderstanding(
+			bool bGeneratePlanes,
+			bool bGenerateSceneMeshes,
+			float InVolumeSize,
+			void(*StartFunctionPointer)(),
+			void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+			void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+			void(*AllocMeshFunctionPointer)(MeshUpdate*),
+			void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+			void(*FinishFunctionPointer)()
+		);
+		void StopSceneUnderstanding();
+		//~Scene understanding
+
 		// Used by the AR system to receive notifications of tracking change
 		void SetTrackingChangedCallback(void(*CallbackPointer)(WindowsMixedReality::HMDSpatialLocatability));
 		WindowsMixedReality::HMDSpatialLocatability GetTrackingState();

@@ -18,7 +18,7 @@
 #include <ppltasks.h>
 #include <pplawait.h>
 
-#include <map>
+#include <set>
 #include <string>
 #include <sstream>
 
@@ -36,13 +36,25 @@ using namespace std::placeholders;
 using namespace concurrency;
 
 #if WITH_SCENE_UNDERSTANDING
-	#pragma message("SceneUnderstanding API is bine compiled in")
+	#pragma message("SceneUnderstanding API is being compiled in")
 #else
 	#pragma message("SceneUnderstanding API is being compiled out")
 #endif
 
+struct GUIDComparer
+{
+	bool operator()(const Guid& Left, const Guid& Right) const
+	{
+		return memcmp(&Left, &Right, sizeof(Right)) < 0;
+	}
+};
+
 /** Controls access to our references */
 static std::mutex RefsLock;
+/** The last known set of mesh guids. Used to handle removals */
+std::set<Guid, GUIDComparer> LastMeshGuidSet;
+/** The last known set of plane guids. Used to handle removals */
+std::set<Guid, GUIDComparer> LastPlaneGuidSet;
 
 SceneUnderstandingObserver* SceneUnderstandingObserver::ObserverInstance = nullptr;
 
@@ -50,7 +62,9 @@ SceneUnderstandingObserver::SceneUnderstandingObserver()
 	: OnLog(nullptr)
 	, OnStartUpdates(nullptr)
 	, OnAddPlane(nullptr)
-	, OnAllocateBuffers(nullptr)
+	, OnRemovedPlane(nullptr)
+	, OnAllocateMeshBuffers(nullptr)
+	, OnRemovedMesh()
 	, OnFinishUpdates(nullptr)
 {
 }
@@ -97,7 +111,9 @@ void SceneUnderstandingObserver::StartSceneUnderstandingObserver(
 	float InVolumeSize,
 	void(*StartFunctionPointer)(),
 	void(*AddPlaneFunctionPointer)(PlaneUpdate*),
-	void(*AllocFunctionPointer)(MeshUpdate*),
+	void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+	void(*AllocMeshFunctionPointer)(MeshUpdate*),
+	void(*RemoveMeshFunctionPointer)(MeshUpdate*),
 	void(*FinishFunctionPointer)()
 )
 {
@@ -130,10 +146,24 @@ void SceneUnderstandingObserver::StartSceneUnderstandingObserver(
 		return;
 	}
 
-	OnAllocateBuffers = AllocFunctionPointer;
-	if (OnAllocateBuffers == nullptr)
+	OnRemovedPlane = RemovePlaneFunctionPointer;
+	if (OnRemovedPlane == nullptr)
+	{
+		Log(L"Null remove planes function pointer passed to StartSceneUnderstandingObserver(). Aborting.");
+		return;
+	}
+
+	OnAllocateMeshBuffers = AllocMeshFunctionPointer;
+	if (OnAllocateMeshBuffers == nullptr)
 	{
 		Log(L"Null allocate buffers function pointer passed to StartSceneUnderstandingObserver(). Aborting.");
+		return;
+	}
+
+	OnRemovedMesh = RemoveMeshFunctionPointer;
+	if (OnRemovedMesh == nullptr)
+	{
+		Log(L"Null removed mesh function pointer passed to StartSceneUnderstandingObserver(). Aborting.");
 		return;
 	}
 
@@ -145,8 +175,11 @@ void SceneUnderstandingObserver::StartSceneUnderstandingObserver(
 	}
 
 #if WITH_SCENE_UNDERSTANDING
-	std::lock_guard<std::mutex> lock(RefsLock);
-	Processor = ref new SceneProcessor();
+	{
+		std::lock_guard<std::mutex> lock(RefsLock);
+		Processor = ref new SceneProcessor();
+	}
+	RequestAsyncUpdate();
 #endif
 }
 
@@ -184,76 +217,109 @@ void SceneUnderstandingObserver::InitSettings()
 
 void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete(SceneProcessor^ UpdatedProcessor)
 {
-	std::lock_guard<std::mutex> lock(RefsLock);
-	// It's possible this processor was stopped while an update was pending
-	// So only process this update if it's for the same scene processor object
-	if (UpdatedProcessor == Processor)
 	{
-		OnStartUpdates();
-		Array<SceneObject^>^ SceneObjects = nullptr;
-		Processor->GetSceneObjects(&SceneObjects);
-		const unsigned int SceneObjectCount = SceneObjects->Length;
-		for (unsigned int ObjectIndex = 0; ObjectIndex < SceneObjectCount; ObjectIndex++)
+		std::lock_guard<std::mutex> lock(RefsLock);
+		// It's possible this processor was stopped while an update was pending
+		// So only process this update if it's for the same scene processor object
+		if (UpdatedProcessor == Processor)
 		{
-			SceneObject^ SCObject = SceneObjects->get(ObjectIndex);
-
-			// Process each quad this scene object has
+			OnStartUpdates();
+			Array<SceneObject^>^ SceneObjects = nullptr;
+			Processor->GetSceneObjects(&SceneObjects);
+			const unsigned int SceneObjectCount = SceneObjects->Length;
+			for (unsigned int ObjectIndex = 0; ObjectIndex < SceneObjectCount; ObjectIndex++)
 			{
-				Array<Quad^>^ QuadObjects = nullptr;
-				SCObject->GetAssociatedQuads(&QuadObjects);
-				if (QuadObjects != nullptr)
+				SceneObject^ SCObject = SceneObjects->get(ObjectIndex);
+
+				// Process each quad this scene object has
 				{
-					const unsigned int QuadCount = SceneObjects->Length;
-					for (unsigned int QuadIndex = 0; QuadIndex < QuadCount; QuadIndex++)
+					std::set<Guid, GUIDComparer> CurrentPlaneGuidSet;
+					Array<Quad^>^ QuadObjects = nullptr;
+					SCObject->GetAssociatedQuads(&QuadObjects);
+					if (QuadObjects != nullptr)
 					{
-						Quad^ QuadObject = QuadObjects->get(QuadIndex);
-						PlaneUpdate CurrentPlane;
-						CurrentPlane.Id = QuadObject->SpatialCoordinateSystem->SpatialCoordinateGuid;
-
-						CurrentPlane.Width = QuadObject->WidthInMeters * 100.f;
-						CurrentPlane.Height = QuadObject->HeightInMeters * 100.f;
-						CurrentPlane.Orientation = (int32)QuadObject->Orientation;
-						CurrentPlane.ObjectLabel = (int32)SCObject->Label;
-
-						Windows::Perception::Spatial::SpatialCoordinateSystem^ QuadCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentPlane.Id);
-						CopyTransform(CurrentPlane, QuadCoordSystem);
-					}
-				}
-			}
-
-			// Process each mesh this scene object has
-			{
-				Array<Mesh^>^ MeshObjects = nullptr;
-				SCObject->GetAssociatedMeshes(&MeshObjects);
-				if (MeshObjects != nullptr)
-				{
-					const unsigned int MeshCount = SceneObjects->Length;
-					for (unsigned int MeshIndex = 0; MeshIndex < MeshCount; MeshIndex++)
-					{
-						Mesh^ MeshObject = MeshObjects->get(MeshIndex);
-						MeshUpdate CurrentMesh;
-						CurrentMesh.Id = MeshObject->SpatialCoordinateSystem->SpatialCoordinateGuid;
-
-						Windows::Perception::Spatial::SpatialCoordinateSystem^ MeshCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentMesh.Id);
-						CopyTransform(CurrentMesh, MeshCoordSystem);
-
-						Array<int>^ Indices = nullptr;
-						Array<float>^ Vertices = nullptr;
-						MeshObject->GetTriangleIndices(&Indices);
-						MeshObject->GetVertices(&Vertices);
-						if (Indices != nullptr && Vertices != nullptr)
+						const unsigned int QuadCount = SceneObjects->Length;
+						for (unsigned int QuadIndex = 0; QuadIndex < QuadCount; QuadIndex++)
 						{
-							CurrentMesh.NumVertices = Vertices->Length / 3;
-							CurrentMesh.NumIndices = Indices->Length;
-							OnAllocateBuffers(&CurrentMesh);
-							CopyMeshData(CurrentMesh, Vertices, Indices);
+							Quad^ QuadObject = QuadObjects->get(QuadIndex);
+							PlaneUpdate CurrentPlane;
+							CurrentPlane.Id = QuadObject->SpatialCoordinateSystem->SpatialCoordinateGuid;
+							CurrentPlaneGuidSet.insert(CurrentPlane.Id);
+
+							CurrentPlane.Width = QuadObject->WidthInMeters * 100.f;
+							CurrentPlane.Height = QuadObject->HeightInMeters * 100.f;
+							CurrentPlane.Orientation = (int32)QuadObject->Orientation;
+							CurrentPlane.ObjectLabel = (int32)SCObject->Label;
+
+							Windows::Perception::Spatial::SpatialCoordinateSystem^ QuadCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentPlane.Id);
+							CopyTransform(CurrentPlane, QuadCoordSystem);
 						}
 					}
+					// Remove any planes that were seen last time, but not this time
+					std::set<Guid>::iterator It = LastPlaneGuidSet.begin();
+					while (It != LastPlaneGuidSet.end())
+					{
+						Guid Id = *It;
+						// If this one is not in the new set, then it was removed
+						if (CurrentPlaneGuidSet.find(Id) == CurrentPlaneGuidSet.end())
+						{
+							PlaneUpdate RemovedPlane;
+							RemovedPlane.Id = Id;
+							OnRemovedPlane(&RemovedPlane);
+						}
+					}
+					LastPlaneGuidSet = CurrentPlaneGuidSet;
+				}
+
+				// Process each mesh this scene object has
+				{
+					std::set<Guid, GUIDComparer> CurrentMeshGuidSet;
+					Array<Mesh^>^ MeshObjects = nullptr;
+					SCObject->GetAssociatedMeshes(&MeshObjects);
+					if (MeshObjects != nullptr)
+					{
+						const unsigned int MeshCount = SceneObjects->Length;
+						for (unsigned int MeshIndex = 0; MeshIndex < MeshCount; MeshIndex++)
+						{
+							Mesh^ MeshObject = MeshObjects->get(MeshIndex);
+							MeshUpdate CurrentMesh;
+							CurrentMesh.Id = MeshObject->SpatialCoordinateSystem->SpatialCoordinateGuid;
+
+							Windows::Perception::Spatial::SpatialCoordinateSystem^ MeshCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentMesh.Id);
+							CopyTransform(CurrentMesh, MeshCoordSystem);
+
+							Array<int>^ Indices = nullptr;
+							Array<float>^ Vertices = nullptr;
+							MeshObject->GetTriangleIndices(&Indices);
+							MeshObject->GetVertices(&Vertices);
+							if (Indices != nullptr && Vertices != nullptr)
+							{
+								CurrentMesh.NumVertices = Vertices->Length / 3;
+								CurrentMesh.NumIndices = Indices->Length;
+								OnAllocateMeshBuffers(&CurrentMesh);
+								CopyMeshData(CurrentMesh, Vertices, Indices);
+							}
+						}
+					}
+					std::set<Guid>::iterator It = LastMeshGuidSet.begin();
+					while (It != LastMeshGuidSet.end())
+					{
+						Guid Id = *It;
+						// If this one is not in the new set, then it was removed
+						if (CurrentMeshGuidSet.find(Id) == CurrentMeshGuidSet.end())
+						{
+							MeshUpdate RemovedMesh;
+							RemovedMesh.Id = Id;
+							OnRemovedMesh(&RemovedMesh);
+						}
+					}
+					LastMeshGuidSet = CurrentMeshGuidSet;
 				}
 			}
+			OnFinishUpdates();
 		}
-		OnFinishUpdates();
 	}
+	RequestAsyncUpdate();
 }
 
 void SceneUnderstandingObserver::CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<int>^ Indices)

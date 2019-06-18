@@ -31,7 +31,9 @@ public:
 		float InVolumeSize,
 		void(*StartFunctionPointer)(),
 		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
-		void(*AllocFunctionPointer)(MeshUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
 		void(*FinishFunctionPointer)()
 	);
 	/** Starts an async update that will call back into this object when complete */
@@ -54,8 +56,12 @@ private:
 	void(*OnStartUpdates)();
 	/** Function pointer for sending plane updates to UE4 */
 	void(*OnAddPlane)(PlaneUpdate*);
+	/** Function pointer for sending plane removals to UE4 */
+	void(*OnRemovedPlane)(PlaneUpdate*);
 	/** Function pointer for asking UE4 to allocate buffers (avoids an extra copy) */
-	void(*OnAllocateBuffers)(MeshUpdate*);
+	void(*OnAllocateMeshBuffers)(MeshUpdate*);
+	/** Function pointer for telling UE4 a mesh was removed */
+	void(*OnRemovedMesh)(MeshUpdate*);
 	/** Function pointer for telling UE4 updates have completed */
 	void(*OnFinishUpdates)();
 
