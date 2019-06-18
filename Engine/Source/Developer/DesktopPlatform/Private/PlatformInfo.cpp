@@ -20,7 +20,7 @@ TArray<FPlatformInfo> AllPlatformInfoArray;
 
 // we don't need any of this without the editor, although we would ideally not even compile this outside of the editor
 // @todo platplug: Figure out why this is compiled on target devices
-#if WITH_EDITOR
+#if WITH_EDITOR || IS_PROGRAM
 
 void BuildPlatformInfo(const FName& InPlatformInfoName, const FName& InTargetPlatformName, const FText& InDisplayName, const EPlatformType InPlatformType, const EPlatformFlags::Flags InPlatformFlags, const FPlatformIconPaths& InIconPaths, const FString& InUATCommandLine, const FString& InAutoSDKPath, EPlatformSDKStatus InStatus, const FString& InTutorial, bool InEnabled, FString InBinaryFolderName, FString InIniPlatformName, bool InUsesHostCompiler, bool InUATClosesAfterLaunch, bool InIsConfidential, const FName& InUBTTargetId, const FName& InPlatformGroupName, bool InTargetPlatformCanUseCrashReporter)
 {
