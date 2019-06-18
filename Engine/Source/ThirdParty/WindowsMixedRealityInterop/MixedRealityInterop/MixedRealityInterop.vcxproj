@@ -49,13 +49,13 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
     <LibraryPath>..\Lib\x64\;$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)..\..\..\Plugins\Runtime\WindowsMixedReality\Binaries\ThirdParty\MixedRealityInteropLibrary\Win64\</OutDir>
+    <OutDir>$(SolutionDir)..\..\..\Binaries\ThirdParty\MixedRealityInteropLibrary\Win64\</OutDir>
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
     <LibraryPath>..\Lib\x64\;$(LibraryPath)</LibraryPath>
-    <OutDir>$(SolutionDir)..\..\..\Plugins\Runtime\WindowsMixedReality\Binaries\ThirdParty\MixedRealityInteropLibrary\Win64\</OutDir>
+    <OutDir>$(SolutionDir)..\..\..\Binaries\ThirdParty\MixedRealityInteropLibrary\Win64\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
@@ -70,7 +70,7 @@
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata;</AdditionalUsingDirectories>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\HolographicAppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\HolographicAppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -99,7 +99,7 @@
       <CompileAsWinRT>true</CompileAsWinRT>
       <AdditionalUsingDirectories>$(VCIDEInstallDir)vcpackages;$(WindowsSDKDir)UnionMetadata\$(TargetPlatformVersion);$(WindowsSDKDir)UnionMetadata</AdditionalUsingDirectories>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\HolographicAppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;$(SolutionDir)Include\$(TargetPlatformVersion)\HolographicAppRemoting.winmd;%(ForcedUsingFiles);$(SceneUnderstandingWinMDx64)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>

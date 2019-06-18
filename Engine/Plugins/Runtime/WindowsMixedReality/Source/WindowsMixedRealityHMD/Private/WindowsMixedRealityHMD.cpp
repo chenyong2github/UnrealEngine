@@ -162,11 +162,11 @@ namespace WindowsMixedReality
 #else // WINDOWS_MIXED_REALITY_DEBUG_DLL
 				FString DLLName(TEXT("MixedRealityInterop.dll"));
 #endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
-				FString MRInteropLibraryPath = BaseDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+				FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
 
-#if PLATFORM_64BITS && WITH_EDITOR
+#if PLATFORM_64BITS
 				// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
-				FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries/ThirdParty/Windows/HoloLens" / BinariesSubDir / "HolographicAppRemoting.dll"));
+				FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries/ThirdParty/Windows/x64/HolographicAppRemoting.dll"));
 #endif // PLATFORM_64BITS && WITH_EDITOR
 
 				// Then finally try to load the WMR Interop Library
