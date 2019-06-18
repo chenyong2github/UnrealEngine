@@ -134,14 +134,13 @@ void OcclusionRGS()
 		float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 		float2 BufferUV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 		FGBufferData GBufferData = GetGBufferDataFromSceneTextures(BufferUV);
-		float Depth = GBufferData.Depth;
-		float3 WorldPosition = ReconstructWorldPositionFromDepth(BufferUV, Depth);
+		float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+		float3 WorldPosition = ReconstructWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
 		float3 WorldNormal = GBufferData.WorldNormal;
 
 		uint LightChannel = GetSceneLightingChannel(PixelCoord);
 
 		// Mask out depth values that are infinitely far away
-		float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 		bool IsFiniteDepth = DeviceZ > 0.0;
 		bool bTraceRay = (
 			IsFiniteDepth &&
@@ -192,7 +191,7 @@ void OcclusionRGS()
 				/* out */ Ray.Direction,
 				/* out */ Ray.TMin,
 				/* out */ Ray.TMax);
-			ApplyPositionBias(Ray, WorldNormal, NormalBias);
+			ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, NormalBias);
 
 			BRANCH
 			if (!bIsValidRay)
