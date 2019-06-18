@@ -150,6 +150,7 @@ namespace EEnvTestScoreOperator
 		AverageScore	UMETA(Tooltip = "Use average score from all contexts"),
 		MinScore		UMETA(Tooltip = "Use minimum score from all contexts"),
 		MaxScore		UMETA(Tooltip = "Use maximum score from all contexts"),
+		Multiply		UMETA(Tooltip = "Multiply scores from all contexts"),
 	};
 }
 
@@ -1202,6 +1203,9 @@ public:
 				{
 					ItemScore = Score;
 				}
+				break;
+			case EEnvTestScoreOperator::Multiply:
+				ItemScore *= Score;
 				break;
 			}
 		}
