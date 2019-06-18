@@ -182,3 +182,39 @@ struct RENDERCORE_API FComputeShaderUtils
 		});
 	}
 };
+
+/** Adds a render graph pass that copies a region from one texture to another;
+ *  Uses RHICopyTexture under the hood. Formats of the two textures must match.
+ *  The output and output texture regions be within the respective extents.
+ */
+RENDERCORE_API void AddCopyTexturePass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	const FRHICopyTextureInfo& CopyInfo);
+
+/** Simpler variant of the above function for 2D textures.
+ *  @param InputPosition The pixel position within the input texture of the top-left corner of the box.
+ *  @param OutputPosition The pixel position within the output texture of the top-left corner of the box.
+ *  @param Size The size in pixels of the region to copy from input to output. If zero, the full extent of
+ *         the input texture is copied.
+ */
+inline void AddCopyTexturePass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	FIntPoint InputPosition = FIntPoint::ZeroValue,
+	FIntPoint OutputPosition = FIntPoint::ZeroValue,
+	FIntPoint Size = FIntPoint::ZeroValue)
+{
+	FRHICopyTextureInfo CopyInfo;
+	CopyInfo.SourcePosition.X = InputPosition.X;
+	CopyInfo.SourcePosition.Y = InputPosition.Y;
+	CopyInfo.DestPosition.X = OutputPosition.X;
+	CopyInfo.DestPosition.Y = OutputPosition.Y;
+	if (Size != FIntPoint::ZeroValue)
+	{
+		CopyInfo.Size = FIntVector(Size.X, Size.Y, 1);
+	}
+	AddCopyTexturePass(GraphBuilder, InputTexture, OutputTexture, CopyInfo);
+}

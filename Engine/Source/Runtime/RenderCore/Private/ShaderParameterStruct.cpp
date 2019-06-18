@@ -67,7 +67,13 @@ struct FShaderParameterStructBindingContext
 				BaseType == UBMT_SRV ||
 				BaseType == UBMT_UAV ||
 				BaseType == UBMT_SAMPLER);
-			const bool bIsRDGResource = IsRDGResourceReferenceShaderParameterType(BaseType) && BaseType != UBMT_RDG_BUFFER;
+
+			const bool bIsRDGResource =
+				IsRDGResourceReferenceShaderParameterType(BaseType) &&
+				BaseType != UBMT_RDG_BUFFER &&
+				BaseType != UBMT_RDG_BUFFER_COPY_DEST &&
+				BaseType != UBMT_RDG_TEXTURE_COPY_DEST;
+
 			const bool bIsVariableNativeType = (
 				BaseType == UBMT_BOOL ||
 				BaseType == UBMT_INT32 ||

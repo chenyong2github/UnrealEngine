@@ -292,6 +292,15 @@ void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 			}
 		}
 		break;
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+		case UBMT_RDG_BUFFER_COPY_DEST:
+		{
+			if (FRDGTrackedResourceRef Resource = Parameter.GetAsTrackedResource())
+			{
+				Resource->MarkAsProducedBy(Pass);
+			}
+		}
+		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
 			if (!RenderTargetBindingSlots)
@@ -338,18 +347,36 @@ void FRDGBuilder::ValidatePass(const FRDGPass* Pass) const
 
 				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
 				{
-					/** Validate that load action is correct. */
 					const bool bIsLoadAction = RenderTarget.GetLoadAction() == ERenderTargetLoadAction::ELoad;
-					const bool bIsLoadActionInvalid = bIsLoadAction && !Texture->HasBeenProduced();
-					checkf(
-						!bIsLoadActionInvalid,
-						TEXT("Can't load a render target '%s' that has never been produced."),
-						Texture->Name);
-					
-					const bool bOverwritesResourceEntirely = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
-					ensureMsgf(!bOverwritesResourceEntirely,
-						TEXT("Clobbering render target %s result that has been produced previously by another pass. Should instead render to a new FRDGTexture to reduce memory pressure."),
-						Texture->Name);
+
+					/** Validate that load action is correct. We can only load contents if a pass previously produced something. */
+					{
+						const bool bIsLoadActionInvalid = bIsLoadAction && !Texture->HasBeenProduced();
+						checkf(
+							!bIsLoadActionInvalid,
+							TEXT("Pass '%s' attempted to bind texture '%s' as a render target with the 'Load' action specified, but the texture has not been produced yet. The render target must use either 'Clear' or 'NoAction' action instead."),
+							Pass->GetName(),
+							Texture->Name);
+					}
+
+					/** Validate that any previously produced texture contents are loaded. This occurs if the user failed to specify a load action
+					 *  on a texture that was produced by a previous pass, effectively losing that data. This can also happen if the user 're-uses'
+					 *  a texture for some other purpose. The latter is considered bad practice, since it increases memory pressure on the render
+					 *  target pool. Instead, the user should create a new texture instance. An exception to this rule are untracked render targets,
+					 *  which are not actually managed by the render target pool and likely represent the frame buffer.
+					 */
+					{
+						// We only validate single-mip textures since we don't track production at the subresource level.
+						const bool bFailedToLoadProducedContent = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
+
+						// Untracked render targets aren't actually managed by the render target pool.
+						const bool bIsUntrackedRenderTarget = Texture->PooledRenderTarget && Texture->PooledRenderTarget->IsTracked();
+
+						ensureMsgf(!bFailedToLoadProducedContent || bIsUntrackedRenderTarget,
+							TEXT("Pass '%s' attempted to bind texture '%s' as a render target without the 'Load' action specified, despite a prior pass having produced it. It's invalid to completely clobber the contents of a resource. Create a new texture instance instead."),
+							Pass->GetName(),
+							Texture->Name);
+					}
 					
 					/** Mark the pass as a producer for render targets with a store action. */
 					{
@@ -525,7 +552,9 @@ void FRDGBuilder::WalkGraphDependencies()
 			switch (Parameter.GetType())
 			{
 			case UBMT_RDG_TEXTURE:
+			case UBMT_RDG_TEXTURE_COPY_DEST:
 			case UBMT_RDG_BUFFER:
+			case UBMT_RDG_BUFFER_COPY_DEST:
 			{
 				if (FRDGTrackedResourceRef Resource = Parameter.GetAsTrackedResource())
 				{
@@ -917,6 +946,20 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 			}
 		}
 		break;
+		case UBMT_RDG_TEXTURE_COPY_DEST:
+		{
+			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
+			{
+				#if RDG_ENABLE_DEBUG
+				{
+					Texture->PassAccessCount++;
+				}
+				#endif
+
+				AllocateRHITextureIfNeeded(Texture);
+			}
+		}
+		break;
 		case UBMT_RDG_BUFFER:
 		{
 			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
@@ -985,6 +1028,20 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				}
 
 				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::CreateWrite(Pass));
+			}
+		}
+		break;
+		case UBMT_RDG_BUFFER_COPY_DEST:
+		{
+			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
+			{
+				#if RDG_ENABLE_DEBUG
+				{
+					Buffer->PassAccessCount++;
+				}
+				#endif
+
+				AllocateRHIBufferIfNeeded(Buffer);
 			}
 		}
 		break;
@@ -1258,6 +1315,7 @@ void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
 		switch (Parameter.GetType())
 		{
 		case UBMT_RDG_TEXTURE:
+		case UBMT_RDG_TEXTURE_COPY_DEST:
 		{
 			if (FRDGTextureRef Texture = Parameter.GetAsTexture())
 			{
@@ -1282,6 +1340,7 @@ void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
 		}
 		break;
 		case UBMT_RDG_BUFFER:
+		case UBMT_RDG_BUFFER_COPY_DEST:
 		{
 			if (FRDGBufferRef Buffer = Parameter.GetAsBuffer())
 			{

@@ -24,7 +24,11 @@ public:
 
 	bool IsTrackedResource() const
 	{
-		return MemberType == UBMT_RDG_TEXTURE || MemberType == UBMT_RDG_BUFFER;
+		return
+			MemberType == UBMT_RDG_TEXTURE ||
+			MemberType == UBMT_RDG_TEXTURE_COPY_DEST ||
+			MemberType == UBMT_RDG_BUFFER ||
+			MemberType == UBMT_RDG_BUFFER_COPY_DEST;
 	}
 
 	EUniformBufferBaseType GetType() const
@@ -46,13 +50,13 @@ public:
 
 	FRDGTextureRef GetAsTexture() const
 	{
-		check(MemberType == UBMT_RDG_TEXTURE);
+		check(MemberType == UBMT_RDG_TEXTURE || MemberType == UBMT_RDG_TEXTURE_COPY_DEST);
 		return *GetAs<FRDGTextureRef>();
 	}
 
 	FRDGBufferRef GetAsBuffer() const
 	{
-		check(MemberType == UBMT_RDG_BUFFER);
+		check(MemberType == UBMT_RDG_BUFFER || MemberType == UBMT_RDG_BUFFER_COPY_DEST);
 		return *GetAs<FRDGBufferRef>();
 	}
 
@@ -163,14 +167,15 @@ enum class ERDGPassFlags
 	None = 0,
 
 	/** Pass uses compute only */
-	Compute = 1 << 0,
+	Compute,
+
+	/** Pass uses RHI copy commands only. */
+	Copy,
 
 	//#todo-rco: Remove this when we can do split/per mip layout transitions.
 	/** Hint to some RHIs this pass will be generating mips to optimize transitions. */
-	GenerateMips = 1 << 1,
+	GenerateMips
 };
-
-ENUM_CLASS_FLAGS(ERDGPassFlags)
 
 // TODO(RDG): Bulk rename across codebase.
 using ERenderGraphPassFlags = ERDGPassFlags;
@@ -200,12 +205,12 @@ public:
 
 	bool IsGenerateMips() const
 	{
-		return (PassFlags & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
+		return (PassFlags == ERDGPassFlags::GenerateMips);
 	}
 
 	bool IsCompute() const
 	{
-		return (PassFlags & ERDGPassFlags::Compute) == ERDGPassFlags::Compute;
+		return (PassFlags == ERDGPassFlags::Compute);
 	}
 
 	FRDGPassParameterStruct GetParameters() const

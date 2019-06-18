@@ -3,6 +3,14 @@
 #include "RenderGraphUtils.h"
 #include <initializer_list>
 
+ /** Adds a render graph tracked buffer suitable for use as a copy destination. */
+#define RDG_BUFFER_COPY_DEST(MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_BUFFER_COPY_DEST, TShaderResourceParameterTypeInfo<FRDGBufferRef>, FRDGBufferRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(""),false)
+
+  /** Adds a render graph tracked texture suitable for use as a copy destination. */
+#define RDG_TEXTURE_COPY_DEST(MemberName) \
+	INTERNAL_SHADER_PARAMETER_EXPLICIT(UBMT_RDG_TEXTURE_COPY_DEST, TShaderResourceParameterTypeInfo<FRDGTextureRef>, FRDGTextureRef,MemberName,, = nullptr,EShaderPrecisionModifier::Float,TEXT(""),false)
+
 void ClearUnusedGraphResourcesImpl(
 	const FShaderParameterBindings& ShaderBindings,
 	const FShaderParametersMetadata* ParametersMetadata,
@@ -81,3 +89,28 @@ FRDGTextureRef RegisterExternalTextureWithFallback(
 	}
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FCopyTextureParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(, Input)
+	RDG_TEXTURE_COPY_DEST(Output)
+END_SHADER_PARAMETER_STRUCT()
+
+void AddCopyTexturePass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef InputTexture,
+	FRDGTextureRef OutputTexture,
+	const FRHICopyTextureInfo& CopyInfo)
+{
+	const FRDGTextureDesc& InputDesc = InputTexture->Desc;
+	const FRDGTextureDesc& OutputDesc = OutputTexture->Desc;
+	checkf(InputDesc.Format == OutputDesc.Format, TEXT("This method does not support format conversion."));
+
+	FCopyTextureParameters* Parameters = GraphBuilder.AllocParameters<FCopyTextureParameters>();
+	Parameters->Input = InputTexture;
+	Parameters->Output = OutputTexture;
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("CopyTexture"), Parameters, ERDGPassFlags::Copy,
+		[InputTexture, OutputTexture, CopyInfo](FRHICommandList& RHICmdList)
+	{
+		RHICmdList.CopyTexture(InputTexture->GetRHI(), OutputTexture->GetRHI(), CopyInfo);
+	});
+}

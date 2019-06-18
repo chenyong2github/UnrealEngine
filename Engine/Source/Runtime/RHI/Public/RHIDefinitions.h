@@ -487,9 +487,11 @@ enum EUniformBufferBaseType : uint8
 	UBMT_RDG_TEXTURE,
 	UBMT_RDG_TEXTURE_SRV,
 	UBMT_RDG_TEXTURE_UAV,
+	UBMT_RDG_TEXTURE_COPY_DEST,
 	UBMT_RDG_BUFFER,
 	UBMT_RDG_BUFFER_SRV,
 	UBMT_RDG_BUFFER_UAV,
+	UBMT_RDG_BUFFER_COPY_DEST,
 
 	// Nested structure.
 	UBMT_NESTED_STRUCT,
@@ -1249,9 +1251,11 @@ inline bool IsRDGResourceReferenceShaderParameterType(EUniformBufferBaseType Bas
 		BaseType == UBMT_RDG_TEXTURE ||
 		BaseType == UBMT_RDG_TEXTURE_SRV ||
 		BaseType == UBMT_RDG_TEXTURE_UAV ||
+		BaseType == UBMT_RDG_TEXTURE_COPY_DEST ||
 		BaseType == UBMT_RDG_BUFFER ||
 		BaseType == UBMT_RDG_BUFFER_SRV ||
-		BaseType == UBMT_RDG_BUFFER_UAV;
+		BaseType == UBMT_RDG_BUFFER_UAV ||
+		BaseType == UBMT_RDG_BUFFER_COPY_DEST;
 }
 
 /** Returns whether the shader parameter type needs to be passdown to RHI through FRHIUniformBufferLayout when creating an uniform buffer. */
@@ -1276,7 +1280,11 @@ inline bool IsShaderParameterTypeIgnoredByRHI(EUniformBufferBaseType BaseType)
 {
 	return
 		// Render targets bindings slots needs to be in FRHIUniformBufferLayout for render graph, but the RHI does not actually need to know about it.
-		BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS || 
+		BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS ||
+
+		// Copy destination states are used by the render graph.
+		BaseType == UBMT_RDG_TEXTURE_COPY_DEST ||
+		BaseType == UBMT_RDG_BUFFER_COPY_DEST ||
 
 		// #yuriy_todo: RHI is able to dereference uniform buffer in root shader parameter structures
 		BaseType == UBMT_REFERENCED_STRUCT;

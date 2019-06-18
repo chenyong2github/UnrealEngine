@@ -2832,6 +2832,12 @@ static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, c
 			// RHI don't need to care about render target bindings slot anyway.
 		}
 		else if (
+			BaseType == UBMT_RDG_BUFFER_COPY_DEST ||
+			BaseType == UBMT_RDG_TEXTURE_COPY_DEST)
+		{
+			// Shaders don't care about copy destination parameters.
+		}
+		else if (
 			BaseType == UBMT_RDG_BUFFER_UAV ||
 			BaseType == UBMT_RDG_TEXTURE_UAV)
 		{
