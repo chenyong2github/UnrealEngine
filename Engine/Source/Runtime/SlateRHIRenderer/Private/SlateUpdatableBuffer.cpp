@@ -77,7 +77,7 @@ void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommand
 	}
 	else
 	{
-		FVertexBufferRHIParamRef VertexBufferRHI = InstanceBufferResource.VertexBufferRHI;
+		FRHIVertexBuffer* VertexBufferRHI = InstanceBufferResource.VertexBufferRHI;
 		RHICmdList.EnqueueLambda([VertexBufferRHI, &InstanceData = RenderThreadBufferData](FRHICommandListImmediate& RHICmdList)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer);

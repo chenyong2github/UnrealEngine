@@ -235,7 +235,7 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 		{
 			if (!bUseSkinCache && DeferSkeletalLockAndFillToRHIThread())
 			{
-				FVertexBufferRHIParamRef VertexBuffer = CurrentBoneBuffer->VertexBufferRHI;
+				FRHIVertexBuffer* VertexBuffer = CurrentBoneBuffer->VertexBufferRHI;
 				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &ReferenceToLocalMatrices, &BoneMap](FRHICommandListImmediate& RHICmdList)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
@@ -919,7 +919,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 		{
 			if (DeferSkeletalLockAndFillToRHIThread())
 			{
-				FVertexBufferRHIParamRef VertexBuffer = CurrentClothBuffer->VertexBufferRHI;
+				FRHIVertexBuffer* VertexBuffer = CurrentClothBuffer->VertexBufferRHI;
 				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& RHICmdList)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);

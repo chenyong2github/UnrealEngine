@@ -191,8 +191,8 @@ void FSlateRHIRenderingPolicy::UpdateVertexAndIndexBuffers(FRHICommandListImmedi
 		}
 		else
 		{
-			FVertexBufferRHIParamRef VertexBufferRHI = VertexBuffer.VertexBufferRHI;
-			FIndexBufferRHIParamRef IndexBufferRHI = IndexBuffer.IndexBufferRHI;
+			FRHIVertexBuffer* VertexBufferRHI = VertexBuffer.VertexBufferRHI;
+			FRHIIndexBuffer* IndexBufferRHI = IndexBuffer.IndexBufferRHI;
 
 			RHICmdList.EnqueueLambda([VertexBufferRHI, IndexBufferRHI, &InBatchData, bAbsoluteIndices](FRHICommandListImmediate& RHICmdList)
 			{
