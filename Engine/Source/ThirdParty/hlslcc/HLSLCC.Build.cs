@@ -11,35 +11,20 @@ public class HLSLCC : ModuleRules
 		PublicSystemIncludePaths.Add(Target.UEThirdPartySourceDirectory + "hlslcc/hlslcc/src/hlslcc_lib");
 
 		string LibPath = Target.UEThirdPartySourceDirectory + "hlslcc/hlslcc/lib/";
-		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
-			(Target.Platform == UnrealTargetPlatform.Win32))
+		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			LibPath = LibPath + (Target.Platform == UnrealTargetPlatform.Win32 ? "Win32/" : "Win64/");
+			LibPath = LibPath + "Win64/";
 			LibPath = LibPath + "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
 			
 			PublicLibraryPaths.Add(LibPath);
 
 			if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
 			{
-				if (Target.Platform == UnrealTargetPlatform.Win64)
-				{
-					PublicAdditionalLibraries.Add("hlslccd_64.lib");
-				}
-				else if (Target.Platform == UnrealTargetPlatform.Win32)
-				{
-					PublicAdditionalLibraries.Add("hlslccd.lib");
-				}
+				PublicAdditionalLibraries.Add("hlslccd_64.lib");
 			}
 			else
 			{
-				if (Target.Platform == UnrealTargetPlatform.Win64)
-				{
-					PublicAdditionalLibraries.Add("hlslcc_64.lib");
-				}
-				else if (Target.Platform == UnrealTargetPlatform.Win32)
-				{
-					PublicAdditionalLibraries.Add("hlslcc.lib");
-				}
+				PublicAdditionalLibraries.Add("hlslcc_64.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
