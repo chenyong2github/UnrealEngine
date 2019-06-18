@@ -13,6 +13,7 @@
 
 #if WITH_PYTHON
 
+struct FOutParmRec;
 struct FPyWrapperBaseMetaData;
 
 class FPyWrapperOwnerContext;
