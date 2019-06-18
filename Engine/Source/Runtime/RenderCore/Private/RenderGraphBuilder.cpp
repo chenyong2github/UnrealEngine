@@ -1489,6 +1489,8 @@ void FRDGBuilder::DestructPasses()
 
 	DeferredInternalTextureQueries.Empty();
 	DeferredInternalBufferQueries.Empty();
+	ExternalTextures.Empty();
+	ExternalBuffers.Empty();
 	AllocatedTextures.Empty();
 	AllocatedBuffers.Empty();
 }
