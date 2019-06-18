@@ -34,10 +34,10 @@ struct LIVELINKINTERFACE_API FLiveLinkSubjectRepresentation
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category="Live Link")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Live Link")
 	FLiveLinkSubjectName Subject;
 
-	UPROPERTY(EditAnywhere, Category="Live Link")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Live Link")
 	TSubclassOf<ULiveLinkRole> Role;
 
 	bool operator==(const FLiveLinkSubjectRepresentation& Other) const { return Subject == Other.Subject && Role == Other.Role; } 

@@ -348,6 +348,24 @@ void FSubjectFrameHandle::GetTransformByName(FName InTransformName, FLiveLinkTra
 	OutLiveLinkTransform.SetTransformIndex(TransformIndex);
 };
 
+FLiveLinkSkeletonStaticData* FSubjectFrameHandle::GetSourceSkeletonStaticData()
+{
+	if (CachedFrame.IsValid())
+	{
+		return &CachedFrame->GetSourceSkeletonData();
+	}
+	return nullptr;
+}
+
+FLiveLinkAnimationFrameData* FSubjectFrameHandle::GetSourceAnimationFrameData()
+{
+	if (CachedFrame.IsValid())
+	{
+		return &CachedFrame->GetSourceAnimationFrameData();
+	}
+	return nullptr;
+}
+
 void FSubjectFrameHandle::SetCachedFrame(TSharedPtr<FCachedSubjectFrame> InCachedFrame)
 {
 	CachedFrame = InCachedFrame;
