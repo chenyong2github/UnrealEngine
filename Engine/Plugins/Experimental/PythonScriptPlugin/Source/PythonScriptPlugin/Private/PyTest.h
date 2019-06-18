@@ -181,11 +181,17 @@ public:
 	UFUNCTION(BlueprintNativeEvent, Category = "Python|Internal")
 	int32 FuncBlueprintNative(const int32 InValue) const;
 
+	UFUNCTION(BlueprintNativeEvent, Category = "Python|Internal")
+	void FuncBlueprintNativeRef(UPARAM(ref) FPyTestStruct& InOutStruct) const;
+
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 CallFuncBlueprintImplementable(const int32 InValue) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	int32 CallFuncBlueprintNative(const int32 InValue) const;
+
+	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
+	void CallFuncBlueprintNativeRef(UPARAM(ref) FPyTestStruct& InOutStruct) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Python|Internal")
 	void FuncTakingPyTestStruct(const FPyTestStruct& InStruct) const;
