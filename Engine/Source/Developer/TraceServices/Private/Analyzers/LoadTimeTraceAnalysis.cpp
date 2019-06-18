@@ -9,8 +9,6 @@
 #include "Common/FormatArgs.h"
 #include <limits>
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 FAsyncLoadingTraceAnalyzer::FAsyncLoadingTraceAnalyzer(Trace::IAnalysisSession& InSession, Trace::FLoadTimeProfilerProvider& InLoadTimeProfilerProvider)
 	: Session(InSession)
 	, LoadTimeProfilerProvider(InLoadTimeProfilerProvider)
