@@ -17,7 +17,7 @@
 	"Modules": [
 		{
 			"Name": "DisasterRecoveryClient",
-			"Type": "Editor",
+			"Type": "EditorNoCommandlet",
 			"LoadingPhase": "Default"
 		}
 	],
