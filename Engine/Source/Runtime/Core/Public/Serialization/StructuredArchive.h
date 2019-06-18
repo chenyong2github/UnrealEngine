@@ -410,17 +410,13 @@ private:
 
 class CORE_API FStructuredArchiveFromArchive
 {
+	UE_NONCOPYABLE(FStructuredArchiveFromArchive)
+
 	struct FImpl;
 
 public:
 	explicit FStructuredArchiveFromArchive(FArchive& Ar);
 	~FStructuredArchiveFromArchive();
-
-	// Non-copyable
-	FStructuredArchiveFromArchive(FStructuredArchiveFromArchive&&) = delete;
-	FStructuredArchiveFromArchive(const FStructuredArchiveFromArchive&) = delete;
-	FStructuredArchiveFromArchive& operator=(FStructuredArchiveFromArchive&&) = delete;
-	FStructuredArchiveFromArchive& operator=(const FStructuredArchiveFromArchive&) = delete;
 
 	FStructuredArchive::FSlot GetSlot();
 
@@ -431,19 +427,15 @@ private:
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-class CORE_API FArchiveFromStructuredArchive : public FArchiveProxy
+class CORE_API FArchiveFromStructuredArchiveImpl : public FArchiveProxy
 {
+	UE_NONCOPYABLE(FArchiveFromStructuredArchiveImpl)
+
 	struct FImpl;
 
 public:
-	explicit FArchiveFromStructuredArchive(FStructuredArchive::FSlot Slot);
-	virtual ~FArchiveFromStructuredArchive();
-
-	// Non-copyable
-	FArchiveFromStructuredArchive(FArchiveFromStructuredArchive&&) = delete;
-	FArchiveFromStructuredArchive(const FArchiveFromStructuredArchive&) = delete;
-	FArchiveFromStructuredArchive& operator=(FArchiveFromStructuredArchive&&) = delete;
-	FArchiveFromStructuredArchive& operator=(const FArchiveFromStructuredArchive&) = delete;
+	explicit FArchiveFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot);
+	virtual ~FArchiveFromStructuredArchiveImpl();
 
 	virtual void Flush() override;
 	virtual bool Close() override;
@@ -453,9 +445,13 @@ public:
 	virtual void Seek(int64 InPos) override;
 	virtual bool AtEnd() override;
 
+	using FArchive::operator<<; // For visibility of the overloads we don't override
+
+	//~ Begin FArchive Interface
 	virtual FArchive& operator<<(class FName& Value) override;
 	virtual FArchive& operator<<(class UObject*& Value) override;
 	virtual FArchive& operator<<(class FText& Value) override;
+	//~ End FArchive Interface
 
 	virtual void Serialize(void* V, int64 Length) override;
 
@@ -474,18 +470,33 @@ private:
 	TUniqueObj<FImpl> Pimpl;
 };
 
+class FArchiveFromStructuredArchive
+{
+public:
+	explicit FArchiveFromStructuredArchive(FStructuredArchive::FSlot InSlot)
+		: Impl(InSlot)
+	{
+	}
+
+	      FArchive& GetArchive()       { return Impl; }
+	const FArchive& GetArchive() const { return Impl; }
+
+private:
+	FArchiveFromStructuredArchiveImpl Impl;
+};
+
 #else
 
-class CORE_API FArchiveFromStructuredArchive
+class FArchiveFromStructuredArchive
 {
 public:
 	explicit FArchiveFromStructuredArchive(FStructuredArchive::FSlot InSlot)
 		: Ar(InSlot.GetUnderlyingArchive())
 	{
-
 	}
 
-	operator FArchive& () { return Ar; }
+	      FArchive& GetArchive()       { return Ar; }
+	const FArchive& GetArchive() const { return Ar; }
 
 private:
 	FArchive& Ar;
@@ -526,7 +537,7 @@ typename TEnableIf<
 {
 #if WITH_TEXT_ARCHIVE_SUPPORT
 	FArchiveFromStructuredArchive Adapter(Slot);
-	FArchive& Ar = Adapter;
+	FArchive& Ar = Adapter.GetArchive();
 #else
 	FArchive& Ar = Slot.GetUnderlyingArchive();
 #endif

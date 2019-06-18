@@ -2164,7 +2164,8 @@ void UScriptStruct::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, v
 		else
 		{
 #if WITH_TEXT_ARCHIVE_SUPPORT
-			FArchiveUObjectFromStructuredArchive Ar(Slot);
+			FArchiveUObjectFromStructuredArchive Adapter(Slot);
+			FArchive& Ar = Adapter.GetArchive();
 			bItemSerialized = TheCppStructOps->Serialize(Ar, Value);
 			if (bItemSerialized && !Slot.IsFilled())
 			{

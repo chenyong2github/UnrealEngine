@@ -13,11 +13,13 @@
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-class COREUOBJECT_API FArchiveUObjectFromStructuredArchive : public FArchiveFromStructuredArchive
+class COREUOBJECT_API FArchiveUObjectFromStructuredArchiveImpl : public FArchiveFromStructuredArchiveImpl
 {
+	using Super = FArchiveFromStructuredArchiveImpl;
+
 public:
 
-	FArchiveUObjectFromStructuredArchive(FStructuredArchive::FSlot Slot);
+	FArchiveUObjectFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot);
 
 	using FArchive::operator<<; // For visibility of the overloads we don't override
 
@@ -43,6 +45,21 @@ private:
 	TMap<FSoftObjectPath, int32> SoftObjectPathToIndex;
 
 	virtual void SerializeInternal(FStructuredArchive::FRecord Record) override;
+};
+
+class FArchiveUObjectFromStructuredArchive
+{
+public:
+	explicit FArchiveUObjectFromStructuredArchive(FStructuredArchive::FSlot InSlot)
+		: Impl(InSlot)
+	{
+	}
+
+	      FArchive& GetArchive()       { return Impl; }
+	const FArchive& GetArchive() const { return Impl; }
+
+private:
+	FArchiveUObjectFromStructuredArchiveImpl Impl;
 };
 
 #else

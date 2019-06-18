@@ -5,7 +5,7 @@
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-struct FArchiveFromStructuredArchive::FImpl
+struct FArchiveFromStructuredArchiveImpl::FImpl
 {
 	explicit FImpl(FStructuredArchive::FSlot Slot)
 		: RootSlot(Slot)
@@ -33,7 +33,7 @@ struct FArchiveFromStructuredArchive::FImpl
 	FStructuredArchive::FSlot RootSlot;
 };
 
-FArchiveFromStructuredArchive::FArchiveFromStructuredArchive(FStructuredArchive::FSlot Slot)
+FArchiveFromStructuredArchiveImpl::FArchiveFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot)
 	: FArchiveProxy(Slot.GetUnderlyingArchive())
 	, Pimpl(Slot)
 {
@@ -43,24 +43,24 @@ FArchiveFromStructuredArchive::FArchiveFromStructuredArchive(FStructuredArchive:
 	SetIsTextFormat(false);
 }
 
-FArchiveFromStructuredArchive::~FArchiveFromStructuredArchive()
+FArchiveFromStructuredArchiveImpl::~FArchiveFromStructuredArchiveImpl()
 {
 	Commit();
 }
 
-void FArchiveFromStructuredArchive::Flush()
+void FArchiveFromStructuredArchiveImpl::Flush()
 {
 	Commit();
 	FArchive::Flush();
 }
 
-bool FArchiveFromStructuredArchive::Close()
+bool FArchiveFromStructuredArchiveImpl::Close()
 {
 	Commit();
 	return FArchive::Close();
 }
 
-int64 FArchiveFromStructuredArchive::Tell()
+int64 FArchiveFromStructuredArchiveImpl::Tell()
 {
 	if (InnerArchive.IsTextFormat())
 	{
@@ -72,13 +72,13 @@ int64 FArchiveFromStructuredArchive::Tell()
 	}
 }
 
-int64 FArchiveFromStructuredArchive::TotalSize()
+int64 FArchiveFromStructuredArchiveImpl::TotalSize()
 {
 	checkf(false, TEXT("FArchiveFromStructuredArchive does not support TotalSize()"));
 	return FArchive::TotalSize();
 }
 
-void FArchiveFromStructuredArchive::Seek(int64 InPos)
+void FArchiveFromStructuredArchiveImpl::Seek(int64 InPos)
 {
 	if (InnerArchive.IsTextFormat())
 	{
@@ -91,7 +91,7 @@ void FArchiveFromStructuredArchive::Seek(int64 InPos)
 	}
 }
 
-bool FArchiveFromStructuredArchive::AtEnd()
+bool FArchiveFromStructuredArchiveImpl::AtEnd()
 {
 	if (InnerArchive.IsTextFormat())
 	{
@@ -103,7 +103,7 @@ bool FArchiveFromStructuredArchive::AtEnd()
 	}
 }
 
-FArchive& FArchiveFromStructuredArchive::operator<<(class FName& Value)
+FArchive& FArchiveFromStructuredArchiveImpl::operator<<(class FName& Value)
 {
 	OpenArchive();
 
@@ -133,7 +133,7 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class FName& Value)
 	return *this;
 }
 
-FArchive& FArchiveFromStructuredArchive::operator<<(class UObject*& Value)
+FArchive& FArchiveFromStructuredArchiveImpl::operator<<(class UObject*& Value)
 {
 	OpenArchive();
 
@@ -198,7 +198,7 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class UObject*& Value)
 	return *this;
 }
 
-FArchive& FArchiveFromStructuredArchive::operator<<(class FText& Value)
+FArchive& FArchiveFromStructuredArchiveImpl::operator<<(class FText& Value)
 {
 	OpenArchive();
 
@@ -213,7 +213,7 @@ FArchive& FArchiveFromStructuredArchive::operator<<(class FText& Value)
 	return *this;
 }
 
-void FArchiveFromStructuredArchive::Serialize(void* V, int64 Length)
+void FArchiveFromStructuredArchiveImpl::Serialize(void* V, int64 Length)
 {
 	OpenArchive();
 
@@ -244,7 +244,7 @@ void FArchiveFromStructuredArchive::Serialize(void* V, int64 Length)
 	}
 }
 
-void FArchiveFromStructuredArchive::Commit()
+void FArchiveFromStructuredArchiveImpl::Commit()
 {
 	if (Pimpl->bWasOpened && InnerArchive.IsTextFormat())
 	{
@@ -252,7 +252,7 @@ void FArchiveFromStructuredArchive::Commit()
 	}
 }
 
-void FArchiveFromStructuredArchive::SerializeInternal(FStructuredArchive::FRecord Record)
+void FArchiveFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FRecord Record)
 {
 	check(Pimpl->bWasOpened);
 
@@ -296,7 +296,7 @@ void FArchiveFromStructuredArchive::SerializeInternal(FStructuredArchive::FRecor
 	}
 }
 
-void FArchiveFromStructuredArchive::OpenArchive()
+void FArchiveFromStructuredArchiveImpl::OpenArchive()
 {
 	if (!Pimpl->bWasOpened)
 	{
@@ -318,12 +318,12 @@ void FArchiveFromStructuredArchive::OpenArchive()
 	}
 }
 
-FArchive* FArchiveFromStructuredArchive::GetCacheableArchive()
+FArchive* FArchiveFromStructuredArchiveImpl::GetCacheableArchive()
 {
 	return IsTextFormat() ? nullptr : Pimpl->Root->GetUnderlyingArchive().GetCacheableArchive();
 }
 
-bool FArchiveFromStructuredArchive::ContainsData() const
+bool FArchiveFromStructuredArchiveImpl::ContainsData() const
 {
 	return Pimpl->Buffer.Num() > 0;
 }

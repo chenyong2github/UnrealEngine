@@ -5514,7 +5514,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								else
 								{
 									FArchiveUObjectFromStructuredArchive Adapter(ExportSlot);
-									Export.Object->GetClass()->SerializeDefaultObject(Export.Object, Adapter);
+									Export.Object->GetClass()->SerializeDefaultObject(Export.Object, Adapter.GetArchive());
 								}
 							}
 							else
@@ -5534,7 +5534,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								else
 								{
 									FArchiveUObjectFromStructuredArchive Adapter(ExportSlot);
-									Export.Object->Serialize(Adapter);
+									Export.Object->Serialize(Adapter.GetArchive());
 								}
 
 #if WITH_EDITOR

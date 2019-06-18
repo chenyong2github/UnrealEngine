@@ -735,7 +735,7 @@ public:
 	friend class FTextStringHelper;
 	friend class FStringTableRegistry;
 	friend class FArchive;
-	friend class FArchiveFromStructuredArchive;
+	friend class FArchiveFromStructuredArchiveImpl;
 	friend class FJsonArchiveInputFormatter;
 	friend class FJsonArchiveOutputFormatter;
 	friend class UTextProperty;

@@ -3588,8 +3588,8 @@ void FLinkerLoad::Preload( UObject* Object )
 							{
 								FStructuredArchiveChildReader ChildReader(ExportSlot);
 								FArchiveUObjectFromStructuredArchive Adapter(ChildReader.GetRoot());
-							Object->GetClass()->SerializeDefaultObject(Object, Adapter);
-						}
+								Object->GetClass()->SerializeDefaultObject(Object, Adapter.GetArchive());
+							}
 						}
 						else
 #endif
@@ -3638,7 +3638,7 @@ void FLinkerLoad::Preload( UObject* Object )
 							{
 								FStructuredArchiveChildReader ChildReader(ExportSlot);
 								FArchiveUObjectFromStructuredArchive Adapter(ChildReader.GetRoot());
-								Object->Serialize(Adapter);
+								Object->Serialize(Adapter.GetArchive());
 							}
 						}
 						else

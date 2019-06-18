@@ -353,7 +353,8 @@ EConvertFromTypeResult UStructProperty::ConvertFromType(const FPropertyTag& Tag,
 			}
 			else 
 			{
-				FArchiveUObjectFromStructuredArchive Ar(Slot);
+				FArchiveUObjectFromStructuredArchive Adapter(Slot);
+				FArchive& Ar = Adapter.GetArchive();
 				if (CppStructOps->HasSerializeFromMismatchedTag() && CppStructOps->SerializeFromMismatchedTag(Tag, Ar, DestAddress))
 				{
 

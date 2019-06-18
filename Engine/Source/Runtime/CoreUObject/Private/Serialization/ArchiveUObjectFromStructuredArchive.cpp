@@ -4,13 +4,13 @@
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 
-FArchiveUObjectFromStructuredArchive::FArchiveUObjectFromStructuredArchive(FStructuredArchive::FSlot Slot)
-	: FArchiveFromStructuredArchive(Slot)
+FArchiveUObjectFromStructuredArchiveImpl::FArchiveUObjectFromStructuredArchiveImpl(FStructuredArchive::FSlot Slot)
+	: Super(Slot)
 	, bPendingSerialize(true)
 {
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FLazyObjectPtr& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FLazyObjectPtr& Value)
 {
 	OpenArchive();
 
@@ -40,7 +40,7 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FLazyObjectPtr& Value
 	return *this;
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPtr& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FSoftObjectPtr& Value)
 {
 	OpenArchive();
 
@@ -70,7 +70,7 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPtr& Value
 	return *this;
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPath& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FSoftObjectPath& Value)
 {
 	OpenArchive();
 
@@ -117,7 +117,7 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FSoftObjectPath& Valu
 	return *this;
 }
 
-FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FWeakObjectPtr& Value)
+FArchive& FArchiveUObjectFromStructuredArchiveImpl::operator<<(FWeakObjectPtr& Value)
 {
 	OpenArchive();
 
@@ -147,9 +147,9 @@ FArchive& FArchiveUObjectFromStructuredArchive::operator<<(FWeakObjectPtr& Value
 	return *this;
 }
 
-void FArchiveUObjectFromStructuredArchive::SerializeInternal(FStructuredArchive::FRecord Record)
+void FArchiveUObjectFromStructuredArchiveImpl::SerializeInternal(FStructuredArchive::FRecord Record)
 {
-	FArchiveFromStructuredArchive::SerializeInternal(Record);
+	Super::SerializeInternal(Record);
 
 	if (bPendingSerialize)
 	{
