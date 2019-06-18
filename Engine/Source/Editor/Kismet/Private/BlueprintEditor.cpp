@@ -7554,7 +7554,7 @@ void FBlueprintEditor::OnRenameNode()
 		for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
 		{
 			UEdGraphNode* SelectedNode = Cast<UEdGraphNode>(*NodeIt);
-			if (SelectedNode != NULL && SelectedNode->bCanRenameNode)
+			if (SelectedNode != nullptr && SelectedNode->GetCanRenameNode())
 			{
 				FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(SelectedNode, true);
 				break;
@@ -7569,7 +7569,7 @@ bool FBlueprintEditor::CanRenameNodes() const
 	{
 		if (const UEdGraphNode* SelectedNode = GetSingleSelectedNode())
 		{
-			return SelectedNode->bCanRenameNode;
+			return SelectedNode->GetCanRenameNode();
 		}
 	}
 	return false;
@@ -7579,7 +7579,7 @@ bool FBlueprintEditor::OnNodeVerifyTitleCommit(const FText& NewText, UEdGraphNod
 {
 	bool bValid(false);
 
-	if (NodeBeingChanged && NodeBeingChanged->bCanRenameNode)
+	if (NodeBeingChanged && NodeBeingChanged->GetCanRenameNode())
 	{
 		// Clear off any existing error message 
 		NodeBeingChanged->ErrorMsg.Empty();

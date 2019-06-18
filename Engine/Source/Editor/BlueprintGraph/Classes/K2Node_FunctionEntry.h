@@ -41,6 +41,9 @@ class UK2Node_FunctionEntry : public UK2Node_FunctionTerminator
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	virtual void OnRenameNode(const FString& NewName) override;
+	virtual TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
+	virtual bool GetCanRenameNode() const override;
 	virtual bool CanUserDeleteNode() const override { return false; }
 	virtual bool HasDeprecatedReference() const override;
 	virtual FEdGraphNodeDeprecationResponse GetDeprecationResponse(EEdGraphNodeDeprecationType DeprecationType) const override;
