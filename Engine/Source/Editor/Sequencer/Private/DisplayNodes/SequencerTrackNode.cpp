@@ -29,6 +29,7 @@
 #include "MovieScene.h"
 #include "Tracks/MovieSceneCinematicShotTrack.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
+#include "SKeyAreaEditorSwitcher.h"
 #include "MovieSceneFolder.h"
 #include "Tracks/MovieScenePropertyTrack.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
@@ -266,14 +267,18 @@ void FSequencerTrackNode::RemoveStaleChildren()
 		TSharedRef<FSequencerDisplayNode> Child = NodesToCheck[Index];
 		if (Child->TreeSerialNumber != TreeSerialNumber)
 		{
-			// This node is stale - remove it
+			// This node is stale - remove it and orphan any children
 			StaleNodes.Add(Child);
+			continue;
 		}
-		else
+
+		if (Child->GetType() == ESequencerNode::KeyArea)
 		{
-			// This node is still relevant, but its children may not be - recurse into those
-			NodesToCheck.Append(Child->GetChildNodes());
+			StaticCastSharedRef<FSequencerSectionKeyAreaNode>(Child)->RemoveStaleKeyAreas();
 		}
+
+		// This node is still relevant, but its children may not be - recurse into those
+		NodesToCheck.Append(Child->GetChildNodes());
 	}
 
 	for (TSharedRef<FSequencerDisplayNode> StaleNode : StaleNodes)
@@ -381,7 +386,7 @@ TSharedRef<SWidget> FSequencerTrackNode::GetCustomOutlinerContent()
 	TSharedPtr<SWidget> KeyEditorWidget;
 	if (KeyAreaNode.IsValid())
 	{
-		KeyEditorWidget = KeyAreaNode->GetOrCreateKeyAreaEditorSwitcher();
+		KeyEditorWidget = SNew(SKeyAreaEditorSwitcher, KeyAreaNode.ToSharedRef());
 	}
 
 	TAttribute<bool> NodeIsHovered = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FSequencerDisplayNode::IsHovered));
