@@ -497,7 +497,7 @@ public:
 	void ClearShadingModels()												{ ShadingModelField = 0; }
 
 	// Check if any of the given shading models are present
-	bool HasAnyShadingModel(TArray<EMaterialShadingModel> InShadingModels) const	
+	bool HasAnyShadingModel(const TArray<EMaterialShadingModel>& InShadingModels) const	
 	{ 
 		for (EMaterialShadingModel ShadingModel : InShadingModels)
 		{
