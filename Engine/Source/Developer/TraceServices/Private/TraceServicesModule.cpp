@@ -9,7 +9,7 @@
 #include "Modules/TimingProfilerModule.h"
 #include "Modules/LoadTimeProfilerModule.h"
 #include "Modules/StatsModule.h"
-#include "Stats/StatsTrace.h"
+#include "Modules/CsvProfilerModule.h"
 
 class FTraceServicesModule
 	: public ITraceServicesModule
@@ -30,6 +30,7 @@ private:
 	Trace::FTimingProfilerModule TimingProfilerModule;
 	Trace::FLoadTimeProfilerModule LoadTimeProfilerModule;
 	Trace::FStatsModule StatsModule;
+	Trace::FCsvProfilerModule CsvProfilerModule;
 };
 
 TSharedPtr<Trace::ISessionService> FTraceServicesModule::GetSessionService()
@@ -68,10 +69,12 @@ void FTraceServicesModule::StartupModule()
 #if EXPERIMENTAL_STATSTRACE_ENABLED
 	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &StatsModule);
 #endif
+	IModularFeatures::Get().RegisterModularFeature(Trace::ModuleFeatureName, &CsvProfilerModule);
 }
 
 void FTraceServicesModule::ShutdownModule()
 {
+	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &CsvProfilerModule);
 #if EXPERIMENTAL_STATSTRACE_ENABLED
 	IModularFeatures::Get().UnregisterModularFeature(Trace::ModuleFeatureName, &StatsModule);
 #endif

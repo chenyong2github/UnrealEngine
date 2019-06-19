@@ -2983,6 +2983,7 @@ void FCsvProfiler::RecordEventAtTimestamp(int32 CategoryIndex, const FString& Ev
 
 void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex, float Value, const ECsvCustomStatOp CustomStatOp)
 {
+	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -2992,6 +2993,7 @@ void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex,
 
 void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex, float Value, const ECsvCustomStatOp CustomStatOp)
 {
+	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -3001,6 +3003,7 @@ void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex,
 
 void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex, int32 Value, const ECsvCustomStatOp CustomStatOp)
 {
+	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
@@ -3010,6 +3013,7 @@ void FCsvProfiler::RecordCustomStat(const char * StatName, uint32 CategoryIndex,
 
 void FCsvProfiler::RecordCustomStat(const FName& StatName, uint32 CategoryIndex, int32 Value, const ECsvCustomStatOp CustomStatOp)
 {
+	TRACE_CSV_PROFILER_CUSTOM_STAT(StatName, Value, uint8(CustomStatOp));
 	if (GCsvProfilerIsCapturing && GCsvCategoriesEnabled[CategoryIndex])
 	{
 		LLM_SCOPE(ELLMTag::CsvProfiler);
