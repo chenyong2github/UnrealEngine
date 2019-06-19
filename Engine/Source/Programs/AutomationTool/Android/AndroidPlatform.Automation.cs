@@ -845,7 +845,7 @@ public class AndroidPlatform : Platform
 						"setlocal",
 						"set NDK_ROOT=%ANDROID_NDK_ROOT%",
 						"if \"%ANDROID_NDK_ROOT%\"==\"\" set NDK_ROOT=\""+Environment.GetEnvironmentVariable("ANDROID_NDK_ROOT")+"\"",
-						"set NDKSTACK=%NDK_ROOT%\ndk-stack.cmd",
+						"set NDKSTACK=%NDK_ROOT%\\ndk-stack.cmd",
 						"",
 						"%NDKSTACK% -sym "+GetFinalSymbolizedSODirectory(ApkName, SC, Architecture, GPUArchitecture)+" -dump \"%1\" > "+ Params.ShortProjectName+"_SymbolizedCallStackOutput.txt",
 						"",
