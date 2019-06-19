@@ -188,6 +188,12 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 		}
 	}
 
+	if (FParse::Param(FCommandLine::Get(), TEXT("nomcp")))
+	{
+		// If our editor has nomcp, pass it through to any subprocesses.
+		FCommandLine::AddToSubprocessCommandline(TEXT(" -nomcp"));
+	}
+
 	bPivotMovedIndependently = false;
 }
 
