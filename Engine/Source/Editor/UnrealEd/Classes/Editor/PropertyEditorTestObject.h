@@ -485,6 +485,15 @@ class UPropertyEditorTestObject : public UObject
 	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "FloatEditCondition < 10"))
 	bool bEnabledWhenFloatLessThan10;
 
-	UPROPERTY(EditAnywhere, Category=InlineProperty, meta=(InlineCategoryProperty))
+	UPROPERTY(EditAnywhere, Category = OnlyInlineProperty, meta = (InlineCategoryProperty))
 	TEnumAsByte<EComponentMobility::Type> InlineProperty;
+
+	UPROPERTY(EditAnywhere, Category = EditConditionHides, meta = (InlineCategoryProperty))
+	TEnumAsByte<EComponentMobility::Type> PropertyThatHides;
+
+	UPROPERTY(EditAnywhere, Category = EditConditionHides, meta = (EditConditionHides, EditCondition = "PropertyThatHides == EComponentMobility::Static"))
+	bool bVisibleWhenStatic;
+
+	UPROPERTY(EditAnywhere, Category = EditConditionHides, meta = (EditConditionHides, EditCondition = "PropertyThatHides == EComponentMobility::Stationary"))
+	int32 VisibleWhenStationary;
 };

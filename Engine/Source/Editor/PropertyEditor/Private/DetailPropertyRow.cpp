@@ -33,7 +33,7 @@ FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode,
 	if( InPropertyNode.IsValid() )
 	{
 		TSharedRef<FPropertyNode> PropertyNodeRef = PropertyNode.ToSharedRef();
-
+		
 		PropertyHandle = InParentCategory->GetParentLayoutImpl().GetPropertyHandle(PropertyNodeRef);
 
 		const TSharedRef<IPropertyUtilities> Utilities = InParentCategory->GetParentLayoutImpl().GetPropertyUtilities();
@@ -160,7 +160,8 @@ bool FDetailPropertyRow::ShowOnlyChildren() const
 
 bool FDetailPropertyRow::RequiresTick() const
 {
-	return PropertyVisibility.IsBound();
+	return PropertyVisibility.IsBound() || 
+		(PropertyEditor.IsValid() && PropertyEditor->IsOnlyVisibleWhenEditConditionMet());
 }
 
 FDetailWidgetRow& FDetailPropertyRow::CustomWidget( bool bShowChildren )
@@ -536,6 +537,16 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(const TArray<UObje
 	{
 		OutCustomization.PropertyRow = MakeShared<FDetailPropertyRow>(RootPropertyNode, ParentCategory, RootPropertyNode);
 	}
+}
+
+EVisibility FDetailPropertyRow::GetPropertyVisibility() const
+{
+	if (PropertyEditor->IsOnlyVisibleWhenEditConditionMet() && !PropertyEditor->IsEditConditionMet())
+	{
+		return EVisibility::Collapsed;
+	}
+
+	return PropertyVisibility.Get();
 }
 
 bool FDetailPropertyRow::HasEditCondition() const

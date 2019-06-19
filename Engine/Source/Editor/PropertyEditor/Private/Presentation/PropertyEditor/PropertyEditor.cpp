@@ -566,6 +566,17 @@ void FPropertyEditor::RequestRefresh()
 	PropertyUtilities->RequestRefresh();
 }
 
+bool FPropertyEditor::IsOnlyVisibleWhenEditConditionMet() const
+{
+	static const FName Name_EditConditionHides("EditConditionHides");
+	if (PropertyNode->GetProperty()->HasMetaData(Name_EditConditionHides))
+	{
+		return HasEditCondition();
+	}
+
+	return false;
+}
+
 bool FPropertyEditor::HasEditCondition() const 
 { 
 	return EditConditionExpression.IsValid();
