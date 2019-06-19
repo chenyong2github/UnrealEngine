@@ -295,32 +295,40 @@ public:
 	void ClearCachedReadAddresses(bool bRecursive = true);
 
 	/**
-	 * Interface function to get at the dervied FObjectPropertyNodeWx class
+	 * Interface function to get at the derived FObjectPropertyNode class
 	 */
 	virtual class FObjectPropertyNode* AsObjectNode() { return nullptr; }
 	virtual const FObjectPropertyNode* AsObjectNode() const { return nullptr; }
 
-	virtual FComplexPropertyNode* AsComplexNode() { return nullptr; }
+	/**
+	 * Interface function to get at the derived FComplexPropertyNode class
+	 */
+	virtual class FComplexPropertyNode* AsComplexNode() { return nullptr; }
 	virtual const FComplexPropertyNode* AsComplexNode() const { return nullptr; }
 
 	/**
-	 * Interface function to get at the dervied FCategoryPropertyNodeWx class
+	 * Interface function to get at the derived FCategoryPropertyNode class
 	 */
 	virtual class FCategoryPropertyNode* AsCategoryNode() { return nullptr; }
+	virtual const FCategoryPropertyNode* AsCategoryNode() const { return nullptr; }
 
 	/**
-	 * Interface function to get at the dervied FItemPropertyNodeWx class
+	 * Interface function to get at the derived FItemPropertyNode class
 	 */
 	virtual class FItemPropertyNode* AsItemPropertyNode() { return nullptr; }
+	virtual const FItemPropertyNode* AsItemPropertyNode() const { return nullptr; }
 
 	/**
-	 * Follows the chain of items upwards until it finds the object window that houses this item.
+	 * Follows the chain of items upwards until it finds the complex property that houses this item.
 	 */
 	class FComplexPropertyNode* FindComplexParent();
-	const class FComplexPropertyNode* FindComplexParent() const;
+	const FComplexPropertyNode* FindComplexParent() const;
 
+	/**
+	 * Follows the chain of items upwards until it finds the object property that houses this item.
+	 */
 	class FObjectPropertyNode* FindObjectItemParent();
-	const class FObjectPropertyNode* FindObjectItemParent() const;
+	const FObjectPropertyNode* FindObjectItemParent() const;
 
 	/**
 	 * Follows the top-most object window that contains this property window item.

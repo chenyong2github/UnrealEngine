@@ -216,12 +216,12 @@ FDetailCategoryImpl& FDetailLayoutBuilderImpl::DefaultCategory( FName CategoryNa
 	return *CategoryImpl;
 }
 
-TSharedPtr<FDetailCategoryImpl> FDetailLayoutBuilderImpl::GetSubCategoryImpl(FName CategoryName)
+TSharedPtr<FDetailCategoryImpl> FDetailLayoutBuilderImpl::GetSubCategoryImpl(FName CategoryName) const
 {
 	return SubCategoryMap.FindRef(CategoryName);
 }
 
-bool FDetailLayoutBuilderImpl::HasCategory(FName CategoryName)
+bool FDetailLayoutBuilderImpl::HasCategory(FName CategoryName) const
 {
 	return DefaultCategoryMap.Contains(CategoryName);
 }

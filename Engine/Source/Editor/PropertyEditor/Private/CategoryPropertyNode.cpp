@@ -18,7 +18,7 @@ FCategoryPropertyNode::~FCategoryPropertyNode(void)
 
 bool FCategoryPropertyNode::IsSubcategory() const
 {
-	return GetParentNode() != NULL && const_cast<FPropertyNode*>( GetParentNode() )->AsCategoryNode() != NULL;
+	return GetParentNode() != nullptr && GetParentNode()->AsCategoryNode() != nullptr;
 }
 
 FText FCategoryPropertyNode::GetDisplayName() const 
