@@ -811,6 +811,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 				ListView->RebuildList();
 				if (SelectedLogMessage.IsValid())
 				{
+					// Restore selection.
 					SelectedLogMessageByLogIndex(SelectedLogMessage->GetIndex());
 				}
 				bIsDirty = false;
@@ -878,6 +879,7 @@ void SLogView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTim
 			ListView->RebuildList();
 			if (SelectedLogMessage.IsValid())
 			{
+				// Restore selection.
 				SelectedLogMessageByLogIndex(SelectedLogMessage->GetIndex());
 			}
 			bIsDirty = false;
@@ -926,21 +928,24 @@ void SLogView::SelectedLogMessageByLogIndex(int32 LogIndex)
 
 void SLogView::OnSelectionChanged(TSharedPtr<FLogMessage> LogMessage, ESelectInfo::Type SelectInfo)
 {
-	TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
-	if (Window && Window->TimingView)
+	if (SelectInfo != ESelectInfo::Direct)
 	{
-		// Single item selection.
-		if (LogMessage.IsValid())
+		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
+		if (Window && Window->TimingView)
 		{
-			const double Time = Cache.Get(LogMessage->GetIndex()).Time;
+			// Single item selection.
+			if (LogMessage.IsValid())
+			{
+				const double Time = Cache.Get(LogMessage->GetIndex()).Time;
 
-			if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
-			{
-				Window->TimingView->SelectToTimeMarker(Time);
-			}
-			else
-			{
-				Window->TimingView->SetAndCenterOnTimeMarker(Time);
+				if (FSlateApplication::Get().GetModifierKeys().IsShiftDown())
+				{
+					Window->TimingView->SelectToTimeMarker(Time);
+				}
+				else
+				{
+					Window->TimingView->SetAndCenterOnTimeMarker(Time);
+				}
 			}
 		}
 	}

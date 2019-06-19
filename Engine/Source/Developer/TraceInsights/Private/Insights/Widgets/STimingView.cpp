@@ -227,7 +227,7 @@ void STimingView::Reset()
 	IoOverviewTrack = nullptr;
 	IoActivityTrack = nullptr;
 
-	bForceIoEventsUpdate = true;
+	bForceIoEventsUpdate = false;
 	bMergeIoLanes = true;
 	AllIoEvents.Reset();
 	//AllIoEvents.Reserve(1000000);
