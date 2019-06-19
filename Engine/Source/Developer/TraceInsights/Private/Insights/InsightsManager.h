@@ -27,31 +27,6 @@ struct FInsightsManagerTabs
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/** Enumerates loading a trace file progress states. */
-
-enum class ELoadingProgressState
-{
-	Started,
-	InProgress,
-	Loaded,
-	Failed,
-	Cancelled,
-
-	/** Invalid enum type, may be used as a number of enumerations. */
-	InvalidOrMax,
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum class EInsightsNotificationType
-{
-	LoadingTraceFile,
-
-	/** Invalid enum type, may be used as a number of enumerations. */
-	InvalidOrMax,
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages following areas:
  *     Connecting/disconnecting to source trace

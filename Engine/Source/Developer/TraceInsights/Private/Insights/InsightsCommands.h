@@ -27,9 +27,6 @@ public:
 	//     const FUIAction <CommandName>_Custom(...) const;
 	//////////////////////////////////////////////////
 
-	/** Load profiler data from a live trace session. Global version. */
-	TSharedPtr<FUICommandInfo> InsightsManager_Live;
-
 	/** Load profiler data from a trace file. Global version. */
 	TSharedPtr<FUICommandInfo> InsightsManager_Load;
 
@@ -54,15 +51,6 @@ private:
 	FInsightsActionManager(class FInsightsManager* Instance)
 		: This(Instance)
 	{}
-
-	//////////////////////////////////////////////////
-	// InsightsManager_Live
-
-public:
-	void Map_InsightsManager_Live(); /**< Maps UI command info InsightsManager_Live with the specified UI command list. */
-protected:
-	void InsightsManager_Live_Execute(); /**< Handles FExecuteAction for InsightsManager_Live. */
-	bool InsightsManager_Live_CanExecute() const; /**< Handles FCanExecuteAction for InsightsManager_Live. */
 
 	//////////////////////////////////////////////////
 	// InsightsManager_Load
