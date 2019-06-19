@@ -1777,8 +1777,14 @@ public:
 		return bCanUse16BitObjectIndices && (NumObjectsInBuffer < (1 << 16));
 	}
 
+	const class FDistanceFieldObjectBuffers* GetCurrentObjectBuffers() const
+	{
+		return ObjectBuffers[ObjectBufferIndex];
+	}
+
 	int32 NumObjectsInBuffer;
-	class FDistanceFieldObjectBuffers* ObjectBuffers;
+	class FDistanceFieldObjectBuffers* ObjectBuffers[2];
+	int ObjectBufferIndex;
 
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
