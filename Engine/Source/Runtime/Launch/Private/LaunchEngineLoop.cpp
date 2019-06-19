@@ -3216,8 +3216,9 @@ bool FEngineLoop::LoadStartupCoreModules()
 
 	SlowTask.EnterProgressFrame(10);
 #if WITH_EDITOR
-		FModuleManager::Get().LoadModuleChecked("UnrealEd");
-		FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+	FModuleManager::Get().LoadModuleChecked("UnrealEd");
+	FModuleManager::LoadModuleChecked<IEditorStyleModule>("EditorStyle");
+	FModuleManager::Get().LoadModuleChecked("LandscapeEditorUtilities");
 #endif //WITH_EDITOR
 
 	// Load UI modules
