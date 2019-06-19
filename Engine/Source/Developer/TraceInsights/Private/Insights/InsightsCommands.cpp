@@ -36,7 +36,6 @@ FInsightsCommands::FInsightsCommands()
 PRAGMA_DISABLE_OPTIMIZATION
 void FInsightsCommands::RegisterCommands()
 {
-	UI_COMMAND(InsightsManager_Live, "Live", "Loads profiler data from a live or last trace session", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(InsightsManager_Load, "Load...", "Loads profiler data from a trace file", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::L));
 	UI_COMMAND(ToggleDebugInfo, "Debug", "Toggles the display of debug info", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::D));
 	UI_COMMAND(OpenSettings, "Settings", "Opens the Unreal Insights settings", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));
@@ -76,37 +75,6 @@ ECheckBoxState FInsightsActionManager::ToggleDebugInfo_GetCheckState() const
 {
 	const bool bIsDebugInfoEnabled = This->IsDebugInfoEnabled();
 	return bIsDebugInfoEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// InsightsManager_Live
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FInsightsActionManager::Map_InsightsManager_Live()
-{
-	FUIAction UIAction;
-	UIAction.ExecuteAction = FExecuteAction::CreateRaw(this, &FInsightsActionManager::InsightsManager_Live_Execute);
-	UIAction.CanExecuteAction = FCanExecuteAction::CreateRaw(this, &FInsightsActionManager::InsightsManager_Live_CanExecute);
-
-	This->CommandList->MapAction(This->GetCommands().InsightsManager_Live, UIAction);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FInsightsActionManager::InsightsManager_Live_Execute()
-{
-	This->LoadLastLiveSession();
-	if (!This->GetSession().IsValid())
-	{
-		This->LoadLastSession();
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FInsightsActionManager::InsightsManager_Live_CanExecute() const
-{
-	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
