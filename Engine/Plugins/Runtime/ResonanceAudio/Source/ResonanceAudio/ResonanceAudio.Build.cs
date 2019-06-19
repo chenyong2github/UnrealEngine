@@ -51,8 +51,8 @@ namespace UnrealBuildTool.Rules
                     "InputCore",
                     "Projects",
                     "AudioMixer",
-                    "ProceduralMeshComponent",
-					"Eigen"
+                    "ProceduralMeshComponent"
+					
                 }
             );
 
@@ -66,14 +66,16 @@ namespace UnrealBuildTool.Rules
                 PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
             }
 
+            bEnableShadowVariableWarnings = false;
+
             AddEngineThirdPartyPrivateStaticDependencies(Target,
                     "UEOgg",
                     "Vorbis",
-                    "VorbisFile"
+                    "VorbisFile",
+                    "Eigen"
                     );
 
             //Embree support:
-            // EMBREE
             if (Target.Platform == UnrealTargetPlatform.Win64)
             {
                 string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/Win64/";
