@@ -1,0 +1,26 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"
+
+Texture2D SceneColor;
+SamplerState SceneColorSampler;
+
+Texture2D SeparateTranslucency;
+SamplerState SeparateTranslucencySampler;
+
+void MainPS(
+	float4 SvPosition : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	float2 BufferUV = SvPosition * View.BufferSizeAndInvSize.zw;
+	
+	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, BufferUV, 0);
+	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, BufferUV, 0);
+
+	OutColor.rgb = SceneColorSample.rgb * SeparateTranslucencySample.a + SeparateTranslucencySample.rgb;
+	OutColor.a = SceneColorSample.a * SeparateTranslucencySample.a;
+	
+#if !POST_PROCESS_ALPHA
+	OutColor.a = 0;
+#endif
+}

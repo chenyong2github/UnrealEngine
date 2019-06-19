@@ -218,6 +218,12 @@ public:
 	virtual const TArray< FActorPlacementInfo >& GetRecentlyPlaced() const = 0;
 
 	/**
+	 * @return the event that is broadcast whenever a placement mode category is refreshed
+	 */
+	DECLARE_EVENT_OneParam( IPlacementMode, FOnPlacementModeCategoryRefreshed, FName /*CategoryName*/ );
+	virtual FOnPlacementModeCategoryRefreshed& OnPlacementModeCategoryRefreshed() = 0;
+
+	/**
 	 * @return the event that is broadcast whenever the list of recently placed assets changes
 	 */
 	DECLARE_EVENT_OneParam( IPlacementMode, FOnRecentlyPlacedChanged, const TArray< FActorPlacementInfo >& /*NewRecentlyPlaced*/ );

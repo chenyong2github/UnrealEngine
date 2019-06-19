@@ -11,37 +11,31 @@ public class VirtualTexturingEditor : ModuleRules
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
                 "AssetRegistry",
-                "MainFrame",
-                "DesktopPlatform",
+                "AssetTools",
                 "ContentBrowser",
-                "AssetTools"
+                "DesktopPlatform",
+                "MainFrame",
+                "UnrealEd",
             }
         );
 
         PrivateDependencyModuleNames.AddRange(
             new string[] {
-                "AppFramework",
-                "AssetRegistry",
-                "Core",
-                "CoreUObject",
-                "ContentBrowser",
-                "DesktopPlatform",
-                "DesktopWidgets",
-                "Engine",
-                "InputCore",
-                "Slate",
-                "SlateCore",
-                "EditorStyle",
-                "UnrealEd",
-                "PropertyEditor"
-            }
-        );
-
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "DesktopPlatform",
-                "MainFrame",
-                "UnrealEd",
+				"AppFramework",
+				"AssetRegistry",
+				"ContentBrowser",
+				"Core",
+				"CoreUObject",
+				"DesktopPlatform",
+				"DesktopWidgets",
+				"EditorStyle",
+				"Engine",
+				"InputCore",
+				"PlacementMode",
+				"PropertyEditor",
+				"Slate",
+				"SlateCore",
+				"UnrealEd",
             }
         );
     }

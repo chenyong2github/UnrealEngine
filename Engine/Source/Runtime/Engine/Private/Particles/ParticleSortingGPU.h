@@ -43,7 +43,7 @@ public:
 	/**
 	 * Retrieve the UAV for writing particle sort keys.
 	 */
-	FUnorderedAccessViewRHIParamRef GetKeyBufferUAV(int32 BufferIndex)
+	FRHIUnorderedAccessView* GetKeyBufferUAV(int32 BufferIndex)
 	{
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return KeyBufferUAVs[BufferIndex];
@@ -53,7 +53,7 @@ public:
 	 * Retrieve the UAV for writing particle vertices.
 	 * bAsUint : whether to return a G16R16 view or a Uint32 view.
 	 */
-	FORCEINLINE FUnorderedAccessViewRHIParamRef GetVertexBufferUAV(int32 BufferIndex)
+	FORCEINLINE FRHIUnorderedAccessView* GetVertexBufferUAV(int32 BufferIndex)
 	{
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return VertexBufferUAVs[BufferIndex];
@@ -76,7 +76,7 @@ public:
 	/**
 	 * Retrieve the SRV that sort results will always be located at.
 	 */
-	FShaderResourceViewRHIParamRef GetSortedVertexBufferSRV(int32 BufferIndex)
+	FRHIShaderResourceView* GetSortedVertexBufferSRV(int32 BufferIndex)
 	{
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return VertexBufferSRVs[BufferIndex];
@@ -85,7 +85,7 @@ public:
 	/**
 	 * Retrieve the UAV for the sorted vertex buffer at the given index.
 	 */
-	FUnorderedAccessViewRHIParamRef GetSortedVertexBufferUAV(int32 BufferIndex)
+	FRHIUnorderedAccessView* GetSortedVertexBufferUAV(int32 BufferIndex)
 	{
 		check((BufferIndex & 0xFFFFFFFE) == 0);
 		return VertexBufferUAVs[BufferIndex];
@@ -129,7 +129,7 @@ private:
 struct FParticleSimulationSortInfo
 {
 	/** Vertex buffer containing indices in to the particle state texture. */
-	FShaderResourceViewRHIParamRef VertexBufferSRV;
+	FRHIShaderResourceView* VertexBufferSRV;
 	/** World space position from which to sort. */
 	FVector ViewOrigin;
 	/** The number of particles in the simulation. */

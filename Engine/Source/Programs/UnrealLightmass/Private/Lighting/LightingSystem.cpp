@@ -59,11 +59,6 @@ static void ConvertToLightSampleHelper(const FGatheredLightSample& InGatheredLig
 
 FLightSample FGatheredLightMapSample::ConvertToLightSample(bool bDebugThisSample) const
 {
-	if (bDebugThisSample)
-	{
-		int32 asdf = 0;
-	}
-
 	FLightSample NewSample;
 	NewSample.bIsMapped = bIsMapped;
 
@@ -1590,7 +1585,25 @@ void FStaticLightingSystem::ThreadLoop(bool bIsMainThread, int32 ThreadIndex, FT
 	while (!bIsDone)
 	{
 		const double StartLoopTime = FPlatformTime::Seconds();
-		
+
+		while (FCacheIndirectTaskDescription * NextCacheTask = CacheIndirectLightingTasks.Pop())
+		{
+			//UE_LOG(LogLightmass, Warning, TEXT("Thread %u picked up Cache Indirect task for %u"), ThreadIndex, NextCacheTask->TextureMapping->Guid.D);
+			ProcessCacheIndirectLightingTask(NextCacheTask, false);
+			NextCacheTask->TextureMapping->CompletedCacheIndirectLightingTasks.Push(NextCacheTask);
+			FPlatformAtomics::InterlockedDecrement(&NextCacheTask->TextureMapping->NumOutstandingCacheTasks);
+		}
+
+		while (FInterpolateIndirectTaskDescription * NextInterpolateTask = InterpolateIndirectLightingTasks.Pop())
+		{
+			//UE_LOG(LogLightmass, Warning, TEXT("Thread %u picked up Interpolate indirect task for %u"), ThreadIndex, NextInterpolateTask->TextureMapping->Guid.D);
+			ProcessInterpolateTask(NextInterpolateTask, false);
+			NextInterpolateTask->TextureMapping->CompletedInterpolationTasks.Push(NextInterpolateTask);
+			FPlatformAtomics::InterlockedDecrement(&NextInterpolateTask->TextureMapping->NumOutstandingInterpolationTasks);
+		}
+
+		ProcessVolumetricLightmapTaskIfAvailable();
+
 		if (NumOutstandingVolumeDataLayers > 0)
 		{
 			const int32 ThreadZ = FPlatformAtomics::InterlockedIncrement(&OutstandingVolumeDataLayerIndex);
@@ -1682,28 +1695,6 @@ void FStaticLightingSystem::ThreadLoop(bool bIsMainThread, int32 ThreadIndex, FT
 				bSignaledMappingsComplete = true;
 				GSwarm->SendMessage( NSwarm::FTimingMessage( NSwarm::PROGSTATE_Processing0, ThreadIndex ) );
 			}
-
-			FCacheIndirectTaskDescription* NextCacheTask = CacheIndirectLightingTasks.Pop();
-
-			if (NextCacheTask)
-			{
-				//UE_LOG(LogLightmass, Warning, TEXT("Thread %u picked up Cache Indirect task for %u"), ThreadIndex, NextCacheTask->TextureMapping->Guid.D);
-				ProcessCacheIndirectLightingTask(NextCacheTask, false);
-				NextCacheTask->TextureMapping->CompletedCacheIndirectLightingTasks.Push(NextCacheTask);
-				FPlatformAtomics::InterlockedDecrement(&NextCacheTask->TextureMapping->NumOutstandingCacheTasks);
-			}
-
-			FInterpolateIndirectTaskDescription* NextInterpolateTask = InterpolateIndirectLightingTasks.Pop();
-
-			if (NextInterpolateTask)
-			{
-				//UE_LOG(LogLightmass, Warning, TEXT("Thread %u picked up Interpolate indirect task for %u"), ThreadIndex, NextInterpolateTask->TextureMapping->Guid.D);
-				ProcessInterpolateTask(NextInterpolateTask, false);
-				NextInterpolateTask->TextureMapping->CompletedInterpolationTasks.Push(NextInterpolateTask);
-				FPlatformAtomics::InterlockedDecrement(&NextInterpolateTask->TextureMapping->NumOutstandingInterpolationTasks);
-			}
-
-			ProcessVolumetricLightmapTaskIfAvailable();
 			
 			if (NumVolumeSampleTasksOutstanding > 0)
 			{
@@ -1721,10 +1712,7 @@ void FStaticLightingSystem::ThreadLoop(bool bIsMainThread, int32 ThreadIndex, FT
 				}
 			}
 
-			if (!NextCacheTask 
-				&& !NextInterpolateTask
-				&& NumVolumeSampleTasksOutstanding <= 0
-				&& NumOutstandingVolumeDataLayers <= 0)
+			if (NumVolumeSampleTasksOutstanding <= 0 && NumOutstandingVolumeDataLayers <= 0)
 			{
 				if (TasksInProgressThatWillNeedHelp <= 0 && !bRequestForTaskTimedOut)
 				{

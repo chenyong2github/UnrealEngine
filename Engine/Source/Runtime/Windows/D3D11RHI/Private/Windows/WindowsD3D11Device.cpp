@@ -21,6 +21,7 @@
 #include "GenericPlatform/GenericPlatformDriver.h"			// FGPUDriverInfo
 
 #include "dxgi1_3.h"
+#include "RHIValidation.h"
 
 #if NV_AFTERMATH
 bool GDX11NVAfterMathEnabled = false;
@@ -31,10 +32,12 @@ bool GNVAftermathModuleLoaded = false;
 bool GDX11IntelMetricsDiscoveryEnabled = false;
 #endif
 
+FD3D11DynamicRHI*	GD3D11RHI = nullptr;
+
 extern bool D3D11RHI_ShouldCreateWithD3DDebug();
 extern bool D3D11RHI_ShouldAllowAsyncResourceCreation();
 
-int D3D11RHI_PreferAdaperVendor()
+static int D3D11RHI_PreferAdapterVendor()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("preferAMD")))
 	{
@@ -54,7 +57,7 @@ int D3D11RHI_PreferAdaperVendor()
 	return -1;
 }
 
-bool D3D11RHI_AllowSoftwareFallback()
+static bool D3D11RHI_AllowSoftwareFallback()
 {
 	if (FParse::Param(FCommandLine::Get(), TEXT("AllowSoftwareRendering")))
 	{
@@ -73,17 +76,6 @@ struct AmdAgsInfo
 };
 static AmdAgsInfo AmdInfo;
 #endif
-
-static TAutoConsoleVariable<int32> CVarGraphicsAdapter(
-	TEXT("r.GraphicsAdapter"),
-	-1,
-	TEXT("User request to pick a specific graphics adapter (e.g. when using a integrated graphics card with a discrete one)\n")
-	TEXT("At the moment this only works on Direct3D 11. Unless a specific adapter is chosen we reject Microsoft adapters because we don't want the software emulation.\n")
-	TEXT(" -2: Take the first one that fulfills the criteria\n")
-	TEXT(" -1: Favour non integrated because there are usually faster (default)\n")
-	TEXT("  0: Adapter #0\n")
-	TEXT("  1: Adapter #1, ..."),
-	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarForceAMDToSM4(
 	TEXT("r.ForceAMDToSM4"),
@@ -275,6 +267,59 @@ static D3D_FEATURE_LEVEL GetAllowedD3DFeatureLevel()
 }
 
 /**
+* Attempts to create a D3D11 device to test if optional debugging features are installed.
+*/
+static void SafeTestForOptionalGraphicsTools(IDXGIAdapter* Adapter, D3D_FEATURE_LEVEL& FeatureLevel, uint32& DeviceFlags, D3D_FEATURE_LEVEL& OutFeatureLevel, int32 NumAllowedFeatureLevels)
+{
+	if((DeviceFlags & D3D11_CREATE_DEVICE_DEBUG) != D3D11_CREATE_DEVICE_DEBUG)
+	{
+		return;
+	}
+
+	ID3D11Device* D3DDevice = NULL;
+	ID3D11DeviceContext* D3DDeviceContext = NULL;
+
+	static bool bIsWin10 = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0);
+	static bool bPrintErrorMessage = true;
+
+	// Test device creation.
+	HRESULT Result = D3D11CreateDevice(
+		Adapter,
+		D3D_DRIVER_TYPE_UNKNOWN,
+		NULL,
+		DeviceFlags,
+		& FeatureLevel,
+		NumAllowedFeatureLevels,
+		D3D11_SDK_VERSION,
+		&D3DDevice,
+		&OutFeatureLevel,
+		&D3DDeviceContext
+	);
+
+	// If Optional Graphics tools were enabled then return true.
+	if (SUCCEEDED(Result))
+	{
+		D3DDevice->Release();
+		D3DDeviceContext->Release();
+		return;
+	}
+	// If creation failed due to missing Optional Features in Windows 10.
+	else if (DXGI_ERROR_SDK_COMPONENT_MISSING == Result && bIsWin10)
+	{
+		// Only print the debug error message once and don't clutter the log.
+		if (bPrintErrorMessage) 
+		{
+			UE_LOG(LogD3D11RHI, Warning,
+				TEXT("-d3ddebug was ignored as optional Graphics Tools still need to be installed. Install them through the Manage Optional Features in windows."));
+			bPrintErrorMessage = false;
+		}
+
+		// Remove the debug option from the device flag.
+		DeviceFlags = DeviceFlags & (~D3D11_CREATE_DEVICE_DEBUG);
+	}
+}
+
+/**
  * Attempts to create a D3D11 device for the adapter using at most MaxFeatureLevel.
  * If creation is successful, true is returned and the supported feature level is set in OutFeatureLevel.
  */
@@ -283,7 +328,6 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Ma
 	ID3D11Device* D3DDevice = NULL;
 	ID3D11DeviceContext* D3DDeviceContext = NULL;
 	uint32 DeviceFlags = D3D11_CREATE_DEVICE_SINGLETHREADED;
-
 	// Use a debug device if specified on the command line.
 	if(D3D11RHI_ShouldCreateWithD3DDebug())
 	{
@@ -318,12 +362,13 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Ma
 		return false;
 	}
 
+	SafeTestForOptionalGraphicsTools(Adapter, RequestedFeatureLevels[FirstAllowedFeatureLevel], DeviceFlags, *OutFeatureLevel, NumAllowedFeatureLevels);
+
 	__try
 	{
 		// We don't want software renderer. Ideally we specify D3D_DRIVER_TYPE_HARDWARE on creation but
 		// when we specify an adapter we need to specify D3D_DRIVER_TYPE_UNKNOWN (otherwise the call fails).
 		// We cannot check the device type later (seems this is missing functionality in D3D).
-
 		if(SUCCEEDED(D3D11CreateDevice(
 			Adapter,
 			D3D_DRIVER_TYPE_UNKNOWN,
@@ -335,7 +380,7 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Ma
 			&D3DDevice,
 			OutFeatureLevel,
 			&D3DDeviceContext
-			)))
+		))) 
 		{
 			D3DDevice->Release();
 			D3DDeviceContext->Release();
@@ -754,7 +799,10 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	// Allow HMD to override which graphics adapter is chosen, so we pick the adapter where the HMD is connected
 	uint64 HmdGraphicsAdapterLuid  = IHeadMountedDisplayModule::IsAvailable() ? IHeadMountedDisplayModule::Get().GetGraphicsAdapterLuid() : 0;
-	int32 CVarExplicitAdapterValue = HmdGraphicsAdapterLuid == 0 ? CVarGraphicsAdapter.GetValueOnGameThread() : -2;
+	// Non-static as it is used only a few times
+	auto* CVarGraphicsAdapter = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GraphicsAdapter"));
+	int32 CVarExplicitAdapterValue = HmdGraphicsAdapterLuid == 0 ? (CVarGraphicsAdapter ? CVarGraphicsAdapter->GetValueOnGameThread() : -1) : -2;
+	FParse::Value(FCommandLine::Get(), TEXT("graphicsadapter="), CVarExplicitAdapterValue);
 
 	const bool bFavorNonIntegrated = CVarExplicitAdapterValue == -1;
 
@@ -772,7 +820,7 @@ void FD3D11DynamicRHIModule::FindAdapter()
 
 	UE_LOG(LogD3D11RHI, Log, TEXT("D3D11 adapters:"));
 
-	int PreferredVendor = D3D11RHI_PreferAdaperVendor();
+	int PreferredVendor = D3D11RHI_PreferAdapterVendor();
 	bool bAllowSoftwareFallback = D3D11RHI_AllowSoftwareFallback();
 
 	// Enumerate the DXGIFactory's adapters.
@@ -928,7 +976,22 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	TRefCountPtr<IDXGIFactory1> DXGIFactory1;
 	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference());
 	check(DXGIFactory1);
-	return new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
+
+	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
+#if ENABLE_RHI_VALIDATION
+	if (FParse::Param(FCommandLine::Get(), TEXT("RHIValidation")))
+	{
+		GValidationRHI = new FValidationRHI(GD3D11RHI);
+	}
+	else
+	{
+		check(!GValidationRHI);
+	}
+
+	return GValidationRHI ? (FDynamicRHI*)GValidationRHI : (FDynamicRHI*)GD3D11RHI;
+#else
+	return GD3D11RHI;
+#endif
 }
 
 void FD3D11DynamicRHI::Init()
@@ -1505,6 +1568,8 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		
 		if (!bDeviceCreated)
 		{
+			SafeTestForOptionalGraphicsTools(Adapter, FeatureLevel, DeviceFlags, ActualFeatureLevel, 1);
+			
 			// Creating the Direct3D device.
 			VERIFYD3D11RESULT(D3D11CreateDevice(
 				Adapter,

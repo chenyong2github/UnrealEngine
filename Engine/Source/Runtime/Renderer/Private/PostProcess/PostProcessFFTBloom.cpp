@@ -58,7 +58,7 @@ public:
 	// Determine the number of threads used per scanline when writing the physical space kernel
 	static int32 NumThreadsPerGroup() { return 32; }
 	// Method for use with the FScopedUAVBind
-	FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+	FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/PostProcessFFTBloom.usf"); }
 	static const TCHAR* GetFunctionName()   { return TEXT("ResizeAndCenterTextureCS"); }
@@ -71,7 +71,7 @@ public:
 		float CenterScale = bForceCenterZero ? 0.f : 1.f;
 		const FLinearColor KernelCenterAndScaleValue(KernelUVCenter.X, KernelUVCenter.Y, ResizeScaleValue, CenterScale);
 
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 		// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
 
@@ -149,7 +149,7 @@ public:
 	}
 
 	// Method for use with the FScopedUAVBind
-	FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+	FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 	static const TCHAR* GetSourceFilename() { return TEXT("/Engine/Private/PostProcessFFTBloom.usf"); }
 	static const TCHAR* GetFunctionName()   { return TEXT("CaptureKernelWeightsCS"); }
@@ -161,7 +161,7 @@ public:
 		const FTextureRHIRef& PhysicalKernelRef,
 		const FVector2D& UVCenterValue)
 	{
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 
 
@@ -239,7 +239,7 @@ public:
 	}
 
 	// Method for use with the FScopedUAVBind
-	FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+	FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 	// Determine the number of threads used per scanline when writing the physical space kernel
 	static int32 NumThreadsPerGroup() { return 32; }
@@ -255,7 +255,7 @@ public:
 
 		using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
 
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 
 		// Set up the input.  We have to do this explicitly because the FFT dispatches multiple compute shaders and manages their input/output.
@@ -336,7 +336,7 @@ public:
 	}
 
 	// Method for use with the FScopedUAVBind
-	FShaderResourceParameter& DestinationResourceParamter() { return DstRWTexture; }
+	FShaderResourceParameter& DestinationResourceParameter() { return DstRWTexture; }
 
 	static int32 NumThreadsPerGroup() { return 32; }
 
@@ -347,7 +347,7 @@ public:
 		const FTextureRHIRef& SrcTexture, const FIntRect& SrcRectValue, const FIntRect& DstRectValue)
 	{
 		using GPUFFTComputeShaderUtils::FComputeParamterValueSetter;
-		const FComputeShaderRHIParamRef ShaderRHI = GetComputeShader();
+		FRHIComputeShader* ShaderRHI = GetComputeShader();
 
 
 
@@ -430,7 +430,7 @@ void ResizeAndCenterTexture(FRenderingCompositePassContext& Context,
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstUAV);
 
 	{
-		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 
 		ComputeShader->SetCSParamters(RHICmdList, Context, TargetSize, SrcImageSize, ResizeScale, ClampedImageCenterUV, SrcTexture, DstBufferSize, bForceCenterZero);
@@ -485,7 +485,7 @@ void CaptureKernelWeight(FRenderingCompositePassContext& Context,
 	check(DstTargetItem.UAV);
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstTargetItem.UAV);
 	{
-		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(Context.RHICmdList, *ComputeShader, DstTargetItem.UAV);
+		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(Context.RHICmdList, ComputeShader, DstTargetItem.UAV);
 		RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->DstRWTexture.GetBaseIndex(), DstTargetItem.UAV);
 
 		ComputeShader->SetCSParamters(RHICmdList, Context, HalfResKernel, HalfResSumLocation, PhysicalKernel, CenterUV);
@@ -545,7 +545,7 @@ void BlendLowRes(FRenderingCompositePassContext& Context,
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DstUAV);
 	
 	{
-		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(Context.RHICmdList, *ComputeShader, DstUAV);
+		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(Context.RHICmdList, ComputeShader, DstUAV);
 		ComputeShader->SetCSParamters(RHICmdList, Context, FullResImageRect, HalfResRect, HalfBufferSize, CenterWeightTexutre, FullResImage, HalfResConvolvedImage);
 
 		FIntPoint TargetExtent = FullResImageRect.Size();
@@ -592,7 +592,7 @@ void CopyImageRect(FRenderingCompositePassContext& Context, const FSceneRenderTa
 	check(DstUAV);
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstUAV);
 	{
-		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(RHICmdList, *ComputeShader, DstUAV);
+		GPUFFTComputeShaderUtils::FScopedUAVBind ScopedBindOutput = GPUFFTComputeShaderUtils::FScopedUAVBind::BindOutput(RHICmdList, ComputeShader, DstUAV);
 
 
 		ComputeShader->SetCSParamters(RHICmdList, Context, SrcTargetItem.ShaderResourceTexture, SrcRect, DstRect);
@@ -801,8 +801,8 @@ FSceneRenderTargetItem* FRCPassFFTBloom::InitDomainAndGetKernel(FRenderingCompos
 	const float ClampedBloomConvolutionBufferScale = FMath::Clamp(PPSettings.BloomConvolutionBufferScale, 0.f, 1.f);
 	
 
-	// The pre-filter boost parameters for bright pixels
-	const FVector PreFilter(PPSettings.BloomConvolutionPreFilterMin, PPSettings.BloomConvolutionPreFilterMax, PPSettings.BloomConvolutionPreFilterMult);
+	// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
+	const FVector PreFilter(PPSettings.BloomConvolutionPreFilterMin * View.PreExposure, PPSettings.BloomConvolutionPreFilterMax * View.PreExposure, PPSettings.BloomConvolutionPreFilterMult);
 
 	
 	// Clip the Kernel support (i.e. bloom size) to 100% the screen width 
@@ -952,8 +952,8 @@ bool FRCPassFFTBloom::ConvolveImageWithKernel(FRenderingCompositePassContext& Co
 
 	const FViewInfo& View = Context.View;
 	const auto& FinalPPSettings = View.FinalPostProcessSettings;
-	// The pre-filter boost parameters for bright pixels
-	const FVector PreFilter(FinalPPSettings.BloomConvolutionPreFilterMin, FinalPPSettings.BloomConvolutionPreFilterMax, FinalPPSettings.BloomConvolutionPreFilterMult);
+	// The pre-filter boost parameters for bright pixels. Because the Convolution PP work in pre-exposure space, the min and max needs adjustment.
+	const FVector PreFilter(FinalPPSettings.BloomConvolutionPreFilterMin * View.PreExposure, FinalPPSettings.BloomConvolutionPreFilterMax * View.PreExposure, FinalPPSettings.BloomConvolutionPreFilterMult);
 
 	const FLinearColor Tint(1, 1, 1, 1);
 

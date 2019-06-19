@@ -487,6 +487,7 @@ public:
 
 	//TODO should be supported
 	bool SupportsPositionOnlyStream() const override { return false; }
+	bool SupportsPositionAndNormalOnlyStream() const override { return false; }
 
 	inline void InvalidateStreams()
 	{

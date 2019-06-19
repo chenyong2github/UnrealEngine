@@ -249,7 +249,7 @@ namespace CrossCompiler
 				break;
 
 			case EOperators::FloatConstant:
-				Writer << FloatConstant;
+				Writer << Identifier;
 				break;
 
 			case EOperators::InitializerList:
@@ -260,6 +260,10 @@ namespace CrossCompiler
 			case EOperators::PostDec:
 			case EOperators::FieldSelection:
 			case EOperators::ArrayIndex:
+				break;
+
+			case EOperators::Sequence:
+				Writer << TEXT(",");
 				break;
 
 			case EOperators::TypeCast:
@@ -388,12 +392,19 @@ namespace CrossCompiler
 			switch (Operator)
 			{
 			case EOperators::ArrayIndex:
-				Writer << (TCHAR)'(';
-				SubExpressions[0]->Write(Writer);
-				Writer << TEXT(")");
+				if (SubExpressions[0]->AsUnaryExpression() && SubExpressions[0]->Operator == EOperators::Identifier)
+				{
+					SubExpressions[0]->Write(Writer);
+				}
+				else
+				{
+					Writer << (TCHAR)'(';
+					SubExpressions[0]->Write(Writer);
+					Writer << (TCHAR)')';
+				}
 				Writer << (TCHAR)'[';
 				SubExpressions[1]->Write(Writer);
-				Writer << TEXT("]");
+				Writer << (TCHAR)']';
 				break;
 
 			default:
@@ -851,12 +862,41 @@ namespace CrossCompiler
 			delete Specifier;
 		}
 
+		FRegisterSpecifier::FRegisterSpecifier(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
+			FNode(InAllocator, InInfo),
+			Arguments(InAllocator)
+		{
+		}
+
+		FRegisterSpecifier::~FRegisterSpecifier()
+		{
+			for (FExpression* Expr : Arguments)
+			{
+				delete Expr;
+			}
+		}
+
+		void FRegisterSpecifier::Write(FASTWriter& Writer) const
+		{
+			Writer << TEXT("register(");
+			for (int32 Index = 0, Num = Arguments.Num(); Index < Num; ++Index)
+			{
+				Arguments[Index]->Write(Writer);
+				if (Index + 1 < Num)
+				{
+					Writer << TEXT(", ");
+				}
+			}
+			Writer << TEXT(")");
+		}
+
 		FDeclaration::FDeclaration(FLinearAllocator* InAllocator, const FSourceInfo& InInfo) :
 			FNode(InAllocator, InInfo),
 			Identifier(nullptr),
 			Semantic(nullptr),
 			bIsArray(false),
 			ArraySize(InAllocator),
+			Register(nullptr),
 			Initializer(nullptr)
 		{
 		}
@@ -867,6 +907,12 @@ namespace CrossCompiler
 			Writer << Identifier;
 
 			WriteOptionArraySize(Writer, bIsArray, ArraySize);
+
+			if (Register)
+			{
+				Writer << TEXT(" : ");
+				Register->Write(Writer);
+			}
 
 			if (Initializer)
 			{

@@ -96,22 +96,22 @@ public:
 		VertexStreams.Add(FVertexInputStream(ColorStreamIndex, 0, ColorVertexBuffer->VertexBufferRHI));
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetPositionsSRV() const
+	inline FRHIShaderResourceView* GetPositionsSRV() const
 	{
 		return Data.PositionComponentSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetTangentsSRV() const
+	inline FRHIShaderResourceView* GetTangentsSRV() const
 	{
 		return Data.TangentsSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetTextureCoordinatesSRV() const
+	inline FRHIShaderResourceView* GetTextureCoordinatesSRV() const
 	{
 		return Data.TextureCoordinatesSRV;
 	}
 
-	inline const FShaderResourceViewRHIParamRef GetColorComponentsSRV() const
+	inline FRHIShaderResourceView* GetColorComponentsSRV() const
 	{
 		return Data.ColorComponentsSRV;
 	}
@@ -171,7 +171,7 @@ public:
 		const class FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
@@ -201,7 +201,7 @@ public:
 		const FSceneInterface* Scene,
 		const FSceneView* View,
 		const FMeshMaterialShader* Shader,
-		bool bShaderRequiresPositionOnlyStream,
+		const EVertexInputStreamType InputStreamType,
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,

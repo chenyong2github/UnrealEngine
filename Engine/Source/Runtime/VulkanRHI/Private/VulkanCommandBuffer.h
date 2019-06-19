@@ -174,6 +174,16 @@ public:
 
 	bool AcquirePoolSetAndDescriptorsIfNeeded(const class FVulkanDescriptorSetsLayout& Layout, bool bNeedDescriptors, VkDescriptorSet* OutDescriptors);
 
+
+	struct PendingQuery
+	{
+		uint64 Index;
+		uint64 Count;
+		VkBuffer BufferHandle;
+		VkQueryPool PoolHandle;
+	};
+	void AddPendingTimestampQuery(uint64 Index, uint64 Count, VkQueryPool PoolHandle, VkBuffer BufferHandle);
+
 private:
 	FVulkanDevice* Device;
 	VkCommandBuffer CommandBufferHandle;
@@ -182,6 +192,7 @@ private:
 	TArray<VkPipelineStageFlags> WaitFlags;
 	TArray<VulkanRHI::FSemaphore*> WaitSemaphores;
 	TArray<VulkanRHI::FSemaphore*> SubmittedWaitSemaphores;
+	TArray<PendingQuery> PendingQueries;
 
 	void MarkSemaphoresAsSubmitted()
 	{

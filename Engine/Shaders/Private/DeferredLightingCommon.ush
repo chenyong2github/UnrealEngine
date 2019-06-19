@@ -4,8 +4,7 @@
 	DeferredLightingCommon.usf: Common definitions for deferred lighting.
 =============================================================================*/
 
-#ifndef __DEFERRED_LIGHTING_COMMON__
-#define __DEFERRED_LIGHTING_COMMON__
+#pragma once
 
 #include "DeferredShadingCommon.ush"
 #include "DynamicLightingCommon.ush"
@@ -416,4 +415,3 @@ float3 GetSimpleDynamicLighting(float3 WorldPosition, float3 CameraVector, float
 	return OutLighting;
 }
 
-#endif

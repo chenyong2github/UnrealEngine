@@ -29,6 +29,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Components/DecalComponent.h"
 #include "Components/ReflectionCaptureComponent.h"
+#include "Components/RuntimeVirtualTextureComponent.h"
 #include "ScenePrivateBase.h"
 #include "SceneCore.h"
 #include "Rendering/MotionVectorSimulation.h"
@@ -55,10 +56,11 @@
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
 #if RHI_RAYTRACING
 #include "RayTracingDynamicGeometryCollection.h"
-#include "RHIGPUReadback.h"
 #endif
+#include "RHIGPUReadback.h"
 
 // Enable this define to do slow checks for components being added to the wrong
 // world's scene, when using PIE. This can happen if a PIE component is reattached
@@ -127,7 +129,10 @@ struct FSpeedTreeWindComputation
 
 /** Default constructor. */
 FSceneViewState::FSceneViewState()
-	: OcclusionQueryPool(RQT_Occlusion)
+	: OcclusionQueryPool(RHICreateRenderQueryPool(RQT_Occlusion))
+	, TimerQueryPool(RHICreateRenderQueryPool(RQT_AbsoluteTime, FLatentGPUTimer::NumBufferedFrames * 2 * 2 * 2))
+	, TranslucencyTimer(TimerQueryPool)
+	, SeparateTranslucencyTimer(TimerQueryPool)
 {
 	UniqueID = FSceneViewState_UniqueID.Increment();
 	OcclusionFrameCounter = 0;
@@ -157,7 +162,6 @@ FSceneViewState::FSceneViewState()
 	CachedVisibilityChunkIndex = INDEX_NONE;
 	MIDUsedCount = 0;
 	TemporalAASampleIndex = 0;
-	TemporalAASampleCount = 1;
 	FrameIndex = 0;
 	DistanceFieldTemporalSampleIndex = 0;
 	AOTileIntersectionResources = NULL;
@@ -214,7 +218,7 @@ FSceneViewState::FSceneViewState()
 			});
 	}
 	bReadbackInitialized = false;
-	RayCountGPUReadback = new FRHIGPUMemoryReadback(TEXT("Ray Count Readback"));
+	RayCountGPUReadback = new FRHIGPUBufferReadback(TEXT("Ray Count Readback"));
 #endif
 }
 
@@ -243,6 +247,7 @@ void DestroyRWBuffer(FRWBuffer* RWBuffer)
 FSceneViewState::~FSceneViewState()
 {
 	CachedVisibilityChunk = NULL;
+	ShadowOcclusionQueryMaps.Reset();
 
 	for (int32 CascadeIndex = 0; CascadeIndex < ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
 	{
@@ -549,6 +554,7 @@ void FScene::CheckPrimitiveArrays()
 	check(Primitives.Num() == PrimitiveVisibilityIds.Num());
 	check(Primitives.Num() == PrimitiveOcclusionFlags.Num());
 	check(Primitives.Num() == PrimitiveComponentIds.Num());
+	check(Primitives.Num() == PrimitiveVirtualTextureFlags.Num());
 	check(Primitives.Num() == PrimitiveOcclusionBounds.Num());
 	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 }
@@ -773,6 +779,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	PrimitiveVisibilityIds.AddUninitialized();
 	PrimitiveOcclusionFlags.AddUninitialized();
 	PrimitiveComponentIds.AddUninitialized();
+	PrimitiveVirtualTextureFlags.AddUninitialized();
 	PrimitiveOcclusionBounds.AddUninitialized();
 	PrimitivesNeedingStaticMeshUpdate.Add(false);
 	
@@ -841,6 +848,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 				TArraySwapElements(PrimitiveVisibilityIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -974,6 +982,8 @@ void FPersistentUniformBuffers::Initialize()
 	CustomDepthViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	InstancedCustomDepthViewUniformBuffer = TUniformBufferRef<FInstancedViewUniformShaderParameters>::CreateUniformBufferImmediate(InstancedViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
+	VirtualTextureViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ViewUniformBufferParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+
 	FMobileShadowDepthPassUniformParameters MobileCSMShadowDepthPassParameters;
 	MobileCSMShadowDepthPassUniformBuffer = TUniformBufferRef<FMobileShadowDepthPassUniformParameters>::CreateUniformBufferImmediate(MobileCSMShadowDepthPassParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 
@@ -1025,6 +1035,12 @@ bool FPersistentUniformBuffers::UpdateViewUniformBuffer(const FViewInfo& View)
 	return false;
 }
 
+void FPersistentUniformBuffers::UpdateViewUniformBufferImmediate(const FViewUniformShaderParameters& Parameters)
+{
+	ViewUniformBuffer.UpdateUniformBufferImmediate(Parameters);
+	CachedView = nullptr;
+}
+
 FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScene, bool bCreateFXSystem, ERHIFeatureLevel::Type InFeatureLevel)
 :	FSceneInterface(InFeatureLevel)
 ,	World(InWorld)
@@ -1037,7 +1053,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	ReflectionSceneData(InFeatureLevel)
 ,	IndirectLightingCache(InFeatureLevel)
 ,	DistanceFieldSceneData(GShaderPlatformForFeatureLevel[InFeatureLevel])
-,	PreshadowCacheLayout(0, 0, 0, 0, false, false)
+,	PreshadowCacheLayout(0, 0, 0, 0, false)
 ,	AtmosphericFog(NULL)
 ,	PrecomputedVisibilityHandler(NULL)
 ,	LightOctree(FVector::ZeroVector,HALF_WORLD_MAX)
@@ -1083,7 +1099,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 		SetFXSystem(NULL);
 	}
 
-	if (IsGPUSkinCacheAvailable())
+	if (IsGPUSkinCacheAvailable(GetFeatureLevelShaderPlatform(InFeatureLevel)))
 	{
 		const bool bRequiresMemoryLimit = !bInIsEditorScene;
 		GPUSkinCache = new FGPUSkinCache(bRequiresMemoryLimit);
@@ -1094,6 +1110,8 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	{
 		RayTracingDynamicGeometryCollection = new FRayTracingDynamicGeometryCollection();
 	}
+
+	BeginInitResource(&HaltonPrimesResource);
 #endif
 
 	World->UpdateParameterCollectionInstances(false, false);
@@ -1143,6 +1161,8 @@ FScene::~FScene()
 		delete RayTracingDynamicGeometryCollection;
 		RayTracingDynamicGeometryCollection = nullptr;
 	}
+
+	BeginReleaseResource(&HaltonPrimesResource);
 #endif
 }
 
@@ -1565,6 +1585,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 				TArraySwapElements(PrimitiveVisibilityIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 				SourceIndex = DestIndex;
@@ -1596,6 +1617,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 		PrimitiveVisibilityIds.Pop();
 		PrimitiveOcclusionFlags.Pop();
 		PrimitiveComponentIds.Pop();
+		PrimitiveVirtualTextureFlags.Pop();
 		PrimitiveOcclusionBounds.Pop();
 		PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num()-1);
 	}
@@ -2015,8 +2037,8 @@ void FScene::UpdateDecalFadeOutTime(UDecalComponent* Decal)
 			}
 			else
 			{
-				Proxy->InvFadeInDuration = -1.0f;
-				Proxy->FadeInStartDelayNormalized = 1.0f;
+				Proxy->InvFadeDuration = -1.0f;
+				Proxy->FadeStartDelayNormalized = 1.0f;
 			}
 		});
 	}
@@ -2037,7 +2059,7 @@ void FScene::UpdateDecalFadeInTime(UDecalComponent* Decal)
 			if (DecalFadeDuration > 0.0f)
 			{
 				Proxy->InvFadeInDuration = 1.0f / DecalFadeDuration;
-				Proxy->FadeInStartDelayNormalized = (CurrentTime + DecalFadeDuration) * -Proxy->InvFadeInDuration;
+				Proxy->FadeInStartDelayNormalized = (CurrentTime + DecalFadeStartDelay) * -Proxy->InvFadeInDuration;
 			}
 			else
 			{
@@ -2409,6 +2431,139 @@ void FScene::RemovePrecomputedVolumetricLightmap(const FPrecomputedVolumetricLig
 #endif
 		Scene->VolumetricLightmapSceneData.RemoveLevelVolume(Volume);
 		});
+}
+
+void FScene::AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)
+{
+	if (Component->SceneProxy == nullptr)
+	{
+		Component->SceneProxy = new FRuntimeVirtualTextureSceneProxy(Component);
+
+		FScene* Scene = this;
+		FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+
+		ENQUEUE_RENDER_COMMAND(AddRuntimeVirtualTextureCommand)(
+			[Scene, SceneProxy](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->AddRuntimeVirtualTexture_RenderThread(SceneProxy);
+			Scene->UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
+		});
+	}
+	else
+	{
+		// This is a component update.
+		// Store the new FRuntimeVirtualTextureSceneProxy at the same index as the old (to avoid needing to update any associated primitives).
+		// Defer old proxy deletion to the render thread.
+		FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace = Component->SceneProxy;
+		Component->SceneProxy = new FRuntimeVirtualTextureSceneProxy(Component);
+
+		FScene* Scene = this;
+		FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+
+		ENQUEUE_RENDER_COMMAND(AddRuntimeVirtualTextureCommand)(
+			[Scene, SceneProxy, SceneProxyToReplace](FRHICommandListImmediate& RHICmdList)
+		{
+			const bool bUpdatePrimitives = SceneProxy->VirtualTexture != SceneProxyToReplace->VirtualTexture;
+			Scene->UpdateRuntimeVirtualTexture_RenderThread(SceneProxy, SceneProxyToReplace);
+			if (bUpdatePrimitives)
+			{
+				Scene->UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
+			}
+		});
+	}
+}
+
+void FScene::RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)
+{
+	FRuntimeVirtualTextureSceneProxy* SceneProxy = Component->SceneProxy;
+	if (SceneProxy != nullptr)
+	{
+		// Release now but defer any deletion to the render thread
+		Component->SceneProxy->Release();
+		Component->SceneProxy = nullptr;
+
+		FScene* Scene = this;
+		ENQUEUE_RENDER_COMMAND(RemoveRuntimeVirtualTextureCommand)(
+			[Scene, SceneProxy](FRHICommandListImmediate& RHICmdList)
+		{
+			Scene->RemoveRuntimeVirtualTexture_RenderThread(SceneProxy);
+			Scene->UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread();
+		});
+	}
+}
+
+void FScene::AddRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
+{
+	SceneProxy->SceneIndex = RuntimeVirtualTextures.Add(SceneProxy);
+}
+
+void FScene::UpdateRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy, FRuntimeVirtualTextureSceneProxy* SceneProxyToReplace)
+{
+	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TIterator It(RuntimeVirtualTextures); It; ++It)
+	{
+		if (*It == SceneProxyToReplace)
+		{
+			SceneProxy->SceneIndex = It.GetIndex();
+			*It = SceneProxy;
+			delete SceneProxyToReplace;
+			return;
+		}
+	}
+	// If we get here then we didn't find the object to replace!
+	check(false);
+}
+
+void FScene::RemoveRuntimeVirtualTexture_RenderThread(FRuntimeVirtualTextureSceneProxy* SceneProxy)
+{
+	RuntimeVirtualTextures.RemoveAt(SceneProxy->SceneIndex);
+	delete SceneProxy;
+}
+
+void FScene::UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread()
+{
+	for (int32 Index = 0; Index < Primitives.Num(); ++Index)
+	{
+		if (PrimitiveVirtualTextureFlags[Index].bRenderToVirtualTexture)
+		{
+			PrimitiveVirtualTextureFlags[Index].RuntimeVirtualTextureMask = GetRuntimeVirtualTextureMask(PrimitiveSceneProxies[Index]);
+		}
+	}
+}
+
+uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
+{
+	checkSlow(IsInRenderingThread());
+	for (FRuntimeVirtualTextureSceneProxy const* Proxy : RuntimeVirtualTextures)
+	{
+		if (Proxy->ProducerId == ProducerId)
+		{
+			return Proxy->SceneIndex;
+		}
+	}
+	// Should not get here
+	check(false);
+	return 0;
+}
+
+uint32 FScene::GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy)
+{
+	uint32 Mask = 0;
+	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(RuntimeVirtualTextures); It; ++It)
+	{
+		int32 SceneIndex = It.GetIndex();
+		if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
+		{
+			URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
+			for (URuntimeVirtualTexture* PrimitiveVirtualTexture : Proxy->RuntimeVirtualTextures)
+			{
+				if (SceneVirtualTexture == PrimitiveVirtualTexture)
+				{
+					Mask |= 1 << SceneIndex;
+				}
+			}
+		}
+	}
+	return Mask;
 }
 
 bool FScene::GetPreviousLocalToWorld(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix& OutPreviousLocalToWorld) const
@@ -3667,11 +3822,12 @@ FSceneViewStateInterface* FRendererModule::AllocateViewState()
 
 //////////////////////////////////////////////////////////////////////////
 
-FLatentGPUTimer::FLatentGPUTimer(int32 InAvgSamples)
-	: AvgSamples(InAvgSamples)
-	, TotalTime(0.0f)
-	, SampleIndex(0)
-	, QueryIndex(0)
+FLatentGPUTimer::FLatentGPUTimer(FRenderQueryPoolRHIRef InTimerQueryPool, int32 InAvgSamples)
+: TimerQueryPool(InTimerQueryPool)
+, AvgSamples(InAvgSamples)
+, TotalTime(0.0f)
+, SampleIndex(0)
+, QueryIndex(0)
 {
 	TimeSamples.AddZeroed(AvgSamples);
 }
@@ -3685,7 +3841,7 @@ bool FLatentGPUTimer::Tick(FRHICommandListImmediate& RHICmdList)
 
 	QueryIndex = (QueryIndex + 1) % NumBufferedFrames;
 
-	if (StartQueries[QueryIndex] && EndQueries[QueryIndex])
+	if (StartQueries[QueryIndex].GetQuery() && EndQueries[QueryIndex].GetQuery())
 	{
 		if (IsRunningRHIInSeparateThread())
 		{
@@ -3706,8 +3862,8 @@ bool FLatentGPUTimer::Tick(FRHICommandListImmediate& RHICmdList)
 			// Block on the GPU until we have the timestamp query results, if necessary
 			// Stat disabled since we buffer 2 frames minimum, it won't actually block
 			//SCOPE_CYCLE_COUNTER(STAT_TranslucencyTimestampQuery_Wait);
-			bStartSuccess = RHICmdList.GetRenderQueryResult(StartQueries[QueryIndex], StartMicroseconds, true);
-			bEndSuccess = RHICmdList.GetRenderQueryResult(EndQueries[QueryIndex], EndMicroseconds, true);
+			bStartSuccess = RHICmdList.GetRenderQueryResult(StartQueries[QueryIndex].GetQuery(), StartMicroseconds, true);
+			bEndSuccess = RHICmdList.GetRenderQueryResult(EndQueries[QueryIndex].GetQuery(), EndMicroseconds, true);
 		}
 
 		TotalTime -= TimeSamples[SampleIndex];
@@ -3734,12 +3890,12 @@ void FLatentGPUTimer::Begin(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 	
-	if (!StartQueries[QueryIndex])
+	if (!StartQueries[QueryIndex].GetQuery())
 	{		
-		StartQueries[QueryIndex] = RHICmdList.CreateRenderQuery(RQT_AbsoluteTime);
+		StartQueries[QueryIndex] = TimerQueryPool->AllocateQuery();
 	}
 
-	RHICmdList.EndRenderQuery(StartQueries[QueryIndex]);
+	RHICmdList.EndRenderQuery(StartQueries[QueryIndex].GetQuery());
 }
 
 void FLatentGPUTimer::End(FRHICommandListImmediate& RHICmdList)
@@ -3749,12 +3905,12 @@ void FLatentGPUTimer::End(FRHICommandListImmediate& RHICmdList)
 		return;
 	}
 	
-	if (!EndQueries[QueryIndex])
+	if (!EndQueries[QueryIndex].GetQuery())
 	{
-		EndQueries[QueryIndex] = RHICmdList.CreateRenderQuery(RQT_AbsoluteTime);
+		EndQueries[QueryIndex] = TimerQueryPool->AllocateQuery();
 	}
 
-	RHICmdList.EndRenderQuery(EndQueries[QueryIndex]);
+	RHICmdList.EndRenderQuery(EndQueries[QueryIndex].GetQuery());
 	// Hint to the RHI to submit commands up to this point to the GPU if possible.  Can help avoid CPU stalls next frame waiting
 	// for these query results on some platforms.
 	RHICmdList.SubmitCommandsHint();
@@ -3776,8 +3932,8 @@ void FLatentGPUTimer::Release()
 {
 	for (int32 i = 0; i < NumBufferedFrames; ++i)
 	{
-		StartQueries[i].SafeRelease();
-		EndQueries[i].SafeRelease();
+		StartQueries[i].ReleaseQuery();
+		EndQueries[i].ReleaseQuery();
 	}
 }
 

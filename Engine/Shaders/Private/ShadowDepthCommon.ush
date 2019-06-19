@@ -24,7 +24,7 @@ struct FShadowDepthVSToPS
 
 #if PERSPECTIVE_CORRECT_DEPTH
 	float ShadowDepth : TEXCOORD6;
-
+	float DepthBias : TEXCOORD8;
 #elif !COMPILER_SUPPORTS_EMPTY_STRUCTS && !ONEPASS_POINTLIGHT_SHADOW
 	float Dummy : TEXCOORD6;
 #endif
@@ -40,6 +40,7 @@ struct FShadowDepthVSToPS
 struct FShadowDepthVSToGS : FShadowDepthVSToPS
 {
 	float4 GSPosition : TEXCOORD6;
+	float3 WorldNormal : TEXCOORD8;
 };
 #endif
 

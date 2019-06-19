@@ -270,8 +270,10 @@ public:
 	* Sends a message to the rendering thread to draw the batched elements.
 	* @param RHICmdList - command list to use
 	* @param bForce - force the flush even if Allow_Flush is not enabled
+	* @param bInsideRenderPass - Set to true if flushing inside a render pass (e.g. Render Graph pass).
+	*	This will skip creating a render pass internally, and assert if the command list is not in a render pass.
 	*/
-	ENGINE_API void Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce = false);
+	ENGINE_API void Flush_RenderThread(FRHICommandListImmediate& RHICmdList, bool bForce = false, bool bInsideRenderPass = false);
 
 	/**
 	* Sends a message to the rendering thread to draw the batched elements.
@@ -967,14 +969,9 @@ public:
 		const FCanvas::FTransformEntry& InTransform=FCanvas::FTransformEntry(FMatrix::Identity),
 		bool bInFreezeTime=false)
 		// this data is deleted after rendering has completed
-		:	Data(new FRenderData(InFeatureLevel,InMaterialRenderProxy,InTransform))
-		,	bFreezeTime(bInFreezeTime)
+		: Data(MakeShared<FRenderData>(InFeatureLevel,InMaterialRenderProxy,InTransform))
+		, bFreezeTime(bInFreezeTime)
 	{}
-
-	/**
-	* Destructor to delete data in case nothing rendered
-	*/
-	virtual ~FCanvasTileRendererItem();	
 
 	/**
 	* FCanvasTileRendererItem instance accessor
@@ -1040,70 +1037,78 @@ private:
 	class FTileVertexFactory : public FLocalVertexFactory
 	{
 	public:
-		/** Default constructor. */
-		FTileVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
+		FTileVertexFactory(const FStaticMeshVertexBuffers* VertexBuffers, ERHIFeatureLevel::Type InFeatureLevel);
+		void InitResource() override;
+
+	private:
+		const FStaticMeshVertexBuffers* VertexBuffers;
 	};
 
 	class FTileMesh : public FRenderResource
 	{
 	public:
-		FTileMesh(FTileVertexFactory* VertexFactory);
+		FTileMesh(const FRawIndexBuffer* IndexBuffer, const FTileVertexFactory* VertexFactory);
 
-		/** The mesh element. */
 		FMeshBatch MeshElement;
 
-		virtual void InitRHI() override;
-		virtual void ReleaseRHI() override;
+		void InitRHI() override;
 	private:
-		FTileVertexFactory* VertexFactory;
+		const FRawIndexBuffer* IndexBuffer;
+		const FTileVertexFactory* VertexFactory;
 	};
 
 	class FRenderData
 	{
-		friend class FCanvasTileRendererItem;
+	public:
+		FRenderData(
+			ERHIFeatureLevel::Type InFeatureLevel,
+			const FMaterialRenderProxy* InMaterialRenderProxy,
+			const FCanvas::FTransformEntry& InTransform);
+
+		void RenderTiles(
+			FRHICommandListImmediate& RHICmdList,
+			FMeshPassProcessorRenderState& DrawRenderState,
+			const FSceneView& View,
+			bool bIsHitTesting,
+			bool bNeedsToSwitchVerticalAxis);
+
+		const FMaterialRenderProxy* const MaterialRenderProxy;
+		const FCanvas::FTransformEntry Transform;
+
+		inline int32 AddTile(float X, float Y, float SizeX, float SizeY, float U, float V, float SizeU, float SizeV, FHitProxyId HitProxyId, FColor InColor)
+		{
+			FTileInst NewTile = { X,Y,SizeX,SizeY,U,V,SizeU,SizeV,HitProxyId,InColor };
+			return Tiles.Add(NewTile);
+		};
 
 	private:
-		/** The buffer containing vertex data. */
+		void InitTileMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
+		void ReleaseTileMesh();
+
+		FRawIndexBuffer IndexBuffer;
 		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
 		FTileVertexFactory VertexFactory;
 		FTileMesh TileMesh;
 
-	public:
-
-		FRenderData(ERHIFeatureLevel::Type InFeatureLevel,
-			const FMaterialRenderProxy* InMaterialRenderProxy = nullptr,
-			const FCanvas::FTransformEntry& InTransform = FCanvas::FTransformEntry(FMatrix::Identity));
-		
-		const FMaterialRenderProxy* MaterialRenderProxy;
-		FCanvas::FTransformEntry Transform;
-
 		struct FTileInst
 		{
-			float X,Y;
-			float SizeX,SizeY;
-			float U,V;
-			float SizeU,SizeV;
+			float X, Y;
+			float SizeX, SizeY;
+			float U, V;
+			float SizeU, SizeV;
 			FHitProxyId HitProxyId;
 			FColor InColor;
 		};
 		TArray<FTileInst> Tiles;
-
-		FORCEINLINE int32 AddTile(float X, float Y, float SizeX, float SizeY, float U, float V, float SizeU, float SizeV, FHitProxyId HitProxyId, FColor InColor)
-		{
-			FTileInst NewTile = {X,Y,SizeX,SizeY,U,V,SizeU,SizeV,HitProxyId,InColor};
-			return Tiles.Add(NewTile);
-		};
 	};
+
 	/**
-	* Render data which is allocated when a new FCanvasTileRendererItem is added for rendering.
-	* This data is only freed on the rendering thread once the item has finished rendering
-	*/
-	FRenderData* Data;	
+	 * Render data which is allocated when a new FCanvasTileRendererItem is added for rendering.
+	 * This data is only freed on the rendering thread once the item has finished rendering
+	 */
+	TSharedPtr<FRenderData> Data;
 
 	const bool bFreezeTime;
-
-	typedef FRenderData::FTileInst FTileInst;
-	void InitTileBuffers(FLocalVertexFactory* VertexFactory, TArray<FTileInst>& Tiles, const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
 };
 
 /**
@@ -1120,17 +1125,9 @@ public:
 		const FCanvas::FTransformEntry& InTransform = FCanvas::FTransformEntry(FMatrix::Identity),
 		bool bInFreezeTime = false)
 		// this data is deleted after rendering has completed
-		: Data(new FRenderData(InFeatureLevel, InMaterialRenderProxy, InTransform))
+		: Data(MakeShared<FRenderData>(InFeatureLevel, InMaterialRenderProxy, InTransform))
 		, bFreezeTime(bInFreezeTime)
 	{}
-
-	/**
-	* Destructor to delete data in case nothing rendered
-	*/
-	virtual ~FCanvasTriangleRendererItem()
-	{
-		delete Data;
-	}
 
 	/**
 	 * FCanvasTriangleRendererItem instance accessor
@@ -1208,56 +1205,36 @@ private:
 	class FTriangleVertexFactory : public FLocalVertexFactory
 	{
 	public:
-		/** Default constructor. */
-		FTriangleVertexFactory(ERHIFeatureLevel::Type InFeatureLevel);
+		FTriangleVertexFactory(const FStaticMeshVertexBuffers* VertexBuffers, ERHIFeatureLevel::Type InFeatureLevel);
+		void InitResource() override;
+
+	private:
+		const FStaticMeshVertexBuffers* VertexBuffers;
 	};
 
-	/**
-	* Mesh used to render triangles.
-	*/
 	class FTriangleMesh : public FRenderResource
 	{
 	public:
-		FTriangleMesh(FTriangleVertexFactory* VertexFactory);
+		FTriangleMesh(const FRawIndexBuffer* IndexBuffer, const FTriangleVertexFactory* VertexFactory);
 
-		/** The mesh element. */
-		FMeshBatch TriMeshElement;
+		FMeshBatch MeshBatch;
 		virtual void InitRHI() override;
-		virtual void ReleaseRHI() override;
 	private:
-		FTriangleVertexFactory* VertexFactory;
+		const FRawIndexBuffer* IndexBuffer;
+		const FTriangleVertexFactory* VertexFactory;
 	};
 
 	class FRenderData
 	{
-		friend class FCanvasTriangleRendererItem;
-
-	private:
-		const FMaterialRenderProxy* MaterialRenderProxy;
-		FCanvas::FTransformEntry Transform;
-
-		/** The buffer containing vertex data. */
-		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
-		FTriangleVertexFactory VertexFactory;
-		FTriangleMesh TriMesh;
-
-		struct FTriangleInst
-		{
-			FCanvasUVTri Tri;
-			FHitProxyId HitProxyId;
-		};
-		TArray<FTriangleInst> Triangles;
-
 	public:
 		FRenderData(ERHIFeatureLevel::Type InFeatureLevel,
-			const FMaterialRenderProxy* InMaterialRenderProxy = NULL,
-			const FCanvas::FTransformEntry& InTransform = FCanvas::FTransformEntry(FMatrix::Identity))
+			const FMaterialRenderProxy* InMaterialRenderProxy,
+			const FCanvas::FTransformEntry& InTransform)
 			: MaterialRenderProxy(InMaterialRenderProxy)
 			, Transform(InTransform)
-			, VertexFactory(InFeatureLevel)
-			, TriMesh(&VertexFactory)
-		{
-		}
+			, VertexFactory(&StaticMeshVertexBuffers, InFeatureLevel)
+			, TriMesh(&IndexBuffer, &VertexFactory)
+		{}
 
 		FORCEINLINE int32 AddTriangle(const FCanvasUVTri& Tri, FHitProxyId HitProxyId)
 		{
@@ -1274,17 +1251,41 @@ private:
 		{
 			Triangles.Reserve(NumTriangles);
 		}
+
+		void RenderTriangles(
+			FRHICommandListImmediate& RHICmdList,
+			FMeshPassProcessorRenderState& DrawRenderState,
+			const FSceneView& View,
+			bool bIsHitTesting,
+			bool bNeedsToSwitchVerticalAxis);
+
+		const FMaterialRenderProxy* const MaterialRenderProxy;
+		const FCanvas::FTransformEntry Transform;
+
+	private:
+		void InitTriangleMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
+		void ReleaseTriangleMesh();
+
+		FRawIndexBuffer IndexBuffer;
+		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
+		FTriangleVertexFactory VertexFactory;
+		FTriangleMesh TriMesh;
+
+		struct FTriangleInst
+		{
+			FCanvasUVTri Tri;
+			FHitProxyId HitProxyId;
+		};
+		TArray<FTriangleInst> Triangles;
 	};
+
 	/**
-	* Render data which is allocated when a new FCanvasTriangleRendererItem is added for rendering.
-	* This data is only freed on the rendering thread once the item has finished rendering
-	*/
-	FRenderData* Data;
+	 * Render data which is allocated when a new FCanvasTriangleRendererItem is added for rendering.
+	 * This data is only freed on the rendering thread once the item has finished rendering
+	 */
+	TSharedPtr<FRenderData> Data;
 
 	const bool bFreezeTime;
-
-	typedef FRenderData::FTriangleInst FTriangleInst;
-	void InitTriangleBuffers(FLocalVertexFactory* VertexFactory, TArray<FTriangleInst>& Triangles, const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
 };
 
 /**

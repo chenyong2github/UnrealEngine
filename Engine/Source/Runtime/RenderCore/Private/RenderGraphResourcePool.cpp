@@ -7,24 +7,6 @@
 #include "RenderGraphResourcePool.h"
 #include "RenderGraphResources.h"
 
-
-uint32 FPooledRDGBuffer::Release()
-{
-	return RefCount--;
-
-	if (RefCount == 0)
-	{
-		VertexBuffer.SafeRelease();
-		IndexBuffer.SafeRelease();
-		StructuredBuffer.SafeRelease();
-		UAVs.Empty();
-		SRVs.Empty();
-	}
-
-	return RefCount;
-}
-
-
 FRenderGraphResourcePool::FRenderGraphResourcePool()
 { }
 

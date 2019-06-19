@@ -1256,35 +1256,52 @@ void FMaterialInstanceEditor::DrawSamplerWarningStrings(FCanvas* Canvas, int32& 
 							EMaterialSamplerType SamplerType = UMaterialExpressionTextureBase::GetSamplerTypeForTexture( Texture );
 							UMaterialExpressionTextureSampleParameter* Expression = BaseMaterial->FindExpressionByGUID<UMaterialExpressionTextureSampleParameter>( TextureParameterValue->ExpressionId );
 
-							if ( Expression && Expression->SamplerType != SamplerType )
+							FString ErrorMessage;
+							if (!Expression->TextureIsValid(Texture, ErrorMessage))
 							{
-								FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
-
 								Canvas->DrawShadowedString(
 									5,
 									DrawPositionY,
-									*FString::Printf( TEXT("Warning: %s samples %s as %s."),
-									*TextureParameterValue->ParameterInfo.Name.ToString(),
-									*Texture->GetPathName(),
-									*SamplerTypeDisplayName ),
+									*FString::Printf(TEXT("Error: %s has invalid texture %s: %s."),
+										*TextureParameterValue->ParameterInfo.Name.ToString(),
+										*Texture->GetPathName(),
+										*ErrorMessage),
 									FontToUse,
-									FLinearColor(1,1,0) );
+									FLinearColor(1, 0, 0));
 								DrawPositionY += SpacingBetweenLines;
 							}
-							if( Expression && ((Expression->SamplerType == (EMaterialSamplerType)TC_Normalmap || Expression->SamplerType ==  (EMaterialSamplerType)TC_Masks) && Texture->SRGB))
+							else
 							{
-								FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
-								
-								Canvas->DrawShadowedString(
-									5,
-									DrawPositionY,
-									*FString::Printf( TEXT("Warning: %s samples texture as '%s'. SRGB should be disabled for '%s'."),
-									*TextureParameterValue->ParameterInfo.Name.ToString(),
-									*SamplerTypeDisplayName,
-									*Texture->GetPathName()),
-									FontToUse,
-									FLinearColor(1,1,0) );
-								DrawPositionY += SpacingBetweenLines;
+								if (Expression && Expression->SamplerType != SamplerType)
+								{
+									FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
+
+									Canvas->DrawShadowedString(
+										5,
+										DrawPositionY,
+										*FString::Printf(TEXT("Warning: %s samples %s as %s."),
+											*TextureParameterValue->ParameterInfo.Name.ToString(),
+											*Texture->GetPathName(),
+											*SamplerTypeDisplayName),
+										FontToUse,
+										FLinearColor(1, 1, 0));
+									DrawPositionY += SpacingBetweenLines;
+								}
+								if (Expression && ((Expression->SamplerType == (EMaterialSamplerType)TC_Normalmap || Expression->SamplerType == (EMaterialSamplerType)TC_Masks) && Texture->SRGB))
+								{
+									FString SamplerTypeDisplayName = SamplerTypeEnum->GetDisplayNameTextByValue(Expression->SamplerType).ToString();
+
+									Canvas->DrawShadowedString(
+										5,
+										DrawPositionY,
+										*FString::Printf(TEXT("Warning: %s samples texture as '%s'. SRGB should be disabled for '%s'."),
+											*TextureParameterValue->ParameterInfo.Name.ToString(),
+											*SamplerTypeDisplayName,
+											*Texture->GetPathName()),
+										FontToUse,
+										FLinearColor(1, 1, 0));
+									DrawPositionY += SpacingBetweenLines;
+								}
 							}
 						}
 					}

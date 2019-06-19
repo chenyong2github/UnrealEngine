@@ -82,6 +82,7 @@
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/DemoNetDriver.h"
 #include "Modules/ModuleManager.h"
+#include "VT/VirtualTexture.h" 
 
 #include "Materials/MaterialParameterCollectionInstance.h"
 #include "ProfilingDebugging/LoadTimeTracker.h"
@@ -1064,7 +1065,8 @@ void UWorld::AddParameterCollectionInstance(UMaterialParameterCollection* Collec
 
 	for (int32 InstanceIndex = 0; InstanceIndex < ParameterCollectionInstances.Num(); InstanceIndex++)
 	{
-		if (ParameterCollectionInstances[InstanceIndex]->GetCollection() == Collection)
+		const UMaterialParameterCollectionInstance* Instance = ParameterCollectionInstances[InstanceIndex];
+		if (Instance != nullptr && Instance->GetCollection() == Collection)
 		{
 			ExistingIndex = InstanceIndex;
 			break;
@@ -1483,7 +1485,8 @@ void UWorld::InitWorld(const InitializationValues IVS)
 
 	// invalidate lighting if VT is enabled but no valid data is present
 	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
-	if (CVar && CVar->GetValueOnAnyThread() != 0)
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(FeatureLevel);
+	if (bUseVirtualTextures)
 	{
 		for (auto Level : Levels) //Note: PersistentLevel is part of this array
 		{
@@ -7054,7 +7057,9 @@ void UWorld::GetLightMapsAndShadowMaps(ULevel* Level, TArray<UTexture2D*>& OutLi
 			// Don't check null references or objects already visited. Also, skip UWorlds as they will pull in more levels than desired
 			if (Obj != NULL && Obj->HasAnyMarks(OBJECTMARK_TagExp) && !Obj->IsA(UWorld::StaticClass()))
 			{
-				if (Obj->IsA(ULightMapTexture2D::StaticClass()) || Obj->IsA(UShadowMapTexture2D::StaticClass()))
+				if (Obj->IsA(ULightMapTexture2D::StaticClass()) ||
+					Obj->IsA(UShadowMapTexture2D::StaticClass()) ||
+					Obj->IsA(ULightMapVirtualTexture2D::StaticClass()))
 				{
 					UTexture2D* Tex = Cast<UTexture2D>(Obj);
 					if ( ensure(Tex) )

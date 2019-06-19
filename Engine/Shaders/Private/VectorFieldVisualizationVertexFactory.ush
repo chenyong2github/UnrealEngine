@@ -56,7 +56,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates( FVertexFactoryInput I
 	const float3 VoxelSize = VectorFieldVis.VoxelSize.xyz;
 	const float3 HalfVoxelOffset = VoxelSize.xyz * 0.5f;
 	const float3 VoxelMultipliers = float3(1, VoxelSize.x, VoxelSize.x * VoxelSize.y);
-	const float3 VoxelIndex = floor((float3)GetInstanceId(Input.InstanceId.xxx) * VoxelMultipliers.xyz);
+	const float3 VoxelIndex = floor((float3)GetInstanceId(Input.InstanceId).xxx * VoxelMultipliers.xyz);
 	const float3 VoxelUV = frac(VoxelIndex.xyz * VoxelSize.xyz) + HalfVoxelOffset;
 
 	// Read vector for this voxel.
@@ -126,9 +126,14 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
  * @param Intermediates - Intermediates computed for this vertex.
  * @returns the position of this vertex in world space.
  */
-float4 VertexFactoryGetWorldPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
+float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
 	return Intermediates.WorldPosition;
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return float3(0,0,1);
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 TranslatedWorldPosition)

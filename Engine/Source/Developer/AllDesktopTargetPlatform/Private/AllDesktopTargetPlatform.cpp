@@ -62,10 +62,10 @@ void FAllDesktopTargetPlatform::GetAllTargetedShaderFormats( TArray<FName>& OutF
 	GetAllPossibleShaderFormats(OutFormats);
 }
 
-void FAllDesktopTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<FName>& OutFormats ) const
+void FAllDesktopTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const
 {
 	// just use the standard texture format name for this texture (without DX11 texture support)
-	OutFormats.Add(GetDefaultTextureFormatName(this, Texture, EngineSettings, false));
+	GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, Texture, EngineSettings, false);
 }
 
 void FAllDesktopTargetPlatform::GetAllTextureFormats(TArray<FName>& OutFormats) const
