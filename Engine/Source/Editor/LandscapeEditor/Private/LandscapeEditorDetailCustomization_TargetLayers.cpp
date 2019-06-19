@@ -885,13 +885,11 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetSelectionChanged(co
 		if (Target->TargetType == ELandscapeToolTargetType::Heightmap)
 		{
 			checkSlow(Target->LayerInfoObj == NULL);
-			LandscapeEdMode->CurrentToolTarget.LayerInfo = NULL;
-			LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;
+			LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
 		}
 		else
 		{
-			LandscapeEdMode->CurrentToolTarget.LayerInfo = Target->LayerInfoObj;
-			LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
+			LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, Target->LayerInfoObj);
 		}
 	}
 }
@@ -1203,9 +1201,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerSetObject(cons
 			FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 			if (LandscapeEdMode)
 			{
-				LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
 				LandscapeEdMode->CurrentToolTarget.TargetType = Target->TargetType;
-				LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
+				LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, SelectedLayerInfo);
 				LandscapeEdMode->UpdateTargetList();
 			}
 
@@ -1322,7 +1319,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerCreateClicked(
 			if (LandscapeEdMode->CurrentToolTarget.LayerName == Target->LayerName
 				&& LandscapeEdMode->CurrentToolTarget.LayerInfo == Target->LayerInfoObj)
 			{
-				LandscapeEdMode->CurrentToolTarget.LayerInfo = LayerInfo;
+				LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, Target->LayerInfoObj);
 			}
 
 			Target->LayerInfoObj = LayerInfo;

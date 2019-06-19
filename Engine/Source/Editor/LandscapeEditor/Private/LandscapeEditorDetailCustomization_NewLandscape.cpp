@@ -872,8 +872,7 @@ FReply FLandscapeEditorDetailCustomization_NewLandscape::OnCreateButtonClicked()
 		LandscapeEdMode->UpdateLandscapeList();
 		LandscapeEdMode->SetLandscapeInfo(LandscapeInfo);
 		LandscapeEdMode->CurrentToolTarget.TargetType = ELandscapeToolTargetType::Heightmap;
-		LandscapeEdMode->CurrentToolTarget.LayerInfo = nullptr;
-		LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;
+		LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
 		LandscapeEdMode->UpdateTargetList();
 
 		LandscapeEdMode->SetCurrentTool("Select"); // change tool so switching back to the manage mode doesn't give "New Landscape" again
