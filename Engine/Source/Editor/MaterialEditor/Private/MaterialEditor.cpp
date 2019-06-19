@@ -127,6 +127,7 @@
 
 #include "SMaterialParametersOverviewWidget.h"
 #include "IPropertyRowGenerator.h"
+#include "TextProperty.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
