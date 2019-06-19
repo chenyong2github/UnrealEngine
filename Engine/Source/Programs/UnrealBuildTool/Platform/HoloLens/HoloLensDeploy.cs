@@ -232,11 +232,11 @@ namespace UnrealBuildTool
 		private void MakePackage(TargetReceipt Receipt, TargetReceipt NewReceipt, WindowsArchitecture Architecture, List<string> UpdatedFiles)
 		{
 			string OutputName = String.Format("{0}_{1}_{2}_{3}", Receipt.TargetName, Receipt.Platform, Receipt.Configuration, WindowsExports.GetArchitectureSubpath(Architecture));
-			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Architecture));
+			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Architecture));
 			string OutputDirectory = Receipt.Launch.Directory.FullName;
 			string OutputAppX = Path.Combine(OutputDirectory, OutputName + ".appx");
 			string SigningCertificate = @"Build\HoloLens\SigningCertificate.pfx";
-			string SigningCertificatePath = Path.Combine(Receipt.ProjectDir.FullName, SigningCertificate);
+			string SigningCertificatePath = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, SigningCertificate);
 
 			string MapFilename = Path.Combine(IntermediateDirectory, OutputName + ".pkgmap");
 			var LocalRoot = Receipt.ProjectDir;
@@ -264,7 +264,7 @@ namespace UnrealBuildTool
 							continue;
 						}
 
-						if (Product.Path.IsUnderDirectory(LocalRoot))
+						if (LocalRoot != null && Product.Path.IsUnderDirectory(LocalRoot))
 						{
 							Filename = Product.Path.MakeRelativeTo(LocalRoot.ParentDirectory);
 						}
@@ -291,7 +291,7 @@ namespace UnrealBuildTool
 						}
 
 						string Filename;
-						if (Dep.Path.IsUnderDirectory(LocalRoot))
+						if (LocalRoot != null && Dep.Path.IsUnderDirectory(LocalRoot))
 						{
 							Filename = Dep.Path.MakeRelativeTo(LocalRoot.ParentDirectory);
 						}
@@ -467,14 +467,14 @@ namespace UnrealBuildTool
 			System.DateTime PrepDeployStartTime = DateTime.UtcNow;
 
 			// Note: TargetReceipt.Read now expands path variables internally.
-			TargetReceipt NewReceipt;
-			var ReceiptFileName = TargetReceipt.GetDefaultPath(Receipt.ProjectDir, Receipt.TargetName, Receipt.Platform, Receipt.Configuration, "Multi");
-			if(!TargetReceipt.TryRead(ReceiptFileName, UnrealBuildTool.EngineDirectory, out NewReceipt))
+			TargetReceipt NewReceipt = null;
+			FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(Receipt.ProjectDir != null ? Receipt.ProjectDir : UnrealBuildTool.EngineDirectory, Receipt.TargetName, Receipt.Platform, Receipt.Configuration, "Multi");
+			if (!TargetReceipt.TryRead(ReceiptFileName, UnrealBuildTool.EngineDirectory, out NewReceipt))
 			{
 				NewReceipt = new TargetReceipt(Receipt.ProjectFile, Receipt.TargetName, Receipt.TargetType, Receipt.Platform, Receipt.Configuration, Receipt.Version, "Multi");
 			}
 
-			AddWinMDReferencesFromReceipt(Receipt, Receipt.ProjectDir, UnrealBuildTool.EngineDirectory.ParentDirectory.FullName);
+			AddWinMDReferencesFromReceipt(Receipt, Receipt.ProjectDir != null ? Receipt.ProjectDir : UnrealBuildTool.EngineDirectory, UnrealBuildTool.EngineDirectory.ParentDirectory.FullName);
 
 			//PrepForUATPackageOrDeploy(InTarget.ProjectFile, InAppName, InTarget.ProjectDirectory.FullName, InTarget.OutputPath.FullName, TargetBuildEnvironment.RelativeEnginePath, false, "", false);
 			List<UnrealTargetConfiguration> TargetConfigs = new List<UnrealTargetConfiguration> { Receipt.Configuration };
@@ -497,10 +497,10 @@ namespace UnrealBuildTool
 
 			string AbsoluteExeDirectory = Path.GetDirectoryName(ExePaths[0]);
 			UnrealTargetPlatform Platform = UnrealTargetPlatform.HoloLens;
-			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Arch));
-			List<string> UpdatedFiles = new HoloLensManifestGenerator().CreateManifest(Platform, Arch, AbsoluteExeDirectory, IntermediateDirectory, Receipt.ProjectFile, Receipt.ProjectDir.FullName, TargetConfigs, ExePaths, WinMDReferences);
+			string IntermediateDirectory = Path.Combine(Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, "Intermediate", "Deploy", WindowsExports.GetArchitectureSubpath(Arch));
+			List<string> UpdatedFiles = new HoloLensManifestGenerator().CreateManifest(Platform, Arch, AbsoluteExeDirectory, IntermediateDirectory, Receipt.ProjectFile, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, TargetConfigs, ExePaths, WinMDReferences);
 
-			PrepForUATPackageOrDeploy(Receipt.ProjectFile, ProjectName, Receipt.ProjectDir.FullName, Arch, TargetConfigs, ExePaths, RelativeEnginePath, false, "", false);
+			PrepForUATPackageOrDeploy(Receipt.ProjectFile, ProjectName, Receipt.ProjectDir != null ? Receipt.ProjectDir.FullName : UnrealBuildTool.EngineDirectory.FullName, Arch, TargetConfigs, ExePaths, RelativeEnginePath, false, "", false);
 			MakePackage(Receipt, NewReceipt, Arch, UpdatedFiles);
 			CopyDataAndSymbolsBetweenReceipts(Receipt, NewReceipt, Arch);
 
