@@ -11,16 +11,19 @@ class UNiagaraNodeOutput;
 class UEdGraphPin;
 class UEdGraphNode;
 class UNiagaraParameterCollection;
+class FHlslNiagaraTranslator;
 
 class FCompileConstantResolver
 {
 public:
-	FCompileConstantResolver() : Emitter(nullptr) {}
-	FCompileConstantResolver(UNiagaraEmitter* Emitter) : Emitter(Emitter) {}
+	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr) {}
+	FCompileConstantResolver(UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
+	FCompileConstantResolver(FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
 
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 private:
 	UNiagaraEmitter* Emitter;
+	FHlslNiagaraTranslator* Translator;
 };
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 
