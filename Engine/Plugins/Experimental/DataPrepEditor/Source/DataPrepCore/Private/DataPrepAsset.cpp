@@ -177,15 +177,20 @@ void UDataprepAsset::Serialize( FArchive& Ar )
 
 	if( Ar.IsLoading() )
 	{
-		check(Consumer);
-		Consumer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnConsumerChanged );
+		if(Consumer != nullptr)
+		{
+			Consumer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnConsumerChanged );
+		}
 
 		check(DataprepRecipeBP);
 		DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnBlueprintChanged );
 
 		for( FDataprepAssetProducer& Producer : Producers )
 		{
-			Producer.Producer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnProducerChanged );
+			if(Producer.Producer)
+			{
+				Producer.Producer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnProducerChanged );
+			}
 		}
 	}
 }
@@ -339,22 +344,27 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 
 bool UDataprepAsset::RunConsumer( const UDataprepContentConsumer::ConsumerContext& InContext, FString& OutReason)
 {
-	if( !Consumer->Initialize( InContext, OutReason ) )
+	if(Consumer)
 	{
-		return false;
+		if( !Consumer->Initialize( InContext, OutReason ) )
+		{
+			return false;
+		}
+
+		// #ueent_todo: Update state of entry: finalizing
+
+		if ( !Consumer->Run() )
+		{
+			// #ueent_todo: Inform execution has failed
+			return false;
+		}
+
+		Consumer->Reset();
+
+		return true;
 	}
 
-	// #ueent_todo: Update state of entry: finalizing
-
-	if ( !Consumer->Run() )
-	{
-		// #ueent_todo: Inform execution has failed
-		return false;
-	}
-
-	Consumer->Reset();
-	
-	return true;
+	return false;
 }
 
 bool UDataprepAsset::AddProducer(UClass* ProducerClass)
@@ -383,11 +393,12 @@ bool UDataprepAsset::RemoveProducer(int32 IndexToRemove)
 {
 	if( Producers.IsValidIndex( IndexToRemove ) )
 	{
-		UDataprepContentProducer* Producer = Producers[IndexToRemove].Producer;
+		if(UDataprepContentProducer* Producer = Producers[IndexToRemove].Producer)
+		{
+			Producer->GetOnChanged().RemoveAll( this );
 
-		Producer->GetOnChanged().RemoveAll( this );
-
-		DataprepAssetUtil::DeleteRegisteredAsset( Producer );
+			DataprepAssetUtil::DeleteRegisteredAsset( Producer );
+		}
 
 		Producers.RemoveAt( IndexToRemove );
 
@@ -535,7 +546,7 @@ void UDataprepAsset::ValidateProducerChanges( int32 InIndex, bool &bChangeAll )
 		{
 			FDataprepAssetProducer& SupersedingAssetProducer = Producers[ InAssetProducer.SupersededBy ];
 
-			if( !SupersedingAssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
+			if( SupersedingAssetProducer.Producer != nullptr && !SupersedingAssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
 			{
 				InAssetProducer.SupersededBy = INDEX_NONE;
 			}
@@ -545,7 +556,8 @@ void UDataprepAsset::ValidateProducerChanges( int32 InIndex, bool &bChangeAll )
 		int32 SupersederIndex = 0;
 		for( FDataprepAssetProducer& AssetProducer : Producers )
 		{
-			if( AssetProducer.Producer != InAssetProducer.Producer &&
+			if( AssetProducer.Producer != nullptr &&
+				AssetProducer.Producer != InAssetProducer.Producer &&
 				AssetProducer.bIsEnabled == true && 
 				AssetProducer.SupersededBy == INDEX_NONE && 
 				AssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
@@ -559,22 +571,25 @@ void UDataprepAsset::ValidateProducerChanges( int32 InIndex, bool &bChangeAll )
 
 		// If input producer superseded any other producer, check if this is still valid
 		// Check if input producer does not supersede other producers
-		for( FDataprepAssetProducer& AssetProducer : Producers )
+		if( InAssetProducer.Producer != nullptr )
 		{
-			if( AssetProducer.Producer != InAssetProducer.Producer )
+			for( FDataprepAssetProducer& AssetProducer : Producers )
 			{
-				if( AssetProducer.SupersededBy == InIndex )
+				if( AssetProducer.Producer != InAssetProducer.Producer )
 				{
-					if( !InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
+					if( AssetProducer.SupersededBy == InIndex )
+					{
+						if( !InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
+						{
+							bChangeAll = true;
+							AssetProducer.SupersededBy = INDEX_NONE;
+						}
+					}
+					else if( InAssetProducer.SupersededBy == INDEX_NONE && InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
 					{
 						bChangeAll = true;
-						AssetProducer.SupersededBy = INDEX_NONE;
+						AssetProducer.SupersededBy = InIndex;
 					}
-				}
-				else if( InAssetProducer.SupersededBy == INDEX_NONE && InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
-				{
-					bChangeAll = true;
-					AssetProducer.SupersededBy = InIndex;
 				}
 			}
 		}

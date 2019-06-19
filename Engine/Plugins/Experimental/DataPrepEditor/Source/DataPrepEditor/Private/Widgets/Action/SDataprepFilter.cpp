@@ -128,6 +128,7 @@ TSharedRef<SWidget> SDataprepFilter::GetContentWidget() const
 				{
 					return Filter->GetFetcher();
 				})
+			.Class( UDataprepFilter::StaticClass() )
 		];
 }
 
