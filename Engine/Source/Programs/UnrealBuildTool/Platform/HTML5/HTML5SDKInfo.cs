@@ -177,7 +177,8 @@ namespace UnrealBuildTool
 				string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
+//					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
+					return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe"); // UE-76260
 				}
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{
