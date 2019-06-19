@@ -475,11 +475,24 @@ public:
 
 public:
 
-	/** Assigns the parent of this node and adds it the the parent's child node list, removing it from its current parent's children if necessary. */
-	void SetParent(TSharedPtr<FSequencerDisplayNode> InParent);
+	/**
+	 * Assigns the parent of this node and adds it the the parent's child node list, removing it from its current parent's children if necessary.
+	 * 
+	 * @param InParent           This node's new parent node
+	 * @param DesiredChildIndex  (optional) An optional index at which this node should be inserted to its new parent node's children array or INDEX_NONE to add it to the end
+	 */
+	void SetParent(TSharedPtr<FSequencerDisplayNode> InParent, int32 DesiredChildIndex = INDEX_NONE);
 
 	/** Directly assigns the parent of this node without performing any other operation. Should only be used with care when child/parent relationships can be guaranteed. */
 	void SetParentDirectly(TSharedPtr<FSequencerDisplayNode> InParent);
+
+	/**
+	 * Move a child of this node from one index to another - does not re-arrange any other children
+	 * 
+	 * @param InChildIndex       The index of the child node to move from
+	 * @param InDesiredNewIndex  The index to move to - must be a valid index within this node's child array.
+	 */
+	void MoveChild(int32 InChildIndex, int32 InDesiredNewIndex);
 
 	/** Request that this node be reinitialized when the tree next refreshes. Currently Initialization only affects default expansion states. */
 	void RequestReinitialize()
