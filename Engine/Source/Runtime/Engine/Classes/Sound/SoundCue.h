@@ -286,7 +286,9 @@ private:
 	/** Recursively sets the branch culling exclusion on random nodes in this sound cue. */
 	void RecursivelySetExcludeBranchCulling(USoundNode* CurrentNode);
 
+	float FindMaxDistanceInternal() const;
+
 	/** Ptr to interface to sound cue editor operations. */
 	static ENGINE_API TSharedPtr<ISoundCueAudioEditor> SoundCueAudioEditor;
-#endif
+#endif // WITH_EDITOR
 };
