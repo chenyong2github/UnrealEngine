@@ -645,14 +645,14 @@ struct CORE_API IConsoleManager
 	 * @param Name must not be 0
 	 * @return 0 if the object wasn't found
 	 */
-	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name) const = 0;
+	virtual IConsoleVariable* FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls = true) const = 0;
 
 	/**
 	* Find a console variable or command
 	* @param Name must not be 0
 	* @return 0 if the object wasn't found
 	*/
-	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name) const = 0;
+	virtual IConsoleObject* FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls = true) const = 0;
 
 	/**
 	 * Find a typed console variable (faster access to the value, no virtual function call)
