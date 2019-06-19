@@ -213,6 +213,16 @@ public:
 		return (PassFlags == ERDGPassFlags::Compute);
 	}
 
+	bool IsCopy() const
+	{
+		return (PassFlags == ERDGPassFlags::Copy);
+	}
+
+	bool IsGraphics() const
+	{
+		return (PassFlags == ERDGPassFlags::None) || (PassFlags == ERDGPassFlags::GenerateMips);
+	}
+
 	FRDGPassParameterStruct GetParameters() const
 	{
 		return ParameterStruct;
