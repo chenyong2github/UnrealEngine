@@ -9,6 +9,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "UObject/LinkerLoad.h"
 #include "Animation/AnimCompressionDerivedData.h"
 #include "DerivedDataCacheInterface.h"
 #include "Animation/AnimCurveCompressionSettings.h"
