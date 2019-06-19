@@ -309,7 +309,6 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 {
 	SCOPE_CYCLE_COUNTER(STAT_SpawnActorTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ActorSpawning);
-	SCOPE_TIME_GUARD_NAMED_MS(TEXT("SpawnActor Of Type"), Class->GetFName(), 2);
 
 #if WITH_EDITORONLY_DATA
 	check( CurrentLevel ); 	
@@ -324,6 +323,8 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		UE_LOG(LogSpawn, Warning, TEXT("SpawnActor failed because no class was specified") );
 		return NULL;
 	}
+
+	SCOPE_TIME_GUARD_NAMED_MS(TEXT("SpawnActor Of Type"), Class->GetFName(), 2);
 
 #if ENABLE_SPAWNACTORTIMER
 	FScopedSpawnActorTimer SpawnTimer(Class->GetFName(), SpawnParameters.bDeferConstruction ? ESpawnActorTimingType::SpawnActorDeferred : ESpawnActorTimingType::SpawnActorNonDeferred);
