@@ -81,9 +81,10 @@ namespace GLTF
 
 		{
 			const FString& TexPrefix = Prefix + TEXT("_texture_");
-			int32          Counter   = 0;
-			for (FTexture& Tex : Textures)
+			for (int32 TextureIndex = 0; TextureIndex != Textures.Num(); ++TextureIndex)
 			{
+				FTexture& Tex = Textures[TextureIndex];
+
 				if (!Tex.Name.IsEmpty())
 					continue;
 
@@ -97,8 +98,13 @@ namespace GLTF
 				}
 				else
 				{
-					Tex.Name = TexPrefix + FString::FromInt(Counter++);
+					Tex.Name = TexPrefix;
 				}
+
+				// GLTF texture name has decorative purpose, not guaranteed to be unique
+				// only its index is unique. Same with glTF image or its source file's basename
+				// So always include texture index into texture's name to increase probability that names are unique
+				Tex.Name = FString::FromInt(TextureIndex) + TEXT("_") + Tex.Name;
 			}
 		}
 
