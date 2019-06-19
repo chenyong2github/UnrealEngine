@@ -170,12 +170,8 @@ FText FLandscapeEditorDetails::GetLocalizedName(FString Name)
 		LOCTEXT("ToolSet_Noise", "Noise");
 		LOCTEXT("ToolSet_Retopologize", "Retopologize");
 		LOCTEXT("ToolSet_Visibility", "Visibility");
-
-		if (LandscapeEdMode->CanHaveLandscapeLayersContent())
-		{
-			LOCTEXT("ToolSet_BlueprintBrush", "Blueprint Brushes");
-		}
-
+		LOCTEXT("ToolSet_BlueprintBrush", "Blueprint Brushes");
+		
 		LOCTEXT("ToolSet_Select", "Selection");
 		LOCTEXT("ToolSet_AddComponent", "Add");
 		LOCTEXT("ToolSet_DeleteComponent", "Delete");
