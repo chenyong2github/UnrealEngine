@@ -924,231 +924,228 @@ void gebp_kernel<LhsScalar,RhsScalar,Index,DataMapper,mr,nr,ConjugateLhs,Conjuga
       // suggests we should be using: either because our known l1 cache size is inaccurate (e.g. on Android, we can only guess),
       // or because we are testing specific blocking sizes.
       const Index actual_panel_rows = (3*LhsProgress) * std::max<Index>(1,( (l1 - sizeof(ResScalar)*mr*nr - depth*nr*sizeof(RhsScalar)) / (depth * sizeof(LhsScalar) * 3*LhsProgress) ));
-      if (peeled_mc3 > 0)
-	  {
-		for(Index i1=0; i1<peeled_mc3; i1+=actual_panel_rows)
-		{
-			const Index actual_panel_end = (std::min)(i1+actual_panel_rows, peeled_mc3);
-			for(Index j2=0; j2<packet_cols4; j2+=nr)
-			{
-				for(Index i=i1; i<actual_panel_end; i+=3*LhsProgress)
-				{
-	          
-				// We selected a 3*Traits::LhsProgress x nr micro block of res which is entirely
-				// stored into 3 x nr registers.
-	          
-				const LhsScalar* blA = &blockA[i*strideA+offsetA*(3*LhsProgress)];
-				prefetch(&blA[0]);
-	
-				// gets res block as register
-				AccPacket C0, C1, C2,  C3,
-						C4, C5, C6,  C7,
-						C8, C9, C10, C11;
-				traits.initAcc(C0);  traits.initAcc(C1);  traits.initAcc(C2);  traits.initAcc(C3);
-				traits.initAcc(C4);  traits.initAcc(C5);  traits.initAcc(C6);  traits.initAcc(C7);
-				traits.initAcc(C8);  traits.initAcc(C9);  traits.initAcc(C10); traits.initAcc(C11);
-	
-				LinearMapper r0 = res.getLinearMapper(i, j2 + 0);
-				LinearMapper r1 = res.getLinearMapper(i, j2 + 1);
-				LinearMapper r2 = res.getLinearMapper(i, j2 + 2);
-				LinearMapper r3 = res.getLinearMapper(i, j2 + 3);
-	
-				r0.prefetch(0);
-				r1.prefetch(0);
-				r2.prefetch(0);
-				r3.prefetch(0);
-	
-				// performs "inner" products
-				const RhsScalar* blB = &blockB[j2*strideB+offsetB*nr];
-				prefetch(&blB[0]);
-				LhsPacket A0, A1;
-	
-				for(Index k=0; k<peeled_kc; k+=pk)
-				{
-				EIGEN_ASM_COMMENT("begin gebp micro kernel 3pX4");
-				RhsPacket B_0, T0;
-				LhsPacket A2;
-	
-	#define EIGEN_GEBP_ONESTEP(K) \
-				do { \
-					EIGEN_ASM_COMMENT("begin step of gebp micro kernel 3pX4"); \
-					EIGEN_ASM_COMMENT("Note: these asm comments work around bug 935!"); \
-					internal::prefetch(blA+(3*K+16)*LhsProgress); \
-					if (EIGEN_ARCH_ARM) { internal::prefetch(blB+(4*K+16)*RhsProgress); } /* Bug 953 */ \
-					traits.loadLhs(&blA[(0+3*K)*LhsProgress], A0);  \
-					traits.loadLhs(&blA[(1+3*K)*LhsProgress], A1);  \
-					traits.loadLhs(&blA[(2+3*K)*LhsProgress], A2);  \
-					traits.loadRhs(blB + (0+4*K)*Traits::RhsProgress, B_0); \
-					traits.madd(A0, B_0, C0, T0); \
-					traits.madd(A1, B_0, C4, T0); \
-					traits.madd(A2, B_0, C8, B_0); \
-					traits.loadRhs(blB + (1+4*K)*Traits::RhsProgress, B_0); \
-					traits.madd(A0, B_0, C1, T0); \
-					traits.madd(A1, B_0, C5, T0); \
-					traits.madd(A2, B_0, C9, B_0); \
-					traits.loadRhs(blB + (2+4*K)*Traits::RhsProgress, B_0); \
-					traits.madd(A0, B_0, C2,  T0); \
-					traits.madd(A1, B_0, C6,  T0); \
-					traits.madd(A2, B_0, C10, B_0); \
-					traits.loadRhs(blB + (3+4*K)*Traits::RhsProgress, B_0); \
-					traits.madd(A0, B_0, C3 , T0); \
-					traits.madd(A1, B_0, C7,  T0); \
-					traits.madd(A2, B_0, C11, B_0); \
-					EIGEN_ASM_COMMENT("end step of gebp micro kernel 3pX4"); \
-				} while(false)
-	
-				internal::prefetch(blB);
-				EIGEN_GEBP_ONESTEP(0);
-				EIGEN_GEBP_ONESTEP(1);
-				EIGEN_GEBP_ONESTEP(2);
-				EIGEN_GEBP_ONESTEP(3);
-				EIGEN_GEBP_ONESTEP(4);
-				EIGEN_GEBP_ONESTEP(5);
-				EIGEN_GEBP_ONESTEP(6);
-				EIGEN_GEBP_ONESTEP(7);
-	
-				blB += pk*4*RhsProgress;
-				blA += pk*3*Traits::LhsProgress;
-	
-				EIGEN_ASM_COMMENT("end gebp micro kernel 3pX4");
-				}
-				// process remaining peeled loop
-				for(Index k=peeled_kc; k<depth; k++)
-				{
-				RhsPacket B_0, T0;
-				LhsPacket A2;
-				EIGEN_GEBP_ONESTEP(0);
-				blB += 4*RhsProgress;
-				blA += 3*Traits::LhsProgress;
-				}
-	
-	#undef EIGEN_GEBP_ONESTEP
-	
-				ResPacket R0, R1, R2;
-				ResPacket alphav = pset1<ResPacket>(alpha);
-	
-				R0 = r0.loadPacket(0 * Traits::ResPacketSize);
-				R1 = r0.loadPacket(1 * Traits::ResPacketSize);
-				R2 = r0.loadPacket(2 * Traits::ResPacketSize);
-				traits.acc(C0, alphav, R0);
-				traits.acc(C4, alphav, R1);
-				traits.acc(C8, alphav, R2);
-				r0.storePacket(0 * Traits::ResPacketSize, R0);
-				r0.storePacket(1 * Traits::ResPacketSize, R1);
-				r0.storePacket(2 * Traits::ResPacketSize, R2);
-	
-				R0 = r1.loadPacket(0 * Traits::ResPacketSize);
-				R1 = r1.loadPacket(1 * Traits::ResPacketSize);
-				R2 = r1.loadPacket(2 * Traits::ResPacketSize);
-				traits.acc(C1, alphav, R0);
-				traits.acc(C5, alphav, R1);
-				traits.acc(C9, alphav, R2);
-				r1.storePacket(0 * Traits::ResPacketSize, R0);
-				r1.storePacket(1 * Traits::ResPacketSize, R1);
-				r1.storePacket(2 * Traits::ResPacketSize, R2);
-	
-				R0 = r2.loadPacket(0 * Traits::ResPacketSize);
-				R1 = r2.loadPacket(1 * Traits::ResPacketSize);
-				R2 = r2.loadPacket(2 * Traits::ResPacketSize);
-				traits.acc(C2, alphav, R0);
-				traits.acc(C6, alphav, R1);
-				traits.acc(C10, alphav, R2);
-				r2.storePacket(0 * Traits::ResPacketSize, R0);
-				r2.storePacket(1 * Traits::ResPacketSize, R1);
-				r2.storePacket(2 * Traits::ResPacketSize, R2);
-	
-				R0 = r3.loadPacket(0 * Traits::ResPacketSize);
-				R1 = r3.loadPacket(1 * Traits::ResPacketSize);
-				R2 = r3.loadPacket(2 * Traits::ResPacketSize);
-				traits.acc(C3, alphav, R0);
-				traits.acc(C7, alphav, R1);
-				traits.acc(C11, alphav, R2);
-				r3.storePacket(0 * Traits::ResPacketSize, R0);
-				r3.storePacket(1 * Traits::ResPacketSize, R1);
-				r3.storePacket(2 * Traits::ResPacketSize, R2);          
-				}
-			}
-	
-			// Deal with remaining columns of the rhs
-			for(Index j2=packet_cols4; j2<cols; j2++)
-			{
-				for(Index i=i1; i<actual_panel_end; i+=3*LhsProgress)
-				{
-				// One column at a time
-				const LhsScalar* blA = &blockA[i*strideA+offsetA*(3*Traits::LhsProgress)];
-				prefetch(&blA[0]);
-	
-				// gets res block as register
-				AccPacket C0, C4, C8;
-				traits.initAcc(C0);
-				traits.initAcc(C4);
-				traits.initAcc(C8);
-	
-				LinearMapper r0 = res.getLinearMapper(i, j2);
-				r0.prefetch(0);
-	
-				// performs "inner" products
-				const RhsScalar* blB = &blockB[j2*strideB+offsetB];
-				LhsPacket A0, A1, A2;
-	          
-				for(Index k=0; k<peeled_kc; k+=pk)
-				{
-				EIGEN_ASM_COMMENT("begin gebp micro kernel 3pX1");
-				RhsPacket B_0;
-	#define EIGEN_GEBGP_ONESTEP(K) \
-				do { \
-					EIGEN_ASM_COMMENT("begin step of gebp micro kernel 3pX1"); \
-					EIGEN_ASM_COMMENT("Note: these asm comments work around bug 935!"); \
-					traits.loadLhs(&blA[(0+3*K)*LhsProgress], A0);  \
-					traits.loadLhs(&blA[(1+3*K)*LhsProgress], A1);  \
-					traits.loadLhs(&blA[(2+3*K)*LhsProgress], A2);  \
-					traits.loadRhs(&blB[(0+K)*RhsProgress], B_0);   \
-					traits.madd(A0, B_0, C0, B_0); \
-					traits.madd(A1, B_0, C4, B_0); \
-					traits.madd(A2, B_0, C8, B_0); \
-					EIGEN_ASM_COMMENT("end step of gebp micro kernel 3pX1"); \
-				} while(false)
-	        
-				EIGEN_GEBGP_ONESTEP(0);
-				EIGEN_GEBGP_ONESTEP(1);
-				EIGEN_GEBGP_ONESTEP(2);
-				EIGEN_GEBGP_ONESTEP(3);
-				EIGEN_GEBGP_ONESTEP(4);
-				EIGEN_GEBGP_ONESTEP(5);
-				EIGEN_GEBGP_ONESTEP(6);
-				EIGEN_GEBGP_ONESTEP(7);
-	
-				blB += pk*RhsProgress;
-				blA += pk*3*Traits::LhsProgress;
-	
-				EIGEN_ASM_COMMENT("end gebp micro kernel 3pX1");
-				}
-	
-				// process remaining peeled loop
-				for(Index k=peeled_kc; k<depth; k++)
-				{
-				RhsPacket B_0;
-				EIGEN_GEBGP_ONESTEP(0);
-				blB += RhsProgress;
-				blA += 3*Traits::LhsProgress;
-				}
-	#undef EIGEN_GEBGP_ONESTEP
-				ResPacket R0, R1, R2;
-				ResPacket alphav = pset1<ResPacket>(alpha);
-	
-				R0 = r0.loadPacket(0 * Traits::ResPacketSize);
-				R1 = r0.loadPacket(1 * Traits::ResPacketSize);
-				R2 = r0.loadPacket(2 * Traits::ResPacketSize);
-				traits.acc(C0, alphav, R0);
-				traits.acc(C4, alphav, R1);
-				traits.acc(C8, alphav, R2);
-				r0.storePacket(0 * Traits::ResPacketSize, R0);
-				r0.storePacket(1 * Traits::ResPacketSize, R1);
-				r0.storePacket(2 * Traits::ResPacketSize, R2);          
-				}
-			}
-	      }
-}
+      for(Index i1=0; i1<peeled_mc3; i1+=actual_panel_rows)
+      {
+        const Index actual_panel_end = (std::min)(i1+actual_panel_rows, peeled_mc3);
+        for(Index j2=0; j2<packet_cols4; j2+=nr)
+        {
+          for(Index i=i1; i<actual_panel_end; i+=3*LhsProgress)
+          {
+          
+          // We selected a 3*Traits::LhsProgress x nr micro block of res which is entirely
+          // stored into 3 x nr registers.
+          
+          const LhsScalar* blA = &blockA[i*strideA+offsetA*(3*LhsProgress)];
+          prefetch(&blA[0]);
+
+          // gets res block as register
+          AccPacket C0, C1, C2,  C3,
+                    C4, C5, C6,  C7,
+                    C8, C9, C10, C11;
+          traits.initAcc(C0);  traits.initAcc(C1);  traits.initAcc(C2);  traits.initAcc(C3);
+          traits.initAcc(C4);  traits.initAcc(C5);  traits.initAcc(C6);  traits.initAcc(C7);
+          traits.initAcc(C8);  traits.initAcc(C9);  traits.initAcc(C10); traits.initAcc(C11);
+
+          LinearMapper r0 = res.getLinearMapper(i, j2 + 0);
+          LinearMapper r1 = res.getLinearMapper(i, j2 + 1);
+          LinearMapper r2 = res.getLinearMapper(i, j2 + 2);
+          LinearMapper r3 = res.getLinearMapper(i, j2 + 3);
+
+          r0.prefetch(0);
+          r1.prefetch(0);
+          r2.prefetch(0);
+          r3.prefetch(0);
+
+          // performs "inner" products
+          const RhsScalar* blB = &blockB[j2*strideB+offsetB*nr];
+          prefetch(&blB[0]);
+          LhsPacket A0, A1;
+
+          for(Index k=0; k<peeled_kc; k+=pk)
+          {
+            EIGEN_ASM_COMMENT("begin gebp micro kernel 3pX4");
+            RhsPacket B_0, T0;
+            LhsPacket A2;
+
+#define EIGEN_GEBP_ONESTEP(K) \
+            do { \
+              EIGEN_ASM_COMMENT("begin step of gebp micro kernel 3pX4"); \
+              EIGEN_ASM_COMMENT("Note: these asm comments work around bug 935!"); \
+              internal::prefetch(blA+(3*K+16)*LhsProgress); \
+              if (EIGEN_ARCH_ARM) { internal::prefetch(blB+(4*K+16)*RhsProgress); } /* Bug 953 */ \
+              traits.loadLhs(&blA[(0+3*K)*LhsProgress], A0);  \
+              traits.loadLhs(&blA[(1+3*K)*LhsProgress], A1);  \
+              traits.loadLhs(&blA[(2+3*K)*LhsProgress], A2);  \
+              traits.loadRhs(blB + (0+4*K)*Traits::RhsProgress, B_0); \
+              traits.madd(A0, B_0, C0, T0); \
+              traits.madd(A1, B_0, C4, T0); \
+              traits.madd(A2, B_0, C8, B_0); \
+              traits.loadRhs(blB + (1+4*K)*Traits::RhsProgress, B_0); \
+              traits.madd(A0, B_0, C1, T0); \
+              traits.madd(A1, B_0, C5, T0); \
+              traits.madd(A2, B_0, C9, B_0); \
+              traits.loadRhs(blB + (2+4*K)*Traits::RhsProgress, B_0); \
+              traits.madd(A0, B_0, C2,  T0); \
+              traits.madd(A1, B_0, C6,  T0); \
+              traits.madd(A2, B_0, C10, B_0); \
+              traits.loadRhs(blB + (3+4*K)*Traits::RhsProgress, B_0); \
+              traits.madd(A0, B_0, C3 , T0); \
+              traits.madd(A1, B_0, C7,  T0); \
+              traits.madd(A2, B_0, C11, B_0); \
+              EIGEN_ASM_COMMENT("end step of gebp micro kernel 3pX4"); \
+            } while(false)
+
+            internal::prefetch(blB);
+            EIGEN_GEBP_ONESTEP(0);
+            EIGEN_GEBP_ONESTEP(1);
+            EIGEN_GEBP_ONESTEP(2);
+            EIGEN_GEBP_ONESTEP(3);
+            EIGEN_GEBP_ONESTEP(4);
+            EIGEN_GEBP_ONESTEP(5);
+            EIGEN_GEBP_ONESTEP(6);
+            EIGEN_GEBP_ONESTEP(7);
+
+            blB += pk*4*RhsProgress;
+            blA += pk*3*Traits::LhsProgress;
+
+            EIGEN_ASM_COMMENT("end gebp micro kernel 3pX4");
+          }
+          // process remaining peeled loop
+          for(Index k=peeled_kc; k<depth; k++)
+          {
+            RhsPacket B_0, T0;
+            LhsPacket A2;
+            EIGEN_GEBP_ONESTEP(0);
+            blB += 4*RhsProgress;
+            blA += 3*Traits::LhsProgress;
+          }
+
+#undef EIGEN_GEBP_ONESTEP
+
+          ResPacket R0, R1, R2;
+          ResPacket alphav = pset1<ResPacket>(alpha);
+
+          R0 = r0.loadPacket(0 * Traits::ResPacketSize);
+          R1 = r0.loadPacket(1 * Traits::ResPacketSize);
+          R2 = r0.loadPacket(2 * Traits::ResPacketSize);
+          traits.acc(C0, alphav, R0);
+          traits.acc(C4, alphav, R1);
+          traits.acc(C8, alphav, R2);
+          r0.storePacket(0 * Traits::ResPacketSize, R0);
+          r0.storePacket(1 * Traits::ResPacketSize, R1);
+          r0.storePacket(2 * Traits::ResPacketSize, R2);
+
+          R0 = r1.loadPacket(0 * Traits::ResPacketSize);
+          R1 = r1.loadPacket(1 * Traits::ResPacketSize);
+          R2 = r1.loadPacket(2 * Traits::ResPacketSize);
+          traits.acc(C1, alphav, R0);
+          traits.acc(C5, alphav, R1);
+          traits.acc(C9, alphav, R2);
+          r1.storePacket(0 * Traits::ResPacketSize, R0);
+          r1.storePacket(1 * Traits::ResPacketSize, R1);
+          r1.storePacket(2 * Traits::ResPacketSize, R2);
+
+          R0 = r2.loadPacket(0 * Traits::ResPacketSize);
+          R1 = r2.loadPacket(1 * Traits::ResPacketSize);
+          R2 = r2.loadPacket(2 * Traits::ResPacketSize);
+          traits.acc(C2, alphav, R0);
+          traits.acc(C6, alphav, R1);
+          traits.acc(C10, alphav, R2);
+          r2.storePacket(0 * Traits::ResPacketSize, R0);
+          r2.storePacket(1 * Traits::ResPacketSize, R1);
+          r2.storePacket(2 * Traits::ResPacketSize, R2);
+
+          R0 = r3.loadPacket(0 * Traits::ResPacketSize);
+          R1 = r3.loadPacket(1 * Traits::ResPacketSize);
+          R2 = r3.loadPacket(2 * Traits::ResPacketSize);
+          traits.acc(C3, alphav, R0);
+          traits.acc(C7, alphav, R1);
+          traits.acc(C11, alphav, R2);
+          r3.storePacket(0 * Traits::ResPacketSize, R0);
+          r3.storePacket(1 * Traits::ResPacketSize, R1);
+          r3.storePacket(2 * Traits::ResPacketSize, R2);          
+          }
+        }
+
+        // Deal with remaining columns of the rhs
+        for(Index j2=packet_cols4; j2<cols; j2++)
+        {
+          for(Index i=i1; i<actual_panel_end; i+=3*LhsProgress)
+          {
+          // One column at a time
+          const LhsScalar* blA = &blockA[i*strideA+offsetA*(3*Traits::LhsProgress)];
+          prefetch(&blA[0]);
+
+          // gets res block as register
+          AccPacket C0, C4, C8;
+          traits.initAcc(C0);
+          traits.initAcc(C4);
+          traits.initAcc(C8);
+
+          LinearMapper r0 = res.getLinearMapper(i, j2);
+          r0.prefetch(0);
+
+          // performs "inner" products
+          const RhsScalar* blB = &blockB[j2*strideB+offsetB];
+          LhsPacket A0, A1, A2;
+          
+          for(Index k=0; k<peeled_kc; k+=pk)
+          {
+            EIGEN_ASM_COMMENT("begin gebp micro kernel 3pX1");
+            RhsPacket B_0;
+#define EIGEN_GEBGP_ONESTEP(K) \
+            do { \
+              EIGEN_ASM_COMMENT("begin step of gebp micro kernel 3pX1"); \
+              EIGEN_ASM_COMMENT("Note: these asm comments work around bug 935!"); \
+              traits.loadLhs(&blA[(0+3*K)*LhsProgress], A0);  \
+              traits.loadLhs(&blA[(1+3*K)*LhsProgress], A1);  \
+              traits.loadLhs(&blA[(2+3*K)*LhsProgress], A2);  \
+              traits.loadRhs(&blB[(0+K)*RhsProgress], B_0);   \
+              traits.madd(A0, B_0, C0, B_0); \
+              traits.madd(A1, B_0, C4, B_0); \
+              traits.madd(A2, B_0, C8, B_0); \
+              EIGEN_ASM_COMMENT("end step of gebp micro kernel 3pX1"); \
+            } while(false)
+        
+            EIGEN_GEBGP_ONESTEP(0);
+            EIGEN_GEBGP_ONESTEP(1);
+            EIGEN_GEBGP_ONESTEP(2);
+            EIGEN_GEBGP_ONESTEP(3);
+            EIGEN_GEBGP_ONESTEP(4);
+            EIGEN_GEBGP_ONESTEP(5);
+            EIGEN_GEBGP_ONESTEP(6);
+            EIGEN_GEBGP_ONESTEP(7);
+
+            blB += pk*RhsProgress;
+            blA += pk*3*Traits::LhsProgress;
+
+            EIGEN_ASM_COMMENT("end gebp micro kernel 3pX1");
+          }
+
+          // process remaining peeled loop
+          for(Index k=peeled_kc; k<depth; k++)
+          {
+            RhsPacket B_0;
+            EIGEN_GEBGP_ONESTEP(0);
+            blB += RhsProgress;
+            blA += 3*Traits::LhsProgress;
+          }
+#undef EIGEN_GEBGP_ONESTEP
+          ResPacket R0, R1, R2;
+          ResPacket alphav = pset1<ResPacket>(alpha);
+
+          R0 = r0.loadPacket(0 * Traits::ResPacketSize);
+          R1 = r0.loadPacket(1 * Traits::ResPacketSize);
+          R2 = r0.loadPacket(2 * Traits::ResPacketSize);
+          traits.acc(C0, alphav, R0);
+          traits.acc(C4, alphav, R1);
+          traits.acc(C8, alphav, R2);
+          r0.storePacket(0 * Traits::ResPacketSize, R0);
+          r0.storePacket(1 * Traits::ResPacketSize, R1);
+          r0.storePacket(2 * Traits::ResPacketSize, R2);          
+          }
+        }
+      }
     }
 
     //---------- Process 2 * LhsProgress rows at once ----------
