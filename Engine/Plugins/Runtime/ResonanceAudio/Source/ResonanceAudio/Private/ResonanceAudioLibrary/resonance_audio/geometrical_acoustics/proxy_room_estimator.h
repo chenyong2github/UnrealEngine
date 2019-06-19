@@ -21,7 +21,7 @@ limitations under the License.
 #include <utility>
 #include <vector>
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include "api/resonance_audio_api.h"
 #include "base/constants_and_types.h"
 #include "base/misc_math.h"
