@@ -7,6 +7,7 @@
 
 class FSequencerSectionKeyAreaNode;
 class SOverlay;
+class IKeyArea;
 
 class SKeyAreaEditorSwitcher : public SCompoundWidget
 {
@@ -22,11 +23,10 @@ public:
 
 private:
 
-	/** Get the widget's visibility that corresponds to the specified key area index */
-	EVisibility GetWidgetVisibility(int32 Index) const;
-
 	/** Tick this widget. Updates the currently visible key editor */
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
+
+	int32 GetWidgetIndex() const;
 
 private:
 
@@ -36,4 +36,6 @@ private:
 	int32 VisibleIndex;
 	/** The key area to which we relate */
 	TWeakPtr<FSequencerSectionKeyAreaNode> WeakKeyAreaNode;
+	/** Key areas cached from the node */
+	TArray<TSharedRef<IKeyArea>> CachedKeyAreas;
 };
