@@ -897,7 +897,8 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("MergeActors"),
 			TEXT("InputBindingEditor"),
 			TEXT("AudioEditor"),
-			TEXT("TimeManagementEditor")
+			TEXT("TimeManagementEditor"),
+			TEXT("EditorInteractiveToolsFramework")
 		};
 
 		FScopedSlowTask ModuleSlowTask(ARRAY_COUNT(ModuleNames));

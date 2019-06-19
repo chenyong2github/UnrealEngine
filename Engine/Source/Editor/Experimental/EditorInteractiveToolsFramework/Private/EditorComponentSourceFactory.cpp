@@ -8,28 +8,23 @@
 #include "PhysicsEngine/BodySetup.h"
 
 
-TUniquePtr<IMeshDescriptionSource> FEditorComponentSourceFactory::MakeMeshDescriptionSource(UActorComponent* Component)
+TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSourceForStaticMesh(UActorComponent* Component)
 {
 	UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component);
 	if (StaticMeshComp != nullptr)
 	{
-		auto NewSource = new FStaticMeshComponentMeshDescriptionSource(StaticMeshComp, 0);
+		auto NewSource =
+			new FStaticMeshComponentMeshDescriptionSource(StaticMeshComp, 0);
 		return TUniquePtr<IMeshDescriptionSource>(NewSource);
 	}
 	return nullptr;
 }
 
 
-
-
-
 FStaticMeshComponentMeshDescriptionSource::FStaticMeshComponentMeshDescriptionSource(
-	UStaticMeshComponent* ComponentIn, int LODIndex)
+	UStaticMeshComponent* ComponentIn, int LODIndex) : Component{ComponentIn}, LODIndex(LODIndex)
 {
-	this->Component = ComponentIn;
-	this->LODIndex = LODIndex;
 }
-
 
 AActor* FStaticMeshComponentMeshDescriptionSource::GetOwnerActor() const
 {

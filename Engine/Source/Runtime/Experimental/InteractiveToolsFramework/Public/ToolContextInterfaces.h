@@ -32,13 +32,6 @@ struct INTERACTIVETOOLSFRAMEWORK_API FToolBuilderState
 	USelection* SelectedActors = nullptr;
 	/** Current selected Components. May be empty or nullptr. */
 	USelection* SelectedComponents = nullptr;
-
-	/** Implementation that can build Sources (like MeshDescriptionSource) for Components */
-	IComponentSourceFactory* SourceBuilder = nullptr;
-
-	FToolBuilderState()
-	{
-	}
 };
 
 

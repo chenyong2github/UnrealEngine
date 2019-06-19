@@ -55,7 +55,6 @@ public:
 		StateOut.World = EditorMode->GetWorld();
 		StateOut.SelectedActors = EditorMode->GetModeManager()->GetSelectedActors();
 		StateOut.SelectedComponents = EditorMode->GetModeManager()->GetSelectedComponents();
-		StateOut.SourceBuilder = ToolsContext->GetComponentSourceFactory();
 	}
 
 
@@ -309,7 +308,6 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
 	AssetAPI = nullptr;
-	SourceFactory = nullptr;
 }
 
 
@@ -351,7 +349,6 @@ void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* Editor
 	this->TransactionAPI = new FEdModeToolsContextTransactionImpl(this, EditorModeIn);
 	this->QueriesAPI = new FEdModeToolsContextQueriesImpl(this, EditorModeIn);
 	this->AssetAPI = new FEditorToolAssetAPI();
-	this->SourceFactory = new FEditorComponentSourceFactory();
 
 	Initialize(QueriesAPI, TransactionAPI);
 
@@ -385,12 +382,6 @@ void UEdModeInteractiveToolsContext::ShutdownContext()
 	{
 		delete AssetAPI;
 		AssetAPI = nullptr;
-	}
-
-	if (SourceFactory != nullptr)
-	{
-		delete SourceFactory;
-		SourceFactory = nullptr;
 	}
 
 	this->EditorMode = nullptr;

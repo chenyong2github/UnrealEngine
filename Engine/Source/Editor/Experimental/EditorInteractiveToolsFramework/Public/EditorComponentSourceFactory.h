@@ -8,21 +8,6 @@
 
 
 
-/**
- * Component Source Factory for use in the Editor (ie inside FEdMode, etc)
- */
-class EDITORINTERACTIVETOOLSFRAMEWORK_API FEditorComponentSourceFactory : public IComponentSourceFactory
-{
-public:
-	virtual ~FEditorComponentSourceFactory() {}
-
-	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component);
-};
-
-
-
-
-
 class UStaticMeshComponent;
 
 /**
@@ -31,8 +16,8 @@ class UStaticMeshComponent;
 class EDITORINTERACTIVETOOLSFRAMEWORK_API FStaticMeshComponentMeshDescriptionSource : public IMeshDescriptionSource
 {
 public:
-	UStaticMeshComponent* Component;
-	int LODIndex;
+	UStaticMeshComponent* Component{nullptr};
+	int LODIndex{0};
 
 	FStaticMeshComponentMeshDescriptionSource(
 		UStaticMeshComponent* ComponentIn,
@@ -51,4 +36,7 @@ public:
 	virtual void SetOwnerVisibility(bool bVisible) const override;
 	virtual void CommitInPlaceModification(const TFunction<void(FMeshDescription*)>& ModifyFunction) override;
 };
+
+EDITORINTERACTIVETOOLSFRAMEWORK_API TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSourceForStaticMesh(UActorComponent* Component);
+
 

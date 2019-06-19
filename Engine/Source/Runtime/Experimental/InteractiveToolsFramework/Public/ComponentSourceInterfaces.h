@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Math/UnrealMath.h"
+#include "Templates/Function.h"
 #include "Engine/EngineTypes.h"    // FHitResult
 
 // predeclarations
@@ -82,19 +83,18 @@ public:
 
 
 
+using MeshDescriptionSourceBuilder = TFunction<TUniquePtr<IMeshDescriptionSource>(UActorComponent*)>;
+
 /**
- * Interface to a Factory that knows how to build Sources for UObjects. 
+ * Add a factory method to make MeshDescriptionSources from UActorComponent*
+ * @param Builder The MeshDescriptionSourceBuilder
+ * @return void
  */
-class IComponentSourceFactory
-{
-public:
-	virtual ~IComponentSourceFactory() {}
+INTERACTIVETOOLSFRAMEWORK_API void AddMeshDescriptionSourceBuilder( MeshDescriptionSourceBuilder Builder );
 
-	/**
-	 * Create a MeshDescription source for the given Component
-	 * @param Component A UObject that can provide a MeshDescription. Assumption is this is a Component of an Actor.
-	 * @return A MeshDescriptionSource instance. Must not return null.
-	 */
-	virtual TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component) = 0;
-};
-
+/**
+ * Create a MeshDescription source for the given Component
+ * @param Component A UObject that can provide a MeshDescription. Assumption is this is a Component of an Actor.
+ * @return A MeshDescriptionSource instance. Must not return null.
+ */
+INTERACTIVETOOLSFRAMEWORK_API TUniquePtr<IMeshDescriptionSource> MakeMeshDescriptionSource(UActorComponent* Component);

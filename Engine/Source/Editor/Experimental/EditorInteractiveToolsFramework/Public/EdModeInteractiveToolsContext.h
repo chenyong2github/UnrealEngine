@@ -34,7 +34,6 @@ public:
 	IToolsContextQueriesAPI* GetQueriesAPI() const { return QueriesAPI; }
 	IToolsContextTransactionsAPI* GetTransactionAPI() const { return TransactionAPI; }
 	IToolsContextAssetAPI* GetAssetAPI() const { return AssetAPI; }
-	IComponentSourceFactory* GetComponentSourceFactory() const { return SourceFactory; }
 
 	virtual void PostInvalidation();
 
@@ -94,7 +93,6 @@ protected:
 	IToolsContextQueriesAPI* QueriesAPI;
 	IToolsContextTransactionsAPI* TransactionAPI;
 	IToolsContextAssetAPI* AssetAPI;
-	IComponentSourceFactory* SourceFactory;
 
 	// if true, we invalidate the ViewportClient on next tick
 	bool bInvalidationPending;

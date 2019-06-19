@@ -31,8 +31,7 @@ void UMeshSurfacePointToolBuilder::InitializeNewTool(UMeshSurfacePointTool* NewT
 {
 	UActorComponent* MeshComponent = ToolBuilderUtil::FindFirstComponent(SceneState, ToolBuilderUtil::IsMeshDescriptionSourceComponent);
 	check(MeshComponent != nullptr);
-	NewTool->SetMeshSource(
-		SceneState.SourceBuilder->MakeMeshDescriptionSource(MeshComponent) );
+	NewTool->SetMeshSource( MakeMeshDescriptionSource(MeshComponent) );
 }
 
 
