@@ -35,401 +35,9 @@
 #include "Curves/CurveLinearColor.h"
 #include "IPropertyUtilities.h"
 
+
 #define LOCTEXT_NAMESPACE "MaterialEditor"
 
-TSharedRef<IDetailCustomization> FMaterialEditorParameterDetails::MakeInstance(UMaterialEditorPreviewParameters* Material)
-{
-	return MakeShareable(new FMaterialEditorParameterDetails(Material));
-}
-
-FMaterialEditorParameterDetails::FMaterialEditorParameterDetails(UMaterialEditorPreviewParameters* Material)
-	: MaterialEditorInstance(Material)
-{
-}
-
-
-TOptional<float> FMaterialEditorParameterDetails::OnGetValue(TSharedRef<IPropertyHandle> PropertyHandle)
-{
-	float Value = 0.0f;
-	if (PropertyHandle->GetValue(Value) == FPropertyAccess::Success)
-	{
-		return TOptional<float>(Value);
-	}
-
-	// Value couldn't be accessed. Return an unset value
-	return TOptional<float>();
-}
-
-void FMaterialEditorParameterDetails::OnValueCommitted(float NewValue, ETextCommit::Type CommitType, TSharedRef<IPropertyHandle> PropertyHandle)
-{
-	// Try setting as float, if that fails then set as int
-	ensure(PropertyHandle->SetValue(NewValue) == FPropertyAccess::Success);
-}
-
-void FMaterialEditorParameterDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
-{
-	PropertyUtilities = DetailLayout.GetPropertyUtilities();
-	// Create a new category for a custom layout for the MIC parameters at the very top
-	FName GroupsCategoryName = TEXT("ParameterGroups");
-	IDetailCategoryBuilder& GroupsCategory = DetailLayout.EditCategory(GroupsCategoryName, LOCTEXT("MICParamGroupsTitle", "Parameter Groups"));
-	TSharedRef<IPropertyHandle> ParameterGroupsProperty = DetailLayout.GetProperty("ParameterGroups");
-
-	CreateGroupsWidget(ParameterGroupsProperty, GroupsCategory);
-
-	DetailLayout.HideProperty("ParameterGroups");
-
-	TArray<UObject*> ExternalObjects;
-	ExternalObjects.Add(MaterialEditorInstance->OriginalMaterial);
-}
-
-
-void FMaterialEditorParameterDetails::CreateGroupsWidget(TSharedRef<IPropertyHandle> ParameterGroupsProperty, IDetailCategoryBuilder& GroupsCategory)
-{
-	check(MaterialEditorInstance);
-	bool bShowSaveButtons = false;
-	for (int32 GroupIdx = 0; GroupIdx < MaterialEditorInstance->ParameterGroups.Num(); ++GroupIdx)
-	{
-		FEditorParameterGroup& ParameterGroup = MaterialEditorInstance->ParameterGroups[GroupIdx];
-		if (ParameterGroup.GroupAssociation == EMaterialParameterAssociation::GlobalParameter
-			&& ParameterGroup.GroupName != FMaterialPropertyHelpers::LayerParamName)
-		{
-			IDetailGroup& DetailGroup = GroupsCategory.AddGroup(ParameterGroup.GroupName, FText::FromName(ParameterGroup.GroupName), false, true);
-			CreateSingleGroupWidget(ParameterGroup, ParameterGroupsProperty->GetChildHandle(GroupIdx), DetailGroup);
-			bShowSaveButtons = true;
-		}
-	}
-	if (bShowSaveButtons)
-	{
-		FOnClicked ChildButtonClicked;
-		UObject* LocalEditorInstance = MaterialEditorInstance;
-		if (MaterialEditorInstance->OriginalMaterial)
-		{
-			ChildButtonClicked = FOnClicked::CreateStatic(FMaterialPropertyHelpers::OnClickedSaveNewMaterialInstance,
-				ImplicitConv<UMaterialInterface*>(MaterialEditorInstance->OriginalMaterial), LocalEditorInstance);
-		}
-		if (MaterialEditorInstance->OriginalFunction)
-		{
-			ChildButtonClicked = FOnClicked::CreateStatic(FMaterialPropertyHelpers::OnClickedSaveNewFunctionInstance,
-				ImplicitConv<UMaterialFunctionInterface*>(MaterialEditorInstance->OriginalFunction), ImplicitConv<UMaterialInterface*>(MaterialEditorInstance->PreviewMaterial), LocalEditorInstance);
-		}
-
-		FDetailWidgetRow& SaveInstanceRow = GroupsCategory.AddCustomRow(LOCTEXT("SaveInstances", "Save Instances"));
-		SaveInstanceRow.ValueContent()
-			.HAlign(HAlign_Fill)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNullWidget::NullWidget
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f)
-				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Dark")
-					.HAlign(HAlign_Center)
-					.OnClicked(ChildButtonClicked)
-					.ToolTipText(LOCTEXT("SaveToChildInstance", "Save To Child Instance"))
-					.Content()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Text(FText::FromString(FString(TEXT("\xf0c7 \xf149"))) /*fa-filter*/)
-						]
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-							.Text(FText::FromString(FString(TEXT(" Save Child"))) /*fa-filter*/)
-						]
-					]
-				]
-			];
-	}
-	else
-	{
-		FDetailWidgetRow& NoParameters = GroupsCategory.AddCustomRow(LOCTEXT("NoParameters", "No Parameters"));
-		NoParameters.WholeRowContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("AddGlobalParameterPrompt", "Add a global parameter to see it here. \nMaterial Attribute Layers parameters are found in the Layer Parameter Preview panel."))
-				.AutoWrapText(true)
-			];
-	}
-}
-
-
-void FMaterialEditorParameterDetails::CreateSingleGroupWidget(FEditorParameterGroup& ParameterGroup, TSharedPtr<IPropertyHandle> ParameterGroupProperty, IDetailGroup& DetailGroup)
-{
-	TSharedPtr<IPropertyHandle> ParametersArrayProperty = ParameterGroupProperty->GetChildHandle("Parameters");
-
-	// Create a custom widget for each parameter in the group
-	for (int32 ParamIdx = 0; ParamIdx < ParameterGroup.Parameters.Num(); ++ParamIdx)
-	{
-		TSharedPtr<IPropertyHandle> ParameterProperty = ParametersArrayProperty->GetChildHandle(ParamIdx);
-
-		FString ParameterName = ParameterGroup.Parameters[ParamIdx]->ParameterInfo.Name.ToString();
-
-		UDEditorParameterValue* Parameter = ParameterGroup.Parameters[ParamIdx];
-		UDEditorFontParameterValue* FontParam = Cast<UDEditorFontParameterValue>(Parameter);
-		UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
-		UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(Parameter);
-		UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(Parameter);
-		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
-		UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
-		UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(Parameter);
-
-		if (VectorParam && VectorParam->bIsUsedAsChannelMask)
-		{
-			CreateVectorChannelMaskParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
-		}
-		if (ScalarParam && ScalarParam->AtlasData.bIsUsedAsAtlasPosition)
-		{
-			CreateScalarAtlasPositionParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
-		}
-		else if (ScalarParam || SwitchParam || TextureParam || VectorParam || FontParam)
-		{
-			if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
-			{
-				TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
-				ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
-				ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
-			}
-
-			CreateParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
-		}
-		else if (LayersParam)
-		{
-		}
-		else if (CompMaskParam)
-		{
-			CreateMaskParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
-		}
-		else
-		{
-			// Unsupported parameter type
-			check(false);
-		}
-	}
-}
-
-
-void FMaterialEditorParameterDetails::CreateParameterValueWidget(UDEditorParameterValue* Parameter, TSharedPtr<IPropertyHandle> ParameterProperty, IDetailGroup& DetailGroup)
-{
-	TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
-
-	if (ParameterValueProperty->IsValidHandle())
-	{
-
-		IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
-		PropertyRow
-			.DisplayName(FText::FromName(Parameter->ParameterInfo.Name))
-			.ToolTip(GetParameterExpressionDescription(Parameter));
-	}
-}
-
-void FMaterialEditorParameterDetails::CreateMaskParameterValueWidget(UDEditorParameterValue* Parameter, TSharedPtr<IPropertyHandle> ParameterProperty, IDetailGroup& DetailGroup)
-{
-	TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
-	TSharedPtr<IPropertyHandle> RMaskProperty = ParameterValueProperty->GetChildHandle("R");
-	TSharedPtr<IPropertyHandle> GMaskProperty = ParameterValueProperty->GetChildHandle("G");
-	TSharedPtr<IPropertyHandle> BMaskProperty = ParameterValueProperty->GetChildHandle("B");
-	TSharedPtr<IPropertyHandle> AMaskProperty = ParameterValueProperty->GetChildHandle("A");
-
-	if (ParameterValueProperty->IsValidHandle())
-	{
-		IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
-		const FText ParameterName = FText::FromName(Parameter->ParameterInfo.Name);
-
-		FDetailWidgetRow& CustomWidget = PropertyRow.CustomWidget();
-		CustomWidget
-			.FilterString(ParameterName)
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(ParameterName)
-				.ToolTipText(GetParameterExpressionDescription(Parameter))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			]
-			.ValueContent()
-			.MaxDesiredWidth(200.0f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						RMaskProperty->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						RMaskProperty->CreatePropertyValueWidget()
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.Padding(FMargin(10.0f, 0.0f, 0.0f, 0.0f))
-					.AutoWidth()
-					[
-						GMaskProperty->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						GMaskProperty->CreatePropertyValueWidget()
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.Padding(FMargin(10.0f, 0.0f, 0.0f, 0.0f))
-					.AutoWidth()
-					[
-						BMaskProperty->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						BMaskProperty->CreatePropertyValueWidget()
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.Padding(FMargin(10.0f, 0.0f, 0.0f, 0.0f))
-					.AutoWidth()
-					[
-						AMaskProperty->CreatePropertyNameWidget(FText::GetEmpty(), FText::GetEmpty(), false)
-					]
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.AutoWidth()
-					[
-						AMaskProperty->CreatePropertyValueWidget()
-					]
-				]
-			];
-	}
-}
-
-void FMaterialEditorParameterDetails::CreateVectorChannelMaskParameterValueWidget(UDEditorParameterValue* Parameter, TSharedPtr<IPropertyHandle> ParameterProperty, IDetailGroup& DetailGroup)
-{
-	TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
-
-	if (ParameterValueProperty->IsValidHandle())
-	{
-		TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&FMaterialPropertyHelpers::IsOverriddenExpression, Parameter));
-
-		IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
-		const FText ParameterName = FText::FromName(Parameter->ParameterInfo.Name);
-
-		FOnGetPropertyComboBoxStrings GetMaskStrings = FOnGetPropertyComboBoxStrings::CreateStatic(&FMaterialPropertyHelpers::GetVectorChannelMaskComboBoxStrings);
-		FOnGetPropertyComboBoxValue GetMaskValue = FOnGetPropertyComboBoxValue::CreateStatic(&FMaterialPropertyHelpers::GetVectorChannelMaskValue, Parameter);
-		FOnPropertyComboBoxValueSelected SetMaskValue = FOnPropertyComboBoxValueSelected::CreateStatic(&FMaterialPropertyHelpers::SetVectorChannelMaskValue, ParameterValueProperty, Parameter, (UObject*)MaterialEditorInstance);
-
-		FDetailWidgetRow& CustomWidget = PropertyRow.CustomWidget();
-		CustomWidget
-		.FilterString(ParameterName)
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(ParameterName)
-			.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(Parameter, MaterialEditorInstance))
-			.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-		]
-		.ValueContent()
-		.MaxDesiredWidth(200.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.0f)
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.AutoWidth()
-				[
-					PropertyCustomizationHelpers::MakePropertyComboBox(ParameterValueProperty, GetMaskStrings, GetMaskValue, SetMaskValue)
-				]
-			]
-		];
-	}
-}
-
-void FMaterialEditorParameterDetails::CreateScalarAtlasPositionParameterValueWidget(class UDEditorParameterValue* Parameter, TSharedPtr<IPropertyHandle> ParameterProperty, IDetailGroup& DetailGroup)
-{
-	TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
-
-	if (ParameterValueProperty->IsValidHandle())
-	{
-		TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&FMaterialPropertyHelpers::IsOverriddenExpression, Parameter));
-
-		IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
-	
-		const FText ParameterName = FText::FromName(Parameter->ParameterInfo.Name);
-		UDEditorScalarParameterValue* AtlasParameter = Cast<UDEditorScalarParameterValue>(Parameter);
-
-		FDetailWidgetRow& CustomWidget = PropertyRow.CustomWidget();
-		CustomWidget
-			.FilterString(ParameterName)
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(ParameterName)
-				.ToolTipText(FMaterialPropertyHelpers::GetParameterExpressionDescription(Parameter, MaterialEditorInstance))
-				.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
-			]
-			.ValueContent()
-			.HAlign(HAlign_Fill)
-			.MaxDesiredWidth(400.0f)
-			[
-				SNew(SObjectPropertyEntryBox)
-				.ObjectPath(this, &FMaterialEditorParameterDetails::GetCurvePath, AtlasParameter)
-				.AllowedClass(UCurveLinearColor::StaticClass())
-				.NewAssetFactories(TArray<UFactory*>())
-				.DisplayThumbnail(true)
-				.ThumbnailPool(PropertyUtilities.Pin()->GetThumbnailPool())
-				.OnShouldSetAsset(FOnShouldSetAsset::CreateStatic(&FMaterialPropertyHelpers::OnShouldSetCurveAsset, AtlasParameter->AtlasData.Atlas))
-				.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, AtlasParameter->AtlasData.Atlas, AtlasParameter, ParameterProperty, (UObject*)MaterialEditorInstance))
-				.DisplayCompactSize(true)
-			];
-	}
-}
-
-FString FMaterialEditorParameterDetails::GetCurvePath(UDEditorScalarParameterValue* Parameter) const
-{
-	FString Path = Parameter->AtlasData.Curve->GetPathName();
-	return Path;
-}
-
-FText FMaterialEditorParameterDetails::GetParameterExpressionDescription(UDEditorParameterValue* Parameter) const
-{
-	if (MaterialEditorInstance && MaterialEditorInstance->OriginalMaterial)
-	{
-		UMaterial* BaseMaterial = MaterialEditorInstance->OriginalMaterial->GetMaterial();
-		if (BaseMaterial)
-		{
-			UMaterialExpression* MaterialExpression = BaseMaterial->FindExpressionByGUID<UMaterialExpression>(Parameter->ExpressionId);
-
-			if (MaterialExpression)
-			{
-				return FText::FromString(MaterialExpression->Desc);
-			}
-		}
-	}
-	return FText::GetEmpty();
-}
 
 TSharedRef<IDetailCustomization> FMaterialExpressionParameterDetails::MakeInstance(FOnCollectParameterGroups InCollectGroupsDelegate)
 {
@@ -520,11 +128,233 @@ void FMaterialExpressionParameterDetails::CustomizeDetails( IDetailLayoutBuilder
 					DetailLayout.ForceRefreshDetails();
 				}));
 			}
-			
+
+			TSharedPtr<IPropertyHandle> ChannelHandle = DetailLayout.GetProperty("ChannelNames", UMaterialExpressionVectorParameter::StaticClass());
+			TSharedPtr<IPropertyHandle> ValueHandle = DetailLayout.GetProperty("DefaultValue", UMaterialExpressionVectorParameter::StaticClass());
+			if (ChannelHandle.IsValid() && ChannelHandle->IsValidHandle())
+			{
+				static const FName Red("R");
+				static const FName Green("G");
+				static const FName Blue("B");
+				static const FName Alpha("A");
+				// Rebuild the layout when the ChannelNames property changes
+				ChannelHandle->GetChildHandle(Red)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+	
+					DetailLayout.ForceRefreshDetails();
+				}));
+				ChannelHandle->GetChildHandle(Green)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+
+					DetailLayout.ForceRefreshDetails();
+				}));
+				ChannelHandle->GetChildHandle(Blue)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+
+					DetailLayout.ForceRefreshDetails();
+				}));
+				ChannelHandle->GetChildHandle(Alpha)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+				{
+
+					DetailLayout.ForceRefreshDetails();
+				}));
+			}
+
 			if (VectorParameter->bUseCustomPrimitiveData)
 			{
 				DetailLayout.HideCategory(TEXT("MaterialExpressionVectorParameter"));
 				DetailLayout.HideCategory(MaterialExpressionCategory);
+			}
+
+			if (ValueHandle.IsValid() && ValueHandle->IsValidHandle())
+			{
+				static const FName Red("R");
+				static const FName Green("G");
+				static const FName Blue("B");
+				static const FName Alpha("A");
+				if (!VectorParameter->ChannelNames.R.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Red)->SetPropertyDisplayName(VectorParameter->ChannelNames.R);
+				}
+				if (!VectorParameter->ChannelNames.G.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Green)->SetPropertyDisplayName(VectorParameter->ChannelNames.G);
+				}
+				if (!VectorParameter->ChannelNames.B.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Blue)->SetPropertyDisplayName(VectorParameter->ChannelNames.B);
+				}
+				if (!VectorParameter->ChannelNames.A.IsEmpty())
+				{
+					ValueHandle->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParameter->ChannelNames.A);
+				}
+			}
+		}
+
+		UMaterialExpressionTextureSampleParameter* TextureParameter = Cast<UMaterialExpressionTextureSampleParameter>(Object);
+
+		if (TextureParameter)
+		{
+			TSharedPtr<IPropertyHandle> ChannelHandle = DetailLayout.GetProperty("ChannelNames", UMaterialExpressionTextureSampleParameter::StaticClass());
+			TSharedPtr<IPropertyHandle> ValueHandle = DetailLayout.GetProperty("Texture", UMaterialExpressionTextureBase::StaticClass());
+			if (TextureParameter->GetOutputType(0) != MCT_Texture)
+			{
+				if (ChannelHandle.IsValid() && ChannelHandle->IsValidHandle())
+				{
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+					// Rebuild the layout when the ChannelNames property changes
+					ChannelHandle->GetChildHandle(Red)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+					ChannelHandle->GetChildHandle(Green)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+					ChannelHandle->GetChildHandle(Blue)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+					ChannelHandle->GetChildHandle(Alpha)->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([&DetailLayout]()
+					{
+						DetailLayout.ForceRefreshDetails();
+					}));
+				}
+
+				if (ValueHandle.IsValid() && ValueHandle->IsValidHandle())
+				{
+					IDetailPropertyRow& PropertyRow = *DetailLayout.EditDefaultProperty(ValueHandle);
+					TSharedPtr<SWidget> NameWidget;
+					TSharedPtr<SWidget> ValueWidget;
+					FDetailWidgetRow DefaultRow;
+					PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, DefaultRow);
+
+					FDetailWidgetRow &DetailWidgetRow = PropertyRow.CustomWidget();
+					TSharedPtr<SVerticalBox> NameVerticalBox;
+					DetailWidgetRow.NameContent()
+						[
+							SAssignNew(NameVerticalBox, SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								SNew(STextBlock)
+								.Text(FText::FromName(TextureParameter->ParameterName))
+								.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							]
+						];
+
+					DetailWidgetRow.ValueContent()
+						.MinDesiredWidth(DefaultRow.ValueWidget.MinWidth)
+						.MaxDesiredWidth(DefaultRow.ValueWidget.MaxWidth)
+						[
+							ValueWidget.ToSharedRef()
+						];
+
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+
+					if (!TextureParameter->ChannelNames.R.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.AutoWidth()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Red))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.R)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParameter->ChannelNames.G.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Green))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.G)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParameter->ChannelNames.B.IsEmpty())
+					{
+							NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Blue))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.B)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+					if (!TextureParameter->ChannelNames.A.IsEmpty())
+					{
+						NameVerticalBox->AddSlot()
+							[
+								SNew(SHorizontalBox)
+								+ SHorizontalBox::Slot()
+								.Padding(20.0, 2.0, 4.0, 2.0)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.Text(FText::FromName(Alpha))
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+								]
+								+ SHorizontalBox::Slot()
+								.HAlign(HAlign_Left)
+								.Padding(4.0, 2.0)
+								[
+									SNew(STextBlock)
+									.Text(TextureParameter->ChannelNames.A)
+									.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+								]
+							];
+					}
+				}
+			}
+			else
+			{
+				DetailLayout.HideProperty(ChannelHandle);
 			}
 		}
 

@@ -32,6 +32,9 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	/** Controls where the this parameter is displayed in a material instance parameter list.  The lower the number the higher up in the parameter list. */
 	UPROPERTY(EditAnywhere, Category = MaterialExpressionTextureSampleParameter)
 	int32 SortPriority;
+
+	UPROPERTY(EditAnywhere, Category = ParameterCustomization)
+	FParameterChannelNames ChannelNames;
 #endif
 
 	//~ Begin UMaterialExpression Interface
@@ -56,6 +59,8 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 
 #if WITH_EDITOR
 	bool SetParameterValue(FName InParameterName, UTexture* InValue);
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	void ApplyChannelNames();
 #endif
 
 	/**
@@ -82,6 +87,13 @@ class ENGINE_API UMaterialExpressionTextureSampleParameter : public UMaterialExp
 	{
 		return ExpressionGUID;
 	}
+
+#if WITH_EDITOR
+	FParameterChannelNames GetTextureChannelNames() const
+	{
+		return ChannelNames;
+	}
+#endif
 
 	void GetAllParameterInfo(TArray<FMaterialParameterInfo> &OutParameterInfo, TArray<FGuid> &OutParameterIds, const FMaterialParameterInfo& InBaseParameterInfo) const;
 };

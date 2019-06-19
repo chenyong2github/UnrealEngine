@@ -341,7 +341,8 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 			if (PreviewMaterial->GetVectorParameterValue(ParameterValue.ParameterInfo, Value))
 			{
 				ParameterValue.ParameterValue = Value;
-				PreviewMaterial->IsVectorParameterUsedAsChannelMask(ParameterValue.ParameterInfo, ParameterValue.bIsUsedAsChannelMask);			
+				PreviewMaterial->IsVectorParameterUsedAsChannelMask(ParameterValue.ParameterInfo, ParameterValue.bIsUsedAsChannelMask);		
+				PreviewMaterial->GetVectorParameterChannelNames(ParameterValue.ParameterInfo, ParameterValue.ChannelNames);
 			}
 			if (PreviewMaterial->GetParameterSortPriority(ParameterName, SortPriority))
 			{
@@ -400,6 +401,7 @@ void UMaterialEditorPreviewParameters::RegenerateArrays()
 			if (PreviewMaterial->GetTextureParameterValue(ParameterValue.ParameterInfo, Value))
 			{
 				ParameterValue.ParameterValue = Value;
+				PreviewMaterial->GetTextureParameterChannelNames(ParameterValue.ParameterInfo, ParameterValue.ChannelNames);
 			}
 			if (ParentMaterial->GetParameterSortPriority(ParameterName, SortPriority))
 			{
@@ -1007,6 +1009,7 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 
 			SourceInstance->GetVectorParameterValue(ParameterInfo, ParameterValue.ParameterValue);
 			SourceInstance->IsVectorParameterUsedAsChannelMask(ParameterInfo, ParameterValue.bIsUsedAsChannelMask);
+			SourceInstance->GetVectorParameterChannelNames(ParameterInfo, ParameterValue.ChannelNames);
 
 			// @todo: This is kind of slow, maybe store these in a map for lookup?
 			// See if this keyname exists in the source instance.
@@ -1039,6 +1042,7 @@ void UMaterialEditorInstanceConstant::RegenerateArrays()
 
 			ParameterValue.ParameterValue = nullptr;
 			SourceInstance->GetTextureParameterValue(ParameterInfo, ParameterValue.ParameterValue);
+			SourceInstance->GetTextureParameterChannelNames(ParameterInfo, ParameterValue.ChannelNames);
 
 			// @todo: This is kind of slow, maybe store these in a map for lookup?
 			// See if this keyname exists in the source instance.

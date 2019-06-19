@@ -42,6 +42,8 @@
 
 #define LOCTEXT_NAMESPACE "MaterialGraphNode"
 
+static FText SpaceText = LOCTEXT("Space", " ");
+
 /////////////////////////////////////////////////////
 // UMaterialGraphNode
 
@@ -553,7 +555,7 @@ void UMaterialGraphNode::CreateInputPins()
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Input"));
-			NewPin->PinFriendlyName = FText::GetEmpty();
+			NewPin->PinFriendlyName = SpaceText;
 		}
 	}
 }
@@ -607,7 +609,7 @@ void UMaterialGraphNode::CreateOutputPins()
 		{
 			// Makes sure pin has a name for lookup purposes but user will never see it
 			NewPin->PinName = CreateUniquePinName(TEXT("Output"));
-			NewPin->PinFriendlyName = FText::GetEmpty();
+			NewPin->PinFriendlyName = SpaceText;
 		}
 	}
 }

@@ -1954,6 +1954,7 @@ UMaterialExpressionTextureSampleParameter::UMaterialExpressionTextureSampleParam
 	MenuCategories.Empty();
 	MenuCategories.Add( ConstructorStatics.NAME_Obsolete);
 	SortPriority = 0;
+	ApplyChannelNames();
 #endif
 }
 
@@ -2035,6 +2036,36 @@ bool UMaterialExpressionTextureSampleParameter::SetParameterValue(FName InParame
 		return true;
 	}
 	return false;
+}
+
+void UMaterialExpressionTextureSampleParameter::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	UProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FString PropertyName = PropertyThatChanged ? PropertyThatChanged->GetName() : TEXT("");
+
+	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionTextureSampleParameter, ChannelNames))
+	{
+		ApplyChannelNames();
+
+		if (GraphNode)
+		{
+			GraphNode->ReconstructNode();
+		}
+	}
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UMaterialExpressionTextureSampleParameter::ApplyChannelNames()
+{
+	static const FName Red("R");
+	static const FName Green("G");
+	static const FName Blue("B");
+	static const FName Alpha("A");
+	Outputs[1].OutputName = !ChannelNames.R.IsEmpty() ? FName(*ChannelNames.R.ToString()) : Red;
+	Outputs[2].OutputName = !ChannelNames.G.IsEmpty() ? FName(*ChannelNames.G.ToString()) : Green;
+	Outputs[3].OutputName = !ChannelNames.B.IsEmpty() ? FName(*ChannelNames.B.ToString()) : Blue;
+	Outputs[4].OutputName = !ChannelNames.A.IsEmpty() ? FName(*ChannelNames.A.ToString()) : Alpha;
 }
 #endif
 
@@ -6398,6 +6429,7 @@ UMaterialExpressionVectorParameter::UMaterialExpressionVectorParameter(const FOb
 	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT(""), 1, 0, 0, 0, 1));
+	ApplyChannelNames();
 #endif // WITH_EDITORONLY_DATA
 }
 
@@ -6497,9 +6529,28 @@ void UMaterialExpressionVectorParameter::PostEditChangeProperty(FPropertyChanged
 		const int32 PrimDataIndex = PrimitiveDataIndex;
 		PrimitiveDataIndex = (uint8)FMath::Clamp(PrimDataIndex, 0, FCustomPrimitiveData::NumCustomPrimitiveDataFloats-1);
 	}
+	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, ChannelNames))
+	{
+		ApplyChannelNames();
+
+		if (GraphNode)
+		{
+			GraphNode->ReconstructNode();
+		}
+	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UMaterialExpressionVectorParameter::ApplyChannelNames()
+{
+	Outputs[1].OutputName = FName(*ChannelNames.R.ToString());
+	Outputs[2].OutputName = FName(*ChannelNames.G.ToString());
+	Outputs[3].OutputName = FName(*ChannelNames.B.ToString());
+	Outputs[4].OutputName = FName(*ChannelNames.A.ToString());
+	bShowOutputNameOnPin = !ChannelNames.R.IsEmpty() || !ChannelNames.G.IsEmpty() || !ChannelNames.B.IsEmpty() || !ChannelNames.A.IsEmpty();
+}
+
 
 void UMaterialExpressionVectorParameter::ValidateParameterName(const bool bAllowDuplicateName)
 {

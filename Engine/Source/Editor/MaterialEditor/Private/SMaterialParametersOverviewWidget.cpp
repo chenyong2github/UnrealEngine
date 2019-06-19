@@ -99,6 +99,7 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 		UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(StackParameterData->Parameter);
 		UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(StackParameterData->Parameter);
 		UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(StackParameterData->Parameter);
+		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(StackParameterData->Parameter);
 
 		TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&FMaterialPropertyHelpers::IsOverriddenExpression, StackParameterData->Parameter));
 		NameOverride = FText::FromName(StackParameterData->Parameter->ParameterInfo.Name);
@@ -170,6 +171,133 @@ void SMaterialParametersOverviewTreeItem::Construct(const FArguments& InArgs, co
 					.DisplayCompactSize(true)
 				];
 			
+		}
+		else if (TextureParam)
+		{
+
+			TSharedPtr<SWidget> NameWidget;
+			TSharedPtr<SWidget> ValueWidget;
+			FDetailWidgetRow DefaultRow;
+			Row.GetDefaultWidgets(NameWidget, ValueWidget, DefaultRow);
+
+			FDetailWidgetRow &DetailWidgetRow = Row.CustomWidget();
+			TSharedPtr<SVerticalBox> NameVerticalBox;
+			DetailWidgetRow.NameContent()
+				[
+					SAssignNew(NameVerticalBox, SVerticalBox)
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(StackParameterData->Parameter->ParameterInfo.Name))
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					]
+				];
+
+			DetailWidgetRow.ValueContent()
+				.MinDesiredWidth(DefaultRow.ValueWidget.MinWidth)
+				.MaxDesiredWidth(DefaultRow.ValueWidget.MaxWidth)
+				[
+					ValueWidget.ToSharedRef()
+				];
+
+			static const FName Red("R");
+			static const FName Green("G");
+			static const FName Blue("B");
+			static const FName Alpha("A");
+
+			if (!TextureParam->ChannelNames.R.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(20.0, 2.0, 4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Red))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(TextureParam->ChannelNames.R)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						]
+					];
+			}
+			if (!TextureParam->ChannelNames.G.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(20.0, 2.0, 4.0, 2.0)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Green))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(TextureParam->ChannelNames.G)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						]
+					];
+			}
+			if (!TextureParam->ChannelNames.B.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(20.0, 2.0, 4.0, 2.0)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Blue))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(TextureParam->ChannelNames.B)
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						]
+					];
+			}
+			if (!TextureParam->ChannelNames.A.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(20.0, 2.0, 4.0, 2.0)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Alpha))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(TextureParam->ChannelNames.A)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						]
+					];
+			}
 		}
 		else if (!CompMaskParam)
 		{
@@ -501,11 +629,36 @@ void SMaterialParametersOverviewTree::CreateGroupsWidget()
 			{
 				FUnsortedParamData NonLayerProperty;
 				UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
+				UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
 
 				if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
 				{
 					ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
 					ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
+				}
+
+				if (VectorParam)
+				{
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+					if (!VectorParam->ChannelNames.R.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Red)->SetPropertyDisplayName(VectorParam->ChannelNames.R);
+					}
+					if (!VectorParam->ChannelNames.G.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Green)->SetPropertyDisplayName(VectorParam->ChannelNames.G);
+					}
+					if (!VectorParam->ChannelNames.B.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Blue)->SetPropertyDisplayName(VectorParam->ChannelNames.B);
+					}
+					if (!VectorParam->ChannelNames.A.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParam->ChannelNames.A);
+					}
 				}
 
 				NonLayerProperty.Parameter = Parameter;

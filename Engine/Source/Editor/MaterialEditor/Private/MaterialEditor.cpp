@@ -4387,6 +4387,10 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 				{
 					Material->UpdateExpressionDynamicParameters(SelectedNode->MaterialExpression);
 				}
+				else if (PropertyThatChanged->IsA<UTextProperty>())
+				{
+					// Do nothing to the expression if we are just changing the label
+				}
 				else
 				{
 					Material->PropagateExpressionParameterChanges(SelectedNode->MaterialExpression);
@@ -4402,7 +4406,9 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 		const FName PropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 		if (PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, Text)
 		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionComment, CommentColor)
-		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpression, Desc))
+		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpression, Desc)
+		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionVectorParameter, ChannelNames)
+		&& PropertyName != GET_MEMBER_NAME_CHECKED(UMaterialExpressionTextureSampleParameter, ChannelNames))
 		{
 			// Update the current preview material.
 			UpdatePreviewMaterial();

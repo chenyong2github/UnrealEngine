@@ -49,6 +49,8 @@
 
 #define LOCTEXT_NAMESPACE "MaterialInstanceEditor"
 
+
+
 TSharedRef<IDetailCustomization> FMaterialInstanceParameterDetails::MakeInstance(UMaterialEditorInstanceConstant* MaterialInstance, FGetShowHiddenParameters InShowHiddenDelegate)
 {
 	return MakeShareable(new FMaterialInstanceParameterDetails(MaterialInstance, InShowHiddenDelegate));
@@ -427,6 +429,14 @@ void FMaterialInstanceParameterDetails::CreateSingleGroupWidget(FEditorParameter
 			{
 				CreateScalarAtlasPositionParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
 			}
+			if (TextureParam && 
+				( !TextureParam->ChannelNames.R.IsEmpty()
+				|| !TextureParam->ChannelNames.G.IsEmpty()
+				|| !TextureParam->ChannelNames.B.IsEmpty()
+				|| !TextureParam->ChannelNames.A.IsEmpty()))
+			{
+				CreateLabeledTextureParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
+			}
 			else if (ScalarParam || SwitchParam || TextureParam || VectorParam || FontParam)
 			{
 				if (ScalarParam && ScalarParam->SliderMax > ScalarParam->SliderMin)
@@ -434,6 +444,30 @@ void FMaterialInstanceParameterDetails::CreateSingleGroupWidget(FEditorParameter
 					TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
 					ParameterValueProperty->SetInstanceMetaData("UIMin", FString::Printf(TEXT("%f"), ScalarParam->SliderMin));
 					ParameterValueProperty->SetInstanceMetaData("UIMax", FString::Printf(TEXT("%f"), ScalarParam->SliderMax));
+				}
+
+				if (VectorParam)
+				{
+					static const FName Red("R");
+					static const FName Green("G");
+					static const FName Blue("B");
+					static const FName Alpha("A");
+					if (!VectorParam->ChannelNames.R.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Red)->SetPropertyDisplayName(VectorParam->ChannelNames.R);
+					}
+					if (!VectorParam->ChannelNames.G.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Green)->SetPropertyDisplayName(VectorParam->ChannelNames.G);
+					}
+					if (!VectorParam->ChannelNames.B.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Blue)->SetPropertyDisplayName(VectorParam->ChannelNames.B);
+					}
+					if (!VectorParam->ChannelNames.A.IsEmpty())
+					{
+						ParameterProperty->GetChildHandle(Alpha)->SetPropertyDisplayName(VectorParam->ChannelNames.A);
+					}
 				}
 
 				CreateParameterValueWidget(Parameter, ParameterProperty, DetailGroup);
@@ -668,6 +702,159 @@ void FMaterialInstanceParameterDetails::CreateScalarAtlasPositionParameterValueW
 				.OnObjectChanged(FOnSetObject::CreateStatic(&FMaterialPropertyHelpers::SetPositionFromCurveAsset, AtlasParameter->AtlasData.Atlas, AtlasParameter, ParameterProperty, (UObject*)MaterialEditorInstance))
 				.DisplayCompactSize(true)
 			];
+	}
+}
+
+void FMaterialInstanceParameterDetails::CreateLabeledTextureParameterValueWidget(class UDEditorParameterValue* Parameter, TSharedPtr<IPropertyHandle> ParameterProperty, IDetailGroup& DetailGroup)
+{
+	TSharedPtr<IPropertyHandle> ParameterValueProperty = ParameterProperty->GetChildHandle("ParameterValue");
+
+	if (ParameterValueProperty->IsValidHandle())
+	{
+		UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
+		if (TextureParam)
+		{
+			TAttribute<bool> IsParamEnabled = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(&FMaterialPropertyHelpers::IsOverriddenExpression, Parameter));
+
+			IDetailPropertyRow& PropertyRow = DetailGroup.AddPropertyRow(ParameterValueProperty.ToSharedRef());
+
+			FIsResetToDefaultVisible IsResetVisible = FIsResetToDefaultVisible::CreateStatic(&FMaterialPropertyHelpers::ShouldShowResetToDefault, Parameter, MaterialEditorInstance);
+			FResetToDefaultHandler ResetHandler = FResetToDefaultHandler::CreateStatic(&FMaterialPropertyHelpers::ResetToDefault, Parameter, MaterialEditorInstance);
+			FResetToDefaultOverride ResetOverride = FResetToDefaultOverride::Create(IsResetVisible, ResetHandler);
+
+			PropertyRow
+				.DisplayName(FText::FromName(Parameter->ParameterInfo.Name))
+				.EditCondition(IsParamEnabled, FOnBooleanValueChanged::CreateStatic(&FMaterialPropertyHelpers::OnOverrideParameter, Parameter, MaterialEditorInstance))
+				.ToolTip(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
+				.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateStatic(&FMaterialPropertyHelpers::ShouldShowExpression, Parameter, MaterialEditorInstance, ShowHiddenDelegate)))
+				.OverrideResetToDefault(ResetOverride);
+
+			
+			TSharedPtr<SWidget> NameWidget;
+			TSharedPtr<SWidget> ValueWidget;
+			FDetailWidgetRow Row;
+			PropertyRow.GetDefaultWidgets(NameWidget, ValueWidget, Row);
+
+			FDetailWidgetRow &DetailWidgetRow = PropertyRow.CustomWidget();
+			TSharedPtr<SVerticalBox> NameVerticalBox;
+			DetailWidgetRow.NameContent()
+			[
+				SAssignNew(NameVerticalBox, SVerticalBox)
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(STextBlock)
+					.Text(FText::FromName(Parameter->ParameterInfo.Name))
+					.ToolTipText(FMaterialPropertyHelpers::GetParameterTooltip(Parameter, MaterialEditorInstance))
+					.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+				]
+			];
+			DetailWidgetRow.ValueContent()
+			.MinDesiredWidth(Row.ValueWidget.MinWidth)
+			.MaxDesiredWidth(Row.ValueWidget.MaxWidth)
+			[
+				ValueWidget.ToSharedRef()
+			];
+
+			static const FName Red("R");
+			static const FName Green("G");
+			static const FName Blue("B");
+			static const FName Alpha("A");
+
+			if(!TextureParam->ChannelNames.R.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+				[
+					SNew(SHorizontalBox)
+					+SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(20.0, 2.0, 4.0, 2.0)
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(Red))
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+					]
+					+SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.Padding(4.0, 2.0)
+					[
+						SNew(STextBlock)
+						.Text(TextureParam->ChannelNames.R)
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					]
+				];
+			}
+			if (!TextureParam->ChannelNames.G.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(20.0, 2.0, 4.0, 2.0)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Green))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(TextureParam->ChannelNames.G)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						]
+					];
+			}
+			if (!TextureParam->ChannelNames.B.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.Padding(20.0, 2.0, 4.0, 2.0)
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromName(Blue))
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+						]
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Left)
+						.Padding(4.0, 2.0)
+						[
+							SNew(STextBlock)
+							.Text(TextureParam->ChannelNames.B)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+						]
+					];
+			}
+			if (!TextureParam->ChannelNames.A.IsEmpty())
+			{
+				NameVerticalBox->AddSlot()
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.Padding(20.0, 2.0, 4.0, 2.0)
+					.AutoWidth()
+					[
+						SNew(STextBlock)
+						.Text(FText::FromName(Alpha))
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+					]
+					+ SHorizontalBox::Slot()
+					.HAlign(HAlign_Left)
+					.Padding(4.0, 2.0)
+					[
+						SNew(STextBlock)
+						.Text(TextureParam->ChannelNames.A)
+						.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+					]
+				];
+			}
+			
+		}
 	}
 }
 
