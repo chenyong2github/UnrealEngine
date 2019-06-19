@@ -114,6 +114,7 @@ ENUM_CLASS_FLAGS(EInstallBundleRequestFlags)
 
 enum class EInstallBundleStatus : int
 {
+	Requested,
 	QueuedForDownload,
 	Downloading,
 	QueuedForInstall,
@@ -129,6 +130,7 @@ inline const TCHAR* LexToString(EInstallBundleStatus Status)
 	using UnderType = __underlying_type(EInstallBundleStatus);
 	static const TCHAR* Strings[] =
 	{
+		TEXT("Requested"),
 		TEXT("QueuedForDownload"),
 		TEXT("Downloading"),
 		TEXT("QueuedForInstall"),
