@@ -1233,6 +1233,18 @@ public:
 		SILENT, // this would only be appropriate for editor only or other unusual things that we never see in game
 	};
 	/** If there is async work outstanding, force it to be completed now **/
+	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread, bool InSkipUpdateDynamicDataDuringTick)
+	{
+		if (AsyncWork.GetReference())
+		{
+			const bool bSavedSkipUpdate = bSkipUpdateDynamicDataDuringTick;
+			bSkipUpdateDynamicDataDuringTick |= InSkipUpdateDynamicDataDuringTick;
+			WaitForAsyncAndFinalize(Behavior, bDefinitelyGameThread);
+			bSkipUpdateDynamicDataDuringTick = bSavedSkipUpdate;
+		}
+	}
+
+	/** If there is async work outstanding, force it to be completed now **/
 	FORCEINLINE void ForceAsyncWorkCompletion(EForceAsyncWorkCompletion Behavior, bool bDefinitelyGameThread = true) const
 	{
 		if (AsyncWork.GetReference())
