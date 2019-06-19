@@ -181,6 +181,7 @@ static const float kRotationQuantizationRad = 1.0f * kRadiansFromDegrees;
 }  // namespace vraudio
 
 #ifdef DEFINED_M_PI
+#undef DEFINED_M_PI
 #undef M_PI
 #endif
 
