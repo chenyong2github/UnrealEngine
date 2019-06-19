@@ -522,13 +522,9 @@ void FVulkanViewport::RecreateSwapchain(void* NewNativeWindow, bool bForce)
 		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 		{
 			TextureViews[Index].Destroy(*Device);
-		}
-
-		for (VkImage& BackBufferImage : BackBufferImages)
-		{
-			Device->NotifyDeletedImage(BackBufferImage);
-			Device->NotifyDeletedRenderTarget(BackBufferImage);
-			BackBufferImage = VK_NULL_HANDLE;
+			Device->NotifyDeletedImage(BackBufferImages[Index]);
+			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
+			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
 
 		Device->GetDeferredDeletionQueue().ReleaseResources(true);
@@ -591,13 +587,9 @@ void FVulkanViewport::RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat)
 		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 		{
 			TextureViews[Index].Destroy(*Device);
-		}
-		
-		for (VkImage& BackBufferImage : BackBufferImages)
-		{
-			Device->NotifyDeletedImage(BackBufferImage);
-			Device->NotifyDeletedRenderTarget(BackBufferImage);
-			BackBufferImage = VK_NULL_HANDLE;
+			Device->NotifyDeletedImage(BackBufferImages[Index]);
+			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
+			BackBufferImages[Index] = VK_NULL_HANDLE;
 		}
 		
 		Device->GetDeferredDeletionQueue().ReleaseResources(true);
