@@ -22,7 +22,7 @@ enum ECpuProfilerGroup
 
 struct FCpuProfilerTrace
 {
-	CORE_API static void Init(bool bStartEnabled);
+	CORE_API static void Init(const TCHAR* CmdLine);
 	CORE_API static uint16 OutputEventType(const TCHAR* Name, ECpuProfilerGroup Group);
 	CORE_API static void OutputBeginEvent(uint16 SpecId);
 	CORE_API static void OutputEndEvent();
@@ -40,6 +40,9 @@ struct FCpuProfilerTrace
 		}
 	};
 };
+
+#define TRACE_CPUPROFILER_INIT(CmdLine) \
+	FCpuProfilerTrace::Init(CmdLine);
 
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, Group) \
 	static uint16 PREPROCESSOR_JOIN(__CpuProfilerEventSpecId, __LINE__); \
@@ -59,6 +62,7 @@ struct FCpuProfilerTrace
 
 #else
 
+#define TRACE_CPUPROFILER_INIT(CmdLine)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_GROUP(Name, Group)
 #define TRACE_CPUPROFILER_EVENT_SCOPE(Name)
 #define TRACE_CPUPROFILER_EVENT_SCOPE_TEXT_GROUP(Name, Group)

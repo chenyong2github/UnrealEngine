@@ -1159,9 +1159,7 @@ DECLARE_CYCLE_STAT( TEXT( "FEngineLoop::PreInit.AfterStats" ), STAT_FEngineLoop_
 int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 {
 	TRACE_REGISTER_GAME_THREAD(FPlatformTLS::GetCurrentThreadId());
-#if CPUPROFILERTRACE_ENABLED
-	FCpuProfilerTrace::Init(FParse::Param(CmdLine, TEXT("cpuprofilertrace")));
-#endif
+	TRACE_CPUPROFILER_INIT(CmdLine);
 	TRACE_PLATFORMFILE_INIT(CmdLine);
 
 	SCOPED_BOOT_TIMING("FEngineLoop::PreInit");
