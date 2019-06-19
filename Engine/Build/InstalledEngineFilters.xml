@@ -56,10 +56,11 @@
 		Samples/MobileStarterContent/MobileStarterContent.uproject
 	</Property>
 	<!-- Don't add VR template for Mac and Linux -->
+	<!--
 	<Property Name="ProjectsToBuildDDC" Value="$(ProjectsToBuildDDC)" If="'$(HostPlatform)' != 'Linux'">
 		Templates/TP_VirtualRealityBP/TP_VirtualRealityBP.uproject
 	</Property>
-	
+	-->
 	<!-- Define Editor Filters -->
 	<Property Name="CopyEditorFilter">
 		<!-- This assembly is normally embedded into the UBT executable, but it can technically be rebuilt from an installed build -->
