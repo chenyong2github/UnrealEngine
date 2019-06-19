@@ -19,7 +19,7 @@
 #include "LandscapeRender.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeEdModeTools.h"
-#include "LandscapeBlueprintBrushBase.h"
+#include "LandscapeBPCustomBrush.h"
 #include "LandscapeInfo.h"
 #include "Landscape.h"
 //#include "LandscapeDataAccess.h"
@@ -72,12 +72,12 @@ public:
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& Target, const FVector& InHitLocation) override
 	{
-		if (EdMode->UISettings->BlueprintBrush == nullptr)
+		if (EdMode->UISettings->BlueprintCustomBrush == nullptr)
 		{
 			return false;
 		}
 
-		ALandscapeBlueprintBrushBase* DefaultObject = Cast<ALandscapeBlueprintBrushBase>(EdMode->UISettings->BlueprintBrush->GetDefaultObject(false));
+		ALandscapeBlueprintCustomBrush* DefaultObject = Cast<ALandscapeBlueprintCustomBrush>(EdMode->UISettings->BlueprintCustomBrush->GetDefaultObject(false));
 
 		if (DefaultObject == nullptr)
 		{
@@ -97,9 +97,9 @@ public:
 			SpawnInfo.bNoFail = true;
 			SpawnInfo.OverrideLevel = Info->LandscapeActor.Get()->GetTypedOuter<ULevel>(); // always spawn in the same level as the one containing the ALandscape
 
-			FScopedTransaction Transaction(LOCTEXT("LandscapeEdModeBlueprintToolSpawn", "Create landscape brush"));
-			ALandscapeBlueprintBrushBase* Brush = ViewportClient->GetWorld()->SpawnActor<ALandscapeBlueprintBrushBase>(EdMode->UISettings->BlueprintBrush, SpawnLocation, FRotator(0.0f), SpawnInfo);
-			EdMode->UISettings->BlueprintBrush = nullptr;
+			FScopedTransaction Transaction(LOCTEXT("LandscapeEdModeBPCustomToolSpawn", "Create landscape brush"));
+			ALandscapeBlueprintCustomBrush* Brush = ViewportClient->GetWorld()->SpawnActor<ALandscapeBlueprintCustomBrush>(EdMode->UISettings->BlueprintCustomBrush, SpawnLocation, FRotator(0.0f), SpawnInfo);
+			EdMode->UISettings->BlueprintCustomBrush = nullptr;
 
 			GEditor->SelectNone(true, true);
 			GEditor->SelectActor(Brush, true, true);

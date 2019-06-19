@@ -510,7 +510,7 @@ public:
 	void SetCurrentBrush(int32 BrushIndex);
 
 	void UpdateBrushList();
-	const TArray<ALandscapeBlueprintBrushBase*>& GetBrushList() const;
+	const TArray<ALandscapeBlueprintCustomBrush*>& GetBrushList() const;
 
 	const TArray<TSharedRef<FLandscapeTargetListInfo>>& GetTargetList() const;
 	const TArray<FName>* GetTargetDisplayOrderList() const;
@@ -564,10 +564,10 @@ public:
 	void AutoUpdateDirtyLandscapeSplines();
 	bool CanEditLayer(FText* Reason = nullptr, FLandscapeLayer* InLayer = nullptr);
 
-	void AddBrushToCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
-	void RemoveBrushFromCurrentLayer(class ALandscapeBlueprintBrushBase* InBrush);
-	class ALandscapeBlueprintBrushBase* GetBrushForCurrentLayer(int8 BrushIndex) const;
-	TArray<class ALandscapeBlueprintBrushBase*> GetBrushesForCurrentLayer();
+	void AddBrushToCurrentLayer(class ALandscapeBlueprintCustomBrush* InBrush);
+	void RemoveBrushFromCurrentLayer(class ALandscapeBlueprintCustomBrush* InBrush);
+	class ALandscapeBlueprintCustomBrush* GetBrushForCurrentLayer(int8 BrushIndex) const;
+	TArray<class ALandscapeBlueprintCustomBrush*> GetBrushesForCurrentLayer();
 	
 	bool NeedToFillEmptyMaterialLayers() const;
 	void RequestLayersContentUpdate(ELandscapeLayerUpdateMode InUpdateMode);
@@ -619,7 +619,7 @@ public:
 private:
 	TArray<TSharedRef<FLandscapeTargetListInfo>> LandscapeTargetList;
 	TArray<FLandscapeListInfo> LandscapeList;
-	TArray<ALandscapeBlueprintBrushBase*> BrushList;
+	TArray<ALandscapeBlueprintCustomBrush*> BrushList;
 	TArray<FName> ShownTargetLayerList;
 	
 	/** Represent the index offset of the target layer in LandscapeTargetList */
