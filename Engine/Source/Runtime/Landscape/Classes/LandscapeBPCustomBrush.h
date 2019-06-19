@@ -6,58 +6,68 @@
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
 
-#include "LandscapeBlueprintBrushBase.generated.h"
+#include "LandscapeBPCustomBrush.generated.h"
 
-UCLASS(Abstract, NotBlueprintable)
-class LANDSCAPE_API ALandscapeBlueprintBrushBase : public AActor
+UCLASS(Abstract, Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Cooking, Rendering))
+class LANDSCAPE_API ALandscapeBlueprintCustomBrush : public AActor
 {
 	GENERATED_UCLASS_BODY()
 
-protected:
-#if WITH_EDITORONLY_DATA
-	UPROPERTY(DuplicateTransient)
-	class ALandscape* OwningLandscape;
-
-	UPROPERTY(Category = "Settings", EditAnywhere)
+private:
+	UPROPERTY(Category= "Settings", EditAnywhere)
 	bool AffectHeightmap;
 
-	UPROPERTY(Category = "Settings", EditAnywhere)
+	UPROPERTY(Category= "Settings", EditAnywhere)
 	bool AffectWeightmap;
 
 	UPROPERTY(Category = "Settings", EditAnywhere)
 	TArray<FName> AffectedWeightmapLayers;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(DuplicateTransient)
+	class ALandscape* OwningLandscape;
+
+	UPROPERTY(NonTransactional, DuplicateTransient)
+	bool bIsCommited;
+
 	UPROPERTY(Transient)
 	bool bIsVisible;
 #endif
-
 public:
+
+	virtual bool ShouldTickIfViewportsOnly() const override;
+	virtual void Tick(float DeltaSeconds) override;
+
+	bool IsAffectingHeightmap() const { return AffectHeightmap; }
+	bool IsAffectingWeightmap() const { return AffectWeightmap; }
+	bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
+
 	UFUNCTION(BlueprintImplementableEvent)
 	UTextureRenderTarget2D* Render(bool InIsHeightmap, UTextureRenderTarget2D* InCombinedResult);
 
 	UFUNCTION(BlueprintImplementableEvent)
 	void Initialize(const FTransform& InLandscapeTransform, const FIntPoint& InLandscapeSize, const FIntPoint& InLandscapeRenderTargetSize);
 
-	UFUNCTION(BlueprintCallable, Category = "Landscape")
+	UFUNCTION(BlueprintCallable, Category="Landscape")
 	void RequestLandscapeUpdate();
 
 #if WITH_EDITOR
-	void SetOwningLandscape(class ALandscape* InOwningLandscape);
-	class ALandscape* GetOwningLandscape() const;
+	void SetCommitState(bool InCommited);
+	bool IsCommited() const { return bIsCommited; }
 
-	bool IsAffectingHeightmap() const { return AffectHeightmap; }
-	bool IsAffectingWeightmap() const { return AffectWeightmap; }
-	bool IsAffectingWeightmapLayer(const FName& InLayerName) const;
 	bool IsVisible() const { return bIsVisible; }
-	
 	void SetIsVisible(bool bInIsVisible);
+
 	void SetAffectsHeightmap(bool bInAffectsHeightmap);
 	void SetAffectsWeightmap(bool bInAffectsWeightmap);
 
-	virtual bool ShouldTickIfViewportsOnly() const override;
-	virtual void Tick(float DeltaSeconds) override;
+	void SetOwningLandscape(class ALandscape* InOwningLandscape);
+	class ALandscape* GetOwningLandscape() const;
+
 	virtual void PostEditMove(bool bFinished) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
 	virtual void Destroyed() override;
 #endif
 };
+
