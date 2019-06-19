@@ -82,6 +82,7 @@
 #include "IVREditorModule.h"
 #include "ILauncherPlatform.h"
 #include "LauncherPlatformModule.h"
+#include "ILauncherServicesModule.h"
 
 #define USE_UNIT_TESTS 0
 
@@ -1825,29 +1826,8 @@ bool FUnrealEdMisc::GetURL( const TCHAR* InKey, FString& OutURL, const bool bChe
 
 FString FUnrealEdMisc::GetExecutableForCommandlets() const
 {
-	FString ExecutableName = FString(FPlatformProcess::ExecutablePath());
-#if PLATFORM_WINDOWS
-	// turn UE4editor into UE4editor-cmd
-	if(ExecutableName.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
-	{
-		FString NewExeName = ExecutableName.Left(ExecutableName.Len() - 4) + "-Cmd.exe";
-		if (FPaths::FileExists(NewExeName))
-		{
-			ExecutableName = NewExeName;
-		}
-	}
-#elif PLATFORM_MAC
-	// turn UE4editor into UE4editor-cmd
-	if (!FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
-	{
-		FString NewExeName = ExecutableName + "-Cmd";
-		if (FPaths::FileExists(NewExeName))
-		{
-			ExecutableName = NewExeName;
-		}
-	}
-#endif
-	return ExecutableName;
+	ILauncherServicesModule& LauncherServicesModule = FModuleManager::LoadModuleChecked<ILauncherServicesModule>(TEXT("LauncherServices"));
+	return LauncherServicesModule.GetExecutableForCommandlets();
 }
 
 void FUnrealEdMisc::OpenMarketplace(const FString& CustomLocation)
