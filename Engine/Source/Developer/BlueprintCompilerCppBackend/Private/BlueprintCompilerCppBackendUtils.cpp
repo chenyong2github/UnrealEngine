@@ -137,8 +137,19 @@ FString FEmitterLocalContext::FindGloballyMappedObject(const UObject* Object, co
 	}
 
 	{
+		// Need special-case handling for UFunction-type fields (can't use GetOwnerStruct).
+		auto GetFieldOwnerStruct = [](const UField* InField) -> UStruct*
+		{
+			if (InField->IsA<UFunction>())
+			{
+				return InField->GetOwnerClass();
+			}
+
+			return InField->GetOwnerStruct();
+		};
+
 		const UField* Field = Cast<UField>(Object);
-		const UStruct* FieldOwnerStruct = Field ? Field->GetOwnerStruct() : nullptr;
+		const UStruct* FieldOwnerStruct = Field ? GetFieldOwnerStruct(Field) : nullptr;
 		if (FieldOwnerStruct && (Field != FieldOwnerStruct))
 		{
 			ensure(Field == FindField<UField>(FieldOwnerStruct, Field->GetFName()));
