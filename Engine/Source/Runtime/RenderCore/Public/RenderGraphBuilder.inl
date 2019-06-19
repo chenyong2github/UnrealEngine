@@ -11,6 +11,11 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 	}
 #endif
 
+	if (FRDGTextureRef* Texture = ExternalTextures.Find(ExternalPooledTexture.GetReference()))
+	{
+		return *Texture;
+	}
+
 	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), ERDGResourceFlags::None);
 	OutTexture->PooledRenderTarget = ExternalPooledTexture;
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
@@ -23,6 +28,8 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 	}
 #endif
 
+	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
+
 	return OutTexture;
 }
 
@@ -34,6 +41,11 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 	}
 #endif
 
+	if (FRDGBufferRef* Buffer = ExternalBuffers.Find(ExternalPooledBuffer.GetReference()))
+	{
+		return *Buffer;
+	}
+
 	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, ERDGResourceFlags::None);
 	OutBuffer->PooledBuffer = ExternalPooledBuffer;
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
@@ -44,6 +56,8 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 		TrackedResources.Add(OutBuffer);
 	}
 #endif
+
+	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
 
 	return OutBuffer;
 }
