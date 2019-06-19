@@ -201,9 +201,7 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 					bIsStateDirty = true;
 
 					// Auto zoom out.
-					float SampleW = Viewport.GetSampleWidth();
-					int32 NumSamples = FMath::CeilToInt(Viewport.Width / SampleW);
-					if (NumFrames > NumSamples * Viewport.GetNumFramesPerSample())
+					while (Viewport.MaxX > Viewport.Width)
 					{
 						ZoomHorizontally(-0.1f, 0.0f);
 						Viewport.ScrollAtPosX(0.0f);
@@ -764,17 +762,25 @@ void SFrameTrack::ZoomHorizontally(const float Delta, const float X)
 	{
 		// frames per Slate unit
 		if (Delta > 0)
+		{
 			ScaleX = 1.0f / FMath::FloorToFloat(1.0f / ScaleX);
+		}
 		else
+		{
 			ScaleX = 1.0f / FMath::CeilToFloat(1.0f / ScaleX);
+		}
 	}
 	else
 	{
 		// Slate units per frame
 		if (Delta > 0)
+		{
 			ScaleX = FMath::CeilToFloat(ScaleX);
+		}
 		else
+		{
 			ScaleX = FMath::FloorToFloat(ScaleX);
+		}
 	}
 
 	//UE_LOG(TimingProfiler, Log, TEXT("%.2f, %.2f, %.2f"), Delta, Viewport.ScaleX, ScaleX);
@@ -849,52 +855,6 @@ void SFrameTrack::UpdateHorizontalScrollBar()
 	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void SFrameTrack::AddThreadTime(int32 InFrameIndex, const TMap<uint32, float>& InThreadMS, const TSharedRef<FProfilerStatMetaData>& InStatMetaData)
-{
-	FFrameThreadTimes FrameThreadTimes;
-	FrameThreadTimes.FrameNumber = InFrameIndex;
-	FrameThreadTimes.ThreadTimes = InThreadMS;
-	RecentlyAddedFrames.Add(FrameThreadTimes);
-
-	if (!bIsActiveTimerRegistered)
-	{
-		bIsActiveTimerRegistered = true;
-		RegisterActiveTimer(0.f, FWidgetActiveTimerDelegate::CreateSP(this, &SFrameTrack::EnsureDataUpdateDuringPreview));
-	}
-
-	StatMetadata = InStatMetaData;
-}
-*/
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-EActiveTimerReturnType SFrameTrack::EnsureDataUpdateDuringPreview(double InCurrentTime, float InDeltaTime)
-{
-	//if (RecentlyAddedFrames.Num() > 0)
-	//{
-	//	bUpdateData = true;
-	//	return EActiveTimerReturnType::Continue;
-	//}
-
-	bIsActiveTimerRegistered = false;
-	return EActiveTimerReturnType::Stop;
-}
-*/
-////////////////////////////////////////////////////////////////////////////////////////////////////
-/*
-void SFrameTrack::MoveSelectionBox(int32 FrameIndex)
-{
-	const int32 SelectionBoxSize = SelectionBoxFrameEnd - SelectionBoxFrameStart;
-	const int32 SelectionBoxHalfSize = SelectionBoxSize / 2;
-	const int32 CenterFrameIndex = FMath::Clamp(FrameIndex - SelectionBoxHalfSize, 0, Frames.Num() - 1 - SelectionBoxSize);
-
-	// Inform other widgets that we have moved the selection box.
-	SelectionBoxFrameStart = CenterFrameIndex;
-	SelectionBoxFrameEnd = CenterFrameIndex + SelectionBoxSize;
-	SelectionBoxChangedEvent.Broadcast(SelectionBoxFrameStart, SelectionBoxFrameEnd);
-}
-*/
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #undef LOCTEXT_NAMESPACE

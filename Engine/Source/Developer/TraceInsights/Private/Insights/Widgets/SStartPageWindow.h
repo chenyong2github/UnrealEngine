@@ -44,12 +44,16 @@ struct FTraceSession
 	Trace::FSessionHandle SessionHandle;
 	FText Name;
 	FText Uri;
+	FDateTime TimeStamp;
+	uint64 Size;
 	bool bIsLive;
 
 	FTraceSession(const Trace::FSessionHandle InSessionHandle, const Trace::FSessionInfo& InSessionInfo)
 		: SessionHandle(InSessionHandle)
 		, Name(FText::FromString(InSessionInfo.Name))
 		, Uri(FText::FromString(InSessionInfo.Uri))
+		, TimeStamp(InSessionInfo.TimeStamp)
+		, Size(InSessionInfo.Size)
 		, bIsLive(InSessionInfo.bIsLive)
 	{}
 };

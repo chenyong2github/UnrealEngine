@@ -47,9 +47,13 @@ FTimingViewDrawHelper::~FTimingViewDrawHelper()
 
 void FTimingViewDrawHelper::DrawBackground() const
 {
+	const FLinearColor StartEndMarkerColor(0.05f, 0.05f, 0.05f, 1.0f);
+
 	const float X0 = Viewport.TimeToSlateUnitsRounded(0.0);
 	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.MaxValidTime);
 	const float W = FMath::CeilToFloat(Viewport.Width);
+
+	const float Y = 0.0f;
 	const float H = FMath::CeilToFloat(Viewport.Height);
 
 	if (X0 >= W || X1 <= 0.0f)
@@ -58,29 +62,40 @@ void FTimingViewDrawHelper::DrawBackground() const
 		ValidX1 = W;
 
 		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, 0.0f, W, H, BackgroundAreaBrush, InvalidAreaColor);
+		DrawContext.DrawBox(0.0f, Y, W, H, BackgroundAreaBrush, InvalidAreaColor);
 	}
 	else // X0 < W && X1 > 0
 	{
 		if (X0 > 0.0f)
 		{
 			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, 0.0f, X0, H, BackgroundAreaBrush, InvalidAreaColor);
+			DrawContext.DrawBox(0.0f, Y, X0, H, BackgroundAreaBrush, InvalidAreaColor);
 		}
 
 		if (X1 < W)
 		{
 			// Draw invalid area (right).
-			DrawContext.DrawBox(X1, 0.0f, W - X1, H, BackgroundAreaBrush, InvalidAreaColor);
+			DrawContext.DrawBox(X1 + 1.0f, Y, W - X1 - 1.0f, H, BackgroundAreaBrush, InvalidAreaColor);
+
+			// Draw the end time marker.
+			DrawContext.DrawBox(X1, Y, 1.0f, H, BackgroundAreaBrush, StartEndMarkerColor);
 		}
 
 		ValidX0 = FMath::Max(X0, 0.0f);
 		ValidX1 = FMath::Min(X1, W);
 
+		if (X0 >= 0.0f)
+		{
+			// Draw the start time marker.
+			DrawContext.DrawBox(X0, Y, 1.0f, H, BackgroundAreaBrush, StartEndMarkerColor);
+
+			ValidX0 += 1.0f; // to not overlap the start time marker
+		}
+
 		if (ValidX1 > ValidX0)
 		{
 			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, 0.0f, ValidX1 - ValidX0, H, BackgroundAreaBrush, ValidAreaColor);
+			DrawContext.DrawBox(ValidX0, Y, ValidX1 - ValidX0, H, BackgroundAreaBrush, ValidAreaColor);
 		}
 	}
 
@@ -114,7 +129,9 @@ bool FTimingViewDrawHelper::BeginTimeline(FTimingEventsTrack& Track)
 	Track.SetPosY(TimelineTopY + Viewport.ScrollPosY);
 
 	if (Track.GetHeight() < Layout.MinTimelineH)
+	{
 		Track.SetHeight(Layout.MinTimelineH);
+	}
 
 	if (TimelineTopY + Track.GetHeight() < -1.0f)
 	{

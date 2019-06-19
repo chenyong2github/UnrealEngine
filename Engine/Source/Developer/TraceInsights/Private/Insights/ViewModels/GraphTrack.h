@@ -84,6 +84,7 @@ public:
 protected:
 	void UpdateStats();
 
+	void DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 	void DrawSeries(const FGraphTrackSeries& Series, FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const;
 
 	float GetYForValue(double Value) const

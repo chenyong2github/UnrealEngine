@@ -7,7 +7,7 @@
 class FFrameTrackViewport
 {
 private:
-	const float SLATE_UNITS_TOLERANCE = 0.1f;
+	static constexpr float SLATE_UNITS_TOLERANCE = 0.1f;
 
 public:
 	FFrameTrackViewport()

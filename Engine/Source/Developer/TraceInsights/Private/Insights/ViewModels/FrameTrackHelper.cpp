@@ -93,8 +93,8 @@ void FFrameTrackDrawHelper::DrawBackground() const
 	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
 	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
 
-	float X0 = Viewport.MinX - Viewport.PosX;
-	float X1 = Viewport.MaxX - Viewport.PosX;
+	const float X0 = Viewport.MinX - Viewport.PosX;
+	const float X1 = Viewport.MaxX - Viewport.PosX;
 	const float W = FMath::CeilToFloat(Viewport.Width);
 	const float H = FMath::CeilToFloat(Viewport.Height);
 
@@ -117,13 +117,13 @@ void FFrameTrackDrawHelper::DrawBackground() const
 			DrawContext.DrawBox(X1, 0.0f, W - X1, H, AreaBrush, InvalidAreaColor);
 		}
 
-		X0 = FMath::Max(X0, 0.0f);
-		X1 = FMath::Min(X1, W);
+		const float ValidX0 = FMath::Max(X0, 0.0f);
+		const float ValidX1 = FMath::Min(X1, W);
 
-		if (X1 > X0)
+		if (ValidX1 > ValidX0)
 		{
 			// Draw valid area.
-			DrawContext.DrawBox(X0, 0.0f, X1 - X0, H, AreaBrush, ValidAreaColor);
+			DrawContext.DrawBox(ValidX0, 0.0f, ValidX1 - ValidX0, H, AreaBrush, ValidAreaColor);
 		}
 	}
 

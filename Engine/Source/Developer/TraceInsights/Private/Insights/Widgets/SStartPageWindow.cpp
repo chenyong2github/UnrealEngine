@@ -90,6 +90,17 @@ public:
 					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
 				];
 		}
+		else if (ColumnName == FName(TEXT("Size")))
+		{
+			return SNew(SBox)
+				.Padding(FMargin(4.0, 0.0))
+				[
+					SNew(STextBlock)
+					.Text(this, &STraceSessionRow::GetTraceSessionSize)
+					.ColorAndOpacity(this, &STraceSessionRow::GetColorBySize)
+					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+				];
+		}
 		else if (ColumnName == FName(TEXT("Status")))
 		{
 			return SNew(SBox)
@@ -132,6 +143,67 @@ public:
 		}
 	}
 
+	FText GetTraceSessionTimeStamp() const
+	{
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
+		{
+			return FText::AsDate(TraceSessionPin->TimeStamp);
+		}
+		else
+		{
+			return FText();
+		}
+	}
+
+	FText GetTraceSessionSize() const
+	{
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
+		{
+			return FText::AsMemory(TraceSessionPin->Size);
+		}
+		else
+		{
+			return FText();
+		}
+	}
+
+	FSlateColor GetColorBySize() const
+	{
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
+		{
+			TSharedRef<ITypedTableView<TSharedPtr<FTraceSession>>> OwnerWidget = OwnerTablePtr.Pin().ToSharedRef();
+			const TSharedPtr<FTraceSession>* MyItem = OwnerWidget->Private_ItemFromWidget(this);
+			const bool IsSelected = OwnerWidget->Private_IsItemSelected(*MyItem);
+
+			if (IsSelected)
+			{
+				return FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+			}
+			else if (TraceSessionPin->Size < 1024ULL * 1024ULL)
+			{
+				// < 1 MiB
+				return FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+			}
+			else if (TraceSessionPin->Size < 1024ULL * 1024ULL * 1024ULL)
+			{
+				// [1 MiB  .. 1 GiB)
+				return FSlateColor(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f));
+			}
+			else
+			{
+				// > 1 GiB
+				return FSlateColor(FLinearColor(1.0f, 0.5f, 0.5f, 1.0f));
+			}
+		}
+		else
+		{
+			return FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
+		}
+	}
+
 	FText GetTraceSessionstatus() const
 	{
 		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
@@ -150,14 +222,13 @@ public:
 		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
 		if (TraceSessionPin.IsValid())
 		{
-			if (TraceSessionPin->bIsLive)
-			{
-				return FText::Format(LOCTEXT("LiveTraceSessionTooltipFormat", "{0}\n{1}\nLIVE"), TraceSessionPin->Name, TraceSessionPin->Uri);
-			}
-			else
-			{
-				return FText::Format(LOCTEXT("TraceSessionTooltipFormat", "{0}\n{1}"), TraceSessionPin->Name, TraceSessionPin->Uri);
-			}
+			return FText::Format(LOCTEXT("TraceSessionTooltipFormat", "{0}\n{1}\nTimestamp: {2}\nFile Size: {3} bytes\nStatus: {4}"),
+				TraceSessionPin->Name,
+				TraceSessionPin->Uri,
+				FText::AsDateTime(TraceSessionPin->TimeStamp),
+				FText::AsNumber(TraceSessionPin->Size),
+				TraceSessionPin->bIsLive ? LOCTEXT("LiveTraceSessionStatus", "LIVE") : LOCTEXT("OfflineTraceSessionStatus", "Offline")
+			);
 		}
 		else
 		{
@@ -336,15 +407,19 @@ TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
 				SNew(SHeaderRow)
 
 				+ SHeaderRow::Column(FName(TEXT("Name")))
-				.FillWidth(0.2f)
+				.FillWidth(0.8f)
 				.DefaultLabel(LOCTEXT("NameColumn", "Name"))
 
-				//+ SHeaderRow::Column(FName(TEXT("Uri")))
-				//.FillWidth(0.8f)
-				//.DefaultLabel(LOCTEXT("UriColumn", "URI"))
+				+ SHeaderRow::Column(FName(TEXT("Size")))
+				.FillWidth(0.2f)
+				.HAlignHeader(HAlign_Right)
+				.HAlignCell(HAlign_Right)
+				.DefaultLabel(LOCTEXT("SizeColumn", "File Size"))
 
 				+ SHeaderRow::Column(FName(TEXT("Status")))
 				.FixedWidth(60.0f)
+				.HAlignHeader(HAlign_Right)
+				.HAlignCell(HAlign_Right)
 				.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
 			)
 		]
@@ -722,6 +797,7 @@ void SStartPageWindow::RefreshTraceSessionList()
 				NewSelectedTraceSession = TraceSessions.Last();
 			}
 		}
+		Algo::SortBy(TraceSessions, &FTraceSession::TimeStamp);
 
 		TraceSessionsListView->RebuildList();
 
@@ -1026,15 +1102,34 @@ TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
 		TArray<Trace::FSessionHandle> AvailableSessions;
 		SessionService->GetAvailableSessions(AvailableSessions);
 
+		struct FSessionInfoEx
+		{
+			FDateTime GetTimeStamp() const { return SessionInfo.TimeStamp; }
+
+			Trace::FSessionHandle SessionHandle;
+			Trace::FSessionInfo  SessionInfo;
+		};
+
+		TArray<TSharedPtr<FSessionInfoEx>> SortedAvailableSessions;
+		SortedAvailableSessions.Reserve(AvailableSessions.Num());
+
+		for (Trace::FSessionHandle SessionHandle : AvailableSessions)
+		{
+			FSessionInfoEx* SessionInfoExPtr = new FSessionInfoEx;
+			SessionInfoExPtr->SessionHandle = SessionHandle;
+			SessionService->GetSessionInfo(SessionHandle, SessionInfoExPtr->SessionInfo);
+			SortedAvailableSessions.Add(MakeShareable(SessionInfoExPtr));
+		}
+
+		Algo::SortBy(SortedAvailableSessions, &FSessionInfoEx::GetTimeStamp);
+
 		int32 SessionCountLimit = 10; // top 10
 
 		// Iterate in reverse order as we want most recent sessions first.
-		for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0 && SessionCountLimit > 0; --SessionIndex, --SessionCountLimit)
+		for (int32 SessionIndex = SortedAvailableSessions.Num() - 1; SessionIndex >= 0 && SessionCountLimit > 0; --SessionIndex, --SessionCountLimit)
 		{
-			Trace::FSessionHandle SessionHandle = AvailableSessions[SessionIndex];
-
-			Trace::FSessionInfo SessionInfo;
-			SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+			const Trace::FSessionHandle SessionHandle = SortedAvailableSessions[SessionIndex]->SessionHandle;
+			const Trace::FSessionInfo& SessionInfo = SortedAvailableSessions[SessionIndex]->SessionInfo;
 
 			FText Label = FText::FromString(SessionInfo.Name);
 			if (SessionInfo.bIsLive)

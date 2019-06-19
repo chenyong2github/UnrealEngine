@@ -62,40 +62,54 @@ void FTimeRulerTrack::UpdateHoveredState(float MouseX, float MouseY, const FTimi
 
 void FTimeRulerTrack::DrawBackground(FDrawContext& DrawContext, const FTimingTrackViewport& Viewport) const
 {
+	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
+	const FLinearColor InvalidAreaColor(0.1f, 0.07f, 0.07f, 1.0f);
+	const FLinearColor StartEndMarkerColor(0.05f, 0.05f, 0.05f, 1.0f);
+
 	const float X0 = Viewport.TimeToSlateUnitsRounded(0.0);
 	const float X1 = Viewport.TimeToSlateUnitsRounded(Viewport.MaxValidTime);
 	const float W = FMath::CeilToFloat(Viewport.Width);
-	const float H = GetHeight();
 
-	const FLinearColor InvalidAreaColor(0.08f, 0.07f, 0.07f, 1.0f);
-	const FLinearColor ValidAreaColor(0.09f, 0.09f, 0.09f, 1.0f);
+	const float Y = GetPosY();
+	const float H = GetHeight();
 
 	if (X0 >= W || X1 <= 0.0f)
 	{
 		// Draw invalid area (entire view).
-		DrawContext.DrawBox(0.0f, 0.0f, W, H, WhiteBrush, InvalidAreaColor);
+		DrawContext.DrawBox(0.0f, Y, W, H, WhiteBrush, InvalidAreaColor);
 	}
 	else // X0 < W && X1 > 0
 	{
 		if (X0 > 0.0f)
 		{
 			// Draw invalid area (left).
-			DrawContext.DrawBox(0.0f, 0.0f, X0, H, WhiteBrush, InvalidAreaColor);
+			DrawContext.DrawBox(0.0f, Y, X0, H, WhiteBrush, InvalidAreaColor);
 		}
 
 		if (X1 < W)
 		{
 			// Draw invalid area (right).
-			DrawContext.DrawBox(X1, 0.0f, W - X1, H, WhiteBrush, InvalidAreaColor);
+			DrawContext.DrawBox(X1 + 1.0f, Y, W - X1 - 1.0f, H, WhiteBrush, InvalidAreaColor);
+
+			// Draw the end time marker.
+			DrawContext.DrawBox(X1, Y, 1.0f, H, WhiteBrush, StartEndMarkerColor);
 		}
 
 		float ValidX0 = FMath::Max(X0, 0.0f);
 		float ValidX1 = FMath::Min(X1, W);
 
+		if (X0 >= 0.0f)
+		{
+			// Draw the start time marker.
+			DrawContext.DrawBox(X0, Y, 1.0f, H, WhiteBrush, StartEndMarkerColor);
+
+			ValidX0 += 1.0f; // to not overlap the start time marker
+		}
+
 		if (ValidX1 > ValidX0)
 		{
 			// Draw valid area.
-			DrawContext.DrawBox(ValidX0, 0.0f, ValidX1 - ValidX0, H, WhiteBrush, ValidAreaColor);
+			DrawContext.DrawBox(ValidX0, Y, ValidX1 - ValidX0, H, WhiteBrush, ValidAreaColor);
 		}
 	}
 
