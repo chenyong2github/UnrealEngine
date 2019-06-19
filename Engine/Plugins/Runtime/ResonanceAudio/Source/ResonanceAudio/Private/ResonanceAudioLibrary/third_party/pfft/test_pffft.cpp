@@ -438,13 +438,16 @@ int TestPFFFT(int argc, char **argv) {
 }
 
 #ifdef DEFINED_M_PI
+#undef DEFINED_M_PI
 #undef M_PI
 #endif
 
 #ifdef DEFINED_M_LN2
+#undef DEFINED_M_LN2
 #undef M_LN2
 #endif
 
 #ifdef DEFINED_M_SQRT2
+#undef DEFINED_M_SQRT2
 #undef M_SQRT2
 #endif
