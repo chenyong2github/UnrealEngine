@@ -279,7 +279,11 @@ static void SafeTestForOptionalGraphicsTools(IDXGIAdapter* Adapter, D3D_FEATURE_
 	ID3D11Device* D3DDevice = NULL;
 	ID3D11DeviceContext* D3DDeviceContext = NULL;
 
+#if PLATFORM_HOLOLENS
+	static bool bIsWin10 = true;
+#else
 	static bool bIsWin10 = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0);
+#endif
 	static bool bPrintErrorMessage = true;
 
 	// Test device creation.
