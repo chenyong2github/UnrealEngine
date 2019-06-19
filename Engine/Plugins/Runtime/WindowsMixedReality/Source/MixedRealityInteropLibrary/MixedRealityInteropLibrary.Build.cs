@@ -32,7 +32,7 @@ public class MixedRealityInteropLibrary : ModuleRules
 				foreach(var Dll in Dlls)
 				{
 					PublicDelayLoadDLLs.Add(Dll);
-					RuntimeDependencies.Add(string.Format("$(EngineDir)/Binaries/Win64/{0}", Dll));
+					RuntimeDependencies.Add(string.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/Win64/{0}", Dll));
 				}
 			}
 		}
