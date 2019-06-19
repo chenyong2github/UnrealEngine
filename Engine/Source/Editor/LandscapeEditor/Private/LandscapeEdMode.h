@@ -49,6 +49,7 @@ struct FLandscapeToolMode
 
 	TArray<FName>			ValidTools;
 	FName					CurrentToolName;
+	FName					CurrentTargetLayerName;
 
 	FLandscapeToolMode(FName InToolModeName, int32 InSupportedTargetTypes)
 		: ToolModeName(InToolModeName)
@@ -500,8 +501,9 @@ public:
 	void SetCurrentToolMode(FName ToolModeName, bool bRestoreCurrentTool = true);
 
 	/** Change current tool */
-	void SetCurrentTool(FName ToolName);
-	void SetCurrentTool(int32 ToolIdx);
+	void SetCurrentTool(FName ToolName, FName TargetLayerName = NAME_None);
+	void SetCurrentTool(int32 ToolIdx, FName TargetLayerName = NAME_None);
+	void SetCurrentTargetLayer(FName TargetLayerName, TWeakObjectPtr<ULandscapeLayerInfoObject> LayerInfo);
 
 	void SetCurrentBrushSet(FName BrushSetName);
 	void SetCurrentBrushSet(int32 BrushSetIndex);
