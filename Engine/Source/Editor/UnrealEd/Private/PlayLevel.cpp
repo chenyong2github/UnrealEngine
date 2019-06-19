@@ -2289,15 +2289,12 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 		}
 	};
 
-	TSharedRef<SVerticalBox> DialogContents = SNew( SVerticalBox )
+	TSharedRef<SVerticalBox> DialogContents = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
+		.Padding(0, 0, 0, 16)
 		[
-			SNew( STextBlock )
-			.Text( NSLOCTEXT( "PlayInEditor", "PrePIE_BlueprintErrors", "One or more blueprints has an unresolved compiler error, are you sure you want to Play in Editor?" ) )
-		]
-		+ SVerticalBox::Slot()
-		[
-			SNew( STextBlock )
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrors", "One or more blueprints has an unresolved compiler error, are you sure you want to Play in Editor?"))
 		];
 
 	for (UBlueprint* Blueprint : ErroredBlueprints)
@@ -2315,6 +2312,13 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 				.ToolTipText(NSLOCTEXT("SourceHyperlink", "EditBlueprint_ToolTip", "Click to edit the blueprint"))
 			];
 	}
+
+	DialogContents->AddSlot()
+		.Padding(0, 16, 0, 0)
+		[
+			SNew(STextBlock)
+			.Text(NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrorsDelayedOpen", "Clicked blueprints will open once this dialog is closed."))
+		];
 
 	FText DialogTitle = NSLOCTEXT("PlayInEditor", "PrePIE_BlueprintErrorsTitle", "Blueprint Compilation Errors");
 
