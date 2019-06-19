@@ -20,7 +20,7 @@ limitations under the License.
 #include <vector>
 
 
-#include "Eigen/Dense"
+#include "ResonanceEigenHelper.h"
 #include "base/audio_buffer.h"
 #include "base/misc_math.h"
 

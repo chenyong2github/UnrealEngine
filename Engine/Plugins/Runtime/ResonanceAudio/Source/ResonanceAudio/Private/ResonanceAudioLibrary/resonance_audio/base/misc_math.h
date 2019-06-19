@@ -29,7 +29,7 @@ limitations under the License.
 #include <vector>
 
 #include "base/integral_types.h"
-#include "Eigen/Dense"
+#include "ResonanceEigenHelper.h"
 #include "base/constants_and_types.h"
 #include "base/logging.h"
 

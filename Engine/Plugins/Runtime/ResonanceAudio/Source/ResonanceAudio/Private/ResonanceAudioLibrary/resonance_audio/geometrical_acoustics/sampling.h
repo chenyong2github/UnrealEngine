@@ -21,7 +21,7 @@ limitations under the License.
 
 #include <cmath>
 
-#include "Eigen/Dense"
+#include "ResonanceEigenHelper.h"
 #include "base/constants_and_types.h"
 #include "base/logging.h"
 

@@ -18,7 +18,7 @@ limitations under the License.
 
 #include <utility>
 
-#include "Eigen/Core"
+#include "ResonanceEigenHelper.h"
 #include "base/logging.h"
 #include "geometrical_acoustics/parallel_for.h"
 #include "geometrical_acoustics/reflection_kernel.h"
