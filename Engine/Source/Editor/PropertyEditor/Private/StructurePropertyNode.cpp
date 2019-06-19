@@ -20,12 +20,7 @@ void FStructurePropertyNode::InitChildNodes()
 
 		if (StructMember)
 		{
-			static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-			const bool bOnlyShowAsInlineEditCondition = StructMember->HasMetaData(Name_InlineEditConditionToggle);
-			const bool bShowIfEditableProperty = StructMember->HasAnyPropertyFlags(CPF_Edit);
-			const bool bShowIfDisableEditOnInstance = !StructMember->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-
-			if (bShouldShowHiddenProperties || (bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance))
+			if (PropertyEditorHelpers::ShouldBeVisible(*this, StructMember))
 			{
 				StructMembers.Add(StructMember);
 			}

@@ -43,7 +43,7 @@ void FCategoryPropertyNode::InitChildNodes()
 
 	TArray<UProperty*> Properties;
 	// The parent of a category window has to be an object window.
-	auto ComplexNode = FindComplexParent();
+	FComplexPropertyNode* ComplexNode = FindComplexParent();
 	if (ComplexNode)
 	{
 		// Get a list of properties that are in the same category
@@ -64,14 +64,9 @@ void FCategoryPropertyNode::InitChildNodes()
 
 			if (bMetaDataAllowVisible)
 			{
-				static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-				const bool bOnlyShowAsInlineEditCondition = (*It)->HasMetaData(Name_InlineEditConditionToggle);
-				const bool bShowIfEditableProperty = (*It)->HasAnyPropertyFlags(CPF_Edit);
-				const bool bShowIfDisableEditOnInstance = !(*It)->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-
 				// Add if we are showing non-editable props and this is the 'None' category, 
-				// or if this is the right category, and we are either showing non-editable
-				if (FObjectEditorUtils::GetCategoryFName(*It) == CategoryName && (bShowHiddenProperties || (bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance)))
+				// or if this is the right category, and we are showing non-editable
+				if (FObjectEditorUtils::GetCategoryFName(*It) == CategoryName && PropertyEditorHelpers::ShouldBeVisible(*this, *It))
 				{
 					Properties.Add(*It);
 				}

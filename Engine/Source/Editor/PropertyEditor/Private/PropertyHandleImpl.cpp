@@ -3067,17 +3067,8 @@ TArray<TSharedPtr<IPropertyHandle>> FPropertyHandleBase::AddChildStructure( TSha
 	for (TFieldIterator<UProperty> It(InStruct->GetStruct()); It; ++It)
 	{
 		UProperty* StructMember = *It;
-		if (!StructMember)
-		{
-			continue;
-		}
 
-		static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-		const bool bOnlyShowAsInlineEditCondition = StructMember->HasMetaData(Name_InlineEditConditionToggle);
-		const bool bShowIfEditableProperty = StructMember->HasAnyPropertyFlags(CPF_Edit);
-		const bool bShowIfDisableEditOnInstance = !StructMember->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-
-		if (bShouldShowHiddenProperties || (bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance))
+		if (PropertyEditorHelpers::ShouldBeVisible(*StructPropertyNode.Get(), StructMember))
 		{
 			TSharedRef<FItemPropertyNode> NewItemNode(new FItemPropertyNode);
 

@@ -378,6 +378,24 @@ ECheckBoxState SEditConditionWidget::OnGetEditConditionCheckState() const
 
 namespace PropertyEditorHelpers
 {
+	bool ShouldBeVisible(const FPropertyNode& InParentNode, const UProperty* Property)
+	{
+		const bool bShouldShowHiddenProperties = !!InParentNode.HasNodeFlags(EPropertyNodeFlags::ShouldShowHiddenProperties);
+		if (bShouldShowHiddenProperties)
+		{
+			return true;
+		}
+
+		const bool bShouldShowDisableEditOnInstance = !!InParentNode.HasNodeFlags(EPropertyNodeFlags::ShouldShowDisableEditOnInstance);
+
+		static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
+		const bool bOnlyShowAsInlineEditCondition = Property->HasMetaData(Name_InlineEditConditionToggle);
+		const bool bShowIfEditableProperty = Property->HasAnyPropertyFlags(CPF_Edit);
+		const bool bShowIfDisableEditOnInstance = bShouldShowDisableEditOnInstance || !Property->HasAnyPropertyFlags(CPF_DisableEditOnInstance);
+
+		return bShowIfEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance;
+	}
+
 	bool IsBuiltInStructProperty( const UProperty* Property )
 	{
 		bool bIsBuiltIn = false;

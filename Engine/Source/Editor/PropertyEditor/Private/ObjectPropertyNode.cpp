@@ -7,6 +7,7 @@
 #include "ItemPropertyNode.h"
 #include "ObjectEditorUtils.h"
 #include "EditorCategoryUtils.h"
+#include "PropertyEditorHelpers.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Engine/Blueprint.h"
@@ -396,6 +397,23 @@ void FObjectPropertyNode::InitChildNodes()
 	InternalInitChildNodes();
 }
 
+static TSharedPtr<FPropertyNode> FindChildCategory( TSharedPtr<FPropertyNode> ParentNode, FName CategoryName )
+{
+	for( int32 CurNodeIndex = 0; CurNodeIndex < ParentNode->GetNumChildNodes(); ++CurNodeIndex )
+	{
+		TSharedPtr<FPropertyNode>& ChildNode = ParentNode->GetChildNode(CurNodeIndex);
+		check( ChildNode.IsValid() );
+
+		// Is this a category node?
+		FCategoryPropertyNode* ChildCategoryNode = ChildNode->AsCategoryNode();
+		if( ChildCategoryNode != nullptr && ChildCategoryNode->GetCategoryName() == CategoryName )
+		{
+			return ChildNode;
+		}
+	}
+	return nullptr;
+}
+
 void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 {
 	HiddenCategories.Empty();
@@ -447,33 +465,22 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 			if( FEditorCategoryUtils::IsCategoryHiddenFromClass(Class, CategoryName.ToString()) )
 			{
 				HiddenCategories.Add( CategoryName );
-
-				bHidden = true;
 				break;
 			}
 		}
 
-		// 
-		static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-		if (It->HasMetaData(Name_InlineEditConditionToggle))
-		{
-			bHidden = true;
-		}
-
 		bool bMetaDataAllowVisible = true;
 		static const FName Name_bShowOnlyWhenTrue("bShowOnlyWhenTrue");
-		const FString& MetaDataVisibilityCheckString = It->GetMetaData(Name_bShowOnlyWhenTrue);
-		if (MetaDataVisibilityCheckString.Len())
+		const FString& ShowOnlyWhenTrueString = It->GetMetaData(Name_bShowOnlyWhenTrue);
+		if (ShowOnlyWhenTrueString.Len())
 		{
 			//ensure that the metadata visibility string is actually set to true in order to show this property
-			GConfig->GetBool(TEXT("UnrealEd.PropertyFilters"), *MetaDataVisibilityCheckString, bMetaDataAllowVisible, GEditorPerProjectIni);
+			GConfig->GetBool(TEXT("UnrealEd.PropertyFilters"), *ShowOnlyWhenTrueString, bMetaDataAllowVisible, GEditorPerProjectIni);
 		}
 
 		if (bMetaDataAllowVisible)
 		{
-			const bool bShowIfNonHiddenEditableProperty = (*It)->HasAnyPropertyFlags(CPF_Edit) && !bHidden;
-			const bool bShowIfDisableEditOnInstance = !(*It)->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-			if( bShouldShowHiddenProperties || (bShowIfNonHiddenEditableProperty && bShowIfDisableEditOnInstance) )
+			if( PropertyEditorHelpers::ShouldBeVisible(*this, *It) )
 			{
 				if (!CategoriesFromBlueprints.Contains(CategoryName) && !CategoriesFromProperties.Contains(CategoryName) )
 				{
@@ -523,31 +530,10 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 				const FName CategoryName( *CurCategoryPathString );
 
 				// Check to see if we've already created a category at the specified path level
-				bool bFoundMatchingCategory = false;
-				{
-					for( int32 CurNodeIndex = 0; CurNodeIndex < ParentLevelNode->GetNumChildNodes(); ++CurNodeIndex )
-					{
-						TSharedPtr<FPropertyNode>& ChildNode = ParentLevelNode->GetChildNode( CurNodeIndex );
-						check( ChildNode.IsValid() );
-
-						// Is this a category node?
-						FCategoryPropertyNode* ChildCategoryNode = ChildNode->AsCategoryNode();
-						if( ChildCategoryNode != NULL )
-						{
-							// Does the name match?
-							if( ChildCategoryNode->GetCategoryName() == CategoryName )
-							{
-								// Descend by using the child node as the new parent
-								bFoundMatchingCategory = true;
-								ParentLevelNode = ChildNode;
-								break;
-							}
-						}
-					}
-				}
+				TSharedPtr<FPropertyNode> FoundCategory = FindChildCategory( ParentLevelNode, CategoryName );
 
 				// If we didn't find the category, then we'll need to create it now!
-				if( !bFoundMatchingCategory )
+				if( !FoundCategory.IsValid() )
 				{
 					// Create the category node and assign it to its parent node
 					TSharedPtr<FCategoryPropertyNode> NewCategoryNode( new FCategoryPropertyNode );
@@ -582,6 +568,10 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 					// Descend into the newly created category by using this node as the new parent
 					ParentLevelNode = NewCategoryNode;
 				}
+				else
+				{
+					ParentLevelNode = FoundCategory;
+				}
 			}
 		}
 	}
@@ -590,11 +580,7 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 		// Iterate over all fields, creating items.
 		for( TFieldIterator<UProperty> It(BaseClass.Get()); It; ++It )
 		{
-			static const FName Name_InlineEditConditionToggle("InlineEditConditionToggle");
-			const bool bOnlyShowAsInlineEditCondition = (*It)->HasMetaData(Name_InlineEditConditionToggle);
-			const bool bShowIfNonHiddenEditableProperty = (*It)->HasAnyPropertyFlags(CPF_Edit) && !FEditorCategoryUtils::IsCategoryHiddenFromClass(BaseClass.Get(), FObjectEditorUtils::GetCategory(*It));
-			const bool bShowIfDisableEditOnInstance = !(*It)->HasAnyPropertyFlags(CPF_DisableEditOnInstance) || bShouldShowDisableEditOnInstance;
-			if (bShouldShowHiddenProperties || (bShowIfNonHiddenEditableProperty && !bOnlyShowAsInlineEditCondition && bShowIfDisableEditOnInstance))
+			if (PropertyEditorHelpers::ShouldBeVisible(*this, *It))
 			{
 				UProperty* CurProp = *It;
 				if( SinglePropertyName == NAME_None || CurProp->GetFName() == SinglePropertyName )
