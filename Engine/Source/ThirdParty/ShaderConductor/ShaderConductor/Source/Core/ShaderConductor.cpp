@@ -868,6 +868,12 @@ namespace ShaderConductor
 					mslOpts.shader_input_wg_index = (uint32_t)std::stoi(Define.value);
 				}
 				/* UE Change End: Allow the caller to specify the various auxiliary Metal buffer indices */
+				/* UE Change Begin: Allow the caller to specify the Metal translation should use argument buffers */
+				if (!strcmp(Define.name, "argument_buffers"))
+				{
+					mslOpts.argument_buffers = (std::stoi(Define.value) != 0);
+				}
+				/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);
