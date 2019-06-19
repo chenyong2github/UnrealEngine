@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title: 4 - Deploying your Level
 Crumbs:%ROOT%
 Description:Learn how to deploy a level onto your Android device from UE4.
@@ -33,7 +33,7 @@ Prior to deploying your application, refer to this list, which was written to he
 
 If you're interested in reading more about currently supported textures, the following chart provides a quick summary of the most commonly supported textures on Android devices:
 
-[INCLUDE:Platforms/Android/Reference#androidformats]
+[INCLUDE:Platforms/Mobile/Android/Reference#androidformats]
 
 ## Deploying your Level
 

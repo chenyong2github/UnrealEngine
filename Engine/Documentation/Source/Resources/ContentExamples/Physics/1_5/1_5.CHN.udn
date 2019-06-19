@@ -1,48 +1,16 @@
-﻿Availability: Public
-Title:1.5 -物理约束
+INTSourceChangelist:3782314
+Availability: Public
+Title:1.5 - 物理约束（1.5 - PhysicsConstraints）
 Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Physics
-Description:物理表现示例关卡概述，示例1.5： 物理约束
-
-
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Resources\ContentExamples\Physics\1_5:title%](physics_1_5_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/physics_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources\ContentExamples\Physics\1_5:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources\ContentExamples\Physics\1_5:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources\ContentExamples\Physics\1_5]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Resources\ContentExamples\Physics\1_5:title%](physics_1_5_topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/physics_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Resources\ContentExamples\Physics\1_5:title%
-	[/PARAM]
-	[PARAM:description]
-		%Resources\ContentExamples\Physics\1_5:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Resources\ContentExamples\Physics\1_5]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+Description:物理示例关卡概述，示例1.5：物理约束（PhysicsContraints）
+Related: Engine/Physics/PhysicsBodies
+Related: Engine/Physics/PhysicsAssetEditor/HowTo
+Related: Engine/Physics/Constraints/ConstraintsReference
+Related: Engine/Physics/Constraints/ConstraintsUserGuide
+Related: Engine/Physics/Collision
+Related: Engine/Physics/PhysicalMaterials/Reference
+Version: 4.9
+topic-image:physics_1_5_topic.png
 
 
 [REGION:fullwidth]
@@ -50,17 +18,20 @@ Description:物理表现示例关卡概述，示例1.5： 物理约束
 [/REGION]
 
 
-[INCLUDE:Engine/Physics\Constraints\ConstraintsUserGuide#PhysXConstraints_001]
+**物理约束** 基本上就是一种接合点。可以用来将两个Actor连接起来（假设一个模拟物理），同时施加限制或力。虚幻引擎4 
+拥有非常灵活的数据驱动型约束系统，设计者只需更改一些选项，即可创建许多不同类型的接合点。引擎包含一些默认的 
+接合点选项（球窝、铰链和棱形），但它们只有一些设置差异。你可以从任何接合点选项开始，尝试自己进行 
+配置。
 
-在内容示例中，从左向右：
+在内容示例中，请从左往右查看：
 
-1. 在其首个坐标轴上任意旋转，在第二个坐标轴有45度的限制，并且其被锁定在“twist”坐标轴。
+1. 可以在其第一个轴上自由旋转，在第二个轴上具有45度限制，在“twist”轴上处于锁定状态。
 
-1. 此立方体在 **Angular Swing 2Motion** 轴上可自由运动，而它在其它轴上被锁定。
+1. 该立方体在 **Angular Swing 2Motion** 上可以自由运动，在其他轴上处于锁定状态。
 
-1. 在 **Twist** 轴上可自由运动，在其它轴上被锁定。
+1. 在 **Twist** 上可以自由运动，在其他轴上处于锁定状态。
 
-1. 最后一个立方体可以在所有坐标轴上自由运动。
+1. 最后一个立方体在所有轴上都可自由运动。
 
 
 

@@ -1,4 +1,4 @@
-﻿INTSourceChangeList:3782314
+﻿INTSourceChangeList:6187230
 Availability:Public
 Title:蓝图样条组件总览
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:蓝图样条组件和蓝图样条网格体组件的简要总览。
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 related:Engine/BlueprintSplines/
 related:Engine/BlueprintSplines/HowTo
 related:Engine/BlueprintSplines/Reference/ComponentProperties

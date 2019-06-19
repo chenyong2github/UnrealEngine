@@ -1,0 +1,56 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Smooth Frame Rate
+Description: Overview of the Smooth Frame Rate option inside the Engine Settings.
+Type: overview
+Version: 4.20
+Parent: Engine/Performance
+Tags: Performance
+Tags: Smooth Frame Rate
+Tags: Frame Rate
+topic-image: SmoothFrameRate.png
+social-image: SmoothFrameRate.png
+topic-icon: SmoothFrameRate.png
+Order: 15
+
+[TOC (start:2 end:2)]
+
+![](SmoothFrameRateSetting.png "SmoothFrameRateSetting.png")
+
+The **Smooth Frame Rate **option (found in the **Project Settings** under **General Settings/Framerate**) is enabled by default and can be used to define the min/max acceptable frame rates on a per-application basis. To better understand how Smooth Frame Rate works, an understanding of Vertical Sync (or VSync) is also needed as the two have a lot in common. 
+
+## Vertical Sync
+
+VSync essentially is a way to control screen tearing (when the Frame Rate exceeds the Refresh Rate of the monitor) or stutter (when the Frame Rate drops below the Frame Rate Cap, typically 60 FPS) in your rendered application. The functionally works by setting an overall Frame Rate based on the video card demands and the Monitor refresh rate; this will yield a very harsh jump sometimes between 30 FPS and 60 FPS on modern machines which yield the stuttering effect.
+
+With modern monitors and video cards, VSync is not often as critical an issue (depending of course on the demands of the system and desired results), and for that reason, VSync for most is set to Application Specific in your Video Card's Configuration Manager (for example, the NVIDIA Control Panel). This enables each application to decide whether you want to use VSync with it or not. The image below is an example that illustrates what happens when the Frame Rate drops which produces VSync stuttering. 
+
+![](AdaptiveVSync.png "AdaptiveVSync.png")
+
+Most modern video cards have adaptive VSyncing which yields better results with less stuttering.
+
+![](AdaptiveVSync-2-650.png "AdaptiveVSync-2-650.png")
+
+Adaptive VSync prevents screen tearing and reduces stuttering by locking the higher-end of Frame Rate to 60 FPS and turns VSync off below 60. 
+
+  
+
+[REGION:note]
+Both images above were used in [NVIDIA's Adaptive VSync](https://www.geforce.com/hardware/technology/adaptive-vsync/technology) documentation page.
+[/REGION]
+  
+
+## Smoothed Frame Rate Range
+
+With Frame Rate Smoothing, the application is determining what range is acceptable for Frame Rate wandering, so you can cap your Frame Rate between Min and Max allowable values. Since this is application based, it will make these changes **before **any VSync changes.   
+  
+
+As an example, if you have an application that runs amazingly well on a Titan X card at around a consistent 75 to 85 FPS, most users will not have the higher-end machine to achieve this (or if you were developing for a console, the target is usually 60 FPS). You can set the **Smooth Frame Rate **to a range of 40 to 60 FPS. 
+
+By doing so, this means that even though your higher-end machines could run at a higher Frame Rate, for the best experience for all, you cap the Frame Rate at 60 FPS. Taking this a step further, if you have a user who is on a lower-end machine which is struggling at 40 FPS, the VSync hardware changes will probably limit the FPS of the application to 30 FPS after the Smooth Frame Rate shifts to a lower 40 FPS. 
+
+You can define this inside the **Project Settings **under **General Settings/****Framerate** with the **Smoothed Frame Rate Range: **
+
+**![](Range.png)**
+
+You can also set whether the Min/Max ranges are: **Exclusive **(excludes value), **Inclusive **(includes value), or **Open **(value is not capped).

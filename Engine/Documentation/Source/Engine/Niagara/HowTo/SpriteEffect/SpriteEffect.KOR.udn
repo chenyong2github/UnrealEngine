@@ -1,4 +1,4 @@
-INTSourceChangelist:4703316
+INTSourceChangelist:6417091
 Availability: Public
 Crumbs: 
 Title: 나이아가라에서 메시 파티클 이펙트 생성
@@ -7,18 +7,13 @@ Type:how-to
 Version: 4.21
 Parent: Engine/Niagara/HowTo
 Order: 6
+skilllevel:Beginner
 Tags: Niagara
 Tags: Early Access
-
-전제 조건 주제
-
-이 글은 다음 주제에 대한 사전 지식이 있다 가정합니다. 먼저 확인해 주세요.
-
-*   [나이아가라 플러그인 활성화](Engine/Niagara/HowTo/EnableNiagara "나이아가라 활성화 방법을 설명합니다.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
+hero-image:Sprite_Banner_01.png
 
 흔히 사용되는 비주얼 이펙트 기법은 텍스처와 머티리얼을 2D 카메라를 향한 평면에 렌더링하는 *sprite* (스프라이트) 기법입니다. 여기서는 스프라이트 작업을 위한 나이아가라 이미터 설정법을 알아봅니다. 나이아가라 이미터가 들어있는 나이아가라 시스템을 레벨에 배치하면, 그 레벨에 이펙트가 보입니다.
-
-![](Sprite_Banner_01.png "Sprite_Banner_01.png")
 
 [REGION:note]
 **전제 조건 단계:**
@@ -32,7 +27,7 @@ Tags: Early Access
     ![](SE_01.png)(w:400)
 2.  **Create a new emitter from an emitter template** (이미터 템플릿에서 이미터를 새로 만듭니다.) 옆의 동글 버튼을 클릭합니다. **Select a Template Emitter** (템플릿 이미터 선택) 아래 **Fountain** (분수) 템플릿을 선택합니다. 그런 다음 **OK** (확인)을 누르면 콘텐츠 브라우저에 새 이미터가 생깁니다.  
     ![](NiagaraEmitter_FountainTemplate.png)(w:400)
-3.  새로 만든 나이아가라 이미터 이름을 **FX_Smoke** 라 하고 더블클릭하여 엽니다.   
+3.  새로 만든 나이아가라 이미터 이름을 **FX_Smoke** 라 하고 더블클릭하여 엽니다.  
     ![](SE_02.png)
 4.  나이아가라 에디터가 열렸으면 **Selected Emitter** (선택된 이미터) 패널에서 **Render** (렌더) 섹션을 찾습니다.
 5.  **Sprite Rendering** (스프라이트 렌더링) 섹션을 펼치고 다음 프로퍼티에 다음 값을 설정합니다.  

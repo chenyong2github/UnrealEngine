@@ -1,0 +1,71 @@
+﻿INTSourceChangelist:6674950
+Availability: Public
+Crumbs: 
+Title: 法线计算方法
+Description: 调整简化几何体的法线计算方法。
+Type: how-to
+SkillLevel:Intermediate
+Version: 4.20
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags
+
+
+代理几何体工具将允许您指定在计算给定静态网格体的顶点法线时应使用的方法。在下面的教程中，我们将了解如何更改顶点法线计算方法，以及对生成的静态网格体的影响。
+
+## 步骤
+
+在下面部分，我们将了解如何调整用于计算静态网格体所使用的法线的方法。
+
+1. 首先，找到一个或一组要为其生成新几何体的静态网格体，并在视口内将其选中。  
+    ![](NormalCalculationMethod_02.png "NormalCalculationMethod_02.png")
+2. 接下来，转到 **窗口（Window）> 开发者工具（Developer Tools）> 合并Actor（Merge Actors）**，打开 **合并Actor（Merge Actor）** 工具。  
+    ![](GapFilling_02.png "GapFilling_02.png")
+3. 在合并Actor工具中，单击 **第二个图标** 访问 **代理几何体（Proxy Geometry）** 工具，然后展开 **代理设置（Proxy Settings）**。  
+    ![](NormalCalculationMethod_03.png "NormalCalculationMethod_03.png")  
+    
+4. 将 **屏幕大小（Screen Size）** 值设置为 **50**，并确保 **法线计算方法（Normal Calculation Method）** 设置为 **角度加权（Angle Weighted）**。  
+    ![](NormalCalculationMethod_04.png "NormalCalculationMethod_04.png")  
+    [REGION:note]
+    通过将屏幕大小（Screen Size）设置为值50， 我们将告知代理几何体工具减少所选静态网格体中使用的三角形数量。
+    [/REGION]
+    
+5. 接下来，单击 **合并Actor（Merge Actors）** 按钮，并在 **内容浏览器（Content Browser）** 中为新创建的静态网格体输入名称和位置。然后，单击 **保存（Save）** 以启动合并过程。 
+    [REGION:lightbox]
+    [![](GapFilling_06.png)](GapFilling_06.png)
+    [/REGION]
+    
+6. 完成后，双击静态网格体以在 **静态网格编辑器（Static Mesh Editor）** 中打开它，您可以在此处查看结果。  
+    
+
+[REGION:lightbox]
+![](NormalCalculationMethod_05.png "NormalCalculationMethod_05.png")
+[/REGION]
+
+## 最终结果
+
+获得最佳结果需要一些时间和迭代，因为每个对象可能需要不同的法线计算方法才能获得所需的结果。根据使用的对象类型，结果也可能非常微妙。下面的图像对比显示了当法线计算方法（Normal Calculation Method）设置为角度加权（Angle Weighted）、面积加权（Area Weighted）和等加权（Equal Weighted）时本例所使用的静态网格体的外观。
+
+[EXCERPT:NormalCalculationMethodSlider]
+[OBJECT:SliderSequence]
+	[PARAMLITERAL:max]
+	3
+	[/PARAMLITERAL]
+	[PARAMLITERAL:ext]
+	jpg
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	NormalCalculationMethod
+	[/PARAMLITERAL]
+    [PARAM:caption]
+    下面的图像滑块显示了这三种法线计算方法都可以实现的结果。首先是角度加权（Angle Weighted），其次是面积加权（Area Weighted），最后是等加权（Equal Weighted）。
+    [/PARAM]
+    [PARAM:image_list]
+    ![](AngleWeighted.png)
+![](AreaWeighted.png)
+![](EqualWeighted.png)
+    [/PARAM]
+[/OBJECT]
+[/EXCERPT:NormalCalculationMethodSlider]
+
+[](#)[](#)

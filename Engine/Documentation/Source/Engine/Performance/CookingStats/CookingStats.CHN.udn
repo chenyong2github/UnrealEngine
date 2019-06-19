@@ -1,8 +1,13 @@
-﻿INTSourceChangelist:2632102
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:烘焙统计信息
 Crumbs:%ROOT%, Engine
 Description:如何识别性能问题并加以解决。
+
+在烘焙一个项目时，虚幻应4会创建大量详细日志。其中一个是 **Stats.csv** 文件。此文档详细记录了如何阅读此文件以追踪烘焙性能问题。
+
+(#ReadingtheLog)
+## 阅读日志
 
 烘焙项目时，总是会创建统计信息。您可在以下位置找到这些信息：
 
@@ -28,6 +33,7 @@ Description:如何识别性能问题并加以解决。
 这些键和标记可帮助您解决烘焙流水线中的问题。
 
 
+(#DebuggingCookingPerformanceIssues)
 ## 调试烘焙性能问题
 
 在大多数情况下，偏差是由于 **派生数据缓存** 失效以及需要为平台重建纹理
@@ -37,6 +43,7 @@ Description:如何识别性能问题并加以解决。
 
 
 
+(#DerivedDataCache_DDC_Stats)
 ## 派生数据缓存 (DDC) 统计信息
 
 DDC 统计信息在 stats.CSV 文件中可识别，因为它们的键都以 DDCTransactionId 开头。
@@ -70,6 +77,7 @@ CacheKey。
 父事务的排除性时间可以通过减去子事务的
 持续时间来确定。
 
+(#SavePackageStats)
 ## 保存包统计信息
 
 保存包是烘焙过程的一大组成部分，并且每个保存包统计信息键都以 "SavePackageTransactionId" 开头：
@@ -98,6 +106,7 @@ CacheKey。
 调试保存包的问题需要您明确了解
 保存包的不同部分。
 
+(#CookingPackageStats)
 ## 烘焙包统计信息
 
 烘焙包统计信息可让您从烘焙程序角度了解

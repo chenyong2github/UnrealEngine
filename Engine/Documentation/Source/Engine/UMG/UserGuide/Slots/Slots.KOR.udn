@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3612551
+INTSourceChangelist:3612551
 Availability: Public
 Crumbs: %ROOT%
 Title: 슬롯
@@ -38,7 +38,7 @@ Topic-Image:Engine/UMG/UserGuide/SlotTopic.png
 위에서, **Vertical Box** 이름 **GameTitleBox** 가 **CanvasPanel** 에 배치되었습니다. **Vertical Box** 에 연관된 **슬롯** 을 구하여 **CanvasPanelSlot** 유형으로 **Cast** (형변환)해 주면, "StartButton" 이 클릭되었을 때 박스의 위치를 설정할 수 있게 됩니다.
 
 [REGION:note]
-현재 **블루프린트** 에는 SETTER 노드만 노출됩니다. **Layout** 에서 프로퍼티를 GET 할 필요가 있는 경우, 프로퍼티를 저장할 변수를 만든 다음, **Event Construct** 시 그 변수를 통해 **Layout** 프로퍼티를 **SET** 해 줘야 레퍼런싱되어 나중에 접근할 수 있게됩니다.
+현재 **블루프린트** 에는 SETTER 노드만 노출됩니다. **Layout** 에서 프로퍼티를 GET 할 필요가 있는 경우, 프로퍼티를 저장할 변수를 만든 다음, **Event Construct** 시 그 변수를 통해 **Layout** 프로퍼티를 **SET** 해 줘야 참조되어 나중에 접근할 수 있게됩니다.
 
 [/REGION]
 

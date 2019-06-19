@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3750407
+INTSourceChangelist:3750407
 Availability: Public
 Title:사운드 액터 사용 안내서
 Crumbs: %ROOT%, Engine, Engine/Audio
@@ -60,7 +60,7 @@ order:2
 | **Sound** | 사운드 - **사운드 웨이브** 또는 **사운드 큐** 애셋을 가리킵니다. |
 | **Is UI Sound** | UI 사운드인지 - 게임 일시정지시 사운드 애셋을 재생할지 말지 입니다. |
 | **Volume Multiplier** | 볼륨 배수 - 사운드의 전체적인 볼륨을 설정하는 데 적용되는 배수입니다. |
-| **Pitch Multiplier** | 핏치 배수 - 사운드의 전체적인 핏치를 설정하는 데 적용되는 배수입니다. |
+| **Pitch Multiplier** | 피치 배수 - 사운드의 전체적인 피치를 설정하는 데 적용되는 배수입니다. |
 | **Instance Parameters** | 인스턴스 파라미터 - 사운드에 대한 인스턴스별 파라미터를 추가할 수 있습니다. |
 | **Sound Class Override** | 사운드 클래스 덮어쓰기 - 사운드 애셋에 할당시킬 수 있는 옵션 그룹입니다. |
 
@@ -108,15 +108,15 @@ Attenuation 관련 추가 정보는, [디스턴스 모델 감쇠](Engine/Audio/D
 [/REGION]
 
 ### Modulation 프로퍼티
-**Modulation**, 변조 세팅은 볼륨과 핏치에 대한 최소/최대값 변조 제어는 물론 **고주파 게인 배수** 설정도 가능합니다.
+**Modulation**, 변조 세팅은 볼륨과 피치에 대한 최소/최대값 변조 제어는 물론 **고주파 게인 배수** 설정도 가능합니다.
 
 ![](soundactor_modulation.png)
 
 
 |프로퍼티|설명 |
 | ------- | ------------ |
-| **Pitch Modulation Min** | 핏치 변조 최소 - 핏치 배수 임의 결정시 사용할 하한선입니다. |
-| **Pitch Modulation Max** | 핏치 변조 최대 - 핏치 배수 임의 결정시 사용할 상한선입니다. |
+| **Pitch Modulation Min** | 피치 변조 최소 - 피치 배수 임의 결정시 사용할 하한선입니다. |
+| **Pitch Modulation Max** | 피치 변조 최대 - 피치 배수 임의 결정시 사용할 상한선입니다. |
 | **Volume Modulation Min** | 볼륨 변조 최소 - 볼륨 배수 임의 결정시 사용할 하한선입니다. |
 | **Volume Modulation Max** | 볼륨 변조 최대 - 볼륨 배수 임의 결정시 사용할 상한선입니다. |
 | **High Frequency Gain Multiplier** | 고주파 이득 배수 - 이 컴포넌트에 의해 생성되는 사운드에 대한 고주파 이득에 적용할 배수입니다. |
@@ -127,7 +127,7 @@ Attenuation 관련 추가 정보는, [디스턴스 모델 감쇠](Engine/Audio/D
 
 ![](soundactor_componentstab.png)
 
-**오디오** 컴포넌트는 **블루프린트** 를 통해 레퍼런싱하여 여러가지 유형의 함수를 사용해 그 세팅 다수를 변경할 수 있습니다.
+**오디오** 컴포넌트는 **블루프린트** 를 통해 참조하여 여러가지 유형의 함수를 사용해 그 세팅 다수를 변경할 수 있습니다.
 
 ![](soundactor_audiocomponent.png)(w:480)
 

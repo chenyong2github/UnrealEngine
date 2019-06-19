@@ -1,0 +1,38 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Title: Migrating Content
+Description: Showing how to migrate content from any UE4 project into Action RPG.
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+Order: 5
+
+
+To help save time and resources, many of the items that you will find in Action RPG (ARPG) were [migrated](Engine/Content/Browser/UserGuide/Migrate) to ARPG from existing projects. In the following how-to, we will take a look at how you would go about migrating assets from different projects into ARPG.
+
+## Steps
+
+1.  First, select all of the assets you want to migrate in the **Content Browser**.  
+    ![](image5.png)
+    
+
+1.  Next, right-click on any of the selected assets and go to **Asset** **Actions**  and then select the **Migrate**  option.  
+    ![](image6.png)
+    
+
+1.  The **Asset Report**  dialog will now appear, which shows all of the assets and their dependencies that will be migrated.  
+    ![](image1.png)
+    
+
+1.  Press the **OK** button and then choose the **Content** folder of the UE4 project that you want to migrate this content to, pressing the **Select Folder** button to start the migration process.  
+    ![](image2.png)
+    
+
+## End Results
+
+If everything has been migrated correctly the following message will be displayed in the lower right-hand corner of the UE4 Editor.  
+![](image3.png "image3.png")  
+[REGION:note]
+If you attempt to migrate into anything other than a game content folder, you may receive the following message:
+
+![](image4.png "image4.png")
+[/REGION]

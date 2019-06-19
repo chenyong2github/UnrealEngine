@@ -5,8 +5,10 @@ Description: Introduction to using Blueprints and Python to control the Unreal E
 type: landing
 Version: 4.20
 Parent: Engine/Editor
-Order: 1
-Tags: Blueprints, Python, scripting
+Order: 13
+Tags: Blueprints
+Tags: Python
+Tags: scripting
 
 
 In the Unreal Editor user interface, you have access to a vast range of visual tools for setting up your Project, designing and building Levels, creating gameplay interactions, and more. But sometimes, once you've figured out what you need the Editor to do, you might want to invoke its tools and commands programmatically in a reusable script.

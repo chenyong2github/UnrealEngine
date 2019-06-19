@@ -1,0 +1,34 @@
+﻿INTSourceChangelist:6536090
+Availability:Public
+Title:虚幻工作室
+Description:将虚幻引擎用于汽车、航空、建筑、消费电子产品和复杂数据可视化应用
+Crumbs:%ROOT%,
+version:4.19
+Parent:%ROOT%
+tags:Studio
+type:landing
+Order: 7
+topic-image:Enterprise_Topic.png
+topic-icon:%ROOT%/enterprise_icon.png
+hero-image:Enterprise_Hero.png
+
+
+虚幻引擎及其 **实时** 交互和渲染功能非常适用于各种非游戏应用的项目，包括汽车、航空、建筑、消费电子产品和复杂数据可视化。
+
+
+## 新手入门
+
+[DIR(output:"topic" org:"hierarchy" parent:"Studio" tags:"Getting Started" end:"1")]
+
+## Unreal Studio工具
+
+%Studio/Datasmith:topic%
+%Engine/Editor/ScriptingAndAutomation/Python:topic%
+
+## Unreal Studio版本说明
+
+[DIR(output:"topic" org:"hierarchy" parent:"Studio/Builds" end:"1")]
+
+## 其他内容资源
+
+%Studio/Automotive/AutomotiveMaterialPack:topic%

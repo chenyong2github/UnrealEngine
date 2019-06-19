@@ -1,62 +1,111 @@
-﻿INTSourceChangelist:3599948
-Availability:Public
-Title:游戏性标记
-Crumbs: %ROOT%
-Description:游戏性标记可用于辨识、分类、匹配和过滤对象。
-version:4.15
-skilllevel:Intermediate
-Parent:Engine/Gameplay
-Order:
-type:overview
-tags:Gameplay
+﻿INTSourceChangelist:5061242
+Availability: Public
+Crumbs: 
+Title:Gameplay标签
+Description:可以用于识别、分类、匹配和过滤对象的Gameplay标记。
+Type: 
+Version: 4.15
+Parent: Gameplay
+Order: 
+Tags: Gameplay
 
-[toc(start:2 end:2)]
 
-**游戏性标记（Gameplay Tags）** 是用户定义命名的概念性层级标记。这些标记可拥有任意数量的层级等级，由“.”字符隔开。举例而言，带三个层级的游戏性标记的形式为“Family.Genus.Species”，“Family”为层级中最广泛的辨识符，而“Species”则是最特定的辨识符。注意“Family.Genus.Species”隐藏式地说明了“Family.Genus”和“Family”游戏性标记同样存在。个体标记很轻量级，使用 `FGameplayTag` 类型。游戏对象通常拥有多个标记，因此提供了 **游戏性标记容器**（使用 `FGameplayTagContainer` 类型），可处理大量额外查询。游戏性标记（或游戏性标记容器）可被添加至任意项目，将对象和概念标记关联起来。这些概念标记即可按需求用于辨识、匹配、分类或过滤项目的对象。
+**Gameplay标记** 是概念性分层标签，使用用户定义的名称。这些标记可以有任意数量的分层级别，以“.”符号分隔，例如，有三个级别的Gameplay标记将采用形式“Family.Genus.Species”，其中“Family”是这个层级中最广泛的标识符，而“Species”是最具体的标识符。请注意，“Family.Genus.Species”的存在暗示着“Family.Genus”和“Family”Gameplay标记也存在。单个标记是轻量级的，使用类型[`FGameplayTag`](https://api.unrealengine.com/INT/API/Runtime/GameplayTags/FGameplayTag/index.html)。由于游戏对象经常有多个标记，因此提供了 **Gameplay标记容器**（使用类型[`FGameplayTagContainer`](https://api.unrealengine.com/INT/API/Runtime/GameplayTags/FGameplayTagContainer/index.html)），它可以处理多种附加查询。Gameplay标记（或Gameplay标记容器）可以添加到任意项目，将对象与概念标签关联起来，继而使用标签来为您的项目识别、匹配、分类或过滤对象（根据需要）。
 
-## 创建游戏性标记
-游戏性标记必须被添加到中央标记词典，以便引擎了解。此操作可通过编辑器功能以三种方式执行。标记可在 **Project Settings** 菜单中用 .ini 文件或创建数据表资源进行手动添加。 
+## 创建Gameplay标记
 
-全部三种方法均在 **Project Settings** 下进行设置，在 **Project** 部分中打开 **Gameplay Tags** 标记即可。
-![Gameplay Tags menu in Project Settings](ProjectSettings.png)
+Gameplay标记必须添加到中央标记词典，引擎才能知道这些标记的存在。这可以通过编辑器功能，用三种方式来实现。您可以通过三种方式来创建（或删除）标记：
+
+*   在 **项目设置（Project Settings）** 菜单中手动添加或移除。
+*   通过在“GameplayTags”文件夹中创建和编辑.ini文件。
+*   通过构建数据表资源。
+
+所有三种方法都在 **项目设置（Project Settings）** 中，打开 **Gameplay标记（Gameplay Tags）** 选项卡，在 **项目（Project）** 部分下设置。
+
+![项目设置（Project Settings）中的Gameplay标记（Gameplay Tags）菜单](ProjectSettings.png)
 
 ### 手动添加标记
 
-添加游戏性标记的最简单方法是在 **Project Settings** 菜单中手动进行输入。勾选 **Import Tags From Config** 选项后将加载 `Config/DefaultGameplayTags.ini`，以及 `Config/Tags` 路径下.ini 文件中的全部游戏性标记。将出现一个标记为 **Add New Gameplay Tag** 的选项，此选项可用于将新游戏性标记添加到现有的任意游戏性标记 .ini 文件中（包括默认文件）。以此法添加的标记也拥有一个输入简单描述的任选域，将作为提示文本出现在编辑器中。
+添加Gameplay标记的最简单方法是在 **项目设置（Project Settings）** 菜单中手动输入。通过选中 **从配置导入标记（Import Tags From Config）** 选项，将会加载`Config/DefaultGameplayTags.ini`，以及`Config/Tags`目录中找到的任何.ini文件中的所有Gameplay标记。这样将出现标有 **添加新Gameplay标记（Add New Gameplay Tag）** 的选项，该选项可以用于向任何现有的Gameplay标记.ini文件（包括默认文件）添加新的Gameplay标记。以这种方式添加的标记还有一个可选字段，用于输入将在编辑器中作为工具提示显示的简短描述。
 
-![Manually Adding Tags in Project Settings](AddNewTag.png)
+![项目设置（Project Settings）中的手动添加标记](AddNewTag.png)
 
-### 直接编辑 .ini 文件
-如要添加使用自有 .ini 文件的标记，必须启用 **Import Tags From Config** 选项。游戏性标记将从项目的 `Config/Tags/` 路径中找到的每个 .ini 文件进行加载，十分易于手动编辑。如果这些编辑在编辑器运行时执行，先关闭 **Import Tags From Config** 选项，然后再重新启动则可重新加载文件。这些文件中的格式如下：
+### 直接编辑.ini文件
 
-	[/Script/GameplayTags.GameplayTagsList]
-	GameplayTagList=(Tag="Vehicle.Air.Helicopter",DevComment="This is a custom tooltip!")
-	GameplayTagList=(Tag="Movement.Flying",DevComment="")
-	GameplayTagList=(Tag="Movement.Hovering",DevComment="")
-	GameplayTagList=(Tag="Movement.Landing",DevComment="")
+要使用您自己的.ini文件添加标记，必须启用 **从配置导入标记（Import Tags From Config）** 选项。然后可以从项目`Config/Tags/`路径下的每个.ini文件加载Gameplay标记，这些文件手动编辑十分容易。如果进行这些编辑时编辑器仍在运行，关闭 **从配置导入标记（Import Tags From Config）** 选项然后再打开，可以重新加载这些文件。这些文件中的格式类似于以下示例：
 
-此法便于同事添加其自建的标记。`Config/Tags` 中的 .ini 文件十分易于编辑，可以任意文件命名规则对其命名。
+~~~
+<code class="language-cpp">[/Script/GameplayTags.GameplayTagsList]
+GameplayTagList=(Tag="Vehicle.Air.Helicopter",DevComment="This is a custom tooltip!")
+GameplayTagList=(Tag="Movement.Flying",DevComment="")
+GameplayTagList=(Tag="Movement.Hovering",DevComment="")
+GameplayTagList=(Tag="Movement.Landing",DevComment="")</code>
+~~~
 
-前往 **Project Settings** 中的 **Gameplay Tags Developer** 菜单，在 **Developer Config Name** 中填入所需的文件名后，即可使用“开发者标记”配置文件。启用后将会把添加（由用户添加）至默认 .ini 文件的全部标记保存到一个用户指定的 .ini 文件中。您的 .ini 文件将保存在 `Config/Tags` 文件夹中，无需更多修改便可传给其他开发者或提交到源控制系统。这在拥有数千个标记的大型项目中十分实用，或作为一种区分特定开发者所创建标记的方式，或结合特定的游戏功能使用。这完全为任选，但有助于一些团队和工作流将特定的标记保存在单独的文件中。
+该方法很方便您的队友添加自己的标记，因为`Config/Tags`中的.ini是很容易编辑的文本文件，可以按照您喜欢的任意文件命名约定进行命名。
+
+要使用“开发者标记”配置文件，转至 **项目设置（Project Settings）** 中的 **Gameplay标记开发者（Gameplay Tags Developer）** 菜单，用您所需的文件名填写 **开发者配置名称（Developer Config Name）**。如果启用，会将添加到默认.ini文件（由您添加）的所有标记保存到您指定的.ini文件。您的.ini文件存在于`Config/Tags`文件夹中，可以传递给其他开发者或提交到源控制系统，而不必进一步修改。这对于包含数千个标记的大型项目十分有用，或者用于区分特定开发者创建的标记，或者用于特定的游戏功能。这不是强制性要求，但对于某些团队和工作流程十分有益，可以帮助将特定标记存储在单独的文件中。
 
 ### 数据表资源
-最后，[数据表](Gameplay/DataDriven/#datatables) 资源结合行类型 `GameplayTagTableRow` 也可添加标记。从外部源（如 Excel 电子表格）中导入游戏性标记时尤为实用，但也可不导入文件自建资源，并在编辑器中使用。资源创建后，将其添加至 **Project Settings** 菜单中的 **GameplayTagTableList**，其中包含的所有标记将被添加至 **Gameplay Tag Manager**。注意：此系统支持多个资源被列出，因此您可以将项目的标记分隔为不同的电子表格（如有助于工作流或组织）。
 
-![Gameplay Tags in a Data Table Asset](DataAsset.png)
+最后，标记可以通过[数据表](Gameplay/DataDriven/#datatables)资源添加，使用行类型为`GameplayTagTableRow`。这对于从外部源导入Gameplay标记尤其有用，如Excel电子表格文件，但您可以不必导入文件而创建自己的标记，并在编辑器中处理标记。创建资源后，将它添加到 **项目设置（Project Settings）** 菜单中的 **Gameplay标记表的列表（GameplayTagTableList）**，其中包含的所有标记都会添加到 **Gameplay标记管理器（Gameplay Tag Manager）**。请注意，该系统支持列出多个资源，因此您可以将项目标记拆分到不同的电子表格中（如果对您的工作流或组织有益）。
 
-[REGION:caption]数据表资源使用虚幻引擎资源而非 .ini 文件，可在编辑器运行时进行查看和修改（与其他游戏资源类似）。[/REGION]
+![数据表资源中的Gameplay标记](DataAsset.png)
 
-## 管理游戏性标记
-添加游戏性标记后，可通过搜索对其的引用、将其删除、对其重命名进行管理。可在 **Project Settings** 中标记旁的插入符下拉菜单中执行这些操作。如果标记通过 .ini 文件添加（手动编辑或通过 **Project Settings** 菜单添加），且未被其他元素所引用，则只能在此菜单中进行删除。重命名标记将在 GameplayTagRedirects 列表中进行添加，被重命名的标记在加载时将被修复（无提醒）。
+[REGION:caption]
+数据表资源使用虚幻引擎资源（而不是.ini文件），可以在编辑器运行期间像其他游戏资源一样查看和更改。
+[/REGION]
 
-![Editing Individual Gameplay Tags In Project Settings](ProjectSettingsEditTag.png)
+## 管理Gameplay标记
 
-[REGION:caption]可通过插入符下拉菜单在 Project Settings 中编辑游戏性标记。[/REGION]
+添加Gameplay标记后，您可以搜索对它们的引用、删除或重命名来进行管理。所有这些操作都可以使用 **项目设置（Project Settings）** 菜单中的标记旁边的插入符号下拉菜单进行访问。如果标记是通过.ini文件添加的（无论是手动编辑还是通过 **项目设置（Project Settings）** 菜单添加），则只能在该菜单中将其删除，且不能被进行任何引用。重命名标记会导致向GameplayTagRedirects列表中添加标记，任何重命名的标记都会在加载时被静默修复。
 
-### 游戏性标记测试运算
-存在的大量测试运算均基于将标记和其他标记进行匹配这一概念。可在游戏性标记和游戏性标记容器上执行。这些函数将在游戏性标记或游戏性标记容器上进行调用，将把单个游戏性标记或游戏性标记容器视作参数。
+![在项目设置（Project Settings）中编辑单个Gameplay标记](ProjectSettingsEditTag.png)
 
-下表详述了标记和标记容器可进行的运算。在此表中，格式“A.1”代表一个单一的游戏性标记，而“{A.1}”则代表作为游戏性标记容器一部分的同一个标记。拥有多个标记的容器格式为“{A.1, B.1}”。
+[REGION:caption]
+Gameplay标记可以在项目设置（Project Settings）中通过插入符号下拉菜单进行编辑。
+[/REGION]
+
+### Gameplay标记编辑限制
+
+Gameplay标记编辑器支持根据一列授权用户，限制层级中任意级别的Gameplay标记编辑。要使用Gameplay标记编辑限制，打开 **项目设置（Project Settings）**，并在 **Gameplay标记（GameplayTags）** 部分下面，展开 **高级Gameplay标记（Advanced Gameplay Tags）** 层级。要限制对一组Gameplay标记的编辑，必须先指定.ini文件来存储标记，但不要命名为“DefaultGameplayTags.ini”。还应当指定受限标记的所有者，这样用户想要编辑时就知道可以联系谁。最后，Gameplay标记本身可以添加到“受限标记列表”，在这里标记会标有一个复选框，表示是否允许未列出用户向他们添加子代。如果用户（除列出所有者以外）尝试编辑“受限标记列表”，将会弹出警告，要求用户确认他们获得了所有者的授权。如果用户不选择“是”，则无法进行编辑。
+
+![](RestrictedTagsUI.png "RestrictedTagsUI.png")
+
+*用于添加受限Gameplay标记的界面。复选框指示用户可以添加子标记的位置。*
+
+用户（除了列示为所有者的用户）将在尝试修改“受限标记列表”时收到警告。
+
+![](RestrictedTagWarning.png "RestrictedTagWarning.png")
+
+*不拥有“受限标记列表”的用户尝试编辑时出现的警告/确认窗口。*
+
+“受限标记列表”设置完毕后，一般的Gameplay标记列表将包含您的受限Gameplay标记。但是，受限标记的插入符号下拉菜单中没有“重命名”或“删除”选项，您在“受限标记列表”中选中对应框的标记旁边只会出现“+”按钮。
+
+![](GameplayTagsUIWithRestrictedTags.png "GameplayTagsUIWithRestrictedTags.png")
+
+*标准Gameplay标记列表删除了不归当前用户所有的受限标记的“+”按钮。*
+
+![](RestrictedTagCaretMenu.png "RestrictedTagCaretMenu.png")
+
+*“受限标记列表”中创建的任何标记在其插入符号菜单中都只有搜索选项；“重命名”和“删除”选项都不可用。*
+
+当前，受限标记一经创建，就无法在编辑器中删除，即使是在“受限标记列表”中创建。但是，可以从.ini文件中将它们删除。以下是对应于本示例中的受限标记的“RestrictedTags.ini”文件。从该文件删除标记十分简单，只需删除包含相应“Tag”条目的行即可。
+
+~~~
+[/Script/GameplayTags.RestrictedGameplayTagsList]
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=False,Tag="RestrictedDesignTags",DevComment="These tags are controlled by the design lead")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=False,Tag="RestrictedDesignTags.MajorTags",DevComment="These are restricted.")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=True,Tag="RestrictedDesignTags.MajorTags.EditableTags",DevComment="This is not restricted, unlike its parent.")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=True,Tag="RestrictedDesignTags.MinorTags",DevComment="These are not restricted.")
+RestrictedGameplayTagList=(bAllowNonRestrictedChildren=False,Tag="RestrictedDesignTags.MinorTags.Special",DevComment="This is restricted, unlike its parent.")
+~~~
+
+## Gameplay标记测试运算
+
+有许多测试运算都基于将标记与其他标记匹配的概念，可以对Gameplay标记和Gameplay容器执行。每个函数将对Gameplay标记或Gameplay标记容器调用，并以单个Gameplay标记或Gameplay标记容器为参数。
+
+下表详细列出了标记和标记容器的可用操作。在该表中，格式“A.1”表示单个Gameplay标记，而“{A.1}”表示作为Gameplay标记容器一部分的同一个标记。包含多个标记的容器将采用格式“{A.1, B.1}”。
 
 | 源 | 函数/运算 | 输入参数 | 返回值 |
 | --- | --- | --- | --- |
@@ -73,41 +122,54 @@ tags:Gameplay
 | {A.1, B.1} | HasAll | {A, B} | true |
 | {A.1, B.1} | HasAllExact | {A, B} | false |
 
-需要注意的是，将空白或默认游戏性标记容器作为输入参数将导致所有运算返回 false。`HasAll`、`HasAllExact`、`MatchesAll` 和 `MatchesAllExact` 除外。出现此情况的原因是源集中不包含的参数容器中没有标记。
+请注意，提供空的或默认的Gameplay标记容器作为输入参数会导致所有运算都返回false，但`HasAll`、`HasAllExact`、`MatchesAll`和`MatchesAllExact`除外。理由是参数容器中没有源集中缺少的标记。
 
-举例而言，以下蓝图将使用部分如上命名的运算，检测一个游戏性标记容器是否拥有 `TestTag.One` 或 `TestTag.Three`，但不检查是否同时拥有这两者，也不检查是否拥有 `TestTag.Two`（测试 Actor 生成到游戏中时）。在此测试中，我们将使用蓝图中的文字容器值进行测试，但对 Actor 的容器使用蓝图（或 C++）变量。
+例如，以下蓝图将使用以上提到的部分运算来检测Gameplay标记容器是包含`TestTag.One`还是`TestTag.Three`，而不是同时包含这两个标记，且不包含`TestTag.Two`（在游戏中产生测试Actor）。对于该测试，我们将在蓝图中使用文字容器值进行测试，但会对Actor容器使用蓝图（或C++变量）。
 
-![Sample Gameplay Tag Operations In A Blueprint](TagOperationsInBP.png)
+[REGION:lightbox]
+[](TagOperationsInBP.png)
 
-## 游戏性标记查询
-游戏性标记容器特定查询类型可保存在一个 **Gameplay Tag Query** 变量中，使其为数据驱动式，无需对多个变量或一部分代码进行编辑即可在多处执行，并调高速度。游戏性标记查询限于三种基础测试：
+ [![蓝图中的示例Gameplay标记运算](TagOperationsInBP.png)](TagOperationsInBP.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
 
-* 如容器中的查询拥有至少一个标记，则 **Any Tags Match** 成功。
+### Gameplay标记查询
 
-* 如容器中未找到查询，查询中也没有标记，则 **All Tags Match** 成功。_这包括查询中未出现标记的情况。_
+可以对Gameplay标记容器执行的封装特定类型测试中的 **Gameplay标记查询** 变量。您可以使用它们以数据驱动测试，在许多地方执行相同的测试，而不必变动及多个变量或多段代码，并通过原生代码执行大部分工作来加速测试。Gameplay标记查询可以执行以下任意三种类型的测试。
 
-* 如容器中有查询，而查询中没有标记，则 **No Tags Match** 成功。_这包括查询中未出现标记的情况。_
+*   如果在容器中找到来自查询的至少一个标记，**任何标记匹配** 就会成功。
+*   如果查询中没有标记，也没有在容器中没有找到标记，**所有标记匹配** 就会成功。*这包括查询中不存在任何标记的情况。*
+*   如果查询中没有标记，而在容器中到了标记，**无标记匹配** 就会成功。*这包括查询中不存在任何标记的情况。*
 
-然而，这些测试可通过三个较大的表达式组合起来，每个表达式均包含一个额外表达式或测试的阵列：
+但是，这些测试可以通过三个更大的表达式合并起来，其中每个表达式包含一个额外表达式或测试的数组：
 
-* 任意子表达式或测试成功，则 **Any Expressions Match** 成功。
+*   任何一个子表达式或测试成功时，**任意表达式匹配** 就会成功。
+*   任何一个子表达式或测试失败时，**所有表达式匹配** 就会成功。*这包括查询中不存在子表达式或测试的情况。*
+*   子表达式或测试均不成功时，**无表达式匹配** 就会成功。*这包括查询中不存在子表达式或测试的情况。*
 
-* 无子表达式或测试失败，则 **All Expressions Match** 成功。_这包括查询中未出现子表达式或测试的情况。_
+[REGION:note]
+请注意根据以上运算表，所有三种测试类型都指的是“确切”匹配。
+[/REGION]
 
-* 无子表达式或测试成功，则 **No Expressions Match** 成功。_这包括查询中未出现子表达式或测试的情况。_
+我们可以使用一个Gameplay标记查询重现之前的测试示例，即要求`TestTag.One`或`TestTag.Three`（而不是同时）位于源容器中，并且要求没有`TestTag.Two`。对于该测试，我们将排他使用蓝图（或C++）变量，尽管也支持文字值。这是我们的测试查询变量：
 
-[REGION:note]注意：全部三种测试类型均参考上方运算表中的“完全”匹配。[/REGION]
+![样本Gameplay标记查询变量](TagQuery.png)
 
-需要 `TestTag.One` 或 `TestTag.Three`（非两者同时）处于源容器中时，要求 `TestTag.Two` 不要位于源容器中，使用单一游戏性标记查询，即可重建之前的测试范例。在此测试中，我们将专门使用蓝图（或 C++）变量，但同时也支持文字值。这是我们的测试查询变量：
+通过设置该查询，我们可以按如下所示，在测试Actor蓝图中评估Gameplay标记容器：
 
-![Sample Gameplay Tag Query Variable](TagQuery.png)
+[REGION:lightbox]
+[![蓝图中的示例Gameplay标记查询](TagQueryInBP.png)](TagQueryInBP.png)
+[/REGION]
+[REGION:caption]
+单击查看大图。
+[/REGION]
 
-设置好这个查询后，我们便可如下在测试 Actor 的蓝图中对游戏性标记容器进行求值：
+## 在游戏中使用Gameplay标记
 
-![Sample Gameplay Tag Query In A Blueprint](TagQueryInBP.png)
+要将您创建的标记应用于游戏中的对象，向对象添加Gameplay标记（C++类型`FGameplayTag`）或Gameplay标记容器（C++类型`FGameplayTagContainer`）属性。您还可以根据需要向对象添加 **Gameplay标记查询（Gameplay Tag Queries）**（C++类型`FGameplayTagQuery`），或者可以直接在蓝图或C++代码中使用标记运算。添加这些属性后，可以从代码或编辑器编辑，就像任何其他变量一样。
 
-## 在游戏中使用游戏性标记
-将游戏性标记（C++ 类 `FGameplayTag`）或游戏性标记容器（C++ 类 `FGameplayTagContainer`）属性添加到对象，即可将创建的标记应用到游戏中的对象。也可根据需要将 **游戏性标记查询**（C++ 类 `FGameplayTagQuery`）添加到对象，或直接在蓝图/C++ 代码中使用标记运算。添加这些属性后，即可像其他变量一样在代码或编辑器中对其进行编辑。
+## 在C++中快速访问Gameplay标记
 
-## 快速在 C++ 中访问游戏性标记
-`IGameplayTagAssetInterface` 可在 C++ 中实现。执行此操作并覆盖 `GetOwnedGameplayTags` 函数将创建一种以蓝图访问的方式，用与对象相关的标记填充游戏性标记容器。在多数情况下，这只意味着从基础类复制标记到新的容器中，但类的实现可从多个容器收集标记，或调用蓝图函数访问蓝图声明的标记（或对象所需的任意内容）。此接口的优势是使用户以标准化的方式和大量不同的对象类型进行交互，因此用户可获得对象的标记，而无需显式计算对象并为获得正确的标记变量而对每种可能的类型编写自定义代码。这在大型项目上尤为实用，有助于避免出现（难以重现）的 bug，使代码更加干净、快捷、易于维护。
+`IGameplayTagAssetInterface`可以在C++中实现。同时覆盖`GetOwnedGameplayTags`函数，将会创建一种蓝图可访问方式，以使用与该对象关联的标记填充Gameplay标记容器。在大多数情况下，这只表示从基类将标记复制到新容器，但类实现可能会从多个容器收集标记，或者调用蓝图函数来访问蓝图声明的标记或者对象需要的任何内容。该接口的好处是使您可以一种标准化方法与多个不同的对象类型互动，这样可以获取对象的标记，而不必显式转换对象类型，然后为每个可能的类型编写自定义代码来获取正确的标记变量（或多个变量）。这对于较大项目尤其有用，可以帮助避免（难以重现的）错误，让代码更简洁、更快速、更易于维护。

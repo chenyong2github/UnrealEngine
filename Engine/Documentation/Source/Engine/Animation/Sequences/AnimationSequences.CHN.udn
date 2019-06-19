@@ -1,11 +1,10 @@
-﻿INTSourceChangelist:4828051
+﻿INTSourceChangelist:6411833
 Availability: Public
-Crumbs: 
 Title:动画序列
 Description:包含构成单个动画的所有变换数据的单个资源
-Type: 
+Type:overview
 Version: 4.14
-Parent: 
+Parent: Engine/Animation
 Order: 
 Tags: Animation, Animation Assets
 
@@ -32,8 +31,6 @@ Tags: Animation, Animation Assets
 也可在 [动画内容示例](Resources/ContentExamples/Animation) 页面的1.1部分下找到使用动画序列的骨架的示例。
 [/REGION]
 
-(#editing)
-
 ## 编辑
 
 **动画编辑器** 提供预览和编辑单个 **动画序列** 资源的功能。可以设置包括压缩模式在内的动画序列属性，也可以添加动画通知事件（也称为通知）以便根据动画触发摄像机效果、粒子效果、声音，等等。
@@ -41,8 +38,6 @@ Tags: Animation, Animation Assets
 [REGION:note]
 要获取更多详细信息，请参阅 [动画序列编辑器](Engine/Animation/Sequences/Editor)。
 [/REGION]
-
-(#playback)
 
 ## 播放
 
@@ -52,8 +47,6 @@ Tags: Animation, Animation Assets
 有关在动画蓝图中使用动画序列的说明，请参阅 [动画序列用户指南](Engine/Animation/Sequences/UserGuide)。
 [/REGION]
 
-(#notifies)
-
 ## 通知
 
 **动画通知**（**AnimNotifies** 或简称为 **通知**）为动画程序员提供了一种方法，使他们能够设置在 **动画序列** 的特定点发生的事件。通知常用于添加行走时的脚步声等效果，运行动画或在动画中生成粒子系统。但是，它们可以有很多种不同的用法，因为可以使用自定义通知类型来扩展系统，以满足任何类型的游戏的需求。
@@ -62,8 +55,6 @@ Tags: Animation, Animation Assets
 请参阅 [动画通知（通知）](Engine/Animation/Sequences/Notifies) 来获取可用的各种类型的通知的说明和用法信息。
 [/REGION]
 
-(#curves)
-
 ## 曲线
 
 **动画曲线** 提供了一种在动画播放期间更改材质参数或变形目标值的方法。这样便可指定要更改的资源（材质或变形目标），相应地命名曲线，并在动画持续时间内调整关键帧值。
@@ -71,8 +62,6 @@ Tags: Animation, Animation Assets
 [REGION:note]
 有关如何在动画编辑器中设置和应用曲线的说明和用法信息，请参阅 [动画曲线](Engine/Animation/Sequences/Curves)。
 [/REGION]
-
-(#compression)
 
 ## 压缩
 
@@ -102,15 +91,11 @@ Tags: Animation, Animation Assets
 AnimCompression使用最佳编码解码器白名单来避免尝试不可能会选择的置换。这大大减少了我们在压缩时尝试使用的编码解码器的数量，从而大大提高了压缩速度。在多核系统上，大部分编码解码器现在在自动压缩时会并行求值，进一步缩短了压缩动画序列花费的时间。
 [/REGION]
 
-(#assetdetails)
-
 ## 资源细节（Asset Details）
 
 动画序列资源在 **动画编辑器** 中打开时，可以在 **资源细节（Asset Details）** 面板中调整多个属性，它们会确定资源的处理方式。这些属性包括调整播放速度，启用/禁用“根运动（Root Motion）”，为资源指定任意元数据以及下表中列出的其他属性。
 
 ![](AnimAssetDetails.png)
-
-(#animation)
 
 ### 动画（Animation）
 
@@ -124,15 +109,11 @@ AnimCompression使用最佳编码解码器白名单来避免尝试不可能会�
 |**资源映射表（Asset Mapping Table）** | 用于设置父资源，可以配合资源用户数据映射表使用。不能在编辑器中更改。|
 |**资源用户数据（Asset User Data）** | 随资源存储的用户定义数据数组。|
 
-(#additivesettings)
-
 ### Additive设置（Additive Settings）
 
 | --- | --- |
 | **Additive动画类型（Additive Anim Type）** | 要使用的Additive动画类型的类型：无Additive（No Additive）、局部空间（Local Space）或网格体空间（Mesh Space）。局部空间是Additive，时间差由局部空间计算。网格体空间是Additive，时间差将在组件空间中应用。|
 | **基本姿势类型（Base Pose Type）** | 决定Additive时间差的计算方法：无（None）（无基本姿势）、参考姿势（Reference Pose）（网格体的默认参考姿势）、按所选择的动画缩放（Selected Animation Scaled）（选择其他动画并缩放此动画）、基于所选择的动画帧（Selected Animation Frame）（选择其他动画并仅基于帧号）。“基本姿势类型（Base Pose Type）”仅在“Additive动画类型（Additive Anim Type）”设置为“局部空间（Local Space）”或“网格体空间（Mesh Space）”时可用。|
-
-(#compression)
 
 ### 压缩（Compression）
 
@@ -141,7 +122,6 @@ AnimCompression使用最佳编码解码器白名单来避免尝试不可能会�
 | **不覆盖压缩（Do Not Override Compression）** | 运行“压缩动画（Compress Animations）”命令行开关时不尝试覆盖压缩模式。某些高频动画过于敏感，不应更改。|
 | **编辑压缩设置（Edit Compression Settings）** | 单击此按钮可查看并编辑此动画的当前压缩设置。作用与从 **菜单栏** 单击 **资源（Asset）** 然后选择 **应用压缩（Apply Compression）** 相同。|
 
-(#rootmotion)
 ### 根运动（Root Motion）
 
 | --- | --- |
@@ -152,8 +132,6 @@ AnimCompression使用最佳编码解码器白名单来避免尝试不可能会�
 [REGION:note]
 关于“根运动（Root Motion）”，可能需要进行诸多考虑，例如，是否需要在联网游戏中复制“根运动（Root Motion）”。如果需要复制“根运动（Root Motion）”，则需要使用 [动画蒙太奇](Engine/Animation/AnimMontage)。要了解更多信息，请参阅 [启用根运动](Engine/Animation/RootMotion#enablingrootmotion)。
 [/REGION]
-
-(#importsettings)
 
 ### 导入设置（Import Settings）
 
@@ -171,8 +149,6 @@ AnimCompression使用最佳编码解码器白名单来避免尝试不可能会�
 | **不导入值仅为0的曲线（Do not import curves with only 0 values）** | 将自定义属性或变形目标作为曲线导入时，如果值为0，则不导入。这可以避免添加额外曲线进行求值。|
 | **保留局部变换（Preserve Local Transform）** | 这将会在动画中导入曲线。|
 
-(#transform)
-
 ### 变换（Transform）
 
 | --- | --- |
@@ -180,14 +156,10 @@ AnimCompression使用最佳编码解码器白名单来避免尝试不可能会�
 | **导入旋转（Import Rotation）** | 从FBX导入旋转数据。|
 | **导入统一比例（Import Uniform Scale）** | 从FBX导入统一比例数据。|
 
-(#metadata)
-
 ### 元数据（Meta Data）
 
 | --- | --- |
 |**元数据（Meta Data）** | 这是可以随资源保存的元数据。元数据是从Anim Meta Data类衍生的Blueprintable类。这允许您将自定义元数据添加到动画资产（动画序列、动画蒙太奇、动画合成和混合空间都受到支持）。在C++中可以通过调用`GetMetaData()`方法或对动画蒙太奇使用`GetSectionMetaData()`来查询动画资源中的数据。|
-
-(#thumbnail)
 
 ### 缩略图（Thumbnail）
 

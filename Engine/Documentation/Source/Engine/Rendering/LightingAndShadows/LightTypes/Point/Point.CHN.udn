@@ -1,121 +1,92 @@
-﻿Availability: Public
+﻿INTSourceChangelist:6179650
+Availability: Public
 Title:点光源
-Crumbs: %ROOT%, Engine, Engine/Rendering/LightingAndShadows, Engine/Rendering/LightingAndShadows/LightTypes
-Description:点光源的基本知识。
-
-[VAR:Topic]
-[OBJECT:Topic]
-	[PARAM:image]
-		![%Engine/Rendering/LightingAndShadows/LightTypes/Point:title%](PointLight_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/light_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/LightingAndShadows/LightTypes/Point:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/LightingAndShadows/LightTypes/Point:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/LightingAndShadows/LightTypes/Point]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
-[VAR:TopicCompact]
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Rendering/LightingAndShadows/LightTypes/Point:title%](PointLight_Topic.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/light_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		%Engine/Rendering/LightingAndShadows/LightTypes/Point:title%
-	[/PARAM]
-	[PARAM:description]
-		%Engine/Rendering/LightingAndShadows/LightTypes/Point:description%
-	[/PARAM]
-	[PARAM:path]
-		[RELATIVE:Engine/Rendering/LightingAndShadows/LightTypes/Point]
-	[/PARAM]
-[/OBJECT]
-[/VAR]
+Description:点光源基础知识。
+Parent: Engine/Rendering/LightingAndShadows/LightTypes
+Version: 4.14
+Order: 1
+topic-image:PointLight_Topic.png
 
 [REGION:fullwidth raw]
-![](Engine/Rendering/LightingAndShadows/Basics\PL_Banner.png)
+![](PointLight_Header.png)
 [/REGION]
 
 [TOC(start:2 end:2)]
 
-## 概述
 
-[OBJECT:topiclistnotitle]
-	[PARAM:icon]
-		![](LightType_Point.png)(convert:false)
+
+[EXCERPT:Intro]
+ **点光源** 的工作原理很像一个真实的灯泡，从灯泡的钨丝向四面八方发出光。然而，为了性能考虑，点光源被简化为从空间中的一个点均匀地向各个方向发射光。放置的点光源可以设置为三个移动设置之一：
+
+* **静态（Static）** - （如左图所示）它意味着，不能在游戏中更改光源。这是最快的渲染方法，并且允许烘焙的光照。
+* **静止（Stationary）** - （亦如左图所示）它意味着，光源将仅有自己的阴影和来自 **全局光照（Lightmass）** 烘焙的静态几何体的反射光照，所有其他光照都将为动态。该设置还允许光源在游戏中更改颜色和强度，但它不会移动且允许局部烘焙光照。 
+* **可移动（Moveable）** - （如左图所示）这意味着光是完全动态的，并考虑到了动态阴影。从渲染的角度看这是最慢的，但顾及到了游戏进程中的最大灵活性。 
+
+[/EXCERPT:Intro]
+
+下面是放置在关卡内的点光源的两个例子。
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Point Light Without Radius Showing](pointLight_004.png)(w:450)
 	[/PARAM]
-	[PARAM:description]
-	[INCLUDE:#Intro]
+	[PARAM:after]
+	![Point Light With Radius Showing.](pointLight_005.png)(w:450)
 	[/PARAM]
 [/OBJECT]
 
-[REGION:raw]
-![](spacer.png)
-[/REGION]
+左边的图像是一个没有显示其半径的点光源，而右边的图像是显示了半径的同一光源，这给人一种光源将影响世界的良好印象。
 
-[COMMENT:none]
-
-[EXCERPT:Intro]
-**点光源** 和现实世界中灯泡的工作原理类似，灯泡从灯泡的钨丝向各个方向发光。然而，为了获得更好的性能，点光源简化为仅从空间中的一个点向各个方向均匀地发光。
-[/EXCERPT:Intro]
-
-[/COMMENT]
-
-![](pointLight_004.png)(w:450) ![](pointLight_005.png)(w:450 convert:false)
-
-_没有显示半径的点光源，和启用了光源半径的同一光源，后者很好地展示了光源所影响的世界的范围。_
-
-尽管点光源从空间中的那个点发光，没有形状，但是虚幻引擎4为点光源提供了半径和长度，以便在反射及高光中使用，从而使得点光源更加真实自然。
+虽然点光源只从空间中的该点发出，没有形状，但虚幻引擎4可以给点光源一个半径和长度，用于反射和高光，让点光源有更多的物理真实感。
 
 ![](pointLight_001.png)(w:300 convert:false) ![](pointLight_002.png)(w:300) ![](pointLight_003.png)(w:300)
 
+
 ## 点光源属性
 
-属性| 描述|
-| -------- | ----------- | 
-| [REGION:tablesection] _光源_ [/REGION] ||
-| **Brightness(亮度)** | 光源的整体亮度，以 _流明_ 为单位。如果使用IES光源概述文件，将会忽视该项。|
-| **Radius（半径）** | 衰减半径， 虽然从物理上讲是不正确的，但是对于控制性能和视觉效果来说是必要的。|
-| **Light Falloff Exponent（光源衰减指数）** | 控制光照的径向衰减。|
-| **Source Radius（光源半径）** |设置光源的半径，以决定静态阴影的柔和度和反射表面上的光照的外观。|
-| **Source Length(光源长度)** | 设置光源的长度 (光源的形状是个两段端具有半球的圆柱体： 在虚幻引擎4中称之为Sphyl ) 来决定静态阴影的柔和度和反射表面上光照的外观。  |
-| **Light Color(光源颜色)** | 光源的颜色。|
-| **Indirect Lighting Intensity（间接光照强度）** | 缩放来自光源的间接光照的量。|
-| **Affects World（影响世界）** | 完全禁用光源。不能在运行时设置该项。要想在运行过程中禁用光源的效果，可以改变它的  **Visibility（可见性）** 属性。|
-| **Casts Shadows（投射阴影）** |光源是否投射阴影。|
-| **Min Roughness（最小粗糙度）** | 该光源的最小粗糙度，用于使得高光变得柔和。|
-| **Self Shadowing Accuracy（自投影精确度）** | 控制来自这个光源的全景阴影的自投影的精确度。|
-| **Shadow Bias（阴影偏差）** | 控制来自来自这个光源的阴影的精确度。|
-| **Shadow Filter Sharpen(阴影滤镜锐化)** |阴影滤镜锐化该光源的程度。 |
-| **Inverse Squared Falloff（平方反比衰减）** |该光源是否使用平方反比衰减。|
-| **Cast Static Shadows（投射静态阴影）** | 该光源是否投射静态阴影。|
-| **Cast Dynamic Shadows（投射动态阴影）** | 该光源是否投射动态阴影。|
-| **Cast Translucent Shadows（投射半透明阴影）** | 该光源是否可以透过半透明物体投射动态阴影。|
-| **Affect Translucent Lighting（影响半透明物体的光照）** | 该光源是否影响半透明物体。|
-| [REGION:tablesection] _光源概述文件_ [/REGION] ||
-| **IES Texture（IES贴图）** | 光源概述文件所使用的"贴图"。IES文件是ASCII码文件,尽管虚幻引擎将其呈现为贴图，但它们不是图片文件。|
-| **Use IES Brightness（使用IES亮度）** | 如果该项为false，它将会使用光源的 **亮度** 来决定要产生多少光照。如果该项为true，它将会使用IES文件的亮度(一般比虚幻引擎中光源的默认值大很多)，以流明为单位。|
-| **IES Brightness Scale(IES亮度缩放比例)** | IES亮度影响量的缩放比例，因为它们可能会使整个场景变黑。|
-| [REGION:tablesection] _Lightmass_ [/REGION] ||
-| **Indirect Lighting Saturation(间接光照饱和度)** | 该项值如果为0，将会在Lightmass中将会对该光源进行完全的去饱和；如果该项为1，光源则没有改变。|
-| **Shadow Exponent（阴影指数）** |控制阴影半影的衰减。|
-| [REGION:tablesection] _光照函数_ [/REGION] ||
-| **Light Function Material（光照函数材质）** | 应用到这个光源上的光照函数材质。|
-| **Light Function Scale（光照函数缩放比例）** | 缩放光照函数投射。|
-| **Light Function Fade Distance（光照函数衰减距离）** | 光照函数在该距离处会完全衰减为  **Disabled Brightness(禁用的亮度)** 中所设置的值。 |
-| **Disabled Brightness（禁用的亮度）** | 当指定了光照函数但却将其禁用了时，光源应用的亮度因数，参照上面的属性： **Light Function Fade Distance** 。|
-| [REGION:tablesection] _光束_ [/REGION] ||
-| **Enable Light Shaft Bloom（启用光束的光溢出）**  | 是否渲染这个光源的光束的光溢出效果。|
-| **Bloom Scale(光溢出)** | 缩放叠加的光溢出颜色。|
-| **Bloom Threshold（光溢出阈值）** | 场景颜色必须大于这个值才能在光束中产生光溢出。|
-| **Bloom Tint（光溢出色调）** | 给光束发出的光溢出效果着色所使用的颜色。|
+ **点光源（Point Light）** 的属性分为4类：光源、光源描述文件、Lightmass和光源函数。 
+
+### 光源
+属性 | 说明 |
+| --- | --- |
+| **强度（Intensity）** | 光源发出的总能量。|
+| **光源颜色（Light Color）** | 光源发出的颜色。|
+| **衰减半径（Attenuation Radius）** | 限制光的可见影响。|
+| **光源半径（Source Radius）** | 光源形状的半径。|
+| **光源长度（Source Length）** | 光源形状的长度。|
+| **影响世界（Affects World）** | 完全禁用光源。无法在运行时设置。要在运行时禁用光源的效果，更改其可视性（Visibility）属性。|
+| **投射阴影（Casts Shadows）** | 光源是否投射阴影。|
+| **间接照明强度（Indirect Lighting Intensity）** | 缩放光源的间接照明贡献。|
+| **使用平方反比衰减（Use Inverse Squared Falloff）** | 是否使用基于物理的平方反比距离衰减，其中，衰减半径只是用于限制光源的贡献。|
+| **光源衰减指数（Light Falloff Exponent）** | 禁用UseInverseSquaredFalloff时，控制光源的径向衰减。|
+| **反射乘数（Specular Scale）** | 反射高光的乘数。必须谨慎使用！位于1之间的任何值都是违反物理规则的！可以用于艺术化地移除高光以模仿偏振滤镜或照片润色。|
+| **阴影偏差（Shadow Bias）** | 控制该光源的阴影的精确程度。|
+| **阴影过滤锐化（Shadow Filter Sharpen）** | 将该光源的阴影过滤锐化多少。|
+| **接触阴影长度（Contact Shadow Length）** | 屏幕空间到锐化接触阴影的光线追踪的长度。值为0表示禁用此选项。|
+| **投射半透明阴影（Cast Translucent Shadows）** | 是否允许该光源通过半透明对象投射动态阴影。|
+| **影响动态间接照明（Affect Dynamic Indirect Lighting）** | 是否应将光源注入光传播体积。|
+| **投射静态阴影（Cast Static Shadows）** | 该光源是否会投射静态阴影。|
+| **投射动态阴影（Cast Dynamic Shadows）** | 该光源是否会投射动态阴影。|
+| **影响半透明光照（Affect Translucent Lighting）** | 光源是否会影响半透明度。|
+
+### 光源描述文件
+属性 | 说明 |
+| --- | --- |
+| **IES纹理（IES Texture）** | 用于光源描述文件的IES“纹理”。IES文件是ASCII格式的，但虚幻将它们表示为纹理，而不是图像文件。|
+| **使用IES亮度（Use IES Brightness）** | 如果是 _false_，它将利用光源的亮度来决定要产生多少光。如果是 _true_，它将使用IES文件的亮度（以流明计）（通常比虚幻中的光源的默认值大得多）。|
+| **IES亮度比例（IES Brightness Scale）** | IES亮度贡献比例，因为它们能明显让场景变暗。|
+
+### Lightmass
+属性 | 说明 |
+| --- | --- |
+| **间接照明饱和度（Indirect Lighting Saturation）** | 值为0将使该光源在Lightmass中完全去饱和，值为1则不变。|
+| **阴影指数（Shadow Exponent）** | 控制阴影半影的衰减。|
+
+### 光源函数
+属性 | 说明 |
+| --- | --- |
+| **光源函数材质（Light Function Material）** | 应用于该光源的光源函数材质。|
+| **光源函数缩放（Light Function Scale）** | 缩放光源函数投射。|
+| **光源函数淡出距离（Light Function Fade Distance）** | 光源函数应完全淡出到禁用亮度（Disabled Brightness）值的距离。|
+| **禁用亮度（Disabled Brightness）** | 当光源函数已指定但被禁用时，应用于光源的亮度因子，例如从上面的属性来讲：光源函数淡出距离（Light Function Fade Distance）。|
+

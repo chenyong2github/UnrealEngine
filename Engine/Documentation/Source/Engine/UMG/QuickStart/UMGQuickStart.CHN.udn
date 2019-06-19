@@ -1,29 +1,678 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:UMG UI 设计器快速入门指南
-Crumbs:%ROOT%, Engine, Engine/UMG
-Description:虚幻引擎 4 入门：从虚幻动态图形开始。
-version:4.9
-tags:UMG UI Designer
-topic-image:UMGQS_Topic.png
+﻿INTSourceChangelist:6503306
+Availability: Public
+Title: UMG UI设计器快速入门
+Description: 虚幻引擎4中的虚幻运动图形使用入门。
+Version: 4.22
+Parent: Engine/UMG
+Type: quick start
+type:multi-step
+Tags: UMG UI Designer
+topic-image: UMGQS_Topic.png
+Order: 0
 
-在本 **快速入门指南** 中，您将学习如何利用 **虚幻动态图形 UI 设计器 (UMG)** 实现一些基础的游戏内 HUD 元素和前端菜单。您将学习如何实现体力和能量条，以及如何跟踪和显示玩家弹药量。您还将学习如何创建用于启动游戏、设置分辨率或退出游戏的主菜单。之后您将学习如何添加用于暂停游戏或返回主菜单的游戏内暂停菜单。 
 
-除该指南的课程外，还将为您提供附加文档的链接，它们深入到每节的主题中，解决您更多的疑问。虽然本指南将涵盖每一步中需要的操作，但如果您之前并未使用过虚幻编辑器，仍建议您先阅读 [关卡设计器快速入门](Engine/QuickStart/) 指南，以便充分理解常规的编辑器使用、项目和操作流程。 
+[TOC (start:2 end:2)]
 
+在本 **快速入门指南** 中，您将了解如何使用 **虚幻运动图形界面设计器（Unreal Motion Graphics UI Designer）(UMG)** 实现一些基本的游戏中HUD元素和前端菜单。您将了解如何实现血条和能量条以及跟踪和显示玩家弹药的方法。您还将了解如何创建一个主菜单，用于启动游戏，设置分辨率选项或退出游戏。您将在此了解如何添加一个游戏内暂停菜单，可以用来暂停游戏或返回到主菜单。
 
-(#Steps)
-## 步骤
+在本指南的过程中，将提供其他文档的链接，如果您有其他问题，您可通过这些文档深入了解各个部分的主题。虽然本指南将介绍完成每个步骤所需的操作，但如果您之前没有使用过虚幻编辑器，则建议您先阅读 [关卡设计师快速入门](Engine/QuickStart/)指南，以便更好地了解编辑器的一般用法、术语和过程。
 
-[REGION:buttonlist]
-* [](Engine/UMG\QuickStart\1 "%Engine/UMG\QuickStart\1:description%")
-* [](Engine/UMG\QuickStart\2 "%Engine/UMG\QuickStart\2:description%")
-* [](Engine/UMG\QuickStart\3 "%Engine/UMG\QuickStart\3:description%")
-* [](Engine/UMG\QuickStart\4 "%Engine/UMG\QuickStart\4:description%")
-* [](Engine/UMG\QuickStart\5 "%Engine/UMG\QuickStart\5:description%")
-* [](Engine/UMG\QuickStart\6 "%Engine/UMG\QuickStart\6:description%")
+## 1 - 必要的项目设置
+
+[REGION:note]
+在本教程中，我们将在启用 **初学者内容包（Starter Content）** 的情况下使用 **蓝图第一人称（Blueprint First Person）** 模板。如果您不了解如何创建新项目和使用模板，请参阅[项目浏览器](Engine\Basics\Projects\Browser)页面了解更多信息。
 [/REGION]
 
+1.  单击 **内容浏览器（Content Browser）** 中的 **新增（Add New）** 按钮，然后在 **用户界面（User Interface）** 下选择 **控件蓝图（Widget Blueprint）** 并将其命名为 **HUD**。  
+    
+	![](RequiredSetup_1.1.png)  
+    
+	将创建所有用户界面元素（HUD、菜单等）并放置在控件蓝图中。控件蓝图允许您以可视化方式对UI元素进行布局，并为这些元素提供脚本化功能。我们现在正在创建控件蓝图，以便我们可以告诉它，当在世界场景中生成我们的玩家角色时进行显示，不过我们会在稍后设置它。
+    
+	[REGION:note]
+    有关控件蓝图的更多信息，请参阅[控件蓝图](Engine/UMG/UserGuide/WidgetBlueprints)文档。
+    [/REGION]
+    
+1.  再创建两个 **控件蓝图**，一个名为 **主菜单（MainMenu）**，另一个名为 **暂停菜单（PauseMenu）**。  
+    
+	![](AllWidgets.png)
 
+1.  **右键单击** **内容浏览器（Content Browser）**，并创建一个名为 **主（Main）** 的新 **关卡（Level）**。  
+    
+	![](RequiredSetup_1.3.png) 
+ 
+    我们会在本指南的稍后部分使用它进行主菜单（Main Menu）设置。
 
+1.  在 **内容浏览器（Content Browser）** 中，打开 **Content/FirstPersonBP/Blueprints** 文件夹下的 **第一人称角色（FirstPersonCharacter）** 蓝图。  
+    
+	![](UMGQS2.png)  
 
+    这是可操作角色的蓝图，我们将在其中创建一些信息以传递给我们的 **HUD** 控件蓝图进行显示。
+
+1.  在 **我的蓝图（My Blueprint）** 窗口中，单击 **添加变量（Add Variable）** 按钮。  
+    
+	![](RequiredSetup_1.5.png)
+
+1.  在新变量的 **详情（Details）** 面板中，将其命名为 **生命值（Health）**，将其更改为 **浮点（Float）** 变量类型，并将 **默认值（Default Value）** 设置为 **1.0**。
+
+    ![](RequiredSetup_1.6.png) 
+    
+	该变量表示我们将在HUD上显示的玩家角色的生命值。
+
+1.  创建另一个名为 **能量（Energy）** 的 **浮点（Float）** 变量，并将其 **默认值（Default Value）** 设置为 **1.0**。
+ 
+	![](RequiredSetup_1.7.png)  
+    
+	该变量表示我们将在HUD上显示的玩家角色的能量值。
+
+    [REGION:note]
+    无法输入默认值？单击工具栏中的 **编译（Compile）** 按钮以编译蓝图，然后重试。
+    [/REGION]
+    
+1.  创建另一个名为 **弹药（Ammo）** 的 **整数（Integer）** 类型的变量，并将其 **默认值（Default Value）** 设置为 **25**。  
+    ![](RequiredSetup_1.8.png)
+
+1.  再创建一个名为 **最大弹药量（MaxAmmo）** 的 **整数（Integer）** 变量，并将其 **默认值（Default Value）** 设置为 **25**。
+
+1.  在 **图表（Graph）** 窗口中找到 **Event Begin Play** 节点。右键单击执行引脚并选择 **拆分链接（Break Link to Branch）**。 
+
+    ![](RequiredSetup_1.10.png)
+	
+	这将断开Event Begin Play的连接，以便我们添加新功能。
+	
+	[REGION:tip]
+	您还可以在执行引脚上使用Alt+单击来断开它。
+	[/REGION]
+
+1.  选择 **Event Begin Play** 节点并将其拖动至左侧，为将在后续步骤中创建的新节点提供空间。
+
+1.  拖出 **Event Begin play**，然后添加一个 **Create Widget** 节点，并将 **类（Class）** 设置为您的 **HUD** 控件蓝图。  
+    
+	![](RequiredSetup_1.12.png)
+
+1.  拖出 **Create HUD_C Widget** 的 **返回值（Return Value）**，选择 **提升到变量（Promote to Variable）** 并命名为 **HUD引用（HUD Reference）**。  
+    
+	![](RequiredSetup_1.13.png)  
+    
+	这将在游戏启动时创建我们的HUD控件蓝图，并将其存储为一个变量，以便稍后访问。这对于以后调用函数或设置HUD的属性很有用，例如，如果您想在游戏暂停时隐藏HUD，可以通过该变量访问HUD。
+
+1.  拖出 **Set** 节点的输出引脚，并添加 **Add to Viewport** 节点。
+    
+	![](UMGQS9.png)  
+
+     顾名思义，这将把指定为目标的控件蓝图添加到玩家视口中，并将其绘制在屏幕上。
+
+### 调整角色变量
+
+在开始生成实际的HUD之前，我们要做的最后一件事是提供一种用于更改我们角色变量的方法。
+
+1.  在 **第一人称角色（FirstPersonCharacter）** 蓝图中，当按住 **Alt** 时，拖入 **能量（Energy）** 变量，并将其放置在Jump脚本旁边。  
+    
+	![Step2_1.png](RequiredSetup_1.2.1.png)
+
+1.  按住 **Ctrl**，拖入 **能量（Energy）** 变量副本，并将其连接到 **Float - Float** 节点，值设置为 **0.25**，连接方式如图所示。  
+    
+	![](Step2_2.png)  
+    
+	每次角色跳跃时，将从角色的当前能量值中扣除0.25。
+
+1.  为 **生命值（Health）** 变量设置相同的脚本，但是使用 **F** 按键事件（或任何其他按键事件）进行测试。  
+    
+	![](Step2_3.png)  
+    
+	这将让我们能够在每按下一个按键时测试我们的生命值（Health）变量是否通过HUD正确显示。
+
+1.  找到 **生成发射物（Spawn Projectile）** 脚本，在 **InputAction Fire（InputAction Fire）** 事件后，**右键单击** 并添加一个 **Branch** 节点。
+
+1.  对于 **Branch** 条件，按住 **Ctrl** 并拖入 **弹药（Ammo）** 变量（连接到 **整数（Integer）> 整数（Integer）** 变量），其值设置为 **0**，连接方式如图所示。  
+    
+	![](Step2_4.png)(w:820)  
+    
+	这将仅允许玩家在弹药大于零的情况下射出发射物。
+
+1.  在 **生成发射物（Spawn Projectile）** 脚本末尾处，在 **Play Sound at Location** 节点后，将 **弹药（Ammo）** 设置为等于 **弹药-1（Ammo - 1）**。  
+    
+	![](RequiredSetup_1.2.5.png)(w:640)  
+    
+	这会在每次玩家发射发射物时减去1个弹药，让我们在HUD上有所显示。
+	[REGION:tip]
+	要添加重装弹药的功能，请添加一个R按键事件，按住alt拖入弹药（ammo）变量，按住ctrl拖入最大弹药量（max ammo）变量，并将其连接起来，如下图所示：
+    ![](RequiredSetup_ReloadAmmoNote.png)
+    [/REGION]
+    
+1.  **编译（Compile）** 并 **保存（Save）**，然后关闭蓝图。
+
+在下一步中，我们将设置生命值（Health），能量（Energy）和弹药（Ammo）变量在我们HUD上的显示，并使它们在游戏中生效。
+
+## 2 - 显示生命值、能量和弹药
+
+### 视觉效果：生命值、能量和弹药
+
+这里我们将开始设置我们HUD的视觉效果方面。
+
+1.  打开您的 **HUD** 控件蓝图，访问 **控件蓝图编辑器（Widget Blueprint Editor）**。  
+    
+	![Step2_6.png](DisplayingHealth_2.1.png)  
+    
+	在控件蓝图编辑器（Widget Blueprint Editor）中，我们可以提供我们HUD的视觉效果布局和脚本功能。
+    
+	[REGION:note]
+    有关控件蓝图编辑器的各个不同方面的更多信息，请参阅[控件蓝图](Engine/UMG/UserGuide/WidgetBlueprints)。
+    [/REGION]
+    
+1.  在 **面板（Panel）** 下的 **控制板（Palette）** 窗口中，将 **水平方框（Horizontal Box）** 拖动到 **层级（Hierarchy）** 窗口中的 **画布面板（CanvasPanel）** 上。  
+    
+	![](DisplayingHealth_2.2.png)  
+    
+	**面板（Panel）** 控件有点像其他控件的容器，并为其中的控件提供额外的功能。
+
+1.  同样在 **面板（Panel）** 下，将两个 **垂直方框（Vertical Box）** 拖动到 **水平方框（Horizontal Box）** 上。  
+    
+	![](Step2_8.png)
+
+1.  在 **常见（Common）** 下，将两个 **文本（Text）** 控件拖动到第一个垂直方框上，将两个 **进度条（Progress Bar）** 拖动到第二个垂直方框上。  
+    
+	![](Step2_9.png)
+
+1.  选择 **水平方框（Horizontal Box）**，然后在图表中调整该框大小，并将其放置在窗口的左上角。  
+    
+	![](Step2_10.png)  
+    
+	进度条将显示得非常小，但别担心，我们接下来会解决这个问题。
+
+1.  选择两个 **进度条（Progress Bar）**，然后在 **详情（Details）** 面板中将它们的 **大小（Size）** 设置为 **填充（Fill）**。  
+    
+	![](DisplayingHealth_2.6.png)
+
+1.  选择包含进度条的 **垂直方框（Vertical Box）**，并将其也设置为 **填充（Fill）**。  
+    
+	![](DisplayingHealth_2.7.png)
+
+1.  再次选择 **水平方框（Horizontal Box）**，重新调整其大小，使进度条与文本对齐。  
+    
+	![](Step2_13.png)
+
+1.  在 **层级（Hierarchy）** 窗口中选择最顶部的 **文本（Text）** 控件，然后在 **详情（Details）** 面板的 **内容（Content）** 下，输入 **生命值：（Health:）**。  
+    
+	![](DisplayingHealth_2.9.png)  
+    
+	对另一个 **文本（Text）** 控件执行相同的操作，但将它标记为 **能量（Energy）**，使您的图表看起来如下所示。  
+    
+	![](Step2_15.png)
+
+1.  选择生命值旁边的 **进度条（Progress Bar）**，并在 **详情（Details）** 面板中，将 **填充颜色和不透明度（Fill Color and Opacity）** 设置为绿色。  
+    
+	![UMGColorPicker1.jpg](DisplayingHealth_2.10.png)  
+    
+	您可能注意到，分配颜色时，进度条没有改变颜色。这是因为填充进度条的 **百分比（Percent）** 值被设置为0.0（您可以更改此值来测试不同的颜色，稍后我们会将它链接到我们角色的生命值）。
+
+1.  还为 **能量（Energy）** 条设置填充颜色（Fill Color）（我们选择了橙色）。
+
+1.  为了显示弹药，使用上面的方法，向 **层级（Hierarchy）** 添加控件，这样您的设置如下所示。  
+    
+	![](Step2_16.png)
+
+1.  选择包含弹药信息的 **水平方框（Horizontal Box）**，调整大小并放置在右上角。  
+    
+	![](DisplayingHealth_2.13.png)
+
+1.  在选中 **水平方框（Horizontal Box）** 的情况下，在 **详情（Details）** 面板中单击 **锚点（Anchor）** 并选择右上角的锚点。  
+    
+	![](DisplayingHealth_2.14.png)  
+    
+	这会将锚点Medallion移动到屏幕的右上角。  
+    
+	![](Step2_19.png)  
+    
+	通过 **锚定（Anchoring）** 一个控件，您可指示控件，无论屏幕大小如何，它都将出现在相对于锚点Medallion所在位置的地方。换句话说，当屏幕大小发生变化时，将控件移开锚点Medallion位置相同距离（在本例中，离开屏幕右上角相同的距离）。
+    
+	[REGION:note]
+    您可以单击并更改图表内的 **预览大小（Preview Size）** 选项，从而测试不同尺寸的屏幕大。
+    [/REGION]
+    
+
+### 脚本：生命值、能量和弹药
+
+现在我们有了视觉效果布局，我们可以添加钩来提供HUD元素背后的功能。
+
+1.  在控件蓝图编辑器（Widget Blueprint Editor）窗口的右上角单击 **图表（Graph）** 按钮。  
+      
+    ![](Step2_20.png)
+
+1.  在 **图表（Graph）** 中的 **Event Construct** 节点下，**右键单击** 并添加 **Get Player Character** 节点。
+
+1.  拖出 **返回值（Return Value）** 引脚，并选择 **转换为第一人称角色（Cast to FirstPersonCharacter）  
+   
+	![](ScriptHealthEnergyAmmo_2.3.png)  
+   
+	这里我们检查玩家角色所使用的角色蓝图是否确实是 **第一人称角色（First Person Character）** 蓝图。
+
+1.  拖出 **作为第一人称角色（As First Person Character）** 引脚并选择 **提升到变量（Promote to Variable）**（将其命名为 **我的角色（My Character）**），然后进行连接，如下所示。  
+    
+	![](Step2_22.png)  
+    
+	这将允许我们访问包含在 **第一人称角色（FirstPersonCharacter）** 蓝图中的变量。
+
+1.  单击工具栏中的 **编译（Compile）** 以编译脚本。
+
+1.  返回 **设计器（Designer）** 选项卡，并选择 **生命值（Health）** 旁边的 **进度条（Progress Bar）**。
+
+1.  在 **详情（Details）** 面板中，在 **进度（Progress）** 下，单击 **百分比（Percent）** 旁边的 **绑定（Bind）** 选项，并将其设置为使用 **我的角色（MyCharacter）** 中的 **生命值（Health）**。  
+    
+	![](ScriptHealthEnergyAmmo_2.7.png)  
+    
+	这将进度条（Progress Bar）的值绑定到 **第一人称角色（First Person Character）** 蓝图中的 **生命值（Health）** 变量。现在，每当我们的角色在蓝图中的生命值（Health）值发生更改时，会自动在我们的HUD中更新。您还可能注意到，在绑定进度条（Progress Bar）之后，进度条不会发生变化。这是因为我们已经声明将在 **事件构造（Event Construct）**（或者在游戏开始构造HUD时）时发生这种情况。
+
+1.  选择能量（Energy）旁边的 **进度条（Progress Bar）** 并重复上面的过程，将 **百分比（Percent）** 绑定到 **我的角色（MyCharacter）** 中的 **能量（Energy）**。  
+    
+	![](ScriptHealthEnergyAmmo_2.8.png)
+
+1.  在弹药（Ammo）文本后选择25，然后在 **文本（Text）** 的 **详情（Details）** 面板中单击 **绑定（Bind）** 和 **创建绑定（Create Binding）**。  
+    
+	![](ScriptHealthEnergyAmmo_2.9.png)  
+    
+	现在，就像我们以前使用 **子对象属性（Sub-Object Properties）** 绑定相同类型的属性一样，我们也可以创建自己的自定义绑定。这里，我们将 **文本（Text）** 属性绑定到 **第一人称角色（First Person Character）** 蓝图中的 **整数（Integer）** 属性，以显示当前弹药。
+
+1.  在创建并自动打开的函数中，按住 **Ctrl** 并将 **我的角色（MyCharacter）** 变量拖到图表中。  
+    
+	![Step2_27.png](ScriptHealthEnergyAmmo_2.10.png)
+
+1.  拖出引脚 **我的角色（MyCharacter）** 并选择获取 **弹药（Ammo）**。
+
+1.  将弹药（Ammo）引脚连接到 **返回节点（Return Node）** 的 **返回值（Return Value）**。  
+    
+	![](Step2_28.png)  
+    
+	连接时将自动为您创建一个转换节点 **To Text**。
+
+1.  对另一个25文本重复上述过程，并为“最大弹药量（Max Ammo）”文本创建绑定。  
+    
+	![](Step2_29.png)  
+    
+	如果您的最大弹药量（Max Ammo）将保持不变，您可能不需要这样操做，但这样操做使您可以更改弹药量。
+
+1.  单击 **编译（Compile）** 和 **保存（Save）**，然后单击 **运行（Play）** 按钮以在编辑器中运行。  
+    
+现在我们的生命值（Health）、能量（Energy）和弹药（Ammo）值显示在我们的HUD上，并反映我们角色蓝图中的当前值。按空格键会使角色跳跃并消耗能量，按鼠标左键会使武器发射而减少弹药，按F键会使我们失去生命值（稍后您可以将其连接到伤害系统）
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ RhDX0QrUmTI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+在下一部分，我们将创建一个主菜单，我们可以用它来加载到我们设置的游戏中。
+
+## 3 - 创建主菜单
+
+首先要做的是创建我们的主菜单布局，我们将在下面执行此操作。
+
+1.  打开您的 **主菜单（MainMenu）** 控件蓝图。
+
+1.  在 **设计器（Designer）** 选项卡中，将控件从 **控制板（Palette）** 拖放到 **层级（Hierarchy）** 上，以实现下面的设置。  
+
+    ![](Hierarchy1.png)  
+
+    作为参考，我们有一个 **图像（Image）**、一个带 **文本（Text）** 的 **垂直方框（Vertical Box）**，和三个在 **画布面板（Canvas Panel）** 上有 **文本（Text）** 的按钮。
+
+1.  在 **层级（Hierarchy）** 中选择 **垂直方框（Vertical Box）**，然后 **右键单击** 并 **复制（Copy）** 它。
+
+1.  **右键单击** **画布面板（Canvas Panel）** 并选择 **粘贴（Paste）**，以粘贴 **垂直方框（Vertical Box）** 的第二个副本。  
+      
+    ![](Hierarchy2.png)
+
+1.  在新的 **垂直方框（Vertical Box）** 中，**右键单击** 并复制一个 **按钮（Button）**，粘贴它以创建第四个按钮/文本控件。  
+
+    ![](Hierarchy3.png)
+
+1.  在 **详情（Details）** 面板中选择第一个 **垂直方框（Vertical Box）**，将其重命名为 **主菜单（MainMenu）**，选中 **isVariable** 选项并将 **ZOrder** 设置为 **1**。  
+
+    ![](CreatingAMenu_3.6.png)  
+
+    为清晰起见，我们命名控件，并将其设置为一个变量，以便我们能够访问它，同时还设置了 **ZOrder**，以便它出现在我们稍后将设置的图像的顶部。
+
+1.  选择另一个 **垂直方框（Vertical Box）**，在 **详情（Details）** 面板中将其重命名为 **Options**，选中 **isVariable** 选项并将 **ZOrder** 设置为 **1**。
+
+1.  重命名各个 **按钮（Button）**，如下图中所示。  
+
+    ![](Hierarchy5.png)  
+
+    通过更新按钮的名称，以便我们了解每个按钮的功能，这样更容易为这些按钮编写脚本功能。
+
+1.  通过 **详情（Details）** 面板中 **内容（Content）** 下的 **文本（Text）** 部分，更新各个 **文本（Text）** 控件，如下所示。  
+
+    ![](CreatingAMenu_3.9.png)  
+
+    这里，我们正在更新每个按钮上显示的文本以及菜单标题。
+
+1.  按住 **Ctrl**，选择各个 **按钮（Button）**，然后在 **详情（Details）** 面板中设置 **悬停（Hovered）** 的 **Tint（着色）** 颜色，并将按钮的 **大小（Size）** 设置为 **填充（Fill）**。  
+ 
+    ![](CreatingAMenu_3.10.png)  
+
+    这里，我们调整所有按钮的大小，并定义了鼠标悬停于按钮上时该按钮采用的颜色。
+
+1.  在 **层级（Hierarchy）** 中选择 **图像（Image）**，然后在 **详情（Details）** 的 **外观（Appearance）** 和 **笔刷（Brush）** 下，选择一个要使用的 **纹理（Texture）**、**Sprite** 或 **材质（Material）**。  
+
+    ![](CreatingAMenu_3.11.png)
+
+    [REGION:note]
+    如果要使用与本指南相同的指南，可以从这里下载：[示例背景](ExampleBackground.png)将示例背景拖放到 **虚幻引擎** 以导入它（单击任何确认消息处的 **是（Yes）**）。
+    [/REGION]
+    
+1.  在 **设计器（Designer）** 窗口中，调整图像大小，使其占据整个布局。  
+      
+    ![](Hierarchy9.png)
+
+1.  在 **图像（Image）** 的 **详情（Details）** 面板中，单击 **锚点（Anchor）** 按钮并选择填充屏幕选项。您还可以使用Scalebox来保存图像，这将确保图像的大小适当缩放，以匹配长宽比。  
+
+    ![](CreatingAMenu_3.13.png)
+
+1.  选择两个 **垂直方框（Vertical Box）** 并将它们 **锚定（Anchor）** 到中间偏左位置。  
+
+    ![](CreatingAMenu_3.14.png)
+
+1.  选择 **选项（Options）** 垂直方框，并将其 **可视性（Visibility）** 设置为 **隐藏（Hidden）**。  
+
+    ![](CreatingAMenu_3.15.png)  
+
+    我们不希望选项在默认情况下是显示的，我们将通过脚本告知它，使其可见。
+
+1.  选择 **主菜单（MainMenu）** 垂直方框，在 **设计器（Designer）** 窗口中按需要调整大小和位置。  
+
+    ![](Hierarchy13.png)
+
+1.  可从各个 **Text** 控件的 **详情（Details）** 面板中调整 **字体（Font）**、**大小（Size）** 和 **对齐（Alignment）**。  
+
+    ![](CreatingAMenu_3.17.png)  
+
+    您可以对这些设置进行实验，以获得您想要的效果。
+
+1.  根据需要设置您的 **选项（Options）** 垂直方框，然后将其直接移至您的 **主菜单（Main Menu）** 垂直方框的后面。  
+
+    ![](Hierarchy15.png)  
+
+    因为一次只能看到其中一个，所以它们重叠在一起也没关系。
+
+完成了菜单的可视化布局之后，下一步将编写菜单功能的脚本。
+
+## 4 - 编写主菜单脚本
+
+是时候动手编写主菜单的功能脚本了。这一步结束时，我们将能够启动我们的游戏到主菜单，开始我们的游戏以及在选项菜单中更改分辨率。
+
+1.  打开 **主菜单（MainMenu）** 控件蓝图并单击 **图表（Graph）** 选项卡。  
+
+    ![](ScriptingMainMenu_4.1.png)
+
+1.  在 **我的蓝图（MyBlueprint）** 窗口中，选择 **运行按钮（PlayButton）**，然后在 **详情（Details）** 面板中单击 **在单击时（On Clicked）** 旁的加号。  
+    ![](ScriptingMainMenu_4.2.png)  
+    这将向图表添加一个节点，该节点将在单击按钮时执行。
+
+1.  为各个按钮添加 **在单击时（On Clicked）** 事件。  
+
+    ![](ScriptingMainMenu_4.3.png)  
+
+    为清晰起见，我们在图表中安排按钮位置以模拟菜单的布局。
+
+1.  离开 **在单击时（运行按钮）（OnClicked(PlayButton)）**，添加一个 **OpenLevel**（设置为 **第一人称示例贴图（FirstPersonExampleMap）**）节点和一个 **Remove from Parent** 节点。  
+
+    ![](ScriptingMainMenu_4.4.png)  
+
+     **关卡名称（Level Name）** 指示要加载的关卡的名称（在本例中是第一人称示例贴图）。**Remove from Parent** 节点将从视口中移除 *目标* 控件蓝图。它被设置为目标本身（即加载关卡后，要从视图中移除的主菜单控件蓝图）。
+
+1.  按住 **Ctrl** 并拖入 **主菜单（MainMenu）** 和 **选项菜单（OptionsMenu）** 变量。
+
+1.  拖出 **主菜单（MainMenu）** 并添加一个 **Set Visibility** 节点。将 **不可视性（In Visibility）** 设置为隐藏（Hidden）.
+
+1.  拖出并添加一个 **Set Visibility** 节点。将 **不可视性（Invisibility）** 设置为可见（Visible）
+
+1.  将目标附加到 **选项菜单（OptionsMenu）** 变量。  
+
+    ![](OptionsButton.png)(w:820)  
+
+    这里，在选项按钮（Options Button）被点击时，我们关闭主菜单（Main Menu），并打开选项菜单（Options Menu）。
+
+1.  离开各个 **设置（Settings）** 按钮，添加一个 **Execute Console Command** 节点。
+
+1.  对于各个按钮的 **命令（Command）**，使用 **r.setRes XxY**，其中X和Y是要使用的尺寸。  
+
+    ![](Resolution.png)  
+
+    上图中我们使用以下设置：**640x480**、**1280x720** 和 **1920x1080**。
+
+1.  对于 **返回按钮（Return Button）**，重复步骤6，但反转设置，使主菜单（Main Menu）可见，选项菜单（Options Menu）隐藏。  
+    
+	![](ReturnButton.png)(w:820)
+
+1.  离开 **在单击时（退出按钮）（OnClicked (QuitButton)）**，添加一个 **Execute Console Command** 节点并设置为命令 **退出（Quit）**。  
+
+    ![](QuitButton.png)
+
+1.  **编译（Compile）** 并 **保存（Save）**，然后关闭控件蓝图。
+
+1.  在 **内容浏览器（Content Browser）** 中，打开 **主（Main）** 关卡，然后打开 **关卡蓝图（Level Blueprint）**。  
+
+    ![](ScriptingMainMenu_4.14.png)
+
+1.  **右键单击** 图表，添加一个 **Event Begin Play** 节点，并连接一个 **Create Widget** 节点（将 **类（Class）** 设置为 **主菜单（Main Menu）**）。  
+
+    ![](EventBeginPlay.png)
+
+1.  连接一个 **Add to Viewport** 节点，并添加一个 **Get Player Controller** 节点。
+
+1.  离开 **Get Player Controller**，添加 **Set Show Mouse Cursor** 节点并将其设置为 **True**，然后 **编译（Compile）** 并关闭蓝图。  
+
+    ![](FinishedLevel.png)(w:820)
+
+1.  打开 **Content/FirstPersonBP/Blueprints** 文件夹内的 **第一人称角色（First Person Character）** 蓝图。
+
+1.  在 **事件开始播放（Event Begin Play）** 脚本后，添加一个 **Get Player Controller** 节点，然后添加一个 **Set Input Mode Game Only** 节点。  
+
+    ![](PlayerCharacterBlueprint.png)(w:820)  
+
+    这将关闭光标，并将玩家的输入设置为纯游戏（Game Only）。
+
+1.  将 **Set Input Mode Game Only** 节点的输出引脚连接到 **Branch** 节点。  
+
+    ![](ScriptingMainMenu_4.20.png)
+
+1.  **编译（Compile）** 并关闭蓝图，然后打开 **世界设置（World Settings）**。  
+
+    ![](ScriptingMainMenu_4.21.png)
+
+1.  在 **游戏模式（Game Mode）**，将 **游戏模式覆盖（GameMode Override）** 设置为 **第一人称游戏模式（FirstPersonGameMode）** 并将 **默认Pawn类（Default Pawn Class）** 更改为 **角色（Character）**。  
+
+    ![](ScriptingMainMenu_4.22.png)  
+
+    这里我们为这张地图分配了一个游戏模式，并更改玩家的角色以使用可玩的 **第一人称角色（FirstPersonCharacter）** 蓝图中的引擎默认角色，因为我们不希望玩家能够在主菜单（Main Menu）后奔跑和射击。
+
+1.  单击主工具栏中的 **运行（Play）** 按钮，在编辑器中运行。要测试分辨率选项，从 **在编辑器中运行（Play-in-Editor）** 下拉菜单中选择 **新编辑器窗口（New Editor Window）**。  
+
+现在我们创建了一个功能强大的主菜单（Main Menu），允许玩家退出游戏，更改分辨率选项或运行游戏（这将加载指定的关卡并将玩家过渡到游戏进程中）。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ CPe_n60XyZY
+ [/PARAMLITERAL]
+[/OBJECT]
+
+下一步，我们将添加一个游戏内暂停菜单，这样玩家可以暂停游戏或退出游戏，并回到该主菜单（Main Menu）。
+
+## 5 - 创建/编写游戏内暂停菜单的脚本
+
+我们要做的最后一件事是创建一个简单的暂停菜单，它将允许玩家暂停或退出游戏。
+
+### 视觉效果：暂停菜单布局
+
+本节中，我们将创建基本暂停菜单的可视布局。
+
+1.  打开您的 **暂停菜单（Pause Menu）** 控件蓝图。
+
+1.  在 **设计器（Designer）** 选项卡中，将控件从 **控制板（Palette）** 拖放到 **层级（Hierarchy）** 上，以实现下面的设置。  
+
+    ![](Pause1.png)  
+
+    这里我们有一个 **边框（Border）**，其中包含一个带 **文本（Text）** 的 **垂直方框（Vertical Box）** 和两个在 **画布面板（Canvas Panel）** 上有 **文本（Text）** 的 **按钮（Button）**。
+
+1.  在 **设计器（Designer）** 窗口中，调整 **边框（Border）** 大小，使其填充整个虚线窗口（填充屏幕）。
+
+    ![](InGamePause_5.3.png)  
+
+    也可从 **详情（Details）** 面板中的 **笔刷颜色（Brush Color）** 选项中更改颜色。  
+
+    ![](InGamePause_5.3.2.png)  
+
+    您还可能想要将颜色的 **Alpha** 设置为 **0.5**，使其有些半透明。当暂停菜单（Pause Menu）在游戏进程中被打开时，边框（Border）将填充屏幕，但添加一些半透明将允许游戏仍然在背景中可见。
+
+1.  同样，对于 **详情（Details）** 面板中的 **边框（Border）**，务必使用填充屏幕锚点。  
+
+    ![](InGamePause_5.4.png)  
+
+    这将确保无论屏幕大小如何，边框（Border）都会填充屏幕。
+
+1.  在 **层级（Hierarchy）** 中选择 **垂直方框（Vertical Box）**，然后在 **详情（Details）** 面板中，使其在水平和垂直方面上都居中。  
+
+    ![](InGamePause_5.5.png)
+
+1.  选择 **垂直方框（Vertical Box）** 下的 **文本（Text）**，然后在 **内容（Content）** 的 **详情（Details）** 面板中，输入 **暂停菜单（Pause Menu）**。  
+
+    ![](InGamePause_5.6.png)
+
+1.  对于其他两个 **文本（Text）** 块，输入 **恢复（Resume）** 和 **退出（Quit）**。  
+
+    ![](Pause7.png)
+
+1.  按住 **Ctrl** 并在 **层级（Hierarchy）** 中选择两个 **按钮（Button）**，然后在 **详情（Details）** 面板的 **样式（Style）** 下，分配 **悬停（Hovered）** 的颜色。  
+
+    ![](InGamePause_5.8.png)
+
+1.  在 **详情（Details）** 面板中分别将 **按钮（Button）** 重命名为 **恢复（Resume）** 和 **退出（Quit）**。  
+
+    ![](InGamePause_5.9.png)
+
+### 脚本：暂停菜单功能
+
+设置好视觉效果之后，接下来我们将为暂停菜单提供脚本化功能。
+
+1.  在控件蓝图编辑器（Widget Blueprint Editor）窗口的右上角单击 **图表（Graph）** 按钮。
+
+1.  在 **我的蓝图（My Blueprint）** 窗口中的 **图表（Graph）** 选项卡上，单击 **退出按钮（QuitButton）**，然后在 **详情（Details）** 面板中添加一个 **在单击时（OnClicked）** 事件。  
+
+    ![](PauseMenuFunctionality_5.2.png)
+
+1.  同样，为 **恢复按钮（ResumeButton）** 添加一个 **在单击时（OnClicked）** 事件。
+
+1.  在 **图表（Graph）** 窗口中，**右键单击** 并添加一个 **Get Player Controller** 节点。  
+
+    ![](PauseScript2.png)
+
+1.  离开 **Get Player Controller** 节点，使用 **Set Input Mode Game Only** 节点，再次拖出 **Get Player Controller** 节点，使用 **Set Show Mouse Cursor** 节点并将其设置为 **False**，然后使用 **Remove from Parent** 和 **Set Game Paused** 节点，如下所示。  
+
+    ![](PauseMenuFunctionality_5.5.png)  
+
+    这里，当 **恢复按钮（Resume Button）** 被单击时，输入模式被设置为纯游戏，暂停菜单（Pause Menu）被激活时显示的光标被移除。**Remove from Parent** 节点用于在离开暂停状态之前从显示中移除实际的暂停菜单（Pause Menu）控件，方法是使用 **Set Game Pause** 节点并保持 **Pause** 未选中。
+
+1.  创建一个名为 **Remove HUD** 的新 **函数（Function）**。  
+
+    ![](PauseMenuFunctionality_5.6.png)  
+
+    当暂停菜单（Pause Menu）被激活时，我们将使用此函数将游戏HUD从玩家的视图中移除。
+
+1.  在函数（Function）中，添加一个 **Get Player Character** 节点并离开 **返回值（Return Value）**，添加 **Cast ToFirstPersonCharacter** 节点。  
+
+    ![](ScriptPauseMenu_5.7.png)  
+
+    这将允许我们访问玩家正在使用的角色蓝图和玩家正在使用的游戏HUD。
+
+1.  离开 **As First Person Character** 节点，使用 **Get HUD Reference** 节点，然后使用 **Remove from Parent** 节点，如下所示。  
+
+    ![](PauseScript6.png)(w:840)  
+
+    这将访问玩家角色正在使用的HUD，并在退出游戏时将其从视口中移除。
+
+1.  在 **事件图表（Event Graph）** 上，离开 **Get Player Controller** 节点，使用 **Set Show Mouse Cursor** 节点并设置为 **True**。  
+
+    ![](ScriptPauseMenu_5.9.png)(w:840)  
+
+    **退出（Quit）** 被单击时，在返回主菜单（Main Menu）时，将打开鼠标光标进行菜单导航。
+
+1.  接下来，添加上面创建的 **Remove HUD** 函数，然后添加 **Open Level**（设置为 **主（Main）** 或主菜单（MainMenu）所在关卡的名称），并连接如下。
+
+    [REGION:lightbox]
+    [![](PauseMenuFunctionality_5.10.png)](PauseMenuFunctionality_5.10.png)
+    [/REGION]
+    *单击显示全图。*现在两个按钮都设置好了，我们需要做的最后一件事是允许玩家调用暂停菜单（Pause Menu）并暂停游戏。
+
+1.  在 **内容浏览器（Content Browser）** 的 **Content/FirstPersonBP/Blueprints** 下，打开 **第一人称角色（FirstPersonCharacter）** 蓝图。  
+    ![](PauseScript9.png)
+
+1.  在图表（Graph）中，添加一个 **M** 按键事件和一个 **Create Widget** 节点（设置为 **暂停菜单（Pause Menu）**），并将 **返回值（Return Value）** 提升为一个变量。  
+
+    ![](PauseMenuFunctionality_5.12.png)  
+
+    当我们使用 **M** 按键作为输入以打开暂停菜单（Pause Menu）时，您可以使用任何您希望使用的按键。对于提升的变量，我们调用我们的变量 **暂停菜单引用（Pause Menu Reference）**，因为这将把引用存储到已创建的暂停菜单（Pause Menu）。
+
+1.  按住 **Ctrl** 并从 **我的蓝图（MyBlueprint）** 窗口拖入该变量，并将其连接到一个 **IsValid** 节点。  
+
+    ![](PauseMenuFunctionality_5.13.png)  
+
+    我们正在查看暂停菜单（Pause Menu）控件是否已经创建并存储在该变量中。
+
+1.  将 **无效（Is Not Valid）** 引脚连接到 **Create PauseMenu_C Widget**。  
+
+    ![](PauseScript12.png)
+
+1.  **右键单击** 并添加 **Get Player Controller** 节点，然后添加 **Set Show Mouse Cursor** 并将其设置为 **True**。
+
+1.  再次从 **Get Player Controller** 节点拖动，然后是 **Get Player Controller Set Input Mode UI Only** 节点，并连接这些节点，如下所示。
+
+    [REGION:lightbox]
+    [![](PauseMenuFunctionality_5.16.png)](PauseMenuFunctionality_5.16.png)
+    [/REGION]
+      
+    当 **M** 被按下时，如果在此之前已经访问了暂停菜单（Pause Menu），则不需要重新创建它，而是访问变量。如果这是第一次访问暂停菜单（Pause Menu），则将创建它，然后将它存储为一个变量，以便以后访问。无论是哪一种情况，输入模式仅在显示暂停菜单（Pause Menu）之前设置为UI（这是我们接下来要做的）。
+
+1.  离开 **暂停菜单引用（Pause Menu Reference）** 变量，使用 **Add to Viewport** 节点，然后使用 **Set Game Paused**（将 **暂停（Paused）** 设置为 **True**）。
+
+    [REGION:lightbox]
+    [![](PauseScript14.png)(w:840)](PauseScript14.png)
+    [/REGION]
+    *单击显示全图。*我们的暂停菜单（Pause Menu）设置好了，现在是测试的时候了。
+
+1.  单击 **编译（Compile）** 和 **保存（Save）** 按钮，然后单击 **运行（Play）** 按钮以在编辑器中运行。  
+
+一旦进入游戏，如果您按 **M** 键（或您分配的任何键），您将看到游戏暂停，并且显示暂停菜单（Pause Menu）。从这里，您可以用 **恢复（Resume）** 按钮恢复游戏进程，或者用 **退出（Quit）** 按钮退回到主菜单（Main Menu）。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ kx3iF82EzMc
+ [/PARAMLITERAL]
+[/OBJECT]
+
+下一节将为您提供关于处理 **虚幻运动图形（Unreal Motion Graphics）** 和 **蓝图（Blueprints）** 的附加信息。
+
+## 6 - 进一步阅读
+
+有关本快速入门指南中涵盖的主题以及整个编辑器的更多信息，请参阅[引擎功能](Engine)页面。
+
+至于本指南所述主题的涵盖范围：
+
+*   有关虚幻运动图形（Unreal Motion Graphics）的更多信息，请参阅：[UMG UI设计器](Engine/UMG)
+*   有关蓝图（Blueprint）的更多信息，请参阅：[蓝图可视化脚本](Engine/Blueprints)

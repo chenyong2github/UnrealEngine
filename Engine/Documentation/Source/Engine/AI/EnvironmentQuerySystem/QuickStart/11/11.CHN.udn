@@ -1,84 +1,87 @@
-﻿Availability:Public
-Title:11.创建 FindPlayer EQS
+﻿INTSourceChangelist:3782314
+Availability:Public
+Title: 11.创建FindPlayer EQS
 Crumbs:%ROOT%, Engine, Gameplay/AI, Engine/AI/EnvironmentQuerySystem, Engine/AI/EnvironmentQuerySystem/QuickStart
-Description:创建一个场景查询，找到关卡中所有的玩家 TopDownCharacter。
-version:4.9
+Description: 创建一个环境查询，用于在关卡中查找玩家的TopDownCharacter的所有实例。
+version: 4.9
 
 [VAR:Steps]
 [OBJECT:Navigation]
 	[PARAM:previous]
-		[Previous Step](Engine/AI/EnvironmentQuerySystem/QuickStart/10 "%Engine/AI/EnvironmentQuerySystem/QuickStart/10:title%")
+		[上一步](Engine/AI/EnvironmentQuerySystem/QuickStart/10 “%Engine/AI/EnvironmentQuerySystem/QuickStart/10:title%”)
 	[/PARAM]
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[Quick Start Home](Engine/AI/EnvironmentQuerySystem/QuickStart)
+		[快速入门主页](Engine/AI/EnvironmentQuerySystem/QuickStart)
 	[/PARAM]
 	[PARAM:next]
-		[Next Step](Engine/AI/EnvironmentQuerySystem/QuickStart/12 "%Engine/AI/EnvironmentQuerySystem/QuickStart/12:title%")
+		[下一步](Engine/AI/EnvironmentQuerySystem/QuickStart/12 "%Engine/AI/EnvironmentQuerySystem/QuickStart/12:title%")
 	[/PARAM]
 [/OBJECT]
 [/VAR]
 
 
 
-这是两个 **场景查询** 的简化版，其唯一的功能便是返回 AI 1500 个单位中所有 TopDownCharacters 的列表，并测试 AI 是否能看到 TopDownCharacters。如 AI 能看到，则为行为树设置 ActorToFleeFrom 节点。
+这是两个 **环境查询（Environment Queries）** 中较为简单的一个，因为它所要做的就是返回AI的1500个单位内的所有TopDownCharacter的列表，然后测试AI是否能够看到这些TopDownCharacter。如果可以，则我们将从我们的行为树获得ActorToFleeFrom。
 
-有多种方法可完成此过程，每种方法均有其优点和缺点。使用 EQS 意味着我们稍后可进行额外测试，在逃跑时选择 _最佳_ 敌人（TopDownCharacter）。
+有很多方法可以完成这一过程，每种方法都有各自的优缺点。为此使用EQS意味着，我们可以在以后添加额外的测试来选择要从中运行的 _best_ 的敌人（TopDownCharacter）。
 
-您会遇到的部分术语：
+您将会遇到的一些术语表术语：
 
-* 生成器（Generator）创建与 Context 有关的项目（Item）
-* 测试中使用的项目通常与 Context 有关（项目 X 到 Context Y 有多远）
-* 基于测试结果对项目进行剔除和评分
+* 生成器创建与上下文相关的项
+* 测试中经常使用与上下文相关的项目（项目X与上下文Y的距离）
+* 根据测试结果对项目进行剔除或打分
+
+(#steps)
 
 ## 步骤
 
-1. 首先，在 **内容浏览器** 中双击 FindPlayer **场景查询** 资源。
+1. 首先，在 **内容浏览器（Content Browser）** 中双击FindPlayer **环境查询（Environment Query）** 资源。
 
 	![](findPlayerAsset.png)
 
-	此操作将打开 **场景查询** 编辑器，如下图所示：
+	将打开 **环境查询（Environment Query）*** 编辑器，如下所示：
 
 	![](startingEQ.png)
 
-	场景查询编辑器的工作方式与行为树编辑器几乎完全相同。
+	环境查询编辑器的工作原理与行为树编辑器的工作原理几乎完全相同。
 
-1. 在 **Update Graph** 区域 **单击右键**，然后从 **快捷菜单** 中选择 **ActorsOfClass**：
+1. **单击右键** 进入 **更新图表（Update Graph）** 区域，然后从 **上下文（Context）** 菜单中选择 **ActorsOfClass**：
 
 	![](createGetActors.png)
 
-	此操作将创建 ActorsOfClass 生成器，如下图：
+	将创建ActorsOfClass发生器，如下所示：
 
 	![](cga_made.png)
 
-1. 从 Root 节点的底部拖动到 **ActorsOfClass** 节点的顶部即可在场景查询编辑器中连接节点，与行为树编辑器中的操作方法完全相同。
+1. 要在环境查询编辑器中连接节点，您只需从Root节点的底部拖至 **ActorsOfClass** 节点的顶部， 这正是在行为树编辑器中所完成的操作。
 
 	![](connected.png)
 
-	每个场景查询只可拥有一个生成器。
+	每个环境查询只有一个发生器
 
-1. 下一步，选中 **ActorsOfClass** 节点进行设置，并修改其 **Search Radius** 和 **Searched Actor Class** 属性：
+1. 接下来，通过选择 **ActorsOfClass** 节点并更改其 **搜索半径（Search Radius）** 和 **搜索的Actor类（Searched Actor Class）** 属性，来设置该节点。
 
 	![](aoc_details.png)
 
-	* **Search Radius** = 1500
-	* **Searched Actor Class** = TopDownCharacter。
+	* **搜索半径（Search Radius）** = 1500
+	* **搜索的Actor类（Searched Actor Class）** = TopDownCharacter。
 
-	此生成器将找到半径中特定类的所有 Actors，并从其创建项目。
+	该发生器在该半径内查找给定类的所有Actor，并从这些Actor创建项目。
 
-1. 为 **ActorsOfClass** 节点添加一个 **Trace** 测试
+1. 向 **ActorsOfClass** 节点添加一个 **追踪（Trace）** 测试
 
 	![](addTraceTest.png)
 
-	Trace 测试用于检查 Context 和项目之间是否存在视线，在此例中是检查 AI 是否能看到项目（TopDownCharacters/Players）
+	追踪测试对于检查上下文是否具有对项目的视线非常有用，在本例中我们的AI对项目具有视线（在本例中为TopDownCharacters/Players）
 
-1. 左键单击 **ActorsOfClass** 节点选择 Trace 测试，然后在 Details 面板中将 **Bool Match** 属性改为 false（取消勾选）
+1. 现在，在 **ActorsOfClass** 节点上左键单击追踪测试来选择它，然后在详细信息（Details）面板中，将 **布尔匹配（Bool Match）** 属性设置为false（未勾选）
 
 	![](aoc_TraceFinal.png)
 
 
-大功告成！
+就这样！
 
 
 

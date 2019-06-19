@@ -17,7 +17,6 @@ topic-image:ce_topic.png
 可以在内容示例关卡中随意打开任何示例，并进行变更或编辑，制作属于你自己的版本，并了解它们的组成方式。也可以在自己的关卡中使用任何示例。
 [/EXCERPT:ContentExamples]
 
-(#essentials)
 ## 基础
 
 %Resources/ContentExamples/ExampleLevelOverview:TopicCompact%
@@ -27,18 +26,15 @@ topic-image:ce_topic.png
 %Resources/ContentExamples/NavMesh:TopicCompact%
 %Resources/ContentExamples/MathHall:TopicCompact%
 
-(#Animation)
 ## 动画
 
 %Resources/ContentExamples/Animation:TopicCompact%
 %Resources/ContentExamples/MorphTargets:TopicCompact%
 
-(#audio)
 ## 音频
 
 %Resources/ContentExamples/Audio:TopicCompact%
 
-(#blueprintsandblueprintnetworking)
 ## 蓝图和蓝图网络
 
 %Resources/ContentExamples/Blueprints:TopicCompact%
@@ -46,29 +42,24 @@ topic-image:ce_topic.png
 %Resources/ContentExamples/Networking:TopicCompact%
 
 
-(#landscapes)
 ## 地貌
 
 %Resources/ContentExamples/Landscapes:TopicCompact%
 
-(#matinee&cinematics)
 ## Matinee和过场动画
 
 %Resources/ContentExamples/Matinee:TopicCompact%
 
-(#paper2d)
-## 纸张2D
+## Paper 2D
 
 %Resources/ContentExamples/Paper2D:TopicCompact%
 
 
-(#physics)
 ## 物理
 
 %Resources/ContentExamples/Physics:TopicCompact%
 %Resources/ContentExamples/Destructables:TopicCompact%
 
-(#rendering)
 ## 渲染
 
 %Resources/ContentExamples/Materials:TopicCompact%
@@ -81,7 +72,6 @@ topic-image:ce_topic.png
 %Resources/ContentExamples/Reflections:TopicCompact%
 %Resources/ContentExamples/Decals:TopicCompact%
 
-(#staticmeshes&volumes)
 ## 静态网格体和体积
 
 %Resources/ContentExamples/StaticMeshes:TopicCompact%

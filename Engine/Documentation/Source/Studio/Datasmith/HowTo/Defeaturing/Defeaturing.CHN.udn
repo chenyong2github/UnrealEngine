@@ -1,0 +1,226 @@
+﻿INTSourceChangelist:4890524
+Availability: Public
+Crumbs: 
+Title: 通过特征清除简化静态网格体
+Description: 介绍如何通过移除静态网格体几何体中的小孔和凸起来提高渲染性能。
+Type: 
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Order: 
+Tags: how to
+Tags: Datasmith
+Tags: intermediate
+
+
+![](defeaturing-banner.png)
+
+特征清除是一种通过去除凸起和孔洞来简化网格体的方法。它可以通过减少网格体包含的顶点和三角形的数量来提高渲染性能。
+
+特征清除对于来自计算机辅助设计（CAD）应用程序的几何体特别有用。为物理制造目的而设计和建模部件和总成时，它们通常带有一些对于制造中实际对象而言非常重要但对于实时渲染而言则不是必需的小特征。
+
+例如，这个来自燃油泵总成的部件包含20,000个三角形。如果去除一些孔洞，那么这个数字会削减几乎一半。在这种情况下，总成中的其他部件将覆盖修改过的区域，因此在上下文中看到的渲染结果不会有明显变化。
+
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-before.png)](defeaturing-fuel-pump-before.png "Before: 20,617 triangles")
+[/REGION]
+
+之前：20,617个三角形
+
+[REGION:lightbox]
+[![](defeaturing-fuel-pump-after.png)](defeaturing-fuel-pump-after.png "After: 11,553 triangles")
+[/REGION]
+
+之后：11,553个三角形
+
+此外，如果您计划创建 **细节层级（LOD）**，以便在网格体占用较少屏幕空间时进一步简化网格体，那么从特征清除网格体创建LOD可以帮助使网格体的简化不那么明显。例如，对于曲轴总成的这个小部件，在不太详细的LOD级别上，小孔看起来参差不齐。利用特征清除在创建LOD之前去除小孔，网格体在较小的尺寸时看起来整洁得多。
+
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-0.png)](defeaturing-crankshaft-lod-0.png "Original mesh")
+[/REGION]
+
+原始网格体
+
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2.png)](defeaturing-crankshaft-lod-2.png "LOD 2")
+[/REGION]
+
+LOD 2
+
+[REGION:lightbox]
+[![](defeaturing-crankshaft-lod-2-processed.png)](defeaturing-crankshaft-lod-2-processed.png "Defeatured, then LODed")
+[/REGION]
+
+特征清除，然后创建LOD
+
+虚幻编辑器能够清除从Datasmith或FBX导入的任何静态网格体资源的特征。  
+
+[REGION:note]
+本页介绍的特征清除工具目前仅适用于Unreal Studio项目。有关创建Unreal Studio项目或转换现有项目的详细信息，请参阅[设置虚幻项目以使用Datasmith](Studio/Datasmith/HowTo/SettingUpUnrealProject)。
+[/REGION]
+
+(#removablefeatures)
+
+## 可移除特征
+
+下面几节将介绍特征清除工具可以删除的特征类型，以及您可以提供的用于控制您希望删除之特征大小的测量值。
+
+(#throughholes)
+
+### 通孔
+
+通孔是表面上完全穿过物体并从另一侧穿出的孔洞。
+
+您可以通过指定通孔的最大直径来限制通孔的大小。
+
+[REGION:lightbox]
+[![](defeaturing-through-holes-before.png)](defeaturing-through-holes-before.png "Before removing through holes")
+[/REGION]
+
+移除通孔之前
+
+[REGION:lightbox]
+[![](defeaturing-through-holes-after.png)](defeaturing-through-holes-after.png "After removing through holes")
+[/REGION]
+
+移除通孔之后
+
+(#blindholes)
+
+### 盲孔
+
+盲孔是表面上未完全穿过物体的孔洞。与通孔不同，盲孔具有与表面相隔一定距离的底部。
+
+您可以通过指定孔的最大直径和孔在表面以下的最大深度来限制要移除的盲孔的大小。只有比这 *两个* 尺寸都小的孔才会被删除。
+
+[REGION:lightbox]
+[![](defeaturing-blind-holes-before.png)](defeaturing-blind-holes-before.png "Before removing blind holes")
+[/REGION]
+
+移除盲孔之前
+
+[REGION:lightbox]
+[![](defeaturing-blind-holes-after.png)](defeaturing-blind-holes-after.png "After removing blind holes")
+[/REGION]
+
+移除盲孔之后
+
+(#protrusions)
+
+### 凸起
+
+凸起是高出周围表面的隆起处。
+
+您可以通过指定凸起的最大直径和凸起超出表面的最大高度来限制要移除的凸起的大小。只有比这*两个*尺寸都小的凸起才会被删除。
+
+[REGION:lightbox]
+[![](defeaturing-protrusion-before.png)](defeaturing-protrusion-before.png "Before removing protrusions")
+[/REGION]
+
+移除凸起之前
+
+[REGION:lightbox]
+[![](defeaturing-protrusion-after.png)](defeaturing-protrusion-after.png "After removing protrusions")
+[/REGION]
+
+移除凸起之后
+
+(#defeaturinginthestaticmesheditor)
+
+## 在静态网格体编辑器中执行特征清除
+
+1. 在静态网格体编辑器中打开要修改的静态网格体。  
+    您可以在 **内容浏览器（Content Browser）** 中双击该资源，或者右键单击它并选择 **编辑（Edit）**。 
+2. 打开 **网格体编辑（Mesh Editing）** 工具栏。  
+    ![Open the Mesh Editing Toolbar](defeaturing-open-editing-toolbar.png "Open the Mesh Editing Toolbar")
+3. 单击 **特征清除（Defeaturing）** 图标。   
+    ![Defeaturing](defeaturing-in-toolbar.png "Defeaturing")
+4. 您将看到一个设置对话框，您可以在其中配置要移除的特征：  
+    ![Defeaturing settings](defeaturing_settings.png "Defeaturing settings")  
+    对于要从静态网格体中移除的各种类型的特征，选中相应的选项并设置该类型特征的最大尺寸。 
+    [REGION:note]
+    确保为从默认值中选择的每种类型的特性增加最大尺寸。
+    [/REGION]
+5. 点击 **继续（Proceed）** 启动特征清除操作并修改静态网格体。  
+    ![Proceed](defeaturing_settings_proceed.png "Proceed")  
+    
+
+(#defeaturingineditorscripts)
+
+## 在编辑器脚本中执行特征清除
+
+您可以在蓝图和Python中移除孔、盲孔和凸起。
+
+[REGION:note]
+ **先决条件：**如果您尚未进行此操作，则需要安装 **编辑器脚本工具插件（Editor Scripting Utilities Plugin）**。有关详情，请参阅[脚本化和自动化编辑器](Engine/Editor/ScriptingandAutomation)。
+[/REGION]
+
+选择您的语言
+
+蓝图
+
+Python
+
+您可以使用 **网格体处理（Mesh Processing）> 网格体特征清除（Defeature Mesh）** 节点在蓝图中的静态网格体资源上运行特征清除工具。
+
+![Defeature Mesh node](defeature_mesh_bp.png "Defeature Mesh node")
+
+[REGION:note]
+若要使用此节点，您的蓝图类必须派生自仅用于编辑器的类，例如 **PlacedEditorUtilityBase** 类。有关详情，请参阅[使用蓝图脚本化编辑器](Engine/Editor/ScriptingandAutomation/Blueprints)。
+[/REGION]
+
+您需要为这个节点提供以下输入：
+
+*   对要修改的静态网格体资源的引用。首先必须加载此资源，加载操作通常通过调用 **编辑器脚本（Editor Scripting）> 资源（Asset）> 加载资源（Load Asset）** 节点来完成。
+*   要在静态网格体上修改的LOD的索引。使用0，除非您只想移除特定LOD的特征。
+*   一个 **网格体特征清除参数对象（MeshDefeaturingParameterObject）**，它控制应从静态网格体中移除的特征类型，以及要移除的特征的最大尺寸。  
+    若要设置这些对象之一，请执行以下操作：
+    1.单击 **我的蓝图（My Blueprint）** 面板中的 **\+ 变量（\+ Variable）** 按钮，向蓝图添加一个新变量。  
+        ![Add variable](defeaturing-add-variable.png "Add variable")
+    2.将变量的类型设置为对一个 *网格体特征清除参数对象（Mesh Defeaturing Parameter Object）** 的引用。  
+        ![Mesh Defeaturing Parameter Object](defeaturing-add-parameter-object.png "Mesh Defeaturing Parameter Object")
+    3.按住 **Control** 并将变量拖放到蓝图图表中，以创建获取该变量值的新节点。  
+        ![Drag and drop](defeaturing-drag-variable.png "Drag and drop")
+    4.从新变量节点的输出端口拖动，并从 **变量（Variables）** 列表中选择需要修改的设置的 **设置（Set）** 节点。  
+        ![Defeaturing parameter API](defeaturing-parameter-api.png "Defeaturing parameter API")
+
+例如，以下脚本将从静态网格体资源中移除所有宽度小于5cm的孔洞：
+
+[REGION:lightbox]
+[![Defeaturing example](defeature_example_bp.png "Defeaturing example")](defeature_example_bp.png) 
+
+*单击显示全图。*
+[/REGION]
+
+您可以通过调用“unreal.EditorMeshProcessing.defeature_mesh()”函数在静态网格体资源上运行特征清除工具。
+
+您将需要传递此函数：
+
+*   要修改的静态网格体资源。首先必须加载该资源，加载操作通常通过调用“unreal.EditorAssetLibrary.load_asset()”来完成。
+*   要在静态网格体上修改的LOD的索引。使用0，除非您只想移除特定LOD的特征。
+*   您创建的“unreal.MeshDefeaturingParameterObject”。使用配置参数设置此对象，这些配置参数控制应从静态网格体中移除的特征类型，以及要移除的特征的最大尺寸。
+
+例如，以下脚本将移除静态网格体中所有小于“unreal.MeshDefeaturingParameterObject”中所设尺寸的通孔、盲孔和凸起。
+
+~~~
+import unreal
+asset_name = "/Game/Unreal_Sportbike/Geometries/0x25f0e0b7Unreal_Sportbike_geom_3180.Accumulator_case"
+def set_mesh_as_lod(mesh_name):
+    # Load the Asset
+    mesh_asset = unreal.EditorAssetLibrary.load_asset(mesh_name)
+    # Create a parameter object
+    options = unreal.MeshDefeaturingParameterObject()
+    # Set up its properties
+    options.fill_blind_holes = True
+    options.filled_hole_max_diameter = 10
+    options.filled_hole_max_depth = 5
+    options.fill_through_holes = True
+    options.through_hole_max_diameter = 10
+    options.remove_protrusions = True
+    options.protrusion_max_diameter = 10
+    options.protrusion_max_height = 5
+    # Run the defeaturing
+    unreal.MeshProcessingLibrary.defeature_mesh(mesh_asset, 0, options)
+    # Save the Asset
+    unreal.EditorAssetLibrary.save_loaded_asset(mesh_asset)
+defeature_mesh(asset_name)
+~~~

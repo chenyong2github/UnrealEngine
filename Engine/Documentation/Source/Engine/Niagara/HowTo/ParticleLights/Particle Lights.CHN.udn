@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4703316
+﻿INTSourceChangelist:6417095
 Availability: Public
 Crumbs: 
 Title: 创建粒子光源
@@ -10,18 +10,11 @@ Parent: Engine/Niagara/HowTo
 Order: 4
 Tags: Niagara
 Tags: Early Access
-
-先决条件主题
-
-本页假定您已对以下主题有一定的了解。请先阅读这些主题，然后继续进行操作。
-
-*   [启用Niagara插件](Engine/Niagara/HowTo/EnableNiagara "描述如何启用Niagara插件。")
+prereq: Engine/Niagara/HowTo/EnableNiagara
     
 让粒子能够照亮它们周围的世界，可以为您项目的任何视觉效果添加额外的真实感图层。在接下来的教程中，我们将学习如何设置Niagara发射器，使粒子和光源可以同时产生。
 
 ![](Light_Banner_01.png "Light_Banner_01.png")
-
-(#steps)
 
 ## 步骤
 
@@ -59,8 +52,6 @@ Tags: Early Access
     [/REGION]
 12. 单击 **编译（Compile）** 和 **保存（Save）** 按钮以编译并保存您的作业，然后关闭粒子光源 **Niagara 系统**。在 **内容浏览器（Content Browser）** 中，将 **网格体Niagara系统（Mesh Niagara System）** 拖动到关卡视口中。  
     ![](CreateParticleLight_Steps_Step9_AddToLevel.png)
-
-(#endresult)
 
 ## 最终结果
 

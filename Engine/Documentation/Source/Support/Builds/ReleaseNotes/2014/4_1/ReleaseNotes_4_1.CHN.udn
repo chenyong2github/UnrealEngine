@@ -1,25 +1,25 @@
-﻿INTSourceChangelist:1
-Title: 虚幻引擎 4.1 版本信息
+﻿INTSourceChangelist:6537038
+Title: 虚幻引擎4.1版本说明
 Crumbs:%ROOT%, Support/Builds
 Description:
 Availability:Public
 version: 4.1
-order:1
-
+parent:Support/Builds
+Order: 43
 [TOC(start:2 end:2)]
 
 [PUBLISH:Licensee]
-## Build Info
+## 版本信息
 
 [REGION:simpletable]
-| Item | Info |
+| 项目 | 信息 |
 | ---- | ---- |
-| **Labels** | [INCLUDE:#labels] |
-| **Built from Changelist #** | 2055431 (//depot/UE4-QA/Promotable-CL-2055431) |
-| **Branched from Changelist #** | 2055192 (//depot/UE4-Releases) |
-| **Branched from Changelist #** | 2039046 (//depot/UE4) |
-| **Visual Studio Version** | Microsoft Visual Studio 2012 Version 11.0.60610.01 Update 3 |
-| **DirectX** | June 2010 |
+| **标签** | [INCLUDE:#labels] |
+| **构建于变更列表#** | 2055431 (//depot/UE4-QA/Promotable-CL-2055431) |
+| **分支于变更列表#** | 2055192 (//depot/UE4-Releases) |
+| **分支于变更列表#** | 2039046 (//depot/UE4) |
+| **Visual Studio版本** | Microsoft Visual Studio 2012 Version 11.0.60610.01 Update 3 |
+| **DirectX** | 2010年6月 |
 [/REGION]
 
 [COMMENT:none]
@@ -32,251 +32,252 @@ QA_APPROVED_UE4_BUILD_MINIMUM
 
 [/COMMENT]
 [/PUBLISH:Licensee]
+## 主要新功能
 
-## Major New Features
-
-#### Platforms
+#### 平台
 
 [PUBLISH:Rocket]
-##### PlayStation 4 and Xbox One Support
+(#playstation4andxboxonesupport)
 
-* Full support for PlayStation 4 and Xbox One!
+##### PlayStation 4和Xbox One支持
+
+* 完全支持PlayStation 4和Xbox One！
 	
 	![](xboxone_ps4.png)
 
-* Engine source for Playstation 4 and Xbox One is available to subscribers who are registered developers with Microsoft or Sony, respectively.
-* For now, deploying projects to Playstation 4 or Xbox One requires compiling source from GitHub using a Windows computer 
+* Playstation 4和Xbox One的引擎源分别提供给微软或索尼的注册开发者。
+* 目前，将项目部署到Playstation 4或Xbox One需要使用Windows电脑从GitHub编译源码 
 [/PUBLISH:Rocket]
 
-##### SteamOS/Linux Support (Preview)
+##### SteamOS/Linux支持（预览）
 
-* You can now package your games and deploy to SteamOS and Linux!
+* 现在可以打包游戏并部署到SteamOS和Linux！
 
 	![](steamos_linux.png)
 
-* For now, deploying projects to Linux requires compiling source from GitHub using a Windows computer.
+* 目前，将项目部署到Linux需要使用Windows计算机从GitHub编译源码。
 
-#### Marketplace Content
+#### 市场内容
 
 [PUBLISH:Rocket]
-##### Elemental Demo
+##### 元素演示
 
-* Remember that cool Unreal Demo we showed running on PlayStation 4? Is a spectacular showcase of Unreal Engine 4's high-end rendering capabilities, including dynamic lighting and shadowing real-time reflections, subsurface scattering and GPU powered particle effects.
+* 还记得我们在PlayStation 4上展示的那个很酷的虚幻演示吗？这是虚幻引擎4的高端渲染能力的壮观展示，包括动态照明和阴影实时反射、次表面散射和GPU支持的粒子效果。
 
 	![](Elemental.png)
 
 [/PUBLISH:Rocket]
 
-##### Math Hall, a new Content Example level
+##### 数学大厅，新内容示例关卡
 
-* The Math Hall example provides an introduction to basic vector math and the concept behind various math functions.
+* 数学大厅示例介绍了基本矢量数学和各种数学函数背后的概念。
 
 	![](math_hall.png)
 
-#### New Project Templates
+#### 新项目模板
 
-##### Flying Template and Rolling Template
+##### 飞行模板和滚动模板
 
-* We've created two new project templates that demonstrate simple flying and rolling character movement.
+* 我们创建了两个新的项目模板，演示了简单的飞行和滚动角色移动。
 
-* The Flying template (C++ and Blueprint) feature simple flying movement:
+* 飞行模板（C++和蓝图）使用简单的飞行移动：
 
 	![](flying_template.png)
 
-* The Rolling template (C++ and Blueprint) feature a physics-based rolling ball as the player character:
+* 滚动模板（C++和蓝图）以基于物理的滚球作为玩家角色：
 
 	![](rolling_template.png)
 
-#### Editor and Tools
+#### 编辑器和工具
 
-##### New Built-in Editor Tutorials
+##### 新内置编辑器教程
 
-* We've added new built-in in-editor tutorials.  They'll appear automatically the first time you encounter these features.
+* 我们添加了新的内置编辑器教程。当您第一次遇到这些功能时，这些教程将自动出现。
 	
 	[REGION:raw]
 	![](editor_tutorials.png)
 	[/REGION]
 
-* **Cascade Particle Editor Tutorial** walks you through the basic user interface and concepts used when creating Particle Systems and effects.
-* **Material Editor Tutorial** explains the basics of creating Materials.
-* **Static Mesh Editor Tutorial** covers the interface and tools available for setting up Static Meshes.
-* **Persona Animation Editor** Tutorial walks you through the various user interface elements and concepts for the different asset types and modes.
+* **级联粒子编辑器教程** 介绍创建粒子系统和效果时使用的基本用户界面和概念。
+* **材质编辑器教程** 介绍有关创建材质的基础知识。
+* **静态网格体编辑器教程** 介绍用于设置静态网格体的界面和工具。
+* **Persona动画编辑器** 教程介绍不同资源类型和模式的各种用户界面元素和概念。
 
 
-##### Scene Outliner Folder System
+##### 场景大纲视图文件夹系统
 
-* You can now organize your actors into folders in the Scene Outliner.
+* 现在，您可以在场景大纲视图中将Actor组织到文件夹中。
 
 	![](scene_outliner_folders.png)
  
-* The create button will create you a new folder containing the currently selected Actors.
-* Visibility toggling on folders affects all their contained Actors.
+* 创建按钮将为您创建一个包含当前选定Actor的新文件夹。
+* 文件夹上的可见性切换会影响其包含的所有Actor。
 
 
-##### Editor News Feed
+##### 编辑器动态消息
 
-* The editor now has a built-in News Feed. You can access it using the new button in the top-right of the editor.
-* The News Feed will tell you about new Marketplace content, video tutorials and blog posts.
+* 编辑器现在有内置动态消息。您可以使用编辑器右上角的新按钮访问它。
+* 动态消息将告诉您新的市场内容、视频教程和博客文章。
 	
 	![](news_feed.png)
 
-##### Asset Deletion Assistant
+##### 资源删除助手
 
-* This feature makes it easy to delete assets by helping you interactively inspect and repair references. 
+* 该功能通过帮助您交互式地检查和修复引用，使删除资源变得很容易。 
 
 	![](DeleteAssetTool001.png)
 
-* Allows graceful cleanup of assets still being referenced on disk or in memory
-* You can click on any referenced asset to navigate to it and fix it up manually.
-* You can Replace References, formally known as "Consolidate".  
-* You can perform a Force Delete, or you can Cancel and go handle the references yourself.
-* Allows for multiple simultaneous deletes.
-* Even if an asset is referenced by other assets, as long as they are also being deleted, it won't flag that as a problem.
-* Reference Navigation
-* Double Clicking on referenced assets will open their editor
-* If an asset is being referenced in the open map, Double Clicking the map asset will take you to it in the open map.
+* 允许对仍然在磁盘或内存中引用的资源进行优雅的清理
+* 您可以单击任何引用的资源来导航到它并手动修复它。
+* 您可以替换引用，正式的说法是“合并”。  
+* 您可以执行强制删除，也可以取消并自己处理引用。
+* 允许多个同时删除。
+* 即使一个资源被其他资源引用，只要它们也被删除，它也不会将其标记为一个问题。
+* 引用导航
+* 双击引用资源将打开其编辑器
+* 如果一个资源在开放地图中被引用，双击地图资源将会将您带到该开放地图中。
 
-##### Drag and Drop Directory Importing 
+##### 拖放目录导入 
 
-* You can now select multiple folders with textures, meshes and animations, and drag them directly into the Content Browser to import everything inside those folders. 
+* 您现在可以选择多个具有纹理、网格体和动画的文件夹，并将它们直接拖放到内容浏览器中，以导入这些文件夹中的所有内容。 
 
 	![](DragAndDrop.png)
 
-##### Undo History Window
+##### 取消操作历史记录窗口
 
-* The Editor now has a way to access the undo history.
+* 编辑器现在有了访问取消操作历史记录的方法。
 	
 	![](UndoHistory02.png)
 
-* You can access the Undo History window from the Windows menu (Windows > Undo History).     
+* 您可以从Windows菜单（Windows > 取消操作历史记录（Undo History））中访问取消操作历史记录（Undo History）窗口。     
 
-##### New: Remapping Viewport Controls 
+##### 新内容：重新映射视口功能按钮 
 
-* We now allow users to remap their WASD controls for the viewport. 
-* You can find these settings under **Editor Preferences > Keyboards Settings > Viewport Navigation**. 
+* 现在我们允许用户重新映射视口的WASD功能按钮。 
+* 您可以在 **编辑器首选项（Editor Preferences）>键盘设置（Keyboards Settings）>视口导航（Viewport Navigation）** 下找到这些设置。 
 
 	![](ViewportControls.png)
 
-##### New: Debug Histogram Visualization
+##### 新内容：调试直方图可视化
 
-* You can now draw a histogram (graph) of float values in the world.
+* 您现在可以绘制世界场景中浮点值的直方图（图表）。
 
 	![](debug_histogram.png)
 
-* You can record the value of a property or other aspect of the game over time and visualize that as a histogram at a specific location in the world.
-* Values can be recorded and histograms can be drawn from both C++ code and Blueprints.
+* 您可以随着时间的流逝记录属性或游戏的其他方面的值，并将其可视化为世界场景中特定位置的直方图。
+* 值可以被记录，直方图可以从C++代码和蓝图中绘制。
 
 	![](debug_histogram_nodes.png)
 
-* Note: This feature is designed for debugging purposes. Debug drawing is not recommended during normal gameplay.
+* 注意：该功能是为调试目的而设计的。正常游戏过程中不推荐使用调试绘制。
 
-##### Translation Editor (Preview)
+##### 翻译编辑器（预览）
 
-* The Translation Editor makes it easier to edit translations for strings in your game code and assets.   
+* 翻译编辑器使您更容易编辑游戏代码和资源中字符串的翻译。   
 	
 	![](TranslationEditor03.png)
 
-* Note:  This tool is still an early work in progress.  This tool can be enabled in your editor preferences under the Experimental section.
+* 注意：该工具仍处于早期开发阶段。可以在实验性部分的编辑器首选项中启用此工具。
 
-### Blueprints
+### 蓝图
 
 
-##### Jump to Connection in Graph
+##### 跳转到图表中的连接
 
-* You can now right click on pins and jump to connections.
+* 您现在可以右键单击引脚并跳转到连接。
 	
 	![](JumpToConnections.png)
 
-##### Class Dynamic Casting 
+##### 类动态投射 
 
-* You can now safely convert between compatible types of objects in your Blueprints.
+* 现在，您可以安全地在蓝图中兼容的对象类型之间进行转换。
 	
 	![](DynamicCasting.png)
 
-##### Improved Blueprint Components Editing 
+##### 改进的蓝图组件编辑 
 
-* You can now drag-and-drop component nodes between Blueprint editor windows.
-* This will create a new component variable in the new Blueprint that inherits its attributes from the original (except variable name, to avoid conflicts).
-* You can now undo/redo component attachment and detachment operations.
-* This works for the "Make New Scene Root" operation as well.
+* 现在可以在蓝图编辑器窗口之间拖放组件节点。
+* 这将在新蓝图中创建一个新的组件变量，该变量将从原始蓝图继承其属性（变量名除外，以避免冲突）。
+* 现在可以撤消/重做组件附件和分离操作。
+* 这也适用于“指定新的场景根组件（Make New Scene Root）”操作。
 
 
-## Important Upgrade Notes
+## 重要升级说明
 
-#### Upgrading Projects
+#### 升级项目
 
 [PUBLISH:Licensee]
-Some steps may be required to get your project working with the new build if your project is located outside the UE4 directory.
+如果您的项目位于UE4目录之外，则可能需要一些步骤来让您的项目使用新构建。
 [/PUBLISH:Licensee]
 [PUBLISH:Rocket]
-Some steps may be required to get your 4.0 project working in 4.1.
+在4.1中运行4.0项目可能需要一些步骤。
 [/PUBLISH:Rocket]
 
-- Upgrading Blueprint-only projects
-    * You can load your existing project in the new editor normally.
-    * Note:  Some Blueprint APIs may have changed between versions, which could cause warnings in your content.  Read the **API Changes** section for more information.
+- 升级纯蓝图项目
+    * 您可以在新编辑器中正常加载现有项目。
+    * 注意：一些蓝图API可能在不同版本之间发生了更改，这可能会在内容中引起警告。阅读 **API更改** 部分了解更多信息。
 
-- Upgrading C++ code projects
-    * You'll need to recompile the C++ project for the new version of Unreal Engine.
-    * Locate the .uproject file in your game's folder, and right click on it.  (on Mac, you can also Command + Click)
-    * Select **Switch Unreal Engine Version  ->   4.1**	(on Mac, this is in a Services menu)
-    * Right click to generate new C++ project files, then recompile your game normally.
-    * Note:  Some C++ APIs may have changed between versions, which can cause compile errors.  Read the **API Changes** section for more information.
+- 升级C++代码项目
+    * 您将需要为新版本的虚幻引擎重新编译C++项目。
+    * 在游戏文件夹中找到.uproject文件，并右键单击它。（在Mac上，您还可以使用命令+单击）
+    * 选择 **切换虚幻引擎版本（Switch Unreal Engine Version）-> 4.1**（Mac上是在服务（Services）菜单中）
+    * 右击可生成新的C++项目文件，然后正常重新编译游戏。
+    * 注意：一些C++ API可能在不同版本之间发生了更改，这可能导致编译错误。阅读 **API更改** 部分了解更多信息。
 
-- Sorry for the inconvenience!  We're working on simplifying the upgrade process for future versions.
-
-
-#### Known issues
-
-- Generating Visual Studio projects will fail for projects that have an underscore in the name if the  Xbox One SDK is installed.
-- Xbox One and Playstation 4 do not yet fully support projects with spaces in any of their parent directories. 
-- Steamworks is not yet supported on Mac - we're working on it!
-- ShooterGame requires using source from GitHub to be compiled as a dedicated server.
-- Projects created from the First Person template may crash on Playstation 4.
-- Elemental Demo crashes when deploying to Mac using the "Launch On" button in the editor.
-- Tappy Chicken on iOS crashes at startup if you're signed into Game Center.
+- 抱歉给您带来不便！我们正在努力简化未来版本的升级过程。
 
 
-#### Special Thanks
+#### 已知问题
 
-We'd like to thank all of the amazing developers who contributed code in this release. We are humbled and amazed by what you are doing!
+- 如果安装了Xbox One SDK，对于名称中有下划线的项目，生成Visual Studio项目将会失败。
+- Xbox One和Playstation 4还没有完全支持在任何父目录中包含空格的项目。 
+- Steamworks目前还不支持Mac，我们正在开发它！
+- 射击游戏需要使用来自GitHub的源码作为专用服务器来编译。
+- 用第一人称模板创建的项目可能会在Playstation 4上崩溃。
+- 使用编辑器中的“启动（Launch On）”按钮部署到Mac，元素演示崩溃。
+- 如果登录了游戏中心，iOS上的Tappy Chicken在启动时就会崩溃。
+
+
+#### 特别鸣谢
+
+我们要感谢所有在这个版本中贡献代码的优秀开发人员。我们对你们所做的工作深表敬意和赞叹！
 
 * **Allar (Michael Allar)**
-    * [Added Shared Texture resource support for D3D11RHI](https://github.com/EpicGames/UnrealEngine/pull/6)
+    * [添加了对D3D11RHI的共享纹理资源支持](https://github.com/EpicGames/UnrealEngine/pull/6)
 
 * **AndrewScheidecker (Andrew Scheidecker)**
-    * [Fix Actor->Acor K2 redirect typo](https://github.com/EpicGames/UnrealEngine/pull/28)
+    * [修复Actor->Acor K2重定向错误](https://github.com/EpicGames/UnrealEngine/pull/28)
 
 * **cdietschrun**
-    * [Fix "Actions taking a object" message](https://github.com/EpicGames/UnrealEngine/pull/12)
+    * [修复“获取对象的操作”消息](https://github.com/EpicGames/UnrealEngine/pull/12)
 
 * **clide**
-	- [Mac GL Fix](https://github.com/EpicGames/UnrealEngine/pull/5)
+	- [Mac GL修复](https://github.com/EpicGames/UnrealEngine/pull/5)
 
 * **dkjer (Donald Kjer)**
-    * [Fixes for case-sensitive filesystems](https://github.com/EpicGames/UnrealEngine/pull/11)
+    * [修复区分大小写的文件系统](https://github.com/EpicGames/UnrealEngine/pull/11)
 
 * **DiCoJamesTan (James Tan)**
-    * [Fix attachment bug with ChildActorComponent ](https://github.com/EpicGames/UnrealEngine/pull/20)
+    * [修复了ChildActorComponent的附件错误](https://github.com/EpicGames/UnrealEngine/pull/20)
 
-* **fxtentacle (Hajo Nils Krabbenh�ft)**
-    * [Fix Azimuth & Elevation calculation on Mac](https://github.com/EpicGames/UnrealEngine/pull/9)
+* **fxtentacle (Hajo Nils Krabbenh.ft)**
+    * [修复在Mac上方位角和仰角的计算](https://github.com/EpicGames/UnrealEngine/pull/9)
 
 * **Kamayuq**
-    * [Mac UnrealBuildTool Fix](https://github.com/EpicGames/UnrealEngine/pull/3)
+    * [Mac UnrealBuildTool修复](https://github.com/EpicGames/UnrealEngine/pull/3)
 
 * **Kyle Rocha (kylawl)**
-    * [Add plane interct function to KismetMathLibrary](https://github.com/EpicGames/UnrealEngine/pull/14)
+    * [向KismetMathLibrary添加平面相互作用函数](https://github.com/EpicGames/UnrealEngine/pull/14)
 
 * **PostalDude (Frederic Lauzon)**
-    * [Fix invalid module linker output file path](https://github.com/EpicGames/UnrealEngine/pull/7)
+    * [修复无效的模块链接器输出文件路径](https://github.com/EpicGames/UnrealEngine/pull/7)
 
 * **sbc100  (Sam Cleeg)**
-    * [Fix build warnings in UnrealBuildTool](https://github.com/EpicGames/UnrealEngine/pull/16)
-    * [Fix linux compile warnings](https://github.com/EpicGames/UnrealEngine/pull/19)
+    * [修复UnrealBuildTool中的构建警告](https://github.com/EpicGames/UnrealEngine/pull/16)
+    * [修复linux编译警告](https://github.com/EpicGames/UnrealEngine/pull/19)
 
 * **wshearn (Wesley Hearn)**
-    * [Fix HTML5 Shipping Client build](https://github.com/EpicGames/UnrealEngine/pull/15)
+    * [修复HTML5发布客户端版本](https://github.com/EpicGames/UnrealEngine/pull/15)
 
 ## Release Notes
 
@@ -286,19 +287,19 @@ We'd like to thank all of the amazing developers who contributed code in this re
 
 	![](shooter_game.png)
 
-* **Memory Game**: A card-matching memory game created entirely in Blueprints. Optimized for mobile devices!
+* **Memory Game**: A card-matching memory game created entirely in Blueprints.Optimized for mobile devices!
 
 	![](memory_game.png)
 
-* **Effects Cave**: Spelunking has never been this fun! See the pretty things you can make to add richness to your world by exploring the Effects Cave. Using the Cascade visual effects editor you can layer on countless details including GPU-powered particles, dynamically lit sparks, wispy puffs of smoke and more.
+* **Effects Cave**: Spelunking has never been this fun! See the pretty things you can make to add richness to your world by exploring the Effects Cave.Using the Cascade visual effects editor you can layer on countless details including GPU-powered particles, dynamically lit sparks, wispy puffs of smoke and more.
 
 	![](effects_showcase.png)
 
-* **Realistic Rendering**: Easily build true-to-life environments or emulate architectural visualizations using UE4's physically-based material system, the improved Lightmass global illumination system and photometric lighting. Supports Oculus Rift!
+* **Realistic Rendering**: Easily build true-to-life environments or emulate architectural visualizations using UE4's physically-based material system, the improved Lightmass global illumination system and photometric lighting.Supports Oculus Rift!
 
 	![](realistic_rendering.png)
 
-* **Blueprint Office**: Shows a wide variety of use cases for Blueprints ranging from level design tools to intelligent security systems to sophisticated AI behavior. Each example includes a brief in-game explanation.
+* **Blueprint Office**: Shows a wide variety of use cases for Blueprints ranging from level design tools to intelligent security systems to sophisticated AI behavior.Each example includes a brief in-game explanation.
 
 	![](blueprints_demo.png)
 
@@ -315,7 +316,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 	* **Unreal Editor Manual**
 		* New: [Blueprint Cheat Sheet](Engine/Blueprints/UserGuide/CheatSheet)
 		* New: [Light Propagation Volumes](Engine/Rendering/LightingAndShadows/LightPropagationVolumes)
-		* New: [Preview Shadows](Engine/Rendering/LightingAndShadows/Shadows)
+		* New: [Preview Shadows](Engine/Rendering/LightingAndShadows/Shadows#previewshadows)
 		* New: [Pivot Painter](Engine/Content/Tools/PivotPainter)
 		* New: [Mac Viewport Controls Quick Reference](Engine/UI/LevelEditor/Viewports/ViewportControls)
 	* **Programming Guide** 
@@ -328,7 +329,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 [PUBLISH:Rocket]
 #### End User License Agreement (EULA)
 
-* Licensees are now permitted to publicly distribute Example Code (code residing in the Samples and Templates folders).  This is an exception to the rule prohibiting distribution of Source Code publicly.
+* Licensees are now permitted to publicly distribute Example Code (code residing in the Samples and Templates folders).This is an exception to the rule prohibiting distribution of Source Code publicly.
 * Added the following exceptions to licensees' royalty obligation:
 * Licensees are not required to pay royalties on the first $3,000 in gross revenue per Product per quarter.
 * If Product revenue is less than $3,000 in a quarter, licensee is not required to report revenue for that Product.
@@ -342,7 +343,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 
 * New: Install multiple versions of Unreal Engine side-by-side.
 * Use the Launcher's new Version Selector drop-down to choose which version you want to install and run!
-* New: You can now uninstall the engine versions right through the launcher using a new �Uninstall' button on the main UI.
+* New: You can now uninstall the engine versions right through the launcher using a new 'Uninstall' button on the main UI.
 * New: Launcher Marketplace pages now show download size.
 * New: The Marketplace now supports different versions of items.
 * New: The EULA is now shown and accepted through the launcher.
@@ -368,14 +369,14 @@ We'd like to thank all of the amazing developers who contributed code in this re
 
 * **General Editor**
 	* New: Improved the 3D viewport grid!
-		* Removed the grid dots for a cleaner view. The grid is now also scaled according to the grid snap settings.
+		* Removed the grid dots for a cleaner view.The grid is now also scaled according to the grid snap settings.
 		* Perspective grid precision improved with thinner lines.
 		* Orthographic grid now has power of 10 major gridlines, soft fading transitions between levels, and colored axis lines.
 	* New: Added a **Preview Meshes** preference that allows customization of meshes displayed in viewports when holding the **Backslash** key.
 	* New: Icons for your project can now be assigned via Window/Project Settings. 
 	* New: Startup Movies for your project can now be assigned via Window/Project Settings. 
 	* New: Pressing the C key now creates comments in the Material and SoundCue editors.
-	* New: Added an option to invert middle mouse pan movement. **Invert Middle Mouse Pan** option in the Editor Preferences -> Viewports.
+	* New: Added an option to invert middle mouse pan movement.**Invert Middle Mouse Pan** option in the Editor Preferences -> Viewports.
 	* New: Added search support in the Placement Browser. 
 	* New: Holding **Ctrl** now prevents Vertex Painting from de/re-selecting Actors. 
 	* New: Added support for **Ctrl + Backspace** and **Ctrl + Delete** to editable text boxes.
@@ -400,7 +401,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 	* Improved Arrow Component readability at a distance. 
 	* Updated **Code View** functionality to now exist in a plugin. 
 		* Please enable the **Code View** plugin to reactivate this functionality (**Window Menu -> Plugins -> Editor -> Code View**). 
-	* Fixed **Region & Language** editor preferences to be more user friendly. Changing them should be less confusing or awkward.
+	* Fixed **Region & Language** editor preferences to be more user friendly.Changing them should be less confusing or awkward.
 	* Fixed High Resolution Screenshot facility.
 		* Screenshot capture is now limited to the viewport from which the High Res Screenshot action was selected.
 	* Fixed Editor Preferences not listing all available languages and regions.
@@ -429,13 +430,13 @@ We'd like to thank all of the amazing developers who contributed code in this re
 	* Fixed home button not appearing in the tutorial window appears after viewing Blueprint tutorials.
 	* Removed unused splash screens.
 * **FBX**
-	* New: Added an **Import All** button to the FBX import dialog.  This will import all selected files with the same FBX settings without being asked more than once
+	* New: Added an **Import All** button to the FBX import dialog.This will import all selected files with the same FBX settings without being asked more than once
 	* Changed FBX Import Options Window for clarity:
 	
 		![](fbx.png)
 
-	* Changed the default setting of **Import Meshes in Bone Hierarchy**, under the Skeletal Mesh import settings, to be enabled by default. This will result in any non-skinned meshes in the bone hierarchy being imported as actual meshes and not as bones. 
-	* Fixed importing with Materials and Textures that are the same name as each other or a mesh. This will no longer cause a crash, instead unique names will be generated for each conflict.
+	* Changed the default setting of **Import Meshes in Bone Hierarchy**, under the Skeletal Mesh import settings, to be enabled by default.This will result in any non-skinned meshes in the bone hierarchy being imported as actual meshes and not as bones. 
+	* Fixed importing with Materials and Textures that are the same name as each other or a mesh.This will no longer cause a crash, instead unique names will be generated for each conflict.
 	* Fixed overlapping nodes on Materials imported from FBX.
 * **Content Browser**
 	* New: You can now rename folders by right clicking on them and selecting **Rename**. 
@@ -514,7 +515,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 	* Fixed Undo/redo with folders in the Scene Outliner. 
 * **World Browser** 
 	* New: Added option to handle cooking for worlds created by World Browser -map=PersistentMapName?worldcomposition. 
-	* New: Added time threshold between tile distance streaming load/unload requests. Can be changed in configuration files: **TilesStreamingTimeThreshold**. 
+	* New: Added time threshold between tile distance streaming load/unload requests.Can be changed in configuration files: **TilesStreamingTimeThreshold**. 
 	* New: Added position snapping for level tiles, use **Ctrl+Left Click** Drag.
 	* Replaced World Browser async loading of level tiles with a blocking load and added "long operation" message. 
 	* Removed the **Always Loaded** level type.
@@ -538,7 +539,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 * New: Added ability for Blueprint cast nodes to cast from one interface to another. 
 * New: You can now multiply LinearColors by floats using a **Float * (LinearColor)** Blueprint node.
 * New: Added a new **ParseIntoArray** function for easily splitting up strings.
-* New: Variable Get/Set nodes can now display Rich Tooltips. To view them, mouse over a node and hold Ctrl+Alt.
+* New: Variable Get/Set nodes can now display Rich Tooltips.To view them, mouse over a node and hold Ctrl+Alt.
 * New: **Alt + Right Click** can now be used as an alternative to zoom Blueprint graphs.
 * New: Added menu extensibility hooks for additional items in the Debug Object drop down.
 * New: Graph nodes can now be renamed via the details panel when a node is selected
@@ -549,7 +550,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 * New: Added "value (clamp) range" exposure to numeric variables in Blueprints to go along with "slider UI range."
 * Updates allowing multiple pending latent actions at a particular call site from a Blueprint. 
 * Fixed Combo button menu scaling in the Blueprint Editor.
-* Fixed **Realtime** rendering in the Blueprint Components mode Viewport. It is now disabled when Components mode is deactivated within the Blueprint editor.
+* Fixed **Realtime** rendering in the Blueprint Components mode Viewport.It is now disabled when Components mode is deactivated within the Blueprint editor.
 * Fixed the **Toggle Particle System Helpers** option to work on Blueprint Actors that contain Particle System Helpers.
 * Fixed Blueprints to be properly flagged as being modified when toggling between absolute and relative transform settings.
 * Fixed not being able to undo/redo after moving nodes around on the graph.
@@ -585,11 +586,11 @@ We'd like to thank all of the amazing developers who contributed code in this re
 * This means only one set of events needs to be mapped for simple touch games being played on PC. 
 * New: Added Audio Settings section of Project Settings in which the Default Sound Class and Default Base Sound Mix can be specified. 
 * New: Splitscreen options added to Maps & Modes section of Project Settings. 
-* New: Added path simplification to path following component using visibility tests, to skip some irrelevant path points. It is disabled by default.
-* New: Added landscape collision data cooking. Cooked landscapes will now create collision objects from a binary stream of cooked data, which improves level streaming performance.
+* New: Added path simplification to path following component using visibility tests, to skip some irrelevant path points.It is disabled by default.
+* New: Added landscape collision data cooking.Cooked landscapes will now create collision objects from a binary stream of cooked data, which improves level streaming performance.
 * New: Text Render Actors now generate and cache static vertex and index buffers. 
 * Improved the way Morph Targets calculated their morphed normal.
-* Fixed the lack of feedback if a module fails to load due to a lack of compatibility. An error message will now be displayed.
+* Fixed the lack of feedback if a module fails to load due to a lack of compatibility.An error message will now be displayed.
 * Fixed editor-only sprites being loaded while cooking.
 * Fixed movement components to correctly handle analog input.
 * Fixed a crash in material indices and LOD mapping indices.
@@ -616,17 +617,17 @@ We'd like to thank all of the amazing developers who contributed code in this re
 
 * New: PhysX and APEX have been upgraded to 3.3.1 and 1.3.1.
 * In some cases it may be necessary to recook physics data. 
-* This upgrade fixes some physics related bugs. See NVIDIA release notes for more info.
+* This upgrade fixes some physics related bugs.See NVIDIA release notes for more info.
 * New: Maximum angular velocity of a BodyInstance has been exposed in code and blueprints.
-* New: Pawns will now collide with destructible mesh. Large and small chunks can be set to get different interaction with pawn.
+* New: Pawns will now collide with destructible mesh.Large and small chunks can be set to get different interaction with pawn.
 * New: Breakable joints are now available for ragdolls and physics assets.
 * New: Support for cloth on ragdolls and physics assets.
 * Updated soft physics constraints to use body mass implicitly.
 * Updated the Async physics scene to be disabled by default.
-* This feature is somewhat advanced and uses more memory. As such, it has been turned off by default and can be changed in the **Edit Menu -> Project Settings -> Physics -> Simulation** category.
+* This feature is somewhat advanced and uses more memory.As such, it has been turned off by default and can be changed in the **Edit Menu -> Project Settings -> Physics -> Simulation** category.
 * If Async scene is disabled, all Actors are placed in the regular scene regardless of the **Enable Async** flag on the Actor.
 * Updated the player Pawn to no longer interact with the Async scene by default.
-* Fixed overlap event related bugs. Correct behavior related to overlap flags may break old content relying on bad behavior.
+* Fixed overlap event related bugs.Correct behavior related to overlap flags may break old content relying on bad behavior.
 * A collision between two objects can be set to Ignore, Overlap, or Blocking.
 * An overlap event will occur if two objects Overlap and **both** have the **Generate Overlap Events** flag set to true.
 *  A bug in the code made it so that in certain situations an overlap would trigger even if one of the overlapping objects had the flag set to false.
@@ -645,7 +646,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 #### Core
 
 * New: UnrealBuildTool can now be configured using an XML configuration file!
-* It looks for the BuildConfiguration.xml file in two possible locations (Engine/Saved/UnrealBuildTool and My Documnets/Unreal Engine/UnrealBuildTool). The first one should be used for branch/engine configurations, while the second one is for personal settings. Notice that environmental variables settings will be overridden by those values if set. 
+* It looks for the BuildConfiguration.xml file in two possible locations (Engine/Saved/UnrealBuildTool and My Documnets/Unreal Engine/UnrealBuildTool).The first one should be used for branch/engine configurations, while the second one is for personal settings.Notice that environmental variables settings will be overridden by those values if set. 
 * The syntax is described in \Engine\Programs\UnrealBuildTool\BuildConfiguration.xml. 
 * New: Added support for cross-compiling Linux client. 
 * New: All platform memory and allocator memory statistics are now available through the stats system. 
@@ -665,8 +666,8 @@ We'd like to thank all of the amazing developers who contributed code in this re
 #### Platforms
 
 * Android
-* Improved Android device detection. It is now threaded and more efficient in general.
-* Fixed **Launch** showing texture formats not supported by the connected Android devices. It will now only display texture formats that are supported by the connected Android devices.
+* Improved Android device detection.It is now threaded and more efficient in general.
+* Fixed **Launch** showing texture formats not supported by the connected Android devices.It will now only display texture formats that are supported by the connected Android devices.
 * Mac 
 * New: Packaging on Mac now creates a self-contained app bundle. 
 * New: Mac UE4 now uses our crash reporter. 
@@ -690,7 +691,7 @@ We'd like to thank all of the amazing developers who contributed code in this re
 * Added detection of render target/shader mismatches at runtime.
 * Updated render target output formats to be set through **ModifyCompilationEnvironment** rather than using the SLOT defines in the shader files.
 * Xbox One
-* New: Added 10:10:10 final color output on Xbox One. This allows us to remove quantization noise in tonemapper, which is faster.
+* New: Added 10:10:10 final color output on Xbox One.This allows us to remove quantization noise in tonemapper, which is faster.
 * New: Screen safe area is now implemented.
 * New: Implemented Achievements.
 * Enabled optimizations for all pixel shaders.
@@ -715,18 +716,18 @@ We'd like to thank all of the amazing developers who contributed code in this re
 
 #### Gameplay and Framework
 
-* Added bForceRescan parameter to IAssetRegistry::ScanPathsSynchronous.  If true, path scanning not ignore paths that have already been scanned.
-* Added GetDerivedClasses to IAssetRegistry. This is just a wrapper function for the pre-existing GetSubClasses.
+* Added bForceRescan parameter to IAssetRegistry::ScanPathsSynchronous.If true, path scanning not ignore paths that have already been scanned.
+* Added GetDerivedClasses to IAssetRegistry.This is just a wrapper function for the pre-existing GetSubClasses.
 * Added a flag to disable blue onscreen messages in DrawTransition in GameViewportClient. 
 * Added ability for Blueprints to use GetOverlapInfos.
 * Added OnClosed delegate as a parameter to IOnlineExternalUI::ShowLoginUI.
 * Added a flag to disable blue onscreen messages in DrawTransition in GameViewportClient.
 * Added support for loading an ObjectLibrary from multiple paths, and a constructor for easily creating an ObjectLibrary in memory.
-* Improved the support for Blueprints in an ObjectLibrary when calling UObject::CreateLibrary. If the bHasBlueprintClasses is true, it will check the type for you.
+* Improved the support for Blueprints in an ObjectLibrary when calling UObject::CreateLibrary.If the bHasBlueprintClasses is true, it will check the type for you.
 * Renamed FGameWorldContext to FLocalPlayerContext, as it binds to a player and not a world.
 * Renamed GetWorldContextFrom functions returning a World Context reference to GetWorldContextFrom*Checked.  
 * GetWorldContextFrom now returns a pointer and returns NULL if no WorldContext exists for the supplied input.
-Removed FSimpleReticle from AHUD. You can add this to your subclass if desired.
+Removed FSimpleReticle from AHUD.You can add this to your subclass if desired.
 * Removed unused lifecycle event OnEngineHasLoaded from AGameMode.
 * Removed SGameWidget class as it is no longer necessary
 * Removed PendingLevelPlayerControllerClassName from GameEngine and replaced it with PendingLevelPlayerControllerClass in LocalPlayer. 
@@ -737,7 +738,7 @@ Removed FSimpleReticle from AHUD. You can add this to your subclass if desired.
 
 #### Editor and Tools
 
-* Slate drag drop operations now use RTTI that is compatible with inheritance.  This allows DragDrop::IsTypeMatch to work properly allowing for static casting to any level of the inheritance hierarchy. 
+* Slate drag drop operations now use RTTI that is compatible with inheritance.This allows DragDrop::IsTypeMatch to work properly allowing for static casting to any level of the inheritance hierarchy. 
 * Please replace previous instances of GetTypeId in FDragDropOperation derivatives with DRAG_DROP_OPERATOR_TYPE. 
 * FSlateApplication::GetDragDropReflector() is now obsolete and has been removed. 
 * Removed unused Linked Obj Editor framework
@@ -750,7 +751,7 @@ Removed FSimpleReticle from AHUD. You can add this to your subclass if desired.
 * Mac build is now using OS X 10.9 SDK, code and compile settings were updated to be compatible with Xcode 5.1.
 * Config files on were moved to ~/Library/Preferences, logs to ~/Library/Logs, all other files from Saved folders are now in ~/Library/Application Support/Epic. 
 * PlayStation 4
-* Specification of TitleID, package PassCode, and other data should now be in a text file in your project directory under Build/PS4/PackagingDataPS4.txt.  This replaces the old metadata system in UBT.   Examples can be found in ShooterGame, and the base Engine/BuildPS4 directories.
+* Specification of TitleID, package PassCode, and other data should now be in a text file in your project directory under Build/PS4/PackagingDataPS4.txt.This replaces the old metadata system in UBT.Examples can be found in ShooterGame, and the base Engine/BuildPS4 directories.
 * Xbox One
 * Code updated to build against March 2014 XDK. 
 * Deprecated functions (D3DAllocateGraphicsMemory, etc) have been removed/replaced.
@@ -770,7 +771,7 @@ Removed FSimpleReticle from AHUD. You can add this to your subclass if desired.
 * Added support for saving and loading FVector4 to config files using GConfig->SetVector4 and GConfig->GetVector4.
 * Licensees using cultures (locales) other than the following languages will need to rebuild ICU's data to include that locale data:
 * German - de, English - en, Spanish - es, French - fr, Hindi - hi, Italian - it, Japanese - ja, Korean - ko, Polish - pl, Portuguese - pt, Russian - ru, Swedish - sv, Chinese - zh
-* DrawDebugHelpers: added support for displaying a Histogram of float values. Use FDebugFloatHistory to record samples, and DrawDebugFloatHistory to draw in game. Also available in blueprints. 
+* DrawDebugHelpers: added support for displaying a Histogram of float values.Use FDebugFloatHistory to record samples, and DrawDebugFloatHistory to draw in game.Also available in blueprints. 
 
 #### Networking
 

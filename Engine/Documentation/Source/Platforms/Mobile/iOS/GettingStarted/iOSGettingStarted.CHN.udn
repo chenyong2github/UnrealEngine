@@ -1,0 +1,298 @@
+INTSourceChangelist:3782314
+Availability: Public
+Title:高级iOS PC/Mac工作流程
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS
+Description:为iOS平台设置开发。
+prereq:Platforms/Mobile/iOS/QuickStart
+Version: 4.9
+SkillLevel: Intermediate
+parent:Platforms/Mobile/iOS
+order:0
+type:overview
+related:Platforms/Mobile/iOS/Windows
+
+[TOC(start:2 end:2)]
+
+%Globals:OSSelect%
+
+
+
+本文说明了如何针对iOS设备编译设置开发环境，以及部署以iOS为目标平台的虚幻项目的工作流程。
+
+[PUBLISH:Rocket]
+[REGION:note]
+目前，如果您使用的是虚幻引擎的启动程序版本，那么对于基于蓝图的项目，只能从Windows部署到iOS。
+[/REGION]
+[/PUBLISH]
+
+(#devices/sdk)
+## 设备/SDK
+UE4在装有iOS 6.0或更高版本的IPhone4/IPad2或更新设备上运行。
+
+要检查设备与引擎功能的兼容性，请参阅[](Platforms/Mobile/iOS\DeviceCompatibility)页面。
+
+(#supportedconfigurations)
+## 支持的配置
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[INCLUDE:#WindowsConfig]
+	[/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[INCLUDE:#MacOSConfig]
+	[/PARAM]
+[/OBJECT]
+
+[COMMENT:none]
+
+[EXCERPT:WindowsConfig]
+
+请参阅[推荐规格](GettingStarted/RecommendedSpecifications)页面，以了解关于Windows系统要求的详细信息。
+
+[/EXCERPT:WindowsConfig]
+
+
+[EXCERPT:MacOSConfig]
+
+请参阅[推荐规格](GettingStarted/RecommendedSpecifications)页面，以了解关于Mac系统要求的详细信息。请注意，要部署到iOS 7.1，您需要安装XCode 5.1。
+XCode可以从App Store[免费下载](https://itunes.apple.com/us/app/xcode/id497799835?mt=12)。
+
+[/EXCERPT:MacOSConfig]
+
+[/COMMENT]
+
+
+
+(#gettingstartedasanappleiosdeveloper)
+## 以Apple iOS Developer身份开始操作
+
+您需要注册[Apple iOS Developer Program](https://developer.apple.com/programs/ios/)。
+* 个人——如果您是独立工作，或者是一个小团队中唯一需要iOS帐户管理员访问权的人员
+* 公司——如果您是拥有公司的小团队。这样您可以向团队添加成员，并授予他们不同的访问权
+
+当您创建Apple Developer帐户时，必须完成以下操作（使用Apple的说明）：
+
+
+* 创建证书。
+* 创建App ID（可以使用 * 表示用户指定的部分）。
+* 创建信息提供概述文件。
+* 添加设备。
+* 将所有设备添加到信息提供概述文件。
+
+有关更多信息，请参阅Apple网站上的以下页面：
+* [应用分发指南](https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40012582-CH1-SW1) 
+* [维护标识、设备和描述文件](https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/MaintainingProfiles/MaintainingProfiles.html#//apple_ref/doc/uid/TP40012582-CH30-SW1)
+* [在设备上启动App](https://developer.apple.com/library/ios/documentation/IDEs/Conceptual/AppDistributionGuide/LaunchingYourApponDevices/LaunchingYourApponDevices.html#//apple_ref/doc/uid/TP40012582-CH27-SW4)
+
+
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[INCLUDE:#WindowsSetup]
+	[/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	[INCLUDE:#MacOSSetup]
+	[/PARAM]
+[/OBJECT]
+
+[COMMENT:none]
+
+[EXCERPT:WindowsSetup]
+
+要在Windows上获取证书，您需要使用 `Engine\Binaries\DotNET\IOS` 中的iPhone Packager。
+
+iPhone Packager中有两个选项卡：
+* 新用户（New User）
+* 已经是注册的iOS开发者（Already a registered iOS developer）
+
+新用户（New User）选项卡包含之前未曾开发过iOS应用程序的开发者的工具。 
+
+在这里，您可以：
+* 打开“生成证书请求”（Generate Certificate Request）窗口。“生成证书请求”（Generate Certificate Request）窗口生成一个用于签署iOS应用程序的密钥对和一个用于在Apple Developer网站上生成证书的证书请求。 
+* 导入从Apple Developer网站下载的信息提供概述文件。
+* 导入从Apple Developer网站下载的开发证书和密钥对。
+
+[REGION:warning]
+这是用于打开编辑Info.plist窗口的选项，但这个是不再使用的旧选项。最终，iPhone Packager的功能将集成到虚幻编辑器中。 
+[/REGION]
+
+“已是注册的iOS开发者”（Already a registered iOS developer）选项卡包含适用于之前曾使用虚幻或通过其他方法开发过iOS应用的开发者的工具，并且他们已经有了开发证书和信息提供描述文件。 
+
+在这里，您可以：
+* 导入从Apple Developer网站下载的信息提供概述文件。
+* 导入之前从Apple Developer网站下载的开发证书和密钥对或者从Keychain Access导出的.p12文件。
+
+安装证书时，向导中的默认选项应该适用于大多数情况。
+
+[/EXCERPT:WindowsSetup]
+
+
+[EXCERPT:MacOSSetup]
+
+
+现在需要在Mac上安装证书，如网站所述。您还需要在工作室中将用于应用签名的所有Mac上安装该证书。有两种方法来完成这个操作：
+
+
+* 通过Keychain Access应用：
+    * 选择登录密钥链。
+    * 从“类别”部分中选择“我的证书”。
+    * 选择新证书（首先是“iPhone Developer”）。
+    * 右键单击，然后选择“导出”。
+    * 根据提示操作（如果安全存储，则可以使用空密码）。
+    * 将.p12分发给其他人。
+    * 他们可以双击这个文件，或者将.p12拖到Keychain Access中，以在登录密钥链中安装该证书。
+* 使用Xcode：
+    * 转至“组织者”。
+    * 转至左下方的“开发者概述文件”。
+    * 选择“导出开发者概述文件”。
+    * 根据提示操作（包括输入密码——使用您可以与团队共享的内容）。
+    * 将概述文件分发给其他人。
+    * 然后，他们可以在Xcode组织者中“导入开发者概述文件”。
+	
+接下来，从Apple网站下载 `.mobileprovision`。这样将下载名为&lt;ProfileName&gt;.mobileprovision的文件。您应将 `.mobileprovision` 文件放在以下某个位置中：
+* `[GameDir]/Build/IOS/[GameName].mobileprovision`
+* `Engine/Build/IOS/UE4Game.mobileprovision`
+
+
+[/EXCERPT:MacOSSetup]
+
+[/COMMENT]
+
+最后，重要的是所有人的登录密钥链中都有相同的“iPhone Developer:”证书。
+
+您可以在所有游戏中共享通配mobileprovision文件（直到游戏需要Apple所述的非通配概述文件）。如果添加更多设备，请始终记住要更新文件。
+
+
+(#deployingtoiosdevices)
+## 部署到iOS设备
+
+您可以使用虚幻编辑器中的 **启动（Launch）** 按钮来快速开始在iOS设备上测试当前关卡。 
+您还可以使用 **文件（File）>打包（Package）** 命令来烘焙和打包游戏以在iOS设备上测试。有关更多信息，请参阅[](Engine\Deployment\Launching)页面。
+
+
+[PUBLISH:Licensee]
+
+(#windows-basedworkflowforcodeprojects)
+## 基于Windows的代码项目工作流程
+
+如果您要在Windows上完成主要开发和编码工作，请阅读这个部分。
+
+(#macsystemsetup)
+### Mac系统设置
+
+* 从App Store安装最新版Xcode。
+* 使用Terminal应用程序创建所需的目录结构。
+    * 创建一些可写入目录：
+        * sudo mkdir /UE4
+        * sudo chmod 777 /UE4
+    * 您还应该在主目录中创建，然后创建指向这些目录的链接：
+        * ln -s ~/UE4 /UE4
+* 安装并运行UnrealRemoteTool (URT)。
+    * 将程序下载到Mac上。完成A或B：
+        * A)
+            * 将UnrealRemoteTool从PC（//depot/UE4/Engine/Build/iOS/UnrealRemoteTool）复制到Mac。
+            * chmod a+x UnrealRemoteTool
+        * B)
+            * 将它从p4v直接同步到Mac
+    * 从Terminal运行UnrealRemoteTool（URT中很少有调试器没有捕捉到的崩溃，因此我们循环运行）。
+        * for (( ;; )) ; do ./UnrealRemoteTool; done
+    * 请注意在Mountain Lion中，Terminal会记住工作目录和命令历史记录，因此如果重启，按向上箭头会重新调用命令。
+
+(#compilingonwindows)
+### 在Windows上编译
+完成上述设置Windows和Mac系统的步骤后，编译应该十分简单了，因为它使用UnrealBuildTool来执行编译：
+* 运行//depot/UE4/GenerateProjectFiles_AllPlatforms.bat
+* 打开它创建的UE4.sln。
+* 打开Games solution文件夹。
+* 选择开发编辑器配置和Win64平台。
+* 右键单击所选游戏（例如，QAGame）并选择“构建”（Build）。
+* 现在，选择开发配置和iOS平台。
+* 再次构建游戏。
+    * 这会连接到运行UnrealRemoteTool的Mac，复制文件，然后在Mac上运行远程编译命令。
+	* 最后还会执行一些签名操作，以便确保能正常工作。如果不能，双击信息提供文件和Mac上安装的证书。
+* 启动烘焙器。
+    * 在UE4/Engine/Binaries/Win64目录（在cmd.exe中）中，运行以下命令（将QAGame替换成您的游戏）：
+	    * ue4editor-cmd QAGame -run=cook -targetplatform=ios -cookonthefly
+	* 这会启动iOS设备将通过网络联系以检索烘焙文件的烘焙服务器。
+
+您可以在Mac驱动器中的/UE4/Builds目录中查找是否有以您的PC计算机名称命令的目录。其中有一个镜像目录结构，与您的PC目录结构相匹配。编译完成时，可执行文件将位于游戏的Binaries目录中（或Engine/Binaries，如果您编译的是非游戏UE4项目）
+
+(#running/debuggingwithxcode)
+### 使用Xcode运行/调试
+
+现在，要在设备上运行，前往Mac：
+
+* 在/UE4/Builds/.../UE4/Engine/Binaries/IOS中，打开UE4_FromPC.xcodeproj
+* 选择游戏的目标（如QAGame_RunIOS）
+* 编辑启动设置。
+    * 按Option-Command-R
+	* 在“参数”下面，添加您所需的任何命令行参数和
+	    * -filehostip=xx.xx.xx.xx
+		* 其中，xx.xx.xx.xx是运行烘焙器的PC的IP地址。
+* 单击“运行”，将在设备上安装游戏，然后开始运行，游戏会连接到PC烘焙器（您应在烘焙器输出中看到一些连接消息）。
+
+
+(#mac-basedworkflow)
+## 基于Mac的工作流程
+
+您可以在Mac上针对iOS进行编译。这是新行为，因此很可能会发生问题：
+
+(#compilingandrunning)
+### 编译和运行
+
+* 运行//depot/UE4/GenerateProjectFiles_AllPlatforms.command
+* 在Xcode中，打开UE4/UE4.xcodeproj
+* 选择“QAGame - Mac”。 
+* 在模式中（Option-Command-R）中，选择“开发”，然后单击完成。按Command-B构建Mac可执行文件。
+* 从Terminal运行iOS烘焙器。
+    * 启动Terminal.app并通过cd切换到UE4/Engine/Binaries/Mac目录，然后运行以下命令（将QAGame替换成您的游戏）：
+	    * open UE4Editor.app --args QAGame -run=cook -targetplatform=ios -cookonthefly
+* 选择 **[GameName] - IOS (Run)** 目标，选择要在其中运行它的设备。
+* 在模式（Option-Command-R）中，选择“信息”中的“开发”，然后前往“参数”。
+    * 为游戏添加任何必需的命令行选项和
+	    * -filehostip=xx.xx.xx.xx
+		* 其中，xx.xx.xx.xx是运行烘焙器的Mac的IP地址。
+
+
+
+(#packaging)
+## 打包
+
+如果想要预先打包构建版，请参阅UnrealFrontend文档以了解如何将包含所有内容的.ipa烘焙到构建中。
+[/PUBLISH:Licensee]

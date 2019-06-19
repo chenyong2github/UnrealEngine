@@ -1,69 +1,532 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:Sequencer快速入门
-Crumbs: %ROOT%, Engine
-Description:在虚幻引擎4中快速设置和运行Sequencer编辑器的指南。 
-Navigation:topic
-parent:Engine/Sequencer
-order:1
+﻿INTSourceChangelist:6533185
+Availability: Public
+Title: Sequencer快速入门
+Description: 有关快速了解并运用虚幻引擎4中的Sequencer编辑器的指南。
+Type: quick start
 Version: 4.18
-type:quick start
-checkpoint:sequencerqs
-tags:Sequencer
-tags:Getting Started
-topic-image:sequencerQS_topic.png
+Parent: Engine/Sequencer
+Tags: Sequencer
+Tags: Getting Started
+topic-image: sequencerQS_topic.png
+
+[TOC (start:2 end:2)]
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:videoid]
-	8d-iuJFT9uM
-	[/PARAMLITERAL]
-	[PARAMLITERAL:width]
-	100
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	56.25
-	[/PARAMLITERAL]
-	[PARAMLITERAL:units]
-	%
-	[/PARAMLITERAL]
-	[PARAMLITERAL:type]
-	simple
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 8d-iuJFT9uM
+ [/PARAMLITERAL]
 [/OBJECT]
 
 
-_在本指南结尾，你将得到一个与以上类似的场景。_
+*在本指南结束时，您将拥有一个与上图类似的场景。*
 
-(#goals)
 ## 目标
 
-Sequencer快速入门指南旨在让你快速上手，掌握在虚幻引擎4（UE4）中创建过场动画的基础知识。 
+Sequencer快速入门指南旨在让您快速了解并运用在虚幻引擎4（UE4）中创建过场动画的基础知识。
 
-(#objectives)
-## 目标
+## 目的
 
-在学完本教程后，开发人员将掌握下列知识：
+学习完本教程后，您将了解以下内容：
 
 *	如何创建关卡序列。
-*	如何启用过场动画预览。 
+*	如何启用过场动画预览。
 *	如何在镜头中添加和移动摄像机。
-*	如何对角色应用动画。 
-*	如何更改摄像机聚焦设置。
-*	如何创建和使用过场动画的镜头和副镜头。
+*	如何将动画应用于角色。
+*	如何更改摄像机焦点设置。
+*	如何为过场动画创建并使用镜头和取景。
 
 
-(#steps)
-## 步骤
+## 1 - 必要的设置
 
-[DIR(output:"checkpoint" parent:"Engine/Sequencer/QuickStart" org:"hierarchy")]
+在我们开始制作场景之前，我们将创建一些我们需要的资源，并设置编辑器UI来实时预览我们的电影。对于编辑器布局（Editor Layout），您可以随意尝试不同的选项，并选择您觉得最舒服的选项。完成这部分后，我们的项目就可以开始创建内容了。
 
-[REGION:call_to_action]
-	[单击此处开始学习](Engine/Sequencer/QuickStart/1 "%Engine/Sequencer/QuickStart/1:title%")
+[REGION:note]
+在本指南期间，我们将使用启用了 **初学者内容（Starter Content）** 的 **蓝图第三人称模板（Blueprint Third Person Template）** 项目。
 [/REGION]
 
+1.  在项目的主工具栏中，单击 **过场动画（Cinematics）**，然后选择 **添加关卡序列（Add Level Sequence）**。  
+
+    ![](SequencerQS_1_1.png)
+
+    从过场动画（Cinematics）下拉菜单中创建一个关卡序列也会自动将此序列添加到关卡中。
+
+1.  在 **资源另存为（Save Asset As）** 窗口中，右键单击并创建一个名为 **Cinematics** 的新文件夹，并将您的关卡序列命名为 **Master**。  
+
+    ![](SequencerQS_1_2.png)
+
+    将自动打开 **Sequencer编辑器（Sequencer Editor）**，您可以将它[拖动并停靠](Engine/UI/InterfaceOverview)到其他窗口中。  
+
+    ![](SequencerQS_1_2b.png)
+
+1.  在 **内容浏览器（Content Browser）** 中，右键单击 **Master** 关卡序列，选中 **复制（Duplicate）**，并将它命名为 **Shot01**。  
+
+    ![](SequencerQS_1_3.png)
+	
+    由于关卡序列是自包含资源，我们可以将它们放在关卡中，也可以将它们放在其他关卡序列中。在这里，我们创建了一个名为 **Shot01** 的关卡序列，在本指南的稍后部分我们会将它添加到我们的 **Master** 关卡序列中。您还可以从 **动画（Animation）** 下的 **新增（Add New）** 按钮或者通过 **右键单击** 内容浏览器中的上下文菜单来添加关卡序列。  
+
+    ![](SequencerQS_1_4.png)
+
+1.  在视口（Viewport）窗口中，单击 **视口选项（Viewport Options）** 按钮，然后在 **布局（Layout）** 下选择 **垂直的两个窗格（Vertical Two Panes）** 选项。  
+
+    ![](SequencerQS_1_5.png)
+
+1.  在右侧视口中，单击 **视图模式（View Mode）** 按钮，然后选择 **透视（Perspective）**。  
+
+    ![](SequencerQS_1_6.png)
+
+1.  在右侧视口中，单击 **视图模式（View Mode）** 按钮，然后选择 **过场动画视口（Cinematic Viewport）**。  
+
+    ![](SequencerQS_1_7.png)
+
+    这将使我们能够使用过场动画预览并在编辑场景时能够看到一个接近最终结果的场景。
+
+1.  在右侧视口中，按 **G** 键，然后按 **Ctrl+Shift+T**。  
+
+    ![](SequencerQS_1_8.png)
+	
+    按G键将进入[游戏视图](Engine/UI/LevelEditor/Viewports/Basics)，该视图隐藏了所有编辑器图标，呈现游戏（或过场动画）看起来的样子。按 **Ctrl+Shift+T** 将切换视口工具栏在过场动画视口顶部的显示情况。这将隐藏网格对齐、视图模式和变换小工具选项等内容，在进行过场动画预览时您可能不需要这些内容。  
+
+    [REGION:tip]
+    您可以再次按 **G** 键来重新启用这些编辑器图标，也可以再次按 **Ctrl+Shift+T** 来显示视口工具栏。
+    [/REGION]
+
+**分段结果**
+
+我们的项目已设置完毕，可以开始制作示例动画了。我们创建了 **主** 关卡序列和第一个 **插槽**。我们还设置了的编辑器界面，它包含一个动画视口，让我们可以实时查看动画的样子。
+
+接下来，我们将制作第一个镜头、添加摄像机、调整焦点以及为摄像机生成移动。
+。
+
+## 2 - 您的第一个镜头 - 摄像机
+
+在这一步，我们将创建我们的第一个镜头，添加一个摄像机到镜头和添加摄像机的运动，并看看如何通过 **摄像机设置（Camera Settings）** 调整摄像机的焦点。
+
+1.  在 **过场动画视口（Cinematic Viewport）** 中单击以使其成为活动视口。
+
+1.  在 **内容浏览器（Content Browser）** 中打开您的 **镜头01（Shot01）** 关卡序列，然后在 **Sequencer** 中单击 **添加摄像机（Add Camera）** 按钮。  
+
+    ![](SequencerQS_2_1.png)
+	
+    这将创建和添加一个摄像机到关卡序列，并创建和添加[摄像机切换](Engine\Sequencer\HowTo\TracksCameraCut)轨迹，同时更新 **过场动画视口（Cinematic Viewport）**。  
+
+    ![](SequencerQS_2_1b.png)
+
+    这种类型的轨迹用于定义在任何给定时间拍摄场景的透视（或摄像机）。使用 **添加摄像机（Add Camera）** 按钮时，在新创建的 **摄像机切换轨迹（Camera Cuts Track）** 中，所创建的摄像机将被自动指定为您要使用的摄像机切换。
+    
+    [REGION:note]
+    即使您不打算在多个摄像机之间切换，您仍然需要一个 **摄像机切换轨迹（Camera Cuts Track）** 指向您的单个摄像机，以便拍摄场景。
+    [/REGION]
+    
+1.  在右侧视口中，按住鼠标右键，使用 **W**、**A**、**S** 和 **D** 键，将摄像机移动到类似下面的位置。  
+
+    ![](SequencerQS_2_2.png)
+
+    我们的 **过场动画视口（Cinematic Viewport）** 目前处于[导航模式](Engine/UI/LevelEditor/Viewports/ActorLocking)，此模式使我们可以定位摄像机，同时查看拍摄角度。
+
+1.  在Sequencer中，单击 **解锁/锁定摄像机（Unlock/Lock Camera）** 按钮开关。
+
+    ![](SequencerQS_2_3.png)
+	
+    这将退出导航模式。
+
+1.  单击左视口中的任何地方，使其成为活动视口，然后再次单击 **解锁/锁定摄像机（Unlock/Lock Camera）** 按钮开关。  
+
+    ![](SequencerQS_2_4.png)
+	
+    请注意，左视口进入了导航模式。这是因为当单击摄像机的 **解锁/锁定摄像机（Unlock/Lock Camera）** 按钮时，活动视口是摄像机的目标锁定视口。
+
+1.  退出左视口中的导航模式，并在 **过场动画视口（Cinematic Viewport）**（右视口）中重新进入导航模式。
+
+1.  在 **Sequencer** 内，选择 **CineCameraActor**，然后按下 **S** 键。  
+
+    ![](SequencerQS_2_5.png)
+	
+    这是一个[工作流快捷方式](Engine/Sequencer/Workflow/CheatSheet/)，可用于为当前选定的Actor的变换（位置、旋转和缩放）添加关键帧。由于时间轴默认为0，我们通过添加关键帧来初始化摄像机的位置。当我们向前擦除，并在摄像机的不同位置添加另一个关键帧时，随着时间的推移，摄像机将从一个关键帧移动到下一个关键帧。
+
+1.  在 **Sequencer** 中选择 **CineCameraActor** 后，转到主编辑器中的 **细节（Details）** 面板。
+
+1.  在 **细节（Details）** 面板中的 **当前摄像机设置（Current Camera Settings）** 下，展开 **焦点设置（Focus Settings）** 并单击 **滴管（Eye Dropper）** 图标。  
+
+    ![](SequencerQS_2_6.png)
+	
+    这将使我们能够基于我们提供的场景示例位置设置焦点深度。
+
+1.  在 **过场动画视口（Cinematic Viewport）** 中，将 **滴管（Eye Dropper）** 图标移动到关卡中的角色上，然后单击以选中它。  
+
+    ![](SequencerQS_2_7.png)
+	 
+    单击后，角色将成为焦点。
+
+1.  场景采样后，单击 **手动对焦距离（Manual Focus Distance）** 属性旁边的 **添加关键帧（Add Key）** 按钮。
+
+    ![](SequencerQS_2_8.png)
+ 	 
+    这将向开放的关卡序列添加属性值的键。任何属性如果旁边有 **添加关键帧（Add Key）** 图标，您都可以在关卡序列处于打开状态的情况下单击该图标，以对属性在Sequencer中的值执行关键帧操作。
+
+1.  在 **过场动画视口（Cinematic Viewport）** 中，单击 **到结尾处（To End）** 按钮将时间轴移动至序列结尾处。  
+
+    ![](SequencerQS_2_8b.png)
+
+1.  在 **过场动画视口（Cinematic Viewport）** 中，按住鼠标右键以向上移动摄像机并按 **Q** 或 **E** 键以向上或向下移动。  
+
+    ![](SequencerQS_2_9.png)
+
+1.  在 **Sequencer** 中，在选中 **CineCameraActor** 的情况下，按下 **S** 键为新位置添加关键帧。  
+
+    ![](SequencerQS_2_9b.png)
+    	 
+    如果您在左视口中移动摄像机，您可以看到下面虚线所示的摄像机移动路径。  
+    
+    ![](SequencerQS_2_11.png)
+
+1.  在 **内容浏览器（Content Browser）** 中，单击 **全部保存（Save All）** 按钮。
+
+**分段结果**
+
+我们过场动画中的第一个镜头的摄像机工作完成了！我们添加了一个摄像机到我们的镜头，并使用了指定的 **摄像机切换（Camera Cuts）** 轨迹来表明从哪个摄像机拍摄。我们还为镜头添加了一些摄像机移动，并调整了摄像机设置，使我们的角色成为焦点。
+
+在下一步中，我们将添加和动画化一个角色，并预览我们第一个镜头的最终结果。
+
+## 3 - 您的第一个镜头 - 角色动画
+
+在上一步中，我们添加了一个摄像机，为我们的摄像机提供了拍摄路径，并调整了摄像机的一些设置。在这一步中，我们将模板项目中使用的 **角色蓝图（Character Blueprint）** 替换为可以应用动画的 **骨架网格体（Skeletal Mesh）** Actor，完成我们的第一个镜头。
+
+1.  在 **内容浏览器（Content Browser）** 中，导航至 **Content/Mannequin/Character/Mesh** 文件夹并单击 **SK_Mannequin**。
+
+    ![](SequencerQS_3_1.png)
+
+1.  在左视口中，右键单击关卡中的角色，选择 **将选中的Actor替换为（Replace Selected Actors with）**，然后选择 **SK_Mannequin**。  
+
+    ![](SequencerQS_3_2.png)
+
+    这样将把用于游戏进程的默认 **角色蓝图（Character Blueprint）** 替换为 **骨架网格体（Skeletal Mesh）** Actor。
+
+1.  在左视口中，使用 **变换工具（Transform Tools）** 将 **骨架网格体（Skeletal Mesh）** 下移至地面并将其向前旋转。  
+
+    ![](SequencerQS_3_3.png)
+	
+    您可以单击视口顶部的图标以在位置（Location）和旋转（Rotation）选项之间切换，也可以禁用 **对齐网格（Grid Snapping）** 以获得更精确的移动。
+
+1.  在 **骨架网格体（Skeletal Mesh）** 仍被选中的情况下，在 **Sequencer** 中单击 **轨迹（Track）** 按钮，然后选择 **Actor到Sequencer（Actor To Sequencer）** 和 **添加ThirdPersonCharacter（Add ThirdPersonCharacter）**。  
+
+    ![](SequencerQS_3_4.png)
+
+    这将把关卡中的 **骨架网格体（Skeletal Mesh）** 的一个参考添加到Sequencer，以便我们可以在Sequencer中控制它。
+
+1.  对于 **ThirdPersonCharacter** 轨迹，单击 **\+动画（\+ Animation）** 按钮搜索并添加 **ThirdPersonIdle** 动画。  
+
+    ![](SequencerQS_3_5.png)
+
+    关卡中的 **骨架网格体（Skeletal Mesh）** 将假设一个闲置姿势和轨迹将被添加到Sequencer。
+
+1.  单击并将 **ThirdPersonIdle** 动画的末尾向右拖动，使其循环并填充整个 **150** 帧。  
+
+    ![](SequencerQS_3_6.png)
+
+1.  在 **摄像机切换（Camera Cuts）** 轨迹上，单击 **解锁/锁定摄像机（Unlock/Lock Camera）** 按钮。  
+
+    ![](SequencerQS_3_6b.png)
+
+    将摄像机锁定在一个摄像机切换（Camera Cuts）轨迹上只会影响 **过场动画视口（Cinematic Viewports）**。  
+
+    ![](SequencerQS_3_6c.png)(w:640)
+
+1.  跳转到序列的开头，然后单击过场动画视口（Cinematic Viewports）中的 **预览播放（Preview Play）** 按钮以播放序列。
+
+**分段结果**
+
+我们过场动画的焦点已经添加，而且我们已经应用和循环一个动画以供角色使用。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ wH9GRvsoBEo
+ [/PARAMLITERAL]
+[/OBJECT]
+
+在下一步中，我们将为场景制作另一个镜头，然后我们将把两个镜头添加到 **主（Master）** 轨迹。
+
+## 4 - 您的第二个镜头
+
+既然您已经完成了第一个镜头，那么让我们利用学到的知识创建另一个镜头！
+
+这次，我们将摄像机从角色前面推进，以聚焦在角色的脸部。
+
+1.  在 **内容浏览器（Content Browser）** 中，选中 **镜头01（Shot01）** 关卡序列，并按 **Ctrl+W** 来复制它。  
+
+    ![](SequencerQS_4_1.png)
+     
+    这样将自动从 **镜头01（Shot01）** 中获取所有内容，将其添加到 **镜头02（Shot02）** 中，并为我们命名它。
+
+1.  在 **镜头02（Shot02）** 中，删除现有的 **CineCameraActor**，并单击 **添加摄像机（Add Camera）** 按钮。  
+
+    ![](SequencerQS_4_2.png)
+
+    在这里，我们将用一个新摄像机替换第一个摄像机，稍后我们将在本指南中从 **主（Master）** 轨迹切换到这个新摄像机。
+
+1.  在 **过场动画视口（Cinematic Viewport）** 中将摄像机移动到关卡中的 **骨架网格体（Skeletal Mesh）** Actor的前面。 
+
+    ![](SequencerQS_4_3.png)
+
+    [REGION:note]
+    虽然您的 **Cine Camera Actor** 的名称可能与上面的不同，但这完全没有问题。
+    [/REGION]
+    
+1.  在Sequencer中选择 **CineCameraActor** 轨迹，并按下 **S** 键为摄像机的变换添加一个关键帧。
+
+    ![](SequencerQS_4_3b.png)
+
+1.  在摄像机的 **细节（Details）** 面板中，将 **滴管（Eye Dropper）** 用于关卡中的角色上，然后为新值添加一个关键帧。  
+
+    ![](SequencerQS_4_4.png)
+
+    [REGION:note]
+    根据您放置摄像机的位置，您的值可能与上面不同。
+    [/REGION]
+    
+1.  在过场动画预览（Cinematic Preview）中单击 **到结尾处（To End）** 按钮以跳转到序列结尾处。
+
+1.  将摄像机移到角色上，然后为该位置添加一个关键帧（**S** 键）。  
+      
+    ![](SequencerQS_4_5.png)
+
+1.  在摄像机的 **细节（Details）** 面板中，将 **滴管（Eye Dropper）** 用于关卡中的角色上，然后为新值添加一个关键帧。
+
+    ![](SequencerQS_4_6.png)
+
+    您应在开始处添加初始位置和焦点值的关键帧，在结尾处也是如此。
+
+1.  单击 **摄像机切换（Camera Cuts）** 轨迹上的 **摄像机锁定（Camera Lock）** 切换按钮，以启用过场动画预览（Cinematic Preview）。  
+
+    ![](SequencerQS_4_7.png)
+
+1.  移动到序列开始处，然后单击 **过场动画视口（Cinematic Viewport）** 中的 **预览播放（Preview Play）** 按钮。
 
 
+**分段结果**
 
+我们已经设置了我们序列的第二个镜头，其中摄像机将从很远的地方开始并逐渐推近角色。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ RaarmLV5wwU
+ [/PARAMLITERAL]
+[/OBJECT]
+
+在下一步中，我们将使用主关卡序列中的 **拍摄轨迹（Shot Track）** 将我们的镜头连接起来。我们还创建了其中一个镜头的 **取景（Take）**（或变体），它可以快速切换进来或出去。随着我们进一步接近我们样本场景的完成，您还会看到我们如何安排或重新安排镜头在我们场景中的顺序。
+
+## 5 - 结束 - 镜头和取景
+
+在前面的步骤中，我们创建了镜头。在这个步骤中，我们将使用 **镜头轨迹（Shot Track）** 把它们连接在一起，这样将使我们能够沿着时间轴添加关卡序列来进行播放。我们还将创建其中一个镜头的 **取景（Take）**，这样将使我们能够创建该镜头的一个变体，或将其用作过场动画中的一个附加镜头。在这一步的最后，您将获得您自己的多镜头过场动画！
+
+1.  在 **内容浏览器（Content Browser）** 中，打开 **主（Master）** 关卡序列。  
+
+    ![](SequencerQS_5_1.png)
+
+1.  在关卡序列中，单击 **轨迹（Track）** 按钮并选择 **镜头轨迹（Shot Track）**。  
+
+    ![](SequencerQS_5_2.png)
+
+1.  单击 **\+镜头（\+ Shot）** 按钮并将 **镜头01（Shot01）** 添加到轨迹。  
+
+    ![](SequencerQS_5_3.png)
+
+1.  将时间轴标记移至帧 **150**，然后将 **镜头02（Shot02）** 添加到 **镜头轨迹（Shot Track）**。  
+
+    ![](SequencerQS_5_4.png)
+
+    您将注意到 **镜头02（Shot02）** 扩展到红色标记（表示播放范围的边界）之外，变成了灰色，并不会为播放而被评估。
+
+1.  单击 **播放选项（Playback Options）** 按钮，并选择 **将播放范围维持在片段边界内（Keep Playback Range in Section Bounds）**。  
+
+    ![](SequencerQS_5_5.png)
+
+    无论我们何时添加内容，这样都将自动推出时间轴结束标记，确保所有内容都在播放评估范围内。
+
+1.  单击 **镜头02（Shot02）** 并将其向下拖动到 **镜头轨迹（Shot Track）** 中的新轨迹。  
+
+    ![](SequencerQS_5_6.png)
+ 
+    您可以拖动镜头来安排播放顺序或用于组织目的。通常，最佳做法是在一个镜头轨迹内的轨迹之间交替，以说明剪辑发生在哪里，而不是将它们都留在同一条轨迹上。下面是一个多镜头示例，这些镜头在轨迹之间交错，这使得剪辑之处的区别更容易被发现。  
+
+    ![](ShotCuts.png)
+
+    在下面的例子中，我们有相同的镜头数量，但没有使用额外的轨迹来错开每一个镜头，而且剪辑也不容易识别。  
+
+    ![](ShotCutsB.png)
+
+1.  单击 **摄像机锁定（Camera Lock）** 开关按钮将摄像机锁定为 **镜头轨迹（Shot Track）**。  
+
+    ![](SequencerQS_5_7.png)
+
+    像 **摄像机切换（Camera Cuts）** 轨迹一样，镜头轨迹上的 **摄像机锁定（Camera Lock）** 按钮仅影响过场动画视口（Cinematic Viewport）。
+
+1.  右键单击 **镜头02（Shot02）** 并选择 **新取景（New Take）** 选项。  
+
+    ![](SequencerQS_5_8.png)
+
+    **取景（Takes）** 是一种在您的过场动画中快速创建特定镜头变体的方法。
+
+1.  **将资源复制为（Duplicate Asset As）** 窗口随即出现，请单击 **保存（Save）**。  
+
+    ![](SequencerQS_5_9.png)
+
+    [REGION:note]
+    取景会自动命名。您可以在 **关卡序列（Level Sequences）** 下的[](Engine/UI/ProjectSettings)中更改自动命名惯例。
+    [/REGION]
+    
+1.  右键单击新创建的镜头，并再次选择 **新取景（New Take）**。
+
+    ![](SequencerQS_5_10.png)
+
+    [REGION:note]
+    在创建取景时，它不会删除关卡序列，而是创建一个副本，然后可以对其进行修改。目前，当第一次创建取景时，它会用新的取景替换现有的镜头（原来的镜头仍然存在于 **内容浏览器（Content Browser）** 中，但是在取景菜单（Takes Menu）中没有作为“取景（Take）”列出）。
+    [/REGION]
+   
+1.  右键单击新创建的镜头并突出显示 **取景（Takes）**。  
+
+    ![](SequencerQS_5_11.png)
+
+    我们目前在过场动画中使用 **取景3（Take 3）**。我们可以从此菜单中选择取景2以进行切换。
+
+1.  双击Sequencer内的 **Shot0002_003** 以打开它，然后选择并删除所有关键帧。  
+
+    ![](SequencerQS_5_12.png)
+
+    我们将从此取景和新摄像机移动中提供新关键帧。
+
+1.  将摄像机移到角色脸部前面，然后在摄像机的Sequencer中，按下 **S** 键为 **变换（Transform）** 添加一个关键帧。  
+
+    ![](SequencerQS_5_14.png)
+
+1.  在摄像机的 **细节（Details）** 面板中，使用 **滴管（Eye Dropper）** 并选择角色，然后为新的 **手动对焦距离（Manual Focus Distance）** 值添加关键帧。 
+
+    ![](SequencerQS_5_15.png)
+
+1.  移动到序列的末尾，然后将摄像机从角色上移开，并按下 **S** 键为新的 **变换（Transform）** 值添加一个关键帧。  
+
+    ![](SequencerQS_5_16.png)
+
+    对于此取景，我们会让摄像机在离开角色的时候不对焦。
+
+1.  单击 **主（Master）** 痕迹以返回 **主（Master）** 轨迹，将视口锁定到 **镜头（Shots）** 轨迹并播放您的场景。您还可以右键单击第二个镜头并更改为另一幅取景。
+
+1.  返回 **内容浏览器（Content Browser）** 并将您的 **主（Master）** 关卡序列拖动到关卡中。  
+
+    ![](SequencerQS_5_17.png)
+
+1.  在 **主（Master）** 关卡序列的 **细节（Details）** 面板中，启用 **自动运行（Auto Play）** 选项。  
+
+    ![](SequencerQS_5_18.png)
+
+    当您在编辑器中运行时，此选项将自动加载并开始播放您的 **主（Master）** 关卡序列，其中包括您的两个镜头。
+
+1.  单击 **在编辑器中运行（Play in Editor）** 按钮。
+
+## 最终结果
+
+您现在有一个双镜头过场动画，然而，您可以从取景菜单（Take Menu）中使用不同的 **取景（Takes）**。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 4QGdO92dZbw
+ [/PARAMLITERAL]
+[/OBJECT]
+
+您可以通过拖动镜头到镜头轨迹上的新位置来重新安排镜头，或者添加一个取景作为额外的镜头，从而获得三个镜头。虽然这只是Sequencer功能的一小部分，但它彰显了该工具的一些核心方面，您可以使用它们来创建场景。
+
+在下一步也是最后一步中，您可以尝试向这个场景添加一些“您自己的”挑战，并链接到其他文档。
+
+## 6 - 看你的了！
+
+现在您已经使用Sequencer创建了一个示例动画，可以尝试一些其他操作来为此场景添加内容。
+
+您可以自行尝试下列操作：
+
+* 尝试使用[渐变轨迹](Engine/Sequencer/HowTo/TracksFade)来淡入淡出场景。
+* 使用[角色动画](Engine/Sequencer/HowTo/CharacterAnimation)来让角色在关卡中走动。
+* 使用[音频轨迹](Engine/Sequencer/HowTo/TracksAudio)添加 **Content/StarterContent/Audio** 文件夹中的音乐。
+* 给场景添加一个[摇臂](Engine/Sequencer/HowTo/CameraRigCrane)或[轨道](Engine/Sequencer/HowTo/CameraRigRail)镜头。
+* 使用[播放速率](Engine/Sequencer/HowTo/TracksPlayRate)轨迹使场景进入慢动作。
+
+尝试重建一个类似场景：
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 100
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 56.25
+ [/PARAMLITERAL]
+ [PARAMLITERAL:units]
+ %
+ [/PARAMLITERAL]
+ [PARAMLITERAL:type]
+ simple
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 88egahbLEWo
+ [/PARAMLITERAL]
+[/OBJECT]
+
+或者，您可以将您的过场电影作为视频文件进行 **渲染**：
+
+1.  单击 **渲染影片（Render Movie）** 选项。
+
+    ![](ExportMovie.png)
+
+1.  在 **一般（General）** 下，定义 **输出目录（Output Directory）**，然后单击 **捕获视频（Capture Movie）** 开始渲染。  
+
+    ![](ExportMovieB.png)
+ 
+    渲染时将出现一个预览窗口，完成时此窗口将关闭。
 
 
 

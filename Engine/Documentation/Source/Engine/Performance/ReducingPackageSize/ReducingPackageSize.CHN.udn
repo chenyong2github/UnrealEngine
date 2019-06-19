@@ -1,62 +1,52 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6582804
+Availability: Public
 Title: 缩减游戏包容量 
-Crumbs:%ROOT%, Engine, Engine/Performance
-Description:如何控制游戏包的容量。
-Skilllevel: Intermediate
+Description: 如何控制游戏包的容量。
 Version: 4.12
-Related:Platforms/Android/ReducingAPKSize
-Parent:Engine/Performance
-topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
+Parent: Engine/Performance
+topic-image: package_topic.png
+Related: Platforms/Mobile/Android/ReducingAPKSize/
 
-[TOC(start:2 end:3)]
-
-无论UE4项目针对的是哪个平台，缩减游戏包容量都颇具挑战性。以下指南将说明如何利用UE4编辑器中的工具来把最终项目包尽量缩小。 
+无论UE4项目针对的是哪个平台，缩减游戏包容量都颇具挑战性。以下指南将说明如何利用UE4编辑器中的工具来把最终项目包尽量缩小。
 
 [EXCERPT:main]
-
-(#creatinganewemptyproject)
-
 ## 新建一个空白项目
 
-开始着手基于Android的移动项目时，使用者可能会尝试使用现有项目作为基础，或创建启用了“初学者内容包”的新项目。 
-**请勿如此进行操作**，应改为创建基于C++或蓝图的全新空白项目，然后使用[迁移工具](Engine/Content/Browser/UserGuide/Migrate)来引入您希望使用的内容。这样才能确保项目只包含必需的内容。
-
-(#compressingcookedcontent)
+开始着手基于Android的移动项目时，使用者可能会尝试使用现有项目作为基础，或创建启用了“初学者内容包”的新项目。请勿如此进行操作，应改为创建基于C++或 **蓝图** 的全新空白项目，然后使用[迁移工具](Engine/Content/Browser/UserGuide/Migrate)来引入您希望使用的内容。这样才能确保项目只包含必需的内容。
 
 ## 压缩已烘焙内容
 
-削减APK包容量最简单快捷的方法是告知UE4在打包过程中对APK包进行压缩。 
-在UE4编辑器中完成下列操作即可开启包压缩。
+削减APK包容量最简单快捷的方法是告知UE4在打包过程中对APK包进行压缩。在UE4编辑器中完成下列操作即可开启包压缩。
 
 1. 首先前往主工具栏并选择 **编辑（Edit）** 选项，然后选择 **项目设置（Project Settings）**，打开项目设置。
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu.png)
+        [/PARAM]
     [/OBJECT]
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu_Mac.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu_Mac.png)
+        [/PARAM]
     [/OBJECT]
 
 1. 在“项目（Project）”部分下单击 **打包（Packaging）**，显示项目打包方式的选项。
@@ -64,7 +54,6 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](T_Project_Packaging.png)(w:518)](T_Project_Packaging.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -74,7 +63,6 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](T_Expose_Advanced_Props.png)(w:518)](T_Expose_Advanced_Props.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -84,48 +72,45 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](T_Enable_Comp_Packages.png)(w:518)](T_Enable_Comp_Packages.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
     
-如果未曾在启用“创建压缩烘焙包（Create compressed cooked packages）”勾选框的情况下打包游戏，在启用此项并重新打包项目后文件包将存在非常明显的大小差异。
-实际上，启用“创建压缩烘焙包（Create compressed cooked packages）”后，项目APK包的容量通常会削减50%左右。
+如果未曾在启用“创建压缩烘焙包（Create compressed cooked packages）”勾选框的情况下打包游戏，在启用此项并重新打包项目后文件包将存在非常明显的大小差异。实际上，启用“创建压缩烘焙包（Create compressed cooked packages）”后，项目APK包的容量通常会削减50%左右。
 
-(#sharedmaterialshaders&libraries)
+## 共享材质着色器和库
 
-## 共享材质着色器和库 
-
-启用 **共享材质着色器代码（Share Material Shader Code）** 和 **共享材质本地库（Share Material Native Libraries）** 有助于削减项目包的容量，但会导致加载时间增加。执行以下操作即可在UE4项目中启用这些选项：
+启用 **共享材质着色器代码（Share Material Shader Code）** 和 **共享材质本地库（Share Material Native Libraries）** 有助于削减项目包的容量，但会导致加载时间增加。执行以下操作即可在UE4项目中启用该选项：
 
 1. 首先前往 **主工具栏** 上的 **编辑（Edit）** > **项目设置（Project Settings）**。
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu.png)
+        [/PARAM]
     [/OBJECT]
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu_Mac.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu_Mac.png)
+        [/PARAM]
     [/OBJECT]
 
 1. 在 **打包（Packing）** 部分底部启用以下两个勾选框。
@@ -136,12 +121,9 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](Packing_Share_Material_Code.png)(w:490)](Packing_Share_Material_Code.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
-
-(#excludingeditorcontent)
 
 ## 排除编辑器内容
 
@@ -150,31 +132,32 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
 1. 首先前往 **主工具栏** 上的 **编辑（Edit）** > **项目设置（Project Settings）**。
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu.png)
+        [/PARAM]
     [/OBJECT]
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu_Mac.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu_Mac.png)
+        [/PARAM]
     [/OBJECT]
 
 1. 在“项目（Project）”部分下单击 **打包（Packaging）**，显示项目打包方式的选项。
@@ -182,7 +165,6 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](T_Project_Packaging.png)(w:518)](T_Project_Packaging.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -192,7 +174,6 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](T_Expose_Advanced_Props.png)(w:518)](T_Expose_Advanced_Props.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -202,49 +183,47 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](Packing_Exclude_Editor_Content.png)(w:518)](Packing_Exclude_Editor_Content.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
-    [region:note]
-    注意，启用此项后可能引起问题：使用编辑器内容的项目可能出现内容缺失。
-    [/region]
-
-(#settingupaproject'slevels)
+    [REGION:note]
+    启用此项后可能引起问题：使用编辑器内容的项目可能出现内容缺失。
+    [/REGION]
 
 ## 设置项目的关卡
 
-容易被忽略的是，未正确设置项目选项（如默认情况下应该加载哪些关卡、或者关卡过渡之间应该使用哪些关卡）会导致APK包容量激增。执行以下步骤设置用于此类交互的关卡。
+经常被忽略的是，未正确设置项目选项（如默认情况下应该使用哪些关卡、或者关卡过渡之间应该使用哪些关卡）会导致项目APK包容量激增。执行以下步骤设置用于此类交互的关卡。
 
 1. 首先前往 **主工具栏** 上的 **编辑（Edit）** > **项目设置（Project Settings）**。
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu.png)
+        [/PARAM]
     [/OBJECT]
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu_Mac.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu_Mac.png)
+        [/PARAM]
     [/OBJECT]
 
 1. 然后在 **贴图与模式（Maps & Modes）** 部分中的 **项目（Project）** 下查找 **默认贴图（Default Maps）** 部分。
@@ -252,61 +231,58 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](T_Set_Maps.png)(w:518)](T_Set_Maps.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
-1. 点击 **游戏默认地图（Game Default Map）** 旁边的箭头，从资源列表中选择用作游戏默认初始关卡的地图。 
+1. 点击 **游戏默认地图（Game Default Map）** 旁边的箭头，从 **资源列表** 中选择应该用作游戏默认初始关卡的地图。 
     
     [REGION:lightbox]
     [![](T_Project_Settings_Default_Game_Map.png)(w:518)](T_Project_Settings_Default_Game_Map.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
 1. 重复此进程，直到拥有每种必需地图类型的关卡输入。
 
-(#selectingwhichcontenttopackageornotpackage)
-
 ## 选择要打包和不打包的内容
 
 在项目设置的“打包（Packaging）”部分中指定哪些内容应被打包到游戏中，哪些内容不应被打包到游戏中。如要指定项目中应包含的地图，应执行以下操作：
 
-[region:warning]
+[REGION:warning]
 如未指定应烘焙的地图，则所有地图都将被烘焙（包括可能拥有的测试地图）。如未指定应烘焙的项目，游戏包的最终大小将比实际更大。 
-[/region]
+[/REGION]
 
 1. 首先前往 **主工具栏** 选择 **编辑（Edit）** > **项目设置（Project Settings）** 来打开项目设置。
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu.png)
+        [/PARAM]
     [/OBJECT]
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu_Mac.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Project_Settings_Menu_Mac.png)
+        [/PARAM]
     [/OBJECT]
 
 1. 然后在 **打包（Packaging）** 部分中的 **项目（Project）** 下查找 **打包（Packaging）** 选项。
@@ -314,7 +290,6 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](Content_To_Pack.png)(w:518)](Content_To_Pack.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -324,7 +299,6 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](Advanced_Packing_Section.png)(w:518)](Advanced_Packing_Section.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -334,64 +308,58 @@ topic-image:Engine/Performance/ReducingPackageSize/package_topic.png
     [REGION:lightbox]
     [![](Advanced_Packing_Options.png)(w:518)](Advanced_Packing_Options.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
-1. 按下要使用的选项旁边的白色加号来新建条目，即可包含或排除项目。 
+1. 按下要使用的选项旁边的白色 **加号** 来新建条目，即可包含或排除资源。 
 
     [REGION:lightbox]
     [![](Add_New_Item.png)(w:518)](Add_New_Item.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
-1. 接着点击新条目旁边的三个白色小点，从出现的窗口中选择版本中要包含或排除的资源。
+1. 接着点击新添加条目旁边的三个白色小点，从出现的窗口中选择版本中要包含或排除的资源。
 
     [REGION:lightbox]
     [![](Select_Items_To_Cook.png)(w:518)](Select_Items_To_Cook.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
-1. 选择资源后，条目框将包含资源所在项目文件夹的路径。 
+1. 选择资源后，条目框将包含资源所在项目文件夹的路径。
 
     [REGION:lightbox]
     [![](Selected_Item_Location.png)(w:518)](Selected_Item_Location.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 
-|属性名称 | 描述|
-|--------------|------------|
-|烘焙项目内容目录中的所有内容（无视下方的地图列表）|烘焙项目内容目录中的所有内容。|
-|仅烘焙地图（这只影响“烘焙所有”）。|仅烘焙地图（这只影响“烘焙所有”标签）。|
-|创建压缩烘焙包|创建压缩烘焙包（削减部署大小）。|
-|如果此包中不包含编辑器内容，使用此内容时游戏可能会崩溃/出错|跳过编辑器内容的烘焙。|
-|打包版本中包含的地图列表|命令行上未指定其他地图列表时应包含的地图列表。|
-|要烘焙的额外资源目录|包含.uasset文件的目录应固定被烘焙，无论其是否受项目中的内容所引用。注意：这些路径相对于项目的Content目录。|
-|永不烘焙的目录|永不会烘焙的目录。|
-|将额外的非资源目录添加到包|目录，包含应固定被添加到.pak文件的文件（前提条件是使用.pak文件；否则其将作为单个文件进行复制）。这用于传输通过UFS（虚幻文件系统）文件IO API手动加载的额外文件。注意：这些路径相对于项目的Content目录。|
-|要复制的额外非资源目录|目录，其中包含打包项目时应固定被复制、但不作为.pak文件一部分的文件。这用于传输手动加载的额外文件，而不使用UFS（虚幻文件系统）文件IP API（如执行其自身内部文件IO的第三方库）。注意：这些路径相对于项目的Content目录。|
-
-
-(#checkingwhatcontentwillbecooked)
+[REGION:simpletable]
+ |属性名称 | 描述 |
+| --- | --- |
+| **烘焙项目内容目录中的所有内容（无视下方的地图列表）** | 烘焙项目内容目录中的所有内容。|
+| **仅烘焙地图（这只影响“烘焙所有”）。** | 仅烘焙地图（这只影响“烘焙所有”标签）。|
+| **创建压缩烘焙包** | 创建压缩烘焙包（削减部署大小）。|
+| **如果此包中不包含编辑器内容，使用此内容时游戏可能会崩溃/出错** | 跳过编辑器内容的烘焙。|
+| **打包版本中包含的地图列表** | 命令行上未指定其他地图列表时应包含的地图列表。|
+| **要烘焙的额外资源目录** | 列出了应固定被烘焙的、包含.uasset文件的额外目录，无论其是否受项目中的内容所引用。注意：这些路径相对于项目的Content目录。|
+| **永不烘焙的目录** | 列出了永不会烘焙的目录。|
+| **将额外的非资源目录添加到包** | 列出了包含应固定被添加到.pak文件的文件目录（前提条件是使用.pak文件；否则其将作为单个文件进行复制）。这用于传输通过UFS（虚幻文件系统）文件IO API手动加载的额外文件。注意：这些路径相对于项目的Content目录。|
+| **要复制的额外非资源目录** | 列出了包含打包项目时应固定被复制、但不作为.pak文件一部分的文件目录。这用于传输手动加载的额外文件，而不使用UFS（虚幻文件系统）文件IP API（如执行其自身内部文件IO的第三方库）。[REGION:note]注意：这些路径相对于项目的Content目录。[/REGION] |
+[/REGION]
 
 ## 检查将要烘焙的内容
 
-要确保只将项目相关的内容添加到APK文件中，可查看项目中的 **Cooked** 文件夹，检查哪些内容正被添加到项目APK中。
-前往 **(ProjectName)\Saved\Cooked**，然后选择您烘焙项目所用格式的文件夹，找到Cooked文件夹。
+要确保只将项目相关的内容添加到APK文件中，可查看项目中的 **Cooked** 文件夹，检查哪些内容正被添加到项目APK中。前往 `(ProjectName)\Saved\Cooked`，然后选择您烘焙项目所用格式的文件夹，找到Cooked文件夹。
 
-[region:note]
+[REGION:note]
 请注意：只有在完成首次烘焙之后才能查看 **Cooked** 文件夹中的内容。 
-[/region]
+[/REGION]
 
 [OBJECT:ToggleButtonContent]
 [PARAMLITERAL:category]
@@ -406,7 +374,6 @@ windows
     [REGION:lightbox]
     [![](T_Cooked_Content_Folder.png)(w:324)](T_Cooked_Content_Folder.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -426,15 +393,13 @@ mac
     [REGION:lightbox]
     [![](T_Cooked_Content_Folder_Mac.png)(w:427)](T_Cooked_Content_Folder_Mac.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 [/PARAM]
 [/OBJECT]
 
-下图显示的是Match 3样本游戏中的Texture文件夹。此文件夹中的内容已按大小排序，很容易分辨资源的大小。
-找到容量最大的资源之后，便可在UE4中对其进行检查，确定其大小是否能在保证资源完整性的前提下被实际缩减。
+下图显示的是Match 3样本游戏中的Texture文件夹。此文件夹中的内容已按大小排序，很容易分辨资源的大小。找到容量最大的资源之后，便可在UE4中对其进行检查，确定其大小是否能在保证资源完整性的前提下被实际缩减。
 
 [OBJECT:ToggleButtonContent]
 [PARAMLITERAL:category]
@@ -449,7 +414,6 @@ windows
     [REGION:lightbox]
     [![](T_Cooked_Content.png)(w:473)](T_Cooked_Content.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -469,39 +433,28 @@ mac
     [REGION:lightbox]
     [![](T_Cooked_Content_Mac.png)(w:429)](T_Cooked_Content_Mac.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
 [/PARAM]
 [/OBJECT]
 
-(#developmentvsshippingbuildsize)
-
 ## 开发和发布版本容量
 
-尝试确定项目的最终大小时须注意，项目的开发版本将略大于发布版本。
-在Medieval Match游戏范例中，开发版本与发布版本之间的容量差异约为14%。
-但各个项目的要求有所相同，因此两个不同项目版本之间的容量差异可能大于14%，也可能小于此值。
-
-(#per-devicetexturelod)
+尝试确定项目的最终大小时须注意，项目的开发版本将略大于发布版本。在Medieval Match游戏范例中，开发版本与发布版本之间的容量差异约为14%。但各个项目的要求有所相同，因此两个不同项目版本之间的容量差异可能大于14%，也可能小于此值。
 
 ## 逐设备纹理LOD
 
-在虚幻引擎4.8版本中可以指定在特定设备上使用的特定纹理大小。 
-[移动平台纹理指南](Platforms/Mobile/Textures)对此另有详述。
-
-(#removingunusedcontent)
+在虚幻引擎4.8版本中可以指定在特定设备上使用的特定纹理大小。[移动平台纹理指南](Platforms/Mobile/Textures)对此另有详述。
 
 ## 移除未使用的内容
 
-当项目最终准备好进行打包上架时，必须在内容浏览器中选中并删除未使用的内容或测试内容。
-删除方法是先选中所要删除的内容，然后按键盘上的Delete键，或使用右键菜单中的“删除”选项。 
-尝试从项目中删除内容时，系统将显示 **删除资源（Delete Assets）** 菜单，如下图所示。
+当项目最终准备好进行打包上架时，必须在内容浏览器中选中并删除未使用的内容或测试内容。删除方法是先选中所要删除的内容，然后按键盘上的Delete键，或使用右键菜单中的“删除”选项。
+尝试从项目中删除内容时，系统将显示删除资源（Delete Assets）菜单，如下图所示。
 
-[region:tip]
+[REGION:tip]
 这是在UE4中删除对象的首选方法，不应直接从Content文件夹中删除/移除资源。
-[/region]
+[/REGION]
 
 [OBJECT:ToggleButtonContent]
 [PARAMLITERAL:category]
@@ -530,7 +483,6 @@ mac
     [REGION:lightbox]
     [![](DeleteAssets_Mac.png)(w:305)](DeleteAssets_Mac.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
@@ -539,52 +491,46 @@ mac
 
 “删除资源（Delete Assets）”菜单将指出尝试删除的资源是否被另一资源引用。如果该资源未被引用，那么可直接将其删除；但如果该资源已被其他资源引用，则可使用 **替换引用（Replace References）** 选项将对该资源的引用替换为应打包到项目中的另一个资源。
 
-(#removingunusedplug-ins)
-
 ## 移除未使用的插件
 
-在UE4编辑器中禁用所有未使用插件也能将非必要内容和代码排除在项目最终的APK包之外。
-这是因为部分插件需要特定的一组基础资源和代码才能正常工作。
-如果不禁用插件，就不会从项目中移除使插件正常工作的必需资源和代码。
-虽然这种方式所削减的容量不如缩小或移除大型纹理一样直观，但在尽量缩小容量时（例如将游戏容量控制在100 MB内），每种方法皆能发挥作用。
-如要在UE4中禁用插件，需完成下列步骤： 
+在UE4编辑器中禁用所有未使用 **插件** 也能将非必要内容和代码排除在项目最终的APK包之外。这是因为部分 **插件** 需要特定的一组基础资源和代码才能正常工作。如果不禁用 **插件**，就不会从项目中移除使 **插件** 正常工作的必需资源和代码。虽然这种方式所削减的容量不如缩小或移除大型纹理一样直观，但在尽量缩小容量时（例如将游戏容量控制在100 MB内），每种方法皆能发挥作用。如要在UE4中禁用插件，需完成下列步骤：
 
-[region:note]
-    务必对项目进行完整测试，确保禁用插件后项目的功能不受干扰。
-[/region]
+[REGION:note]
+务必对项目进行完整测试，确保禁用 **插件** 后项目的功能不受干扰。
+[/REGION]
 
 1. 首先前往 **主工具栏** 并单击 **窗口（Window）** 选项，然后选择 **插件（Plug-in）** 选项，打开插件管理器。
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Open_Plugins_Browser.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Open_Plugins_Browser.png)
+        [/PARAM]
     [/OBJECT]
 
     [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Open_Plugins_Browser_Mac.png)
-    [/PARAM]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Open_Plugins_Browser_Mac.png)
+        [/PARAM]
     [/OBJECT]
 
-1. 在插件浏览器中选择不同部分，取消勾选 **已启用（Enabled）** 旁边的复选框来禁用未使用的插件。
-  禁用所有插件之后需要重新启动UE4编辑器，然后重新打包项目。
+1. 在 **插件** 浏览器中选择不同部分，取消勾选 **已启用（Enabled）** 旁边的复选框来禁用未使用的 **插件**。  禁用所有 **插件** 之后需要重新启动UE4编辑器，然后重新打包项目。
 
     [OBJECT:EmbeddedVideo]
     [PARAMLITERAL:width]
@@ -598,57 +544,11 @@ mac
     [/PARAMLITERAL]
     [/OBJECT]
 
-(#packageblacklist)
-
 ## 打包黑名单
 
-在现版本中，使用者可以将一个文本文件放置在项目的 **Build/Platform/（目标平台文件夹）** 目录中，指示烘焙器将部分或完整文件路径排除在项目打包之外。项目可以有多个分别用于调试、开发、测试和发布版本的黑名单文件。对其进行设置即可包括/排除任意项目数据。甚至可以针对项目所支持的各个平台使用不同的黑名单文件，例如针对Android使用一个黑名单文件，针对iOS使用另一个，以此类推。 下例是Android上《Tappy Chicken》的黑名单文件。 
+在现版本中，使用者可以将一个文本文件放置在项目的 **Build/Platform/（目标平台文件夹）** 目录中，指示烘焙器将部分或完整文件路径排除在项目打包之外。项目可以有多个分别用于调试、开发、测试和发布版本的黑名单文件。对其进行设置即可包括/排除任意项目数据。甚至可以针对项目所支持的各个平台使用不同的黑名单文件，例如针对Android使用一个黑名单文件，针对iOS使用另一个，以此类推。 下例是Android上Match 3的黑名单文件。 
 
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-    [REGION:lightbox]
-    [![](T_Blacklist_Packages.png)(w:470)](T_Blacklist_Packages.png)
-    [/REGION]
-
-    [REGION:caption]
-    点击查看全图。
-    [/REGION]
-[/PARAM]
-[/OBJECT]
-
-[OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-[REGION:lightbox]
-[![](T_Blacklist_Packages_Mac.png)(w:467)](T_Blacklist_Packages_Mac.png)
-[/REGION]
-
-[REGION:caption]
-点击查看全图。
-[/REGION]
-[/PARAM]
-[/OBJECT]
-
-以《Tappy Chicken》为例，烘焙器得到的指令是在游戏烘焙和打包时不包含以下文件。
-
-* **黑名单文本文件的位置与名称：** TappyChicken/Build/Android/**PakBlacklist-Shipping.txt**:
-
-    [OBJECT:ToggleButtonContent]
     [PARAMLITERAL:category]
     OS
     [/PARAMLITERAL]
@@ -658,11 +558,16 @@ mac
     [PARAMLITERAL:active]
     [/PARAMLITERAL]
     [PARAM:content]
-    ![](T_Black_List.png)
+    [REGION:lightbox]
+    [![](T_Blacklist_Packages.png)(w:470)](T_Blacklist_Packages.png)
+    [/REGION]
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
     [/PARAM]
-    [/OBJECT]
+[/OBJECT]
 
-    [OBJECT:ToggleButtonContent]
+[OBJECT:ToggleButtonContent]
     [PARAMLITERAL:category]
     OS
     [/PARAMLITERAL]
@@ -672,82 +577,89 @@ mac
     [PARAMLITERAL:active]
     [/PARAMLITERAL]
     [PARAM:content]
-    ![](T_Black_List_Mac.png)
+    [REGION:lightbox]
+    [![](T_Blacklist_Packages_Mac.png)(w:467)](T_Blacklist_Packages_Mac.png)
+    [/REGION]
+    [REGION:caption]
+    点击查看全图。
+    [/REGION]
     [/PARAM]
+[/OBJECT]
+
+以Match 3为例，烘焙器得到的指令是在游戏烘焙和打包时不包含以下文件。
+
+* **黑名单文本文件的位置与名称：** Match3/Build/Android/**PakBlacklist-Shipping.txt**:
+
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        windows
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        active_button_content
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Black_List.png)
+        [/PARAM]
     [/OBJECT]
 
-前三个条目应适用于任意项目，但某些情况下在运行时可能需要 **AssetRegistry.bin**（具体取决于项目）。强烈建议进行完整测试，确保移除的内容不会对项目产生负面影响。进行此检查的一个简单方法是打开项目的所有关卡，确保其正确加载，未出现错误或警告。如果遇到问题但不清除原因，请检查Logcat。
+    [OBJECT:ToggleButtonContent]
+        [PARAMLITERAL:category]
+        OS
+        [/PARAMLITERAL]
+        [PARAMLITERAL:id]
+        mac
+        [/PARAMLITERAL]
+        [PARAMLITERAL:active]
+        [/PARAMLITERAL]
+        [PARAM:content]
+        ![](T_Black_List_Mac.png)
+        [/PARAM]
+    [/OBJECT]
 
-(#maxdynamicpointlights)
+前三个条目应适用于任意项目，但某些情况下在运行时可能需要 **AssetRegistry.bin**（具体取决于项目）。强烈建议进行完整测试，确保移除的内容不会对项目产生负面影响。进行此检查的一个简单方法是打开项目的所有关卡，确保其正确加载，未出现错误或警告。如果遇到问题但不清除原因，请检查[Logcat](https://developer.android.com/studio/command-line/logcat.html)。
 
-## 最大动态点光源数
+## 最大可移动聚光源/点光源数
 
-在 **项目设置** 下 **移动平台（Mobile）** 部分中可找到 **最大动态点光源数（Max Dynamic Point Lights）** 属性，其有助于减少针对动态光源生成的着色器数量。此功能尤其适用于不需要动态光照的移动平台游戏。
+**最大可移动聚光源/点光源数** 属性有助于减少针对动态光源生成的着色器数量。此功能尤其适用于不需要动态光照的移动平台游戏。你可以在 **项目设置** 下 **减少移动着色器数组** 的 **渲染** 分段中可找到它。 
 
 [REGION:lightbox]
-[![](Max_Dyn_Point_Lights.png)(w:518)](Max_Dyn_Point_Lights.png)
+[![](MobileShaderPermutation_b.png)(w:900)](MobileShaderPermutation_b.png)
 [/REGION]
-
 [REGION:caption]
 点击查看全图。
 [/REGION]
 
-将 **最大动态点光源数（Max Dynamic Point Lights）** 从 **4** 设为 **0**，弹出提示后重启UE4编辑器即可完全禁用此功能。
+将 **最大可移动聚光源/点光源数** 从4设为0，弹出提示后重启UE4编辑器即可完全禁用此功能。
 
-![](Max_Dyn_Point_Lights_To_0.png)
+![](MobileShaderPermutation_0.png)
 
 节约的容量不等，具体取决于项目的容量和使用的材质数量。
 举例而言，使用默认的第三人称模板即可找出“最大动态点光源数（Max Dynamic Point Lights）”启用和禁用时的容量差异。 
 
-| 状态| 游戏包容量 | 缩减量|
-| ---------| ------| -----|
-|开启|54.3 MB|0|
-|关闭| 53.2 MB| 1.1 MB|
+[REGION:simpletable]
+| 状态 | 游戏包容量 | 缩减量 |
+| --- | --- | --- |
+| **开启** | 54.3 MB | 0 |
+| **关闭** | 53.2 MB | 1.1 MB |
+[/REGION]
 [/EXCERPT:main]
 
-(#buildwithhiddensymbols)
-
 ## 用隐藏符号进行编译
- 
- 可按默认产生较小.so文件的条件对发布配置（带隐藏可视性）进行编译。然而，这将同时移除用于显示调用堆栈转存的符号，对崩溃进行调试的能力会因此而受限。要在UE4项目中启用此选项，需要执行以下操作：
+
+可按默认产生较小.so文件的条件对发布配置（带隐藏可视性）进行编译。然而，这将同时移除用于显示调用堆栈转存的符号，对崩溃进行调试的能力会因此而受限。要在UE4项目中启用此选项，需要执行以下操作：
 
 1. 首先前往主工具栏并选择 **编辑（Edit）** 选项，然后选择 **项目设置（Project Settings）**，打开项目设置。
 
-    [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    windows
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu.png)
-    [/PARAM]
-    [/OBJECT]
-
-    [OBJECT:ToggleButtonContent]
-    [PARAMLITERAL:category]
-    OS
-    [/PARAMLITERAL]
-    [PARAMLITERAL:id]
-    mac
-    [/PARAMLITERAL]
-    [PARAMLITERAL:active]
-    [/PARAMLITERAL]
-    [PARAM:content]
-    ![](T_Project_Settings_Menu_Mac.png)
-    [/PARAM]
-    [/OBJECT]
+    ![](T_Project_Settings_Menu.jpg)
 
 1. 之后前往 **平台（Platforms）** > **Android** > **高级编译（Advanced Build）**，点击勾选框启用“在发布配置中带隐藏符号显示编译（Build with hidden symbol visibility in shipping config）”。
 
     [REGION:lightbox]
     [![](Android_AB_HiddenSymbol.png)(w:594)](Android_AB_HiddenSymbol.png)
     [/REGION]
-
     [REGION:caption]
     点击查看全图。
     [/REGION]
-

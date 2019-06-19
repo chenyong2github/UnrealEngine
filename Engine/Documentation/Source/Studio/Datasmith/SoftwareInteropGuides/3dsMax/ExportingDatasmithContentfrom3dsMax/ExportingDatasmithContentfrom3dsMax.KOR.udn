@@ -1,0 +1,84 @@
+﻿INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 3ds Max 에서 데이터스미스 콘텐츠 익스포트
+Description: 3ds Max 씬을 언리얼 엔진으로 임포트할 수 있도록 데이터스미스 파일로 익스포트하는 법을 설명합니다.
+Type: 
+skilllevel:Beginner
+Version: 4.22
+Parent: Studio/Datasmith/SoftwareInteropGuides/3dsMax
+Order: 1
+Tags: Enterprise
+Tags: 3DS Max
+Tags: how to
+Tags: Datasmith
+
+
+3ds Max 용 데이터스미스 익스포터 플러그인을 설치했으면, 3ds Max 에서 씬을 익스포트할 때 사용할 수 있는 *.UDATASMITH* 유형 파일이 생깁니다.
+
+3ds Max 에서 이 새 유형 파일을 사용하여 씬을 익스포트하는 방법은 다음과 같습니다.
+
+1.  3ds Max **File** 메뉴 또는 메인 메뉴 왼쪽 멀리 **MAX** 메뉴에서 **Export** 를 선택합니다.  
+    
+    ![Select File to Export](3DS_Export_1.png "Select File to Export")
+1.  다음과 같이 설정합니다.  
+    
+    ![Set folder, type and file name](3DS_Export_2.png "Set folder, type and file name")
+    
+    1.  **Save in:** 새로운 데이터스미스 파일의 위치를 선택합니다.
+    1.  **File Name:** 파일 이름을 지정합니다.
+    1.  **Save as type:** **Unreal Datasmith (.UDATASMITH)** 를 선택합니다.
+1.  **Save** 를 클릭합니다.
+1.  **Datasmith Export Options** 창에서 **Visible objects** 를 선택하면 씬에 있는 모든, **Selection** 을 선택하면 현재 선택한 오브젝트를 데이터스미스 파일에 포함합니다.
+    
+    ![Export visible objects or selection](3DS_Export_3.png "Export visible objects or selection")
+
+    [INCLUDE:#optionstable]
+
+5.  **OK** 를 클릭합니다.
+
+<!--
+[EXCERPT:optionstable]
+[REGION:simpletable]
+| 세팅 | 설명 |
+| --- | --- |
+| **Include** | [INCLUDE:#excerpt_1] |
+| **Animated Transforms** | [INCLUDE:#excerpt_2] |
+[/REGION]
+[/EXCERPT:optionstable]
+-->
+<!--
+[EXCERPT:excerpt_2]
+애니메이션 트랜스폼 - 익스포터가 애니메이션 3D 트랜스폼이 있는 오브젝트를 처리하는 방식을 결정합니다.
+    
+*   **Current Frame Only** 현재 프레임만 - 익스포트되는 파일은 애니메이션 데이터 없이 씬에서 현재 프레임에 나타나는 오브젝트만 포함합니다.
+*   **Active Time Segment** 활성 시간 단위 - 익스포트되는 파일에는 현재 3ds Max 타임라인에서 활성화된 시간 단위 내 애니메이션되는 3D 트랜스폼 오브젝트의 애니메이션 데이터를 포함합니다. 임포터는 이 애니메이션 데이터를 레벨 시퀀스로 변환해 주므로, 언리얼 엔진에서 애니메이션을 재생할 때 사용할 수 있습니다.
+    
+[REGION:note]
+이 세팅 설정 값과 상관 없이 데이터스미스 익스포터는 익스포트하는 데이터 기준을 항상 3ds Max 에서 현재 프레임에 있는 씬 오브젝트 상태로 잡습니다. 애니메이션 적용 메시 디포메이션이나 하위 오브젝트 애니메이션이 있는 경우, 언리얼 엔진에 임포트한 뒤 보이는 애셋과 액터는 씬을 익스포트할 당시 선택한 프레임 위치의 그 오브젝트 상태가 반영됩니다.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+포함 - 익스포트되는 파일에 씬의 어떤 오브젝트를 포함시킬지 결정합니다.
+    
+*   **Visible objects** 보이는 오브젝트 - 익스포트되는 파일에는 3ds Max 씬에서 현재 보이는 모든 오브젝트가 포함됩니다.
+*   **Selection** 선택 - 익스포트되는 파일에는 현재 선택한 보이는 오브젝트만 포함됩니다.
+    
+[/EXCERPT:excerpt_1]
+-->
+    
+
+익스포트를 완료한 이후, 익스포터는 콘텐츠에서 찾은 이슈를 보고합니다. 보통 익스포터가 완벽히 변환하지 못했거나, 언리얼 엔진에서 3ds Max 와 똑같이 나타나지 않을 수 있는 부분을 알려줍니다.
+
+![3ds Max conversion notes and warnings](3DS_Export_4a.png "3ds Max conversion notes and warnings")
+
+### 최종 결과
+
+이제 새로운 *.udatasmith* 파일을 언리얼 에디터로 임포트할 준비가 되었습니다. [](Studio/Datasmith/HowTo/ImportingContent) 문서를 참고하세요.
+
+[REGION:note]
+새로운 *.udatasmith* 파일과 함께, 똑같은 이름 뒤에 *_Assets* 가 붙은 폴더가 보일 것입니다. *.udatasmith* 파일을 새 위치로 옮길 때, 이 파일도 같은 위치로 옮겨야 합니다.
+[/REGION]
+

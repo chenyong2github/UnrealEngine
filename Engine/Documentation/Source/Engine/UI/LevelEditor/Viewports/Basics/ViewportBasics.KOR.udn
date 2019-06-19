@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6409500
 Availability:Public
 Title:뷰포트 기본
 Crumbs: %ROOT%, Engine, Engine/UI, Engine/UI/LevelEditor/Viewports
@@ -89,7 +89,6 @@ topic-image:viewport_topic.png
 에디터 전용 요소가 표시되지 않는다는 뜻입니다. 게임을 실행했을 때 레벨이 어때 보이는지를 
 쉽게 확인할 수 있습니다.
 
-[REGION:fullwidth]
 [OBJECT:SliderSequence]
 	[PARAMLITERAL:max]
 	2
@@ -108,7 +107,6 @@ topic-image:viewport_topic.png
 	![](game_view_2.png)
 	[/PARAM]
 [/OBJECT]
-[/REGION]
 
 게임 뷰를 켜려면, 뷰포트에 포커스를 맞춘 상태로 (기본 키인) **G** 키를 누르거나, 
 [뷰포트 옵션 메뉴](Engine/UI/LevelEditor/Viewports/ViewportOptions) 에서 **게임 뷰** 옵션을 선택하면 됩니다:

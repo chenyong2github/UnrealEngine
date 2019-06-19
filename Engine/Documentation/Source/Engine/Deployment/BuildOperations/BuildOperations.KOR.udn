@@ -1,20 +1,22 @@
-﻿INTSourceChangelist:3801260
-Availability:Docs
+﻿INTSourceChangelist:0
+Availability:Public
 Crumbs: %ROOT%
-Title: Build Operations: Cook, Package, Deploy, & Run
+Title: Build Operations: Cook, Package, Deploy, and Run
 Description: An overview of the available Build Operations (cook, package, run, and deploy) that can be for Unreal Engine 4 projects.
 Type: Overview
 SkillLevel:Intermediate
 Version:4.18
 Parent:Engine/Deployment
 Order:1
-Tags:Nintendo Switch
+Tags:Cooking
+Tags:Build Operations
+Tags:Deploy
 Topic-image:BuildOps_Topic.png
 
 [TOC(start:2 end:3)]
 
 
-As part of the packaging process, the [Automation Tool](Programming/Automation) (sometimes abbreviated as UAT for Unreal Automation Tool) is used to work through a set of utility scripts for manipulating Unreal Engine 4 (UE4) projects. For the packaging process, the Automation Tool uses a particular command called **BuildCookRun**. These build operations cook content for a platform, package it up into the platforms own file format, deploys it to the device, and automatically runs the project (where applicable). This process enables you to deploy content to a given platform at any point during development for testing, debugging, and even full distribution of a project.
+As part of the packaging process, the [Automation Tool](Programming/Automation) (sometimes abbreviated as UAT for Unreal Automation Tool) is used to work through a set of utility scripts for manipulating Unreal Engine 4 (UE4) projects. For the packaging process, the Automation Tool uses a particular command called **BuildCookRun**. This command can cook content for a platform, package it up into a platform's native format for distribution, deploys it to the device, and automatically runs the project (where applicable). Packaging your project does not solely require the direct use of UAT, though. You can also use the File menu to select from available platforms or Command Line to cook and package content for a platform.
 
 
 As part of the **BuildCookRun** command in UAT, the following stages outline the different stages of the packaging pipeline:
@@ -22,7 +24,7 @@ As part of the **BuildCookRun** command in UAT, the following stages outline the
 * **Build:** This stage compiles the executeables for the selected platform.
 * **Cook:** This stage cooks content by executing the Editor in a special mode.
 * **Stage:** This stage copies the executables and content to a staging area; a standalone directory outside of the development directory.
-* **Archive:** This stage creates platform-specific application bundles, such as APK files on Android or PKG files on PlayStation 4.
+* **Package:** This stage packages the project into a platform's native distribution format.
 * **Deploy:** This stage deploys the build to a target device.
 * **Run:** This stage starts the packaged project on the target platform.
 
@@ -30,7 +32,7 @@ As part of the **BuildCookRun** command in UAT, the following stages outline the
 
 ## Packaging Methods
 
-Becasuse you can deploy content in several different ways to a target platform for testing, debugging, or in preparation to release a produce, the following ways can be employeed to test your packages: 
+Becasuse you can deploy content in several different ways to a target platform for testing, debugging, or in preparation for release, you can test your packages in multiple different ways: 
 
 * You can use [Launch On](#launchon) to quickly test a part of your currently loaded level for testing and debugging.
 * You can use the [Project Launcher](#projectlauncher) to use a default profile or create a custom one to perform actions like profiling or debugging for your project's latest build.
@@ -110,6 +112,10 @@ After doing so, the custom launch profile is immediately open. Be sure to give i
 
 The [Automation Tool](Programming/Automation) enables you to cook and package your game using command line, and since all build operations are performed by UAT, it can be run directly on the command line with **RunUAT.bat** file when provided with valid arguments. 
 
+[REGION:note]
+The RunUAT files can be found in `Engine/Build/BatchFiles`. For Windows, use the **RunUAT.bat** file and for Mac/Linux use the **RunUAT.sh**.
+[/REGION]
+
 A basic cook can be performed using the following command line arguments following either the **UE4Editor.exe** or **UE4Editor-cmd.exe** files:
 
 	UE4Editor.exe [GameName or .uproject] -run=cook -targetplatform=[Platform] -cookonthefly -iterate -map=[Map Name]
@@ -118,7 +124,7 @@ The commandlet must be specified via **-run=cook** and a platform to cook for mu
 
 	[UE4 Project]/Saved/Sandboxes/Cooked-[Platform]
 
-Authoring your command line arguments by hand can be quite involved and has more potential for accidently errors. Because of this, it is recommended to use a [Custom Launch Profile](#customlaunchprofile) to accurately generate a command line for your build. Any parameters entered automatically generate via command line in the **Output Log** window. Any text that follows **BuildCookRun** onwards can be directly passed as your command line arguments using **RunUAT.bat**.
+Authoring your command line arguments by hand can be quite involved and has more potential to create accidental errors. Because of this, it is recommended to use a [Custom Launch Profile](#customlaunchprofile) to accurately generate a command line for your build. Any parameters entered in the custom launch profile will automatically generate the command line and display it in the **Output Log** window when it is used to cook and build the project. Any text  that follows **BuildCookRun** onward can be directly passed as your command line arguments using **RunUAT.bat**.
 
 The following is an example of the generated output from the Project Launcher and the equivalent command line that would need to be manually authored to use for **RunUAT.bat**:
 
@@ -173,7 +179,7 @@ For additional information about this cook method and its available settings, re
 
 ![](CookOnTheFlySettings.png)(w:950)
 
-When you choose to cook content **on the fly** (COTF), it will delay cooking it until after the game has been deployed to the platform. Only the executeable and some other basic files are installed, which use network communication with a **Cook Server** to make requests on-demand as the content is needed. COTF allows for faster iteration for developers who will be making changes to content regularly or those who will only be exploring sections of the game.
+When you choose to cook content **on the fly** (COTF), it will delay cooking it until after the game has been deployed to the platform. Only the executable and some other basic files are installed, which use network communication with a **Cook Server** to make requests on-demand as the content is needed. COTF allows for faster iteration for developers who will be making changes to content regularly or those who will only be exploring sections of the game.
 
 To cook on the fly, you will first need to start a Cook Server on a machine which has the full project available to it. This can be either your local machine or a remote server which performs the cook. The Cook Server can be run by starting the Editor in command line mode using the following arguments with the **UE4Editor-cmd.exe**:
 
@@ -216,5 +222,4 @@ To deploy a build from the Project Launcher, you must have a project that cooked
 [REGION:note]
 For additional information about this deployment methods and their available settings, refer to the [Project Launcher](Engine/Deployment/ProjectLauncher#deploy) reference page.
 [/REGION]
-
 

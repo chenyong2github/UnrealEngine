@@ -1,137 +1,131 @@
-﻿INTSourceChangelist:3692796
-Availability:Public
-Title: 컴포넌트
-Crumbs:%ROOT%, Programming
-Description:컴포넌트와 사용가능한 여러가지 유형에 대한 설명입니다.
+﻿INTSourceChangelist:6371055
+Availability: Public
+Title: Components
+Description: Explanation of Components and descriptions of the various types available.
 Version: 4.9
+Parent: Programming/UnrealArchitecture/Actors
+Tags: component
+Order: 1
+
 
 [TOC (start:2 end:3)]
 
+**Components** are a special type of **Object** that **Actors** can attach to themselves as sub-objects. Components are useful for sharing common behaviors, such as the ability to display a visual representation, play sounds. They can also represent project-specific concepts, such as the way a vehicle interprets input and changes its own velocity and orientation. For example, a project with user-controllable cars, aircraft, and boats could implement the differences in vehicle control and movement by changing which Component a vehicle Actor uses.
 
-[EXCERPT:Overview]
-**컴포넌트** (Component)란 **액터** 내 서브-오브젝트로 사용되도록 고안된 특수한 유형의 **오브젝트** 입니다. 
-보통 쉽게 교체가능한 부속 형태로 소유중인 **액터** 의 특정 함수성이나 행위를 바꾸고자 할 때 사용됩니다. 예를 들어 차량의 이동 제어 방식은 비행기나 배와 다르지만, 
-이 모두 일정한 공통성을 공유하는 비히클(vehicle, 탈것)입니다. 컴포넌트를 사용하여 그 이동 제어 방식을 조절하면, 같은 비히클은 해당 유형과 비슷하게 
-작동하도록 쉽게 만들 수 있습니다.
-[/EXCERPT:Overview]
+## Actor Components
 
-일반적인 서브 오브젝트의 기본적인 행위와는 반대로, 컴포넌트는 액터 안에 서브-오브젝트로 생성되는 컴포넌트가 인스턴싱될 때, 특정 클래스의 각 **액터** 인스턴스는 
-자체적으로 컴포넌트 고유 인스턴스를 갖습니다. 이것을 시각화시켜 볼 수 있는 한 가지 방법은, 위에서 설명한 비히클을 그려 보는 것입니다. **Car** 클래스가 차량의 바퀴를 나타내기 위해 컴포넌트를 사용할 수 있습니다. 
-클래스의 default properties 에서 네 개의 **휠** 컴포넌트를 서브-오브젝트로 생성하여 `Wheels[]` 배열에 할당합니다. 
-새로운 **Car** 인스턴스 생성시, 딱 그 **Car** 를 위한 휠 컴포넌트의 새 인스턴스들이 생성됩니다. 그렇게 하지 않는다면, 월드에 있는 **Car** 가 하나 움직일 때마다 모든 **Car** 의 휠이 돌게 될 텐데, 
-바람직한 행위는 아닐 테지요. 기본적인 컴포넌트 인스턴싱 덕에 **액터** 에 고유 서브-오브젝트를 빠르게 추가하는 프로세스가 단순화됩니다.
+`UActorComponent` is the base class for all Components. Since Components are the only way to render meshes and images, implement collision, and play audio, everything the player sees or interacts with in the world when playing the game is ultimately the work of some type of Component.
+
+There are a few major classes to understand when creating your own Components: **Actor Components**, **Scene Components**, and **Primitive Components**.
+
+*   **Actor Components** (class `UActorComponent`) are most useful for abstract behaviors such as movement, inventory or attribute management, and other non-physical concepts. Actor Components do not have a transform, meaning they do not have any physical location or rotation in the world.
+
+*   **Scene Components** (class `USceneComponent`, a child of `UActorComponent`) support location-based behaviors that do not require a geometric representation. This includes spring arms, cameras, physical forces and constraints (but not physical objects), and even audio.
+
+*   **Primitive Components** (class `UPrimitiveComponent`, a child of `USceneComponent`) are Scene Components with geometric representation, which is generally used to render visual elements or to collide or overlap with physical objects. This includes Static or skeletal meshes, sprites or billboards, and particle systems as well as box, capsule, and sphere collision volumes.
+
+### Registering Components
+
+In order for Actor Components to update each frame and affect the scene, the Engine must **register** them. This happens automatically for Components created as sub-objects of an Actor during that Actor's spawning process. However, manual registration is available for Components created during play. The `RegisterComponent` function provides this functionality, with the requirement that the Component is associated with an Actor.
 
 [REGION:note]
-**주:** 컴포넌트 인스턴싱이 없다면, 모든 컴포넌트 변수는 **[Instanced](Programming\UnrealArchitecture\Reference\Properties\Specifiers) 변수 지정자** 로 선언해 줘야 할 것입니다.
+Registering a Component during play can impact performance, so you should do so only in cases where it is necessary.
 [/REGION]
 
-## 액터 컴포넌트
+#### Register Events
 
-**ActorComponent** (액터 컴포넌트)는 다양한 유형의 **액터** 에 추가시킬 수 있는 재사용가능 행위를 정의하는 컴포넌트에 대한 베이스 클래스입니다. 이들은 일반적으로 지오메트리에 **액터** 를 
-연관시키는 데 사용됩니다. 이를테면 콜리전 지오메트리나 렌더링된 메시 형태, **액터** 의 월드 이동 방식 제어, **액터** 와 연관시켜 소리 재생, 
-**액터** 가 월드에 빛과 그림자를 드리우게 하는 능력 제공 등입니다. 사실 플레이어가 게임을 플레이할 때 월드에서 보고 듣고 만지는 모든 것은 사실 한 가지 이상의 **액터 컴포넌트** 작업 결과입니다. 
-트랜스폼을 가진 **액터 컴포넌트** 는 **씬 컴포넌트** 라고 하며, 렌더링 가능한 것은 **프리미티브 컴포넌트** 라고 합니다.
+In the process of registering a Component, the Engine associates the Component with the scene, making it available for per-frame updates, as well as running the following `UActorComponent` functions:
 
-### 컴포넌트 등록하기
+  
+| Function | Description |
+| --- | --- |
+| `OnRegister` | This function can be overridden to add code when registering a Component. |
+| `CreateRenderState` | Initializes the [render state](Programming/UnrealArchitecture/Actors/Components#sceneproxy) for the Component. |
+| `OnCreatePhysicsState` | Initializes the [physics state](Programming/UnrealArchitecture/Actors/Components#physicsstate) for the Component. |
 
-**액터 컴포넌트** 를 매 프레임 업데이트시켜 씬에 영향을 끼치도록 하려면, 씬에 **등록** (register)시켜야 합니다. 등록은 `UActorComponent::RegisterComponent()` 를 호출하여 이루어집니다. 
+### Unregistering Components
 
-	void UActorComponent::RegisterComponent()
+To remove Actor Components from update, simulation, or rendering processes, you can unregister it with the `UnregisterComponent` function.
 
-이 함수는 `UActorComponent::RegisterComponentWithScene()` 를 호출하여 소유중인 **액터** 의 `Components[]` 배열에 **액터 컴포넌트** 가 들어있는지 확인하고, 
-씬에 연관시킨 다음, **액터 컴포넌트** 에 대한 [렌더 프락시](#씬프락시) 와 [피직스 스테이트](#피직스스테이트) 를 만듭니다.
+#### Unregister Events
 
-**액터 컴포넌트** 는 서브-오브젝트로 생성되고 **액터** 의 default properties 내 `Components[]` 배열에 추가된 경우, 소유중인 **액터** 가 스폰될 때 자동으로 등록됩니다. 
-플레이 도중 `UActorComponent::RegisterComponent()` 를 호출하여 언제든 등록시킬 수는 있지만, 컴포넌트 등록은 약간 무거운 작업이라 꼭 필요할 때만 해 줘야 한다는 점, 
-주의하시기 바랍니다.
+The `UActorComponent` functions below run when a Component unregisters.
 
-#### 등록 이벤트
+  
+| Function | Description |
+| --- | --- |
+| `OnUnegister` | This function can be overridden to add code when unregistering a Component. |
+| `DestroyRenderState` | Uninitializes the render state for the Component. |
+| `OnDestroyPhysicsState` | Uninitializes the physics state of the Component. |
 
-컴포넌트가 등록될 때, 아래와 같은 이벤트가 발동됩니다.
+### Updating
 
-| 함수 | 설명 |
-| ---- | ---- |
-| UActorComponent::OnRegister() | 컴포넌트 등록시 필요에 따라 추가적인 초기화를 가능케 하는 이벤트입니다. |
-| UActorComponent::CreateRenderState() | 컴포넌트에 대한 렌더 스테이트를 초기화시킵니다. |
-| UActorComponent::OnCreatePhysicsState() | 컴포넌트에 대한 피직스 스테이트를 초기화시킵니다. |
+Actor Components have the ability to update each frame in a manner similar to Actors. The `TickComponent` function enables Components to run code on each frame. For example, **USkeletalMeshComponent** uses its `TickComponent` function to update animations and skeletal controllers, while **UParticleSystemComponent** updates its emitters and handles particle events.
 
+By default, Actor Components do not update. In order to make your Actor Component update each frame, you must enable ticking by setting `PrimaryComponentTick.bCanEverTick` to `true` in its constructor. After that, either in the constructor or elsewhere, you must call `PrimaryComponentTick.SetTickFunctionEnable(true)` to turn updates on. You can later deactivate ticking by calling `PrimaryComponentTick.SetTickFunctionEnable(false)`. If you know your Component will never need updates, or if you intend to call your own update function manually (perhaps from an owning Actor class), you can simply leave `PrimaryComponentTick.bCanEverTick` with its default `false` and get a slight performance boost.
 
-### 컴포넌트 등록해제하기
+### Render State
 
-**액터 컴포넌트** 를 등록해제(Unregister)하여 업데이트, 시뮬레이션, 렌더링을 중지시킬 수 있습니다. 컴포넌트 등록해제는 `UActorComponent::UnregisterComponent()` 호출을 통해 이루어집니다. 
+In order to render, an Actor Component must create a render state. This render state also informs the Engine when something has changed about the Component that requires its render data to be updated. When such a change occurs, the render state is marked "dirty". If you build your own Components, you can mark render data as dirty with the `MarkRenderStateDirty` function. At the end of the frame, all dirty Components have their render data updated in the Engine. Scene Components (including Primitive Components) create render states by default, while Actor Components do not.
 
-	void UActorComponent::UnregisterComponent()
+### Physics State
 
-#### 등록해제 이벤트
+To interact with the Engine's physics simulation system, an Actor Component needs a physics state. Physics states update immediately when changes occur, preventing issues like "frame-behind" artifacts and removing the need for a "dirty" marker. By default, Actor Components and Scene Components do not have physics states, but Primitive Components do. Override the `ShouldCreatePhysicsState` function to determine whether or not instances of your Component class need physics states.
 
-컴포넌트가 등록해제될 때, 아래와 같은 이벤트가 발동됩니다.
+[REGION:note]
+If your class uses physics, simply returning `true` is not advised. See the `UPrimitiveComponent` version of the function to get an idea of some of the situations in which you should not create a physics state, such as during the Component's destruction. You can also return `Super::ShouldCreatePhysicsState` in cases where you would normally return `true`.
+[/REGION]
 
-| 함수 | 설명 |
-| ---- | ---- |
-| UActorComponent::OnUnRegister() | 컴포넌트 등록해제시 필요에 따라 추가적인 동작을 가능케 하는 이벤트입니다. |
-| UActorComponent::DestroyRenderState() | 컴포넌트에 대한 렌더 스테이트를 소멸시킵니다. |
-| UActorComponent::OnDestroyPhysicsState() | 컴포넌트에 대한 피직스 스테이트를 소멸시킵니다. |
+### Visualization Components
 
+Some Actors and Components have no visual representation, making them difficult to select, or have important properties that are not visible. Developers can add extra Components to display information while working in the Editor, but these extra Components are not needed during Play In Editor, or when running a packaged build. To address this, the Editor supports the concept of **Visualization Components**, which are ordinary Components that exist only when working in the Editor.
 
-### 업데이트하기
+To make a Visualization Component, create any regular Component and call `SetIsVisualizationComponent` on it. Since the Component does not need to exist outside of the Editor, all references to it should be inside of preprocessor checks against `WITH_EDITORONLY_DATA` or `WITH_EDITOR`. This will ensure that packaged builds are unaffected by these Components and are guaranteed not to reference them anywhere in code. As an example, the **Camera Component** uses several other Components to display helpful information in the Editor, including a **Draw Frustum Component** to show its view frustum. In the header file, the Draw Frustum Component is defined within the class as follows:
 
-**액터 컴포넌트** 에는 그 `TickComponent()` 함수를 통한 매 프레임 업데이트 기능이 있습니다. 이를 통해 컴포넌트가 유형 고유의 프레임별 계산을 할 수 있습니다. 
-예를 들어 **SkeletalMeshComponent** 는 애니메이션과 스켈레탈 컨트롤러를 업데이트하는 데 `TickComponent()` 를 사용하는 반면, **ParticleSystemComponent** 는 시스템의 이미터를 업데이트하고 처리할 파티클 이벤트 
-검사에 사용합니다.
+    #if WITH_EDITORONLY_DATA
+        // The frustum component used to show visually where the camera field of view is
+        class UDrawFrustumComponent* DrawFrustum;
+        // ...
+    #endif
 
-컴포넌트가 업데이트되도록 하려면 등록시켜 주고 틱 되도록 (`bComponentNeverTicks=false`) 설정한 다음 틱 함수를 셋업해 줘야 합니다. 
+Similarly, all references to this this Component will be inside of preprocessor checks against `WITH_EDITORONLY_DATA` in the source file. This code, inside of a `WITH_EDITORONLY_DATA` check within `OnRegister`, checks to see if the Camera Component is attached to a valid Actor, and then adds the Draw Frustum Component code:
 
-### 렌더 스테이트
+    void UCameraComponent::OnRegister()
+    {
+    #if WITH_EDITORONLY_DATA
+        if (AActor* MyOwner = GetOwner())
+        {
+            // ...
+            if (DrawFrustum == nullptr)
+            {
+                DrawFrustum = NewObject<UDrawFrustumComponent>(MyOwner, NAME_None, RF_Transactional | RF_TextExportTransient);
+                DrawFrustum->SetupAttachment(this);
+                DrawFrustum->SetIsVisualizationComponent(true);
+                // ...
+            }
+        }
+        // ...
+    #endif
+        Super::OnRegister();
+        // ... Additional code (to run in all builds) goes here ...
+    }
 
-**액터 컴포넌트** 가 렌더링되도록 하기 위해서는, 렌더 스테이트가 생성되어 있어야 합니다. **액터 컴포넌트** 의 렌더 스테이트는 컴포넌트의 렌더 데이터 업데이트가 필요할 만큼 
-변화가 있었는지 엔진에 알려주기도 합니다. 그런 변화가 생기면, 렌더 스테이트에 더티 마킹이 됩니다. 그러면 현재 프레임 끝에서 모든 더티 컴포넌트의 렌더 데이터를 업데이트시킵니다.
+`DrawFrustum` now exists only in the Editor and is considered a Visualization Component, meaning that it won't appear during in-Editor playtesting.
 
-### 피직스 스테이트
+## Scene Components
 
-**액터 컴포넌트** 가 물리 엔진을 사용하여 시뮬레이션 되도록 하려면, 피직스 스테이트가 생성되어 있어야 합니다. 렌더 스테이트와는 달리, 피직스 스테이트는 더티 마킹될 일이 없는데, 
-피직스는 변화가 발생하는 즉시 업데이트되기 때문입니다. 그래야 프레임이 뒤쳐지는 부작용이 발생하지 않기 때문에 중요합니다.
+A Scene Component is an Actor Component that exists at a specific physical position in the world. This position is defined by a **transform** (class [`FTransform`](https://api.unrealengine.com/INT/API/Runtime/Core/Math/FTransform/index.htm)), containing the location, rotation, and scale of the Component. Scene Components have the ability to form trees by attaching to each other, and Actors can designate a single Scene Component as "root", meaning that the Actor's world location, rotation, and scale are drawn from that Component.
 
-## 씬 컴포넌트
+### Attachment
 
-**씬 컴포넌트** (SceneComponent)는 **액터 컴포넌트** 에 트랜스폼, 즉 위치, 방향, 크기 정보를 추가시켜 확장한 것입니다. 트랜스폼을 추가했다는 것은, **씬 컴포넌트** 는 서로 붙이기(attach)도 할 수 있다는 
-뜻입니다.
+Only Scene Components (`USceneComponent` and its child classes) can attach to one another, due to the requirement for transforms to describe the spatial relationship between the child and parent Components. While a Scene Component can have any number of children, it can have only one parent, or can be placed directly in the world. The Scene Component system does not support attachment cycles. The two primary methods are `SetupAttachment`, which is useful in constructors and when dealing with Components that haven't been registered yet, and `AttachToComponent`, which attaches one Scene Component to another immediately and is useful during play. This attachment system also enables attaching Actors to each other by attaching the root Component of one Actor to a Component belonging to another.
 
-### 어태치먼트
+## Primitive Components
 
-언리얼 엔진 4 의 모든 어태치먼트(attachment)는 컴포넌트 수준에서 처리되며, 오직 **씬 컴포넌트** 만이 서로 붙일 수 있습니다. **씬 컴포넌트** 에는 `AttachParent` 프로퍼티가 있어서, 
-어느 컴포넌트에 붙었는지를 나타냅니다. 주로 한 **액터** 에 여러 개의 컴포넌트가 들어있어 모두 붙어있게 만들고 싶을 때 사용됩니다. 그러나 다른 **액터** 에 속하는 컴포넌트를 지정하여, 
-한 **액터** 속의 컴포넌트를 다른 **액터** 속의 컴포넌트에 붙이고자 할 때도 사용할 수 있습니다.
+**Primitive Components** (class `UPrimitiveComponent`) are Scene Components that contain or generate some sort of geometry, generally for rendering or collision purposes. There are several subclasses for the various types of geometry, but the most common by far are the **Box Component**, **Capsule Component**, **Static Mesh Component**, and **Skeletal Mesh Component**. Box Component and Capsule Component generate invisible geometry for collision detection, while Static Mesh Component and Skeletal Mesh Component contain pre-built geometry that is rendered, and can also be used for collision detection if desired.
 
-즉 한 **액터** 를 다른 액터에 붙이기 위해서, 그에 속한 **액터** 각각에는 최소 하나의 **씬 컴포넌트** 가 (실제로 붙는 것들은 이것들이니) 들어있어야 한다는 소리이며, 
-붙이려는 **액터** 의 **씬 컴포넌트** 는 루트 컴포넌트여야 합니다. 그 이유는 명확합니다. 각 컴포넌트의 부모는 딱 하나 뿐이니 붙은 컴포넌트가 붙이려는 **액터** 의 루트 컴포넌트가 아니라면, 
-해당 컴포넌트와 자손 컴포넌트는 붙게 될 유일의 컴포넌트가 됩니다. 루트 컴포넌트는 전체적으로 **액터** 처럼 붙지도 영향받지도 않은 채 남아있게 될 텐데, 
-액터가 루트 컴포넌트와 그 트랜스폼에 의존하기 때문입니다.
+### Scene Proxy
 
-### 컴포넌트 트랜스폼
+The **Scene Proxy** (class `FPrimitiveSceneProxy`) of a Primitive Component encapsulates scene data that the Engine uses to render the Component in parallel to the game thread. Each type of primitive has its own Scene Proxy child class to hold the specific render data it needs.
 
-`FTransform` 구조체에는 `Translation` 벡터, `Rotation` 쿼터니언, `Scale3D` 벡터가 들어있습니다. 각 *씬 컴포넌트** 자체에는 보통 내부용으로 쓰이는 `FTransform` 이 있어, 
-월드 기준 위치, 방향, 크기를 기술합니다. 추가적으로 `RelativeLocation` 벡터, `RelativeRotation` 로테이터, RelativeScale3D` 벡터도 있어, 
-부모 컴포넌트를 기준으로 할지 월드를 기준으로 할지 결정하도록 할 수 있습니다. 보통 컴포넌트에 대한 트랜스폼 정보를 구해오거나 설정할 때 사용되는 것입니다.
-
-기본적으로 `RelativeLocation`, `RelativeRotation`, `RelativeScale3D` 는 그 `AttachParent` 를 기준으로 합니다. `bAbsoluteLocation`, `bAbsoluteRotation`, `bAbsoluteScale` 프로퍼티를 사용하면 이 값의 기준을 월드로 강제시킬 수 있습니다. 이 옵션 중 하나를 _True_ 로 설정하면 해당 프로퍼티는 월드를 기준으로 합니다.
-
-부모를 기준으로 한 트랜스폼 값을 사용할 때도, 아래 표시된 메서드를 통해 절대 월드 값을 사용하여 트랜슬레이션과 로테이션을 설정하는 것도 여전히 가능한 일입니다:
-
-
-| 함수 | 설명 |
-| ---- | ---- |
-| SceneComponent::SetWorldLocation() | 이 컴포넌트를 월드 스페이스 내 지정된 위치에 놓도록 상대 트랜슬레이션을 설정합니다. |
-| SceneComponent::SetWorldRotation() | 이 컴포넌트를 월드 스페이스 내 지정된 방향으로 놓도록 상대 로테이션을 설정합니다. |
-
-## 프리미티브 컴포넌트
-
-**프리미티브 컴포넌트** 는 보통 콜리전 데이터로 사용되거나 렌더링되는 지오메트리 유형을 생성하거나 담는 **씬 컴포넌트** 입니다. 다양한 지오메트리 유형에 대한 서브클래스는 여럿 있으나, 
-여지껏 가장 흔한 것은 **CapsuleComponent**, **StaticMeshComponent**, **SkeletalMeshComponent** 입니다. **CapsuleComponent** 는 충돌 감지에 쓰이나,
-렌더링되지는 않는 지오메트리를 생성하는 데 사용되는 반면, **StaticMeshComponent** 와 **SkeletalMeshComponent** 는 렌더링 되면서 충돌 감지에 쓸 수도 있는 미리 빌드된 지오메트리가 들어갑니다.
-
-### 씬 프락시
-
-**프리미티브 컴포넌트** 의 `SceneProxy` 는 `FPrimitiveSceneProxy` 인스턴스로, 프리미티브 렌더링을 게임 스레드와 병행시키기 위해 미러링되는 씬 데이터를 캡슐화시킨 것입니다. 
-각 프리미티브 유형마다 `FPrimitiveSceneProxy` 의 서브클래스를 생성, 해당 프리미티브 유형을 렌더링하는 데 필요한 렌더 데이터를 담습니다.
-
-프리미티브와 지오메트리 렌더링 관련 자세한 내용은 [렌더링 시스템 개요](Programming/Rendering) 를 참고해 주시기 바랍니다.
+See [Rendering System Overview](Programming/Rendering) for more details on primitives and rendering geometry.

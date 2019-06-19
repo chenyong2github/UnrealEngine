@@ -1,4 +1,4 @@
-INTSourceChangelist:3810467
+INTSourceChangelist:5336361
 Availability:Public
 Title:移动平台上的后期处理效果
 Crumbs:
@@ -27,7 +27,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 (#enablingtonemapperformobiledevices)
 ## 为移动设备启用色调映射器
-要使用移动设备上的色调映射器后期处理选项，需要将 **r.tonemapperfilm** 的值从默认值 **0** 更改为 **1**。在虚幻引擎4（UE4）中，您可以通过以下方法更改、启用或禁用色调映射器： 
+要使用移动设备上的色调映射器后期处理选项，需要将 **r.mobile.tonemapperfilm** 的值从默认值 **0** 更改为 **1**。在虚幻引擎4（UE4）中，您可以通过以下方法更改、启用或禁用色调映射器： 
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
@@ -61,7 +61,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 (#enablingtonemapperfilmvia.inifiles)
 ### 通过.INI文件启用色调映射器胶片
-要在项目范围内启用或禁用色调映射器，需要将 **r.tonemapperfilm=1** 添加到 **DefaultEngine.ini** 文件的 **Rendering Settings** 节。
+要在项目范围内启用或禁用色调映射器，需要将 **r.mobile.tonemapperfilm=1** 添加到 **DefaultEngine.ini** 文件的 **Rendering Settings** 节。
 
 [REGION:lightbox]
 [![](TM_Default_Engine_INI.png)(w:422)](TM_Default_Engine_INI.png)
@@ -81,7 +81,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 (#enablingtonemapperfilmonamobiledevice)
 ### 在移动设备上启用色调映射器胶片
-要启用或禁用移动设备上的色调映射器，需要 **四指** 同时轻触屏幕，调出 **控制台窗口**，然后输入 **r.tonemapperfilm 1** 以启用色调映射器，或输入 **r.tonemapperfilm 0** 以禁用色调映射器。
+要启用或禁用移动设备上的色调映射器，需要 **四指** 同时轻触屏幕，调出 **控制台窗口**，然后输入 **r.mobile.tonemapperfilm 1** 以启用色调映射器，或输入 **r.mobile.tonemapperfilm 0** 以禁用色调映射器。
 
 [REGION:lightbox]
 [![](TM_Phone_Console.png)(w:640)](TM_Phone_Console.png)
@@ -108,7 +108,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 在 **颜色分级（Color Grading）** 部分中，您将找到允许对图像进行颜色校正的支持属性。
 
-|后期处理属性| 是否支持 |R.tonemapperfilm值| 
+|后期处理属性| 是否支持 |r.mobile.tonemapperfilm值| 
 |---------------------|-----------|----------------------|
 | [REGION:tablesection] 白平衡 [/REGION] |||
 |**Temp**|是|1|
@@ -150,7 +150,7 @@ reference-image:Mobile_PostProcessEffect.gif
 在 **色调映射器（Tonemapper）** 部分中，您将找到允许对图像颜色范围进行调节的支持属性。
 
 
-|后期处理属性| 是否支持 |R.tonemapperfilm值| 
+|后期处理属性| 是否支持 |r.mobile.tonemapperfilm值| 
 |--------------------|-----------|--------------|
 |**Slope**|是|1|
 |**Toe**|是|1|
@@ -163,7 +163,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 在 **移动色调映射器（Mobile Tonemapper）** 部分中，您将找到允许对图像颜色范围进行调节的特定于移动平台的支持属性。
 
-|后期处理属性| 是否支持 |R.tonemapperfilm值| 
+|后期处理属性| 是否支持 |r.mobile.tonemapperfilm值| 
 |--------------------|-----------|--------------|
 |**Tint**|是|0|
 |**Saturation**|是|0|
@@ -184,7 +184,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 在 **镜头（Lens）** 部分中，您将找到允许对图像进行不同视觉调整的支持属性，例如泛光和景深等功能。
 
-|后期处理属性| 是否支持 |R.tonemapperfilm值| 
+|后期处理属性| 是否支持 |r.mobile.tonemapperfilm值| 
 |--------------------|-----------|--------------|
 | [REGION:tablesection] 图像效果 [/REGION] |||
 |**Chromatic Aberation**|是|0和1|
@@ -258,7 +258,7 @@ reference-image:Mobile_PostProcessEffect.gif
 
 在 **渲染功能（Rendering Features）** 部分中，您将找到允许对图像进行特定材质后期处理方面的视觉调整的支持属性，例如自定义景深和自定模具。 
 
-|后期处理属性| 是否支持 |R.tonemapperfilm值| 
+|后期处理属性| 是否支持 |r.mobile.tonemapperfilm值| 
 |--------------------|-----------|--------------|
 | [REGION:tablesection] 材质后期处理 [/REGION] |||
 |**Array**|是|1|

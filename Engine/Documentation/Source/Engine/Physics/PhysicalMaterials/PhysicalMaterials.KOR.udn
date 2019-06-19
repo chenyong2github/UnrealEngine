@@ -1,16 +1,15 @@
-﻿INTSourceChangelist:4649792
+﻿INTSourceChangelist:6407059
 Availability: Public
 Title:피지컬 머티리얼
-Crumbs: %ROOT%, Engine, Engine/Physics
 Description:물리 시뮬레이션 프리미티브에 바로 또는 머티리얼을 통해 적용하여, 시뮬레이션에 쓰이는 피지컬 프로퍼티를 설정하고 제어하는 애셋입니다.
 Version: 4.9
+Parent: Engine/Physics
 
-[INCLUDE:Shared/Glossary/P/#Glossary_Physical_Material]
+**Physical Material** (피지컬 머티리얼)은 피지컬 오브젝트가 월드와 동적으로 상호작용할 때의 반응을 정의하는 데 사용됩니다. 피지컬 머티리얼은 꽤나 사용하기 쉽습니다. 만들자마자 모든 피직스 오브젝트에 적용되는 기본 피지컬 머티리얼과 동일한 기본값 세트가 주어집니다. 예를 들어 캐릭터의 사체(래그돌), 이동가능 상자 등입니다.
 
 ## 피지컬 머티리얼 토픽
 
-[REGION:buttonlist]
-* [](Engine/Physics/PhysicalMaterials/HowTo "%Engine/Physics/PhysicalMaterials/HowTo:description%")
-* [](Engine/Physics/PhysicalMaterials/Reference "%Engine/Physics/PhysicalMaterials/Reference:description%")
-[/REGION]
+*   [](Engine/Physics/PhysicalMaterials/HowTo)
+    
 
+*   [](Engine/Physics/PhysicalMaterials/Reference)

@@ -1,13 +1,13 @@
 Availability:Public
 Title: Animation Pose Assets
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Describes the Animation Pose Asset which can be used to drive animation through weighted curve data. 
 Parent: Engine/Animation
 Related: Engine\Animation\Persona\AnimCurves
 Related: Engine\Animation\AnimBlueprints
 Related: Engine\Animation\AnimHowTo\CurveDrivenAnimation
 version: 4.14
-tags:Assets
+tags:Animation Assets
+type:landing
 topic-image:AnimationPoseAssets_topic.png
 
 Traditional animation consists of a series of keyframed poses that are blended over a timeline to achieve the desired motion. 

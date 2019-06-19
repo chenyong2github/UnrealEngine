@@ -11,8 +11,6 @@ SkillLevel: Advanced
 
 If you prefer to download our source code as a Zip file from GitHub, this page is for you.
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

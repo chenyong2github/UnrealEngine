@@ -1,0 +1,162 @@
+﻿INTSourceChangelist:6034051
+Availability: Public
+Title: 添加拾取物
+Description: 介绍如何创建可以放置在世界场景中供玩家拾取的物品。
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+Order: 4
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+默认情况下，动作RPG（ARPG）的玩家只能使用他们从商店购买的物品。但是这并不意味着这是玩家获取物品的唯一方式。在下面的操作指南中，我们将介绍如何创建可以放置在世界场景中供玩家拾取的拾取物。
+
+## 步骤
+
+1.  首先，在[Infinity Blade Weapons](https://www.unrealengine.com/marketplace/infinity-blade-weapons)包中找到 **SK\_Blunt\_Hambone** 骨架网格体及其所有资源，然后将它们迁移到动作RPG项目。
+
+1.  接下来，在 **Items** 下面创建一个名为 **Pickups** 的新文件夹。 
+
+1.  然后将Blunt_Hambone文件夹拖到Pickups文件夹上。  
+    ![](image6.png "image6.png")
+
+1.  从Blunt_Hambone文件夹中删除下列文件夹，因为它们不符合项目使用的命名规范。  
+    *   **InfinityBladesWeapons**
+    
+    *   **Weapons **
+    
+    *   **Blunt**
+
+1.  接下来，从文件夹名称及其所有各种资源的名称中删除 **Blunt** 一词。  
+    [REGION:lightbox]
+    [![](Step5.png)(w:900)](Step5.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  现在所有需要的内容都已添加并重命名，确保选择Hambone文件夹，然后在 **内容浏览器** 中右键单击，从显示的列表中选择 **蓝图类（Blueprint Class）**  选项。  
+    ![](image5.png "image5.png")
+
+1.  将新的蓝图命名为 **BP\_Pickup\_Hambone**，然后双击将它打开。
+    [REGION:lightbox]
+    [![](image15-1.png)(w:900)](image15-1.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  在 **组件（Components）** 部分添加下列组件以及下列设置。  
+    ![](image9-1.png "image9-1.png")
+          
+    | 组件名称 | 组件值 |
+    | --- | --- |
+    | 球体碰撞（Sphere Collision） | Radius = 64 |
+    | 骨架网格体（Skeletal Mesh） | SK_Hambone |
+    
+
+1.  接下来，在 **变量（Variables）** 部分中，创建一个名为 **PotionType** 的新变量，其 **变量类型（Variable** **Type）** 为 **RPGItem**，而且该变量的默认值是 **Potion_Health**。  
+    ![](image13.png "image13.png")
+
+1.  在“组件（Components）”选项卡中选择 **球体（Sphere）** 碰撞，然后在 **细节（Details）** 面板的 **事件（Events）** 下方，单击 **组件开始重叠时（On Component Begin Overlap）** 选项上的白色加号，将它添加到事件图表。  
+    ![](image17.png "image17.png")
+
+1.  第一个需要添加到事件图表的节点是 **Cast To BP_PlayerCharacter** 节点。这将确保只有玩家才能使用该拾取物，敌人无法使用。添加完该节点后，将它连接到 **On Component Begin Overlap** 节点，使其与下面的图像相符。
+    [REGION:lightbox]
+    [![image15-1.png](image3.png)(w:900)](image3.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  接下来，我们需要确保当玩家从拾取物上面跑过时，拾取物不会阻止玩家。为了实现这个目的，向事件图表添加一个Set Collision Enabled节点，确保将 **新类型（New Type）** 输入设置为 **无碰撞（No Collision）**。完成时，事件图表应该与下图相符。
+    [REGION:lightbox]
+    [![](image12.png)(w:900)](image12.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  现在我们需要向事件图表添加下列节点，这样我们就能够将拾取的物品添加到玩家的物品栏。
+    
+    *   Add Inventory Item
+    
+    *   Get Player Controller BP
+    
+    *   Potion Type Reference
+    
+    ![](image10.png)
+    
+
+1.  为了将药剂添加到当前物品栏，首先将 **Potion Type** 变量连接到 **Add Inventory Item** 节点的 **新物品（New Item）** 输入，然后将 **Get Player Controller BP** 连接到Add Inventory Item的 **目标（Target）** 输入。完成连接后，你的蓝图应该类似于下面的图像：
+    [REGION:lightbox]
+    [![](image8.png)(w:600)](image8.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  接下来，将 **Set Collision Enabled** 节点的 **输出** 连接到 **Add Inventory Item** 节点上的 **输入**。这可以确保我们将正确的物品添加到正确的物品栏栏位。完成后，你的蓝图应该类似于下面的图像： 
+    [REGION:lightbox]
+    [![](image16.png)(w:900)](image16.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  现在向事件图表添加 **Set Slotted Item** 和 **Make RPGItemSlot** 节点。
+
+    ![](image4.png)(w:600)
+    
+
+1.  接下来我们需要设置逻辑，确保将拾取的物品放入正确的物品栏位置。为此，要将 **Make RPGItemSlot** 的输出连接到 **Set Slotted Item** 节点上的 **物品插槽（Item Slot）** 输入，如下图所示。
+    [REGION:lightbox]
+    [![](image2.png)(w:500px)](image2.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  接下来，将 **Add Inventory Item** 节点的 **输出** 连接到 **Set Slotted Item** 节点上的输入。然后将 **Set Slotted Item** 上的 **目标（Target）** 输入连接到 **Player Controller**，物品 **输入** 连接到 **Potion** **Type** 变量。这样可以让拾取的物品添加到物品栏中的正确插槽。完成所有这些操作后，你的蓝图的这一部分应该与下图类似：
+    [REGION:lightbox]
+    [![](image11.png)(w:500px)](image11.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  然后添加 **Destroy Actor** 节点，将 **Set Slotted Item** 节点的 **输出** 连接到 **Destroy Actor** 节点的 **输入**。这可以确保当玩家走到物品上方将其拾起时，该物品就会从世界场景中移除。完成这些操作后，你的蓝图应该与下图类似：
+    [REGION:lightbox]
+    [![](image14.png)(w:500px)](image14.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1.  最后，确保按 **编译（Compile）** 和 **保存（Save）** 按钮保存你的工作。
+
+## 最终结果
+
+现在BP\_Pickup\_Hambone已经完成，将BP\_Pickup\_Hambone蓝图从内容浏览器拖到ARPG关卡中，然后按“运行（Play）”按钮。游戏加载后，在关卡中找到拾取物，然后操纵玩家从它上方跑过。玩家一接触BP\_Pickup\_Hambone拾取物，该拾取物就会消失，而UI和物品栏将会更新，显示多了一瓶新药剂。你可以在下面的视频中看到活动示例。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 0N-9EVUYU1c
+ [/PARAMLITERAL]
+[/OBJECT]

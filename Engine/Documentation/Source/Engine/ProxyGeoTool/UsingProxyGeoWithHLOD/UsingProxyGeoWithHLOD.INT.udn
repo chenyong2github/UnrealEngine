@@ -1,0 +1,57 @@
+Availability: Public
+Crumbs: 
+Title: Using the Proxy Geometry tool with HLOD
+Description: Product documentation including reference and guides for Unreal Engine 4
+Type: how-to
+SkillLevel:Advanced
+Version: 4.19
+Parent: Engine/ProxyGeoTool
+Order: 
+Tags: HLOD
+Tags: ProxyGeometry
+Tags: Optmization
+
+
+In the following How - To we, will take a look at using the Proxy Geometry Tool in conjunction with the [Hierarchical Level of Detail](Engine/HLOD) (HLOD) system. Using these two tools together will help increase your Unreal Engine 4 (UE4) projects rendering performance by reducing both draw calls and number of triangles drawn to the screen per frame.
+
+## Steps
+
+1.  First, go to your project's [World Settings](Engine/Levels/WorldSettings) and expose the **LODSystem** menu option.   
+
+    ![](Proxy_Geo_HT_WHLOD_01.png)
+
+1.  In the LODSystem menu, enable the following two options:   
+
+    ![](Proxy_Geo_HT_WHLOD_02.png)
+    
+    | **Property Name** | **Description** |
+    |---|---|
+    | **Enable Hierarchical LOD System** | Enables the HLOD to be used with this level. |
+    | **Simplify Mesh** | Enables Proxy Geometry Static Mesh simplification. |
+    
+1.  Open up the **Hierarchical LOD Outliner** tools by going to **Window > Hierarchical LOD Outliner**.
+
+    ![](Proxy_Geo_HT_WHLOD_03.png "Proxy_Geo_HT_WHLOD_03.png")
+
+1.  Press the **Generate Clusters** button on the **Hierarchical LOD Outliner** and when that is completed, press the **Generate Proxy Meshes** button to begin the HLOD and Proxy Geometry creation process.  
+
+    ![](Proxy_Geo_HT_WHLOD_04.png "Proxy_Geo_HT_WHLOD_04.png")
+
+## End Result
+
+When the Hierachical LOD tool has finished processing you can see how many triangles were removed and also compare the results against the original by moving the slider back and forth.  
+
+![](Proxy_Geo_HT_WHLOD_05.png "Proxy_Geo_HT_WHLOD_05.png")
+
+The image comparison slider below shows an example of the types of results you can get when using just the default settings with **Simplify Mesh** enabled.  
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Before Running HLOD & Proxy Geo](Proxy_Geo_HT_WHLOD_Before.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After Running HLOD & Proxy Geo](Proxy_Geo_HT_WHLOD_After.png) 
+ [/PARAM]
+[/OBJECT]
+
+[](#)[](#)

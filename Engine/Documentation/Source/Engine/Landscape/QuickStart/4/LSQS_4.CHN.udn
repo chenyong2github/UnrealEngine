@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:4985673
 Availability:Public
 Title:4.创建地形材质
 Crumbs:%ROOT%, GettingStarted, Engine/Landscape/QuickStart
@@ -88,14 +88,7 @@ version:4.9
 ![](T_Landscape_Blank_Material.png)
 [/REGION]
 
-在材质编辑器中开始放置节点之前，首先需要确定材质已设置好，可结合地形使用。 
-执行此操作的方法为：在 **Details** 面板中的 **Usage** 部分下勾选 **Used with Landscape** 选择框。 
-之后材质便可结合地形使用，省去额外的材质编译时间。   
-[REGION:fullwidth] 
-![](T_Landscape_Materail_Usage.png)
-[/REGION]
-
-设置好 **Used with Landscape** 使用标记后，即可开始在材质编辑器中放置节点。 
+现在可以在材质编辑器中放置节点了。 
 首先需要放置的是一个 **LandscapeLayerCoords** UV 节点。该节点生成将材质网格映射到地形表面的 UV 绳索。
 
 ![](T_Landscape_UVCords.png)

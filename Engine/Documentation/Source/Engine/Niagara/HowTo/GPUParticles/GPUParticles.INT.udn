@@ -9,12 +9,7 @@ Parent: Engine/Niagara/HowTo
 Order: 2
 Tags: Niagara
 Tags: Early Access
-
-Prerequisite Topics
-
-This page assumes you have prior knowledge of the following topics. Please read them before proceeding.
-
-*   [Enable the Niagara Plugin](Engine/Niagara/HowTo/EnableNiagara "Describes how you can enable the Niagara Plugin.")
+prereq: Engine/Niagara/HowTo/EnableNiagara
     
 
 For some effects, you may need to spawn tens of thousands of particles. However, using the standard CPU to generate this many particles can cause the game to slow down. In the following How-To we will demonstrate how to spawn particles using the GPU instead of the CPU.

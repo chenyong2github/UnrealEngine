@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:결과 구하기
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems, Engine/Rendering/ParticleSystems/Optimization
@@ -192,7 +192,7 @@ Spawn Per Unit 은 파티클 시스템이 움직일 때 갭을 메꾸는 데 좋
 
 방출 제어를 위한 팁이 몇 가지 있습니다:
 
-* Unit Scalar 값을 가급적 높게 유지하되 방출 속도(emission rate) 와 보조를 맞추어, 이펙트를 너무 무겁게 만들지 않는 선에서 원하는 필(fill)을 얻어냅니다.
+* Unit Scalar 값을 가급적 높게 유지하지만 방출 속도(emission rate) 와 보조를 맞추어, 이펙트를 너무 무겁게 만들지 않는 선에서 원하는 필(fill)을 얻어냅니다.
 * Spawn Per Unit 을 사용하여 방출 속도가 높을 것으로 예상되는 경우, 인스트럭션 카운트가 낮은 머티리얼을 사용해 보십시오.
 * 방출 가능한 파티클 수를 제한하기 위해 Max Frame Distance 를 조절합니다. 이미터가 이 최대 프레임 거리를 벗어나면, Spawn Per Unit 은 그 거리 안으로 돌아오기 전까지 방출을 중지합니다. 이미터가 씬에 다량의 스프라이트를 쏟아붓는 것을 방지해 줍니다.
 

@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6536723
 Availability: Public
 Title:工具和编辑器
 Crumbs: %ROOT%, Gameplay, GettingStarted
 Description:虚幻引擎4中包含很多不同类型的编辑器，本页面突出介绍了各个编辑器。 
 version: 4.9
 topic-image:editortypes_topic.png
+Order: 6
 
 
 本页面试图给大家一个编辑器的概念，在虚幻引擎 4 中有着多种不同类型的编辑器窗口。有可能是在 **Level Editor** 中设计关卡，也有可能是在 **Blueprint Editor** 下为某个 Actor 编写关卡中的脚本行为，又或者是在 **Cascade Editor** 中制作粒子特效，或者在 **Persona Editor** 内设置角色的动画逻辑。对每个 Editor 有较好的理解，并知道它们能够做些什么事情，以及如何在它们之间来回切换，将会对工作流程具有很好的改善，并能够在开发过程中避免无意义的障碍。
@@ -413,7 +414,7 @@ Matinee 编辑器专注于特殊的动画制作，在这里可以放置关键帧
 [EXCERPT:soundcueeditor]
 **Sound Cue 编辑器**
 
-在虚幻引擎 4 中音频的回放行为由 Sound Cue 定义，这些 Sound Cue 可以在 Sound Cue 编辑器中进行修改。
+在虚幻引擎 4 中音频的播放行为由 Sound Cue 定义，这些 Sound Cue 可以在 Sound Cue 编辑器中进行修改。
 在 Sound Cue 编辑器中，可以组合并混响几个不同的声音资源来得到一个单一的具有混合效果的“输出”并保存为一个 Sound Cue。
 
 更多内容请查看： [](Engine/Audio/SoundCues/Editor)
@@ -546,7 +547,7 @@ Physics Asset 工具编辑器（简称 PhAT ）用来为 [](Engine/Content/Types
 能够从零开始制作完整的 regdoll 的设置，或者使用自动化的工具来生成基础的 Physics 物体的各个部分以及 Physics 的约束设置。
 
 
-更多内容请查看： [](Engine/Physics/PhAT)
+更多内容请查看： [](Engine/Physics/PhysicsAssetEditor)
 [/EXCERPT:phateditor]
 
 ---

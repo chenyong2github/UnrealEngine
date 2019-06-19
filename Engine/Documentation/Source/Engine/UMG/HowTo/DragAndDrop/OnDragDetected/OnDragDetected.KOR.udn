@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6093519
+Availability: docs
 Title:3. 드래그 감지 시
 Crumbs: %ROOT%, Engine, Engine/UMG, Engine/UMG/HowTo
 Description:이번 단계에서는 드래그를 감지했을 때 어떤 일이 벌어질지 구성합니다.
@@ -14,6 +14,7 @@ tags:UMG UI Designer
 tags:UI
 type:how-to
 
+## Set to docs as the page has been combined into a single page. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

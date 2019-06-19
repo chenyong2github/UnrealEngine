@@ -1,0 +1,17 @@
+Availability: Public
+Crumbs: 
+Title: Early Access Features
+Description: Features that are in development, but available in a stable state.
+Type:landing
+Version:
+Parent: %ROOT%
+Order: 100
+Tags: 
+topic-icon:earlyaccess_icon.png
+
+
+[REGION:note]
+Features available in Early Access give you the opportunity to learn how they work, plan your pipeline, and create test content. **You should use caution when shipping with features in this state** as they may not be optimized for performance or stability and may not be available on all platforms. We support backward compatibility for assets, and the APIs for these features are stable.
+[/REGION]
+
+[DIR(output:"topic" tags:"Early Access" type:"landing" end:"1")]

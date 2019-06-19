@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:
 Crumbs:
@@ -99,7 +99,7 @@ Engine/UI/LevelEditor/Viewports/ViewModes#unlit
 [EXCERPT:BrushWireframeMode]
 ![](EVP_BrushWireframeMode.png)
 
-모든 것을 와이어프레임으로 표시하되, 브러시는 그 브러시 색 모양으로만 표시되고, 그로 인해 생성되는 트라이앵글은 표시되지 않습니다.
+모든 것을 와이어프레임으로 표시하지만, 브러시는 그 브러시 색 모양으로만 표시되고, 그로 인해 생성되는 트라이앵글은 표시되지 않습니다.
 
 [/EXCERPT:BrushWireframeMode]
 
@@ -132,7 +132,7 @@ Engine/UI/LevelEditor/Viewports/ViewModes#detaillighting
 [EXCERPT:LightingOnlyMode]
 ![](EVP_LightingMode.png)
 
-라이팅을 렌더링하되, 씬의 버텍스 노멀만 고려합니다.
+라이팅을 렌더링하지만, 씬의 버텍스 노멀만 고려합니다.
 [VAR:ToolTipFullLink]
 Engine/UI/LevelEditor/Viewports/ViewModes#lightingonly
 [/VAR]

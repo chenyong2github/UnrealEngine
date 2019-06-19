@@ -1,182 +1,203 @@
-﻿INTSourceChangelist:3051723
-Availability:Public
+﻿INTSourceChangelist:3759006
+Availability: Public
 Title:在游戏进程中触发序列
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:说明如何在游戏事件中触发序列。 
-Version:4.12
-SkillLevel:Intermediate
+Version: 4.18
+SkillLevel: Intermediate
 parent:Engine/Sequencer/HowTo
 order:1
 checkpoint: editorqs
-Related:Engine/Sequencer/Overview
-Related:Engine\Sequencer\ReferenceEditor\
+Related: Engine/Sequencer/Overview
+Related: Engine/Blueprints
+tags:Sequencer
+type:how-to
 
-创建过场序列后，需要在游戏过程中将其作为剧情动画的一部分调用并播放。角色走进一个房间后，可能需要开始一段剧情动画；或者角色杀死一个敌人后需要播放结局过场动画。 
+创建过场序列后，需要在游戏过程中将其作为剧情动画的一部分调用并播放。 
+举例而言，可能需要在玩家进入房间时让摄像机对准某个物体。 
+或者在玩家击杀敌人后触发结束过场动画。 
+获取对关卡序列的引用后，即可使用[蓝图](Engine/Blueprints)或C++代码来告知序列开始播放。 
 
-在此指南中，我们使用 [](Engine/Blueprints) 使关卡序列基于游戏事件播放。我们还将了解 **Sequence Player** 选项,以及如何通过这些选项告知游戏关卡序列已终止，此时将执行额外的蓝图脚本。 
+在此指南中，我们将创建一个过场动画范例，在玩家进入触发框后打开一盏灯。 
+过场动画播放结束后，我们将指示Sequencer将修改应用到关卡中的灯，使其在过场动画播放完毕后仍然存在。 
+我们还将允许播放器在播放时跳过过场动画，但指示Sequencer在跳过过场后将灯保持为开启状态。 
+
+![](HeroImage.png)
+
+
+(#steps)
 
 ## 步骤
 
 [REGION:note]
-此指南中，我们使用 **蓝图第三人称模板（Blueprint Third Person Template）**，并已创建了一个序列范例。 
+此指南中使用的是 **蓝图第三人称模板** 项目。 
 [/REGION]
 
-1.	如需要播放的关卡序列不在关卡中，可从 **Content Browser** 将其 **拖放** 到关卡中。 
+1.	从 **基础（Basic）** 下的 **模式（Modes）** 面板中将一个 **盒体触发器** 拖入关卡并调整为理想的大小和位置。 
 
-	![](Trigger01.png)(w:720)
+	![](Trigger01.png)
 
-1.	从 **Modes** 面板将一个 **触发器（Trigger）** 拖入关卡并根据需要进行调整（我们使用的是 **Box Trigger**）。 
+	玩家进入触发器后，我们便会指示过场动画通过蓝图开始播放。 
+
+1.	在主工具栏中点击 **过场动画（Cinematics）** 按钮，然后选择 **添加关卡序列（Add Level Sequence）**，为过场动画命名。 
 
 	![](Trigger02.png)
 
-	玩家进入触发器后，关卡序列将开始播放。 
-
-1.	选中 **Trigger** 时，点击主工具栏中的 **Blueprints** 按钮，然后选择 **Open Level Blueprint**。 
+1.	从 **基础（Basic）** 下的 **模式（Modes）** 面板中将一个 **点光源** 拖入关卡，并放置在下图显示的位置处。 
 
 	![](Trigger03.png)
 
-1.	在图表中 **单击右键**，然后在 **Collision** 下选择 **Add On Actor Begin Overlap**。 
+1.	选中 **点光源**，在 **细节** 面板中将 **强度（Intensity）** 值改为 **0.0**，然后点击 **关键帧（Keyframe）** 按钮。
 
 	![](Trigger04.png)
 
-1.	返回关卡并选择 **关卡序列**。
+	此操作将把点光源添加到Sequencer，并对序列开始处的初值设置关键帧。 
 
-1. 点击主工具栏中的 **Blueprints** 按钮，然后再次选择 **Open Level Blueprint**。
+1.	在Sequencer中将时间轴移动至第 **150** 帧，然后将灯光的 **强度（Intensity）** 值设为 **5000**，并设置关键帧。 
 
-1.	**单击右键**，选择 **Create a Reference to...** 创建一个对关卡序列的引用。 
+	[REGION:lightbox]
+	[![](Trigger05.png)(w:1000)](Trigger05.png)
+	[/REGION]
 
-	![](Trigger05.png)
+	[REGION:caption]
+	点击图片查看全图。 
+	[/REGION]
 
-	上图中需要播放的关卡序列名为 **CameraFlyBy**。 
+	点光源将出现在初始位置中，并随着序列播放完毕而开始变亮。 
 
-1.	**单击左键** 从新节点连出引线，并添加 **Get Sequence Player** 节点。 
+1.	点击 **添加相机（Add Camera）** 按钮，然后将相机移动到关卡中角色附近的一个位置，并设置关键帧。 
 
-	![](Trigger06.png)
+	[REGION:lightbox]
+	[![](Trigger06.png)(w:900)](Trigger06.png)
+	[/REGION]
 
-1.	在 **Sequence Player** 节点的引线上添加 **Play** 节点并按下图所示连接。 
+	[REGION:caption]
+	点击图片查看全图。 
+	[/REGION]
 
-	![](Trigger07.png)
+1.	将时间轴移动到第 **75** 帧，然后在关卡中将相机移动到一个俯视角色和灯光的新位置，然后设置关键帧。 
 
-	如现在开始游戏，玩家进入触发器后创建的序列将开始播放。 
+	[REGION:lightbox]
+	[![](Trigger07.png)(w:900)](Trigger07.png)
+	[/REGION]
 
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	sjsxR2nwcNg
-	[/PARAMLITERAL]
-	[/OBJECT]
+	[REGION:caption]
+	点击图片查看全图。 
+	[/REGION]
 
-	依此设置，过场播放时角色仍可自由移动。 
-	虽然我们已成功播放过场，但有时可能需要在过场播放时将玩家锁定在固定位置，或 **设为在游戏中隐藏（Set Hidden in Game）** 使他们不会出现。 
-	
-1.	在 **关卡蓝图** 中 **单击右键** 并添加一个 **Disable Input** 节点。 
+1.	将时间轴移动到第 **150** 帧，然后在关卡中将相机移动到一个聚焦于灯的位置，然后设置关键帧。 
 
-	![](Trigger08.png)
+	[REGION:lightbox]
+	[![](Trigger08.png)(w:900)](Trigger08.png)
+	[/REGION]
 
-	如关卡序列在关卡中仍为选中状态，则会看到两个选项（它将选择 **Input** 下的选项）。 
+	[REGION:caption]
+	点击图片查看全图。 
+	[/REGION]
 
-1.	在 **Play** 后连接节点，然后从 **Player Controller** 连出引线并添加一个 **Get Player Controller** 节点。 
+	现在过场动画中将包含相机漫游动画，为玩家显示关卡中的灯光位置。 
+
+1.	选择关卡中的 **触发框**，然后在主工具栏中点击 **蓝图** 按钮并选择 **打开关卡蓝图**。 
 
 	![](Trigger09.png)
 
-	此操作将命令与玩家关联的玩家控制器停止接收输入。 
-
-1.	从 **Disable Input** 节点的 **Target** 引脚连出引线并添加一个 **Get Player Character** 节点。 
+1.	在图表中点击右键，然后为 **触发框** 选择 **添加在actor上开始重叠（Add On Actor Begin Overlap）**。 
 
 	![](Trigger10.png)
 
-	序列开始时已禁用输入，但序列结束时需要启用输入。 
-
-1.	从 **Sequencer Player** 节点连出引线并添加一个 **Get Length** 节点。 
+1.	返回关卡并选择关卡序列，然后返回 **关卡蓝图** 中，点击右键并 **创建** 对关卡序列的引用。 
 
 	![](Trigger11.png)
 
-1.	在图表中 **单击右键** 并添加一个 **Set Timer by Event** 节点。 
+1.	从关卡序列引用连出引线，选择 **播放（序列播放器）**。 
 
 	![](Trigger12.png)
 
-1.	在 **Disable Input** 后连接 **Set Timer by Event** 节点，并将 **Length** 插入 **Time** 引脚。 
+1.	将 **OnActorBeginOverlap** 节点连接到 **Play** 节点。 
 
 	![](Trigger13.png)
 
-	这可在关卡序列结尾调用事件。 
+	进入触发框时将执行 **Play** 节点，播放关卡序列。 
 
-1.	在图表中 **单击右键** 并创建一个名为 **Sequence End** 的 **自定义事件（Custom Event）**。  
+	[OBJECT:EmbeddedVideo]
+		[PARAMLITERAL:videoid]
+		7G2zHwVbmHg
+		[/PARAMLITERAL]
+		[PARAMLITERAL:width]
+		100
+		[/PARAMLITERAL]
+		[PARAMLITERAL:height]
+		56.25
+		[/PARAMLITERAL]
+		[PARAMLITERAL:units]
+		%
+		[/PARAMLITERAL]
+		[PARAMLITERAL:type]
+		simple
+		[/PARAMLITERAL]
+	[/OBJECT]
+
+	在编辑器中运行时您将注意到，进入触发框后序列将开始播放，然而其只会播放一次。 
+	如果希望再次播放序列，需要在告知序列进行播放之前使用 **Set Playback Position** 节点让序列从头开始播放，“播放位置”设为 **0** 或序列的开头。 
+
+1.	在 **关卡蓝图** 中，从 **Sequence Player** 节点连出引线，使用 **Set Playback Position** 节点。 
 
 	![](Trigger14.png)
 
-1.	将绑定引脚和 **Set Timer by Event** 节点的 **Event** 引脚连接起来。 
+1.	在 **OnActorBeginOverlap** 和 **Play** 节点之间连接 **Set Playback Position** 节点。 
 
 	![](Trigger15.png)
 
-	完成此设置后，关卡序列完成时便会触发连接到 **Sequence End** 事件的内容。 
+	此操作将把关卡序列在播放之前重设到开头。 
 
-1.	添加一个 **Enable Input** 节点并连接一个 **Get Player Character** 和 **Get Player Controller** 节点。 
+1.	在 **Sequencer** 中右键点击 **强度（Intensity）** 轨迹，然后在 **属性（Properties）** 下将 **完成时（When Finished）** 设为 **保持状态（Keep State）**。 
 	
-	[REGION:lightbox]
-	[![](Trigger16.png)](Trigger16.png)
-	[/REGION]
+	![](Trigger16.png)
+	
+	使用 **保持状态（Keep State）** 选项，使灯光强度设置在序列播放完毕后得到保留。 
+	如果需要使Sequencer中设置的效果或设置在序列播放完毕后仍然保留，此操作将十分实用。 
+	举例而言，在过场动画中有一扇门被打开，而您希望过场动画播放完毕时门保持打开状态。 
 
-	[REGION:caption]
-	点击查看全图。 
-	[/REGION]
+1.	在 **关卡蓝图** 中添加一个 **F** 键盘事件，连接到一个 **Branch** 节点（条件为 **Is Playing**），此节点连接到 **Go to End and Stop** 节点。
 
-	如现在进行游戏，关卡序列处于使用中时可操作角色将停下、不接受输入。 
-	序列结束后，玩家可再次对角色进行输入。 
+	![](Trigger17.png)
 
-	[OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	360
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	nuw87s4vNro
-	[/PARAMLITERAL]
-	[/OBJECT]
+	按下 **F** 键时，如果关卡序列当前正在播放，其将直接跳至结尾并停止播放。 
+	需要播放器跳过过场动画，但如果序列继续播放，则继续沿用Sequencer已应用的修改。在此情形下，**Go to End and Stop** 节点十分实用。 
+	
+	举例而言，在我们的过场动画中，Sequencer开启了关卡中的一盏灯。如果玩家跳过灯光开启的过场动画，我们仍然希望跳过过场动画后灯光仍然为开启状态。 
+	如果单纯只是使用 **Stop** 节点来停止播放过场动画，过场动画的播放则不会完成，其将停在我们选择停止的点上（这意味着灯光可能不会完全开启，甚至不会开启，具体取决于停止的点）。 
 
-	在当前的设置中，过场动画无法被重复触发。如要重复触发序列，需在现有设置中增加一个节点。 
-
-1.	在 **关卡蓝图** 中，从 **Sequence Player** 节点连出引线，在 **Play** 节点前添加一个 **Set Playback Position** 节点。 
-
-	[REGION:lightbox]
-	[![](Trigger17.png)](Trigger17.png)
-	[/REGION]
-
-	[REGION:caption]
-	点击查看全图。 
-	[/REGION]
-
-	**Playback Position** 默认设置从 **0.0** 开始，序列每次均从开头播放。 
-
-1.	点击 **Play** 按钮在编辑器中进行游戏。 	
+1.	返回主编辑器，然后在主工具栏中点击 **运行（Play）** 按钮在编辑器中运行。
 			
+
+(#endresult)
 
 ## 最终结果
 
+在编辑器中运行时，您将注意到灯光并非默认开启。
+进入触发框时将开始播放过场动画，灯光将开启，在过场动画播放完毕后仍将保持开启状态。 
+再次进入触发框将再次触发过场动画，从开头播放序列。 
+进入触发框后按下 **F** 键即可跳过过场动画，此操作将使灯光自动开启。 
+
 [OBJECT:EmbeddedVideo]
-[PARAMLITERAL:width]
-640
-[/PARAMLITERAL]
-[PARAMLITERAL:height]
-360
-[/PARAMLITERAL]
-[PARAMLITERAL:videoid]
-dWCbJb5YJhI
-[/PARAMLITERAL]
+	[PARAMLITERAL:videoid]
+	BJ2LbTU02iA
+	[/PARAMLITERAL]
+	[PARAMLITERAL:width]
+	100
+	[/PARAMLITERAL]
+	[PARAMLITERAL:height]
+	56.25
+	[/PARAMLITERAL]
+	[PARAMLITERAL:units]
+	%
+	[/PARAMLITERAL]
+	[PARAMLITERAL:type]
+	simple
+	[/PARAMLITERAL]
 [/OBJECT]
 
-现在便设置好在游戏进程中触发的过场序列，玩家将被锁定在固定位置。序列可被多次触发；过场播放完成后可对玩家角色再次进行输入。 
-
-可从 **Cinematic** 部分下的 **Sequencer Player** 节点访问其他信息或函数。 
-
-![](Trigger18.png)
 
 
 

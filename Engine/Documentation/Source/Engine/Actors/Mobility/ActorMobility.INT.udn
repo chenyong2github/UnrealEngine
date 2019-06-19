@@ -8,42 +8,50 @@ type:overview
 order:4
 
 
-[EXCERPT:Intro]
-![](TransformMobility.png)
+![](ActorMobility.png "ActorMobility.png")
 
+[EXCERPT:Intro]
 The **Mobility** setting controls whether an Actor will be allowed to move or change in some way during gameplay. This primarily applies to Static Mesh Actors and Light Actors.
 [/EXCERPT:Intro]
 
 When available, the Mobility property has 3 states:
 
+  
 | Mobility State | Description |
-|--- | --- |
-| **Static** | Static is reserved for Actors that are not intended to move or update in any way during gameplay. [INCLUDE:#Static] |
-| **Stationary** | [INCLUDE:#Stationary]  |
-| **Movable** | Movable should be used only when an Actor needs to move during gameplay. [INCLUDE:#Movable] |
+| --- | --- |
+| **Static** | [INCLUDE:#excerpt_0] |
+| **Stationary** | [INCLUDE:#excerpt_1] |
+| **Movable** | [INCLUDE:#excerpt_2] |
 
+<!--
+[EXCERPT:excerpt_0]
+This mobility is reserved for Actors that are not intended to move or update in any way during gameplay.
 
+*   For **Static** **Mesh** Actors, this means they will have their shadows contribute to pre-calculated lightmaps using [Lightmass](Engine/Rendering/LightingAndShadows/Lightmass) to process generate and process them. This mobility makes them ideal for structural or decorative meshes that never need to relocate during gameplay. Not, however, that their Materials can still be animated.
 
-[COMMENT:none]
----
+*   For **Light** Actors, this means it will contribute to pre-calculated lightmaps using [Lightmass](Engine/Rendering/LightingAndShadows/Lightmass). They will illuminate the scene for Static and Stationary Actors and for Movable ones, use an indirect lighting method (like [Indirect Lighting Samples](Engine/Rendering/LightingAndShadows/IndirectLightingCache) or [Volumetric Lightmaps](Engine/Rendering/LightingAndShadows/VolumetricLightmaps)) to illuminate these dynamic objects.  
 
-[EXCERPT:Static]
-* **Static Mesh Actors** with a Mobility of Static will have their shadows contribute to pre-calculated light maps (Lightmass baked lighting). This makes them ideal for structural or decorative meshes that never need to relocate during gameplay. Note, however, that their Materials can still be animated.
-* **Light Actors** with a Mobility of Static will contribute to pre-calculated light maps (Lightmass baked lighting). They will still illuminate dynamic objects due to the [Indirect Lighting Cache](Engine/Rendering/LightingAndShadows/IndirectLightingCache). This is the ideal lighting path for mobile workflows, since it is essentially free in terms of gameplay performance.
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
 
+This mobility is reserved for Actors that can change during gameplay but not move.
 
-[/EXCERPT:Static]
+*   For **Static Mesh** Actors, this means that they can be changed but not moved. They do not contribute to pre-calculated lightmaps using [Lightmass](Engine/Rendering/LightingAndShadows/Lightmass) and are lit like Movable Actors when lit by a Static or Stationary Light. However, when lit by a Movable Light, they will use a [Cached Shadow Map](Engine/Rendering/LightingAndShadows/LightMobility/DynamicLights#shadowmapcaching) to reuse for the next frame when the light is not moving, which can improve performance for projects using dynamic lighting.
 
+*   For **Light** Actors, this means they can change in some way during gameplay, such as having their color changed or their intensity changed to be brighter or softer or even completely off. Stationary lights still contribute to pre-calculated lightmaps using [Lightmass](Engine/Rendering/LightingAndShadows/Lightmass) but can also cast dynamic shadows for moving objects. Note that care must be used to not have too many Stationary Lights affecting a given Actor. See [Stationary Lights](Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights) for more details. 
 
-[EXCERPT:Stationary]
-Stationary is used for **Light Actors** that do not move, but may update in some way during gameplay, such as being switched on/off, having their color change, etc. Lights set up in this way still contribute to the Lightmass pre-calculated light map, but can also cast dynamic shadows for moving objects. However, care must be used not to have too many affecting a given Actor. See the [Stationary Lights documentation](Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights) for more details. **Static Mesh Actors** cannot have a Mobility of Stationary.
-[/EXCERPT:Stationary]
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_2]
 
+This mobility is reserved for Actors that need to be added, removed, or moved during gameplay.
 
-[EXCERPT:Movable]
-* **Static Mesh Actors** with a Mobility of Movable will not cast pre-calculated shadows into the light map. They can be lit by Static Light Actors due to the [Indirect Lighting Cache](Engine/Rendering/LightingAndShadows/IndirectLightingCache). They will cast dynamic shadows if lit by Stationary or Movable lights. This is the typical setting for any non-deforming mesh element that needs to move in a scene, such as a door, a lift, and so on.
-* **Light Actors** with a Mobility of Movable can only cast dynamic shadows. Because of this, care must be taken when making these lights cast shadows, as their shadowing method is the most performance intensive. 	It should be noted, however, that non-shadowing Movable lights are very inexpensive to calculate due to Unreal Engine's deferred rendering system.
-[/EXCERPT:Movable]
+*   For **Static Mesh** Actors, this means that they cast a fully dynamic shadow that does not cast pre-calculated shadows into the lightmap. When lit by Lights with Static mobility, they will use an indirect lighting method (like [Indirect Lighting Samples](Engine/Rendering/LightingAndShadows/IndirectLightingCache) or [Volumetric Lightmaps](Engine/Rendering/LightingAndShadows/VolumetricLightmaps)) to illuminate them. For Lights with Stationary or Movable mobility, they will only cast a dynamic shadow. This is the typical setting for any non-deforming mesh element that needs to added, removed, or moved in the scene. 
 
+*   For **Light** Actors, this means they can only cast dynamic shadows. In addition to being able to move the light during gameplay, they can also change their color and intensity during gameplay as well. However, care must be taken when making these lights cast shadows since their shadowing method is the most performance intensive. It should be noted that non-shadowing Movable Lights are very inexpensive to calculate due to Unreal Engine’s Deferred rendering system. 
 
-[/COMMENT]
+[/EXCERPT:excerpt_2]
+-->

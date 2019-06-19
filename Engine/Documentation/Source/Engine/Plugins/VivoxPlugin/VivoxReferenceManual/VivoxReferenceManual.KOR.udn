@@ -1,0 +1,37 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Vivox Reference Manual
+Description: Useful reference material for developers integrating Vivox into their projects.
+Type: 
+Version: 4.22
+Parent: Engine/Plugins/VivoxPlugin
+Order: 
+Tags: Vivox
+topic-image: Vivox_Topic_01.png
+
+
+## INI Settings
+
+The following are Vivox INI settings for Unreal Engine:
+
+    DefaultEngine.ini
+    [VoiceChat.Vivox]
+    ; ServerUrl from Vivox Developer Portal
+    ServerUrl=
+    ; Domain from Vivox Developer Portal
+    Domain=
+    ; Issuer from Vivox Developer Portal
+    Issuer=
+    ; Secret from Vivox Developer Portal. Should only be set during development before you have your token generation on a secure server
+    VivoxInsecureSecret=
+    ; Set bVADAutomaticParameterSelection to false use default Voice Activity Detection settings
+    bVADAutomaticParameterSelection=true
+    ; Set bEnableAudioDucking to true to enable audio ducking on iOS and XboxOne
+    bEnableAudioDucking=false
+
+## Console Command
+
+Printing out the state information of a Vivox connection is commonly used when debugging problems during development, to do this, enter the `VIVOX INFO` command into the **Console**.
+
+[](#)[](#)

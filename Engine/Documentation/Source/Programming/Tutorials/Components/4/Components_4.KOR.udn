@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3967023
+INTSourceChangelist:3967023
 Availability: Public
 Title:4. 폰과 컴포넌트 함께 사용하기
 Crumbs:%ROOT%, Programming, Programming/Tutorials, Programming/Tutorials/Components
@@ -27,7 +27,7 @@ version:4.9
 
 		class UCollidingPawnMovementComponent* OurMovementComponent;
 
-1. 기록을 유지할 곳이 생겼으면, 새로운 변수를 저장할 **Colliding Pawn Movement Component** 를 만들어 줘야 하니, `CollidingPawn.cpp` 를 열고 파일 상단 "GameFramework/Pawn.h" 줄 아래에 다음과 같이 추가하여 코드가 새 클래스를 레퍼런싱할 수 있도록 합니다:
+1. 기록을 유지할 곳이 생겼으면, 새로운 변수를 저장할 **Colliding Pawn Movement Component** 를 만들어 줘야 하니, `CollidingPawn.cpp` 를 열고 파일 상단 "GameFramework/Pawn.h" 줄 아래에 다음과 같이 추가하여 코드가 새 클래스를 참조할 수 있도록 합니다:
 
 		#include "CollidingPawnMovementComponent.h"
 	[REGION:warning]

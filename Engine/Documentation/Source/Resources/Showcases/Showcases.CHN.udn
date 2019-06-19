@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6410197
 Availability: Public
 Title:引擎特性示例
 Crumbs:%ROOT%, Resources
@@ -16,43 +16,19 @@ topic-image:Resources/Showcases/Reflections/Reflections_Topic.png
 
 [/EXCERPT:Showcases]
 
-%Resources/Showcases/PhotorealisticCharacter:topiccompact%
-%Resources/Showcases/SequencerSubway:topiccompact%
-%Resources/Showcases/Infiltrator:topiccompact%
-%Resources/ContentExamples:TopicCompact%
-%Engine/OpenWorldTools:TopicCompact%
-[OBJECT:TopicCompactVideo]
-	[PARAMLITERAL:title]
-	水面
-	[/PARAMLITERAL]
-	[PARAMLITERAL:playlistid]
-	PLZlv_N0_O1ga0aV9jVqJgog0VWz1cLL5f
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	aJ1M0Ejd_ts
-	[/PARAMLITERAL]
-	[PARAM:image]
-	![](WaterPlanes_Featured.png)
-	[/PARAM]
-[/OBJECT]
-[OBJECT:TopicCompactVideo]
-	[PARAMLITERAL:title]
-	功能导览（2014版）
-	[/PARAMLITERAL]
-	[PARAMLITERAL:playlistid]
-	PLZlv_N0_O1ga0aV9jVqJgog0VWz1cLL5f
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	FcxA_xYnHZ8
-	[/PARAMLITERAL]
-	[PARAM:image]
-	![](store_GDC2014_screenshot_2.png)
-	[/PARAM]
-[/OBJECT]
-%Resources/Showcases/MatineeFightScene:topiccompact%
-%Resources/Showcases/Reflections:TopicCompact%
-%Resources/Showcases/RealisticRendering:TopicCompact%
-%Resources/Showcases/Effects:TopicCompact%
 %Resources/Showcases/BlueprintExamples:TopicCompact%
+%Resources/ContentExamples:TopicCompact%
+%Resources/Showcases/DigitalHumans:TopicCompact%
+%Resources/Showcases/Effects:TopicCompact%
+%Resources/Showcases/Infiltrator:TopicCompact%
+%Resources/Showcases/MatineeFightScene:topiccompact%
+%Resources/Showcases/PhotorealisticCharacter:topiccompact%
+%Resources/Showcases/PixelStreamingShowcase:TopicCompact%
+%Resources/Showcases/RealisticRendering:TopicCompact%
+%Resources/Showcases/Reflections:TopicCompact%
+%Resources/Showcases/SequencerSubway:topiccompact%
+%Engine/OpenWorldTools:TopicCompact%
 %Resources/Showcases/Stylized:TopicCompact%
+%Resources/Showcases/VirtualStudio:TopicCompact%
+
 

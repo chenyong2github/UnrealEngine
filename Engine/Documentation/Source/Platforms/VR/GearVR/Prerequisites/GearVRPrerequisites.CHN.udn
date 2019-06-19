@@ -1,0 +1,89 @@
+﻿INTSourceChangelist:3782314
+Availability: Public
+Crumbs: %ROOT%
+Title: 三星Gear VR头戴设备必备条件
+Description:Gear VR头戴设备必需的初始设置
+Type: Reference
+Version: 4.17
+parent:Platforms/VR/GearVR
+Order: 1
+tags:VR
+tags:Gear VR
+tags:Basics
+tags:Getting Started
+prereq: Engine\Blueprints\GettingStarted
+prereq:Platforms/Mobile/Android/GettingStarted/
+topic-image:Platforms\VR\GearVR\SamsungGearVRDevelopment_topic.png
+
+[TOC(start:1 end:2)]
+
+![](Platforms\VR\GearVR\QuickStart\GVR_Headset_00.png)
+
+虚幻引擎4（UE4）支持构建三星Gear VR头戴设备的虚拟现实（VR）项目，将支持的三星智能手机转换为一个沉浸式VR设备。以下部分将讲述如何对UE4项目进行设置，使其兼容三星Gear VR头戴设备。
+
+(#gearvrofficialdocumentation)
+
+## Gear VR官方文档
+
+如需了解Gear VR SDK用法的深度讲解，或Oculus移动VR开发的更多内容，请移步下方的Oculus官方文档链接。
+
+* [Oculus移动软件开发包（SDK）设备和环境设置指南](http://static.oculus.com/sdk-downloads/documents/Oculus_Mobile_v0.4.0_Device_and_Environment_Setup_Guide.pdf)
+* [Oculus移动开发文档](http://static.oculus.com/sdk-downloads/documents/Oculus_Mobile_v0.5.0_SDK_Documentation.pdf)
+
+
+(#gearvrheadsetprerequisites)
+
+## Gear VR必备条件 
+
+在开始虚幻引擎4 Gear VR开发之前，首先必须满足以下必备条件；如未满足条件，则Gear VR项目有可能无法兼容Gear VR头戴设备。 
+
+* 准备好三星Galaxy智能手机和用于充电的USB连接线，将其插入开发电脑的USB接口。 
+USB接口是开发电脑和智能手机之间的数据传输媒介，其重要性很高。
+
+* Gear VR头戴设备只支持以下三星Galaxy智能手机。 
+    * Galaxy Note 8、S8、S8+、S7、S7 edge、Note5、S6 edge+、S6、S6 Edge
+    * 欲知详情，请参见[三星GearVR网站](http://www.samsung.com/global/galaxy/gear-vr/)。
+
+* 须从 [三星官网](http://www.samsung.com/us/support/downloads)下载Galaxy智能手机的USB驱动并进行安装。 
+
+* 安装 **Engine\Extras\Android** 路径下的 **CodeWorks for Android 1R6u1**。  
+
+* 检查三星Galaxy智能手机是否已启动[开发者模式](https://docs.unrealengine.com/latest/INT/Platforms/Mobile/Android/GettingStarted/2/index.html)。如未启动，则将其启动。 
+
+* 为保证设备插入后电脑能固定识别，可在开发者选项中启用 **USB调试（USB Debugging）**。执行此操作时，必须接受电脑的RSA指纹密钥，否则无法部署到设备。
+
+    ![](USB_Debugging_Enabled.png)(w:350)
+
+* 使用手机的设备ID和[Oculus](https://developer.oculus.com/tools/osig/)网站来生成并下载三星智能手机的 **OSIG文件**。
+[Oculus网站](https://developer.oculus.com/tools/osig/)中有如何获取智能手机 **设备ID** 的详细说明。
+    
+    ![](Platforms\VR\GearVR\GVR_OSIG_Website.png)
+
+* OSIG文件下载完成后，创建一个名为 **assets** 的文件夹，将 **OSIG** 文件置入其中。 
+然后将文件夹放入 **Engine/Build/Android/Java** 路径。 
+
+    [region:warning]
+    如未执行此操作，将无法在智能手机上启动项目。
+    [/region]
+    
+    ![](Platforms\VR\GearVR\GVR_OSIG_File_Location.png)
+
+* 也可将OSIG文件放置到项目的 **Build/Android/assets** 目录中（而非Engine/Build/Android/Java）。 
+
+    [region:note]
+    注意：以此方法添加OSIG文件将导致其只能用于其被添加到的项目，无法用于其他Gear VR项目。
+    [/region]
+
+
+进入下一部分之前，须确保“Gear VR 必备条件”章节中列出的所有操作均已完成。 
+如有操作未执行，可能导致项目和Gear VR头戴设备不兼容。 
+
+(#gearvrdevelopment)
+
+## Gear VR开发
+
+[REGION:buttonlist]
+* [](Platforms/VR/GearVR/QuickStart "%Platforms/VR/GearVR/QuickStart:description%")
+* [](Platforms/VR/GearVR/BestPractices "%Platforms/VR/GearVR/BestPractices:description%")
+* [](Platforms/VR/GearVR/Debugging "%Platforms/VR/GearVR/BestPractices:description%")
+[/REGION]

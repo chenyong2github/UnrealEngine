@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6412401
 Availability:Public
 Title:애니메이션 블렌드 모드
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:애니메이션 포즈와 트랜지션 사이의 다양한 블렌딩 함수에 대한 개요입니다.
 version: 4.11
+tags:Animation
+tags:Animation Features
 Related: Engine\Animation\StateMachines\TransitionRules
 Related: Engine\Animation\StateMachines
 Related: Engine/UI/CurveEditor

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4323617
+﻿INTSourceChangelist:6417095
 Availability: Public
 Crumbs: %ROOT%, 
 Title:启用Niagara插件
@@ -9,7 +9,6 @@ Version: 4.17
 parent:Engine/Niagara/HowTo
 order:1
 tags:Niagara
-topic-image:
 
 首先必须通过 **插件（Plugins）** 菜单启用Niagara，然后才能开始使用Niagara创建视觉效果。在以下操作指南中，我们将说明需要在UE4中完成的所有操作，以便您能够使用Niagara。
 

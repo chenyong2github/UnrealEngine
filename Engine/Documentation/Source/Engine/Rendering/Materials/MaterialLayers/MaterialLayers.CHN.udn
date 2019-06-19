@@ -1,0 +1,96 @@
+﻿INTSourceChangelist:6060210
+Availability: Public
+Title: 材质图层
+Description: 包括虚幻引擎4适用参考和指南在内的产品文档
+Parent: Engine/Rendering/Materials
+Tags: Materials
+Tags: Rendering
+Tags: Experimental
+Tags: 材料图层
+Tags: Landing Page
+topic-image: MaterialLayers_Topic.png
+Order: 15
+
+
+我们以草稿形式提供对本文内容的提前访问权限，以便让您开始运行。请尽快回来查看更新！
+
+材质分层使您能够使用新的材质图层和材质图层混合资源来 **将您的材质组合在堆栈中**。这使您能够无需手动构建节点部分即可构建正确的材质图表。该功能类似于Material函数，但支持创建子实例。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ vc5Jg-iqPgk
+ [/PARAMLITERAL]
+[/OBJECT]
+
+要启用该功能，请导航到 **项目设置（Project Settings）> 渲染（Rendering）> 实验性（Experimental）**，并将 **支持材质图层** 设置为true。
+  
+ **材质分层** 是一种将材质组合在堆栈中的新方法，无需手动构建节点图表就可以构建出正确的材质图表。我们使用了两种新的资源类型来实现这一点：
+
+*   材质图层
+
+*   材质图层混合
+
+在功能上，这些行为类似于Material函数。这些新的资源类型还使您能够创建子实例，这是使用Material函数无法实现的。  
+  
+ **材质图层** 资源有一个默认的输入节点，它将基本材质属性从材质中导入。**材质图层混合（Material Layer Blend）** 资源有两个默认的输入节点，允许您从上面和下面的图层访问材质属性。  
+  
+![](MaterialBlendGraph.png)  
+  
+一旦创建了材质图层和材质图混合资源，就可以使用材质中的 **Material Attributes Layers** 节点将它们组合起来。选中该节点后，可以添加图层，并从该节点的详情（Details）面板中设置每个图层和混合应拥有的资源。  
+  
+![](MaterialLayer_RN.png)  
+  
+当使用包含Material Attribute Layers节点的父材质编辑材质实例时，材质实例编辑器还包含一个 **图层参数（Layer Parameters）** 选项卡。在这里，您可以更改已设置的任何现有图层或混合使用的资源。根据需要使用 **添加(+)（Add(+)）** 按钮向堆栈添加额外的图层。您还可以看到每个材质图层和材质图层混合中包含的参数，并通过输入新的值来分别覆盖它们的值。  
+  
+![](MaterialLayerInstance_RN.png) 
+ 
+
+## 向图层传递参数
+
+目前主要有三种的方法来实现这一点，其中大多数方法适用于混合和图层。
+
+1.  **在图层中创建一个参数，该函数的行为类似于现有的材质和Material函数。**  
+      
+    在图层图表中添加的参数对该图层而言是唯一的，并且可以在该图层的分段中进行编辑。即使添加了同一图层的多个副本，每个副本都有自己的参数副本进行控制。
+
+1.  **使用Material Attribute Layers堆栈的输入引脚。**  
+      
+    这将使用另一个材质属性作为输入，它将被导入到每个添加的图层中。例如，我们可以将网格体的一个基础法线贴图作为输入传递，像下面这样：  
+       
+    ![](layer_ma_output.png)
+    
+    然后在我们的示例材质图层中，我们得到输入和混合：  
+      
+    ![](layer_ma_input.png)  
+      
+    每个图层都可以选择使用或忽略堆栈基础材质属性输入。目前，该方法在混合图表中不可访问。
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 2dfkedfW1yI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 7ieuiaZNwII
+ [/PARAMLITERAL]
+[/OBJECT]

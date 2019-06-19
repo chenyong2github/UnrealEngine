@@ -1,4 +1,4 @@
-INTSourceChangelist:4308120
+INTSourceChangelist:6278513
 Availability: Public
 Crumbs: %ROOT%
 Title: 스카이 라이트
@@ -6,7 +6,7 @@ Description: 언리얼 엔진 4 의 스카이 라이트에 대한 개요입니�
 Type: Overview
 SkillLevel:Beginner
 Version:4.18
-Parent:Engine/Rendering/LightingAndShadows
+Parent:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Rendering/LightingAndShadows/Lightmass
 Related:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion
@@ -137,7 +137,7 @@ Sky Light (스카이 라이트)는 레벨의 먼 부분을 캡처하여 그 부�
 [/OBJECT]
 [REGION:caption]  [/REGION]
 [REGION:caption]
-에픽의 [로보 리콜](Modding/RoboRecall) 의 첫 시작 사무실에서 이 개선사항 예제를 확인할 수 있습니다.
+에픽의 **로보 리콜** 의 첫 시작 사무실에서 이 개선사항 예제를 확인할 수 있습니다.
 [/REGION]
 
 밝기나 색 다변화가 큰 스카이라이트 큐브맵이 있는 차폐가 심한 씬에서 큰 차이를 확인할 수 있습니다.

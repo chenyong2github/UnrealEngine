@@ -5,7 +5,7 @@ Description: Describes how to use Python in the Unreal Editor to script content 
 Type: 
 Version: 4.20
 Parent: Engine/Editor/ScriptingAndAutomation
-Order: 4
+Order: 1
 Tags: Unreal Studio
 Tags: Datasmith
 Tags: overview

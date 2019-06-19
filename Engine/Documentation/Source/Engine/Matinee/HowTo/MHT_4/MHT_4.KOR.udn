@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability: Public
 Title:카메라 이펙트 사용
 Crumbs: %ROOT%, Engine, Engine/Matinee, Engine/Matinee/HowTo
@@ -6,7 +6,7 @@ Description:페이드 인/아웃, 다중 FOV 앵글, 포스트 프로세스 이�
 Version: 4.9
 SkillLevel: Intermediate
 
-이번 비법에서는 다양한 FOV (필드 오브 뷰), 뎁스 오브 필드, 기타 포스트 프로세싱 이펙트가 적용된 다중 카메라 앵글을 사용하는 짧은 시퀀스를 만들어 보겠습니다.
+이번 하우투에서는 다양한 FOV (필드 오브 뷰), 뎁스 오브 필드, 기타 포스트 프로세싱 이펙트가 적용된 다중 카메라 앵글을 사용하는 짧은 시퀀스를 만들어 보겠습니다.
 
 [INCLUDE:Engine/Matinee/HowTo/MHT_1#projectstart]
 
@@ -90,7 +90,7 @@ SkillLevel: Intermediate
 
 1. 7, 8 단계를 반복하고, **CameraComponent.PostProcessSettings.FilmContrast** 옵션을 추가한 뒤 **Ok** 를 누릅니다. 
 
-1. 7, 8 단계를 한 번 더 반복하되, 이번에는 **CameraComponent.PostProcessSettings.FilmSaturation** 옵션을 추가하고 **OK** 를 누릅니다.
+1. 7, 8 단계를 한 번 더 반복하지만, 이번에는 **CameraComponent.PostProcessSettings.FilmSaturation** 옵션을 추가하고 **OK** 를 누릅니다.
 
 1. 아래에서처럼, **Camera1** 그룹에 **Movement** 와 **FOV** 트랙은 물론 세 개의 **Float Property** 트랙이 보입니다.
 

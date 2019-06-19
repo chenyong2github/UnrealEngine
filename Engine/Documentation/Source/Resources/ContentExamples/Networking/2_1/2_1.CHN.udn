@@ -1,7 +1,30 @@
-﻿Availability: Public
-Title:2.1 - 网络关联性（第一部分-根本未被复制）
-Crumbs:%ROOT%, Resources, Resources/ContentExamples/Networking
-Description:网络特性示例关卡概述，示例2.1： 网络关联性（第一部分-根本未被复制）。
+INTSourceChangelist:3782314
+Availability: Public
+Title:2.1 - 网络相关性[第1部分 - 完全不复制]
+Crumbs:%ROOT%, Resources, Resources/ContentExamples, Resources/ContentExamples/Networking
+Description:网络功能示例关卡概述，示例2.1：网络相关性（第1部分 - 完全不复制）。
+Related: Gameplay/Networking
+Related: Gameplay/Networking/Actors/Components
+Related: Gameplay/Networking/Actors
+Related: Gameplay/Networking/Actors/RPCs
+Related: Engine/UI/LevelEditor/InEditorTesting/NetworkedPlayInEditor
+Version:4.9
+
+[VAR:Steps]
+[OBJECT:Navigation]
+	[PARAM:previous]
+	[/PARAM]
+	[PARAM:current]
+	[/PARAM]
+	[PARAM:home]
+		[网络主页](Resources/ContentExamples/Networking)
+	[/PARAM]
+	[PARAM:next]
+		[下一示例](Resources/ContentExamples/Networking/2_2 "%Resources/ContentExamples/Networking/2_2:title%")
+	[/PARAM]
+[/OBJECT]
+[/VAR]
+
 
 
 [VAR:TopicCompact]
@@ -27,33 +50,33 @@ Description:网络特性示例关卡概述，示例2.1： 网络关联性（第�
 [/REGION]
 
 [REGION:tip]
-为能同时从 **服务器** 和 **客户端** 进行查看，请在 **Play** （运行）的下拉框中，设置 **Number of Clients** （客户端数量）区域为2。
+为了能够从 **服务器** 和 **客户端** 两个视角进行查看，请在 **运行（Play）** 下拉菜单中将 **客户端数量（Number of Clients）** 字段设置为2。
 [/REGION]
 
 
-## 概述
-为能通过蓝图创建网络连接正确的游戏，重要的一点是同时了解 **Network Relevancy** （网络关联性）的概念。 
-简单来说，让客户端的机器总是接受每个Actor的网络数据是不合理的。 从网络角度来说，在大地图一端的玩家不必了解在地图另一端发生的每件事。 
-这样的话，我们可以说在给定时间内，只有一部分Actors与玩家"相关"。 相关的Actors指的就是那些玩家可以看到，可以互动或位于玩家附近的Actors。 从最优化角度来说，玩家仅仅接受相关Actors的完整网络更新。 
+要通过蓝图创建联网方式正确的游戏进程，理解 **网络相关性** 的概念也很重要。 
+简单来说，始终让客户端计算机接收每个Actor的网络数据通常没有意义。位于大型地图一端的玩家不需要通过网络知道地图的另一端发生的一切。 
+在这种情况下，我们认为在给定时间只有部分Actor与玩家“相关”。相关Actor通常是玩家可以看到、可与之交互或位于玩家附近的Actor。作为一种优化方法，玩家仅接收相关Actor的所有网络更新。 
 
-最优化的副作用之一就是您不得不考虑如何处理当Actor开始为不相关然后成为相关时的情况（一般是由于玩家移动到附近造成的）。 这和处理玩家加入存在的进行中的游戏的情况非常类似。 
+这种优化方法的一个副作用是，你还必须考虑如何处理Actor本来不相关但后来变得相关（通常是因为玩家靠近Actor）这种情况。这与处理加入正在进行的游戏的玩家时面临的问题非常相似。 
 
-本例中，以及 **Network Relevancy** （网络关联性）示例的其它部分，在考虑关联性的前提下，将导致开箱操作的再生。
+在本示例以及剩余的 **网络相关性** 示例中，我们将重现将相关性纳入考虑范围之后的宝箱打开行为。
 
 
-## 蓝图详细信息
-在 **BP_Relevancy_Replication_None** 蓝图的事件图表中，您可以看到在权限侧接收到有人与触发器重叠的信号时， **OnChestTouched** 函数被调用并仅由 **DoOnce** 节点执行一次。 
+(#blueprintbreakdown)
+## 蓝图详细介绍
+在 **BP_Relevancy_Replication_None** 蓝图的事件图表中，你可以看到当权限接收到有人与触发器重叠的信号时，**OnChestTouched** 函数被调用而且仅由 **DoOnce** 节点执行一次。 
 
-**点击查看放大图片**
+**单击查看大图**
 [REGION:lightbox]
 	[![](Resources/ContentExamples/Networking/2_1/2_1_EventGraph.png)(w:640)](Resources/ContentExamples/Networking/2_1/2_1_EventGraph.png)
 [/REGION]
 
-**OnChestTouched** 函数随后执行两个额外函数： 一个函数用来开箱子，另一个函数用来播放与开箱子相绑定的特效。 
+然后 **OnChestTouched** 函数将执行两个附加函数：一个用于打开宝箱，另一个用于播放与宝箱打开事件绑定的效果。 
 
-**点击查看放大图片**
+**单击查看大图**
 [REGION:lightbox]
 	[![](Resources/ContentExamples/Networking/2_1/2_1_OnChestTouched.png)(w:640)](Resources/ContentExamples/Networking/2_1/2_1_OnChestTouched.png)
 [/REGION]
 
-由于示例不会尝试处理复制或关联性，因此仅能在服务器侧看到开箱。
+由于示例未尝试处理复制或相关性，只有服务器能够看到宝箱打开。 

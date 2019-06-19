@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6341512
 Availability:NoPublish
 Title:FConstraintInstance RTTs
 Crumbs:
@@ -359,7 +359,7 @@ Engine/Physics/Constraints/ConstraintsReference#sharedproperties
 
 각형 방향 드라이브 - 선형 위치 드라이브와 마찬가지로, 각형 방향 드라이브는 피직스 컨스트레인트를 기준으로 원하는 방향을 낼 수 있도록 시도합니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularOrientationDrive]
@@ -374,7 +374,7 @@ Engine/Physics/PhAT/Properties#physicsconstraintproperties
 
 각형 속도 드라이브 - 타깃 속도를 향한 각형 드라이브를 켭니다.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularVelocityDrive]
