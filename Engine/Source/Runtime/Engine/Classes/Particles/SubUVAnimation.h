@@ -193,7 +193,7 @@ public:
 		return &DerivedData.BoundingGeometry[FrameIndex * GetNumBoundingVertices()];
 	}
 
-	inline FShaderResourceViewRHIParamRef GetBoundingGeometrySRV() const
+	inline FRHIShaderResourceView* GetBoundingGeometrySRV() const
 	{
 		return BoundingGeometryBuffer->ShaderResourceView;
 	}

@@ -4,43 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
-
-/**
- * Destroy this object to free the associated memory of a request.
- */
-class IFileCacheReadBuffer
-{
-public:
-	void *GetData() { return Memory;  }
-	size_t GetSize() const { return Size; }
-	virtual ~IFileCacheReadBuffer() {};
-protected:
-	uint8 *Memory;
-	size_t Size;
-};
-
-class FAllocatedFileCacheReadBuffer : public IFileCacheReadBuffer
-{
-public:
-
-	FAllocatedFileCacheReadBuffer(const void *Data, size_t NumBytes)
-	{
-		Memory = (uint8*)FMemory::Malloc(NumBytes);
-		FMemory::Memcpy(Memory, Data, NumBytes);
-		Size = NumBytes;
-	}
-	
-	FAllocatedFileCacheReadBuffer(size_t NumBytes)
-	{
-		Memory = (uint8*)FMemory::Malloc(NumBytes);
-		Size = NumBytes;
-	}
-
-	virtual ~FAllocatedFileCacheReadBuffer()
-	{
-		FMemory::Free(Memory);
-	}
-};
+#include "Async/TaskGraphInterfaces.h"
+#include "Misc/MemoryReadStream.h"
 
 /**
  * Thready safety note: Once created a IFileCacheHandle is assumed to be only used from a single thread.
@@ -54,22 +19,22 @@ public:
 class IFileCacheHandle
 {
 public:
-	static IFileCacheHandle *CreateFileCacheHandle(const FString &FileName);
+	static void EvictAll();
+
+	static IFileCacheHandle *CreateFileCacheHandle(const TCHAR* InFileName);
 	virtual ~IFileCacheHandle() {};
 
 	/**
 	 * Read a byte range form the file. This can be a high-throughput operation and done lots of times for small reads.
 	 * The system will handle this efficiently.
-	 * 
-	 * If the data is not currently available this function will return nullptr. The user is encouraged to try reading
-	 * the byte range again at a later time as the system strives to make data that was tried for a read but not available
-	 * resident in the future.
+	 * @param	OutCompletionEvents			Must wait until these events are complete before returned data is valid
+	 * @return	Memory stream that contains the requested range.  May return nullptr in rare cases if the request could not be serviced
+	 *			Data read from this stream will not be valid until all events returned in OutCompletionEvents are complete
 	 */
-	virtual IFileCacheReadBuffer *ReadData(int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags PriorityAndFlags) = 0;
+	virtual IMemoryReadStreamRef ReadData(FGraphEventArray& OutCompletionEvents, int64 Offset, int64 BytesToRead, EAsyncIOPriorityAndFlags Priority) = 0;
 
 	/**
 	 * Wait until all outstanding read requests complete. 
-	 * Note: this does not guarantee that any previous calls to ReadData that returned null will in fact return data now.
 	 */
 	virtual void WaitAll() = 0;
 };

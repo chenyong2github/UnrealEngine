@@ -2713,7 +2713,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomNameWidgetsForSection(i
 
 TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSection(int32 LODIndex, int32 SectionIndex)
 {
-	extern ENGINE_API bool IsGPUSkinCacheAvailable();
+	extern ENGINE_API bool IsGPUSkinCacheAvailable(EShaderPlatform Platform);
 
 	TSharedRef<SVerticalBox> SectionWidget = SNew(SVerticalBox);
 
@@ -2783,7 +2783,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 		.Padding(2, 0, 2, 0)
 		[
 			SNew(SCheckBox)
-			.IsEnabled(IsGPUSkinCacheAvailable())
+			.IsEnabled(IsGPUSkinCacheAvailable(GMaxRHIShaderPlatform))
 			.IsChecked(this, &FPersonaMeshDetails::IsSectionRecomputeTangentEnabled, LODIndex, SectionIndex)
 			.OnCheckStateChanged(this, &FPersonaMeshDetails::OnSectionRecomputeTangentChanged, LODIndex, SectionIndex)
 			[

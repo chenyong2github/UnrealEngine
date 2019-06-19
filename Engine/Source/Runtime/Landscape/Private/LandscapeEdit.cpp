@@ -45,6 +45,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "MeshAttributeArray.h"
 #include "MeshUtilitiesCommon.h"
 
+#include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -591,6 +592,13 @@ void ULandscapeComponent::PostEditUndo()
 		TSet<ULandscapeComponent*> Components;
 		Components.Add(this);
 		GetLandscapeProxy()->FlushGrassComponents(&Components);
+	}
+
+	if (GetLandscapeProxy()->RuntimeVirtualTextures.Num() > 0)
+	{
+		//todo[vt]: Only flush this specific virtual textures
+		//todo[vt]: Only flush Bounds 
+		GetRendererModule().FlushVirtualTextureCache();
 	}
 }
 

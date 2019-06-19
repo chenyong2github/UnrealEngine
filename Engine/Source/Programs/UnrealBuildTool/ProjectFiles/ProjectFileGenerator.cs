@@ -607,7 +607,11 @@ namespace UnrealBuildTool
 			else
 			{
 				// Set the master project name from the folder name
-				if(bMasterProjectNameFromFolder)
+				if (Environment.GetEnvironmentVariable("UE_NAME_PROJECT_AFTER_FOLDER") == "1")
+				{
+					MasterProjectName += "_" + Path.GetFileName(MasterProjectPath.ToString());
+				}
+				else if(bMasterProjectNameFromFolder)
 				{
 					string NewMasterProjectName = MasterProjectPath.GetDirectoryName();
 					if(!String.IsNullOrEmpty(NewMasterProjectName))
@@ -640,12 +644,6 @@ namespace UnrealBuildTool
 					IntermediateProjectFilesPath = new DirectoryReference(IntermediateProjectFilesPath.FullName + SortedPlatform);
 				}
 			}
-
-            // Optionally include the folder name in the project
-            if (Environment.GetEnvironmentVariable("UE_NAME_PROJECT_AFTER_FOLDER") == "1")
-            {
-                MasterProjectName += "_" + Path.GetFileName(MasterProjectPath.ToString());
-            }
 
 			bool bCleanProjectFiles = Arguments.Any(x => x.Equals("-CleanProjects", StringComparison.InvariantCultureIgnoreCase));
 			if (bCleanProjectFiles)

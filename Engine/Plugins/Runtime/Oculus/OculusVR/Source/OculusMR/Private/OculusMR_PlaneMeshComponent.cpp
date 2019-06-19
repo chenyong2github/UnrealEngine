@@ -127,7 +127,7 @@ public:
 					//Mesh.bWireframe = bWireframe;
 					//Mesh.VertexFactory = &VertexFactory;
 					//Mesh.MaterialRenderProxy = MaterialProxy;
-					//BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, UseEditorDepthTest());
+					//BatchElement.PrimitiveUniformBuffer = CreatePrimitiveUniformBufferImmediate(GetLocalToWorld(), GetBounds(), GetLocalBounds(), true, DrawsVelocity());
 					//BatchElement.FirstIndex = 0;
 					//BatchElement.NumPrimitives = IndexBuffer.Indices.Num() / 3;
 					//BatchElement.MinVertexIndex = 0;

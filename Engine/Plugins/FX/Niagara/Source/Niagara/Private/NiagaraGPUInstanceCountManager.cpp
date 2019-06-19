@@ -232,7 +232,7 @@ void FNiagaraGPUInstanceCountManager::EnqueueGPUReadback(FRHICommandListImmediat
 	{
 		if (!CountReadback)
 		{
-			CountReadback = new FRHIGPUMemoryReadback(TEXT("Niagara GPU Instance Count Readback"));
+			CountReadback = new FRHIGPUBufferReadback(TEXT("Niagara GPU Instance Count Readback"));
 		}
 		CountReadbackSize = UsedInstanceCounts;
 		CountReadback->EnqueueCopy(RHICmdList, CountBuffer.Buffer);

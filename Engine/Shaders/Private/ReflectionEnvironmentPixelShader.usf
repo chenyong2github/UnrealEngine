@@ -12,6 +12,7 @@
 #include "DistanceFieldAOShared.ush"
 #include "ShadingModels.ush"
 #include "LightGridCommon.ush"
+#include "SceneTextureParameters.ush"
 
 #define REFLECTION_COMPOSITE_USE_BLENDED_REFLECTION_CAPTURES 1
 #define REFLECTION_COMPOSITE_SUPPORT_SKYLIGHT_BLEND 1
@@ -47,16 +48,19 @@ float3 GatherRadiance(float CompositeAlpha, float3 WorldPosition, float3 RayDire
 Texture2D ScreenSpaceReflectionsTexture;
 SamplerState ScreenSpaceReflectionsSampler;
 
+
+Texture2D AmbientOcclusionTexture;
+SamplerState AmbientOcclusionSampler;
+
+
 float3 ContrastAndNormalizeMulAdd;
 float OcclusionExponent;
 float OcclusionCombineMode;
 
-float3 SkyLightDiffuse(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, float3 BentNormal)
+float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float3 BentNormal)
 {
-	float2 UV = UVAndScreenPos.xy;
+	float2 UV = BufferUV;
 	float3 Lighting = 0;
-
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
 
 	float SkyVisibility = 1;
 	float DotProductFactor = 1;
@@ -105,12 +109,12 @@ float3 SkyLightDiffuse(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, 
 	if (OcclusionCombineMode == 0)
 	{
 		// Combine with min which nicely avoids over-occlusion in cases where strong DFAO is present along with strong SSAO (distant trees)
-		SkyVisibility = min(SkyVisibility, min(GBuffer.GBufferAO, ScreenSpaceData.AmbientOcclusion));
+		SkyVisibility = min(SkyVisibility, min(GBuffer.GBufferAO, AmbientOcclusion));
 	}
 	else
 	{
 		// Combine with mul, which continues to add SSAO depth even indoors.  SSAO will need to be tweaked to be less strong.
-		SkyVisibility = SkyVisibility * min(GBuffer.GBufferAO, ScreenSpaceData.AmbientOcclusion);
+		SkyVisibility = SkyVisibility * min(GBuffer.GBufferAO, AmbientOcclusion);
 	}
 
 	float ScalarFactors = SkyVisibility;
@@ -136,7 +140,7 @@ float3 SkyLightDiffuse(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, 
 	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
 	{
 		float3 N = GBuffer.WorldNormal;
-		float3 V = -normalize(mul(float4(UVAndScreenPos.zw, 1, 0), View.ScreenToWorld).xyz);
+		float3 V = -normalize(mul(float4(ScreenPosition, 1, 0), View.ScreenToWorld).xyz);
 		float3 L = normalize(V - N * dot(V, N));
 		SkyLightingNormal = L;
 		DiffuseColor = PI * HairShading(GBuffer, L, V, N, 1, 0, 0.2, uint2(0, 0));
@@ -154,7 +158,7 @@ float3 SkyLightDiffuse(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, 
 	// apply the Diffuse color to the lighting (including OcclusionTintAndMinOcclusion as it's considered another light, that fixes SubsurfaceProfile being too dark)
 	Lighting += ((ScalarFactors * DotProductFactor) * DiffuseLookup + (1 - SkyVisibility) * OcclusionTintAndMinOcclusion.xyz) * DiffuseColor;
 
-	Lighting += DiffuseIrradiance * GBuffer.DiffuseColor * (GBuffer.GBufferAO * ScreenSpaceData.AmbientOcclusion);
+	Lighting += DiffuseIrradiance * GBuffer.DiffuseColor * (GBuffer.GBufferAO * AmbientOcclusion);
 
 #if USE_PREEXPOSURE
 	Lighting *= View.PreExposure;
@@ -170,26 +174,7 @@ float3 SkyLightDiffuse(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, 
 	return Lighting;
 }
 
-// Used during reflection captures and SM4 to get faked bounce light from specular surfaces
-float3 SpecularBounce(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos)
-{
-	float2 UV = UVAndScreenPos.xy;
-
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
-
-	float3 ScreenVector = normalize(mul(float4(UVAndScreenPos.zw, 1, 0), View.ScreenToWorld).xyz);
-
-	float3 N = GBuffer.WorldNormal;
-	float3 V = -ScreenVector;
-
-	float NoV = saturate(dot(N, V));
-
-	GBuffer.SpecularColor = EnvBRDFApprox(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
-
-	return GBuffer.SpecularColor * GBuffer.IndirectIrradiance;
-}
-
-float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScreenPos, float4 SvPosition, float3 BentNormal)
+float3 ReflectionEnvironment(FGBufferData GBuffer, float AmbientOcclusion, float2 BufferUV, float2 ScreenPosition, float4 SvPosition, float3 BentNormal)
 {
 #if USE_PREEXPOSURE
 	const float PreExposure = View.PreExposure;
@@ -199,12 +184,7 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 	
 	float4 Color = float4(0, 0, 0, 1);
 
-	float2 ScreenUV = UVAndScreenPos.xy;
-	float2 ScreenPosition = UVAndScreenPos.zw;
-	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
-	float SceneDepth = CalcSceneDepth(ScreenUV);
-	
-	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	float3 WorldPosition = mul(float4(ScreenPosition * GBuffer.Depth, GBuffer.Depth, 1), View.ScreenToWorld).xyz;
 	float3 CameraToPixel = normalize(WorldPosition - View.WorldCameraOrigin);
 	float3 ReflectionVector = reflect(CameraToPixel, GBuffer.WorldNormal);
 	float IndirectIrradiance = GBuffer.IndirectIrradiance;
@@ -214,7 +194,6 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 	// Add in diffuse contribution from dynamic skylights so reflection captures will have something to mix with
 	if (ReflectionStruct.SkyLightParameters.y > 0 && ReflectionStruct.SkyLightParameters.z > 0)
 	{
-		float2 ScreenUV = ScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 		IndirectIrradiance += GetDynamicSkyIndirectIrradiance(BentNormal, GBuffer.WorldNormal);
 	}
 #endif
@@ -230,7 +209,7 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 
 #if 1
 	// Note: this texture may also contain planar reflections
-	float4 SSR = Texture2DSample( ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, ScreenUV );
+	float4 SSR = Texture2DSample(ScreenSpaceReflectionsTexture, ScreenSpaceReflectionsSampler, BufferUV);
 	Color.rgb = SSR.rgb;
 	Color.a = 1 - SSR.a;
 #endif
@@ -241,7 +220,7 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 	if(GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT )
 	{
 #if RAY_TRACED_REFLECTIONS
-		Color = float4(0, 0, 0, 0); // Clear coat reflection is expected to be computed on a black background
+		Color = float4(0, 0, 0, 1); // Clear coat reflection is expected to be computed on a black background
 #endif
 		const float ClearCoat = GBuffer.CustomData.x;
 		Color = lerp( Color, float4(0,0,0,1), ClearCoat );
@@ -255,7 +234,7 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 #endif
 	}
 
-	float AO = GBuffer.GBufferAO * ScreenSpaceData.AmbientOcclusion;
+	float AO = GBuffer.GBufferAO * AmbientOcclusion;
 	float RoughnessSq = GBuffer.Roughness * GBuffer.Roughness;
 	float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, AO);
 	Color.a *= SpecularOcclusion;
@@ -263,7 +242,7 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	float2 LocalPosition = SvPosition.xy - View.ViewRectMin.xy;
 
-	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SceneDepth);
+	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), GBuffer.Depth);
 	uint NumCulledEntryIndex = (ForwardLightData.NumGridCells + GridIndex) * NUM_CULLED_LIGHTS_GRID_STRIDE;
 	uint NumCulledReflectionCaptures = min(ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 0], ForwardLightData.NumReflectionCaptures);
 	uint DataStartIndex = ForwardLightData.NumCulledLightsGrid[NumCulledEntryIndex + 1];
@@ -294,9 +273,10 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 		Color.rgb *= LayerAttenuation;
 		Color.a = F;
 		
-			
+#if !RAY_TRACED_REFLECTIONS	
 		Color.rgb += SSR.rgb * F;
 		Color.a *= 1 - SSR.a;
+#endif
 			
 		Color.a *= SpecularOcclusion;
 
@@ -317,27 +297,34 @@ float3 ReflectionEnvironment(FScreenSpaceData ScreenSpaceData, float4 UVAndScree
 }
 
 void ReflectionEnvironmentSkyLighting(
-	in noperspective float4 UVAndScreenPos : TEXCOORD0,
 	in float4 SvPosition : SV_Position,
 	out float4 OutColor : SV_Target0)
 {
-	float2 ScreenUV = UVAndScreenPos.xy;
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-	uint ShadingModelID = ScreenSpaceData.GBuffer.ShadingModelID;
+	float2 BufferUV = SvPositionToBufferUV(SvPosition);
+	float2 ScreenPosition = SvPositionToScreenPosition(SvPosition).xy;
 
+	// Sample scene textures.
+	FGBufferData GBuffer = GetGBufferDataFromSceneTextures(BufferUV);
+
+	// Sample the ambient occlusion that is dynamically generated every frame.
+	float AmbientOcclusion = AmbientOcclusionTexture.SampleLevel(AmbientOcclusionSampler, BufferUV, 0).r;
+	
+	uint ShadingModelID = GBuffer.ShadingModelID;
+	float3 BentNormal = GBuffer.WorldNormal;
+	#if APPLY_SKY_SHADOWING
+	{
+		BentNormal = UpsampleDFAO(BufferUV, GBuffer.Depth);
+	}
+	#endif
+	
 	OutColor = 0.0f;
 
-	float3 BentNormal = ScreenSpaceData.GBuffer.WorldNormal;
-#if APPLY_SKY_SHADOWING
-	BentNormal = UpsampleDFAO(UVAndScreenPos);
-#endif
-
+	#if ENABLE_DYNAMIC_SKY_LIGHT
 	BRANCH
 	// Only light pixels marked as lit
-	if (ShadingModelID > 0)
+	if (ShadingModelID != SHADINGMODELID_UNLIT)
 	{
-#if ENABLE_DYNAMIC_SKY_LIGHT
-		float3 SkyLighting = SkyLightDiffuse(ScreenSpaceData, UVAndScreenPos, BentNormal);
+		float3 SkyLighting = SkyLightDiffuse(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, BentNormal);
 
 		// Scene color alpha is used for ScreenSpaceSubsurfaceScattering (if that is not needed it can be disabled with SUBSURFACE_CHANNEL_MODE)
 		FLightAccumulator LightAccumulator = (FLightAccumulator)0;
@@ -346,17 +333,13 @@ void ReflectionEnvironmentSkyLighting(
 
 		LightAccumulator_Add(LightAccumulator, SkyLighting, SkyLighting, 1.0f, bNeedsSeparateSubsurfaceLightAccumulation);
 		OutColor = LightAccumulator_GetResult(LightAccumulator);
-#endif
 	}
+	#endif
 
 	BRANCH
 	if (ShadingModelID != SHADINGMODELID_UNLIT && ShadingModelID != SHADINGMODELID_HAIR)
 	{
-#if SPECULAR_BOUNCE
-		OutColor.xyz += SpecularBounce(ScreenSpaceData, UVAndScreenPos);
-#else
-		OutColor.xyz += ReflectionEnvironment(ScreenSpaceData, UVAndScreenPos, SvPosition, BentNormal);
-#endif
+		OutColor.xyz += ReflectionEnvironment(GBuffer, AmbientOcclusion, BufferUV, ScreenPosition, SvPosition, BentNormal);
 	}
 }
 

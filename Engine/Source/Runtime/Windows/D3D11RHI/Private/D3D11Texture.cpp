@@ -1305,184 +1305,92 @@ void FD3D11DynamicRHI::RHIGetResourceInfo(FTextureRHIParamRef Ref, FRHIResourceI
 	}
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTextureRHIParamRef TextureRHI, const FRHITextureSRVCreateInfo& CreateInfo)
 {
-	FD3D11Texture2D* Texture2D = ResourceCast(Texture2DRHI);
-
-	D3D11_TEXTURE2D_DESC TextureDesc;
-	Texture2D->GetResource()->GetDesc(&TextureDesc);
-
-	bool bSRGB = (Texture2D->GetFlags() & TexCreate_SRGB) != 0;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(TextureDesc.Format,bSRGB);
+	FD3D11TextureBase* Texture = GetD3D11TextureFromRHITexture(TextureRHI);
 
 	// Create a Shader Resource View
 	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-	SRVDesc.Texture2D.MostDetailedMip = MipLevel;
-	SRVDesc.Texture2D.MipLevels = 1;
+	DXGI_FORMAT BaseTextureFormat = DXGI_FORMAT_UNKNOWN;
 
-	SRVDesc.Format = PlatformShaderResourceFormat;
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Texture2D->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
-
-	return new FD3D11ShaderResourceView(ShaderResourceView,Texture2D);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FTexture2DRHIParamRef Texture2DRHI,
-	uint8 MipLevel)
-{
-	return RHICreateShaderResourceView(Texture2DRHI, MipLevel);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTexture2DRHIParamRef Texture2DRHI, uint8 MipLevel, uint8 NumMipLevels, uint8 Format)
-{
-	FD3D11Texture2D* Texture2D = ResourceCast(Texture2DRHI);
-
-	D3D11_TEXTURE2D_DESC TextureDesc;
-	Texture2D->GetResource()->GetDesc(&TextureDesc);
-	
-	const DXGI_FORMAT PlatformResourceFormat = FD3D11DynamicRHI::GetPlatformTextureResourceFormat((DXGI_FORMAT)GPixelFormats[Format].PlatformFormat, Texture2D->GetFlags());
-
-	bool bSRGB = (Texture2D->GetFlags() & TexCreate_SRGB) != 0;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(PlatformResourceFormat,bSRGB);
-
-	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-
-	if(TextureDesc.SampleDesc.Count > 1)
+	if (TextureRHI->GetTexture3D() != NULL)
 	{
-		///MS textures can't have mips apparently, so nothing else to set.
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+		FD3D11Texture3D* Texture3D = static_cast<FD3D11Texture3D*>(Texture);
+
+		D3D11_TEXTURE3D_DESC TextureDesc;
+		Texture3D->GetResource()->GetDesc(&TextureDesc);
+		BaseTextureFormat = TextureDesc.Format;
+
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
+		SRVDesc.Texture3D.MostDetailedMip = CreateInfo.MipLevel;
+		SRVDesc.Texture3D.MipLevels = CreateInfo.NumMipLevels;
+	}
+	else if (TextureRHI->GetTexture2DArray() != NULL)
+	{
+		FD3D11Texture2DArray* Texture2DArray = static_cast<FD3D11Texture2DArray*>(Texture);
+
+		D3D11_TEXTURE2D_DESC TextureDesc;
+		Texture2DArray->GetResource()->GetDesc(&TextureDesc);
+		BaseTextureFormat = TextureDesc.Format;
+
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+		SRVDesc.Texture2DArray.MostDetailedMip = CreateInfo.MipLevel;
+		SRVDesc.Texture2DArray.MipLevels = CreateInfo.NumMipLevels;
+		SRVDesc.Texture2DArray.FirstArraySlice = CreateInfo.FirstArraySlice;
+		SRVDesc.Texture2DArray.ArraySize = (CreateInfo.NumArraySlices == 0 ? TextureDesc.ArraySize : CreateInfo.NumArraySlices);
+	}
+	else if (TextureRHI->GetTextureCube() != NULL)
+	{
+		FD3D11TextureCube* TextureCube = static_cast<FD3D11TextureCube*>(Texture);
+
+		D3D11_TEXTURE2D_DESC TextureDesc;
+		TextureCube->GetResource()->GetDesc(&TextureDesc);
+		BaseTextureFormat = TextureDesc.Format;
+
+		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+		SRVDesc.TextureCube.MostDetailedMip = CreateInfo.MipLevel;
+		SRVDesc.TextureCube.MipLevels = CreateInfo.NumMipLevels;
 	}
 	else
 	{
-		SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-		SRVDesc.Texture2D.MostDetailedMip = MipLevel;
-		SRVDesc.Texture2D.MipLevels = NumMipLevels;
+		FD3D11Texture2D* Texture2D = static_cast<FD3D11Texture2D*>(Texture);
+
+		D3D11_TEXTURE2D_DESC TextureDesc;
+		Texture2D->GetResource()->GetDesc(&TextureDesc);
+		BaseTextureFormat = TextureDesc.Format;
+
+		if (TextureDesc.SampleDesc.Count > 1)
+		{
+			///MS textures can't have mips apparently, so nothing else to set.
+			SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DMS;
+		}
+		else
+		{
+			SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+			SRVDesc.Texture2D.MostDetailedMip = CreateInfo.MipLevel;
+			SRVDesc.Texture2D.MipLevels = CreateInfo.NumMipLevels;
+		}
 	}
-	
-	SRVDesc.Format = PlatformShaderResourceFormat;
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
 
-	HRESULT hResCreateShaderResourceView = Direct3DDevice->CreateShaderResourceView(Texture2D->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference());
-
-	if(FAILED(hResCreateShaderResourceView))
+	// Allow input CreateInfo to override SRGB and/or format
+	const bool bBaseSRGB = (TextureRHI->GetFlags() & TexCreate_SRGB) != 0;
+	const bool bSRGB = (CreateInfo.SRGBOverride == SRGBO_ForceEnable) || (CreateInfo.SRGBOverride == SRGBO_Default && bBaseSRGB);
+	if (CreateInfo.Format != PF_Unknown)
 	{
-		// provide more input data to track down error
-		UE_LOG(LogD3D11RHI,Warning,TEXT("CreateShaderResourceView failed, input: ViewDim:%d MSAA:%d Format:%d/%d SRGB:%d hRes:%x"),
-			(int32)SRVDesc.ViewDimension, (int32)TextureDesc.SampleDesc.Count, (int32)PlatformResourceFormat, (int32)PlatformShaderResourceFormat, bSRGB ? 1 : 0, hResCreateShaderResourceView);
+		BaseTextureFormat = (DXGI_FORMAT)GPixelFormats[CreateInfo.Format].PlatformFormat;
 	}
-
-	VERIFYD3D11RESULT_EX(hResCreateShaderResourceView, Direct3DDevice);
-
-	return new FD3D11ShaderResourceView(ShaderResourceView,Texture2D);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FTexture2DRHIParamRef Texture2DRHI,
-	uint8 MipLevel,
-	uint8 NumMipLevels,
-	uint8 Format)
-{
-	return RHICreateShaderResourceView(Texture2DRHI, MipLevel, NumMipLevels, Format);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTexture3DRHIParamRef Texture3DRHI, uint8 MipLevel)
-{
-	FD3D11Texture3D* Texture3D = ResourceCast(Texture3DRHI);
-
-	D3D11_TEXTURE3D_DESC TextureDesc;
-	Texture3D->GetResource()->GetDesc(&TextureDesc);
-
-	bool bSRGB = (Texture3D->GetFlags() & TexCreate_SRGB) != 0;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(TextureDesc.Format,bSRGB);
+	SRVDesc.Format = FindShaderResourceDXGIFormat(BaseTextureFormat, bSRGB);
 
 	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE3D;
-	SRVDesc.Texture3D.MostDetailedMip = MipLevel;
-	SRVDesc.Texture3D.MipLevels = 1;
-
-	SRVDesc.Format = PlatformShaderResourceFormat;
 	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Texture3D->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
+	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Texture->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
 
-	return new FD3D11ShaderResourceView(ShaderResourceView,Texture3D);
+	return new FD3D11ShaderResourceView(ShaderResourceView, Texture);
 }
 
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FTexture3DRHIParamRef Texture3DRHI,
-	uint8 MipLevel)
+FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(class FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef Texture, const FRHITextureSRVCreateInfo& CreateInfo)
 {
-	return RHICreateShaderResourceView(Texture3DRHI, MipLevel);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTexture2DArrayRHIParamRef Texture2DArrayRHI, uint8 MipLevel)
-{
-	FD3D11Texture2DArray* Texture2DArray = ResourceCast(Texture2DArrayRHI);
-
-	D3D11_TEXTURE2D_DESC TextureDesc;
-	Texture2DArray->GetResource()->GetDesc(&TextureDesc);
-
-	bool bSRGB = (Texture2DArray->GetFlags() & TexCreate_SRGB) != 0;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(TextureDesc.Format,bSRGB);
-
-	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
-	SRVDesc.Texture2DArray.MostDetailedMip = MipLevel;
-	SRVDesc.Texture2DArray.MipLevels = 1;
-	SRVDesc.Texture2DArray.FirstArraySlice = 0;
-	SRVDesc.Texture2DArray.ArraySize = TextureDesc.ArraySize;
-
-	SRVDesc.Format = PlatformShaderResourceFormat;
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(Texture2DArray->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
-
-	return new FD3D11ShaderResourceView(ShaderResourceView,Texture2DArray);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FTexture2DArrayRHIParamRef Texture2DArrayRHI,
-	uint8 MipLevel)
-{
-	return RHICreateShaderResourceView(Texture2DArrayRHI, MipLevel);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView(FTextureCubeRHIParamRef TextureCubeRHI, uint8 MipLevel)
-{
-	FD3D11TextureCube* TextureCube = ResourceCast(TextureCubeRHI);
-
-	D3D11_TEXTURE2D_DESC TextureDesc;
-	TextureCube->GetResource()->GetDesc(&TextureDesc);
-
-	bool bSRGB = (TextureCube->GetFlags() & TexCreate_SRGB) != 0;
-	const DXGI_FORMAT PlatformShaderResourceFormat = FindShaderResourceDXGIFormat(TextureDesc.Format,bSRGB);
-
-	// Create a Shader Resource View
-	D3D11_SHADER_RESOURCE_VIEW_DESC SRVDesc;
-	SRVDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-	SRVDesc.TextureCube.MostDetailedMip = MipLevel;
-	SRVDesc.TextureCube.MipLevels = 1;
-
-	SRVDesc.Format = PlatformShaderResourceFormat;
-	TRefCountPtr<ID3D11ShaderResourceView> ShaderResourceView;
-	VERIFYD3D11RESULT_EX(Direct3DDevice->CreateShaderResourceView(TextureCube->GetResource(), &SRVDesc, (ID3D11ShaderResourceView**)ShaderResourceView.GetInitReference()), Direct3DDevice);
-
-	return new FD3D11ShaderResourceView(ShaderResourceView,TextureCube);
-}
-
-FShaderResourceViewRHIRef FD3D11DynamicRHI::RHICreateShaderResourceView_RenderThread(
-	class FRHICommandListImmediate& RHICmdList,
-	FTextureCubeRHIParamRef TextureCubeRHI,
-	uint8 MipLevel)
-{
-	return RHICreateShaderResourceView(TextureCubeRHI, MipLevel);
+	return RHICreateShaderResourceView(Texture, CreateInfo);
 }
 
 /** Generates mip maps for the surface. */
@@ -1949,7 +1857,7 @@ void FD3D11DynamicRHI::EndUpdateTexture3D_RenderThread(class FRHICommandListImme
 		RunOnRHIThread(
 			[UpdateData]()
 		{
-			static_cast<FD3D11DynamicRHI*>(GDynamicRHI)->RHIUpdateTexture3D(
+			GD3D11RHI->RHIUpdateTexture3D(
 				UpdateData.Texture,
 				UpdateData.MipIndex,
 				UpdateData.UpdateRegion,
@@ -2222,7 +2130,7 @@ void FD3D11DynamicRHI::RHICopySubTextureRegion_RenderThread(
 	FBox2D SourceBox,
 	FBox2D DestinationBox)
 {
-	if (ShouldNotEnqueueRHICommand())
+	if (RHICmdList.Bypass())
 	{
 		RHICopySubTextureRegion(SourceTexture, DestinationTexture, SourceBox, DestinationBox);
 	}
@@ -2235,7 +2143,7 @@ void FD3D11DynamicRHI::RHICopySubTextureRegion_RenderThread(
 	}
 }
 
-void FD3D11DynamicRHI::RHIUpdateTextureReference(FTextureReferenceRHIParamRef TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
+void FD3D11DynamicRHI::RHIUpdateTextureReference(FRHITextureReference* TextureRefRHI, FTextureRHIParamRef NewTextureRHI)
 {
 	// Updating texture references is disallowed while the RHI could be caching them in referenced resource tables.
 	check(ResourceTableFrameCounter == INDEX_NONE);

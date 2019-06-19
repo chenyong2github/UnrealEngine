@@ -13,6 +13,7 @@
 #include "IXRTrackingSystem.h"
 #include "ISpectatorScreenController.h"
 #include "IHeadMountedDisplay.h"
+#include "RenderTargetPool.h"
 
 /**
  * Simple representation of the backbuffer that the debug canvas renders to
@@ -225,7 +226,7 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 				// Set TexCreate_NoFastClear because the fast CMASK clear was not working on ps4.
 				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(RenderThreadCanvas->GetParentCanvasSize(), PF_B8G8R8A8, FClearValueBinding(), TexCreate_SRGB, TexCreate_RenderTargetable | TexCreate_NoFastClear, false));
 				Desc.DebugName = TEXT("DebugCanvasLayerTexture");
-				GetRendererModule().RenderTargetPoolFindFreeElement(RHICmdList, Desc, LayerTexture, TEXT("DebugCanvasLayerTexture"));
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, LayerTexture, TEXT("DebugCanvasLayerTexture"));
 				UE_LOG(LogProfilingDebugging, Log, TEXT("Allocated a %d x %d texture for HMD canvas layer"), RenderThreadCanvas->GetParentCanvasSize().X, RenderThreadCanvas->GetParentCanvasSize().Y);
 			}
 

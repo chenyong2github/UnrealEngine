@@ -142,6 +142,7 @@ bool BuildResourceTableMapping(
 			case UBMT_RDG_BUFFER_SRV:
 				OutSRT.ShaderResourceViewMap.Add(ResourceMap);
 				break;
+			case UBMT_UAV:
 			case UBMT_RDG_TEXTURE_UAV:
 			case UBMT_RDG_BUFFER_UAV:
 				OutSRT.UnorderedAccessViewMap.Add(ResourceMap);
@@ -781,6 +782,7 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	case SF_RayGen:			Text += TEXT(" -rgs"); break;
 	case SF_RayMiss:		Text += TEXT(" -rms"); break;
 	case SF_RayHitGroup:	Text += TEXT(" -rhs"); break;
+	case SF_RayCallable:	Text += TEXT(" -rcs"); break;
 #endif // RHI_RAYTRACING
 	default: break;
 	}
@@ -1195,6 +1197,7 @@ namespace CrossCompiler
 		TEXT("RayGen"),
 		TEXT("RayMiss"),
 		TEXT("RayHitGroup"),
+		TEXT("RayCallable"),
 	};
 
 	/** Compile time check to verify that the GL mapping tables are up-to-date. */

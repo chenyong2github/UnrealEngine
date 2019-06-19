@@ -168,6 +168,12 @@ public:
 	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) {}
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) {}
 
+	/** Add a runtime virtual texture object to the scene. */
+	virtual void AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
+
+	/** Removes a runtime virtual texture object from the scene. */
+	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) {}
+
 	/** 
 	 * Retrieves primitive uniform shader parameters that are internal to the renderer.
 	 */

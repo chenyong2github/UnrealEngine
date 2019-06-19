@@ -300,19 +300,12 @@ FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery_RenderThread(class FRH
 FRenderQueryRHIRef FMetalDynamicRHI::RHICreateRenderQuery(ERenderQueryType QueryType)
 {
 	@autoreleasepool {
-	FRenderQueryRHIRef Query;
-	// AMD have subtleties to their completion handler routines that mean we don't seem able to reliably wait on command-buffers
-	// until after a drawable present...
-	static bool const bSupportsTimeQueries = GetMetalDeviceContext().GetCommandQueue().SupportsFeature(EMetalFeaturesAbsoluteTimeQueries);
-	if (QueryType != RQT_AbsoluteTime || bSupportsTimeQueries)
-	{
-		Query = new FMetalRenderQuery(QueryType);
-	}
-	return Query;
+		FRenderQueryRHIRef Query = new FMetalRenderQuery(QueryType);
+		return Query;
 	}
 }
 
-bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI,uint64& OutNumPixels,bool bWait)
+bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI,uint64& OutNumPixels,bool bWait)
 {
 	@autoreleasepool {
 	check(IsInRenderingThread());
@@ -382,7 +375,7 @@ bool FMetalDynamicRHI::RHIGetRenderQueryResult(FRenderQueryRHIParamRef QueryRHI,
 }
 
 // Occlusion/Timer queries.
-void FMetalRHICommandContext::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FMetalRHICommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	@autoreleasepool {
 	FMetalRenderQuery* Query = ResourceCast(QueryRHI);
@@ -391,7 +384,7 @@ void FMetalRHICommandContext::RHIBeginRenderQuery(FRenderQueryRHIParamRef QueryR
 	}
 }
 
-void FMetalRHICommandContext::RHIEndRenderQuery(FRenderQueryRHIParamRef QueryRHI)
+void FMetalRHICommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 {
 	@autoreleasepool {
 	FMetalRenderQuery* Query = ResourceCast(QueryRHI);

@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "LightRendering.h"
+#include "RendererModule.h"
 #include "DeferredShadingRenderer.h"
 #include "LightPropagationVolume.h"
 #include "ScenePrivate.h"
@@ -15,14 +16,22 @@
 #include "ShowFlags.h"
 #include "VisualizeTexture.h"
 #include "RayTracing/RaytracingOptions.h"
-#include "SceneViewFamilyBlackboard.h"
+#include "SceneTextureParameters.h"
+
+// ENABLE_DEBUG_DISCARD_PROP is used to test the lighting code by allowing to discard lights to see how performance scales
+// It ought never to be enabled in a shipping build, and is probably only really useful when woring on the shading code.
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	#define ENABLE_DEBUG_DISCARD_PROP 1
+#else // (UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	#define ENABLE_DEBUG_DISCARD_PROP 0
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 DECLARE_GPU_STAT(Lights);
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDeferredLightUniformStruct, "DeferredLightUniforms");
 
 extern int32 GUseTranslucentLightingVolumes;
-ENGINE_API const IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
+ENGINE_API IPooledRenderTarget* GetSubsufaceProfileTexture_RT(FRHICommandListImmediate& RHICmdList);
 
 
 static int32 GAllowDepthBoundsTest = 1;
@@ -67,11 +76,40 @@ static TAutoConsoleVariable<int32> CVarMaxShadowDenoisingBatchSize(
 	TEXT("Maximum number of shadow to denoise at the same time."),
 	ECVF_RenderThreadSafe);
 
+#if ENABLE_DEBUG_DISCARD_PROP
+static float GDebugLightDiscardProp = 0.0f;
+static FAutoConsoleVariableRef CVarDebugLightDiscardProp(
+	TEXT("r.DebugLightDiscardProp"),
+	GDebugLightDiscardProp,
+	TEXT("[0,1]: Proportion of lights to discard for debug/performance profiling purposes.")
+);
+#endif // ENABLE_DEBUG_DISCARD_PROP
+
+
+
+#if RHI_RAYTRACING
+bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
+{
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bRTShadowsEnabled && LightProxy.CastsRaytracedShadow();
+}
+
+bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
+{
+	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
+	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
+
+	return IsRayTracingEnabled() && bRTShadowsEnabled && LightInfo.bCastRaytracedShadow;
+}
+#endif // RHI_RAYTRACING
+
+
 FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 {
 #if RHI_RAYTRACING
-	const bool bCastRaytracedShadow = IsRayTracingEnabled() && GRayTracingShadows == 1 && Proxy.CastsRaytracedShadow();
-	return bCastRaytracedShadow ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
+	return ShouldRenderRayTracingShadows(Proxy) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
 #else
 	return FLightOcclusionType::Shadowmap;
 #endif
@@ -80,8 +118,7 @@ FLightOcclusionType GetLightOcclusionType(const FLightSceneProxy& Proxy)
 FLightOcclusionType GetLightOcclusionType(const FLightSceneInfoCompact& LightInfo)
 {
 #if RHI_RAYTRACING
-	const bool bCastRaytracedShadow = IsRayTracingEnabled() && GRayTracingShadows == 1 && LightInfo.bCastRaytracedShadow;
-	return bCastRaytracedShadow ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
+	return ShouldRenderRayTracingShadows(LightInfo) ? FLightOcclusionType::Raytraced : FLightOcclusionType::Shadowmap;
 #else
 	return FLightOcclusionType::Shadowmap;
 #endif
@@ -244,14 +281,14 @@ class FDeferredLightPS : public FGlobalShader
 public:
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FLightSceneInfo* LightSceneInfo, IPooledRenderTarget* ScreenShadowMaskTexture)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, ScreenShadowMaskTexture, LightSceneInfo->Proxy->GetIESTextureResource());
 		SetDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), LightSceneInfo, View);
 	}
 
 	void SetParametersSimpleLight(FRHICommandList& RHICmdList, const FSceneView& View, const FSimpleLightEntry& SimpleLight, const FSimpleLightPerViewEntry& SimpleLightPerViewData)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		SetParametersBase(RHICmdList, ShaderRHI, View, NULL, NULL);
 		SetSimpleDeferredLightParameters(RHICmdList, ShaderRHI, GetUniformBufferParameter<FDeferredLightUniformStruct>(), SimpleLight, SimpleLightPerViewData, View);
 	}
@@ -277,7 +314,7 @@ public:
 
 private:
 
-	void SetParametersBase(FRHICommandList& RHICmdList, const FPixelShaderRHIParamRef ShaderRHI, const FSceneView& View, IPooledRenderTarget* ScreenShadowMaskTexture, FTexture* IESTextureResource)
+	void SetParametersBase(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FSceneView& View, IPooledRenderTarget* ScreenShadowMaskTexture, FTexture* IESTextureResource)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
 		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
@@ -412,7 +449,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FLightSceneInfo* LightSceneInfo)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI,View.ViewUniformBuffer);
 		const float HasValidChannelValue = LightSceneInfo->Proxy->GetPreviewShadowMapChannel() == INDEX_NONE ? 0.0f : 1.0f;
 		SetShaderValue(RHICmdList, ShaderRHI, HasValidChannel, HasValidChannelValue);
@@ -523,37 +560,43 @@ static bool LightRequiresDenosier(const FLightSceneInfo& LightSceneInfo)
 }
 
 
-/** Renders the scene's lighting. */
-void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICmdList)
+
+void FDeferredShadingSceneRenderer::GatherAndSortLights(FSortedLightSetSceneInfo& OutSortedLights)
 {
-	check(RHICmdList.IsOutsideRenderPass());
-
-	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderLights, FColor::Emerald);
-	SCOPED_DRAW_EVENT(RHICmdList, DirectLighting);
-	SCOPED_GPU_STAT(RHICmdList, Lights);
-
-
-	bool bStencilBufferDirty = false;	// The stencil buffer should've been cleared to 0 already
-
-	SCOPE_CYCLE_COUNTER(STAT_LightingDrawTime);
-	SCOPE_CYCLE_COUNTER(STAT_LightRendering);
-
-	FSimpleLightArray SimpleLights;
 	if (bAllowSimpleLights)
 	{
-		GatherSimpleLights(ViewFamily, Views, SimpleLights);
+		GatherSimpleLights(ViewFamily, Views, OutSortedLights.SimpleLights);
 	}
+	FSimpleLightArray &SimpleLights = OutSortedLights.SimpleLights;
+	TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = OutSortedLights.SortedLights;
 
-	TArray<FSortedLightSceneInfo, SceneRenderingAllocator> SortedLights;
-	SortedLights.Empty(Scene->Lights.Num());
+	// NOTE: we allocate space also for simple lights such that they can be referenced in the same sorted range
+	SortedLights.Empty(Scene->Lights.Num() + SimpleLights.InstanceData.Num());
 
 	bool bDynamicShadows = ViewFamily.EngineShowFlags.DynamicShadows && GetShadowQuality() > 0;
-	
+
+#if ENABLE_DEBUG_DISCARD_PROP
+	int Total = Scene->Lights.Num() + SimpleLights.InstanceData.Num();
+	int NumToKeep = int(float(Total) * (1.0f - GDebugLightDiscardProp));
+	const float DebugDiscardStride = float(NumToKeep) / float(Total);
+	float DebugDiscardCounter = 0.0f;
+#endif // ENABLE_DEBUG_DISCARD_PROP
 	// Build a list of visible lights.
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
 	{
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* const LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
+
+#if ENABLE_DEBUG_DISCARD_PROP
+		{
+			int PrevCounter = int(DebugDiscardCounter);
+			DebugDiscardCounter += DebugDiscardStride;
+			if (PrevCounter >= int(DebugDiscardCounter))
+			{
+				continue;
+			}
+		}
+#endif // ENABLE_DEBUG_DISCARD_PROP
 
 		if (LightSceneInfo->ShouldRenderLightViewIndependent()
 			// Reflection override skips direct specular because it tends to be blindingly bright with a perfectly smooth surface
@@ -573,17 +616,58 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					SortedLightInfo->SortKey.Fields.bLightFunction = ViewFamily.EngineShowFlags.LightFunctions && CheckForLightFunction(LightSceneInfo);
 					SortedLightInfo->SortKey.Fields.bUsesLightingChannels = Views[ViewIndex].bUsesLightingChannels && LightSceneInfo->Proxy->GetLightingChannelMask() != GetDefaultLightingChannelMask();
 
-					// tiled deferred lighting only supported for certain lights that don't use any additional features
-					const bool bTiledDeferredSupported = LightSceneInfo->Proxy->IsTiledDeferredLightingSupported() &&
+					// These are not simple lights.
+					SortedLightInfo->SortKey.Fields.bIsNotSimpleLight = 1;
+
+
+					// tiled and clustered deferred lighting only supported for certain lights that don't use any additional features
+					// And also that are not directional (mostly because it does'nt make so much sense to insert them into every grid cell in the universe)
+					// In the forward case one directional light gets put into its own variables, and in the deferred case it gets a full-screen pass.
+					// Usually it'll have shadows and stuff anyway.
+					// Rect lights are not supported as the performance impact is significant even if not used, for now, left for trad. deferred.
+					const bool bTiledOrClusteredDeferredSupported = 
 						!SortedLightInfo->SortKey.Fields.bTextureProfile &&
 						!SortedLightInfo->SortKey.Fields.bShadowed &&
 						!SortedLightInfo->SortKey.Fields.bLightFunction &&
-						!SortedLightInfo->SortKey.Fields.bUsesLightingChannels;
-					SortedLightInfo->SortKey.Fields.bTiledDeferredNotSupported = !bTiledDeferredSupported;
+						!SortedLightInfo->SortKey.Fields.bUsesLightingChannels
+						&& LightSceneInfoCompact.LightType != LightType_Directional
+						&& LightSceneInfoCompact.LightType != LightType_Rect;
+
+					SortedLightInfo->SortKey.Fields.bTiledDeferredNotSupported = !(bTiledOrClusteredDeferredSupported && LightSceneInfo->Proxy->IsTiledDeferredLightingSupported());
+
+					SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = !bTiledOrClusteredDeferredSupported;
 					break;
 				}
 			}
 		}
+	}
+	// Add the simple lights also
+	for (int32 SimpleLightIndex = 0; SimpleLightIndex < SimpleLights.InstanceData.Num(); SimpleLightIndex++)
+	{
+#if ENABLE_DEBUG_DISCARD_PROP
+		{
+			int PrevCounter = int(DebugDiscardCounter);
+			DebugDiscardCounter += DebugDiscardStride;
+			if (PrevCounter >= int(DebugDiscardCounter))
+			{
+				continue;
+			}
+		}
+#endif // ENABLE_DEBUG_DISCARD_PROP
+
+		FSortedLightSceneInfo* SortedLightInfo = new(SortedLights) FSortedLightSceneInfo(SimpleLightIndex);
+		SortedLightInfo->SortKey.Fields.LightType = LightType_Point;
+		SortedLightInfo->SortKey.Fields.bTextureProfile = 0;
+		SortedLightInfo->SortKey.Fields.bShadowed = 0;
+		SortedLightInfo->SortKey.Fields.bLightFunction = 0;
+		SortedLightInfo->SortKey.Fields.bUsesLightingChannels = 0;
+
+		// These are simple lights.
+		SortedLightInfo->SortKey.Fields.bIsNotSimpleLight = 0;
+
+		// Simple lights are ok to use with tiled and clustered deferred lighting
+		SortedLightInfo->SortKey.Fields.bTiledDeferredNotSupported = 0;
+		SortedLightInfo->SortKey.Fields.bClusteredDeferredNotSupported = 0;
 	}
 
 	// Sort non-shadowed, non-light function lights first to avoid render target switches.
@@ -596,35 +680,80 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 	};
 	SortedLights.Sort( FCompareFSortedLightSceneInfo() );
 
+	// Scan and find ranges.
+	OutSortedLights.SimpleLightsEnd = SortedLights.Num();
+	OutSortedLights.TiledSupportedEnd = SortedLights.Num();
+	OutSortedLights.ClusteredSupportedEnd = SortedLights.Num();
+	OutSortedLights.AttenuationLightStart = SortedLights.Num();
+
+	// Iterate over all lights to be rendered and build ranges for tiled deferred and unshadowed lights
+	for (int32 LightIndex = 0; LightIndex < SortedLights.Num(); LightIndex++)
 	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
+		const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed;
+		const bool bDrawLightFunction = SortedLightInfo.SortKey.Fields.bLightFunction;
+		const bool bTextureLightProfile = SortedLightInfo.SortKey.Fields.bTextureProfile;
+		const bool bLightingChannels = SortedLightInfo.SortKey.Fields.bUsesLightingChannels;
 
-		int32 AttenuationLightStart = SortedLights.Num();
-		int32 SupportedByTiledDeferredLightEnd = SortedLights.Num();
-
-		// Iterate over all lights to be rendered and build ranges for tiled deferred and unshadowed lights
-		for (int32 LightIndex = 0; LightIndex < SortedLights.Num(); LightIndex++)
+		if (SortedLightInfo.SortKey.Fields.bIsNotSimpleLight && OutSortedLights.SimpleLightsEnd == SortedLights.Num())
 		{
-			const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
-			const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed;
-			const bool bDrawLightFunction = SortedLightInfo.SortKey.Fields.bLightFunction;
-			const bool bTextureLightProfile = SortedLightInfo.SortKey.Fields.bTextureProfile;
-			const bool bLightingChannels = SortedLightInfo.SortKey.Fields.bUsesLightingChannels;
-
-			if (SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported && SupportedByTiledDeferredLightEnd == SortedLights.Num())
-			{
-				// Mark the first index to not support tiled deferred
-				SupportedByTiledDeferredLightEnd = LightIndex;
-			}
-
-			if (bDrawShadows || bDrawLightFunction || bLightingChannels)
-			{
-				// Once we find a shadowed light, we can exit the loop, these lights should never support tiled deferred rendering either
-				check(SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported);
-				AttenuationLightStart = LightIndex;
-				break;
-			}
+			// Mark the first index to not be simple
+			OutSortedLights.SimpleLightsEnd = LightIndex;
 		}
+
+		if (SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported && OutSortedLights.TiledSupportedEnd == SortedLights.Num())
+		{
+			// Mark the first index to not support tiled deferred
+			OutSortedLights.TiledSupportedEnd = LightIndex;
+		}
+
+		if (SortedLightInfo.SortKey.Fields.bClusteredDeferredNotSupported && OutSortedLights.ClusteredSupportedEnd == SortedLights.Num())
+		{
+			// Mark the first index to not support clustered deferred
+			OutSortedLights.ClusteredSupportedEnd = LightIndex;
+		}
+
+		if (bDrawShadows || bDrawLightFunction || bLightingChannels)
+		{
+			// Once we find a shadowed light, we can exit the loop, these lights should never support tiled deferred rendering either
+			check(SortedLightInfo.SortKey.Fields.bTiledDeferredNotSupported);
+			OutSortedLights.AttenuationLightStart = LightIndex;
+			break;
+		}
+	}
+
+	// Make sure no obvious things went wrong!
+	check(OutSortedLights.TiledSupportedEnd >= OutSortedLights.SimpleLightsEnd);
+	check(OutSortedLights.ClusteredSupportedEnd >= OutSortedLights.TiledSupportedEnd);
+	check(OutSortedLights.AttenuationLightStart >= OutSortedLights.ClusteredSupportedEnd);
+}
+
+
+
+/** Renders the scene's lighting. */
+void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICmdList, FSortedLightSetSceneInfo &SortedLightSet)
+{
+	check(RHICmdList.IsOutsideRenderPass());
+
+	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderLights, FColor::Emerald);
+	SCOPED_DRAW_EVENT(RHICmdList, Lights);
+	SCOPED_GPU_STAT(RHICmdList, Lights);
+
+
+	bool bStencilBufferDirty = false;	// The stencil buffer should've been cleared to 0 already
+
+	SCOPE_CYCLE_COUNTER(STAT_LightingDrawTime);
+	SCOPE_CYCLE_COUNTER(STAT_LightRendering);
+
+	const FSimpleLightArray &SimpleLights = SortedLightSet.SimpleLights;
+	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
+	const int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
+	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
+
+	{
+		SCOPED_DRAW_EVENT(RHICmdList, DirectLighting);
+
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		
 		if (GbEnableAsyncComputeTranslucencyLightingVolumeClear && GSupportsEfficientAsyncCompute)
 		{
@@ -637,11 +766,25 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			SCOPED_DRAW_EVENT(RHICmdList, NonShadowedLights);
 			INC_DWORD_STAT_BY(STAT_NumUnshadowedLights, AttenuationLightStart);
 
-			int32 StandardDeferredStart = 0;
+			// Currently they have a special path anyway in case of standard deferred so always skip the simple lights
+			int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
 
-			bool bRenderSimpleLightsStandardDeferred = SimpleLights.InstanceData.Num() > 0;
+			bool bRenderSimpleLightsStandardDeferred = SortedLightSet.SimpleLights.InstanceData.Num() > 0;
+			
+			UE_CLOG(ShouldUseClusteredDeferredShading() && !AreClusteredLightsInLightGrid(), LogRenderer, Warning,
+				TEXT("Clustered deferred shading is enabled, but lights were not injected in grid, falling back to other methods (hint 'r.LightCulling.Quality' may cause this)."));
 
-			if (CanUseTiledDeferred())
+			// True if the clustered shading is enabled and the feature level is there, and that the light grid had lights injected.
+			if (ShouldUseClusteredDeferredShading() && AreClusteredLightsInLightGrid())
+			{
+				// Tell the trad. deferred that the clustered deferred capable lights are taken care of.
+				// This includes the simple lights
+				StandardDeferredStart = SortedLightSet.ClusteredSupportedEnd;
+				// Tell the trad. deferred that the simple lights are spoken for.
+				bRenderSimpleLightsStandardDeferred = false;
+				AddClusteredDeferredShadingPass(RHICmdList, SortedLightSet);
+			}
+			else if (CanUseTiledDeferred())
 			{
 				bool bAnyViewIsStereo = false;
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
@@ -654,19 +797,19 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 				}
 
 				// Use tiled deferred shading on any unshadowed lights without a texture light profile
-				if (ShouldUseTiledDeferred(SupportedByTiledDeferredLightEnd, SimpleLights.InstanceData.Num()) && !bAnyViewIsStereo)
+				if (ShouldUseTiledDeferred(SortedLightSet.TiledSupportedEnd) && !bAnyViewIsStereo)
 				{
 					// Update the range that needs to be processed by standard deferred to exclude the lights done with tiled
-					StandardDeferredStart = SupportedByTiledDeferredLightEnd;
+					StandardDeferredStart = SortedLightSet.TiledSupportedEnd;
 					bRenderSimpleLightsStandardDeferred = false;
-					RenderTiledDeferredLighting(RHICmdList, SortedLights, SupportedByTiledDeferredLightEnd, SimpleLights);
+					RenderTiledDeferredLighting(RHICmdList, SortedLights, SortedLightSet.SimpleLightsEnd, SortedLightSet.TiledSupportedEnd, SimpleLights);
 				}
 			}
-			
+
 			if (bRenderSimpleLightsStandardDeferred)
 			{
 				SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite);
-				RenderSimpleLightsStandardDeferred(RHICmdList, SimpleLights);
+				RenderSimpleLightsStandardDeferred(RHICmdList, SortedLightSet.SimpleLights);
 				SceneContext.FinishRenderingSceneColor(RHICmdList);
 			}
 
@@ -693,9 +836,9 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			{
 				if (AttenuationLightStart)
 				{
-					// Inject non-shadowed, non-light function lights in to the volume.
+					// Inject non-shadowed, non-simple, non-light function lights in to the volume.
 					SCOPED_DRAW_EVENT(RHICmdList, InjectNonShadowedTranslucentLighting);
-					InjectTranslucentVolumeLightingArray(RHICmdList, SortedLights, AttenuationLightStart);
+					InjectTranslucentVolumeLightingArray(RHICmdList, SortedLights, SimpleLightsEnd, AttenuationLightStart);
 				}
 
 				if(SimpleLights.InstanceData.Num() > 0)
@@ -745,7 +888,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			// LPV Direct Light Injection
 			if ( bRenderedRSM )
 			{
-				for (int32 LightIndex = 0; LightIndex < SortedLights.Num(); LightIndex++)
+				for (int32 LightIndex = SimpleLightsEnd; LightIndex < SortedLights.Num(); LightIndex++)
 				{
 					const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
@@ -805,159 +948,159 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 				FRDGBuilder GraphBuilder(RHICmdList);
 
-				FSceneViewFamilyBlackboard SceneBlackboard;
-				SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+				FSceneTextureParameters SceneTextures;
+				SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 				FViewInfo& View = Views[0];
 
-				// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
-				{
-					if (!View.bViewStateIsReadOnly)
+					// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
 					{
-						View.ViewState->PrevFrameViewInfo.ShadowHistories.Empty();
-						View.ViewState->PrevFrameViewInfo.ShadowHistories.Reserve(SortedLights.Num());
+						if (!View.bViewStateIsReadOnly)
+						{
+							View.ViewState->PrevFrameViewInfo.ShadowHistories.Empty();
+							View.ViewState->PrevFrameViewInfo.ShadowHistories.Reserve(SortedLights.Num());
+						}
+						PreprocessedShadowMaskTextures.Reserve(SortedLights.Num());
+						for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+						{
+							const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
+							const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
+
+							PreprocessedShadowMaskTextures.Add(TRefCountPtr<IPooledRenderTarget>());
+
+							if (!View.bViewStateIsReadOnly)
+							{
+								View.ViewState->PrevFrameViewInfo.ShadowHistories.Emplace(LightSceneInfo.Proxy->GetLightComponent());
+							}
+						}
 					}
-					PreprocessedShadowMaskTextures.Reserve(SortedLights.Num());
+
+					TMap<const FLightSceneInfo*, FRDGTextureRef> ShadowMaskTextures;
+
+					// Lambda to share the code quicking of the shadow denoiser.
+					auto QuickOffDenoisingBatch = [&](){
+						int32 InputParameterCount = 0;
+						for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
+						{
+							InputParameterCount += DenoisingQueue[i].LightSceneInfo != nullptr ? 1 : 0;
+						}
+
+						check(InputParameterCount >= 1);
+
+						TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
+
+						RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
+							DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
+							DenoiserToUse->GetDebugName(),
+							InputParameterCount,
+							View.ViewRect.Width(), View.ViewRect.Height());
+
+						DenoiserToUse->DenoiseShadows(
+							GraphBuilder,
+							View,
+							&View.PrevViewInfo,
+							SceneTextures,
+							DenoisingQueue,
+							InputParameterCount,
+							Outputs);
+
+						for (int32 i = 0; i < InputParameterCount; i++)
+						{
+							const FLightSceneInfo* LightSceneInfo = DenoisingQueue[i].LightSceneInfo;
+
+							int32 LightIndex = LightIndices[i];
+							TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart];
+							check(*RefDestination == nullptr);
+
+							GraphBuilder.QueueTextureExtraction(Outputs[i].DiffusePenumbra, RefDestination);
+							DenoisingQueue[i].LightSceneInfo = nullptr;
+						}
+					}; // QuickOffDenoisingBatch
+
+					// Ray trace shadows of light that needs, and quick off denoising batch.
 					for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 					{
 						const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 						const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
 
-						PreprocessedShadowMaskTextures.Add(TRefCountPtr<IPooledRenderTarget>());
+						// Denoiser do not support texture rect light important sampling.
+						const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
 
-						if (!View.bViewStateIsReadOnly)
+						if (!bDrawShadows)
+							continue;
+
+						INC_DWORD_STAT(STAT_NumShadowedLights);
+
+						const FLightOcclusionType OcclusionType = GetLightOcclusionType(*LightSceneInfo.Proxy);
+						if (OcclusionType != FLightOcclusionType::Raytraced)
+							continue;
+
+						if (!LightRequiresDenosier(LightSceneInfo))
+							continue;
+
+						IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
+						RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
+
+						IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = DenoiserToUse->GetShadowRequirements(
+							View, LightSceneInfo, RayTracingConfig);
+
+						// Not worth batching and increase memory pressure if the denoiser do not support this ray tracing config.
+						// TODO: add suport for batch with multiple SPP.
+						if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder)
 						{
-							View.ViewState->PrevFrameViewInfo.ShadowHistories.Emplace(LightSceneInfo.Proxy->GetLightComponent());
+							continue;
 						}
-					}
-				}
-
-				TMap<const FLightSceneInfo*, FRDGTextureRef> ShadowMaskTextures;
-
-				// Lambda to share the code quicking of the shadow denoiser.
-				auto QuickOffDenoisingBatch = [&](){
-					int32 InputParameterCount = 0;
-					for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
-					{
-						InputParameterCount += DenoisingQueue[i].LightSceneInfo != nullptr ? 1 : 0;
-					}
-
-					check(InputParameterCount >= 1);
-
-					TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
-
-					RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
-						DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
-						DenoiserToUse->GetDebugName(),
-						InputParameterCount,
-						View.ViewRect.Width(), View.ViewRect.Height());
-
-					DenoiserToUse->DenoiseShadows(
-						GraphBuilder,
-						View,
-						&View.PrevViewInfo,
-						SceneBlackboard,
-						DenoisingQueue,
-						InputParameterCount,
-						Outputs);
-
-					for (int32 i = 0; i < InputParameterCount; i++)
-					{
-						const FLightSceneInfo* LightSceneInfo = DenoisingQueue[i].LightSceneInfo;
-
-						int32 LightIndex = LightIndices[i];
-						TRefCountPtr<IPooledRenderTarget>* RefDestination = &PreprocessedShadowMaskTextures[LightIndex - AttenuationLightStart];
-						check(*RefDestination == nullptr);
-
-						GraphBuilder.QueueTextureExtraction(Outputs[i].DiffusePenumbra, RefDestination);
-						DenoisingQueue[i].LightSceneInfo = nullptr;
-					}
-				}; // QuickOffDenoisingBatch
-
-				// Ray trace shadows of light that needs, and quick off denoising batch.
-				for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
-				{
-					const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
-					const FLightSceneInfo& LightSceneInfo = *SortedLightInfo.LightSceneInfo;
-
-					// Denoiser do not support texture rect light important sampling.
-					const bool bDrawShadows = SortedLightInfo.SortKey.Fields.bShadowed && !ShouldRenderRayTracingStochasticRectLight(LightSceneInfo);
-
-					if (!bDrawShadows)
-						continue;
-
-					INC_DWORD_STAT(STAT_NumShadowedLights);
-
-					const FLightOcclusionType OcclusionType = GetLightOcclusionType(*LightSceneInfo.Proxy);
-					if (OcclusionType != FLightOcclusionType::Raytraced)
-						continue;
-
-					if (!LightRequiresDenosier(LightSceneInfo))
-						continue;
-
-					IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
-					RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
-
-					IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = DenoiserToUse->GetShadowRequirements(
-						View, LightSceneInfo, RayTracingConfig);
-
-					// Not worth batching and increase memory pressure if the denoiser do not support this ray tracing config.
-					// TODO: add suport for batch with multiple SPP.
-					if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::PenumbraAndClosestOccluder)
-					{
-						continue;
-					}
 
 					// Ray trace the shadow.
 					FRDGTextureRef ShadowMask;
 					FRDGTextureRef RayHitDistance;
-					{
-						FString LightNameWithLevel;
-						GetLightNameForDrawEvent(LightSceneInfo.Proxy, LightNameWithLevel);
-						RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
+						{
+							FString LightNameWithLevel;
+							GetLightNameForDrawEvent(LightSceneInfo.Proxy, LightNameWithLevel);
+							RDG_EVENT_SCOPE(GraphBuilder, "%s", *LightNameWithLevel);
 
-						RenderRayTracingShadows(
-							GraphBuilder,
-							SceneBlackboard,
-							View,
-							LightSceneInfo,
-							RayTracingConfig,
-							DenoiserRequirements,
+							RenderRayTracingShadows(
+								GraphBuilder,
+								SceneTextures,
+								View,
+								LightSceneInfo,
+								RayTracingConfig,
+								DenoiserRequirements,
 							&ShadowMask,
 							&RayHitDistance);
-					}
+						}
 
-					// Queue the ray tracing output for shadow denoising.
-					for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
-					{
-						if (DenoisingQueue[i].LightSceneInfo == nullptr)
+						// Queue the ray tracing output for shadow denoising.
+						for (int32 i = 0; i < IScreenSpaceDenoiser::kMaxBatchSize; i++)
 						{
-							DenoisingQueue[i].LightSceneInfo = &LightSceneInfo;
-							DenoisingQueue[i].RayTracingConfig = RayTracingConfig;
-							DenoisingQueue[i].InputTextures.Penumbra = ShadowMask;
-							DenoisingQueue[i].InputTextures.ClosestOccluder = RayHitDistance;
-							LightIndices[i] = LightIndex;
-
-							// If queue for this light type is full, quick of the batch.
-							if ((i + 1) == MaxDenoisingBatchSize)
+							if (DenoisingQueue[i].LightSceneInfo == nullptr)
 							{
-								QuickOffDenoisingBatch();
+								DenoisingQueue[i].LightSceneInfo = &LightSceneInfo;
+								DenoisingQueue[i].RayTracingConfig = RayTracingConfig;
+								DenoisingQueue[i].InputTextures.Penumbra = ShadowMask;
+								DenoisingQueue[i].InputTextures.ClosestOccluder = RayHitDistance;
+								LightIndices[i] = LightIndex;
+
+								// If queue for this light type is full, quick of the batch.
+								if ((i + 1) == MaxDenoisingBatchSize)
+								{
+									QuickOffDenoisingBatch();
+								}
+								break;
 							}
-							break;
+							else
+							{
+								check((i - 1) < IScreenSpaceDenoiser::kMaxBatchSize);
+							}
 						}
-						else
-						{
-							check((i - 1) < IScreenSpaceDenoiser::kMaxBatchSize);
-						}
+
+					} // for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
+
+					// Ensures all denoising queues are processed.
+					if (DenoisingQueue[0].LightSceneInfo)
+					{
+						QuickOffDenoisingBatch();
 					}
-
-				} // for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
-
-				// Ensures all denoising queues are processed.
-				if (DenoisingQueue[0].LightSceneInfo)
-				{
-					QuickOffDenoisingBatch();
-				}
 
 				GraphBuilder.Execute();
 			} // if (RHI_RAYTRACING)
@@ -1005,65 +1148,65 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 					{
 						FViewInfo& View = Views[0];
 
-						IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
-						RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
+							IScreenSpaceDenoiser::FShadowRayTracingConfig RayTracingConfig;
+							RayTracingConfig.RayCountPerPixel = LightSceneInfo.Proxy->GetSamplesPerPixel();
 
-						IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = IScreenSpaceDenoiser::EShadowRequirements::Bailout;
-						if (DenoiserMode != 0 && LightRequiresDenosier(LightSceneInfo))
-						{
-							DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
-						}
+							IScreenSpaceDenoiser::EShadowRequirements DenoiserRequirements = IScreenSpaceDenoiser::EShadowRequirements::Bailout;
+							if (DenoiserMode != 0 && LightRequiresDenosier(LightSceneInfo))
+							{
+								DenoiserRequirements = DenoiserToUse->GetShadowRequirements(View, LightSceneInfo, RayTracingConfig);
+							}
 
 						FRDGBuilder GraphBuilder(RHICmdList);
 
-						FSceneViewFamilyBlackboard SceneBlackboard;
-						SetupSceneViewFamilyBlackboard(GraphBuilder, &SceneBlackboard);
+						FSceneTextureParameters SceneTextures;
+						SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
 						FRDGTextureRef ShadowMask;
 						FRDGTextureRef RayHitDistance;
-						RenderRayTracingShadows(
-							GraphBuilder,
-							SceneBlackboard,
-							View,
-							LightSceneInfo,
-							RayTracingConfig,
-							DenoiserRequirements,
+							RenderRayTracingShadows(
+								GraphBuilder,
+								SceneTextures,
+								View,
+								LightSceneInfo,
+								RayTracingConfig,
+								DenoiserRequirements,
 							&ShadowMask,
 							&RayHitDistance);
 
-						if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
-						{
-							TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> InputParameters;
-							TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
+							if (DenoiserRequirements != IScreenSpaceDenoiser::EShadowRequirements::Bailout)
+							{
+								TStaticArray<IScreenSpaceDenoiser::FShadowParameters, IScreenSpaceDenoiser::kMaxBatchSize> InputParameters;
+								TStaticArray<IScreenSpaceDenoiser::FShadowPenumbraOutputs, IScreenSpaceDenoiser::kMaxBatchSize> Outputs;
 
-							InputParameters[0].InputTextures.Penumbra = ShadowMask;
-							InputParameters[0].InputTextures.ClosestOccluder = RayHitDistance;
-							InputParameters[0].LightSceneInfo = &LightSceneInfo;
-							InputParameters[0].RayTracingConfig = RayTracingConfig;
+								InputParameters[0].InputTextures.Penumbra = ShadowMask;
+								InputParameters[0].InputTextures.ClosestOccluder = RayHitDistance;
+								InputParameters[0].LightSceneInfo = &LightSceneInfo;
+								InputParameters[0].RayTracingConfig = RayTracingConfig;
 
-							int32 InputParameterCount = 1;
+								int32 InputParameterCount = 1;
 
-							RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
-								DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
-								DenoiserToUse->GetDebugName(),
-								InputParameterCount,
-								View.ViewRect.Width(), View.ViewRect.Height());
+								RDG_EVENT_SCOPE(GraphBuilder, "%s%s(Shadow BatchSize=%d) %dx%d",
+									DenoiserToUse != DefaultDenoiser ? TEXT("ThirdParty ") : TEXT(""),
+									DenoiserToUse->GetDebugName(),
+									InputParameterCount,
+									View.ViewRect.Width(), View.ViewRect.Height());
 
-							DenoiserToUse->DenoiseShadows(
-								GraphBuilder,
-								View,
-								&View.PrevViewInfo,
-								SceneBlackboard,
-								InputParameters,
-								InputParameterCount,
-								Outputs);
+								DenoiserToUse->DenoiseShadows(
+									GraphBuilder,
+									View,
+									&View.PrevViewInfo,
+									SceneTextures,
+									InputParameters,
+									InputParameterCount,
+									Outputs);
 
-							GraphBuilder.QueueTextureExtraction(Outputs[0].DiffusePenumbra, &ScreenShadowMaskTexture);
-						}
-						else
-						{
-							GraphBuilder.QueueTextureExtraction(ShadowMask, &ScreenShadowMaskTexture);
-						}
+								GraphBuilder.QueueTextureExtraction(Outputs[0].DiffusePenumbra, &ScreenShadowMaskTexture);
+							}
+							else
+							{
+								GraphBuilder.QueueTextureExtraction(ShadowMask, &ScreenShadowMaskTexture);
+							}
 
 						GraphBuilder.Execute();
 					}

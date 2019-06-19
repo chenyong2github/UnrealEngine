@@ -145,10 +145,10 @@ public:
 	inline void SetBuffer(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FRWBufferStructured& RWBuffer) const;
 
 	template<typename TShaderRHIRef, typename TRHICmdList>
-	inline void SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FTextureRHIParamRef Texture, FUnorderedAccessViewRHIParamRef UAV) const;
+	inline void SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FTextureRHIParamRef Texture, FRHIUnorderedAccessView* UAV) const;
 
 	template<typename TRHICmdList>
-	inline void UnsetUAV(TRHICmdList& RHICmdList, FComputeShaderRHIParamRef ComputeShader) const;
+	inline void UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeShader* ComputeShader) const;
 
 private:
 
@@ -249,7 +249,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		}
 	}
 
-	void Set(const FShaderResourceParameter& Param, FShaderResourceViewRHIParamRef Value)
+	void Set(const FShaderResourceParameter& Param, FRHIShaderResourceView* Value)
 	{
 		if (Param.IsBound())
 		{
@@ -266,7 +266,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		}
 	}
 
-	void Set(const FShaderResourceParameter& Param, FUnorderedAccessViewRHIParamRef Value)
+	void Set(const FShaderResourceParameter& Param, FRHIUnorderedAccessView* Value)
 	{
 		if (Param.IsBound())
 		{
@@ -275,7 +275,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		}
 	}
 
-	void Set(const FShaderResourceParameter& Param, FSamplerStateRHIParamRef Value)
+	void Set(const FShaderResourceParameter& Param, FRHISamplerState* Value)
 	{
 		if (Param.IsBound())
 		{
@@ -290,19 +290,19 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		Textures[BaseIndex] = Value;
 	}
 
-	void SetSRV(uint16 BaseIndex, FShaderResourceViewRHIParamRef Value)
+	void SetSRV(uint16 BaseIndex, FRHIShaderResourceView* Value)
 	{
 		checkSlow(BaseIndex < ARRAY_COUNT(SRVs));
 		SRVs[BaseIndex] = Value;
 	}
 
-	void SetSampler(uint16 BaseIndex, FSamplerStateRHIParamRef Value)
+	void SetSampler(uint16 BaseIndex, FRHISamplerState* Value)
 	{
 		checkSlow(BaseIndex < ARRAY_COUNT(Samplers));
 		Samplers[BaseIndex] = Value;
 	}
 
-	void SetUAV(uint16 BaseIndex, FUnorderedAccessViewRHIParamRef Value)
+	void SetUAV(uint16 BaseIndex, FRHIUnorderedAccessView* Value)
 	{
 		checkSlow(BaseIndex < ARRAY_COUNT(UAVs));
 		UAVs[BaseIndex] = Value;

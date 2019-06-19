@@ -3090,7 +3090,14 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 		{
 			if(i != 0)
 			{
-				ViewModes += TEXT(", ");
+				if ((i % 5) == 0)
+				{
+					ViewModes += TEXT("\n     ");
+				}
+				else
+				{
+					ViewModes += TEXT(", ");
+				}
 			}
 			ViewModes += GetViewModeName((EViewModeIndex)i);
 		}

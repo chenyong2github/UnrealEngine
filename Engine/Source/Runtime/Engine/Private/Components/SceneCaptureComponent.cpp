@@ -127,6 +127,7 @@ void ASceneCaptureCube::OnInterpToggle(bool bEnable)
 USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer), ShowFlags(FEngineShowFlags(ESFIM_Game))
 {
+	CaptureSource = SCS_SceneColorHDR;
 	bCaptureEveryFrame = true;
 	bCaptureOnMovement = true;
 	bAlwaysPersistRenderingState = false;
@@ -437,10 +438,10 @@ USceneCaptureComponent2D::USceneCaptureComponent2D(const FObjectInitializer& Obj
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.TickGroup = TG_DuringPhysics;
 	PrimaryComponentTick.bAllowTickOnDedicatedServer = false;
+
 	// Tick in the editor so that bCaptureEveryFrame preview works
 	bTickInEditor = true;
-	// previous behavior was to capture from raw scene color 
-	CaptureSource = SCS_SceneColorHDR;
+
 	// default to full blend weight..
 	PostProcessBlendWeight = 1.0f;
 	CaptureStereoPass = EStereoscopicPass::eSSP_FULL;

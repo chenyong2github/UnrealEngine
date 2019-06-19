@@ -1433,6 +1433,11 @@ bool FMeshDescriptionOperations::CreateLightMapUVLayout(FMeshDescription& MeshDe
 	FLayoutUV Packer(MeshDescriptionView);
 	Packer.SetVersion(LightmapUVVersion);
 
+	if (LightmapUVVersion >= ELightmapUVVersion::ForceLightmapPadding)
+	{
+		MinLightmapResolution -= 2;
+	}
+
 	Packer.FindCharts(OverlappingCorners);
 	bool bPackSuccess = Packer.FindBestPacking(MinLightmapResolution);
 	if (bPackSuccess)

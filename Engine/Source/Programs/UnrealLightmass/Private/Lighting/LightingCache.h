@@ -383,11 +383,6 @@ bool TLightingCache<SampleType>::InterpolateLighting(
 	{
 		const FRecord<SampleType>& LightingRecord = OctreeIt.GetCurrentElement();
 
-		if (bDebugThisSample)
-		{
-			int asdf = 0;
-		}
-
 		// Check whether the query point is farther than the record's intersection distance for the direction to the query point.
 		const float DistanceSquared = (LightingRecord.Vertex.WorldPosition - Vertex.WorldPosition).SizeSquared3();
 		if (DistanceSquared > FMath::Square(LightingRecord.BoundingRadius))

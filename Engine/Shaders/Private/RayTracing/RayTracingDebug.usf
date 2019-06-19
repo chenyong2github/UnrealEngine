@@ -12,25 +12,16 @@ RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
 
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
-
 [shader("raygeneration")]
 void RayTracingDebugMainRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
 	RayDesc Ray;
 
-	Ray.Origin = ReconstructWorldPositionFromDepth(RenderTargetUV, 0.0f);
+	Ray.Origin = View.WorldCameraOrigin;
 	Ray.Direction = normalize(ReconstructWorldPositionFromDepth(RenderTargetUV, 10000.f) - Ray.Origin);
 	Ray.TMin = 0.5f; // 1 unit in UE4 = 1 cm -0> 0.5 ==> 5 mm
 	Ray.TMax = 1e27f;
@@ -53,7 +44,7 @@ void RayTracingDebugMainRGS()
 
 	float4 Result = float4(0, 0, 0, 1);
 
-	if (Payload.HitT > 0)
+	if (Payload.IsHit())
 	{
 		switch (VisualizationMode)
 		{
@@ -74,7 +65,7 @@ void RayTracingDebugMainRGS()
 			Result = float4(Payload.SpecularColor.rgb, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_OPACITY:
-			Result = float4(Payload.Opacity, Payload.Opacity, Payload.Opacity, 1.0f);
+			Result = float4(1.0f - Payload.Opacity, 1.0f - Payload.Opacity, 1.0f - Payload.Opacity, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_METALLIC:
 			Result = float4(Payload.Metallic, Payload.Metallic, Payload.Metallic, 1.0f);
@@ -115,15 +106,8 @@ void RayTracingDebugMainRGS()
 		}
 	}
 
-	Output[PixelCoord] = Result;
+	Output[PixelCoord] = Result * View.PreExposure;
 }
-
-[shader("miss")]
-void RayTracingDebugMainMS(inout FPackedMaterialClosestHitPayload PackedPayload)
-{
-	PackedPayload.HitT = -1;
-}
-
 
 [shader("closesthit")]
 void RayTracingDebugMainCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
