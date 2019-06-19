@@ -224,7 +224,7 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FScreenSpaceDiffuseIndirectCS);
 	SHADER_USE_PARAMETER_STRUCT(FScreenSpaceDiffuseIndirectCS, FGlobalShader)
 
-	class FQualityDim : SHADER_PERMUTATION_INT( "QUALITY", 5 );
+	class FQualityDim : SHADER_PERMUTATION_RANGE_INT("QUALITY", 1, 4);
 	using FPermutationDomain = TShaderPermutationDomain< FQualityDim >;
 	
 	BEGIN_SHADER_PARAMETER_STRUCT( FParameters, )
@@ -247,6 +247,8 @@ class FScreenSpaceDiffuseIndirectCS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, IndirectDiffuseOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float>,  AmbientOcclusionOutput)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, ScreenSpaceRayTracingDebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -287,6 +289,40 @@ void GetSSRShaderOptionsForQuality(ESSRQuality Quality, IScreenSpaceDenoiser::FR
 	{
 		check(0);
 	}
+}
+
+void GetSSRTGIShaderOptionsForQuality(int32 Quality, FIntPoint* OutGroupSize, int32* OutRayCountPerPixel)
+{
+	if (Quality == 1)
+	{
+		OutGroupSize->X = 8;
+		OutGroupSize->Y = 8;
+		*OutRayCountPerPixel = 4;
+	}
+	else if (Quality == 2)
+	{
+		OutGroupSize->X = 8;
+		OutGroupSize->Y = 4;
+		*OutRayCountPerPixel = 8;
+	}
+	else if (Quality == 3)
+	{
+		OutGroupSize->X = 4;
+		OutGroupSize->Y = 4;
+		*OutRayCountPerPixel = 16;
+	}
+	else if (Quality == 4)
+	{
+		OutGroupSize->X = 4;
+		OutGroupSize->Y = 2;
+		*OutRayCountPerPixel = 32;
+	}
+	else
+	{
+		check(0);
+	}
+
+	check(OutGroupSize->X * OutGroupSize->Y * (*OutRayCountPerPixel) == 256);
 }
 
 } // namespace
@@ -525,6 +561,10 @@ void RenderScreenSpaceDiffuseIndirect(
 	
 	const int32 Quality = FMath::Clamp( CVarSSGIQuality.GetValueOnRenderThread(), 1, 4 );
 
+	FIntPoint GroupSize;
+	int32 RayCountPerPixel;
+	GetSSRTGIShaderOptionsForQuality(Quality, &GroupSize, &RayCountPerPixel);
+
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 	// Allocate outputs.
@@ -532,7 +572,7 @@ void RenderScreenSpaceDiffuseIndirect(
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
 			SceneTextures.SceneDepthBuffer->Desc.Extent,
 			PF_FloatRGBA,
-			FClearValueBinding::None,
+			FClearValueBinding::Transparent,
 			/* InFlags = */ TexCreate_None,
 			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
 			/* bInForceSeparateTargetAndShaderResource = */ false);
@@ -587,14 +627,34 @@ void RenderScreenSpaceDiffuseIndirect(
 	PassParameters->IndirectDiffuseOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
 	PassParameters->AmbientOcclusionOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->AmbientOcclusionMask);
 
+	if (0) // DEBUG output clear
+	{
+		FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(OutDenoiserInputs->Color->Desc, TEXT("SSRTDebug"));
+
+		FRenderTargetParameters* ClearPassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+		ClearPassParameters->RenderTargets[0] = FRenderTargetBinding(DebugTexture, ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Clear SSRTDebug"),
+			ClearPassParameters,
+			ERenderGraphPassFlags::None,
+			[](FRHICommandList& RHICmdList)
+		{
+			// NOP
+		});
+
+		PassParameters->ScreenSpaceRayTracingDebugOutput = GraphBuilder.CreateUAV(DebugTexture);
+	}
+
 	FScreenSpaceDiffuseIndirectCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FScreenSpaceDiffuseIndirectCS::FQualityDim>(Quality);
 
 	TShaderMapRef<FScreenSpaceDiffuseIndirectCS> ComputeShader(View.ShaderMap, PermutationVector);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("ScreenSpaceDiffuseIndirect(Quality=%d) %dx%d", Quality, View.ViewRect.Width(), View.ViewRect.Height()),
+		RDG_EVENT_NAME("ScreenSpaceDiffuseIndirect(Quality=%d RayPerPixel=%d) %dx%d",
+			Quality, RayCountPerPixel, View.ViewRect.Width(), View.ViewRect.Height()),
 		*ComputeShader,
 		PassParameters,
-		FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), 8));
+		FComputeShaderUtils::GetGroupCount(View.ViewRect.Size(), GroupSize));
 } // RenderScreenSpaceDiffuseIndirect()

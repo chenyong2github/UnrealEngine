@@ -106,6 +106,8 @@ void ScreenSpaceReflectionsPS(
 	float2 UV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPos = ViewportUVToScreenPos((SvPosition.xy - View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw);
 	uint2 PixelPos = (uint2)SvPosition.xy;
+	
+    bool bDebugPrint = all(PixelPos == uint2(View.ViewSizeAndInvSize.xy) / 2);
 
 	OutColor = 0;
 	
@@ -226,12 +228,13 @@ void ScreenSpaceReflectionsPS(
 			{
 				L = reflect(-V, N);
 			}
-
+			
 			bool bHit = RayCast(
 				HZB, HZBSampler,
 				PositionTranslatedWorld, L, Roughness, SceneDepth, 
 				NumSteps, StepOffset,
 				HZBUvFactorAndInvFactor,
+				bDebugPrint,
 				HitUVz,
 				Level
 			);
@@ -324,6 +327,7 @@ void ScreenSpaceReflectionsPS(
 			PositionTranslatedWorld, L, Roughness, SceneDepth,
 			NumSteps, StepOffset,
 			HZBUvFactorAndInvFactor,
+			bDebugPrint,
 			HitUVz,
 			Level
 		);

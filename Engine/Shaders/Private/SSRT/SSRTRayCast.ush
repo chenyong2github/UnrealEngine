@@ -8,12 +8,40 @@
 
 #include "../Common.ush"	
 
+
+#ifndef DEBUG_SSRT
+	#define DEBUG_SSRT 0
+#endif
+
+
+#if DEBUG_SSRT
+
+RWTexture2D<float4> ScreenSpaceRayTracingDebugOutput;
+
+
+void PrintSample(
+	float4 HZBUvFactorAndInvFactor, 
+	float2 HZBUV,
+	float4 DebugColor)
+{	
+	HZBUV.xy *= HZBUvFactorAndInvFactor.zw;
+
+	uint2 Position = HZBUV.xy * View.ViewSizeAndInvSize.xy;
+
+	ScreenSpaceRayTracingDebugOutput[Position] = DebugColor;
+}
+
+#endif
+
+
+
 bool RayCast(
 	Texture2D Texture, SamplerState Sampler,
 	float3 RayOriginTranslatedWorld, float3 RayDirection,
 	float Roughness, float SceneDepth,
 	uint NumSteps, float StepOffset,
 	float4 HZBUvFactorAndInvFactor, 
+	bool bDebugPrint,
 	out float3 OutHitUVz,
 	out float Level
 )
@@ -59,6 +87,13 @@ bool RayCast(
 
 	RayStepUVz *= Step;
 	float3 RayUVz = RayStartUVz + RayStepUVz * StepOffset;
+	
+	#if DEBUG_SSRT
+	{
+		if (bDebugPrint)
+			PrintSample(HZBUvFactorAndInvFactor, RayStartUVz.xy, float4(1, 0, 0, 1));
+	}
+	#endif
 
 	LOOP
 	for( uint i = 0; i < NumSteps; i += 4 )
@@ -68,6 +103,18 @@ bool RayCast(
 		float4 SampleUV1 = RayUVz.xyxy + RayStepUVz.xyxy * float4( 3, 3, 4, 4 );
 		float4 SampleZ   = RayUVz.zzzz + RayStepUVz.zzzz * float4( 1, 2, 3, 4 );
 		
+		#if DEBUG_SSRT
+		{
+			if (bDebugPrint)
+			{
+				PrintSample(HZBUvFactorAndInvFactor, SampleUV0.xy, float4(0, 1, 0, 1));
+				PrintSample(HZBUvFactorAndInvFactor, SampleUV0.zw, float4(0, 1, 0, 1));
+				PrintSample(HZBUvFactorAndInvFactor, SampleUV1.xy, float4(0, 1, 0, 1));
+				PrintSample(HZBUvFactorAndInvFactor, SampleUV1.zw, float4(0, 1, 0, 1));
+			}
+		}
+		#endif
+
 		// Use lower res for farther samples
 		float4 SampleDepth;
 		SampleDepth.x = Texture.SampleLevel( Sampler, SampleUV0.xy, Level ).r;
@@ -183,6 +230,13 @@ bool RayCast(
 		RayUVz += 4 * RayStepUVz;
 	}
 	
+	#if DEBUG_SSRT
+	{
+		if (bDebugPrint)
+			PrintSample(HZBUvFactorAndInvFactor, OutHitUVz.xy, float4(0, 0, 1, 1));
+	}
+	#endif
+
 	OutHitUVz.xy *= HZBUvFactorAndInvFactor.zw;
 	OutHitUVz.xy = OutHitUVz.xy * float2( 2, -2 ) + float2( -1, 1 );
 	OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
