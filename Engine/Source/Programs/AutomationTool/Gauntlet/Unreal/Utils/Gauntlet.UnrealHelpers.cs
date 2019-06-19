@@ -377,7 +377,7 @@ namespace Gauntlet
 
 			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac || BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 			{
-				string PosixMountPath = CommandUtils.IsBuildMachine ? "/Volumes/epicgames.net/root" : "/Volumes/root";
+				string PosixMountPath = (CommandUtils.IsBuildMachine || Globals.WorkerID != -1) ? "/Volumes/epicgames.net/root" : "/Volumes/root";
 
 				if (!Path.Contains("P:"))
 				{
