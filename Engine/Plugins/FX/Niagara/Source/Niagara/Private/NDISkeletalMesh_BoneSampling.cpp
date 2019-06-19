@@ -436,8 +436,13 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 
 	const FReferenceSkeleton& RefSkel = Accessor.Mesh->RefSkeleton;
 
-	int32 BoneMax = RefSkel.GetNum() - 1;
+	const int32 BoneMax = RefSkel.GetNum() - 1;
+	const int32 BoneAndSocketMax = BoneMax + InstData->SpecificSockets.Num();
 	float InvDt = 1.0f / InstData->DeltaSeconds;
+
+	const int32 SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
+	const TArray<FTransform>& SpecificSocketCurrTransforms = InstData->GetSpecificSocketsCurrBuffer();
+	const TArray<FTransform>& SpecificSocketPrevTransforms = InstData->GetSpecificSocketsPrevBuffer();
 
 	FVector BonePos;
 	FVector BonePrev;
@@ -448,31 +453,70 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		int32 Bone = FMath::Clamp(BoneParam.GetAndAdvance(), 0, BoneMax);
+		const float Interp = bInterpolated::Value ? InterpParam.GetAndAdvance() : 1.0f;
 
-		float Interp = 1.0f;
-		if (bInterpolated::Value)
+		// Determine bone or socket
+		int32 Bone = FMath::Clamp(BoneParam.GetAndAdvance(), 0, BoneAndSocketMax);
+		const bool bIsSocket = Bone > BoneMax;
+		if ( bIsSocket )
 		{
-			Interp = InterpParam.GetAndAdvance();
+			const int32 Socket = Bone - SpecificSocketBoneOffset;
+			FTransform CurrSocketTransform = SpecificSocketCurrTransforms[Socket];
+			FTransform PrevSocketTransform = SpecificSocketPrevTransforms[Socket];
+
+			Pos = CurrSocketTransform.GetLocation();
+			TransformHandler.TransformPosition(Pos, Transform);
+
+			if (Output.bNeedsVelocity || bInterpolated::Value)
+			{
+				Prev = PrevSocketTransform.GetLocation();
+				TransformHandler.TransformPosition(Prev, PrevTransform);
+			}
+
+			if (Output.bNeedsRotation)
+			{
+				FQuat Rotation = CurrSocketTransform.GetRotation();
+				if (bInterpolated::Value)
+				{
+					FQuat PrevRotation = PrevSocketTransform.GetRotation();
+					Rotation = FMath::Lerp(PrevRotation, Rotation, Interp);
+				}
+
+				Output.SetRotation(Rotation);
+			}
 		}
+		// Bone
+		else
+		{
+			Pos = SkinningHandler.GetSkinnedBonePosition(Accessor, Bone);
+			TransformHandler.TransformPosition(Pos, Transform);
 
+			if (Output.bNeedsVelocity || bInterpolated::Value)
+			{
+				Prev = SkinningHandler.GetSkinnedBonePreviousPosition(Accessor, Bone);
+				TransformHandler.TransformPosition(Prev, PrevTransform);
+			}
 
-		Pos = SkinningHandler.GetSkinnedBonePosition(Accessor, Bone);
-		TransformHandler.TransformPosition(Pos, Transform);
+			if (Output.bNeedsRotation)
+			{
+				FQuat Rotation = SkinningHandler.GetSkinnedBoneRotation(Accessor, Bone);
+				if (bInterpolated::Value)
+				{
+					FQuat PrevRotation = SkinningHandler.GetSkinnedBonePreviousRotation(Accessor, Bone);
+					Rotation = FMath::Lerp(PrevRotation, Rotation, Interp);
+				}
+
+				Output.SetRotation(Rotation);
+			}
+		}
 
 		if (Output.bNeedsVelocity || bInterpolated::Value)
 		{
-			Prev = SkinningHandler.GetSkinnedBonePreviousPosition(Accessor, Bone);
-			TransformHandler.TransformPosition(Prev, PrevTransform);
+			Pos = FMath::Lerp(Prev, Pos, Interp);
 		}
 
 		if (Output.bNeedsPosition)
 		{
-			if (bInterpolated::Value)
-			{
-				Pos = FMath::Lerp(Prev, Pos, Interp);
-			}
-
 			Output.SetPosition(Pos);
 		}
 
@@ -481,19 +525,6 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMContext& Con
 			//Don't have enough information to get a better interpolated velocity.
 			Velocity = (Pos - Prev) * InvDt;
 			Output.SetVelocity(Velocity);
-		}
-
-		if (Output.bNeedsRotation)
-		{
-			FQuat Rotation = SkinningHandler.GetSkinnedBoneRotation(Accessor, Bone);
-
-			if (bInterpolated::Value)
-			{
-				FQuat PrevRotation = SkinningHandler.GetSkinnedBonePreviousRotation(Accessor, Bone);
-				Rotation = FMath::Lerp(PrevRotation, Rotation, Interp);
-			}
-
-			Output.SetRotation(Rotation);
 		}
 	}
 }
@@ -508,7 +539,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSpecificSocketCount(FVectorVMContext&
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutCount(Context);
 
-	int32 Num = SpecificSockets.Num();
+	const int32 Num = InstData->SpecificSockets.Num();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutCount.GetDestAndAdvance() = Num;
@@ -523,15 +554,16 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSpecificSocketBoneAt(FVectorVMContext
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSocketBone(Context);
-	const TArray<int32>& SpecificSocketsArray = InstData->SpecificSocketBones;
+	const TArray<FName>& SpecificSocketsArray = InstData->SpecificSockets;
+	const int32 SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
 
 	int32 Max = SpecificSockets.Num() - 1;
 	if (Max != INDEX_NONE)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
-			int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, Max);
-			*OutSocketBone.GetDestAndAdvance() = SpecificSocketsArray[SocketIndex];
+			const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, Max);
+			*OutSocketBone.GetDestAndAdvance() = SpecificSocketBoneOffset + SocketIndex;
 		}
 	}
 	else
@@ -547,15 +579,16 @@ void UNiagaraDataInterfaceSkeletalMesh::RandomSpecificSocketBone(FVectorVMContex
 	VectorVM::FUserPtrHandler<FNDISkeletalMesh_InstanceData> InstData(Context);
 
 	VectorVM::FExternalFuncRegisterHandler<int32> OutSocketBone(Context);
-	const TArray<int32>& SpecificSocketsArray = InstData->SpecificSocketBones;
+	const TArray<FName>& SpecificSocketsArray = InstData->SpecificSockets;
+	const int32 SpecificSocketBoneOffset = InstData->SpecificSocketBoneOffset;
 
 	int32 Max = SpecificSockets.Num() - 1;
 	if (Max != INDEX_NONE)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
-			int32 SocketIndex = Context.RandStream.RandRange(0, Max);
-			*OutSocketBone.GetDestAndAdvance() = SpecificSocketsArray[SocketIndex];
+			const int32 SocketIndex = Context.RandStream.RandRange(0, Max);
+			*OutSocketBone.GetDestAndAdvance() = SpecificSocketBoneOffset + SocketIndex;
 		}
 	}
 	else
