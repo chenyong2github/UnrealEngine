@@ -873,6 +873,10 @@ namespace ShaderConductor
 				{
 					mslOpts.argument_buffers = (std::stoi(Define.value) != 0);
 				}
+				if (!strcmp(Define.name, "argument_buffer_offset"))
+				{
+					mslOpts.argument_buffer_offset = (uint32_t)std::stoi(Define.value);
+				}
 				/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
 			}
 			

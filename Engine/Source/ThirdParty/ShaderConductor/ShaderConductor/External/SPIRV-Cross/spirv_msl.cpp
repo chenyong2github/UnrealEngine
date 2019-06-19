@@ -6458,12 +6458,16 @@ string CompilerMSL::entry_point_args_argument_buffer(bool append_comma)
 		if (!ep_args.empty())
 			ep_args += ", ";
 
+		/* UE Change Begin: Allow the caller to specify the Metal translation should use argument buffers */
+		uint32_t index = i + msl_options.argument_buffer_offset;
+		
 		ep_args += get_argument_address_space(var) + " " + type_to_glsl(type) + "& " + to_name(id);
-		ep_args += " [[buffer(" + convert_to_string(i) + ")]]";
+		ep_args += " [[buffer(" + convert_to_string(index) + ")]]";
 
 		// Makes it more practical for testing, since the push constant block can occupy the first available
 		// buffer slot if it's not bound explicitly.
-		next_metal_resource_index_buffer = i + 1;
+		next_metal_resource_index_buffer = index + 1;
+		/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
 	}
 
 	entry_point_args_discrete_descriptors(ep_args);

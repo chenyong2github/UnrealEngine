@@ -189,6 +189,9 @@ public:
 		uint32_t shader_tess_factor_buffer_index = 26;
 		uint32_t buffer_size_buffer_index = 25;
 		uint32_t shader_input_wg_index = 0;
+		/* UE Change Begin: Allow the caller to specify the Metal translation should use argument buffers */
+		uint32_t argument_buffer_offset = 0;
+		/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
 		bool enable_point_size_builtin = true;
 		bool disable_rasterization = false;
 		bool capture_output_to_buffer = false;
