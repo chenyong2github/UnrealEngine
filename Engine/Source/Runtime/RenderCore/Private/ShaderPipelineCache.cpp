@@ -599,8 +599,9 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		{
 			return false;
 		}
+
 #if PLATFORM_MAC
-		if(GraphicsInitializer.PrimitiveType >= PT_Num)
+		if(PSO.GraphicsDesc.PrimitiveType >= PT_Num)
 		{
 			return false;
 		}
