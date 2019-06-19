@@ -308,11 +308,15 @@ private:
 	/** Set the actor this widget is responsible for to be hidden or shown */
 	void SetIsVisible(const bool bVisible)
 	{
-		auto TreeItem = WeakTreeItem.Pin();
-		if (TreeItem.IsValid() && IsVisible() != bVisible)
+		TSharedPtr<ITreeItem> TreeItem = WeakTreeItem.Pin();
+		TSharedPtr<ISceneOutliner> Outliner = WeakOutliner.Pin();
+
+		if (TreeItem.IsValid() && Outliner.IsValid() && IsVisible() != bVisible)
 		{
 			FSetVisibilityVisitor Visitor(bVisible);
 			TreeItem->Visit(Visitor);
+			
+			Outliner->Refresh();
 
 			GEditor->RedrawAllViewports();
 		}

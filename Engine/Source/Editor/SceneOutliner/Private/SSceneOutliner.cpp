@@ -762,6 +762,19 @@ namespace SceneOutliner
 					EUserInterfaceActionType::ToggleButton
 				);
 
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("ToggleHideFoldersContainingHiddenActors", "Hide Folders with Only Hidden Actors"),
+					LOCTEXT("ToggleHideFoldersContainingHiddenActorsToolTip", "When enabled, only shows Folders containing non-hidden Actors."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SSceneOutliner::ToggleHideFoldersContainingOnlyHiddenActors),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &SSceneOutliner::IsHidingFoldersContainingOnlyHiddenActors)
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+
 				if (bActorComponentsEnabled)
 				{
 					MenuBuilder.AddMenuEntry(
@@ -940,6 +953,17 @@ namespace SceneOutliner
 		}
 	}
 
+	void SSceneOutliner::ToggleHideFoldersContainingOnlyHiddenActors()
+	{
+		const bool bEnableFlag = !IsHidingFoldersContainingOnlyHiddenActors();
+
+		USceneOutlinerSettings* Settings = GetMutableDefault<USceneOutlinerSettings>();
+		Settings->bHideFoldersContainingHiddenActors = bEnableFlag;
+		Settings->PostEditChange();
+
+		FullRefresh();
+	}
+
 	bool SSceneOutliner::IsShowingActorComponents()
 	{
 		return bActorComponentsEnabled && GetDefault<USceneOutlinerSettings>()->bShowActorComponents;
@@ -978,6 +1002,11 @@ namespace SceneOutliner
 		return GetDefault<USceneOutlinerSettings>()->bShowOnlyActorsInCurrentLevel;
 	}
 
+	bool SSceneOutliner::IsHidingFoldersContainingOnlyHiddenActors() const
+	{
+		return GetDefault<USceneOutlinerSettings>()->bHideFoldersContainingHiddenActors;
+	}
+
 	/** END FILTERS */
 
 
@@ -1008,6 +1037,10 @@ namespace SceneOutliner
 
 	void SSceneOutliner::Refresh()
 	{
+		if (IsHidingFoldersContainingOnlyHiddenActors())
+		{
+			bFullRefresh = true;
+		}
 		bNeedsRefresh = true;
 	}
 
@@ -1160,6 +1193,8 @@ namespace SceneOutliner
 				bDisableIntermediateSorting = false;
 				bFinalSort = true;
 			}
+
+			HideFoldersContainingOnlyHiddenActors();
 		}
 
 		// If we are allowing intermediate sorts and met the conditions, or this is the final sort after all ops are complete
@@ -1453,6 +1488,74 @@ namespace SceneOutliner
 				}
 			}
 		}
+	}
+
+	void SSceneOutliner::HideFoldersContainingOnlyHiddenActors()
+	{
+		if (IsHidingFoldersContainingOnlyHiddenActors())
+		{
+			for (const FTreeItemPtr & TreeItem : RootTreeItems)
+			{
+				HideFoldersContainingOnlyHiddenActors(TreeItem, true);
+			}
+		}
+	}
+
+	bool SSceneOutliner::HideFoldersContainingOnlyHiddenActors(FTreeItemPtr Parent, bool bIsRoot)
+	{
+		TArray<FTreeItemPtr> ItemsToRemove;
+
+		bool bActorsHidden = true;
+		bool bFoldersHidden = true;
+
+		const TArray<TWeakPtr<ITreeItem>>& Children = Parent->GetChildren();
+
+		if (Children.Num())
+		{
+
+			for (const TWeakPtr<ITreeItem> & ChildItem : Children)
+			{
+				FTreeItemPtr TreeItem = ChildItem.Pin();
+
+				TWeakObjectPtr<AActor> TrueTreeActor = StaticCastSharedPtr<FActorTreeItem>(TreeItem)->Actor;
+
+				if (!bIsRoot && TrueTreeActor.IsValid())
+				{
+					if (bActorsHidden)
+					{
+						if (!(TrueTreeActor->IsTemporarilyHiddenInEditor()))
+						{
+							bActorsHidden = false;
+						}
+					}
+				}
+				else
+				{
+					bool bCurrentFolderHidden = HideFoldersContainingOnlyHiddenActors(TreeItem);
+
+					if (bCurrentFolderHidden)
+					{
+						ItemsToRemove.Add(TreeItem);
+					}
+
+					bFoldersHidden = bCurrentFolderHidden & bFoldersHidden;
+
+				}
+
+			}
+		}
+		else
+		{
+			return false;
+		}
+
+		for (const FTreeItemPtr & Item : ItemsToRemove)
+		{
+			FTreeItemRef RemoveItem = Item.ToSharedRef();
+			Parent->RemoveChild(RemoveItem);
+		}
+
+		return bActorsHidden && bFoldersHidden;
 	}
 
 	void SSceneOutliner::PopulateSearchStrings(const ITreeItem& Item, TArray< FString >& OutSearchStrings) const

@@ -25,6 +25,10 @@ class USceneOutlinerSettings
 	UPROPERTY(config)
 	uint32 bShowOnlyActorsInCurrentLevel:1;
 
+	/** True when the Scene Outliner is showing only Folders containing  non-hidden Actors */
+	UPROPERTY(config)
+	uint32 bHideFoldersContainingHiddenActors : 1;
+
 	/** True when the Scene Outliner is only displaying selected Actors */
 	UPROPERTY(config)
 	uint32 bShowOnlySelectedActors:1;

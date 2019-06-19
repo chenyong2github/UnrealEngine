@@ -543,6 +543,11 @@ namespace SceneOutliner
 		/** Enables/Disables whether the ShowOnlyActorsInCurrentLevelFilter is applied */
 		void ApplyShowOnlyCurrentLevelFilter(bool bShowOnlyActorsInCurrentLevel);
 
+		/** @return whether we are hiding Folders with hidden actors */
+		bool IsHidingFoldersContainingOnlyHiddenActors() const;
+		/** Toggles whether we are hiding Folders with hidden actors */
+		void ToggleHideFoldersContainingOnlyHiddenActors();
+
 		/** @return whether we are showing the components of the Actors */
 		bool IsShowingActorComponents();
 		/** Toggles whether we are showing the components of the Actors */
@@ -610,6 +615,10 @@ namespace SceneOutliner
 
 		/** Updates the expansion state of parent items after a repopulate, according to the previous state */
 		void SetParentsExpansionState(const FParentsExpansionState& ExpansionStateInfo) const;
+
+		/** Pair of functions to Hide Folders in Outliner when HideFoldersContainingHiddenActors filter is active*/
+		void HideFoldersContainingOnlyHiddenActors();
+		bool HideFoldersContainingOnlyHiddenActors(FTreeItemPtr Parent, bool bIsRoot = false);
 
 	private:
 
