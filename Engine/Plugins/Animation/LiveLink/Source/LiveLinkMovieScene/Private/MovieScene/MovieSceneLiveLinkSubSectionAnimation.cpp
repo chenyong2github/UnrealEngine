@@ -80,6 +80,11 @@ void UMovieSceneLiveLinkSubSectionAnimation::CreatePropertiesChannel()
 
 	const FName TransformsPropertyName = GET_MEMBER_NAME_CHECKED(FLiveLinkAnimationFrameData, Transforms);
 	const int32 TransformCount = SkeletonData->BoneNames.Num();
+	if (TransformCount <= 0)
+	{
+		return;
+	}
+
 	SubSectionData.Properties.SetNum(1);
 	SubSectionData.Properties[0].PropertyName = TransformsPropertyName;
 
@@ -92,12 +97,18 @@ void UMovieSceneLiveLinkSubSectionAnimation::RecordFrame(FFrameNumber InFrameNum
 	const FLiveLinkAnimationFrameData* AnimationFrameData = InFrameData.Cast<FLiveLinkAnimationFrameData>();
 	check(AnimationFrameData);
 
-	TransformHandler->RecordFrame(InFrameNumber, *FLiveLinkAnimationFrameData::StaticStruct(), InFrameData.GetBaseData());
+	if (TransformHandler.IsValid())
+	{
+		TransformHandler->RecordFrame(InFrameNumber, *FLiveLinkAnimationFrameData::StaticStruct(), InFrameData.GetBaseData());
+	}
 }
 
 void UMovieSceneLiveLinkSubSectionAnimation::FinalizeSection(bool bInReduceKeys, const FKeyDataOptimizationParams& InOptimizationParams)
 {
-	TransformHandler->Finalize(bInReduceKeys, InOptimizationParams);
+	if (TransformHandler.IsValid())
+	{
+		TransformHandler->Finalize(bInReduceKeys, InOptimizationParams);
+	}
 }
 
 bool UMovieSceneLiveLinkSubSectionAnimation::IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) const
