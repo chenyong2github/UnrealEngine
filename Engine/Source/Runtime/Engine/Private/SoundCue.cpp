@@ -211,26 +211,6 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 	}
 }
 
-
-#if WITH_EDITOR
-
-void USoundCue::RecursivelySetExcludeBranchCulling(USoundNode* CurrentNode)
-{
-	if (CurrentNode)
-	{
-		USoundNodeRandom* RandomNode = Cast<USoundNodeRandom>(CurrentNode);
-		if (RandomNode)
-		{
-			RandomNode->bSoundCueExcludedFromBranchCulling = bExcludeFromRandomNodeBranchCulling;
-			RandomNode->MarkPackageDirty();
-		}
-		for (USoundNode* ChildNode : CurrentNode->ChildNodes)
-		{
-			RecursivelySetExcludeBranchCulling(ChildNode);
-		}
-	}
-}
-
 float USoundCue::FindMaxDistanceInternal() const
 {
 	float OutMaxDistance = 0.0f;
@@ -256,6 +236,26 @@ float USoundCue::FindMaxDistanceInternal() const
 
 	// If no sound cue nodes has overridden the max distance, check the base attenuation
 	return USoundBase::GetMaxDistance();
+}
+
+
+#if WITH_EDITOR
+
+void USoundCue::RecursivelySetExcludeBranchCulling(USoundNode* CurrentNode)
+{
+	if (CurrentNode)
+	{
+		USoundNodeRandom* RandomNode = Cast<USoundNodeRandom>(CurrentNode);
+		if (RandomNode)
+		{
+			RandomNode->bSoundCueExcludedFromBranchCulling = bExcludeFromRandomNodeBranchCulling;
+			RandomNode->MarkPackageDirty();
+		}
+		for (USoundNode* ChildNode : CurrentNode->ChildNodes)
+		{
+			RecursivelySetExcludeBranchCulling(ChildNode);
+		}
+	}
 }
 
 void USoundCue::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)

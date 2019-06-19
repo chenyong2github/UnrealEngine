@@ -640,7 +640,7 @@ public:
 	static void OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
 
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
-	void ParseAttenuation(FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings& AttenuationSettings);
+	void ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings);
 
 	/** Returns the effective priority of the active sound */
 	float GetPriority() const { return Priority * FocusData.PriorityScale; }
