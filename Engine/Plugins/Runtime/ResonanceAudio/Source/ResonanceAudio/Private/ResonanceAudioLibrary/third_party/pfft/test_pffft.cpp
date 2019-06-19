@@ -259,7 +259,12 @@ void benchmark_ffts(int N, int cplx) {
   double t0, t1, flops;
 
   int k;
-  int max_iter = 5120000/N*4;
+  int max_iter = 5120000;
+  if (N > 0)
+  {
+	  max_iter = 5120000 / N * 4;
+  }
+  
 #ifdef __arm__
   max_iter /= 4;
 #endif
