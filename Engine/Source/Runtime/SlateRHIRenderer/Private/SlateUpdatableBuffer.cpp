@@ -78,16 +78,16 @@ void FSlateUpdatableInstanceBuffer::UpdateRenderingData_RenderThread(FRHICommand
 	else
 	{
 		FRHIVertexBuffer* VertexBufferRHI = InstanceBufferResource.VertexBufferRHI;
-		RHICmdList.EnqueueLambda([VertexBufferRHI, &InstanceData = RenderThreadBufferData](FRHICommandListImmediate& RHICmdList)
+		RHICmdList.EnqueueLambda([VertexBufferRHI, &InstanceData = RenderThreadBufferData](FRHICommandListImmediate& InRHICmdList)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SlateUpdateInstanceBuffer);
 
 			int32 RequiredVertexBufferSize = InstanceData.Num() * sizeof(FVector4);
-			uint8* InstanceBufferData = (uint8*)RHICmdList.LockVertexBuffer(VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+			uint8* InstanceBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly);
 
 			FMemory::Memcpy(InstanceBufferData, InstanceData.GetData(), InstanceData.Num() * sizeof(FVector4));
 
-			RHICmdList.UnlockVertexBuffer(VertexBufferRHI);
+			InRHICmdList.UnlockVertexBuffer(VertexBufferRHI);
 		});
 
 		RHICmdList.RHIThreadFence(true);

@@ -244,10 +244,10 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 					// PLATFORM_CACHE_LINE_SIZE (128) / 48 = 2.6
 					//  sizeof(FMatrix) == 64
 					// PLATFORM_CACHE_LINE_SIZE (128) / 64 = 2
-					const uint32 NumBones = BoneMap.Num();
-					check(NumBones > 0 && NumBones < 256); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
+					const uint32 LocalNumBones = BoneMap.Num();
+					check(LocalNumBones > 0 && LocalNumBones < 256); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
 					const int32 PreFetchStride = 2; // FPlatformMisc::Prefetch stride
-					for (uint32 BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
+					for (uint32 BoneIdx = 0; BoneIdx < LocalNumBones; BoneIdx++)
 					{
 						const FBoneIndexType RefToLocalIdx = BoneMap[BoneIdx];
 						check(ReferenceToLocalMatrices.IsValidIndex(RefToLocalIdx)); // otherwise maybe some bad threading on BoneMap, maybe we need to copy that
@@ -920,10 +920,10 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 			if (DeferSkeletalLockAndFillToRHIThread())
 			{
 				FRHIVertexBuffer* VertexBuffer = CurrentClothBuffer->VertexBufferRHI;
-				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& RHICmdList)
+				RHICmdList.EnqueueLambda([VertexBuffer, VectorArraySize, &InSimulPositions, &InSimulNormals](FRHICommandListImmediate& InRHICmdList)
 				{
 					QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateBoneBuffer_Execute);
-					float* RESTRICT Data = (float* RESTRICT)RHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
+					float* RESTRICT Data = (float* RESTRICT)InRHICmdList.LockVertexBuffer(VertexBuffer, 0, VectorArraySize, RLM_WriteOnly);
 					uint32 NumSimulVerts = InSimulPositions.Num();
 					check(NumSimulVerts > 0 && NumSimulVerts <= MAX_APEXCLOTH_VERTICES_FOR_VB);
 					float* RESTRICT Pos = (float* RESTRICT) &InSimulPositions[0].X;
@@ -939,7 +939,7 @@ bool FGPUBaseSkinAPEXClothVertexFactory::ClothShaderType::UpdateClothSimulData(F
 						Pos += 3;
 						Normal += 3;
 					}
-					RHICmdList.UnlockVertexBuffer(VertexBuffer);
+					InRHICmdList.UnlockVertexBuffer(VertexBuffer);
 				});
 
 				RHICmdList.RHIThreadFence(true);

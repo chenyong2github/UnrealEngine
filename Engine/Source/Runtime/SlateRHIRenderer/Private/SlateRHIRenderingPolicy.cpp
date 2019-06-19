@@ -194,7 +194,7 @@ void FSlateRHIRenderingPolicy::UpdateVertexAndIndexBuffers(FRHICommandListImmedi
 			FRHIVertexBuffer* VertexBufferRHI = VertexBuffer.VertexBufferRHI;
 			FRHIIndexBuffer* IndexBufferRHI = IndexBuffer.IndexBufferRHI;
 
-			RHICmdList.EnqueueLambda([VertexBufferRHI, IndexBufferRHI, &InBatchData, bAbsoluteIndices](FRHICommandListImmediate& RHICmdList)
+			RHICmdList.EnqueueLambda([VertexBufferRHI, IndexBufferRHI, &InBatchData, bAbsoluteIndices](FRHICommandListImmediate& InRHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_SlateUpdateBufferRTTime);
 
@@ -202,15 +202,15 @@ void FSlateRHIRenderingPolicy::UpdateVertexAndIndexBuffers(FRHICommandListImmedi
 				const int32 NumBatchedIndices = InBatchData.GetNumBatchedIndices();
 
 				int32 RequiredVertexBufferSize = NumBatchedVertices * sizeof(FSlateVertex);
-				uint8* VertexBufferData = (uint8*)RHICmdList.LockVertexBuffer(VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly);
+				uint8* VertexBufferData = (uint8*)InRHICmdList.LockVertexBuffer(VertexBufferRHI, 0, RequiredVertexBufferSize, RLM_WriteOnly);
 
 				uint32 RequiredIndexBufferSize = NumBatchedIndices * sizeof(SlateIndex);
-				uint8* IndexBufferData = (uint8*)RHICmdList.LockIndexBuffer(IndexBufferRHI, 0, RequiredIndexBufferSize, RLM_WriteOnly);
+				uint8* IndexBufferData = (uint8*)InRHICmdList.LockIndexBuffer(IndexBufferRHI, 0, RequiredIndexBufferSize, RLM_WriteOnly);
 
 				InBatchData.FillVertexAndIndexBuffer(VertexBufferData, IndexBufferData, bAbsoluteIndices);
 
-				RHICmdList.UnlockVertexBuffer(VertexBufferRHI);
-				RHICmdList.UnlockIndexBuffer(IndexBufferRHI);
+				InRHICmdList.UnlockVertexBuffer(VertexBufferRHI);
+				InRHICmdList.UnlockIndexBuffer(IndexBufferRHI);
 			});
 
 			RHICmdList.RHIThreadFence(true);

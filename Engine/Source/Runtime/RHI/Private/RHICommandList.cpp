@@ -1973,13 +1973,13 @@ void FDynamicRHI::RHIUnlockVertexBuffer(class FRHICommandListImmediate& RHICmdLi
 		}
 		else
 		{
-			RHICmdList.EnqueueLambda([VertexBuffer, Params](FRHICommandListImmediate& RHICmdList)
+			RHICmdList.EnqueueLambda([VertexBuffer, Params](FRHICommandListImmediate& InRHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateVertexBuffer_Execute);
-				void* Data = GDynamicRHI->LockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
+				void* Data = GDynamicRHI->LockVertexBuffer_BottomOfPipe(InRHICmdList, VertexBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
 				FMemory::Memcpy(Data, Params.Buffer, Params.BufferSize);
 				FMemory::Free(Params.Buffer);
-				GDynamicRHI->UnlockVertexBuffer_BottomOfPipe(RHICmdList, VertexBuffer);
+				GDynamicRHI->UnlockVertexBuffer_BottomOfPipe(InRHICmdList, VertexBuffer);
 			});
 			RHICmdList.RHIThreadFence(true);
 		}
@@ -2051,13 +2051,13 @@ void FDynamicRHI::RHIUnlockIndexBuffer(class FRHICommandListImmediate& RHICmdLis
 		}
 		else
 		{
-			RHICmdList.EnqueueLambda([IndexBuffer, Params](FRHICommandListImmediate& RHICmdList)
+			RHICmdList.EnqueueLambda([IndexBuffer, Params](FRHICommandListImmediate& InRHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateIndexBuffer_Execute);
-				void* Data = GDynamicRHI->LockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
+				void* Data = GDynamicRHI->LockIndexBuffer_BottomOfPipe(InRHICmdList, IndexBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
 				FMemory::Memcpy(Data, Params.Buffer, Params.BufferSize);
 				FMemory::Free(Params.Buffer);
-				GDynamicRHI->UnlockIndexBuffer_BottomOfPipe(RHICmdList, IndexBuffer);
+				GDynamicRHI->UnlockIndexBuffer_BottomOfPipe(InRHICmdList, IndexBuffer);
 			});
 			RHICmdList.RHIThreadFence(true);
 		}
@@ -2129,13 +2129,13 @@ void FDynamicRHI::RHIUnlockStructuredBuffer(class FRHICommandListImmediate& RHIC
 		}
 		else
 		{
-			RHICmdList.EnqueueLambda([StructuredBuffer, Params](FRHICommandListImmediate& RHICmdList)
+			RHICmdList.EnqueueLambda([StructuredBuffer, Params](FRHICommandListImmediate& InRHICmdList)
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateStructuredBuffer_Execute);
-				void* Data = GDynamicRHI->LockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
+				void* Data = GDynamicRHI->LockStructuredBuffer_BottomOfPipe(InRHICmdList, StructuredBuffer, Params.Offset, Params.BufferSize, RLM_WriteOnly);
 				FMemory::Memcpy(Data, Params.Buffer, Params.BufferSize);
 				FMemory::Free(Params.Buffer);
-				GDynamicRHI->UnlockStructuredBuffer_BottomOfPipe(RHICmdList, StructuredBuffer);
+				GDynamicRHI->UnlockStructuredBuffer_BottomOfPipe(InRHICmdList, StructuredBuffer);
 			});
 			RHICmdList.RHIThreadFence(true);
 		}
