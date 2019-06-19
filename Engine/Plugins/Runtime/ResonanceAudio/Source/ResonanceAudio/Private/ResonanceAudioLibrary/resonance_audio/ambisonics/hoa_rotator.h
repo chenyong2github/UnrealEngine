@@ -19,7 +19,12 @@ limitations under the License.
 
 #include <vector>
 
+#include "CoreMinimal.h"
+
+THIRD_PARTY_INCLUDES_START
 #include "Eigen/Dense"
+THIRD_PARTY_INCLUDES_END
+
 #include "base/audio_buffer.h"
 #include "base/misc_math.h"
 
