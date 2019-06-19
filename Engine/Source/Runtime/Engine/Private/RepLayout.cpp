@@ -66,7 +66,7 @@ int32 MaxRepArrayMemory = UNetworkSettings::DefaultMaxRepArrayMemory;
 extern int32 GNumSharedSerializationHit;
 extern int32 GNumSharedSerializationMiss;
 
-extern TAutoConsoleVariable<int32> CVarEnableDetailedScopeCounters;
+extern TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters;
 
 FConsoleVariableSinkHandle CreateMaxArraySizeCVarAndRegisterSink()
 {
@@ -1153,7 +1153,7 @@ bool FRepLayout::CompareProperties(
 	const FConstRepObjectDataBuffer Data,
 	const FReplicationFlags& RepFlags) const
 {
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropCompareTime, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropCompareTime, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
 
 	if (LayoutState == ERepLayoutState::Empty)
 	{
@@ -1255,7 +1255,7 @@ bool FRepLayout::ReplicateProperties(
 	FNetBitWriter& Writer,
 	const FReplicationFlags& RepFlags) const
 {
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropTime, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateDynamicPropTime, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
 
 	check(ObjectClass == Owner);
 
@@ -6164,7 +6164,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 {
 	using namespace UE4_RepLayout_Private;
 
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_RepLayout_DeltaSerializeFastArray, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_RepLayout_DeltaSerializeFastArray, CVarNetEnableDetailedScopeCounters.GetValueOnAnyThread() > 0);
 
 	// A portion of this work could be shared across all Fast Array Properties for a given object,
 	// but that would be easier to do if the Custom Delta Serialization was completely encapsulated in FRepLayout.
