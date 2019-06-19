@@ -361,10 +361,28 @@ public:
 	/** Stop recording a replay if one is currently in progress */
 	virtual void StopRecordingReplay();
 
-	/** Start playing back a previously recorded replay.
-	 *	Return false if it fails to play.
-	*/
+	/**
+	 * Start playing back a previously recorded replay.
+	 *
+	 * @param InName				Name of the replay file.
+	 * @param WorldOverride			World in which the replay will be played. Passing null will cause the current world to be used.
+	 * @param AdditionalOptions		Additional options that can be read by derived game instances, or the Demo Net Driver.
+	 *
+	 * @return True if the replay began successfully.
+	 */
 	virtual bool PlayReplay(const FString& InName, UWorld* WorldOverride = nullptr, const TArray<FString>& AdditionalOptions = TArray<FString>());
+
+	/**
+	 * Start playing back a playlist of previously recorded replays.
+	 *
+	 * Using "ExitAfterReplay" on the command line will cause the system to exit *after* the last
+	 * replay has been played.
+	 *
+	 * Using the "Demo.Loop" CVar will cause the entire replay playlist to loop.
+	 *
+	 * @return True if the first replay began successfully.
+	 */
+	bool PlayReplayPlaylist(const struct FReplayPlaylistParams& PlaylistParams);
 
 	/**
 	 * Adds a join-in-progress user to the set of users associated with the currently recording replay (if any)
