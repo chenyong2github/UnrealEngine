@@ -49,6 +49,8 @@ static FAutoConsoleVariableRef CVarSupportsFastArrayDelta(
 	TEXT("Whether or not Fast Array Struct Delta Serialization is enabled.")
 );
 
+extern TAutoConsoleVariable<int32> CVarEnableDetailedScopeCounters;
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class FNetSerializeCB : public INetSerializeCB
 {
@@ -307,7 +309,7 @@ bool FObjectReplicator::SerializeCustomDeltaProperty(
 {
 	check( NewFullState.IsValid() == false ); // NewState is passed in as nullptr and instantiated within this function if necessary
 
-	SCOPE_CYCLE_COUNTER( STAT_NetSerializeItemDeltaTime );
+	CONDITIONAL_SCOPE_CYCLE_COUNTER( STAT_NetSerializeItemDeltaTime, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0 );
 
 	UStructProperty * StructProperty = CastChecked< UStructProperty >( Property );
 
@@ -358,7 +360,7 @@ bool FObjectReplicator::SendCustomDeltaProperty(UObject* InObject, uint16 Custom
 	check(!NewFullState.IsValid()); // NewState is passed in as nullptr and instantiated within this function if necessary
 	check(RepLayout);
 
-	SCOPE_CYCLE_COUNTER(STAT_NetSerializeItemDeltaTime);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetSerializeItemDeltaTime, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0);
 
 	UNetDriver* const ConnectionDriver = Connection->GetDriver();
 	FNetSerializeCB NetSerializeCB(ConnectionDriver);
@@ -1418,7 +1420,7 @@ static FORCEINLINE FPropertyRetirement** UpdateAckedRetirements(
 
 void FObjectReplicator::ReplicateCustomDeltaProperties( FNetBitWriter & Bunch, FReplicationFlags RepFlags )
 {
-	SCOPE_CYCLE_COUNTER(STAT_NetReplicateCustomDeltaPropTime);
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_NetReplicateCustomDeltaPropTime, CVarEnableDetailedScopeCounters.GetValueOnGameThread() > 0);
 
 	check(RepLayout);
 	const FRepLayout& LocalRepLayout = *RepLayout;
