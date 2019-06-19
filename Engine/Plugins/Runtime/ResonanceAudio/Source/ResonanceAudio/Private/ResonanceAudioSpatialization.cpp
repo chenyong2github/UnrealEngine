@@ -74,22 +74,22 @@ namespace ResonanceAudio {
 
 		if (SpatializationSettings[SourceId]->SpatializationMethod == ERaSpatializationMethod::STEREO_PANNING || GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::STEREO_PANNING)
 		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::VrAudioApi::RenderingMode::kStereoPanning);
+			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kStereoPanning);
 			UE_LOG(LogResonanceAudio, Log, TEXT("ResonanceAudioSpatializer::OnInitSource: STEREO_PANNING mode chosen."));
 		}
 		else if (GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::BINAURAL_LOW)
 		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::VrAudioApi::RenderingMode::kBinauralLowQuality);
+			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kBinauralLowQuality);
 			UE_LOG(LogResonanceAudio, Log, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_LOW mode chosen."));
 		}
 		else if (GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::BINAURAL_MEDIUM)
 		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::VrAudioApi::RenderingMode::kBinauralMediumQuality);
+			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kBinauralMediumQuality);
 			UE_LOG(LogResonanceAudio, Log, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_MEDIUM mode chosen."));
 		}
 		else if (GetDefault<UResonanceAudioSettings>()->QualityMode == ERaQualityMode::BINAURAL_HIGH)
 		{
-			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::VrAudioApi::RenderingMode::kBinauralHighQuality);
+			BinauralSource.Id = ResonanceAudioApi->CreateSoundObjectSource(vraudio::RenderingMode::kBinauralHighQuality);
 			UE_LOG(LogResonanceAudio, Log, TEXT("ResonanceAudioSpatializer::OnInitSource: BINAURAL_HIGH mode chosen."));
 		}
 		else
@@ -110,13 +110,13 @@ namespace ResonanceAudio {
 		switch (SpatializationSettings[SourceId]->Rolloff)
 		{
 		case ERaDistanceRolloffModel::LOGARITHMIC:
-			ResonanceAudioApi->SetSourceDistanceModel(BinauralSource.Id, vraudio::VrAudioApi::DistanceRolloffModel::kLogarithmic, SCALE_FACTOR * SpatializationSettings[SourceId]->MinDistance, SCALE_FACTOR * SpatializationSettings[SourceId]->MaxDistance);
+			ResonanceAudioApi->SetSourceDistanceModel(BinauralSource.Id, vraudio::DistanceRolloffModel::kLogarithmic, SCALE_FACTOR * SpatializationSettings[SourceId]->MinDistance, SCALE_FACTOR * SpatializationSettings[SourceId]->MaxDistance);
 			break;
 		case ERaDistanceRolloffModel::LINEAR:
-			ResonanceAudioApi->SetSourceDistanceModel(BinauralSource.Id, vraudio::VrAudioApi::DistanceRolloffModel::kLinear, SCALE_FACTOR * SpatializationSettings[SourceId]->MinDistance, SCALE_FACTOR * SpatializationSettings[SourceId]->MaxDistance);
+			ResonanceAudioApi->SetSourceDistanceModel(BinauralSource.Id, vraudio::DistanceRolloffModel::kLinear, SCALE_FACTOR * SpatializationSettings[SourceId]->MinDistance, SCALE_FACTOR * SpatializationSettings[SourceId]->MaxDistance);
 			break;
 		case ERaDistanceRolloffModel::NONE:
-			ResonanceAudioApi->SetSourceDistanceModel(BinauralSource.Id, vraudio::VrAudioApi::DistanceRolloffModel::kNone, SCALE_FACTOR * SpatializationSettings[SourceId]->MinDistance, SCALE_FACTOR * SpatializationSettings[SourceId]->MaxDistance);
+			ResonanceAudioApi->SetSourceDistanceModel(BinauralSource.Id, vraudio::DistanceRolloffModel::kNone, SCALE_FACTOR * SpatializationSettings[SourceId]->MinDistance, SCALE_FACTOR * SpatializationSettings[SourceId]->MaxDistance);
 			break;
 		default:
 			UE_LOG(LogResonanceAudio, Error, TEXT("ResonanceAudioSpatializer::OnInitSource: Undefined distance roll-off model!"));
