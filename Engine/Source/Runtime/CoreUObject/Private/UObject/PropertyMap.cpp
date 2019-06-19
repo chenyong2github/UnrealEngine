@@ -297,10 +297,9 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 				KeyProp->SerializeItem(KeysToRemoveArray.EnterElement(), TempKeyStorage);
 
 				// If the key is in the map, remove it
-				int32 Found = MapHelper.FindMapIndexWithKey(TempKeyStorage);
-				if (Found != INDEX_NONE)
+				if (uint8* PairPtr = MapHelper.FindMapPairPtrFromHash(TempKeyStorage))
 				{
-					MapHelper.RemoveAt(Found);
+					MapHelper.RemovePair(PairPtr);
 				}
 			}
 		}
@@ -325,27 +324,15 @@ void UMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
 				KeyProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Key")), TempKeyStorage);
 			}
-			
-			// Add a new default value if the key doesn't currently exist in the map
-			int32 NextPairIndex = MapHelper.FindMapIndexWithKey(TempKeyStorage);
-			if (NextPairIndex == INDEX_NONE)
-			{
-				NextPairIndex = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
-			}
 
-			uint8* NextPairPtr = MapHelper.GetPairPtrWithoutCheck(NextPairIndex);
+			void* ValuePtr = MapHelper.FindOrAdd(TempKeyStorage);
 
-			// Copy over deserialised key from temporary storage
-			KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyStorage);
-
-			// Deserialize value
+			// Deserialize value into hash map-owned memory
 			{
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, ValueProp, this);
-				ValueProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Value")), NextPairPtr + MapLayout.ValueOffset);
+				ValueProp->SerializeItem(EntryRecord.EnterField(FIELD_NAME_TEXT("Value")), ValuePtr);
 			}
 		}
-
-		MapHelper.Rehash();
 	}
 	else
 	{

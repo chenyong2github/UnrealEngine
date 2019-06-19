@@ -3409,6 +3409,50 @@ public:
 		);
 	}
 
+
+	/**
+	 * Finds or adds a new default-constructed value
+	 *
+	 * No need to rehash after calling. The hash table must be properly hashed before calling.
+	 *
+	 * @return The address to the value, not the pair
+	 **/
+	void* FindOrAdd(const void* KeyPtr)
+	{
+		UProperty* LocalKeyPropForCapture = KeyProp;
+		UProperty* LocalValuePropForCapture = ValueProp;
+		return Map->FindOrAdd(
+			KeyPtr,
+			MapLayout,
+			[LocalKeyPropForCapture](const void* ElementKey) { return LocalKeyPropForCapture->GetValueTypeHash(ElementKey); },
+			[LocalKeyPropForCapture](const void* A, const void* B) { return LocalKeyPropForCapture->Identical(A, B); },
+			[LocalKeyPropForCapture, LocalValuePropForCapture, KeyPtr](void* NewElementKey, void* NewElementValue)
+			{
+				if (LocalKeyPropForCapture->PropertyFlags & CPF_ZeroConstructor)
+				{
+					FMemory::Memzero(NewElementKey, LocalKeyPropForCapture->GetSize());
+				}
+				else
+				{
+					LocalKeyPropForCapture->InitializeValue(NewElementKey);
+				}
+
+				LocalKeyPropForCapture->CopySingleValueToScriptVM(NewElementKey, KeyPtr);
+
+				if (LocalValuePropForCapture->PropertyFlags & CPF_ZeroConstructor)
+				{
+					FMemory::Memzero(NewElementValue, LocalValuePropForCapture->GetSize());
+				}
+				else
+				{
+					LocalValuePropForCapture->InitializeValue(NewElementValue);
+				}
+			}
+		);
+
+	}
+
+
 	/** Removes the key and its associated value from the map */
 	bool RemovePair(const void* KeyPtr)
 	{

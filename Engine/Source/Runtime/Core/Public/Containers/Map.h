@@ -1614,6 +1614,45 @@ public:
 		);
 	}
 
+	/**
+	 * Adds a new uninitialized value or destroys the existing value for a given key.
+	 *
+	 * No need to rehash after calling. The hash table must be properly hashed before calling.
+	 *
+	 * @return The address to the value, not the pair
+	 **/
+	void* FindOrAdd(
+		const void* Key,
+		const FScriptMapLayout& Layout,
+		TFunctionRef<uint32(const void*)> GetKeyHash,
+		TFunctionRef<bool(const void*, const void*)> KeyEqualityFn,
+		TFunctionRef<void(void*, void*)> ConstructPairFn)
+	{
+		void* OutPair = nullptr;
+		bool bCreatePair = true;
+		const int32 ValueOffset = Layout.ValueOffset;
+				
+		Pairs.Add(
+			Key,
+			Layout.SetLayout,
+			GetKeyHash,
+			KeyEqualityFn,
+			[ConstructPairFn, &bCreatePair, &OutPair, ValueOffset](void* NewPair)
+			{
+				if (bCreatePair)
+				{
+					ConstructPairFn(NewPair, (uint8*)NewPair + ValueOffset);
+				}
+
+				OutPair = NewPair;
+			},
+			[&bCreatePair](void* NewPair) {	bCreatePair = false; }
+		);
+
+		checkSlow(OutPair);
+		return (uint8*)OutPair + ValueOffset;
+	}
+
 private:
 	FScriptSet Pairs;
 
