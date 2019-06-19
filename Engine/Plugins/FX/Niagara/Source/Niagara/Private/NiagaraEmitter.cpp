@@ -549,7 +549,7 @@ bool UNiagaraEmitter::IsValid()const
 		return false;
 	}
 
-	if (SimTarget == ENiagaraSimTarget::CPUSim || SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		if (!SpawnScriptProps.Script->IsScriptCompilationPending(false) && !SpawnScriptProps.Script->DidScriptCompilationSucceed(false))
 		{
@@ -572,7 +572,7 @@ bool UNiagaraEmitter::IsValid()const
 		}
 	}
 
-	if (SimTarget == ENiagaraSimTarget::GPUComputeSim || SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (!GPUComputeScript->IsScriptCompilationPending(true) && 
 			!GPUComputeScript->DidScriptCompilationSucceed(true))
@@ -591,7 +591,7 @@ bool UNiagaraEmitter::IsReadyToRun() const
 		return false;
 	}
 
-	if (SimTarget == ENiagaraSimTarget::CPUSim || SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		if (SpawnScriptProps.Script->IsScriptCompilationPending(false))
 		{
@@ -613,7 +613,7 @@ bool UNiagaraEmitter::IsReadyToRun() const
 		}
 	}
 
-	if (SimTarget == ENiagaraSimTarget::GPUComputeSim || SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (GPUComputeScript->IsScriptCompilationPending(true))
 		{
@@ -642,7 +642,7 @@ void UNiagaraEmitter::GetScripts(TArray<UNiagaraScript*>& OutScripts, bool bComp
 		}
 	}
 
-	if (SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim || SimTarget == ENiagaraSimTarget::GPUComputeSim)
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		OutScripts.Add(GPUComputeScript);
 	}
