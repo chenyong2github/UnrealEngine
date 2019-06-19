@@ -33,8 +33,6 @@ FEditorMenuEntry::FEditorMenuEntry(const FEditorMenuOwner InOwner, const FName I
 
 void FEditorMenuEntry::SetCommand(const TSharedPtr< const FUICommandInfo >& InCommand, FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon)
 {
-	//Action = FEditorUIActionChoice(InCommand, InCommandList);
-
 	Command = InCommand;
 	Name = InName != NAME_None ? InName : InCommand->GetCommandName();
 	Label = InLabel.IsSet() ? InLabel : InCommand->GetLabel();
@@ -59,6 +57,14 @@ FEditorMenuEntry FEditorMenuEntry::InitMenuEntry(const TSharedPtr< const FUIComm
 	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
 	Entry.TutorialHighlightName = InTutorialHighlightName;
 	Entry.SetCommand(InCommand, InName, InLabel, InToolTip, InIcon);
+	return Entry;
+}
+
+FEditorMenuEntry FEditorMenuEntry::InitMenuEntry(const FName InName, const FEditorUIActionChoice& InAction, const TSharedRef<SWidget>& Widget)
+{
+	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::MenuEntry);
+	Entry.Action = InAction;
+	Entry.MakeWidget.BindLambda([Widget](const FEditorMenuContext&) { return Widget; });
 	return Entry;
 }
 
@@ -94,7 +100,7 @@ FEditorMenuEntry FEditorMenuEntry::InitToolBarButton(const TSharedPtr< const FUI
 	return Entry;
 }
 
-FEditorMenuEntry FEditorMenuEntry::InitComboButton(const FName InName, const FEditorUIActionChoice& InAction, const FOnGetContent& InMenuContentGenerator, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, bool bInSimpleComboBox, FName InTutorialHighlightName)
+FEditorMenuEntry FEditorMenuEntry::InitComboButton(const FName InName, const FEditorUIActionChoice& InAction, const FNewEditorMenuWidgetChoice& InMenuContentGenerator, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, bool bInSimpleComboBox, FName InTutorialHighlightName)
 {
 	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarComboButton);
 	Entry.TutorialHighlightName = InTutorialHighlightName;
@@ -121,8 +127,9 @@ FEditorMenuEntry FEditorMenuEntry::InitToolBarSeparator(const FName InName)
 void FEditorMenuEntry::ResetActions()
 {
 	Action = FEditorUIActionChoice();
-	//ScriptObject = nullptr;
-	StringCommand = FEditorMenuStringCommand();
 	Command.Reset();
 	CommandList.Reset();
+	StringExecuteAction = FEditorMenuStringCommand();
+	// Note: Cannot reset ScriptObject as it would also remove label and other data
+	//ScriptObject = nullptr;
 }

@@ -10,7 +10,7 @@
 USTRUCT(BlueprintType, meta=(HasNativeBreak="EditorMenus.EditorMenuEntryExtensions.BreakEditorMenuOwner", HasNativeMake="EditorMenus.EditorMenuEntryExtensions.MakeEditorMenuOwner"))
 struct EDITORMENUS_API FEditorMenuOwner
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 private:
 	struct FStoreName

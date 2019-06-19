@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 
 #include "EditorMenuContext.h"
+#include "EditorMenuMisc.h"
+
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -20,6 +22,7 @@ DECLARE_DELEGATE_OneParam(FNewEditorMenuSectionDelegate, FEditorMenuSection&);
 DECLARE_DELEGATE_OneParam(FNewEditorMenuDelegate, UEditorMenu*);
 DECLARE_DELEGATE_TwoParams(FNewEditorMenuDelegateLegacy, class FMenuBuilder&, UEditorMenu*);
 DECLARE_DELEGATE_TwoParams(FNewToolBarDelegateLegacy, class FToolBarBuilder&, UEditorMenu*);
+DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SWidget>, FNewEditorMenuWidget, const FEditorMenuContext&);
 
 DECLARE_DELEGATE_OneParam(FEditorMenuExecuteAction, const FEditorMenuContext&);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FEditorMenuCanExecuteAction, const FEditorMenuContext&);
@@ -49,7 +52,7 @@ struct EDITORMENUS_API FEditorUIAction
 USTRUCT(BlueprintType)
 struct EDITORMENUS_API FEditorDynamicUIAction
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	FEditorDynamicUIAction() {}
 
@@ -66,36 +69,49 @@ struct EDITORMENUS_API FEditorDynamicUIAction
 	FEditorMenuDynamicIsActionButtonVisible IsActionVisibleDelegate;
 };
 
+struct EDITORMENUS_API FNewEditorMenuWidgetChoice
+{
+public:
+	FNewEditorMenuWidgetChoice() {}
+	FNewEditorMenuWidgetChoice(const FOnGetContent& InOnGetContent) : OnGetContent(InOnGetContent) {}
+	FNewEditorMenuWidgetChoice(const FNewEditorMenuWidget& InNewEditorMenuWidget) : NewEditorMenuWidget(InNewEditorMenuWidget) {}
+	FNewEditorMenuWidgetChoice(const FNewEditorMenuDelegate& InNewEditorMenu) : NewEditorMenu(InNewEditorMenu) {}
+
+	FOnGetContent OnGetContent;
+	FNewEditorMenuWidget NewEditorMenuWidget;
+	FNewEditorMenuDelegate NewEditorMenu;
+};
+
 struct EDITORMENUS_API FEditorUIActionChoice
 {
 public:
 	FEditorUIActionChoice() {}
-	FEditorUIActionChoice(const FUIAction& InAction) : Action(InAction) { }
-	FEditorUIActionChoice(const FExecuteAction& InExecuteAction) : Action(InExecuteAction) { }
-	FEditorUIActionChoice(const FEditorUIAction& InAction) : EditorAction(InAction) { }
-	FEditorUIActionChoice(const FEditorDynamicUIAction& InAction) : DynamicEditorAction(InAction) { }
+	FEditorUIActionChoice(const FUIAction& InAction) : Action(InAction) {}
+	FEditorUIActionChoice(const FExecuteAction& InExecuteAction) : Action(InExecuteAction) {}
+	FEditorUIActionChoice(const FEditorUIAction& InAction) : EditorAction(InAction) {}
+	FEditorUIActionChoice(const FEditorDynamicUIAction& InAction) : DynamicEditorAction(InAction) {}
 	FEditorUIActionChoice(const FEditorMenuExecuteAction& InExecuteAction) : EditorAction(InExecuteAction) {}
 	FEditorUIActionChoice(const TSharedPtr< const FUICommandInfo >& InCommand, const FUICommandList& InCommandList);
 
-	FUIAction* GetUIAction()
+	const FUIAction* GetUIAction() const
 	{
 		return Action.IsSet() ? &Action.GetValue() : nullptr;
 	}
 
-	FEditorUIAction* GetEditorUIAction()
+	const FEditorUIAction* GetEditorUIAction() const
 	{
 		return EditorAction.IsSet() ? &EditorAction.GetValue() : nullptr;
 	}
 
-	FEditorDynamicUIAction* GetEditorDynamicUIAction()
+	const FEditorDynamicUIAction* GetEditorDynamicUIAction() const
 	{
 		return DynamicEditorAction.IsSet() ? &DynamicEditorAction.GetValue() : nullptr;
 	}
 
 private:
-	TOptional<FUIAction> Action; // 72 bytes
-	TOptional<FEditorUIAction> EditorAction; // 64 bytes
-	TOptional<FEditorDynamicUIAction> DynamicEditorAction; // 80 bytes
+	TOptional<FUIAction> Action;
+	TOptional<FEditorUIAction> EditorAction;
+	TOptional<FEditorDynamicUIAction> DynamicEditorAction;
 };
 
 struct EDITORMENUS_API FNewEditorMenuChoice

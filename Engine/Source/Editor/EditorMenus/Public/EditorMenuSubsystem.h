@@ -8,11 +8,6 @@
 #include "EditorSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "Textures/SlateIcon.h"
-#include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBox.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Framework/MultiBox/MultiBoxExtender.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Misc/Attribute.h"
 #include "Editor.h"
 
@@ -29,7 +24,6 @@
 #include "EditorMenuSubsystem.generated.h"
 
 class FMenuBuilder;
-class FUICommandInfo;
 class FMultiBox;
 class SWidget;
 
@@ -97,16 +91,10 @@ public:
 
 	UEditorMenuSubsystem();
 
-	/** Get EditorMenuSubsystem if GEditor is valid and cause EditorMenus module to load. */
 	static inline UEditorMenuSubsystem* Get()
 	{
-		if (GEditor)
-		{
-			FModuleManager::LoadModuleChecked<IEditorMenusModule>("EditorMenus");
-			return GEditor->GetEditorSubsystem<UEditorMenuSubsystem>();
-		}
-
-		return nullptr;
+		FModuleManager::LoadModuleChecked<IEditorMenusModule>("EditorMenus");
+		return GEditor->GetEditorSubsystem<UEditorMenuSubsystem>();
 	}
 
 	/** Try to get EditorMenuSubsystem if GEditor is valid without forcing EditorMenus module to load. */
@@ -169,6 +157,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor UI")
 	UEditorMenu* FindMenu(const FName Name);
+
+	/**
+	 * Determines if a menu has already been registered.
+	 * @param	Name	Name of the menu to find.
+	 * @return	bool	True if menu has already been registered.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor UI")
+	bool IsMenuRegistered(const FName Name) const;
 
 	/** Rebuilds all widgets generated from a specific menu. */
 	UFUNCTION(BlueprintCallable, Category = "Editor UI")
@@ -256,6 +252,7 @@ public:
 	void UnregisterStringCommandHandler(const FName InName);
 
 	friend struct FEditorMenuOwnerScoped;
+	friend struct FEditorMenuStringCommand;
 
 	//~ Begin UObject Interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -296,14 +293,16 @@ private:
 
 	TSharedRef<SWidget> GenerateToolbarComboButtonMenu(const FName SubMenuFullName, FEditorMenuContext InContext);
 
-	/** Converts a string command to a FUIAction */
-	FUIAction ConvertUIAction(const FEditorMenuStringCommand& StringCommand, const FEditorMenuContext& Context);
-	static FUIAction ConvertUIAction(FEditorUIActionChoice& Actions, FEditorMenuContext& Context);
-	static FUIAction ConvertUIAction(FEditorUIAction& Actions, FEditorMenuContext& Context);
-	static FUIAction ConvertUIAction(FEditorDynamicUIAction& Actions, FEditorMenuContext& Context);
-	static FUIAction ConvertUIAction(UEditorMenuEntryScript* ScriptObject, FEditorMenuContext& Context);
+	FOnGetContent ConvertWidgetChoice(const FNewEditorMenuWidgetChoice& Choice, const FEditorMenuContext& Context) const;
 
-	void ExecuteStringCommand(const FEditorMenuStringCommand StringCommand, const FEditorMenuContext Context);
+	/** Converts a string command to a FUIAction */
+	static FUIAction ConvertUIAction(const FEditorMenuEntry& Block, const FEditorMenuContext& Context);
+	static FUIAction ConvertUIAction(const FEditorUIActionChoice& Choice, const FEditorMenuContext& Context);
+	static FUIAction ConvertUIAction(const FEditorUIAction& Actions, const FEditorMenuContext& Context);
+	static FUIAction ConvertUIAction(const FEditorDynamicUIAction& Actions, const FEditorMenuContext& Context);
+	static FUIAction ConvertScriptObjectToUIAction(UEditorMenuEntryScript* ScriptObject, const FEditorMenuContext& Context);
+
+	static void ExecuteStringCommand(const FEditorMenuStringCommand StringCommand, const FEditorMenuContext Context);
 
 	void FillMenuDynamic(FMenuBuilder& Builder, FNewEditorMenuDelegate InConstructMenu);
 

@@ -56,8 +56,8 @@ void UEditorMenuEntryExtensions::SetIcon(UPARAM(ref) FEditorMenuEntry& Target, c
 void UEditorMenuEntryExtensions::SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const FName TypeName, const FString& String)
 {
 	Target.ResetActions();
-	Target.StringCommand.TypeName = TypeName;
-	Target.StringCommand.String = String;
+	Target.StringExecuteAction.TypeName = TypeName;
+	Target.StringExecuteAction.String = String;
 }
 
 FEditorMenuEntry UEditorMenuEntryExtensions::InitMenuEntry(const FName InOwner, const FName InName, const FText& InLabel, const FText& InToolTip, const FEditorMenuStringCommand& StringCommand)
@@ -65,7 +65,7 @@ FEditorMenuEntry UEditorMenuEntryExtensions::InitMenuEntry(const FName InOwner, 
 	FEditorMenuEntry Entry(InOwner, InName, EMultiBlockType::MenuEntry);
 	Entry.Label = InLabel;
 	Entry.ToolTip = InToolTip;
-	Entry.StringCommand = StringCommand;
+	Entry.StringExecuteAction = StringCommand;
 	return Entry;
 }
 

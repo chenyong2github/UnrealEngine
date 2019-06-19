@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Internationalization/Internationalization.h"
 #include "Editor/EditorPerProjectUserSettings.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "Editor.h"
 
@@ -20,6 +21,36 @@ FAutoConsoleCommand EditorMenusRefreshMenuWidget = FAutoConsoleCommand(
 	FConsoleCommandDelegate::CreateLambda([]() {
 		UEditorMenuSubsystem::Get()->RefreshAllWidgets();
 	}));
+
+FName FEditorMenuStringCommand::GetTypeName() const
+{
+	static const FName CommandName("Command");
+	static const FName PythonName("Python");
+
+	switch (Type)
+	{
+	case EEditorMenuStringCommandType::Command:
+		return CommandName;
+	case EEditorMenuStringCommandType::Python:
+		return PythonName;
+	case EEditorMenuStringCommandType::Other:
+		return TypeName;
+	default:
+		break;
+	}
+
+	return NAME_None;
+}
+
+FExecuteAction FEditorMenuStringCommand::ToExecuteAction(const FEditorMenuContext& Context) const
+{
+	if (IsBound())
+	{
+		return FExecuteAction::CreateStatic(&UEditorMenuSubsystem::ExecuteStringCommand, *this, Context);
+	}
+
+	return FExecuteAction();
+}
 
 FEditorUIActionChoice::FEditorUIActionChoice(const TSharedPtr< const FUICommandInfo >& InCommand, const FUICommandList& InCommandList)
 {
@@ -67,6 +98,12 @@ UEditorMenu* UEditorMenuSubsystem::FindMenu(const FName Name)
 {
 	UEditorMenu** Found = Menus.Find(Name);
 	return Found ? *Found : nullptr;
+}
+
+bool UEditorMenuSubsystem::IsMenuRegistered(const FName Name) const
+{
+	const UEditorMenu* const * Found = Menus.Find(Name);
+	return Found && *Found && (*Found)->IsRegistered();
 }
 
 TArray<UEditorMenu*> UEditorMenuSubsystem::CollectHierarchy(const FName InName)
@@ -429,6 +466,7 @@ void UEditorMenuSubsystem::FillMenuBarDropDown(class FMenuBuilder& MenuBuilder, 
 		UEditorMenu* GeneratedMenu = NewObject<UEditorMenu>();
 		GeneratedMenu->Context = InMenuContext;
 		AssembleMenuByName(GeneratedMenu, MenuToUse->MenuName);
+		GeneratedMenu->MenuName = JoinMenuPaths(InParentName, InChildName);
 
 		// Populate menu builder with final menu
 		PopulateMenuBuilder(MenuBuilder, GeneratedMenu);
@@ -439,7 +477,14 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 {
 	if (GetDisplayUIExtensionPoints())
 	{
-		MenuBuilder.AddMenuEntry(FText::FromName(MenuData->GetMenuName()), TAttribute<FText>(), FSlateIcon(), FUIAction(), "MenuName");
+		const FName MenuName = MenuData->GetMenuName();
+		MenuBuilder.AddMenuEntry(
+			FText::FromName(MenuName),
+			LOCTEXT("CopyMenuNameToClipboard", "Copy menu name to clipboard"),
+			FSlateIcon(),
+			FExecuteAction::CreateLambda([MenuName]() { FPlatformApplicationMisc::ClipboardCopy(*MenuName.ToString()); }),
+			"MenuName"
+		);
 	}
 
 	for (FEditorMenuSection& Section : MenuData->Sections)
@@ -457,8 +502,18 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 			if (Block.ConstructLegacy.IsBound())
 			{
 				Block.ConstructLegacy.Execute(MenuBuilder, MenuData);
+				continue;
 			}
-			else if (Block.Type == EMultiBlockType::MenuEntry)
+
+			FUIAction UIAction = ConvertUIAction(Block, MenuData->Context);
+
+			TSharedPtr<SWidget> Widget;
+			if (Block.MakeWidget.IsBound())
+			{
+				Widget = Block.MakeWidget.Execute(MenuData->Context);
+			}
+
+			if (Block.Type == EMultiBlockType::MenuEntry)
 			{
 				if (Block.SubMenu.bIsSubMenu)
 				{
@@ -491,38 +546,55 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 					{
 						// SubMenu registered once by name in database
 						FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
-						MenuBuilder.AddSubMenu(
-							Block.Label,
-							Block.ToolTip,
-							FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenu, SubMenuFullName, MenuData->Context),
-							Block.SubMenu.bOpenSubMenuOnClick,
-							Block.Icon.Get(),
-							Block.bShouldCloseWindowAfterMenuSelection,
-							Block.Name
-						);
+						FNewMenuDelegate NewMenuDelegate = FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenu, SubMenuFullName, MenuData->Context);
+
+						if (Widget.IsValid())
+						{
+							// Could also check if Visible/Enabled bound as well
+							if (UIAction.IsBound())
+							{
+								MenuBuilder.AddSubMenu(UIAction, Widget.ToSharedRef(), NewMenuDelegate, Block.bShouldCloseWindowAfterMenuSelection);
+							}
+							else
+							{
+								MenuBuilder.AddSubMenu(Widget.ToSharedRef(), NewMenuDelegate, Block.SubMenu.bOpenSubMenuOnClick, Block.bShouldCloseWindowAfterMenuSelection);
+							}
+						}
+						else
+						{
+							MenuBuilder.AddSubMenu(
+								Block.Label,
+								Block.ToolTip,
+								NewMenuDelegate,
+								Block.SubMenu.bOpenSubMenuOnClick,
+								Block.Icon.Get(),
+								Block.bShouldCloseWindowAfterMenuSelection,
+								Block.Name
+							);
+						}
 					}
 				}
 				else
 				{
-					if (Block.StringCommand.String.Len() > 0)
-					{
-						FUIAction UIAction = ConvertUIAction(Block.StringCommand, MenuData->Context);
-						MenuBuilder.AddMenuEntry(Block.Label, Block.ToolTip, Block.Icon.Get(), UIAction, Block.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
-					}
-					else if (Block.Command.IsValid())
+					if (Block.Command.IsValid())
 					{
 						MenuBuilder.AddMenuEntry(Block.Command, Block.Name, Block.Label, Block.ToolTip, Block.Icon.Get());
 					}
 					else if (Block.ScriptObject)
 					{
 						UEditorMenuEntryScript* ScriptObject = Block.ScriptObject;
-						FUIAction UIAction = ConvertUIAction(ScriptObject, MenuData->Context);
 						MenuBuilder.AddMenuEntry(ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Block.Icon.Get(), UIAction, ScriptObject->Data.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 					}
 					else
 					{
-						FUIAction UIAction = ConvertUIAction(Block.Action, MenuData->Context);
-						MenuBuilder.AddMenuEntry(Block.Label, Block.ToolTip, Block.Icon.Get(), UIAction, Block.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
+						if (Widget.IsValid())
+						{
+							MenuBuilder.AddMenuEntry(UIAction, Widget.ToSharedRef(), Block.Name, Block.ToolTip, Block.UserInterfaceActionType, Block.TutorialHighlightName);
+						}
+						else
+						{
+							MenuBuilder.AddMenuEntry(Block.Label, Block.ToolTip, Block.Icon.Get(), UIAction, Block.Name, Block.UserInterfaceActionType, Block.TutorialHighlightName);
+						}
 					}
 				}
 			}
@@ -555,41 +627,38 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 			if (Block.ToolBar.ConstructLegacy.IsBound())
 			{
 				Block.ToolBar.ConstructLegacy.Execute(ToolBarBuilder, MenuData);
+				continue;
 			}
-			else if (Block.Type == EMultiBlockType::ToolBarButton)
+
+			FUIAction UIAction = ConvertUIAction(Block, MenuData->Context);
+			if (Block.Type == EMultiBlockType::ToolBarButton)
 			{
-				if (Block.StringCommand.String.Len() > 0)
-				{
-					FUIAction UIAction = ConvertUIAction(Block.StringCommand, MenuData->Context);
-					ToolBarBuilder.AddToolBarButton(UIAction, Block.Name, Block.Label, Block.ToolTip, Block.Icon, Block.UserInterfaceActionType, Block.TutorialHighlightName);
-				}
-				else if (Block.Command.IsValid())
+				if (Block.Command.IsValid())
 				{
 					ToolBarBuilder.AddToolBarButton(Block.Command, Block.Name, Block.Label, Block.ToolTip, Block.Icon, Block.TutorialHighlightName);
 				}
 				else if (Block.ScriptObject)
 				{
 					UEditorMenuEntryScript* ScriptObject = Block.ScriptObject;
-					FUIAction UIAction = ConvertUIAction(ScriptObject, MenuData->Context);
 					ToolBarBuilder.AddToolBarButton(UIAction, ScriptObject->Data.Name, ScriptObject->CreateLabelAttribute(MenuData->Context), ScriptObject->CreateToolTipAttribute(MenuData->Context), Block.Icon, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 				}
 				else
 				{
-					FUIAction UIAction = ConvertUIAction(Block.Action, MenuData->Context);
 					ToolBarBuilder.AddToolBarButton(UIAction, Block.Name, Block.Label, Block.ToolTip, Block.Icon, Block.UserInterfaceActionType, Block.TutorialHighlightName);
 				}
 			}
 			else if (Block.Type == EMultiBlockType::ToolBarComboButton)
 			{
-				if (FUIAction* UIAction = Block.Action.GetUIAction())
+				FOnGetContent OnGetContent = ConvertWidgetChoice(Block.ToolBar.ComboButtonContextMenuGenerator, MenuData->Context);
+				if (OnGetContent.IsBound())
 				{
-					ToolBarBuilder.AddComboButton(*UIAction, Block.ToolBar.ComboButtonContextMenuGenerator, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBar.bSimpleComboBox, Block.TutorialHighlightName);
+					ToolBarBuilder.AddComboButton(UIAction, OnGetContent, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBar.bSimpleComboBox, Block.TutorialHighlightName);
 				}
 				else
 				{
 					FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
 					FOnGetContent Delegate = FOnGetContent::CreateUObject(this, &UEditorMenuSubsystem::GenerateToolbarComboButtonMenu, SubMenuFullName, MenuData->Context);
-					ToolBarBuilder.AddComboButton(FUIAction(), Delegate, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBar.bSimpleComboBox, Block.TutorialHighlightName);
+					ToolBarBuilder.AddComboButton(UIAction, Delegate, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBar.bSimpleComboBox, Block.TutorialHighlightName);
 				}
 			}
 			else if (Block.Type == EMultiBlockType::ToolBarSeparator)
@@ -602,6 +671,19 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 			}
 		}
 
+		ToolBarBuilder.EndSection();
+	}
+
+	if (GetDisplayUIExtensionPoints())
+	{
+		const FName MenuName = MenuData->GetMenuName();
+		ToolBarBuilder.BeginSection(MenuName);
+		ToolBarBuilder.AddToolBarButton(
+			FExecuteAction::CreateLambda([MenuName]() { FPlatformApplicationMisc::ClipboardCopy(*MenuName.ToString()); }), 
+			"MenuName",
+			LOCTEXT("CopyNameToClipboard", "Copy Name"),
+			LOCTEXT("CopyMenuNameToClipboard", "Copy menu name to clipboard")
+		);
 		ToolBarBuilder.EndSection();
 	}
 
@@ -626,17 +708,70 @@ void UEditorMenuSubsystem::PopulateMenuBarBuilder(FMenuBarBuilder& MenuBarBuilde
 	}
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(FEditorUIActionChoice& Choice, FEditorMenuContext& Context)
+FOnGetContent UEditorMenuSubsystem::ConvertWidgetChoice(const FNewEditorMenuWidgetChoice& Choice, const FEditorMenuContext& Context) const
 {
-	if (FEditorUIAction* EditorAction = Choice.GetEditorUIAction())
+	if (Choice.NewEditorMenuWidget.IsBound())
+	{
+		return FOnGetContent::CreateLambda([ToCall = Choice.NewEditorMenuWidget, Context]()
+		{
+			if (ToCall.IsBound())
+			{
+				return ToCall.Execute(Context);
+			}
+
+			return SNullWidget::NullWidget;
+		});
+	}
+	else if (Choice.NewEditorMenu.IsBound())
+	{
+		return FOnGetContent::CreateLambda([ToCall = Choice.NewEditorMenu, Context]()
+		{
+			if (ToCall.IsBound())
+			{
+				UEditorMenu* MenuData = NewObject<UEditorMenu>();
+				MenuData->Context = Context;
+				ToCall.Execute(MenuData);
+				return UEditorMenuSubsystem::Get()->GenerateWidget(MenuData);
+			}
+
+			return SNullWidget::NullWidget;
+		});
+	}
+	return Choice.OnGetContent;
+}
+
+FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorMenuEntry& Block, const FEditorMenuContext& Context)
+{
+	FUIAction UIAction;
+	
+	if (Block.ScriptObject)
+	{
+		UIAction = ConvertScriptObjectToUIAction(Block.ScriptObject, Context);
+	}
+	else
+	{
+		UIAction = ConvertUIAction(Block.Action, Context);
+	}
+	
+	if (!UIAction.ExecuteAction.IsBound() && Block.StringExecuteAction.IsBound())
+	{
+		UIAction.ExecuteAction = Block.StringExecuteAction.ToExecuteAction(Context);
+	}
+
+	return UIAction;
+}
+
+FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorUIActionChoice& Choice, const FEditorMenuContext& Context)
+{
+	if (const FEditorUIAction* EditorAction = Choice.GetEditorUIAction())
 	{
 		return ConvertUIAction(*EditorAction, Context);
 	}
-	else if (FEditorDynamicUIAction* DynamicEditorAction = Choice.GetEditorDynamicUIAction())
+	else if (const FEditorDynamicUIAction* DynamicEditorAction = Choice.GetEditorDynamicUIAction())
 	{
 		return ConvertUIAction(*DynamicEditorAction, Context);
 	}
-	else if (FUIAction* Action = Choice.GetUIAction())
+	else if (const FUIAction* Action = Choice.GetUIAction())
 	{
 		return *Action;
 	}
@@ -644,7 +779,7 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(FEditorUIActionChoice& Choice, F
 	return FUIAction();
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(FEditorUIAction& Actions, FEditorMenuContext& Context)
+FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorUIAction& Actions, const FEditorMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -683,7 +818,7 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(FEditorUIAction& Actions, FEdito
 	return UIAction;
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(FEditorDynamicUIAction& Actions, FEditorMenuContext& Context)
+FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorDynamicUIAction& Actions, const FEditorMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -722,7 +857,7 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(FEditorDynamicUIAction& Actions,
 	return UIAction;
 }
 
-FUIAction UEditorMenuSubsystem::ConvertUIAction(UEditorMenuEntryScript* ScriptObject, FEditorMenuContext& Context)
+FUIAction UEditorMenuSubsystem::ConvertScriptObjectToUIAction(UEditorMenuEntryScript* ScriptObject, const FEditorMenuContext& Context)
 {
 	FUIAction UIAction;
 
@@ -760,17 +895,20 @@ FUIAction UEditorMenuSubsystem::ConvertUIAction(UEditorMenuEntryScript* ScriptOb
 
 void UEditorMenuSubsystem::ExecuteStringCommand(const FEditorMenuStringCommand StringCommand, const FEditorMenuContext Context)
 {
-	if (StringCommand.String.Len() > 0)
+	if (StringCommand.IsBound())
 	{
 		static const FName CommandTypeName("Command");
-		if (const FEditorMenuExecuteString* Handler = StringCommandHandlers.Find(StringCommand.TypeName))
+		const FName TypeName = StringCommand.GetTypeName();
+
+		UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+		if (const FEditorMenuExecuteString* Handler = EditorMenus->StringCommandHandlers.Find(TypeName))
 		{
 			if (Handler->IsBound())
 			{
 				Handler->Execute(StringCommand.String, Context);
 			}
 		}
-		else if (StringCommand.TypeName == CommandTypeName)
+		else if (TypeName == CommandTypeName)
 		{
 			if (GEditor)
 			{
@@ -779,21 +917,9 @@ void UEditorMenuSubsystem::ExecuteStringCommand(const FEditorMenuStringCommand S
 		}
 		else
 		{
-			UE_LOG(LogEditorMenus, Warning, TEXT("Unknown string command handler type: '%s'"), *StringCommand.TypeName.ToString());
+			UE_LOG(LogEditorMenus, Warning, TEXT("Unknown string command handler type: '%s'"), *TypeName.ToString());
 		}
 	}
-}
-
-FUIAction UEditorMenuSubsystem::ConvertUIAction(const FEditorMenuStringCommand& StringCommand, const FEditorMenuContext& Context)
-{
-	FUIAction UIAction;
-
-	if (StringCommand.String.Len() > 0)
-	{
-		UIAction.ExecuteAction.BindUObject(this, &UEditorMenuSubsystem::ExecuteStringCommand, StringCommand, Context);
-	}
-
-	return UIAction;
 }
 
 UEditorMenu* UEditorMenuSubsystem::FindSubMenuToGenerateWith(const FName InParentName, const FName InChildName)

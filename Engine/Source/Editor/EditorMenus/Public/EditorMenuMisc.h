@@ -3,8 +3,44 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Framework/Commands/UIAction.h"
 
 #include "EditorMenuMisc.generated.h"
+
+struct FEditorMenuContext;
+
+UENUM(BlueprintType)
+enum class EEditorMenuStringCommandType : uint8
+{
+	Command,
+	Python,
+	Other
+};
+
+USTRUCT(BlueprintType)
+struct EDITORMENUS_API FEditorMenuStringCommand
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	EEditorMenuStringCommandType Type;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	FName TypeName;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	FString String;
+
+private:
+
+	friend class UEditorMenuSubsystem;
+
+	bool IsBound() const { return String.Len() > 0; }
+
+	FExecuteAction ToExecuteAction(const FEditorMenuContext& Context) const;
+
+	FName GetTypeName() const;
+};
 
 UENUM(BlueprintType)
 enum class EEditorMenuInsertType : uint8
@@ -18,7 +54,7 @@ enum class EEditorMenuInsertType : uint8
 USTRUCT(BlueprintType)
 struct FEditorMenuInsert
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	FEditorMenuInsert() : Position(EEditorMenuInsertType::Default) {}
 	FEditorMenuInsert(FName InName, EEditorMenuInsertType InPosition) : Name(InName), Position(InPosition) {}
@@ -49,3 +85,4 @@ struct FEditorMenuInsert
 		return Position == EEditorMenuInsertType::Before || Position == EEditorMenuInsertType::After;
 	}
 };
+

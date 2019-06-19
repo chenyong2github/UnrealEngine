@@ -60,6 +60,10 @@ public:
 		return Context.Find<TContextType>();
 	}
 
+	//~ Begin UObject Interface
+	virtual bool IsDestructionThreadSafe() const { return false; }
+	//~ End UObject Interface
+
 	friend class UEditorMenuSubsystem;
 
 private:

@@ -20,7 +20,7 @@ class UEditorMenuEntryScript;
 USTRUCT(BlueprintType)
 struct EDITORMENUS_API FSubMenuEntryData
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	FSubMenuEntryData() :
 		bIsSubMenu(false),
@@ -47,44 +47,33 @@ struct EDITORMENUS_API FSubMenuEntryData
 USTRUCT(BlueprintType)
 struct EDITORMENUS_API FToolBarData
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	FToolBarData() : bSimpleComboBox(false) {}
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	bool bSimpleComboBox;
 
-	FOnGetContent ComboButtonContextMenuGenerator;
+	FNewEditorMenuWidgetChoice ComboButtonContextMenuGenerator;
 	FNewToolBarDelegateLegacy ConstructLegacy;
-};
-
-USTRUCT(BlueprintType)
-struct EDITORMENUS_API FEditorMenuStringCommand
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	FName TypeName;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	FString String;
 };
 
 USTRUCT(BlueprintType)
 struct EDITORMENUS_API FEditorMenuEntry
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
 	FEditorMenuEntry();
 	FEditorMenuEntry(const FEditorMenuOwner InOwner, const FName InName, EMultiBlockType InType);
 
 	static FEditorMenuEntry InitMenuEntry(const FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const TAttribute<FSlateIcon>& InIcon, const FEditorUIActionChoice& InAction, const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button, const FName InTutorialHighlightName = NAME_None);
 	static FEditorMenuEntry InitMenuEntry(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), const FName InTutorialHighlightName = NAME_None, const FName InNameOverride = NAME_None);
+	static FEditorMenuEntry InitMenuEntry(const FName InName, const FEditorUIActionChoice& InAction, const TSharedRef<SWidget>& Widget);
 	static FEditorMenuEntry InitSubMenu(const FName InParentMenu, const FName InName, const TAttribute<FText>& InLabel, const TAttribute<FText>& InToolTip, const FNewEditorMenuChoice& InMakeMenu, bool bInOpenSubMenuOnClick = false, const TAttribute<FSlateIcon>& InIcon = TAttribute<FSlateIcon>(), const bool ShouldCloseWindowAfterMenuSelection = true);
 
 	static FEditorMenuEntry InitToolBarButton(const FName InName, const FEditorUIActionChoice& InAction, const TAttribute<FText>& InLabel = TAttribute<FText>(), const TAttribute<FText>& InToolTip = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIcon = TAttribute<FSlateIcon>(), const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button, FName InTutorialHighlightName = NAME_None);
 	static FEditorMenuEntry InitToolBarButton(const TSharedPtr< const FUICommandInfo >& InCommand, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), FName InTutorialHighlightName = NAME_None, const FName InNameOverride = NAME_None);
-	static FEditorMenuEntry InitComboButton(const FName InName, const FEditorUIActionChoice& InAction, const FOnGetContent& InMenuContentGenerator, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), bool bInSimpleComboBox = false, FName InTutorialHighlightName = NAME_None);
+	static FEditorMenuEntry InitComboButton(const FName InName, const FEditorUIActionChoice& InAction, const FNewEditorMenuWidgetChoice& InMenuContentGenerator, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const TAttribute<FSlateIcon>& InIconOverride = TAttribute<FSlateIcon>(), bool bInSimpleComboBox = false, FName InTutorialHighlightName = NAME_None);
 
 	static FEditorMenuEntry InitMenuSeparator(const FName InName);
 	static FEditorMenuEntry InitToolBarSeparator(const FName InName);
@@ -132,6 +121,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	UEditorMenuEntryScript* ScriptObject;
 
+	/** Optional delegate that returns a widget to use as this menu entry */
+	FNewEditorMenuWidget MakeWidget;
+
 private:
 
 	friend class UEditorMenuSubsystem;
@@ -143,7 +135,7 @@ private:
 
 	FEditorUIActionChoice Action;
 
-	FEditorMenuStringCommand StringCommand;
+	FEditorMenuStringCommand StringExecuteAction;
 
 	TSharedPtr< const FUICommandInfo > Command;
 	TSharedPtr< const FUICommandList > CommandList;
