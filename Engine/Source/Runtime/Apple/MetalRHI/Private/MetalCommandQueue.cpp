@@ -239,7 +239,7 @@ FMetalCommandQueue::FMetalCommandQueue(mtlpp::Device InDevice, uint32 const MaxN
 			{
 				Features |= EMetalFeaturesTextureBuffers;
             }
-            if (MaxShaderVersion == 5)
+            if (MaxShaderVersion >= 5)
             {
                 Features |= EMetalFeaturesIABs;
             }
