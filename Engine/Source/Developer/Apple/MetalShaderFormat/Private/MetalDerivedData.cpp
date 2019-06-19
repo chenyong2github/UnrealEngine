@@ -1154,7 +1154,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 						}
 					}
 					
-					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Entry->ResourceIndex, Entry->SetIndex);
+					SPVRResult = Reflection.ChangeDescriptorBindingNumbers(Binding, Entry->ResourceIndex + 1, Entry->SetIndex);
 					check(SPVRResult == SPV_REFLECT_RESULT_SUCCESS);
 				}
 				
@@ -1177,11 +1177,12 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 							{
 								IABString += TEXT(",");
 							}
-							IABString += FString::Printf(TEXT("%u"), Resource.ResourceIndex);
+							IABString += FString::Printf(TEXT("%u"), Resource.ResourceIndex + 1);
 							bComma = true;
 						}
 					}
 					IABString += TEXT("]");
+					UBOString += FString::Printf(TEXT("%s%s(%u)"), UBOString.Len() ? TEXT(",") : TEXT(""), *Name, SetIndex);
 				}
 				
 				for (auto const& Binding : TBufferSRVBindings)
