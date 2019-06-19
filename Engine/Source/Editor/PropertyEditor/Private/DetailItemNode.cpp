@@ -226,6 +226,7 @@ TSharedRef< ITableRow > FDetailItemNode::GenerateWidgetForTableView( const TShar
 			SNew(SDetailCategoryTableRow, AsShared(), OwnerTable)
 			.DisplayName(Customization.GetPropertyNode()->GetDisplayName())
 			.AddMetaData<FTagMetaData>(TagMeta)
+			.ColumnSizeData(&ColumnSizeData)
 			.InnerCategory( true );
 	}
 	else

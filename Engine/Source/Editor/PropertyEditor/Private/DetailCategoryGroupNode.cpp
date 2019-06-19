@@ -69,10 +69,9 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 			.OnSlotResized(OptionalSizeData->OnWidthChanged)
 			[
 				SNew(SHorizontalBox)
-
 				+ SHorizontalBox::Slot()
 				[
-					SNullWidget::NullWidget
+					InArgs._HeaderContent.IsValid() ? InArgs._HeaderContent.ToSharedRef() : SNullWidget::NullWidget
 				]
 			];
 	}
@@ -92,15 +91,6 @@ void SDetailCategoryTableRow::Construct( const FArguments& InArgs, TSharedRef<FD
 			Widget.ToSharedRef()
 		]
 	];
-
-	if( InArgs._HeaderContent.IsValid() )
-	{
-		MyContent->AddSlot()
-		.VAlign(VAlign_Center)
-		[	
-			InArgs._HeaderContent.ToSharedRef()
-		];
-	}
 
 	STableRow< TSharedPtr< FDetailTreeNode > >::ConstructInternal(
 		STableRow::FArguments()

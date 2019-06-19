@@ -8,6 +8,7 @@
 #include "UObject/ScriptInterface.h"
 #include "UObject/SoftObjectPath.h"
 #include "Engine/BlendableInterface.h"
+#include "Engine/EngineTypes.h"
 #include "PropertyEditorTestObject.generated.h"
 
 class AActor;
@@ -122,7 +123,7 @@ struct FPropertyEditorTestBasicStruct
 UCLASS(transient)
 class UPropertyEditorTestObject : public UObject
 {
-    GENERATED_UCLASS_BODY()
+    GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = BasicProperties)
 	int8 Int8Property;
@@ -483,4 +484,7 @@ class UPropertyEditorTestObject : public UObject
 
 	UPROPERTY(EditAnywhere, Category = EditCondition, meta = (EditCondition = "FloatEditCondition < 10"))
 	bool bEnabledWhenFloatLessThan10;
+
+	UPROPERTY(EditAnywhere, Category=InlineProperty, meta=(InlineCategoryProperty))
+	TEnumAsByte<EComponentMobility::Type> InlineProperty;
 };
