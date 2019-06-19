@@ -618,6 +618,18 @@ public:
 class FShaderId
 {
 public:
+	/** Shader type */
+	FShaderType* ShaderType;
+
+	/**
+	 * Vertex factory type that the shader was created for,
+	 * This is needed in the Id since a single shader type will be compiled for multiple vertex factories within a material shader map.
+	 * Will be NULL for global shaders.
+	 */
+	FVertexFactoryType* VertexFactoryType;
+
+	/** Shader Pipeline linked to this shader, needed since a single shader might be used on different Pipelines. */
+	const FShaderPipelineType* ShaderPipeline;
 
 	/** 
 	 * Hash of the material shader map Id, since this shader depends on the generated material code from that shader map.
@@ -636,36 +648,10 @@ public:
 	/** Shader platform and frequency. */
 	FShaderTarget Target;
 
-	/** Shader Pipeline linked to this shader, needed since a single shader might be used on different Pipelines. */
-	const FShaderPipelineType* ShaderPipeline;
-
-	/** 
-	 * Vertex factory type that the shader was created for, 
-	 * This is needed in the Id since a single shader type will be compiled for multiple vertex factories within a material shader map.
-	 * Will be NULL for global shaders.
-	 */
-	FVertexFactoryType* VertexFactoryType;
-
-	/** 
-	 * Used to detect changes to the vertex factory parameter class serialization, or NULL for global shaders. 
-	 * Note: This is referencing memory in the VF Type, since it is the same for all shaders using that VF Type.
-	 */
-	const FSerializationHistory* VFSerializationHistory;
-
-	/** Shader type */
-	FShaderType* ShaderType;
-
 	/** Unique permutation identifier within the ShaderType. */
 	int32 PermutationId;
 
-	/** Used to detect changes to the shader serialization.  Note: this is referencing memory in the FShaderType. */
-	const FSerializationHistory& SerializationHistory;
-
-	/** Create a minimally initialized Id.  Members will have to be assigned individually. */
-	FShaderId(const FSerializationHistory& InSerializationHistory)
-		: PermutationId(0)
-		, SerializationHistory(InSerializationHistory)
-	{}
+	FShaderId() = default;
 
 	/** Creates an Id for the given material, vertex factory, shader type and target. */
 	RENDERCORE_API FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, FShaderType* InShaderType, int32 PermutationId, FShaderTarget InTarget);
@@ -683,16 +669,12 @@ public:
 		return X.MaterialShaderMapHash == Y.MaterialShaderMapHash
 			&& X.ShaderPipeline == Y.ShaderPipeline
 			&& X.VertexFactoryType == Y.VertexFactoryType
-			&& ((X.VFSerializationHistory == NULL && Y.VFSerializationHistory == NULL)
-				|| (X.VFSerializationHistory != NULL && Y.VFSerializationHistory != NULL &&
-					*X.VFSerializationHistory == *Y.VFSerializationHistory))
 			&& X.ShaderType == Y.ShaderType
 			&& X.PermutationId == Y.PermutationId 
 #if KEEP_SHADER_SOURCE_HASHES
 			&& X.SourceHash == Y.SourceHash 
 			&& X.VFSourceHash == Y.VFSourceHash
 #endif
-			&& X.SerializationHistory == Y.SerializationHistory
 			&& X.Target == Y.Target;
 	}
 
@@ -2295,12 +2277,14 @@ public:
 
 			if (ExistingShader != nullptr)
 			{
+				INC_DWORD_STAT(STAT_Shaders_NumShadersDuplicated);
 				delete Shader;
 				Shader = ExistingShader;
 			}
 			else
 			{
 				// Register the shader now that it is valid, so that it can be reused
+				INC_DWORD_STAT(STAT_Shaders_NumShadersRegistered);
 				Shader->Register(bCookedMaterial);
 			}
 			AddShader(Shader->GetType(), Shader->GetPermutationId(), Shader);

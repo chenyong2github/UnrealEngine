@@ -92,6 +92,9 @@ DEFINE_STAT(STAT_Shaders_ShaderMemory);
 DEFINE_STAT(STAT_Shaders_ShaderResourceMemory);
 DEFINE_STAT(STAT_Shaders_ShaderMapMemory);
 
+DEFINE_STAT(STAT_Shaders_NumShadersRegistered);
+DEFINE_STAT(STAT_Shaders_NumShadersDuplicated);
+
 /** Protects GShaderFileCache from simultaneous access by multiple threads. */
 FCriticalSection FileCacheCriticalSection;
 

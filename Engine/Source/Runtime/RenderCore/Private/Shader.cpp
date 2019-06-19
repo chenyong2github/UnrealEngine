@@ -1117,29 +1117,22 @@ FShaderResourceId FShaderResource::GetId() const
 }
 
 FShaderId::FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, FShaderType* InShaderType, int32 InPermutationId, FShaderTarget InTarget)
-	: MaterialShaderMapHash(InMaterialShaderMapHash)
+	: ShaderType(InShaderType)
+	, VertexFactoryType(InVertexFactoryType)
+	, ShaderPipeline(InShaderPipeline)
+	, MaterialShaderMapHash(InMaterialShaderMapHash)
 #if KEEP_SHADER_SOURCE_HASHES
 	, SourceHash(InShaderType->GetSourceHash(InTarget.GetPlatform()))
 #endif
 	, Target(InTarget)
-	, ShaderPipeline(InShaderPipeline)
-	, ShaderType(InShaderType)
 	, PermutationId(InPermutationId)
-	, SerializationHistory(InShaderType->GetSerializationHistory())
 {
+#if KEEP_SHADER_SOURCE_HASHES
 	if (InVertexFactoryType)
 	{
-		VFSerializationHistory = InVertexFactoryType->GetSerializationHistory(InTarget.GetFrequency());
-		VertexFactoryType = InVertexFactoryType;
-#if KEEP_SHADER_SOURCE_HASHES
 		VFSourceHash = InVertexFactoryType->GetSourceHash(InTarget.GetPlatform());
+	}
 #endif
-	}
-	else
-	{
-		VFSerializationHistory = nullptr;
-		VertexFactoryType = nullptr;
-	}
 }
 
 FSelfContainedShaderId::FSelfContainedShaderId() :
@@ -1149,17 +1142,25 @@ FSelfContainedShaderId::FSelfContainedShaderId() :
 FSelfContainedShaderId::FSelfContainedShaderId(const FShaderId& InShaderId)
 {
 	MaterialShaderMapHash = InShaderId.MaterialShaderMapHash;
-	VertexFactoryTypeName = InShaderId.VertexFactoryType ? InShaderId.VertexFactoryType->GetName() : TEXT("");
 	ShaderPipelineName = InShaderId.ShaderPipeline ? InShaderId.ShaderPipeline->GetName() : TEXT("");
-	VFSerializationHistory = InShaderId.VFSerializationHistory ? *InShaderId.VFSerializationHistory : FSerializationHistory();
 	ShaderTypeName = InShaderId.ShaderType->GetName();
 	PermutationId = InShaderId.PermutationId;
+	Target = InShaderId.Target;
 #if KEEP_SHADER_SOURCE_HASHES
 	SourceHash = InShaderId.SourceHash;
 	VFSourceHash = InShaderId.VFSourceHash;
 #endif
-	SerializationHistory = InShaderId.SerializationHistory;
-	Target = InShaderId.Target;
+	SerializationHistory = InShaderId.ShaderType->GetSerializationHistory();
+
+	if (InShaderId.VertexFactoryType)
+	{
+		const FSerializationHistory* InVFSerializationHistory =InShaderId.VertexFactoryType->GetSerializationHistory(InShaderId.Target.GetFrequency());
+		VertexFactoryTypeName = InShaderId.VertexFactoryType->GetName();
+		if (InVFSerializationHistory)
+		{
+			VFSerializationHistory = *InVFSerializationHistory;
+		}
+	}
 }
 
 bool FSelfContainedShaderId::IsValid()
@@ -1471,11 +1472,10 @@ void FShader::Deregister()
 
 FShaderId FShader::GetId() const
 {
-	FShaderId ShaderId(Type->GetSerializationHistory());
+	FShaderId ShaderId;
 	ShaderId.MaterialShaderMapHash = MaterialShaderMapHash;
 	ShaderId.ShaderPipeline = ShaderPipeline;
 	ShaderId.VertexFactoryType = VFType;
-	ShaderId.VFSerializationHistory = VFType ? VFType->GetSerializationHistory((EShaderFrequency)GetTarget().Frequency) : NULL;
 	ShaderId.ShaderType = Type;
 	ShaderId.PermutationId = PermutationId;
 #if KEEP_SHADER_SOURCE_HASHES
