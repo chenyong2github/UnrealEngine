@@ -522,7 +522,7 @@ int32 UTextAssetCommandlet::Main(const FString& CmdLineParams)
 
 				if (bSaveSuccessful)
 				{
-					if (bVerifyJson)
+					if (bVerifyJson && Mode == EMode::ResaveText)
 					{
 						FArchive* File = IFileManager::Get().CreateFileReader(*DestinationFilename);
 						TSharedPtr< FJsonObject > RootObject;
