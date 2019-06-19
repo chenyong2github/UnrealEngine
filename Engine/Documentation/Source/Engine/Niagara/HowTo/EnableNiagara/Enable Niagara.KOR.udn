@@ -1,4 +1,4 @@
-INTSourceChangelist:4323617
+INTSourceChangelist:6417095
 Availability: Public
 Crumbs: %ROOT%, 
 Title:나이아가라 플러그인 활성화
@@ -9,7 +9,6 @@ Version: 4.17
 parent:Engine/Niagara/HowTo
 order:1
 tags:Niagara
-topic-image:
 
 나이아가라를 사용하여 비주얼 이펙트를 제작하기에 앞서 **플러그인** 메뉴를 통해 활성화시켜 줘야 합니다. 다음 하우투 페이지에서는 UE4 프로젝트에서 나이아가라를 사용하기 위해 해줘야 하는 작업을 다룹니다. 
 

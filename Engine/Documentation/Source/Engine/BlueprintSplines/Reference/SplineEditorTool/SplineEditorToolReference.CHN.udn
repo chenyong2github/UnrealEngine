@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3801260
+﻿INTSourceChangelist:6187230
 Availability:Public
 Title:蓝图样条编辑器工具参考
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:在关卡编辑器中时，用于编辑蓝图样条组件的工具�
 Navigation:topic
 parent:Engine/BlueprintSplines
 order:1
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 type:reference
 reference-image:MovePoint.gif
@@ -17,8 +17,6 @@ tags:Splines
 topic-image:Engine/BlueprintSplines/Splines_topic.png
 
 本页面包含有关在关卡编辑器中编辑 **蓝图样条组件（Blueprint Spline Components）** 和 **蓝图样条网格体组件（Blueprint Spline Mesh Components）** 的工具和程序的信息。从4.13开始，**蓝图样条组件（Blueprint Spline Components）** 也可以使用下面的所有工具和程序在 **蓝图编辑器视口（Blueprint Editor Viewport）** 中进行编辑。
-
-(#tools)
 
 ## 工具
 
@@ -32,13 +30,9 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 | **缩放（Scale）** | [REGION:asyncgif]![](ScalePoint.gif)[/REGION] |
 
 
-(#procedures)
-
 ## 程序
 
 有一些菜单可以通过右键单击样条曲线上的点或点之间的曲线来访问。
-
-(#right-clickonasplinepoint)
 
 ### 右键单击样条点
 
@@ -88,8 +82,6 @@ topic-image:Engine/BlueprintSplines/Splines_topic.png
 [/EXCERPT]
 
 [/COMMENT]
-
-(#right-clickonasplinecurve)
 
 ### 右键单击样条曲线
 

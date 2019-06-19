@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3350015
+INTSourceChangelist:6513804
 Availability:Public
 Title:컴포넌트 렌더링
 Crumbs:%ROOT%, Engine, Engine/Components
@@ -9,23 +9,33 @@ Related: Engine/Blueprints
 Related: Engine/Blueprints/UserGuide/Components
 Skilllevel: Beginner
 Version: 4.9
+
 [TOC (start:2 end:2)]
 
 ## 애트머스페릭 포그 컴포넌트
 
 **AtmosphericFogComponent** 는 레벨의 구름이나 배경 안개같은 포그 이펙트를 만드는 데 사용됩니다. 이 컴포넌트에는 조절가능한 세팅이 여럿 있는데, 배치했을 때 이펙트가 레벨에 생성되는 방식에 영향을 끼칠 수 있습니다.
 
-이 컴포넌트의 **Decay Height** (쇠약 고도) 세팅(은 안개 밀도 쇠약 고도를 제어, 값이 낮으면 안개 농도가 짙어지고 높으면 연해져, 덜 흩어지게 만드는 세팅) 값을 다양하게 한 예제는 아래와 같습니다. 상세 정보는 [](Engine/Actors/FogEffects/AtmosphericFog) 문서를 참고하세요.
+이 컴포넌트의 **Decay Height** (감소 고도) 세팅(은 안개 밀도 감소 고도를 제어, 값이 낮으면 안개 농도가 짙어지고 높으면 연해져, 덜 흩어지게 만드는 세팅) 값을 다양하게 한 예제는 아래와 같습니다. 상세 정보는 [](Engine/Actors/FogEffects/AtmosphericFog) 문서를 참고하세요.
 
-[INCLUDE:Engine/Actors/FogEffects/AtmosphericFog#examples]
+[REGION:imagetable]
+| ![Atmo0.5_4.png](Atmo0.5_4-resize298x233.png) | ![Atmo0.35_4.png](Atmo0.35_4-resize321x235.png) |
+| --- | --- |
+| 농도 감소 고도 0.5 (8 km) | 농도 감소 고도 0.35 (2.744 km) |
+| ![Atmo1.0_4.png](Atmo1.0_4-resize370x241.png) | ![Atmo1.0_1.png](Atmo1.0_1-resize357x243.png) |
+| 농도 감소 고도 1.0 (64 km), 최대 산란 4 | 농도 감소 고도 1.0 (64 km), 최대 산란 1 |
+[/REGION]
 
 ## 익스포넨셜 하이트 포그 컴포넌트
 
 **ExponentialHeightFogComponent** 는 안개의 고도에 비례해 농도가 기하급수적으로 변하는 포그 이펙트를 만드는 데 사용됩니다.
 
-[INCLUDE:Engine/Actors/FogEffects/HeightFog#intro]
+익스포넨셜 하이트 포그란 맵의 높이에 따라 반비례하는 안개의 농도를 부드럽게 전환시켜, 그 고도차에 따른 경계선이 눈에 띄지 않도록 하는 포그 액터입니다. 익스포넨셜 하이트 포그는 도미넌트 디렉셔널 라이트(가 없으면 수직 위) 방향 반구에 하나, 그 반대 방향 반구에 하나, 두 개의 컬러 값을 갖습니다.
+
+![](ExponHeightFog.png)
 
 상세 정보 및 조절가능한 세팅에 대해서는 [](Engine/Actors/FogEffects/HeightFog) 문서를 참고하세요.
+
 
 ## 빌보드 컴포넌트
 
@@ -69,7 +79,7 @@ Version: 4.9
 
 * [](Engine/Actors/DecalActor)
 * [](Resources/ContentExamples/Decals/1_1)
-* [데칼 콘텐츠 예제](Resources/ContentExamples/Materials)
+* [](Resources/ContentExamples/Materials)
 
 ## 인스턴싱된 스태틱 메시 컴포넌트
 
@@ -142,17 +152,9 @@ Version: 4.9
 
 ## 벡터 필드 컴포넌트
 
-**VectorFieldComponent** 는 GPU 스프라이트의 가속도나 속도를 결정하는 데 사용할 수 있는 속도 벡터의 그리드 포함 3D 컨테이너인 [벡터 필드](Engine/Rendering/ParticleSystems/VectorFields) 레퍼런싱에 사용됩니다. 
+**VectorFieldComponent** 는 GPU 스프라이트의 가속도나 속도를 결정하는 데 사용할 수 있는 속도 벡터의 그리드 포함 3D 컨테이너인 [벡터 필드](Engine/Rendering/ParticleSystems/VectorFields) 참조에 사용됩니다. 
 벡터 필드는 바람 돌풍 파티클 이펙트와 같은 소규모 이펙트에서 레벨의 블리자드같은 대규모 이펙트에 사용할 수 있습니다. 자세한 정보는 [](Resources/ContentExamples/EffectsGallery/2_A), [](Resources/ContentExamples/EffectsGallery/2_B) 문서를 참고하세요.
 
 ![](Resources/ContentExamples/EffectsGallery/2_B/image050.png)(w:640)
-
-
-
-
-
-
-
-
 
 

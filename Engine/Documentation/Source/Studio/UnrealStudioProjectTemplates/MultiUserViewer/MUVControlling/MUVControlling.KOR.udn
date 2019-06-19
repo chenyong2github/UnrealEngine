@@ -1,0 +1,99 @@
+INTSourceChangelist:6551686
+Availability: Public
+Crumbs: 
+Title: 멀티 유저 뷰어 템플릿에서 이동
+Description: 데스크톱 및 VR 조작 모드에서 런타임에 카메라를 제어하는 옵션을 설명합니다.
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates/MultiUserViewer
+Order: 3
+Tags: Reference
+Tags: multi-user viewer
+topic-image: multiuserviewer-controls-topic.png
+reference-image: VR_teleport.gif
+
+
+멀티 유저 뷰어에서 [데스크톱](#데스크톱컨트롤) 및 [VR](#VR컨트롤) 조작 모드로 씬을 돌아다닐 때 런타임에 카메라를 제어할 수 있는 여러가지 방법을 설명합니다.
+
+## 데스크톱 컨트롤
+
+데스크톱 모드에는 두 가지 조작 제어 시스템이 있습니다. 걷기 모드와 비행 모드입니다.
+
+*   걷기 모드에서는, 중력의 영향을 받아 땅에 붙어 있게 되며, 콜리전 볼륨으로 구성한 레벨의 오브젝트와 충돌합니다.
+*   비행 모드에서는, 씬 주변을 모든 방향으로 자유롭게 날아다니며, 콜리전 세팅에 관계없이 모든 지오메트리를 통과할 수 있습니다.  
+    
+
+| 하려는 작업 | 명령 |
+| --- | --- |
+| 현재 위치에서 월드 둘러보기 | 우클릭 드래그입니다. |
+| 현재 위치에서 전후좌우 이동 | 우클릭 상태에서 **W**, **A**, **S**, **D** 키입니다. |
+| 수직 (월드 글로벌 Z 축 기준) 상승 또는 하강 | [INCLUDE:#excerpt_7] |
+| 걷기 / 비행 모드 토글 | [INCLUDE:#excerpt_9] |
+| 레이저 포인터 활성화 | 강조하려는 오브젝트 위에 마우스 커서를 놓고 좌클릭합니다. |
+| 북마크 위치 순환 | 좌우 방향 키입니다. |
+| 프리셋 북마크 위치로 이동 | 특정 북마크 위치에 매핑된 0-9 숫자키입니다. [멀티 유저 뷰어 템플릿에서 북마크 작업](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVBookmarks) 문서를 참고하세요. |
+| 애플리케이션 종료 |  **Esc** 키입니다. |
+
+
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+**Spacebar** 입니다.  
+비행 모드에서 걷기 모드로 돌아오면 중력이 다시 적용됩니다. 위치에 따라, 땅에 닿을 때까지 자유 낙하할 수도, 가장 가까운 땅 표면에 끌려 붙을 수도 있습니다.
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+우클릭 상태에서 **Q**, **E** 키입니다.  
+비행 모드에서만 가능합니다.
+[/EXCERPT:excerpt_7]
+[/COMMENT]
+
+## VR 컨트롤
+
+| 하려는 작업 | 명령 |
+| --- | --- |
+| 새 위치로 텔레포트 | [INCLUDE:#excerpt_21] |
+| 레이저 포인터 활성화 | 한 쪽 컨트롤러의 메인 트리거 버튼을 누르고, 현실 세계의 컨트롤러를 움직입니다. |
+| 애플리케이션 종료 | 컴퓨터 키보드의 **Esc** 키입니다. |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+한 쪽 컨트롤러의 페이스 버튼이나 보조 트리거를 누르고 있습니다.  
+그러면 컨트롤러에서 원호 모양이 나와, 바닥에 대상 마커가 겹쳐 표시됩니다. 대상 마커는 텔레포트 위치를 나타냅니다. 현실 세계의 컨트롤러를 움직여 이동하려는 곳에 최대한 가깝게 마커를 놓습니다.
+[REGION:asyncgif]
+![](VR_teleport.gif)(w:800)
+[/REGION]마커의 포인터가 텔레포트 후 향할 방향을 나타냅니다. 손목을 회전하여 이 향하는 방향을 제어할 수 있습니다.  
+페이스 버튼 또는 보조 트리거를 놓으면 텔레포트가 완료됩니다.
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+
+## 언리얼 에디터에서 VR 로 테스트
+
+컴퓨터에 VR 구성을 해 두고 멀티 유저 템플릿의 패키지 또는 독립형 버전을 실행하면, 표준 데스크톱 컨트롤로 실행할지 VR 컨트롤로 실행할지 선택할 수 있습니다.
+
+VR 컨트롤을 사용하여 언리얼 에디터에서 프로젝트를 테스트하는 방법은 다음과 같습니다.
+
+1.  콘텐츠 브라우저의 *MultiUserViewer/Blueprints/GameInstance* 폴더 아래 **BP\_MultiUser\_GameInstance** 애셋을 찾습니다.  
+    ![BP_MultiUser_GameInstance](multiuserviewer-gameinstance.png "BP_MultiUser_GameInstance")  
+    
+2.  애셋을 더블클릭하여 블루프린트 에디터에서 엽니다.  
+    ![게임 인스턴스 블루프린트](multiuserviewer-gameinstance-bp.png "게임 인스턴스 블루프린트")  
+    
+3.  **디테일** 패널에서 **VRmode** 옵션을 활성화합니다.  
+    ![게임 인스턴스 디테일 패널](multiuserviewer-gameinstance-vrmode.png "게임 인스턴스 디테일 패널")  
+    
+4.  블루프린트를 **컴파일**, **저장** 합니다.
+5.  프리뷰를 실행하려면, 툴바의 플레이 버튼 옆 드롭다운 화살표를 클릭하고 **VR Preview** (VR 프리뷰)를 선택합니다.  
+    ![VR 프리뷰](multiuserviewer-gameinstance-preview.png "VR 프리뷰")  
+    
+
+[REGION:note]
+이 세팅을 끄고 애플리케이션 패키지를 만들어야 한다는 것 잊지 마세요! 끄지 않으면 결과 패키지가 예상대로 작동하지 않습니다.
+[/REGION]

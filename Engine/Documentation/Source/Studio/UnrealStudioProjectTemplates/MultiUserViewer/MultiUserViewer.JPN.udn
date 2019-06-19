@@ -1,0 +1,55 @@
+﻿INTSourceChangelist:5282493
+Availability: Public
+Crumbs: 
+Title: Unreal Studio マルチユーザー ビューア テンプレート
+Description: Unreal Studio のマルチユーザー ビューア テンプレートを使って VR およびデスクトップでデザインを共同でレビューできるようにするための入門的なガイドです。
+Type: 
+Version: 4.21
+Parent: Studio/UnrealStudioProjectTemplates
+Order: 
+Tags: Unreal Studio
+Tags: template
+Tags: Multi-user
+topic-image:multiuserviewer-topic.png
+
+
+![](multiuserviewer-banner.png)
+
+マルチユーザー ビューア テンプレートを使うと、複数の人たちが参加して、同一の 3D コンテンツの経験を共有できるようになります。あなたの組織でデザインをリアルタイムにレビューし、コミュニケーションを取ることが、より高速かつ簡単になるように設計されているため、コンテンツの問題点を効率的に明確化してイテレーションすることが可能となります。
+
+各参加者は、標準的なマウスとキーボードが備わっているコンピュータ、あるいは VR のヘッドセットおよびモーション コントローラーが連動しているコンピュータを使うことができます。各参加者には他プレイヤーのアバターが見えます。また、各参加者はレーザーポインターを使って他プレイヤー全員に対して環境のさまざまな部分の出来映えについて指摘することができます。
+
+[REGION:lightbox]
+[![Review with multiple simulataneous users](multiuserviewer-overview.png "Review with multiple simulataneous users")](multiuserviewer-overview.png)
+
+*クリックするとフルサイズで表示されます。*
+[/REGION]
+
+マルチユーザー ビューア テンプレートは、マルチビューアに付随するやっかいな問題 (たとえば、複数のコンピュータ間で接続を確立し、プレゼンス情報をレプリケートできるようにすること) のほとんどに対処できています。マルチユーザー ビューア テンプレートをデザインのレビュー エクスペリエンスの出発点として利用することによって、ネットワークのセットアップにかける時間を短縮し、デザインについて検討する時間をより多く取れるようになれます。
+
+## ワークフロー
+
+マルチユーザー ビューア テンプレートの代表的な利用パターン  
+
+1.  テンプレートから新規プロジェクトを作成する。または、テンプレートに同梱されているコンテンツを自分の既存のプロジェクトに組み入れる。
+2.  他のユーザーと共有したいコンテンツを使ってプロジェクトを構成する。
+    通常この工程では、他の Unreal Engine によるプロジェクトで行われるのと同じインポート作業とルックデベロップメント作業が必要となります。独自のコンテンツを作成する際に特に注意しなければならない事柄 (たとえば、コリジョンとナビゲーション メッシュ) については、 [マルチユーザー ビューア テンプレートで独自のコンテンツを使う](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVContent) を参照してください。
+3.  Unreal Editor に備え付けのツールを使ってプロジェクトをパッケージングして実行ファイルにする。
+4.  上記ファイルを、共同レビューに参加する必要があるユーザーたちと共有する。
+5.  一人のユーザーが、パッケージングされた Unreal Engine によるアプリケーションを実行し、さらにサーバーモードで起動する。
+6.  同じビューイング セッションに参加する必要のある他のユーザーは全員、別のコンピュータでアプリケーションのコピーを実行し、サーバーのセッションに加わるようにする。
+
+テンプレートに同梱されているデフォルトのコンテンツを利用して上記手順を実行する場合、詳細なチュートリアルとして [マルチユーザー ビューア入門](Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro) が用意されていますのでご参照ください。
+
+## 入門編
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MultiUserViewerIntro:topic%
+
+## ハウツーガイド
+
+[DIR(output:"topic" parent:"Studio/UnrealStudioProjectTemplates/MultiUserViewer" tags:"how to" end:"1")]
+
+## 参考資料
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVControlling:topic%
+
+%Studio/UnrealStudioProjectTemplates/MultiUserViewer/MUVNetworking:topic%

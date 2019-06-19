@@ -1,9 +1,9 @@
-﻿INTSourceChangelist:3467293
+﻿INTSourceChangelist:6412263
 Availability:Public
 Title: 애니메이션 리타기팅 (다른 스켈레톤)
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:스켈레톤이 다른 경우에 사용하는 애니메이션 리타기팅 입니다.
 Version: 4.9
+tags: Animation Retargeting
 Topic-image:AnimRetargetingDiffSkeleton_topic.png
 
 [REGION:fullwidth]
@@ -17,7 +17,7 @@ Topic-image:AnimRetargetingDiffSkeleton_topic.png
 [/REGION]
 
 
-**애니메이션 리타기팅 (다른 스켈레톤)** 은 같은 스켈레톤을 공유하지 **않는** 캐릭터 사이에 애니메이션을 재사용할 수 있도록 하는 기능으로, 같은 스켈레톤 애셋을 공유하는 캐릭터 사이의 애니메이션 리타기팅이 관여되는 [](Engine\Animation\AnimationRetargeting) 와는 다릅니다.
+**애니메이션 리타기팅 (다른 스켈레톤)** 은 같은 스켈레톤을 공유하지 **않는** 캐릭터 사이에 애니메이션을 재사용할 수 있도록 하는 기능으로, 같은 스켈레톤 애셋을 공유하는 캐릭터 사이의 애니메이션 리타기팅이 관여되는 [](Engine\Animation\AnimationRetargeting) 과는 다릅니다.
 
 다른 스켈레톤을 가진 캐릭터 사이의 애니메이션 리타기팅 처리는, 한 스켈레톤에서 다른 스켈레톤으로 본 정보를 전달할 때 **Rig** (릭)이라는 애셋을 사용합니다. 릭을 선택한 이후에는, 소스 스켈레톤과 (애니메이션을 리타기팅하고자 하는) 타깃 스켈레톤 사이에 릭을 공유합니다. 그 작업을 한 이후에는, 타깃 스켈레톤의 **본** 을 릭에 저장된 **노드** 에 일치시킵니다.
 

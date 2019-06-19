@@ -1,5 +1,6 @@
-﻿Availability:NoPublish
-Title:材质编辑器入门教程
+INTSourceChangelist:3108692
+Availability:NoPublish
+Title:材质编辑器欢迎教程
 Crumbs:
 Description:
 
@@ -8,7 +9,7 @@ Description:
 欢迎使用材质编辑器
 [/VAR]
 
-欢迎使用虚幻引擎4材质编辑器。本快速指南描述了常用接口元素的基础使用。 在大多数章节中都提供了到文件的链接，这样您可以阅读任何您感兴趣的主题。
+欢迎使用虚幻引擎4的材质编辑器。本快速指南描述了常用界面元素的基本用法。大多数部分中提供了文档链接，便于您继续阅读关于您感兴趣的任何主题的内容。
 
 ![](titleImage.png)
 
@@ -18,10 +19,10 @@ Description:
 
 [EXCERPT:Graph]
 [VAR:StageTitle]
-图表
+图表（Graph）
 [/VAR]
 
-每种材质均由图表来表示，图表中存储了带连接线的节点以定义着色器。 材质编辑器中心的大型网格区域为图表面板。
+每种材质都用一个图表来表示，图表包含了用引线连接起来的节点，用于定义着色器。材质编辑器中心的大网格区域就是图表面板。
 
 ![](graphPanel.png)
 
@@ -32,14 +33,14 @@ Description:
 
 [EXCERPT:MaterialNode]
 [VAR:StageTitle]
-图表
+图表（Graph）
 [/VAR]
 
-每种材质都有基础材质节点。 您创建的网络最终会连接到基础材质节点上的一个（或更多）个引脚。
+每种材质都有基本材质节点。您创建的网络最终会连接到基本材质节点的一个（或多个）引脚。
 
 ![](baseMaterialNode.png)
 
-选择基础材质节点将会更新细节面板，以显示所有的通用材质属性。 在此处您可以设置半透明，多边形细分,双面以及有关您材质的许多其他选项。
+选择基本材质节点后，“细节”（Details）面板会更新为显示所有通用材质属性。在这里，您可以设置半透明、曲面细分、双面和许多材质选项。
 
 [/EXCERPT:MaterialNode]
 
@@ -51,29 +52,27 @@ Description:
 创建节点
 [/VAR]
 
-在材质编辑器中创建节点有几种方法。 在Palette面板中，您可以点击并拖曳节点到图表视图中。
+在材质编辑器中创建节点有多种方法。从“选用板”（Palette）面板，单击节点并拖到图表视图。
 
 ![](ClicknDrag.png)
 
-您还可以使用下面的方法：
-* 在图表视图中右键点击从而在鼠标指针位置处创建节点。
-* 从内容浏览器中点击并拖曳贴图到图表中。
-* 将引脚拖曳到图表区域中以创建新节点，并将它们连接在一起。
+您还可以：
+* 右键单击图表视图以在光标位置创建节点。
+* 在内容浏览器中单击纹理并拖到图表中。
+* 从引脚拖出一根引线到图表区域，以创建新节点并将它们连接起来。
 
 ![](createDrag.png)
 
-[请查阅材质编辑器面板文件以获得更多信息。](DOCLINK:Engine/Rendering/Materials/Editor/Interface)
+[请参阅“材质编辑器界面文档”以了解更多信息。](DOCLINK:Engine/Rendering/Materials/Editor/Interface)
 
 [/EXCERPT:Stage2]
 
 ---
 
 [EXCERPT:Stage3]
-[VAR:StageTitle]
-引脚和连接线
-[/VAR]
 
-每个节点都有多个引脚。 左侧的引脚是输入引脚，右侧的引脚是输出引脚。 您可以通过点击并拖曳一个输入引脚到一个输出引脚来任意连接它们。
+
+每个节点都有一些引脚。左侧引脚为输入引脚，右侧引脚为输出引脚。您可以将任何输入引脚连接到输出引脚，方法是单击一个引脚并拖出引线连接到另一个引脚。
 
 ![](wire2.png)
 
@@ -91,17 +90,17 @@ Description:
 创建热键
 [/VAR]
 
-对一些节点，可用热键创建它们。 按下这些键之一并在材质图表区域中左键点击。
+有一些热键可以用于创建一些节点。按住下面的某个键并在材质图表区域中单击左键。
 
-1, 2, 3或4 : 创建1-4向量常量节点
-U : TexCoord（UV坐标）节点
-T : 贴图取样器节点
-S, 或 V : 创建标量或向量参数
-A, D, 或 M : 创建加法，除法或乘法节点
+1、2、3 或 4：创建1-4矢量常量节点
+U：TexCoord（UV坐标）节点
+T：纹理取样器节点
+S或V：创建标量或矢量参数
+A、D或M：创建加、除或乘节点
 
 ![](HotkeyNodes.png)
 
-您可以通过在Palette面板的查找来发现更多热键，或者您也可以通过Edit Menu（编辑菜单） -> Editor Preferences（编辑器偏好设置） -> Keyboard Shortcuts（键盘快捷方式） -> Material Editor（材质编辑器） - Spawn Nodes（生成节点）来设置您自己的热键。 为显示此类别，您必须打开材质编辑器。
+如需查看更多热键，可以在“选用板”（Palette）面板中查找，或者您可以通过“编辑菜单”（Edit Menu）->“编辑器首选项”（Editor Preferences）->“键盘快捷键”（Keyboard Shortcuts）->“材质编辑器”（Material Editor）->“产生节点”（Spawn Nodes）。材质编辑器必须打开才能显示这个类别。
 
 
 
@@ -112,20 +111,20 @@ A, D, 或 M : 创建加法，除法或乘法节点
 
 [EXCERPT:Stage5]
 [VAR:StageTitle]
-视口预览
+预览视口
 [/VAR]
 
-视口使用标准的视口浏览控制，还可以通过在视口中使用L +鼠标左键来变更光照位置。
+视口使用标准的视口导航控件，并增加了能够通过在视口中使用L+左键单击更改光源位置的功能。
 
 ![](sphereLight.png)
 
-如需变更预览对象的形状，请使用视口工具条。 点击那个看起来像是小茶壶的图标，将会在内容浏览器中使用当前选择的网格物体。
+要更改预览项目的形状，使用视口工具栏。形状类似于小茶壶的图标使用内容浏览器中当前选中的网格体。
 
 ![](viewportShapes.png)
 
-自此处开始，您还可以切换视口的网格预览和实时预览。
+从这里，您还可以切换视口的网格和实时预览。
 
-[点击此处以获得材质编辑器接口的更多信息。](DOCLINK:Engine/Rendering/Materials/Editor/Interface)
+[单击此处了解有关材质编辑器界面的更多信息。](DOCLINK:Engine/Rendering/Materials/Editor/Interface)
 
 [/EXCERPT:Stage5]
 
@@ -136,17 +135,17 @@ A, D, 或 M : 创建加法，除法或乘法节点
 实时更新
 [/VAR]
 
-当您对网络进行变更时，能实时获得每次变更的及时反馈非常有用。 材质编辑器在图表中提供您两项功能，让您能获得您设置网络的瞬时反馈： 实时节点和实时更新。
+如果是对网络进行更改，它可以用于实时获取每一次更改的即时反馈。材质编辑器在图表中提供了两个功能，让您可以获得网络的即时反馈：实时节点和实时更新。
 
 ![](toolbar_live_nodes.png)
 
-实时节点使得节点产生的任意常量变更进行实时回放-常量变更是由于诸如Panners（平移器）的表达式所造成的。 
+实时节点允许实时播放节点所做的任何经常性更改（因为存在平移等表达式）。 
 
 ![](toolbar_live_update.png)
 
-另一个实时更新则可以让网络内的每个节点在发生变更时都重新编译其着色器。 这些变更包括了创建新节点，删除节点，连接节点，取消连接节点以及属性变更。 这个重新编译的过程是必要的，这样可让该节点处描画的材质预览为最新。 然而，重新编译这些中间着色器可能会消耗不少时间，尤其是在您的材质包含许多节点的情况下。  如果您在每次变更后都要经历长时间等待，您可以取消激活实时更新选项。
+而另一方面，实时更新允许网络中的每个节点每次发生更改时重新编译着色器。这些更改包括创建新节点，删除节点，节点连接和断开连接以及属性更改。这种重新编译是十分必要的，这样在该节点处绘制的材质预览才会是最新的。但是，重新编译这些即时着色器可能非常耗时，尤其是材质包含许多节点的情况下。如果您在每次更改后都要经历较长的等待，可能需要停用实时更新选项。
 
-[请参阅材质编辑器文件以获得更多信息。](DOCLINK:Engine/Rendering/Materials/Editor#LiveNodesandLiveUpdate)
+[请参阅“材质编辑器文档”以了解更多信息。](DOCLINK:Engine/Rendering/Materials/Editor#LiveNodesandLiveUpdate)
 
 [/EXCERPT:Stage6]
 
@@ -157,11 +156,11 @@ A, D, 或 M : 创建加法，除法或乘法节点
 应用
 [/VAR]
 
-按下工具栏的Apply（应用）按钮，会对初始材质部署在材质编辑器中产生的任意更改，并在世界中部署对该材质的任意使用。
+工具栏上的“应用”（Apply）按钮将材质编辑器中的任何更改部署到原始材质，以及场景中使用该材质的任何位置。
 
 ![](apply.png)
 
-如果您在SIE（在编辑器中模拟）或PIE（在编辑器中播放）时应用材质变更，也会发生这种情况。
+这同样适用于在“在编辑器中模拟”（Simulate in Editor）或“在编辑器中播放”（Play in Editor）期间应用材质更改。
 
 
 [/EXCERPT:Stage7]
@@ -173,11 +172,11 @@ A, D, 或 M : 创建加法，除法或乘法节点
 参数
 [/VAR]
 
-参数节点是在材质实例中显示属性以供覆盖的表达式，可使用材质实例常量资源来创建材质变量，也可以使用材质实例动态资源在启动时进行修改。
+参数节点是向待覆盖材质实例公开这些属性的表达式，目的是使用材质实例常量资源创建材质变体或在运行时使用材质实例动态资源进行修改。
 
 ![](params.png)
 
-[请参阅参数引用以获得更多信息。](DOCLINK:Engine/Rendering/Materials/ExpressionReference/Parameters)
+[请参阅“参数参考”以了解更多信息。](DOCLINK:Engine/Rendering/Materials/ExpressionReference/Parameters)
 
 [/EXCERPT:Stage8]
 
@@ -189,11 +188,11 @@ A, D, 或 M : 创建加法，除法或乘法节点
 材质函数
 [/VAR]
 
-Material Function（材质函数）是可以保存在包中并且在多个材质之间重复使用的材质图表的一小部分。 它们可以让复杂的网络被存储在外部并被快速重新使用，这可以让更为复杂的网络剥离为单个节点，这样可以让美术更方便地创建材质。
+材质函数是可以保存为包并在多种材质中重复使用的材质图表小片段。它们允许保存和快速复用复杂的网络，同时允许将更复杂的网络分离成单个节点，让美术更轻松地创建材质。
 
 ![](functions.png)
 
-[请参阅函数文件以获得更多信息。](DOCLINK:Engine/Rendering/Materials/Functions)
+[请参阅“函数”文档以了解更多信息。](DOCLINK:Engine/Rendering/Materials/Functions)
 
 [/EXCERPT:Stage9]
 
@@ -201,15 +200,15 @@ Material Function（材质函数）是可以保存在包中并且在多个材质
 
 [EXCERPT:Stage10]
 [VAR:StageTitle]
-结论
+总结
 [/VAR]
 
-如需获得更多此概述中涵盖的信息，请参阅以下这些文件：
+有关本概述涵盖的主题的更多信息，请参阅以下文档：
 
 
 
-[材质编辑器接口](DOCLINK:Engine/Rendering/Materials/Editor/Interface)
-[材质和贴图](DOCLINK:Engine/Rendering/Materials)
+[材质编辑器界面](DOCLINK:Engine/Rendering/Materials/Editor/Interface)
+[材质和纹理](DOCLINK:Engine/Rendering/Materials)
 [材质参数](DOCLINK:Engine/Rendering/Materials/ExpressionReference/Parameters)
 [材质函数](DOCLINK:Engine/Rendering/Materials/Functions)
 [材质实例](DOCLINK:Engine/Rendering/Materials/MaterialInstances)

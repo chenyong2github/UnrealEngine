@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4635827
+﻿INTSourceChangelist:6414059
 Availability: Public
 Crumbs: %ROOT%
 Title:实用表达式
@@ -14,16 +14,12 @@ Topic-image:Utility_topic.png
 [TOC(start:2 end:2)]
 [/EXCERPT:TOC]
 
-**实用表达式** 节点是会对材质造成多种不同影响的节点，或许跟以往有很大不同。例如，GIReplace节点会使用您输入的给定值取代对象间接反射颜色，而线性插值节点有助于根据阿尔法输入混合两个纹理。下文将详细介绍UE4材质编辑器中提供的所有实用表达式节点。
-
-(#a-h)
-## A - H
+**实用表达式** 节点是会对材质造成多种不同影响的节点，或许跟以往有很大不同。例如，GIReplace节点会使用您输入的给定值取代对象间接反射颜色，而线性插值节点有助于根据alpha输入混合两个纹理。下文将详细介绍UE4材质编辑器中提供的所有实用表达式节点。
 
 [EXCERPT:AntialiasedTextureMask]
-(#antialiasedtexturemask)
-### 抗锯齿纹理蒙版（AntialiasedTextureMask）
+## AntialiasedTextureMask
 
-**抗锯齿纹理蒙版（AntialiasedTextureMask）** 表达式允许您使用软（抗锯齿）过渡蒙版来创建材质。此蒙版可用来在两个复杂材质属性之间混合，或者使阿尔法混合材质淡出（适合与“软屏蔽”配合使用）。您只需指定在其中一个通道（红色、绿色、蓝色或阿尔法）中指定了蒙版的材质，在此表达式中设置所使用的通道，并指定比较值。假设该通道存储0（黑色）到1（白色）范围内的灰阶值，比较函数将定义产生的蒙版是应该为0还是1。此表达式是一个参数，这使 **纹理（Texture）** 属性可以由子材质实例覆盖。
+**抗锯齿纹理蒙版（AntialiasedTextureMask）** 表达式允许您使用软（抗锯齿）过渡蒙版来创建材质。此蒙版可用来在两个复杂材质属性之间混合，或者使alpha混合材质淡出（适合与“软屏蔽”配合使用）。您只需指定在其中一个通道（红色、绿色、蓝色或alpha）中指定了蒙版的材质，在此表达式中设置所使用的通道，并指定比较值。假设该通道存储0（黑色）到1（白色）范围内的灰阶值，比较函数将定义产生的蒙版是应该为0还是1。此表达式是一个参数，这使 **纹理（Texture）** 属性可以由子材质实例覆盖。
 
 | 项目 | 说明 |
 | -------- | ----------- |
@@ -53,8 +49,7 @@ Topic-image:Utility_topic.png
 
 [/EXCERPT:AntialiasedTextureMask]
 
-(#blackbody)
-### 黑体（BlackBody）
+## BlackBody
 
 **黑体（BlackBody）** 表达式用来在材质中模拟[黑体辐射](http://en.wikipedia.org/wiki/Black-body_radiation)。用户输入开氏温度，产生的颜色和强度可用来驱动“底色”（Base Color）和“自发光”（Emissive）值，以获得在物理上准确的结果。 
 
@@ -62,8 +57,7 @@ Topic-image:Utility_topic.png
 ![](BlackBody.png)
 [/REGION]
 
-(#bumpoffset)
-### 凹凸贴图偏移（BumpOffset）
+## BumpOffset
 
 [EXCERPT:BumpOffset]
 **凹凸贴图偏移（BumpOffset）** 是虚幻引擎4术语，就是通常所谓的“视差贴图”。BumpOffset表达式可以使材质产生深度错觉，而不需要额外的几何体。BumpOffset材质使用灰阶_高度贴图_来提供深度信息。高度贴图中的值越亮，材质的“凸出”效果越明显；当摄像机在表面上移动时，这些区域将产生视差（移位）。高度贴图中较暗的区域将显得“距离较远”，其移位程度最小。
@@ -83,8 +77,7 @@ Topic-image:Utility_topic.png
 ![BumpOffsetExample.png](BumpOffsetExample.png)
 [/REGION]
 
-(#constantbiasscale)
-### 常量偏差比例（ConstantBiasScale）
+## ConstantBiasScale
 
 **常量偏差比例（ConstantBiasScale）** 表达式接收输入值，加上偏差值，然后乘以比例缩放系数并输出结果。例如，要将输入数据从[-1,1] 转换到[0,1]，请使用偏差值1.0和比例缩放系数0.5。
 
@@ -96,18 +89,15 @@ Topic-image:Utility_topic.png
 
 ![ConstantBiasScaleExample.png](ConstantBiasScaleExample.png)
 
-(#ddx)
-### DDX
+## DDX
 
 **DDX** 表达式公开DDX导数计算，这是像素着色器计算中使用的一项GPU硬件功能。
 
-(#ddy)
-### DDY
+## DDY
 
 **DDY** 表达式公开DDX导数计算，这是像素着色器计算中使用的一项GPU硬件功能。
 
-(#depthfade)
-### 深度消退（DepthFade）
+## DepthFade
 
 **深度消退（DepthFade）** 表达式用来隐藏半透明对象与不透明对象相交时出现的不美观接缝。 
 
@@ -135,8 +125,7 @@ Topic-image:Utility_topic.png
 单击查看大图。 
 [/REGION]
 
-(#depthoffieldfunction)
-### 视野深度函数（DepthOfFieldFunction）
+## DepthOfFieldFunction
 
 **视野深度函数（DepthOfFieldFunction）** 表达式使美工能够控制当视野深度使材质模糊时，材质所发生的情况。它输出介于0与1之间的值，其中0代表“清晰”，而1代表“完全模糊”。例如，这对于在纹理的清晰版本与模糊版本之间进行插值非常有用。“深度”（Depth）输入允许您使用其他计算来覆盖场景视野深度计算所产生的现有结果。
 
@@ -157,8 +146,7 @@ Topic-image:Utility_topic.png
 [/REGION]
 
 [EXCERPT:Desaturation]
-(#desaturation)
-### 去饱和度（Desaturation）
+## Desaturation
 
 **去饱和度（Desaturation）** 表达式对其输入进行去饱和度，即根据特定百分比将其输入的颜色转换为灰色阴影。
 
@@ -167,7 +155,7 @@ Topic-image:Utility_topic.png
 | [REGION:tablesection]属性[/REGION] ||
 | **亮度系数（Luminance Factors）** | 指定每个通道对去饱和度颜色的影响量。此属性确保在去饱和度之后，绿色比红色亮，而红色比蓝色亮。|
 | [REGION:tablesection]Inputs[/REGION] ||
-| **小数（Fraction）** | 指定要应用于输入的去饱和度数量。此百分比的范围是0.0（完全去饱和度）到1.0（完全原始颜色，不去饱和度）。|
+| **小数（Fraction）** | 指定要应用于输入的去饱和度数量。此百分比的范围是0.0（完全原始颜色，不去饱和度）到1.0（完全去饱和度）。|
 
 ![DesaturationExample.png](DesaturationExample.png)
 
@@ -177,8 +165,7 @@ Topic-image:Utility_topic.png
 [/EXCERPT:Desaturation]
 
 [EXCERPT:Distance]
-(#distance)
-### 距离（Distance）
+## Distance
 
 **距离（Distance）** 表达式计算两个点/颜色/位置/矢量之间的欧氏距离，并输出结果值。此表达式可作用于单分量、双分量、三分量和四分量矢量，但此表达式的两个输入必须具有相同数目的通道。
 
@@ -202,8 +189,7 @@ Topic-image:Utility_topic.png
 	
 [/EXCERPT:Distance]
 
-(#distancefieldgradient)
-### 距离场梯度（DistanceFieldGradient）
+## DistanceFieldGradient
 
 **距离场梯度（DistanceFieldGradient）** 材质表达式节点进行规范化后，将输出对象在距离场中的X,Y,Z移动方向。 
 这使DistanceFieldGradient材质表达式节点非常适合于需要模拟液体流的材质。
@@ -244,8 +230,7 @@ Topic-image:Utility_topic.png
 | **2**  | 启用G通道并禁用所有其他通道。|
 | **3**  | 启用B通道并禁用所有其他通道。|
 
-(#distancetonearestsurface)
-### 与最近表面的距离（DistanceToNearestSurface）
+## DistanceToNearestSurface
 
 **与最近表面的距离（DistanceToNearestSurface）** 材质表达式节点允许材质对“全局距离场”关卡中的任何点进行取样。 
 这个材质表达式将输出从距离场到场景中最近遮挡体的带符号距离（以全局空间单位计）。
@@ -273,8 +258,7 @@ Topic-image:Utility_topic.png
 DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅从红色区域开始与场景中的其他“静态网格”相交。
 
 [EXCERPT:FeatureLevelSwitch]
-(#featurelevelswitch)
-### 功能级别开关（FeatureLevelSwitch）
+## FeatureLevelSwitch
 
 **功能级别开关（FeatureLevelSwitch）** 节点允许您建立简化的材质，以用于功能不太强大的设备。 
 
@@ -291,8 +275,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 
 [/EXCERPT:FeatureLevelSwitch]
 
-(#fresnel)
-### 菲涅尔（Fresnel）
+## Fresnel
 
 **菲涅尔（Fresnel）** 表达式根据表面法线与摄像机方向的标量积来计算衰减。当表面法线正对着摄像机时，输出值为0。当表面法线垂直于摄像机时，输出值为1。结果限制在[0,1]范围内，以确保不会在中央产生任何负颜色。
 
@@ -304,13 +287,12 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 | [REGION:tablesection]Inputs[/REGION] ||
 | **指数输入（ExponentIn）** | 指定输出值的衰减速度。值越大，意味着衰减越紧或越快。如果使用此输入，那么值将始终取代“指数”（Exponent）属性值。|
 | **基本反射小数（Base Reflect Fraction）** | 指定从正对表面的方向查看表面时，镜面反射的小数。值为1将有效地禁用菲涅耳效果。如果使用此输入，那么值将始终取代“指数”（Exponent）属性值。|
-| **法线（Normal）** | 接收三通道矢量值，该值代表表面在全局空间中的法线。要查看应用于菲涅耳对象表面的法线贴图的结果，请将该法线贴图连接到材质的“法线”（Normal）输入，然后连接一个（PixelNormalWS）[Engine/Rendering/Materials/ExpressionReference/Vector#PixelNormalWS] 表达式到Fresnel上的此输入。如果未指定任何法线，那么将使用网格的切线法线。|
+| **法线（Normal）** | 接收三通道矢量值，该值代表表面在全局空间中的法线。要查看应用于菲涅耳对象表面的法线贴图的结果，请将该法线贴图连接到材质的“法线”（Normal）输入，然后连接一个[PixelNormalWS](Engine/Rendering/Materials/ExpressionReference/Vector#PixelNormalWS) 表达式到Fresnel上的此输入。如果未指定任何法线，那么将使用网格的切线法线。|
 
 ![FresnelExample.png](FresnelExample.png)
 
 [EXCERPT:GIReplace]
-(#gireplace)
-### GI 替换（GIReplace）
+## GIReplace
 
 **GI 替换（GIReplace）** 允许美工指定另一个表达式链（通常较为简单），以便在材质用于GI时使用。  
 
@@ -327,11 +309,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 
 [/EXCERPT:GIReplace]
 
-(#i-p)
-## I - P
-
-(#lightmassreplace)
-### 光照系统替换（LightmassReplace）
+## LightmassReplace
 
 **光照系统替换（LightmassReplace）** 表达式用来在编译材质以用于正常渲染用途时传递“实时”（Realtime）输入，并在导出材质到光照系统以用于全局照明时传递“光照系统”（Lightmass）输入。使用此表达式可以避免使用导出版本无法正确处理的材质表达式，例如“全局位置”（WorldPosition）。
 
@@ -342,29 +320,27 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 | **光照系统（Lightmass）** | 接收在导出材质到光照系统时要传递的值。|
 
 [EXCERPT:LinearInterpolate]
-(#linearinterpolate)
-### 线性插值（LinearInterpolate）
+## LinearInterpolate
 
-**线性插值（LinearInterpolate）** 表达式根据用作蒙版的第三个输入值，在两个输入值之间进行混合。您可以将其想像成用于定义两个纹理之间的过渡效果的蒙版，例如Photoshop中的层蒙版。蒙版“阿尔法”（Alpha）的强度确定从两个输入值获取颜色的比例。如果“阿尔法”（Alpha）为0.0/黑色，那么将使用第一个输入。如果“阿尔法”（Alpha）为1.0/白色，那么将使用第二个输入。如果“阿尔法”（Alpha）为灰色（介于0.0与1.0之间的值），那么输出是两个输入之间的混合。请记住，混合按通道进行。因此，如果“阿尔法”（Alpha）为RGB颜色，那么“阿尔法”（Alpha）的红色通道值定义A与B的红色通道之间的混合，而与“阿尔法”（Alpha）的绿色通道 **无关**，该通道定义A与B的绿色通道之间的混合。
+**线性插值（LinearInterpolate）** 表达式根据用作蒙版的第三个输入值，在两个输入值之间进行混合。您可以将其想像成用于定义两个纹理之间的过渡效果的蒙版，例如Photoshop中的层蒙版。蒙版Alpha的强度确定从两个输入值获取颜色的比例。如果Alpha为0.0色，那么将使用第一个输入。如果Alpha为1.0，那么将使用第二个输入。如果Alpha介于0.0与1.0之间，那么输出是两个输入之间的混合。请记住，混合按通道进行。因此，如果Alpha为RGB颜色，那么Alpha的红色通道值定义A与B的红色通道之间的混合，而与Alpha的绿色通道 **无关**，该通道定义A与B的绿色通道之间的混合。
 
 | 项目 | 说明 |
 | -------- | ----------- |
 | [REGION:tablesection]属性[/REGION] ||
-| **常量 A（Const A）** | 映射到黑色（0.0）的值。仅当未连接A输入时才使用。|
-| **常量B（Const B）** | 映射到白色（1.0）的值。仅当未连接B输入时才使用。|
-| **常量阿尔法（Const Alpha）** | 接收要用作蒙版阿尔法的值。仅当未连接“阿尔法”（Alpha）输入时才使用。|
+| **常量 A（Const A）** | 映射到0.0的值。仅当未连接A输入时才使用。|
+| **常量B（Const B）** | 映射到1.0的值。仅当未连接B输入时才使用。|
+| **常量Alpha（Const Alpha）** | 接收要用作蒙版alpha的值。仅当未连接Alpha输入时才使用。|
 | [REGION:tablesection]Inputs[/REGION] ||
-| **A** | 接收映射到黑色（0.0）的值。|
-| **B** | 接收映射到白色（1.0）的值。|
-| **阿尔法（Alpha）** | 接收要用作蒙版阿尔法的值。|
+| **A** | 接收映射到0.0的值。|
+| **B** | 接收映射到1.0的值。|
+| **Alpha** | 接收要用作蒙版alpha的值。|
 
-**程序员需知：**LinearInterpolate根据参数值“阿尔法”（Alpha）在A与B之间执行按通道插值。
+**程序员需知：**LinearInterpolate根据参数值Alpha在A与B之间执行按通道插值。
 
 ![LerpExample.png](LerpExample.png)(w:900)
 [/EXCERPT:LinearInterpolate]
 
-(#noise)
-### 噪点（Noise）
+## Noise
 
 **噪点（Noise）** 表达式建立过程式噪点场，以使您能够控制其生成方式。
 
@@ -403,8 +379,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 
 [/COMMENT]
 
-(#previousframeswitch)
-### 上一帧开关（Previous Frame Switch）
+## Previous Frame Switch
 
 **上一帧开关（Previous Frame Switch）** 材质表达式使您能够支持材质中实现的复杂[顶点动画](Engine/Animation/Tools/VertexAnimationTool/)生成正确的运动矢量，这样它们才能正确使用临时AA和动态模糊。 
 
@@ -446,11 +421,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 在该示例中，您可以看到该函数在Epic自家游戏（如《堡垒之夜》）中的使用效果，通过在屏幕上聚集的顶点动画控制动态模糊。 
 右侧动画使用Previous Frame Switch来添加一些动态模糊，而左侧动画则没有。
 
-(#q-z)
-## Q - Z
-
-(#qualityswitch)
-### 质量开关（QualitySwitch）
+## QualitySwitch
 
 **质量开关（QualitySwitch）**表达式允许根据引擎在不同质量级别之间的切换使用不同的表达式网络，例如在较低端的设备上使用较低的质量。
 
@@ -462,8 +433,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 | 高（High） | 此输入用于针对较高视觉质量而设计的网络。|
 
 [EXCERPT:RotateAboutAxis]
-(#rotateaboutaxis)
-### 绕轴旋转（RotateAboutAxis）
+## RotateAboutAxis
 
 **绕轴旋转（RotateAboutAxis）** 表达式在给定旋转轴、该轴上的某个点以及旋转角度的情况下，旋转三通道矢量输入。此表达式适合于使用“全局位置偏移”（WorldPositionOffset）产生质量优于简单剪切的动画。
 
@@ -471,7 +441,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 | -------- | ----------- |
 | [REGION:tablesection]Inputs[/REGION] ||
 | **规范化旋转轴（NormalizedRotationAxis）** | 接收一个规范化 (0-1) 矢量，它代表对象的旋转轴。|
-| **旋转角度（RotationAngle）** | 旋转角度。值1表示完全360度旋转。
+| **旋转角度（RotationAngle）** | 旋转角度。值1表示完全360度旋转。 |
 | **枢轴点（PivotPoint）** | 接收代表枢轴点的三通道矢量，对象将绕着该枢轴点旋转。|
 | **位置（Position）** | 接收代表对象位置的三通道矢量。创建RotateAboutAxis表达式时，将自动创建一个WorldPosition表达式并将其连接至此输入。|
 
@@ -483,8 +453,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 
 [/EXCERPT:RotateAboutAxis]
 
-(#spheremask)
-### 球体蒙版（SphereMask）
+## SphereMask
 
 **球体蒙版（SphereMask）** 表达式根据距离计算来输出蒙版值。如果某一个输出是某个点的位置，而另一输入是具有某半径的球体的中心，那么蒙版值将是0（位于球体外部）和1（位于球体内部），并存在一定的过渡区域。此表达式可作用于单分量、双分量、三分量和四分量矢量。
 
@@ -502,8 +471,7 @@ DistanceToNearestSurface的作用是告诉材质，“静态网格”平面仅�
 [/REGION]
 [REGION:caption]在此示例中，当摄像机距离预览对象超过256个单位时，该对象将平滑地渐变为黑色。[/REGION]
 
-(#vectornoise)
-### 矢量噪点（Vector Noise）
+## Vector Noise
 
 [INCLUDE:Engine\Rendering\Materials\ExpressionReference\Vector#VectorNoiseTest]
 

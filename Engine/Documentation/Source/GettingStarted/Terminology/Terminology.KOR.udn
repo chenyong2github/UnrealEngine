@@ -1,12 +1,13 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6536723
 Availability: Public
 Title:언리얼 엔진 4 용어
 Crumbs: %ROOT%, Gameplay, GettingStarted
 Description:언리얼 엔진 4 작업시 자주 사용되는 용어 대부분을 다룹니다.
 version: 4.9
 topic-image:terminology_topic.png
+Order: 5
 
-이 문서는 **언리얼 엔진 4** 작업시 흔히 사용되는 용어에 대한 설명을 위한 문서입니다. 예를 들어 "액터(Actor)는 뭐지", "컴포넌트(Component) 는 뭐고", "폰(Pawn)은 뭘까" 하는 의문은 여기서 개괄적으로 해결하실 수 있을 것입니다. 각 용어의 뜻을 파악한 이후에는, 상세 문서 및 안내서 링크를 통해 더욱 자세히 알아보실 수 있습니다.
+이 문서는 **언리얼 엔진 4** 작업시 흔히 사용되는 용어에 대한 설명을 위한 문서입니다. 예를 들어 "액터(Actor)는 뭐지", "컴포넌트(Component) 는 뭐고", "폰(Pawn)은 뭘까" 하는 질문에 대한 일반적인 답변을 확인할 수 있습니다. 각 용어의 뜻을 파악한 이후에는, 상세 문서 및 안내서 링크를 통해 더욱 자세히 배울 수 있습니다.
 
 | ------- | ------------ |
 |![](NewProject.png)(w:300)|[INCLUDE:GettingStarted/Terminology#projects]| 

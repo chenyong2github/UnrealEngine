@@ -1,0 +1,35 @@
+﻿INTSourceChangelist:6650380
+Availability: Public
+Crumbs: 
+Title:  プロキシ ジオメトリ ツール
+Description: プロキシ ジオメトリ ツールセットは、ビジュアル品質を損なうことなく Unreal Engine 4 (UE4) プロジェクトのパフォーマンスを向上させることを目的として開発されました。 
+Type: how-to
+SkillLevel: Intermediate
+Version: 
+Parent: Engine
+Order: 
+Tags: Rendering
+Tags: Optimization
+Tags: ProxyGeometryTool
+hero-image:ProxyLOD_BannerImage.png
+
+
+プロキシ ジオメトリ ツールセットは、ビジュアル品質を損なうことなく Unreal Engine 4 (UE4) プロジェクトのパフォーマンスを向上させることを目的として開発されました。 
+
+[REGION:note]
+プロキシ ジオメトリ ツールは現在、Microsoft Windows を使用している PC 上でのみサポートされています。 Mac と Linux でのサポートは、将来追加予定です。
+[/REGION]
+
+## はじめよう
+
+[DIR(output:"topic" parent:"Engine/ProxyGeoTool" type:"overview")]
+
+## ガイド
+
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Beginner")]
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Intermediate")]
+[DIR(output:"fancy" parent:"Engine/ProxyGeoTool" org:"hierarchy" skill_level:"Advanced")]
+
+## リファレンス
+ 
+[DIR(output:"topic" parent:"Engine/ProxyGeoTool" type:"Reference")]

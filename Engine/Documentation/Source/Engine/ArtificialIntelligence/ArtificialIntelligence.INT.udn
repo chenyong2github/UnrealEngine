@@ -1,0 +1,27 @@
+Availability: Docs
+Title: Artificial Intelligence
+Description: Describes the systems available within Unreal Engine 4 that can be used to create believable AI entities in your projects. 
+Version: 4.21
+Parent: Engine
+Tags: AI
+Tags: Artificial Intelligence
+Tags: Behavior Trees
+Tags: EQS
+Tags: Perception
+topic-image: AI_Landing_Page_Image.png
+social-image: AI_Landing_Page_Image.png
+topic-icon: AI_Landing_Page_Image.png
+Order: 34
+
+
+  
+
+![](AI_Landing_Page_Image.png "AI_Landing_Page_Image.png")
+
+Creating Artificial Intelligence (AI) for characters or other entities in your projects in Unreal Engine 4 (UE4) is accomplished through multiple systems working together. From a **Behavior Tree** that is branching between different decisions or actions, running a query to get information about the environment through the **Environment Query System (EQS)**, to using the **AI Perception** system to retrieve sensory information such as sight, sound, or damage information; all of these systems play a key role in creating believable AI in your projects. Additionally, all of these tools can be debugged with the **AI Debugging** tools, giving you insight into what the AI is thinking or doing at any given moment. 
+
+When crafting AI in UE4 and using each of these systems, a good way to think about building your AI is that the decision making process is handled by **Behavior Trees**, stimuli from the environment (such as sensory information) is sent to Behavior Trees from the **AI Perception** system, and queries about the environment itself are handled through **EQS**. For more information on each of these systems, refer to the sections below. 
+
+## Essentials
+
+[DIR(output:"topic" parent:"Engine/ArtificialIntelligence" org:"hierarchys")]

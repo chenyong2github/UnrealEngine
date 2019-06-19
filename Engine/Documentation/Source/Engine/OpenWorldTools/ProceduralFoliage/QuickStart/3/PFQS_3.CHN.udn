@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6782314
+Availability:Docs
 Title:3.调整植物类属性
 Crumbs:
 Description:在此步骤中对程序化植物 Actors 的设置进行调整。
 Navigation:topic
 SkillLevel:Intermediate
 Version:4.8
+
+## 页面已被合并，标记为Docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

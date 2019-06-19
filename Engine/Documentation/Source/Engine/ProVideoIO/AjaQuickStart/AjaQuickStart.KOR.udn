@@ -1,0 +1,242 @@
+﻿INTSourceChangelist:6537140
+Availability: Public
+Crumbs: 
+Title: AJA 비디오 I/O 퀵 스타트
+Description: 지원되는 AJA 미디어 카드의 비디오를 언리얼 엔진으로 가져온 뒤, 캡처된 비디오 출력을 언리얼 엔진에서 AJA 카드의 포트로 전송하는 법을 단계별로 안내합니다.
+Type: quick start
+Version: 4.20
+Parent: Engine/ProVideoIO
+Order: 0
+Tags: Getting Started
+Tags: professional video
+topic-image: aja-qs-topic-421.png
+
+
+![](aja-qs-banner.png)
+
+이 퀵 스타트 가이드에서는 AJA Video Systems 의 전문가용 비디오 카드를 사용하도록 언리얼 엔진을 구성하는 프로세스를 안내합니다. 이 가이드를 마칠 즈음이면:
+
+*   AJA 카드의 비디오 입력을 언리얼 엔진 프로젝트 안에서 재생할 수 있습니다.
+*   에디터와 런타임 애플리케이션의 카메라 시야를 캡처하여 AJA 카드의 SDI 포트로 전송할 수 있습니다.
+*   렌즈 변형 및 크로마 키 효과 적용처럼 비디오 입력에 대한 고급 조정을 어디서 구성할지 알게 됩니다.
+
+[REGION:tip]
+아래 설명한 요소를 실전에 활용한 작동 예제는 에픽게임즈 런처의 학습 탭의 [](Resources/Showcases/VirtualStudio) 쇼케이스를 확인하세요.
+[/REGION]
+
+[REGION:note]
+**전제조건:**
+
+*   AJA Video Systems 의 지원 카드가 있는지, 필수 드라이버와 소프트웨어를 설치했는지 확인합니다. 자세한 내용은 [](Engine/ProVideoIO/AjaIOReference) 문서를 참고하세요.
+*   카드가 정상 작동하는지, 카드의 SDI 포트 최소 하나에 비디오 입력 피드가 되고 있는지 확인합니다.
+*   비디오 피드와 통합하려는 언리얼 엔진 프로젝트를 엽니다. 여기서는 **삼인칭** 블루프린트 템플릿을 사용해서 단계를 안내하지만, 어느 프로젝트에서도 같은 단계가 똑같이 작동할 것입니다.
+
+이 가이드에 사용된 AJA Media 컴포넌트는 [](Engine/MediaFramework) 기반으로 만들어졌으며, 런타임에 비디오를 캡처하는 프로세스의 스크립트는 [](Engine/Blueprints) 를 사용합니다. 위 주제에 대한 사전 지식은 있으면 좋지만 필수는 아닙니다.
+[/REGION]
+
+## 1 - 프로젝트 구성
+
+AJA 카드의 비디오 입력을 언리얼 엔진 레벨로 가져오고, 언리얼 엔진의 출력을 AJA 카드의 SDI 포트 중 하나를 통해 전송하기 전, AJA Media Player 플러그인을 받아 프로젝트에서 활성화하는 기본 구성을 해야 합니다.
+
+### 단계
+
+1.  AJA Media Player 플러그인은 마켓플레이스를 통해 배포됩니다. 거기서 설치해야 합니다.  
+    에픽게임즈 런처를 열고, **마켓플레이스** 탭에서 **AJA Media Player** 를 검색합니다. 런처의 안내에 따라 언리얼 엔진 버전에 플러그인을 설치합니다.
+2.  언리얼 에디터에서 AJA 비디오 입출력에 사용하려는 프로젝트를 엽니다.
+3.  **플러그인** 창에서 **Aja Media Player** 플러그인을 찾습니다. 그 **Enabled** 박스를 체크합니다.  
+    
+    ![Enable the Aja Media Player Plugin](aja-qs-enable-plugin.png "Enable the Aja Media Player Plugin")  
+    
+4.  **Media** 카테고리의 **Media Framework Utilities** 플러그인을 찾습니다. 그 **Enabled** 박스가 체크되어 있지 않으면 체크합니다.  
+    
+    ![Enable the Media Framework Utilities Plugin](media-qs-utilities-enabled.png "Enable the Media Framework Utilities Plugin")
+5.  **지금 재시작** 버튼을 눌러 에디터를 재시작하고 프로젝트를 다시 엽니다.  
+    
+    ![Restart Now](media-qs-utilities-restart.png "Restart Now")
+
+### 최종 결과
+
+프로젝트가 AJA 카드의 비디오를 받아 렌더링된 출력을 카드로 전송할 준비가 되었습니다. 다음 섹션에서는 비디오를 연결하여 입출력 재생을 시작합니다.
+
+## 2 - 언리얼 엔진에서 비디오 입력 렌더링
+
+여기서는 AJA 카드의 비디오 입력을 언리얼 에디터의 현재 레벨에 보이게 만들겠습니다. 이 프로세스는 Media Bundle (미디어 번들)을 사용하며, 이는 미디어 프레임워크에 연관된 여러가지 다양한 애셋 유형을 한 데 묶어주는 패키지 역할을 하며, 변형, 크로마 키, 색 보정과 같은 고급 기능을 제어할 수 있습니다. 
+
+### 단계
+
+1.  **콘텐츠 브라우저** 에서 **소스** 패널을 (1) 펼칩니다. 우클릭하고 컨텍스트 메뉴에서 (2) **새 폴더** 를 선택합니다.  
+    ![New Folder](aja-qs-2b-1-newfolder.png "New Folder")  
+    새 폴더 이름을 **AJA** 로 변경합니다.  
+    
+2.  새 폴더를 열고, **콘텐츠 브라우저** 에 우클릭한 뒤 **미디어 > 미디어 번들** 을 선택합니다.  
+    
+    ![New Media Bundle](aja-qs-2b-2-newbundle.png "New Media Bundle")
+3.  새 애셋의 이름은 콘텐츠 브라우저에서 자동 선택되므로, 설명이 되는 이름을 짓습니다.  
+    
+    ![Name the Media Bundle](aja-qs-2b-3-filename.png "Name the Media Bundle")
+    
+    **AjaMediaBundle** 같은 새 이름을 짓고 **Enter** 를 누릅니다. 미디어 프레임워크 애셋 새 폴더가 미디어 번들 옆에 자동 생성되고, 이름에 **_InnerAssets** 접미사가 붙습니다. 
+4.  **콘텐츠 브라우저** 에서 **모두 저장** 버튼을 클릭하여 새 애셋을 저장합니다.  
+    
+    ![Save All Assets](aja-qs-2b-4-saveall.png "Save All Assets")
+5.  새 미디어 번들을 더블클릭하여 그 프로퍼티를 편집합니다. 미디어 번들은 엔진이 지원하는 모든 유형의 미디어 소스에서 비디오를 재생할 수 있으므로, AJA 카드에서 비디오를 가져오겠다고 알려줘야 합니다.  
+    **Media Source** (미디어 소스) 프로퍼티의 드롭다운 목록에서 **AJA Media Source** 를 선택합니다.  
+    
+    ![Set the AJA Media Source](aja-qs-2b-4-sourcetype.png "Set the AJA Media Source")
+6.  미디어 번들이 처리하고자 하는 미디어 소스 유형을 식별했으면, 그 소스 유형이 제공하는 구성 프로퍼티를 셋업해 주면 됩니다.  
+    AJA Media Source 설정에서 가장 중요한 것은 **Configuration** (구성) 세팅인데, 번들이 올바른 장치와 입력 포트에서 실제 비디오 피드와 똑같은 해상도와 프레임 속도로 비디오를 캡처하도록 구성했는지 확인해야 합니다. 화살표를 클릭하면 세팅 서브메뉴를 열고, 구성에 맞는 옵션을 선택한 뒤, **적용** 을 클릭합니다.  
+    
+    ![Aja Media Source Configuration](aja-qs-2b-5-configuration.png "Aja Media Source Configuration")  
+    보이는 옵션은 설치한 장치에 따라 다를 수 있습니다. AJA 미디어 소스에 설정할 수 있는 모든 프로퍼티 관련 자세한 내용은 [](Engine/ProVideoIO/AjaIOReference) 문서를 참고하세요.
+7.  렌즈 왜곡을 고려해서 입력 비디오에 보정을 적용하려면, **Lens Parameters** (렌즈 파라미터) 섹션에서 렌즈의 물리적 속성을 구성하면 됩니다.   
+    
+    ![Lens undistortion parameters](aja-qs-2b-6-lensdistortion.png "Lens undistortion parameters")  
+    
+    이 렌즈 파라미터는 렌즈의 물리적 속성만 구성합니다. 실제 렌즈 보정 활성화는 나중에, 미디어 번들이 사용하는 머티리얼 인스턴스를 편집할 때 합니다.  
+    프로퍼티 구성을 마쳤으면 미디어 번들을 저장하고 콘텐츠 브라우저에서 **AJA** 폴더로 돌아갑니다.
+8.  **콘텐츠 브라우저** 에서 **AJAMediaBundle** 애셋을 레벨 뷰포트로 드래그합니다.  
+    
+    ![Drag and drop the Media Bundle](aja-qs-2b-9-dragdrop.png "Drag and drop the Media Bundle")  
+    
+    미디어 번들에 구성한 포트에서 현재 재생 중인 비디오가 표시되는 새 면이 나타납니다. 뷰포트 툴바의 트랜스폼 툴을 사용하여 이동, 회전, 스케일 조절합니다.  
+    미디어 번들 재생이 자동 시작되지 않으면, 선택한 뒤 **디테일** 패널에서 **Media Bundle > Request Play Media** 버튼을 클릭합니다.  
+    
+    ![Request Play Media](aja-request-play-media.png "Request Play Media")
+9.  이제 비디오 스트림에 키를 적용하고 이펙트를 합성하는 법을 살펴 보겠습니다.  
+    미디어 번들 에디터로 돌아와, 툴바의 **머티리얼 에디터 열기** 버튼을 클릭하여 이 미디어 번들이 입력 비디오 피드를 레벨의 오브젝트에 그리는 데 사용하는 머티리얼 인스턴스를 편집합니다.  
+    
+    ![Open Material Editor](aja-open-material-editr.png "Open Material Editor")  
+    [REGION:tip]
+    이 머티리얼 인스턴스는 미디어 번들과 함께 자동 생성된 **AJAMediaBundle_InnerAssets** 폴더 안에 저장됩니다.  
+    ![Material Instance](aja-qs-2b-7-materialinstance.png "Material Instance")
+    [/REGION]
+10.  머티리얼 인스턴스 에디터에서 키, 크롭, 색 보정을 구성하고, 미디어 번들에 구성한 렌즈 왜곡 보정을 활성화할 수 있는 프로퍼티가 다수 보일 것입니다.  
+    
+    ![Material Instance Editor](aja-qs-2b-8-materialinstanceeditor.png "Material Instance Editor")  
+    머티리얼 인스턴스 에디터에서 세팅을 조정하면 메인 레벨 뷰포트에 재생 중인 비디오 피드에서 변경 효과를 확인할 수 있습니다.
+    [REGION:tip]
+    머티리얼 인스턴스 에디터의 프리뷰 패널에서 변경사항 효과를 확인하는 것이 더 편할 수도 있습니다. 그 방법은 **IsValid** 세팅을 입시로 활성화하고 그 값을 `1.0` 으로 설정하면 됩니다.  
+    ![IsValid](video-qs-preview-isvalid.png "IsValid")  
+    뷰포트 툴바 좌상단의 화살표를 클릭하고 메뉴에서 **실시간** 옵션을 활성화합니다.  
+    ![Realtime viewport](aja-qs-2b-8-realtime.png "Realtime viewport")  
+    프리뷰 메시를 면 또는 큐브로 변경하면 그 효과를 보다 쉽게 판단할 수 있습니다. 뷰포트 하단의 컨트롤을 사용합니다.  
+    ![Preview mesh](aja-qs-2b-8-displayshape.png "Preview mesh")  
+    완료되면 **IsValid** 세팅을 이전 값으로 되돌립니다.
+    [/REGION]
+11.  머티리얼 인스턴스 프로퍼티 변경 작업이 끝나면, 툴바의 **저장** 버튼을 클릭합니다.
+
+### 최종 결과
+
+이 시점에서 SDI 포트에 재생 중인 비디오가 언리얼 엔진 레벨 안에 표시되고, 렌즈 왜곡 및 크로마 키와 같은 고급 기능을 어디서 구성하는지 이해했을 것입니다.
+
+미디어 프레임워크에 이미 익숙한 경우, 레벨에 비디오를 가져오는 다른 방법은 프로젝트에 **AJAMediaSource** 애셋을 새로 만들고, 위 단계의 미디어 번들에 구성한 소스 프로퍼티를 똑같이 구성해 주면 됩니다. 그런 다음 자체 **MediaPlayer** 및 **MediaTexture** 애셋을 만들어 레벨의 그 소스 재생을 처리하면 됩니다. 자세한 내용은 [](Engine/MediaFramework) 문서를 참고하세요. 그러나 위와 같이 미디어 번들을 사용하는 것이 사용 편의성과 전문가급 비디오 기능 사이 최상의 균형을 유지하는 데 좋습니다.
+
+## 3 - 언리얼 에디터에서 출력 캡처
+
+여기서는 AJA Media Output 오브젝트를 구성하고, 언리얼 에디터의 **Media Captures** (미디어 캡처) 패널을 사용하여 레벨에 선택된 카메라의 뷰를 AJA 카드로 출력하겠습니다.
+
+### 단계
+
+1.  콘텐츠 브라우저에 우클릭하고 **미디어 > AJA 미디어 출력** 을 선택합니다.   
+    
+    ![New AJA Media Output](aja-qs-3-1-newoutput.png "New AJA Media Output")  
+    새 애셋 이름은 **AjaMediaOutput** 이라 합니다.
+2.  새 애셋을 더블클릭하여 편집용으로 엽니다. AJA 미디어 소스를 생성했을 때와 마찬가지로, 언리얼 엔진이 AJA 카드로 전송하는 비디오 피드 프로퍼티를 제어하도록 **Configuration** 프로퍼티를 설정해야 합니다.  화살표를 클릭하여 서브메뉴를 열고, 비디오 구성에 일치하는 옵션을 선택한 다음 **적용** 을 클릭합니다.  
+    
+    ![Aja Media Output Configuration](aja-qs-3-2-configuration.png "Aja Media Output Configuration")  
+    AJA 미디어 출력에 설정할 수 있는 모든 프로퍼티 관련 자세한 내용은 [](Engine/ProVideoIO/AjaIOReference) 문서를 참고하세요.완료되면 미디어 출력을 저장하고 닫습니다.
+3.  이제 AJA 카드에 전송할 출력에 대한 시점으로 사용할 카메라 두 대를 레벨에 배치합니다. **모드** 패널에서 **시네마틱** 탭을 열고, **시네 카메라 액터** 인스턴스 둘을 뷰포트에 드래그합니다.  
+    
+    ![Drag and drop Cine Camera Actors](aja-qs-3-3-cinecameras.png "Drag and drop Cine Camera Actors")  
+    레벨의 원하는 곳에 카메라를 배치하고, 레벨의 여러 곳을 비춥니다.
+    [REGION:tip]
+    카메라 **파일럿** 기능을 사용하면 시점을 정확히 원하는 대로 쉽고 빠르게 설정할 수 있습니다. [뷰포트에서 액터 파일럿](Engine/UI/LevelEditor/Viewports/ActorLocking) 문서를 참고하세요.
+    [/REGION]
+4.  메인 메뉴에서 **Window > Media Capture** (창 > 미디어 캡처)를 선택합니다. **미디어 캡처** 창에서 에디터가 AJA 장치로 출력을 언제 전송할지, 레벨의 어느 카메라를 사용할지 제어할 수 있습니다.  
+    
+    ![Media Capture window](aja-qs-3-4-mediacapture.png "Media Capture window")
+5.  **Media Viewport Capture** (미디어 뷰포트 캡처) 영역 아래 **Viewport Captures** (뷰포트 캡처) 컨트롤을 찾습니다. **+** 버튼을 클릭하여 새 캡처를 이 목록에 추가합니다.  
+    
+    ![Add a viewport capture](aja-qs-3-5-newcapture.png "Add a viewport capture")
+6.  새 항목을 펼칩니다. 먼저 캡처해 올 카메라를 추가합니다. **Locked Camera Actors** (잠긴 카메라 액터) 컨트롤에서 **+** 버튼을 눌러 새 항목을 추가합니다.  
+    
+    ![Add a camera actor](aja-qs-3-6-newcamera.png "Add a camera actor")  
+    그런 다음, 드롭다운 목록을 사용해 레벨에 배치한 카메라 중 하나를 선택합니다.  
+    
+    ![Select the camera actor](aja-qs-3-6-selectcamera.png "Select the camera actor")  
+    같은 단계를 반복하여 목록에 다른 카메라를 추가합니다.
+7.  이제 이 카메라를 캡처하려는 출력을 구성합니다. **Media Output** (미디어 출력) 컨트롤을 위에서 생성한 새 AJA 미디어 출력 애셋으로 설정합니다. 드롭다운 목록에서 선택해도 되고, 콘텐츠 브라우저에서 AJA 미디어 출력 애셋을 이 슬롯에 드래그해도 됩니다.  
+    
+    ![Set the AJA Media Output](aja-qs-3-7-selectoutput.png "Set the AJA Media Output")
+8.  창 상단의 **캡처** 버튼을 클릭합니다.  
+    
+    ![Start capturing](aja-qs-3-8-capture.png "Start capturing")  
+    창 하단에 AJA 카드로 전송 중인 출력 프리뷰가 표시되는 새 프레임이 보입니다. 이 포트를 다른 다운스트림 장치에 연결한 경우, 출력이 표시되기 시작할 것입니다.  
+    
+    ![Active Media Capture](aja-qs-output-8.png "Active Media Capture")
+9.  이 뷰포트 캡처의 Locked Camera Actors (잠긴 카메라 액터) 목록에 추가한 각 카메라는 비디오 프리뷰 위 그에 해당하는 버튼으로 나타납니다. 그 버튼을 클릭하면 두 화면 사이 캡처를 전환할 수 있습니다.  
+    
+    ![Switch Cameras](aja-qs-output-9.png "Switch Cameras")
+
+### 최종 결과
+
+레벨의 카메라 출력을 AJA 카드의 포드로 스트리밍하도록 언리얼 에디터를 구성했습니다. 다음에는 블루프린트 스크립트로 실행 중인 언리얼 엔진 프로젝트에 똑같은 작업을 하는 방법을 살펴 보겠습니다.
+
+## 4 - 런타임에 출력 캡처
+
+지난 섹션에서 사용한 **Media Capture** (미디어 캡처) 창은 AJA 카드에 캡처를 전송하는 실용적이고 쉬운 방법입니다. 그러나 언리얼 에디터 안에서만 작동합니다. 프로젝트를 독립형 애플리케이션으로 실행 중일 때 같은 작업을 하려면, 미디어 출력에 제공되는 블루프린트 API 를 사용해야 합니다. 여기서는 레벨 블루프린트에서 플레이어가 키보드의 키를 누르면 캡처를 시작 및 중지하는 간단한 토글 스위치를 구성하겠습니다.
+
+[REGION:tip]
+에픽게임즈 런처의 **학습** 탭에서 사용할 수 있는 [](Resources/Showcases/VirtualStudio) 쇼케이스에는 온스크린 유저 인터페이스에서 캡처를 제어하는 방법을 보여주는 UMG 인터페이스 위젯이 들어 있습니다.
+[/REGION]
+
+### 단계
+
+1.  언리얼 에디터의 메인 툴바에서 **블루프린트 > 레벨 블루프린트 열기** 를 선택합니다.  
+    ![Open Level Blueprint](aja-qs-4-1-levelbp.png "Open Level Blueprint")
+2.  이미 생성한 AJA 미디어 출력 애셋에서 시작해서, 출력하려는 포트를 식별하겠습니다. **내 블루프린트** 패널의 **변수** 목록에서 **+** 버튼을 클릭하여 새 변수를 추가합니다.  
+    ![New Variable](aja-qs-4-2-newvar.png "New Variable")
+3.  **디에틸** 패널에서 **Variable Name** 을 **AjaMediaOutput** 으로 설정하고, **Variable Type** 드롭다운 목록을 사용해서 **Aja Media Output Object Reference** 로 만듭니다.  
+    ![Aja Media Output Object Reference](aja-qs-4-3-vartype.png "Aja Media Output Object Reference")
+4.  **Instance Editable** 세팅을 (1) 활성화하고 블루프린트를 컴파일합니다. 그런 다음 **Default Value** 섹션에서 변수를 콘텐츠 브라우저에서 만든 AJA 미디어 출력 애셋으로 설정합니다 (2).  
+    ![Set the default value](aja-qs-4-4-default.png "Set the default value")
+5.  **Ctrl** 을 누르고 **내 블루프린트** 패널의 변수 목록에서 **AJAMediaOutput** 를 끌어 **이벤트 그래프** 에 놓습니다.  
+    ![Control+drag the AjaMediaOutput](aja-qs-4-5-dropvariablet.png "Control+drag the AjaMediaOutput")
+6.  **AJAMediaOutput** 변수 노드의 출력 포트를 끌어 놓고, **Media > Output > Create Media Capture** 를 선택합니다.   
+    ![Create Media Capture](aja-qs-4-6-createcapture.png "Create Media Capture")  
+    아래와 같이 노드를 **Event BeginPlay** 노드에 연결합니다.  
+    ![Event Begin Play](aja-qs-4-6-eventplay.png "Event Begin Play")  
+    그러면 AJA 미디어 출력에서 새 미디어 캡처 오브젝트를 생성합니다. 미디어 캡처는 캡처 제어에 사용할 두 가지 주요 블루프린트 함수를 제공합니다. **Capture Active Scene Viewport** 와 **Stop Capture** 입니다.
+7.  먼저 새 미디어 캡처 오브젝트를 자체 변수에 저장하여 다른 곳에서 다시 액세스할 수 있도록 합니다. **Create Media Capture** 노드의 출력 포트를 끌어 놓고 **변수로 승격** 을 선택합니다.  
+    ![Promote to variable](aja-qs-4-7-promote.png "Promote to variable")  
+    **내 블루프린트** 패널의 변수 목록에서 새 변수 이름을 **MediaCapture** 로 변경합니다.
+    [REGION:tip]
+    여기서 미디어 캡처를 변수에 저장하는 것이 중요합니다. 저장하지 않으면 언리얼 엔진의 가비지 컬렉터가 작업을 완료하기도 전에 자동 소멸시킬 수 있습니다.
+    [/REGION]
+8.  **Ctrl** 을 누르고 **MediaCapture** 변수를 끌어 **이벤트 그래프** 에 놓습니다.  
+    ![Control+drag the MediaCapture](aja-qs-4-8-mediacapture.png "Control+drag the MediaCapture")  
+    
+9.  **MediaCapture** 변수 노드의 출력 포트를 끌어 놓고 **Media > Output > Capture Active Scene Viewport** 를 선택합니다. 다시 하고 **Media > Output > Stop Capture** 를 선택합니다.  
+    ![Start and stop the capture](aja-qs-4-9-capturestop-1.png "Start and stop the capture")
+10.  **이벤트 그래프** 에 우클릭하고 **Input > Keyboard Events > P** 를 선택합니다.   **P** 노드의 **Pressed** 출력을 끌어 놓고 **Flow Control > FlipFlop** 을 선택합니다.   
+    ![FlipFlop](aja-qs-4-10-pflipflop.png "FlipFlop")
+11.  **FlipFlop** 노드의 **A** 출력을 **Capture Active Scene Viewport** 노드의 입력 이벤트에 연결하고, **FlipFlop** 노드의 **B** 출력을 **Stop Capture** 노드의 입력 이벤트에 연결합니다. 아래와 같습니다.  
+    ![Connect the nodes](aja-qs-4-11-done.png "Connect the nodes")
+12.  블루프린트를 컴파일 및 저장하고, 프로젝트를 플레이해 봅니다. 툴바의 플레이 버튼 옆 화살표를 클릭하고, **새 에디터 창 (PIE)** 또는 **독립형 게임** 옵션을 선택합니다.  
+    ![Launch the Project](aja-qs-4-12-pie.png "Launch the Project")  
+    [REGION:note]
+    에디터의 비디오 캡처는 프로젝트를 **새 에디터 창 (PIE)** 또는 **독립형 게임** 으로 플레이할 때만 작동합니다. 기본 **선택된 뷰포트** 모드나 **시뮬레이트** 모드에서는 작동하지 않습니다.  
+    추가로 프로젝트의 뷰포트 해상도(, 즉 언리얼 엔진이 매 프레임 생성하는 렌더링된 이미지의 크기)는 활성 미디어 프로파일에 설정된 출력 해상도와 일치해야 출력 비디오 피드의 크기가 올바릅니다.
+    [/REGION]  
+    프로젝트 시작 이후 키보드 **P** 키를 누르면 엔진에서 AJA 카드로 출력 전송을 토글할 수 있을 것입니다.
+
+### 최종 결과
+
+이 시점에서 AJA 미디어 소스, 미디어 번들, 미디어 캡처 시스템은 어떻게 사용하는지, 그 모든 요소가 어떻게 작동하여 전문 비디오를 언리얼 엔진에 입출력할 수 있는지 이해할 수 있을 것입니다.
+
+## 직접 해보기
+
+새 프로젝트에서 AJA 카드로 비디오 입출력을 교환하는 기본적인 방법을 알았으니, 다음과 같이 학습을 이어갈 수 있습니다.
+
+*   미디어 번들로 만든 머티리얼 인스턴스에서 엔진 내 키 설정 솔루션을 살펴봅니다. 카드의 입력 포트에 그린 스크린 비디오를 전달해 보고, 머티리얼 인스턴스의 키 설정 컨트롤을 사용해서 배경을 제거해 봅니다.
+*   [](Resources/Showcases/VirtualStudio) 쇼케이스에서 이 기본 구성에 어떤 것이 더 추가되었는지, 런타임에 카메라를 전환하고 비디오 캡처를 제어하는 온스크린 UI 같은 것을 살펴 봅니다.

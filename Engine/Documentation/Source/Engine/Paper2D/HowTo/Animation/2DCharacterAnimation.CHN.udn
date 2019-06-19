@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2746215
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title:设置动画状态机
 Crumbs: %ROOT%, Engine, Engine/Paper2D
@@ -19,6 +19,7 @@ SkillLevel:Intermediate
 
 打开项目，设置好 Paper 2D 角色之后即可按以下步骤执行。 
 
+(#VariableSetup)
 ## 变量设置
 
 1.	在项目中打开 Paper 2D 角色蓝图（此例中为 **TopDownCharacter**）。 
@@ -53,6 +54,7 @@ SkillLevel:Intermediate
 
 	为每个 Flipbook 动画状态添加变量后即可进入下一部分。 
 	
+(#UpdateAnimationSetup)
 ## 更新动画设置
 
 下一步将创建一些脚本，处理动画状态的更新。 
@@ -73,6 +75,7 @@ SkillLevel:Intermediate
 
 	![](Animation8.png)
 
+(#AnimationStateMachineFunction)
 ## 动画状态机函数
 
 我们将在此创建一个函数用于进行状态确认，并输入对应的 Flipbook 动画进行使用。 
@@ -135,6 +138,7 @@ SkillLevel:Intermediate
 
 	函数现在将检查是否处于移动状态，如是，则将枚举状态设为 Run（如未移动，则设为 Idle）。然后使用 Select 节点从枚举获得动画状态，再基于状态指定相应的 Flipbook 作为 _Output Flipbook_ 使用。 
 
+(#FinishingUpdateAnimationEvent)
 ## 完成 Update Animation 事件
 
 完成函数后，将其作为 Update Animation 事件的一部分调用，并完成剩余脚本。 

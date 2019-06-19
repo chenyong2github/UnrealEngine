@@ -1,14 +1,25 @@
-INTSourceChangelist:3242329
-Availability:Public
-Title:Color 표현식
-Crumbs: %ROOT%, Engine, Engine/Rendering/Materials, Engine/Rendering/Materials/ExpressionReference
-Description:색 입력에 어떠한 작업을 하는 표현식입니다.
+INTSourceChangelist:6425743
+Availability: Public
+Title: Color 표현식
+Description: 색 입력에 어떠한 작업을 하는 표현식입니다.
 Version: 4.9
-tags:Materials
+Parent: Engine/Rendering/Materials/ExpressionReference
+Tags: Materials
 
-[EXCERPT:TOC]
-[TOC(start:2)]
-[/EXCERPT:TOC]
+## Desaturation
+
+Desaturation 는 일정 비율에 따라 입력된 색의 채도를 감소(탈색), 다른 말로 회색조로 변환하는 표현식입니다.
 
 
-[INCLUDE:Engine/Rendering/Materials/ExpressionReference/Utility#Desaturation]
+| 항목 | 설명 |
+| --- | --- |
+| [REGION:tablesection]프로퍼티[/REGION] ||
+| **Luminance Factors** | 각 채널의 탈색에 대한 공헌도를 지정합니다. 탈색했을 때 빨강 초록 파랑 어느 것이 밝은가를 조절합니다. |
+| [REGION:tablesection]입력[/REGION] ||
+| **Percent** | 입력에 적용할 탈색량을 지정합니다. 범위는 0.0 (탈색 없는 원본 원색)에서 1.0 (완벽 탈색)까지 입니다. |
+
+![](DesaturationExample.png)
+
+[REGION:note]
+**프로그래머:** 탈색된 색은 `D`, 입력 색은 `I`, 휘도 인수는 `L` 로 정의할 때, 출력은 `O = (1-Percent)*(D.dot(I)) + Percent*I` 입니다.
+[/REGION]

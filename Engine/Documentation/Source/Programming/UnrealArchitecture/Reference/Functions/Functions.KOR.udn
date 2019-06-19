@@ -1,56 +1,64 @@
-﻿INTSourceChangelist:3108692
-Availability:Public
-Title:함수
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/Reference
-Description:게임플레이 클래스용 함수 생성 및 구현 관련 참고서입니다.
-Version: 4.9
+﻿INTSourceChangelist:0
+Availability: Public
+Title: UFunctions
+Description: Reference to creating and implementing functions for gameplay classes.
+Type: reference
+Version: 4.18
+Parent: Programming/UnrealArchitecture/Reference
+Tags: UFUNCTION
+Tags: Specifiers
+Order: 0
 
-[TOC(start:2)]
 
-## 함수 선언
+## Function Declaration
 
-함수는 일반 C++ 함수와 `UFunction` 의 두 가지 기본적인 형태로 존재 가능합니다. C++ 함수와 `UFunction` 둘 다 `.h` 클래스 헤더 
-파일에 선언됩니다. C++ 함수는 표준 C++ 문법을 사용하여 함수 선언을 합니다. `UFunction` 은 전용 문법이 있어, 함수 지정자를 통해 함수에 대한 부가 정보를 선언부에 지정할 수 
-있습니다.
+**Functions **can exist in two basic forms: a regular C++ function or a `UFunction`. Both C++ functions and `UFunctions` are declared in the `.h` class header file. C++ functions are declared using the 
+standard C++ syntax for declaring a function. `UFunctions` use a specialized syntax that allows additional information about the function to be specified in the declaration through the use of 
+[Function Specifiers](#FunctionSpecifiers).
 
 	UFUNCTION([specifier, specifier, ...], [meta(key=value, key=value, ...)])
 	ReturnType FunctionName([Parameter, Parameter, ...])
 
-`UFunction` 은 C++ 구현이 있다는 점, C++ 코드 안에서 호출 가능하다는 점, 함수 바디 안에 다른 C++ 함수 또는 `UFunction` 으로의 호출이 포함될 수 있다는 점에서 C++ 함수와 같은 방식으로 
-작동합니다. 그러나 `UFunction` 은 몇 가지 영역에서 다릅니다. 예를 들어 [블루프린트 비주얼 스크립팅](Engine/Blueprints) 시스템 안에서 호출 또는 덮어쓰기 가능합니다. 
-`BlueprintCallable`, `BlueprintImplementableEvent`, `BlueprintPure` 와 같은 지정자를 사용해서 선언된 `UFunction` 은 
-**키즈멧** 에 노출되어 레벨 블루프린트나 **블루프린트** 에서 호출 가능합니다. `UFunction` 은 클래스의 디폴트 프로퍼티 안에서 스크립트 델리게이트로 할당도 가능합니다. 
-이 기법은 인풋 액션이나 축을 `Input` 클래스의 함수에 바인딩하는 데 흔히 사용됩니다. `UFunction` 은 리플리케이션 콜백으로도 사용됩니다. 
-즉 `UFunction` 은 연관된 변수에 변화가 있고 네트워크에 리플리케이트될 때 호출됩니다. `UFunction` 은 플레이어가 플레이 도중 게임내 콘솔에서 호출 가능한 exec 함수로 선언 가능한 유일한 함수형이기도 합니다.
+`UFunctions` behave the same as C++ functions in that they have a C++ implementation, can be called from within C++ code, and can contain calls to other C++ functions or `UFunctions` within their 
+function bodies. `UFunctions` differ in a few areas, however. For instance, they can be called or overridden from within the [Blueprint Visual Scripting](Engine/Blueprints) system. Any 
+`UFunction` declared using the `BlueprintCallable`, `BlueprintImplementableEvent`, or `BlueprintPure` specifiers (see [Function Specifiers](#FunctionSpecifiers) below for more details) will be exposed 
+to Blueprints. `UFunctions` can also be assigned as delegates within the default properties of a class. This technique is commonly used to bind input actions or axes to functions in `Input` classes.
+ `UFunctions` are also used as replication callbacks; meaning the `UFunction` will be called when the variable it is associated with changes and is replicated across the network. `UFunctions` are 
+ also the only type of function that can be declared as an exec function allowing them to be called by the player from the in-game console during play.
 
 
-### 함수 지정자
+### Function Specifiers
 
 [INCLUDE:Programming/UnrealArchitecture/Reference/Functions/Specifiers#main(offset:2)]
 
-### 함수 파라미터 지정자
+### Function Parameter Specifiers
 
-$ Out : 
-파라미터가 참조 전달되는 것으로 선언, 함수에서 변경할 수 있도록 합니다.		
-$ Optional : 
-특정 함수 파라미터를 옵션으로 만들 수 있는, 호출자 편의를 위한 키워드입니다. 호출자가 지정하지 않는 옵션 파라미터의 값은 함수에 따라 달라집니다. 
-예를 들어 `SpawnActor` 함수는 옵션으로 위치와 회전을 받으며, 기본값은 스폰하는 액터의 루트 컴포넌트의 위치와 회전입니다. 옵셔널 인수의 기본값은 `= [value]` 를 붙여 지정할 수 있습니다. 
-예: `function myFunc(optional int x = -1)`. 대부분의 경우 옵셔널 파라미터에 전달되는 값이 없는 경우 해당 변수형의 
-기본값 (예: False, "", None) 또는 0 이 사용됩니다.
+|||
+|---|---|
+| Out | Declares the parameter as being passed by reference allowing it to be modified by the function. |
+| Optional | [INCLUDE:#optional] |
 
+<!--
+[EXCERPT:optional]
+With the optional keyword, you can make certain function parameters optional, as a convenience to the caller. The values for optional parameters which the caller does not specify depend on the function. 
+For example, the `SpawnActor` function takes an optional location and rotation, which default to the location and rotation of the spawning Actor's root component. The default value of optional arguments 
+can be specified by adding `= [value]`. For example: `function myFunc(optional int x = -1)`. In most cases, the default value for the type of variable, or zero (e.g. 0, false, "", none), is used when 
+no values is passed to an optional parameter.
+[/EXCERPT:optional]
+-->
 
-## 함수 구현
+## Function Implementations
 
-클래스 헤더 파일에 선언되는 함수는 클래스 소스 파일에 정의부가 주어집니다.
+Functions declared in the class header file are given definitions in the class source file. 
 
-## 델리게이트
+## Delegates
 
 [INCLUDE:Programming/UnrealArchitecture/Delegates#Overview]
 
-사용법은 [](Programming/UnrealArchitecture/Delegates) 문서를 참고해 주시기 바랍니다.
+See the [](Programming/UnrealArchitecture/Delegates) page for reference and usage information.
 
-## 타이머
+## Timers
 
 [INCLUDE:Programming/UnrealArchitecture/Timers#Overview]
 
-사용법은 [](Programming\UnrealArchitecture\Timers) 문서를 참고해 주시기 바랍니다.
+See the [](Programming\UnrealArchitecture\Timers) page for reference and usage information.

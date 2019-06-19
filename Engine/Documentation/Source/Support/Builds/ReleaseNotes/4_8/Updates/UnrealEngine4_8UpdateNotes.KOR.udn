@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3367470
+INTSourceChangelist:3367470
 Availability:Public
 Title: 언리얼 엔진 4.8 업데이트 노트
 Description:
@@ -70,7 +70,7 @@ Github: [https://github.com/EpicGames/UnrealEngine/releases/tag/4.8.1-release](h
 
 * UE-17067	엔진 빌드에 엔진 현지화 데이터 포함 필요
 
-* UE-17075	현지화 대시보드에서 바이너리와 다른 드라이브의 파일을 레퍼런싱할 때 정확하지 않은 경로 생성
+* UE-17075	현지화 대시보드에서 바이너리와 다른 드라이브의 파일을 참조할 때 정확하지 않은 경로 생성
 
 * UE-17082	프로젝트 디버그 심볼이 더이상 크래시 리포터 콜스택에 포함되지 않음
 

@@ -1,5 +1,5 @@
 ﻿INTSourceChangelist:3782314
-Availability:Public
+Availability:Docs
 Title:Defaults モード
 Crumbs:%ROOT%, Engine/Blueprints, Engine/Blueprints/Editor
 Description:Defaults モードにすると、ブループリント内のすべてのプロパティのデフォルト値が編集できるようになります。

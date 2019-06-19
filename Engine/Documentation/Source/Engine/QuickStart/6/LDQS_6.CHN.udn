@@ -1,62 +1,77 @@
-﻿Availability: Public
-Title: 6. 执行构建过程
+﻿INTSourceChangelist:6077702
+Availability: docs
+Title:6 - 运行构建过程
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
-Description: 放置了几个Actor并进行了自定义处理后，创建关卡的最后一步就是构建关卡。
+Description:在放置和自定义许多Actor之后，创建任何关卡的最后步骤之一就是构建过程。
+SkillLevel:Beginner
+Version:4.9
+checkpoint: editorqs
 
-
+## 页面已被合并，标记为docs。 
 
 [VAR:Steps]
-[OBJECT:TopicList]
-	[PARAM:icon]
-		![](%ROOT%/build_icon.png)(convert:false)
+[OBJECT:Navigation]
+	[PARAM:previous]
+		[上一步](Engine/QuickStart/5 "%Engine/QuickStart/5:title%")
 	[/PARAM]
-	[PARAM:title]
-		步骤
+	[PARAM:current]
 	[/PARAM]
-	[PARAM:description]
+	[PARAM:home]
+		[快速入门主页](Engine/QuickStart)
 	[/PARAM]
-	[PARAM:links]
-		* [前一步 - %Engine/QuickStart/5:Title%](Engine/QuickStart/5 "%Engine/QuickStart/5:description%")
-		* **当前步骤 - %Engine/QuickStart/6:Title%**
-		* [下一步 - %Engine/QuickStart/7:Title%](Engine/QuickStart/7 "%Engine/QuickStart/7:description%")
+	[PARAM:next]
+		[下一步](Engine/QuickStart/7 “%Engine/QuickStart/7:title%”)
 	[/PARAM]
 [/OBJECT]
 [/VAR]
 
 
 
----
+现在，您可能已经注意到阴影中的“预览（Preview）”标签和墙壁下漏出的光线。 
 
-![](Engine\QuickStart\5\beforeBake.png)(w:940)
+![](beforeBake2.png)
 
-到目前为止，您可以看到阴影中的 "预览" 标签和墙底下的漏光效果。这是因为场景中的所有光源都是静态的，并且使用预计算或烘焙光照，但是这个预计算光照还没有进行计算。那里的 "预览" 文本是为了提醒您: 您目前在场景中所看到的效果不是您将在游戏中看到的效果。要想使得场景看起来更好，那么我们需要运行 **Build(构建)** 过程。
+这是因为场景中的所有光源都是静态的，使用的是预先计算或者烘焙的照明，而这些照明还没有计算过。此处的“预览（Preview）”文本是为了提醒您，您当前在视口中看到的内容并不是您在游戏中看到的内容。 
 
-虚幻编辑器中的 **Building（构建）** 非常简单： 选择您的质量设置并点击![**Build**](build_button.png)按钮即可。
+在这一步中，我们将经历 **构建（Build）** 过程，该过程将构建所有关卡（预计算照明数据和可见性数据，生成任何导航网络并更新所有画笔模型）。我们还将看看 **构建选项（Build Options）** 中的 **光源质量（Light Quality）** 设置，在构建照明时，我们可以使用这些设置来调整照明的质量。 
 
+(#steps)
 
+## 步骤
 
-1. 要想选择您的质量级别，请点击![**Build**](build_button.png)按钮旁边的![**Down Arrow**](downArrow_button.png)来展开 **Build Options（构建选项）** ，然后再展开 **Lighting Quality（光照质量）** 菜单: 
+1. 在主工具栏中，单击 **构建（Build）** 选项旁边的向下箭头。 
 
-	![](buildSettings.png)
+	![](buildOptionsButton.png)
 
-1. 设置 **Quality Level（质量级别）** 为 **Production（产品级）** 。
+1.	在 **光照质量（Lighting Quality）** 中，选择 **制作（Production）** 设置。 
 
-	[REGION:note]
-	在开始 **构建** 之前，请记住，对于较大的关卡来说这可能要花费一段时间。我们的小屋关卡可能不会需要太长的时间，但是具有上百个光源、覆盖许多平方公里的场景所需的时间将会非常长。
-	[/REGION]
+	![](productionLighting.png)
 
-1. 点击![**Build**](build_button.png)按钮。
-1. 等待 **Build(构建)** 完成。
+	这将向我们提供最高质量的照明，但在计算时间方面是最慢的，并将增加 **构建（Build）** 游戏所需的时间。我们的关卡是小关卡，所以它应该不会对我们造成太大影响，但当您处理较大的关卡时，应牢记这一点，因为当您创建关卡时，以及当在关卡“最后一个步骤”中切换为 **制作（Production）** 时， 您可能想要将它保留为中低级关卡设置。 
+
+1. 等待 **构建（Build）** 完成。
 
 	![](wait.png)
 
-1. 当构建完成时，您的光照将自动更新：
+	您将在虚幻编辑器的右下角看到进度，如上图所示。 
+	
+	一旦 **构建（Build）** 过程完成，关卡照明将进行更新，以便更好地说明最终结果。 
 
-![](built.png)(w:940)
+	![](built.png)
+
+1. 在主工具栏中，单击 **运行（Play）** 按钮以在编辑器中运行。 
+
+	![](PlayInEditor.png)
+
+	通过使用 **WASD** 移动摄像机，使用 **鼠标** 转动摄像机，让您可以在关卡中自由移动。 
 
 
-最后，还记得您放置的Player Start（玩家起点）吗？ 如果您点击![**Play**](play_button.png) 按钮，您将可以使用鼠标和WASD键在您的关卡中到处游走。当处于Play（播放）模式时，您的游戏实际上是正在运行的，渲染器和您在独立客户端上看到的东西是一样的。
+(#endresult)
 
----
+## 最终结果
+
+此时，您应该已经 **构建（Built）** 关卡照明，并已使用在编辑器中 **运行（Play）** 功能预览游戏。在此之前的每个步骤都旨在让您快速了解在虚幻编辑器中构建关卡时如何执行最常见的操作。 
+
+在下一步中，将向您提供一些示例，说明如何获取该示例关卡并使用本指南中提供的方法在此基础上进行构建。此外，还提供了与本指南中所述主题相关的更详细文档的附加链接，在您自己构建关卡时，这些链接将作为引用。 
 
 

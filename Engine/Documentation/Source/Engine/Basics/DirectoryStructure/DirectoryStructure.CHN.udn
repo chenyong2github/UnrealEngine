@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+﻿INTSourceChangelist:6278513
 Availability:Public
 Title:目录结构
 Crumbs: %ROOT%, Engine
@@ -13,15 +13,13 @@ order:25
 [EXCERPT:Main]
 最顶层是Engine目录以及您所拥有的任何游戏项目。Engine目录包含引擎本身以及所有随附工具。每个游戏文件夹包含与该游戏有关的所有文件。与先前版本的引擎相比，UE4中的引擎和游戏项目有了更明显的区分。
 
-(#rootdirectory)
 ## 根目录
 
 * **Engine**——包含构成引擎的所有源代码、内容等。
 * **Templates**——[创建新项目](Engine/Basics/Projects/Browser#creatingnewprojects)时可用的项目模板集合。
-* **GenerateProjectFiles.bat**——用于创建在Visual Studio中使用引擎和游戏所需的UE4解决方案和项目文件。请参阅[](Programming/UnrealBuildSystem/ProjectFileGenerator)以了解详细信息。 
+* **GenerateProjectFiles.bat**——用于创建在Visual Studio中使用引擎和游戏所需的UE4解决方案和项目文件。请参阅[](Programming/BuildTools/UnrealBuildTool/ProjectFilesForIDEs)以了解详细信息。 
 * **UE4Games.uprojectdirs**——这是帮助文件，用于告知UnrealBuildTool默认情况下查找项目的位置。
 
-(#commondirectories)
 ## 通用目录
 
 一些子目录是在引擎和游戏项目目录之间通用的：
@@ -45,7 +43,6 @@ order:25
         * **Public**——包含模块标头文件。
 
 
-(#engine-specificdirectories)
 ## 特定于引擎的目录
 
 部分子目录特定于Engine目录。
@@ -59,7 +56,6 @@ order:25
  * **Shaders**——保存引擎的着色器源文件（.usf）。
 
 
-(#gameprojectdirectories)
 ## 游戏项目目录
 
 | 目录 | 说明 |
@@ -73,7 +69,6 @@ order:25
 | **Source** | 包含游戏模块对象类文件。[INCLUDE:#Source] |
 
 
-(#solutiondirectories)
 ## 解决方案目录
  
 | 目录 | 说明 |

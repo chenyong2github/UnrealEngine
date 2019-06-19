@@ -1,0 +1,110 @@
+﻿INTSourceChangelist:5646017
+Availability: Public
+Crumbs: 
+Title: 与Android一起发布
+Description: 在Google Play商店中设置UE4驱动的游戏。
+Type: 
+Version: 4.20
+Parent: Platforms/Mobile/Android
+Order: 
+Tags: mobile
+Tags: Android
+
+
+一旦您完成构建由虚幻引擎4(UE4)驱动的移动项目，下一步是准备通过[Google Play](https://developer.android.com/distribute/google-play/)商店来发布该项目。在下面的文档中，我们将了解在Google Play商店上发布UE4项目时可能导致问题的一些项目。
+
+[REGION:note]
+Google Play商店会定期更改外观、布局和工作流程，而且不会事先通知。因此，本指南中的一些信息可能改了位置，可能改了名称，也可能已被完全删除。如果您无法找到要查找的信息，或者您找到的信息已经过期，请查看官方的[Google Play商店帮助页面](https://support.google.com/googleplay/android-developer/?hl=en#topic=3450769)。
+[/REGION]
+
+(#googleplayconsole)
+
+## Google Play控制台
+
+[Google Play控制台](https://developer.android.com/distribute/console/)是一个门户网站，用于在Google Play商店上上传、管理和发布UE4项目。在Google Play控制台中，您可以执行各种任务，例如为发布配置项目以运行自动化测试。您可以跟踪您是如何获取新用户的，也可以跟踪您的UE4项目在各种支持Android的硬件上的表现。
+
+(#googleplaystorelisting)
+
+## Google Play商店列表
+
+在可以从Google Play商店中显示和下载您的项目之前，您首先需要填写Google Play控制台的 **控制板（Dashboard）** 部分中所有带有灰色复选框的部分。
+
+![Shipping With Android_01.png](ShippingWithAndroid_01.png "Shipping With Android_01.png")
+
+[REGION:note]
+确保仔细阅读每个部分，并提供所需的信息和文件。
+[/REGION]
+一旦成功填写了一个部分，相应的灰色复选框将变成绿色，如下图所示：  
+
+![Shipping With Android_02.png](ShippingWithAndroid_02.png "Shipping With Android_02.png")
+
+一旦控制板中每个必填部分旁边都有一个绿色的复选标记，则您的应用程序可以接受Google的检查，以在Google Play商店上发布。  
+
+  
+  
+
+(#googleplaystoreapksize)
+
+## Google Play商店的APK大小
+
+对于上传的任何 **APK**，Google Play商店都有一个 **100 MB** 的大小限制。如果您的应用程序需要的数据超过了 **100 MB** 的限制，则必须将其余内容放入 **不透明的二进制blob** (OBB) 文件中。**OBB** 最大 **2 GB**。一旦您将您的UE4 APK上传到了Google Play控制台，需要至少 **45分钟** 或 **更长时间** 才能将APK推送为Alpha、Beta或Release。因此，通常要先完成 **应用程序发布（App Releases）** 部分，然后再填写其余所需信息。
+
+(#googleplayconsoleapichanges)
+
+## Google Play控制台的API更改
+
+Google Play将要求，自2018年8月1日起，新应用程序应至少针对Android 8.0（API第26级），从2018年11月1日开始，应用程序更新也应针对Android 8.0。4.21版的UE4将考虑到这一点，但任何使用UE4之前版本制作的项目都必须进行更新，以适应这一新的更改。
+
+这一新的更改将要求UE4项目向用户请求权限，以便在需要时使用操作系统的某些功能，例如将保存文件写入磁盘。过去，在应用程序第一次运行时，会向用户请求授予所有需要的权限。为了帮助您管理4.21版（以及更高版本）UE4中的权限请求，您需要使用 **Android运行时权限（Android Runtime Permission）** 插件，该插件可以在 **插件（Plugins）** 菜单的 **Android** 部分找到。
+
+[REGION:lightbox]
+[![](ShippingWithAndroid_03.png)(w:800px)](ShippingWithAndroid_03.png)
+[/REGION]
+
+单击显示全图。
+
+(#projectsdkoverride)
+
+## 项目SDK覆盖
+
+ **项目SDK覆盖（Project SDK Override）** 允许您根据每个项目更改用于编译项目的Android SDK版本。您可以前往 **项目设置（Project Settings）** \> **Android** \> **项目SDK覆盖（Project SDK Override）** 找到这些选项。
+
+[REGION:lightbox]
+[![](AndroidSDKOverride.png)(w:800px)](AndroidSDKOverride.png) 
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+| **Android设置** | **说明** |
+| --- | --- |
+| **SDK API级别（SDK API Level）** | 控制用于编译引擎代码的Java部分的Java API。|
+| **NDK API级别（NDK API Level）** | 控制C++代码编译所使用的编译器工具链。这可能会限制您的本地代码将兼容的Android版本。|
+
+[REGION:note]
+将这些字段保留为空白将使用全局Android SDK项目设置。
+[/REGION]
+[/REGION]
+
+(#androidsdkversion)
+
+## Android SDK版本
+
+Android **最低SDK版本（Minimum SDK Version）** 输入有助于确定可以安装应用程序的最低操作系统版本。**目标SDK版本（Target SDK Version）** 告知Android操作系统API的预期行为。如果您不确定哪个SDK版本与哪个Android操作系统一起使用，请查看[代码名称、标签和版本号](https://source.android.com/setup/start/build-numbers)页面获取更多信息。
+
+[REGION:lightbox]
+[![](AndroidSDKVersion.png)(w:800px)](AndroidSDKVersion.png)
+[/REGION]
+[REGION:caption]
+单击显示全图。
+[/REGION]
+
+  
+
+| **设置** | **说明** |
+| --- | --- |
+| **最低SDK版本（Minimum SDK Version）** | 该设置控制可以安装应用程序的最低操作系统版本。Google Play商店还使用该设置来过滤在商店中哪些设备可以看到您的应用程序。|
+| **目标SDK版本（Target SDK Version）** | 该设置告知Android操作系统API的预期行为。将它设置为特定的API级别，可以保证您的代码能够处理Android版本引入的功能和更改。|
+
+[REGION:note]
+如果您有一个使用较旧的UE4版本的项目，希望将其发布到Google Play商店，则您需要将 **Target（目标）** **SDK** 设置为 **26**。只要最低SDK版本（Minimum SDK Version）足够，这仍允许您的应用程序在可能没有Android SDK 26的旧设备上运行。
+[/REGION]

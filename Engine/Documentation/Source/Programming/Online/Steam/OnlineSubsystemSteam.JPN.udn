@@ -65,7 +65,7 @@ UE4 をソースからコンパイルするステップは以下の通りです�
 
 コンパイル済みのエンジンに Steam を使う場合は、Valve 社の SDK から動的にリンクしているライブラリ (*.dll) のいくつかを適切なフォルダにコピーする必要があります。 
 ソースに対してエンジンを再コンパイルする予定がある場合も、 SDK を正しい場所に入れる必要があります。ここで SDK の `/redistributable_bin/` ディレクトリから関係する再配布可能なファイルを以下の場所へコピーします。  
-%Globals:osselect_linux%
+
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

@@ -1,0 +1,262 @@
+﻿INTSourceChangelist:5901964
+Availability: Public
+Crumbs: 
+Title: 查找和移除完全遮挡的网格体
+Description: 介绍如何通过移除和简化被关卡中其他对象完全遮挡的几何体来提高渲染性能。
+Type: 
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Order: 
+Tags: how to
+Tags: Datasmith
+Tags: intermediate
+
+
+![](jacketing-banner.png)
+
+在任何实时3D应用程序中提高渲染性能的一种方法是直接减少每一帧需要绘制的对象数量。通常，相机不会同时看到3D场景中的所有对象。任何被遮挡的对象，也就是被其他对象遮挡在相机当前视图之外的对象，都可以在渲染过程中安全地略过，从而在不改变最终图像的情况下提高性能。
+
+虚幻引擎有几个内置的方法来移除每个帧的被遮挡网格体，如剔除相机视锥体之外的网格体，或离相机太远的网格体。然而，在某些情况下，当一个网格体位于另一个网格体的边界框中时，虚幻引擎无法在运行时有效地确定哪些网格体被其他网格体遮挡。这种情况在计算机辅助设计(CAD)数据中很常见，这些数据被带到虚幻引擎中进行渲染，其中的程序集通常包含各种小部件，这些小部件完全隐藏在外壳中。如果这些部件在实时渲染中永远不可见，那么通常可以通过隐藏它们或将它们完全从关卡中删除来提高渲染性能。如果您将一辆完全建模的汽车导入到虚幻引擎中进行渲染，并且不提供方法让玩家或查看者查看引擎罩下面的细节，那么就没有理由每一帧都花费资源来渲染引擎内部部件。
+
+例如，下面的引擎组件包含542个独立的静态网格体Actor。然而，其中321个是完全封闭在机壳内，永远不会对相机可见。从关卡中移除遮挡的几何体可以使剩余的几何体渲染得更快，而不会改变它的视觉外观。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Complete engine, 542 Actors](jacketing-engine-default.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![321 fully occluded Actors](jacketing-engine-occluded.png) 
+ [/PARAM]
+[/OBJECT]
+
+对于此类情况，虚幻编辑器提供了一个按需处理的过程，该过程扫描关卡中选择的静态网格体Actor，以确定哪些角色被完全遮挡，也就是说，哪些角色不能从任何外部视点看到。一旦流程确定了这些完全遮挡的Actor，您就可以在它们自己的图层上隔离它们，将它们完全从图层中删除，或者简化它们的几何体以删除内部细节。
+
+这个过程有时被称为 *包壳（jacketing）*。
+
+(#gaps)
+
+## 间隙
+
+通常，隐藏内部网格体的几何体外壳并不是完全封闭的。外部几何体可能包含小的间隙或间断，但仍会阻止查看者看清内部细节。例如，在这个电机中，链条通过小孔穿过外部壳体：
+
+![Gaps in the occluding meshes](jacketing-gaps.png "Gaps in the occluding meshes")
+
+在这种情况下，您仍然想要隐藏内部网格体。因此，当确定哪些三角形被遮挡时，包壳算法可以桥接小间隙，就像这些间隙被网格体覆盖一样。这使您获得隐藏内部遮挡部件的益处，即使遮挡网格体不是完全密封的。
+
+您可以配置您希望在遮挡测试期间忽略的间隙的最大大小。
+
+[REGION:note]
+为了安全起见，您可能倾向于将间隙大小阈值设置为一个非常大的值。然而，这个阈值也用于网格体目标模式（见下文）中，以评估从静态网格体中删除哪些三角形是安全的。如果您将间隙阈值设置得过高，则几何体的内部三角形可能不会被尽可能地简化。将间隙阈值设置得尽可能接近遮挡网格体中间隙的实际大小。
+[/REGION]
+
+(#targets)
+
+## 目标
+
+您可以将包壳操作的结果应用于以下两个目标之一：[关卡中的静态网格体Actor](#theleveltarget)，或[静态网格体资源中的几何体](#themeshtarget)。
+
+(#theleveltarget)
+
+### 关卡目标
+
+当您使用关卡目标运行包壳工具时，它会对选定的一组静态网格体Actor进行遮挡测试。它从各个角度分析了这些Actor的几何体，以确定哪些Actor是完全无法看到的。一旦它有了这些被遮挡的Actor的列表，您就可以选择如何处理它们。
+
+在虚幻编辑器UI中，您可以：
+
+*   用一个新的组件标签 **包壳隐藏（Jacketing Hidden）** 标记被遮挡的Actor。  
+    ![Jacketing Hidden tag](jacketing-tag.png "Jacketing Hidden tag")  
+    **。
+*   将被遮挡的Actor放在名为 **包壳（Jacketing）** 的新图层上。
+*   通过关闭 **隐藏在游戏中的Actor（Actor Hidden in Game）** 设置来隐藏被遮挡的Actor。
+*   从关卡中移除被遮挡的Actor。
+
+如果您在蓝图或Python脚本中以关卡目标模式运行该工具，它只返回被遮挡的Actor列表，这样您的脚本就可以确定要采取的适当操作。
+
+如果您有许多小部件，每个部件由一个单独的静态网格体Actor表示，并位于具有相对简单几何外形的盒子或外壳中，则关卡目标模式是一个不错的选择。
+
+[REGION:note]
+在关卡目标模式中，包壳工具从不修改任何静态网格体资源。它只运行遮挡测试并确定完全遮挡的Actor。
+[/REGION]
+
+(#themeshtarget)
+
+### 网格体目标
+
+当您在网格体目标模式下使用包壳工具时，它会在使用单独三角形的关卡上考虑遮挡。在进行遮挡测试之后，它将从各个静态网格体资源中删除所有它认为被遮挡的三角形。这有效地将遮挡网格体减少为空外壳，删除了其内表面的细节。 
+
+当您的盒套或遮挡网格体有复杂的内表面，或您有多个Actor且其几何体有重叠时，这是一个很好的选择。重叠区域内的任何几何体都尽可能地简化。
+
+包壳工具使用一种保守的方法来识别它可以安全删除的三角形，以避免降低视觉效果。任何可能可见的三角形都保持原样不变。包壳工具不重新三角化或简化任何几何体。它只删除不必要的三角形。 
+
+例如，下图所示的封闭组件内部有一些复杂的几何体，从外部是永远看不到的。通过在网格体目标模式下运行包壳工具，可以删除所有内部细节。注意，即使是外壳的内表面也已被移除，只留一个有外表面的单面几何体。
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Assembly with complex internal geometry](jacketing-mesh-before.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![After jacketing](jacketing-mesh-after.png) 
+ [/PARAM]
+[/OBJECT]
+
+您可以在 **输出日志（Output Log）** 面板中看到包壳工具的结果，包括该工具能够删除的三角形数量：
+
+[REGION:lightbox]
+[![Jacketing results](jacketing-results.png "Jacketing results")](jacketing-results.png)
+
+*单击显示全图。*
+[/REGION]
+[REGION:warning]
+在网格体目标模式下，包壳工具修改静态网格体资源。如果这些资源在您关卡中的其他地方使用，或者在您的项目的其他关卡中使用，那么这些实例也将自动更新，以显示新的几何体。
+[/REGION]
+
+(#jacketinginthelevelviewport)
+
+## 关卡视口中的包壳
+
+要在关卡视口中应用包壳，请执行以下操作：
+
+1. 在关卡中选择要在遮挡测试中考虑的静态网格体Actor。您需要选择构成外部外壳的网格体，以及任何内部的网格体。
+2. 右键单击关卡视口或 **世界大纲视图（World Outliner）** 中的任何选定Actor，并选择 **包壳（Jacketing）**。  
+    ![Jacketing in the contextual menu](jacketing-right-click.png "Jacketing in the contextual menu")
+3. 在 **移除被遮挡网格体（Remove occluded meshes）** 窗口中，配置遮挡测试的灵敏度并设置您想要影响的目标。  
+    ![Jacketing settings](jacketing-settings.png "Jacketing settings")  
+    
+| **设置（Setting）** | **说明（Description）** |
+| --- | --- |
+| **体素精度（Voxel precision）** | [INCLUDE:#excerpt_0] |
+| **间隙最大直径（Gap max diameter）** | [INCLUDE:#excerpt_1] |
+| **操作关卡（Action Level）** | 决定工具将使用 **关卡（Level）** 目标还是 **网格体（Mesh）** 目标。|
+| **操作类型（Action Type）** | 如果您选择影响关卡目标，还可以使用 **操作类型（Action Type）** 下拉列表来确定应该如何处理包壳工具确定为完全被遮挡的Actor集。详情请参阅上文的[关卡目标](#theleveltarget)。|
+    
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]
+设置遮挡测试将考虑填充的遮挡体积中的间隙的最大大小。
+[REGION:note]
+请勿将此值设置地过低。详情请参阅上面的[间隙](#gaps)部分。
+[/REGION]
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+控制遮挡测试的灵敏度。对于较小的模型，降低此值，以实现更高的精度。
+[REGION:note]
+这个设置直接影响碰撞测试的时间和内存需求。从一个相对较大的值开始，然后降低值，直到达到所需的保真度。
+[/REGION]
+[/EXCERPT:excerpt_0]
+ -
+[/COMMENT]
+    
+4. 单击 **继续（Proceed）** 启动遮挡测试。  
+    ![Proceed](jacketing-proceed.png "Proceed")
+5. 如果您选择了网格体目标，修改后的网格体将被标记为已修改。如果您想保留更改，请在关闭虚幻编辑器之前保存它们。
+
+(#jacketingineditorscripts)
+
+## 编辑器脚本中的包壳
+
+您可以在蓝图和Python中执行关卡视口（以及世界大纲视图）提供的相同包壳操作。
+
+[REGION:note]
+ **先决条件：**如果您尚未进行此操作，则需要安装 **编辑器脚本工具插件（Editor Scripting Utilities Plugin）**。有关详情，请参阅[脚本化和自动化编辑器](Engine/Editor/ScriptingandAutomation)。
+[/REGION]
+
+选择语言。
+
+(#blueprints)
+
+###蓝图
+
+要使用这些节点，您的蓝图类必须派生自仅编辑器类，例如 **PlacedEditorUtilityBase** 类。有关详情，请参阅[使用蓝图脚本化编辑器](Engine/Editor/ScriptingandAutomation/Blueprints)。
+
+您需要使用的主要蓝图节点是 **网格体处理（Mesh Processing）> 网格体Actor（Mesh Actor）> 简化组件（Simplify Assembly）**。
+
+![Simplify Assembly node](jacketing-simplify-assembly-bp.png "Simplify Assembly node")
+
+您需要为这个节点提供两个输入：
+
+*   包含当前关卡中您希望在遮挡测试期间考虑的所有Actor的数组。
+*   为遮挡测试设置参数的 **JacketingOptions** 对象。要设置这些对象之一，请执行以下操作：
+    1.单击 **我的蓝图（My Blueprint）** 面板中的 **\+ 变量（\+ Variable）** 按钮，向蓝图添加一个新变量。  
+        ![Add variable](jacketing-add-variable.png "Add variable")
+    2.将变量的类型设置为对一个 *网格体特征清除参数对象（Mesh Defeaturing Parameter Object）** 的引用。  
+        ![Jacketing Options object reference](jacketing-object-reference.png "Jacketing Options object reference")
+    3.按住 **Control** 并将变量拖放到蓝图图表中，以创建获取该变量值的新节点。  
+        ![Drag and drop the variable](jacketing-drag-drop.png "Drag and drop the variable")
+    4.从新变量节点的输出端口拖动，并从 **变量（Variables）** 列表中选择需要修改的设置的 **设置（Set）** 节点。  
+        ![Drag right for the Jacketing Options API](jacketing-options-api.png "Drag right for the Jacketing Options API")
+
+如果您将 **JacketingOptions** 设置为使用关卡目标模式，则 **在网格体Actor上应用包壳（Apply Jacketing on Mesh Actors）** 节点将返回一个数组，其中包含从所有角度都无法看到的所有静态网格体Actor。然后，您可以遍历这个列表来处理Actor。
+
+例如，下面的蓝图图表收集了关卡中的所有静态网格体Actor，使用关卡目标运行包壳遮挡测试，并在视口和世界大纲视图中选择这些Actor。
+
+[REGION:lightbox]
+[![Jacketing example](jacketing-example.png "Jacketing example")](jacketing-example.png)
+
+*单击显示全图。*
+[/REGION]
+
+(#python)
+
+###Python 
+
+您可以通过调用“unreal.MeshProcessingLibrary.apply_jacketing_on_mesh_actors()”函数在当前关卡的任何一组静态网格体Actor上运行遮挡测试和包壳流程。您将需要向此函数传递两个参数：
+
+*   包含当前关卡中您希望在遮挡测试期间考虑的所有Actor的数组。
+*   为遮挡测试设置参数的 **unreal.JacketingOptions** 对象。通过调用“unreal.JacketingOptions()”创建该对象的新实例，然后设置要调整的属性。
+
+如果将“unreal.JacketingOptions.target”设置为“unreal.JacketingTarget.LEVEL”，此函数返回它认为完全被遮挡的所有网格体的数组。您可以处理这个列表，对它们执行任何操作。
+
+    # 获取关卡中的Actor列表 -- 在本例中是
+    # 用户已在视口中选择的那些Actor。
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+
+    # 创建一个新对象来保存包壳选项。
+    options = unreal.JacketingOptions()
+
+    # 设置体素网格的分辨率（以厘米为单位）。
+    options.accuracy = 0.2
+
+    # 设置可以考虑填充的最大间隙，单位为厘米。
+    options.merge_distance = 3
+
+    # 要采取操作的目标：unreal.JacketingTarget.LEVEL 或 unreal.JacketingTarget.MESH
+    options.target = unreal.JacketingTarget.LEVEL
+
+    # 执行包壳操作。
+    # 作用于关卡目标会使函数返回被遮挡的Actor列表。
+    occluded = unreal.MeshProcessingLibrary.apply_jacketing_on_mesh_actors(actors, options)
+
+	# 对被遮挡的Actor执行一些操作。
+    # 例如，这个循环只是简单地从关卡上删除每个被遮挡的Actor。
+    for a in occluded:
+    a.destroy_actor()
+
+
+如果将“unreal.JacketingOptions.target”属性设置为“unreal.JacketingTarget.MESH”，则函数不返回值。它只会删除它认为从外部不可见的任何三角形。
+
+例如：
+
+    # 获取关卡中的Actor列表 -- 在本例中是
+    # 用户已在视口中选择的那些Actor。
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+
+    # 创建一个新对象来保存包壳选项。
+    options = unreal.JacketingOptions()
+
+    # 设置体素网格的分辨率（以厘米为单位）。
+    options.accuracy = 0.2
+
+    # 设置可以考虑填充的最大间隙，单位为厘米。
+    options.merge_distance = 3
+
+    # 要采取操作的目标：unreal.JacketingTarget.LEVEL 或 unreal.JacketingTarget.MESH
+    options.target = unreal.JacketingTarget.MESH
+
+    # 执行包壳操作。
+    # 作用于网格体目标会使函数将更改直接应用到
+    # 从外部不可见的静态网格体资源的几何体。
+ unreal.MeshProcessingLibrary.apply_jacketing_on_mesh_actors(actors, options)

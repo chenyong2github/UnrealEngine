@@ -1,79 +1,312 @@
-Availability:Public
+Availability: Public
 Title: Stat Commands
-Crumbs: %ROOT%, Engine
-Description:Console commands specific to displaying game statistics.
-Navigation:topic
-version: 4.9
+Description: Console commands specific to displaying game statistics.
+Type: reference
+Version: 4.21
+Parent: Engine/Performance
+topic-image: StatCommand_TopicImage.png
+social-image: StatCommand_TopicImage.png
+topic-icon: StatCommand_TopicImage.png
+Related: Engine/Performance/Profiler
+Related: GettingStarted/HowTo/PIE
 
-Here is a list of currently available stat commands that can be entered into the console to aid with profiling. Remember, if you want anything to dump to the log, you'll need to actually set the editor/your game to have a log file by running it with the -log command:
 
-	UE4Editor.exe -silent LOG=MyLog.txt
+[TOC (start:2 end:3)]
 
-This is necessary to get anything useful out of any of the "dump" commands.
-
-[REGION:raw]
-| Command | Description |
-| -------- | :----------- |
-| **stat Anim** | Shows how long skinned meshes are taking to compute per tick. |
-| **stat D3D11RHI** / **stat OpenGL** | Direct3D 11 or OpenGL RHI.  |
-| **stat DumpEvents [-ms=0.1] [-all]** | Whenever an event is called (say from Blueprints, or for things like PhysX Task functions), they will be written to the log. |
-| **stat DumpFrame** | This will write to the log information about the frame rendered right after the command is recieved. |
-| **stat DumpHitches** | Anytime a "hitch" is detected based on **_t.HitchThreshold_** it will be written to the log. |
-| **stat Engine** | Shows general rendering stats like frame time as well as counters from the number of triangles being rendered.  |
-| **stat Game** | Gives feedback on how long the various Gameplay Ticks are taking. |
-| **stat Grouped** | Disables stat Slow.|
-| **stat Hitches** | Set _t.HitchThreshold_ to define the time in seconds that is considered a hitch. Will also dump all hitches to the log/visual studio debug e.g. `[0327.87] LogEngine:Warning: HITCH @ 00m:01s:643ms,1643,72,2.`  |
-| **stat InitViews** | Displays information on how long visibility culling took and how effective it was. Visible section count is the single most important stat with respect to rendering thread performance, and that is dominated by Visible Static Mesh Elements under STAT INITVIEWS, but Visible Dynamic Primitives also factors in.  |
-| **stat LightRendering** | Gives feedback on how long lighting and shadows are taking to render. |
-| **stat Memory** | Shows stats on how much memory is being used by various sub systems in Unreal Engine. |
-| **stat Particles** | Displays how long particle calculations are taking as well as sprite render time. |
-| **stat SceneRendering** | Shows general rendering statistics. This is a good starting point to find general areas of slow performance in the rendering process. |
-| **stat SceneUpdate** | Displays information about updating the world, including the time taken to add, update, and remove lights as well as add and remove primitives in the scene.  |
-| **stat ShadowRendering** | Shows how long shadow calculations are taking, separate from actual shadow render time which is covered in **_stat LightRendering_**. |
-| **stat Slow [-ms=0.3] [-maxdepth=5]** | [INCLUDE:#statslow] |
-| **stat Streaming** | Displays various statistics on streaming assets, like how much memory streaming textures are using, or how many streaming textures there are in the scene. |
-| **stat StreamingDetails** | More detailed statistics on streaming, like breaking down general texture streaming into more specific groups (lightmaps, static textures, and dynamic textures). |
-| **stat Unit** | Overall frame time as well as the game thread, rendering thread, and GPU times. |
-| **stat UnitGraph** | To see a graph with the stat unit data, use **_stat Raw_** to see the unfiltered data. |
-[/REGION]
-
-[COMMENT:none]
-
-Note: removed until this can be checked against profiler info. StatsViewer didn't appear to be in P4 or a binary build
-| **stat StartFile** **stat StopFile** | Generates a .ue4stats file that can be analyzed offline (With the StatsViewer tool from: UE4\Engine\Binaries\DotNET\StatsViewer). A GPU stall can appear as high workload the frame before.
-
-[EXCERPT:statSlow]
-This command will display stats for the game thread and the render thread. All stats will rendered as one big stats group. This command can be useful, if we don't have access to the profiler or the log file, or we want to test the basic performance of our game.
-
-Here is the example in the running game:
+To profile their Unreal Engine 4 (UE4) projects, developers can enter the following **stat commands** into the console while running their game in Play In Editor (PIE) mode.
 
 [REGION:lightbox]
-[![](statSlow1.png)(w:600)](statSlow1.png)
+[![](StatCommand_Ref_Ov1.png "StatCommand_Ref_Ov1.png")](StatCommand_Ref_Ov1.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
 [/REGION]
 
-This command can be configured as follows:
-
-	stat slow [-ms=1.0] [-maxdepth=4]
-
-By default only stat items larger than 1.0 ms and stat items that are not nested more that 4 levels are displayed.
-
-Be careful as lowering the ms or increasing the depth may affect the overall performance.
-
-**Stat slow** is filtering anything lower than 0.1ms, to improve the performance and to avoid clutter. Here is an example of what you will get if you decrease your -ms and increase your -maxdepth:
-
-	stat slow -ms=0.3 -maxdepth=5
+To locate a stat command from the Editor's **Stat** menu, select the dropdown arrow next to the **Viewport Setting** button.
 
 [REGION:lightbox]
-[![](statSlow2.png)(w:600)](statSlow2.png)
+[![](statMenuPath.png "statMenuPath.png")](statMenuPath.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+[REGION:note]
+**Note:** Running the editor with the `LOG` command enables developers to record useful information from a stat **dump**, and to do so, enable the editor (game project) to generate a log file by running it with the `LOG` command (for example, `UE4Editor.exe -silent LOG=MyLog.txt`).
 [/REGION]
 
-**Stat slow** can eat a lot of screen space, using **stat slow** again (or **stat Grouped**) will remove all visible stats groups. Further, if you enable other stats groups, the **stat slow** will be disabled as well. 
+## Stat Command Table
 
-[/EXCERPT]
+[REGION:simpletable]
+| stat | Command Description |
+| --- | --- |
+| **AI** | Displays Perception System and Overall AI performance information. |
+| **AI_EQS** | Displays performance, debug, and memory statistics for the Environment Query System (EQS). |
+| **AIBehaviorTree** | Displays performance and memory statistics for Behavior Tree. |
+| **AICrowd** | Displays performance and step information for the Crowd Manager. |
+| **Anim** | Shows how long skinned meshes are taking to compute per tick. |
+| **AsyncLoad **/ **AsyncLoadGameThread** | Displays Async loading performance statistics. |
+| **Audio** / **AudioThreadCommands** | Audio statistics, such as wave instances or buffer performance. |
+| **Canvas** | Canvas statistics, showing performance information for Canvas user interface items, such as tiles, borders, and text. |
+| **Collision** / **CollisionTags** | Displays performance, debug, and memory information for collisions. |
+| **CommandListMarkers** | Displays a list of commands with their performance information. |
+| **Component** | Displays a list of components with their performance information. |
+| **Compression** | Displays compression statistics. |
+| **CPULoad** | Shows CPU utilization. |
+| **CPUStalls** | Shows information about CPU stalls. |
+| **D3D11RHI** | Displays Direct3D 11 RHI statistics. |
+| **DDC** | Displays Derived Data Cache (DDC) statistics. |
+| **DumpHitches** | Anytime a "hitch" is detected based on **t.HitchFrameTimeThreshold**, it will be written to the log. |
+| **Engine** | Shows general rendering stats like frame time as well as counters from the number of triangles being rendered. |
+| **FPS** | Displays Frames per Second (FPS) counter. |
+| **Game** | Gives feedback on how long the various Gameplay Ticks are taking. |
+| **GameplayTags** | Displays Gameplay Tag information. |
+| **GC** | Displays garbage collection statistics. |
+| **GeometryCache** | Shows performance and memory statistics for the Geometry Cache system. |
+| **GPU** | Displays GPU statistics for the frame. |
+| **GPUParticles** | Displays performance information for GPU particles. |
+| **Hitches** | Set **t.HitchFrameTimeThreshold** to define the time in seconds that is considered a hitch. Will also dump all hitches to the log/visual studio debug, for example `[0327.87] LogEngine:Warning: HITCH @ 00m:01s:643ms,1643,72,2.` |
+| **IMEWindows** | Displays information for the Windows Text Input Method System. |
+| **InitViews** | Displays information on how long visibility culling took and how effective it was. Visible section count is the single most important stat with respect to rendering thread performance, and that is dominated by Visible Static Mesh Elements under STAT INITVIEWS; however, Visible Dynamic Primitives also factors in. |
+| **KismetCompiler** | Displays Kismet Compiler information. |
+| **KismetReinstancer** | Displays Kismet Reinstancer information. |
+| **[Levels](#Levels)** | Displays Level Streaming information. |
+| **LightRendering** | Gives feedback on how long lighting and shadows are taking to render. |
+| **LinkerCount** | Displays Linker counter. |
+| **LinkerLoad** | Displays Linker Load information. |
+| **List ** | Display groups of statistics or saved sets or statistics within a specified group with usage `<Groups/Sets/Group><br>`. |
+| **LLM** | Displays Low Level Memory Tracker (LLM) counters. |
+| **LLMFull** | Displays full group of LLM counters. |
+| **LLMOverhead** | Displays LLM overhead counters. |
+| **LLMPlatform** | Displays LLM platform counters. |
+| **LoadTime** / **LoadTimeVerbose** | Shows load time performance information. |
+| **MapBuildData** | Displays the map's build data. |
+| **MathVerbose** | Shows performance information of math operations. |
+| **Memory** | Shows statistics on how much memory is being used by various subsystems in Unreal Engine. |
+| **MemoryAllocator** | Shows memory allocation information. |
+| **MemoryPlatform** | Shows memory platform information. |
+| **MemoryStaticMesh** | Shows memory statistics about static meshes. |
+| **NamedEvents** | Enables named events for external profilers. |
+| **Navigation** | Shows performance and memory information for the navigation system. |
+| **NET** | Displays networking system statistics. |
+| **Object** / **ObjectVerbose** | Displays object memory and performance information. |
+| **Online** | Shows online system counters. |
+| **Pakfile** | Displays Pakfile system statistics. |
+| **ParallelCommandListMarkers** | Displays a list of parallel commands with their performance information. |
+| **Particles** | Shows particle system performance information. |
+| **Physics** | Displays physics performance statistics. |
+| **PhysXTasks** | Displays PhysX task information. |
+| **PhysXVehicleManager** | Displays PhysX Vehicle Manager statistics. |
+| **PlayerController** | Displays PlayerController performance information. |
+| **Quick** | Quickly displays groups of overall performance data. |
+| **RenderTargetPool** | Shows memory and performance statistics for Render Target Pool. |
+| **RenderThreadCommands** | Lists render thread commands with performance information. |
+| **RHI** | Displays RHI memory and performance statistics. |
+| **RHICMDLIST** | Shows RHI command list with performance statistics. |
+| **SceneMemory** | Shows scene memory counters. |
+| **SceneRendering** | Shows general rendering statistics. This is a good starting point to find general areas of slow performance in the rendering process. |
+| **SceneUpdate** | Displays information about updating the world, including the time taken to add, update, and remove lights as well as add and remove primitives in the scene. |
+| **Script** | Shows script statistics. |
+| **ShaderCompiling** | Displays shader compiling information. |
+| **Shaders** | Shows shader compression statistics. |
+| **ShadowRendering** | Shows how long shadow calculations are taking, separate from actual shadow render time which is covered in **stat LightRendering**. |
+| **Slate** / **SlateVerbose** | Displays Slate performance statistics. |
+| **SlateMemory** | Shows Slate memory counters. |
+| **SoundCues** | Shows active SoundCues. |
+| **SoundMixes** | Shows active SoundMixes. |
+| **Sounds** | [INCLUDE:#excerpt_0] |
+| **SoundWaves** | Shows active SoundWaves. |
+| **SplitScreen** | Shows Split Screen information. |
+| **[StartFile](#StartFile)** | [INCLUDE:#excerpt_1] |
+| **StatSystem** | Shows performance and memory information for the Stat System. |
+| **[StopFile](#StopFile)** | Finishes statistics capture that was started by the **stat StartFile** command, closing the file that was created in the Profiling directory. |
+| **Streaming** | Displays basic statistics on streaming assets, like how much memory streaming textures are using, or how many streaming textures there are in the scene. |
+| **StreamingDetails** | More detailed statistics on streaming, like breaking down general texture streaming into more specific groups (lightmaps, static textures, and dynamic textures). |
+| **StreamingOverview** | Shows an overview of statistics on streaming assets. |
+| **TargetPlatform** | Shows target platform information. |
+| **TaskGraphTasks** | Shows performance data for TaskGraph tasks. |
+| **Text** | Shows performance statistics for text. |
+| **TextureGroup** | Displays texture group memory counters. |
+| **Threading** | Displays threading information. |
+| **ThreadPoolAsyncTasks** | Shows ThreadPool Async task counters. |
+| **Threads** | Displays thread information. |
+| **Tickables** | Shows performance statistics for Tickables. |
+| **TickGroups** | Shows performance statistics for Tick groups. |
+| **UI** | Shows UI performance information. |
+| **[Unit](#Unit)** | [INCLUDE:#excerpt_2] |
+| **UnitGraph** | To see a graph with the stat unit data, use **stat Raw** to see the unfiltered data. |
+| **UObjectHash** | Displays hashed UObject information. |
+| **UObjects** | Shows performance statistics for UObjects in the game. |
 
+<!--
+[EXCERPT:excerpt_2]
 
-[/COMMENT]
+Overall frame time as well as the game thread, rendering thread, and GPU times.
 
+[REGION:note]
+**Note:** This is a great stat command to start with because it helps developers focus their profiling work.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
 
+Starts a statistics capture, creating a new file in the Profiling directory.
 
+[REGION:note]
+**Note:** Stop this operation with the **stat StopFile** command.
+[/REGION]
+[/EXCERPT:excerpt_1]
+-->
+<!--
+[EXCERPT:excerpt_0]
 
+`<?> <sort=distance|class|name|waves|default> <-debug> <off>`   
+Shows active SoundCues and SoundWaves.
+
+[/EXCERPT:excerpt_0]
+-->
+[/REGION]
+
+## Commands
+
+### Levels 
+[REGION:lightbox]
+[![](StatLevels_Overview.png "StatLevels_Overview.png")](StatLevels_Overview.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+The **stat levels** command displays level streaming information, which are grouped under the persistent level.
+
+#### Use Case
+
+This command is useful for developers wanting to view a list of currently active levels, including whether they are visible, pre-loading, loading, or unloading. Additionally, this command displays how many seconds it took to go from a load request to load finish.
+
+#### Usage
+
+To view streaming level information, enter `stat levels` into **PIE Console**.
+
+[REGION:note]
+**Note:** To determine what state a level is in, refer to the Level Color Codes table below.
+[/REGION]
+
+##### Level Color Codes
+
+[REGION:simpletable]  
+| Color Code | Description |
+| --- | --- |
+| **Green** | Level is loaded and visible. |
+| **Red** | Level is unloaded. |
+| **Orange** | Level is in the process of being made visible. |
+| **Yellow** | Level is loaded but not visible. |
+| **Blue** | Level is unloaded but still residing in memory, and it will be cleaned up when garbage collection occurs. |
+| **Purple** | Level is pre-loading. |
+[/REGION]
+
+### StartFile
+
+[REGION:lightbox]
+[![](StatStartFIle_Overview.png "StatStartFIle_Overview.png")](StatStartFIle_Overview.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+The **stat startfile** command starts a statistics capture, and creates a new file in a **Profiling** directory. Typically, the engine saves statistics captures under `[UE4ProjectFolder]\[ProjectName]\Saved\Profiling\UnrealStats`.
+
+#### Use Case
+
+To profile a project's performance with **Session Frontend Profiler,** capture statistical samples and log them to `*.ue4stats` files.
+
+#### Usage
+
+To capture and log statistics to a `*.ue4stats` file, enter `stat startfile` into **PIE Console**.
+[REGION:warning]
+To prevent **StartFile** from bloating the disk with large `ue4stats` files, run **stat StopFile**. Additionally, even if PIE Mode is closed, StartFile will continue running in the background, which can result in bloated log files, so make sure to run the **StopFile** command to stop logging the project's performance.
+[/REGION]
+
+#### Loading Statistics
+
+To load statistics into **Session Frontend Profiler**:
+
+1.  From Unreal Editor, select **Window** \> **Developer Tools** \> **Session Frontend**.  
+    ![](StatStartFIle_LoadFiles1.png "StatStartFIle_LoadFiles1.png")
+
+2.  With **Session Frontend** open, select the **Profiler** tab (1), and click **Load** (2).
+
+3.  After selecting a `*.ue4stats` file, click **Open** to load the file.  
+    ![](StatStartFIle_LoadFiles3.png "StatStartFIle_LoadFiles3.png")
+
+##### End Result
+
+After **Session Frontend** loads the file, the capture data is visible in the **Profiler** for further analysis.
+
+[REGION:lightbox]
+[![](StatStartFIle_LoadFiles_EndResult.png "StatStartFIle_LoadFiles_EndResult.png")](StatStartFIle_LoadFiles_EndResult.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+[REGION:note]
+**Note:** Read the [Profiler Tool Reference](Engine/Performance/Profiler) to learn more about reviewing profile captures in **Session Frontend**.
+[/REGION]
+
+### StopFile
+
+[REGION:lightbox]
+[![](StatStopFile_overview.png "StatStopFile_overview.png")](StatStopFile_overview.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+The **stat stopfile** command stops a statistics capture that was started by the **StartFile** command. Additionally, the **StopFile** command closes the file that was created in the `Profiling` directory.  
+
+#### Use Case
+
+To prevent StartFile from bloating the disk with large `ue4stats` files, run stat **StopFile**. Additionally, even if PIE Mode is closed, StartFile will continue running in the background, which can result in bloated log files, so make sure to run the StopFile command to stop logging the project's performance.
+
+#### Usage
+
+To stop capturing and logging statistics, enter `stat stopfile` into **PIE Console**.
+
+### Unit
+
+#### Use Case
+
+Typically, developers want to determine if a bottleneck (negative performance impact) exists in the **Game** thread, in the **Draw** (rendering) thread, or on the **GPU**. 
+
+[REGION:lightbox]
+[![](StatUnit_usage.png "StatUnit_usage.png")](StatUnit_usage.png)
+[/REGION]
+[REGION:caption]
+Click for full image.
+[/REGION]
+
+The **stat unit** command displays performance information for the project's **Frame**, **Game**, **Draw**, **GPU**, **RHIT**, and **DynRes** threads.
+
+#### Statistics
+
+[REGION:simpletable]
+| Name | Description |
+| --- | --- |
+| **Frame** | Frame time is the total amount of time spent generating one frame of the game. Since both the Game and Draw threads sync up before finishing a frame, Frame time is often close to the time being shown in one of these threads. |
+| **Game** | If Frame time is close to Game time, the game's performance is likely being bottlenecked (negatively impacted) by the game thread. |
+| **Draw** | If Frame time is close to Draw time, the game's performance is likely being bottlenecked by the rendering thread |
+| **GPU** | GPU time measures how long the video card takes to render the scene. Since GPU time is synced to the frame, it will likely be similar to Frame time. |
+| **RHIT** | Typically, RHI Thread time is synced to the frame, and it will likely be similar to Frame time. |
+| **DynRes** | [INCLUDE:#excerpt_3] |
+
+<!--
+[EXCERPT:excerpt_3]
+
+If supported (and enabled), [DynRes](Engine/Rendering/DynamicResolution) shows Primary Screen Percentage by Secondary Screen Percentage.  
+
+[/EXCERPT:excerpt_3]
+-->
+[/REGION]
+
+#### Usage
+
+To determine the project's bottleneck, launch the game in a non-debug build, and enter `stat unit` into **PIE Console**.

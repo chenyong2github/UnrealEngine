@@ -1,0 +1,118 @@
+INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Software Occlusion Queries for Mobile
+Description: An overview of using Software Occlusion Queries for mobile platforms as a dynamic occlusion culling method. 
+Type: 
+Version: 4.21
+Parent: Engine/Rendering/VisibilityCulling
+Order: 
+Tags: 
+
+
+**Software Occlusion Queries** is an occlusion method that uses designated level of details (LOD) of an Actor to occlude ones behind it. This culling method rasterizes the scene on the CPU to cull Actors, where in comparison, Hardware Occlusion Queries perform visibility checks on the GPU.  The conservative design of software occlusion means that it can be enabled and used on any mobile device. It should also be noted that software occlusion only has a single frame latency compared to hardware occlusion queries, which have two frame latency on mobile.
+
+![](SOQ_Banner.png "SOQ_Banner.png")
+
+[REGION:caption]
+Left: The scene view using Software Occlusion Debug Visualization that includes a set of assigned Static Meshes for occlusion. Right: The reverse scene view behind the house showing how the "occluder" Static Meshes have culled geometry.
+[/REGION]
+
+## Enabling Software Occlusion Queries
+
+Enable software occlusion in the **Project Settings > Rendering > Mobile** and set **Support Software Occlusion Culling**.
+
+Alternatively, you can use the following console variable:
+
+`r.mobile.AllowSoftwareOcclusion 1`
+
+[REGION:tip]
+When targeting multiple devices, use the [Device Profile](Platforms/DeviceProfiles) manager to enable software occlusion.
+[/REGION]
+
+## Setting Occluder Meshes
+
+Before occlusion culling can work, you must first specify a Static Mesh's LOD to be an occluder. The specified LOD will be used to block other Actors in the scene that are behind it when in the camera view.
+
+In the Static Mesh Editor, use the **Details** panel and enable **LOD for Occluder Mesh** by setting any value 0 or greater.
+
+![](Soq_SMEditorSettings.png "Soq_SMEditorSettings.png")
+
+When setting a value for the LOD Occluder Mesh, only ones equal to or less than the number of LODs you have for that mesh can be used. For example, if your mesh has three LODs, 0 would be the base mesh, and LOD 1 and 2 would be the lower detailed ones. If you use a value of -1, no LOD will be assigned as an occluder mesh.
+[REGION:warning]
+Only enable medium to large-sized meshes that make sense to be an occluder. Smaller meshes will have little to no impact on occlusion.
+[/REGION]
+
+## Debugging Visualization for Software Occlusion
+
+Once you've set the LODs to use as occluder meshes for your Static Mehes, you can enable the **Software Occlusion Buffer** Visualization in the level viewport. This view mode enables a small window in the top right of the screen when using the [Mobile Previewer](Platforms/Mobile/Previewer). The buffer only displays the selected occluder meshes and uses these to cull any meshes blocked from their view, similar to how Hardware Occlusion Queries cull objects blocked others in the scene.   
+  
+Follow the steps below to enable this visualization view mode:  
+
+1.  Set the Level Viewport to use the [Mobile Previewer](Platforms/Mobile/Previewer).   
+    ![](soq_enablevisualization-1.png "soq_enablevisualization-1.png")
+2.  Use the console (**`**) to enable software occlusion visualizer with **r.SO.VisualizeBuffer 1**.
+
+When enabled, any Static Mesh enabled as an occluder will be drawn to the buffer visualization displayed in the top-left of the Level Viewport.
+
+[REGION:lightbox]
+[![](soq_visualization.png "soq_visualization.png")](soq_visualization.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
+
+You should now see any Static Mehses that have been enabled as the **LOD for Occluded Mesh** in the Static Mesh Editor. To better illustrate this, the example below shows highlighted Actors that have been enabled as occluder meshes for the buffer visualization view mode.
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Scene View](soq_sceneOccluders.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Scene View with highlighted Occluder Meshes](soq_sceneOccludersHighlighted.png) 
+ [/PARAM]
+[/OBJECT]
+
+## Performance Statistics
+
+Use the command **stat softwareocclusion** to get an idea of how effective software occlusion is in your levels.
+
+[REGION:lightbox]
+[![](StatSOftwareOcclusion.png "StatSOftwareOcclusion.png")](StatSOftwareOcclusion.png)
+[/REGION]
+[REGION:caption]
+Click image for full size.
+[/REGION]
+
+Use the **Cycle Counters** to get an idea of what is being processed for the scene and how much render time it’s taking. **Counters** are used to define which of the scene's triangles that are rasterized to the buffer, including the total number of occluders, occludees, and other objects that are occlusion culled. 
+
+### Example Scene Stats
+
+[REGION:note]
+This exercise only used a single view and the stats data provided. For your final scene, you would want to test more than one view and add additional occluders as needed to improve occlusion culling.
+[/REGION]In this example scene, we’ll take a look at the stats and what they mean for performance and culling, and as well as how it can be improved.
+
+![](Soq_SceneViewAndOcclusionBuffer-1.png "Soq_SceneViewAndOcclusionBuffer-1.png")  
+
+[REGION:caption]
+Scene view compared to the software occlusion buffer visualization.
+[/REGION]If we start with a scene like the one above and a couple of Static Meshes enabled to use LOD 0, we get the following stats for how well software occlusion is performing at this position and view in the level:
+
+![](SOStats1.png "SOStats1.png")
+
+There are a couple of things to note in this stat output:
+
+*   In **Cycle Counters**, a lot of time is spent on **Process Time**, **Process Occluder Time**, and **Rasterize Time**. All of these can be improved reducing the number of triangles that need to be rasterized in the buffer, leading to the next point.
+*   In **Counters**, we want to pay attention to the **Rasterized occluder tris**. These triangles represent the Static Mesh LOD that is specified as the occluder. There are **17** occluders currently being rasterized for a total of **3,055** triangles. Using lower LODs with fewer triangles will lower the processing time spent on them.
+
+From these couple of stats, we’ve identified some areas where we can improve the performance of software occlusion by reducing the number of triangles that need to be processed. You can do this by using the [Static Mesh Editor to generate your own LODs](Engine/Content/Types/StaticMeshes/HowTo/AutomaticLODGeneration#manuallycreatinglods) with fewer triangles. In this example scene, the majority of content is taken from the [Infinity Blade: Grass Lands](https://www.unrealengine.com/marketplace/infinity-blade-plain-lands) content pack, with the average occluder Static Mesh being around 2000 triangles. After setting up some new LODs and assigning them as the LOD for Occluder Mesh, we get the following stat results:
+
+![](SOStats2.png "SOStats2.png")
+
+The last couple of stats you want to pay attention to are the **Total occludees**, **Culled**, and **Total occluders**. These stats tell us how well software occlusion is performing, by showing the number of objects culled, the total number of occluder objects, and the number of occludees currently visible. You can compare these to get an idea of where you can make improvements. 
+
+![](SOStats3.png "SOStats3.png")
+
+If we break it down, we have a total of **951** objects that can potentially be culled from this current view. Of those potential objects, **406** them have been culled by the **17** occluders in this view. That means that those 17 occluders are occlusion culling approximately 43% of the objects that can be occlusion culled. Note that small occluders won’t be much help in blocking other objects. Only use medium to large-sized meshes as occluders to keep performance reasonable while culling the most objects.  
+
+To improve the number of culled objects, set up  additional occluders to block parts of the scene. Use the [buffer visualizer](#debuggingvisualizationforsoftwareocclusion) to get a sense of what is being blocked from the current camera position while checking the stats in different locations in your level.

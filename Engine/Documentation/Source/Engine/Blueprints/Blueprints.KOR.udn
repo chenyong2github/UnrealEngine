@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6652343
 Availability:Public
 Title: 블루프린트 비주얼 스크립팅
 Crumbs: %ROOT%, Engine
@@ -11,10 +11,7 @@ type:landing
 tags:Blueprints
 topic-image:Engine/Blueprints/kismet_topic.png
 topic-icon:%ROOT%/blueprint_icon.png
-
-[REGION:banner]
-![](k2_banner.gif)
-[/REGION]
+hero-image:k2_banner.gif
 
 [EXCERPT:Intro]
 언리얼 엔진의 비주얼 스크립팅 시스템인 **Blueprint** (블루프린트)는 언리얼 에디터 안에서 노드 기반 인터페이스를 사용하여 
@@ -25,75 +22,60 @@ UE4 를 사용하다 보면, 블루프린트를 사용하여 정의된 오브젝
 언리얼 엔진의 C++ 구현에서 가능한 블루프린트 전용 마크업을 통해 프로그래머가 어떤 기반 시스템을 제작하면, 디자이너가 그것을 확장하는 것도 가능합니다.
 [/EXCERPT:Intro]
 
-## 시작하기
+<!-- removing link for now
+[REGION:tip]
+블루프린트 또는 비주얼 스크립팅이 처음인 분들은, **Blueprint Essential Concepts** (블루프린트 핵심 개념) 강의를 확인해 보세요. 언리얼 엔진 4 의 블루프린트 사용법, 블루프린트와 전통적 프로그래밍 언어와의 관계, 블루프린트 에디터 UI, 컴포넌트, 그래프, 블루프린트를 사용하는 데 있어서 주의점을 확인할 수 있습니다.
 
-[REGION:topics third]
-%Engine/Blueprints/QuickStart:TopicCompact%
-%Engine/Blueprints/GettingStarted:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Blueprints:title%](BPVid.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		비디오: 블루프린트 입문 (v4.8)
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gY35ezlSQn1sWOGfh4C7ewO/EFXMW_UEDco/index.html
+[OBJECT:CourseLink]
+	[PARAMLITERAL:courseid]
+	blueprint-essential-concepts
+	[/PARAMLITERAL]
+	[PARAMLITERAL:imageid]
+	7144
+	[/PARAMLITERAL]
+	[PARAMLITERAL:title]
+	블루프린트 핵심 개념
+	[/PARAMLITERAL]
+	[PARAMLITERAL:description]
+	블루프린트란 무엇이고 사용하면 어떤 결과물을 얻을 수 있는지 파고 들어 봅니다.
+	[/PARAMLITERAL]
+	[PARAMLITERAL:video_count]
+	8
+	[/PARAMLITERAL]
+	[PARAMLITERAL:skill_level]
+	Getting Started
 	[/PARAMLITERAL]
 [/OBJECT]
 [/REGION]
+-->
 
-## 스크립팅 일반
+## 시작하기
 
 [REGION:topics third]
-%Engine/Blueprints/Scripting:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![%Engine/Blueprints:title%](BlueprintEssentials.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		비디오: 블루프린트 에센셜
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1ga2b_ZaJoaR5dLHOFw4-MMl/zaVY5A0hqiI/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/QuickStart:Topic%
+%Engine/Blueprints/GettingStarted:Topic%
+[/REGION]
+
+## 일반 스크립팅
+
+[REGION:topics third]
+%Engine/Blueprints/Scripting:Topic%
 [/REGION]
 
 ## 블루프린트 제작
 [REGION:topics third]
-%Engine/Blueprints/Anatomy:TopicCompact%
-%Engine/Blueprints/Workflow:TopicCompact%
-%Engine/Blueprints/BP_HowTo:TopicCompact%
-%Engine/Blueprints/UserGuide/CheatSheet:TopicCompact%
-%Engine/Blueprints/BestPractices:TopicCompact%
-[OBJECT:TopicCompact]
-	[PARAM:image]
-		![Blueprint Video Tutorials](BPTutorials.png)
-	[/PARAM]
-	[PARAM:icon]
-		![](%ROOT%/blueprint_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		블루프린트 비디오 튜토리얼
-	[/PARAM]
-	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/Blueprints/index.html
-	[/PARAMLITERAL]
-[/OBJECT]
+%Engine/Blueprints/Anatomy:Topic%
+%Engine/Blueprints/Workflow:Topic%
+%Engine/Blueprints/BP_HowTo:Topic%
+%Engine/Blueprints/UserGuide/CheatSheet:Topic%
+%Engine/Blueprints/BestPractices:Topic%
 [/REGION]
 
 ## 블루프린트 통신
 [REGION:topics third]
-%Engine\Blueprints\UserGuide\BlueprintCommsUsage:topiccompact%
-%Engine/Blueprints\HowTo:topiccompact%
-[OBJECT:TopicCompact]
+%Engine\Blueprints\UserGuide\BlueprintCommsUsage:Topic%
+%Engine/Blueprints\HowTo:Topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![Livestream: Blueprint Communications](CommStream.png)
 	[/PARAM]
@@ -101,23 +83,22 @@ UE4 를 사용하다 보면, 블루프린트를 사용하여 정의된 오브젝
 		![](%ROOT%/blueprint_icon.png)(convert:false)
 	[/PARAM]
 	[PARAM:title]
-		Livestream: Blueprint Communications
+		라이브스트림: 블루프린트 통신
 	[/PARAM]
 	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu/EM_HYqQdToE/index.html
+		https://www.youtube.com/watch?v=EM_HYqQdToE&list=PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu
 	[/PARAMLITERAL]
 [/OBJECT]
-%Engine\Blueprints\UserGuide\BlueprintComms:topiccompact%
-%Engine\Blueprints\UserGuide\EventDispatcher:topiccompact%
-%Engine/Blueprints/UserGuide/Types/Interface:topiccompact%
+%Engine\Blueprints\UserGuide\BlueprintComms:Topic%
+%Engine\Blueprints\UserGuide\EventDispatcher:Topic%
+%Engine/Blueprints/UserGuide/Types/Interface:Topic%
 [/REGION]
 
 ## 블루프린트 추가 작업
 
-[REGION:topics third]
-%BlueprintAPI:TopicCompact%
-%Engine/Blueprints/Editor:TopicCompact%
-[OBJECT:TopicCompact]
+%BlueprintAPI:Topic%
+%Engine/Blueprints/Editor:Topic%
+[OBJECT:Topic]
 	[PARAM:image]
 		![Live Training Streams: Blueprints](BPLiveStream.png)
 	[/PARAM]
@@ -125,13 +106,12 @@ UE4 를 사용하다 보면, 블루프린트를 사용하여 정의된 오브젝
 		![](%ROOT%/blueprint_icon.png)(convert:false)
 	[/PARAM]
 	[PARAM:title]
-		Live Training Streams: Blueprints
+		라이브 트레이닝 스트림: 블루프린트
 	[/PARAM]
 	[PARAMLITERAL:path]
-		https://docs.unrealengine.com/latest/INT/Videos/PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu/index.html
+		https://www.youtube.com/playlist?list=PLZlv_N0_O1gYuWkyTSbfcuyPNOQsK_8bu
 	[/PARAMLITERAL]
 [/OBJECT]
-[/REGION]
 
 [DIR(output:"topic" parent:"Engine/Blueprints" type:"overview" org:"hierarchy")]
 

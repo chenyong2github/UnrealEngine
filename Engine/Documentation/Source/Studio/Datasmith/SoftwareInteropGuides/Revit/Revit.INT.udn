@@ -1,0 +1,228 @@
+Availability: Public
+Crumbs: 
+Title: Using Datasmith with Revit
+Description: Describes special considerations that apply only when you use Datasmith to bring scenes from Autodesk Revit into the Unreal Editor.
+Type:landing
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides
+Order: 2
+topic-image:datasmith-revit-topic.png
+Tags: Datasmith
+Tags: overview
+Tags: interop
+Tags: Early Access
+Tags: Landing Page
+hero-image: datasmith-revit-compare-unreal.png
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Revit](datasmith-revit-compare-revit.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![UE4](datasmith-revit-compare-unreal.png) 
+ [/PARAM]
+[/OBJECT]
+
+This page describes how Datasmith imports scenes from Autodesk Revit into Unreal Editor. It follows the basic process outlined in the  [Datasmith Overview](Studio/Datasmith/Overview) and [About the Datasmith Import Process](Studio/Datasmith/Overview/ImportProcess), but adds some special translation behavior that is specific to Revit. If you're planning to use Datasmith to import scenes from Revit into Unreal Editor, reading this page can help you understand how your scene is translated, and how you can work with the results in Unreal Editor.
+
+[REGION:note]
+The Datasmith Exporter plugin for Revit is in an Early Access state while we work on finishing the way some key data types are translated between Revit and the Unreal Engine. The plugin is ready for you to download and try out with your own scenes, but keep in mind that your results are likely to have some issues for now. In particular, we are still working on correctly translating:
+
+*   Scene hierarchy
+*   Pivot points
+*   Lights
+*   Cameras
+*   Materials and textures
+*   UV coordinates and texture sizing
+*   Survey points and project location
+
+We expect to announce updates in the coming weeks — keep an eye on the [Unreal Studio forums](https://forums.unrealengine.com/unreal-engine/unreal-studio).
+[/REGION]
+
+## Revit Workflow
+
+Datasmith uses an Export Plugin workflow for Revit. That means that to get your Revit content into the Unreal Engine using Datasmith, you need to:
+
+1.  Install a plugin for Revit. See [Installing the Datasmith Exporter Plugin for Revit](Studio/Datasmith/SoftwareInteropGuides/Revit/InstallingExporterPlugin).
+2.  Export your Revit content to a *.udatasmith* file. See [Exporting Datasmith Content from Revit](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit).
+3.  Use the Datasmith importer to bring your exported *.udatasmith* file into the Unreal Editor. See [Importing Datasmith Content into Unreal Engine 4](Studio/Datasmith/HowTo/ImportingContent).
+
+## Controlling What Gets Exported
+
+You always need to have a 3D View selected and active in Revit in order to export your scene using the Datasmith Exporter plugin. The visibility settings of that 3D View define what elements from the Revit file get included in the exported *.udatasmith* file. You can take advantage of this behavior to take full control within Revit over the content you export to the Unreal Engine.
+
+You can use any 3D View that you already have in your Revit file. However, to take full control over the objects that you bring in to the Unreal Engine, we recommend that you set up a new 3D View in Revit, and set up that view so that it shows only the objects that you need in your realtime visualization.
+
+Revit offers many tools and techniques for controlling the visibility of objects inside a 3D View. For example:
+
+*   You can use the **Graphics > Visibility/Graphics Overrides** to control the visibility of the different objects and object categories in your Level.
+    [REGION:lightbox]
+    [![Revit Visibility/Graphics Overrides](revit-visibility-overrides.png "Revit Visibility/Graphics Overrides")(w:1000)](revit-visibility-overrides.png) *Click for full image.*
+    [/REGION]
+*   You can use a [Section Box](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-C9EA51CB-3214-4BD8-AD55-3BEB1CCD15B6) to cut the geometry you export. Only the objects inside your Section Box are exported to the Unreal Engine. Note that when an object crosses the boundaries of the Section Box, such as the walls, floor and furniture in the images below, its geometry is truncated. Inside the Unreal Engine, the Static Mesh Assets that represent the exported objects only contain the geometry that lies inside the Section Box.
+    [REGION:lightbox]
+    [![Section Box results in Revit and Unreal Engine](revit-unreal-sectionbox.png "Section Box results in Revit and Unreal Engine")(w:1000)](revit-unreal-sectionbox.png) *Click for full image.*
+    [/REGION]
+*   **Temporary Hide and Isolate** settings in Revit are respected.
+*   Only geometric objects visible in the current 3D View are exported. Non-geometric objects are ignored.
+
+[REGION:note]
+The Datasmith Exporter respects your choice of which objects are shown and which are hidden, but it does not take into account other settings that control the way the 3D View is drawn in the Revit viewport. For example, it does not take into account the **Graphics > Graphic Display Options** set for the 3D View (Realistic vs. Shaded Model Display, Cast Shadows, and so on) or the **Camera > Rendering Settings** (Draft vs. High Quality settings, Lighting schemes, and so on).
+[/REGION]
+
+For more information about controlling visibility in a Revit 3D View, see also [Visibility and Graphic Display in Project Views](http://help.autodesk.com/view/RVT/2019/ENU/?guid=GUID-A2FC119B-51D7-4C2E-84ED-CD51983EC532) in the Revit Help.
+
+## Geometry
+
+In general, each element that you can select individually in the Revit scene is translated to Unreal as a separate Static Mesh Asset. Some elements may be broken down further into smaller Static Meshes when they are made up of smaller parts, such as railings.
+
+In all cases, the geometry of each Static Mesh Asset is set to match the dimensions of the Revit object at the time you export the file. Parametric settings and constraints are not carried over into the Unreal Engine. So, for example, if you move a floor up or down in the Unreal Editor, the height of the walls will not stretch or shrink to match the new location as it would in Revit.
+
+### Instancing
+
+If two objects belong to the same family, and if they have exactly the same parameter values, then both objects are represented in the Datasmith Scene as instances of the same Static Mesh Asset.
+
+### Tessellation
+
+Datasmith relies on Revit's built-in tessellation services to create triangular meshes from your scene geometry, using the highest possible level of detail. In most cases, this produces adequate geometry for use in the Unreal Engine. However, the meshes produced by Revit can sometimes be overly dense, particularly on curved surfaces. For example:
+
+![Dense geometry for curved surfaces](revit-tessellation.png "Dense geometry for curved surfaces")
+
+Datasmith does not currently do any re-topologizing or simplification of these meshes on import. However, if you find these surfaces to be a problem in your Projects, you can try tools offered by the Unreal Editor for reducing the complexity of these meshes, such as the [Proxy Geometry tool](Engine/ProxyGeoTool).
+
+## Materials and Textures
+
+For each different type of surface in your Revit scene, Datasmith creates a new Material Asset in the Unreal Engine Project, and places it in the **Materials** folder next to your Datasmith Scene Asset. The goal of these Materials is to respect the way you've set up the surfaces to look in Revit, while also exposing a set of properties that closely mirror the ones you are used to working with in Revit.
+
+[REGION:lightbox]
+[![](revit-material-definition.png)](revit-material-definition.png "Revit")
+[/REGION]
+
+Revit
+
+[REGION:lightbox]
+[![](unreal-material-definition.png)](unreal-material-definition.png "Unreal")
+[/REGION]
+
+Unreal
+
+Datasmith currently supports translating diffuse maps and colors, Transparency, Cutouts, and Bump settings from Revit into the Unreal Engine Materials it generates.
+
+To modify a Material in the Unreal Editor:
+
+1.  Double-click it in the **Content Browser**. Or, select an Actor in your Level that uses the Material you want to modify, and double-click the Material in the Details panel.
+2.  You'll open the Material Editor shown above, where you can modify these parameters in the **Parameter Groups** section at the top of the Details panel. You can also modify other built-in parameters exposed by the Unreal renderer.
+3.  To override the default value for any property, first check the box to the left of its name to activate the property in your Material. Then, set the value you want the property to use.
+
+[REGION:tip]
+Each of these Assets is a Material Instance, whose parent is the **RevitMaster** Material built in to the Datasmith plugin. You can open up this parent Material to see how each of the properties exposed in the Material Instance are wired together in the Material graph.
+[/REGION]
+
+### Textures and UV Wrapping
+
+Datasmith imports the textures that you use in your Revit Materials into Assets, and places them in the Textures folder next to your Datasmith Scene Asset.
+
+Each Material that uses a Texture Asset offers similar controls to the Revit Texture Editor to control the way the texture map is applied to the surface of the 3D object using the Material.
+
+![Texture mapping and UV settings](revit-uvs.png "Texture mapping and UV settings")
+
+  
+
+1.  The **Position > Offset** value in Revit is modeled by the **UVOffsetX** and **UVOffsetY** settings for each type of map.
+2.  The **Position > Rotation** value in Revit is modeled by the **UVWAngle** setting for each type of map.
+3.  The **Scale** values in Revit, which are based on real-world dimensions, are converted in the Unreal Engine Material to a scale multiplier. As you increase the absolute value of these scale values, the texture becomes smaller on the object.
+
+[REGION:note]
+Datasmith does not convert procedural textures, such as Checker, Noise, Tiles, and so on.
+[/REGION]
+
+## Building the Datasmith Scene Hierarchy
+
+The Datasmith Exporter plugin creates a hierarchy of parent and child Actors in the Datasmith Scene that is intended to reflect the overall organization of your scene in Revit. The intent is to organize the Actors in your Unreal Engine Level according to the concepts you're used to working with in Revit, to make it easier for you to find and manipulate objects. 
+
+This scene hierarchy is constructed according to the following rules:
+
+*   Each *Level* in Revit — the Ground Floor, Level 1, Level 2, and so on — is reflected by a separate Actor in the Datasmith Scene hierarchy.
+*   Within each Level, any object that is can *host* other scene elements in Revit becomes a parent for the objects it hosts. 
+*   Under the parent Actors that represent the Revit Levels and Hosts, you'll find a Static Mesh Actor to represent each geometric object.
+
+For example, the Actor named Level 1 contains an Actor that represents each wall. Each of these Actors in turn is represented by another parent Actor that has a child for each geometric object hosted by the wall — that is, each door, window, or wall section.
+
+![Example scene hierarchy in the Unreal Editor](scene-hierarchy.png "Example scene hierarchy in the Unreal Editor")
+
+## Lights
+
+Datasmith imports the lights from your Revit scene into the Unreal Engine, maintaining the physical units you've set for their intensity.
+
+## Cameras
+
+When you import a 3D View from Revit, Datasmith creates a single **CineCameraActor** in the Unreal Editor Level. It places this camera at the position and orientation of the camera in the Revit 3D View, with a similar field of view. If you select this CineCameraActor in the Level Viewport or the **World Outliner**, you'll see a preview of its viewpoint that should match very closely the Crop Region of the Revit 3D View at the time you exported your *.udatasmith* file.
+
+[REGION:note]
+Datasmith does not handle some camera concepts available in Revit, including orthographic projection mode and perspective corrections like tilted, shifted, and cropped regions.
+[/REGION]
+
+For best results:
+
+1.  Set the **Camera > Projection Mode** setting for your 3D View to **Perspective**.
+2.  Set the Crop Region for your 3D View in Revit to focus on the view that you want your camera to have in the Unreal Engine.
+3.  Make sure your camera's target point in Revit is centered within the crop area. You can verify this by showing the camera in other plan and elevation views.  
+    If the perspective is shifted, your result in the Unreal Engine will not look the way you're expecting.
+
+For example, the 3D View below has a perspective camera with a centered crop region, which translates well:
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](revit-camera-3d-crop-good.png)(w:450)](revit-camera-3d-crop-good.png)[/REGION] | [REGION:lightbox][![](revit-camera-plan-good.png)(w:450)](revit-camera-plan-good.png)[/REGION] |
+[/REGION]
+
+However, the following 3D View has had its crop region adjusted by hand, shifting one edge of the perspective region unequally toward the target point. This will not translate well.
+
+[REGION:imagetable]
+|||
+|---|---|
+| [REGION:lightbox][![](revit-camera-3d-crop-shifted.png)(w:450)](revit-camera-3d-crop-shifted.png)[/REGION] | [REGION:lightbox][![](revit-camera-plan-shifted.png)(w:450)](revit-camera-plan-shifted.png)[/REGION] |
+[/REGION]
+
+
+## Categories
+
+Each Revit Category that contains at least one object in the scene carries over into the Unreal Editor as a separate Layer.
+
+![](revit_layers.png "revit_layers.png")
+
+You can use these Layers within the Unreal Editor to show and hide categories, or inspect and select the objects assigned to them.
+
+Note that the information provided to the exporter by the Revit SDK does not always link every scene object to a Category. Objects with no assigned Category in Revit are not assigned to any Layer in the Unreal Editor.
+
+## Metadata
+
+Datasmith imports metadata about your Revit objects, and attaches that metadata to the Actor that represents each Revit object inside the Unreal Engine.
+
+Most metadata that you might want to use in the runtime experiences you create in the Unreal Engine are imported as Datasmith Metadata. This includes instance properties that you set on each object in Revit, and type properties that are not empty. For details on what properties are imported and how you can access them in your Editor Asset preparation scripts and runtime gameplay scripts, see [Using Datasmith Metadata](Studio/Datasmith/Overview/UsingDatasmithMetadata).
+
+Some other, more technical internal information is attached to each Actor using Component Tags. You may possibly find this information useful for identifying the Actors, particularly if you use Blueprint or Python scripts to automate data preparation in the Unreal Editor. For example:
+
+*   **Revit.Instance.Depth. -** The depth of the object's family instance or family symbol in the Revit scene hierarchy.
+*   **Revit.Instance.Id. -** The ID of the object's family instance or family symbol in the Revit document.
+*   **Revit.Host.Id. -** When the object's family instance is hosted, this value gives the ID of the family instance host in the Revit document.
+
+![Metadata saved in Component Tags](metadata-component-tags.png "Metadata saved in Component Tags")
+
+## RPC Objects
+
+Rich Photorealistic Content (RPC) objects are licensed only for use within Revit. Therefore, Datasmith is unable to bring these objects directly into the Unreal Engine as-is, maintaining the same geometry and visual characteristics.
+
+Instead, it places an Actor in the Datasmith Scene for each RPC object in the Revit scene, with the same position and orientation in 3D space.
+
+![RPC Actors in the World Outliner](rpc-objects-in-outliner.png "RPC Actors in the World Outliner")
+
+You can find these RPC objects in your Unreal Engine Level by looking for Actors that have been assigned the **Revit.RPC** Component Tag:
+
+![Component Tag for an RPC Actor](rpc-objects-component-tags.png "Component Tag for an RPC Actor")
+
+[REGION:note]
+All scenes and models used on this page are courtesy of [Turbosquid](https://www.turbosquid.com/).
+[/REGION]

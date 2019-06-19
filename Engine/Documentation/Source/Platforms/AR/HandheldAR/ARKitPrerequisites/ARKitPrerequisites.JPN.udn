@@ -16,7 +16,7 @@ Unreal Engine は iOS デバイスを既にサポートしており、新機能�
 
 ## 一般前提条件
 
-Unreal Engine と iOS デバイスの基本的な設定については、 Unreal Engine のドキュメントの [iOS Game Development](Platforms/iOS) セクションを参照してください。
+Unreal Engine と iOS デバイスの基本的な設定については、 Unreal Engine のドキュメントの [iOS Game Development](Platforms/Mobile/iOS) セクションを参照してください。
 
 **ARKit 1.5 前提条件**
 

@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3489715
-Availability:Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:3 - 블루프린트 세트 교집합 연산
 Description:두 블루프린트 세트의 교집합 연산을 한 뒤 결과 세트를 표시합니다.
 Crumbs:%ROOT%
@@ -246,7 +246,7 @@ Order:3
 	[/REGION]
 
 	[REGION:note]
-	강조된 이미지에서 보시듯이, **Shorter Instruction Set** 는 현재 공백입니다. 이 시점에서, **Shorter Instruction Set** 와 **Instruction Set** 에 **Intersection** 연산을 한다면, **Resultant Instruction Set** 컨테이너는 공백이 될 것입니다.
+	강조된 이미지에서 보시듯이, **Shorter Instruction Set** 는 현재 비어 있습니다. 이 시점에서, **Shorter Instruction Set** 와 **Instruction Set** 에 **Intersection** 연산을 한다면, **Resultant Instruction Set** 컨테이너에는 아무것도 없을 것입니다.
 	[/REGION]
 
 1.	**Shorter Instruction Set** 컨테이너를 다음 엘리먼트로 채웁니다:

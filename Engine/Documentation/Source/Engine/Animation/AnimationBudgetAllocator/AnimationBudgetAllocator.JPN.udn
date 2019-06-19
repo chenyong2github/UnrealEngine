@@ -1,0 +1,412 @@
+﻿INTSourceChangelist:0
+Availability: Public
+Crumbs: 
+Title: Animation Budget Allocator
+Description: 
+Type: overview
+Version: 4.22
+Parent: Engine/Animation
+Order: 34
+Tags: Animation
+Tags: Optimization
+Tags: Animation Features
+Tags: Performance
+Tags: Experimental
+Tags: animation budgeter
+topic-image: AnimBudgetTopic.png
+social-image: AnimBudgetTopic.png
+topic-icon: %ROOT%/AnimBudgetTopic.png
+
+
+![](AnimBudgetBanner.png "AnimBudgetBanner.png")
+
+The **Animation Budget Allocator** (or **Anim Budgeter**) system constrains the time taken for animation data that is run by dynamically throttling Skeletal Mesh Component ticking. The intent is to use a fixed CPU budget (not to exceed it) while maximizing perceived animation quality with minimal system overhead.
+
+The system determines a fixed budget per platform (milliseconds (ms) of work to perform on the game thread), and it works out if it can do it all of the work needed, or if it needs to cut down on the work to be done. If it needs to be cut down, it does so based on Significance and targets several areas with the goal of dynamically adjusting the load to fit within the fixed (game thread) budget. Areas of which include:
+
+*   Stop ticking and use [Master Pose Component](Engine/Animation/WorkingwithModularCharacters#masterposecomponent).
+
+*   Perform updates at a lower rate.
+
+*   Interpolate (or not) between updates. 
+
+## Enabling Anim Budgeter
+
+To use the Animation Budget Allocator, you will need to first enable it from the **Plugins** menu.
+
+1.  Open the **Plugins** menu from the **Edit > Plugins** option.   
+    ![](AnimBudget_EditMenu.png "AnimBudget_EditMenu.png")
+
+2.  Under **Programming**, enable the **Animation Budget Allocator** plugin and restart the Editor.   
+    [REGION:lightbox]
+    [![](AnimBudget_EnablePlugin.png)(w:900)](AnimBudget_EnablePlugin.png)
+    [/REGION]
+    [REGION:caption]
+    Click image for full view.
+    [/REGION]
+    
+
+## Using the Anim Budgeter
+
+To use the Anim Budgeter, enter the following console command by pressing the ` (backtick key):
+
+*   To enable - “a.Budget.Enabled 1”
+
+*   To disable - “a.Budget.Enabled 0”
+
+[REGION:note]
+When enabling the plugin, Anim Budgeter is automatically enabled.
+[/REGION]
+
+To enable the debug display:
+
+*   To enable debug display - “a.Budget.Debug.Enabled 1”
+
+*   To disable debug display - “a.Budget.Debug.Enabled 0”
+
+Once enabled, a graph will be displayed inside the Viewport at runtime.
+
+![](AnimBudget_GraphBreakdown.png "AnimBudget_GraphBreakdown.png")
+
+The graph is comprised of the following:
+
+1.  Time in ms smoothed over a kernel of about 20 frames (makes it easier to read trends and is the time taken per-tick). 
+
+2.  Total Time
+
+3.  Anim Budget (dotted line)
+
+4.  Performance (solid line)
+
+The performance will vary based on the amount of work that needs to be done. Below, the dotted line is our Anim Budget and the solid line is our performance. We are currently under budget as only a single character (the player) is ticking.
+
+![](AnimBudget_0x0.png "AnimBudget_0x0.png")
+
+Below, we increase the number of characters to 10 and the hit on performance is seen by the spike in performance (noisy lines). There are two lines for performance, the gray line is the actual system performance and is a bit noisy and fluctuates depending on the load of the system. The smooth white line gives you a better idea of what the actual system performance is.  
+
+![](AnimBudget_3x3.png "AnimBudget_3x3.png")
+
+In the final example below, we increase the number of characters to just over 100 and you can see that the performance hovers around the allocated budget (dotted line).  
+
+[REGION:lightbox]
+[![](AnimBudget_10x10.png)(w:900)](DynamicAnim_16.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
+[REGION:note]
+This is only for animation and represents how often animation is being ticked.
+[/REGION]
+
+Anim Budgeter tries to keep the overall amount of work that the system is doing within the budget and tries to maximize the quality that the system can produce. It will try and run the closest, most significant meshes at the highest framerate it can and push the framerate of lesser significant things or things that are further away lower. It does this all whilst filling out the budget with the total amount of work that needs to be done.
+
+On each of the Skeletal Meshes, you’ll see debug data:
+
+![](AnimBudget_CharacterDebugInfo.png "AnimBudget_CharacterDebugInfo.png")
+
+The numbers show the rate at which the mesh is being updated. A value of one would mean that it is being updated and ticking every frame. A value of five would mean, that every five frames, it would perform an update and tick.  
+
+As an example, in [Fortnite](https://www.epicgames.com/fortnite/), characters are comprised of several Skeletal Meshes (heads, bodies, backpacks, etc.) all of which can be ticking at a given time. As we run the Anim Budgeter, you’ll notice that in addition to how often the mesh updates which is represented by the numerical value, the text **Lo**, **Hi**, or **I** are used. This represents how the mesh is ticked.  
+
+*   **Hi** (or high detail) - means that Skeletal Mesh components and running more expensive logic. 
+
+*   **Lo** (or low detail) - means that expensive logic (such as extra character parts or more expensive work that can be skipped at a distance) is not running. 
+
+*   **I** (or interpolating) - means that the Skeletal Mesh is interpolating between frames. 
+
+The example below illustrates how the Anim Budgeter updates and priorities are shifted based on the amount of animation work needed.  
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ cBqqn2KY8fQ
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## Anim Budgeter C++ API
+
+You can access the C++ files for Anim Budgeter inside your Engine installation folder under:
+
+*   Engine\\Plugins\\Runtime\\AnimationBudgetAllocator\\Source\\AnimationBudgetAllocator\\Public\
+
+Below is the **IAnimationBudgetAllocator.h:**
+
+    // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.#pragma once
+    classUSkeletalMeshComponentBudgeted;classUWorld;structFAnimationBudgetAllocatorParameters;/**
+     * Dynamically manages skeletal mesh component tick rates to try to maintain a specified budget.
+     */classIAnimationBudgetAllocator{public:/** Get the budgeter for the specified world */static ANIMATIONBUDGETALLOCATOR_API IAnimationBudgetAllocator*Get(UWorld*InWorld);/**
+         * Register a component with the budgeter system. If the component is already registered this function does nothing.
+         * Once this is called:
+         * - Default tick function will be disabled
+         * - URO will be disabled
+         * - Parallel anim tasks will be re-routed to the budgeter
+         */virtualvoidRegisterComponent(USkeletalMeshComponentBudgeted*InComponent)=0;/**
+         * Unregister a component from the budgeter system. If the component is not registered this function does nothing.
+         * Once this is called:
+         * - Default tick function will be re-enabled
+         * - URO will be re-enabled
+         * - Parallel anim tasks will be re-routed back to internal functions
+         */virtualvoidUnregisterComponent(USkeletalMeshComponentBudgeted*InComponent)=0;/**
+         * Update the prerequisites of this component. Should be called when prerequisites may have changed externally.
+         */virtualvoidUpdateComponentTickPrerequsites(USkeletalMeshComponentBudgeted*InComponent)=0;/**
+         * Set the significance and other flags for the specified component.
+         * This information is used to dynamically control the tick rate of the component.
+         */virtualvoidSetComponentSignificance(USkeletalMeshComponentBudgeted*Component,floatSignificance,bool bNeverSkip =false,bool bTickEvenIfNotRendered =false,bool bAllowReducedWork =true,bool bForceInterpolate =false)=0;/** Set the specified component to tick or not. If the budgeter is disabled then this calls Component->SetComponentTickEnabled(bShouldTick). */virtualvoidSetComponentTickEnabled(USkeletalMeshComponentBudgeted*Component,bool bShouldTick)=0;/** Get whether the specified component is set to tick or not */virtualboolIsComponentTickEnabled(USkeletalMeshComponentBudgeted*Component)const=0;/** Inform that we reduced work for a component */virtualvoidSetIsRunningReducedWork(USkeletalMeshComponentBudgeted*Component,bool bInReducedWork)=0;/** Set the tick time */virtualvoidSetGameThreadLastTickTimeMs(int32 InManagerHandle,floatInGameThreadLastTickTimeMs)=0;/** Set the completion task time */virtualvoidSetGameThreadLastCompletionTimeMs(int32 InManagerHandle,floatInGameThreadLastCompletionTimeMs)=0;/** Tick the system per-frame */virtualvoidUpdate(floatDeltaSeconds)=0;/** Set whether this budget allocator is enabled */virtualvoidSetEnabled(bool bInEnabled)=0;/** Get whether this budget allocator is enabled */virtualboolGetEnabled()const=0;/** Set the various parameters */virtualvoidSetParameters(constFAnimationBudgetAllocatorParameters&InParameters)=0;};
+
+## Additional Console Commands
+
+The following console commands can also be used for debugging the Anim Budgeter:
+
+  
+
+  
+| Property | Description |
+| --- | --- |
+| **a.Budget.AlwaysTickFalloffAggression** | [INCLUDE:#excerpt_1] |
+| **a.Budget.BudgetFactorBeforeAggressiveReducedWork** | [INCLUDE:#excerpt_2] |
+| **a.Budget.BudgetFactorBeforeReduceWork** | [INCLUDE:#excerpt_3] |
+| **a.Budget.BudgetFactorBeforeReducedWorkEpsilon** | [INCLUDE:#excerpt_4] |
+| ****a.Budget.BudgetMs**** | [INCLUDE:#excerpt_5] |
+| **a.Budget.BudgetPressureSmoothingSpeed** | [INCLUDE:#excerpt_6] |
+| **a.Budget.Debug.Enabled** | [INCLUDE:#excerpt_7] |
+| **a.Budget.Debug.ShowAddresses** | [INCLUDE:#excerpt_8] |
+| **a.Budget.Enabled** | [INCLUDE:#excerpt_9] |
+| **a.Budget.GBudgetPressureBeforeEmergencyReducedWork** | [INCLUDE:#excerpt_10] |
+| **a.Budget.InitialEstimatedWorkUnitTime** | [INCLUDE:#excerpt_11] |
+| **a.Budget.InterpolationFalloffAggression** | [INCLUDE:#excerpt_12] |
+| **a.Budget.InterpolationMaxRate** | [INCLUDE:#excerpt_13] |
+| **a.Budget.InterpolationTickMultiplier** | [INCLUDE:#excerpt_14] |
+| **a.Budget.MaxInterpolatedComponents** | [INCLUDE:#excerpt_15] |
+| ****a.Budget.MaxTickedOffsreen**** | [INCLUDE:#excerpt_16] |
+| **a.Budget.MaxTickRate** | [INCLUDE:#excerpt_17] |
+| **a.Budget.MinQuality** | [INCLUDE:#excerpt_18] |
+| **a.Budget.ReducedWorkThrottleMaxInFrames** | [INCLUDE:#excerpt_19] |
+| **a.Budget.ReducedWorkThrottleMaxPerFrame** | [INCLUDE:#excerpt_20] |
+| **a.Budget.ReducedWorkThrottleMinInFrames** | [INCLUDE:#excerpt_21] |
+| **a.Budget.StateChangeThrottleInFrames** | [INCLUDE:#excerpt_22] |
+| **a.Budget.WorkUnitSmoothingSpeed** | [INCLUDE:#excerpt_23] |
+
+<!--
+[EXCERPT:excerpt_23]
+
+Values > 0.1, Default = 5.0  
+  
+The speed at which the average work unit converges on the measured amount.  
+
+[/EXCERPT:excerpt_23]
+-->
+<!--
+[EXCERPT:excerpt_22]
+
+Range \[1, 128\], Default = 30  
+  
+Prevents throttle values from changing too often due to system and load noise.  
+
+[/EXCERPT:excerpt_22]
+-->
+<!--
+[EXCERPT:excerpt_21]
+
+Range \[1, 255\], Default = 2  
+  
+Prevents reduced work from changing too often due to system and load noise. Min value used when over budget pressure (for example: aggressive reduction).  
+
+[/EXCERPT:excerpt_21]
+-->
+<!--
+[EXCERPT:excerpt_20]
+
+Range \[1, 255\], Default = 4  
+  
+Controls the max number of components that are switched to/from reduced work per tick.  
+
+[/EXCERPT:excerpt_20]
+-->
+<!--
+[EXCERPT:excerpt_19]
+
+Range \[1, 255\], Default = 20  
+  
+Prevents reduced work from changing too often due to system and load noise. Max value used when under budget pressure.
+
+[/EXCERPT:excerpt_19]
+-->
+<!--
+[EXCERPT:excerpt_18]
+
+Values \[0.0, 1.0\], Default = 0.0  
+  
+The minimum quality metric allowed. Quality is determined simply by NumComponentsTickingThisFrame / NumComponentsThatWeNeedToTick.  
+  
+If this is anything other than 0.0 then we can potentially go over our time budget.  
+
+[/EXCERPT:excerpt_18]
+-->
+<!--
+[EXCERPT:excerpt_17]
+
+Values >= 1, Default = 10  
+  
+The maximum tick rate we allow. If this is set then we can potentially go over budget but keep quality of individual meshes to a reasonable level.  
+
+[/EXCERPT:excerpt_17]
+-->
+<!--
+[EXCERPT:excerpt_16]
+
+Values >= 1, Default = 4  
+  
+The maximum number of off screen components we tick (most significant first).  
+
+[/EXCERPT:excerpt_16]
+-->
+<!--
+[EXCERPT:excerpt_15]
+
+Range >= 0, Default = 16  
+  
+Max number of components to interpolate before we start throttling.  
+
+[/EXCERPT:excerpt_15]
+-->
+<!--
+[EXCERPT:excerpt_14]
+
+Range \[0.1, 0.9\], Default = 0.75  
+  
+Controls the expected value an amortized interpolated tick will take compared to a 'normal' tick.  
+
+[/EXCERPT:excerpt_14]
+-->
+<!--
+[EXCERPT:excerpt_13]
+
+Values > 1, Default = 6  
+  
+Controls the rate at which ticks happen when interpolating.  
+
+[/EXCERPT:excerpt_13]
+-->
+<!--
+[EXCERPT:excerpt_12]
+
+Range \[0.1, 0.9\], Default = 0.4  
+  
+Controls the rate at which interpolated components falloff under load.  
+  
+Higher values mean that we reduce the number of interpolated components by a larger amount when the allocated time budget is exceeded.  
+  
+Components are only interpolated when the time budget is exceeded.  
+
+[/EXCERPT:excerpt_12]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+Values > 0.0, Default = 0.08  
+  
+Controls the time in milliseconds we expect, on average, for a Skeletal Mesh component to execute.  
+  
+The value only applies for the first tick of a component, after which we use the real time the tick takes.  
+
+[/EXCERPT:excerpt_11]
+-->
+<!--
+[EXCERPT:excerpt_10]
+
+Range > 0.0, Default = 2.5  
+  
+Controls the budget pressure where emergency reduced work (applied to all components except those that are bAlwaysTick).  
+
+[/EXCERPT:excerpt_10]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+Values: 0/1  
+  
+Controls whether the Skeletal Mesh batching system is enabled. Should be set when there are no running Skeletal Meshes.  
+
+[/EXCERPT:excerpt_9]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+Values: 0/1  
+  
+Controls whether debug rendering shows addresses of component data for debugging.  
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_7]
+
+Values: 0/1  
+  
+Controls whether debug rendering (in builds that support it) is enabled for the Animation Budget Allocator.  
+
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+Range > 0.0, Default = 3.0  
+  
+How much to smooth the budget pressure value used to throttle reduced work.  
+
+[/EXCERPT:excerpt_6]
+-->
+<!--
+[EXCERPT:excerpt_5]
+
+Values > 0.1, Default = 1.0  
+  
+The time in milliseconds that we allocate for Skeletal Mesh work to be performed.  
+  
+When overbudget various other console variables come into play, such as a.Budget.AlwaysTickFalloffAggression and a.Budget.InterpolationFalloffAggression.  
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_4]
+
+Range > 0.0, Default = 0.25  
+  
+Increased work will be delayed until budget pressure goes under a.Budget.BudgetFactorBeforeReducedWork minus this amount.  
+
+[/EXCERPT:excerpt_4]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+Range > 1, Default = 1.5  
+  
+Reduced work will be delayed until budget pressure goes over this amount.  
+
+[/EXCERPT:excerpt_3]
+-->
+<!--
+[EXCERPT:excerpt_2]
+
+Range > 1, Default = 2.0  
+  
+Reduced work will be applied more rapidly when budget pressure goes over this amount.  
+
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+Range \[0.1, 0.9\], Default = 0.8  
+  
+Controls the rate at which 'always ticked' components falloff under load.  
+  
+Higher values mean that we reduce the number of always ticking components by a larger amount when the allocated time budget is exceeded.  
+
+[/EXCERPT:excerpt_1]
+-->

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+INTSourceChangelist:3108692
 Availability:NoPublish
 Title:스태틱 메시 에디터 환영 튜토리얼
 Crumbs:
@@ -28,7 +28,7 @@ Description:
 
 이 뷰포트 조작법은 레벨 에디터의 뷰포트 조작법과 같습니다.
 * 우클릭 + W, A, S, D 는 비행입니다.
-* Alt + 좌클릭 드래그는 스태틱 메시 기준 공전입니다.
+* Alt + 좌클릭 드래그는 스태틱 메시 중심 궤도를 돕니다.
 * Alt + 우클릭 드래그 또는 마우스 휠 굴리기는 줌 레벨 조절입니다.
 * F 는 열린 스태틱 메시에 포커스를 맞춥니다.
 
@@ -128,7 +128,7 @@ UV 채널을 확인하려면, 툴바의 UV 버튼을 클릭하세요. UV 채널 
 
 여기서 ##DOP 라는 것은 K-DOP 단순 콜리전 생성기입니다. K-DOP 는 기본적으로 축에 평행인 면을 가지고 메시에 최대한 근접한 모양으로 둘러싸는 일종의 바운딩 볼륨으로, K 는 면의 갯수를 말합니다. 예를 들어 6DOP 는 6면체, 18DOP 는 18면체 입니다.
 
-[자세한 정보는 스태틱 메시 콜리전 참고서를 확인하세요.](DOCLINK:Engine/Physics/Collision/Reference)
+[자세한 정보는 스태틱 메시 콜리전 레퍼런스를 확인하세요.](DOCLINK:Engine/Physics/Collision/Reference)
 
 콜리전을 확인하려면, 툴바의 '콜리전 표시' 버튼을 사용하면 됩니다:
 
@@ -150,7 +150,7 @@ Collision
 
 여기서는 '최대 헐' 값에 정의된 갯수의 헐을 생성하여 스태틱 메시에 대한 콜리전을 생성합니다. 그러면 스태틱 메시 표면에 보다 가까운 콜리전이 생성됩니다.
 
-[자세한 정보는 스태틱 메시 콜리전 참고서를 확인하세요.](DOCLINK:Engine/Physics/Collision/Reference)
+[자세한 정보는 스태틱 메시 콜리전 레퍼런스를 확인하세요.](DOCLINK:Engine/Physics/Collision/Reference)
 
 3D 아트 제작 툴에서도 콜리전을 정의할 수 있습니다:
 [FBX 스태틱 메시 파이프라인](DOCLINK:Engine/Content/FBX/StaticMeshes#콜리전)
@@ -184,7 +184,7 @@ Collision
 [FBX 스태틱 메시 파이프라인](DOCLINK:Engine/Content/FBX/StaticMeshes)
 [스태틱 메시 에디터](DOCLINK:Engine/Content/Types/StaticMeshes/Editor)
 [스태틱 메시 라이트 맵 펼치기](DOCLINK:Engine/Content/Types/StaticMeshes/LightmapUnwrapping)
-[콜리전 참고서](DOCLINK:Engine/Physics/Collision/Reference)
+[콜리전 레퍼런스](DOCLINK:Engine/Physics/Collision/Reference)
 [FBX 스태틱 메시 콜리전](DOCLINK:Engine/Content/FBX/StaticMeshes#콜리전)
 
 ![](Stage1.png)

@@ -1,4 +1,4 @@
-Availability: Public
+Availability: Docs
 Title:4. Create Your Starting Point
 Crumbs:%ROOT%, Engine, Engine/Blueprints, Engine/Blueprints/QuickStart
 Description:Your launchpad will launch the Character when you overlap it, so start with creating a Begin Overlap node.

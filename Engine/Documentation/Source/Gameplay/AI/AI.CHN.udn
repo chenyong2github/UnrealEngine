@@ -9,8 +9,6 @@ version: 4.9
  Q:\Daniel.Broder\BT Docs 
 [/COMMENT]
 
-(#behaviortree)
-
 ## 行为树
 
 [REGION:buttonlist]
@@ -19,8 +17,6 @@ version: 4.9
 * [](Engine/AI/BehaviorTrees/NodeReference "%Engine/AI/BehaviorTrees/NodeReference:description%")
 * [](Engine/AI/BehaviorTrees/HowUE4BehaviorTreesDiffer "%Engine/AI/BehaviorTrees/HowUE4BehaviorTreesDiffer:description%")
 [/REGION]
-
-(#environmentquerysystem)
 
 ## 环境查询系统
 

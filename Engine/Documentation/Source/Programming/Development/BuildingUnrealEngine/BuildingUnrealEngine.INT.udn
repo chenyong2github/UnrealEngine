@@ -1,4 +1,4 @@
-﻿Availability:Public
+Availability:Public
 Title:Building Unreal Engine from Source
 Crumbs: %ROOT%, Programming, Programming/Development
 Description:Compiling Unreal Engine from source.
@@ -7,14 +7,12 @@ Related: GettingStarted
 Related: Engine/Content/QuickStart
 Related: Programming/QuickStart
 Related: Engine/QuickStart
-Related: Programming/UnrealBuildSystem
+Related: Programming/BuildTools
 Version: 4.11
 SkillLevel: Advanced
 topic-image:topic_buildingUE.png
 tags:Programming
 tags:Unreal Build System
-
-%Globals:osselect_linux%
 
 [TOC (start:2 end:3)]
 

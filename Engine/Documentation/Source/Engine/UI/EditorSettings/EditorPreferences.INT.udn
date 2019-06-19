@@ -5,9 +5,9 @@ Description:Settings for configuring general editor behavior for controls, viewp
 Version: 4.9
 topic-image:Engine/UI/EditorSettings_topic.png
 
-[REGION:fullwidth]
-![](Preferences01.png)
-[/REGION]
+
+[![Editor Preferences Dialog](EditorPreferences.png)(w:1200)](EditorPreferences.png)
+
 
 [TOC (start:2)]
 
@@ -15,11 +15,13 @@ topic-image:Engine/UI/EditorSettings_topic.png
 The **Editor Preferences** window is used to modify settings that control the behavior of Unreal Editor with respect to controls, viewports, source control, auto-saving, and more.
 [/EXCERPT:Intro]
 
-The **Editor Preferences** window can be opened from the **Edit** menu.
+To open the **Editor Preferences** window, click **Edit > Editor Preferences**.
 
-![](Preferences_Menu01.png)
+[REGION:lightbox]
+[![Edit Menu](EditMenu.png)(w:600)](EditMenu.png)
+[/REGION]
 
-## Preferences
+## Level Editor Preferences - Viewports
 
 ### Controls
 
@@ -61,6 +63,7 @@ The **Editor Preferences** window can be opened from the **Edit** menu.
 | **Preview Selected Cameras** | If enabled, selecting a camera Actor will display a live _picture in picture_ preview from the camera's perspective within the current editor viewport.  This can be used to easily tweak camera positioning, post-processing and other settings without having to possess the camera itself. [REGION:warning]This feature may reduce application performance when enabled.[/REGION] |
 | **Background Drop Distance** | The distance in Unreal Units from the camera to place Actors which are dropped on nothing in the viewport. |
 [/COMMENT]
+
 ### Editor Look and Feel
 
 | Option | Description |
@@ -71,7 +74,7 @@ The **Editor Preferences** window can be opened from the **Edit** menu.
 
 | Option | Description |
 | ------ | ----------- |
-| **Enable Combined translate/Rotate Widget** | [INCLUDE:Shared/Types/ULevelEditorViewportSettings#ballowtranslaterotatezwidget] |
+| **Enable Combined Translate/Rotate Widget** | [INCLUDE:Shared/Types/ULevelEditorViewportSettings#ballowtranslaterotatezwidget] |
 | **Clicking BSP Enables Brush** | If enabled, clicking on a Brush surface selects the brush and **Ctrl + Shift + Click** selects the surface.  When disabled, the opposite is true; clicking selects the surface and **Ctrl + Shift + Click** selects the brush. |
 | **Update BSP Automatically** | If enabled, Brush geometry rebuilds automatically when brushes are moved or modified in the viewport. When disabled, geometry must be rebuilt to see the changes. |
 | **Preserve Actor Scale on Replace** | If enabled, replacing Actors will respect the scale of the original Actor.  Otherwise, the replaced Actors will have a scale of 1.0. |
@@ -100,6 +103,68 @@ The **Editor Preferences** window can be opened from the **Edit** menu.
 | **Auto Reimport Textures** | If enabled, source files for textures are monitored and textures are automatically re-imported when the source file is modified. |
 | **Assets to Load at Once before Warning** | The number of objects to load at once in the **Content Browser** before displaying a warning about loading many assets. |
 
+###Privacy
+
+The Editor in Unreal Engine 4 (UE4) collects usage data to help Epic continually improve UE4. There are three types of data that the Editor can collect:
+* Usage data (also known as analytics);
+* Bug reports (also known as ensures);
+* And crash reports.
+
+Crash reports automatically offer you a choice of whether or not to send crash data to Epic. For usage data and bug reports, you can disable data collection in the Privacy category of Editor Preferences.
+
+Usage data primarily consists of aggregated or anonymized information that does not directly identify you as an individual user. However, this usage data may also include the following:
+* User's IP address
+* User's Internet Service Provider (ISP)
+* User's Continent, Country and City
+* User's Epic Account ID
+* User's project name
+
+If you want to “opt-out” of Editor data collection, you can choose to do so. Crash reports automatically offer you a choice of whether or not to send crash data to Epic. For usage data and bug reports, you can disable data collection in the Privacy category of Editor Preferences. To learn more about Epic's general privacy practices, be sure to check out Epic's [Privacy Policy](https://www.epicgames.com/site/en-US/privacypolicy). 
+
+To disable usage data collection or bug report collection, see the steps below.
+
+####Bug Reports
+
+1. In the menu bar, click **Edit > Editor Preferences**.  
+ [REGION:lightbox]
+ [![Edit Menu](EditMenu.png)(w:800)](EditMenu.png)
+ [/REGION]
+
+2. In the Editor Preferences dialog, scroll down to the **Privacy** category.  
+ [REGION:lightbox]
+ [![Privacy Category](EditorPrefsPrivacySection.png)(w:800)](EditorPrefsPrivacySection.png)
+ [/REGION]
+
+3. Click **Bug Reports**. In the right pane, under **Options**, the default setting is **Send unattended bug reports**.  
+ [REGION:lightbox]
+ [![Bug Reports Default Setting](EditorPrefsBugReportsDefault.png)(w:800)](EditorPrefsBugReportsDefault.png)
+ [/REGION]
+
+4. If you do not want bug reports sent to Epic, click **Don’t Send**.  
+ [REGION:lightbox]
+ [![Bug Reports Opt-Out Setting](EditorPrefsBugReportsOptOut.png)(w:800)](EditorPrefsBugReportsOptOut.png)
+ [/REGION]
+
+
+####Usage Data
+
+1. In the **Editor Preferences** dialog, scroll down to the **Privacy** category.  
+ [REGION:lightbox]
+ [![Privacy Category](EditorPrefsPrivacyCategory.png)(w:800)](EditorPrefsPrivacyCategory.png)
+ [/REGION]
+
+2. Click **Usage Data**. In the right pane, under **Options**, the default setting is **Send Usage Data**.  
+ [REGION:lightbox]
+ [![Usage Data Default Setting](UsageDataDefault.png)(w:800)](UsageDataDefault.png)
+ [/REGION]
+
+3. If you do not want usage data sent to Epic, click **Don’t Send**.  
+ [REGION:lightbox]
+ [![Usage Data Opt-Out Setting](UsageDataOptOut.png)(w:800)](UsageDataOptOut.png)
+ [/REGION]
+
+
+
 ### Auto Save
 
 | Option | Description |
@@ -108,18 +173,39 @@ The **Editor Preferences** window can be opened from the **Edit** menu.
 | **Save Maps** | If enabled, the auto-save procedure will attempt to save modified, loaded maps. |
 | **Save Packages** | If enabled, the auto-save procedure will attempt to save modified content packages. |
 | **Frequency in Minutes** | The time interval in minutes to wait between auto-saves. |
-| **Warning in Seconds** | The number of seconds the warning is displayed before an auto-save is performed. ![](autosave_warning.png) |
+| **Warning in Seconds** | [INCLUDE:#excerpt_0]  |
+
+<!--
+## Privacy Preferences
+
+There are three types of data that the Editor can collect: analytics data (usage data); *ensures* which are reports of events resulting in an unforeseen state but that don't crash the Editor (Bug Reports); and crash reports. Anything that crashes the Editor results in a pop-up window, and offer a choice to send a report or not send. For Usage Data and Bug Reports, you can change the settings in the sections below.
+
+###Bug Reports
+Under **Options**, you can select **Send unattended bug reports**, or **Don't Send**.
+
+![](EditorPrefsBugReportsDefault.png)
 
 
+
+
+![](BugReportsOptOut.png)
+
+###Usage Data
+-->
 [COMMENT:none]
+[EXCERPT:excerpt_0]
+The number of seconds the warning is displayed before an auto-save is performed.
+
+![](autosave_warning.png)
+[/EXCERPT:excerpt_0]
 
 [EXCERPT:CameraControls]
 [REGION:simpletable]
 | Option | Description |
 | ------ | ----------- |
-| _Use WASD for Camera Controls_ | The flight camera and WASD controls are always active. |
-| _Use WASD Only When Right Mouse Button is Held_ | The flight camera and WASD controls are only active when the RMB is pressed. |
-| _Never Use WASD for Camera Controls_ | The flight camera and WASD controls are never active. |
+| **Use WASD for Camera Controls** | The flight camera and WASD controls are always active. |
+| **Use WASD Only When Right Mouse Button is Held** | The flight camera and WASD controls are only active when the RMB is pressed. |
+| **Never Use WASD for Camera Controls** | The flight camera and WASD controls are never active. |
 [/REGION]
 [/EXCERPT:CameraControls]
 
@@ -127,15 +213,15 @@ The **Editor Preferences** window can be opened from the **Edit** menu.
 [REGION:simpletable]
 | Option | Description |
 | ------ | ----------- |
-| _Maintain Y-Axis FOV_ | The Y-Axis (vertical) is used to determine the FOV. |
-| _Maintain X-Axis FOV_ | The X-Axis (horizontal) is used to determine the FOV. |
-| _Maintain Major Axis FOV_ | The larger of the two axes is used to determine the FOV. |
+| **Maintain Y-Axis FOV** | The Y-Axis (vertical) is used to determine the FOV. |
+| **Maintain X-Axis FOV** | The X-Axis (horizontal) is used to determine the FOV. |
+| **Maintain Major Axis FOV** | The larger of the two axes is used to determine the FOV. |
 [/REGION]
 [/EXCERPT:AspectConstraint]
 
 [EXCERPT:SmallToolBarIcons]
 [REGION:imagetable]
-| ![](Look_and_Feel_Normal.png)(w:410) |![](Look_and_Feel_Small.png)(w:410) |
+| ![](Look_and_Feel_Normal.png)(w:600) |![](Look_and_Feel_Small.png)(w:600) |
 | :--------------------------------: | :-------------------------------: |
 | **Normal** | **Small** |
 [/REGION]
@@ -166,3 +252,5 @@ The **Editor Preferences** window can be opened from the **Edit** menu.
 [/EXCERPT:SelectionHighlight]
 
 [/COMMENT]
+
+

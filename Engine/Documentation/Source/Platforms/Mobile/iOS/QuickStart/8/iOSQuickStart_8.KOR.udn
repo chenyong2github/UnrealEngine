@@ -1,0 +1,147 @@
+INTSourceChangelist:6549201
+Title:8. 게임 패키징
+Crumbs:%ROOT%, Platforms, Platforms/Mobile/iOS, Platforms/Mobile/iOS/QuickStart
+Description:게임을 패키징하여 iOS 디바이스에 설치합니다.
+Availability:Docs
+Version: 4.18
+SkillLevel:Intermediate
+Checkpoint:iOSQS
+order:8
+
+[VAR:Steps]
+[OBJECT:Navigation]
+    [PARAM:previous]
+        [이전 단계](Platforms/Mobile/iOS/QuickStart/7 "%Platforms/Mobile/iOS/QuickStart/7:title%")
+    [/PARAM]
+    [PARAM:current]
+    [/PARAM]
+    [PARAM:home]
+        [퀵 스타트 홈](Platforms/Mobile/iOS/QuickStart)
+    [/PARAM]
+    [PARAM:next]
+        [다음 단계](Platforms/Mobile/iOS/QuickStart/9 "%Platforms/Mobile/iOS/QuickStart/9:title%")
+    [/PARAM]
+[/OBJECT]
+[/VAR]
+
+
+%Steps%
+
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    %windows%
+    [/PARAM]
+[/OBJECT]
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    %macos%
+    [/PARAM]
+[/OBJECT]
+
+
+
+
+[VAR:windows]
+
+%Globals:OSSelect%
+## 단계
+
+여기서는 UE4 에디터 없이 UE4 프로젝트를 설치할 수 있는 **.IPA** 를 만드는 법을 살펴보겠습니다.
+
+1. 디바이스를 컴퓨터에 연결합니다.
+
+1. 언리얼 에디터에서 프로젝트를 엽니다.
+
+    ![](Platforms/Mobile/iOS\QuickStart\7\open_project.png)
+
+1. **파일** 메뉴에서 **Package Project (프로젝트 패키지) > iOS** 를 선택합니다.
+
+    ![](package_menu.png)
+
+1. 디렉터리 대화창에서, `.ipa` 를 저장할 위치를 선택합니다.
+
+1. 게임 패키징 도중 에디터 우하단 구석에 패키징 메시지가 나타날 것입니다.
+    
+    ![](project_package.png)
+
+1. 프로젝트 패키지가 성공적으로 끝나면 메시지가 표시됩니다.
+
+    ![](package_complete.png)
+
+## 최종 결과
+
+완료되면, iOS 디바이스에 디플로이할 수 있는 .IPA 가 생겼을 것입니다.
+
+![](app_Install_xCode_6.png)
+
+
+[/VAR]
+
+[VAR:macos]
+
+%Globals:OSSelect%
+## 단계
+
+여기서는 UE4 에디터 없이 UE4 프로젝트를 설치할 수 있는 **.IPA** 를 만드는 법을 살펴보겠습니다.
+
+1. 디바이스를 컴퓨터에 연결합니다.
+
+1. 언리얼 에디터에서 프로젝트를 엽니다.
+
+    ![](Platforms/Mobile/iOS\QuickStart\7\open_project.png)
+
+1. **파일** 메뉴에서 **프로젝트 패키징 > iOS** 를 선택합니다.
+
+    ![](package_menu.png)
+
+1. 디렉터리 대화창에서 프로젝트의 디렉터리를 선택합니다. 패키징된 프로젝트 (`.ipa`) 가 위치할 곳입니다.
+
+1. 게임 패키징 도중 에디터 우하단 구석에 패키징 메시지가 뜹니다.
+    
+    ![](project_package.png)
+
+1. 프로젝트 패키징이 성공하면 메시지가 뜹니다.
+
+    ![](package_complete.png)
+
+1. xCode 에서 **Window** 로 간 뒤 **Devices and Simulators** 를 선택합니다.
+
+	![](app_Install_xCode_1.png)
+
+1. **Devices** 섹션에서 **더하기** 아이콘을 클릭하여 앱 설치 프로세스를 시작합니다.
+
+	![](app_Install_xCode_2.png)
+
+1. UE4 가 만든 **.ipa** 파일을 찾아 선택하고 **Open** 버튼을 누르면 설치 프로세스가 시작됩니다.
+
+	![](app_Install_xCode_3.png)
+
+1. 설치 진행상황이 Devices 창 상단에 걸쳐 표시됩니다.
+
+## 최종 결과
+
+완료되면 iOS 디비아스에 ipa 가 추가된 것이 보일 것입니다.
+
+![](app_Install_xCode_5.png)
+
+
+[/VAR]
+%Steps%

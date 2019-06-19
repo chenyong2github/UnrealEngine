@@ -4,7 +4,7 @@ Title: Color Grading and Filmic Tonemapper
 Description: Tonemapping and color correction effects for adjusting scene colors.
 Type: Overview
 SkillLevel:Beginner
-Version:4.16
+Version:4.22
 Parent:Engine/Rendering/PostProcessEffects
 related:Engine/Rendering/PostProcessEffects/UsingLUTs
 Order:4
@@ -15,60 +15,38 @@ Social-image:ColorGrading_Overview.png
 [TOC(start:2 end:3)]
 
 ![](ColorGrading_Overview.png)
-[REGION:caption] The Color Grading tools enable you to change the look and tone of your scene, like with this example that is showing the scene using different Scene Colors. [/REGION]
+[REGION:caption]
+The Color Grading tools enable you to change the look and tone of your scene, like with this example that is showing the scene using different Scene Colors.
+[/REGION]
 
-Within the Unreal Engine, the term **Color Grading** covers the Tone Mapping function (HDR to LDR transformation) that is used with [High Dynamic Range (HDR) display output](Engine/Rendering/HDRDisplayOutput)
-and further the color correction (LDR color to screen color transformation) processing of the image.
+Within the Unreal Engine, the term **Color Grading** covers the Tone Mapping function (HDR to LDR transformation) that is used with [High Dynamic Range (HDR) display output](Engine/Rendering/HDRDisplayOutput) and further the color correction (LDR color to screen color transformation) processing of the image.
 
 ## Tone Mapping
 
 [EXCERPT:ToneMapping_Desc]
-The purpose of the **Tone Mapping** function is to map the wide range of high dynamic range (HDR) colors into low dynamic range (LDR) that a display can output. This is the last stage of post processing
-that is done after the normal rendering during post processing. The process of tone mapping can be thought of as a way to simulate the response that film has to light. 
+The purpose of the **Tone Mapping** function is to map the wide range of high dynamic range (HDR) colors into low dynamic range (LDR) that a display can output. This is the last stage of post processing that is done after the normal rendering during post processing. The process of tone mapping can be thought of as a way to simulate the response that film has to light. 
 [/EXCERPT:ToneMapping_Desc]
 
-### Academy Color Encoding System (ACES) Filmic Tone Mapper
+### Academy Color Encoding System (ACES) Filmic Tonemapper
 
-[REGION:note]
-As of Unreal Engine version 4.15, the filmic tone mapper was enabled as the default tone mapper. Any content that was previously developed may look different due to this change. To use the old tone mapper 
-you can enter the following console command:
-
-	r.TonemapperFilm 0
-	
-The Tone Mapper property values that closest match the "old" tone mapper can be used by entering:
-* **Slope:** 0.98
-* **Toe:** 0.3
-* **Shoulder:** 0.22
-* **Black Clip:** 0
-* **White Clip:** 0.025
-[/REGION]
-
-The Filmic Tone Mapper that is used in UE4 matches the industry standard set by the [Academy Color Encoding System (ACES)](http://www.oscars.org/science-technology/sci-tech-projects/aces) for television 
-and film. This ensures that consistent color is preserved across multiple formats and displays while also as a way to future proof the source material since it will not have to be adjusted for each medium 
-that comes along. The filmic tone mapper also uses the same global tone mapper that was previously used in UE4, with the exception that there is now a filmic response meaning that the S-curve shape now better
-simulates film stock for a better overall look. 
+The Filmic tonemapper that is used in UE4 matches the industry standard set by the [Academy Color Encoding System (ACES)](http://www.oscars.org/science-technology/sci-tech-projects/aces) for television and film. This ensures that consistent color is preserved across multiple formats and displays while also as a way to future proof the source material since it will not have to be adjusted for each medium that comes along. The filmic tonemapper also uses the same global tonemapper that was previously used in UE4, with the exception that there is now a filmic response meaning that the S-curve shape now better simulates film stock for a better overall look. 
 
 Two places you'll immediately notice a difference is with Bloom and Exposure Levels.
 
 #### Physically Correct Emissive and Bloom
 
-Emissive values are now physically correct so that as the emissive power increases the color will become lighter, similarly to how colored lights work in the real world. As color gets tone mapped, if the final
-color is bright enough to start saturating the film / sensor, it will become white.
+Emissive values are now physically correct so that as the emissive power increases the color will become lighter, similarly to how colored lights work in the real world. As color gets tone mapped, if the final color is bright enough to start saturating the film / sensor, it will become white.
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
-	![Filmic Tone Mapper | Emissive](Bloom_FilmicToneMapper.png)(w:700)
+	![Filmic Tonemapper | Emissive](Bloom_FilmicToneMapper.png)(w:700)
 	[/PARAM]
 	[PARAM:after]
-	![Old Tone Mapper | Emissive](Bloom_OldToneMapper.png)(w:700)
+	![Legacy Tonemapper | Emissive](Bloom_OldToneMapper.png)(w:700)
 	[/PARAM]
 [/OBJECT]
 
-
-
-In this example, the "old" tonemapper is compared to the new filmic tone mapper. With a high enough emissive power, the color will start to become white, unlike the old tone mapper where values would just
-become overly saturated causing areas of the material to lose its detail. With the filmic tone mapper, you can even see that the Bloom in this scene retains its physical correctness as well as it is never 
-overly saturated, thus retaining it's reflective primary color value.
+In this example, the legacy tonemapper is compared to the new filmic tonemapper. With a high enough emissive power, the color will start to become white, unlike the legacy tonemapper where values would just become overly saturated causing areas of the material to lose its detail. With the filmic tonemapper, you can even see that the Bloom in this scene retains its physical correctness as well as it is never overly saturated, thus retaining it's reflective primary color value.
 
 #### Exposure Levels
 
@@ -80,24 +58,55 @@ In this example, there are a variety of colors and material types with varying r
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]
-	![Filmic Tone Mapper | Exposure Bias: 3](Exposure_FilmicToneMapper.png)(w:700)
+	![Filmic Tonemapper | Exposure Bias: 3](Exposure_FilmicToneMapper.png)(w:700)
 	[/PARAM]
 	[PARAM:after]
-	![Old Tone Mapper | Exposure Bias: 3](Exposure_OldToneMapper.png)(w:700)
+	![Legacy Tonemapper | Exposure Bias: 3](Exposure_OldToneMapper.png)(w:700)
 	[/PARAM]
 [/OBJECT]
 
-In this comparison, the Exposure Bias has been increased to a value of 3 so really show the response of the Filmic tone mapper compared to the "old" tone mapper implementation. Also, a value of three means that the processed image will be eight times brighter than the default value of 0 shown in the previous example above.
+In this comparison, the Exposure Bias has been increased to a value of 3 so really show the response of the Filmic tonemapper compared to the legacy tonemapper implementation. Also, a value of three means that the processed image will be eight times brighter than the default value of 0 shown in the previous example above.
 
-As the exposure level is increased, the difference between the filmic and the "old" tone mapper will become more apparent. The spheres in the filmic example will continue to have shape to their color and shading, even as they appear to look brighter. The sphere using the "old" tone mapper will start to have their colors blend with the shading. The spheres become really bright as a solid color, but you can't necessarily tell that they have a high exposure value, whereas the filmic tone mapper takes this into account. The filmic response looks like a natural camera effect if you were to increase its exposure.
+As the exposure level is increased, the difference between the filmic and the legacy tonemapper will become more apparent. The spheres in the filmic example will continue to have shape to their color and shading, even as they appear to look brighter. The sphere using the legacy tonemapper will start to have their colors blend with the shading. The spheres become really bright as a solid color, but you can't necessarily tell that they have a high exposure value, whereas the filmic tonemapper takes this into account. The filmic response looks like a natural camera effect if you were to increase its exposure.
+
+### Legacy Tonemapper
+
+With Unreal Engine 4.15, the Filmic tonemapper using the ACES standard is enabled by default. Because of this change, there may be differences in appearance to your existing content. While there is no timeframe in which we plan to remove the legacy tonemapper, it will be deprecated and removed at some point in a future Unreal Engine release. 
+
+For comparison, this is the difference in an average scene taken from the Sun Temple example project available on the Epic Games Launcher under the Learn tab.
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Legacy Tonemapper](1_4_14.png)(w:600)
+	[/PARAM]
+	[PARAM:after]
+	![Filmic Tonemapper](1_4_22.png)(w:600)
+	[/PARAM]
+[/OBJECT]
+
+If you want to maintain the *look* of the legacy tonemapper for your project, we recommend using a Post Process Volume and setting the following values under the **Film** section:
+
+* **Slope:** 0.98
+* **Toe:** 0.3
+* **Shoulder:** 0.22
+* **Black Clip:** 0
+* **White Clip:** 0.025
+
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Legacy Tonemapper](1_4_14.png)(w:600)
+	[/PARAM]
+	[PARAM:after]
+	![Filmic Tonemapper with Legacy Tonemapper Values](1_4_22_legacysettings.png)(w:600)
+	[/PARAM]
+[/OBJECT]
 
 ### Tonemapper Settings
 
-In the **Tone Mapper** section of the Post Process Volume, you'll find the properties that match the ACES standardized film stock. You can adjust these tone mapper controls to emulate other types of film stock for your project. 
+In the **Tonemapper** section of the Post Process Volume, you'll find the properties that match the ACES standardized film stock. You can adjust these tonemapper controls to emulate other types of film stock for your project. 
 
 [REGION:note]
-It is recommended that changes to these properties be used project-wide for a specific look and not changed dynamically or on a shot-by-shot basis. Instead, you should use the 
-[Color Grading](#colorcorrectionproperties) properties for any artistic adjustments.
+It is recommended that changes to these properties be used project-wide for a specific look and not changed dynamically or on a shot-by-shot basis. Instead, you should use the [Color Grading](#colorcorrectionproperties) properties for any artistic adjustments.
 [/REGION]
 
 ![](ToneMapperProperties.png)(w:500)
@@ -106,20 +115,20 @@ It is recommended that changes to these properties be used project-wide for a sp
 | Property | Description |
 | -------- | ----------- |
 | [REGION:tablesection] Tonemapper [/REGION] ||
-| **Slope** | This will adjust the steepness of the S-curve used for the tone mapper, where larger values will make the slope steeper (darker) and lower values will make the slope less steep (lighter). Value is in the range of [0.0, 1.0]. [0.0, 1.0]. [INCLUDE:#slopetable]  |
-| **Toe** | This will adjust the dark color in the tone mapper. Value is in the range of [0.0, 1.0]. [0.0, 1.0]. [INCLUDE:#toetable] |
-| **Shoulder** | This will adjust the bright color in the tone mapper. Value is in the range of [0.0, 1.0] [INCLUDE:#shouldertable] |
+| **Slope** | This will adjust the steepness of the S-curve used for the tonemapper, where larger values will make the slope steeper (darker) and lower values will make the slope less steep (lighter). Value is in the range of [0.0, 1.0]. [0.0, 1.0]. [INCLUDE:#slopetable]  |
+| **Toe** | This will adjust the dark color in the tonemapper. Value is in the range of [0.0, 1.0]. [0.0, 1.0]. [INCLUDE:#toetable] |
+| **Shoulder** | This will adjust the bright color in the tonemapper. Value is in the range of [0.0, 1.0] [INCLUDE:#shouldertable] |
 | **Black Clip** | This will set where the crossover happens where black's start to cut off their value. In general, this value should **NOT** be adjusted. Value is in the range of [0.0, 1.0] [INCLUDE:#blackcliptable] |
 | **White Clip** | This will set where the crossover happens where white's start to cut off their values. This will appear as a subtle change in most cases. Value is in the range of [0.0, 1.0] [INCLUDE:#whitecliptable] |
 [/REGION]
 
 [REGION:note]
-If you'd like to test different tone mapper values in a real-time grpah like the ones above, you can use the set up default [UE4 Tonemapper example](https://www.desmos.com/calculator/h8rbdpawxj) here.
+If you'd like to test different tonemapper values in a real-time grpah like the ones above, you can use the set up default [UE4 Tonemapper example](https://www.desmos.com/calculator/h8rbdpawxj) here.
 [/REGION]
 
 
 [COMMENT:none]
-- Tone Mapper Properties Excerpts ---
+- Tonemapper Properties Excerpts ---
 
 
 [EXCERPT:slopetable]
@@ -272,20 +281,15 @@ If you'd like to test different tone mapper values in a real-time grpah like the
 [/OBJECT]
 [/EXCERPT:whiteclipimage]
 
---- End Tone Mapper Properties Excerpts -
+--- End Tonemapper Properties Excerpts -
 [/COMMENT]
 
 
 ## Color Correction
 
-Color correction, or color grading, is used to alter or enhance the overall color of light in your scene. With the advent of HDR displays, the need to preserve color
-before it's processed is very important. It ensures that the color will be properly displayed.  
+Color correction, or color grading, is used to alter or enhance the overall color of light in your scene. With the advent of HDR displays, the need to preserve color before it's processed is very important. It ensures that the color will be properly displayed.
 
-In the past, the color correction would have been implemented through [Lookup Tables (LUTs)](Engine/Rendering/PostProcessEffects/UsingLUTs), which happens in LDR and on the final color that was output 
-to the monitor in sRGB color space. This presents a problem when working with HDR displays because the LUT is just a snapshot in time of the currently supported display it is
-being adjusted for and cannot be used to the same effect on an HDR display. To solve these types of issues, the [color correction controls](#colorcorrectionproperties) do their work in Scene Referred Linear Space, 
-which means all colors are captured before they are tone mapped. This makes it possible to only adjust your colors on one HDR display for any color correction to look correct on all displays the image is being 
-outputted to, whether they are HDR or LDR.
+In the past, the color correction would have been implemented through [Lookup Tables (LUTs)](Engine/Rendering/PostProcessEffects/UsingLUTs), which happens in LDR and on the final color that was output to the monitor in sRGB color space. This presents a problem when working with HDR displays because the LUT is just a snapshot in time of the currently supported display it is being adjusted for and cannot be used to the same effect on an HDR display. To solve these types of issues, the [color correction controls](#colorcorrectionproperties) do their work in Scene Referred Linear Space, which means all colors are captured before they are tone mapped. This makes it possible to only adjust your colors on one HDR display for any color correction to look correct on all displays the image is being outputted to, whether they are HDR or LDR.
 
 [REGION:note]
 You can learn more about the HDR pipeline and how this works for the benefit of your content in the [High Dynamic Range Display Output](Engine/Rendering/HDRDisplayOutput) page.
@@ -293,7 +297,7 @@ You can learn more about the HDR pipeline and how this works for the benefit of 
 
 ### Color Correction Properties
 
-In the **Color Grading** section of the Post Process Volume, you'll find the properties that enable you to have the most artistic control over the scene. 
+In the **Color Grading** section of the Post Process Volume, you'll find the properties that enable you to have the most artistic control over the scene.
 
 #### Settings
 
@@ -351,27 +355,19 @@ For more precise control over the slider values, you can hold the **Shift** key 
 | **HighLights Min** | This is a multiplier of the properties that affect the color correction properties that have been adjusted in the **Highlights** section.  |
 [/REGION]
 
-
 ### Workflow for Good Color Correction
 
 These are some good habits that should be used when working with the color grading tools in your Post Process Volume. 
 
-* The **Tone Mapper** controls should be set for a project-wide look. Ideally, these properties should not be adjusted and certainly should not be adjusted dynamically or on a shot-by-shot basis. 
-Use the [Color Grading](#colorcorrectionproperties) properties for this.
+* The **Tonemapper** controls should be set for a project-wide look. Ideally, these properties should not be adjusted and certainly should not be adjusted dynamically or on a shot-by-shot basis. Use the [Color Grading](#colorcorrectionproperties) properties for this.
 
-* Start by using the **Global** color correction properties and doing an initial pass on your scene before touching any of the other properties. The majority of your color grading changes should be 
-done with these properties.
+* Start by using the **Global** color correction properties and doing an initial pass on your scene before touching any of the other properties. The majority of your color grading changes should be done with these properties.
 
-* You should not try to use the **Gain** property to adjust exposure for your scene. This should be used for fine tweaks for different colors. Instead use the **Exposure Bias** in the **Lens** > 
-**Auto-Exposure** section.
+* You should not try to use the **Gain** property to adjust exposure for your scene. This should be used for fine tweaks for different colors. Instead use the **Exposure Bias** in the **Lens** > **Auto-Exposure** section.
 
-* Use **Offset** in minor amounts to make your shadowed or darkened areas a little lighter. If you want things to look a little hazy or have more bloom, then you can set a higher value, conversely 
-if your scene is overly hazy or has too much bloom you can lower the value to subtract color from the scene.
+* Use **Offset** in minor amounts to make your shadowed or darkened areas a little lighter. If you want things to look a little hazy or have more bloom, then you can set a higher value, conversely if your scene is overly hazy or has too much bloom you can lower the value to subtract color from the scene.
 
-* Instead of using a [Lookup Table (LUT)](Engine/Rendering/PostProcessEffects/UsingLUTs) for coloring the scene, since that happens after tone mapping, you should use the Color Grading properties 
-to get the look you want so that it's consistent on all displays you output to (LDR and HDR). However, it can be a good practice to quickly get a look to set the tone with a LUT and then adjust the 
-color correction to get a similar look.
-
+* Instead of using a [Lookup Table (LUT)](Engine/Rendering/PostProcessEffects/UsingLUTs) for coloring the scene, since that happens after tone mapping, you should use the Color Grading properties to get the look you want so that it's consistent on all displays you output to (LDR and HDR). However, it can be a good practice to quickly get a look to set the tone with a LUT and then adjust the color correction to get a similar look.
 
 ## Training Streams
 
@@ -393,10 +389,6 @@ color correction to get a similar look.
 	[/PARAMLITERAL]
 [/OBJECT]
 
-
-
-
-
 [COMMENT:none]
 
 [EXCERPT:ColorGradingLUT]
@@ -411,21 +403,27 @@ color correction to get a similar look.
 [REGION:lightbox]
 [![Natural Scene](lut_none.png)(w:300)](lut_none.png)
 [/REGION]
-[REGION:caption]Click image for full size view.[/REGION]
+[REGION:caption]
+Click image for full size view.
+[/REGION]
 [/EXCERPT:colorgradingnone]
 
 [EXCERPT:colorgradinggreen]
 [REGION:lightbox]
 [![Greenish Scene](lut_green.png)(w:300)](lut_green.png)
 [/REGION]
-[REGION:caption]Click image for full size view.[/REGION]
+[REGION:caption]
+Click image for full size view.
+[/REGION]
 [/EXCERPT:colorgradinggreen]
 
 [EXCERPT:colorgradingred]
 [REGION:lightbox]
 [![Reddish Scene](lut_red.png)(w:300)](lut_red.png)
 [/REGION]
-[REGION:caption]Click image for full size view.[/REGION]
+[REGION:caption]
+Click image for full size view.
+[/REGION]
 [/EXCERPT:colorgradingred]
 
 [/COMMENT]

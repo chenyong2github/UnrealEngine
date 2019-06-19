@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+INTSourceChangelist:6078243
+Availability:Docs
 Title: 3. 폴리지 타입 프로퍼티 조정
 Crumbs:
 Description:이번 단계에서는 프로시저럴 폴리지 액터 세팅을 조정해 봅니다.
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## Set to Docs as the pages have been combined into one. 
 
 [VAR:Steps]
 [OBJECT:Navigation]
@@ -15,7 +17,7 @@ Version: 4.8
 	[PARAM:current]
 	[/PARAM]
 	[PARAM:home]
-		[비법 홈](Engine\OpenWorldTools\ProceduralFoliage\QuickStart "Engine\OpenWorldTools\ProceduralFoliage\QuickStart:Title%")
+		[하우투 홈](Engine\OpenWorldTools\ProceduralFoliage\QuickStart "Engine\OpenWorldTools\ProceduralFoliage\QuickStart:Title%")
 	[/PARAM]
 	[PARAM:next]
 	[다음 단계](Engine\OpenWorldTools\ProceduralFoliage\QuickStart\4 "%Engine\OpenWorldTools\ProceduralFoliage\QuickStart\4:title%") 

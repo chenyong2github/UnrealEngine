@@ -1,0 +1,145 @@
+Availability: Public
+Title: Adding a Random Amount of Souls Per Kill
+Description: Going over how to award the player a random amount of souls for each vanquished enemy.
+Type: how-to
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+topic-image: SoulsPerKill_Step5.png
+SkillLevel: Beginner
+Order: 3
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+[TOC (start:2 end:2)]
+
+When playing Action RPG (ARPG), the player is awarded with one Soul per enemy that is vanquished. The player can then use the Souls they have collected to purchase potions and weapons in the store. While this system works exactly as it should, getting one Soul per vanquished enemy makes progressing feel like a chore instead of something that is fun. In the following How-To, we will take a look at setting up our enemies so that when they are vanquished by a player a random amount of Souls will be awarded.
+
+## Steps:
+
+[REGION:note]
+The latest version of Action RPG will already have the following setup up and working.
+[/REGION]
+
+1.  First, in the **Content Browser, **locate the **BP_EnemyCharacter Blueprint** and double - click on it to open it up.  
+
+    [REGION:lightbox]
+    [![](SoulsPerKill_Step1.png)(w:800)](SoulsPerKill_Step1.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]   
+
+1.  Once the BP_EnemyCharacter Blueprint is open, click on the **Plus Sign (+)** button in the **Functions** list to add a new function and name it **SpawnLoot**.  
+    ![](SoulsPerKill_Step2.png)
+
+1.  Select the **SpawnLoot** node in the graph and in the **Details** panel, under **Inputs** section, add a new **Integer **input named **Quantity**.   
+
+    ![](SoulsPerKill_Step3_1.png)
+
+1.  Add the following nodes to the graph. These nodes will allow us to spawn a random amount of souls in a random location with in  a box.
+
+    ![](SoulsPerKill_Step3_2.png)(w:800)
+    
+    | Blueprint Node Name | Default Value |
+    | --- | --- |
+    | For Loop | N/A |
+    | Get Actor Location | N/A |
+    | Random Point in Bounding Box | **Box Extent X**: 40, **Box Extent Y**: 40, **Box Extent Z**: 40 |
+    | Spawn Actor From Class | N/A |
+    
+1.  Click on the **Select Class** input on the **Spawn Actor From Class** node and from the displayed list, search for and select the **BP_SoulItem** Blueprint. Blah  
+
+    ![](SoulsPerKill_Step3_3.png "SoulsPerKill_Step3_3.png")
+
+1.  Next, connect the **Return Value** of the **GetActorLocation** node to the **Origin** input on the **Random Point in Bounding Box** node. This will make sure that when the souls are spawned, they are not all spawned on top of one another.  
+
+    ![](SoulsPerKill_Step3_4.png "SoulsPerKill_Step3_4.png")
+
+1.  Connect the output of the For Loop, **LoopBody**, to the input on the **SpawnActor** node and the connect the **Return Value** output on the **Random Point in Bounding Box** node to the **Spawn Transform** input on the **SpawnActor** node.   
+ 
+	![](SoulsPerKill_Step3_5.png "SoulsPerKill_Step3_5.png")
+
+1.  To finish up this function, connect the **Output** of the **SpawnLoot** node to the input on the **ForLoop** node and then connect the **Quantity** output on the SpawnLoot node to the **Last Index** input on the ForLoop node. When all of this has been completed, your Blueprint should look like the following image.  
+
+    [REGION:lightbox]
+    [![](SoulsPerKill_Step3.png)(w:500px)](SoulsPerKill_Step3.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    
+1.  Now, go to the **Event Graph** and locate the **EventDestroyed** event.  
+
+    ![](SoulsPerKill_Step4.png "SoulsPerKill_Step4.png")
+
+1.  Go to the end of the **EventDestroyed** and add the following nodes to the Event Graph:  
+
+    ![](SoulsPerKill_Step5.png "SoulsPerKill_Step5.png")     
+    
+    | Node Type | Node Name | Default Value | Instance Editable |
+    | --- | --- | --- | --- |
+    | Integer | SoulMIN | 1 | Yes |
+    | Integer | SoulMAX | 1 | Yes |
+    | Spawn Loot | N/A | N/A | N/A |
+    
+    [REGION:note]
+    To make the **SoulMIN** and **SoulMAX** Instance Editable, go to the **Variables** panel and click on the **eye** icon next to the variable name.
+    [/REGION]    
+
+1.  With the above nodes, we are now going to set them up so that when a player vanquishes an enemy, a random amount of Souls between the **SoulMIN** and **SoulMAX** will be spawned in the level. To get this working, set up the node to match the following image.  
+
+    ![](SoulsPerKill_Step6.png "SoulsPerKill_Step6.png")      
+
+1.  Once the random amount of Souls per kill has been set up, connect the output of the **Set Collision Object Type** to the input on the **Add Souls** node like in the image below. 
+
+    [REGION:lightbox]
+    [![](SoulsPerKill_Step7.png)(w:500px)](SoulsPerKill_Step7.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+    [REGION:note]
+    Don’t forget to reconnect the “Parent: Destroyed” node after our new logic.
+    [/REGION]    
+
+1.  With that completed, press the **Compile** and **Save** buttons and then close down the **BP_EnemyCharacter** Blueprint and open the **NPC\_GoblinBP\_Level_01** Blueprint.  
+
+    ![](SoulsPerKill_Step8.png "SoulsPerKill_Step8.png")  
+    
+1.  With the **NPC\_GoblinBP\_Level_01** Blueprint open, go to the **Details** panel and under the **Default** section, look for the **SoulMIN** and **SoulMAX** inputs.  
+
+    ![](SoulsPerKill_Step9-1.png "SoulsPerKill_Step9-1.png")
+
+1.  With the **SoulMIN** and **SoulMAX** inputs located, input a value of 1.0 in SoulMIN and a value of 3.0 in SoulMAX.  
+
+    ![](SoulsPerKill_Step10.png "SoulsPerKill_Step10.png")
+
+1.  Now open up the rest of the NPC Goblin Blueprints and input the following **SoulMIN** and **SoulMAX** numbers. When that is completed, make sure that you **Compile** and **Save** each Blueprint.  
+    
+    | Blueprint Name | SoulMIN | SoulMAX |
+    | --- | --- | --- |
+    | NPC Goblin Level 01 | 01 | 03 |
+    | Goblin NPC Level 02 | 03 | 05 |
+    | NPC Goblin Level 03 | 05 | 10 |
+    
+    [REGION:note]
+    What we are doing above is setting up our Goblins NPC's to award different amount of souls based on the level the NPC is. A Level 01 Goblin awards the smallest amount of souls while a level 03 Goblin awards the most amount of souls.
+    [/REGION]
+    
+## End Result:
+
+Now when you launch ARPG, the player will now receive a random amount of souls for each of the enemies that you vanquish like in the following video.  
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ 3EwHMqILmRc
+ [/PARAMLITERAL]
+[/OBJECT]

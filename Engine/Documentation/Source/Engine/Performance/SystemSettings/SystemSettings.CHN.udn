@@ -1,113 +1,134 @@
-﻿Availability: Public
-Title: 系统设置
+﻿INTSourceChangelist:3108692
+Availability: Public
+Title:系统设置
 Crumbs: %ROOT%, Engine
-Description: 和平台相关的一些设置集合，用于控制基于硬件兼容性的游戏和引擎的各个方面。
+Description:特定于平台的设置集合，这些设置根据硬件功能控制游戏和引擎的某些方面。
 version: 4.9
 
-[TOC]
+
+[TOC (start:2 end:3)]
 
  
 
 
 
-## 概述
 
-虚幻引擎3允许您通过 `FSystemSettings` 类来控制性能相关的各种功能，这个类是通过使用 `Engine.ini` 中的 `[SystemSettings]` 部分进行初始化的。
+虚幻引擎4允许用户通过从Engine.ini的[SystemSettings]部分初始化的 **FSystemSettings** 类来控制各种与性能相关的功能。
 
-以下部分详细说明了可以通过SystemSettings控制的各种设置。INI是变量的字符串名称，变量的类型决定了它所支持的值。请参照 `EngineIni[SystemSettings]` 获得示例。
-
-
-
-## 贴图细节层次的设置
-
-在 [贴图支持及设置](Engine/Content/Types/Textures/SupportAndSettings)页面中可以找到关于控制贴图分辨率和细节的相关设置的描述。
+以下部分详细介绍了可以通过[SystemSettings]控制的各种设置。.ini设置实际上是变量的字符串名，变量的类型决定了所支持的值。有关示例，请参阅EngineIni[SystemSettings]。
 
 
 
-## 世界细节的设置
+(#texturelodsettings)
 
-$ **DetailMode(细节模式)**: (int32)(1-3)当前的细节模式；决定是否更新actors的组件。和Scene.uc文件中的EDetailMode枚举值相对应，同时也在PrimitiveComponent(图元组件)中进行设置，并由WorldInfo.GetDetailMode()返回。
-$ **SpeedTreeLeaves**: (bool) 是否允许渲染SpeedTree 的叶子。
-$ **SpeedTreeFronds**: (bool) 是否允许渲染SpeedTree 的蕨类植物的叶子。
-$ **StaticDecals(静态的贴花)**: (bool) 是否允许静态的贴花。
-$ **DynamicDecals(动态的贴花)**: (bool) 是否允许动态的贴花。
-$ **UnbatchedDecals(未打包的贴花)**: (bool) 是否允许没有被放置在静态描画列表中并且具有动态视图关联的decals（贴花）。
-$ **DecalCullDistanceScale(贴花的剔除距离比例)**: (float) 剔除贴花的距离的比例因数。
-$ **DynamicLights(动态光源)**: (bool) 是否允许动态光源。
-$ **CompositeDynamicLights(组合动态光源)**: (bool) 是否允许把动态光源组合到光照环境中。
-$ **DirectionalLightMaps(定向的光照贴图)**: (bool) 是否允许使用了材质的法线和高光的定向光照贴图。
-$ **MotionBlur(运动模糊)**: (bool)是否允许运动模糊。
-$ **MotionBlurPause(运动模糊暂停)**: (bool) 是否允许暂停运动模糊。
-$ **DepthOfField(景深)**: (bool) 是否允许景深。
-$ **AmbientOcclusion(环境遮挡)**: (bool) 是否允许环境遮挡。
-$ **Bloom(光溢出)**: (bool) 是否允许光溢出。
-$ **UseHighQualityBloom(使用高质量光溢出)**: (bool) 是否使用高质量的光溢出或较快的版本。
-$ **Distortion(变形)**: (bool) 是否允许变形。
-$ **FilteredDistortion(过滤变形)**: (bool) 当在应用变形的过程中对场景颜色进行采样时，是否允许使用使用双线性过滤。
-$ **DropParticleDistortion(应用粒子变形)b>: (bool) 是否允许基于WorldInfo::bDropDetail的值在粒子上进行变形。
-$ **LensFlares(镜头眩光)b>: (bool) 是否允许渲染镜头眩光。
-$ **FogVolumes(雾体积)b>: (bool) 是否允许雾体积。
-$ **OneFrameThreadLag(一帧的线程滞后)b>: (bool) 是否允许渲染线程比游戏线程滞后一帧。
-$ **SkeletalMeshLODBias(骨架网格物体细节层次偏移)**: (int32)骨架网物体的LOD偏移。
-$ **ParticleLODBias(粒子的细节层次偏移)**: (int32) 粒子系统的LOD偏移。
+## 纹理LOD设置
+
+有关控制纹理分辨率和细节设置的详细描述，可以在[纹理支持和设置](Engine/Content/Types/Textures/SupportAndSettings)页面中找到。
 
 
 
-## 破裂对象的细节设置
+(#worlddetailsettings)
 
-$ **bAllowFracturedDamage（允许破裂受到伤害）**: (bool) 是否允许破裂的网格物体受到伤害。
-$ **NumFracturedPartsScale**: (float) 缩放针对特定游戏的破裂的物理对象的数量。
-$ **FractureDirectSpawnChanceScale**: (float) 当破裂的静态网格物体直接地受到伤害后产生刚体的百分比率。[0-1] 
-$ **FractureRadialSpawnChanceScale**: (float) 当破裂的静态网格物体受到径向冲击后产生刚体的百分比率。[0-1] 
-$ **FractureCullDistanceScale**: (float) 当破裂的静态网格物体受到伤害时是否应该真正地破裂的距离比例。
+## 世界场景细节设置
 
+$ **DetailMode**：(int32) (1-3) 当前的细节模式；确定是否应该更新/标记Actor的组件。对应于Scene.uc中的EDetailMode枚举，也设置在PrimitiveComponent中，并由WorldSettings.GetDetailMode()返回。
+$ **SpeedTreeLeaves**：（布尔值）是否允许渲染SpeedTree叶。
+$ **SpeedTreeFronds**：（布尔值）是否允许渲染SpeedTree复叶。
+$ **StaticDecals**：（布尔值）是否允许静态贴花。
+$ **DynamicDecals**：（布尔值）是否允许动态贴花。
+$ **UnbatchedDecals**：（布尔值）是否允许未放置在静态绘制列表中且具有动态视图相关性的贴花。 
+$ **DecalCullDistanceScale**：（浮点值）距离剔除贴花的比例因子。
+$ **DynamicLights**：（布尔值）是否允许动态光源。
+$ **CompositeDynamicLights**：（布尔值）是否将动态光源合成到光源环境中。
+$ **HighQualityLightmaps**：（布尔值）是否允许定向光照贴图，它使用材质的法线和高光。 
+$ **MotionBlur**：（布尔值）是否允许动态模糊。
+$ **MotionBlurPause**：（布尔值）是否允许暂停动态模糊。
+$ **DepthOfField**：（布尔值）是否允许景深。
+$ **AmbientOcclusion**：（布尔值）是否允许环境遮挡。
+$ **Bloom**：（布尔值）是否允许泛光。
+$ **UseHighQualityBloom**：（布尔值）是否使用高质量泛光或快速版本。
+$ **Distortion**：（布尔值）是否允许失真。
+$ **FilteredDistortion**：（布尔值）在应用通道期间对场景颜色采样时，是否允许失真以使用双线性过滤。
 
+$ **DropParticleDistortion**： 
+（布尔值）是否允许基于WorldSettings::bDropDetail在粒子上实现掉落失真。 
 
-## 阴影细节的设置
-
-$ **DynamicShadows**: (bool) 是否允许动态阴影。
-$ **MinShadowResolution**: (int32) 渲染阴影物体深度时所允许的最小尺寸(以贴图像素为单位)。
-$ **MaxShadowResolution**: (int32) 渲染阴影物体深度时所允许的最大尺寸(以贴图像素为单位)。
-$ **ShadowTexelsPerPixel**: (float) 物体像素和阴影的贴图像素的比率。
-$ **ShadowDepthBias**: (float) 除了VSM之外的所有类型的投射阴影在深度渲染遍数所应用的深度偏移。
-$ **ShadowFadeResolution**: (int32) 阴影淡出的分辨率，以贴图像素为单位。
-$ **ShadowFadeExponent**: (float) 控制阴影淡出的速率。
-
-
-
-## 贴图细节设置
-
-$ **OnlyStreamInTextures**: (bool) 如果启用，只能载入贴图不能载出贴图。
-$ **MaxAnisotropy**: (int32) 所使用的各向异性的最大级别。
-$ **FoliageDrawRadiusMultiplier**: (float) 植被描画的距离标量。
-
-
-
-## VSync 设置
-
-$ **UseVSync**: (bool) 是否使用VSync。
+$ **LensFlares**：（布尔值）是否允许渲染LensFlares。
+$ **FogVolumes**：（布尔值）是否允许雾体积。
+$ **OneFrameThreadLag**：（布尔值）是否允许渲染线程落后于游戏线程一帧。
+$ **SkeletalMeshLODBias**：(int32)骨架网格体的LOD偏差。
+$ **ParticleLODBias**：(int32)粒子系统的LOD偏差。
 
 
+
+(#fractureddetailsettings)
+
+## 破裂细节设置
+
+$ **bAllowFracturedDamage**：（布尔值）是否允许破裂网格体承受伤害。
+$ **NumFracturedPartsScale**：（浮点值）缩放允许的破裂物理对象的游戏特定数量。
+$ **FractureDirectSpawnChanceScale**：（浮点值）在破裂静态网格直接损坏后生成刚体的百分比几率。[0-1] 
+$ **FractureRadialSpawnChanceScale**：（浮点值）在破裂静态网格被径向爆炸损坏后生成刚体的百分比几率。[0-1] 
+$ **FractureCullDistanceScale**：（浮点值）破裂静态网格体在损坏时是否应该实际断裂的距离比例。 
+
+
+
+(#shadowdetailsettings)
+
+## 阴影细节设置
+
+$ **DynamicShadows**：（布尔值）是否允许动态阴影。
+$ **MinShadowResolution**：(int32)考虑到渲染阴影主题深度的最小尺寸（以纹素为单位）。 
+$ **MaxShadowResolution**：(int32)考虑到渲染阴影主题深度的最大平方尺寸（以纹素为单位）。
+$ **ShadowTexelsPerPixel**：（浮点值）主题像素与阴影纹素的比率。
+$ **ShadowDepthBias**：（浮点值）深度偏差，适用于除VSM外的所有投射阴影类型的深度通道。
+$ **ShadowFadeResolution**：(int32)一个分辨率（以纹素为单位），低于该分辨率时，阴影会淡出。 
+$ **ShadowFadeExponent**：（浮点值）控制阴影淡出的速率。 
+
+
+
+(#texturedetailsettings)
+
+## 纹理详情设置
+
+$ **OnlyStreamInTextures**：（布尔值）如果启用，纹理将只会流入不会流出。
+$ **MaxAnisotropy**：(int32)所使用的最大各向异性水平。
+$ **FoliageDrawRadiusMultiplier**：（浮点值）植被绘制距离标量。 
+
+
+
+(#vsyncsettings)
+
+## VSync设置
+
+$ **UseVSync**：（布尔值）是否使用VSync。
+
+
+
+(#screenpercentagesettings)
 
 ## 屏幕百分比设置
 
-$ **ScreenPercentage**: (float) 主要视图所占的屏幕百分比。
-$ **UpscaleScreenPercentage**: (bool) 是否增大屏幕来占有所有的前置缓冲。
+$ **ScreenPercentage**：（浮点值）屏幕主视图所占的百分比。
+$ **UpscaleScreenPercentage**：（布尔值）是否升高屏幕以占用整个前台缓冲。
 
 
 
-##分辨率设置
+(#resolutionsettings)
 
-$ **ResX**: (int32) 屏幕X方向的分辨率 
-$ **ResY**: (int32) 屏幕Y方向的分辨率 
-$ **Fullscreen**: (bool) 全屏 
+## 分辨率设置
+
+$ **ResX**：(int32)屏幕X分辨率。 
+$ **ResY**：(int32)屏幕Y分辨率。
+$ **Fullscreen**：（布尔值）全屏。
 
 
 
-## 网格物体设置
+(#meshsettings)
 
-$ **bForceCPUAccessToGPUSkinVerts**: (bool) 是否强制CPU访问GPU植皮的顶点数据。
-$ **bDisableSkeletalInstanceWeights**: (bool) 是否禁用实例化的骨架权重。
+## 网格体设置
+
+$ **bForceCPUAccessToGPUSkinVerts**：（布尔值）是否强制CPU访问GPU蒙皮顶点数据。 
 
  
 

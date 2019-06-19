@@ -1,0 +1,115 @@
+﻿INTSourceChangelist:6424558
+Availability: Public
+Title: Google VR 개발 요구 사항
+Description: 하드웨어, 소프트웨어, SDK 정보를 포함한 Google VR 개발 요구사항입니다. 
+Type: reference
+Version: 4.22
+Parent: Platforms/VR/GoogleVR
+Tags: Specifications
+Tags: Google VR
+Order: 8
+
+
+[TOC (start:2 end:2)]
+
+이 페이지에서는 [Google VR](Platforms/VR/GoogleVR) 플랫폼 개발을 시작하기 위해 필요한 하드웨어 및 소프트웨어 개발 키트 (SDK) 요구 사항을 확인할 수 있습니다.
+
+## 언리얼 엔진 4.22
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 VR 헤드셋** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **권장 디바이스 하드웨어** | [INCLUDE:#excerpt_0] |
+
+| 소프트웨어 요구 사항 ||
+| --- | --- |
+| **데스크톱 운영 체제** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **SDK 버전** | Android SDK 8 (API level 26) 이상입니다. |
+| **Android Studio Version** | 2.3.3 이상입니다. |
+
+<!--
+[EXCERPT:excerpt_0]
+Cardboard 의 경우, Android 디바이스 4.4 'Kit Kat' (API level 19) 이상이 필요합니다.  
+Daydream 의 경우, [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/) 페이지를 참고하세요.
+[/EXCERPT:excerpt_0]
+-->
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTODO.cs` 에서 확인할 수 있습니다. `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` 폴더에 있습니다.
+[/REGION]
+
+## 언리얼 엔진 4.21
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 VR 헤드셋** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **권장 디바이스 하드웨어** | [INCLUDE:#excerpt_1] |
+
+| 소프트웨어 요구 사항 ||
+| --- | --- |
+| **데스크톱 운영 체제** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **SDK 버전** | Android SDK 7.1.1 'Nougat' (API level 25) 이상입니다. |
+| **Android Studio Version** | 2.3.3 이상입니다. |
+
+<!--
+[EXCERPT:excerpt_1]
+Cardboard 의 경우, Android 디바이스 4.4 'Kit Kat' (API level 19) 이상이 필요합니다.  
+Daydream 의 경우, [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/) 페이지를 참고하세요.
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTODO.cs` 에서 확인할 수 있습니다. `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` 폴더에 있습니다.
+[/REGION]
+
+## 언리얼 엔진 4.20
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 VR 헤드셋** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **권장 디바이스 하드웨어** | [INCLUDE:#excerpt_2] |
+
+| 소프트웨어 요구 사항 ||
+| --- | --- |
+| **데스크톱 운영 체제** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **SDK 버전** | Android SDK 7.1.1 'Nougat' (API level 25) 이상입니다. |
+| **Android Studio Version** | 2.3.3 이상입니다. |
+
+<!--
+[EXCERPT:excerpt_2]
+Cardboard 의 경우, Android 디바이스 4.4 'Kit Kat' (API level 19) 이상이 필요합니다.  
+Daydream 의 경우, [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/) 페이지를 참고하세요.
+[/EXCERPT:excerpt_2]
+-->
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTODO.cs` 에서 확인할 수 있습니다. `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` 폴더에 있습니다.
+[/REGION]
+
+## 언리얼 엔진 4.19
+
+| 하드웨어 요구 사항 ||
+| --- | --- |
+| **권장 데스크톱 하드웨어** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **지원 VR 헤드셋** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **권장 디바이스 하드웨어** | [INCLUDE:#excerpt_3] |
+
+| 소프트웨어 요구 사항 ||
+| --- | --- |
+| **데스크톱 운영 체제** | [](GettingStarted/RecommendedSpecifications) 문서를 참고하세요. |
+| **SDK 버전** | Android SDK 7.1.1 'Nougat' (API level 25) 이상입니다. |
+| **Android Studio Version** | 2.3.3 이상입니다. |
+
+<!--
+[EXCERPT:excerpt_3]
+Cardboard 의 경우, Android 디바이스 4.4 'Kit Kat' (API level 19) 이상이 필요합니다.  
+Daydream 의 경우, [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/) 페이지를 참고하세요.
+[/EXCERPT:excerpt_3]
+-->
+
+[REGION:note]
+현재 지원되는 SDK 버전은 `UEBuildTODO.cs` 에서 확인할 수 있습니다. `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` 폴더에 있습니다.
+[/REGION]

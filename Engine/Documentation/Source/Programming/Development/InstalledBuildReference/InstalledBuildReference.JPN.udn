@@ -4,9 +4,9 @@ Title:Installed Build のリファレンス
 Crumbs: %ROOT%, Programming, Programming/Development
 Description:Installed Build のスクリプトの書き方をはじめ、Installed Build プロセスについて説明します。
 version:4.13
-parent:Programming/Development/BuildGraph
+parent:Programming/BuildTools/AutomationTool/BuildGraph
 type:Reference
-related:Programming/Development/BuildGraph
+related:Programming/BuildTools/AutomationTool/BuildGraph
 related:Programming/UnrealBuildSystem
 related:Programming/Development/BuildConfigurations
 tags:Programming
@@ -45,7 +45,7 @@ UE4 をツール、エディタと共にコンパイルし、テストを実行�
 
 ## Installed Build を作る
 
-[](Programming/Development/BuildGraph) スクリプティング システムで `[UE4Root]/Engine/Build/InstalledBuild.xml` を使って 
+[](Programming/BuildTools/AutomationTool/BuildGraph) スクリプティング システムで `[UE4Root]/Engine/Build/InstalledBuild.xml` を使って 
 Installed Build を作成することができます。
 
 ** Installed Build を作るには**

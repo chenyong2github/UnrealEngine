@@ -1,33 +1,281 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
-Title:蓝图快速入门指南
-Crumbs: %ROOT%, Engine, Engine/Blueprints
-version:4.9
-Description:创建首个蓝图，正式动工
-parent:Engine/Blueprints
-order:1
-type:quick start
-tags:Blueprints
-topic-image:QuickStart.png
+﻿INTSourceChangelist:6437789
+Availability: Public
+Title: 蓝图快速入门指南
+Description: 创建您的第一个蓝图，然后开始运行
+Type: quick start
+Version: 4.9
+Parent: Engine/Blueprints
+Tags: Blueprints
+topic-image: QuickStart.png
+Order: 20
 
 
+[TOC (start:2 end:2)]
 
 [OBJECT:EmbeddedVideo]
-	[PARAMLITERAL:width]
-	640
-	[/PARAMLITERAL]
-	[PARAMLITERAL:height]
-	390
-	[/PARAMLITERAL]
-	[PARAMLITERAL:videoid]
-	Ax4Xgu2Zb4g
-	[/PARAMLITERAL]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ EGhp2U2rNpI
+ [/PARAMLITERAL]
 [/OBJECT]
 
-快速入门指南将指导您利用不同组件在关卡中构建一个 Actor，然后转换为一个可添加发射行为的蓝图类，角色就能在关卡中四处飞行啦！
-转换为蓝图类意味着可以在场景中创建任意数量的起飞平台，从 **内容浏览器** 中拖入关卡即可。
+该快速入门指南将带领您在关卡中使用不同的组件构建一个角色，然后将其转换为一个蓝图类，您可以将弹射行为添加到其中，这样您的角色就可以在关卡中四处飞翔！将其制作为一个蓝图类还意味着，您可以在您的世界场景中创建任意数量的launchpad，只需从 **内容浏览器** 拖动到该关卡即可。
 
-(#Steps)
-## 步骤
+## 1 - 必要的项目设置
 
-[DIR(end:"1" output:"listbutton" type:"multi-step" parent:"Engine/Blueprints/QuickStart" org:"hierarchy")]
+1.  [创建新项目](Engine/Basics/Projects/Browser#creatingnewprojects)
+
+1.  在 **新建项目（New Project）** 向导的 **蓝图（Blueprint）** 选项卡中选择 **横版过关（Side Scroller）** 模板。
+
+1.  选择最适合您的设置的可扩展性和质量设置，但是要确保包含 **初学者内容包**。
+
+    [REGION:note]
+    如果您不确定哪些设置适合您，您可以在[项目设置](Engine/Basics/Projects/Browser#projectsettings)部分中找到更多信息。
+    [/REGION]
+    
+1.  给您的项目起一个名字，然后点击 **创建项目（Create Project）** 按钮来创建它。
+
+您现在应该看到一个横版过关关卡，准备好开始添加。  
+
+![](BPQS_1_FinalResult.png "BPQS_1_FinalResult.png")
+
+## 2 - 构建您的launchpad
+
+您将在关卡编辑器中构建launchpad，然后将其转换为蓝图类，以便将游戏行为添加到其中。
+
+1.  首先，在视口中移动，直到看到该关卡的顶部平台。
+  
+    ![](TopPlatforms.png)(w:500)  
+
+    我们将使用空Actor创建容器来容纳launchpad的所有部分。您将需要两个部分（或组件），一个是表示launchpad的形状，另一个是角色重叠时的触发器。
+
+1.  在 **模式（Modes）** 面板中，单击 **基本（Basic）**，然后查找 **空Actor（Empty Actor）**。
+  
+    ![](EmptyActor.png)
+
+1.  将它拖动到关卡中，这样它就位于顶部的一个平台上了。
+  
+    ![](BPQS_2_Step3.png "BPQS_2_Step3.png")
+
+1.  现在您已经在关卡中选择了Actor，它的属性在 **详情（Details）** 面板中可见。在 **详情（Details）** 面板顶部，您可以重命名它。继续并在框中单击以输入一个新名称，例如LaunchPad。 
+ 
+    ![](NameLaunchpad.png)
+
+1.  在 **详情（Details）** 面板中，单击 **添加组件（Add Component）** 按钮，然后在 **常见（Common）** 下选择 **立方体（Cube）**。
+  
+    ![](BPQS_2_Step5.png "BPQS_2_Step5.png")
+
+1.  单击并拖动新添加的 **立方体（Cube）** 至 **DefaultSceneRoot**，使 **立方体（Cube）** 成为新的根。
+  
+    ![](BPQS_2_Step6.png "BPQS_2_Step6.png")
+
+1.  选择 **立方体（Cube）** 组件后，将 **比例（Scale）** 更改为(X: 1.0, Y: 1.0, Z: 0.1) 
+ 
+    ![](BPQS_2_Step7.png "BPQS_2_Step7.png")
+
+1.  现在，我们将添加一个盒体碰撞组件，每当有东西与它重叠时，就会触发一个事件。在 **详情（Details）** 面板中，单击 **添加组件（Add Component）** 按钮，然后在 **碰撞（Collision）** 下选择 **盒体碰撞（Box Collision）**。
+  
+    ![](BPQS_2_Step8.png "BPQS_2_Step8.png")
+
+1.  将 **盒体碰撞（Box Collision）** 比例更改为( X: 1.25, Y: 1.25, Z: 9.75)，位置更改为( X: 0, Y: 0, Z: 200)，让盒体盖住并延伸到弹射板的上方。
+  
+    ![](BPQS_2_Step9.png "BPQS_2_Step9.png")
+
+[REGION:tip]
+任何时候需要更改Actor的属性时，例如要放大整个launchpad，您可以单击 **详情（Details）** 面板中 **添加组件（Add Components）** 按钮下的 **LaunchPad（实例）（LaunchPad (Instance)）**。
+[/REGION]
+
+现在您已经有了您想要的Actor，我们将把它转换为蓝图类。您可以在 **蓝图编辑器（Blueprint Editor）** 中添加更多组件，就像您在关卡中所做的那样去调整它们。
+
+## 3 - 将您的Actor转换为蓝图类
+
+在蓝图中进行更改意味着每次创建一个新的launchpad时，它都具有您在 **蓝图编辑器（Blueprint Editor）** 中创建的外观和感觉。虽然您可以在关卡中复制LaunchPad Actor，但是您对特定launchpad所做的任何更改都只会影响该副本。
+
+1.  在 **详情（Details）** 面板中，单击 **蓝图/添加脚本（Blueprint/Add Script）** 按钮。
+  
+    ![](BPButton.png)
+
+1.  展开 **SideScrollerBP** 文件夹，然后选择 **蓝图（Blueprints）** 文件夹。
+
+1.  此时，您可以重命名您的蓝图，或者将其保留为默认的 **LaunchPad_Blueprint**。
+
+1.  单击 **创建蓝图（Create Blueprint）**。 
+ 
+    ![](CreateBlueprint.png)
+
+您的蓝图现在可以在 **内容浏览器（Content Browser）** 中看到。现在，您可以从 **内容浏览器（Content Browser）** 拖放到该关卡，创建大量平台网格体和触发器的副本，但其上还没有任何行为。在下一步中，您将开始在蓝图中设置图表节点，以便在角色穿过launchpad时弹射角色。
+
+![](BPQS_3_FinalResult.png "BPQS_3_FinalResult.png")
+
+## 4 - 创建您的起始点
+
+要开始向蓝图类添加行为，需要在蓝图编辑器中打开它。
+
+1.  **双击** **内容浏览器（Content Browser）** 中的蓝图类。
+
+1.  **蓝图编辑器（Blueprint Editor）** 将打开，您可在视口中看到您的 **立方体（Cube）** 和 **盒体（Box）** 组件。此时，如果您调整 **盒体（Box）** 组件的位置，它将应用于您从这个蓝图类创建的所有launchpad。就像在LaunchPad Actor上处理组件一样，您可以在 **组件（Components）** 列表中选择 **盒体（Box）** 组件并调整位置。尝试使用 **位置** (X: 0, Y: 0, Z: 350)。
+
+    ![](BPQS_4_Step2.png "BPQS_4_Step2.png")
+
+1.  停靠在 **视口（Viewport）** 选项卡旁边的是 **构造脚本（Construction Script）** 选项卡和 **事件图表（Event Graph）** 选项卡。由于您将创建游戏行为，您应该从 **事件图表（Event Graph）** 开始。现在单击该选项卡。
+
+    ![](EventGraphStart.png)(w:500)
+
+    事件是蓝图图表执行的起始点，并且可以与许多不同的游戏进程场景相关联。最常用事件的选择将立即可见，被视为半透明的事件节点。虽然肯定对您的许多蓝图图表有用，但我们将制作一个我们自己的事件。
+
+1.  我们想要一个当任何东西与我们的 **盒体（Box）** 组件重叠时将执行的事件。首先，在 **组件（Components）** 选项卡中选择 **盒体（Box）** 组件。
+
+1.  **右键单击** 图表中的某个空白点，以打开可以添加到图表中节点的快捷菜单。
+
+    [REGION:note]
+    要在图表中四处移动，**右键单击** 并拖动。此时，您可以将图表拖到左侧，将预先放置的事件节点移出屏幕左侧，并创建更多的空白空间来创建launchpad逻辑。
+    [/REGION]
+
+    ![](RightClickContext.png)
+
+1.  我们正在为该组件添加一个事件，因此要展开 **为盒体添加事件（Add Event for Box）** 下拉菜单，然后展开 **碰撞（Collision）**。您也可以使用搜索框，使用“组件开始重叠（Component Begin Overlap）”来过滤菜单。
+
+1.  选择 **在组件开始重叠时（On Component Begin Overlap）**。
+
+    ![](BPQS_4_Step7.png "BPQS_4_Step7.png")
+
+您的图表现在有一个 **OnComponentBeginOverlap** 节点。当某些内容与launchpad的盒体组件重叠时，连接到此事件的任何节点都将执行。
+
+![](EventNode.png)
+
+在本快速入门的下一步中，您将开始将节点连接到该节点的输出引脚，并了解更多关于在蓝图中使用节点的内容。
+
+## 5 - 测试重叠Actor
+
+现在，任何内容与盒体触发器重叠时，**OnComponentBeginOverlap** 事件都将执行。但是，如果重叠的内容是我们的化身或Pawn，那么我们只想实际执行我们的弹射行为。把它想成是这样的问题：“与盒体触发器重叠的Actor是不是与我们的Pawn相同的那个Actor？”
+
+我们将通过处理来自 **OnComponentBeginOverlap** 事件的其他Actor输出来实现这一点。
+
+1.  单击 **OnComponentBeginOverlap** 事件上的 **其他Actor（Other Actor）** 引脚，并拖动到图表上的一个空白点中，释放以打开快捷菜单。
+
+    ![](OtherActorContext.png)
+
+    [REGION:tip]
+    快捷菜单是自适应性的，通过当前使用的引脚进行过滤，只显示兼容的节点。
+    [/REGION]
+    
+1.  在搜索框中键入“=”，以过滤可用节点，然后选择 **等于（对象）（Equals (Object)）**。 
+ 
+    ![](BPQS_5_Step2.png "BPQS_5_Step2.png")  
+
+    我们可以将 **横版过关角色（Side Scroller Character）** 设置为 **Equals** 节点的另一个输入，但是如果我们更改了正在使用的角色，就需要重新打开该蓝图并手动更新它。所以，让我们来获得一个对当前使用的Pawn的引用。
+
+1.  **右键单击** 图表的某个空白部分，以显示快捷菜单。
+1.  在菜单搜索框中键入“Pawn”，然后（在 **游戏（Game）** 下）选择 **获取玩家Pawn（Get Player Pawn）**。 
+ 
+    ![](GetPlayerPawnMenu.png)
+
+1.  将 **获取玩家Pawn（Get Player Pawn）** 上的 **返回值（Return Value）** 输出连接到 **Equals** 节点上的第二个输入。
+  
+    ![](BPQS_5_Step5.png "BPQS_5_Step5.png")  
+
+    现在我们有了一个节点，它将告诉我们另一个Actor是不是我们的玩家控制的Pawn，我们将使用该答案来更改我们图表的执行流程。也就是说，当执行流程离开On Component Begin Overlap节点时，我们将引导执行流程。为此，我们想要使用Flow Control节点，特别是 **Branch** 节点。
+
+1.  拖出 **OnComponentBeginOverlap** 节点上的执行引脚，并在图表的空白部分中释放。 
+ 
+    ![](BPQS_5_Step6.png "BPQS_5_Step6.png")
+
+1.  在搜索中键入“Branch”，然后从快捷菜单中选择 **分支（Branch）**。 
+ 
+    ![](BPQS_5_Step7.png "BPQS_5_Step7.png")
+
+1.  将 **Equals** 节点的输出引脚连接到 **Condition** 节点的输入布尔引脚。
+  
+    ![](BPQS_5_Step8.png "BPQS_5_Step8.png")
+
+现在，您可以根据重叠的Actor是否是您的Pawn来设置要执行的不同行为了。下一步中我们就会这么做，并且如果 **Equals** 比较的结果是 **True**，就设置蓝图节点来启动我们的角色。
+
+## 6 - 弹射您的角色
+
+我们的launchpad将使用一个名为 **Launch Character** 的函数来工作。**Launch Character** 函数将指定的速度添加到角色的当前速度，允许您将其扔向任何您想要的方向。不过它只对角色有效，所以我们需要确保我们的Pawn（化身）是一个角色（类人化身）。
+
+我们通过转换做到这一点。转换试图将您的输入转换为不同的类型，以便您可以访问仅允许用于该特定类型的特定功能。如果您的输入基于该类型，则会成功。
+
+除了以后添加的任何其他特殊行为之外，您可以在关卡中放置的所有内容都是Actor。这意味着您可以获得关卡中的任何内容的引用，并将其转换为 **Actor**，然后就会成功。然而，关卡中并不是所有东西都是游戏中代表您的Pawn，所以将一些东西转换为 **Pawn** 可能成功也可能失败。
+
+1.  拖出 **Get Player Pawn** 节点的 **返回值（Return Value）** 引脚。
+
+1.  在搜索框中键入“Cast”，然后在快捷菜单中选择 **转换为角色（Cast to Character）**。  
+
+    ![](CasttoCharacterMenu.png)
+
+1.  拖出 **Cast** 节点的 **As Character** 引脚。
+
+1.  在搜索框中键入“Launch”，然后在快捷菜单中选择 **弹射角色（Launch Character）**。
+  
+    [REGION:lightbox]
+    [![](BPQS_6_Step4.png "BPQS_6_Step4.png")](BPQS_6_Step4.png)
+    [/REGION]
+    [REGION:caption]
+    单击图像以查看完整尺寸。
+    [/REGION]
+    [REGION:note]
+    注意，用于成功转换的输出执行引脚自动连接到 **弹射角色（Launch Character）** 的输入执行引脚。
+    [/REGION]
+    
+1.  在 **Launch Character** 节点的Z字段中键入“3000”。
+
+1.  最后，将 **Branch** 节点的 **True** 执行引脚连接到 **Cast to Character** 节点的输入执行引脚，这样 **转换为角色（Cast to Character）** 和 **弹射角色（Launch Character）** 仅在重叠的Actor是我们的Pawn时发生。
+  
+    [REGION:lightbox]
+    [![](BPQS_6_Step6.png "BPQS_6_Step6.png")](BPQS_6_Step6.png)
+    [/REGION]
+    [REGION:caption]
+    单击图像以查看完整尺寸。
+    [/REGION]
+
+    此时，使用工具栏按钮 **编译（Compile）** 和 **保存（Save）** 蓝图，然后关闭蓝图编辑器。
+
+1.  从 **内容浏览器（Content Browser）** 中拖曳几个launchpad到您的关卡。
+ 
+    ![](BPQS_6_Step7.png "BPQS_6_Step7.png")
+
+1.  单击工具栏中的 **运行（Play）**，然后在关卡中奔跑（使用WASD）和跳跃（使用空格键）。降落在其中一个平台上，观看您在空中飞翔！
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ EGhp2U2rNpI
+ [/PARAMLITERAL]
+[/OBJECT]
+
+## 7 -  自主操作！
+
+使用您在本快速入门指南的课程中所学到的知识，尝试执行以下操作：
+
+1.  使用[音频组件](Engine/Components/Audio)在角色被弹射出去时播放声音。
+
+1.  创建[变量](Engine/Blueprints/UserGuide/Variables)来存储您的弹射速度，并公开它，以便您可以在关卡的每个副本上设置它。
+
+1.  将[粒子系统组件](Engine/Components/Rendering#particlesystemcomponent)添加到您的蓝图，并使用 **初学者内容包（Starter Content）** 中的[粒子系统](Engine/Rendering/ParticleSystems)之一。
+
+1.  添加一个[箭头组件](Engine/Components/Shapes)并使用其旋转来定义弹射角色的方向。
+
+1.  使用[时间轴](Engine/Blueprints/UserGuide/Timelines)将一些动画添加到盒体网格体来表示它正在弹射角色。
+
+有关蓝图可视化脚本的更多信息，请参阅[蓝图](Engine/Blueprints)页面。
+
+关于这一快速入门所涉及的具体内容：
+
+1.  有关可创建的不同类型蓝图类的快速概述，请参阅[蓝图入门](Engine/Blueprints/GettingStarted)
+
+1.  有关蓝图类的更多信息，请参阅：[蓝图类](Engine/Blueprints/UserGuide/Types/ClassBlueprint)
+
+1.  有关创建和使用蓝图类的更多简短教程，请参阅：[蓝图教程](Engine/Blueprints/BP_HowTo)
+
+1.  有关蓝图编辑器的更多信息，请参阅：[蓝图编辑器](Engine/Blueprints/Editor)

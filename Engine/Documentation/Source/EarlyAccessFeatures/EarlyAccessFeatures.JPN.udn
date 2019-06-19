@@ -1,0 +1,18 @@
+﻿INTSourceChangelist:6576377
+Availability:Public
+Crumbs: 
+Title:早期アクセス機能
+Description:開発中ですが、安定した状態で提供される機能。
+Type:landing
+Version:
+Parent: %ROOT%
+Order:100
+Tags: 
+topic-icon:earlyaccess_icon.png
+
+
+[REGION:note]
+早期アクセス機能は、機能の動作についての学習、パイプラインの計画、テストコンテンツの作成の機会を提供するものです。 **実制作で早期アクセスの機能を使う場合は注意深く使用する必要があります。** まだ、リリースできる品質のパフォーマンス、安定性、各プラットフォームでのサポートについては開発中という段階だからです。アセットの後方互換性はサポートされ、これらの機能の API は安定状態です。
+[/REGION]
+
+[DIR(output:"topic" tags:"Early Access" type:"landing" end:"1")]

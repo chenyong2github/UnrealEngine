@@ -1,11 +1,13 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6078243
+Availability:Docs
 Title:2.为生成器设置生成内容
 Crumbs:
 Description:设置程序化植物生成器，生成植物。
 Navigation:topic
 SkillLevel:Intermediate
 Version:4.8
+
+## 页面已被合并，标记为Docs。 
 
 [VAR:Steps]
 [OBJECT:Navigation]

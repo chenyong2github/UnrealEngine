@@ -1,11 +1,11 @@
-﻿INTSourceChangelist:4499937
+﻿INTSourceChangelist:6622979
 Availability: Public
 Crumbs: 
 Title: Significance Manager
 Description: 使用Significance Manager以为项目量身打造的方式调整性能。
 Type: 
 Version: 4.20
-Parent: Performance
+Parent: Engine/Performance
 Order: 1
 Tags: Performance
 Tags: Significance Manager

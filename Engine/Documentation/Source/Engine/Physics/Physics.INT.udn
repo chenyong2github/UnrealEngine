@@ -42,7 +42,7 @@ Unreal Engine 4 uses the PhysX 3.3 physics engine to drive its physical simulati
 
 [REGION:buttonlist]
 * [Vehicle User Guide](Engine/Physics/Vehicles/VehicleUserGuide "%Engine/Physics/Vehicles/VehicleUserGuide:description%")
-* [Vehicle Content Creation Guide](Engine/Physics/Vehicles/VehcileContentCreation "%Engine/Physics/Vehicles/VehcileContentCreation:description%")
+* [Vehicle Content Creation Guide](Engine/Physics/Vehicles/VehicleContentCreation "%Engine/Physics/Vehicles/VehicleContentCreation:description%")
 * [Simple Wheeled Vehicle Movement Component](Engine/Physics/Vehicles/SimpleWheeledVehicleMovementComponent "%Engine/Physics/Vehicles/SimpleWheeledVehicleMovementComponent:description%")
 * [Advanced Vehicle Template](Engine/Physics/Vehicles/DoubleWishboneVehicle "%Engine/Physics/Vehicles/DoubleWishboneVehicle:description%")
 * [Vehicle API Reference](API:AWheeledVehicle)
@@ -54,14 +54,14 @@ Unreal Engine 4 uses the PhysX 3.3 physics engine to drive its physical simulati
 * [Physics Bodies](Engine/Physics/PhysicsBodies "%Engine/Physics/PhysicsBodies:description%")
 * [Complex Vs. Simple Collision](Engine/Physics/SimpleVsComplex "%Engine/Physics/SimpleVsComplex:description%")
 * [Physical Materials](Engine/Physics/PhysicalMaterials "%Engine/Physics/PhysicalMaterials:description%")
-* [PhAT User Guide and Reference](Engine/Physics/PhAT "%Engine/Physics/PhAT:description%")
+* [PhAT User Guide and Reference](Engine/Physics/PhysicsAssetEditor "%Engine/Physics/PhysicsAssetEditor:description%")
 [/REGION]
 
 ## Related Links
 
 [REGION:buttonlist]
-* [Static Mesh Editor](Engine/Content/Types/StaticMeshes/Editor "%Engine/Physics/PhAT:description%")
-* [FBX Pipeline: Static Meshes](Engine/Content/FBX/StaticMeshes "%Engine/Physics/PhAT:description%")
+* [Static Mesh Editor](Engine/Content/Types/StaticMeshes/Editor "%Engine/Physics/PhysicsAssetEditor:description%")
+* [FBX Pipeline: Static Meshes](Engine/Content/FBX/StaticMeshes "%Engine/Physics/PhysicsAssetEditor:description%")
 [/REGION]
 
 

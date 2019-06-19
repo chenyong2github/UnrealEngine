@@ -1,8 +1,9 @@
 Availability:Public
 Title:Animation Blend Modes
-Crumbs: %ROOT%, Engine, Engine/Animation
 Description:Overview of the different blend functions between animation poses and transitions.  
 version: 4.11
+tags:Animation
+tags:Animation Features
 Related: Engine\Animation\StateMachines\TransitionRules
 Related: Engine\Animation\StateMachines
 Related: Engine/UI/CurveEditor

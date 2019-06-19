@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6576708
 Availability: Docs
 Title: 커맨드렛 만드는 법
 Crumbs:%ROOT%, Programming, Programming/Development, Programming/Development/Tools
@@ -229,7 +229,7 @@ Native 코드에서는 대부분의 커맨드렛이 본질적인 클래스로서
 
 ## 커맨드렛 목록
 
- [커맨드렛 목록](Engine/Commandlets/CommandletList) 페이지를 참고하시기 바랍니다.
+ [커맨드렛 API 레퍼런스](http://api.unrealengine.com/INT/API/Runtime/Engine/Commandlets/UCommandlet) 페이지를 참고하시기 바랍니다.
 
  
 

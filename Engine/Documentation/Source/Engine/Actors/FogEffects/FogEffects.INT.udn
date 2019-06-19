@@ -1,19 +1,15 @@
 Availability: Public
-Title:Fog Effects
-Crumbs: %ROOT%, Engine
-Description:Using fog to add ambiance to the world and set the mood of environments.
-parent:Engine/Rendering
-order:6
-type:landing
-topic-image:fog_topic.png
-
-[REGION:banner]
-![Fog Effects](fog_landing_banner.png)
-[/REGION]
+Title: Fog Effects
+Description: Using fog to add ambiance to the world and set the mood of environments.
+Type: landing
+Parent: Engine/Rendering
+Tags: Rendering
+Tags: Graphics
+topic-image: fog_topic.png
+hero-image:fog_landing_banner.png
 
 Fog effects can be used to add ambiance to the world and set the mood of environments. For instance, ground fog can be used to give the appearance of an eerie setting.
 
-[REGION:topics half]
-%Engine/Actors/FogEffects/AtmosphericFog:topic%
-%Engine/Actors/FogEffects/HeightFog:topic%
-[/REGION]
+[DIR(output:"topic" parent:"Engine/Actors/FogEffects" tags:"overview" tags:"atmospheric fog" end:"1")]
+
+[DIR(output:"topic" parent:"Engine/Actors/FogEffects" tags:"overview" tags:"exponential height fog" end:"1")]

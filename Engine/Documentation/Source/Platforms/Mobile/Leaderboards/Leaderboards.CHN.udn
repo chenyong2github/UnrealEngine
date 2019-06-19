@@ -29,8 +29,8 @@ topic-image:topic.png
 在下方页面中查看在每个平台上进行排行榜配置的详细内容：
 
 [REGION:buttonlist]
-* [](Platforms/Android/Leaderboards)
-* [](Platforms/iOS/Leaderboards)
+* [](Platforms/Mobile/Android/Leaderboards)
+* [](Platforms/Mobile/iOS/Leaderboards)
 [/REGION]
 
 [EXCERPT:Usage]

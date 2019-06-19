@@ -1,0 +1,75 @@
+﻿INTSourceChangelist:5952936
+Availability: Public
+Title: 路径追踪器
+Description: 概述虚幻引擎4中的路径追踪器。
+Type: overview
+Version: 4.22
+Parent: Engine/Rendering/RayTracing
+Tags: Early Access
+Tags: Ray Tracing
+Order: 0
+
+
+
+[TOC (start:2 end:4)]
+
+虚幻引擎4(UE4)为[路径追踪器](Engine/Rendering/RayTracing)提供了一个配套工具，其中包括一个完整的 **路径追踪器（Path Tracer）**。该工具对于生成引用图像（被称为 **标注数据**）非常有用。路径追踪器的使用方式与其他脱机渲染器类似，例如V-Ray和Arnold。它的工作原理是将许多光线投射到场景中，以收集有关光线和颜色的信息，从而为给定的像素着色。光线追踪对于实时图形非常有用，而路径追踪技术更适合生成无偏目标结果，因为它不受可使用样本数量的限制，这使得它适合与实时光线追踪功能进行比较。 
+
+
+[OBJECT:ComparisonSlider]
+ [PARAM:before]
+ ![Ray Tracer](RayTracer.png) 
+ [/PARAM]
+ [PARAM:after]
+ ![Path Tracer](PathTracer.png) 
+ [/PARAM]
+[/OBJECT]
+
+
+[REGION:note]
+注意，在上述比较中，某些材质或光照效果在该时刻未得到完全的支持。
+[/REGION]
+对于美术师和程序员来说，路径追踪器的标注数据图像的无偏属性使得将其内置到引擎中用于进行比较是非常有用的。并且，它不需要额外的第三方软件或插件来生成这些比较结果。对于美术师来说，它意味着能够更快地微调材质和光照设置。对于程序员来说，当为去噪等技术调整和验证实时算法的外观时，它改进了工作流程和迭代时间。
+
+(#usingthepathtracer)
+
+## 使用路径追踪器
+
+[REGION:warning]
+要使用路径追踪器，首先要确保您满足这样做的先决条件，然后按照[在项目中启用光线追踪](Engine/Rendering/RayTracing#enablingraytracinginyourproject)的步骤操作，这些步骤可以在实时光线追踪文档中找到。
+[/REGION]
+
+通过选择 **视图模式（View Modes）** 下拉框并选中 **路径追踪（Path Tracing）**，可以从 **关卡视口（Level Viewport）** 启用路径追踪器。  
+
+
+![PathTracerViewMode](PathTracerViewMode.png "PathTracerViewMode")
+
+
+路径追踪器使用一种渐进的积累方法，即在摄像机不移动的情况下不断地添加样本。它还使用自适应采样来追踪产生更多噪点的像素额外光线。 
+
+
+![PathTracerConvergence](PathTracerConvergence.gif "PathTracerConvergence")
+
+
+根据场景的复杂性和被采样的材质，像素在几分钟后开始填充最终的着色颜色。
+
+在 **后期处理体积（Post Process Volume）** 中的 **渲染功能（Rendering Features）> 路径追踪（Path Tracing）** 下，您可以设置光线应该行进的 **最大反射次数（Max Bounces）** 和应该用于收敛的 **逐像素采样（Samples Per Pixel）**。   
+
+
+![](Snag_5ab390dc.png)
+
+
+
+有关更多信息，请参阅[光线追踪设置](Engine/Rendering/RayTracing/RayTracingSettings)。   
+
+(#additionalnotes)
+## 其他说明
+
+下面是使用引擎内引用路径追踪器时的一些其他注意事项。
+
+*   其他属性和可调设置可以在“r.PathTracing”控制台变量下找到。  
+
+*   路径追踪器的当前实现缺少一些功能或工作流程，这些功能或工作流将使其成为最终像素渲染的替代，可供制作使用。相反，它的当前实现最适合用于比较引用。
+
+*   路径追踪器使得未来的研究和开发可以考虑内容创建流程，例如渐进光构建、电影渲染，甚至考虑非渲染应用，例如虚拟现实(VR)中的音频模拟、物理碰撞和命中检测以及人工智能(AI)。
+

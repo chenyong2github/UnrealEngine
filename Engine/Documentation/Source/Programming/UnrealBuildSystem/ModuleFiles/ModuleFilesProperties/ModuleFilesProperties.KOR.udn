@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4241091
+INTSourceChangelist:4241091
 Availability: NoPublish
 Title: 빌드 구성 프로퍼티 페이지
 Crumbs:
@@ -50,7 +50,7 @@ $ IsRedistributableOverride (Nullable&lt;Boolean&gt;): 이 모듈에 대한 재�
 
 $ bOutputPubliclyDistributable (Boolean): 이 모듈의 출력 결과에 (CarefullyRedist, NotForLicensees, NoRedist 와 같은) 모듈상의 코드/ 디펜던시가 있다 할지라도 공개 배포 가능하도록 할지 여부입니다. 소스를 제외하고 바이너리만 배포하려는 경우에 사용해야 합니다.
 
-$ WhitelistRestrictedFolders (List&lt;String&gt;): 이 바이너리 컴파일 시 레퍼런싱해야 하는 화이트리스트 폴더 목록으로, 제한 폴더 이름을 전파하지 않습니다.
+$ WhitelistRestrictedFolders (List&lt;String&gt;): 이 바이너리 컴파일 시 참조해야 하는 화이트리스트 폴더 목록으로, 제한 폴더 이름을 전파하지 않습니다.
 
 $ bEnforceIWYU (Boolean): PCHUsage 가 ExplicitOrSharedPCH 설정된 경우 "include what you use" 규칙을 사용합니다. (Engine.h, UnrealEd.h, 등...) 모노리식 헤더가 사용되면 경고가 나며, 소스 파일에 일치되는 헤더가 먼저 포함되어 있는지 검사합니다.
 

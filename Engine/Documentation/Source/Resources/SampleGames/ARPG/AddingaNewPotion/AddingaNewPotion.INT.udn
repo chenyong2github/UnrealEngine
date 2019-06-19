@@ -1,0 +1,161 @@
+Availability: Public
+Title: Adding a New Potion
+Description: Going over how to add a new potion type to Action RPG.
+Type: how-to
+Version: 4.21
+Parent: Resources/SampleGames/ARPG
+Tags: mobile
+Tags: Ability System
+Tags: Action RPG
+topic-image: image8.png
+SkillLevel: Beginner
+Order: 7
+Related: Engine/Blueprints/UserGuide/Variables
+Related: Engine/Blueprints/Scripting
+Related: Programming/UnrealArchitecture/Actors/Components
+
+
+[TOC (start:2 end:2)]
+
+To help counter the damage that is done by the monsters in Action RPG (ARPG) the player can purchase and consume potions. Currently, there are two potions in ARPG that a player can use, a Health Potion that restores the player's health and a Mana Potion that restores the player's mana. In the following How-To, we will take a look at creating a new potion that will restore the players health and mana.
+
+## Steps
+
+1.  First, locate the **Potions** folder in the ARPG project.
+	[REGION:lightbox]
+	[![](image4.png)(w:700)](image4.png)
+	[/REGION]
+	[REGION:caption]
+	Click for full image
+	[/REGION]
+	[REGION:note]
+	Since ARPG uses the Asset Manager, all potions that the player will use must be placed in the potions folder or they will not show up in the store or players inventory.
+	[/REGION]
+1.  Next, right-click in the Content Browser and from the displayed list, select the **Blueprint Class** option.  
+   
+	![](image12-1.png "image12-1.png")
+
+1.  From the **Pick Parent Class** window, locate the **All Classes** section and **input GA_PotionBase** into the search box and click on **GA_PotionBase**.  Then click **Select **to create the new asset.  
+    [REGION:lightbox]
+    [![](image6.png)(w:250px)](image6.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Name the new potion **GA_DeathsDoor**.  
+    [REGION:note]
+    The GA in GA_DeathsDoor stand for Gameplay Ability.
+    [/REGION]
+
+1.  Now that we have the Gameplay Ability part of the effect which controls the visuals next we need to create the Gameplay Effect. The Gameplay Effect controls the values that are applied to the player's health when the potion is consumed. To do this, right-click in the **Content Browser** and from the displayed list, select the **Blueprint Class** option.  
+    
+	![](image12-1.png "image12-1.png")
+
+1.  From the  **Pick Parent Class** window, locate the **All Classes** section and input **GE_HealBase** into the search box and click on the **GE_HealBase**. Then click **Select **to create the new asset.
+    [REGION:lightbox]
+    [![](image3.png)(w:250px)](image3.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Give the newly created potion a name of **GE_DeathsDoor**.
+    [REGION:note]
+    The GE in GE_DeathsDoor stand for Gameplay Effect.
+    [/REGION]
+
+1.  Next, double-click on the **GA_DeathsDoor** potion to open it up in the Blueprint editor and in the **Details** panel input the following information:
+    *   **Montage to Play:** AM\_Item\_Potion
+    *   **Target Gameplay Effect Classes:** GE_DeathsDoor  
+        [REGION:lightbox]
+        [![](image15.png)(w:600)](image15.png)
+        [/REGION]
+        [REGION:caption]
+        Click for full image.
+        [/REGION]
+
+1.  Once that has been completed, make sure to compile and save the GA_DeathsDoor Blueprint.
+
+1.  Then open up the **GE_DeathsDoor** Blueprint.
+
+1.  In the **Details** panel of the GE_DeathsDoor Blueprint click the **addition** icon in the **Modifiers** section to add an additional modifier.  
+    [REGION:lightbox]
+    [![](image7.png)(w:600)](image7.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Expand the newly created Modifier and set the **Attribute** to **RPGAttributeSet.Mana**.  
+    [REGION:lightbox]
+    [![](image11.png)(w:600)](image11.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Next, set the **Scalable** **Float** **Magnitude**  value to **2.0**. This will make sure that we are restoring the maximum amount of mana.
+    [REGION:lightbox]
+    [![](image2.png)(w:600)](image2.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Click on the table entry and from the displayed list, select the **AttackDamage**  option, setting the **None**  input to **Heavy Attack**. Once that has been completed, make sure to compile and save your Blueprint.      
+    [REGION:lightbox]
+    [![](image17.png)(w:600)](image17.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  Next, go to the **Items** \> **Potions** folder and then right-click in the Content Browser. From the displayed list go to the **Miscellaneous** section and select **Data** **Asset**.  
+    [REGION:lightbox]
+    [![](image5.png)(w:250px)](image5.png)
+    [/REGION]
+    [REGION:caption]
+    Click for full image.
+    [/REGION]
+
+1.  In the **Pick Data Asset Class** dialogue box, under the **All Classes** section, look for and click on the **RPGPotionItem** and then click the **Select** button.  
+    
+	![](image9.png "image9.png")
+
+1.  Name the newly created data asset **Potion_DeathsDoor** and open it up.  
+    
+	![](image1.png "image1.png")
+
+1.  The information that is filled out in this Data Asset is what the player will see when this item is viewed in the User Interface (UI). The following table lists all of the items that you will need to fill out:  
+    
+	![](image8.png "image8.png")
+    
+    |||
+    | --- | --- |
+    | **Property Name** | **Value** |
+    | Item Type | Potion |
+    | Item Name | Deaths Door |
+    | Item Description | Recovers 50% HP & 50% MP |
+    | Item Icon | T\_UI\_Potion_Mana |
+    | Price | 100 |
+    | Max Count | 0 |
+    | Max Level | 1 |
+    | Granted Ability | GA_DeathsDoor |
+    
+
+## End Results
+
+Now, press the Play button to launch ARPG and navigate to the Potions menu. You should now be able to purchase the Death's Door Potion like in the video below.
+
+[OBJECT:EmbeddedVideo]
+ [PARAMLITERAL:width]
+ 640
+ [/PARAMLITERAL]
+ [PARAMLITERAL:height]
+ 360
+ [/PARAMLITERAL]
+ [PARAMLITERAL:videoid]
+ F-lLXVDXN9k
+ [/PARAMLITERAL]
+[/OBJECT]

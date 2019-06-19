@@ -1,58 +1,56 @@
-Availability:Public
-Title:Shared References
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/SmartPointerLibrary
-Description:Smart pointer type that cannot be uninitialized or assigned null.
-Type:reference
+Availability: Public
+Title: Shared References
+Description: Smart pointer type that cannot be uninitialized or assigned null.
+Type: reference
 Version: 4.9
-Parent:Programming/UnrealArchitecture/SmartPointerLibrary
-Order:
-Tags:Programming
+Parent: Programming/UnrealArchitecture/SmartPointerLibrary
+Tags: Programming
+Order: 1
 
-[TOC(start:2)]
 
-A **shared reference** is a non-nullable shared pointer. This means you cannot create an empty shared reference and you cannot assign null to a shared reference, which helps you write safer, cleaner code since you know it is safe to access the object. In fact, shared references do not even have an **IsValid()** method - like shared pointers do - since they are always valid. It is recommended to always use shared references instead of shared pointers when possible.
+[TOC]
 
-If you need empty/nullable references, you should use [](Programming/UnrealArchitecture/SmartPointerLibrary/SharedPointer) instead.
+A **Shared Reference** is a strong, non-nullable **Smart Pointer** for data objects outside of the Engine's `UObject` system. This means you cannot reset a Shared Reference, assign a null object to it, or create an empty one. Because of this, Shared References always contain a valid object, and do not even have an `IsValid` method. When choosing between Shared References and **[Shared Pointers](Programming/UnrealArchitecture/SmartPointerLibrary/SharedPointer)**, Shared References are the preferred option unless you need an empty or nullable object. If you need potentially-empty or nullable references, you should use Shared Pointers instead.
+
+[REGION:note]
+Unlike a standard C++ reference, a Shared Reference can be reassigned to another object after creation.
+[/REGION]
 
 ## Declaration and Initialization
 
-Shared references are always initialized with a valid object and cannot be declared without being initialized.
+Shared References are non-nullable, so intialization requires a data object. Attempting to create a Shared Reference without a valid object will not compile, and attempting to initialize a Shared Reference to a null pointer variable.
 
-An example of creating a new shared reference:
+    // Create a shared reference to a new node
+    TSharedRef<FMyObjectType> NewReference = MakeShared<FMyObjectType>();
 
-	// Create a shared reference to a new node
-	TSharedRef<FTreeNode> NodeRef( new FTreeNode() );
+Attempting to create a Shared Reference without a valid object will not compile:
 
-Attempting to declare a shared reference without initializing it or assigning null is never allowed:
+    // Neither of these will compile:
+    TSharedRef<FMyObjectType> UnassignedReference;
+    TSharedRef<FMyObjectType> NullAssignedReference = nullptr;
+    // This will compile, but will assert if NullObject is actually null.
+    TSharedRef<FMyObjectType> NullAssignedReference = NullObject;
 
-	TSharedRef<UBool> EmptyBool;			// Will not Compile!!
+### Converting Between Shared Pointers and Shared References
 
-## Shared Reference Usage
+Converting between Shared Pointers and Shared References is a common practice. Shared References implicitly convert to Shared Pointers, and provide the additional guarantee that the new Shared Pointer will reference a valid object. Conversion is handled by the normal syntax:
 
-For the most part, using a shared reference is just like using a shared pointer.
+    TSharedPtr<FMyObjectType> MySharedPointer = MySharedReference;
 
-	// Create a shared reference to a new node
-	TSharedRef<FTreeNode> NodeRef( new FTreeNode() );
+You can create a Shared Reference from a Shared Pointer with the `Shared Pointer` function, `ToSharedRef`, as long as the Shared Pointer references a non-null object. Attempting to create a Shared Reference from a null Shared Pointer will cause the program to assert.
 
-	NodeRef->ListChildren();
-	( *NodeRef ).ListChildren();
-	const FTreeNode& NodeVar = NodeRef.Get();
+    // Ensure your shared pointer is valid before dereferencing to avoid a potential assertion.
+    If (MySharedPointer.IsValid())
+    {
+        MySharedReference = MySharedPointer.ToSharedRef();
+    }
 
-Again, the main difference is that you cannot set a shared pointer to null:
+## Comparison
 
-	TSharedRef<FTreeNode> Node = null;		// Will not Compile!!
+You can test Shared References against each other for equality. In this context, equality means referencing the same object.
 
-### Pointer and Reference Conversion
-
-Shared references convert to shared pointers implicitly so it is always safe to make a pointer from a reference, i.e. you can assign a shared reference to a shared pointer or pass a shared reference to a method expecting a shared pointer.
-
-	TSharedPtr<FTreeNode> SomeNodePtr = NodeRef;
-
-However, conversion from a pointer is potentially unsafe, and you are forced to explicitly perform the conversion using the **ToSharedRef()** function.
-
-	// Explicitly reference a pointer. Will assert if the pointer is not valid!
-	NodeRef = SomeNodePtr.ToSharedRef();
-
-[REGION:note]
-In a similar manner to the * operator with C++ pointers, using ToSharedRef() will assert if the object is not valid.
-[/REGION]
+    TSharedRef<FMyObjectType> ReferenceA, ReferenceB;
+    if (ReferenceA == ReferenceB)
+    {
+        // ...
+    }

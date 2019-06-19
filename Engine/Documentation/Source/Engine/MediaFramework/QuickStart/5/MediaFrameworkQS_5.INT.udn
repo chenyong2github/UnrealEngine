@@ -1,4 +1,4 @@
-Availability:Public
+Availability:Docs
 Crumbs: %ROOT%
 Title:5 - TV Blueprint Functionality & Testing
 Description:In this step, we finish off the functionality for our TV Blueprint and test everything out in the level. 
@@ -11,6 +11,8 @@ type:multi-step
 order:5
 tags:Media Framework
 tags:Blueprints
+
+## Marked as Docs as the page has been combined into one page. 
  
 [NAV]
 

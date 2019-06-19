@@ -1,17 +1,19 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:6593862
 Availability: Public
 Title:밤 씬 라이팅
-Crumbs:%ROOT%, Resources,  Resources/Showcases, Resources/Showcases/RealisticRendering
 Description:UE4 에 포함된 Realistic Rendering, 실사 렌더링 데모렛 중 밤 씬에 대한 개요입니다.
+Version: 4.9
+Type: overview
+topic-image: RoomNight.png
+Parent: Resources/Showcases/RealisticRendering
+Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
+Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Directional
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Spot
-Related: Engine/Rendering/LightingAndShadows/Lightmass
-Related: Engine/Rendering\LightingAndShadows
-Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
-Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
+Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Resources/ContentExamples/Lighting/4_2
-Version: 4.9
+
 
 [REGION:fullwidth]
 ![](RoomNight.png)
@@ -26,7 +28,7 @@ Version: 4.9
 
 ## 셋업 고려사항
 
-밤 씬은 (_RoomNight.umap_) 낮 씬과 유사합니다. Stationary Directional Light 가 달빛인 듯 가로등불인 듯, 추가적인 라이팅을 담당합니다. 이 라이트를 켜고 혹은 끄고 발코니를 본 모습은 이렇습니다:
+밤 씬은 (*RoomNight.umap*) 낮 씬과 유사합니다. Stationary Directional Light 가 달빛인 듯 가로등불인 듯, 추가적인 라이팅을 담당합니다. 이 라이트를 켜고 혹은 끄고 발코니를 본 모습은 이렇습니다:
 
 [OBJECT:ComparisonSlider]
 	[PARAM:before]

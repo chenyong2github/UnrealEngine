@@ -1,13 +1,15 @@
-﻿INTSourceChangelist:4385367
+﻿INTSourceChangelist:6439153
 Availability: Public
-Crumbs: 
 Title: 从另一个骨架网格体复制姿势
 Description: 展示如何使用“从网格体复制姿势”动画蓝图节点将姿势从一个骨架网格体复制到另一个骨架网格体。 
 Type:how-to
+skilllevel:Advanced
 Version: 4.20
 Parent: Engine/Animation/AnimHowTo
 Order: 2
-Tags: Animation, Animation Blueprint, Copy Pose
+Tags: Animation
+tags:Animation Blueprint
+tags: Copy Pose
 
 
 处理动画角色时，有时可能希望将同一动画数据应用给完全不同的角色。通过使用 **从网格体复制姿势（Copy Pose From Mesh）** 动画蓝图节点和少量蓝图可视化脚本，可以引用骨架网格体组件并将它使用的姿势复制给其他骨架网格体的动画蓝图。

@@ -1,12 +1,10 @@
-Availability: Docs
-Title:Volumes Overview
-Crumbs:%ROOT%, Engine, Engine/Actors, Engine/Actors/Volumes
+Availability: Public
+Title:Physics Volume Reference
+Parent: Engine/Actors/Volumes
 Description:Physics Volume reference details
 version:4.16
 type:reference
 
-
-### Physics Volume
 
 There are some properties that are designated for this volume which can be adjusted from the **Details** panel.
 
