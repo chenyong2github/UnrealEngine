@@ -16,7 +16,6 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/SToolTip.h"
 #include "Binding/PropertyBinding.h"
-#include "Blueprint/WidgetNavigation.h"
 #include "Logging/MessageLog.h"
 #include "Blueprint/UserWidget.h"
 #include "Slate/SObjectWidget.h"
@@ -604,7 +603,7 @@ FVector2D UWidget::GetDesiredSize() const
 	return FVector2D(0, 0);
 }
 
-void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus)
+void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus/* = NAME_None*/, UWidget* InWidget/* = nullptr*/, FCustomWidgetNavigationDelegate InCustomDelegate/* = FCustomWidgetNavigationDelegate()*/)
 {
 	if (Navigation == nullptr)
 	{
@@ -614,6 +613,8 @@ void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRu
 	FWidgetNavigationData NavigationData;
 	NavigationData.Rule = Rule;
 	NavigationData.WidgetToFocus = WidgetToFocus;
+	NavigationData.Widget = InWidget;
+	NavigationData.CustomDelegate = InCustomDelegate;
 	switch(Direction)
 	{
 		case EUINavigation::Up:
@@ -642,6 +643,37 @@ void UWidget::SetNavigationRuleInternal(EUINavigation Direction, EUINavigationRu
 void UWidget::SetNavigationRule(EUINavigation Direction, EUINavigationRule Rule, FName WidgetToFocus)
 {
 	SetNavigationRuleInternal(Direction, Rule, WidgetToFocus);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleBase(EUINavigation Direction, EUINavigationRule Rule)
+{
+	if (Rule == EUINavigationRule::Explicit || Rule == EUINavigationRule::Custom || Rule == EUINavigationRule::CustomBoundary)
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		FMessageLog("PIE").Error(LOCTEXT("SetNavigationRuleBaseWrongRule", "Cannot use SetNavigationRuleBase with an Explicit or a Custom or a CustomBoundary Rule."));
+#endif
+		return;
+	}
+	SetNavigationRuleInternal(Direction, Rule);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleExplicit(EUINavigation Direction, UWidget* InWidget)
+{
+	SetNavigationRuleInternal(Direction, EUINavigationRule::Explicit, NAME_None, InWidget);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleCustom(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate)
+{
+	SetNavigationRuleInternal(Direction, EUINavigationRule::Custom, NAME_None, nullptr, InCustomDelegate);
+	BuildNavigation();
+}
+
+void UWidget::SetNavigationRuleCustomBoundary(EUINavigation Direction, FCustomWidgetNavigationDelegate InCustomDelegate)
+{
+	SetNavigationRuleInternal(Direction, EUINavigationRule::CustomBoundary, NAME_None, nullptr, InCustomDelegate);
 	BuildNavigation();
 }
 
