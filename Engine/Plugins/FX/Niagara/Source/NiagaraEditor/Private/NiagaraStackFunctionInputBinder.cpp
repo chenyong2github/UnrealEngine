@@ -91,8 +91,7 @@ bool FNiagaraStackFunctionInputBinder::TryBindInternal(
 	FunctionCallNode = InFunctionCallNode;
 
 	TArray<const UEdGraphPin*> InputPins;
-	TSet<const UEdGraphPin*> HiddenPins;
-	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, InputPins, HiddenPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*FunctionCallNode, InputPins, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 	
 	bool bInputFound = false;
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();

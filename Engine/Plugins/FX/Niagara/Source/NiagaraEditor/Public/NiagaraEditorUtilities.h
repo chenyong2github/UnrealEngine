@@ -26,6 +26,7 @@ class SWidget;
 class UNiagaraNode;
 class UEdGraphSchema_Niagara;
 class UEdGraphPin;
+class FCompileConstantResolver;
 
 namespace FNiagaraEditorUtilities
 {
@@ -138,14 +139,11 @@ namespace FNiagaraEditorUtilities
 
 	void FixUpNumericPins(const UEdGraphSchema_Niagara* Schema, UNiagaraNode* Node);
 
-	void SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs);
+	void SetStaticSwitchConstants(UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, FCompileConstantResolver* ConstantResolver = nullptr);
 
 	bool ResolveConstantValue(UEdGraphPin* Pin, int32& Value);
 
 	void PreprocessFunctionGraph(const UEdGraphSchema_Niagara* Schema, UNiagaraGraph* Graph, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs, ENiagaraScriptUsage ScriptUsage);
-
-	/** Returns the parameter map references for the given graph as if the graph was compiled, factoring in compile-time options such as static switches. */
-	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetCompiledGraphParameterMapReferences(UNiagaraGraph* Graph);
 
 	/** Options for the GetScriptsByFilter function. 
 	** @Param ScriptUsageToInclude Only return Scripts that have this usage
