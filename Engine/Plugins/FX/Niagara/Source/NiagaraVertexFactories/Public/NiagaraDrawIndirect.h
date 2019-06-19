@@ -40,6 +40,11 @@ public:
 
 		uint32 InstanceCountBufferOffset;
 		uint32 NumIndicesPerInstance; // When -1 the counter needs to be reset to 0.
+
+		bool operator==(const FArgGenTaskInfo& Rhs) const
+		{
+			return InstanceCountBufferOffset == Rhs.InstanceCountBufferOffset && NumIndicesPerInstance == Rhs.NumIndicesPerInstance;
+		}
 	};
 
 	using FPermutationDomain = TShaderPermutationDomain<>;
