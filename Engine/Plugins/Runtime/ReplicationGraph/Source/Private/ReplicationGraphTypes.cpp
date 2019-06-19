@@ -469,30 +469,33 @@ void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* C
 
 	if (bIsParentValid && bIsChildValid)
 	{
-		const bool bDoWarnings = (WarnFlag & WarnAlreadyDependant) != 0;
+		const bool bDoWarnings = EnumHasAnyFlags(WarnFlag, EWarnFlag::WarnAlreadyDependant);
 
 		bool bChildIsAlreadyDependant(false);
 		if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 		{
-			bChildIsAlreadyDependant = bDoWarnings && ParentInfo->DependentActorList.IsValid() && ParentInfo->DependentActorList.Contains(Child);
-
-			ParentInfo->DependentActorList.PrepareForWrite();
-			ParentInfo->DependentActorList.ConditionalAdd(Child);
+			bChildIsAlreadyDependant = ParentInfo->DependentActorList.IsValid() && ParentInfo->DependentActorList.Contains(Child);
+			if (bChildIsAlreadyDependant == false)
+			{
+				ParentInfo->DependentActorList.PrepareForWrite();
+				ParentInfo->DependentActorList.ConditionalAdd(Child);
+			}
 		}
 
 		bool bChildHadParentAlready(false);
 		if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
 		{
-			bChildHadParentAlready = bDoWarnings && ChildInfo->ParentActorList.IsValid() && ChildInfo->ParentActorList.Contains(Parent);
-			ChildInfo->ParentActorList.PrepareForWrite();
-			ChildInfo->ParentActorList.ConditionalAdd(Parent);
+			bChildHadParentAlready = ChildInfo->ParentActorList.IsValid() && ChildInfo->ParentActorList.Contains(Parent);
+			if (bChildHadParentAlready == false)
+			{
+				ChildInfo->ParentActorList.PrepareForWrite();
+				ChildInfo->ParentActorList.ConditionalAdd(Parent);
+			}
 		}
 
-		if (bChildIsAlreadyDependant || bChildHadParentAlready)
+		if (bDoWarnings && (bChildIsAlreadyDependant || bChildHadParentAlready))
 		{
-			UE_LOG(LogReplicationGraph, Warning, TEXT("FGlobalActorReplicationInfoMap::AddDependentActor Child %s - Parent %s | Child already dependant of parent: %d | Child previously had parent in list: %d"),
-				   *GetPathNameSafe(Child), *GetPathNameSafe(Parent),
-				   bChildIsAlreadyDependant, bChildHadParentAlready);
+			UE_LOG(LogReplicationGraph, Warning, TEXT("FGlobalActorReplicationInfoMap::AddDependentActor child %s already dependant of parent %s"), *GetNameSafe(Child), *GetNameSafe(Parent));
 		}
 	}
 }
