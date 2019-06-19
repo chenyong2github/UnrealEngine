@@ -60,7 +60,6 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateDependencyModuleNames.Add("UnrealEd");
                 PrivateDependencyModuleNames.Add("Landscape");
-                PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
             }
 
             bEnableShadowVariableWarnings = false;
@@ -71,6 +70,17 @@ namespace UnrealBuildTool.Rules
                     "VorbisFile",
                     "Eigen"
                     );
+
+			// Check whether Procedural Mesh is supported:
+			if(Target.Platform == UnrealTargetPlatform.HTML5)
+            {
+                PrivateDefinitions.Add("SUPPORTS_PROCEDURAL_MESH=0");
+            }
+            else
+            {
+                PrivateDependencyModuleNames.Add("ProceduralMeshComponent");
+                PrivateDefinitions.Add("SUPPORTS_PROCEDURAL_MESH=1");
+            }
 
             //Embree support:
             if (Target.Platform == UnrealTargetPlatform.Win64)
