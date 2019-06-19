@@ -37,6 +37,4 @@ public:
 
 private:
 	TWeakPtr<FPropertyNode> PropertyNode;
-
-	FComplexPropertyNode* FindComplexParent() const;
 };

@@ -12,30 +12,13 @@ FEditConditionContext::FEditConditionContext(FPropertyNode& InPropertyNode)
 {
 	PropertyNode = InPropertyNode.AsShared();
 
-	FComplexPropertyNode* ComplexParentNode = FindComplexParent();
+	FComplexPropertyNode* ComplexParentNode = InPropertyNode.FindComplexParent();
 	check(ComplexParentNode);
 
 	const UProperty* Property = InPropertyNode.GetProperty();
 	check(Property);
-}
 
-FComplexPropertyNode* FEditConditionContext::FindComplexParent() const
-{
-	if (!PropertyNode.IsValid())
-	{
-		return nullptr;
-	}
-
-	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
-
-	FPropertyNode* SearchStart = PinnedNode.Get();
-	if (PropertyEditorHelpers::IsStaticArray(*SearchStart))
-	{
-		//in the case of conditional static arrays, we have to go up one more level to get the proper parent struct.
-		SearchStart = SearchStart->GetParentNode();
-	}
-
-	return SearchStart->FindComplexParent();
+	check(!PropertyEditorHelpers::IsStaticArray(*InPropertyNode.GetParentNode()));
 }
 
 const UBoolProperty* FEditConditionContext::GetSingleBoolProperty(const TSharedPtr<FEditConditionExpression>& Expression) const
@@ -109,14 +92,22 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 	}
 
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	FPropertyNode* ParentNode = PinnedNode->GetParentNode();
 	
 	TOptional<bool> Result;
 
-	FComplexPropertyNode* ComplexParentNode = FindComplexParent();
+	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
 		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		uint8* ValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(BasePtr);
+		if (BasePtr == nullptr)
+		{
+			// deleted or not fully loaded yet
+			return TOptional<bool>();
+		}
+
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr);
+		uint8* ValuePtr = BoolProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
 
 		bool bValue = BoolProperty->GetPropertyValue(ValuePtr);
 		if (!Result.IsSet())
@@ -142,14 +133,22 @@ TOptional<double> FEditConditionContext::GetNumericValue(const FString& Property
 	}
 
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
+	FPropertyNode* ParentNode = PinnedNode->GetParentNode();
 
 	TOptional<double> Result;
 
-	FComplexPropertyNode* ComplexParentNode = FindComplexParent();
+	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
 		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		uint8* ValuePtr = NumericProperty->ContainerPtrToValuePtr<uint8>(BasePtr);
+		if (BasePtr == nullptr)
+		{
+			// deleted or not fully loaded yet
+			return TOptional<double>();
+		}
+
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr);
+		uint8* ValuePtr = NumericProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
 
 		double Value = 0;
 
@@ -202,14 +201,22 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	}
 	
 	TSharedPtr<FPropertyNode> PinnedNode = PropertyNode.Pin();
-
+	FPropertyNode* ParentNode = PinnedNode->GetParentNode();
+	
 	TOptional<int64> Result;
 
-	FComplexPropertyNode* ComplexParentNode = FindComplexParent();
+	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
 	{
 		uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-		uint8* ValuePtr = Property->ContainerPtrToValuePtr<uint8>(BasePtr);
+		if (BasePtr == nullptr)
+		{
+			// deleted or not fully loaded yet
+			return TOptional<FString>();
+		}
+
+		uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr);
+		uint8* ValuePtr = Property->ContainerPtrToValuePtr<uint8>(ParentPtr);
 
 		int64 Value = NumericProperty->GetSignedIntPropertyValue(ValuePtr);
 		if (!Result.IsSet())
