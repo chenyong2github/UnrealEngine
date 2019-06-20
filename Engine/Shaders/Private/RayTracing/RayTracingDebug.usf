@@ -20,13 +20,7 @@ void RayTracingDebugMainRGS()
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
-	RayDesc Ray;
-
-	Ray.Origin = View.WorldCameraOrigin;
-	Ray.Direction = normalize(ReconstructWorldPositionFromDepth(RenderTargetUV, 10000.f) - Ray.Origin);
-	Ray.TMin = 0.5f; // 1 unit in UE4 = 1 cm -0> 0.5 ==> 5 mm
-	Ray.TMax = 1e27f;
-
+	RayDesc Ray = CreatePrimaryRay(RenderTargetUV);
     FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 

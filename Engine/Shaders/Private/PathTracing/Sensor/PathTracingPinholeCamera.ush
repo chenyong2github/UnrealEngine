@@ -20,11 +20,7 @@ void PinholeCamera_SampleEmitter(
 	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, SampleIndex);
 	float2 ViewportUV = (LaunchIndex.xy + RandSample.xy) * View.BufferSizeAndInvSize.zw;
 
-	OutRay.Origin = ReconstructWorldPositionFromDepth(ViewportUV, 0.0f);
-	OutRay.Direction = normalize(ReconstructWorldPositionFromDepth(ViewportUV, 1.f) - OutRay.Origin);
-	OutRay.TMin = 0.01;
-	OutRay.TMax = 1e12;
-
+	OutRay = CreatePrimaryRay(ViewportUV);
 	OutPixel = LaunchIndex.xy;
 	OutPdf = 1.0;
 }
