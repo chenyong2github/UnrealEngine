@@ -200,11 +200,14 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 					UpdateHorizontalScrollBar();
 					bIsStateDirty = true;
 
-					// Auto zoom out.
-					while (Viewport.MaxX > Viewport.Width)
+					if (Viewport.PosX == 0.0f) // only if the view is unchanged
 					{
-						ZoomHorizontally(-0.1f, 0.0f);
-						Viewport.ScrollAtPosX(0.0f);
+						// Auto zoom out (until entire session time range fits into view).
+						while (Viewport.MaxX > Viewport.Width)
+						{
+							ZoomHorizontally(-0.1f, 0.0f);
+							Viewport.ScrollAtPosX(0.0f);
+						}
 					}
 				}
 			}
