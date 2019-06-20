@@ -1144,6 +1144,10 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 							NewLodPrevParticles[ParticleIndex] = PxVec4(U2PVector(SkinnedPhysicsMeshPositions[ParticleIndex]), NewLodPrevParticles[ParticleIndex].w);
 							NewAccelerations[ParticleIndex] = physx::PxVec4(0.0f);
 						}
+
+						FTransform SimRootTransform = CSTransforms[Actor.AssetCreatedFrom->ReferenceBoneIndex] * ComponentToWorld;
+						NewLodData.Cloth->setTranslation(U2PVector(SimRootTransform.GetTranslation()));
+						NewLodData.Cloth->setRotation(U2PQuat(SimRootTransform.GetRotation()));
 					}
 					else
 					{
@@ -1155,9 +1159,6 @@ void FClothingSimulationNv::UpdateLod(int32 InPredictedLod, const FTransform& Co
 						}
 					}
 
-					FTransform SimRootTransform = CSTransforms[Actor.AssetCreatedFrom->ReferenceBoneIndex] * ComponentToWorld;
-					NewLodData.Cloth->setTranslation(U2PVector(SimRootTransform.GetTranslation()));
-					NewLodData.Cloth->setRotation(U2PQuat(SimRootTransform.GetRotation()));
 					NewLodData.Cloth->clearInertia();
 
 					// clear spheres and planes double buffering since cloth kept collision data from last time it was simulated
