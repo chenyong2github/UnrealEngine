@@ -55,7 +55,8 @@ void AmbientOcclusionRGS()
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);	
 	float Depth = GBufferData.Depth;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float3 WorldPosition = ReconstructWorldPositionFromDeviceZ(PixelCoord, DeviceZ);
 	float3 WorldNormal = GBufferData.WorldNormal;
 
 	float RayCount = 0.0;
@@ -66,7 +67,6 @@ void AmbientOcclusionRGS()
 	uint SamplesPerPixelLocal = SamplesPerPixel;
 	
 	// Mask out depth values beyond far plane
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
 	bool bTraceRay = (IsFiniteDepth && GBufferData.ShadingModelID != SHADINGMODELID_UNLIT);
 	if (!bTraceRay)
@@ -80,7 +80,7 @@ void AmbientOcclusionRGS()
 	{
 		RayDesc Ray;
 		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
-		ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
+		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
 		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO: does it needs to be handled by the denoiser?
 			continue;
