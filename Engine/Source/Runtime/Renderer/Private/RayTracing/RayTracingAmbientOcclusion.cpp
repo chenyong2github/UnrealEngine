@@ -175,6 +175,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionMaskRT
 )
 {
+	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingAmbientOcclusion);
+	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing Ambient Occlusion");
+
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	// Build RTAO parameters
