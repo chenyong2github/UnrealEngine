@@ -79,6 +79,8 @@ struct CORE_API FEditorObjectVersion
 		ScrollBarThicknessChange,
 		// Deprecated LandscapeHoleMaterial
 		RemoveLandscapeHoleMaterial,
+		// MeshDescription defined by triangles instead of arbitrary polygons
+		MeshDescriptionTriangles,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

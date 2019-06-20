@@ -12,9 +12,6 @@
 #include "MeshAttributes.h"
 
 
-const FTriangleID FTriangleID::Invalid( TNumericLimits<uint32>::Max() );
-
-
 UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 	: StaticMesh( nullptr ),
 	  StaticMeshLODIndex( 0 ),
@@ -25,7 +22,7 @@ UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 }
 
 
-inline void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
+void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
 {
 	FStaticMeshLODResources& StaticMeshLOD = GetStaticMeshLOD();
 	if( !StaticMeshLOD.IndexBuffer.Is32Bit() )
@@ -34,27 +31,6 @@ inline void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
 		static TArray<uint32> AllIndices;
 		StaticMeshLOD.IndexBuffer.GetCopy( /* Out */ AllIndices );
 		StaticMeshLOD.IndexBuffer.SetIndices( AllIndices, EIndexBufferStride::Force32Bit );
-	}
-}
-
-
-inline void UEditableStaticMeshAdapter::UpdateIndexBufferFormatIfNeeded( const TArray<FMeshTriangle>& Triangles )
-{
-	const FStaticMeshLODResources& StaticMeshLOD = GetStaticMeshLOD();
-	if( !StaticMeshLOD.IndexBuffer.Is32Bit() )
-	{
-		for( const FMeshTriangle& Triangle : Triangles )
-		{
-			for( int32 TriangleVertexNumber = 0; TriangleVertexNumber < 3; ++TriangleVertexNumber )
-			{
-				const FVertexInstanceID VertexInstanceID = Triangle.GetVertexInstanceID( TriangleVertexNumber );
-				if( VertexInstanceID.GetValue() > TNumericLimits<uint16>::Max() )
-				{
-					EnsureIndexBufferIs32Bit();
-					return;
-				}
-			}
-		}
 	}
 }
 
@@ -318,6 +294,7 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 						{
 							// Static meshes only support triangles, so there's no need to triangulate anything yet.  We'll make both
 							// a triangle and a polygon here.
+							// @todo: get rid of rendering triangles completely
 							const FTriangleID NewTriangleID = FTriangleID( SectionTriangleIndex );
 
 							NewRenderingPolygonGroup.Triangles.Insert( NewTriangleID );
@@ -336,9 +313,6 @@ void UEditableStaticMeshAdapter::InitEditableStaticMesh( UEditableMesh* Editable
 							FRenderingPolygon& NewRenderingPolygon = RenderingPolygons[ NewPolygonID ];
 							NewRenderingPolygon.PolygonGroupID = NewPolygonGroupID;
 							NewRenderingPolygon.TriangulatedPolygonTriangleIndices.Add( NewTriangleID );
-
-							// Add triangle to polygon triangulation array
-							MeshDescription->GetPolygonTriangles( NewPolygonID ).Add( NewTriangle );
 						}
 						else
 						{
@@ -448,14 +422,19 @@ void UEditableStaticMeshAdapter::InitializeFromEditableMesh( const UEditableMesh
 		FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		RenderingPolygon.PolygonGroupID = PolygonGroupID;
 
-		const TArray<FMeshTriangle>& Triangles = MeshDescription->GetPolygonTriangles( PolygonID );
-		for( const FMeshTriangle& Triangle : Triangles )
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+		for( const FTriangleID TriangleID : TriangleIDs )
 		{
-			const FTriangleID TriangleID = RenderingPolygonGroup.Triangles.Add( Triangle );
-			RenderingPolygon.TriangulatedPolygonTriangleIndices.Add( TriangleID );
+			FMeshTriangle Triangle;
+			for( int32 TriIndex = 0; TriIndex < 3; ++TriIndex )
+			{
+				Triangle.SetVertexInstanceID( TriIndex, MeshDescription->GetTriangleVertexInstance( TriangleID, TriIndex ) );
+			}
+			const FTriangleID RenderingTriangleID = RenderingPolygonGroup.Triangles.Add( Triangle );
+			RenderingPolygon.TriangulatedPolygonTriangleIndices.Add( RenderingTriangleID );
 		}
 
-		RenderingPolygonGroup.MaxTriangles += Triangles.Num();
+		RenderingPolygonGroup.MaxTriangles += TriangleIDs.Num();
 	}
 
 }
@@ -1319,12 +1298,12 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 		FRenderingPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		const FPolygonGroupID PolygonGroupID = RenderingPolygon.PolygonGroupID;
 		FRenderingPolygonGroup& RenderingPolygonGroup = RenderingPolygonGroups[ PolygonGroupID ];
-		const TArray<FMeshTriangle>& Triangles = MeshDescription->GetPolygonTriangles( PolygonID );
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
 
 		// Check to see whether the index buffer needs to be updated
 		bool bNeedsUpdatedTriangles = false;
 		{
-			if( RenderingPolygon.TriangulatedPolygonTriangleIndices.Num() != Triangles.Num() )
+			if( RenderingPolygon.TriangulatedPolygonTriangleIndices.Num() != TriangleIDs.Num() )
 			{
 				// Triangle count has changed, so we definitely need new triangles!
 				bNeedsUpdatedTriangles = true;
@@ -1332,14 +1311,14 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 			else
 			{
 				// See if the triangulation has changed even if the number of triangles is the same
-				for( int32 Index = 0; Index < Triangles.Num(); ++Index )
+				for( int32 Index = 0; Index < TriangleIDs.Num(); ++Index )
 				{
 					const FMeshTriangle& OldTriangle = RenderingPolygonGroup.Triangles[ RenderingPolygon.TriangulatedPolygonTriangleIndices[ Index ] ];
-					const FMeshTriangle& NewTriangle = Triangles[ Index ];
+					const FTriangleID NewTriangleID = TriangleIDs[ Index ];
 
-					if( OldTriangle.VertexInstanceID0 != NewTriangle.VertexInstanceID0 ||
-						OldTriangle.VertexInstanceID1 != NewTriangle.VertexInstanceID1 ||
-						OldTriangle.VertexInstanceID2 != NewTriangle.VertexInstanceID2 )
+					if( OldTriangle.GetVertexInstanceID( 0 ) != MeshDescription->GetTriangleVertexInstance( NewTriangleID, 0 ) ||
+						OldTriangle.GetVertexInstanceID( 1 ) != MeshDescription->GetTriangleVertexInstance( NewTriangleID, 1 ) ||
+						OldTriangle.GetVertexInstanceID( 2 ) != MeshDescription->GetTriangleVertexInstance( NewTriangleID, 2 ) )
 					{
 						bNeedsUpdatedTriangles = true;
 						break;
@@ -1361,7 +1340,7 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 			// Add new triangles
 			{
 				// This is the number of triangles we are about to add
-				const int32 NumNewTriangles = Triangles.Num();
+				const int32 NumNewTriangles = TriangleIDs.Num();
 
 				// This is the number of entries currently unused in the Triangles sparse array
 				const int32 NumFreeTriangles = RenderingPolygonGroup.Triangles.GetArraySize() - RenderingPolygonGroup.Triangles.Num();
@@ -1384,6 +1363,7 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 
 				// Create empty triangles for all of the new triangles we need, and keep track of their triangle indices
 				static TArray<FTriangleID> NewTriangleIDs;
+				bool bUses32BitIndices = false;
 				{
 					NewTriangleIDs.SetNumUninitialized( NumNewTriangles, false );
 
@@ -1395,7 +1375,11 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 						FMeshTriangle& NewTriangle = RenderingPolygonGroup.Triangles[ NewTriangleID ];
 						for( int32 TriangleVertexNumber = 0; TriangleVertexNumber < 3; ++TriangleVertexNumber )
 						{
-							const FVertexInstanceID VertexInstanceID = Triangles[ TriangleToAddNumber ].GetVertexInstanceID( TriangleVertexNumber );
+							const FVertexInstanceID VertexInstanceID = MeshDescription->GetTriangleVertexInstance( TriangleIDs[ TriangleToAddNumber ], TriangleVertexNumber );
+							if( VertexInstanceID.GetValue() > TNumericLimits<uint16>::Max() )
+							{
+								bUses32BitIndices = true;
+							}
 							NewTriangle.SetVertexInstanceID( TriangleVertexNumber, VertexInstanceID );
 							MinVertexIndex = FMath::Min( MinVertexIndex, VertexInstanceID.GetValue() );
 							MaxVertexIndex = FMath::Max( MaxVertexIndex, VertexInstanceID.GetValue() );
@@ -1406,9 +1390,9 @@ void UEditableStaticMeshAdapter::OnRetriangulatePolygons( const UEditableMesh* E
 				}
 
 				// Update the index buffer format if the index range exceeds 16 bit values.
-				if( !EditableMesh->IsPreviewingSubdivisions() )
+				if( !EditableMesh->IsPreviewingSubdivisions() && bUses32BitIndices )
 				{
-					UpdateIndexBufferFormatIfNeeded( Triangles );
+					EnsureIndexBufferIs32Bit();
 				}
 
 				// If we need more space in the index buffer for this section, allocate it here

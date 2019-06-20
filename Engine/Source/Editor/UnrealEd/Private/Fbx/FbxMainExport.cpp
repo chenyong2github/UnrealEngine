@@ -1102,10 +1102,6 @@ void FFbxExporter::ExportBSP( UModel* Model, bool bSelectedOnly )
 					EdgeCreaseSharpnesses[EdgeID] = 0.0f;
 				}
 
-				//Triangulate the polygon
-				FMeshPolygon& Polygon = Mesh.GetPolygon(NewPolygonID);
-				Mesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
-
 				//Add to the smoothGroup array so we can compute hard edge later
 				ExportData->SmoothGroups.Add((1 << (Node.iSurf % 32)));
 

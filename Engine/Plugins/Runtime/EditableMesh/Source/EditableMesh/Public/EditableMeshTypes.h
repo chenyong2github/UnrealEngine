@@ -608,9 +608,9 @@ struct FEdgeToCreate
 	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
 	FVertexID VertexID1;
 
-	/** The polygons that are connected to this edge. */
-	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
-	TArray<FPolygonID> ConnectedPolygons;
+	///** The polygons that are connected to this edge. */
+	//UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
+	//TArray<FPolygonID> ConnectedPolygons;
 
 	/** Attributes of this edge itself */
 	UPROPERTY( BlueprintReadWrite, Category="Editable Mesh" )
@@ -624,7 +624,7 @@ struct FEdgeToCreate
 	FEdgeToCreate()
 		: VertexID0( FVertexID::Invalid ),
 		  VertexID1( FVertexID::Invalid ),
-		  ConnectedPolygons(),
+//		  ConnectedPolygons(),
 		  EdgeAttributes(),
 		  OriginalEdgeID( FEdgeID::Invalid )
 	{
@@ -633,12 +633,12 @@ struct FEdgeToCreate
 	FString ToString() const
 	{
 		return FString::Printf(
-			TEXT( "VertexID0:%s, VertexID1:%s, ConnectedPolygons:%s, OriginalEdgeID:%s" ),
+			TEXT( "VertexID0:%s, VertexID1:%s, EdgeAttributes:%s, OriginalEdgeID:%s" ),
 			*VertexID0.ToString(), 
 			*VertexID1.ToString(),
-			*LogHelpers::ArrayToString( ConnectedPolygons ),
+//			*LogHelpers::ArrayToString( ConnectedPolygons ),
 			*EdgeAttributes.ToString(),
-			OriginalEdgeID.GetValue() );
+			*OriginalEdgeID.ToString() );
 	}
 };
 
@@ -1035,6 +1035,7 @@ struct FChangeVertexInstancesForPolygon
 };
 
 
+#if 0
 USTRUCT( BlueprintType )
 struct FVerticesForEdge
 {
@@ -1069,6 +1070,7 @@ struct FVerticesForEdge
 			*NewVertexID1.ToString() );
 	}
 };
+#endif
 
 
 USTRUCT( BlueprintType )

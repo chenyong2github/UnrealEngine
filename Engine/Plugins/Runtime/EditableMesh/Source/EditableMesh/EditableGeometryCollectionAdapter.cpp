@@ -216,10 +216,6 @@ void UEditableGeometryCollectionAdapter::InitEditableGeometryCollection( UEditab
 							FAdaptorPolygon& NewRenderingPolygon = RenderingPolygons[NewPolygonID];
 							NewRenderingPolygon.PolygonGroupID = NewPolygonGroupID;
 							NewRenderingPolygon.TriangulatedPolygonTriangleIndices.Add(NewTriangleID);
-
-							// Add triangle to polygon triangulation array
-							MeshDescription->GetPolygonTriangles(NewPolygonID).Add(NewTriangle);
-
 						}
 						else
 						{
@@ -319,14 +315,18 @@ void UEditableGeometryCollectionAdapter::InitializeFromEditableMesh( const UEdit
 		FAdaptorPolygon& RenderingPolygon = RenderingPolygons[ PolygonID ];
 		RenderingPolygon.PolygonGroupID = PolygonGroupID;
 
-		const TArray<FMeshTriangle>& Triangles = MeshDescription->GetPolygonTriangles( PolygonID );
-		for( const FMeshTriangle& Triangle : Triangles )
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs( PolygonID );
+		for( const FTriangleID TriangleID : TriangleIDs )
 		{
-			const FAdaptorTriangleID TriangleID = RenderingPolygonGroup.Triangles.Add( Triangle );
-			RenderingPolygon.TriangulatedPolygonTriangleIndices.Add( TriangleID );
+			FMeshTriangle Triangle;
+			Triangle.SetVertexInstanceID( 0, MeshDescription->GetTriangleVertexInstance( TriangleID, 0 ) );
+			Triangle.SetVertexInstanceID( 1, MeshDescription->GetTriangleVertexInstance( TriangleID, 1 ) );
+			Triangle.SetVertexInstanceID( 2, MeshDescription->GetTriangleVertexInstance( TriangleID, 2 ) );
+			const FAdaptorTriangleID AdapterTriangleID = RenderingPolygonGroup.Triangles.Add( Triangle );
+			RenderingPolygon.TriangulatedPolygonTriangleIndices.Add( AdapterTriangleID );
 		}
 
-		RenderingPolygonGroup.MaxTriangles += Triangles.Num();
+		RenderingPolygonGroup.MaxTriangles += TriangleIDs.Num();
 	}
 
 }
@@ -409,18 +409,22 @@ void UEditableGeometryCollectionAdapter::OnRebuildRenderMesh(const UEditableMesh
 				const FPolygonGroupID& PolygonGroupID = MeshDescription->GetPolygonPolygonGroup(PolygonID);
 				int32 PolygonGroupIDValue = PolygonGroupID.GetValue();
 				int32 PolygonIDValue = PolygonID.GetValue();
-				const TArray<FMeshTriangle>& Triangles = MeshDescription->GetPolygonTriangles(PolygonID);
-				for (const FMeshTriangle& MeshTriangle : Triangles)
+				const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+				for (const FTriangleID TriangleID : TriangleIDs)
 				{
 					uint32 ElementIndex = Collection->AddElements(1, FGeometryCollection::FacesGroup);
 
+					const int32 V0 = MeshDescription->GetTriangleVertexInstance(TriangleID, 0).GetValue();
+					const int32 V1 = MeshDescription->GetTriangleVertexInstance(TriangleID, 1).GetValue();
+					const int32 V2 = MeshDescription->GetTriangleVertexInstance(TriangleID, 2).GetValue();
+						
 					// might need a lookup here VertexInstanceID to GCVector array index
-					GCIndices[ElementIndex] = FIntVector(MeshTriangle.VertexInstanceID0.GetValue(), MeshTriangle.VertexInstanceID1.GetValue(), MeshTriangle.VertexInstanceID2.GetValue());
+					GCIndices[ElementIndex] = FIntVector(V0, V1, V2);
 					GCVisible[ElementIndex] = true;
 
-					GCBoneMap[MeshTriangle.VertexInstanceID0.GetValue()] = PolygonGroupIDValue;
-					GCBoneMap[MeshTriangle.VertexInstanceID1.GetValue()] = PolygonGroupIDValue;
-					GCBoneMap[MeshTriangle.VertexInstanceID2.GetValue()] = PolygonGroupIDValue;
+					GCBoneMap[V0] = PolygonGroupIDValue;
+					GCBoneMap[V1] = PolygonGroupIDValue;
+					GCBoneMap[V2] = PolygonGroupIDValue;
 
 				}
 			}
@@ -883,9 +887,9 @@ void UEditableGeometryCollectionAdapter::DeletePolygonTriangles( const UEditable
 
 					// sanity check
 					FIntVector TriIndices = GCIndices[TriangleIndexToRemove.GetValue()];
-					check(TriToRemove.VertexInstanceID0.GetValue() == TriIndices[0]);
-					check(TriToRemove.VertexInstanceID1.GetValue() == TriIndices[1]);
-					check(TriToRemove.VertexInstanceID2.GetValue() == TriIndices[2]);
+					check(TriToRemove.GetVertexInstanceID(0).GetValue() == TriIndices[0]);
+					check(TriToRemove.GetVertexInstanceID(1).GetValue() == TriIndices[1]);
+					check(TriToRemove.GetVertexInstanceID(2).GetValue() == TriIndices[2]);
 
 					UE_LOG(LogGeometryCollectionAdapter, Log, TEXT("Deleting Tri_ID %d, Indices %d %d %d "), TriangleIndexToRemove.GetValue(), TriIndices[0], TriIndices[1], TriIndices[2]);
 

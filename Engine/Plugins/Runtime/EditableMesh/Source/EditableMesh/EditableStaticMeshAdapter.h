@@ -10,35 +10,6 @@
 
 
 USTRUCT()
-struct FTriangleID : public FElementID
-{
-	GENERATED_BODY()
-
-	FTriangleID()
-	{
-	}
-
-	explicit FTriangleID( const FElementID InitElementID )
-		: FElementID( InitElementID.GetValue() )
-	{
-	}
-
-	explicit FTriangleID( const uint32 InitIDValue )
-		: FElementID( InitIDValue )
-	{
-	}
-
-	FORCEINLINE friend uint32 GetTypeHash( const FTriangleID& Other )
-	{
-		return GetTypeHash( Other.IDValue );
-	}
-
-	/** Invalid triangle ID */
-	static const FTriangleID Invalid;
-};
-
-
-USTRUCT()
 struct FRenderingPolygon
 {
 	GENERATED_BODY()
@@ -179,9 +150,6 @@ private:
 
 	/** Makes sure our mesh's index buffer is 32-bit, converting if needed */
 	void EnsureIndexBufferIs32Bit();
-
-	/** If any of the specified triangles contain vertex indices greater than 0xffff, updates our mesh's index buffer to be 32-bit if it isn't already */
-	void UpdateIndexBufferFormatIfNeeded( const TArray<FMeshTriangle>& Triangles );
 
 	/** Rebuilds bounds */
 	void UpdateBounds( const UEditableMesh* EditableMesh, const bool bShouldRecompute );

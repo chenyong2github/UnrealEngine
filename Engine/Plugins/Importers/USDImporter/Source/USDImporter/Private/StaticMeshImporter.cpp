@@ -247,11 +247,6 @@ bool FUSDStaticMeshImportState::AddPolygons(FMeshDescriptionWrapper& DestMeshWra
 		{
 			MeshDescription->ReversePolygonFacing(NewPolygonID);
 		}
-		else
-		{
-			FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-			MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
-		}
 	}
 
 	return true;

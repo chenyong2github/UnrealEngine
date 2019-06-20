@@ -500,10 +500,6 @@ namespace GLTF
 				EdgeHardnesses[NewEdgeID]        = false;
 				EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
 			}
-
-			// Triangulate the polygon
-			FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-			MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 		}
 		return bHasDegenerateTriangles;
 	}

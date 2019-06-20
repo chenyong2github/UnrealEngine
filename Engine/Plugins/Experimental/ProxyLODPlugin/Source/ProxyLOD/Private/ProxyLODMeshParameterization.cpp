@@ -446,11 +446,7 @@ void ProxyLOD::GenerateAdjacency(const FVertexDataMesh& Mesh, std::vector<uint32
 }
 void ProxyLOD::GenerateAdjacency(const FMeshDescription& RawMesh, std::vector<uint32>& AdjacencyArray)
 {
-	uint32 NumTris = 0;
-	for (const FPolygonID& PolygonID : RawMesh.Polygons().GetElementIDs())
-	{
-		NumTris += RawMesh.GetPolygonTriangles(PolygonID).Num();
-	}
+	uint32 NumTris = RawMesh.Triangles().Num();
 	const uint32 NumVerts = RawMesh.Vertices().Num();
 	const uint32 AdjacencySize = RawMesh.VertexInstances().Num(); // 3 for each face
 

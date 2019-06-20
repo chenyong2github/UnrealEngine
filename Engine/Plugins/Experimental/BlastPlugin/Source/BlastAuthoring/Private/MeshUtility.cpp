@@ -51,12 +51,12 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, Nv::
 
 	for(const FPolygonID PolygonID : MeshDescription->Polygons().GetElementIDs())
 	{
-		const TArray<FMeshTriangle>& MeshTriangles = MeshDescription->GetPolygonTriangles(PolygonID);
-		for(const FMeshTriangle& MeshTriangle : MeshTriangles)
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+		for(const FTriangleID TriangleID : TriangleIDs)
 		{
 			for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
 			{
-				const FVertexInstanceID VertexInstanceId = MeshTriangle.GetVertexInstanceID(TriVertIndex);
+				const FVertexInstanceID VertexInstanceId = MeshDescription->GetTriangleVertexInstance(TriangleID, TriVertIndex);
 				BlastIndices.Push(VertexInstanceId.GetValue());
 			}
 
@@ -74,7 +74,7 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, Nv::
 	const FPolygonArray& Polys = MeshDescription->Polygons();
 	for(int32 Facet = 0; Facet < FacetCount; Facet++)
 	{
-		FacetBuffer[Facet].materialId = Polys[FPolygonID(Facet)].PolygonGroupID.GetValue();
+		FacetBuffer[Facet].materialId = MeshDescription->GetPolygonPolygonGroup(FPolygonID(Facet)).GetValue();
 	}
 }
 
@@ -126,9 +126,9 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 	{
 		for(const FPolygonID PolygonID : PolygonGroupIDs)
 		{
-			const TArray<FMeshTriangle>& MeshTriangles = MeshDescription->GetPolygonTriangles(PolygonID);
+			const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
 
-			check(MeshTriangles.Num() == 1);
+			check(TriangleIDs.Num() == 1);
 
 #ifdef VALIDATE_INPUT
 			// does triangle match the geometry collection triangle
@@ -144,11 +144,11 @@ void FMeshUtility::EditableMeshToBlastMesh(const UEditableMesh* SourceMesh, int3
 				check(Visible[PolygonID.GetValue()]);
 #endif // VALIDATE_INPUT
 
-			for(const FMeshTriangle& MeshTriangle : MeshTriangles)
+			for(const FTriangleID TriangleID : TriangleIDs)
 			{
 				for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
 				{
-					const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(TriVertIndex);
+					const FVertexInstanceID VertexInstanceID = MeshDescription->GetTriangleVertexInstance(TriangleID, TriVertIndex);
 					BlastIndices.Push(VertexInstanceID.GetValue());
 				}
 				if(GeometryCollection)

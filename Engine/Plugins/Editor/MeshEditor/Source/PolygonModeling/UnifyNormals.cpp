@@ -16,7 +16,7 @@ namespace UnifyNormalsCommandUtils
 	 * Returns -1 if the order is reversed
 	 * Returns 0 if the polygon doesn't contain the MeshEdge's vertices
 	 */
-	int8 GetPolygonEdgeDirection(const FMeshDescription* MeshDescription, const FMeshEdge& Edge, const FPolygonID& PolygonID)
+	int8 GetPolygonEdgeDirection(const FMeshDescription* MeshDescription, const FEdgeID EdgeID, const FPolygonID PolygonID)
 	{
 		if (!MeshDescription)
 		{
@@ -26,20 +26,21 @@ namespace UnifyNormalsCommandUtils
 		int8 EdgeDirection = 0;
 
 		// Iterate through the polygon vertices to find vertex 0 of the MeshEdge
-		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription->GetPolygonPerimeterVertexInstances(PolygonID);
+		const FVertexID EdgeVertex0 = MeshDescription->GetEdgeVertex(EdgeID, 0);
+		const FVertexID EdgeVertex1 = MeshDescription->GetEdgeVertex(EdgeID, 1);
+		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription->GetPolygonVertexInstances(PolygonID);
 		int32 NumVertices = VertexInstances.Num();
 		for (int32 Index = 0; Index < NumVertices; ++Index)
 		{
-			const FMeshVertexInstance& VertexInstance = MeshDescription->GetVertexInstance(VertexInstances[Index]);
-			if (VertexInstance.VertexID == Edge.VertexIDs[0])
+			if (MeshDescription->GetVertexInstanceVertex(VertexInstances[Index]) == EdgeVertex0)
 			{
 				// Vertex 1 is either the next vertex of the triangle => same direction
-				if (MeshDescription->GetVertexInstance(VertexInstances[(Index + 1) % NumVertices]).VertexID == Edge.VertexIDs[1])
+				if (MeshDescription->GetVertexInstanceVertex(VertexInstances[(Index + 1) % NumVertices]) == EdgeVertex1)
 				{
 					EdgeDirection = 1;
 				}
 				// Or the previous vertex of the triangle => opposite direction
-				else if (MeshDescription->GetVertexInstance(VertexInstances[(Index + NumVertices - 1) % NumVertices]).VertexID == Edge.VertexIDs[1])
+				else if (MeshDescription->GetVertexInstanceVertex(VertexInstances[(Index + NumVertices - 1) % NumVertices]) == EdgeVertex1)
 				{
 					EdgeDirection = -1;
 				}
@@ -109,20 +110,19 @@ void UUnifyNormalsCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMod
 					CheckedPolygons.Add(PolygonID);
 
 					TArray<FEdgeID> PolygonEdges;
-					MeshDescription->GetPolygonEdges(PolygonID, PolygonEdges);
-					for (const FEdgeID& EdgeID : PolygonEdges)
+					MeshDescription->GetPolygonPerimeterEdges(PolygonID, PolygonEdges);
+					for (const FEdgeID EdgeID : PolygonEdges)
 					{
 						// For each edge of the polygon, check its direction and compare it with the edge direction of its neighbor polygon
-						const FMeshEdge& Edge = MeshDescription->GetEdge(EdgeID);
-						int8 PolygonEdgeDirection = UnifyNormalsCommandUtils::GetPolygonEdgeDirection(MeshDescription, Edge, PolygonID);
+						int8 PolygonEdgeDirection = UnifyNormalsCommandUtils::GetPolygonEdgeDirection(MeshDescription, EdgeID, PolygonID);
 
-						for (const FPolygonID& NeighborPolygonID : Edge.ConnectedPolygons)
+						for (const FPolygonID& NeighborPolygonID : MeshDescription->GetEdgeConnectedPolygons(EdgeID))
 						{
 							if (!CheckedPolygons.Contains(NeighborPolygonID))
 							{
 								CheckedPolygons.Add(NeighborPolygonID);
 
-								int8 ConnectedPolygonEdgeDirection = UnifyNormalsCommandUtils::GetPolygonEdgeDirection(MeshDescription, Edge, NeighborPolygonID);
+								int8 ConnectedPolygonEdgeDirection = UnifyNormalsCommandUtils::GetPolygonEdgeDirection(MeshDescription, EdgeID, NeighborPolygonID);
 
 								// For the initial polygon, its neighbor is considered flipped if the shared edge is in the same direction for both polygons
 								// For non-initial polygon, ie. a polygon that's already determined to be flipped, a neighbor polygon is flipped (with respect to the initial polygon)
@@ -137,7 +137,7 @@ void UUnifyNormalsCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMod
 								{
 									// Add the vertices of the polygon at the boundary
 									Vertices.Reset();
-									MeshDescription->GetPolygonPerimeterVertices(NeighborPolygonID, Vertices);
+									MeshDescription->GetPolygonVertices(NeighborPolygonID, Vertices);
 									BoundaryPolygonVertices.Append(Vertices);
 								}
 							}
@@ -159,7 +159,7 @@ void UUnifyNormalsCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMod
 			for (const FPolygonID& PolygonID : FlippedPolygons)
 			{
 				Vertices.Reset();
-				MeshDescription->GetPolygonPerimeterVertices(PolygonID, Vertices);
+				MeshDescription->GetPolygonVertices(PolygonID, Vertices);
 				FlippedPolygonVertices.Append(Vertices);
 			}
 

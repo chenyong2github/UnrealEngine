@@ -3160,9 +3160,6 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 									EdgeHardnesses[NewEdgeID] = false;
 									EdgeCreaseSharpnesses[NewEdgeID] = 0.0f;
 								}
-								//Triangulate the polygon
-								FMeshPolygon& Polygon = OutRawMesh.GetPolygon(NewPolygonID);
-								OutRawMesh.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
 							};
 							AddTriangle(0);
 							AddTriangle(3);

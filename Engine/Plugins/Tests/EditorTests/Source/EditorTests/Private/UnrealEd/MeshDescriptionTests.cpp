@@ -614,8 +614,8 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 			}
 			const FPolygonGroupID& PolygonGroupID = MeshDescription.GetPolygonPolygonGroup(PolygonID);
 			int32 PolygonIDValue = PolygonID.GetValue();
-			const TArray<FMeshTriangle>& Triangles = MeshDescription.GetPolygonTriangles(PolygonID);
-			for (const FMeshTriangle& MeshTriangle : Triangles)
+			const TArray<FTriangleID>& TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
 			{
 				if (bError)
 				{
@@ -624,7 +624,7 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 				for (int32 Corner = 0; Corner < 3 && bError == false; ++Corner)
 				{
 					uint32 WedgeIndex = TriangleIndex * 3 + Corner;
-					const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(Corner);
+					const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, Corner);
 					const int32 VertexInstanceIDValue = VertexInstanceID.GetValue();
 					if (RawMesh.WedgeColors[WedgeIndex] != FLinearColor(VertexInstanceColors[VertexInstanceID]).ToFColor(true))
 					{
@@ -688,4 +688,258 @@ bool FMeshDescriptionTest::NTBTest(FAutomationTestExecutionInfo& ExecutionInfo)
 	}
 
 	return bAllSame;
+}
+
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMeshDescriptionBuilderTest, "Editor.Meshes.MeshDescription.Builder", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter);
+
+bool FMeshDescriptionBuilderTest::RunTest(const FString& Parameters)
+{
+	FMeshDescription MeshDescription;
+	MeshDescription.VertexAttributes().RegisterAttribute<FVector>(MeshAttribute::Vertex::Position);
+	TVertexAttributesRef<FVector> Positions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
+
+	// Build a hexagonal cylinder
+
+	const float Radius = 100.0f;
+	const float Height = 200.0f;
+	const int32 NumSides = 6;
+
+	FVertexID TopVertexIDs[NumSides];
+	FVertexID BottomVertexIDs[NumSides];
+
+	FVertexInstanceID TopVertexInstanceIDs[NumSides];
+	FVertexInstanceID SideTopVertexInstanceIDs[NumSides];
+	FVertexInstanceID BottomVertexInstanceIDs[NumSides];
+	FVertexInstanceID SideBottomVertexInstanceIDs[NumSides];
+
+	FEdgeID SideEdgeIDs[NumSides];
+	FPolygonID SidePolygonIDs[NumSides];
+	FTriangleID TopTriangleIDs[NumSides];
+	FTriangleID BottomTriangleIDs[NumSides];
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		// Create vertices at top and bottom
+
+		const float X = Radius * FMath::Cos(PI * 2.0f * Index / NumSides);
+		const float Y = Radius * FMath::Sin(PI * 2.0f * Index / NumSides);
+
+		TopVertexIDs[Index] = MeshDescription.CreateVertex();
+		Positions[TopVertexIDs[Index]] = FVector(X, Y, -Height);
+
+		BottomVertexIDs[Index] = MeshDescription.CreateVertex();
+		Positions[BottomVertexIDs[Index]] = FVector(X, Y, Height);
+
+		// Each vertex has two vertex instances: one for the side polygons, and one for the top/bottom polygons
+
+		TopVertexInstanceIDs[Index] = MeshDescription.CreateVertexInstance(TopVertexIDs[Index]);
+		SideTopVertexInstanceIDs[Index] = MeshDescription.CreateVertexInstance(TopVertexIDs[Index]);
+
+		BottomVertexInstanceIDs[Index] = MeshDescription.CreateVertexInstance(BottomVertexIDs[Index]);
+		SideBottomVertexInstanceIDs[Index] = MeshDescription.CreateVertexInstance(BottomVertexIDs[Index]);
+	}
+
+	// Create central vertex at bottom, and associated instances
+
+	FVertexID BottomCenterVertexID = MeshDescription.CreateVertex();
+	Positions[BottomCenterVertexID] = FVector(0.0f, 0.0f, Height);
+
+	FVertexInstanceID BottomCenterVertexInstanceID = MeshDescription.CreateVertexInstance(BottomCenterVertexID);
+
+	// Test vertex / vertex instance status
+
+	TestEqual("Vertex count", MeshDescription.Vertices().Num(), NumSides * 2 + 1);
+	TestEqual("Vertex array size", MeshDescription.Vertices().GetArraySize(), NumSides * 2 + 1);
+	TestEqual("Vertex position count", Positions.GetNumElements(), NumSides * 2 + 1);
+
+	TestEqual("Vertex instance count", MeshDescription.VertexInstances().Num(), NumSides * 4 + 1);
+	TestEqual("Vertex instance array size", MeshDescription.VertexInstances().GetArraySize(), NumSides * 4 + 1);
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		TestEqual("Vertex instances per vertex", MeshDescription.GetNumVertexVertexInstances(TopVertexIDs[Index]), 2);
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(TopVertexIDs[Index]).Contains(TopVertexInstanceIDs[Index]));
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(TopVertexIDs[Index]).Contains(SideTopVertexInstanceIDs[Index]));
+		TestEqual("Vertex instances per vertex", MeshDescription.GetNumVertexVertexInstances(BottomVertexIDs[Index]), 2);
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(BottomVertexIDs[Index]).Contains(BottomVertexInstanceIDs[Index]));
+		TestTrue("Vertex contains vertex instance", MeshDescription.GetVertexVertexInstances(BottomVertexIDs[Index]).Contains(SideBottomVertexInstanceIDs[Index]));
+		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(TopVertexInstanceIDs[Index]), TopVertexIDs[Index]);
+		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(SideTopVertexInstanceIDs[Index]), TopVertexIDs[Index]);
+		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(BottomVertexInstanceIDs[Index]), BottomVertexIDs[Index]);
+		TestEqual("Vertex instance parent", MeshDescription.GetVertexInstanceVertex(SideBottomVertexInstanceIDs[Index]), BottomVertexIDs[Index]);
+	}
+
+	// Add edges for side polys
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		SideEdgeIDs[Index] = MeshDescription.CreateEdge(BottomVertexIDs[Index], TopVertexIDs[Index]);
+
+		TestTrue("Vertex connected edges", MeshDescription.GetVertexConnectedEdges(TopVertexIDs[Index]).Contains(SideEdgeIDs[Index]));
+		TestTrue("Vertex connected edges", MeshDescription.GetVertexConnectedEdges(BottomVertexIDs[Index]).Contains(SideEdgeIDs[Index]));
+	}
+
+	// Add polygon groups
+
+	FPolygonGroupID SidePolygonGroupID = MeshDescription.CreatePolygonGroup();
+	FPolygonGroupID TopPolygonGroupID = MeshDescription.CreatePolygonGroup();
+	FPolygonGroupID BottomPolygonGroupID = MeshDescription.CreatePolygonGroup();
+
+	// Now add side polygons
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		// Define a side polygon to create
+		// We have already explicitly created the side edges, so we expect CreatePolygon to add two extra ones, top and bottom
+
+		const FVertexInstanceID SidePolyVertexInstanceIDs[4] =
+		{
+			SideBottomVertexInstanceIDs[Index],
+			SideBottomVertexInstanceIDs[(Index + 1) % NumSides],
+			SideTopVertexInstanceIDs[(Index + 1) % NumSides],
+			SideTopVertexInstanceIDs[Index]
+		};
+
+		TArray<FEdgeID> OutEdgeIDs;
+		SidePolygonIDs[Index] = MeshDescription.CreatePolygon(SidePolygonGroupID, SidePolyVertexInstanceIDs, &OutEdgeIDs);
+
+		TestEqual("Extra edges created", OutEdgeIDs.Num(), 2);
+		TestEqual("Bottom edge vertex 0", MeshDescription.GetEdgeVertex(OutEdgeIDs[0], 0), BottomVertexIDs[Index]);
+		TestEqual("Bottom edge vertex 1", MeshDescription.GetEdgeVertex(OutEdgeIDs[0], 1), BottomVertexIDs[(Index + 1) % NumSides]);
+		TestEqual("Top edge vertex 0", MeshDescription.GetEdgeVertex(OutEdgeIDs[1], 0), TopVertexIDs[(Index + 1) % NumSides]);
+		TestEqual("Top edge vertex 1", MeshDescription.GetEdgeVertex(OutEdgeIDs[1], 1), TopVertexIDs[Index]);
+
+		TestEqual("Triangles per side poly", MeshDescription.GetNumPolygonTriangles(SidePolygonIDs[Index]), 2);
+
+		TArray<FEdgeID, TInlineAllocator<1>> InternalEdgeIDs = MeshDescription.GetPolygonInternalEdges<TInlineAllocator<1>>(SidePolygonIDs[Index]);
+		TestEqual("Number of internal edges", InternalEdgeIDs.Num(), 1);
+	}
+
+	// Top face is a single polygon
+
+	TArray<FEdgeID> OutTopPolyEdgeIDs;
+	FPolygonID TopPolygonID = MeshDescription.CreatePolygon(TopPolygonGroupID, TopVertexInstanceIDs, &OutTopPolyEdgeIDs);
+
+	TestEqual("Extra edges created", OutTopPolyEdgeIDs.Num(), 0);
+	
+	TArray<FEdgeID, TInlineAllocator<NumSides - 3>> TopInternalEdgeIDs = MeshDescription.GetPolygonInternalEdges<TInlineAllocator<NumSides - 3>>(TopPolygonID);
+	TestEqual("Number of internal edges", TopInternalEdgeIDs.Num(), NumSides - 3);
+
+	// Bottom face is composed of individual triangles
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		const FVertexInstanceID BottomTriangle[3] =
+		{
+			BottomVertexInstanceIDs[(Index + 1) % NumSides],
+			BottomVertexInstanceIDs[Index],
+			BottomCenterVertexInstanceID
+		};
+
+		TArray<FEdgeID> OutBottomTriEdgeIDs;
+		BottomTriangleIDs[Index] = MeshDescription.CreateTriangle(BottomPolygonGroupID, BottomTriangle, &OutBottomTriEdgeIDs);
+
+		const int32 ExtraEdges = (Index == 0) ? 2 : (Index == NumSides - 1) ? 0 : 1;
+		TestEqual("Extra bottom triangle edges", OutBottomTriEdgeIDs.Num(), ExtraEdges);
+	}
+
+	// Check totals correct
+
+	TestEqual("Total triangle count", MeshDescription.Triangles().Num(), NumSides * 4 - 2);
+	TestEqual("Total edge count", MeshDescription.Edges().Num(), NumSides * 6 - 3);
+	TestEqual("Polygons in side group", MeshDescription.GetNumPolygonGroupPolygons(SidePolygonGroupID), NumSides);
+	TestEqual("Polygons in top group", MeshDescription.GetNumPolygonGroupPolygons(TopPolygonGroupID), 1);
+	TestEqual("Polygons in bottom group", MeshDescription.GetNumPolygonGroupPolygons(BottomPolygonGroupID), NumSides);
+
+	// Check connections configured correctly
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		int32 PrevIndex = (Index + NumSides - 1) % NumSides;
+
+		TestEqual("Side polygons connected to edge", MeshDescription.GetNumEdgeConnectedPolygons(SideEdgeIDs[Index]), 2);
+		TestEqual("Side triangles connected to edge", MeshDescription.GetNumEdgeConnectedTriangles(SideEdgeIDs[Index]), 2);
+		TestTrue("Check polygon connected to edge", MeshDescription.GetEdgeConnectedPolygons(SideEdgeIDs[Index]).Contains(SidePolygonIDs[Index]));
+		TestTrue("Check polygon connected to edge", MeshDescription.GetEdgeConnectedPolygons(SideEdgeIDs[Index]).Contains(SidePolygonIDs[PrevIndex]));
+
+		TestEqual("Side polygons connected to vertex instance", MeshDescription.GetNumVertexInstanceConnectedPolygons(SideTopVertexInstanceIDs[Index]), 2);
+		TestEqual("Side triangles connected to vertex instance", MeshDescription.GetNumVertexInstanceConnectedTriangles(SideTopVertexInstanceIDs[Index]), 3);
+		TestTrue("Check polygon connected to vertex instance", MeshDescription.GetVertexInstanceConnectedPolygons(SideTopVertexInstanceIDs[Index]).Contains(SidePolygonIDs[Index]));
+		TestTrue("Check polygon connected to vertex instance", MeshDescription.GetVertexInstanceConnectedPolygons(SideTopVertexInstanceIDs[Index]).Contains(SidePolygonIDs[PrevIndex]));
+	}
+
+	// Check adjacency
+
+	TArray<FPolygonID> AdjacentPolygonIDs = MeshDescription.GetPolygonAdjacentPolygons(SidePolygonIDs[0]);
+	TestEqual("Adjacent polygon count", AdjacentPolygonIDs.Num(), 4);
+	TestTrue("Check adjacency", AdjacentPolygonIDs.Contains(SidePolygonIDs[1]));
+	TestTrue("Check adjacency", AdjacentPolygonIDs.Contains(SidePolygonIDs[NumSides - 1]));
+	TestTrue("Check adjacency", AdjacentPolygonIDs.Contains(MeshDescription.GetTrianglePolygon(BottomTriangleIDs[0])));
+	TestTrue("Check adjacency", AdjacentPolygonIDs.Contains(TopPolygonID));
+
+	// Move some points and check retriangulation
+
+	Positions[TopVertexIDs[0]] = FVector(Radius * 0.25f, 0.0f, -Height);	// create a concave top and bottom
+	Positions[BottomVertexIDs[0]] = FVector(Radius * 0.25f, 0.0f, Height);
+
+	// Get list of unique polygons connected to the vertices that have moved
+	TArray<FPolygonID> ConnectedPolygons = MeshDescription.GetVertexConnectedPolygons(TopVertexIDs[0]);
+	for (const FPolygonID ConnectedPolygon : MeshDescription.GetVertexConnectedPolygons(BottomVertexIDs[0]))
+	{
+		ConnectedPolygons.AddUnique(ConnectedPolygon);
+	}
+
+	TestEqual("Number of polys to triangulate", ConnectedPolygons.Num(), 5);
+	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(TopPolygonID));
+	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(SidePolygonIDs[0]));
+	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(SidePolygonIDs[NumSides - 1]));
+	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(MeshDescription.GetTrianglePolygon(BottomTriangleIDs[0])));
+	TestTrue("PolygonsToTriangulate", ConnectedPolygons.Contains(MeshDescription.GetTrianglePolygon(BottomTriangleIDs[NumSides - 1])));
+
+	for (const FPolygonID ConnectedPolygon : ConnectedPolygons)
+	{
+		MeshDescription.ComputePolygonTriangulation(ConnectedPolygon);
+	}
+
+	TArray<FEdgeID, TInlineAllocator<NumSides - 3>> NewTopInternalEdgeIDs = MeshDescription.GetPolygonInternalEdges<TInlineAllocator<NumSides - 3>>(TopPolygonID);
+	TestEqual("Number of internal edges", NewTopInternalEdgeIDs.Num(), NumSides - 3);
+
+	// Move polygon to another group
+
+	MeshDescription.SetPolygonPolygonGroup(TopPolygonID, SidePolygonGroupID);
+	TestEqual("New polygons in side group", MeshDescription.GetNumPolygonGroupPolygons(SidePolygonGroupID), NumSides + 1);
+	TestEqual("New polygons in top group", MeshDescription.GetNumPolygonGroupPolygons(TopPolygonGroupID), 0);
+	TestEqual("Top polygon group", MeshDescription.GetPolygonPolygonGroup(TopPolygonID), SidePolygonGroupID);
+
+	// Delete a mesh element
+
+	TArray<FEdgeID> TopFaceEdges = MeshDescription.GetPolygonPerimeterEdges(TopPolygonID);
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		const FEdgeID TopFaceEdge = TopFaceEdges[Index];
+		TestEqual("Check number of edge connected polygons", MeshDescription.GetNumEdgeConnectedPolygons(TopFaceEdge), 2);
+		TestTrue("Check edge connection", MeshDescription.GetEdgeConnectedPolygons(TopFaceEdge).Contains(TopPolygonID));
+		TestTrue("Check edge connection", MeshDescription.GetEdgeConnectedPolygons(TopFaceEdge).Contains(SidePolygonIDs[Index]));
+	}
+
+	TArray<FEdgeID> OrphanedEdges;
+	TArray<FVertexInstanceID> OrphanedVertexInstances;
+	TArray<FPolygonGroupID> OrphanedPolygonGroups;
+	MeshDescription.DeletePolygon(TopPolygonID, &OrphanedEdges, &OrphanedVertexInstances, &OrphanedPolygonGroups);
+
+	TestEqual("Orphaned edges", OrphanedEdges.Num(), 0);
+	TestEqual("Orphaned vertex instances", OrphanedVertexInstances.Num(), NumSides);
+	TestEqual("Orphaned polygon groups", OrphanedPolygonGroups.Num(), 0);
+	TestEqual("New edge count", MeshDescription.Edges().Num(), NumSides * 5);
+	TestEqual("New edge array size", MeshDescription.Edges().GetArraySize(), NumSides * 6 - 3);
+
+	for (int32 Index = 0; Index < NumSides; ++Index)
+	{
+		const FEdgeID TopFaceEdge = TopFaceEdges[Index];
+		TestEqual("Check number of edge connected polygons", MeshDescription.GetNumEdgeConnectedPolygons(TopFaceEdge), 1);
+		TestTrue("Check edge connection", MeshDescription.GetEdgeConnectedPolygons(TopFaceEdge).Contains(SidePolygonIDs[Index]));
+	}
+
+	return true;
 }

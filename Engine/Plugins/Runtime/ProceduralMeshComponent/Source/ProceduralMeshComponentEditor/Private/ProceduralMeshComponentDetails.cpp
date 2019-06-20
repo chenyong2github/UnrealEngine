@@ -223,10 +223,7 @@ FReply FProceduralMeshComponentDetails::ClickedOnConvertToStaticMesh()
 					}
 
 					// Insert a polygon into the mesh
-					const FPolygonID NewPolygonID = MeshDescription.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
-					//Triangulate the polygon
-					FMeshPolygon& Polygon = MeshDescription.GetPolygon(NewPolygonID);
-					MeshDescription.ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+					MeshDescription.CreatePolygon(PolygonGroupID, VertexInstanceIDs);
 				}
 			}
 

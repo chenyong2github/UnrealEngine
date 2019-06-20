@@ -88,7 +88,7 @@ FVector FMeshDescriptionBuilder::GetPosition(const FVertexID& VertexID)
 
 FVector FMeshDescriptionBuilder::GetPosition(const FVertexInstanceID& InstanceID)
 {
-	return VertexPositions.Get(MeshDescription->GetVertexInstance(InstanceID).VertexID, 0);
+	return VertexPositions.Get(MeshDescription->GetVertexInstanceVertex(InstanceID), 0);
 }
 
 
@@ -179,10 +179,6 @@ FPolygonID FMeshDescriptionBuilder::AppendPolygon(const TArray<FVertexID>& Verti
 
 	const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroup, Polygon);
 
-	// compute triangulation
-	FMeshPolygon& NewPolygon = MeshDescription->GetPolygon(NewPolygonID);
-	MeshDescription->ComputePolygonTriangulation(NewPolygonID, NewPolygon.Triangles);
-
 	return NewPolygonID;
 }
 
@@ -197,10 +193,6 @@ FPolygonID FMeshDescriptionBuilder::AppendTriangle(const FVertexInstanceID& Inst
 	Polygon.Add(Instance2);
 
 	const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(PolygonGroup, Polygon);
-
-	// compute triangulation
-	FMeshPolygon& NewPolygon = MeshDescription->GetPolygon(NewPolygonID);
-	MeshDescription->ComputePolygonTriangulation(NewPolygonID, NewPolygon.Triangles);
 
 	return NewPolygonID;
 }
@@ -332,23 +324,24 @@ void FMeshDescriptionBuilder::RecalculateInstanceNormals()
 	const FPolygonArray& Polygons = MeshDescription->Polygons();
 	for (const FPolygonID PolygonID : Polygons.GetElementIDs())
 	{
-		const TArray<FMeshTriangle>& Triangles = MeshDescription->GetPolygonTriangles(PolygonID);
-		for (FMeshTriangle Triangle : Triangles)
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription->GetPolygonTriangleIDs(PolygonID);
+		for (const FTriangleID TriangleID : TriangleIDs)
 		{
-			FVector3d A = GetPosition(Triangle.VertexInstanceID0);
-			FVector3d B = GetPosition(Triangle.VertexInstanceID1);
-			FVector3d C = GetPosition(Triangle.VertexInstanceID2);
+			TArrayView<const FVertexInstanceID> TriangleVertexInstanceIDs = MeshDescription->GetTriangleVertexInstances(TriangleID);
+			FVector3d A = GetPosition(TriangleVertexInstanceIDs[0]);
+			FVector3d B = GetPosition(TriangleVertexInstanceIDs[1]);
+			FVector3d C = GetPosition(TriangleVertexInstanceIDs[2]);
 			double Area = 1.0;
 			FVector FaceNormal = VectorUtil::FastNormalArea(A, B, C, Area);
 			if (Area > FMathf::ZeroTolerance)
 			{
 				FaceNormal *= Area;
-				InstanceNormals.Set(Triangle.VertexInstanceID0,
-					InstanceNormals.Get(Triangle.VertexInstanceID0, 0) + FaceNormal);
-				InstanceNormals.Set(Triangle.VertexInstanceID1,
-					InstanceNormals.Get(Triangle.VertexInstanceID1, 0) + FaceNormal);
-				InstanceNormals.Set(Triangle.VertexInstanceID2,
-					InstanceNormals.Get(Triangle.VertexInstanceID2, 0) + FaceNormal);
+				InstanceNormals.Set(TriangleVertexInstanceIDs[0],
+					InstanceNormals.Get(TriangleVertexInstanceIDs[0], 0) + FaceNormal);
+				InstanceNormals.Set(TriangleVertexInstanceIDs[1],
+					InstanceNormals.Get(TriangleVertexInstanceIDs[1], 0) + FaceNormal);
+				InstanceNormals.Set(TriangleVertexInstanceIDs[2],
+					InstanceNormals.Get(TriangleVertexInstanceIDs[2], 0) + FaceNormal);
 			}
 		}
 	}

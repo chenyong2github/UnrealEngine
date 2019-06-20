@@ -1796,10 +1796,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 								}
 
 								// Insert a polygon into the mesh
-								const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
-								//Triangulate the polygon
-								FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-								MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+								MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
 							}
 						}
 
@@ -1945,10 +1942,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary7(UClass* InClass, UObject*
 							}
 
 							// Insert a polygon into the mesh
-							const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
-							//Triangulate the polygon
-							FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-							MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+							MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
 						}
 					}
 
@@ -2329,10 +2323,7 @@ UObject* USpeedTreeImportFactory::FactoryCreateBinary8(UClass* InClass, UObject*
 					}
 
 					// Insert a polygon into the mesh
-					const FPolygonID NewPolygonID = MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
-					//Triangulate the polygon
-					FMeshPolygon& Polygon = MeshDescription->GetPolygon(NewPolygonID);
-					MeshDescription->ComputePolygonTriangulation(NewPolygonID, Polygon.Triangles);
+					MeshDescription->CreatePolygon(CurrentPolygonGroupID, CornerVertexInstanceIDs);
 				}
 			}
 

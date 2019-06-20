@@ -76,23 +76,19 @@ void ProxyLOD::TransferMeshAttributes(const FClosestPolyField& SrcPolyField, FMe
 	{
 		FClosestPolyField::FPolyConstAccessor ConstPolyAccessor = SrcPolyField.GetPolyConstAccessor();
 
-		FVertexInstanceID WIdxs[3];
 		// loop over the faces
 		for (int32 CurrentRange = Range.begin(), EndRange = Range.end(); CurrentRange < EndRange; ++CurrentRange)
 		{
 			FPolygonID PolygonID = FPolygonID(CurrentRange);
-			const FMeshPolygon& Polygon = InOutMesh.GetPolygon(PolygonID);
 			int32 LastMaterialIndex = -1;
-			for (const FMeshTriangle& Triangle : Polygon.Triangles)
+			for (const FTriangleID TriangleID : InOutMesh.GetPolygonTriangleIDs(PolygonID))
 			{
 				// get the three corners for this Triangle
-				WIdxs[0] = Triangle.VertexInstanceID0;
-				WIdxs[1] = Triangle.VertexInstanceID1;
-				WIdxs[2] = Triangle.VertexInstanceID2;
+				TArrayView<const FVertexInstanceID> TriangleVerts = InOutMesh.GetTriangleVertexInstances(TriangleID);
 
 				for (int32 i = 0; i < 3; ++i)
 				{
-					const FVertexInstanceID& Idx = WIdxs[i];
+					const FVertexInstanceID Idx = TriangleVerts[i];
 					// world space location
 					const FVector& WSPos = VertexPositions[InOutMesh.GetVertexInstanceVertex(Idx)];
 

@@ -273,7 +273,7 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 		TSet<FPolygonGroupID> PolygonGroupSet;
 		for(const FPolygonID PolygonId : NewPolygonIds)
 		{
-			const TArray<FVertexInstanceID>& VertexInstanceIds = Mesh->GetMeshDescription()->GetPolygonPerimeterVertexInstances(PolygonId);
+			const TArray<FVertexInstanceID>& VertexInstanceIds = Mesh->GetMeshDescription()->GetPolygonVertexInstances(PolygonId);
 			// @todo (mlentine): Remove this when we don't need duplicate vertex instance ids.
 			TArray<FVertexInstanceID> NewVertexInstanceIds;
 			for(const FVertexInstanceID& VertexInstanceId : VertexInstanceIds)
@@ -297,7 +297,7 @@ void USplitMeshCommand::Execute(IMeshEditorModeEditingContract& MeshEditorMode)
 				CopyAllAttributesToDifferentElement(NewMeshDescription->VertexInstanceAttributes(), Mesh->GetMeshDescription()->VertexInstanceAttributes(), NewVertexInstanceID, VertexInstanceId);
 			}
 			TArray<FEdgeID> EdgeIds;
-			Mesh->GetMeshDescription()->GetPolygonEdges(PolygonId, EdgeIds);
+			Mesh->GetMeshDescription()->GetPolygonPerimeterEdges(PolygonId, EdgeIds);
 			for(const FEdgeID EdgeId : EdgeIds)
 			{
 				if(!EdgeSet.Contains(EdgeId))

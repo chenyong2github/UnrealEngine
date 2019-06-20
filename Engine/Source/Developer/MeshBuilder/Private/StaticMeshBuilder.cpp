@@ -404,12 +404,7 @@ void BuildVertexBuffer(
 		}
 	}
 
-	int32 ReserveIndicesCount = 0;
-	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
-	{
-		const TArray<FMeshTriangle>& PolygonTriangles = MeshDescription.GetPolygonTriangles(PolygonID);
-		ReserveIndicesCount += PolygonTriangles.Num() * 3;
-	}
+	int32 ReserveIndicesCount = MeshDescription.Triangles().Num() * 3;
 	IndexBuffer.Reset(ReserveIndicesCount);
 
 	//Fill the remap array
@@ -424,23 +419,23 @@ void BuildVertexBuffer(
 	OutWedgeMap.AddZeroed(ReserveIndicesCount);
 
 	int32 WedgeIndex = 0;
-	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
+	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
 	{
 		const FPolygonGroupID PolygonGroupID = MeshDescription.GetPolygonPolygonGroup(PolygonID);
 		const int32 SectionIndex = PolygonGroupToSectionIndex[PolygonGroupID];
 		TArray<uint32>& SectionIndices = OutPerSectionIndices[SectionIndex];
 
-		const TArray<FMeshTriangle>& PolygonTriangles = MeshDescription.GetPolygonTriangles(PolygonID);
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
 		uint32 MinIndex = TNumericLimits< uint32 >::Max();
 		uint32 MaxIndex = TNumericLimits< uint32 >::Min();
-		for (int32 TriangleIndex = 0; TriangleIndex < PolygonTriangles.Num(); ++TriangleIndex)
+		for (int32 TriangleIndex = 0; TriangleIndex < TriangleIDs.Num(); ++TriangleIndex)
 		{
-			const FMeshTriangle& Triangle = PolygonTriangles[TriangleIndex];
+			const FTriangleID TriangleID = TriangleIDs[TriangleIndex];
 
 			FVector CornerPositions[3];
 			for (int32 TriVert = 0; TriVert < 3; ++TriVert)
 			{
-				const FVertexInstanceID VertexInstanceID = Triangle.GetVertexInstanceID(TriVert);
+				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, TriVert);
 				const FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(VertexInstanceID);
 				CornerPositions[TriVert] = VertexPositions[VertexID];
 			}
@@ -457,7 +452,7 @@ void BuildVertexBuffer(
 
 			for (int32 TriVert = 0; TriVert < 3; ++TriVert, ++WedgeIndex)
 			{
-				const FVertexInstanceID VertexInstanceID = Triangle.GetVertexInstanceID(TriVert);
+				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, TriVert);
 				const int32 VertexInstanceValue = VertexInstanceID.GetValue();
 				const FVector& VertexPosition = CornerPositions[TriVert];
 				const FVector& VertexInstanceNormal = VertexInstanceNormals[VertexInstanceID];

@@ -590,6 +590,7 @@ private:
 };
 
 
+#if 0
 struct FSetEdgesVerticesChangeInput
 {
 	/** The edge to set new vertices for */
@@ -731,6 +732,7 @@ private:
 	FRemovePolygonPerimeterVerticesChangeInput Input;
 
 };
+#endif
 
 
 struct FStartOrEndModificationChangeInput

@@ -205,15 +205,15 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 	for(const FPolygonID PolygonID : RawMesh->Polygons().GetElementIDs())
 	{
 		const FPolygonGroupID PolygonGroupID = RawMesh->GetPolygonPolygonGroup(PolygonID);
-		const TArray<FMeshTriangle>& Triangles = RawMesh->GetPolygonTriangles(PolygonID);
-		for (const FMeshTriangle& Triangle : Triangles)
+		const TArray<FTriangleID>& TriangleIDs = RawMesh->GetPolygonTriangleIDs(PolygonID);
+		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			if (MeshSettings->MaterialIndices.Contains(PolygonGroupID.GetValue()))
 			{
 				for (int32 Corner = 0; Corner < 3; Corner++)
 				{
 					const int32 SrcVertIndex = FaceIndex * 3 + Corner;
-					const FVertexInstanceID SrcVertexInstanceID = Triangle.GetVertexInstanceID(Corner);
+					const FVertexInstanceID SrcVertexInstanceID = RawMesh->GetTriangleVertexInstance(TriangleID, Corner);
 					const FVertexID SrcVertexID = RawMesh->GetVertexInstanceVertex(SrcVertexInstanceID);
 					// add vertex
 					FDynamicMeshVertex* Vert = new(Vertices)FDynamicMeshVertex();

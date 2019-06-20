@@ -172,16 +172,13 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 	{
 		FPolygonGroupID PolygonGroupID = MeshIn->GetPolygonPolygonGroup(PolygonID);
 
-		const TArray<FMeshTriangle>& Triangles = MeshIn->GetPolygonTriangles(PolygonID);
-		int NumTriangles = Triangles.Num();
+		const TArray<FTriangleID>& TriangleIDs = MeshIn->GetPolygonTriangleIDs(PolygonID);
+		int NumTriangles = TriangleIDs.Num();
 		for ( int TriIdx = 0; TriIdx < NumTriangles; ++TriIdx)
 		{
-			const FMeshTriangle& Triangle = Triangles[TriIdx];
+			const FTriangleID TriangleID = TriangleIDs[TriIdx];
 				
-			FVertexInstanceID InstanceTri[3];
-			InstanceTri[0] = Triangle.VertexInstanceID0; 
-			InstanceTri[1] = Triangle.VertexInstanceID1; 
-			InstanceTri[2] = Triangle.VertexInstanceID2;
+			TArrayView<const FVertexInstanceID> InstanceTri = MeshIn->GetTriangleVertexInstances(TriangleID);
 
 			int GroupID = 0;
 			if (GroupMode == EPrimaryGroupMode::SetToPolyGroup)
@@ -202,9 +199,9 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 			
 
 			// append triangle
-			int VertexID0 = MeshIn->GetVertexInstance(Triangle.VertexInstanceID0).VertexID.GetValue();
-			int VertexID1 = MeshIn->GetVertexInstance(Triangle.VertexInstanceID1).VertexID.GetValue();
-			int VertexID2 = MeshIn->GetVertexInstance(Triangle.VertexInstanceID2).VertexID.GetValue();
+			int VertexID0 = MeshIn->GetVertexInstanceVertex(InstanceTri[0]).GetValue();
+			int VertexID1 = MeshIn->GetVertexInstanceVertex(InstanceTri[1]).GetValue();
+			int VertexID2 = MeshIn->GetVertexInstanceVertex(InstanceTri[2]).GetValue();
 			int NewTriangleID = MeshOut.AppendTriangle(VertexID0, VertexID1, VertexID2, GroupID);
 			
 			// if append failed due to non-manifold, duplicate verts
@@ -233,21 +230,21 @@ void FMeshDescriptionToDynamicMesh::Convert(const FMeshDescription* MeshIn, FDyn
 				}
 				if (bDuplicate[0])
 				{
-					FVertexID VertexID = MeshIn->GetVertexInstance(Triangle.VertexInstanceID0).VertexID;
+					FVertexID VertexID = MeshIn->GetVertexInstanceVertex(InstanceTri[0]);
 					const FVector Position = VertexPositions.Get(VertexID);
 					int NewVertIdx = MeshOut.AppendVertex(Position);
 					VertexID0 = NewVertIdx;
 				}
 				if (bDuplicate[1])
 				{
-					FVertexID VertexID = MeshIn->GetVertexInstance(Triangle.VertexInstanceID1).VertexID;
+					FVertexID VertexID = MeshIn->GetVertexInstanceVertex(InstanceTri[1]);
 					const FVector Position = VertexPositions.Get(VertexID);
 					int NewVertIdx = MeshOut.AppendVertex(Position);
 					VertexID1 = NewVertIdx;
 				}
 				if (bDuplicate[2])
 				{
-					FVertexID VertexID = MeshIn->GetVertexInstance(Triangle.VertexInstanceID2).VertexID;
+					FVertexID VertexID = MeshIn->GetVertexInstanceVertex(InstanceTri[2]);
 					const FVector Position = VertexPositions.Get(VertexID);
 					int NewVertIdx = MeshOut.AppendVertex(Position);
 					VertexID2 = NewVertIdx;
@@ -323,12 +320,9 @@ void FMeshDescriptionToDynamicMesh::CopyTangents(const FMeshDescription* SourceM
 	for (int TriID : TargetMesh->TriangleIndicesItr())
 	{
 		FIndex2i PolyTriIdx = TriToPolyTriMap[TriID];
-		const TArray<FMeshTriangle>& Triangles = SourceMesh->GetPolygonTriangles( FPolygonID(PolyTriIdx.A) );
-		const FMeshTriangle& Triangle = Triangles[PolyTriIdx.B];
-		FVertexInstanceID InstanceTri[3];
-		InstanceTri[0] = Triangle.VertexInstanceID0;
-		InstanceTri[1] = Triangle.VertexInstanceID1;
-		InstanceTri[2] = Triangle.VertexInstanceID2;
+		const TArray<FTriangleID>& TriangleIDs = SourceMesh->GetPolygonTriangleIDs( FPolygonID(PolyTriIdx.A) );
+		const FTriangleID TriangleID = TriangleIDs[PolyTriIdx.B];
+		TArrayView<const FVertexInstanceID> InstanceTri = SourceMesh->GetTriangleVertexInstances(TriangleID);
 		for (int j = 0; j < 3; ++j)
 		{
 			FVector Normal = InstanceNormals.Get(InstanceTri[j], 0);

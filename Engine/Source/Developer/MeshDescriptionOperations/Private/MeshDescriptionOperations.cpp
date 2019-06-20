@@ -80,7 +80,7 @@ void FMeshDescriptionOperations::ConvertHardEdgesToSmoothGroup(const FMeshDescri
 	int32 TriangleCount = 0;
 	for (const FPolygonID PolygonID : SourceMeshDescription.Polygons().GetElementIDs())
 	{
-		TriangleCount += SourceMeshDescription.GetPolygonTriangles(PolygonID).Num();
+		TriangleCount += SourceMeshDescription.GetPolygonTriangleIDs(PolygonID).Num();
 		if (ConsumedPolygons[PolygonID.GetValue()])
 		{
 			continue;
@@ -104,7 +104,7 @@ void FMeshDescriptionOperations::ConvertHardEdgesToSmoothGroup(const FMeshDescri
 			uint32 NeighborSmoothGroup = 0;
 			const uint32 LastSmoothGroupValue = (LastPolygonID == FPolygonID::Invalid) ? 0 : PolygonSmoothGroup[LastPolygonID];
 			TArray<FEdgeID> PolygonEdges;
-			SourceMeshDescription.GetPolygonEdges(CurrentPolygonID, PolygonEdges);
+			SourceMeshDescription.GetPolygonPerimeterEdges(CurrentPolygonID, PolygonEdges);
 			for (const FEdgeID& EdgeID : PolygonEdges)
 			{
 				bool bIsHardEdge = EdgeHardnesses[EdgeID];
@@ -184,8 +184,7 @@ void FMeshDescriptionOperations::ConvertHardEdgesToSmoothGroup(const FMeshDescri
 	for (const FPolygonID PolygonID : SourceMeshDescription.Polygons().GetElementIDs())
 	{
 		uint32 PolygonSmoothValue = PolygonSmoothGroup[PolygonID];
-		const TArray<FMeshTriangle>& Triangles = SourceMeshDescription.GetPolygonTriangles(PolygonID);
-		for (const FMeshTriangle& MeshTriangle : Triangles)
+		for (const FTriangleID TriangleID : SourceMeshDescription.GetPolygonTriangleIDs(PolygonID))
 		{
 			FaceSmoothingMasks[TriangleIndex++] = PolygonSmoothValue;
 		}
@@ -213,7 +212,7 @@ void FMeshDescriptionOperations::ConvertSmoothGroupToHardEdges(const TArray<uint
 			check(FaceSmoothingMasks.IsValidIndex(CurrentPolygonIDValue));
 			const uint32 ReferenceSmoothGroup = FaceSmoothingMasks[CurrentPolygonIDValue];
 			TArray<FEdgeID> PolygonEdges;
-			DestinationMeshDescription.GetPolygonEdges(CurrentPolygonID, PolygonEdges);
+			DestinationMeshDescription.GetPolygonPerimeterEdges(CurrentPolygonID, PolygonEdges);
 			for (const FEdgeID& EdgeID : PolygonEdges)
 			{
 				const bool bIsHardEdge = EdgeHardnesses[EdgeID];
@@ -273,11 +272,7 @@ void FMeshDescriptionOperations::ConvertToRawMesh(const FMeshDescription& Source
 		++VertexIndex;
 	}
 
-	int32 TriangleNumber = 0;
-	for (const FPolygonID& PolygonID : SourceMeshDescription.Polygons().GetElementIDs())
-	{
-		TriangleNumber += SourceMeshDescription.GetPolygonTriangles(PolygonID).Num();
-	}
+	int32 TriangleNumber = SourceMeshDescription.Triangles().Num();
 	DestinationRawMesh.FaceMaterialIndices.AddZeroed(TriangleNumber);
 	DestinationRawMesh.FaceSmoothingMasks.AddZeroed(TriangleNumber);
 
@@ -304,8 +299,8 @@ void FMeshDescriptionOperations::ConvertToRawMesh(const FMeshDescription& Source
 	{
 		const FPolygonGroupID& PolygonGroupID = SourceMeshDescription.GetPolygonPolygonGroup(PolygonID);
 		int32 PolygonIDValue = PolygonID.GetValue();
-		const TArray<FMeshTriangle>& Triangles = SourceMeshDescription.GetPolygonTriangles(PolygonID);
-		for (const FMeshTriangle& MeshTriangle : Triangles)
+		const TArray<FTriangleID>& TriangleIDs = SourceMeshDescription.GetPolygonTriangleIDs(PolygonID);
+		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			if (MaterialMap.Num() > 0 && MaterialMap.Contains(PolygonGroupMaterialSlotName[PolygonGroupID]))
 			{
@@ -318,7 +313,7 @@ void FMeshDescriptionOperations::ConvertToRawMesh(const FMeshDescription& Source
 			DestinationRawMesh.FaceSmoothingMasks[TriangleIndex] = 0; //Conversion of soft/hard to smooth mask is done after the geometry is converted
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
-				const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(Corner);
+				const FVertexInstanceID VertexInstanceID = SourceMeshDescription.GetTriangleVertexInstance(TriangleID, Corner);
 
 				if (bHasVertexColor)
 				{
@@ -555,14 +550,7 @@ void FMeshDescriptionOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMes
 			}
 		}
 
-		const FPolygonID NewPolygonID = DestinationMeshDescription.CreatePolygon(PolygonGroupID, TriangleVertexInstanceIDs);
-		int32 NewTriangleIndex = DestinationMeshDescription.GetPolygonTriangles(NewPolygonID).AddDefaulted();
-		FMeshTriangle& NewTriangle = DestinationMeshDescription.GetPolygonTriangles(NewPolygonID)[NewTriangleIndex];
-		for (int32 Corner = 0; Corner < 3; ++Corner)
-		{
-			FVertexInstanceID VertexInstanceID = TriangleVertexInstanceIDs[Corner];
-			NewTriangle.SetVertexInstanceID(Corner, VertexInstanceID);
-		}
+		DestinationMeshDescription.CreatePolygon(PolygonGroupID, TriangleVertexInstanceIDs);
 	}
 
 	ConvertSmoothGroupToHardEdges(SourceRawMesh.FaceSmoothingMasks, DestinationMeshDescription);
@@ -682,10 +670,11 @@ void FMeshDescriptionOperations::AppendMeshDescription(const FMeshDescription& S
 	//Edges
 	TMap<FEdgeID, FEdgeID> SourceEdgeIDRemap;
 	SourceEdgeIDRemap.Reserve(SourceMesh.Edges().Num());
-	for (const FEdgeID& SourceEdgeID : SourceMesh.Edges().GetElementIDs())
+	for (const FEdgeID SourceEdgeID : SourceMesh.Edges().GetElementIDs())
 	{
-		const FMeshEdge& SourceEdge = SourceMesh.GetEdge(SourceEdgeID);
-		FEdgeID TargetEdgeID = TargetMesh.CreateEdge(SourceVertexIDRemap[SourceEdge.VertexIDs[0]], SourceVertexIDRemap[SourceEdge.VertexIDs[1]]);
+		const FVertexID EdgeVertex0 = SourceMesh.GetEdgeVertex(SourceEdgeID, 0);
+		const FVertexID EdgeVertex1 = SourceMesh.GetEdgeVertex(SourceEdgeID, 1);
+		FEdgeID TargetEdgeID = TargetMesh.CreateEdge(SourceVertexIDRemap[EdgeVertex0], SourceVertexIDRemap[EdgeVertex1]);
 		TargetEdgeHardnesses[TargetEdgeID] = SourceEdgeHardnesses[SourceEdgeID];
 		TargetEdgeCreaseSharpnesses[TargetEdgeID] = SourceEdgeCreaseSharpnesses[SourceEdgeID];
 		SourceEdgeIDRemap.Add(SourceEdgeID, TargetEdgeID);
@@ -735,24 +724,22 @@ void FMeshDescriptionOperations::AppendMeshDescription(const FMeshDescription& S
 	}
 
 	//Polygons
-	for (const FPolygonID& SourcePolygonID : SourceMesh.Polygons().GetElementIDs())
+	for (const FPolygonID SourcePolygonID : SourceMesh.Polygons().GetElementIDs())
 	{
-		const FMeshPolygon& SourcePolygon = SourceMesh.GetPolygon(SourcePolygonID);
+		const TArray<FVertexInstanceID>& PerimeterVertexInstanceIDs = SourceMesh.GetPolygonVertexInstances(SourcePolygonID);
+		const FPolygonGroupID PolygonGroupID = SourceMesh.GetPolygonPolygonGroup(SourcePolygonID);
 		//Find the polygonGroupID
-		FPolygonGroupID TargetPolygonGroupID = RemapPolygonGroup[SourcePolygon.PolygonGroupID];
+		FPolygonGroupID TargetPolygonGroupID = RemapPolygonGroup[PolygonGroupID];
 
-		int32 PolygonVertexCount = SourcePolygon.PerimeterContour.VertexInstanceIDs.Num();
+		int32 PolygonVertexCount = PerimeterVertexInstanceIDs.Num();
 		TArray<FVertexInstanceID> VertexInstanceIDs;
 		VertexInstanceIDs.Reserve(PolygonVertexCount);
-		for (const FVertexInstanceID VertexInstanceID : SourcePolygon.PerimeterContour.VertexInstanceIDs)
+		for (const FVertexInstanceID VertexInstanceID : PerimeterVertexInstanceIDs)
 		{
 			VertexInstanceIDs.Add(SourceVertexInstanceIDRemap[VertexInstanceID]);
 		}
 		// Insert a polygon into the mesh
 		const FPolygonID TargetPolygonID = TargetMesh.CreatePolygon(TargetPolygonGroupID, VertexInstanceIDs);
-		//Triangulate the polygon
-		FMeshPolygon& Polygon = TargetMesh.GetPolygon(TargetPolygonID);
-		TargetMesh.ComputePolygonTriangulation(TargetPolygonID, Polygon.Triangles);
 	}
 }
 
@@ -829,11 +816,11 @@ void FMeshDescriptionOperations::CreatePolygonNTB(FMeshDescription& MeshDescript
 			//By pass normal calculation if its already done
 			continue;
 		}
-		const TArray<FMeshTriangle>& MeshTriangles = MeshDescription.GetPolygonTriangles(PolygonID);
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
 		FVector TangentX(0.0f);
 		FVector TangentY(0.0f);
 		FVector TangentZ(0.0f);
-		for (const FMeshTriangle& MeshTriangle : MeshTriangles)
+		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			int32 UVIndex = 0;
 
@@ -842,7 +829,7 @@ void FMeshDescriptionOperations::CreatePolygonNTB(FMeshDescription& MeshDescript
 
 			for (int32 i = 0; i < 3; ++i)
 			{
-				const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(i);
+				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, i);
 				UVs[i] = VertexUVs.Get(VertexInstanceID, 0); // UV0
 				P[i] = VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstanceID)];
 			}
@@ -898,7 +885,7 @@ void FMeshDescriptionOperations::CreatePolygonNTB(FMeshDescription& MeshDescript
 
 		// Calculate polygon center: just an average of all vertex positions.
 		FVector Center = FVector::ZeroVector;
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonPerimeterVertexInstances(PolygonID);
+		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription.GetPolygonVertexInstances(PolygonID);
 		for (const FVertexInstanceID VertexInstanceID : VertexInstanceIDs)
 		{
 			Center += VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstanceID)];
@@ -970,7 +957,7 @@ void FMeshDescriptionOperations::CreateNormals(FMeshDescription& MeshDescription
 				if (VertexInfo.PolygonID == FPolygonID::Invalid)
 				{
 					VertexInfo.PolygonID = PolygonID;
-					for (const FVertexInstanceID VertexInstanceID : MeshDescription.GetPolygonPerimeterVertexInstances(PolygonID))
+					for (const FVertexInstanceID VertexInstanceID : MeshDescription.GetPolygonVertexInstances(PolygonID))
 					{
 						if (MeshDescription.GetVertexInstanceVertex(VertexInstanceID) == VertexID)
 						{
@@ -1209,8 +1196,7 @@ namespace MeshDescriptionMikktSpaceInterface
 		FMeshDescription *MeshDescription = (FMeshDescription*)(Context->m_pUserData);
 		if (MeshDescription->IsPolygonValid(FPolygonID(FaceIdx)))
 		{
-			const FMeshPolygon& Polygon = MeshDescription->GetPolygon(FPolygonID(FaceIdx));
-			return Polygon.PerimeterContour.VertexInstanceIDs.Num();
+			return MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx)).Num();
 		}
 
 		return 0;
@@ -1219,8 +1205,8 @@ namespace MeshDescriptionMikktSpaceInterface
 	void MikkGetPosition(const SMikkTSpaceContext* Context, float Position[3], const int FaceIdx, const int VertIdx)
 	{
 		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const FMeshPolygon& Polygon = MeshDescription->GetPolygon(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = Polygon.PerimeterContour.VertexInstanceIDs[VertIdx];
+		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
+		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
 		const FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
 		const FVector& VertexPosition = MeshDescription->VertexAttributes().GetAttribute<FVector>(VertexID, MeshAttribute::Vertex::Position);
 		Position[0] = VertexPosition.X;
@@ -1231,8 +1217,8 @@ namespace MeshDescriptionMikktSpaceInterface
 	void MikkGetNormal(const SMikkTSpaceContext* Context, float Normal[3], const int FaceIdx, const int VertIdx)
 	{
 		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const FMeshPolygon& Polygon = MeshDescription->GetPolygon(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = Polygon.PerimeterContour.VertexInstanceIDs[VertIdx];
+		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
+		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
 		const FVector& VertexNormal = MeshDescription->VertexInstanceAttributes().GetAttribute<FVector>(VertexInstanceID, MeshAttribute::VertexInstance::Normal);
 		Normal[0] = VertexNormal.X;
 		Normal[1] = VertexNormal.Y;
@@ -1242,8 +1228,8 @@ namespace MeshDescriptionMikktSpaceInterface
 	void MikkSetTSpaceBasic(const SMikkTSpaceContext* Context, const float Tangent[3], const float BitangentSign, const int FaceIdx, const int VertIdx)
 	{
 		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const FMeshPolygon& Polygon = MeshDescription->GetPolygon(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = Polygon.PerimeterContour.VertexInstanceIDs[VertIdx];
+		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
+		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
 		const FVector VertexTangent(Tangent[0], Tangent[1], Tangent[2]);
 		MeshDescription->VertexInstanceAttributes().SetAttribute<FVector>(VertexInstanceID, MeshAttribute::VertexInstance::Tangent, 0, VertexTangent);
 		MeshDescription->VertexInstanceAttributes().SetAttribute<float>(VertexInstanceID, MeshAttribute::VertexInstance::BinormalSign, 0, -BitangentSign);
@@ -1252,8 +1238,8 @@ namespace MeshDescriptionMikktSpaceInterface
 	void MikkGetTexCoord(const SMikkTSpaceContext* Context, float UV[2], const int FaceIdx, const int VertIdx)
 	{
 		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const FMeshPolygon& Polygon = MeshDescription->GetPolygon(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = Polygon.PerimeterContour.VertexInstanceIDs[VertIdx];
+		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
+		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
 		const FVector2D& TexCoord = MeshDescription->VertexInstanceAttributes().GetAttribute<FVector2D>(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, 0);
 		UV[0] = TexCoord.X;
 		UV[1] = TexCoord.Y;
@@ -1267,11 +1253,7 @@ void FMeshDescriptionOperations::FindOverlappingCorners(FOverlappingCorners& Out
 	const FVertexInstanceArray& VertexInstanceArray = MeshDescription.VertexInstances();
 	const FVertexArray& VertexArray = MeshDescription.Vertices();
 
-	int32 NumWedges = 0;
-	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
-	{
-		NumWedges += 3 * MeshDescription.GetPolygonTriangles(PolygonID).Num();
-	}
+	int32 NumWedges = 3 * MeshDescription.Triangles().Num();
 
 	// Empty the old data and reserve space for new
 	OutOverlappingCorners.Init(NumWedges);
@@ -1285,12 +1267,12 @@ void FMeshDescriptionOperations::FindOverlappingCorners(FOverlappingCorners& Out
 	int32 WedgeIndex = 0;
 	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
 	{
-		const TArray<FMeshTriangle>& Triangles = MeshDescription.GetPolygonTriangles(PolygonID);
-		for (const FMeshTriangle& MeshTriangle : Triangles)
+		const TArray<FTriangleID>& TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
+		for (const FTriangleID TriangleID : TriangleIDs)
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
-				const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(Corner);
+				const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, Corner);
 				new(VertIndexAndZ)MeshDescriptionOperationNamespace::FIndexAndZ(WedgeIndex, VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstanceID)]);
 				++WedgeIndex;
 			}
@@ -1345,11 +1327,7 @@ struct FLayoutUVMeshDescriptionView final : FLayoutUV::IMeshView
 		, SrcChannel(InSrcChannel)
 		, DstChannel(InDstChannel)
 	{
-		uint32 NumTris = 0;
-		for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
-		{
-			NumTris += MeshDescription.GetPolygonTriangles(PolygonID).Num();
-		}
+		uint32 NumTris = MeshDescription.Triangles().Num();
 
 		NumIndices = NumTris * 3;
 
@@ -1360,12 +1338,12 @@ struct FLayoutUVMeshDescriptionView final : FLayoutUV::IMeshView
 
 		for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
 		{
-			const TArray<FMeshTriangle>& Triangles = MeshDescription.GetPolygonTriangles(PolygonID);
-			for (const FMeshTriangle MeshTriangle : Triangles)
+			const TArray<FTriangleID>& TriangleIDs = MeshDescription.GetPolygonTriangleIDs(PolygonID);
+			for (const FTriangleID TriangleID : TriangleIDs)
 			{
 				for (int32 Corner = 0; Corner < 3; ++Corner)
 				{
-					const FVertexInstanceID VertexInstanceID = MeshTriangle.GetVertexInstanceID(Corner);
+					const FVertexInstanceID VertexInstanceID = MeshDescription.GetTriangleVertexInstance(TriangleID, Corner);
 
 					FlattenedTexCoords[WedgeIndex] = TexCoords.Get(VertexInstanceID, SrcChannel);
 					RemapVerts[WedgeIndex] = VertexInstanceID.GetValue();
@@ -1468,7 +1446,7 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 		for (FPolygonID RefPolygonID : DuplicateMeshDescription.Polygons().GetElementIDs())
 		{
 			FPolygonGroupID RefPolygonGroupID = DuplicateMeshDescription.GetPolygonPolygonGroup(RefPolygonID);
-			const TArray<FVertexInstanceID>& RefVertexInstances = DuplicateMeshDescription.GetPolygonPerimeterVertexInstances(RefPolygonID);
+			const TArray<FVertexInstanceID>& RefVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(RefPolygonID);
 			TArray<FVector2D> RefUVs;
 			for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
 			{
@@ -1482,7 +1460,7 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 				{
 					continue;
 				}
-				const TArray<FVertexInstanceID>& TestVertexInstances = DuplicateMeshDescription.GetPolygonPerimeterVertexInstances(TestPolygonID);
+				const TArray<FVertexInstanceID>& TestVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(TestPolygonID);
 				if (TestVertexInstances.Num() != RefVertexInstances.Num())
 				{
 					continue;
@@ -1515,7 +1493,7 @@ bool FMeshDescriptionOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescr
 			}
 			else
 			{
-				const TArray<FVertexInstanceID>& TestVertexInstances = DuplicateMeshDescription.GetPolygonPerimeterVertexInstances(MatchPolygonID);
+				const TArray<FVertexInstanceID>& TestVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances(MatchPolygonID);
 				int32 VertexInstanceIndex = 0;
 				for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
 				{
@@ -1709,7 +1687,7 @@ void FMeshDescriptionOperations::GenerateCylindricalUV(FMeshDescription& MeshDes
 	// Fix the UV coordinates for triangles at the seam where the angle wraps around
 	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
 	{
-		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription.GetPolygonPerimeterVertexInstances(PolygonID);
+		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription.GetPolygonVertexInstances(PolygonID);
 		int32 NumInstances = VertexInstances.Num();
 		if (NumInstances >= 2)
 		{
@@ -1774,7 +1752,7 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 	// For each polygon, find the box plane that best matches the polygon normal
 	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
 	{
-		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription.GetPolygonPerimeterVertexInstances(PolygonID);
+		const TArray<FVertexInstanceID>& VertexInstances = MeshDescription.GetPolygonVertexInstances(PolygonID);
 		check(VertexInstances.Num() == 3);
 
 		FVector Vertex0 = VertexPositions[MeshDescription.GetVertexInstanceVertex(VertexInstances[0])];
@@ -1821,45 +1799,7 @@ void FMeshDescriptionOperations::GenerateBoxUV(const FMeshDescription& MeshDescr
 
 void FMeshDescriptionOperations::RemapPolygonGroups(FMeshDescription& MeshDescription, TMap<FPolygonGroupID, FPolygonGroupID>& Remap)
 {
-	TPolygonGroupAttributesRef<FName> PolygonGroupNames = MeshDescription.PolygonGroupAttributes().GetAttributesRef<FName>(MeshAttribute::PolygonGroup::ImportedMaterialSlotName);
-
-	struct FOldPolygonGroupData
-	{
-		FName Name;
-		TArray<FPolygonID> Polygons;
-	};
-
-	TMap<FPolygonGroupID, FOldPolygonGroupData> OldData;
-	for (const FPolygonGroupID& PolygonGroupID : MeshDescription.PolygonGroups().GetElementIDs())
-	{
-		if (!Remap.Contains(PolygonGroupID) || PolygonGroupID == Remap[PolygonGroupID])
-		{
-			//No need to change this one
-			continue;
-		}
-		FOldPolygonGroupData& PolygonGroupData = OldData.FindOrAdd(PolygonGroupID);
-		PolygonGroupData.Name = PolygonGroupNames[PolygonGroupID];
-		FMeshPolygonGroup& PolygonGroup = MeshDescription.GetPolygonGroup(PolygonGroupID);
-		PolygonGroupData.Polygons = PolygonGroup.Polygons;
-		PolygonGroup.Polygons.Empty();
-		MeshDescription.DeletePolygonGroup(PolygonGroupID);
-	}
-	for (auto Kvp : OldData)
-	{
-		FPolygonGroupID GroupID = Kvp.Key;
-		FPolygonGroupID ToGroupID = Remap[GroupID];
-		if (!MeshDescription.PolygonGroups().IsValid(ToGroupID))
-		{
-			MeshDescription.CreatePolygonGroupWithID(ToGroupID);
-		}
-		TArray<FPolygonID>& Polygons = MeshDescription.GetPolygonGroup(ToGroupID).Polygons;
-		Polygons.Append(Kvp.Value.Polygons);
-		PolygonGroupNames[ToGroupID] = Kvp.Value.Name;
-		for (FPolygonID PolygonID : Polygons)
-		{
-			MeshDescription.GetPolygon(PolygonID).PolygonGroupID = ToGroupID;
-		}
-	}
+	MeshDescription.RemapPolygonGroups(Remap);
 }
 
 void FMeshDescriptionOperations::SwapPolygonPolygonGroup(FMeshDescription& MeshDescription, int32 SectionIndex, int32 TriangleIndexStart, int32 TriangleIndexEnd, bool bRemoveEmptyPolygonGroup)
@@ -1889,12 +1829,11 @@ void FMeshDescriptionOperations::SwapPolygonPolygonGroup(FMeshDescription& MeshD
 
 	for (const FPolygonID PolygonID : MeshDescription.Polygons().GetElementIDs())
 	{
-		int32 TriangleCount = MeshDescription.GetPolygonTriangles(PolygonID).Num();
+		int32 TriangleCount = MeshDescription.GetPolygonTriangleIDs(PolygonID).Num();
 		if (TriangleIndex >= TriangleIndexStart && TriangleIndex < TriangleIndexEnd)
 		{
 			check(TriangleIndex + (TriangleCount-1) < TriangleIndexEnd);
-			FMeshPolygon& Polygon = MeshDescription.GetPolygon(PolygonID);
-			FPolygonGroupID OldpolygonGroupID = Polygon.PolygonGroupID;
+			FPolygonGroupID OldpolygonGroupID = MeshDescription.GetPolygonPolygonGroup(PolygonID);
 			if (OldpolygonGroupID != TargetPolygonGroupID)
 			{
 				MeshDescription.SetPolygonPolygonGroup(PolygonID, TargetPolygonGroupID);

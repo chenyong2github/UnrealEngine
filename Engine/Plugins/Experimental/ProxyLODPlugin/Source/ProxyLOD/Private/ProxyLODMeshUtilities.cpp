@@ -1480,11 +1480,7 @@ int32 CorrectCollapsedWalls(const ProxyLOD::FkDOPTree& kDOPTree,
 	ProxyLOD::FUnitTransformDataProvider kDOPDataProvider(kDOPTree);
 
 	// Number of triangle in our mesh
-	int32 NumTriangle = 0;
-	for (const FPolygonID& PolygonID : MeshDescription.Polygons().GetElementIDs())
-	{
-		NumTriangle += MeshDescription.GetPolygonTriangles(PolygonID).Num();
-	}
+	int32 NumTriangle = MeshDescription.Triangles().Num();
 
 	// This will hold the intersecting faces for each edge.
 
@@ -1686,14 +1682,13 @@ void ProxyLOD::ColorPartitions(FMeshDescription& InOutRawMesh, const std::vector
 	int32 TriangleIndex = 0;
 	TMap<uint32, FVertexInstanceID> WedgeIndexToVertexInstanceID;
 	WedgeIndexToVertexInstanceID.Reserve(InOutRawMesh.VertexInstances().Num());
-	for (const FPolygonID& PolygonID : InOutRawMesh.Polygons().GetElementIDs())
+	for (const FPolygonID PolygonID : InOutRawMesh.Polygons().GetElementIDs())
 	{
-		const FMeshPolygon& Polygon = InOutRawMesh.GetPolygon(PolygonID);
-		for (const FMeshTriangle& Triangle : Polygon.Triangles)
+		for (const FTriangleID TriangleID : InOutRawMesh.GetPolygonTriangleIDs(PolygonID))
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
-				WedgeIndexToVertexInstanceID.Add((TriangleIndex * 3) + Corner, Triangle.GetVertexInstanceID(Corner));
+				WedgeIndexToVertexInstanceID.Add((TriangleIndex * 3) + Corner, InOutRawMesh.GetTriangleVertexInstance(TriangleID, Corner));
 			}
 			TriangleIndex++;
 		}
@@ -1743,15 +1738,13 @@ void ProxyLOD::AddWedgeColors(FMeshDescription& RawMesh)
 
 	//Recolor the vertex instances
 	int32 TriangleIndex = 0;
-	for (const FPolygonID& PolygonID : RawMesh.Polygons().GetElementIDs())
+	for (const FPolygonID PolygonID : RawMesh.Polygons().GetElementIDs())
 	{
-		const FMeshPolygon& Polygon = RawMesh.GetPolygon(PolygonID);
-		for (const FMeshTriangle& Triangle : Polygon.Triangles)
+		for (const FTriangleID TriangleID : RawMesh.GetPolygonTriangleIDs(PolygonID))
 		{
 			for (int32 Corner = 0; Corner < 3; ++Corner)
 			{
-
-				VertexInstanceColors[Triangle.GetVertexInstanceID(Corner)] = FLinearColor(ColorRange[((TriangleIndex*3) + Corner) % 13]);
+				VertexInstanceColors[RawMesh.GetTriangleVertexInstance(TriangleID, Corner)] = FLinearColor(ColorRange[((TriangleIndex*3) + Corner) % 13]);
 			}
 			TriangleIndex++;
 		}
