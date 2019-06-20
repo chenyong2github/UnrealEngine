@@ -3496,7 +3496,7 @@ void UMaterialInstance::SetScalarParameterAtlasInternal(const FMaterialParameter
 			return;
 		}
 
-		float NewValue = ((float)Index * Atlas->GradientPixelSize) / Atlas->TextureSize + (0.5f * Atlas->GradientPixelSize) / Atlas->TextureSize;
+		float NewValue = (float)Index;
 		
 		// Don't enqueue an update if it isn't needed
 		if (ParameterValue->ParameterValue != NewValue)
