@@ -350,6 +350,7 @@ public:
 		return InstanceLayers;
 	}
 
+	static void DestroySwapChain();
 	static void RecreateSwapChain(void* NewNativeWindow);
 
 	inline VkInstance GetInstance() const

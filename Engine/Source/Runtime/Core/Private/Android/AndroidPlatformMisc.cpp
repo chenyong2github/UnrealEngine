@@ -2179,6 +2179,18 @@ void FAndroidMisc::SetOnReInitWindowCallback(FAndroidMisc::ReInitWindowCallbackT
 	OnReInitWindowCallback = InOnReInitWindowCallback;
 }
 
+static FAndroidMisc::ReleaseWindowCallbackType OnReleaseWindowCallback;
+
+FAndroidMisc::ReleaseWindowCallbackType FAndroidMisc::GetOnReleaseWindowCallback()
+{
+	return OnReleaseWindowCallback;
+}
+
+void FAndroidMisc::SetOnReleaseWindowCallback(FAndroidMisc::ReleaseWindowCallbackType InOnReleaseWindowCallback)
+{
+	OnReleaseWindowCallback = InOnReleaseWindowCallback;
+}
+
 static FAndroidMisc::OnPauseCallBackType OnPauseCallback;
 
 FAndroidMisc::OnPauseCallBackType FAndroidMisc::GetOnPauseCallback()

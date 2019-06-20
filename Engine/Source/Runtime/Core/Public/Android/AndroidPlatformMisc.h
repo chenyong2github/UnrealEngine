@@ -202,6 +202,9 @@ public:
 	typedef TFunction<void(void* NewNativeHandle)> ReInitWindowCallbackType;
 	static ReInitWindowCallbackType GetOnReInitWindowCallback();
 	static void SetOnReInitWindowCallback(ReInitWindowCallbackType InOnReInitWindowCallback);
+	typedef TFunction<void()> ReleaseWindowCallbackType;
+	static ReleaseWindowCallbackType GetOnReleaseWindowCallback();
+	static void SetOnReleaseWindowCallback(ReleaseWindowCallbackType InOnReleaseWindowCallback);
 	static FString GetOSVersion();
 	static bool GetOverrideResolution(int32 &ResX, int32& ResY) { return false; }
 	typedef TFunction<void()> OnPauseCallBackType;

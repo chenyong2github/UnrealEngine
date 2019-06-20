@@ -191,9 +191,6 @@ bool FVulkanViewport::DoCheckedSwapChainJob(TFunction<int32(FVulkanViewport*)> S
 
 	while (Status < 0 && AttemptsPending > 0)
 	{
-		// always force to recreate swapchain, on Android it will block until window is available
-		bool bForce = true;
-
 		if (Status == (int32)FVulkanSwapChain::EStatus::OutOfDate)
 		{
 			UE_LOG(LogVulkanRHI, Verbose, TEXT("Swapchain is out of date! Trying to recreate the swapchain."));
@@ -207,7 +204,7 @@ bool FVulkanViewport::DoCheckedSwapChainJob(TFunction<int32(FVulkanViewport*)> S
 			check(0);
 		}
 
-		RecreateSwapchain(WindowHandle, bForce);
+		RecreateSwapchain(WindowHandle);
 
 		// Swapchain creation pushes some commands - flush the command buffers now to begin with a fresh state
 		Device->SubmitCommandsAndFlushGPU();
@@ -502,42 +499,11 @@ bool FVulkanFramebuffer::Matches(const FRHISetRenderTargetsInfo& InRTInfo) const
 }
 
 // Tear down and recreate swapchain and related resources.
-void FVulkanViewport::RecreateSwapchain(void* NewNativeWindow, bool bForce)
+void FVulkanViewport::RecreateSwapchain(void* NewNativeWindow)
 {
-	if (WindowHandle == NewNativeWindow && !bForce)
-	{
-		// No action is required if handle has not changed.
-		return;
-	}
-
 	FScopeLock LockSwapchain(&RecreatingSwapchain);
-	RenderingBackBuffer = nullptr;
-	
-	if (RHIBackBuffer)
-	{
-		RHIBackBuffer->ReleaseViewport();
-		RHIBackBuffer = nullptr;
-	}
-	
-	if (FVulkanPlatform::SupportsStandardSwapchain())
-	{
-		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
-		{
-			TextureViews[Index].Destroy(*Device);
-			Device->NotifyDeletedImage(BackBufferImages[Index]);
-			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
-			BackBufferImages[Index] = VK_NULL_HANDLE;
-		}
 
-		Device->GetDeferredDeletionQueue().ReleaseResources(true);
-
-		SwapChain->Destroy();
-		delete SwapChain;
-		SwapChain = nullptr;
-
-		Device->GetDeferredDeletionQueue().ReleaseResources(true);
-	}
-
+	DestroySwapchain();
 	WindowHandle = NewNativeWindow;
 	CreateSwapchain();
 }
@@ -570,39 +536,10 @@ void FVulkanViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscree
 void FVulkanViewport::RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat)
 {
 	check(IsInRenderingThread());
+
+	// TODO: should flush RHIT commands here?
 	
-	// Submit all command buffers here
-	Device->SubmitCommandsAndFlushGPU();
-
-	Device->WaitUntilIdle();
-
-	RenderingBackBuffer = nullptr;
-	
-	if (RHIBackBuffer)
-	{
-		RHIBackBuffer->ReleaseViewport();
-		RHIBackBuffer = nullptr;
-	}
-		
-	if (FVulkanPlatform::SupportsStandardSwapchain())
-	{
-		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
-		{
-			TextureViews[Index].Destroy(*Device);
-			Device->NotifyDeletedImage(BackBufferImages[Index]);
-			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
-			BackBufferImages[Index] = VK_NULL_HANDLE;
-		}
-		
-		Device->GetDeferredDeletionQueue().ReleaseResources(true);
-
-		SwapChain->Destroy();
-		delete SwapChain;
-		SwapChain = nullptr;
-
-		Device->GetDeferredDeletionQueue().ReleaseResources(true);
-	}
-
+	DestroySwapchain();
 	PixelFormat = PreferredPixelFormat;
 	CreateSwapchain();
 }
@@ -675,6 +612,42 @@ void FVulkanViewport::CreateSwapchain()
 			VulkanRHI::SetDebugMarkerName(Device->GetDebugMarkerSetObjectName(), Device->GetInstanceHandle(), RenderingBackBuffer->Surface.Image, "RenderingBackBuffer");
 		}
 #endif
+	}
+
+	AcquiredImageIndex = -1;
+}
+
+void FVulkanViewport::DestroySwapchain()
+{
+	// Submit all command buffers here
+	Device->SubmitCommandsAndFlushGPU();
+	Device->WaitUntilIdle();
+	
+	RenderingBackBuffer = nullptr;
+	
+	if (RHIBackBuffer)
+	{
+		RHIBackBuffer->ReleaseViewport();
+		RHIBackBuffer = nullptr;
+	}
+		
+	if (FVulkanPlatform::SupportsStandardSwapchain())
+	{
+		for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
+		{
+			TextureViews[Index].Destroy(*Device);
+			Device->NotifyDeletedImage(BackBufferImages[Index]);
+			Device->NotifyDeletedRenderTarget(BackBufferImages[Index]);
+			BackBufferImages[Index] = VK_NULL_HANDLE;
+		}
+		
+		Device->GetDeferredDeletionQueue().ReleaseResources(true);
+
+		SwapChain->Destroy();
+		delete SwapChain;
+		SwapChain = nullptr;
+
+		Device->GetDeferredDeletionQueue().ReleaseResources(true);
 	}
 
 	AcquiredImageIndex = -1;
@@ -797,9 +770,6 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 	{
 		Queue->Submit(CmdBuffer);
 	}
-
-	// Do not present until hardware window is available. On Android window could be destroyed while RHIT executes commands
-	FVulkanPlatform::BlockUntilWindowIsAvailable();
 
 	//Flush all commands
 	//check(0);

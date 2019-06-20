@@ -1726,6 +1726,14 @@ void BlockOnLostWindowRenderCommand(TSharedPtr<FEvent, ESPMode::ThreadSafe> RTBl
 			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			UE_LOG(LogAndroid, Log, TEXT("RendererBlock DONE FlushRHIThread"));
 		}
+		
+		const auto& OnReleaseWindowCallback = FAndroidMisc::GetOnReleaseWindowCallback();
+		if (OnReleaseWindowCallback)
+		{
+			UE_LOG(LogAndroid, Log, TEXT("RendererBlock release window callback"));
+			OnReleaseWindowCallback();
+		}
+
 		RTBlockedTrigger->Trigger();
 
 		GAndroidWindowLock.Lock();
