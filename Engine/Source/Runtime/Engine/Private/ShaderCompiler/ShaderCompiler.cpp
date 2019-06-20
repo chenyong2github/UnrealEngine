@@ -3791,7 +3791,7 @@ FShader* FGlobalShaderTypeCompiler::FinishCompileShader(FGlobalShaderType* Shade
 		}
 
 		// Find a shader with the same key in memory
-		Shader = CurrentJob.ShaderType->FindShaderById(FShaderId(GlobalShaderMapHash, ShaderPipelineType, nullptr, CurrentJob.ShaderType, CurrentJob.PermutationId, CurrentJob.Input.Target));
+		Shader = CurrentJob.ShaderType->FindShaderByKey(FShaderKey(GlobalShaderMapHash, ShaderPipelineType, nullptr, CurrentJob.PermutationId, CurrentJob.Input.Target.GetPlatform()));
 
 		// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 		if (!Shader)

@@ -236,7 +236,7 @@ inline bool FShaderType::GetOutdatedCurrentType(TArray<FShaderType*>& OutdatedSh
 {
 	bool bOutdated = false;
 #if WITH_EDITOR
-	for (TMap<FShaderId, FShader*>::TConstIterator ShaderIt(ShaderIdMap);ShaderIt;++ShaderIt)
+	for (TMap<FShaderKey, FShader*>::TConstIterator ShaderIt(ShaderIdMap);ShaderIt;++ShaderIt)
 	{
 		FShader* Shader = ShaderIt.Value();
 		const FVertexFactoryParameterRef* VFParameterRef = Shader->GetVertexFactoryParameterRef();
@@ -314,11 +314,11 @@ FArchive& operator<<(FArchive& Ar,FShaderType*& Ref)
 }
 
 
-FShader* FShaderType::FindShaderById(const FShaderId& Id)
+FShader* FShaderType::FindShaderByKey(const FShaderKey& Key)
 {
 	check(IsInGameThread());
-	FShader* Result = ShaderIdMap.FindRef(Id);
-	check(!Result || Result->GetId() == Id);
+	FShader* Result = ShaderIdMap.FindRef(Key);
+	checkSlow(!Result || Result->GetKey() == Key);
 	return Result;
 }
 
@@ -1135,6 +1135,19 @@ FShaderId::FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipel
 #endif
 }
 
+FArchive& operator<<(FArchive& Ar, FShaderKey& Ref)
+{
+	uint32 Platform = Ref.Platform;
+	Ar
+		<< Ref.VertexFactoryType
+		<< Ref.ShaderPipeline
+		<< Ref.MaterialShaderMapHash
+		<< Ref.PermutationId
+		<< Platform;
+	Ref.Platform = Platform;
+	return Ar;
+}
+
 FSelfContainedShaderId::FSelfContainedShaderId() :
 	Target(FShaderTarget(SF_NumFrequencies, SP_NumPlatforms))
 {}
@@ -1456,18 +1469,18 @@ void FShader::Release()
 
 void FShader::Register(bool bLoadedByCookedMaterial)
 {
-	FShaderId ShaderId = GetId();
-	check(ShaderId.MaterialShaderMapHash != FSHAHash());
+	const FShaderKey ShaderKey = GetKey();
+	check(ShaderKey.MaterialShaderMapHash != FSHAHash());
 #if KEEP_SHADER_SOURCE_HASHES
-	check(ShaderId.SourceHash != FSHAHash() || FPlatformProperties::RequiresCookedData() || bLoadedByCookedMaterial);
+	check(SourceHash != FSHAHash() || FPlatformProperties::RequiresCookedData() || bLoadedByCookedMaterial);
 #endif
 	check(Resource);
-	Type->AddToShaderIdMap(ShaderId, this);
+	Type->AddToShaderMap(ShaderKey, this);
 }
 
 void FShader::Deregister()
 {
-	Type->RemoveFromShaderIdMap(GetId());
+	Type->RemoveFromShaderMap(GetKey());
 }
 
 FShaderId FShader::GetId() const
@@ -1935,7 +1948,7 @@ void DumpShaderStats(EShaderPlatform Platform, EShaderFrequency Frequency)
 			int32 NumShaders					= 0;
 			int32 NumPipelines = 0;
 			int32 NumSharedPipelines = 0;
-			for (TMap<FShaderId,FShader*>::TConstIterator ShaderIt(Type->ShaderIdMap);ShaderIt;++ShaderIt)
+			for (TMap<FShaderKey,FShader*>::TConstIterator ShaderIt(Type->ShaderIdMap);ShaderIt;++ShaderIt)
 			{
 				const FShader* Shader = ShaderIt.Value();
 				// Skip shaders that don't match frequency.

@@ -237,7 +237,7 @@ FShader* FOpenColorIOShaderType::FinishCompileShader(
 	TRefCountPtr<FShaderResource> Resource = FShaderResource::FindOrCreate(InCurrentJob.Output, SpecificType, /* SpecificPermutationId = */ 0);
 
 	// Find a shader with the same key in memory
-	FShader* Shader = InCurrentJob.ShaderType->FindShaderById(FShaderId(InShaderMapHash, nullptr, nullptr, InCurrentJob.ShaderType, /* SpecificPermutationId = */ 0, InCurrentJob.Input.Target));
+	FShader* Shader = InCurrentJob.ShaderType->FindShaderByKey(FShaderKey(InShaderMapHash, nullptr, nullptr, /* SpecificPermutationId = */ 0, InCurrentJob.Input.Target.GetPlatform()));
 
 	// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 	if (!Shader)
@@ -614,8 +614,8 @@ void FOpenColorIOShaderMap::LoadMissingShadersFromMemory(const FOpenColorIOTrans
 		FOpenColorIOShaderType* ShaderType = ShaderTypeIt->GetOpenColorIOShaderType();
 		if (ShaderType && ShouldCacheOpenColorIOShader(ShaderType, Platform, InColorTransform) && !HasShader(ShaderType, /* PermutationId = */ 0))
 		{
-			FShaderId ShaderId(ShaderMapHash, nullptr, nullptr, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), Platform));
-			FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
+			FShaderKey ShaderKey(ShaderMapHash, nullptr, nullptr, /** PermutationId = */ 0, Platform);
+			FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
 			if (FoundShader)
 			{
 				AddShader(ShaderType, /* PermutationId = */ 0, FoundShader);

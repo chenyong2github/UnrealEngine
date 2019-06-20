@@ -1192,9 +1192,8 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 			{
 				UTexture* Texture = nullptr;
 				const FMaterialParameterInfo& ParameterInfo = ParameterExpression->GetParameterInfo();
-				if (GetTextureParameterValue(ParameterInfo, Texture, true))
+				if (GetTextureParameterValue(ParameterInfo, Texture, true) && Texture != nullptr)
 				{
-					check(Texture);
 					const EMaterialValueType TextureType = Texture->GetMaterialType();
 					switch (TypeIndex)
 					{

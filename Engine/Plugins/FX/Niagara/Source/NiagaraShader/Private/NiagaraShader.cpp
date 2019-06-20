@@ -413,7 +413,7 @@ FShader* FNiagaraShaderType::FinishCompileShader(
 	TRefCountPtr<FShaderResource> Resource = FShaderResource::FindOrCreate(CurrentJob.Output, SpecificType, /* SpecificPermutationId = */ 0);
 
 	// Find a shader with the same key in memory
-	FShader* Shader = CurrentJob.ShaderType->FindShaderById(FShaderId(ShaderMapHash, nullptr, nullptr, CurrentJob.ShaderType, /* SpecificPermutationId = */ 0, CurrentJob.Input.Target));
+	FShader* Shader = CurrentJob.ShaderType->FindShaderByKey(FShaderKey(ShaderMapHash, nullptr, nullptr, /* SpecificPermutationId = */ 0, CurrentJob.Input.Target.GetPlatform()));
 
 	// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 	if (!Shader)
@@ -1034,8 +1034,8 @@ void FNiagaraShaderMap::LoadMissingShadersFromMemory(const FNiagaraShaderScript*
 		FNiagaraShaderType* ShaderType = ShaderTypeIt->GetNiagaraShaderType();
 		if (ShaderType && ShouldCacheNiagaraShader(ShaderType, Platform, Script) && !HasShader(ShaderType, /* PermutationId = */ 0))
 		{
-			FShaderId ShaderId(ShaderMapHash, nullptr, nullptr, ShaderType, /** PermutationId = */ 0, FShaderTarget(ShaderType->GetFrequency(), Platform));
-			FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
+			FShaderKey ShaderKey(ShaderMapHash, nullptr, nullptr, /** PermutationId = */ 0, Platform);
+			FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
 			if (FoundShader)
 			{
 				AddShader(ShaderType, /* PermutationId = */ 0, FoundShader);

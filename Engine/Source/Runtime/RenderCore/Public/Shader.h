@@ -611,6 +611,43 @@ public:
 	}
 };
 
+class FShaderKey
+{
+public:
+	inline FShaderKey(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, int32 PermutationId, EShaderPlatform InPlatform)
+		: VertexFactoryType(InVertexFactoryType)
+		, ShaderPipeline(InShaderPipeline)
+		, MaterialShaderMapHash(InMaterialShaderMapHash)
+		, PermutationId(PermutationId)
+		, Platform(InPlatform)
+	{}
+
+	friend inline uint32 GetTypeHash(const FShaderKey& Id)
+	{
+		return
+			HashCombine(
+				HashCombine(*(uint32*)&Id.MaterialShaderMapHash, GetTypeHash(Id.Platform)),
+				HashCombine(GetTypeHash(Id.VertexFactoryType), uint32(Id.PermutationId)));
+	}
+
+	friend bool operator==(const FShaderKey& X, const FShaderKey& Y)
+	{
+		return X.MaterialShaderMapHash == Y.MaterialShaderMapHash
+			&& X.ShaderPipeline == Y.ShaderPipeline
+			&& X.VertexFactoryType == Y.VertexFactoryType
+			&& X.PermutationId == Y.PermutationId
+			&& X.Platform == Y.Platform;
+	}
+
+	RENDERCORE_API friend FArchive& operator<<(FArchive& Ar, FShaderKey& Ref);
+
+	FVertexFactoryType* VertexFactoryType;
+	const FShaderPipelineType* ShaderPipeline;
+	FSHAHash MaterialShaderMapHash;
+	int32 PermutationId;
+	uint32 Platform : SP_NumBits;
+};
+
 /** 
  * Uniquely identifies an FShader instance.  
  * Used to link FMaterialShaderMaps and FShaders on load. 
@@ -651,7 +688,8 @@ public:
 	/** Unique permutation identifier within the ShaderType. */
 	int32 PermutationId;
 
-	FShaderId() = default;
+	/** Creates empty Id */
+	inline FShaderId() : ShaderType(nullptr), VertexFactoryType(nullptr), ShaderPipeline(nullptr), PermutationId(0) {}
 
 	/** Creates an Id for the given material, vertex factory, shader type and target. */
 	RENDERCORE_API FShaderId(const FSHAHash& InMaterialShaderMapHash, const FShaderPipelineType* InShaderPipeline, FVertexFactoryType* InVertexFactoryType, FShaderType* InShaderType, int32 PermutationId, FShaderTarget InTarget);
@@ -965,6 +1003,7 @@ public:
 #endif
 	}
 	FShaderId GetId() const;
+	inline FShaderKey GetKey() const { return FShaderKey(MaterialShaderMapHash, ShaderPipeline, VFType, PermutationId, Target.GetPlatform()); }
 	inline FVertexFactoryType* GetVertexFactoryType() const { return VFType; }
 	inline int32 GetNumRefs() const { return NumRefs; }
 	const FShaderParameterMapInfo& GetParameterMapInfo() const { return Resource->ParameterMapInfo; }
@@ -1178,10 +1217,10 @@ public:
 	virtual ~FShaderType();
 
 	/**
-	 * Finds a shader of this type by ID.
-	 * @return NULL if no shader with the specified ID was found.
+	 * Finds a shader of this type by Key.
+	 * @return NULL if no shader with the specified Key was found.
 	 */
-	FShader* FindShaderById(const FShaderId& Id);
+	FShader* FindShaderByKey(const FShaderKey& Key);
 
 	/** Constructs a new instance of the shader type for deserialization. */
 	FShader* ConstructForDeserialization() const;
@@ -1297,16 +1336,16 @@ public:
 		bCachedUniformBufferStructDeclarations = false;
 	}
 
-	void AddToShaderIdMap(FShaderId Id, FShader* Shader)
+	void AddToShaderMap(const FShaderKey& Key, FShader* Shader)
 	{
 		check(IsInGameThread());
-		ShaderIdMap.Add(Id, Shader);
+		ShaderIdMap.Add(Key, Shader);
 	}
 
-	inline void RemoveFromShaderIdMap(FShaderId Id)
+	inline void RemoveFromShaderMap(const FShaderKey& Key)
 	{
 		check(IsInGameThread());
-		ShaderIdMap.Remove(Id);
+		ShaderIdMap.Remove(Key);
 	}
 
 	bool LimitShaderResourceToThisType() const
@@ -1337,7 +1376,7 @@ private:
 	const FShaderParametersMetadata* const RootParametersMetadata;
 
 	/** A map from shader ID to shader.  A shader will be removed from it when deleted, so this doesn't need to use a TRefCountPtr. */
-	TMap<FShaderId,FShader*> ShaderIdMap;
+	TMap<FShaderKey,FShader*> ShaderIdMap;
 
 	TLinkedList<FShaderType*> GlobalListLink;
 
@@ -2273,7 +2312,7 @@ public:
 		for (FShader* Shader : SerializedShaders)
 		{
 			FShaderType* Type = Shader->GetType();
-			FShader* ExistingShader = Type->FindShaderById(Shader->GetId());
+			FShader* ExistingShader = Type->FindShaderByKey(Shader->GetKey());
 
 			if (ExistingShader != nullptr)
 			{

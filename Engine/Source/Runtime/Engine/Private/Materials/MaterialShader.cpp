@@ -1021,7 +1021,7 @@ FShader* FMaterialShaderType::FinishCompileShader(
 	}
 
 	// Find a shader with the same key in memory
-	FShader* Shader = CurrentJob.ShaderType->FindShaderById(FShaderId(MaterialShaderMapHash, ShaderPipelineType, CurrentJob.VFType, CurrentJob.ShaderType, CurrentJob.PermutationId, CurrentJob.Input.Target));
+	FShader* Shader = CurrentJob.ShaderType->FindShaderByKey(FShaderKey(MaterialShaderMapHash, ShaderPipelineType, CurrentJob.VFType, CurrentJob.PermutationId, CurrentJob.Input.Target.GetPlatform()));
 
 	// There was no shader with the same key so create a new one with the compile output, which will bind shader parameters
 	if (!Shader)
@@ -2102,8 +2102,8 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 		{
 			if (ShouldCacheMaterialShader(ShaderType, GetShaderPlatform(), Material, PermutationId) && !HasShader(ShaderType, PermutationId))
 			{
-				FShaderId ShaderId(MaterialShaderMapHash, nullptr, nullptr, ShaderType, PermutationId, FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform()));
-				FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
+				FShaderKey ShaderKey(MaterialShaderMapHash, nullptr, nullptr, PermutationId, GetShaderPlatform());
+				FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
 				if (FoundShader)
 				{
 					AddShader(ShaderType, PermutationId, FoundShader);
@@ -2138,8 +2138,8 @@ void FMaterialShaderMap::LoadMissingShadersFromMemory(const FMaterial* Material)
 					FMaterialShaderType* ShaderType = (FMaterialShaderType*)Shader->GetMaterialShaderType();
 					if (!HasShader(ShaderType, kUniqueShaderPermutationId))
 					{
-						FShaderId ShaderId(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(GetShaderPlatform()) ? PipelineType : nullptr, nullptr, ShaderType, kUniqueShaderPermutationId, FShaderTarget(ShaderType->GetFrequency(), GetShaderPlatform()));
-						FShader* FoundShader = ShaderType->FindShaderById(ShaderId);
+						FShaderKey ShaderKey(MaterialShaderMapHash, PipelineType->ShouldOptimizeUnusedOutputs(GetShaderPlatform()) ? PipelineType : nullptr, nullptr, kUniqueShaderPermutationId, GetShaderPlatform());
+						FShader* FoundShader = ShaderType->FindShaderByKey(ShaderKey);
 						if (FoundShader)
 						{
 							AddShader(ShaderType, kUniqueShaderPermutationId, FoundShader);
