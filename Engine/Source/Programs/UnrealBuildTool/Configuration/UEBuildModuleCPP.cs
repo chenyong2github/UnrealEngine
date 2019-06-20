@@ -22,6 +22,7 @@ namespace UnrealBuildTool
 		class InputFileCollection
 		{
 			public readonly List<FileItem> HeaderFiles = new List<FileItem>();
+			public readonly List<FileItem> ISPCHeaderFiles = new List<FileItem>();
 
 			public readonly List<FileItem> CPPFiles = new List<FileItem>();
 			public readonly List<FileItem> CFiles = new List<FileItem>();
@@ -950,6 +951,11 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Creates header files from ISPC for inclusion and adds them as dependencies.
 		/// </summary>
+		/// <param name="ToolChain">The toolchain to generate the PCH</param>
+		/// <param name="CompileEnvironment">Compile environment</param>
+		/// <param name="InputFiles">List of ISPC source files</param>
+		/// <param name="IntermediateDirectory">Directory to create the intermediate file</param>
+		/// <param name="Actions">List of actions to be executed. Additional actions will be added to this list.</param>
 		static void CreateHeadersForISPC(UEToolChain ToolChain, CppCompileEnvironment CompileEnvironment, List<FileItem> InputFiles, DirectoryReference IntermediateDirectory, List<Action> Actions)
 		{
 			CPPOutput Output = ToolChain.GenerateISPCHeaders(CompileEnvironment, InputFiles, IntermediateDirectory, Actions);
@@ -1313,6 +1319,10 @@ namespace UnrealBuildTool
 				if (InputFile.HasExtension(".h"))
 				{
 					InputFiles.HeaderFiles.Add(InputFile);
+				}
+				else if (InputFile.HasExtension(".isph"))
+				{
+					InputFiles.ISPCHeaderFiles.Add(InputFile);
 				}
 				if (InputFile.HasExtension(".cpp"))
 				{
