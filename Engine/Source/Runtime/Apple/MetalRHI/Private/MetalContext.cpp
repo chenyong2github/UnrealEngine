@@ -655,7 +655,8 @@ void FMetalDeviceContext::EndDrawingViewport(FMetalViewport* Viewport, bool bPre
 	// We may be limiting our framerate to the display link
 	if( FrameReadyEvent != nullptr && !GMetalSeparatePresentThread )
 	{
-		FrameReadyEvent->Wait();
+		bool bIgnoreThreadIdleStats = true; // Idle time is already counted by the caller
+		FrameReadyEvent->Wait(MAX_uint32, bIgnoreThreadIdleStats);
 	}
 	
 	Viewport->ReleaseDrawable();
