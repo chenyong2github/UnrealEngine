@@ -182,7 +182,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding MaterialRandomBinding;
 
-	/** Which attribute should we use for custom sorting? */
+	/** Which attribute should we use for custom sorting? Defaults to Particles.NormalizedAge. */
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding CustomSortingBinding;
 
