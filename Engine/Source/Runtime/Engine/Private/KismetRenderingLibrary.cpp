@@ -654,4 +654,42 @@ void UKismetRenderingLibrary::BreakSkinWeightInfo(FSkelMeshSkinWeightInfo InWeig
 	Weight3 = InWeight.Weights[3];
 }
 
+void UKismetRenderingLibrary::SetCastInsetShadowForAllAttachments(UObject* WorldContextObject, UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup)
+{
+	if (PrimitiveComponent)
+	{
+		// Update this primitive
+		PrimitiveComponent->SetCastInsetShadow(bCastInsetShadow);
+		PrimitiveComponent->SetLightAttachmentsAsGroup(bLightAttachmentsAsGroup);
+
+		// Go through all potential children and update them 
+		TArray<USceneComponent*, TInlineAllocator<8>> ProcessStack;
+		ProcessStack.Append(PrimitiveComponent->GetAttachChildren());
+
+		// Walk down the tree updating
+		while (ProcessStack.Num() > 0)
+		{
+			USceneComponent* Current = ProcessStack.Pop(/*bAllowShrinking=*/ false);
+			UPrimitiveComponent* CurrentPrimitive = Cast<UPrimitiveComponent>(Current);
+
+			if (CurrentPrimitive && CurrentPrimitive->ShouldComponentAddToScene())
+			{
+				if (bLightAttachmentsAsGroup)
+				{
+					// Clear all the children if the root primitive wants to light attachments as group
+					// This is to make sure no child attachment in the chain overrides its parent
+					CurrentPrimitive->SetLightAttachmentsAsGroup(false);
+				}
+
+				CurrentPrimitive->SetCastInsetShadow(bCastInsetShadow);
+			}
+
+			ProcessStack.Append(Current->GetAttachChildren());
+		}
+	}
+	else
+	{
+		FMessageLog("Blueprint").Warning(LOCTEXT("SetCastInsetShadowForAllAttachments_InvalidPrimitiveComponent", "SetCastInsetShadowForAllAttachments: PrimitiveComponent must be non-null."));
+	}
+}
 #undef LOCTEXT_NAMESPACE

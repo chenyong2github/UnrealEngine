@@ -1392,6 +1392,24 @@ void UPrimitiveComponent::SetCastShadow(bool NewCastShadow)
 	}
 }
 
+void UPrimitiveComponent::SetCastInsetShadow(bool bInCastInsetShadow)
+{
+	if(bInCastInsetShadow != bCastInsetShadow)
+	{
+		bCastInsetShadow = bInCastInsetShadow;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsGroup)
+{
+	if(bInLightAttachmentsAsGroup != bLightAttachmentsAsGroup)
+	{
+		bLightAttachmentsAsGroup = bInLightAttachmentsAsGroup;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetSingleSampleShadowFromStationaryLights(bool bNewSingleSampleShadowFromStationaryLights)
 {
 	if (bNewSingleSampleShadowFromStationaryLights != bSingleSampleShadowFromStationaryLights)
@@ -3208,6 +3226,27 @@ bool UPrimitiveComponent::ComponentOverlapMultiImpl(TArray<struct FOverlapResult
 	ParamsWithSelf.AddIgnoredComponent_LikelyDuplicatedRoot(this);
 	OutOverlaps.Reset();
 	return BodyInstance.OverlapMulti(OutOverlaps, World, /*pWorldToComponent=*/ nullptr, Pos, Quat, TestChannel, ParamsWithSelf, FCollisionResponseParams(GetCollisionResponseToChannels()), ObjectQueryParams);
+}
+
+const UPrimitiveComponent* UPrimitiveComponent::GetLightingAttachmentRoot() const
+{
+	const USceneComponent* CurrentHead = this;
+
+	while (CurrentHead)
+	{
+		// If the component has been marked to light itself and child attachments as a group, return it as root
+		if (const UPrimitiveComponent* CurrentHeadPrim = Cast<UPrimitiveComponent>(CurrentHead))
+		{
+			if (CurrentHeadPrim->bLightAttachmentsAsGroup)
+			{
+				return CurrentHeadPrim;
+			}
+		}
+
+		CurrentHead = CurrentHead->GetAttachParent();
+	}
+
+	return nullptr;
 }
 
 #if WITH_EDITOR

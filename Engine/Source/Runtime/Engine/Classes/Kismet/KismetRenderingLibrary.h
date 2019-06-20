@@ -151,4 +151,10 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	/** Break FSkelMeshSkinWeightInfo */
 	UFUNCTION(BlueprintPure, Category = "Rendering", meta=(NativeBreakFunc))
 	static ENGINE_API void BreakSkinWeightInfo(FSkelMeshSkinWeightInfo InWeight, int32& Bone0, uint8& Weight0, int32& Bone1, uint8& Weight1, int32& Bone2, uint8& Weight2, int32& Bone3, uint8& Weight3);
+
+	/** Set the inset shadow casting state of the given component and all its child attachments. 
+	 *	Also choose if all attachments should be grouped for the inset shadow rendering. If enabled, one depth target will be shared for all attachments.
+	 */
+	UFUNCTION(BlueprintCallable, Category="Rendering", meta=(Keywords="SetCastShadowForAllAttachments", WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
+	static ENGINE_API void SetCastInsetShadowForAllAttachments(UObject* WorldContextObject, UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup);
 };

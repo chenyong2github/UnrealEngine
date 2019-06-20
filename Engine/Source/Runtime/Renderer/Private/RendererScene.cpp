@@ -1407,7 +1407,7 @@ void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
 
 void FScene::UpdatePrimitiveLightingAttachmentRoot(UPrimitiveComponent* Primitive)
 {
-	const UPrimitiveComponent* NewLightingAttachmentRoot = Cast<UPrimitiveComponent>(Primitive->GetAttachmentRoot());
+	const UPrimitiveComponent* NewLightingAttachmentRoot = Primitive->GetLightingAttachmentRoot();
 
 	if (NewLightingAttachmentRoot == Primitive)
 	{
