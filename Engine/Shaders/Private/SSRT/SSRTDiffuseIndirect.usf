@@ -376,7 +376,7 @@ void MainCS(
 			bool bHit = RayCast(
 				HZBTexture, GlobalPointClampedSampler,
 				TranslatedWorldPosition, L, 1, SceneDepth, 
-				CONFIG_RAY_COUNT, StepOffset,
+				CONFIG_RAY_STEPS, StepOffset,
 				HZBUvFactorAndInvFactor,
 				bDebugPrint,
 				/* out */ HitUVz,

@@ -214,6 +214,8 @@ class FScreenSpaceReflectionsPS : public FGlobalShader
 		
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZB)
 		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture<float4>, ScreenSpaceRayTracingDebugOutput)
 		
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -324,6 +326,31 @@ void GetSSRTGIShaderOptionsForQuality(int32 Quality, FIntPoint* OutGroupSize, in
 
 	check(OutGroupSize->X * OutGroupSize->Y * (*OutRayCountPerPixel) == 256);
 }
+
+FRDGTextureUAV* CreateScreenSpaceRayTracingDebugUAV(FRDGBuilder& GraphBuilder, const FRDGTextureDesc& Desc)
+#if 0
+{
+	FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(Desc, TEXT("SSRTDebug"));
+
+	FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(DebugTexture, ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("Clear SSRTDebug"),
+		PassParameters,
+		ERenderGraphPassFlags::None,
+		[](FRHICommandList& RHICmdList)
+	{
+		// NOP
+	});
+
+	return GraphBuilder.CreateUAV(DebugTexture);
+}
+#else
+{
+	return nullptr;
+}
+#endif
 
 } // namespace
 
@@ -513,7 +540,8 @@ void RenderScreenSpaceReflections(
 		
 		PassParameters->HZB = GraphBuilder.RegisterExternalTexture(View.HZB);
 		PassParameters->HZBSampler = TStaticSamplerState<SF_Point>::GetRHI();
-		
+
+		PassParameters->ScreenSpaceRayTracingDebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, DenoiserInputs->Color->Desc);
 		PassParameters->RenderTargets = RenderTargets;
 
 		TShaderMapRef<FScreenSpaceReflectionsPS> PixelShader(View.ShaderMap, PermutationVector);
@@ -626,25 +654,7 @@ void RenderScreenSpaceDiffuseIndirect(
 	
 	PassParameters->IndirectDiffuseOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->Color);
 	PassParameters->AmbientOcclusionOutput = GraphBuilder.CreateUAV(OutDenoiserInputs->AmbientOcclusionMask);
-
-	if (0) // DEBUG output clear
-	{
-		FRDGTexture* DebugTexture = GraphBuilder.CreateTexture(OutDenoiserInputs->Color->Desc, TEXT("SSRTDebug"));
-
-		FRenderTargetParameters* ClearPassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-		ClearPassParameters->RenderTargets[0] = FRenderTargetBinding(DebugTexture, ERenderTargetLoadAction::EClear, ERenderTargetStoreAction::EStore);
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Clear SSRTDebug"),
-			ClearPassParameters,
-			ERenderGraphPassFlags::None,
-			[](FRHICommandList& RHICmdList)
-		{
-			// NOP
-		});
-
-		PassParameters->ScreenSpaceRayTracingDebugOutput = GraphBuilder.CreateUAV(DebugTexture);
-	}
+	PassParameters->ScreenSpaceRayTracingDebugOutput = CreateScreenSpaceRayTracingDebugUAV(GraphBuilder, OutDenoiserInputs->Color->Desc);
 
 	FScreenSpaceDiffuseIndirectCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FScreenSpaceDiffuseIndirectCS::FQualityDim>(Quality);

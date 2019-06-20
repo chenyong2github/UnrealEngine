@@ -77,11 +77,7 @@ bool RayCast(
 	#else
 		float CompareTolerance = max( abs( RayStepUVz.z ), ( RayStartScreen.z - RayDepthScreen.z ) * 4 ) * Step;
 	#endif
-
-	// avoid bugs with early returns inside of loops on certain platform compilers.
-	bool bHit = false;
-	OutHitUVz = float3( 0, 0, 0 );
-
+	
 	float LastDiff = 0;
 	Level = 1;
 
@@ -94,7 +90,11 @@ bool RayCast(
 			PrintSample(HZBUvFactorAndInvFactor, RayStartUVz.xy, float4(1, 0, 0, 1));
 	}
 	#endif
-
+	
+	float4 MultipleSampleDepthDiff;
+	bool4 bMultipleSampleHit;
+	bool bFoundAnyHit = false;
+	
 	LOOP
 	for( uint i = 0; i < NumSteps; i += 4 )
 	{
@@ -125,71 +125,89 @@ bool RayCast(
 		SampleDepth.w = Texture.SampleLevel( Sampler, SampleUV1.zw, Level ).r;
 		Level += (8.0 / NumSteps) * Roughness;
 
-		float4 DepthDiff = SampleZ - SampleDepth;
-		bool4 Hit = abs( DepthDiff + CompareTolerance ) < CompareTolerance;
+		MultipleSampleDepthDiff = SampleZ - SampleDepth;
+		bMultipleSampleHit = abs(MultipleSampleDepthDiff + CompareTolerance) < CompareTolerance;
+		
+		bFoundAnyHit = any(bMultipleSampleHit);
 
-		BRANCH if( any( Hit ) )
+		BRANCH
+		if (bFoundAnyHit)
 		{
-			if(IS_SSGI_SHADER)
-			{
-				// If hit set to intersect time. If missed set to beyond end of ray
-				float4 HitTime = Hit ? float4( 1, 2, 3, 4 ) : 5;
+			break;
+		}
 
-				// Take closest hit
-				float Time1 = min( min3( HitTime.x, HitTime.y, HitTime.z ), HitTime.w );
-				float Time0 = Time1 - 1;
+		LastDiff = MultipleSampleDepthDiff.w;
 
-				const uint NumBinarySteps = Roughness < 0.2 ? 4 : 0;
+		RayUVz += 4 * RayStepUVz;
+	} // for( uint i = 0; i < NumSteps; i += 4 )
+	
+	BRANCH
+	if (bFoundAnyHit)
+    {
+        if (IS_SSGI_SHADER)
+        {
+			// If hit set to intersect time. If missed set to beyond end of ray
+            float4 HitTime = bMultipleSampleHit ? float4(1, 2, 3, 4) : 5;
 
-				// Binary search
-				for( uint j = 0; j < NumBinarySteps; j++ )
-				{
-					CompareTolerance *= 0.5;
+			// Take closest hit
+            float Time1 = min(min3(HitTime.x, HitTime.y, HitTime.z), HitTime.w);
+            float Time0 = Time1 - 1;
 
-					float  MidTime = 0.5 * ( Time0 + Time1 );
-					float3 MidUVz = RayUVz + RayStepUVz * MidTime;
-					float  MidDepth = Texture.SampleLevel( Sampler, MidUVz.xy, Level ).r;
-					float  MidDepthDiff = MidUVz.z - MidDepth;
+            const uint NumBinarySteps = Roughness < 0.2 ? 4 : 0;
 
-					if( abs( MidDepthDiff + CompareTolerance ) < CompareTolerance )
-					{
-						Time1 = MidTime;
-					}
-					else
-					{
-						Time0 = MidTime;
-					}
-				}
+			// Binary search
+            for (uint j = 0; j < NumBinarySteps; j++)
+            {
+                CompareTolerance *= 0.5;
+
+                float MidTime = 0.5 * (Time0 + Time1);
+                float3 MidUVz = RayUVz + RayStepUVz * MidTime;
+                float MidDepth = Texture.SampleLevel(Sampler, MidUVz.xy, Level).r;
+                float MidDepthDiff = MidUVz.z - MidDepth;
+
+                if (abs(MidDepthDiff + CompareTolerance) < CompareTolerance)
+                {
+                    Time1 = MidTime;
+                }
+                else
+                {
+                    Time0 = MidTime;
+                }
+            }
 			
-				OutHitUVz = RayUVz + RayStepUVz * Time1;
-			}
-			else
+            OutHitUVz = RayUVz + RayStepUVz * Time1;
+        }
+        else // if (!IS_SSGI_SHADER)
+        {
+            float DepthDiff0 = MultipleSampleDepthDiff[2];
+            float DepthDiff1 = MultipleSampleDepthDiff[3];
+            float Time0 = 3;
+
+            FLATTEN
+            if (bMultipleSampleHit[2])
+            {
+                DepthDiff0 = MultipleSampleDepthDiff[1];
+                DepthDiff1 = MultipleSampleDepthDiff[2];
+                Time0 = 2;
+            }
+            FLATTEN
+            if (bMultipleSampleHit[1])
+            {
+                DepthDiff0 = MultipleSampleDepthDiff[0];
+                DepthDiff1 = MultipleSampleDepthDiff[1];
+                Time0 = 1;
+            }
+            FLATTEN
+            if (bMultipleSampleHit[0])
+            {
+                DepthDiff0 = LastDiff;
+                DepthDiff1 = MultipleSampleDepthDiff[0];
+                Time0 = 0;
+            }
+
+            float Time1 = Time0 + 1;
+			#if 0
 			{
-				float DepthDiff0 = DepthDiff[2];
-				float DepthDiff1 = DepthDiff[3];
-				float Time0 = 3;
-
-				FLATTEN if( Hit[2] )
-				{
-					DepthDiff0 = DepthDiff[1];
-					DepthDiff1 = DepthDiff[2];
-					Time0 = 2;
-				}
-				FLATTEN if( Hit[1] )
-				{
-					DepthDiff0 = DepthDiff[0];
-					DepthDiff1 = DepthDiff[1];
-					Time0 = 1;
-				}
-				FLATTEN if( Hit[0] )
-				{
-					DepthDiff0 = LastDiff;
-					DepthDiff1 = DepthDiff[0];
-					Time0 = 0;
-				}
-
-				float Time1 = Time0 + 1;
-	#if 0
 				// Binary search
 				for( uint j = 0; j < 4; j++ )
 				{
@@ -211,37 +229,34 @@ bool RayCast(
 						Time0		= MidTime;
 					}
 				}
-	#endif
-
-				// Find more accurate hit using line segment intersection
-				float TimeLerp = saturate( DepthDiff0 / (DepthDiff0 - DepthDiff1) );
-				float IntersectTime = Time0 + TimeLerp;
-				//float IntersectTime = lerp( Time0, Time1, TimeLerp );
-				
-				OutHitUVz = RayUVz + RayStepUVz * IntersectTime;
 			}
+			#endif
 
-			bHit = true;
-			break;
+			// Find more accurate hit using line segment intersection
+            float TimeLerp = saturate(DepthDiff0 / (DepthDiff0 - DepthDiff1));
+            float IntersectTime = Time0 + TimeLerp;
+			//float IntersectTime = lerp( Time0, Time1, TimeLerp );
+				
+            OutHitUVz = RayUVz + RayStepUVz * IntersectTime;
+        } // if (!IS_SSGI_SHADER)
+		
+		#if DEBUG_SSRT
+		{
+			if (bDebugPrint)
+				PrintSample(HZBUvFactorAndInvFactor, OutHitUVz.xy, float4(0, 0, 1, 1));
 		}
+		#endif
 
-		LastDiff = DepthDiff.w;
-
-		RayUVz += 4 * RayStepUVz;
-	}
+		OutHitUVz.xy *= HZBUvFactorAndInvFactor.zw;
+		OutHitUVz.xy = OutHitUVz.xy * float2( 2, -2 ) + float2( -1, 1 );
+		OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+    }
+	else
+    {
+		OutHitUVz = float3(0, 0, 0);
+    }
 	
-	#if DEBUG_SSRT
-	{
-		if (bDebugPrint)
-			PrintSample(HZBUvFactorAndInvFactor, OutHitUVz.xy, float4(0, 0, 1, 1));
-	}
-	#endif
-
-	OutHitUVz.xy *= HZBUvFactorAndInvFactor.zw;
-	OutHitUVz.xy = OutHitUVz.xy * float2( 2, -2 ) + float2( -1, 1 );
-	OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-
-	return bHit;
+	return bFoundAnyHit;
 }
 
 float ComputeHitVignetteFromScreenPos(float2 ScreenPos)
