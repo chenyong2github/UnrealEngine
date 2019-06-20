@@ -56,17 +56,8 @@ FSlateIcon UFractureToolSlice::GetToolIcon() const
 
 void UFractureToolSlice::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, 
-					UICommandInfo,
-					"Slice", 
-					"Slice",
-					"Slice Voronoi Fracture",
-					EUserInterfaceActionType::ToggleButton, 
-					FInputChord() 
-	);
-
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Slice", "Slice", "Slice Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Slice = UICommandInfo;
-
 }
 
 TArray<UObject*> UFractureToolSlice::GetSettingsObjects() const 

@@ -6,24 +6,28 @@
 
 FDatasmithCameraLookatTrackingSettingsTemplate::FDatasmithCameraLookatTrackingSettingsTemplate()
 	: bEnableLookAtTracking( 0 )
+	, bAllowRoll( 0 )
 {
 }
 
 void FDatasmithCameraLookatTrackingSettingsTemplate::Apply( FCameraLookatTrackingSettings* Destination, FDatasmithCameraLookatTrackingSettingsTemplate* PreviousTemplate )
 {
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bEnableLookAtTracking, Destination, PreviousTemplate );
+	DATASMITHOBJECTTEMPLATE_CONDITIONALSET( bAllowRoll, Destination, PreviousTemplate );
 	DATASMITHOBJECTTEMPLATE_CONDITIONALSETSOFTOBJECTPTR( ActorToTrack, Destination, PreviousTemplate );
 }
 
 void FDatasmithCameraLookatTrackingSettingsTemplate::Load( const FCameraLookatTrackingSettings& Source )
 {
 	bEnableLookAtTracking = Source.bEnableLookAtTracking;
+	bAllowRoll = Source.bAllowRoll;
 	ActorToTrack = Source.ActorToTrack;
 }
 
 bool FDatasmithCameraLookatTrackingSettingsTemplate::Equals( const FDatasmithCameraLookatTrackingSettingsTemplate& Other ) const
 {
 	bool bEquals = ( bEnableLookAtTracking == Other.bEnableLookAtTracking );
+	bEquals = bEquals && ( bAllowRoll == Other.bAllowRoll );
 	bEquals = bEquals && ( ActorToTrack == Other.ActorToTrack );
 
 	return bEquals;

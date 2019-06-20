@@ -33,6 +33,8 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	ZoomPosition = ESequencerZoomPosition::SZP_CurrentTime;
 	bAutoScrollEnabled = false;
 	bLinkCurveEditorTimeRange = false;
+	bSynchronizeCurveEditorSelection = true;
+	bIsolateCurveEditorToSelection = true;
 	LoopMode = ESequencerLoopMode::SLM_NoLoop;
 	bKeepCursorInPlayRangeWhileScrubbing = false;
 	bKeepCursorInPlayRange = true;
@@ -468,6 +470,23 @@ void USequencerSettings::SetLinkCurveEditorTimeRange(bool InbLinkCurveEditorTime
 	}
 }
 
+void USequencerSettings::SyncCurveEditorSelection(bool bInSynchronizeCurveEditorSelection)
+{
+	if (bSynchronizeCurveEditorSelection != bInSynchronizeCurveEditorSelection)
+	{
+		bSynchronizeCurveEditorSelection = bInSynchronizeCurveEditorSelection;
+		SaveConfig();
+	}
+}
+
+void USequencerSettings::IsolateCurveEditorToSelection(bool bInIsolateCurveEditorToSelection)
+{
+	if (bIsolateCurveEditorToSelection != bInIsolateCurveEditorToSelection)
+	{
+		bIsolateCurveEditorToSelection = bInIsolateCurveEditorToSelection;
+		SaveConfig();
+	}
+}
 
 uint8 USequencerSettings::GetZeroPadFrames() const
 {

@@ -582,7 +582,7 @@ bool FConcertServerWorkspace::UnlockWorkspaceResource(const FName InResourceName
 	{
 		if (Owner->EndpointId == InLockEndpointId || bForce)
 		{
-			if (Owner->bExplicit == bExplicit || bForce)
+			if (!Owner->bExplicit || bExplicit || bForce)
 			{
 				const bool bWasTemporary = Owner->bTemporary;
 				LockedResources->Remove(InResourceName);

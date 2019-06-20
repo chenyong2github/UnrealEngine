@@ -26,6 +26,8 @@ public:
 	void SetDataprepConsumer( UDataprepContentConsumer* DataprepConsumer );
 
 private:
+	TSharedRef<SWidget> BuildWidget();
+	TSharedRef<SWidget> BuildNullWidget();
 	void OnLevelNameChanged( const FText& NewLevelName, ETextCommit::Type CommitType );
 	void OnBrowseContentFolder();
 	void UpdateContentFolderText();
@@ -51,8 +53,11 @@ class SDataprepDetailsView : public SCompoundWidget
 
 public:
 	SLATE_BEGIN_ARGS(SDataprepDetailsView)
+		: _Object( nullptr )
+		, _Class( UObject::StaticClass() )
 	{}
 	SLATE_ATTRIBUTE(UObject*, Object)
+	SLATE_ATTRIBUTE(UClass*, Class)
 	SLATE_END_ARGS()
 
 public:
@@ -100,10 +105,13 @@ private:
 private:
 	/** Row generator applied on detailed object */
 	TSharedPtr< class IPropertyRowGenerator > Generator;
-	
+
 	/** Object to be detailed */
 	UObject* DetailedObject;
-	
+
+	/** Class of the object to be detailed */
+	UClass* DetailedClass;
+
 	TAttribute<UObject*> ObjectAttribute;
 
 	/** Array properties tracked for changes */

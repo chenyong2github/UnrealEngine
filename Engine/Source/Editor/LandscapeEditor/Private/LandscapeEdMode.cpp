@@ -621,7 +621,7 @@ void FEdModeLandscape::Enter()
 
 		if (ALandscape* Landscape = GetLandscape())
 		{
-			Landscape->OnBlueprintBrushChangedDelegate().AddLambda([this]() { this->RefreshDetailPanel(); });
+			Landscape->OnBlueprintBrushChangedDelegate().AddRaw(this, &FEdModeLandscape::RefreshDetailPanel);
 			if (Landscape->HasLayersContent())
 			{
 				if (Landscape->GetLandscapeSplinesReservedLayer())
@@ -2598,7 +2598,7 @@ void FEdModeLandscape::SetTargetLandscape(const TWeakObjectPtr<ULandscapeInfo>& 
 		LandscapeProxy->OnMaterialChangedDelegate().AddRaw(this, &FEdModeLandscape::OnLandscapeMaterialChangedDelegate);
 		if (ALandscape* Landscape = GetLandscape())
 		{
-			Landscape->OnBlueprintBrushChangedDelegate().AddLambda([this]() { this->RefreshDetailPanel(); });
+			Landscape->OnBlueprintBrushChangedDelegate().AddRaw(this, &FEdModeLandscape::RefreshDetailPanel);
 		}
 	}
 
@@ -4164,6 +4164,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->PositiveZBoundsExtension = OldLandscape->PositiveZBoundsExtension;
 			NewLandscape->DefaultPhysMaterial = OldLandscape->DefaultPhysMaterial;
 			NewLandscape->StreamingDistanceMultiplier = OldLandscape->StreamingDistanceMultiplier;
+			NewLandscape->LandscapeHoleMaterial = OldLandscape->LandscapeHoleMaterial;
 			NewLandscape->StaticLightingResolution = OldLandscape->StaticLightingResolution;
 			NewLandscape->bCastStaticShadow = OldLandscape->bCastStaticShadow;
 			NewLandscape->bCastShadowAsTwoSided = OldLandscape->bCastShadowAsTwoSided;

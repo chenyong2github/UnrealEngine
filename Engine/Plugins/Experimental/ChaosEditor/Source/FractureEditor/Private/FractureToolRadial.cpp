@@ -49,17 +49,8 @@ FSlateIcon UFractureToolRadial::GetToolIcon() const
 
 void UFractureToolRadial::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, 
-					UICommandInfo,
-					"Radial", 
-					"Radial",
-					"Radial Voronoi Fracture",
-					EUserInterfaceActionType::ToggleButton, 
-					FInputChord() 
-	);
-
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Radial", "Radial", "Radial Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Radial = UICommandInfo;
-
 }
 
 TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const 
@@ -75,19 +66,23 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureContext &Context, 
 
 	float RadialStep = FractureSettings->Radius / FractureSettings->RadialSteps;
 
-	const FVector Center(Context.Bounds.GetCenter());
+	const FVector Center(Context.Bounds.GetCenter() + FractureSettings->Center);
 
 	FRandomStream RandStream(Context.RandomSeed);
+	FVector UpVector(FractureSettings->Normal);
+	UpVector.Normalize();
+	FVector PerpVector(UpVector[2], UpVector[0], UpVector[1]);
 
 	for (int32 ii = 1; ii < FractureSettings->RadialSteps; ++ii)
 	{
-		FVector PositionVector(RadialStep * ii,0.0,0.0);
+		FVector PositionVector(PerpVector * RadialStep * ii);
+
 		float AngularStep = 360.f / FractureSettings->AngularSteps;
-		PositionVector = PositionVector.RotateAngleAxis(FractureSettings->AngleOffset * ii, FractureSettings->Normal);
+		PositionVector = PositionVector.RotateAngleAxis(FractureSettings->AngleOffset * ii, UpVector);
 
 		for (int32 kk = 0; kk < FractureSettings->AngularSteps; ++kk)
 		{
-			PositionVector = PositionVector.RotateAngleAxis(AngularStep , FractureSettings->Normal);
+			PositionVector = PositionVector.RotateAngleAxis(AngularStep , UpVector);
 			Sites.Emplace(Center + PositionVector + (RandStream.VRand() * RandStream.FRand() * FractureSettings->Variability));
 		}
 	}

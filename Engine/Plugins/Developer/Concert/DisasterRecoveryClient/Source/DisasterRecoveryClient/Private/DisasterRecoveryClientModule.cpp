@@ -8,6 +8,7 @@
 #include "IConcertClient.h"
 #include "IConcertSession.h"
 #include "IConcertSyncClient.h"
+#include "ConcertFrontendStyle.h"
 
 #include "Misc/Paths.h"
 #include "Misc/CoreDelegates.h"
@@ -20,6 +21,9 @@
 #include "Backends/JsonStructDeserializerBackend.h"
 #include "DisasterRecoveryFSM.h"
 #include "DisasterRecoverySettings.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "IPackageAutoSaver.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -42,6 +46,9 @@ public:
 
 		// Wait for init to finish before starting the Disaster Recovery service
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FDisasterRecoveryClientModule::OnEngineInitComplete);
+
+		// Initialize Style
+		FConcertFrontendStyle::Initialize();
 
 		// Register the Disaster Recovery Settings panel.
 		RegisterSettings();
@@ -247,7 +254,7 @@ private:
 		// Normally, bAutoRestoreLastSession is set true here and overwritten to false when the app exits normally, but when running under the debugger, auto-restore is disabled as
 		// programmers kill applications (stop the debugger) and this should not count as a crash (unless you want to simulate crash this way - see below).
 		SessionInfoToSave.bAutoRestoreLastSession = !FPlatformMisc::IsDebuggerPresent();
-		SessionInfoToSave.bAutoRestoreLastSession = true; // <- THIS CODE MUST BE COMMENTED BEFORE SUBMITTING: Uncomment for debugging purpose only. Simulate a crash by stopping the debugger during a session.
+		//SessionInfoToSave.bAutoRestoreLastSession = true; // <- THIS CODE MUST BE COMMENTED BEFORE SUBMITTING: Uncomment for debugging purpose only. Simulate a crash by stopping the debugger during a session.
 		SaveDisasterRecoverySessionInfo(SessionInfoToSave);
 	}
 
@@ -311,6 +318,12 @@ private:
 		// Starts the recovery process.
 		if (bRecoveringFromCrash)
 		{
+			if (GUnrealEd)
+			{
+				// Prevent the "Auto-Save" system from restoring the packages before Disaster Recovery plugin.
+				GUnrealEd->GetPackageAutoSaver().DisableRestorePromptAndDeclinePackageRecovery();
+			}
+
 			DisasterRecoveryUtil::StartRecovery(DisasterRecoveryClient->GetConcertClient(), InSessionInfoToRestore->LastSessionName, /*bLiveDataOnly*/ false);
 		}
 

@@ -757,11 +757,15 @@ int32 FFractureEditorModeToolkit::GetLevelCount()
 				if (HasLevelAttribute)
 				{
 					TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
-					for (int32 Level : Levels)
+
+					if(Levels.Num() > 0)
 					{
-						if (Level > ReturnLevel)
+						for (int32 Level : Levels)
 						{
-							ReturnLevel = Level;
+							if (Level > ReturnLevel)
+							{
+								ReturnLevel = Level;
+							}
 						}
 					}
 				}
@@ -1052,6 +1056,7 @@ void FFractureEditorModeToolkit::OnSelectByMode(GeometryCollection::ESelectionMo
 void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& FractureContexts)
 {
 	const UFractureCommonSettings* CommonSettings = GetDefault<UFractureCommonSettings>();
+	FRandomStream RandomStream(CommonSettings->RandomSeed > -1 ? CommonSettings->RandomSeed : FMath::Rand());
 
 	USelection* SelectedActors = GEditor->GetSelectedActors();
 	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
@@ -1096,7 +1101,6 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 
 					TMap<int32, FBox> BoundsToBone;
 
-
 					for (int32 Idx = 0, ni = FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
 					{
 						if (TransformToGeometryIndex[Idx] > -1)
@@ -1126,7 +1130,12 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 						FractureContext.Bounds = FBox(ForceInit);
 						for (int32 BoneIndex : FractureContext.SelectedBones)
 						{
- 							if(TransformToGeometryIndex[BoneIndex] > -1)
+							if (FractureContext.SelectedBones.Num() > 1 && RandomStream.FRand() > CommonSettings->ChanceToFracture)
+							{
+								continue;
+							}
+							
+							if (TransformToGeometryIndex[BoneIndex] > -1)
 							{
 								FractureContext.Bounds += BoundsToBone[BoneIndex];
 							}
@@ -1136,6 +1145,11 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 					{
 						for (int32 BoneIndex : SelectedBones)
 						{
+							if (SelectedBones.Num() > 1 && RandomStream.FRand() > CommonSettings->ChanceToFracture)
+							{
+								continue;
+							}
+
 							FractureContexts.AddDefaulted();
 							FFractureContext& FractureContext = FractureContexts.Last();
 							FractureContext.RandomSeed = FMath::Rand();
@@ -1173,23 +1187,39 @@ FReply FFractureEditorModeToolkit::OnFractureClicked()
 
 		FScopedTransaction Transaction(LOCTEXT("FractureMesh", "Fracture Mesh"));
 
+		TArray<UGeometryCollectionComponent*> NewComponents;
+
 		for (FFractureContext& FractureContext : FractureContexts)
 		{
 			ExecuteFracture(FractureContext);
 			UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent);
-			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-			EditBoneColor.ResetBoneSelection();
-		
+			NewComponents.AddUnique(GeometryCollectionComponent);
+		}
+
+
+		for (UGeometryCollectionComponent* GeometryCollectionComponent : NewComponents)
+		{
+			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection();
+			UGeometryCollection* GCObject = GCEdit.GetRestCollection();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
+			FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
+
+			FScopedColorEdit EditBoneColor(GeometryCollectionComponent, true);
+
+			EditBoneColor.SelectBones(GeometryCollection::ESelectionMode::None);
+			SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
+
 			UpdateExplodedVectors(GeometryCollectionComponent);
-			SetOutlinerComponents({ GeometryCollectionComponent });
 
 			GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 			GeometryCollectionComponent->MarkRenderStateDirty();
-
-			GCurrentLevelEditingViewportClient->Invalidate();
 		}
 
+		SetOutlinerComponents(NewComponents);
+
 		float ProcessingTime = static_cast<float>(FPlatformTime::Seconds() - CacheStartTime);
+
+		GCurrentLevelEditingViewportClient->Invalidate();
 	}
 
 	return FReply::Handled();
@@ -1493,30 +1523,11 @@ void FFractureEditorModeToolkit::GenerateAsset()
 
 	SelectionSet->GetSelectedObjects(SelectedActors);
 
-	for (AActor* Actor : SelectedActors)
-	{
-		TArray<UStaticMeshComponent*> Components;
-		Actor->GetComponents<UStaticMeshComponent>(Components);
-		if (Components.Num() > 0)
-		{
-			FFractureContext FractureContext;
-			FractureContext.OriginalActor = Actor;
-			FractureContext.OriginalPrimitiveComponent = Components[0];
-			FractureContext.Transform = Components[0]->GetComponentTransform();
-
-			AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(Actor);
-			UGeometryCollectionComponent* GeometryCollectionComponent = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent);
-
-			if (GeometryCollectionComponent == nullptr) // Create new GC actor from static mesh
-			{
-				OpenGenerateAssetDialog(FractureContext);
-			}
-		}
-	}
+	OpenGenerateAssetDialog(SelectedActors);
 }
 
 
-void FFractureEditorModeToolkit::OpenGenerateAssetDialog(FFractureContext InFractureContext)
+void FFractureEditorModeToolkit::OpenGenerateAssetDialog(TArray<AActor*>& Actors)
 {
 	TSharedPtr<SWindow> PickAssetPathWindow;
 
@@ -1533,7 +1544,7 @@ void FFractureEditorModeToolkit::OpenGenerateAssetDialog(FFractureContext InFrac
 		.AssetFilenameSuffix(TEXT("GeometryCollection"))
 		.HeadingText(LOCTEXT("CreateGeometryCollection_Heading", "Geometry Collection Name"))
 		.CreateButtonText(LOCTEXT("CreateGeometryCollection_ButtonLabel", "Create Geometry Collection"))
-		.OnCreateAssetAction(FOnPathChosen::CreateSP(this, &FFractureEditorModeToolkit::OnGenerateAssetPathChoosen, InFractureContext))
+		.OnCreateAssetAction(FOnPathChosen::CreateSP(this, &FFractureEditorModeToolkit::OnGenerateAssetPathChosen, Actors))
 	);
 
 	TSharedPtr<SWindow> RootWindow = FGlobalTabmanager::Get()->GetRootWindow();
@@ -1548,31 +1559,41 @@ void FFractureEditorModeToolkit::OpenGenerateAssetDialog(FFractureContext InFrac
 
 }
 
-void FFractureEditorModeToolkit::OnGenerateAssetPathChoosen(const FString& InAssetPath, FFractureContext InFractureContext)
+void FFractureEditorModeToolkit::OnGenerateAssetPathChosen(const FString& InAssetPath, TArray<AActor*> Actors)
 {
 		UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;//  = Cast<UGeometryCollectionComponent>(FractureContext.OriginalPrimitiveComponent);
-		AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(InFractureContext.OriginalActor);
-		GeometryCollectionActor = ConvertStaticMeshToGeometryCollection(InAssetPath, InFractureContext);
 
-		GeometryCollectionComponent = GeometryCollectionActor->GetGeometryCollectionComponent();
+		if (Actors.Num() > 0)
+		{
+			AActor* FirstActor = Actors[0];
 
-		FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-		EditBoneColor.SetShowBoneColors(true);
+			AGeometryCollectionActor* GeometryCollectionActor = Cast<AGeometryCollectionActor>(FirstActor);
+			GeometryCollectionActor = ConvertStaticMeshToGeometryCollection(InAssetPath, Actors);
 
-		// Move GC actor to source actors position and remove source actor from scene
-		const FVector ActorLocation(InFractureContext.OriginalActor->GetActorLocation());
-		GeometryCollectionActor->SetActorLocation(ActorLocation);
-		InFractureContext.OriginalActor->Destroy();
+			GeometryCollectionComponent = GeometryCollectionActor->GetGeometryCollectionComponent();
 
-		GEditor->SelectActor(GeometryCollectionActor, true, true);
+			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+			EditBoneColor.SetShowBoneColors(true);
 
-		EditBoneColor.SelectBones(GeometryCollection::ESelectionMode::AllGeometry);
+			// Move GC actor to source actors position and remove source actor from scene
+			const FVector ActorLocation(FirstActor->GetActorLocation());
+			GeometryCollectionActor->SetActorLocation(ActorLocation);
 
-		SetOutlinerComponents({ GeometryCollectionComponent });
-		SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
+			GEditor->SelectActor(GeometryCollectionActor, true, true);
 
-		GeometryCollectionComponent->MarkRenderDynamicDataDirty();
-		GeometryCollectionComponent->MarkRenderStateDirty();
+			EditBoneColor.SelectBones(GeometryCollection::ESelectionMode::AllGeometry);
+
+			SetOutlinerComponents({ GeometryCollectionComponent });
+			SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
+
+			GeometryCollectionComponent->MarkRenderDynamicDataDirty();
+			GeometryCollectionComponent->MarkRenderStateDirty();
+
+			for (AActor* Actor : Actors)
+			{
+				Actor->Destroy();
+			}
+		}
 }
 
 
@@ -1836,36 +1857,44 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 	}
 }
 
-AGeometryCollectionActor*  FFractureEditorModeToolkit::ConvertStaticMeshToGeometryCollection(const FString& InAssetPath, FFractureContext& FractureContext)
+AGeometryCollectionActor*  FFractureEditorModeToolkit::ConvertStaticMeshToGeometryCollection(const FString& InAssetPath, TArray<AActor*>& Actors)
 {
-	const FString& Name = FractureContext.OriginalActor->GetActorLabel();
+	ensure(Actors.Num() > 0);
+	AActor* FirstActor = Actors[0];
+ 	const FString& Name = FirstActor->GetActorLabel();
+	const FVector FirstActorLocation(FirstActor->GetActorLocation());
+
+
 	AGeometryCollectionActor* NewActor = CreateNewGeometryActor(InAssetPath, FTransform(), true);
 
 	FGeometryCollectionEdit GeometryCollectionEdit = NewActor->GetGeometryCollectionComponent()->EditRestCollection();
-	FractureContext.FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
+	UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
 
-	const FTransform ActorTransform(FractureContext.OriginalActor->GetTransform());
+ 	for (AActor* Actor : Actors)
+ 	{
+ 		const FTransform ActorTransform(Actor->GetTransform());
+		const FVector ActorOffset(Actor->GetActorLocation() - FirstActor->GetActorLocation());
 
-	check(FractureContext.FracturedGeometryCollection);
-
-	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	FractureContext.OriginalActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
-	for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
-	{
-		// We're partial to static mesh components, here
-		UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ii];
-		if (StaticMeshComponent != nullptr)
-		{
-			UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
-			FTransform ComponentTranform(StaticMeshComponent->GetComponentTransform());
-			ComponentTranform.SetTranslation(ComponentTranform.GetTranslation() - ActorTransform.GetTranslation());
-			FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, StaticMeshComponent, ComponentTranform, FractureContext.FracturedGeometryCollection, true);
-		}
-	}
-
-	FractureContext.FracturedGeometryCollection->InitializeMaterials();
-
-	AddSingleRootNodeIfRequired(FractureContext.FracturedGeometryCollection);
+ 		check(FracturedGeometryCollection);
+ 
+ 		TArray<UStaticMeshComponent*> StaticMeshComponents;
+ 		Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+ 		for (int32 ii = 0, ni = StaticMeshComponents.Num(); ii < ni; ++ii)
+ 		{
+ 			// We're partial to static mesh components, here
+ 			UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ii];
+ 			if (StaticMeshComponent != nullptr)
+ 			{
+ 				UStaticMesh* ComponentStaticMesh = StaticMeshComponent->GetStaticMesh();
+ 				FTransform ComponentTranform(StaticMeshComponent->GetComponentTransform());
+ 				ComponentTranform.SetTranslation((ComponentTranform.GetTranslation() - ActorTransform.GetTranslation()) + ActorOffset);
+ 				FGeometryCollectionConversion::AppendStaticMesh(ComponentStaticMesh, StaticMeshComponent, ComponentTranform, FracturedGeometryCollection, true);
+ 			}
+ 		}
+ 
+ 		FracturedGeometryCollection->InitializeMaterials();
+ 	}
+ 	AddSingleRootNodeIfRequired(FracturedGeometryCollection);
 
 	return NewActor;
 }

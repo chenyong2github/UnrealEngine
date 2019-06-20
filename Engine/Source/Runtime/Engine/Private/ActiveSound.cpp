@@ -33,6 +33,7 @@ FActiveSound::FActiveSound()
 	: World(nullptr)
 	, WorldID(0)
 	, Sound(nullptr)
+	, SourceEffectChain(nullptr)
 	, AudioComponentID(0)
 	, OwnerID(0)
 	, AudioDevice(nullptr)
@@ -162,6 +163,7 @@ void FActiveSound::AddReferencedObjects( FReferenceCollector& Collector)
 	}
 
 	Collector.AddReferencedObject(Sound);
+	Collector.AddReferencedObject(SourceEffectChain);
 	Collector.AddReferencedObject(SoundClassOverride);
 
 	for (USoundConcurrency* Concurrency : ConcurrencySet)
@@ -202,6 +204,11 @@ void FActiveSound::SetSound(USoundBase* InSound)
 	Sound = InSound;
 	bApplyInteriorVolumes = (SoundClassOverride && SoundClassOverride->Properties.bApplyAmbientVolumes)
 							|| (Sound && Sound->ShouldApplyInteriorVolumes());
+}
+
+void FActiveSound::SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain)
+{
+	SourceEffectChain = InSourceEffectChain;
 }
 
 void FActiveSound::SetSoundClass(USoundClass* SoundClass)
@@ -522,7 +529,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	}
 
 	// Set up the base source effect chain.
-	ParseParams.SourceEffectChain = Sound->SourceEffectChain;
+	ParseParams.SourceEffectChain = GetSourceEffectChain();
 
 	// Setup the envelope attack and release times
 	ParseParams.EnvelopeFollowerAttackTime = EnvelopeFollowerAttackTime;

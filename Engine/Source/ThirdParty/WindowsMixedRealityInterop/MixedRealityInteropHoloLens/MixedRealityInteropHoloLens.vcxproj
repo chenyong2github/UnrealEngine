@@ -132,7 +132,7 @@
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ProgramDataBaseFileName>$(SolutionDir)Lib\arm64\$(ProjectName).pdb</ProgramDataBaseFileName>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -156,7 +156,7 @@
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -179,7 +179,7 @@
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>../Include/$(WindowsTargetPlatformVersion);../Include;</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>PLATFORM_HOLOLENS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -201,7 +201,7 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalOptions>/await %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\Windows\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
+      <ForcedUsingFiles>$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\$(PlatformTarget)\QRCodesTrackerPlugin.winmd;%(ForcedUsingFiles)</ForcedUsingFiles>
     </ClCompile>
     <Lib>
       <AdditionalOptions>/IGNORE:4264 %(AdditionalOptions)</AdditionalOptions>

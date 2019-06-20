@@ -162,11 +162,11 @@ namespace WindowsMixedReality
 #else // WINDOWS_MIXED_REALITY_DEBUG_DLL
 				FString DLLName(TEXT("MixedRealityInterop.dll"));
 #endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
-				FString MRInteropLibraryPath = BaseDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
+				FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/MixedRealityInteropLibrary" / BinariesSubDir / DLLName;
 
-#if PLATFORM_64BITS && WITH_EDITOR
+#if PLATFORM_64BITS
 				// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
-				FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries/ThirdParty/Windows/HoloLens" / BinariesSubDir / "HolographicAppRemoting.dll"));
+				FPlatformProcess::GetDllHandle(*(EngineDir / "Binaries/ThirdParty/Windows/x64/HolographicAppRemoting.dll"));
 #endif // PLATFORM_64BITS && WITH_EDITOR
 
 				// Then finally try to load the WMR Interop Library
@@ -986,9 +986,8 @@ namespace WindowsMixedReality
 
 		const uint32 x = (ViewportWidth - width) * 0.5f;
 		const uint32 y = (ViewportHeight - height) * 0.5f;
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		SetRenderTarget(RHICmdList, BackBuffer, FTextureRHIRef());
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		FRHIRenderPassInfo RPInfo(BackBuffer, ERenderTargetActions::Load_Store);
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("WindowsMixedRealityHMD"));
 		DrawClearQuad(RHICmdList, FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
 		RHICmdList.SetViewport(x, y, 0, width + x, height + y, 1.0f);
 
@@ -1022,6 +1021,8 @@ namespace WindowsMixedReality
 			FIntPoint(1, 1),
 			*VertexShader,
 			EDRF_Default);
+
+		RHICmdList.EndRenderPass();
 	}
 
 	// Create a BGRA backbuffer for rendering.

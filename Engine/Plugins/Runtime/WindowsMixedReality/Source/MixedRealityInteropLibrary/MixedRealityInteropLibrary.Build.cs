@@ -19,20 +19,23 @@ public class MixedRealityInteropLibrary : ModuleRules
 			string DLLName = LibName + ".dll";
 			LibName += ".lib";
 
+			string InteropLibPath = EngineDirectory + "/Source/ThirdParty/WindowsMixedRealityInterop/Lib/x64/";
+			PublicLibraryPaths.Add(InteropLibPath);
+
 			PublicAdditionalLibraries.Add(LibName);
 			// Delay-load the DLL, so we can load it from the right place first
 			PublicDelayLoadDLLs.Add(DLLName);
-			RuntimeDependencies.Add(PluginDirectory + "/Binaries/ThirdParty/MixedRealityInteropLibrary/" + Target.Platform.ToString() + "/" + DLLName);
+			RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/MixedRealityInteropLibrary/" + Target.Platform.ToString() + "/" + DLLName);
 			
 			// Hologram remoting dlls
-			if (Target.Platform == UnrealTargetPlatform.Win64 && Target.bBuildEditor == true)
+			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				string[] Dlls = { "HolographicAppRemoting.dll" , "PerceptionDevice.dll" };
 
 				foreach(var Dll in Dlls)
 				{
 					PublicDelayLoadDLLs.Add(Dll);
-					RuntimeDependencies.Add(string.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/Win64/{0}", Dll));
+					RuntimeDependencies.Add(EngineDirectory + "/Binaries/ThirdParty/Windows/x64/" + Dll);
 				}
 			}
 		}

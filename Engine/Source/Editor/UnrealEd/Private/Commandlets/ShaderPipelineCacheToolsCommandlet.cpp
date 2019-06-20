@@ -226,7 +226,7 @@ static void PrintShaders(const TMap<FSHAHash, TArray<FString>>& InverseMap, cons
 	}
 }
 
-void CheckPSOStringInveribility(const FPipelineCacheFileFormatPSO& Item)
+bool CheckPSOStringInveribility(const FPipelineCacheFileFormatPSO& Item)
 {
 	FPipelineCacheFileFormatPSO TempItem(Item);
 	TempItem.Hash = 0;
@@ -254,8 +254,7 @@ void CheckPSOStringInveribility(const FPipelineCacheFileFormatPSO& Item)
 	}
 	UE_LOG(LogShaderPipelineCacheTools, Verbose, TEXT("CheckPSOStringInveribility: %s"), *StringRep);
 
-	check(DupItem == TempItem);
-	check(GetTypeHash(DupItem) == GetTypeHash(TempItem));
+	return (DupItem == TempItem) && (GetTypeHash(DupItem) == GetTypeHash(TempItem));
 }
 
 int32 DumpPSOSC(FString& Token)
@@ -523,6 +522,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				auto* ExistingPSO = PSOs.Find(TempPSO);
 				if(ExistingPSO != nullptr)
 				{
+					// Existing PSO must have already gone through verify and invertibility checks
 					check(*ExistingPSO == TempPSO);
 					
 					// Get More accurate stats by testing for diff - we could just merge and be done
@@ -536,7 +536,17 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				}
 				else
 				{
-					PSOs.Add(TempPSO);
+					bool bInvertibilityResult = CheckPSOStringInveribility(TempPSO);
+					bool bVerifyResult = TempPSO.Verify();
+					if(bInvertibilityResult && bVerifyResult)
+					{
+						PSOs.Add(TempPSO);
+					}
+					else
+					{
+						// Log Found Bad PSO, this is in the context of the logged current file above so we can see where this has come from
+						UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Bad PSO found discarding [Invertibility=%s Verify=%s in: %s]"), bInvertibilityResult ? TEXT("PASS") :  TEXT("FAIL") , bVerifyResult ? TEXT("PASS") :  TEXT("FAIL"), *Tokens[Index]);
+					}
 				}
 			}
 		}
@@ -552,12 +562,6 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	}
 	UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %d PSOs total [Usage Mask Merged = %d]."), PSOs.Num(), MergeCount);
 
-	//self test
-	for (const FPipelineCacheFileFormatPSO& Item : PSOs)
-	{
-		CheckPSOStringInveribility(Item);
-	}
-	// end self test
 	if (UE_LOG_ACTIVE(LogShaderPipelineCacheTools, Verbose))
 	{
 		TMap<FSHAHash, TArray<FString>> InverseMap;
@@ -1151,11 +1155,12 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 				{
 					PSO.Type = FPipelineCacheFileFormatPSO::DescriptorType::Graphics;
 					check(!bLooksLikeAComputeShader);
-					if (PSO.GraphicsDesc.VertexShader == FSHAHash())
-					{
-						UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Stable PSO with null vertex shader, ignored."));
-						bValid = false;
-					}
+				}
+				
+				bValid = PSO.Verify();
+				if(!bValid)
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Warning, TEXT("Bad PSO found - verify failed - PSO discarded [Line %d in: %s]"), Index, *FileName);
 				}
 			}
 

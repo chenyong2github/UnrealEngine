@@ -89,7 +89,7 @@ void FSlateAccessibleWidgetCache::DumpAccessibilityStats()
 
 static FAutoConsoleCommand DumpAccessibilityStatsSlateCommand
 (
-	TEXT("DumpAccessibilityStatsSlate"),
+	TEXT("Accessibility.DumpStatsSlate"),
 	TEXT("Writes memory stats for Slate's accessibility data stored to LogAccessibility."),
 	FConsoleCommandDelegate::CreateStatic(&FSlateAccessibleWidgetCache::DumpAccessibilityStats)
 );

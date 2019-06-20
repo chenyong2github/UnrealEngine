@@ -313,8 +313,11 @@ public:
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& InTarget, const FVector& InHitLocation) override
 	{
 		ALandscapeProxy* Proxy = InTarget.LandscapeInfo->GetLandscapeProxy();
-		UMaterialInterface* HoleMaterial = Proxy->GetLandscapeMaterial();
-
+		UMaterialInterface* HoleMaterial = Proxy->GetLandscapeHoleMaterial();
+		if (!HoleMaterial)
+		{
+			HoleMaterial = Proxy->GetLandscapeMaterial();
+		}
 		if (!HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>())
 		{
 			FMessageDialog::Open(EAppMsgType::Ok,
@@ -963,13 +966,14 @@ public:
 		: FLandscapeToolBase<FLandscapeToolStrokeAddComponent>(InEdMode)
 	{
 	}
+	virtual bool ShouldUpdateEditingLayer() const override { return false; }
 
 	virtual const TCHAR* GetToolName() override { return TEXT("AddComponent"); }
 	virtual FText GetDisplayName() override { return NSLOCTEXT("UnrealEd", "LandscapeMode_AddComponent", "Add New Landscape Component"); };
 
 	virtual void SetEditRenderType() override { GLandscapeEditRenderMode = ELandscapeEditRenderMode::None | (GLandscapeEditRenderMode & ELandscapeEditRenderMode::BitMaskForMask); }
 	virtual bool SupportsMask() override { return false; }
-
+	
 	virtual void EnterTool() override
 	{
 		FLandscapeToolBase<FLandscapeToolStrokeAddComponent>::EnterTool();

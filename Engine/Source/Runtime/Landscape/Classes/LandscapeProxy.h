@@ -483,8 +483,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape)
 	UMaterialInterface* LandscapeMaterial;
 
-	UPROPERTY()
-	UMaterialInterface* LandscapeHoleMaterial_DEPRECATED;
+	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
+	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
+	UMaterialInterface* LandscapeHoleMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride;
@@ -492,6 +493,9 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(Transient)
 	UMaterialInterface* PreEditLandscapeMaterial;
+
+	UPROPERTY(Transient)
+	UMaterialInterface* PreEditLandscapeHoleMaterial;
 
 	UPROPERTY(Transient)
 	TArray<FLandscapeProxyMaterialOverride> PreEditLandscapeMaterialsOverride;
@@ -856,6 +860,9 @@ public:
 
 	// Get Landscape Material assigned to this Landscape
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
+
+	// Get Hole Landscape Material assigned to this Landscape
+	virtual UMaterialInterface* GetLandscapeHoleMaterial() const;
 
 	// 
 	void FixupWeightmaps();

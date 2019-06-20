@@ -110,6 +110,9 @@ private:
 	FLiveLinkSubjectKey LiveLinkRightHandTrackingSubjectKey;
 	bool bNewLiveLinkClient = false;
 	FLiveLinkStaticDataStruct LiveLinkSkeletonStaticData;
+
+	TArray<FTransform> LeftAnimationTransforms;
+	TArray<FTransform> RightAnimationTransforms;
 };
 
 DEFINE_LOG_CATEGORY_STATIC(LogWindowsMixedRealityHandTracking, Display, All);

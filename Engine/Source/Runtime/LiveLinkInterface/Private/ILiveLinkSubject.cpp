@@ -37,7 +37,13 @@ bool ILiveLinkSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, F
 		return true;
 	}
 
-	return Translate(this, InDesiredRole, GetFrameSnapshot().StaticData, GetFrameSnapshot().FrameData, OutFrame);
+	const bool bSuccess = Translate(this, InDesiredRole, GetFrameSnapshot().StaticData, GetFrameSnapshot().FrameData, OutFrame);
+	if (!bSuccess)
+	{
+		UE_LOG(LogLiveLinkSubject, Warning, TEXT("Can't evaluate frame for subject '%s' for incompatible role '%s. Subject has the role '%s' and no translators could work."), *GetSubjectKey().SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
+	}
+
+	return bSuccess;
 }
 
 
