@@ -55,13 +55,7 @@ public:
 		return TypeName;
 	}
 
-	virtual const TCHAR* GetVersionString() const override
-	{
-		// This is a version string that mimics the old versioning scheme. If you
-		// want to bump this version, generate a new guid using VS->Tools->Create GUID and
-		// return it here. Ex.
-		return TEXT("1F1656B9E10142729AB16650D9821B1Ff");
-	}
+	virtual const TCHAR* GetVersionString() const override;
 
 	virtual FString GetPluginSpecificCacheKeySuffix() const override
 	{

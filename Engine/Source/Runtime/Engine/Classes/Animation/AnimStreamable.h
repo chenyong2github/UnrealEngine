@@ -208,13 +208,15 @@ public:
 	private:
 
 #if WITH_EDITOR
+	float GetAltCompressionErrorThreshold() const;
+
 	ENGINE_API void RequestCompressedData(const  ITargetPlatform* Platform=nullptr);
 
 	void UpdateRawData();
 
-	FString GetBaseDDCKey() const;
+	FString GetBaseDDCKey(uint32 NumChunks, float AltCompressionErrorThreshold) const;
 
-	void RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext);
+	void RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext);
 #endif
 
 	bool bUseRawDataOnly;
