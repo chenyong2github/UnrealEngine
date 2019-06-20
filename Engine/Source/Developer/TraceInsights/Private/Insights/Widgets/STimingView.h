@@ -323,7 +323,7 @@ protected:
 
 	bool SearchTimingEvent(const double InStartTime,
 						   const double InEndTime,
-						   TFunctionRef<bool(double, double, uint32, uint32)> InPredicate,
+						   TFunctionRef<bool(double, double, uint32)> InPredicate,
 						   FTimingEvent& InOutTimingEvent,
 						   bool bInStopAtFirstMatch,
 						   bool bInSearchForLargestEvent) const;
@@ -442,14 +442,30 @@ protected:
 	bool bForceIoEventsUpdate;
 
 	bool bMergeIoLanes;
+	bool bShowFileActivityBackgroundEvents;
+
+	struct FIoFileActivity
+	{
+		uint64 Id;
+		const TCHAR* Path;
+		double StartTime;
+		double EndTime;
+		int32 EventCount;
+		int32 Depth;
+	};
+
+	TArray<TSharedPtr<FIoFileActivity>> FileActivities;
+	TMap<uint64, TSharedPtr<FIoFileActivity>> FileActivityMap;
 
 	struct FIoTimingEvent
 	{
 		double StartTime;
 		double EndTime;
 		uint32 Depth;
-		uint32 Type; // Trace::EFileActivityType + Failed
-		const TCHAR* Path;
+		uint32 Type; // Trace::EFileActivityType + "Failed" flag
+		uint64 Offset;
+		uint64 Size;
+		TSharedPtr<FIoFileActivity> FileActivity;
 	};
 
 	/** All IO events, cached. */
