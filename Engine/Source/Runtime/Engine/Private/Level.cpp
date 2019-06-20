@@ -1836,11 +1836,6 @@ void ULevel::RouteActorInitialize()
 					ActorsToBeginPlay.Add(Actor);
 				}
 			}
-
-			// Components are all set up, init touching state.
-			// Note: Not doing notifies here since loading or streaming in isn't actually conceptually beginning a touch.
-			//	     Rather, it was always touching and the mechanics of loading is just an implementation detail.
-			Actor->UpdateOverlaps(Actor->bGenerateOverlapEventsDuringLevelStreaming);
 		}
 	}
 
@@ -1849,7 +1844,7 @@ void ULevel::RouteActorInitialize()
 	{
 		AActor* Actor = ActorsToBeginPlay[ActorIndex];
 		SCOPE_CYCLE_COUNTER(STAT_ActorBeginPlay);
-		Actor->DispatchBeginPlay();
+		Actor->DispatchBeginPlay(/*bFromLevelStreaming*/ true);
 	}
 }
 
