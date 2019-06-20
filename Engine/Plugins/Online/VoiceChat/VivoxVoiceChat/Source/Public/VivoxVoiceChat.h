@@ -41,6 +41,8 @@ public:
 	virtual bool Initialize() override;
 	virtual bool Uninitialize() override;
 	virtual bool IsInitialized() const override;
+	virtual void SetSetting(const FString& Name, const FString& Value) override;
+	virtual FString GetSetting(const FString& Name) override;
 	virtual void SetAudioInputVolume(float Volume) override;
 	virtual void SetAudioOutputVolume(float Volume) override;
 	virtual float GetAudioInputVolume() const override;
