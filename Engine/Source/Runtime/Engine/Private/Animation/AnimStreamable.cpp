@@ -25,7 +25,7 @@ DECLARE_CYCLE_STAT(TEXT("AnimStreamable GetAnimationPose"), STAT_AnimStreamable_
 // set it here
 const TCHAR* StreamingAnimChunkVersion = TEXT("1F1656B9E10142729AB16650D9821B1F");
 
-const float MINIMUM_CHUNK_SIZE = 2.0f;
+const float MINIMUM_CHUNK_SIZE = 4.0f;
 
 float GChunkSizeSeconds = MINIMUM_CHUNK_SIZE;
 
@@ -168,9 +168,14 @@ void UAnimStreamable::HandleAssetPlayerTickedInternal(FAnimAssetTickContext &Con
 	
 	const int32 ChunkIndex = GetChunkIndexForTime(GetRunningPlatformData().Chunks, PreviousTime);
 	IAnimationStreamingManager& StreamingManager = IStreamingManager::Get().GetAnimationStreamingManager();
-	const FCompressedAnimSequence* CurveCompressedDataChunk = StreamingManager.GetLoadedChunk(this, ChunkIndex);
+	const FCompressedAnimSequence* CurveCompressedDataChunk = StreamingManager.GetLoadedChunk(this, ChunkIndex, true);
 	
 	//ExtractRootMotionFromTrack(AnimationTrack, PreviousTime, PreviousTime + MoveDelta, Context.RootMotionMovementParams);
+}
+
+FORCEINLINE int32 PreviousChunkIndex(int32 ChunkIndex, int32 NumChunks)
+{
+	return (ChunkIndex + NumChunks - 1) % NumChunks;
 }
 
 void UAnimStreamable::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& OutCurve, const FAnimExtractContext& ExtractionContext) const
@@ -270,7 +275,7 @@ void UAnimStreamable::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& Out
 	{
 		IAnimationStreamingManager& StreamingManager = IStreamingManager::Get().GetAnimationStreamingManager();
 
-		const FCompressedAnimSequence* CurveCompressedDataChunk = StreamingManager.GetLoadedChunk(this, 0); //Curve Data stored in chunk 0 till it is properly cropped
+		const FCompressedAnimSequence* CurveCompressedDataChunk = StreamingManager.GetLoadedChunk(this, 0, false); //Curve Data stored in chunk 0 till it is properly cropped
 
 		if (!CurveCompressedDataChunk)
 		{
@@ -284,15 +289,32 @@ void UAnimStreamable::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& Out
 
 		CurveCompressedDataChunk->CurveCompressionCodec->DecompressCurves(*CurveCompressedDataChunk, OutCurve, ExtractionContext.CurrentTime);
 
-		const FCompressedAnimSequence* CompressedData = (ChunkIndex == 0) ? CurveCompressedDataChunk : StreamingManager.GetLoadedChunk(this, ChunkIndex);
+		const FCompressedAnimSequence* CompressedData = (ChunkIndex == 0) ? CurveCompressedDataChunk : StreamingManager.GetLoadedChunk(this, ChunkIndex, true);
+
+		float ChunkCurrentTime = ExtractionContext.CurrentTime - GetRunningPlatformData().Chunks[ChunkIndex].StartTime;
 
 		if (!CompressedData)
 		{
 #if WITH_EDITOR
 			CompressedData = GetRunningPlatformData().Chunks[ChunkIndex].CompressedAnimSequence;
 #else
-			UE_LOG(LogAnimation, Warning, TEXT("Failed to get streamed compressed data Time: %.2f, ChunkIndex:%i, Anim: %s"), ExtractionContext.CurrentTime, ChunkIndex, *GetFullName());
-			return;
+			const int32 NumChunks = GetRunningPlatformData().Chunks.Num();
+
+			int32 FallbackChunkIndex = ChunkIndex;
+			while (!CompressedData)
+			{
+				FallbackChunkIndex = PreviousChunkIndex(FallbackChunkIndex, NumChunks);
+				if (FallbackChunkIndex == ChunkIndex)
+				{
+					//Cannot get fallback
+					UE_LOG(LogAnimation, Warning, TEXT("Failed to get ANY streamed compressed data Time: %.2f, ChunkIndex:%i, Anim: %s"), ExtractionContext.CurrentTime, ChunkIndex, *GetFullName());
+					return;
+				}
+				CompressedData = StreamingManager.GetLoadedChunk(this, FallbackChunkIndex, false);
+				ChunkCurrentTime = GetRunningPlatformData().Chunks[FallbackChunkIndex].SequenceLength;
+			}
+
+			UE_LOG(LogAnimation, Warning, TEXT("Failed to get streamed compressed data Time: %.2f, ChunkIndex:%i - Using Chunk %i Anim: %s"), ExtractionContext.CurrentTime, ChunkIndex, FallbackChunkIndex, *GetFullName());
 #endif
 		}
 
@@ -302,7 +324,6 @@ void UAnimStreamable::GetAnimationPose(FCompactPose& OutPose, FBlendedCurve& Out
 			return;
 		}
 
-		float ChunkCurrentTime = ExtractionContext.CurrentTime - GetRunningPlatformData().Chunks[ChunkIndex].StartTime;
 		FAnimExtractContext ChunkExtractionContext(ChunkCurrentTime, ExtractionContext.bExtractRootMotion);
 		ChunkExtractionContext.BonesRequired = ExtractionContext.BonesRequired;
 		ChunkExtractionContext.PoseCurves = ExtractionContext.PoseCurves;
@@ -359,6 +380,20 @@ void UAnimStreamable::FinishDestroy()
 	Super::FinishDestroy();
 
 	IStreamingManager::Get().GetAnimationStreamingManager().RemoveStreamingAnim(this);
+}
+
+void UAnimStreamable::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+#if WITH_EDITOR
+	for (auto& AnimData : StreamableAnimPlatformData)
+	{
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(AnimData.Value->GetMemorySize());
+	}
+#else
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GetRunningPlatformData().GetMemorySize());
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(IStreamingManager::Get().GetAnimationStreamingManager().GetMemorySizeForAnim(this));
+#endif
 }
 
 int32 UAnimStreamable::GetChunkIndexForTime(const TArray<FAnimStreamableChunk>& Chunks, float CurrentTime) const
