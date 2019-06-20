@@ -636,14 +636,20 @@ void FStaticLightingSystem::ProcessVolumetricLightmapBrickTask(FVolumetricLightm
 	}
 }
 
-void FStaticLightingSystem::ProcessVolumetricLightmapTaskIfAvailable()
+bool FStaticLightingSystem::ProcessVolumetricLightmapTaskIfAvailable()
 {
+	bool bAnyTaskProcessedByThisThread = false;
+
 	while (FVolumetricLightmapBrickTaskDescription * NextTask = VolumetricLightmapBrickTasks.Pop())
 	{
 		//UE_LOG(LogLightmass, Warning, TEXT("Thread picked up volumetric lightmap task"));
 		ProcessVolumetricLightmapBrickTask(NextTask);
 		FPlatformAtomics::InterlockedDecrement(NextTask->NumOutstandingBrickTasks);
+
+		bAnyTaskProcessedByThisThread = true;
 	}
+
+	return bAnyTaskProcessedByThisThread;
 }
 
 void FStaticLightingSystem::GenerateVoxelTestPositions(TArray<FVector>& VoxelTestPositions) const
