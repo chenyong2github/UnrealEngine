@@ -440,10 +440,31 @@ namespace UnrealBuildTool
 		/// </summary>
 		public string BinariesSubFolder = "";
 
+		private CodeOptimization? OptimizeCodeOverride;
+
 		/// <summary>
 		/// When this module's code should be optimized.
 		/// </summary>
-		public CodeOptimization OptimizeCode = CodeOptimization.Default;
+		public CodeOptimization OptimizeCode
+		{
+			get
+			{
+				if (OptimizeCodeOverride.HasValue)
+					return OptimizeCodeOverride.Value;
+
+				bool? ShouldOptimizeCode = null;
+				if (Target.EnableOptimizeCodeForModules?.Contains(Name) ?? false)
+					ShouldOptimizeCode = true;
+				if (Target.DisableOptimizeCodeForModules?.Contains(Name) ?? false)
+					ShouldOptimizeCode = false;
+
+				if (!ShouldOptimizeCode.HasValue)
+					return CodeOptimization.Default;
+
+				return ShouldOptimizeCode.Value ? CodeOptimization.Always : CodeOptimization.Never;
+			}
+			set { OptimizeCodeOverride = value; }
+		}
 
 		/// <summary>
 		/// Explicit private PCH for this module. Implies that this module will not use a shared PCH.
@@ -516,7 +537,29 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// If true and unity builds are enabled, this module will build without unity.
 		/// </summary>
-		public bool bFasterWithoutUnity = false;
+		[Obsolete("bFasterWithoutUnity has been deprecated in favor of setting 'bUseUnity' on a per module basis in BuildConfiguration")]
+		public bool bFasterWithoutUnity
+		{
+			set { bUseUnity = value; }
+		}
+
+		private bool? bUseUnityOverride;
+		/// <summary>
+		/// If unity builds are enabled this can be used to override if this specific module will build using Unity.
+		/// This is set using the per module configurations in BuildConfiguration.
+		/// </summary>
+		public bool bUseUnity
+		{
+			set { bUseUnityOverride = value; }
+			get
+			{
+				bool UseUnity = true;
+				if (Target.DisableUnityBuildForModules?.Contains(Name) ?? false)
+					UseUnity = false;
+				return bUseUnityOverride ?? UseUnity;
+			}
+		}
+
 
 		/// <summary>
 		/// The number of source files in this module before unity build will be activated for that module.  If set to
@@ -629,7 +672,13 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of system/library paths (directory of .lib files) - typically used for External (third party) modules
 		/// </summary>
+		[Obsolete("For external libraries use the full path in PublicAdditionalLibraries, if its a system library then use PublicSystemLibraries/PublicSystemLibraryPaths")]
 		public List<string> PublicLibraryPaths = new List<string>();
+
+		/// <summary>
+		/// List of system library paths (directory of .lib files) - for External (third party) modules please use the PublicAdditionalLibaries instead
+		/// </summary>
+		public List<string> PublicSystemLibraryPaths = new List<string>();
 
 		/// <summary>
 		/// List of search paths for libraries at runtime (eg. .so files)
@@ -645,6 +694,11 @@ namespace UnrealBuildTool
 		/// List of additional libraries (names of the .lib files including extension) - typically used for External (third party) modules
 		/// </summary>
 		public List<string> PublicAdditionalLibraries = new List<string>();
+
+		/// <summary>
+		/// List of system libraries to use - these are typically referenced via name and then found via the system paths. If you need to reference a .lib file use the PublicAdditionalLibraries instead
+		/// </summary>
+		public List<string> PublicSystemLibraries = new List<string>();
 
 		/// <summary>
 		/// List of XCode frameworks (iOS and MacOS)

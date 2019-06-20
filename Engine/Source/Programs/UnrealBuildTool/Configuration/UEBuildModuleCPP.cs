@@ -320,6 +320,7 @@ namespace UnrealBuildTool
 
 			// Should we use unity build mode for this module?
 			bool bModuleUsesUnityBuild = false;
+	
 			if (Target.bUseUnityBuild || Target.bForceUnityBuild)
 			{
 				if (Target.bForceUnityBuild)
@@ -327,9 +328,9 @@ namespace UnrealBuildTool
 					Log.TraceVerbose("Module '{0}' using unity build mode (bForceUnityBuild enabled for this module)", this.Name);
 					bModuleUsesUnityBuild = true;
 				}
-				else if (Rules.bFasterWithoutUnity)
+				else if (!Rules.bUseUnity)
 				{
-					Log.TraceVerbose("Module '{0}' not using unity build mode (bFasterWithoutUnity enabled for this module)", this.Name);
+					Log.TraceVerbose("Module '{0}' not using unity build mode (bUseUnity disabled for this module)", this.Name);
 					bModuleUsesUnityBuild = false;
 				}
 				else if (InputFiles.CPPFiles.Count < MinSourceFilesForUnityBuild)
@@ -1114,7 +1115,7 @@ namespace UnrealBuildTool
 			CppCompileEnvironment Result = new CppCompileEnvironment(BaseCompileEnvironment);
 
 			// Override compile environment
-			Result.bFasterWithoutUnity = Rules.bFasterWithoutUnity;
+			Result.bUseUnity = Rules.bUseUnity;
 			Result.bOptimizeCode = ShouldEnableOptimization(Rules.OptimizeCode, Target.Configuration, Rules.bTreatAsEngineModule);
 			Result.bUseRTTI |= Rules.bUseRTTI;
 			Result.bUseAVX = Rules.bUseAVX;

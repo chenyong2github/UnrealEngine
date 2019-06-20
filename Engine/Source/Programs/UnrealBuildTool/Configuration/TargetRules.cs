@@ -1215,6 +1215,25 @@ namespace UnrealBuildTool
 		[CommandLine("-LinkerArguments=")]
 		public string AdditionalLinkerArguments;
 
+
+		/// <summary>
+		/// List of modules to disable unity builds for
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableUnityBuild")]
+		public string[] DisableUnityBuildForModules = null;
+
+		/// <summary>
+		///  List of modules to enable optimizations for
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "EnableOptimizeCode")]
+		public string[] EnableOptimizeCodeForModules = null;
+
+		/// <summary>
+		/// List of modules to disable optimizations for
+		/// </summary>
+		[XmlConfigFile(Category = "ModuleConfiguration", Name = "DisableOptimizeCode")]
+		public string[] DisableOptimizeCodeForModules = null;
+
 		/// <summary>
 		/// When generating project files, specifies the name of the project file to use when there are multiple targets of the same type.
 		/// </summary>
@@ -2453,9 +2472,25 @@ namespace UnrealBuildTool
 			get { return Inner.bIsEngineInstalled; }
 		}
 
-		#if !__MonoCS__
-		#pragma warning restore C1591
-		#endif
+
+		public IReadOnlyList<string> DisableUnityBuildForModules
+		{
+			get { return Inner.DisableUnityBuildForModules; }
+		}
+
+		public IReadOnlyList<string> EnableOptimizeCodeForModules
+		{
+			get { return Inner.EnableOptimizeCodeForModules; }
+		}
+
+		public IReadOnlyList<string> DisableOptimizeCodeForModules
+		{
+			get { return Inner.DisableOptimizeCodeForModules; }
+		}
+
+#if !__MonoCS__
+#pragma warning restore C1591
+#endif
 		#endregion
 
 		/// <summary>
