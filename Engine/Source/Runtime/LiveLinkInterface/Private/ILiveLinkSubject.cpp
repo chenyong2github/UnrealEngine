@@ -25,7 +25,7 @@ bool ILiveLinkSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, F
 
 	if (!HasValidFrameSnapshot())
 	{
-		UE_LOG(LogLiveLinkSubject, Warning, TEXT("Can't evaluate frame for subject '%s'. No data was available."), *GetSubjectKey().SubjectName.ToString());
+		UE_LOG(LogLiveLinkSubject, Verbose, TEXT("Can't evaluate frame for subject '%s'. No data was available."), *GetSubjectKey().SubjectName.ToString());
 		return false;
 	}
 
