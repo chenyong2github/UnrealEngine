@@ -10,31 +10,6 @@
 #include <d3d11.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 
-#include "hapguid.h"
-
-bool WmfMediaTopologyLoader::IsHardwareAccelerated(const TComPtr<IMFTopology>& InTopology) const
-{
-	if (ResolveActivationNode(InTopology) == false)
-	{
-		return false;
-	}
-
-	TComPtr<IMFTopoLoader> TopoLoader;
-	if (FAILED(MFCreateTopoLoader(&TopoLoader)))
-	{
-		return false;
-	}
-
-	TComPtr<IMFTopology> FullTopology;
-	if (FAILED(TopoLoader->Load(InTopology, &FullTopology, nullptr)))
-	{
-		return false;
-	}
-
-	return SetHardwareAccelerationOnTransformNode(FullTopology);
-}
-
-
 bool WmfMediaTopologyLoader::EnableHardwareAcceleration(const TComPtr<IMFTopology>& InTopology) const
 {
 	if (ResolveActivationNode(InTopology) == false)
@@ -176,6 +151,7 @@ bool WmfMediaTopologyLoader::FindDeviceManager(const TComPtr<IMFTopology>& InTop
 					if (Attributes)
 					{
 						UINT32 D3D11_Aware = 0;
+						const GUID MF_SA_D3D11_AWARE = { 0x206b4fc8, 0xfcf9, 0x4c51, { 0xaf, 0xe3, 0x97, 0x64, 0x36, 0x9e, 0x33, 0xa0 } };
 						if (Attributes->GetUINT32(MF_SA_D3D11_AWARE, &D3D11_Aware) == S_OK)
 						{
 							DWORD OutputCount = 0;

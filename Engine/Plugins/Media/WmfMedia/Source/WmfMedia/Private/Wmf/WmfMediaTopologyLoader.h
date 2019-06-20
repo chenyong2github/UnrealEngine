@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "WmfMediaPrivate.h"
+#include "WmfMediaCommon.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 
@@ -14,7 +14,6 @@ class WmfMediaTopologyLoader
 {
 public:
 
-	bool IsHardwareAccelerated(const TComPtr<IMFTopology>& InTopology) const;
 	bool EnableHardwareAcceleration(const TComPtr<IMFTopology>& InTopology) const;
 
 private:

@@ -19,7 +19,7 @@
 #include "DynamicRHI.h"
 
 #include "WmfMediaHardwareVideoDecodingTextureSample.h"
-#include "WmfMediaPrivate.h"
+#include "WmfMediaCommon.h"
 
 #include "dxgi.h"
 
@@ -152,37 +152,47 @@ bool FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 		}
 
 		TShaderMap<FGlobalShaderType>* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-		TShaderMapRef< FHardwareVideoDecodingPS > PixelShaderNV12(GlobalShaderMap);
-		TShaderMapRef< FHardwareVideoDecodingVS > VertexShaderNV12(GlobalShaderMap);
 
-		TShaderMapRef< FHardwareVideoDecodingPassThroughPS > PixelShaderBGRA(GlobalShaderMap);
-		TShaderMapRef< FHardwareVideoDecodingVS > VertexShaderBGRA(GlobalShaderMap);
 
 		if (InSample->GetFormat() == EMediaTextureSampleFormat::CharNV12)
 		{
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShaderNV12);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShaderNV12);
-		}
-		else if (InSample->GetFormat() == EMediaTextureSampleFormat::CharBGRA)
-		{
-			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShaderBGRA);
-			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShaderBGRA);
-		}
+			TShaderMapRef< FHardwareVideoDecodingVS > VertexShader(GlobalShaderMap);
+			TShaderMapRef< FHardwareVideoDecodingPS > PixelShader(GlobalShaderMap);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-		if (InSample->GetFormat() == EMediaTextureSampleFormat::CharNV12)
-		{
 			FShaderResourceViewRHIRef Y_SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_G8);
 			FShaderResourceViewRHIRef UV_SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_R8G8);
-			VertexShaderNV12->SetParameters(RHICmdList, VertexShaderNV12->GetVertexShader(), Y_SRV, UV_SRV, InSample->IsOutputSrgb());
-			PixelShaderNV12->SetParameters(RHICmdList, PixelShaderNV12->GetPixelShader(), Y_SRV, UV_SRV, InSample->IsOutputSrgb());
+			VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), Y_SRV, UV_SRV, InSample->IsOutputSrgb());
+			PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), Y_SRV, UV_SRV, InSample->IsOutputSrgb());
 		}
 		else if (InSample->GetFormat() == EMediaTextureSampleFormat::CharBGRA)
 		{
+			TShaderMapRef< FHardwareVideoDecodingVS > VertexShader(GlobalShaderMap);
+			TShaderMapRef< FHardwareVideoDecodingPassThroughPS > PixelShader(GlobalShaderMap);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
 			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_B8G8R8A8);
-			VertexShaderBGRA->SetParameters(RHICmdList, VertexShaderBGRA->GetVertexShader(), SRV, InSample->IsOutputSrgb());
-			PixelShaderBGRA->SetParameters(RHICmdList, PixelShaderBGRA->GetPixelShader(), SRV, InSample->IsOutputSrgb());
+			VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), SRV, InSample->IsOutputSrgb());
+			PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), SRV, InSample->IsOutputSrgb());
+		}
+		else if (InSample->GetFormat() == EMediaTextureSampleFormat::Y416)
+		{
+			TShaderMapRef< FHardwareVideoDecodingVS > VertexShader(GlobalShaderMap);
+			TShaderMapRef< FHardwareVideoDecodingY416PS > PixelShader(GlobalShaderMap);
+			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
+			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
+
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+			FShaderResourceViewRHIRef SRV = RHICreateShaderResourceView(SampleDestinationTexture, 0, 1, PF_A16B16G16R16);
+			VertexShader->SetParameters(RHICmdList, VertexShader->GetVertexShader(), SRV, InSample->IsOutputSrgb());
+			PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), SRV, InSample->IsOutputSrgb());
 		}
 
 		RHICmdList.DrawPrimitive(0, 2, 1);

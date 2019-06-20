@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../WmfMediaPrivate.h"
+#include "WmfMediaCommon.h"
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 

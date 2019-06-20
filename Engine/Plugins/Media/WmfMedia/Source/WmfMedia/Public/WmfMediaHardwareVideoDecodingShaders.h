@@ -137,6 +137,23 @@ public:
 	{ }
 };
 
+class FHardwareVideoDecodingY416PS : public FWmfMediaHardwareVideoDecodingShader
+{
+	DECLARE_SHADER_TYPE(FHardwareVideoDecodingY416PS, Global);
+
+public:
+
+	/** Default constructor. */
+	FHardwareVideoDecodingY416PS() {}
+
+	/** Initialization constructor. */
+	FHardwareVideoDecodingY416PS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FWmfMediaHardwareVideoDecodingShader(Initializer)
+	{ }
+};
+
+
 IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingVS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("MainVS"), SF_Vertex)
 IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingPS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("NV12ConvertPS"), SF_Pixel)
 IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingPassThroughPS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("PassThroughPS"), SF_Pixel)
+IMPLEMENT_SHADER_TYPE(, FHardwareVideoDecodingY416PS, TEXT("/Plugin/WmfMedia/Private/MediaHardwareVideoDecoding.usf"), TEXT("Y416ConvertPS"), SF_Pixel)
