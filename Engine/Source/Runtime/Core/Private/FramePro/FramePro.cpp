@@ -87,6 +87,18 @@ namespace FramePro
 	}
 
 	//------------------------------------------------------------------------
+	FRAMEPRO_FORCE_INLINE FrameProTLS* TryGetFrameProTLS()
+	{
+		return (FrameProTLS*)Platform::GetTLSValue(GetFrameProTLSSlot());
+	}
+
+	//------------------------------------------------------------------------
+	FRAMEPRO_FORCE_INLINE void ClearFrameProTLS()
+	{
+		Platform::SetTLSValue(GetFrameProTLSSlot(), NULL);
+	}
+
+	//------------------------------------------------------------------------
 	void DebugWrite(const char* p_str, ...);
 
 	//------------------------------------------------------------------------
@@ -3055,6 +3067,8 @@ namespace FramePro
 	public:
 		Thread();
 
+		~Thread();
+
 		void CreateThread(ThreadMain p_thread_main, void* p_param, Allocator* p_allocator);
 
 		bool IsAlive() const { return m_Alive; }
@@ -3073,6 +3087,8 @@ namespace FramePro
 	private:
 		static const int m_OSThreadMaxSize = 16;
 		char m_OSThread[m_OSThreadMaxSize];
+		
+		bool m_Created;
 
 		bool m_Alive;
 
@@ -4318,9 +4334,16 @@ void FramePro::AddGlobalHiResTimer(GlobalHiResTimer* p_timer)
 //------------------------------------------------------------------------
 void FramePro::CleanupThread()
 {
-	GetFrameProTLS()->FlushCurrentSendBuffer();
+	FrameProTLS* p_framepro_tls = TryGetFrameProTLS();
 
-	GetFrameProTLS()->Shutdown();		// will get cleaned up the next time the buffers are sent on the send thread
+	if (p_framepro_tls)
+	{
+		p_framepro_tls->FlushCurrentSendBuffer();
+
+		p_framepro_tls->Shutdown();		// will get cleaned up the next time the buffers are sent on the send thread
+
+		ClearFrameProTLS();
+	}
 }
 
 //------------------------------------------------------------------------
@@ -4874,7 +4897,14 @@ namespace FramePro
 	int FrameProSession::StaticSendThreadMain(void* p_arg)
 	{
 		FrameProSession* p_this = (FrameProSession*)p_arg;
-		return p_this->SendThreadMain();
+		int ret = p_this->SendThreadMain();
+
+		#if !FRAMEPRO_PLATFORM_UE4
+			DestroyFrameProTLS(GetFrameProTLS());
+			ClearFrameProTLS();
+		#endif
+
+		return ret;
 	}
 
 	//------------------------------------------------------------------------
@@ -4920,7 +4950,14 @@ namespace FramePro
 	int FrameProSession::StaticConnectThreadMain(void* p_arg)
 	{
 		FrameProSession* p_this = (FrameProSession*)p_arg;
-		return p_this->ConnectThreadMain();
+		int ret = p_this->ConnectThreadMain();
+
+		#if !FRAMEPRO_PLATFORM_UE4
+			DestroyFrameProTLS(GetFrameProTLS());
+			ClearFrameProTLS();
+		#endif
+
+		return ret;
 	}
 #endif
 
@@ -4956,7 +4993,10 @@ namespace FramePro
 		FrameProSession* p_this = (FrameProSession*)p_arg;
 		int ret = p_this->ReceiveThreadMain();
 
-		DestroyFrameProTLS(GetFrameProTLS());
+		#if !FRAMEPRO_PLATFORM_UE4
+			DestroyFrameProTLS(GetFrameProTLS());
+			ClearFrameProTLS();
+		#endif
 
 		return ret;
 	}
@@ -7834,18 +7874,31 @@ namespace FramePro
 {
 	//------------------------------------------------------------------------
 	Thread::Thread()
-	:	m_Alive(false),
+	:	m_Created(false),
+		m_Alive(false),
 		m_ThreadTerminatedEvent(false, false)
 	{
 	}
 
 	//------------------------------------------------------------------------
+	Thread::~Thread()
+	{
+		if(m_Created)
+			Platform::DestroyThread(m_OSThread);
+	}
+
+	//------------------------------------------------------------------------
 	void Thread::CreateThread(FramePro::ThreadMain p_thread_main, void* p_param, Allocator* p_allocator)
 	{
+		if(m_Created)
+			Platform::DestroyThread(m_OSThread);
+
 		mp_ThreadMain = p_thread_main;
 		mp_Param = p_param;
 
 		Platform::CreateThread(m_OSThread, sizeof(m_OSThread), ThreadMain, this, p_allocator);
+
+		m_Created = true;
 	}
 
 	//------------------------------------------------------------------------
@@ -8490,7 +8543,7 @@ namespace FramePro
 			//------------------------------------------------------------------------
 			void HandleSocketError()
 			{
-				#if FRAMEPRO_SOCKETS_ENABLED
+				#if FRAMEPRO_SOCKETS_ENABLED && !FRAMEPRO_PLATFORM_XBOXONE
 					if (WSAGetLastError() == WSAEADDRINUSE)
 					{
 						Platform::DebugWrite("FramePro: Network connection conflict. Please make sure that other FramePro enabled applications are shut down, or change the port in the the FramePro lib and FramePro settings.\n");
@@ -8791,6 +8844,12 @@ namespace FramePro
 				p_thread_context->mp_Allocator = p_allocator;
 
 				GetOSThread(p_os_thread_mem) = ::CreateThread(NULL, 0, PlatformThreadMain, p_thread_context, 0, NULL);
+			}
+
+			//------------------------------------------------------------------------
+			void DestroyThread(void* p_os_thread_mem)
+			{
+				GetOSThread(p_os_thread_mem) = 0;
 			}
 
 			//------------------------------------------------------------------------
@@ -9315,6 +9374,12 @@ namespace FramePro
 			}
 
 			//------------------------------------------------------------------------
+			void DestroyThread(void*)
+			{
+				// do nothing
+			}
+
+			//------------------------------------------------------------------------
 			void SetThreadPriority(void*, int)
 			{
 				// not implemented
@@ -9818,6 +9883,12 @@ namespace FramePro
 		}
 
 		//------------------------------------------------------------------------
+		void Platform::DestroyThread(void* p_os_thread_mem)
+		{
+			GenericPlatform::DestroyThread(p_os_thread_mem);
+		}
+
+		//------------------------------------------------------------------------
 		void Platform::SetThreadPriority(void* p_os_thread_mem, int priority)
 		{
 			GenericPlatform::SetThreadPriority(p_os_thread_mem, priority);
@@ -10245,6 +10316,12 @@ namespace FramePro
 		}
 
 		//------------------------------------------------------------------------
+		void Platform::DestroyThread(void* p_os_thread_mem)
+		{
+			GenericPlatform::DestroyThread(p_os_thread_mem);
+		}
+
+		//------------------------------------------------------------------------
 		void Platform::SetThreadPriority(void* p_os_thread_mem, int priority)
 		{
 			GenericPlatform::SetThreadPriority(p_os_thread_mem, priority);
@@ -10640,6 +10717,12 @@ namespace FramePro
 				p_thread_main,
 				p_context,
 				p_allocator);
+		}
+
+		//------------------------------------------------------------------------
+		void Platform::DestroyThread(void* p_os_thread_mem)
+		{
+			GenericPlatform::DestroyThread(p_os_thread_mem);
 		}
 
 		//------------------------------------------------------------------------
@@ -11044,6 +11127,12 @@ namespace FramePro
 				p_thread_main,
 				p_context,
 				p_allocator);
+		}
+
+		//------------------------------------------------------------------------
+		void Platform::DestroyThread(void* p_os_thread_mem)
+		{
+			GenericPlatform::DestroyThread(p_os_thread_mem);
 		}
 
 		//------------------------------------------------------------------------
