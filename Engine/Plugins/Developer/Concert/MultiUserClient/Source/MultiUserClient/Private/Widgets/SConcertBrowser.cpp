@@ -1528,7 +1528,7 @@ void SSaveRestoreSessionRow::OnSessionNameChanged(const FText& NewName)
 void SSaveRestoreSessionRow::OnSessionNameCommitted(const FText& NewText, ETextCommit::Type CommitType)
 {
 	TSharedPtr<FConcertSessionItem> ItemPin = Item.Pin();
-	if (CommitType == ETextCommit::Type::OnEnter || (ItemPin && CommitType == ETextCommit::OnUserMovedFocus && ItemPin->Type == FConcertSessionItem::EType::SaveSession))
+	if (CommitType == ETextCommit::Type::OnEnter)
 	{
 		OnAccept();
 	}
