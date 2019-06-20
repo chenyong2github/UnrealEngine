@@ -28,6 +28,5 @@ public class GoogleARCoreRendering : ModuleRules
 				// ... add private dependencies that you statically link with here ...
 			}
 			);
-		bFasterWithoutUnity = true;
 	}
 }

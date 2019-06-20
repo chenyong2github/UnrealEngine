@@ -48,8 +48,6 @@ namespace UnrealBuildTool.Rules
 				// Register Plugin Language
 				AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(ModuleDirectory, "GoogleARCoreServices_APL.xml"));
 			}
-
-			bFasterWithoutUnity = false;
 		}
 	}
 }

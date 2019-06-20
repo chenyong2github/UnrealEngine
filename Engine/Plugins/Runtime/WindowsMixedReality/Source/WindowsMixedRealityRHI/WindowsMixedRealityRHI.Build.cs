@@ -89,8 +89,6 @@ namespace UnrealBuildTool.Rules
                     PrivateIncludePaths.Add("../../../../Source/Runtime/Windows/D3D11RHI/Private/HoloLens");
                 }
 
-                bFasterWithoutUnity = true;
-
                 PCHUsage = PCHUsageMode.NoSharedPCHs;
                 PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
             }

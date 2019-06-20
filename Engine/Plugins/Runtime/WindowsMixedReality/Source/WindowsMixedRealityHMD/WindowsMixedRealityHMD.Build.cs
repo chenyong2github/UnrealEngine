@@ -127,8 +127,6 @@ namespace UnrealBuildTool.Rules
                     PrivateDependencyModuleNames.Add("HoloLensAR");
 				}
 
-                bFasterWithoutUnity = true;
-
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
 			}
