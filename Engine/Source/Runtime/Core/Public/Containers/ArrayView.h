@@ -9,6 +9,7 @@
 #include "Templates/UnrealTypeTraits.h"
 #include "Math/NumericLimits.h"
 #include "Containers/Array.h"
+#include "Containers/StaticArray.h"
 
 namespace ArrayViewPrivate
 {
@@ -130,6 +131,27 @@ public:
 	FORCEINLINE TArrayView(const TArray<OtherElementType, OtherAllocator>& Other)
 		: DataPtr(Other.GetData())
 		, ArrayNum(Other.Num())
+	{
+	}
+
+	/**
+	 * Construct a view of a TStaticArray with a compatible element type
+	 *
+	 * @param Other The source array to view.
+	 */
+	template <typename OtherElementType, uint32 Size,
+		typename = typename TEnableIf<TIsCompatibleElementType<OtherElementType>::Value>::Type>
+	FORCEINLINE TArrayView(TStaticArray<OtherElementType, Size>& Other)
+		: DataPtr(&Other[0])
+		, ArrayNum((int32)Size)
+	{
+	}
+
+	template <typename OtherElementType, uint32 Size,
+		typename = typename TEnableIf<TIsCompatibleElementType<const OtherElementType>::Value>::Type>
+	FORCEINLINE TArrayView(const TStaticArray<OtherElementType, Size>& Other)
+		: DataPtr(&Other[0])
+		, ArrayNum((int32)Size)
 	{
 	}
 
