@@ -223,7 +223,7 @@ void RayTracingTranslucencyRGS()
 			float Ior2 = LastIor;
 			bHasScattered |= Ior1 != Ior2;
 			float ReflectionRefractionEventThroughput;
-			bool bIsEntering = Payload.HitKind == HIT_KIND_TRIANGLE_FRONT_FACE;
+			bool bIsEntering = Payload.IsFrontFace();
 
 			if (!RefractRay(Ray.Direction, Payload.WorldNormal, Ior1, Ior2, bIsEntering, RefractedDirection, ReflectionRefractionEventThroughput))
 			{

@@ -516,7 +516,7 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::BindRayTracingMaterialP
 			else
 			{
 				// Masked materials require full material evaluation with any-hit shader.
-				// #dxr_todo UE-72029: we need to generate a shadow-specific closest hit shader for this!
+				// Full CHS is bound, however material evaluation is skipped for shadow rays using a dynamic branch on a ray payload flag.
 				MeshCommand.ShaderBindings.SetRayTracingShaderBindingsForHitGroup(RHICmdList,
 					View.RayTracingScene.RayTracingSceneRHI,
 					VisibleMeshCommand.InstanceIndex,
