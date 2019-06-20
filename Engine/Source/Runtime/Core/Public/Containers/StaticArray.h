@@ -87,6 +87,12 @@ public:
 		return Result;
 	}
 
+	/** STL-like iterators to enable range-based for loop support. */
+	FORCEINLINE TElement*		begin()			{ return &Storage.Elements[0].Element; }
+	FORCEINLINE const TElement*	begin() const	{ return &Storage.Elements[0].Element; }
+	FORCEINLINE TElement*		end()			{ return &Storage.Elements[NumElements].Element; }
+	FORCEINLINE const TElement*	end() const		{ return &Storage.Elements[NumElements].Element; }
+
 private:
 
 	struct alignas(Alignment) TArrayStorageElementAligned
