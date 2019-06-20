@@ -6094,7 +6094,7 @@ void FBlueprintGraphNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		}
 	}
 
-	if(!GraphNodePtr.IsValid() || !GraphNodePtr.Get()->bCanRenameNode)
+	if(!GraphNodePtr.IsValid() || !GraphNodePtr.Get()->GetCanRenameNode())
 	{
 		return;
 	}
