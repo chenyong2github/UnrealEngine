@@ -123,6 +123,9 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	FRDGTextureRef* OutAmbientOcclusionTexture)
 #if RHI_RAYTRACING
 {
+	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingAmbientOcclusion);
+	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing Ambient Occlusion");
+
 	// Allocates denoiser inputs.
 	IScreenSpaceDenoiser::FAmbientOcclusionInputs DenoiserInputs;
 	{

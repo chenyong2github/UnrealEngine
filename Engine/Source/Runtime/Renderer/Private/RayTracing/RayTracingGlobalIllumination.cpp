@@ -293,7 +293,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		OutRayTracingConfig->ResolutionFraction = FMath::Clamp(GRayTracingGlobalIlluminationScreenPercentage / 100.0, 0.25, 1.0);
 	}
 
-	RDG_EVENT_SCOPE(GraphBuilder, "RTGI");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingGlobalIllumination);
+	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing Global Illumination");
 
 	int32 RayTracingGISamplesPerPixel = GRayTracingGlobalIlluminationSamplesPerPixel > -1 ? GRayTracingGlobalIlluminationSamplesPerPixel : View.FinalPostProcessSettings.RayTracingGISamplesPerPixel;
 	OutRayTracingConfig->RayCountPerPixel = RayTracingGISamplesPerPixel;
