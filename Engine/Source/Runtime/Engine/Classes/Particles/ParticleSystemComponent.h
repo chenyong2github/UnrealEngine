@@ -1216,6 +1216,7 @@ public:
 	virtual void OnChildAttached(USceneComponent* ChildComponent)override;
 	virtual void OnChildDetached(USceneComponent* ChildComponent)override;
 
+	virtual void OnEndOfFrameUpdateDuringTick() override;
 protected:
 	virtual void CreateRenderState_Concurrent() override;
 	virtual void SendRenderTransform_Concurrent() override;
