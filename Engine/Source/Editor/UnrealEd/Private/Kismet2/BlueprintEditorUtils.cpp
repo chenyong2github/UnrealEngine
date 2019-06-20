@@ -2430,6 +2430,41 @@ void FBlueprintEditorUtils::FindImplementedInterfaces(const UBlueprint* Blueprin
 	}
 }
 
+UClass* const FBlueprintEditorUtils::GetOverrideFunctionClass(UBlueprint* Blueprint, const FName FuncName, UFunction** OutFunction)
+{
+	if (!Blueprint->SkeletonGeneratedClass)
+	{
+		return nullptr;
+	}
+
+	UFunction* OverrideFunc = FBlueprintEditorUtils::GetInterfaceFunction(Blueprint, FuncName);
+
+	if (OverrideFunc == nullptr)
+	{
+		OverrideFunc = FindField<UFunction>(Blueprint->SkeletonGeneratedClass, FuncName);
+		// search up the class hierarchy, we want to find the original declaration of the function to match FBlueprintEventNodeSpawner.
+		// Doing so ensures that we can find the existing node if there is one:
+		const UClass* Iter = Blueprint->SkeletonGeneratedClass->GetSuperClass();
+		while (Iter != nullptr && OverrideFunc == nullptr)
+		{
+			if (UFunction * F = Iter->FindFunctionByName(FuncName))
+			{
+				OverrideFunc = F;
+			}
+			else
+			{
+				break;
+			}
+			Iter = Iter->GetSuperClass();
+		}
+	}
+	if (OutFunction != nullptr)
+	{
+		*OutFunction = OverrideFunc;
+	}
+	return CastChecked<UClass>(OverrideFunc->GetOuter())->GetAuthoritativeClass();
+}
+
 void FBlueprintEditorUtils::AddMacroGraph( UBlueprint* Blueprint, class UEdGraph* Graph, bool bIsUserCreated, UClass* SignatureFromClass )
 {
 	// Give the schema a chance to fill out any required nodes (like the entry node or results node)
@@ -5106,8 +5141,14 @@ UFunction* FFunctionFromNodeHelper::FunctionFromNode(const UK2Node* Node)
 		}
 		else if (const UK2Node_Event* EventNode = Cast<UK2Node_Event>(Node))
 		{
-			// We need to search up the class hierachy by name or functions like CanAddParentNode will fail:
-			Function = SearchScope->FindFunctionByName(EventNode->EventReference.GetMemberName());
+			// We need to search up the class hierarchy by name or functions like CanAddParentNode will fail:
+			FName SearchName = EventNode->EventReference.GetMemberName();
+			// If the function member name is none, then try the custom function name
+			if (SearchName.IsNone())
+			{
+				SearchName = EventNode->CustomFunctionName;
+			}
+			Function = SearchScope->FindFunctionByName(SearchName);
 		}
 	}
 
@@ -5901,6 +5942,54 @@ void FBlueprintEditorUtils::GetInterfaceGraphs(UBlueprint* Blueprint, const FNam
 			return;			
 		}
 	}
+}
+
+UFunction* FBlueprintEditorUtils::GetInterfaceFunction(UBlueprint* Blueprint, const FName FuncName)
+{
+	UFunction* Function = nullptr;
+
+	// If that class is an interface class implemented by this function, then return true
+	for (const FBPInterfaceDescription& I : Blueprint->ImplementedInterfaces)
+	{
+		if (I.Interface)
+		{
+			Function = FindField<UFunction>(I.Interface, FuncName);
+			if (Function)
+			{
+				// found it, done
+				return Function;
+			}
+		}
+	}
+
+	// Check if it is in a native class or parent class
+	for (UClass* TempClass = Blueprint->ParentClass; (nullptr != TempClass) && (nullptr == Function); TempClass = TempClass->GetSuperClass())
+	{
+		for (const FImplementedInterface& I : TempClass->Interfaces)
+		{
+			Function = FindField<UFunction>(I.Class, FuncName);
+			if (Function)
+			{
+				// found it, done
+				return Function;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
+bool FBlueprintEditorUtils::IsInterfaceFunction(UBlueprint* Blueprint, UFunction* Function)
+{
+	if (Blueprint == nullptr || Function == nullptr)
+	{
+		return false;
+	}
+
+	const FName FuncName = Function->GetFName();
+
+	// Will return nullptr if the function isn't found
+	return (GetInterfaceFunction(Blueprint, FuncName) != nullptr);
 }
 
 // Remove an implemented interface, and its associated member function graphs
