@@ -72,6 +72,7 @@ template <bool bIsMobileRenderer>
 class TARKitCameraOverlayVS : public TPostProcessMaterialShader<bIsMobileRenderer>
 {
 public:
+	using FMaterialShader::FPermutationDomain;
 	DECLARE_MATERIAL_SHADER(TARKitCameraOverlayVS);
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -102,6 +103,7 @@ template <bool bIsMobileRenderer>
 class TARKitCameraOverlayPS : public TPostProcessMaterialShader<bIsMobileRenderer>
 {
 public:
+	using FMaterialShader::FPermutationDomain;
 	DECLARE_MATERIAL_SHADER(TARKitCameraOverlayPS);
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
