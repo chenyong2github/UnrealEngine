@@ -274,7 +274,7 @@ void FGeometryCollectionBoneTreeItem::RenameSubComponent(const FText& InName)
 		return;
 	}
 	UGeometryCollectionComponent* GCComponent = Cast<UGeometryCollectionComponent>(ComponentPtr);
-	FGeometryCollectionEdit ScopedEdit = GCComponent->EditRestCollection(false);
+	FGeometryCollectionEdit ScopedEdit = GCComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 	if (UGeometryCollection* GeometryCollectionObject = ScopedEdit.GetRestCollection())
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();

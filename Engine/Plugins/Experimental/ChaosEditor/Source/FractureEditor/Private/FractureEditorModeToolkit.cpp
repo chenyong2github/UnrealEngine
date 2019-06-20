@@ -747,7 +747,7 @@ int32 FFractureEditorModeToolkit::GetLevelCount()
 	int32 ReturnLevel = -1;
 	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
 	{
-		FGeometryCollectionEdit GCEdit = Comp->EditRestCollection();
+		FGeometryCollectionEdit GCEdit = Comp->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
 		{
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
@@ -1771,7 +1771,7 @@ bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, con
 
 void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const
 {
-	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection();
+	FGeometryCollectionEdit RestCollection = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 	UGeometryCollection* GeometryCollection = RestCollection.GetRestCollection();
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollection->GetGeometryCollection();
@@ -1867,7 +1867,7 @@ AGeometryCollectionActor*  FFractureEditorModeToolkit::ConvertStaticMeshToGeomet
 
 	AGeometryCollectionActor* NewActor = CreateNewGeometryActor(InAssetPath, FTransform(), true);
 
-	FGeometryCollectionEdit GeometryCollectionEdit = NewActor->GetGeometryCollectionComponent()->EditRestCollection();
+	FGeometryCollectionEdit GeometryCollectionEdit = NewActor->GetGeometryCollectionComponent()->EditRestCollection(GeometryCollection::EEditUpdate::RestPhysicsDynamic);
 	UGeometryCollection* FracturedGeometryCollection = GeometryCollectionEdit.GetRestCollection();
 
  	for (AActor* Actor : Actors)
