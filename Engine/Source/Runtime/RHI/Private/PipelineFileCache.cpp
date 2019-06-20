@@ -624,7 +624,7 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 			return false;
 		}
 		else if( (GraphicsDesc.HullShader != FSHAHash() && GraphicsDesc.DomainShader == FSHAHash()) ||
-				 (GraphicsDesc.DomainShader == FSHAHash() && GraphicsDesc.HullShader != FSHAHash()) )
+				 (GraphicsDesc.HullShader == FSHAHash() && GraphicsDesc.DomainShader != FSHAHash()) )
 		{
 			// Hull without Domain or vice-versa
 			return false;
