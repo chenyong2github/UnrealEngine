@@ -63,10 +63,15 @@ FConstrainedMeshOperator::FConstrainedMeshOperator(const FDynamicMesh3& DynamicM
 	: VertexCount(DynamicMesh.VertexCount())
 {
 
-	Laplacian = ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, &EdgeVerts);
-	FSparseMatrixD& LMatrix = *(Laplacian);
+	FSparseMatrixD LaplacianInternal;
+	FSparseMatrixD LaplacianBoundary;
+	ConstructLaplacian(Scheme, DynamicMesh, VtxLinearization, LaplacianInternal, LaplacianBoundary);
 
-	TUniquePtr<FSparseMatrixD> LTL(new FSparseMatrixD(Laplacian->rows(), Laplacian->cols()));
+	// capture the number interior (non boundary) verts.
+	InternalVertexCount = VertexCount - VtxLinearization.NumBoundaryVerts();
+
+
+	TUniquePtr<FSparseMatrixD> LTL( new FSparseMatrixD(LaplacianInternal.rows(), LaplacianInternal.cols()) );
 	FSparseMatrixD& LTLMatrix = *(LTL);
 
 	bool bIsLaplacianSymmetric = (Scheme == ELaplacianWeightScheme::Valence || Scheme == ELaplacianWeightScheme::Uniform);
@@ -74,14 +79,14 @@ FConstrainedMeshOperator::FConstrainedMeshOperator(const FDynamicMesh3& DynamicM
 	if (bIsLaplacianSymmetric)
 	{
 		// Laplacian is symmetric, i.e. equal to its transpose
-		LTLMatrix = LMatrix * LMatrix;
+		LTLMatrix = LaplacianInternal * LaplacianInternal;
 	
 		ConstrainedSolver.Reset(new FConstrainedSolver(LTL, MatrixSolverType));
 	}
 	else
 	{
 		// the laplacian 
-		LTLMatrix = LMatrix.transpose() * LMatrix;
+		LTLMatrix = LaplacianInternal.transpose() * LaplacianInternal;
 		ConstrainedSolver.Reset(new FConstrainedSolver(LTL, MatrixSolverType));
 	}
 
@@ -89,36 +94,52 @@ FConstrainedMeshOperator::FConstrainedMeshOperator(const FDynamicMesh3& DynamicM
 
 void FConstrainedMeshOperator::AddConstraint(const int32 VtxId, const double Weight, const FVector3d& Pos, const bool bPostFix)
 {
-
-	bConstraintPositionsDirty = true;
-	bConstraintWeightsDirty   = true;
 	int32 Index = VtxLinearization.ToIndex()[VtxId];
 
-	ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
-	ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+	// Only add the constraint if the vertex is actually in the interior.  We aren't solving for edge vertices.
+	if (Index < InternalVertexCount)
+	{
+		bConstraintPositionsDirty = true;
+		bConstraintWeightsDirty = true;
 
+
+		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+		ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+	}
 }
 
 
 bool FConstrainedMeshOperator::UpdateConstraintPosition(const int32 VtxId, const FVector3d& Pos, const bool bPostFix)
 {
-	bConstraintPositionsDirty = true;
 	int32 Index = VtxLinearization.ToIndex()[VtxId];
-	// Add should over-write any existing value for this key
-	ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+	bool Result = false;
 
-	return ConstraintWeightMap.Contains(VtxId);
+	if (Index < InternalVertexCount)
+	{
+		bConstraintPositionsDirty = true;
+
+		// Add should over-write any existing value for this key
+		ConstraintPositionMap.Add(TTuple<int32, FConstraintPosition>(Index, FConstraintPosition(Pos, bPostFix)));
+
+		Result = ConstraintWeightMap.Contains(VtxId);
+	}
+	return Result;
 }
 
 bool FConstrainedMeshOperator::UpdateConstraintWeight(const int32 VtxId, const double Weight)
 {
-
-	bConstraintWeightsDirty = true;
+	bool Result = false;
 	int32 Index = VtxLinearization.ToIndex()[VtxId];
-	// Add should over-write any existing value for this key
-	ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+	if (Index < InternalVertexCount)
+	{
+		bConstraintWeightsDirty = true;
 
-	return ConstraintPositionMap.Contains(VtxId);
+		// Add should over-write any existing value for this key
+		ConstraintWeightMap.Add(TTuple<int32, double>(Index, Weight));
+
+		Result = ConstraintPositionMap.Contains(VtxId);
+	}
+	return Result;
 }
 
 
@@ -127,8 +148,13 @@ bool FConstrainedMeshOperator::IsConstrained(const int32 VtxId) const
 	if (VtxId > VtxLinearization.ToIndex().Num()) return false;
 
 	int32 Index = VtxLinearization.ToIndex()[VtxId];
+	bool Result = false;
+	if (Index < InternalVertexCount)
+	{
+		Result = ConstraintWeightMap.Contains(Index);
+	}
 
-	return ConstraintWeightMap.Contains(Index);
+	return Result;
 }
 
 void FConstrainedMeshOperator::UpdateSolverConstraints()
@@ -158,6 +184,8 @@ bool FConstrainedMeshOperator::Linearize(const FSOAPositions& PositionalVector, 
 		return false;
 	}
 
+	checkSlow(Num == InternalVertexCount);
+
 	// 
 	const auto& IndexToVtxId = VtxLinearization.ToId();
 	const int32 MaxVtxId = IndexToVtxId.Num(); // NB: this is really max_used + 1 in the mesh.  See  FDynamicMesh3::MaxVertexID()
@@ -179,7 +207,7 @@ bool FConstrainedMeshOperator::Linearize(const FSOAPositions& PositionalVector, 
 
 void FConstrainedMeshOperator::ExtractVertexPositions(const FDynamicMesh3& DynamicMesh, FSOAPositions& VertexPositions) const
 {
-	VertexPositions.SetZero(VertexCount);
+	VertexPositions.SetZero(InternalVertexCount);
 
 
 	const TArray<int32>& ToIndex = VtxLinearization.ToIndex();
@@ -190,12 +218,15 @@ void FConstrainedMeshOperator::ExtractVertexPositions(const FDynamicMesh3& Dynam
 		const int32 i = ToIndex[VtxId];
 
 		checkSlow(i != FDynamicMesh3::InvalidID);
-
-		const FVector3d& Vertex = DynamicMesh.GetVertex(VtxId);
-		// coeffRef - coeff access without range checking
-		VertexPositions.XVector.coeffRef(i) = Vertex.X;
-		VertexPositions.YVector.coeffRef(i) = Vertex.Y;
-		VertexPositions.ZVector.coeffRef(i) = Vertex.Z;
+		
+		if (i < InternalVertexCount) // Skipping boundary verts
+		{
+			const FVector3d& Vertex = DynamicMesh.GetVertex(VtxId);
+			// coeffRef - coeff access without range checking
+			VertexPositions.XVector.coeffRef(i) = Vertex.X;
+			VertexPositions.YVector.coeffRef(i) = Vertex.Y;
+			VertexPositions.ZVector.coeffRef(i) = Vertex.Z;
+		}
 	}
 }
 
@@ -205,6 +236,8 @@ void FConstrainedMeshOperator::UpdateWithPostFixConstraints(FSOAPositions& Posit
 	{
 		const int32 Index = ConstraintPosition.Key;
 		const FConstraintPosition& Constraint = ConstraintPosition.Value;
+
+		checkSlow(Index < InternalVertexCount);
 
 		// we only care about post-fix constraints
 
@@ -222,8 +255,9 @@ void FConstrainedMeshOperator::UpdateWithPostFixConstraints(FSOAPositions& Posit
 
 FConstrainedMeshDeformer::FConstrainedMeshDeformer(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme LaplacianType)
 	: FConstrainedMeshOperator(DynamicMesh, LaplacianType, EMatrixSolverType::LU)
-	, LaplacianVectors(FConstrainedMeshOperator::VertexCount)
+	, LaplacianVectors(FConstrainedMeshOperator::InternalVertexCount)
 {
+	
 
 	// The current vertex positions 
 	
@@ -241,6 +275,8 @@ FConstrainedMeshDeformer::FConstrainedMeshDeformer(const FDynamicMesh3& DynamicM
 	// Compute the Laplacian Vectors
 	//    := Biharmonic * VertexPostion
 	// In the case of the cotangent laplacian this can be identified as the mean curvature * normal.
+	checkSlow(LaplacianVectors.Num() == OriginalVertexPositions.Num());
+
 	for (int32 i = 0; i < 3; ++i)
 	{
 		LaplacianVectors.Array(i) = Biharmonic * OriginalVertexPositions.Array(i);
@@ -254,7 +290,7 @@ bool FConstrainedMeshDeformer::Deform(TArray<FVector3d>& PositionBuffer)
 	UpdateSolverConstraints();
 
 	// Allocate space for the result as a struct of arrays
-	FSOAPositions SolutionVector(VertexCount);
+	FSOAPositions SolutionVector(InternalVertexCount);
 
 	// Solve the linear system
 	// NB: the original positions will only be used if the underlying solver type is iterative	
@@ -282,7 +318,7 @@ bool FBiHarmonicMeshSmoother::ComputeSmoothedMeshPositions(TArray<FVector3d>& Up
 
 	// Solves the constrained system and updates the mesh 
 
-	FSOAPositions SolutionVector(VertexCount);
+	FSOAPositions SolutionVector(InternalVertexCount);
 
 	bool bSuccess = ConstrainedSolver->Solve(SolutionVector);
 
@@ -307,7 +343,7 @@ bool FCGBiHarmonicMeshSmoother::ComputeSmoothedMeshPositions(TArray<FVector3d>& 
 
 	// Solves the constrained system
 
-	FSOAPositions SolutionVector(VertexCount);
+	FSOAPositions SolutionVector(InternalVertexCount);
 
 	bool bSuccess = ConstrainedSolver->Solve(SolutionVector);
 

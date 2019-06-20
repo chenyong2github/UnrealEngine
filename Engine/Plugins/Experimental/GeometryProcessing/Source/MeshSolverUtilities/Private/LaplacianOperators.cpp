@@ -83,266 +83,6 @@ int32 ComputeNumMatrixElements(const FDynamicMesh3& DynamicMesh, const TArray<in
 	return NumMatrixEntries;
 }
 
-TUniquePtr<FSparseMatrixD> ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
-{
-
-
-	typedef FSparseMatrixD::Scalar    ScalarT;
-	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
-
-	if (BoundaryVerts)
-	{
-		// empty
-		BoundaryVerts->Empty();
-	}
-
-	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
-	VertexMap.Reset(DynamicMesh);
-
-	const TArray<int32>& ToMeshV = VertexMap.ToId();
-	const TArray<int32>& ToIndex = VertexMap.ToIndex();
-	const int32 NumVerts = VertexMap.NumVerts();
-
-	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
-
-	std::vector<MatrixTripletT> MatrixTripelList;
-	{
-		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
-		MatrixTripelList.reserve(NumMatrixEntries);
-	}
-
-	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
-
-	for (int32 i = 0; i < NumVerts; ++i)
-	{
-		const int32 VertId = ToMeshV[i];
-
-		if (DynamicMesh.IsBoundaryVertex(VertId))
-		{
-			if (BoundaryVerts)
-			{
-				BoundaryVerts->Add(VertId);
-			}
-#if LAPLACIAN_SKIP_BOUNDARY == 1  
-			MatrixTripelList.push_back(MatrixTripletT(i, i, 0.));
-			continue;
-#endif 
-		}
-
-
-		ScalarT CenterWeight = ScalarT(0); // equal and opposite the sum of the neighbor weights
-		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
-		{
-			const int32 j = ToIndex[NeighborVertId];
-
-
-			ScalarT NeighborWeight = ScalarT(1);
-			CenterWeight += NeighborWeight;
-
-			// add the neighbor 
-			MatrixTripelList.push_back(MatrixTripletT(i, j, NeighborWeight));
-
-		}
-		// add the center
-		MatrixTripelList.push_back(MatrixTripletT(i, i, -CenterWeight));
-
-	}
-
-	// SparseMatrix doesn't have (SparseMatrix&& ) constructor 
-
-	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD(NumVerts, NumVerts));
-	LaplacianMatrix->setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
-
-	LaplacianMatrix->makeCompressed();
-
-	return LaplacianMatrix;
-
-}
-
-TUniquePtr<FSparseMatrixD> ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
-{
-
-
-	typedef FSparseMatrixD::Scalar    ScalarT;
-	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
-
-	if (BoundaryVerts)
-	{
-		// empty
-		BoundaryVerts->Empty();
-	}
-
-	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
-	VertexMap.Reset(DynamicMesh);
-
-	const TArray<int32>& ToMeshV = VertexMap.ToId();
-	const TArray<int32>& ToIndex = VertexMap.ToIndex();
-	const int32 NumVerts = VertexMap.NumVerts();
-
-	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
-
-	std::vector<MatrixTripletT> MatrixTripelList;
-	{
-		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
-		MatrixTripelList.reserve(NumMatrixEntries);
-	}
-
-	// Cache valency of each vertex.
-	// Number of non-zero elements in the i'th row = 1 + OneRingSize(i)
-	TArray<int32> OneRingSize;
-	{
-		OneRingSize.SetNumUninitialized(NumVerts);
-
-		for (int32 i = 0; i < NumVerts; ++i)
-		{
-			const int32 VertId = ToMeshV[i];
-			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
-		}
-	}
-
-	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
-
-	for (int32 i = 0; i < NumVerts; ++i)
-	{
-		const int32 VertId = ToMeshV[i];
-		const int32 Valence = OneRingSize[i];
-		double InvValence = (Valence != 0) ? 1. / double(Valence) : 0.;
-
-		if (DynamicMesh.IsBoundaryVertex(VertId))
-		{
-			if (BoundaryVerts)
-			{
-				BoundaryVerts->Add(VertId);
-			}
-#if LAPLACIAN_SKIP_BOUNDARY == 1  
-			MatrixTripelList.push_back(MatrixTripletT(i, i, 0.));
-			continue;
-#endif 
-		}
-
-		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
-		{
-			const int32 j = ToIndex[NeighborVertId];
-
-			// add the neighbor 
-			MatrixTripelList.push_back(MatrixTripletT(i, j, InvValence));
-
-		}
-		// add the center
-		MatrixTripelList.push_back(MatrixTripletT(i, i, -ScalarT(1)));
-
-	}
-
-	// SparseMatrix doesn't have (SparseMatrix&& ) constructor 
-
-	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD(NumVerts, NumVerts));
-	LaplacianMatrix->setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
-
-	LaplacianMatrix->makeCompressed();
-
-	return LaplacianMatrix;
-
-}
-
-TUniquePtr<FSparseMatrixD> ConstructValenceWeightedLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
-{
-
-
-	typedef FSparseMatrixD::Scalar    ScalarT;
-	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
-
-	if (BoundaryVerts)
-	{
-		// empty
-		BoundaryVerts->Empty();
-	}
-
-	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
-	VertexMap.Reset(DynamicMesh);
-
-	const TArray<int32>& ToMeshV = VertexMap.ToId();
-	const TArray<int32>& ToIndex = VertexMap.ToIndex();
-	const int32 NumVerts = VertexMap.NumVerts();
-
-	// Cache valency of each vertex.
-	// Number of non-zero elements in the i'th row = 1 + OneRingSize(i)
-	TArray<int32> OneRingSize;
-	{
-		OneRingSize.SetNumUninitialized(NumVerts);
-
-		for (int32 i = 0; i < NumVerts; ++i)
-		{
-			const int32 VertId = ToMeshV[i];
-			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
-		}
-	}
-
-
-	// Compute the total number of entries in the sparse matrix
-	int32 NumMatrixEntries = 0;
-	{
-		for (int32 i = 0; i < NumVerts; ++i)
-		{
-			NumMatrixEntries += 1 + OneRingSize[i]; // myself plus my neighbors
-		}
-
-	}
-	std::vector<MatrixTripletT> MatrixTripelList;
-	MatrixTripelList.reserve(NumMatrixEntries);
-
-
-
-	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
-
-	for (int32 i = 0; i < NumVerts; ++i)
-	{
-		const int32 VertId = ToMeshV[i];
-		const int32 IOneRingSize = OneRingSize[i];
-
-		if (DynamicMesh.IsBoundaryVertex(VertId))
-		{
-			if (BoundaryVerts)
-			{
-				BoundaryVerts->Add(VertId);
-			}
-#if LAPLACIAN_SKIP_BOUNDARY == 1  
-			MatrixTripelList.push_back(MatrixTripletT(i, i, 0.));
-			continue;
-#endif 
-		}
-
-
-		ScalarT CenterWeight = ScalarT(0); // equal and opposite the sum of the neighbor weights
-		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
-		{
-			const int32 j = ToIndex[NeighborVertId];
-			const int32 JOneRingSize = OneRingSize[j];
-
-
-			ScalarT NeighborWeight = ScalarT(1) / std::sqrt(IOneRingSize + JOneRingSize);
-			CenterWeight += NeighborWeight;
-
-			// add the neighbor 
-			MatrixTripelList.push_back(MatrixTripletT(i, j, NeighborWeight));
-
-		}
-		// add the center
-		MatrixTripelList.push_back(MatrixTripletT(i, i, -CenterWeight));
-
-	}
-
-	// SparseMatrix doesn't have (SparseMatrix&& ) constructor 
-
-	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD(NumVerts, NumVerts));
-	LaplacianMatrix->setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
-
-	LaplacianMatrix->makeCompressed();
-
-	return LaplacianMatrix;
-
-}
-
-
 /**
 * The per-triangle data used in constructing the cotangent weighted laplacian.
 *
@@ -422,9 +162,9 @@ public:
 
 			// Cotangent[i] is cos(theta)/sin(theta) at the i'th vertex.
 
-			Cotangent[0] =  EdgeAB.Dot(EdgeAC) / TwiceArea;
+			Cotangent[0] = EdgeAB.Dot(EdgeAC) / TwiceArea;
 			Cotangent[1] = -EdgeAB.Dot(EdgeBC) / TwiceArea;
-			Cotangent[2] =  EdgeAC.Dot(EdgeBC) / TwiceArea;
+			Cotangent[2] = EdgeAC.Dot(EdgeBC) / TwiceArea;
 
 			if (bIsObtuse())
 			{
@@ -607,9 +347,9 @@ public:
 
 		// Compute tan(angle/2) = Sqrt[ (1-cos) / (1 + cos)]
 
-		const double ABdotAC =  EdgeAB.Dot(EdgeAC);
+		const double ABdotAC = EdgeAB.Dot(EdgeAC);
 		const double BCdotBA = -EdgeBC.Dot(EdgeAB);
-		const double CAdotCB =  EdgeAC.Dot(EdgeBC);
+		const double CAdotCB = EdgeAC.Dot(EdgeBC);
 
 
 		const double RegularizingConst = 1.e-6; // keeps us from dividing by zero when making tan[180/2] = sin[90]/cos[90] = inf
@@ -625,7 +365,7 @@ public:
 #if 0
 		// testing
 		double totalAngle = 2. * (std::atan(TanHalfAngle[0]) + std::atan(TanHalfAngle[1]) + std::atan(TanHalfAngle[2]));
-		
+
 		double angleError = M_PI - totalAngle;
 #endif
 	}
@@ -696,6 +436,993 @@ TArray<TriangleDataType>  ConstructTriangleDataArray(const FDynamicMesh3& Dynami
 	}
 
 	return TriangleDataArray;
+}
+
+void ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nominal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	// pre-allocate space for the temporary triplet list 
+	std::vector<MatrixTripletT> LaplacianAsTripletList;
+	std::vector<MatrixTripletT> BoundaryAsTripletList;
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		LaplacianAsTripletList.reserve(NumMatrixEntries);
+	}
+
+	
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	// NB: the vertices are ordered with the interior verts first.
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 VertId = ToMeshV[i];
+		ScalarT CenterWeight = ScalarT(0); // equal and opposite the sum of the neighbor weights
+
+		checkSlow(!DynamicMesh.IsBoundaryVertex(VertId));  // we should only be looping over the internal verts
+
+		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		{
+			const int32 j = ToIndex[NeighborVertId];
+
+
+			ScalarT NeighborWeight = ScalarT(1);
+			CenterWeight += NeighborWeight;
+
+			if (j < NumInteriorVerts)
+			{
+				// add the neighbor 
+				LaplacianAsTripletList.push_back(MatrixTripletT(i, j, NeighborWeight));
+			}
+			else
+			{
+				int32 jBoundary = j - NumInteriorVerts;
+				BoundaryAsTripletList.push_back(MatrixTripletT(i, jBoundary, NeighborWeight));
+			}
+		}
+		// add the center
+		LaplacianAsTripletList.push_back(MatrixTripletT(i, i, -CenterWeight));
+
+	}
+
+	// populate the Laplacian for the interior.
+	{
+		// [djh] - can we construct with (0,0) ? or do we need to check for it?
+		FSparseMatrixD InteriorMatrix(NumInteriorVerts, NumInteriorVerts);
+		InteriorMatrix.setFromTriplets(LaplacianAsTripletList.begin(), LaplacianAsTripletList.end());
+		LaplacianInterior.swap(InteriorMatrix);
+		LaplacianInterior.makeCompressed();
+	}
+	
+	// populate the boundary matrix
+	{
+		FSparseMatrixD BoundaryMatrix(NumInteriorVerts, NumBoundaryVerts);
+		BoundaryMatrix.setFromTriplets(BoundaryAsTripletList.begin(), BoundaryAsTripletList.end());
+		LaplacianBoundary.swap(BoundaryMatrix);
+		LaplacianBoundary.makeCompressed();
+	}
+
+}
+
+
+void ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nominal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	// pre-allocate space for the temporary triplet list 
+	std::vector<MatrixTripletT> LaplacianAsTripletList;
+	std::vector<MatrixTripletT> BoundaryAsTripletList;
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		LaplacianAsTripletList.reserve(NumMatrixEntries);
+	}
+
+	// Cache valency of each vertex.
+	// Number of non-zero elements in the i'th row = 1 + OneRingSize(i)
+	TArray<int32> OneRingSize;
+	{
+		OneRingSize.SetNumUninitialized(NumVerts);
+
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			const int32 VertId = ToMeshV[i];
+			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
+		}
+	}
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 VertId = ToMeshV[i];
+		const int32 Valence = OneRingSize[i];
+		double InvValence = (Valence != 0) ? 1. / double(Valence) : 0.;
+
+		checkSlow(!DynamicMesh.IsBoundaryVertex(VertId));
+
+		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		{
+			const int32 j = ToIndex[NeighborVertId];
+
+			// add the neighbor 
+			if (j < NumInteriorVerts)
+			{
+				LaplacianAsTripletList.push_back(MatrixTripletT(i, j, InvValence));
+			}
+			else
+			{
+				int32 jBoundary = j - NumInteriorVerts;
+				BoundaryAsTripletList.push_back(MatrixTripletT(i, jBoundary, InvValence));
+			}
+		}
+		// add the center
+		LaplacianAsTripletList.push_back(MatrixTripletT(i, i, -ScalarT(1)));
+
+	}
+
+	// populate the Laplacian for the interior.
+	{
+		// [djh] - can we construct with (0,0) ? or do we need to check for it?
+		FSparseMatrixD InteriorMatrix(NumInteriorVerts, NumInteriorVerts);
+		InteriorMatrix.setFromTriplets(LaplacianAsTripletList.begin(), LaplacianAsTripletList.end());
+		LaplacianInterior.swap(InteriorMatrix);
+		LaplacianInterior.makeCompressed();
+	}
+
+	// populate the boundary matrix
+	{
+		FSparseMatrixD BoundaryMatrix(NumInteriorVerts, NumBoundaryVerts);
+		BoundaryMatrix.setFromTriplets(BoundaryAsTripletList.begin(), BoundaryAsTripletList.end());
+		LaplacianBoundary.swap(BoundaryMatrix);
+		LaplacianBoundary.makeCompressed();
+	}
+
+}
+
+
+void ConstructValenceWeightedLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+
+
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	// pre-allocate space for the temporary triplet list 
+	std::vector<MatrixTripletT> LaplacianAsTripletList;
+	std::vector<MatrixTripletT> BoundaryAsTripletList;
+
+	// Cache valency of each vertex.
+	// Number of non-zero elements in the i'th row = 1 + OneRingSize(i)
+	TArray<int32> OneRingSize;
+	{
+		OneRingSize.SetNumUninitialized(NumVerts);
+
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			const int32 VertId = ToMeshV[i];
+			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
+		}
+	}
+
+
+	// Compute the total number of entries in the sparse matrix
+	int32 NumMatrixEntries = 0;
+	{
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			NumMatrixEntries += 1 + OneRingSize[i]; // myself plus my neighbors
+		}
+
+	}
+	LaplacianAsTripletList.reserve(NumMatrixEntries);
+
+
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 VertId       = ToMeshV[i];
+		const int32 IOneRingSize = OneRingSize[i];
+
+		ScalarT CenterWeight = ScalarT(0); // equal and opposite the sum of the neighbor weights
+		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		{
+			const int32 j = ToIndex[NeighborVertId];
+			const int32 JOneRingSize = OneRingSize[j];
+
+
+			ScalarT NeighborWeight = ScalarT(1) / std::sqrt(IOneRingSize + JOneRingSize);
+			CenterWeight += NeighborWeight;
+
+			if (j < NumInteriorVerts)
+			{
+				// add the neighbor 
+				LaplacianAsTripletList.push_back(MatrixTripletT(i, j, NeighborWeight));
+			}
+			else
+			{
+				int32 jBoundary = j - NumInteriorVerts;
+				BoundaryAsTripletList.push_back(MatrixTripletT(i, jBoundary, NeighborWeight));
+			}
+		}
+		// add the center
+		LaplacianAsTripletList.push_back(MatrixTripletT(i, i, -CenterWeight));
+
+	}
+
+
+	// populate the Laplacian for the interior.
+	{
+		// [djh] - can we construct with (0,0) ? or do we need to check for it?
+		FSparseMatrixD InteriorMatrix(NumInteriorVerts, NumInteriorVerts);
+		InteriorMatrix.setFromTriplets(LaplacianAsTripletList.begin(), LaplacianAsTripletList.end());
+		LaplacianInterior.swap(InteriorMatrix);
+		LaplacianInterior.makeCompressed();
+	}
+
+	// populate the boundary matrix
+	{
+		FSparseMatrixD BoundaryMatrix(NumInteriorVerts, NumBoundaryVerts);
+		BoundaryMatrix.setFromTriplets(BoundaryAsTripletList.begin(), BoundaryAsTripletList.end());
+		LaplacianBoundary.swap(BoundaryMatrix);
+		LaplacianBoundary.makeCompressed();
+	}
+
+}
+
+
+void ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& AreaMatrix, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+
+
+	typedef FSparseMatrixD::Scalar  ScalarT;
+	typedef Eigen::Triplet<ScalarT> MatrixTripletT;
+
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	// pre-allocate space for the temporary triplet list 
+	
+	std::vector<MatrixTripletT> LaplacianAsTripletList;
+	std::vector<MatrixTripletT> BoundaryAsTripletList;
+	
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		LaplacianAsTripletList.reserve(NumMatrixEntries);
+	}
+
+	// Create the mapping of triangles
+
+	FTriangleLinearization TriangleMap(DynamicMesh);
+
+	const TArray<int32>& ToMeshTri = TriangleMap.ToId();
+	const TArray<int32>& ToTriIdx = TriangleMap.ToIndex();
+	const int32 NumTris = TriangleMap.NumTris();
+
+
+	// Clear space for the areas
+	std::vector<MatrixTripletT> DiagonalTriplets;
+	DiagonalTriplets.reserve(NumVerts);
+
+	FSparseMatrixD Diagonals;
+	Diagonals.reserve(NumVerts);
+
+
+	// Create an array that holds all the geometric information we need for each triangle.
+
+	TArray<CotanTriangleData>  CotangentTriangleDataArray = ConstructTriangleDataArray<CotanTriangleData>(DynamicMesh, TriangleMap);
+
+
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	//                             store the id of the boundary verts for later use.
+
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 IVertId = ToMeshV[i]; // I - the row
+
+
+		// Compute the Voronoi area for this vertex.
+		double WeightArea = 0.;
+		for (int32 TriId : DynamicMesh.VtxTrianglesItr(IVertId))
+		{
+			const int32 TriIdx = ToTriIdx[TriId];
+			const CotanTriangleData& TriData = CotangentTriangleDataArray[TriIdx];
+
+
+			// The three VertIds for this triangle.
+			const FIndex3i TriVertIds = DynamicMesh.GetTriangle(TriId);
+
+			// Which of the corners is IVertId?
+			int32 Offset = 0;
+			while (TriVertIds[Offset] != IVertId)
+			{
+				Offset++;
+				checkSlow(Offset < 3);
+			}
+
+			WeightArea += TriData.VoronoiArea[Offset];
+		}
+
+
+		double WeightII = 0.; // accumulate to equal and opposite the sum of the neighbor weights
+
+		// for each connecting edge
+
+		for (int32 EdgeId : DynamicMesh.VtxEdgesItr(IVertId))
+		{
+			// [v0, v1, t0, t1]:  NB: both t0 & t1 exist since IVert isn't a boundary vert.
+			FIndex4i Edge = DynamicMesh.GetEdge(EdgeId);
+
+
+			// the other vert in the edge - identifies the matrix column
+			const int32 JVertId = (Edge[0] == IVertId) ? Edge[1] : Edge[0];  // J - the column
+
+			checkSlow(JVertId != IVertId);
+
+			// Get the cotangents for this edge.
+
+			const int32 Tri0Idx = ToTriIdx[Edge[2]];
+			const CotanTriangleData& Tri0Data = CotangentTriangleDataArray[Tri0Idx];
+			const double CotanAlpha = Tri0Data.GetOpposingCotangent(EdgeId);
+
+
+			// The second triangle will be invalid if this is an edge!
+
+			const double CotanBeta = (Edge[3] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge[3]]].GetOpposingCotangent(EdgeId) : 0.;
+
+			double WeightIJ = 0.5 * (CotanAlpha + CotanBeta);
+			WeightII += WeightIJ;
+
+			const int32 j = ToIndex[JVertId];
+
+			if (j < NumInteriorVerts)
+			{
+				LaplacianAsTripletList.push_back(MatrixTripletT(i, j, WeightIJ));
+			}
+			else
+			{
+				int32 jBoundary = j - NumInteriorVerts;
+				BoundaryAsTripletList.push_back(MatrixTripletT(i, j, WeightIJ));
+			}
+
+		}
+
+		LaplacianAsTripletList.push_back(MatrixTripletT(i, i, -WeightII));
+
+		DiagonalTriplets.push_back(MatrixTripletT(i, i, WeightArea));
+
+
+	}
+
+	Diagonals.setFromTriplets(DiagonalTriplets.begin(), DiagonalTriplets.end());
+	AreaMatrix.swap(Diagonals);
+	AreaMatrix.makeCompressed();
+
+	// populate the Laplacian for the interior.
+	{
+		// [djh] - can we construct with (0,0) ? or do we need to check for it?
+		FSparseMatrixD InteriorMatrix(NumInteriorVerts, NumInteriorVerts);
+		InteriorMatrix.setFromTriplets(LaplacianAsTripletList.begin(), LaplacianAsTripletList.end());
+		LaplacianInterior.swap(InteriorMatrix);
+		LaplacianInterior.makeCompressed();
+	}
+
+	// populate the boundary matrix
+	{
+		FSparseMatrixD BoundaryMatrix(NumInteriorVerts, NumBoundaryVerts);
+		BoundaryMatrix.setFromTriplets(BoundaryAsTripletList.begin(), BoundaryAsTripletList.end());
+		LaplacianBoundary.swap(BoundaryMatrix);
+		LaplacianBoundary.makeCompressed();
+	}
+
+}
+
+
+void ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary, const bool bClampWeights)
+{
+
+
+	typedef FSparseMatrixD::Scalar  ScalarT;
+	typedef Eigen::Triplet<ScalarT> MatrixTripletT;
+
+
+	
+	// Sync the mapping between the mesh vertex ids and their offsets in a nominal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	// pre-allocate space for the temporary triplet list 
+
+	std::vector<MatrixTripletT> LaplacianAsTripletList;
+	std::vector<MatrixTripletT> BoundaryAsTripletList;
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		LaplacianAsTripletList.reserve(NumMatrixEntries);
+	}
+
+	// Map the triangles.
+
+	FTriangleLinearization TriangleMap(DynamicMesh);
+
+	const TArray<int32>& ToMeshTri = TriangleMap.ToId();
+	const TArray<int32>& ToTriIdx = TriangleMap.ToIndex();
+	const int32 NumTris = TriangleMap.NumTris();
+
+	// Create an array that holds all the geometric information we need for each triangle.
+
+	TArray<CotanTriangleData>  CotangentTriangleDataArray = ConstructTriangleDataArray<CotanTriangleData>(DynamicMesh, TriangleMap);
+
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	//                             skipping the boundary verts for later use.
+
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 IVertId = ToMeshV[i]; // I - the row
+
+
+		// Compute the Voronoi area for this vertex.
+		double WeightArea = 0.;
+		for (int32 TriId : DynamicMesh.VtxTrianglesItr(IVertId))
+		{
+			const int32 TriIdx = ToTriIdx[TriId];
+			const CotanTriangleData& TriData = CotangentTriangleDataArray[TriIdx];
+
+
+			// The three VertIds for this triangle.
+			const FIndex3i TriVertIds = DynamicMesh.GetTriangle(TriId);
+
+			// Which of the corners is IVertId?
+			int32 Offset = 0;
+			while (TriVertIds[Offset] != IVertId)
+			{
+				Offset++;
+				checkSlow(Offset < 3);
+			}
+
+			WeightArea += TriData.VoronoiArea[Offset];
+		}
+
+
+		double WeightII = 0.; // accumulate to equal and opposite the sum of the neighbor weights
+
+		// for each connecting edge
+
+		for (int32 EdgeId : DynamicMesh.VtxEdgesItr(IVertId))
+		{
+			// [v0, v1, t0, t1]:  NB: both t0 & t1 exist since IVert isn't a boundary vert.
+			FIndex4i Edge = DynamicMesh.GetEdge(EdgeId);
+
+
+			// the other vert in the edge - identifies the matrix column
+			const int32 JVertId = (Edge[0] == IVertId) ? Edge[1] : Edge[0];  // J - the column
+
+			checkSlow(JVertId != IVertId);
+
+			// Get the cotangents for this edge.
+
+			const int32 Tri0Idx = ToTriIdx[Edge[2]];
+			const CotanTriangleData& Tri0Data = CotangentTriangleDataArray[Tri0Idx];
+			const double CotanAlpha = Tri0Data.GetOpposingCotangent(EdgeId);
+
+			// The second triangle will be invalid if this is an edge!
+
+			const double CotanBeta = (Edge[3] != FDynamicMesh3::InvalidID) ? CotangentTriangleDataArray[ToTriIdx[Edge[3]]].GetOpposingCotangent(EdgeId) : 0.;
+
+			double WeightIJ = 0.5 * (CotanAlpha + CotanBeta);
+
+			// clamp the weight
+			if (bClampWeights)
+			{
+				WeightIJ = FMath::Clamp(WeightIJ, -1.e5 * WeightArea, 1.e5 * WeightArea);
+			}
+
+			WeightII += WeightIJ;
+
+			const int32 j = ToIndex[JVertId];
+
+			if (j < NumInteriorVerts)
+			{ 
+				LaplacianAsTripletList.push_back(MatrixTripletT(i, j, WeightIJ / WeightArea));
+			}
+			else
+			{
+				int32 jBoundary = j - NumInteriorVerts;
+				BoundaryAsTripletList.push_back(MatrixTripletT(i, jBoundary, WeightIJ / WeightArea));
+			}
+			
+
+		}
+
+		LaplacianAsTripletList.push_back(MatrixTripletT(i, i, -WeightII / WeightArea));
+
+	}
+
+	// populate the Laplacian for the interior.
+	{
+		// [djh] - can we construct with (0,0) ? or do we need to check for it?
+		FSparseMatrixD InteriorMatrix(NumInteriorVerts, NumInteriorVerts);
+		InteriorMatrix.setFromTriplets(LaplacianAsTripletList.begin(), LaplacianAsTripletList.end());
+		LaplacianInterior.swap(InteriorMatrix);
+		LaplacianInterior.makeCompressed();
+	}
+
+	// populate the boundary matrix
+	{
+		FSparseMatrixD BoundaryMatrix(NumInteriorVerts, NumBoundaryVerts);
+		BoundaryMatrix.setFromTriplets(BoundaryAsTripletList.begin(), BoundaryAsTripletList.end());
+		LaplacianBoundary.swap(BoundaryMatrix);
+		LaplacianBoundary.makeCompressed();
+	}
+
+}
+
+
+void ConstructMeanValueWeightLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+
+	typedef FSparseMatrixD::Scalar  ScalarT;
+	typedef Eigen::Triplet<ScalarT> MatrixTripletT;
+
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nominal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	const int32 NumBoundaryVerts = VertexMap.NumBoundaryVerts();
+	const int32 NumInteriorVerts = NumVerts - NumBoundaryVerts;
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+	// pre-allocate space for the temporary triplet list 
+
+	std::vector<MatrixTripletT> LaplacianAsTripletList;
+	std::vector<MatrixTripletT> BoundaryAsTripletList;
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		LaplacianAsTripletList.reserve(NumMatrixEntries);
+	}
+
+	// Map the triangles.
+
+	FTriangleLinearization TriangleMap(DynamicMesh);
+
+	const TArray<int32>& ToMeshTri = TriangleMap.ToId();
+	const TArray<int32>& ToTriIdx = TriangleMap.ToIndex();
+	const int32 NumTris = TriangleMap.NumTris();
+
+
+	// Create an array that holds all the geometric information we need for each triangle.
+
+	TArray<MeanValueTriangleData>  TriangleDataArray = ConstructTriangleDataArray<MeanValueTriangleData>(DynamicMesh, TriangleMap);
+
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+	//                             skipping the boundary verts for later use.
+
+	for (int32 i = 0; i < NumInteriorVerts; ++i)
+	{
+		const int32 IVertId = ToMeshV[i]; // I - the row
+
+
+		double WeightII = 0.; // accumulate to equal and opposite the sum of the neighbor weights
+
+		// for each connecting edge
+
+		for (int32 EdgeId : DynamicMesh.VtxEdgesItr(IVertId))
+		{
+			// [v0, v1, t0, t1]:  NB: both t0 & t1 exist since IVert isn't a boundary vert.
+			FIndex4i Edge = DynamicMesh.GetEdge(EdgeId);
+
+			// the other vert in the edge - identifies the matrix column
+			const int32 JVertId = (Edge[0] == IVertId) ? Edge[1] : Edge[0];  // J - the column
+
+			// Get the cotangents for this edge.
+
+			const int32 Tri0Idx = ToTriIdx[Edge[2]];
+			const auto& Tri0Data = TriangleDataArray[Tri0Idx];
+			double TanHalfAngleSum = Tri0Data.GetTanHalfAngle(IVertId);
+			double EdgeLength = FMath::Max(1.e-5, Tri0Data.GetEdgeLenght(EdgeId)); // Clamp the length
+
+			// The second triangle will be invalid if this is an edge!
+
+			TanHalfAngleSum += (Edge[3] != FDynamicMesh3::InvalidID) ? TriangleDataArray[ToTriIdx[Edge[3]]].GetTanHalfAngle(IVertId) : 0.;
+
+			double WeightIJ = TanHalfAngleSum / EdgeLength;
+			WeightII += WeightIJ;
+
+			const int32 j = ToIndex[JVertId];
+
+			
+			if (j < NumInteriorVerts)
+			{
+				LaplacianAsTripletList.push_back(MatrixTripletT(i, j, WeightIJ));
+			}
+			else
+			{
+				int32 jBoundary = j - NumInteriorVerts;
+				BoundaryAsTripletList.push_back(MatrixTripletT(i, jBoundary, WeightIJ));
+			}
+
+		}
+
+		LaplacianAsTripletList.push_back(MatrixTripletT(i, i, -WeightII));
+
+
+	}
+
+	// populate the Laplacian for the interior.
+	{
+		// [djh] - can we construct with (0,0) ? or do we need to check for it?
+		FSparseMatrixD InteriorMatrix(NumInteriorVerts, NumInteriorVerts);
+		InteriorMatrix.setFromTriplets(LaplacianAsTripletList.begin(), LaplacianAsTripletList.end());
+		LaplacianInterior.swap(InteriorMatrix);
+		LaplacianInterior.makeCompressed();
+	}
+
+	// populate the boundary matrix
+	{
+		FSparseMatrixD BoundaryMatrix(NumInteriorVerts, NumBoundaryVerts);
+		BoundaryMatrix.setFromTriplets(BoundaryAsTripletList.begin(), BoundaryAsTripletList.end());
+		LaplacianBoundary.swap(BoundaryMatrix);
+		LaplacianBoundary.makeCompressed();
+	}
+
+}
+
+
+void ConstructLaplacian(const ELaplacianWeightScheme Scheme, const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, FSparseMatrixD& LaplacianInterior, FSparseMatrixD& LaplacianBoundary)
+{
+
+	switch (Scheme)
+	{
+	default:
+	case ELaplacianWeightScheme::Uniform:
+		ConstructUniformLaplacian(DynamicMesh, VertexMap, LaplacianInterior, LaplacianBoundary);
+		break;
+	case ELaplacianWeightScheme::Umbrella:
+		ConstructUmbrellaLaplacian(DynamicMesh, VertexMap, LaplacianInterior, LaplacianBoundary);
+		break;
+	case ELaplacianWeightScheme::Valence:
+		ConstructValenceWeightedLaplacian(DynamicMesh, VertexMap, LaplacianInterior, LaplacianBoundary);
+		break;
+	case ELaplacianWeightScheme::Cotangent:
+	{
+		bool bClampWeights = false;
+		ConstructCotangentLaplacian(DynamicMesh, VertexMap, LaplacianInterior, LaplacianBoundary, bClampWeights);
+		break;
+	}
+	case ELaplacianWeightScheme::ClampedCotangent:
+	{
+		bool bClampWeights = true;
+		ConstructCotangentLaplacian(DynamicMesh, VertexMap, LaplacianInterior, LaplacianBoundary, bClampWeights);
+		break;
+	}
+	case ELaplacianWeightScheme::MeanValue:
+		ConstructMeanValueWeightLaplacian(DynamicMesh, VertexMap, LaplacianInterior, LaplacianBoundary);
+		break;
+	}
+}
+
+
+
+TUniquePtr<FSparseMatrixD> ConstructUniformLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
+{
+
+
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+	if (BoundaryVerts)
+	{
+		// empty
+		BoundaryVerts->Empty();
+	}
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+
+	std::vector<MatrixTripletT> MatrixTripelList;
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		MatrixTripelList.reserve(NumMatrixEntries);
+	}
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+
+	for (int32 i = 0; i < NumVerts; ++i)
+	{
+		const int32 VertId = ToMeshV[i];
+
+		if (DynamicMesh.IsBoundaryVertex(VertId))
+		{
+			if (BoundaryVerts)
+			{
+				BoundaryVerts->Add(VertId);
+			}
+#if LAPLACIAN_SKIP_BOUNDARY == 1  
+			MatrixTripelList.push_back(MatrixTripletT(i, i, 0.));
+			continue;
+#endif 
+		}
+
+
+		ScalarT CenterWeight = ScalarT(0); // equal and opposite the sum of the neighbor weights
+		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		{
+			const int32 j = ToIndex[NeighborVertId];
+
+
+			ScalarT NeighborWeight = ScalarT(1);
+			CenterWeight += NeighborWeight;
+
+			// add the neighbor 
+			MatrixTripelList.push_back(MatrixTripletT(i, j, NeighborWeight));
+
+		}
+		// add the center
+		MatrixTripelList.push_back(MatrixTripletT(i, i, -CenterWeight));
+
+	}
+
+	// SparseMatrix doesn't have (SparseMatrix&& ) constructor 
+
+	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD(NumVerts, NumVerts));
+	LaplacianMatrix->setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
+
+	LaplacianMatrix->makeCompressed();
+
+	return LaplacianMatrix;
+
+}
+
+
+TUniquePtr<FSparseMatrixD> ConstructUmbrellaLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
+{
+
+
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+	if (BoundaryVerts)
+	{
+		// empty
+		BoundaryVerts->Empty();
+	}
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	// Eigen constructs a sparse matrix from a linearized array of matrix entries.
+
+	std::vector<MatrixTripletT> MatrixTripelList;
+	{
+		int32 NumMatrixEntries = ComputeNumMatrixElements(DynamicMesh, ToMeshV);
+		MatrixTripelList.reserve(NumMatrixEntries);
+	}
+
+	// Cache valency of each vertex.
+	// Number of non-zero elements in the i'th row = 1 + OneRingSize(i)
+	TArray<int32> OneRingSize;
+	{
+		OneRingSize.SetNumUninitialized(NumVerts);
+
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			const int32 VertId = ToMeshV[i];
+			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
+		}
+	}
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+
+	for (int32 i = 0; i < NumVerts; ++i)
+	{
+		const int32 VertId = ToMeshV[i];
+		const int32 Valence = OneRingSize[i];
+		double InvValence = (Valence != 0) ? 1. / double(Valence) : 0.;
+
+		if (DynamicMesh.IsBoundaryVertex(VertId))
+		{
+			if (BoundaryVerts)
+			{
+				BoundaryVerts->Add(VertId);
+			}
+#if LAPLACIAN_SKIP_BOUNDARY == 1  
+			MatrixTripelList.push_back(MatrixTripletT(i, i, 0.));
+			continue;
+#endif 
+		}
+
+		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		{
+			const int32 j = ToIndex[NeighborVertId];
+
+			// add the neighbor 
+			MatrixTripelList.push_back(MatrixTripletT(i, j, InvValence));
+
+		}
+		// add the center
+		MatrixTripelList.push_back(MatrixTripletT(i, i, -ScalarT(1)));
+
+	}
+
+	// SparseMatrix doesn't have (SparseMatrix&& ) constructor 
+
+	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD(NumVerts, NumVerts));
+	LaplacianMatrix->setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
+
+	LaplacianMatrix->makeCompressed();
+
+	return LaplacianMatrix;
+
+}
+
+
+TUniquePtr<FSparseMatrixD> ConstructValenceWeightedLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
+{
+
+
+	typedef FSparseMatrixD::Scalar    ScalarT;
+	typedef Eigen::Triplet<ScalarT>  MatrixTripletT;
+
+	if (BoundaryVerts)
+	{
+		// empty
+		BoundaryVerts->Empty();
+	}
+
+	// Sync the mapping between the mesh vertex ids and their offsets in a nomimal linear array.
+	VertexMap.Reset(DynamicMesh);
+
+	const TArray<int32>& ToMeshV = VertexMap.ToId();
+	const TArray<int32>& ToIndex = VertexMap.ToIndex();
+	const int32 NumVerts = VertexMap.NumVerts();
+
+	// Cache valency of each vertex.
+	// Number of non-zero elements in the i'th row = 1 + OneRingSize(i)
+	TArray<int32> OneRingSize;
+	{
+		OneRingSize.SetNumUninitialized(NumVerts);
+
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			const int32 VertId = ToMeshV[i];
+			OneRingSize[i] = DynamicMesh.GetVtxEdgeCount(VertId);
+		}
+	}
+
+
+	// Compute the total number of entries in the sparse matrix
+	int32 NumMatrixEntries = 0;
+	{
+		for (int32 i = 0; i < NumVerts; ++i)
+		{
+			NumMatrixEntries += 1 + OneRingSize[i]; // myself plus my neighbors
+		}
+
+	}
+	std::vector<MatrixTripletT> MatrixTripelList;
+	MatrixTripelList.reserve(NumMatrixEntries);
+
+
+
+	// Construct Laplacian Matrix: loop over verts constructing the corresponding matrix row.
+
+	for (int32 i = 0; i < NumVerts; ++i)
+	{
+		const int32 VertId = ToMeshV[i];
+		const int32 IOneRingSize = OneRingSize[i];
+
+		if (DynamicMesh.IsBoundaryVertex(VertId))
+		{
+			if (BoundaryVerts)
+			{
+				BoundaryVerts->Add(VertId);
+			}
+#if LAPLACIAN_SKIP_BOUNDARY == 1  
+			MatrixTripelList.push_back(MatrixTripletT(i, i, 0.));
+			continue;
+#endif 
+		}
+
+
+		ScalarT CenterWeight = ScalarT(0); // equal and opposite the sum of the neighbor weights
+		for (int NeighborVertId : DynamicMesh.VtxVerticesItr(VertId))
+		{
+			const int32 j = ToIndex[NeighborVertId];
+			const int32 JOneRingSize = OneRingSize[j];
+
+
+			ScalarT NeighborWeight = ScalarT(1) / std::sqrt(IOneRingSize + JOneRingSize);
+			CenterWeight += NeighborWeight;
+
+			// add the neighbor 
+			MatrixTripelList.push_back(MatrixTripletT(i, j, NeighborWeight));
+
+		}
+		// add the center
+		MatrixTripelList.push_back(MatrixTripletT(i, i, -CenterWeight));
+
+	}
+
+	// SparseMatrix doesn't have (SparseMatrix&& ) constructor 
+
+	TUniquePtr<FSparseMatrixD> LaplacianMatrix(new FSparseMatrixD(NumVerts, NumVerts));
+	LaplacianMatrix->setFromTriplets(MatrixTripelList.begin(), MatrixTripelList.end());
+
+	LaplacianMatrix->makeCompressed();
+
+	return LaplacianMatrix;
+
 }
 
 
@@ -852,6 +1579,7 @@ TUniquePtr<FSparseMatrixD> ConstructCotangentLaplacian(const FDynamicMesh3& Dyna
 	return LaplacianMatrix;
 
 }
+
 
 TUniquePtr<FSparseMatrixD> ConstructCotangentLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, const bool bClampWeights, TArray<int32>* BoundaryVerts)
 {
@@ -1013,11 +1741,6 @@ TUniquePtr<FSparseMatrixD> ConstructCotangentLaplacian(const FDynamicMesh3& Dyna
 }
 
 
-
-
-
-
-
 TUniquePtr<FSparseMatrixD> ConstructMeanValueWeightLaplacian(const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
 {
 
@@ -1129,6 +1852,7 @@ TUniquePtr<FSparseMatrixD> ConstructMeanValueWeightLaplacian(const FDynamicMesh3
 
 }
 
+
 TUniquePtr<FSparseMatrixD> ConstructLaplacian(const ELaplacianWeightScheme Scheme, const FDynamicMesh3& DynamicMesh, FVertexLinearization& VertexMap, TArray<int32>* BoundaryVerts)
 {
 
@@ -1161,4 +1885,3 @@ TUniquePtr<FSparseMatrixD> ConstructLaplacian(const ELaplacianWeightScheme Schem
 		break;
 	}
 }
-

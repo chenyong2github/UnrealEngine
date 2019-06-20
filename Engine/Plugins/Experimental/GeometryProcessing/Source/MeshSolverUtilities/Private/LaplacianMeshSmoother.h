@@ -21,13 +21,13 @@ public:
 	FConstrainedMeshOperator(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme Scheme, const EMatrixSolverType MatrixSolverType);
 	virtual ~FConstrainedMeshOperator() override {}
 
-	// Add constraint associated with given vertex id.
+	// Add constraint associated with given vertex id.  Boundary vertices will be ignored
 	void AddConstraint(const int32 VtxId, const double Weight, const FVector3d& Pos, const bool bPostFix) override;
 
-
+	// Update the position of an existing constraint.  Bool return if a corresponding constraint weight exists. Boundary vertices will be ignored (and return false).  
 	bool UpdateConstraintPosition(const int32 VtxId, const FVector3d& Position, const bool bPostFix) override;
 
-	// The underlying solver will have to refactor the matrix if this is done
+	// The underlying solver will have to refactor the matrix if this is done. Bool return if a corresponding constraint position exists. Boundary vertices will be ignored (and return false).  
 	bool UpdateConstraintWeight(const int32 VtxId, const double Weight) override;
 
 	// Clear all constraints associated with this smoother
@@ -38,7 +38,7 @@ public:
 	void ClearConstraintPositions() override { ConstraintPositionMap.Empty();  bConstraintPositionsDirty = true; }
 
 
-	// Test if for constraint associated with given vertex id.
+	// Test if for constraint associated with given vertex id. Will return false for any boundary vert.
 	bool IsConstrained(const int32 VtxId) const override;
 
 	
@@ -74,15 +74,14 @@ protected:
 	bool bConstraintPositionsDirty = true;
 	bool bConstraintWeightsDirty   = true;
 
-	// Cache the vertex count.
+	// Cache the vertex count. boundary + internal
 	int32                 VertexCount;
+
+	// Cache the number of internal vertices
+	int32                 InternalVertexCount;
 
 	// Used to map between VtxId and vertex Index in linear vector..
 	FVertexLinearization  VtxLinearization;
-
-	// I don't know if we want to keep this after the constructor
-	TUniquePtr<FSparseMatrixD>             Laplacian;
-	TArray<int32>                          EdgeVerts;
 
 	// Actual solver that manages the various linear algebra bits.
 	TUniquePtr<FConstrainedSolver>         ConstrainedSolver;
