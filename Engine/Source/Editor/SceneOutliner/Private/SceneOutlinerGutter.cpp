@@ -283,13 +283,17 @@ private:
 	{
 		if (IsVisible())
 		{
-			return IsHovered() ? FEditorStyle::GetBrush( "Level.VisibleHighlightIcon16x" ) :
-				FEditorStyle::GetBrush( "Level.VisibleIcon16x" );
+			static const FName NAME_VisibleHoveredBrush = TEXT("Level.VisibleHighlightIcon16x");
+			static const FName NAME_VisibleNotHoveredBrush = TEXT("Level.VisibleIcon16x");
+			return IsHovered() ? FEditorStyle::GetBrush(NAME_VisibleHoveredBrush) :
+				FEditorStyle::GetBrush(NAME_VisibleNotHoveredBrush);
 		}
 		else
 		{
-			return IsHovered() ? FEditorStyle::GetBrush( "Level.NotVisibleHighlightIcon16x" ) :
-				FEditorStyle::GetBrush( "Level.NotVisibleIcon16x" );
+			static const FName NAME_NotVisibleHoveredBrush = TEXT("Level.NotVisibleHighlightIcon16x");
+			static const FName NAME_NotVisibleNotHoveredBrush = TEXT("Level.NotVisibleIcon16x");
+			return IsHovered() ? FEditorStyle::GetBrush(NAME_NotVisibleHoveredBrush) :
+				FEditorStyle::GetBrush(NAME_NotVisibleNotHoveredBrush);
 		}
 	}
 
