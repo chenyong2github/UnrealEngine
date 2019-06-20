@@ -38,7 +38,7 @@ FIOSAudioSoundBuffer::FIOSAudioSoundBuffer(FIOSAudioDevice* InAudioDevice, USoun
 			return;
 		}
 
-		SoundFormat = static_cast<ESoundFormat>(*DecompressionState->WaveInfo.pFormatTag);
+		SoundFormat = static_cast<ESoundFormat>(DecompressionState->GetFormatTag());
 	}
     else
     {

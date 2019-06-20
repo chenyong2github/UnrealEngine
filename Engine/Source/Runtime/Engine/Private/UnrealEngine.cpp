@@ -1603,6 +1603,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Sounds"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSounds, &UEngine::ToggleStatSounds));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundCues"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundCues, &UEngine::ToggleStatSoundCues));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundMixes"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundMixes, &UEngine::ToggleStatSoundMixes));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AudioStreaming"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAudioStreaming, &UEngine::ToggleStatAudioStreaming));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulators"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundModulators, &UEngine::ToggleStatSoundModulators));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundModulatorsHelp"), TEXT("STATCAT_Engine"), FText::GetEmpty(), nullptr, &UEngine::PostStatSoundModulatorHelp));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_SoundReverb"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatSoundReverb, nullptr));
@@ -15514,6 +15515,12 @@ bool UEngine::ToggleStatSoundCues(UWorld* World, FCommonViewportClient* Viewport
 #endif // !ENABLE_AUDIO_DEBUG
 }
 
+bool UEngine::ToggleStatAudioStreaming(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream /*= nullptr*/)
+{
+	// Noop for now:
+	return true;
+}
+
 // SOUNDMIXES
 bool UEngine::ToggleStatSoundMixes(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 {
@@ -15552,6 +15559,12 @@ int32 UEngine::RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas*
 #else // !ENABLE_AUDIO_DEBUG
 	return Y;
 #endif // !ENABLE_AUDIO_DEBUG
+}
+
+// AUDIOSTREAMING
+int32 UEngine::RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation /*= nullptr*/, const FRotator* ViewRotation /*= nullptr*/)
+{
+	return IStreamingManager::Get().GetAudioStreamingManager().RenderStatAudioStreaming(World, Viewport, Canvas, X, Y, ViewLocation, ViewRotation);
 }
 
 // SOUNDCUES

@@ -58,6 +58,12 @@ enum class EFFTWindowType : uint8
 	Blackman
 };
 
+/** 
+* Called when a load request for a sound has completed.
+*/
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSoundLoadComplete, const class USoundWave*, LoadedSoundWave, const bool, WasCancelled);
+
+
 UCLASS(meta=(ScriptName="AudioMixerLibrary"))
 class AUDIOMIXER_API UAudioMixerBlueprintLibrary : public UBlueprintFunctionLibrary
 {
@@ -125,6 +131,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Effects", meta = (WorldContext = "WorldContextObject"))
 	static int32 GetNumberOfEntriesInSourceEffectChain(const UObject* WorldContextObject, USoundEffectSourcePresetChain* PresetChain);
 
+	/** Begin loading a sound into the cache so that it can be played immediately. */
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	static void PrimeSoundForPlayback(USoundWave* SoundWave, const FOnSoundLoadComplete OnLoadCompletion);
+
+	/** Trim memory used by the audio cache. Returns the number of megabytes freed. */
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	static float TrimAudioCache(float InMegabytesToFree);
 
 private:
 	static void PopulateSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, Audio::FSpectrumAnalyzerSettings &OutSettings);

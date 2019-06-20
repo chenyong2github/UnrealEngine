@@ -113,13 +113,13 @@ FOpusAudioInfo::~FOpusAudioInfo()
 
 bool FOpusAudioInfo::ParseHeader(const uint8* InSrcBufferData, uint32 InSrcBufferDataSize, struct FSoundQualityInfo* QualityInfo)
 {
-	SrcBufferData = InSrcBufferData;
-	SrcBufferDataSize = InSrcBufferDataSize;
 	SrcBufferOffset = 0;
 	CurrentSampleCount = 0;
 
+	check(InSrcBufferDataSize >= sizeof(OPUS_ID_STRING));
+
 	// Read Identifier, True Sample Count, Number of channels and Frames to Encode first
-	if (!SrcBufferData || FCStringAnsi::Strcmp((char*)SrcBufferData, OPUS_ID_STRING) != 0)
+	if (!InSrcBufferData || FMemory::Memcmp((char*)InSrcBufferData, OPUS_ID_STRING, sizeof(OPUS_ID_STRING) - 1) != 0)
 	{
 		return false;
 	}

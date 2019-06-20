@@ -39,6 +39,14 @@ FAutoConsoleVariableRef CVarBypassPlayWhenSilent(
 	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
 	ECVF_Default);
 
+static int32 LoadIntoCacheOnPostLoadCVar = 0;
+FAutoConsoleVariableRef CVarLoadIntoCacheOnPostLoad(
+	TEXT("au.streamcache.LoadIntoCacheOnPostLoad"),
+	LoadIntoCacheOnPostLoadCVar,
+	TEXT("When set to 1, immediately loads any sounds that are loaded into the cache on load.\n")
+	TEXT("0: Honor the Play When Silent flag, 1: stop all silent non-procedural sources."),
+	ECVF_Default);
+
 #if !UE_BUILD_SHIPPING
 static void DumpBakedAnalysisData(const TArray<FString>& Args)
 {
@@ -141,6 +149,8 @@ uint32 FStreamedAudioChunk::StoreInDerivedDataCache(const FString& InDerivedData
 	TArray<uint8> DerivedData;
 	FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 	Ar << BulkDataSizeInBytes;
+	Ar << AudioDataSize;
+
 	{
 		void* BulkChunkData = BulkData.Lock(LOCK_READ_ONLY);
 		Ar.Serialize(BulkChunkData, BulkDataSizeInBytes);
@@ -713,7 +723,7 @@ void USoundWave::PostLoad()
 		return;
 	}
 
-	// In case any code accesses bStreaming directly, we update it based on the current platform's cook overrides.
+	// In case any code accesses bStreaming directly, we fix up bStreaming based on the current platform's cook overrides.
 	bStreaming = IsStreaming();
 
 	// Compress to whatever formats the active target platforms want
@@ -728,6 +738,8 @@ void USoundWave::PostLoad()
 			BeginGetCompressedData(Platforms[Index]->GetWaveFormat(this), Platforms[Index]->GetAudioCompressionSettings());
 		}
 	}
+
+	
 
 	// We don't precache default objects and we don't precache in the Editor as the latter will
 	// most likely cause us to run out of memory.
@@ -755,6 +767,19 @@ void USoundWave::PostLoad()
 		IStreamingManager::Get().GetAudioStreamingManager().AddStreamingSoundWave(this);
 	}
 
+	if (ShouldUseStreamCaching() && IsStreaming())
+	{
+		EnsureZerothChunkIsLoaded();
+	}
+
+	const bool bShouldPrimeSound = LoadIntoCacheOnPostLoadCVar || bLoadCompressedAudioWhenSoundWaveIsLoaded;
+
+	if (bShouldPrimeSound && FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		// Load rest of the audio into cache.
+		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult) {});
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (!SourceFilePath_DEPRECATED.IsEmpty() && AssetImportData)
 	{
@@ -768,6 +793,78 @@ void USoundWave::PostLoad()
 
 	INC_FLOAT_STAT_BY( STAT_AudioBufferTime, Duration );
 	INC_FLOAT_STAT_BY( STAT_AudioBufferTimeChannels, NumChannels * Duration );
+}
+
+void USoundWave::EnsureZerothChunkIsLoaded()
+{
+	// If the zeroth chunk is already loaded, early exit.
+	if (ZerothChunkData.Num() > 0)
+	{
+		return;
+	}
+
+#if WITH_EDITOR 
+	if (RunningPlatformData == nullptr)
+	{
+		CachePlatformData(false);
+	}
+
+	// If we're running the editor, we'll need to retrieve the chunked audio from the DDC:
+	uint8* TempChunkBuffer = nullptr;
+	int32 ChunkSizeInBytes = RunningPlatformData->GetChunkFromDDC(0, &TempChunkBuffer, true);
+	// Since we block for the DDC in the previous call we should always have the chunk loaded.
+	check(ChunkSizeInBytes > 0);
+
+	// TODO: Support passing a TArray by ref into FStreamedAudioPlatformData::GetChunkFromDDC.
+	// Currently not feasible unless FUntypedBulkData::GetCopy API was changed.
+	// For now in editor, we have an extra allocated buffer in this scope.
+	ZerothChunkData.Reset();
+	ZerothChunkData.AddUninitialized(ChunkSizeInBytes);
+	FMemory::Memcpy(ZerothChunkData.GetData(), TempChunkBuffer, ChunkSizeInBytes);
+	FMemory::Free(TempChunkBuffer);
+#else // WITH_EDITOR
+	// Otherwise, the zeroth chunk is cooked out to RunningPlatformData, and we just need to retrieve it.
+	check(RunningPlatformData && RunningPlatformData->Chunks.Num() > 0);
+	FStreamedAudioChunk& ZerothChunk = RunningPlatformData->Chunks[0];
+	// Some sanity checks to ensure that the bulk size set up
+	check(ZerothChunk.BulkData.GetBulkDataSize() == ZerothChunk.DataSize && ZerothChunk.DataSize >= ZerothChunk.AudioDataSize);
+
+	ZerothChunkData.Reset();
+	ZerothChunkData.AddUninitialized(ZerothChunk.AudioDataSize);
+	uint8* Destination = ZerothChunkData.GetData();
+	ZerothChunk.BulkData.GetCopy((void**)&Destination, true);
+#endif // WITH_EDITOR
+}
+
+uint32 USoundWave::GetNumChunks() const
+{
+	if (RunningPlatformData)
+	{
+		return RunningPlatformData->Chunks.Num();
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+uint32 USoundWave::GetSizeOfChunk(uint32 ChunkIndex)
+{
+	check(ChunkIndex < GetNumChunks());
+
+	if (ChunkIndex == 0)
+	{
+		EnsureZerothChunkIsLoaded();
+		return ZerothChunkData.Num();
+	}
+	else if(RunningPlatformData)
+	{
+		return RunningPlatformData->Chunks[ChunkIndex].AudioDataSize;
+	}
+	else
+	{
+		return 0;
+	}
 }
 
 void USoundWave::BeginDestroy()
@@ -862,7 +959,7 @@ void USoundWave::RemoveAudioResource()
 	delete OwnedBulkDataPtr;
 	OwnedBulkDataPtr = nullptr;
 	ResourceData = nullptr;
-		ResourceSize = 0;
+	ResourceSize = 0;
 #endif
 }
 
@@ -1717,16 +1814,71 @@ float USoundWave::GetDuration()
 
 bool USoundWave::IsStreaming(const FPlatformAudioCookOverrides* Overrides /* = nullptr */) const
 {
-	// TODO: add in check on whether it's part of a streaming SoundGroup
+	// TODO: add in check on whether it's part of a streaming SoundGroup.
 	if (!Overrides)
 	{
 		Overrides = GetPlatformCompressionOverridesForCurrentPlatform();
 	}
 
-	return bStreaming
-		|| (Overrides != nullptr
-			&& Overrides->AutoStreamingThreshold > SMALL_NUMBER
-			&& Duration > Overrides->AutoStreamingThreshold);
+	// We stream if (A) bStreaming is set to true, (B) bForceInline is false and either bUseLoadOnDemand was set to true in
+	// our cook overrides, or the AutoStreamingThreshold was set and this sound is longer than the auto streaming threshold.
+	
+	if (bStreaming)
+	{
+		return true;
+	}
+	else if (bForceInline)
+	{
+		return false;
+	}
+	else if (bProcedural)
+	{
+		return false;
+	}
+	else if (Overrides)
+	{
+		// For stream caching, the auto streaming threshold is used to force sounds to be inlined:
+		const bool bUsesStreamCache = (Overrides->bUseStreamCaching && Duration > Overrides->AutoStreamingThreshold);
+		const bool bOverAutoStreamingThreshold = (Overrides->AutoStreamingThreshold > SMALL_NUMBER  && Duration > Overrides->AutoStreamingThreshold);
+
+		return bUsesStreamCache || bOverAutoStreamingThreshold;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool USoundWave::ShouldUseStreamCaching() const
+{
+	return  FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching() && IsStreaming();
+}
+
+TArrayView<const uint8> USoundWave::GetZerothChunk()
+{
+	if (ShouldUseStreamCaching())
+	{
+		// In editor, we actually don't have a zeroth chunk until we try to play an audio file.
+		if (GIsEditor)
+		{
+			EnsureZerothChunkIsLoaded();
+		}
+
+		check(ZerothChunkData.Num() > 0);
+
+		if (GetNumChunks() > 1)
+		{
+			// Prime first chunk for playback.
+			IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(this, 1, [](EAudioChunkLoadResult InResult) {});
+		}
+
+		return TArrayView<const uint8>(ZerothChunkData);
+	}
+	else
+	{
+		FAudioChunkHandle ChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(this, 0);
+		return TArrayView<const uint8>(ChunkHandle.GetData(), ChunkHandle.Num());
+	}
 }
 
 bool USoundWave::IsSeekableStreaming() const
@@ -1826,14 +1978,14 @@ float USoundWave::GetSampleRateForCompressionOverrides(const FPlatformAudioCookO
 
 bool USoundWave::GetChunkData(int32 ChunkIndex, uint8** OutChunkData, bool bMakeSureChunkIsLoaded /* = false */)
 {
-	if (RunningPlatformData->TryLoadChunk(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == false)
+	if (RunningPlatformData->GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
 	{
 #if WITH_EDITORONLY_DATA
 		// Unable to load chunks from the cache. Rebuild the sound and attempt to recache it.
 		UE_LOG(LogAudio, Display, TEXT("GetChunkData failed, rebuilding %s"), *GetPathName());
 
 		ForceRebuildPlatformData();
-		if (RunningPlatformData->TryLoadChunk(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == false)
+		if (RunningPlatformData->GetChunkFromDDC(ChunkIndex, OutChunkData, bMakeSureChunkIsLoaded) == 0)
 		{
 			UE_LOG(LogAudio, Display, TEXT("Failed to build sound %s."), *GetPathName());
 		}

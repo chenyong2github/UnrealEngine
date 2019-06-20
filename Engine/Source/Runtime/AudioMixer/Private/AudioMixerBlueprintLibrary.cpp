@@ -6,7 +6,9 @@
 #include "AudioMixerDevice.h"
 #include "CoreMinimal.h"
 #include "DSP/SpectrumAnalyzer.h"
-
+#include "ContentStreaming.h"
+#include "AudioCompressionSettingsUtils.h"
+#include "Async/Async.h"
 
 // This is our global recording task:
 static TUniquePtr<Audio::FAudioRecordingData> RecordingData;
@@ -345,6 +347,43 @@ int32 UAudioMixerBlueprintLibrary::GetNumberOfEntriesInSourceEffectChain(const U
 	}
 
 	return 0;
+}
+
+void UAudioMixerBlueprintLibrary::PrimeSoundForPlayback(USoundWave* SoundWave, const FOnSoundLoadComplete OnLoadCompletion)
+{
+	if (!SoundWave)
+	{
+		UE_LOG(LogAudioMixer, Warning, TEXT("Prime Sound For Playback called with a null SoundWave pointer."));
+	}
+	else if (!FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching())
+	{
+		UE_LOG(LogAudioMixer, Warning, TEXT("Prime Sound For Playback doesn't do anything unless Audio Load On Demand is enabled."));
+		
+		OnLoadCompletion.ExecuteIfBound(SoundWave, false);
+	}
+	else
+	{
+		IStreamingManager::Get().GetAudioStreamingManager().RequestChunk(SoundWave, 1, [OnLoadCompletion, SoundWave](EAudioChunkLoadResult InResult) 
+		{
+			AsyncTask(ENamedThreads::GameThread, [OnLoadCompletion, SoundWave, InResult]() {
+				if (InResult == EAudioChunkLoadResult::Completed || InResult == EAudioChunkLoadResult::AlreadyLoaded)
+				{
+					OnLoadCompletion.ExecuteIfBound(SoundWave, false);
+				}
+				else
+				{
+					OnLoadCompletion.ExecuteIfBound(SoundWave, true);
+				}
+			});
+		});
+	}
+}
+
+float UAudioMixerBlueprintLibrary::TrimAudioCache(float InMegabytesToFree)
+{
+	uint64 NumBytesToFree = (uint64) (((double)InMegabytesToFree) * 1024.0 * 1024.0);
+	uint64 NumBytesFreed = IStreamingManager::Get().GetAudioStreamingManager().TrimMemory(NumBytesToFree);
+	return (float)(((double) NumBytesFreed / 1024) / 1024.0);
 }
 
 void UAudioMixerBlueprintLibrary::PopulateSpectrumAnalyzerSettings(EFFTSize FFTSize, EFFTPeakInterpolationMethod InterpolationMethod, EFFTWindowType WindowType, float HopSize, Audio::FSpectrumAnalyzerSettings &OutSettings)
