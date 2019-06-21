@@ -15,7 +15,6 @@ namespace FAndroidAppEntry
 	// if the native window handle has changed then the new handle is required.
 	void ReInitWindow(void* NewNativeWindowHandle = nullptr);
 
-	void DestroyWindow();
 	void ReleaseEGL();
 	void OnPauseEvent();
 }

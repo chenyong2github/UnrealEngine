@@ -236,7 +236,7 @@ void PlatformSharedContextSetup(FPlatformOpenGLDevice* Device)
 
 void PlatformNULLContextSetup()
 {
-	AndroidEGL::GetInstance()->SetCurrentContext(EGL_NO_CONTEXT, EGL_NO_SURFACE);
+	AndroidEGL::GetInstance()->ReleaseContextOwnership();
 }
 
 EOpenGLCurrentContext PlatformOpenGLCurrentContext(FPlatformOpenGLDevice* Device)
@@ -457,7 +457,7 @@ void PlatformDestroyOpenGLDevice(FPlatformOpenGLDevice* Device)
 
 void FPlatformOpenGLDevice::SetCurrentRenderingContext()
 {
-	AndroidEGL::GetInstance()->SetCurrentRenderingContext();
+	AndroidEGL::GetInstance()->AcquireCurrentRenderingContext();
 }
 
 void PlatformLabelObjects()
