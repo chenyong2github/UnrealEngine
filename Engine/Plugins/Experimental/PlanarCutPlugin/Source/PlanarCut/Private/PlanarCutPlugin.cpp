@@ -6,6 +6,7 @@
 #include "Modules/ModuleManager.h"
 
 
+DEFINE_LOG_CATEGORY(LogPlanarCut);
 
 
 class FPlanarCutPlugin : public IPlanarCutPlugin
