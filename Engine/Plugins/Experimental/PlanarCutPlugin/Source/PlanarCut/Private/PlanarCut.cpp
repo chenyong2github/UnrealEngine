@@ -1,5 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "PlanarCut.h"
+#include "PlanarCutPlugin.h"
 
 #include "Async/ParallelFor.h"
 #include "Spatial/FastWinding.h"
@@ -2110,7 +2111,7 @@ int32 CutMultipleWithPlanarCells(
 		if (Source.Children[ParentTransformIndex].Num())
 		{
 			// don't fracture an already-fractured geometry
-			ensureMsgf(false, TEXT("Skipping cut of a non-leaf geometry, as this would would create intersecting / duplicate geometry"));
+			UE_LOG(LogPlanarCut, Warning, TEXT("Skipping cut of a non-leaf geometry, as this would would create intersecting / duplicate geometry"));
 			continue;
 		}
 		int32 TriangleStart = Source.FaceStart[GeometryIdx];
