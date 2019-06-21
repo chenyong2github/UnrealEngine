@@ -73,6 +73,7 @@ public:
 	// Fracture Command Callback
 	FReply OnFractureClicked();
 	bool CanExecuteFracture() const;
+	bool IsLeafBoneSelected() const;
 
 	static ULevel* GetSelectedLevel();
  	static AActor* AddActor(ULevel* InLevel, UClass* Class);
