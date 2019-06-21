@@ -280,6 +280,8 @@ bool FVivoxVoiceChat::Uninitialize()
 	if (IsInitialized())
 	{
 		VivoxClientConnection.Uninitialize();
+		ConnectionState = EConnectionState::Disconnected;
+		LoginSession = FLoginSession();
 		bInitialized = false;
 	}
 
@@ -289,6 +291,15 @@ bool FVivoxVoiceChat::Uninitialize()
 bool FVivoxVoiceChat::IsInitialized() const
 {
 	return bInitialized;
+}
+
+void FVivoxVoiceChat::SetSetting(const FString& Name, const FString& Value)
+{
+}
+
+FString FVivoxVoiceChat::GetSetting(const FString& Name)
+{
+	return FString();
 }
 
 void FVivoxVoiceChat::SetAudioInputVolume(float InVolume)
