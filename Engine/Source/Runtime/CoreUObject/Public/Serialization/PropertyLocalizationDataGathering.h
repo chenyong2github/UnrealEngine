@@ -165,7 +165,7 @@ private:
 	const UPackage* Package;
 	FString PackageNamespace;
 	EPropertyLocalizationGathererResultFlags& ResultFlags;
-	TMap<const UStruct*, FGatherableFieldsForType> GatherableFieldsForTypes;
+	TMap<const UStruct*, TUniquePtr<FGatherableFieldsForType>> GatherableFieldsForTypes;
 	TSet<const UObject*> AllObjectsInPackage;
 	TSet<FObjectAndGatherFlags> ProcessedObjects;
 	TSet<FObjectAndGatherFlags> BytecodePendingGather;
