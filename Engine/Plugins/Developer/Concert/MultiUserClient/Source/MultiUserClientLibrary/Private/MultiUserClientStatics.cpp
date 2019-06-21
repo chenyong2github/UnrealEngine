@@ -121,7 +121,7 @@ void UMultiUserClientStatics::JumpToMultiUserPresence(const FString& OtherUserNa
 				}
 			}
 
-			if (OtherClientId.IsValid())
+			if (OtherClientId.IsValid() && ConcertSyncClient->GetPresenceManager())
 			{
 				ConcertSyncClient->GetPresenceManager()->InitiateJumpToPresence(OtherClientId, TransformOffset);
 			}
