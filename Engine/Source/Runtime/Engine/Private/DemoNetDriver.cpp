@@ -5824,7 +5824,14 @@ void UDemoNetConnection::HandleClientPlayer(APlayerController* PC, UNetConnectio
 
 	int32 SavedNetSpeed = LocalPlayer ? LocalPlayer->CurrentNetSpeed : 0;
 
-	Super::HandleClientPlayer(PC, NetConnection);
+	if (LocalPlayer != nullptr)
+	{
+		Super::HandleClientPlayer(PC, NetConnection);
+	}
+	else
+	{
+		DemoDriver->RestoreConnectionPostScrub(PC, NetConnection);
+	}
 	
 	// Restore the netspeed if we're a local replay
 	if (DemoDriver->bIsLocalReplay && LocalPlayer)
