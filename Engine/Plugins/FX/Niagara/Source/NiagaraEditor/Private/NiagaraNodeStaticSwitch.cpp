@@ -12,6 +12,12 @@ UNiagaraNodeStaticSwitch::UNiagaraNodeStaticSwitch(const FObjectInitializer& Obj
 {
 }
 
+void UNiagaraNodeStaticSwitch::DestroyNode()
+{
+	GetNiagaraGraph()->RemoveParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
+	Super::DestroyNode();
+}
+
 FNiagaraTypeDefinition UNiagaraNodeStaticSwitch::GetInputType() const
 {
 	if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Bool)
@@ -33,13 +39,16 @@ void UNiagaraNodeStaticSwitch::ChangeSwitchParameterName(const FName& NewName)
 {
 	FNiagaraVariable OldValue(GetInputType(), InputParameterName);
 	InputParameterName = NewName;
+	GetNiagaraGraph()->RenameParameter(OldValue, NewName, true);
 	VisualsChangedDelegate.Broadcast(this);
 	RemoveUnusedGraphParameter(OldValue);	
 }
 
 void UNiagaraNodeStaticSwitch::OnSwitchParameterTypeChanged(const FNiagaraTypeDefinition& OldType)
 {
-	RefreshFromExternalChanges();
+	TOptional<FNiagaraVariableMetaData> OldMetaData = GetNiagaraGraph()->GetMetaData(FNiagaraVariable(OldType, InputParameterName));
+	RefreshFromExternalChanges(); // Magick happens here: The old pins are destroyed and new ones are created.
+	GetNiagaraGraph()->SetMetaData(FNiagaraVariable(GetInputType(), InputParameterName), OldMetaData.GetValue());
 	VisualsChangedDelegate.Broadcast(this);
 	RemoveUnusedGraphParameter(FNiagaraVariable(OldType, InputParameterName));
 }
@@ -92,7 +101,7 @@ void UNiagaraNodeStaticSwitch::RemoveUnusedGraphParameter(const FNiagaraVariable
 	int Index = GraphVariables.Find(OldParameter);
 	if (Index == INDEX_NONE)
 	{
-		GetNiagaraGraph()->RemoveParameter(OldParameter);
+		GetNiagaraGraph()->RemoveParameter(OldParameter, true);
 	}
 	else
 	{
@@ -120,6 +129,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 			FEdGraphPinType PinType = Schema->TypeDefinitionToPinType(Var.GetType());
 			CreatePin(EGPD_Input, PinType, *(Var.GetName().ToString() + TEXT(" if false")));
 		}
+		GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Integer)
 	{
@@ -132,6 +142,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 				CreatePin(EGPD_Input, PinType, *(Var.GetName().ToString() + TEXT(" if ") + FString::FromInt(i)));
 			}
 		}
+		GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
 	}
 	else if (SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
 	{
@@ -145,6 +156,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 				CreatePin(EGPD_Input, PinType, *(Var.GetName().ToString() + TEXT(" if ") + EnumName.ToString()));
 			}
 		}
+		GetNiagaraGraph()->AddParameter(FNiagaraVariable(GetInputType(), InputParameterName), true);
 	}
 	
 
@@ -158,7 +170,7 @@ void UNiagaraNodeStaticSwitch::AllocateDefaultPins()
 
 	CreateAddPin(EGPD_Output);
 
-	// force the graph to refresh the metadata
+	// force the graph to refresh the metadata 
 	GetNiagaraGraph()->GetParameterReferenceMap();
 }
 

@@ -14,6 +14,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "SNiagaraParameterMapView.h"
 #include "Framework/Application/SlateApplication.h"
+#include "NiagaraNodeParameterMapBase.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeWithDynamicPins"
 
@@ -255,7 +256,27 @@ void UNiagaraNodeWithDynamicPins::CollectAddPinActions(FGraphActionListBuilderBa
 void UNiagaraNodeWithDynamicPins::AddParameter(FNiagaraVariable Parameter, UEdGraphPin* AddPin)
 {
 	FScopedTransaction AddNewPinTransaction(LOCTEXT("AddNewPinTransaction", "Add pin to node"));
-	this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
+	{
+		// We need to create new UNiagaraScriptVariable instances only when creating a new variable
+		if (UNiagaraNodeParameterMapBase* Map = Cast<UNiagaraNodeParameterMapBase>(this))
+		{
+			if (UNiagaraGraph* Graph = GetNiagaraGraph())
+			{	
+				UNiagaraScriptVariable* Variable = Graph->GetScriptVariable(Parameter);
+				if (Variable == nullptr)
+				{
+					TSet<FName> Names;
+					for (const auto& ParameterElement : Graph->GetParameterReferenceMap())
+					{
+						Names.Add(ParameterElement.Key.GetName());
+					}
+					Parameter.SetName(FNiagaraUtilities::GetUniqueName(Parameter.GetName(), Names));
+					Graph->AddParameter(Parameter);
+				}
+			}
+		}
+	}
+	UEdGraphPin* Pin = this->RequestNewTypedPin(AddPin->Direction, Parameter.GetType(), Parameter.GetName());
 }
 
 void UNiagaraNodeWithDynamicPins::RemoveDynamicPin(UEdGraphPin* Pin)

@@ -345,22 +345,24 @@ public:
 	bool bInlineEditConditionToggle;
 
 	/** Declares the associated input should be conditionally editable based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Input Conditions")
 	FNiagaraInputConditionMetadata EditCondition;
 
 	/** Declares the associated input should be conditionally visible based on the value of another input. */
-	UPROPERTY(EditAnywhere, Category = "Input Conditions", meta = (EditCondition = "!bIsStaticSwitch"))
+	UPROPERTY(EditAnywhere, Category = "Input Conditions")
 	FNiagaraInputConditionMetadata VisibleCondition;
 
 	UPROPERTY(EditAnywhere, Category = "Variable", DisplayName = "Property Metadata", meta = (ToolTip = "Property Metadata"))
 	TMap<FName, FString> PropertyMetaData;
-
-	UPROPERTY(AdvancedDisplay, VisibleAnywhere, Category = "Variable", meta = (ToolTip = "This is a read-only variable that designates if the metadata is tied to a static switch or not."))
-	bool bIsStaticSwitch;
+	
+	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
+	UPROPERTY()
+	bool bIsStaticSwitch; // TODO: This should be moved to the UNiagaraScriptVariable in the future
 
 	/** The default value to use when creating new pins or stack entries for a static switch parameter */
 	UPROPERTY()
-	int32 StaticSwitchDefaultValue;
+	int32 StaticSwitchDefaultValue; // TODO: This should be moved to the UNiagaraScriptVariable in the future
+
 };
 
 USTRUCT()
