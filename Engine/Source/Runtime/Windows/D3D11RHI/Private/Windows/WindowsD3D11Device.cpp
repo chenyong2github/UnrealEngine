@@ -1630,7 +1630,32 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #endif //NVAPI_INTERFACE
 
 		CACHE_NV_AFTERMATH_ENABLED();
-		
+
+#if PLATFORM_WINDOWS
+		IUnknown* RenderDoc;
+		IID RenderDocID;
+		if (SUCCEEDED(IIDFromString(L"{A7AA6116-9C8D-4BBA-9083-B4D816B71B78}", &RenderDocID)))
+		{
+			if (SUCCEEDED(Direct3DDevice->QueryInterface(RenderDocID, (void**)(&RenderDoc))))
+			{
+				bRenderDoc = true;
+
+				// Running under RenderDoc, so enable capturing mode
+				GDynamicRHI->EnableIdealGPUCaptureOptions(true);
+			}
+		}
+
+		IUnknown* IntelGPA;
+		static const IID IntelGPAID = { 0xCCFFEF16, 0x7B69, 0x468F, {0xBC, 0xE3, 0xCD, 0x95, 0x33, 0x69, 0xA3, 0x9A} };
+
+		if (SUCCEEDED(Direct3DDevice->QueryInterface(IntelGPAID, (void**)(&IntelGPA))))
+		{
+			// Running under Intel GPA, so enable capturing mode
+			GDynamicRHI->EnableIdealGPUCaptureOptions(true);
+		}
+#endif
+
+
 #if WITH_SLI
 
 		GNumAlternateFrameRenderingGroups = 1;

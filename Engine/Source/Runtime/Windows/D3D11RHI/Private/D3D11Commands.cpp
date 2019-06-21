@@ -1960,8 +1960,8 @@ static bool GOverlapUAVOBegin = false;
 static bool IsUAVOverlapSupported()
 {
 	if (!GAllowUAVFlushExt ||
-		!IsRHIDeviceNVIDIA() ||
-		!IsRHIDeviceAMD())
+		(!IsRHIDeviceNVIDIA() &&
+		!IsRHIDeviceAMD()))
 	{
 		return false;
 	}
