@@ -369,46 +369,6 @@ inline void DecodeRenderTargetMode(ESimpleRenderTargetMode Mode, ERenderTargetLo
 	}
 }
 
-UE_DEPRECATED(4.22, "TransitionSetRenderTargetsHelper API is deprecated; please use RHITransitionResources directly instead.")
-inline void TransitionSetRenderTargetsHelper(FRHICommandList& RHICmdList, FRHITexture* NewRenderTarget, FRHITexture* NewDepthStencilTarget, FExclusiveDepthStencil DepthStencilAccess)
-{
-	int32 TransitionIndex = 0;
-	FRHITexture* Transitions[2];
-	if (NewRenderTarget)
-	{
-		Transitions[TransitionIndex] = NewRenderTarget;
-		++TransitionIndex;
-	}
-	if (NewDepthStencilTarget && DepthStencilAccess.IsDepthWrite())
-	{
-		Transitions[TransitionIndex] = NewDepthStencilTarget;
-		++TransitionIndex;
-	}
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
-}
-
-UE_DEPRECATED(4.22, "TransitionSetRenderTargetsHelper API is deprecated; please use RHITransitionResources directly instead.")
-inline void TransitionSetRenderTargetsHelper(FRHICommandList& RHICmdList, uint32 NumRenderTargets, FRHITexture* const* NewRenderTargetsRHI, FRHITexture* NewDepthStencilTargetRHI, FExclusiveDepthStencil DepthStencilAccess)
-{
-	FRHITexture* Transitions[MaxSimultaneousRenderTargets + 1];
-	int32 TransitionIndex = 0;
-	for (uint32 Index = 0; Index < NumRenderTargets; Index++)
-	{
-		if (NewRenderTargetsRHI[Index])
-		{
-			Transitions[TransitionIndex] = NewRenderTargetsRHI[Index];
-			++TransitionIndex;
-		}
-	}
-
-	if (NewDepthStencilTargetRHI && DepthStencilAccess.IsDepthWrite())
-	{
-		Transitions[TransitionIndex] = NewDepthStencilTargetRHI;
-		++TransitionIndex;
-	}	
-	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
-}
-
 inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIRenderPassInfo& RPInfo)
 {
 	FRHITexture* Transitions[MaxSimultaneousRenderTargets + 1];
@@ -432,58 +392,6 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	}
 
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
-}
-
-/** Helper for the common case of using a single color and depth render target. */
-UE_DEPRECATED(4.22, "SetRenderTarget API is deprecated; please use RHIBegin/EndRenderPass instead.")
-inline void SetRenderTarget(FRHICommandList& RHICmdList, FRHITexture* NewRenderTarget, FRHITexture* NewDepthStencilTarget, bool bWritableBarrier = false)
-{
-	FRHIRenderTargetView RTV(NewRenderTarget, ERenderTargetLoadAction::ELoad);
-	FRHIDepthRenderTargetView DepthRTV(NewDepthStencilTarget, ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore);
-
-	//make these rendertargets safely writable
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (bWritableBarrier)
-	{
-		TransitionSetRenderTargetsHelper(RHICmdList, NewRenderTarget, NewDepthStencilTarget, FExclusiveDepthStencil::DepthWrite_StencilWrite);
-	}
-	RHICmdList.SetRenderTargets(1, &RTV, &DepthRTV, 0, NULL);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-/** Helper that converts FRHITexture*'s into FRHIRenderTargetView's. */
-UE_DEPRECATED(4.22, "SetRenderTargets API is deprecated; please use RHIBegin/EndRenderPass instead.")
-inline void SetRenderTargets(
-	FRHICommandList& RHICmdList,
-	uint32 NewNumSimultaneousRenderTargets,
-	FRHITexture* const* NewRenderTargetsRHI,
-	FRHITexture* NewDepthStencilTargetRHI,
-	ESimpleRenderTargetMode Mode,
-	FExclusiveDepthStencil DepthStencilAccess,
-	bool bWritableBarrier = false
-	)
-{
-	ERenderTargetLoadAction ColorLoadAction, DepthLoadAction, StencilLoadAction;
-	ERenderTargetStoreAction ColorStoreAction, DepthStoreAction, StencilStoreAction;
-	DecodeRenderTargetMode(Mode, ColorLoadAction, ColorStoreAction, DepthLoadAction, DepthStoreAction, StencilLoadAction, StencilStoreAction, DepthStencilAccess);
-
-	FRHIRenderTargetView RTVs[MaxSimultaneousRenderTargets];
-		
-	for (uint32 Index = 0; Index < NewNumSimultaneousRenderTargets; Index++)
-	{
-		RTVs[Index] = FRHIRenderTargetView(NewRenderTargetsRHI[Index], 0, -1, ColorLoadAction, ColorStoreAction);	
-	}
-
-	//make these rendertargets safely writable
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (bWritableBarrier)
-	{
-		TransitionSetRenderTargetsHelper(RHICmdList, NewNumSimultaneousRenderTargets, NewRenderTargetsRHI, NewDepthStencilTargetRHI, DepthStencilAccess);
-	}
-
-	FRHIDepthRenderTargetView DepthRTV(NewDepthStencilTargetRHI, DepthLoadAction, DepthStoreAction, StencilLoadAction, StencilStoreAction, DepthStencilAccess);
-	RHICmdList.SetRenderTargets(NewNumSimultaneousRenderTargets, RTVs, &DepthRTV, 0, nullptr);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 // Will soon be deprecated as well...
