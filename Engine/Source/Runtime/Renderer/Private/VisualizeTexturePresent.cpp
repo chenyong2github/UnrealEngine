@@ -381,7 +381,7 @@ void FVisualizeTexturePresent::PresentContent(FRHICommandListImmediate& RHICmdLi
 		{
 			FRDGBuilder GraphBuilder(RHICmdList);
 
-			TRefCountPtr<IPooledRenderTarget> ElementRefCount;
+			TRefCountPtr<IPooledRenderTarget> ElementRefCount = Element;
 
 			GVisualizeTexture.CreateContentCapturePass(GraphBuilder, GraphBuilder.RegisterExternalTexture(ElementRefCount));
 			GraphBuilder.Execute();
