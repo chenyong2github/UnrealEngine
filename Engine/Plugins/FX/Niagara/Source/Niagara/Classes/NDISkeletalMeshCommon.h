@@ -325,7 +325,6 @@ struct TAreaWeightingModeBinder
 		else
 		{
 			int32 LODIndex = InstData->GetLODIndex();
-			check(InstData->Mesh->GetLODInfo(LODIndex)->bAllowCPUAccess);
 			bAreaWeighting = InstData->Mesh->GetLODInfo(LODIndex)->bSupportUniformlyDistributedSampling;
 		}
 
