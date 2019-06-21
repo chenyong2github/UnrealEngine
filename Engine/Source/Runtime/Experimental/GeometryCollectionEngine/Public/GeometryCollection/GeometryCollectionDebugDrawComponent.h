@@ -235,8 +235,8 @@ public:
 #endif
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-	/** Update selection and visibility after any change in properties. Also enable/disable this component tick update. */
-	void OnDebugDrawPropertiesChanged(bool bForceVisibilityUpdate);
+	/** Update selection and visibility after any change in properties. Also enable/disable this component tick update. Return true if this geometry collection is selected. */
+	bool OnDebugDrawPropertiesChanged(bool bForceVisibilityUpdate);
 
 	/** Update selection and visibility after a change in cluster. Only handled when the debug drawing is active (the component is ticking). */
 	void OnClusterChanged();

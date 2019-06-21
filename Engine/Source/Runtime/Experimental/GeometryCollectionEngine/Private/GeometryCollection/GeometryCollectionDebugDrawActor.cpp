@@ -362,7 +362,11 @@ void AGeometryCollectionDebugDrawActor::OnPropertyChanged(bool bForceVisibilityU
 		if (GeometryCollectionDebugDrawComponent)
 		{
 			check(GeometryCollectionDebugDrawComponent->GeometryCollectionDebugDrawActor == this);
-			GeometryCollectionDebugDrawComponent->OnDebugDrawPropertiesChanged(bForceVisibilityUpdate);
+			const bool bIsSelected = GeometryCollectionDebugDrawComponent->OnDebugDrawPropertiesChanged(bForceVisibilityUpdate);
+			if (bIsSelected)
+			{
+				SelectedRigidBody.GeometryCollectionActor = *ActorIterator;
+			}
 		}
 	}
 #endif

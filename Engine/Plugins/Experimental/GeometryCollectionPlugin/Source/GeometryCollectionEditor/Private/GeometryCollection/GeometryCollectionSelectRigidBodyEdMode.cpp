@@ -91,21 +91,23 @@ void FGeometryCollectionSelectRigidBodyEdMode::DeactivateMode()
 	}
 }
 
-bool FGeometryCollectionSelectRigidBodyEdMode::MouseMove(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
+void FGeometryCollectionSelectRigidBodyEdMode::Tick(FEditorViewportClient* /*ViewportClient*/, float /*DeltaTime*/)
 {
-	if (!GEditor || !GEditor->PlayWorld)
+	if (!GEditor || !GEditor->PlayWorld || !GEditor->bIsSimulatingInEditor)
 	{
-		// Left play world
+		// Left simulating in editor
 		bIsHoveringGeometryCollection = false;
 		DeactivateMode();
 	}
+}
+
+bool FGeometryCollectionSelectRigidBodyEdMode::MouseMove(FEditorViewportClient* /*ViewportClient*/, FViewport* Viewport, int32 x, int32 y)
+{
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
-	else
-	{
-		// Hover status
-		const HHitProxy* const HitProxy = Viewport->GetHitProxy(x, y);
-		bIsHoveringGeometryCollection = HitProxy && HitProxy->IsA(HGeometryCollection::StaticGetType());
-	}
+	// Hover status
+	const HHitProxy* const HitProxy = Viewport->GetHitProxy(x, y);
+	bIsHoveringGeometryCollection = HitProxy && HitProxy->IsA(HGeometryCollection::StaticGetType());
+	UE_CLOG(bIsHoveringGeometryCollection, LogGeometryCollectionSelectRigidBodyEdMode, VeryVerbose, TEXT("Hovering GeometryCollectionActor %s, Transform Index %d."), *static_cast<const HGeometryCollection*>(HitProxy)->Actor->GetName(), static_cast<const HGeometryCollection*>(HitProxy)->TransformIndex);
 #endif // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	return true;
 }
