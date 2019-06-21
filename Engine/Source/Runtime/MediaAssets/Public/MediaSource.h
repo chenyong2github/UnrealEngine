@@ -83,7 +83,7 @@ private:
 	 * Get the media option specified by the Key as a Variant.
 	 * Returns nullptr if the Key does not exist.
 	 */
-	const FVariant* GetMediaOption(const FName& Key) const;
+	const FVariant* GetMediaOptionDefault(const FName& Key) const;
 
 	/**
 	 * Sets the media option specified by Key to the supplied Variant.
