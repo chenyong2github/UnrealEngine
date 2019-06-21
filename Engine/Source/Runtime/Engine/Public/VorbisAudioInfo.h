@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeBool.h"
 #include "AudioDecompress.h"
+#include "ContentStreaming.h"
 
 /**
  * Whether to use OggVorbis audio format.
@@ -46,7 +47,8 @@ public:
 
 	/** Emulate read from streaming functionality */
 	size_t			ReadStreaming( void *ptr, uint32 size );
-	int				CloseStreaming( void );
+
+	int				CloseStreaming(void);
 
 	/** Common info and data functions between ReadCompressedInfo/ReadCompressedData and StreamCompressedInfo/StreamCompressedData */
 	/** Can't use ov_callbacks here so we have to pass in a void* for the callbacks instead */
@@ -93,13 +95,27 @@ public:
 	virtual bool SupportsStreaming() const override {return true;}
 	virtual bool StreamCompressedData(uint8* InDestination, bool bLooping, uint32 BufferSize) override;
 	virtual int32 GetCurrentChunkIndex() const override {return CurrentStreamingChunkIndex;}
-	virtual int32 GetCurrentChunkOffset() const override {return BufferOffset % CurrentStreamingChunksSize;}
+
+	virtual int32 GetCurrentChunkOffset() const override
+	{
+		const uint32 ChunkSize = StreamingSoundWave ? StreamingSoundWave->GetSizeOfChunk(CurrentStreamingChunkIndex) : 0;
+		if (ChunkSize)
+		{
+			return CurrentBufferChunkOffset % ChunkSize;
+		}
+		else
+		{
+			return 0;
+		}
+	}
 	// End of ICompressedAudioInfo Interface
 
 protected:
 	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) override;
 
 private:
+
+	void GetChunkPtr(const uint8*& OutPtr, uint32& OutSize);
 
 	struct FVorbisFileWrapper* VFWrapper;
 	const uint8* SrcBufferData;
@@ -110,10 +126,10 @@ private:
 	/** Critical section used to prevent multiple threads accessing same ogg-vorbis file handles at the same time */
 	FCriticalSection VorbisCriticalSection;
 
-	uint8 const* CurrentStreamingChunkData;
+	FAudioChunkHandle CurrentStreamingChunkHandle;
 	int32 CurrentStreamingChunkIndex;
+	int32 TotalNumChunks;
 	int32 NextStreamingChunkIndex;
-	uint32 CurrentStreamingChunksSize;
 	bool bHeaderParsed;
 };
 #endif

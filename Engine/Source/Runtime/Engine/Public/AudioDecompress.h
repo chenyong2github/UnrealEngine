@@ -12,6 +12,7 @@
 #include "Sound/SoundWave.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "ContentStreaming.h"
 
 // 186ms of 44.1KHz data
 // 372ms of 22KHz data
@@ -178,7 +179,7 @@ public:
 	ENGINE_API virtual void SeekToTime(const float SeekTime) override {};
 	ENGINE_API virtual void ExpandFile(uint8* DstBuffer, struct FSoundQualityInfo* QualityInfo) override;
 	ENGINE_API virtual void EnableHalfRate(bool HalfRate) override {};
-	virtual uint32 GetSourceBufferSize() const override { return SrcBufferDataSize; }
+	virtual uint32 GetSourceBufferSize() const override { return SrcBufferHandle.Num(); }
 	virtual bool UsesVorbisChannelOrdering() const override { return false; }
 	virtual int GetStreamBufferSize() const override { return  MONO_PCM_BUFFER_SIZE; }
 	virtual bool SupportsStreaming() const override { return true; }
@@ -245,16 +246,20 @@ protected:
 	*/
 	uint32	ZeroBuffer(uint8* Destination, uint32 BufferSize);
 
+	// this returns a pointer to the current chunk and the size of the audio in streaming situations,
+	// or a pointer to the entire audio buffer for non-streaming situations.
+	void GetChunkPtr(const uint8*& OutPtr, uint32& OutSize);
+
 	/** bool set before ParseHeader. Whether we are streaming a file or not. */
 	bool bIsStreaming;
 	/** Ptr to the current streamed chunk. */
-	const uint8* SrcBufferData;
-	/** Size of the current streamed chunk. */
-	uint32 SrcBufferDataSize;
+	FAudioChunkHandle SrcBufferHandle;
 	/** What byte we're currently reading in the streamed chunk. */
 	uint32 SrcBufferOffset;
 	/** Where the actual audio data starts in the current streamed chunk. Accounts for header offset. */
 	uint32 AudioDataOffset;
+	/** The chunk index where the audio data begins. */
+	uint32 AudioDataOffsetChunkIndex;
 	/** Sample rate of the source file */
 	uint16 SampleRate;
 	/** The total sample count of the source file. */
@@ -281,6 +286,9 @@ protected:
 	bool bPrintChunkFailMessage;
 	/** Number of bytes of padding used, overridden in some implementations. Defaults to 0. */
 	uint32 SrcBufferPadding;
+
+	const uint8* NonStreamingAudio;
+	uint32 NonStreamingAudioSize;
 };
 
 
@@ -483,6 +491,11 @@ public:
 	void EnsureCompletion(bool bDoWorkOnThisThreadIfNotStarted = true)
 	{
 		FScopeLock Lock(&CritSect);
+
+		if (!bDoWorkOnThisThreadIfNotStarted)
+		{
+			Task->Cancel();
+		}
 		Task->EnsureCompletion(bDoWorkOnThisThreadIfNotStarted);
 	}
 
