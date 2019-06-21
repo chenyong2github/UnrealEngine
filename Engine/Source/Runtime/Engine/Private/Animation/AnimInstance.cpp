@@ -337,7 +337,7 @@ void UAnimInstance::UpdateMontageSyncGroup()
 	}
 }
 
-void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion)
+bool UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag)
 {
 	LLM_SCOPE(ELLMTag::Animation);
 
@@ -401,7 +401,7 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 				when we also update the AnimGraph as well.
 				This means that calls to 'Evaluation' without a call to 'Update' prior will render stale data, but that's to be expected.
 			*/
-			return;
+			return false;
 		}
 	}
 
@@ -427,7 +427,7 @@ void UAnimInstance::UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMoti
 
 		if (UpdateSnapshotAndSkipRemainingUpdate())
 		{
-			return;
+			return false;
 		}
 	}
 #endif
@@ -460,13 +460,34 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		SCOPE_CYCLE_COUNTER(STAT_BlueprintUpdateAnimation);
 		BlueprintUpdateAnimation(DeltaSeconds);
 	}
+	
+	// Determine whether or not the animation should be immediately updated according to current state
+	const bool bWantsImmediateUpdate = bNeedsValidRootMotion || NeedsImmediateUpdate(DeltaSeconds);
 
-	if(bNeedsValidRootMotion || NeedsImmediateUpdate(DeltaSeconds))
+	// Determine whether or not we can or should actually immediately update the animation state
+	bool bShouldImmediateUpdate = bWantsImmediateUpdate;
+	switch (UpdateFlag)
+	{
+		case EUpdateAnimationFlag::ForceImmediateUpdate:
+		{
+			bShouldImmediateUpdate = true;
+			break;
+		}
+		case EUpdateAnimationFlag::ForceParallelUpdate:
+		{
+			bShouldImmediateUpdate = false;
+			break;
+		}
+	}
+
+	if(bShouldImmediateUpdate)
 	{
 		// cant use parallel update, so just do the work here (we call this function here to do the work on the game thread)
 		ParallelUpdateAnimation();
 		PostUpdateAnimation();
 	}
+
+	return bWantsImmediateUpdate;
 }
 
 void UAnimInstance::PreUpdateAnimation(float DeltaSeconds)
