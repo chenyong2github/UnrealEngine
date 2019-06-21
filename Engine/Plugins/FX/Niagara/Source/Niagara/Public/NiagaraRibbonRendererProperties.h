@@ -19,7 +19,9 @@ enum class ENiagaraRibbonFacingMode : uint8
 	/** Use Particles.RibbonFacing as the facing vector. */
 	Custom,
 
-	/** Use Particles.RibbonFacing as the side vector, and calculate the facing vector from that. */
+	/** Use Particles.RibbonFacing as the side vector, and calculate the facing vector from that.
+	 *  Using ribbon twist with this mode is NOT supported.
+	 */
 	CustomSideVector
 };
 
