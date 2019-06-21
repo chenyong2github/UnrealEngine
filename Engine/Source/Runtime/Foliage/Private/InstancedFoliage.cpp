@@ -66,49 +66,6 @@ static TAutoConsoleVariable<int32> CVarFoliageDiscardDataOnLoad(
 	TEXT("1: Discard scalable foliage data on load (disables all scalable foliage types); 0: Keep scalable foliage data (requires reloading level)"),
 	ECVF_Scalability);
 
-// Custom serialization version for all packages containing Instance Foliage
-struct FFoliageCustomVersion
-{
-	enum Type
-	{
-		// Before any version changes were made in the plugin
-		BeforeCustomVersionWasAdded = 0,
-		// Converted to use HierarchicalInstancedStaticMeshComponent
-		FoliageUsingHierarchicalISMC = 1,
-		// Changed Component to not RF_Transactional
-		HierarchicalISMCNonTransactional = 2,
-		// Added FoliageTypeUpdateGuid
-		AddedFoliageTypeUpdateGuid = 3,
-		// Use a GUID to determine whic procedural actor spawned us
-		ProceduralGuid = 4,
-		// Support for cross-level bases 
-		CrossLevelBase = 5,
-		// FoliageType for details customization
-		FoliageTypeCustomization = 6,
-		// FoliageType for details customization continued
-		FoliageTypeCustomizationScaling = 7,
-		// FoliageType procedural scale and shade settings updated
-		FoliageTypeProceduralScaleAndShade = 8,
-		// Added FoliageHISMC and blueprint support
-		FoliageHISMCBlueprints = 9,
-		// Added Mobility setting to UFoliageType
-		AddedMobility = 10,
-		// Make sure that foliage has FoliageHISMC class
-		FoliageUsingFoliageISMC = 11,
-		// Foliage Actor Support
-		FoliageActorSupport = 12,
-		// -----<new versions can be added above this line>-------------------------------------------------
-		VersionPlusOne,
-		LatestVersion = VersionPlusOne - 1
-	};
-
-	// The GUID for this custom version number
-	const static FGuid GUID;
-
-private:
-	FFoliageCustomVersion() {}
-};
-
 const FGuid FFoliageCustomVersion::GUID(0x430C4D19, 0x71544970, 0x87699B69, 0xDF90B0E5);
 // Register the custom version with core
 FCustomVersionRegistration GRegisterFoliageCustomVersion(FFoliageCustomVersion::GUID, FFoliageCustomVersion::LatestVersion, TEXT("FoliageVer"));
@@ -3544,6 +3501,19 @@ void AInstancedFoliageActor::PostLoad()
 				}
 			}
 
+			if (GetLinkerCustomVersion(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageActorSupportNoWeakPtr)
+			{
+				if (Info.Type == EFoliageImplType::Actor)
+				{
+					FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
+					for (const TWeakObjectPtr<AActor>& ActorPtr : FoliageActor->ActorInstances_Deprecated)
+					{
+						FoliageActor->ActorInstances.Add(ActorPtr.Get());
+					}
+					FoliageActor->ActorInstances_Deprecated.Empty();
+				}
+			}
+
 			// Update foliage component settings if the foliage settings object was changed while the level was not loaded.
 			if (Info.FoliageTypeUpdateGuid != FoliageType->UpdateGuid)
 			{
@@ -3641,22 +3611,25 @@ void AInstancedFoliageActor::PostLoad()
 	{
 		for (auto& Pair : FoliageInfos)
 		{
-			if (Pair.Value->Type == EFoliageImplType::StaticMesh)
+			if (!Pair.Key || Pair.Key->bEnableDensityScaling)
 			{
-				FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Pair.Value->Implementation.Get());
-				
-				if (FoliageStaticMesh->Component != nullptr && (!Pair.Key || Pair.Key->bEnableDensityScaling))
+				if (Pair.Value->Type == EFoliageImplType::StaticMesh)
 				{
-					FoliageStaticMesh->Component->ConditionalPostLoad();
-					FoliageStaticMesh->Component->DestroyComponent();
-				}
-			}	
-			else if (Pair.Value->Type == EFoliageImplType::Actor)
-			{
-				FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get());
-				FoliageActor->DestroyActors(true);
-			}
+					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Pair.Value->Implementation.Get());
 
+					if (FoliageStaticMesh->Component != nullptr)
+					{
+						FoliageStaticMesh->Component->ConditionalPostLoad();
+						FoliageStaticMesh->Component->DestroyComponent();
+					}
+				}
+				else if (Pair.Value->Type == EFoliageImplType::Actor)
+				{
+					FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Pair.Value->Implementation.Get());
+					FoliageActor->DestroyActors(true);
+				}
+			}
+				
 			Pair.Value = FFoliageInfo();
 		}
 	}

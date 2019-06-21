@@ -1790,6 +1790,13 @@ static void ReplaceActorHelper(UObject* OldObject, UClass* OldClass, UObject*& N
 	SpawnInfo.bDeferConstruction = true;
 	SpawnInfo.Name = OldActor->GetFName();
 
+#if WITH_EDITOR
+	if (!OldActor->IsListedInSceneOutliner())
+	{
+		SpawnInfo.bHideFromSceneOutliner = true;
+	}
+#endif
+
 	OldActor->UObject::Rename(nullptr, OldObject->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | (GBlueprintUseCompilationManager ? REN_ForceNoResetLoaders : 0));
 
 	AActor* NewActor = nullptr;

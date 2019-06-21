@@ -11,9 +11,9 @@ FName FoliageActorTag(TEXT("FoliageActorInstance"));
 // FFoliageActor
 void FFoliageActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
-	for (const TWeakObjectPtr<AActor>& ActorPtr : ActorInstances)
+	for (AActor* Actor : ActorInstances)
 	{
-		if (AActor* Actor = ActorPtr.Get(false))
+		if (Actor != nullptr)
 		{
 			Collector.AddReferencedObject(Actor, InThis);
 		}
@@ -22,23 +22,35 @@ void FFoliageActor::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 
 void FFoliageActor::Serialize(FArchive& Ar)
 {
-	Ar << ActorInstances;
+#if WITH_EDITORONLY_DATA
+	if (Ar.CustomVer(FFoliageCustomVersion::GUID) < FFoliageCustomVersion::FoliageActorSupportNoWeakPtr)
+	{
+		Ar << ActorInstances_Deprecated;
+	}
+	else
+#endif
+	{
+		Ar << ActorInstances;
+	}
+
+		
 	Ar << ActorClass;
 }
 
 void FFoliageActor::DestroyActors(bool bOnLoad)
 {
-	for (const TWeakObjectPtr<AActor>& ActorPtr : ActorInstances)
+	for (AActor* Actor : ActorInstances)
 	{
-		if (AActor* Actor = ActorPtr.Get(false))
+		if (Actor != nullptr)
 		{
-			if (bOnLoad)
+            if (bOnLoad)
 			{
 				Actor->ConditionalPostLoad();
 			}
 			Actor->GetWorld()->DestroyActor(Actor);
 		}
 	}
+	ActorInstances.Empty();
 }
 
 #if WITH_EDITOR
@@ -58,7 +70,6 @@ void FFoliageActor::Uninitialize()
 {
 	check(IsInitialized());
 	DestroyActors(false);
-	ActorInstances.Empty();
 	ActorClass = nullptr;
 }
 
@@ -88,9 +99,9 @@ TArray<AActor*> FFoliageActor::GetActorsFromSelectedIndices(const TSet<int32>& S
 	for (int32 i : SelectedIndices)
 	{
 		check(i < ActorInstances.Num());
-		if (ActorInstances[i].IsValid())
+		if (ActorInstances[i] != nullptr)
 		{
-			Selection.Add(ActorInstances[i].Get());
+			Selection.Add(ActorInstances[i]);
 		}
 	}
 
@@ -118,7 +129,7 @@ void FFoliageActor::AddInstance(AInstancedFoliageActor* IFA, const FFoliageInsta
 
 void FFoliageActor::RemoveInstance(int32 InstanceIndex)
 {
-	AActor* Actor = ActorInstances[InstanceIndex].Get(false);
+	AActor* Actor = ActorInstances[InstanceIndex];
 	ActorInstances.RemoveAtSwap(InstanceIndex);
 
 	if (Actor && Actor->GetWorld())
@@ -129,7 +140,7 @@ void FFoliageActor::RemoveInstance(int32 InstanceIndex)
 
 void FFoliageActor::SetInstanceWorldTransform(int32 InstanceIndex, const FTransform& Transform, bool bTeleport)
 {
-	if (AActor* Actor = ActorInstances[InstanceIndex].Get(false))
+	if (AActor* Actor = ActorInstances[InstanceIndex])
 	{
 		Actor->SetActorTransform(Transform);
 	}
@@ -137,7 +148,7 @@ void FFoliageActor::SetInstanceWorldTransform(int32 InstanceIndex, const FTransf
 
 FTransform FFoliageActor::GetInstanceWorldTransform(int32 InstanceIndex) const
 {
-	if (AActor* Actor = ActorInstances[InstanceIndex].Get(false))
+	if (AActor* Actor = ActorInstances[InstanceIndex])
 	{
 		return Actor->GetTransform();
 	}
@@ -175,9 +186,9 @@ void FFoliageActor::Refresh(AInstancedFoliageActor* IFA, const TArray<FFoliageIn
 
 void FFoliageActor::OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews)
 {
-	for (const TWeakObjectPtr<AActor>& ActorPtr : ActorInstances)
+	for (AActor* Actor : ActorInstances)
 	{
-		if (AActor* Actor = ActorPtr.Get(false))
+		if (Actor != nullptr)
 		{
 			if (Actor->HiddenEditorViews != InHiddenEditorViews)
 			{
@@ -209,8 +220,7 @@ void FFoliageActor::Reapply(AInstancedFoliageActor* IFA, const UFoliageType* Fol
 {
 	IFA->Modify();
 	DestroyActors(false);
-	ActorInstances.Empty();
-
+	
 	if (IsInitialized())
 	{
 		Uninitialize();
@@ -230,9 +240,9 @@ void FFoliageActor::SelectInstances(bool bSelect, int32 InstanceIndex, int32 Cou
 	check(ActorInstances.Num() >= InstanceIndex + Count);
 	for (int32 i = InstanceIndex; i < (InstanceIndex + Count); ++i)
 	{
-		if (ActorInstances[i].IsValid())
+		if (ActorInstances[i])
 		{
-			Selection.Add(ActorInstances[i].Get());
+			Selection.Add(ActorInstances[i]);
 		}
 	}
 	AInstancedFoliageActor::SelectionChanged.Broadcast(bSelect, Selection);
