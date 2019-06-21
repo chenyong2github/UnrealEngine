@@ -161,6 +161,10 @@ public:
 	// After a pakfile is mounted this callback is called for each new file
 	static FPakFileMountedDelegate PakFileMountedCallback;
 
+	// After a file is added this is called
+	DECLARE_MULTICAST_DELEGATE_OneParam(FNewFileAddedDelegate, const FString&);
+	static FNewFileAddedDelegate NewFileAddedDelegate;
+
 	// After an attempt to mount all pak files, but none wre found, this is called
 	static FNoPakFilesMountedDelegate NoPakFilesMountedDelegate;
 

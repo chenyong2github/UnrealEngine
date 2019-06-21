@@ -1097,3 +1097,5 @@ bool FMinimalReplicationTagCountMap::NetSerialize(FArchive& Ar, class UPackageMa
 	bOutSuccess = true;
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

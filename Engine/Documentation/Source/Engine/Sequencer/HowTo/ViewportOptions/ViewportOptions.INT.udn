@@ -1,105 +1,77 @@
 Availability: Public
-Title:Enabling Cinematic Viewports
-Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
-Description:Describes how you can set your project up with Sequencer Viewports to preview your cinematics in real-time.
-Version: 4.12
+Title: Enabling Cinematic Viewports
+Description: Describes how you can set your project up with Sequencer Viewports to preview your cinematics in real-time.
+Type: how-to
+Version: 4.21
+Parent: Engine/Sequencer/HowTo
+Tags: Sequencer
 SkillLevel: Beginner
-parent:Engine/Sequencer/HowTo
-order:1
-checkpoint: editorqs
 Related: Engine/Sequencer/Overview
-Related: Engine\Sequencer\ReferenceEditor\
-tags:Sequencer
-type:how-to
 
-There are some specialized viewports you can enable which will give you the ability to preview your cinematics in real-time.
-This guide will show you where you can access and turn on those viewports and how to enable the Viewport Playback Controls and Viewport Options menus. 
+
+[TOC (start:2 end:2)]
+
+There is a specialized **Cinematic Viewport **you can enable which will give you the ability to preview your cinematics in real-time. This guide will show you where you can access and turn on the Cinematic Viewport and how to enable the Viewport Playback Controls and Viewport Options menus.
+
+[REGION:lightbox]
+[![](CinematicViewport_Intro.png)(w:900)](CinematicViewport_Intro.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
 
 ## Steps
 
 [REGION:note]
-For this how-to, we are using the **Blueprint Third Person Template** project. However, you can use any project you wish. 
+For this how-to, we are using the **Blueprint Third Person Template** project. However, you can use any project you wish.
 [/REGION]
 
-1.	Inside any viewport click the **View Mode** button, then select **Cinematic Viewport**. 
+1.  In your project's Viewport, click the **Viewport Options **button and make sure **Allow Cinematic Control **is enabled.   
+    ![](CinematicViewport_01.png "CinematicViewport_01.png")  
+    This option enables Sequencer (and Matinee) previews to play inside the Viewport. It is on by default, but can be disabled if you have multiple Viewports and want to remove Sequencer's control of the Viewport. 
 
-	![](CinematicView_01.png)
+2.  Inside Viewport click the **View Mode** button, then select **Cinematic Viewport**.  
+    ![](CinematicViewport_02.png "CinematicViewport_02.png")  
+    This will turn the selected Viewport into a Cinematic Viewport.  
+    ![](CinematicViewport_03.png "CinematicViewport_03.png")  
+    You may get a warning at the bottom of the Viewport if there is no Level Sequence currently open.
 
-	This will turn the selected viewport into a Cinematic Viewport. 
+3.  From the main toolbar, click **Cinematics** then select **Add Level Sequence**.  
+    ![](AddLevelSequence.png "AddLevelSequence.png")
 
-	![](CinematicView_02.png)
+4.  Enter a save name and save location for the Level Sequence.  
+    ![](CinematicViewport_05.png "CinematicViewport_05.png")  
+    Sequencer will automatically open and you will now have Playback Controls available inside the Cinematic Viewport. The name of your cinematic will also appear in the lower-left portion of the Viewport.
 
-	You may get a warning at the bottom of the viewport if there is no Level Sequence currently open.
+5.  Click the **Viewport Options** drop-down, then under **Layouts** select the side-by-side **Two Pane** layout.  
+    ![](CinematicViewport_06.png "CinematicViewport_06.png")  
+    This will reset the Viewports which we can re-enable with keyboard shortcuts.
 
-1.	From the main toolbar, click **Cinematics** then select **Add Level Sequence**. 
+6.  In the left window, press **Alt+G** then in the right window, enable the **Cinematic Viewport**.  
+    ![](CinematicViewport_07.png "CinematicViewport_07.png")  
+    This common setup enables you to have the normal Editor view in one panel and a cinematic view directly next to it for previewing your cinematics. 
 
-	![](AddLevelSequence.png)
+7.  Click the **Viewport Options** drop-down again, then enable the **Game View** option.  
+    ![](CinematicViewport_08.png "CinematicViewport_08.png")  
+    This will put the Viewport into Game View (**G** key shortcut) which will hide all Editor icons.
 
-1.	Enter a save name and save location for the Level Sequence. 
+8.  Click the **Viewport Options** once more, then disable the **Show Toolbar** option.  
+    ![](CinematicView_06.png "CinematicView_06.png")  
+    This will turn off the Viewport Tool Bar which includes Editor gizmos that you may not need in your Cinematic Viewport.
 
-	![](CinematicView_04.png)
-
-	Sequencer will automatically open and you will now have Playback Controls inside the Cinematic Viewport. 
-
-1.	Click the Viewport Options drop-down, then under **Layouts** select the side-by-side **Two Pane** layout. 
-
-	![](Viewports_05.png)
-
-	This will reset the viewports which we can re-enable with keyboard shortcuts. 
-
-1.	In the left window, press **Alt+G** then in the right window, enable the Cinematic Viewport. 
-
-	![](Viewports_06.png)
-
-	This common setup enables you to have the normal Editor view in one panel and a cinematic view directly next to it for previewing your cinematics.
-
-1.	Click the Viewport Options drop-down again, then check the **Game View** option. 
-
-	![](CinematicView_05.png)
-
-	This will put the Viewport into Game View (**G** key shortcut) which will hide all editor icons. 
-
-1.	Click the Viewport Options once more, then un-check the **Show Toolbar** option.
-
-	![](CinematicView_06.png)
-
-	This will turn off the viewport tool bar which includes editor gizmos that you may not need in your Cinematic Viewport. 
-
-1.	Click the **Cinematic Viewport Overlay** option button. 
-
-	 ![](Viewports_09.png)
-
-	 You can use the viewport overlays to help frame up your scenes or view safe areas. 
-			
+9.  Click the **Cinematic Viewport Overlay** option button.  
+    ![](Viewports_09.png)  
+    You can use the Viewport overlays to help frame up your scenes or view safe areas.
 
 ## End Result
 
-With the Sequencer preview windows open, you will be able to quickly see the results of your cinematic sequence as you are editing it. 
+With the Sequencer Cinematic Viewport, you can quickly see the results of your cinematic sequence as you are editing it.  
 
-![](EndResult.png)
+[REGION:lightbox]
+[![](CinematicViewport_End.png)(w:900)](CinematicViewport_End.png)
+[/REGION]
+[REGION:caption]
+Click image for full view.
+[/REGION]
 
-Experiement with different viewport layouts and these Cinematic Viewports until you have a layout you are comfortable working with. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+Experiment with different Viewport layouts and these Cinematic Viewports until you have a layout you are comfortable working with.

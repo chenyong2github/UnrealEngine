@@ -56,6 +56,18 @@ float Reciprocal(float x){ return 1.0f/x; }
 		float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld);
 		return HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
 	}
+
+	// MASSIVE HACK - Tracked in JIRA UE-69298
+	// Hardcoded random function accessible from inner part of node implementation.
+	// It works for now at least and avoids exposing every random needed in the UI. 
+	// Temporary solution, it will be replaced when a design is validated.
+	float NiagaraInternalNoise(uint u, uint v, uint s)
+	{
+		static uint RandomSeedOffset = 0;
+		uint Seed = (u * 1664525u + v) + s + RandomSeedOffset;
+		RandomSeedOffset += Seed;
+		return float(Rand3DPCG32(int3(u,v,Seed)).x) / 4294967296.0f;
+	}
 #endif
 
 /* ----------------------------------------------------------------------------
@@ -286,7 +298,6 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	 */
 	uint UpdateStartInstance;
 	uint SpawnedInstances;
-	uint NumIndicesPerInstance;
 
 	uint ComponentBufferSizeRead;
 	uint ComponentBufferSizeWrite;
@@ -301,15 +312,14 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	Buffer<int> InputInt;
 	RWBuffer<int> RWOutputInt;
 	RWBuffer<float> RWOutputFloat;
-	RWBuffer<uint> RWDataSetIndices;
-	Buffer<uint> ReadDataSetIndices;
 
+	RWBuffer<uint> RWInstanceCounts;
+	uint ReadInstanceCountOffset;
+	uint WriteInstanceCountOffset;
 
 	//TODO: IDs for GPU
 //	void AcquireID(int DataSetID, out int IDIndex, out int IDAcquireTag);
 // 	void UpdateID(int DataSetID, int IDIndex, int InstanceIndex);
-
-
 
 	/* Returns the current instance index relative to the operation (spawn/update)
 	 */
@@ -329,14 +339,20 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	/* Acquire an output index - the default index is the scratch instance; one additional instance is allocated 
 	 *	at the end of the buffer, so no branching on -1 is necessary during OutputData operations
 	 */
-	int AcquireIndex(int DataSetID, bool bDoAcquire)
+	int AcquireIndex(uniform int DataSetID, bool bDoAcquire)
 	{
+		// Begin static assert : GPU particles only support DataSetID 0
+		int MustBe0[1];
+		MustBe0[DataSetID] = 0;
+		// End static assert
+
 		int PrevIdx = GSpawnStartInstance + SpawnedInstances;	// scratch instance as default; write to that for dead particles
-		if(bDoAcquire == true)
+		if (bDoAcquire)
 		{
 			// Have to use uint's here to avoid PS4 compiler warnings about InterlockedAdd, cannot propagate uint due to CPU VM limitations...
 			uint RetPrevIdx;
-			InterlockedAdd(RWDataSetIndices[DataSetID*5+1], (uint)1U, RetPrevIdx);
+			// @TODO : add some TLS logic to avoid thread group for doing atomic for each thread. (gathering the actual required count)
+			InterlockedAdd(RWInstanceCounts[WriteInstanceCountOffset], (uint)1U, RetPrevIdx);
 			PrevIdx = (int)RetPrevIdx;
 		}
 		return PrevIdx;
@@ -413,7 +429,14 @@ void SimulateMainComputeCS(
 	*/
 
 	uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
-	GSpawnStartInstance = ReadDataSetIndices[1];				// needed by ExecIndex()
+	if (ReadInstanceCountOffset == 0xFFFFFFFF)
+	{
+		GSpawnStartInstance = 0;
+	}
+	else
+	{
+		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()
+	}
 	int MaxInstances = GSpawnStartInstance + SpawnedInstances;
 
 	if(InstanceID < UpdateStartInstance + MaxInstances )
@@ -448,15 +471,6 @@ void SimulateMainComputeCS(
 			GCurrentPhase = 0;
 			SimulateMain(InstanceID, EventIndex, 0);		// SimulateMain spawn phase
 		}
-	}
-
-	// fill in the rest of RWDataSetIndices for the DrawIndirect call for the main data set; number of instances is incremented in AcquireIndex
-	if(InstanceID == 0)
-	{
-		RWDataSetIndices[0] = NumIndicesPerInstance;		// IndexCountPerInstance; passed in from the renderer - TODO: support multiple renderers with multiple indirect draw calls
-		RWDataSetIndices[2] = 0;		// StartIndexLocation
-		RWDataSetIndices[3] = 0;		// BaseVertexLocation
-		RWDataSetIndices[4] = 0;		// StartInstanceLocation
 	}
 }
 

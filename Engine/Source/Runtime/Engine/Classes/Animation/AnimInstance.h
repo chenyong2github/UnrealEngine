@@ -988,6 +988,17 @@ public:
 	 */
 	virtual void OnUROPreInterpolation_AnyThread(FAnimationEvaluationContext& InOutContext) {}
 
+	/** Flag passed to UpdateAnimation, determines the path we follow */
+	enum class EUpdateAnimationFlag : uint8
+	{
+		/** Enforce an immediate update, regardless of state*/
+		ForceImmediateUpdate,
+		/** Enforces a parallel update, regardless of state */
+		ForceParallelUpdate,
+		/** Use state to determine whether or not to immediately or update in parallel */
+		Default
+	};
+
 	// Animation phase trigger
 	// start with initialize
 	// update happens in every tick. Can happen in parallel with others if conditions are right.
@@ -995,7 +1006,9 @@ public:
 	// post eval happens after evaluation is done
 	// uninitialize happens when owner is unregistered
 	void InitializeAnimation();
-	void UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion);
+
+	/** Update Animation code-paths, updates and advances animation state, returns whether or not the actual update should have been called immediately */
+	bool UpdateAnimation(float DeltaSeconds, bool bNeedsValidRootMotion, EUpdateAnimationFlag UpdateFlag = EUpdateAnimationFlag::Default );
 
 	/** Run update animation work on a worker thread */
 	void ParallelUpdateAnimation();

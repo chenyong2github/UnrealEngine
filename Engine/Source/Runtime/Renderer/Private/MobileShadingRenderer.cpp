@@ -416,23 +416,34 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		(bForceDepthResolve || bSeparateTranslucencyActive || (View.bIsSceneCapture && (ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorHDR || ViewFamily.SceneCaptureSource == ESceneCaptureSource::SCS_SceneColorSceneDepth)));
 
 	//
-	FTextureRHIParamRef SceneColor = nullptr;
-	FTextureRHIParamRef SceneColorResolve = nullptr;
-	FTextureRHIParamRef SceneDepth = nullptr;
+	FRHITexture* SceneColor = nullptr;
+	FRHITexture* SceneColorResolve = nullptr;
+	FRHITexture* SceneDepth = nullptr;
 	ERenderTargetActions ColorTargetAction = ERenderTargetActions::Clear_Store;
 	EDepthStencilTargetActions DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_DontStoreDepthStencil;
-	bool bMobileMSAA = false;
+	bool bMobileMSAA = SceneContext.GetSceneColorSurface()->GetNumSamples() > 1;
 	
 	if (bGammaSpace && !bRenderToSceneColor)
 	{
-		SceneColor = GetMultiViewSceneColor(SceneContext);
-		bMobileMSAA = SceneColor->GetNumSamples() > 1;
-		SceneDepth = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture : static_cast<FTextureRHIRef>(SceneContext.GetSceneDepthTexture());
+		if (bMobileMSAA)
+		{
+			SceneColor = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneColor->GetRenderTargetItem().TargetableTexture : SceneContext.GetSceneColorSurface();
+			SceneColorResolve = GetMultiViewSceneColor(SceneContext);
+			ColorTargetAction = ERenderTargetActions::Clear_Resolve;
+			// Rendering to a backbuffer, make sure it's writeable
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColorResolve);
+		}
+		else
+		{
+			SceneColor = GetMultiViewSceneColor(SceneContext);
+			// Rendering to a backbuffer, make sure it's writeable
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColor);
+		}
+		SceneDepth = (View.bIsMobileMultiViewEnabled) ? SceneContext.MobileMultiViewSceneDepthZ->GetRenderTargetItem().TargetableTexture : static_cast<FTextureRHIRef>(SceneContext.GetSceneDepthSurface());
 	}
 	else
 	{
 		SceneColor = SceneContext.GetSceneColorSurface();
-		bMobileMSAA = SceneColor->GetNumSamples() > 1;
 		SceneColorResolve = bMobileMSAA ? SceneContext.GetSceneColorTexture() : nullptr;
 		ColorTargetAction = bMobileMSAA ? ERenderTargetActions::Clear_Resolve : ERenderTargetActions::Clear_Store;
 		SceneDepth = SceneContext.GetSceneDepthSurface();
@@ -444,7 +455,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
 		}
 						
-		if (bKeepDepthContent)
+		if (bKeepDepthContent && !bMobileMSAA)
 		{
 			// store depth if post-processing/capture needs it
 			DepthTargetAction = EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil;
@@ -463,6 +474,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
 	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
+	SceneColorRenderPassInfo.bMultiviewPass = View.bIsMobileMultiViewEnabled;
 	RHICmdList.BeginRenderPass(SceneColorRenderPassInfo, TEXT("SceneColorRendering"));
 
 	if (GIsEditor && !View.bIsSceneCapture)
@@ -524,7 +536,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
 		}
 		
-		if (bKeepDepthContent)
+		if (bKeepDepthContent && !bMobileMSAA)
 		{
 			DepthTargetAction = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
 		}
@@ -938,9 +950,9 @@ public:
 
 	FCopyMobileMultiViewSceneColorPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FUniformBufferRHIParamRef ViewUniformBuffer, FTextureRHIRef InMobileMultiViewSceneColorTexture)
+	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, FTextureRHIRef InMobileMultiViewSceneColorTexture)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, ViewUniformBuffer);
 		SetTextureParameter(
 			RHICmdList,

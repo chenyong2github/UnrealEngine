@@ -5939,7 +5939,7 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 	for( const FPolygonID PolygonID : PolygonIDs )
 	{
 		// Calculate the center of this polygon
-		FVector Center = FVector::ZeroVector;
+		FVector Center(ForceInitToZero);
 		const TArray<FVertexInstanceID>& VertexInstanceIDs = MD->GetPolygonVertexInstances( PolygonID );
 		for( const FVertexInstanceID VertexInstanceID : VertexInstanceIDs )
 		{
@@ -5948,9 +5948,9 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 		Center /= float( VertexInstanceIDs.Num() );
 
 		// Calculate the tangent basis for the polygon, based on the average of all constituent triangles
-		FVector Normal = FVector::ZeroVector;
-		FVector Tangent = FVector::ZeroVector;
-		FVector Binormal = FVector::ZeroVector;
+		FVector Normal(ForceInitToZero);
+		FVector Tangent(ForceInitToZero);
+		FVector Binormal(ForceInitToZero);
 
 		for( const FTriangleID TriangleID : MD->GetPolygonTriangleIDs( PolygonID ) )
 		{
@@ -5962,11 +5962,11 @@ void UEditableMesh::GeneratePolygonTangentsAndNormals( const TArray<FPolygonID>&
 			const FVertexID VertexID1 = MD->GetVertexInstanceVertex( VertexInstanceID1 );
 			const FVertexID VertexID2 = MD->GetVertexInstanceVertex( VertexInstanceID2 );
 
-			const FVector DPosition1 = VertexPositions[ VertexID1 ] - VertexPositions[ VertexID0 ];
-			const FVector DPosition2 = VertexPositions[ VertexID2 ] - VertexPositions[ VertexID0 ];
+			const FVector& DPosition1(VertexPositions[ VertexID1 ] - VertexPositions[ VertexID0 ]);
+			const FVector& DPosition2(VertexPositions[ VertexID2 ] - VertexPositions[ VertexID0 ]);
 
-			const FVector2D DUV1 = VertexUVs.Get( VertexInstanceID1, 0 ) - VertexUVs.Get( VertexInstanceID0, 0 );
-			const FVector2D DUV2 = VertexUVs.Get( VertexInstanceID2, 0 ) - VertexUVs.Get( VertexInstanceID0, 0 );
+			const FVector2D& DUV1(VertexUVs.Get( VertexInstanceID1, 0 ) - VertexUVs.Get( VertexInstanceID0, 0 ));
+			const FVector2D& DUV2(VertexUVs.Get( VertexInstanceID2, 0 ) - VertexUVs.Get( VertexInstanceID0, 0 ));
 
 			// We have a left-handed coordinate system, but a counter-clockwise winding order
 			// Hence normal calculation has to take the triangle vectors cross product in reverse.

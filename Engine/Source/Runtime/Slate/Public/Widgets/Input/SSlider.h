@@ -42,7 +42,6 @@ public:
 		, _OnMouseCaptureEnd()
 		, _OnValueChanged()
 		{
-			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
 		}
 
 		/** Whether the slidable area should be indented to fit the handle. */
@@ -99,6 +98,8 @@ public:
 		SLATE_EVENT( FOnFloatValueChanged, OnValueChanged )
 
 	SLATE_END_ARGS()
+
+	SSlider();
 
 	/**
 	 * Construct the widget.

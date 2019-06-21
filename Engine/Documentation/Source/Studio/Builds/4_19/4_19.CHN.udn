@@ -1,0 +1,196 @@
+﻿INTSourceChangelist:6427553
+Availability: Public
+Title: Unreal Studio4.19版本说明
+Description: 虚幻引擎4.19的Unreal Studio产品的版本说明
+Parent: Studio/Builds
+Version: 4.19
+Tags: Unreal Studio
+Tags: Release Notes
+Order: 25
+
+
+## Unreal Datasmith
+
+ *重要详细信息：*
+
+1.  *由于重大格式更改，使用之前版本（0.17版及之前版本）导出的*.udatasmith文件将无法再正确导入虚幻。*
+
+1.  *3ds Max导出器插件已发布，必须单独安装。请查阅* [*安装指南了解详情*](Studio/Datasmith/HowTo/DownloadandInstall)
+
+### Datasmith的新增内容
+
+#### 改进：
+
+##### 光度照明
+
+虚幻4.19支持光照单位和非对称IES描述文件。Datasmith现在应该从3ds Max正确地传输此信息。
+
+现在，在相同的照明条件（光度光源或Vray IES光源和物理摄像机+曝光）下，3ds max和虚幻中的结果应该非常相似。
+
+ **新的项目模板**
+
+新的产品查看器模板可用于Unreal Studio项目，使用户能够在VR、AR中或在PC屏幕上查看模型，并执行基本的查看交互。有关更多信息，请查看[模板使用指南](Studio/UnrealStudioProjectTemplates)。
+
+ **导出器改进**
+
+3Ds Max导出器通过在导出过程中提供更快的场景解析和带进度条的可视化反馈，极大地提高了性能。
+
+
+#### 其他修复（Autodesk 3ds Max的Datasmith）
+
+*   由于天空光照导致导出崩溃
+
+*   对象在不一致的xform和自定义枢轴时错位
+
+*   导出插件无法安装在干净的机器上
+
+*   3Ds Max在导出时没有响应
+
+*   来自3DsMax的吊灯使用Datasmith在UE中翻转
+
+*   颜色校正结果错误
+
+*   导出器现在正确调整了非常高的HDR图像大小
+
+*   导出器未收集Vray Skydome中的环境贴图
+
+*   在编译着色器时，虚幻编辑器在导入时崩溃
+
+*   贴图的漫反射UV坐标通道ID在虚幻中导入错误
+
+*   网格体从网格体Actor的静态网格体组件中移除
+
+*   从Max的导出挂起
+
+*   IES文件的亮度错误
+
+*   IGES文件导入崩溃
+
+*   枢轴位置导出错误
+
+*   无法删除由DS导入创建的文件夹
+
+*   从UI菜单导入Datasmith文件时使用的路径错误
+
+*   Datasmith没有导入在选定文件夹中
+
+*   通过Datasmith导入时，天空不在根Actor之下
+
+*   打开材质时导致编辑器崩溃
+
+*   如果启用了Datasmith，打包将无法工作
+
+*   使用Datasmith光源时，打包的项目崩溃
+
+*   无法撤销在由DS创建的层级上执行的变换
+
+*   禁用Datasmith插件后，在内容浏览器中右键单击网格体时崩溃
+
+*   通过安装的Unreal Studio插件打开Unreal Datasmith项目时，编辑器崩溃
+
+
+#### 其他修复（Datasmith CAD导入器）
+
+*   使用不含多边形对象的文件时，CAD导入器崩溃
+
+*   未从3dm文件导入颜色
+
+*   Rhino材质在透明度、纹理、发射和环境颜色方面存在问题
+
+*   无法打开一些SolidWorks 2017程序集文件
+
+*   在CAD导入后，颠倒面
+
+*   在CAD导入后，退化面
+
+*   在CAD导入后，无法从内容浏览器中删除材质
+
+*   在CAD导入时，清理内存出现泄露
+
+*   在程序集导入后，颜色存在重复的材质实例
+
+*   导入后，出现错误的曲面细分
+
+*   无法打开较大的SLDASM程序集文件
+
+*   Rhino材质在基本纹理和高级设置方面存在问题
+
+#### 其他修复（Datasmith导入器和CityEngine）
+
+*   CityEngine崩溃 - 数组索引越界：数组大小 -1 - 1 | UE4Editor_Core!FString::~FString()
+
+*   使用0.17导入Datasmith CityEngine场景导致UE崩溃
+
+#### 其他修复(Unreal Studio)
+
+*   无法将新的c++类添加到unreal studio项目
+
+*   控制器没有连接到VR预览
+
+#### 其他修复（虚幻的脚本编写和Python）
+
+*   无法在Python中获取项目内容目录
+
+*   在unreal.EditorAssetLibrary.make_directory python方法中发生崩溃
+
+*   在remove\_mesh\_actor之后对象未从datasmith场景中移除
+
+## 针对虚幻引擎4.19更新到Datasmith v0.18
+
+#### 0.182版 - 2018年5月2日
+
+修复
+
+*   修复当删除使用Datasmith删除材质时可能出现的编辑器崩溃
+
+#### 0.181版 - 2018年4月19日
+
+修复
+
+*   临时禁用元数据提取，从而避免JT文件导入缓慢和部分内容丢失的问题。
+
+*   当导入SolidWorks模型时提高内存使用。
+
+*   产品查看器模板使用设置的默认插件，以避免完整的项目编译。
+
+#### 0.18 (4)版 - 2018年3月14日
+
+更新
+
+*   用于正式发布UE 4.19.0的Datasmith版本。没有额外的更改。
+
+#### 0.18 (4)版 - 2018年3月5日
+
+修复
+
+*   修复了最近无法导入CAD文件的问题
+
+*   修复了无法在Python中获取项目内容目录的问题
+
+*   修复了Rhino在纹理和高级设置方面的一些问题
+
+*   修复了在不一致的xform和自定义枢轴时出现的对象位移问题(3ds Max)
+
+*   修复了无法向Studio项目添加新的C++类的问题
+
+*   修复了控制器没有连接到VR预览的问题
+
+#### 0.18 (2)版 - 2018年2月21日
+
+更新
+
+*   现在，当您创建一个新的Studio项目时，可以使用新的产品查看器模板。此模板允许使用虚幻作为设计审查工具，  
+    允许您在VR、AR上或在PC屏幕上查看模型，并执行基本的查看交互。
+
+#### 0.18 (4)版 - 2018年2月7日
+
+更新
+
+*   3Ds Max导出器通过在导出过程中提供更快的场景解析和带进度条的可视化反馈，极大地提高了性能。
+
+修复
+
+*   修复了3Ds Max在导出时不响应的问题
+
+*   修复了来自3DsMax的吊灯使用Datasmith在UE中翻转的问题
+

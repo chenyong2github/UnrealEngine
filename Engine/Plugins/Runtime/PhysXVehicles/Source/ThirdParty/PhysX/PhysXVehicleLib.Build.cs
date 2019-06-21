@@ -79,17 +79,12 @@ public class PhysXVehicleLib : ModuleRules
         string PhysXLibDir = Target.UEThirdPartySourceDirectory + "PhysX3/Lib/";
 
         // Libraries and DLLs for windows platform
-        if (Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.HoloLens ||
+            Target.Platform == UnrealTargetPlatform.Win32)
         {
-            PublicLibraryPaths.Add(PhysXLibDir + "Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
+			PublicLibraryPaths.Add(PhysXLibDir + Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
 
-            PublicAdditionalLibraries.Add(String.Format("PhysX3Vehicle{0}_x64.lib", LibrarySuffix));
-        }
-        else if (Target.Platform == UnrealTargetPlatform.Win32)
-        {
-            PublicLibraryPaths.Add(PhysXLibDir + "Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-
-            PublicAdditionalLibraries.Add(String.Format("PhysX3Vehicle{0}_x86.lib", LibrarySuffix));
+            PublicAdditionalLibraries.Add(String.Format("PhysX3Vehicle{0}_{1}.lib", LibrarySuffix, Target.WindowsPlatform.GetArchitectureSubpath()));
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {

@@ -74,8 +74,8 @@ bool FUdpMessageSegmenter::GetPendingSegment(uint32 InSegment, TArray<uint8>& Ou
 		return false;
 	}
 
-	// Max segment number for protocol 12 is INT32_MAX, if increase, this will need changing
-	if ((int32)InSegment < PendingSegments.Num() && PendingSegments[InSegment])
+	// Max segment number for protocol 12 is INT32_MAX, if increased, this will need changing
+	if (InSegment < (uint32)PendingSegments.Num() && PendingSegments[InSegment])
 	{
 		uint64 SegmentOffset = InSegment * SegmentSize;
 		uint64 ActualSegmentSize = MessageReader->TotalSize() - SegmentOffset;
@@ -136,10 +136,10 @@ void FUdpMessageSegmenter::MarkAsAcknowledged(const TArray<uint32>& Segments)
 {
 	for (const auto& Segment : Segments)
 	{
-		if ((int32)Segment < PendingSegments.Num())
+		if (Segment < (uint32)PendingSegments.Num() && PendingSegments[Segment])
 		{
-			PendingSegments[Segment] = false;
 			--PendingSegmentsCount;
+			PendingSegments[Segment] = false;
 		}
 	}
 }
@@ -149,8 +149,9 @@ void FUdpMessageSegmenter::MarkForRetransmission(const TArray<uint16>& Segments)
 {
 	for (const auto& Segment : Segments)
 	{
-		if (Segment < PendingSegments.Num())
+		if (Segment < PendingSegments.Num() && !PendingSegments[Segment])
 		{
+			++PendingSegmentsCount;
 			PendingSegments[Segment] = true;
 		}
 	}

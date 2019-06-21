@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810467
+﻿INTSourceChangelist:6341512
 Availability: Public
 Crumbs: %ROOT%, Engine, Engine/Animation, Engine/Animation/Persona
 Title:애니메이션 툴바
@@ -9,7 +9,7 @@ Parent: Engine/Animation/Persona
 Related: Engine/Animation/Persona
 Related: Engine/Content/Types/SkeletalMeshes
 Related: Engine/Animation/AnimBlueprints
-Related: Engine/Physics/PhAT
+Related: Engine/Physics/PhysicsAssetEditor
 Order: 1
 Tags:animation
 topic-image:SkeletonToolbar.png

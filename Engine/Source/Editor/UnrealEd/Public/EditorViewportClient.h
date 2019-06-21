@@ -472,7 +472,7 @@ public:
 	FViewportCursorLocation GetCursorWorldLocationFromMousePos();
 
 	/** FViewportClient interface */
-	virtual void ProcessScreenShots(FViewport* Viewport) override;
+	virtual bool ProcessScreenShots(FViewport* Viewport) override;
 	virtual void RedrawRequested(FViewport* Viewport) override;
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) override;
 	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed = 1.f, bool bGamepad=false) override;
@@ -565,6 +565,11 @@ public:
 	 */
 	virtual FMatrix GetWidgetCoordSystem() const;
 
+	/**
+	* @return The local coordinate system for the transform widget.
+	* For world coordiante system return the identity matrix
+	*/
+	virtual FMatrix GetLocalCoordinateSystem() const;
 	/**
 	 * Sets the coordinate system space to use
 	 */
@@ -950,7 +955,7 @@ public:
 	void MarkMouseMovedSinceClick();
 
 	/** Determines whether this viewport is currently allowed to use Absolute Movement */
-	bool IsUsingAbsoluteTranslation() const;
+	bool IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRotation = false) const;
 
 	bool IsForcedRealtimeAudio() const { return bForceAudioRealtime; }
 
@@ -1531,6 +1536,16 @@ protected:
 	/** Represents the last known mouse position. If the mouse stops moving it's not the current but the last position before the current location. */
 	uint32 CachedMouseX;
 	uint32 CachedMouseY;
+
+	/** Represents the last mouse position. It is constantly updated on tick so it can also be the current position. */
+	int32 CachedLastMouseX = 0;
+	int32 CachedLastMouseY = 0;
+
+	/** True is the use is controling the light via a*/
+	bool bUserIsControllingSunLight = false;
+	float UserIsControllingSunLightTimer = 0.0f;
+	FTransform UserControlledSunLightMatrix;
+
 
 	// -1, -1 if not set
 	FIntPoint CurrentMousePos;

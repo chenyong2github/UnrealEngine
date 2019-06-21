@@ -6,6 +6,7 @@ version: 4.14
 parent:Engine/Animation
 topic-image:Engine/Animation/animation_topic.png
 reference-image:UpdatedPersonaWindowAnim.gif
+reference-image:UpdatedPersonaWindowAnim_Mac.gif
 Related: Engine/Content/FBX/Animations
 Related: Engine/Content/Types/SkeletalMeshes
 Related: Engine/Animation/PhysicallyDrivenAnimation

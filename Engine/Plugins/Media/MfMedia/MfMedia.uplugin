@@ -20,7 +20,7 @@
 			"Name" : "MfMedia",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PreLoadingScreen",
-			"WhitelistPlatforms" : [ "XboxOne" ]
+			"WhitelistPlatforms" : [ "XboxOne", "HoloLens" ]
 		},
 		{
 			"Name" : "MfMediaEditor",
@@ -36,7 +36,7 @@
 			"Name" : "MfMediaFactory",
 			"Type" : "RuntimeNoCommandlet",
 			"LoadingPhase" : "PostEngineInit",
-			"WhitelistPlatforms" : [ "XboxOne" ]
+			"WhitelistPlatforms" : [ "XboxOne", "HoloLens", "Win32", "Win64" ]
 		}
 	]
 }

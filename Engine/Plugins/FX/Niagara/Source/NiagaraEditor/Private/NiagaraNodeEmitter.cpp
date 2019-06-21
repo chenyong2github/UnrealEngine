@@ -256,9 +256,9 @@ FText UNiagaraNodeEmitter::GetNameFromEmitter()
 	return FText();
 }
 
-void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive) const
+void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
-	Super::BuildParameterMapHistory(OutHistory, bRecursive);
+	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
 	{
@@ -308,6 +308,7 @@ void UNiagaraNodeEmitter::BuildParameterMapHistory(FNiagaraParameterMapHistoryBu
 
 			// Build up a new parameter map history with all the child graph nodes..
 			FNiagaraParameterMapHistoryBuilder ChildBuilder;
+			ChildBuilder.ConstantResolver = OutHistory.ConstantResolver;
 			ChildBuilder.RegisterEncounterableVariables(OutHistory.GetEncounterableVariables());
 			ChildBuilder.EnableScriptWhitelist(true, GetUsage());
 			FString LocalEmitterName = TEXT("Emitter");

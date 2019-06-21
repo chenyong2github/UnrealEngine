@@ -127,6 +127,7 @@
 
 #include "SMaterialParametersOverviewWidget.h"
 #include "IPropertyRowGenerator.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "UObject/TextProperty.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
@@ -1169,7 +1170,83 @@ void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			false);
 	}
 	ToolbarBuilder.EndSection();
+	if (!MaterialFunction)
+	{
+		ToolbarBuilder.BeginSection("Hierarchy");
+		{
+			ToolbarBuilder.AddComboButton(
+				FUIAction(),
+				FOnGetContent::CreateSP(this, &FMaterialEditor::GenerateInheritanceMenu),
+				LOCTEXT("Hierarchy", "Hierarchy"),
+				FText::GetEmpty(),
+				FSlateIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "BTEditor.SwitchToBehaviorTreeMode")),
+				false
+			);
+		}
+	}
 };
+
+TSharedRef<SWidget> FMaterialEditor::GenerateInheritanceMenu()
+{
+	struct Local
+	{
+		static void MakeMaterialSubmenu(FMenuBuilder& MenuBuilder, FAssetData InMaterial)
+		{
+			MenuBuilder.AddMenuEntry(LOCTEXT("OpenInEditor", "Open In Editor"),
+				FText::GetEmpty(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.OpenInExternalEditor"),
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnOpenMaterial, InMaterial)));
+
+			MenuBuilder.AddMenuEntry(LOCTEXT("FindInContentBrowser", "Find In Content Browser"),
+				FText::GetEmpty(),
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser"),
+				FUIAction(FExecuteAction::CreateStatic(&FMaterialEditorUtilities::OnShowMaterialInContentBrowser, InMaterial)));
+		}
+	};
+
+	RebuildInheritanceList();
+	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+	const bool bShouldCloseWindowAfterMenuSelection = true;
+	TSharedPtr<FUICommandList> InCommandList = MakeShareable(new FUICommandList);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, InCommandList, ToolbarExtender);
+
+	if (!MaterialFunction)
+	{
+		const FName MaterialInstances = TEXT("MaterialInstances");
+		MenuBuilder.BeginSection(MaterialInstances, LOCTEXT("MaterialInstances", "Material Instances"));
+		if (MaterialChildList.Num() == 0)
+		{
+			const FText NoChildText = LOCTEXT("NoInstancesFound", "No Instances Found");
+			TSharedRef<SWidget> NoChildWidget = SNew(STextBlock)
+				.Text(NoChildText);
+			MenuBuilder.AddWidget(NoChildWidget, FText::GetEmpty());
+		}
+		for (FAssetData MaterialChild : MaterialChildList)
+		{
+			FFormatNamedArguments Args;
+			Args.Add(TEXT("ChildName"), FText::FromName(MaterialChild.AssetName));
+			MenuBuilder.AddSubMenu(FText::Format(LOCTEXT("MaterialChildName", "{ChildName}"), Args),
+				FText::GetEmpty(),
+				FNewMenuDelegate::CreateStatic(&Local::MakeMaterialSubmenu, MaterialChild),
+				false,
+				FSlateIcon());
+		}
+		MenuBuilder.EndSection();
+	}
+
+	TSharedRef<SWidget> ConstrainedMenu = SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.MaxHeight(500.0f)
+		[
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+		[
+			MenuBuilder.MakeWidget()
+		]
+		];
+
+	return ConstrainedMenu;
+}
 
 TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
 {
@@ -1354,6 +1431,32 @@ void FMaterialEditor::DrawMaterialInfoStrings(
 				FontToUse,
 				FLinearColor(1,1,0)
 				);
+			DrawPositionY += SpacingBetweenLines;
+		}
+
+		uint32 NumVirtualTextureLookups = MaterialResource->GetEstimatedNumVirtualTextureLookups();
+		if (NumVirtualTextureLookups > 0)
+		{
+			Canvas->DrawShadowedString(
+				5,
+				DrawPositionY,
+				*FString::Printf(TEXT("Virtual Texture Lookups (Est.): %u"), NumVirtualTextureLookups),
+				FontToUse,
+				FLinearColor(1, 1, 0)
+			);
+			DrawPositionY += SpacingBetweenLines;
+		}
+
+		const uint32 NumVirtualTextureStacks = MaterialResource->GetNumVirtualTextureStacks();
+		if (NumVirtualTextureStacks > 0)
+		{
+			Canvas->DrawShadowedString(
+				5,
+				DrawPositionY,
+				*FString::Printf(TEXT("Virtual Texture Stacks: %u"), NumVirtualTextureStacks),
+				FontToUse,
+				FLinearColor(1, 1, 0)
+			);
 			DrawPositionY += SpacingBetweenLines;
 		}
 
@@ -1993,6 +2096,29 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(SamplesString, FLinearColor::Yellow)));
 					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
 					Line->AddToken(FTextToken::Create(FText::FromString(SamplesString)));
+					Messages.Add(Line);
+				}
+
+				// Display estimated virtual texture look-up counts
+				uint32 NumVirtualTextureLookups = MaterialResource->GetEstimatedNumVirtualTextureLookups();
+				if (NumVirtualTextureLookups > 0)
+				{
+					FString LookupsString = FString::Printf(TEXT("Virtual Texture Lookups (Est.): %u"), NumVirtualTextureLookups);
+
+					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(LookupsString, FLinearColor::Yellow)));
+					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
+					Line->AddToken(FTextToken::Create(FText::FromString(LookupsString)));
+					Messages.Add(Line);
+				}
+
+				const uint32 NumVirtualTextureStacks = MaterialResource->GetNumVirtualTextureStacks();
+				if (NumVirtualTextureStacks > 0u)
+				{
+					FString VTString = FString::Printf(TEXT("Virtual Texture Stacks: %u"), NumVirtualTextureStacks);
+
+					TempMaterialInfoList.Add(MakeShareable(new FMaterialInfo(VTString, FLinearColor::Yellow)));
+					TSharedRef<FTokenizedMessage> Line = FTokenizedMessage::Create(EMessageSeverity::Info);
+					Line->AddToken(FTextToken::Create(FText::FromString(VTString)));
 					Messages.Add(Line);
 				}
 
@@ -4247,7 +4373,7 @@ void FMaterialEditor::OnAlignBottom()
 {
 	if (GraphEditor.IsValid())
 	{
-		GraphEditor->OnAlignMiddle();
+		GraphEditor->OnAlignBottom();
 	}
 }
 
@@ -4550,7 +4676,7 @@ FMatExpressionPreview* FMaterialEditor::GetExpressionPreview(UMaterialExpression
 			bNewlyCreated = true;
 			Preview = new FMatExpressionPreview(MaterialExpression);
 			ExpressionPreviews.Add(Preview);
-			Preview->CacheShaders(GMaxRHIShaderPlatform, true);
+			Preview->CacheShaders(GMaxRHIShaderPlatform);
 		}
 		return Preview;
 	}
@@ -5157,6 +5283,16 @@ void FMaterialEditor::FocusDetailsPanel()
 	if (SpawnedDetailsTab.IsValid() && !SpawnedDetailsTab.Pin()->IsForeground())
 	{
 		SpawnedDetailsTab.Pin()->DrawAttention();
+	}
+}
+
+void FMaterialEditor::RebuildInheritanceList()
+{
+	if (!MaterialFunction)
+	{
+		MaterialChildList.Empty();
+
+		UMaterialEditingLibrary::GetChildInstances(OriginalMaterial, MaterialChildList);
 	}
 }
 

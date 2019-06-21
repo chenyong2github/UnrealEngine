@@ -1,4 +1,4 @@
-﻿Availability: Public
+﻿Availability: docs
 Title:5 - Editing Placed Actors
 Crumbs:%ROOT%, GettingStarted, Engine/QuickStart
 Description:This this step we will take the Actors we placed and edit their properties to give our level a more customized look. 
@@ -8,6 +8,8 @@ Related:Engine/Rendering/Materials
 Related:Engine/Rendering/LightingAndShadows/LightTypes
 Related:Engine/Content/FBX/ImportOptions
 checkpoint: editorqs
+
+## Marking as docs as the pages have been combined. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

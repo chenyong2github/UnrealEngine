@@ -29,7 +29,7 @@
 //------------------------------------------------------------------------
 /*
 	FramePro
-	Version:	1.5.15.0
+	Version:	1.5.20.0
 */
 //------------------------------------------------------------------------
 #ifndef FRAMEPRO_H_INCLUDED
@@ -914,7 +914,7 @@ namespace FramePro
 #if defined(__UNREAL__)
 	#define FRAMEPRO_PLATFORM_UE4 1
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_UWP 0
+	#define FRAMEPRO_PLATFORM_HOLOLENS 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -922,7 +922,7 @@ namespace FramePro
 #elif defined(_XBOX_ONE) || defined(_DURANGO)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 1
-	#define FRAMEPRO_PLATFORM_UWP 0
+	#define FRAMEPRO_PLATFORM_HOLOLENS 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -930,7 +930,7 @@ namespace FramePro
 #elif defined(WINAPI_FAMILY) && (WINAPI_FAMILY == WINAPI_FAMILY_APP)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_UWP 1
+	#define FRAMEPRO_PLATFORM_HOLOLENS 1
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -938,7 +938,7 @@ namespace FramePro
 #elif defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__WIN32__) || defined(__WINDOWS__)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_UWP 0
+	#define FRAMEPRO_PLATFORM_HOLOLENS 0
 	#define FRAMEPRO_PLATFORM_WIN 1
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -946,7 +946,7 @@ namespace FramePro
 #elif defined(__ORBIS__)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_UWP 0
+	#define FRAMEPRO_PLATFORM_HOLOLENS 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 1
@@ -954,7 +954,7 @@ namespace FramePro
 #elif defined(__ANDROID__)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_UWP 0
+	#define FRAMEPRO_PLATFORM_HOLOLENS 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 0
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -962,7 +962,7 @@ namespace FramePro
 #elif defined(unix) || defined(__unix__) || defined(__unix)
 	#define FRAMEPRO_PLATFORM_UE4 0
 	#define FRAMEPRO_PLATFORM_XBOXONE 0
-	#define FRAMEPRO_PLATFORM_UWP 0
+	#define FRAMEPRO_PLATFORM_HOLOLENS 0
 	#define FRAMEPRO_PLATFORM_WIN 0
 	#define FRAMEPRO_PLATFORM_LINUX 1
 	#define FRAMEPRO_PLATFORM_PS4 0
@@ -1089,7 +1089,7 @@ namespace FramePro
 		enum Enum
 		{
 			Windows = 0,
-			Windows_UWP,
+			Windows_HoloLens,
 			XBoxOne,
 			Unused,
 			Linux,
@@ -1186,9 +1186,9 @@ namespace FramePro
 	#define FRAMEPRO_ENUMERATE_ALL_MODULES (FRAMEPRO_X64 && 1)
 
 //------------------------------------------------------------------------
-//                         FRAMEPRO_PLATFORM_UWP
+//                         FRAMEPRO_PLATFORM_HOLOLENS
 //------------------------------------------------------------------------
-#elif FRAMEPRO_PLATFORM_UWP
+#elif FRAMEPRO_PLATFORM_HOLOLENS
 
 	__int64 FramePro_QueryPerformanceCounter();
 	#define FRAMEPRO_GET_CLOCK_COUNT(time) time = FramePro_QueryPerformanceCounter()
@@ -1481,6 +1481,8 @@ namespace FramePro
 			ThreadMain p_thread_main,
 			void* p_context,
 			Allocator* p_allocator);
+
+		void DestroyThread(void* p_os_thread_mem);
 
 		void SetThreadPriority(void* p_os_thread_mem, int priority);
 
@@ -2558,4 +2560,3 @@ namespace FramePro
 
 //------------------------------------------------------------------------
 #endif		// #ifndef FRAMEPRO_H_INCLUDED
-

@@ -329,7 +329,14 @@ public:
 		//FSpriteTextureOverrideRenderProxy* TextureOverrideMaterialProxy = new FSpriteTextureOverrideRenderProxy(ParentMaterialProxy,
 
 		const FMatrix& ViewportLocalToWorld = GetLocalToWorld();
-	
+
+		FMatrix PreviousLocalToWorld;
+
+		if (!GetScene().GetPreviousLocalToWorld(GetPrimitiveSceneInfo(), PreviousLocalToWorld))
+		{
+			PreviousLocalToWorld = GetLocalToWorld();
+		}
+
 		if( RenderTarget )
 		{
 			FTextureResource* TextureResource = RenderTarget->Resource;
@@ -358,7 +365,11 @@ public:
 							MeshBuilder.AddTriangle(VertexIndices[0], VertexIndices[1], VertexIndices[2]);
 							MeshBuilder.AddTriangle(VertexIndices[0], VertexIndices[2], VertexIndices[3]);
 
-							MeshBuilder.GetMesh(ViewportLocalToWorld, ParentMaterialProxy, SDPG_World, false, true, ViewIndex, Collector);
+							FDynamicMeshBuilderSettings Settings;
+							Settings.bDisableBackfaceCulling = false;
+							Settings.bReceivesDecals = true;
+							Settings.bUseSelectionOutline = true;
+							MeshBuilder.GetMesh(ViewportLocalToWorld, PreviousLocalToWorld, ParentMaterialProxy, SDPG_World, Settings, nullptr, ViewIndex, Collector, FHitProxyId());
 						}
 					}
 				}
@@ -435,7 +446,12 @@ public:
 								LastTangentY = TangentY;
 								LastTangentZ = TangentZ;
 							}
-							MeshBuilder.GetMesh(ViewportLocalToWorld, ParentMaterialProxy, SDPG_World, false, true, ViewIndex, Collector);
+
+							FDynamicMeshBuilderSettings Settings;
+							Settings.bDisableBackfaceCulling = false;
+							Settings.bReceivesDecals = true;
+							Settings.bUseSelectionOutline = true;
+							MeshBuilder.GetMesh(ViewportLocalToWorld, PreviousLocalToWorld, ParentMaterialProxy, SDPG_World, Settings, nullptr, ViewIndex, Collector, FHitProxyId());
 						}
 					}
 				}
@@ -487,14 +503,14 @@ public:
 						Collector.RegisterOneFrameMaterialProxy(SolidMaterialInstance);
 
 						FTransform GeomTransform(GetLocalToWorld());
-						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, UseEditorDepthTest(), ViewIndex, Collector);
+						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetWireframeColor().ToFColor(true), SolidMaterialInstance, false, true, DrawsVelocity(), ViewIndex, Collector);
 					}
 					// wireframe
 					else
 					{
 						FColor CollisionColor = FColor(157, 149, 223, 255);
 						FTransform GeomTransform(GetLocalToWorld());
-						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(CollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true), nullptr, false, false, UseEditorDepthTest(), ViewIndex, Collector);
+						InBodySetup->AggGeom.GetAggGeom(GeomTransform, GetSelectionColor(CollisionColor, bProxyIsSelected, IsHovered()).ToFColor(true), nullptr, false, false, DrawsVelocity(), ViewIndex, Collector);
 					}
 				}
 			}
@@ -1209,12 +1225,12 @@ float UWidgetComponent::ComputeComponentWidth() const
 	{
 		default:
 		case EWidgetGeometryMode::Plane:
-			return DrawSize.X;
+			return CurrentDrawSize.X;
 		break;
 
 		case EWidgetGeometryMode::Cylinder:
 			const float ArcAngleRadians = FMath::DegreesToRadians(GetCylinderArcAngle());
-			const float Radius = GetDrawSize().X / ArcAngleRadians;
+			const float Radius = CurrentDrawSize.X / ArcAngleRadians;
 			// Chord length is 2*R*Sin(Theta/2)
 			return 2.0f * Radius * FMath::Sin(0.5f*ArcAngleRadians);
 		break;
@@ -1637,18 +1653,15 @@ void UWidgetComponent::UpdateBodySetup( bool bDrawSizeChanged )
 
 		FKBoxElem* BoxElem = BodySetup->AggGeom.BoxElems.GetData();
 
-		FVector Origin = FVector(.5f,
-			-( CurrentDrawSize.X * 0.5f ) + ( CurrentDrawSize.X * Pivot.X ),
-			-( CurrentDrawSize.Y * 0.5f ) + ( CurrentDrawSize.Y * Pivot.Y ));
-			const float Width = ComputeComponentWidth();
-			const float Height = CurrentDrawSize.Y;
-			Origin = FVector(.5f,
-				-( Width * 0.5f ) + ( Width * Pivot.X ),
-				-( Height * 0.5f ) + ( Height * Pivot.Y ));
+		const float Width = ComputeComponentWidth();
+		const float Height = CurrentDrawSize.Y;
+		const FVector Origin = FVector(.5f,
+			-( Width * 0.5f ) + ( Width * Pivot.X ),
+			-( Height * 0.5f ) + ( Height * Pivot.Y ));
 			
 		BoxElem->X = 0.01f;
-		BoxElem->Y = CurrentDrawSize.X;
-		BoxElem->Z = CurrentDrawSize.Y;
+		BoxElem->Y = Width;
+		BoxElem->Z = Height;
 
 		BoxElem->SetTransform(FTransform::Identity);
 		BoxElem->Center = Origin;

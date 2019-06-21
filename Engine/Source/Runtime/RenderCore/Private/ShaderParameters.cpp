@@ -154,8 +154,6 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 {
 	const TArray<FShaderParametersMetadata::FMember>& StructMembers = UniformBufferStruct.GetMembers();
 	
-	int32 OpeningBraceLocPlusOne = Decl.Initializer.Len();
-
 	FString PreviousBaseTypeName = TEXT("float");
 	for (int32 MemberIndex = 0; MemberIndex < StructMembers.Num(); ++MemberIndex)
 	{
@@ -169,15 +167,15 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 
 		if(Member.GetBaseType() == UBMT_NESTED_STRUCT)
 		{
+			checkf(Member.GetNumElements() == 0, TEXT("SHADER_PARAMETER_STRUCT_ARRAY() is not supported in uniform buffer yet."));
 			Decl.StructMembers += TEXT("struct {\r\n");
-			Decl.Initializer += TEXT(",{");
+			Decl.Initializer += TEXT("{");
 			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), FString::Printf(TEXT("%s%s_"), *NamePrefix, Member.GetName()), StructOffset + Member.GetOffset(), Decl, HLSLBaseOffset);
-			Decl.Initializer += TEXT("}");
+			Decl.Initializer += TEXT("},");
 			Decl.StructMembers += FString::Printf(TEXT("} %s%s;\r\n"),Member.GetName(),*ArrayDim);
 		}
 		else if (Member.GetBaseType() == UBMT_INCLUDED_STRUCT)
 		{
-			Decl.Initializer += TEXT(",");
 			CreateHLSLUniformBufferStructMembersDeclaration(*Member.GetStructMetadata(), NamePrefix, StructOffset + Member.GetOffset(), Decl, HLSLBaseOffset);
 		}
 		else if (IsShaderParameterTypeForUniformBufferLayout(Member.GetBaseType()))
@@ -254,7 +252,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 			FString ParameterName = FString::Printf(TEXT("%s%s"),*NamePrefix,Member.GetName());
 			Decl.ConstantBufferMembers += FString::Printf(TEXT("\t%s%s %s%s;\r\n"),*BaseTypeName,*TypeDim,*ParameterName,*ArrayDim);
 			Decl.StructMembers += FString::Printf(TEXT("\t%s%s %s%s;\r\n"),*BaseTypeName,*TypeDim,Member.GetName(),*ArrayDim);
-			Decl.Initializer += FString::Printf(TEXT(",%s"),*ParameterName);
+			Decl.Initializer += FString::Printf(TEXT("%s,"),*ParameterName);
 		}
 	}
 
@@ -272,7 +270,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 				FString ParameterName = FString::Printf(TEXT("%s%s"),*NamePrefix,Member.GetName());
 				Decl.ResourceMembers += FString::Printf(TEXT("PLATFORM_SUPPORTS_SRV_UB_MACRO( %s %s; ) \r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\tPLATFORM_SUPPORTS_SRV_UB_MACRO( %s %s; ) \r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT(" PLATFORM_SUPPORTS_SRV_UB_MACRO( ,%s ) "), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT(" PLATFORM_SUPPORTS_SRV_UB_MACRO( %s, ) "), *ParameterName);
 			}
 			else
 			{
@@ -280,14 +278,9 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 				FString ParameterName = FString::Printf(TEXT("%s%s"),*NamePrefix,Member.GetName());
 				Decl.ResourceMembers += FString::Printf(TEXT("%s %s;\r\n"), Member.GetShaderType(), *ParameterName);
 				Decl.StructMembers += FString::Printf(TEXT("\t%s %s;\r\n"), Member.GetShaderType(), Member.GetName());
-				Decl.Initializer += FString::Printf(TEXT(",%s"), *ParameterName);
+				Decl.Initializer += FString::Printf(TEXT("%s,"), *ParameterName);
 			}
 		}
-	}
-
-	if (Decl.Initializer[OpeningBraceLocPlusOne] == TEXT(','))
-	{
-		Decl.Initializer[OpeningBraceLocPlusOne] = TEXT(' ');
 	}
 }
 

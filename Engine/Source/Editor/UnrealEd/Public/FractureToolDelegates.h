@@ -14,7 +14,6 @@ public:
 	FSimpleMulticastDelegate OnFractureExpansionBegin;
 	FSimpleMulticastDelegate OnFractureExpansionUpdate;
 	FSimpleMulticastDelegate OnFractureExpansionEnd;
-	FSimpleMulticastDelegate OnComponentsUpdated;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnVisualizationSettingsChanged, bool);
 	FOnVisualizationSettingsChanged OnVisualizationSettingsChanged;
@@ -27,7 +26,4 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdateVisualizationSettings, bool);
 	FOnUpdateVisualizationSettings OnUpdateVisualizationSettings;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnComponentSelectionChanged, class UActorComponent*);
-	FOnComponentSelectionChanged OnComponentSelectionChanged;
 };

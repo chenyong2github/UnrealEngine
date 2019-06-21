@@ -12,14 +12,6 @@
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXER_API, Audio);
 
-static int32 DisableHRTFCvar = 0;
-FAutoConsoleVariableRef CVarDisableHRTF(
-	TEXT("au.DisableHRTF"),
-	DisableHRTFCvar,
-	TEXT("Disables HRTF\n")
-	TEXT("0: Not Disabled, 1: Disabled"),
-	ECVF_Default);
-
 static int32 UseListenerOverrideForSpreadCVar = 0;
 FAutoConsoleVariableRef CVarUseListenerOverrideForSpread(
 	TEXT("au.UseListenerOverrideForSpread"),
@@ -123,6 +115,7 @@ namespace Audio
 			InitParams.NumInputFrames = NumFrames;
 			InitParams.SourceVoice = MixerSourceVoice;
 			InitParams.bUseHRTFSpatialization = UseObjectBasedSpatialization();
+			InitParams.bIsExternalSend = MixerDevice->bSpatializationIsExternalSend;
 			InitParams.bIsAmbisonics = WaveInstance->bIsAmbisonics;
 
 			if (InitParams.bIsAmbisonics)
@@ -936,20 +929,21 @@ namespace Audio
 			}
 
 			// Send the source audio to the reverb plugin if enabled
+			bool bPluginBypassedMasterReverb = false;
 			if (UseReverbPlugin())
 			{
 				if (MixerDevice->GetMasterReverbPluginSubmix().IsValid())
 				{
 					MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbPluginSubmix(), ReverbSendLevel);
 				}
+
+				bPluginBypassedMasterReverb = AudioDevice->IsReverbPluginBypassingMasterReverb();
 			}
-			else
+
+			// Send the source audio to the master reverb
+			if (!bPluginBypassedMasterReverb && MixerDevice->GetMasterReverbSubmix().IsValid())
 			{
-				// Send the source audio to the master reverb
-				if (MixerDevice->GetMasterReverbSubmix().IsValid())
-				{
-					MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
-				}
+				MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
 			}
 		}
 
@@ -1183,9 +1177,8 @@ namespace Audio
 	bool FMixerSource::UseObjectBasedSpatialization() const
 	{
 		return (Buffer->NumChannels <= MixerDevice->MaxChannelsSupportedBySpatializationPlugin &&
-			AudioDevice->IsSpatializationPluginEnabled() &&
-			DisableHRTFCvar == 0 &&
-			WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
+				AudioDevice->IsSpatializationPluginEnabled() &&
+				WaveInstance->SpatializationMethod == ESoundSpatializationAlgorithm::SPATIALIZATION_HRTF);
 	}
 
 	bool FMixerSource::UseSpatializationPlugin() const

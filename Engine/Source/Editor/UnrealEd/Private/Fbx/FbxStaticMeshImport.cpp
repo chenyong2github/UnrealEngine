@@ -1435,15 +1435,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	{
 		ExistingMesh->GetVertexColorData(ExistingVertexColorData);
 
-		if (0 == ExistingVertexColorData.Num())
-		{
-			// If there were no vertex colors and we specified to ignore FBX vertex colors, automatically take vertex colors from the file anyway.
-			if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-			{
-				VertexColorImportOption = EVertexColorImportOption::Replace;
-			}
-		}
-
 		// Free any RHI resources for existing mesh before we re-create in place.
 		ExistingMesh->PreEditChange(NULL);
 	}
@@ -1469,20 +1460,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			// failed to delete
 			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Error, FText::Format(LOCTEXT("ContentBrowser_CannotDeleteReferenced", "{0} wasn't created.\n\nThe asset is referenced by other content."), FText::FromString(MeshName))), FFbxErrors::Generic_CannotDeleteReferenced);
 			return NULL;
-		}
-
-		// Vertex colors should be copied always if there is no existing static mesh.
-		if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-		{
-			VertexColorImportOption = EVertexColorImportOption::Replace;
-		}
-	}
-	else
-	{ 
-		// Vertex colors should be copied always if there is no existing static mesh.
-		if (VertexColorImportOption == EVertexColorImportOption::Ignore)
-		{
-			VertexColorImportOption = EVertexColorImportOption::Replace;
 		}
 	}
 	

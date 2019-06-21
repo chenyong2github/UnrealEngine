@@ -1322,7 +1322,7 @@ bool UnFbx::FFbxImporter::ImportBone(TArray<FbxNode*>& NodeArray, FSkeletalMeshI
 	return true;
 }
 
-bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport)
+bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData)
 {
 	if (NodeArray.Num() == 0)
 	{
@@ -1407,7 +1407,7 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray
 		}
 
 		// NOTE: This function may invalidate FbxMesh and set it to point to a an updated version
-		if (!FillSkelMeshImporterFromFbx( *SkelMeshImportDataPtr, FbxMesh, Skin, FbxShape, SortedLinkArray, FbxMaterials, RootNode) )
+		if (!FillSkelMeshImporterFromFbx( *SkelMeshImportDataPtr, FbxMesh, Skin, FbxShape, SortedLinkArray, FbxMaterials, RootNode, ExistingVertexColorData) )
 		{
 			return false;
 		}
@@ -1715,6 +1715,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		}
 	}
 
+	TMap<FVector, FColor> ExistingVertexColorData;
 	USkeletalMesh* SkeletalMesh = nullptr;
 	if (!ExistingSkelMesh)
 	{
@@ -1724,14 +1725,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	}
 	else
 	{
-		//If we should keep the current vertex color but we do not have any vertex color, use the one from the fbx file (same behavior as the staticmesh)
-		if (!ImportOptions->bImportAsSkeletalSkinning && ImportOptions->VertexColorImportOption == EVertexColorImportOption::Ignore)
-		{
-			if (!ExistingSkelMesh->bHasVertexColors)
-			{
-				ImportOptions->VertexColorImportOption = EVertexColorImportOption::Replace;
-			}
-		}
+		ExistingVertexColorData = ExistingSkelMesh->GetVertexColorData();
 	}
 
 	FSkeletalMeshImportData TempData;
@@ -1749,7 +1743,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 	// We must do a maximum of fail test before backing up the data since the backup is destructive on the existing skeletal mesh.
 	// See the comment later when we call the following function (SaveExistingSkelMeshData)
 
-	if (FillSkeletalMeshImportData(ImportSkeletalMeshArgs.NodeArray, ImportSkeletalMeshArgs.TemplateImportData, ImportSkeletalMeshArgs.FbxShapeArray, SkelMeshImportDataPtr, LastImportedMaterialNames, ExistingSkelMesh != nullptr) == false)
+	if (FillSkeletalMeshImportData(ImportSkeletalMeshArgs.NodeArray, ImportSkeletalMeshArgs.TemplateImportData, ImportSkeletalMeshArgs.FbxShapeArray, SkelMeshImportDataPtr, LastImportedMaterialNames, ExistingSkelMesh != nullptr, ExistingVertexColorData) == false)
 	{
 		AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, LOCTEXT("FbxSkeletaLMeshimport_FillupImportData", "Get Import Data has failed.")), FFbxErrors::SkeletalMesh_FillImportDataFailed);
 		if (SkeletalMesh)
@@ -3015,7 +3009,7 @@ void UnFbx::FFbxImporter::CleanUpUnusedMaterials(FSkeletalMeshImportData& Import
 	}
 }
 
-bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& ImportData, FbxMesh*& Mesh, FbxSkin* Skin, FbxShape* FbxShape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode)
+bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& ImportData, FbxMesh*& Mesh, FbxSkin* Skin, FbxShape* FbxShape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode, const TMap<FVector, FColor>& ExistingVertexColorData)
 {
 	FbxNode* Node = Mesh->GetNode();
 
@@ -3174,7 +3168,11 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 	int32 LayerSmoothingCount = Mesh->GetLayerCount(FbxLayerElement::eSmoothing);
 	for(int32 i = 0; i < LayerSmoothingCount; i++)
 	{
-		GeometryConverter->ComputePolygonSmoothingFromEdgeSmoothing (Mesh, i);
+		FbxLayerElementSmoothing const* SmoothingInfo = Mesh->GetLayer(i)->GetSmoothing();
+		if (SmoothingInfo && SmoothingInfo->GetMappingMode() != FbxLayerElement::eByPolygon)
+		{
+			GeometryConverter->ComputePolygonSmoothingFromEdgeSmoothing(Mesh, i);
+		}
 	}
 
 	//
@@ -3272,6 +3270,12 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 				AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("FbxSkeletaLMeshimport_ConvertSmoothingGroupFailed", "Unable to fully convert the smoothing groups for mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_ConvertSmoothingGroupFailed);
 				bSmoothingAvailable = false;
 			}
+			else
+			{
+				//After using the geometry converter we always have to get the Layer and the smoothing info
+				BaseLayer = Mesh->GetLayer(0);
+				SmoothingInfo = BaseLayer->GetSmoothing();
+			}
 		}
 
 		if( SmoothingInfo->GetMappingMode() == FbxLayerElement::eByPolygon )
@@ -3311,6 +3315,10 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 		ImportData.bHasVertexColors = true;
 	}
 	else if(ImportOptions->VertexColorImportOption == EVertexColorImportOption::Override)
+	{
+		ImportData.bHasVertexColors = true;
+	}
+	else if (ImportOptions->VertexColorImportOption == EVertexColorImportOption::Ignore && ExistingVertexColorData.Num() != 0)
 	{
 		ImportData.bHasVertexColors = true;
 	}
@@ -3588,6 +3596,21 @@ bool UnFbx::FFbxImporter::FillSkelMeshImporterFromFbx( FSkeletalMeshImportData& 
 			{
 				int32 UnrealVertexIndex = OddNegativeScale ? 2 - VertexIndex : VertexIndex;
 				TmpWedges[UnrealVertexIndex].Color = ImportOptions->VertexOverrideColor;
+			}
+		}
+		else if (ImportOptions->VertexColorImportOption == EVertexColorImportOption::Ignore && ImportData.bHasVertexColors)
+		{
+			for (int32 VertexIndex = 0; VertexIndex < 3; VertexIndex++)
+			{
+				const FVector VertexPosition = ImportData.Points[TmpWedges[VertexIndex].VertexIndex];
+				const FColor* PaintedColor = ExistingVertexColorData.Find(VertexPosition);
+				
+				// try to match this wedge current vertex with one that existed in the previous mesh.
+				// This is a find in a tmap which uses a fast hash table lookup.
+				if (PaintedColor)
+				{
+					TmpWedges[VertexIndex].Color = *PaintedColor;
+				}
 			}
 		}
 		

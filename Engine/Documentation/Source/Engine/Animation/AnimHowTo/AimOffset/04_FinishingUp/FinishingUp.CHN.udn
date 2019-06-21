@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability:Public
+﻿INTSourceChangelist:6277736
+Availability: Docs
 Title:4 - 完成
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
 Description:在最终部分中，我们将更新角色蓝图，变更控制器旋转的处理方式，并在进行测试前修复一些小问题。 

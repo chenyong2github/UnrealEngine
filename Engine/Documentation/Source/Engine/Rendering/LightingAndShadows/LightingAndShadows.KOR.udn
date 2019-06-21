@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+﻿INTSourceChangelist:6412189
 Availability:Public
 Title: 환경 라이팅
 Crumbs: %ROOT%, Engine
@@ -9,6 +9,8 @@ Version: 4.18
 parent:Engine/Rendering
 order:3
 type:landing
+Tags:Rendering
+Tags:Graphics
 topic-image:lighting_topic.png
 
 ## 요점

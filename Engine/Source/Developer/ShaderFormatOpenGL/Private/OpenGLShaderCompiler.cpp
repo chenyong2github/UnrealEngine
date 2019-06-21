@@ -474,6 +474,7 @@ GLenum GLFrequencyTable[] =
 	GLenum(0), // SF_RayGen
 	GLenum(0), // SF_RayMiss
 	GLenum(0), // SF_RayHitGroup (closest hit, any hit, intersection)
+	GLenum(0), // SF_RayCallable
 };
 
 static_assert(ARRAY_COUNT(GLFrequencyTable) == SF_NumFrequencies, "Frequency table size mismatch.");

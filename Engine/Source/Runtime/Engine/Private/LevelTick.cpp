@@ -106,6 +106,8 @@ DEFINE_STAT(STAT_PostTickComponentRecreate);
 DEFINE_STAT(STAT_PostTickComponentUpdate);
 DEFINE_STAT(STAT_PostTickComponentUpdateWait);
 
+DECLARE_CYCLE_STAT(TEXT("OnEndOfFrameUpdateDuringTick"), STAT_OnEndOfFrameUpdateDuringTick, STATGROUP_Game);
+
 DEFINE_STAT(STAT_TickTime);
 DEFINE_STAT(STAT_WorldTickTime);
 DEFINE_STAT(STAT_UpdateCameraTime);
@@ -980,6 +982,28 @@ void UWorld::SendAllEndOfFrameUpdates()
 		return;
 	}
 
+	//If we call SendAllEndOfFrameUpdates during a tick, we must ensure that all marked objects have completed any async work etc before doing the updates.
+	if (bInTick)
+	{
+		SCOPE_CYCLE_COUNTER(STAT_OnEndOfFrameUpdateDuringTick);
+
+		//If this proves too slow we can possibly have the mark set a complimentary bit array that marks which components need this call? Or just another component array?
+		for (UActorComponent* Component : ComponentsThatNeedEndOfFrameUpdate)
+		{
+			if (Component)
+			{
+				Component->OnEndOfFrameUpdateDuringTick();
+			}
+		}
+		for (UActorComponent* Component : ComponentsThatNeedEndOfFrameUpdate_OnGameThread)
+		{
+			if (Component)
+			{
+				Component->OnEndOfFrameUpdateDuringTick();
+			}
+		}
+	}
+
 	// Issue a GPU event to wrap GPU work done during SendAllEndOfFrameUpdates, like skin cache updates
 	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = BeginSendEndOfFrameUpdatesDrawEvent(Scene ? Scene->GetGPUSkinCache() : nullptr);
 
@@ -1467,6 +1491,15 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			// Run pre-actor tick delegates that want clamped/dilated time
 			SCOPE_CYCLE_COUNTER(STAT_TickTime);
 			FWorldDelegates::OnWorldPreActorTick.Broadcast(this, TickType, DeltaSeconds);
+		}
+
+		// Tick level sequence actors first
+		for (AActor* LevelSequenceActor : LevelSequenceActors)
+		{
+			if (LevelSequenceActor != nullptr)
+			{
+				LevelSequenceActor->Tick(DeltaSeconds);
+			}
 		}
 	}
 

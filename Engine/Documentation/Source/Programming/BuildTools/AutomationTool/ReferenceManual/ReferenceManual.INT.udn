@@ -1,0 +1,33 @@
+Availability: Docs
+Title: AutomationTool Reference Manual
+Description: Useful reference material for developers using AutomationTool to automate processes for their projects.
+Version: 4.22
+Parent: Programming/BuildTools/AutomationTool
+Tags: AutomationTool
+Order: 2
+Related: Programming/BuildTools/CreatingAutomationProjects
+
+
+## Command-line Arguments
+
+Use the following command-line arguments when using `RunUAT.bat`.
+
+  
+| Argument | Description |
+| --- | --- |
+| `-compile` | If you are running the engine from a compiled build, this is the default argument. |
+| `-nocompile` | If you are running the engine from an installed build, this is the default argument. |
+| `-Utf8output` | Ensures UTF-8 encoding for log output. |
+| `-Verbose`, `-VeryVerbose` | Enables a verbose log output, which traces additional data to the Command Prompt, including information about the operating environment, whether the application is running from the launcher, the application, and more. |
+| `-Timestamps` | Adds timestamp information for every line trace in the log output. |
+
+## File Descriptions
+
+The following files are belong to the AutomationTool workflow:
+
+  
+| File | Description |
+| --- | --- |
+| `RunUAT.bat` | Located in `[UE4 Root]/Engine/Build/BatchFiles`, this script is the easiest way to run AutomationToolLauncher from the command-line. |
+| `AutomationToolLauncher` | Located in `[UE4 Root]/Engine/Source/Programs/AutomationToolLauncher`, this is the project responsible for creating the application domain, parsing the command-line arguments, and starting AutomationTool. |
+| `AutomationTool` | Located in `[UE4 Root]/Engine/Source/Programs/AutomationTool`, this is the project responsible for running custom automation scripts, enabling developers to automate processes, which includes testing and building games. |

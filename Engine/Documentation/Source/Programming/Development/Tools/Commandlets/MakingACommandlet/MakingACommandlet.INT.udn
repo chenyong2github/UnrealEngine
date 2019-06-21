@@ -228,7 +228,7 @@ You might also want to look at `NormalizePackageNames()` in `PackageHelperFuncti
 
 ## Commandlet Listing
 
-Please refer to the [Commandlet List](Engine/Commandlets/CommandletList) page.
+Please refer to the [Commandlet List](http://api.unrealengine.com/INT/API/Runtime/Engine/Commandlets/UCommandlet) page.
 
  
 

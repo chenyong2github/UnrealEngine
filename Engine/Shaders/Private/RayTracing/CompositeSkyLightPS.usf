@@ -2,6 +2,7 @@
 
 #include "../Common.ush"
 #include "../DeferredShadingCommon.ush"
+#include "../SceneTextureParameters.ush"
 
 Texture2D<float4> SkyLightTexture;
 SamplerState SkyLightTextureSampler;
@@ -11,8 +12,8 @@ void CompositeSkyLightPS(
 	out float4 OutColor : SV_Target0
 )
 {
-	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
-	float3 Albedo = ScreenSpaceData.GBuffer.StoredBaseColor - ScreenSpaceData.GBuffer.StoredBaseColor * ScreenSpaceData.GBuffer.Metallic;
+	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
+	float3 Albedo = GBufferData.StoredBaseColor - GBufferData.StoredBaseColor * GBufferData.Metallic;
 	float4 SkyLight = SkyLightTexture.Sample(SkyLightTextureSampler, UV);
 	// Apply albedo after denoising
 	SkyLight.rgb *= Albedo;

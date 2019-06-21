@@ -736,13 +736,13 @@ struct FGlobalActorReplicationInfoMap
 		ClassMap.CountBytes(Ar);
 	}
 
-	enum EWarnFlag
+	enum class EWarnFlag : uint8
 	{
 		None = 0,
-		WarnAlreadyDependant = 1 << 1,
+		WarnAlreadyDependant = 1 << 0,
 	};
 
-	REPLICATIONGRAPH_API void AddDependentActor(AActor* Parent, AActor* Child, FGlobalActorReplicationInfoMap::EWarnFlag WarnFlag = FGlobalActorReplicationInfoMap::None);
+	REPLICATIONGRAPH_API void AddDependentActor(AActor* Parent, AActor* Child, FGlobalActorReplicationInfoMap::EWarnFlag WarnFlag = FGlobalActorReplicationInfoMap::EWarnFlag::None);
 
 	void RemoveDependentActor(AActor* Parent, AActor* Child)
 	{
@@ -804,6 +804,8 @@ private:
 	TMap<FActorRepListType, TUniquePtr<FGlobalActorReplicationInfo>> ActorMap;
 	TClassMap<FClassReplicationInfo> ClassMap;
 };
+
+ENUM_CLASS_FLAGS(FGlobalActorReplicationInfoMap::EWarnFlag);
 
 /** Per-Actor data that is stored per connection */
 struct FConnectionReplicationActorInfo
@@ -1167,6 +1169,7 @@ struct FConnectionGatherActorListParameters
 
 
 	/** In: The Data the nodes have to work with */
+	UE_DEPRECATED(4.23, "Use the viewer arrays for support for subconnections")
 	FNetViewer& Viewer;
 
 	FNetViewerArray Viewers;

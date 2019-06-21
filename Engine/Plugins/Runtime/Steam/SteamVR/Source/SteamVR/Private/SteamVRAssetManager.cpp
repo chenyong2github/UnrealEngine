@@ -134,7 +134,7 @@ public:
 	{
 		if (IsPending())
 		{
-			FSharedSteamVRResource& SharedResource = SharedResources.FindOrAdd(ResourceId);
+			FSharedSteamVRResource& SharedResource = SharedResources[ResourceId]; // The shared resource was already created in the constructor
 			if (SharedResource.RawResource != nullptr)
 			{
 				RawResource = SharedResource.RawResource;
@@ -226,6 +226,7 @@ template<>
 void TSteamVRModel::FreeResource(vr::IVRRenderModels* VRModelManager)
 {
 #if STEAMVR_SUPPORTED_PLATFORMS
+	UE_LOG(LogSteamVR, Log, TEXT("TSteamVRModel::FreeResource: Freeing render model instance. ResourceId: %s"), *ResourceId);
 	VRModelManager->FreeRenderModel(RawResource);
 #endif
 }
@@ -246,6 +247,7 @@ template<>
 void TSteamVRTexture::FreeResource(vr::IVRRenderModels* VRModelManager)
 {
 #if STEAMVR_SUPPORTED_PLATFORMS
+	UE_LOG(LogSteamVR, Log, TEXT("TSteamVRTexture::FreeResource: Freeing raw texture resource. ResourceId: %d"), ResourceId);
 	VRModelManager->FreeTexture(RawResource);
 #endif
 }
@@ -260,6 +262,10 @@ public:
 		: TSteamVRModel(ResID, bKickOffLoad)
 	{}
 
+	virtual ~FSteamVRModel()
+	{
+		Reset();
+	}
 public:
 	bool GetRawMeshData(float UEMeterScale, FSteamVRMeshData& MeshDataOut);
 };
@@ -330,27 +336,37 @@ public:
 		: TSteamVRTexture(ResID, bKickOffLoad)
 	{}
 
+	~FSteamVRTexture()
+	{
+		Reset();
+	}
+
 	int32 GetResourceID() const { return ResourceId; }
 
 public:
-	UTexture2D* ConstructUETexture(UObject* ObjOuter, const FName ObjName, EObjectFlags ObjFlags = RF_NoFlags)
+	UTexture2D* ConstructUETexture(const FName ObjName)
 	{
 		UTexture2D* NewTexture = nullptr;
 
 #if STEAMVR_SUPPORTED_PLATFORMS
 		if (RawResource != nullptr)
 		{
-#if WITH_EDITORONLY_DATA // @TODO: UTexture::Source is only available in editor builds, we need to find some other way to construct textures - try using CreateTransient() (see: TexturePaintHelpers::CreateTempUncompressedTexture)
-			NewTexture = NewObject<UTexture2D>(ObjOuter, ObjName, ObjFlags);
-			NewTexture->Source.Init(RawResource->unWidth, RawResource->unHeight, /*NewNumSlices =*/1, /*NewNumMips =*/1, TSF_BGRA8, RawResource->rubTextureMapData);
-
-			NewTexture->MipGenSettings = TMGS_NoMipmaps;
-			// disable compression
-			NewTexture->CompressionNone = true;
-			NewTexture->DeferCompression = false;
-
-			NewTexture->PostEditChange();
-#endif 
+			// Create the texture. Using UTexture2D::CreateTransient which is supported outside of editor builds.
+			NewTexture = UTexture2D::CreateTransient(RawResource->unWidth, RawResource->unHeight, EPixelFormat::PF_R8G8B8A8, ObjName);
+			if (NewTexture != nullptr)
+			{
+				FTexture2DMipMap& Mip = NewTexture->PlatformData->Mips[0];
+				void* Data = Mip.BulkData.Lock(LOCK_READ_WRITE);
+				FMemory::Memcpy(Data, (void*)RawResource->rubTextureMapData, Mip.BulkData.GetBulkDataSize());
+				Mip.BulkData.Unlock();
+				NewTexture->PlatformData->NumSlices = 1;
+#if WITH_EDITORONLY_DATA
+				NewTexture->CompressionNone = true;
+				NewTexture->DeferCompression = false;
+				NewTexture->MipGenSettings = TMGS_NoMipmaps;
+#endif				
+				NewTexture->UpdateResource();
+			}
 		}
 #endif
 
@@ -433,7 +449,7 @@ int32 FSteamVRAsyncMeshLoader::EnqueMeshLoad(const FString& ModelName)
 	if (!ModelName.IsEmpty())
 	{
 		++PendingLoadCount;
-		MeshIndex = EnqueuedMeshes.Add( FSteamVRModel(ModelName) );
+		MeshIndex = EnqueuedMeshes.Emplace( ModelName );
 	}
 	return MeshIndex;
 }
@@ -453,29 +469,31 @@ void FSteamVRAsyncMeshLoader::Tick(float /*DeltaTime*/)
 	for (int32 SubMeshIndex = 0; SubMeshIndex < EnqueuedMeshes.Num(); ++SubMeshIndex)
 	{
 		FSteamVRModel& ModelResource = EnqueuedMeshes[SubMeshIndex];
-
-		vr::RenderModel_t* RenderModel = ModelResource.TickAsyncLoad();
-		if (!ModelResource.IsPending())
+		if (ModelResource.IsPending())
 		{
-			--PendingLoadCount;
+			vr::RenderModel_t* RenderModel = ModelResource.TickAsyncLoad();
+			if (!ModelResource.IsPending())
+			{
+				--PendingLoadCount;
 
-			if (!RenderModel)
-			{
-				// valid index + missing RenderModel => signifies failure
-				OnLoadComplete(SubMeshIndex);
-			}
+				if (!RenderModel)
+				{
+					// valid index + missing RenderModel => signifies failure
+					OnLoadComplete(SubMeshIndex);
+				}
 #if STEAMVR_SUPPORTED_PLATFORMS
-			// if we've already loaded and converted the texture
-			else if (ConstructedTextures.Contains(RenderModel->diffuseTextureId))
-			{
-				OnLoadComplete(SubMeshIndex);
-			}
+				// if we've already loaded and converted the texture
+				else if (ConstructedTextures.Contains(RenderModel->diffuseTextureId))
+				{
+					OnLoadComplete(SubMeshIndex);
+				}
 #endif // STEAMVR_SUPPORTED_PLATFORMS
-			else if (!EnqueueTextureLoad(SubMeshIndex, RenderModel))
-			{
-				// if we fail to load the texture, we'll have to do without it
-				OnLoadComplete(SubMeshIndex);
-			}			
+				else if (!EnqueueTextureLoad(SubMeshIndex, RenderModel))
+				{
+					// if we fail to load the texture, we'll have to do without it
+					OnLoadComplete(SubMeshIndex);
+				}
+			}
 		}
 	}
 
@@ -491,13 +509,12 @@ void FSteamVRAsyncMeshLoader::Tick(float /*DeltaTime*/)
 
 				if (bLoadSuccess)
 				{
-					UObject* TextureOuter = GetTransientPackage();
 					FName    TextureName  = *FString::Printf(TEXT("T_SteamVR_%d"), TextureResource.GetResourceID());
 
-					UTexture2D* UETexture = FindObjectFast<UTexture2D>(TextureOuter, TextureName, /*ExactClass =*/true);
+					UTexture2D* UETexture = FindObjectFast<UTexture2D>(GetTransientPackage(), TextureName, /*ExactClass =*/true);
 					if (UETexture == nullptr)
 					{
-						UETexture = TextureResource.ConstructUETexture(TextureOuter, TextureName);
+						UETexture = TextureResource.ConstructUETexture(TextureName);
 					}
 					ConstructedTextures.Add(TextureResource.GetResourceID(), UETexture);
 				}
@@ -545,7 +562,7 @@ bool FSteamVRAsyncMeshLoader::EnqueueTextureLoad(int32 SubMeshIndex, vr::RenderM
 		bLoadEnqueued = true;
 
 		// load will be kicked off later on in Tick() loop (no need to do it twice in the same tick)
-		int32 TextureIndex = EnqueuedTextures.Add( FSteamVRTexture(RenderModel->diffuseTextureId, /*bKickOffLoad =*/false) );
+		int32 TextureIndex = EnqueuedTextures.Emplace( RenderModel->diffuseTextureId, /*bKickOffLoad =*/false );
 		PendingTextureLoads.Add(TextureIndex, SubMeshIndex);
 	}
 #endif

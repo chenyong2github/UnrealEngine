@@ -27,6 +27,7 @@
 #include "ShaderCompiler.h"
 #include "EditorLevelUtils.h"
 #include "IVREditorModule.h"
+#include "LevelEditorViewport.h"
 
 namespace PackageAutoSaverJson
 {
@@ -289,7 +290,7 @@ void FPackageAutoSaver::OfferToRestorePackages()
 {
 	bool bRemoveRestoreFile = true;
 
-	if(HasPackagesToRestore())
+	if(HasPackagesToRestore() && !bAutoDeclineRecovery) // if bAutoDeclineRecovery is true, do like the user selected to decline. (then remove the restore files)
 	{
 		// If we failed to restore, keep the restore information around
 		if(PackageRestore::PromptToRestorePackages(PackagesThatCanBeRestored) == FEditorFileUtils::PR_Failure)
@@ -438,7 +439,17 @@ bool FPackageAutoSaver::CanAutoSave() const
 	const bool bAreShadersCompiling = GShaderCompilingManager->IsCompiling();
 	const bool bIsVREditorActive = IVREditorModule::Get().IsVREditorEnabled();	// @todo vreditor: Eventually we should support this while in VR (modal VR progress, with sufficient early warning)
 
-	return (bAutosaveEnabled && !bSlowTask && !bInterpEditMode && !bPlayWorldValid && !bAnyMenusVisible && !bAutomationTesting && !bIsInteracting && !GIsDemoMode && bHasGameOrProjectLoaded && !bAreShadersCompiling && !bIsVREditorActive);
+	bool bIsSequencerPlaying = false;
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC && LevelVC->AllowsCinematicControl() && LevelVC->ViewState.GetReference()->GetSequencerState() == ESS_Playing)
+		{
+			bIsSequencerPlaying = true;
+			break;
+		}
+	}
+
+	return (bAutosaveEnabled && !bSlowTask && !bInterpEditMode && !bPlayWorldValid && !bAnyMenusVisible && !bAutomationTesting && !bIsInteracting && !GIsDemoMode && bHasGameOrProjectLoaded && !bAreShadersCompiling && !bIsVREditorActive && !bIsSequencerPlaying);
 }
 
 bool FPackageAutoSaver::DoPackagesNeedAutoSave() const

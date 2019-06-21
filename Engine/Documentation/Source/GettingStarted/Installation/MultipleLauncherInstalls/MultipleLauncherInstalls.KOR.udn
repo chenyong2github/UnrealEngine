@@ -1,0 +1,121 @@
+﻿INTSourceChangelist:6443090
+Availability: Public
+Title: 다중 런처 설치
+Description: 필요한 경우 런처의 PCB 모드를 활성화하는 방법, Windows Registry Install Path Override 추가 방법을 설명합니다.
+Type: overview
+Version: 4.20
+Parent: GettingStarted/Installation
+Tags: Installation
+Order: 0
+
+
+[TOC (start:2 end:3)]
+
+![](MultiLauncherInstall_OverviewImg-1.png "MultiLauncherInstall_OverviewImg-1.png")
+
+에픽게임즈 런처와 언리얼 엔진을 여러 컴퓨터에 설치하는 것은 시간이 오래 걸리고 유지하기도 어려우며, 교육 기관, 사무실, 인터넷 카페, PC 방 등의 환경에서 수십 또는 수백 대의 컴퓨터를 관리하는 IT 직원 또는 개발자라면 더욱 그렇습니다. 이러한 사용자를 돕기 위해, 언리얼 엔진 4 (UE4)와 같은 애플리케이션 설치와 업데이트를 쉽게 해주는 기능을 런처에 업데이트했습니다. 다음 개요는 여러 컴퓨터에 런처를 설치해서 애플리케이션을 쉽게 설치하는 방법을 설명합니다. 
+
+이 문서 끝에서는 필요한 경우 **Launcher PCB Mode** (런처 PCB 모드)를 활성화하고, **Windows Registry Install Path Override** (Windows 레지스트리 설치 경로 오버라이드)를 설정하는 법을 배웁니다.
+
+[REGION:note]
+현재 이 기능은 Windows 운영 체제에서만 지원됩니다.
+[/REGION]
+
+## 런처 PCB 모드
+
+Windows 에서 런처는 일반적으로 시스템의 **ProgramData** 폴더(예: **\%programdata%\\Epic** 또는 **C:\\ProgramData\\Epic**)에 manifest, 동적, 임시 파일을 저장합니다. 종종 사무실, 교육 기관, 또는 인터넷 카페 관리자는 프로그램 데이터를 클라이언트 머신에 미러링하지 않고 서버에서 런처와 언리얼 엔진을 설치하는데, 이 경우 클라이언트가 게임 설치를 찾지 못하고 다시 설치하는 문제를 겪게 됩니다.
+
+가끔 시스템 관리자는 프로그램 데이터 폴더를 클라이언트 머신에 미러링하기 위해 일련의 복잡한 단계를 실행해야 합니다. 이 워크플로를 단순화하기 위해 이제 런처가 **PCB Mode** 를 지원합니다. PCB 모드 활성화 이후, 런처는 프로그램 데이터 폴더를 그 설치 폴더 안에 저장합니다. 인터넷 카페 주인은, 예를 들어, 서버 머신에서 런처를 한 번 구성한 뒤 그 서버의 설치 폴더를 클라이언트에 복제할 수 있습니다. 설치 폴더에 모든 프로그램 데이터 파일이 있으면, 별도의 작업이 필요치 않습니다.
+
+[REGION:prereq]
+UE4 를 설치한 적이 없다면, 첫 설치 안내서에서 [언리얼 엔진 설치](GettingStarted/Installation) 방법을 참고하세요.
+[/REGION]
+
+### 런처 PCB 모드 활성화
+
+런처 PCB 모드 활성화 단계는 다음과 같습니다.
+
+1.  런처를 머신 최소 한 대에 설치합니다 (서버도 가능합니다). 나중에 이 머신을 '원본 컴퓨터'라 합니다.
+
+1.  런처가 닫혔는지 확인합니다.
+
+1.  **Launcher PCB Mode** (런처 PCB 모드) 활성화를 위해서는, **Epic** 폴더를 런처의 설치 디렉터리로 이동( 또는 복사)합니다. 설명을 위해 Epic 폴더를 `C:\ProgramData\Epic` 에서 `C:\Program Files (x86)\Epic Games\Launcher` 로 이동합니다.  
+    ![](MultiLauncherInstall_Step3.png "MultiLauncherInstall_Step3.png")
+
+[REGION:note]
+PCB 모드는 런처에서 다수의 엔진을 설치하는 워크플로를 단순화 시도합니다. 런처 PCB 모드 섹션에서 이 새로운 런처 모드를 자세히 알아보세요.
+[/REGION]
+1.  런처를 사용해서 선택한 엔진(들)을 새 컴퓨터에 설치합니다.
+
+1.  마지막으로, 런처와 엔진의 설치 디렉터리를 새 컴퓨터에 복사합니다.
+
+[REGION:note]
+새 컴퓨터의 엔진 설치 경로가 원본 컴퓨터의 경로와 다르거나 새 컴퓨터에 드라이브 명이 다른 경우, 런처 PCB 모드 활성화 이후 **Registry Install Path Override** (레지스트리 설치 경로 오버라이드)를 사용해야 합니다.
+[/REGION]
+
+### 런처 PCB 모드 비활성화
+
+이 모드를 비활성화하려면, 런처를 닫고 런처의 설치 디렉토리에 있는 **Epic** 폴더를 원래 **Program** 디렉터리로 이동한 뒤, 런처를 재시작합니다.
+
+[REGION:tip]
+**Epic** 폴더는 삭제보다 이동하는 것이 좋은데, 런처 설치 디렉터리의 그 폴더를 삭제하면 런처에 게임 또는 애플리케이션 설치 위치를 알려주는 (수정 불가능한 바이너리 파일인) manifest 파일을 잃어버릴 수 있기 때문입니다.
+[/REGION]
+
+## Windows 레지스트리 설치 경로 오버라이드
+
+런처는 게임및 애플리케이션 설치 위치 정보를 시스템의 **ProgramData** 폴더에 있는 manifest 파일에 저장합니다. 이 때, 설치된 게임 또는 애플리케이션을 새 위치로 이동하면, 런처는 설치가 이동된 것을 발견하지 못합니다. 그러면 문제의 소지가 있으며, 특히 런처 및 게임( 또는 애플리케이션)을 원본 설치 머신과 드라이브 명 또는 디렉터리 구조가 같지 않은 머신으로 옮기는 경우 특히 그렇습니다. 런처 또는 그 설치를 새 머신에 이동( 또는 복사)하는 데 문제가 있는 경우, 레지스트리 설치 겅로 오버라이드가 복사 또는 이동된 게임 또는 애플리케이션 폴더를 가리키도록 지정해야 할 수 있습니다.
+
+[REGION:note]
+일반적으로 레지스트리 설치 경로 오버라이드는 PCB 모드와 함께 사용됩니다.
+[/REGION]
+
+설치 경로(InstallLocation) 오버라이드는 Windows 레지스트리에 게임( 또는 애플리케이션)별로 지정되며, **InstallLocation** 오버라이드는 다음 레지스트리 위치 중 하나에 추가될 수 있습니다.
+
+*   `HKEY_LOCAL_MACHINE\SOFTWARE\Epic Games\EpicGamesLauncher\Overrides`
+
+*   `HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides`
+
+*   `HKEY_CURRENT_USER\SOFTWARE\Epic Games\EpicGamesLauncher\Overrides`
+
+*   `HKEY_CURRENT_USER\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides`
+
+[REGION:note]
+다음 섹션에서는 Windows 10 의 [Registry](https://docs.microsoft.com/en-us/windows/desktop/sysinfo/registry) Editor 를 사용합니다.
+[/REGION]
+
+### 레지스트리 설치 경로 오버라이드 추가
+
+Registry Install Path Override (레지스트리 설치 경로 오버라이드)를 추가하는 단계는 다음과 같습니다.
+
+1.  작업 표시줄의 검색 창에 `regedit` 를 입력합니다.
+
+1.  **regedit Run command** 를 선택하면 **Registry Editor** 가 열립니다.
+
+[REGION:note]
+**Registry Editor** 를 사용해서 InstallLocation Override Subkey 를 추가하고, 이를 Registry Install Path Override 섹션에 나열된 레지스트리 위치 중 하나에 추가할 수 있습니다. 설명 목적으로 Subkey 를 다음 키에 추가합니다.
+
+`HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher\Overrides`
+[/REGION]
+1.  `HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Epic Games\EpicGamesLauncher` 레지스트리 위치로 이동하고, **EpicGamesLauncher** 키를 선택합니다.
+
+1.  **EpicGamesLauncher** 키에 대한 Subkey 를 새로 생성하려면, **Edit** 메뉴를 선택하고 **New** 옵션 위에 커서를 올린 뒤 **Key** 명령을 선택합니다.
+
+1.  새 Subkey 이름은 `Overrides` 라 합니다.
+
+1.  위의 두 단계를 반복하여 Overrides 에 대한 Subkey 를 새로 만들고, 이름은 `UE_4.18` 라 합니다.
+
+[REGION:tip]
+레지스트리 경로 포맷은 UE4 필수 폴더명이 들어가야 하며, 런처의 **설치 대화창** 에서 찾을 수 있습니다. 다음 이미지에서 보듯, 이 예제에서 필수 폴더명은 **UE_4.18** 입니다.  
+
+![](LauncherInstallDialog.png "LauncherInstallDialog.png")
+[/REGION]
+1.  **Edit** 메뉴를 선택하고, **New** 옵션에 커서를 올린 뒤 **String Value** 명령을 선택합니다.
+
+1.  새 String Value 이름은 `InstallLocation` 로 합니다.
+
+1.  마지막으로 **InstallLocation** 에 대한 데이터 값을 UE4 필수 폴더명과 일치시켜 정의합니다. 이 예제에서는 **C:\\Epic Games\\UE_4.18** 를 사용합니다.  
+    ![](InstallLocOverride_Step9.png "InstallLocOverride_Step9.png")
+
+[REGION:note]
+런처는 시작 시 한 번만 레지스트리 값을 읽으므로, 레지스트리를 업데이트한 경우 런처를 재시작해야 변경사항을 발견할 수 있습니다.
+[/REGION]

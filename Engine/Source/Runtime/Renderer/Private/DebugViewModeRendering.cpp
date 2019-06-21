@@ -19,6 +19,8 @@ DebugViewModeRendering.cpp: Contains definitions for rendering debug viewmodes.
 #include "CompositionLighting/PostProcessPassThrough.h"
 #include "PostProcess/PostProcessCompositeEditorPrimitives.h"
 #include "PostProcess/PostProcessUpscale.h"
+#include "PostProcess/PostProcessTemporalAA.h"
+#include "PostProcess/PostProcessInput.h"
 #include "SceneRendering.h"
 #include "DeferredShadingRenderer.h"
 #include "MeshPassProcessor.inl"
@@ -68,9 +70,10 @@ void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandLis
 	ensure(Context.View.PrimaryScreenPercentageMethod != EPrimaryScreenPercentageMethod::TemporalUpscale);
 
 	const bool bHDROutputEnabled = GRHISupportsHDROutput && IsHDREnabled();
-
-	// Shader complexity does not actually output a color
-	if (!View.Family->EngineShowFlags.ShaderComplexity)
+	
+	// Some view modes do not actually output a color so they should not be tonemapped	
+	const bool bAllowTonemapper = !View.Family->EngineShowFlags.ShaderComplexity && !View.Family->EngineShowFlags.RayTracingDebug;
+	if (bAllowTonemapper)
 	{
 		GPostProcessing.AddGammaOnlyTonemapper(Context);
 	}
@@ -102,6 +105,34 @@ void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandLis
 			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessStreamingAccuracyLegend(GEngine->StreamingAccuracyColors));
 			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+			break;
+		}
+		case DVSM_RayTracingDebug:
+		{
+			FSceneViewState* ViewState = (FSceneViewState*)Context.View.State;
+			FTAAPassParameters Parameters(Context.View);
+			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTemporalAA(
+				Context, 
+				Parameters, 
+				Context.View.PrevViewInfo.TemporalAAHistory, 
+				&ViewState->PrevFrameViewInfo.TemporalAAHistory));
+
+			FRenderingCompositePass* VelocityNode = VelocityRT
+				? Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(VelocityRT))
+				: Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessInput(GSystemTextures.BlackDummy));
+
+			FRenderingCompositeOutputRef VelocityRef(VelocityNode);
+
+			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
+			Node->SetInput(ePId_Input2, VelocityRef);
+
+			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
+
+			if (View.Family->EngineShowFlags.Tonemapper)
+			{
+				GPostProcessing.AddGammaOnlyTonemapper(Context);
+			}
+
 			break;
 		}
 		default:
@@ -204,7 +235,7 @@ void FDeferredShadingSceneRenderer::DoDebugViewModePostProcessing(FRHICommandLis
 		// May need to wait on the final pass to complete
 		if (Context.FinalOutput.IsAsyncComputePass())
 		{
-			FComputeFenceRHIParamRef ComputeFinalizeFence = Context.FinalOutput.GetComputePassEndFence();
+			FRHIComputeFence* ComputeFinalizeFence = Context.FinalOutput.GetComputePassEndFence();
 			if (ComputeFinalizeFence)
 			{
 				Context.RHICmdList.WaitComputeFence(ComputeFinalizeFence);
@@ -255,7 +286,7 @@ FDebugViewModeMeshProcessor::FDebugViewModeMeshProcessor(
 	const FScene* InScene, 
 	ERHIFeatureLevel::Type InFeatureLevel,
 	const FSceneView* InViewIfDynamicMeshCommand, 
-	FUniformBufferRHIParamRef InPassUniformBuffer, 
+	FRHIUniformBuffer* InPassUniformBuffer,
 	bool bTranslucentBasePass,
 	FMeshPassDrawListContext* InDrawListContext
 )

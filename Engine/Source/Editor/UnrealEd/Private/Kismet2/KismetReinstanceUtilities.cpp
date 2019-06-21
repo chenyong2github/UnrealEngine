@@ -1790,6 +1790,13 @@ static void ReplaceActorHelper(UObject* OldObject, UClass* OldClass, UObject*& N
 	SpawnInfo.bDeferConstruction = true;
 	SpawnInfo.Name = OldActor->GetFName();
 
+#if WITH_EDITOR
+	if (!OldActor->IsListedInSceneOutliner())
+	{
+		SpawnInfo.bHideFromSceneOutliner = true;
+	}
+#endif
+
 	OldActor->UObject::Rename(nullptr, OldObject->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | (GBlueprintUseCompilationManager ? REN_ForceNoResetLoaders : 0));
 
 	AActor* NewActor = nullptr;
@@ -1909,10 +1916,17 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 	{
 		if (UBlueprint* OldObjBlueprint = Cast<UBlueprint>(InOldObject->GetClass()->ClassGeneratedBy))
 		{
-			const UObject* DebugObj = OldObjBlueprint->GetObjectBeingDebugged(EGetObjectOrWorldBeingDebuggedFlags::IgnorePendingKill);
-			if (DebugObj == InOldObject)
+			// For now, don't update the object if the outer BP assets don't match (e.g. after a reload). Otherwise, it will
+			// trigger an ensure() in SetObjectBeginDebugged(). This will be replaced with a better solution in a future release.
+			if (OldObjBlueprint == Cast<UBlueprint>(InNewObject->GetClass()->ClassGeneratedBy))
 			{
-				OldObjBlueprint->SetObjectBeingDebugged(InNewObject);
+				// The old object may already be PendingKill, but we still want to check the current
+				// ptr value for a match. Otherwise, the selection will get cleared after every compile.
+				const UObject* DebugObj = OldObjBlueprint->GetObjectBeingDebugged(EGetObjectOrWorldBeingDebuggedFlags::IgnorePendingKill);
+				if (DebugObj == InOldObject)
+				{
+					OldObjBlueprint->SetObjectBeingDebugged(InNewObject);
+				}
 			}
 		}
 	};

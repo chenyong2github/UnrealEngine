@@ -493,6 +493,13 @@ class CORE_API FFileHandleWindows : public IFileHandle
 		OverlappedIO.OffsetHigh = LI.HighPart;
 	}
 
+	FORCEINLINE bool UpdatedNonOverlappedPos()
+	{
+		LARGE_INTEGER LI;
+		LI.QuadPart = FilePos;
+		return SetFilePointer(FileHandle, LI.LowPart, &LI.HighPart, FILE_BEGIN) != INVALID_SET_FILE_POINTER;
+	}
+
 	FORCEINLINE void UpdateFileSize()
 	{
 		LARGE_INTEGER LI;
@@ -614,8 +621,9 @@ public:
 	}
 	virtual bool Truncate(int64 NewSize) override
 	{
+		// SetEndOfFile isn't an overlapped operation, so we need to call UpdatedNonOverlappedPos after seeking to ensure that the file pointer is in the correct place
 		check(IsValid());
-		return Seek(NewSize) && SetEndOfFile(FileHandle) != 0;
+		return Seek(NewSize) && UpdatedNonOverlappedPos() && SetEndOfFile(FileHandle) != 0;
 	}
 };
 
@@ -879,7 +887,7 @@ public:
 		}
 	}
 
-#define USE_WINDOWS_ASYNC_IMPL (!IS_PROGRAM && !WITH_EDITOR)
+#define USE_WINDOWS_ASYNC_IMPL 0
 #if USE_WINDOWS_ASYNC_IMPL
 	virtual IAsyncReadFileHandle* OpenAsyncRead(const TCHAR* Filename) override
 	{

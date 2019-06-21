@@ -1111,7 +1111,7 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 						const FMaterial* Material = MaterialResource ? MaterialResource->GetMaterial(FeatureLevel) : nullptr;
 
 						if (Material && 
-							(Material->GetBlendMode() == BLEND_Translucent || Material->GetBlendMode() == BLEND_AlphaComposite ||
+							(Material->GetBlendMode() == BLEND_Translucent || Material->GetBlendMode() == BLEND_AlphaComposite || Material->GetBlendMode() == BLEND_AlphaHoldout ||
 							((SourceData->SortMode == PSORTMODE_Age_OldestFirst) || (SourceData->SortMode == PSORTMODE_Age_NewestFirst)))
 							)
 						{
@@ -1870,7 +1870,7 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 					if (bIsWireframe)
 					{
-						if (LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
+						if (LODModel.AdditionalIndexBuffers && LODModel.AdditionalIndexBuffers->WireframeIndexBuffer.IsInitialized()
 							&& !(RHISupportsTessellation(ShaderPlatform) && Mesh.VertexFactory->GetType()->SupportsTessellationShaders()))
 						{
 							Mesh.Type = PT_LineList;
@@ -5496,8 +5496,8 @@ void FDynamicTrailsEmitterData::Init(bool bInSelected)
 {
 	bSelected = bInSelected;
 
-	check(SourcePointer->ActiveParticleCount < (16 * 1024));	// TTP #33330
-	check(SourcePointer->ParticleStride < (2 * 1024));			// TTP #33330
+	ensure(SourcePointer->ActiveParticleCount < (16 * 1024));	// TTP #33330
+	ensure(SourcePointer->ParticleStride < (2 * 1024));			// TTP #33330
 
 	MaterialResource = SourcePointer->MaterialInterface->GetRenderProxy();
 
@@ -7279,7 +7279,7 @@ void FParticleSystemSceneProxy::UpdateWorldSpacePrimitiveUniformBuffer() const
 			false,
 			UseSingleSampleShadowFromStationaryLights(),
 			GetScene().HasPrecomputedVolumetricLightmap_RenderThread(),
-			UseEditorDepthTest(),
+			DrawsVelocity(),
 			GetLightingChannelMask(),
 			0,
 			INDEX_NONE,

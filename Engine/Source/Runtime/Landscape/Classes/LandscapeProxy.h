@@ -12,9 +12,9 @@
 #include "Async/AsyncWork.h"
 #include "Engine/Texture.h"
 #include "PerPlatformProperties.h"
-#include "LandscapeBPCustomBrush.h"
 #include "LandscapeComponent.h"
 #include "LandscapeWeightmapUsage.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 
 #include "LandscapeProxy.generated.h"
 
@@ -483,8 +483,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintSetter=EditorSetLandscapeMaterial, Category=Landscape)
 	UMaterialInterface* LandscapeMaterial;
 
-	UPROPERTY()
-	UMaterialInterface* LandscapeHoleMaterial_DEPRECATED;
+	/** Material used to render landscape components with holes. If not set, LandscapeMaterial will be used (blend mode will be overridden to Masked if it is set to Opaque) */
+	UPROPERTY(EditAnywhere, Category=Landscape, AdvancedDisplay)
+	UMaterialInterface* LandscapeHoleMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Landscape)
 	TArray<FLandscapeProxyMaterialOverride> LandscapeMaterialsOverride;
@@ -494,11 +495,25 @@ public:
 	UMaterialInterface* PreEditLandscapeMaterial;
 
 	UPROPERTY(Transient)
+	UMaterialInterface* PreEditLandscapeHoleMaterial;
+
+	UPROPERTY(Transient)
 	TArray<FLandscapeProxyMaterialOverride> PreEditLandscapeMaterialsOverride;
 
 	UPROPERTY(Transient)
 	bool bIsPerformingInteractiveActionOnLandscapeMaterialOverride;
-#endif
+#endif 
+
+	/**
+	 * Array of runtime virtual textures into which we render this landscape.
+	 * The material also needs to be set up to output to a virtual texture.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+
+	/** Render to the main pass based on the virtual texture settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Always;
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the negative Z axis, positive value increases bound size
@@ -846,6 +861,9 @@ public:
 	// Get Landscape Material assigned to this Landscape
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
 
+	// Get Hole Landscape Material assigned to this Landscape
+	virtual UMaterialInterface* GetLandscapeHoleMaterial() const;
+
 	// 
 	void FixupWeightmaps();
 
@@ -986,7 +1004,7 @@ public:
 	/** Will tell if the landscape proxy can have some content related to the layer system */
 	LANDSCAPE_API bool CanHaveLayersContent() const;
 
-	void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
+	LANDSCAPE_API void UpdateCachedHasLayersContent(bool InCheckComponentDataIntegrity = false);
 
 protected:
 	friend class ALandscape;

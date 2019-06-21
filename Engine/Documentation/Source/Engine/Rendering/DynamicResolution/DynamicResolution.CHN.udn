@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4684265
+﻿INTSourceChangelist:6537224
 Availability: Public
 Crumbs: 
 Title:动态分辨率
@@ -8,12 +8,9 @@ Version: 4.19
 Parent: 
 Order: 
 Tags: Rendering, Graphics
-
-![](DynamicRes_FN1.png "DynamicRes_FN1.png")
-
+topic-image:DynamicRes_Topic.png
 **动态分辨率** 可根据先前画面的GPU工作负载调节主要屏幕百分比。分辨率是基于启发法（按需要）调节的，例如，如果在屏幕上有太多Object，或者有成本高昂的效果突然进入画面，GPU渲染时间将会延长，此时为了维持目标帧率就会降低屏幕分辨率。
 
-(#enablingdynamicresolution)
 ### 启用动态分辨率
 
 你可以使用 **运算模式（Operation Mode）** 为项目启用动态分辨率，设置在游戏中覆盖它和使用它的方式。为了控制这种模式，在项目所对应平台（Xbox One、PlayStation 4等）的平台配置描述（或设备描述）中，你可以使用下列控制台命令：
@@ -37,7 +34,6 @@ Tags: Rendering, Graphics
 你可以使用UE4中的“设备描述（Device Profiles）”窗口设置和管理配置文件。可以通过“文件（File）”菜单选择 **编辑（Edit）> Developer Tools（开发者工具）> Device Profiles（设备描述）** 来访问此窗口。
 [/REGION]
 
-(#pausingandresumingdynamicresolution)
 ### 暂停和恢复动态分辨率
 
 有时你可能需要为项目启用动态分辨率，但你又不想对主大厅之类的区域启用。动态分辨率可以随运作模式暂停和恢复。下列控制台变量可用于设置动态分辨率的运算模式：
@@ -71,7 +67,6 @@ Tags: Rendering, Graphics
 此表中用于 **暂停** 和 **恢复** 的C++函数所提供的功能可以通过启用或禁用节点 **将动态分辨率设置为启用（Set Dynamic Resolution Enabled）** 来实现。要检查状态，请使用节点 **已启用动态分辨率（Is Dynamic Resolution Enabled）**。
 [/REGION]
 
-(#usingstats)
 ## 使用统计
 
 你可以启用几个统计屏幕来调试与动态和分辨率有关的性能。可以使用反引号（**`**） 键打开控制台，然后输入下列命令之一来启用它们：
@@ -80,7 +75,6 @@ Tags: Rendering, Graphics
 *   **Stat UnitGraph** 用于查看使用Stat Unit的数据制作的图。
 *   **Stat Raw** 使用Stat UnitGraph输出未经过滤的数据。
 
-(statunit)
 ### Stat Unit
 
 调用 **Stat Unit** 时，你可以通过参考 **DynRes** 行来即时了解你的场景是否启用了动态分辨率。
@@ -95,7 +89,6 @@ Tags: Rendering, Graphics
 
 例如1920x1080或1280x720。
 
-(#statunitgraphandstatraw)
 ### Stat UnitGraph和Stat Raw
 
 如果调用 **Stat UnitGraph**，将会绘制一张图来显示动态分辨率功能选择的[主要屏幕百分比](Engine/Rendering/ScreenPercentage#primaryscreenpercentage)。
@@ -127,7 +120,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 使用控制台窗口在过滤后和未过滤的时间之间切换。要切换 **Stat Raw**，必须先输入 **Stat UnitGraph**。
 [/REGION]
 
-(#dynamicresolutioncruising)
 ## 动态分辨率巡航
 
 在UE4中，动态分辨率功能的实现与以前其他引擎中同类功能有所不同，因为我们允许分辨率根据需要在一个给定的范围内变化，而不是限制为单一的分辨率（1080p、900p、720p）。在这张示例图中，此模型演示了控制台变量所控制的对象。它演示了当一切都运行顺利、没有超过给定帧的预算时，动态分辨率是如何在给定范围（3）中自动调节的。可以把这个范围想象为飞机的巡航高度，飞机在这一高度范围可以自由机动，以实现到达目的地的理想速度。和飞机一样，分辨率也可以根据需要上下调节，从而在分辨率和充足的性能之间保持良好的平衡。
@@ -153,7 +145,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 | **r.DynamicRes.HistorySize** | 启发法帧历史记录中的帧数。如果历史记录过短，可能包含过多噪点，影响可靠性；而如果历史记录过长，调节延迟可能会非常严重。|
 | **r.DynamicRes.CPUBoundScreenPercentage** | 当你遇到CPU瓶颈时应该瞄准的主要屏幕百分比。如果平台上的CPU和GPU共享相同的内存带宽，可以用它设置较低的屏幕百分比来降低分辨率。|
 
-(overbudgetpanic)
 ### 超预算应急
 
 如果你发现动态分辨率会非常迅速地超出预算，例如在镜头切换时或者成本高昂的视觉效果出现时，那就说明使用的启发法实际上无法预测这种情况何时会发生。在这类情况确实发生时，可以使用某种“应急”按钮快速降低分辨率，从而减少超出预算的帧数。如果启发法发现有N（一定数量）个连续帧的可用GPU时间超出预算，它将会立即调整分辨率来应对这些超预算时间。它还会自动执行历史记录重置，使得先前成本较低的帧时间不会影响启发法对成本较高的帧的判断。
@@ -193,7 +184,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 1.  发生了渲染成本较高的视觉效果，导致相当数量的帧超出分配的帧预算。 
 2.  动态分辨率迅速作出反应，降低了分辨率，然后又缓慢将分辨率提高到正常水平。
 
-(#testingcontentwithdifferentprimaryscreenpercentages)
 ## 测试使用不同的主要屏幕百分比的内容
 
 如果你的项目启用了动态分辨率，你需要对它进行测试，确保在使用降低的主要屏幕百分比时图像与预期差异不大。在分辨率降低时，有些细节可能会丢失，你的资源可能不会保持你所希望的外观。正因如此，所有的编辑器视口都可以使用滑块设置屏幕百分比以便测试。
@@ -224,7 +214,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 高于默认值的屏幕百分比值可能造成编辑器的响应迟缓或性能下降。如果发生这种情况，可尝试将该数值设置为默认值100。
 [/REGION]
 
-(#supportedplatforms)
 ## 支持的平台
 
 目前，Xbox One、PlayStation 4（不含PSVR）、Nintendo Switch和Oculus VR都支持动态分辨率。计划在今后的引擎版本中提供其他平台支持。
@@ -233,7 +222,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 针对不在白名单中的平台启用动态分辨率支持是很危险的，可能造成意外后果。这类后果包括GPU时间错误，这可能使分辨率不必要地下降，或者分辨率提高过多，发生丢帧。这最终可能毁掉Gameplay体验。默认情况下，引擎不允许你使用不在白名单中的平台。
 [/REGION]
 
-(#replacingdynamicresolutionheuristicinc++)
 ## 在C++中替换动态分辨率启发法
 
 引擎提供的渲染线程启发法完整地自包含在 **DynamicResolution.cpp** 中。它的架构设置使你可以在游戏代码中用插件将启发法完全替换掉。
@@ -248,7 +236,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 	分辨率分数 = 屏幕百分比/100 = 1/放大系数
 [/REGION]
 
-(#limitations)
 ## 局限性
 
 以下是动态分辨率在当前的一些局限性：  
@@ -258,7 +245,6 @@ UnitGraph可以显示动态分辨率功能选择的主要屏幕百分比。但�
 *   API与移动渲染器完全兼容。但是，我们还没有采取措施使视图大小保持不等于主要屏幕百分比上限所设置的渲染目标缓冲区大小。 
 *   高斯景深（DoF）和[距离场环境光遮蔽](Engine/Rendering/LightingAndShadows/DistanceFieldAmbientOcclusion)（DFAO）在分辨率更改时会有问题。
 
-(#frequentlyaskedquestions)
 ## 常见问题及解答
 
 下面是关于动态分辨率的一些常见问题： 

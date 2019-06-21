@@ -8,7 +8,9 @@
 #include "LiveLinkRefSkeleton.generated.h"
 
 USTRUCT()
-struct FLiveLinkRefSkeleton
+struct
+	UE_DEPRECATED(4.23, "FLiveLinkRefSkeleton is no longer used, please use LiveLink animation role instead.")
+	FLiveLinkRefSkeleton
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -24,7 +26,7 @@ struct FLiveLinkRefSkeleton
 	//Get skeleton's parent bones array
 	const TArray<int32>& GetBoneParents() const { return BoneParents; }
 
-private:
+public: //Deprecated so made public to be able to move data when converting on load
 
 	// Names of each bone in the skeleton
 	UPROPERTY()
@@ -33,5 +35,4 @@ private:
 	// Parent Indices: For each bone it specifies the index of its parent
 	UPROPERTY()
 	TArray<int32> BoneParents;
-
 };

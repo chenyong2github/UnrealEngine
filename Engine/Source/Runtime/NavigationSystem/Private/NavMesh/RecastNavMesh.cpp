@@ -104,6 +104,7 @@ void FNavMeshTileData::MakeUnique()
 }
 
 float ARecastNavMesh::DrawDistanceSq = 0.0f;
+float ARecastNavMesh::MinimumSizeForChaosNavMeshInfluenceSq = 0.0f;
 #if !WITH_RECAST
 
 ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -290,37 +291,6 @@ void ARecastNavMesh::DestroyRecastPImpl()
 		delete RecastNavMeshImpl;
 		RecastNavMeshImpl = NULL;
 	}
-}
-
-ARecastNavMesh* ARecastNavMesh::SpawnInstance(UNavigationSystem* NavSys, const FNavDataConfig* AgentProps)
-{
-	FActorSpawnParameters SpawnInfo;
-	SpawnInfo.OverrideLevel = NavSys->GetWorld()->PersistentLevel;
-	ARecastNavMesh* Instance = NavSys->GetWorld()->SpawnActor<ARecastNavMesh>( SpawnInfo );
-
-	if (Instance != NULL && AgentProps != NULL)
-	{
-		Instance->SetConfig(*AgentProps);
-		if (AgentProps->Name != NAME_None)
-		{
-			FString StrName = FString::Printf(TEXT("%s-%s"), *(Instance->GetFName().GetPlainNameString()), *(AgentProps->Name.ToString()));
-			// temporary solution to make sure we don't try to change name while there's already
-			// an object with this name
-			UObject* ExistingObject = StaticFindObject(/*Class=*/ NULL, Instance->GetOuter(), *StrName, true);
-			if (ExistingObject != NULL)
-			{
-				ExistingObject->Rename(NULL, NULL, REN_DontCreateRedirectors | REN_ForceGlobalUnique | REN_DoNotDirty | REN_NonTransactional);
-			}
-
-			// Set descriptive name
-			Instance->Rename(*StrName);
-#if WITH_EDITOR
-			Instance->SetActorLabel(StrName);
-#endif // WITH_EDITOR
-		}
-	}
-
-	return Instance;
 }
 
 UPrimitiveComponent* ARecastNavMesh::ConstructRenderingComponent() 

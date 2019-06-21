@@ -7,16 +7,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Shader.h"
-#include "GlobalShader.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 #include "SceneRendering.h"
+#include "ScreenPass.h"
+
+// For compatibility with composition graph passes until they are ported to Render Graph.
+class FPostProcessVS : public FScreenPassVS
+{
+public:
+	FPostProcessVS() = default;
+	FPostProcessVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FScreenPassVS(Initializer)
+	{}
+
+	void SetParameters(const FRenderingCompositePassContext&) {}
+	void SetParameters(FRHICommandList&, FRHIUniformBuffer*) {}
+};
 
 /** The context used to setup a post-process pass. */
 class FPostprocessContext
 {
 public:
-
 	FPostprocessContext(FRHICommandListImmediate& InRHICmdList, FRenderingCompositionGraph& InGraph, const FViewInfo& InView);
 
 	FRHICommandListImmediate& RHICmdList;
@@ -31,56 +42,18 @@ public:
 	FRenderingCompositeOutputRef FinalOutput;
 };
 
-/** Encapsulates the post processing vertex shader. */
-class FPostProcessVS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessVS,Global);
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return true;
-	}
-
-	/** Default constructor. */
-	FPostProcessVS() {}
-
-	/** to have a similar interface as all other shaders */
-	void SetParameters(const FRenderingCompositePassContext& Context)
-	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, GetVertexShader(), Context.View.ViewUniformBuffer);
-	}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FUniformBufferRHIParamRef ViewUniformBuffer)
-	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), ViewUniformBuffer);
-	}
-
-public:
-
-	/** Initialization constructor. */
-	FPostProcessVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-	}
-};
-
-
-
 /**
  * The center for all post processing activities.
  */
 class FPostProcessing
 {
 public:
-
 	bool AllowFullPostProcessing(const FViewInfo& View, ERHIFeatureLevel::Type FeatureLevel);
 
 	void RegisterHMDPostprocessPass(FPostprocessContext& Context, const FEngineShowFlags& EngineShowFlags) const;
 
 	// @param VelocityRT only valid if motion blur is supported
 	void Process(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, TRefCountPtr<IPooledRenderTarget>& VelocityRT);
-
-
 
 	void ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* Scene, const FViewInfo& View);
 

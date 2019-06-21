@@ -3,7 +3,6 @@
 #pragma once
 
 #include "Game/IDisplayClusterGameManager.h"
-#include "Render/IDisplayClusterProjectionScreenDataProvider.h"
 #include "IPDisplayClusterManager.h"
 
 class ADisplayClusterGameMode;
@@ -15,7 +14,6 @@ class ADisplayClusterSettings;
  */
 class IPDisplayClusterGameManager
 	: public IDisplayClusterGameManager
-	, public IDisplayClusterProjectionScreenDataProvider
 	, public IPDisplayClusterManager
 {
 public:

@@ -113,8 +113,8 @@ public:
 		const FViewInfo& View,
 		FRayTracingShaderBindingsWriter& GlobalResources,
 		const FRayTracingScene& RayTracingScene,
-		FUniformBufferRHIParamRef ViewUniformBuffer,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer,
+		FRHIUniformBuffer* ViewUniformBuffer,
+		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		// Light buffer
 		const TSparseArray<FLightSceneInfoCompact>& Lights,
 		// Adaptive sampling
@@ -122,10 +122,10 @@ public:
 		FIntVector VarianceDimensions,
 		const FRWBuffer& VarianceMipTree,
 		// Output
-		FUnorderedAccessViewRHIParamRef RadianceUAV,
-		FUnorderedAccessViewRHIParamRef SampleCountUAV,
-		FUnorderedAccessViewRHIParamRef PixelPositionUAV,
-		FUnorderedAccessViewRHIParamRef RayCountPerPixelUAV)
+		FRHIUnorderedAccessView* RadianceUAV,
+		FRHIUnorderedAccessView* SampleCountUAV,
+		FRHIUnorderedAccessView* PixelPositionUAV,
+		FRHIUnorderedAccessView* RayCountPerPixelUAV)
 	{
 
 		GlobalResources.Set(TLASParameter, RayTracingScene.RayTracingSceneRHI->GetShaderResourceView());
@@ -171,7 +171,7 @@ public:
 
 			for (auto Light : Lights)
 			{
-				if (LightData.Count >= GLightCountMaximum) break;
+				if (LightData.Count >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
 
 				if (Light.LightSceneInfo->Proxy->HasStaticLighting() && Light.LightSceneInfo->IsPrecomputedLightingValid()) continue;
 
@@ -197,7 +197,7 @@ public:
 						LightData.Normal[LightData.Count] = -LightParameters.Direction;
 						LightData.dPdu[LightData.Count] = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
 						LightData.dPdv[LightData.Count] = LightParameters.Tangent;
-						// #dxr_todo: define these differences from Lit..
+						// #dxr_todo: UE-72556  define these differences from Lit..
 						LightData.Color[LightData.Count] = LightParameters.Color / 4.0;
 						LightData.Dimensions[LightData.Count] = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
@@ -210,7 +210,7 @@ public:
 						LightData.Type[LightData.Count] = 4;
 						LightData.Position[LightData.Count] = LightParameters.Position;
 						LightData.Normal[LightData.Count] = -LightParameters.Direction;
-						// #dxr_todo: define these differences from Lit..
+						// #dxr_todo: UE-72556  define these differences from Lit..
 						LightData.Color[LightData.Count] = 4.0 * PI * LightParameters.Color;
 						LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
@@ -221,7 +221,7 @@ public:
 					{
 						LightData.Type[LightData.Count] = 1;
 						LightData.Position[LightData.Count] = LightParameters.Position;
-						// #dxr_todo: define these differences from Lit..
+						// #dxr_todo: UE-72556  define these differences from Lit..
 						LightData.Color[LightData.Count] = LightParameters.Color / (4.0 * PI);
 						LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
 						LightData.Attenuation[LightData.Count] = 1.0 / LightParameters.InvRadius;
@@ -304,48 +304,6 @@ public:
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingRG, TEXT("/Engine/Private/PathTracing/PathTracing.usf"), TEXT("PathTracingMainRG"), SF_RayGen);
 
-class FPathTracingCHS : public FGlobalShader
-{
-public:
-	DECLARE_SHADER_TYPE(FPathTracingCHS, Global);
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FPathTracingCHS() {}
-	virtual ~FPathTracingCHS() {}
-
-	FPathTracingCHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-
-IMPLEMENT_SHADER_TYPE(, FPathTracingCHS, TEXT("/Engine/Private/PathTracing/PathTracingCHS.usf"), TEXT("PathTracingMainCHS"), SF_RayHitGroup);
-
-class FPathTracingMS : public FGlobalShader
-{
-public:
-	DECLARE_SHADER_TYPE(FPathTracingMS, Global);
-
-public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
-	}
-
-	FPathTracingMS() {}
-	virtual ~FPathTracingMS() {}
-
-	FPathTracingMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{}
-};
-
-IMPLEMENT_SHADER_TYPE(, FPathTracingMS, TEXT("/Engine/Private/PathTracing/PathTracingMS.usf"), TEXT("PathTracingMainMS"), SF_RayMiss);
-
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracing, TEXT("Reference Path Tracing"));
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracingBuildSkyLightCDF, TEXT("Path Tracing: Build Sky Light CDF"));
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracingBuildVarianceMipTree, TEXT("Path Tracing: Build Variance Map Tree"));
@@ -361,8 +319,7 @@ class FPathTracingCompositorPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// #dxr_todo: this should also check if ray tracing is enabled for the target platform & project
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -391,15 +348,15 @@ class FPathTracingCompositorPS : public FGlobalShader
 	void SetParameters(
 		TRHICommandList& RHICmdList,
 		const FViewInfo& View,
-		FTextureRHIParamRef RadianceRedRT,
-		FTextureRHIParamRef RadianceGreenRT,
-		FTextureRHIParamRef RadianceBlueRT,
-		FTextureRHIParamRef RadianceAlphaRT,
-		FTextureRHIParamRef SampleCountRT,
-		FTextureRHIParamRef CumulativeIrradianceRT,
-		FTextureRHIParamRef CumulativeSampleCountRT)
+		FRHITexture* RadianceRedRT,
+		FRHITexture* RadianceGreenRT,
+		FRHITexture* RadianceBlueRT,
+		FRHITexture* RadianceAlphaRT,
+		FRHITexture* SampleCountRT,
+		FRHITexture* CumulativeIrradianceRT,
+		FRHITexture* CumulativeSampleCountRT)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 		SetTextureParameter(RHICmdList, ShaderRHI, RadianceRedTexture, RadianceRedRT);
 		SetTextureParameter(RHICmdList, ShaderRHI, RadianceGreenTexture, RadianceGreenRT);
@@ -436,7 +393,7 @@ public:
 
 IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTracing/PathTracingCompositingPixelShader.usf"), TEXT("CompositeMain"), SF_Pixel);
 
-void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TArray<FRayTracingShaderRHIParamRef>& OutRayGenShaders)
+void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
 	auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
@@ -486,14 +443,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 	ClearUAV(RHICmdList, RayCountPerPixelRT->GetRenderTargetItem(), FLinearColor::Black);
 
 	auto RayGenShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingRG>();
-	auto MissShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingMS>();
-	auto ClosestHitShader = GetGlobalShaderMap(FeatureLevel)->GetShader<FPathTracingCHS>();
 
 	FRayTracingShaderBindingsWriter GlobalResources;
 
 	FSceneTexturesUniformParameters SceneTextures;
 	SetupSceneTextureUniformParameters(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, SceneTextures);
-	FUniformBufferRHIParamRef SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
+	FRHIUniformBuffer* SceneTexturesUniformBuffer = RHICreateUniformBuffer(&SceneTextures, FSceneTexturesUniformParameters::StaticStructMetadata.GetLayout(), EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	RayGenShader->SetParameters(
 		Scene,
@@ -510,7 +465,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 		RayCountPerPixelRT->GetRenderTargetItem().UAV
 	);
 
-	FRayTracingSceneRHIParamRef RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
+	FRHIRayTracingScene* RayTracingSceneRHI = View.RayTracingScene.RayTracingSceneRHI;
 	RHICmdList.RayTraceDispatch(View.RayTracingMaterialPipeline, RayGenShader->GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, View.ViewRect.Size().X, View.ViewRect.Size().Y);
 
 	// Save RayTracingIndirect for compositing
@@ -583,7 +538,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(FRHICommandListImmediate& 
 
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FPathTracingCompositorPS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[3] =
+	FRHITexture* RenderTargets[3] =
 	{
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture,
 		OutputRadianceRT->GetRenderTargetItem().TargetableTexture,

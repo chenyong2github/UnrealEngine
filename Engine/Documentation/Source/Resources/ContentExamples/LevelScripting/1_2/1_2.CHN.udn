@@ -1,7 +1,9 @@
-﻿Availability: Docs
-Title:1.2 -事件调度器
+﻿INTSourceChangelist:3108692
+Availability: Docs
+Title:1.2 - 事件调度器
 Crumbs:%ROOT%, Resources, Resources/ContentExamples/LevelScripting
-Description: 关卡脚本示例关卡概述，示例1.2： 用来开门的事件调度器
+Description:概述关卡脚本编写的示例关卡，示例1.2：事件调度器用于打开门
+Version: 4.9
 
 
 [VAR:TopicCompact]
@@ -26,18 +28,18 @@ Description: 关卡脚本示例关卡概述，示例1.2： 用来开门的事件
 
 ![](levelscripting_1_2.png)
 
-## 概述
-
-此处再一次用到了门体蓝图实例，但本次当玩家踩在按钮蓝图上时，门会打开或关闭。此按钮蓝图使用了特殊的调度事件，这个事件可由关卡脚本接受。当此按钮被按下时，调度函数被调用。在相关事件被添加到关卡脚本前，这个函数本身无任何作用。
+这里使用了门蓝图的另一个实例，但这次，当玩家迈上按钮蓝图时，门蓝图将被打开或关闭。该按钮蓝图使用一个特殊的调度事件，关卡脚本可以接收该事件。当按下按钮时，将调用调度函数。在将相应的事件添加到关卡脚本之前，它不会执行任何操作。
 
  
 
+
+(#levelscript)
 
 ## 关卡脚本
 
 ![](LevelScript_1_2_LS.png)
 
-事件调度器的功能对于与按钮类似的互动对象很有用，无需复制许多脚本，按钮就可以重新被用于多种用途。所需做的事很简单，蓝图Actor的脚本调用调度函数，然后关卡脚本应包含函数将要触发的事件。然后关卡脚本会确认该事件将要触发的内容。
+事件调度器功能对于按钮之类的交互对象非常有用，可以将其重复用于不同的目的，而无需复制大量脚本。对于蓝图Actor的脚本，只需要调用调度函数，对于关卡脚本，只需要包含触发该函数的事件。然后，关卡脚本可以确定该事件将触发什么。
 
 
  [INCLUDE:Resources\ContentExamples\LevelScripting\1_1#bpDoubleDoors]

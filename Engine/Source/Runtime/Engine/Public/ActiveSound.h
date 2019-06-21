@@ -27,6 +27,40 @@ struct FListener;
 struct FAttenuationListenerData;
 
 /**
+ * Attenuation focus system data computed per update per active sound
+ */
+struct FAttenuationFocusData
+{
+	/** Azimuth of the active sound relative to the listener. Used by sound focus. */
+	float Azimuth;
+
+	/** Absolute azimuth of the active sound relative to the listener. Used for 3d audio calculations. */
+	float AbsoluteAzimuth;
+
+	/** Value used to allow smooth interpolation in/out of focus */
+	float FocusFactor;
+
+	/** Cached calculation of the amount distance is scaled due to focus */
+	float DistanceScale;
+
+	/** The amount priority is scaled due to focus */
+	float PriorityScale;
+
+	/** The amount volume is scaled due to focus */
+	float VolumeScale;
+
+	FAttenuationFocusData()
+		: Azimuth(0.0f)
+		, AbsoluteAzimuth(0.0f)
+		, FocusFactor(1.0f)
+		, DistanceScale(1.0f)
+		, PriorityScale(1.0f)
+		, VolumeScale(1.0f)
+	{
+	}
+};
+
+/**
  *	Struct used for gathering the final parameters to apply to a wave instance
  */
 struct FSoundParseParameters
@@ -51,6 +85,7 @@ struct FSoundParseParameters
 
 	// A volume scale on the sound specified by user
 	float VolumeMultiplier;
+
 
 	// Attack time of the source envelope follower
 	int32 EnvelopeFollowerAttackTime;
@@ -220,6 +255,7 @@ private:
 	uint32 WorldID;
 
 	USoundBase* Sound;
+	USoundEffectSourcePresetChain* SourceEffectChain;
 
 	uint64 AudioComponentID;
 	FName AudioComponentUserID;
@@ -258,6 +294,9 @@ public:
 
 	USoundBase* GetSound() const { return Sound; }
 	void SetSound(USoundBase* InSound);
+
+	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? SourceEffectChain : Sound->SourceEffectChain; }
+	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
 	void SetSoundClass(USoundClass* SoundClass);
 
@@ -305,6 +344,18 @@ private:
 	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
 public:
+	enum class EFadeOut : uint8
+	{
+		// Sound is not currently fading out
+		None,
+
+		// Client code (eg. AudioComponent) is requesting a fade out
+		User,
+
+		// The concurrency system is requesting a fade due to voice stealing
+		Concurrency
+	};
+
 	/** Whether or not the sound has checked if it was occluded already. Used to initialize a sound as occluded and bypassing occlusion interpolation. */
 	uint8 bHasCheckedOcclusion:1;
 
@@ -316,9 +367,6 @@ public:
 
 	/** Whether the wave instances should remain active if they're dropped by the prioritization code. Useful for e.g. vehicle sounds that shouldn't cut out. */
 	uint8 bShouldRemainActiveIfDropped:1;
-
-	/** Is the audio component currently fading out */
-	uint8 bFadingOut:1;
 
 	/** Whether the current component has finished playing */
 	uint8 bFinished:1;
@@ -403,8 +451,10 @@ public:
 	/** Whether or not the active sound is stopping. */
 	uint8 bIsStopping:1;
 
-public:
 	uint8 UserIndex;
+
+	/** Type of fade out currently being applied */
+	EFadeOut FadeOut;
 
 	/** whether we were occluded the last time we checked */
 	FThreadSafeBool bIsOccluded;
@@ -437,12 +487,6 @@ public:
 	/** The product of the component priority and the USoundBase priority */
 	float Priority;
 
-	/** The amount priority is scaled due to focus */
-	float FocusPriorityScale;
-
-	/** The amount distance is scaled due to focus */
-	float FocusDistanceScale;
-
 	/** The volume used to determine concurrency resolution for "quietest" active sound.
 	// If negative, tracking is disabled for lifetime of ActiveSound */
 	float VolumeConcurrency;
@@ -458,11 +502,10 @@ public:
 
 	FTransform Transform;
 
-	/** Azimuth of the active sound relative to the listener. Used by sound focus. */
-	float Azimuth;
-
-	/** Absolute azimuth of the active sound relative to the listener. Used for 3d audio calculations. */
-	float AbsoluteAzimuth;
+	/**
+	 * Cached data pertaining to focus system updated each frame
+	 */
+	FAttenuationFocusData FocusData;
 
 	/** Location last time playback was updated */
 	FVector LastLocation;
@@ -595,20 +638,28 @@ public:
 	/** Gets the sound concurrency handles applicable to this sound instance*/
 	void GetConcurrencyHandles(TArray<FConcurrencyHandle>& OutConcurrencyHandles) const;
 
+	bool GetConcurrencyFadeDuration(float& OutFadeDuration) const;
+
 	/** Delegate callback function when an async occlusion trace completes */
 	static void OcclusionTraceDone(const FTraceHandle& TraceHandle, FTraceDatum& TraceDatum);
 
 	/** Applies the active sound's attenuation settings to the input parse params using the given listener */
-	void ApplyAttenuation(FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode = nullptr);
+	void ParseAttenuation(FSoundParseParameters& OutParseParams, const FListener& InListener, const FSoundAttenuationSettings& InAttenuationSettings);
 
 	/** Returns the effective priority of the active sound */
-	float GetPriority() const { return Priority * FocusPriorityScale; }
+	float GetPriority() const { return Priority * FocusData.PriorityScale; }
 
 	/** Sets the amount of audio from this active sound to send to the submix. */
 	void SetSubmixSend(const FSoundSubmixSendInfo& SubmixSendInfo);
 
 	/** Sets the amount of audio from this active sound to send to the source bus. */
 	void SetSourceBusSend(EBusSendType BusSendTyoe, const FSoundSourceBusSendInfo& SourceBusSendInfo);
+
+	/** Updates the active sound's attenuation settings to the input parse params using the given listener */
+	void UpdateAttenuation(float DeltaTime, FSoundParseParameters& ParseParams, const FListener& Listener, const FSoundAttenuationSettings* SettingsAttenuationNode = nullptr);
+
+	/** Updates the provided focus data using the local */
+	void UpdateFocusData(float DeltaTime, const FAttenuationListenerData& ListenerData, FAttenuationFocusData* OutFocusData = nullptr);
 
 private:
 
@@ -659,7 +710,4 @@ private:
 
 	/** Helper function which retrieves attenuation frequency value for HPF and LPF distance-based filtering. */
 	float GetAttenuationFrequency(const FSoundAttenuationSettings* InSettings, const FAttenuationListenerData& ListenerData, const FVector2D& FrequencyRange, const FRuntimeFloatCurve& CustomCurve);
-
-	/** Internal Focus Factor value used to allow smooth interpolation in/out of Focus */
-	float InternalFocusFactor;
 };

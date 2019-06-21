@@ -1,0 +1,114 @@
+﻿Availability: Public
+Title: Google VR Development Requirements
+Description: Google VR development requirements including hardware, software, and SDK information. 
+Type: reference
+Version: 4.22
+Parent: Platforms/VR/GoogleVR
+Tags: Specifications
+Tags: Google VR
+Order: 8
+
+
+[TOC (start:2 end:2)]
+
+In this page you'll find hardware and software development kit (SDK) requirements needed to start developing for the [Google VR](Platforms/VR/GoogleVR) platform.
+
+## Unreal Engine 4.22
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported VR Headsets** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **Recommended Device Hardware** | [INCLUDE:#excerpt_0] |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **SDK Version** | Android SDK 8 (API level 26) or higher. |
+| **Android Studio Version** | 2.3.3 or higher. |
+
+<!--
+[EXCERPT:excerpt_0]
+Cardboard requires an Android device running 4.4 'Kit Kat' (API level 19) or higher.  
+For Daydream, see [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/).
+[/EXCERPT:excerpt_0]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.21
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported VR Headsets** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **Recommended Device Hardware** | [INCLUDE:#excerpt_1] |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **SDK Version** | Android SDK 7.1.1 'Nougat' (API level 25) or higher. |
+| **Android Studio Version** | 2.3.3 or higher. |
+
+<!--
+[EXCERPT:excerpt_1]
+Cardboard requires an Android device running 4.4 'Kit Kat' (API level 19) or higher.  
+For Daydream, see [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/).
+[/EXCERPT:excerpt_1]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.20
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported VR Headsets** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **Recommended Device Hardware** | [INCLUDE:#excerpt_2] |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **SDK Version** | Android SDK 7.1.1 'Nougat' (API level 25) or higher. |
+| **Android Studio Version** | 2.3.3 or higher. |
+
+<!--
+[EXCERPT:excerpt_2]
+Cardboard requires an Android device running 4.4 'Kit Kat' (API level 19) or higher.  
+For Daydream, see [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/).
+[/EXCERPT:excerpt_2]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]
+
+## Unreal Engine 4.19
+
+| Hardware Requirements ||
+| --- | --- |
+| **Recommended Desktop Hardware** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **Supported VR Headsets** | [Cardboard viewer](https://vr.google.com/cardboard/get-cardboard/); [Daydream View](https://store.google.com/product/google_daydream_view) |
+| **Recommended Device Hardware** | [INCLUDE:#excerpt_3] |
+
+| Software Requirements ||
+| --- | --- |
+| **Desktop Operating System** | See [Hardware and Software Specifications](GettingStarted/RecommendedSpecifications). |
+| **SDK Version** | Android SDK 7.1.1 'Nougat' (API level 25) or higher. |
+| **Android Studio Version** | 2.3.3 or higher. |
+
+<!--
+[EXCERPT:excerpt_3]
+Cardboard requires an Android device running 4.4 'Kit Kat' (API level 19) or higher.  
+For Daydream, see [Google's Daydream Device Compatibility](https://vr.google.com/daydream/smartphonevr/phones/).
+[/EXCERPT:excerpt_3]
+-->
+
+[REGION:note]
+The currently supported SDK version(s) can be found in `UEBuildTODO.cs`. You can find it in your `[UE4 Root]/Engine/Source/Programs/UnrealBuildTool/Platforms/TODO` folder.
+[/REGION]

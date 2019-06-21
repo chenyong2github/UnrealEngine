@@ -64,4 +64,4 @@ bones can be marked as contributing to the bounds or not.
 The primary reason a Skeletal Mesh becomes displaced from its bounds is due to the animation causing the mesh to move away from its Actor root. However, a Skeletal Mesh with 
 a Physics Asset will use the Physics Asset for calculating its bounds. To enable this, **Right-click** the Skeletal Mesh in the **Content Browser** and select 
 **Create Physics Asset**. Using the default settings will get you past any errors being caused by the Skeletal Mesh bounds, but you will probably want to edit the results. 
-See the [Physics Asset Tool](Engine/Physics\PhAT) documentation for more information on editing a **Physics Asset**.
+See the [Physics Asset Tool](Engine/Physics/PhysicsAssetEditor) documentation for more information on editing a **Physics Asset**.

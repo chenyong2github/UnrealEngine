@@ -27,6 +27,7 @@ MobileSceneCaptureRendering.cpp - Mobile specific scene capture code.
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
+#include "GenerateMips.h"
 
 /**
 * Shader set for the copy of scene color to capture target, decoding mosaic or RGBE encoded HDR image as part of a
@@ -64,7 +65,7 @@ public:
 		}
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FSamplerStateRHIParamRef SamplerStateRHI, FTextureRHIParamRef TextureRHI)
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetPixelShader(), View.ViewUniformBuffer);
 		SetTextureParameter(RHICmdList, GetPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
@@ -146,7 +147,7 @@ IMPLEMENT_SHADER_TYPE(template<>, FMobileSceneCaptureCopyVS<true>, TEXT("/Engine
  
 
 template <bool bDemosaic, ESceneCaptureSource CaptureSource>
-static FShader* SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FViewInfo& View, const FIntPoint& SourceTexSize, FTextureRHIParamRef SourceTextureRHI)
+static FShader* SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, FViewInfo& View, const FIntPoint& SourceTexSize, FRHITexture* SourceTextureRHI)
 {
 	TShaderMapRef<FMobileSceneCaptureCopyVS<bDemosaic>> VertexShader(View.ShaderMap);
 	TShaderMapRef<FMobileSceneCaptureCopyPS<bDemosaic, CaptureSource>> PixelShader(View.ShaderMap);
@@ -163,7 +164,7 @@ static FShader* SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, 
 }
 
 template <bool bDemosaic>
-static FShader* SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ESceneCaptureSource CaptureSource, FViewInfo& View, const FIntPoint& SourceTexSize, FTextureRHIParamRef SourceTextureRHI)
+static FShader* SetCaptureToTargetShaders(FRHICommandListImmediate& RHICmdList, FGraphicsPipelineStateInitializer& GraphicsPSOInit, ESceneCaptureSource CaptureSource, FViewInfo& View, const FIntPoint& SourceTexSize, FRHITexture* SourceTextureRHI)
 {
 	switch (CaptureSource)
 	{
@@ -191,7 +192,7 @@ static void CopyCaptureToTarget(
 	const FIntPoint& TargetSize, 
 	FViewInfo& View, 
 	const FIntRect& ViewRect, 
-	FTexture2DRHIParamRef SourceTextureRHI, 
+	FRHITexture2D* SourceTextureRHI,
 	bool bNeedsFlippedRenderTarget,
 	FSceneRenderer* SceneRenderer)
 {
@@ -346,7 +347,9 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	FRenderTarget* RenderTarget,
 	FTexture* RenderTargetTexture,
 	const FString& EventName,
-	const FResolveParams& ResolveParams)
+	const FResolveParams& ResolveParams,
+	bool bGenerateMips,
+	const FGenerateMipsParams& GenerateMipsParams)
 {
 	FMemMark MemStackMark(FMemStack::Get());
 
@@ -456,6 +459,11 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 			// Copy the captured scene into the destination texture
 			SCOPED_DRAW_EVENT(RHICmdList, CaptureSceneColor);
 			CopyCaptureToTarget(RHICmdList, Target, TargetSize, View, ViewRect, FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture()->GetTexture2D(), bNeedsFlippedCopy, SceneRenderer);
+		}
+
+		if (bGenerateMips)
+		{
+			FGenerateMips::Execute(RHICmdList, RenderTarget->GetRenderTargetTexture(), GenerateMipsParams);
 		}
 
 		RHICmdList.CopyToResolveTarget(RenderTarget->GetRenderTargetTexture(), RenderTargetTexture->TextureRHI, ResolveParams);

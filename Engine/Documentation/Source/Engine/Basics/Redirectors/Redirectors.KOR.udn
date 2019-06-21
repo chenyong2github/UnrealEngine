@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3487496
+INTSourceChangelist:3487496
 Availability: Public
 Title:리디렉터
 Crumbs:%ROOT%, Engine
@@ -14,7 +14,7 @@ order:27
 
 ## 에디터에서 리디렉터 고치기
 
-에디터에서 리디렉터를 확인하려면 콘텐츠 브라우저에서 Show Redirectors (리디렉터 표시) 필터를 켭니다. 그러면 그 리디렉터를 가리키는 모든 패키지를 다시 저장한 뒤, 그것을 레퍼런싱하는 모든 것들을 다시 저장할 수 있었으면 그 리디렉터를 삭제합니다.
+에디터에서 리디렉터를 확인하려면 콘텐츠 브라우저에서 Show Redirectors (리디렉터 표시) 필터를 켭니다. 그러면 그 리디렉터를 가리키는 모든 패키지를 다시 저장한 뒤, 그것을 참조하는 모든 것들을 다시 저장할 수 있었으면 그 리디렉터를 삭제합니다.
 
 
 ## ResavePackages 커맨드렛

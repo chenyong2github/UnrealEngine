@@ -243,7 +243,8 @@ enum EBlendMode
 	BLEND_Translucent UMETA(DisplayName="Translucent"),
 	BLEND_Additive UMETA(DisplayName="Additive"),
 	BLEND_Modulate UMETA(DisplayName="Modulate"),
-	BLEND_AlphaComposite UMETA(DisplayName ="AlphaComposite (Premultiplied Alpha)"),
+	BLEND_AlphaComposite UMETA(DisplayName = "AlphaComposite (Premultiplied Alpha)"),
+	BLEND_AlphaHoldout UMETA(DisplayName = "AlphaHoldout"),
 	BLEND_MAX,
 };
 
@@ -354,7 +355,8 @@ enum ESceneCaptureSource
 	SCS_SceneDepth UMETA(DisplayName="SceneDepth in R"),
 	SCS_DeviceDepth UMETA(DisplayName = "DeviceDepth in RGB"),
 	SCS_Normal UMETA(DisplayName="Normal in RGB (Deferred Renderer only)"),
-	SCS_BaseColor UMETA(DisplayName="BaseColor in RGB (Deferred Renderer only)")
+	SCS_BaseColor UMETA(DisplayName = "BaseColor in RGB (Deferred Renderer only)"),
+	SCS_FinalColorHDR UMETA(DisplayName = "Final Color (HDR) in Linear sRGB gamut")
 };
 
 /** Specifies how scene captures are composited into render buffers */
@@ -481,7 +483,7 @@ enum EMaterialShadingModel
 static_assert(MSM_NUM <= 16, "Do not exceed 16 shading models without expanding FMaterialShadingModelField to support uint32 instead of uint16!");
 
 /** Wrapper for a bitfield of shading models. A material contains one of these to describe what possible shading models can be used by that material. */
-USTRUCT(BlueprintType)
+USTRUCT()
 struct ENGINE_API FMaterialShadingModelField
 {
 	GENERATED_USTRUCT_BODY()
@@ -495,7 +497,7 @@ public:
 	void ClearShadingModels()												{ ShadingModelField = 0; }
 
 	// Check if any of the given shading models are present
-	bool HasAnyShadingModel(TArray<EMaterialShadingModel> InShadingModels) const	
+	bool HasAnyShadingModel(const TArray<EMaterialShadingModel>& InShadingModels) const	
 	{ 
 		for (EMaterialShadingModel ShadingModel : InShadingModels)
 		{
@@ -549,10 +551,26 @@ enum EMaterialSamplerType
 	SAMPLERTYPE_DistanceFieldFont UMETA(DisplayName="Distance Field Font"),
 	SAMPLERTYPE_LinearColor UMETA(DisplayName = "Linear Color"),
 	SAMPLERTYPE_LinearGrayscale UMETA(DisplayName = "Linear Grayscale"),
+	SAMPLERTYPE_Data UMETA(DisplayName = "Data"),
 	SAMPLERTYPE_External UMETA(DisplayName = "External"),
+
+	SAMPLERTYPE_VirtualColor UMETA(DisplayName = "Virtual Color"),
+	SAMPLERTYPE_VirtualGrayscale UMETA(DisplayName = "Virtual Grayscale"),
+	SAMPLERTYPE_VirtualAlpha UMETA(DisplayName = "Virtual Alpha"),
+	SAMPLERTYPE_VirtualNormal UMETA(DisplayName = "Virtual Normal"),
+	SAMPLERTYPE_VirtualMasks UMETA(DisplayName = "Virtual Mask"),
+	/*No DistanceFiledFont Virtual*/
+	SAMPLERTYPE_VirtualLinearColor UMETA(DisplayName = "Virtual Linear Color"),
+	SAMPLERTYPE_VirtualLinearGrayscale UMETA(DisplayName = "Virtual Linear Grayscale"),
+	/*No External Virtual*/
+
 	SAMPLERTYPE_MAX,
 };
 
+inline bool IsVirtualSamplerType(EMaterialSamplerType Value)
+{
+	return ((int32)Value >= (int32)SAMPLERTYPE_VirtualColor && (int32)Value <= (int32)SAMPLERTYPE_VirtualLinearGrayscale);
+}
 UENUM()
 enum EMaterialStencilCompare
 {
@@ -566,6 +584,7 @@ enum EMaterialStencilCompare
 	MSC_Always			UMETA(DisplayName = "Always"),
 	MSC_Count			UMETA(Hidden),
 };
+
 /**	Lighting build quality enumeration */
 UENUM()
 enum ELightingBuildQuality
@@ -1332,7 +1351,7 @@ struct FRigidBodyErrorCorrection
  * Information about one contact between a pair of rigid bodies.
  */
 USTRUCT()
-struct FRigidBodyContactInfo
+struct ENGINE_API FRigidBodyContactInfo
 {
 	GENERATED_BODY()
 
@@ -1386,7 +1405,7 @@ struct FRigidBodyContactInfo
  * Information about an overall collision, including contacts.
  */
 USTRUCT()
-struct FCollisionImpactData
+struct ENGINE_API FCollisionImpactData
 {
 	GENERATED_BODY()
 
@@ -3430,19 +3449,30 @@ struct ENGINE_API FComponentReference
 {
 	GENERATED_BODY()
 
+	FComponentReference() : OtherActor(nullptr) {}
+
 	/** Pointer to a different Actor that owns the Component.  */
 	UPROPERTY(EditInstanceOnly, Category=Component)
 	AActor* OtherActor;
 
 	/** Name of component property to use */
 	UPROPERTY(EditAnywhere, Category=Component)
-	FName	ComponentProperty;
+	FName ComponentProperty;
+
+	/** Path to the component from its owner actor */
+	UPROPERTY()
+	FString PathToComponent;
 
 	/** Allows direct setting of first component to constraint. */
-	TWeakObjectPtr<class USceneComponent> OverrideComponent;
+	TWeakObjectPtr<class UActorComponent> OverrideComponent;
 
 	/** Get the actual component pointer from this reference */
-	class USceneComponent* GetComponent(AActor* OwningActor) const;
+	class UActorComponent* GetComponent(AActor* OwningActor) const;
+
+	bool operator== (const FComponentReference& Other) const
+	{
+		return OtherActor == Other.OtherActor && ComponentProperty == Other.ComponentProperty && PathToComponent == Other.PathToComponent && OverrideComponent == Other.OverrideComponent;
+	}
 };
 
 /** Types of surfaces in the game, used by Physical Materials */

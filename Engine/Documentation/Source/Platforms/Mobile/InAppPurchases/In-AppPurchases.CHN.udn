@@ -18,8 +18,8 @@ topic-image:iap_topic.png
 有关为各个平台配置应用程序内购买的详细信息，请参阅下方相应的平台特定页面：
 
 [REGION:buttonlist]
-* [](Platforms/Android/InAppPurchases)
-* [](Platforms/iOS/InAppPurchases)
+* [](Platforms/Mobile/Android/InAppPurchases)
+* [](Platforms/Mobile/iOS/InAppPurchases)
 [/REGION]
 
 [EXCERPT:usage]

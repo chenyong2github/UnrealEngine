@@ -15,20 +15,22 @@
   "IsBetaVersion": true,
   "Installed": false,
   "Modules": [
-    {
-      "Name": "ResonanceAudio",
-      "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": [
-        "Android",
-        "iOS",
-        "Linux",
-        "Mac",
-        "Win32",
-        "Win64",
-        "Lumin"
-      ]
-    },
+	{
+		"Name": "ResonanceAudio",
+		"Type": "Runtime",
+		"LoadingPhase": "Default",
+		"WhitelistPlatforms": [
+			"Android",
+			"iOS",
+			"Linux",
+			"Mac",
+			"Win32",
+			"Win64",
+			"Lumin",
+			"XboxOne",
+			"PS4"
+		]
+	},
     {
       "Name": "ResonanceAudioEditor",
       "Type": "Editor",

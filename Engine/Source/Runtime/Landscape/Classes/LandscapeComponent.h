@@ -327,7 +327,15 @@ enum ELandscapeLayerUpdateMode : uint32
 
 #endif
 
-UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
+UENUM()
+enum ELandscapeClearMode
+{
+	Clear_Weightmap = 1 << 0 UMETA(DisplayName = "Paint"),
+	Clear_Heightmap = 1 << 1 UMETA(DisplayName = "Sculpt"),
+	Clear_All = Clear_Weightmap | Clear_Heightmap UMETA(DisplayName = "All")
+};
+
+UCLASS(hidecategories=(Display, Attachment, Physics, Debug, Collision, Movement, Rendering, PrimitiveComponent, Object, Transform, Mobility, VirtualTexture), showcategories=("Rendering|Material"), MinimalAPI, Within=LandscapeProxy)
 class ULandscapeComponent : public UPrimitiveComponent
 {
 	GENERATED_UCLASS_BODY()
@@ -355,8 +363,8 @@ class ULandscapeComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent)
 	UMaterialInterface* OverrideMaterial;
 
-	UPROPERTY()
-	UMaterialInterface* OverrideHoleMaterial_DEPRECATED;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=LandscapeComponent, AdvancedDisplay)
+	UMaterialInterface* OverrideHoleMaterial;
 
 	UPROPERTY(EditAnywhere, Category = LandscapeComponent)
 	TArray<FLandscapeComponentMaterialOverride> OverrideMaterials;
@@ -458,12 +466,12 @@ public:
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the negative Z axis, positive value increases bound size */
-	UPROPERTY(EditAnywhere, Category=LandscapeComponent, meta=(EditCondition="bOverrideBounds"))
+	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	float NegativeZBoundsExtension;
 
 	/** Allows overriding the landscape bounds. This is useful if you distort the landscape with world-position-offset, for example
 	 *  Extension value in the positive Z axis, positive value increases bound size */
-	UPROPERTY(EditAnywhere, Category=LandscapeComponent, meta=(EditCondition="bOverrideBounds"))
+	UPROPERTY(EditAnywhere, Category=LandscapeComponent)
 	float PositiveZBoundsExtension;
 
 	/** StaticLightingResolution overriding per component, default value 0 means no overriding */
@@ -589,12 +597,16 @@ public:
 	virtual void GetStreamingRenderAssetInfo(FStreamingTextureLevelContext& LevelContext, TArray<FStreamingRenderAssetPrimitiveInfo>& OutStreamingRenderAssets) const override;
 	virtual bool IsPrecomputedLightingValid() const override;
 
+	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const override;
+	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const override;
+
 	LANDSCAPE_API UTexture2D* GetHeightmap(bool InReturnEditingHeightmap = false) const;
 	LANDSCAPE_API TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<UTexture2D*>& GetWeightmapTextures(bool InReturnEditingWeightmap = false) const;
 
 	LANDSCAPE_API TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false);
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(bool InReturnEditingWeightmap = false) const;
+	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const;
 
 #if WITH_EDITOR
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
@@ -847,6 +859,9 @@ public:
 
 	/** Returns the actor's LandscapeMaterial, or the Component's OverrideLandscapeMaterial if set */
 	LANDSCAPE_API UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const;
+
+	/** Returns the actor's LandscapeHoleMaterial, or the Component's OverrideLandscapeHoleMaterial if set */
+	LANDSCAPE_API UMaterialInterface* GetLandscapeHoleMaterial() const;
 
 	/** Returns true if this component has visibility painted */
 	LANDSCAPE_API bool ComponentHasVisibilityPainted() const;

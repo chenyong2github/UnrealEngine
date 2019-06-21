@@ -11,54 +11,29 @@
 #include "Modules/ModuleManager.h"
 
 const FNiagaraEmitterHandle FNiagaraEmitterHandle::InvalidHandle;
-const FString InitialNotSynchronizedReason("Emitter handle constructed");
 
-FNiagaraEmitterHandle::FNiagaraEmitterHandle() :
-	bIsEnabled(true),
+FNiagaraEmitterHandle::FNiagaraEmitterHandle() 
+	: bIsEnabled(true)
 #if WITH_EDITORONLY_DATA
-	Source(nullptr),
-	LastMergedSource(nullptr),
-	bIsolated(false),
+	, Source_DEPRECATED(nullptr)
+	, LastMergedSource_DEPRECATED(nullptr)
+	, bIsolated(false)
 #endif
-	Instance(nullptr)
+	, Instance(nullptr)
 {
 }
 
 #if WITH_EDITORONLY_DATA
-FNiagaraEmitterHandle::FNiagaraEmitterHandle(UNiagaraEmitter& InSourceEmitter, FName InName, UNiagaraSystem& InOuterSystem)
+FNiagaraEmitterHandle::FNiagaraEmitterHandle(UNiagaraEmitter& InEmitter)
 	: Id(FGuid::NewGuid())
 	, IdName(*Id.ToString())
 	, bIsEnabled(true)
-	, Name(InName)
-	, Source(&InSourceEmitter)
-	, LastMergedSource(Cast<UNiagaraEmitter>(StaticDuplicateObject(Source, &InOuterSystem)))
+	, Name(*InEmitter.GetUniqueEmitterName())
+	, Source_DEPRECATED(nullptr)
+	, LastMergedSource_DEPRECATED(nullptr)
 	, bIsolated(false)
-	, Instance(Cast<UNiagaraEmitter>(StaticDuplicateObject(Source, &InOuterSystem)))
+	, Instance(&InEmitter)
 {
-	Instance->ClearFlags(RF_Standalone | RF_Public);
-	Instance->SetUniqueEmitterName(Name.ToString());
-	Instance->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
-	LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
-}
-
-FNiagaraEmitterHandle::FNiagaraEmitterHandle(const FNiagaraEmitterHandle& InHandleToDuplicate, FName InDuplicateName, UNiagaraSystem& InDuplicateOwnerSystem)
-	: Id(FGuid::NewGuid())
-	, IdName(*Id.ToString())
-	, bIsEnabled(InHandleToDuplicate.bIsEnabled)
-	, Name(InDuplicateName)
-	, Source(InHandleToDuplicate.Source)
-	, LastMergedSource(InHandleToDuplicate.LastMergedSource != nullptr ? Cast<UNiagaraEmitter>(StaticDuplicateObject(InHandleToDuplicate.LastMergedSource, &InDuplicateOwnerSystem)) : nullptr)
-	, bIsolated(false)
-	, Instance(Cast<UNiagaraEmitter>(StaticDuplicateObject(InHandleToDuplicate.Instance, &InDuplicateOwnerSystem)))
-{
-	// Clear stand alone and public flags from the referenced emitters since they are not assets.
-	Instance->ClearFlags(RF_Standalone | RF_Public);
-	Instance->SetUniqueEmitterName(Name.ToString());
-	Instance->GraphSource->MarkNotSynchronized(InitialNotSynchronizedReason);
-	if (LastMergedSource != nullptr)
-	{
-		LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
-	}
 }
 #endif
 
@@ -129,14 +104,6 @@ void FNiagaraEmitterHandle::SetIsEnabled(bool bInIsEnabled)
 	bIsEnabled = bInIsEnabled;
 }
 
-#if WITH_EDITORONLY_DATA
-const UNiagaraEmitter* FNiagaraEmitterHandle::GetSource() const
-{
-	return Source;
-}
-
-#endif
-
 UNiagaraEmitter* FNiagaraEmitterHandle::GetInstance() const
 {
 	return Instance;
@@ -149,31 +116,6 @@ FString FNiagaraEmitterHandle::GetUniqueInstanceName()const
 }
 
 #if WITH_EDITORONLY_DATA
-
-bool FNiagaraEmitterHandle::IsSynchronizedWithSource() const
-{
-	if (Source == nullptr && LastMergedSource == nullptr)
-	{
-		// If the emitter has no source and no last merged source than it is synchronized by default.
-		return true;
-	}
-
-	if (Source == nullptr || LastMergedSource == nullptr)
-	{
-		// If either only the source or only the last merged sources is missing, then we're not synchronized.  The
-		// merge logic will detect this and print an appropriate message to the log.
-		return false;
-	}
-
-	if (Source->GetChangeId().IsValid() == false ||
-		LastMergedSource->GetChangeId().IsValid() == false)
-	{
-		// If any of the change Ids aren't valid then we assume we're out of sync.
-		return false;
-	}
-
-	return Source->GetChangeId() == LastMergedSource->GetChangeId();
-}
 
 bool FNiagaraEmitterHandle::NeedsRecompile() const
 {
@@ -190,69 +132,40 @@ bool FNiagaraEmitterHandle::NeedsRecompile() const
 	return false;
 }
 
-void FNiagaraEmitterHandle::ConditionalPostLoad()
+void FNiagaraEmitterHandle::ConditionalPostLoad(int32 NiagaraCustomVersion)
 {
-	if (Source != nullptr)
+	if (Instance != nullptr)
 	{
-		Source->ConditionalPostLoad();
+		Instance->ConditionalPostLoad();
+		if (NiagaraCustomVersion < FNiagaraCustomVersion::MoveInheritanceDataFromTheEmitterHandleToTheEmitter)
+		{
+			if (Source_DEPRECATED != nullptr)
+			{
+				Source_DEPRECATED->ConditionalPostLoad();
+				Instance->Parent = Source_DEPRECATED;
+				Source_DEPRECATED = nullptr;
+			}
+			if (LastMergedSource_DEPRECATED != nullptr)
+			{
+				LastMergedSource_DEPRECATED->ConditionalPostLoad();
+				Instance->ParentAtLastMerge = LastMergedSource_DEPRECATED;
+				Instance->ParentAtLastMerge->Rename(nullptr, Instance, REN_ForceNoResetLoaders);
+				LastMergedSource_DEPRECATED = nullptr;
+			}
+
+			// Since we've previously post loaded the emitter it wouldn't have merged on load since it didn't have
+			// the parent information so we check this again here, now that the parent information has been set.
+			if (Instance->IsSynchronizedWithParent() == false)
+			{
+				Instance->MergeChangesFromParent();
+			}
+		}
 	}
-	if (LastMergedSource != nullptr)
-	{
-		LastMergedSource->ConditionalPostLoad();
-	}
-	Instance->ConditionalPostLoad();
 }
 
-INiagaraModule::FMergeEmitterResults FNiagaraEmitterHandle::MergeSourceChanges()
+bool FNiagaraEmitterHandle::UsesEmitter(const UNiagaraEmitter& InEmitter) const
 {
-	UE_LOG(LogNiagara, Log, TEXT("Emitter %s-%s is merging changes from source %s because its Change ID was updated."), *Instance->GetPathName(), *Name.ToString(),
-		Source != nullptr ? *Source->GetPathName() : TEXT("(null)"));
-
-	if (Source == nullptr)
-	{
-		// If we don't have a copy of the source emitter, this emitter can't safely be merged.
-		INiagaraModule::FMergeEmitterResults MergeResults;
-		MergeResults.bSucceeded = false;
-		MergeResults.bModifiedGraph = false;
-		MergeResults.ErrorMessages.Add(NSLOCTEXT("NiagaraEmitterHandle", "NoSourceErrorMessage", "This emitter has no 'Source' so changes can't be merged in."));
-		return MergeResults;
-	}
-
-	if (LastMergedSource == nullptr)
-	{
-		// If we don't have a copy of the last merged source emitter, this emitter can't safely be
-		// merged.
-		INiagaraModule::FMergeEmitterResults MergeResults;
-		MergeResults.bSucceeded = false;
-		MergeResults.bModifiedGraph = false;
-		MergeResults.ErrorMessages.Add(NSLOCTEXT("NiagaraEmitterHandle", "NoLastMergedSourceErrorMessage", "This emitter has no 'LastMergedSource' so changes can't be merged in."));
-		return MergeResults;
-	}
-
-	INiagaraModule& NiagaraModule = FModuleManager::Get().GetModuleChecked<INiagaraModule>("Niagara");
-	INiagaraModule::FMergeEmitterResults MergeResults = NiagaraModule.MergeEmitter(*Source, *LastMergedSource, *Instance);
-	if (MergeResults.bSucceeded)
-	{
-		UObject* Outer = Instance->GetOuter();
-		Instance = MergeResults.MergedInstance;
-
-		// Rename the merged instance into this package with the correct handle name and then clear it's stand alone and public flags since it's not a root asset.
-		FName NewInstanceName = MakeUniqueObjectName(Outer, UNiagaraEmitter::StaticClass(), Name);
-		Instance->Rename(*NewInstanceName.ToString(), Outer, REN_ForceNoResetLoaders);
-		Instance->ClearFlags(RF_Standalone | RF_Public);
-		Instance->SetUniqueEmitterName(Name.ToString());
-
-		// Update the last merged source and clear it's stand alone and public flags since it's not an asset.
-		LastMergedSource = CastChecked<UNiagaraEmitter>(StaticDuplicateObject(Source, Outer));
-		LastMergedSource->ClearFlags(RF_Standalone | RF_Public);
-	}
-	return MergeResults;
-}
-
-void FNiagaraEmitterHandle::RemoveSource()
-{
-	Source = nullptr;
-	LastMergedSource = nullptr;
+	return Instance == &InEmitter || (Instance != nullptr && Instance->UsesEmitter(InEmitter));
 }
 
 #endif

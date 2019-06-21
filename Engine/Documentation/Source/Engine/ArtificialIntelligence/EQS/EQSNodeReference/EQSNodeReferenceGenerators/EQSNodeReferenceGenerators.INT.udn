@@ -1,0 +1,364 @@
+Availability: Docs
+Title: EQS Node Reference: Generators
+Description: Describes how Generators are used within the EQS system. 
+Type: reference
+Version: 4.21
+Parent: Engine/ArtificialIntelligence/EQS/EQSNodeReference
+Tags: Experimental
+Tags: EQS
+Tags: AI
+Tags: Environmental Query System
+Tags: EQS Node Reference List
+topic-image: Generator_Topic.png
+social-image: Generator_Topic.png
+topic-icon: Generator_Topic.png
+Order: 0
+
+
+[TOC (start:2 end:2)]
+
+Within the Environmental Query System (EQS), **Generators **are used to produce the locations or Actors (referred to as **Items**) that will be tested and weighted, with the highest weight location or Actor being returned to the [Behavior Tree](Engine/ArtificialIntelligence/BehaviorTrees). There are different types of Generators that you can use to retrieve information and they can be created either in Blueprint or C++. 
+
+## Actors of Class
+
+![](Generators_ActorsOfClass.png "Generators_ActorsOfClass.png")
+
+The **Actors of Class **Generator finds all of the Actors of a given class within the specified **Search Radius **around the **Search Center**. The Actors returned can be used as Items in your tests. 
+
+![](ActorsOfClass_Details.png "ActorsOfClass_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Searched Actor Class** | The Actor class to look for (for example, Pawn, Character). |
+| **Generate Only Actors in Radius** | If enabled, this will only return Actors of the specified **Searched Actor Class** within the **Search Radius. **If disabled, it will return all Actors of the specified **Searched Actor Class **in the game world. You can also optionally include user-defined **Data Bindings **to go along with this option. |
+| **Search Radius** | [INCLUDE:#excerpt_0] |
+| **Search Center** | The context to center to search for, such as from the Querier or perhaps some other context. |
+| **Option Name** | [INCLUDE:#excerpt_1] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_0]
+
+The max distance to look for the specified **Searched Actor Class**.  
+
+[REGION:note]
+Zero and negative values will never return any results.
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
+<!--
+[EXCERPT:excerpt_1]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_1]
+-->
+
+## Composite
+
+![](Generators_Composite.png "Generators_Composite.png")
+
+When setting up an EQS Query, there may be instances where you want to include more than one **Generator **in a test case. With the **Composite **node, you can add multiple **Generators** to an array, which can be used in your Tests. 
+
+![](Generators_Composite_Details-1.png "Generators_Composite_Details-1.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Generators** | Enables you to add multiple Generators to include in the test. |
+| **Allow Different Item Types** | [INCLUDE:#excerpt_2] |
+| **Forced Item Type** | The Item type to use in Tests. For example Actor, Direction, or Point. |
+| **Option Name** | [INCLUDE:#excerpt_3] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_2]
+
+This allows tests to be performed on Generators with different Item types. 
+
+[REGION:warning]
+Generator will use **ForcedItemType** for raw data and you must ensure proper memory layout of child Generators as they write to memory blocks through their own Item types. For example, data must fit into blocks allocated by **ForcedItemType** while Tests will read item location/properties through **ForcedItemType**.
+[/REGION]
+[/EXCERPT:excerpt_2]
+-->
+<!--
+[EXCERPT:excerpt_3]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_3]
+-->
+
+## Current Location
+
+![](Generators_Location.png "Generators_Location.png")
+
+The **Current Location** Generator can be used to get the location of the specified **Query Context **for the purposes of validating Tests. 
+
+![](Generators_Location_Details.png "Generators_Location_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Query Context** | The Context to use in the Test and its current location. |
+| **Option Name** | [INCLUDE:#excerpt_4] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_4]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_4]
+-->
+
+## Custom Generators
+
+In addition to the Generator types provided by the Engine, you can create your own custom Generators by creating a new Blueprint of the **EnvQueryGenerator_BlueprintBase** class type.
+
+![](CustomGenerator.png "CustomGenerator.png")
+
+[REGION:note]
+Generators developed in C++ will execute generally faster than that developed through Blueprint.
+[/REGION]
+Once created, your custom Generator will be available within an Environmental Query:
+
+![](AddCustomGenerator.png "AddCustomGenerator.png")
+
+Inside your custom Generator, there is a function you can override called **Do Item Generation**:
+
+![](DoItemGeneration-1.png "DoItemGeneration-1.png")
+
+When you override this function, you'll get an array of locations that are the Context locations passed in from the Environmental Query.
+
+![](DoItemGeneration_2-1.png "DoItemGeneration_2-1.png")
+
+Depending on the Context, the array may vary. For example, this could be an array of just a single entry containing the location of the Querier, or, it could be the locations of every health pickup inside your Level.
+
+Since functions can only return one value, the Do Item Generation function has two arrays it can pass back to the Environment Query: **Add Generated Actor** and **Add Generated Vector**.
+
+![](AddGeneratedActor.png "AddGeneratedActor.png")
+
+The Add Generated Actor node will add an Actor to the Actor return array. This node can also be used with the **Add Generated Vector **node (below) to also return location values. How the Generator determines what it is actually passing back to the Behavior Tree is based on what Blackboard key you are setting from the Environment Query node. 
+
+![](AddGeneratedVector.png "AddGeneratedVector.png")
+
+## Points: Circle
+
+![](Generators_Circle.png "Generators_Circle.png")
+
+The **Points: Circle** Generator radiates traces out from the **Circle Center**, returning the hits on the edge of the radius (of the generated Circle) as Items. 
+
+![](OnCircle_Details.png "OnCircle_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Circle Radius** | The max radius of the circle that will expand out from the **Circle Center** context. |
+| **Spawn Between** | The space (in centimeters) between the Items generated on the outer edge of the circle. |
+| **Number Of Points** | The number of Items to be generated on a circle. |
+| **Arc Direction** | Define the mode in which the arc direction is determined. You can choose between **Two Points **(direction from the location of one context to another) or **Rotation **(where the context's rotation will be used as a direction). |
+| **Arc Angle** | Defines the angle in which the arc is measured in degrees. |
+| **Circle Center** | The context used as the center for the circle. |
+| **Ignore Any Context Actors when Generating Circle** | When enabled, ignore tracing into context Actors when generating the circle. |
+| **Circle Center ZOffset** | Optional offset to apply to context in the Z-axis. |
+| **Trace Data** | [INCLUDE:#excerpt_5] |
+| **Projection Data** | If the resulting Items should be projected onto the NavMesh (and which NavMesh data set to use). |
+| **Option Name** | [INCLUDE:#excerpt_6] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_5]
+
+Options related to how the trace is performed. 
+
+  
+| Property | Description |
+| --- | --- |
+| **Trace Mode** | Shape used for geometry tracing. |
+| **Navigation Filter** | Navigation filter used for tracing. |
+| **Extent X** | Shape parameter for the trace. |
+
+[/EXCERPT:excerpt_5]
+-->
+<!--
+[EXCERPT:excerpt_6]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_6]
+-->
+
+## Points: Cone
+
+![](Generators_Cone.png "Generators_Cone.png")
+
+The **Points: Cone** radiates a trace out from the **Center Actor **in the shape of a cone with the specified **Cone Degrees **as Items. 
+
+![](Cone_Details.png "Cone_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Aligned Points Distance** | The distance between each point on the same angle. |
+| **Cone Degrees** | Maximum degrees of the generated cone. |
+| **Angle Step** | The step of the angle increase. Angle step must be greater than or equal to one. Smaller values generate less Items. |
+| **Range** | Distance to generate the cone from the context. |
+| **Center Actor** | The Actor (or Actors) that will generate a cone in their facing direction. |
+| **Include Context Location** | [INCLUDE:#excerpt_7] |
+| **Projection Data** | [INCLUDE:#excerpt_8] |
+| **Option Name** | [INCLUDE:#excerpt_9] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_7]
+
+Whether to include **Center Actor **locations when generating Items. 
+
+[REGION:note]
+This option skips the **MinAngledPointsDistance** parameter.
+[/REGION]
+[/EXCERPT:excerpt_7]
+-->
+<!--
+[EXCERPT:excerpt_8]
+
+If the resulting Items should be project onto the NavMesh (and which NavMesh data set to use).   
+
+[/EXCERPT:excerpt_8]
+-->
+<!--
+[EXCERPT:excerpt_9]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_9]
+-->
+
+## Points: Donut
+
+![](Generators_Donut.png "Generators_Donut.png")
+
+The **Points: Donut **Generator, creates a shape based trace with the user specified **Number Of Rings** radiating from the **Center **Context. 
+
+![](Donut_Details.png "Donut_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Inner Radius** | The minimum distance between point and context. |
+| **Outer Radius** | The maximum distance between point and context. |
+| **Number of Rings** | The number of rings to generate. |
+| **Points Per Rig** | Number of Items to generate for each ring. |
+| **Arc Direction** | [INCLUDE:#excerpt_10] |
+| **Arc Angle** | [INCLUDE:#excerpt_11] |
+| **Use Spiral Pattern** | If enabled, the rings of the wheel will be rotated in a spiral pattern. If disabled, they will all be at a zero rotation, looking more like spokes on a wheel. |
+| **Center** | The context to center the search on, such as from the Querier or perhaps some other context. |
+| **Projection Data** | [INCLUDE:#excerpt_12] |
+| **Option Name** | [INCLUDE:#excerpt_13] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_10]
+
+Define the mode in which the arc direction is determined. You can choose between **Two Points** (direction from the location of one context to another) or **Rotation** (where the context's rotation will be used as a direction).   
+
+[/EXCERPT:excerpt_10]
+-->
+<!--
+[EXCERPT:excerpt_11]
+
+Defines the angle in which the arc is measured in degrees.  
+
+[/EXCERPT:excerpt_11]
+-->
+<!--
+[EXCERPT:excerpt_12]
+
+If the resulting Items should be projected onto the NavMesh (and which NavMesh data set to use).   
+
+[/EXCERPT:excerpt_12]
+-->
+<!--
+[EXCERPT:excerpt_13]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_13]
+-->
+
+## Points: Grid
+
+![](Generators_SimpleGrid.png "Generators_SimpleGrid.png")
+
+The **Points: Grid **Generator will generate a grid of Items around the specified querier assigned under **Generate Around**. 
+
+![](SimpleGrid_Details.png "SimpleGrid_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **GridHalfSize** | The height and width of the grid of Items to generate. |
+| **Space Between** | The distance between the grid Items. |
+| **Generate Around** | The context used to generate the grid around. |
+| **Projection Data** | [INCLUDE:#excerpt_14] |
+| **Option Name** | [INCLUDE:#excerpt_15] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+
+<!--
+[EXCERPT:excerpt_14]
+
+If the resulting Items should be projected onto the NavMesh (and which NavMesh data set to use).   
+
+[REGION:note]
+This will move Items that may be inside walls or blocked, back onto the NavMesh, which can create bunching if a grid line happens to be just beyond the edge of the NavMesh.
+[/REGION]
+[/EXCERPT:excerpt_14]
+-->
+<!--
+[EXCERPT:excerpt_15]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_15]
+-->
+
+## Points: Pathing Grid
+
+![](Generators_PathingGrid.png "Generators_PathingGrid.png")
+
+You can use **Points: Pathing Grid **to generate a grid around the given Context location. 
+
+![](PathingGrid_Details.png "PathingGrid_Details.png")
+
+  
+| Property | Description |
+| --- | --- |
+| **Path to Item** | If the pathfinding direction should be towards (enabled) or away (disabled) from the Item. |
+| **Navigation Filter** | Navigation filter to use in pathfinding. |
+| **GridHalfSize** | Half of square's extent (edge distance). |
+| **Space Between** | Defines the generation density of points on the grid. |
+| **Generate Around** | The context used to generate the grid around. |
+| **Projection Data** | [INCLUDE:#excerpt_16] |
+| **Option Name** | [INCLUDE:#excerpt_17] |
+| **Auto Sort Tests** | If enabled, Tests will automatically be sorted for best performance before the query is run. |
+| **Scan Range Multiplier** | Multiplier for max distance between point and context. |
+
+<!--
+[EXCERPT:excerpt_16]
+
+If the resulting Items should be projected onto the NavMesh (and which NavMesh data set to use).   
+
+[REGION:note]
+This will move Items that may be inside walls or blocked, back onto the NavMesh, which can create bunching if a grid line happens to be just beyond the edge of the NavMesh.
+[/REGION]
+[/EXCERPT:excerpt_16]
+-->
+<!--
+[EXCERPT:excerpt_17]
+
+This property is inherited from the base class of the Generator ActorsOfClass. It is mostly used when displaying the Name of this Generator (for example, HUDs or output messages).   
+
+[/EXCERPT:excerpt_17]
+-->

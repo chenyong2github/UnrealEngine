@@ -1,0 +1,360 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "ConcertMessageData.h"
+#include "ConcertWorkspaceData.h"
+#include "ConcertTransactionEvents.h"
+#include "ConcertSyncSessionTypes.generated.h"
+
+/** Types of connection events */
+UENUM()
+enum class EConcertSyncConnectionEventType : uint8
+{
+	Connected = 0,
+	Disconnected,
+};
+
+/** Types of lock events */
+UENUM()
+enum class EConcertSyncLockEventType : uint8
+{
+	Locked = 0,
+	Unlocked,
+};
+
+/** Types of activity events */
+UENUM()
+enum class EConcertSyncActivityEventType : uint8
+{
+	Connection = 0,
+	Lock,
+	Transaction,
+	Package,
+};
+
+/** Type of transaction summaries */
+UENUM()
+enum class EConcertSyncTransactionActivitySummaryType : uint8
+{
+	Added,
+	Updated,
+	Renamed,
+	Deleted,
+};
+
+/** Data for an endpoint in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncEndpointData
+{
+	GENERATED_BODY()
+
+	/** The information about the Concert client connected through this endpoint */
+	UPROPERTY()
+	FConcertClientInfo ClientInfo;
+};
+
+/** ID and data pair for an endpoint in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncEndpointIdAndData
+{
+	GENERATED_BODY()
+
+	/** The ID of the endpoint */
+	UPROPERTY()
+	FGuid EndpointId;
+
+	/** The data for the endpoint */
+	UPROPERTY()
+	FConcertSyncEndpointData EndpointData;
+};
+
+/** Data for a connection event in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncConnectionEvent
+{
+	GENERATED_BODY()
+
+	/** The type of this connection event */
+	UPROPERTY()
+	EConcertSyncConnectionEventType ConnectionEventType = EConcertSyncConnectionEventType::Connected;
+};
+
+/** Data for a lock event in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncLockEvent
+{
+	GENERATED_BODY()
+
+	/** The type of this lock event */
+	UPROPERTY()
+	EConcertSyncLockEventType LockEventType = EConcertSyncLockEventType::Locked;
+
+	/** The resources affected by this lock event */
+	UPROPERTY()
+	TArray<FName> ResourceNames;
+};
+
+/** Data for a transaction event in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncTransactionEvent
+{
+	GENERATED_BODY()
+
+	/** The transaction data for this event */
+	UPROPERTY()
+	FConcertTransactionFinalizedEvent Transaction;
+};
+
+/** Data for a package event in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncPackageEvent
+{
+	GENERATED_BODY()
+
+	/** The revision of this package within the session? */
+	UPROPERTY()
+	int64 PackageRevision = 0;
+
+	/** The package data for this event */
+	UPROPERTY()
+	FConcertPackage Package;
+};
+
+/** Data for an activity entry in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncActivity
+{
+	GENERATED_BODY()
+
+	/** The ID of the activity */
+	UPROPERTY()
+	int64 ActivityId = 0;
+
+	/** The ID of the endpoint that produced the activity */
+	UPROPERTY()
+	FGuid EndpointId;
+
+	/** The time at which the activity was produced (UTC) */
+	UPROPERTY()
+	FDateTime EventTime;
+
+	/** The type of this activity */
+	UPROPERTY()
+	EConcertSyncActivityEventType EventType;
+
+	/** The ID of the event associated with this activity (@see EventType to work out how to resolve this) */
+	UPROPERTY()
+	int64 EventId = 0;
+
+	/** The minimal summary of the event associated with this activity (@see FConcertSyncActivitySummary) */
+	UPROPERTY()
+	FConcertSessionSerializedCborPayload EventSummary;
+};
+
+/** Data for a connection activity entry in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncConnectionActivity : public FConcertSyncActivity
+{
+	GENERATED_BODY()
+
+	FConcertSyncConnectionActivity()
+	{
+		EventType = EConcertSyncActivityEventType::Connection;
+	}
+
+	/** The connection event data associated with this activity */
+	UPROPERTY()
+	FConcertSyncConnectionEvent EventData;
+};
+
+/** Data for a lock activity entry in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncLockActivity : public FConcertSyncActivity
+{
+	GENERATED_BODY()
+
+	FConcertSyncLockActivity()
+	{
+		EventType = EConcertSyncActivityEventType::Lock;
+	}
+
+	/** The lock event data associated with this activity */
+	UPROPERTY()
+	FConcertSyncLockEvent EventData;
+};
+
+/** Data for a transaction activity entry in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncTransactionActivity : public FConcertSyncActivity
+{
+	GENERATED_BODY()
+
+	FConcertSyncTransactionActivity()
+	{
+		EventType = EConcertSyncActivityEventType::Transaction;
+	}
+
+	/** The transaction event data associated with this activity */
+	UPROPERTY()
+	FConcertSyncTransactionEvent EventData;
+};
+
+/** Data for a package activity entry in a Concert Sync Session */
+USTRUCT()
+struct FConcertSyncPackageActivity : public FConcertSyncActivity
+{
+	GENERATED_BODY()
+
+	FConcertSyncPackageActivity()
+	{
+		EventType = EConcertSyncActivityEventType::Package;
+	}
+
+	/** The package event data associated with this activity */
+	UPROPERTY()
+	FConcertSyncPackageEvent EventData;
+};
+
+/** Base summary for an activity entry in a Concert Sync Session */
+USTRUCT()
+struct CONCERTSYNCCORE_API FConcertSyncActivitySummary
+{
+	GENERATED_BODY()
+
+	virtual ~FConcertSyncActivitySummary() = default;
+
+public:
+	/**
+	 * Get the display text of the activity summary.
+	 * 
+	 * @param InUserDisplayName		The display name of the user the activity belongs to, or an empty text to skip the user information.
+	 * @param InUseRichText			True if the output should be suitable for consumption as rich-text, or false for plain-text.
+	 */
+	FText ToDisplayText(const FText InUserDisplayName, const bool InUseRichText = false) const;
+
+protected:
+	virtual FText CreateDisplayText(const bool InUseRichText) const;
+	virtual FText CreateDisplayTextForUser(const FText InUserDisplayName, const bool InUseRichText) const;
+};
+
+/** Summary for a connection activity entry in a Concert Sync Session */
+USTRUCT()
+struct CONCERTSYNCCORE_API FConcertSyncConnectionActivitySummary : public FConcertSyncActivitySummary
+{
+	GENERATED_BODY()
+
+	/** The type of connection event we summarize */
+	UPROPERTY()
+	EConcertSyncConnectionEventType ConnectionEventType = EConcertSyncConnectionEventType::Connected;
+
+	/** Create this summary from an connection event */
+	static FConcertSyncConnectionActivitySummary CreateSummaryForEvent(const FConcertSyncConnectionEvent& InEvent);
+
+protected:
+	//~ FConcertSyncActivitySummary interface
+	virtual FText CreateDisplayText(const bool InUseRichText) const override;
+	virtual FText CreateDisplayTextForUser(const FText InUserDisplayName, const bool InUseRichText) const override;
+};
+
+/** Summary for a lock activity entry in a Concert Sync Session */
+USTRUCT()
+struct CONCERTSYNCCORE_API FConcertSyncLockActivitySummary : public FConcertSyncActivitySummary
+{
+	GENERATED_BODY()
+
+	/** The type of lock event we summarize */
+	UPROPERTY()
+	EConcertSyncLockEventType LockEventType = EConcertSyncLockEventType::Locked;
+
+	/** The primary resource affected by the lock event we summarize */
+	UPROPERTY()
+	FName PrimaryResourceName;
+
+	/** The primary package affected by the lock event we summarize */
+	UPROPERTY()
+	FName PrimaryPackageName;
+
+	/** The total number of resources affected by the lock event we summarize */
+	UPROPERTY()
+	int32 NumResources = 0;
+
+	/** Create this summary from a lock event */
+	static FConcertSyncLockActivitySummary CreateSummaryForEvent(const FConcertSyncLockEvent& InEvent);
+
+protected:
+	//~ FConcertSyncActivitySummary interface
+	virtual FText CreateDisplayText(const bool InUseRichText) const override;
+	virtual FText CreateDisplayTextForUser(const FText InUserDisplayName, const bool InUseRichText) const override;
+};
+
+/** Summary for a transaction activity entry in a Concert Sync Session */
+USTRUCT()
+struct CONCERTSYNCCORE_API FConcertSyncTransactionActivitySummary : public FConcertSyncActivitySummary
+{
+	GENERATED_BODY()
+
+	/** The type of summary that the transaction event we summarize produced */
+	UPROPERTY()
+	EConcertSyncTransactionActivitySummaryType TransactionSummaryType = EConcertSyncTransactionActivitySummaryType::Updated;
+
+	/** The title of transaction in the transaction event we summarize */
+	UPROPERTY()
+	FText TransactionTitle;
+
+	/** The primary object affected by the transaction event we summarize */
+	UPROPERTY()
+	FName PrimaryObjectName;
+
+	/** The primary package affected by the transaction event we summarize */
+	UPROPERTY()
+	FName PrimaryPackageName;
+
+	/** The new object name for the event we summarize (if TransactionSummaryType == EConcertSyncTransactionActivitySummaryType::Renamed) */
+	UPROPERTY()
+	FName NewObjectName;
+
+	/** The total number of actions created by the transaction event we summarize */
+	UPROPERTY()
+	int32 NumActions = 0;
+
+	/** Create this summary from a transaction event */
+	static FConcertSyncTransactionActivitySummary CreateSummaryForEvent(const FConcertSyncTransactionEvent& InEvent);
+
+protected:
+	//~ FConcertSyncActivitySummary interface
+	virtual FText CreateDisplayText(const bool InUseRichText) const override;
+	virtual FText CreateDisplayTextForUser(const FText InUserDisplayName, const bool InUseRichText) const override;
+};
+
+/** Summary for a package activity entry in a Concert Sync Session */
+USTRUCT()
+struct CONCERTSYNCCORE_API FConcertSyncPackageActivitySummary : public FConcertSyncActivitySummary
+{
+	GENERATED_BODY()
+
+	/** The package affected by the package event we summarize */
+	UPROPERTY()
+	FName PackageName;
+
+	/** The new package name for the event we summarize (if PackageUpdateType == EConcertPackageUpdateType::Renamed) */
+	UPROPERTY()
+	FName NewPackageName;
+
+	/** The type of package update we summarize */
+	UPROPERTY()
+	EConcertPackageUpdateType PackageUpdateType = EConcertPackageUpdateType::Dummy;
+
+	/** Are we summarizing an auto-save update? */
+	UPROPERTY()
+	bool bAutoSave = false;
+
+	/** Create this summary from a package event */
+	static FConcertSyncPackageActivitySummary CreateSummaryForEvent(const FConcertSyncPackageEvent& InEvent);
+
+protected:
+	//~ FConcertSyncActivitySummary interface
+	virtual FText CreateDisplayText(const bool InUseRichText) const override;
+	virtual FText CreateDisplayTextForUser(const FText InUserDisplayName, const bool InUseRichText) const override;
+};

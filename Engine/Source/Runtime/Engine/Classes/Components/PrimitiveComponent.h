@@ -19,6 +19,7 @@
 #include "PhysicsEngine/BodyInstance.h"
 #include "Engine/TextureStreamingTypes.h"
 #include "AI/Navigation/NavRelevantInterface.h"
+#include "VT/RuntimeVirtualTextureEnum.h"
 #include "PrimitiveComponent.generated.h"
 
 class AController;
@@ -545,6 +546,7 @@ public:
 	/**
 	 * Translucent objects with a lower sort priority draw behind objects with a higher priority.
 	 * Translucent objects with the same priority are rendered from back-to-front based on their bounds origin.
+	 * This setting is also used to sort objects being drawn into a runtime virtual texture.
 	 *
 	 * Ignored if the object is not translucent.  The default priority is zero.
 	 * Warning: This should never be set to a non-default value unless you know what you are doing, as it will prevent the renderer from sorting correctly.  
@@ -556,6 +558,22 @@ public:
 	/** Used for precomputed visibility */
 	UPROPERTY()
 	int32 VisibilityId;
+
+	/** 
+	 * Array of runtime virtual textures into which we render the mesh for this actor. 
+	 * The material also needs to be set up to output to a virtual texture. 
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Render to Virtual Textures"))
+	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+
+	/** Render to the main pass based on the virtual texture settings. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = VirtualTexture, meta = (DisplayName = "Virtual Texture Pass Type"))
+	ERuntimeVirtualTextureMainPassType VirtualTextureRenderPassType = ERuntimeVirtualTextureMainPassType::Exclusive;
+
+	/** Get the array of runtime virtual textures into which we render the mesh for this actor. */
+	virtual TArray<URuntimeVirtualTexture*> const& GetRuntimeVirtualTextures() const { return RuntimeVirtualTextures; }
+	/** Get the runtime virtual texture pass settings. */
+	virtual ERuntimeVirtualTextureMainPassType GetVirtualTextureRenderPassType() const { return VirtualTextureRenderPassType; }
 
 	/** Used by the renderer, to identify a component across re-registers. */
 	FPrimitiveComponentId ComponentId;
@@ -844,6 +862,14 @@ public:
 	 */
 	virtual bool UpdateOverlapsImpl(const TOverlapArrayView* NewPendingOverlaps=nullptr, bool bDoNotifies=true, const TOverlapArrayView* OverlapsAtEndLocation=nullptr) override;
 
+#if WITH_EDITOR
+	/**
+	 * Whether or not the bounds of this component should be considered when focusing the editor camera to an actor with this component in it.
+	 * Useful for debug components which need a bounds for rendering but don't contribute to the visible part of the mesh in a meaningful way
+	 */
+	virtual bool IgnoreBoundsForEditorFocus() const { return false; }
+#endif
+
 	/** Update current physics volume for this component, if bShouldUpdatePhysicsVolume is true. Overridden to use the overlaps to find the physics volume. */
 	virtual void UpdatePhysicsVolume( bool bTriggerNotifiers ) override;
 
@@ -862,6 +888,12 @@ public:
 	bool ComponentOverlapMulti(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params = FComponentQueryParams::DefaultComponentQueryParams, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const;
 	bool ComponentOverlapMulti(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FRotator& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params = FComponentQueryParams::DefaultComponentQueryParams, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const;
 
+	/**
+	 *	Walks up the attachment tree until a primitive component with LightAttachmentsAsGroup enabled is found. This component will effectively act as the root of the attachment group.
+	 *	Return nullptr if none is found. 
+	 */
+	const UPrimitiveComponent* GetLightingAttachmentRoot() const;
+
 protected:
 	/** Override this method for custom behavior for ComponentOverlapMulti() */
 	virtual bool ComponentOverlapMultiImpl(TArray<struct FOverlapResult>& OutOverlaps, const class UWorld* InWorld, const FVector& Pos, const FQuat& Rot, ECollisionChannel TestChannel, const struct FComponentQueryParams& Params, const struct FCollisionObjectQueryParams& ObjectQueryParams = FCollisionObjectQueryParams::DefaultObjectQueryParam) const;
@@ -870,7 +902,7 @@ public:
 	// Internal physics engine data.
 	
 	/** Physics scene information for this component, holds a single rigid body with multiple shapes. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Collision, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Collision, meta=(ShowOnlyInnerProperties, SkipUCSModifiedProperties))
 	FBodyInstance BodyInstance;
 
 	/** 
@@ -1373,6 +1405,14 @@ public:
 	/** Changes the value of CastShadow. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastShadow(bool NewCastShadow);
+
+	/** Changes the value of CastInsetShadow. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetCastInsetShadow(UPARAM(DisplayName="CastInsetShadow") bool bInCastInsetShadow);
+
+	/** Changes the value of LightAttachmentsAsGroup. */
+	UFUNCTION(BlueprintCallable, Category="Rendering")
+	void SetLightAttachmentsAsGroup(UPARAM(DisplayName="LightAttachmentsAsGroup") bool bInLightAttachmentsAsGroup);
 
 	/** Changes the value of bSingleSampleShadowFromStationaryLights. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")

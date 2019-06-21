@@ -134,9 +134,14 @@ void FDirectoryWatcherWindows::Tick( float DeltaSeconds )
 	}
 
 	// Trigger any file changed delegates that are queued up
+	// We need to do this in batches of MAXIMUM_WAIT_OBJECTS-1 as described by the documentation for MsgWaitForMultipleObjectsEx
 	if ( DirectoryHandles.Num() > 0 )
 	{
-		MsgWaitForMultipleObjectsEx(DirectoryHandles.Num(), DirectoryHandles.GetData(), 0, QS_ALLEVENTS, MWMO_ALERTABLE);
+		static const int32 BatchSize = MAXIMUM_WAIT_OBJECTS - 1;
+		for (int32 HandleOffset = 0; HandleOffset < DirectoryHandles.Num(); HandleOffset += BatchSize)
+		{
+			MsgWaitForMultipleObjectsEx(FMath::Min(DirectoryHandles.Num() - HandleOffset, BatchSize), DirectoryHandles.GetData() + HandleOffset, 0, QS_ALLEVENTS, MWMO_ALERTABLE);
+		}
 	}
 
 	// Delete any stale or invalid requests

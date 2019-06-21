@@ -11,6 +11,7 @@
 #include "Serialization/BulkData.h"
 #include "RendererInterface.h"
 
+class FLightSceneInfo;
 class FScene;
 class FSceneViewFamily;
 class FShader;
@@ -34,7 +35,7 @@ namespace EAtmosphereRenderFlag
 	};
 }
 
-/** The properties of a atmospheric fog layer which are used for rendering. */
+/** The properties of a atmospheric fog layer which are used for rendering. (Render side of the application) */
 class FAtmosphericFogSceneInfo : public FRenderResource
 {
 public:
@@ -55,6 +56,7 @@ public:
 	FVector DefaultSunDirection;
 	uint32 RenderFlag;
 	uint32 InscatterAltitudeSampleNum;
+	bool bAtmosphereAffectsSunIlluminance;
 	class FAtmosphereTextureResource* TransmittanceResource;
 	class FAtmosphereTextureResource* IrradianceResource;
 	class FAtmosphereTextureResource* InscatterResource;
@@ -77,8 +79,11 @@ public:
 #endif
 
 	/** Initialization constructor. */
-	explicit FAtmosphericFogSceneInfo(UAtmosphericFogComponent* InComponent, const FScene* InScene);
+	explicit FAtmosphericFogSceneInfo(const UAtmosphericFogComponent* InComponent);
 	~FAtmosphericFogSceneInfo();
+
+	/** Prepare the sun light data as a function of current atmospheric fog state. */
+	void PrepareSunLightProxy(FLightSceneInfo& SunLight) const;
 
 #if WITH_EDITOR
 	void PrecomputeTextures(FRHICommandListImmediate& RHICmdList, const FViewInfo* View, FSceneViewFamily* ViewFamily);
@@ -95,6 +100,9 @@ private:
 	void ReadPixelsPtr(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget> RenderTarget, FColor* OutData, FIntRect InRect);
 	void Read3DPixelsPtr(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget> RenderTarget, FFloat16Color* OutData, FIntRect InRect, FIntPoint InZMinMax);
 #endif
+
+private:
+	const FLinearColor TransmittanceAtZenith;
 };
 
 bool ShouldRenderAtmosphere(const FSceneViewFamily& Family);

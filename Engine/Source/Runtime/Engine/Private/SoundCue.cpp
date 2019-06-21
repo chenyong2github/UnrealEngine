@@ -78,22 +78,7 @@ void USoundCue::CacheAggregateValues()
 
 		Duration = FirstNode->GetDuration();
 
-		MaxDistance = FirstNode->GetMaxDistance();
-
-		if (const FSoundAttenuationSettings* Settings = GetAttenuationSettingsToApply())
-		{
-			if (Settings->bAttenuate)
-			{
-				MaxDistance = FMath::Max(MaxDistance, Settings->GetMaxDimension());
-			}
-		}
-
-		// If no sound cue nodes overrode the max distance, we need to check the base attenuation
-		if (MaxDistance == 0.0f)
-		{
-			MaxDistance = USoundBase::GetMaxDistance();
-		}
-
+		MaxDistance = FindMaxDistanceInternal();
 		bHasDelayNode = FirstNode->HasDelayNode();
 		bHasConcatenatorNode = FirstNode->HasConcatenatorNode();
 		bHasPlayWhenSilent = FirstNode->IsPlayWhenSilent();
@@ -223,6 +208,33 @@ void USoundCue::EvaluateNodes(bool bAddToRoot)
 			}
 		}
 	}
+}
+
+float USoundCue::FindMaxDistanceInternal() const
+{
+	float OutMaxDistance = 0.0f;
+	if (const FSoundAttenuationSettings* Settings = GetAttenuationSettingsToApply())
+	{
+		if (!Settings->bAttenuate)
+		{
+			return WORLD_MAX;
+		}
+
+		OutMaxDistance = FMath::Max(OutMaxDistance, Settings->GetMaxDimension());
+	}
+
+	if (FirstNode)
+	{
+		OutMaxDistance = FMath::Max(OutMaxDistance, FirstNode->GetMaxDistance());
+	}
+
+	if (OutMaxDistance > KINDA_SMALL_NUMBER)
+	{
+		return OutMaxDistance;
+	}
+
+	// If no sound cue nodes has overridden the max distance, check the base attenuation
+	return USoundBase::GetMaxDistance();
 }
 
 
@@ -410,7 +422,10 @@ int32 USoundCue::GetResourceSizeForFormat(FName Format)
 
 float USoundCue::GetMaxDistance() const
 {
-	return MaxDistance;
+	// Always recalc the max distance when in the editor as it could change
+	// from a referenced attenuation asset being updated without this cue
+	// asset re-caching the aggregate 'MaxDistance' value
+	return GIsEditor ? FindMaxDistanceInternal() : MaxDistance;
 }
 
 float USoundCue::GetDuration()

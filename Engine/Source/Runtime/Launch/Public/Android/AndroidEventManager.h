@@ -26,17 +26,35 @@ enum EAppEventState
 	APP_EVENT_STATE_WINDOW_LOST_FOCUS,
 	APP_EVENT_STATE_WINDOW_GAINED_FOCUS,
 	APP_EVENT_STATE_SAVE_STATE,
+	APP_EVENT_STATE_APP_SUSPENDED,
+	APP_EVENT_STATE_APP_ACTIVATED,
+	APP_EVENT_RUN_CALLBACK,
 	APP_EVENT_STATE_INVALID = -1,
 };
 
 struct FAppEventData
 {
-	EAppEventState State;
-	void* Data;
+	FAppEventData() : WindowWidth(-1), WindowHeight(-1)
+	{}
+	FAppEventData(TFunction<void(void)> CallbackFuncIN) : WindowWidth(-1), WindowHeight(-1), CallbackFunc(MoveTemp(CallbackFuncIN))
+	{}
 
-	FAppEventData():
+
+	FAppEventData(ANativeWindow* WindowIn);
+
+	int32 WindowWidth;
+	int32 WindowHeight;
+
+	TFunction<void(void)> CallbackFunc;
+};
+
+struct FAppEventPacket
+{
+	EAppEventState State;
+	FAppEventData Data;
+
+	FAppEventPacket():
 		State(APP_EVENT_STATE_INVALID)
-		,Data(NULL)
 	{	}
 };
 
@@ -46,48 +64,47 @@ public:
 	static FAppEventManager* GetInstance();
 	
 	void Tick();
-	void EnqueueAppEvent(EAppEventState InState, void* InData = NULL);
+	void EnqueueAppEvent(EAppEventState InState, FAppEventData&& InData = FAppEventData());
 	void SetEventHandlerEvent(FEvent* InEventHandlerEvent);
-	void HandleWindowCreated(void* InWindow);
-	void HandleWindowClosed();
+	// These are called directly from the android event thread.
+	void HandleWindowCreated_EventThread(void* InWindow);
+	void HandleWindowClosed_EventThread();
 	bool IsGamePaused();
 	bool IsGameInFocus();
 	bool WaitForEventInQueue(EAppEventState InState, double TimeoutSeconds);
 
 	void SetEmptyQueueHandlerEvent(FEvent* InEventHandlerEvent);
-	void WaitForEmptyQueue();
 	void TriggerEmptyQueue();
+
+	void PauseAudio();
+	void ResumeAudio();
+	static void ReleaseMicrophone(bool shuttingDown);
 
 protected:
 	FAppEventManager();
 
 private:
-	FAppEventData DequeueAppEvent();
+	FAppEventPacket DequeueAppEvent();
 	void PauseRendering();
 	void ResumeRendering();
-	void PauseAudio();
-	void ResumeAudio();
+
 
 	void ExecWindowCreated();
 	void ExecWindowResized();
-	void ExecDestroyWindow();
 	
 	static void OnScaleFactorChanged(IConsoleVariable* CVar);
 
 	static FAppEventManager* sInstance;
 
 	pthread_mutex_t QueueMutex;			//@todo android: can probably get rid of this now that we're using an mpsc queue
-	TQueue<FAppEventData, EQueueMode::Mpsc> Queue;
+	TQueue<FAppEventPacket, EQueueMode::Mpsc> Queue;
 	
-	pthread_mutex_t MainMutex;
-
 	FEvent* EventHandlerEvent;			// triggered every time the event handler thread fires off an event
 	FEvent* EmptyQueueHandlerEvent;		// triggered every time the queue is emptied
 
 	//states
 	bool FirstInitialized;
 	bool bCreateWindow;
-	ANativeWindow* PendingWindow;
 
 	bool bWindowInFocus;
 	bool bSaveState;
@@ -96,9 +113,8 @@ private:
 	bool bHaveWindow;
 	bool bHaveGame;
 	bool bRunning;
-
-	// mark the "destroy window" event to prevent "create window" with invalid data on the same frame
-	bool bDestroyWindowPending;
 };
+
+bool IsInAndroidEventThread();
 
 #endif

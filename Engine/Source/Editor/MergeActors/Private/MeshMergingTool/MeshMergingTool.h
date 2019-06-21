@@ -25,19 +25,39 @@ public:
 		Settings.LODSelectionType = EMeshLODSelectionType::AllLODs;
 	}
 
-	static UMeshMergingSettingsObject* Get()
-	{
-		static bool bInitialized = false;
-		// This is a singleton, use default object
-		UMeshMergingSettingsObject* DefaultSettings = GetMutableDefault<UMeshMergingSettingsObject>();
+	
 
+	static UMeshMergingSettingsObject* Get()
+	{		
+		// This is a singleton, duplicate default object
 		if (!bInitialized)
 		{
+			DefaultSettings = DuplicateObject(GetMutableDefault<UMeshMergingSettingsObject>(), nullptr);
+			DefaultSettings->AddToRoot();			
 			bInitialized = true;
 		}
 
 		return DefaultSettings;
 	}
+
+	static void Destroy()
+	{
+		if (bInitialized)
+		{
+			if (UObjectInitialized() && DefaultSettings)
+			{
+				DefaultSettings->RemoveFromRoot();
+				DefaultSettings->MarkPendingKill();
+			}
+			
+			DefaultSettings = nullptr;
+			bInitialized = false;
+		}
+	}
+
+protected:
+	static UMeshMergingSettingsObject* DefaultSettings;
+	static bool bInitialized;
 
 public:
 	UPROPERTY(editanywhere, meta = (ShowOnlyInnerProperties), Category = MergeSettings)
@@ -54,6 +74,7 @@ class FMeshMergingTool : public IMergeActorsTool
 public:
 
 	FMeshMergingTool();
+	~FMeshMergingTool();
 
 	// IMergeActorsTool interface
 	virtual TSharedRef<SWidget> GetWidget() override;

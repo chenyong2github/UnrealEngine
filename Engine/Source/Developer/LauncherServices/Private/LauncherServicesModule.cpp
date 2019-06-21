@@ -64,6 +64,37 @@ public:
 		return LauncherServicesSDKNotInstalled.Broadcast(PlatformName, DocLink);
 	}
 
+	virtual FString GetExecutableForCommandlets() const
+	{
+		FString ExecutableName;
+#if WITH_EDITOR
+		ExecutableName = FString(FPlatformProcess::ExecutablePath());
+#if PLATFORM_WINDOWS
+		// turn UE4editor into UE4editor-cmd
+		if (ExecutableName.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
+		{
+			FString NewExeName = ExecutableName.Left(ExecutableName.Len() - 4) + "-Cmd.exe";
+			if (FPaths::FileExists(NewExeName))
+			{
+				ExecutableName = NewExeName;
+			}
+		}
+#elif PLATFORM_MAC
+		// turn UE4editor into UE4editor-cmd
+		if (!FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
+		{
+			FString NewExeName = ExecutableName + "-Cmd";
+			if (FPaths::FileExists(NewExeName))
+			{
+				ExecutableName = NewExeName;
+			}
+		}
+#endif
+#endif
+		return ExecutableName;
+
+	}
+
 private:
 	
 	/** Event to be called when the editor tried to use a platform, but it wasn't installed. */

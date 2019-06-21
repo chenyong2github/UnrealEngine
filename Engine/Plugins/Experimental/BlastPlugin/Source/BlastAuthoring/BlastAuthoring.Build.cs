@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
                     "EditableMesh",
                     "MeshDescription",
                     "Blast",
+                    "BlastCore",
                     "GeometryCollectionCore",
                     "GeometryCollectionEngine"
 
@@ -26,7 +27,9 @@ namespace UnrealBuildTool.Rules
 				{
                     "Core",
                     "CoreUObject",
-                    "Blast"
+					"Engine",
+                    "Blast",
+                    "BlastCore"
 
 					// ... add private dependencies that you statically link with here ...
 				}

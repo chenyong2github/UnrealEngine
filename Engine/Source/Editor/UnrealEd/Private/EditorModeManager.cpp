@@ -169,7 +169,7 @@ void FEditorModeTools::UpdateModeWidgetLocation()
 
 	if (SelectedActors && SelectedActors->Num() > 0)
 	{
-		AActor* Actor = CastChecked<AActor>(SelectedActors->GetSelectedObject(SelectedActors->Num() - 1));
+		AActor* Actor = Cast<AActor>(SelectedActors->GetSelectedObject(SelectedActors->Num() - 1));
 
 		if (Actor)
 		{
@@ -622,34 +622,7 @@ FMatrix FEditorModeTools::GetCustomDrawingCoordinateSystem()
 	{
 		case COORD_Local:
 		{
-			// Let the current mode have a shot at setting the local coordinate system.
-			// If it doesn't want to, create it by looking at the currently selected actors list.
-
-			bool CustomCoordinateSystemProvided = false;
-			for (const auto& Mode : ActiveModes)
-			{
-				if (Mode->GetCustomDrawingCoordinateSystem(Matrix, nullptr))
-				{
-					CustomCoordinateSystemProvided = true;
-					break;
-				}
-			}
-
-			if (!CustomCoordinateSystemProvided)
-			{
-				const int32 Num = GetSelectedActors()->CountSelections<AActor>();
-
-				// Coordinate system needs to come from the last actor selected
-				if (Num > 0)
-				{
-					Matrix = FQuatRotationMatrix(GetSelectedActors()->GetBottom<AActor>()->GetActorQuat());
-				}
-			}
-
-			if (!Matrix.Equals(FMatrix::Identity))
-			{
-				Matrix.RemoveScaling();
-			}
+			Matrix = GetLocalCoordinateSystem();
 		}
 		break;
 
@@ -667,6 +640,42 @@ FMatrix FEditorModeTools::GetCustomInputCoordinateSystem()
 {
 	return GetCustomDrawingCoordinateSystem();
 }
+
+FMatrix FEditorModeTools::GetLocalCoordinateSystem()
+{
+	FMatrix Matrix = FMatrix::Identity;
+	// Let the current mode have a shot at setting the local coordinate system.
+	// If it doesn't want to, create it by looking at the currently selected actors list.
+
+	bool CustomCoordinateSystemProvided = false;
+	for (const auto& Mode : ActiveModes)
+	{
+		if (Mode->GetCustomDrawingCoordinateSystem(Matrix, nullptr))
+		{
+			CustomCoordinateSystemProvided = true;
+			break;
+		}
+	}
+
+	if (!CustomCoordinateSystemProvided)
+	{
+		const int32 Num = GetSelectedActors()->CountSelections<AActor>();
+
+		// Coordinate system needs to come from the last actor selected
+		if (Num > 0)
+		{
+			Matrix = FQuatRotationMatrix(GetSelectedActors()->GetBottom<AActor>()->GetActorQuat());
+		}
+	}
+
+	if (!Matrix.Equals(FMatrix::Identity))
+	{
+		Matrix.RemoveScaling();
+	}
+
+	return Matrix;
+}
+
 
 /** Gets the widget axis to be drawn */
 EAxisList::Type FEditorModeTools::GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const
@@ -816,6 +825,18 @@ bool FEditorModeTools::HandleClick(FEditorViewportClient* InViewportClient,  HHi
 	{
 		const TSharedPtr<FEdMode>& Mode = ActiveModes[ ModeIndex ];
 		bHandled |= Mode->HandleClick(InViewportClient, HitProxy, Click);
+	}
+
+	return bHandled;
+}
+
+bool FEditorModeTools::ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox)
+{
+	bool bHandled = false;
+	for (int32 ModeIndex = 0; ModeIndex < ActiveModes.Num(); ++ModeIndex)
+	{
+		const TSharedPtr<FEdMode>& Mode = ActiveModes[ModeIndex];
+		bHandled |= Mode->ComputeBoundingBoxForViewportFocus(Actor, PrimitiveComponent, InOutBox);
 	}
 
 	return bHandled;

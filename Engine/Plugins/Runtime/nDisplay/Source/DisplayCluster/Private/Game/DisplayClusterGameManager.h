@@ -42,16 +42,15 @@ public:
 	virtual ADisplayClusterPawn*                    GetRoot() const override;
 
 	virtual TArray<UDisplayClusterScreenComponent*> GetAllScreens() const override;
-	virtual TArray<UDisplayClusterScreenComponent*> GetActiveScreens() const override;
 	virtual UDisplayClusterScreenComponent*         GetScreenById(const FString& id) const override;
-	virtual int32                        GetScreensAmount() const override;
+	virtual int32                                   GetScreensAmount() const override;
 
 	virtual TArray<UDisplayClusterCameraComponent*> GetAllCameras() const override;
-	virtual UDisplayClusterCameraComponent*         GetActiveCamera() const override;
 	virtual UDisplayClusterCameraComponent*         GetCameraById(const FString& id) const override;
-	virtual int32                        GetCamerasAmount() const override;
-	virtual void                         SetActiveCamera(int32 idx) override;
-	virtual void                         SetActiveCamera(const FString& id) override;
+	virtual int32                                   GetCamerasAmount() const override;
+	virtual UDisplayClusterCameraComponent*         GetDefaultCamera() const override;
+	virtual void                                    SetDefaultCamera(int32 idx) override;
+	virtual void                                    SetDefaultCamera(const FString& id) override;
 
 	virtual TArray<UDisplayClusterSceneComponent*>  GetAllNodes() const override;
 	virtual UDisplayClusterSceneComponent*          GetNodeById(const FString& id) const override;
@@ -83,12 +82,6 @@ public:
 	virtual ADisplayClusterSettings* GetDisplayClusterSceneSettings() const override
 	{ return CurrentSceneSettings; }
 
-public:
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	// IPDisplayClusterProjectionScreenDataProvider
-	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool GetProjectionScreenData(const FString& ScreenId, FDisplayClusterProjectionScreenData& OutProjectionScreenData) const override;
-
 private:
 	// Creates DisplayCluster actor and fulfills with components hierarchy
 	bool InitializeDisplayClusterActor();
@@ -108,17 +101,15 @@ private:
 private:
 	// DisplayCluster root actor
 	ADisplayClusterPawn* VRRootActor = nullptr;
-	// Currently active camera (joint component)
-	UDisplayClusterCameraComponent* ActiveCameraComponent = nullptr;
+	// Default camera (joint component)
+	UDisplayClusterCameraComponent* DefaultCameraComponent = nullptr;
 
 	// Available screens (from config file)
 	TMap<FString, UDisplayClusterScreenComponent*> ScreenComponents;
 	// Available cameras (from config file)
 	TMap<FString, UDisplayClusterCameraComponent*> CameraComponents;
 	// All available DisplayCluster nodes in hierarchy
-	TMap<FString, UDisplayClusterSceneComponent*> SceneNodeComponents;
-	// Currently active projection screen (for this cluster node)
-	TMap<FString, UDisplayClusterScreenComponent*> ActiveScreenComponents;
+	TMap<FString, UDisplayClusterSceneComponent*>  SceneNodeComponents;
 
 	EDisplayClusterOperationMode CurrentOperationMode;
 	FString ConfigPath;

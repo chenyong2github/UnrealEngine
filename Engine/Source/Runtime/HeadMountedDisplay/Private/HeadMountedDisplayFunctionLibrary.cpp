@@ -221,6 +221,9 @@ void UHeadMountedDisplayFunctionLibrary::SetTrackingOrigin(TEnumAsByte<EHMDTrack
 		case EHMDTrackingOrigin::Floor:
 			Origin = EHMDTrackingOrigin::Floor;
 			break;
+		case EHMDTrackingOrigin::Stage:
+			Origin = EHMDTrackingOrigin::Stage;
+			break;
 		default:
 			break;
 		}

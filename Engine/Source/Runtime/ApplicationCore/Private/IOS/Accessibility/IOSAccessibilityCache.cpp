@@ -27,7 +27,7 @@ static void DumpAccessibilityStatsForwarder()
 #if !UE_BUILD_SHIPPING
 	IConsoleManager::Get().RegisterConsoleCommand
 	(
-		TEXT("DumpAccessibilityStatsIOS"),
+		TEXT("Accessibility.DumpStatsIOS"),
 		TEXT("Writes to LogAccessibility the memory stats for the platform-level accessibility data (AccessibilityElements) required for IOS support."),
 		FConsoleCommandDelegate::CreateStatic(&DumpAccessibilityStatsForwarder),
 		ECVF_Default

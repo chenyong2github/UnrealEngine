@@ -130,7 +130,7 @@ bool UNiagaraSystem::UsesScript(const UNiagaraScript* Script)const
 
 	for (FNiagaraEmitterHandle EmitterHandle : GetEmitterHandles())
 	{
-		if ((EmitterHandle.GetSource() && EmitterHandle.GetSource()->UsesScript(Script)) || (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script)))
+		if (EmitterHandle.GetInstance() && EmitterHandle.GetInstance()->UsesScript(Script))
 		{
 			return true;
 		}
@@ -141,11 +141,14 @@ bool UNiagaraSystem::UsesScript(const UNiagaraScript* Script)const
 
 bool UNiagaraSystem::UsesEmitter(const UNiagaraEmitter* Emitter) const
 {
-	for (FNiagaraEmitterHandle EmitterHandle : GetEmitterHandles())
+	if (Emitter != nullptr)
 	{
-		if (Emitter == EmitterHandle.GetSource() || Emitter == EmitterHandle.GetInstance())
+		for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
 		{
-			return true;
+			if (EmitterHandle.UsesEmitter(*Emitter))
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -290,7 +293,6 @@ void UNiagaraSystem::PostLoad()
 		bSystemScriptsAreSynchronized &= SystemScript->AreScriptAndSourceSynchronized();
 	}
 
-	bool bEmitterGraphChangedFromMerge = false;
 	bool bEmitterScriptsAreSynchronized = true;
 
 #if 0
@@ -313,21 +315,11 @@ void UNiagaraSystem::PostLoad()
 
 	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
 	{
-		EmitterHandle.ConditionalPostLoad();
-		if (EmitterHandle.IsSynchronizedWithSource() == false)
+		EmitterHandle.ConditionalPostLoad(NiagaraVer);
+		if (!EmitterHandle.GetInstance()->AreAllScriptAndSourcesSynchronized())
 		{
-			INiagaraModule::FMergeEmitterResults Results = MergeChangesForEmitterHandle(EmitterHandle);
-			if (Results.bSucceeded)
-			{
-				bEmitterGraphChangedFromMerge |= Results.bModifiedGraph;
-			}
-		}
-		if (bEmitterScriptsAreSynchronized)
-		{
-			if (!EmitterHandle.GetInstance()->AreAllScriptAndSourcesSynchronized())
-			{
-				bEmitterScriptsAreSynchronized = false;
-			}
+			bEmitterScriptsAreSynchronized = false;
+			break;
 		}
 	}
 
@@ -352,11 +344,6 @@ void UNiagaraSystem::PostLoad()
 		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because there were changes to an emitter script Change ID."), *GetPathName());
 	}
 
-	if (bEmitterGraphChangedFromMerge)
-	{
-		UE_LOG(LogNiagara, Log, TEXT("System %s being compiled because graph changes were merged for a base emitter."), *GetPathName());
-	}
-
 #if 0
 	UE_LOG(LogNiagara, Log, TEXT("Before"));
 	for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
@@ -375,7 +362,7 @@ void UNiagaraSystem::PostLoad()
 	}
 #endif
 
-	if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false || bEmitterGraphChangedFromMerge)
+	if (bSystemScriptsAreSynchronized == false || bEmitterScriptsAreSynchronized == false)
 	{
 		RequestCompile(false);
 	}
@@ -417,39 +404,6 @@ void UNiagaraSystem::SetEditorData(UNiagaraEditorDataBase* InEditorData)
 	EditorData = InEditorData;
 }
 
-INiagaraModule::FMergeEmitterResults UNiagaraSystem::MergeChangesForEmitterHandle(FNiagaraEmitterHandle& EmitterHandle)
-{
-	INiagaraModule::FMergeEmitterResults Results = EmitterHandle.MergeSourceChanges();
-	if (Results.bSucceeded)
-	{
-		UNiagaraEmitter* Instance = EmitterHandle.GetInstance();
-		RefreshSystemParametersFromEmitter(EmitterHandle);
-		if (Instance->bInterpolatedSpawning)
-		{
-			Instance->UpdateScriptProps.Script->RapidIterationParameters.CopyParametersTo(
-				Instance->SpawnScriptProps.Script->RapidIterationParameters, false, FNiagaraParameterStore::EDataInterfaceCopyMethod::None);
-		}
-	}
-	else
-	{
-		UE_LOG(LogNiagara, Warning, TEXT("Failed to merge changes for base emitter.  System: %s  Emitter: %s  Error Message: %s"), 
-			*GetPathName(), *EmitterHandle.GetName().ToString(), *Results.GetErrorMessagesString());
-	}
-	return Results;
-}
-
-bool UNiagaraSystem::ReferencesSourceEmitter(UNiagaraEmitter& Emitter)
-{
-	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
-	{
-		if (&Emitter == Handle.GetSource())
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
 bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)
 {
 	for (FNiagaraEmitterHandle& Handle : EmitterHandles)
@@ -460,24 +414,6 @@ bool UNiagaraSystem::ReferencesInstanceEmitter(UNiagaraEmitter& Emitter)
 		}
 	}
 	return false;
-}
-
-void UNiagaraSystem::UpdateFromEmitterChanges(UNiagaraEmitter& ChangedSourceEmitter, bool bRecompileOnChange)
-{
-	bool bNeedsCompile = false;
-	for(FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
-	{
-		if (EmitterHandle.GetSource() == &ChangedSourceEmitter)
-		{
-			INiagaraModule::FMergeEmitterResults Results = MergeChangesForEmitterHandle(EmitterHandle);
-			bNeedsCompile |= Results.bSucceeded && Results.bModifiedGraph;
-		}
-	}
-
-	if (bNeedsCompile && bRecompileOnChange)
-	{
-		RequestCompile(false);
-	}
 }
 
 void UNiagaraSystem::RefreshSystemParametersFromEmitter(const FNiagaraEmitterHandle& EmitterHandle)
@@ -618,12 +554,15 @@ bool UNiagaraSystem::IsValid()const
 }
 #if WITH_EDITORONLY_DATA
 
-FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& SourceEmitter, FName EmitterName)
+FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& InEmitter, FName EmitterName)
 {
-	FNiagaraEmitterHandle EmitterHandle(SourceEmitter, EmitterName, *this);
-	if (SourceEmitter.bIsTemplateAsset)
+	UNiagaraEmitter* NewEmitter = UNiagaraEmitter::CreateWithParentAndOwner(InEmitter, this, EmitterName, ~(RF_Public | RF_Standalone));
+	FNiagaraEmitterHandle EmitterHandle(*NewEmitter);
+	if (InEmitter.bIsTemplateAsset)
 	{
-		EmitterHandle.RemoveSource();
+		NewEmitter->bIsTemplateAsset = false;
+		NewEmitter->TemplateAssetDescription = FText();
+		NewEmitter->RemoveParent();
 	}
 	EmitterHandles.Add(EmitterHandle);
 	RefreshSystemParametersFromEmitter(EmitterHandle);
@@ -632,7 +571,9 @@ FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& SourceEm
 
 FNiagaraEmitterHandle UNiagaraSystem::DuplicateEmitterHandle(const FNiagaraEmitterHandle& EmitterHandleToDuplicate, FName EmitterName)
 {
-	FNiagaraEmitterHandle EmitterHandle(EmitterHandleToDuplicate, EmitterName, *this);
+	UNiagaraEmitter* DuplicateEmitter = UNiagaraEmitter::CreateAsDuplicate(*EmitterHandleToDuplicate.GetInstance(), EmitterName, *this);
+	FNiagaraEmitterHandle EmitterHandle(*DuplicateEmitter);
+	EmitterHandle.SetIsEnabled(EmitterHandleToDuplicate.GetIsEnabled());
 	EmitterHandles.Add(EmitterHandle);
 	RefreshSystemParametersFromEmitter(EmitterHandle);
 	return EmitterHandle;

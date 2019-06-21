@@ -23,6 +23,7 @@
 #include "Factories/MaterialFactoryNew.h"
 #include "Editor/GroupActor.h"
 #include "Components/DecalComponent.h"
+#include "Components/DirectionalLightComponent.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/ModelComponent.h"
 #include "Kismet2/ComponentEditorUtils.h"
@@ -2205,6 +2206,8 @@ void FLevelEditorViewportClient::Tick(float DeltaTime)
 	}
 
 	UpdateViewForLockedActor(DeltaTime);
+
+	UserIsControllingSunLightTimer = FMath::Max(UserIsControllingSunLightTimer - DeltaTime, 0.0f);
 }
 
 void FLevelEditorViewportClient::UpdateViewForLockedActor(float DeltaTime)
@@ -2674,6 +2677,14 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	{
 		return true;
 	}
+
+	if (InputState.IsCtrlButtonPressed() && Key == EKeys::L)
+	{
+		bUserIsControllingSunLight = true;
+		UserIsControllingSunLightTimer = 3.0f; // Keep the widget open for a few seconds even when not tweaking the sun light
+		return true;
+	}
+	bUserIsControllingSunLight = false;
 
 	bool bHandled = FEditorViewportClient::InputKey(InViewport,ControllerId,Key,Event,AmountDepressed,bGamepad);
 
@@ -3991,6 +4002,44 @@ EMouseCursor::Type FLevelEditorViewportClient::GetCursor(FViewport* InViewport,i
 
 }
 
+void FLevelEditorViewportClient::MouseMove(FViewport* InViewport, int32 x, int32 y)
+{
+	if (bUserIsControllingSunLight)
+	{
+		UWorld* ViewportWorld = GetWorld();
+		for (TObjectIterator<UDirectionalLightComponent> ComponentIt; ComponentIt; ++ComponentIt)
+		{
+			if (ComponentIt->GetWorld() == ViewportWorld)
+			{
+				UDirectionalLightComponent* SunLight = *ComponentIt;
+
+				int32 mouseDeltaX = x - CachedLastMouseX;
+				int32 mouseDeltaY = y - CachedLastMouseY;
+				if (!SunLight->IsUsedAsAtmosphereSunLight() || !SunLight->bVisible)
+					continue;
+
+				FTransform ComponentTransform = SunLight->GetComponentTransform();
+				FQuat SunRotation = ComponentTransform.GetRotation();
+				// Rotate around up axis (yaw)
+				FVector UpVector = FVector(0, 0, 1);
+				SunRotation = FQuat(UpVector, float(mouseDeltaX)*0.01f) * SunRotation;
+				// Sun Zenith rotation (pitch)
+				FVector PitchRotationAxis = FVector::CrossProduct(SunRotation.GetForwardVector(), UpVector);
+				PitchRotationAxis.Normalize();
+				SunRotation = FQuat(PitchRotationAxis, float(mouseDeltaY)*0.01f) * SunRotation;
+
+				ComponentTransform.SetRotation(SunRotation);
+				SunLight->SetWorldTransform(ComponentTransform);
+
+				// Only manipulate a single light, the first one.
+				UserControlledSunLightMatrix = ComponentTransform;
+			}
+		}
+	}
+
+	FEditorViewportClient::MouseMove(InViewport, x, y);
+}
+
 /**
  * Called when the mouse is moved while a window input capture is in effect
  *
@@ -4323,6 +4372,55 @@ void FLevelEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDrawInter
 			extern ENGINE_API void DrawParticleSystemHelpers(const FSceneView* View,FPrimitiveDrawInterface* PDI);
 			DrawParticleSystemHelpers(View, PDI);
 		}
+	}
+
+	if (UserIsControllingSunLightTimer > 0.0f)
+	{
+		// Draw a gizmo helping to figure out where is the sun when moving it using a shortcut.
+		FQuat ViewRotation = FQuat(GetViewRotation());
+		FVector ViewPosition = GetViewLocation();
+		const float GizmoDistance = 50.0f;
+		const float GizmoSideOffset = 15.0f;
+		const float GizmoRadius = 10.0f;
+		const float ThicknessLight = 0.05f;
+		const float ThicknessBold = 0.2f;
+
+		// Always draw the gizmo right in in front of the camera with a little side shift.
+		const FVector X(1.0f, 0.0f, 0.0f);
+		const FVector Y(0.0f, 1.0f, 0.0f);
+		const FVector Z(0.0f, 0.0f, 1.0f);
+		const FVector Base = ViewPosition + GizmoDistance * ViewRotation.GetForwardVector() + GizmoSideOffset * (-ViewRotation.GetUpVector() + ViewRotation.GetRightVector());
+
+		// Draw world main axis
+		FRotator IdentityX(0.0f, 0.0f, 0.0f);
+		FRotator IdentityY(0.0f, 90.0f, 0.0f);
+		FRotator IdentityZ(90.0f, 0.0f, 0.0f);
+		DrawDirectionalArrow(PDI, FQuatRotationTranslationMatrix(FQuat(IdentityX), Base), FColor(255, 0, 0, 127), GizmoRadius, 0.3f, SDPG_World, ThicknessBold);
+		DrawDirectionalArrow(PDI, FQuatRotationTranslationMatrix(FQuat(IdentityY), Base), FColor(0, 255, 0, 127), GizmoRadius, 0.3f, SDPG_World, ThicknessBold);
+		DrawDirectionalArrow(PDI, FQuatRotationTranslationMatrix(FQuat(IdentityZ), Base), FColor(0, 0, 255, 127), GizmoRadius, 0.3f, SDPG_World, ThicknessBold);
+
+		// Render polar coordinate circles
+		DrawCircle(PDI, Base, X, Y, FLinearColor(0.2f, 0.2f, 1.0f), GizmoRadius, 32, SDPG_World, ThicknessBold);
+		DrawCircle(PDI, Base, X, Y, FLinearColor(0.2f, 0.2f, 0.75f), GizmoRadius*0.75f, 32, SDPG_World, ThicknessLight);
+		DrawCircle(PDI, Base, X, Y, FLinearColor(0.2f, 0.2f, 0.50f), GizmoRadius*0.50f, 32, SDPG_World, ThicknessLight);
+		DrawCircle(PDI, Base, X, Y, FLinearColor(0.2f, 0.2f, 0.25f), GizmoRadius*0.25f, 32, SDPG_World, ThicknessLight);
+		DrawArc(PDI, Base, Z, Y, -90.0f, 90.0f, GizmoRadius, 32, FLinearColor(1.0f, 0.2f, 0.2f), SDPG_World);
+		DrawArc(PDI, Base, Z, X, -90.0f, 90.0f, GizmoRadius, 32, FLinearColor(0.2f, 1.0f, 0.2f), SDPG_World);
+
+		// Draw the sun incoming light direction. The arrow is offset outward to help depth perception when it intersects with other gizmo elements.
+		const FLinearColor ArrowColor = -UserControlledSunLightMatrix.GetRotation().GetForwardVector() * 0.5f + 0.5f;
+		const FVector ArrowOrigin = Base - UserControlledSunLightMatrix.GetRotation().GetForwardVector()*GizmoRadius*1.25;
+		const FQuatRotationTranslationMatrix ArrowToWorld(UserControlledSunLightMatrix.GetRotation(), ArrowOrigin);
+		DrawDirectionalArrow(PDI, ArrowToWorld, ArrowColor, GizmoRadius, 0.3f, SDPG_World, ThicknessBold);
+
+		// Now draw x, y and z axis to help getting a sense of depth when look at the vectors on screen.
+		FVector SunArrowTip = -UserControlledSunLightMatrix.GetRotation().GetForwardVector()*GizmoRadius;
+		FVector P0 = Base + SunArrowTip * FVector(1.0f, 0.0f, 0.0f);
+		FVector P1 = Base + SunArrowTip * FVector(1.0f, 1.0f, 0.0f);
+		FVector P2 = Base + SunArrowTip * FVector(1.0f, 1.0f, 1.0f);
+		PDI->DrawLine(Base, P0, FLinearColor(1.0f, 0.0f, 0.0f), SDPG_World, ThicknessLight);
+		PDI->DrawLine(P0, P1, FLinearColor(0.0f, 1.0f, 0.0f), SDPG_World, ThicknessLight);
+		PDI->DrawLine(P1, P2, FLinearColor(0.0f, 0.0f, 1.0f), SDPG_World, ThicknessLight);
 	}
 
 	Mark.Pop();
@@ -4900,7 +4998,7 @@ bool FLevelEditorViewportClient::GetPivotForOrbit(FVector& Pivot) const
 			{
 				UPrimitiveComponent* PrimitiveComponent = PrimitiveComponents[ComponentIndex];
 
-				if (PrimitiveComponent->IsRegistered())
+				if (PrimitiveComponent->IsRegistered() && !PrimitiveComponent->IgnoreBoundsForEditorFocus())
 				{
 					BoundingBox += PrimitiveComponent->Bounds.GetBox();
 					++NumSelectedActors;

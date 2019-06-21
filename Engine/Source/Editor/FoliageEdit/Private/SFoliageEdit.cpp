@@ -27,6 +27,7 @@
 #include "Widgets/Layout/SHeader.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Notifications/SErrorText.h"
+#include "Engine/World.h"
 
 #define LOCTEXT_NAMESPACE "FoliageEd_Mode"
 
@@ -478,6 +479,23 @@ void SFoliageEdit::Construct(const FArguments& InArgs)
 								.ToolTipText(LOCTEXT("DeselectAllInstances_Tooltip", "Deselects all foliage instances"))
 							]
 						]
+
+						// Move to Current Level
+						+ SWrapBox::Slot()
+						.Padding(FMargin(0.f, 0.f, 6.f, 3.f))
+						[
+							SNew(SBox)
+							.WidthOverride(150.f)
+							.HeightOverride(25.f)
+							[
+								SNew(SButton)
+								.HAlign(HAlign_Center)
+								.VAlign(VAlign_Center)
+								.OnClicked(this, &SFoliageEdit::OnMoveSelectedInstancesToCurrentLevel)
+								.Text(LOCTEXT("MoveSelectedInstancesToCurrentLevel", "Move to Current Level"))
+								.ToolTipText(LOCTEXT("MoveSelectedInstancesToCurrentLevel_Tooltip", "Move selected foliage instances to current level"))
+							]
+						]
 					]
 				]
 			]
@@ -703,6 +721,19 @@ FReply SFoliageEdit::OnDeselectAllInstances()
 		{
 			UFoliageType* FoliageType = TypeInfo->Settings;
 			FoliageEditMode->SelectInstances(FoliageType, false);
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SFoliageEdit::OnMoveSelectedInstancesToCurrentLevel()
+{
+	if (UWorld* World = FoliageEditMode->GetWorld())
+	{
+		if (ULevel* CurrentLevel = World->GetCurrentLevel())
+		{
+			FoliageEditMode->MoveSelectedFoliageToLevel(CurrentLevel);
 		}
 	}
 

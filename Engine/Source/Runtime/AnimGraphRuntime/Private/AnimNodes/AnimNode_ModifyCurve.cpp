@@ -64,7 +64,7 @@ void FAnimNode_ModifyCurve::Evaluate_AnyThread(FPoseContext& Output)
 				check(LastCurveValues.Num() == CurveValues.Num());
 
 				const float LastCurveValue = LastCurveValues[ModIdx];
-				const float WAvg = (CurrentValue * Alpha) + (LastCurveValue * (1.f - Alpha));
+				const float WAvg = FMath::WeightedMovingAverage(CurrentValue, LastCurveValue, Alpha);
 				// Update the last curve value for next run
 				LastCurveValues[ModIdx] = WAvg;
 

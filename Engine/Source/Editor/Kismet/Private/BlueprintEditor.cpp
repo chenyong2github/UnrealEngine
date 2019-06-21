@@ -161,6 +161,13 @@
 
 #define LOCTEXT_NAMESPACE "BlueprintEditor"
 
+static int32 EnableAutomaticLibraryAssetLoading = 1;
+static FAutoConsoleVariableRef CVarEnableAutomaticLibraryAssetLoading(
+	TEXT("bp.EnableAutomaticLibraryAssetLoading"),
+	EnableAutomaticLibraryAssetLoading,
+	TEXT("Should opening the BP editor load all macro and function library assets or not?\n0: Disable, 1: Enable (defaults to enabled)\nNodes defined in unloaded libraries will not show up in the context menu!"),
+	ECVF_Default);
+
 /////////////////////////////////////////////////////
 // FSelectionDetailsSummoner
 
@@ -1681,6 +1688,11 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 
 void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 {
+	if (EnableAutomaticLibraryAssetLoading == 0)
+	{
+		return;
+	}
+
 	if( GetBlueprintObj() )
 	{
 		FString UserDeveloperPath = FPackageName::FilenameToLongPackageName( FPaths::GameUserDeveloperDir());

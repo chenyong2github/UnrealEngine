@@ -50,7 +50,7 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 FD3D12Device::~FD3D12Device()
 {
 #if D3D12_RHI_RAYTRACING
-	DestroyRayTracingDescriptorCache(); // #dxr_todo: unify RT descriptor cache with main FD3D12DescriptorCache
+	DestroyRayTracingDescriptorCache(); // #dxr_todo UE-72158: unify RT descriptor cache with main FD3D12DescriptorCache
 #endif
 
 	// Cleanup the allocator near the end, as some resources may be returned to the allocator or references are shared by multiple GPUs
@@ -182,6 +182,18 @@ void FD3D12Device::SetupAfterDeviceCreation()
 		}
 	}
 
+	// Intel GPA
+	{
+		TRefCountPtr<IUnknown> IntelGPA;
+		static const IID IntelGPAID = { 0xCCFFEF16, 0x7B69, 0x468F, {0xBC, 0xE3, 0xCD, 0x95, 0x33, 0x69, 0xA3, 0x9A} };
+
+		if (SUCCEEDED(Direct3DDevice->QueryInterface(IntelGPAID, (void**)(IntelGPA.GetInitReference()))))
+		{
+			// Running under Intel GPA, so enable capturing mode
+			bUnderGPUCapture = true;
+		}
+	}
+
 	// AMD RGP profiler
 	if (GEmitRgpFrameMarkers && GetOwningRHI()->GetAmdAgsContext())
 	{
@@ -267,10 +279,10 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	OcclusionQueryHeap.Init();
 	TimestampQueryHeap.Init();
 
-	CommandListManager->Create(L"3D Queue");
+	CommandListManager->Create(*FString::Printf(TEXT("3D Queue %d"), GetGPUIndex()));
 	gD3D12CommandQueue = CommandListManager->GetD3DCommandQueue();
-	CopyCommandListManager->Create(L"Copy Queue");
-	AsyncCommandListManager->Create(L"Async Compute Queue", 0, AsyncComputePriority_Default);
+	CopyCommandListManager->Create(*FString::Printf(TEXT("Copy Queue %d"), GetGPUIndex()));
+	AsyncCommandListManager->Create(*FString::Printf(TEXT("Compute Queue %d"), GetGPUIndex()), 0, AsyncComputePriority_Default);
 
 	// Needs to be called before creating command contexts
 	UpdateConstantBufferPageProperties();

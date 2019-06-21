@@ -160,7 +160,7 @@ public:
 	{
 		if (bBarrier)
 		{
-			FUnorderedAccessViewRHIParamRef OutUAVs[2];
+			FRHIUnorderedAccessView* OutUAVs[2];
 			OutUAVs[0] = ObjectBuffers.Bounds.UAV;
 			OutUAVs[1] = ObjectBuffers.Data.UAV;
 			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -194,7 +194,7 @@ public:
 
 		if (bBarrier)
 		{
-			FUnorderedAccessViewRHIParamRef OutUAVs[2];
+			FRHIUnorderedAccessView* OutUAVs[2];
 			OutUAVs[0] = ObjectBuffers.Bounds.UAV;
 			OutUAVs[1] = ObjectBuffers.Data.UAV;
 			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
@@ -364,8 +364,8 @@ public:
 		DistanceFieldAtlasTexelSize.Bind(ParameterMap, TEXT("DistanceFieldAtlasTexelSize"));
 	}
 
-	template<typename TParamRef, typename TRHICommandList>
-	void Set(TRHICommandList& RHICmdList, const TParamRef& ShaderRHI, const FDistanceFieldCulledObjectBuffers& ObjectBuffers)
+	template<typename TShaderRHI, typename TRHICommandList>
+	void Set(TRHICommandList& RHICmdList, TShaderRHI* ShaderRHI, const FDistanceFieldCulledObjectBuffers& ObjectBuffers)
 	{
 		ObjectIndirectArguments.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.ObjectIndirectArguments);
 		CulledObjectBounds.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffers.Bounds);
@@ -393,8 +393,8 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, DistanceFieldAtlasTexelSize, InvTextureDim);
 	}
 
-	template<typename TParamRef, typename TRHICommandList>
-	void UnsetParameters(TRHICommandList& RHICmdList, const TParamRef& ShaderRHI)
+	template<typename TRHIShader, typename TRHICommandList>
+	void UnsetParameters(TRHICommandList& RHICmdList, TRHIShader* ShaderRHI)
 	{
 		ObjectIndirectArguments.UnsetUAV(RHICmdList, ShaderRHI);
 		CulledObjectBounds.UnsetUAV(RHICmdList, ShaderRHI);
@@ -402,7 +402,7 @@ public:
 		CulledObjectBoxBounds.UnsetUAV(RHICmdList, ShaderRHI);
 	}
 
-	void GetUAVs(const FDistanceFieldCulledObjectBuffers& ObjectBuffers, TArray<FUnorderedAccessViewRHIParamRef>& UAVs)
+	void GetUAVs(const FDistanceFieldCulledObjectBuffers& ObjectBuffers, TArray<FRHIUnorderedAccessView*>& UAVs)
 	{
 		uint32 MaxIndex = 0;
 		MaxIndex = FMath::Max(MaxIndex, ObjectIndirectArguments.GetUAVIndex());
@@ -577,7 +577,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowAverageObjectsPerTile, GAverageObjectsPerShadowCullTile);
 	}
 
-	void GetUAVs(FLightTileIntersectionResources& TileIntersectionResources, TArray<FUnorderedAccessViewRHIParamRef>& UAVs)
+	void GetUAVs(FLightTileIntersectionResources& TileIntersectionResources, TArray<FRHIUnorderedAccessView*>& UAVs)
 	{
 		int32 MaxIndex = FMath::Max(
 			FMath::Max(ShadowTileNumCulledObjects.GetUAVIndex(), ShadowTileStartOffsets.GetUAVIndex()), 
@@ -686,14 +686,14 @@ public:
 		int32 LODIndex,
 		FUniformMeshBuffers*& OutUniformMeshBuffers,
 		const FMaterialRenderProxy*& OutMaterialRenderProxy,
-		FUniformBufferRHIParamRef& OutPrimitiveUniformBuffer);
+		FRHIUniformBuffer*& OutPrimitiveUniformBuffer);
 
 	static void GenerateSurfels(
 		FRHICommandListImmediate& RHICmdList, 
 		FViewInfo& View, 
 		const FPrimitiveSceneInfo* PrimitiveSceneInfo, 
 		const FMaterialRenderProxy* MaterialProxy,
-		FUniformBufferRHIParamRef PrimitiveUniformBuffer,
+		FRHIUniformBuffer* PrimitiveUniformBuffer,
 		const FMatrix& Instance0Transform,
 		int32 SurfelOffset,
 		int32 NumSurfels);

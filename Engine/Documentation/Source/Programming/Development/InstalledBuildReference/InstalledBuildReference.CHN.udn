@@ -1,16 +1,16 @@
-﻿INTSourceChangelist:4604867
-Availability:Public
+﻿INTSourceChangelist:6495804
+Availability: Docs
 Title:安装版本参考
 Crumbs: %ROOT%, Programming, Programming/Development
 Description:此页面讲述安装版本流程，包括如何编写安装版本脚本的概览。
-version:4.13
-parent:Programming/Development/BuildGraph
+version: 4.13
+parent:Programming/Development
 type:Reference
-related:Programming/Development/BuildGraph
+related:Programming/BuildTools/AutomationTool/BuildGraph
 related:Programming/UnrealBuildSystem
 related:Programming/Development/BuildConfigurations
 tags:Programming
-tags:BuildGraph
+tags: BuildGraph
 
 [TOC (start:1 end:5)]
 
@@ -40,7 +40,7 @@ tags:BuildGraph
 
 ## 制作安装版本
 
-可结合 `[UE4Root]/Engine/Build/InstalledBuild.xml` 中的安装版本脚本使用 [](Programming/Development/BuildGraph) 脚本系统创建安装版本。
+可结合 `[UE4Root]/Engine/Build/InstalledBuild.xml` 中的安装版本脚本使用 [](Programming/BuildTools/AutomationTool/BuildGraph) 脚本系统创建安装版本。
 
 **创建安装版本的步骤：**
 

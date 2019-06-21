@@ -4,8 +4,7 @@
 	BRDF.usf: Bidirectional reflectance distribution functions.
 =============================================================================*/
 
-#ifndef __BRDF_COMMON__
-#define __BRDF_COMMON__
+#pragma once
 
 struct BxDFContext
 {
@@ -355,6 +354,19 @@ half EnvBRDFApproxNonmetal( half Roughness, half NoV )
 	return min( r.x * r.x, exp2( -9.28 * NoV ) ) * r.x + r.y;
 }
 
+void EnvBRDFApproxFullyRough(inout half3 DiffuseColor, inout half3 SpecularColor)
+{
+	// Factors derived from EnvBRDFApprox( SpecularColor, 1, 1 ) == SpecularColor * 0.4524 - 0.0024
+	DiffuseColor += SpecularColor * 0.45;
+	SpecularColor = 0;
+	// We do not modify Roughness here as this is done differently at different places.
+}
+void EnvBRDFApproxFullyRough(inout half3 DiffuseColor, inout half SpecularColor)
+{
+	DiffuseColor += SpecularColor * 0.45;
+	SpecularColor = 0;
+}
+
 
 float D_InvBlinn( float a2, float NoH )
 {
@@ -386,4 +398,3 @@ float Vis_Cloth( float NoV, float NoL )
 	return rcp( 4 * ( NoL + NoV - NoL * NoV ) );
 }
 
-#endif // __BRDF_COMMON__

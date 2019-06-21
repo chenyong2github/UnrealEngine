@@ -1,0 +1,250 @@
+﻿INTSourceChangelist:6573481
+Availability: Public
+Title: 立体全景采集工具快速入门
+Description: 了解如何使用立体全景插件采集VR图像和影片。
+Type: quick start
+Version: 4.13
+Parent: Platforms/VR/DevelopVR/StereoPanoramicCapture
+Tags: Sequencer
+Tags: VR
+Tags: Plugins
+Tags: GearVR
+Tags: SteamVR
+Tags: Cinematics
+Tags: Google VR
+Tags: Oculus Rift
+Tags: Virtual Reality
+topic-image: SPHT_Input_Command.png
+Order: 0
+
+
+[TOC (start:2 end:2)]
+
+![](SPE_Header_00.png)
+
+在下例中，我们将学习如何在UE4中设置、创建和查看立体全景截图。完成此项目后，你将创建两个立体全景图像和一个可用于以三维形式显示这些图像的材质。
+
+(#1-projectsetup)
+
+##1 - 项目设置
+
+在本部分中，我们将新建一个UE4项目并对其进行设置。
+
+###步骤
+
+1. 在虚幻项目浏览器的 **新建项目（New Project）** 部分中，按以下选项新建一个空白蓝图基础项目，完成后按 **创建项目（Create Project）** 按钮设置并加载新项目。
+    *  空白项目模板（Blank Project Template）
+    
+    *  手机/平板电脑（Mobile / Tablet）
+    
+    *  可延展3D或2D（Scalable 3D or 2D）
+    
+    *  不含初学者内容包（No Starter Content）
+    
+    [REGION:lightbox]
+    [![](SPHT_Create_New_Project.png)(w:640)](SPHT_Create_New_Project.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+
+1. 项目加载完后，前往顶部菜单栏，然后转到 **编辑（Edit）** > **插件（Plugins）** 打开插件选项。  
+    ![](SPHT_Plugins_Menu.jpg "SPHT_Plugins_Menu.jpg")  
+    
+
+1. 在“插件（Plugins）”菜单中，单击 **影片采集（Movie Capture）** 选项，在 **立体全景影片采集（Stereo Panoramic Movie Capture）** 部分中单击勾选复选框启用插件，然后按 **立即重启（Restart Now）** 按钮重启UE4编辑器。
+    [REGION:lightbox]
+    [![](SPHT_Enable_SPMP.png)(w:640)](SPHT_Enable_SPMP.png)
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    [/REGION]
+    
+
+1. 编辑器重启后，按下键盘上的反引号键（`）打开控制台，然后输入 **SP**。如立体全景影片插件已成功启用，则会出现可供选择的命令列表。如未出现命令列表，则需确保已启用并重启编辑器，且使用的虚幻引擎为4.13或更高版本。 
+
+    ![](SPHT_Check_Plugin.jpg "SPHT_Check_Plugin.jpg")
+
+
+启用立体全景影片插件并确认其运行正常后，接下来我们将学习如何使用该插件采集立体图像。  
+
+##2 - 截取立体图像
+
+在本步中，我们将使用立体全景插件采集关卡的3D立体图像。
+
+###步骤
+
+1. 在 **主工具栏** 中，按下 **播放（Play）** 按钮，然后将玩家移动到要进行截图的区域。在本例中我们将玩家移动到静态网格体的中部，但也可以将玩家移动到任意位置。
+    
+    ![](SPHT_Play_Game.png)
+    
+1. 按下键盘上的 **反引号** 键（`）打开UE4控制台，然后输入以下命令。输入命令后，按Enter键执行命令。
+    
+    *  **SP.PanoramicScreenshot**       
+    
+    ![](SPHT_Input_Command.png)
+    
+    [REGION:note]
+    无需完整地输入SP.PanoramicScreenshot，可以直接键入 **SP.P**，然后使用方向键在显示列表中选中SP.PanoramicScreenshot。选中SP.PanoramicScreenshot后，按Enter键执行命令。
+    [/REGION]
+    
+1. 在采集过程中，编辑器可能会出现数秒或数分钟的冻结或无响应状态。这是因为立体全景插件正在请求渲染要求。编辑器恢复响应后，即可在项目文件夹的以下路径中找到截图。
+    
+    *  **StereoPanoramaImages\\Saved\\StereoPanorama（截图日期和时间）**  
+    
+    [REGION:lightbox]
+    [![](SPHT_Rendered_Images.png)(w:473)](SPHT_Rendered_Images.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    [REGION:note]
+    如果图像以缩略图预览或在图片查看器中查看时会有褪色效果，是因为立体全景插件会为输出的.PNG文件添加一个alpha通道。
+    [/REGION]
+    [REGION:tip]
+    立体全景插件从每个眼睛的视点（将沿定点旋转，模拟头部围绕颈部旋转的效果）渲染场景，创建文件夹中的图像。
+    [/REGION]
+    
+完成图像的创建后，下一部分我们将学习如何构建材质，使图像能够通过VR头戴显示器进行查看。
+
+##3 - 创建查看立体图像的材质
+
+在本部分中，我们将创建并设置一个材质，以查看在上一部分中创建的立体图像。
+
+1. 前往项目保存的文件夹，然后在 **StereoPanoramaImages\Saved\StereoPanorama（截取日期时间）** 路径下找到上一部分创建的立体图像。
+    [REGION:lightbox]
+    [![](SPHT_Rendered_Images.png)(w:473)](SPHT_Rendered_Images.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1. 找到两张图像后，将其选中并从Windows中拖入内容浏览器，将图像导入UE4项目。
+    [REGION:lightbox]
+    [![](SPHT_Import_Stereo_Images.png)(w:639)](SPHT_Import_Stereo_Images.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1. 现在，在内容浏览器中单击右键，在 **创建基础资源（Create Basic Asset）** 部分单击“材质（Material）”选项，并将新建材质命名为 **MAT_StereoViewer**。
+    [REGION:lightbox]
+    [![](SPHT_Create_Stereo_Material.png)(w:612)](SPHT_Create_Stereo_Material.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1. 双击MAT_StereoViewer材质将其打开，在 **细节（Details）** 面板设置以下选项。  
+    ![](SPHT_Material_Settings.png)
+    *  **着色模型（Shading Model）：**无光照（Unlit）
+    
+    *  **完全粗糙（Fully Rough）：**True
+    
+    *  **使用全精度（Use Full Precision）：**True
+    
+    *  **使用光照贴图方向性（Use LIghtmap Directionality）：**False
+
+1. 接下来，将在下图中看到的材质表达式节点添加到材质图中，并将它们连接起来，使其与下图相似。材质设置完成后，在立体视图中查看时将正确显示左右眼纹理。  
+    
+    复制表达式图表
+    
+    [OBJECT:Snippet]
+    [PARAMLITERAL:id]
+    结果
+    [/PARAMLITERAL]
+    [PARAMLITERAL:type]
+    材质
+    [/PARAMLITERAL]
+    [PARAM:image]
+    [REGION:lightbox]
+    [![image alt text](SPHT_Stereo_Viewer_Material.png)(convert:false)](SPHT_Stereo_Viewer_Material.png)
+    [/REGION]
+    [/PARAM]
+    [PARAM:snippet]
+    [INCLUDE:#codesample]
+    [/PARAM]
+    [/OBJECT]
+ 
+    [REGION:caption]
+    单击图像左上角的“复制表达式图表（Copy Expression Graph）”选项，可将上述材质代码复制并粘贴到材质中，从而显示所需的材质代码。
+    [/REGION]
+   
+
+1. 对于 **StereoIndex** 节点，需要使用 **自定义材质表达式（Custom Material Expression）** 节点，该节点在“代码（Code）”输入中输入以下HLSL代码。
+    
+        return ResolvedView.StereoPassIndex;
+    
+    ![](CustomHLSLCode.png "CustomHLSLCode.png")
+
+1. 为了防止两张图像相交处存在接缝，选择“纹理采样器（Texture Samplers）”，然后在 **细节面板（Details Panel）** 中，将 **MipValueMode** 设置为 **导数（显式导数以计算mip等级）（Derivative(explicit derivative to compute mip level)）**  
+    ![](StereoPano_SetMipDiv.png "StereoPano_SetMipDiv.png")
+
+1. 现在将 **TexCoord** 与 **DDX** 和 **DDY** 材质表达式节点添加到材质图表中。然后，将它们连接到左右眼纹理采样器节点上的相应 **DDX** 和 **DDY** 输入。
+    [REGION:lightbox]
+    [![](StereoPano_HookUpDDInput.png)(w:640)](StereoPano_HookUpDDInput.png)
+    [/REGION]
+    
+1. 现在，在 **内容浏览器** 中找到左右眼纹理，并将其应用于左右眼纹理输入。完成后，按 **应用（Apply）** 和 **保存（Save）** 按钮编译并保存材质。
+    [REGION:lightbox]
+    [![](StereoPano_Final.png)(w:640)](StereoPano_Final.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+现在材质已经设置好并可以使用了，在下一部分中，我们将学习设置关卡在运行时显示材质。
+
+##4 - 关卡设置
+
+在本步中，我们将学习设置关卡在运行时显示立体截图。
+
+1. 前往 **主工具栏** 的 **文件（File）** 选项，然后从显示的列表中选中 **新建关卡（New Level）** 选项。 
+	
+	![](SPHT_New_Level.png)
+
+1. **新建关卡（New Level）** 对话框出现时，选择 **空关卡（Empty Level）** 选项加载一个新的空关卡。 
+	
+	![](SPHT_Blank_Level.png)
+
+1. 单击下方的链接下载显示材质所需的静态网格体。  
+    [SM_PhotoSphere](Platforms/VR/DevelopVR/StereoPanoramicCapture/QuickStart/SM_PhotoSphere.zip)
+    [REGION:note]
+    此处下载的静态网格体的UV已设置，能够和创建的材质共用。您也可以使用任意静态网格体，下载此文件只为确保得到正确结果。
+    [/REGION]
+    
+1. 文件下载完成后，解压文件并将静态网格体导入内容浏览器。
+    [REGION:lightbox]
+    [![](SPHT_Import_Sky.png)(w:617)](SPHT_Import_Sky.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    [REGION:note]
+    如果收到文件中未找到平滑组的警告，可无视此警告。我们不需要此对象的平滑信息，因为其使用的是无光照着色器。
+    [/REGION]
+    
+1. 导入 **SM_PhotoSphere** 静态网格体后，将 **SM_PhotoSphere** 从内容浏览器拖入关卡，将其在场景中的位置设置为 **0,0,0**。
+    [REGION:lightbox]
+    [![](SPHT_Position_SM.png)(w:617)](SPHT_Position_SM.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1. 将SM_PhotoSphere放置到关卡中心后，在内容浏览器中选择MAT\_StereoViewer材质，然后将其拖至“细节（Details）”面板中的 **材质（Materials）** 输入。
+    [REGION:lightbox]
+    [![](SPHY_Apply_Material.png)(w:617)](SPHY_Apply_Material.png)
+    [/REGION]
+    [REGION:caption]
+    单击查看大图。
+    [/REGION]
+    
+1. 应用“材质（Material）”后，按 **在虚拟现实中播放（Play in VR）** 预览按钮，然后戴上头戴显示器查看图像的立体效果。如果一切设置正确，应该不会看出关卡是仅使用两张图片渲染的，而不是使用3D对象渲染的。
+
+<!--
+[EXCERPT:codesample]
+Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_0" Begin Object Class=/Script/Engine.MaterialExpressionLinearInterpolate Name="MaterialExpressionLinearInterpolate_0" End Object Begin Object Name="MaterialExpressionLinearInterpolate_0" A=(Expression=MaterialExpressionTextureSampleParameter2D'"MaterialGraphNode_4.MaterialExpressionTextureSampleParameter2D_0"',Mask=1,MaskR=1,MaskG=1,MaskB=1) B=(Expression=MaterialExpressionTextureSampleParameter2D'"MaterialGraphNode_5.MaterialExpressionTextureSampleParameter2D_1"',Mask=1,MaskR=1,MaskG=1,MaskB=1) Alpha=(Expression=MaterialExpressionCustom'"MaterialGraphNode_7.MaterialExpressionCustom_0"') MaterialExpressionEditorX=-304 MaterialExpressionEditorY=144 MaterialExpressionGuid=92D10B3349B99FC0FA8E678F7E6BED87 Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' End Object MaterialExpression=MaterialExpressionLinearInterpolate'"MaterialExpressionLinearInterpolate_0"' NodePosX=-304 NodePosY=144 NodeGuid=37D2A4B64D7B177E5D70409174AA784C CustomProperties Pin (PinId=CD637C744B9DDEEC771FE7B53304AE30,PinName="A",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_4 A1E42E504856F0AB40295B8A16E60BE2,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=3E1DD25F4C7BFDDF72C898856E4F96A7,PinName="B",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_5 177FB14E4E582D3B59C457A5C66D5FE4,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=B67854E14D659777EF8583BC15D2A735,PinName="Alpha",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_7 4E7CE6AD40131FBE9A3832823EABF005,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=6FA13B0742085AEC1AD900B6B6B0C635,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_1" Begin Object Class=/Script/Engine.MaterialExpressionMultiply Name="MaterialExpressionMultiply_0" End Object Begin Object Name="MaterialExpressionMultiply_0" A=(Expression=MaterialExpressionCameraVectorWS'"MaterialGraphNode_2.MaterialExpressionCameraVectorWS_0"') B=(Expression=MaterialExpressionVectorParameter'"MaterialGraphNode_6.MaterialExpressionVectorParameter_0"',Mask=1,MaskR=1,MaskG=1,MaskB=1) MaterialExpressionEditorX=-1072 MaterialExpressionEditorY=144 MaterialExpressionGuid=4F10B53C4ECBDE27F4BD38B46FACAD18 Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' bCollapsed=False End Object MaterialExpression=MaterialExpressionMultiply'"MaterialExpressionMultiply_0"' NodePosX=-1072 NodePosY=144 NodeGuid=12A924B24AE3DD9981A6D89CEA6ADBC9 CustomProperties Pin (PinId=C03F49754CD04552479DD9AA0DA91B30,PinName="A",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_2 EF1225574A7B3E19F6A93689AD8A0176,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=1F9CD68D453E39A91E88159A5EABB8DE,PinName="B",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_6 37284022406E8FBD422EAFA425AFC013,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=557C08484C01846D3864BAA43AB4C058,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_3 07C3D8524FBEA7C30EF0ED86E84CC250,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_2" Begin Object Class=/Script/Engine.MaterialExpressionCameraVectorWS Name="MaterialExpressionCameraVectorWS_0" End Object Begin Object Name="MaterialExpressionCameraVectorWS_0" MaterialExpressionEditorX=-1264 MaterialExpressionEditorY=96 MaterialExpressionGuid=BA70FEF141C3FC6429AA56B337E6F88C Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' End Object MaterialExpression=MaterialExpressionCameraVectorWS'"MaterialExpressionCameraVectorWS_0"' NodePosX=-1264 NodePosY=96 NodeGuid=F7A43A934912AEFEC395D299AEFD2662 CustomProperties Pin (PinId=EF1225574A7B3E19F6A93689AD8A0176,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_1 C03F49754CD04552479DD9AA0DA91B30,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_3" Begin Object Class=/Script/Engine.MaterialExpressionMaterialFunctionCall Name="MaterialExpressionMaterialFunctionCall_1" End Object Begin Object Name="MaterialExpressionMaterialFunctionCall_1" MaterialFunction=MaterialFunction'"/Engine/Functions/Engine_MaterialFunctions01/Coordinates/LongLatToUV.LongLatToUV"' FunctionInputs(0)=(ExpressionInputId=150D02534FA6F797DFD995BA692D7801,Input=(Expression=MaterialExpressionMultiply'"MaterialGraphNode_1.MaterialExpressionMultiply_0"',InputName="Vector")) FunctionOutputs(0)=(ExpressionOutputId=0EB334074DD42132558C7EA6C023EC50,Output=(OutputName="Result")) MaterialExpressionEditorX=-880 MaterialExpressionEditorY=144 MaterialExpressionGuid=2B540AED4336652F5CC59D9DF979B358 Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' Outputs(0)=(OutputName="Result") End Object MaterialExpression=MaterialExpressionMaterialFunctionCall'"MaterialExpressionMaterialFunctionCall_1"' NodePosX=-880 NodePosY=144 NodeGuid=944FAFAF4C5EC2FA4DE4C69C97DFA068 CustomProperties Pin (PinId=07C3D8524FBEA7C30EF0ED86E84CC250,PinName="Vector",PinType.PinCategory="required",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_1 557C08484C01846D3864BAA43AB4C058,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=4B18B5624CD0DDCA8AAE9AB375E2FBEF,PinName="Result",Direction="EGPD_Output",PinType.PinCategory="",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_4 29F6417A414611B10B527092B3C89285,MaterialGraphNode_5 8A71321A415312445B449EB1A22AF808,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_4" Begin Object Class=/Script/Engine.MaterialExpressionTextureSampleParameter2D Name="MaterialExpressionTextureSampleParameter2D_0" End Object Begin Object Name="MaterialExpressionTextureSampleParameter2D_0" ParameterName="Left_Eye" ExpressionGUID=95755E7B49993ACC445F1DBE2D5857EF Coordinates=(Expression=MaterialExpressionMaterialFunctionCall'"MaterialGraphNode_3.MaterialExpressionMaterialFunctionCall_1"') Texture=None MaterialExpressionEditorX=-656 MaterialExpressionEditorY=128 MaterialExpressionGuid=8B896BCB490997B105768DA336F9575C Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' End Object MaterialExpression=MaterialExpressionTextureSampleParameter2D'"MaterialExpressionTextureSampleParameter2D_0"' NodePosX=-656 NodePosY=128 bCanRenameNode=True ErrorType=1 ErrorMsg="Param2D> Requires Texture2D" NodeGuid=C41269BB4091D8FAA001159E804E96C1 CustomProperties Pin (PinId=29F6417A414611B10B527092B3C89285,PinName="UVs",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_3 4B18B5624CD0DDCA8AAE9AB375E2FBEF,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=5D4595CB4A95FE72D554A9AE8C914DB9,PinName="View MipBias",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=A1E42E504856F0AB40295B8A16E60BE2,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_0 CD637C744B9DDEEC771FE7B53304AE30,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=28B07CF1473DEE3BE2998B94D86D4EA6,PinName="Output2",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="red",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=C35ED40042A758CBAE77D9956477B2DA,PinName="Output3",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="green",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=3F4291674B5B3D3347D5E3BCB2F96A2F,PinName="Output4",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="blue",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=11BF1DB54961353959B276918DD0E0DE,PinName="Output5",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="alpha",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_5" Begin Object Class=/Script/Engine.MaterialExpressionTextureSampleParameter2D Name="MaterialExpressionTextureSampleParameter2D_1" End Object Begin Object Name="MaterialExpressionTextureSampleParameter2D_1" ParameterName="Right_Eye" ExpressionGUID=C17E90244A56E995C7EFDB8B280F2311 Coordinates=(Expression=MaterialExpressionMaterialFunctionCall'"MaterialGraphNode_3.MaterialExpressionMaterialFunctionCall_1"') ConstMipValue=1 Texture=None MaterialExpressionEditorX=-640 MaterialExpressionEditorY=400 MaterialExpressionGuid=0D48E23F4EF41B3303AB1AA8DC273216 Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' End Object MaterialExpression=MaterialExpressionTextureSampleParameter2D'"MaterialExpressionTextureSampleParameter2D_1"' NodePosX=-640 NodePosY=400 bCanRenameNode=True ErrorType=1 ErrorMsg="Param2D> Requires Texture2D" NodeGuid=853516904E2B64BCDD472C8ED14483EF CustomProperties Pin (PinId=8A71321A415312445B449EB1A22AF808,PinName="UVs",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_3 4B18B5624CD0DDCA8AAE9AB375E2FBEF,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=05FE69E447EF3B26F69842AB195E609B,PinName="View MipBias",PinType.PinCategory="optional",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=177FB14E4E582D3B59C457A5C66D5FE4,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_0 3E1DD25F4C7BFDDF72C898856E4F96A7,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=960E45D54909C36349373AB0880363EB,PinName="Output2",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="red",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=53A8EACC4897025AACC124A26D7F4C9D,PinName="Output3",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="green",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=4E10AD7A4860899BC1CC33B5F17CB18C,PinName="Output4",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="blue",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=9449FF784D1E52F2AE2979927A0F7CA8,PinName="Output5",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="alpha",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_6" Begin Object Class=/Script/Engine.MaterialExpressionVectorParameter Name="MaterialExpressionVectorParameter_0" End Object Begin Object Name="MaterialExpressionVectorParameter_0" DefaultValue=(R=1.000000,G=1.000000,B=-1.000000,A=1.000000) ParameterName="Image_Direction" ExpressionGUID=24CD86E04F739479587E8E962F80B0E6 MaterialExpressionEditorX=-1264 MaterialExpressionEditorY=224 MaterialExpressionGuid=6873E4014A670FD8059959BFE93D5CDA Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' End Object MaterialExpression=MaterialExpressionVectorParameter'"MaterialExpressionVectorParameter_0"' NodePosX=-1264 NodePosY=224 bCanRenameNode=True NodeGuid=05E1BE7446CAFB0AF143DFB9BA488269 CustomProperties Pin (PinId=37284022406E8FBD422EAFA425AFC013,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_1 1F9CD68D453E39A91E88159A5EABB8DE,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=C67A9C164499025A1F98EE95C4BD4544,PinName="Output2",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="red",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=488A5A6E4AF04A22DB084B8DB7F69208,PinName="Output3",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="green",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=47CA533340A85575D6933A85AC395BBC,PinName="Output4",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="blue",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=A00FEBD2427D27F651215F8EEB715C4C,PinName="Output5",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="mask",PinType.PinSubCategory="alpha",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object Begin Object Class=/Script/UnrealEd.MaterialGraphNode Name="MaterialGraphNode_7" Begin Object Class=/Script/Engine.MaterialExpressionCustom Name="MaterialExpressionCustom_0" End Object Begin Object Name="MaterialExpressionCustom_0" Code="return ResolvedView.StereoPassIndex;" OutputType=CMOT_Float1 Description="StereoIndex" MaterialExpressionEditorX=-384 MaterialExpressionEditorY=320 MaterialExpressionGuid=E7ED6BC54F55D81B9B2801B270650B24 Material=PreviewMaterial'"/Engine/Transient.NewMaterial1"' Desc="Returns stero index A=Left , B=Right" bCommentBubbleVisible=True End Object MaterialExpression=MaterialExpressionCustom'"MaterialExpressionCustom_0"' NodePosX=-384 NodePosY=320 bCommentBubbleVisible=True NodeComment="Returns stero index A=Left , B=Right" NodeGuid=9D1844494BABE083D123F59DBE86C2D3 CustomProperties Pin (PinId=71786F434F4A7F01F25085A2A37D288F,PinName="Input",PinFriendlyName=" ",PinType.PinCategory="required",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) CustomProperties Pin (PinId=4E7CE6AD40131FBE9A3832823EABF005,PinName="Output",PinFriendlyName=" ",Direction="EGPD_Output",PinType.PinCategory="",PinType.PinSubCategory="",PinType.PinSubCategoryObject=None,PinType.PinSubCategoryMemberReference=(),PinType.PinValueType=(),PinType.ContainerType=None,PinType.bIsArray=False,PinType.bIsReference=False,PinType.bIsConst=False,PinType.bIsWeakPointer=False,LinkedTo=(MaterialGraphNode_0 B67854E14D659777EF8583BC15D2A735,),PersistentGuid=00000000000000000000000000000000,bHidden=False,bNotConnectable=False,bDefaultValueIsReadOnly=False,bDefaultValueIsIgnored=False,bAdvancedView=False,bOrphanedPin=False,) End Object
+[/EXCERPT:codesample]
+-->

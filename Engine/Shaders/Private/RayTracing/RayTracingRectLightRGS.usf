@@ -13,21 +13,6 @@ RaytracingAccelerationStructure TLAS;
 RWTexture2D<float4> RWLuminanceUAV;
 RWTexture2D<float> RWRayDistanceUAV;
 
-uint CalcLinearIndex(uint2 PixelCoord)
-{
-	return PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x;
-}
-
-// #patrick todo: move to RayTracingCommon.ush
-float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
-{
-	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
-	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
-
-	return WorldPosition;
-}
-
 bool GenerateRectLightImportanceSampledRay(
 	float3 WorldPosition,
 	float3 WorldNormal,
@@ -145,8 +130,6 @@ bool GenerateRectLightImportanceSampledRay(
 		return false;
 	}
 
-	// #dxr_todo: Performing direct lighting here could save some recalculation
-
 	// Define ray
 	RayOrigin = WorldPosition;
 	RayDirection = LightDirection;
@@ -170,21 +153,21 @@ bool GenerateRectLightImportanceSampledRay(
 [shader("raygeneration")]
 void RectLightRGS()
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
 
 	RandomSequence RandSequence;
 	uint LinearIndex = CalcLinearIndex(PixelCoord);
-	RandomSequence_Initialize(RandSequence, LinearIndex, View.FrameNumber);
+	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
 	// Get G-Buffer surface data
 	float2 InvBufferSize = View.BufferSizeAndInvSize.zw;
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
 	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
-	float Depth = ScreenSpaceData.GBuffer.Depth;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraOrigin = ReconstructWorldPositionFromDepth(UV, 0.0f);
-	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
+	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
+	float3 WorldPosition;
+	float3 CameraDirection;
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
 	float3 WorldNormal = ScreenSpaceData.GBuffer.WorldNormal;
 	float3 BaseColor = ScreenSpaceData.GBuffer.BaseColor;
 	float3 DiffuseColor = ScreenSpaceData.GBuffer.DiffuseColor;
@@ -196,7 +179,6 @@ void RectLightRGS()
 	uint SamplesPerPixel = RectLight.SamplesPerPixel;
 
 	// Mask out depth values that are infinitely far away
-	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
 	bool bTraceRay = (
 		IsFiniteDepth &&
@@ -273,7 +255,7 @@ void RectLightRGS()
 		{
 			continue;
 		}
-		ApplyPositionBias(Ray, WorldNormal, RectLight.MaxNormalBias);
+		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, RectLight.MaxNormalBias);
 
 		float NoL = dot(WorldNormal, Ray.Direction);
 		if (NoL <= 0.0)
@@ -283,22 +265,23 @@ void RectLightRGS()
 
 		uint RayFlags = 0
 			| RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
+			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
 
-		FDefaultPayload Payload = (FDefaultPayload)0;
+		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
+		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
 
 		TraceRay(
 			TLAS,      // AccelerationStructure
 			RayFlags,
 			RAY_TRACING_MASK_SHADOW,          // InstanceInclusionMask
-			RAY_TRACING_SHADER_SLOT_MATERIAL, // RayContributionToHitGroupIndex
+			RAY_TRACING_SHADER_SLOT_SHADOW,   // RayContributionToHitGroupIndex
 			RAY_TRACING_NUM_SHADER_SLOTS,     // MultiplierForGeometryContributionToShaderIndex
 			0,         // MissShaderIndex
 			Ray,       // RayDesc
 			Payload    // Payload
 		);
 
-		if (Payload.HitT >= 0.0)
+		if (Payload.IsHit())
 		{
 			RayDistance += Payload.HitT;
 			HitCount += 1.0;
@@ -322,10 +305,6 @@ void RectLightRGS()
 			FDirectLighting LightingSample = EvaluateBxDF(ScreenSpaceData.GBuffer, N, V, L, NoL, ShadowTerms);
 			float3 Brdf = LightingSample.Diffuse + LightingSample.Transmission + LightingSample.Specular;
 
-			// #dxr_todo: Determine best way to incorporate integrals:
-			// 1) Return combined contribution (current method)
-			// 2) Split the integral (defer specular contribution to another pass)
-			// 3) Store diffuse and specular contribution separately
 			float3 Irradiance = IncomingRadiance * NoL / RayPdf;
 			ExitantRadiance += Irradiance * Brdf;
 			DiffuseExitantRadiance += Irradiance * (LightingSample.Diffuse + LightingSample.Transmission);

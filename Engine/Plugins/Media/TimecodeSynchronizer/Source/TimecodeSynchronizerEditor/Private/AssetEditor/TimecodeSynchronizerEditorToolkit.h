@@ -44,6 +44,7 @@ private:
 	void HandleAssetPostImport(UFactory* InFactory, UObject* InObject);
 	TSharedRef<SDockTab> SpawnPropertiesTab(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnSourceViewerTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnSynchronizerWidgetTab(const FSpawnTabArgs& Args);
 
 	void ExtendToolBar();
 

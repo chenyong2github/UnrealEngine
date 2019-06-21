@@ -93,8 +93,8 @@ void FLevelSequenceEditorSpawnRegister::PreDestroyObject(UObject& Object, const 
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 
 	UMovieSceneSequence*  Sequence      = Sequencer.IsValid() ? Sequencer->GetEvaluationTemplate().GetSequence(TemplateID) : nullptr;
-	FMovieSceneSpawnable* Spawnable     = Sequence ? Sequence->GetMovieScene()->FindSpawnable(BindingId) : nullptr;
-	UObject*              SpawnedObject = FindSpawnedObject(BindingId, TemplateID);
+	FMovieSceneSpawnable* Spawnable     = Sequence && Sequence->GetMovieScene() ? Sequence->GetMovieScene()->FindSpawnable(BindingId) : nullptr;
+	UObject*              SpawnedObject = FindSpawnedObject(BindingId, TemplateID).Get();
 
 	if (SpawnedObject && Spawnable)
 	{
@@ -126,7 +126,7 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableState(FMovieSceneSpa
 {
 	UMovieSceneSequence* Sequence = Player.GetEvaluationTemplate().GetSequence(TemplateID);
 
-	UObject* Object = FindSpawnedObject(Spawnable.GetGuid(), TemplateID);
+	UObject* Object = FindSpawnedObject(Spawnable.GetGuid(), TemplateID).Get();
 	if (Object && Sequence)
 	{
 		SaveDefaultSpawnableStateImpl(Spawnable, Sequence, Object, Player);
@@ -158,7 +158,7 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableState(const FGuid& B
 
 	if (Spawnable)
 	{
-		UObject* Object = FindSpawnedObject(Spawnable->GetGuid(), TemplateID);
+		UObject* Object = FindSpawnedObject(Spawnable->GetGuid(), TemplateID).Get();
 		if (Object)
 		{
 			SaveDefaultSpawnableStateImpl(*Spawnable, Sequence, Object, *Sequencer);

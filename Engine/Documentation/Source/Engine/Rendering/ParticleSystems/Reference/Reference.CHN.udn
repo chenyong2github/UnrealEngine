@@ -1,88 +1,36 @@
-﻿INTSourceChangelist:2738595
+﻿INTSourceChangelist:3782314
 Availability:Public
 Title:粒子系统参考
 Crumbs: %ROOT%, Engine, Engine/Rendering/ParticleSystems
 Description:粒子系统类型数据和模块的完整参考。
 Version:4.9
+tags:Particles
+parent:Engine/Rendering/ParticleSystems
+order:3
+type:reference
+topic-image:particlereference_topic.png
 
 
-
+(#BaseClasses)
 ## 基础类
 
 组成粒子系统的基础类的参考资料，如粒子系统（ParticleSystem）类和粒子发射器（ParticleEmitter）类。
 
-[OBJECT:TopicList]
-	[PARAM:icon]
-		![](%ROOT%/reference_icon.png)(convert:false)
-	[/PARAM]
-	[PARAM:title]
-		基础类技术参考
-	[/PARAM]
-	[PARAM:description]
-	[/PARAM]
-	[PARAM:links]
-	*  [](Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleSystemClass) - %Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleSystemClass:Description%
-	*  [](Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleEmitterClass) - %Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleEmitterClass:Description%
-	*  [](Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleModule) - %Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleModule:Description%
-	[/PARAM]
-[/OBJECT]
+*  [](Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleSystemClass) - %Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleSystemClass:Description%
+*  [](Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleEmitterClass) - %Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleEmitterClass:Description%
+*  [](Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleModule) - %Engine/Rendering/ParticleSystems/Reference/BaseClasses/ParticleModule:Description%
 
-
+(#TypeDataModules)
 ## TypeData 模块
 
 添加发射器至 ParticleSystem 时，其默认类型为 sprite 发射器。TypeData 模块可用于创建其他类型的发射器。这些模块提供发射其他类型粒子的特定功能，如光束、网格体和条带。
 
 [EXCERPT:Types]
-[OBJECT:IconSection]
-	[PARAM:icon]
-		[![](Engine/Rendering/ParticleSystems/Reference/TypeData/Beam/psys_beam.gif)(w:256 convert:false)](Engine/Rendering/ParticleSystems/Reference/TypeData/Beam)
-	[/PARAM]
-	[PARAM:title]
-		[](Engine/Rendering/ParticleSystems/Reference/TypeData/Beam)
-	[/PARAM]
-	[PARAM:description]
-		[INCLUDE:Engine/Rendering/ParticleSystems/Reference/TypeData/Beam#Intro]
-	[/PARAM]
-[/OBJECT]
-
-[OBJECT:IconSection]
-	[PARAM:icon]
-		[![](Engine/Rendering/ParticleSystems/Reference/TypeData/GPUSprites/GPUSprites.png)(w:256)](Engine/Rendering/ParticleSystems/Reference/TypeData/GPUSprites)
-	[/PARAM]
-	[PARAM:title]
-		[](Engine/Rendering/ParticleSystems/Reference/TypeData/GPUSprites)
-	[/PARAM]
-	[PARAM:description]
-		[INCLUDE:Engine/Rendering/ParticleSystems/Reference/TypeData/GPUSprites#Intro]
-	[/PARAM]
-[/OBJECT]
-
-[OBJECT:IconSection]
-	[PARAM:icon]
-		[![](Engine/Rendering/ParticleSystems/Reference/TypeData/Mesh/LootBucket.png)(w:256)](Engine/Rendering/ParticleSystems/Reference/TypeData/Mesh)
-	[/PARAM]
-	[PARAM:title]
-		[](Engine/Rendering/ParticleSystems/Reference/TypeData/Mesh)
-	[/PARAM]
-	[PARAM:description]
-		[INCLUDE:Engine/Rendering/ParticleSystems/Reference/TypeData/Mesh#Intro]
-	[/PARAM]
-[/OBJECT]
-
-[OBJECT:IconSection]
-	[PARAM:icon]
-		[![](Engine/Rendering/ParticleSystems/Reference/TypeData/Ribbon/RibbonSmoke.png)(w:256)](Engine/Rendering/ParticleSystems/Reference/TypeData/Ribbon)
-	[/PARAM]
-	[PARAM:title]
-		[](Engine/Rendering/ParticleSystems/Reference/TypeData/Ribbon)
-	[/PARAM]
-	[PARAM:description]
-		[INCLUDE:Engine/Rendering/ParticleSystems/Reference/TypeData/Ribbon#Intro]
-	[/PARAM]
-[/OBJECT]
+[DIR(output:"topic" parent:"Engine/Rendering/ParticleSystems/Reference" tags:"TypeData")]
 [/EXCERPT:Types]
 
 
+(#Modules)
 ## 模块
 
 利用模块可对发射器释放粒子的多个方面进行控制。它们可在粒子产生、更新或者两者过程中对其产生影响。模块根据其在发射器的排序（其在级联中模块叠列上的位置）进行互动。例如，在一个发射器上应用两个速度模块，将在粒子上形成累积效应。

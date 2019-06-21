@@ -223,6 +223,24 @@ void USoundCueGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilde
 	}
 	else if (Context.Node)
 	{
+		Context.MenuBuilder->AddSubMenu(LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewMenuDelegate::CreateLambda([](FMenuBuilder& InMenuBuilder) {
+
+			InMenuBuilder.BeginSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+			InMenuBuilder.EndSection();
+
+			InMenuBuilder.BeginSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+			InMenuBuilder.EndSection();
+		}));
+
 		Context.MenuBuilder->BeginSection("SoundCueGraphNodeEdit");
 		{
 			Context.MenuBuilder->AddMenuEntry( FGenericCommands::Get().Delete );
@@ -250,6 +268,7 @@ void USoundCueGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilde
 				Context.MenuBuilder->AddMenuEntry(FSoundCueGraphEditorCommands::Get().BrowserSync);
 			}
 		}
+
 		Context.MenuBuilder->EndSection();
 	}
 }

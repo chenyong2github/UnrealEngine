@@ -1695,8 +1695,10 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	EndDrawDelegate.Broadcast();
 }
 
-void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
+bool UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 {
+	bool bIsScreenshotSaved = false;
+
 	if (GIsDumpingMovie || FScreenshotRequest::IsScreenshotRequested() || GIsHighResScreenshot)
 	{
 		TArray<FColor> Bitmap;
@@ -1784,7 +1786,8 @@ void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 				// Save the contents of the array to a png file.
 				TArray<uint8> CompressedBitmap;
 				FImageUtils::CompressImageArray(Size.X, Size.Y, Bitmap, CompressedBitmap);
-				FFileHelper::SaveArrayToFile(CompressedBitmap, *ScreenShotName);
+				bIsScreenshotSaved = FFileHelper::SaveArrayToFile(CompressedBitmap, *ScreenShotName);
+
 			}
 		}
 
@@ -1794,6 +1797,8 @@ void UGameViewportClient::ProcessScreenShots(FViewport* InViewport)
 		// Reeanble screen messages - if we are NOT capturing a movie
 		GAreScreenMessagesEnabled = GScreenMessagesRestoreState;
 	}
+
+	return bIsScreenshotSaved;
 }
 
 void UGameViewportClient::Precache()
@@ -3085,7 +3090,14 @@ bool UGameViewportClient::HandleViewModeCommand( const TCHAR* Cmd, FOutputDevice
 		{
 			if(i != 0)
 			{
-				ViewModes += TEXT(", ");
+				if ((i % 5) == 0)
+				{
+					ViewModes += TEXT("\n     ");
+				}
+				else
+				{
+					ViewModes += TEXT(", ");
+				}
 			}
 			ViewModes += GetViewModeName((EViewModeIndex)i);
 		}

@@ -1,0 +1,486 @@
+﻿INTSourceChangelist:5533609
+Availability: Public
+Crumbs: 
+Title:UMG富文本块属性
+Description:本页列出UMG富文本块控件中使用的富文本块和数据表资源属性。
+Type: 
+Version: 4.20
+Parent: Engine/UMG/UserGuide/UMGRichTextBlock
+Order: 
+Tags: UMG
+Tags: Rich Text Block
+
+
+本参考页面列出了可以为富文本块控件设置的属性。还列出了数据表资源中使用的富图像行和富测试样式行数据类型的属性。
+
+(#richtextblockproperties)
+## 富文本块属性
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]插槽（画布面板插槽）[/REGION]||
+| **锚点（Anchors）** |[INCLUDE:#excerpt_0]|
+| **对齐（Alignment）** |对齐是控件的枢轴点。从左上角(0,0)处开始，在右下角(1,1)处终止。移动对齐点使您可以移动控件的原点。|
+| **大小对齐内容（Size To Content）** |当AutoSize为true是，使用控件的所需大小。|
+| **ZOrder** |这表示渲染该控件的顺序优先级。值越大，渲染顺序越靠后，出现在顶部，而值越小，越先渲染，出现在底部。|
+| [REGION:tablesection]内容[/REGION]||
+| **文本（Text）** |这是在控件中显示的文本。|
+| [REGION:tablesection]外观[/REGION]||
+| **文本样式集（Text Style Set）** | 用于保存数据表资源，使富文本装饰器能够用于文本和图像样式。|
+| [REGION:tablesection]装饰器类[/REGION]||
+| **对齐（Justification）** | 设置文本如何与边距对齐。|
+| **边距（Margin）** | 将设置文本区域边缘周围留出的空白空间。|
+| **行高百分比（Line Height Percentage）** | 设置每一行高度的调节量。|
+| [REGION:tablesection]换行[/REGION]||
+| **自动换行文本（Auto Wrap Text）** | 如果文本根据该控件的计算水平空间自动换行，则设置为true。|
+| **文本换行位置（Wrap Text At）** | 确定文本长度到达其最大宽度时是否换到新行。如果该值设置为0或负数，则不换行。|
+| **换行策略（Wrapping Policy）** | [INCLUDE:#excerpt_1] |
+| [REGION:tablesection]行为[/REGION]||
+| **工具提示文本（Tool Tip Text）** | 用户将鼠标悬停在控件上时显示的工具提示文本。|
+| **启用（Is Enabled）** | 设置该控件是否可以由用户交互式修改。|
+| **可视性（Visibility）** | [INCLUDE:#excerpt_2] |
+| **渲染不透明度（Render Opacity）** | 控件的不透明度。|
+| **工具提示控件（Tool Tip Widget）** | 用户将鼠标悬停于控件时显示的工具提示控件。|
+| **光标（Cursor）** | [INCLUDE:#excerpt_3] |
+| [REGION:tablesection]渲染变换[/REGION]||
+| **变换（Transform）** | [INCLUDE:#excerpt_4] |
+| **支点（Pivot）** | 渲染变换支点控制在哪里应用变换的位置。它是将发生旋转等操作时的位置的规范化坐标。|
+| [REGION:tablesection]性能[/REGION]||
+| **不稳定（Is Volatile）** | 如果为true，则能防止控件或其子代几何体或布局信息被缓存。如果该控件每一帧都会变化，但您希望它仍在无效面板中，则应标记为不稳定，而不是让它每一帧都会失效一次，这样有助于防止失效面板实际上会缓存所有内容。|
+| [REGION:tablesection]剪切[/REGION]||
+| **剪切（Clipping）** | [INCLUDE:#excerpt_5] |
+| [REGION:tablesection]导航[/REGION]||
+| **左（Left）** | [INCLUDE:#excerpt_6] |
+| **右（Right）** | [INCLUDE:#excerpt_7] |
+| **上（Up）** | [INCLUDE:#excerpt_8] |
+| **下（Down）** | [INCLUDE:#excerpt_9] |
+| **下一个（Next）** | [INCLUDE:#excerpt_10] |
+| **上一个（Previous）** | [INCLUDE:#excerpt_11] |
+| [REGION:tablesection]本地化[/REGION]||
+| **文本造型方法（Text Shaping Method）** | [INCLUDE:#excerpt_12] |
+| **文本流向（Text Flow Direction）** | [INCLUDE:#excerpt_13] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_13]
+该控件中的文本应使用哪个文本流向？如果不设置，则使用“获取默认文本流向（Get Default Text Flow Direction）”设置的默认值。
+
+*   **自动（Auto）** - 自动从文本检测每一段的流向。
+*   **从左到右（Left to Right）** - 强制文本采用从左到右的方向。
+*   **从右到左（Right to Left）** - 强制文本采用从右到左的方向。
+
+[/EXCERPT:excerpt_13]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_12]
+该控件中的文本应使用哪个文本造型方法？如果不设置，则使用“获取默认文本造型方法（Get Default Text Shaping Method）”设置的默认值。
+
+*   **自动（Auto）** - 根据文本的读取方向自动选取最快的可能造型方法（“仅Kerning（Kerning Only）”或“完全造型（Full Shaping）”）。从左到右文本使用仅Kerning，从右到左使用完全造型方法。
+*   **仅Kerning（Kerning Only）** - 仅使用kerning数据提供假造型。这比完全造型速度快，但不能正确渲染复杂的从右到左或双向字形（如阿拉伯文字）。如果您知道文本块仅显示简单字形（如数字），则是一种很有用的优化方法。
+*   **完全造型（Full Shaping）** - 提供完全文本造型能够准确地渲染复杂的从右到左或双向字形（如阿拉伯文字）。它将执行所有语言的连字替换（如英语中的组合“fi”字形）。
+
+[/EXCERPT:excerpt_12]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_11]
+定义使用“上一个（Previous）”时的导航：
+
+*   **退出（Escape）** - 允许导航退出该控件的边界。
+*   **停止（Stop）** - 导航在该控件的边界处停止。
+*   **包裹（Wrap）** - 导航将围绕该对象边界之外的地方。
+*   **显式（Explicit）** - 导航移至一个特定的控件。
+*   **自定义（Custom）** - 自定义函数可以确定从这个控件或其子代导航离开后将导航到哪一个控件。
+
+[/EXCERPT:excerpt_11]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_10]
+定义使用“下一个（Next）”时的导航：
+
+*   **退出（Escape）** - 允许导航退出该控件的边界。
+*   **停止（Stop）** - 导航在该控件的边界处停止。
+*   **包裹（Wrap）** - 导航将围绕该对象边界之外的地方。
+*   **显式（Explicit）** - 导航移至一个特定的控件。
+*   **自定义（Custom）** - 自定义函数可以确定从这个控件或其子代导航离开后将导航到哪一个控件。
+*   **自定义边界（Custom Boundary）** - 自定义函数可以确定到达边界时将导航到哪个控件。
+
+[/EXCERPT:excerpt_10]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_9]
+定义使用“下（Down）”时的导航：
+
+*   **退出（Escape）** - 允许导航退出该控件的边界。
+*   **停止（Stop）** - 导航在该控件的边界处停止。
+*   **包裹（Wrap）** - 导航将围绕该对象边界之外的地方。
+*   **显式（Explicit）** - 导航移至一个特定的控件。
+*   **自定义（Custom）** - 自定义函数可以确定从这个控件或其子代导航离开后将导航到哪一个控件。
+*   **自定义边界（Custom Boundary）** - 自定义函数可以确定到达边界时将导航到哪个控件。
+
+[/EXCERPT:excerpt_9]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_8]
+定义使用“上（Up）”时的导航：
+
+*   **退出（Escape）** - 允许导航退出该控件的边界。
+*   **停止（Stop）** - 导航在该控件的边界处停止。
+*   **包裹（Wrap）** - 导航将围绕该对象边界之外的地方。
+*   **显式（Explicit）** - 导航移至一个特定的控件。
+*   **自定义（Custom）** - 自定义函数可以确定从这个控件或其子代导航离开后将导航到哪一个控件。
+*   **自定义边界（Custom Boundary）** - 自定义函数可以确定到达边界时将导航到哪个控件。
+
+[/EXCERPT:excerpt_8]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_7]
+定义使用“右（Right）”时的导航：
+
+*   **退出（Escape）** - 允许导航退出该控件的边界。
+*   **停止（Stop）** - 导航在该控件的边界处停止。
+*   **包裹（Wrap）** - 导航将围绕该对象边界之外的地方。
+*   **显式（Explicit）** - 导航移至一个特定的控件。
+*   **自定义（Custom）** - 自定义函数可以确定从这个控件或其子代导航离开后将导航到哪一个控件。
+*   **自定义边界（Custom Boundary）** - 自定义函数可以确定到达边界时将导航到哪个控件。
+
+[/EXCERPT:excerpt_7]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_6]
+定义使用“左（Left）”时的导航：
+
+*   **退出（Escape）** - 允许导航退出该控件的边界。
+*   **停止（Stop）** - 导航在该控件的边界处停止。
+*   **包裹（Wrap）** - 导航将围绕该对象边界之外的地方。
+*   **显式（Explicit）** - 导航移至一个特定的控件。
+*   **自定义（Custom）** - 自定义函数可以确定从这个控件或其子代导航离开后将导航到哪一个控件。
+*   **自定义边界（Custom Boundary）** - 自定义函数可以确定到达边界时将导航到哪个控件。
+
+[/EXCERPT:excerpt_6]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_5]
+控制该控件的剪切行为的工作方式。通常，超出控件边界的内容将继续渲染，启用剪切能够防止显式超出范围的内容。
+[REGION:note]
+不同剪切空间中的元素不能绑定到一起，因此应用剪切时会存在性能成本。除非面板实际上需要防止内容显示在边界之外，否则不要启用剪切。
+[/REGION]
+[/EXCERPT:excerpt_5]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_4]
+控件的渲染变换允许对控件应用任意2D变换。
+
+*   **平移（Translation）** - 以Slate单位沿X和Y平移控件的量。
+*   **缩放（Scale）** - 以Slate单位沿X和Y应用于控件的缩放量。
+*   **剪切（Shear）** - 以Slate单位沿X和Y应用于控件的剪切量。
+*   **角度（Angle）** - 旋转控件的角度。
+
+[/EXCERPT:excerpt_4]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_3]
+鼠标悬停于控件上时显示的光标。
+
+*   **无（None）** - 使光标不可见。
+*   **默认（Default）** - 默认箭头光标。
+*   **文本编辑光束（Text Edit Beam）** - 指示可以编辑的文本。
+*   **左右调节大小（Resize Left Right）** - 调节水平箭头光标。
+*   **上下调节大小（Resize Up Down）** - 调节垂直箭头光标。
+*   **东南调节大小（Resize South East）** - 双向向外调节大小箭头光标。
+*   **西南调节大小（Resize South West）** - 双向向内调节大小箭头光标。
+*   **十字（Cardinal Cross）** - 指示正在移动某个对象。
+*   **准星（Crosshairs）** - 指示精准选择，通常通过四处拖动选择框。
+*   **手（Hand）** - 使用带有手指指向的手光标。
+*   **手抓（Grab Hand）** - 使用手张开光标，指示可以抓住某个对象。
+*   **握紧手型（Grab Hand Closed）** - 使用握紧手型光标，指示握紧某个对象。
+*   **斜圆（Slashed Circle）** - 光标指示无法执行操作。
+*   **滴管（Eye Dropper）** - 指示可以选择颜色。
+
+[/EXCERPT:excerpt_3]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_2]
+设置该控件的可视性。
+
+*   **可见（Visible）** - 该控件可见，并可以与光标互动。
+*   **折叠（Collapsed）** - 控件不可见，并在布局中不占据空间。永远不能单击，因为它不占据空间。
+*   **隐藏（Hidden）** - 控件不可见，但占据布局空间。不能互动，因为是隐藏的。
+*   **命中测试不可见（Hit Test Invisible）** - 控件对于用户可见，但仅显示为图片。光标命中测试永远不会看到这个控件。
+*   **自命中测试不可见（Self Hit Test Invisible）** - 该控件与命中测试不可见（Hit Test Invisible）一样，但不适用于子控件。
+
+[/EXCERPT:excerpt_2]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_1]
+要使用的换行策略：
+
+*   **默认换行（Default Wrapping）** - 无退却，只使用给定的换行迭代器。
+*   **允许逐字符换行（Allow per-Character Wrapping）** - 如果一个词过长，则退却回逐字符换行。
+
+[/EXCERPT:excerpt_1]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_0]
+这将设置所选控件的锚点位置。
+
+*   **最小值（Minimum）** - 保存最小锚点数，左侧和顶部。
+*   **最大值（Maximum）** - 保存最大锚点数，右侧和底部。
+
+[/EXCERPT:excerpt_0]
+-
+[/COMMENT]
+
+
+(#datatableassetproperties)
+## 数据表资源属性
+
+(#richimagerow)
+### 富图像行
+
+在富图像行数据表资源中设置以下属性，以控制与富文本块控件一起使用的图像样式。
+
+  
+| 属性 | 说明 |
+| --- | --- |
+| **图像（Image）** | 对于该笔刷渲染的图像。分配的资源可以是纹理、材质接口或实现Atlased纹理接口的对象。|
+| **图像尺寸（Image Size）** | 以Slate单位表示的资源大小。|
+| **着色（Tint）** | 应用于图像的着色。|
+| **绘制为（Draw As）** | [INCLUDE:#excerpt_14] |
+| **平铺（Tiling）** | [INCLUDE:#excerpt_15] |
+| **预览（Preview）** | [INCLUDE:#excerpt_16] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_16]
+设置应如何在预览框中显示图像。 
+**水平对齐：**
+
+*   **填充（Fill）** - 图像将水平填充预览框。
+*   **左（Left）** - 图像将在预览框中靠左对齐。
+*   **居中（Center）** - 图像在预览框中居中放置。
+*   **右（Right）** - 图像将在预览框中靠右对齐。
+
+**垂直对齐：**
+
+*   **填充（Fill）** - 图像将垂直填充预览框。
+*   **顶（Top）** - 图像将在预览框中靠上对齐。
+*   **居中（Center）** - 图像在预览框中居中放置。
+*   **底（Bottom）** - 图像将在预览框中靠下对齐。
+
+[/EXCERPT:excerpt_16]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_86]
+
+[/EXCERPT:excerpt_86]
+-
+[/COMMENT]
+[COMMENT:none]
+-
+[EXCERPT:excerpt_15]
+图像模式下如何平铺图像。
+
+*   **水平（Horizontal）** - 水平平铺图像。
+*   **垂直（Vertical）** - 垂直平铺图像。
+*   **双向（Both）** - 沿两个方向平铺图像。
+
+[/EXCERPT:excerpt_15]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_14]
+如何绘制图像。
+
+*   **框（Box）** - 绘制3x3框，侧边和中间根据边界延伸。
+*   **边框（Border）** - 绘制3x3边框，侧边平铺，中间为空。
+*   **图像（Image）** - 绘制图像，忽略边距。
+
+[/EXCERPT:excerpt_14]
+-
+[/COMMENT]
+
+
+(#richtextstylerow)
+### 富文本样式行
+
+在**富文本样式行**数据表资源中设置以下属性，以控制与**富文本块**控件一起使用的文本样式。
+
+| 属性 | 说明 |
+| --- | --- |
+| [REGION:tablesection]字体[/REGION] ||
+| **字体系列（Font Family）** | 字体对象（从UMG或Slate控件样式资源使用时有效）。|
+| **字形（Typeface）** | 从默认字形使用的字体的名称。如果最初选择了无，则将使用第一个条目（粗体）。|
+| **大小（Size）** | 用点值衡量的字体大小。将点转换为Slate单位在96 dpi下完成。因此，如果您使用Photoshop等工具构建布局和UI模型的原型，确保将默认dpi测量从72 dpi改成96 dpi。|
+| **字体材质（Font Material）** | 渲染该字体时将要使用的材质。|
+| **轮廓设置（Outline Settings）** | [INCLUDE:#excerpt_17] |
+| **颜色（Color）** | 文本的颜色和不透明度。|
+| **阴影偏移（Shadow Offset）** | 应对阴影应用多少偏移量？偏移量0表示无阴影。|
+| **阴影颜色和不透明度（Shadow Color and Opacity）** | 阴影的颜色和不透明度。|
+| **阴影背景色（Shadow Background Color）** | 所选文本的背景色。|
+| **高亮色（Highlight Color）** | 高亮文本颜色。|
+| [REGION:tablesection]高亮形状[/REGION] ||
+| **图像（Image）** | 对于该笔刷渲染的图像。分配的资源可以是纹理、材质接口或实现Atlased纹理接口的对象。|
+| **图像尺寸（Image Size）** | 以Slate单位表示的资源大小。|
+| **着色（Tint）** | 应用于图像的着色。|
+| **绘制为（Draw As）** | [INCLUDE:#excerpt_18] |
+| **平铺（Tiling）** | [INCLUDE:#excerpt_19] |
+| **预览（Preview）** | [INCLUDE:#excerpt_20] |
+| [REGION:tablesection]下划线笔刷[/REGION] ||
+| **图像（Image）** | 对于该笔刷渲染的图像。分配的资源可以是纹理、材质接口或实现Atlased纹理接口的对象。|
+| **图像尺寸（Image Size）** | 以Slate单位表示的资源大小。|
+| **着色（Tint）** | 应用于图像的着色。|
+| **绘制为（Draw As）** | [INCLUDE:#excerpt_21] |
+| **平铺（Tiling）** | [INCLUDE:#excerpt_22] |
+| **预览（Preview）** | [INCLUDE:#excerpt_23] |
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_23]
+设置应如何在预览框中显示图像：  
+**水平对齐：**
+
+*   **填充（Fill）** - 图像将水平填充预览框。
+*   **左（Left）** - 图像将在预览框中靠左对齐。
+*   **居中（Center）** - 图像在预览框中居中放置。
+*   **右（Right）** - 图像将在预览框中靠右对齐。
+
+**垂直对齐：**
+
+*   **填充（Fill）** - 图像将垂直填充预览框。
+*   **顶（Top）** - 图像将在预览框中靠上对齐。
+*   **居中（Center）** - 图像在预览框中居中放置。
+*   **底（Bottom）** - 图像将在预览框中靠下对齐。
+
+[/EXCERPT:excerpt_23]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_22]
+图像模式下如何平铺图像。
+
+*   **水平（Horizontal）** - 水平平铺图像。
+*   **垂直（Vertical）** - 垂直平铺图像。
+*   **双向（Both）** - 沿两个方向平铺图像。
+
+[/EXCERPT:excerpt_22]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_21]
+如何绘制图像。
+
+*   **框（Box）** - 绘制3x3框，侧边和中间根据边界延伸。
+*   **边框（Border）** - 绘制3x3边框，侧边平铺，中间为空。
+*   **图像（Image）- 绘制图像，忽略边距。**
+
+[/EXCERPT:excerpt_21]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_20]
+设置应如何在预览框中显示图像：  
+**水平对齐：**
+
+*   **填充（Fill）** - 图像将水平填充预览框。
+*   **左（Left）** - 图像将在预览框中靠左对齐。
+*   **居中（Center）** - 图像在预览框中居中放置。
+*   **右（Right）** - 图像将在预览框中靠右对齐。
+
+**垂直对齐：**
+
+*   **填充（Fill）** - 图像将垂直填充预览框。
+*   **顶（Top）** - 图像将在预览框中靠上对齐。
+*   **居中（Center）** - 图像在预览框中居中放置。
+*   **底（Bottom）** - 图像将在预览框中靠下对齐。
+
+[/EXCERPT:excerpt_20]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_19]
+图像模式下如何平铺图像。
+
+*   **水平（Horizontal）** - 水平平铺图像。
+*   **垂直（Vertical）** - 垂直平铺图像。
+*   **双向（Both）** - 沿两个方向平铺图像。
+
+[/EXCERPT:excerpt_19]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_18]
+如何绘制图像。
+
+*   **框（Box）** - 绘制3x3框，侧边和中间根据边界延伸。
+*   **边框（Border）** - 绘制3x3边框，侧边平铺，中间为空。
+*   **图像（Image）- 绘制图像，忽略边距。**
+
+[/EXCERPT:excerpt_18]
+-
+[/COMMENT]
+
+[COMMENT:none]
+-
+[EXCERPT:excerpt_17]
+对字体应用轮廓的设置。
+
+*   **轮廓大小（Outline Size）** - 以Slate单位表示的轮廓大小（在1.0字体缩放，该单位采用像素）。
+*   **单独填充的透明度值（Separate Fill Alpha）** - 如果启用，填充区域所在的轮廓将完全半透明。允许使用单独的填充透明度值。启用此项需要权衡的是质量稍差，因为完全的不透明将填满内框边界与填充区域的交界处。
+*   **轮廓颜色（Outline Color）- 使用该字体的任意字符的轮廓颜色。**
+
+[/EXCERPT:excerpt_17]
+-
+[/COMMENT]

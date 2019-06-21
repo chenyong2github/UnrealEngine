@@ -1,0 +1,12 @@
+﻿INTSourceChangelist:6675661
+Availability: Public
+Title: Gauntlet自动化框架
+Description: 在虚幻引擎中运行项目会话的框架，可执行测试并验证结果。
+Type: landing
+Parent: Programming/Automation
+Tags: Automation
+Order: 5
+
+[INCLUDE:Programming/Automation/Gauntlet/Overview#gauntlet_intro]
+
+[DIR(output:"topic" parent:"Programming/Automation/Gauntlet")]

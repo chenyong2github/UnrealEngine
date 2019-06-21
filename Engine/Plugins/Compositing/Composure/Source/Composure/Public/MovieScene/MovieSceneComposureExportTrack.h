@@ -24,7 +24,7 @@ struct FMovieSceneComposureExportPass
 	bool bRenamePass;
 
 	/** The name to use for this pass when rendering out */
-	UPROPERTY(EditAnywhere, Category="Export", meta=(EditCondition=bRenamePass))
+	UPROPERTY(EditAnywhere, Category="Export", meta=(EditCondition="bRenamePass"))
 	FName ExportedAs;
 };
 
@@ -53,7 +53,8 @@ public:
 	virtual void AddSection(UMovieSceneSection& Section) override              { Sections.AddUnique(&Section); }
 	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override { return Sections; }
 	virtual bool HasSection(const UMovieSceneSection& Section) const override  { return Sections.Contains(&Section); }
-	virtual void RemoveSection(UMovieSceneSection& Section) override           { Sections.Remove(&Section); }
+	virtual void RemoveSection(UMovieSceneSection& Section) override { Sections.Remove(&Section); }
+	virtual void RemoveSectionAt(int32 SectionIndex) override { Sections.RemoveAt(SectionIndex); }
 	virtual bool SupportsMultipleRows() const override                         { return true; }
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 

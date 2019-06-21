@@ -71,13 +71,8 @@ public:
 	virtual const TCHAR* GetSocketAPIName() const override;
 
 	/**
-	 * Does a DNS look up of a host name
-	 *
-	 * @param HostName the name of the host to look up
-	 * @param Addr the address to copy the IP address to
+	 * Translates an ESocketAddressInfoFlags into a value usable by getaddrinfo
 	 */
-	virtual ESocketErrors GetHostByName(const ANSICHAR* HostName, FInternetAddr& OutAddr) override;
-	virtual ESocketErrors CreateAddressFromIP(const ANSICHAR* IPAddress, FInternetAddr& OutAddr) override;
 
 	virtual int32 GetAddressInfoHintFlag(EAddressInfoFlags InFlags) const override;
 
@@ -92,4 +87,9 @@ public:
 	 * @return The local host address
 	 */
 	virtual TSharedRef<FInternetAddr> GetLocalHostAddr(FOutputDevice& Out, bool& bCanBindAll) override;
+
+	virtual FName GetDefaultSocketProtocolFamily() const override
+	{
+		return FNetworkProtocolTypes::IPv4;
+	}
 };

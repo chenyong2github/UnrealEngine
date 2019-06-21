@@ -1,86 +1,79 @@
-﻿INTSourceChangelist:3681055
-Availability:Public
-Title:약 포인터
-Crumbs:%ROOT%, Programming, Programming/UnrealArchitecture/SmartPointerLibrary
-Description:약 레퍼런스를 보관, 오브젝트의 소멸을 막지 않는 스마트 포인터입니다.
-Type:reference
+﻿INTSourceChangelist:6371055
+Availability: Public
+Title: Weak Pointers
+Description: Smart pointers that store weak references and do not prevent their objects from being destroyed.
+Type: reference
 Version: 4.9
-Parent:Programming/UnrealArchitecture/SmartPointerLibrary
-Order:
-Tags:Programming
+Parent: Programming/UnrealArchitecture/SmartPointerLibrary
+Tags: Programming
+Order: 2
 
-[TOC(start:2)]
 
-**약 포인터** 는 오브젝트로의 약 레퍼런스 (weak reference)를 보관하는 포인터입니다. 공유 포인터와는 달리 약 포인터는 오브젝트의 소멸을 막지 않습니다. 약 포인터는 무엇에 의해서건 자신의 오브젝트가 소멸되면 자동으로 비워지는 포인터로, 변덕이 심한 오브젝트로의 포인터 캐시 정보를 안전하게 담을 수 있습니다. 이는 약 포인터가 예기치 못하게 비워질 수도, 레퍼런스 사이클을 깨는 데 사용될 수도 있다는 뜻이기도 합니다.
+[TOC]
 
-약 포인터의 오브젝트는 그것을 가리키는 공유 레퍼런스가 없어지면 소멸됩니다.
+**Weak Pointers** store a weak reference to an object. Unlike **Shared Pointers** or **Shared References**, a Weak Pointer will not prevent destruction of the object it references.
 
-약 포인터는 의도를 명확히 하는 데 도움이 됩니다. 클래스에 약 포인터가 보인다면 그저 오브젝트에 대한 포인터의 캐시 역할만 할 뿐, 그 수명 자체를 좌지우지하지는 않는 다는 뜻입니다.
+Before accessing the object that a Weak Pointer references, you should use the `Pin` function to produce a Shared Pointer. This guarantees that the object will continue to exist while you are using it. If you only need to establish whether or not the Weak Pointer references an object, you can compare it to `nullptr` or call `IsValid` on it.
 
-## 선언과 초기화
+[REGION:tip]
+Using Weak Pointers can help confer intent — a Weak Pointer indicates an observation of the referenced object without ownership of it, and does not control its lifetime.
+[/REGION]
 
-약 포인터는 항상 공유 포인터/레퍼런스나 다른 약 포인터에서 생성됩니다.
+## Declaration, Initialization, and Assignment
 
-	// Allocate a new tree node.
-	TSharedRef<FTreeNode> NodeOwner( new FTreeNode() );
+You can create empty Weak Pointers, or build them from Shared References, Shared Pointers, or other Weak Pointers.
 
-	// Create a weak pointer to the new tree node.
-	TWeakPtr<FTreenode> NodeObserver( NodeOwner );
+    // Allocate a new data object and create a strong reference to it.
+    TSharedRef<FMyObjectType> ObjectOwner = MakeShared<FMyObjectType>();
+    // Create a weak pointer to the new data object.
+    TWeakPtr<FMyObjectType> ObjectObserver(ObjectOwner);
 
-기억하실 것은, 약 포인터는 오브젝트의 소멸을 막지 못합니다. NodeOwner 가 리셋되면, NodeObserver 가 여전히 영역 안에 있을 지라도 오브젝트는 삭제됩니다:
+Weak Pointers do not prevent objects from being destroyed. In our example, resetting `ObjectOwner` will destroy the object, regardless of whether or not `ObjectObserver` is still in scope:
 
-	// Destroy the node.
-	NodeOwner.Reset();
+    // Assuming ObjectOwner was the only owner of its object, that object will be destroyed when ObjectOwner stops referencing it.
+    ObjectOwner.Reset();
+    // The Shared Pointer that Pin() generates will be null due to ObjectOwner referencing a null object. When treated as a bool, empty Shared Pointers evaluate to false.
+    if (ObjectObserver.Pin())
+    {
+        // This code will run only if ObjectOwner was not the sole owner of our object.
+        check(false);
+    }
 
-약 포인터는 공유 포인터와 마찬가지로 안전하게 복사할 수 있습니다.
+Weak Pointers can be copied around safely, just like Shared Pointers, regardless of whether or not they reference a valid object:
 
-	TWeakPtr<FTreeNode> NodeObserverB = NodeObserver;
+    TWeakPtr<FMyObjectType> AnotherObjectObserver = ObjectObserver;
 
-약 포인터는 할 일이 끝나면 리셋(이나 재할당)시킬 수 있습니다.
+You can reset a Weak Pointer when you are done with it:
 
-	NodeObserver = null;
+    // You can reset a Weak Pointer by setting it to nullptr.
+    ObjectObserver = nullptr;
+    // You can also use the Reset function.
+    AnotherObjectObserver.Reset();
 
-## 레퍼런스 해제와 접근
+### Converting To Shared Pointers
 
-약 포인터의 오브젝트에 접근하려면 먼저 **Pin()** 메서드를 호출하여 공유 포인터로 승격시킵니다.
+The `Pin` function creates a Shared Pointer to the Weak Pointer's object. As long as the Shared Pointer is in scope and references the object, the object will remain valid. In addition, Shared Pointers (including the one returned by the `Pin` function) can evaluate as type `bool` in conditionals, where `true` indicates a valid object. The following code pattern checks to see if the Weak Pointer references a valid object, and if so, guarantees that it will continue to be valid at least until the Shared Pointer (created by the `Pin` function) goes out of scope or is explicitly cleared.
 
-	// Get access to the node through the weak pointer.
-	TSharedPtr<TFreeNode> LockedObserver( NodeObserver.Pin() );
+    // Acquire a Shared Pointer from the Weak Pointer and check that it references a valid object.
+    if (TSharedPtr<FMyObjectType> LockedObserver = ObjectObserver.Pin())
+    {
+        // The Shared Pointer is valid only within this scope.
+        // The object has been verified to exist, and the Shared Pointer prevents its deletion.
+        LockedObserver->SomeFunction();
+    }
 
-	// Check that the shared reference was successfully created from the weak reference.
-	If( LockedObserver.IsValid() )
-	{
-		// Object still exists, so it can be accessed.
-		LockedObserver->ListChildren();
-	}
+## Dereferencing and Accessing
 
-Pin() 은 빠릅니다. Pin 이라 불리우는 이유는 약 포인터가 임시 접근하는 동안 오브젝트가 소멸되지 않도록 하기 때문입니다.
+To access a Weak Pointer's object, first promote it to a Shared Pointer with the `Pin` function. You can then access it through the `Get` function on either the Shared Pointer or the Weak Pointer. This method ensures that the object remains valid while you are working with it.
 
-약 포인터는 오브젝트가 소멸되면 자동으로 알기에, 이러한 경우는 IsValid() 메서드를 사용하여 안전하게 처리 가능합니다.
+## Breaking Reference Cycles
 
-	// Make sure the weak pointer's object still exists before accessing it.
-	if( NodeObserver.IsValid() )
-	{
-		...
-	}
+A reference cycle exists whenever two or more objects use Smart Pointers to keep strong references to each other. In these situations, the objects protect each other from deletion, as each one is always being referenced by one other object, and so neither can be deleted while the other still exists. If no outside object references either of the objects in the reference cycle, they will effectively leak. Weak Pointers can break these reference cycles, because Weak Pointers do not preserve the objects they reference. Use Weak Pointers when you want to reference objects without claiming ownership over them and potentially extending their lifespans.
 
-## 약 포인터로 사이클 끊기
+## Usage Warnings
 
-약 포인터를 사용하여 사이클을 끊을 수 있습니다:
+Weak Pointers are useful in cases where you don't want to guarantee that the data object will continue to exist, but this very property can be dangerous. The following situations require caution when using Weak Pointers:
 
-	class FTreeNode
-	{
-		/** Child nodes, owned by this node. */
-		TArray< TSharedPtr<FTreeNode> > Children;
+*   Usage as keys in [Sets](Programming/UnrealArchitecture/TSet) or [Maps](Programming/UnrealArchitecture/TMap). Because Weak Pointers can become invalid at any time, and will not notify the container, Shared Pointers or Shared References are better-suited to act as keys. Weak Pointers are safe to use as values.
 
-		/** Weak pointer back to this node's parent. */
-		TWeakPtr<FTreeNode> Parent;
-	}
-
-FTreeNode 에는 자신이 _소유하는_ 자손 노드로의 공유 포인터가 있습니다. 즉 자손 노드는 FTreeNode 와 함께 소멸된다는 뜻입니다. 부모 노드로의 레퍼런스를 캐시하는 데 약 포인터를 사용하기도 합니다. 약 포인터는 절대 오브젝트의 소멸을 막지 않습니다. 이런 식으로 공유/약 포인터를 사용하면 권위(authority)의 연쇄관계를 보다 명확히 할 수 있습니다.
-
-약 포인터는 자기 오브젝트의 소멸을 "알기만" 할 뿐이므로, 이렇게 하면 트리 내 어떤 노드로의 포인터도 안전하게 캐시에 담을 수 있습니다.
-
-## 변환
-
-약 포인터를 공유 포인터로 변환하려면 **Pin()** 메서드를 사용해야 합니다. 명시적 생성자(constructor)는 없습니다.
+*   Although Weak Pointers provide an `IsValid` function, checking `IsValid` does not guarantee that the object will remain valid for any length of time. This is especially true with thread-safe Shared Pointers, as they can become invalid at any time due to activity on another thread. The `Pin` function is the preferred method for any check that will lead to dereferencing or accessing the stored object, as the Shared Pointer that `Pin` returns will keep the object alive until your code clears it, or it goes out of scope.

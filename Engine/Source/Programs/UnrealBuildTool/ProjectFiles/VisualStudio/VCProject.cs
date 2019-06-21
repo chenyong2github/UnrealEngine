@@ -693,6 +693,10 @@ namespace UnrealBuildTool
 				{
 					VCIncludeSearchPaths.Append(VCToolChain.GetVCIncludePaths(UnrealTargetPlatform.Win32, GetCompilerForIntellisense(), null) + ";");
 				}
+				else if (InPlatforms.Contains(UnrealTargetPlatform.HoloLens))
+				{
+					VCIncludeSearchPaths.Append(HoloLensToolChain.GetVCIncludePaths(UnrealTargetPlatform.HoloLens, GetCompilerForIntellisense()) + ";");
+				}
 			}
 
 			StringBuilder VCPreprocessorDefinitions = new StringBuilder();
@@ -995,7 +999,6 @@ namespace UnrealBuildTool
 				VCProjectFileContent.AppendLine("    <NMakeIncludeSearchPath>$(NMakeIncludeSearchPath){0}</NMakeIncludeSearchPath>", (VCIncludeSearchPaths.Length > 0 ? (";" + VCIncludeSearchPaths) : ""));
 				VCProjectFileContent.AppendLine("    <NMakeForcedIncludes>$(NMakeForcedIncludes)</NMakeForcedIncludes>");
 				VCProjectFileContent.AppendLine("    <NMakeAssemblySearchPath>$(NMakeAssemblySearchPath)</NMakeAssemblySearchPath>");
-				VCProjectFileContent.AppendLine("    <NMakeForcedUsingAssemblies>$(NMakeForcedUsingAssemblies)</NMakeForcedUsingAssemblies>");
 				VCProjectFileContent.AppendLine("  </PropertyGroup>");
 			}
 
@@ -1469,7 +1472,7 @@ namespace UnrealBuildTool
 				{
 					TargetRules TargetRulesObject = Combination.ProjectTarget.TargetRules;
 
-					if ((Combination.Platform == UnrealTargetPlatform.Win32) || (Combination.Platform == UnrealTargetPlatform.Win64))
+					if ((Combination.Platform == UnrealTargetPlatform.Win32) || (Combination.Platform == UnrealTargetPlatform.Win64) || (Combination.Platform == UnrealTargetPlatform.HoloLens))
 					{
 						VCUserFileContent.AppendLine("  <PropertyGroup {0}>", ConditionString);
 						if (TargetRulesObject.Type != TargetType.Game)
@@ -1488,7 +1491,7 @@ namespace UnrealBuildTool
 
 							VCUserFileContent.AppendLine("    <LocalDebuggerCommandArguments>{0}</LocalDebuggerCommandArguments>", DebugOptions);
 						}
-						VCUserFileContent.AppendLine("    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>");
+						VCUserFileContent.AppendLine("    <DebuggerFlavor>{0}</DebuggerFlavor>", Combination.Platform == UnrealTargetPlatform.HoloLens ? "AppHostLocalDebugger " : "WindowsLocalDebugger");
 						VCUserFileContent.AppendLine("  </PropertyGroup>");
 					}
 

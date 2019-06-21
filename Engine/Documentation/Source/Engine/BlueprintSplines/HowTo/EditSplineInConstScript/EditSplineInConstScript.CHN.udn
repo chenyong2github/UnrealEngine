@@ -1,4 +1,4 @@
-﻿INTSourceChangeList:3801260
+﻿INTSourceChangeList:6187230
 Availability:Docs
 Title:如何在构造脚本中编辑样条组件
 Crumbs: %ROOT%, Engine
@@ -6,7 +6,7 @@ Description:Null
 Navigation:topic
 parent:Engine/BlueprintSplines/HowTo
 order:3
-social-image:Splines_social.png
+social-image:Engine/BlueprintSplines/Splines_Social.png
 version:4.13
 skilllevel:Intermediate
 topic-image:Engine/BlueprintSplines/Splines_topic.png

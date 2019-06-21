@@ -187,7 +187,21 @@ void SLevelViewport::Construct(const FArguments& InArgs)
 
 	ConstructLevelEditorViewportClient( InArgs );
 
-	SEditorViewport::Construct( SEditorViewport::FArguments() );
+	SEditorViewport::Construct(SEditorViewport::FArguments()
+		.ViewportSize(MakeAttributeSP(this, &SLevelViewport::GetSViewportSize))
+		);
+	TSharedRef<SWidget> EditorViewportWidget = ChildSlot.GetChildAt(0);
+	ChildSlot
+	[
+		SNew(SScaleBox)
+		.Stretch(this, &SLevelViewport::OnGetScaleBoxStretch)
+		.HAlign(EHorizontalAlignment::HAlign_Center)
+		.VAlign(EVerticalAlignment::VAlign_Center)
+		.StretchDirection(EStretchDirection::Both)
+		[
+			EditorViewportWidget
+		]
+	];
 
 	ActiveViewport = SceneViewport;
 
@@ -497,6 +511,7 @@ void SLevelViewport::ConstructLevelEditorViewportClient( const FArguments& InArg
 	LevelViewportClient->EngineShowFlags = EditorShowFlags;
 	LevelViewportClient->LastEngineShowFlags = GameShowFlags;
 	LevelViewportClient->CurrentBufferVisualizationMode = ViewportInstanceSettings.BufferVisualizationMode;
+	LevelViewportClient->CurrentRayTracingDebugVisualizationMode = ViewportInstanceSettings.RayTracingDebugVisualizationMode;
 	LevelViewportClient->ExposureSettings = ViewportInstanceSettings.ExposureSettings;
 	if(InArgs._ViewportType == LVT_Perspective)
 	{
@@ -558,6 +573,27 @@ void SLevelViewport::TransitionFromPIE(bool bIsSimulating)
 			ActorPreview.LevelViewportClient->SetIsSimulateInEditorViewport(false);
 		}
 	}
+}
+
+EStretch::Type SLevelViewport::OnGetScaleBoxStretch() const
+{
+	FSceneViewport* GameSceneViewport = GetGameSceneViewport();
+	if (GameSceneViewport && GameSceneViewport->HasFixedSize())
+	{
+		return EStretch::ScaleToFit;
+	}
+	return EStretch::Fill;
+}
+
+FVector2D SLevelViewport::GetSViewportSize() const
+{
+	FSceneViewport* GameSceneViewport = GetGameSceneViewport();
+	if (GameSceneViewport && GameSceneViewport->HasFixedSize())
+	{
+		return GameSceneViewport->GetSize();
+	}
+
+	return SViewport::FArguments::GetDefaultViewportSize();
 }
 
 FReply SLevelViewport::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
@@ -2148,6 +2184,7 @@ void SLevelViewport::SaveConfig(const FString& ConfigName) const
 		ViewportInstanceSettings.EditorShowFlagsString = EditorShowFlagsToSave.ToString();
 		ViewportInstanceSettings.GameShowFlagsString = GameShowFlagsToSave.ToString();
 		ViewportInstanceSettings.BufferVisualizationMode = LevelViewportClient->CurrentBufferVisualizationMode;
+		ViewportInstanceSettings.RayTracingDebugVisualizationMode = LevelViewportClient->CurrentRayTracingDebugVisualizationMode;
 		ViewportInstanceSettings.ExposureSettings = LevelViewportClient->ExposureSettings;
 		ViewportInstanceSettings.FOVAngle = LevelViewportClient->FOVAngle;
 		if (!FPlatformMisc::IsRemoteSession())

@@ -3,18 +3,22 @@
 
 #include "CrunchCompression.h"
 #include "Modules/ModuleManager.h"
-#include "PixelFormat.h"
 #include "HAL/IConsoleManager.h"
-
-#ifndef CRUNCH_SUPPORT
-#define CRUNCH_SUPPORT 0
-#endif
+#include "Stats/Stats.h"
+#include "Stats/Stats2.h"
 
 const bool GAdaptiveBlockSizes = true;
 static TAutoConsoleVariable<int32> CVarCrunchQuality(
 	TEXT("crn.quality"),
 	128,
 	TEXT("Set the quality of the crunch texture compression. [0, 255], default: 128"));
+
+class FCrunchCompressionModule : public IModuleInterface
+{
+};
+IMPLEMENT_MODULE(FCrunchCompressionModule, CrunchCompression);
+
+#if WITH_CRUNCH
 
 #if defined(_MSC_VER)
 #pragma warning(push)
@@ -23,102 +27,65 @@ static TAutoConsoleVariable<int32> CVarCrunchQuality(
 
 //Crunch contains functions that are called 'check' and so they conflict with the UE check macro.
 #undef check
-
-#if CRUNCH_SUPPORT
-
 #if WITH_EDITOR
-	#include "crnlib.h"
+#include "crnlib.h"
 #endif
 #include "crn_decomp.h"
 
-#endif
 
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
 
-class FCrunchCompressionModule : public IModuleInterface
-{
-};
-IMPLEMENT_MODULE(FCrunchCompressionModule, CrunchCompression);
-
-#if WITH_EDITOR
+#if WITH_CRUNCH_COMPRESSION
 static FName NameDXT1(TEXT("DXT1"));
 static FName NameDXT5(TEXT("DXT5"));
+static FName NameBC4(TEXT("BC4"));
+static FName NameBC5(TEXT("BC5"));
 
-#if CRUNCH_SUPPORT
 static crn_format GetCrnFormat(const FName& Format)
 {
 	if (Format == NameDXT1)			return cCRNFmtDXT1;
 	else if (Format == NameDXT5)	return cCRNFmtDXT5;
+	else if (Format == NameBC4)     return cCRNFmtDXT5A;
+	else if (Format == NameBC5)     return cCRNFmtDXN_XY;
 	else							return cCRNFmtInvalid;
-}
-#endif
-
-static uint8 GetFormat(const FName& Format)
-{
-	if (Format == NameDXT1)			return PF_DXT1;
-	else if (Format == NameDXT5)	return PF_DXT5;
-	else							return PF_Unknown;
 }
 
 bool CrunchCompression::IsValidFormat(const FName& Format)
 {
-#if CRUNCH_SUPPORT
 	return GetCrnFormat(Format) != cCRNFmtInvalid;
-#endif
-	return false;
 }
 
-TArray<uint32> ImageAsPackedRGBA(const FImage& image)
+bool CrunchCompression::Encode(const FCrunchEncodeParameters& Parameters, TArray<uint8>& OutCodecPayload, TArray<TArray<uint8>>& OutTilePayload)
 {
-	TArray<uint32> PackedRGBA;
+	crn_comp_params CrunchParams;
+	CrunchParams.clear();
 
-	const uint32 NumPixels = image.SizeX * image.SizeY;
-	PackedRGBA.AddUninitialized(NumPixels);
-	const FColor* pixels = image.AsBGRA8();
-	for (uint32 i = 0; i < NumPixels; ++i)
+	CrunchParams.m_width = Parameters.ImageWidth;
+	CrunchParams.m_height = Parameters.ImageHeight;
+	CrunchParams.m_levels = Parameters.RawImagesRGBA.Num();
+	CrunchParams.set_flag(cCRNCompFlagPerceptual, Parameters.bIsGammaCorrected);
+	CrunchParams.set_flag(cCRNCompFlagHierarchical, GAdaptiveBlockSizes);
+	CrunchParams.set_flag(cCrnCompFlagUniformMips, true);
+	CrunchParams.m_format = GetCrnFormat(Parameters.OutputFormat);
+	CrunchParams.m_quality_level = FMath::Clamp<int32>((int32)((1.0f - Parameters.CompressionAmmount) * cCRNMaxQualityLevel), cCRNMinQualityLevel, cCRNMaxQualityLevel);
+	CrunchParams.m_num_helper_threads = FMath::Min<uint32>(cCRNMaxHelperThreads, Parameters.NumWorkerThreads);
+	CrunchParams.m_pProgress_func = nullptr;
+
+	TArray<const uint32*> ConvertedImagePointers;
+	ConvertedImagePointers.AddUninitialized(Parameters.RawImagesRGBA.Num());
+	for (int SubImageIdx = 0; SubImageIdx < Parameters.RawImagesRGBA.Num(); ++SubImageIdx)
 	{
-		PackedRGBA[i] = (*pixels).ToPackedABGR();
-		pixels++;
+		ConvertedImagePointers[SubImageIdx] = Parameters.RawImagesRGBA[SubImageIdx].GetData();
 	}
-	
-	return PackedRGBA;
-}
 
-
-bool CrunchCompression::Encode(const TArray<FImage>& UncompressedSrc, const FName& OutputFormat, TArray<uint8>& OutCodecPayload, TArray<uint8>& OutCompressedData, TArray< TPair<uint32, uint32>>& OutTileInfos)
-{
-	return false;
-#if CRUNCH_SUPPORT
-	crn_comp_params comp_params;
-	comp_params.clear();
-
-	comp_params.m_width = UncompressedSrc[0].SizeX;
-	comp_params.m_height = UncompressedSrc[0].SizeY;	
-	comp_params.m_levels = UncompressedSrc.Num();
-	comp_params.set_flag(cCRNCompFlagPerceptual, UncompressedSrc[0].IsGammaCorrected() == false);
-	comp_params.set_flag(cCRNCompFlagHierarchical, GAdaptiveBlockSizes);
-	comp_params.set_flag(cCrnCompFlagUniformMips, true);
-	comp_params.m_format = GetCrnFormat(OutputFormat);
-	const int32 quality = FMath::Clamp(CVarCrunchQuality.GetValueOnAnyThread(), (int32)cCRNMinQualityLevel, (int32)cCRNMaxQualityLevel);
-	comp_params.m_quality_level = quality;
-	comp_params.m_num_helper_threads = 0;
-	comp_params.m_pProgress_func = nullptr;
-
-	TArray<TArray<uint32>> ConvertedImages;
-	ConvertedImages.AddDefaulted(UncompressedSrc.Num());
-	for (int SubImageIdx = 0; SubImageIdx < UncompressedSrc.Num(); ++SubImageIdx)
-	{
-		ConvertedImages[SubImageIdx] = ImageAsPackedRGBA(UncompressedSrc[SubImageIdx]);
-		comp_params.m_pImages[0][SubImageIdx] = ConvertedImages[SubImageIdx].GetData();
-	}
-	
+	CrunchParams.m_pImages[0] = ConvertedImagePointers.GetData();
 
 	crn_uint32 ActualQualityLevel;
 	crn_uint32 OutputSize;
 	float BitRate = 0;
-	void* RawOutput = crn_compress(comp_params, OutputSize, &ActualQualityLevel, &BitRate);
+	void* RawOutput = crn_compress(CrunchParams, OutputSize, &ActualQualityLevel, &BitRate);
 	if (!RawOutput)
 	{
 		return false;
@@ -149,63 +116,112 @@ bool CrunchCompression::Encode(const TArray<FImage>& UncompressedSrc, const FNam
 		Cleanup();
 		return false;
 	}
-	crn_uint32 PixelDataSize = OutputSize - headerSize;
-	OutCompressedData.AddUninitialized(PixelDataSize);
-	FMemory::Memcpy(OutCompressedData.GetData(), PixelData, PixelDataSize);
-
-	OutTileInfos.AddUninitialized(UncompressedSrc.Num());
-	for (int SubImageIdx = 0; SubImageIdx < UncompressedSrc.Num(); ++SubImageIdx)
+	
+	OutTilePayload.Reset(Parameters.RawImagesRGBA.Num());
+	for (int SubImageIdx = 0; SubImageIdx < Parameters.RawImagesRGBA.Num(); ++SubImageIdx)
 	{
 		crnd::uint32 DataSize = 0;
-		uint32 offset = crnd::crnd_get_segmented_level_offset(RawOutput, OutputSize, SubImageIdx, &DataSize);
-		OutTileInfos[SubImageIdx] = TPair<uint32, uint32>(offset, DataSize);
+		const void* LevelPixelData = crnd::crnd_get_level_data(RawOutput, OutputSize, SubImageIdx, &DataSize);
+		OutTilePayload.Emplace((uint8*)LevelPixelData, DataSize);
 	}
 
 	Cleanup();
 
 	return true;
-#endif
 }
-#endif
+#endif // WITH_CRUNCH_COMPRESSION
 
-struct CrunckContext
+DECLARE_STATS_GROUP(TEXT("Crunch Memory"), STATGROUP_CrunchMemory, STATCAT_Advanced);
+DECLARE_MEMORY_STAT(TEXT("Total Memory"), STAT_TotalMemory, STATGROUP_CrunchMemory);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Total Allocations"), STAT_TotalAllocations, STATGROUP_CrunchMemory);
+
+// Value exposed by crunch headers is inconsistent
+static const uint32 CRUNCH_MIN_ALLOC_ALIGNMENT = 2 * sizeof(SIZE_T);
+
+template<bool bEnableStats>
+static void* CrunchReallocFunc(void* p, size_t size, size_t* pActual_size, bool movable, void* pUser_data)
 {
-#if CRUNCH_SUPPORT
-	crnd::crnd_unpack_context CrnContext = nullptr;
-#endif
-	uint8* Header = nullptr;
-	size_t HeaderSize = 0;
+	void* Result = nullptr;
+	SIZE_T ResultSize = 0u;
+	
+	if (!p)
+	{
+		ensure(size > 0u);
+		if (bEnableStats)
+		{
+			INC_DWORD_STAT(STAT_TotalAllocations);
+		}
+		Result = FMemory::Malloc(size, CRUNCH_MIN_ALLOC_ALIGNMENT);
+		ResultSize = FMemory::GetAllocSize(Result);
+	}
+	else if (size == 0u)
+	{
+		if (bEnableStats)
+		{
+			DEC_DWORD_STAT(STAT_TotalAllocations);
+			DEC_MEMORY_STAT_BY(STAT_TotalMemory, FMemory::GetAllocSize(p));
+		}
+		FMemory::Free(p);
+	}
+	else if (movable)
+	{
+		if (bEnableStats)
+		{
+			DEC_MEMORY_STAT_BY(STAT_TotalMemory, FMemory::GetAllocSize(p));
+		}
+		Result = FMemory::Realloc(p, size, CRUNCH_MIN_ALLOC_ALIGNMENT);
+		ResultSize = FMemory::GetAllocSize(Result);
+	}
+
+	if (bEnableStats)
+	{
+		INC_MEMORY_STAT_BY(STAT_TotalMemory, ResultSize);
+	}
+
+	if (pActual_size)
+	{
+		*pActual_size = ResultSize;
+	}
+
+	return Result;
+}
+
+static size_t CrunchMSizeFunc(void* p, void* pUser_data)
+{
+	return p ? FMemory::GetAllocSize(p) : 0u;
+}
+
+struct FCrunchRegisterAllocators
+{
+	FCrunchRegisterAllocators()
+	{
+#if WITH_CRUNCH_COMPRESSION
+		// Don't track stats for Crunch memory used by compressor, only interested in memory used at runtime by decompression
+		crn_set_memory_callbacks(&CrunchReallocFunc<false>, &CrunchMSizeFunc, nullptr);
+#endif // WITH_CRUNCH_COMPRESSION
+		crnd::crnd_set_memory_callbacks(&CrunchReallocFunc<true>, &CrunchMSizeFunc, nullptr);
+	}
 };
+static FCrunchRegisterAllocators gCrunchRegisterAllocators;
 
-void* CrunchCompression::InitializeDecoderContext(uint8* HeaderData, size_t HeaderDataSize)
+void* CrunchCompression::InitializeDecoderContext(const void* HeaderData, size_t HeaderDataSize)
 {
-#if CRUNCH_SUPPORT
-	CrunckContext* context = new CrunckContext();
-	context->CrnContext = crnd::crnd_unpack_begin(HeaderData, HeaderDataSize);
-	ensure(context->CrnContext);
-	context->Header = HeaderData;
-	context->HeaderSize = HeaderDataSize;
-	return context;
-#endif
-	return nullptr;
+	crnd::crnd_unpack_context CrunchContext = crnd::crnd_unpack_begin(HeaderData, HeaderDataSize);
+	ensure(CrunchContext);
+	return CrunchContext;
 }
 
-bool CrunchCompression::Decode(void* Context, uint8* CompressedPixelData, uint32 Slice, uint8* OutUncompressedData, size_t DataSize, size_t UncompressedDataPitch)
+bool CrunchCompression::Decode(void* Context, const void* CompressedPixelData, uint32 Slice, void* OutUncompressedData, size_t DataSize, size_t UncompressedDataPitch)
 {
-#if CRUNCH_SUPPORT
-	CrunckContext* context = (CrunckContext*)Context;
-	bool success = crnd::crnd_unpack_level_segmented(context->CrnContext, CompressedPixelData, Slice, (void**)&OutUncompressedData, DataSize, UncompressedDataPitch, 0);
-	return success;
-#endif
-	return false;
+	crnd::crnd_unpack_context CrunchContext = (crnd::crnd_unpack_context)Context;
+	const bool bResult = crnd::crnd_unpack_level_segmented(CrunchContext, CompressedPixelData, Slice, (void**)&OutUncompressedData, DataSize, UncompressedDataPitch, 0);
+	return bResult;
 }
 
 void CrunchCompression::DestroyDecoderContext(void* Context)
 {
-#if CRUNCH_SUPPORT
-	CrunckContext* context = (CrunckContext*)Context;
-	crnd::crnd_unpack_end(context->CrnContext);
-	delete context;
-#endif
+	crnd::crnd_unpack_context CrunchContext = (crnd::crnd_unpack_context)Context;
+	crnd::crnd_unpack_end(CrunchContext);
 }
 
+#endif // WITH_CRUNCH

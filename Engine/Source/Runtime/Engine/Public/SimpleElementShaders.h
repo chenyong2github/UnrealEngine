@@ -341,6 +341,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("SE_BLEND_MASKEDDISTANCEFIELD"), (uint32)ESimpleElementBlendMode::SE_BLEND_MaskedDistanceField);
 		OutEnvironment.SetDefine(TEXT("SE_BLEND_MASKEDDISTANCEFIELDSHADOWED"), (uint32)ESimpleElementBlendMode::SE_BLEND_MaskedDistanceFieldShadowed);
 		OutEnvironment.SetDefine(TEXT("SE_BLEND_ALPHACOMPOSITE"), (uint32)ESimpleElementBlendMode::SE_BLEND_AlphaComposite);
+		OutEnvironment.SetDefine(TEXT("SE_BLEND_ALPHAHOLDOUT"), (uint32)ESimpleElementBlendMode::SE_BLEND_AlphaHoldout);
 		OutEnvironment.SetDefine(TEXT("SE_BLEND_ALPHABLEND"), (uint32)ESimpleElementBlendMode::SE_BLEND_AlphaBlend);
 		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENTALPHAONLY"), (uint32)ESimpleElementBlendMode::SE_BLEND_TranslucentAlphaOnly);
 		OutEnvironment.SetDefine(TEXT("SE_BLEND_TRANSLUCENTALPHAONLYWRITEALPHA"), (uint32)ESimpleElementBlendMode::SE_BLEND_TranslucentAlphaOnlyWriteAlpha);

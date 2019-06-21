@@ -1,5 +1,5 @@
-﻿INTSourceChangelist:3782314
-Availability: Public
+﻿INTSourceChangelist:6419241
+Availability: Docs
 Title:4. 시퀀스 재생 발동 및 블렌드
 Crumbs: %ROOT%, Engine, Engine/Sequencer, Engine/Sequencer/HowTo
 Description:이번 단계에서는 시퀀스 재생을 발동시키고 블루프린트에게 슬롯 애니메이션 블렌딩을 시작하라고 합니다.
@@ -14,7 +14,7 @@ Related: Engine\Blueprints
 Related: Engine\Animation\AnimBlueprints
 tags:Sequencer
 tags:Animation
-type:how-to
+type:multi-step
 
 [VAR:Steps]
 [OBJECT:Navigation]

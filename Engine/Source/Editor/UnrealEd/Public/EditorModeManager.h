@@ -127,6 +127,7 @@ public:
 
 	FMatrix GetCustomDrawingCoordinateSystem();
 	FMatrix GetCustomInputCoordinateSystem();
+	FMatrix GetLocalCoordinateSystem();
 	
 	/** 
 	 * Returns true if the passed in editor mode is active 
@@ -210,6 +211,16 @@ public:
 
 	/** Notifies all active modes of mouse click messages. */
 	bool HandleClick(FEditorViewportClient* InViewportClient,  HHitProxy *HitProxy, const FViewportClick &Click );
+
+	/**
+	 * Allows editor modes to override the bounding box used to focus the viewport on a selection
+	 * 
+	 * @param Actor			The selected actor that is being considered for focus
+	 * @param PrimitiveComponent	The component in the actor being considered for focus
+	 * @param InOutBox		The box that should be computed for the actor and component
+	 * @return bool			true if a mode overrides the box and populated InOutBox, false if it did not populate InOutBox
+	 */
+	bool ComputeBoundingBoxForViewportFocus(AActor* Actor, UPrimitiveComponent* PrimitiveComponent, FBox& InOutBox);
 
 	/** true if the passed in brush actor should be drawn in wireframe */	
 	bool ShouldDrawBrushWireframe( AActor* InActor ) const;

@@ -65,6 +65,7 @@ struct FShaderParameterStructBindingContext
 			const bool bIsRHIResource = (
 				BaseType == UBMT_TEXTURE ||
 				BaseType == UBMT_SRV ||
+				BaseType == UBMT_UAV ||
 				BaseType == UBMT_SAMPLER);
 			const bool bIsRDGResource = IsRDGResourceReferenceShaderParameterType(BaseType) && BaseType != UBMT_RDG_BUFFER;
 			const bool bIsVariableNativeType = (
@@ -73,13 +74,35 @@ struct FShaderParameterStructBindingContext
 				BaseType == UBMT_UINT32 ||
 				BaseType == UBMT_FLOAT32);
 
-			if (BaseType == UBMT_NESTED_STRUCT || BaseType == UBMT_INCLUDED_STRUCT)
+			if (BaseType == UBMT_INCLUDED_STRUCT)
 			{
-				checkf(!bIsArray, TEXT("Array of structure bindings is not supported."));
+				checkf(!bIsArray, TEXT("Array of included structure is impossible."));
+				Bind(
+					*Member.GetStructMetadata(),
+					/* MemberPrefix = */ MemberPrefix,
+					/* GeneralByteOffset = */ ByteOffset);
+				continue;
+			}
+			else if (BaseType == UBMT_NESTED_STRUCT && bIsArray)
+			{
+				const FShaderParametersMetadata* ChildStruct = Member.GetStructMetadata();
+				uint32 StructSize = ChildStruct->GetSize();
+				for (uint32 ArrayElementId = 0; ArrayElementId < (bIsArray ? ArraySize : 1u); ArrayElementId++)
+				{
+					FString NewPrefix = FString::Printf(TEXT("%s%s_%d_"), MemberPrefix, Member.GetName(), ArrayElementId);
+					Bind(
+						*ChildStruct,
+						/* MemberPrefix = */ *NewPrefix,
+						/* GeneralByteOffset = */ ByteOffset + ArrayElementId * StructSize);
+				}
+				continue;
+			}
+			else if (BaseType == UBMT_NESTED_STRUCT && !bIsArray)
+			{
 				FString NewPrefix = FString::Printf(TEXT("%s%s_"), MemberPrefix, Member.GetName());
 				Bind(
 					*Member.GetStructMetadata(),
-					/* MemberPrefix = */ BaseType == UBMT_INCLUDED_STRUCT ? MemberPrefix : *NewPrefix,
+					/* MemberPrefix = */ *NewPrefix,
 					/* GeneralByteOffset = */ ByteOffset);
 				continue;
 			}
@@ -178,6 +201,8 @@ struct FShaderParameterStructBindingContext
 						Bindings->Textures.Add(Parameter);
 					else if (BaseType == UBMT_SRV)
 						Bindings->SRVs.Add(Parameter);
+					else if (BaseType == UBMT_UAV)
+						Bindings->UAVs.Add(Parameter);
 					else if (BaseType == UBMT_SAMPLER)
 						Bindings->Samplers.Add(Parameter);
 					else if (BaseType == UBMT_RDG_TEXTURE)
@@ -200,6 +225,20 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 {
 	checkf(StructMetaData.GetSize() < (1 << (sizeof(uint16) * 8)), TEXT("Shader parameter structure can only have a size < 65536 bytes."));
 	check(this == &Shader->Bindings);
+	
+	switch (Shader->GetType()->GetFrequency())
+	{
+	case SF_Vertex:
+	case SF_Hull:
+	case SF_Domain:
+	case SF_Pixel:
+	case SF_Geometry:
+	case SF_Compute:
+		break;
+	default:
+		checkf(0, TEXT("Invalid shader frequency for this shader binding technique."));
+		break;
+	}
 
 	FShaderParameterStructBindingContext BindingContext;
 	BindingContext.Shader = Shader;
@@ -217,20 +256,18 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	ParametersMap.GetAllParameterNames(AllParameterNames);
 	if (bShouldBindEverything && BindingContext.ShaderGlobalScopeBindings.Num() != AllParameterNames.Num())
 	{
-		UE_LOG(LogShaders, Error, TEXT("%i shader parameters have not been bound for %s:"),
-			AllParameterNames.Num() - BindingContext.ShaderGlobalScopeBindings.Num(),
-			Shader->GetType()->GetName());
+		FString ErrorString = FString::Printf(
+			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Shader->GetType()->GetName());
 
 		for (const FString& GlobalParameterName : AllParameterNames)
 		{
 			if (!BindingContext.ShaderGlobalScopeBindings.Contains(GlobalParameterName))
 			{
-				UE_LOG(LogShaders, Error, TEXT("  %s"), *GlobalParameterName);
+				ErrorString += FString::Printf(TEXT("\n  %s"), *GlobalParameterName);
 			}
 		}
 
-		UE_LOG(LogShaders, Fatal, TEXT("Unable to bind all shader parameters of %s."),
-			Shader->GetType()->GetName());
+		UE_LOG(LogShaders, Fatal, TEXT("%s"), *ErrorString);
 	}
 }
 
@@ -241,6 +278,18 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 
 	const FShaderParametersMetadata& StructMetaData = *Shader->GetType()->GetRootParametersMetadata();
 	checkf(StructMetaData.GetSize() < (1 << (sizeof(uint16) * 8)), TEXT("Shader parameter structure can only have a size < 65536 bytes."));
+
+	switch (Shader->GetType()->GetFrequency())
+	{
+	case SF_RayGen:
+	case SF_RayMiss:
+	case SF_RayHitGroup:
+	case SF_RayCallable:
+		break;
+	default:
+		checkf(0, TEXT("Invalid shader frequency for this shader binding technic."));
+		break;
+	}
 
 	FShaderParameterStructBindingContext BindingContext;
 	BindingContext.Shader = Shader;
@@ -271,21 +320,77 @@ void FShaderParameterBindings::BindForRootShaderParameters(const FShader* Shader
 	ParametersMap.GetAllParameterNames(AllParameterNames);
 	if (BindingContext.ShaderGlobalScopeBindings.Num() != AllParameterNames.Num())
 	{
-		UE_LOG(LogShaders, Error, TEXT("%i shader parameters have not been bound for %s:"),
-			AllParameterNames.Num() - BindingContext.ShaderGlobalScopeBindings.Num(),
-			Shader->GetType()->GetName());
+		FString ErrorString = FString::Printf(
+			TEXT("Shader %s has unbound parameters not represented in the parameter struct:"), Shader->GetType()->GetName());
 
 		for (const FString& GlobalParameterName : AllParameterNames)
 		{
 			if (!BindingContext.ShaderGlobalScopeBindings.Contains(GlobalParameterName))
 			{
-				UE_LOG(LogShaders, Error, TEXT("  %s"), *GlobalParameterName);
+				ErrorString += FString::Printf(TEXT("\n  %s"), *GlobalParameterName);
 			}
 		}
 
-		UE_LOG(LogShaders, Fatal, TEXT("Unable to bind all shader parameters of %s."),
-			Shader->GetType()->GetName());
+		UE_LOG(LogShaders, Fatal, TEXT("%s"), *ErrorString);
 	}
+}
+
+bool FRenderTargetBinding::Validate() const
+{
+	if (Texture)
+	{
+		checkf(StoreAction != ERenderTargetStoreAction::ENoAction,
+			TEXT("You must specify a store action for non-null render target %s."),
+			Texture->Name);
+	}
+	else
+	{
+		checkf(LoadAction == ERenderTargetLoadAction::ENoAction && StoreAction == ERenderTargetStoreAction::ENoAction,
+			TEXT("Can't have a load or store action when no texture is bound."));
+	}
+	
+	return true;
+}
+
+bool FDepthStencilBinding::Validate() const
+{
+	if (Texture)
+	{
+		EPixelFormat PixelFormat = Texture->Desc.Format;
+		const TCHAR* FormatString = GetPixelFormatString(PixelFormat);
+
+		bool bIsDepthFormat = PixelFormat == PF_DepthStencil || PixelFormat == PF_ShadowDepth || PixelFormat == PF_D24;
+		checkf(bIsDepthFormat,
+			TEXT("Can't bind texture %s as a depth stencil because its pixel format is %s."),
+			Texture->Name, FormatString);
+		
+		checkf(DepthStencilAccess != FExclusiveDepthStencil::DepthNop_StencilNop,
+			TEXT("Why binding texture %s if there is no access?"),
+			Texture->Name);
+
+		bool bHasStencil = PixelFormat == PF_DepthStencil;
+		if (!bHasStencil)
+		{
+			checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
+				TEXT("Unable to load stencil of texture %s that have a pixel format %s that does not support stencil."),
+				Texture->Name, FormatString);
+		
+			checkf(!DepthStencilAccess.IsUsingStencil(),
+				TEXT("Unable to have stencil access on texture %s that have a pixel format %s that does not support stencil."),
+				Texture->Name, FormatString);
+		}
+	}
+	else
+	{
+		checkf(DepthLoadAction == ERenderTargetLoadAction::ENoAction && DepthStoreAction == ERenderTargetStoreAction::ENoAction,
+			TEXT("Can't have a depth load or store action when no texture are bound."));
+		checkf(StencilLoadAction == ERenderTargetLoadAction::ENoAction && StencilStoreAction == ERenderTargetStoreAction::ENoAction,
+			TEXT("Can't have a stencil load or store action when no texture are bound."));
+		checkf(DepthStencilAccess == FExclusiveDepthStencil::DepthNop_StencilNop,
+			TEXT("Can't have a depth stencil access when no texture are bound."));
+	}
+
+	return true;
 }
 
 void EmitNullShaderParameterFatalError(const FShader* Shader, const FShaderParametersMetadata* ParametersMetadata, uint16 MemberOffset)
@@ -321,7 +426,7 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 	// Textures
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.Textures)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FTextureRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHITexture* ShaderParameterRef = *(FRHITexture**)(Base + ParameterBinding.ByteOffset);
 		if (!ShaderParameterRef)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);
@@ -331,7 +436,7 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 	// SRVs
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.SRVs)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FShaderResourceViewRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHIShaderResourceView* ShaderParameterRef = *(FRHIShaderResourceView**)(Base + ParameterBinding.ByteOffset);
 		if (!ShaderParameterRef)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);
@@ -341,7 +446,7 @@ void ValidateShaderParameters(const FShader* Shader, const FShaderParametersMeta
 	// Samplers
 	for (const FShaderParameterBindings::FResourceParameter& ParameterBinding : Bindings.Samplers)
 	{
-		auto ShaderParameterRef = *reinterpret_cast<const FSamplerStateRHIParamRef*>(Base + ParameterBinding.ByteOffset);
+		FRHISamplerState* ShaderParameterRef = *(FRHISamplerState**)(Base + ParameterBinding.ByteOffset);
 		if (!ShaderParameterRef)
 		{
 			EmitNullShaderParameterFatalError(Shader, ParametersMetadata, ParameterBinding.ByteOffset);

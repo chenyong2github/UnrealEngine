@@ -167,7 +167,7 @@ void FNiagaraEmitterInstance::Init(int32 InEmitterIdx, FName InSystemInstanceNam
 	int32 DetailLevel = ParentSystemInstance->GetDetailLevel();
 	if (!EmitterHandle.GetIsEnabled()
 		|| !CachedEmitter->IsAllowedByDetailLevel(DetailLevel)
-		|| (GMaxRHIFeatureLevel != ERHIFeatureLevel::SM5 && GMaxRHIFeatureLevel != ERHIFeatureLevel::ES3_1 && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
+		|| (!FNiagaraUtilities::SupportsGPUParticles(GMaxRHIFeatureLevel) && CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)  // skip if GPU sim and <SM5. TODO: fall back to CPU sim instead once we have scalability functionality to do so
 		)
 	{
 		ExecutionState = ENiagaraExecutionState::Disabled;
@@ -387,7 +387,7 @@ void FNiagaraEmitterInstance::ResetSimulation(bool bKillExisting)
 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim && GPUExecContext != nullptr)
 		{
-			GPUExecContext->Reset();
+			GPUExecContext->Reset(Batcher);
 		}
 	}
 }
@@ -428,7 +428,7 @@ void FNiagaraEmitterInstance::CheckForErrors()
 		return;
 	}
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim || CachedEmitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::CPUSim)
 	{
 		bool bFailed = false;
 		if (!CachedEmitter->SpawnScriptProps.Script->DidScriptCompilationSucceed(false))
@@ -462,7 +462,7 @@ void FNiagaraEmitterInstance::CheckForErrors()
 		}
 	}
 
-	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim || CachedEmitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (CachedEmitter->GetGPUComputeScript()->IsScriptCompilationPending(true))
 		{
@@ -678,7 +678,7 @@ FBox FNiagaraEmitterInstance::CalculateDynamicBounds(const bool bReadGPUSimulati
 		if (!bReadGPUSimulation || (GPUExecContext == nullptr))
 			return FBox(ForceInit);
 
-		ScopedGPUReadback.ReadbackData(GPUExecContext->MainDataSet);
+		ScopedGPUReadback.ReadbackData(Batcher, GPUExecContext->MainDataSet);
 		NumInstances = ScopedGPUReadback.GetNumInstances();
 	}
 	else
@@ -1017,15 +1017,6 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	{
 		check(GPUExecContext->GPUScript_RT == CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript());
 		GPUExecContext->GPUScript_RT = CachedEmitter->GetGPUComputeScript()->GetRenderThreadScript();
-
-		if (CachedEmitter->GetRenderers().Num() > 0 && CachedEmitter->GetRenderers()[0] != nullptr)
-		{
-			GPUExecContext->NumIndicesPerInstance = CachedEmitter->GetRenderers()[0]->GetNumIndicesPerInstance();
-		}
-		else
-		{
-			GPUExecContext->NumIndicesPerInstance = 0;
-		}
 
 		GPUExecContext->EventSpawnTotal_GT = EventSpawnTotal;
 		GPUExecContext->SpawnRateInstances_GT = SpawnTotal;

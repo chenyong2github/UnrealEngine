@@ -27,7 +27,7 @@ public:
 	 * @param Folder	The folder to use
 	 * @return The target folder's name
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static FName GetFolderName(UMovieSceneFolder* Folder);
 
 	/**
@@ -37,7 +37,7 @@ public:
 	 * @param InFolderName	The new name for the folder
 	 * @return True if the setting of the folder name succeeds
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool SetFolderName(UMovieSceneFolder* Folder, FName InFolderName);
 
 	/**
@@ -46,7 +46,7 @@ public:
 	 * @param Folder	The folder to get the display color of
 	 * @return The display color of the given folder
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Editor Scripting|Sequencer Tools|Folders", meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Editor Scripting | Sequencer Tools | Folders", meta = (ScriptMethod))
 	static FColor GetFolderColor(UMovieSceneFolder* Folder);
 
 	/**
@@ -56,7 +56,7 @@ public:
 	 * @param InFolderColor		The new display color for the folder
 	 * @return True if the folder's display color is set successfully
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool SetFolderColor(UMovieSceneFolder* Folder, FColor InFolderColor);
 
 	/**
@@ -65,7 +65,7 @@ public:
 	 * @param Folder	The folder to get the child folders of
 	 * @return The child folders associated with the given folder
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static TArray<UMovieSceneFolder*> GetChildFolders(UMovieSceneFolder* Folder);
 
 	/**
@@ -75,7 +75,7 @@ public:
 	 * @param FolderToAdd	The child folder to be added
 	 * @return True if the addition is successful
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool AddChildFolder(UMovieSceneFolder* TargetFolder, UMovieSceneFolder* FolderToAdd);
 
 	/**
@@ -85,7 +85,7 @@ public:
 	 * @param FolderToRemove	The child folder to be removed
 	 * @return True if the removal succeeds
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool RemoveChildFolder(UMovieSceneFolder* TargetFolder, UMovieSceneFolder* FolderToRemove);
 
 	/**
@@ -94,7 +94,7 @@ public:
 	 * @param Folder	The folder to get the master tracks of
 	 * @return The master tracks under the given folder
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static TArray<UMovieSceneTrack*> GetChildMasterTracks(UMovieSceneFolder* Folder);
 
 	/**
@@ -104,7 +104,7 @@ public:
 	 * @param InMasterTrack		The master track to add to the folder
 	 * @return True if the addition is successful
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool AddChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InMasterTrack);
 
 	/**
@@ -114,7 +114,7 @@ public:
 	 * @param InMasterTrack		The track to remove
 	 * @return True if the removal succeeds
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool RemoveChildMasterTrack(UMovieSceneFolder* Folder, UMovieSceneTrack* InMasterTrack);
 
 	/**
@@ -123,7 +123,7 @@ public:
 	 * @param Folder	The folder to get the bindings of
 	 * @return The object bindings under the given folder
 	 */
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static TArray<FSequencerBindingProxy> GetChildObjectBindings(UMovieSceneFolder* Folder);
 
 	/** 
@@ -133,7 +133,7 @@ public:
 	 * @param InObjectBinding	The binding to add to the folder
 	 * @return True if the addition is successful
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool AddChildObjectBinding(UMovieSceneFolder* Folder, FSequencerBindingProxy InObjectBinding);
 
 	/** 
@@ -143,6 +143,6 @@ public:
 	 * @param InObjectBinding	The object binding to remove
 	 * @return True if the operation succeeds
 	 */
-	UFUNCTION(BlueprintCallable, Category="Editor Scripting|Sequencer Tools|Folders", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Editor Scripting | Sequencer Tools | Folders", meta=(ScriptMethod))
 	static bool RemoveChildObjectBinding(UMovieSceneFolder* Folder, const FSequencerBindingProxy InObjectBinding);
 };

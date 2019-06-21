@@ -6,8 +6,14 @@
 #include "GeometryCollection/ManagedArrayTypes.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-#include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/GeometryCollectionSection.h"
+
+class FSimulationProperties;
+
+namespace Chaos
+{
+	class FChaosArchive;
+}
 
 /**
 * ManagedArrayCollection
@@ -22,8 +28,7 @@
 	FManagedArrayCollection* Collection(NewObject<FManagedArrayCollection>());
 	Collection->AddElements(10, "GroupBar"); // Create a group GroupBar and add 10 elements.
 	Collection->AddAttribute<FVector>("AttributeFoo", "GroupBar"); // Add a FVector array named AttributeFoo to GroupBar.
-	TSharedPtr< TManagedArray<FVector> >  FooArray = Collection->GetAttribute<FVector>("AttributeFoo", "GroupBar"); // Get AttributeFoo
-	TManagedArray<FVector>& Foo = *FooArray; // for optimal usage, de-reference the shared pointer before iterative access.
+	TManagedArray<FVector>&  Foo = Collection->GetAttribute<FVector>("AttributeFoo", "GroupBar"); // Get AttributeFoo
 	for (int32 i = 0; i < Foo.Num(); i++)
 	{
 		Foo[i] = FVector(i, i, i); // Update AttribureFoo's elements
@@ -34,25 +39,19 @@
 */
 class GEOMETRYCOLLECTIONCORE_API FManagedArrayCollection
 {
+	friend FSimulationProperties;
+
 public:
 
 	FManagedArrayCollection();
+	FManagedArrayCollection(const FManagedArrayCollection&) = delete;
 	virtual ~FManagedArrayCollection() {}
+	FManagedArrayCollection& operator=(const FManagedArrayCollection&) = delete;
+	FManagedArrayCollection(FManagedArrayCollection&&) = default;
+	FManagedArrayCollection& operator=(FManagedArrayCollection&&) = default;
 
 	static int8 Invalid;
 	typedef EManagedArrayType EArrayType;
-
-	/**
-	* EArrayScope will indicate if the array is locally owned or
-	* shared across multiple collections. Be careful with the
-	* FScopeShared types, modifying these will modify all
-	* connected collections. 
-	*/
-	enum class EArrayScope : uint8
-	{
-		FScopeShared,
-		FScopeLocal
-	};
 
 	/**
 	*
@@ -60,128 +59,21 @@ public:
 	struct FConstructionParameters {
 
 		FConstructionParameters(FName GroupIndexDependencyIn = ""
-			, EArrayScope ArrayScopeIn = EArrayScope::FScopeLocal
 			, bool SavedIn = true)
 			: GroupIndexDependency(GroupIndexDependencyIn)
-			, ArrayScope(ArrayScopeIn)
 			, Saved(SavedIn)
 		{}
 
 		FName GroupIndexDependency;
-		EArrayScope ArrayScope;
 		bool Saved;
 	};
 
-private:
-
-	/****
-	*  Mapping Key/Value
-	*
-	*    The Key and Value pairs for the attribute arrays allow for grouping
-	*    of array attributes based on the Name,Group pairs. Array attributes
-	*    that share Group names will have the same lengths.
-	*
-	*    The FKeyType is a tuple of <FName,FName> where the Get<0>() parameter
-	*    is the AttributeName, and the Get<1>() parameter is the GroupName.
-	*    Construction of the FKeyType will follow the following pattern:
-	*    FKeyType("AttributeName","GroupName");
-	*
-	*/
-	typedef TTuple<FName, FName> FKeyType;
-	struct FGroupInfo
+	struct FProcessingParameters
 	{
-		int32 Size;
-	}; 
+		FProcessingParameters() : bDoValidation(true), bReindexDependentAttibutes(true) {}
 
-	static FKeyType MakeMapKey(FName Name, FName Group)
-	{
-		return FKeyType(Name, Group);
-	};
-
-
-
-	struct FValueType
-	{
-		EArrayType ArrayType;
-		EArrayScope ArrayScope;
-		FName GroupIndexDependency;
-		bool Saved;
-
-		TSharedPtr<FManagedArrayBase> Value;
-
-		FValueType()
-			: ArrayType(EArrayType::FNoneType)
-			, ArrayScope(EArrayScope::FScopeShared)
-			, GroupIndexDependency("")
-			, Saved(true)
-			, Value() {};
-
-		FValueType(EArrayType ArrayTypeIn, TSharedPtr <FManagedArrayBase> In)
-			: ArrayType(ArrayTypeIn)
-			, ArrayScope(EArrayScope::FScopeLocal)
-			, GroupIndexDependency("")
-			, Saved(true)
-			, Value(In) {};
-	};
-
-	template<class T>
-	static FValueType MakeMapValue()
-	{
-		return FValueType( ManagedArrayType<T>(), TSharedPtr< TManagedArray<T> >(new TManagedArray<T>()) );
-	};
-
-	TMap< FKeyType, FValueType> Map;
-	TMap< FName, FGroupInfo> GroupInfo;
-	bool bDirty;
-
-protected:
-
-	/***/
-	virtual void BindSharedArrays() {}
-
-	/**
-	* Returns attribute access of Type(T) from the group
-	* @param Name - The name of the attribute
-	* @param Group - The group that manages the attribute
-	* @return const ManagedArray<T> &
-	*/
-	template<class T>
-	TSharedRef< TManagedArray<T> > ShareAttribute(FName Name, FName Group)
-	{
-		if (! HasAttribute(Name, Group) )
-		{
-			AddAttribute<T>(Name, Group);
-		}
-		FKeyType key = FManagedArrayCollection::MakeMapKey(Name, Group);
-		return StaticCastSharedPtr< TManagedArray<T> >(Map[key].Value).ToSharedRef();
-	};
-
-public:
-
-	/**
-	* Add an attribute of Type(T) to the group, from an existing ManagedAttribute
-	* @param Name - The name of the attribute
-	* @param Group - The group that manages the attribute
-	* @param ValueIn - The group that manages the attribute
-	* @return reference to the stored ManagedArray<T>
-	*/
-	template<class T>
-	TSharedRef< TManagedArray<T> > AddAttribute(FName Name, FName Group, TSharedPtr<FManagedArrayBase> ValueIn, FConstructionParameters Parameters = FConstructionParameters())
-	{
-		check(ValueIn.IsValid());
-		check(!HasAttribute(Name, Group));
-
-		if (!HasGroup(Group))
-			AddGroup(Group);
-
-		FValueType Value = FValueType(ManagedArrayType<T>(), ValueIn);
-		Value.Value->Resize(NumElements(Group));
-		Value.Saved = Parameters.Saved;
-		Value.ArrayScope = Parameters.ArrayScope;
-		Value.GroupIndexDependency = Parameters.GroupIndexDependency;
-		Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), Value);
-
-		return StaticCastSharedPtr< TManagedArray<T> >(Value.Value).ToSharedRef();
+		bool bDoValidation ;
+		bool bReindexDependentAttibutes;
 	};
 
 	/**
@@ -190,22 +82,61 @@ public:
 	* @param Group - The group that manages the attribute
 	* @return reference to the created ManagedArray<T>
 	*/
-	template<class T>
-	TSharedRef< TManagedArray<T> > AddAttribute(FName Name, FName Group, FConstructionParameters Parameters = FConstructionParameters())
+	template<typename T>
+	TManagedArray<T>& AddAttribute(FName Name, FName Group, FConstructionParameters Parameters = FConstructionParameters())
 	{
 		if (!HasAttribute(Name, Group))
 		{
 			if (!HasGroup(Group))
+			{
 				AddGroup(Group);
+			}
 
-			FValueType Value = FManagedArrayCollection::MakeMapValue<T>();
+			FValueType Value(ManagedArrayType<T>(), *(new TManagedArray<T>()));
 			Value.Value->Resize(NumElements(Group));
 			Value.Saved = Parameters.Saved;
-			Value.ArrayScope = Parameters.ArrayScope;
-			Value.GroupIndexDependency = Parameters.GroupIndexDependency;
-			Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), Value);
+			if (ensure(!HasCycle(Group, Parameters.GroupIndexDependency)))
+			{
+				Value.GroupIndexDependency = Parameters.GroupIndexDependency;
+			}
+			else
+			{
+				Value.GroupIndexDependency = "";
+			}
+			Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), MoveTemp(Value));
 		}
 		return GetAttribute<T>(Name, Group);
+	};
+
+	/**
+	* Add an external attribute of Type(T) to the group for size management. Lifetime is managed by the caller, must make sure the array is alive when collection is
+	* @param Name - The name of the attribute
+	* @param Group - The group that manages the attribute
+	* @param ValueIn - The array to be managed
+	*/
+	template<typename T>
+	void AddExternalAttribute(FName Name, FName Group, TManagedArray<T>& ValueIn, FConstructionParameters Parameters = FConstructionParameters())
+	{
+		check(!HasAttribute(Name, Group));
+
+		if (!HasGroup(Group))
+		{
+			AddGroup(Group);
+		}
+
+		FValueType Value(ManagedArrayType<T>(), ValueIn);
+		Value.Value->Resize(NumElements(Group));
+		Value.Saved = Parameters.Saved;
+		if (ensure(!HasCycle(Group, Parameters.GroupIndexDependency)))
+		{
+			Value.GroupIndexDependency = Parameters.GroupIndexDependency;
+		}
+		else
+		{
+			Value.GroupIndexDependency = "";
+		}
+		Value.bExternalValue = true;
+		Map.Add(FManagedArrayCollection::MakeMapKey(Name, Group), MoveTemp(Value));
 	};
 
 	/**
@@ -235,43 +166,43 @@ public:
 	* @param Group - The group that manages the attribute
 	* @return ManagedArray<T> &
 	*/
-	template<class T>
-	TSharedPtr<TManagedArray<T> > FindAttribute(FName Name, FName Group)
+	template<typename T>
+	TManagedArray<T>* FindAttribute(FName Name, FName Group)
 	{
 		if (HasAttribute(Name, Group))
 		{
-			FKeyType key = FManagedArrayCollection::MakeMapKey(Name, Group);
-			return StaticCastSharedPtr< TManagedArray<T> >(Map[key].Value);
+			FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+			return static_cast<TManagedArray<T>*>(Map[Key].Value);
 		}
-		return TSharedPtr<TManagedArray<T> >(0);
+		return nullptr;
 	};
 
 	/**
-	* Returns const attribute access of Type(T) from the group
+	* Returns attribute access of Type(T) from the group
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
-	* @return const ManagedArray<T> &
+	* @return ManagedArray<T> &
 	*/
-	template<class T>
-	TSharedRef< TManagedArray<T> > GetAttribute(FName Name, FName Group)
+	template<typename T>
+	TManagedArray<T>& GetAttribute(FName Name, FName Group)
 	{
 		check(HasAttribute(Name, Group))
-		FKeyType key = FManagedArrayCollection::MakeMapKey(Name, Group);
-		return StaticCastSharedPtr< TManagedArray<T> >(Map[key].Value).ToSharedRef();
+		FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+		return *(static_cast<TManagedArray<T>*>(Map[Key].Value));
 	};
 
-	template<class T>
-	const TSharedRef< TManagedArray<T> > GetAttribute(FName Name, FName Group) const
+	template<typename T>
+	const TManagedArray<T>& GetAttribute(FName Name, FName Group) const
 	{
 		check(HasAttribute(Name, Group))
-			FKeyType key = FManagedArrayCollection::MakeMapKey(Name, Group);
-		return StaticCastSharedPtr< TManagedArray<T> >(Map[key].Value).ToSharedRef();
+		FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+		return *(static_cast<TManagedArray<T>*>(Map[Key].Value));
 	};
 
 	/**
 	* Remove the element at index and reindex the dependent arrays 
 	*/
-	virtual void RemoveElements(const FName & Group, const TArray<int32> & SortedDeletionList);
+	virtual void RemoveElements(const FName & Group, const TArray<int32> & SortedDeletionList, FProcessingParameters Params = FProcessingParameters());
 
 
 	/**
@@ -280,6 +211,14 @@ public:
 	* @param Group - The group that manages the attribute
 	*/
 	void RemoveAttribute(FName Name, FName Group);
+
+
+	/**
+	* Remove the group from the collection.
+	* @param Group - The group that manages the attribute
+	*/
+	void RemoveGroup(FName Group);
+
 
 	/**
 	* List all the group names.
@@ -309,19 +248,25 @@ public:
 	*/
 	void RemoveDependencyFor(FName Group);
 
-
-	/** 
-	* Setup collection based on input collection, resulting arrays are shared.
-	* @param CollectionIn : Input collection to share
-	*/
-	virtual void Initialize(FManagedArrayCollection & CollectionIn);
-
 	/**
-	* Copy the shared reference, removing the connection to any shared attributes.
+	* Copy an attribute. Will perform an implicit group sync. Attribute must exist in both MasterCollection and this collection
 	* @param Name - The name of the attribute
 	* @param Group - The group that manages the attribute
 	*/
-	void LocalizeAttribute(FName Name, FName Group);
+	void CopyAttribute(const FManagedArrayCollection& MasterCollection, FName Name, FName Group);
+
+	/**
+	* Size and order a group so that it matches the group found in the master collection.
+	* @param MasterCollection - The collection we are ordering our group against. The GUID attribute allows us to keep data that has been previously synced. Otherwise data is lost
+	* @param Group - The group that manages the attribute
+	*/
+	void SyncGroupSizeAndOrder(const FManagedArrayCollection& MasterCollection, FName Group);
+
+	/**
+	* Sync all master groups with this collection. This is a utility to easily sync rest and dynamic collections
+	* @param MasterCollection - All groups from this collection found in the master will be sized and ordered accordingly
+	*/
+	void SyncAllGroups(const FManagedArrayCollection& MasterCollection);
 
 	/**
 	* Number of elements in a group
@@ -337,7 +282,28 @@ public:
 	void Resize(int32 Size, FName Group);
 
 	/**
-	* Updated for Render ( Mark it dirty )
+	* Reserve a group
+	* @param Size - The size of the group
+	* @param Group - The group to reserve
+	*/
+	void Reserve(int32 Size, FName Group);
+
+	/**
+	* Reorders elements in a group. NewOrder must be the same length as the group.
+	*/
+	virtual void ReorderElements(FName Group, const TArray<int32>& NewOrder);
+#if 0	//not needed until we support per instance serialization
+	/**
+	* Swap elements within a group
+	* @param Index1 - The first location to be swapped
+	* @param Index2 - The second location to be swapped
+	* @param Group - The group to resize
+	*/
+	void SwapElements(int32 Index1, int32 Index2, FName Group);
+#endif
+
+	/**
+	* Updated for Render ( Mark it dirty ) question: is this the right place for this?
 	*/
 	void MakeDirty() { bDirty = true; }
 	void MakeClean() { bDirty = false; }
@@ -346,21 +312,100 @@ public:
 	/**
 	* Serialize
 	*/
-	virtual void Serialize(FArchive& Ar);
-
-	/**
-	* Set the managed arrays scope. Assets that share their state with others 
-	* should be marked as FAssetScope. When an attributed is localized this 
-	* will change the scope to FScopeLocal. This is a record keeping tool to 
-	* validate how the attributes are exposed through the application.
-	* @param Scope : FAssetScope for shared, FLocalScope for not shared
-	*/
-	void SetArrayScopes(EArrayScope Scope);
+	virtual void Serialize(Chaos::FChaosArchive& Ar);
 
 	/**
 	* Dump the contents to a FString
 	*/
 	FString ToString() const;
+
+private:
+
+	/****
+	*  Mapping Key/Value
+	*
+	*    The Key and Value pairs for the attribute arrays allow for grouping
+	*    of array attributes based on the Name,Group pairs. Array attributes
+	*    that share Group names will have the same lengths.
+	*
+	*    The FKeyType is a tuple of <FName,FName> where the Get<0>() parameter
+	*    is the AttributeName, and the Get<1>() parameter is the GroupName.
+	*    Construction of the FKeyType will follow the following pattern:
+	*    FKeyType("AttributeName","GroupName");
+	*
+	*/
+	typedef TTuple<FName, FName> FKeyType;
+	struct FGroupInfo
+	{
+		int32 Size;
+	};
+
+	static FKeyType MakeMapKey(FName Name, FName Group)
+	{
+		return FKeyType(Name, Group);
+	};
+
+	struct FValueType
+	{
+		EArrayType ArrayType;
+		FName GroupIndexDependency;
+		bool Saved;
+		bool bExternalValue;	//External arrays have external memory management.
+
+		FManagedArrayBase* Value;
+
+		FValueType()
+			: ArrayType(EArrayType::FNoneType)
+			, GroupIndexDependency("")
+			, Saved(true)
+			, bExternalValue(false)
+			, Value(nullptr) {};
+
+		FValueType(EArrayType ArrayTypeIn, FManagedArrayBase& In)
+			: ArrayType(ArrayTypeIn)
+			, GroupIndexDependency("")
+			, Saved(false)
+			, bExternalValue(false)
+			, Value(&In) {};
+
+		
+		FValueType(FValueType&& Other)
+			: ArrayType(Other.ArrayType)
+			, GroupIndexDependency(Other.GroupIndexDependency)
+			, Saved(Other.Saved)
+			, bExternalValue(Other.bExternalValue)
+			, Value(Other.Value)
+		{
+			if (&Other != this)
+			{
+				Other.Value = nullptr;
+			}
+		}
+
+		~FValueType()
+		{
+			if (Value && !bExternalValue)
+			{
+				delete Value;
+			}
+		}
+
+		FValueType(const FValueType&) = delete;	//no copies because we are treating this as a simple unique ptr (not using TUniquePtr because it's only true when bExternalValue is false)
+		FValueType& operator=(const FValueType& Other) = delete;
+	};
+
+	virtual void SetDefaults(FName Group, uint32 StartSize, uint32 NumElements) {};
+
+	void GenerateGuids(FName Group, int32 StartIdx);
+
+	TMap< FKeyType, FValueType> Map;	//data is owned by the map explicitly
+	TMap< FName, FGroupInfo> GroupInfo;
+	bool bDirty;
+
+	FName GetDependency(FName SearchGroup);
+	bool HasCycle(FName Group, FName DependencyGroup);
+
+protected:
 
 	/**
 	*   operator<<(FGroupInfo)

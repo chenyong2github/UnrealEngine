@@ -1,5 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-// .
+// ..
 
 #include "VulkanShaderFormat.h"
 #include "VulkanCommon.h"
@@ -1864,6 +1864,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	const bool bHasRealUBs = HasRealUBs(Version);
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5 || Version == EVulkanShaderVersion::SM5_NOUB);
 	const bool bIsSM4 = (Version == EVulkanShaderVersion::SM4 || Version == EVulkanShaderVersion::SM4_NOUB);
+	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID || Version == EVulkanShaderVersion::ES3_1_NOUB || Version == EVulkanShaderVersion::ES3_1_ANDROID_NOUB);
 
 	const EHlslShaderFrequency FrequencyTable[] =
 	{
@@ -1892,7 +1893,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	EHlslCompileTarget HlslCompilerTargetES = HCT_FeatureLevelES3_1Ext;
 	AdditionalDefines.SetDefine(TEXT("COMPILER_HLSLCC"), 1);
 	AdditionalDefines.SetDefine(TEXT("COMPILER_VULKAN"), 1);
-	if (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID || Version == EVulkanShaderVersion::ES3_1_NOUB || Version == EVulkanShaderVersion::ES3_1_ANDROID_NOUB)
+	if(bIsMobile)
 	{
 		HlslCompilerTarget = HCT_FeatureLevelES3_1Ext;
 		HlslCompilerTargetES = HCT_FeatureLevelES3_1Ext;
@@ -1944,8 +1945,11 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 			// The preprocessing stage will add any relevant errors.
 			return;
 		}
+	}
 
-		// Disable instanced stereo until supported for Vulkan
+	if (!PreprocessedShaderSource.Contains(TEXT("SV_ViewID")))
+	{
+		// Disable instanced stereo if not requested by the shader
 		StripInstancedStereo(PreprocessedShaderSource);
 	}
 

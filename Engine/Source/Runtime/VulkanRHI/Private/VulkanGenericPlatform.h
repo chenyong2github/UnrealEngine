@@ -99,9 +99,9 @@ public:
 	// Ensure the last frame completed on the GPU
 	static bool RequiresWaitingForFrameCompletionEvent() { return true; }
 
-	// Blocks until hardware window is available
-	static void BlockUntilWindowIsAvailable() {}
-
 	// Does the platform allow a nullptr Pixelshader on the pipeline
 	static bool SupportsNullPixelShader() { return true; }
+
+	// Does the platform require resolve attachments in its MSAA renderpasses
+	static bool RequiresRenderPassResolveAttachments() { return false; }
 };

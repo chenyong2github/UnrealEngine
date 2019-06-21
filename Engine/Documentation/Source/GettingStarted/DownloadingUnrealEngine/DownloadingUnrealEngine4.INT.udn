@@ -1,16 +1,38 @@
-﻿Availability:Public
+Availability:Public
 Title:Downloading Unreal Engine Source Code
 Crumbs: %ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine
 Description:Steps for connecting to the source code repository and downloading the latest build of Unreal Engine.
 Prereq: GettingStarted/RecommendedSpecifications
 Version: 4.16
 Parent:GettingStarted
-Order:
-Type:Landing
+Order: 2
+Type:how-to
 SkillLevel: Advanced
 Related:Programming/Development/BuildingUnrealEngine
 
 [TOC (start:2 end:3)]
+
+This page provides detailed instructions for subscribers to download the source code for Unreal Engine 4 (UE4) from the Unreal Engine GitHub repository, and to get started working with the code.
+
+Before you can access the repository at [https://github.com/EpicGames/UnrealEngine](https://github.com/EpicGames/UnrealEngine), you must:
+
+*   be an Unreal Engine subscriber.
+
+*   have a GitHub account.
+
+*   have associated your GitHub account with your Unreal Engine account as described on the [UE4 on GitHub](https://www.unrealengine.com/ue4-on-github) page.
+
+You don't *have* to download the source code to work with Unreal Engine 4. If you'd rather simply download and install the binary version of Unreal Engine, read our [Installing Unreal Engine](GettingStarted/Installation) documentation to learn how to [Get Unreal](https://www.unrealengine.com/). However, you may find that having access to the source code can be extremely valuable for you and your project. For example:
+
+*   You'll get access to all the latest features and bug fixes that Epic engineers make every day, practically up to the minute.
+
+*   If you find a bug that we haven't fixed yet, but that is crucial to your project, you can unblock your project by making the fix in your own version of the source code and rebuilding your own binaries.
+
+*   You can improve the engine and help the whole Unreal community by submitting your fixes and features back to Epic.
+
+[REGION:note]
+If you're an Unreal Engine licensee, you can access the source code through our Perforce server instead of the public GitHub repository. If you don't see any sub-topics about using Perforce, first sign in to this site using your Epic Games account, then come back here.
+[/REGION]
 
 [EXCERPT:Main]
 [PUBLISH:Licensee]
@@ -18,7 +40,6 @@ Unreal Engine 4 is available to be downloaded by licensees from Epic's Perforce 
 [/PUBLISH:Licensee]
 [PUBLISH:Rocket]
 
-Source code for Unreal Engine 4 (UE4) can be downloaded by our subscribers from the Unreal Engine GitHub repository. Before you can access the [repository](https://github.com/EpicGames/UnrealEngine), you must be an Unreal Engine subscriber with a GitHub account. For instructions on associating your GitHub account with your Unreal Engine account, visit the [UE4 on GitHub](https://www.unrealengine.com/ue4-on-github) page.
 
 [INCLUDE:GettingStarted/DownloadingUnrealEngine/SourceBranches]
 
@@ -33,8 +54,6 @@ Source code for Unreal Engine 4 (UE4) can be downloaded by our subscribers from 
 ## Downloading the Source Code
 
 Please follow these instructions to download the Unreal Engine source code.
-
-%Globals:osselect_linux%
 
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]

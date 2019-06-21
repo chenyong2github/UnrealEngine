@@ -748,7 +748,7 @@ void FMeshDescription::SetPolygonVertexInstance(const FPolygonID PolygonID, cons
 
 FPlane FMeshDescription::ComputePolygonPlane( const FPolygonID PolygonID ) const
 {
-	// NOTE: This polygon plane computation code is partially based on the implementation of "Newell's method" from Real-Time 
+	// NOTE: This polygon plane computation code is partially based on the implementation of "Newell's method" from Real-Time
 	//       Collision Detection by Christer Ericson, published by Morgan Kaufmann Publishers, (c) 2005 Elsevier Inc
 
 	// @todo mesheditor perf: For polygons that are just triangles, use a cross product to get the normal fast!
@@ -759,7 +759,7 @@ FPlane FMeshDescription::ComputePolygonPlane( const FPolygonID PolygonID ) const
 	FVector Centroid = FVector::ZeroVector;
 	FVector Normal = FVector::ZeroVector;
 
-	static TArray<FVertexID> PerimeterVertexIDs;
+	TArray<FVertexID> PerimeterVertexIDs;
 	GetPolygonVertices( PolygonID, /* Out */ PerimeterVertexIDs );
 
 	// @todo Maybe this shouldn't be in FMeshDescription but in a utility class, as it references a specific attribute name
@@ -1087,8 +1087,6 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID, T
 	};
 
 
-	OutTriangles.Reset();
-
 	// @todo mesheditor: Perhaps should always attempt to triangulate by splitting polygons along the shortest edge, for better determinism.
 
 	//	const FMeshPolygon& Polygon = GetPolygon( PolygonID );
@@ -1098,7 +1096,9 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID, T
 	const int32 PolygonVertexCount = PolygonVertexInstanceIDs.Num();
 	check(PolygonVertexCount >= 3);
 
-	// If perimeter has 3 vertices, just copy content of perimeter out 
+	OutTriangles.Reset(PolygonVertexCount-2);
+
+	// If perimeter has 3 vertices, just copy content of perimeter out
 	if (PolygonVertexCount == 3)
 	{
 		OutTriangles.Emplace();
@@ -1117,8 +1117,8 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID, T
 
 	// Make a simple linked list array of the previous and next vertex numbers, for each vertex number
 	// in the polygon.  This will just save us having to iterate later on.
-	static TArray<int32> PrevVertexNumbers, NextVertexNumbers;
-	static TArray<FVector> VertexPositions;
+	TArray<int32> PrevVertexNumbers, NextVertexNumbers;
+	TArray<FVector> VertexPositions;
 
 	{
 		const TVertexAttributesRef<FVector> MeshVertexPositions = VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
@@ -1144,7 +1144,7 @@ void FMeshDescription::ComputePolygonTriangulation(const FPolygonID PolygonID, T
 		bool bIsEar = true;
 
 		// If we're down to only a triangle, just treat it as an ear.  Also, if we've tried every possible candidate
-		// vertex looking for an ear, go ahead and just treat the current vertex as an ear.  This can happen when 
+		// vertex looking for an ear, go ahead and just treat the current vertex as an ear.  This can happen when
 		// vertices are colinear or other degenerate cases.
 		if (RemainingVertexCount > 3 && EarTestCount < RemainingVertexCount)
 		{
@@ -1300,7 +1300,7 @@ bool FMeshDescription::ComputePolygonTangentsAndNormals(const FPolygonID Polygon
 	PolygonTangents[PolygonID] = Tangent.GetSafeNormal();
 	PolygonBinormals[PolygonID] = Binormal.GetSafeNormal();
 	PolygonCenters[PolygonID] = Center;
-	
+
 	return bValidNTBs;
 }
 
@@ -1397,7 +1397,7 @@ void FMeshDescription::GetPolygonsInSameSoftEdgedGroupAsPolygon(const FPolygonID
 
 	// Maintain a list of polygon IDs to be examined. Adjacents are added to the list if suitable.
 	// Add the start poly here.
-	static TArray<FPolygonID> PolygonsToCheck;
+	TArray<FPolygonID> PolygonsToCheck;
 	PolygonsToCheck.Reset(CandidatePolygonIDs.Num());
 	PolygonsToCheck.Add(PolygonID);
 
@@ -1437,12 +1437,12 @@ void FMeshDescription::GetVertexConnectedPolygonsInSameSoftEdgedGroup(const FVer
 	// They should all contribute to the final vertex instance normal.
 
 	// Get all polygons connected to this vertex.
-	static TArray<FPolygonID> ConnectedPolygons;
+	TArray<FPolygonID> ConnectedPolygons;
 	GetVertexConnectedPolygons(VertexID, ConnectedPolygons);
 
 	// Cache a list of all soft edges which share this vertex.
 	// We're only interested in finding adjacent polygons which are not the other side of a hard edge.
-	static TArray<FEdgeID> ConnectedSoftEdges;
+	TArray<FEdgeID> ConnectedSoftEdges;
 	GetConnectedSoftEdges(VertexID, ConnectedSoftEdges);
 
 	GetPolygonsInSameSoftEdgedGroupAsPolygon(PolygonID, ConnectedPolygons, ConnectedSoftEdges, OutPolygonIDs);
@@ -1528,7 +1528,7 @@ void FMeshDescription::ComputeTangentsAndNormals(const FVertexInstanceID VertexI
 	if (bComputeNormals || NormalRef.IsNearlyZero())
 	{
 		// Get all polygons connected to this vertex instance
-		static TArray<FPolygonID> AllConnectedPolygons;
+		TArray<FPolygonID> AllConnectedPolygons;
 		const TArray<FPolygonID>& VertexInstanceConnectedPolygons = GetVertexInstanceConnectedPolygons(VertexInstanceID);
 		check(VertexInstanceConnectedPolygons.Num() > 0);
 		// Add also any in the same smoothing group connected to a different vertex instance
@@ -1574,8 +1574,8 @@ void FMeshDescription::ComputeTangentsAndNormals(const FVertexInstanceID VertexI
 			}
 		}
 	}
-	
-	
+
+
 	float BinormalSign = 1.0f;
 	if (bComputeTangents)
 	{
@@ -1661,7 +1661,7 @@ void FMeshDescription::DetermineEdgeHardnessesFromVertexInstanceNormals( const f
 
 		// Assume by default that the edge is soft - but as soon as any vertex instance belonging to a connected polygon
 		// has a distinct normal from the others (within the given tolerance), we mark it as hard.
-		// The exception is if an edge has exactly one connected polygon: in this case we automatically deem it a hard edge. 
+		// The exception is if an edge has exactly one connected polygon: in this case we automatically deem it a hard edge.
 		bool bEdgeIsHard = ( ConnectedPolygonIDs.Num() == 1 );
 
 		// Examine vertices on each end of the edge, if we haven't yet identified it as 'hard'
@@ -1778,7 +1778,7 @@ void FMeshDescription::GetPolygonsInSameChartAsPolygon( const FPolygonID Polygon
 	// This holds all the polygons we need to check, and those we have already checked so we don't add duplicates
 	// @todo: use TMemStackAllocator or similar to avoid expensive allocations
 	TArray<FPolygonID> PolygonsToCheck;
-	PolygonsToCheck.Reset( NumPolygons );
+	PolygonsToCheck.Reserve( NumPolygons );
 
 	// Add the initial polygon
 	PolygonsToCheck.Add( PolygonID );
@@ -1832,8 +1832,7 @@ void FMeshDescription::GetAllCharts( TArray<TArray<FPolygonID>>& OutCharts )
 	{
 		if( !ConsumedPolygons.Contains( PolygonID ) )
 		{
-			OutCharts.Emplace();
-			TArray<FPolygonID>& Chart = OutCharts.Last();
+			TArray<FPolygonID>& Chart = OutCharts.AddDefaulted_GetRef();
 			GetPolygonsInSameChartAsPolygon( PolygonID, Chart );
 
 			// Mark all polygons in the chart as 'consumed'. Note that the chart will also contain the initial polygon.
@@ -1854,7 +1853,7 @@ void FMeshDescription::ReversePolygonFacing(const FPolygonID PolygonID)
 	{
 		Polygon.PerimeterContour.VertexInstanceIDs.Swap(i, Polygon.PerimeterContour.VertexInstanceIDs.Num() - i - 1);
 	}
-	
+
 	// Triangulate the polygon since we reverse the indices
 	ComputePolygonTriangulation(PolygonID);
 }

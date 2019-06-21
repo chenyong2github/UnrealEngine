@@ -98,12 +98,12 @@ Topic-image:Blendables_topic.png
 컨테이너를 탐색하는 다른 코드에 혼동을 주고 가비지 컬렉션에 악영향을 끼칠 수 있기 때문입니다. 웨이트가 0 인 블렌더블 레퍼런스에 실질적인 퍼포먼스 비용은 없는데, 
 엘리먼트 제거가 필요치 않기 때문입니다.
 
-콘텐츠 브라우저에서 블렌더블 애셋을 레퍼런싱하는 방법은 이렇습니다:
+콘텐츠 브라우저에서 블렌더블 애셋을 참조하는 방법은 이렇습니다:
 
 [REGION:imagetable]
 | ![](AddBlendableVar.png) |
 | ------ |
-| LightPropagationVolumeBlendable (오브젝트 레퍼런스) 유형의 'BlendableVar' 변수를 사용해서 'LPV0' 이라는 LightPropagationVolumeBlendable 애셋을 레퍼런싱했습니다. |
+| LightPropagationVolumeBlendable (오브젝트 레퍼런스) 유형의 'BlendableVar' 변수를 사용해서 'LPV0' 이라는 LightPropagationVolumeBlendable 애셋을 참조했습니다. |
 [/REGION]
 
 **ConstructObjectFromClass** 블루프린트 함수로 블루프린트에 새 블렌더블을 만들 수 있습니다. 새 오브젝트의 **Outer** 를 블렌더블 컨테이너가 있는 오브젝트로 설정하면,

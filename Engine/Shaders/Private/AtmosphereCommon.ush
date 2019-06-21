@@ -20,8 +20,7 @@
 
 =============================================================================*/
 
-#ifndef __ATMOSPHERE_COMMON__
-#define __ATMOSPHERE_COMMON__
+#pragma once
 
 #if COMPILER_METAL && MAX_SHADER_LANGUAGE_VERSION <= 3
 // For inexplicable reasons until we can debug shaders and *really* see what's what we need to abs sqrt input for the functions in this shader file only.
@@ -130,8 +129,8 @@ void GetTransmittanceRMuS(float2 UV, out float Radius, out float MuS)
     Radius = RadiusGround + (Radius * Radius) * (RadiusAtmosphere - RadiusGround);
     MuS = -0.15 + tan(1.5 * MuS) / tan(1.5) * (1.0 + 0.15);
 #else
-    r = RadiusGround + r * (RadiusAtmosphere - RadiusGround);
-    muS = -0.15 + muS * (1.0 + 0.15);
+	Radius = RadiusGround + Radius * (RadiusAtmosphere - RadiusGround);
+	MuS = -0.15 + MuS * (1.0 + 0.15);
 #endif
 }
 
@@ -544,8 +543,8 @@ float3 GetSunColor(float3 X, float T, float3 V, float3 S, float Radius, float Mu
     }
 	else 
 	{
-		float SunIntensity = step(cos(PI * View.AtmosphericFogSunDiscScale / 180.0), dot(V, S)); // Lsun
-        return TransmittanceValue * SunIntensity; // Eq (9)
+		float SunDiskMask = step(cos(View.AtmosphericFogSunDiscHalfApexAngleRadian), dot(V, S));
+        return TransmittanceValue * SunDiskMask * View.AtmosphericFogSunDiscLuminance; // Eq (9)
     }
 }
 
@@ -627,7 +626,5 @@ float4 CalculateVertexAtmosphericFog(float3 WorldPosition, float3 InCameraPositi
 #if COMPILER_METAL && MAX_SHADER_LANGUAGE_VERSION <= 3
 // Do not export our workaround outside this file as it might not be desirable.
 #undef sqrt
-#endif
-
 #endif
 

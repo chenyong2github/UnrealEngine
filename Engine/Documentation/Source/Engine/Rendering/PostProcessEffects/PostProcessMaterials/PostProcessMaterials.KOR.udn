@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3782314
+INTSourceChangelist:3782314
 Availability:Public
 Crumbs:
 Title:포스트 프로세스 머티리얼
@@ -357,7 +357,7 @@ SceneTexture 머티리얼 표현식에는 [바이리니어] 필터링이 적용�
 
   * **올바른 TemporalAA 를 위해서는 "Before Tonemapper" 를 사용해야 합니다. 어느 한 색을 사용하면 톤매핑이 적용되어 달라 보이는 것을 어떻게 방지할까요?**
     
-	쉬운 해법은 없습니다. (비싼) 톤매핑 반전 연산을 해야 할 수도 있겠구요. 눈 순응에 따라서 색이 달라 보일 수도 있습니다.
+	쉬운 해법은 없습니다. (비싼) 톤매핑 반전 연산을 해야 할 수도 있겠구요. 시각 순응에 따라서 색이 달라 보일 수도 있습니다.
 	EyeAdaptation 레벨을 SceneTextures 에 노출시켜 보정시켜 줄 수도 있겠습니다.
 
   * **포스트 프로세싱 그래프 전체 덤프는 어떻게 구하나요?**

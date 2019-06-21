@@ -325,7 +325,10 @@ void TestVectorMatrixMultiply( void* Result, const void* Matrix1, const void* Ma
 VectorRegister TestVectorTransformVector(const VectorRegister&  VecP,  const void* MatrixM )
 {
 	typedef float Float4x4[4][4];
-	union { VectorRegister v; float f[4]; } Tmp, Result;
+	union U { 
+		VectorRegister v; float f[4]; 
+		FORCEINLINE U() : v() {}
+	} Tmp, Result;
 	Tmp.v = VecP;
 	const Float4x4& M = *((const Float4x4*)MatrixM);	
 

@@ -39,8 +39,6 @@ Before you can get started using AutoSDK, you'll have to set up the **UE_SDKS_RO
 
 	Now that you've added the directory to your client workspace definition, it's time to set the **UE_SDKS_ROOT** Environment Variable.
 
-%Globals:OSSelect_Linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	OS

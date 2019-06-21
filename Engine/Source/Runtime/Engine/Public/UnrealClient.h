@@ -317,7 +317,7 @@ public:
 	virtual void Destroy() = 0;
 
 	// New MouseCapture/MouseLock API
-	virtual bool HasMouseCapture() const				{ return true; }
+	virtual bool HasMouseCapture() const				{ return false; }
 	virtual bool HasFocus() const					{ return true; }
 	virtual bool IsForegroundWindow() const			{ return true; }
 	virtual void CaptureMouse( bool bCapture )		{ }
@@ -773,7 +773,7 @@ public:
 	virtual void RedrawRequested(FViewport* Viewport) { Viewport->Draw(); }
 	virtual void RequestInvalidateHitProxy(FViewport* Viewport) { Viewport->InvalidateHitProxy(); }
 	virtual void Draw(FViewport* Viewport,FCanvas* Canvas) {}
-	virtual void ProcessScreenShots(FViewport* Viewport) {}
+	virtual bool ProcessScreenShots(FViewport* Viewport) { return false; }
 	virtual UWorld* GetWorld() const { return NULL; }
 	virtual struct FEngineShowFlags* GetEngineShowFlags() { return NULL; }
 

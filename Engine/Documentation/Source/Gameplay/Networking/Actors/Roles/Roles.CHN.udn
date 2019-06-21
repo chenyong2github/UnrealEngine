@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2752320
+﻿INTSourceChangelist:3108692
 Availability:Public
 Title: Actor 的 Role 和 RemoteRole 属性
 Crumbs:%ROOT%, Gameplay, Gameplay/Networking, Gameplay/Networking/Actors
@@ -9,7 +9,7 @@ version: 4.9
 
 [TOC (start:2 end:3)]
 
-## 概述
+
 
 在 Actor 的复制过程中，有两个属性扮演了重要角色，分别是 `Role` 和 `RemoteRole`。 
 
@@ -28,6 +28,7 @@ version: 4.9
 `ROLE_AutonomousProxy`。
 [/REGION]
 
+(#Role/RemoteRoleReversal)
 ## Role/RemoteRole 对调
 
 对于不同的数值观察者，它们的 Role 和 RemoteRole 值可能发生对调。例如，如果您的服务器上有这样的配置：
@@ -40,6 +41,7 @@ version: 4.9
 
 这种情况是正常的，因为服务器要负责掌管 actor 并将其复制到客户端。而客户端只是接收更新，并在更新的间歇模拟 actor。
 
+(#ModeofReplication)
 ## 复制模式
 
 服务器不会在每次更新时复制 actor。这会消耗太多的带宽和 CPU 资源。实际上，服务器会按照 `AActor::NetUpdateFrequency` 属性指定的频度来复制 actor。

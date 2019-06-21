@@ -74,24 +74,20 @@ void FSplash::Tick_RenderThread(float DeltaTime)
 	const double TimeInSeconds = FPlatformTime::Seconds();
 	const double DeltaTimeInSeconds = TimeInSeconds - LastTimeInSeconds;
 
-	if (DeltaTimeInSeconds > 2.f * SystemDisplayInterval)
+	if (DeltaTimeInSeconds > 2.f * SystemDisplayInterval && Layers_RenderThread_DeltaRotation.Num() > 0)
 	{
-		for (int32 SplashLayerIndex = 0; SplashLayerIndex < SplashLayers.Num(); SplashLayerIndex++)
+		FScopeLock ScopeLock(&RenderThreadLock);
+		for (TTuple<FLayerPtr, FQuat>& Info : Layers_RenderThread_DeltaRotation)
 		{
-			FSplashLayer& SplashLayer = SplashLayers[SplashLayerIndex];
+			FLayerPtr Layer = Info.Key;
+			const FQuat& DeltaRotation = Info.Value;
+			check(Layer.IsValid());
+			check(!DeltaRotation.Equals(FQuat::Identity)); // Only layers with non-zero delta rotation should be in the DeltaRotation array.
 
-			if (SplashLayer.Layer.IsValid() && !SplashLayer.Desc.DeltaRotation.Equals(FQuat::Identity))
-			{
-				FScopeLock ScopeLock(&RenderThreadLock);
-
-				IStereoLayers::FLayerDesc LayerDesc = SplashLayer.Layer->GetDesc();
-				LayerDesc.Transform.SetRotation(SplashLayer.Desc.DeltaRotation * LayerDesc.Transform.GetRotation());
-
-				FLayer* Layer = new FLayer(*SplashLayer.Layer);
-				Layer->SetDesc(LayerDesc);
-				SplashLayer.Layer = MakeShareable(Layer);
-
-			}
+			IStereoLayers::FLayerDesc LayerDesc = Layer->GetDesc();
+			LayerDesc.Transform.SetRotation(LayerDesc.Transform.GetRotation() * DeltaRotation);
+			LayerDesc.Transform.NormalizeRotation();
+			Layer->SetDesc(LayerDesc);
 		}
 		LastTimeInSeconds = TimeInSeconds;
 	}
@@ -112,7 +108,18 @@ void FSplash::LoadSettings()
 	UStereoLayerFunctionLibrary::EnableAutoLoadingSplashScreen(HMDSettings->bAutoEnabled);
 	if (HMDSettings->bAutoEnabled)
 	{
-		FCoreUObjectDelegates::PreLoadMap.AddSP(this, &FSplash::OnPreLoadMap);
+		if (!LoadLevelDelegate.IsValid())
+		{
+			LoadLevelDelegate = FCoreUObjectDelegates::PreLoadMap.AddSP(this, &FSplash::OnPreLoadMap);
+		}
+	}
+	else
+	{
+		if (LoadLevelDelegate.IsValid())
+		{
+			FCoreUObjectDelegates::PreLoadMap.Remove(LoadLevelDelegate);
+			LoadLevelDelegate.Reset();
+		}
 	}
 }
 
@@ -154,10 +161,10 @@ void FSplash::StopTicker()
 	{
 		ExecuteOnRenderThread([this]()
 		{
-			if (this->Ticker.IsValid())
+			if (Ticker.IsValid())
 			{
-				this->Ticker->Unregister();
-				this->Ticker = nullptr;
+				Ticker->Unregister();
+				Ticker = nullptr;
 			}
 		});
 		UnloadTextures();
@@ -174,7 +181,8 @@ void FSplash::StartTicker()
 
 		ExecuteOnRenderThread([this]()
 		{
-			this->Ticker->Register();
+			LastTimeInSeconds = FPlatformTime::Seconds();
+			Ticker->Register();
 		});
 	}
 
@@ -199,17 +207,24 @@ void FSplash::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
 	}
 
 	ovrpResult Result;
-	UE_LOG(LogHMD, Verbose, TEXT("Splash ovrp_WaitToBeginFrame %u"), XFrame->FrameNumber);
-	if (OVRP_FAILURE(Result = ovrp_WaitToBeginFrame(XFrame->FrameNumber)))
-	{
-		UE_LOG(LogHMD, Error, TEXT("Splash ovrp_WaitToBeginFrame %u failed (%d)"), XFrame->FrameNumber, Result);
-		XFrame->ShowFlags.Rendering = false;
+	if ( ovrp_GetInitialized() && OculusHMD->WaitFrameNumber != Frame->FrameNumber)
+	{ 
+		UE_LOG(LogHMD, Verbose, TEXT("Splash ovrp_WaitToBeginFrame %u"), XFrame->FrameNumber);
+		if (OVRP_FAILURE(Result = ovrp_WaitToBeginFrame(XFrame->FrameNumber)))
+		{
+			UE_LOG(LogHMD, Error, TEXT("Splash ovrp_WaitToBeginFrame %u failed (%d)"), XFrame->FrameNumber, Result);
+			XFrame->ShowFlags.Rendering = false;
+		}
+		else
+		{
+			OculusHMD->WaitFrameNumber = XFrame->FrameNumber;
+			OculusHMD->NextFrameNumber = XFrame->FrameNumber + 1;
+			FPlatformAtomics::InterlockedIncrement(&FramesOutstanding);
+		}
 	}
 	else
 	{
-		OculusHMD->WaitFrameNumber = XFrame->FrameNumber;
-		OculusHMD->NextFrameNumber = XFrame->FrameNumber + 1;
-		FPlatformAtomics::InterlockedIncrement(&FramesOutstanding);
+		XFrame->ShowFlags.Rendering = false;
 	}
 
 	if (XFrame->ShowFlags.Rendering)
@@ -464,6 +479,7 @@ void FSplash::Show()
 	{
 		//add oculus-generated layers through the OculusVR settings area
 		FScopeLock ScopeLock(&RenderThreadLock);
+		Layers_RenderThread_DeltaRotation.Reset();
 		Layers_RenderThread_Input.Reset();
 		for (int32 SplashLayerIndex = 0; SplashLayerIndex < SplashLayers.Num(); SplashLayerIndex++)
 		{
@@ -471,7 +487,14 @@ void FSplash::Show()
 
 			if (SplashLayer.Layer.IsValid())
 			{
-				Layers_RenderThread_Input.Add(SplashLayer.Layer->Clone());
+				FLayerPtr ClonedLayer = SplashLayer.Layer->Clone();
+				Layers_RenderThread_Input.Add(ClonedLayer);
+
+				// Register layers that need to be rotated every n ticks
+				if (!SplashLayer.Desc.DeltaRotation.Equals(FQuat::Identity))
+				{
+					Layers_RenderThread_DeltaRotation.Emplace(ClonedLayer, SplashLayer.Desc.DeltaRotation);
+				}
 			}
 		}
 

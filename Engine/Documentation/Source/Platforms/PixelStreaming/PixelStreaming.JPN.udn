@@ -1,8 +1,8 @@
-﻿INTSourceChangelist:0
+﻿INTSourceChangelist:4677050
 Availability: Public
 Crumbs: 
 Title: Pixel Streaming
-Description: Run your Unreal Engine application on a server in the cloud, and stream its rendered frames and audio to browsers and mobile devices over WebRTC.
+Description: Unreal Engine アプリケーションをクラウドのサーバーで実行し、レンダリングされたフレームとオーディオをブラウザやモバイル デバイスに WebRTC 経由でストリームします。
 Type: 
 Version: 4.21
 Parent: Platforms
@@ -12,24 +12,22 @@ Tags: Early Access
 Tags: Landing Page
 Tags: Pixel Streaming
 Tags: Cloud Platform
+hero-image:PixelStreaming_Banner_01.png
 
+*画像提供：McLaren 社*
 
-![](PixelStreaming_Banner_01.png "PixelStreaming_Banner_01.png")
+Pixel Streaming を使用すると、パッケージ化された Unreal Engine アプリケーションをデスクトップ PC またはクラウドのサーバーで実行できます。このとき、Unreal Engine に含まれる軽量スタックである Web サービスも併せて実行されます。ユーザーは、好みのプラットフォーム (デスクトップまたはモバイル) で最新の Web ブラウザから接続します。このとき、レンダリングされたフレームとオーディオが Unreal Engine アプリケーションからストリームされます。ユーザーが何らかのファイルをダウンロードしたりインストールしたりする必要はありません。この点は、YouTube や Netflix などのビデオのストリーミングと同様です。異なる点はユーザーがアプリケーションとやりとりできることで、このとき使用されるのは、キーボード、マウス、タッチ入力、さらにプレイヤー Web ページで作成するカスタム HTML5 UI です。
 
-*Images courtesy of McLaren*
-
-With Pixel Streaming, you run a packaged Unreal Engine application on a desktop PC or a server in the cloud, along with a small stack of web services that are included with the Unreal Engine. People connect using any modern Web browser on their platform of choice, whether desktop or mobile, and stream the rendered frames and audio from the Unreal Engine application. There's no need for users to install or download anything. It's just like streaming a video from YouTube or Netflix — except that users can also interact with the application using keyboard, mouse, touch input, and even custom HTML5 UI that you create in your player Web page.
-
-## Getting Started
+## 入門編
 
 %Platforms/PixelStreaming/PixelStreamingOverview:topic%
 %Platforms/PixelStreaming/PixelStreamingIntro:topic%
 
-## Guides
+## ガイド
 
 %Platforms/PixelStreaming/CustomPlayer:topic%
 %Platforms/PixelStreaming/Hosting:topic%
 
-## Reference
+## リファレンス
 
 %Platforms/PixelStreaming/PixelStreamingReference:topic%

@@ -65,6 +65,14 @@ FTextureEditorToolkit::FTextureEditorToolkit()
 
 FTextureEditorToolkit::~FTextureEditorToolkit( )
 {
+	// Release the VT page table allocation used to display this texture
+	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
+	if (Texture2D && Texture2D->IsCurrentlyVirtualTextured())
+	{
+		FVirtualTexture2DResource* Resource = (FVirtualTexture2DResource*)Texture2D->Resource;
+		Resource->ReleaseAllocatedVT();
+	}
+
 	FReimportManager::Instance()->OnPreReimport().RemoveAll(this);
 	FReimportManager::Instance()->OnPostReimport().RemoveAll(this);
 	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetPostImport.RemoveAll(this);
@@ -146,6 +154,8 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 
 	SpecifiedMipLevel = 0;
 	bUseSpecifiedMipLevel = false;
+
+	SpecifiedLayer = 0;
 
 	SavedCompressionSetting = false;
 
@@ -342,9 +352,13 @@ bool FTextureEditorToolkit::GetFitToViewport( ) const
 
 int32 FTextureEditorToolkit::GetMipLevel( ) const
 {
-	return GetUseSpecifiedMip() ? SpecifiedMipLevel : 0;
+	return GetUseSpecifiedMip() ? SpecifiedMipLevel : -1;
 }
 
+int32 FTextureEditorToolkit::GetLayer() const
+{
+	return SpecifiedLayer;
+}
 
 UTexture* FTextureEditorToolkit::GetTexture( ) const
 {
@@ -399,13 +413,13 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	const uint32 ImportedHeight =  FMath::Max<uint32>(SurfaceHeight, Texture->Source.GetSizeY());
 	const uint32 ImportedDepth =  FMath::Max<uint32>(SurfaceDepth, VolumeTexture ? Texture->Source.GetNumSlices() : 1);
 
-	const int32 ActualMipBias = Texture2D ? (Texture2D->GetNumMips() - Texture2D->GetNumResidentMips()) : Texture->GetCachedLODBias();
+	const int32 ActualMipBias = Texture2D ? (Texture2D->GetNumMips() - Texture2D->GetNumResidentMips())	: Texture->GetCachedLODBias();
 	const uint32 ActualWidth = FMath::Max<uint32>(SurfaceWidth >> ActualMipBias, 1);
 	const uint32 ActualHeight = FMath::Max<uint32>(SurfaceHeight >> ActualMipBias, 1);
 	const uint32 ActualDepth =  FMath::Max<uint32>(SurfaceDepth >> ActualMipBias, 1);
 
 	// Editor dimensions (takes user specified mip setting into account)
-	const int32 MipLevel = GetMipLevel();
+	const int32 MipLevel = FMath::Max(GetMipLevel(), 0);
 	PreviewEffectiveTextureWidth = FMath::Max<uint32>(ActualWidth >> MipLevel, 1);
 	PreviewEffectiveTextureHeight = FMath::Max<uint32>(ActualHeight >> MipLevel, 1);;
 	uint32 PreviewEffectiveTextureDepth = FMath::Max<uint32>(ActualDepth >> MipLevel, 1);
@@ -465,14 +479,19 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	}
 
 	SizeText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_ResourceSize", "Resource Size: {0} Kb"), FText::AsNumber(Size, &SizeOptions)));
-	MethodText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Method", "Method: {0}"), !Texture->bIsStreamable ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodNotStreamed", "Not Streamed") : NSLOCTEXT("TextureEditor", "QuickInfo_MethodStreamed", "Streamed")));
+
+	FText Method = Texture->VirtualTextureStreaming ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodVirtualStreamed", "Virtual Streamed")
+													: (!Texture->bIsStreamable ? NSLOCTEXT("TextureEditor", "QuickInfo_MethodNotStreamed", "Not Streamed") 
+																			: NSLOCTEXT("TextureEditor", "QuickInfo_MethodStreamed", "Streamed") );
+
+	MethodText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Method", "Method: {0}"), Method));
 	LODBiasText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_LODBias", "Combined LOD Bias: {0}"), FText::AsNumber(Texture->GetCachedLODBias())));
 
 	int32 TextureFormatIndex = PF_MAX;
 	
 	if (Texture2D)
 	{
-		TextureFormatIndex = Texture2D->GetPixelFormat();
+		TextureFormatIndex = Texture2D->GetPixelFormat(SpecifiedLayer);
 	}
 	else if (TextureCube)
 	{
@@ -934,6 +953,63 @@ void FTextureEditorToolkit::ExtendToolBar( )
 								]
 						]
 				]
+			];
+
+	TSharedRef<SWidget> LayerControl = SNew(SBox)
+		.WidthOverride(200.0f)
+		[
+			SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+					.FillWidth(1.0f)
+					.MaxWidth(200.0f)
+					.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+					.VAlign(VAlign_Center)
+					[
+						// Layer controls
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+							.Padding(0.0f, 0.0, 4.0, 0.0)
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							[
+								SNew(STextBlock)
+									.Text(NSLOCTEXT("TextureEditor", "Layer", "Layer: "))
+							]
+
+						+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.FillWidth(1.0f)
+							[
+								SNew(SNumericEntryBox<int32>)
+									.AllowSpin(true)
+									.MinSliderValue(MIPLEVEL_MIN)
+									.MaxSliderValue(this, &FTextureEditorToolkit::GetMaxLayer)
+									.Value(this, &FTextureEditorToolkit::HandleLayerEntryBoxValue)
+									.OnValueChanged(this, &FTextureEditorToolkit::HandleLayerEntryBoxChanged)
+							]
+
+						+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(2.0f)
+							[
+								SNew(SButton)
+									.Text(NSLOCTEXT("TextureEditor", "LayerMinus", "-"))
+									.OnClicked(this, &FTextureEditorToolkit::HandleLayerMinusButtonClicked)
+							]
+
+						+ SHorizontalBox::Slot()
+							.AutoWidth()
+							.VAlign(VAlign_Center)
+							.Padding(2.0f)
+							[
+								SNew(SButton)
+									.Text(NSLOCTEXT("TextureEditor", "LayerPlus", "+"))
+									.OnClicked(this, &FTextureEditorToolkit::HandleLayerPlusButtonClicked)
+							]
+					]
 		];
 
 	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
@@ -942,7 +1018,7 @@ void FTextureEditorToolkit::ExtendToolBar( )
 		"Asset",
 		EExtensionHook::After,
 		GetToolkitCommands(),
-		FToolBarExtensionDelegate::CreateSP(this, &FTextureEditorToolkit::FillToolbar, GetToolkitCommands(), LODControl)
+		FToolBarExtensionDelegate::CreateSP(this, &FTextureEditorToolkit::FillToolbar, GetToolkitCommands(), LODControl, LayerControl)
 	);
 
 	AddToolbarExtender(ToolbarExtender);
@@ -951,7 +1027,7 @@ void FTextureEditorToolkit::ExtendToolBar( )
 	AddToolbarExtender(TextureEditorModule->GetToolBarExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 }
 
-void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef< FUICommandList > InToolkitCommands, TSharedRef<SWidget> LODControl)
+void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder, const TSharedRef< FUICommandList > InToolkitCommands, TSharedRef<SWidget> LODControl, TSharedRef<SWidget> LayerControl)
 {
 	UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(GetTexture());
 	if (!Atlas)
@@ -968,6 +1044,15 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder, const T
 			ToolbarBuilder.AddWidget(LODControl);
 		}
 		ToolbarBuilder.EndSection();
+
+		if (HasLayers())
+		{
+			ToolbarBuilder.BeginSection("Layers");
+			{
+				ToolbarBuilder.AddWidget(LayerControl);
+			}
+			ToolbarBuilder.EndSection();
+		}
 	}
 }
 
@@ -1010,6 +1095,10 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 	return MIPLEVEL_MAX;
 }
 
+TOptional<int32> FTextureEditorToolkit::GetMaxLayer() const
+{
+	return FMath::Max(Texture->Source.GetNumLayers() - 1, 1);
+}
 
 bool FTextureEditorToolkit::IsCubeTexture( ) const
 {
@@ -1195,6 +1284,44 @@ FReply FTextureEditorToolkit::HandleMipMapPlusButtonClicked( )
 	return FReply::Handled();
 }
 
+void FTextureEditorToolkit::HandleLayerEntryBoxChanged(int32 NewLayer)
+{
+	SpecifiedLayer = FMath::Clamp<int32>(NewLayer, 0, Texture->Source.GetNumLayers() - 1);
+	PopulateQuickInfo();
+}
+
+FReply FTextureEditorToolkit::HandleLayerMinusButtonClicked()
+{
+	if (SpecifiedLayer > 0)
+	{
+		--SpecifiedLayer;
+		PopulateQuickInfo();
+	}
+
+	return FReply::Handled();
+}
+
+
+FReply FTextureEditorToolkit::HandleLayerPlusButtonClicked()
+{
+	if ((SpecifiedLayer + 1) < Texture->Source.GetNumLayers())
+	{
+		++SpecifiedLayer;
+		PopulateQuickInfo();
+	}
+
+	return FReply::Handled();
+}
+
+TOptional<int32> FTextureEditorToolkit::HandleLayerEntryBoxValue() const
+{
+	return SpecifiedLayer;
+}
+
+bool FTextureEditorToolkit::HasLayers() const
+{
+	return Texture->Source.GetNumLayers() > 1;
+}
 
 void FTextureEditorToolkit::HandleRedChannelActionExecute( )
 {

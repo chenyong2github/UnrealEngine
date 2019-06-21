@@ -200,3 +200,24 @@ void UDatasmithStaticMeshCADImportData::Serialize(FArchive& Ar)
 #endif // WITH_EDITORONLY_DATA
 }
 
+// Helper function required since UObject doesn't have an interface to access AssetImportData
+UAssetImportData* Datasmith::GetAssetImportData(UObject* Asset)
+{
+#if WITH_EDITOR
+	if (UStaticMesh* Mesh = Cast<UStaticMesh>(Asset))
+	{
+		return Mesh->AssetImportData;
+	}
+	else if (UTexture* Texture = Cast<UTexture>(Asset))
+	{
+		return Texture->AssetImportData;
+	}
+	else if (UMaterialInterface* Material = Cast<UMaterialInterface>(Asset))
+	{
+		return Material->AssetImportData;
+	}
+#endif // WITH_EDITOR
+
+	return nullptr;
+}
+

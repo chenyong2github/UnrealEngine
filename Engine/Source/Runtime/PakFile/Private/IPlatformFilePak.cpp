@@ -185,7 +185,7 @@ FPakMasterSignatureTableCheckFailureHandler& FPakPlatformFile::GetPakMasterSigna
 	return Delegate;
 }
 
-void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList)
+void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList) 
 {
 	TArray<FPakListEntry> Paks;
 	GetMountedPaks(Paks);
@@ -195,6 +195,21 @@ void FPakPlatformFile::GetFilenamesInChunk(const FString& InPakFilename, const T
 		if (Pak.PakFile && Pak.PakFile->GetFilename() == InPakFilename)
 		{
 			Pak.PakFile->GetFilenamesInChunk(InChunkIDs, OutFileList);
+			break;
+		}
+	}
+}
+
+void FPakPlatformFile::GetFilenamesInPakFile(const FString& InPakFilename, TArray<FString>& OutFileList)
+{
+	TArray<FPakListEntry> Paks;
+	GetMountedPaks(Paks);
+
+	for (const FPakListEntry& Pak : Paks)
+	{
+		if (Pak.PakFile && Pak.PakFile->GetFilename() == InPakFilename)
+		{
+			Pak.PakFile->GetFilenames(OutFileList);
 			break;
 		}
 	}
@@ -2986,10 +3001,7 @@ public:
 	virtual ~FPakProcessedReadRequest()
 	{
 		check(!MyCanceledBlocks.Num());
-		if (!bHasCancelled)
-		{
-			DoneWithRawRequests();
-		}
+		DoneWithRawRequests();
 		if (Memory && !bUserSuppliedMemory)
 		{
 			// this can happen with a race on cancel, it is ok, they didn't take the memory, free it now
@@ -2998,11 +3010,6 @@ public:
 			FMemory::Free(Memory);
 		}
 		Memory = nullptr;
-	}
-
-	bool WasCanceled()
-	{
-		return bHasCancelled;
 	}
 
 	virtual void WaitCompletionImpl(float TimeLimitSeconds) override
@@ -3398,8 +3405,8 @@ public:
 					bAnyUnfinished = true;
 				}
 			}
-			check(!LiveRequests.Contains(Result))
-				LiveRequests.Add(Result);
+			check(!LiveRequests.Contains(Result));
+			LiveRequests.Add(Result);
 			if (!bAnyUnfinished)
 			{
 				Result->RequestIsComplete();
@@ -3491,7 +3498,8 @@ public:
 
 			if( !FCompression::UncompressMemory(CompressionMethod, Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize) )
 			{
-				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile: %s. EntryOffset: %lld, EntrySize: %lld, CompressionMethod:%s Output:%p  ProcessedSize:%d  Buf:%p  Block.DecompressionRawSize:%d  Crc32:%u"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Output, Block.ProcessedSize, Block.Raw, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ) );
+				const FString HexBytes = BytesToHex(Block.Raw,FMath::Min(Block.DecompressionRawSize,32));
+				UE_LOG( LogPakFile, Fatal, TEXT("Pak Decompression failed. PakFile:%s, EntryOffset:%lld, EntrySize:%lld, Method:%s, ProcessedSize:%d, RawSize:%d, Crc32:%u, BlockIndex:%d, Encrypt:%d, Delete:%d, Output:%p, Raw:%p, Processed:%p, Bytes:[%s...]"), *PakFile.ToString(), FileEntry.Offset, FileEntry.Size, *CompressionMethod.ToString(), Block.ProcessedSize, Block.DecompressionRawSize, FCrc::MemCrc32( Block.Raw, Block.DecompressionRawSize ), Block.BlockIndex, FileEntry.IsEncrypted()?1:0, FileEntry.IsDeleteRecord()?1:0, Output, Block.Raw, Block.Processed, *HexBytes );
 			}
 			FMemory::Free(Block.Raw);
 			Block.Raw = nullptr;
@@ -3559,6 +3567,7 @@ public:
 	{
 		check(!Block.RawRequest);
 		Block.RawRequest = nullptr;
+		//check(!Block.CPUWorkGraphEvent || Block.CPUWorkGraphEvent->IsComplete());
 		Block.CPUWorkGraphEvent = nullptr;
 		if (Block.Raw)
 		{
@@ -3583,9 +3592,15 @@ public:
 		Block.bInFlight = false;
 	}
 
-	void RemoveRequest(FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead)
+	void RemoveRequest(FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead, const bool& bAlreadyCancelled)
 	{
 		FScopeLock ScopedLock(&CriticalSection);
+		if (bAlreadyCancelled)
+		{
+			check(!LiveRequests.Contains(Req));
+			return;
+		}
+
 		check(LiveRequests.Contains(Req));
 		LiveRequests.Remove(Req);
 		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
@@ -3611,9 +3626,11 @@ public:
 		}
 	}
 
-	void HandleCanceledRequest(TSet<FCachedAsyncBlock*>& MyCanceledBlocks, FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead)
+	void HandleCanceledRequest(TSet<FCachedAsyncBlock*>& MyCanceledBlocks, FPakProcessedReadRequest* Req, int64 Offset, int64 BytesToRead, bool& bHasCancelledRef)
 	{
 		FScopeLock ScopedLock(&CriticalSection);
+		check(!bHasCancelledRef);
+		bHasCancelledRef = true;
 		check(LiveRequests.Contains(Req));
 		int32 FirstBlock = Offset / FileEntry.CompressionBlockSize;
 		int32 LastBlock = (Offset + BytesToRead - 1) / FileEntry.CompressionBlockSize;
@@ -3690,8 +3707,7 @@ public:
 
 void FPakProcessedReadRequest::CancelRawRequests()
 {
-	bHasCancelled = true;
-	Owner->HandleCanceledRequest(MyCanceledBlocks, this, Offset, BytesToRead);
+	Owner->HandleCanceledRequest(MyCanceledBlocks, this, Offset, BytesToRead, bHasCancelled);
 }
 
 void FPakProcessedReadRequest::GatherResults()
@@ -3708,7 +3724,7 @@ void FPakProcessedReadRequest::GatherResults()
 
 void FPakProcessedReadRequest::DoneWithRawRequests()
 {
-	Owner->RemoveRequest(this, Offset, BytesToRead);
+	Owner->RemoveRequest(this, Offset, BytesToRead, bHasCancelled);
 }
 
 bool FPakProcessedReadRequest::CheckCompletion(const FPakEntry& FileEntry, int32 BlockIndex, TArray<FCachedAsyncBlock*>& Blocks)
@@ -4827,16 +4843,14 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 	// Clear out those portions of the Index allowed by the user.
 	if (DirectoryRootsToKeep != nullptr)
 	{
-		TArray<FString> DirectoryNames;
-		Index.GetKeys(DirectoryNames);
-		for (int32 DirectoryNamesIndex = 0; DirectoryNamesIndex < DirectoryNames.Num(); ++DirectoryNamesIndex)
+		for(auto It = Index.CreateIterator(); It; ++It)
 		{
-			FString& DirectoryName = DirectoryNames[DirectoryNamesIndex];
+			const FString DirectoryName = MountPoint / It.Key();
 
 			bool bRemoveDirectoryFromIndex = true;
-			for (int32 DirectoryRootsToKeepIndex = 0; DirectoryRootsToKeepIndex < DirectoryRootsToKeep->Num(); ++DirectoryRootsToKeepIndex)
+			for(const FString& DirectoryRoot : *DirectoryRootsToKeep)
 			{
-				if (DirectoryName.MatchesWildcard((*DirectoryRootsToKeep)[DirectoryRootsToKeepIndex]))
+				if (DirectoryName.MatchesWildcard(DirectoryRoot))
 				{
 					bRemoveDirectoryFromIndex = false;
 					break;
@@ -4845,7 +4859,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 
 			if (bRemoveDirectoryFromIndex)
 			{
-				Index.Remove(DirectoryName);
+				It.RemoveCurrent();
 			}
 		}
 
@@ -4854,7 +4868,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 #if defined(FPAKFILE_UNLOADPAKENTRYFILENAMES_LOGKEPTFILENAMES)
 		for (TMap<FString, FPakDirectory>::TConstIterator It(Index); It; ++It)
 		{
-			FPlatformMisc::LowLevelOutputDebugString(*(FString("FPakFile::UnloadPakEntryFilenames() - Keeping ") + It.Key()));
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FPakFile::UnloadPakEntryFilenames() %s - Keeping %s"), *PakFilename, *It.Key());
 		}
 #endif
 	}
@@ -5115,6 +5129,20 @@ public:
 	//~ End FArchiveProxy Interface
 };
 #endif //DO_CHECK
+
+
+void FPakFile::GetFilenames(TArray<FString>& OutFileList) const
+{
+	for (const TMap<FString, FPakDirectory>::ElementType& DirectoryElement : Index)
+	{
+		const  FPakDirectory& Directory = DirectoryElement.Value;
+		for (const FPakDirectory::ElementType& FileElement : Directory)
+		{
+			OutFileList.Add(MountPoint / DirectoryElement.Key / FileElement.Key);
+		}
+	}
+}
+
 
 void FPakFile::GetFilenamesInChunk(const TArray<int32>& InChunkIDs, TArray<FString>& OutFileList)
 {
@@ -5735,6 +5763,24 @@ bool FPakPlatformFile::Mount(const TCHAR* InPakFilename, uint32 PakOrder, const 
 		{
 			UE_LOG(LogPakFile, Warning, TEXT("Failed to mount pak \"%s\", pak is invalid."), InPakFilename);
 		}
+
+		if (bSuccess)
+		{
+			if (FCoreDelegates::PakFileMountedCallback.IsBound())
+			{
+				// uncomment this when we have time to test 
+				// FCoreDelegates::PakFileMountedCallback.Broadcast(InPakFilename);
+			}
+			if (FCoreDelegates::NewFileAddedDelegate.IsBound())
+			{
+				TArray<FString> Filenames;
+				Pak->GetFilenames(Filenames);
+				for (const FString& Filename : Filenames)
+				{
+					FCoreDelegates::NewFileAddedDelegate.Broadcast(Filename);
+				}
+			}
+		}
 	}
 	else
 	{
@@ -5979,9 +6025,9 @@ void FPakPlatformFile::RegisterEncryptionKey(const FGuid& InGuid, const FAES::FA
 		}
 
 		PendingEncryptedPakFiles.RemoveAll([InGuid](const FPakListDeferredEntry& Entry) { return Entry.EncryptionKeyGuid == InGuid; });
-	}
 
-	UE_CLOG(InGuid.IsValid(), LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
+		UE_CLOG(InGuid.IsValid(), LogPakFile, Log, TEXT("Registered encryption key '%s': %d pak files mounted, %d remain pending"), *InGuid.ToString(), NumMounted, PendingEncryptedPakFiles.Num());
+	}
 }
 
 IFileHandle* FPakPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)

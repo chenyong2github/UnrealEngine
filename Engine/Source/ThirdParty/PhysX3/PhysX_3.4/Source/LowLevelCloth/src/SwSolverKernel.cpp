@@ -36,7 +36,7 @@
 #include "PointInterpolator.h"
 #include "BoundingBox.h"
 
-#define PX_AVX (NV_SIMD_SIMD&&(PX_WIN32 || PX_WIN64) && PX_VC >= 10)
+#define PX_AVX (NV_SIMD_SIMD&&(PX_WIN32 || PX_WIN64) && PX_VC >= 10 && !PX_HOLOLENS)
 
 #if PX_AVX
 namespace avx

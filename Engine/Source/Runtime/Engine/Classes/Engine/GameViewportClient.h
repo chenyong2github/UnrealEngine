@@ -154,7 +154,7 @@ public:
 	virtual TOptional<TSharedRef<SWidget>> MapCursor(FViewport* Viewport, const FCursorReply& CursorReply) override;
 	virtual void Precache() override;
 	virtual void Draw(FViewport* Viewport,FCanvas* SceneCanvas) override;
-	virtual void ProcessScreenShots(FViewport* Viewport) override;
+	virtual bool ProcessScreenShots(FViewport* Viewport) override;
 	virtual TOptional<bool> QueryShowFocus(const EFocusCause InFocusCause) const override;
 	virtual void LostFocus(FViewport* Viewport) override;
 	virtual void ReceivedFocus(FViewport* Viewport) override;

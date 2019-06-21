@@ -75,7 +75,7 @@ public:
 	void SetParameters(const FRenderingCompositePassContext& Context)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -177,7 +177,7 @@ public:
 	void SetParameters(const FRenderingCompositePassContext& Context, bool bComposeAnyNonNullDepth)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
@@ -492,7 +492,7 @@ void FRCPassPostProcessCompositeEditorPrimitives::Process(FRenderingCompositePas
 		EditorView.CachedViewUniformShaderParameters->NumSceneColorMSAASamples = MSAASampleCount;
 
 		FScene* Scene = Context.View.Family->Scene->GetRenderScene();
-		Scene->UniformBuffers.ViewUniformBuffer.UpdateUniformBufferImmediate(*EditorView.CachedViewUniformShaderParameters);
+		Scene->UniformBuffers.UpdateViewUniformBufferImmediate(*EditorView.CachedViewUniformShaderParameters);
 		EditorView.ViewUniformBuffer = Scene->UniformBuffers.ViewUniformBuffer;
 	}
 
@@ -561,7 +561,7 @@ void FRCPassPostProcessCompositeEditorPrimitives::Process(FRenderingCompositePas
 
 			TUniformBufferRef<FOpaqueBasePassUniformParameters> OpaqueBasePassUniformBuffer;
 			TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-			FUniformBufferRHIParamRef BasePassUniformBuffer = nullptr;
+			FRHIUniformBuffer* BasePassUniformBuffer = nullptr;
 
 			if (bDeferredBasePass)
 			{
@@ -600,7 +600,7 @@ void FRCPassPostProcessCompositeEditorPrimitives::Process(FRenderingCompositePas
 
 		GVisualizeTexture.SetCheckPoint(Context.RHICmdList, SceneContext.EditorPrimitivesColor);
 
-		FTextureRHIParamRef EditorRenderTargets[2];
+		FRHITexture* EditorRenderTargets[2];
 		EditorRenderTargets[0] = EditorColorTarget;
 		EditorRenderTargets[1] = EditorDepthTarget;
 

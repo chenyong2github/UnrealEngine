@@ -116,6 +116,28 @@ UNiagaraEmitter* FNiagaraEmitterViewModel::GetEmitter()
 	return Emitter.Get();
 }
 
+const UNiagaraEmitter* FNiagaraEmitterViewModel::GetParentEmitter() const
+{
+	return Emitter.IsValid() ? Emitter->GetParent() : nullptr;
+}
+
+FText FNiagaraEmitterViewModel::GetParentNameText() const
+{
+	if (Emitter.IsValid() && Emitter->GetParent() != nullptr)
+	{
+		return FText::FromString(Emitter->GetParent()->GetName());
+	}
+	return FText();
+}
+
+FText FNiagaraEmitterViewModel::GetParentPathNameText() const
+{
+	if (Emitter.IsValid() && Emitter->GetParent() != nullptr)
+	{
+		return FText::FromString(Emitter->GetParent()->GetPathName());
+	}
+	return FText();
+}
 
 FText FNiagaraEmitterViewModel::GetStatsText() const
 {
@@ -272,7 +294,7 @@ ENiagaraScriptCompileStatus FNiagaraEmitterViewModel::GetLatestCompileStatus()
 	check(SharedScriptViewModel.IsValid());
 	ENiagaraScriptCompileStatus UnionStatus = SharedScriptViewModel->GetLatestCompileStatus();
 
-	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim || Emitter->SimTarget == ENiagaraSimTarget::DynamicLoadBalancedSim)
+	if (Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
 		if (UnionStatus != ENiagaraScriptCompileStatus::NCS_Dirty)
 		{

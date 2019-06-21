@@ -38,6 +38,12 @@ static TAutoConsoleVariable<float> CVarCSMShadowDistanceFadeoutMultiplier(
 	TEXT("Multiplier for the CSM distance fade"),
 	ECVF_RenderThreadSafe | ECVF_Scalability );
 
+static TAutoConsoleVariable<float> CVarPerObjectCastDistanceRadiusScale(
+	TEXT("r.Shadow.PerObjectCastDistanceRadiusScale"),
+	8.0f,
+	TEXT("PerObjectCastDistanceRadiusScale The scale factor multiplied with the radius of the object to calculate the maximum distance a per-object directional shadow can reach. This will only take effect after a certain (large) radius. Default is 8 times the object radius."),
+	ECVF_RenderThreadSafe
+	);
 
 /**
  * The scene info for a directional light.
@@ -45,6 +51,9 @@ static TAutoConsoleVariable<float> CVarCSMShadowDistanceFadeoutMultiplier(
 class FDirectionalLightSceneProxy : public FLightSceneProxy
 {
 public:
+
+	/** Control how the cascade size influence the shadow depth bias. */
+	float ShadowCascadeBiasDistribution;
 
 	/** Whether to occlude fog and atmosphere inscattering with screenspace blurred occlusion from this light. */
 	bool bEnableLightShaftOcclusion;
@@ -64,6 +73,16 @@ public:
 	 * Will only be used when non-zero.
 	 */
 	FVector LightShaftOverrideDirection;
+
+	/**
+	 * The atmosphere transmittance to apply on the illuminance
+	 */
+	FLinearColor AtmosphereTransmittanceFactor;
+
+	/**
+	 * The luminance of the sun disk in space (function of the sun illuminance and solid angle)
+	 */
+	FLinearColor SunDiscOuterSpaceLuminance;
 
 	/** 
 	 * Radius of the whole scene dynamic shadow centered on the viewer, which replaces the precomputed shadows based on distance from the camera.  
@@ -103,13 +122,16 @@ public:
 	float TraceDistance;
 
 	/** Initialization constructor. */
-	FDirectionalLightSceneProxy(const UDirectionalLightComponent* Component):
+	FDirectionalLightSceneProxy(const UDirectionalLightComponent* Component) :
 		FLightSceneProxy(Component),
+		ShadowCascadeBiasDistribution(Component->ShadowCascadeBiasDistribution),
 		bEnableLightShaftOcclusion(Component->bEnableLightShaftOcclusion),
 		bUseInsetShadowsForMovableObjects(Component->bUseInsetShadowsForMovableObjects),
 		OcclusionMaskDarkness(Component->OcclusionMaskDarkness),
 		OcclusionDepthRange(Component->OcclusionDepthRange),
 		LightShaftOverrideDirection(Component->LightShaftOverrideDirection),
+		AtmosphereTransmittanceFactor(FLinearColor::White),
+		SunDiscOuterSpaceLuminance(FLinearColor::White),
 		DynamicShadowCascades(Component->DynamicShadowCascades > 0 ? Component->DynamicShadowCascades : 0),
 		CascadeDistributionExponent(Component->CascadeDistributionExponent),
 		CascadeTransitionFraction(Component->CascadeTransitionFraction),
@@ -166,7 +188,7 @@ public:
 	{
 		LightParameters.Position = FVector::ZeroVector;
 		LightParameters.InvRadius = 0.0f;
-		LightParameters.Color = FVector(GetColor());
+		LightParameters.Color = FVector(GetColor() * AtmosphereTransmittanceFactor); 
 		LightParameters.FalloffExponent = 0.0f;
 
 		LightParameters.Direction = -GetDirection();
@@ -333,7 +355,9 @@ public:
 		OutInitializer.MinLightW = -HALF_WORLD_MAX;
 		// Reduce casting distance on a directional light
 		// This is necessary to improve floating point precision in several places, especially when deriving frustum verts from InvReceiverMatrix
-		OutInitializer.MaxDistanceToCastInLightW = HALF_WORLD_MAX / 32.0f;
+		// This takes the object size into account to ensure that large objects get an extended distance
+		OutInitializer.MaxDistanceToCastInLightW = FMath::Clamp(SubjectBounds.SphereRadius * CVarPerObjectCastDistanceRadiusScale.GetValueOnRenderThread(), (float)HALF_WORLD_MAX / 32.0f, (float)WORLD_MAX);
+
 		return true;
 	}
 
@@ -350,6 +374,22 @@ public:
 		const bool bCreateWithCSM = NumCascades > 0 && RayTracedShadowDistance > GetCSMMaxDistance(bPrecomputedLightingIsValid, MaxNearCascades);
 		const bool bCreateWithoutCSM = NumCascades == 0 && RayTracedShadowDistance > 0;
 		return DoesPlatformSupportDistanceFieldShadowing(GShaderPlatformForFeatureLevel[InFeatureLevel]) && (bCreateWithCSM || bCreateWithoutCSM);
+	}
+
+	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance) override
+	{
+		AtmosphereTransmittanceFactor = TransmittanceFactor;
+		SunDiscOuterSpaceLuminance = SunOuterSpaceLuminance;
+	}
+
+	virtual FLinearColor GetOuterSpaceLuminance() const override
+	{ 
+		return SunDiscOuterSpaceLuminance;
+	}
+
+	virtual float GetSunLightHalfApexAngleRadian() const override
+	{
+		return 0.5f * LightSourceAngle * PI / 180.0f; // LightSourceAngle is apex angle (angular diameter) in degree
 	}
 
 private:
@@ -712,6 +752,7 @@ private:
 			OutCascadeSettings->SplitNear = SplitNear;
 			OutCascadeSettings->FadePlaneOffset = FadePlane;
 			OutCascadeSettings->FadePlaneLength = SplitFar - FadePlane;
+			OutCascadeSettings->CascadeBiasDistribution = ShadowCascadeBiasDistribution;
 		}
 
 		const FSphere CascadeSphere = FDirectionalLightSceneProxy::GetShadowSplitBoundsDepthRange(View, View.ViewMatrices.GetViewOrigin(), SplitNear, SplitFar, OutCascadeSettings);
@@ -742,6 +783,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	OcclusionDepthRange = 100000.f;
 	OcclusionMaskDarkness = 0.05f;
 
+	ShadowCascadeBiasDistribution = 1;
 	WholeSceneDynamicShadowRadius_DEPRECATED = 20000.0f;
 	DynamicShadowDistanceMovableLight = 20000.0f;
 	DynamicShadowDistanceStationaryLight = 0.f;
@@ -778,14 +820,16 @@ void UDirectionalLightComponent::PostEditChangeProperty(FPropertyChangedEvent& P
 
 	DynamicShadowDistanceMovableLight = FMath::Max(DynamicShadowDistanceMovableLight, 0.0f);
 	DynamicShadowDistanceStationaryLight = FMath::Max(DynamicShadowDistanceStationaryLight, 0.0f);
+	ShadowCascadeBiasDistribution = FMath::Clamp(ShadowCascadeBiasDistribution, 0.f, 1.f);
 
 	DynamicShadowCascades = FMath::Clamp(DynamicShadowCascades, 0, 10);
 	FarShadowCascadeCount = FMath::Clamp(FarShadowCascadeCount, 0, 10);
 	CascadeDistributionExponent = FMath::Clamp(CascadeDistributionExponent, .1f, 10.0f);
-	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, 0.0f, 0.3f);
+	CascadeTransitionFraction = FMath::Clamp(CascadeTransitionFraction, KINDA_SMALL_NUMBER, 0.3f);
 	ShadowDistanceFadeoutFraction = FMath::Clamp(ShadowDistanceFadeoutFraction, 0.0f, 1.0f);
 	// max range is larger than UI
 	ShadowBias = FMath::Clamp(ShadowBias, 0.0f, 10.0f);
+	ShadowSlopeBias = FMath::Clamp(ShadowSlopeBias, 0.0f, 10.0f);
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }

@@ -1,10 +1,12 @@
-Availability:Public
+Availability:Docs
 Title: 3. Tweaking Foliage Type Properties
 Crumbs:
 Description:In this step we tweak the settings of the Procedural Foliage Actors.
 Navigation:topic
 SkillLevel:Intermediate
 Version: 4.8
+
+## Set to Docs as the pages have been combined into one. 
 
 [VAR:Steps]
 [OBJECT:Navigation]

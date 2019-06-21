@@ -49,6 +49,7 @@ enum EMaterialUsage
 	MATUSAGE_MorphTargets,
 	MATUSAGE_SplineMesh,
 	MATUSAGE_InstancedStaticMeshes,
+	MATUSAGE_GeometryCollections,
 	MATUSAGE_Clothing,
 	MATUSAGE_NiagaraSprites,
 	MATUSAGE_NiagaraRibbons,
@@ -72,7 +73,7 @@ struct ENGINE_API FMaterialRelevance
 	uint8 bUsesSceneColorCopy : 1;
 	uint8 bDisableOffscreenRendering : 1; // Blend Modulate
 	uint8 bDisableDepthTest : 1;
-	uint8 bOutputsVelocityInBasePass : 1;
+	uint8 bOutputsTranslucentVelocity : 1;
 	uint8 bUsesGlobalDistanceField : 1;
 	uint8 bUsesWorldPositionOffset : 1;
 	uint8 bDecal : 1;
@@ -511,7 +512,7 @@ public:
 		PURE_VIRTUAL(UMaterialInterface::GetStaticComponentMaskParameterDefaultValue,return false;);
 		
 	/** Appends textures referenced by expressions, including nested functions. */
-	virtual void AppendReferencedTextures(TArray<UTexture*>& InOutTextures) const
+	virtual void AppendReferencedTextures(TArray<UObject*>& InOutTextures) const
 		PURE_VIRTUAL(UMaterialInterface::AppendReferencedTextures,);
 
 	virtual void SaveShaderStableKeysInner(const class ITargetPlatform* TP, const struct FStableShaderKeyAndValue& SaveKeyVal)
@@ -722,6 +723,7 @@ public:
 	ENGINE_API virtual bool IsTwoSided() const;
 	ENGINE_API virtual bool IsDitheredLODTransition() const;
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const;
+	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const;
 	ENGINE_API virtual bool IsMasked() const;
 	ENGINE_API virtual bool IsDeferredDecal() const;
 
@@ -805,6 +807,11 @@ public:
 
 	/** Return number of used texture coordinates and whether or not the Vertex data is used in the shader graph */
 	ENGINE_API void AnalyzeMaterialProperty(EMaterialProperty InProperty, int32& OutNumTextureCoordinates, bool& bOutRequiresVertexData);
+
+#if WITH_EDITOR
+	/** Checks to see if the given property references the texture */
+	ENGINE_API bool IsTextureReferencedByProperty(EMaterialProperty InProperty, const UTexture* InTexture);
+#endif // WITH_EDITOR
 
 	/** Iterate over all feature levels currently marked as active */
 	template <typename FunctionType>

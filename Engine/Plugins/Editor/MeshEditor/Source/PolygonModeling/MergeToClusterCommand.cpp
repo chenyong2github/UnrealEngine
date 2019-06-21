@@ -44,15 +44,17 @@ void UMergeToClusterCommand::Execute(IMeshEditorModeEditingContract& MeshEditorM
 
 	MeshEditorMode.CommitSelectedMeshes();
 
-	TArray<UEditableMesh*> SelectedActors = MeshEditorMode.GetSelectedEditableMeshes();
+	TArray<AActor*> SelectedActors = GetSelectedActors();
 	MergeToCluster(MeshEditorMode, SelectedActors);
 
-	UpdateExplodedView(MeshEditorMode, EViewResetType::RESET_TRANSFORMS);
+	UpdateExplodedView(MeshEditorMode, EViewResetType::RESET_ALL);
 }
 
-void UMergeToClusterCommand::MergeToCluster(IMeshEditorModeEditingContract& MeshEditorMode, TArray<UEditableMesh*>& SelectedMeshes)
+void UMergeToClusterCommand::MergeToCluster(IMeshEditorModeEditingContract& MeshEditorMode, TArray<AActor*>& SelectedActors)
 {
-	if (SelectedMeshes.Num() == 1 && GetGeometryCollectionComponent(SelectedMeshes[0]))
+	TArray<UEditableMesh*> SelectedMeshes = MeshEditorMode.GetSelectedEditableMeshes();
+
+	if (SelectedActors.Num() == 1 && GetGeometryCollectionComponent(SelectedMeshes[0]))
 	{
 		// Combining child bones from within a single Editable Mesh that already is a Geometry Collection
 		MergeChildBonesOfASingleMesh(MeshEditorMode, SelectedMeshes);
@@ -60,28 +62,32 @@ void UMergeToClusterCommand::MergeToCluster(IMeshEditorModeEditingContract& Mesh
 	else
 	{
 		// Combining Separate meshes into a single Geometry Collection as leaf nodes
-		MergeMultipleMeshes(MeshEditorMode, SelectedMeshes);
+		MergeMultipleMeshes(MeshEditorMode, SelectedActors);
 	}
 }
 
-void UMergeToClusterCommand::MergeMultipleMeshes(IMeshEditorModeEditingContract& MeshEditorMode, TArray<UEditableMesh*>& SelectedMeshes)
+void UMergeToClusterCommand::MergeMultipleMeshes(IMeshEditorModeEditingContract& MeshEditorMode, TArray<AActor*>& SelectedActors)
 {
 	UGeometryCollectionComponent* GeometryCollectionComponent = nullptr;
 	UEditableMesh* SourceMesh = nullptr;
 	FTransform SourceActorTransform = FTransform::Identity;
 	AGeometryCollectionActor* NewActor = nullptr;
+	TArray<UEditableMesh*> SelectedMeshes = MeshEditorMode.GetSelectedEditableMeshes();
 
 	// find first geometry collection component
-	for (UEditableMesh* EditableMesh : SelectedMeshes)
+	for (AActor* SelectedActor : SelectedActors)
 	{
-		GeometryCollectionComponent = GetGeometryCollectionComponent(EditableMesh);
-		if (GeometryCollectionComponent != nullptr)
+		UEditableMesh* EditableMesh = GetEditableMeshForActor(SelectedActor, SelectedMeshes);
+		if (EditableMesh)
 		{
-			SourceMesh = EditableMesh;
-			AActor* SelectedActor = GetEditableMeshActor(SourceMesh);
-			SourceActorTransform = SelectedActor->GetTransform();
+			GeometryCollectionComponent = GetGeometryCollectionComponent(EditableMesh);
+			if (GeometryCollectionComponent != nullptr)
+			{
+				SourceMesh = EditableMesh;
+				SourceActorTransform = SelectedActor->GetTransform();
 
-			break;
+				break;
+			}
 		}
 	}
 
@@ -116,13 +122,16 @@ void UMergeToClusterCommand::MergeMultipleMeshes(IMeshEditorModeEditingContract&
 	{
 		if (GeometryCollectionObject)
 		{
-			TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
 
 				// add the extraneous meshes to our geometry collection
 				bool DeleteSourceMesh = MeshEditorMode.GetFractureSettings()->CommonSettings->DeleteSourceMesh;
-				AppendMeshesToGeometryCollection(SelectedMeshes, SourceMesh, SourceActorTransform, GeometryCollectionObject, DeleteSourceMesh, NewNodeElements);
+				AppendMeshesToGeometryCollection(SelectedActors, SelectedMeshes, SourceMesh, SourceActorTransform, GeometryCollectionObject, DeleteSourceMesh, NewNodeElements);
+
+				GeometryCollectionObject->InitializeMaterials();				
+
 
 				// merge original selection with newly created bones that were added to our geometry collection 
 				TArray<int32> SourceElements;
@@ -184,7 +193,7 @@ void UMergeToClusterCommand::MergeSelectedBones(UEditableMesh* EditableMesh, UGe
 		FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
 		if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
 		{
-			TSharedPtr<FGeometryCollection> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 			if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 			{
 				AddAdditionalAttributesIfRequired(GeometryCollectionObject);

@@ -55,6 +55,11 @@ public:
 		return RegistrationName;
 	}
 
+#if WITH_EDITORONLY_DATA
+protected:
+	virtual void LoadModulesRequiredForCompilation() override;
+#endif
+	
 private:
 	FName RegistrationName;
 

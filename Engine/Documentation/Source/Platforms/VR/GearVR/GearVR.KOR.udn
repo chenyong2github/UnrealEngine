@@ -1,0 +1,31 @@
+﻿Availability: Public
+Availability: Public
+Title: 삼성 Gear VR 개발
+Description:UE4 에서 삼성 Gear VR 헤드셋을 사용하기 위한 안내입니다.
+Type: landing
+Version: 4.17
+Parent: Platforms/VR
+Tags: Platform
+Tags: VR
+Tags: Mobile VR
+Tags: GearVR
+topic-image: SamsungGearVRDevelopment_topic.png
+Order: 3
+
+
+![](SamsungGearVR.png)(w:1000)
+
+## 입문서
+
+[DIR(end:"1" output:"topic" type:"quick start" parent:"Platforms/VR/GearVR")]
+
+## 삼성 Gear VR 개발
+
+[DIR(end:"1" output:"topic" type:"reference,overview" parent:"Platforms/VR/GearVR")]
+
+## 안내서
+
+[DIR(output:"fancy" type:"how-to" skilllevel:"Beginner" parent:"Platforms/VR/GearVR" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Intermediate" parent:"Platforms/VR/GearVR" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Advanced" parent:"Platforms/VR/GearVR" org:"flat")]
+[DIR(output:"fancy" type:"how-to" skilllevel:"Expert" parent:"Platforms/VR/GearVR" org:"flat")]

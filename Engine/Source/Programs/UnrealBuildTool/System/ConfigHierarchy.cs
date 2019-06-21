@@ -141,7 +141,7 @@ namespace UnrealBuildTool
 		/// <param name="KeyName">The key name to search for</param>
 		/// <param name="Values">On success, receives a list of the corresponding values</param>
 		/// <returns>True if the key was found, false otherwise</returns>
-		public bool TryGetValues(string KeyName, out IEnumerable<string> Values)
+		public bool TryGetValues(string KeyName, out IReadOnlyList<string> Values)
 		{
 			List<string> ValuesList;
 			if(KeyToValue.TryGetValue(KeyName, out ValuesList))
@@ -271,7 +271,7 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
-		/// Legacy function for ease of transition from ConfigCacheIni to ConfigHierarchy. Gets a string with the given key name, returning an empty string on failure.
+		/// Legacy function for ease of transition from ConfigCacheIni to ConfigHierarchy. Gets an array with the given key name, returning null on failure.
 		/// </summary>
 		/// <param name="SectionName">Section name</param>
 		/// <param name="KeyName">Key name</param>
@@ -279,7 +279,7 @@ namespace UnrealBuildTool
 		/// <returns>True if the key exists</returns>
 		public bool GetArray(string SectionName, string KeyName, out List<string> Values)
 		{
-			IEnumerable<string> ValuesEnumerable;
+			IReadOnlyList<string> ValuesEnumerable;
 			if(TryGetValues(SectionName, KeyName, out ValuesEnumerable))
 			{
 				Values = ValuesEnumerable.ToList();
@@ -433,7 +433,7 @@ namespace UnrealBuildTool
 		/// <param name="KeyName">Key name</param>
 		/// <param name="Values">Copy of the list containing all values associated with the specified key</param>
 		/// <returns>True if the key exists</returns>
-		public bool TryGetValues(string SectionName, string KeyName, out IEnumerable<string> Values)
+		public bool TryGetValues(string SectionName, string KeyName, out IReadOnlyList<string> Values)
 		{
 			return FindSection(SectionName).TryGetValues(KeyName, out Values);
 		}
@@ -913,8 +913,23 @@ namespace UnrealBuildTool
 				}
 			}
 
+			// Find all the generated config files
+			foreach(FileReference GeneratedConfigFile in EnumerateGeneratedConfigFileLocations(Type, ProjectDir, Platform))
+			{
+				yield return GeneratedConfigFile;
+			}
+		}
+
+		/// <summary>
+		/// Returns a list of INI filenames for the given project
+		/// </summary>
+		public static IEnumerable<FileReference> EnumerateGeneratedConfigFileLocations(ConfigHierarchyType Type, DirectoryReference ProjectDir, UnrealTargetPlatform Platform)
+		{
+			string BaseIniName = Enum.GetName(typeof(ConfigHierarchyType), Type);
+			string PlatformName = GetIniPlatformName(Platform);
+
 			// Get the generated config file too. EditorSettings overrides this from 
-			if(Type == ConfigHierarchyType.EditorSettings)
+			if (Type == ConfigHierarchyType.EditorSettings)
 			{
 				yield return FileReference.Combine(GetGameAgnosticSavedDir(), "Config", PlatformName, BaseIniName + ".ini");
 			}
@@ -964,6 +979,10 @@ namespace UnrealBuildTool
 			if (TargetPlatform == UnrealTargetPlatform.Win32 || TargetPlatform == UnrealTargetPlatform.Win64)
 			{
 				return "Windows";
+			}
+			else if (TargetPlatform == UnrealTargetPlatform.HoloLens)
+			{
+				return "HoloLens";
 			}
 			else
 			{

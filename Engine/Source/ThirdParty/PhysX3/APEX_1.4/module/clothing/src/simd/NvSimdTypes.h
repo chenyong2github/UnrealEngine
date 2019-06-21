@@ -78,7 +78,7 @@ void foo(const float* ptr)
 #else
 #define NV_SIMD_SSE2 0
 #endif
-#if defined (_M_ARM) || defined (__ARM_NEON__) || defined (__ARM_NEON)
+#if defined (_M_ARM) || defined (_M_ARM64) || defined (__ARM_NEON__) || defined (__ARM_NEON)
 #define NV_SIMD_NEON 1
 #else
 #define NV_SIMD_NEON 0
@@ -99,7 +99,7 @@ void foo(const float* ptr)
 // support shift by vector operarations
 #define NV_SIMD_SHIFT_BY_VECTOR (NV_SIMD_NEON)
 // support inline assembler
-#if defined _M_ARM || defined SN_TARGET_PSP2 || defined __arm64__ || defined __aarch64__
+#if defined _M_ARM || defined _M_ARM64 || defined SN_TARGET_PSP2 || defined __arm64__ || defined __aarch64__
 #define NV_SIMD_INLINE_ASSEMBLER 0
 #else
 #define NV_SIMD_INLINE_ASSEMBLER 1

@@ -5,6 +5,7 @@
 #include "Misc/CString.h"
 #include "Sockets.h"
 #include "SocketSubsystem.h"
+#include "AddressInfoTypes.h"
 
 namespace Trace
 {
@@ -23,17 +24,22 @@ bool FControlClient::Connect(const TCHAR* Host, uint16 Port)
         return false;
     }
 
-	ISocketSubsystem& Sockets = *(ISocketSubsystem::Get());
-	TSharedPtr<FInternetAddr> Addr = Sockets.CreateInternetAddr();
-	bool bIsHostValid = false;
-	Addr->SetIp(Host, bIsHostValid);
-	if (!bIsHostValid)
+	ISocketSubsystem* Sockets = ISocketSubsystem::Get();
+	if (Sockets == nullptr)
 	{
-		ESocketErrors SocketErrors = Sockets.GetHostByName(TCHAR_TO_ANSI(Host), *Addr);
-		if (SocketErrors != SE_NO_ERROR)
+		return false;
+	}
+	
+	TSharedPtr<FInternetAddr> Addr = Sockets->GetAddressFromString(Host);
+	if (!Addr.IsValid() || !Addr->IsValid())
+	{
+		FAddressInfoResult GAIRequest = Sockets->GetAddressInfo(Host, nullptr, EAddressInfoFlags::Default, NAME_None);
+		if (GAIRequest.ReturnCode != SE_NO_ERROR || GAIRequest.Results.Num() == 0)
 		{
 			return false;
 		}
+		
+		Addr = GAIRequest.Results[0].Address;
 	}
 	Addr->SetPort(Port);
 	return Connect(*Addr);
@@ -46,10 +52,14 @@ bool FControlClient::Connect(const FInternetAddr& Address)
 	{
 		return false;
 	}
+	
+	ISocketSubsystem* Sockets = ISocketSubsystem::Get();	
+	if (Sockets == nullptr)
+	{
+		return false;
+	}
 
-	ISocketSubsystem& Sockets = *(ISocketSubsystem::Get());
-
-	FSocket* ClientSocket = Sockets.CreateSocket(NAME_Stream, TEXT("TraceControlClient"));
+	FSocket* ClientSocket = Sockets->CreateSocket(NAME_Stream, TEXT("TraceControlClient"), Address.GetProtocolType());
 	if (ClientSocket == nullptr)
 	{
 		return false;
@@ -57,7 +67,7 @@ bool FControlClient::Connect(const FInternetAddr& Address)
 
 	if (!ClientSocket->Connect(Address))
 	{
-		Sockets.DestroySocket(ClientSocket);
+		Sockets->DestroySocket(ClientSocket);
 		return false;
 	}
 

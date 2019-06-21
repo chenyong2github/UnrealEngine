@@ -154,6 +154,16 @@ protected:
 	// FCustomizableTextObjectFactory (end)
 };
 
+bool FComponentEditorUtils::CanEditComponentInstance(const UActorComponent* ActorComp, const UActorComponent* ParentSceneComp, bool bAllowUserContructionScript)
+{
+	// Exclude nested DSOs attached to BP-constructed instances, which are not mutable.
+	return (ActorComp != nullptr
+		&& (!ActorComp->IsVisualizationComponent())
+		&& (ActorComp->CreationMethod != EComponentCreationMethod::UserConstructionScript || bAllowUserContructionScript)
+		&& (ParentSceneComp == nullptr || !ParentSceneComp->IsCreatedByConstructionScript() || !ActorComp->HasAnyFlags(RF_DefaultSubObject)))
+		&& (ActorComp->CreationMethod != EComponentCreationMethod::Native || FComponentEditorUtils::CanEditNativeComponent(ActorComp));
+}
+
 bool FComponentEditorUtils::CanEditNativeComponent(const UActorComponent* NativeComponent)
 {
 	// A native component can be edited if it is bound to a member variable and that variable is marked as visible in the editor
@@ -835,7 +845,7 @@ bool FComponentEditorUtils::AttemptApplyMaterialToComponent(USceneComponent* Sce
 	return bResult;
 }
 
-FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(UActorComponent* ComponentInstance)
+FName FComponentEditorUtils::FindVariableNameGivenComponentInstance(const UActorComponent* ComponentInstance)
 {
 	check(ComponentInstance != nullptr);
 
@@ -1053,6 +1063,30 @@ UActorComponent* FComponentEditorUtils::FindMatchingComponent(UActorComponent* C
 	}
 
 	return FoundComponents[0];
+}
+
+FComponentReference FComponentEditorUtils::MakeComponentReference(const AActor* InExpectedComponentOwner, const UActorComponent* InComponent)
+{
+	FComponentReference Result;
+	if (InComponent)
+	{
+		const AActor* Owner = InExpectedComponentOwner;
+		if (InComponent->GetOwner() && InComponent->GetOwner() != Owner)
+		{
+			Result.OtherActor = InComponent->GetOwner();
+			Owner = InComponent->GetOwner();
+		}
+
+		if (InComponent->CreationMethod == EComponentCreationMethod::Native || InComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
+		{
+			Result.ComponentProperty = FComponentEditorUtils::FindVariableNameGivenComponentInstance(InComponent);
+		}
+		if (Result.ComponentProperty.IsNone() && InComponent->CreationMethod != EComponentCreationMethod::UserConstructionScript)
+		{
+			Result.PathToComponent = InComponent->GetPathName(InComponent->GetOwner());
+		}
+	}
+	return Result;
 }
 
 void FComponentEditorUtils::OnGoToComponentAssetInBrowser(UObject* Asset)

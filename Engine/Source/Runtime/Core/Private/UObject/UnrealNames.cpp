@@ -25,6 +25,11 @@
 #include "Serialization/ArchiveFromStructuredArchive.h"
 #include "Hash/CityHash.h"
 
+// Page protection to catch FNameEntry stomps
+#ifndef FNAME_WRITE_PROTECT_PAGES
+#define FNAME_WRITE_PROTECT_PAGES 1
+#endif
+
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealNames, Log, All);
 
 const TCHAR* LexToString(EName Ename)
@@ -260,7 +265,7 @@ public:
 	/** Initializes all member variables. */
 	FNameEntryAllocator()
 	{
-		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes);
+		Blocks[0] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
 	/**
@@ -370,13 +375,16 @@ private:
 			Terminator->Header.Len = 0;
 		}
 
+#if FNAME_WRITE_PROTECT_PAGES
+		FPlatformMemory::PageProtect(Blocks[CurrentBlock], BlockSizeBytes, /* read */ true, /* write */ false);
+#endif
 		++CurrentBlock;
 		CurrentByteCursor = 0;
 
 		check(CurrentBlock < FNameMaxBlocks);
 		check(Blocks[CurrentBlock] == nullptr);
 
-		Blocks[CurrentBlock] = (uint8*)FMemory::Malloc(BlockSizeBytes);
+		Blocks[CurrentBlock] = (uint8*)FMemory::Malloc(BlockSizeBytes, FPlatformMemory::GetConstants().PageSize);
 	}
 
 	mutable FRWLock Lock;
@@ -1443,10 +1451,13 @@ static int32 GetLengthAndWidth(const WIDECHAR* Str, bool& bOutIsWide)
 {
 	uint32 UserCharBits = 0;
 	const WIDECHAR* It = Str;
-	while (*It)
+	if (Str)
 	{
-		UserCharBits |= TChar<WIDECHAR>::ToUnsigned(*It);
-		++It;
+		while (*It)
+		{
+			UserCharBits |= TChar<WIDECHAR>::ToUnsigned(*It);
+			++It;
+		}
 	}
 
 	bOutIsWide = UserCharBits & 0xffffff80u;
@@ -1575,6 +1586,9 @@ struct FNameHelper
 		{
 			check(FindType == FNAME_Replace_Not_Safe_For_Threading);
 
+#if FNAME_WRITE_PROTECT_PAGES
+			checkf(false, TEXT("FNAME_Replace_Not_Safe_For_Threading can't be used together with page protection."));
+#endif
 			DisplayId = Pool.Store(View);
 #if WITH_CASE_PRESERVING_NAME
 			ComparisonId = Pool.Resolve(DisplayId).ComparisonId;
@@ -1936,6 +1950,7 @@ void FName::AutoTest()
 
 	const FName NullName(static_cast<ANSICHAR*>(nullptr));
 	check(NullName.IsNone());
+	check(NullName == FName(static_cast<WIDECHAR*>(nullptr)));
 	check(NullName == FName(NAME_None));
 	check(NullName == FName());
 	check(NullName == FName(""));
@@ -1982,6 +1997,7 @@ void FName::AutoTest()
 		check(FName(TEXT("UNIQUEUNICORN!!"), FNAME_Find) == UniqueName);
 		check(FName("uniqueunicorn!!", FNAME_Find) == UniqueName);
 
+#if !FNAME_WRITE_PROTECT_PAGES
 		// Check FNAME_Replace_Not_Safe_For_Threading updates casing
 		check(0 != UniqueName.GetPlainNameString().Compare("UNIQUEunicorn!!", ESearchCase::CaseSensitive));
 		const FName UniqueNameReplaced("UNIQUEunicorn!!", FNAME_Replace_Not_Safe_For_Threading);
@@ -1996,6 +2012,7 @@ void FName::AutoTest()
 		// Check FNAME_Replace_Not_Safe_For_Threading adds entries that do not exist
 		const FName AddedByReplace("WasAdded!!", FNAME_Replace_Not_Safe_For_Threading);
 		check(FName("WasAdded!!", FNAME_Find) == AddedByReplace);
+#endif
 	
 		Once = false;
 	}

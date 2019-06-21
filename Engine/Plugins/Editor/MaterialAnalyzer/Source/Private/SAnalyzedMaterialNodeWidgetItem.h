@@ -11,6 +11,7 @@
 #include "Widgets/Views/SListView.h"
 #include "AnalyzedMaterialNode.h"
 #include "Widgets/Input/SButton.h"
+#include "AssetData.h"
 
 class SAnalyzedMaterialNodeWidgetItem
 	: public SMultiColumnTableRow<FAnalyzedMaterialNodeRef>
@@ -45,6 +46,7 @@ public:
 	// SMultiColumnTableRow overrides
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
+	FReply FindInContentBrowser();
 	FText GetMaterialName() const
 	{
 		return CachedMaterialName;
@@ -62,7 +64,7 @@ protected:
 	FText CachedMaterialName;
 	int TotalNumberOfChildren;
 	int NumberOfChildren;
-
+	FAssetData AssetData;
 	TArray<FBasePropertyOverrideNodeRef> BasePropertyOverrideNodes;
 	TArray<FStaticSwitchParameterNodeRef> StaticSwitchNodes;
 	TArray<FStaticComponentMaskParameterNodeRef> StaticComponentMaskNodes;

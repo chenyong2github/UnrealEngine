@@ -8,6 +8,7 @@
 #include "Framework/Docking/WorkspaceItem.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/FileManagerGeneric.h"
+#include "Input/Events.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SImage.h"
@@ -42,50 +43,12 @@
 #define LOCTEXT_NAMESPACE "SStartPageWindow"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static FText GetTextForNotification(const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const FString& Filename, const float ProgressPercent = 0.0f)
-{
-	FText Result;
-
-	if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-	{
-		if (ProgressState == ELoadingProgressState::Started)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Started", "Started loading a file {Filename}"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::InProgress)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Args.Add(TEXT("LoadingProgressPercent"), FText::AsPercent(ProgressPercent));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_InProgress", "Loading a file {Filename} {LoadingProgressPercent}"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::Loaded)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Loaded", "File {Filename} has been successfully loaded"), Args);
-		}
-		else if (ProgressState == ELoadingProgressState::Failed)
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("Filename"), FText::FromString(Filename));
-			Result = FText::Format(LOCTEXT("DescF_OfflineCapture_Failed", "Failed to load file {Filename}"), Args);
-		}
-	}
-
-	return Result;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// SConnectionRow
+// STraceSessionRow
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class SConnectionRow : public SMultiColumnTableRow<TSharedPtr<FRecorderConnection>>
+class STraceSessionRow : public SMultiColumnTableRow<TSharedPtr<FTraceSession>>
 {
-	SLATE_BEGIN_ARGS(SConnectionRow) {}
+	SLATE_BEGIN_ARGS(STraceSessionRow) {}
 	SLATE_END_ARGS()
 
 public:
@@ -93,15 +56,15 @@ public:
 	 * Constructs the widget.
 	 *
 	 * @param InArgs The construction arguments.
-	 * @param InConnection The connection displayed by this row.
+	 * @param InTraceSession The trace session displayed by this row.
 	 * @param InOwnerTableView The table to which the row must be added.
 	 */
-	void Construct(const FArguments& InArgs, TSharedPtr<FRecorderConnection> InConnection, TSharedRef<SStartPageWindow> InParentWidget, const TSharedRef<STableViewBase>& InOwnerTableView)
+	void Construct(const FArguments& InArgs, TSharedPtr<FTraceSession> InTraceSession, TSharedRef<SStartPageWindow> InParentWidget, const TSharedRef<STableViewBase>& InOwnerTableView)
 	{
-		WeakConnection = MoveTemp(InConnection);
+		WeakTraceSession = MoveTemp(InTraceSession);
 		WeakParentWidget = InParentWidget;
 
-		SMultiColumnTableRow<TSharedPtr<FRecorderConnection>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
+		SMultiColumnTableRow<TSharedPtr<FTraceSession>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 	}
 
 public:
@@ -113,8 +76,8 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &SConnectionRow::GetConnectionName)
-					.ToolTipText(this, &SConnectionRow::GetConnectionName)
+					.Text(this, &STraceSessionRow::GetTraceSessionName)
+					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
 				];
 		}
 		else if (ColumnName == FName(TEXT("Uri")))
@@ -123,8 +86,18 @@ public:
 				.Padding(FMargin(4.0, 0.0))
 				[
 					SNew(STextBlock)
-					.Text(this, &SConnectionRow::GetConnectionUri)
-					.ToolTipText(this, &SConnectionRow::GetConnectionUri)
+					.Text(this, &STraceSessionRow::GetTraceSessionUri)
+					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
+				];
+		}
+		else if (ColumnName == FName(TEXT("Status")))
+		{
+			return SNew(SBox)
+				.Padding(FMargin(4.0, 0.0))
+				[
+					SNew(STextBlock)
+					.Text(this, &STraceSessionRow::GetTraceSessionstatus)
+					.ToolTipText(this, &STraceSessionRow::GetTraceSessionTooltip)
 				];
 		}
 		else
@@ -133,12 +106,12 @@ public:
 		}
 	}
 
-	FText GetConnectionName() const
+	FText GetTraceSessionName() const
 	{
-		TSharedPtr<FRecorderConnection> ConnectionPin = WeakConnection.Pin();
-		if (ConnectionPin.IsValid())
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
 		{
-			return ConnectionPin->Name;
+			return TraceSessionPin->Name;
 		}
 		else
 		{
@@ -146,12 +119,12 @@ public:
 		}
 	}
 
-	FText GetConnectionUri() const
+	FText GetTraceSessionUri() const
 	{
-		TSharedPtr<FRecorderConnection> ConnectionPin = WeakConnection.Pin();
-		if (ConnectionPin.IsValid())
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
 		{
-			return ConnectionPin->Uri;
+			return TraceSessionPin->Uri;
 		}
 		else
 		{
@@ -159,12 +132,32 @@ public:
 		}
 	}
 
-	FText GetRowToolTip() const
+	FText GetTraceSessionstatus() const
 	{
-		TSharedPtr<FRecorderConnection> ConnectionPin = WeakConnection.Pin();
-		if (ConnectionPin.IsValid())
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
 		{
-			return ConnectionPin->Uri;
+			if (TraceSessionPin->bIsLive)
+			{
+				return LOCTEXT("LiveTraceSessionStatus", "LIVE");
+			}
+		}
+		return FText();
+	}
+
+	FText GetTraceSessionTooltip() const
+	{
+		TSharedPtr<FTraceSession> TraceSessionPin = WeakTraceSession.Pin();
+		if (TraceSessionPin.IsValid())
+		{
+			if (TraceSessionPin->bIsLive)
+			{
+				return FText::Format(LOCTEXT("LiveTraceSessionTooltipFormat", "{0}\n{1}\nLIVE"), TraceSessionPin->Name, TraceSessionPin->Uri);
+			}
+			else
+			{
+				return FText::Format(LOCTEXT("TraceSessionTooltipFormat", "{0}\n{1}"), TraceSessionPin->Name, TraceSessionPin->Uri);
+			}
 		}
 		else
 		{
@@ -173,7 +166,7 @@ public:
 	}
 
 private:
-	TWeakPtr<FRecorderConnection> WeakConnection;
+	TWeakPtr<FTraceSession> WeakTraceSession;
 	TWeakPtr<SStartPageWindow> WeakParentWidget;
 };
 
@@ -183,10 +176,8 @@ private:
 
 SStartPageWindow::SStartPageWindow()
 	: DurationActive(0.0f)
-	, bIsAnyLiveSessionAvailable(false)
-	, LastLiveSessionHandle(static_cast<Trace::FSessionHandle>(0))
-	, bIsAnySessionAvailable(false)
-	, LastSessionHandle(static_cast<Trace::FSessionHandle>(0))
+	, AvailableSessionCount(0)
+	, LiveSessionCount(0)
 {
 }
 
@@ -197,7 +188,7 @@ SStartPageWindow::~SStartPageWindow()
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Profiler"), FAnalyticsEventAttribute(TEXT("Duration"), DurationActive));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Insights.StartPage"), FAnalyticsEventAttribute(TEXT("Duration"), DurationActive));
 	}
 #endif // WITH_EDITOR
 }
@@ -236,13 +227,16 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 						.HAlign(HAlign_Center)
 						.Padding(3.0f, 3.0f)
 						[
-							SNew(SBorder)
-							.Visibility(this, &SStartPageWindow::IsSessionOverlayVisible)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
+							SNew(SBox)
+							.WidthOverride(512.0f)
 							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("SelectTraceOverlayText", "Please select a trace..."))
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+								.Padding(8.0f)
+								.HAlign(HAlign_Fill)
+								[
+									ConstructSessionsPanel()
+								]
 							]
 						]
 
@@ -251,18 +245,16 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 						.HAlign(HAlign_Center)
 						.Padding(3.0f, 3.0f)
 						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
+							SNew(SBox)
+							.WidthOverride(512.0f)
 							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("SelectTraceHint", "\
-- Use \"Live\" button to start analysis for the latest available session that is live, if any.\n\
-- Use \"Latest\" button to start analysis for the latest available session, if any.\n\
-- Use \"Load\" button to load a trace file (*.utrace).\n\
-- Use the combo box to choose from available sessions.\n\
-- Drag and drop a *.utrace file over this window."))
-								//.Justification(ETextJustify::Center)
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+								.Padding(8.0f)
+								.HAlign(HAlign_Fill)
+								[
+									ConstructRecoderPanel()
+								]
 							]
 						]
 
@@ -271,185 +263,17 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 						.HAlign(HAlign_Center)
 						.Padding(3.0f, 3.0f)
 						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.Padding(3.0f, 0.0f)
-								[
-									SNew(SButton)
-									.OnClicked(this, &SStartPageWindow::Live_OnClicked)
-									.IsEnabled(this, &SStartPageWindow::Live_IsEnabled)
-									.ToolTipText(LOCTEXT("LiveButtonTooltip", "Start analysis for the latest available session that is live, if any."))
-									.ContentPadding(8.0f)
-									.Content()
-									[
-										SNew(SHorizontalBox)
-
-										+SHorizontalBox::Slot()
-											.AutoWidth()
-											[
-												SNew(SImage)
-												.Image(FInsightsStyle::GetBrush("Live.Icon.Large"))
-											]
-
-										+SHorizontalBox::Slot()
-											.AutoWidth()
-											.VAlign(VAlign_Center)
-											[
-												SNew(SBox)
-												.WidthOverride(100.0f)
-												[
-													SNew(STextBlock)
-													.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-													.Text(LOCTEXT("LiveButtonText", "Live"))
-												]
-											]
-									]
-								]
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.Padding(3.0f, 0.0f)
-								[
-									SNew(SButton)
-									.OnClicked(this, &SStartPageWindow::Last_OnClicked)
-									.IsEnabled(this, &SStartPageWindow::Last_IsEnabled)
-									.ToolTipText(LOCTEXT("LastButtonTooltip", "Start analysis for the latest available session, if any."))
-									.ContentPadding(8.0f)
-									.Content()
-									[
-										SNew(SHorizontalBox)
-
-										+SHorizontalBox::Slot()
-											.AutoWidth()
-											[
-												SNew(SImage)
-												.Image(FInsightsStyle::GetBrush("Live.Icon.Large"))
-											]
-
-										+SHorizontalBox::Slot()
-											.AutoWidth()
-											.VAlign(VAlign_Center)
-											[
-												SNew(SBox)
-												.WidthOverride(100.0f)
-												[
-													SNew(STextBlock)
-													.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-													.Text(LOCTEXT("LastButtonText", "Latest"))
-												]
-											]
-									]
-								]
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.Padding(3.0f, 0.0f, 0.0f, 0.0f)
-								[
-									SNew(SButton)
-									.OnClicked(this, &SStartPageWindow::Load_OnClicked)
-									.ToolTipText(LOCTEXT("LoadButtonTooltip", "Load a trace file."))
-									.ContentPadding(8.0f)
-									.Content()
-									[
-										SNew(SHorizontalBox)
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											[
-												SNew(SImage)
-												.Image(FInsightsStyle::GetBrush("Load.Icon.Large"))
-											]
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											.VAlign(VAlign_Center)
-											[
-												SNew(SBox)
-												.WidthOverride(100.0f)
-												[
-													SNew(STextBlock)
-													.Font(FCoreStyle::GetDefaultFontStyle("Regular", 18))
-													.Text(LOCTEXT("LoadButtonText", "Load..."))
-												]
-											]
-									]
-								]
-
-							+ SHorizontalBox::Slot()
-								.AutoWidth()
-								.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-								[
-									SNew(SComboButton)
-									.ToolTipText(LOCTEXT("SessionList_Tooltip", "Choose from Most Recently Used Sessions or from Available Sessions"))
-									.OnGetMenuContent(this, &SStartPageWindow::MakeSessionListMenu)
-									.HasDownArrow(true)
-									.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
-								]
-						]
-
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Center)
-						.Padding(3.0f, 3.0f)
-						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
+							SNew(SBox)
+							.WidthOverride(512.0f)
+							.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
 							[
-								SNew(SVerticalBox)
-
-								+ SVerticalBox::Slot()
-									.AutoHeight()
-									.HAlign(HAlign_Center)
-									.Padding(0.0, 2.0f)
-									[
-										SNew(STextBlock)
-										.Text(LOCTEXT("LocalSessionDirectoryText", "Local Session Directory:"))
-										.ColorAndOpacity(FLinearColor::Gray)
-									]
-
-								+ SVerticalBox::Slot()
-									.AutoHeight()
-									.HAlign(HAlign_Center)
-									.Padding(0.0, 2.0f)
-									[
-										SNew(SHorizontalBox)
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											.Padding(2.0f, 0.0f)
-											.VAlign(VAlign_Center)
-											[
-												SNew(STextBlock)
-												.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
-											]
-
-										+ SHorizontalBox::Slot()
-											.AutoWidth()
-											.Padding(2.0f, 0.0f)
-											.VAlign(VAlign_Center)
-											[
-												SNew(SButton)
-												.Text(LOCTEXT("ExploreLocalSessionDirButton", "..."))
-												.ToolTipText(LOCTEXT("ExploreLocalSessionDirButtonToolTip", "Explore the Local Session Directory"))
-												.OnClicked(this, &SStartPageWindow::ExploreLocalSessionDirectory_OnClicked)
-											]
-									]
-							]
-						]
-
-					+ SVerticalBox::Slot()
-						.AutoHeight()
-						.HAlign(HAlign_Center)
-						.Padding(3.0f, 3.0f)
-						[
-							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
-							.Padding(8.0f)
-							[
-								ConstructRecoderPanel()
+								SNew(SBorder)
+								.BorderImage(FEditorStyle::GetBrush("NotificationList.ItemBackground"))
+								.Padding(8.0f)
+								.HAlign(HAlign_Fill)
+								[
+									ConstructConnectPanel()
+								]
 							]
 						]
 				]
@@ -469,6 +293,176 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 				.VAlign(VAlign_Center)
 				.Expose(OverlaySettingsSlot)
 		];
+
+	FSlateApplication::Get().SetKeyboardFocus(TraceSessionsListView);
+	FSlateApplication::Get().SetUserFocus(0, TraceSessionsListView);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
+{
+	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Center)
+		.Padding(0.0, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("SessionsPanelTitle", "Trace Sessions"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+			.ColorAndOpacity(FLinearColor::Gray)
+		]
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(0.0, 1.0f, 0.0f, 2.0f)
+		.MaxHeight(134.0f)
+		[
+			SAssignNew(TraceSessionsListView, SListView<TSharedPtr<FTraceSession>>)
+			.IsFocusable(true)
+			.ItemHeight(20.0f)
+			.SelectionMode(ESelectionMode::Single)
+			.OnSelectionChanged(this, &SStartPageWindow::TraceSessions_OnSelectionChanged)
+			.OnMouseButtonDoubleClick(this, &SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick)
+			.ListItemsSource(&TraceSessions)
+			.OnGenerateRow(this, &SStartPageWindow::TraceSessions_OnGenerateRow)
+			.ConsumeMouseWheel(EConsumeMouseWheel::Always)
+			//.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SStartPageWindow::TraceSessions_GetContextMenu))
+			.HeaderRow
+			(
+				SNew(SHeaderRow)
+
+				+ SHeaderRow::Column(FName(TEXT("Name")))
+				.FillWidth(0.2f)
+				.DefaultLabel(LOCTEXT("NameColumn", "Name"))
+
+				//+ SHeaderRow::Column(FName(TEXT("Uri")))
+				//.FillWidth(0.8f)
+				//.DefaultLabel(LOCTEXT("UriColumn", "URI"))
+
+				+ SHeaderRow::Column(FName(TEXT("Status")))
+				.FixedWidth(60.0f)
+				.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
+			)
+		]
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Right)
+		.Padding(0.0, 2.0f)
+		[
+			ConstructLoadPanel()
+		]
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Left)
+		.Padding(0.0, 2.0f)
+		[
+			ConstructLocalSessionDirectoryPanel()
+		]
+	;
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
+{
+	TSharedRef<SWidget> Widget = SNew(SHorizontalBox)
+
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.IsEnabled(this, &SStartPageWindow::Open_IsEnabled)
+			.OnClicked(this, &SStartPageWindow::Open_OnClicked)
+			.ToolTipText(LOCTEXT("OpenButtonTooltip", "Start analysis for selected session."))
+			.ContentPadding(FMargin(4.0f, 1.0f))
+			.Content()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FInsightsStyle::GetBrush("Open.Icon.Small"))
+					]
+
+				+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.VAlign(VAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("OpenButtonText", "Open"))
+					]
+			]
+		]
+
+	+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SComboButton)
+			.ToolTipText(LOCTEXT("MRU_Tooltip", "Open a file or choose a session."))
+			.OnGetMenuContent(this, &SStartPageWindow::MakeSessionListMenu)
+			.HasDownArrow(true)
+			.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 1.0f))
+		]
+	;
+
+	return Widget;
+}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::ConstructLocalSessionDirectoryPanel()
+{
+	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Left)
+		.Padding(0.0, 0.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("LocalSessionDirectoryText", "Local Session Directory:"))
+			.ColorAndOpacity(FLinearColor::Gray)
+		]
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Left)
+		.Padding(0.0, 0.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+				.Padding(0.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(this, &SStartPageWindow::GetLocalSessionDirectory)
+					.Justification(ETextJustify::Right)
+				]
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("ExploreLocalSessionDirButton", "..."))
+					.ToolTipText(LOCTEXT("ExploreLocalSessionDirButtonToolTip", "Explore the Local Session Directory"))
+					.OnClicked(this, &SStartPageWindow::ExploreLocalSessionDirectory_OnClicked)
+				]
+		]
+	;
+
+	return Widget;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -541,8 +535,8 @@ TSharedRef<SWidget> SStartPageWindow::ConstructRecoderPanel()
 
 	+ SVerticalBox::Slot()
 		.AutoHeight()
-		.HAlign(HAlign_Fill)
-		.Padding(0.0, 2.0f)
+		.HAlign(HAlign_Left)
+		.Padding(0.0, 2.0f, 0.0f, 1.0f)
 		[
 			SNew(SHorizontalBox)
 			.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
@@ -553,7 +547,52 @@ TSharedRef<SWidget> SStartPageWindow::ConstructRecoderPanel()
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("HostTitle", "Host:"))
+					.Text_Lambda([this]() -> FText
+					{
+						return FText::Format(LOCTEXT("ConnectionCountFormat", "Connections / live sessions: {0}"), FText::AsNumber(LiveSessionCount));
+					})
+					.ColorAndOpacity(FLinearColor::Gray)
+				]
+		]
+
+	;
+
+	RefreshTraceSessionList();
+
+	return Widget;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SWidget> SStartPageWindow::ConstructConnectPanel()
+{
+	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Center)
+		.Padding(0.0, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ConnectPanelTitle", "New Connection"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+			.ColorAndOpacity(FLinearColor::Gray)
+		]
+
+	+ SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		.Padding(0.0, 2.0f)
+		[
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+				.VAlign(VAlign_Center)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("HostTitle", "Running instance IP:"))
 					.ColorAndOpacity(FLinearColor::Gray)
 				]
 
@@ -575,191 +614,25 @@ TSharedRef<SWidget> SStartPageWindow::ConstructRecoderPanel()
 					.OnClicked(this, &SStartPageWindow::Connect_OnClicked)
 				]
 		]
-
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0, 2.0f, 0.0f, 1.0f)
-		[
-			SNew(SHorizontalBox)
-			.Visibility(this, &SStartPageWindow::StopTraceRecorder_Visibility)
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(0.0f, 0.0f, 2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text_Lambda([this]() -> FText
-					{
-						return FText::Format(LOCTEXT("ConnectionListTitle", "Connections (live sessions): {0}"), FText::AsNumber(Connections.Num()));
-					})
-					.ColorAndOpacity(FLinearColor::Gray)
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SButton)
-					.Text(LOCTEXT("Refresh", "Refresh"))
-					.ToolTipText(LOCTEXT("RefreshToolTip", "Refresh the connection list (live sessions)."))
-					.OnClicked(this, &SStartPageWindow::RefreshConnections_OnClicked)
-				]
-		]
-
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0, 1.0f, 0.0f, 2.0f)
-		[
-			SNew(SBox)
-			.WidthOverride(640.0f)
-			.MaxDesiredHeight(78.0f)
-			.Visibility(this, &SStartPageWindow::Connections_Visibility)
-			[
-				SAssignNew(ConnectionsListView, SListView<TSharedPtr<FRecorderConnection>>)
-				.ItemHeight(20.0f)
-				.SelectionMode(ESelectionMode::Single)
-				.OnSelectionChanged(this, &SStartPageWindow::Connections_OnSelectionChanged)
-				.ListItemsSource(&Connections)
-				.OnGenerateRow(this, &SStartPageWindow::Connections_OnGenerateRow)
-				.ConsumeMouseWheel(EConsumeMouseWheel::Always)
-				//.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &SStartPageWindow::Connections_GetContextMenu))
-				.HeaderRow
-				(
-					SNew(SHeaderRow)
-
-					+ SHeaderRow::Column(FName(TEXT("Name")))
-					.FillWidth(0.2f)
-					.DefaultLabel(LOCTEXT("NameColumn", "Name"))
-
-					+ SHeaderRow::Column(FName(TEXT("Uri")))
-					.FillWidth(0.8f)
-					.DefaultLabel(LOCTEXT("UriColumn", "URI"))
-				)
-			]
-		]
-
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0, 2.0f, 0.0f, 1.0f)
-		[
-			SNew(STextBlock)
-			.Visibility(this, &SStartPageWindow::Modules_Visibility)
-			.Text(LOCTEXT("ModulesListTitle", "Modules for selected connection:"))
-			.ColorAndOpacity(FLinearColor::Gray)
-		]
-
-	+ SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Left)
-		.Padding(0.0, 1.0f, 0.0f, 2.0f)
-		[
-			ConstructModuleList()
-		]
 	;
-
-	RefreshConnectionList();
 
 	return Widget;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TSharedRef<SWidget> SStartPageWindow::ConstructModuleList()
+TSharedRef<ITableRow> SStartPageWindow::TraceSessions_OnGenerateRow(TSharedPtr<FTraceSession> InTraceSession, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox)
-		.Visibility(this, &SStartPageWindow::Modules_Visibility);
-
-	TSharedRef<Trace::IModuleService> ModuleService = FInsightsManager::Get()->GetModuleService();
-	ModuleService->GetAvailableModules(AvailableModules);
-
-	constexpr bool bDefaultModuleEnableState = false;
-	AvailableModulesEnabledState.Reset();
-
-	for (int32 ModuleIndex = 0; ModuleIndex < AvailableModules.Num(); ++ModuleIndex)
-	{
-		const Trace::FModuleInfo& Module = AvailableModules[ModuleIndex];
-
-		AvailableModulesEnabledState.Add(bDefaultModuleEnableState);
-		ModuleService->SetModuleEnabled(Module.Name, bDefaultModuleEnableState);
-
-		VerticalBox->AddSlot()
-			.AutoHeight()
-			.Padding(0.0f, 1.0f)
-			[
-				SNew(SCheckBox)
-				.IsChecked(this, &SStartPageWindow::Module_IsChecked, ModuleIndex)
-				.OnCheckStateChanged(this, &SStartPageWindow::Module_OnCheckStateChanged, ModuleIndex)
-				[
-					SNew(STextBlock)
-					.Text(FText::FromString(Module.DisplayName))
-				]
-			];
-	}
-
-	return VerticalBox;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<ITableRow> SStartPageWindow::Connections_OnGenerateRow(TSharedPtr<FRecorderConnection> InConnection, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return SNew(SConnectionRow, InConnection, SharedThis(this), OwnerTable);
+	return SNew(STraceSessionRow, InTraceSession, SharedThis(this), OwnerTable);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility SStartPageWindow::Modules_Visibility() const
+FReply SStartPageWindow::RefreshTraceSessions_OnClicked()
 {
-	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-	return (SessionService->IsRecorderServerRunning() && Connections.Num() > 0 && SelectedConnection.IsValid()) ? EVisibility::Visible : EVisibility::Collapsed;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-ECheckBoxState SStartPageWindow::Module_IsChecked(int32 ModuleIndex) const
-{
-	if (ModuleIndex >= 0 && ModuleIndex < AvailableModulesEnabledState.Num())
-	{
-		const bool bIsEnabled = AvailableModulesEnabledState[ModuleIndex];
-		return bIsEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-	}
-	else
-	{
-		return ECheckBoxState::Undetermined;
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStartPageWindow::Module_OnCheckStateChanged(ECheckBoxState NewRadioState, int32 ModuleIndex)
-{
-	ensure(AvailableModulesEnabledState.Num() == AvailableModules.Num());
-
-	if (SelectedConnection.IsValid() &&
-		ModuleIndex >= 0 && ModuleIndex < AvailableModules.Num())
-	{
-		bool bIsEnabled = NewRadioState == ECheckBoxState::Checked;
-
-		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-		
-		SessionService->SetModuleEnabled(SelectedConnection->SessionHandle, AvailableModules[ModuleIndex].Name, bIsEnabled);
-		//AvailableModulesEnabledState[ModuleIndex] = bIsEnabled;
-		AvailableModulesEnabledState[ModuleIndex] = SessionService->IsModuleEnabled(SelectedConnection->SessionHandle, AvailableModules[ModuleIndex].Name);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SStartPageWindow::RefreshConnections_OnClicked()
-{
-	RefreshConnectionList();
+	RefreshTraceSessionList();
 	return FReply::Handled();
 }
 
@@ -772,7 +645,7 @@ FReply SStartPageWindow::Connect_OnClicked()
 	FText HostText = HostTextBox->GetText();
 	if (HostText.IsEmptyOrWhitespace())
 	{
-		//...
+		// nothing to do
 	}
 	else if (SessionService->ConnectSession(*HostText.ToString()))
 	{
@@ -799,74 +672,98 @@ FReply SStartPageWindow::Connect_OnClicked()
 		ActiveNotifications.Add(TEXT("ConnectFailed"), NotificationItem);
 	}
 
-	RefreshConnectionList();
+	RefreshTraceSessionList();
 	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::RefreshConnectionList()
+void SStartPageWindow::RefreshTraceSessionList()
 {
 	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
 
-	TArray<Trace::FSessionHandle> LiveSessions;
-	SessionService->GetLiveSessions(LiveSessions);
+	TArray<Trace::FSessionHandle> AvailableSessions;
+	SessionService->GetAvailableSessions(AvailableSessions);
 
-	TSharedPtr<FRecorderConnection> NewSelectedConnection;
+	AvailableSessionCount = AvailableSessions.Num();
 
-	Connections.Reset();
-
-	for (Trace::FSessionHandle SessionHandle : LiveSessions)
+	// Count number of live sessions.
+	int32 OldLiveSessionCount = LiveSessionCount;
+	LiveSessionCount = 0;
+	for (Trace::FSessionHandle SessionHandle : AvailableSessions)
 	{
 		Trace::FSessionInfo SessionInfo;
 		SessionService->GetSessionInfo(SessionHandle, SessionInfo);
-
-		Connections.Add(MakeShareable(new FRecorderConnection(SessionHandle, SessionInfo)));
-
-		if (SelectedConnection && SelectedConnection->SessionHandle == SessionHandle)
+		if (SessionInfo.bIsLive)
 		{
-			NewSelectedConnection = Connections.Last();
+			++LiveSessionCount;
 		}
 	}
 
-	ConnectionsListView->RebuildList();
-
-	if (NewSelectedConnection.IsValid())
+	// If session list has changed on analysis side, recreate the TraceSessions list view widget.
+	//TODO: if (AvailableSessionsChangeNumber != SessionService->GetAvailableSessionsChangeNumber())
+	if (AvailableSessionCount != TraceSessions.Num() ||
+		LiveSessionCount != OldLiveSessionCount)
 	{
-		ConnectionsListView->SetItemSelection(NewSelectedConnection, true);
-		ConnectionsListView->RequestScrollIntoView(NewSelectedConnection);
+		TSharedPtr<FTraceSession> NewSelectedTraceSession;
+
+		TraceSessions.Reset();
+
+		for (Trace::FSessionHandle SessionHandle : AvailableSessions)
+		{
+			Trace::FSessionInfo SessionInfo;
+			SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+
+			TraceSessions.Add(MakeShareable(new FTraceSession(SessionHandle, SessionInfo)));
+
+			// Identify the previously selected session (if stil available) to ensure selection remains unchanged.
+			if (SelectedTraceSession && SelectedTraceSession->SessionHandle == SessionHandle)
+			{
+				NewSelectedTraceSession = TraceSessions.Last();
+			}
+		}
+
+		TraceSessionsListView->RebuildList();
+
+		// If no selection, auto select the last (newest) session.
+		if (!NewSelectedTraceSession.IsValid() && TraceSessions.Num() > 0)
+		{
+			NewSelectedTraceSession = TraceSessions.Last();
+		}
+
+		TraceSessionsListView->ScrollToBottom();
+
+		// Restore selection and ensure is visible.
+		if (NewSelectedTraceSession.IsValid())
+		{
+			TraceSessionsListView->SetItemSelection(NewSelectedTraceSession, true);
+			TraceSessionsListView->RequestScrollIntoView(NewSelectedTraceSession);
+		}
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStartPageWindow::Connections_OnSelectionChanged(TSharedPtr<FRecorderConnection> Connection, ESelectInfo::Type SelectInfo)
+void SStartPageWindow::TraceSessions_OnSelectionChanged(TSharedPtr<FTraceSession> TraceSession, ESelectInfo::Type SelectInfo)
 {
-	SelectedConnection = Connection;
+	SelectedTraceSession = TraceSession;
+}
 
-	if (Connection.IsValid())
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SStartPageWindow::TraceSessions_OnMouseButtonDoubleClick(TSharedPtr<FTraceSession> TraceSession)
+{
+	if (TraceSession.IsValid())
 	{
-		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-		for (int32 Index = 0; Index < AvailableModulesEnabledState.Num(); ++Index)
-		{
-			AvailableModulesEnabledState[Index] = SessionService->IsModuleEnabled(SelectedConnection->SessionHandle, AvailableModules[Index].Name);
-		}
-	}
-	else
-	{
-		for (int32 Index = 0; Index < AvailableModulesEnabledState.Num(); ++Index)
-		{
-			AvailableModulesEnabledState[Index] = false;
-		}
+		FInsightsManager::Get()->LoadSession(TraceSession->SessionHandle);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-EVisibility SStartPageWindow::Connections_Visibility() const
+EVisibility SStartPageWindow::TraceSessions_Visibility() const
 {
-	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-	return (SessionService->IsRecorderServerRunning() && Connections.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed;
+	return (TraceSessions.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -880,28 +777,7 @@ void SStartPageWindow::Tick(const FGeometry& AllottedGeometry, const double InCu
 	{
 		const uint64 WaitTime = static_cast<uint64>(0.5 / FPlatformTime::GetSecondsPerCycle64()); // 500ms
 		NextTimestamp = Time + WaitTime;
-
-		bIsAnySessionAvailable = FInsightsManager::Get()->IsAnySessionAvailable(LastSessionHandle);
-		//bIsAnyLiveSessionAvailable = FInsightsManager::Get()->IsAnyLiveSessionAvailable(LastLiveSessionHandle);
-
-		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
-		TArray<Trace::FSessionHandle> LiveSessions;
-		SessionService->GetLiveSessions(LiveSessions);
-
-		if (LiveSessions.Num() > 0)
-		{
-			LastLiveSessionHandle = LiveSessions.Last();
-			bIsAnyLiveSessionAvailable = true;
-		}
-		else
-		{
-			bIsAnyLiveSessionAvailable = false;
-		}
-
-		if (LiveSessions.Num() != Connections.Num())
-		{
-			RefreshConnectionList();
-		}
+		RefreshTraceSessionList();
 	}
 }
 
@@ -921,124 +797,7 @@ EVisibility SStartPageWindow::IsSessionOverlayVisible() const
 
 bool SStartPageWindow::IsSessionValid() const
 {
-	const bool bIsActive = FInsightsManager::Get()->GetSession().IsValid();
-	return bIsActive;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStartPageWindow::ManageLoadingProgressNotificationState(const FString& Filename, const EInsightsNotificationType NotificatonType, const ELoadingProgressState ProgressState, const float LoadingProgress)
-{
-	const FString BaseFilename = FPaths::GetBaseFilename(Filename);
-
-	if (ProgressState == ELoadingProgressState::Started)
-	{
-		const bool bContains = ActiveNotifications.Contains(Filename);
-		if (!bContains)
-		{
-			FNotificationInfo NotificationInfo(GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			NotificationInfo.bFireAndForget = false;
-			NotificationInfo.bUseLargeFont = false;
-
-			// Add two buttons, one for cancel, one for loading the received file.
-			if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-			{
-				const FText CancelButtonText = LOCTEXT("CancelButton_Text", "Cancel");
-				const FText CancelButtonTT = LOCTEXT("CancelButton_TTText", "Hides this notification");
-				const FText LoadButtonText = LOCTEXT("LoadButton_Text", "Load file");
-				const FText LoadButtonTT = LOCTEXT("LoadButton_TTText", "Loads the received file and hides this notification");
-
-				NotificationInfo.ButtonDetails.Add(FNotificationButtonInfo(CancelButtonText, CancelButtonTT,
-					FSimpleDelegate::CreateSP(this, &SStartPageWindow::SendingServiceSideCapture_Cancel, Filename), SNotificationItem::CS_Success));
-				NotificationInfo.ButtonDetails.Add(FNotificationButtonInfo(LoadButtonText, LoadButtonTT,
-					FSimpleDelegate::CreateSP(this, &SStartPageWindow::SendingServiceSideCapture_Load, Filename), SNotificationItem::CS_Success));
-			}
-
-			SNotificationItemWeak NotificationItem = NotificationList->AddNotification(NotificationInfo);
-			NotificationItem.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
-			ActiveNotifications.Add(Filename, NotificationItem);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::InProgress)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(GetTextForNotification(NotificatonType, ProgressState, BaseFilename, LoadingProgress));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Pending);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Loaded)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Success);
-
-			// Notifications for received files are handled by the user.
-			if (NotificatonType == EInsightsNotificationType::LoadingTraceFile)
-			{
-				LoadingProcessPinned->ExpireAndFadeout();
-				ActiveNotifications.Remove(Filename);
-			}
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Failed)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->SetText(GetTextForNotification(NotificatonType, ProgressState, BaseFilename));
-			LoadingProcessPinned->SetCompletionState(SNotificationItem::CS_Fail);
-
-			LoadingProcessPinned->ExpireAndFadeout();
-			ActiveNotifications.Remove(Filename);
-		}
-	}
-	else if (ProgressState == ELoadingProgressState::Cancelled)
-	{
-		const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-		if (LoadingProgressPtr)
-		{
-			TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-			LoadingProcessPinned->ExpireAndFadeout();
-			ActiveNotifications.Remove(Filename);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStartPageWindow::SendingServiceSideCapture_Cancel(const FString Filename)
-{
-	const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-	if (LoadingProgressPtr)
-	{
-		TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-		LoadingProcessPinned->ExpireAndFadeout();
-		ActiveNotifications.Remove(Filename);
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SStartPageWindow::SendingServiceSideCapture_Load(const FString Filename)
-{
-	const SNotificationItemWeak* LoadingProgressPtr = ActiveNotifications.Find(Filename);
-	if (LoadingProgressPtr)
-	{
-		TSharedPtr<SNotificationItem> LoadingProcessPinned = LoadingProgressPtr->Pin();
-		LoadingProcessPinned->ExpireAndFadeout();
-		ActiveNotifications.Remove(Filename);
-
-		const FString PathName = FPaths::ProfilingDir() + TEXT("UnrealStats/Received/");
-		const FString TraceFilepath = PathName + Filename;
-		FInsightsManager::Get()->LoadTraceFile(TraceFilepath);
-	}
+	return FInsightsManager::Get()->GetSession().IsValid();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1135,39 +894,27 @@ FReply SStartPageWindow::OnDrop(const FGeometry& MyGeometry, const FDragDropEven
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStartPageWindow::Live_IsEnabled() const
+bool SStartPageWindow::Open_IsEnabled() const
 {
-	return bIsAnyLiveSessionAvailable;
+	return AvailableSessionCount > 0;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool SStartPageWindow::Last_IsEnabled() const
+FReply SStartPageWindow::Open_OnClicked()
 {
-	return bIsAnySessionAvailable;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SStartPageWindow::Live_OnClicked()
-{
-	FInsightsManager::Get()->LoadLastLiveSession();
+	if (SelectedTraceSession.IsValid())
+	{
+		Trace::FSessionHandle SessionHandle = SelectedTraceSession->SessionHandle;
+		FInsightsManager::Get()->LoadSession(SessionHandle);
+	}
 	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SStartPageWindow::Last_OnClicked()
+void SStartPageWindow::OpenFileDialog()
 {
-	FInsightsManager::Get()->LoadLastSession();
-	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-FReply SStartPageWindow::Load_OnClicked()
-{
-	//const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(*FPaths::ProfilingDir()));
 	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
 	const FString ProfilingDirectory(FPaths::ConvertRelativePathToFull(SessionService->GetLocalSessionDirectory()));
 
@@ -1198,8 +945,6 @@ FReply SStartPageWindow::Load_OnClicked()
 			FInsightsManager::Get()->LoadTraceFile(OutFiles[0]);
 		}
 	}
-
-	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1220,25 +965,71 @@ void SStartPageWindow::LoadSession(Trace::FSessionHandle SessionHandle)
 
 TSharedRef<SWidget> SStartPageWindow::MakeSessionListMenu()
 {
-	RefreshConnectionList();
+	RefreshTraceSessionList();
 
 	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
 
-	MenuBuilder.BeginSection("MostRecentlyUsedSessions", LOCTEXT("MostRecentlyUsedSessionsHeading", "Most Recently Used Sessions"));
+	MenuBuilder.BeginSection("Misc", LOCTEXT("MiscHeading", "Misc"));
 	{
-		//TODO: MRU
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenFileButtonLabel", "Open File..."),
+			LOCTEXT("OpenFileButtonTooltip", "Start analysis for a specified trace file."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "OpenFile.Icon.Small"),
+			FUIAction(FExecuteAction::CreateSP(this, &SStartPageWindow::OpenFileDialog)),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("AvailableSessions", LOCTEXT("AvailableSessionsHeading", "Available Sessions"));
+	/* TODO: persistent MRU
+	MenuBuilder.BeginSection("MostRecentlyUsedSessions", LOCTEXT("MostRecentlyUsedSessionsHeading", "Most Recently Used Sessions"));
+	{
+		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
+
+		TArray<Trace::FSessionHandle> MruSessionList;
+
+		//TODO: real mru list
+		SessionService->GetAvailableSessions(MruSessionList); // mock the list using available sessions
+		int32 NumSessions = FMath::Min(3, MruSessionList.Num());
+
+		for (int32 SessionIndex = 0; SessionIndex < NumSessions; ++SessionIndex)
+		{
+			Trace::FSessionHandle SessionHandle = MruSessionList[SessionIndex];
+
+			Trace::FSessionInfo SessionInfo;
+			SessionService->GetSessionInfo(SessionHandle, SessionInfo);
+
+			FText Label = FText::FromString(SessionInfo.Name);
+			if (SessionInfo.bIsLive)
+			{
+				Label = FText::Format(LOCTEXT("LiveSessionTextFmt", "{0} (LIVE!)"), Label);
+			}
+
+			MenuBuilder.AddMenuEntry(
+				Label,
+				TAttribute<FText>(), // no tooltip
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SStartPageWindow::LoadSession, SessionHandle)),
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+	}
+	MenuBuilder.EndSection();
+	*/
+
+	MenuBuilder.BeginSection("AvailableSessions", LOCTEXT("AvailableSessionsHeading", "Top 10 Most Recently Created Sessions"));
 	{
 		TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
 
 		TArray<Trace::FSessionHandle> AvailableSessions;
 		SessionService->GetAvailableSessions(AvailableSessions);
 
+		int32 SessionCountLimit = 10; // top 10
+
 		// Iterate in reverse order as we want most recent sessions first.
-		for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0; --SessionIndex)
+		for (int32 SessionIndex = AvailableSessions.Num() - 1; SessionIndex >= 0 && SessionCountLimit > 0; --SessionIndex, --SessionCountLimit)
 		{
 			Trace::FSessionHandle SessionHandle = AvailableSessions[SessionIndex];
 
@@ -1295,7 +1086,7 @@ FText SStartPageWindow::GetRecorderStatusText() const
 	}
 	else
 	{
-		return FText(LOCTEXT("RecorderServerRunning", "Stopped"));
+		return FText(LOCTEXT("RecorderServerStopped", "Stopped"));
 	}
 }
 
@@ -1321,7 +1112,7 @@ FReply SStartPageWindow::StartTraceRecorder_OnClicked()
 {
 	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
 	SessionService->StartRecorderServer();
-	RefreshConnectionList();
+	RefreshTraceSessionList();
 	return FReply::Handled();
 }
 
@@ -1331,7 +1122,7 @@ FReply SStartPageWindow::StopTraceRecorder_OnClicked()
 {
 	TSharedRef<Trace::ISessionService> SessionService = FInsightsManager::Get()->GetSessionService();
 	SessionService->StopRecorderServer();
-	RefreshConnectionList();
+	RefreshTraceSessionList();
 	return FReply::Handled();
 }
 

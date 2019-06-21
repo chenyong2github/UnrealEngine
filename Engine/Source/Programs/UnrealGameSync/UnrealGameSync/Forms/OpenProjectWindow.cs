@@ -15,15 +15,16 @@ namespace UnrealGameSync
 {
 	partial class OpenProjectWindow : Form
 	{
-		string ServerAndPort;
-		string UserName;
+		string ServerAndPortOverride;
+		string UserNameOverride;
 		DetectProjectSettingsTask DetectedProjectSettings;
 		string DataFolder;
 		string CacheFolder;
+		PerforceConnection DefaultConnection;
 		TextWriter Log;
 		UserSettings Settings;
 
-		private OpenProjectWindow(UserSelectedProjectSettings Project, UserSettings Settings, string DataFolder, string CacheFolder, TextWriter Log)
+		private OpenProjectWindow(UserSelectedProjectSettings Project, UserSettings Settings, string DataFolder, string CacheFolder, PerforceConnection DefaultConnection, TextWriter Log)
 		{
 			InitializeComponent();
 
@@ -31,6 +32,7 @@ namespace UnrealGameSync
 			this.DetectedProjectSettings = null;
 			this.DataFolder = DataFolder;
 			this.CacheFolder = CacheFolder;
+			this.DefaultConnection = DefaultConnection;
 			this.Log = Log;
 
 			if(Project == null)
@@ -41,11 +43,11 @@ namespace UnrealGameSync
 			{
 				if(!String.IsNullOrWhiteSpace(Project.ServerAndPort))
 				{
-					ServerAndPort = Project.ServerAndPort;
+					ServerAndPortOverride = Project.ServerAndPort;
 				}
 				if(!String.IsNullOrWhiteSpace(Project.UserName))
 				{
-					UserName = Project.UserName;
+					UserNameOverride = Project.UserName;
 				}
 
 				if(Project.ClientPath != null && Project.ClientPath.StartsWith("//"))
@@ -79,9 +81,14 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, UserSelectedProjectSettings Project, out DetectProjectSettingsTask NewDetectedProjectSettings, UserSettings Settings, string DataFolder, string CacheFolder, TextWriter Log)
+		private PerforceConnection Perforce
 		{
-			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DataFolder, CacheFolder, Log);
+			get { return Utility.OverridePerforceSettings(DefaultConnection, ServerAndPortOverride, UserNameOverride); }
+		}
+
+		public static bool ShowModal(IWin32Window Owner, UserSelectedProjectSettings Project, out DetectProjectSettingsTask NewDetectedProjectSettings, UserSettings Settings, string DataFolder, string CacheFolder, PerforceConnection DefaultConnection, TextWriter Log)
+		{
+			OpenProjectWindow Window = new OpenProjectWindow(Project, Settings, DataFolder, CacheFolder, DefaultConnection, Log);
 			if(Window.ShowDialog(Owner) == DialogResult.OK)
 			{
 				NewDetectedProjectSettings = Window.DetectedProjectSettings;
@@ -113,11 +120,11 @@ namespace UnrealGameSync
 			UpdateWorkspacePathBrowseButton();
 		}
 
-		public static string GetServerLabelText(string ServerAndPort, string UserName)
+		public static string GetServerLabelText(PerforceConnection DefaultConnection, string ServerAndPort, string UserName)
 		{
 			if(ServerAndPort == null && UserName == null)
 			{
-				return "Using default Perforce server settings.";
+				return String.Format("Using default connection settings (user '{0}' on server '{1}').", DefaultConnection.UserName, DefaultConnection.ServerAndPort);
 			}
 			else
 			{
@@ -145,8 +152,7 @@ namespace UnrealGameSync
 
 		private void UpdateServerLabel()
 		{
-			ServerLabel.Text = GetServerLabelText(ServerAndPort, UserName);
-			ChangeLink.Location = new Point(ServerLabel.Right + 5, ChangeLink.Location.Y);
+			ServerLabel.Text = GetServerLabelText(DefaultConnection, ServerAndPortOverride, UserNameOverride);
 		}
 
 		private void UpdateWorkspacePathBrowseButton()
@@ -166,7 +172,7 @@ namespace UnrealGameSync
 			WorkspaceRadioBtn.Checked = true;
 			
 			string WorkspaceName;
-			if(NewWorkspaceWindow.ShowModal(this, ServerAndPort, UserName, null, WorkspaceNameTextBox.Text, Log, out WorkspaceName))
+			if(NewWorkspaceWindow.ShowModal(this, Perforce, null, WorkspaceNameTextBox.Text, Log, out WorkspaceName))
 			{
 				WorkspaceNameTextBox.Text = WorkspaceName;
 				UpdateOkButton();
@@ -178,7 +184,7 @@ namespace UnrealGameSync
 			WorkspaceRadioBtn.Checked = true;
 
 			string WorkspaceName = WorkspaceNameTextBox.Text;
-			if(SelectWorkspaceWindow.ShowModal(this, ServerAndPort, UserName, WorkspaceName, Log, out WorkspaceName))
+			if(SelectWorkspaceWindow.ShowModal(this, Perforce, WorkspaceName, Log, out WorkspaceName))
 			{
 				WorkspaceNameTextBox.Text = WorkspaceName;
 			}
@@ -192,7 +198,7 @@ namespace UnrealGameSync
 			if(TryGetWorkspaceName(out WorkspaceName))
 			{
 				string WorkspacePath = WorkspacePathTextBox.Text.Trim();
-				if(SelectProjectFromWorkspaceWindow.ShowModal(this, ServerAndPort, UserName, WorkspaceName, WorkspacePath, Log, out WorkspacePath))
+				if(SelectProjectFromWorkspaceWindow.ShowModal(this, Perforce, WorkspaceName, WorkspacePath, Log, out WorkspacePath))
 				{
 					WorkspacePathTextBox.Text = WorkspacePath;
 					UpdateOkButton();
@@ -253,7 +259,7 @@ namespace UnrealGameSync
 				string ClientPath;
 				if(TryGetClientPath(out ClientPath))
 				{
-					Project = new UserSelectedProjectSettings(ServerAndPort, UserName, UserSelectedProjectType.Client, ClientPath, null);
+					Project = new UserSelectedProjectSettings(ServerAndPortOverride, UserNameOverride, UserSelectedProjectType.Client, ClientPath, null);
 					return true;
 				}
 			}
@@ -262,7 +268,7 @@ namespace UnrealGameSync
 				string LocalPath;
 				if(TryGetLocalPath(out LocalPath))
 				{
-					Project = new UserSelectedProjectSettings(ServerAndPort, UserName, UserSelectedProjectType.Local, null, LocalPath);
+					Project = new UserSelectedProjectSettings(ServerAndPortOverride, UserNameOverride, UserSelectedProjectType.Local, null, LocalPath);
 					return true;
 				}
 			}
@@ -279,14 +285,8 @@ namespace UnrealGameSync
 				DetectProjectSettingsTask NewDetectedProjectSettings = new DetectProjectSettingsTask(SelectedProject, DataFolder, CacheFolder, Log);
 				try
 				{
-					string ProjectFileName = null;
-					if(SelectedProject.Type == UserSelectedProjectType.Local)
-					{
-						ProjectFileName = SelectedProject.LocalPath;
-					}
-
 					string ErrorMessage;
-					if(PerforceModalTask.Execute(this, ProjectFileName, SelectedProject.ServerAndPort, SelectedProject.UserName, NewDetectedProjectSettings, "Opening Project", "Opening project, please wait...", Log, out ErrorMessage) != ModalTaskResult.Succeeded)
+					if(PerforceModalTask.Execute(this, Perforce, NewDetectedProjectSettings, "Opening Project", "Opening project, please wait...", Log, out ErrorMessage) != ModalTaskResult.Succeeded)
 					{
 						if(!String.IsNullOrEmpty(ErrorMessage))
 						{
@@ -313,12 +313,8 @@ namespace UnrealGameSync
 
 		private void ChangeLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			string NewServerAndPort;
-			string NewUserName;
-			if(ConnectWindow.ShowModal(this, ServerAndPort, UserName, Log, out NewServerAndPort, out NewUserName))
+			if(ConnectWindow.ShowModal(this, DefaultConnection, ref ServerAndPortOverride, ref UserNameOverride, Log))
 			{
-				ServerAndPort = NewServerAndPort;
-				UserName = NewUserName;
 				UpdateServerLabel();
 			}
 		}

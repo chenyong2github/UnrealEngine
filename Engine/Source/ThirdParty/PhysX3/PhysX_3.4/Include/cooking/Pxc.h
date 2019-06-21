@@ -34,7 +34,7 @@
 #include "foundation/Px.h"
 
 // define API function declaration
-#if PX_WINDOWS
+#if PX_WINDOWS_FAMILY
     #if defined PX_PHYSX_COOKING_EXPORTS
 	    #define PX_PHYSX_COOKING_API __declspec(dllexport)
 	#else

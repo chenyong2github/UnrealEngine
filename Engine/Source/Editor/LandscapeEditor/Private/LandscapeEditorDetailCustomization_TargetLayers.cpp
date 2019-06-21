@@ -98,7 +98,7 @@ bool FLandscapeEditorDetailCustomization_TargetLayers::ShouldShowTargetLayers()
 
 		//// Visible if there are possible choices
 		//if (bSupportsWeightmap || bSupportsHeightmap || bSupportsVisibility)
-		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0 && CurrentToolName != TEXT("BPCustom"))
+		if (LandscapeEdMode->CurrentToolMode->SupportedTargetTypes != 0 && CurrentToolName != TEXT("BlueprintBrush"))
 		{
 			return true;
 		}
@@ -115,7 +115,7 @@ bool FLandscapeEditorDetailCustomization_TargetLayers::ShouldShowPaintingRestric
 	{
 		const FName CurrentToolName = LandscapeEdMode->CurrentTool->GetToolName();
 
-		if ((LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolName != TEXT("BPCustom"))
+		if ((LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Weightmap && CurrentToolName != TEXT("BlueprintBrush"))
 			|| LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 		{
 			return true;
@@ -138,9 +138,12 @@ bool FLandscapeEditorDetailCustomization_TargetLayers::ShouldShowVisibilityTip()
 		if (LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 		{
 			ALandscapeProxy* Proxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-			UMaterialInterface* HoleMaterial = Proxy->GetLandscapeMaterial();
-
-			if (HoleMaterial && !HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>())
+			UMaterialInterface* HoleMaterial = Proxy->GetLandscapeHoleMaterial();
+			if (!HoleMaterial)
+			{
+				HoleMaterial = Proxy->GetLandscapeMaterial();
+			}
+			if (!HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>())
 			{
 				return true;
 			}
@@ -885,13 +888,11 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetSelectionChanged(co
 		if (Target->TargetType == ELandscapeToolTargetType::Heightmap)
 		{
 			checkSlow(Target->LayerInfoObj == NULL);
-			LandscapeEdMode->CurrentToolTarget.LayerInfo = NULL;
-			LandscapeEdMode->CurrentToolTarget.LayerName = NAME_None;
+			LandscapeEdMode->SetCurrentTargetLayer(NAME_None, nullptr);
 		}
 		else
 		{
-			LandscapeEdMode->CurrentToolTarget.LayerInfo = Target->LayerInfoObj;
-			LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
+			LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, Target->LayerInfoObj);
 		}
 	}
 }
@@ -1131,6 +1132,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnClearLayer(const TSharedR
 			FScopedSetLandscapeEditingLayer Scope(LandscapeEdMode->GetLandscape(), LandscapeEdMode->GetCurrentLayerGuid(), [&] { LandscapeEdMode->RequestLayersContentUpdateForceAll(); });
 			FLandscapeEditDataInterface LandscapeEdit(Target->LandscapeInfo.Get());
 			LandscapeEdit.DeleteLayer(Target->LayerInfoObj.Get());
+			LandscapeEdMode->RequestUpdateShownLayerList();
 		}
 	}
 }
@@ -1202,9 +1204,8 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerSetObject(cons
 			FEdModeLandscape* LandscapeEdMode = GetEditorMode();
 			if (LandscapeEdMode)
 			{
-				LandscapeEdMode->CurrentToolTarget.LayerName = Target->LayerName;
 				LandscapeEdMode->CurrentToolTarget.TargetType = Target->TargetType;
-				LandscapeEdMode->CurrentToolTarget.LayerInfo = SelectedLayerInfo;
+				LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, SelectedLayerInfo);
 				LandscapeEdMode->UpdateTargetList();
 			}
 
@@ -1321,7 +1322,7 @@ void FLandscapeEditorCustomNodeBuilder_TargetLayers::OnTargetLayerCreateClicked(
 			if (LandscapeEdMode->CurrentToolTarget.LayerName == Target->LayerName
 				&& LandscapeEdMode->CurrentToolTarget.LayerInfo == Target->LayerInfoObj)
 			{
-				LandscapeEdMode->CurrentToolTarget.LayerInfo = LayerInfo;
+				LandscapeEdMode->SetCurrentTargetLayer(Target->LayerName, Target->LayerInfoObj);
 			}
 
 			Target->LayerInfoObj = LayerInfo;

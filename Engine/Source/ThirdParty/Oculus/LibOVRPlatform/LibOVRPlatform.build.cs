@@ -9,23 +9,25 @@ public class LibOVRPlatform : ModuleRules
 	{
 		Type = ModuleType.External;		
 		
-		string OculusThirdPartyDirectory = Target.UEThirdPartySourceDirectory + "Oculus/LibOVRPlatform/LibOVRPlatform";
+		string OculusThirdPartyDirectory = Target.UEThirdPartySourceDirectory + "Oculus/LibOVRPlatform/LibOVRPlatform/";
 
 		bool isLibrarySupported = false;
 		
 		if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "/lib/LibOVRPlatform32_1.lib");
+			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "lib/LibOVRPlatform32_1.lib");
 			isLibrarySupported = true;
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "/lib/LibOVRPlatform64_1.lib");
+			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "lib/LibOVRPlatform64_1.lib");
 			isLibrarySupported = true;
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicAdditionalLibraries.Add(OculusThirdPartyDirectory + "/lib/libovrplatformloader.so");
+			PublicLibraryPaths.Add(OculusThirdPartyDirectory + "lib/armeabi-v7a/");
+			PublicLibraryPaths.Add(OculusThirdPartyDirectory + "lib/arm64-v8a/");
+			PublicAdditionalLibraries.Add("ovrplatformloader");
 			string PluginPath = Utils.MakePathRelativeTo(ModuleDirectory, Target.RelativeEnginePath);
 			AdditionalPropertiesForReceipt.Add("AndroidPlugin", Path.Combine(PluginPath, "LibOVRPlatform_APL.xml"));
 			isLibrarySupported = true;

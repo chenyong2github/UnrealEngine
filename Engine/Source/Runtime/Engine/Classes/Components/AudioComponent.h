@@ -249,6 +249,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverrideSubtitlePriority"))
 	float SubtitlePriority;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	USoundEffectSourcePresetChain* SourceEffectChain;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	float VolumeWeightedPriorityScale_DEPRECATED;
@@ -516,6 +519,7 @@ public:
 	virtual void Activate(bool bReset=false) override;
 	virtual void Deactivate() override;
 	virtual void OnUpdateTransform(EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport = ETeleportType::None) override;
+	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface
 
 	//~ Begin ActorComponent Interface.
@@ -524,6 +528,8 @@ public:
 	virtual const UObject* AdditionalStatObject() const override;
 	virtual bool IsReadyForOwnerToAutoDestroy() const override;
 	//~ End ActorComponent Interface.
+
+	void AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut);
 
 	/** Returns a pointer to the attenuation settings to be used (if any) for this audio component dependent on the SoundAttenuation asset or overrides set. */
 	const FSoundAttenuationSettings* GetAttenuationSettingsToApply() const;
@@ -547,6 +553,7 @@ public:
 	// Will be set if the audio component is using baked FFT or envelope following data so as to be able to feed that data to BP based on playback time
 	void SetPlaybackTimes(const TMap<uint32, float>& InSoundWavePlaybackTimes);
 
+	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 public:
 
 	/**
@@ -603,7 +610,7 @@ private:
 	TMap<uint32, FSoundWavePlaybackTimeData> SoundWavePlaybackTimes;
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
-	void CancelAutoAttachment(bool bDetachFromParent);
+	void CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld);
 
 protected:
 	/** Utility function called by Play and FadeIn to start a sound playing. */

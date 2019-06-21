@@ -152,7 +152,7 @@ public:
 	RENDERCORE_API FGlobalShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	
 	template<typename TViewUniformShaderParameters, typename ShaderRHIParamRef, typename TRHICmdList>
-	inline void SetParameters(TRHICmdList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FUniformBufferRHIParamRef ViewUniformBuffer)
+	inline void SetParameters(TRHICmdList& RHICmdList, const ShaderRHIParamRef ShaderRHI, FRHIUniformBuffer* ViewUniformBuffer)
 	{
 		const auto& ViewUniformBufferParameter = static_cast<const FShaderUniformBufferParameter&>(GetUniformBufferParameter<TViewUniformShaderParameters>());
 		SetUniformBufferParameter(RHICmdList, ShaderRHI, ViewUniformBufferParameter, ViewUniformBuffer);
@@ -253,15 +253,6 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
 	\
 	virtual uint32 GetTypeSize() const override { return sizeof(*this); } \
 	\
-	static bool ShouldCompilePermutationImpl(const FGlobalShaderPermutationParameters& Parameters) \
-	{ \
-		return ShaderClass::ShouldCompilePermutation(Parameters); \
-	} \
-	\
-	static bool ValidateCompiledResultImpl(EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors) \
-	{ \
-		return ShaderClass::ValidateCompiledResult(Platform, ParameterMap, OutErrors); \
-	} \
 	static void ModifyCompilationEnvironmentImpl( \
 		const FGlobalShaderPermutationParameters& Parameters, \
 		FShaderCompilerEnvironment& OutEnvironment) \
@@ -281,8 +272,8 @@ inline TShaderMap<FGlobalShaderType>* GetGlobalShaderMap(ERHIFeatureLevel::Type 
 		ShaderClass::ConstructSerializedInstance, \
 		ShaderClass::ConstructCompiledInstance, \
 		ShaderClass::ModifyCompilationEnvironmentImpl, \
-		ShaderClass::ShouldCompilePermutationImpl, \
-		ShaderClass::ValidateCompiledResultImpl, \
+		ShaderClass::ShouldCompilePermutation, \
+		ShaderClass::ValidateCompiledResult, \
 		ShaderClass::GetStreamOutElements, \
 		ShaderClass::GetRootParametersMetadata() \
 		)

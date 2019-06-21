@@ -9,7 +9,7 @@
 #include "Android/AndroidPlatformMisc.h"
 
 #if USE_ANDROID_JNI
-extern bool AndroidThunkCpp_IsGearVRApplication();
+extern bool AndroidThunkCpp_IsOculusMobileApplication();
 #endif
 
 #endif
@@ -24,7 +24,7 @@ namespace AndroidWindowUtils
 		bool bDeviceRequiresMosaic = false;
 
 #if USE_ANDROID_JNI
-		bDeviceRequiresMosaic = !AndroidThunkCpp_IsGearVRApplication() && !FAndroidMisc::IsDaydreamApplication()
+		bDeviceRequiresMosaic = !AndroidThunkCpp_IsOculusMobileApplication() && !FAndroidMisc::IsDaydreamApplication()
 			&& !FAndroidMisc::SupportsFloatingPointRenderTargets() && !FAndroidMisc::SupportsShaderFramebufferFetch();
 #endif //USE_ANDROID_JNI
 

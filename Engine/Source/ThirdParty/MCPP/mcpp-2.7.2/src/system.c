@@ -166,13 +166,13 @@ static char *   md_init( const char * filename, char * output);
                 /* Initialize makefile dependency   */
 static char *   md_quote( char * output);
                 /* 'Quote' special characters       */
-static int      open_include( char * filename, int searchlocal, int next);
+static int      open_include( const char * filename, int searchlocal, int next);
                 /* Open the file to include         */
 static int      has_directory( const char * source, char * directory);
                 /* Get directory part of fname      */
 static int      is_full_path( const char * path);
                 /* The path is absolute path list ? */
-static int      search_dir( char * filename, int searchlocal, int next);
+static int      search_dir( const char * filename, int searchlocal, int next);
                 /* Search the include directories   */
 static int      open_file( const char ** dirp, const char * src_dir
         , const char * filename, int local, int include_opt, int sys_frame);
@@ -2471,16 +2471,23 @@ static char *   norm_path(
         /* stat() of some systems do not like trailing '/'  */
         slbuf1[ --len] = EOS;
     }
-	if (fname && mfexists(fname))
-		return xstrdup(fname);
+#if 0 // NOTE: do not exit here, filename must always be normalized
+    if (fname && mfexists(fname))
+        return xstrdup(fname);
+#endif
     if (fname)
         strcat( slbuf1, fname);
-    if (stat( slbuf1, & st_buf) != 0        /* Non-existent         */
-            || (! fname && ! S_ISDIR( st_buf.st_mode))
-                /* Not a directory though 'fname' is not specified  */
-            || (fname && ! S_ISREG( st_buf.st_mode)))
-                /* Not a regular file though 'fname' is specified   */
-        return  NULL;
+    /* Instead of returning the input filename whenever an existing file is found, always normalize filename */
+    if (!fname || !mfexists(fname)) {
+        if (stat( slbuf1, & st_buf) != 0        /* Non-existent         */
+                || (! fname && ! S_ISDIR( st_buf.st_mode))
+                    /* Not a directory though 'fname' is not specified  */
+                || (fname && ! S_ISREG( st_buf.st_mode)))
+                    /* Not a regular file though 'fname' is specified   */
+        {
+            return  NULL;
+        }
+    }
 #if SYSTEM == SYS_MAC && COMPILER == GNUC
     if (hmap) {                         /* Dirty "header map" file  */
         struct hmap_header_map  hmap;
@@ -3097,7 +3104,7 @@ int     do_include(
     char    header[ PATHMAX + 16];
     int     token_type;
     char *  fname;
-    char *  filename;
+    const char *  filename;
     int     delim;                          /* " or <, >            */
 
     if ((delim = skip_ws()) == '\n') {      /* No argument          */
@@ -3194,9 +3201,9 @@ syntax_error:
 }
 
 static int  open_include(
-    char *  filename,               /* File name to include         */
-    int     searchlocal,            /* TRUE if #include "file"      */
-    int     next                    /* TRUE if #include_next        */
+    const char *filename,               /* File name to include         */
+    int            searchlocal,            /* TRUE if #include "file"      */
+    int            next                    /* TRUE if #include_next        */
 )
 /*
  * Open an include file.  This routine is only called from do_include() above.
@@ -3334,9 +3341,9 @@ static int  is_full_path(
 }
 
 static int  search_dir(
-    char *  filename,               /* File name to include         */
-    int     searchlocal,            /* #include "header.h"          */
-    int     next                    /* TRUE if #include_next        */
+    const char *filename,               /* File name to include         */
+    int            searchlocal,            /* #include "header.h"          */
+    int            next                    /* TRUE if #include_next        */
 )
 /*
  * Look in any directories specified by -I command line arguments,
@@ -3398,7 +3405,7 @@ static int  open_file(
     int         len;
     FILEINFO *  file = infile;
     //FILE *      fp;
-	MFILE * mf;
+    MFILE * mf;
     char *      fullname;
     const char *    fname;
 
@@ -3429,7 +3436,7 @@ static int  open_file(
         fname = filename;
     }
 search:
-    fullname = norm_path( *dirp, fname, TRUE, FALSE);
+    fullname = norm_path(*dirp, fname, TRUE, FALSE);
                                     /* Convert to absolute path     */
     if (! fullname)                 /* Non-existent or directory    */
         return  FALSE;
@@ -3439,7 +3446,7 @@ search:
     if ((max_open != 0 && max_open <= include_nest)
                             /* Exceed the known limit of open files */
 //            || ((fp = fopen( fullname, "r")) == NULL && errno == EMFILE)) {
-			|| ((mf = mfopen(fullname)) == NULL && errno == EMFILE)) {
+            || ((mf = mfopen(fullname)) == NULL && errno == EMFILE)) {
                             /* Reached the limit for the first time */
         if (mcpp_debug & PATH) {
 #if HOST_COMPILER == BORLANDC
@@ -3458,15 +3465,15 @@ search:
          */
         //file->pos = ftell( file->fp);
         //fclose( file->fp);
-		file->pos = mftell(file->mf);
-		mfclose(file->mf);
+        file->pos = mftell(file->mf);
+        mfclose(file->mf);
         /* In case of failure, re-open the includer */
         //if ((fp = fopen( fullname, "r")) == NULL) {
         //    file->fp = fopen( cur_fullname, "r");
         //    fseek( file->fp, file->pos, SEEK_SET);
-		if ((mf = mfopen(fullname)) == NULL) {
-			file->mf = mfopen(cur_fullname);
-			mfseek(file->mf, file->pos);
+        if ((mf = mfopen(fullname)) == NULL) {
+            file->mf = mfopen(cur_fullname);
+            mfseek(file->mf, file->pos);
             goto  false;
         }
         if (max_open == 0)      /* Remember the limit of the system */
@@ -3528,7 +3535,7 @@ false:
 
 void    add_file(
     //FILE *      fp,                         /* Open file pointer    */
-	MFILE * mf,
+    MFILE * mf,
     const char *    src_dir,                /* Directory of source  */
     const char *    filename,               /* Name of the file     */
     const char *    fullname,               /* Full path list       */
@@ -4252,7 +4259,7 @@ static void do_once(
         max_once *= 2;
     }
     once_end->name = fullname;
-    once_end->len = strlen( fullname);
+    once_end->len = strlen(fullname);
     once_end++;
 }
 
@@ -4269,12 +4276,12 @@ static int  included(
 
     if (once_list == NULL)              /* No once file registered  */
         return  FALSE;
-    fnamelen = strlen( fullname);
+    fnamelen = strlen(fullname);
     for (inc = once_list; inc < once_end; inc++) {
         if (inc->len == fnamelen && str_case_eq( inc->name, fullname)) {
             /* Already included */
             if (mcpp_debug & PATH)
-                mcpp_fprintf( DBG, "Once included \"%s\"\n", fullname);
+                mcpp_fprintf(DBG, "Once included \"%s\"\n", fullname);
             return  TRUE;
         }
     }
@@ -4595,7 +4602,7 @@ static void do_preprocessed( void)
 
     /* Copy the input to output until a comment line appears.       */
     //while (fgets( lbuf, NBUFF, file->fp) != NULL
-	while (mfgets(lbuf, NBUFF, file->mf) != NULL
+    while (mfgets(lbuf, NBUFF, file->mf) != NULL
             && memcmp( lbuf, "/*", 2) != 0) {
 #if STD_LINE_PREFIX == FALSE
         if (memcmp( lbuf, "#line ", 6) == 0) {
@@ -4613,7 +4620,7 @@ static void do_preprocessed( void)
 
     /* Define macros according to the #define lines.    */
     //while (fgets( lbuf, NWORK, file->fp) != NULL) {
-	while (mfgets(lbuf, NWORK, file->mf) != NULL) {
+    while (mfgets(lbuf, NWORK, file->mf) != NULL) {
         if (memcmp( lbuf, "/*", 2) == 0) {
                                     /* Standard predefined macro    */
             continue;
@@ -4928,124 +4935,124 @@ file_loader g_file_loader = {0};
 
 void mfset(file_loader in_file_loader)
 {
-	g_file_loader = in_file_loader;
+    g_file_loader = in_file_loader;
 }
 
 int mfexists(const char* filename)
 {
-	int exists = 0;
-	if (g_file_loader.get_file_contents)
-	{
-		exists = g_file_loader.get_file_contents(g_file_loader.user_data, filename, 0, 0) == 0 ? 0 : 1;
-	}
-	return exists;
+    int exists = 0;
+    if (g_file_loader.get_file_contents)
+    {
+        exists = g_file_loader.get_file_contents(g_file_loader.user_data, filename, 0, 0) == 0 ? 0 : 1;
+    }
+    return exists;
 }
 
 MFILE* mfopen(const char* filename)
 {
-	MFILE* mf = 0;
-	FILE* fp = 0;
-	char* contents = 0;
-	char* contents_end = 0;
-	size_t contents_size = 0;
+    MFILE* mf = 0;
+    FILE* fp = 0;
+    char* contents = 0;
+    char* contents_end = 0;
+    size_t contents_size = 0;
 
-	if (g_file_loader.get_file_contents
-		&& g_file_loader.get_file_contents(g_file_loader.user_data, filename, &contents, &contents_size) != 0)
-	{
-		contents_end = contents + contents_size;
-	}
-	else
-	{
-		/* failed to load file, ensure contents is still NULL */
-		contents = 0;
-	}
+    if (g_file_loader.get_file_contents
+        && g_file_loader.get_file_contents(g_file_loader.user_data, filename, &contents, &contents_size) != 0)
+    {
+        contents_end = contents + contents_size;
+    }
+    else
+    {
+        /* failed to load file, ensure contents is still NULL */
+        contents = 0;
+    }
 
-	if (contents == 0)
-	{
-		fp = fopen(filename, "r");
-	}
+    if (contents == 0)
+    {
+        fp = fopen(filename, "r");
+    }
 
-	if (contents || fp)
-	{
-		mf = (MFILE*)xmalloc(sizeof(MFILE));
-		mf->fp = fp;
-		mf->start = contents;
-		mf->end = contents_end;
-		mf->cur = mf->start;
-	}
-	return mf;
+    if (contents || fp)
+    {
+        mf = (MFILE*)xmalloc(sizeof(MFILE));
+        mf->fp = fp;
+        mf->start = contents;
+        mf->end = contents_end;
+        mf->cur = mf->start;
+    }
+    return mf;
 }
 
 void mfclose(MFILE* mf)
 {
-	if (mf)
-	{
-		if (mf->fp)
-		{
-			fclose(mf->fp);
-		}
-		xfree(mf);
-	}
+    if (mf)
+    {
+        if (mf->fp)
+        {
+            fclose(mf->fp);
+        }
+        xfree(mf);
+    }
 }
 
 void mfseek(MFILE* mf, int pos)
 {
-	if (mf->fp)
-	{
-		fseek(mf->fp, pos, SEEK_SET);
-	}
-	else
-	{
-		mf->cur = mf->start + pos;
-		if (mf->cur > mf->end)
-		{
-			mf->cur = mf->end;
-		}
-	}
+    if (mf->fp)
+    {
+        fseek(mf->fp, pos, SEEK_SET);
+    }
+    else
+    {
+        mf->cur = mf->start + pos;
+        if (mf->cur > mf->end)
+        {
+            mf->cur = mf->end;
+        }
+    }
 }
 
 char* mfgets(char* str, int size, MFILE* mf)
 {
-	char c;
-	char* ostr = str;
+    char c;
+    char* ostr = str;
 
-	if (mf->fp)
-	{
-		return fgets(str, size, mf->fp);
-	}
+    if (mf->fp)
+    {
+        return fgets(str, size, mf->fp);
+    }
 
-	if (mf->cur == mf->end)
-	{
-		return 0;
-	}
+    if (mf->cur == mf->end)
+    {
+        return 0;
+    }
 
-	while (str && size-- > 1 && mf->cur < mf->end)
-	{
-		c = *mf->cur++;
-		*str++ = c;
-		if (c == 0 || c == '\n')
-		{
-			break;
-		}
-	}
-	*str++ = 0;
-	return ostr;
+    while (str && size-- > 1 && mf->cur < mf->end)
+    {
+        c = *mf->cur++;
+        *str++ = c;
+        if (c == 0 || c == '\n')
+        {
+            break;
+        }
+    }
+    *str++ = 0;
+    return ostr;
 }
 
 int mferror(MFILE* mf)
 {
-	if (mf->fp)
-	{
-		return ferror(mf->fp);
-	}
-	return 0;
+    if (mf->fp)
+    {
+        return ferror(mf->fp);
+    }
+    return 0;
 }
 
 int mftell(MFILE* mf)
 {
-	if (mf->fp)
-	{
-		return ftell(mf->fp);
-	}
-	return mf->cur - mf->start;
+    if (mf->fp)
+    {
+        return ftell(mf->fp);
+    }
+    return mf->cur - mf->start;
 }

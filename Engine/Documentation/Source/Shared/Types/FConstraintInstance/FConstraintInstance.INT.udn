@@ -358,7 +358,7 @@ Engine/Physics/Constraints/ConstraintsReference#sharedproperties
 
 Enables the Angular Orientation Drive. Much like the Linear Position Drive, the Angular Orientation Drive will attempt to achieve a desired rotation in relation to the Physics Constraint.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularOrientationDrive]
@@ -373,7 +373,7 @@ This is the desired rotation of the Angular Orientation Drive.
 
 Enables the angular drive towards a target velocity.
 [VAR:ToolTipFullLink]
-Engine/Physics/PhAT/Properties#physicsconstraintproperties
+Engine/Physics/PhysicsAssetEditor/Properties#physicsconstraintproperties
 [/VAR]
 
 [/EXCERPT:bAngularVelocityDrive]

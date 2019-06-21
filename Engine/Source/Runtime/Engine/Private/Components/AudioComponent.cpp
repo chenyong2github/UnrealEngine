@@ -189,18 +189,23 @@ void UAudioComponent::OnRegister()
 				AutoAttachSocketName = GetAttachSocketName();
 			}
 
-			// Prevent attachment before Super::OnRegister() tries to attach us, since we only attach when activated.
-			if (GetAttachParent()->GetAttachChildren().Contains(this))
+			// If in a game world, detach now if necessary. Activation will cause auto-attachment.
+			const UWorld* World = GetWorld();
+			if (World->IsGameWorld())
 			{
-				// Only detach if we are not about to auto attach to the same target, that would be wasteful.
-				if (!bAutoActivate || (AutoAttachLocationRule != EAttachmentRule::KeepRelative && AutoAttachRotationRule != EAttachmentRule::KeepRelative && AutoAttachScaleRule != EAttachmentRule::KeepRelative) || (AutoAttachSocketName != GetAttachSocketName()) || (AutoAttachParent != GetAttachParent()))
+				// Prevent attachment before Super::OnRegister() tries to attach us, since we only attach when activated.
+				if (GetAttachParent()->GetAttachChildren().Contains(this))
 				{
-					DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bCallModify=*/ false));
+					// Only detach if we are not about to auto attach to the same target, that would be wasteful.
+					if (!bAutoActivate || (AutoAttachLocationRule != EAttachmentRule::KeepRelative && AutoAttachRotationRule != EAttachmentRule::KeepRelative && AutoAttachScaleRule != EAttachmentRule::KeepRelative) || (AutoAttachSocketName != GetAttachSocketName()) || (AutoAttachParent != GetAttachParent()))
+					{
+						DetachFromComponent(FDetachmentTransformRules(EDetachmentRule::KeepRelative, /*bCallModify=*/ false));
+					}
 				}
-			}
-			else
-			{
-				SetupAttachment(nullptr, NAME_None);
+				else
+				{
+					SetupAttachment(nullptr, NAME_None);
+				}
 			}
 		}
 
@@ -290,9 +295,21 @@ void UAudioComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFla
 	}
 };
 
-void UAudioComponent::CancelAutoAttachment(bool bDetachFromParent)
+FBoxSphereBounds UAudioComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	if (bAutoManageAttachment)
+	const USceneComponent* UseAutoParent = (bAutoManageAttachment && GetAttachParent() == nullptr) ? AutoAttachParent.Get() : nullptr;
+	if (UseAutoParent)
+	{
+		// We use auto attachment but have detached, don't use our own bogus bounds (we're off near 0,0,0), use the usual parent's bounds.
+		return UseAutoParent->Bounds;
+	}
+
+	return Super::CalcBounds(LocalToWorld);
+}
+
+void UAudioComponent::CancelAutoAttachment(bool bDetachFromParent, const UWorld* MyWorld)
+{
+	if (bAutoManageAttachment && MyWorld && MyWorld->IsGameWorld())
 	{
 		if (bDidAutoAttach)
 		{
@@ -362,7 +379,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			// Auto attach if requested
 			const bool bWasAutoAttached = bDidAutoAttach;
 			bDidAutoAttach = false;
-			if (bAutoManageAttachment)
+			if (bAutoManageAttachment && World->IsGameWorld())
 			{
 				USceneComponent* NewParent = AutoAttachParent.Get();
 				if (NewParent)
@@ -371,7 +388,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 					if (!bAlreadyAttached)
 					{
 						bDidAutoAttach = bWasAutoAttached;
-						CancelAutoAttachment(true);
+						CancelAutoAttachment(true, World);
 						SavedAutoAttachRelativeLocation = RelativeLocation;
 						SavedAutoAttachRelativeRotation = RelativeRotation;
 						SavedAutoAttachRelativeScale3D = RelativeScale3D;
@@ -382,7 +399,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 				}
 				else
 				{
-					CancelAutoAttachment(true);
+					CancelAutoAttachment(true, World);
 				}
 			}
 
@@ -390,7 +407,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			const FSoundAttenuationSettings* AttenuationSettingsToApply = bAllowSpatialization ? GetAttenuationSettingsToApply() : nullptr;
 
 			float MaxDistance = 0.0f;
-			float FocusFactor = 0.0f;
+			float FocusFactor = 1.0f;
 			FVector Location = GetComponentTransform().GetLocation();
 
 			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
@@ -399,6 +416,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			NewActiveSound.SetAudioComponent(*this);
 			NewActiveSound.SetWorld(GetWorld());
 			NewActiveSound.SetSound(Sound);
+			NewActiveSound.SetSourceEffectChain(SourceEffectChain);
 			NewActiveSound.SetSoundClass(SoundClassOverride);
 			NewActiveSound.ConcurrencySet = ConcurrencySet;
 
@@ -454,7 +472,7 @@ void UAudioComponent::PlayInternal(const float StartTime, const float FadeInDura
 			if (NewActiveSound.bHasAttenuationSettings)
 			{
 				NewActiveSound.AttenuationSettings = *AttenuationSettingsToApply;
-				NewActiveSound.FocusPriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(AudioDevice->GetGlobalFocusSettings(), FocusFactor);
+				NewActiveSound.FocusData.PriorityScale = AttenuationSettingsToApply->GetFocusPriorityScale(AudioDevice->GetGlobalFocusSettings(), FocusFactor);
 			}
 
 			NewActiveSound.EnvelopeFollowerAttackTime = FMath::Max(EnvelopeFollowerAttackTime, 0);
@@ -532,66 +550,84 @@ void UAudioComponent::FadeIn( float FadeInDuration, float FadeVolumeLevel, float
 	PlayInternal(StartTime, FadeInDuration, FadeVolumeLevel);
 }
 
-void UAudioComponent::FadeOut( float FadeOutDuration, float FadeVolumeLevel )
+void UAudioComponent::FadeOut(float FadeOutDuration, float FadeVolumeLevel)
 {
-	if (bIsActive)
-	{
-		if (FadeOutDuration > 0.0f)
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.FadeOut"), STAT_AudioFadeOut, STATGROUP_AudioThreadCommands);
+	const bool bIsFadeOut = true;
+	AdjustVolumeInternal(FadeOutDuration, FadeVolumeLevel, bIsFadeOut);
+}
 
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, FadeOutDuration, FadeVolumeLevel]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->TargetAdjustVolumeMultiplier = FadeVolumeLevel;
-						ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + FadeOutDuration;
-						ActiveSound->bFadingOut = true;
-					}
-				}, GET_STATID(STAT_AudioFadeOut));
+void UAudioComponent::AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel)
+{
+	const bool bIsFadeOut = false;
+	AdjustVolumeInternal(AdjustVolumeDuration, AdjustVolumeLevel, bIsFadeOut);
+}
+
+void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float AdjustVolumeLevel, bool bIsFadeOut)
+{
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return;
+	}
+
+	if (AdjustVolumeDuration == 0.0f && AdjustVolumeLevel == 0.0f)
+	{
+		Stop();
+		return;
+	}
+
+	const uint64 InAudioComponentID = AudioComponentID;
+	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
+	FAudioThread::RunCommandOnAudioThread([AudioDevice, InAudioComponentID, AdjustVolumeDuration, AdjustVolumeLevel, bIsFadeOut]()
+	{
+		FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InAudioComponentID);
+		if (!ActiveSound)
+		{
+			return;
+		}
+
+		// Ignore fade out request if requested volume is higher than current target.
+		if (bIsFadeOut && AdjustVolumeLevel >= ActiveSound->TargetAdjustVolumeMultiplier)
+		{
+			return;
+		}
+
+		if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
+		{
+			// Ignore adjust volume request if non-zero and currently voice stealing.
+			if (AdjustVolumeLevel != 0.0f)
+			{
+				return;
+			}
+
+			// Ignore request of longer fade out than active target if active is concurrency (voice stealing) fade.
+			if (AdjustVolumeDuration > ActiveSound->TargetAdjustVolumeStopTime)
+			{
+				return;
 			}
 		}
 		else
 		{
-			Stop();
+			ActiveSound->FadeOut = AdjustVolumeLevel == 0.0f ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
 		}
-	}
-}
 
-void UAudioComponent::AdjustVolume( float AdjustVolumeDuration, float AdjustVolumeLevel )
-{
-	if (bIsActive)
-	{
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
+		ActiveSound->TargetAdjustVolumeMultiplier = AdjustVolumeLevel;
+
+		if (AdjustVolumeDuration > 0.0f)
 		{
-			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AdjustVolume"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
-
-			const uint64 MyAudioComponentID = AudioComponentID;
-			FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, AdjustVolumeDuration, AdjustVolumeLevel]()
-			{
-				FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-				if (ActiveSound)
-				{
-					ActiveSound->bFadingOut = false;
-					ActiveSound->TargetAdjustVolumeMultiplier = AdjustVolumeLevel;
-
-					if (AdjustVolumeDuration > 0.0f)
-					{
-						ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + AdjustVolumeDuration;
-					}
-					else
-					{
-						ActiveSound->CurrentAdjustVolumeMultiplier = AdjustVolumeLevel;
-						ActiveSound->TargetAdjustVolumeStopTime = -1.0f;
-					}
-				}
-			}, GET_STATID(STAT_AudioAdjustVolume));
+			ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + AdjustVolumeDuration;
 		}
-	}
+		else
+		{
+			ActiveSound->CurrentAdjustVolumeMultiplier = AdjustVolumeLevel;
+			ActiveSound->TargetAdjustVolumeStopTime = -1.0f;
+		}
+	}, GET_STATID(STAT_AudioAdjustVolume));
 }
 
 void UAudioComponent::Stop()
@@ -667,7 +703,8 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	// Mark inactive before calling destroy to avoid recursion
 	bIsActive = false;
 
-	if (!bFailedToStart && GetWorld() != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
+	const UWorld* MyWorld = GetWorld();
+	if (!bFailedToStart && MyWorld != nullptr && (OnAudioFinished.IsBound() || OnAudioFinishedNative.IsBound()))
 	{
 		INC_DWORD_STAT(STAT_AudioFinishedDelegatesCalled);
 		SCOPE_CYCLE_COUNTER(STAT_AudioFinishedDelegates);
@@ -684,7 +721,7 @@ void UAudioComponent::PlaybackCompleted(bool bFailedToStart)
 	// Otherwise see if we should detach ourself and wait until we're needed again
 	else if (bAutoManageAttachment)
 	{
-		CancelAutoAttachment(true);
+		CancelAutoAttachment(true, MyWorld);
 	}
 }
 
@@ -1440,4 +1477,9 @@ bool UAudioComponent::GetCookedEnvelopeDataForAllPlayingSounds(TArray<FSoundWave
 		}
 	}
 	return bHadData;
+}
+
+void UAudioComponent::SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain)
+{
+	SourceEffectChain = InSourceEffectChain;
 }

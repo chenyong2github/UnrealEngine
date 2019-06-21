@@ -317,7 +317,7 @@ void UUpdateManager::StartOSSPatchCheck()
 			{
 				const int32 ControllerId = LP->GetControllerId();
 				TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(ControllerId);
-				if (!bInitialUpdateFinished && !UserId.IsValid())
+				if (!UserId.IsValid())
 				{
 					// Invalid user for "before title/login" check, underlying code doesn't need a valid user currently
 					UserId = IdentityInt->CreateUniquePlayerId(TEXT("InvalidUser"));
@@ -328,11 +328,6 @@ void UUpdateManager::StartOSSPatchCheck()
 					bStarted = true;
 					IdentityInt->GetUserPrivilege(*UserId,
 						EUserPrivileges::CanPlayOnline, IOnlineIdentity::FOnGetUserPrivilegeCompleteDelegate::CreateUObject(this, &ThisClass::OnCheckForPatchComplete, false));
-				}
-				else
-				{
-					UE_LOG(LogHotfixManager, Warning, TEXT("No valid user id when starting patch check!"));
-					PatchResult = EPatchCheckResult::NoLoggedInUser;
 				}
 			}
 			else

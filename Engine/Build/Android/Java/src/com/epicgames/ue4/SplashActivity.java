@@ -102,6 +102,14 @@ public class SplashActivity extends Activity
 		{
 			BlockDisplayCutout = false;
 		}
+		else if (android.os.Build.MANUFACTURER.equals("HMD Global"))
+		{
+			String model = android.os.Build.MODEL;
+			if (model.equals("Nokia 8.1"))
+			{
+				BlockDisplayCutout = false;
+			}
+		}
 		else if (android.os.Build.MANUFACTURER.equals("samsung"))
 		{
 			String model = android.os.Build.MODEL;

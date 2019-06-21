@@ -31,6 +31,8 @@
 	<Property Name="TVOSStripFilter" Value="*.a;"/>
 	<Property Name="LinuxStripFilter" Value="Engine\Binaries\Linux\*."/>
 	<Property Name="LuminStripFilter" Value="*.a;*.so"/>
+	<Property Name="HoloLensStripFilter" Value="*.pdb"/>
+
 
 	<Property Name="WindowsSignFilter" Value="*.exe;*.dll"/>
 	<Property Name="MacSignFilter" Value="*.dylib;*.app"/>
@@ -54,10 +56,11 @@
 		Samples/MobileStarterContent/MobileStarterContent.uproject
 	</Property>
 	<!-- Don't add VR template for Mac and Linux -->
+	<!--
 	<Property Name="ProjectsToBuildDDC" Value="$(ProjectsToBuildDDC)" If="'$(HostPlatform)' != 'Linux'">
 		Templates/TP_VirtualRealityBP/TP_VirtualRealityBP.uproject
 	</Property>
-	
+	-->
 	<!-- Define Editor Filters -->
 	<Property Name="CopyEditorFilter">
 		<!-- This assembly is normally embedded into the UBT executable, but it can technically be rebuilt from an installed build -->
@@ -205,6 +208,7 @@
 
 			<!-- Build utilities -->
 			Engine/Build/Windows/cl-filter/cl-filter.exe
+			Engine/Source/ThirdParty/IntelISPC/bin/Windows/ispc.exe
 
 			<!-- Default resource files -->
 			Engine/Build/Windows/Resources/...
@@ -523,6 +527,15 @@
 	</Property>
 	
 	<Property Name="CopyLuminExceptions">
+	</Property>
+
+	<!-- HoloLens -->
+	<Property Name="CopyHoloLensFilter">
+		<!-- Build Files -->
+		Engine/Build/HoloLens/...
+	</Property>
+
+	<Property Name="CopyHoloLensExceptions">
 	</Property>
 
 </BuildGraph>

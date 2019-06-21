@@ -18,12 +18,6 @@ class FScene;
 class FStaticMeshBatch;
 class FViewInfo;
 
-/** Get the cvar clamped state */
-int32 GetMotionBlurQualityFromCVar();
-
-/** If this view need motion blur processing */
-bool IsMotionBlurEnabled(const FViewInfo& View);
-
 // Group Velocity Rendering accessors, types, etc.
 struct FVelocityRendering
 {

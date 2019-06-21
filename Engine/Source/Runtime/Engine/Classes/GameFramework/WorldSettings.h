@@ -724,7 +724,7 @@ public:
 #if WITH_EDITOR
 	virtual bool CanEditChange(const UProperty* InProperty) const override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject Interface.
 
@@ -804,6 +804,7 @@ private:
 	virtual void Serialize( FArchive& Ar ) override;
 
 private:
+	void InternalPostPropertyChanged(FName PropertyName);
 
 	void AdjustNumberOfBookmarks();
 	void UpdateNumberOfBookmarks();

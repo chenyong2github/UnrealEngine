@@ -1,160 +1,141 @@
-﻿INTSourceChangelist:2661492
+﻿INTSourceChangelist:3204135
 Availability: Public
 Title:预览动画
 Crumbs: %ROOT%, Engine, Engine\Animation, Engine\Animation\AnimHowTo
-Description:说明如何预览动画、控制动画预览和切换动画信息。 
+Description:介绍如何预览动画，控制动画预览及切换动画信息。 
 Related: Engine/Animation/Overview
 Related: Engine/Animation/Persona/Viewport
 Related: Engine/Animation/Sequences
 Related: Engine/Animation/AnimMontage
 Related: Engine/Animation/Blendspaces
 Related: Engine/Animation/AimOffset
-version: 4.9
-skilllevel: 初级
+version: 4.14
+skilllevel: Beginner
 
 
-本页面介绍了不同的方法，您可以使用这些方法在 [Persona 动画编辑器](Engine/Animation/Persona)（虚幻引擎 4 的动画编辑工具）内加载和预览动画资源。另外，还介绍了用于操控播放或当前预览动画的信息显示的控制方法，并提供了指向更多信息的其他链接。 
+本页面将介绍在虚幻引擎4的 **动画编辑器** 中加载和预览动画资源的不同方法。 
+本页面也将介绍用于操纵播放或显示信息（有关当前正在预览的动画的信息）的功能按钮，我们还提供了附加链接，方便你了解更多信息。 
 
 
 [TOC(start:2 end:2)]
 
-## 从内容浏览器预览
+(#previewfromcontentbrowser)
+## 在内容浏览器中预览
 
-打开和预览动画资源的最常见方法是在 **内容浏览器** 内 **双击** 它。 
+打开和预览动画资源的最常用方法是在 **内容浏览器** 中 **双击** 它。 
 
-![](PA_Intro.jpg)
+![](PA_Intro.png)
 
-此时将在 **Persona 动画编辑器** 内打开所选的资源。 
+双击之后，选中的资源将在 **动画编辑器** 中打开。 
 
-![](pa_DoubleClickOpen.jpg)
+![](pa_DoubleClickOpen.png)
 
-所选的资源将在 [](Engine/Animation/Persona/Viewport) 内自动开始播放，并自动循环播放运动。 
+选中的资源将自动在[动画编辑器的视口](Engine/Animation/Persona/Viewport)中开始播放，并且动作将自动循环播放。 
 
-## 从 Persona 预览
+(#previewfromanimationeditor)
+## 在动画编辑器中预览
 
-如果已打开 **Persona**，则在 **Animation** 选项卡上，您可以在 **资源浏览器** 中 **双击** 某个资源，以在视窗中预览该资源。 
+如果 **动画编辑器** 已打开,你可以在 **资源浏览器** 中 **双击** 某个资源,以在视口中预览它。 
 
-[REGION:lightbox]
-[![](PA_SwitchingAnim.jpg)](PA_SwitchingAnim.jpg)
-[/REGION:lightbox]
+![](PA_SwitchingAnim.png)
 
-_单击可查看完整图像。_
+你也可以在 **动画编辑器** 中的资源弹出菜单中设置预览动画。 
 
-另外，在 **Persona** 的 **Animation** 选项卡上，您还可以通过资源弹出菜单设置预览动画。 
-
-![](Preview6.png)
-
-单击选取资源按钮后，则将出现一个弹出菜单，您可以在该菜单中选择要预览的动画资源。 
-
-![](PA_AssetToPreview.jpg)
-
-如果处于 **Persona** 的其他选项卡上，则可以通过 **菜单工具栏** 上的 **Window** 选项启用 **资源浏览器** 窗口。 
-
-[REGION:lightbox]
-[![](PA_Skeleton.jpg)](PA_Skeleton.jpg)
-[/REGION:lightbox]
-
-_单击可查看完整图像。_
-
-然后将出现 **资源浏览器** 窗口，您可以将该窗口停靠在任何其他窗口中。 
-
-[REGION:lightbox]
-[![](PA_SkelAssetBrowser.jpg)](PA_SkelAssetBrowser.jpg)
-[/REGION:lightbox]
-
-_单击可查看完整图像。_
-
-突出显示某个动画资源时，您还可以直接在 **资源浏览器** 中获取较小的循环预览。 
-
-![](PA_AssetPreview.jpg)
+![](PA_AssetToPreview.png)
 
 
-## Persona 视窗控制
+(#viewportoptions)
+## 视口选项
 
-以下是用于导航 **Persona 视窗** 的控制，可让您移动摄像机。 
+除标准的[编辑器视口](Engine/UI/LevelEditor/Viewports)功能按钮和选项以外，预览动画时你还需要特别注意一些设置。 
 
-### 标准
+![](PreviewModeOptions.png)
 
-这些控制表示在未按下其他键或按钮时在视窗中单击和拖拽的默认行为。这些还是可用于导航正交视窗的唯一控制。
+在视口中单击 ![](DownArrow.png) 时，你将看到定义 **预览场景设置（Preview Scene Settings）**、**场景设置（Scene Setup）** 和 **旋转台（Turn Table）** 选项的选项。 
 
-| 控制 | 动作 |
-| ------- | ------- |
-| **鼠标左键 + 拖拽** | 前后移动摄像机和左右旋转。|
-| **鼠标右键 + 拖拽** | 旋转视窗摄像机。|
-| **鼠标左键 + 鼠标右键 + 拖拽** | 上下移动。 |
-| **F** | 将摄像机聚焦在视窗中的网格体上。|
+(#previewscenesettings)
+### 预览场景设置（Preview Scene Settings）
 
-### 游戏样式
+![](PreviewSceneSettings.png)
 
-曾在电脑上玩过射击游戏的玩家应非常熟悉 **WASD** 键。默认情况下，这些键已经启用，并可以在您按住 **鼠标右键** (**RMB**) 时使用。这表示在以这种方式导航时，您仍可使用鼠标转动摄像机。
+| 选项 | 说明 |
+|-------|------|
+| **配置文件名称（Profile Name）** | 标识配置文件的名称。|
+| **定向光源强度（Directional Light Intensity）** | 手动设置定向光源强度（0.0 - 20.0）。|
+| **定向光源颜色（Direction Light Color）** | 手动设置定向光源颜色。|
+| **天空光照强度（Sky Light Intensity）** | 手动设置天空光照强度（0.0 - 20.0）。|
+| **旋转天空和定向光源（Rotate Sky and Directional Lighting）** | 切换天空和定向光源旋转。按住 **K** 键并拖动可手动旋转天空光照，按 **L** 键可手动旋转定向光源。|
+| **显示环境（Show Environment）** | 切换环境球体的可视性。|
+| **显示地面（Show Floor）** | 切换地面网格体的可视性。|
+| **环境立方体贴图（Environment Cube Map）** | 设置用于天空光照和反射的环境立方体贴图。|
+| **后期处理设置（Pose Process Settings）** | 手动设置 [后期处理设置（Pose Process Settings）](Engine/Rendering/PostProcessEffects)。|
+| **启用后期处理（Post Processing Enabled）** | 后期处理是否应影响场景。|
+| **照明装置旋转（Lighting Rig Rotation）** | 以度为单位的天空当前旋转值（0 - 360）。|
+| **旋转速度（Rotation Speed）** | 启用旋转时天空旋转的速度。|
 
-这些控制在方向键和数字键盘上均有对应的键，以提供获取这些控制的替代方法。
+你可以将这些设置保存为 **配置文件**，而且你可以在窗口顶部的“配置文件（Profiles）”菜单中添加和切换配置文件。 
 
-| 控制 | 动作 |
-| ------- | ------ |
-| **W** &#124; **数字键盘 8** &#124; **向上箭头** | 向前移动摄像机。|
-| **S** &#124; **数字键盘 2** &#124; **向下箭头** | 向后移动摄像机。|
-| **A** &#124; **数字键盘 4** &#124; **向左箭头** | 向左移动摄像机。|
-| **D** &#124; **数字键盘 6** &#124; **向右箭头** | 向右移动摄像机。|
-| **E** &#124; **数字键盘 9** &#124; **向上翻页键** | 向上移动摄像机。|
-| **Q** &#124; **数字键盘 7** &#124; **向下翻页键** | 向下移动摄像机。|
-| **Z** &#124; **数字键盘 1** | 拉远将摄像机（扩大视野）。|
-| **C** &#124; **数字键盘 3** | 推进摄像机（缩小视野）。|
+![](Profiles.png)
 
-### 平移、旋转和缩放
+(#scenesetup)
+### 场景设置（Scene Setup）
 
-[INCLUDE:Engine\UI\LevelEditor\Viewports\ViewportControls#mayalikecontrols]
+![](SceneSetup.png)
+
+你可以在此窗口中定义使用的动画模式（在参考姿势或动画资源间切换）。此窗口中还包含用于指定要预览的当前动画（与在 **资源浏览器** 中 **双击** 动画资源的效果相同）的选项。 
+
+“场景设置（Scene Setup）”窗口的另一个重要功能是更改动画的 **预览网格体（Preview Mesh）**。如果你的多个骨架网格体彼此共享动画而你希望使用不同的网格体预览动画，你可以从 **预览网格体（动画）（Preview Mesh (Animation)）** 下拉菜单中实现此目的。 
+
+你还可以设置和定义 **预览网格体集合** 以用作 **附加网格体（Additional Meshes）**。这些网格体用于构建共同组成动画的相关骨架网格体的集合，例如，某个角色的组件。你可以在此窗口中创建新集合或者指定之前已创建好的集合。 
 
 
-## Persona 视窗选项
+(#turntable)
+### 旋转台（Turn Table）
 
-本部分详细说明了 **Persona 视窗** 内包含的选项。 
+借助此选项，你可以设置预览网格体的自动旋转。 
 
-![](PA_PersonaViewportOptions.jpg)
+![](TurnTable.png)
 
-1.	查看选项工具栏
-2.	移动工具栏
-3.	动画显示信息
+你可以 **运行（Play）**，**暂停（Pause）** 或 **停止（Stop）** **旋转台模式（Turn Table Mode）** 及定义 **旋转台速度（Turn Table Speed）**。 
 
-### 查看选项工具栏
-
-[INCLUDE:Engine/Animation/Persona/Viewport#viewoptions]
-
-### 移动工具栏
-
-[INCLUDE:Engine/Animation/Persona/Viewport#movement]
-
+(#animationdisplayinformation)
 ### 动画显示信息
 
-您可以在 **Show** 选项的 **Display info** 下切换视窗中显示的信息。 
+你可以从 **显示（Show）** 选项下的 **显示信息（Display info）** 切换在视口中显示的信息。 
 
-![](PA_AnimationDisplay.jpg)
+![](PA_AnimationDisplay.png)
 
-**Basic** 将显示精简的显示信息，**Detailed** 将显示详细信息，而 **None** 将隐藏显示信息。 
+**基本（Basic）** 将展现显示信息的精简版本，**详细（Detailed）** 将显示更多信息，而 **无（None）** 将使显示信息隐藏。 
 
-## Persona 播放控制
+(#playbackcontrols)
+## 播放功能按钮
 
-当您打开 *AnimSequence** 或 **AnimMontage** 时，您将在中心窗口底部看到用于控制动画资源播放的 **时间轴** 和 **控制条**。通过下图中以黄色突出显示的时间轴和控制条选项，您可以播放、暂停、跳过、擦除和循环动画。 
+打开 **动画序列** 或 **动画蒙太奇** 时，你将在中间窗口底部看到用于控制动画资源播放的 **时间轴** 和 **功能按钮栏**。 
+你可以使用下图黄色方框中的时间轴和功能按钮栏选项播放、暂停、跳过、推进和循环动画。你也可以基于当前选择的动画录制和创建新动画。 
 
 ![](Preview9.png)
 
-[INCLUDE:Engine\Animation\Persona\Viewport#previewcontrols]
+[INCLUDE:Engine\Animation\Sequences\Editor#timeline]
 
-## 混合空间和瞄准偏移
 
-只要选中了 **Enable Preview BlendSpace** 选项，当动画应用于 **Persona** 中的[混合空间](Engine/Animation/Blendspaces)或[](Engine/Animation/AimOffset)时，您就可以预览动画混合。 
+(#previewblendspace&aimoffsets)
+## 预览混合空间和动画偏移
 
-![](Preview10_1.jpg)
+只要已启用 **启用预览混合空间（Enable Preview BlendSpace）** 选项，你就可以在已应用给[混合空间](Engine/Animation/Blendspaces)或[](Engine/Animation/AimOffset)的情况下在 **动画编辑器** 中预览动画混合。
 
-要查看动画之间的混合，请在 **参数** 网格内移动 **鼠标光标**。 
+![](Preview10_1.png)
 
-![](Preview11_1.jpg)
+要查看动画间的混合，在 **参数** 网格中移动 **鼠标光标**。 
 
-通过取消选中 **Enable Tooltip Display** 选项来移除工具提示显示。 
+![](Preview11_1.png)
+
+取消选中 **启用工具提示显示（Enable Tooltip Display）** 选项可移除工具提示显示。 
 
 ![](Preview12.png)
 
-可使用上述的相同方式来预览 **混合空间** 和 **瞄准偏移**。 
+如上所述，可通过相同的方式预览 **混合空间** 和 **动画偏移**。 
+
+
 
 
 

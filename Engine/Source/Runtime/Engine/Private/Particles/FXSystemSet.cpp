@@ -87,12 +87,12 @@ void FFXSystemSet::UpdateVectorField(UVectorFieldComponent* VectorFieldComponent
 	}
 }
 
-void FFXSystemSet::PreInitViews()
+void FFXSystemSet::PreInitViews(FRHICommandListImmediate& RHICmdList)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreInitViews();
+		FXSystem->PreInitViews(RHICmdList);
 	}
 }
 
@@ -120,9 +120,9 @@ void FFXSystemSet::PreRender(FRHICommandListImmediate& RHICmdList, const class F
 
 void FFXSystemSet::PostRenderOpaque(
 	FRHICommandListImmediate& RHICmdList,
-	const FUniformBufferRHIParamRef ViewUniformBuffer,
+	FRHIUniformBuffer* ViewUniformBuffer,
 	const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FUniformBufferRHIParamRef SceneTexturesUniformBuffer)
+	FRHIUniformBuffer* SceneTexturesUniformBuffer)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{

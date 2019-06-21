@@ -1,62 +1,101 @@
-﻿INTSourceChangelist:3108692
+﻿INTSourceChangelist:3730858
 Availability:Public
-Title:将媒体框架内容更新至 4.13
+Title: 将媒体框架内容升级至4.18版本
 Crumbs:%ROOT%, Engine
-Description:将包含媒体框架资源和播放逻辑的项目更新至虚幻引擎 4.13
+Description:将包含媒体框架资源和播放逻辑的项目更新至虚幻引擎4.18版本
 Navigation:topic
 parent:Engine/MediaFramework
+type:reference
 order:3
-Version:4.13
-Related:Engine\MediaFramework\Overview
-Related:Engine\MediaFramework\HowTo
-Related:Engine\MediaFramework\TechReference
+Version: 4.18
+Related: Engine\MediaFramework\Overview
+Related: Engine\MediaFramework\HowTo
+Related: Engine\MediaFramework\TechReference
 
-虚幻引擎 4.13 对媒体框架系统的资源类型和播放方法进行了更新。这意味着如果您的项目中有媒体框架内容，则需要将内容更新。项目仍然可以加载，但如果不执行更新，播放功能将无法再用于现有的 4.12 内容，因为工作流发生了些许变化。 
+[TOC(start:2)]
 
-转换项目时，请牢记以下几点：
+在虚幻引擎4.18版本中，**媒体框架（Media Framework）** 系统接收了资源类型和播放方法的更新。这意味着如果您的项目中有现有的媒体框架内容，则必须更新您的内容。 
+您的项目仍然会加载，但是由于工作流现在略有不同，在执行更新之前，播放将不再可正常用于现有的4.18版本内容。
 
-* **媒体播放器 (Media Player)** 资源不再存储媒体的 URL。相反，加入了称为“媒体资源”的新资源类型来描述媒体。 
+(#mediaplayerchanges)
 
-	![](MediaTypes.png)
-	
-	[REGION:tip]
-	有关这些新资源类型的更多信息，请查阅 [](Engine/MediaFramework/Overview)。
-	[/REGION]
+## 媒体播放器变化
 
-**文件媒体源（File Media Source）** 资源用于保存在设备或局域网文件共享中的媒体文件。 
+ **媒体播放器（Media Player）** 资源已经历了一些变化，包括如何引用 **媒体纹理（Media Textures）** 以及应用声音。 
 
-	![](FileMediaSource.png)
-	
-	[REGION:tip]
-	有关如何使用 **文件媒体源** 资源的示例，请查阅 [](Engine/MediaFramework/HowTo/FileMediaSource)。
-	[/REGION]
-	
-* **流媒体源 (Stream Media Source)** 资源用于通过互联网流送媒体。 
+(#mediasoundcomponent)
 
-	![](StreamMediaSource.png)
-	
-	[REGION:tip]
-	有关如何使用 **流媒体源** 资源的示例，请查阅 [](Engine/MediaFramework/HowTo/StreamMediaSource)。
-	[/REGION]
-	
-* **媒体播放列表 (Media Playlist)** 资源用于整合多个媒体源，并依次进行播放。播放列表会自动循环回到开头。 
+### 媒体声音组件
 
-	![](MediaPlaylist.png)
-	
-	[REGION:tip]
-	有关使用播放列表的示例，请查阅 [](Engine/MediaFramework/HowTo/MediaPlaylists)。
-	[/REGION]
+在创建媒体播放器资源时，**创建媒体播放器（Create Media Player）** 不再提供为音频创建声波资源的选项。 
 
-* **媒体纹理 (Media Texture)** 和 **媒体声波 (Media Sound Wave)** 资源不再引用 **媒体播放器**。相反，媒体播放器现在会引用纹理和声音资源。此外，**媒体纹理**/**媒体声波** 和 **媒体播放器** 资源，之间不再有多对一的关系。每个 **媒体播放器** 现在最多只能各引用一个。
+[REGION:imagetable]
+| ![](Pre418_Create.png)(w:490) | ![](418_Create.png)(w:490) | 
+| ------ | ------ | 
+| 之前的引擎版本：创建声波和媒体纹理 | 引擎版本4.18：仅创建媒体纹理 |
+[/REGION]
 
-	![](Upgrading_MediaLinks.png)
+您仍然可以启用 **视频输出媒体纹理资源（Video output Media Texture asset）**，以自动创建媒体纹理资源并将其与您正在创建的媒体播放器相关联。 
 
-* 媒体播放器资源中自动开始媒体播放的选项已被移除。必须通过蓝图打开媒体源。为便于使用，媒体播放器资源拥有 **Play On Open** 选项，可在成功打开媒体源后开始播放。如未设置此选项，则必须通过蓝图或 C++ 来启动播放。
+但是，为了将声音与媒体播放器关联，您需要使用一个附加到Actor或[蓝图](Engine/Blueprints)的 **媒体声音组件（Media Sound Component）**。
 
-	![](PlayOnOpen.png)
+![](MediaSoundComponent.png)
 
-* **Loop** 选项将循环当前打开的媒体源。请注意，启用循环后播放列表不会前进。
+[REGION:caption]
+在上图中，我们在关卡中有一个静态网格体，该关卡中已添加了一个 **媒体声音组件（Media Sound Component）** 并指定了关联的 **媒体播放器（Media Player）**。 
+[/REGION]
 
-	![](Loop.png)
+[REGION:warning]
+如果您的项目将声波资源用于媒体，则您需要手动删除它们，并添加一个 **媒体声音组件（Media Sound Component）** 和关联的 **媒体播放器（Media Player）**。 
+[/REGION]
 
-* 如需了解更新后的媒体框架系统支持的内容类型和 URL 的详情，请参阅 [](Engine/MediaFramework/TechReference)。
+(#mediatexturereference)
+
+### 媒体纹理引用
+
+媒体播放器还引用不同的媒体纹理，因为媒体纹理现在指向媒体播放器（而不是媒体播放器指向媒体纹理）。 
+
+下图是4.18版本之前的媒体播放器：
+
+![](Pre418_Player.png)
+
+ **输出（Output）** 部分已被删除，不再需要关联的 **声波（Sound Wave）** 或 **视频纹理（Video Texture）**。 
+
+下图是4.18版本的媒体播放器： 
+
+![](418_Player.png)
+
+这已经被用于控制360个视频的 **视图设置（View Settings）**（目前仍在开发中）的选项所取代。 
+
+声波已经被前面提到的 **媒体声音组件（Media Sound Component）** 所取代，而 **视频纹理（Video Texture）**（媒体纹理资源）现在指向一个关联的 **媒体播放器（Media Player）**。 
+
+![](MediaTexture.png)
+
+[REGION:caption]
+如上所示，**媒体纹理（Media Texture）** 资源指向关联的 **媒体播放器（Media Player）** 以播放视频。 
+[/REGION]
+
+(#updatingmaterialsto4.18)
+
+## 更新材质至4.18版本
+
+如果4.18版本之前的项目在[材质](Engine/Rendering/Materials)中使用了媒体纹理，您可能需要更新材质并将 **采样器类型（Sampler Type）** 更改为新的 **外部（External）** 类型。 
+
+![](TextureSamplerUpdate.png)
+
+材质仍然使用 **纹理采样器（Texture Sampler）** 和媒体纹理，但是，纹理采样器必须设置为外部（External）。 
+
+媒体纹理实施了一个名为 **外部纹理（External Textures）** 的新纹理API，在一些平台上，后者提供了一种优化的视频播放方式。 
+例如，在Windows上，先从文件中对视频帧数据解码，然后将数据复制到CPU内存缓冲区。 
+一旦进入CPU内存缓冲区，数据随后就会被上传到GPU中的[`UTexture`](https://docs.unrealengine.com/latest/INT/API/Runtime/Engine/Engine/UTexture/index.html)，其中纹理将在材质内部接受采样。 
+
+一些解码器可以绕过这种数据传输，并有能力直接对GPU上的视频进行解码。
+例如，在Android和iOS设备上，视频解码器将解码GPU上的压缩视频，因此视频帧已经在GPU上，从而实现更高效的视频播放。 
+
+
+
+
+
+
+
+

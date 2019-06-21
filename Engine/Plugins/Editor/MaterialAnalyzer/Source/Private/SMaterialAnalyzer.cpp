@@ -136,6 +136,7 @@ void SMaterialAnalyzer::Construct(const FArguments& InArgs, const TSharedRef<SDo
 						.TreeItemsSource(&MaterialTreeRoot)
 						.OnGenerateRow(this, &SMaterialAnalyzer::HandleReflectorTreeGenerateRow)
 						.OnGetChildren(this, &SMaterialAnalyzer::HandleReflectorTreeGetChildren)
+						.OnSetExpansionRecursive(this, &SMaterialAnalyzer::HandleReflectorTreeRecursiveExpansion)
 						.HeaderRow
 						(
 							SNew(SHeaderRow)
@@ -391,6 +392,7 @@ TSharedRef< ITableRow > SMaterialAnalyzer::OnGenerateSuggestionRow(TSharedPtr<FP
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					[
 						SNew(STextBlock)
 						.Visibility(this, &SMaterialAnalyzer::ShouldShowAdvancedRecommendations, Item)
@@ -463,6 +465,7 @@ FReply SMaterialAnalyzer::CreateLocalSuggestionCollection(TSharedPtr<FPermutatio
 	{
 		FCollectionManagerModule& CollectionManagerModule = FCollectionManagerModule::GetModule();
 
+		
 		FString FirstAssetString = CurrentlySelectedAsset.AssetName.ToString() + TEXT("_") + FString::FromInt(InSuggestion->Children.Num());
 		FName FirstAssetName = FName(*FirstAssetString);
 
@@ -477,7 +480,20 @@ FReply SMaterialAnalyzer::CreateLocalSuggestionCollection(TSharedPtr<FPermutatio
 			PackageNameSet.Add(FName(*FPaths::GetBaseFilename(*PackageToAdd, false)));
 		}
 
-		IAssetManagerEditorModule::Get().WriteCollection(FirstAssetName, ShareType, PackageNameSet, true);
+
+		ICollectionManager& CollectionManager = FCollectionManagerModule::GetModule().Get();
+		const FText MaterialAnalyzerText = LOCTEXT("MaterialAnalyzerPrefix", "MaterialAnalyzer");
+		FName ParentName = FName(*MaterialAnalyzerText.ToString());
+		if (!CollectionManager.CollectionExists(ParentName, ShareType))
+		{
+			CollectionManager.CreateCollection(ParentName, ShareType, ECollectionStorageMode::Static);
+		}
+
+		const bool bCollectionSucceeded = IAssetManagerEditorModule::Get().WriteCollection(FirstAssetName, ShareType, PackageNameSet, true);
+		if (bCollectionSucceeded)
+		{
+			CollectionManager.ReparentCollection(FirstAssetName, ShareType, ParentName, ShareType);
+		}
 	}
 	return FReply::Handled();
 }
@@ -575,6 +591,23 @@ void SMaterialAnalyzer::HandleReflectorTreeGetChildren(FAnalyzedMaterialNodeRef 
 	OutChildren = InMaterialNode->GetChildNodes();
 }
 
+void SMaterialAnalyzer::HandleReflectorTreeRecursiveExpansion(FAnalyzedMaterialNodeRef InTreeNode, bool bIsItemExpanded)
+{
+	TArray< FAnalyzedMaterialNodeRef > Children = InTreeNode->GetChildNodes();
+
+	if (Children.Num())
+	{
+		MaterialTree->SetItemExpansion(InTreeNode, bIsItemExpanded);
+		const bool bShouldSaveState = true;
+
+		for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ++ChildIndex)
+		{
+			FAnalyzedMaterialNodeRef Child = Children[ChildIndex];
+			MaterialTree->SetItemExpansion(Child, bIsItemExpanded);
+		}
+	}
+}
+
 FAnalyzedMaterialNodePtr FBuildBasicMaterialTreeAsyncTask::FindOrMakeBranchNode(FAnalyzedMaterialNodePtr ParentNode, const FAssetData* ChildData)
 {
 	check(ChildData != nullptr);
@@ -592,6 +625,7 @@ FAnalyzedMaterialNodePtr FBuildBasicMaterialTreeAsyncTask::FindOrMakeBranchNode(
 		ChildNode.Path = ChildData->AssetName.ToString();
 		ChildNode.ObjectPath = ChildData->ObjectPath;
 		ChildNode.Parent = ParentNode;
+		ChildNode.AssetData = *ChildData;
 		NodesToSearch.Add(FAnalyzedMaterialNodeRef(new FAnalyzedMaterialNode(ChildNode)));
 		OutNode = &NodesToSearch[NodesToSearch.Num() - 1];
 	}
@@ -922,8 +956,8 @@ void FAnalyzeForIdenticalPermutationsAsyncTask::GatherSuggestions()
 				AllNames.Add(PermutationString);
 			}
 
-			FPermutationSuggestionData NewData = FPermutationSuggestionData(FText::Format(LOCTEXT("IdenticalPermutationSuggestions",
-				"The following {0} materials all have identical permutations."),
+			FPermutationSuggestionData NewData = FPermutationSuggestionData(FText::Format(LOCTEXT("IdenticalStaticPermutationSuggestions",
+				"The following {0} materials all have identical static parameter permutations."),
 				FText::AsNumber(AssetCount)),
 				AllNames);
 

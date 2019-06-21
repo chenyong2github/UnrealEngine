@@ -8,6 +8,7 @@
 #include "SocketSubsystem.h"
 #include "Trace/ControlClient.h"
 #include "IPAddress.h"
+#include "AddressInfoTypes.h"
 
 #if PLATFORM_WINDOWS
 	#include "Windows/AllowWindowsPlatformTypes.h"
@@ -185,6 +186,7 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 	{
 		return false;
 	}
+
 	uint16 Port = 1985;
 	FString AddressString = ControlClientAddress;
 	const int32 LastColonIndex = AddressString.Find(":", ESearchCase::IgnoreCase, ESearchDir::FromEnd);
@@ -194,12 +196,19 @@ bool FSessionService::ConnectSession(const TCHAR* ControlClientAddress)
 		Port = FCString::Atoi(*PortString);
 		AddressString = AddressString.Left(LastColonIndex);
 	}
-	TSharedPtr<FInternetAddr> ClientAddr = Sockets->CreateInternetAddr();
-	ESocketErrors SocketErrors = Sockets->GetHostByName(TCHAR_TO_ANSI(*AddressString), *ClientAddr);
-	if (SocketErrors != SE_NO_ERROR)
+	
+	TSharedPtr<FInternetAddr> ClientAddr = Sockets->GetAddressFromString(AddressString);
+	if (!ClientAddr.IsValid() || !ClientAddr->IsValid())
 	{
-		return false;
+		FAddressInfoResult GAIRequest = Sockets->GetAddressInfo(*AddressString, nullptr, EAddressInfoFlags::Default, NAME_None);
+		if (GAIRequest.ReturnCode != SE_NO_ERROR || GAIRequest.Results.Num() == 0)
+		{
+			return false;
+		}
+		
+		ClientAddr = GAIRequest.Results[0].Address;
 	}
+	
 	ClientAddr->SetPort(Port);
 	FControlClient ControlClient;
 	if (!ControlClient.Connect(*ClientAddr))

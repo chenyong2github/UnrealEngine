@@ -1,7 +1,8 @@
-﻿Availability: Public
-Title:夜间场景的光照
+﻿INTSourceChangelist:3108692
+Availability: Public
+Title:夜晚场景灯光
 Crumbs:%ROOT%, Resources,  Resources/Showcases, Resources/Showcases/RealisticRendering
-Description:虚幻引擎4中包含的真实渲染演示的夜间场景概述。
+Description:UE4自带真实渲染demolet夜晚场景的概览。
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Directional
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Spot
 Related: Engine/Rendering/LightingAndShadows/Lightmass
@@ -10,28 +11,34 @@ Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
 Related: Resources/ContentExamples/Lighting/4_2
+Version: 4.9
 
 [REGION:fullwidth]
 ![](RoomNight.png)
 [/REGION]
 
-夜间场景中使用了三种类型的光照。
+夜晚场景中使用了3类灯光。
 
-1. **Directional Light Stationary** （定向光源固定）-提供场景中的月光，主要可在阳台上观察到。
-1. **Spot Light Static** （点光源静态）- 它们被放置在窗口外并模拟穿过房间的环境光照反射。
-1. **Spot Light Stationary** （点光源固定）- 它们被放置在房间中的图片帧上方，更多的则被放置在角落里的灯光处，模拟光照离开灯罩的顶部和底部的情况。
+1. **静态定向光源（Directional Light Stationary）**——提供场景的月光，主要落在阳台上。
+1. **静态聚光源（Spot Light Static）**——放置在窗外，模拟在房间中反射的环境光线。
+1. **静止聚光源（Spot Light Stationary）**——放置在房间的相框上，更多放置在角落的台灯中，模拟从灯罩上下散发出的光线。
 
+
+(#setupconsiderations)
 
 ## 设置注意事项
 
-夜间场景(_RoomNight.umap_)类似于日光场景。 固定定向光源提供额外的光照，如同来自月光或街道光照。 此处您可以看到具有此光照和不具有此光照的阳台对比图：
+夜晚场景（_RoomNight.umap_）与白昼场景相似。静态定向光源提供额外的光照，如来自月光或街灯。可在此对比阳台有无灯光的差别：
 
-[REGION:imagetable]
-| 开启和关闭月光对比结果 ||
-| --- | --- |
-|![](DirectionalLightMoon2.png)(w:455) | ![](DirectionalLightMoonOff2.png)(w:455) |
-| **开启月亮定向光照** | **关闭月亮定向光照** |
-[/REGION]
+[OBJECT:ComparisonSlider]
+	[PARAM:before]
+	![Moon Directional Light On](DirectionalLightMoon2.png)(w:600)
+	[/PARAM]
+	[PARAM:after]
+	![Moon Directional Light Off](DirectionalLightMoonOff2.png)(w:600)
+	[/PARAM]
+[/OBJECT]
+
 
 [INCLUDE:Resources/Showcases/RealisticRendering#IESProfiles]
 

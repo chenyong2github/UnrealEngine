@@ -11,6 +11,13 @@
 
 static FName SButtonTypeName("SButton");
 
+SButton::SButton()
+{
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
+#endif
+}
+
 /**
  * Construct this widget
  *

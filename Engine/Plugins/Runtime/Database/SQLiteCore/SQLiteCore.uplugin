@@ -14,11 +14,15 @@
 	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
+	"SupportedPrograms": [ "UnrealMultiUserServer", "UnrealDisasterRecoveryService" ],
 	"Modules": [
 		{
 			"Name": "SQLiteCore",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
-		}
+			"LoadingPhase": "PreDefault",
+			"BlacklistPlatforms": [
+				"HoloLens"
+			]
+		},
 	]
 }

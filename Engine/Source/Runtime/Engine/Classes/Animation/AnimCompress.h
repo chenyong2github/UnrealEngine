@@ -17,6 +17,8 @@
 #include "AnimationCompression.h"
 #include "AnimCompress.generated.h"
 
+struct FCompressibleAnimData;
+
 //Helper function for ddc key generation
 uint8 MakeBitForFlag(uint32 Item, uint32 Position);
 
@@ -183,9 +185,9 @@ class ENGINE_API FCompressionMemorySummary
 public:
 	FCompressionMemorySummary(bool bInEnabled);
 
-	void GatherPreCompressionStats(UAnimSequence* Seq, int32 ProgressNumerator, int32 ProgressDenominator);
+	void GatherPreCompressionStats(const FCompressibleAnimData& CompressibleAnimData, int32 PreCompressedSize, int32 ProgressNumerator, int32 ProgressDenominator);
 
-	void GatherPostCompressionStats(UAnimSequence* Seq, const TArray<FBoneData>& BoneData, double CompressionTime);
+	void GatherPostCompressionStats(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedData, double CompressionTime);
 
 	~FCompressionMemorySummary();
 
@@ -220,9 +222,9 @@ struct ENGINE_API FAnimCompressContext
 private:
 	FCompressionMemorySummary	CompressionSummary;
 
-	void GatherPreCompressionStats(UAnimSequence* Seq);
+	void GatherPreCompressionStats(const FCompressibleAnimData& CompressibleAnimData, int32 PreviousCompressionSize);
 
-	void GatherPostCompressionStats(UAnimSequence* Seq, const TArray<FBoneData>& BoneData, double CompressionTime);
+	void GatherPostCompressionStats(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& CompressedData, double CompressionTime);
 
 
 public:
@@ -231,14 +233,28 @@ public:
 	bool						bAllowAlternateCompressor;
 	bool						bOutput;
 
-	FAnimCompressContext(bool bInAllowAlternateCompressor, bool bInOutput, uint32 InMaxAnimations = 1) : CompressionSummary(bInOutput), AnimIndex(0), MaxAnimations(InMaxAnimations), bAllowAlternateCompressor(bInAllowAlternateCompressor), bOutput(bInOutput) {}
+	FAnimCompressContext(bool bInAllowAlternateCompressor, bool bInOutput, uint32 InMaxAnimations = 1)
+		: CompressionSummary(bInOutput)
+		, AnimIndex(0)
+		, MaxAnimations(InMaxAnimations)
+		, bAllowAlternateCompressor(bInAllowAlternateCompressor)
+		, bOutput(bInOutput)
+	{}
 
 	// If we are duping a compression context we don't want the CompressionSummary to output
-	FAnimCompressContext(const FAnimCompressContext& Rhs) : CompressionSummary(false), AnimIndex(Rhs.AnimIndex), MaxAnimations(Rhs.MaxAnimations), bAllowAlternateCompressor(Rhs.bAllowAlternateCompressor), bOutput(Rhs.bOutput) {}
+	FAnimCompressContext(const FAnimCompressContext& Rhs)
+		: CompressionSummary(false)
+		, AnimIndex(Rhs.AnimIndex)
+		, MaxAnimations(Rhs.MaxAnimations)
+		, bAllowAlternateCompressor(Rhs.bAllowAlternateCompressor)
+		, bOutput(Rhs.bOutput)
+	{}
 
 	friend class FAnimationUtils;
+	friend class FDerivedDataAnimationCompression;
 };
 
+#if USE_SEGMENTING_CONTEXT
 //////////////////////////////////////////////////////////////////////////
 // FAnimSegmentContext - This holds the relevant intermediate information
 // when compressing animation sequence segments.
@@ -260,6 +276,7 @@ struct FAnimSegmentContext
 	TArray<uint8> CompressedByteStream;
 	TArray<uint8> CompressedTrivialTracksByteStream;
 };
+#endif
 
 UCLASS(abstract, hidecategories=Object, MinimalAPI, EditInlineNew)
 class UAnimCompress : public UObject
@@ -306,22 +323,14 @@ class UAnimCompress : public UObject
 #if WITH_EDITOR
 public:
 	/**
-	 * Reduce the number of keyframes and bitwise compress the specified sequence.
-	 *
-	 * @param	AnimSeq		The animation sequence to compress.
-	 * @param	bOutput		If false don't generate output or compute memory savings.
-	 * @return				false if a skeleton was needed by the algorithm but not provided.
-	 */
-	ENGINE_API bool Reduce(class UAnimSequence* AnimSeq, bool bOutput, const TArray<FBoneData>& BoneData);
-
-	/**
 	 * Reduce the number of keyframes and bitwise compress all sequences in the specified array.
 	 *
 	 * @param	AnimSequences	The animations to compress.
 	 * @param	bOutput			If false don't generate output or compute memory savings.
 	 * @return					false if a skeleton was needed by the algorithm but not provided.
 	 */
-	ENGINE_API bool Reduce(class UAnimSequence* AnimSeq, FAnimCompressContext& Context, const TArray<FBoneData>& BoneData);
+	ENGINE_API bool Reduce(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult);
+
 #endif // WITH_EDITOR
 protected:
 #if WITH_EDITOR
@@ -331,7 +340,7 @@ protected:
 	 *
 	 * @return		true if the keyframe reduction was successful.
 	 */
-	virtual void DoReduction(class UAnimSequence* AnimSeq, const TArray<class FBoneData>& BoneData) PURE_VIRTUAL(UAnimCompress::DoReduction,);
+	virtual void DoReduction(const FCompressibleAnimData& CompressibleAnimData, FCompressibleAnimDataResult& OutResult) PURE_VIRTUAL(UAnimCompress::DoReduction,);
 #endif // WITH_EDITOR
 	/**
 	 * Common compression utility to remove 'redundant' position keys based on the provided delta threshold
@@ -420,11 +429,13 @@ protected:
 	 * @param	MaxRotDelta		Maximum angle threshold to consider stationary motion
 	 * @param	MaxScaleDelta	Maximum scale threshold to consider stationary motion
 	 */
+#if USE_SEGMENTING_CONTEXT
 	static void FilterTrivialKeys(
 		TArray<FAnimSegmentContext>& RawSegments,
 		float MaxPosDelta,
 		float MaxRotDelta,
 		float MaxScaleDelta);
+#endif
 
 	/**
 	 * Common compression utility to retain only intermittent position keys. For example,
@@ -521,6 +532,7 @@ protected:
 	 * @param	MaxNumFramesPerSegment		The maximum number of frames within a segment
 	 * @param	OutRawSegments				The array of segments to populate
 	 */
+#if USE_SEGMENTING_CONTEXT
 	static void SeparateRawDataIntoTracks(
 		const UAnimSequence& AnimSeq,
 		const TArray<struct FTranslationTrack>& TranslationData,
@@ -529,7 +541,7 @@ protected:
 		int32 IdealNumFramesPerSegment,
 		int32 MaxNumFramesPerSegment,
 		TArray<FAnimSegmentContext>& OutRawSegments);
-
+#endif
 	/**
 	 * Common compression utility to walk an array of rotation tracks and enforce
 	 * that all adjacent rotation keys are represented by shortest-arc quaternion pairs.
@@ -553,7 +565,8 @@ public:
 	 * @param	IncludeKeyTable				true if the compressed data should also contain a table of frame indices for each key. (required by some codecs)
 	 */
 	static void BitwiseCompressAnimationTracks(
-		UAnimSequence* Seq, 
+		const FCompressibleAnimData& CompressibleAnimData,
+		FCompressibleAnimDataResult& OutCompressedData,
 		AnimationCompressionFormat TargetTranslationFormat, 
 		AnimationCompressionFormat TargetRotationFormat,
 		AnimationCompressionFormat TargetScaleFormat,
@@ -573,6 +586,7 @@ public:
 	 * @param	RawSegments					The array of segments to compress
 	 * @param	bIsSorted					For variable interpolation, is the compressed data sorted or not?
 	 */
+#if USE_SEGMENTING_CONTEXT
 	static void BitwiseCompressAnimationTracks(
 		UAnimSequence& AnimSeq,
 		AnimationCompressionFormat TargetTranslationFormat,
@@ -616,9 +630,10 @@ public:
 	 * @param	bIsSorted					For variable interpolation, is the compressed data sorted or not?
 	 */
 	static void CoalesceCompressedSegments(UAnimSequence& AnimSeq, const TArray<FAnimSegmentContext>& RawSegments, bool bIsSorted = false);
+#endif
 
 #if WITH_EDITOR
-	FString MakeDDCKey();
+	void PopulateDDCKeyArchive(FArchive& Ar) { PopulateDDCKey(Ar); }
 
 protected:
 	virtual void PopulateDDCKey(FArchive& Ar);
@@ -688,6 +703,7 @@ protected:
 		const float* Mins,
 		const float* Ranges);
 
+#if USE_SEGMENTING_CONTEXT
 	/**
 	 * Utility function that performs minimal sanity checks.
 	 *
@@ -695,6 +711,7 @@ protected:
 	 * @param	Segment						The segment to check
 	 */
 	static void SanityCheckTrackData(const UAnimSequence& AnimSeq, const FAnimSegmentContext& Segment);
+#endif
 
 	/**
 	 * Calculates the translation track range.
@@ -726,6 +743,7 @@ protected:
 	 */
 	static void CalculateTrackRange(const FScaleTrack& ScaleData, AnimationCompressionFormat Format, FVector& OutMin, FVector& OutExtent);
 
+#if USE_SEGMENTING_CONTEXT
 	/**
 	 * Calculates the track ranges within a segment.
 	 *
@@ -741,6 +759,7 @@ protected:
 		AnimationCompressionFormat TargetScaleFormat,
 		const FAnimSegmentContext& Segment,
 		TArray<FAnimTrackRange>& TrackRanges);
+#endif
 
 	/**
 	 * Structure to wrap and represent track key flags.
@@ -759,6 +778,7 @@ protected:
 		uint8 Flags;
 	};
 
+#if USE_SEGMENTING_CONTEXT
 	/**
 	 * Writes the necessary track ranges to a byte stream.
 	 *
@@ -881,6 +901,7 @@ protected:
 		TFunction<void(TArray<uint8>& ByteStream, AnimationCompressionFormat Format, const FVector& Key, const float* Mins, const float* Ranges, int32 TrackIndex)> PackScaleKeyFun,
 		const FAnimSegmentContext& Segment,
 		const TArray<FAnimTrackRange>& TrackRanges);
+#endif
 
 	/**
 	 * Pads a byte stream to force a particular alignment for the data to follow.

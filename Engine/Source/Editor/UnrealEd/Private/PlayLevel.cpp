@@ -36,6 +36,7 @@
 #include "Engine/Blueprint.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/GameInstance.h"
+#include "Engine/RendererSettings.h"
 #include "Engine/World.h"
 #include "Settings/LevelEditorPlaySettings.h"
 #include "AI/NavigationSystemBase.h"
@@ -3325,12 +3326,17 @@ UGameInstance* UEditorEngine::CreatePIEGameInstance(int32 InPIEInstance, bool bI
 						ViewportOverlayWidgetRef
 					];
 
+				static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
+				const EAlphaChannelMode::Type PropagateAlpha = EAlphaChannelMode::FromInt(CVarPropagateAlpha->GetValueOnGameThread());
+				const bool bIgnoreTextureAlpha = (PropagateAlpha != EAlphaChannelMode::AllowThroughTonemapper);
+
 				PieViewportWidget = 
 					SNew( SViewport )
 						.IsEnabled(FSlateApplication::Get().GetNormalExecutionAttribute())
 						.EnableGammaCorrection( false )// Gamma correction in the game is handled in post processing in the scene renderer
 						.RenderDirectlyToWindow( bRenderDirectlyToWindow )
 						.EnableStereoRendering( bEnableStereoRendering )
+						.IgnoreTextureAlpha(bIgnoreTextureAlpha)
 						[
 							GameLayerManagerRef
 						];

@@ -119,7 +119,7 @@ public:
 		return StaticMeshLODSettings;
 	}
 
-	virtual void GetTextureFormats( const UTexture* Texture, TArray<FName>& OutFormats ) const override;
+	virtual void GetTextureFormats( const UTexture* Texture, TArray< TArray<FName> >& OutFormats) const override;
 
 	virtual void GetAllTextureFormats( TArray<FName>& OutFormats) const override;
 

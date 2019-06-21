@@ -15,7 +15,6 @@ order:15
 选项可设置为定义复制的 Actor 在客户端上的表现方式，从是否同步位置信息（Actor 的位置和朝向）到设置其网络相关性（或何时将复制的数据发送到客户端，因为设置同步的 Actor 可能或可能不相关，具体取决于游戏情景）。 
 
 
-(#ImplementationGuides)
 ## 实现指南
 
 [DIR(output:"role" parent:"Gameplay/HowTo/Networking/ReplicateActor" org:"hierarchy" end:"1")]

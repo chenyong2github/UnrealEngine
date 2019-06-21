@@ -241,6 +241,7 @@ namespace UnrealGameSync
 
 		IssueMonitor IssueMonitor;
 		IssueData Issue;
+		List<IssueDiagnosticData> Diagnostics;
 		PerforceConnection Perforce;
 		TimeSpan? ServerTimeOffset;
 		PerforceWorkerThread PerforceWorker;
@@ -256,10 +257,11 @@ namespace UnrealGameSync
 		System.Windows.Forms.Timer UpdateTimer;
 		StatusElementResources StatusElementResources;
 
-		IssueDetailsWindow(IssueMonitor IssueMonitor, IssueData Issue, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream)
+		IssueDetailsWindow(IssueMonitor IssueMonitor, IssueData Issue, List<IssueDiagnosticData> Diagnostics, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, TextWriter Log, string CurrentStream)
 		{
 			this.IssueMonitor = IssueMonitor;
 			this.Issue = Issue;
+			this.Diagnostics = Diagnostics;
 			this.Perforce = new PerforceConnection(UserName, null, ServerAndPort);
 			this.ServerTimeOffset = ServerTimeOffset;
 			this.Log = Log;
@@ -372,7 +374,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		void AppendEscapedRtf(StringBuilder Result, string Text)
+		static void AppendEscapedRtf(StringBuilder Result, string Text)
 		{
 			for (int Idx = 0; Idx < Text.Length; Idx++)
 			{
@@ -396,57 +398,57 @@ namespace UnrealGameSync
 			}
 		}
 
-		string CreateRichTextErrors(string ErrorText)
+		static void AppendHyperlink(StringBuilder RichText, string Label, string Url)
 		{
-			string[] Lines = ErrorText.Split('\n');
-			
-			Regex StepPattern = new Regex("^##([^#].*[^#])##$", RegexOptions.None);
+			RichText.Append(@"{\field");
+			RichText.Append(@"{\*\fldinst");
+			RichText.AppendFormat("{{ HYPERLINK \"{0}\" }}", Url);
+			RichText.Append(@"}");
+			RichText.Append(@"{\fldrslt ");
+			AppendEscapedRtf(RichText, Label);
+			RichText.Append(@"}");
+			RichText.Append(@"}");
+		}
 
-			Dictionary<string, int> StepNameToCount = new Dictionary<string, int>(StringComparer.Ordinal);
-			foreach(string Line in Lines)
-			{
-				Match Match = StepPattern.Match(Line);
-				if(Match.Success)
-				{
-					string StepName = Match.Groups[1].Value;
-					int Count;
-					StepNameToCount.TryGetValue(StepName, out Count);
-					StepNameToCount[StepName] = Count + 1;
-				}
-			}
-
-			Dictionary<string, int> StepNameToIndex = StepNameToCount.Keys.ToDictionary(x => x, x => 0, StringComparer.Ordinal);
-
+		static string CreateRichTextErrors(IssueData Issue, List<IssueDiagnosticData> Diagnostics)
+		{
 			StringBuilder RichText = new StringBuilder();
 
 			RichText.AppendLine(@"{\rtf1\ansi");
 			RichText.AppendLine(@"{\fonttbl{\f0\fnil\fcharset0 Arial;}{\f1\fnil\fcharset0 Courier New;}{\f2\fnil\fcharset0 Calibri;}}");
-			RichText.AppendLine(@"{\colortbl;\red192\green80\blue77;}");
+			RichText.AppendLine(@"{\colortbl;\red192\green80\blue77;\red0\green0\blue0;}");
 
-			string PrevStepName = null;
-			for(int Idx = 0; Idx < Lines.Length; Idx++)
+			bool bFirst = true;
+			foreach (IGrouping<long, IssueDiagnosticData> Group in Diagnostics.GroupBy(x => x.BuildId ?? -1))
 			{
-				Match Match = StepPattern.Match(Lines[Idx]);
-				if(Match.Success)
+				// Step 'Foo'
+				IssueBuildData Build = Issue.Builds.FirstOrDefault(x => x.Id == Group.Key);
+				if (Build != null)
 				{
-					// Step 'Foo'
-					string StepName = Match.Groups[1].Value;
-					if(StepName != PrevStepName)
+					RichText.Append(@"\pard");   // Paragraph default
+					RichText.Append(@"\cf2");    // Foreground color
+					RichText.Append(@"\b1");     // Bold
+					RichText.Append(@"\f0");     // Font
+					RichText.Append(@"\fs16");   // Font size
+					if (bFirst)
 					{
-						RichText.Append(@"\pard");   // Paragraph default
-						RichText.Append(@"\cf0");    // Foreground color
-						RichText.Append(@"\b1");     // Bold
-						RichText.Append(@"\f0");     // Font
-						RichText.Append(@"\fs16");   // Font size
-						if (Idx > 0)
-						{
-							RichText.Append(@"\sb300"); // Space before
-						}
-						RichText.AppendFormat(@"In step '{0}':", StepName);
-						RichText.AppendLine(@"\par");
-
-						PrevStepName = StepName;
+						RichText.Append(@"\sb100"); // Space before
 					}
+					else
+					{
+						RichText.Append(@"\sb300"); // Space before
+					}
+					RichText.Append(@" In step '\ul1");
+					AppendHyperlink(RichText, Build.JobStepName, Build.JobStepUrl);
+					RichText.Append(@"\ul0':");
+
+					RichText.AppendLine(@"\par");
+				}
+
+				IssueDiagnosticData[] DiagnosticsArray = Group.ToArray();
+				for(int Idx = 0; Idx < DiagnosticsArray.Length; Idx++)
+				{
+					IssueDiagnosticData Diagnostic = DiagnosticsArray[Idx];
 
 					// Error X/Y:
 					RichText.Append(@"\pard");   // Paragraph default
@@ -458,22 +460,30 @@ namespace UnrealGameSync
 					RichText.Append(@"\li50");   // Other line indent
 					RichText.Append(@"\sb100");  // Space before
 					RichText.Append(@"\sa50");   // Space after
-					RichText.AppendFormat(@"Error {0}/{1}", ++StepNameToIndex[StepName], StepNameToCount[StepName]);
+					RichText.Append(@" ");
+
+					RichText.Append(@"\ul1");
+					AppendHyperlink(RichText, String.Format("Error {0}/{1}", Idx + 1, DiagnosticsArray.Length), Diagnostic.Url);
+					RichText.Append(@"\ul0");
+
 					RichText.AppendLine(@"\par");
-				}
-				else
-				{
+
 					// Error text
-					RichText.Append(@"\pard");   // Paragraph default
-					RichText.Append(@"\cf0");    // Foreground color
-					RichText.Append(@"\b0");     // Bold
-					RichText.Append(@"\f1");     // Font
-					RichText.Append(@"\fs16");   // Font size 16
-					RichText.Append(@"\fi150");  // First line indent
-					RichText.Append(@"\li150");  // Other line indent
-					AppendEscapedRtf(RichText, Lines[Idx]);
-					RichText.Append(@"\par");
+					foreach(string Line in Diagnostic.Message.TrimEnd().Split('\n'))
+					{
+						RichText.Append(@"\pard");   // Paragraph default
+						RichText.Append(@"\cf0");    // Foreground color
+						RichText.Append(@"\b0");     // Bold
+						RichText.Append(@"\f1");     // Font
+						RichText.Append(@"\fs16");   // Font size 16
+						RichText.Append(@"\fi150");  // First line indent
+						RichText.Append(@"\li150");  // Other line indent
+						AppendEscapedRtf(RichText, Line);
+						RichText.Append(@"\par");
+					}
 				}
+
+				bFirst = false;
 			}
 
 			RichText.AppendLine("}");
@@ -560,15 +570,15 @@ namespace UnrealGameSync
 			UpdateSummaryTextIfChanged(StepNamesTextBox, String.Join(", ", Issue.Builds.Select(x => x.JobStepName).Distinct().OrderBy(x => x)));
 			UpdateSummaryTextIfChanged(StreamNamesTextBox, String.Join(", ", Issue.Builds.Select(x => x.Stream).Distinct().OrderBy(x => x)));
 
-			if(LastDetailsText != Issue.Details)
+			string RtfText = CreateRichTextErrors(Issue, Diagnostics);
+			if (LastDetailsText != RtfText)
 			{
-				string RtfText = CreateRichTextErrors(Issue.Details);
 				using (MemoryStream Stream = new MemoryStream(Encoding.UTF8.GetBytes(RtfText), false))
 				{
 					DetailsTextBox.LoadFile(Stream, RichTextBoxStreamType.RichText);
 					DetailsTextBox.Select(0, 0);
 				}
-				LastDetailsText = Issue.Details;
+				LastDetailsText = RtfText;
 			}
 
 			if(Issue.FixChange == 0)
@@ -793,8 +803,7 @@ namespace UnrealGameSync
 				StatusLineListViewWidget BuildWidget = new StatusLineListViewWidget(BuildItem, StatusElementResources);
 				BuildWidget.HorizontalAlignment = HorizontalAlignment.Left;
 
-				string DefaultUrl = Range.BuildGroup.Builds.Select(x => x.ErrorUrl).FirstOrDefault(x => x != null) ?? Range.BuildGroup.JobUrl;
-				BuildWidget.Line.AddLink(Range.BuildGroup.JobName, FontStyle.Underline, () => System.Diagnostics.Process.Start(DefaultUrl));
+				BuildWidget.Line.AddLink(Range.BuildGroup.JobName, FontStyle.Underline, () => System.Diagnostics.Process.Start(Range.BuildGroup.JobUrl));
 				BuildItem.SubItems.Add(new ListViewItem.ListViewSubItem(BuildItem, ""){ Tag = BuildWidget });
 				BuildItem.SubItems.Add(new ListViewItem.ListViewSubItem(BuildItem, ""){ Tag = BuildWidget });
 
@@ -999,12 +1008,42 @@ namespace UnrealGameSync
 
 		static List<IssueDetailsWindow> ExistingWindows = new List<IssueDetailsWindow>();
 
+		class UpdateIssueDetailsTask : IModalTask
+		{
+			string ApiUrl;
+			long IssueId;
+			List<IssueDiagnosticData> Diagnostics;
+
+			public UpdateIssueDetailsTask(string ApiUrl, long IssueId, List<IssueDiagnosticData> Diagnostics)
+			{
+				this.ApiUrl = ApiUrl;
+				this.IssueId = IssueId;
+				this.Diagnostics = Diagnostics;
+			}
+
+			public bool Run(out string ErrorMessage)
+			{
+				Diagnostics.AddRange(RESTApi.GET<List<IssueDiagnosticData>>(ApiUrl, String.Format("issues/{0}/diagnostics", IssueId)));
+
+				ErrorMessage = null;
+				return true;
+			}
+		}
+
 		public static void Show(Form Owner, IssueMonitor IssueMonitor, string ServerAndPort, string UserName, TimeSpan? ServerTimeOffset, IssueData Issue, TextWriter Log, string CurrentStream)
 		{
 			IssueDetailsWindow Window = ExistingWindows.FirstOrDefault(x => x.IssueMonitor == IssueMonitor && x.Issue.Id == Issue.Id);
 			if(Window == null)
 			{
-				Window = new IssueDetailsWindow(IssueMonitor, Issue, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream);
+				List<IssueDiagnosticData> Diagnostics = new List<IssueDiagnosticData>();
+
+				UpdateIssueDetailsTask Task = new UpdateIssueDetailsTask(IssueMonitor.ApiUrl, Issue.Id, Diagnostics);
+				if(!ModalTask.ExecuteAndShowError(Owner, Task, "Fetching data", "Fetching data, please wait..."))
+				{
+					return;
+				}
+
+				Window = new IssueDetailsWindow(IssueMonitor, Issue, Diagnostics, ServerAndPort, UserName, ServerTimeOffset, Log, CurrentStream);
 				Window.Owner = Owner;
 				Window.StartPosition = FormStartPosition.Manual;
 				Window.Location = new Point(Owner.Location.X + (Owner.Width - Window.Width) / 2, Owner.Location.Y + (Owner.Height - Window.Height) / 2);
@@ -1268,7 +1307,7 @@ namespace UnrealGameSync
 		private void AssignToOtherBtn_Click(object sender, EventArgs e)
 		{
 			string SelectedUserName;
-			if(SelectUserWindow.ShowModal(this, Perforce.ServerAndPort, Perforce.UserName, Log, out SelectedUserName))
+			if(SelectUserWindow.ShowModal(this, Perforce, Log, out SelectedUserName))
 			{
 				AssignToUser(SelectedUserName);
 			}
@@ -1356,6 +1395,11 @@ namespace UnrealGameSync
 			{
 				System.Diagnostics.Process.Start(Build.ErrorUrl);
 			}
+		}
+
+		private void DetailsTextBox_LinkClicked(object sender, LinkClickedEventArgs e)
+		{
+			System.Diagnostics.Process.Start(e.LinkText);
 		}
 	}
 }

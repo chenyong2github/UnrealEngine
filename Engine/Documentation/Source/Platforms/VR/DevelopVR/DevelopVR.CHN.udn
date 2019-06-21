@@ -1,0 +1,34 @@
+﻿INTSourceChangelist:6424507
+Availability: Public
+Title: 虚拟现实开发
+Description: 关于虚拟现实平台开发的常用信息。
+Type: landing
+Version: 4.17
+Tags: Platform
+Tags: VR
+topic-image: 
+topic-icon: 
+
+## 台式机平台
+
+%Platforms/Oculus:topic%
+
+%Platforms/SteamVR:topic%
+
+%Platforms/VR/DevelopVR/WMR:topic%
+
+
+## 移动平台
+
+%Platforms/GoogleVR:topic%
+
+%Platforms/GearVR:topic%
+
+
+## 常规VR开发
+
+[DIR(end:"1" output:"topic" parent:"Platforms/VR/DevelopVR" type:"overview,reference,how-to")]
+
+## 培训视频
+
+[DIR(output:"video" type:"video" tags:"Virtual Reality")]

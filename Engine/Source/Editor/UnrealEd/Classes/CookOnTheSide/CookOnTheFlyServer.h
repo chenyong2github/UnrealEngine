@@ -689,7 +689,7 @@ private:
 	* Build up a map of unsupported packages per platform that can be checked before saving.
 	*/
 	void DiscoverPlatformSpecificNeverCookPackages(
-		const TArray<FName>& TargetPlatformNames, const TArray<FString>& TargetPlatformStrings);
+		const TArray<FName>& TargetPlatformNames, const TArray<FString>& UBTPlatformStrings);
 
 	/**
 	* Clean up the sandbox

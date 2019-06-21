@@ -1,0 +1,60 @@
+Availability: Public
+Crumbs: 
+Title: Installing the Datasmith Exporter Plugin for Revit
+Description: Describes how to install the Datasmith Exporter plugin for Revit.
+Type: 
+skilllevel:Beginner
+Version: 4.21
+Parent: Studio/Datasmith/SoftwareInteropGuides/Revit
+Order: 0
+Tags: how to
+Tags: Datasmith
+Tags: Early Access
+Tags: Revit
+
+
+Before you can get started working with your Revit content in the Unreal Engine, you need to install the Unreal Datasmith Exporter plugin for Revit.
+
+To see what versions of Revit the exporter plugin currently supports, see [Datasmith Supported Software and File Types](Studio/Datasmith/SupportedSoftwareAndFileTypes).
+
+[REGION:tip]
+We encourage you to share the download link to the Datasmith Exporter plugins with any number of people, both inside and outside of your organization. An Unreal Studio entitlement is not required to download and use the Datasmith Exporter plugins. Please note, however, that you are not permitted to distribute the Datasmith Exporter plugins themselves.
+[/REGION]
+
+## Installing the Datasmith Exporter for Revit
+
+Follow the steps below to install the Datasmith Exporter plugin for any supported version of Revit that you have installed on your computer.
+
+1.  Close any instances of Autodesk Revit that are running on your machine. If any instances are still running, the installation will fail.
+2.  If you have already installed an older version of the Datasmith Exporter plugin, we recommend uninstalling it first. For details, see [Removing the Datasmith Exporter for Revit](#removingthedatasmithexporterforrevit) below.
+3.  Download the Exporter plugin installer from the [Datasmith Export Plugins download](https://www.unrealengine.com/studio/downloads) page.
+4.  When the download has completed, run the installer.  
+    ![Datasmith Exporter for Revit installer](rvt-installer-start.png "Datasmith Exporter for Revit installer")
+5.  Follow the on-screen prompts to continue, and accept the license agreement.
+6.  The installer automatically detects the versions of Autodesk Revit installed on your system. Check the box for each version that you want to be able to export through Datasmith, and click **Install**.  
+    ![Choose Revit versions](rvt-installer-versions-1.png "Choose Revit versions")
+7.  Launch the version of Revit you selected above. You may see the following warning:  
+    ![Revit security warning](revit-security-warning.png "Revit security warning")  
+    Click **Always Load** to confirm that you want the Datasmith Exporter plugin to be available each time you launch Revit.
+
+### End Result
+
+Now that you have the Datasmith Exporter plugin installed, you can move on to export a scene from Revit as a *.udatasmith* file. See [Exporting Datasmith Content from Revit.](Studio/Datasmith/SoftwareInteropGuides/Revit/ExportingDatasmithContentfromRevit)
+
+## Removing the Datasmith Exporter for Revit
+
+Use the standard Windows control panel utilities to find and remove the **Unreal Datasmith Exporter for Revit** application from your system.
+
+For example, on Windows 10, you can use the **Apps & features** control panel. Click the entry for your Datasmith exporter plugin in the list, then click **Uninstall**:
+
+[REGION:lightbox]
+[![](uninstall-datasmith-rvt-plugin-appsfeatures.png)](uninstall-datasmith-rvt-plugin-appsfeatures.png)  
+*Click for full image.*
+[/REGION]
+
+Or, use the **Uninstall or change a program** control panel. Right-click the entry for your Datasmith exporter plugin, and choose **Uninstall** from the contextual menu:
+
+[REGION:lightbox]
+[![](uninstall-datasmith-rvt-plugin-uninstallchange.png)](uninstall-datasmith-rvt-plugin-uninstallchange.png)  
+*Click for full image.*
+[/REGION]

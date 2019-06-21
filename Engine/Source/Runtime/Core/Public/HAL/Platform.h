@@ -73,6 +73,9 @@
 #if !defined(PLATFORM_UNIX)
 	#define PLATFORM_UNIX 0
 #endif
+#if !defined(PLATFORM_HOLOLENS)
+#define PLATFORM_HOLOLENS 0
+#endif
 
 // Platform specific compiler pre-setup.
 #include "PreprocessorHelpers.h"
@@ -244,6 +247,9 @@
 #endif
 #ifndef PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	#define PLATFORM_SUPPORTS_TEXTURE_STREAMING	1
+#endif
+#ifndef PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING
+	#define PLATFORM_SUPPORTS_VIRTUAL_TEXTURE_STREAMING	0
 #endif
 #ifndef PLATFORM_SUPPORTS_VIRTUAL_TEXTURES
 	#define PLATFORM_SUPPORTS_VIRTUAL_TEXTURES		0

@@ -27,6 +27,13 @@ class DERIVEDDATACACHE_API FDDCCleanup : public FRunnable
 	/** If true, work without giving up time to other threads */
 	bool bDontWaitBetweenDeletes;
 
+	/** Time before any deleting starts */
+	float TimeToWaitAfterInit;
+	/** Time to wait before starting deleting the next DDC directory files */
+	float TimeBetweenDeleteingDirectories;
+	/** Time to wait before deleting the next DDC file */
+	float TimeBetweenDeletingFiles;
+
 	/** Constructor */
 	FDDCCleanup();
 

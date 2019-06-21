@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Input/Devices/VRPN/Button/DisplayClusterVrpnButtonInputDataHolder.h"
-#include "Misc/DisplayClusterLog.h"
+#include "DisplayClusterLog.h"
 
 
 FDisplayClusterVrpnButtonInputDataHolder::FDisplayClusterVrpnButtonInputDataHolder(const FDisplayClusterConfigInput& config) :

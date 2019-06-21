@@ -19,6 +19,7 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraConstants.h"
+#include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraEditor"
 
@@ -1033,7 +1034,7 @@ const FString* FNiagaraParameterMapHistoryBuilder::GetEmitterAlias() const
 	return AliasMap.Find(TEXT("Emitter"));
 }
 
-void FNiagaraParameterMapHistoryBuilder::VisitInputPin(const UEdGraphPin* Pin, const class UNiagaraNode* InNode)
+void FNiagaraParameterMapHistoryBuilder::VisitInputPin(const UEdGraphPin* Pin, const class UNiagaraNode* InNode, bool bFilterForCompilation)
 {
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 
@@ -1041,14 +1042,30 @@ void FNiagaraParameterMapHistoryBuilder::VisitInputPin(const UEdGraphPin* Pin, c
 	{
 		for (int32 j = 0; j < Pin->LinkedTo.Num(); j++)
 		{
-			const UEdGraphPin* OutputPin = UNiagaraNode::TraceOutputPin(Pin->LinkedTo[j]);
+			UEdGraphPin* LinkedPin = Pin->LinkedTo[j];
+			const UEdGraphPin* OutputPin;
+			if (!bFilterForCompilation && LinkedPin && Cast<UNiagaraNodeStaticSwitch>(LinkedPin->GetOwningNode()))
+			{
+				// if we do not filter the parameter maps we want all nodes connected to the static switch, regardless of the switch value
+				OutputPin = LinkedPin;
+			}
+			else
+			{
+				OutputPin = UNiagaraNode::TraceOutputPin(LinkedPin, bFilterForCompilation);
+				if (bFilterForCompilation && OutputPin && Cast<UNiagaraNodeStaticSwitch>(OutputPin->GetOwningNode()))
+				{
+					// this means there is no further node connected to this pin of the static switch, so it is not relevant
+					continue;
+				}
+			}
+
 			if (OutputPin)
 			{
 				UNiagaraNode* Node = CastChecked<UNiagaraNode>(OutputPin->GetOwningNode());
 
 				if (!GetNodePreviouslyVisited(Node))
 				{
-					Node->BuildParameterMapHistory(*this, true);
+					Node->BuildParameterMapHistory(*this, true, bFilterForCompilation);
 					RegisterNodeVisitation(Node);
 				}
 
@@ -1062,14 +1079,14 @@ void FNiagaraParameterMapHistoryBuilder::VisitInputPin(const UEdGraphPin* Pin, c
 	}
 }
 
-void FNiagaraParameterMapHistoryBuilder::VisitInputPins(const class UNiagaraNode* InNode)
+void FNiagaraParameterMapHistoryBuilder::VisitInputPins(const class UNiagaraNode* InNode, bool bFilterForCompilation)
 {
 	TArray<UEdGraphPin*> InputPins;
 	InNode->GetInputPins(InputPins);
 
 	for (int32 i = 0; i < InputPins.Num(); i++)
 	{
-		VisitInputPin(InputPins[i], InNode);
+		VisitInputPin(InputPins[i], InNode, bFilterForCompilation);
 	}
 }
 
@@ -1119,7 +1136,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableWrite(int32 ParameterMap
 	return Histories[ParameterMapIndex].AddVariable(ResolvedVar, Var, nullptr);
 }
 
-int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool& OutUsedDefault)
+int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, const UEdGraphPin* InPin, bool RegisterReadsAsVariables, const UEdGraphPin* InDefaultPin, bool bFilterForCompilation, bool& OutUsedDefault)
 {
 	OutUsedDefault = false;
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
@@ -1153,7 +1170,7 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 			if (InDefaultPin)
 			{
 				OutUsedDefault = true;
-				VisitInputPin(InDefaultPin, Cast<UNiagaraNode>(InDefaultPin->GetOwningNode()));
+				VisitInputPin(InDefaultPin, Cast<UNiagaraNode>(InDefaultPin->GetOwningNode()), bFilterForCompilation);
 				FoundIdx = Histories[ParamMapIdx].FindVariable(Var.GetName(), Var.GetType());
 			}
 
@@ -1356,6 +1373,33 @@ void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 	{
 		AliasMap.Add(TEXT("Emitter"), Callstack);
 	}
+}
+
+bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) const
+{
+	if (Translator)
+	{
+		return Translator->GetLiteralConstantVariable(OutConstant);
+	}
+
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Localspace")))
+	{
+		OutConstant.SetValue(Emitter->bLocalSpace ? FNiagaraBool(true) : FNiagaraBool(false));
+		return true;
+	}
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Emitter.Determinism")))
+	{
+		OutConstant.SetValue(Emitter->bDeterminism ? FNiagaraBool(true) : FNiagaraBool(false));
+		return true;
+	}
+	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetSimulationTargetEnum(), TEXT("Emitter.SimulationTarget")))
+	{
+		FNiagaraInt32 EnumValue;
+		EnumValue.Value = (uint8)Emitter->SimTarget;
+		OutConstant.SetValue(EnumValue);
+		return true;
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

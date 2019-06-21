@@ -835,7 +835,7 @@ struct TSlateBaseNamedArgs
 	SLATE_ARGUMENT( bool, ForceVolatile )
 	SLATE_ARGUMENT( EWidgetClipping, Clipping )
 	SLATE_ARGUMENT( EFlowDirectionPreference, FlowDirectionPreference)
-	SLATE_ARGUMENT(FAccessibleWidgetData, AccessibleParams)
+	SLATE_ARGUMENT(TOptional<FAccessibleWidgetData>, AccessibleParams)
 	SLATE_ATTRIBUTE(FText, AccessibleText)
 
 	TArray<TSharedRef<ISlateMetaData>> MetaData;

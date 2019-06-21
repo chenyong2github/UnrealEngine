@@ -1,0 +1,123 @@
+﻿INTSourceChangelist:6549201
+Availability: Public
+Title: iOS 필수 구성 요소 설치
+Description: iOS 디바이스용 게임 개발에 필요한 모든 소프트웨어를 받아 설치합니다.
+Type: how-to
+Version: 4.19
+Parent: Platforms/Mobile/iOS
+Tags: iOS
+Tags: StartingOut
+topic-image: iOS_QS_Editor_TopicImage.png
+SkillLevel: Beginner
+
+
+언리얼 엔진 4 를 사용해 iOS 프로젝트 개발을 시작하려면 먼저 다음 프로그램을 개발 PC 에 다운로드하고 설치해야 합니다. 
+
+## 단계
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_0]
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_2]
+    [/PARAM]
+[/OBJECT]
+
+
+<!--
+[EXCERPT:excerpt_0]
+
+Windows 에서는 **iTunes** 가 설치되어 있어야 iOS 프로젝트를 iOS 디바이스에 패키징 및 디플로이할 수 있습니다. iTunes 는 다음 Apple 링크에서 다운로드할 수 있습니다.
+
+[Install iTunes](http://www.apple.com/itunes/)
+
+![](itunes.png)
+  
+
+iTunes 다운로드가 완료되면, 개발 PC 에 설치하세요.
+
+[/EXCERPT:excerpt_0]
+-->
+
+<!--
+[EXCERPT:excerpt_2]
+
+iOS 프로젝트를 패키징하고 Mac OS 디바이스에 디플로이하려면 **Xcode** 최신 버전이 설치되어 있어야 합니다. Xcode 인스톨러는 다음의 Apple 링크에서 다운로드할 수 있습니다.  
+[Install Xcode](https://developer.apple.com/xcode/)
+
+[![](DownloadXCode.png)](https://developer.apple.com/xcode/)
+
+**Xcode** 다운로드가 완료되면 설치하고 실행하세요.
+
+[/EXCERPT:excerpt_2]
+-->
+
+## 최종 결과
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    windows
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_1]
+    [/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    OS
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    mac
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#excerpt_3]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:excerpt_1]
+
+완료되면 iTunes 가 설치되어 UE4 프로젝트를 iOS 디바이스에 디플로이할 수 있을 것입니다.
+
+[/EXCERPT:excerpt_1]
+-->
+
+<!--
+[EXCERPT:excerpt_3]
+
+완료되면 이제 XCode 가 설치되어 iOS 디바이스에 UE4 프로젝트를 디플로이할 수 있을 것입니다.
+
+[/EXCERPT:excerpt_3]
+-->
+
+

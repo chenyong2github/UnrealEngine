@@ -1,11 +1,11 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "DataValidationCommandlet.h"
-#include "DataValidationManager.h"
-
 #include "IAssetRegistry.h"
 #include "AssetRegistryHelpers.h"
 #include "AssetRegistryModule.h"
+#include "Editor.h"
+#include "EditorValidatorSubsystem.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogDataValidation, Warning, All);
@@ -40,10 +40,10 @@ bool UDataValidationCommandlet::ValidateData()
 	TArray<FAssetData> AssetDataList;
 	AssetRegistryModule.Get().GetAllAssets(AssetDataList);
 
-	UDataValidationManager* DataValidationManager = UDataValidationManager::Get();
-	check(DataValidationManager);
+	UEditorValidatorSubsystem* EditorValidationSubsystem = GEditor->GetEditorSubsystem<UEditorValidatorSubsystem>();
+	check(EditorValidationSubsystem);
 
-	DataValidationManager->ValidateAssets(AssetDataList);
+	EditorValidationSubsystem->ValidateAssets(AssetDataList);
 
 	return true;
 }

@@ -2187,7 +2187,6 @@ private:
 	class InputPreProcessorsHelper
 	{
 	public:
-
 		// Wrapper functions that call the corresponding function of IInputProcessor for each InputProcessor in the list.
 		void Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor);
 		bool HandleKeyDownEvent(FSlateApplication& SlateApp, const FKeyEvent& InKeyEvent);
@@ -2220,8 +2219,16 @@ private:
 
 	private:
 
+		bool PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun);
+
 		/** The list of input pre-processors. */
 		TArray<TSharedPtr<IInputProcessor>> InputPreProcessorList;
+
+		/** Guard value for if we are currently iterating our preprocessors. */
+		bool bIsIteratingPreProcessors = false;
+
+		/** A list of pre-processors to remove if we are iterating them while removal is requested. */
+		TArray<TSharedPtr<IInputProcessor>> ProcessorsPendingRemoval;
 	};
 
 	/** A list of input pre-processors, gets an opportunity to parse input before anything else. */

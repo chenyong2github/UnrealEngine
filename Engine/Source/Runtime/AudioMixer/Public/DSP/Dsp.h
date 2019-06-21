@@ -492,6 +492,7 @@ namespace Audio
 			int32 NumToCopy = FMath::Min<int32>(NumSamples, Remainder());
 			const int32 NumToWrite = FMath::Min<int32>(NumToCopy, Capacity - WriteIndex);
 			FMemory::Memcpy(&DestBuffer[WriteIndex], InBuffer, NumToWrite * sizeof(SampleType));
+					
 			FMemory::Memcpy(&DestBuffer[0], &InBuffer[NumToWrite], (NumToCopy - NumToWrite) * sizeof(SampleType));
 
 			WriteCounter.Set((WriteIndex + NumToCopy) % Capacity);
@@ -510,6 +511,7 @@ namespace Audio
 
 			const int32 NumRead = FMath::Min<int32>(NumToCopy, Capacity - ReadIndex);
 			FMemory::Memcpy(OutBuffer, &SrcBuffer[ReadIndex], NumRead * sizeof(SampleType));
+				
 			FMemory::Memcpy(&OutBuffer[NumRead], &SrcBuffer[0], (NumSamples - NumRead) * sizeof(SampleType));
 
 			check(NumSamples < ((uint32)TNumericLimits<int32>::Max()));

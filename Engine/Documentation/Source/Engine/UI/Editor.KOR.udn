@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:3810557
+﻿INTSourceChangelist:6576319
 Availability:Public
 Title: 언리얼 에디터 인터페이스
 Crumbs:%ROOT%, Engine
@@ -14,20 +14,12 @@ topic-icon:%ROOT%/editor_icon.png
 [EXCERPT:LevelEditor]
 ## 기초
 
-
 에디터가 처음인 경우, 유저 인터페이스와 일반적인 작업방식에 대해 몇 가지 기본 개념을 익혀 두면 도움이 될 것입니다. 아래는 이제 막 시작한 사용자들을 위해 준비한 두 가지 핵심 글타래입니다.
 
-
-
-[REGION:topics fourth]
-%Engine/UI/LevelEditor:topiccompact%
-%Engine/UI/LevelEditor/Viewports:topiccompact%
-%Engine/UI/InterfaceOverview:topiccompact%
-%Engine/UI/LevelEditor/InEditorTesting:topiccompact%
-[/REGION]
-
-
-
+%Engine/UI/LevelEditor:topic%
+%Engine/UI/LevelEditor/Viewports:topic%
+%Engine/UI/InterfaceOverview:topic%
+%Engine/UI/LevelEditor/InEditorTesting:topic%
 
 ## 에디터, 브라우저, 툴
 
@@ -35,31 +27,31 @@ topic-icon:%ROOT%/editor_icon.png
 
 [REGION:raw]
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-windows
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](OpenParticleSystem_Windows.png)
-[/PARAM]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![](OpenParticleSystem_Windows.png)
+	[/PARAM]
 [/OBJECT]
 
 [OBJECT:ToggleButtonContent]
-[PARAMLITERAL:category]
-OS
-[/PARAMLITERAL]
-[PARAMLITERAL:id]
-mac
-[/PARAMLITERAL]
-[PARAMLITERAL:active]
-[/PARAMLITERAL]
-[PARAM:content]
-![](OpenParticleSystem_Mac.png)
-[/PARAM]
+	[PARAMLITERAL:category]
+	OS
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	[/PARAMLITERAL]
+	[PARAM:content]
+	![](OpenParticleSystem_Mac.png)
+	[/PARAM]
 [/OBJECT]
 [/REGION]
 
@@ -94,5 +86,3 @@ mac
 [DIR(output:"playlist" type:"playlist" playlist_id:"PLZlv_N0_O1gasd4IcOe9Cx9wHoBB7rxFl")]
 
 [/EXCERPT:LevelEditor]
-
-

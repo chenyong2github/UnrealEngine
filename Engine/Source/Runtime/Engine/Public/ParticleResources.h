@@ -56,8 +56,8 @@ public:
 ENGINE_API extern TGlobalResource<FParticleIndexBuffer> GParticleIndexBuffer;
 ENGINE_API extern TGlobalResource<FSixTriangleParticleIndexBuffer> GSixTriangleParticleIndexBuffer;
 
-typedef FShaderResourceViewRHIParamRef FParticleShaderParamRef;
-typedef FVertexBufferRHIParamRef FParticleBufferParamRef;
+typedef FRHIShaderResourceView* FParticleShaderParamRef;
+typedef FRHIVertexBuffer* FParticleBufferParamRef;
 
 /**
  * Scratch vertex buffer available for dynamic draw calls.

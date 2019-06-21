@@ -24,8 +24,35 @@ public:
 
 	static UMeshInstancingSettingsObject* Get()
 	{
-		return GetMutableDefault<UMeshInstancingSettingsObject>();
+		if (!bInitialized)
+		{
+			DefaultSettings = DuplicateObject(GetMutableDefault<UMeshInstancingSettingsObject>(), nullptr);
+			DefaultSettings->AddToRoot();
+			bInitialized = true;
+		}
+
+		return DefaultSettings;
 	}
+
+	static void Destroy()
+	{
+		if (bInitialized)
+		{
+			if (UObjectInitialized() && DefaultSettings)
+			{
+				DefaultSettings->RemoveFromRoot();
+				DefaultSettings->MarkPendingKill();
+			}
+
+			DefaultSettings = nullptr;
+			bInitialized = false;
+		}
+	}
+
+protected:
+	static bool bInitialized;
+	// This is a singleton, duplicate default object
+	static UMeshInstancingSettingsObject* DefaultSettings;
 
 public:
 	UPROPERTY(EditAnywhere, meta = (ShowOnlyInnerProperties), Category = MergeSettings)
@@ -42,6 +69,7 @@ class FMeshInstancingTool : public IMergeActorsTool
 public:
 
 	FMeshInstancingTool();
+	~FMeshInstancingTool();
 
 	// IMergeActorsTool interface
 	virtual TSharedRef<SWidget> GetWidget() override;

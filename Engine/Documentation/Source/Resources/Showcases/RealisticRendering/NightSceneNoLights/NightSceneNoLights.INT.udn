@@ -1,16 +1,18 @@
 Availability: Public
-Title:Night No Lights Scene Lighting
-Crumbs:%ROOT%, Resources, Resources/Showcases/RealisticRendering
-Description:An overview of the Night scene from the Realistic Rendering demolet included with UE4.
+Title: Night No Lights Scene Lighting
+Description: An overview of the Night scene from the Realistic Rendering demolet included with UE4.
+Version: 4.9
+Type:overview
+topic-image: RoomNightNoLights.png
+Parent: Resources/Showcases/RealisticRendering
+Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
+Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Directional
 Related: Engine/Rendering/LightingAndShadows/LightTypes/Spot
-Related: Engine/Rendering/LightingAndShadows/Lightmass
-Related: Engine/Rendering\LightingAndShadows
-Related: Engine/Rendering/LightingAndShadows/LightMobility/StationaryLights
-Related: Engine/Rendering/LightingAndShadows/LightMobility/StaticLights
 Related: Engine/Rendering/LightingAndShadows/IESLightProfiles
+Related: Engine/Rendering/LightingAndShadows/Lightmass
 Related: Resources/ContentExamples/Lighting/4_2
-Version: 4.9
+
 
 [REGION:fullwidth]
 ![](RoomNightNoLights.png)
@@ -33,4 +35,4 @@ This level plays a little differently from the other two. Instead of a cinematic
 
 [INCLUDE:Resources/Showcases/RealisticRendering#InverseSquared]
 
-The 4-light limitation is particularly pertinent in this level, as the player is carrying one of those lights (the flashlight). This means the level had to be crated in such a way that no more than _three_ shadowing stationary lights were overlapping anywhere that the flashlight could be shone.
+The 4-light limitation is particularly pertinent in this level, as the player is carrying one of those lights (the flashlight). This means the level had to be crated in such a way that no more than *three* shadowing stationary lights were overlapping anywhere that the flashlight could be shone.

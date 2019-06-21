@@ -1,9 +1,10 @@
-﻿INTSourceChangelist:4677954
+﻿INTSourceChangelist:6419241
 Availability: Public
 Crumbs: 
 Title: 시퀀서의 프레임 마커 사용법
 Description: 시퀀서에서 Frame Marker, 프레임 마커를 사용하여 시네마틱 시퀀스 내 특수 프레임을 나타내는 방법을 설명합니다. 
-Type: 
+Type:how-to
+skilllevel:Beginner
 Version: 4.21
 Parent: Engine/SEquencer/HowTo
 Order: 

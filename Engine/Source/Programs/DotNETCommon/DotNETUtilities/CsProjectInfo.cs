@@ -553,6 +553,11 @@ namespace Tools.DotNETCommon
 					}
 				}
 
+				if (TokenIdx < Tokens.Length && Tokens[TokenIdx] == ":")
+				{
+					TokenIdx = Tokens.Length;
+				}
+
 				// Make sure there's nothing left over
 				if(TokenIdx != Tokens.Length)
 				{

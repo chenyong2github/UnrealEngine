@@ -433,8 +433,8 @@ public class AndroidPlatform : Platform
 				FilesToObb = new List<FileReference>();
 
 				// Collect the filesize and place into Obb or Patch list
-				Int64 MainObbSize = 22;		// EOCD without comment
-				Int64 PatchObbSize = 22;	// EOCD without comment
+				Int64 MainObbSize = 22 + 4096;		// EOCD without comment + padding
+				Int64 PatchObbSize = 22 + 4096;		// EOCD without comment + padding
 				foreach (FileReference FileRef in FilesForObb)
 				{
 					FileInfo LocalFileInfo = new FileInfo(FileRef.FullName);
@@ -845,7 +845,7 @@ public class AndroidPlatform : Platform
 						"setlocal",
 						"set NDK_ROOT=%ANDROID_NDK_ROOT%",
 						"if \"%ANDROID_NDK_ROOT%\"==\"\" set NDK_ROOT=\""+Environment.GetEnvironmentVariable("ANDROID_NDK_ROOT")+"\"",
-						"set NDKSTACK=%NDK_ROOT%\ndk-stack.cmd",
+						"set NDKSTACK=%NDK_ROOT%\\ndk-stack.cmd",
 						"",
 						"%NDKSTACK% -sym "+GetFinalSymbolizedSODirectory(ApkName, SC, Architecture, GPUArchitecture)+" -dump \"%1\" > "+ Params.ShortProjectName+"_SymbolizedCallStackOutput.txt",
 						"",

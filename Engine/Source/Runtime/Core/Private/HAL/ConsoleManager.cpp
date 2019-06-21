@@ -999,9 +999,9 @@ IConsoleCommand* FConsoleManager::RegisterConsoleCommand(const TCHAR* Name, cons
 }
 
 
-IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name) const
+IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name, bool bTrackFrequentCalls) const
 {
-	IConsoleObject* Obj = FindConsoleObject(Name);
+	IConsoleObject* Obj = FindConsoleObject(Name, bTrackFrequentCalls);
 
 	if(Obj)
 	{
@@ -1016,11 +1016,12 @@ IConsoleVariable* FConsoleManager::FindConsoleVariable(const TCHAR* Name) const
 	return 0;
 }
 
-IConsoleObject* FConsoleManager::FindConsoleObject(const TCHAR* Name) const
+IConsoleObject* FConsoleManager::FindConsoleObject(const TCHAR* Name, bool bTrackFrequentCalls) const
 {
 	IConsoleObject* CVar = FindConsoleObjectUnfiltered(Name);
 
 #if TRACK_CONSOLE_FIND_COUNT
+	if (bTrackFrequentCalls)
 	{
 		const bool bEarlyAppPhase = GFrameCounter < 1000;
 		if(CVar)
@@ -2668,12 +2669,6 @@ static TAutoConsoleVariable<int32> CVarLuminOverrideExternalTextureSupport(
 	TEXT("  3 = force ImageExternal300 (version #300 with GL_OES_EGL_image_external)\n")
 	TEXT("  4 = force ImageExternalESSL300 (version #300 with GL_OES_EGL_image_external_essl3)"),
 	ECVF_ReadOnly);
-
-static TAutoConsoleVariable<int32> GLSLCvar(
-	TEXT("r.Vulkan.UseGLSL"),
-	0,
-	TEXT("2 to use ES GLSL\n1 to use GLSL\n0 to use SPIRV")
-);
 
 static TAutoConsoleVariable<FString> CVarCustomUnsafeZones(
 	TEXT("r.CustomUnsafeZones"),

@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:4687698
+﻿INTSourceChangelist:6180453
 Availability:Public
 Crumbs: 
 Title: 矩形光源
@@ -7,6 +7,7 @@ Type:
 Version: 4.20
 Parent: Engine/Rendering/LightingAndShadows/LightTypes
 Order: 2
+topic-image:rectlight_topic.png
 
 ![矩形光源](rectlight_banner-1.png "Rect Lights")
 
@@ -54,10 +55,9 @@ Order: 2
 
 ## 矩形光源属性
 
-**矩形光源** 的属性划分为四个类别：[光源（Light）](#light)、[Lightmass](#lightmass)、[光功能（Light Function）](#lightfunctions)和[光描述文件（Light Profiles）](#lightprofiles)。
+**矩形光源** 的属性划分为四个类别：[光源](#光源)、[Lightmass](#lightmass)、[光函数](#光函数)和[光描述文件](#光描述文件)。
 
-(#light)
-### 光源（Light）
+### 光源
 
 | 属性 | 说明 |
 | --- | --- |
@@ -110,19 +110,17 @@ Order: 2
 | **阴影指数（Shadow Exponent）** | 控制阴影半影的衰减。|
 | **对静止光源使用面积阴影（Use Area Shadows for Stationary Light）** | 确定是否对静止光源使用面积阴影。这会随着与投射源距离的增加让阴影变得柔和，但在阴影清晰的地方，需要更高的光照贴图分辨率来获得理想结果|
 
-(#lightfunctions)
-### 光功能（Light Function）
+### 光函数
 
-使用该部分中的设置为该光源设置[光功能](Engine/Rendering/LightingAndShadows/LightFunctions)。
+使用该部分中的设置为该光源设置[光函数](Engine/Rendering/LightingAndShadows/LightFunctions)。
 
 | 属性 | 说明 |
 | --- | --- |
-| **光功能材质（Light Function Material）** | 要应用于该光源的光功能材质。|
-| **光功能比例（Light Function Scale）** | 调节光功能投影。|
-| **消退距离（Fade Distance）** | 光功能应完全消退到“禁用亮度（Disabled Brightness）”中的值的距离。|
-| **禁用亮度（Disabled Brightness）** | 指定但禁用了光功能时，要应用于光源的亮度系数——例如，超出了上述消退距离设置所设定的最大范围。|
+| **光函数材质（Light Function Material）** | 要应用于该光源的光函数材质。|
+| **光函数比例（Light Function Scale）** | 调节光函数投影。|
+| **消退距离（Fade Distance）** | 光函数应完全消退到“禁用亮度（Disabled Brightness）”中的值的距离。|
+| **禁用亮度（Disabled Brightness）** | 指定但禁用了光函数时，要应用于光源的亮度系数——例如，超出了上述消退距离设置所设定的最大范围。|
 
-(#lightprofiles)
 ### 光描述文件
 
 使用该部分中的设置为该光源设置[IES描述文件](Engine/Rendering/LightingAndShadows/IESLightProfiles)。

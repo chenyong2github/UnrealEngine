@@ -1883,7 +1883,7 @@ private:
 					return true;
 				}
 
-				Future = Async<void>(Execution, [this]() {
+				Future = Async(Execution, [this]() {
 					Predicate(FDoneDelegate::CreateRaw(this, &FAsyncUntilDoneLatentCommand::Done));
 				});
 
@@ -1957,7 +1957,7 @@ private:
 					return true;
 				}
 
-				Future = Async<void>(Execution, [this]() {
+				Future = Async(Execution, [this]() {
 					Predicate();
 					bDone = true;
 				});

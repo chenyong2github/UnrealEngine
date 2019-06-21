@@ -21,6 +21,13 @@ FAutoConsoleVariableRef CVarVirtualLoopsPerfDistance(
 	TEXT("Sets virtual loop distance to scale update rate between min and max beyond max audible distance of sound.\n"),
 	ECVF_Default);
 
+static float VirtualLoopsForceUpdateListenerMoveDistanceCVar = 2500.0f;
+FAutoConsoleVariableRef CVarVirtualLoopsForceUpdateListenerMoveDistance(
+	TEXT("au.VirtualLoops.ForceUpdateListenerMoveDistance"),
+	VirtualLoopsForceUpdateListenerMoveDistanceCVar,
+	TEXT("Sets distance threshold required to force an update to check for virtualized sounds to realize if listener moves in a single frame over the given distance.\n"),
+	ECVF_Default);
+
 static float VirtualLoopsUpdateRateMinCVar = 0.1f;
 FAutoConsoleVariableRef CVarVirtualLoopsUpdateRateMin(
 	TEXT("au.VirtualLoops.UpdateRate.Min"),
@@ -66,7 +73,7 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 		return false;
 	}
 
-	if (InActiveSound.bFadingOut || InActiveSound.bIsStopping)
+	if (InActiveSound.FadeOut != FActiveSound::EFadeOut::None || InActiveSound.bIsStopping)
 	{
 		return false;
 	}
@@ -81,27 +88,16 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 	return true;
 }
 
-void FAudioVirtualLoop::CalculateUpdateInterval(bool bIsAtMaxConcurrency)
+void FAudioVirtualLoop::CalculateUpdateInterval()
 {
-	// If calculating due to being at max concurrency, set to max rate as
-	// sound will most likely be killed again on next check until concurrency
-	// is no longer full.  This limits starting and stopping of excess sounds
-	// virtualizing.
-	if (bIsAtMaxConcurrency)
-	{
-		UpdateInterval = VirtualLoopsUpdateRateMaxCVar;
-	}
-	else
-	{
-		check(ActiveSound);
-		FAudioDevice* AudioDevice = ActiveSound->AudioDevice;
-		check(AudioDevice);
+	check(ActiveSound);
+	FAudioDevice* AudioDevice = ActiveSound->AudioDevice;
+	check(AudioDevice);
 
-		const float DistanceToListener = AudioDevice->GetDistanceToNearestListener(ActiveSound->Transform.GetLocation());
-		const float DistanceRatio = (DistanceToListener - ActiveSound->MaxDistance) / FMath::Max(VirtualLoopsPerfDistanceCVar, 1.0f);
-		const float DistanceRatioClamped = FMath::Clamp(DistanceRatio, 0.0f, 1.0f);
-		UpdateInterval = FMath::Lerp(VirtualLoopsUpdateRateMinCVar, VirtualLoopsUpdateRateMaxCVar, DistanceRatioClamped);
-	}
+	const float DistanceToListener = AudioDevice->GetDistanceToNearestListener(ActiveSound->Transform.GetLocation());
+	const float DistanceRatio = (DistanceToListener - ActiveSound->MaxDistance) / FMath::Max(VirtualLoopsPerfDistanceCVar, 1.0f);
+	const float DistanceRatioClamped = FMath::Clamp(DistanceRatio, 0.0f, 1.0f);
+	UpdateInterval = FMath::Lerp(VirtualLoopsUpdateRateMinCVar, VirtualLoopsUpdateRateMaxCVar, DistanceRatioClamped);
 }
 
 FActiveSound& FAudioVirtualLoop::GetActiveSound()
@@ -144,25 +140,61 @@ bool FAudioVirtualLoop::IsInAudibleRange(const FActiveSound& InActiveSound, cons
 	if (InActiveSound.bHasAttenuationSettings)
 	{
 		// If we are not using distance-based attenuation, this sound will be audible regardless of distance.
-		const FSoundAttenuationSettings* AttenuationSettingsToApply = InActiveSound.bHasAttenuationSettings ? &InActiveSound.AttenuationSettings : nullptr;
-		if (!AttenuationSettingsToApply->bAttenuate)
+		if (!InActiveSound.AttenuationSettings.bAttenuate)
 		{
 			return true;
 		}
 
-		DistanceScale = AttenuationSettingsToApply->GetFocusDistanceScale(AudioDevice->GetGlobalFocusSettings(), InActiveSound.FocusDistanceScale);
+		DistanceScale = InActiveSound.FocusData.DistanceScale;
 	}
 
-	DistanceScale = FMath::Max(DistanceScale, 0.0001f);
+	DistanceScale = FMath::Max(DistanceScale, KINDA_SMALL_NUMBER);
 	const FVector Location = InActiveSound.Transform.GetLocation();
 	return AudioDevice->LocationIsAudible(Location, InActiveSound.MaxDistance / DistanceScale);
 }
 
-bool FAudioVirtualLoop::CanRealize(float DeltaTime)
+void FAudioVirtualLoop::UpdateFocusData(float DeltaTime)
 {
-	if (UpdateInterval > 0.0f)
+	check(ActiveSound);
+
+	if (!ActiveSound->bHasAttenuationSettings)
 	{
-		TimeSinceLastUpdate += DeltaTime;
+		return;
+	}
+
+	// If we are not using distance-based attenuation, this sound will be audible regardless of distance.
+	if (!ActiveSound->AttenuationSettings.bAttenuate)
+	{
+		return;
+	}
+
+	check(ActiveSound->AudioDevice);
+	const FAudioDevice& AudioDevice = *ActiveSound->AudioDevice;
+
+	FAttenuationFocusData FocusData;
+	FTransform ListenerTransform;
+	const TArray<FListener>& Listeners = AudioDevice.GetListeners();
+	if (Listeners.Num() > 0)
+	{
+		int32 ClosestListenerIndex = FAudioDevice::FindClosestListenerIndex(ActiveSound->Transform, Listeners);
+		ListenerTransform = Listeners[ClosestListenerIndex].Transform;
+	}
+
+	FAttenuationListenerData ListenerData = FAttenuationListenerData::Create(AudioDevice, ListenerTransform, ActiveSound->Transform, ActiveSound->AttenuationSettings);
+	ActiveSound->UpdateFocusData(DeltaTime, ListenerData);
+}
+
+bool FAudioVirtualLoop::CanRealize(float DeltaTime, bool bForceUpdate)
+{
+	const float UpdateDelta = TimeSinceLastUpdate + DeltaTime;
+
+	if (bForceUpdate)
+	{
+		TimeSinceLastUpdate = 0.0f;
+	}
+	else if (UpdateInterval > 0.0f)
+	{
+		TimeSinceLastUpdate = UpdateDelta;
 		if (UpdateInterval > TimeSinceLastUpdate)
 		{
 			return false;
@@ -174,6 +206,8 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 	FAudioDebugger::DrawDebugInfo(*this);
 #endif // ENABLE_AUDIO_DEBUG
 
+	UpdateFocusData(UpdateDelta);
+
 	// If not audible, update when will be checked again and return false
 	if (!IsInAudibleRange(*ActiveSound))
 	{
@@ -182,4 +216,11 @@ bool FAudioVirtualLoop::CanRealize(float DeltaTime)
 	}
 
 	return true;
+}
+
+bool FAudioVirtualLoop::ShouldListenerMoveForceUpdate(const FTransform& LastTransform, const FTransform& CurrentTransform)
+{
+	const float DistanceSq = FVector::DistSquared(LastTransform.GetTranslation(), CurrentTransform.GetTranslation());
+	const float ForceUpdateDistSq = VirtualLoopsForceUpdateListenerMoveDistanceCVar * VirtualLoopsForceUpdateListenerMoveDistanceCVar;
+	return DistanceSq > ForceUpdateDistSq;
 }

@@ -1373,11 +1373,12 @@ protected:
 	* @param SortedLinks    Fbx Links(bones) of this skeletal mesh
 	* @param FbxMatList  All material names of the skeletal mesh
 	* @param RootNode       The skeletal mesh root fbx node.
+	* @param ExistingVertexColorData Map of the existing vertex color data, used in the case we want to ignore the FBX vertex color during reimport.
 	*
 	* @returns bool*	true if import successfully.
 	*/
     bool FillSkelMeshImporterFromFbx(FSkeletalMeshImportData& ImportData, FbxMesh*& Mesh, FbxSkin* Skin, 
-										FbxShape* Shape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode);
+										FbxShape* Shape, TArray<FbxNode*> &SortedLinks, const TArray<FbxSurfaceMaterial*>& FbxMaterials, FbxNode *RootNode, const TMap<FVector, FColor>& ExistingVertexColorData);
 public:
 
 	/**
@@ -1387,10 +1388,11 @@ public:
 	* @param TemplateImportData template import data 
 	* @param FbxShapeArray	Fbx Morph object, if not NULL, we are importing a morph object.
 	* @param OutData    FSkeletalMeshImportData output data
+	* @param ExistingVertexColorData Map of the existing vertex color data, used in the case we want to ignore the FBX vertex color during reimport.
 	*
 	* @returns bool*	true if import successfully.
 	*/
-	bool FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport);
+	bool FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray, UFbxSkeletalMeshImportData* TemplateImportData, TArray<FbxShape*> *FbxShapeArray, FSkeletalMeshImportData* OutData, TArray<FName> &LastImportedMaterialNames, const bool bIsReimport, const TMap<FVector, FColor>& ExistingVertexColorData);
 
 protected:
 

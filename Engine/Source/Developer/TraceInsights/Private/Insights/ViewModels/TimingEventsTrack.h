@@ -4,26 +4,27 @@
 
 #include "CoreMinimal.h"
 
+// Insights
 #include "Insights/ViewModels/BaseTimingTrack.h"
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-static const float RealMinTimelineH = 13.0f;
-
-static const float NormalLayoutEventH = 14.0f;
-static const float NormalLayoutEventDY = 2.0f;
-static const float NormalLayoutTimelineDY = 14.0f;
-static const float NormalLayoutMinTimelineH = 0.0f;
-
-static const float CompactLayoutEventH = 2.0f;
-static const float CompactLayoutEventDY = 1.0f;
-static const float CompactLayoutTimelineDY = 3.0f;
-static const float CompactLayoutMinTimelineH = 0.0f;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 struct FTimingEventsTrackLayout
 {
+	static constexpr float RealMinTimelineH = 13.0f;
+
+	static constexpr float NormalLayoutEventH = 14.0f;
+	static constexpr float NormalLayoutEventDY = 2.0f;
+	static constexpr float NormalLayoutTimelineDY = 14.0f;
+	static constexpr float NormalLayoutMinTimelineH = 0.0f;
+
+	static constexpr float CompactLayoutEventH = 2.0f;
+	static constexpr float CompactLayoutEventDY = 1.0f;
+	static constexpr float CompactLayoutTimelineDY = 3.0f;
+	static constexpr float CompactLayoutMinTimelineH = 0.0f;
+
+	//////////////////////////////////////////////////
+
 	bool bIsCompactMode;
 
 	float EventH; // height of a timing event, in Slate units
@@ -31,6 +32,8 @@ struct FTimingEventsTrackLayout
 	float TimelineDY; // space at top and bottom of each timeline, in Slate units
 	float MinTimelineH;
 	float TargetMinTimelineH;
+
+	//////////////////////////////////////////////////
 
 	float GetLaneY(uint32 Depth) const { return 1.0f + TimelineDY + Depth * (EventDY + EventH); }
 
@@ -83,7 +86,7 @@ public:
 	int32 Depth; // number of lanes == Depth + 1
 	bool bIsCollapsed;
 
-	// Cached OnPaint state.
+	// TODO: Cached OnPaint state.
 	//TArray<FEventBoxInfo> Boxes;
 	//TArray<FEventBoxInfo> MergedBorderBoxes;
 	//TArray<FEventBoxInfo> Borders;

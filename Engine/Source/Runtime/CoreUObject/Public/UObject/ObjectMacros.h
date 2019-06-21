@@ -987,6 +987,9 @@ namespace UM
 
 		/// A short tooltip that is used in some contexts where the full tooltip might be overwhelming (such as the parent class picker dialog)
 		ShortTooltip,
+
+		/// A setting to determine validation of tooltips and comments. Needs to be set to "Strict"
+		DocumentationPolicy,
 	};
 
 	// Metadata usable in UCLASS
@@ -1064,7 +1067,10 @@ namespace UM
 		/// [PropertyMetadata] Used for Subclass and SoftClass properties.  Indicates whether abstract class types should be shown in the class picker.
 		AllowAbstract,
 
-		/// [PropertyMetadata] Used for FSoftObjectPath properties.  Comma delimited list that indicates the class type(s) of assets to be displayed in the asset picker.
+		/// [PropertyMetadata] Used for ComponentReference properties.  Indicates whether other actor that are not in the property outer hierarchy should be shown in the component picker.
+		AllowAnyActor,
+
+		/// [PropertyMetadata] Used for FSoftObjectPath, ComponentReference and UClass properties.  Comma delimited list that indicates the class type(s) of assets to be displayed in the asset picker(FSoftObjectPath) or component picker or class viewer (UClass).
 		AllowedClasses,
 
 		/// [PropertyMetadata] Used for FVector properties.  It causes a ratio lock to be added when displaying this property in details panels.
@@ -1108,6 +1114,9 @@ namespace UM
 
 		/// [ClassMetadata] [PropertyMetadata] [FunctionMetadata] The name to use for this class, property, or function when exporting it to a scripting language. May include deprecated names as additional semi-colon separated entries.
 		//ScriptName, (Commented out so as to avoid duplicate name with version in the Class section, but still show in the property section)
+
+		/// [PropertyMetadata] Used for FSoftObjectPath, ActorComponentReference and UClass properties.  Comma delimited list that indicates the class type(s) of assets that will NOT be displayed in the asset picker (FSoftObjectPath) or component picker or class viewer (UClass).
+		DisallowedClasses,
 
 		/// [PropertyMetadata] Indicates that the property should be displayed immediately after the property named in the metadata.
 		DisplayAfter,

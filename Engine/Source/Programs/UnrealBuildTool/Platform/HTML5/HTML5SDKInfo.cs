@@ -16,7 +16,7 @@ namespace UnrealBuildTool
 	public class HTML5SDKInfo
 	{
 		static string NODE_VER = "8.9.1_64bit";
-//		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
+		static string PYTHON_VER = "2.7.13.1_64bit"; // Only used on Windows; other platforms use built-in Python.
 
 		static string LLVM_VER = "e1.38.31_64bit";
 		static string SDKVersion = "1.38.31";
@@ -177,7 +177,8 @@ namespace UnrealBuildTool
 				string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
 				{
-					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
+//					return Path.Combine(UE4PythonPath, "Win64", "python.exe");
+					return Path.Combine(SDKBase, "Win64", "python", PYTHON_VER, "python.exe"); // UE-76260
 				}
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
 				{
@@ -263,6 +264,57 @@ namespace UnrealBuildTool
 				Log.TraceErrorOnce(" Recreation of Emscripten Temp folder failed because of " + Ex.ToString());
 			}
 
+			// ----------------------------------------
+			// double check clang version, if different -- NUKE cached asmjs folder
+			string CachePath = Path.Combine(HTML5Intermediatory, "EmscriptenCache");
+			try
+			{
+				bool deleteAsmjsCache = true;
+				string isVanillaPath = Path.Combine(CachePath, "is_vanilla.txt");
+				if (File.Exists(isVanillaPath))
+				{
+					string cachedClang = File.ReadAllText(isVanillaPath);
+					if ( cachedClang.Equals("0:"+LLVM_ROOT, StringComparison.Ordinal) )
+					{
+						deleteAsmjsCache = false;
+					}
+				}
+				// ----------------------------------------
+				// sometimes, CIS machines need EmscriptenCache folder to be deleted manually
+				// automate this on every toolchain upgrade
+				string ue4emsdkcachePath = Path.Combine(HTML5Intermediatory, "ue4emsdk.txt");
+				if (File.Exists(ue4emsdkcachePath))
+				{
+					string cachedClang = File.ReadAllText(ue4emsdkcachePath);
+					if ( cachedClang.Equals(SDKVersion, StringComparison.Ordinal) )
+					{
+						deleteAsmjsCache = false;
+					}
+					else
+					{
+						File.Delete(ue4emsdkcachePath); // to be recreated
+					}
+				}
+				else
+				{
+					deleteAsmjsCache = true; // this overrides everything
+				}
+				// ----------------------------------------
+				if ( deleteAsmjsCache )
+				{
+					if (Directory.Exists(CachePath))
+					{
+						Directory.Delete(CachePath, true);
+					}
+					File.WriteAllText(ue4emsdkcachePath, SDKVersion);
+				}
+			}
+			catch (Exception Ex)
+			{
+				Log.TraceErrorOnce(" Recreation of Emscripten Temp folder failed because of " + Ex.ToString());
+			}
+
+			// done
 			return TempPath;
 		}
 
@@ -435,6 +487,16 @@ namespace UnrealBuildTool
 		public static FileReference Python()
 		{
 			return new FileReference(PYTHON);
+		}
+
+		/// <summary>
+		///
+		/// </summary>
+		/// <returns></returns>
+		public static string MacPythonLib() // UE-75402
+		{
+			string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
+			return Path.Combine(UE4PythonPath, "Mac", "lib", "python2.7", "lib-dynload");
 		}
 
 		/// <summary>

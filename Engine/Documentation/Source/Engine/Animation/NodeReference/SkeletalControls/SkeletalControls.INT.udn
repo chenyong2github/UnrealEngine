@@ -23,7 +23,7 @@ playing a walk animation. Any sort of modification can be used to tweak or compl
 
 ## Common Pins and Properties
 
-While the properties available will largely based on the node itself, some pins and properties are common to all SkeletalControls which are outlined below. 
+While the properties available will largely be based on the node itself, some pins and properties are common to all SkeletalControls which are outlined below. 
 
 | Pin | Description |
 | --- | ----------- |

@@ -99,10 +99,6 @@ public:
 	virtual IDisplayClusterGameManager* GetGameMgr() const = 0;
 
 
-	/** Called before session start **/
-	DECLARE_EVENT(IDisplayCluster, FDisplayClusterBeforeStartSessionEvent);
-	virtual FDisplayClusterBeforeStartSessionEvent& OnDisplayClusterBeforeStartSession() = 0;
-
 	/** Called on session start **/
 	DECLARE_EVENT(IDisplayCluster, FDisplayClusterStartSessionEvent);
 	virtual FDisplayClusterStartSessionEvent& OnDisplayClusterStartSession() = 0;

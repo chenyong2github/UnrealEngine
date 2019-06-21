@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssetData.h"
 #include "Modules/ModuleInterface.h"
 
 class IClassViewerFilter;
@@ -101,6 +102,9 @@ public:
 
 	/** The property this class viewer be working on. */
 	TSharedPtr<class IPropertyHandle> PropertyHandle;
+
+	/** The passed in property handle will be used to gather referencing assets. If additional referencing assets should be reported, supply them here. */
+	TArray<FAssetData> AdditionalReferencingAssets;
 
 	/** true (the default) shows the view options at the bottom of the class picker */
 	bool bAllowViewOptions;

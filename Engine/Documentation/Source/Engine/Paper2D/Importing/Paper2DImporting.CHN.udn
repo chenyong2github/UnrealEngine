@@ -1,4 +1,4 @@
-﻿INTSourceChangelist:2707893
+﻿INTSourceChangelist:3108692
 Title:Paper 2D 导入选项
 Crumbs: %ROOT%, Engine, Engine/Paper2D
 Description:将第三方软件资源导入 Paper 2D 使用。 
@@ -16,6 +16,7 @@ SkillLevel:Beginner
 虚幻引擎 4 的 Paper 2D 支持大量的导入选项，以便使用以其他软件创建的资源。以下部分讲述从常用资源创建软件导入资源的范例。 
 
 
+(#ImportingfromTexturePacker)
 ## 从 Texture Packer 进行导入
 
 如您使用第三方 sprite 表单生成工具 **Texture Packer** 进行内容创建，可通过其内置插件创建一个 **.paper2dsprites** 文件，将内容轻松导入虚幻引擎 4。此文件导入 UE4 时将把 sprite 表单作为纹理自动导入、从它抽取并创建 sprite，并创建一个 **Sprite 资源**，用于从 sprite 自动生成 **Flipbooks**。 
@@ -57,6 +58,7 @@ SkillLevel:Beginner
 * 右键单击单独的帧，手动将它们添加到 **Flipbook**。 
 
 
+(#ImportingfromTiled/AdobeFlashCS6)
 ## 从 Tiled / Adobe Flash CS6 进行导入
 
 如在外部内容生成工具（如 **Tiled** 或 **Adobe Flash CS6**）中创建内容，可将资源以 **.json** 文件格式导入虚幻引擎 4。这将自动导入用于地图创建的 sprite 表单，并基于这些资源创建 **图块集** 和 **图块地图**。 

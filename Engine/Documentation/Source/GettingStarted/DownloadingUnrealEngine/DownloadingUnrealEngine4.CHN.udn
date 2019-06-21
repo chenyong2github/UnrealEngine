@@ -1,29 +1,46 @@
-﻿INTSourceChangelist:2786924
+﻿INTSourceChangelist:3426963
 Availability:Public
-Title:下载虚幻引擎的源代码
+Title:下载虚幻引擎源代码
 Crumbs: %ROOT%, GettingStarted, GettingStarted/DownloadingUnrealEngine
-Description:连接到源代码库并下载最新的虚幻引擎的步骤。
+Description:连接到源代码元库和下载虚幻引擎的最新版本的步骤。
 Prereq: GettingStarted/RecommendedSpecifications
-Related: GettingStarted/DownloadingUnrealEngine/GitHub
-Related: GettingStarted/DownloadingUnrealEngine/DownloadZip
-Version: 4.9
+Version: 4.16
+Parent:GettingStarted
+Order: 2
+Type:how-to
 SkillLevel: Advanced
+Related:Programming/Development/BuildingUnrealEngine
 
 [TOC (start:2 end:3)]
 
+此页面为订阅者详细介绍了如何从虚幻引擎GitHub元库中下载虚幻引擎4（UE4）源代码，以及如何修改代码。
+
+在访问位于[https://github.com/EpicGames/UnrealEngine](https://github.com/EpicGames/UnrealEngine)的元库前，您必须：
+
+*   订阅虚幻引擎。
+
+*   拥有GitHub账号。
+
+*   将GitHub账号与虚幻引擎账号关联起来，具体操作请参阅[GitHub上的UE4](https://www.unrealengine.com/ue4-on-github)页面。
+
+您 *不必* 下载源代码就能使用虚幻引擎4.如果您只需下载并安装二进制版的虚幻引擎，请参阅[安装虚幻引擎](GettingStarted/Installation)文档以了解如何[获取虚幻](https://www.unrealengine.com/)。但是，访问源代码对于您和项目可能会非常有用。例如：
+
+*   您可以访问Epic工程师每天开发的最新功能和错误修正，获得真正意义上的最新版本虚幻引擎。
+
+*   如果您发现了我们尚未修正的错误，而它对您的项目影响又很大，您可以在自己的源代码版本中修正它，并重新编译自己的二进制文件，从而避免耽误项目进度。
+
+*   您可以将自己的错误修正和自制功能提交给Epic，以改进引擎并帮助整个虚幻社区。
+
+[REGION:note]
+如果您是虚幻引擎被授权方，您可以通过我们的Perforce服务器来访问源代码，而不必通过公开的GitHub元库。如果您没有看到任何关于Perforce使用的子话题，请使用您的Epic Games账号登录此网站，然后再回到这里。
+[/REGION]
+
 [EXCERPT:Main]
 [PUBLISH:Licensee]
-各位授权用户已经可以从 Epic 的 Perforce 代理服务器上下载到虚幻引擎 4 了。登陆的授权信息在各位 UDN 的欢迎邮件中发给了各自团队的负责人。每个团队只有一组登陆授权。
+虚幻引擎4可以由授权用户从Epic的Perforce(P4V)代理服务器下载。在您的UDN欢迎邮件中，Epic Games将为您团队的技术主管提供Perforce服务器的登录凭证。每个团队只能获得一组登录凭证。
 [/PUBLISH:Licensee]
 [PUBLISH:Rocket]
 
-我们的订阅者也能从虚幻引擎的 GitHub 库来下载虚幻引擎 4 （UE4）。你必须要先注册为虚幻引擎的订约用户并关联 GitHub 的账号才能访问到 GitHub 上的虚幻引擎目录[repository](https://github.com/EpicGames/UnrealEngine)。查看 [GitHub 上的 UE4](https://www.unrealengine.com/ue4-on-github) 页面了解如何关联你的 GitHub 账户到虚幻引擎账户。
-
-[COMMENT:none]
- The following is commented out per LaurenR's request during Peer Review on 23.07.15
-通过获取我们的源代码，订阅者们可以根据各自的需要，来自行修改引擎和工具。我们有很多订阅者在 Windows，Mac，Linux 下自行打造编辑器，为 Android 和 iOS 编译游戏。我们的所有工具（比如 Unreal Lightmass 和 Frontend 工具）的源代码页都包含在内。
-
-[/COMMENT]
 
 [INCLUDE:GettingStarted/DownloadingUnrealEngine/SourceBranches]
 
@@ -35,17 +52,87 @@ SkillLevel: Advanced
 
 [PUBLISH:Rocket]
 
-## 下一步
+## 下载源代码
 
-订阅者可以挑选一下两个方式的其中之一来下载虚幻引擎的源代码：
+请按照如下说明以下载虚幻引擎的源代码。
 
-*	[%GettingStarted/DownloadingUnrealEngine/GitHub:title%](GettingStarted/DownloadingUnrealEngine/GitHub)
-*	[%GettingStarted/DownloadingUnrealEngine/DownloadZip:title%](GettingStarted/DownloadingUnrealEngine/DownloadZip)
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	windows
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+	[PARAM:content]
+	
+	[INCLUDE:GettingStarted/WindowsInstructions]
+
+	[/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	mac
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+	[PARAM:content]
+	
+	[INCLUDE:GettingStarted/MacInstructions]
+
+	[/PARAM]
+[/OBJECT]
+
+[OBJECT:ToggleButtonContent]
+	[PARAMLITERAL:category]
+	操作系统
+	[/PARAMLITERAL]
+	[PARAMLITERAL:id]
+	linux
+	[/PARAMLITERAL]
+	[PARAMLITERAL:active]
+	active_button_content
+	[/PARAMLITERAL]
+	[PARAM:content]
+
+	[REGION:warning]
+	我们的开发人员和支持团队目前使用最新版本的Ubuntu；因此，我们可能无法对其他Linux发行版（包括其他版本的Ubuntu）提供支持。
+	[/REGION]
+
+	[INCLUDE:GettingStarted/LinuxInstructions]
+
+	[/PARAM]
+[/OBJECT]
 
 [REGION:note]
-This page shows subscribers how to download and build Unreal Engine from our source code repository on GitHub. If you'd like to download the binary version of Unreal Engine, read our [](GettingStarted/Installation) documentation to learn how to [Get Unreal](https://www.unrealengine.com/).
-这个页面是说明订阅者如何通过我们在 GitHub 的代码库来下载并生成虚幻引擎。如果你只是想下载二进制的版本，请浏览 [](GettingStarted/Installation) 文档来了解如何[获取虚幻引擎](https://www.unrealengine.com/)。
+本页面向订阅者展示了如何从GitHub上的源代码元库下载并构建虚幻引擎。如果您想下载二进制版本的虚幻引擎，请阅读我们的[](GettingStarted/Installation)文档了解如何[获取虚幻](https://www.unrealengine.com/)。
 [/REGION]
+
+## 许可和贡献
+
+您对GitHub上的Unreal Engine的访问和使用受[虚幻引擎最终用户许可协议](https://www.unrealengine.com/eula)的约束。如果您不同意这些条款（我们会不时对它们加以修订），您将不会被获准访问或使用虚幻引擎。
+
+我们欢迎您通过GitHub上的[拉取请求](https://github.com/EpicGames/UnrealEngine/pulls/)，为虚幻引擎的开发做出贡献。我们大部分的积极开发都在 **主** 分支中进行，所以我们更喜欢在那里接受拉取请求（对于新功能而言尤其如此）。我们尽力确保所有新代码都遵守[Epic编码标准](https://docs.unrealengine.com/latest/INT/Programming/Development/CodingStandard/)。所有贡献均受EULA条款的约束。
+
+## 后续步骤
+
+现在您已经下载并设置了虚幻引擎，可随时[从源代码构建引擎](Programming/Development/BuildingUnrealEngine)。
+
+(#footnotes)
+
+#### 脚注
+当您首次从新的源代码构建启动编辑器时，您可能会经历较长的加载时间。 
+引擎正在将您平台的内容优化到_derived data cache_，而且这种优化应该只进行一次。
+
+您有关虚幻引擎的私有分支与您的GitHub帐户权限相关。
+如果您取消了订阅或切换了GitHub用户名，则需要重新创建分支并从本地副本上传更改。 
 
 [/PUBLISH:Rocket]
 

@@ -23,7 +23,7 @@ be developed with Mobile in mind.
 
 Unreal Engine 4 (UE4) supports a variety of lighting features on mobile devices. Using these features costs performance and may cause your game to perform poorly on slower mobile devices. While it is 
 possible to mix and match most of UE4's mobile lighting features, it can be useful to categorize these features into the following tiers. When building a mobile game, you should decide which features to
-use based on the quality of graphics your game requires and the types of devices you need to support. Check the compatibility page under [iOS Development](Platforms/iOS/DeviceCompatibility) and [Android Development](Platforms/Android/DeviceCompatibility)
+use based on the quality of graphics your game requires and the types of devices you need to support. Check the compatibility page under [iOS Development](Platforms/Mobile/iOS/DeviceCompatibility) and [Android Development](Platforms/Mobile/Android/DeviceCompatibility)
 for more information on what devices have been tested here at Epic and which tiers we think are most appropriate for that device.
 
 ###LDR (Low Dynamic Range)

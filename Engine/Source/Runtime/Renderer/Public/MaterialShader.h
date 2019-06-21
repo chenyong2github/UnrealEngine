@@ -44,6 +44,7 @@ public:
 	int32 Num2DTextureExpressions;
 	int32 NumCubeTextureExpressions;
 	int32 NumVolumeTextureExpressions;
+	int32 NumVirtualTextureExpressions;
 
 	FDebugUniformExpressionSet()
 		: NumVectorExpressions(0)
@@ -51,6 +52,7 @@ public:
 		, Num2DTextureExpressions(0)
 		, NumCubeTextureExpressions(0)
 		, NumVolumeTextureExpressions(0)
+		, NumVirtualTextureExpressions(0)
 	{
 	}
 
@@ -67,6 +69,7 @@ public:
 		Num2DTextureExpressions = InUniformExpressionSet.Uniform2DTextureExpressions.Num();
 		NumCubeTextureExpressions = InUniformExpressionSet.UniformCubeTextureExpressions.Num();
 		NumVolumeTextureExpressions = InUniformExpressionSet.UniformVolumeTextureExpressions.Num();
+		NumVirtualTextureExpressions = InUniformExpressionSet.UniformVirtualTextureExpressions.Num();
 	}
 
 	/** Returns true if the number of uniform expressions matches those with which the debug set was initialized. */
@@ -76,7 +79,8 @@ public:
 			&& NumScalarExpressions == InUniformExpressionSet.UniformScalarExpressions.Num()
 			&& Num2DTextureExpressions == InUniformExpressionSet.Uniform2DTextureExpressions.Num()
 			&& NumCubeTextureExpressions == InUniformExpressionSet.UniformCubeTextureExpressions.Num()
-			&& NumVolumeTextureExpressions == InUniformExpressionSet.UniformVolumeTextureExpressions.Num();
+			&& NumVolumeTextureExpressions == InUniformExpressionSet.UniformVolumeTextureExpressions.Num()
+			&& NumVirtualTextureExpressions == InUniformExpressionSet.UniformVirtualTextureExpressions.Num();
 	}
 };
 
@@ -88,6 +92,7 @@ inline FArchive& operator<<(FArchive& Ar, FDebugUniformExpressionSet& DebugExpre
 	Ar << DebugExpressionSet.Num2DTextureExpressions;
 	Ar << DebugExpressionSet.NumCubeTextureExpressions;
 	Ar << DebugExpressionSet.NumVolumeTextureExpressions;
+	Ar << DebugExpressionSet.NumVirtualTextureExpressions;
 	return Ar;
 }
 
@@ -95,6 +100,7 @@ inline FArchive& operator<<(FArchive& Ar, FDebugUniformExpressionSet& DebugExpre
 /** Base class of all shaders that need material parameters. */
 class RENDERER_API FMaterialShader : public FShader
 {
+	DECLARE_SHADER_TYPE(FMaterialShader, Material);
 public:
 	static FName UniformBufferLayoutName;
 
@@ -109,7 +115,7 @@ public:
 
 	typedef void (*ModifyCompilationEnvironmentType)(EShaderPlatform, const FMaterial*, FShaderCompilerEnvironment&);
 
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 	}
 
@@ -118,7 +124,7 @@ public:
 		return true;
 	}
 
-	FUniformBufferRHIParamRef GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const;
+	FRHIUniformBuffer* GetParameterCollectionBuffer(const FGuid& Id, const FSceneInterface* SceneInterface) const;
 
 	template<typename ShaderRHIParamRef>
 	FORCEINLINE_DEBUGGABLE void SetViewParameters(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FSceneView& View, const TUniformBufferRef<FViewUniformShaderParameters>& ViewUniformBuffer)
@@ -141,19 +147,19 @@ public:
 	{ }
 
 	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
-	template< typename ShaderRHIParamRef >
+	template< typename TRHIShader >
 	void SetParametersInner(
 		FRHICommandList& RHICmdList,
-		const ShaderRHIParamRef ShaderRHI, 
+		TRHIShader* ShaderRHI,
 		const FMaterialRenderProxy* MaterialRenderProxy, 
 		const FMaterial& Material,
 		const FSceneView& View);
 
 	/** Sets pixel parameters that are material specific but not FMeshBatch specific. */
-	template< typename ShaderRHIParamRef >
+	template< typename TRHIShader >
 	void SetParameters(
 		FRHICommandList& RHICmdList,
-		const ShaderRHIParamRef ShaderRHI, 
+		TRHIShader* ShaderRHI,
 		const FMaterialRenderProxy* MaterialRenderProxy, 
 		const FMaterial& Material,
 		const FSceneView& View, 
@@ -187,15 +193,9 @@ private:
 #endif
 
 	// Only needed to avoid unbound parameter error
+	// This texture is bound as an UAV (RWTexture) and so it must be bound together with any RT. So it actually bound but not as part of the material
 	FShaderResourceParameter VTFeedbackBuffer;
 
-	// TEMP
-	FShaderResourceParameter PhysicalTexture;
-	FShaderResourceParameter PhysicalTextureSampler;
-
-	FShaderResourceParameter PageTable;
-	FShaderResourceParameter PageTableSampler;
-	
 	/** If true, cached uniform expressions are allowed. */
 	static int32 bAllowCachedUniformExpressions;
 	/** Console variable ref to toggle cached uniform expressions. */

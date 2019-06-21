@@ -1,10 +1,10 @@
-﻿INTSourceChangelist:3750344
+﻿INTSourceChangelist:6537038
 Availability:Public
-Title:虚幻引擎 4.18 发布！
-Description:虚幻引擎 4.18 发行说明
+Title:虚幻引擎4.18版本说明
+Description:虚幻引擎 4.18 版本说明
 Crumbs:%ROOT%, Engine
 Parent:Support/Builds
-order:18
+Order: 26
 reference-image:image_3.gif
 reference-image:image_4.gif
 reference-image:image_5.gif
@@ -3249,13 +3249,12 @@ Added a new editor command "BuildMaterialTextureStreamingData" to refresh materi
 
 ##### UnrealBuildTool
 
-* Added support for adaptive non-unity builds when working from a Git repository. The ISourceFileWorkingSet interface is now used to query files belonging to the working set, and has separate implementations for Perforce (PerforceSourceFileWorkingSet) and Git (GitSourceFileWorkingSet). The Git implementation is used if a .git directory is found in the directory containing the Engine folder, the directory containing the project file, or the parent directory of the project file, and spawns a "git status" process in the background to determine which files are untracked or staged. Several new settings are supported in BuildConfiguration.xml to allow modifying default behavior: <SourceFileWorkingSet> <Provider>Default</Provider> [COMMENT:none]
- May be None, Default, Git or Perforce 
-[/COMMENT] <RepositoryPath></RepositoryPath> [COMMENT:none]
- Specifies the path to the repository, relative to the directory containing the Engine folder. If not set, tries to find a .git directory in the locations listed above. 
-[/COMMENT] <GitPath>git</GitPath> [COMMENT:none]
- Specifies the path to the Git executable. Defaults to "git", which assumes that it will be on the PATH 
-[/COMMENT] </SourceFileWorkingSet>
+* Added support for adaptive non-unity builds when working from a Git repository. The ISourceFileWorkingSet interface is now used to query files belonging to the working set, and has separate implementations for Perforce (PerforceSourceFileWorkingSet) and Git (GitSourceFileWorkingSet). The Git implementation is used if a .git directory is found in the directory containing the Engine folder, the directory containing the project file, or the parent directory of the project file, and spawns a "git status" process in the background to determine which files are untracked or staged. Several new settings are supported in BuildConfiguration.xml to allow modifying default behavior:
+
+		<SourceFileWorkingSet> <Provider>Default</Provider> <!-- May be None, Default, Git or Perforce -->
+			<RepositoryPath></RepositoryPath> <!-- Specifies the path to the repository, relative to the directory containing the Engine folder. If not set, tries to find a .git directory in the locations listed above. -->
+			<GitPath>git</GitPath> <!-- Specifies the path to the Git executable. Defaults to "git", which assumes that it will be on the PATH -->
+		</SourceFileWorkingSet>
 
 * Simplified how targets are cleaned. Delete all intermediate folders for a platform/configuration, and delete any build products matching the UE4 naming convention for that target, rather than relying on the current build configuration or list of previous build products. This will ensure that build products which are no longer being generated will also be cleaned.
 

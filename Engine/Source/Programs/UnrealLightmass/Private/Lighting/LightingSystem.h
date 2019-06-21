@@ -2058,6 +2058,8 @@ private:
 
 	void RasterizeToSurfaceCacheTextureMapping(FStaticLightingTextureMapping* TextureMapping, bool bDebugThisMapping, FTexelToVertexMap& TexelToVertexMap);
 
+	void AdjustRepresentativeSurfelForTexelsTextureMapping(FStaticLightingTextureMapping* TextureMapping, FTexelToVertexMap& TexelToVertexMap, FTexelToCornersMap& TexelToCornersMap, FGatheredLightMapData2D* LightMapData, FStaticLightingMappingContext& MappingContext,	bool bDebugThisMapping) const;
+
 	void RadiosityIterationTextureMapping(FStaticLightingTextureMapping* TextureMapping, int32 PassIndex);
 
 	void RadiosityIterationCachedHitpointsTextureMapping(const FTexelToVertexMap& TexelToVertexMap, FStaticLightingTextureMapping* TextureMapping, int32 PassIndex);
@@ -2224,7 +2226,7 @@ private:
 
 	void ProcessVolumetricLightmapBrickTask(class FVolumetricLightmapBrickTaskDescription* Task);
 
-	void ProcessVolumetricLightmapTaskIfAvailable();
+	bool ProcessVolumetricLightmapTaskIfAvailable();
 
 	void GenerateVoxelTestPositions(TArray<FVector>& VoxelTestPositions) const;
 

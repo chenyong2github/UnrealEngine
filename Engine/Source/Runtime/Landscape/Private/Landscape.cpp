@@ -84,6 +84,7 @@ DEFINE_STAT(STAT_LandscapeLayersRegenerateDrawCalls);
 
 DEFINE_STAT(STAT_LandscapeLayersRegenerateHeightmaps);
 DEFINE_STAT(STAT_LandscapeLayersResolveHeightmaps);
+DEFINE_STAT(STAT_LandscapeLayersResolveTexture);
 
 DEFINE_STAT(STAT_LandscapeLayersUpdateMaterialInstance);
 DEFINE_STAT(STAT_LandscapeLayersReallocateWeightmaps);
@@ -440,24 +441,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		LegacyComponentData.Data.Emplace(MapBuildDataId, LegacyMapBuildData);
 		GComponentsWithLegacyLightmaps.AddAnnotation(this, LegacyComponentData);
 	}
-	
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::RemoveLandscapeHoleMaterial)
-	{
-		if (OverrideHoleMaterial_DEPRECATED != nullptr)
-		{
-			if (OverrideMaterial == nullptr)
-			{
-				OverrideMaterial = OverrideHoleMaterial_DEPRECATED;
-			}
-			else
-			{
-				if (OverrideMaterial->GetBlendMode() != EBlendMode::BLEND_Masked)
-				{
-					UE_LOG(LogLandscape, Warning, TEXT("OverrideHoleMaterial was deprecated, your OverrideMaterial is not currently setup correctly to support visibility painting, please correct your material, otherwise your landscape component \"%s\" won't render as before."), *GetFullName());
-				}
-			}
-		}
-	}
+
 	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::NewLandscapeMaterialPerLOD)
 	{
 		if (MobileMaterialInterface_DEPRECATED != nullptr)
@@ -587,6 +571,20 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) c
 	}
 	
 	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
+{
+	if (OverrideHoleMaterial)
+	{
+		return OverrideHoleMaterial;
+	}
+	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	if (Proxy)
+	{
+		return Proxy->GetLandscapeHoleMaterial();
+	}
+	return nullptr;
 }
 
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
@@ -1309,6 +1307,16 @@ void ULandscapeComponent::PropagateLightingScenarioChange()
 	FComponentRecreateRenderStateContext Context(this);
 }
 
+TArray<URuntimeVirtualTexture*> const& ULandscapeComponent::GetRuntimeVirtualTextures() const
+{
+	return GetLandscapeProxy()->RuntimeVirtualTextures;
+}
+
+ERuntimeVirtualTextureMainPassType ULandscapeComponent::GetVirtualTextureRenderPassType() const
+{
+	return GetLandscapeProxy()->VirtualTextureRenderPassType;
+}
+
 #if WITH_EDITOR
 ULandscapeInfo* ULandscapeComponent::GetLandscapeInfo() const
 {
@@ -1512,6 +1520,21 @@ const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLa
 		if (const FLandscapeLayerComponentData* EditingLayer = GetEditingLayer())
 		{
 			return EditingLayer->WeightmapData.LayerAllocations;
+		}
+	}
+#endif
+
+	return WeightmapLayerAllocations;
+}
+
+const TArray<FWeightmapLayerAllocationInfo>& ULandscapeComponent::GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const
+{
+#if WITH_EDITORONLY_DATA
+	if (InLayerGuid.IsValid())
+	{
+		if (const FLandscapeLayerComponentData* LayerData = GetLayerData(InLayerGuid))
+		{
+			return LayerData->WeightmapData.LayerAllocations;
 		}
 	}
 #endif
@@ -1872,6 +1895,10 @@ void ALandscape::PostLoad()
 	{
 		// For now, only Layer reserved for Landscape Spline uses AlphaBlend
 		Layer.BlendMode = (Layer.Guid == LandscapeSplinesTargetLayerGuid) ? LSBM_AlphaBlend : LSBM_AdditiveBlend;
+		for (FLandscapeLayerBrush& Brush : Layer.Brushes)
+		{
+			Brush.SetOwner(this);
+		}
 	}
 #endif
 
@@ -1936,24 +1963,6 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			{
 				LOD0DistributionSetting = LOD0SquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
 				LODDistributionSetting = LODDSquareRootDistributionSettingMigrationTable[FMath::RoundToInt(LODDistanceFactor_DEPRECATED)];
-			}
-		}
-	}
-	
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::RemoveLandscapeHoleMaterial)
-	{
-		if (LandscapeHoleMaterial_DEPRECATED != nullptr)
-		{
-			if (LandscapeMaterial == nullptr)
-			{
-				LandscapeMaterial = LandscapeHoleMaterial_DEPRECATED;
-			}
-			else
-			{
-				if (LandscapeMaterial->GetBlendMode() != EBlendMode::BLEND_Masked)
-				{
-					UE_LOG(LogLandscape, Warning, TEXT("LandscapeHoleMaterial was deprecated, your landscape material is not currently setup correctly to support visibility painting, please correct your material, otherwise your landscape \"%s\" won't render as before."), *GetFullName());
-				}
 			}
 		}
 	}
@@ -2384,6 +2393,10 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 			LandscapeMaterial = Landscape->LandscapeMaterial;
 			LandscapeMaterialsOverride = Landscape->LandscapeMaterialsOverride;
 		}
+		if (!LandscapeHoleMaterial)
+		{
+			LandscapeHoleMaterial = Landscape->LandscapeHoleMaterial;
+		}
 		if (LandscapeMaterial == Landscape->LandscapeMaterial)
 		{
 			EditorLayerSettings = Landscape->EditorLayerSettings;
@@ -2578,6 +2591,15 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 	return LandscapeMaterial != nullptr ? LandscapeMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
 }
 
+UMaterialInterface* ALandscapeProxy::GetLandscapeHoleMaterial() const
+{
+	if (LandscapeHoleMaterial)
+	{
+		return LandscapeHoleMaterial;
+	}
+	return nullptr;
+}
+
 UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODIndex) const
 {
 	if (InLODIndex != INDEX_NONE)
@@ -2612,6 +2634,19 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 	}
 
 	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
+{
+	if (LandscapeHoleMaterial)
+	{
+		return LandscapeHoleMaterial;
+	}
+	else if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		return Landscape->GetLandscapeHoleMaterial();
+	}
+	return nullptr;
 }
 
 void ALandscape::PreSave(const class ITargetPlatform* TargetPlatform)

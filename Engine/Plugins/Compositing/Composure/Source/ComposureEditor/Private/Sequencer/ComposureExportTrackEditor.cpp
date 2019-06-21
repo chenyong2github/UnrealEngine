@@ -70,14 +70,14 @@ void FComposureExportTrackEditor::BuildTrackContextMenu(FMenuBuilder& MenuBuilde
 	MenuBuilder.AddSubMenu(LOCTEXT("Properties_MenuText", "Properties"), FText(), FNewMenuDelegate::CreateLambda(PopulateSubMenu));
 }
 
-void FComposureExportTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const FGuid& ObjectBinding, const UClass* ObjectClass)
+void FComposureExportTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	UMovieScene* MovieScene = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene();
 
 	TSet<FName> ExistingPasses;
 	{
-		const FMovieSceneBinding* Binding = MovieScene->FindBinding(ObjectBinding);
+		const FMovieSceneBinding* Binding = MovieScene->FindBinding(ObjectBindings[0]);
 		if (Binding)
 		{
 			for (UMovieSceneTrack* Track : Binding->GetTracks())
@@ -91,7 +91,7 @@ void FComposureExportTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& Menu
 		}
 	}
 
-	for (TWeakObjectPtr<> WeakObject : SequencerPtr->FindObjectsInCurrentSequence(ObjectBinding))
+	for (TWeakObjectPtr<> WeakObject : SequencerPtr->FindObjectsInCurrentSequence(ObjectBindings[0]))
 	{
 		ACompositingElement* CompShotElement = Cast<ACompositingElement>(WeakObject.Get());
 		if (CompShotElement)
@@ -103,7 +103,7 @@ void FComposureExportTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& Menu
 					LOCTEXT("AddOutputTrack_Tooltip", "Adds a new track that controls whether this composure element's output should be captured as part of a Sequencer capture."),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateRaw(this, &FComposureExportTrackEditor::AddNewTrack, ObjectBinding, FName(), true, FName("Output"))
+						FExecuteAction::CreateRaw(this, &FComposureExportTrackEditor::AddNewTrack, ObjectBindings, FName(), true, FName("Output"))
 					)
 				);
 			}
@@ -121,7 +121,7 @@ void FComposureExportTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& Menu
 						LOCTEXT("AddTrack_Tooltip", "Adds a new track that controls whether this composure element pass should be captured as part of a Sequencer capture."),
 						FSlateIcon(),
 						FUIAction(
-							FExecuteAction::CreateRaw(this, &FComposureExportTrackEditor::AddNewTrack, ObjectBinding, TransformPass->PassName, false, FName())
+							FExecuteAction::CreateRaw(this, &FComposureExportTrackEditor::AddNewTrack, ObjectBindings, TransformPass->PassName, false, FName())
 						)
 					);
 				}
@@ -132,22 +132,25 @@ void FComposureExportTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& Menu
 	}
 }
 
-void FComposureExportTrackEditor::AddNewTrack(FGuid ObjectBinding, FName InPassName, bool bRenamePass, FName InExportAs)
+void FComposureExportTrackEditor::AddNewTrack(TArray<FGuid> ObjectBindings, FName InPassName, bool bRenamePass, FName InExportAs)
 {
 	TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
 	if (SequencerPtr.IsValid())
 	{
 		FScopedTransaction Transaction(LOCTEXT("AddNewTrack_Transaction", "Add Composure Export Track"));
 
-		UMovieScene*                       MovieScene = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene();
-		UMovieSceneComposureExportTrack*   NewTrack   = MovieScene->AddTrack<UMovieSceneComposureExportTrack>(ObjectBinding);
-		UMovieSceneComposureExportSection* NewSection = Cast<UMovieSceneComposureExportSection>(NewTrack->CreateNewSection());
+		for (FGuid ObjectBinding : ObjectBindings)
+		{
+			UMovieScene*                       MovieScene = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene();
+			UMovieSceneComposureExportTrack*   NewTrack = MovieScene->AddTrack<UMovieSceneComposureExportTrack>(ObjectBinding);
+			UMovieSceneComposureExportSection* NewSection = Cast<UMovieSceneComposureExportSection>(NewTrack->CreateNewSection());
 
-		NewTrack->Pass.TransformPassName = InPassName;
-		NewTrack->Pass.bRenamePass       = bRenamePass;
-		NewTrack->Pass.ExportedAs        = InExportAs;
+			NewTrack->Pass.TransformPassName = InPassName;
+			NewTrack->Pass.bRenamePass = bRenamePass;
+			NewTrack->Pass.ExportedAs = InExportAs;
 
-		NewTrack->AddSection(*NewSection);
+			NewTrack->AddSection(*NewSection);
+		}
 
 		SequencerPtr->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 	}

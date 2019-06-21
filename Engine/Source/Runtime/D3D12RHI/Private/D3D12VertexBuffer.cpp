@@ -121,12 +121,12 @@ FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 	return Buffer;
 }
 
-void* FD3D12DynamicRHI::RHILockVertexBuffer(FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
+void* FD3D12DynamicRHI::RHILockVertexBuffer(FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 Size, EResourceLockMode LockMode)
 {
 	return LockBuffer(nullptr, FD3D12DynamicRHI::ResourceCast(VertexBufferRHI), Offset, Size, LockMode);
 }
 
-void FD3D12DynamicRHI::RHIUnlockVertexBuffer(FVertexBufferRHIParamRef VertexBufferRHI)
+void FD3D12DynamicRHI::RHIUnlockVertexBuffer(FRHIVertexBuffer* VertexBufferRHI)
 {
 	UnlockBuffer(nullptr, FD3D12DynamicRHI::ResourceCast(VertexBufferRHI));
 }
@@ -151,7 +151,7 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHIComman
 	return Buffer;
 }
 
-void* FD3D12DynamicRHI::LockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+void* FD3D12DynamicRHI::LockVertexBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
 {
 	// Pull down the above RHI implementation so that we can flush only when absolutely necessary
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockVertexBuffer_RenderThread);
@@ -160,7 +160,7 @@ void* FD3D12DynamicRHI::LockVertexBuffer_RenderThread(class FRHICommandListImmed
 	return LockBuffer(&RHICmdList, FD3D12DynamicRHI::ResourceCast(VertexBufferRHI), Offset, SizeRHI, LockMode);
 }
 
-void FD3D12DynamicRHI::UnlockVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FVertexBufferRHIParamRef VertexBufferRHI)
+void FD3D12DynamicRHI::UnlockVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHIVertexBuffer* VertexBufferRHI)
 {
 	// Pull down the above RHI implementation so that we can flush only when absolutely necessary
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockVertexBuffer_RenderThread);
@@ -169,7 +169,7 @@ void FD3D12DynamicRHI::UnlockVertexBuffer_RenderThread(FRHICommandListImmediate&
 	UnlockBuffer(&RHICmdList, FD3D12DynamicRHI::ResourceCast(VertexBufferRHI));
 }
 
-void FD3D12DynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FVertexBufferRHIParamRef DestBufferRHI)
+void FD3D12DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIVertexBuffer* DestBufferRHI)
 {
 	FD3D12VertexBuffer*  SourceBuffer = FD3D12DynamicRHI::ResourceCast(SourceBufferRHI);
 	FD3D12VertexBuffer*  DestBuffer = FD3D12DynamicRHI::ResourceCast(DestBufferRHI);
@@ -203,7 +203,7 @@ void FD3D12DynamicRHI::RHICopyVertexBuffer(FVertexBufferRHIParamRef SourceBuffer
 	}
 }
 
-void FD3D12DynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRHIParamRef DestVertexBuffer, FVertexBufferRHIParamRef SrcVertexBuffer)
+void FD3D12DynamicRHI::RHITransferVertexBufferUnderlyingResource(FRHIVertexBuffer* DestVertexBuffer, FRHIVertexBuffer* SrcVertexBuffer)
 {
 	check(DestVertexBuffer);
 	FD3D12VertexBuffer* Dest = ResourceCast(DestVertexBuffer);
@@ -219,13 +219,150 @@ void FD3D12DynamicRHI::RHITransferVertexBufferUnderlyingResource(FVertexBufferRH
 }
 
 #if D3D12_RHI_RAYTRACING
-void FD3D12CommandContext::RHICopyBufferRegion(FVertexBufferRHIParamRef DestBufferRHI, uint64 DstOffset, FVertexBufferRHIParamRef SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
+void FD3D12CommandContext::RHICopyBufferRegion(FRHIVertexBuffer* DestBufferRHI, uint64 DstOffset, FRHIVertexBuffer* SourceBufferRHI, uint64 SrcOffset, uint64 NumBytes)
 {
-	FD3D12VertexBuffer*  SourceBuffer = FD3D12DynamicRHI::ResourceCast(SourceBufferRHI);
-	FD3D12VertexBuffer*  DestBuffer = FD3D12DynamicRHI::ResourceCast(DestBufferRHI);
+	FD3D12VertexBuffer*  SourceBuffer = RetrieveObject<FD3D12VertexBuffer>(SourceBufferRHI);
+	FD3D12VertexBuffer*  DestBuffer = RetrieveObject<FD3D12VertexBuffer>(DestBufferRHI);
 
-	while (SourceBuffer && DestBuffer)
+	FD3D12Device* Device = SourceBuffer->GetParentDevice();
+	check(Device == DestBuffer->GetParentDevice());
+	check(Device == GetParentDevice());
+
+	FD3D12Resource* pSourceResource = SourceBuffer->ResourceLocation.GetResource();
+	D3D12_RESOURCE_DESC const& SourceBufferDesc = pSourceResource->GetDesc();
+
+	FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
+	D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
+
+	checkf(pSourceResource != pDestResource, TEXT("CopyBufferRegion cannot be used on the same resource. This can happen when both the source and the dest are suballocated from the same resource."));
+
+	check(DstOffset + NumBytes <= DestBufferDesc.Width);
+	check(SrcOffset + NumBytes <= SourceBufferDesc.Width);
+
+	numCopies++;
+
+	FConditionalScopeResourceBarrier ScopeResourceBarrierSource(CommandListHandle, pSourceResource, D3D12_RESOURCE_STATE_COPY_SOURCE, 0);
+	FConditionalScopeResourceBarrier ScopeResourceBarrierDest(CommandListHandle, pDestResource, D3D12_RESOURCE_STATE_COPY_DEST, 0);
+	CommandListHandle.FlushResourceBarriers();
+
+	CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + DstOffset, pSourceResource->GetResource(), SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + SrcOffset, NumBytes);
+	CommandListHandle.UpdateResidency(pDestResource);
+	CommandListHandle.UpdateResidency(pSourceResource);
+
+	Device->RegisterGPUWork(1);
+}
+
+void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
+{
+	// Batched buffer copy finds unique source and destination buffer resources, performs transitions
+	// to copy source / dest state, then performs copies and finally restores original state.
+
+	using FLocalResourceArray = TArray<FD3D12Resource*, TInlineAllocator<16, TMemStackAllocator<>>>;
+	FLocalResourceArray SrcBuffers;
+	FLocalResourceArray DstBuffers;
+
+	SrcBuffers.Reserve(Params.Num());
+	DstBuffers.Reserve(Params.Num());
+
+	// Transition buffers to copy states
+	for (auto& Param : Params)
 	{
+		FD3D12VertexBuffer*  SourceBuffer = RetrieveObject<FD3D12VertexBuffer>(Param.SourceBuffer);
+		FD3D12VertexBuffer*  DestBuffer = RetrieveObject<FD3D12VertexBuffer>(Param.DestBuffer);
+		check(SourceBuffer);
+		check(DestBuffer);
+
+		FD3D12Device* Device = SourceBuffer->GetParentDevice();
+		check(Device == DestBuffer->GetParentDevice());
+		check(Device == GetParentDevice());
+
+		FD3D12Resource* pSourceResource = SourceBuffer->ResourceLocation.GetResource();
+		FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
+
+		checkf(pSourceResource != pDestResource, TEXT("CopyBufferRegion cannot be used on the same resource. This can happen when both the source and the dest are suballocated from the same resource."));
+
+		SrcBuffers.Add(pSourceResource);
+		DstBuffers.Add(pDestResource);
+	}
+
+	Algo::Sort(SrcBuffers);
+	Algo::Sort(DstBuffers);
+
+	enum class EBatchCopyState
+	{
+		CopySource,
+		CopyDest,
+		FinalizeSource,
+		FinalizeDest,
+	};
+
+	auto TransitionResources = [](FD3D12CommandListHandle& CommandListHandle, FLocalResourceArray& SortedResources, EBatchCopyState State)
+	{
+		const uint32 Subresource = 0; // Buffers only have one subresource
+
+		FD3D12Resource* PrevResource = nullptr;
+		for (FD3D12Resource* Resource : SortedResources)
+		{
+			if (Resource == PrevResource) continue; // Skip duplicate resource barriers
+
+			const bool bUseDefaultState = !Resource->RequiresResourceStateTracking();
+
+			D3D12_RESOURCE_STATES DesiredState = D3D12_RESOURCE_STATE_CORRUPT;
+			D3D12_RESOURCE_STATES CurrentState = D3D12_RESOURCE_STATE_CORRUPT;
+			switch (State)
+			{
+			case EBatchCopyState::CopySource:
+				DesiredState = D3D12_RESOURCE_STATE_COPY_SOURCE;
+				CurrentState = bUseDefaultState ? Resource->GetDefaultResourceState() : CurrentState;
+				break;
+			case EBatchCopyState::CopyDest:
+				DesiredState = D3D12_RESOURCE_STATE_COPY_DEST;
+				CurrentState = bUseDefaultState ? Resource->GetDefaultResourceState() : CurrentState;
+				break;
+			case EBatchCopyState::FinalizeSource:
+				CurrentState = D3D12_RESOURCE_STATE_COPY_SOURCE;
+				DesiredState = bUseDefaultState ? Resource->GetDefaultResourceState() : D3D12_RESOURCE_STATE_GENERIC_READ;
+				break;
+			case EBatchCopyState::FinalizeDest:
+				CurrentState = D3D12_RESOURCE_STATE_COPY_DEST;
+				DesiredState = bUseDefaultState ? Resource->GetDefaultResourceState() : D3D12_RESOURCE_STATE_GENERIC_READ;
+				break;
+			default:
+				checkf(false, TEXT("Unexpected batch copy state"));
+				break;
+			}
+
+			if (bUseDefaultState)
+			{
+				check(CurrentState != D3D12_RESOURCE_STATE_CORRUPT);
+				CommandListHandle.AddTransitionBarrier(Resource, CurrentState, DesiredState, Subresource);
+			}
+			else
+			{
+				FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, DesiredState, Subresource);
+			}
+
+			PrevResource = Resource;
+		}
+	};
+
+	// Ensure that all previously pending barriers have been processed to avoid incorrect/conflicting transitions for non-tracked resources
+	CommandListHandle.FlushResourceBarriers();
+
+	TransitionResources(CommandListHandle, SrcBuffers, EBatchCopyState::CopySource);
+	TransitionResources(CommandListHandle, DstBuffers, EBatchCopyState::CopyDest);
+
+	// Issue all copy source/dest barriers before performing actual copies
+	CommandListHandle.FlushResourceBarriers();
+
+	for (auto& Param : Params)
+	{
+		FD3D12VertexBuffer*  SourceBuffer = RetrieveObject<FD3D12VertexBuffer>(Param.SourceBuffer);
+		FD3D12VertexBuffer*  DestBuffer = RetrieveObject<FD3D12VertexBuffer>(Param.DestBuffer);
+		uint64 SrcOffset = Param.SrcOffset;
+		uint64 DstOffset = Param.DstOffset;
+		uint64 NumBytes = Param.NumBytes;
+
 		FD3D12Device* Device = SourceBuffer->GetParentDevice();
 		check(Device == DestBuffer->GetParentDevice());
 
@@ -235,132 +372,24 @@ void FD3D12CommandContext::RHICopyBufferRegion(FVertexBufferRHIParamRef DestBuff
 		FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
 		D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
 
-		checkf(pSourceResource != pDestResource, TEXT("CopyBufferRegion cannot be used on the same resource. This can happen when both the source and the dest are suballocated from the same resource."));
-
 		check(DstOffset + NumBytes <= DestBufferDesc.Width);
 		check(SrcOffset + NumBytes <= SourceBufferDesc.Width);
 
 		numCopies++;
 
-		FConditionalScopeResourceBarrier ScopeResourceBarrierDest(CommandListHandle, pDestResource, D3D12_RESOURCE_STATE_COPY_DEST, 0);
-		CommandListHandle.FlushResourceBarriers();
 		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + DstOffset, pSourceResource->GetResource(), SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + SrcOffset, NumBytes);
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
 
 		Device->RegisterGPUWork(1);
-
-		SourceBuffer = SourceBuffer->GetNextObject();
-		DestBuffer = DestBuffer->GetNextObject();
 	}
+
+	// Transition buffers back to default readable state
+
+	TransitionResources(CommandListHandle, SrcBuffers, EBatchCopyState::FinalizeSource);
+	TransitionResources(CommandListHandle, DstBuffers, EBatchCopyState::FinalizeDest);
 }
-
-void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBufferRegionParams> Params)
-{
-	auto TransitionBuffer = [](FD3D12Resource* pResource, FD3D12CommandListHandle& InCommandListHandle, const D3D12_RESOURCE_STATES Desired)
-	{
-		bool bUseTracking = pResource->RequiresResourceStateTracking();
-		D3D12_RESOURCE_STATES Current;
-		const uint32 Subresource = 0;
-
-		if (!bUseTracking)
-		{
-			Current = pResource->GetDefaultResourceState();
-			if (Current != Desired)
-			{
-				InCommandListHandle.AddTransitionBarrier(pResource, Current, Desired, Subresource);
-			}
-		}
-		else
-		{
-			FD3D12DynamicRHI::TransitionResource(InCommandListHandle, pResource, Desired, Subresource);
-		}
-	};
-
-	// Transition buffers to copy states
-	for (auto& Param : Params)
-	{
-		FD3D12VertexBuffer*  SourceBuffer = FD3D12DynamicRHI::ResourceCast(Param.SourceBuffer);
-		FD3D12VertexBuffer*  DestBuffer = FD3D12DynamicRHI::ResourceCast(Param.DestBuffer);
-
-		while (SourceBuffer && DestBuffer)
-		{
-			FD3D12Device* Device = SourceBuffer->GetParentDevice();
-			check(Device == DestBuffer->GetParentDevice());
-
-			FD3D12Resource* pSourceResource = SourceBuffer->ResourceLocation.GetResource();
-			FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
-
-			checkf(pSourceResource != pDestResource, TEXT("CopyBufferRegion cannot be used on the same resource. This can happen when both the source and the dest are suballocated from the same resource."));
-
-			TransitionBuffer(pSourceResource, CommandListHandle, D3D12_RESOURCE_STATE_COPY_SOURCE);
-			TransitionBuffer(pDestResource, CommandListHandle, D3D12_RESOURCE_STATE_COPY_DEST);
-
-			SourceBuffer = SourceBuffer->GetNextObject();
-			DestBuffer = DestBuffer->GetNextObject();
-		}
-	}
-
-	CommandListHandle.FlushResourceBarriers();
-
-	for (auto& Param : Params)
-	{
-		FD3D12VertexBuffer*  SourceBuffer = FD3D12DynamicRHI::ResourceCast(Param.SourceBuffer);
-		FD3D12VertexBuffer*  DestBuffer = FD3D12DynamicRHI::ResourceCast(Param.DestBuffer);
-		uint64 SrcOffset = Param.SrcOffset;
-		uint64 DstOffset = Param.DstOffset;
-		uint64 NumBytes = Param.NumBytes;
-
-		while (SourceBuffer && DestBuffer)
-		{
-			FD3D12Device* Device = SourceBuffer->GetParentDevice();
-			check(Device == DestBuffer->GetParentDevice());
-
-			FD3D12Resource* pSourceResource = SourceBuffer->ResourceLocation.GetResource();
-			D3D12_RESOURCE_DESC const& SourceBufferDesc = pSourceResource->GetDesc();
-
-			FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
-			D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
-
-			check(DstOffset + NumBytes <= DestBufferDesc.Width);
-			check(SrcOffset + NumBytes <= SourceBufferDesc.Width);
-
-			numCopies++;
-
-			CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + DstOffset, pSourceResource->GetResource(), SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + SrcOffset, NumBytes);
-			CommandListHandle.UpdateResidency(pDestResource);
-			CommandListHandle.UpdateResidency(pSourceResource);
-
-			Device->RegisterGPUWork(1);
-
-			SourceBuffer = SourceBuffer->GetNextObject();
-			DestBuffer = DestBuffer->GetNextObject();
-		}
-	}
-
-	// Transition buffers to generic read
-	for (auto& Param : Params)
-	{
-		FD3D12VertexBuffer*  SourceBuffer = FD3D12DynamicRHI::ResourceCast(Param.SourceBuffer);
-		FD3D12VertexBuffer*  DestBuffer = FD3D12DynamicRHI::ResourceCast(Param.DestBuffer);
-
-		while (SourceBuffer && DestBuffer)
-		{
-			FD3D12Device* Device = SourceBuffer->GetParentDevice();
-			check(Device == DestBuffer->GetParentDevice());
-
-			FD3D12Resource* pSourceResource = SourceBuffer->ResourceLocation.GetResource();
-			FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
-
-			TransitionBuffer(pSourceResource, CommandListHandle, D3D12_RESOURCE_STATE_GENERIC_READ);
-			TransitionBuffer(pDestResource, CommandListHandle, D3D12_RESOURCE_STATE_GENERIC_READ);
-
-			SourceBuffer = SourceBuffer->GetNextObject();
-			DestBuffer = DestBuffer->GetNextObject();
-		}
-	}
-}
-#endif
+#endif // D3D12_RHI_RAYTRACING
 
 FVertexBufferRHIRef FD3D12DynamicRHI::CreateAndLockVertexBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)
 {

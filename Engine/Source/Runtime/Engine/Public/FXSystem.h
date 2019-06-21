@@ -197,7 +197,7 @@ public:
 	 * Notification from the renderer that it is about to perform visibility
 	 * checks on FX belonging to this system.
 	 */
-	virtual void PreInitViews() = 0;
+	virtual void PreInitViews(FRHICommandListImmediate& RHICmdList) = 0;
 
 	virtual bool UsesGlobalDistanceField() const = 0;
 
@@ -212,14 +212,14 @@ public:
 	 */
 	virtual void PostRenderOpaque(
 		FRHICommandListImmediate& RHICmdList, 
-		const FUniformBufferRHIParamRef ViewUniformBuffer, 
+		FRHIUniformBuffer* ViewUniformBuffer,
 		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer) = 0;
+		FRHIUniformBuffer* SceneTexturesUniformBuffer) = 0;
 
 	/**
 	 * Helper in case the data necessary for collision is not available.
 	 */
-	void PostRenderOpaque(FRHICommandListImmediate& RHICmdList) { PostRenderOpaque(RHICmdList, nullptr, nullptr, FUniformBufferRHIParamRef()); }
+	void PostRenderOpaque(FRHICommandListImmediate& RHICmdList) { PostRenderOpaque(RHICmdList, nullptr, nullptr, nullptr); }
 
 	bool IsPendingKill() const { return bIsPendingKill; }
 

@@ -7,11 +7,7 @@ parent:Engine
 order:2
 tags:UMG UI Designer
 topic-image:UMG_topic.png
-
-[REGION:fullwidth raw]
-![](UMG_overview_banner_001.png)(convert:false)
-
-[/REGION]
+hero-image:UMG_overview_banner_001.png
 
 [INCLUDE:Engine/UMG/UserGuide#umgheader]
 

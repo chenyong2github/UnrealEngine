@@ -63,8 +63,7 @@ void Flush()
 
 #else
 
-#if PLATFORM_MAC
-void Dummy() {}
-#endif // PLATFORM_MAC
+// Workaround for module not having any exported symbols
+TRACELOG_API int TraceLogExportedSymbol = 0;
 
 #endif // UE_TRACE_ENABLED

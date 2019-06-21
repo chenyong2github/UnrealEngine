@@ -340,7 +340,7 @@ void STextPropertyEditableStringTableReference::UpdateStringTableComboOptions()
 
 		for (const FAssetData& StringTableAsset : StringTableAssets)
 		{
-			// Only allow string tables assets that have entries to be visible otherwise unexpected behaviour happens for the user
+			// Only allow string tables assets that have entries to be visible otherwise unexpected behavior happens for the user
 			bool HasEntries = false;
 			FStringTableConstPtr StringTable = FStringTableRegistry::Get().FindStringTable(StringTableAsset.ObjectPath);
 			if (StringTable.IsValid())
@@ -350,6 +350,11 @@ void STextPropertyEditableStringTableReference::UpdateStringTableComboOptions()
 					HasEntries = true;
 					return false; // stop enumeration
 				});
+			}
+			else
+			{
+				// Asset is currently unloaded, so just assume it has entries
+				HasEntries = true;
 			}
 
 			if (!HasEntries)
@@ -1372,7 +1377,7 @@ ECheckBoxState STextPropertyEditableTextBox::GetLocalizableCheckState(bool bActi
 		return bIsLocalized == bActiveState ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 	}
 
-	return ECheckBoxState::Undetermined;
+	return ECheckBoxState::Unchecked;
 }
 
 void STextPropertyEditableTextBox::HandleLocalizableCheckStateChanged(ECheckBoxState InCheckboxState, bool bActiveState)

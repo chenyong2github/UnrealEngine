@@ -45,6 +45,7 @@ LandscapeEdit.cpp: Landscape editing
 #include "MeshAttributeArray.h"
 #include "MeshUtilitiesCommon.h"
 
+#include "EngineModule.h"
 #include "EngineUtils.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -136,7 +137,6 @@ void ULandscapeComponent::UpdateNavigationRelevance()
 	if (CollisionComponent && Proxy)
 	{
 		CollisionComponent->SetCanEverAffectNavigation(Proxy->bUsedForNavigation);
-		// UNavigationSystem::UpdateNavOctree(CollisionComponent.Get());
 	}
 }
 
@@ -228,8 +228,9 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 
 	const bool bComponentHasHoles = ComponentHasVisibilityPainted();
 	UMaterialInterface* const LandscapeMaterial = GetLandscapeMaterial(InLODIndex);
-	UMaterialInterface* const MaterialToUse = LandscapeMaterial;
-	bool bOverrideBlendMode = bComponentHasHoles && LandscapeMaterial->GetBlendMode() == BLEND_Opaque;
+	UMaterialInterface* const HoleMaterial = bComponentHasHoles ? GetLandscapeHoleMaterial() : nullptr;
+	UMaterialInterface* const MaterialToUse = bComponentHasHoles && HoleMaterial ? HoleMaterial : LandscapeMaterial;
+	bool bOverrideBlendMode = bComponentHasHoles && !HoleMaterial && LandscapeMaterial->GetBlendMode() == BLEND_Opaque;
 
 	if (bOverrideBlendMode)
 	{
@@ -595,6 +596,13 @@ void ULandscapeComponent::PostEditUndo()
 		TSet<ULandscapeComponent*> Components;
 		Components.Add(this);
 		GetLandscapeProxy()->FlushGrassComponents(&Components);
+	}
+
+	if (GetLandscapeProxy()->RuntimeVirtualTextures.Num() > 0)
+	{
+		//todo[vt]: Only flush this specific virtual textures
+		//todo[vt]: Only flush Bounds 
+		GetRendererModule().FlushVirtualTextureCache();
 	}
 }
 
@@ -2799,7 +2807,7 @@ LANDSCAPE_API void ALandscapeProxy::Import(const FGuid& InGuid, int32 InMinX, in
 		{
 			for (const FLandscapeLayer& OldLayer : *InImportLayers)
 			{
-				FLandscapeLayer* NewLayer = LandscapeActor->DuplicateLayer(OldLayer);
+				FLandscapeLayer* NewLayer = LandscapeActor->DuplicateLayerAndMoveBrushes(OldLayer);
 				check(NewLayer != nullptr);
 
 				FLayerImportSettings ImportSettings;
@@ -3183,24 +3191,19 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 
 FIntRect ALandscapeProxy::GetBoundingRect() const
 {
-	FIntRect Rect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
-
-	for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
-	{
-		Rect.Include(LandscapeComponents[CompIdx]->GetSectionBase());
-	}
-
 	if (LandscapeComponents.Num() > 0)
 	{
+		FIntRect Rect(MAX_int32, MAX_int32, MIN_int32, MIN_int32);
+		for (int32 CompIdx = 0; CompIdx < LandscapeComponents.Num(); CompIdx++)
+		{
+			Rect.Include(LandscapeComponents[CompIdx]->GetSectionBase());
+		}
 		Rect.Max += FIntPoint(ComponentSizeQuads, ComponentSizeQuads);
 		Rect -= LandscapeSectionOffset;
-	}
-	else
-	{
-		Rect = FIntRect();
+		return Rect;
 	}
 
-	return Rect;
+	return FIntRect();
 }
 
 bool ALandscape::HasAllComponent()
@@ -3491,6 +3494,22 @@ void ULandscapeInfo::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo, ULan
 
 		GWarn->EndSlowTask();
 	}
+}
+
+void ULandscapeInfo::GetUsedPaintLayers(const FGuid& InLayerGuid, TArray<ULandscapeLayerInfoObject*>& OutUsedLayerInfos) const
+{
+	OutUsedLayerInfos.Empty();
+	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
+	{
+		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		{
+			const TArray<FWeightmapLayerAllocationInfo>& AllocInfos = Component->GetWeightmapLayerAllocations(InLayerGuid);
+			for (const FWeightmapLayerAllocationInfo& AllocInfo : AllocInfos)
+			{
+				OutUsedLayerInfos.AddUnique(AllocInfo.LayerInfo);
+			}
+		}
+	});
 }
 
 void ALandscapeProxy::EditorApplyScale(const FVector& DeltaScale, const FVector* PivotLocation, bool bAltDown, bool bShiftDown, bool bCtrlDown)
@@ -4096,7 +4115,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 			LandscapeActor = nullptr;
 		}
 	}
-	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeMaterialsOverride")))
+	else if (PropertyName == FName(TEXT("LandscapeMaterial")) || PropertyName == FName(TEXT("LandscapeHoleMaterial")) || PropertyName == FName(TEXT("LandscapeMaterialsOverride")))
 	{
 		bool RecreateMaterialInstances = true;
 
@@ -4148,6 +4167,7 @@ void ALandscapeStreamingProxy::PostEditChangeProperty(FPropertyChangedEvent& Pro
 void ALandscape::PreEditChange(UProperty* PropertyThatWillChange)
 {
 	PreEditLandscapeMaterial = LandscapeMaterial;
+	PreEditLandscapeHoleMaterial = LandscapeHoleMaterial;
 	PreEditLandscapeMaterialsOverride = LandscapeMaterialsOverride;
 
 	Super::PreEditChange(PropertyThatWillChange);
@@ -4166,14 +4186,14 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterial) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride))
+	if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterial) || PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeHoleMaterial) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LandscapeMaterialsOverride))
 		&& PropertyChangedEvent.ChangeType != EPropertyChangeType::ArrayAdd)
 	{
 		bool HasMaterialChanged = false;
 
 		if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 		{
-			if (PreEditLandscapeMaterial != LandscapeMaterial || PreEditLandscapeMaterialsOverride.Num() != LandscapeMaterialsOverride.Num() || bIsPerformingInteractiveActionOnLandscapeMaterialOverride)
+			if (PreEditLandscapeMaterial != LandscapeMaterial || PreEditLandscapeHoleMaterial != LandscapeHoleMaterial || PreEditLandscapeMaterialsOverride.Num() != LandscapeMaterialsOverride.Num() || bIsPerformingInteractiveActionOnLandscapeMaterialOverride)
 			{
 				HasMaterialChanged = true;
 			}
@@ -4397,6 +4417,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 
 	PreEditLandscapeMaterial = nullptr;
+	PreEditLandscapeHoleMaterial = nullptr;
 	PreEditLandscapeMaterialsOverride.Empty();
 }
 

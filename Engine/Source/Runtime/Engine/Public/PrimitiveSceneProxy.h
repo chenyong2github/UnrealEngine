@@ -22,8 +22,11 @@ class FPrimitiveDrawInterface;
 class FPrimitiveSceneInfo;
 class FStaticPrimitiveDrawInterface;
 class UPrimitiveComponent;
+class URuntimeVirtualTexture;
 class UTexture2D;
+enum class ERuntimeVirtualTextureMaterialType;
 struct FMeshBatch;
+class FColorVertexBuffer;
 
 /** Data for a simple dynamic light. */
 class FSimpleLightEntry
@@ -106,9 +109,11 @@ public:
 
 	int32 NumSubsections = 0;
 	FVector4 SubsectionScaleAndBias = FVector4(ForceInit);
+	int32 VisibilityChannel;
 
 	FHeightfieldComponentDescription(const FMatrix& InLocalToWorld) :
-		LocalToWorld(InLocalToWorld)
+		LocalToWorld(InLocalToWorld), 
+		VisibilityChannel(-1)
 	{}
 };
 
@@ -174,6 +179,15 @@ public:
 	 */
 	ENGINE_API virtual HHitProxy* CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies);
 
+#if WITH_EDITOR
+	/** 
+	 * Allows a scene proxy to override hit proxy ids and generate more than one hit proxy id per draw call
+	 * Useful for sub-section selection (faces, vertices, bones, etc)
+	 * 
+	 * @return The vertex buffer  to be use for custom hit proxy ids or null if not used.  Each color represents an id in a HHitProxy
+	 */
+	virtual const FColorVertexBuffer* GetCustomHitProxyIdBuffer() const { return nullptr; }
+#endif
 	/**
 	 * Draws the primitive's static elements.  This is called from the rendering thread once when the scene proxy is created.
 	 * The static elements will only be rendered if GetViewRelevance declares static relevance.
@@ -194,9 +208,9 @@ public:
 	/** Gathers dynamic ray tracing instances from this proxy. */
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) {}
 
-	TArray<FRayTracingGeometryRHIRef>&& MoveRayTracingGeometries()
+	TArray<FRayTracingGeometry*>&& MoveRayTracingGeometries()
 	{
-		return static_cast<TArray<FRayTracingGeometryRHIRef>&&>(RayTracingGeometries);
+		return static_cast<TArray<FRayTracingGeometry*>&&>(RayTracingGeometries);
 	}
 #endif // RHI_RAYTRACING
 
@@ -262,7 +276,7 @@ public:
 		bShadowMapped = false;
 	}
 
-	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms) const 
+	virtual void GetDistancefieldAtlasData(FBox& LocalVolumeBounds, FVector2D& OutDistanceMinMax, FIntVector& OutBlockMin, FIntVector& OutBlockSize, bool& bOutBuiltAsIfTwoSided, bool& bMeshWasPlane, float& SelfShadowBias, TArray<FMatrix>& ObjectLocalToWorldTransforms, bool& bOutThrottled) const
 	{
 		LocalVolumeBounds = FBox(ForceInit);
 		OutDistanceMinMax = FVector2D(0, 0);
@@ -271,6 +285,7 @@ public:
 		bOutBuiltAsIfTwoSided = false;
 		bMeshWasPlane = false;
 		SelfShadowBias = 0;
+		bOutThrottled = false;
 	}
 
 	virtual void GetDistanceFieldInstanceInfo(int32& NumInstances, float& BoundsSurfaceArea) const
@@ -281,9 +296,11 @@ public:
 
 	virtual bool HeightfieldHasPendingStreaming() const { return false; }
 
-	virtual void GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, FHeightfieldComponentDescription& OutDescription)
+	virtual void GetHeightfieldRepresentation(UTexture2D*& OutHeightmapTexture, UTexture2D*& OutDiffuseColorTexture, UTexture2D*& OutVisibilityTexture, FHeightfieldComponentDescription& OutDescription)
 	{
-		OutHeightmapTexture = NULL;
+		OutHeightmapTexture = nullptr;
+		OutDiffuseColorTexture = nullptr;
+		OutVisibilityTexture = nullptr;
 	}
 
 	/**
@@ -479,6 +496,7 @@ public:
 	inline bool NeedsUnbuiltPreviewLighting() const { return bNeedsUnbuiltPreviewLighting; }
 	inline bool CastsStaticShadow() const { return bCastStaticShadow; }
 	inline bool CastsDynamicShadow() const { return bCastDynamicShadow; }
+	inline bool WritesVirtualTexture() const{ return RuntimeVirtualTextures.Num() > 0; }
 	inline bool AffectsDynamicIndirectLighting() const { return bAffectDynamicIndirectLighting; }
 	inline bool AffectsDistanceFieldLighting() const { return bAffectDistanceFieldLighting; }
 	inline float GetLpvBiasMultiplier() const { return LpvBiasMultiplier; }
@@ -499,7 +517,7 @@ public:
 	inline bool DoesVFRequirePrimitiveUniformBuffer() const { return bVFRequiresPrimitiveUniformBuffer; }
 	inline bool ShouldUseAsOccluder() const { return bUseAsOccluder; }
 	inline bool AllowApproximateOcclusion() const { return bAllowApproximateOcclusion; }
-	inline FUniformBufferRHIParamRef GetUniformBuffer() const 
+	inline FRHIUniformBuffer* GetUniformBuffer() const
 	{
 		return UniformBuffer.GetReference(); 
 	}
@@ -510,7 +528,6 @@ public:
 	inline bool WillEverBeLit() const { return bWillEverBeLit; }
 	inline bool HasValidSettingsForStaticLighting() const { return bHasValidSettingsForStaticLighting; }
 	inline bool AlwaysHasVelocity() const { return bAlwaysHasVelocity; }
-	inline bool UseEditorDepthTest() const { return bUseEditorDepthTest; }
 	inline bool SupportsDistanceFieldRepresentation() const { return bSupportsDistanceFieldRepresentation; }
 	inline bool SupportsHeightfieldRepresentation() const { return bSupportsHeightfieldRepresentation; }
 	inline bool TreatAsBackgroundForOcclusion() const { return bTreatAsBackgroundForOcclusion; }
@@ -518,6 +535,11 @@ public:
 	inline bool IsComponentLevelVisible() const { return bIsComponentLevelVisible; }
 	inline bool IsStaticPathAvailable() const { return !bHasMobileMovablePointLightInteraction; }
 	inline bool ShouldReceiveMobileCSMShadows() const { return bReceiveMobileCSMShadows; }
+
+	/** Returns whether draws velocity in base pass. */
+	inline bool DrawsVelocity() const {
+		return IsMovable();
+	}
 
 #if WITH_EDITOR
 	inline int32 GetNumUncachedStaticLightingInteractions() { return NumUncachedStaticLightingInteractions; }
@@ -684,15 +706,6 @@ public:
    	 * @param InMeshScreenSizeSquared - Computed mesh batch screen size, passed to prevent recalculation
 	 */
 	ENGINE_API virtual void* InitViewCustomData(const FSceneView& InView, float InViewLODScale, FMemStackBase& InCustomDataMemStack, bool InIsStaticRelevant, bool InIsShadowOnly, const struct FLODMask* InVisiblePrimitiveLODMask = nullptr, float InMeshScreenSizeSquared = -1.0f) { return nullptr; }
-	
-	/**
-	 * Called during post visibility and shadow setup, just before the frame is rendered. It can be used to update custom data that had a dependency between them.
-	 * Keep in mind this can be called in multihread.
-	 * This will only be called on primitive that added view custom data during the InitViewCustomData.
-	 * @param InView - Current View
- 	 * @param InViewCustomData - Custom data to update
-	 */	
-	ENGINE_API virtual void PostInitViewCustomData(const FSceneView& InView, void* InViewCustomData) const { }
 
 	/** Tell us if this proxy is drawn in game.*/
 	ENGINE_API virtual bool IsDrawnInGame() const { return DrawInGame; }
@@ -743,7 +756,7 @@ protected:
 	}
 
 #if RHI_RAYTRACING
-	TArray<FRayTracingGeometryRHIRef> RayTracingGeometries;
+	TArray<FRayTracingGeometry*> RayTracingGeometries;
 #endif
 
 private:
@@ -911,9 +924,6 @@ protected:
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;
 
-	/** Whether editor compositing depth testing should be used for this primitive.  Only matters for primitives with bUseEditorCompositing. */
-	uint8 bUseEditorDepthTest : 1;
-
 	/** Whether the primitive type supports a distance field representation.  Does not mean the primitive has a valid representation. */
 	uint8 bSupportsDistanceFieldRepresentation : 1;
 
@@ -971,6 +981,10 @@ protected:
 	float DynamicIndirectShadowMinVisibility;
 
 	float DistanceFieldSelfShadowBias;
+
+	/** Array of virtual textures that this proxy should render to. */
+	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	TSet<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
 
 private:
 	/** The hierarchy of owners of this primitive.  These must not be dereferenced on the rendering thread, but the pointer values can be used for identification.  */

@@ -3,10 +3,10 @@
 #include "GeometryCollection/GeometryCollectionFactory.h"
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "GeometryCollection/GeometryCollectionBoneNode.h"
 #include "GeometryCollection/GeometryCollectionConversion.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollection.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/Selection.h"
@@ -33,24 +33,102 @@ UGeometryCollection* UGeometryCollectionFactory::StaticFactoryCreateNew(UClass* 
 	return static_cast<UGeometryCollection*>(NewObject<UGeometryCollection>(InParent, Class, Name, Flags | RF_Transactional | RF_Public | RF_Standalone));
 }
 
+void AppendActorComponentsRecursive(
+	const AActor* Actor,
+	TArray< GeometryCollectionStaticMeshConversionTuple >& StaticMeshList,
+	TArray< GeometryCollectionSkeletalMeshConversionTuple >& SkeletalMeshList,
+	TArray< GeometryCollectionTuple >& GeometryCollectionList)
+{
+	FTransform ActorTransform = Actor->GetTransform();
+
+	TArray<UStaticMeshComponent *> StaticMeshComponents;
+	Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
+	if (StaticMeshComponents.Num() > 0)
+	{
+		for (int Index = 0; Index < StaticMeshComponents.Num(); Index++)
+		{
+			if (StaticMeshComponents[Index]->GetStaticMesh())
+			{
+				StaticMeshList.Add(GeometryCollectionStaticMeshConversionTuple(
+					StaticMeshComponents[Index]->GetStaticMesh(),
+					StaticMeshComponents[Index],
+					StaticMeshComponents[Index]->GetComponentTransform()));
+			}
+		}
+	}
+
+	TArray < USkeletalMeshComponent * > SkeletalMeshComponents;
+	Actor->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
+	if (SkeletalMeshComponents.Num() > 0)
+	{
+		for (int Index = 0; Index < SkeletalMeshComponents.Num(); Index++)
+		{
+			if (SkeletalMeshComponents[Index]->SkeletalMesh)
+			{
+				SkeletalMeshList.Add(GeometryCollectionSkeletalMeshConversionTuple(
+					SkeletalMeshComponents[Index]->SkeletalMesh,
+					SkeletalMeshComponents[Index],
+					SkeletalMeshComponents[Index]->GetComponentTransform()));
+			}
+		}
+	}
+
+	TArray<UGeometryCollectionComponent *> GeometryCollectionComponents;
+	Actor->GetComponents<UGeometryCollectionComponent>(GeometryCollectionComponents);
+	if (GeometryCollectionComponents.Num() > 0)
+	{
+		for (int Index = 0; Index < GeometryCollectionComponents.Num(); Index++)
+		{
+			if (GeometryCollectionComponents[Index]->GetRestCollection())
+			{
+				GeometryCollectionList.Add(GeometryCollectionTuple(
+					GeometryCollectionComponents[Index]->GetRestCollection(),
+					GeometryCollectionComponents[Index],
+					GeometryCollectionComponents[Index]->GetComponentTransform()));
+			}
+		}
+	}
+
+	TArray<UChildActorComponent*> ChildActorComponents;
+	Actor->GetComponents<UChildActorComponent>(ChildActorComponents);
+	for (UChildActorComponent* ChildComponent : ChildActorComponents)
+	{
+		AActor* ChildActor = ChildComponent->GetChildActor();
+		if (ChildActor)
+		{
+			AppendActorComponentsRecursive(ChildActor, StaticMeshList, SkeletalMeshList, GeometryCollectionList);
+		}
+	}
+}
+
 UObject* UGeometryCollectionFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
 	FTransform LastTransform = FTransform::Identity;
-	TArray< TPair<const UStaticMesh *, FTransform> > StaticMeshList;
-	TArray< TPair<const USkeletalMesh *, FTransform> > SkeletalMeshList;
+	TArray< GeometryCollectionStaticMeshConversionTuple > StaticMeshList;
+	TArray< GeometryCollectionSkeletalMeshConversionTuple > SkeletalMeshList;
+	TArray< GeometryCollectionTuple > GeometryCollectionList;
 
 	TArray<FAssetData> SelectedAssets;
 	GEditor->GetContentBrowserSelections(SelectedAssets);
+
 	for (const FAssetData& AssetData : SelectedAssets)
 	{
 		if (AssetData.GetAsset()->IsA<UStaticMesh>())
 		{
-			StaticMeshList.Add(TPair<const UStaticMesh *, FTransform>(static_cast<const UStaticMesh *>(AssetData.GetAsset()), FTransform()));
+			UStaticMeshComponent *DummyValue(NULL);
+			StaticMeshList.Add(GeometryCollectionStaticMeshConversionTuple(static_cast<const UStaticMesh *>(AssetData.GetAsset()), DummyValue, FTransform()));
 		}
 		else if (AssetData.GetAsset()->IsA<USkeletalMesh>())
 		{
-			SkeletalMeshList.Add(TPair<const USkeletalMesh *, FTransform>(static_cast<const USkeletalMesh *>(AssetData.GetAsset()), FTransform()));
+			USkeletalMeshComponent *DummyValue(NULL);
+			SkeletalMeshList.Add(GeometryCollectionSkeletalMeshConversionTuple(static_cast<const USkeletalMesh *>(AssetData.GetAsset()), DummyValue, FTransform()));
 		}
+		else if (AssetData.GetAsset()->IsA<UGeometryCollection>())
+		{
+			UGeometryCollectionComponent *DummyValue(NULL);
+			GeometryCollectionList.Add(GeometryCollectionTuple(static_cast<const UGeometryCollection *>(AssetData.GetAsset()), DummyValue, FTransform()));
+		}
+
 	}
 
 	if (USelection* SelectedActors = GEditor->GetSelectedActors())
@@ -59,41 +137,12 @@ UObject* UGeometryCollectionFactory::FactoryCreateNew(UClass* Class, UObject* In
 		{
 			if (AActor* Actor = Cast<AActor>(*Iter))
 			{
-				TArray<UStaticMeshComponent *> StaticMeshComponents;
-				Actor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
-
-				if (StaticMeshComponents.Num() > 0)
-				{
-					for (int Index = 0; Index < StaticMeshComponents.Num(); Index++)
-					{
-						if (StaticMeshComponents[Index]->GetStaticMesh())
-						{
-							StaticMeshList.Add(TPair<const UStaticMesh *, FTransform>(
-								StaticMeshComponents[Index]->GetStaticMesh(),
-								Actor->GetTransform()));
-						}
-					}
-				}
-
-				TArray < USkeletalMeshComponent * > SkeletalMeshComponents;
-				Actor->GetComponents<USkeletalMeshComponent>(SkeletalMeshComponents);
-
-				if (SkeletalMeshComponents.Num() > 0)
-				{
-					for (int Index = 0; Index < SkeletalMeshComponents.Num(); Index++)
-					{
-						if (SkeletalMeshComponents[Index]->SkeletalMesh)
-						{
-							SkeletalMeshList.Add(TPair<const USkeletalMesh *, FTransform>(
-								SkeletalMeshComponents[Index]->SkeletalMesh,
-								Actor->GetTransform()));
-						}
-					}
-				}
+				AppendActorComponentsRecursive(Actor, StaticMeshList, SkeletalMeshList, GeometryCollectionList);
 
 				if (SelectedActors->GetBottom<AActor>() == Actor)
 				{
 					LastTransform = Actor->GetTransform();
+					LastTransform.SetScale3D(FVector(1.f, 1.f, 1.f));
 				}
 			}
 		}
@@ -101,32 +150,35 @@ UObject* UGeometryCollectionFactory::FactoryCreateNew(UClass* Class, UObject* In
 
 	UGeometryCollection* NewGeometryCollection = StaticFactoryCreateNew(Class, InParent, Name, Flags, Context, Warn);
 
-	for (TPair<const UStaticMesh *, FTransform> & StaticMeshData : StaticMeshList)
+	for (GeometryCollectionStaticMeshConversionTuple & StaticMeshData : StaticMeshList)
 	{
-		FGeometryCollectionConversion::AppendStaticMesh(StaticMeshData.Key, StaticMeshData.Value, NewGeometryCollection, false);
+		FGeometryCollectionConversion::AppendStaticMesh(StaticMeshData.Get<0>(), StaticMeshData.Get<1>(), StaticMeshData.Get<2>(), NewGeometryCollection, false);
 	}
 
-	for (TPair<const USkeletalMesh *, FTransform> & SkeletalMeshData : SkeletalMeshList)
+	for (GeometryCollectionSkeletalMeshConversionTuple & SkeletalMeshData : SkeletalMeshList)
 	{
-		FGeometryCollectionConversion::AppendSkeletalMesh(SkeletalMeshData.Key, SkeletalMeshData.Value, NewGeometryCollection, false);
+		FGeometryCollectionConversion::AppendSkeletalMesh(SkeletalMeshData.Get<0>(), SkeletalMeshData.Get<1>(), SkeletalMeshData.Get<2>(), NewGeometryCollection, false);
+	}
+
+	for (GeometryCollectionTuple & GeometryCollectionData : GeometryCollectionList)
+	{
+		NewGeometryCollection->AppendGeometry(*GeometryCollectionData.Get<0>(), false, GeometryCollectionData.Get<2>());
 	}
 
 	// Add internal material and selection material
-	NewGeometryCollection->AppendStandardMaterials();
-
-	NewGeometryCollection->ReindexMaterialSections();
+	NewGeometryCollection->InitializeMaterials();
 	GeometryCollectionAlgo::PrepareForSimulation(NewGeometryCollection->GetGeometryCollection().Get());
 
 	// Initial pivot : 
 	// Offset everything from the last selected element so the transform will align with the null space. 
-	if (TSharedPtr<FGeometryCollection> Collection = NewGeometryCollection->GetGeometryCollection())
+	if (TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = NewGeometryCollection->GetGeometryCollection())
 	{
-		TManagedArray<FGeometryCollectionBoneNode> & Bone = *Collection->BoneHierarchy;
-		TManagedArray<FTransform>& Transform = *Collection->Transform;
+		TManagedArray<int32> & Parent = Collection->Parent;
+		TManagedArray<FTransform>& Transform = Collection->Transform;
 
-		for(int TransformGroupIndex =0; TransformGroupIndex<Collection->Transform->Num(); TransformGroupIndex++)
+		for(int TransformGroupIndex =0; TransformGroupIndex<Collection->Transform.Num(); TransformGroupIndex++)
 		{
-			if (Bone[TransformGroupIndex].Parent == FGeometryCollection::Invalid)
+			if (Parent[TransformGroupIndex] == FGeometryCollection::Invalid)
 			{
 				Transform[TransformGroupIndex] = Transform[TransformGroupIndex].GetRelativeTransform(LastTransform);
 			}

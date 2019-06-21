@@ -187,6 +187,9 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
 
+	static const EColumnSortMode::Type GetDefaultColumnSortMode();
+	static const FName GetDefaultColumnBeingSorted();
+
 	void SortStats();
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
@@ -328,9 +331,6 @@ protected:
 
 	/** Name of the column currently being sorted, NAME_None if sorting is disabled. */
 	FName ColumnBeingSorted;
-
-	static const EColumnSortMode::Type DefaultColumnSortMode;
-	static const FName DefaultColumnBeingSorted;
 
 	//////////////////////////////////////////////////
 

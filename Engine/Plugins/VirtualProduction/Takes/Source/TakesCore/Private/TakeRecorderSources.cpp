@@ -98,14 +98,14 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 			// is using which sub-sequence so that we can push the correct sequence for all points of the Source's recording lifecycle.
 			if (bRecordSourcesToSubSequences && Source->SupportsSubscenes())
 			{
-				const FString& SubSequenceName = ObjectTools::SanitizeObjectName(Source->GetSubsceneName(InMasterSequence));
+				const FString& SubSequenceTrackName = ObjectTools::SanitizeObjectName(Source->GetSubsceneTrackName(InMasterSequence));
+				const FString& SubSequenceAssetName = ObjectTools::SanitizeObjectName(Source->GetSubsceneAssetName(InMasterSequence));
 
-				TargetSequence = CreateSubSequenceForSource(InMasterSequence, SubSequenceName);
+				TargetSequence = CreateSubSequenceForSource(InMasterSequence, SubSequenceTrackName, SubSequenceAssetName);
 				TargetSequence->GetMovieScene()->TimecodeSource = Timecode;
 
 				// If there's already a Subscene Track for our sub-sequence we need to remove that track before create a new one. No data is lost in this process as the
 				// sequence that the subscene points to has been copied by CreateSubSequenceForSource so a new track pointed to the new subsequence includes all the old data.
-				TOptional<int32> RowIndex;
 				const FString SequenceName = FPaths::GetBaseFilename(TargetSequence->GetPathName());
 				UMovieSceneSubTrack* SubsceneTrack = nullptr;
 
@@ -113,22 +113,11 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 				{
 					if (Track->IsA<UMovieSceneSubTrack>())
 					{
-						// Look through each section in the track to see if it has a sub-sequence that matches our new sequence.
-						for (UMovieSceneSection* Section : Track->GetAllSections())
+						if (Track->GetDisplayName().ToString() == SubSequenceTrackName)
 						{
-							UMovieSceneSubSection* SubSection = CastChecked<UMovieSceneSubSection>(Section);
-							UMovieSceneSequence* SubSequence = SubSection->GetSequence();
-
-							// Store the row index so we can re-inject the section at the same index to preserve the hierarchical evaluation order.
-							if (FPaths::GetBaseFilename(SubSequence->GetPathName()) == SequenceName)
-							{
-								SubsceneTrack = CastChecked<UMovieSceneSubTrack>(Track);
-								SubsceneTrack->RemoveSection(*Section);
-								RowIndex = Section->GetRowIndex();
-								break;
-							}
+							SubsceneTrack = CastChecked<UMovieSceneSubTrack>(Track);
+							SubsceneTrack->RemoveAllAnimationData();
 						}
-						
 					}
 				}
 
@@ -140,7 +129,7 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 				}
 				
 				// We create a new sub track for every Source so that we can name the Subtrack after the Source instead of just the sections within it.
-				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneName(InMasterSequence)));
+				SubsceneTrack->SetDisplayName(FText::FromString(Source->GetSubsceneTrackName(InMasterSequence)));
 				SubsceneTrack->SetColorTint(Source->TrackTint);
 					
 				// When we create the Subscene Track we'll make sure a folder is created for it to sort into and add the new Subscene Track as a child of it.
@@ -150,26 +139,20 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 					Folder->AddChildMasterTrack(SubsceneTrack);
 				}
 				
-				// There isn't already a section for our new sub sequence, so we'll just append it to the end
-				if (!RowIndex.IsSet())
-				{
-					RowIndex = SubsceneTrack->GetMaxRowIndex() + 1;
-				}
-
 				// We initialize the sequence to start at zero and be a 0 frame length section as there is no data in the sections yet.
 				// We'll have to update these sections each frame as the recording progresses so they appear to get longer like normal
 				// tracks do as we record into them.
 				FFrameNumber RecordStartTime = FFrameNumber(0);
 				UMovieSceneSubSection* NewSubSection = SubsceneTrack->AddSequence(TargetSequence, RecordStartTime, 0);
 
-				NewSubSection->SetRowIndex(RowIndex.GetValue());
+				NewSubSection->SetRowIndex(SubsceneTrack->GetMaxRowIndex() + 1);
 				SubsceneTrack->FixRowIndices();
 
 				ActiveSubSections.Add(NewSubSection);
 				if (InManifestSerializer)
 				{
 					FName SerializedType("SubSequence");
-					FManifestProperty  ManifestProperty(SubSequenceName, SerializedType, FGuid());
+					FManifestProperty  ManifestProperty(SubSequenceAssetName, SerializedType, FGuid());
 					InManifestSerializer->WriteFrameData(InManifestSerializer->FramesWritten, ManifestProperty);
 
 					FString AssetPath = InManifestSerializer->GetLocalCaptureDir();
@@ -180,7 +163,7 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 						PlatformFile.CreateDirectory(*AssetPath);
 					}
 
-					AssetPath = AssetPath / SubSequenceName;
+					AssetPath = AssetPath / SubSequenceAssetName;
 					if (!PlatformFile.DirectoryExists(*AssetPath))
 					{
 						PlatformFile.CreateDirectory(*AssetPath);
@@ -192,13 +175,13 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 
 					InManifestSerializer->SetLocalCaptureDir(AssetPath);
 
-					FManifestFileHeader Header(SubSequenceName, SerializedType, FGuid());
+					FManifestFileHeader Header(SubSequenceAssetName, SerializedType, FGuid());
 					FText Error;
-					FString FileName = FString::Printf(TEXT("%s_%s"), *(SerializedType.ToString()), *(SubSequenceName));
+					FString FileName = FString::Printf(TEXT("%s_%s"), *(SerializedType.ToString()), *(SubSequenceAssetName));
 
 					if (!InManifestSerializer->OpenForWrite(FileName, Header, Error))
 					{
-						UE_LOG(SubSequenceSerialization, Warning, TEXT("Error Opening Sequence Sequencer File: Subject '%s' Error '%s'"), *(SubSequenceName), *(Error.ToString()));
+						UE_LOG(SubSequenceSerialization, Warning, TEXT("Error Opening Sequence Sequencer File: Subject '%s' Error '%s'"), *(SubSequenceAssetName), *(Error.ToString()));
 					}
 				}
 			}
@@ -299,6 +282,7 @@ void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, FMan
 
 	bIsRecording = true;
 	TimeSinceRecordingStarted = 0.f;
+	LastTimecodeFrameNumber.Reset();
 	TargetLevelSequenceTickResolution = InSequence->GetMovieScene()->GetTickResolution();
 
 	FTimecode TimecodeSource = FApp::GetTimecode();
@@ -313,19 +297,31 @@ FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence,
 	bool bHasValidTimecodeSource;
 	FQualifiedFrameTime FrameTime = GetCurrentRecordingFrameTime(CurrentTimecode,bHasValidTimecodeSource);
 	FQualifiedFrameTime SourceFrameTime(FrameTime);
+	bool bTimeIncremented = DeltaTime > 0.0f;
 	if (bHasValidTimecodeSource)
 	{
 		//We leave this ins timecode frame rate since the sources convert it later (cbb and faster to do it here, we actually do it below
 		//for showiung the time
 		FFrameNumber SeqStartFrameTime = StartRecordingTimecodeSource.ToFrameNumber(FApp::GetTimecodeFrameRate());
 		SourceFrameTime.Time.FrameNumber = SourceFrameTime.Time.FrameNumber - SeqStartFrameTime;
+		if (LastTimecodeFrameNumber.IsSet())
+		{
+			if (LastTimecodeFrameNumber == SourceFrameTime.Time.FrameNumber)
+			{
+				bTimeIncremented = false;
+			}
+		}
+		LastTimecodeFrameNumber = SourceFrameTime.Time.FrameNumber;
 	}
 
-	for (auto Source : Sources)
+	if (bTimeIncremented) //only record if time incremented, may not with timecode providers with low frame rates
 	{
-		if (Source->bEnabled)
+		for (auto Source : Sources)
 		{
-			Source->TickRecording(SourceFrameTime);
+			if (Source->bEnabled)
+			{
+				Source->TickRecording(SourceFrameTime);
+			}
 		}
 	}
 
@@ -421,7 +417,7 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTake
 {
 	bIsRecording = false;
 	TimeSinceRecordingStarted = 0.f;
-
+	LastTimecodeFrameNumber.Reset();
 	for (auto Source : Sources)
 	{
 		if (Source->bEnabled)
@@ -507,7 +503,7 @@ void UTakeRecorderSources::StopRecording(class ULevelSequence* InSequence, FTake
 	CachedLevelSequence = nullptr;
 }
 
-ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceName)
+ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence* InMasterSequence, const FString& SubSequenceTrackName, const FString& SubSequenceAssetName)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
@@ -527,16 +523,16 @@ ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence*
 		for (UMovieSceneSection* Section : SubTrack->GetAllSections())
 		{
 			UMovieSceneSubSection* SubSection = CastChecked<UMovieSceneSubSection>(Section);
-			if (FPaths::GetBaseFilename(SubSection->GetSequence()->GetPathName()) == SubSequenceName)
+			if (FPaths::GetBaseFilename(SubSection->GetSequence()->GetPathName()) == SubSequenceAssetName)
 			{
-				UE_LOG(LogTakesCore, Log, TEXT("Found existing sub-section for source %s, duplicating sub-section for recording into."), *SubSequenceName);
+				UE_LOG(LogTakesCore, Log, TEXT("Found existing sub-section for source %s, duplicating sub-section for recording into."), *SubSequenceAssetName);
 				ExistingSubSequence = CastChecked<ULevelSequence>(SubSection->GetSequence());
 				break;
 			}
 		}
 	}
 
-	FString NewPath = FString::Printf(TEXT("%s/%s_Subscenes/%s"), *SequenceDirectory, *SequenceName, *SubSequenceName);
+	FString NewPath = FString::Printf(TEXT("%s/%s_Subscenes/%s"), *SequenceDirectory, *SequenceName, *SubSequenceAssetName);
 	
 	ULevelSequence* OutAsset = nullptr;
 	TakesUtils::CreateNewAssetPackage<ULevelSequence>(NewPath, OutAsset, nullptr, ExistingSubSequence);
@@ -559,7 +555,7 @@ ULevelSequence* UTakeRecorderSources::CreateSubSequenceForSource(ULevelSequence*
 			UTakeMetaData* OutTakeMetaData = OutAsset->CopyMetaData(TakeMetaData);
 
 			// Tack on the sub sequence name so that it's unique from the master sequence
-			OutTakeMetaData->SetSlate(TakeMetaData->GetSlate() + TEXT("_") + SubSequenceName);
+			OutTakeMetaData->SetSlate(TakeMetaData->GetSlate() + TEXT("_") + SubSequenceTrackName, false);
 		}
 
 		OutAsset->MarkPackageDirty();

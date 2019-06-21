@@ -626,7 +626,7 @@ class IAnalyticsProvider;
 DECLARE_DELEGATE_OneParam(FBeginStreamingPauseDelegate, FViewport*);
 DECLARE_DELEGATE(FEndStreamingPauseDelegate);
 
-enum class EFrameHitchType: uint8;
+enum class EFrameHitchType : uint8;
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FEngineHitchDetectedDelegate, EFrameHitchType /*HitchType*/, float /*HitchDurationInSeconds*/);
 
@@ -885,9 +885,17 @@ public:
 	UPROPERTY()
 	class UMaterial* DebugMeshMaterial;
 
-	/** @todo document */
+	/** Path of the default material for debug mesh */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath DebugMeshMaterialName;
+
+	/** A material used to render emissive meshes (e.g. light source surface). */
+	UPROPERTY()
+	class UMaterial* EmissiveMeshMaterial;
+
+	/** Path of the default material for emissive mesh */
+	UPROPERTY(globalconfig)
+	FSoftObjectPath EmissiveMeshMaterialName;
 
 	/** Material used for visualizing level membership in lit view port modes. */
 	UPROPERTY()
@@ -1191,6 +1199,13 @@ public:
 	/** @todo document */
 	UPROPERTY(globalconfig)
 	FSoftObjectPath PreIntegratedSkinBRDFTextureName;
+
+	/** Tiled blue-noise texture */
+	UPROPERTY()
+	class UTexture2D* BlueNoiseTexture;
+
+	UPROPERTY(globalconfig)
+	FSoftObjectPath BlueNoiseTextureName;
 
 	/** Texture used to do font rendering in shaders */
 	UPROPERTY()
@@ -3382,6 +3397,7 @@ private:
 	bool ToggleStatSoundWaves(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	bool ToggleStatSoundCues(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	bool ToggleStatSounds(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
+	bool ToggleStatAudioStreaming(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	bool ToggleStatSoundMixes(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	bool ToggleStatSoundModulators(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 #endif
@@ -3413,6 +3429,7 @@ private:
  	int32 RenderStatSoundMixes(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatSoundModulators(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
+	int32 RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatSoundCues(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 	int32 RenderStatSounds(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif // !UE_BUILD_SHIPPING

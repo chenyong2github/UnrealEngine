@@ -465,15 +465,6 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 		InstanceWorldVelocity.Bind(ParameterMap, *ParamNames.InstanceWorldVelocityName);
 		AreaWeightedSampling.Bind(ParameterMap, *ParamNames.AreaWeightedSamplingName);
 		NumTexCoord.Bind(ParameterMap, *ParamNames.NumTexCoordName);
-
-		if (!MeshIndexBuffer.IsBound())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Binding failed for FNiagaraDataInterfaceParametersCS_StaticMesh Texture %s. Was it optimized out?"), *ParamNames.MeshIndexBufferName)
-		}
-		if (!MeshVertexBuffer.IsBound())
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Binding failed for FNiagaraDataInterfaceParametersCS_StaticMesh Sampler %s. Was it optimized out?"), *ParamNames.MeshVertexBufferName)
-		}
 	}
 
 	virtual void Serialize(FArchive& Ar)override
@@ -499,7 +490,7 @@ struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfa
 	{
 		check(IsInRenderingThread());
 
-		FComputeShaderRHIParamRef ComputeShaderRHI = Context.Shader->GetComputeShader();
+		FRHIComputeShader* ComputeShaderRHI = Context.Shader->GetComputeShader();
 		
 		{
 			FNiagaraDataInterfaceProxyStaticMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxyStaticMesh*>(Context.DataInterface);
@@ -2030,7 +2021,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {InstanceFunctionName} (in int In_Section, out {MeshTriCoordinateStructName} Out_Coord)
 			{
-				int Section = clamp(In_Section, 0, {SectionCountName} - 1);
+				int Section = clamp(In_Section, 0, (int)({SectionCountName} - 1));
 
 				uint4 SectionData = {MeshSectionBufferName}[Section];
 				uint SectionFirstTriangle = SectionData.x;
@@ -2245,7 +2236,7 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FName&  DefinitionFu
 					uint VertexIndex2 = {MeshIndexBufferName}[TriangleIndex+2];
 
 					uint stride = {NumTexCoordName};
-					uint SelectedUVSet = clamp(In_UVSet, 0, {NumTexCoordName}-1);
+					uint SelectedUVSet = clamp((uint)In_UVSet, 0, {NumTexCoordName}-1);
 					float2 UV0 = {MeshTexCoordBufferName}[VertexIndex0 * stride + SelectedUVSet];
 					float2 UV1 = {MeshTexCoordBufferName}[VertexIndex1 * stride + SelectedUVSet];
 					float2 UV2 = {MeshTexCoordBufferName}[VertexIndex2 * stride + SelectedUVSet];

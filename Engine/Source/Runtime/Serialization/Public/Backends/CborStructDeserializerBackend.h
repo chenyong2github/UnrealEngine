@@ -18,10 +18,9 @@ public:
 	 * Creates and initializes a new instance.
 	 * @param Archive The archive to deserialize from.
 	 */
-	FCborStructDeserializerBackend( FArchive& Archive )
-		: CborReader(&Archive)
-	{}
+	FCborStructDeserializerBackend(FArchive& Archive);
 
+	virtual ~FCborStructDeserializerBackend();
 public:
 
 	// IStructDeserializerBackend interface

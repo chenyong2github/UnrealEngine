@@ -38,8 +38,6 @@ Version: 4.9
 
 编译UE4项目时，只会对项目的源代码进行编译。以此方式编译项目时可使用以下编译配置：
 
-%Globals:osselect_linux%
-
 [OBJECT:ToggleButtonContent]
 	[PARAMLITERAL:category]
 	操作系统

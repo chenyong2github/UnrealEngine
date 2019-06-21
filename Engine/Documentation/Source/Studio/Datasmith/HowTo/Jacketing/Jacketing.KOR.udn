@@ -1,0 +1,279 @@
+INTSourceChangelist:6572517
+Availability: Public
+Crumbs: 
+Title: 완전히 가려진 메시 찾아 제거하기
+Description: 레벨의 다른 오브젝트에 완전히 가려진 지오메트리를 제거 및 단순화하여 렌더링 퍼포먼스를 향상시키는 방법을 설명합니다.
+Type: how-to
+Skilllevel:Intermediate
+Version: 4.21
+Parent: Studio/Datasmith/HowTo
+Order: 6
+Tags: how to
+Tags: Datasmith
+Tags: intermediate
+hero-image:jacketing-banner.png
+
+
+실시간 3D 애플리케이션에서 렌더링 퍼포먼스를 향상시키는 한 가지 방법은 단순히 매 프레임마다 그릴 오브젝트 수를 줄이는 것입니다. 보통 카메라는 3D 씬의 모든 오브젝트를 동시에 보지 못합니다. 가려진, 즉 다른 오브젝트로 인해 카메라의 시야에서 막힌 오브젝트는 렌더링 과정에서 생략해도 최종 이미지 변화 없이 안전하게 퍼포먼스를 향상시킬 수 있습니다.
+
+![](jacketing-banner.png)
+
+언리얼 엔진은 여러가지 내장된 방법으로 매 프레임 가려진 메시를 제거하는데, 예를 들어 카메라의 뷰 프러스텀 밖에 있는 메시나 카메라에서 너무 멀리 떨어진 메시를 컬링하는 것입니다. 그러나 어느 메시가 어느 메시에 가려졌는지 언리얼 엔진이 런타임에 효율적으로 결정할 수 없는 경우가 있습니다. 한 메시가 다른 메시의 바운딩 박스 안에 있는 경우가 특히 그렇습니다. 이는 언리얼 엔진으로 가져온 컴퓨터 응용 디자인(CAD) 데이터에서 흔히 발생하는데, 종종 어셈블리에는 케이스 내부에 완전히 숨겨진 다양한 작은 부속이 포함되어 있기 때문입니다. 이 부속은 실시간 렌더링에 절대 보이지 않으므로, 종종 숨기거나 레벨에서 완전히 제거하여 렌더링 퍼포먼스를 향상시킬 수 있습니다. 언리얼 엔진에 완벽히 모델링된 차량을 임포트해서 렌더링하는 경우, 플레이어나 뷰어에 내부를 볼 수 있는 방법을 제공하지 않는다면, 엔진 내부 부속을 렌더링하느라 매 프레임 자원을 낭비할 이유가 없습니다.
+
+예를 들어, 아래 엔진 어셈블리에는 스태틱 메시 액터가 542 개 들어 있습니다. 그러나 그 중 321 개는 완전히 케이스 속에 들어 있어서, 카메라에 보일 일이 없습니다. 레벨에서 가려진 지오메트리를 제거하면 시각적인 모양에 변화 없이 나머지 지오메트리를 훨씬 빨리 렌더링할 수 있습니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![전체 엔진, 액터 542 개](jacketing-engine-default.png) 
+[/PARAM]
+[PARAM:after]
+![완전히 가려진 액터 321 개](jacketing-engine-occluded.png) 
+[/PARAM]
+[/OBJECT]
+
+이와 같은 경우, 언리얼 에디터는 레벨의 스태틱 메시 액터 선택을 스캔하여 완전히 가려진, 즉 외부 시점에서 보이지 않는 것을 알아내는 주문형 프로세스를 제공합니다. 이 프로세스에서 완전히 가려진 액터로 식별된 것은, 별도의 레이어에 고립시킨 다음, 레벨에서 완전히 제거하거나, 지오메트리를 단순화하여 내부 디테일을 제거할 수 있습니다.
+
+이 프로세스를 일컬어 (외투만 남기는) *jacketing* (재키팅)이라고도 합니다.
+
+## 틈
+
+종종 내부 메시를 시야에서 가리는 지오메트리 외피가 완전히 닫혀있지 않을 수 있습니다. 지오메트리 외부에 작은 틈(gap)이나 불연속성이 있어도 보는 사람이 내부 디테일을 보지 못하게 막을 수는 있습니다. 예를 들어 이 모터에서, 체인은 작은 구멍을 통해 외피를 통과합니다.
+
+![Gaps in the occluding meshes](jacketing-gaps.png "Gaps in the occluding meshes")
+
+이와 같은 경우에도 내부 메시를 숨기는 것이 좋습니다. 그래서 어느 트라이앵글이 가려졌는지 결정할 때, 재키팅 알고리즘은 작은 틈 사이 다리를 놓아 메시에 덮인 것처럼 취급되게 만들 수 있습니다. 그러면 가리는 메시가 완전히 봉해져 있지 않아도 내부에 가려진 부분을 숨기는 장점을 얻을 수 있습니다.
+
+오클루전 테스트 도중 무시할 틈 최대 크기를 설정할 수 있습니다.
+
+[REGION:note]
+안전을 위해 틈 크기 한계치를 매우 큰 값으로 설정하고 싶을 수 있습니다. 그러나 이 한계치는 스태틱 메시에서 제거해도 안전한 트라이앵글을 평가하는 메시 대상 모드에서도 (아래 참고) 사용됩니다. 틈 한계치를 너무 높게 설정하면, 지오메트리 내부 트라이앵글이 최대한 단순화되지 않을 수 있습니다. 틈 한계치는 가리는 메시의 틈 실제 크기에 최대한 근접하게 설정하세요.
+[/REGION]
+
+## 대상
+
+재키팅 작업 결과를 두 가지 대상 중 하나에 적용할 수 있습니다. 하나는 [레벨의 스태틱 메시](#레벨대상), 다른 하나는 [스태틱 메시 애셋의 지오메트리](#메시대상) 입니다.
+
+### 레벨 대상
+
+레벨 대상으로 재키팅 툴을 실행하면, 레벨에 선택된 스태틱 메시 액터 세트를 대상으로 오클루전 테스트를 수행합니다. 모든 각도에서 그 액터의 지오메트리를 분석하여 모든 각도에서 완전히 숨겨지는 것을 결정합니다. 그렇게 가려지는 액터 목록이 생겼으면 무엇을 할지 선택할 수 있습니다.
+
+언리얼 에디터 UI 에서 할 수 있는 일은 다음과 같습니다.
+
+*   가려진 액터에 새로운 컴포넌트 태그 **Jacketing Hidden** 를 붙입니다.  
+    ![Jacketing Hidden tag](jacketing-tag.png "Jacketing Hidden tag")
+*   가려진 액터를 새로운 레이어 **Jacketing** 에 넣습니다.
+*   가려진 액터의 **Actor Hidden in Game** 세팅을 꺼 뷰에서 숨깁니다.
+*   레벨에서 가려진 액터를 제거합니다.
+
+블루프린트 또는 Python 스크립트에서 레벨 대상 모드로 툴을 실행하면, 단순히 가려진 액터 목록을 반환하므로 스크립트에서 적절한 조치를 결정할 수 있습니다.
+
+레벨 대상 모드는 박스나 비교적 단순한 지오메트리의 외피 안에 개별 스태틱 메시 액터로 나타나는 작은 부속이 많은 경우에 좋습니다.
+
+[REGION:note]
+레벨 대상 모드에서, 재키팅 툴은 스태틱 메시 애셋을 절대 수정하지 않습니다. 오클루전 테스트 후 완전히 가려진 액터만 결정합니다.
+[/REGION]
+
+### 메시 대상
+
+재키팅 툴을 메시 대상 모드로 사용하면, 개별 트라이앵글 수준에서의 오클루전을 고려합니다. 오클루전 테스트를 수행한 후, 개별 스태틱 메시 애셋에서 가려진 것으로 간주된 모든 트라이앵글을 제거합니다. 실제로 가리는 메시를 속이 빈 껍데기로 간소화시켜 내부 표면의 디테일을 제거합니다. 
+
+외장이나 가리는 메시에 내부 표면이 복잡하거나, 지오메트리가 겹치는 액터가 다수인 경우 좋습니다. 겹치는 영역 내 지오메트리는 최대한 단순화됩니다.
+
+재키팅 툴은 보수적 방법으로 안전히 제거할 수 있는 트라이앵글을 식별해서, 시각적 결과물이 떨어질 가능성을 배제합니다. 보일 확률이 있는 트라이앵글은 그대로 남습니다. 재키팅 툴은 지오메트리 트라이앵글을 다시 만들거나 단순화하지 않습니다. 불필요한 트라이앵글만 제거할 뿐입니다. 
+
+예를 들어 아래 표시된 닫힌 어셈블리 안에는 외부에서 절대 볼 수 없는 복잡한 지오메트리가 있습니다. 재키팅 툴을 메시 대상으로 실행하면, 내부 디테일을 전부 제거할 수 있습니다. 참고로 외피의 안쪽을 향하는 표면조자도 제거되어, 바깥 쪽을 향하는 단면 지오메트리만 남습니다.
+
+[OBJECT:ComparisonSlider]
+[PARAM:before]
+![내부 지오메트리가 복잡한 어셈블리](jacketing-mesh-before.png) 
+[/PARAM]
+[PARAM:after]
+![재키팅 이후](jacketing-mesh-after.png) 
+[/PARAM]
+[/OBJECT]
+
+**출력 로그** 패널의 재키팅 툴 결과와, 툴이 제거할 수 있었던 트라이앵글 수를 포함해서 확인할 수 있습니다.
+
+[REGION:lightbox]
+[![Jacketing results](jacketing-results.png "Jacketing results")](jacketing-results.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+[REGION:warning]
+메시 대상 모드에서 재키팅 툴은 스태틱 메시 애셋을 수정합니다. 그 애셋이 레벨 다른 곳에 사용되거나, 프로젝트의 다른 레벨에 사용되는 경우, 그 인스턴스 역시 새 지오메트리를 표시하도록 자동 업데이트됩니다.
+[/REGION]
+
+## 레벨 뷰포트의 재키팅
+
+레벨 뷰포트에서 재키팅을 적용하려면:
+
+1.  오클루전 테스트에서 고려할 레벨의 스태틱 메시 액터를 선택합니다. 외벽을 이루는 메시와 함께 내부에 있는 메시도 선택해야 합니다.
+2.  레벨 뷰포트 또는 **월드 아웃라이너** 에서 선택된 액터에 우클릭하고 **Jacketing** (재키팅)을 선택합니다.  
+    ![Jacketing in the contextual menu](jacketing-right-click.png "Jacketing in the contextual menu")
+3.  **Remove occluded meshes** (가려진 메시 제거) 창에서 오클루전 테스트 감도와 영향을 줄 대상을 설정합니다.  
+    ![Jacketing settings](jacketing-settings.png "Jacketing settings")  
+    [INCLUDE:#settingstable]
+4.  **Proceed** (진행) 버튼을 눌러 오클루전 테스트를 시작합니다.  
+    ![Proceed](jacketing-proceed.png "Proceed")
+5.  메시 대상을 선택한 경우, 수정된 메시는 더티 표시됩니다. 변경사항을 유지하려면 언리얼 에디터를 닫기 전 저장하세요.
+
+<!--
+[EXCERPT:settingstable]
+| 세팅 | 설명 |
+| --- | --- |
+| **Voxel precision** | [INCLUDE:#excerpt_0] |
+| **Gap max diameter** | [INCLUDE:#excerpt_1] |
+| **Action Level** | 액션 레벨 - 툴이 **레벨** 대상인지 **메시** 대상인지 결정합니다. |
+| **Action Type** | 액션 유형 0 레벨 대상에 영향을 주도록 선택한 경우, **Action Type** 드롭다운 목록에서 재키팅 툴이 완전히 가려진 것으로 결정한 액터 세트에 어떤 작업을 할지 결정합니다. 자세한 내용은 위의 [레벨 대상](#레벨대상) 부분을 참고하세요. |
+[/EXCERPT:settingstable]
+
+[EXCERPT:excerpt_1]
+틈 최대 직경 - 오클루전 테스트가 채워진 것으로 간주할 볼륨 내 틈 최대 크기를 설정합니다.
+[REGION:note]
+이 값은 너무 낮게 설정하지 마세요. 자세한 내용은 위 [틈](#틈) 부분을 참고하세요.
+[/REGION]
+[/EXCERPT:excerpt_1]
+
+[EXCERPT:excerpt_0]
+복셀 정밀도 - 오클루전 테스트 감도를 제어합니다. 작은 모델에는 값을 낮춰여 높은 정밀도를 얻을 수 있습니다.
+[REGION:note]
+이 세팅은 콜리전 테스트에 필요한 시간과 메모리 요구 사항에 직접적인 영향을 줍니다. 비교적 큰 값으로 시작해서 원하는 충실도를 얻을 때까지 값을 낮추세요.
+[/REGION]
+[/EXCERPT:excerpt_0]
+-->
+
+## 에디터 스크립트의 재키팅
+
+레벨 뷰포트(와 월드 아웃라이너)에 제공되는 동일한 재키팅 동작을 블루프린트와 Python 에서도 수행할 수 있습니다.
+
+[REGION:note]
+**선행 조건:** **Editor Scripting Utilities** (에디터 스크립팅 유틸리티) 플러그인을 미리 설치한 상태여야 합니다. 자세한 내용은 [](Engine/Editor/ScriptingAndAutomation) 문서를 참고하세요.
+[/REGION]
+
+%Globals:BlueprintOrPythonSelectVar%
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    blueprintimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    active_button_content
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#jacketingbp]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:jacketingbp]
+
+이 노드를 사용하려면, **PlacedEditorUtilityBase** 와 같은 에디터 전용 클래스에서 파생한 블루프린트 클래스여야 합니다. 자세한 내용은 [](Engine/Editor/ScriptingAndAutomation/Blueprints) 문서를 참고하세요.
+
+주로 사용하게 될 블루프린트 노드는 **Mesh Processing > Mesh Actor > Simplify Assembly** 입니다.
+
+![Simplify Assembly node](jacketing-simplify-assembly-bp.png "Simplify Assembly node")
+
+이 노드에 필요한 입력은 두 가지입니다.
+
+*   오클루전 테스트 도중 고려할 현재 레벨의 모든 액터가 들어있는 배열입니다.
+*   오클루전 테스트용 파라미터를 구성하는 **JacketingOptions** 오브젝트입니다. 이 오브젝트를 구성하려면:
+    1.  블루프린트의 **내 블루프린트** 패널에서 **+ 변수** 버튼을 클릭하여 새 변수를 추가합니다.  
+        ![Add variable](jacketing-add-variable.png "Add variable")
+    2.  변수 유형을 **Mesh Defeaturing Parameter Object** 의 레퍼런스로 설정합니다.  
+        ![Jacketing Options object reference](jacketing-object-reference.png "Jacketing Options object reference")
+    3.  변수를 블루프린트 그래프로 **Control** 드래그하여 그 변수 값을 가져오는 새 노드를 만듭니다.  
+        ![Drag and drop the variable](jacketing-drag-drop.png "Drag and drop the variable")
+    4.  새 변수 노드의 출력 포트를 오른쪽으로 드래그하고, **변수** 목록에서 수정하려는 세팅에 대한 **Set** 노드를 선택합니다.  
+        ![Drag right for the Jacketing Options API](jacketing-options-api.png "Drag right for the Jacketing Options API")
+
+**JacketingOptions** 를 레벨 대상 모드로 설정한 경우, **Apply Jacketing on Mesh Actors** 노드는 모든 시점에서 가려진 모든 스태틱 메시 액터 배열을 반환합니다. 그러면 이 목록을 대상으로 액터에 어떤 작업을 반복처리할 수 있습니다.
+
+예를 들어, 다음 블루프린트 그래프는 레베르이 모든 스태틱 메시 액터를 수집하고, 레벨 대상으로 재키팅 오클루전 테스트를 실행한 다음, 뷰포트 및 월드 아웃라이너에서 그 액터들을 선택합니다.
+
+[REGION:lightbox]
+[![Jacketing example](jacketing-example.png "Jacketing example")](jacketing-example.png)  
+*클릭하면 이미지 원본을 확인합니다.*
+[/REGION]
+
+[/EXCERPT:jacketingbp]
+-->
+
+[OBJECT:ToggleButtonContent]
+    [PARAMLITERAL:category]
+    BlueprintOrCPPSelect
+    [/PARAMLITERAL]
+    [PARAMLITERAL:id]
+    pythonimplementation
+    [/PARAMLITERAL]
+    [PARAMLITERAL:active]
+    [/PARAMLITERAL]
+    [PARAM:content]
+    [INCLUDE:#jacketingpy]
+    [/PARAM]
+[/OBJECT]
+
+<!--
+[EXCERPT:jacketingpy]
+
+현재 레벨의 스태틱 메시 액터 세트에 대한 오클루전 테스트 및 재키팅 프로세스를 실행하는 함수는 다음과 같습니다: `unreal.MeshProcessingLibrary.apply_jacketing_on_mesh_actors()`. 이 함수에 두 가지 파라미터를 전달해야 합니다.
+
+*   오클루전 테스트 도중 고려할 현재 레벨의 모든 액터가 들어있는 배열입니다.
+*   오클루전 테스트용 파라미터를 구성하는 `unreal.JacketingOptions` 오브젝트입니다. 이 오브젝트 새 인스턴스를 생성하려면 `unreal.JacketingOptions()` 함수를 호출한 뒤 조정하려는 프로퍼티를 구성합니다.
+
+`unreal.JacketingOptions.target` 프로퍼티를 `unreal.JacketingTarget.LEVEL` 로 구성하면, 함수는 완전히 가려진 것으로 간주하는 모든 메시 배열을 반환합니다. 이 목록을 처리하여 원하는 모든 작업을 수행할 수 있습니다.
+
+    # 레벨의 액터 목록을 가져옵니다. 이 경우 
+    # 사용자가 뷰포트에서 선택한 액터입니다.
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+
+    # 재키팅 옵션을 저장할 새 오브젝트를 생성합니다.
+    options = unreal.JacketingOptions()
+
+    # 복셀 그리드 해상도를 센티미터로 설정합니다.
+    options.accuracy = 0.2
+
+    # 채워진 것으로 간주할 최대 틈을 센티미터로 설정합니다.
+    options.merge_distance = 3
+
+    # 작업 대상으로, unreal.JacketingTarget.LEVEL, 또는 unreal.JacketingTarget.MESH 입니다.
+    options.target = unreal.JacketingTarget.LEVEL
+
+    # 재키팅 작업을 수행합니다.
+    # 레벨 대상 작업은 함수가 가려진 액터 목록을 반환합니다.
+    occluded = unreal.MeshProcessingLibrary.apply_jacketing_on_mesh_actors(actors, options)
+
+    # 가려진 액터에 어떤 작업을 합니다.
+    # 예를 들어, 이 루프는 가려진 액터 각각을 단순히 액터에서 삭제합니다.
+    for a in occluded:
+    a.destroy_actor()
+
+
+`unreal.JacketingOptions.target` 프로퍼티를 `unreal.JacketingTarget.MESH` 로 구성하면, 함수는 값을 반환하지 않습니다. 외부에서 보이지 않는 것으로 판단되는 트라이앵글은 그냥 제거합니다.
+
+예:
+
+    # 레벨의 액터 목록을 가져옵니다. 이 경우 
+    # 사용자가 뷰포트에서 선택한 액터입니다.
+    actors = unreal.EditorLevelLibrary.get_selected_level_actors()
+
+    # 재키팅 옵션을 저장할 새 오브젝트를 생성합니다.
+    options = unreal.JacketingOptions()
+
+    # 복셀 그리드 해상도를 센티미터로 설정합니다.
+    options.accuracy = 0.2
+
+    # 채워진 것으로 간주할 최대 틈을 센티미터로 설정합니다.
+    options.merge_distance = 3
+
+    # 작업 대상으로, unreal.JacketingTarget.LEVEL, 또는 unreal.JacketingTarget.MESH 입니다.
+    options.target = unreal.JacketingTarget.### 메시
+
+    # 재키팅 작업을 수행합니다.
+    # 메시 대상 작업은 함수가 외부에서 보이는 스태틱 메시 애셋의 
+    # 지오메트리 변경 사항을 바로 적용하도록 합니다.
+    unreal.MeshProcessingLibrary.apply_jacketing_on_mesh_actors(actors, options)
+
+[/EXCERPT:jacketingpy]
+-->

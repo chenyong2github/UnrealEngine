@@ -31,8 +31,8 @@
 
 #include "Modules/ModuleManager.h"
 #if WITH_PHYSX
-	#include "Physics/IPhysXCookingModule.h"
-	#include "Physics/IPhysXCooking.h"
+	#include "IPhysXCookingModule.h"
+	#include "IPhysXCooking.h"
 #endif
 
 #include "Physics/PhysicsInterfaceUtils.h"
@@ -106,27 +106,6 @@ namespace PhysXBodySetupCookStats
 DEFINE_STAT(STAT_PhysXCooking);
 
 #if WITH_PHYSX
-IPhysXCookingModule* GetPhysXCookingModule(bool bForceLoad)
-{
-	check(IsInGameThread());
-
-	if (bForceLoad)
-	{
-#if WITH_PHYSX_COOKING
-		return FModuleManager::LoadModulePtr<IPhysXCookingModule>("PhysXCooking");	//in some configurations (for example the editor) we must have physx cooking
-#else
-		return FModuleManager::LoadModulePtr<IPhysXCookingModule>("RuntimePhysXCooking");	//in some configurations (mobile) we can choose to opt in for physx cooking via plugin
-#endif
-	}
-	else
-	{
-#if WITH_PHYSX_COOKING
-		return FModuleManager::GetModulePtr<IPhysXCookingModule>("PhysXCooking");	//in some configurations (for example the editor) we must have physx cooking
-#else
-		return FModuleManager::GetModulePtr<IPhysXCookingModule>("RuntimePhysXCooking");	//in some configurations (mobile) we can choose to opt in for physx cooking via plugin
-#endif
-	}
-}
 
 bool IsRuntimeCookingEnabled()
 {

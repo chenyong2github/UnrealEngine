@@ -2226,12 +2226,16 @@ bool USkeletalMeshComponent::SweepComponent( FHitResult& OutHit, const FVector S
 {
 	bool bHaveHit = false;
 
+	FHitResult Hit;
 	for (int32 BodyIdx=0; BodyIdx < Bodies.Num(); ++BodyIdx)
 	{
-		if (Bodies[BodyIdx]->Sweep(OutHit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex))
+		if (Bodies[BodyIdx] && Bodies[BodyIdx]->Sweep(Hit, Start, End, ShapeWorldRotation, CollisionShape, bTraceComplex))
 		{
+			if (!bHaveHit || Hit.Time < OutHit.Time)
+			{
+				OutHit = Hit;
+			}
 			bHaveHit = true;
-			break;
 		}
 	}
 
@@ -2816,7 +2820,10 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 					if(SkelComp->ClothingSimulation)
 					{
-						SkelComp->ClothingSimulation->GetCollisions(NewCollisionData, false);
+						// append skeletal component collisions
+						FClothCollisionData SkelCollisionData;
+						SkelComp->ClothingSimulation->GetCollisions(SkelCollisionData, false);
+						NewCollisionData.Append(SkelCollisionData);
 					}
 				}
 			}

@@ -79,7 +79,7 @@ namespace BuildPatchServices
 			}
 			for (int32 ThreadIdx = 0; ThreadIdx < Config.NumberOfThreads; ++ThreadIdx)
 			{
-				WriterThreads.Add(Async<void>(EAsyncExecution::Thread, [this]()
+				WriterThreads.Add(Async(EAsyncExecution::Thread, [this]()
 				{
 					WriterThread();
 				}));

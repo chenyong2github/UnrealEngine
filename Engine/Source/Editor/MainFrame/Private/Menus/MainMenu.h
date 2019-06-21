@@ -94,15 +94,6 @@ private:
 	}
 
 	/**
-	* Opens the experimental blutility shelf tab.
-	* Remove this when it is no longer experimental.
-	*/
-	static void OpenBlutilityShelf()
-	{
-		FGlobalTabmanager::Get()->InvokeTab(FName(TEXT("BlutilityShelfApp")));
-	}
-
-	/**
 	* Opens the experimental Visual Logger tab.
 	* Remove this when it is no longer experimental.
 	*/

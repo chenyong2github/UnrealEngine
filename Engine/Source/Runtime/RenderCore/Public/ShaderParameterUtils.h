@@ -87,7 +87,7 @@ void SetShaderValue(
 	FRHICommandList& RHICmdList, 
 	ShaderRHIParamRef Shader,
 	const FShaderParameter& Parameter,
-	const bool& Value,
+	bool Value,
 	uint32 ElementIndex = 0
 	)
 {
@@ -101,7 +101,7 @@ void SetShaderValue(
 	FRHIAsyncComputeCommandList& RHICmdList,
 	ShaderRHIParamRef Shader,
 	const FShaderParameter& Parameter,
-	const bool& Value,
+	bool Value,
 	uint32 ElementIndex = 0
 	)
 {
@@ -162,7 +162,7 @@ void SetShaderValueArray(
  */
 inline void SetPixelShaderBool(
 	FRHICommandList& RHICmdList, 
-	FPixelShaderRHIParamRef PixelShader,
+	FRHIPixelShader* PixelShader,
 	const FShaderParameter& Parameter,
 	bool Value
 	)
@@ -187,10 +187,10 @@ inline void SetPixelShaderBool(
 /**
  * Sets the value of a shader texture parameter.  Template'd on shader type
  */
-template<typename ShaderTypeRHIParamRef, typename TRHICmdList>
+template<typename TRHIShader, typename TRHICmdList>
 FORCEINLINE void SetTextureParameter(
 	TRHICmdList& RHICmdList,
-	ShaderTypeRHIParamRef Shader,
+	TRHIShader* Shader,
 	const FShaderResourceParameter& TextureParameter,
 	const FShaderResourceParameter& SamplerParameter,
 	const FTexture* Texture,
@@ -228,14 +228,14 @@ FORCEINLINE void SetTextureParameter(
 /**
  * Sets the value of a shader texture parameter. Template'd on shader type.
  */
-template<typename ShaderTypeRHIParamRef, typename TRHICmdList>
+template<typename TRHIShader, typename TRHICmdList>
 FORCEINLINE void SetTextureParameter(
 	TRHICmdList& RHICmdList,
-	ShaderTypeRHIParamRef Shader,
+	TRHIShader* Shader,
 	const FShaderResourceParameter& TextureParameter,
 	const FShaderResourceParameter& SamplerParameter,
-	FSamplerStateRHIParamRef SamplerStateRHI,
-	FTextureRHIParamRef TextureRHI,
+	FRHISamplerState* SamplerStateRHI,
+	FRHITexture* TextureRHI,
 	uint32 ElementIndex = 0
 	)
 {
@@ -268,12 +268,12 @@ FORCEINLINE void SetTextureParameter(
  * Sets the value of a shader surface parameter (e.g. to access MSAA samples).
  * Template'd on shader type (e.g. pixel shader or compute shader).
  */
-template<typename ShaderTypeRHIParamRef, typename TRHICmdList>
+template<typename TRHIShader, typename TRHICmdList>
 FORCEINLINE void SetTextureParameter(
 	TRHICmdList& RHICmdList,
-	ShaderTypeRHIParamRef Shader,
+	TRHIShader* Shader,
 	const FShaderResourceParameter& Parameter,
-	FTextureRHIParamRef NewTextureRHI
+	FRHITexture* NewTextureRHI
 	)
 {
 	if(Parameter.IsBound())
@@ -289,12 +289,12 @@ FORCEINLINE void SetTextureParameter(
 /**
  * Sets the value of a shader sampler parameter. Template'd on shader type.
  */
-template<typename ShaderTypeRHIParamRef, typename TRHICmdList>
+template<typename TRHIShader, typename TRHICmdList>
 FORCEINLINE void SetSamplerParameter(
 	TRHICmdList& RHICmdList,
-	ShaderTypeRHIParamRef Shader,
+	TRHIShader* Shader,
 	const FShaderResourceParameter& Parameter,
-	FSamplerStateRHIParamRef SamplerStateRHI
+	FRHISamplerState* SamplerStateRHI
 	)
 {
 	if(Parameter.IsBound())
@@ -311,12 +311,12 @@ FORCEINLINE void SetSamplerParameter(
  * Sets the value of a shader resource view parameter
  * Template'd on shader type (e.g. pixel shader or compute shader).
  */
-template<typename ShaderTypeRHIParamRef, typename TRHICmdList>
+template<typename TRHIShader, typename TRHICmdList>
 FORCEINLINE void SetSRVParameter(
 	TRHICmdList& RHICmdList,
-	ShaderTypeRHIParamRef Shader,
+	TRHIShader* Shader,
 	const FShaderResourceParameter& Parameter,
-	FShaderResourceViewRHIParamRef NewShaderResourceViewRHI
+	FRHIShaderResourceView* NewShaderResourceViewRHI
 	)
 {
 	if(Parameter.IsBound())
@@ -329,15 +329,33 @@ FORCEINLINE void SetSRVParameter(
 	}
 }
 
+
+template<typename TRHIShader, typename TRHICmdList>
+FORCEINLINE void SetSRVParameter(
+	TRHICmdList& RHICmdList,
+	TRefCountPtr<TRHIShader> Shader,
+	const FShaderResourceParameter& Parameter,
+	FRHIShaderResourceView* NewShaderResourceViewRHI
+)
+{
+	if (Parameter.IsBound())
+	{
+		RHICmdList.SetShaderResourceViewParameter(
+			Shader.GetReference(),
+			Parameter.GetBaseIndex(),
+			NewShaderResourceViewRHI
+		);
+	}
+}
 /**
  * Sets the value of a unordered access view parameter
  */
 template<typename TRHICmdList>
 FORCEINLINE void SetUAVParameter(
-TRHICmdList& RHICmdList,
-	FComputeShaderRHIParamRef ComputeShader,
+	TRHICmdList& RHICmdList,
+	FRHIComputeShader* ComputeShader,
 	const FShaderResourceParameter& Parameter,
-	FUnorderedAccessViewRHIParamRef NewUnorderedAccessViewRHI
+	FRHIUnorderedAccessView* NewUnorderedAccessViewRHI
 	)
 {
 	if(Parameter.IsBound())
@@ -352,37 +370,37 @@ TRHICmdList& RHICmdList,
 
 
 template<typename TRHICmdList>
-inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, const FVertexShaderRHIParamRef Shader, const FShaderResourceParameter& UAVParameter, FUnorderedAccessViewRHIParamRef UAV)
+inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, FRHIVertexShader* Shader, const FShaderResourceParameter& UAVParameter, FRHIUnorderedAccessView* UAV)
 {
 	return false;
 }
 
 template<typename TRHICmdList>
-inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, const FPixelShaderRHIParamRef Shader, const FShaderResourceParameter& UAVParameter, FUnorderedAccessViewRHIParamRef UAV)
+inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, FRHIPixelShader* Shader, const FShaderResourceParameter& UAVParameter, FRHIUnorderedAccessView* UAV)
 {
 	return false;
 }
 
 template<typename TRHICmdList>
-inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, const FHullShaderRHIParamRef Shader, const FShaderResourceParameter& UAVParameter, FUnorderedAccessViewRHIParamRef UAV)
+inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, FRHIHullShader* Shader, const FShaderResourceParameter& UAVParameter, FRHIUnorderedAccessView* UAV)
 {
 	return false;
 }
 
 template<typename TRHICmdList>
-inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, const FDomainShaderRHIParamRef Shader, const FShaderResourceParameter& UAVParameter, FUnorderedAccessViewRHIParamRef UAV)
+inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, FRHIDomainShader* Shader, const FShaderResourceParameter& UAVParameter, FRHIUnorderedAccessView* UAV)
 {
 	return false;
 }
 
 template<typename TRHICmdList>
-inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, const FGeometryShaderRHIParamRef Shader, const FShaderResourceParameter& UAVParameter, FUnorderedAccessViewRHIParamRef UAV)
+inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, FRHIGeometryShader* Shader, const FShaderResourceParameter& UAVParameter, FRHIUnorderedAccessView* UAV)
 {
 	return false;
 }
 
 template<typename TRHICmdList>
-inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, const FComputeShaderRHIParamRef Shader, const FShaderResourceParameter& UAVParameter, FUnorderedAccessViewRHIParamRef UAV)
+inline bool SetUAVParameterIfCS(TRHICmdList& RHICmdList, FRHIComputeShader* Shader, const FShaderResourceParameter& UAVParameter, FRHIUnorderedAccessView* UAV)
 {
 	SetUAVParameter(RHICmdList, Shader, UAVParameter, UAV);
 	return UAVParameter.IsBound();
@@ -407,7 +425,7 @@ inline void FRWShaderParameter::SetBuffer(TRHICmdList& RHICmdList, TShaderRHIRef
 }
 
 template<typename TShaderRHIRef, typename TRHICmdList>
-inline void FRWShaderParameter::SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FTextureRHIParamRef Texture, FUnorderedAccessViewRHIParamRef UAV) const
+inline void FRWShaderParameter::SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, FRHITexture* Texture, FRHIUnorderedAccessView* UAV) const
 {
 	if (!SetUAVParameterIfCS(RHICmdList, Shader, UAVParameter, UAV))
 	{
@@ -416,7 +434,7 @@ inline void FRWShaderParameter::SetTexture(TRHICmdList& RHICmdList, TShaderRHIRe
 }
 
 template<typename TRHICmdList>
-inline void FRWShaderParameter::UnsetUAV(TRHICmdList& RHICmdList, FComputeShaderRHIParamRef ComputeShader) const
+inline void FRWShaderParameter::UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeShader* ComputeShader) const
 {
 	SetUAVParameter(RHICmdList, ComputeShader,UAVParameter,FUnorderedAccessViewRHIRef());
 }
@@ -445,7 +463,7 @@ inline void SetUniformBufferParameter(
 	TRHICmdList& RHICmdList,
 	TShaderRHIRef Shader,
 	const FShaderUniformBufferParameter& Parameter,
-	FUniformBufferRHIParamRef UniformBufferRHI
+	FRHIUniformBuffer* UniformBufferRHI
 	)
 {
 	// This will trigger if the parameter was not serialized

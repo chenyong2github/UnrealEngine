@@ -13,7 +13,7 @@ class UTexture;
 class UTakeRecorderActorSource;
 
 /** A recording source that records world state */
-UCLASS(Abstract, config = EditorSettings, DisplayName = "World Recorder Defaults")
+UCLASS(Abstract, config = EditorSettings, DisplayName = "World Recorder")
 class UTakeRecorderWorldSourceSettings : public UTakeRecorderSource
 {
 public:

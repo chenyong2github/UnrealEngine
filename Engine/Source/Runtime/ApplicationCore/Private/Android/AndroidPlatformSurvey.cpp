@@ -24,7 +24,7 @@ bool FAndroidPlatformSurvey::GetSurveyResults(FHardwareSurveyResults& OutResults
 
 	// display 0 is max size
 	int32 ScreenWidth, ScreenHeight;
-	FAndroidWindow::CalculateSurfaceSize(FAndroidWindow::GetHardwareWindow(), ScreenWidth, ScreenHeight);
+	FAndroidWindow::CalculateSurfaceSize(ScreenWidth, ScreenHeight);
 
 	OutResults.Displays[0].CurrentModeWidth = ScreenWidth;
 	OutResults.Displays[0].CurrentModeHeight = ScreenHeight;

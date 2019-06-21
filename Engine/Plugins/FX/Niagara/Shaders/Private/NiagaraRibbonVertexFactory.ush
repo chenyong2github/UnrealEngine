@@ -42,6 +42,8 @@ Buffer<float4> TangentsAndDistances;
 Buffer<uint> MultiRibbonIndices;
 Buffer<float> PackedPerRibbonDataByIndex;
 
+uint FacingMode;
+
 // Naming convention :
 // RawParticleId : Used to access per particle data stored in the VF. Actual particle data needs to be indirected through SortedIndices.
 // ParticleId : Used to access particle data in NiagaraVFParticleAccess.
@@ -89,6 +91,7 @@ struct FVertexFactoryIntermediates
 	float3 Right;
 	float3 Up;
 	float3 Facing;
+	float3 SideVector;
 	float4 TexCoord;
 	
 #if USE_PARTICLE_POSITION
@@ -341,7 +344,6 @@ bool UVIndexUseZW(int UVIndex)
 	#endif
 }
 
-
 float2 GetUV(FVertexFactoryInterpolantsVSToPS Interpolants, int UVIndex)
 {
 	float4 UVVector = Interpolants.TexCoords[UVIndex / 2];
@@ -556,7 +558,7 @@ float3 SafeNormalize(float3 V)
 #endif
 
 void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexFactoryIntermediates Intermediates)
-{
+{	
 	BRANCH
 	if(NiagaraRibbonVF.FacingDataOffset != -1)
 	{
@@ -567,14 +569,26 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 	else
 	{
 		Intermediates.Facing = normalize(ResolvedView.WorldCameraOrigin - Intermediates.Position);
-	}	
+	}
+
+	BRANCH
+    if (FacingMode == 2 /* CustomSide */)
+	{
+		Intermediates.SideVector = -Intermediates.Facing;
+		Intermediates.Right = normalize(Intermediates.SideVector - dot(Intermediates.SideVector, Intermediates.Direction * Intermediates.Direction));
+		Intermediates.Facing = normalize(cross(Intermediates.Direction, Intermediates.Right));
+	}
+	else
+	{
+		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
+		Intermediates.SideVector = Intermediates.Right;
+	}
 
 	ISOLATE
 	{
-		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
 		Intermediates.Up = cross(Intermediates.Right, Intermediates.Facing);
 	}
-
+	
 	BRANCH
 	if (NiagaraRibbonVF.TwistDataOffset != -1)
 	{
@@ -596,7 +610,7 @@ float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates 
 	{
 		// expand and align
 		int Sgn = (((int)Input.InterpVtxId & 0x1) * 2) - 1;
-		float3 Pos = Intermediates.Position.xyz + Intermediates.Right * Sgn * (Intermediates.RibbonWidth.xxx / 2);
+		float3 Pos = Intermediates.Position.xyz + Intermediates.SideVector * Sgn * (Intermediates.RibbonWidth.xxx / 2);
 		// Intermediates are already in world space, only need to account for the translation around view origin.
 		return float4(Pos + ResolvedView.PreViewTranslation, 1);
 	}
@@ -647,6 +661,12 @@ float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIn
 {
 	return CalcWorldPosition(Input, Intermediates);
 }
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.Facing;
+}
+
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
 {

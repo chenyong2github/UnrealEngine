@@ -1,16 +1,19 @@
-﻿Availability:NoPublish
+﻿INTSourceChangelist:3108692
+Availability:NoPublish
 Title:安装XCode 
 Crumbs:
-Description: 虚幻引擎4所有初级教程内容
+Description:虚幻引擎4所有指导教程的内容
 
 [EXCERPT:Stage1]
+(#installingxcode)
+
 ##安装XCode
 
-我们发现XCode未被安装。 
+似乎XCode尚未安装。 
 
-安装XCode将可以让您查看虚幻头文件，以及创建并编译您自己的代码项目。
+安装XCode后可查看虚幻标头文件，并创建和编译您的代码项目。
 
-您可以使用以下链接从Apple处下载并安装XCode:
+使用以下链接即可从Apple安装XCode：
 [安装XCode](https://developer.apple.com/xcode/)
 
 [![](DownloadXCode.png)](https://developer.apple.com/xcode/)

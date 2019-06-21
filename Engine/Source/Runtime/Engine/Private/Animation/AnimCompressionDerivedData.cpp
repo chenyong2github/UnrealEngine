@@ -14,252 +14,79 @@
 
 DECLARE_CYCLE_STAT(TEXT("Anim Compression (Derived Data)"), STAT_AnimCompressionDerivedData, STATGROUP_Anim);
 
-template<typename ArrayValue>
-void StripFramesEven(TArray<ArrayValue>& Keys, const int32 NumFrames)
-{
-	if (Keys.Num() > 1)
-	{
-		check(Keys.Num() == NumFrames);
-
-		for (int32 DstKey = 1, SrcKey = 2; SrcKey < NumFrames; ++DstKey, SrcKey+=2)
-		{
-			Keys[DstKey] = Keys[SrcKey];
-		}
-
-		const int32 HalfSize = (NumFrames - 1) / 2;
-		const int32 StartRemoval = HalfSize + 1;
-
-		Keys.RemoveAt(StartRemoval, NumFrames - StartRemoval);
-	}
-}
-
-template<typename ArrayValue>
-void StripFramesOdd(TArray<ArrayValue>& Keys, const int32 NumFrames)
-{
-	if (Keys.Num() > 1)
-	{
-		const int32 NewNumFrames = NumFrames / 2;
-
-		TArray<ArrayValue> NewKeys;
-		NewKeys.Reserve(NewNumFrames);
-
-		check(Keys.Num() == NumFrames);
-
-		NewKeys.Add(Keys[0]); //Always keep first 
-
-		//Always keep first and last
-		const int32 NumFramesToCalculate = NewNumFrames - 2;
-
-		// Frame increment is ratio of old frame spaces vs new frame spaces 
-		const double FrameIncrement = (double)(NumFrames - 1) / (double)(NewNumFrames - 1);
-			
-		for(int32 Frame=0; Frame < NumFramesToCalculate; ++Frame)
-		{
-			const double NextFramePosition = FrameIncrement * (Frame + 1);
-			const int32 Frame1 = (int32)NextFramePosition;
-			const float Alpha = (NextFramePosition - (double)Frame1);
-
-			NewKeys.Add(AnimationCompressionUtils::Interpolate(Keys[Frame1], Keys[Frame1 + 1], Alpha));
-
-		}
-
-		NewKeys.Add(Keys.Last()); // Always Keep Last
-
-		const int32 HalfSize = (NumFrames - 1) / 2;
-		const int32 StartRemoval = HalfSize + 1;
-
-		Keys = MoveTemp(NewKeys);
-	}
-}
-
-FDerivedDataAnimationCompression::FDerivedDataAnimationCompression(UAnimSequence* InAnimSequence, TSharedPtr<FAnimCompressContext> InCompressContext, bool bInDoCompressionInPlace, bool bInTryFrameStripping, bool bTryStrippingOnOddFramedAnims)
-	: OriginalAnimSequence(InAnimSequence)
-	, DuplicateSequence(nullptr)
+FDerivedDataAnimationCompression::FDerivedDataAnimationCompression(const TCHAR* InTypeName, const FString& InAssetDDCKey, TSharedPtr<FAnimCompressContext> InCompressContext, int32 InPreviousCompressedSize)
+	: TypeName(InTypeName)
+	, AssetDDCKey(InAssetDDCKey)
 	, CompressContext(InCompressContext)
-	, bDoCompressionInPlace(bInDoCompressionInPlace)
+	, PreviousCompressedSize(InPreviousCompressedSize)
 {
-	check(InAnimSequence != nullptr && InAnimSequence->GetSkeleton() != nullptr);
-	InAnimSequence->AddToRoot(); //Keep this around until we are finished
 
-	// Can only do stripping on animations that have an even number of frames once the end frame is removed)
-	bIsEvenFramed = ((OriginalAnimSequence->GetRawNumberOfFrames() - 1) % 2) == 0;
-	const bool bIsValidForStripping = bIsEvenFramed || bTryStrippingOnOddFramedAnims;
-
-	const bool bStripCandidate = (OriginalAnimSequence->GetRawNumberOfFrames() > 10) && bIsValidForStripping;
-	
-	bPerformStripping = bStripCandidate && bInTryFrameStripping;
 }
 
 FDerivedDataAnimationCompression::~FDerivedDataAnimationCompression()
 {
-	OriginalAnimSequence->RemoveFromRoot();
-	if (DuplicateSequence)
-	{
-		DuplicateSequence->ClearFlags(RF_Standalone | RF_Public);
-		DuplicateSequence->RemoveFromRoot();
-		DuplicateSequence->MarkPendingKill();
-	}
 }
 
-FString FDerivedDataAnimationCompression::GetPluginSpecificCacheKeySuffix() const
+const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
 {
-	enum { UE_ANIMCOMPRESSION_DERIVEDDATA_VER = 1 };
-
-	const bool bCanBakeAdditive = OriginalAnimSequence->CanBakeAdditive();
-	UAnimSequence* AdditiveBase = OriginalAnimSequence->RefPoseSeq;
-
-	//Make up our content key consisting of:
-	//	* Our plugin verison
-	//	* Global animation compression version
-	//	* Our raw data GUID
-	//	* Our skeleton GUID: If our skeleton changes our compressed data may now be stale
-	//	* Baked Additive Flag
-	//	* Additive ref pose GUID or hardcoded string if not available
-	//	* Compression Settings
-	//	* Curve compression settings
-
-	uint8 AdditiveSettings = bCanBakeAdditive ? (OriginalAnimSequence->RefPoseType << 4) + OriginalAnimSequence->AdditiveAnimType : 0;
-
-	char AdditiveType = bCanBakeAdditive ? NibbleToTChar(OriginalAnimSequence->AdditiveAnimType) : '0';
-	char RefType = bCanBakeAdditive ? NibbleToTChar(OriginalAnimSequence->RefPoseType) : '0';
-
-	const int32 StripFrame = bPerformStripping ? 1 : 0;
-
-	FString Ret = FString::Printf(TEXT("%i_%i_%i_%i_%s%s%s_%c%c%i_%s_%s_%s"),
-		(int32)UE_ANIMCOMPRESSION_DERIVEDDATA_VER,
-		(int32)CURRENT_ANIMATION_ENCODING_PACKAGE_VERSION,
-		OriginalAnimSequence->CompressCommandletVersion,
-		StripFrame,
-		*OriginalAnimSequence->GetRawDataGuid().ToString(),
-		*OriginalAnimSequence->GetSkeleton()->GetGuid().ToString(),
-		*OriginalAnimSequence->GetSkeleton()->GetVirtualBoneGuid().ToString(),
-		AdditiveType,
-		RefType,
-		OriginalAnimSequence->RefFrameIndex,
-		(bCanBakeAdditive && AdditiveBase) ? *AdditiveBase->GetRawDataGuid().ToString() : TEXT("NoAdditiveBase"),
-		*OriginalAnimSequence->CompressionScheme->MakeDDCKey(),
-		*OriginalAnimSequence->CurveCompressionSettings->MakeDDCKey()
-		);
-
-	return Ret;
+	// This is a version string that mimics the old versioning scheme. If you
+	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
+	// return it here. Ex.
+	return TEXT("2E79BF10172A48FDACA76883B8951538");
 }
 
-bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutData )
+bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 {
+	check(DataToCompressPtr.IsValid());
+	FCompressibleAnimData& DataToCompress = *DataToCompressPtr.Get();
+	FCompressedAnimSequence OutData;
+
 	SCOPE_CYCLE_COUNTER(STAT_AnimCompressionDerivedData);
-	UE_LOG(LogAnimationCompression, Log, TEXT("Building Anim DDC data for %s"), *OriginalAnimSequence->GetFullName());
-	check(OriginalAnimSequence != NULL);
+	UE_LOG(LogAnimationCompression, Log, TEXT("Building Anim DDC data for %s"), *DataToCompress.FullName);
 
-	UAnimSequence* AnimToOperateOn;
-
-	if (!bDoCompressionInPlace)
-	{
-		DuplicateSequence = DuplicateObject<UAnimSequence>(OriginalAnimSequence, GetTransientPackage(), OriginalAnimSequence->GetFName());
-		DuplicateSequence->AddToRoot();
-		AnimToOperateOn = DuplicateSequence;
-	}
-	else
-	{
-		AnimToOperateOn = OriginalAnimSequence;
-	}
+	FCompressibleAnimDataResult CompressionResult;
 
 	bool bCompressionSuccessful = false;
 	{
-		FScopedAnimSequenceRawDataCache RawDataCache;
-		const bool bHasVirtualBones = AnimToOperateOn->GetSkeleton()->GetVirtualBones().Num() > 0;
-		const bool bNeedToModifyRawData = AnimToOperateOn->CanBakeAdditive() || bHasVirtualBones || bPerformStripping;
-		if (bDoCompressionInPlace && bNeedToModifyRawData)
-		{
-			//Cache original raw data before we mess with it
-			RawDataCache.InitFrom(AnimToOperateOn);
-		}
+		DataToCompress.Update(OutData);
 
-		if (AnimToOperateOn->CanBakeAdditive())
-		{
-			AnimToOperateOn->BakeOutAdditiveIntoRawData();
-		}
-		else if(bHasVirtualBones)// If we aren't additive we must bake virtual bones
-		{
-			AnimToOperateOn->BakeOutVirtualBoneTracks();
-		}
-
-		if (bPerformStripping)
-		{
-			const int32 NumFrames = AnimToOperateOn->GetRawNumberOfFrames();
-			const int32 NumTracks = AnimToOperateOn->GetRawAnimationData().Num();
-
-			//Strip every other frame from tracks
-			if(bIsEvenFramed)
-			{
-				for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
-				{
-					FRawAnimSequenceTrack& Track = AnimToOperateOn->GetRawAnimationTrack(TrackIndex);
-
-					StripFramesEven(Track.PosKeys, NumFrames);
-					StripFramesEven(Track.RotKeys, NumFrames);
-					StripFramesEven(Track.ScaleKeys, NumFrames);
-				}
-
-				const int32 ActualFrames = AnimToOperateOn->GetRawNumberOfFrames() - 1; // strip bookmark end frame
-				AnimToOperateOn->SetRawNumberOfFrame((ActualFrames / 2) + 1);
-			}
-			else
-			{
-				for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
-				{
-					FRawAnimSequenceTrack& Track = AnimToOperateOn->GetRawAnimationTrack(TrackIndex);
-
-					StripFramesOdd(Track.PosKeys, NumFrames);
-					StripFramesOdd(Track.RotKeys, NumFrames);
-					StripFramesOdd(Track.ScaleKeys, NumFrames);
-				}
-
-				const int32 ActualFrames = AnimToOperateOn->GetRawNumberOfFrames(); // strip bookmark end frame
-				AnimToOperateOn->SetRawNumberOfFrame((ActualFrames / 2));
-			}
-		}
-
-		AnimToOperateOn->UpdateCompressedTrackMapFromRaw();
-		AnimToOperateOn->UpdateCompressedCurveNames();
-
-		bool bCurveCompressionSuccess = FAnimationUtils::CompressAnimCurves(*AnimToOperateOn);
+		bool bCurveCompressionSuccess = FAnimationUtils::CompressAnimCurves(DataToCompress, OutData);
 
 #if DO_CHECK
-		FString CompressionName = AnimToOperateOn->CompressionScheme->GetFullName();
+		FString CompressionName = DataToCompress.RequestedCompressionScheme->GetFullName();
 		const TCHAR* AAC = CompressContext.Get()->bAllowAlternateCompressor ? TEXT("true") : TEXT("false");
 		const TCHAR* OutputStr = CompressContext.Get()->bOutput ? TEXT("true") : TEXT("false");
 #endif
 
-		AnimToOperateOn->UpdateCompressedNumFramesFromRaw(); //Do this before compression so compress code can read the correct value
+		CompressionResult.CompressedNumberOfFrames = DataToCompress.NumFrames; //Do this before compression so compress code can read the correct value
 
-		FAnimationUtils::CompressAnimSequence(AnimToOperateOn, *CompressContext.Get());
-		bCompressionSuccessful = AnimToOperateOn->IsCompressedDataValid() && bCurveCompressionSuccess;
+		CompressContext->GatherPreCompressionStats(DataToCompress, PreviousCompressedSize);
+
+		FAnimationUtils::CompressAnimSequence(DataToCompress, CompressionResult, *CompressContext.Get());
+		bCompressionSuccessful = (CompressionResult.IsCompressedDataValid() || DataToCompress.RawAnimationData.Num() == 0) && bCurveCompressionSuccess;
 
 		ensureMsgf(bCompressionSuccessful, TEXT("Anim Compression failed for Sequence '%s' with compression scheme '%s': compressed data empty\n\tAnimIndex: %i\n\tMaxAnim:%i\n\tAllowAltCompressor:%s\n\tOutput:%s"), 
-											*AnimToOperateOn->GetFullName(), 
+											*DataToCompress.FullName,
 											*CompressionName,
 											CompressContext.Get()->AnimIndex,
 											CompressContext.Get()->MaxAnimations,
 											AAC,
 											OutputStr);
 
-		AnimToOperateOn->CompressedRawDataSize = AnimToOperateOn->GetApproxRawSize();
-		AnimToOperateOn->TestEvalauteAnimation(); //Validate that compressed data is readable. 
-	}
+		if (CompressionResult.IsCompressedDataValid())
+		{
+			CompressionResult.BuildFinalBuffer(OutData.CompressedByteStream); // Build final compressed data buffer
 
-	//Our compression scheme may change so copy the new one back
-	if (OriginalAnimSequence != AnimToOperateOn)
-	{
-		CA_SUPPRESS(6011); // See https://connect.microsoft.com/VisualStudio/feedback/details/3007725
-		OriginalAnimSequence->CompressionScheme = static_cast<UAnimCompress*>(StaticDuplicateObject(AnimToOperateOn->CompressionScheme, OriginalAnimSequence));
-		OriginalAnimSequence->CurveCompressionSettings = AnimToOperateOn->CurveCompressionSettings;
+			OutData.CompressedDataStructure.CopyFrom(CompressionResult); //Copy header info
+			OutData.CompressedDataStructure.InitViewsFromBuffer(OutData.CompressedByteStream); //Init views to CompressedByteStream
+			
+		}
 	}
 
 	if (bCompressionSuccessful)
 	{
-		AnimToOperateOn->SetSkeletonVirtualBoneGuid(AnimToOperateOn->GetSkeleton()->GetVirtualBoneGuid());
-		FMemoryWriter Ar(OutData, true);
-		AnimToOperateOn->SerializeCompressedData(Ar, true); //Save out compressed
+		FMemoryWriter Ar(OutDataArray, true);
+		OutData.SerializeCompressedData(Ar, true, nullptr, DataToCompress.Skeleton, DataToCompress.CurveCompressionSettings); //Save out compressed
 	}
 
 	return bCompressionSuccessful;

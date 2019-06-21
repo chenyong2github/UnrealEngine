@@ -326,6 +326,11 @@ public:
 	DECLARE_EVENT_OneParam(UVREditorMode, FOnToggleVRModeDebug, bool);
 	FOnToggleVRModeDebug& OnToggleDebugMode() { return OnToggleDebugModeEvent; };
 
+	const TArray<UVREditorInteractor*> GetVRInteractors() const
+	{
+		return Interactors;
+	}
+
 protected:
 
 	virtual void TransitionWorld(UWorld* NewWorld, EEditorWorldExtensionTransitionState TransitionState) override;
@@ -491,7 +496,7 @@ public:
 	void RefreshActorPreviewWidget(TSharedRef<SWidget> InWidget, int32 Index, AActor *Actor);
 
 	/** General way to spawn an external UMG UI from a radial menu */
-	void UpdateExternalUMGUI(TSubclassOf<class UUserWidget> InUMGClass, FName Name, FVector2D InSize);
+	void UpdateExternalUMGUI(const struct FVREditorFloatingUICreationContext& CreationContext);
 
 	/** General way to spawn an external Slate UI from a radial menu */
 	void UpdateExternalSlateUI(TSharedRef<SWidget> InWidget, FName Name, FVector2D InSize);

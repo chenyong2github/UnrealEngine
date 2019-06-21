@@ -77,7 +77,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 
 		ResourceId.Usage = Usage;
 
-		CacheShaders(ResourceId, GMaxRHIShaderPlatform, true);
+		CacheShaders(ResourceId, GMaxRHIShaderPlatform);
 	}
 	else
 	{
@@ -166,6 +166,11 @@ enum EBlendMode FDebugViewModeMaterialProxy::GetBlendMode() const
 FMaterialShadingModelField FDebugViewModeMaterialProxy::GetShadingModels() const
 { 
 	return Material ? Material->GetShadingModels() : MSM_Unlit;
+}
+
+bool FDebugViewModeMaterialProxy::IsShadingModelFromMaterialExpression() const
+{ 
+	return Material ? Material->IsShadingModelFromMaterialExpression() : false;
 }
 
 float FDebugViewModeMaterialProxy::GetOpacityMaskClipValue() const

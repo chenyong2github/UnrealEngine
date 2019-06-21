@@ -26,7 +26,7 @@ source "$BASE_PATH/SetupMono.sh" "$BASE_PATH"
 "${BASE_PATH}/../FindPlatformExtensionSources.sh"
 
 if [ -f "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" ]; then
-	xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo
+	xbuild "$BASE_PATH/../../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj" /property:Configuration="Development" /verbosity:quiet /nologo /p:NoWarn=1591
 fi
 
 # pass all parameters to UBT

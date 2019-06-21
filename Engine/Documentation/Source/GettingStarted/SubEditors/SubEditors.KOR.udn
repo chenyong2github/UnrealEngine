@@ -1,10 +1,11 @@
-﻿INTSourceChangelist:3807090
+﻿INTSourceChangelist:6536723
 Availability: Public
 Title:툴 및 에디터
 Crumbs: %ROOT%, Gameplay, GettingStarted
 Description:언리얼 엔진 4 에는 여러가지 다양한 에디터 유형이 포함되어 있으며, 여기서는 그 각각을 집중 조명해 봅니다.
 version: 4.9
 topic-image:editortypes_topic.png
+Order: 6
 
 
 이 글은 언리얼 엔진 4 안에서 작업시 만날 수 있는 여러가지 다양한 유형의 에디터 각각에 대한 개요서 역할을 하고자 합니다. 게임의 레벨을 제작하는 **레벨 에디터** 안에 있든, 레벨의 액터에 대한 스크립트 작동방식을 짜는 **블루프린트 에디터** 작업을 하든, **캐스케이드 에디터** 로 파티클 이펙트를 만들든, **페르소나 에디터** 에서 캐릭터 애니메이션을 구성중이든, 각 에디터가 하는 일은 무엇이고 각각의 조작법을 잘 알아두면 작업방식을 개선시켜 개발 도중 발부리에 걸리는 장애물을 방지하는 데 도움이 될 것입니다.
@@ -538,7 +539,7 @@ topic-image:editortypes_topic.png
 
 
 
-자세한 정보: [](Engine/Physics/PhAT)
+자세한 정보: [](Engine/Physics/PhysicsAssetEditor)
 [/EXCERPT:phateditor]
 
 ---

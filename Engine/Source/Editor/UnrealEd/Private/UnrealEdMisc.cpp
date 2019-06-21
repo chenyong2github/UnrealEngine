@@ -11,9 +11,11 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
+#include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/InputBindingManager.h"
 #include "Framework/Docking/TabManager.h"
+#include "Toolkits/FConsoleCommandExecutor.h"
 #include "TexAlignTools.h"
 #include "ISourceControlModule.h"
 #include "Editor/UnrealEdEngine.h"
@@ -80,6 +82,7 @@
 #include "IVREditorModule.h"
 #include "ILauncherPlatform.h"
 #include "LauncherPlatformModule.h"
+#include "ILauncherServicesModule.h"
 
 #define USE_UNIT_TESTS 0
 
@@ -228,6 +231,10 @@ void FUnrealEdMisc::OnInit()
 	FScopedSlowTask SlowTask(100);
 	SlowTask.EnterProgressFrame(10);
 
+	// Register the command executor
+	CmdExec = MakeUnique<FConsoleCommandExecutor>();
+	IModularFeatures::Get().RegisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CmdExec.Get());
+
 	// Register all callback notifications
 	FEditorDelegates::SelectedProps.AddRaw(this, &FUnrealEdMisc::CB_SelectedProps);
 	FEditorDelegates::DisplayLoadErrors.AddRaw(this, &FUnrealEdMisc::CB_DisplayLoadErrors);
@@ -257,7 +264,6 @@ void FUnrealEdMisc::OnInit()
 	FPlayWorldCommands::Register();
 	FPlayWorldCommands::BindGlobalPlayWorldCommands();
 
-
 	// Register common asset editor commands
 	FAssetEditorCommonCommands::Register();
 
@@ -277,7 +283,6 @@ void FUnrealEdMisc::OnInit()
 	FUserActivityTracking::SetActivity(FUserActivity(TEXT("EditorInit"), EUserActivityContext::Editor));
 
 	FEditorModeRegistry::Initialize();
-
 
 	// Are we in immersive mode?
 	const TCHAR* ParsedCmdLine = FCommandLine::Get();
@@ -985,6 +990,10 @@ void FUnrealEdMisc::OnExit()
 		}
 		FPlatformProcess::CloseProc(Handle);
 	}
+
+	// Unregister the command executor
+	IModularFeatures::Get().UnregisterModularFeature(IConsoleCommandExecutor::ModularFeatureName(), CmdExec.Get());
+	CmdExec.Reset();
 
 	//Release static class to be sure its not release in a random way. This class use a static multicastdelegate which can be delete before and crash the editor on exit
 	GTexAlignTools.Release();
@@ -1817,29 +1826,8 @@ bool FUnrealEdMisc::GetURL( const TCHAR* InKey, FString& OutURL, const bool bChe
 
 FString FUnrealEdMisc::GetExecutableForCommandlets() const
 {
-	FString ExecutableName = FString(FPlatformProcess::ExecutablePath());
-#if PLATFORM_WINDOWS
-	// turn UE4editor into UE4editor-cmd
-	if(ExecutableName.EndsWith(".exe", ESearchCase::IgnoreCase) && !FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
-	{
-		FString NewExeName = ExecutableName.Left(ExecutableName.Len() - 4) + "-Cmd.exe";
-		if (FPaths::FileExists(NewExeName))
-		{
-			ExecutableName = NewExeName;
-		}
-	}
-#elif PLATFORM_MAC
-	// turn UE4editor into UE4editor-cmd
-	if (!FPaths::GetBaseFilename(ExecutableName).EndsWith("-cmd", ESearchCase::IgnoreCase))
-	{
-		FString NewExeName = ExecutableName + "-Cmd";
-		if (FPaths::FileExists(NewExeName))
-		{
-			ExecutableName = NewExeName;
-		}
-	}
-#endif
-	return ExecutableName;
+	ILauncherServicesModule& LauncherServicesModule = FModuleManager::LoadModuleChecked<ILauncherServicesModule>(TEXT("LauncherServices"));
+	return LauncherServicesModule.GetExecutableForCommandlets();
 }
 
 void FUnrealEdMisc::OpenMarketplace(const FString& CustomLocation)

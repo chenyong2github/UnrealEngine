@@ -72,9 +72,9 @@ public:
 		FrustumComponentToClip.Bind(Initializer.ParameterMap, TEXT("FrustumComponentToClip"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FUniformBufferRHIParamRef ViewUniformBuffer, const FMatrix& InFrustumComponentToClip)
+	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FMatrix& InFrustumComponentToClip)
 	{
-		const FVertexShaderRHIParamRef ShaderRHI = GetVertexShader();
+		FRHIVertexShader* ShaderRHI = GetVertexShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, ViewUniformBuffer);
 		SetShaderValue(RHICmdList, ShaderRHI, FrustumComponentToClip, InFrustumComponentToClip);
@@ -106,15 +106,15 @@ public:
 	  * as 'UsedAsDeferredDecal' in the Material Editor gets compiled into
 	  * the shader cache.
 	  */
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return Material->IsDeferredDecal();
+		return Parameters.Material->IsDeferredDecal();
 	}
 
-	static void ModifyCompilationEnvironment( EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment )
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
 	{
-		FMaterialShader::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
-		FDecalRendering::SetDecalCompilationEnvironment(Platform, Material, OutEnvironment);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
+		FDecalRendering::SetDecalCompilationEnvironment(Parameters.Platform, Parameters.Material, OutEnvironment);
 	}
 
 	FDeferredDecalPS() {}
@@ -130,7 +130,7 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FMaterialRenderProxy* MaterialProxy, const FDeferredDecalProxy& DecalProxy, const float FadeAlphaValue=1.0f)
 	{
-		const FPixelShaderRHIParamRef ShaderRHI = GetPixelShader();
+		FRHIPixelShader* ShaderRHI = GetPixelShader();
 
 		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::All);
 
@@ -182,7 +182,14 @@ public:
 			SetShaderValue(RHICmdList, ShaderRHI, DecalOrientation, ComponentTrans.GetUnitAxis(EAxis::X));
 		}
 		
-		float LifetimeAlpha = FMath::Clamp(FMath::Min(View.Family->CurrentWorldTime * -DecalProxy.InvFadeDuration + DecalProxy.FadeStartDelayNormalized, View.Family->CurrentWorldTime * DecalProxy.InvFadeInDuration + DecalProxy.FadeInStartDelayNormalized), 0.0f, 1.0f);
+		float LifetimeAlpha = 1.0f;
+
+		// Certain engine captures (e.g. environment reflection) don't have a tick. Default to fully opaque.
+		if (View.Family->CurrentWorldTime)
+		{
+			LifetimeAlpha = FMath::Clamp(FMath::Min(View.Family->CurrentWorldTime * -DecalProxy.InvFadeDuration + DecalProxy.FadeStartDelayNormalized, View.Family->CurrentWorldTime * DecalProxy.InvFadeInDuration + DecalProxy.FadeInStartDelayNormalized), 0.0f, 1.0f);
+		}
+ 
 		SetShaderValue(RHICmdList, ShaderRHI, DecalParams, FVector2D(FadeAlphaValue, LifetimeAlpha));
 	}
 
@@ -207,16 +214,16 @@ class FDeferredDecalEmissivePS : public FDeferredDecalPS
 {
 	DECLARE_SHADER_TYPE(FDeferredDecalEmissivePS, Material);
 public:
-	static bool ShouldCompilePermutation(EShaderPlatform Platform, const FMaterial* Material)
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
 	{
-		return FDeferredDecalPS::ShouldCompilePermutation(Platform, Material)
-			&& Material->HasEmissiveColorConnected()
-			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Platform, Material));
+		return FDeferredDecalPS::ShouldCompilePermutation(Parameters)
+			&& Parameters.Material->HasEmissiveColorConnected()
+			&& IsDBufferDecalBlendMode(FDecalRenderingCommon::ComputeFinalDecalBlendMode(Parameters.Platform, Parameters.Material));
 	}
-	static void ModifyCompilationEnvironment(EShaderPlatform Platform, const FMaterial* Material, FShaderCompilerEnvironment& OutEnvironment)
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FDeferredDecalPS::ModifyCompilationEnvironment(Platform, Material, OutEnvironment);
-		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Platform, Material, OutEnvironment);
+		FDeferredDecalPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FDecalRendering::SetEmissiveDBufferDecalCompilationEnvironment(Parameters.Platform, Parameters.Material, OutEnvironment);
 	}
 
 	FDeferredDecalEmissivePS() {}

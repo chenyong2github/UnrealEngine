@@ -209,26 +209,14 @@ void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FEx
 	{
 		// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
 		// When the feature becomes permanent and need not check a flag, register a nomad spawner for it in the proper WorkspaceMenu category
-		bool bBlutility = GetDefault<UEditorExperimentalSettings>()->bEnableEditorUtilityBlueprints;
 		bool bLocalizationDashboard = GetDefault<UEditorExperimentalSettings>()->bEnableLocalizationDashboard;
 		bool bTranslationPicker = GetDefault<UEditorExperimentalSettings>()->bEnableTranslationPicker;
 
 		// Make sure at least one is enabled before creating the section
-		if (bBlutility || bLocalizationDashboard || bTranslationPicker)
+		if (bLocalizationDashboard || bTranslationPicker)
 		{
 			MenuBuilder.BeginSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
 			{
-				// Blutility
-				if (bBlutility)
-				{
-					MenuBuilder.AddMenuEntry(
-						LOCTEXT("BlutilityShelfLabel", "Blutility Shelf"),
-						LOCTEXT("BlutilityShelfToolTip", "Open the blutility shelf."),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateStatic(&FMainMenu::OpenBlutilityShelf))
-						);
-				}
-
 				// Localization Dashboard
 				if (bLocalizationDashboard)
 				{
@@ -259,7 +247,7 @@ void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FEx
 	{
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ResetLayout);
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().SaveLayout);
-#if !PLATFORM_MAC // On Mac windowed fullscreen mode in the editor is currently unavailable
+#if !PLATFORM_MAC && !PLATFORM_LINUX // On Mac/Linux windowed fullscreen mode in the editor is currently unavailable
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ToggleFullscreen);
 #endif
 	}
