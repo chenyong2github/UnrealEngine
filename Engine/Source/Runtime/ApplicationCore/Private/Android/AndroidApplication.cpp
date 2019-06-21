@@ -70,9 +70,9 @@ void FAndroidApplication::PollGameDeviceState( const float TimeDelta )
 	InputInterface->Tick( TimeDelta );
 	InputInterface->SendControllerEvents();
 	
+	// Note: We're using window size values cached on GT. We dont wait for a valid HW window.
 	if (bWindowSizeChanged && 
-		Windows.Num() > 0 && 
-		FAndroidWindow::GetHardwareWindow() != nullptr)
+		Windows.Num() > 0)
 	{
 		int32 WindowX,WindowY, WindowWidth,WindowHeight;
 		Windows[0]->GetFullScreenInfo(WindowX, WindowY, WindowWidth, WindowHeight);
