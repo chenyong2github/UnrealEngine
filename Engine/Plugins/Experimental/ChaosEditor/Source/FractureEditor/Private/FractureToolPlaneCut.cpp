@@ -54,18 +54,10 @@ FSlateIcon UFractureToolPlaneCut::GetToolIcon() const
 
 void UFractureToolPlaneCut::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, 
-					UICommandInfo,
-					"Planar", 
-					"Planar",
-					"Planar Voronoi Fracture",
-					EUserInterfaceActionType::ToggleButton, 
-					FInputChord() 
-	);
-
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Planar", "Planar", "Planar Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Planar = UICommandInfo;
-
 }
+
 void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	const UFracturePlaneCutSettings* LocalCutSettings = GetMutableDefault<UFracturePlaneCutSettings>();
