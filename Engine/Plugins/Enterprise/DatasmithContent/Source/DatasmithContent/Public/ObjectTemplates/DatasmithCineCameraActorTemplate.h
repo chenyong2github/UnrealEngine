@@ -18,6 +18,9 @@ public:
 	uint8 bEnableLookAtTracking : 1;
 
 	UPROPERTY()
+	uint8 bAllowRoll : 1;
+
+	UPROPERTY()
 	TSoftObjectPtr< AActor > ActorToTrack;
 
 public:
