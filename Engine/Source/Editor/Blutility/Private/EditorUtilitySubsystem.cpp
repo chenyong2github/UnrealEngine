@@ -106,26 +106,27 @@ void UEditorUtilitySubsystem::ReleaseInstanceOfAsset(UObject* Asset)
 
 UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTab(UEditorUtilityWidgetBlueprint* InBlueprint)
 {
-	if (IsRunningCommandlet())
+
+	if (InBlueprint && !IsRunningCommandlet())
 	{
-		return nullptr;
+		FName RegistrationName = FName(*(InBlueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
+		FText DisplayName = FText::FromString(InBlueprint->GetName());
+		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
+		if (!LevelEditorTabManager->HasTabSpawner(RegistrationName))
+		{
+			IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
+			LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(InBlueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
+				.SetDisplayName(DisplayName)
+				.SetGroup(BlutilityModule->GetMenuGroup().ToSharedRef());
+			InBlueprint->SetRegistrationName(RegistrationName);
+			BlutilityModule->AddLoadedScriptUI(InBlueprint);
+		}
+		TSharedRef<SDockTab> NewDockTab = LevelEditorTabManager->InvokeTab(RegistrationName);
+		return InBlueprint->GetCreatedWidget();
 	}
 
-	FName RegistrationName = FName(*(InBlueprint->GetPathName() + LOCTEXT("ActiveTabSuffix", "_ActiveTab").ToString()));
-	FText DisplayName = FText::FromString(InBlueprint->GetName());
-	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
-	if (!LevelEditorTabManager->HasTabSpawner(RegistrationName))
-	{
-		IBlutilityModule* BlutilityModule = FModuleManager::GetModulePtr<IBlutilityModule>("Blutility");
-		LevelEditorTabManager->RegisterTabSpawner(RegistrationName, FOnSpawnTab::CreateUObject(InBlueprint, &UEditorUtilityWidgetBlueprint::SpawnEditorUITab))
-			.SetDisplayName(DisplayName)
-			.SetGroup(BlutilityModule->GetMenuGroup().ToSharedRef());
-		InBlueprint->SetRegistrationName(RegistrationName);
-		BlutilityModule->AddLoadedScriptUI(InBlueprint);
-	}
-	TSharedRef<SDockTab> NewDockTab = LevelEditorTabManager->InvokeTab(RegistrationName);
-	return InBlueprint->GetCreatedWidget();
+	return nullptr;
 }
 
 
