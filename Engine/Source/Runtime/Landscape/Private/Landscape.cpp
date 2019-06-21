@@ -60,6 +60,7 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "LandscapeDataAccess.h"
+#include "UObject/EditorObjectVersion.h"
 
 /** Landscape stats */
 
