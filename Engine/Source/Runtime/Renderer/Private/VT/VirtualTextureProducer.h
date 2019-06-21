@@ -19,6 +19,7 @@ public:
 
 	inline const FVTProducerDescription& GetDescription() const { return Description; }
 	inline IVirtualTexture* GetVirtualTexture() const { return VirtualTexture; }
+	inline const FName& GetName() const { return Description.Name; }
 	inline uint32 GetNumLayers() const { return Description.NumLayers; }
 	inline uint32 GetWidthInTiles() const { return Description.BlockWidthInTiles * Description.WidthInBlocks; }
 	inline uint32 GetHeightInTiles() const { return Description.BlockHeightInTiles * Description.HeightInBlocks; }
