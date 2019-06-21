@@ -221,6 +221,7 @@ void OcclusionRGS()
 	#endif
 
 			FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
+			Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
 		
 			TraceRay(
 				TLAS,      // AccelerationStructure
