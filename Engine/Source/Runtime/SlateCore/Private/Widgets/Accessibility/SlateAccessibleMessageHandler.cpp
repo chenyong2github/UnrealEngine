@@ -18,6 +18,7 @@ FSlateAccessibleMessageHandler::FSlateAccessibleMessageHandler()
 	: FGenericAccessibleMessageHandler()
 	, bDirty(false)
 {
+	bApplicationIsAccessible = true;
 }
 
 void FSlateAccessibleMessageHandler::OnActivate()

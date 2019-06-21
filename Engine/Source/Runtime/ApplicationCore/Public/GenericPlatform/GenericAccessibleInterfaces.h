@@ -429,7 +429,7 @@ public:
 		/** If this was a property changed event, the 'after' value. This may also be set for other events such as Notification. */
 		FVariant);
 
-	FGenericAccessibleMessageHandler() : bIsActive(false) {}
+	FGenericAccessibleMessageHandler() : bApplicationIsAccessible(false), bIsActive(false) {}
 
 	virtual ~FGenericAccessibleMessageHandler()
 	{
@@ -444,7 +444,7 @@ public:
 	 *
 	 * @return true if the application intends to return valid accessible widgets when queried.
 	 */
-	virtual bool ApplicationIsAccessible() const { return false; }
+	bool ApplicationIsAccessible() const;
 
 	/**
 	 * Checks if accessibility is enabled in the application. Usually this happens when screen-reading software is turned on.
@@ -459,24 +459,7 @@ public:
 	 *
 	 * @param bActive Whether to enable to disable the message handler.
 	 */
-	void SetActive(bool bActive)
-	{
-		if (bActive != bIsActive)
-		{
-			bIsActive = bActive;
-
-			if (bIsActive)
-			{
-				UE_LOG(LogAccessibility, Verbose, TEXT("Enabling Accessibility"));
-				OnActivate();
-			}
-			else
-			{
-				OnDeactivate();
-				UE_LOG(LogAccessibility, Verbose, TEXT("Accessibility Disabled"));
-			}
-		}
-	}
+	void SetActive(bool bActive);
 
 	/**
 	 * Creates or retrieves an accessible object for a native OS window.
@@ -532,6 +515,9 @@ protected:
 	virtual void OnActivate() {}
 	/** Triggered when bIsActive changes from true to false. */
 	virtual void OnDeactivate() {}
+
+	/** Subclasses should override this to indicate that they support accessibility. */
+	bool bApplicationIsAccessible;
 
 private:
 	/** Whether or not accessibility is currently enabled in the application */
