@@ -467,13 +467,13 @@ public:
 
 			if (bIsActive)
 			{
-				UE_LOG(LogAccessibility, Log, TEXT("Enabling Accessibility"));
+				UE_LOG(LogAccessibility, Verbose, TEXT("Enabling Accessibility"));
 				OnActivate();
 			}
 			else
 			{
 				OnDeactivate();
-				UE_LOG(LogAccessibility, Log, TEXT("Accessibility Disabled"));
+				UE_LOG(LogAccessibility, Verbose, TEXT("Accessibility Disabled"));
 			}
 		}
 	}
