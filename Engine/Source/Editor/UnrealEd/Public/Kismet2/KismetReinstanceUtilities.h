@@ -66,6 +66,7 @@ class UNREALED_API FBlueprintCompileReinstancer : public TSharedFromThis<FBluepr
 {
 protected:
 	friend struct FBlueprintCompilationManagerImpl;
+	friend struct FReinstancingJob;
 
 	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToRefresh;
 	static TSet<TWeakObjectPtr<UBlueprint>> DependentBlueprintsToRecompile;
