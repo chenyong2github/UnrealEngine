@@ -136,6 +136,23 @@ public:
 	virtual bool IsInitialized() const = 0;
 
 	/**
+	 * Set an implementation specific setting
+	 *
+	 * @param Name Name of the config setting to set
+	 * @param Value Value for the setting
+	 */
+	virtual void SetSetting(const FString& Name, const FString& Value) = 0;
+
+	/**
+	 * Get an implementation specific setting
+	 *
+	 * @param Name Name of the config setting to get
+	 *
+	 * @return Current value for the setting
+	 */
+	virtual FString GetSetting(const FString& Name) = 0;
+
+	/**
 	 * Set record volume
 	 *
 	 * @param Volume Value between 0.0 and 1.0
