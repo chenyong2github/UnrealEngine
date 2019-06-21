@@ -77,7 +77,9 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureContext &Context, 
 
 	const FVector Center(Context.Bounds.GetCenter());
 
-	for (int32 ii = 0; ii < FractureSettings->RadialSteps; ++ii)
+	FRandomStream RandStream(Context.RandomSeed);
+
+	for (int32 ii = 1; ii < FractureSettings->RadialSteps; ++ii)
 	{
 		FVector PositionVector(RadialStep * ii,0.0,0.0);
 		float AngularStep = 360.f / FractureSettings->AngularSteps;
@@ -86,7 +88,7 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureContext &Context, 
 		for (int32 kk = 0; kk < FractureSettings->AngularSteps; ++kk)
 		{
 			PositionVector = PositionVector.RotateAngleAxis(AngularStep , FractureSettings->Normal);
-			Sites.Emplace(Center + PositionVector);
+			Sites.Emplace(Center + PositionVector + (RandStream.VRand() * RandStream.FRand() * FractureSettings->Variability));
 		}
 	}
 }

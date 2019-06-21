@@ -47,6 +47,8 @@
 #include "FractureSelectionTools.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "Editor.h"
+#include "LevelEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "FFractureEditorModeToolkit"
 
@@ -976,6 +978,7 @@ void FFractureEditorModeToolkit::SetOutlinerComponents(const TArray<UGeometryCol
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
 
 		FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollectionPtr.Get(), -1);
+		UpdateExplodedVectors(Component);
 	}
 
 	if (OutlinerView)
@@ -1066,25 +1069,40 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 					UGeometryCollection* FracturedGeometryCollection = RestCollection.GetRestCollection();
 
 					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-					const TArray<int32>& SelectedBones = EditBoneColor.GetSelectedBones();
-					const TManagedArray<FBox>& BoundingBoxes = GeometryCollectionComponent->GetBoundingBoxArray();
+					const TArray<int32>& SelectedBonesOriginal = EditBoneColor.GetSelectedBones();
 
 					TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FracturedGeometryCollection->GetGeometryCollection();
 					FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
 
+					const TManagedArray<TSet<int32>>& Children = OutGeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+
+					TArray<int32> SelectedBones;
+					SelectedBones.Reserve(SelectedBonesOriginal.Num());
+					for (int32 BoneIndex : SelectedBonesOriginal)
+					{
+						if (Children[BoneIndex].Num() == 0)
+						{
+							SelectedBones.Add(BoneIndex);
+						}
+					}
+
 					const TManagedArray<FTransform>& Transform = OutGeometryCollection->GetAttribute<FTransform>("Transform", FGeometryCollection::TransformGroup);
 					const TManagedArray<int32>& TransformToGeometryIndex = OutGeometryCollection->GetAttribute<int32>("TransformToGeometryIndex", FGeometryCollection::TransformGroup);
+
+					const TManagedArray<FBox>& BoundingBoxes = OutGeometryCollection->GetAttribute<FBox>("BoundingBox", FGeometryCollection::GeometryGroup);
 
 					TArray<FTransform> Transforms;
 					GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
 
 					TMap<int32, FBox> BoundsToBone;
 
+
 					for (int32 Idx = 0, ni = FracturedGeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
 					{
 						if (TransformToGeometryIndex[Idx] > -1)
 						{
-							BoundsToBone.Add(TransformToGeometryIndex[Idx], BoundingBoxes[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
+							ensure(TransformToGeometryIndex[Idx] > -1);
+							BoundsToBone.Add(Idx, BoundingBoxes[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
 						}
 					}
 
@@ -1108,7 +1126,10 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 						FractureContext.Bounds = FBox(ForceInit);
 						for (int32 BoneIndex : FractureContext.SelectedBones)
 						{
-							FractureContext.Bounds += BoundsToBone[TransformToGeometryIndex[BoneIndex]];
+ 							if(TransformToGeometryIndex[BoneIndex] > -1)
+							{
+								FractureContext.Bounds += BoundsToBone[BoneIndex];
+							}
 						}
 					}
 					else
@@ -1129,7 +1150,10 @@ void FFractureEditorModeToolkit::GetFractureContexts(TArray<FFractureContext>& F
 							FractureContext.OriginalPrimitiveComponent = GeometryCollectionComponent;
 							FractureContext.FracturedGeometryCollection = FracturedGeometryCollection;
 							FractureContext.SelectedBones = { BoneIndex };
-							FractureContext.Bounds = BoundsToBone[TransformToGeometryIndex[BoneIndex]];
+							if(TransformToGeometryIndex[BoneIndex] > -1)
+							{
+								FractureContext.Bounds = BoundsToBone[BoneIndex];
+							}
 						}
 					}
 				}
@@ -1158,6 +1182,11 @@ FReply FFractureEditorModeToolkit::OnFractureClicked()
 		
 			UpdateExplodedVectors(GeometryCollectionComponent);
 			SetOutlinerComponents({ GeometryCollectionComponent });
+
+			GeometryCollectionComponent->MarkRenderDynamicDataDirty();
+			GeometryCollectionComponent->MarkRenderStateDirty();
+
+			GCurrentLevelEditingViewportClient->Invalidate();
 		}
 
 		float ProcessingTime = static_cast<float>(FPlatformTime::Seconds() - CacheStartTime);
@@ -1175,7 +1204,7 @@ bool FFractureEditorModeToolkit::CanExecuteFracture() const
 
 	if (IsGeometryCollectionSelected())
 	{
-		return true;
+		return IsLeafBoneSelected();
 	}
 
 	if (IsStaticMeshSelected())
@@ -1186,6 +1215,38 @@ bool FFractureEditorModeToolkit::CanExecuteFracture() const
 	return false;
 }
 
+
+bool FFractureEditorModeToolkit::IsLeafBoneSelected() const
+{
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+	for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
+	{
+		const TArray<int32> SelectedBones = GeometryCollectionComponent->GetSelectedBones();
+
+		if (SelectedBones.Num() > 0)
+		{
+			FGeometryCollectionEdit GCEdit = GeometryCollectionComponent->EditRestCollection();
+			if (UGeometryCollection* GCObject = GCEdit.GetRestCollection())
+			{
+				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GCObject->GetGeometryCollection();
+				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
+				{
+					const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+
+					for (int32 BoneIndex : SelectedBones)
+					{
+						if (Children[BoneIndex].Num() == 0)
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
 
 ULevel* FFractureEditorModeToolkit::GetSelectedLevel()
 {
@@ -1280,9 +1341,11 @@ void FFractureEditorModeToolkit::OnCluster()
 					FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, -1);
 
 					FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-					EditBoneColor.ResetBoneSelection();
+ 					EditBoneColor.ResetBoneSelection();
+					EditBoneColor.ResetHighlightedBones();
 					GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 					GeometryCollectionComponent->MarkRenderStateDirty();
+					SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
 				}
 			}
 		}
@@ -1311,8 +1374,10 @@ void FFractureEditorModeToolkit::OnUncluster()
 
 				FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 				EditBoneColor.ResetBoneSelection();
+				EditBoneColor.ResetHighlightedBones();
 				GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 				GeometryCollectionComponent->MarkRenderStateDirty();
+				SetBoneSelection(GeometryCollectionComponent, EditBoneColor.GetSelectedBones(), true);
 			}
 		}
 	}
@@ -1381,6 +1446,8 @@ void FFractureEditorModeToolkit::OnFlatten()
 
 				FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
 				EditBoneColor.ResetBoneSelection();
+
+				OnSetLevelViewValue(1);
 
 				GeometryCollectionComponent->MarkRenderDynamicDataDirty();
 				GeometryCollectionComponent->MarkRenderStateDirty();
@@ -1580,6 +1647,7 @@ class AGeometryCollectionActor* FFractureEditorModeToolkit::CreateNewGeometryAct
 
 void FFractureEditorModeToolkit::ExecuteFracture(FFractureContext& FractureContext)
 {
+	FractureContext.FracturedGeometryCollection->Modify();
 	ActiveTool->ExecuteFracture(FractureContext);
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = FractureContext.FracturedGeometryCollection->GetGeometryCollection();
 	FGeometryCollection* OutGeometryCollection = GeometryCollectionPtr.Get();
@@ -1722,12 +1790,6 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 				MaxFractureLevel = Levels[Idx];
 		}
 
-		// < 0 means it's showing all leafs,
-		if (ViewFractureLevel < 0)
-		{
-			ViewFractureLevel = MaxFractureLevel;
-		}
-
 		TArray<FTransform> Transforms;
 		GeometryCollectionAlgo::GlobalMatrices(Transform, OutGeometryCollection->Parent, Transforms);
 
@@ -1739,11 +1801,12 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 		FVector Center(ForceInitToZero);
 		for (int32 Idx = 0, ni = GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
 		{
+			ExplodedVectors[Idx] = FVector::ZeroVector;
 			FVector GeoCenter;
 			if (GetValidGeoCenter(TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
 			{
 				TransformedCenters[Idx] = GeoCenter;
-				if (Levels[Idx] == ViewFractureLevel)
+				if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
 				{
 					Center += TransformedCenters[Idx];
 					++TransformsCount;
@@ -1757,7 +1820,7 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 		{
 			for (int32 Idx = 0, ni = GeometryCollection->NumElements(FGeometryCollection::TransformGroup); Idx < ni; ++Idx)
 			{
-				if (Levels[Idx] == ViewFractureLevel)
+				if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
 				{
 					ExplodedVectors[Idx] = (TransformedCenters[Idx] - Center) * ExplodeAmount;
 				}
@@ -1819,6 +1882,11 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 	else
 	{
 		FFractureSelectionTools::ClearSelectedBones(RootComponent);
+	}
+
+	if (ActiveTool != nullptr)
+	{
+		ActiveTool->FractureContextChanged();
 	}
 
 	RootComponent->MarkRenderStateDirty();
