@@ -27,7 +27,7 @@
 
 FText FAssetTypeActions_EditorUtilityWidgetBlueprint::GetName() const
 {
-	return LOCTEXT("AssetTypeActions_EditorUtilityWidget", "Editor Widget");
+	return LOCTEXT("AssetTypeActions_EditorUtilityWidget", "Editor Utility Widget");
 }
 
 FColor FAssetTypeActions_EditorUtilityWidgetBlueprint::GetTypeColor() const
