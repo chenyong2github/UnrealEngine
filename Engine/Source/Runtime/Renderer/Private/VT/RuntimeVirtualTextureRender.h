@@ -22,5 +22,6 @@ namespace RuntimeVirtualTexture
 		FRHITexture2D* Texture1, FBox2D const& DestBox1, 
 		FTransform const& UVToWorld,
 		FBox2D const& UVRange,
-		uint8 vLevel);
+		uint8 vLevel, 
+		uint8 MaxLevel);
 }

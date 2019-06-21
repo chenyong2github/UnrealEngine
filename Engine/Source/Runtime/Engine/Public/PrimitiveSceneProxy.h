@@ -456,6 +456,10 @@ public:
 	inline int16 GetTranslucencySortPriority() const { return TranslucencySortPriority; }
 	inline bool HasMotionBlurVelocityMeshes() const { return bHasMotionBlurVelocityMeshes; }
 
+	inline int32 GetVirtualTextureLodBias() const { return VirtualTextureLodBias; }
+	inline int32 GetVirtualTextureCullMips() const { return VirtualTextureCullMips; }
+	inline int32 GetVirtualTextureMinCoverage() const {	return VirtualTextureMinCoverage; }
+
 	inline bool IsMovable() const 
 	{ 
 		// Note: primitives with EComponentMobility::Stationary can still move (as opposed to lights with EComponentMobility::Stationary)
@@ -982,9 +986,17 @@ protected:
 
 	float DistanceFieldSelfShadowBias;
 
-	/** Array of virtual textures that this proxy should render to. */
+	/** Array of runtime virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
+	/** Set of unique runtime virtual texture material types referenced by RuntimeVirtualTextures. */
 	TSet<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
+
+	/** Geometry Lod bias when rendering to runtime virtual texture. */
+	int8 VirtualTextureLodBias;
+	/** Number of low mips to skip when rendering to runtime virtual texture. */
+	int8 VirtualTextureCullMips;
+	/** Log2 of minimum estimated pixel coverage before culling from runtime virtual texture. */
+	int8 VirtualTextureMinCoverage;
 
 private:
 	/** The hierarchy of owners of this primitive.  These must not be dereferenced on the rendering thread, but the pointer values can be used for identification.  */
