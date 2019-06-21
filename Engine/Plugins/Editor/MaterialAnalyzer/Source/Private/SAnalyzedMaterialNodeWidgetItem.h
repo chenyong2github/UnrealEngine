@@ -11,6 +11,7 @@
 #include "Widgets/Views/SListView.h"
 #include "AnalyzedMaterialNode.h"
 #include "Widgets/Input/SButton.h"
+#include "AssetData.h"
 
 class SAnalyzedMaterialNodeWidgetItem
 	: public SMultiColumnTableRow<FAnalyzedMaterialNodeRef>

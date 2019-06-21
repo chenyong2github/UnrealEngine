@@ -7,7 +7,7 @@
 #include "Engine/EngineTypes.h"
 #include "MaterialShaderType.h"
 #include "PropertyCustomizationHelpers.h"
-#include "Editor/EditorEngine.h"
+#include "Editor.h"
 #include "EditorStyleSet.h"
 
 #define LOCTEXT_NAMESPACE "MaterialAnalyzer"
