@@ -14,7 +14,8 @@ class IPlatformInstallBundleManager;
 class IPlatformCompression;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
-struct FChunkTagID;
+struct FCustomChunk;
+enum class ECustomChunkType : uint8;
 
 template <typename FuncType>
 class TFunction;
@@ -1277,7 +1278,9 @@ public:
 
 	static bool RequestDeviceCheckToken(TFunction<void(const TArray<uint8>&)> QuerySucceededFunc, TFunction<void(const FString&, const FString&)> QueryFailedFunc);
 
-	static TArray<FChunkTagID> GetOnDemandChunkTagIDs();
+	static TArray<FCustomChunk> GetAllOnDemandChunks();
+	static TArray<FCustomChunk> GetAllLanguageChunks();
+	static TArray<FCustomChunk> GetCustomChunksByType(ECustomChunkType DesiredChunkType);
 
 	/*
 	 * Loads a text file relative to the package root on platforms that distribute apps in package formats.
