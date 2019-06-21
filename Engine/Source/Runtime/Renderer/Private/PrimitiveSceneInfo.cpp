@@ -143,7 +143,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	check(PrimitiveComponentId.IsValid());
 	check(Proxy);
 
-	UPrimitiveComponent* SearchParentComponent = Cast<UPrimitiveComponent>(InComponent->GetAttachmentRoot());
+	const UPrimitiveComponent* SearchParentComponent = InComponent->GetLightingAttachmentRoot();
 
 	if (SearchParentComponent && SearchParentComponent != InComponent)
 	{
