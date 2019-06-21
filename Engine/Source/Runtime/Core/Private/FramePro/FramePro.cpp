@@ -3323,9 +3323,9 @@ namespace FramePro
 
 		int SendThreadMain();
 
-		void HandleDisconnect(bool wait_for_threads_to_exit=true);
+		void Disconect(bool wait_for_threads_to_exit=true);
 
-		void HandleDisconnect_NoLock(bool wait_for_threads_to_exit=true);
+		void Disconect_NoLock(bool wait_for_threads_to_exit=true);
 
 		void SendRecordedDataAndDisconnect();
 
@@ -4805,7 +4805,7 @@ namespace FramePro
 	//------------------------------------------------------------------------
 	FrameProSession::~FrameProSession()
 	{
-		HandleDisconnect(false);
+		Disconect(false);
 
 		m_NamedThreads.Clear();
 
@@ -5176,7 +5176,7 @@ namespace FramePro
 #if FRAMEPRO_SOCKETS_ENABLED
 	int FrameProSession::OnReceiveThreadExit()
 	{
-		HandleDisconnect();
+		Disconect();
 		return 0;
 	}
 #endif
@@ -5544,20 +5544,20 @@ namespace FramePro
 		read_file.Close();
 		mp_Allocator->Free(p_read_buffer);
 
-		HandleDisconnect_NoLock();
+		Disconect_NoLock();
 #endif
 	}
 
 	//------------------------------------------------------------------------
-	void FrameProSession::HandleDisconnect(bool wait_for_threads_to_exit)
+	void FrameProSession::Disconect(bool wait_for_threads_to_exit)
 	{
 		CriticalSectionScope lock(m_CriticalSection);
 		if(g_Connected)
-			HandleDisconnect_NoLock(wait_for_threads_to_exit);
+			Disconect_NoLock(wait_for_threads_to_exit);
 	}
 
 	//------------------------------------------------------------------------
-	void FrameProSession::HandleDisconnect_NoLock(bool wait_for_threads_to_exit)
+	void FrameProSession::Disconect_NoLock(bool wait_for_threads_to_exit)
 	{
 		Platform::StopRecordingContextSitches(mp_ContextSwitchRecorder);
 
@@ -5982,6 +5982,10 @@ namespace FramePro
 	//------------------------------------------------------------------------
 	void FrameProSession::StartRecording(const char* p_filename, bool context_switches, bool callstacks, int64 max_file_size)
 	{
+		Disconect(true);
+
+		CreateDefaultAllocator();
+
 		CriticalSectionScope lock(m_CriticalSection);
 
 		if(m_RecordingFile.IsOpened())
@@ -6020,6 +6024,8 @@ namespace FramePro
 	//------------------------------------------------------------------------
 	void FrameProSession::StartRecording(const wchar_t* p_filename, bool context_switches, bool callstacks, int64 max_file_size)
 	{
+		Disconect(true);
+
 		CreateDefaultAllocator();
 
 		CriticalSectionScope lock(m_CriticalSection);
@@ -6067,7 +6073,7 @@ namespace FramePro
 			#if FRAMEPRO_SOCKETS_ENABLED
 				OpenListenSocket();					// start the listening socket again so that we can accept new connections
 			#endif
-			HandleDisconnect_NoLock();
+				Disconect_NoLock();
 		}
 	}
 
