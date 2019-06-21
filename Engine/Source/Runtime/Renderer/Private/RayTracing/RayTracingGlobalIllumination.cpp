@@ -352,10 +352,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, GlobalIlluminationRT, TEXT("RayTracingGlobalIllumination"));
 	}
 
+	FRDGBuilder GraphBuilder(RHICmdList);
+
 	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingGlobalIllumination);
 	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing Global Illumination");
-
-	FRDGBuilder GraphBuilder(RHICmdList);
 
 	FRDGTextureRef GlobalIlluminationTexture;
 	{
