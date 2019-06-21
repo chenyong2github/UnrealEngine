@@ -142,7 +142,7 @@ bool FStreamingAnimationData::HasPendingRequests(TArray<uint32>& IndicesToLoad, 
 	IndicesToFree.Reset();
 
 	// Find indices that aren't loaded
-	for (auto NeededIndex : RequestedChunks)
+	for (uint32 NeededIndex : RequestedChunks)
 	{
 		if (!LoadedChunkIndices.Contains(NeededIndex))
 		{
@@ -151,7 +151,7 @@ bool FStreamingAnimationData::HasPendingRequests(TArray<uint32>& IndicesToLoad, 
 	}
 
 	// Find indices that aren't needed anymore
-	for (auto CurrentIndex : LoadedChunkIndices)
+	for (uint32 CurrentIndex : LoadedChunkIndices)
 	{
 		if (!RequestedChunks.Contains(CurrentIndex))
 		{
@@ -168,7 +168,7 @@ void FStreamingAnimationData::BeginPendingRequests(const TArray<uint32>& Indices
 
 	// Mark Chunks for removal in case they can be reused
 	{
-		for (auto Index : IndicesToFree)
+		for (uint32 Index : IndicesToFree)
 		{
 			for (int32 ChunkIndex = 0; ChunkIndex < LoadedChunks.Num(); ++ChunkIndex)
 			{
@@ -187,7 +187,7 @@ void FStreamingAnimationData::BeginPendingRequests(const TArray<uint32>& Indices
 
 	const EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High;
 
-	for (auto ChunkIndex : IndicesToLoad)
+	for (uint32 ChunkIndex : IndicesToLoad)
 	{
 		const FAnimStreamableChunk& Chunk = StreamableAnim->GetRunningPlatformData().Chunks[ChunkIndex];
 
@@ -295,6 +295,19 @@ void FStreamingAnimationData::ResetRequestedChunks()
 	RequestedChunks.Add(0); //Always want 1
 }
 
+SIZE_T FStreamingAnimationData::GetMemorySize() const
+{
+	SIZE_T CurrentSize = 0;
+	for (const FLoadedAnimationChunk& Chunk : LoadedChunks)
+	{
+		if (Chunk.CompressedAnimData && Chunk.bOwnsCompressedData)
+		{
+			CurrentSize += Chunk.CompressedAnimData.Load()->GetMemorySize();
+		}
+	}
+	return CurrentSize;
+}
+
 ////////////////////////////
 // FAnimationStreamingManager //
 ////////////////////////////
@@ -337,10 +350,26 @@ void FAnimationStreamingManager::OnAsyncFileCallback(FStreamingAnimationData* St
 		}
 
 		ChunkStorage.CompressedAnimData = NewCompressedData;
+		ChunkStorage.bOwnsCompressedData = true;
 		ChunkStorage.RequestStart = -2.0; //Signify we have finished loading
 
 		UE_LOG(LogAnimation, Log, TEXT("Request Finished %.2f\n Anim Chunk Streamed %.4f\n"), CurrentTime, RequestDuration);
 	}
+}
+
+SIZE_T FAnimationStreamingManager::GetMemorySizeForAnim(const UAnimStreamable* Anim)
+{
+	SIZE_T AnimSize = 0;
+
+	FScopeLock Lock(&CriticalSection);
+
+	FStreamingAnimationData* AnimData = StreamingAnimations.FindRef(Anim);
+	if (AnimData)
+	{
+		return AnimData->GetMemorySize();
+	}
+
+	return AnimSize;
 }
 
 void FAnimationStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)
@@ -349,7 +378,7 @@ void FAnimationStreamingManager::UpdateResourceStreaming(float DeltaTime, bool b
 
 	FScopeLock Lock(&CriticalSection);
 
-	for (auto& AnimData : StreamingAnimations)
+	for (TPair<UAnimStreamable*, FStreamingAnimationData*>& AnimData : StreamingAnimations)
 	{
 		AnimData.Value->UpdateStreamingStatus();
 	}
@@ -365,7 +394,7 @@ int32 FAnimationStreamingManager::BlockTillAllRequestsFinished(float TimeLimit, 
 
 		if (TimeLimit == 0.0f)
 		{
-			for (auto& AnimPair : StreamingAnimations)
+			for (TPair<UAnimStreamable*, FStreamingAnimationData*>& AnimPair : StreamingAnimations)
 			{
 				AnimPair.Value->BlockTillAllRequestsFinished();
 			}
@@ -373,7 +402,7 @@ int32 FAnimationStreamingManager::BlockTillAllRequestsFinished(float TimeLimit, 
 		else
 		{
 			double EndTime = FPlatformTime::Seconds() + TimeLimit;
-			for (auto& AnimPair : StreamingAnimations)
+			for (TPair<UAnimStreamable*, FStreamingAnimationData*>& AnimPair : StreamingAnimations)
 			{
 				float ThisTimeLimit = EndTime - FPlatformTime::Seconds();
 				if (ThisTimeLimit < .001f || // one ms is the granularity of the platform event system
@@ -450,7 +479,7 @@ bool FAnimationStreamingManager::RemoveStreamingAnim(UAnimStreamable* Anim)
 	return false;
 }
 
-const FCompressedAnimSequence* FAnimationStreamingManager::GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex) const
+const FCompressedAnimSequence* FAnimationStreamingManager::GetLoadedChunk(const UAnimStreamable* Anim, uint32 ChunkIndex, bool bRequestNextChunk) const
 {
 	// Check for the spoof of failing to load a stream chunk
 	if (SpoofFailedAnimationChunkLoad > 0)
@@ -465,7 +494,10 @@ const FCompressedAnimSequence* FAnimationStreamingManager::GetLoadedChunk(const 
 	if (AnimData)
 	{
 		AnimData->RequestedChunks.AddUnique(ChunkIndex);
-		AnimData->RequestedChunks.AddUnique((ChunkIndex + 1) % Anim->GetRunningPlatformData().Chunks.Num());
+		if (bRequestNextChunk)
+		{
+			AnimData->RequestedChunks.AddUnique((ChunkIndex + 1) % Anim->GetRunningPlatformData().Chunks.Num());
+		}
 
 		if (AnimData->LoadedChunkIndices.Contains(ChunkIndex))
 		{
