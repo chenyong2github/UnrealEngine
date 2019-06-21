@@ -2439,7 +2439,7 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 
 	if (UseVirtualTexturing(CurrentFeatureLevel))
 	{
-		FIntPoint FeedbackSize = FIntPoint::DivideAndRoundUp(BufferSize, GVirtualTextureFeedbackFactor);
+		FIntPoint FeedbackSize = FIntPoint::DivideAndRoundUp(BufferSize, FMath::Max(GVirtualTextureFeedbackFactor, 1));
 		VirtualTextureFeedback.CreateResourceGPU(RHICmdList, FeedbackSize);
 	}
 }
