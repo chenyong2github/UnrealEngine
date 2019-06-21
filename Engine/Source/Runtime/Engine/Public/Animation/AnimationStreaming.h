@@ -14,14 +14,14 @@ AudioStreaming.h: Definitions of classes used for audio streaming.
 #include "ContentStreaming.h"
 #include "Async/AsyncWork.h"
 #include "Async/AsyncFileHandle.h"
-
+#include "Templates/Atomic.h"
 class UAnimStreamable;
 struct FAnimationStreamingManager;
 
 // 
 struct FLoadedAnimationChunk
 {
-	FCompressedAnimSequence* CompressedAnimData;
+	TAtomic<FCompressedAnimSequence*> CompressedAnimData;
 
 	class IAsyncReadRequest* IORequest;
 	double RequestStart;
@@ -32,6 +32,7 @@ struct FLoadedAnimationChunk
 	FLoadedAnimationChunk()
 		: CompressedAnimData(nullptr)
 		, IORequest(nullptr)
+		, RequestStart(-1.0)
 		, Index(0)
 		, bOwnsCompressedData(false)
 	{
@@ -39,7 +40,7 @@ struct FLoadedAnimationChunk
 
 	~FLoadedAnimationChunk()
 	{
-		checkf(CompressedAnimData == nullptr, TEXT("Animation chunk compressed data ptr not null (%p), DataSize: %d"));
+		checkf(CompressedAnimData == nullptr, TEXT("Animation chunk compressed data ptr not null (%p), Index: %u"), CompressedAnimData.Load(), Index);
 	}
 
 	void CleanUpIORequest();
