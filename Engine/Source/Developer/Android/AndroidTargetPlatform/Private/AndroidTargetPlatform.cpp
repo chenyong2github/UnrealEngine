@@ -656,11 +656,22 @@ void FAndroidTargetPlatform::GetAllWaveFormats(TArray<FName>& OutFormats) const
 	OutFormats.Add(NAME_ADPCM);
 }
 
-namespace
+namespace Android
 {
 	void CachePlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
 	{
 		const TCHAR* CategoryName = TEXT("/Script/AndroidRuntimeSettings.AndroidRuntimeSettings");
+
+		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
+
+		/** Memory Load On Demand Settings */
+		if (OutOverrides.bUseStreamCaching)
+		{
+			// Cache size:
+			int32 RetrievedCacheSize = 32 * 1024;
+			GConfig->GetInt(CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize, GEngineIni);
+			OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
+		}
 
 		GConfig->GetBool(CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice, GEngineIni);
 
@@ -768,11 +779,11 @@ FPlatformAudioCookOverrides* FAndroidTargetPlatform::GetAudioCompressionSettings
 
 	if (!bCachedPlatformSettings)
 	{
-		CachePlatformAudioCookOverrides(Settings);
+		Android::CachePlatformAudioCookOverrides(Settings);
 		bCachedPlatformSettings = true;
 	}
 #else
-	CachePlatformAudioCookOverrides(Settings);
+	Android::CachePlatformAudioCookOverrides(Settings);
 #endif
 
 	return &Settings;

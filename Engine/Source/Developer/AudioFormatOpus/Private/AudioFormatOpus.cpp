@@ -30,7 +30,7 @@ class FAudioFormatOpus : public IAudioFormat
 	enum
 	{
 		/** Version for OPUS format, this becomes part of the DDC key. */
-		UE_AUDIO_OPUS_VER = 5,
+		UE_AUDIO_OPUS_VER = 6,
 	};
 
 public:
@@ -179,6 +179,9 @@ public:
 		}
 		else
 		{
+			SrcBufferCopies.Reset();
+			SrcBufferCopies.AddDefaulted(SrcBuffers.Num());
+
 			// Take a copy of the source regardless
 			for (int32 Index = 0; Index < SrcBuffers.Num(); Index++)
 			{
@@ -345,7 +348,17 @@ public:
 		return CompressedDataStore.Num();
 	}
 
-	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 MaxChunkSize) const override
+	virtual int32 GetMinimumSizeForInitialChunk(FName Format, const TArray<uint8>& SrcBuffer) const override
+	{
+		// Since UE4 uses it's own version of the header, we hardcode the size of that here. See SplitDataForStreaming below to see our initial info.
+		return FCStringAnsi::Strlen(OPUS_ID_STRING) + 1 // Format identifier
+			+ sizeof(uint16) // Sample Rate
+			+ sizeof(uint32) // True Sample Count
+			+ sizeof(uint8)  // Number of Channels
+			+ sizeof(uint16); // Serialized Frames
+	}
+
+	virtual bool SplitDataForStreaming(const TArray<uint8>& SrcBuffer, TArray<TArray<uint8>>& OutBuffers, const int32 MaxInitialChunkSize, const int32 MaxChunkSize) const override
 	{
 		if (SrcBuffer.Num() == 0)
 		{
@@ -373,19 +386,23 @@ public:
 		ReadOffset += sizeof(uint16);
 
 		// Should always be able to store basic info in a single chunk
-		check(ReadOffset - WriteOffset < (uint32)MaxChunkSize)
+		check(ReadOffset - WriteOffset <= (uint32)MaxInitialChunkSize);
+
+		int32 ChunkSize = MaxInitialChunkSize;
 
 		while (ProcessedFrames < SerializedFrames)
 		{
 			uint16 FrameSize = *((uint16*)(LockedSrc + ReadOffset));
 
-			if ( (ReadOffset + sizeof(uint16) + FrameSize) - WriteOffset >= MaxChunkSize)
+			if ( (ReadOffset + sizeof(uint16) + FrameSize) - WriteOffset >= ChunkSize)
 			{
 				WriteOffset += AddDataChunk(OutBuffers, LockedSrc + WriteOffset, ReadOffset - WriteOffset);
 			}
 
 			ReadOffset += sizeof(uint16) + FrameSize;
 			ProcessedFrames++;
+
+			ChunkSize = MaxChunkSize;
 		}
 		if (WriteOffset < ReadOffset)
 		{
