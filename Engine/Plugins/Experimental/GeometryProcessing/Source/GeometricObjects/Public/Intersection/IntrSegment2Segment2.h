@@ -152,7 +152,7 @@ public:
 		FVector2<RealType> s = FVector2<RealType>::Zero();
 		Type = TIntrLine2Line2<RealType>::Classify(Segment1.Center, Segment1.Direction,
 			Segment2.Center, Segment2.Direction,
-			DotThreshold, s);
+			DotThreshold, IntervalThreshold, s);
 
 		if (Type == EIntersectionType::Point)
 		{

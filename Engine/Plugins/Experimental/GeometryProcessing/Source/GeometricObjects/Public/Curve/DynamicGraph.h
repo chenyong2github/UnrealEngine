@@ -360,10 +360,45 @@ public:
 		// look up primary edge
 		int eab_i = 3 * EAB;
 		int A = edges[EAB].A, B = edges[EAB].B;
-		int GID = edges[EAB].Group;
-
-		// create new vertex
+		int GID = edges[EAB].Group;		
 		int f = append_new_split_vertex(A, B);
+
+		// rewrite edge bc, create edge af
+		int eaf = EAB;
+		replace_edge_vertex(eaf, B, f);
+		vertex_edges.Remove(B, EAB);
+		vertex_edges.Insert(f, eaf);
+
+		// create new edge fb
+		int efb = add_edge(f, B, GID);
+
+		// update vertex refcounts
+		vertices_refcount.Increment(f, 2);
+
+		Split.VNew = f;
+		Split.ENewBN = efb;
+
+		updateTimeStamp(true);
+		return EMeshResult::Ok;
+	}
+
+	EMeshResult SplitEdgeWithExistingVertex(int EAB, int ExistingMidVert, FEdgeSplitInfo& Split)
+	{
+		if (!IsEdge(EAB))
+		{
+			return EMeshResult::Failed_NotAnEdge;
+		}
+
+		int f = ExistingMidVert;
+		if (!IsVertex(f))
+		{
+			return EMeshResult::Failed_NotAVertex;
+		}
+
+		// look up primary edge
+		int eab_i = 3 * EAB;
+		int A = edges[EAB].A, B = edges[EAB].B;
+		int GID = edges[EAB].Group;		
 
 		// rewrite edge bc, create edge af
 		int eaf = EAB;

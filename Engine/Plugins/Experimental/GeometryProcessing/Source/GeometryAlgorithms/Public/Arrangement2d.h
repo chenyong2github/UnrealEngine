@@ -357,11 +357,11 @@ protected:
 				continue;
 			}
 
-			// sanity check
-			ensureMsgf(FMath::Abs(points[k].T - points[k + 1].T) >= std::numeric_limits<float>::epsilon(), TEXT("insert_segment: different points have same T??"));
-
 			if (Graph.FindEdge(v0, v1) == FDynamicGraph2d::InvalidID)
 			{
+				// sanity check; technically this can happen and still be correct but it's more likely an error case
+				ensureMsgf(FMath::Abs(points[k].T - points[k + 1].T) >= std::numeric_limits<float>::epsilon(), TEXT("insert_segment: different points have same T??"));
+
 				Graph.AppendEdge(v0, v1, GID);
 			}
 		}
@@ -392,14 +392,25 @@ protected:
 		else
 		{
 			FVector2d Pt = seg.PointAt(T);
-			// ensure(find_existing_vertex(Pt) == -1); // TODO: handle this case!?
 			FDynamicGraph2d::FEdgeSplitInfo splitInfo;
-			EMeshResult result = Graph.SplitEdge(EID, splitInfo);
+			EMeshResult result;
+			int CrossingVert = find_existing_vertex(Pt);
+			if (CrossingVert == -1)
+			{
+				result = Graph.SplitEdge(EID, splitInfo);
+			}
+			else
+			{
+				result = Graph.SplitEdgeWithExistingVertex(EID, CrossingVert, splitInfo);
+			}
 			ensureMsgf(result == EMeshResult::Ok, TEXT("insert_into_segment: edge split failed?"));
 			use_vid = splitInfo.VNew;
 			new_eid = splitInfo.ENewBN;
-			Graph.SetVertex(use_vid, Pt);
-			PointHash.InsertPointUnsafe(splitInfo.VNew, Pt);
+			if (CrossingVert == -1)
+			{	// position + track added vertex
+				Graph.SetVertex(use_vid, Pt);
+				PointHash.InsertPointUnsafe(splitInfo.VNew, Pt);
+			}
 		}
 		return FIndex2i(use_vid, new_eid);
 	}

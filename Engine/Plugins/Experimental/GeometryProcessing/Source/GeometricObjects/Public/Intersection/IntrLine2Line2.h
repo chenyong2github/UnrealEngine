@@ -19,6 +19,7 @@ protected:
 	TLine2<RealType> Line1;
 	TLine2<RealType> Line2;
 	RealType dotThresh = TMathUtil<RealType>::ZeroTolerance;
+	RealType DistThresh = TMathUtil<RealType>::ZeroTolerance;
 	
 public:
 	// result data
@@ -65,11 +66,23 @@ public:
 		return dotThresh;
 	}
 
+	RealType GetDistThreshold() const
+	{
+		return DistThresh;
+	}
+
 	void SetDotThreshold(RealType Value)
 	{
 		dotThresh = FMath::Max(Value, (RealType)0);
 		Result = EIntersectionResult::NotComputed;
 	}
+
+	void SetDistThreshold(RealType Value)
+	{
+		DistThresh = FMath::Max(Value, (RealType)0);
+		Result = EIntersectionResult::NotComputed;
+	}
+	
 
 	bool IsSimpleIntersection() const
 	{
@@ -102,7 +115,7 @@ public:
 
 		FVector2<RealType> s = FVector2<RealType>::Zero();
 		Type = Classify(Line1.Origin, Line1.Direction,
-			Line2.Origin, Line2.Direction, dotThresh, s);
+			Line2.Origin, Line2.Direction, dotThresh, DistThresh, s);
 
 		if (Type == EIntersectionType::Point) 
 		{
@@ -130,10 +143,10 @@ public:
 	static EIntersectionType Classify(
 		const FVector2<RealType>& P0, const FVector2<RealType>& D0, 
 		const FVector2<RealType>& P1, const FVector2<RealType>& D1, 
-		RealType dotThreshold, FVector2<RealType>& s)
+		RealType DotThreshold, RealType DistThreshold, FVector2<RealType>& s)
 	{
-		// Ensure dotThreshold is nonnegative.
-		dotThreshold = FMath::Max(dotThreshold, (RealType)0);
+		// Ensure DotThreshold is nonnegative.
+		DotThreshold = FMath::Max(DotThreshold, (RealType)0);
 
 		// The intersection of two lines is a solution to P0+s0*D0 = P1+s1*D1.
 		// Rewrite this as s0*D0 - s1*D1 = P1 - P0 = Q.  If D0.Dot(Perp(D1)) = 0,
@@ -145,7 +158,7 @@ public:
 
 		FVector2<RealType> diff = P1 - P0;
 		RealType D0DotPerpD1 = D0.DotPerp(D1);
-		if (FMath::Abs(D0DotPerpD1) > dotThreshold) 
+		if (FMath::Abs(D0DotPerpD1) > DotThreshold) 
 		{
 			// Lines intersect in a single point.
 			RealType invD0DotPerpD1 = 1.0 / D0DotPerpD1;
@@ -156,10 +169,9 @@ public:
 			return EIntersectionType::Point;
 		}
 
-		// Lines are parallel.
-		diff.Normalize();
+		// Lines are parallel; check if they are within DistThresh apart
 		RealType diffNDotPerpD1 = diff.DotPerp(D1);
-		if (FMath::Abs(diffNDotPerpD1) <= dotThreshold) 
+		if (FMath::Abs(diffNDotPerpD1) <= DistThreshold) 
 		{
 			// Lines are collinear.
 			return EIntersectionType::Line;
