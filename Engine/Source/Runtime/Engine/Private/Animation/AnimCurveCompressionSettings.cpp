@@ -41,30 +41,17 @@ bool UAnimCurveCompressionSettings::Compress(const FCompressibleAnimData& AnimSe
 	return Success;
 }
 
-FString UAnimCurveCompressionSettings::MakeDDCKey() const
+void UAnimCurveCompressionSettings::PopulateDDCKey(FArchive& Ar) const
 {
-	if (Codec == nullptr)
+	if (Codec)
 	{
-		return TEXT("<Missing Codec>");
+		Codec->PopulateDDCKey(Ar);
 	}
-
-	TArray<uint8> TempBytes;
-	TempBytes.Reserve(64);
-
-	// Serialize the compression settings into a temporary array. The archive
-	// is flagged as persistent so that machines of different endianness produce
-	// identical binary results.
-	FMemoryWriter Ar(TempBytes, /*bIsPersistent=*/ true);
-
-	Codec->PopulateDDCKey(Ar);
-
-	FString Key;
-	Key.Reserve(TempBytes.Num() + 1);
-	for (int32 ByteIndex = 0; ByteIndex < TempBytes.Num(); ++ByteIndex)
+	else
 	{
-		ByteToHex(TempBytes[ByteIndex], Key);
+		static FString NoCodecString(TEXT("<Missing Codec>"));
+		Ar << NoCodecString;
 	}
-
-	return Key;
 }
+
 #endif
