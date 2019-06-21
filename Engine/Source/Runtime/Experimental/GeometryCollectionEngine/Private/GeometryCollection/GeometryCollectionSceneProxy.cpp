@@ -613,18 +613,26 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			// #todo(dmp): refactor this to share more code later
 			if (!DynamicData->IsDynamic)			
 			{
+#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+				const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections && SubSections.Num() ? SubSections: ConstantData->OriginalMeshSections;
+				UE_LOG(FGeometryCollectionSceneProxyLogging, VeryVerbose, TEXT("GetDynamicMeshElements, bUseSubSections=%d, NumSections=%d for %p."), bUsesSubSections, SectionArray.Num(), this);
+
+#else  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+				const TArray<FGeometryCollectionSection>& SectionArray = ConstantData->OriginalMeshSections;
+#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION #else
+
 				//Grab the material proxies we'll be using for each section
 				TArray<FMaterialRenderProxy*, TInlineAllocator<32>> MaterialProxies;
-				for (int SectionIndex = 0; SectionIndex < ConstantData->OriginalMeshSections.Num(); SectionIndex++)
+				for (int SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
 				{
-					const FGeometryCollectionSection& Section = ConstantData->OriginalMeshSections[SectionIndex];
+					const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 					FMaterialRenderProxy* MaterialProxy = GetMaterial(Collector, Section.MaterialID);
 					MaterialProxies.Add(MaterialProxy);
 				}
 
-				for (int SectionIndex = 0; SectionIndex < ConstantData->OriginalMeshSections.Num(); SectionIndex++)
+				for (int SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
 				{
-					const FGeometryCollectionSection& Section = ConstantData->OriginalMeshSections[SectionIndex];
+					const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 
 					// Draw the mesh.
 					FMeshBatch& Mesh = Collector.AllocateMesh();
@@ -667,7 +675,7 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			else
 			{
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
-				const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections ? SubSections: Sections;
+				const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections && SubSections.Num() ? SubSections: Sections;
 				UE_LOG(FGeometryCollectionSceneProxyLogging, VeryVerbose, TEXT("GetDynamicMeshElements, bUseSubSections=%d, NumSections=%d for %p."), bUsesSubSections, SectionArray.Num(), this);
 
 #else  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
@@ -874,18 +882,26 @@ void FGeometryCollectionSceneProxy::UseSubSections(bool bInUsesSubSections, bool
 
 void FGeometryCollectionSceneProxy::InitializeSubSections_RenderThread()
 {
-	// Reserve sub sections array with a minimum of one transform per section
-	SubSections.Empty(Sections.Num());
-	SubSectionHitProxyIndexMap.Empty(Sections.Num());
-
 	// Exit now if there isn't any data
-	if (!ConstantData) { return; }
+	if (!ConstantData)
+	{
+		SubSections.Empty();
+		SubSectionHitProxyIndexMap.Empty();
+		return;
+	}
 
+	// Retrieve the correct arrays depending on the dynamic state
+	const bool bIsDynamic = DynamicData && DynamicData->IsDynamic;
+	const TArray<FGeometryCollectionSection>& SectionArray = bIsDynamic ? Sections: ConstantData->OriginalMeshSections;
+	const TArray<FIntVector>& IndexArray = bIsDynamic ? ConstantData->Indices: ConstantData->OriginalMeshIndices;
 	const TArray<int32>& BoneMap = ConstantData->BoneMap;
-	const TArray<FIntVector>& Indices = ConstantData->Indices;
+
+	// Reserve sub sections array with a minimum of one transform per section
+	SubSections.Empty(SectionArray.Num());
+	SubSectionHitProxyIndexMap.Empty(SectionArray.Num());
 
 	// Lambda that adds a new subsection and update the HitProxy section index
-	auto AddSubSection = [this, Indices](int32 HitProxyIndex, const FGeometryCollectionSection& Section, int32 FirstFaceIndex, int32 EndFaceIndex)
+	auto AddSubSection = [this, IndexArray](int32 HitProxyIndex, const FGeometryCollectionSection& Section, int32 FirstFaceIndex, int32 EndFaceIndex)
 	{
 		// Find the matching HitProxy for this transform/section
 		HGeometryCollection* const SubSectionHitProxy = SubSectionHitProxies[HitProxyIndex];
@@ -902,8 +918,8 @@ void FGeometryCollectionSceneProxy::InitializeSubSections_RenderThread()
 			SubSection.MaxVertexIndex = TNumericLimits<int32>::Min();
 			for (int32 FaceIndex = FirstFaceIndex; FaceIndex < EndFaceIndex; ++FaceIndex)
 			{
-				SubSection.MinVertexIndex = FMath::Min(SubSection.MinVertexIndex, Indices[FaceIndex].GetMin());
-				SubSection.MaxVertexIndex = FMath::Max(SubSection.MaxVertexIndex, Indices[FaceIndex].GetMax());
+				SubSection.MinVertexIndex = FMath::Min(SubSection.MinVertexIndex, IndexArray[FaceIndex].GetMin());
+				SubSection.MaxVertexIndex = FMath::Max(SubSection.MaxVertexIndex, IndexArray[FaceIndex].GetMax());
 			}
 			check(SubSection.MinVertexIndex >= Section.MinVertexIndex && SubSection.MinVertexIndex <= Section.MaxVertexIndex)
 			check(SubSection.MaxVertexIndex >= Section.MinVertexIndex && SubSection.MaxVertexIndex <= Section.MaxVertexIndex)
@@ -922,24 +938,24 @@ void FGeometryCollectionSceneProxy::InitializeSubSections_RenderThread()
 	};
 
 	// Create subsections per transform
-	const int32 NumTransforms = (Sections.Num() > 0) ? SubSectionHitProxies.Num() / Sections.Num(): 0;
+	const int32 NumTransforms = (SectionArray.Num() > 0) ? SubSectionHitProxies.Num() / SectionArray.Num(): 0;
 
-	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+	for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); ++SectionIndex)
 	{
 		const int32 SectionOffset = SectionIndex * NumTransforms;
 
-		const FGeometryCollectionSection& Section = Sections[SectionIndex];
+		const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 		check(Section.NumTriangles > 0);  // Sections are not created with zero triangles
 
 		const int32 FirstFaceIndex = Section.FirstIndex / 3;
 		const int32 EndFaceIndex = FirstFaceIndex + Section.NumTriangles;
 
-		int32 TransformIndex = BoneMap[Indices[FirstFaceIndex][0]];  // Assumes one transform per triangle
+		int32 TransformIndex = BoneMap[IndexArray[FirstFaceIndex][0]];  // Assumes one transform per triangle
 		int32 FaceIndex = FirstFaceIndex;
 
 		for (int32 NextFaceIndex = FaceIndex + 1; NextFaceIndex < EndFaceIndex; ++NextFaceIndex)
 		{
-			const int32 NextTransformIndex = BoneMap[Indices[NextFaceIndex][0]];  // Assumes one transform per triangle
+			const int32 NextTransformIndex = BoneMap[IndexArray[NextFaceIndex][0]];  // Assumes one transform per triangle
 			if (TransformIndex != NextTransformIndex)
 			{
 				// Add the current subsection
