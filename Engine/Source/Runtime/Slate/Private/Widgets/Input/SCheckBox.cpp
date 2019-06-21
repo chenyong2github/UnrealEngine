@@ -12,6 +12,13 @@
 #include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
 #endif
 
+SCheckBox::SCheckBox()
+{
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
+#endif
+}
+
 /**
  * Construct this widget
  *

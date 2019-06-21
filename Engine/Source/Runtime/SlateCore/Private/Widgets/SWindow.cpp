@@ -1919,6 +1919,9 @@ SWindow::SWindow()
 	, TitleBar()
 	, bIsDrawingEnabled( true )
 {
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto);
+#endif
 }
 
 
