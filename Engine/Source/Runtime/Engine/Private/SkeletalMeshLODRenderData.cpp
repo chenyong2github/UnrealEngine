@@ -223,7 +223,8 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
         }
     }
 
-	if (RHISupportsComputeShaders(GMaxRHIShaderPlatform) && InMorphTargets.Num() > 0)
+	// UseGPUMorphTargets() can be toggled only on SM5 atm
+	if (IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5) && InMorphTargets.Num() > 0)
 	{
 		MorphTargetVertexInfoBuffers.VertexIndices.Empty();
 		MorphTargetVertexInfoBuffers.MorphDeltas.Empty();
