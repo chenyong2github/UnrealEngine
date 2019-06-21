@@ -74,10 +74,10 @@ void GlobalIlluminationRGS()
 	{
 		GBufferData.DiffuseColor = GBufferData.StoredBaseColor;
 	}
-	float Depth = GBufferData.Depth;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraOrigin = View.WorldCameraOrigin;
-	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float3 WorldPosition;
+	float3 CameraDirection;
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
 	float3 WorldNormal = GBufferData.WorldNormal;
 	uint ShadingModelID = GBufferData.ShadingModelID;
 	if (ShadingModelID == SHADINGMODELID_UNLIT
@@ -141,7 +141,7 @@ void GlobalIlluminationRGS()
 		float3 RayThroughput = 1.0;
 #endif
 		Ray.TMax = max(MaxRayDistanceForGI, MaxRayDistanceForAO);
-        ApplyPositionBias(Ray, WorldNormal, MaxNormalBias);
+		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 		
 		float MaterialPdf = 0.0;
 		uint Bounce = 0;

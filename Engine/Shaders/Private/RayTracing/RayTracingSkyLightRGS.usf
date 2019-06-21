@@ -231,10 +231,10 @@ void SkyLightRGS()
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
-	float Depth = GBufferData.Depth;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraOrigin = View.WorldCameraOrigin;
-	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
+	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float3 WorldPosition;
+	float3 CameraDirection;
+	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
 	float3 WorldNormal = GBufferData.WorldNormal;
 	float3 Albedo = GBufferData.DiffuseColor;
 
@@ -252,7 +252,6 @@ void SkyLightRGS()
 	uint SamplesPerPixel = SkyLight.SamplesPerPixel;
 
 	// Mask out depth values that are infinitely far away
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
 	bool bTraceRay = (
 		IsFiniteDepth &&
@@ -301,7 +300,7 @@ void SkyLightRGS()
 			MisWeight = RayPdf / ((1.0 - SkyLightSamplingStrategyPdf) * RayPdf + SkyLightSamplingStrategyPdf * PdfSkyLightOcclusionRay(FaceCdf, WorldNormal, Ray.Direction));
 		}
 
-		ApplyPositionBias(Ray, WorldNormal, SkyLight.MaxNormalBias);
+		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, SkyLight.MaxNormalBias);
 
 		uint RayFlags = 0;
 #if !ENABLE_MATERIALS
