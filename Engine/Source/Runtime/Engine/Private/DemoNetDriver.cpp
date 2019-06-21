@@ -1224,7 +1224,7 @@ void UDemoNetDriver::ResetLevelStatuses()
 	check(World);
 
 	// ResetLevelStatuses should only ever be called before receiving *any* data from the Replay stream,
-	// immediately before processing checkpoint data, or after a level transistion (in which case no data
+	// immediately before processing checkpoint data, or after a level transition (in which case no data
 	// will be relevant to the new sublevels).
 	// In any case, we can just flag these sublevels as ready immediately.
 	FindOrAddLevelStatus(*(World->PersistentLevel)).bIsReady = true;
@@ -5353,6 +5353,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			if (GotoCheckpointArchive->IsError())
 			{
+				UE_LOG(LogDemo, Error, TEXT("Guid cache serialization error while loading checkpoint."));
 				break;
 			}
 		}
@@ -5369,6 +5370,12 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 		else
 		{
 			CastChecked<UPackageMapClient>(ServerConnection->PackageMap)->SerializeNetFieldExportGroupMap(*GotoCheckpointArchive);
+		}
+
+		if (bDeltaCheckpoint)
+		{
+			// each set of checkpoint packets we read will have a full name table, so only keep the last version
+			SeenLevelStatuses.Reset();
 		}
 
 		ReadDemoFrameIntoPlaybackPackets(*GotoCheckpointArchive);
