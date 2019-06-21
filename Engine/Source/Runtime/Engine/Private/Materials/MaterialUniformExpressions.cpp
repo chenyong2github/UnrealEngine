@@ -835,7 +835,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			// Don't have valid resources to bind for this VT, so make sure something is bound
 			if (!bValidResources)
 			{
-				*ResourceTablePhysicalTexturePtr = GWhiteTextureWithSRV->ShaderResourceViewRHI;
+				*ResourceTablePhysicalTexturePtr = GBlackTextureWithSRV->ShaderResourceViewRHI;
 				*ResourceTablePhysicalSamplerPtr = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp, 0, 8>::GetRHI();
 			}
 		}
