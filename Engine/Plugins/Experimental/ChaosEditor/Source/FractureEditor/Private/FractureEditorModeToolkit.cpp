@@ -757,11 +757,15 @@ int32 FFractureEditorModeToolkit::GetLevelCount()
 				if (HasLevelAttribute)
 				{
 					TManagedArray<int32>& Levels = GeometryCollection->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
-					for (int32 Level : Levels)
+
+					if(Levels.Num() > 0)
 					{
-						if (Level > ReturnLevel)
+						for (int32 Level : Levels)
 						{
-							ReturnLevel = Level;
+							if (Level > ReturnLevel)
+							{
+								ReturnLevel = Level;
+							}
 						}
 					}
 				}
