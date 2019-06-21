@@ -169,7 +169,7 @@ void FEditorModeTools::UpdateModeWidgetLocation()
 
 	if (SelectedActors && SelectedActors->Num() > 0)
 	{
-		AActor* Actor = CastChecked<AActor>(SelectedActors->GetSelectedObject(SelectedActors->Num() - 1));
+		AActor* Actor = Cast<AActor>(SelectedActors->GetSelectedObject(SelectedActors->Num() - 1));
 
 		if (Actor)
 		{
