@@ -322,7 +322,7 @@ mtlpp::Drawable FMetalViewport::GetDrawable(EMetalViewportAccessFlag Accessor)
 				}
 				else
 				{
-					FPlatformProcess::Sleep(0.001f);
+					FPlatformProcess::SleepNoStats(0.001f);
 				}
 			}
 			while (Drawable == nil || Size.width != BackBuffer[GetViewportIndex(Accessor)]->GetSizeX() || Size.height != BackBuffer[GetViewportIndex(Accessor)]->GetSizeY());
