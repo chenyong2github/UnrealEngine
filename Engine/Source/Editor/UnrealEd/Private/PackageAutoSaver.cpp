@@ -290,7 +290,7 @@ void FPackageAutoSaver::OfferToRestorePackages()
 {
 	bool bRemoveRestoreFile = true;
 
-	if(HasPackagesToRestore())
+	if(HasPackagesToRestore() && !bAutoDeclineRecovery) // if bAutoDeclineRecovery is true, do like the user selected to decline. (then remove the restore files)
 	{
 		// If we failed to restore, keep the restore information around
 		if(PackageRestore::PromptToRestorePackages(PackagesThatCanBeRestored) == FEditorFileUtils::PR_Failure)
