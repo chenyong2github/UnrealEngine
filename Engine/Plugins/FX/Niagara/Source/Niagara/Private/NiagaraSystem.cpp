@@ -21,12 +21,6 @@
 #include "DerivedDataCacheInterface.h"
 #endif
 
-#if WITH_EDITORONLY_DATA
-#include "Widgets/NiagaraOverviewNodeStackItem.h"
-
-static const float SystemOverviewNodePadding = 300.0f;
-#endif
-
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - Precompile"), STAT_Niagara_System_Precompile, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript"), STAT_Niagara_System_CompileScript, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara - System - CompileScript_ResetAfter"), STAT_Niagara_System_CompileScriptResetAfter, STATGROUP_Niagara);
@@ -96,11 +90,6 @@ void UNiagaraSystem::PostInitProperties()
 
 		SystemUpdateScript = NewObject<UNiagaraScript>(this, "SystemUpdateScript", RF_Transactional);
 		SystemUpdateScript->SetUsage(ENiagaraScriptUsage::SystemUpdateScript);
-
-#if WITH_EDITORONLY_DATA
-		SystemOverviewGraph = NewObject<UEdGraph>(this, "NiagaraOverview", RF_Transactional);
-		SystemOverviewGraph->Schema = UEdGraphSchema::StaticClass();
-#endif
 	}
 
 	GenerateStatID();
@@ -395,13 +384,6 @@ void UNiagaraSystem::PostLoad()
 		UpdateScript->RapidIterationParameters.DumpParameters();
 	}
 #endif
-
-	if (SystemOverviewGraph == nullptr)
-	{
-		SystemOverviewGraph = NewObject<UEdGraph>(this, "NiagaraOverview", RF_Transactional);
-		SystemOverviewGraph->Schema = UEdGraphSchema::StaticClass();
-		InitSystemOverviewGraph();
-	}
 #endif
 }
 
@@ -584,7 +566,6 @@ FNiagaraEmitterHandle UNiagaraSystem::AddEmitterHandle(UNiagaraEmitter& InEmitte
 	}
 	EmitterHandles.Add(EmitterHandle);
 	RefreshSystemParametersFromEmitter(EmitterHandle);
-	SystemOverviewHandleAdded(EmitterHandle.GetId());
 	return EmitterHandle;
 }
 
@@ -595,7 +576,6 @@ FNiagaraEmitterHandle UNiagaraSystem::DuplicateEmitterHandle(const FNiagaraEmitt
 	EmitterHandle.SetIsEnabled(EmitterHandleToDuplicate.GetIsEnabled());
 	EmitterHandles.Add(EmitterHandle);
 	RefreshSystemParametersFromEmitter(EmitterHandle);
-	SystemOverviewHandleAdded(EmitterHandle.GetId());
 	return EmitterHandle;
 }
 
@@ -605,7 +585,6 @@ void UNiagaraSystem::RemoveEmitterHandle(const FNiagaraEmitterHandle& EmitterHan
 	RemoveSystemParametersForEmitter(EmitterHandleToDelete);
 	auto RemovePredicate = [&](const FNiagaraEmitterHandle& EmitterHandle) { return EmitterHandle.GetId() == EmitterHandleToDelete.GetId(); };
 	EmitterHandles.RemoveAll(RemovePredicate);
-	SystemOverviewHandlesRemoved();
 }
 
 void UNiagaraSystem::RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove)
@@ -617,7 +596,6 @@ void UNiagaraSystem::RemoveEmitterHandlesById(const TSet<FGuid>& HandlesToRemove
 	EmitterHandles.RemoveAll(RemovePredicate);
 
 	InitEmitterSpawnAttributes();
-	SystemOverviewHandlesRemoved();
 }
 #endif
 
@@ -677,13 +655,6 @@ bool UNiagaraSystem::PollForCompilationComplete()
 	}
 	return true;
 }
-
-#if WITH_EDITORONLY_DATA
-UEdGraph* UNiagaraSystem::GetSystemOverviewGraph() const
-{
-	return SystemOverviewGraph;
-}
-#endif
 
 bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply)
 {
@@ -1084,81 +1055,3 @@ void UNiagaraSystem::GenerateStatID()
 	StatID_RT_CNC = FDynamicStats::CreateStatId<FStatGroup_STATGROUP_NiagaraSystems>(GetPathName() + TEXT("[RT_CNC]"));
 #endif
 }
-
-#if WITH_EDITORONLY_DATA
-void UNiagaraSystem::InitSystemOverviewGraph() const
-{
-	float NextNodePosX = 0.0;
-
-	FGraphNodeCreator<UNiagaraOverviewNodeStackItem> SystemOverviewNodeCreator(*SystemOverviewGraph);
-	UNiagaraOverviewNodeStackItem* SystemOverviewNode = SystemOverviewNodeCreator.CreateNode(false);
-	SystemOverviewNode->Initialize(this);
-
-	SystemOverviewNode->NodePosX = NextNodePosX;
-	SystemOverviewNode->NodePosY = 0.0;
-	NextNodePosX += SystemOverviewNodePadding;
-
-	SystemOverviewNodeCreator.Finalize();
-
-	for (const FNiagaraEmitterHandle& Handle : EmitterHandles)
-	{
-		FGraphNodeCreator<UNiagaraOverviewNodeStackItem> EmitterOverviewNodeCreator(*SystemOverviewGraph);
-		UNiagaraOverviewNodeStackItem* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
-		EmitterOverviewNode->Initialize(this, Handle.GetId());
-
-		EmitterOverviewNode->NodePosX = NextNodePosX;
-		EmitterOverviewNode->NodePosY = 0.0;
-		NextNodePosX += SystemOverviewNodePadding;
-
-		EmitterOverviewNodeCreator.Finalize();
-	}
-}
-
-void UNiagaraSystem::SystemOverviewHandleAdded(const FGuid AddedHandleGuid) const
-{
-	auto GetGoodPlaceForNewOverviewNode = [](UEdGraph* SystemOverviewGraph, const TArray<FNiagaraEmitterHandle>& EmitterHandles)->const FVector2D {
-		TArray<UNiagaraOverviewNodeStackItem*> OverviewNodes;
-		SystemOverviewGraph->GetNodesOfClass<UNiagaraOverviewNodeStackItem>(OverviewNodes);
-
-		// Find the last created Emitter overview node location and place next to that. 
-		if (EmitterHandles.Num() > 1)
-		{
-			const FGuid PreviousEmitterHandleGuid = EmitterHandles.Last(1).GetId();
-			for (const UNiagaraOverviewNodeStackItem* PerOverviewNode : OverviewNodes)
-			{
-				if (PreviousEmitterHandleGuid == PerOverviewNode->GetEmitterHandleGuid())
-				{
-					return FVector2D(PerOverviewNode->NodePosX + SystemOverviewNodePadding, PerOverviewNode->NodePosY);
-				}
-			}
-		}
-		return SystemOverviewGraph->GetGoodPlaceForNewNode();
-	};
-
-	const FVector2D NewNodeLocation = GetGoodPlaceForNewOverviewNode(SystemOverviewGraph, EmitterHandles);
-
-	FGraphNodeCreator<UNiagaraOverviewNodeStackItem> EmitterOverviewNodeCreator(*SystemOverviewGraph);
-	UNiagaraOverviewNodeStackItem* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
-	EmitterOverviewNode->Initialize(this, AddedHandleGuid);
-	
-	EmitterOverviewNode->NodePosX = NewNodeLocation.X;
-	EmitterOverviewNode->NodePosY = NewNodeLocation.Y;
-
-	EmitterOverviewNodeCreator.Finalize();
-}
-
-void UNiagaraSystem::SystemOverviewHandlesRemoved() const
-{
-	TArray<UNiagaraOverviewNodeStackItem*> CurrentOverviewNodes;
-	SystemOverviewGraph->GetNodesOfClass<UNiagaraOverviewNodeStackItem>(CurrentOverviewNodes);
-	for (UNiagaraOverviewNodeStackItem* OverviewNode : CurrentOverviewNodes)
-	{
-		const FGuid OverviewNodeGuid = OverviewNode->GetEmitterHandleGuid();
-		// If the OverviewNode's EmitterHandleGuid is valid (not representing a system) and is not in the current array of this System's EmitterHandles, that node can be removed.
-		if (OverviewNodeGuid.IsValid() && false == EmitterHandles.ContainsByPredicate([&OverviewNodeGuid](const FNiagaraEmitterHandle& Handle) {return Handle.GetId() == OverviewNodeGuid;}))
-		{
-			SystemOverviewGraph->RemoveNode(OverviewNode);
-		}
-	}
-}
-#endif
