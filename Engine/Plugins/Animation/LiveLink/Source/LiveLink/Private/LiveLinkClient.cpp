@@ -1130,6 +1130,7 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 			if (NumberOfPropertyNames == 0 && InFrameData.CurveElements.Num() > 0)
 			{
 				UpdateForAnimationStatic(AnimationStaticData->PropertyNames, InFrameData.CurveElements);
+				NumberOfPropertyNames = AnimationStaticData->PropertyNames.Num();
 			}
 		}
 
