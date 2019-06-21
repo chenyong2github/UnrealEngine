@@ -113,9 +113,10 @@ protected:
 	uint64 LastFrameFenceCounter = 0;
 
 	void CreateSwapchain();
+	void DestroySwapchain();
 	void AcquireImageIndex();
 
-	void RecreateSwapchain(void* NewNativeWindow, bool bForce = false);
+	void RecreateSwapchain(void* NewNativeWindow);
 	void RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat);
 	void Resize(uint32 InSizeX, uint32 InSizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat);
 
