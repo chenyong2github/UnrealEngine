@@ -18,6 +18,7 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"GraphEditor",
 					"InputCore",
+					"LevelSequence",
 					"KismetCompiler",
 					"MeshDescription",
 					"MeshDescriptionOperations",
