@@ -175,15 +175,30 @@ bool UK2Node_EvaluateLiveLinkFrame::IsConnectionDisallowed(const UEdGraphPin* My
 		}
 		return bDisallowed;
 	}
-	
+
+	if (MyPin == GetLiveLinkRolePin())
+	{
+		return true;
+	}
+
 	return false;
 }
 
 void UK2Node_EvaluateLiveLinkFrame::PinDefaultValueChanged(UEdGraphPin* ChangedPin)
 {
-	if (ChangedPin && ChangedPin->PinName == UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkRolePinName)
+	UEdGraphPin* LiveLinkRolePin = GetLiveLinkRolePin();
+	if (ChangedPin == LiveLinkRolePin && LiveLinkRolePin)
 	{
-		RefreshDataOutputPinType();
+		if (LiveLinkRolePin->DefaultObject != nullptr && LiveLinkRolePin->LinkedTo.Num() == 0)
+		{
+			UClass* ClassValue = Cast<UClass>(LiveLinkRolePin->DefaultObject);
+			bool bIsValid = ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()) && !ClassValue->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_HideDropDown);
+			if (!bIsValid)
+			{
+				LiveLinkRolePin->DefaultObject = nullptr;
+			}
+			RefreshDataOutputPinType();
+		}
 	}
 }
 
@@ -383,7 +398,7 @@ TSubclassOf<ULiveLinkRole> UK2Node_EvaluateLiveLinkFrame::GetDefaultRolePinValue
 	if (LiveLinkRolePin && LiveLinkRolePin->DefaultObject != nullptr && LiveLinkRolePin->LinkedTo.Num() == 0)
 	{
 		UClass* ClassValue = Cast<UClass>(LiveLinkRolePin->DefaultObject);
-		if (ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()))
+		if (ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()) && !ClassValue->HasAnyClassFlags(CLASS_Abstract|CLASS_Deprecated|CLASS_HideDropDown))
 		{
 			return ClassValue;
 		}
