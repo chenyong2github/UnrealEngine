@@ -977,7 +977,7 @@ void FMaterial::SerializeInlineShaderMap(FArchive& Ar)
 			{
 				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap = new FMaterialShaderMap();
 				LoadedShaderMap->Serialize(Ar, true, bCooked && Ar.IsLoading());
-				SetGameThreadShaderMap(LoadedShaderMap);
+				GameThreadShaderMap = LoadedShaderMap;
 			}
 		}
 	}
