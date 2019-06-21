@@ -552,7 +552,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 						// Mark the texel as intersecting another surface so we can avoid filtering across it later
 						TexelToVertex.bIntersectingSurface = true;
 
-						TexelToVertex.TexelRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq));
+						TexelToVertex.TexelRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq / 2.0f));
 					}
 
 					// Give preference to moving the shading position outside of backfaces
@@ -579,6 +579,8 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 
 						TexelToVertex.TexelRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3();
 					}
+
+					TexelToVertex.TexelRadius = FMath::Max(TexelToVertex.TexelRadius, SceneConstants.SmallestTexelRadius);
 				}
 			}
 			else
