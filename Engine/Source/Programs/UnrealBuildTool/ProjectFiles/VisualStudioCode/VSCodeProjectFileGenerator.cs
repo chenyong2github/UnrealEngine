@@ -916,21 +916,19 @@ namespace UnrealBuildTool
 			DirectoryReference OutputDirectory = DirectoryReference.Combine(RootDirectory, "Binaries", UBTPlatformName);
 
 			// Get the executable name (minus any platform or config suffixes)
-			string BaseExeName = TargetName;
-			if(Target.TargetRules != null && Target.TargetRules.BuildEnvironment == TargetBuildEnvironment.Shared && TargetRulesType != TargetType.Program)
+			string BinaryName;
+			if(Target.TargetRules.BuildEnvironment == TargetBuildEnvironment.Shared && TargetRulesType != TargetType.Program)
 			{
-				BaseExeName = UEBuildTarget.GetAppNameForTargetType(TargetRulesType);
+				BinaryName = UEBuildTarget.GetAppNameForTargetType(TargetRulesType);
+			}
+			else
+			{
+				BinaryName = TargetName;
 			}
 
 			// Make the output file path
-			string ExecutableFilename = FileReference.Combine(OutputDirectory, BaseExeName).ToString();
-
-			if ((Configuration != UnrealTargetConfiguration.Development) && ((Configuration !=  UnrealTargetConfiguration.DebugGame) || bShouldCompileMonolithic))
-			{
-				ExecutableFilename += "-" + UBTPlatformName + "-" + UBTConfigurationName;
-			}
-			ExecutableFilename += TargetRulesObject.Architecture;
-			ExecutableFilename += BuildPlatform.GetBinaryExtension(UEBuildBinaryType.Executable);
+			string BinaryFileName = UEBuildTarget.MakeBinaryFileName(BinaryName, Platform, Configuration, TargetRulesObject.Architecture, TargetRulesObject.UndecoratedConfiguration, UEBuildBinaryType.Executable);
+			string ExecutableFilename = FileReference.Combine(OutputDirectory, BinaryFileName).FullName;
 
 			// Include the path to the actual executable for a Mac app bundle
 			if (Platform == UnrealTargetPlatform.Mac && !Target.TargetRules.bIsBuildingConsoleApplication)
