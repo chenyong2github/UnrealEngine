@@ -7,3 +7,13 @@ TSharedPtr<SWidget> ULiveLinkSourceFactory::BuildCreationPanel(FOnLiveLinkSource
 {
 	return TSharedPtr<SWidget>();
 }
+
+TSharedPtr<SWidget> ULiveLinkSourceFactory::CreateSourceCreationPanel()
+{
+	return TSharedPtr<SWidget>();
+}
+
+TSharedPtr<ILiveLinkSource> ULiveLinkSourceFactory::OnSourceCreationPanelClosed(bool bMakeSource)
+{
+	return TSharedPtr<ILiveLinkSource>();
+}
