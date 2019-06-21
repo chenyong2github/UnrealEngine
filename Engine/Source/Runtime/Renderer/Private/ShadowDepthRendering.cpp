@@ -712,7 +712,7 @@ static void CheckShadowDepthMaterials(const FMaterialRenderProxy* InRenderProxy,
 	check(Material == InMaterial);
 }
 
-void FProjectedShadowInfo::ClearDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, int32 NumColorTextures, FTextureRHIParamRef* ColorTextures, FTextureRHIParamRef DepthTexture, bool bPerformClear)
+void FProjectedShadowInfo::ClearDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, int32 NumColorTextures, FRHITexture** ColorTextures, FRHITexture* DepthTexture, bool bPerformClear)
 {
 	check(RHICmdList.IsInsideRenderPass());
 
@@ -1096,7 +1096,7 @@ void FProjectedShadowInfo::SetupShadowUniformBuffers(FRHICommandListImmediate& R
 void FProjectedShadowInfo::RenderDepthInner(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, FBeginShadowRenderPassFunction BeginShadowRenderPass, bool bDoParallelDispatch)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = ShadowDepthView->FeatureLevel;
-	FUniformBufferRHIParamRef PassUniformBuffer = ShadowDepthPassUniformBuffer;
+	FRHIUniformBuffer* PassUniformBuffer = ShadowDepthPassUniformBuffer;
 
 	const bool bIsWholeSceneDirectionalShadow = IsWholeSceneDirectionalShadow();
 
@@ -1490,7 +1490,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 		auto BeginShadowRenderPass = [this, &RenderTarget, &SceneContext](FRHICommandList& InRHICmdList, bool bPerformClear)
 		{
-			FTextureRHIParamRef DepthTarget = RenderTarget.TargetableTexture;
+			FRHITexture* DepthTarget = RenderTarget.TargetableTexture;
 			ERenderTargetLoadAction DepthLoadAction = bPerformClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
 			check(DepthTarget->GetDepthClearValue() == 1.0f);
@@ -1563,7 +1563,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 				auto BeginShadowRenderPass = [this, ProjectedShadowInfo](FRHICommandList& InRHICmdList, bool bPerformClear)
 				{
-					FTextureRHIParamRef PreShadowCacheDepthZ = Scene->PreShadowCacheDepthZ->GetRenderTargetItem().TargetableTexture.GetReference();
+					FRHITexture* PreShadowCacheDepthZ = Scene->PreShadowCacheDepthZ->GetRenderTargetItem().TargetableTexture.GetReference();
 					InRHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, &PreShadowCacheDepthZ, 1);
 
 					FRHIRenderPassInfo RPInfo(PreShadowCacheDepthZ, EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil, nullptr, FExclusiveDepthStencil::DepthWrite_StencilWrite);
@@ -1605,7 +1605,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 		FSceneRenderTargetItem ColorTarget0 = ShadowMapAtlas.RenderTargets.ColorTargets[0]->GetRenderTargetItem();
 		FSceneRenderTargetItem ColorTarget1 = ShadowMapAtlas.RenderTargets.ColorTargets[1]->GetRenderTargetItem();
 
-		FTextureRHIParamRef RenderTargetArray[2] =
+		FRHITexture* RenderTargetArray[2] =
 		{
 			ColorTarget0.TargetableTexture,
 			ColorTarget1.TargetableTexture
@@ -1673,7 +1673,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 			auto BeginShadowRenderPass = [this, LightPropagationVolume, ProjectedShadowInfo, &ColorTarget0, &ColorTarget1, &DepthTarget](FRHICommandList& InRHICmdList, bool bPerformClear)
 			{
-				FTextureRHIParamRef RenderTargets[2];
+				FRHITexture* RenderTargets[2];
 				RenderTargets[0] = ColorTarget0.TargetableTexture;
 				RenderTargets[1] = ColorTarget1.TargetableTexture;
 
@@ -1862,7 +1862,7 @@ FShadowDepthPassMeshProcessor::FShadowDepthPassMeshProcessor(
 	const FScene* Scene,
 	const FSceneView* InViewIfDynamicMeshCommand,
 	const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer,
-	FUniformBufferRHIParamRef InPassUniformBuffer,
+	FRHIUniformBuffer* InPassUniformBuffer,
 	FShadowDepthType InShadowDepthType,
 	FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
@@ -1876,7 +1876,7 @@ FShadowDepthType CSMShadowDepthType(true, false, false);
 
 FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	FUniformBufferRHIParamRef PassUniformBuffer = nullptr;
+	FRHIUniformBuffer* PassUniformBuffer = nullptr;
 
 	EShadingPath ShadingPath = Scene->GetShadingPath();
 	if (ShadingPath == EShadingPath::Mobile)

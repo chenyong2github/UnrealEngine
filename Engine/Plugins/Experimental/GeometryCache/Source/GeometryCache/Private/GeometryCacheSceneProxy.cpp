@@ -214,12 +214,12 @@ struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpda
 {
 	FGraphEventRef BufferGenerationCompleteFence;
 
-	FVertexBufferRHIParamRef VertexBuffer;
+	FRHIVertexBuffer* VertexBuffer;
 	//void *VertexData;
 	//uint32 VertexSize;
 	TArray<uint8> VertexData;
 
-	FIndexBufferRHIParamRef IndexBuffer;
+	FRHIIndexBuffer* IndexBuffer;
 	//void *IndexData;
 	//uint32 IndexSize;
 	TArray<uint8> IndexData;
@@ -228,10 +228,10 @@ struct FRHICommandUpdateGeometryCacheBuffer : public FRHICommand<FRHICommandUpda
 	
 	FORCEINLINE_DEBUGGABLE FRHICommandUpdateGeometryCacheBuffer(
 		FGraphEventRef& InBufferGenerationCompleteFence,
-		FVertexBufferRHIParamRef InVertexBuffer,
+		FRHIVertexBuffer* InVertexBuffer,
 		void *InVertexData,
 		uint32 InVertexSize,
-		FIndexBufferRHIParamRef InIndexBuffer,
+		FRHIIndexBuffer* InIndexBuffer,
 		void *InIndexData,
 		uint32 InIndexSize)
 	:

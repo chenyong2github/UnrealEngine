@@ -65,7 +65,7 @@ FRHIGPUBufferReadback::FRHIGPUBufferReadback(FName RequestName) : FRHIGPUMemoryR
 	DestinationStagingBuffer = RHICreateStagingBuffer();
 }
 
-void FRHIGPUBufferReadback::EnqueueCopy(FRHICommandList& RHICmdList, FVertexBufferRHIParamRef SourceBuffer, uint32 NumBytes)
+void FRHIGPUBufferReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHIVertexBuffer* SourceBuffer, uint32 NumBytes)
 {
 	Fence->Clear();
 	RHICmdList.CopyToStagingBuffer(SourceBuffer, DestinationStagingBuffer, 0, NumBytes ? NumBytes : SourceBuffer->GetSize());
@@ -99,7 +99,7 @@ FRHIGPUTextureReadback::FRHIGPUTextureReadback(FName RequestName) : FRHIGPUMemor
 {
 }
 
-void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FTextureRHIParamRef SourceTexture, FResolveRect Rect)
+void FRHIGPUTextureReadback::EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect)
 {
 	Fence->Clear();
 

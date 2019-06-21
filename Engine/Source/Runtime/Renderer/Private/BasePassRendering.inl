@@ -34,7 +34,7 @@ void TBasePassVertexShaderPolicyParamType<LightMapPolicyType>::GetShaderBindings
 
 	if (Scene)
 	{
-		FUniformBufferRHIParamRef ReflectionCaptureUniformBuffer = Scene->UniformBuffers.ReflectionCaptureUniformBuffer.GetReference();
+		FRHIUniformBuffer* ReflectionCaptureUniformBuffer = Scene->UniformBuffers.ReflectionCaptureUniformBuffer.GetReference();
 		ShaderBindings.Add(ReflectionCaptureBuffer, ReflectionCaptureUniformBuffer);
 	}
 	else
@@ -81,7 +81,7 @@ void TBasePassPixelShaderPolicyParamType<LightMapPolicyType>::GetShaderBindings(
 
 	if (Scene)
 	{
-		FUniformBufferRHIParamRef ReflectionCaptureUniformBuffer = Scene->UniformBuffers.ReflectionCaptureUniformBuffer.GetReference();
+		FRHIUniformBuffer* ReflectionCaptureUniformBuffer = Scene->UniformBuffers.ReflectionCaptureUniformBuffer.GetReference();
 		ShaderBindings.Add(ReflectionCaptureBuffer, ReflectionCaptureUniformBuffer);
 	}
 	else

@@ -1257,7 +1257,7 @@ void FAtmosphericFogSceneInfo::RenderAtmosphereShaders(FRHICommandList& RHICmdLi
 		{
 			int32 Layer = Atmosphere3DTextureIndex;
 			{
-				FTextureRHIParamRef RenderTargets[] =
+				FRHITexture* RenderTargets[] =
 				{
 					AtmosphereTextures->AtmosphereDeltaSR->GetRenderTargetItem().TargetableTexture,
 					AtmosphereTextures->AtmosphereDeltaSM->GetRenderTargetItem().TargetableTexture,

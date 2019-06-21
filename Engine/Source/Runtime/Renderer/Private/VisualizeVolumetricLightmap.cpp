@@ -162,10 +162,10 @@ void FDeferredShadingSceneRenderer::VisualizeVolumetricLightmap(FRHICommandListI
 
 		int32 NumRenderTargets = 1;
 
-		FTextureRHIParamRef RenderTargets[2] =
+		FRHITexture* RenderTargets[2] =
 		{
 			SceneContext.GetSceneColorSurface(),
-			NULL,
+			nullptr,
 		};
 
 		if (SceneContext.GBufferB)

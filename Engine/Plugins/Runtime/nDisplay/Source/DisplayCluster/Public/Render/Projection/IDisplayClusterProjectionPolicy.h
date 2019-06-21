@@ -89,6 +89,6 @@ public:
 	* @param ViewportRect - Region of the SrcTexture to perform warp&blend operations
 	*
 	*/
-	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewportRect)
+	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
 	{ }
 };

@@ -446,7 +446,7 @@ public:
 	 */
 	FMeshDrawShaderBindings ShaderBindings;
 	FVertexInputStreamArray VertexStreams;
-	FIndexBufferRHIParamRef IndexBuffer;
+	FRHIIndexBuffer* IndexBuffer;
 
 	/**
 	 * PSO
@@ -470,7 +470,7 @@ public:
 		
 		struct  
 		{
-			FVertexBufferRHIParamRef Buffer;
+			FRHIVertexBuffer* Buffer;
 			uint32 Offset;
 		} IndirectArgs;
 	};
@@ -561,7 +561,7 @@ public:
 	static void SubmitDraw(
 		const FMeshDrawCommand& RESTRICT MeshDrawCommand, 
 		const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-		FVertexBufferRHIParamRef ScenePrimitiveIdsBuffer,
+		FRHIVertexBuffer* ScenePrimitiveIdsBuffer,
 		int32 PrimitiveIdOffset,
 		uint32 InstanceFactor,
 		FRHICommandList& CommandList, 
@@ -914,7 +914,7 @@ ENUM_CLASS_FLAGS(EMeshPassFeatures);
  */
 struct FMeshPassProcessorRenderState
 {
-	FMeshPassProcessorRenderState(const FSceneView& SceneView, FUniformBufferRHIParamRef InPassUniformBuffer = nullptr) : 
+	FMeshPassProcessorRenderState(const FSceneView& SceneView, FRHIUniformBuffer* InPassUniformBuffer = nullptr) :
 		  BlendState(nullptr)
 		, DepthStencilState(nullptr)
 		, DepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead)
@@ -926,7 +926,7 @@ struct FMeshPassProcessorRenderState
 	{
 	}
 
-	FMeshPassProcessorRenderState(const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer, FUniformBufferRHIParamRef InPassUniformBuffer) : 
+	FMeshPassProcessorRenderState(const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer, FRHIUniformBuffer* InPassUniformBuffer) :
 		  BlendState(nullptr)
 		, DepthStencilState(nullptr)
 		, DepthStencilAccess(FExclusiveDepthStencil::DepthRead_StencilRead)
@@ -1022,7 +1022,7 @@ public:
 		return InstancedViewUniformBuffer.IsValid() ? InstancedViewUniformBuffer : reinterpret_cast<const TUniformBufferRef<FInstancedViewUniformShaderParameters>&>(ViewUniformBuffer);
 	}
 
-	FORCEINLINE_DEBUGGABLE void SetReflectionCaptureUniformBuffer(FUniformBufferRHIParamRef InUniformBuffer)
+	FORCEINLINE_DEBUGGABLE void SetReflectionCaptureUniformBuffer(FRHIUniformBuffer* InUniformBuffer)
 	{
 		ReflectionCaptureUniformBuffer = InUniformBuffer;
 	}
@@ -1037,7 +1037,7 @@ public:
 		PassUniformBuffer = InPassUniformBuffer;
 	}
 
-	FORCEINLINE_DEBUGGABLE FUniformBufferRHIParamRef GetPassUniformBuffer() const
+	FORCEINLINE_DEBUGGABLE FRHIUniformBuffer* GetPassUniformBuffer() const
 	{
 		return PassUniformBuffer;
 	}
@@ -1064,7 +1064,7 @@ private:
 	/** Will be bound as reflection capture uniform buffer in case where scene is not available, typically set to dummy/empty buffer to avoid null binding */
 	FUniformBufferRHIRef			ReflectionCaptureUniformBuffer;
 
-	FUniformBufferRHIParamRef		PassUniformBuffer;
+	FRHIUniformBuffer*				PassUniformBuffer;
 	uint32							StencilRef;
 };
 
@@ -1185,7 +1185,7 @@ private:
 extern void SubmitMeshDrawCommands(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet, 
-	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
+	FRHIVertexBuffer* PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
 	uint32 InstanceFactor,
@@ -1194,7 +1194,7 @@ extern void SubmitMeshDrawCommands(
 extern void SubmitMeshDrawCommandsRange(
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	FVertexBufferRHIParamRef PrimitiveIdsBuffer,
+	FRHIVertexBuffer* PrimitiveIdsBuffer,
 	int32 BasePrimitiveIdsOffset,
 	bool bDynamicInstancing,
 	int32 StartIndex,
