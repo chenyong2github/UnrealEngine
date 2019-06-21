@@ -31,7 +31,7 @@
 #define PSFOUNDATION_PSUNIXTRIGCONSTANTS_H
 
 // @MIXEDREALITY_CHANGE : BEGIN
-#if PX_HoloLens
+#if PX_HOLOLENS
 #define PX_GLOBALCONST extern const __declspec(selectany)
 #else
 #define PX_GLOBALCONST extern const __attribute__((weak))
