@@ -8,6 +8,7 @@
 #include "Halton.h"
 #include "Math/PackedVector.h"
 #include "SceneUtils.h"
+#include "Containers/DynamicRHIResourceArray.h"
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHaltonIteration, "HaltonIteration");
 
