@@ -159,6 +159,49 @@ bool FEditorModeTools::SelectionHasSceneComponent() const
 	return bSelectionHasSceneComponent;
 }
 
+void FEditorModeTools::UpdateModeWidgetLocation()
+{
+	bool Reached = false;
+
+	double starttime = FPlatformTime::Seconds();
+
+	USelection* SelectedActors = GetSelectedActors();
+
+	if (SelectedActors && SelectedActors->Num() > 0)
+	{
+		AActor* Actor = CastChecked<AActor>(SelectedActors->GetSelectedObject(SelectedActors->Num() - 1));
+
+		if (Actor)
+		{
+			FVector CurrentActorLocation = Actor->GetActorLocation();
+
+			if (Actor == LastSelectedActor)
+			{
+				if (!(LastSelectedActorLocation - CurrentActorLocation).IsNearlyZero())
+				{
+					for (const auto& Mode : ActiveModes)
+					{
+						if (Mode->UsesTransformWidget())
+						{
+							SetPivotLocation(CurrentActorLocation, false);
+							LastSelectedActorLocation = CurrentActorLocation;
+
+							Reached = true;
+
+							break;
+						}
+					}
+
+				}
+			}
+			else
+			{
+				LastSelectedActor = Actor;
+			}
+		}
+	}
+}
+
 void FEditorModeTools::OnEditorSelectionChanged(UObject* NewSelection)
 {
 	if(NewSelection == GetSelectedActors())
@@ -847,6 +890,8 @@ void FEditorModeTools::Tick( FEditorViewportClient* ViewportClient, float DeltaT
 		const TSharedPtr<FEdMode>& Mode = ActiveModes[ ModeIndex ];
 		Mode->Tick( ViewportClient, DeltaTime );
 	}
+
+	UpdateModeWidgetLocation();
 }
 
 /** Notifies all active modes of any change in mouse movement */
