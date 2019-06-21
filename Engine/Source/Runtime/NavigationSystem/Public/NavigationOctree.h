@@ -68,7 +68,7 @@ struct NAVIGATIONSYSTEM_API FNavigationOctreeElement
 		Data->ValidateAndShrink();
 	}
 
-	FORCEINLINE UObject* GetOwner() const { return Data->SourceObject.Get(); }
+	FORCEINLINE UObject* GetOwner(bool bEvenIfPendingKill = false) const { return Data->SourceObject.Get(bEvenIfPendingKill); }
 };
 
 struct FNavigationOctreeSemantics

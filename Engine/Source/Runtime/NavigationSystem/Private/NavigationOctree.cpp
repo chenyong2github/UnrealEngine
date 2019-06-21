@@ -204,7 +204,9 @@ FORCENOINLINE
 void FNavigationOctreeSemantics::SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id)
 {
 	UWorld* World = NULL;
-	UObject* ElementOwner = Element.GetOwner();
+
+	const bool bEvenIfPendingKill = true;
+	UObject* ElementOwner = Element.GetOwner(bEvenIfPendingKill);
 	if (ElementOwner == nullptr)
 	{
 		return;
