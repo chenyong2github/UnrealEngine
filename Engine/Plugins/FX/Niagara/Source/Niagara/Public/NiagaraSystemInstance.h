@@ -78,7 +78,7 @@ public:
 	bool RequiresDistanceFieldData() const;
 
 	/** Requests the the simulation be reset on the next tick. */
-	void Reset(EResetMode Mode, bool bBindParams = false);
+	void Reset(EResetMode Mode);
 
 	void ComponentTick(float DeltaSeconds);
 	void PreSimulateTick(float DeltaSeconds);

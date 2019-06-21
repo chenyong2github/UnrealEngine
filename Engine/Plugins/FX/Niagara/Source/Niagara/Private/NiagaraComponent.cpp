@@ -1407,7 +1407,7 @@ void UNiagaraComponent::SetParameterValueOverriddenLocally(const FNiagaraVariabl
 	
 	if (bRequiresSystemInstanceReset && SystemInstance)
 	{
-		SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll, true);
+		SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
 	}
 	
 }
