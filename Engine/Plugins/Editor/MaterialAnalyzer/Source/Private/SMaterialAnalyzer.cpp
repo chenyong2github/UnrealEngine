@@ -625,6 +625,7 @@ FAnalyzedMaterialNodePtr FBuildBasicMaterialTreeAsyncTask::FindOrMakeBranchNode(
 		ChildNode.Path = ChildData->AssetName.ToString();
 		ChildNode.ObjectPath = ChildData->ObjectPath;
 		ChildNode.Parent = ParentNode;
+		ChildNode.AssetData = *ChildData;
 		NodesToSearch.Add(FAnalyzedMaterialNodeRef(new FAnalyzedMaterialNode(ChildNode)));
 		OutNode = &NodesToSearch[NodesToSearch.Num() - 1];
 	}

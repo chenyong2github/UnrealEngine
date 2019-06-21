@@ -161,6 +161,7 @@ public:
 	FString Path;
 	FName ObjectPath;
 	FAnalyzedMaterialNodePtr Parent;
+	FAssetData AssetData;
 
 	TArray<FBasePropertyOverrideNodeRef> BasePropertyOverrides;
 	TArray<FStaticMaterialLayerParameterNodeRef> MaterialLayerParameters;
