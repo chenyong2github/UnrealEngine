@@ -4956,6 +4956,11 @@ const FLandscapeLayer* ALandscape::GetLayer(int32 InLayerIndex) const
 	return nullptr;
 }
 
+int32 ALandscape::GetLayerIndex(FName InLayerName) const
+{
+	return LandscapeLayers.IndexOfByPredicate([InLayerName](const FLandscapeLayer& Layer) { return Layer.Name == InLayerName; });
+}
+
 const FLandscapeLayer* ALandscape::GetLayer(const FGuid& InLayerGuid) const
 {
 	return LandscapeLayers.FindByPredicate([&InLayerGuid](const FLandscapeLayer& Other) { return Other.Guid == InLayerGuid; });
@@ -5397,24 +5402,26 @@ FLandscapeLayer* ALandscape::DuplicateLayerAndMoveBrushes(const FLandscapeLayer&
 	return &LandscapeLayers[AddedIndex];
 }
 
-void ALandscape::CreateLayer(FName InName)
+int32 ALandscape::CreateLayer(FName InName)
 {
 	ULandscapeInfo* LandscapeInfo = GetLandscapeInfo();
 	if (!LandscapeInfo || IsMaxLayersReached() || !CanHaveLayersContent())
 	{
-		return;
+		return INDEX_NONE;
 	}
 
 	Modify();
 	FLandscapeLayer NewLayer;
 	NewLayer.Name = GenerateUniqueLayerName(InName);
-	LandscapeLayers.Add(NewLayer);
+	int32 LayerIndex = LandscapeLayers.Add(NewLayer);
 
 	// Create associated layer data in each landscape proxy
 	LandscapeInfo->ForAllLandscapeProxies([&NewLayer](ALandscapeProxy* Proxy)
 	{
 		Proxy->AddLayer(NewLayer.Guid);
 	});
+
+	return LayerIndex;
 }
 
 void ALandscape::AddLayersToProxy(ALandscapeProxy* InProxy)
