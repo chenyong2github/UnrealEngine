@@ -50,17 +50,8 @@ FSlateIcon UFractureToolUniform::GetToolIcon() const
 
 void UFractureToolUniform::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, 
-					UICommandInfo,
-					"Uniform", 
-					"Uniform", //GetDisplayText(),
-					"Uniform Voronoi Fracture", // GetTooltipText(),
-					EUserInterfaceActionType::ToggleButton, 
-					FInputChord() 
-	);
-
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Uniform", "Uniform", "Uniform Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Uniform = UICommandInfo;
-
 }
 
 TArray<UObject*> UFractureToolUniform::GetSettingsObjects() const 

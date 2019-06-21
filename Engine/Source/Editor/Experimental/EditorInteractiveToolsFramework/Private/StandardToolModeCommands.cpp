@@ -36,3 +36,4 @@ TSharedPtr<FUICommandInfo> FStandardToolModeCommands::FindStandardCommand(EStand
 }
 
 
+#undef LOCTEXT_NAMESPACE

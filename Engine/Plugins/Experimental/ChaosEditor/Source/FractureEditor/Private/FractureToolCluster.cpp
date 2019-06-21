@@ -51,15 +51,7 @@ FSlateIcon UFractureToolCluster::GetToolIcon() const
 
 void UFractureToolCluster::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, 
-					UICommandInfo,
-					"Clustered", 
-					"Clustered", //GetDisplayText(),
-					"Clustered Voronoi Fracture", // GetTooltipText(),
-					EUserInterfaceActionType::ToggleButton, 
-					FInputChord() 
-	);
-
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Clustered", "Clustered", "Clustered Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Clustered = UICommandInfo;
 }
 
