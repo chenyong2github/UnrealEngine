@@ -6,7 +6,7 @@
 
 
 void FInteractiveToolActionSet::RegisterAction(UInteractiveTool* Tool, int32 ActionID,
-	const FString& ActionName, const FString& ShortUIName, const FString& DescriptionText,
+	const FString& ActionName, const FText& ShortUIName, const FText& DescriptionText,
 	EModifierKey::Type Modifiers, const FKey& ShortcutKey,
 	TFunction<void()> ActionFunction )
 {
