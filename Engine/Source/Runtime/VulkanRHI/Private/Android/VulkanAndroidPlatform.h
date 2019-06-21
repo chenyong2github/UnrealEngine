@@ -96,8 +96,6 @@ public:
 
 	static bool RequiresWaitingForFrameCompletionEvent() { return false; }
 	
-	static void BlockUntilWindowIsAvailable();
-
 	// Does the platform allow a nullptr Pixelshader on the pipeline
 	static bool SupportsNullPixelShader() { return false; }
 
