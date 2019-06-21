@@ -20,6 +20,9 @@
 #include "Backends/JsonStructDeserializerBackend.h"
 #include "DisasterRecoveryFSM.h"
 #include "DisasterRecoverySettings.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "IPackageAutoSaver.h"
 
 #if WITH_EDITOR
 	#include "ISettingsModule.h"
@@ -311,6 +314,12 @@ private:
 		// Starts the recovery process.
 		if (bRecoveringFromCrash)
 		{
+			if (GUnrealEd)
+			{
+				// Prevent the "Auto-Save" system from restoring the packages before Disaster Recovery plugin.
+				GUnrealEd->GetPackageAutoSaver().DisableRestorePromptAndDeclinePackageRecovery();
+			}
+
 			DisasterRecoveryUtil::StartRecovery(DisasterRecoveryClient->GetConcertClient(), InSessionInfoToRestore->LastSessionName, /*bLiveDataOnly*/ false);
 		}
 
