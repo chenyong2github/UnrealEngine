@@ -71,6 +71,8 @@ static void ProcessOCIOColorSpaceTransform_RenderThread(
 
 	SCOPED_DRAW_EVENT(InRHICmdList, ProcessOCIOColorSpaceTransform);
 
+	InRHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, OutputSpaceColorResource->TextureRHI);
+
 	FRHIRenderPassInfo RPInfo(OutputSpaceColorResource->TextureRHI, ERenderTargetActions::DontLoad_Store);
 	InRHICmdList.BeginRenderPass(RPInfo, TEXT("ProcessOCIOColorSpaceXfrm"));
 

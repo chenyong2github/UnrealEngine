@@ -716,7 +716,7 @@ FTAAOutputs FTAAPassParameters::AddTemporalAAPass(
 				SceneTextures.SceneDepthBuffer,
 				ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction,
 				ERenderTargetLoadAction::ELoad, ERenderTargetStoreAction::EStore,
-				FExclusiveDepthStencil::DepthRead_StencilWrite);
+				FExclusiveDepthStencil::DepthRead_StencilRead);
 		}
 		
 		FTemporalAAPS::FPermutationDomain BasePermutationVector;

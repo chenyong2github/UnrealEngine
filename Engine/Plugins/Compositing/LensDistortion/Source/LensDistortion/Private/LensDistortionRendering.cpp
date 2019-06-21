@@ -177,7 +177,11 @@ static void DrawUVDisplacementToRenderTarget_RenderThread(
 	SCOPED_DRAW_EVENT(RHICmdList, DrawUVDisplacementToRenderTarget_RenderThread);
 #endif
 
-	FRHIRenderPassInfo RPInfo(OutTextureRenderTargetResource->GetRenderTargetTexture(), ERenderTargetActions::DontLoad_Store, OutTextureRenderTargetResource->TextureRHI);
+	FRHITexture2D* RenderTargetTexture = OutTextureRenderTargetResource->GetRenderTargetTexture();
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTargetTexture);
+
+	FRHIRenderPassInfo RPInfo(RenderTargetTexture, ERenderTargetActions::DontLoad_Store, OutTextureRenderTargetResource->TextureRHI);
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("DrawUVDisplacement"));
 	{
 		FIntPoint DisplacementMapResolution(OutTextureRenderTargetResource->GetSizeX(), OutTextureRenderTargetResource->GetSizeY());
