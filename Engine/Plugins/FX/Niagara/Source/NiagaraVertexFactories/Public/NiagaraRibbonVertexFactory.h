@@ -35,7 +35,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNiagaraRibbonUniformParameters, NIAGARAVER
 	SHADER_PARAMETER(int, TwistDataOffset)
 	SHADER_PARAMETER(int, ColorDataOffset)
 	SHADER_PARAMETER(int, FacingDataOffset)
-	SHADER_PARAMETER(int, SideVectorDataOffset)
 	SHADER_PARAMETER(int, NormalizedAgeDataOffset)
 	SHADER_PARAMETER(int, MaterialRandomDataOffset)
 	SHADER_PARAMETER(uint32, MaterialParamValidMask)
@@ -150,6 +149,11 @@ public:
 		PackedPerRibbonDataByIndexSRV = InPackedPerRibbonDataByIndexSRV;
 	}
 
+	void SetFacingMode(uint32 InFacingMode)
+	{
+		FacingMode = InFacingMode;
+	}
+
 	FORCEINLINE FShaderResourceViewRHIRef GetParticleDataFloatSRV()
 	{
 		return ParticleDataFloatSRV;
@@ -188,6 +192,11 @@ public:
 	FORCEINLINE FShaderResourceViewRHIRef GetPackedPerRibbonDataByIndexSRV()
 	{
 		return PackedPerRibbonDataByIndexSRV;
+	}
+
+	FORCEINLINE int32 GetFacingMode()
+	{
+		return FacingMode;
 	}
 
 	/**
@@ -232,5 +241,5 @@ private:
 	FShaderResourceViewRHIRef PackedPerRibbonDataByIndexSRV;
 
 	uint32 SortedIndicesOffset;
-
+	int32 FacingMode;
 };

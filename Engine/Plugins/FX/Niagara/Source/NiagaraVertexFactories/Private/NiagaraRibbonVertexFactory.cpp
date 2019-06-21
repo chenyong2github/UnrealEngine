@@ -41,12 +41,14 @@ public:
 		TangentsAndDistances.Bind(ParameterMap, TEXT("TangentsAndDistances"));
 		MultiRibbonIndices.Bind(ParameterMap, TEXT("MultiRibbonIndices"));
 		PackedPerRibbonDataByIndex.Bind(ParameterMap, TEXT("PackedPerRibbonDataByIndex"));
+		FacingMode.Bind(ParameterMap, TEXT("FacingMode"));
 
 		ensure(NiagaraParticleDataFloat.IsBound());
 		ensure(FloatDataOffset.IsBound());
 		ensure(FloatDataStride.IsBound());
 		ensure(SortedIndices.IsBound());
 		ensure(SortedIndicesOffset.IsBound());
+		ensure(FacingMode.IsBound());
 	}
 
 	virtual void Serialize(FArchive& Ar) override
@@ -59,6 +61,7 @@ public:
 		Ar << TangentsAndDistances;
 		Ar << MultiRibbonIndices;
 		Ar << PackedPerRibbonDataByIndex;
+		Ar << FacingMode;
 	}
 
 	virtual void GetElementShaderBindings(
@@ -83,6 +86,7 @@ public:
 		ShaderBindings.Add(MultiRibbonIndices, RibbonVF->GetMultiRibbonIndicesSRV());
 		ShaderBindings.Add(PackedPerRibbonDataByIndex, RibbonVF->GetPackedPerRibbonDataByIndexSRV());
 		ShaderBindings.Add(SortedIndicesOffset, RibbonVF->GetSortedIndicesOffset());
+		ShaderBindings.Add(FacingMode, RibbonVF->GetFacingMode());
 	}
 
 private:
@@ -95,6 +99,7 @@ private:
 	FShaderResourceParameter MultiRibbonIndices;
 	FShaderResourceParameter PackedPerRibbonDataByIndex;
 	FShaderParameter SortedIndicesOffset;
+	FShaderParameter FacingMode;
 };
 
 

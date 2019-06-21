@@ -42,6 +42,8 @@ Buffer<float4> TangentsAndDistances;
 Buffer<uint> MultiRibbonIndices;
 Buffer<float> PackedPerRibbonDataByIndex;
 
+uint FacingMode;
+
 // Naming convention :
 // RawParticleId : Used to access per particle data stored in the VF. Actual particle data needs to be indirected through SortedIndices.
 // ParticleId : Used to access particle data in NiagaraVFParticleAccess.
@@ -569,22 +571,16 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 		Intermediates.Facing = normalize(ResolvedView.WorldCameraOrigin - Intermediates.Position);
 	}
 
-	ISOLATE
+    if (FacingMode == 2 /* CustomSide */)
 	{
-		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
-	}
-
-	BRANCH
-	if (NiagaraRibbonVF.SideVectorDataOffset != -1)
-	{
-		const float3 Side0 = GetVec3(NiagaraRibbonVF.SideVectorDataOffset, InterpVtxData.ParticleId0);
-		const float3 Side1 = GetVec3(NiagaraRibbonVF.SideVectorDataOffset, InterpVtxData.ParticleId1);
-		Intermediates.SideVector = -normalize(TransformVector(lerp(Side0, Side1, InterpVtxData.Alpha)));
+		Intermediates.SideVector = Intermediates.Facing;
+		Intermediates.SideVector.z = -Intermediates.Facing.z;
 		Intermediates.Right = normalize(Intermediates.SideVector - dot(Intermediates.SideVector, Intermediates.Direction * Intermediates.Direction));
 		Intermediates.Facing = normalize(cross(Intermediates.Direction, Intermediates.Right));
 	}
 	else
 	{
+		Intermediates.Right = normalize(cross(Intermediates.Facing, Intermediates.Direction));
 		Intermediates.SideVector = Intermediates.Right;
 	}
 

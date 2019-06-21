@@ -158,7 +158,6 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	, WidthDataOffset(INDEX_NONE)
 	, TwistDataOffset(INDEX_NONE)
 	, FacingDataOffset(INDEX_NONE)
-	, SideVectorDataOffset(INDEX_NONE)
 	, ColorDataOffset(INDEX_NONE)
 	, NormalizedAgeDataOffset(INDEX_NONE)
 	, MaterialRandomDataOffset(INDEX_NONE)
@@ -196,7 +195,6 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 	Data.GetVariableComponentOffsets(Properties->RibbonWidthBinding.DataSetVariable, WidthDataOffset, IntDummy);
 	Data.GetVariableComponentOffsets(Properties->RibbonTwistBinding.DataSetVariable, TwistDataOffset, IntDummy);
 	Data.GetVariableComponentOffsets(Properties->RibbonFacingBinding.DataSetVariable, FacingDataOffset, IntDummy);
-	Data.GetVariableComponentOffsets(Properties->SideVectorBinding.DataSetVariable, SideVectorDataOffset, IntDummy);
 	Data.GetVariableComponentOffsets(Properties->NormalizedAgeBinding.DataSetVariable, NormalizedAgeDataOffset, IntDummy);
 	Data.GetVariableComponentOffsets(Properties->MaterialRandomBinding.DataSetVariable, MaterialRandomDataOffset, IntDummy);
 
@@ -440,8 +438,7 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			PerViewUniformParameters.ColorDataOffset = ColorDataOffset;
 			PerViewUniformParameters.WidthDataOffset = WidthDataOffset;
 			PerViewUniformParameters.TwistDataOffset = TwistDataOffset;
-			PerViewUniformParameters.FacingDataOffset = FacingMode == ENiagaraRibbonFacingMode::Custom ? FacingDataOffset : -1;
-			PerViewUniformParameters.SideVectorDataOffset = FacingMode == ENiagaraRibbonFacingMode::FromSideVector ? SideVectorDataOffset : -1;
+			PerViewUniformParameters.FacingDataOffset = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector ? FacingDataOffset : -1;
 			PerViewUniformParameters.NormalizedAgeDataOffset = NormalizedAgeDataOffset;
 			PerViewUniformParameters.MaterialRandomDataOffset = MaterialRandomDataOffset;
 			PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
@@ -466,6 +463,8 @@ void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneVi
 			{
 				return;
 			}
+
+			CollectorResources.VertexFactory.SetFacingMode(static_cast<uint32>(FacingMode));
 
 			// TODO: need to make these two a global alloc buffer as well, not recreate
 			// pass in the sorted indices so the VS can fetch the particle data in order
@@ -638,7 +637,6 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	FNiagaraDataSetAccessor<float> SizeData(Data, Properties->RibbonWidthBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<float> TwistData(Data, Properties->RibbonTwistBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector> FacingData(Data, Properties->RibbonFacingBinding.DataSetVariable);
-	FNiagaraDataSetAccessor<FVector> AlignmentData(Data, Properties->SideVectorBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector4> MaterialParamData(Data, Properties->DynamicMaterialBinding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector4> MaterialParam1Data(Data, Properties->DynamicMaterial1Binding.DataSetVariable);
 	FNiagaraDataSetAccessor<FVector4> MaterialParam2Data(Data, Properties->DynamicMaterial2Binding.DataSetVariable);
