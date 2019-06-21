@@ -1,9 +1,11 @@
 ﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkWindowsMixedRealityHandTrackingSourceFactory.h"
-#include "LiveLinkWindowsMixedRealityHandTrackingSourceEditor.h"
 #include "IWindowsMixedRealityHandTrackingPlugin.h"
 #include "WindowsMixedRealityHandTracking.h"
+
+#include "Features/IModularFeatures.h"
+#include "ILiveLinkClient.h"
 
 #define LOCTEXT_NAMESPACE "WindowsMixedRealityHandTracking"
 
@@ -17,29 +19,23 @@ FText ULiveLinkWindowsMixedRealityHandTrackingSourceFactory::GetSourceTooltip() 
 	return LOCTEXT("HandTrackingLiveLinkSourceTooltip", "Windows Mixed Reality Hand Tracking Key Points Source");
 }
 
-TSharedPtr<SWidget> ULiveLinkWindowsMixedRealityHandTrackingSourceFactory::CreateSourceCreationPanel()
+ULiveLinkWindowsMixedRealityHandTrackingSourceFactory::EMenuType ULiveLinkWindowsMixedRealityHandTrackingSourceFactory::GetMenuType() const
 {
-	if (!ActiveSourceEditor.IsValid())
+	if (IModularFeatures::Get().IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
 	{
-		SAssignNew(ActiveSourceEditor, SLiveLinkWindowsMixedRealityHandTrackingSourceEditor);
+		ILiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+
+		if (!IWindowsMixedRealityHandTrackingModule::Get().IsLiveLinkSourceValid() || !LiveLinkClient.HasSourceBeenAdded(IWindowsMixedRealityHandTrackingModule::Get().GetLiveLinkSource()))
+		{
+			return EMenuType::MenuEntry;
+		}
 	}
-	return ActiveSourceEditor;
+	return EMenuType::Disabled;
 }
 
-TSharedPtr<ILiveLinkSource> ULiveLinkWindowsMixedRealityHandTrackingSourceFactory::OnSourceCreationPanelClosed(bool bCreateSource)
+TSharedPtr<ILiveLinkSource> ULiveLinkWindowsMixedRealityHandTrackingSourceFactory::CreateSource(const FString& ConnectionString) const
 {
-	TSharedPtr<ILiveLinkSource> NewSource = nullptr;
-
-	if (bCreateSource && ActiveSourceEditor.IsValid())
-	{
-		TSharedPtr<FWindowsMixedRealityHandTracking> HandTracking = StaticCastSharedPtr<FWindowsMixedRealityHandTracking>(IWindowsMixedRealityHandTrackingModule::Get().GetLiveLinkSource());
-
-		// Here we could apply settings from SLiveLinkWindowsMixedRealityHandTrackingSourceEditor
-
-		NewSource = HandTracking;
-	}
-	ActiveSourceEditor = nullptr;
-	return NewSource;
+	return IWindowsMixedRealityHandTrackingModule::Get().GetLiveLinkSource();
 }
 
 #undef LOCTEXT_NAMESPACE
