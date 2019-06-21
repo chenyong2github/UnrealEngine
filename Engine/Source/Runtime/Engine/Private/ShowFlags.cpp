@@ -40,15 +40,19 @@ FString FEngineShowFlags::ToString() const
 
 		bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
 		{
-			if(!ret.IsEmpty())
+			EShowFlagGroup Group = FEngineShowFlags::FindShowFlagGroup(*InName);
+			if (Group != SFG_Transient)
 			{
-				ret += (TCHAR)',';
+				if (!ret.IsEmpty())
+				{
+					ret += (TCHAR)',';
+				}
+
+				AddNameByIndex(InIndex, ret);
+
+				ret += (TCHAR)'=';
+				ret += EngineShowFlags.GetSingleFlag(InIndex) ? (TCHAR)'1' : (TCHAR)'0';
 			}
-
-			AddNameByIndex(InIndex, ret);
-
-			ret += (TCHAR)'=';
-			ret += EngineShowFlags.GetSingleFlag(InIndex) ? (TCHAR)'1' : (TCHAR)'0';
 			return true;
 		}
 
