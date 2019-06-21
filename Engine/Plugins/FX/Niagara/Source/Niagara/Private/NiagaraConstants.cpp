@@ -196,7 +196,6 @@ void FNiagaraConstants::Init()
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONTWIST);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONFACING);
-		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR);
 		Attributes.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER);
 
 
@@ -231,7 +230,6 @@ void FNiagaraConstants::Init()
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONWIDTH));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONTWIST));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONFACING));
-		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR));
 		AttrDataSetKeyMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, GetAttributeAsDataSetKey(SYS_PARAM_PARTICLES_RIBBONLINKORDER));
 	}
 
@@ -366,11 +364,6 @@ void FNiagaraConstants::Init()
 		Var.SetValue<FVector>(FVector(0.0f, 0.0f, 1.0f));
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, Var);
 
-		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR, TEXT("0.0, 0.0, 1.0"));
-		Var = SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR;
-		Var.SetValue<FVector>(FVector(0.0f, 0.0f, 1.0f));
-		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR, Var);
-
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, TEXT("0"));
 		Var = SYS_PARAM_PARTICLES_RIBBONLINKORDER;
 		Var.SetValue<float>(0.0f);
@@ -406,8 +399,7 @@ void FNiagaraConstants::Init()
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONID, LOCTEXT("RibbonIDDesc", "Sets the ribbon id for a particle. Particles with the same ribbon id will be connected into a ribbon."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONWIDTH, LOCTEXT("RibbonWidthDesc", "Sets the ribbon width for a particle, in UE4 units."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONTWIST, LOCTEXT("RibbonTwistDesc", "Sets the ribbon twist for a particle, in degrees."));
-		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, LOCTEXT("RibbonFacingDesc", "Sets the facing vector of the ribbon at the particle position."));
-		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONSIDEVECTOR, LOCTEXT("RibbonSideVectorDesc", "Sets the vector that the ribbon is extended width-wise at the particle position."));
+		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONFACING, LOCTEXT("RibbonFacingDesc", "Sets the facing vector of the ribbon at the particle position, or the side vector the ribbon's width is extended along, depending on the selected facing mode."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_RIBBONLINKORDER, LOCTEXT("RibbonLinkOrderDesc", "Explicit order for linking particles within a ribbon. Particles of the same ribbon id will be connected into a ribbon in incrementing order of this attribute value."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_ID, LOCTEXT("IDDesc", "Engine managed particle attribute that is a persistent ID for each particle."));
 		AttrDescStrMap.Add(SYS_PARAM_PARTICLES_UNIQUE_ID, LOCTEXT("UniqueIDDesc", "Engine managed particle attribute that is a unique ID for each particle. The ID is incremented for each new particle spawned.")); 
