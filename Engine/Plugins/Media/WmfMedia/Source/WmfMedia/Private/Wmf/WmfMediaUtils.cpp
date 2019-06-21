@@ -8,16 +8,15 @@
 #include "HAL/PlatformMisc.h"
 #include "HAL/PlatformProcess.h"
 
-#if HAP_SUPPORTED
-	#include "hapguid.h"
-#endif
-
+#include "IWmfMediaModule.h"
 #include "Math/NumericLimits.h"
 #include "Misc/FileHelper.h"
 #include "Serialization/Archive.h"
 #include "Serialization/ArrayReader.h"
 
 #include "WmfMediaByteStream.h"
+
+#include "WmfMediaCodec/WmfMediaCodecManager.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 
@@ -114,7 +113,7 @@ namespace WmfMedia
 		// 8-bit YUV (planar)
 //		&MFVideoFormat_I420,
 //		&MFVideoFormat_IYUV,
-		&MFVideoFormat_NV12
+		&MFVideoFormat_NV12,
 //		&MFVideoFormat_YV12,
 
 		// 10-bit YUV (packed)
@@ -130,7 +129,7 @@ namespace WmfMedia
 		// 16-bit YUV (packed)
 //		&MFVideoFormat_v216,
 //		&MFVideoFormat_Y216,
-//		&MFVideoFormat_Y416,
+		&MFVideoFormat_Y416,
 
 		// 16-bit YUV (planar)
 //		&MFVideoFormat_P016,
@@ -520,23 +519,31 @@ namespace WmfMedia
 				return NULL;
 			}
 
+			UE_LOG(LogWmfMedia, Verbose, TEXT("SubType: { 0x%08X, 0x%04X, 0x%04X, { 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X } };"),
+				SubType.Data1,
+				SubType.Data2,
+				SubType.Data3,
+				SubType.Data4[0],
+				SubType.Data4[1],
+				SubType.Data4[2],
+				SubType.Data4[3],
+				SubType.Data4[4],
+				SubType.Data4[5],
+				SubType.Data4[6],
+				SubType.Data4[7]); 
 
-#if HAP_SUPPORTED
-			const bool bEnableHAPCodec = GetDefault<UWmfMediaSettings>()->EnableHAPCodec;
-			if (bEnableHAPCodec && ((SubType == DecoderGUID_HAP) || (SubType == DecoderGUID_HAP_Q)))
+
+			IWmfMediaModule* WmfMediaModule = IWmfMediaModule::Get();
+			if (WmfMediaModule && WmfMediaModule->GetCodecManager()->IsCodecSupported(MajorType, SubType))
 			{
-				Result = OutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
+				GUID OutputSubType;
+				WmfMediaModule->GetCodecManager()->SetVideoFormat(SubType, OutputSubType);
+				OutputType->SetGUID(MF_MT_SUBTYPE, OutputSubType);
 			}
-			else if (bEnableHAPCodec && ((SubType == DecoderGUID_HAP_ALPHA) || (SubType == DecoderGUID_HAP_Q_ALPHA)))
-			{
-				Result = OutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_ARGB32);
-			}
-			else 
-#endif
-			if ((SubType == MFVideoFormat_HEVC) ||
-				(SubType == MFVideoFormat_HEVC_ES) ||
-				(SubType == MFVideoFormat_NV12) ||
-				(SubType == MFVideoFormat_IYUV))
+			else if ((SubType == MFVideoFormat_HEVC) ||
+					 (SubType == MFVideoFormat_HEVC_ES) ||
+					 (SubType == MFVideoFormat_NV12) ||
+					 (SubType == MFVideoFormat_IYUV))
 			{
 				Result = OutputType->SetGUID(MF_MT_SUBTYPE, MFVideoFormat_NV12);
 			}
