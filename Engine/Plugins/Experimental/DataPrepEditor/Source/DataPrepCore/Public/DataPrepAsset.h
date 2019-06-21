@@ -280,16 +280,16 @@ public:
 		return Producers.IsValidIndex(Index) ? Producers[Index].Producer : nullptr;
 	}
 
-	/** @return pointer on producer at Index-th position in Producers array. nullptr if Index is invalid */
+	/** @return True if producer at Index-th position is enabled. Returns false if disabled or Index is invalid */
 	bool IsProducerEnabled(int32 Index) const
 	{ 
-		return Producers.IsValidIndex(Index) ? Producers[Index].bIsEnabled : nullptr;
+		return Producers.IsValidIndex(Index) ? Producers[Index].bIsEnabled : false;
 	}
 
-	/** @return pointer on producer at Index-th position in Producers array. nullptr if Index is invalid */
+	/** @return True if producer at Index-th position is superseded by an enabled producer. Returns false if not superseded or superseder is disabled or Index is invalid */
 	bool IsProducerSuperseded(int32 Index) const
 	{ 
-		return Producers.IsValidIndex(Index) ? Producers[Index].SupersededBy != INDEX_NONE : false;
+		return Producers.IsValidIndex(Index) ? Producers[Index].SupersededBy != INDEX_NONE && Producers.IsValidIndex(Producers[Index].SupersededBy) && Producers[Producers[Index].SupersededBy].bIsEnabled : false;
 	}
 
 	/**

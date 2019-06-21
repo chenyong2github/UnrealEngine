@@ -353,7 +353,6 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 				MainBox->AddSlot()[
 					CreateProducerWidget( &ProducerWidgets[ Index ], Index )
 				];
-				++Index;
 			}
 		}
 
