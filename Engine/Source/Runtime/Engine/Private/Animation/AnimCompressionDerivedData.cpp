@@ -27,6 +27,14 @@ FDerivedDataAnimationCompression::~FDerivedDataAnimationCompression()
 {
 }
 
+const TCHAR* FDerivedDataAnimationCompression::GetVersionString() const
+{
+	// This is a version string that mimics the old versioning scheme. If you
+	// want to bump this version, generate a new guid using VS->Tools->Create GUID and
+	// return it here. Ex.
+	return TEXT("2E79BF10172A48FDACA76883B8951538");
+}
+
 bool FDerivedDataAnimationCompression::Build( TArray<uint8>& OutDataArray )
 {
 	check(DataToCompressPtr.IsValid());
