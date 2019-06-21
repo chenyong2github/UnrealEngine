@@ -43,6 +43,8 @@ public:
 		FString InInputName,
 		FNiagaraVariable InRapidIterationParameter);
 
+	FNiagaraStackFunctionInputOverrideMergeAdapter(UEdGraphPin* InStaticSwitchPin);
+
 	UNiagaraScript* GetOwningScript() const;
 	UNiagaraNodeFunctionCall* GetOwningFunctionCall() const;
 	FString GetInputName() const;
@@ -56,6 +58,7 @@ public:
 	TOptional<FNiagaraParameterHandle> GetLinkedValueHandle() const;
 	UNiagaraDataInterface* GetDataValueObject() const;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> GetDynamicValueFunction() const;
+	TOptional<FString> GetStaticSwitchValue() const;
 
 private:
 	FString UniqueEmitterName;
@@ -72,6 +75,7 @@ private:
 	TOptional<FNiagaraParameterHandle> LinkedValueHandle;
 	UNiagaraDataInterface* DataValueObject;
 	TSharedPtr<FNiagaraStackFunctionMergeAdapter> DynamicValueFunction;
+	TOptional<FString> StaticSwitchValue;
 
 	FGuid OverrideValueNodePersistentId;
 };
