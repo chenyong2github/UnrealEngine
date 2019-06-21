@@ -12,20 +12,17 @@
 struct CORE_API FDataDrivenPlatformInfoRegistry
 {
 	// Information about a platform loaded from disk
-	struct  FPlatformInfo
+	struct FPlatformInfo
 	{
-		FPlatformInfo()
-			: bIsConfidential(false)
-		{
-		}
-
 		// is this platform confidential
-		bool bIsConfidential;
+		bool bIsConfidential = false;
+
+		// should this platform be split when using ELocTextPlatformSplitMode::Restricted (only used when bIsConfidential is true)
+		bool bRestrictLocalization = false;
 
 		// cached list of ini parents
 		TArray<FString> IniParentChain;
 	};
-
 
 	/**
 	 * Get the data driven platform info for a given platform. If the platform doesn't have any on disk,
