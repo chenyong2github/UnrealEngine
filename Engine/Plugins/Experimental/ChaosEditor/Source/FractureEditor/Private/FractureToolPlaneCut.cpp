@@ -133,7 +133,7 @@ void UFractureToolPlaneCut::ExecuteFracture(const FFractureContext& FractureCont
 			if (LocalCutSettings->ReferenceActor != nullptr)
 			{
 				FTransform Transform(LocalCutSettings->ReferenceActor->GetActorTransform());
-				CuttingPlanes.Add(FPlane(Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
+				CuttingPlanes.Add(FPlane(Transform.GetLocation() - FractureContext.Transform.GetLocation(), Transform.GetUnitAxis(EAxis::Z)));
 			}
 			else
 			{
