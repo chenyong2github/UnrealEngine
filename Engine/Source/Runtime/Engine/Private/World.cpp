@@ -821,6 +821,22 @@ void UWorld::BeginDestroy()
 	}
 }
 
+void UWorld::ReleasePhysicsScene()
+{
+	if (PhysicsScene)
+	{
+		delete PhysicsScene;
+		PhysicsScene = NULL;
+
+#if WITH_PHYSX
+		if (GPhysCommandHandler)
+		{
+			GPhysCommandHandler->Flush();
+		}
+#endif // WITH_PHYSX
+	}
+}
+
 void UWorld::FinishDestroy()
 {
 	// Avoid cleanup if the world hasn't been initialized, e.g., the default object or a world object that got loaded
@@ -842,18 +858,7 @@ void UWorld::FinishDestroy()
 			FXSystem = NULL;
 		}
 
-		if (PhysicsScene)
-		{
-			delete PhysicsScene;
-			PhysicsScene = NULL;
-
-#if WITH_PHYSX
-			if(GPhysCommandHandler)
-			{
-				GPhysCommandHandler->Flush();
-			}
-#endif // WITH_PHYSX
-		}
+		ReleasePhysicsScene();
 
 		if (Scene)
 		{
