@@ -255,6 +255,7 @@ private:
 	uint32 WorldID;
 
 	USoundBase* Sound;
+	USoundEffectSourcePresetChain* SourceEffectChain;
 
 	uint64 AudioComponentID;
 	FName AudioComponentUserID;
@@ -293,6 +294,9 @@ public:
 
 	USoundBase* GetSound() const { return Sound; }
 	void SetSound(USoundBase* InSound);
+
+	USoundEffectSourcePresetChain* GetSourceEffectChain() const { return SourceEffectChain ? SourceEffectChain : Sound->SourceEffectChain; }
+	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 
 	void SetSoundClass(USoundClass* SoundClass);
 

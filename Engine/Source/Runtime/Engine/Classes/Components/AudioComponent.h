@@ -249,6 +249,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverrideSubtitlePriority"))
 	float SubtitlePriority;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	USoundEffectSourcePresetChain* SourceEffectChain;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	float VolumeWeightedPriorityScale_DEPRECATED;
@@ -550,6 +553,7 @@ public:
 	// Will be set if the audio component is using baked FFT or envelope following data so as to be able to feed that data to BP based on playback time
 	void SetPlaybackTimes(const TMap<uint32, float>& InSoundWavePlaybackTimes);
 
+	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
 public:
 
 	/**
