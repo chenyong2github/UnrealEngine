@@ -864,52 +864,59 @@ void MeshPaintHelpers::SetInstanceColorDataForLOD(UStaticMeshComponent* MeshComp
 	}
 }
 
-void MeshPaintHelpers::FillVertexColors(UMeshComponent* MeshComponent, const FColor FillColor, const FColor MaskColor, bool bInstanced /*= false*/)
+void MeshPaintHelpers::FillStaticMeshVertexColors(UStaticMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor)
 {
-	if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(MeshComponent))
+	UStaticMesh* Mesh = MeshComponent->GetStaticMesh();
+	if (Mesh)
 	{
-		if (bInstanced)
+		const int32 NumLODs = Mesh->GetNumLODs();
+		if (LODIndex < NumLODs)
 		{
-			UStaticMesh* Mesh = StaticMeshComponent->GetStaticMesh();
-			if (Mesh && Mesh->GetNumLODs() > 0)
+			if (LODIndex == -1)
 			{
-				const int32 NumLods = Mesh->GetNumLODs();
-				for (int32 LODIndex = 0; LODIndex < NumLods; ++LODIndex)
+				for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 				{
-					MeshPaintHelpers::SetInstanceColorDataForLOD(StaticMeshComponent, LODIndex, FillColor, MaskColor);
+					MeshPaintHelpers::SetInstanceColorDataForLOD(MeshComponent, LODIndex, FillColor, MaskColor);
 				}
+			}
+			else
+			{
+				MeshPaintHelpers::SetInstanceColorDataForLOD(MeshComponent, LODIndex, FillColor, MaskColor);
 			}
 		}
 	}
-	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(MeshComponent))
+}
+
+void MeshPaintHelpers::FillSkeletalMeshVertexColors(USkeletalMeshComponent* MeshComponent, int32 LODIndex, const FColor FillColor, const FColor MaskColor)
+{
+	TUniquePtr< FSkinnedMeshComponentRecreateRenderStateContext > RecreateRenderStateContext;
+	USkeletalMesh* Mesh = MeshComponent->SkeletalMesh;
+	if (Mesh)
 	{
-		TUniquePtr< FSkinnedMeshComponentRecreateRenderStateContext > RecreateRenderStateContext;
-		USkeletalMesh* Mesh = SkeletalMeshComponent->SkeletalMesh;
-		if (Mesh)
+		// Dirty the mesh
+		Mesh->SetFlags(RF_Transactional);
+		Mesh->Modify();
+		Mesh->bHasVertexColors = true;
+		Mesh->VertexColorGuid = FGuid::NewGuid();
+
+		// Release the static mesh's resources.
+		Mesh->ReleaseResources();
+
+		// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
+		// allocated, and potentially accessing the UStaticMesh.
+		Mesh->ReleaseResourcesFence.Wait();
+
+		const int32 NumLODs = Mesh->GetLODNum();
+		if (NumLODs > 0)
 		{
-			// Dirty the mesh
-			Mesh->SetFlags(RF_Transactional);
-			Mesh->Modify();
-			Mesh->bHasVertexColors = true;
-			Mesh->VertexColorGuid = FGuid::NewGuid();
-
-			// Release the static mesh's resources.
-			Mesh->ReleaseResources();
-
-			// Flush the resource release commands to the rendering thread to ensure that the build doesn't occur while a resource is still
-			// allocated, and potentially accessing the UStaticMesh.
-			Mesh->ReleaseResourcesFence.Wait();
-
-			if (Mesh->GetLODNum() > 0)
+			RecreateRenderStateContext = MakeUnique<FSkinnedMeshComponentRecreateRenderStateContext>(Mesh);
+			// TODO: Apply to LODIndex only (or all if set to -1). This requires some extra refactoring
+			// because currently all LOD data is being released above.
+			for (LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 			{
-				RecreateRenderStateContext = MakeUnique<FSkinnedMeshComponentRecreateRenderStateContext>(Mesh);
-				const int32 NumLods = Mesh->GetLODNum();
-				for (int32 LODIndex = 0; LODIndex < NumLods; ++LODIndex)
-				{
-					MeshPaintHelpers::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
-				}
-				Mesh->InitResources();
+				MeshPaintHelpers::SetColorDataForLOD(Mesh, LODIndex, FillColor, MaskColor);
 			}
+			Mesh->InitResources();
 		}
 	}
 }

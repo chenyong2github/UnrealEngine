@@ -2049,7 +2049,14 @@ void FPaintModePainter::FillWithVertexColor()
 			(*MeshAdapter)->PreEdit();
 		}
 		
-		MeshPaintHelpers::FillVertexColors(Component, FillColor, MaskColor, true);
+		if (Component->IsA<UStaticMeshComponent>())
+		{
+			MeshPaintHelpers::FillStaticMeshVertexColors(Cast<UStaticMeshComponent>(Component), PaintSettings->VertexPaintSettings.bPaintOnSpecificLOD ? PaintSettings->VertexPaintSettings.LODIndex : -1, FillColor, MaskColor);
+		}
+		else if (Component->IsA<USkeletalMeshComponent>())
+		{
+			MeshPaintHelpers::FillSkeletalMeshVertexColors(Cast<USkeletalMeshComponent>(Component), PaintSettings->VertexPaintSettings.bPaintOnSpecificLOD ? PaintSettings->VertexPaintSettings.LODIndex : -1, FillColor, MaskColor);
+		}
 
 		if (MeshAdapter)
 		{
