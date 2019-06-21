@@ -124,8 +124,8 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
 
-		FTextureRHIParamRef DistortionTextureValue = DistortionRT.GetRenderTargetItem().TargetableTexture;
-		FTextureRHIParamRef SceneColorTextureValue = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
+		FRHITexture* DistortionTextureValue = DistortionRT.GetRenderTargetItem().TargetableTexture;
+		FRHITexture* SceneColorTextureValue = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
 
 		// Here we use SF_Point as in fullscreen the pixels are 1:1 mapped.
 		SetTextureParameter(
@@ -214,7 +214,7 @@ public:
 	}
 	TDistortionMergePS() {}
 
-	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, const FTextureRHIParamRef& PassTexture)
+	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, FRHITexture* PassTexture)
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
@@ -467,7 +467,7 @@ static void DrawDistortionApplyScreenPass(FRHICommandListImmediate& RHICmdList, 
 }
 
 template <bool UseMSAA>
-static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FViewInfo& View, const FTextureRHIParamRef& PassTexture) {
+static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FViewInfo& View, FRHITexture* PassTexture) {
 	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<TDistortionMergePS<UseMSAA>> PixelShader(View.ShaderMap);
 

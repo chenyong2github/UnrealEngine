@@ -381,7 +381,7 @@ struct FSceneRenderTargetItem
 	FSceneRenderTargetItem() {}
 
 	/** constructor */
-	FSceneRenderTargetItem(FTextureRHIParamRef InTargetableTexture, FTextureRHIParamRef InShaderResourceTexture, FUnorderedAccessViewRHIRef InUAV)
+	FSceneRenderTargetItem(FRHITexture* InTargetableTexture, FRHITexture* InShaderResourceTexture, FUnorderedAccessViewRHIRef InUAV)
 		:	TargetableTexture(InTargetableTexture)
 		,	ShaderResourceTexture(InShaderResourceTexture)
 		,	UAV(InUAV)
@@ -488,7 +488,7 @@ public:
 	FRHITexture2D* NormalTexture;
 	FRHITexture2D* SmallDepthTexture;
 	FRHICommandListImmediate* RHICmdList;
-	FUniformBufferRHIParamRef ViewUniformBuffer;
+	FRHIUniformBuffer* ViewUniformBuffer;
 	TUniformBufferRef<FSceneTexturesUniformParameters> SceneTexturesUniformParams;
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParams;
 	void* Uid; // A unique identifier for the view.

@@ -81,7 +81,7 @@ public:
 	}
 
 	// Accessors.
-	FUniformBufferRHIParamRef GetUniformBufferRHI() const 
+	FRHIUniformBuffer* GetUniformBufferRHI() const
 	{ 
 		checkSlow(IsInRenderingThread() || IsInParallelRenderingThread());
 		checkf(UniformBufferRHI.GetReference(), TEXT("Attempted to access UniformBufferRHI on a TUniformBuffer that was never filled in with anything")); 

@@ -259,9 +259,9 @@ public:
 	void Dispatch(
 		FRHICommandListImmediate& RHICmdList,
 		const FRayTracingScene& RayTracingScene,
-		FUniformBufferRHIParamRef ViewUniformBuffer,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer,
-		FUniformBufferRHIParamRef RectLightUniformBuffer,
+		FRHIUniformBuffer* ViewUniformBuffer,
+		FRHIUniformBuffer* SceneTexturesUniformBuffer,
+		FRHIUniformBuffer* RectLightUniformBuffer,
 		FRHIUnorderedAccessView* LuminanceUAV,
 		FRHIUnorderedAccessView* RayDistanceUAV,
 		uint32 Width, uint32 Height
@@ -400,7 +400,7 @@ void FDeferredShadingSceneRenderer::VisualizeRectLightMipTree(
 	const auto ShaderMap = GetGlobalShaderMap(View.FeatureLevel);
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FVisualizeRectLightMipTreePS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[2] =
+	FRHITexture* RenderTargets[2] =
 	{
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture,
 		RectLightMipTreeRT->GetRenderTargetItem().TargetableTexture

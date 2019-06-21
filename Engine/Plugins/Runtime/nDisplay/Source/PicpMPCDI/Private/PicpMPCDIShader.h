@@ -225,7 +225,7 @@ public:
 
 
 	template<typename TShaderRHIParamRef>
-	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, FTexture2DRHIParamRef SourceTexture)
+	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, FRHITexture2D* SourceTexture)
 	{
 		{
 			SetTextureParameter(RHICmdList, ShaderRHI, PostprocessInputParameter0, SourceTexture);
@@ -282,7 +282,7 @@ public:
 	}
 
 	template<typename TShaderRHIParamRef>
-	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, FTexture2DRHIParamRef SourceTexture, const IMPCDI::FShaderInputData& ShaderInputData, MPCDI::FMPCDIRegion& MPCDIRegionData)
+	void SetParameters(FRHICommandListImmediate& RHICmdList, const TShaderRHIParamRef ShaderRHI, FRHITexture2D* SourceTexture, const IMPCDI::FShaderInputData& ShaderInputData, MPCDI::FMPCDIRegion& MPCDIRegionData)
 	{
 		SetParameters(RHICmdList, ShaderRHI, SourceTexture);
 		SetParameters(RHICmdList, ShaderRHI, ShaderInputData);

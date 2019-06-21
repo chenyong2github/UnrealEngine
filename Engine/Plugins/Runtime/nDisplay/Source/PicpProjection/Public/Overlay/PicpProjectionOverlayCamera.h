@@ -17,14 +17,14 @@ public:
 	//@ Add more render options here
 	
 	//Camera setup
-	FTextureRHIParamRef CameraTexture; // Texture to render
+	FRHITexture* CameraTexture; // Texture to render
 	FMatrix Prj; // Projection matrix
 
 	FRotator ViewRot;
 	FVector  ViewLoc;
 
 public:
-	FPicpProjectionOverlayCamera(const FRotator& CameraRotation, const FVector& CameraLocation, const FMatrix& CameraPrj, FTextureRHIParamRef CameraTextureRef)
+	FPicpProjectionOverlayCamera(const FRotator& CameraRotation, const FVector& CameraLocation, const FMatrix& CameraPrj, FRHITexture* CameraTextureRef)
 		: FPicpProjectionOverlayBase()
 		, SoftEdge(0.1f, 0.1f, 0.1f)
 		, CameraTexture(CameraTextureRef)

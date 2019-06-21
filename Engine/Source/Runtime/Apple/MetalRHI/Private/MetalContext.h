@@ -125,7 +125,7 @@ public:
 
 	// Track Write->Read transitions for TBDR Fragment->Verex fencing
 	void TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 NumUAVs);
-	void TransitionResources(FTextureRHIParamRef* InTextures, int32 NumTextures);
+	void TransitionResources(FRHITexture** InTextures, int32 NumTextures);
 	
 protected:
 	/** The underlying Metal device */

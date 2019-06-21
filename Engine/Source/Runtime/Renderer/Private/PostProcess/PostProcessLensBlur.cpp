@@ -128,7 +128,7 @@ public:
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 				
 		{
-			FTextureRHIParamRef TextureRHI = GWhiteTexture->TextureRHI;
+			FRHITexture* TextureRHI = GWhiteTexture->TextureRHI;
 
 			if(GEngine->DefaultBokehTexture)
 			{

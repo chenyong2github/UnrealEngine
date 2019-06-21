@@ -49,7 +49,7 @@ public:
 
 	void SetParameters(
 		FRHICommandList& RHICmdList,
-		FTextureRHIParamRef RayCountPerPixelBuffer,
+		FRHITexture* RayCountPerPixelBuffer,
 		const FIntPoint& ViewSize,
 		FRHIUnorderedAccessView* TotalRayCountBuffer)
 	{
@@ -93,7 +93,7 @@ private:
 IMPLEMENT_SHADER_TYPE(, FRayCounterCS, TEXT("/Engine/Private/PathTracing/PathTracingRayCounterComputeShader.usf"), TEXT("RayCounterCS"), SF_Compute)
 
 
-void FDeferredShadingSceneRenderer::ComputeRayCount(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FTextureRHIParamRef RayCountPerPixelTexture)
+void FDeferredShadingSceneRenderer::ComputeRayCount(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHITexture* RayCountPerPixelTexture)
 {
 	FSceneViewState* ViewState = (FSceneViewState*)View.State;
 	ClearUAV(RHICmdList, *ViewState->TotalRayCountBuffer, 0);

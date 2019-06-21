@@ -2037,7 +2037,7 @@ void DispatchComputeShader(
 void DispatchIndirectComputeShader(
 	FRHICommandList& RHICmdList,
 	FShader* Shader,
-	FVertexBufferRHIParamRef ArgumentBuffer,
+	FRHIVertexBuffer* ArgumentBuffer,
 	uint32 ArgumentOffset)
 {
 	RHICmdList.DispatchIndirectComputeShader(ArgumentBuffer, ArgumentOffset);

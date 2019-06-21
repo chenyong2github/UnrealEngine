@@ -108,7 +108,7 @@ void FGlobalDistanceFieldInfo::UpdateParameterData(float MaxOcclusionDistance)
 	{
 		for (int32 ClipmapIndex = 0; ClipmapIndex < GMaxGlobalDistanceFieldClipmaps; ClipmapIndex++)
 		{
-			FTextureRHIParamRef TextureValue = ClipmapIndex < Clipmaps.Num() 
+			FRHITexture* TextureValue = ClipmapIndex < Clipmaps.Num()
 				? Clipmaps[ClipmapIndex].RenderTarget->GetRenderTargetItem().ShaderResourceTexture 
 				: NULL;
 

@@ -54,7 +54,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FTextureRHIParamRef Texture2DMS)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
@@ -93,7 +93,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FTextureRHIParamRef Texture2DMS)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
@@ -133,7 +133,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FTextureRHIParamRef Texture2DMS)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
@@ -174,7 +174,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}	
 
-	void SetParameters(FRHICommandList& RHICmdList, FTextureRHIParamRef Texture2DMS, FTextureRHIParamRef FMaskTexure2D)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexure2D)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
@@ -218,7 +218,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FTextureRHIParamRef Texture2DMS, FTextureRHIParamRef FMaskTexure2D)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexure2D)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);
@@ -263,7 +263,7 @@ public:
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::ES2);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, FTextureRHIParamRef Texture2DMS, FTextureRHIParamRef FMaskTexure2D)
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* Texture2DMS, FRHITexture* FMaskTexure2D)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 		SetTextureParameter(RHICmdList, PixelShaderRHI, Tex, Texture2DMS);

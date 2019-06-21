@@ -520,7 +520,7 @@ namespace GPUFFTComputeShaderUtils
 			return *this;
 		}
 
-		inline FComputeParamterValueSetter& operator()(FShaderResourceParameter& TextureParameter, const FTextureRHIParamRef& TextureRHI)
+		inline FComputeParamterValueSetter& operator()(FShaderResourceParameter& TextureParameter, FRHITexture* TextureRHI)
 		{
 			if (TextureParameter.IsBound())
 			{
@@ -531,7 +531,7 @@ namespace GPUFFTComputeShaderUtils
 
 
 		template <ESamplerFilter Filter, ESamplerAddressMode AddressMode>
-		inline FComputeParamterValueSetter& Set(FShaderResourceParameter& TextureParameter, FShaderResourceParameter& SamplerParameter, const FTextureRHIParamRef& TextureRHI)
+		inline FComputeParamterValueSetter& Set(FShaderResourceParameter& TextureParameter, FShaderResourceParameter& SamplerParameter, FRHITexture* TextureRHI)
 		{
 			SetTextureParameter(*RHICmdList, ShaderRHI, TextureParameter, SamplerParameter,
 				TStaticSamplerState<Filter, AddressMode, AddressMode, AddressMode>::GetRHI(), TextureRHI);
