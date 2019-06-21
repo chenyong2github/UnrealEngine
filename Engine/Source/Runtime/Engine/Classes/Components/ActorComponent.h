@@ -454,6 +454,9 @@ public:
 	/** This should only be called by the engine in ULevel::InitializeNetworkActors to initialize bIsNetStartupComponent. */
 	void SetIsNetStartupComponent(const bool bInIsNetStartupComponent) { bIsNetStartupComponent = bInIsNetStartupComponent; }
 
+	/** Allows components to handle an EOF update happening mid tick. Can be used to block on in-flight async tasks etc. This should ensure the the component's tick is complete so that it's render update is correct. */
+	virtual void OnEndOfFrameUpdateDuringTick() {}
+
 private:
 	/** Cached pointer to owning actor */
 	mutable AActor* OwnerPrivate;
