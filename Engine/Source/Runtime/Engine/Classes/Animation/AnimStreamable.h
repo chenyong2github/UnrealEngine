@@ -45,14 +45,16 @@ public:
 	// Bulk data if stored in the package.
 	FByteBulkData BulkData;
 
-	int32 GetMemorySize() const
+	SIZE_T GetMemorySize() const
 	{
-		return	sizeof(FAnimStreamableChunk)
-			+ sizeof(FCompressedAnimSequence)
-			+ CompressedAnimSequence->CompressedTrackToSkeletonMapTable.GetAllocatedSize()
-			+ CompressedAnimSequence->CompressedCurveNames.GetAllocatedSize()
-			+ CompressedAnimSequence->CompressedCurveByteStream.GetAllocatedSize()
-			+ CompressedAnimSequence->CompressedDataStructure.GetApproxBoneCompressedSize();
+		static const SIZE_T ClassSize = sizeof(FAnimStreamableChunk);
+		SIZE_T CurrentSize = ClassSize;
+
+		if (CompressedAnimSequence)
+		{
+			CurrentSize += CompressedAnimSequence->GetMemorySize();
+		}
+		return CurrentSize;
 	}
 
 	/** Serialization. */
@@ -69,6 +71,16 @@ public:
 	void Reset()
 	{
 		Chunks.Reset();
+	}
+
+	SIZE_T GetMemorySize() const
+	{
+		SIZE_T ChunkSize = 0;
+		for (const FAnimStreamableChunk& Chunk : Chunks)
+		{
+			ChunkSize += Chunk.GetMemorySize();
+		}
+		return sizeof(FStreamableAnimPlatformData) + ChunkSize;
 	}
 };
 
@@ -189,6 +201,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void FinishDestroy() override;
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
 	//~ End UObject Interface
 
 	//~ Begin UAnimSequenceBase Interface
