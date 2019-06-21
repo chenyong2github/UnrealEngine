@@ -221,6 +221,10 @@ namespace UnrealBuildTool
 				// Packaging on Window needs this - zap any existing HOME environment variables to prevent any accidental pick ups
 				Environment.SetEnvironmentVariable("HOME", "");
 			}
+			if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Mac)
+			{
+				Environment.SetEnvironmentVariable("LD_LIBRARY_PATH", HTML5SDKInfo.MacPythonLib()); // UE-75402
+			}
 			return Result;
 		}
 

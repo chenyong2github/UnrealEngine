@@ -493,6 +493,16 @@ namespace UnrealBuildTool
 		///
 		/// </summary>
 		/// <returns></returns>
+		public static string MacPythonLib() // UE-75402
+		{
+			string UE4PythonPath = FileReference.Combine(UnrealBuildTool.EngineDirectory, "Binaries", "ThirdParty", "Python").FullName;
+			return Path.Combine(UE4PythonPath, "Mac", "lib", "python2.7", "lib-dynload");
+		}
+
+		/// <summary>
+		///
+		/// </summary>
+		/// <returns></returns>
 		public static bool IsSDKInstalled()
 		{
 			bool sdkInstalled = Directory.Exists(EMSCRIPTEN_ROOT) && File.Exists(NODE_JS) && Directory.Exists(LLVM_ROOT) && File.Exists(PYTHON);
