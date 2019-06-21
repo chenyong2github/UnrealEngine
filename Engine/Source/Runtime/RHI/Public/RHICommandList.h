@@ -1121,18 +1121,6 @@ struct FRHICommandEndComputePass final : public FRHICommand<FRHICommandEndComput
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-struct FRHICommandSetRenderTargetsAndClear final : public FRHICommand<FRHICommandSetRenderTargetsAndClear>
-{
-	FRHISetRenderTargetsInfo RenderTargetsInfo;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandSetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& InRenderTargetsInfo) :
-		RenderTargetsInfo(InRenderTargetsInfo)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 struct FRHICommandBindClearMRTValues final : public FRHICommand<FRHICommandBindClearMRTValues>
 {
 	bool bClearColor;
