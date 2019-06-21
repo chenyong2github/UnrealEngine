@@ -19,7 +19,6 @@ struct Rect;
 class FSceneInterface;
 struct FSlateBrush;
 
-typedef FRHITexture2D* FTexture2DRHIParamRef;
 typedef TRefCountPtr<FRHITexture2D> FTexture2DRHIRef;
 
 /**

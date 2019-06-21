@@ -123,7 +123,7 @@ struct RENDERCORE_API FComputeShaderUtils
 		FRHICommandList& RHICmdList,
 		const TShaderClass* ComputeShader,
 		const typename TShaderClass::FParameters& Parameters,
-		FVertexBufferRHIParamRef IndirectArgsBuffer,
+		FRHIVertexBuffer* IndirectArgsBuffer,
 		uint32 IndirectArgOffset)
 	{
 		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();

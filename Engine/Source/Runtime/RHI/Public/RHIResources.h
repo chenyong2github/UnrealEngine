@@ -1146,30 +1146,39 @@ UE_DEPRECATED(4.23, "FBoundShaderStateRHIParamRef typedef is deprecated; please 
 typedef FRHIBoundShaderState*              FBoundShaderStateRHIParamRef;
 typedef TRefCountPtr<FRHIBoundShaderState> FBoundShaderStateRHIRef;
 
+UE_DEPRECATED(4.23, "FUniformBufferRHIParamRef typedef is deprecated; please use FRHIUniformBuffer* directly instead.")
 typedef FRHIUniformBuffer*              FUniformBufferRHIParamRef;
 typedef TRefCountPtr<FRHIUniformBuffer> FUniformBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FIndexBufferRHIParamRef typedef is deprecated; please use FRHIIndexBuffer* directly instead.")
 typedef FRHIIndexBuffer*              FIndexBufferRHIParamRef;
 typedef TRefCountPtr<FRHIIndexBuffer> FIndexBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FVertexBufferRHIParamRef typedef is deprecated; please use FRHIVertexBuffer* directly instead.")
 typedef FRHIVertexBuffer*              FVertexBufferRHIParamRef;
 typedef TRefCountPtr<FRHIVertexBuffer> FVertexBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FStructuredBufferRHIParamRef typedef is deprecated; please use FRHIStructuredBuffer* directly instead.")
 typedef FRHIStructuredBuffer*              FStructuredBufferRHIParamRef;
 typedef TRefCountPtr<FRHIStructuredBuffer> FStructuredBufferRHIRef;
 
+UE_DEPRECATED(4.23, "FTextureRHIParamRef typedef is deprecated; please use FRHITexture* directly instead.")
 typedef FRHITexture*              FTextureRHIParamRef;
 typedef TRefCountPtr<FRHITexture> FTextureRHIRef;
 
+UE_DEPRECATED(4.23, "FTexture2DRHIParamRef typedef is deprecated; please use FRHITexture2D* directly instead.")
 typedef FRHITexture2D*              FTexture2DRHIParamRef;
 typedef TRefCountPtr<FRHITexture2D> FTexture2DRHIRef;
 
+UE_DEPRECATED(4.23, "FTexture2DArrayRHIParamRef typedef is deprecated; please use FRHITexture2DArray* directly instead.")
 typedef FRHITexture2DArray*              FTexture2DArrayRHIParamRef;
 typedef TRefCountPtr<FRHITexture2DArray> FTexture2DArrayRHIRef;
 
+UE_DEPRECATED(4.23, "FTexture3DRHIParamRef typedef is deprecated; please use FRHITexture3D* directly instead.")
 typedef FRHITexture3D*              FTexture3DRHIParamRef;
 typedef TRefCountPtr<FRHITexture3D> FTexture3DRHIRef;
 
+UE_DEPRECATED(4.23, "FTextureCubeRHIParamRef typedef is deprecated; please use FRHITextureCube* directly instead.")
 typedef FRHITextureCube*              FTextureCubeRHIParamRef;
 typedef TRefCountPtr<FRHITextureCube> FTextureCubeRHIRef;
 
@@ -1273,7 +1282,7 @@ typedef TRefCountPtr<FRHIStagingBuffer>	FStagingBufferRHIRef;
 class FRHIRenderTargetView
 {
 public:
-	FTextureRHIParamRef Texture;
+	FRHITexture* Texture;
 	uint32 MipIndex;
 
 	/** Array slice or texture cube face.  Only valid if texture resource was created with TexCreate_TargetArraySlicesIndependently! */
@@ -1299,7 +1308,7 @@ public:
 	{}
 
 	//common case
-	explicit FRHIRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction) :
+	explicit FRHIRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction) :
 		Texture(InTexture),
 		MipIndex(0),
 		ArraySliceIndex(-1),
@@ -1308,7 +1317,7 @@ public:
 	{}
 
 	//common case
-	explicit FRHIRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction, uint32 InMipIndex, uint32 InArraySliceIndex) :
+	explicit FRHIRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction, uint32 InMipIndex, uint32 InArraySliceIndex) :
 		Texture(InTexture),
 		MipIndex(InMipIndex),
 		ArraySliceIndex(InArraySliceIndex),
@@ -1316,7 +1325,7 @@ public:
 		StoreAction(ERenderTargetStoreAction::EStore)
 	{}
 	
-	explicit FRHIRenderTargetView(FTextureRHIParamRef InTexture, uint32 InMipIndex, uint32 InArraySliceIndex, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
+	explicit FRHIRenderTargetView(FRHITexture* InTexture, uint32 InMipIndex, uint32 InArraySliceIndex, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
 		Texture(InTexture),
 		MipIndex(InMipIndex),
 		ArraySliceIndex(InArraySliceIndex),
@@ -1494,7 +1503,7 @@ private:
 class FRHIDepthRenderTargetView
 {
 public:
-	FTextureRHIParamRef Texture;
+	FRHITexture* Texture;
 
 	ERenderTargetLoadAction		DepthLoadAction;
 	ERenderTargetStoreAction	DepthStoreAction;
@@ -1522,7 +1531,7 @@ public:
 	}
 
 	//common case
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction) :
 		Texture(InTexture),
 		DepthLoadAction(InLoadAction),
 		DepthStoreAction(InStoreAction),
@@ -1533,7 +1542,7 @@ public:
 		Validate();
 	}
 
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InLoadAction, ERenderTargetStoreAction InStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
 		Texture(InTexture),
 		DepthLoadAction(InLoadAction),
 		DepthStoreAction(InStoreAction),
@@ -1544,7 +1553,7 @@ public:
 		Validate();
 	}
 
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction) :
 		Texture(InTexture),
 		DepthLoadAction(InDepthLoadAction),
 		DepthStoreAction(InDepthStoreAction),
@@ -1555,7 +1564,7 @@ public:
 		Validate();
 	}
 
-	explicit FRHIDepthRenderTargetView(FTextureRHIParamRef InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
+	explicit FRHIDepthRenderTargetView(FRHITexture* InTexture, ERenderTargetLoadAction InDepthLoadAction, ERenderTargetStoreAction InDepthStoreAction, ERenderTargetLoadAction InStencilLoadAction, ERenderTargetStoreAction InStencilStoreAction, FExclusiveDepthStencil InDepthStencilAccess) :
 		Texture(InTexture),
 		DepthLoadAction(InDepthLoadAction),
 		DepthStoreAction(InDepthStoreAction),

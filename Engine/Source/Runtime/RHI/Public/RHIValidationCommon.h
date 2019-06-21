@@ -19,8 +19,8 @@ class FValidationRHIUtils
 {
 public:
 	static void ValidateCopyTexture(
-		FTextureRHIParamRef	SourceTexture,
-		FTextureRHIParamRef	DestTexture,
+		FRHITexture*	SourceTexture,
+		FRHITexture*	DestTexture,
 		FIntVector			CopySize		= FIntVector::ZeroValue,
 		const FIntVector&	SourcePosition	= FIntVector::ZeroValue,
 		const FIntVector&	DestPosition	= FIntVector::ZeroValue)

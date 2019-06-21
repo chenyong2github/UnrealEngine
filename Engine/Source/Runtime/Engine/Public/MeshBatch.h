@@ -45,11 +45,11 @@ struct FMeshBatchElement
 	 * Primitive uniform buffer RHI
 	 * Must be null for vertex factories that manually fetch primitive data from scene data, in which case FPrimitiveSceneProxy::UniformBuffer will be used.
 	 */
-	FUniformBufferRHIParamRef PrimitiveUniformBuffer;
+	FRHIUniformBuffer* PrimitiveUniformBuffer;
 
 	/** 
 	 * Primitive uniform buffer to use for rendering, used when PrimitiveUniformBuffer is null. 
-	 * This interface allows a FMeshBatchElement to be setup for a uniform buffer that has not been initialized yet, (TUniformBuffer* is known but not the FUniformBufferRHIParamRef)
+	 * This interface allows a FMeshBatchElement to be setup for a uniform buffer that has not been initialized yet, (TUniformBuffer* is known but not the FRHIUniformBuffer*)
 	 */
 	const TUniformBuffer<FPrimitiveUniformShaderParameters>* PrimitiveUniformBufferResource;
 
@@ -96,7 +96,7 @@ struct FMeshBatchElement
 	/** Conceptual element index used for debug viewmodes. */
 	int8 VisualizeElementIndex;
 #endif
-	FVertexBufferRHIParamRef IndirectArgsBuffer;
+	FRHIVertexBuffer* IndirectArgsBuffer;
 	uint32 IndirectArgsOffset;
 
 	FMeshBatchElement()
@@ -313,7 +313,7 @@ struct FMeshBatch
 struct FUniformBufferValue
 {
 	const FShaderParametersMetadata* Type = nullptr;
-	FUniformBufferRHIParamRef UniformBuffer;
+	FRHIUniformBuffer* UniformBuffer;
 };
 
 

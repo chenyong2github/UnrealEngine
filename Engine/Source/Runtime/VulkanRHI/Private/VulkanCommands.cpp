@@ -48,7 +48,7 @@ static_assert(STRUCT_OFFSET(FRHIDispatchIndirectParameters, ThreadGroupCountY) =
 static_assert(STRUCT_OFFSET(FRHIDispatchIndirectParameters, ThreadGroupCountZ) == STRUCT_OFFSET(VkDispatchIndirectCommand, z), "FRHIDispatchIndirectParameters Z dimension is wrong.");
 
 
-void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FVertexBufferRHIParamRef VertexBufferRHI, uint32 Offset)
+void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBufferRHI, uint32 Offset)
 {
 	FVulkanVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
 	if (VertexBuffer != nullptr)
@@ -57,7 +57,7 @@ void FVulkanCommandListContext::RHISetStreamSource(uint32 StreamIndex, FVertexBu
 	}
 }
 
-void FVulkanDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, const FVertexBufferRHIParamRef* VertexBuffers, const uint32* Offsets)
+void FVulkanDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets)
 {
 	VULKAN_SIGNAL_UNIMPLEMENTED();
 }
@@ -125,7 +125,7 @@ void FVulkanCommandListContext::RHIDispatchComputeShader(uint32 ThreadGroupCount
 	VulkanRHI::/*Debug*/HeavyWeightBarrier(CmdBuffer/*, 2*/);
 }
 
-void FVulkanCommandListContext::RHIDispatchIndirectComputeShader(FVertexBufferRHIParamRef ArgumentBufferRHI, uint32 ArgumentOffset) 
+void FVulkanCommandListContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	static_assert(sizeof(FRHIDispatchIndirectParameters) == sizeof(VkDispatchIndirectCommand), "Dispatch indirect doesn't match!");
 	FVulkanVertexBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
@@ -177,7 +177,7 @@ void FVulkanCommandListContext::RHISetUAVParameter(FRHIComputeShader* ComputeSha
 }
 
 
-void FVulkanCommandListContext::RHISetShaderTexture(FRHIVertexShader* VertexShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
+void FVulkanCommandListContext::RHISetShaderTexture(FRHIVertexShader* VertexShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Vertex) == GetShaderKey(VertexShaderRHI));
 	FVulkanTextureBase* Texture = GetVulkanTextureFromRHITexture(NewTextureRHI);
@@ -186,7 +186,7 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIVertexShader* VertexShad
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
 }
 
-void FVulkanCommandListContext::RHISetShaderTexture(FRHIHullShader* HullShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
+void FVulkanCommandListContext::RHISetShaderTexture(FRHIHullShader* HullShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Hull) == GetShaderKey(HullShaderRHI));
@@ -199,7 +199,7 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIHullShader* HullShaderRH
 #endif
 }
 
-void FVulkanCommandListContext::RHISetShaderTexture(FRHIDomainShader* DomainShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
+void FVulkanCommandListContext::RHISetShaderTexture(FRHIDomainShader* DomainShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Domain) == GetShaderKey(DomainShaderRHI));
@@ -212,7 +212,7 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIDomainShader* DomainShad
 #endif
 }
 
-void FVulkanCommandListContext::RHISetShaderTexture(FRHIGeometryShader* GeometryShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
+void FVulkanCommandListContext::RHISetShaderTexture(FRHIGeometryShader* GeometryShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Geometry) == GetShaderKey(GeometryShaderRHI));
@@ -225,7 +225,7 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIGeometryShader* Geometry
 #endif
 }
 
-void FVulkanCommandListContext::RHISetShaderTexture(FRHIPixelShader* PixelShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
+void FVulkanCommandListContext::RHISetShaderTexture(FRHIPixelShader* PixelShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	check(PendingGfxState->GetCurrentShaderKey(ShaderStage::Pixel) == GetShaderKey(PixelShaderRHI));
 	FVulkanTextureBase* Texture = GetVulkanTextureFromRHITexture(NewTextureRHI);
@@ -234,7 +234,7 @@ void FVulkanCommandListContext::RHISetShaderTexture(FRHIPixelShader* PixelShader
 	NewTextureRHI->SetLastRenderTime((float)FPlatformTime::Seconds());
 }
 
-void FVulkanCommandListContext::RHISetShaderTexture(FRHIComputeShader* ComputeShaderRHI, uint32 TextureIndex, FTextureRHIParamRef NewTextureRHI)
+void FVulkanCommandListContext::RHISetShaderTexture(FRHIComputeShader* ComputeShaderRHI, uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	FVulkanComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
 	check(PendingComputeState->GetCurrentShader() == ComputeShader);
@@ -524,7 +524,7 @@ inline void /*FVulkanCommandListContext::*/SetShaderUniformBufferResources(FVulk
 		{
 			const VkDescriptorType DescriptorType = DescriptorTypes[GlobalInfos[ResourceInfo.GlobalIndex].TypeIndex];
 			ensure(DescriptorType == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE || DescriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-			FTextureRHIParamRef TexRef = (FTextureRHIParamRef)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
+			FRHITexture* TexRef = (FRHITexture*)(ResourceArray[ResourceInfo.SourceUBResourceIndex].GetReference());
 			if (TexRef)
 			{
 				const FVulkanTextureBase* BaseTexture = FVulkanTextureBase::Cast(TexRef);
@@ -647,13 +647,13 @@ inline void FVulkanCommandListContext::SetShaderUniformBuffer(ShaderStage::EStag
 	}
 }
 
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIVertexShader* VertexShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIVertexShader* VertexShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
 	SetShaderUniformBuffer(ShaderStage::Vertex, UniformBuffer, BufferIndex, ResourceCast(VertexShaderRHI));
 }
 
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIHullShader* HullShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIHullShader* HullShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
@@ -663,7 +663,7 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIHullShader* HullSh
 #endif
 }
 
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIDomainShader* DomainShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIDomainShader* DomainShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
@@ -673,7 +673,7 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIDomainShader* Doma
 #endif
 }
 
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIGeometryShader* GeometryShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIGeometryShader* GeometryShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 #if VULKAN_SUPPORTS_GEOMETRY_SHADERS
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
@@ -683,13 +683,13 @@ void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIGeometryShader* Ge
 #endif
 }
 
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIPixelShader* PixelShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIPixelShader* PixelShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 	FVulkanUniformBuffer* UniformBuffer = ResourceCast(BufferRHI);
 	SetShaderUniformBuffer(ShaderStage::Pixel, UniformBuffer, BufferIndex, ResourceCast(PixelShaderRHI));
 }
 
-void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShaderRHI, uint32 BufferIndex, FUniformBufferRHIParamRef BufferRHI)
+void FVulkanCommandListContext::RHISetShaderUniformBuffer(FRHIComputeShader* ComputeShaderRHI, uint32 BufferIndex, FRHIUniformBuffer* BufferRHI)
 {
 	FVulkanComputeShader* ComputeShader = ResourceCast(ComputeShaderRHI);
 	check(PendingComputeState->GetCurrentShader() == ComputeShader);
@@ -775,7 +775,7 @@ void FVulkanCommandListContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 
 	}
 }
 
-void FVulkanCommandListContext::RHIDrawPrimitiveIndirect(FVertexBufferRHIParamRef ArgumentBufferRHI, uint32 ArgumentOffset)
+void FVulkanCommandListContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
 {
 	static_assert(sizeof(FRHIDrawIndirectParameters) == sizeof(VkDrawIndirectCommand), "Draw indirect doesn't match!");
 
@@ -798,7 +798,7 @@ void FVulkanCommandListContext::RHIDrawPrimitiveIndirect(FVertexBufferRHIParamRe
 	}
 }
 
-void FVulkanCommandListContext::RHIDrawIndexedPrimitive(FIndexBufferRHIParamRef IndexBufferRHI, int32 BaseVertexIndex, uint32 FirstInstance,
+void FVulkanCommandListContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI, int32 BaseVertexIndex, uint32 FirstInstance,
 	uint32 NumVertices, uint32 StartIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
@@ -823,7 +823,7 @@ void FVulkanCommandListContext::RHIDrawIndexedPrimitive(FIndexBufferRHIParamRef 
 	}
 }
 
-void FVulkanCommandListContext::RHIDrawIndexedIndirect(FIndexBufferRHIParamRef IndexBufferRHI, FStructuredBufferRHIParamRef ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
+void FVulkanCommandListContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 	SCOPE_CYCLE_COUNTER(STAT_VulkanDrawCallTime);
@@ -845,7 +845,7 @@ void FVulkanCommandListContext::RHIDrawIndexedIndirect(FIndexBufferRHIParamRef I
 	}
 }
 
-void FVulkanCommandListContext::RHIDrawIndexedPrimitiveIndirect(FIndexBufferRHIParamRef IndexBufferRHI,FVertexBufferRHIParamRef ArgumentBufferRHI,uint32 ArgumentOffset)
+void FVulkanCommandListContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
 {
 #if VULKAN_ENABLE_AGGRESSIVE_STATS
 	SCOPE_CYCLE_COUNTER(STAT_VulkanDrawCallTime);
@@ -1105,7 +1105,7 @@ void FVulkanCommandListContext::PrepareParallelFromBase(const FVulkanCommandList
 	TransitionAndLayoutManager.TempCopy(BaseContext.TransitionAndLayoutManager);
 }
 
-void FVulkanCommandListContext::RHICopyToStagingBuffer(FVertexBufferRHIParamRef SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
+void FVulkanCommandListContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBufferRHI, FRHIStagingBuffer* StagingBufferRHI, uint32 Offset, uint32 NumBytes)
 {
 	FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 	FVulkanVertexBuffer* VertexBuffer = ResourceCast(SourceBufferRHI);

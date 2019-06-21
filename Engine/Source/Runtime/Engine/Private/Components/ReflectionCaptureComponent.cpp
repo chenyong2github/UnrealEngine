@@ -702,7 +702,7 @@ public:
 		return Size;
 	}
 
-	FTextureRHIParamRef GetTextureRHI() 
+	FRHITexture* GetTextureRHI() 
 	{
 		return TextureCubeRHI;
 	}

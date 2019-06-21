@@ -15,7 +15,7 @@ void SetupRaytracingLightDataPacked(
 	TResourceArray<FRTLightingData>& LightDataArray)
 {
 	TMap<UTextureLightProfile*, int32> IESLightProfilesMap;
-	TMap<FTextureRHIParamRef, uint32> RectTextureMap;
+	TMap<FRHITexture*, uint32> RectTextureMap;
 
 	LightData->Count = 0;
 	LightData->LTCMatTexture = GSystemTextures.LTCMat->GetRenderTargetItem().ShaderResourceTexture;
@@ -37,7 +37,7 @@ void SetupRaytracingLightDataPacked(
 
 	{
 		// IES profiles
-		FTextureRHIParamRef IESTextureRHI = nullptr;
+		FRHITexture* IESTextureRHI = nullptr;
 		float IESInvProfileCount = 1.0f;
 
 		if (View.IESLightProfileResource && View.IESLightProfileResource->GetIESLightProfilesCount())
