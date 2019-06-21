@@ -328,6 +328,7 @@ public:
 			NewSegment->bCastShadow = CopyFromSegment->bCastShadow;
 			NewSegment->TranslucencySortPriority = CopyFromSegment->TranslucencySortPriority;
 			NewSegment->RuntimeVirtualTextures = CopyFromSegment->RuntimeVirtualTextures;
+			NewSegment->VirtualTextureRenderPassType = CopyFromSegment->VirtualTextureRenderPassType;
 		}
 
 		Start->ConnectedSegments.Add(FLandscapeSplineConnection(NewSegment, 0));
@@ -685,6 +686,7 @@ public:
 		NewSegment->bCastShadow = Segment->bCastShadow;
 		NewSegment->TranslucencySortPriority = Segment->TranslucencySortPriority;
 		NewSegment->RuntimeVirtualTextures = Segment->RuntimeVirtualTextures;
+		NewSegment->VirtualTextureRenderPassType = Segment->VirtualTextureRenderPassType;
 
 		Segment->Connections[0].TangentLen *= t;
 		Segment->Connections[1].ControlPoint->ConnectedSegments.Remove(FLandscapeSplineConnection(Segment, 1));
