@@ -13,6 +13,8 @@ public:
 	// ~Begin IVoiceChat Interface
 	virtual bool Initialize() override;
 	virtual bool Uninitialize() override;
+	virtual void SetSetting(const FString& Name, const FString& Value) override;
+	virtual FString GetSetting(const FString& Name) override;
 	virtual FDelegateHandle StartRecording(const FOnVoiceChatRecordSamplesAvailableDelegate::FDelegate& Delegate) override;
 	virtual void StopRecording(FDelegateHandle Handle) override;
 	// ~End IVoiceChat Interface
@@ -47,4 +49,12 @@ private:
 
 	float BackgroundDelayedDisconnectTime;
 	NSTimer* DelayedDisconnectTimer;
+
+	bool IsHardwareAECEnabled() const;
+	bool bEnableHardwareAEC = false;
+	TOptional<bool> OverrideEnableHardwareAEC;
+
+	void EnableVoiceChat(bool bEnable);
+	void UpdateVoiceChatSettings();
+	void DisableVoiceChat();
 };
