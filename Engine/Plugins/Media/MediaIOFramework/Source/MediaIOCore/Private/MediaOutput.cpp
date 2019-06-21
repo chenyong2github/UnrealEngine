@@ -36,13 +36,17 @@ UMediaCapture* UMediaOutput::CreateMediaCapture()
 bool UMediaOutput::Validate(FString& OutFailureReason) const
 {
 	FIntPoint RequestedSize = GetRequestedSize();
-	if (RequestedSize.X < 1 || RequestedSize.Y < 1)
+	if (RequestedSize != UMediaOutput::RequestCaptureSourceSize)
 	{
-		OutFailureReason = TEXT("The requested size is invalid.");
-		return false;
+		if (RequestedSize.X < 1 || RequestedSize.Y < 1)
+		{
+			OutFailureReason = TEXT("The requested size is invalid.");
+			return false;
+		}
 	}
 
-	if (NumberOfTextureBuffers < 1 && NumberOfTextureBuffers > 4)
+	const int32 MaxSupportedNumberOfbuffers = 8; // Arbitrary number
+	if (NumberOfTextureBuffers < 1 && NumberOfTextureBuffers > MaxSupportedNumberOfbuffers)
 	{
 		OutFailureReason = TEXT("NumberOfTextureBuffers is not valid.");
 		return false;
