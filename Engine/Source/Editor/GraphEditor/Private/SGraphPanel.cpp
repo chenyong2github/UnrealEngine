@@ -29,6 +29,9 @@
 #include "KismetNodes/KismetNodeInfoContext.h"
 #include "GraphDiffControl.h"
 
+#include "Editor/UnrealEdEngine.h"
+#include "UnrealEdGlobals.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogGraphPanel, Log, All);
 
 //////////////////////////////////////////////////////////////////////////
@@ -909,13 +912,25 @@ FReply SGraphPanel::OnDragOver( const FGeometry& MyGeometry, const FDragDropEven
 		{
 			TSharedPtr<FAssetDragDropOp> AssetOp = StaticCastSharedPtr<FAssetDragDropOp>(Operation);
 			bool bOkIcon = false;
-			FString TooltipText;
+			FText TooltipText;
 			if (AssetOp->HasAssets())
 			{
-				GraphObj->GetSchema()->GetAssetsGraphHoverMessage(AssetOp->GetAssets(), GraphObj, /*out*/ TooltipText, /*out*/ bOkIcon);
+				const TArray<FAssetData>& HoveredAssetData = AssetOp->GetAssets();
+				FText AssetReferenceFilterFailureReason;
+				if (PassesAssetReferenceFilter(HoveredAssetData, &AssetReferenceFilterFailureReason))
+				{
+					FString TooltipTextString;
+					GraphObj->GetSchema()->GetAssetsGraphHoverMessage(HoveredAssetData, GraphObj, /*out*/ TooltipTextString, /*out*/ bOkIcon);
+					TooltipText = FText::FromString(TooltipTextString);
+				}
+				else
+				{
+					TooltipText = AssetReferenceFilterFailureReason;
+					bOkIcon = false;
+				}
 			}
 			const FSlateBrush* TooltipIcon = bOkIcon ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
-			AssetOp->SetToolTip(FText::FromString(TooltipText), TooltipIcon);
+			AssetOp->SetToolTip(TooltipText, TooltipIcon);
 		}
 		return FReply::Handled();
 	} 
@@ -976,13 +991,42 @@ FReply SGraphPanel::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& D
 
 			if ( DroppedAssetData.Num() > 0 )
 			{
-				GraphObj->GetSchema()->DroppedAssetsOnGraph( DroppedAssetData, NodeAddPosition, GraphObj );
+				if (PassesAssetReferenceFilter(DroppedAssetData))
+				{
+					GraphObj->GetSchema()->DroppedAssetsOnGraph( DroppedAssetData, NodeAddPosition, GraphObj );
+				}
 				return FReply::Handled();
 			}
 		}
 
 		return FReply::Unhandled();
 	}
+}
+
+bool SGraphPanel::PassesAssetReferenceFilter(const TArray<FAssetData>& ReferencedAssets, FText* OutFailureReason) const
+{
+	if (GUnrealEd)
+	{
+		FAssetReferenceFilterContext AssetReferenceFilterContext;
+		UObject* GraphOuter = GraphObj ? GraphObj->GetOuter() : nullptr;
+		if (GraphOuter)
+		{
+			AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(GraphOuter));
+		}
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext);
+		if (AssetReferenceFilter.IsValid())
+		{
+			for (const FAssetData& Asset : ReferencedAssets)
+			{
+				if (!AssetReferenceFilter->PassesFilter(Asset, OutFailureReason))
+				{
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
 }
 
 void SGraphPanel::OnBeginMakingConnection(UEdGraphPin* InOriginatingPin)

@@ -20,6 +20,9 @@
 #include "SAssetView.h"
 #include "SContentBrowser.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+#include "PropertyHandle.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -220,12 +223,48 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 		];
 	}
 
+	// Make game-specific filter
+	FOnShouldFilterAsset ShouldFilterAssetDelegate;
+	{
+		FAssetReferenceFilterContext AssetReferenceFilterContext;
+		AssetReferenceFilterContext.ReferencingAssets = InArgs._AssetPickerConfig.AdditionalReferencingAssets;
+		if (InArgs._AssetPickerConfig.PropertyHandle.IsValid())
+		{
+			TArray<UObject*> ReferencingObjects;
+			InArgs._AssetPickerConfig.PropertyHandle->GetOuterObjects(ReferencingObjects);
+			for (UObject* ReferencingObject : ReferencingObjects)
+			{
+				AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(ReferencingObject));
+			}
+		}
+		TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter = GUnrealEd ? GUnrealEd->MakeAssetReferenceFilter(AssetReferenceFilterContext) : nullptr;
+		if (AssetReferenceFilter.IsValid())
+		{
+			FOnShouldFilterAsset ConfigFilter = InArgs._AssetPickerConfig.OnShouldFilterAsset;
+			ShouldFilterAssetDelegate = FOnShouldFilterAsset::CreateLambda([ConfigFilter, AssetReferenceFilter](const FAssetData& AssetData) -> bool {
+				if (!AssetReferenceFilter->PassesFilter(AssetData))
+				{
+					return true;
+				}
+				if (ConfigFilter.IsBound())
+				{
+					return ConfigFilter.Execute(AssetData);
+				}
+				return false;
+			});
+		}
+		else
+		{
+			ShouldFilterAssetDelegate = InArgs._AssetPickerConfig.OnShouldFilterAsset;
+		}
+	}
+
 	VerticalBox->AddSlot()
 	.FillHeight(1.f)
 	[
 		SAssignNew(AssetViewPtr, SAssetView)
 		.SelectionMode( InArgs._AssetPickerConfig.SelectionMode )
-		.OnShouldFilterAsset(InArgs._AssetPickerConfig.OnShouldFilterAsset)
+		.OnShouldFilterAsset(ShouldFilterAssetDelegate)
 		.OnAssetSelectionChanged(this, &SAssetPicker::HandleAssetSelectionChanged)
 		.OnAssetsActivated(this, &SAssetPicker::HandleAssetsActivated)
 		.OnGetAssetContextMenu(InArgs._AssetPickerConfig.OnGetAssetContextMenu)
