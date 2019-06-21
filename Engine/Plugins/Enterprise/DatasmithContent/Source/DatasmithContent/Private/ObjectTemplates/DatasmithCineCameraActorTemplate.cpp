@@ -2,6 +2,8 @@
 
 #include "ObjectTemplates/DatasmithCineCameraActorTemplate.h"
 
+#include "ObjectTemplates/DatasmithActorTemplate.h"
+
 FDatasmithCameraLookatTrackingSettingsTemplate::FDatasmithCameraLookatTrackingSettingsTemplate()
 	: bEnableLookAtTracking( 0 )
 {
@@ -29,7 +31,7 @@ bool FDatasmithCameraLookatTrackingSettingsTemplate::Equals( const FDatasmithCam
 
 UObject* UDatasmithCineCameraActorTemplate::UpdateObject( UObject* Destination, bool bForce )
 {
-	ACineCameraActor* CineCameraActor = Cast< ACineCameraActor >( Destination );
+	ACineCameraActor* CineCameraActor = UDatasmithActorTemplate::GetActor< ACineCameraActor >( Destination );
 
 	if ( !CineCameraActor )
 	{
