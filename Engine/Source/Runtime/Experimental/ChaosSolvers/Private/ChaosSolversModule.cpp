@@ -789,21 +789,6 @@ bool FChaosSolversModule::ShouldStepSolver(int32& InOutSingleStepCounter) const
 }
 #endif  // #if WITH_EDITOR
 
-#if WITH_EDITOR && CHAOS_DEBUG_SUBSTEP
-void FChaosSolversModule::PreEndSolvers()
-{
-	// Lock the physics thread prior to shutting down the debug substep threads
-	FChaosScopedPhysicsThreadLock ScopeLock;
-
-	const int32 NumSolvers = Solvers.Num();
-	for(int32 SolverIndex = 0; SolverIndex < NumSolvers; ++SolverIndex)
-	{
-		Chaos::FPBDRigidsSolver* const Solver = Solvers[SolverIndex];
-		Solver->GetDebugSubstep().Shutdown();
-	}
-}
-#endif  // #if WITH_EDITOR && CHAOS_DEBUG_SUBSTEP
-
 void FChaosSolversModule::ChangeBufferMode(Chaos::EMultiBufferMode BufferMode)
 {
 	for (Chaos::FPBDRigidsSolver* Solver : Solvers)

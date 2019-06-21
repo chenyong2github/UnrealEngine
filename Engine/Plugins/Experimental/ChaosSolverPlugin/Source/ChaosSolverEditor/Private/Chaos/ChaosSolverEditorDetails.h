@@ -22,7 +22,7 @@ private:
 	FReply OnSubstep(TSharedRef<IPropertyHandle> PropertyHandle);
 	FReply OnStep(TSharedRef<IPropertyHandle> PropertyHandle);
 
-	void RefreshPauseButton(TSharedRef<IPropertyHandle> PropertyHandle);
+	void RefreshPauseButton(TSharedRef<IPropertyHandle> PropertyHandle, TWeakObjectPtr<UObject> Object);
 
 private:
 	TSharedPtr<STextBlock> TextBlockPause;

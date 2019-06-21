@@ -50,7 +50,7 @@ namespace Chaos
 
 		// Sync/advance debug substep system for this solver
 		FDebugSubstep& DebugSubstep = Solver->GetDebugSubstep();
-		const bool bNeedsDebugThreadRunning = DebugSubstep.SyncAdvance();
+		const bool bNeedsDebugThreadRunning = DebugSubstep.SyncAdvance(Solver->Enabled());
 
 		// Update debug thread status
 		const bool bIsDebugThreadRunning = !!*DebugSolverTask;
@@ -81,6 +81,16 @@ namespace Chaos
 		}
 	}
 
+	void FDebugSolverTasks::Add(FPBDRigidsSolver* Solver)
+	{
+		// Add solver to task map
+		SolverToTaskMap.Add(Solver, nullptr);
+
+		// Reinit debug substep
+		UE_LOG(LogChaosThread, Verbose, TEXT("[Physics Thread] Initializing debug thread"));
+		Solver->GetDebugSubstep().Initialize();
+	}
+
 	void FDebugSolverTasks::Remove(FPBDRigidsSolver* Solver)
 	{
 		// Remove the debug advance task for this solver, if any was created
@@ -90,7 +100,7 @@ namespace Chaos
 		{
 			// Unpause debug thread and exit
 			UE_LOG(LogChaosThread, Verbose, TEXT("[Physics Thread] Shutting down debug thread"));
-			Solver->GetDebugSubstep().Shutdown();
+			Solver->GetDebugSubstep().Release();  // A call to Release() here means it won't debug substep until another call to Initialize() is made.
 
 			// Wait for thread completion and delete the task
 			UE_LOG(LogChaosThread, Verbose, TEXT("[Physics Thread] Deleting debug async task"));
@@ -106,7 +116,7 @@ namespace Chaos
 		{
 			// Shutdown debug task if needed
 			UE_LOG(LogChaosThread, Verbose, TEXT("[Physics Thread] Shutting debug thread"));
-			SolverTask.Key->GetDebugSubstep().Shutdown();
+			SolverTask.Key->GetDebugSubstep().Shutdown();  // A call to Shutdown() here means it will be able to debug substep again , even without another call to Initialize() made (eg. switch back and forth between threading modes).
 
 			// Wait for thread completion and delete the task
 			if (SolverTask.Value)

@@ -281,10 +281,6 @@ public:
 		FEditorDelegates::PausePIE.AddRaw(this, &FPhysScene_ChaosPauseHandler::PauseSolvers);
 		FEditorDelegates::ResumePIE.AddRaw(this, &FPhysScene_ChaosPauseHandler::ResumeSolvers);
 		FEditorDelegates::SingleStepPIE.AddRaw(this, &FPhysScene_ChaosPauseHandler::SingleStepSolvers);
-#if CHAOS_DEBUG_SUBSTEP
-		// Editor pre-end play handle
-		FEditorDelegates::PrePIEEnded.AddRaw(this, &FPhysScene_ChaosPauseHandler::PreEndSolvers);
-#endif
 	}
 
 	~FPhysScene_ChaosPauseHandler()
@@ -295,19 +291,12 @@ public:
 		FEditorDelegates::PausePIE.RemoveAll(this);
 		FEditorDelegates::ResumePIE.RemoveAll(this);
 		FEditorDelegates::SingleStepPIE.RemoveAll(this);
-#if CHAOS_DEBUG_SUBSTEP
-		// Remove editor pre-end play delegates
-		FEditorDelegates::PrePIEEnded.RemoveAll(this);
-#endif
 	}
 
 private:
 	void PauseSolvers(bool /*bIsSimulating*/) { ChaosModule->PauseSolvers(); }
 	void ResumeSolvers(bool /*bIsSimulating*/) { ChaosModule->ResumeSolvers(); }
 	void SingleStepSolvers(bool /*bIsSimulating*/) { ChaosModule->SingleStepSolvers(); }
-#if CHAOS_DEBUG_SUBSTEP
-	void PreEndSolvers(bool /*bIsSimulating*/) { ChaosModule->PreEndSolvers(); }
-#endif
 
 private:
 	FChaosSolversModule* ChaosModule;
