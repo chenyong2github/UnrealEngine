@@ -80,18 +80,25 @@ public:
 	EGLContext CreateContext(EGLContext InSharedContext = EGL_NO_CONTEXT);
 	int32 GetError();
 	EGLBoolean SetCurrentContext(EGLContext InContext, EGLSurface InSurface);
+
+	void AcquireCurrentRenderingContext();
+	void ReleaseContextOwnership();
+
 	GLuint GetOnScreenColorRenderBuffer();
 	GLuint GetResolveFrameBuffer();
 	bool IsCurrentContextValid();
 	EGLContext  GetCurrentContext(  );
 	void SetCurrentSharedContext();
-	void SetSharedContext();
-	void SetSingleThreadRenderingContext();
-	void SetMultithreadRenderingContext();
 	void SetCurrentRenderingContext();
 	uint32_t GetCurrentContextType();
 	FPlatformOpenGLContext* GetRenderingContext();
-	
+
+	// recreate the EGL surface for the current hardware window.
+	void SetRenderContextWindowSurface();
+
+	// Called from game thread when a window is reinited.
+	void RefreshWindowSize();
+
 protected:
 	AndroidEGL();
 	static AndroidEGL* Singleton ;
@@ -112,6 +119,9 @@ private:
 
 	void ResetInternal();
 	void LogConfigInfo(EGLConfig  EGLConfigInfo);
+
+	// Actual Update to the egl surface to match the GT's requested size.
+	void ResizeRenderContextSurface();
 
 	bool bSupportsKHRCreateContext;
 	bool bSupportsKHRSurfacelessContext;

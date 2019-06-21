@@ -1727,17 +1727,25 @@ void FVulkanDynamicRHI::RecreateSwapChain(void* NewNativeWindow)
 {
 	if (NewNativeWindow)
 	{
-		FlushRenderingCommands();
+		if (IsInGameThread())
+		{
+			FlushRenderingCommands();
+		}
+
 		TArray<FVulkanViewport*> Viewports = GVulkanRHI->Viewports;
 		ENQUEUE_RENDER_COMMAND(VulkanRecreateSwapChain)(
 			[Viewports, NewNativeWindow](FRHICommandListImmediate& RHICmdList)
+		{
+			for (auto& Viewport : Viewports)
 			{
-				for (auto& Viewport : Viewports)
-				{
-					Viewport->RecreateSwapchain(NewNativeWindow);
-				}
-			});
-		FlushRenderingCommands();
+				Viewport->RecreateSwapchain(NewNativeWindow);
+			}
+		});
+
+		if (IsInGameThread())
+		{
+			FlushRenderingCommands();
+		}
 	}
 }
 
