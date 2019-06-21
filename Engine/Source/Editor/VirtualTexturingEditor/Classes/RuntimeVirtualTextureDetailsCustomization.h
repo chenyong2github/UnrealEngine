@@ -26,8 +26,7 @@ protected:
 private:
 	class URuntimeVirtualTexture* VirtualTexture;
 
-	TSharedPtr<class STextBlock> WidthText;
-	TSharedPtr<class STextBlock> HeightText;
+	TSharedPtr<class STextBlock> SizeText;
 	TSharedPtr<class STextBlock> TileSizeText;
 	TSharedPtr<class STextBlock> TileBorderSizeText;
 	TSharedPtr<class STextBlock> RemoveLowMipsText;
