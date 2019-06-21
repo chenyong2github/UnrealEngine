@@ -79,6 +79,10 @@ struct FConcertCustomVersionInfo
 	/** Validate this version info against another */
 	CONCERT_API bool Validate(const FConcertCustomVersionInfo& InOther, const EConcertVersionValidationMode InValidationMode, FText* OutFailureReason = nullptr) const;
 
+	/** Friendly name of the version */
+	UPROPERTY()
+	FName FriendlyName;
+
 	/** Unique custom key */
 	UPROPERTY()
 	FGuid Key;
