@@ -337,27 +337,30 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 
 		// Resume Session
 		FConcertActionDefinition& ResumeSessionDef = ButtonDefs.AddDefaulted_GetRef();
-		ResumeSessionDef.Type = EConcertActionType::Success;
+		ResumeSessionDef.Type = EConcertActionType::Normal;
 		ResumeSessionDef.IsVisible = MakeAttributeSP(this, &SActiveSession::IsStatusBarResumeSessionVisible);
 		ResumeSessionDef.Text = FEditorFontGlyphs::Play_Circle;
 		ResumeSessionDef.ToolTipText = LOCTEXT("ResumeCurrentSessionToolTip", "Resume receiving updates from the current session");
 		ResumeSessionDef.OnExecute.BindLambda([this]() { OnClickResumeSession(); });
+		ResumeSessionDef.IconStyle = TEXT("Concert.ResumeSession");
 
 		// Suspend Session
 		FConcertActionDefinition& SuspendSessionDef = ButtonDefs.AddDefaulted_GetRef();
-		SuspendSessionDef.Type = EConcertActionType::Warning;
+		SuspendSessionDef.Type = EConcertActionType::Normal;
 		SuspendSessionDef.IsVisible = MakeAttributeSP(this, &SActiveSession::IsStatusBarSuspendSessionVisible);
 		SuspendSessionDef.Text = FEditorFontGlyphs::Pause_Circle;
 		SuspendSessionDef.ToolTipText = LOCTEXT("SuspendCurrentSessionToolTip", "Suspend receiving updates from the current session");
 		SuspendSessionDef.OnExecute.BindLambda([this]() { OnClickSuspendSession(); });
+		SuspendSessionDef.IconStyle = TEXT("Concert.PauseSession");
 
 		// Leave Session
 		FConcertActionDefinition& LeaveSessionDef = ButtonDefs.AddDefaulted_GetRef();
-		LeaveSessionDef.Type = EConcertActionType::Danger;
+		LeaveSessionDef.Type = EConcertActionType::Normal;
 		LeaveSessionDef.IsVisible = MakeAttributeSP(this, &SActiveSession::IsStatusBarLeaveSessionVisible);
 		LeaveSessionDef.Text = FEditorFontGlyphs::Sign_Out;
 		LeaveSessionDef.ToolTipText = LOCTEXT("LeaveCurrentSessionToolTip", "Leave the current session");
 		LeaveSessionDef.OnExecute.BindLambda([this]() { OnClickLeaveSession(); });
+		LeaveSessionDef.IconStyle = TEXT("Concert.LeaveSession");
 
 		ConcertFrontendUtils::AppendButtons(StatusBar, ButtonDefs);
 	}
