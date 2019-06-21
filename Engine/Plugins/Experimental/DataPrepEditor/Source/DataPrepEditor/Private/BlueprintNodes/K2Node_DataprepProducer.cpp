@@ -10,18 +10,19 @@
 #include "KismetCompiler.h"
 #include "ScopedTransaction.h"
 
+#include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "PropertyEditorModule.h"
 #include "HAL/PlatformProcess.h"
 #include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "SGraphNode.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "SGraphNode.h"
-#include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "UK2Node_DataprepProducer"
 
@@ -102,10 +103,10 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 	{
 		struct ProducerWidget
 		{
-			FDataprepAssetProducer* ProducerPtr;
+			int32 ProducerIndex;
 			TSharedPtr< STextBlock > CheckBox;
 
-			ProducerWidget() : ProducerPtr(nullptr) {}
+			ProducerWidget() : ProducerIndex( INDEX_NONE ) {}
 		};
 
 	public:
@@ -114,7 +115,10 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 
 		~SGraphNodeDataprepProducer()
 		{
-			FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+			if( DataprepAsset )
+			{
+				DataprepAsset->GetOnChanged().RemoveAll( this );
+			}
 		}
 
 		void Construct(const FArguments& InArgs, UK2Node_DataprepProducer* InNode)
@@ -134,10 +138,11 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 			SGraphNode::CreateStandardPinWidget(Pin);
 		}
 
-		void OnPostPropertyChanged( UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent)
+		void OnDataprepAssetChanged( FDataprepAssetChangeType ChangeType, int32 Index)
 		{
-			const FName MemberPropertyName = InPropertyChangedEvent.MemberProperty != nullptr ? InPropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
-			if (InObject && MemberPropertyName == GET_MEMBER_NAME_CHECKED(UDataprepAsset, Producers))
+			if( ChangeType == FDataprepAssetChangeType::ProducerModified ||
+				ChangeType == FDataprepAssetChangeType::ProducerAdded ||
+				ChangeType == FDataprepAssetChangeType::ProducerRemoved )
 			{
 				UpdateGraphNode();
 			}
@@ -148,9 +153,8 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 			bNeedsUpdate = false;
 
 			DataprepAsset = CastChecked<UK2Node_DataprepProducer>(GraphNode)->GetDataprepAsset();
-			check( DataprepAsset );
 
-			FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &SGraphNodeDataprepProducer::OnPostPropertyChanged);
+			DataprepAsset->GetOnChanged().AddRaw( this, &SGraphNodeDataprepProducer::OnDataprepAssetChanged );
 
 			// #ueent_todo: Move this code where it would capture new classes of producer created at runtime, .i.e BP based producers
 			for( TObjectIterator< UClass > It ; It ; ++It )
@@ -175,17 +179,7 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 			UClass* ProducerClass = ProducerDescriptions[Index].Get<0>();
 			check( ProducerClass );
 
-			UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( DataprepAsset->GetOutermost(), ProducerClass, NAME_None, RF_Transactional );
-			FAssetRegistryModule::AssetCreated( Producer );
-			Producer->MarkPackageDirty();
-
-			FScopedTransaction Transaction(LOCTEXT("DataprepAsset_AddProducer", "AddProducer"));
-
-			DataprepAsset->Producers.Emplace( Producer, true );
-
-			UProperty* Property = FindField<UProperty>(UDataprepAsset::StaticClass(), GET_MEMBER_NAME_CHECKED(UDataprepAsset, Producers));
-			FPropertyChangedEvent PropertyChangedEvent( Property, EPropertyChangeType::ArrayAdd );
-			DataprepAsset->PostEditChangeProperty( PropertyChangedEvent );
+			DataprepAsset->AddProducer( ProducerClass );
 		}
 
 		TSharedRef<SWidget> CreateAddProducerMenuWidget()
@@ -218,50 +212,21 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 			return MenuBuilder.MakeWidget();
 		}
 
-		void DeleteRegisteredAsset(UObject* Asset)
-		{
-			if(Asset != nullptr)
-			{
-				FName AssetName = MakeUniqueObjectName( GetTransientPackage(), Asset->GetClass(), *( Asset->GetName() + TEXT( "_Deleted" ) ) );
-				Asset->Rename( *AssetName.ToString(), GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
-
-				Asset->ClearFlags(RF_Standalone | RF_Public);
-				Asset->RemoveFromRoot();
-				Asset->MarkPendingKill();
-
-				FAssetRegistryModule::AssetDeleted( Asset ) ;
-			}
-		}
-
 		TSharedRef< SWidget > CreateProducerWidget( ProducerWidget* ProducerWidgetPtr, int32 Index )
 		{
-			auto CheckEntry = [this, ProducerWidgetPtr]()
-			{
-				ProducerWidgetPtr->ProducerPtr->bIsEnabled = !ProducerWidgetPtr->ProducerPtr->bIsEnabled;
-				ProducerWidgetPtr->CheckBox->SetText( FText::FromString( ProducerWidgetPtr->ProducerPtr->bIsEnabled ? TEXT( "\xf14a" ) : TEXT( "\xf0c8" ) ) );
-
-				UProperty* Property = FindField<UProperty>(UDataprepAsset::StaticClass(), GET_MEMBER_NAME_CHECKED(UDataprepAsset, Producers));
-				FPropertyChangedEvent PropertyChangedEvent( Property, EPropertyChangeType::ValueSet );
-				DataprepAsset->PostEditChangeProperty( PropertyChangedEvent );
-
-				return FReply::Handled();
-			};
-
-			auto DeleteEntry = [this, ProducerWidgetPtr, Index]()
+			auto CheckEntry = [this, Index]()
 			{
 				FScopedTransaction Transaction(LOCTEXT("DataprepAsset_AddProducer", "AddProducer"));
-
-				DeleteRegisteredAsset( ProducerWidgetPtr->ProducerPtr->Producer );
-				DataprepAsset->Producers.RemoveAt( Index );
-
-				UProperty* Property = FindField<UProperty>(UDataprepAsset::StaticClass(), GET_MEMBER_NAME_CHECKED(UDataprepAsset, Producers));
-				FPropertyChangedEvent PropertyChangedEvent( Property, EPropertyChangeType::ArrayRemove );
-				DataprepAsset->PostEditChangeProperty( PropertyChangedEvent );
-
+				DataprepAsset->ToggleProducer( Index );
 				return FReply::Handled();
 			};
 
-			FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+			auto DeleteEntry = [this, Index]()
+			{
+				FScopedTransaction Transaction(LOCTEXT("DataprepAsset_RemoveProducer", "RemoveProducer"));
+				DataprepAsset->RemoveProducer( Index );
+				return FReply::Handled();
+			};
 
 			FDetailsViewArgs DetailsViewArgs;
 			DetailsViewArgs.bAllowSearch = false;
@@ -291,7 +256,7 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 						SAssignNew( ProducerWidgetPtr->CheckBox, STextBlock )
 						.Font( FEditorStyle::Get().GetFontStyle( DataprepProducerFontName ) )
 						.ColorAndOpacity( FLinearColor::White )
-						.Text(FText::FromString( FString( ProducerWidgetPtr->ProducerPtr->bIsEnabled ? TEXT( "\xf14a" ) : TEXT( "\xf0c8" ) ) ) )
+						.Text( DataprepAsset->IsProducerEnabled( Index ) ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square )
 					]
 				]
 				// Input entry label
@@ -316,16 +281,18 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 						SNew( STextBlock )
 						.Font( FEditorStyle::Get().GetFontStyle( DataprepProducerFontName ) )
 						.ColorAndOpacity( FLinearColor::White )
-						.Text( FText::FromString( FString( TEXT("\xf1f8") ) ) )
+						.Text( FEditorFontGlyphs::Trash )
 					]
 				]
 			];
 
-			TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+			FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+			TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView( DetailsViewArgs );
 
 			DetailsViewBox->SetContent(DetailsView.ToSharedRef());
 
-			DetailsView->SetObject( ProducerWidgetPtr->ProducerPtr->Producer );
+			DetailsView->SetObject( DataprepAsset->GetProducer( Index ) );
 
 			return Widget.ToSharedRef();
 		}
@@ -376,12 +343,12 @@ TSharedPtr<SGraphNode> UK2Node_DataprepProducer::CreateVisualWidget()
 				]
 			];
 
-			ProducerWidgets.SetNum( DataprepAsset->Producers.Num() );
+			const int32 ProducersCount = DataprepAsset->GetProducersCount();
+			ProducerWidgets.SetNum( ProducersCount );
 
-			int32 Index = 0;
-			for( FDataprepAssetProducer& Producer : DataprepAsset->Producers )
+			for( int32 Index = 0; Index < ProducersCount; ++Index )
 			{
-				ProducerWidgets[ Index ].ProducerPtr = &Producer;
+				ProducerWidgets[ Index ].ProducerIndex = Index;
 
 				MainBox->AddSlot()[
 					CreateProducerWidget( &ProducerWidgets[ Index ], Index )

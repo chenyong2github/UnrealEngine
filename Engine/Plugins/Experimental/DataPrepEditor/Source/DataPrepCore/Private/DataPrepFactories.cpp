@@ -23,27 +23,8 @@ UObject * UDataprepAssetFactory::FactoryCreateNew(UClass* InClass, UObject* InPa
 	check( InClass->IsChildOf( UDataprepAsset::StaticClass() ) );
 	UDataprepAsset* DataprepAsset = NewObject<UDataprepAsset>(InParent, InClass, InName, Flags | RF_Transactional);
 
-	// Set DataprepAsset's consumer to the first registered consumer
-	for( TObjectIterator< UClass > It ; It ; ++It )
-	{
-		UClass* CurrentClass = (*It);
-
-		if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
-		{
-			if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
-			{
-				DataprepAsset->Consumer = NewObject< UDataprepContentConsumer >( DataprepAsset->GetOutermost(), CurrentClass, NAME_None, RF_Transactional );
-				check( DataprepAsset->Consumer );
-
-				FAssetRegistryModule::AssetCreated( DataprepAsset->Consumer );
-				DataprepAsset->Consumer->MarkPackageDirty();
-
-				break;
-			}
-		}
-	}
-
-	// #ueent_todo: Temp code for the nodes development
+	FAssetRegistryModule::AssetCreated( DataprepAsset );
+	DataprepAsset->MarkPackageDirty();
 
 	return DataprepAsset;
 }

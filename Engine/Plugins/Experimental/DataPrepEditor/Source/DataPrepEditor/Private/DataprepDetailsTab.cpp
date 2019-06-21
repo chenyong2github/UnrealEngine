@@ -68,7 +68,7 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabDetails(const FSpawnTabArgs & Args
 void FDataprepEditor::CreateDetailsViews()
 {
 	DetailsView = SNew( SGraphNodeDetailsWidget );
-	DataprepAssetView = SNew( SDataprepAssetView, this );
+	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetPtr.Get(), PipelineEditorCommands );
 }
 
 void FDataprepEditor::OnShowSettings()

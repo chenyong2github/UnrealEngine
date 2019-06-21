@@ -5,10 +5,30 @@
 #include "DataprepActionAsset.h"
 #include "DataprepCoreLogCategory.h"
 #include "DataprepCoreUtils.h"
+#include "DataPrepRecipe.h"
 
+#include "AssetRegistryModule.h"
 #ifdef WITH_EDITOR
 #include "Editor.h"
 #endif //WITH_EDITOR
+#include "Kismet2/KismetEditorUtilities.h"
+
+namespace DataprepAssetUtil
+{
+	void DeleteRegisteredAsset(UObject* Asset)
+	{
+		if(Asset != nullptr)
+		{
+			Asset->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
+
+			Asset->ClearFlags(RF_Standalone | RF_Public);
+			Asset->RemoveFromRoot();
+			Asset->MarkPendingKill();
+
+			FAssetRegistryModule::AssetDeleted( Asset ) ;
+		}
+	}
+}
 
 // FDataprepAssetAction =================================================================
 
@@ -50,15 +70,15 @@ void FDataprepAssetAction::BindDataprepAssetToAction()
 {
 	if ( ActionAsset )
 	{
-		OnOperationOrderChandedHandle = ActionAsset->GetOnStepsOrderChanged().AddRaw( this, &FDataprepAssetAction::OnActionOperationsOrderChanged );
+		OnOperationOrderChangedHandle = ActionAsset->GetOnStepsOrderChanged().AddRaw( this, &FDataprepAssetAction::OnActionOperationsOrderChanged );
 	}
 }
 
 void FDataprepAssetAction::UnbindDataprepAssetFromAction()
 {
-	if ( ActionAsset && OnOperationOrderChandedHandle.IsValid() )
+	if ( ActionAsset && OnOperationOrderChangedHandle.IsValid() )
 	{
-		ActionAsset->GetOnStepsOrderChanged().Remove( OnOperationOrderChandedHandle );
+		ActionAsset->GetOnStepsOrderChanged().Remove( OnOperationOrderChangedHandle );
 	}
 }
 
@@ -104,6 +124,67 @@ UDataprepAsset::~UDataprepAsset()
 #ifdef WITH_EDITOR
 	FEditorDelegates::OnAssetsDeleted.Remove( OnAssetDeletedHandle );
 #endif //WITH_EDITOR
+}
+
+void UDataprepAsset::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if(HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
+	{
+		// Set DataprepAsset's consumer to the first registered consumer
+		for( TObjectIterator< UClass > It ; It ; ++It )
+		{
+			UClass* CurrentClass = (*It);
+
+			if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
+			{
+				if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
+				{
+					Consumer = NewObject< UDataprepContentConsumer >( GetOutermost(), CurrentClass, NAME_None, RF_Transactional );
+					check( Consumer );
+
+					FAssetRegistryModule::AssetCreated( Consumer );
+					Consumer->MarkPackageDirty();
+
+					break;
+				}
+			}
+		}
+
+		// Begin: Temp code for the nodes development
+		const FString DesiredName = GetName() + TEXT("_Recipe");
+		FName BlueprintName = MakeUniqueObjectName( GetOutermost(), UBlueprint::StaticClass(), *DesiredName );
+
+		DataprepRecipeBP = FKismetEditorUtilities::CreateBlueprint( UDataprepRecipe::StaticClass(), this, BlueprintName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass() );
+		check( DataprepRecipeBP );
+
+		FAssetRegistryModule::AssetCreated( DataprepRecipeBP );
+
+		DataprepRecipeBP->MarkPackageDirty();
+
+		DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnBlueprintChanged );
+		// End: Temp code for the nodes development
+	}
+}
+
+void UDataprepAsset::Serialize( FArchive& Ar )
+{
+	Super::Serialize( Ar );
+
+	if( Ar.IsLoading() )
+	{
+		check(Consumer);
+		Consumer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnConsumerChanged );
+
+		check(DataprepRecipeBP);
+		DataprepRecipeBP->OnChanged().AddUObject( this, &UDataprepAsset::OnBlueprintChanged );
+
+		for( FDataprepAssetProducer& Producer : Producers )
+		{
+			Producer.Producer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnProducerChanged );
+		}
+	}
 }
 
 int32 UDataprepAsset::AddAction()
@@ -195,16 +276,6 @@ bool UDataprepAsset::RemoveAction(int32 Index)
 	return false;
 }
 
-FOnStepsOrderChanged& UDataprepAsset::GetOnActionsOrderChanged()
-{
-	return OnActionsOrderChanged;
-}
-
-FOnActionOperationsOrderChanged& UDataprepAsset::GetOnActionOperationsOrderChanged()
-{
-	return OnActionOperationsOrderChanged;
-}
-
 void UDataprepAsset::RemoveInvalidActions()
 {
 	bool bWasActionsModified = false;
@@ -231,7 +302,7 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 
 	for ( FDataprepAssetProducer& AssetProducer : Producers )
 	{
-		if (AssetProducer.Producer && AssetProducer.bIsEnabled)
+		if (AssetProducer.Producer && ( AssetProducer.bIsEnabled && AssetProducer.SupersededBy == INDEX_NONE ) )
 		{
 			FString OutReason;
 			if (AssetProducer.Producer->Initialize( InContext, OutReason ))
@@ -255,6 +326,247 @@ void UDataprepAsset::RunProducers(const UDataprepContentProducer::ProducerContex
 			if( !OutReason.IsEmpty() )
 			{
 				// #ueent_todo: Log that producer has failed
+			}
+		}
+	}
+}
+
+bool UDataprepAsset::RunConsumer( const UDataprepContentConsumer::ConsumerContext& InContext, FString& OutReason)
+{
+	if( !Consumer->Initialize( InContext, OutReason ) )
+	{
+		return false;
+	}
+
+	// #ueent_todo: Update state of entry: finalizing
+
+	if ( !Consumer->Run() )
+	{
+		// #ueent_todo: Inform execution has failed
+		return false;
+	}
+
+	Consumer->Reset();
+	
+	return true;
+}
+
+bool UDataprepAsset::AddProducer(UClass* ProducerClass)
+{
+	if( ProducerClass && ProducerClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
+	{
+		UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( GetOutermost(), ProducerClass, NAME_None, RF_Transactional );
+		FAssetRegistryModule::AssetCreated( Producer );
+		Producer->MarkPackageDirty();
+
+		int32 ProducerNextIndex = Producers.Num();
+		Producers.Emplace( Producer, true );
+
+		Producer->GetOnChanged().AddUObject(this, &UDataprepAsset::OnProducerChanged);
+		MarkPackageDirty();
+
+		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerAdded, ProducerNextIndex );
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UDataprepAsset::RemoveProducer(int32 IndexToRemove)
+{
+	if( Producers.IsValidIndex( IndexToRemove ) )
+	{
+		UDataprepContentProducer* Producer = Producers[IndexToRemove].Producer;
+
+		Producer->GetOnChanged().RemoveAll( this );
+
+		DataprepAssetUtil::DeleteRegisteredAsset( Producer );
+
+		Producers.RemoveAt( IndexToRemove );
+
+		if(Producers.Num() == 1)
+		{
+			Producers[0].SupersededBy = INDEX_NONE;
+		}
+		else if(Producers.Num() > 1)
+		{
+			// Update value stored in SupersededBy property where applicable
+			for( FDataprepAssetProducer& AssetProducer : Producers )
+			{
+				if( AssetProducer.SupersededBy == IndexToRemove )
+				{
+					AssetProducer.SupersededBy = INDEX_NONE;
+				}
+				else if( AssetProducer.SupersededBy > IndexToRemove )
+				{
+					--AssetProducer.SupersededBy;
+				}
+			}
+		}
+
+		MarkPackageDirty();
+
+		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerRemoved, IndexToRemove );
+
+		return true;
+	}
+
+	return false;
+}
+
+void UDataprepAsset::EnableProducer(int32 Index, bool bValue)
+{
+	if( Producers.IsValidIndex( Index ) )
+	{
+		Producers[Index].bIsEnabled = bValue;
+
+		MarkPackageDirty();
+
+		// Relay change notification to observers of this object
+		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, Index );
+	}
+}
+
+bool UDataprepAsset::EnableAllProducers(bool bValue)
+{
+	if( Producers.Num() > 0 )
+	{
+		for( FDataprepAssetProducer& Producer : Producers )
+		{
+			Producer.bIsEnabled = bValue;
+		}
+
+		MarkPackageDirty();
+
+		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, INDEX_NONE );
+
+		return true;
+	}
+
+	return false;
+}
+
+bool UDataprepAsset::ReplaceConsumer(UClass* NewConsumerClass)
+{
+	if( NewConsumerClass && NewConsumerClass->IsChildOf(UDataprepContentConsumer::StaticClass()))
+	{
+		if(Consumer != nullptr)
+		{
+			Consumer->GetOnChanged().RemoveAll( this );
+			DataprepAssetUtil::DeleteRegisteredAsset( Consumer );
+		}
+
+		Consumer = NewObject< UDataprepContentConsumer >( GetOutermost(), NewConsumerClass, NAME_None, RF_Transactional );
+		check( Consumer );
+
+		FAssetRegistryModule::AssetCreated( Consumer );
+		Consumer->MarkPackageDirty();
+
+		Consumer->GetOnChanged().AddUObject( this, &UDataprepAsset::OnConsumerChanged );
+		MarkPackageDirty();
+
+		OnChanged.Broadcast( FDataprepAssetChangeType::ConsumerModified, INDEX_NONE );
+
+		return true;
+	}
+
+	return false;
+}
+
+void UDataprepAsset::OnConsumerChanged()
+{
+	MarkPackageDirty();
+
+	// Broadcast change on consumer to observers of this object
+	OnChanged.Broadcast( FDataprepAssetChangeType::ConsumerModified, INDEX_NONE );
+}
+
+void UDataprepAsset::OnProducerChanged( const UDataprepContentProducer* InProducer )
+{
+	int32 FoundIndex = 0;
+	for( FDataprepAssetProducer& AssetProducer : Producers )
+	{
+		if( AssetProducer.Producer == InProducer )
+		{
+			break;
+		}
+
+		++FoundIndex;
+	}
+
+	// Verify found producer is not now superseded by another one
+	if( FoundIndex < Producers.Num() )
+	{
+		bool bChangeAll = false;
+		ValidateProducerChanges( FoundIndex, bChangeAll );
+
+		MarkPackageDirty();
+
+		// Relay change notification to observers of this object
+		OnChanged.Broadcast( FDataprepAssetChangeType::ProducerModified, bChangeAll ? INDEX_NONE : FoundIndex );
+	}
+}
+
+void UDataprepAsset::OnBlueprintChanged( UBlueprint* InBlueprint )
+{
+	if(InBlueprint == DataprepRecipeBP)
+	{
+		OnChanged.Broadcast( FDataprepAssetChangeType::BlueprintModified, INDEX_NONE );
+	}
+}
+
+void UDataprepAsset::ValidateProducerChanges( int32 Index, bool &bChangeAll )
+{
+	bChangeAll = false;
+
+	if( Producers.IsValidIndex( Index ) && Producers.Num() > 1 )
+	{
+		FDataprepAssetProducer& InAssetProducer = Producers[Index];
+
+		// Check if input producer is still superseded if applicable
+		if( InAssetProducer.SupersededBy != INDEX_NONE )
+		{
+			FDataprepAssetProducer& SupersedingAssetProducer = Producers[ InAssetProducer.SupersededBy ];
+
+			if( !SupersedingAssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
+			{
+				InAssetProducer.SupersededBy = INDEX_NONE;
+			}
+		}
+
+		// Check if producer is now superseded by any other producer
+		int32 SupersederIndex = 0;
+		for( FDataprepAssetProducer& AssetProducer : Producers )
+		{
+			if( AssetProducer.Producer != InAssetProducer.Producer && AssetProducer.Producer->Supersede( InAssetProducer.Producer ) )
+			{
+				// Disable found producer if another producer supersedes its production
+				InAssetProducer.SupersededBy = SupersederIndex;
+				break;
+			}
+			SupersederIndex++;
+		}
+
+		// If input producer superseded any other producer, check if this is still valid
+		// Check if input producer does not supersede other producers
+		for( FDataprepAssetProducer& AssetProducer : Producers )
+		{
+			if( AssetProducer.Producer != InAssetProducer.Producer )
+			{
+				if( AssetProducer.SupersededBy == Index )
+				{
+					if( !InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
+					{
+						bChangeAll = true;
+						AssetProducer.SupersededBy = INDEX_NONE;
+					}
+				}
+				else if( InAssetProducer.Producer->Supersede( AssetProducer.Producer ) )
+				{
+					bChangeAll = true;
+					AssetProducer.SupersededBy = Index;
+				}
 			}
 		}
 	}

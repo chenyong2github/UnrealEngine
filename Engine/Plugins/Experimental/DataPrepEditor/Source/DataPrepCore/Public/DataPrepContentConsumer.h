@@ -120,8 +120,8 @@ public:
 	/**
 	 * Sets the path of the package the consumer should move assets to if applicable.
 	 * Generally, this package path is substituted to the temporary path the assets are in
-	 * @param InPackagePath : New package path
-	 * @return true if the package path is valid
+	 * @param InTargetContentFolder : Path of the package to save any assets in
+	 * @return true if the assignment has been successful, false otherwise
 	 * @remark if InPackagePath is empty the package path of the consumer is used
 	 */
 	virtual bool SetTargetContentFolder(const FString& InTargetContentFolder );
@@ -129,6 +129,16 @@ public:
 	const FString& GetLevelName() { return LevelName; }
 
 	const FString& GetTargetContentFolder() { return TargetContentFolder; }
+
+	/**
+	 * Allow an observer to be notified when one of the properties of the consumer changes
+	 * @return The delegate that will be broadcasted when the consumer changed
+	 */
+	DECLARE_EVENT(UDataprepContentConsumer, FDataprepConsumerChanged)
+	FDataprepConsumerChanged& GetOnChanged()
+	{
+		return OnChanged;
+	}
 
 protected:
 
@@ -183,4 +193,7 @@ protected:
 
 	/** Context which the consumer will run with */
 	ConsumerContext Context;
+
+	/** Delegate to broadcast changes to the consumer */
+	FDataprepConsumerChanged OnChanged;
 };

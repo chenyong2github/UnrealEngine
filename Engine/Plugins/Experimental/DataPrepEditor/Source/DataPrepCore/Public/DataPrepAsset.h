@@ -4,18 +4,23 @@
 
 #include "CoreMinimal.h"
 
+#include "DataPrepContentConsumer.h"
 #include "DataPrepContentProducer.h"
 
 #include "DataPrepAsset.generated.h"
 
 class UDataprepActionAsset;
 class UDataprepContentConsumer;
-class UDataprepContentProducer;
 class UDataprepAsset;
 
-// Delegates
-DECLARE_MULTICAST_DELEGATE(FOnActionsOrderChanged)
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnActionOperationsOrderChanged, const UDataprepActionAsset* /** InActionAsset The modified action */)
+enum class FDataprepAssetChangeType : uint8
+{
+	ProducerAdded,
+	ProducerRemoved,
+	ProducerModified,
+	ConsumerModified,
+	BlueprintModified,
+};
 
 USTRUCT(Experimental)
 struct FDataprepAssetProducer
@@ -25,18 +30,23 @@ struct FDataprepAssetProducer
 	FDataprepAssetProducer()
 		: Producer(nullptr)
 		, bIsEnabled( true )
+		, SupersededBy( INDEX_NONE )
 	{}
 
 	FDataprepAssetProducer(UDataprepContentProducer* InProducer, bool bInEnabled )
 		: Producer(InProducer)
 		, bIsEnabled( bInEnabled )
+		, SupersededBy( INDEX_NONE )
 	{}
 
 	UPROPERTY()
 	UDataprepContentProducer* Producer;
-	
+
 	UPROPERTY()
 	bool bIsEnabled;
+
+	UPROPERTY()
+	int32 SupersededBy;
 };
 
 /**
@@ -53,14 +63,14 @@ struct FDataprepAssetAction
 		: ActionAsset(nullptr)
 		, bIsEnabled(true)
 		, DataprepAssetPtr(nullptr)
-		, OnOperationOrderChandedHandle()
+		, OnOperationOrderChangedHandle()
 	{}
 
 	FDataprepAssetAction(UDataprepActionAsset* InActionAsset, bool bInEnabled, UDataprepAsset& DataprepAsset)
 		: ActionAsset(nullptr)
 		, bIsEnabled(bInEnabled)
 		, DataprepAssetPtr(&DataprepAsset)
-		, OnOperationOrderChandedHandle()
+		, OnOperationOrderChangedHandle()
 	{
 		SetActionAsset(InActionAsset);
 	}
@@ -69,7 +79,7 @@ struct FDataprepAssetAction
 		: ActionAsset(nullptr)
 		, bIsEnabled(Other.bIsEnabled)
 		, DataprepAssetPtr(Other.DataprepAssetPtr)
-		, OnOperationOrderChandedHandle()
+		, OnOperationOrderChangedHandle()
 	{
 		SetActionAsset(Other.ActionAsset);
 	}
@@ -78,7 +88,7 @@ struct FDataprepAssetAction
 		: ActionAsset(nullptr)
 		, bIsEnabled(Other.bIsEnabled)
 		, DataprepAssetPtr(Other.DataprepAssetPtr)
-		, OnOperationOrderChandedHandle()
+		, OnOperationOrderChangedHandle()
 	{
 		SetActionAsset(Other.ActionAsset);
 		Other.SetActionAsset( nullptr );
@@ -116,7 +126,7 @@ private:
 
 	TWeakObjectPtr<UDataprepAsset> DataprepAssetPtr;
 
-	FDelegateHandle OnOperationOrderChandedHandle;
+	FDelegateHandle OnOperationOrderChangedHandle;
 };
 
 
@@ -129,6 +139,11 @@ public:
 	UDataprepAsset();
 
 	virtual ~UDataprepAsset();
+
+	// UObject interface
+	virtual void Serialize( FArchive& Ar ) override;
+	virtual void PostInitProperties() override;
+	// End of UObject interface
 
 	/**
 	 * Create an action at the end of actions array
@@ -190,17 +205,113 @@ public:
 	 * Allow an observer to be notified when the actions order changed that also include adding and removing an action
 	 * @return The delegate that will be broadcasted when the actions order changed
 	 */
-	FOnActionsOrderChanged& GetOnActionsOrderChanged();
+	DECLARE_EVENT(UDataprepAsset, FOnActionsOrderChanged)
+	FOnActionsOrderChanged& GetOnActionsOrderChanged()
+	{
+		return OnActionsOrderChanged;
+	}
 
 	/**
 	 * Allow an observer to be notified when the operations order of an action changed that also include adding and removing an operation
 	 * @return The delegate that will be broadcasted when the operations order of an action has changed
 	 */
-	FOnActionOperationsOrderChanged& GetOnActionOperationsOrderChanged();
+	DECLARE_EVENT_OneParam(UDataprepAsset, FOnActionOperationsOrderChanged, const UDataprepActionAsset* /** InActionAsset The modified action */)
+	FOnActionOperationsOrderChanged& GetOnActionOperationsOrderChanged()
+	{
+		return OnActionOperationsOrderChanged;
+	}
+
+	/**
+	 * Add a producer of a given class
+	 * @param ProducerClass Class of the Producer to add
+	 * @return true if addition was successful, false otherwise
+	 */
+	bool AddProducer( UClass* ProducerClass );
+
+	/**
+	 * Remove the producer at a given index
+	 * @param IndexToRemove Index of the producer to remove
+	 * @return true if remove was successful, false otherwise
+	*/
+	bool RemoveProducer( int32 IndexToRemove );
+
+	/**
+	 * Enable/Disable the producer at a given index
+	 * @param Index Index of the producer to update
+	 */
+	void EnableProducer(int32 Index, bool bValue);
+
+	/**
+	 * Enable/Disable the producer at a given index
+	 * @param Index Index of the producer to update
+	 */
+	bool EnableAllProducers(bool bValue);
+
+	/**
+	 * Toggle the producer at a given index
+	 * @param Index Index of the producer to update
+	 */
+	void ToggleProducer( int32 Index )
+	{
+		EnableProducer( Index, !IsProducerEnabled( Index ) );
+	}
+
+	/**
+	 * Replace the current consumer with one of a given class
+	 * @param NewConsumerClass Class of the consumer to replace the current one with
+	 * @return true if replacement was successful, false otherwise
+	 */
+	bool ReplaceConsumer( UClass* NewConsumerClass );
+
+	const UDataprepContentConsumer* GetConsumer() const { return Consumer; }
+
+	UDataprepContentConsumer* GetConsumer() { return Consumer; }
+
+	int32 GetProducersCount() const { return Producers.Num(); }
+
+	/** @return pointer on producer at Index-th position in Producers array. nullptr if Index is invalid */
+	const UDataprepContentProducer* GetProducer(int32 Index) const
+	{ 
+		return Producers.IsValidIndex(Index) ? Producers[Index].Producer : nullptr;
+	}
+
+	UDataprepContentProducer* GetProducer(int32 Index)
+	{ 
+		return Producers.IsValidIndex(Index) ? Producers[Index].Producer : nullptr;
+	}
+
+	/** @return pointer on producer at Index-th position in Producers array. nullptr if Index is invalid */
+	bool IsProducerEnabled(int32 Index) const
+	{ 
+		return Producers.IsValidIndex(Index) ? Producers[Index].bIsEnabled : nullptr;
+	}
+
+	/** @return pointer on producer at Index-th position in Producers array. nullptr if Index is invalid */
+	bool IsProducerSuperseded(int32 Index) const
+	{ 
+		return Producers.IsValidIndex(Index) ? Producers[Index].SupersededBy != INDEX_NONE : false;
+	}
+
+	/**
+	 * Allow an observer to be notified when when the consumer or one of the producer has changed
+	 * @return The delegate that will be broadcasted when when the consumer or one of the producer has changed
+	 */
+	DECLARE_EVENT_TwoParams(UDataprepAsset, FOnDataprepAssetChanged, FDataprepAssetChangeType, int32 )
+	FOnDataprepAssetChanged& GetOnChanged() { return OnChanged; }
 
 	void RunProducers( const UDataprepContentProducer::ProducerContext& InContext, TArray< TWeakObjectPtr< UObject > >& OutAssets );
 
+	bool RunConsumer( const UDataprepContentConsumer::ConsumerContext& InContext, FString& OutReason );
+
 #if WITH_EDITORONLY_DATA
+
+	// Temp code for the nodes development
+	/** Temporary: Pointer to data preparation pipeline blueprint used to process input data */
+	UPROPERTY()
+	class UBlueprint* DataprepRecipeBP;
+	// end of temp code for nodes development
+
+protected:
 	/** List of producers referenced by the asset */
 	UPROPERTY()
 	TArray< FDataprepAssetProducer > Producers;
@@ -210,13 +321,28 @@ public:
 	UDataprepContentConsumer* Consumer;
 #endif
 
+protected:
+
+	/**
+	 * Answer notification that the consumer has changed
+	 * @param InProducer Producer which has changed
+	 */
+	void OnProducerChanged( const UDataprepContentProducer* InProducer );
+
+	/** Answer notification that the consumer has changed */
+	void OnConsumerChanged();
+
 	// Temp code for the nodes development
-	/** Temporary: Pointer to data preparation pipeline blueprint used to process input data */
-	UPROPERTY()
-	class UBlueprint* DataprepRecipeBP;
+	void OnBlueprintChanged( class UBlueprint* InBlueprint );
 	// end of temp code for nodes development
 
 private:
+	/**
+	  * Helper to check superseding on all producers after changes made on one producer
+	  * @param Index Index of the producer to validate against
+	  * @param bChangeAll Set to true if changes on input producer implied changes on other producers
+	  */
+	void ValidateProducerChanges( int32 Index, bool &bChangeAll );
 
 	void RemoveInvalidActions();
 
@@ -224,11 +350,14 @@ private:
 	UPROPERTY()
 	TArray<FDataprepAssetAction> Actions;
 
-	//Delegate broadcasted when the actions order changed
+	/** Delegate broadcasted when the actions order changed */
 	FOnActionsOrderChanged OnActionsOrderChanged;
 
-	//Delegate broadcasted when the order of the operations of an action changed
+	/** Delegate broadcasted when the order of the operations of an action changed */
 	FOnActionOperationsOrderChanged OnActionOperationsOrderChanged;
+
+	/** Delegate broadcasted when the consumer or one of the producers has changed */
+	FOnDataprepAssetChanged OnChanged;
 
 	FDelegateHandle OnAssetDeletedHandle;
 };

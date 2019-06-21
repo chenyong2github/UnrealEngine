@@ -16,6 +16,7 @@
 #include "K2Node_AddComponent.h"
 #include "PropertyEditorModule.h"
 
+#include "EditorFontGlyphs.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Images/SImage.h"
@@ -49,8 +50,6 @@ void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
 	DetailsViewArgs.bShowPropertyMatrixButton = false;
 
 	PropertyView = EditModule.CreateDetailView(DetailsViewArgs);
-
-	//PropertyView->OnFinishedChangingProperties().Add(FOnFinishedChangingProperties::FDelegate::CreateSP(this, &FBlueprintEditor::OnFinishedChangingProperties));
 
 	PropertyView->GetIsPropertyEditingEnabledDelegate().BindSP(this, &SGraphNodeDetailsWidget::GetCanEditProperties);
 
@@ -267,18 +266,8 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 		.VAlign(VAlign_Top)
 		[
 			SNew(SBox)
-			//.Visibility(this, &SKismetInspector::GetPropertyViewVisibility)
 			[
 				SNew(SVerticalBox)
-				//+ SVerticalBox::Slot()
-				//.AutoHeight()
-				//.Padding(FMargin(0, 0, 0, 1))
-				//[
-				//	SNew(SKismetInspectorUneditableComponentWarning)
-				//	.Visibility(this, &SKismetInspector::GetInheritedBlueprintComponentWarningVisibility)
-				//	.WarningText(NSLOCTEXT("SKismetInspector", "BlueprintUneditableInheritedComponentWarning", "Components flagged as not editable when inherited must be edited in the <a id=\"HyperlinkDecorator\" style=\"DetailsView.BPMessageHyperlinkStyle\">Parent Blueprint</>"))
-				//	.OnHyperlinkClicked(this, &SKismetInspector::OnInheritedBlueprintComponentWarningHyperlinkClicked)
-				//]
 				+ SVerticalBox::Slot()
 				[
 					PropertyView.ToSharedRef()
@@ -290,10 +279,10 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 	ContextualEditingBorderWidget->SetContent(ContextualEditingWidget);
 }
 
-void SProducerStackEntryTreeView::Construct(const FArguments& InArgs, SDataprepAssetView* InDataprepAssetView, FDataprepEditor* InDataprepEditorPtr)
+void SProducerStackEntryTreeView::Construct(const FArguments& InArgs, SDataprepAssetView* InDataprepAssetView, UDataprepAsset* InDataprepAssetPtr)
 {
-	DataprepEditorPtr = InDataprepEditorPtr;
-	DataprepEditorPtr->OnDataprepAssetProducerChanged().AddSP(this, &SProducerStackEntryTreeView::OnDataprepAssetProducerChanged);
+	DataprepAssetPtr = InDataprepAssetPtr;
+	check( DataprepAssetPtr.IsValid() );
 
 	BuildProducerEntries();
 
@@ -328,16 +317,19 @@ TSharedRef<ITableRow> SProducerStackEntryTreeView::OnGenerateRow(FProducerStackE
 
 void SProducerStackEntryTreeView::BuildProducerEntries()
 {
-	const TArray< FDataprepAssetProducer >& Producers = DataprepEditorPtr->GetDataprepAsset()->Producers;
-
-	RootNodes.Empty( Producers.Num() );
-
-	for ( const FDataprepAssetProducer& AssetProducer : Producers )
+	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
 	{
-		if (AssetProducer.Producer != nullptr)
+		int32 ProducersCount = DataprepAsset->GetProducersCount();
+
+		RootNodes.Empty( ProducersCount );
+
+		for( int32 Index = 0; Index < ProducersCount; ++Index )
 		{
-			TSharedRef<FProducerStackEntry> ProducerStackEntry = MakeShareable( new FProducerStackEntry( RootNodes.Num(), AssetProducer, DataprepEditorPtr ) );
-			RootNodes.Add( ProducerStackEntry );
+			if(DataprepAsset->GetProducer( Index ) != nullptr)
+			{
+				TSharedRef<FProducerStackEntry> ProducerStackEntry = MakeShareable( new FProducerStackEntry( Index, DataprepAsset ) );
+				RootNodes.Add( ProducerStackEntry );
+			}
 		}
 	}
 }
@@ -380,19 +372,17 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 		return SNullWidget::NullWidget;
 	}
 
-	auto CheckEntry = [this, ProducerStackEntry]()
+	auto ToggleEntry = [this, ProducerStackEntry]()
 	{
-		ProducerStackEntry->bIsEnabled = !ProducerStackEntry->bIsEnabled;
-		CheckBox->SetText( FText::FromString( ProducerStackEntry->bIsEnabled ? TEXT( "\xf14a" ) : TEXT( "\xf0c8" ) ) );
-
-		ProducerStackEntry->GetDataprepAssetProducer().bIsEnabled = ProducerStackEntry->bIsEnabled;
+		ProducerStackEntry->ToggleProducer();
+		CheckBox->SetText( ProducerStackEntry->WillBeRun() ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square );
 
 		return FReply::Handled();
 	};
 
 	auto DeleteEntry = [ProducerStackEntry]()
 	{
-		ProducerStackEntry->DataprepEditorPtr->OnRemoveProducer( ProducerStackEntry->ProducerIndex );
+		ProducerStackEntry->RemoveProducer();
 		return FReply::Handled();
 	};
 
@@ -401,6 +391,7 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
+	.BorderBackgroundColor( ProducerStackEntry->bIsSuperseded ? FLinearColor::White : FLinearColor::Red )
 	.Padding(5.0f)
 	[
 		SNew(SHorizontalBox)
@@ -414,14 +405,14 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 			.ToolTipText(LOCTEXT("CheckToolTip", "Include or exclude this producer to the creation of the world "))
 			.IsFocusable(false)
-			.OnClicked_Lambda( CheckEntry )
+			.OnClicked_Lambda( ToggleEntry )
 			.VAlign( VAlign_Top )
 			.Content()
 			[
 				SAssignNew(CheckBox, STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
 				.ColorAndOpacity( FLinearColor::White )
-				.Text(FText::FromString(FString( ProducerStackEntry->bIsEnabled ? TEXT( "\xf14a" ) : TEXT( "\xf0c8" ) ) ) )
+				.Text( ProducerStackEntry->WillBeRun() ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square )
 			]
 		]
 		// Input entry label
@@ -448,58 +439,73 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
 				.ColorAndOpacity( FLinearColor::White )
-				.Text(FText::FromString(FString(TEXT("\xf1f8"))))
+				.Text( FEditorFontGlyphs::Trash )
 			]
 		]
 	];
 
+	// Disable check box if associated producer is superseeded
+	CheckBox->SetEnabled( !ProducerStackEntry->bIsSuperseded );
+
 	return Widget.ToSharedRef();
 }
 
-void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* InDataprepEditor )
+void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList )
 {
-	DataprepEditorPtr = InDataprepEditor;
+	check( InDataprepAssetPtr );
 
-	const UDataprepAsset* DataprepAsset = DataprepEditorPtr->GetDataprepAsset();
+	DataprepAssetPtr = InDataprepAssetPtr;
+
+	DataprepAssetPtr->GetOnChanged().AddRaw( this, &SDataprepAssetView::OnDataprepAssetChanged );
 
 	bIsChecked = true;
-	const TArray< FDataprepAssetProducer >& Producers = DataprepAsset->Producers;
-	for (const FDataprepAssetProducer& Producer : Producers)
+
+	for(int32 Index = 0; Index < DataprepAssetPtr->GetProducersCount(); ++Index)
 	{
-		bIsChecked &= Producer.bIsEnabled;
+		bIsChecked &= DataprepAssetPtr->IsProducerEnabled( Index ) && !DataprepAssetPtr->IsProducerSuperseded( Index );
 	}
 
-	const TArray< DataprepEditorClassDescription >& Consumers = DataprepEditorPtr->GetConsumerDescriptions();
-
-	for (const DataprepEditorClassDescription& Consumer : Consumers)
+	for( TObjectIterator< UClass > It ; It ; ++It )
 	{
-		TSharedPtr< FString >& ConsumerLabel = ConsumerList.Emplace_GetRef( new FString( Consumer.Get<1>().ToString() ) );
-		if (DataprepAsset->Consumer != nullptr && DataprepAsset->Consumer->GetClass() == Consumer.Get<0>() )
+		UClass* CurrentClass = (*It);
+
+		if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
 		{
-			SelectedProducer = ConsumerLabel;
+			if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
+			{
+				if( UDataprepContentConsumer* Consumer = Cast< UDataprepContentConsumer >( CurrentClass->GetDefaultObject() ) )
+				{
+					TSharedPtr< FString >& ConsumerDescriptionLabel = ConsumerDescriptionList.Emplace_GetRef( new FString( Consumer->GetLabel().ToString() ) );
+					ConsumerDescriptionMap.Add( ConsumerDescriptionLabel, CurrentClass );
+
+					if (DataprepAssetPtr->GetConsumer() != nullptr && DataprepAssetPtr->GetConsumer()->GetClass() == CurrentClass )
+					{
+						SelectedConsumerDescription = ConsumerDescriptionLabel;
+					}
+				}
+			}
 		}
 	}
 
-	if ( !SelectedProducer.IsValid() && ConsumerList.Num() > 0)
+	if ( !SelectedConsumerDescription.IsValid() && ConsumerDescriptionList.Num() > 0)
 	{
-		SelectedProducer = MakeShared<FString>( FString() );
+		SelectedConsumerDescription = MakeShared<FString>( FString() );
 	}
 
 	auto CheckEntry = [ this ]()
 	{
-		bIsChecked = !bIsChecked;
-
-		CheckBox->SetText(FText::FromString( FString( bIsChecked ? TEXT( "\xf14a" ) : TEXT( "\xf0c8" ) ) ) );
-
-		TArray< FDataprepAssetProducer >& Producers = DataprepEditorPtr->GetDataprepAsset()->Producers;
-		for ( FDataprepAssetProducer& Producer : Producers )
+		for(int32 Index = 0; Index < DataprepAssetPtr->GetProducersCount(); ++Index)
 		{
-			Producer.bIsEnabled = bIsChecked;
+			DataprepAssetPtr->EnableProducer( Index, !bIsChecked );
 		}
 
-		// #ueent_todo: Revisit how changes are propagated from UI to editor to asset and reverse
-		// Propagate dataprep asset has changed
-		DataprepEditorPtr->OnDataprepAssetProducerChanged().Broadcast();
+
+		if( DataprepAssetPtr->EnableAllProducers( !bIsChecked ) )
+		{
+			bIsChecked = !bIsChecked;
+		}
+
+		CheckBox->SetText( bIsChecked ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square );
 
 		TreeView->Refresh();
 
@@ -510,7 +516,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
 	.ForegroundColor(FLinearColor::White)
 	.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new producer."))
-	.OnGetMenuContent(this, &SDataprepAssetView::CreateAddProducerMenuWidget)
+	.OnGetMenuContent(this, &SDataprepAssetView::CreateAddProducerMenuWidget, CommandList)
 	.HasDownArrow(false)
 	.ButtonContent()
 	[
@@ -527,7 +533,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 		]
 	];
 
-	TreeView = SNew(SProducerStackEntryTreeView, this, DataprepEditorPtr);
+	TreeView = SNew(SProducerStackEntryTreeView, this, DataprepAssetPtr.Get() );
 
 	// #ueent_todo: Look at changing the border brushes to add color to this stuff
 	ChildSlot
@@ -569,7 +575,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 				.Padding( 5.0f )
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
 					.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
 					.MinDesiredWidth( 200 )
 				]
@@ -584,16 +589,16 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew( ProducerSelector, STextComboBox )
-					.OptionsSource( &ConsumerList )
-					.OnSelectionChanged( this, &SDataprepAssetView::OnConsumerChanged )
-					.InitiallySelectedItem( SelectedProducer )
+					.OptionsSource( &ConsumerDescriptionList )
+					.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
+					.InitiallySelectedItem( SelectedConsumerDescription )
 				]
 			]
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
 				SAssignNew( ConsumerWidget, SDataprepConsumerWidget )
-				.DataprepConsumer( DataprepAsset->Consumer )
+				.DataprepConsumer( DataprepAssetPtr->GetConsumer() )
 			]
 			// Section for producers
 			+ SVerticalBox::Slot()
@@ -641,7 +646,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 						SAssignNew(CheckBox, STextBlock)
 						.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
 						.ColorAndOpacity( FLinearColor::White )
-						.Text(FText::FromString(FString( bIsChecked ? TEXT( "\xf14a" ) : TEXT( "\xf0c8" ) ) ) )
+						.Text( bIsChecked ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square )
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -650,7 +655,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
 					.Text(LOCTEXT("DataprepAssetView_Producers_label", "Inputs"))
 				]
 				+ SHorizontalBox::Slot()
@@ -676,54 +680,93 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, FDataprepEditor* I
 	];
 }
 
-void SDataprepAssetView::OnConsumerChanged( TSharedPtr<FString> NewConsumer, ESelectInfo::Type SelectInfo)
+SDataprepAssetView::~SDataprepAssetView()
 {
-	if ( !NewConsumer.IsValid() )
+	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
 	{
-		return;
-	}
-
-	if ( SelectedProducer == NewConsumer )
-	{
-		return;
-	}
-
-	// #ueent_todo: Provide an index instead of a FString
-	if ( !DataprepEditorPtr->OnChangeConsumer( NewConsumer ) )
-	{
-		ProducerSelector->SetSelectedItem( SelectedProducer );
-	}
-	else
-	{
-		SelectedProducer = NewConsumer;
-		ConsumerWidget->SetDataprepConsumer( DataprepEditorPtr->GetDataprepAsset()->Consumer );
+		DataprepAsset->GetOnChanged().RemoveAll( this );
 	}
 }
 
-TSharedRef<SWidget> SDataprepAssetView::CreateAddProducerMenuWidget()
+void SDataprepAssetView::OnNewConsumerSelected( TSharedPtr<FString> NewConsumerDescription, ESelectInfo::Type SelectInfo)
+{
+	if ( !NewConsumerDescription.IsValid() || SelectedConsumerDescription == NewConsumerDescription )
+	{
+		return;
+	}
+
+	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+	{
+		UClass** NewConsumerClassPtr = ConsumerDescriptionMap.Find(NewConsumerDescription);
+		check(NewConsumerClassPtr);
+
+		if( !DataprepAsset->ReplaceConsumer( *NewConsumerClassPtr ) )
+		{
+			ProducerSelector->SetSelectedItem(SelectedConsumerDescription);
+		}
+		// Update SelectedConsumerDescription only, the widget displaying the consumer is updated thru notifications 
+		else
+		{
+			SelectedConsumerDescription = NewConsumerDescription;
+		}
+	}
+}
+
+void SDataprepAssetView::OnDataprepAssetChanged(FDataprepAssetChangeType ChangeType, int32 Index)
+{
+	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+	{
+		if(ChangeType == FDataprepAssetChangeType::ConsumerModified)
+		{
+			// Update the widget holding the consumer
+			ConsumerWidget->SetDataprepConsumer( DataprepAsset->GetConsumer() );
+		}
+		else if( ChangeType == FDataprepAssetChangeType::ProducerModified ||
+			ChangeType == FDataprepAssetChangeType::ProducerAdded ||
+			ChangeType == FDataprepAssetChangeType::ProducerRemoved )
+		{
+			// Brute force : Regenerate the whole tree view
+			TreeView->Refresh();
+		}
+	}
+}
+
+TSharedRef<SWidget> SDataprepAssetView::CreateAddProducerMenuWidget(TSharedPtr<FUICommandList> CommandList)
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, DataprepEditorPtr->GetToolkitCommands());
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	MenuBuilder.BeginSection("AddNewProducer", LOCTEXT("DataprepEditorViews_AddImports", "Add Producer"));
 	{
 		FUIAction MenuAction;
 		int32 Index = 0;
 
-		for (const DataprepEditorClassDescription& ProducerDescription : DataprepEditorPtr->GetProducerDescriptions())
+		// Find content producers the user could use for his/her data preparation
+		for( TObjectIterator< UClass > It ; It ; ++It )
 		{
-			MenuAction.ExecuteAction.BindSP(DataprepEditorPtr, &FDataprepEditor::OnAddProducer, Index);
+			UClass* CurrentClass = (*It);
 
-			MenuBuilder.AddMenuEntry(
-				ProducerDescription.Get<1>(),
-				ProducerDescription.Get<2>(),
-				FSlateIcon( FDataprepEditorStyle::GetStyleSetName(), TEXT("DataprepEditor.Producer") ),
-				MenuAction,
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
+			if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
+			{
+				if( CurrentClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
+				{
+					MenuAction.ExecuteAction.BindSP(this, &SDataprepAssetView::OnAddProducer, CurrentClass);
 
-			++Index;
+					UDataprepContentProducer* DefaultProducer = CurrentClass->GetDefaultObject<UDataprepContentProducer>();
+					check( DefaultProducer );
+
+					MenuBuilder.AddMenuEntry(
+						DefaultProducer->GetLabel(),
+						DefaultProducer->GetDescription(),
+						FSlateIcon( FDataprepEditorStyle::GetStyleSetName(), TEXT("DataprepEditor.Producer") ),
+						MenuAction,
+						NAME_None,
+						EUserInterfaceActionType::Button
+					);
+
+					++Index;
+				}
+			}
 		}
 	}
 	MenuBuilder.EndSection();
@@ -731,28 +774,27 @@ TSharedRef<SWidget> SDataprepAssetView::CreateAddProducerMenuWidget()
 	return MenuBuilder.MakeWidget();
 }
 
-void SDataprepAssetView::OnSelectionChanged( TSharedPtr< FProducerStackEntry > InItem, ESelectInfo::Type InSeletionInfo, FDataprepEditor* DataprepEditor )
+void SDataprepAssetView::OnAddProducer( UClass* ProducerClass )
+{
+	if( UDataprepAsset* DataprepAsset = DataprepAssetPtr.Get() )
+	{
+		DataprepAsset->AddProducer(ProducerClass);
+	}
+}
+
+void SDataprepAssetView::OnSelectionChanged( TSharedPtr< FProducerStackEntry > InItem, ESelectInfo::Type InSeletionInfo )
 {
 	// An entry is selected
-	if ( InItem.IsValid() )
+	if ( InItem.IsValid() && InItem->HasValidData() )
 	{
-		const TArray< FDataprepAssetProducer >& Producers = DataprepEditorPtr->GetDataprepAsset()->Producers;
-
-		if (Producers.IsValidIndex(InItem->ProducerIndex))
-		{
-			// Take hold on the selected entry
-			SelectedEntry = InItem;
-			// Show properties of associated producer
-			DetailsView->SetObject( Producers[InItem->ProducerIndex].Producer, true );
-		}
+		// Take hold on the selected entry
+		SelectedEntry = InItem;
 	}
 	// An entry is deselected
 	else
 	{
 		// Release hold on selected entry
 		SelectedEntry.Reset();
-		// Clear details section
-		DetailsView->SetObject( nullptr, true );
 	}
 }
 

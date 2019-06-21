@@ -46,12 +46,14 @@ bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetCon
 	if( InTargetContentFolder.IsEmpty() )
 	{
 		TargetContentFolder = FPaths::GetPath( GetOutermost()->GetPathName() );
+		OnChanged.Broadcast();
 		return true;
 	}
 
 	if( FPackageName::IsValidLongPackageName( InTargetContentFolder ) )
 	{
 		TargetContentFolder = InTargetContentFolder;
+		OnChanged.Broadcast();
 		return true;
 	}
 
