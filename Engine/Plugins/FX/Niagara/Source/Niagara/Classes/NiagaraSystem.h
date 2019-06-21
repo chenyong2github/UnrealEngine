@@ -230,6 +230,10 @@ public:
 
 	TStatId GetStatID(bool bGameThread, bool bConcurrent)const;
 
+#if WITH_EDITORONLY_DATA
+	UEdGraph* GetSystemOverviewGraph() const;
+#endif 
+
 private:
 #if WITH_EDITORONLY_DATA
 	bool QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotApply = false);
@@ -310,6 +314,19 @@ protected:
 	TArray<FName> UserDINamesReadInSystemScripts;
 
 	void GenerateStatID();
+
+private:
+#if WITH_EDITORONLY_DATA
+	/** Graph presenting overview of the current system and its emitters. */
+	UPROPERTY()
+	UEdGraph* SystemOverviewGraph;
+
+	void InitSystemOverviewGraph() const;
+	void SystemOverviewHandleAdded(const FGuid AddedHandleGuid) const;
+	void SystemOverviewHandlesRemoved() const;
+#endif
+
+protected:
 #if STATS
 	TStatId StatID_GT;
 	TStatId StatID_GT_CNC;

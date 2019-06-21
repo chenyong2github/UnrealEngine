@@ -10,6 +10,11 @@
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 
+#include "ViewModels/NiagaraSystemViewModel.h"
+#include "NiagaraSystem.h"
+#include "NodeFactory.h"
+#include "GraphEditor.h"
+
 IMPLEMENT_MODULE(FNiagaraEditorWidgetsModule, NiagaraEditorWidgets);
 
 FNiagaraStackCurveEditorOptions::FNiagaraStackCurveEditorOptions()
@@ -139,5 +144,9 @@ TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::C
 
 TSharedRef<SWidget> FNiagaraEditorWidgetsModule::FNiagaraEditorWidgetProvider::CreateSystemOverview(TSharedRef<FNiagaraSystemViewModel> SystemViewModel)
 {
-	return SNullWidget::NullWidget;
+	TSharedRef<SGraphEditor> GraphPanel = SNew(SGraphEditor)
+		.GraphToEdit(SystemViewModel->GetSystem().GetSystemOverviewGraph());
+
+	GraphPanel->SetNodeFactory(MakeShareable(new FGraphNodeFactory));
+	return GraphPanel;
 }
