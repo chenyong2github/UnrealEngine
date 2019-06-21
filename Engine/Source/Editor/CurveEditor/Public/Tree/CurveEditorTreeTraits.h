@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Framework/Views/TableViewTypeTraits.h"
 #include "CurveEditorTypes.h"
 
 template<>
@@ -19,7 +19,8 @@ public:
 	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<FCurveEditorTreeItemID, FSparseItemInfo, false>;
 	using SetKeyFuncs = DefaultKeyFuncs<FCurveEditorTreeItemID>;
 
-	static void AddReferencedObjects(FReferenceCollector&, TArray<FCurveEditorTreeItemID>&, TSet<FCurveEditorTreeItemID>&) {}
+	template<typename U>
+	static void AddReferencedObjects(FReferenceCollector&, TArray<FCurveEditorTreeItemID>&, TSet<FCurveEditorTreeItemID>&, TMap< const U*, FCurveEditorTreeItemID >&) {}
 
 	static bool IsPtrValid(NullableType InPtr)
 	{

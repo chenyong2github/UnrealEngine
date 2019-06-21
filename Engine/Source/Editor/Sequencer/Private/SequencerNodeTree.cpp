@@ -844,7 +844,7 @@ void FSequencerNodeTree::UpdateCurveEditorTree()
 	FCurveEditor* CurveEditor = Sequencer.GetCurveEditor().Get();
 
 	// Guard against multiple broadcasts here and defer them until the end of this function
-	FScopedCurveEditorTreeUpdateGuard ScopedUpdateGuard = CurveEditor->GetTree()->ScopedUpdateGuard();
+	FScopedCurveEditorTreeEventGuard ScopedEventGuard = CurveEditor->GetTree()->ScopedEventGuard();
 
 	auto Traverse_AddToCurveEditor = [this, CurveEditor](FSequencerDisplayNode& InNode)
 	{
@@ -909,4 +909,10 @@ FCurveEditorTreeItemID FSequencerNodeTree::AddToCurveEditor(TSharedRef<FSequence
 
 	CurveEditorTreeItemIDs.Add(DisplayNode, NewItem->GetID());
 	return NewItem->GetID();
+}
+
+FCurveEditorTreeItemID FSequencerNodeTree::FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const
+{
+	const FCurveEditorTreeItemID* FoundID = CurveEditorTreeItemIDs.Find(DisplayNode);
+	return FoundID ? *FoundID : FCurveEditorTreeItemID::Invalid();
 }

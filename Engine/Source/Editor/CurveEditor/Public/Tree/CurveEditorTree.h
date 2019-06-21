@@ -10,6 +10,8 @@
 #include "Delegates/Delegate.h"
 #include "CurveEditorTypes.h"
 
+enum class ECurveEditorTreeFilterType : uint32;
+
 struct ICurveEditorTreeItem;
 struct FCurveEditorTreeFilter;
 
@@ -33,54 +35,69 @@ enum class ECurveEditorTreeFilterState : uint8
 };
 
 /**
- * Scoped guard that will trigger the tree OnChanged event when all scoped guards have been exited
+ * Scoped guard that prevents the broadcast of tree events for the duration of its lifetime. Will trigger necessary events after the last remaining guard has been destroyed.
  */
-struct CURVEEDITOR_API FScopedCurveEditorTreeUpdateGuard
+struct CURVEEDITOR_API FScopedCurveEditorTreeEventGuard
 {
-	explicit FScopedCurveEditorTreeUpdateGuard(FCurveEditorTree* InTree);
-	~FScopedCurveEditorTreeUpdateGuard();
+	explicit FScopedCurveEditorTreeEventGuard(FCurveEditorTree* InTree);
+	~FScopedCurveEditorTreeEventGuard();
 
-	FScopedCurveEditorTreeUpdateGuard(FScopedCurveEditorTreeUpdateGuard&& RHS);
-	FScopedCurveEditorTreeUpdateGuard& operator=(FScopedCurveEditorTreeUpdateGuard&& RHS);
+	FScopedCurveEditorTreeEventGuard(FScopedCurveEditorTreeEventGuard&& RHS);
+	FScopedCurveEditorTreeEventGuard& operator=(FScopedCurveEditorTreeEventGuard&& RHS);
 
 private:
+	/** OnItemsChanged.SerialNumber cached on construction. Used to detect whether OnItemsChanged should be broadcast. */
+	uint32 CachedItemSerialNumber;
+	/** OnSelectionChanged.SerialNumber cached on construction. Used to detect whether OnSelectionChanged should be broadcast. */
+	uint32 CachedSelectionSerialNumber;
+	/** OnFiltersChanged.SerialNumber cached on construction. Used to detect whether OnFiltersChanged should be broadcast. */
+	uint32 CachedFiltersSerialNumber;
+	/** Pointer back to the owning tree */
 	FCurveEditorTree* Tree;
 };
 
 /**
- * Struct that represents an event for when the tree has been changed.
- * This type carefully only allows FScopedCurveEditorTreeUpdateGuard to broadcast the event, and makes special checks for re-entrancy
+ * Generic multicast delegate that guards against re-entrancy for the curve editor tree
  */
-struct FCurveEditorOnChangedEvent
+class FCurveEditorTreeDelegate : public FSimpleMulticastDelegate
 {
-	/**
-	 * @return true if the event is currently being broadcast
-	 */
-	bool IsBroadcastInProgress() const
-	{
-		return bIsBroadcastInProgress;
-	}
+private:
 
-	/**
-	 * Bind a new handler to this OnChanged event
-	 */
-	FDelegateHandle Bind(FSimpleDelegate&& Handler) { return Delegate.Add(MoveTemp(Handler)); }
+	friend FCurveEditorTree;
+	friend FScopedCurveEditorTreeEventGuard;
 
-	/**
-	 * Unbind a previously bound handler from this event
-	 */
-	void Unbind(FDelegateHandle Handle) { Delegate.Remove(Handle); }
+	/* Broadcast this delegate provided it is not re-entrant */
+	void Broadcast();
+
+	/** Whether this delegate is currently broadcasting */
+	bool bBroadcasting = false;
+
+	/** Serial number that is incremented any time this delegate should be broadcast */
+	uint32 SerialNumber = 0;
+};
+
+/**
+ * Struct that represents an event for when the tree has been changed.
+ * This type carefully only allows FScopedCurveEditorTreeEventGuard to broadcast the event, and makes special checks for re-entrancy
+ */
+struct FCurveEditorTreeEvents
+{
+	/** Event that is broadcast when the tree items container has changed */
+	FCurveEditorTreeDelegate OnItemsChanged;
+
+	/** Event that is broadcast when the selection has changed */
+	FCurveEditorTreeDelegate OnSelectionChanged;
+
+	/** Event that is broadcast when any kind of filtering has changed (ie active state, filters being added/removed etc) */
+	FCurveEditorTreeDelegate OnFiltersChanged;
 
 private:
 
-	friend FScopedCurveEditorTreeUpdateGuard;
+	friend FScopedCurveEditorTreeEventGuard;
 
-	/** Safety check to ensure that invocations of OnChangedEvent are never re-entrant */
-	bool bIsBroadcastInProgress = false;
-	/** Counter that is incremented for each living instance of FCurveEditorOnChangedEvent */
+	/** Counter that is incremented for each living instance of FScopedCurveEditorTreeEventGuard */
 	uint32 UpdateGuardCounter = 0;
-	/** The actual multi-cast delegate */
-	FSimpleMulticastDelegate Delegate;
+
 };
 
 /**
@@ -203,6 +220,18 @@ struct FCurveEditorFilterStates
 	void Reset()
 	{
 		FilterStates.Reset();
+		NumMatched = 0;
+		NumMatchedImplicitly = 0;
+	}
+
+	int32 GetNumMatched() const
+	{
+		return NumMatched;
+	}
+
+	int32 GetNumMatchedImplicitly() const
+	{
+		return NumMatchedImplicitly;
 	}
 
 	/**
@@ -226,7 +255,36 @@ struct FCurveEditorFilterStates
 	 */
 	void SetFilterState(FCurveEditorTreeItemID ItemID, ECurveEditorTreeFilterState NewState)
 	{
-		FilterStates.Add(ItemID, NewState);
+		const ECurveEditorTreeFilterState* Existing = FilterStates.Find(ItemID);
+		if (Existing)
+		{
+			if (*Existing  == ECurveEditorTreeFilterState::Match)
+			{
+				--NumMatched;
+			}
+			else if (*Existing != ECurveEditorTreeFilterState::NoMatch)
+			{
+				--NumMatchedImplicitly;
+			}
+		}
+
+		if (NewState == ECurveEditorTreeFilterState::NoMatch)
+		{
+			FilterStates.Remove(ItemID);
+		}
+		else
+		{
+			FilterStates.Add(ItemID, NewState);
+
+			if (NewState == ECurveEditorTreeFilterState::Match)
+			{
+				++NumMatched;
+			}
+			else
+			{
+				++NumMatchedImplicitly;
+			}
+		}
 	}
 
 	/**
@@ -258,6 +316,12 @@ private:
 	/** Whether filters should be active or not */
 	bool bIsActive = false;
 
+	/** The total number of nodes that have matched all the filters */
+	int32 NumMatched = 0;
+
+	/** The total number of nodes that have not matched the filters but have a parent or child that did */
+	int32 NumMatchedImplicitly = 0;
+
 	/** Filter state map. Items with no implicit or explicit filter state are not present */
 	TMap<FCurveEditorTreeItemID, ECurveEditorTreeFilterState> FilterStates;
 };
@@ -265,9 +329,12 @@ private:
 /** 
  * Complete implementation of a curve editor tree. Only really defines the hierarchy and selection states for tree items.
  */
-class FCurveEditorTree
+class CURVEEDITOR_API FCurveEditorTree
 {
 public:
+
+	/** Structure containing all the events for this tree */
+	FCurveEditorTreeEvents Events;
 
 	FCurveEditorTree();
 
@@ -331,10 +398,28 @@ public:
 	void RemoveFilter(TWeakPtr<FCurveEditorTreeFilter> FilterToRemove);
 
 	/**
+	 * Direct access to all current filters (potentially including expired ones)
+	 */
+	TArrayView<const TWeakPtr<FCurveEditorTreeFilter>> GetFilters() const;
+
+	/**
+	 * Clear all filters from the tree
+	 */
+	void ClearFilters();
+
+	/**
+	 * Attempt to locate a filter by its type
+	 *
+	 * @param Type The type of the filter to find
+	 * @return A pointer to the filter, or nullptr if one could not be found
+	 */
+	const FCurveEditorTreeFilter* FindFilterByType(ECurveEditorTreeFilterType Type) const;
+
+	/**
 	 * Inform this tree that the specified tree item IDs have been directly selected on the UI.
 	 * @note: This populates both implicit and explicit selection state for the supplied items and any children/parents
 	 */
-	void SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
+	void SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems, FCurveEditor* InCurveEditor);
 
 	/**
 	 * Access the selection state for this tree. Items that are neither implicitly or explicitly selected are not present in the map.
@@ -357,36 +442,12 @@ public:
 	ECurveEditorTreeFilterState GetFilterState(FCurveEditorTreeItemID InTreeItemID) const;
 
 	/**
-	 * Retrieve this tree's on-changed event
+	 * Retrieve a scoped event guard that will block broadcast of events until the last guard on the stack goes out of scope
+	 * Can be used to defer broadcasts in situations where many changes are made to the tree at a time.
 	 */
-	FCurveEditorOnChangedEvent* OnChanged()
+	FScopedCurveEditorTreeEventGuard ScopedEventGuard()
 	{
-		return &OnChangedEvent;
-	}
-
-	/**
-	 * Retrieve a scoped guard that will broadcast the on changed handlers for this tree when it goes out of scope (along with all other scoped guards on the stack)
-	 * Can be used to defer such broadcasts in situations where many changes are made to the tree at a time.
-	 */
-	FScopedCurveEditorTreeUpdateGuard ScopedUpdateGuard()
-	{
-		return FScopedCurveEditorTreeUpdateGuard(this);
-	}
-
-	/**
-	 * Add a handler for when this tree structure is changed in some way (items added/removed, tree filters changed etc)
-	 */
-	FDelegateHandle Bind_OnChanged(FSimpleDelegate&& Handler)
-	{
-		return OnChangedEvent.Bind(MoveTemp(Handler));
-	}
-
-	/**
-	 * Remove a handler for when this tree structure is changed in some way (items added/removed, tree filters changed etc)
-	 */
-	void Unbind_OnChanged(FDelegateHandle Handle)
-	{
-		return OnChangedEvent.Unbind(Handle);
+		return FScopedCurveEditorTreeEventGuard(this);
 	}
 
 private:
@@ -398,23 +459,20 @@ private:
 	 * Run the specified filters over the specified items and their recursive children, storing the results in this instance's FilterStates struct.
 	 *
 	 * @param FilterPtrs     Array of non-null pointers to filters to use. Items are considered matched if they match any filter in this array.
-	 * @param Items          Array item IDs to filter
+	 * @param ItemsToFilter  Array item IDs to filter
 	 * @param InheritedState The filter state for each item to receive if it does not directly match a filter (either ECurveEditorTreeFilterState::NoMatch or ECurveEditorTreeFilterState::InheritedChild)
 	 * @return Whether any of the items or any their recursive children matched any filter
 	 */
-	bool FilterSpecificItems(TArrayView<FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> Items, ECurveEditorTreeFilterState InheritedState);
+	bool PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState);
 
 	/** Incrementing ID for the next tree item to be created */
 	FCurveEditorTreeItemID NextTreeItemID;
 
-	/** Container housing the machinery required for deferred broadcast of changes to the tree */
-	FCurveEditorOnChangedEvent OnChangedEvent;
-
 	/** Map of all tree items by their ID */
 	TMap<FCurveEditorTreeItemID, FCurveEditorTreeItem> Items;
 
-	/** Map of all tree items by their ID */
-	TArray<TWeakPtr<FCurveEditorTreeFilter>> Filters;
+	/** Array of all filters that are currently active on this tree */
+	TArray<TWeakPtr<FCurveEditorTreeFilter>> WeakFilters;
 
 	/** Hierarchical information for the tree */
 	FSortedCurveEditorTreeItems RootItems;
