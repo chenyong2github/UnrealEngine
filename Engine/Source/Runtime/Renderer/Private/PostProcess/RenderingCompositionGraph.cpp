@@ -1189,7 +1189,7 @@ void FRenderingCompositePass::ExtractRDGTextureForOutput(FRDGBuilder& GraphBuild
 	if (FRenderingCompositeOutput* Output = GetOutput(OutputId))
 	{
 		Output->RenderTargetDesc = Texture->Desc;
-		GraphBuilder.QueueTextureExtraction(Texture, &Output->PooledRenderTarget, false);
+		GraphBuilder.QueueTextureExtraction(Texture, &Output->PooledRenderTarget);
 	}
 }
 
