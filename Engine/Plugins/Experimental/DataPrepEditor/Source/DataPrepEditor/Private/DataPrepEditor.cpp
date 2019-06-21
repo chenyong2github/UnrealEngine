@@ -580,14 +580,17 @@ void FDataprepEditor::CleanPreviewWorld()
 			if (Actor && !Actor->IsPendingKill() && !DefaultActorsInPreviewWorld.Contains(Actor))
 			{
 				PreviewWorld->EditorDestroyActor(Actor, true);
-				// Since deletion can be delayed, rename to avoid future name collision 
-				Actor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+
+				// Since deletion can be delayed, rename to avoid future name collision
+				// Call UObject::Rename directly on actor to avoid AActor::Rename which unnecessarily sunregister and re-register components
+				Actor->UObject::Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 			}
 		}
 	}
 
+	// Delete assets which are still in the transient content folder
 	const FString TransientContentFolder( GetTransientContentFolder() );
-	CachedAssets.Append( Assets );
+	TArray<UObject*> ObjectsToDelete;
 	for( TWeakObjectPtr<UObject>& Asset : CachedAssets )
 	{
 		if( UObject* ObjectToDelete = Asset.Get() )
@@ -595,21 +598,20 @@ void FDataprepEditor::CleanPreviewWorld()
 			FString PackagePath = ObjectToDelete->GetOutermost()->GetName();
 			if( PackagePath.StartsWith( TransientContentFolder ) )
 			{
-				FName ObjectName = MakeUniqueObjectName( GetTransientPackage(), ObjectToDelete->GetClass(), *( ObjectToDelete->GetName() + TEXT( "_Deleted" ) ) );
-				ObjectToDelete->Rename( *ObjectName.ToString(), GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
-
-				// Remove public and standalone flag so garbage collection can delete the object.
-				ObjectToDelete->ClearFlags(RF_Standalone | RF_Public);
-
-				// Mark its package as dirty as we're going to delete it.
-				ObjectToDelete->MarkPendingKill();
-				ObjectToDelete->MarkPackageDirty();
-
-				// Notify the asset registry
-				FAssetRegistryModule::AssetDeleted( ObjectToDelete );
+				ObjectToDelete->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
+				ObjectsToDelete.Add( ObjectToDelete );
 			}
 		}
 	}
+
+	// Prevent display of progress dialog from ObjectTools::DeleteObjectsUnchecked
+	bool bGIsSilentCached = GIsSilent;
+	GIsSilent = true;
+
+	ensure( ObjectTools::DeleteObjectsUnchecked( ObjectsToDelete ) == ObjectsToDelete.Num() );
+
+	// Restore GIsSilent
+	GIsSilent = bGIsSilentCached;
 
 	CachedAssets.Reset();
 	Assets.Reset();
@@ -898,7 +900,7 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabScenePreview(const FSpawnTabArgs &
 
 	return SNew(SDockTab)
 		//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.ScenePreview"))
-		.Label(LOCTEXT("DataprepEditor_ScenePreviewTab_Title", "ScenePreview"))
+		.Label(LOCTEXT("DataprepEditor_ScenePreviewTab_Title", "Scene Preview"))
 		[
 			ScenePreviewView.ToSharedRef()
 		];
@@ -910,7 +912,7 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabAssetPreview(const FSpawnTabArgs &
 
 	return SNew(SDockTab)
 		//.Icon(FDataprepEditorStyle::Get()->GetBrush("DataprepEditor.Tabs.AssetPreview"))
-		.Label(LOCTEXT("DataprepEditor_AssetPreviewTab_Title", "AssetPreview"))
+		.Label(LOCTEXT("DataprepEditor_AssetPreviewTab_Title", "Asset Preview"))
 		[
 			SNew(SBorder)
 			.Padding(2.f)
