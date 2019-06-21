@@ -40,7 +40,7 @@ FWindowsUIAManager::FWindowsUIAManager(const FWindowsApplication& InApplication)
 #if !UE_BUILD_SHIPPING
 	IConsoleManager::Get().RegisterConsoleCommand
 	(
-		TEXT("DumpAccessibilityStatsWindows"),
+		TEXT("Accessibility.DumpStatsWindows"),
 		TEXT("Writes to LogAccessibility the memory stats for the platform-level accessibility data (Providers) required for Windows support."),
 		FConsoleCommandDelegate::CreateRaw(this, &FWindowsUIAManager::DumpAccessibilityStats),
 		ECVF_Default

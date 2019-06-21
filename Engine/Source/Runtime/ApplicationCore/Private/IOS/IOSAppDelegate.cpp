@@ -1300,7 +1300,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 #if WITH_ACCESSIBILITY
 -(void)OnVoiceOverStatusChanged
 {
-	if (UIAccessibilityIsVoiceOverRunning())
+	if (UIAccessibilityIsVoiceOverRunning() && self.IOSApplication->GetAccessibleMessageHandler()->ApplicationIsAccessible())
 	{
 		// This must happen asynchronously because when the app activates from a suspended state,
 		// the IOS notification will emit before the game thread wakes up. This does mean that the
@@ -1324,7 +1324,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 			});
 		}, TStatId(), NULL, ENamedThreads::GameThread);
 	}
-	else
+	else if (AccessibilityCacheTimer != nil)
 	{
 		[AccessibilityCacheTimer invalidate];
 		AccessibilityCacheTimer = nil;
