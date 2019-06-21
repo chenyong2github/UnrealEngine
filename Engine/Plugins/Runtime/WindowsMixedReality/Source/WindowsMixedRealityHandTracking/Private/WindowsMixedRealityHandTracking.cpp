@@ -81,6 +81,11 @@ public:
 		return InputDevice;
 	}
 
+	virtual bool IsLiveLinkSourceValid() const override
+	{
+		return InputDevice.IsValid();
+	}
+
 	virtual void AddLiveLinkSource() override
 	{
 		if (bLiveLinkSourceRegistered)

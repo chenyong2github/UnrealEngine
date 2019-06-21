@@ -49,6 +49,13 @@ public:
 	*/
 	virtual TSharedPtr<class ILiveLinkSource> GetLiveLinkSource() = 0;
 
+	/**
+	 * Checks if the LiveLinkSource as been created.
+	 *
+	 * @return True if the LiveLinkSource has been created with GetLiveLinkSource or AddLiveLinkSource
+	 */
+	virtual bool IsLiveLinkSourceValid() const = 0;
+
 	virtual void AddLiveLinkSource() = 0;
 	virtual void RemoveLiveLinkSource() = 0;
 };

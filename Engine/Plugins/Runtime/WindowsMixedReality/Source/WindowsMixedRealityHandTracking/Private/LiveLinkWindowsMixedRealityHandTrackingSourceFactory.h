@@ -15,8 +15,8 @@ public:
 	virtual FText GetSourceDisplayName() const;
 	virtual FText GetSourceTooltip() const;
 
-	virtual TSharedPtr<SWidget> CreateSourceCreationPanel();
-	virtual TSharedPtr<ILiveLinkSource> OnSourceCreationPanelClosed(bool bMakeSource);
+	virtual EMenuType GetMenuType() const override;
+	virtual TSharedPtr<ILiveLinkSource> CreateSource(const FString& ConnectionString) const override;
 
 	TSharedPtr<class SLiveLinkWindowsMixedRealityHandTrackingSourceEditor> ActiveSourceEditor;
 };

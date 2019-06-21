@@ -2,7 +2,6 @@
 
 #include "WindowsMixedRealityHandTracking.h"
 #include "IWindowsMixedRealityHandTrackingPlugin.h"
-#include "LiveLinkWindowsMixedRealityHandTrackingSourceEditor.h"
 #include "CoreMinimal.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
