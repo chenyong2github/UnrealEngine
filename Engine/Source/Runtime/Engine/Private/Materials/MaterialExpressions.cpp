@@ -15731,32 +15731,24 @@ void UMaterialExpressionCurveAtlasRowParameter::GetTexturesForceMaterialRecompil
 
 int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	// Need to recalculate the row index b/c a recompile could be triggered from the texture changing
-	int32 SlotIndex = INDEX_NONE;
 	if (Atlas && Curve)
 	{
-		SlotIndex = Atlas->GradientCurves.Find(Curve);
+		int32 Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
 
-		if (SlotIndex != INDEX_NONE)
-		{
-			float NewValue = ((float)SlotIndex * Atlas->GradientPixelSize) / Atlas->TextureSize + (0.5f * Atlas->GradientPixelSize) / Atlas->TextureSize;
-			SetParameterValue(ParameterName, NewValue);
-		}
+		// Get Atlas texture object and texture size
+		int32 AtlasRef = INDEX_NONE;
+		int32 AtlasCode = Compiler->Texture(Atlas, AtlasRef, SAMPLERTYPE_LinearColor, SSM_Clamp_WorldGroupSettings, TMVM_None);
+		int32 AtlasSize = Compiler->ForceCast(Compiler->TextureProperty(AtlasCode, TMTM_TextureSize), MCT_Float1);
+
+		// Calculate UVs from size and slot
 		// if the input is hooked up, use it, otherwise use the internal constant
 		int32 Arg1 = InputTime.GetTracedInput().Expression ? InputTime.Compile(Compiler) : Compiler->Constant(0);
-		int32 Arg2 = Compiler->ScalarParameter(ParameterName, DefaultValue);
+		int32 Arg2 = Compiler->Div(Compiler->Add(Slot, Compiler->Constant(0.5)), AtlasSize);
 
 		int32 UV = Compiler->AppendVector(Arg1, Arg2);
-		return CompileTextureSample(
-			Compiler,
-			Atlas,
-			UV,
-			SAMPLERTYPE_LinearColor,
-			TOptional<FName>(),
-			INDEX_NONE,
-			INDEX_NONE,
-			TMVM_None,
-			SSM_Clamp_WorldGroupSettings);
+
+		// Sample texture
+		return Compiler->TextureSample(AtlasCode, UV, SAMPLERTYPE_LinearColor, INDEX_NONE, INDEX_NONE, TMVM_None, SSM_Clamp_WorldGroupSettings, AtlasRef, false);
 	}
 	return INDEX_NONE;
 }
@@ -15773,7 +15765,7 @@ void UMaterialExpressionCurveAtlasRowParameter::PostEditChangeProperty(FProperty
 		}
 		if (SlotIndex != INDEX_NONE)
 		{
-			float NewValue = ((float)SlotIndex * Atlas->GradientPixelSize) / Atlas->TextureSize + (0.5f * Atlas->GradientPixelSize) / Atlas->TextureSize;
+			float NewValue = (float)SlotIndex;
 			SetParameterValue(ParameterName, NewValue);
 		}
 		else
