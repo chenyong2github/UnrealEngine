@@ -258,7 +258,7 @@ bool UGeometryCollectionDebugDrawComponent::CanEditChange(const UProperty* InPro
 #endif  // #if WITH_EDITOR
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-void UGeometryCollectionDebugDrawComponent::OnDebugDrawPropertiesChanged(bool bForceVisibilityUpdate)
+bool UGeometryCollectionDebugDrawComponent::OnDebugDrawPropertiesChanged(bool bForceVisibilityUpdate)
 {
 	if (HasBegunPlay() && GeometryCollectionComponent)
 	{
@@ -278,6 +278,7 @@ void UGeometryCollectionDebugDrawComponent::OnDebugDrawPropertiesChanged(bool bF
 		// Update tick function
 		UpdateTickStatus();
 	}
+	return SelectedTransformIndex != INDEX_NONE;
 }
 
 void UGeometryCollectionDebugDrawComponent::OnClusterChanged()
