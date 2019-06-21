@@ -1100,7 +1100,7 @@ public:
 	/** Whether or not the reverb plugin is bypassing the master reverb. */
 	bool IsReverbPluginBypassingMasterReverb() const
 	{
-		return bReverbPluginBypassesMasterReverb;
+		return IsReverbPluginEnabled() && bReverbPluginBypassesMasterReverb;
 	}
 
 	static bool IsReverbPluginLoaded()
