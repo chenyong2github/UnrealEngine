@@ -49,7 +49,6 @@ public:
 		, _ForegroundColor( FCoreStyle::Get().GetSlateColor( "InvertedForeground" ) )
 		, _IsFocusable( true )
 		{
-			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Summary, EAccessibleBehavior::Auto, false);
 		}
 
 		/** Slot for this button's content (optional) */
@@ -120,6 +119,7 @@ public:
 
 	SLATE_END_ARGS()
 
+	SButton();
 
 	/** @return An image that represents this button's border*/
 	virtual const FSlateBrush* GetBorder() const;

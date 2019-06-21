@@ -22,6 +22,10 @@ STextBlock::STextBlock()
 	SetCanTick(false);
 	bCanSupportFocus = false;
 	bSimpleTextMode = false;
+
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+#endif
 }
 
 STextBlock::~STextBlock()

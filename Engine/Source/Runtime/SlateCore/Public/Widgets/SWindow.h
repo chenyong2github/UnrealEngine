@@ -158,7 +158,6 @@ public:
 		, _bManualManageDPI( false )
 
 	{
-		_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto);
 	}
 
 		/** Type of this window */
