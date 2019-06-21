@@ -73,14 +73,6 @@
 		#include <cpuid.h>
 	#endif
 
-	//@EPIC BEGIN: workaround for -nothreading
-	#if PLATFORM_WINDOWS
-		#include "Windows/WindowsEvent.h"
-	#elif PLATFORM_USE_PTHREADS
-		#include <pthread.h>
-		#include "HAL/PThreadEvent.h"
-	#endif
-
 	//------------------------------------------------------------------------
 	namespace FramePro
 	{
@@ -437,26 +429,7 @@
 		//------------------------------------------------------------------------
 		void Platform::CreateEventX(void* p_os_event_mem, int os_event_mem_size, bool initial_state, bool auto_reset)
 		{
-//@EPIC BEGIN: workaround for -nothreading
-			FEvent* p_event;
-			if (FPlatformProcess::SupportsMultithreading())
-			{
-				p_event = FPlatformProcess::GetSynchEventFromPool(!auto_reset);
-			}
-			else
-			{				
-#if PLATFORM_WINDOWS
-				p_event = new FEventWin();
-				p_event->Create(!auto_reset);
-#elif PLATFORM_USE_PTHREADS
-				p_event = new FPThreadEvent();
-				p_event->Create(!auto_reset);
-#else
-				checkf(false,"unsupported platform for -nothreading");
-				return;
-#endif
-			}
-//@EPIC END
+			FEvent* p_event = FPlatformProcess::GetSynchEventFromPool(!auto_reset);
 			GetOSEvent(p_os_event_mem) = p_event;
 
 			if(initial_state)
@@ -467,16 +440,7 @@
 		void Platform::DestroyEvent(void* p_os_event_mem)
 		{
 			FEvent* p_event = GetOSEvent(p_os_event_mem);
-//@EPIC BEGIN: workaround for -nothreading
-			if (FPlatformProcess::SupportsMultithreading())
-			{
-				FPlatformProcess::ReturnSynchEventToPool(p_event);
-			}
-			else
-			{
-				delete p_event;
-			}
-//@EPIC END
+			FPlatformProcess::ReturnSynchEventToPool(p_event);
 			GetOSEvent(p_os_event_mem) = nullptr;
 		}
 
@@ -580,24 +544,7 @@
 			:	mp_ThreadMain(p_thread_main),
 				mp_Context(p_context)
 			{
-//@EPIC BEGIN: workaround for -nothreading
-				if (FPlatformProcess::SupportsMultithreading())
-				{
-					m_Runnable = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FramePro")));
-				}
-				else
-				{
-#if PLATFORM_WINDOWS
-					CreateThread( NULL, 0, (LPTHREAD_START_ROUTINE)mp_ThreadMain, mp_Context, 0, NULL );
-#elif PLATFORM_USE_PTHREADS
-					typedef void *(*PthreadEntryPoint)(void *arg);
-					pthread_t thread_id;
-					pthread_create( &thread_id, nullptr, (PthreadEntryPoint)mp_ThreadMain, mp_Context );
-#else
-					checkf(false,"unsupported platform for -nothreading");
-#endif
-				}
-//@EPIC END
+				m_Runnable = TUniquePtr<FRunnableThread>(FRunnableThread::Create(this, TEXT("FramePro")));
 			}
 
 			uint32 Run() override
@@ -634,6 +581,12 @@
 			FRAMEPRO_ASSERT(os_thread_mem_size >= sizeof(UE4Thread*));
 
 			GetOSThread(p_os_thread_mem) = new UE4Thread(p_thread_main, p_context);
+		}
+
+		//------------------------------------------------------------------------
+		void Platform::DestroyThread(void* p_os_thread_mem)
+		{
+			delete GetOSThread(p_os_thread_mem);
 		}
 
 		//------------------------------------------------------------------------
