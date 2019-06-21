@@ -11,6 +11,7 @@ RWTexture2D<float4> Output;
 RaytracingAccelerationStructure TLAS;
 
 uint VisualizationMode;
+uint ShouldUsePreExposure;
 
 [shader("raygeneration")]
 void RayTracingDebugMainRGS()
@@ -104,6 +105,12 @@ void RayTracingDebugMainRGS()
 			Result = float4(Payload.HitKind, Payload.HitKind, Payload.HitKind, 1.0f);
 			break;
 		}
+	}
+
+	if (ShouldUsePreExposure)
+	{
+		// Only  when the output is tonemapped
+		Result *= View.PreExposure;
 	}
 
 	Output[PixelCoord] = Result;
