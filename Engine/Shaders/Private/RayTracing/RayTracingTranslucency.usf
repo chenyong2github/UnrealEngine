@@ -111,17 +111,10 @@ void RayTracingTranslucencyRGS()
 	float2 UV = (float2(PixelCoord) + 0.5) * InvBufferSize;
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
 	float Depth = GBufferData.Depth;
-	float3 CameraOrigin = View.WorldCameraOrigin;
-	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float3 CameraDirection = normalize(WorldPosition - CameraOrigin);	
-	const float GBufferHitT = length(WorldPosition - CameraOrigin);
 
 	// Trace rays from camera origin to (Gbuffer - epsilon) to only intersect translucent objects
-	RayDesc Ray;
-	Ray.Origin = CameraOrigin;
-	Ray.TMin = 0.0;
-	Ray.TMax = GBufferHitT - 0.1;
-	Ray.Direction = CameraDirection;
+	RayDesc Ray = CreatePrimaryRay(UV);
+	Ray.TMax = Depth - 0.1;
 	FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
