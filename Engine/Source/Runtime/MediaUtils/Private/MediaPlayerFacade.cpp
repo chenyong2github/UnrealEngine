@@ -566,6 +566,11 @@ bool FMediaPlayerFacade::SetLooping(bool Looping)
 }
 
 
+void FMediaPlayerFacade::SetMediaOptions(const IMediaOptions* Options)
+{
+}
+
+
 bool FMediaPlayerFacade::SetRate(float Rate)
 {
 	if (!Player.IsValid() || !Player->GetControls().SetRate(Rate))
