@@ -2833,7 +2833,7 @@ void FSceneRenderer::RenderCustomDepthPass(FRHICommandListImmediate& RHICmdList)
 
 			if (View.ShouldRenderView())
 			{
-				FUniformBufferRHIParamRef PassUniformBuffer = nullptr;
+				FRHIUniformBuffer* PassUniformBuffer = nullptr;
 
 				if (FSceneInterface::GetShadingPath(View.FeatureLevel) == EShadingPath::Mobile)
 				{
@@ -3896,7 +3896,7 @@ void FSceneRenderer::ResolveSceneColor(FRHICommandList& RHICmdList)
 	}
 }
 
-FTextureRHIParamRef FSceneRenderer::GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const
+FRHITexture* FSceneRenderer::GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const
 {
 	const FViewInfo& View = Views[0];
 

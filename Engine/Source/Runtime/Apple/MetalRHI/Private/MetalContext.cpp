@@ -1158,7 +1158,7 @@ void FMetalContext::TransitionResources(FRHIUnorderedAccessView** InUAVs, int32 
 	}
 }
 
-void FMetalContext::TransitionResources(FTextureRHIParamRef* InTextures, int32 NumTextures)
+void FMetalContext::TransitionResources(FRHITexture** InTextures, int32 NumTextures)
 {
 	for (uint32 i = 0; i < NumTextures; i++)
 	{

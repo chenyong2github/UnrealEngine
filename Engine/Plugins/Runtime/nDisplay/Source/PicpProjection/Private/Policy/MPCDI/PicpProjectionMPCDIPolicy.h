@@ -41,12 +41,12 @@ public:
 	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) override;
 
 	virtual bool IsWarpBlendSupported() override;
-	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewportRect) override;
+	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
 
 	void UpdateOverlayViewportData(FPicpProjectionOverlayFrameData& OverlayFrameData);
 	void SetOverlayData_RenderThread(const FPicpProjectionOverlayViewportData* Source);
 
-	void SetWarpTextureCapture(const uint32 ViewIdx, FTexture2DRHIParamRef target);
+	void SetWarpTextureCapture(const uint32 ViewIdx, FRHITexture2D* target);
 	IMPCDI::FFrustum GetWarpFrustum(const uint32 ViewIdx, bool bIsCaptureWarpTextureFrustum);
 
 protected:

@@ -65,7 +65,7 @@ void FDisplayClusterDeviceQuadBufferStereoBase::AdjustViewRect(enum EStereoscopi
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Adjusted view rect: ViewportIdx=%d, EyeType=%d, [%d,%d - %d,%d]"), ViewportIndex, int(EyeType), r.Min.X, r.Min.Y, r.Max.X, r.Max.Y);
 }
 
-void FDisplayClusterDeviceQuadBufferStereoBase::CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef BackBuffer, FTexture2DRHIParamRef SrcTexture, FVector2D WindowSize) const
+void FDisplayClusterDeviceQuadBufferStereoBase::CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 

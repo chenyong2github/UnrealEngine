@@ -199,13 +199,13 @@ static bool DeferSkeletalLockAndFillToRHIThread()
 
 struct FRHICommandUpdateBoneBuffer final : public FRHICommand<FRHICommandUpdateBoneBuffer>
 {
-	FVertexBufferRHIParamRef VertexBuffer;
+	FRHIVertexBuffer* VertexBuffer;
 	uint32 BufferSize;
 	const TArray<FMatrix>& ReferenceToLocalMatrices;
 	const TArray<FBoneIndexType>& BoneMap;
 
 
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateBoneBuffer(FVertexBufferRHIParamRef InVertexBuffer, uint32 InBufferSize, const TArray<FMatrix>& InReferenceToLocalMatrices, const TArray<FBoneIndexType>& InBoneMap)
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateBoneBuffer(FRHIVertexBuffer* InVertexBuffer, uint32 InBufferSize, const TArray<FMatrix>& InReferenceToLocalMatrices, const TArray<FBoneIndexType>& InBoneMap)
 		: VertexBuffer(InVertexBuffer)
 		, BufferSize(InBufferSize)
 		, ReferenceToLocalMatrices(InReferenceToLocalMatrices)
@@ -623,7 +623,7 @@ public:
 		check(BatchUserData);
 
 		const auto* LocalVertexFactory = static_cast<const FGPUSkinPassthroughVertexFactory*>(VertexFactory);
-		FUniformBufferRHIParamRef VertexFactoryUniformBuffer = nullptr;
+		FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
 		VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
 
 		// #dxr_todo do we need this call to the base?
@@ -899,13 +899,13 @@ protected:
 
 struct FRHICommandUpdateClothBuffer final : public FRHICommand<FRHICommandUpdateClothBuffer>
 {
-	FVertexBufferRHIParamRef VertexBuffer;
+	FRHIVertexBuffer* VertexBuffer;
 	uint32 BufferSize;
 	const TArray<FVector>& SimulPositions;
 	const TArray<FVector>& SimulNormals;
 
 
-	FORCEINLINE_DEBUGGABLE FRHICommandUpdateClothBuffer(FVertexBufferRHIParamRef InVertexBuffer, uint32 InBufferSize, const TArray<FVector>& InSimulPositions, const TArray<FVector>& InSimulNormals)
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateClothBuffer(FRHIVertexBuffer* InVertexBuffer, uint32 InBufferSize, const TArray<FVector>& InSimulPositions, const TArray<FVector>& InSimulNormals)
 		: VertexBuffer(InVertexBuffer)
 		, BufferSize(InBufferSize)
 		, SimulPositions(InSimulPositions)

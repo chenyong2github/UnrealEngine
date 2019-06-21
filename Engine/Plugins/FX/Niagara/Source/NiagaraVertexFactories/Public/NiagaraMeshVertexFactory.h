@@ -156,7 +156,7 @@ public:
 	/**
 	* Retrieve the uniform buffer for this vertex factory.
 	*/
-	FORCEINLINE FUniformBufferRHIParamRef GetUniformBuffer()
+	FORCEINLINE FRHIUniformBuffer* GetUniformBuffer()
 	{
 		return MeshParticleUniformBuffer;
 	}
@@ -193,7 +193,7 @@ protected:
 	uint32 MeshFacingMode;
 
 	/** Uniform buffer with mesh particle parameters. */
-	FUniformBufferRHIParamRef MeshParticleUniformBuffer;
+	FRHIUniformBuffer* MeshParticleUniformBuffer;
 	
 	/** Used to remember this in the case that we reuse the same vertex factory for multiple renders . */
 	FNiagaraMeshInstanceVertices* InstanceVerticesCPU;

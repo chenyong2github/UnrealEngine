@@ -480,7 +480,7 @@ public:
 		DEC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
 		if (TextureReference)
 		{
-			RHIUpdateTextureReference(TextureReference->TextureReferenceRHI, FTextureRHIParamRef());
+			RHIUpdateTextureReference(TextureReference->TextureReferenceRHI, nullptr);
 		}
 		Texture3DRHI.SafeRelease();
 		FTextureResource::ReleaseRHI();

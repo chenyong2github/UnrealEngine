@@ -297,7 +297,7 @@ void GenerateSurfelRepresentation(FRHICommandListImmediate& RHICmdList, FSceneRe
 	{
 		FUniformMeshBuffers* UniformMeshBuffers = NULL;
 		const FMaterialRenderProxy* MaterialRenderProxy = NULL;
-		FUniformBufferRHIParamRef PrimitiveUniformBuffer = NULL;
+		FRHIUniformBuffer* PrimitiveUniformBuffer = NULL;
 		const int32 NumUniformTriangles = FUniformMeshConverter::Convert(RHICmdList, Renderer, View, PrimitiveSceneInfo, 0, UniformMeshBuffers, MaterialRenderProxy, PrimitiveUniformBuffer);
 
 		if (NumUniformTriangles > 0 && MaterialRenderProxy && PrimitiveUniformBuffer)

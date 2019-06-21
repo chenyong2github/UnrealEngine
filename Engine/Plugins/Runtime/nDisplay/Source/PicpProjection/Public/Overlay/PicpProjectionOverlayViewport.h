@@ -11,11 +11,11 @@ class FPicpProjectionOverlayViewport
 	: public FPicpProjectionOverlayBase
 {
 public:
-	FTexture2DRHIParamRef ViewportTexture; // Texture to render
+	FRHITexture2D* ViewportTexture; // Texture to render
 	//@ Add more render options here
 
 public:
-	FPicpProjectionOverlayViewport(FTexture2DRHIParamRef TextureRef)
+	FPicpProjectionOverlayViewport(FRHITexture2D* TextureRef)
 		: FPicpProjectionOverlayBase()
 		, ViewportTexture(TextureRef)
 	{ 

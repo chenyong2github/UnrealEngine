@@ -208,7 +208,7 @@ void FDeferredShadingSceneRenderer::VisualizeVarianceMipTree(FRHICommandListImme
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FVisualizeMipTreePS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[2] =
+	FRHITexture* RenderTargets[2] =
 	{
 		SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture, 
 		VarianceMipTreeRT->GetRenderTargetItem().TargetableTexture

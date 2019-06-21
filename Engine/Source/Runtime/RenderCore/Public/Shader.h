@@ -2705,7 +2705,7 @@ extern RENDERCORE_API void DispatchComputeShader(
 extern RENDERCORE_API void DispatchIndirectComputeShader(
 	FRHICommandList& RHICmdList,
 	FShader* Shader,
-	FVertexBufferRHIParamRef ArgumentBuffer,
+	FRHIVertexBuffer* ArgumentBuffer,
 	uint32 ArgumentOffset);
 
 /** Appends to KeyString for all shaders. */

@@ -350,7 +350,7 @@ namespace RuntimeVirtualTexture
 		// Sort and submit
 		if (AllocatedCommands.Num() > 0)
 		{
-			FVertexBufferRHIParamRef PrimitiveIdsBuffer;
+			FRHIVertexBuffer* PrimitiveIdsBuffer;
 			const bool bDynamicInstancing = IsDynamicInstancingEnabled(View->FeatureLevel);
 			const uint32 InstanceFactor = 1;
 

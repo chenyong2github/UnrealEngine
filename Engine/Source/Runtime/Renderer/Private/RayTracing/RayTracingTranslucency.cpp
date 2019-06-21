@@ -218,8 +218,8 @@ public:
 	void SetParameters(
 		TRHICommandList& RHICmdList,
 		const FViewInfo& View,
-		FTextureRHIParamRef TranslucencyTexture,
-		FTextureRHIParamRef HitDistanceTexture)
+		FRHITexture* TranslucencyTexture,
+		FRHITexture* HitDistanceTexture)
 	{
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);

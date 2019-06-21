@@ -187,7 +187,7 @@ public:
 		}
 		
 		// if FeatureLevel <= ERHIFeatureLevel::ES3_1
-		FUniformBufferRHIParamRef GetUniformBuffer() const
+		FRHIUniformBuffer* GetUniformBuffer() const
 		{
 			return UniformBuffer;
 		}

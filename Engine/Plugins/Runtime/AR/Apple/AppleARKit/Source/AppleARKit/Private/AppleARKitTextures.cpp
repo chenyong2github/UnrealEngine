@@ -58,7 +58,7 @@ public:
 				Size.Y = ImageExtent.size.height;
 				
 				// Let go of the last texture
-				RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, FTextureRHIParamRef());
+				RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 				DecodedTextureRef.SafeRelease();
 				
 				// Create the target texture that we'll update into
@@ -95,7 +95,7 @@ public:
 
 	virtual void ReleaseRHI() override
 	{
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, FTextureRHIParamRef());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 #if PLATFORM_MAC || PLATFORM_IOS
 		if (CameraImage != nullptr)
 		{
@@ -498,7 +498,7 @@ public:
 	
 	virtual void ReleaseRHI() override
 	{
-		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, FTextureRHIParamRef());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 		EnvCubemapTextureRHIRef.SafeRelease();
 		FTextureResource::ReleaseRHI();
 		FExternalTextureRegistry::Get().UnregisterExternalTexture(Owner->ExternalTextureGuid);

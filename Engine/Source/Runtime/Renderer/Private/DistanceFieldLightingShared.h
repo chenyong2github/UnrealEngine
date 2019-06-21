@@ -686,14 +686,14 @@ public:
 		int32 LODIndex,
 		FUniformMeshBuffers*& OutUniformMeshBuffers,
 		const FMaterialRenderProxy*& OutMaterialRenderProxy,
-		FUniformBufferRHIParamRef& OutPrimitiveUniformBuffer);
+		FRHIUniformBuffer*& OutPrimitiveUniformBuffer);
 
 	static void GenerateSurfels(
 		FRHICommandListImmediate& RHICmdList, 
 		FViewInfo& View, 
 		const FPrimitiveSceneInfo* PrimitiveSceneInfo, 
 		const FMaterialRenderProxy* MaterialProxy,
-		FUniformBufferRHIParamRef PrimitiveUniformBuffer,
+		FRHIUniformBuffer* PrimitiveUniformBuffer,
 		const FMatrix& Instance0Transform,
 		int32 SurfelOffset,
 		int32 NumSurfels);

@@ -829,7 +829,7 @@ public:
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
 
 	/** Primitive fade uniform buffers, indexed by packed primitive index. */
-	TArray<FUniformBufferRHIParamRef,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;
+	TArray<FRHIUniformBuffer*,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;
 
 	/**  Bit set when a primitive has a valid fade uniform buffer. */
 	FSceneBitArray PrimitiveFadeUniformBufferMap;
@@ -1662,7 +1662,7 @@ protected:
 	void RenderDistortion(FRHICommandListImmediate& RHICmdList);
 
 	/** Returns the scene color texture multi-view is targeting. */	
-	FTextureRHIParamRef GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const;
+	FRHITexture* GetMultiViewSceneColor(const FSceneRenderTargets& SceneContext) const;
 
 	void UpdatePrimitiveIndirectLightingCacheBuffers();
 	void ClearPrimitiveSingleFrameIndirectLightingCacheBuffers();
@@ -1762,26 +1762,26 @@ private:
 // The noise textures need to be set in Slate too.
 RENDERER_API void UpdateNoiseTextureParameters(FViewUniformShaderParameters& ViewUniformShaderParameters);
 
-inline FTextureRHIParamRef OrBlack2DIfNull(FTextureRHIParamRef Tex)
+inline FRHITexture* OrBlack2DIfNull(FRHITexture* Tex)
 {
-	FTextureRHIParamRef Result = Tex ? Tex : GBlackTexture->TextureRHI.GetReference();
+	FRHITexture* Result = Tex ? Tex : GBlackTexture->TextureRHI.GetReference();
 	check(Result);
 	return Result;
 }
 
-inline FTextureRHIParamRef OrBlack3DIfNull(FTextureRHIParamRef Tex)
+inline FRHITexture* OrBlack3DIfNull(FRHITexture* Tex)
 {
 	// we fall back to 2D which are unbound es2 parameters
 	return OrBlack2DIfNull(Tex ? Tex : GBlackVolumeTexture->TextureRHI.GetReference());
 }
 
-inline FTextureRHIParamRef OrBlack3DUintIfNull(FTextureRHIParamRef Tex)
+inline FRHITexture* OrBlack3DUintIfNull(FRHITexture* Tex)
 {
 	// we fall back to 2D which are unbound es2 parameters
 	return OrBlack2DIfNull(Tex ? Tex : GBlackUintVolumeTexture->TextureRHI.GetReference());
 }
 
-inline void SetBlack2DIfNull(FTextureRHIParamRef& Tex)
+inline void SetBlack2DIfNull(FRHITexture*& Tex)
 {
 	if (!Tex)
 	{
@@ -1790,7 +1790,7 @@ inline void SetBlack2DIfNull(FTextureRHIParamRef& Tex)
 	}
 }
 
-inline void SetBlack3DIfNull(FTextureRHIParamRef& Tex)
+inline void SetBlack3DIfNull(FRHITexture*& Tex)
 {
 	if (!Tex)
 	{

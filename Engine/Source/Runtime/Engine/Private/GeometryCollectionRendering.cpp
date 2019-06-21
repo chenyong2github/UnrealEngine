@@ -20,7 +20,7 @@ void FGeometryCollectionVertexFactoryShaderParameters::GetElementShaderBindings(
 
 
 	const auto* LocalVertexFactory = static_cast<const FGeometryCollectionVertexFactory*>(VertexFactory);
-	FUniformBufferRHIParamRef VertexFactoryUniformBuffer = nullptr;
+	FRHIUniformBuffer* VertexFactoryUniformBuffer = nullptr;
 	VertexFactoryUniformBuffer = LocalVertexFactory->GetUniformBuffer();
 
 

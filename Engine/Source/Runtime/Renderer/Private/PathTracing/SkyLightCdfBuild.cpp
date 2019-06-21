@@ -433,7 +433,7 @@ void FDeferredShadingSceneRenderer::VisualizeSkyLightCdf(FRHICommandListImmediat
 	const auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
 	TShaderMapRef<FPostProcessVS> VertexShader(ShaderMap);
 	TShaderMapRef<FVisualizeCdfPS> PixelShader(ShaderMap);
-	FTextureRHIParamRef RenderTargets[1] =
+	FRHITexture* RenderTargets[1] =
 	{
 		OutputRT->GetRenderTargetItem().TargetableTexture
 	};

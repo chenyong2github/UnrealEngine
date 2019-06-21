@@ -775,7 +775,7 @@ void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, ERDGPassAccess PassAcc
 
 	if (PassAccessBefore != PassAccessAfter || Texture->PassPipeline != PassPipelineAfter)
 	{
-		FTextureRHIParamRef RHITexture = Texture->GetRHIUnchecked();
+		FRHITexture* RHITexture = Texture->GetRHIUnchecked();
 
 		const bool bIsMultiFrameResource = (Texture->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
 

@@ -139,7 +139,7 @@ public:
 	/**
 	 * Retrieve the uniform buffer for this vertex factory.
 	 */
-	FORCEINLINE FUniformBufferRHIParamRef GetUniformBuffer()
+	FORCEINLINE FRHIUniformBuffer* GetUniformBuffer()
 	{
 		return MeshParticleUniformBuffer;
 	}
@@ -206,7 +206,7 @@ protected:
 	int32 DynamicParameterVertexStride;
 	
 	/** Uniform buffer with mesh particle parameters. */
-	FUniformBufferRHIParamRef MeshParticleUniformBuffer;
+	FRHIUniformBuffer* MeshParticleUniformBuffer;
 
 	FDynamicReadBuffer PrevTransformBuffer;
 

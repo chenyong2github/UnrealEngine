@@ -351,7 +351,7 @@ bool FViewInfo::IsDistanceCulled( float DistanceSquared, float MinDrawDistance, 
 		{
 			FPrimitiveFadingState& FadingState = ((FSceneViewState*)State)->PrimitiveFadingStates.FindOrAdd(PrimitiveSceneInfo->PrimitiveComponentId);
 			UpdatePrimitiveFadingState(FadingState, *this, !bDistanceCulled);
-			FUniformBufferRHIParamRef UniformBuffer = FadingState.UniformBuffer;
+			FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
 			bStillFading = (UniformBuffer != NULL);
 			PrimitiveFadeUniformBuffers[PrimitiveIndex] = UniformBuffer;
 			PrimitiveFadeUniformBufferMap[PrimitiveIndex] = UniformBuffer != nullptr;
@@ -593,7 +593,7 @@ static void UpdatePrimitiveFading(const FScene* Scene, FViewInfo& View)
 				bool bVisible = View.PrimitiveVisibilityMap.AccessCorrespondingBit(BitIt);
 				FPrimitiveFadingState& FadingState = ViewState->PrimitiveFadingStates.FindOrAdd(Scene->PrimitiveComponentIds[BitIt.GetIndex()]);
 				UpdatePrimitiveFadingState(FadingState, View, bVisible);
-				FUniformBufferRHIParamRef UniformBuffer = FadingState.UniformBuffer;
+				FRHIUniformBuffer* UniformBuffer = FadingState.UniformBuffer;
 				if (UniformBuffer && !bVisible)
 				{
 					// If the primitive is fading out make sure it remains visible.

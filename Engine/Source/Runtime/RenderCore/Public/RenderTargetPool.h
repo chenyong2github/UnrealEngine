@@ -286,7 +286,7 @@ private:
 	/** Elements can be 0, we compact the buffer later. */
 	TArray< TRefCountPtr<FPooledRenderTarget> > PooledRenderTargets;
 	TArray< TRefCountPtr<FPooledRenderTarget> > DeferredDeleteArray;
-	TArray< FTextureRHIParamRef > TransitionTargets;	
+	TArray< FRHITexture* > TransitionTargets;
 
 	/** These are snapshots, have odd life times, live in the scene allocator, and don't contribute to any accounting or other management. */
 	TArray<FPooledRenderTarget*> PooledRenderTargetSnapshots;

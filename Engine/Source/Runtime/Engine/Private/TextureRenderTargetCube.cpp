@@ -279,7 +279,7 @@ void FTextureRenderTargetCubeResource::ReleaseDynamicRHI()
 	// release the FTexture RHI resources here as well
 	ReleaseRHI();
 
-	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,FTextureRHIParamRef());
+	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 	CubeFaceSurfaceRHI.SafeRelease();
 	RenderTargetCubeRHI.SafeRelease();
 	RenderTargetTextureRHI.SafeRelease();	

@@ -23,8 +23,8 @@ template<typename TBufferStruct> class TUniformBufferRef;
 class FMeshMaterialShaderElementData
 {
 public:
-	FUniformBufferRHIParamRef FadeUniformBuffer = nullptr;
-	FUniformBufferRHIParamRef DitherUniformBuffer = nullptr;
+	FRHIUniformBuffer* FadeUniformBuffer = nullptr;
+	FRHIUniformBuffer* DitherUniformBuffer = nullptr;
 
 	RENDERER_API void InitializeMeshMaterialData(const FSceneView* SceneView, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, const FMeshBatch& RESTRICT MeshBatch, int32 StaticMeshId, bool bAllowStencilDither);
 };

@@ -24,8 +24,8 @@ public:
 	static void ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result);
 
 	//onRenderThread
-	static void ApplyBlur_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef InOutRT, FTexture2DRHIParamRef TempRT, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType);
-	static void ApplyCompose_RenderThread(FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef OverlayTexture, FTexture2DRHIParamRef DstRenderTarget, FTexture2DRHIParamRef DstTexture);
+	static void ApplyBlur_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* InOutRT, FRHITexture2D* TempRT, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType);
+	static void ApplyCompose_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* OverlayTexture, FRHITexture2D* DstRenderTarget, FRHITexture2D* DstTexture);
 };
 
 class FDirectProjectionVS : public FGlobalShader
@@ -101,7 +101,7 @@ public:
 		}
 	}
 
-	void SetParameters(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SourceTexture, FVector2D SampleOffset, int KernelRadius)
+	void SetParameters(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SourceTexture, FVector2D SampleOffset, int KernelRadius)
 	{
 		FRHIPixelShader* ShaderRHI = GetPixelShader();
 

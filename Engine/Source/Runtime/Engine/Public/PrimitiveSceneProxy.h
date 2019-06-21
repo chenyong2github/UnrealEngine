@@ -517,7 +517,7 @@ public:
 	inline bool DoesVFRequirePrimitiveUniformBuffer() const { return bVFRequiresPrimitiveUniformBuffer; }
 	inline bool ShouldUseAsOccluder() const { return bUseAsOccluder; }
 	inline bool AllowApproximateOcclusion() const { return bAllowApproximateOcclusion; }
-	inline FUniformBufferRHIParamRef GetUniformBuffer() const 
+	inline FRHIUniformBuffer* GetUniformBuffer() const
 	{
 		return UniformBuffer.GetReference(); 
 	}

@@ -44,7 +44,7 @@ public:
 			+ ParameterMapInfo.TextureSamplers.Num() 
 			+ ParameterMapInfo.SRVs.Num());
 
-		// Allocate a bit for each SRV tracking whether it is a FTextureRHIParamRef or FRHIShaderResourceView*
+		// Allocate a bit for each SRV tracking whether it is a FRHITexture* or FRHIShaderResourceView*
 		DataSize += FMath::DivideAndRoundUp(ParameterMapInfo.SRVs.Num(), 8);
 
 		for (int32 LooseBufferIndex = 0; LooseBufferIndex < ParameterMapInfo.LooseParameterBuffers.Num(); LooseBufferIndex++)
@@ -66,7 +66,7 @@ protected:
 
 	inline uint32 GetSamplerOffset() const
 	{
-		return ParameterMapInfo.UniformBuffers.Num() * sizeof(FUniformBufferRHIParamRef);
+		return ParameterMapInfo.UniformBuffers.Num() * sizeof(FRHIUniformBuffer*);
 	}
 
 	inline uint32 GetSRVOffset() const
@@ -125,7 +125,7 @@ public:
 		}
 	}
 
-	void Add(FShaderUniformBufferParameter Parameter, FUniformBufferRHIParamRef Value)
+	void Add(FShaderUniformBufferParameter Parameter, FRHIUniformBuffer* Value)
 	{
 		checkfSlow(Parameter.IsInitialized(), TEXT("Parameter was not serialized"));
 
@@ -153,7 +153,7 @@ public:
 		FShaderResourceParameter TextureParameter,
 		FShaderResourceParameter SamplerParameter,
 		FRHISamplerState* SamplerStateRHI,
-		FTextureRHIParamRef TextureRHI)
+		FRHITexture* TextureRHI)
 	{
 		checkfSlow(TextureParameter.IsInitialized(), TEXT("Parameter was not serialized"));
 		checkfSlow(SamplerParameter.IsInitialized(), TEXT("Parameter was not serialized"));
@@ -217,9 +217,9 @@ public:
 private:
 	uint8* Data;
 
-	inline FUniformBufferRHIParamRef* GetUniformBufferStart() const
+	inline FRHIUniformBuffer** GetUniformBufferStart() const
 	{
-		return (FUniformBufferRHIParamRef*)(Data + GetUniformBufferOffset());
+		return (FRHIUniformBuffer**)(Data + GetUniformBufferOffset());
 	}
 
 	inline FRHISamplerState** GetSamplerStart() const
@@ -247,7 +247,7 @@ private:
 		return LooseDataStart;
 	}
 
-	inline void WriteBindingUniformBuffer(FUniformBufferRHIParamRef Value, uint32 BaseIndex)
+	inline void WriteBindingUniformBuffer(FRHIUniformBuffer* Value, uint32 BaseIndex)
 	{
 		int32 FoundIndex = -1;
 
@@ -328,7 +328,7 @@ private:
 		checkfSlow(FoundIndex >= 0, TEXT("Attempted to set SRV at BaseIndex %u which was never in the shader's parameter map."), BaseIndex);
 	}
 
-	inline void WriteBindingTexture(FTextureRHIParamRef Value, uint32 BaseIndex)
+	inline void WriteBindingTexture(FRHITexture* Value, uint32 BaseIndex)
 	{
 		int32 FoundIndex = -1;
 

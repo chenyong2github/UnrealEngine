@@ -77,8 +77,8 @@ public:
 
 	struct FTextureWarpData
 	{
-		FTexture2DRHIParamRef SrcTexture; // Source texture (shader render)
-		FTexture2DRHIParamRef DstTexture; // Render target destination
+		FRHITexture2D* SrcTexture; // Source texture (shader render)
+		FRHITexture2D* DstTexture; // Render target destination
 
 		FIntRect SrcRect; // Source texture region
 		FIntRect DstRect; // Destination texture region

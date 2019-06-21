@@ -612,7 +612,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, DBufferClear);
 
-				FTextureRHIParamRef RenderTargets[4];
+				FRHITexture* RenderTargets[4];
 
 				RenderTargets[0] = SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture;
 				RenderTargets[1] = SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture;
@@ -846,7 +846,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 			if (CurrentStage == DRS_BeforeBasePass)
 			{
 				// combine DBuffer RTWriteMasks; will end up in one texture we can load from in the base pass PS and decide whether to do the actual work or not
-				FTextureRHIParamRef Textures[3] =
+				FRHITexture* Textures[3] =
 				{
 					SceneContext.DBufferA->GetRenderTargetItem().TargetableTexture,
 					SceneContext.DBufferB->GetRenderTargetItem().TargetableTexture,
@@ -1011,8 +1011,8 @@ void FDecalRenderTargetManager::SetRenderTargetMode(FDecalRenderingCommon::ERend
 	FExclusiveDepthStencil DepthStencilAccess = FExclusiveDepthStencil::DepthRead_StencilWrite;
 	ERenderTargetActions DepthTargetActions = ERenderTargetActions::Load_DontStore;
 	uint32 NumColorTargets = 1;
-	FTextureRHIParamRef* TargetsToBind = &TargetsToResolve[0];
-	FTextureRHIParamRef DepthTarget = SceneContext.GetSceneDepthSurface();
+	FRHITexture** TargetsToBind = &TargetsToResolve[0];
+	FRHITexture* DepthTarget = SceneContext.GetSceneDepthSurface();
 
 	// The SceneColorAndGBuffer modes do not actually need GBufferA bound when there's no normal.
 	// The apis based on renderpasses fill fail to actually bind anything past a null entry in their RT list so we have to bind it anyway.
@@ -1117,7 +1117,7 @@ void FDecalRenderTargetManager::SetRenderTargetMode(FDecalRenderingCommon::ERend
 
 
 
-void FDecalRenderTargetManager::FlushMetaData(FTextureRHIParamRef* Textures, uint32 NumTextures)
+void FDecalRenderTargetManager::FlushMetaData(FRHITexture** Textures, uint32 NumTextures)
 {
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EMetaData, Textures, NumTextures);
 }

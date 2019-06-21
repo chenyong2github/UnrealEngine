@@ -395,8 +395,8 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 		{
 			DestRenderTarget = &PassOutputs[0].RequestSurface(Context);
 
-			FTextureRHIParamRef DstTexture = DestRenderTarget->TargetableTexture;
-			FTextureRHIParamRef SrcTexture = GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture;
+			FRHITexture* DstTexture = DestRenderTarget->TargetableTexture;
+			FRHITexture* SrcTexture = GetInput(ePId_Input0)->GetOutput()->RequestSurface(Context).ShaderResourceTexture;
 
 			// CopyResource() can only be called when format and size match. Otherwise must use shader to do stretch & format conversion.
 			if (DstTexture->GetFormat() == SrcTexture->GetFormat() && DstTexture->GetSizeXYZ() == SrcTexture->GetSizeXYZ())

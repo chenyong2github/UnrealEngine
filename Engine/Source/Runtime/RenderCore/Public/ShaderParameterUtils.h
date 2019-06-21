@@ -235,7 +235,7 @@ FORCEINLINE void SetTextureParameter(
 	const FShaderResourceParameter& TextureParameter,
 	const FShaderResourceParameter& SamplerParameter,
 	FRHISamplerState* SamplerStateRHI,
-	FTextureRHIParamRef TextureRHI,
+	FRHITexture* TextureRHI,
 	uint32 ElementIndex = 0
 	)
 {
@@ -273,7 +273,7 @@ FORCEINLINE void SetTextureParameter(
 	TRHICmdList& RHICmdList,
 	TRHIShader* Shader,
 	const FShaderResourceParameter& Parameter,
-	FTextureRHIParamRef NewTextureRHI
+	FRHITexture* NewTextureRHI
 	)
 {
 	if(Parameter.IsBound())
@@ -425,7 +425,7 @@ inline void FRWShaderParameter::SetBuffer(TRHICmdList& RHICmdList, TShaderRHIRef
 }
 
 template<typename TShaderRHIRef, typename TRHICmdList>
-inline void FRWShaderParameter::SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FTextureRHIParamRef Texture, FRHIUnorderedAccessView* UAV) const
+inline void FRWShaderParameter::SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, FRHITexture* Texture, FRHIUnorderedAccessView* UAV) const
 {
 	if (!SetUAVParameterIfCS(RHICmdList, Shader, UAVParameter, UAV))
 	{
@@ -463,7 +463,7 @@ inline void SetUniformBufferParameter(
 	TRHICmdList& RHICmdList,
 	TShaderRHIRef Shader,
 	const FShaderUniformBufferParameter& Parameter,
-	FUniformBufferRHIParamRef UniformBufferRHI
+	FRHIUniformBuffer* UniformBufferRHI
 	)
 {
 	// This will trigger if the parameter was not serialized

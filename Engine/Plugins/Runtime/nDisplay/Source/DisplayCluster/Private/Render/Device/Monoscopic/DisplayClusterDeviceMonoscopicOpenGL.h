@@ -32,7 +32,7 @@ protected:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// FDisplayClusterDeviceBase
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef BackBuffer, FTexture2DRHIParamRef SrcTexture, FVector2D WindowSize) const override
+	virtual void CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const override
 	{
 		// Forbid the default FDisplayClusterDeviceBase::CopyTextureToBackBuffer_RenderThread implementation. The OpenGL copies data in the Present method.
 	}

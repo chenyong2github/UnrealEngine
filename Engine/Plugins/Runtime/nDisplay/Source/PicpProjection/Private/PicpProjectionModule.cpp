@@ -172,7 +172,7 @@ void FPicpProjectionModule::CaptureWarpTexture(UTextureRenderTarget2D* dst, cons
 							if (bCaptureNow)
 							{
 								FTextureRenderTarget2DResource* dstResource2D = (FTextureRenderTarget2DResource*)(dst->GameThread_GetRenderTargetResource());
-								FTexture2DRHIParamRef dstTextureRHI = dstResource2D->GetTextureRHI();
+								FRHITexture2D* dstTextureRHI = dstResource2D->GetTextureRHI();
 
 								MPCDIPolicy->SetWarpTextureCapture(ViewIdx, dstTextureRHI);
 							}

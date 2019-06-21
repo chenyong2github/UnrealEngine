@@ -849,7 +849,7 @@ FRDGTextureRef VisualizeMotionBlur(
 		{
 			const FViewInfo& LocalView = ScreenPassView.View;
 			const FSceneViewFamily& ViewFamily = *LocalView.Family;
-			FRenderTargetTemp TempRenderTarget(static_cast<FTexture2DRHIParamRef>(ColorTextureOutput->GetRHI()), ColorViewport.Extent);
+			FRenderTargetTemp TempRenderTarget(static_cast<FRHITexture2D*>(ColorTextureOutput->GetRHI()), ColorViewport.Extent);
 			FCanvas Canvas(&TempRenderTarget, nullptr, ViewFamily.CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, LocalView.GetFeatureLevel());
 
 			float X = 20;

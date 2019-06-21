@@ -180,7 +180,7 @@ bool FPicpProjectionMPCDIPolicy::IsWarpBlendSupported()
 	return true;
 }
 
-void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewportRect)
+void FPicpProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
 {
 	check(IsInRenderingThread());
 
@@ -319,7 +319,7 @@ bool FPicpProjectionMPCDIPolicy::InitializeResources_RenderThread()
 
 
 //Picp extands api:
-void FPicpProjectionMPCDIPolicy::SetWarpTextureCapture(const uint32 ViewIdx, FTexture2DRHIParamRef target)
+void FPicpProjectionMPCDIPolicy::SetWarpTextureCapture(const uint32 ViewIdx, FRHITexture2D* target)
 {
 	if ((int)ViewIdx < Views.Num())
 	{

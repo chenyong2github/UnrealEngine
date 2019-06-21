@@ -35,9 +35,9 @@ public:
 		SceneTexturesUniformParams = Params.SceneTexturesUniformParams;
 	}
 
-	FTexture2DRHIParamRef GetSceneDepthTexture() { return SceneDepthTexture; }
-	FTexture2DRHIParamRef GetSceneNormalTexture() { return SceneNormalTexture; }
-	FUniformBufferRHIParamRef GetViewUniformBuffer() { return ViewUniformBuffer; }
+	FRHITexture2D* GetSceneDepthTexture() { return SceneDepthTexture; }
+	FRHITexture2D* GetSceneNormalTexture() { return SceneNormalTexture; }
+	FRHIUniformBuffer* GetViewUniformBuffer() { return ViewUniformBuffer; }
 	TUniformBufferRef<FSceneTexturesUniformParameters> GetSceneTextureUniformParameters() { return SceneTexturesUniformParams; }
 
 	virtual void InitDynamicRHI() override;
@@ -45,9 +45,9 @@ public:
 	virtual void ReleaseDynamicRHI() override;
 
 private:
-	FTexture2DRHIParamRef SceneDepthTexture;
-	FTexture2DRHIParamRef SceneNormalTexture;
-	FUniformBufferRHIParamRef ViewUniformBuffer;
+	FRHITexture2D* SceneDepthTexture;
+	FRHITexture2D* SceneNormalTexture;
+	FRHIUniformBuffer* ViewUniformBuffer;
 
 	TUniformBufferRef<FSceneTexturesUniformParameters> SceneTexturesUniformParams;
 	FPostOpaqueRenderDelegate PostOpaqueDelegate;

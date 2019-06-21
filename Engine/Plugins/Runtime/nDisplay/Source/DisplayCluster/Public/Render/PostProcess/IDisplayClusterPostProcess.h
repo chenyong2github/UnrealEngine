@@ -37,7 +37,7 @@ public:
 	* @param SrcTexture - Source texture
 	* @param ViewRect   - View region of the texture
 	*/
-	virtual void PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewRect) const
+	virtual void PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 	{ }
 
 	/**
@@ -58,7 +58,7 @@ public:
 	* @param SrcTexture - Source texture
 	* @param ViewRect   - View region of the texture
 	*/
-	virtual void PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewRect) const
+	virtual void PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 	{ }
 
 	/**
@@ -81,7 +81,7 @@ public:
 	* @param SrcTexture - Source texture
 	* @param ViewRect   - Frame region of the texture
 	*/
-	virtual void PerformPostProcessFrameBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& FrameRect) const
+	virtual void PerformPostProcessFrameBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 	{ }
 
 	/**
@@ -104,7 +104,7 @@ public:
 	* @param SrcTexture - Source texture
 	* @param ViewRect   - Frame region of the texture
 	*/
-	virtual void PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& FrameRect) const
+	virtual void PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 	{ }
 
 	/**
@@ -123,7 +123,7 @@ public:
 	* @param RHICmdList - RHI command list
 	* @param SrcTexture - Source texture
 	*/
-	virtual void PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture) const
+	virtual void PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 	{ }
 
 	/**
@@ -142,6 +142,6 @@ public:
 	* @param RHICmdList - RHI command list
 	* @param SrcTexture - Source texture
 	*/
-	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture) const
+	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 	{ }
 };

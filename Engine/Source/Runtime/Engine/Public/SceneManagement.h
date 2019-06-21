@@ -802,12 +802,12 @@ public:
 		bGlobalVolumeLightmap = bInGlobalVolumeLightmap;
 	}
 
-	FUniformBufferRHIParamRef GetPrecomputedLightingBuffer() const
+	FRHIUniformBuffer* GetPrecomputedLightingBuffer() const
 	{
 		return PrecomputedLightingUniformBuffer;
 	}
 
-	void SetPrecomputedLightingBuffer(FUniformBufferRHIParamRef InPrecomputedLightingUniformBuffer)
+	void SetPrecomputedLightingBuffer(FRHIUniformBuffer* InPrecomputedLightingUniformBuffer)
 	{
 		PrecomputedLightingUniformBuffer = InPrecomputedLightingUniformBuffer;
 	}

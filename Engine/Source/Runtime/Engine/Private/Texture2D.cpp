@@ -1708,7 +1708,7 @@ void FTexture2DResource::ReleaseRHI()
 
 	FTextureResource::ReleaseRHI();
 	Texture2DRHI.SafeRelease();
-	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,FTextureRHIParamRef());
+	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 }
 
 void FTexture2DResource::CreateSamplerStates(float MipMapBias)

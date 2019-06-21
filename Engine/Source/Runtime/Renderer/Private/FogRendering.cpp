@@ -69,7 +69,7 @@ void SetupFogUniformParameters(const FViewInfo& View, FFogUniformParameters& Out
 
 	// Volumetric Fog
 	{
-		FTextureRHIParamRef IntegratedLightScatteringTexture = nullptr;
+		FRHITexture* IntegratedLightScatteringTexture = nullptr;
 
 		if (View.VolumetricFogResources.IntegratedLightScattering)
 		{

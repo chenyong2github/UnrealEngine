@@ -21,7 +21,7 @@ public:
 	{}
 
 	void SetParameters(const FRenderingCompositePassContext&) {}
-	void SetParameters(FRHICommandList&, const FUniformBufferRHIParamRef) {}
+	void SetParameters(FRHICommandList&, FRHIUniformBuffer*) {}
 };
 
 /** The context used to setup a post-process pass. */

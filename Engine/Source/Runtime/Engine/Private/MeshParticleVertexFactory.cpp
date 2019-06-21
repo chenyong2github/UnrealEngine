@@ -137,7 +137,7 @@ public:
 		return TEXT("FDummyPrevTransformBuffer");
 	}
 
-	inline FVertexBufferRHIParamRef GetVB() const
+	inline FRHIVertexBuffer* GetVB() const
 	{
 		return VB;
 	}

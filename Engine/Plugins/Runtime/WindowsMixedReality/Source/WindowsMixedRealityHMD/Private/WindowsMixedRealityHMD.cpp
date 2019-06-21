@@ -73,7 +73,7 @@ public:
 		WorldToMeters.Bind(Initializer.ParameterMap, TEXT("WorldToMeters"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, float nearPlaneM, float farPlaneM, float worldToMetersValue, FTextureRHIParamRef DepthTexture)
+	void SetParameters(FRHICommandList& RHICmdList, float nearPlaneM, float farPlaneM, float worldToMetersValue, FRHITexture* DepthTexture)
 	{
 		FRHIPixelShader* PixelShaderRHI = GetPixelShader();
 

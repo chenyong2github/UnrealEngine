@@ -298,15 +298,15 @@ FXRSwapChainPtr FCustomPresent::CreateSwapChain_RenderThread(uint32 InSizeX, uin
 }
 
 
-void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FTextureRHIParamRef DstTexture, FTextureRHIParamRef SrcTexture,
+void FCustomPresent::CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture* DstTexture, FRHITexture* SrcTexture,
 	FIntRect DstRect, FIntRect SrcRect, bool bAlphaPremultiply, bool bNoAlphaWrite, bool bInvertY, bool sRGBSource) const
 {
 	CheckInRenderThread();
 
-	FTexture2DRHIParamRef DstTexture2D = DstTexture->GetTexture2D();
-	FTextureCubeRHIParamRef DstTextureCube = DstTexture->GetTextureCube();
-	FTexture2DRHIParamRef SrcTexture2D = SrcTexture->GetTexture2D();
-	FTextureCubeRHIParamRef SrcTextureCube = SrcTexture->GetTextureCube();
+	FRHITexture2D* DstTexture2D = DstTexture->GetTexture2D();
+	FRHITextureCube* DstTextureCube = DstTexture->GetTextureCube();
+	FRHITexture2D* SrcTexture2D = SrcTexture->GetTexture2D();
+	FRHITextureCube* SrcTextureCube = SrcTexture->GetTextureCube();
 
 	FIntPoint DstSize;
 	FIntPoint SrcSize;

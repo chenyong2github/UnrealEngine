@@ -10,7 +10,7 @@ class FPicpProjectionOverlayLUT
 	: public FPicpProjectionOverlayBase
 {
 public:
-	FTexture2DRHIParamRef LUTTexture;           // if texture defined, applyed brightness correction from view angle
+	FRHITexture2D* LUTTexture;           // if texture defined, applyed brightness correction from view angle
 	FVector               ViewCorrectionCoeff;
 	FVector               EyeOrigin;            // Eye position in world space
 	//@ Add more render options here
@@ -22,7 +22,7 @@ public:
 		, EyeOrigin(0,0,0)
 	{ }
 
-	void Initialize(FTexture2DRHIParamRef& TextureRef, const FVector& ViewCorrection, const FVector& EyeLocation)
+	void Initialize(FRHITexture2D*& TextureRef, const FVector& ViewCorrection, const FVector& EyeLocation)
 	{
 		LUTTexture = TextureRef;
 		ViewCorrectionCoeff = ViewCorrection;

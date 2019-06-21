@@ -103,7 +103,7 @@ public:
 		const FScene* Scene, 
 		const FSceneView* InViewIfDynamicMeshCommand, 
 		const TUniformBufferRef<FViewUniformShaderParameters>& InViewUniformBuffer,
-		FUniformBufferRHIParamRef InPassUniformBuffer,
+		FRHIUniformBuffer* InPassUniformBuffer,
 		FShadowDepthType InShadowDepthType,
 		FMeshPassDrawListContext* InDrawListContext);
 
@@ -192,7 +192,7 @@ class FShadowMeshDrawCommandPass
 {
 public:
 	FMeshCommandOneFrameArray VisibleMeshDrawCommands;
-	FVertexBufferRHIParamRef PrimitiveIdVertexBuffer;
+	FRHIVertexBuffer* PrimitiveIdVertexBuffer;
 };
 
 /**
@@ -383,7 +383,7 @@ public:
 	/** Set state for depth rendering */
 	void SetStateForDepth(FMeshPassProcessorRenderState& DrawRenderState) const;
 
-	void ClearDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, int32 NumColorTextures, FTextureRHIParamRef* ColorTextures, FTextureRHIParamRef DepthTexture, bool bPerformClear);
+	void ClearDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, int32 NumColorTextures, FRHITexture** ColorTextures, FRHITexture* DepthTexture, bool bPerformClear);
 
 	/** Renders shadow maps for translucent primitives. */
 	void RenderTranslucencyDepths(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer);
@@ -435,7 +435,7 @@ public:
 	void GatherDynamicMeshElements(FSceneRenderer& Renderer, class FVisibleLightInfo& VisibleLightInfo, TArray<const FSceneView*>& ReusedViewsArray, 
 		FGlobalDynamicIndexBuffer& DynamicIndexBuffer, FGlobalDynamicVertexBuffer& DynamicVertexBuffer, FGlobalDynamicReadBuffer& DynamicReadBuffer);
 
-	void SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer, FUniformBufferRHIParamRef PassUniformBuffer);
+	void SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& Renderer, FRHIUniformBuffer* PassUniformBuffer);
 
 	void SetupMeshDrawCommandsForProjectionStenciling(FSceneRenderer& Renderer);
 
@@ -708,7 +708,7 @@ public:
 		return true;
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FUniformBufferRHIParamRef ViewUniformBuffer)
+	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, GetVertexShader(), ViewUniformBuffer);
 	}
@@ -825,7 +825,7 @@ public:
 				FVector4(ShadowBufferSizeValue.X, ShadowBufferSizeValue.Y, 1.0f / ShadowBufferSizeValue.X, 1.0f / ShadowBufferSizeValue.Y));
 		}
 
-		FTextureRHIParamRef ShadowDepthTextureValue;
+		FRHITexture* ShadowDepthTextureValue;
 
 		// Translucency shadow projection has no depth target
 		if (ShadowInfo->RenderTargets.DepthTarget)
@@ -1173,7 +1173,7 @@ public:
 	template<typename ShaderRHIParamRef>
 	void Set(FRHICommandList& RHICmdList, const ShaderRHIParamRef ShaderRHI, const FProjectedShadowInfo* ShadowInfo) const
 	{
-		FTextureRHIParamRef ShadowDepthTextureValue = ShadowInfo 
+		FRHITexture* ShadowDepthTextureValue = ShadowInfo
 			? ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture->GetTextureCube()
 			: GBlackTextureDepthCube->TextureRHI.GetReference();
 		if (!ShadowDepthTextureValue)

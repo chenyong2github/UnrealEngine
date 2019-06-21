@@ -131,7 +131,7 @@ public:
 		return Data.NumTexCoords;
 	}
 
-	FUniformBufferRHIParamRef GetUniformBuffer() const
+	FRHIUniformBuffer* GetUniformBuffer() const
 	{
 		return UniformBuffer.GetReference();
 	}
@@ -175,7 +175,7 @@ public:
 		ERHIFeatureLevel::Type FeatureLevel,
 		const FVertexFactory* VertexFactory,
 		const FMeshBatchElement& BatchElement,
-		FUniformBufferRHIParamRef VertexFactoryUniformBuffer,
+		FRHIUniformBuffer* VertexFactoryUniformBuffer,
 		FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams
 		) const;

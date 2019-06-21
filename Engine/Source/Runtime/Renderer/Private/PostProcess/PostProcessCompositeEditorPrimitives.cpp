@@ -561,7 +561,7 @@ void FRCPassPostProcessCompositeEditorPrimitives::Process(FRenderingCompositePas
 
 			TUniformBufferRef<FOpaqueBasePassUniformParameters> OpaqueBasePassUniformBuffer;
 			TUniformBufferRef<FMobileBasePassUniformParameters> MobileBasePassUniformBuffer;
-			FUniformBufferRHIParamRef BasePassUniformBuffer = nullptr;
+			FRHIUniformBuffer* BasePassUniformBuffer = nullptr;
 
 			if (bDeferredBasePass)
 			{
@@ -600,7 +600,7 @@ void FRCPassPostProcessCompositeEditorPrimitives::Process(FRenderingCompositePas
 
 		GVisualizeTexture.SetCheckPoint(Context.RHICmdList, SceneContext.EditorPrimitivesColor);
 
-		FTextureRHIParamRef EditorRenderTargets[2];
+		FRHITexture* EditorRenderTargets[2];
 		EditorRenderTargets[0] = EditorColorTarget;
 		EditorRenderTargets[1] = EditorDepthTarget;
 

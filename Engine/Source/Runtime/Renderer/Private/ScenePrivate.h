@@ -2689,7 +2689,7 @@ public:
 	virtual void AddSpeedTreeWind(FVertexFactory* VertexFactory, const UStaticMesh* StaticMesh) override;
 	virtual void RemoveSpeedTreeWind_RenderThread(FVertexFactory* VertexFactory, const UStaticMesh* StaticMesh) override;
 	virtual void UpdateSpeedTreeWind(double CurrentTime) override;
-	virtual FUniformBufferRHIParamRef GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const override;
+	virtual FRHIUniformBuffer* GetSpeedTreeUniformBuffer(const FVertexFactory* VertexFactory) const override;
 	virtual void DumpUnbuiltLightInteractions( FOutputDevice& Ar ) const override;
 	virtual void UpdateParameterCollections(const TArray<FMaterialParameterCollectionInstanceResource*>& InParameterCollections) override;
 
@@ -2780,7 +2780,7 @@ public:
 	 **/
 	virtual void Export( FArchive& Ar ) const override;
 
-	FUniformBufferRHIParamRef GetParameterCollectionBuffer(const FGuid& InId) const
+	FRHIUniformBuffer* GetParameterCollectionBuffer(const FGuid& InId) const
 	{
 		const FUniformBufferRHIRef* ExistingUniformBuffer = ParameterCollections.Find(InId);
 
@@ -2789,7 +2789,7 @@ public:
 			return *ExistingUniformBuffer;
 		}
 
-		return FUniformBufferRHIParamRef();
+		return nullptr;
 	}
 
 	virtual void ApplyWorldOffset(FVector InOffset) override;

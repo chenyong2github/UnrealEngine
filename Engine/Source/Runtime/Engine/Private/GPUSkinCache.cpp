@@ -883,7 +883,7 @@ void FGPUSkinCache::DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdL
 		//SetRenderTarget(RHICmdList, FTextureRHIRef(), FTextureRHIRef());
 
 		FRawStaticIndexBuffer16or32Interface* IndexBuffer = LodData.MultiSizeIndexContainer.GetIndexBuffer();
-		FIndexBufferRHIParamRef IndexBufferRHI = IndexBuffer->IndexBufferRHI;
+		FRHIIndexBuffer* IndexBufferRHI = IndexBuffer->IndexBufferRHI;
 
 		const uint32 RequiredVertexCount = LodData.GetNumVertices();
 

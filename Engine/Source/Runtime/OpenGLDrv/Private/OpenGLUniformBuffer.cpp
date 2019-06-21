@@ -720,7 +720,7 @@ void UpdateUniformBufferContents(FOpenGLUniformBuffer* UniformBuffer, const void
 	}
 }
 
-void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FUniformBufferRHIParamRef UniformBufferRHI, const void* Contents)
+void FOpenGLDynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	FOpenGLUniformBuffer* UniformBuffer = ResourceCast(UniformBufferRHI);
 

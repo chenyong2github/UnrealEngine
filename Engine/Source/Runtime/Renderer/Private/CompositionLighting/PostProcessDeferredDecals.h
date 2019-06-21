@@ -60,7 +60,7 @@ struct FDecalRenderTargetManager
 	//
 	bool TargetsToTransitionWritable[ResolveBufferMax];
 	//
-	FTextureRHIParamRef TargetsToResolve[ResolveBufferMax];
+	FRHITexture* TargetsToResolve[ResolveBufferMax];
 	//
 	bool bGufferADirty;
 	bool bGufferBCDirty;
@@ -77,7 +77,7 @@ struct FDecalRenderTargetManager
 
 	void ResolveTargets();
 
-	void FlushMetaData(FTextureRHIParamRef* Textures, uint32 NumTextures);
+	void FlushMetaData(FRHITexture** Textures, uint32 NumTextures);
 
 	void SetRenderTargetMode(FDecalRenderingCommon::ERenderTargetMode CurrentRenderTargetMode, bool bHasNormal, bool bPerPixelDBufferMask);
 };
