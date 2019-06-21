@@ -2820,7 +2820,10 @@ void USkeletalMeshComponent::ProcessClothCollisionWithEnvironment()
 
 					if(SkelComp->ClothingSimulation)
 					{
-						SkelComp->ClothingSimulation->GetCollisions(NewCollisionData, false);
+						// append skeletal component collisions
+						FClothCollisionData SkelCollisionData;
+						SkelComp->ClothingSimulation->GetCollisions(SkelCollisionData, false);
+						NewCollisionData.Append(SkelCollisionData);
 					}
 				}
 			}
