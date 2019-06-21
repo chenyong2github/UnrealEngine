@@ -79,15 +79,15 @@ public:
  	static AActor* AddActor(ULevel* InLevel, UClass* Class);
 	class AGeometryCollectionActor* CreateNewGeometryActor(const FString& Name, const FTransform& Transform, bool AddMaterials /*= false*/);
 
- 	void OpenGenerateAssetDialog(FFractureContext InFractureContext);
- 	void OnGenerateAssetPathChoosen(const FString& InAssetPath, FFractureContext InFractureContext);
+ 	void OpenGenerateAssetDialog(TArray<AActor*>& Actors);
+ 	void OnGenerateAssetPathChosen(const FString& InAssetPath, TArray<AActor*> Actors);
 
 	static void GetFractureContexts(TArray<FFractureContext>& FractureContexts);
 	void ExecuteFracture(FFractureContext& FractureContext);
 
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
 
-	AGeometryCollectionActor* ConvertStaticMeshToGeometryCollection(const FString& InAssetPath, FFractureContext& FractureContext);
+	AGeometryCollectionActor* ConvertStaticMeshToGeometryCollection(const FString& InAssetPath, TArray<AActor*>& Actors);
 
 	static void AddSingleRootNodeIfRequired(UGeometryCollection* GeometryCollectionObject);
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
