@@ -13,6 +13,7 @@
 #include "SequencerEdMode.h"
 #include "SequencerObjectChangeListener.h"
 #include "IDetailKeyframeHandler.h"
+#include "Tree/CurveEditorTreeFilter.h"
 #include "AnimatedPropertyKey.h"
 
 #define LOCTEXT_NAMESPACE "SequencerEditor"
@@ -20,6 +21,12 @@
 // Destructor defined in CPP to avoid having to #include SequencerChannelInterface.h in the main module definition
 ISequencerModule::~ISequencerModule()
 {
+}
+
+ECurveEditorTreeFilterType ISequencerModule::GetSequencerSelectionFilterType()
+{
+	static ECurveEditorTreeFilterType FilterType = FCurveEditorTreeFilter::RegisterFilterType();
+	return FilterType;
 }
 
 /**

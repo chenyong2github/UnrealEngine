@@ -25,6 +25,7 @@
 #include "SSequencerSectionAreaView.h"
 #include "CommonMovieSceneTools.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "CurveEditor.h"
 #include "Tree/SCurveEditorTreePin.h"
 #include "Tree/CurveEditorTreeFilter.h"
 #include "ScopedTransaction.h"
@@ -95,6 +96,46 @@ namespace SequencerNodeConstants
 		// When either or neither node has a persistent sort order, we use the default ordering between the two nodes to ensure that 
 		// New nodes get added to the correctly sorted position by default
 		return SortChildrenWithBias(A, B, SequencerNodeConstants::DefaultSortBias);
+	}
+
+	static bool NodeMatchesTextFilterTerm(TSharedPtr<const FSequencerDisplayNode> Node, const FCurveEditorTreeTextFilterTerm& Term)
+	{
+		bool bMatched = false;
+
+		for (const FCurveEditorTreeTextFilterToken& Token : Term.ChildToParentTokens)
+		{
+			if (!Node)
+			{
+				// No match - ran out of parents
+				return false;
+			}
+			else if (!Token.Match(*Node->GetDisplayName().ToString()))
+			{
+				return false;
+			}
+
+			bMatched = true;
+			Node = Node->GetParent();
+		}
+
+		return bMatched;
+	}
+
+	FText GetCurveEditorHighlightText(TWeakPtr<FCurveEditor> InCurveEditor)
+	{
+		TSharedPtr<FCurveEditor> PinnedCurveEditor = InCurveEditor.Pin();
+		if (!PinnedCurveEditor)
+		{
+			return FText::GetEmpty();
+		}
+
+		const FCurveEditorTreeFilter* Filter = PinnedCurveEditor->GetTree()->FindFilterByType(ECurveEditorTreeFilterType::Text);
+		if (Filter)
+		{
+			return static_cast<const FCurveEditorTreeTextFilter*>(Filter)->InputText;
+		}
+
+		return FText::GetEmpty();
 	}
 }
 
@@ -1074,7 +1115,7 @@ bool FSequencerDisplayNode::HandleContextMenuRenameNodeCanExecute() const
 }
 
 
-TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID)
+TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& TableRow)
 {
 	if (InColumnName == ColumnNames.Label)
 	{
@@ -1112,15 +1153,17 @@ TSharedPtr<SWidget> FSequencerDisplayNode::GenerateCurveEditorTreeWidget(const F
 
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
+			.Padding(FMargin(0.f, 4.f, 0.f, 4.f))
 			[
 				SNew(STextBlock)
 				.Text(this, &FSequencerDisplayNode::GetDisplayName)
+				.HighlightText_Static(SequencerNodeConstants::GetCurveEditorHighlightText, InCurveEditor)
 				.ToolTipText(this, &FSequencerDisplayNode::GetDisplayNameToolTipText)
 			];
 	}
 	else if (InColumnName == ColumnNames.PinHeader)
 	{
-		return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID);
+		return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID, TableRow);
 	}
 
 	return nullptr;
@@ -1135,7 +1178,21 @@ bool FSequencerDisplayNode::PassesFilter(const FCurveEditorTreeFilter* InFilter)
 	if (InFilter->GetType() == ECurveEditorTreeFilterType::Text)
 	{
 		const FCurveEditorTreeTextFilter* Filter = static_cast<const FCurveEditorTreeTextFilter*>(InFilter);
-		return Filter->Match(*GetDisplayName().ToString());
+
+		TSharedRef<const FSequencerDisplayNode> This = AsShared();
+		for (const FCurveEditorTreeTextFilterTerm& Term : Filter->GetTerms())
+		{
+			if (SequencerNodeConstants::NodeMatchesTextFilterTerm(This, Term))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	else if (InFilter->GetType() == ISequencerModule::GetSequencerSelectionFilterType())
+	{
+		return GetSequencer().GetSelection().GetSelectedOutlinerNodes().Contains(ConstCastSharedRef<FSequencerDisplayNode>(AsShared()));
 	}
 	return false;
 }
