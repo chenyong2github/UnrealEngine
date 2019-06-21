@@ -1929,18 +1929,18 @@ void UObject::TagSubobjects(EObjectFlags NewFlags)
 
 void UObject::ReloadConfig( UClass* ConfigClass/*=NULL*/, const TCHAR* InFilename/*=NULL*/, uint32 PropagationFlags/*=LCPF_None*/, UProperty* PropertyToLoad/*=NULL*/ )
 {
-		if (!GIsEditor)
-		{
-			LoadConfig(ConfigClass, InFilename, PropagationFlags | UE4::LCPF_ReloadingConfigData | UE4::LCPF_ReadParentSections, PropertyToLoad);
-		}
+	if (!GIsEditor)
+	{
+		LoadConfig(ConfigClass, InFilename, PropagationFlags | UE4::LCPF_ReloadingConfigData | UE4::LCPF_ReadParentSections, PropertyToLoad);
+	}
 #if WITH_EDITOR
-		else
-		{
-			// When in the editor, raise change events so that the UI will update correctly when object configs are reloaded.
-			PreEditChange(NULL);
-			LoadConfig(ConfigClass, InFilename, PropagationFlags | UE4::LCPF_ReloadingConfigData | UE4::LCPF_ReadParentSections, PropertyToLoad);
-			PostEditChange();
-		}
+	else
+	{
+		// When in the editor, raise change events so that the UI will update correctly when object configs are reloaded.
+		PreEditChange(NULL);
+		LoadConfig(ConfigClass, InFilename, PropagationFlags | UE4::LCPF_ReloadingConfigData | UE4::LCPF_ReadParentSections, PropertyToLoad);
+		PostEditChange();
+	}
 #endif // WITH_EDITOR
 }
 
