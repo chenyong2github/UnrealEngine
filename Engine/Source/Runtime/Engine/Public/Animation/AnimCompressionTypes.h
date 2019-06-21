@@ -699,6 +699,9 @@ public:
 	{
 		return CompressedTrackToSkeletonMapTable[TrackIndex].BoneTreeIndex;
 	}
+
+	// Return the number of bytes used
+	SIZE_T GetMemorySize() const;
 };
 
 struct FRootMotionReset

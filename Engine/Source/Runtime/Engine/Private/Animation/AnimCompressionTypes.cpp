@@ -619,6 +619,15 @@ void FCompressedAnimSequence::SerializeCompressedData(FArchive& Ar, bool bDDCDat
 #endif
 }
 
+SIZE_T FCompressedAnimSequence::GetMemorySize() const
+{
+	return	  CompressedTrackToSkeletonMapTable.GetAllocatedSize()
+			+ CompressedCurveNames.GetAllocatedSize()
+			+ CompressedCurveByteStream.GetAllocatedSize()
+			+ CompressedDataStructure.GetApproxBoneCompressedSize()
+			+ sizeof(FCompressedAnimSequence);
+}
+
 struct FGetBonePoseScratchArea : public TThreadSingleton<FGetBonePoseScratchArea>
 {
 	BoneTrackArray RotationScalePairs;
