@@ -68,7 +68,14 @@ namespace StructSerializerTest
 		// test booleans
 		Test.TestEqual<bool>(TEXT("Booleans.BoolFalse must be the same before and after de-/serialization"), TestStruct.Booleans.BoolFalse, TestStruct2.Booleans.BoolFalse);
 		Test.TestEqual<bool>(TEXT("Booleans.BoolTrue must be the same before and after de-/serialization"), TestStruct.Booleans.BoolTrue, TestStruct2.Booleans.BoolTrue);
-		Test.TestEqual<uint32>(TEXT("Booleans.Bitfield must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield, TestStruct2.Booleans.Bitfield);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield0 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield0, TestStruct2.Booleans.Bitfield0);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield1 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield1, TestStruct2.Booleans.Bitfield1);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield2Set must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield2Set, TestStruct2.Booleans.Bitfield2Set);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield3 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield3, TestStruct2.Booleans.Bitfield3);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield4Set must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield4Set, TestStruct2.Booleans.Bitfield4Set);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield5Set must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield5Set, TestStruct2.Booleans.Bitfield5Set);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield6 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield6, TestStruct2.Booleans.Bitfield6);
+		Test.TestEqual<bool>(TEXT("Booleans.Bitfield7 must be the same before and after de-/serialization"), TestStruct.Booleans.Bitfield7Set, TestStruct2.Booleans.Bitfield7Set);
 
 		// test objects
 		Test.TestEqual<class UClass*>(TEXT("Objects.Class must be the same before and after de-/serialization"), TestStruct.Objects.Class, TestStruct2.Objects.Class);
