@@ -929,16 +929,19 @@ namespace Audio
 			}
 
 			// Send the source audio to the reverb plugin if enabled
+			bool bPluginBypassedMasterReverb = false;
 			if (UseReverbPlugin())
 			{
 				if (MixerDevice->GetMasterReverbPluginSubmix().IsValid())
 				{
 					MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbPluginSubmix(), ReverbSendLevel);
 				}
+
+				bPluginBypassedMasterReverb = AudioDevice->IsReverbPluginBypassingMasterReverb();
 			}
 
 			// Send the source audio to the master reverb
-			if (!AudioDevice->IsReverbPluginBypassingMasterReverb() && MixerDevice->GetMasterReverbSubmix().IsValid())
+			if (!bPluginBypassedMasterReverb && MixerDevice->GetMasterReverbSubmix().IsValid())
 			{
 				MixerSourceVoice->SetSubmixSendInfo(MixerDevice->GetMasterReverbSubmix(), ReverbSendLevel);
 			}
