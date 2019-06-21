@@ -724,28 +724,31 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					for (FRayTracingInstance& Instance : RayTracingInstances)
 					{
 						FRayTracingGeometryInstance RayTracingInstance = { Instance.Geometry->RayTracingGeometryRHI };
-						RayTracingInstance.Transform = Instance.InstanceTransforms[0];
-						ensureMsgf(Instance.InstanceTransforms.Num() == 1, TEXT("Multi-instancing hasn't been supported"));
 						RayTracingInstance.UserData = (uint32)PrimitiveIndex;
 						RayTracingInstance.Mask = Instance.Mask;
 						RayTracingInstance.bForceOpaque = Instance.bForceOpaque;
 
 						check(Instance.Materials.Num() == Instance.Geometry->Initializer.Segments.Num() || (Instance.Geometry->Initializer.Segments.Num() == 0 && Instance.Materials.Num() == 1));
 
-						uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
-
-						for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
+						for (const FMatrix& InstanceTransform : Instance.InstanceTransforms)
 						{
-							Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
-						}
+							RayTracingInstance.Transform = InstanceTransform;
 
-						for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
-						{
-							FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
-							FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
-							FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView);
+							uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
 
-							RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
+							for (int32 ViewIndex = 1; ViewIndex < Views.Num(); ViewIndex++)
+							{
+								Views[ViewIndex].RayTracingGeometryInstances.Add(RayTracingInstance);
+							}
+
+							for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
+							{
+								FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
+								FDynamicRayTracingMeshCommandContext CommandContext(ReferenceView.DynamicRayTracingMeshCommandStorage, ReferenceView.VisibleRayTracingMeshCommands, SegmentIndex, InstanceIndex);
+								FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, &ReferenceView);
+
+								RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
+							}
 						}
 					}
 				}
