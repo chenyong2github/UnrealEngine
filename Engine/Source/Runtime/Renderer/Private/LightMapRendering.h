@@ -178,7 +178,7 @@ class FSelfShadowedTranslucencyPolicy
 {
 public:
 
-	typedef const FUniformBufferRHIParamRef ElementDataType;
+	typedef FRHIUniformBuffer* ElementDataType;
 
 	class VertexParametersType
 	{
@@ -972,7 +972,7 @@ public:
 struct FSelfShadowLightCacheElementData
 {
 	const FLightCacheInterface* LCI;
-	FUniformBufferRHIParamRef SelfShadowTranslucencyUniformBuffer;
+	FRHIUniformBuffer* SelfShadowTranslucencyUniformBuffer;
 };
 
 /**

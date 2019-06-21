@@ -98,7 +98,7 @@ void FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(
 	ERHIFeatureLevel::Type FeatureLevel,
 	const FVertexFactory* VertexFactory, 
 	const FMeshBatchElement& BatchElement,
-	FUniformBufferRHIParamRef VertexFactoryUniformBuffer,
+	FRHIUniformBuffer* VertexFactoryUniformBuffer,
 	FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams
 	) const
@@ -131,7 +131,7 @@ void FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(
 	if (bAnySpeedTreeParamIsBound)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FLocalVertexFactoryShaderParameters_SetMesh_SpeedTree);
-		FUniformBufferRHIParamRef SpeedTreeUniformBuffer = Scene? Scene->GetSpeedTreeUniformBuffer(VertexFactory) : nullptr;
+		FRHIUniformBuffer* SpeedTreeUniformBuffer = Scene? Scene->GetSpeedTreeUniformBuffer(VertexFactory) : nullptr;
 		if (SpeedTreeUniformBuffer == nullptr)
 		{
 			SpeedTreeUniformBuffer = GSpeedTreeWindNullUniformBuffer.GetUniformBufferRHI();
@@ -161,7 +161,7 @@ void FLocalVertexFactoryShaderParameters::GetElementShaderBindings(
 ) const
 {
 	// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
-	FUniformBufferRHIParamRef VertexFactoryUniformBuffer = static_cast<FUniformBufferRHIParamRef>(BatchElement.VertexFactoryUserData);
+	FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
 
 	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(
 		Scene,

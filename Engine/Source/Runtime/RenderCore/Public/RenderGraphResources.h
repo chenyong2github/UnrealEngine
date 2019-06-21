@@ -204,9 +204,9 @@ public:
 	}
 
 	/** Returns the allocated RHI texture. */
-	FTextureRHIParamRef GetRHI() const
+	FRHITexture* GetRHI() const
 	{
-		return static_cast<FTextureRHIParamRef>(FRDGResource::GetRHI());
+		return static_cast<FRHITexture*>(FRDGResource::GetRHI());
 	}
 
 	//////////////////////////////////////////////////////////////////////////
@@ -221,9 +221,9 @@ private:
 	{}
 
 	/** Returns the allocated RHI texture without access checks. */
-	FTextureRHIParamRef GetRHIUnchecked() const
+	FRHITexture* GetRHIUnchecked() const
 	{
-		return static_cast<FTextureRHIParamRef>(FRDGResource::GetRHIUnchecked());
+		return static_cast<FRHITexture*>(FRDGResource::GetRHIUnchecked());
 	}
 
 	/** This is not a TRefCountPtr<> because FRDGTexture is allocated on the FMemStack
@@ -585,7 +585,7 @@ public:
 	//! The following methods may only be called during pass execution.
 
 	/** Returns the buffer to use for indirect RHI calls. */
-	FVertexBufferRHIParamRef GetIndirectRHICallBuffer() const
+	FRHIVertexBuffer* GetIndirectRHICallBuffer() const
 	{
 		ValidateRHIAccess();
 		check(PooledBuffer);

@@ -145,7 +145,7 @@ public:
 	inline void SetBuffer(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FRWBufferStructured& RWBuffer) const;
 
 	template<typename TShaderRHIRef, typename TRHICmdList>
-	inline void SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, const FTextureRHIParamRef Texture, FRHIUnorderedAccessView* UAV) const;
+	inline void SetTexture(TRHICmdList& RHICmdList, TShaderRHIRef Shader, FRHITexture* Texture, FRHIUnorderedAccessView* UAV) const;
 
 	template<typename TRHICmdList>
 	inline void UnsetUAV(TRHICmdList& RHICmdList, FRHIComputeShader* ComputeShader) const;
@@ -240,7 +240,7 @@ public:
 #if RHI_RAYTRACING
 struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 {
-	void Set(const FShaderResourceParameter& Param, FTextureRHIParamRef Value)
+	void Set(const FShaderResourceParameter& Param, FRHITexture* Value)
 	{
 		if (Param.IsBound())
 		{
@@ -258,7 +258,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		}
 	}
 
-	void Set(const FShaderUniformBufferParameter& Param, FUniformBufferRHIParamRef Value)
+	void Set(const FShaderUniformBufferParameter& Param, FRHIUniformBuffer* Value)
 	{
 		if (Param.IsBound())
 		{
@@ -284,7 +284,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		}
 	}
 
-	void SetTexture(uint16 BaseIndex, FTextureRHIParamRef Value)
+	void SetTexture(uint16 BaseIndex, FRHITexture* Value)
 	{
 		checkSlow(BaseIndex < ARRAY_COUNT(Textures));
 		Textures[BaseIndex] = Value;
@@ -308,7 +308,7 @@ struct FRayTracingShaderBindingsWriter : FRayTracingShaderBindings
 		UAVs[BaseIndex] = Value;
 	}
 
-	void SetUniformBuffer(uint16 BaseIndex, FUniformBufferRHIParamRef Value)
+	void SetUniformBuffer(uint16 BaseIndex, FRHIUniformBuffer* Value)
 	{
 		checkSlow(BaseIndex < ARRAY_COUNT(UniformBuffers));
 		UniformBuffers[BaseIndex] = Value;

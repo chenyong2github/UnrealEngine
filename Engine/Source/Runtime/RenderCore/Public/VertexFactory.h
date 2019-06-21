@@ -26,7 +26,7 @@ struct FVertexInputStream
 {
 	uint32 StreamIndex : 4;
 	uint32 Offset : 28;
-	FVertexBufferRHIParamRef VertexBuffer;
+	FRHIVertexBuffer* VertexBuffer;
 
 	FVertexInputStream() :
 		StreamIndex(0),
@@ -34,7 +34,7 @@ struct FVertexInputStream
 		VertexBuffer(nullptr)
 	{}
 
-	FVertexInputStream(uint32 InStreamIndex, uint32 InOffset, FVertexBufferRHIParamRef InVertexBuffer)
+	FVertexInputStream(uint32 InStreamIndex, uint32 InOffset, FRHIVertexBuffer* InVertexBuffer)
 		: StreamIndex(InStreamIndex), Offset(InOffset), VertexBuffer(InVertexBuffer)
 	{
 		// Verify no overflow

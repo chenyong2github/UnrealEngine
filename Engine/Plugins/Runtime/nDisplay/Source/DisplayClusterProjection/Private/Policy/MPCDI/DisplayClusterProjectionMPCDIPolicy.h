@@ -37,7 +37,7 @@ public:
 	virtual bool GetProjectionMatrix(const uint32 ViewIdx, FMatrix& OutPrjMatrix) override;
 
 	virtual bool IsWarpBlendSupported() override;
-	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewportRect) override;
+	virtual void ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect) override;
 
 protected:
 	bool ReadConfigData(const FString& ViewportId, FString& OutFile, FString& OutBuffer, FString& OutRegion, FString& OutOrigin);

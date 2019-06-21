@@ -19,7 +19,7 @@ static FAutoConsoleVariableRef CVarPostprocessViewBeforeWarpBlend(
 	TEXT("Enable PP per view before warp&blend (0 = disabled)\n")
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewRect) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarPostprocessFrameBeforeWarpBlend(
 	TEXT("Enable PP per eye frame before warp&blend (0 = disabled)\n")
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewRect) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
@@ -95,7 +95,7 @@ static FAutoConsoleVariableRef CVarPostprocessTargetBeforeWarpBlend(
 	TEXT("Enable PP for the whole render target before warp&blend (0 = disabled)\n")
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
@@ -133,7 +133,7 @@ static FAutoConsoleVariableRef CVarPostprocessViewAfterWarpBlend(
 	TEXT("Enable PP per view after warp&blend (0 = disabled)\n")
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& FrameRect) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
@@ -171,7 +171,7 @@ static FAutoConsoleVariableRef CVarPostprocessFrameAfterWarpBlend(
 	TEXT("Enable PP per eye frame after warp&blend (0 = disabled)\n")
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& FrameRect) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
@@ -209,7 +209,7 @@ static FAutoConsoleVariableRef CVarPostprocessTargetAfterWarpBlend(
 	TEXT("Enable PP for the whole render target after warp&blend (0 = disabled)\n")
 );
 
-void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture) const
+void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 

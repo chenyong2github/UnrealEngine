@@ -154,9 +154,9 @@ public:
 	virtual void PreRender(FRHICommandListImmediate& RHICmdList, const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData) override;
 	virtual void PostRenderOpaque(
 		FRHICommandListImmediate& RHICmdList, 
-		const FUniformBufferRHIParamRef ViewUniformBuffer, 
+		FRHIUniformBuffer* ViewUniformBuffer,
 		const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer) override;
+		FRHIUniformBuffer* SceneTexturesUniformBuffer) override;
 	// End FFXSystemInterface.
 
 	/*--------------------------------------------------------------------------
@@ -255,10 +255,10 @@ private:
 	void SimulateGPUParticles(
 		FRHICommandListImmediate& RHICmdList,
 		EParticleSimulatePhase::Type Phase,
-		const FUniformBufferRHIParamRef ViewUniformBuffer,
+		FRHIUniformBuffer* ViewUniformBuffer,
 		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData,
 		const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-		FUniformBufferRHIParamRef SceneTexturesUniformBuffer
+		FRHIUniformBuffer* SceneTexturesUniformBuffer
 		);
 
 	/**
@@ -273,10 +273,10 @@ private:
 	void SimulateGPUParticles_Internal(
 		FRHICommandListImmediate& RHICmdList,
 		EParticleSimulatePhase::Type Phase,
-		const FUniformBufferRHIParamRef ViewUniformBuffer,
+		FRHIUniformBuffer* ViewUniformBuffer,
 		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData,
-		FTexture2DRHIParamRef SceneDepthTexture,
-		FTexture2DRHIParamRef GBufferATexture
+		FRHITexture2D* SceneDepthTexture,
+		FRHITexture2D* GBufferATexture
 	);
 
 	/*-------------------------------------------------------------------------

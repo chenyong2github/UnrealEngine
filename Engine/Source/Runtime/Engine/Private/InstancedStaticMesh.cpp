@@ -2899,7 +2899,7 @@ void FInstancedStaticMeshVertexFactoryShaderParameters::GetElementShaderBindings
 	) const
 {
 	// Decode VertexFactoryUserData as VertexFactoryUniformBuffer
-	FUniformBufferRHIParamRef VertexFactoryUniformBuffer = static_cast<FUniformBufferRHIParamRef>(BatchElement.VertexFactoryUserData);
+	FRHIUniformBuffer* VertexFactoryUniformBuffer = static_cast<FRHIUniformBuffer*>(BatchElement.VertexFactoryUserData);
 	FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
 
 	const FInstancingUserData* InstancingUserData = (const FInstancingUserData*)BatchElement.UserData;

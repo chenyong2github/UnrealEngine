@@ -121,7 +121,7 @@ public:
 		
 		for ( int i = 0; i < 7; i++ )
 		{
-			FTextureRHIParamRef LpvBufferSrv = LPV->LpvVolumeTextures[ 1-LPV->mWriteBufferIndex ][i]->GetRenderTargetItem().ShaderResourceTexture;
+			FRHITexture* LpvBufferSrv = LPV->LpvVolumeTextures[ 1-LPV->mWriteBufferIndex ][i]->GetRenderTargetItem().ShaderResourceTexture;
 			if ( LpvBufferSRVParameters[i].IsBound() )
 			{
 				RHICmdList.SetShaderTexture(ShaderRHI, LpvBufferSRVParameters[i].GetBaseIndex(), LpvBufferSrv);
@@ -131,7 +131,7 @@ public:
 		
 		for ( int i = 0; i < NUM_GV_TEXTURES; i++ ) 
 		{
-			FTextureRHIParamRef GvBufferSrv = LPV->GvVolumeTextures[i]->GetRenderTargetItem().ShaderResourceTexture;
+			FRHITexture* GvBufferSrv = LPV->GvVolumeTextures[i]->GetRenderTargetItem().ShaderResourceTexture;
 			if ( GvBufferSRVParameters[i].IsBound() )
 			{
 				RHICmdList.SetShaderTexture(ShaderRHI, GvBufferSRVParameters[i].GetBaseIndex(), GvBufferSrv);
@@ -174,7 +174,7 @@ public:
 		{
 			if ( LpvBufferSRVParameters[i].IsBound() )
 			{
-				RHICmdList.SetShaderTexture(ShaderRHI, LpvBufferSRVParameters[i].GetBaseIndex(), FTextureRHIParamRef());
+				RHICmdList.SetShaderTexture(ShaderRHI, LpvBufferSRVParameters[i].GetBaseIndex(), nullptr);
 			}
 		}
 		
@@ -182,7 +182,7 @@ public:
 		{
 			if ( GvBufferSRVParameters[i].IsBound() )
 			{
-				RHICmdList.SetShaderTexture(ShaderRHI, GvBufferSRVParameters[i].GetBaseIndex(), FTextureRHIParamRef());
+				RHICmdList.SetShaderTexture(ShaderRHI, GvBufferSRVParameters[i].GetBaseIndex(), nullptr);
 			}
 		}
 	}

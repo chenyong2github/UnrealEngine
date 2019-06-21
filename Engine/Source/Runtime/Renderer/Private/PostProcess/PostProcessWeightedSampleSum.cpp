@@ -137,7 +137,7 @@ public:
 
 	/** Sets shader parameter values */
 	void SetParameters(
-		FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI,
+		FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* FilterTextureRHI, FRHITexture* AdditiveTextureRHI,
 		const FLinearColor* SampleWeightValues, const FVector2D* SampleOffsetValues, uint32 NumSamples, const FVector4& FilteredBufferUVMinMaxValue, const FVector4& AdditiveBufferUVMinMaxValue )
 	{
 		check(CompileTimeNumSamples == 0 && NumSamples > 0 && NumSamples <= MAX_FILTER_SAMPLES || CompileTimeNumSamples == NumSamples);
@@ -400,7 +400,7 @@ public:
 
 	template <typename TRHICmdList>
 	void SetParameters(TRHICmdList& RHICmdList, const FRenderingCompositePassContext& Context, const FIntPoint& DestSize, FRHIUnorderedAccessView* DestUAV,
-		FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
+		FRHITexture* FilterTextureRHI, FRHITexture* AdditiveTextureRHI, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
 	{
 		FRHIComputeShader* ShaderRHI = GetComputeShader();
 		const FPostProcessSettings& Settings = Context.View.FinalPostProcessSettings;
@@ -502,8 +502,8 @@ void SetFilterShaders(
 	FRHICommandListImmediate& RHICmdList,
 	ERHIFeatureLevel::Type FeatureLevel,
 	FRHISamplerState* SamplerStateRHI,
-	FTextureRHIParamRef FilterTextureRHI,
-	FTextureRHIParamRef AdditiveTextureRHI,
+	FRHITexture* FilterTextureRHI,
+	FRHITexture* AdditiveTextureRHI,
 	uint32 CombineMethodInt,
 	FVector2D* SampleOffsets,
 	FLinearColor* SampleWeights,
@@ -1083,7 +1083,7 @@ void FRCPassPostProcessWeightedSampleSum::Process(FRenderingCompositePassContext
 
 template <uint32 CompileTimeNumSamples, uint32 CombineMethodInt, typename TRHICmdList>
 void DispatchCSTemplate(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV,
-	FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
+	FRHITexture* FilterTextureRHI, FRHITexture* AdditiveTextureRHI, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
 {
 	auto ShaderMap = Context.GetShaderMap();
 	TShaderMapRef<TFilterCS<CompileTimeNumSamples, CombineMethodInt, false>> ComputeShader(ShaderMap);
@@ -1103,7 +1103,7 @@ void DispatchCSTemplate(TRHICmdList& RHICmdList, FRenderingCompositePassContext&
 
 template <typename TRHICmdList>
 void FRCPassPostProcessWeightedSampleSum::DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, const FIntRect& DestRect, FRHIUnorderedAccessView* DestUAV,
-	FTextureRHIParamRef FilterTextureRHI, FTextureRHIParamRef AdditiveTextureRHI, uint32 CombineMethodInt, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
+	FRHITexture* FilterTextureRHI, FRHITexture* AdditiveTextureRHI, uint32 CombineMethodInt, FLinearColor* SampleWeightValues, FVector2D* SampleOffsetValues, uint32 NumSamples)
 {
 	// Helper macros
 #define DISPATCH_SHADER(_NumCompileSamples, _Method)												\

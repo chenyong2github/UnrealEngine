@@ -489,7 +489,7 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 	// release the FTexture RHI resources here as well
 	ReleaseRHI();
 
-	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI,FTextureRHIParamRef());
+	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 	Texture2DRHI.SafeRelease();
 	RenderTargetTextureRHI.SafeRelease();	
 

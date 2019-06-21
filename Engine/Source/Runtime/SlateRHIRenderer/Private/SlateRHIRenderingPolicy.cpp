@@ -907,7 +907,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 #endif
 
 				FRHISamplerState* SamplerState = BilinearClamp;
-				FTextureRHIParamRef TextureRHI = GWhiteTexture->TextureRHI;
+				FRHITexture* TextureRHI = GWhiteTexture->TextureRHI;
 				if (ShaderResource)
 				{
 					ETextureSamplerFilter Filter = ETextureSamplerFilter::Bilinear;
@@ -926,9 +926,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 					}
 					else
 					{
-						FTextureRHIParamRef NativeTextureRHI = ((TSlateTexture<FTexture2DRHIRef>*)ShaderResource)->GetTypedResource();
+						FRHITexture* NativeTextureRHI = ((TSlateTexture<FTexture2DRHIRef>*)ShaderResource)->GetTypedResource();
 						// Atlas textures that have no content are never initialized but null textures are invalid on many platforms.
-						TextureRHI = NativeTextureRHI ? NativeTextureRHI : (FTextureRHIParamRef)GWhiteTexture->TextureRHI;
+						TextureRHI = NativeTextureRHI ? NativeTextureRHI : (FRHITexture*)GWhiteTexture->TextureRHI;
 					}
 
 					if (EnumHasAllFlags(DrawFlags, (ESlateBatchDrawFlag::TileU | ESlateBatchDrawFlag::TileV)))

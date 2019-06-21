@@ -72,7 +72,7 @@ public:
 		FrustumComponentToClip.Bind(Initializer.ParameterMap, TEXT("FrustumComponentToClip"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FUniformBufferRHIParamRef ViewUniformBuffer, const FMatrix& InFrustumComponentToClip)
+	void SetParameters(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FMatrix& InFrustumComponentToClip)
 	{
 		FRHIVertexShader* ShaderRHI = GetVertexShader();
 

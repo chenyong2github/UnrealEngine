@@ -288,7 +288,7 @@ void UpdateUniformBufferContents(FD3D11Device* Direct3DDevice, FD3D11DeviceConte
 	}
 }
 
-void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FUniformBufferRHIParamRef UniformBufferRHI, const void* Contents)
+void FD3D11DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)
 {
 	check(IsInRenderingThread());
 	check(UniformBufferRHI);

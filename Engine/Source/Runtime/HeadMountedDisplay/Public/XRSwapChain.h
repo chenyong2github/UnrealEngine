@@ -11,7 +11,7 @@
 class HEADMOUNTEDDISPLAY_API FXRSwapChain : public TSharedFromThis<FXRSwapChain, ESPMode::ThreadSafe>
 {
 public:
-	FXRSwapChain(FTextureRHIParamRef InRHITexture, TArray<FTextureRHIRef>&& InRHITextureSwapChain);
+	FXRSwapChain(FRHITexture* InRHITexture, TArray<FTextureRHIRef>&& InRHITextureSwapChain);
 	virtual ~FXRSwapChain();
 
 	FRHITexture* GetTexture() const { return RHITexture.GetReference(); }

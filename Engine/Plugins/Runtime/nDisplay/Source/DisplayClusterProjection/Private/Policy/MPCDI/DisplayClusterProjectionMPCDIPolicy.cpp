@@ -156,7 +156,7 @@ bool FDisplayClusterProjectionMPCDIPolicy::IsWarpBlendSupported()
 	return true;
 }
 
-void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FTexture2DRHIParamRef SrcTexture, const FIntRect& ViewportRect)
+void FDisplayClusterProjectionMPCDIPolicy::ApplyWarpBlend_RenderThread(const uint32 ViewIdx, FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewportRect)
 {
 	check(IsInRenderingThread());
 
