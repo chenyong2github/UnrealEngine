@@ -3424,7 +3424,8 @@ int32 FAudioDevice::GetSortedActiveWaveInstances(TArray<FWaveInstance*>& WaveIns
 				if (ActiveSound->IsOneShot() && !ActiveSound->bIsPreviewSound)
 				{
 					// Don't stop a sound if it's playing effect chain tails or has effects playing, active sound will stop on its own in this case (in audio mixer).
-					if (!ActiveSound->Sound->SourceEffectChain || !ActiveSound->Sound->SourceEffectChain->bPlayEffectChainTails || ActiveSound->Sound->SourceEffectChain->Chain.Num() == 0)
+					USoundEffectSourcePresetChain* ActiveSourceEffectChain = ActiveSound->GetSourceEffectChain();
+					if (!ActiveSourceEffectChain || !ActiveSourceEffectChain->bPlayEffectChainTails || ActiveSourceEffectChain->Chain.Num() == 0)
 					{
 						const float Duration = ActiveSound->Sound->GetDuration();
 						if ((ActiveSound->Sound->HasDelayNode() || ActiveSound->Sound->HasConcatenatorNode()))
