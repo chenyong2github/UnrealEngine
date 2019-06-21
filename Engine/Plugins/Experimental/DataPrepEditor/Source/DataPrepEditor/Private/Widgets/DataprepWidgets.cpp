@@ -59,7 +59,7 @@ void SDataprepConsumerWidget::OnBrowseContentFolder()
 		if ( PickContentPathDlg->ShowModal() == EAppReturnType::Ok )
 		{
 			DataprepConsumer->SetTargetContentFolder( PickContentPathDlg->GetPath().ToString() );
-			PackageTextBox->SetText( FText::FromString( DataprepConsumer->GetTargetContentFolder() ) );
+			UpdateContentFolderText();
 		}
 	}
 }
@@ -73,7 +73,7 @@ void SDataprepConsumerWidget::SetDataprepConsumer(UDataprepContentConsumer* InDa
 
 	DataprepConsumer = InDataprepConsumer;
 
-	PackageTextBox->SetText( FText::FromString( DataprepConsumer->GetTargetContentFolder() ) );
+	UpdateContentFolderText();
 	LevelTextBox->SetText( FText::FromString( DataprepConsumer->GetLevelName() ) );
 }
 
@@ -118,7 +118,7 @@ void SDataprepConsumerWidget::Construct(const FArguments& InArgs)
 						.VAlign(VAlign_Center)
 						.FillWidth(1.0f)
 						[
-							SAssignNew(PackageTextBox, SEditableTextBox)
+							SAssignNew(ContentFolderTextBox, SEditableTextBox)
 							.Text( FText::FromString( DataprepConsumer->GetTargetContentFolder() ) )
 							.HintText( LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in") )
 							.IsReadOnly( true )
@@ -162,6 +162,20 @@ void SDataprepConsumerWidget::Construct(const FArguments& InArgs)
 			]
 		]
 	];
+}
+
+void SDataprepConsumerWidget::UpdateContentFolderText()
+{
+	if(UDataprepContentConsumer* Consumer = DataprepConsumer.Get())
+	{
+		FString TargetContentFolder( Consumer->GetTargetContentFolder() );
+		if( TargetContentFolder.StartsWith( TEXT( "/Game" ) ) )
+		{
+			TargetContentFolder = TargetContentFolder.Replace( TEXT( "/Game" ), TEXT( "/Content" ) );
+		}
+
+		ContentFolderTextBox->SetText( FText::FromString( TargetContentFolder + TEXT( "/" ) ) );
+	}
 }
 
 TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWidget >& NameWidget, TSharedPtr< SWidget >& ValueWidget, float LeftPadding, EHorizontalAlignment HAlign, EVerticalAlignment VAlign )

@@ -11,7 +11,7 @@ void FDataprepEditorCommands::RegisterCommands()
 	// end of temp code for nodes development
 
 	UI_COMMAND(SaveScene, "Save Datasmith Scene", "To be filled.", EUserInterfaceActionType::ToggleButton, FInputChord());
-	UI_COMMAND(ShowDataprepSettings, "Dataprep Settings", "Edit the data prep settings.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(ShowDataprepSettings, "Settings", "Edit the data prep settings.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ShowDatasmithSceneSettings, "Scene Settings", "Edit the scene settings.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(BuildWorld, "Import", "Load external data sources referenced by producers into the Dataprep Editor", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(ExecutePipeline, "Execute", "Execute the Dataprep graph on the imported data", EUserInterfaceActionType::ToggleButton, FInputChord());

@@ -50,7 +50,9 @@ bool UDataprepContentConsumer::SetTargetContentFolder(const FString& InTargetCon
 		return true;
 	}
 
-	if( FPackageName::IsValidLongPackageName( InTargetContentFolder ) )
+	// Pretend creating a dummy package to verify packages could be created under this content folder.
+	FString LongPackageName = InTargetContentFolder / TEXT("DummyPackageName");
+	if( FPackageName::IsValidLongPackageName( LongPackageName ) )
 	{
 		TargetContentFolder = InTargetContentFolder;
 		OnChanged.Broadcast();

@@ -16,7 +16,7 @@ uint32 FAssetTypeActions_DataprepAsset::GetCategories()
 
 FText FAssetTypeActions_DataprepAsset::GetName() const
 {
-	return NSLOCTEXT("AssetTypeActions_DataprepAsset", "AssetTypeActions_DataprepAsset_Name", "Dataprep Asset");
+	return NSLOCTEXT("AssetTypeActions_DataprepAsset", "AssetTypeActions_DataprepAsset_Name", "Dataprep");
 }
 
 UClass* FAssetTypeActions_DataprepAsset::GetSupportedClass() const
