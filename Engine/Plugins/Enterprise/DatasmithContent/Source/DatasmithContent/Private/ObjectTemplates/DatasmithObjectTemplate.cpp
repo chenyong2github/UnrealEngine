@@ -123,7 +123,7 @@ void FDatasmithObjectTemplateUtils::SetObjectTemplate(UObject* Outer, UDatasmith
 		{
 			// The outer chain is important for most of the engine functionality.
 			// If it's not set properly the deep copy of object won't work properly
-			ObjectTemplate->Rename(nullptr, UserData);
+			ObjectTemplate->Rename(nullptr, UserData, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 		}
 	}
 #endif // #if WITH_EDITORONLY_DATA
