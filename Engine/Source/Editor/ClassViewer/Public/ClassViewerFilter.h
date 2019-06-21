@@ -8,6 +8,8 @@
 class FClassViewerNode;
 class FClassViewerInitializationOptions;
 class FTextFilterExpressionEvaluator;
+class IAssetReferenceFilter;
+class IAssetRegistry;
 
 /** Interface class for creating filters for the Class Viewer. */
 class IClassViewerFilter
@@ -50,6 +52,8 @@ public:
 
 	TSharedRef<FTextFilterExpressionEvaluator> TextFilter;
 	TSharedRef<FClassViewerFilterFuncs> FilterFunctions;
+	TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter;
+	const IAssetRegistry& AssetRegistry;
 };
 
 namespace EFilterReturn
