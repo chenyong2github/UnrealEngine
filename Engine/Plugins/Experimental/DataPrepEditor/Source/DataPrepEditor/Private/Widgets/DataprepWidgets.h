@@ -28,10 +28,11 @@ public:
 private:
 	void OnLevelNameChanged( const FText& NewLevelName, ETextCommit::Type CommitType );
 	void OnBrowseContentFolder();
+	void UpdateContentFolderText();
 
 private:
-	UDataprepContentConsumer* DataprepConsumer;
-	TSharedPtr< SEditableTextBox > PackageTextBox;
+	TWeakObjectPtr<UDataprepContentConsumer> DataprepConsumer;
+	TSharedPtr< SEditableTextBox > ContentFolderTextBox;
 	TSharedPtr< SEditableTextBox > LevelTextBox;
 };
 
