@@ -444,6 +444,24 @@ static void OnVirtualTextureDestroyed(const FVirtualTextureProducerHandle& InHan
 	AddPrimitiveToUpdateGPU(*PrimitiveSceneInfo->Scene, PrimitiveSceneInfo->GetIndex());
 }
 
+static void GetRuntimeVirtualTextureLODRange(TArray<class FStaticMeshBatchRelevance> const& MeshRelevances, int8& OutMinLOD, int8& OutMaxLOD)
+{
+	OutMinLOD = MAX_int8;
+	OutMaxLOD = 0;
+
+	for (int32 MeshIndex = 0; MeshIndex < MeshRelevances.Num(); ++MeshIndex)
+	{
+		const FStaticMeshBatchRelevance& MeshRelevance = MeshRelevances[MeshIndex];
+		if (MeshRelevance.bRenderToVirtualTexture)
+		{
+			OutMinLOD = FMath::Min(OutMinLOD, MeshRelevance.LODIndex);
+			OutMaxLOD = FMath::Max(OutMaxLOD, MeshRelevance.LODIndex);
+		}
+	}
+
+	check(OutMinLOD <= OutMaxLOD);
+}
+
 int32 FPrimitiveSceneInfo::UpdateStaticLightingBuffer()
 {
 	checkSlow(IsInRenderingThread());
@@ -617,12 +635,22 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	// Store the component.
 	Scene->PrimitiveComponentIds[PackedIndex] = PrimitiveComponentId;
 
-	// Store the runtime virtual texture flags.
+	// Store the runtime virtual texture flags and lod info.
 	const bool bRenderToVirtualTexture = Proxy->WritesVirtualTexture();
 	Scene->PrimitiveVirtualTextureFlags[PackedIndex].bRenderToVirtualTexture = bRenderToVirtualTexture;
 	if (bRenderToVirtualTexture)
 	{
 		Scene->PrimitiveVirtualTextureFlags[PackedIndex].RuntimeVirtualTextureMask = Scene->GetRuntimeVirtualTextureMask(Proxy);
+
+		int8 MinLod, MaxLod;
+		GetRuntimeVirtualTextureLODRange(StaticMeshRelevances, MinLod, MaxLod);
+
+		FPrimitiveVirtualTextureLodInfo& LodInfo = Scene->PrimitiveVirtualTextureLod[PackedIndex];
+		LodInfo.MinLod = MinLod;
+		LodInfo.MaxLod = MaxLod;
+		LodInfo.LodBias = Proxy->GetVirtualTextureLodBias();
+		LodInfo.CullMethod = Proxy->GetVirtualTextureMinCoverage() == 0 ? 0 : 1;
+		LodInfo.CullValue = LodInfo.CullMethod == 0 ? Proxy->GetVirtualTextureCullMips() : Proxy->GetVirtualTextureMinCoverage();
 	}
 
 	{

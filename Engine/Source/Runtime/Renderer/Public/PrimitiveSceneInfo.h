@@ -182,6 +182,25 @@ struct FPrimitiveVirtualTextureFlags
 	uint8 RuntimeVirtualTextureMask : RuntimeVirtualTexture_BitCount;
 };
 
+/** Lod data used for runtime virtual texture page rendering. Packed to reduce memory overhead since one of these is allocated per primitive. */
+struct FPrimitiveVirtualTextureLodInfo
+{
+	/** Minimum Lod for primitive in the runtime virtual texture. */
+	uint16 MinLod : 4;
+	/** Maximum Lod for primitive in the runtime virtual texture. */
+	uint16 MaxLod : 4;
+	/** Bias to use for Lod calculation in the runtime virtual texture. */
+	uint16 LodBias : 3;
+	/** 
+	 * Culling method used to remove the primitive from low mips of the runtime virtual texture.
+	 * 0: CullValue is the number of low mips for which we cull the primitive from the runtime virtual texture.
+	 * 1: CullValue is the pixel coverage threshold at which we cull the primitive from the runtime virtual texture. 
+	 */
+	uint16 CullMethod : 1;
+	/** Value used according to the CullMethod. */
+	uint16 CullValue : 4;
+};
+
 /** The type of the octree used by FScene to find primitives. */
 typedef TOctree<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
 

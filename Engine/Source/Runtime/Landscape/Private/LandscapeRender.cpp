@@ -765,6 +765,10 @@ FLandscapeComponentSceneProxy::FLandscapeComponentSceneProxy(ULandscapeComponent
 	MinValidLOD = FMath::Clamp<int8>(LocalLODBias, -MaxLOD, MaxLOD);
 	MaxValidLOD = FMath::Min<int32>(MaxLOD, MaxLOD + LocalLODBias);
 
+	LastVirtualTextureLOD = MaxLOD;
+	FirstVirtualTextureLOD = FMath::Max(MaxLOD - InComponent->GetLandscapeProxy()->VirtualTextureNumLods, 0);
+	VirtualTextureLodBias = InComponent->GetLandscapeProxy()->VirtualTextureLodBias;
+
 	ComponentMaxExtend = SubsectionSizeQuads * FMath::Max(InComponent->GetComponentTransform().GetScale3D().X, InComponent->GetComponentTransform().GetScale3D().Y);
 
 	if (NumSubsections > 1)
@@ -1764,7 +1768,7 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 	}		
 
 	int32 TotalBatchCount = (1 + LastLOD - FirstLOD) * NumBatchesPerLOD * BatchCount;
-	TotalBatchCount += RuntimeVirtualTextureMaterialTypes.Num();
+	TotalBatchCount += (1 + LastVirtualTextureLOD - FirstVirtualTextureLOD) * RuntimeVirtualTextureMaterialTypes.Num();
 
 	StaticBatchParamArray.Empty(TotalBatchCount);
 	PDI->ReserveMemoryForMeshes(TotalBatchCount);
@@ -1838,20 +1842,16 @@ void FLandscapeComponentSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInter
 	// Add fixed grid mesh batches for runtime virtual texture usage
  	for (ERuntimeVirtualTextureMaterialType MaterialType : RuntimeVirtualTextureMaterialTypes)
  	{
- 		// Use lowest detail geometry Lod and highest detail material Lod
- 		//todo[vt]:
-		// Add user control for to allow use of different Lods.
-		// Specifically we would want to use a higher geometry Lod in the case where the landscape interpolator outputs need to be at a high resolution for correct virtual texture rendering.
-		// This happens if we read world height in the landscape shading (although we could read height directly from the height texture instead of taking it from the vertex interpolator).
-		// Also it would happen if we are relying on modified vertex positions (either from position offsets in material, or from using the XYOffsetmapTexture).
- 		const int32 LODIndex = LastLOD;
- 		const int32 MaterialIndex = LODIndexToMaterialIndex[FirstLOD];
- 
- 		FMeshBatch RuntimeVirtualTextureMeshBatch;
- 		if (GetMeshElementForVirtualTexture(LODIndex, MaterialType, AvailableMaterials[MaterialIndex], RuntimeVirtualTextureMeshBatch, StaticBatchParamArray))
- 		{
- 			PDI->DrawMesh(RuntimeVirtualTextureMeshBatch, FLT_MAX);
- 		}
+		const int32 MaterialIndex = LODIndexToMaterialIndex[FirstLOD];
+
+		for (int32 LODIndex = FirstVirtualTextureLOD; LODIndex <= LastVirtualTextureLOD; ++LODIndex)
+		{
+			FMeshBatch RuntimeVirtualTextureMeshBatch;
+			if (GetMeshElementForVirtualTexture(LODIndex, MaterialType, AvailableMaterials[MaterialIndex], RuntimeVirtualTextureMeshBatch, StaticBatchParamArray))
+			{
+				PDI->DrawMesh(RuntimeVirtualTextureMeshBatch, FLT_MAX);
+			}
+		}
  	}
 
 	check(StaticBatchParamArray.Num() <= TotalBatchCount);

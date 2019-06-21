@@ -581,6 +581,8 @@ protected:
 	TArray<float>				LODScreenRatioSquared;		// Table of valid screen size -> LOD index
 	int32						FirstLOD;	// First LOD we have batch elements for
 	int32						LastLOD;	// Last LOD we have batch elements for
+	int32						FirstVirtualTextureLOD;
+	int32						LastVirtualTextureLOD;
 	float						ComponentMaxExtend; 		// The max extend value in any axis
 	float						ComponentSquaredScreenSizeToUseSubSections; // Size at which we start to draw in sub lod if LOD are different per sub section
 	float						MinValidLOD;							// Min LOD Taking into account LODBias
