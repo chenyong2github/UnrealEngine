@@ -5,6 +5,7 @@
 #include "DataPrepContentConsumer.h"
 
 #include "ContentBrowserModule.h"
+#include "DetailLayoutBuilder.h"
 #include "Dialogs/DlgPickPath.h"
 #include "EditorStyleSet.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -96,12 +97,12 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 
 	TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton( FSimpleDelegate::CreateSP( this, &SDataprepConsumerWidget::OnBrowseContentFolder ) );
 
-	return SNew(SBorder)
-	.BorderImage( FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder") )
+	TSharedRef<SWidget> Widget = SNew(SBorder)
+	.BorderImage( FCoreStyle::Get().GetBrush("NoBrush") )
 	[
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.Padding(5.0f)
+		.Padding( FMargin( 20, 0, 0, 0 ) )
 		[
 			SNew(SGridPanel)
 			.FillColumn(0, 0.25f)
@@ -115,32 +116,29 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 				.FillWidth(1.0f)
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Content Folder"))
-					.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+					.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Folder"))
+					.Font( IDetailLayoutBuilder::GetDetailFont() )
 				]
 			]
 			+ SGridPanel::Slot(1, 0)
 			.Padding(0.0f, 5.0f)
 			[
-				SNew(SBox)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.FillWidth(1.0f)
-					[
-						SAssignNew(ContentFolderTextBox, SEditableTextBox)
-						.Text( FText::FromString( DataprepConsumer->GetTargetContentFolder() ) )
-						.HintText( LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in") )
-						.IsReadOnly( true )
-					]
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.HAlign(HAlign_Center)
-					[
-						BrowseButton
-					]
-				]			
+					SAssignNew(ContentFolderTextBox, SEditableTextBox)
+					.Font( IDetailLayoutBuilder::GetDetailFont() )
+					.HintText( LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in") )
+					.IsReadOnly( true )
+				]
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					BrowseButton
+				]
 			]
 			+ SGridPanel::Slot(0, 1)
 			[
@@ -152,7 +150,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 				[
 					SNew(STextBlock)
 					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Level"))
-					.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+					.Font( IDetailLayoutBuilder::GetDetailFont() )
 				]
 			]
 			+ SGridPanel::Slot(1, 1)
@@ -166,12 +164,17 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
 				[
 					SAssignNew(LevelTextBox, SEditableTextBox)
 					.Text( FText::FromString( DataprepConsumer->GetLevelName() ) )
+					.Font( IDetailLayoutBuilder::GetDetailFont() )
 					.HintText( LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used") )
 					.OnTextCommitted(  this, &SDataprepConsumerWidget::OnLevelNameChanged  )
 				]
 			]
 		]
 	];
+
+	UpdateContentFolderText();
+
+	return Widget;
 }
 
 TSharedRef<SWidget> SDataprepConsumerWidget::BuildNullWidget()
@@ -190,7 +193,7 @@ TSharedRef<SWidget> SDataprepConsumerWidget::BuildNullWidget()
 			.FillWidth(1.0f)
 			[
 				SNew(STextBlock)
-				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
 				.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Error: Not a valid consumer"))
 				.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
 				.ColorAndOpacity( FLinearColor(1,0,0,1) )
@@ -204,7 +207,12 @@ void SDataprepConsumerWidget::UpdateContentFolderText()
 	if(UDataprepContentConsumer* Consumer = DataprepConsumer.Get())
 	{
 		FString TargetContentFolder( Consumer->GetTargetContentFolder() );
-		if( TargetContentFolder.StartsWith( TEXT( "/Game" ) ) )
+
+		if( TargetContentFolder.IsEmpty() )
+		{
+			TargetContentFolder = TEXT("/Content");
+		}
+		else if( TargetContentFolder.StartsWith( TEXT( "/Game" ) ) )
 		{
 			TargetContentFolder = TargetContentFolder.Replace( TEXT( "/Game" ), TEXT( "/Content" ) );
 		}
@@ -513,7 +521,7 @@ void SDataprepDetailsView::Construct()
 				.FillWidth(1.0f)
 				[
 					SNew(STextBlock)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+					.Font( IDetailLayoutBuilder::GetDetailFontBold() )
 					.Text( ErrorText )
 					.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
 					.ColorAndOpacity( FLinearColor(1,0,0,1) )

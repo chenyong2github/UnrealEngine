@@ -96,8 +96,11 @@ public:
 	}
 
 private:
+	FSlateColor GetStatusColorAndOpacity() const;
+	FText GetStatusTooltipText() const;
+
+private:
 	mutable TWeakPtr<FProducerStackEntry> Node;
-	TSharedPtr< STextBlock > CheckBox;
 };
 
 class SProducerStackEntryTreeView : public STreeView<FProducerStackEntryRef>
