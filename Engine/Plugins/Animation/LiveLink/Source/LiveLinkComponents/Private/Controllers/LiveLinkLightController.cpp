@@ -7,6 +7,7 @@
 #include "Roles/LiveLinkLightTypes.h"
 
 #include "Components/LightComponent.h"
+#include "Components/SpotLightComponent.h"
 #include "Features/IModularFeatures.h"
 #include "GameFramework/Actor.h"
 
@@ -41,6 +42,20 @@ void ULiveLinkLightController::Tick(float DeltaTime, const FLiveLinkSubjectRepre
 				if (StaticData->bIsTemperatureSupported) { LightComponent->SetTemperature(FrameData->Temperature); }
 				if (StaticData->bIsIntensitySupported) { LightComponent->SetIntensity(FrameData->Intensity); }
 				if (StaticData->bIsLightColorSupported) { LightComponent->SetLightColor(FrameData->LightColor); }
+
+				if (UPointLightComponent* PointLightComponent = Cast<UPointLightComponent>(LightComponent))
+				{
+					if (StaticData->bIsAttenuationRadiusSupported) { PointLightComponent->SetAttenuationRadius(FrameData->AttenuationRadius); }
+					if (StaticData->bIsSourceRadiusSupported) { PointLightComponent->SetSourceRadius(FrameData->SourceRadius); }
+					if (StaticData->bIsSoftSourceRadiusSupported) { PointLightComponent->SetSoftSourceRadius(FrameData->SoftSourceRadius); }
+					if (StaticData->bIsSourceLenghtSupported) { PointLightComponent->SetSourceLength(FrameData->SourceLength); }
+
+					if (USpotLightComponent* SpotlightComponent = Cast<USpotLightComponent>(LightComponent))
+					{
+						if (StaticData->bIsInnerConeAngleSupported) { SpotlightComponent->SetInnerConeAngle(FrameData->InnerConeAngle); }
+						if (StaticData->bIsOuterConeAngleSupported) { SpotlightComponent->SetOuterConeAngle(FrameData->OuterConeAngle); }
+					}
+				}
 			}
 		}
 	}
