@@ -575,7 +575,7 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 		return;
 	}
 
-	if (AdjustVolumeDuration == 0.0f && AdjustVolumeLevel == 0.0f)
+	if (FMath::IsNearlyZero(AdjustVolumeDuration) && FMath::IsNearlyZero(AdjustVolumeLevel))
 	{
 		Stop();
 		return;
@@ -597,30 +597,31 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 			return;
 		}
 
+		const float NewTargetStopTime = ActiveSound->PlaybackTime + AdjustVolumeDuration;
 		if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
 		{
 			// Ignore adjust volume request if non-zero and currently voice stealing.
-			if (AdjustVolumeLevel != 0.0f)
+			if (!FMath::IsNearlyZero(AdjustVolumeLevel))
 			{
 				return;
 			}
 
 			// Ignore request of longer fade out than active target if active is concurrency (voice stealing) fade.
-			if (AdjustVolumeDuration > ActiveSound->TargetAdjustVolumeStopTime)
+			if (NewTargetStopTime > ActiveSound->TargetAdjustVolumeStopTime)
 			{
 				return;
 			}
 		}
 		else
 		{
-			ActiveSound->FadeOut = AdjustVolumeLevel == 0.0f ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
+			ActiveSound->FadeOut = FMath::IsNearlyZero(AdjustVolumeLevel) ? FActiveSound::EFadeOut::User : FActiveSound::EFadeOut::None;
 		}
 
 		ActiveSound->TargetAdjustVolumeMultiplier = AdjustVolumeLevel;
 
 		if (AdjustVolumeDuration > 0.0f)
 		{
-			ActiveSound->TargetAdjustVolumeStopTime = ActiveSound->PlaybackTime + AdjustVolumeDuration;
+			ActiveSound->TargetAdjustVolumeStopTime = NewTargetStopTime;
 		}
 		else
 		{
@@ -632,23 +633,82 @@ void UAudioComponent::AdjustVolumeInternal(float AdjustVolumeDuration, float Adj
 
 void UAudioComponent::Stop()
 {
-	StopInternal();
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return;
+	}
+
+	// Set this to immediately be inactive
+	bIsActive = false;
+
+	UE_LOG(LogAudio, Verbose, TEXT("%g: Stopping AudioComponent : '%s' with Sound: '%s'"),
+		GetWorld() ? GetWorld()->GetAudioTimeSeconds() : 0.0f, *GetFullName(),
+		Sound ? *Sound->GetName() : TEXT("nullptr"));
+
+	AudioDevice->StopActiveSound(AudioComponentID);
 }
 
-void UAudioComponent::StopInternal()
+void UAudioComponent::StopDelayed(float DelayTime)
 {
-	if (bIsActive)
+	// 1. Stop immediately if no delay time
+	if (DelayTime < 0.0f || FMath::IsNearlyZero(DelayTime))
 	{
-		// Set this to immediately be inactive
-		bIsActive = false;
-
-		UE_LOG(LogAudio, Verbose, TEXT( "%g: Stopping AudioComponent : '%s' with Sound: '%s'" ), GetWorld() ? GetWorld()->GetAudioTimeSeconds() : 0.0f, *GetFullName(), Sound ? *Sound->GetName() : TEXT( "nullptr" ) );
-
-		if (FAudioDevice* AudioDevice = GetAudioDevice())
-		{
-			AudioDevice->StopActiveSound(AudioComponentID);
-		}
+		Stop();
+		return;
 	}
+
+	if (!bIsActive)
+	{
+		return;
+	}
+
+	FAudioDevice* AudioDevice = GetAudioDevice();
+	if (!AudioDevice)
+	{
+		return;
+	}
+
+	// 2. Performs delayed stop with no fade
+	const uint64 InAudioComponentID = AudioComponentID;
+	DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.StopDelayed"), STAT_AudioAdjustVolume, STATGROUP_AudioThreadCommands);
+	FAudioThread::RunCommandOnAudioThread([AudioDevice, InAudioComponentID, DelayTime]()
+	{
+		FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InAudioComponentID);
+		if (!ActiveSound)
+		{
+			return;
+		}
+
+		const float NewTargetStopTime = ActiveSound->PlaybackTime + DelayTime;
+		if (ActiveSound->FadeOut == FActiveSound::EFadeOut::Concurrency)
+		{
+			// Ignore request of longer fade out than active target if active is concurrency (voice stealing) fade.
+			if (NewTargetStopTime > ActiveSound->TargetAdjustVolumeStopTime)
+			{
+				return;
+			}
+		}
+		else
+		{
+			// Set fade to user, but don't adjust target volume, which will cause sound to stop abruptly as intended.
+			ActiveSound->FadeOut = FActiveSound::EFadeOut::User;
+		}
+
+		if (const USoundBase* StoppingSound = ActiveSound->GetSound())
+		{
+			UE_LOG(LogAudio, Verbose, TEXT("%g: Delayed Stop requested for sound '%s'"),
+				ActiveSound->GetWorld() ? ActiveSound->GetWorld()->GetAudioTimeSeconds() : 0.0f,
+				*StoppingSound->GetName());
+		}
+
+		ActiveSound->TargetAdjustVolumeStopTime = NewTargetStopTime;
+	}, GET_STATID(STAT_AudioAdjustVolume));
 }
 
 void UAudioComponent::SetPaused(bool bPause)
