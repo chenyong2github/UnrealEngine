@@ -347,7 +347,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 			State.InvalidateExpiredObjects();
 
 			// Force re-evaluation since animated state was restored in PreCompile
-			ForceEvaluate();
+			bNeedsEvaluate = true;
 		});
 		AcquiredResources.Add([=] { GEditor->OnBlueprintCompiled().Remove(OnBlueprintCompiledHandle); });
 	}
