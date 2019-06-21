@@ -103,7 +103,7 @@ void FFbxExporter::GetSkeleton(FbxNode* RootNode, TArray<FbxNode*>& BoneNodes)
 /**
  * Adds an Fbx Mesh to the FBX scene based on the data in the given FSkeletalMeshLODModel
  */
-FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* MeshName, int32 LODIndex)
+FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* MeshName, int32 LODIndex, const UAnimSequence* AnimSeq)
 {
 	const FSkeletalMeshModel* SkelMeshResource = SkelMesh->GetImportedModel();
 	if (!SkelMeshResource->LODModels.IsValidIndex(LODIndex))
@@ -253,12 +253,15 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 	if (GetExportOptions()->bExportMorphTargets)
 	{
+		const FSmartNameMapping* SmartNameMapping = SkelMesh->Skeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName);
+		TMap<FName, FbxAnimCurve*> BlendShapeCurvesMap;
+
 		for (UMorphTarget* MorphTarget : SkelMesh->MorphTargets)
 		{
 			// The original BlendShape Name was not saved during import, so we need to come up with a new one.
 			const FString BlendShapeName(TEXT("blendShape_") + MorphTarget->GetName());
 			FbxBlendShape* BlendShape = FbxBlendShape::Create(Mesh, TCHAR_TO_UTF8(*BlendShapeName));
-			Mesh->AddDeformer(BlendShape);
+			int32 DeformerIndex = Mesh->AddDeformer(BlendShape);
 			FbxBlendShapeChannel* BlendShapeChannel = FbxBlendShapeChannel::Create(BlendShape, TCHAR_TO_UTF8(*MorphTarget->GetName()));
 
 			if (BlendShape->AddBlendShapeChannel(BlendShapeChannel))
@@ -284,7 +287,23 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 				}
 
 				BlendShapeChannel->AddTargetShape(Shape);
+				FName MorphTargetName = MorphTarget->GetFName();
+				if (AnimSeq && SmartNameMapping && SmartNameMapping->GetCurveMetaData(MorphTargetName) && SmartNameMapping->GetCurveMetaData(MorphTargetName)->Type.bMorphtarget)
+				{
+					FbxAnimCurve* AnimCurve = Mesh->GetShapeChannel(DeformerIndex, 0, AnimLayer, true);
+					BlendShapeCurvesMap.Add(MorphTargetName, AnimCurve);
+				}
 			}
+		}
+
+		if(AnimSeq && BlendShapeCurvesMap.Num() > 0)
+		{
+			ExportCustomAnimCurvesToFbx(BlendShapeCurvesMap, AnimSeq,
+				0.f,		// AnimStartOffset
+				0.f,		// AnimEndOffset
+				1.f,		// AnimPlayRate
+				0.f,		// StartTime
+				100.f);		// ValueScale, for some reason we need to scale BlendShape curves by a factor of 100.
 		}
 	}
 
