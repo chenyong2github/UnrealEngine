@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Delegates/Delegate.h"
+#include "IMediaOptions.h"
 #include "Math/Quat.h"
 #include "Math/Rotator.h"
 #include "Templates/SharedPointer.h"
@@ -730,6 +731,14 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Media|MediaPlayer")
 	bool SetLooping(bool Looping);
+
+	/**
+	 * Sets the media options used by the player.
+	 *
+	 * @param Options Options to pass to the player.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaPlayer")
+	void SetMediaOptions(const UMediaSource* Options);
 
 	/**
 	 * Changes the media's playback rate.
