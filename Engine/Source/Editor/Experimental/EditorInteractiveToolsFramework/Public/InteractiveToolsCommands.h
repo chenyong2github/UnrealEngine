@@ -18,7 +18,6 @@
  * Usage is as follows:
  *    - in your EdMode Module, create a subclass-instance of this, say FMyToolCommands and call FMyToolCommands::Register() in your ::StartupModule() function
  *        - subclass must implement ::GetToolDefaultObjectList(), here you just add GetMutableDefault<MyToolX> to the input list for all your Tools
- *        - subclass must implement ::GetNamespaceString(), likely you can just return TEXT(LOCTEXT_NAMESPACE)
  *    - add a member TSharedPtr<FUICommandList> UICommandList; to your EdMode impl
  *    - when you start a new Tool, call FMyToolCommands::Get().BindCommandsForCurrentTool(UICommandList, NewTool)
  *    - when you end a Tool, call FMyToolCommands::Get().UnbindActiveCommands()
@@ -59,11 +58,6 @@ public:
 	 * not owned by a ToolManager and we will only call .GetActionSet() on them.
 	 */
 	virtual void GetToolDefaultObjectList(TArray<UInteractiveTool*>& ToolCDOs) = 0;
-
-	/**
-	 * The Namespace used to identify this Command set
-	 */
-	virtual const TCHAR * GetNamespaceString() = 0;
 
 
 protected:
@@ -283,10 +277,18 @@ bool TInteractiveToolCommands<CommandContextType>::IntializeStandardToolAction(E
 template<typename CommandContextType>
 void TInteractiveToolCommands<CommandContextType>::RegisterUIToolCommand(const FInteractiveToolAction& ToolAction, TSharedPtr<FUICommandInfo>& UICommandInfo)
 {
-	FString TooltipString = ToolAction.ActionName + FString("_ToolTip");
-	FString DotString = FString(".") + ToolAction.ActionName;
+	const FString DotString = FString(TEXT(".")) + ToolAction.ActionName;
 
-	UI_COMMAND_Function(this, UICommandInfo, GetNamespaceString(), *ToolAction.ActionName, *TooltipString, TCHAR_TO_ANSI(*DotString), *ToolAction.ShortName, *ToolAction.Description, EUserInterfaceActionType::Button, FInputChord(ToolAction.DefaultModifiers, ToolAction.DefaultKey));
+	FUICommandInfo::MakeCommandInfo(
+		AsShared(),
+		UICommandInfo,
+		*ToolAction.ActionName,
+		ToolAction.ShortName,
+		ToolAction.Description,
+		FSlateIcon(GetStyleSetName(), ISlateStyle::Join(GetContextName(), TCHAR_TO_ANSI(*DotString))),
+		EUserInterfaceActionType::Button,
+		FInputChord(ToolAction.DefaultModifiers, ToolAction.DefaultKey)
+		);
 }
 
 
