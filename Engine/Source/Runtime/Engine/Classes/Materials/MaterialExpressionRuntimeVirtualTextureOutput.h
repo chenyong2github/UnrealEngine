@@ -29,10 +29,6 @@ class UMaterialExpressionRuntimeVirtualTextureOutput : public UMaterialExpressio
 	UPROPERTY()
 	FExpressionInput Normal;
 
-	/** Input for Height to output to virtual texture. */
-	UPROPERTY()
-	FExpressionInput Height;
-
 	/** Input for Opacity value used for blending to virtual texture. */
 	UPROPERTY()
 	FExpressionInput Opacity;

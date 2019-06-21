@@ -75,8 +75,7 @@ void FPixelShaderInOut_MainPS(
 	half Specular = GetVirtualTextureOutput1(MaterialParameters);
 	half Roughness = GetVirtualTextureOutput2(MaterialParameters);
 	half3 Normal = GetVirtualTextureOutput3(MaterialParameters);
-	float Height = GetVirtualTextureOutput4(MaterialParameters);
-	float Opacity = GetVirtualTextureOutput5(MaterialParameters);
+	float Opacity = GetVirtualTextureOutput4(MaterialParameters);
 #else
 	// Output is from standard material output attribute node
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
