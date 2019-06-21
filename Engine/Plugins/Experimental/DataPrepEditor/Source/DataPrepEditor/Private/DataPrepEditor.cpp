@@ -22,8 +22,8 @@
 #include "BlueprintNodeSpawner.h"
 #include "DesktopPlatformModule.h"
 #include "Dialogs/DlgPickPath.h"
-#include "EditorDirectories.h"
 #include "Editor.h"
+#include "EditorDirectories.h"
 #include "EditorStyleSet.h"
 #include "Engine/World.h"
 #include "EngineUtils.h"
@@ -42,6 +42,7 @@
 #include "ObjectTools.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "Templates/UnrealTemplate.h"
 #include "Toolkits/IToolkit.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -605,22 +606,15 @@ void FDataprepEditor::CleanPreviewWorld()
 	}
 
 	// Prevent display of progress dialog from ObjectTools::DeleteObjectsUnchecked
-	bool bGIsSilentCached = GIsSilent;
-	GIsSilent = true;
+	TGuardValue<bool>( GIsSilent, true );
 
 	ensure( ObjectTools::DeleteObjectsUnchecked( ObjectsToDelete ) == ObjectsToDelete.Num() );
-
-	// Restore GIsSilent
-	GIsSilent = bGIsSilentCached;
 
 	CachedAssets.Reset();
 	Assets.Reset();
 
-	if (GEngine)
-	{
-		// Otherwise we end up with some issues
-		GEngine->PerformGarbageCollectionAndCleanupActors();
-	}
+	CollectGarbage( GARBAGE_COLLECTION_KEEPFLAGS );
+	PreviewWorld->CleanupActors();
 }
 
 void FDataprepEditor::OnExecutePipeline()
