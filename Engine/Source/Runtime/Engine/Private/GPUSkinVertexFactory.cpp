@@ -595,6 +595,7 @@ public:
 	virtual void Bind(const FShaderParameterMap& ParameterMap) override
 	{
 		FLocalVertexFactoryShaderParametersBase::Bind(ParameterMap);
+		GPUSkinCachePositionBuffer.Bind(ParameterMap,TEXT("GPUSkinCachePositionBuffer"));
 		GPUSkinCachePreviousPositionBuffer.Bind(ParameterMap,TEXT("GPUSkinCachePreviousPositionBuffer"));
 	}
 	/**
@@ -604,6 +605,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override
 	{
 		FLocalVertexFactoryShaderParametersBase::Serialize(Ar);
+		Ar << GPUSkinCachePositionBuffer;
 		Ar << GPUSkinCachePreviousPositionBuffer;
 	}
 	
@@ -628,12 +630,13 @@ public:
 
 		// #dxr_todo do we need this call to the base?
 		FLocalVertexFactoryShaderParametersBase::GetElementShaderBindingsBase(Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, VertexFactoryUniformBuffer, ShaderBindings, VertexStreams);
-		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams);
+		FGPUSkinCache::GetShaderBindings(BatchUserData->Entry, BatchUserData->Section, Shader, (const FGPUSkinPassthroughVertexFactory*)VertexFactory, BatchElement.MinVertexIndex, GPUSkinCachePositionBuffer, GPUSkinCachePreviousPositionBuffer, ShaderBindings, VertexStreams);
 	}
 
 	virtual uint32 GetSize() const override { return sizeof(*this); }
 
 private:
+	FShaderResourceParameter GPUSkinCachePositionBuffer;
 	FShaderResourceParameter GPUSkinCachePreviousPositionBuffer;
 };
 
@@ -730,7 +733,7 @@ void FGPUSkinPassthroughVertexFactory::InternalUpdateVertexDeclaration(FGPUBaseS
 FVertexFactoryShaderParameters* FGPUSkinPassthroughVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
 {
 #if RHI_RAYTRACING
-	return (ShaderFrequency == SF_Vertex || ShaderFrequency == SF_RayHitGroup) ? new FGPUSkinVertexPassthroughFactoryShaderParameters() : nullptr;
+	return (ShaderFrequency == SF_Vertex || ShaderFrequency == SF_RayHitGroup || ShaderFrequency == SF_Compute) ? new FGPUSkinVertexPassthroughFactoryShaderParameters() : nullptr;
 #else // RHI_RAYTRACING
 	return (ShaderFrequency == SF_Vertex) ? new FGPUSkinVertexPassthroughFactoryShaderParameters() : nullptr;
 #endif // RHI_RAYTRACING

@@ -2258,7 +2258,7 @@ public:
 
 struct FRayTracingDynamicGeometryUpdateParams
 {
-	FMeshBatch MeshBatch;
+	TArray<FMeshBatch> MeshBatches;
 
 	bool bUsingIndirectDraw;
 	// When bUsingIndirectDraw == false, NumVertices == the actual number of vertices to process

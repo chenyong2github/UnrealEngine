@@ -183,18 +183,38 @@ struct FVertexFactoryInput
 #endif
 };
 
-#if RAYHITGROUPSHADER
+#if RAYHITGROUPSHADER || COMPUTESHADER
+#if GPUSKIN_PASS_THROUGH
+Buffer<float> GPUSkinCachePositionBuffer;
+#endif
+
 FVertexFactoryInput LoadVertexFactoryInput(uint TriangleIndex, int VertexIndex)
 {
+	FVertexFactoryInput Input = (FVertexFactoryInput)0;
+
+#if RAYHITGROUPSHADER
 	FTriangleBaseAttributes Triangle = LoadTriangleBaseAttributes(TriangleIndex);
 
-	FVertexFactoryInput Input;
-	Input.Position = float4(Triangle.LocalPositions[VertexIndex], 1.0f);
 	Input.VertexId = Triangle.Indices[VertexIndex];
-#if VF_USE_PRIMITIVE_SCENE_DATA
-	Input.PrimitiveId = GetInstanceUserData();
+	Input.Position = float4(Triangle.LocalPositions[VertexIndex], 1.0f);
+	#if VF_USE_PRIMITIVE_SCENE_DATA
+		Input.PrimitiveId = GetInstanceUserData();
+	#endif
+#elif COMPUTESHADER	
+	#if GPUSKIN_PASS_THROUGH
+		Input.VertexId = TriangleIndex * 3 + VertexIndex;
+		uint VertexOffset = LocalVF.VertexFetch_Parameters[VF_VertexOffset] + Input.VertexId;
+		Input.Position.x = GPUSkinCachePositionBuffer[VertexOffset * 3 + 0];
+		Input.Position.y = GPUSkinCachePositionBuffer[VertexOffset * 3 + 1];
+		Input.Position.z = GPUSkinCachePositionBuffer[VertexOffset * 3 + 2];
+	#endif
 #endif
 	return Input;
+}
+
+uint GetNumRayTracingDynamicMeshVerticesIndirect()
+{
+	return 0;
 }
 #endif
 

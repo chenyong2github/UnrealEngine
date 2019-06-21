@@ -362,10 +362,6 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 		{
 			if (bRequireRecreatingRayTracingGeometry)
 			{
-				// #dxr: Warning: this path invalidates all the instances referencing RayTracingGeometry
-				// which is expected to be detected inside USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
-				// and instance updates are sent there
-
 				FSkeletalMeshLODRenderData& LODModel = this->SkeletalMeshRenderData->LODRenderData[DynamicData->LODIndex];
 				FIndexBufferRHIRef IndexBufferRHI = LODModel.MultiSizeIndexContainer.GetIndexBuffer()->IndexBufferRHI;
 				uint32 VertexBufferStride = LODModel.StaticVertexBuffers.PositionVertexBuffer.GetStride();
@@ -409,9 +405,17 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 			}
 			else
 			{
-				// Refit BLAS with new vertex buffer data
-				FGPUSkinCache::CreateMergedPositionVertexBuffer(RHICmdList, SkinCacheEntry, RayTracingGeometry.Initializer.PositionVertexBuffer);
-				GPUSkinCache->AddRayTracingGeometryToUpdate(&RayTracingGeometry);
+				// If we are not using world position offset in material, handle BLAS refit here
+				if (!DynamicData->bAnySegmentUsesWorldPositionOffset)
+				{
+					// Refit BLAS with new vertex buffer data
+					FGPUSkinCache::CreateMergedPositionVertexBuffer(RHICmdList, SkinCacheEntry, RayTracingGeometry.Initializer.PositionVertexBuffer);
+					GPUSkinCache->AddRayTracingGeometryToUpdate(&RayTracingGeometry);
+				}
+				else
+				{
+					// Otherwise, we will run the dynamic ray tracing geometry path, i.e. runnning VSinCS and refit geometry there, so do nothing here
+				}
 			}
 		}
 	}
@@ -1720,6 +1724,9 @@ void FDynamicSkelMeshObjectDataGPUSkin::Clear()
 	NumWeightedActiveMorphTargets = 0;
 	ClothingSimData.Reset();
 	ClothBlendWeight = 0.0f;
+#if RHI_RAYTRACING
+	bAnySegmentUsesWorldPositionOffset = false;
+#endif
 }
 
 #define SKELETON_POOL_GPUSKINS 1
@@ -1873,6 +1880,13 @@ void FDynamicSkelMeshObjectDataGPUSkin::InitDynamicSkelMeshObjectDataGPUSkin(
 	}
 	// Update the clothing simulation mesh positions and normals
 	UpdateClothSimulationData(InMeshComponent);
+
+#if RHI_RAYTRACING
+	if (SkeletalMeshProxy != nullptr)
+	{
+		bAnySegmentUsesWorldPositionOffset = SkeletalMeshProxy->bAnySegmentUsesWorldPositionOffset;
+	}
+#endif
 }
 
 bool FDynamicSkelMeshObjectDataGPUSkin::ActiveMorphTargetsEqual( const TArray<FActiveMorphTarget>& CompareActiveMorphTargets, const TArray<float>& CompareMorphTargetWeights)

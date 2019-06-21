@@ -2388,10 +2388,8 @@ struct FMeshComputeDispatchCommand
 
 	uint32 NumMaxVertices;
 	uint32 NumCPUVertices;
-	uint32 BaseVertexIndex;
+	uint32 MinVertexIndex;
 	FRWBuffer* TargetBuffer;
-	FRayTracingGeometry* TargetGeometry;
-	bool bRefit;
 };
 #endif
 

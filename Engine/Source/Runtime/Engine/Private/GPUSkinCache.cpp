@@ -1207,6 +1207,7 @@ void FGPUSkinCache::GetShaderBindings(
 	const FShader* Shader, 
 	const FGPUSkinPassthroughVertexFactory* VertexFactory,
 	uint32 BaseVertexIndex, 
+	FShaderResourceParameter GPUSkinCachePositionBuffer,
 	FShaderResourceParameter GPUSkinCachePreviousPositionBuffer,
 	class FMeshDrawSingleShaderBindings& ShaderBindings,
 	FVertexInputStreamArray& VertexStreams)
@@ -1226,6 +1227,7 @@ void FGPUSkinCache::GetShaderBindings(
 		VertexStreams.Add(FVertexInputStream(VertexFactory->GetTangentStreamIndex(), 0, DispatchData.GetTangentRWBuffer()->Buffer));
 	}
 
+	ShaderBindings.Add(GPUSkinCachePositionBuffer, DispatchData.GetPositionRWBuffer()->SRV);
 	ShaderBindings.Add(GPUSkinCachePreviousPositionBuffer, DispatchData.GetPreviousPositionRWBuffer()->SRV);
 }
 

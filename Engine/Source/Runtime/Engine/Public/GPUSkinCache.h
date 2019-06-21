@@ -118,6 +118,7 @@ public:
 		const FShader* Shader,
 		const FGPUSkinPassthroughVertexFactory* VertexFactory,
 		uint32 BaseVertexIndex,
+		FShaderResourceParameter GPUSkinCachePositionBuffer,
 		FShaderResourceParameter GPUSkinCachePreviousPositionBuffer,
 		class FMeshDrawSingleShaderBindings& ShaderBindings,
 		FVertexInputStreamArray& VertexStreams);
