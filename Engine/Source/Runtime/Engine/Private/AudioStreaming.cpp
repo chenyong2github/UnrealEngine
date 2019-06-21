@@ -17,6 +17,7 @@ AudioStreaming.cpp: Implementation of audio streaming classes.
 #include "HAL/IConsoleManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "AudioDecompress.h"
+#include "AudioCompressionSettingsUtils.h"
 
 static int32 SpoofFailedStreamChunkLoad = 0;
 FAutoConsoleVariableRef CVarSpoofFailedStreamChunkLoad(
@@ -46,13 +47,15 @@ FAsyncStreamDerivedChunkWorker::FAsyncStreamDerivedChunkWorker(
 	const FString& InDerivedDataKey,
 	void* InDestChunkData,
 	int32 InChunkSize,
-	FThreadSafeCounter* InThreadSafeCounter
+	FThreadSafeCounter* InThreadSafeCounter,
+	TFunction<void(bool)> InOnLoadCompleted
 	)
 	: DerivedDataKey(InDerivedDataKey)
 	, DestChunkData(InDestChunkData)
 	, ExpectedChunkSize(InChunkSize)
 	, bRequestFailed(false)
 	, ThreadSafeCounter(InThreadSafeCounter)
+	, OnLoadCompleted(InOnLoadCompleted)
 {
 }
 
@@ -69,9 +72,13 @@ void FAsyncStreamDerivedChunkWorker::DoWork()
 	{
 		FMemoryReader Ar(DerivedChunkData, true);
 		int32 ChunkSize = 0;
+		int32 AudioDataSize = 0;
 		Ar << ChunkSize;
-		checkf(ChunkSize == ExpectedChunkSize, TEXT("ChunkSize(%d) != ExpectedSize(%d)"), ChunkSize, ExpectedChunkSize);
-		Ar.Serialize(DestChunkData, ChunkSize);
+		Ar << AudioDataSize;
+
+		// Currently, the legacy streaming manager loads in the entire, zero padded chunk, while the cached streaming manager only reads the audio data itself.
+		checkf(AudioDataSize == ExpectedChunkSize || ChunkSize == ExpectedChunkSize, TEXT("Neither the padded chunk size (%d) nor the actual audio data size (%d) was equivalent to the ExpectedSize(%d)"), ChunkSize, AudioDataSize, ExpectedChunkSize);
+		Ar.Serialize(DestChunkData, ExpectedChunkSize);
 	}
 	else
 	{
@@ -80,7 +87,8 @@ void FAsyncStreamDerivedChunkWorker::DoWork()
 	FPlatformMisc::MemoryBarrier();
 	ThreadSafeCounter->Decrement();
 
-	UE_LOG(LogAudio, Verbose, TEXT("End of ASync DDC Chunk read for key: %s"), *DerivedDataKey);
+	OnLoadCompleted(bRequestFailed);
+	UE_LOG(LogAudio, Verbose, TEXT("End of Async DDC Chunk Load. DDC Key: %s"), *DerivedDataKey);
 }
 
 #endif // #if WITH_EDITORONLY_DATA
@@ -125,7 +133,7 @@ void FStreamingWaveData::FreeResources()
 	}
 }
 
-bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FAudioStreamingManager* InAudioStreamingManager)
+bool FStreamingWaveData::Initialize(USoundWave* InSoundWave, FLegacyAudioStreamingManager* InAudioStreamingManager)
 {
 	check(!IORequestHandle);
 
@@ -330,11 +338,16 @@ void FStreamingWaveData::BeginPendingRequests(const TArray<uint32>& IndicesToLoa
 				INC_DWORD_STAT_BY(STAT_AudioMemorySize, ChunkSize);
 				INC_DWORD_STAT_BY(STAT_AudioMemory, ChunkSize);
 
+				// This streaming manager does not use the callback when the DDC load
+				// is completed:
+				TFunction<void(bool)> NullOnLoadCompletedCallback = [](bool) {};
+
 				FAsyncStreamDerivedChunkTask* Task = new FAsyncStreamDerivedChunkTask(
 					Chunk.DerivedDataKey,
 					ChunkStorage->Data,
 					ChunkSize,
-					&PendingChunkChangeRequestStatus
+					&PendingChunkChangeRequestStatus,
+					MoveTemp(NullOnLoadCompletedCallback)
 					);
 				PendingAsyncStreamDerivedChunkTasks.Add(Task);
 				Task->StartBackgroundTask();
@@ -479,15 +492,15 @@ void FStreamingWaveData::FreeLoadedChunk(FLoadedAudioChunk& LoadedChunk)
 // FAudioStreamingManager //
 ////////////////////////////
 
-FAudioStreamingManager::FAudioStreamingManager()
+FLegacyAudioStreamingManager::FLegacyAudioStreamingManager()
 {
 }
 
-FAudioStreamingManager::~FAudioStreamingManager()
+FLegacyAudioStreamingManager::~FLegacyAudioStreamingManager()
 {
 }
 
-void FAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* StreamingWaveData, int32 LoadedAudioChunkIndex, IAsyncReadRequest* ReadRequest)
+void FLegacyAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* StreamingWaveData, int32 LoadedAudioChunkIndex, IAsyncReadRequest* ReadRequest)
 {
 	// Check to see if we successfully managed to load anything
 	uint8* Mem = ReadRequest->GetReadResults();
@@ -511,7 +524,7 @@ void FAudioStreamingManager::OnAsyncFileCallback(FStreamingWaveData* StreamingWa
 	}
 }
 
-void FAudioStreamingManager::ProcessPendingAsyncFileResults()
+void FLegacyAudioStreamingManager::ProcessPendingAsyncFileResults()
 {
 	// Pump the results of any async file loads in a protected critical section 
 	FScopeLock StreamChunkResults(&ChunkResultCriticalSection);
@@ -550,7 +563,7 @@ void FAudioStreamingManager::ProcessPendingAsyncFileResults()
 	AsyncAudioStreamChunkResults.Reset();
 }
 
-void FAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)
+void FLegacyAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything /*= false*/)
 {
 	LLM_SCOPE(ELLMTag::Audio);
 
@@ -639,7 +652,7 @@ void FAudioStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProc
 	ProcessPendingAsyncFileResults();
 }
 
-int32 FAudioStreamingManager::BlockTillAllRequestsFinished(float TimeLimit, bool)
+int32 FLegacyAudioStreamingManager::BlockTillAllRequestsFinished(float TimeLimit, bool)
 {
 	{
 		FScopeLock Lock(&CriticalSection);
@@ -679,35 +692,36 @@ int32 FAudioStreamingManager::BlockTillAllRequestsFinished(float TimeLimit, bool
 	return 0;
 }
 
-void FAudioStreamingManager::CancelForcedResources()
+void FLegacyAudioStreamingManager::CancelForcedResources()
 {
 }
 
-void FAudioStreamingManager::NotifyLevelChange()
+void FLegacyAudioStreamingManager::NotifyLevelChange()
 {
 }
 
-void FAudioStreamingManager::SetDisregardWorldResourcesForFrames(int32 NumFrames)
+void FLegacyAudioStreamingManager::SetDisregardWorldResourcesForFrames(int32 NumFrames)
 {
 }
 
-void FAudioStreamingManager::AddLevel(class ULevel* Level)
+void FLegacyAudioStreamingManager::AddLevel(class ULevel* Level)
 {
 }
 
-void FAudioStreamingManager::RemoveLevel(class ULevel* Level)
+void FLegacyAudioStreamingManager::RemoveLevel(class ULevel* Level)
 {
 }
 
-void FAudioStreamingManager::NotifyLevelOffset(class ULevel* Level, const FVector& Offset)
+void FLegacyAudioStreamingManager::NotifyLevelOffset(class ULevel* Level, const FVector& Offset)
 {
 }
 
-void FAudioStreamingManager::AddStreamingSoundWave(USoundWave* SoundWave)
+void FLegacyAudioStreamingManager::AddStreamingSoundWave(USoundWave* SoundWave)
 {
 	if (FPlatformProperties::SupportsAudioStreaming() && SoundWave->IsStreaming())
 	{
 		FScopeLock Lock(&CriticalSection);
+
 		if (StreamingSoundWaves.FindRef(SoundWave) == nullptr)
 		{
 			FStreamingWaveData* NewStreamingWaveData = new FStreamingWaveData;
@@ -724,7 +738,7 @@ void FAudioStreamingManager::AddStreamingSoundWave(USoundWave* SoundWave)
 	}
 }
 
-void FAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWave)
+void FLegacyAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWave)
 {
 	FScopeLock Lock(&CriticalSection);
 	FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave);
@@ -755,25 +769,25 @@ void FAudioStreamingManager::RemoveStreamingSoundWave(USoundWave* SoundWave)
 	WaveRequests.Remove(SoundWave);
 }
 
-void FAudioStreamingManager::AddDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
+void FLegacyAudioStreamingManager::AddDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
 {
 	FScopeLock Lock(&CriticalSection);
 	CompressedAudioInfos.AddUnique(InCompressedAudioInfo);
 }
 
-void FAudioStreamingManager::RemoveDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
+void FLegacyAudioStreamingManager::RemoveDecoder(ICompressedAudioInfo* InCompressedAudioInfo)
 {
 	FScopeLock Lock(&CriticalSection);
 	CompressedAudioInfos.Remove(InCompressedAudioInfo);
 }
 
-bool FAudioStreamingManager::IsManagedStreamingSoundWave(const USoundWave* SoundWave) const
+bool FLegacyAudioStreamingManager::IsManagedStreamingSoundWave(const USoundWave* SoundWave) const
 {
 	FScopeLock Lock(&CriticalSection);
 	return StreamingSoundWaves.FindRef(SoundWave) != NULL;
 }
 
-bool FAudioStreamingManager::IsStreamingInProgress(const USoundWave* SoundWave)
+bool FLegacyAudioStreamingManager::IsStreamingInProgress(const USoundWave* SoundWave)
 {
 	FScopeLock Lock(&CriticalSection);
 	FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave);
@@ -784,7 +798,7 @@ bool FAudioStreamingManager::IsStreamingInProgress(const USoundWave* SoundWave)
 	return false;
 }
 
-bool FAudioStreamingManager::CanCreateSoundSource(const FWaveInstance* WaveInstance) const
+bool FLegacyAudioStreamingManager::CanCreateSoundSource(const FWaveInstance* WaveInstance) const
 {
 	check(WaveInstance);
 	check(WaveInstance->IsStreaming());
@@ -822,7 +836,7 @@ bool FAudioStreamingManager::CanCreateSoundSource(const FWaveInstance* WaveInsta
 	return false;
 }
 
-void FAudioStreamingManager::AddStreamingSoundSource(FSoundSource* SoundSource)
+void FLegacyAudioStreamingManager::AddStreamingSoundSource(FSoundSource* SoundSource)
 {
 	const FWaveInstance* WaveInstance = SoundSource->GetWaveInstance();
 	if (WaveInstance && WaveInstance->IsStreaming())
@@ -865,10 +879,10 @@ void FAudioStreamingManager::AddStreamingSoundSource(FSoundSource* SoundSource)
 	}
 }
 
-void FAudioStreamingManager::RemoveStreamingSoundSource(FSoundSource* SoundSource)
+void FLegacyAudioStreamingManager::RemoveStreamingSoundSource(FSoundSource* SoundSource)
 {
 	const FWaveInstance* WaveInstance = SoundSource->GetWaveInstance();
-	if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->IsStreaming())
+	if (WaveInstance && WaveInstance->WaveData && WaveInstance->WaveData->IsStreaming() && !WaveInstance->WaveData->ShouldUseStreamCaching())
 	{
 		FScopeLock Lock(&CriticalSection);
 
@@ -879,24 +893,30 @@ void FAudioStreamingManager::RemoveStreamingSoundSource(FSoundSource* SoundSourc
 	}
 }
 
-bool FAudioStreamingManager::IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const
+bool FLegacyAudioStreamingManager::IsManagedStreamingSoundSource(const FSoundSource* SoundSource) const
 {
 	FScopeLock Lock(&CriticalSection);
 	return StreamingSoundSources.FindByKey(SoundSource) != NULL;
 }
 
-const uint8* FAudioStreamingManager::GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, uint32* OutChunkSize) const
+bool FLegacyAudioStreamingManager::RequestChunk(USoundWave* SoundWave, uint32 ChunkIndex, TFunction<void(EAudioChunkLoadResult)> OnLoadCompleted)
+{
+	UE_LOG(LogAudio, Warning, TEXT("RequestChunk is only supported in Stream Caching."));
+	return false;
+}
+
+FAudioChunkHandle FLegacyAudioStreamingManager::GetLoadedChunk(const USoundWave* SoundWave, uint32 ChunkIndex, bool bBlockForLoad) const
 {
 	// Check for the spoof of failing to load a stream chunk
 	if (SpoofFailedStreamChunkLoad > 0)
 	{
-		return nullptr;
+		return FAudioChunkHandle();
 	}
 
 	// If we fail at getting the critical section here, early out. 
 	if (!CriticalSection.TryLock())
 	{
-		return nullptr;
+		return FAudioChunkHandle();
 	}
 
 	const FStreamingWaveData* WaveData = StreamingSoundWaves.FindRef(SoundWave);
@@ -908,24 +928,18 @@ const uint8* FAudioStreamingManager::GetLoadedChunk(const USoundWave* SoundWave,
 			{
 				if (WaveData->LoadedChunks[Index].Index == ChunkIndex)
 				{
-					if (OutChunkSize != NULL)
-					{
-						// Return the size of the audio data within the chunk, not the chunk itself since this chunk could be zero-padded
-						*OutChunkSize = WaveData->LoadedChunks[Index].AudioDataSize;
-					}
-
 					CriticalSection.Unlock();
-					return WaveData->LoadedChunks[Index].Data;
+					return BuildChunkHandle(WaveData->LoadedChunks[Index].Data, WaveData->LoadedChunks[Index].AudioDataSize, SoundWave, SoundWave->GetFName(), ChunkIndex);
 				}
 			}
 		}
 	}
 
 	CriticalSection.Unlock();
-	return NULL;
+	return FAudioChunkHandle();
 }
 
-FWaveRequest& FAudioStreamingManager::GetWaveRequest(USoundWave* SoundWave)
+FWaveRequest& FLegacyAudioStreamingManager::GetWaveRequest(USoundWave* SoundWave)
 {
 	FWaveRequest* WaveRequest = WaveRequests.Find(SoundWave);
 	if (!WaveRequest)
@@ -936,4 +950,16 @@ FWaveRequest& FAudioStreamingManager::GetWaveRequest(USoundWave* SoundWave)
 		WaveRequest->bPrioritiseRequest = false;
 	}
 	return *WaveRequest;
+}
+
+uint64 FLegacyAudioStreamingManager::TrimMemory(uint64 NumBytesToFree)
+{
+	UE_LOG(LogAudio, Warning, TEXT("IAudioStreamingManager::TrimMemory is only supported when Stream Caching is enabled."));
+	return 0;
+}
+
+int32 FLegacyAudioStreamingManager::RenderStatAudioStreaming(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+{
+	// Only supported by stream caching.
+	return Y;
 }
