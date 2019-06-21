@@ -198,6 +198,11 @@ public:
 		return PassFlags;
 	}
 
+	bool IsGenerateMips() const
+	{
+		return (PassFlags & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
+	}
+
 	bool IsCompute() const
 	{
 		return (PassFlags & ERDGPassFlags::Compute) == ERDGPassFlags::Compute;

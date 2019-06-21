@@ -4,6 +4,7 @@
 #include "RenderCore.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphResourcePool.h"
+#include "RenderGraphBarrierBatcher.h"
 #include "VisualizeTexture.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
@@ -621,9 +622,10 @@ void FRDGBuilder::AllocateRHITextureIfNeeded(FRDGTexture* Texture)
 
 	check(Texture->ReferenceCount > 0 || GRDGImmediateMode);
 
-	// TODO(RDG): should avoid bDoWritableBarrier = true
 	TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget = AllocatedTextures.FindOrAdd(Texture);
-	GRenderTargetPool.FindFreeElement(RHICmdList, Texture->Desc, PooledRenderTarget, Texture->Name, /* bDoWritableBarrier = */ true);
+
+	const bool bDoWriteBarrier = false;
+	GRenderTargetPool.FindFreeElement(RHICmdList, Texture->Desc, PooledRenderTarget, Texture->Name, bDoWriteBarrier);
 
 	Texture->PooledRenderTarget = PooledRenderTarget;
 	Texture->ResourceRHI = PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
@@ -642,6 +644,23 @@ void FRDGBuilder::AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV)
 	AllocateRHITextureIfNeeded(UAV->Desc.Texture);
 
 	UAV->ResourceRHI = UAV->Desc.Texture->PooledRenderTarget->GetRenderTargetItem().MipUAVs[UAV->Desc.MipLevel];
+}
+
+void FRDGBuilder::AllocateRHIBufferIfNeeded(FRDGBuffer* Buffer)
+{
+	check(Buffer);
+
+	if (Buffer->PooledBuffer)
+	{
+		return;
+	}
+
+	check(Buffer->ReferenceCount > 0 || GRDGImmediateMode);
+
+	TRefCountPtr<FPooledRDGBuffer>& AllocatedBuffer = AllocatedBuffers.FindOrAdd(Buffer);
+	GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, AllocatedBuffer, Buffer->Name);
+	check(AllocatedBuffer);
+	Buffer->PooledBuffer = AllocatedBuffer;
 }
 
 void FRDGBuilder::AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV)
@@ -699,17 +718,7 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV)
 	}
 	
 	FRDGBufferRef Buffer = UAV->Desc.Buffer;
-
-	// Allocate a buffer resource.
-	if (!Buffer->PooledBuffer)
-	{
-		check(Buffer->ReferenceCount > 0 || GRDGImmediateMode);
-
-		TRefCountPtr<FPooledRDGBuffer>& AllocatedBuffer = AllocatedBuffers.FindOrAdd(Buffer);
-		GRenderGraphResourcePool.FindFreeBuffer(RHICmdList, Buffer->Desc, AllocatedBuffer, Buffer->Name);
-
-		Buffer->PooledBuffer = AllocatedBuffer;
-	}
+	AllocateRHIBufferIfNeeded(Buffer);
 
 	if (Buffer->PooledBuffer->UAVs.Contains(UAV->Desc))
 	{
@@ -737,115 +746,6 @@ void FRDGBuilder::AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV)
 
 	UAV->ResourceRHI = RHIUnorderedAccessView;
 	Buffer->PooledBuffer->UAVs.Add(UAV->Desc, RHIUnorderedAccessView);
-}
-
-static EResourceTransitionPipeline GetResourceTransitionPipeline(ERDGPassPipeline PassPipelineBefore, ERDGPassPipeline PassPipelineAfter)
-{
-	static const EResourceTransitionPipeline Table[(uint32)ERDGPassPipeline::MAX][(uint32)ERDGPassPipeline::MAX] =
-	{
-		// Graphics
-		{
-			EResourceTransitionPipeline::EGfxToGfx,
-			EResourceTransitionPipeline::EGfxToCompute
-		},
-
-		// Compute
-		{
-			EResourceTransitionPipeline::EComputeToGfx,
-			EResourceTransitionPipeline::EComputeToCompute
-		}
-	};
-
-#if RDG_ENABLE_DEBUG
-	check(PassPipelineBefore < ERDGPassPipeline::MAX);
-	check(PassPipelineAfter < ERDGPassPipeline::MAX);
-#endif
-
-	return Table[(uint32)PassPipelineBefore][(uint32)PassPipelineAfter];
-};
-
-static EResourceTransitionAccess GetResourceTransitionAccess(ERDGPassAccess PassAccess)
-{
-	return PassAccess == ERDGPassAccess::Read ? EResourceTransitionAccess::EReadable : EResourceTransitionAccess::EWritable;
-}
-
-void FRDGBuilder::TransitionTexture(FRDGTexture* Texture, ERDGPassAccess PassAccessAfter, ERDGPassPipeline PassPipelineAfter) const
-{
-	const ERDGPassAccess PassAccessBefore = Texture->PassAccess;
-
-	if (PassAccessBefore != PassAccessAfter || Texture->PassPipeline != PassPipelineAfter)
-	{
-		FRHITexture* RHITexture = Texture->GetRHIUnchecked();
-
-		const bool bIsMultiFrameResource = (Texture->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
-
-		const bool bIsWriteAccessBegin = PassAccessBefore == ERDGPassAccess::Read && PassAccessAfter == ERDGPassAccess::Write;
-		const bool bIsWriteAccessEnd = PassAccessBefore == ERDGPassAccess::Write && PassAccessAfter == ERDGPassAccess::Read;
-
-		if (bIsMultiFrameResource && bIsWriteAccessBegin)
-		{
-			RHICmdList.BeginUpdateMultiFrameResource(RHITexture);
-		}
-
-		const EResourceTransitionAccess TransitionAccess = GetResourceTransitionAccess(PassAccessAfter);
-
-		RHICmdList.TransitionResource(TransitionAccess, RHITexture);
-		
-		if (bIsMultiFrameResource && bIsWriteAccessEnd)
-		{
-			RHICmdList.EndUpdateMultiFrameResource(RHITexture);
-		}
-		
-		Texture->PassAccess = PassAccessAfter;
-		Texture->PassPipeline = PassPipelineAfter;
-	}
-}
-
-void FRDGBuilder::TransitionUAV(
-	FRHIUnorderedAccessView* UAV,
-	FRDGTrackedResource* UnderlyingResource,
-	ERDGPassAccess PassAccessAfter,
-	ERDGPassPipeline PassPipelineAfter) const
-{
-	check(UAV);
-	check(UnderlyingResource);
-
-	const ERDGPassAccess PassAccessBefore = UnderlyingResource->PassAccess;
-	const ERDGPassPipeline PassPipelineBefore = UnderlyingResource->PassPipeline;
-
-	if (PassAccessBefore == ERDGPassAccess::Write && PassAccessAfter == ERDGPassAccess::Write)
-	{
-		// Force a RW barrier between UAV write.
-		// TODO(RDG): allow to have no barrier in the API when multiple pass write concurrently to same resource.
-		const EResourceTransitionPipeline TransitionPipeline = GetResourceTransitionPipeline(PassPipelineBefore, PassPipelineAfter);
-
-		RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, TransitionPipeline, UAV);
-	}
-	else if(PassAccessBefore != PassAccessAfter|| PassPipelineBefore != PassPipelineAfter)
-	{
-		const bool bIsMultiFrameResource = (UnderlyingResource->Flags & ERDGResourceFlags::MultiFrame) == ERDGResourceFlags::MultiFrame;
-
-		const bool bIsWriteAccessBegin = PassAccessBefore == ERDGPassAccess::Read && PassAccessAfter == ERDGPassAccess::Write;
-		const bool bIsWriteAccessEnd = PassAccessBefore == ERDGPassAccess::Write && PassAccessAfter == ERDGPassAccess::Read;
-
-		if (bIsMultiFrameResource && bIsWriteAccessBegin)
-		{
-			RHICmdList.BeginUpdateMultiFrameResource(UAV);
-		}
-
-		const EResourceTransitionPipeline TransitionPipeline = GetResourceTransitionPipeline(PassPipelineBefore, PassPipelineAfter);
-		const EResourceTransitionAccess TransitionAccess = GetResourceTransitionAccess(PassAccessAfter);
-
-		RHICmdList.TransitionResource(TransitionAccess, TransitionPipeline, UAV);
-		
-		if (bIsMultiFrameResource && bIsWriteAccessEnd)
-		{
-			RHICmdList.EndUpdateMultiFrameResource(UAV);
-		}
-		
-		UnderlyingResource->PassAccess = PassAccessAfter;
-		UnderlyingResource->PassPipeline = PassPipelineAfter;
-	}
 }
 
 void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
@@ -900,12 +800,18 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 
 void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets)
 {
+	check(Pass);
+
 	OutRPInfo->NumUAVs = 0;
 	OutRPInfo->UAVIndex = 0;
 
-	const ERDGPassPipeline PassPipeline = Pass->IsCompute() ? ERDGPassPipeline::Compute : ERDGPassPipeline::Graphics;
+	const bool bIsCompute = Pass->IsCompute();
 
-	const bool bGeneratingMips = (Pass->GetFlags() & ERDGPassFlags::GenerateMips) == ERDGPassFlags::GenerateMips;
+	FRDGBarrierBatcher BarrierBatcher;
+	BarrierBatcher.Begin();
+
+	// NOTE: When generating mips, we don't perform any transitions on textures. They are done implicitly by the RHI.
+	const bool bGeneratingMips = Pass->IsGenerateMips();
 
 	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
 
@@ -931,7 +837,11 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				check(Texture->PooledRenderTarget);
 				check(Texture->ResourceRHI);
-				TransitionTexture(Texture, ERDGPassAccess::Read, PassPipeline);
+
+				if (!bGeneratingMips)
+				{
+					BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::CreateRead(Pass));
+				}
 			}
 		}
 		break;
@@ -955,7 +865,10 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					SRV->ResourceRHI = Texture->PooledRenderTarget->GetRenderTargetItem().MipSRVs[SRV->Desc.MipLevel];
 				}
 
-				TransitionTexture(Texture, ERDGPassAccess::Read, PassPipeline);
+				if (!bGeneratingMips)
+				{
+					BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::CreateRead(Pass));
+				}
 			}
 		}
 		break;
@@ -975,12 +888,12 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
 
-				if (PassPipeline == ERDGPassPipeline::Graphics)
+				if (!bIsCompute)
 				{
 					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
 				}
 
-				TransitionUAV(UAVRHI, Texture, ERDGPassAccess::Write, PassPipeline);
+				BarrierBatcher.QueueTransitionUAV(UAVRHI, Texture, FRDGResourceState::CreateWrite(Pass));
 			}
 		}
 		break;
@@ -999,9 +912,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
 				check(Buffer->PooledBuffer);
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
-				FRHIUnorderedAccessView* UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
+				FRHIUnorderedAccessView* UAVRHI = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 
-				TransitionUAV(UAV, Buffer, ERDGPassAccess::Write, PassPipeline);
+				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::CreateRead(Pass));
 			}
 		}
 		break;
@@ -1024,9 +937,9 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 				// TODO(RDG): super hacky, find the UAV and transition it. Hopefully there is one...
 				check(Buffer->PooledBuffer);
 				check(Buffer->PooledBuffer->UAVs.Num() == 1);
-				FRHIUnorderedAccessView* UAV = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
+				FRHIUnorderedAccessView* UAVRHI = Buffer->PooledBuffer->UAVs.CreateIterator().Value();
 
-				TransitionUAV(UAV, Buffer, ERDGPassAccess::Read, PassPipeline);
+				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::CreateRead(Pass));
 			}
 		}
 		break;
@@ -1046,18 +959,18 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 				FRHIUnorderedAccessView* UAVRHI = UAV->GetRHI();
 
-				if (PassPipeline == ERDGPassPipeline::Graphics)
+				if (!bIsCompute)
 				{
 					OutRPInfo->UAVs[OutRPInfo->NumUAVs++] = UAVRHI;	// Bind UAVs in declaration order
 				}
-	
-				TransitionUAV(UAVRHI, Buffer, ERDGPassAccess::Write, PassPipeline);
+
+				BarrierBatcher.QueueTransitionUAV(UAVRHI, Buffer, FRDGResourceState::CreateWrite(Pass));
 			}
 		}
 		break;
 		case UBMT_RENDER_TARGET_BINDING_SLOTS:
 		{
-			check(PassPipeline == ERDGPassPipeline::Graphics);
+			check(!Pass->IsCompute());
 
 			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
 			const auto& RenderTargets = RenderTargetBindingSlots.Output;
@@ -1106,8 +1019,7 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 
 					if (!bGeneratingMips)
 					{
-						// Implicit assurance the RHI will do the correct transitions
-						TransitionTexture(Texture, ERDGPassAccess::Write, PassPipeline);
+						BarrierBatcher.QueueTransitionTexture(Texture, FRDGResourceState::CreateWrite(Pass));
 					}
 
 					SampleCount |= OutRenderTarget.RenderTarget->GetNumSamples();
@@ -1142,8 +1054,11 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 					MakeRenderTargetActions(DepthStencil.GetStencilLoadAction(), DepthStencil.GetStencilStoreAction()));
 				OutDepthStencil.ExclusiveDepthStencil = DepthStencil.GetDepthStencilAccess();
 
-				TransitionTexture(Texture, ERDGPassAccess::Write, PassPipeline);
-
+				BarrierBatcher.QueueTransitionTexture(Texture,
+					DepthStencil.GetDepthStencilAccess().IsAnyWrite() ?
+						FRDGResourceState::CreateWrite(Pass) :
+						FRDGResourceState::CreateRead(Pass));
+	
 				SampleCount |= OutDepthStencil.DepthStencilTarget->GetNumSamples();
 				ValidDepthStencilCount++;
 
@@ -1165,6 +1080,8 @@ void FRDGBuilder::PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRe
 	}
 
 	OutRPInfo->bGeneratingMips = bGeneratingMips;
+
+	BarrierBatcher.End(RHICmdList);
 }
 
 void FRDGBuilder::UpdateAccessGuardForPassResources(const FRDGPass* Pass, bool bAllowAccess)
@@ -1403,13 +1320,21 @@ void FRDGBuilder::ReleaseUnreferencedResources(const FRDGPass* Pass)
 
 void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 {
+	FRDGBarrierBatcher BarrierBatcher;
+	BarrierBatcher.Begin();
+
 	for (const auto& Query : DeferredInternalTextureQueries)
 	{
 		check(Query.Texture->PooledRenderTarget);
 
 		if (Query.bTransitionToRead)
 		{
-			TransitionTexture(Query.Texture, ERDGPassAccess::Read, ERDGPassPipeline::Graphics);
+			BarrierBatcher.QueueTransitionTexture(
+				Query.Texture,
+				FRDGResourceState(
+					nullptr,
+					FRDGResourceState::EPipeline::Graphics,
+					FRDGResourceState::EAccess::Read));
 		}
 
 		*Query.OutTexturePtr = AllocatedTextures.FindChecked(Query.Texture);
@@ -1447,6 +1372,8 @@ void FRDGBuilder::ProcessDeferredInternalResourceQueries()
 			ReleaseRHIBufferIfUnreferenced(Query.Buffer);
 		}
 	}
+
+	BarrierBatcher.End(RHICmdList);
 }
 
 void FRDGBuilder::DestructPasses()
