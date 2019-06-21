@@ -372,7 +372,7 @@ public:
 				NAME_None,
 				LOCTEXT("TogglePlaybackSyncLabel", "Playback Sync"),
 				LOCTEXT("TogglePlaybackSyncTooltip", "Toggle Multi-User Playback Sync. If the option is enabled, playback and scrubbing of Sequencer will be synchronized across all users in a Multi-Users session if they have that sequence open and this option enabled."),
-				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Concert", "Concert.Online.Small"), // TODO: Find appropriate icon
+				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Sequencer.SyncTimeline", "Concert.Sequencer.SyncTimeline.Small"),
 				EUserInterfaceActionType::ToggleButton
 			);
 
@@ -398,7 +398,7 @@ public:
 				NAME_None,
 				LOCTEXT("ToggleRemoteOpenLabel", "Remote Open"), 
 				LOCTEXT("ToggleRemoteOpenTooltip", "Toggle Multi-User Remote Open. If the option is enabled, opening a sequence will open the same sequence on all users in the Multi-User session that also have this option enabled."),
-				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Concert", "Concert.Offline.Small"), // TODO: Find appropriate icon
+				FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), "Concert.Sequencer.SyncSequence", "Concert.Sequencer.SyncSequence.Small"),
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
