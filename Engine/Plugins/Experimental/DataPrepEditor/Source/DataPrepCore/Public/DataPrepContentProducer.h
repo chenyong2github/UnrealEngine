@@ -108,6 +108,25 @@ public:
 	 */
 	virtual FString GetNamespace() const;
 
+	/**
+	 * Allow an observer to be notified when one of the properties of the producer changes
+	 * @return The delegate that will be broadcasted when the consumer changed
+	 * @remark: Subclass of UDataprepContentProducer must use this mechanism to communicate changes to the owning Dataprep asset
+	 */
+	DECLARE_EVENT_OneParam( UDataprepContentProducer, FDataprepProducerChanged, const UDataprepContentProducer* )
+	FDataprepProducerChanged& GetOnChanged()
+	{
+		return OnChanged;
+	}
+
+	/**
+	 * A producer supersede another if its produces the same content or a super-set of the other's content
+	 * @param OtherProducer : Other producer to compare to.
+	 * @return true if the other producer produces the same content or a sub-set of it
+	 * @remark Each sub-class must implement this method
+	 */
+	virtual bool Supersede(const UDataprepContentProducer* OtherProducer) const { unimplemented(); return true; }
+
 protected:
 
 	/**
@@ -166,4 +185,7 @@ protected:
 
 	/** Array of assets generated after a call to Run */
 	TArray<TWeakObjectPtr<UObject>> Assets;
+
+	/** Delegate to broadcast changes to the producer */
+	FDataprepProducerChanged OnChanged;
 };

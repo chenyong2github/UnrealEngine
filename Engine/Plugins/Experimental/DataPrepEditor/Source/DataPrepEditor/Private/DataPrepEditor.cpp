@@ -3,7 +3,6 @@
 #include "DataPrepEditor.h"
 
 #include "BlueprintNodes/K2Node_DataprepAction.h"
-#include "BlueprintNodes/K2Node_DataprepConsumer.h"
 #include "BlueprintNodes/K2Node_DataprepProducer.h"
 #include "DataPrepContentConsumer.h"
 #include "DataPrepContentProducer.h"
@@ -18,6 +17,7 @@
 #include "Widgets/SDataprepPalette.h"
 
 #include "ActorEditorUtils.h"
+#include "AssetDeleteModel.h"
 #include "AssetRegistryModule.h"
 #include "BlueprintNodeSpawner.h"
 #include "DesktopPlatformModule.h"
@@ -29,6 +29,7 @@
 #include "EngineUtils.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "GenericPlatform/GenericPlatformTime.h"
 #include "HAL/FileManager.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -183,6 +184,11 @@ FDataprepEditor::FDataprepEditor()
 
 FDataprepEditor::~FDataprepEditor()
 {
+	if( DataprepAssetPtr.IsValid() )
+	{
+		DataprepAssetPtr->GetOnChanged().RemoveAll( this );
+	}
+
 	if ( PreviewWorld )
 	{
 		GEngine->DestroyWorldContext( PreviewWorld.Get() );
@@ -271,7 +277,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	DataprepAssetPtr = TWeakObjectPtr<UDataprepAsset>(InDataprepAsset);
 	check( DataprepAssetPtr.IsValid() );
 
-	FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FDataprepEditor::OnDataprepAssetChanged);
+	DataprepAssetPtr->GetOnChanged().AddRaw( this, &FDataprepEditor::OnDataprepAssetChanged );
 
 	// Assign unique session identifier
 	SessionID = FGuid::NewGuid().ToString();
@@ -282,75 +288,39 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	// Temp code for the nodes development
 	DataprepRecipeBPPtr = DataprepAssetPtr->DataprepRecipeBP;
-	if( !DataprepRecipeBPPtr.IsValid() )
+	check( DataprepRecipeBPPtr.IsValid() );
+
+	UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBPPtr.Get());
+	check( PipelineGraph );
+
+	TArray< class UK2Node_DataprepAction* > ActionNodes;
+
+	for( UEdGraphNode* GraphNode : PipelineGraph->Nodes )
 	{
-		const FString DesiredName = DataprepAssetPtr->GetName() + TEXT("_Recipe");
-		FName BlueprintName = MakeUniqueObjectName( DataprepAssetPtr->GetOutermost(), UBlueprint::StaticClass(), *DesiredName );
-
-		UBlueprint* DataprepRecipeBP = FKismetEditorUtilities::CreateBlueprint( UDataprepRecipe::StaticClass(), DataprepAssetPtr.Get(), BlueprintName
-			, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass() );
-
+		if( GraphNode->IsA<UK2Node_DataprepProducer>() )
 		{
-			UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBP);
-
-			IBlueprintNodeBinder::FBindingSet Bindings;
-			UK2Node_DataprepProducer* ProducerNode = Cast<UK2Node_DataprepProducer>(UBlueprintNodeSpawner::Create<UK2Node_DataprepProducer>()->Invoke(EventGraph, Bindings, FVector2D(-100,0)));
-
-			ProducerNode->SetDataprepAsset( DataprepAssetPtr.Get() );
-			StartNode = ProducerNode;
+			StartNode = GraphNode;
 		}
-
-		FAssetRegistryModule::AssetCreated( DataprepRecipeBP );
-
-		DataprepRecipeBP->MarkPackageDirty();
-
-		DataprepAssetPtr->DataprepRecipeBP = DataprepRecipeBP;
-
-		DataprepRecipeBPPtr = DataprepAssetPtr->DataprepRecipeBP;
-	}
-	else
-	{
-		UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBPPtr.Get());
-		check( PipelineGraph );
-
-		TArray< class UK2Node_DataprepAction* > ActionNodes;
-
-		for( UEdGraphNode* GraphNode : PipelineGraph->Nodes )
+		else if(StartNode != nullptr)
 		{
-			if( GraphNode->IsA<UK2Node_DataprepProducer>() )
-			{
-				StartNode = GraphNode;
-			}
-			else if(StartNode != nullptr)
-			{
-				break;
-			}
+			break;
 		}
-		check( StartNode );
 	}
-	// end of temp code for nodes development
 
 	FDataprepEditorStyle::Initialize();
 
-	// Find content producers and consumers the user could use for his/her data preparation
-	for( TObjectIterator< UClass > It ; It ; ++It )
+	// This should normally happen only with a brand new Dataprep asset
+	if( StartNode == nullptr )
 	{
-		UClass* CurrentClass = (*It);
+		UEdGraph* EventGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBPPtr.Get());
 
-		if ( !CurrentClass->HasAnyClassFlags( CLASS_Abstract ) )
-		{
-			if( CurrentClass->IsChildOf( UDataprepContentProducer::StaticClass() ) )
-			{
-				UDataprepContentProducer* Producer = Cast< UDataprepContentProducer >( CurrentClass->GetDefaultObject() );
-				ProducerDescriptions.Emplace( CurrentClass, Producer->GetLabel(), Producer->GetDescription() );
-			}
-			else if( CurrentClass->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
-			{
-				UDataprepContentConsumer* Consumer = Cast< UDataprepContentConsumer >( CurrentClass->GetDefaultObject() );
-				ConsumerDescriptions.Emplace( CurrentClass, Consumer->GetLabel(), Consumer->GetDescription() );
-			}
-		}
+		IBlueprintNodeBinder::FBindingSet Bindings;
+		UK2Node_DataprepProducer* ProducerNode = Cast<UK2Node_DataprepProducer>(UBlueprintNodeSpawner::Create<UK2Node_DataprepProducer>()->Invoke(EventGraph, Bindings, FVector2D(-100,0)));
+
+		ProducerNode->SetDataprepAsset( DataprepAssetPtr.Get() );
+		StartNode = ProducerNode;
 	}
+	// end of temp code for nodes development
 
 	GEditor->RegisterForUndo(this);
 
@@ -510,11 +480,14 @@ void FDataprepEditor::OnBuildWorld()
 	DataprepRecipePtr->ResetAssets();
 	// end of temp code for nodes development
 
-	if (DataprepAsset->Producers.Num() == 0)
+	if (DataprepAsset->GetProducersCount() == 0)
 	{
 		ResetBuildWorld();
 		return;
 	}
+
+	uint64 StartTime = FPlatformTime::Cycles64();
+	UE_LOG( LogDataprepEditor, Log, TEXT("Importing ...") );
 
 	CleanPreviewWorld();
 
@@ -529,7 +502,7 @@ void FDataprepEditor::OnBuildWorld()
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
 	TransientPackage->FullyLoad();
 
-	// #ueent_todo: Add progress reporter and logger to dataprep editor
+	// #ueent_todo: Add progress reporter and logger to Dataprep editor
 	UDataprepContentProducer::ProducerContext Context;
 	Context.SetWorld( PreviewWorld.Get() )
 		.SetRootPackage( TransientPackage )
@@ -541,147 +514,57 @@ void FDataprepEditor::OnBuildWorld()
 	CachedAssets.Reset();
 	CachedAssets.Append( Assets );
 
-	TakeSnapshot();
-	// #ueent_todo: For testing purpose, snapshot is taken then restored
-	//RestoreFromSnapshot();
-
-	OnWorldChanged();
+	UpdatePreviewPanels();
 	bWorldBuilt = true;
 	bIsFirstRun = true;
 	bPipelineExecuted = false;
+
+	// Log time spent to import incoming file in minutes and seconds
+	double ElapsedSeconds = FPlatformTime::ToSeconds64(FPlatformTime::Cycles64() - StartTime);
+
+	int ElapsedMin = int(ElapsedSeconds / 60.0);
+	ElapsedSeconds -= 60.0 * (double)ElapsedMin;
+	UE_LOG( LogDataprepEditor, Log, TEXT("Import took [%d min %.3f s]"), ElapsedMin, ElapsedSeconds );
+
+	TakeSnapshot();
 }
 
-void FDataprepEditor::OnDataprepAssetChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent)
+void FDataprepEditor::OnDataprepAssetChanged( FDataprepAssetChangeType ChangeType, int32 Index )
 {
-	if(InObject == nullptr)
+	switch(ChangeType)
 	{
-		return;
-	}
-
-	if(Cast<UDataprepAsset>(InObject) == DataprepAssetPtr.Get())
-	{
-		const FName MemberPropertyName = InPropertyChangedEvent.MemberProperty != nullptr ? InPropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
-
-		if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UDataprepAsset, Producers))
-		{
-			ResetBuildWorld();
-		}
-		else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UDataprepAsset, Consumer))
-		{
-		}
-	}
-
-	if (Cast<UBlueprint>(InObject) == DataprepRecipeBPPtr.Get())
-	{
-	}
-	else if ( InObject->StaticClass()->IsChildOf( UDataprepContentConsumer::StaticClass() ) )
-	{
-	}
-	else if ( InObject->StaticClass()->IsChildOf( UDataprepContentProducer::StaticClass() ) )
-	{
-		ResetBuildWorld();
-	}
-}
-
-void FDataprepEditor::OnRemoveProducer( int32 Index )
-{
-	if (!DataprepAssetPtr.IsValid() || !DataprepAssetPtr->Producers.IsValidIndex( Index ) )
-	{
-		return;
-	}
-
-	FDataprepAssetProducer& AssetProducer = DataprepAssetPtr->Producers[Index];
-
-	DeleteRegisteredAsset( AssetProducer.Producer );
-
-	DataprepAssetPtr->Producers.RemoveAt( Index );
-
-	DataprepAssetPtr->MarkPackageDirty();
-
-	DataprepAssetProducerChangedDelegate.Broadcast();
-	ResetBuildWorld();
-}
-
-bool FDataprepEditor::OnChangeConsumer( TSharedPtr<FString>& NewConsumer )
-{
-	if ( NewConsumer.IsValid() )
-	{
-		UClass* NewConsumerClass = nullptr;
-
-		for ( int32 Index = 0; Index < ConsumerDescriptions.Num(); ++Index)
-		{
-			if (ConsumerDescriptions[Index].Get<1>().ToString() == *NewConsumer.Get() )
+		case FDataprepAssetChangeType::ConsumerModified:
 			{
-				NewConsumerClass = ConsumerDescriptions[Index].Get<0>();
-				break;
+				UpdatePreviewPanels();
 			}
-		}
+			break;
 
-		if (NewConsumerClass != nullptr)
-		{
-			DeleteRegisteredAsset( DataprepAssetPtr->Consumer );
+		case FDataprepAssetChangeType::BlueprintModified:
+			{
+				// #ueent_todo: Anything to do there ?
+			}
+			break;
 
-			DataprepAssetPtr->Consumer = NewObject< UDataprepContentConsumer >( DataprepAssetPtr->GetOutermost(), NewConsumerClass, NAME_None, RF_Transactional );
-			check( DataprepAssetPtr->Consumer );
+		case FDataprepAssetChangeType::ProducerAdded:
+		case FDataprepAssetChangeType::ProducerRemoved:
+		case FDataprepAssetChangeType::ProducerModified:
+			{
+				// Just reset world for the time being
+				ResetBuildWorld();
+			}
+			break;
 
-			FAssetRegistryModule::AssetCreated( DataprepAssetPtr->Consumer );
-			DataprepAssetPtr->Consumer->MarkPackageDirty();
+		default:
+			break;
 
-			DataprepAssetPtr->MarkPackageDirty();
-
-			return true;
-		}
 	}
-
-	return false;
 }
-
-void FDataprepEditor::OnAddProducer( int32 Index )
-{
-	if (!DataprepAssetPtr.IsValid() || !ProducerDescriptions.IsValidIndex( Index ) )
-	{
-		return;
-	}
-
-	UClass* ProducerClass = ProducerDescriptions[Index].Get<0>();
-	check( ProducerClass );
-
-	UDataprepContentProducer* Producer = NewObject< UDataprepContentProducer >( DataprepAssetPtr->GetOutermost(), ProducerClass, NAME_None, RF_Transactional );
-	FAssetRegistryModule::AssetCreated( Producer );
-	Producer->MarkPackageDirty();
-
-	DataprepAssetPtr->Producers.Emplace( Producer, true );
-	DataprepAssetPtr->MarkPackageDirty();
-
-	DataprepAssetProducerChangedDelegate.Broadcast();
-	ResetBuildWorld();
-}
-
-void FDataprepEditor::OnProducerChanged(int32 Index)
-{
-	if (!DataprepAssetPtr.IsValid() )
-	{
-		return;
-	}
-
-	if (Index == INDEX_NONE)
-	{
-		bWorldBuilt = false;
-	}
-	else if( ProducerDescriptions.IsValidIndex( Index ) )
-	{
-		bWorldBuilt = false;
-	}
-
-	DataprepAssetPtr->MarkPackageDirty();
-}
-
 
 void FDataprepEditor::ResetBuildWorld()
 {
 	bWorldBuilt = false;
 	CleanPreviewWorld();
-	OnWorldChanged();
+	UpdatePreviewPanels();
 	DataprepEditorUtil::DeleteTemporaryPackage( GetTransientContentFolder() );
 }
 
@@ -690,36 +573,41 @@ void FDataprepEditor::CleanPreviewWorld()
 	// Destroy all actors in preview world
 	for (ULevel* Level : PreviewWorld->GetLevels())
 	{
-		for (int32 i = 0; i < Level->Actors.Num(); i++)
+		TArray<AActor*> LevelActors( Level->Actors );
+
+		for( AActor* Actor : LevelActors )
 		{
-			AActor* Actor = Level->Actors[i];
-			if (Actor && !DefaultActorsInPreviewWorld.Contains(Actor))
+			if (Actor && !Actor->IsPendingKill() && !DefaultActorsInPreviewWorld.Contains(Actor))
 			{
 				PreviewWorld->EditorDestroyActor(Actor, true);
 				// Since deletion can be delayed, rename to avoid future name collision 
-				Actor->Rename();
+				Actor->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
 			}
 		}
 	}
 
-	if(Assets.Num() > 0)
+	const FString TransientContentFolder( GetTransientContentFolder() );
+	CachedAssets.Append( Assets );
+	for( TWeakObjectPtr<UObject>& Asset : CachedAssets )
 	{
-		TArray<UObject*> ObjectsToDelete;
-		ObjectsToDelete.Reserve(Assets.Num());
-
-		for( TWeakObjectPtr<UObject>& Asset : Assets )
+		if( UObject* ObjectToDelete = Asset.Get() )
 		{
-			if( UObject* AssetObject = Asset.Get() )
+			FString PackagePath = ObjectToDelete->GetOutermost()->GetName();
+			if( PackagePath.StartsWith( TransientContentFolder ) )
 			{
-				AssetObject->Rename( nullptr, GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
-				ObjectsToDelete.Add( AssetObject );
-			}
-		}
+				FName ObjectName = MakeUniqueObjectName( GetTransientPackage(), ObjectToDelete->GetClass(), *( ObjectToDelete->GetName() + TEXT( "_Deleted" ) ) );
+				ObjectToDelete->Rename( *ObjectName.ToString(), GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
 
-		if(ObjectsToDelete.Num() > 0)
-		{
-			int32 Diff = ObjectTools::DeleteObjects(ObjectsToDelete, false) - ObjectsToDelete.Num();
-			ensure( Diff == 0 );
+				// Remove public and standalone flag so garbage collection can delete the object.
+				ObjectToDelete->ClearFlags(RF_Standalone | RF_Public);
+
+				// Mark its package as dirty as we're going to delete it.
+				ObjectToDelete->MarkPendingKill();
+				ObjectToDelete->MarkPackageDirty();
+
+				// Notify the asset registry
+				FAssetRegistryModule::AssetDeleted( ObjectToDelete );
+			}
 		}
 	}
 
@@ -735,7 +623,7 @@ void FDataprepEditor::CleanPreviewWorld()
 
 void FDataprepEditor::OnExecutePipeline()
 {
-	if( DataprepAssetPtr->Consumer == nullptr )
+	if( DataprepAssetPtr->GetConsumer() == nullptr )
 	{
 		return;
 	}
@@ -836,7 +724,7 @@ void FDataprepEditor::OnExecutePipeline()
 					}
 
 					// World may have changed, update asset preview and scene outliner
-					OnWorldChanged();
+					UpdatePreviewPanels();
 					FSlateApplication::Get().PumpMessages();
 					FSlateApplication::Get().Tick();
 				}
@@ -880,15 +768,9 @@ void FDataprepEditor::OnCommitWorld()
 		.SetProgressReporter( TSharedPtr< IDataprepProgressReporter >( new FDataprepProgressReporter( LOCTEXT("Dataprep_CommitWorld", "Committing ...") ) ) );
 
 	FString OutReason;
-	if( DataprepAssetPtr->Consumer->Initialize( Context, OutReason ) )
+	if( !DataprepAssetPtr->RunConsumer( Context, OutReason ) )
 	{
-		// #ueent_todo: Update state of entry: finalizing
-		if ( !DataprepAssetPtr->Consumer->Run() )
-		{
-			// #ueent_todo: Inform execution has failed
-		}
-
-		DataprepAssetPtr->Consumer->Reset();
+		// #ueent_todo: Inform consumer failed
 	}
 
 	PipelineView->ClearSelectionSet();
@@ -1051,12 +933,17 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabPalette(const FSpawnTabArgs & Args
 		];
 }
 
-void FDataprepEditor::OnWorldChanged()
+void FDataprepEditor::UpdatePreviewPanels()
 {
 	// #ueent_todo: There should be a event triggered to inform listeners
 	//				   that new assets have been generated.
 	AssetPreviewView->ClearAssetList();
-	AssetPreviewView->SetAssetsList( Assets, FString() );
+	FString SubstitutePath = DataprepAssetPtr->GetOutermost()->GetName();
+	if(!DataprepAssetPtr->GetConsumer()->GetTargetContentFolder().IsEmpty())
+	{
+		SubstitutePath = DataprepAssetPtr->GetConsumer()->GetTargetContentFolder();
+	}
+	AssetPreviewView->SetAssetsList( Assets, GetTransientContentFolder(), SubstitutePath );
 	SceneOutliner->Refresh();
 }
 
@@ -1067,7 +954,7 @@ bool FDataprepEditor::OnRequestClose()
 
 bool FDataprepEditor::CanBuildWorld()
 {
-	return DataprepAssetPtr->Producers.Num() > 0;
+	return DataprepAssetPtr->GetProducersCount() > 0;
 }
 
 bool FDataprepEditor::CanExecutePipeline()
@@ -1078,27 +965,13 @@ bool FDataprepEditor::CanExecutePipeline()
 bool FDataprepEditor::CanCommitWorld()
 {
 	// Execution of pipeline is not required. User can directly commit result of import
-	return bWorldBuilt && DataprepAssetPtr->Consumer != nullptr;
+	return bWorldBuilt && DataprepAssetPtr->GetConsumer() != nullptr;
 }
 
-void FDataprepEditor::DeleteRegisteredAsset(UObject* Asset)
-{
-	if(Asset != nullptr)
-	{
-		FName AssetName = MakeUniqueObjectName( GetTransientPackage(), Asset->GetClass(), *( Asset->GetName() + TEXT( "_Deleted" ) ) );
-		Asset->Rename( *AssetName.ToString(), GetTransientPackage(), REN_DontCreateRedirectors | REN_NonTransactional );
-
-		Asset->ClearFlags(RF_Standalone | RF_Public);
-		Asset->RemoveFromRoot();
-		Asset->MarkPendingKill();
-
-		FAssetRegistryModule::AssetDeleted( Asset ) ;
-	}
-}
 
 FString FDataprepEditor::GetTransientContentFolder()
 {
-	return FPaths::Combine( FPackageName::GetLongPackagePath( GetDataprepAsset()->GetOutermost()->GetName() ), TEXT("Temp") );
+	return FPaths::Combine( TEXT("/DataPrepEditor"), SessionID );
 }
 
 void DataprepEditorUtil::DeleteTemporaryPackage( const FString& PathToDelete )

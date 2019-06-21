@@ -143,9 +143,10 @@ namespace AssetPreviewWidget
 		];
 	}
 
-	void SAssetsPreviewWidget::SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToTempFolder)
+	void SAssetsPreviewWidget::SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToReplace, const FString& InSubstitutePath)
 	{
-		PathToTempFolder = InPathToTempFolder;
+		PathToReplace = InPathToReplace;
+		SubstitutePath = InSubstitutePath;
 		RootItems.Empty();
 		TMap< FString, FAssetTreeItemPtr > NamesToRootItem;
 
@@ -264,7 +265,10 @@ namespace AssetPreviewWidget
 	{
 		TArray< FString > ItemsName;
 		FString AssetSubPath = Asset->GetPathName(nullptr);
-		AssetSubPath.RemoveFromStart(PathToTempFolder);
+		if(AssetSubPath.RemoveFromStart(PathToReplace) && !SubstitutePath.IsEmpty())
+		{
+			AssetSubPath = SubstitutePath / AssetSubPath;
+		}
 		AssetSubPath.ReplaceCharInline(TEXT('/'), TEXT('.'));
 		AssetSubPath.ParseIntoArray(ItemsName, TEXT("."), true);
 		return ItemsName;
