@@ -1830,15 +1830,11 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 	// Compute the composite bounds of this group of shadow primitives.
 	FBoxSphereBounds OriginalBounds = ShadowGroupPrimitives[0]->Proxy->GetBounds();
 
-	// @MIXEDREALITY_CHANGE : BEGIN - This check is blocking HoloLens apps from launching in Development mode.
-#if !PLATFORM_HOLOLENS
-	// @MIXEDREALITY_CHANGE : END
 	if (!ensureMsgf(OriginalBounds.ContainsNaN() == false, TEXT("OriginalBound contains NaN : %s"), *OriginalBounds.ToString()))
 	{
 		// fix up OriginalBounds. This is going to cause flickers
 		OriginalBounds = FBoxSphereBounds(FVector::ZeroVector, FVector(1.f), 1.f);
 	}
-#endif
 
 	for (int32 ChildIndex = 1; ChildIndex < ShadowGroupPrimitives.Num(); ChildIndex++)
 	{
@@ -1888,11 +1884,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 			OriginalBounds.SphereRadius /
 			FMath::Max(ShadowViewDistFromBounds, 1.0f);
 		// Early catch for invalid CalculateShadowFadeAlpha()
-		// @MIXEDREALITY_CHANGE : BEGIN - This check is blocking HoloLens apps from launching in Development mode.
-#if !PLATFORM_HOLOLENS
-		// @MIXEDREALITY_CHANGE : END
 		ensureMsgf(ScreenRadius >= 0.0f, TEXT("View.ShadowViewMatrices.ScreenScale %f, OriginalBounds.SphereRadius %f, ShadowViewDistFromBounds %f"), View.ShadowViewMatrices.GetScreenScale(), OriginalBounds.SphereRadius, ShadowViewDistFromBounds);
-#endif
 
 		const float ScreenPercent = FMath::Max(
 			1.0f / 2.0f * View.ShadowViewMatrices.GetProjectionScale().X,
