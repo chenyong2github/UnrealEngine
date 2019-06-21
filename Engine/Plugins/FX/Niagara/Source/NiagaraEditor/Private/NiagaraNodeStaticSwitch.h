@@ -80,8 +80,6 @@ public:
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 	//~ End UNiagaraNode Interface
 
-	virtual void DestroyNode() override;
-
 protected:
 	//~ Begin UNiagaraNodeUsageSelector Interface
 	virtual void InsertInputPinsFor(const FNiagaraVariable& Var) override;

@@ -225,22 +225,19 @@ class UNiagaraGraph : public UEdGraph
 	const TMap<FNiagaraVariable, UNiagaraScriptVariable*>& GetAllMetaData() const;
 	TMap<FNiagaraVariable, UNiagaraScriptVariable*>& GetAllMetaData();
 
-	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const; // NOTE: The const is a lie! (This indirectly calls RefreshParameterReferences, which can recreate the entire map)
-
-	UNiagaraScriptVariable* GetScriptVariable(FNiagaraVariable Parameter) const;
-	UNiagaraScriptVariable* GetScriptVariable(FName ParameterName) const;
+	const TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection>& GetParameterReferenceMap() const;
 
 	/** Adds parameter to parameters map setting it as created by the user.*/
-	void AddParameter(const FNiagaraVariable& Parameter, bool bIsStaticSwitch = false);
+	void AddParameter(const FNiagaraVariable& Parameter);
 
 	/** Adds parameter to parameters map setting it as created by the user.*/
 	void AddParameterReference(const FNiagaraVariable& Parameter, const UEdGraphPin* Pin);
 
 	/** Remove parameter from map and all the pins associated. */
-	void RemoveParameter(const FNiagaraVariable& Parameter, bool bFromStaticSwitch = false);
+	void RemoveParameter(const FNiagaraVariable& Parameter);
 
 	/** Rename parameter from map and all the pins associated. */
-	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName, bool bFromStaticSwitch = false);
+	bool RenameParameter(const FNiagaraVariable& Parameter, FName NewName);
 
 	/** Gets a delegate which is called whenever a contained data interfaces changes. */
 	FOnDataInterfaceChanged& OnDataInterfaceChanged();
@@ -277,6 +274,9 @@ protected:
 	void ResolveNumerics(TMap<UNiagaraNode*, bool>& VisitedNodes, UEdGraphNode* Node);
 
 private:
+	/** Remove any meta-data that is no longer being referenced within this graph.*/
+	void PurgeUnreferencedMetaData() const;
+
 	virtual void NotifyGraphChanged(const FEdGraphEditAction& InAction) override;
 
 	/** Find parameters in the graph. */
@@ -318,5 +318,7 @@ private:
 	bool bIsRenamingParameter;
 
 	mutable bool bParameterReferenceRefreshPending;
+
+	mutable bool bUnreferencedMetaDataPurgePending;
 };
 
