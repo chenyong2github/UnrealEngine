@@ -1966,6 +1966,30 @@ struct FRHICommandUpdateIndexBuffer final : public FRHICommand<FRHICommandUpdate
 	}
 };
 
+struct FRHICommandUpdateStructuredBuffer final : public FRHICommand<FRHICommandUpdateStructuredBuffer>
+{
+	FStructuredBufferRHIParamRef StructuredBuffer;
+	void* Buffer;
+	uint32 BufferSize;
+	uint32 Offset;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandUpdateStructuredBuffer(FStructuredBufferRHIParamRef InStructuredBuffer, void* InBuffer, uint32 InOffset, uint32 InBufferSize)
+		: StructuredBuffer(InStructuredBuffer)
+		, Buffer(InBuffer)
+		, BufferSize(InBufferSize)
+		, Offset(InOffset)
+	{
+	}
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FRHICommandUpdateStructuredBuffer_Execute);
+		void* Data = GDynamicRHI->RHILockStructuredBuffer(StructuredBuffer, Offset, BufferSize, RLM_WriteOnly);
+		FMemory::Memcpy(Data, Buffer, BufferSize);
+		FMemory::Free(Buffer);
+		GDynamicRHI->RHIUnlockStructuredBuffer(StructuredBuffer);
+	}
+};
+
 static FLockTracker GLockTracker;
 
 
@@ -2080,6 +2104,65 @@ void FDynamicRHI::UnlockIndexBuffer_RenderThread(class FRHICommandListImmediate&
 		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
 		{
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockIndexBuffer_FlushForMem);
+			// we could be loading a level or something, lets get this stuff going
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
+			GLockTracker.TotalMemoryOutstanding = 0;
+		}
+	}
+}
+
+void* FDynamicRHI::LockStructuredBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStructuredBufferRHIParamRef StructuredBuffer, uint32 Offset, uint32 SizeRHI, EResourceLockMode LockMode)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_LockStructuredBuffer_RenderThread);
+	check(IsInRenderingThread());
+	bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+	void* Result;
+	if (!bBuffer || LockMode != RLM_WriteOnly || RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+	{
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Flush);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		}
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Lock);
+			Result = GDynamicRHI->RHILockStructuredBuffer(StructuredBuffer, Offset, SizeRHI, LockMode);
+		}
+	}
+	else
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_LockStructuredBuffer_Malloc);
+		Result = FMemory::Malloc(SizeRHI, 16);
+	}
+	check(Result);
+	GLockTracker.Lock(StructuredBuffer, Result, Offset, SizeRHI, LockMode);
+	return Result;
+}
+
+void FDynamicRHI::UnlockStructuredBuffer_RenderThread(class FRHICommandListImmediate& RHICmdList, FStructuredBufferRHIParamRef StructuredBuffer)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDynamicRHI_UnlockStructuredBuffer_RenderThread);
+	check(IsInRenderingThread());
+	bool bBuffer = CVarRHICmdBufferWriteLocks.GetValueOnRenderThread() > 0;
+	FLockTracker::FLockParams Params = GLockTracker.Unlock(StructuredBuffer);
+	if (!bBuffer || Params.LockMode != RLM_WriteOnly || RHICmdList.Bypass() || !IsRunningRHIInSeparateThread())
+	{
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_Flush);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+		}
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_Unlock);
+			GDynamicRHI->RHIUnlockStructuredBuffer(StructuredBuffer);
+			GLockTracker.TotalMemoryOutstanding = 0;
+		}
+	}	
+	else
+	{
+		ALLOC_COMMAND_CL(RHICmdList, FRHICommandUpdateStructuredBuffer)(StructuredBuffer, Params.Buffer, Params.Offset, Params.BufferSize);
+		RHICmdList.RHIThreadFence(true);
+		if (GLockTracker.TotalMemoryOutstanding > 256 * 1024)
+		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_UnlockStructuredBuffer_FlushForMem);
 			// we could be loading a level or something, lets get this stuff going
 			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); 
 			GLockTracker.TotalMemoryOutstanding = 0;
