@@ -107,72 +107,81 @@ bool AOnlineBeaconClient::InitClient(FURL& URL)
 			{
 				check(NetDriver->ServerConnection);
 				UWorld* World = GetWorld();
-
-				BeaconConnection = NetDriver->ServerConnection;
-
-				if (IsRunningDedicatedServer())
+				if (World)
 				{
-					IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World);
-					if (IdentityPtr.IsValid())
+					BeaconConnection = NetDriver->ServerConnection;
+
+					if (IsRunningDedicatedServer())
 					{
-						BeaconConnection->PlayerId = IdentityPtr->GetUniquePlayerId(DEDICATED_SERVER_USER_INDEX);
+						IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(World);
+						if (IdentityPtr.IsValid())
+						{
+							BeaconConnection->PlayerId = IdentityPtr->GetUniquePlayerId(DEDICATED_SERVER_USER_INDEX);
+						}
 					}
-				}
-				else
-				{
-					ULocalPlayer* LocalPlayer = GEngine->GetFirstGamePlayer(World);
-					if (LocalPlayer)
+					else
 					{
-						// Send the player unique Id at login
-						BeaconConnection->PlayerId = LocalPlayer->GetPreferredUniqueNetId();
+						ULocalPlayer* LocalPlayer = GEngine->GetFirstGamePlayer(World);
+						if (LocalPlayer)
+						{
+							// Send the player unique Id at login
+							BeaconConnection->PlayerId = LocalPlayer->GetPreferredUniqueNetId();
+						}
 					}
-				}
 
 #if NETCONNECTION_HAS_SETENCRYPTIONKEY
-				if (EncryptionKey.Num() > 0)
-				{
-					BeaconConnection->SetEncryptionKey(EncryptionKey);
-				}
+					if (EncryptionKey.Num() > 0)
+					{
+						BeaconConnection->SetEncryptionKey(EncryptionKey);
+					}
 #endif
 
-				SetConnectionState(EBeaconConnectionState::Pending);
+					SetConnectionState(EBeaconConnectionState::Pending);
 
-				// Kick off the connection handshake
-				bool bSentHandshake = false;
+					// Kick off the connection handshake
+					bool bSentHandshake = false;
 
-				if (BeaconConnection->Handler.IsValid())
-				{
-					BeaconConnection->Handler->BeginHandshaking(
-						FPacketHandlerHandshakeComplete::CreateUObject(this, &AOnlineBeaconClient::SendInitialJoin));
-
-					bSentHandshake = true;
-				}
-
-				if (NetDriver)
-				{
-					NetDriver->SetWorld(World);
-					NetDriver->Notify = this;
-					NetDriver->InitialConnectTimeout = BeaconConnectionInitialTimeout;
-					NetDriver->ConnectionTimeout = BeaconConnectionTimeout;
-
-					if (!bSentHandshake)
+					if (BeaconConnection->Handler.IsValid())
 					{
-						SendInitialJoin();
+						BeaconConnection->Handler->BeginHandshaking(
+							FPacketHandlerHandshakeComplete::CreateUObject(this, &AOnlineBeaconClient::SendInitialJoin));
+
+						bSentHandshake = true;
 					}
 
-					bSuccess = true;
+					if (NetDriver)
+					{
+						NetDriver->SetWorld(World);
+						NetDriver->Notify = this;
+						NetDriver->InitialConnectTimeout = BeaconConnectionInitialTimeout;
+						NetDriver->ConnectionTimeout = BeaconConnectionTimeout;
+
+						if (!bSentHandshake)
+						{
+							SendInitialJoin();
+						}
+
+						bSuccess = true;
+					}
+					else
+					{
+						// an error must have occurred during BeginHandshaking
+						UE_LOG(LogBeacon, Warning, TEXT("AOnlineBeaconClient::InitClient BeginHandshaking failed"));
+
+						// if the connection is still pending, notify of failure
+						if (GetConnectionState() == EBeaconConnectionState::Pending)
+						{
+							SetConnectionState(EBeaconConnectionState::Invalid);
+							OnFailure();
+						}
+					}
 				}
 				else
 				{
-					// an error must have occurred during BeginHandshaking
-					UE_LOG(LogBeacon, Warning, TEXT("AOnlineBeaconClient::InitClient BeginHandshaking failed"));
-
-					// if the connection is still pending, notify of failure
-					if (GetConnectionState() == EBeaconConnectionState::Pending)
-					{
-						SetConnectionState(EBeaconConnectionState::Invalid);
-						OnFailure();
-					}
+					// error initializing the network stack, no world...
+					UE_LOG(LogBeacon, Log, TEXT("AOnlineBeaconClient::InitClient failed - no world"));
+					SetConnectionState(EBeaconConnectionState::Invalid);
+					OnFailure();
 				}
 			}
 			else
