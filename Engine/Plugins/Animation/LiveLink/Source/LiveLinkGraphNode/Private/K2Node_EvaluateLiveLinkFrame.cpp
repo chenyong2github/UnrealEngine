@@ -23,8 +23,6 @@ namespace UK2Node_EvaluateLiveLinkFrameHelper
 {
 	static FName LiveLinkSubjectPinName = "Subject";
 	static FName LiveLinkRolePinName = "Role";
-	static FName LiveLinkWorldTimePinName = "WorldTime";
-	static FName LiveLinkSceneTimePinName = "SceneTime";
 	static FName LiveLinkDataResultPinName = "DataResult";
 	static FName FrameNotAvailablePinName = "InvalidFrame";
 };
@@ -65,32 +63,6 @@ void UK2Node_EvaluateLiveLinkFrame::AllocateDefaultPins()
 	}
 
 	Super::AllocateDefaultPins();
-}
-
-void UK2Node_EvaluateLiveLinkFrameAtWorldTime::AllocateDefaultPins()
-{
-	Super::AllocateDefaultPins();
-
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-
-	// float pin
-	UEdGraphPin* LiveLinkWorldTimePin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Float, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkWorldTimePinName);
-	LiveLinkWorldTimePin->PinFriendlyName = LOCTEXT("LiveLinkWorldTimePin", "World Time");
-	SetPinToolTip(*LiveLinkWorldTimePin, LOCTEXT("LiveLinkWorldTimePinDescription", "The World Time the subject will be evaluated to"));
-}
-
-void UK2Node_EvaluateLiveLinkFrameAtSceneTime::AllocateDefaultPins()
-{
-	Super::AllocateDefaultPins();
-
-	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
-
-	// Timecode pin
-	UScriptStruct* TimecodeScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, TEXT("Timecode"), true);
-	check(TimecodeScriptStruct);
-	UEdGraphPin* LiveLinkSceneTimePin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, TimecodeScriptStruct, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSceneTimePinName);
-	LiveLinkSceneTimePin->PinFriendlyName = LOCTEXT("LiveLinkSceneTimePin", "Scene Time");
-	SetPinToolTip(*LiveLinkSceneTimePin, LOCTEXT("LiveLinkSceneTimePinDescription", "The Scene Time the subject will be evaluated to"));
 }
 
 void UK2Node_EvaluateLiveLinkFrame::SetPinToolTip(UEdGraphPin& InOutMutatablePin, const FText& InPinDescription) const
@@ -259,50 +231,6 @@ UEdGraphPin* UK2Node_EvaluateLiveLinkFrame::GetResultingDataPin() const
 	return Pin;
 }
 
-FText UK2Node_EvaluateLiveLinkFrame::GetNodeTitle(ENodeTitleType::Type TitleType) const
-{
-	return LOCTEXT("EvaluateLiveLinkFrameTitle", "Evaluate Live Link Frame");
-}
-
-FText UK2Node_EvaluateLiveLinkFrameAtWorldTime::GetNodeTitle(ENodeTitleType::Type TitleType) const
-{
-	return LOCTEXT("EvaluateLiveLinkFrameAtWorldTimeTitle", "Evaluate Live Link Frame at World Time");
-}
-
-FText UK2Node_EvaluateLiveLinkFrameAtSceneTime::GetNodeTitle(ENodeTitleType::Type TitleType) const
-{
-	return LOCTEXT("EvaluateLiveLinkFrameAtSceneTimeTitle", "Evaluate Live Link Frame at Scene Time");
-}
-
-FName UK2Node_EvaluateLiveLinkFrame::GetEvaluateFunctionName() const
-{
-	return GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrameWithSpecificRole);
-}
-
-FName UK2Node_EvaluateLiveLinkFrameAtWorldTime::GetEvaluateFunctionName() const
-{
-	return GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrameAtWorldTimeOffset);
-}
-
-FName UK2Node_EvaluateLiveLinkFrameAtSceneTime::GetEvaluateFunctionName() const
-{
-	return GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrameAtSceneTime);
-}
-
-void UK2Node_EvaluateLiveLinkFrameAtWorldTime::AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction)
-{
-	UEdGraphPin* InPinSwitch = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkWorldTimePinName);
-	UEdGraphPin* TimePin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("WorldTime"));
-	CompilerContext.CopyPinLinksToIntermediate(*InPinSwitch, *TimePin);
-}
-
-void UK2Node_EvaluateLiveLinkFrameAtSceneTime::AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction)
-{
-	UEdGraphPin* InPinSwitch = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSceneTimePinName);
-	UEdGraphPin* TimePin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("SceneTime"));
-	CompilerContext.CopyPinLinksToIntermediate(*InPinSwitch, *TimePin);
-}
-
 void UK2Node_EvaluateLiveLinkFrame::ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
@@ -335,7 +263,7 @@ void UK2Node_EvaluateLiveLinkFrame::ExpandNode(class FKismetCompilerContext& Com
 		CompilerContext.CopyPinLinksToIntermediate(*OriginalLiveLinkRolePin, *LiveLinkRoleInPin);
 	}
 
-	AddOtherPin(CompilerContext, EvaluateLiveLinkFrameFunction);
+	AddPins(CompilerContext, EvaluateLiveLinkFrameFunction);
 
 	// Get some pins to work with
 	UEdGraphPin* OriginalDataOutPin = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkDataResultPinName);
