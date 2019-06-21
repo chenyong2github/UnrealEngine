@@ -247,7 +247,7 @@ void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FEx
 	{
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ResetLayout);
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().SaveLayout);
-#if !PLATFORM_MAC || !PLATFORM_LIUNX // On Mac/Linux windowed fullscreen mode in the editor is currently unavailable
+#if !PLATFORM_MAC || !PLATFORM_LINUX // On Mac/Linux windowed fullscreen mode in the editor is currently unavailable
 		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ToggleFullscreen);
 #endif
 	}
