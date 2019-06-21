@@ -244,6 +244,14 @@ struct FLiveLinkStreamedJointHeirarchySubject : IStreamedEntity
 		, RootDagPath(InRootPath)
 	{}
 
+	~FLiveLinkStreamedJointHeirarchySubject()
+	{
+		if (LiveLinkProvider.IsValid())
+		{
+			LiveLinkProvider->RemoveSubject(SubjectName);
+		}
+	}
+
 	virtual bool ShouldDisplayInUI() const { return true; }
 	virtual MString GetDisplayText() const { return MString("Character: ") + MString(*SubjectName.ToString()) + " ( " + RootDagPath.fullPathName() + " )"; }
 
@@ -386,6 +394,14 @@ struct FLiveLinkBaseCameraStreamedSubject : public IStreamedEntity
 public:
 	FLiveLinkBaseCameraStreamedSubject(FName InSubjectName) : SubjectName(InSubjectName) {}
 
+	~FLiveLinkBaseCameraStreamedSubject()
+	{
+		if (LiveLinkProvider.IsValid())
+		{
+			LiveLinkProvider->RemoveSubject(SubjectName);
+		}
+	}
+
 	virtual bool ValidateSubject() const { return true; }
 
 	virtual void RebuildSubjectData()
@@ -498,6 +514,14 @@ public:
 		, RootDagPath(InRootPath)
 	{}
 
+	~FLiveLinkStreamedPropSubject()
+	{
+		if (LiveLinkProvider.IsValid())
+		{
+			LiveLinkProvider->RemoveSubject(SubjectName);
+		}
+	}
+
 	virtual bool ShouldDisplayInUI() const { return true; }
 	virtual MString GetDisplayText() const { return MString("Prop: ") + MString(*SubjectName.ToString()) + " ( " + RootDagPath.fullPathName() + " )"; }
 
@@ -527,6 +551,7 @@ public:
 private:
 	FName SubjectName;
 	MDagPath RootDagPath;
+	bool bHasBeenRebuild;
 
 	static TArray<FName> PropBoneNames;
 	static TArray<int32> PropBoneParents;
@@ -599,10 +624,17 @@ public:
 
 	void RemoveSubject(MString SubjectToRemove)
 	{
-		TArray<MString> Entries;
-		GetSubjectEntries(Entries);
-		int32 Index = Entries.IndexOfByKey(SubjectToRemove);
-		Subjects.RemoveAt(Index);
+		for (int32 Index = Subjects.Num() - 1; Index >= 0; --Index)
+		{
+			if (Subjects[Index]->ShouldDisplayInUI())
+			{
+				if (Subjects[Index]->GetDisplayText() == SubjectToRemove)
+				{
+					Subjects.RemoveAt(Index);
+					break;
+				}
+			}
+		}
 	}
 
 	void Reset()
@@ -927,6 +959,10 @@ DLLEXPORT MStatus initializePlugin(MObject MayaPluginObject)
 	{
 		GEngineLoop.PreInit(TEXT("MayaLiveLinkPlugin -Messaging"));
 		ProcessNewlyLoadedUObjects();
+
+		// ensure target platform manager is referenced early as it must be created on the main thread
+		GetTargetPlatformManager();
+
 		// Tell the module manager is may now process newly-loaded UObjects when new C++ modules are loaded
 		FModuleManager::Get().StartProcessingNewlyLoadedObjects();
 

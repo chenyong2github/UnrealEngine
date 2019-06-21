@@ -3,8 +3,7 @@ using UnrealBuildTool;
 
 public class MayaLiveLinkPlugin2017Target : MayaLiveLinkPluginTargetBase
 {
-	public MayaLiveLinkPlugin2017Target(TargetInfo Target) : base(Target)
+	public MayaLiveLinkPlugin2017Target(TargetInfo Target) : base(Target, "MayaLiveLinkPlugin2017")
 	{
-		LaunchModuleName = "MayaLiveLinkPlugin2017";
 	}
 }
