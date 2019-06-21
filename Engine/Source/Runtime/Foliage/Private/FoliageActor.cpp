@@ -44,7 +44,7 @@ void FFoliageActor::DestroyActors(bool bOnLoad)
 #if WITH_EDITOR
 bool FFoliageActor::IsInitialized() const
 {
-	return ActorClass != nullptr;;
+	return ActorClass != nullptr;
 }
 
 void FFoliageActor::Initialize(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType)
