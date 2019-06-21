@@ -2032,6 +2032,7 @@ FString FLLMCsvWriter::GetTagName(int64 Tag, FLLMCustomTag* CustomTags, const in
 			Result = GetTagName( ParentTags[Tag], CustomTags, nullptr ) + TEXT("/");
 		}
 
+		LLMCheckf(CustomTags[Tag - LLM_CUSTOM_TAG_START].Name != nullptr, TEXT("Tag %lld has no name"), Tag ); 
 		Result += CustomTags[Tag - LLM_CUSTOM_TAG_START].Name;
 	}
 	else
