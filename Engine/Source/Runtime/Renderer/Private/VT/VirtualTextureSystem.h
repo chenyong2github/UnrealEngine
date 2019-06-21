@@ -54,7 +54,7 @@ public:
 	void ReleasePhysicalSpace(FVirtualTexturePhysicalSpace* Space);
 
 	FVirtualTextureSpace* GetSpace(uint8 ID) const { check(ID < MaxSpaces); return Spaces[ID].Get(); }
-	FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint16 ID) const { return PhysicalSpaces[ID].Get(); }
+	FVirtualTexturePhysicalSpace* GetPhysicalSpace(uint16 ID) const { check(PhysicalSpaces[ID].IsValid());  return PhysicalSpaces[ID].Get(); }
 
 	void LockTile(const FVirtualTextureLocalTile& Tile);
 	void UnlockTile(const FVirtualTextureLocalTile& Tile, const FVirtualTextureProducer* Producer);
