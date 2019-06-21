@@ -7,6 +7,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "LiveLinkRole.h"
 #include "Roles/LiveLinkAnimationBlueprintStructs.h"
+#include "Roles/LiveLinkBasicTypes.h"
 
 #include "LiveLinkBlueprintLibrary.generated.h"
 
@@ -14,6 +15,12 @@ UCLASS()
 class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
+
+// FLiveLinkBasicBlueprintData
+
+	// Returns the value of a property stored in the Subject Frame
+	UFUNCTION(BlueprintPure, Category = "LiveLink")
+	static bool GetPropertyValue(UPARAM(ref) FLiveLinkBasicBlueprintData& BasicData, FName PropertyName, float& Value);
 
 // FSubjectFrameHandle 
 
@@ -44,6 +51,10 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 	// Returns the Subject Metadata structure stored in the Subject Frame
 	UFUNCTION(BlueprintPure, Category = "LiveLink|Animation")
 	static void GetMetadata(UPARAM(ref) FSubjectFrameHandle& SubjectFrameHandle, FSubjectMetadata& Metadata);
+
+	// Returns the Subject base structure stored in the Subject Frame
+	UFUNCTION(BlueprintPure, Category = "LiveLink|Animation")
+	static void GetBasicData(UPARAM(ref) FSubjectFrameHandle& SubjectFrameHandle, FLiveLinkBasicBlueprintData& BasicBlueprintData);
 
 // FLiveLinkTransform
 
@@ -98,69 +109,57 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 	static FText GetSourceMachineName(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
 
 public:
-	/** Fetches a frame on a subject for a specific role. Output is evaluated based on the role */
-	UFUNCTION(BlueprintCallable, CustomThunk, Category = LiveLink, meta = (CustomStructureParam = "OutBlueprintData", BlueprintInternalUseOnly = "true", AllowAbstract = "false"))
+
+	/** Get a list of all enabled subject names */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	static TArray<FLiveLinkSubjectName> GetLiveLinkEnabledSubjectNames(bool bIncludeVirtualSubject);
+
+	/** Get a list of all subjects */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	static TArray<FLiveLinkSubjectKey> GetLiveLinkSubjects(bool bIncludeDisabledSubject, bool bIncludeDisal);
+
+	/**
+	 * Whether or not a subject from the specific source is the enabled subject
+	 * Only 1 subject with the same name can be enabled
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey);
+
+	/** Whether or not the client has a subject with this name enabled */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	bool IsLiveLinkSubjectEnabled(const FLiveLinkSubjectName SubjectName);
+
+	/** Set the subject's from a specific source to enabled, disabling the other in the process, or disabled */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	void SetLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bEnabled);
+
+	/** Get the role of a subject from a specific source */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	static TSubclassOf<ULiveLinkRole> GetSpecificLiveLinkSubjectRole(const FLiveLinkSubjectKey SubjectKey);
+
+	/** Get the role of the subject with this name */
+	UFUNCTION(BlueprintCallable, Category = "LiveLink")
+	static TSubclassOf<ULiveLinkRole> GetLiveLinkSubjectRole(const FLiveLinkSubjectName SubjectName);
+
+	UE_DEPRECATED(4.23, "EvaluateLiveLinkFrame with Subject Represention is deprecated, recreate the node.")
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = LiveLink, meta = (DeprecatedFunction, CustomStructureParam = "OutBlueprintData", BlueprintInternalUseOnly = "true", AllowAbstract = "false"))
 	static bool EvaluateLiveLinkFrame(FLiveLinkSubjectRepresentation SubjectRepresentation, FLiveLinkBaseBlueprintData& OutBlueprintData);
 
-	static bool Generic_EvaluateLiveLinkFrame(FLiveLinkSubjectRepresentation SubjectRepresentation, FLiveLinkBlueprintDataStruct& OutBlueprintData);
-	
-	DECLARE_FUNCTION(execEvaluateLiveLinkFrame)
-	{
-        P_GET_STRUCT(FLiveLinkSubjectRepresentation, SubjectRepresentation);
+	/** Fetches a frame on a subject for a specific role. Output is evaluated based on the role */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = LiveLink, meta = (DisplayName="EvaluateLiveLinkFrame", CustomStructureParam = "OutBlueprintData", BlueprintInternalUseOnly = "true", AllowAbstract = "false"))
+	static bool EvaluateLiveLinkFrameWithSpecificRole(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FLiveLinkBaseBlueprintData& OutBlueprintData);
 
-		Stack.MostRecentPropertyAddress = nullptr;
-		Stack.StepCompiledIn<UStructProperty>(NULL);
-		void* OutBlueprintDataPtr = Stack.MostRecentPropertyAddress;
-		UStructProperty* BlueprintDataStructProp = Cast<UStructProperty>(Stack.MostRecentProperty);
-		
-		P_FINISH;
-		bool bSuccess = false;
+	/** Fetches a frame on a subject for a specific role at an offset from the application current time. Output is evaluated based on the role */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = LiveLink, meta = (CustomStructureParam = "OutBlueprintData", BlueprintInternalUseOnly = "true", AllowAbstract = "false"))
+	static bool EvaluateLiveLinkFrameAtWorldTimeOffset(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, float WorldTimeOffset, FLiveLinkBaseBlueprintData& OutBlueprintData);
 
-		if (!SubjectRepresentation.Role || SubjectRepresentation.Subject.IsNone())
-		{
-			FBlueprintExceptionInfo ExceptionInfo(
-				EBlueprintExceptionType::AccessViolation,
-				NSLOCTEXT("EvaluateLiveLinkFrame", "MissingRoleInput", "Failed to resolve the subject. Be sure the subject name and role are valid.")
-			);
-			FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
-		}
-		else if (BlueprintDataStructProp && OutBlueprintDataPtr)
-		{
-			if (ULiveLinkRole* LiveLinkRole = Cast<ULiveLinkRole>(SubjectRepresentation.Role->GetDefaultObject()))
-			{
-				UScriptStruct* BlueprintDataType = BlueprintDataStructProp->Struct;
-				const UScriptStruct* RoleBlueprintDataType = LiveLinkRole->GetBlueprintDataStruct();
+	/** Fetches a frame on a subject for a specific role at a specified scene time (timecode). Output is evaluated based on the role */
+	UFUNCTION(BlueprintCallable, CustomThunk, Category = LiveLink, meta = (CustomStructureParam = "OutBlueprintData", BlueprintInternalUseOnly = "true", AllowAbstract = "false"))
+	static bool EvaluateLiveLinkFrameAtSceneTime(FLiveLinkSubjectName SubjectName, TSubclassOf<ULiveLinkRole> Role, FTimecode SceneTime, FLiveLinkBaseBlueprintData& OutBlueprintData);
 
-				const bool bBlueprintDataCompatible = (BlueprintDataType == RoleBlueprintDataType) ||
-					(BlueprintDataType->IsChildOf(RoleBlueprintDataType) && FStructUtils::TheSameLayout(BlueprintDataType, RoleBlueprintDataType));
-				if (bBlueprintDataCompatible)
-				{
-					P_NATIVE_BEGIN;
-					
-					//Create the struct holder and make it point to the output data
-					FLiveLinkBlueprintDataStruct BlueprintDataWrapper(BlueprintDataType, StaticCast<FLiveLinkBaseBlueprintData*>(OutBlueprintDataPtr));
-					bSuccess = Generic_EvaluateLiveLinkFrame(SubjectRepresentation, BlueprintDataWrapper);
-					P_NATIVE_END;
-				}
-				else
-				{
-					FBlueprintExceptionInfo ExceptionInfo(
-						EBlueprintExceptionType::AccessViolation,
-						NSLOCTEXT("EvaluateLiveLinkFrame", "IncompatibleProperty", "Incompatible output blueprint data; the role blueprint's data type is not the same as the return type.")
-					);
-					FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
-				}
-			}
-		}
-		else
-		{
-			FBlueprintExceptionInfo ExceptionInfo(
-				EBlueprintExceptionType::AccessViolation,
-				NSLOCTEXT("EvaluateLiveLinkFrame", "MissingOutputProperty", "Failed to resolve the output parameter for EvaluateLiveLinkFrame.")
-			);
-			FBlueprintCoreDelegates::ThrowScriptException(P_THIS, Stack, ExceptionInfo);
-		}
-		*(bool*)RESULT_PARAM = bSuccess;
-	}
-
+private:
+	DECLARE_FUNCTION(execEvaluateLiveLinkFrame);
+	DECLARE_FUNCTION(execEvaluateLiveLinkFrameWithSpecificRole);
+	DECLARE_FUNCTION(execEvaluateLiveLinkFrameAtWorldTimeOffset);
+	DECLARE_FUNCTION(execEvaluateLiveLinkFrameAtSceneTime);
 };

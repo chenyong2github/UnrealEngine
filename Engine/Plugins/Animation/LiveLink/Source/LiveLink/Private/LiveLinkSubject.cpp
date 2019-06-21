@@ -147,6 +147,11 @@ bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FTimecode& InSceneTime, TS
 	return bSuccess;
 }
 
+bool FLiveLinkSubject::HasStaticData() const
+{
+	return StaticData.IsValid();
+}
+
 void FLiveLinkSubject::AddFrameData(FLiveLinkFrameDataStruct&& InFrameData)
 {
 	check(IsInGameThread());

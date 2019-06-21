@@ -19,21 +19,15 @@
 #define LOCTEXT_NAMESPACE "K2Node_EvaluateLiveLinkFrame"
 
 
-struct UK2Node_EvaluateLiveLinkFrameHelper
+namespace UK2Node_EvaluateLiveLinkFrameHelper
 {
-	static FName LiveLinkSubjectPinName;
-	static FName LiveLinkDataResultPinName;
-	static FName FrameNotAvailablePinName;
+	static FName LiveLinkSubjectPinName = "Subject";
+	static FName LiveLinkRolePinName = "Role";
+	static FName LiveLinkWorldTimePinName = "WorldTime";
+	static FName LiveLinkSceneTimePinName = "SceneTime";
+	static FName LiveLinkDataResultPinName = "DataResult";
+	static FName FrameNotAvailablePinName = "InvalidFrame";
 };
-
-FName UK2Node_EvaluateLiveLinkFrameHelper::FrameNotAvailablePinName(*LOCTEXT("FrameNotAvailablePinName", "Invalid Frame").ToString());
-FName UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkDataResultPinName(*LOCTEXT("LiveLinkDataResultPinName", "LiveLinkDataResult").ToString());
-FName UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSubjectPinName(*LOCTEXT("LiveLinkSubjectNamePinName", "LiveLinkSubject").ToString());
-
-UK2Node_EvaluateLiveLinkFrame::UK2Node_EvaluateLiveLinkFrame(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
 
 void UK2Node_EvaluateLiveLinkFrame::AllocateDefaultPins()
 {
@@ -41,20 +35,62 @@ void UK2Node_EvaluateLiveLinkFrame::AllocateDefaultPins()
 
 	// Add execution pins
 	CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Execute);
-	UEdGraphPin* FrameAvailablePin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
-	FrameAvailablePin->PinFriendlyName = LOCTEXT("EvaluateLiveLinkFrame Frame available", "Valid Frame");
-	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UK2Node_EvaluateLiveLinkFrameHelper::FrameNotAvailablePinName);
+
+	// Output pin
+	{
+		UEdGraphPin* FrameAvailablePin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
+		FrameAvailablePin->PinFriendlyName = LOCTEXT("FrameAvailablePin", "Valid Frame");
+		UEdGraphPin* FrameInvalidePin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UK2Node_EvaluateLiveLinkFrameHelper::FrameNotAvailablePinName);
+		FrameInvalidePin->PinFriendlyName = LOCTEXT("FrameNotAvailablePinName", "Invalid Frame");
+	}
+	// Output structs pins
+	{
+		UEdGraphPin* DataResultPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Wildcard, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkDataResultPinName);
+		DataResultPin->PinFriendlyName = LOCTEXT("LiveLinkDataResultPinName", "DataResult");
+		SetPinToolTip(*DataResultPin, LOCTEXT("DataResultPinDescription", "The data struct, if a frame was present for the given role"));
+	}
 
 	// Subject pin
-	UEdGraphPin* LiveLinkSubjectRepPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, FLiveLinkSubjectRepresentation::StaticStruct(), UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSubjectPinName);
-	SetPinToolTip(*LiveLinkSubjectRepPin, LOCTEXT("LiveLinkSubjectNamePinDescription", "The Live Link Subject Reprensation to get a frame from"));
-	
-
-	// Output structs pins
-	UEdGraphPin* DataResultPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Wildcard, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkDataResultPinName);
-	SetPinToolTip(*DataResultPin, LOCTEXT("DataResultPinDescription", "The data struct, if a frame was present for the given role"));
+	{
+		UEdGraphPin* LiveLinkSubjectRepPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, FLiveLinkSubjectName::StaticStruct(), UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSubjectPinName);
+		LiveLinkSubjectRepPin->PinFriendlyName = LOCTEXT("LiveLinkSubjectPinName", "Subject");
+		SetPinToolTip(*LiveLinkSubjectRepPin, LOCTEXT("LiveLinkSubjectNamePinDescription", "The Live Link Subject Name to get a frame from"));
+	}
+	// Role pin
+	{
+		UEdGraphPin* LiveLinkRoleRepPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Class, ULiveLinkRole::StaticClass(), UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkRolePinName);
+		LiveLinkRoleRepPin->PinFriendlyName = LOCTEXT("LiveLinkRolePinName", "Role");
+		LiveLinkRoleRepPin->bNotConnectable = true;
+		SetPinToolTip(*LiveLinkRoleRepPin, LOCTEXT("LiveLinkRolePinNameDescription", "The Live Link Role the data will be converted to."));
+	}
 
 	Super::AllocateDefaultPins();
+}
+
+void UK2Node_EvaluateLiveLinkFrameAtWorldTime::AllocateDefaultPins()
+{
+	Super::AllocateDefaultPins();
+
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+	// float pin
+	UEdGraphPin* LiveLinkWorldTimePin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Float, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkWorldTimePinName);
+	LiveLinkWorldTimePin->PinFriendlyName = LOCTEXT("LiveLinkWorldTimePin", "World Time");
+	SetPinToolTip(*LiveLinkWorldTimePin, LOCTEXT("LiveLinkWorldTimePinDescription", "The World Time the subject will be evaluated to"));
+}
+
+void UK2Node_EvaluateLiveLinkFrameAtSceneTime::AllocateDefaultPins()
+{
+	Super::AllocateDefaultPins();
+
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+	// Timecode pin
+	UScriptStruct* TimecodeScriptStruct = FindObject<UScriptStruct>(ANY_PACKAGE, TEXT("Timecode"), true);
+	check(TimecodeScriptStruct);
+	UEdGraphPin* LiveLinkSceneTimePin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, TimecodeScriptStruct, UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSceneTimePinName);
+	LiveLinkSceneTimePin->PinFriendlyName = LOCTEXT("LiveLinkSceneTimePin", "Scene Time");
+	SetPinToolTip(*LiveLinkSceneTimePin, LOCTEXT("LiveLinkSceneTimePinDescription", "The Scene Time the subject will be evaluated to"));
 }
 
 void UK2Node_EvaluateLiveLinkFrame::SetPinToolTip(UEdGraphPin& InOutMutatablePin, const FText& InPinDescription) const
@@ -96,41 +132,19 @@ void UK2Node_EvaluateLiveLinkFrame::SetReturnTypeForOutputStruct(UScriptStruct* 
 	}
 }
 
-UScriptStruct* UK2Node_EvaluateLiveLinkFrame::GetReturnTypeForOutputDataStruct()
+UScriptStruct* UK2Node_EvaluateLiveLinkFrame::GetReturnTypeForOutputDataStruct() const
 {
-	UScriptStruct* ReturnStructType = (UScriptStruct*)(GetResultingDataPin()->PinType.PinSubCategoryObject.Get());
-
-	return ReturnStructType;
+	return Cast<UScriptStruct>(GetResultingDataPin()->PinType.PinSubCategoryObject.Get());
 }
 
 UScriptStruct* UK2Node_EvaluateLiveLinkFrame::GetLiveLinkRoleOutputStructType() const
 {
 	UScriptStruct* DataStructType = nullptr;
 
-	FLiveLinkSubjectRepresentation Representation = GetDefaultSubjectPinValue();
-	if (Representation.Role != nullptr)
+	TSubclassOf<ULiveLinkRole> Role = GetDefaultRolePinValue();
+	if (Role != nullptr)
 	{
-		DataStructType = Representation.Role.GetDefaultObject()->GetBlueprintDataStruct();
-	}
-
-	//No type was deduced from the role, try to deduce it from where it's connected
-	if (DataStructType == nullptr)
-	{
-		UEdGraphPin* ResultPin = GetResultingDataPin();
-		if (ResultPin && ResultPin->LinkedTo.Num() > 0)
-		{
-			DataStructType = Cast<UScriptStruct>(ResultPin->LinkedTo[0]->PinType.PinSubCategoryObject.Get());
-			for (int32 LinkIndex = 1; LinkIndex < ResultPin->LinkedTo.Num(); ++LinkIndex)
-			{
-				UEdGraphPin* Link = ResultPin->LinkedTo[LinkIndex];
-				UScriptStruct* LinkType = Cast<UScriptStruct>(Link->PinType.PinSubCategoryObject.Get());
-
-				if (DataStructType->IsChildOf(LinkType))
-				{
-					DataStructType = LinkType;
-				}
-			}
-		}
+		DataStructType = Role.GetDefaultObject()->GetBlueprintDataStruct();
 	}
 	return DataStructType;
 }
@@ -142,12 +156,12 @@ void UK2Node_EvaluateLiveLinkFrame::ReallocatePinsDuringReconstruction(TArray<UE
 
 void UK2Node_EvaluateLiveLinkFrame::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
 {
-	// actions get registered under specific object-keys; the idea is that 
-	// actions might have to be updated (or deleted) if their object-key is  
-	// mutated (or removed)... here we use the node's class (so if the node 
+	// actions get registered under specific object-keys; the idea is that
+	// actions might have to be updated (or deleted) if their object-key is
+	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
-	// to keep from needlessly instantiating a UBlueprintNodeSpawner, first   
+	// to keep from needlessly instantiating a UBlueprintNodeSpawner, first
 	// check to make sure that the registrar is looking for actions of this type
 	// (could be regenerating actions for a specific asset, and therefore the 
 	// registrar would only accept actions corresponding to that asset)
@@ -172,9 +186,10 @@ bool UK2Node_EvaluateLiveLinkFrame::IsConnectionDisallowed(const UEdGraphPin* My
 		bool bDisallowed = true;
 		if (OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 		{
+			bDisallowed = false;
 			if (UScriptStruct* ConnectionType = Cast<UScriptStruct>(OtherPin->PinType.PinSubCategoryObject.Get()))
 			{
-				bDisallowed = !ConnectionType->IsChildOf(FLiveLinkBaseBlueprintData::StaticStruct());
+				bDisallowed = GetLiveLinkRoleOutputStructType() != ConnectionType;
 			}
 		}
 		else if (OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard)
@@ -194,7 +209,7 @@ bool UK2Node_EvaluateLiveLinkFrame::IsConnectionDisallowed(const UEdGraphPin* My
 
 void UK2Node_EvaluateLiveLinkFrame::PinDefaultValueChanged(UEdGraphPin* ChangedPin)
 {
-	if (ChangedPin && ChangedPin->PinName == UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSubjectPinName)
+	if (ChangedPin && ChangedPin->PinName == UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkRolePinName)
 	{
 		RefreshDataOutputPinType();
 	}
@@ -214,19 +229,16 @@ UEdGraphPin* UK2Node_EvaluateLiveLinkFrame::GetThenPin()const
 	return Pin;
 }
 
-UEdGraphPin* UK2Node_EvaluateLiveLinkFrame::GetLiveLinkSubjectPin(const TArray<UEdGraphPin*>* InPinsToSearch /*= nullptr*/) const
+UEdGraphPin* UK2Node_EvaluateLiveLinkFrame::GetLiveLinkRolePin() const
 {
-	const TArray<UEdGraphPin*>* PinsToSearch = InPinsToSearch ? InPinsToSearch : &Pins;
+	UEdGraphPin* Pin = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkRolePinName);
+	check(Pin == nullptr || Pin->Direction == EGPD_Input);
+	return Pin;
+}
 
-	UEdGraphPin* Pin = nullptr;
-	for (UEdGraphPin* TestPin : *PinsToSearch)
-	{
-		if (TestPin && TestPin->PinName == UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSubjectPinName)
-		{
-			Pin = TestPin;
-			break;
-		}
-	}
+UEdGraphPin* UK2Node_EvaluateLiveLinkFrame::GetLiveLinkSubjectPin() const
+{
+	UEdGraphPin* Pin = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSubjectPinName);
 	check(Pin == nullptr || Pin->Direction == EGPD_Input);
 	return Pin;
 }
@@ -249,16 +261,54 @@ UEdGraphPin* UK2Node_EvaluateLiveLinkFrame::GetResultingDataPin() const
 
 FText UK2Node_EvaluateLiveLinkFrame::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
-	return LOCTEXT("ListViewTitle", "Evaluate Live Link Frame");
+	return LOCTEXT("EvaluateLiveLinkFrameTitle", "Evaluate Live Link Frame");
+}
+
+FText UK2Node_EvaluateLiveLinkFrameAtWorldTime::GetNodeTitle(ENodeTitleType::Type TitleType) const
+{
+	return LOCTEXT("EvaluateLiveLinkFrameAtWorldTimeTitle", "Evaluate Live Link Frame at World Time");
+}
+
+FText UK2Node_EvaluateLiveLinkFrameAtSceneTime::GetNodeTitle(ENodeTitleType::Type TitleType) const
+{
+	return LOCTEXT("EvaluateLiveLinkFrameAtSceneTimeTitle", "Evaluate Live Link Frame at Scene Time");
+}
+
+FName UK2Node_EvaluateLiveLinkFrame::GetEvaluateFunctionName() const
+{
+	return GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrameWithSpecificRole);
+}
+
+FName UK2Node_EvaluateLiveLinkFrameAtWorldTime::GetEvaluateFunctionName() const
+{
+	return GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrameAtWorldTimeOffset);
+}
+
+FName UK2Node_EvaluateLiveLinkFrameAtSceneTime::GetEvaluateFunctionName() const
+{
+	return GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrameAtSceneTime);
+}
+
+void UK2Node_EvaluateLiveLinkFrameAtWorldTime::AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction)
+{
+	UEdGraphPin* InPinSwitch = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkWorldTimePinName);
+	UEdGraphPin* TimePin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("WorldTime"));
+	CompilerContext.CopyPinLinksToIntermediate(*InPinSwitch, *TimePin);
+}
+
+void UK2Node_EvaluateLiveLinkFrameAtSceneTime::AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction)
+{
+	UEdGraphPin* InPinSwitch = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkSceneTimePinName);
+	UEdGraphPin* TimePin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("SceneTime"));
+	CompilerContext.CopyPinLinksToIntermediate(*InPinSwitch, *TimePin);
 }
 
 void UK2Node_EvaluateLiveLinkFrame::ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
 
-	UEdGraphPin* OriginalLiveLinkSubjectPin = GetLiveLinkSubjectPin();
-	FLiveLinkSubjectRepresentation Representation = GetDefaultSubjectPinValue();
-	if (Representation.Role == nullptr)
+	TSubclassOf<ULiveLinkRole> Role = GetDefaultRolePinValue();
+	if (Role == nullptr)
 	{
 		CompilerContext.MessageLog.Error(*LOCTEXT("EvaluateLiveLinkRoleNoRole_Error", "EvaluateLiveLinkFrame must have a Role specified.").ToString(), this);
 		// we break exec links so this is the only error we get
@@ -267,7 +317,7 @@ void UK2Node_EvaluateLiveLinkFrame::ExpandNode(class FKismetCompilerContext& Com
 	}
 
 	// FUNCTION NODE
-	const FName FunctionName = GET_FUNCTION_NAME_CHECKED(ULiveLinkBlueprintLibrary, EvaluateLiveLinkFrame);
+	const FName FunctionName = GetEvaluateFunctionName();
 	UK2Node_CallFunction* EvaluateLiveLinkFrameFunction = CompilerContext.SpawnIntermediateNode<UK2Node_CallFunction>(this, SourceGraph);
 	EvaluateLiveLinkFrameFunction->FunctionReference.SetExternalMember(FunctionName, ULiveLinkBlueprintLibrary::StaticClass());
 	EvaluateLiveLinkFrameFunction->AllocateDefaultPins();
@@ -275,18 +325,17 @@ void UK2Node_EvaluateLiveLinkFrame::ExpandNode(class FKismetCompilerContext& Com
 
 	// Connect the input of our EvaluateLiveLinkFrame to the Input of our Function pin
 	{
-		UEdGraphPin* LiveLinkSubjectInPin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("SubjectRepresentation"));
-		if (OriginalLiveLinkSubjectPin->LinkedTo.Num() > 0)
-		{
-			// Copy the connection
-			CompilerContext.MovePinLinksToIntermediate(*OriginalLiveLinkSubjectPin, *LiveLinkSubjectInPin);
-		}
-		else
-		{
-			// Copy literal
-			LiveLinkSubjectInPin->DefaultValue = OriginalLiveLinkSubjectPin->DefaultValue;
-		}
+		UEdGraphPin* OriginalLiveLinkSubjectPin = GetLiveLinkSubjectPin();
+		UEdGraphPin* LiveLinkSubjectInPin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("SubjectName"));
+		CompilerContext.CopyPinLinksToIntermediate(*OriginalLiveLinkSubjectPin, *LiveLinkSubjectInPin);
 	}
+	{
+		UEdGraphPin* OriginalLiveLinkRolePin = GetLiveLinkRolePin();
+		UEdGraphPin* LiveLinkRoleInPin = EvaluateLiveLinkFrameFunction->FindPinChecked(TEXT("Role"));
+		CompilerContext.CopyPinLinksToIntermediate(*OriginalLiveLinkRolePin, *LiveLinkRoleInPin);
+	}
+
+	AddOtherPin(CompilerContext, EvaluateLiveLinkFrameFunction);
 
 	// Get some pins to work with
 	UEdGraphPin* OriginalDataOutPin = FindPinChecked(UK2Node_EvaluateLiveLinkFrameHelper::LiveLinkDataResultPinName);
@@ -338,17 +387,36 @@ void UK2Node_EvaluateLiveLinkFrame::EarlyValidation(class FCompilerResultsLog& M
 		return;
 	}
 
-	FLiveLinkSubjectRepresentation Representation = GetDefaultSubjectPinValue();
-	if (Representation.Role == nullptr || !Representation.Role->IsChildOf(ULiveLinkRole::StaticClass()))
+	TSubclassOf<ULiveLinkRole> Role = GetDefaultRolePinValue();
+	if (Role == nullptr || !Role->IsChildOf(ULiveLinkRole::StaticClass()))
 	{
 		MessageLog.Error(*LOCTEXT("NoLiveLinkRole", "No LiveLinkRole in @@").ToString(), this);
 		return;
 	}
 
-	if (Representation.Subject.IsNone())
+	UScriptStruct* DesiredOutputStruct = GetLiveLinkRoleOutputStructType();
+	UScriptStruct* ActualOutputStruct = GetReturnTypeForOutputDataStruct();
+	if (DesiredOutputStruct != ActualOutputStruct)
 	{
-		MessageLog.Warning(*LOCTEXT("NoLiveLinkSubjectName", "No subject in @@").ToString(), this);
+		MessageLog.Error(*LOCTEXT("OutputPinDoNotMatches", "The output data pin do not maches in @@").ToString(), this);
 		return;
+	}
+
+	if (ActualOutputStruct != nullptr)
+	{
+		UEdGraphPin* ResultPin = GetResultingDataPin();
+		if (ResultPin && ResultPin->LinkedTo.Num() > 0)
+		{
+			for (UEdGraphPin* LinkPin : ResultPin->LinkedTo)
+			{
+				UScriptStruct* LinkType = Cast<UScriptStruct>(LinkPin->PinType.PinSubCategoryObject.Get());
+				if (ActualOutputStruct != LinkType)
+				{
+					MessageLog.Error(*LOCTEXT("OutputLinkPinDoNotMatches", "A linked pin data structure do not match the Live Link Role data structure in @@. Expected: @@.").ToString(), this, ActualOutputStruct);
+					return;
+				}
+			}
+		}
 	}
 }
 
@@ -361,17 +429,17 @@ void UK2Node_EvaluateLiveLinkFrame::NotifyPinConnectionListChanged(UEdGraphPin* 
 {
 	Super::NotifyPinConnectionListChanged(Pin);
 
-	UEdGraphPin* LiveLinkSubjectPin = GetLiveLinkSubjectPin();
+	UEdGraphPin* LiveLinkRolePin = GetLiveLinkRolePin();
 	if (Pin == GetResultingDataPin())
 	{
 		// this connection would only change the output type if the role pin is undefined
-		const bool bIsTypeAuthority = (LiveLinkSubjectPin->LinkedTo.Num() <= 0 && LiveLinkSubjectPin->DefaultObject == nullptr);
+		const bool bIsTypeAuthority = (LiveLinkRolePin->LinkedTo.Num() <= 0 && LiveLinkRolePin->DefaultObject == nullptr);
 		if (bIsTypeAuthority)
 		{
 			RefreshDataOutputPinType();
 		}
 	}
-	else if (Pin == LiveLinkSubjectPin)
+	else if (Pin == LiveLinkRolePin)
 	{
 		const bool bConnectionAdded = Pin->LinkedTo.Num() > 0;
 		if (bConnectionAdded)
@@ -381,27 +449,18 @@ void UK2Node_EvaluateLiveLinkFrame::NotifyPinConnectionListChanged(UEdGraphPin* 
 	}
 }
 
-FLiveLinkSubjectRepresentation UK2Node_EvaluateLiveLinkFrame::GetDefaultSubjectPinValue() const
+TSubclassOf<ULiveLinkRole> UK2Node_EvaluateLiveLinkFrame::GetDefaultRolePinValue() const
 {
-	FLiveLinkSubjectRepresentation Representation;
-
-	UEdGraphPin* LiveLinkSubjectPin = GetLiveLinkSubjectPin();
-	if (LiveLinkSubjectPin)
+	UEdGraphPin* LiveLinkRolePin = GetLiveLinkRolePin();
+	if (LiveLinkRolePin && LiveLinkRolePin->DefaultObject != nullptr && LiveLinkRolePin->LinkedTo.Num() == 0)
 	{
-		if (LiveLinkSubjectPin->LinkedTo.Num() > 0)
+		UClass* ClassValue = Cast<UClass>(LiveLinkRolePin->DefaultObject);
+		if (ClassValue && ClassValue->IsChildOf(ULiveLinkRole::StaticClass()))
 		{
-			if (LiveLinkSubjectPin->LinkedTo[0]->DefaultValue.Len())
-			{
-				FLiveLinkSubjectRepresentation::StaticStruct()->ImportText(*LiveLinkSubjectPin->LinkedTo[0]->DefaultValue, &Representation, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT(""));
-			}
-		}
-		else if (LiveLinkSubjectPin->DefaultValue.Len())
-		{
-			FLiveLinkSubjectRepresentation::StaticStruct()->ImportText(*LiveLinkSubjectPin->DefaultValue, &Representation, nullptr, EPropertyPortFlags::PPF_None, nullptr, TEXT(""));
+			return ClassValue;
 		}
 	}
-
-	return Representation;
+	return nullptr;
 }
 
 

@@ -15,10 +15,11 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubject.h"
+#include "Misc/CoreDelegates.h"
 #include "Roles/LiveLinkAnimationRole.h"
 #include "Roles/LiveLinkAnimationTypes.h"
-#include "Roles/LiveLinkCameraTypes.h"
-#include "Roles/LiveLinkCameraRole.h"
+#include "Roles/LiveLinkBasicTypes.h"
+#include "Roles/LiveLinkBasicTypes.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"
 #include "TimeSynchronizationSource.h"
@@ -40,15 +41,13 @@ DEFINE_LOG_CATEGORY(LogLiveLink);
 FLiveLinkClient::FLiveLinkClient()
 {
 	Collection = MakeUnique<FLiveLinkSourceCollection>();
+	FCoreDelegates::OnPreExit.AddRaw(this, &FLiveLinkClient::Shutdown);
 }
 
 FLiveLinkClient::~FLiveLinkClient()
 {
-	if (Collection)
-	{
-		FScopeLock Lock(&CollectionAccessCriticalSection);
-		Collection->Shutdown();
-	}
+	FCoreDelegates::OnPreExit.RemoveAll(this);
+	Shutdown();
 }
 
 void FLiveLinkClient::Tick(float DeltaTime)
@@ -131,6 +130,15 @@ void FLiveLinkClient::BuildThisTicksSubjectSnapshot()
 				VSubject->ClearFrames();
 			}
 		}
+	}
+}
+
+void FLiveLinkClient::Shutdown()
+{
+	if (Collection)
+	{
+		FScopeLock Lock(&CollectionAccessCriticalSection);
+		Collection->Shutdown();
 	}
 }
 
@@ -335,32 +343,57 @@ void FLiveLinkClient::PushSubjectStaticData_Internal(FPendingSubjectStatic&& Sub
 
 		if (LiveLinkSubject->GetRole() != SubjectStaticData.Role)
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Subject '%s' of role '%s' is trying to change its role to '%s'."), *SubjectStaticData.SubjectKey.SubjectName.ToString(), *LiveLinkSubject->GetRole().GetDefaultObject()->GetDisplayName().ToString(), *SubjectStaticData.Role.GetDefaultObject()->GetDisplayName().ToString());
-			return;
+			UE_LOG(LogLiveLink, Warning, TEXT("Subject '%s' of role '%s' is changing its role to '%s'. Current subject will be removed and a new one will be created"), *SubjectStaticData.SubjectKey.SubjectName.ToString(), *LiveLinkSubject->GetRole().GetDefaultObject()->GetDisplayName().ToString(), *SubjectStaticData.Role.GetDefaultObject()->GetDisplayName().ToString());
+			
+			Collection->RemoveSubject(SubjectStaticData.SubjectKey);
+			LiveLinkSubject = nullptr;
 		}
 	}
-	else
+	
+	if(LiveLinkSubject == nullptr)
 	{
 		const FLiveLinkRoleProjectSetting DefaultSetting = GetDefault<ULiveLinkSettings>()->GetDefaultSettingForRole(SubjectStaticData.Role.Get());
 
-		UClass* SettingClass = DefaultSetting.SettingClass.Get();
-		if (SettingClass == nullptr)
+		// Setting class should always be valid
+		ULiveLinkSubjectSettings* SubjectSettings = nullptr;
 		{
-			SettingClass = ULiveLinkSubjectSettings::StaticClass();
-		}
-
-		ULiveLinkSubjectSettings* SubjectSettings = NewObject<ULiveLinkSubjectSettings>(GetTransientPackage(), SettingClass);
-
-		SubjectSettings->Role = SubjectStaticData.Role;
-		if (DefaultSetting.FrameInterpolationProcessor != nullptr)
-		{
-			SubjectSettings->InterpolationProcessor = NewObject<ULiveLinkFrameInterpolationProcessor>(GetTransientPackage(), DefaultSetting.FrameInterpolationProcessor.Get());
-		}
-		for (TSubclassOf<ULiveLinkFramePreProcessor> PreProcessor : DefaultSetting.FramePreProcessors)
-		{
-			if (PreProcessor != nullptr)
+			UClass* SettingClass = DefaultSetting.SettingClass.Get();
+			if (SettingClass == nullptr)
 			{
-				SubjectSettings->PreProcessors.Add(NewObject<ULiveLinkFramePreProcessor>(GetTransientPackage(), PreProcessor.Get()));
+				SettingClass = ULiveLinkSubjectSettings::StaticClass();
+			}
+
+			SubjectSettings = NewObject<ULiveLinkSubjectSettings>(GetTransientPackage(), SettingClass);
+			SubjectSettings->Role = SubjectStaticData.Role;
+
+			UClass* FrameInterpolationProcessorClass = DefaultSetting.FrameInterpolationProcessor.Get();
+			if (FrameInterpolationProcessorClass != nullptr)
+			{
+				UClass* InterpolationRole = FrameInterpolationProcessorClass->GetDefaultObject<ULiveLinkFrameInterpolationProcessor>()->GetRole();
+				if (SubjectStaticData.Role->IsChildOf(InterpolationRole))
+				{
+					SubjectSettings->InterpolationProcessor = NewObject<ULiveLinkFrameInterpolationProcessor>(GetTransientPackage(), FrameInterpolationProcessorClass);
+				}
+				else
+				{
+					UE_LOG(LogLiveLink, Warning, TEXT("The interpolator '%s' is not valid for the Role '%s'"), *FrameInterpolationProcessorClass->GetName(), *SubjectStaticData.Role->GetName());
+				}
+			}
+
+			for (TSubclassOf<ULiveLinkFramePreProcessor> PreProcessor : DefaultSetting.FramePreProcessors)
+			{
+				if (PreProcessor != nullptr)
+				{
+					UClass* PreProcessorRole = PreProcessor->GetDefaultObject<ULiveLinkFramePreProcessor>()->GetRole();
+					if (SubjectStaticData.Role->IsChildOf(PreProcessorRole))
+					{
+						SubjectSettings->PreProcessors.Add(NewObject<ULiveLinkFramePreProcessor>(GetTransientPackage(), PreProcessor.Get()));
+					}
+					else
+					{
+						UE_LOG(LogLiveLink, Warning, TEXT("The pre processor '%s' is not valid for the Role '%s'"), *PreProcessor->GetName(), *SubjectStaticData.Role->GetName());
+					}
+				}
 			}
 		}
 
@@ -404,18 +437,23 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 		return;
 	}
 
+	//To add a frame data, we need to find our subject but also have a static data associated to it. 
+	//With presets, the subject could exist but no static data received yet.
 	if (FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(SubjectFrameData.SubjectKey))
 	{
 		if (SubjectItem->bEnabled && !SubjectItem->bPendingKill)
 		{
 			if (FLiveLinkSubject* LinkSubject = SubjectItem->GetLiveSubject())
 			{
-				if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
+				if (LinkSubject->HasStaticData())
 				{
-					Handles->OnFrameDataReceived.Broadcast(SubjectItem->Key, SubjectItem->GetSubject()->GetRole(), SubjectFrameData.FrameData);
-				}
+					if (const FSubjectFramesReceivedHandles* Handles = SubjectFrameReceivedHandles.Find(SubjectFrameData.SubjectKey.SubjectName))
+					{
+						Handles->OnFrameDataReceived.Broadcast(SubjectItem->Key, SubjectItem->GetSubject()->GetRole(), SubjectFrameData.FrameData);
+					}
 
-				LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
+					LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
+				}
 			}
 		}
 	}

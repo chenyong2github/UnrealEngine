@@ -189,34 +189,51 @@ void UMovieSceneLiveLinkSection::ConvertPreRoleData()
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	SubjectPreset.Key.Source.Invalidate();
 	SubjectPreset.Key.SubjectName = SubjectName_DEPRECATED;
-	SubjectPreset.Role = ULiveLinkAnimationRole::StaticClass();
 
-	StaticData->InitializeWith(FLiveLinkSkeletonStaticData::StaticStruct(), nullptr);
+	//Verify if there are any bones for this subject. No bones means only curves were present so create a basic role in this case.
+	if (RefSkeleton_DEPRECATED.BoneNames.Num() == 0)
+	{
+		SubjectPreset.Role = ULiveLinkBasicRole::StaticClass();
+		StaticData->InitializeWith(FLiveLinkBaseStaticData::StaticStruct(), nullptr);
 
-	//Take old skeleton data for new static data structure
+		//Data initialization will be done in the common part
+	}
+	else
+	{
+		SubjectPreset.Role = ULiveLinkAnimationRole::StaticClass();
+		StaticData->InitializeWith(FLiveLinkSkeletonStaticData::StaticStruct(), nullptr);
+		
+		//Take old skeleton data for new static data structure
 
-	FLiveLinkSkeletonStaticData* SkeletonData = StaticData->Cast<FLiveLinkSkeletonStaticData>();
-	SkeletonData->BoneNames = MoveTemp(RefSkeleton_DEPRECATED.BoneNames);
-	SkeletonData->BoneParents = MoveTemp(RefSkeleton_DEPRECATED.BoneParents);
-	SkeletonData->PropertyNames = MoveTemp(CurveNames_DEPRECATED);
+		FLiveLinkSkeletonStaticData* SkeletonData = StaticData->Cast<FLiveLinkSkeletonStaticData>();
+		SkeletonData->BoneNames = MoveTemp(RefSkeleton_DEPRECATED.BoneNames);
+		SkeletonData->BoneParents = MoveTemp(RefSkeleton_DEPRECATED.BoneParents);
 
-	//Create subsection that will manage this data
-	UMovieSceneLiveLinkSubSectionAnimation* AnimationSubSection = NewObject<UMovieSceneLiveLinkSubSectionAnimation>(this, UMovieSceneLiveLinkSubSectionAnimation::StaticClass(), NAME_None, RF_Transactional);
-	AnimationSubSection->Initialize(SubjectPreset.Role, StaticData);
+		//Create subsection that will manage this data
+		UMovieSceneLiveLinkSubSectionAnimation* AnimationSubSection = NewObject<UMovieSceneLiveLinkSubSectionAnimation>(this, UMovieSceneLiveLinkSubSectionAnimation::StaticClass(), NAME_None, RF_Transactional);
+		AnimationSubSection->Initialize(SubjectPreset.Role, StaticData);
 
-	//Convert float data channels
-	const int32 TransformCount = SkeletonData->BoneNames.Num() * 9;
-	check(AnimationSubSection->SubSectionData.Properties[0].FloatChannel.Num() == TransformCount);
-	AnimationSubSection->SubSectionData.Properties[0].FloatChannel = TArray<FMovieSceneFloatChannel>(PropertyFloatChannels_DEPRECATED.GetData(), TransformCount);
-	PropertyFloatChannels_DEPRECATED.RemoveAtSwap(0, TransformCount);
-	SubSections.Add(AnimationSubSection);
-	
-	//Basic role sub section to handle properties
-	UMovieSceneLiveLinkSubSectionBasicRole* BasicRoleSubSection = NewObject<UMovieSceneLiveLinkSubSectionBasicRole>(this, UMovieSceneLiveLinkSubSectionBasicRole::StaticClass(), NAME_None, RF_Transactional);
-	BasicRoleSubSection->Initialize(SubjectPreset.Role, StaticData);
-	check(BasicRoleSubSection->SubSectionData.Properties[0].FloatChannel.Num() == PropertyFloatChannels_DEPRECATED.Num());
-	BasicRoleSubSection->SubSectionData.Properties[0].FloatChannel = MoveTemp(PropertyFloatChannels_DEPRECATED);
-	SubSections.Add(BasicRoleSubSection);
+		//Convert transforms to float data channels
+		const int32 TransformCount = SkeletonData->BoneNames.Num() * 9;
+		ensure(AnimationSubSection->SubSectionData.Properties[0].FloatChannel.Num() == TransformCount);
+		AnimationSubSection->SubSectionData.Properties[0].FloatChannel = TArray<FMovieSceneFloatChannel>(PropertyFloatChannels_DEPRECATED.GetData(), TransformCount);
+		PropertyFloatChannels_DEPRECATED.RemoveAtSwap(0, TransformCount);
+		SubSections.Add(AnimationSubSection);
+	}
+
+	// If there were curves, add a basic section handler
+	if (CurveNames_DEPRECATED.Num() > 0)
+	{
+		FLiveLinkBaseStaticData* BaseStaticData = StaticData->Cast<FLiveLinkBaseStaticData>();
+		BaseStaticData->PropertyNames = MoveTemp(CurveNames_DEPRECATED);
+		
+		//Basic role sub section to handle properties
+		UMovieSceneLiveLinkSubSectionBasicRole* BasicRoleSubSection = NewObject<UMovieSceneLiveLinkSubSectionBasicRole>(this, UMovieSceneLiveLinkSubSectionBasicRole::StaticClass(), NAME_None, RF_Transactional);
+		BasicRoleSubSection->Initialize(SubjectPreset.Role, StaticData);
+		ensure(BasicRoleSubSection->SubSectionData.Properties[0].FloatChannel.Num() == PropertyFloatChannels_DEPRECATED.Num());
+		BasicRoleSubSection->SubSectionData.Properties[0].FloatChannel = MoveTemp(PropertyFloatChannels_DEPRECATED);
+		SubSections.Add(BasicRoleSubSection);
+	}
 
 	//Generic properties sub section because all sections have it
 	UMovieSceneLiveLinkSubSectionProperties* PropertiesSubSection = NewObject<UMovieSceneLiveLinkSubSectionProperties>(this, UMovieSceneLiveLinkSubSectionProperties::StaticClass(), NAME_None, RF_Transactional);
