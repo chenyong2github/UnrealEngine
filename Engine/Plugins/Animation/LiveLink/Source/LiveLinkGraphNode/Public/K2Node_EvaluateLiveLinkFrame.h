@@ -18,15 +18,14 @@ class UEdGraph;
 class UK2Node_CallFunction;
 
 
-UCLASS()
-class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrame : public UK2Node
+UCLASS(Abstract)
+class LIVELINKGRAPHNODE_API UK2Node_EvaluateLiveLinkFrame : public UK2Node
 {
 	GENERATED_BODY()
 
 public:
 	//~ Begin UEdGraphNode Interface.
 	virtual void AllocateDefaultPins() override;
-	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual FText GetTooltipText() const override;
 	virtual void ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
@@ -67,11 +66,13 @@ public:
 	UScriptStruct* GetLiveLinkRoleOutputStructType() const;
 	UScriptStruct* GetLiveLinkRoleOutputFrameStructType() const;
 
-
-	virtual FName GetEvaluateFunctionName() const;
-	virtual void AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) {}
-
 protected:
+
+	/** Get the name of the UFunction we are trying to build from */
+	virtual FName GetEvaluateFunctionName() const PURE_VIRTUAL(UK2Node_EvaluateLiveLinkFrame::GetEvaluateFunctionName, return NAME_None; );
+
+	/** Add additionnal pin that the evaluate function would need */
+	virtual void AddPins(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) PURE_VIRTUAL(UK2Node_EvaluateLiveLinkFrame::AddPins, );
 
 	/**
 	 * Takes the specified "MutatablePin" and sets its 'PinToolTip' field (according
@@ -89,30 +90,4 @@ protected:
 	void RefreshDataOutputPinType();
 
 	TSubclassOf<ULiveLinkRole> GetDefaultRolePinValue() const;
-};
-
-UCLASS()
-class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrameAtWorldTime : public UK2Node_EvaluateLiveLinkFrame
-{
-	GENERATED_BODY()
-
-public:
-	virtual void AllocateDefaultPins() override;
-	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-
-	virtual FName GetEvaluateFunctionName() const override;
-	virtual void AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) override;
-};
-
-UCLASS()
-class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrameAtSceneTime : public UK2Node_EvaluateLiveLinkFrame
-{
-	GENERATED_BODY()
-
-public:
-	virtual void AllocateDefaultPins() override;
-	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
-
-	virtual FName GetEvaluateFunctionName() const override;
-	virtual void AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) override;
 };
