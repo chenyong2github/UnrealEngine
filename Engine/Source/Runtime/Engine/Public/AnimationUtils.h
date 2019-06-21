@@ -158,7 +158,7 @@ public:
 	 *
 	 * @return				World-space error tolerance for considering an alternative compression method
 	 */
-	static float GetAlternativeCompressionThreshold();
+	ENGINE_API static float GetAlternativeCompressionThreshold();
 	
 	/**
 	 * Determines the current setting for recompressing all animations upon load. The default value 
