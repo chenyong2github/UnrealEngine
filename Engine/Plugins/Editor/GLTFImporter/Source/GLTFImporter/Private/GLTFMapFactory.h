@@ -95,9 +95,6 @@ namespace GLTF
 		FMaterialExpression* CreateMap(const GLTF::FTexture& Map, int CoordinateIndex, const ValueClass& Value, const TCHAR* MapName,
 		                               const TCHAR* ValueName, ETextureMode TextureMode, FMaterialExpressionInput& MaterialInput);
 
-		bool CreateMultiTexture(const GLTF::FTexture& Map, int CoordinateIndex, const TCHAR* MapName, const FMapChannel* MapChannels,
-		                        uint32 MapChannelsCount, ETextureMode TextureMode, const FExpressionList& ValueExpressions);
-
 	private:
 		ITextureFactory& TextureFactory;
 		UObject*         ParentPackage;
