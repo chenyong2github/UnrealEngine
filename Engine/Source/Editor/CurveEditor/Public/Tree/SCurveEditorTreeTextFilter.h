@@ -5,6 +5,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SSearchBox;
 class FCurveEditor;
 struct FCurveEditorTreeTextFilter;
 
@@ -19,8 +20,11 @@ public:
 
 private:
 
+	void CreateSearchBox();
+	void OnTreeFilterListChanged();
 	void OnFilterTextChanged(const FText& FilterText);
 
+	TSharedPtr<SSearchBox> SearchBox;
 	TSharedPtr<FCurveEditorTreeTextFilter> Filter;
 	TWeakPtr<FCurveEditor> WeakCurveEditor;
 };

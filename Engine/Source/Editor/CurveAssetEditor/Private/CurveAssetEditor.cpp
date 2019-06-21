@@ -43,14 +43,14 @@ struct FCurveAssetEditorTreeItem : public ICurveEditorTreeItem
 		}
 	}
 
-	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID) override
+	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& TableRow) override
 	{
 		if (InColumnName == ColumnNames.Label)
 		{
 			return SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
-			.Padding(FMargin(0.f, 0.f, 4.f, 0.f))
+			.Padding(FMargin(4.f))
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			.AutoWidth()
@@ -62,7 +62,7 @@ struct FCurveAssetEditorTreeItem : public ICurveEditorTreeItem
 		}
 		else if (InColumnName == ColumnNames.PinHeader)
 		{
-			return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID);
+			return SNew(SCurveEditorTreePin, InCurveEditor, InTreeItemID, TableRow);
 		}
 
 		return nullptr;

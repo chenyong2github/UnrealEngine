@@ -5,7 +5,9 @@
 #include "Tree/CurveEditorTreeFilter.h"
 #include "CurveEditor.h"
 
+#include "Containers/SortedMap.h"
 #include "Algo/AnyOf.h"
+#include "Algo/AllOf.h"
 
 class FCurveModel;
 
@@ -52,35 +54,66 @@ void FCurveEditorTreeItem::DestroyUnpinnedCurves(FCurveEditor* CurveEditor)
 	}
 }
 
-FScopedCurveEditorTreeUpdateGuard::FScopedCurveEditorTreeUpdateGuard(FCurveEditorTree* InTree)
+void FCurveEditorTreeDelegate::Broadcast()
+{
+	if (ensureAlwaysMsgf(!bBroadcasting, TEXT("Attempting to broadcast changes while already broadcasting changes. This may be an infinite loop and is not allowed. Do not attempt to mutate the tree in response to it being mutated")))
+	{
+		TGuardValue<bool> ScopeGuard(bBroadcasting, true);
+		FSimpleMulticastDelegate::Broadcast();
+	}
+}
+
+FScopedCurveEditorTreeEventGuard::FScopedCurveEditorTreeEventGuard(FCurveEditorTree* InTree)
 	: Tree(InTree)
 {
-	Tree->OnChanged()->UpdateGuardCounter += 1;
+	CachedItemSerialNumber = Tree->Events.OnItemsChanged.SerialNumber;
+	CachedSelectionSerialNumber = Tree->Events.OnSelectionChanged.SerialNumber;
+	CachedFiltersSerialNumber = Tree->Events.OnFiltersChanged.SerialNumber;
+	Tree->Events.UpdateGuardCounter += 1;
 }
 
-FScopedCurveEditorTreeUpdateGuard::FScopedCurveEditorTreeUpdateGuard(FScopedCurveEditorTreeUpdateGuard&& RHS)
+FScopedCurveEditorTreeEventGuard::FScopedCurveEditorTreeEventGuard(FScopedCurveEditorTreeEventGuard&& RHS)
 	: Tree(RHS.Tree)
 {
-	Tree->OnChanged()->UpdateGuardCounter += 1;
+	Tree->Events.UpdateGuardCounter += 1;
 }
 
-FScopedCurveEditorTreeUpdateGuard& FScopedCurveEditorTreeUpdateGuard::operator=(FScopedCurveEditorTreeUpdateGuard&& RHS)
+FScopedCurveEditorTreeEventGuard& FScopedCurveEditorTreeEventGuard::operator=(FScopedCurveEditorTreeEventGuard&& RHS)
 {
 	if (&RHS != this)
 	{
 		Tree = RHS.Tree;
-		Tree->OnChanged()->UpdateGuardCounter += 1;
+		Tree->Events.UpdateGuardCounter += 1;
 	}
 	return *this;
 }
 
-FScopedCurveEditorTreeUpdateGuard::~FScopedCurveEditorTreeUpdateGuard()
+FScopedCurveEditorTreeEventGuard::~FScopedCurveEditorTreeEventGuard()
 {
-	FCurveEditorOnChangedEvent* OnChangedEvent = Tree->OnChanged();
-	if (--OnChangedEvent->UpdateGuardCounter == 0)
+	// Before we decrement the UpdateGuardCounter, we check to see whether a re-filter is required so that
+	// the re-filter operation itself remains guarded from causing subsequent updates
+	const bool bRequiresFilter = (Tree->Events.OnItemsChanged.SerialNumber != CachedItemSerialNumber) || (Tree->Events.OnFiltersChanged.SerialNumber != CachedFiltersSerialNumber);
+	if (bRequiresFilter && Tree->Events.UpdateGuardCounter == 1)
 	{
-		TGuardValue<bool> Guard(OnChangedEvent->bIsBroadcastInProgress, true);
-		OnChangedEvent->Delegate.Broadcast();
+		Tree->RunFilters();
+	}
+
+	if (--Tree->Events.UpdateGuardCounter == 0)
+	{
+		if (Tree->Events.OnItemsChanged.SerialNumber != CachedItemSerialNumber)
+		{
+			Tree->Events.OnItemsChanged.Broadcast();
+		}
+
+		if (Tree->Events.OnSelectionChanged.SerialNumber != CachedSelectionSerialNumber)
+		{
+			Tree->Events.OnSelectionChanged.Broadcast();
+		}
+
+		if (Tree->Events.OnFiltersChanged.SerialNumber != CachedFiltersSerialNumber)
+		{
+			Tree->Events.OnFiltersChanged.Broadcast();
+		}
 	}
 }
 
@@ -116,8 +149,7 @@ const TMap<FCurveEditorTreeItemID, FCurveEditorTreeItem>& FCurveEditorTree::GetA
 
 FCurveEditorTreeItem* FCurveEditorTree::AddItem(FCurveEditorTreeItemID ParentID)
 {
-	checkf(!OnChangedEvent.IsBroadcastInProgress(), TEXT("Curve editor tree must not be manipulated in response to it changing"));
-	FScopedCurveEditorTreeUpdateGuard BroadcastChangeUpdate(this);
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
 
 	FCurveEditorTreeItemID NewItemID = NextTreeItemID;
 
@@ -130,14 +162,14 @@ FCurveEditorTreeItem* FCurveEditorTree::AddItem(FCurveEditorTreeItemID ParentID)
 	ParentContainer.bRequiresSort = true;
 
 	++NextTreeItemID.Value;
+	++Events.OnItemsChanged.SerialNumber;
 
 	return &NewItem;
 }
 
 void FCurveEditorTree::RemoveItem(FCurveEditorTreeItemID ItemID, FCurveEditor* CurveEditor)
 {
-	checkf(!OnChangedEvent.IsBroadcastInProgress(), TEXT("Curve editor tree must not be manipulated in response to it changing"));
-	FScopedCurveEditorTreeUpdateGuard BroadcastChangeUpdate(this);
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
 
 	FCurveEditorTreeItem* Item = Items.Find(ItemID);
 	if (!Item)
@@ -156,8 +188,14 @@ void FCurveEditorTree::RemoveItem(FCurveEditorTreeItemID ItemID, FCurveEditor* C
 
 	// Item is no longer valid
 
-	Items.Remove(ItemID);
-	Selection.Remove(ItemID);
+	if (Items.Remove(ItemID) != 0)
+	{
+		++Events.OnItemsChanged.SerialNumber;
+	}
+	if (Selection.Remove(ItemID) != 0)
+	{
+		++Events.OnSelectionChanged.SerialNumber;
+	}
 }
 
 void FCurveEditorTree::RemoveChildrenRecursive(TArray<FCurveEditorTreeItemID>&& LocalChildren, FCurveEditor* CurveEditor)
@@ -171,26 +209,53 @@ void FCurveEditorTree::RemoveChildrenRecursive(TArray<FCurveEditorTreeItemID>&& 
 
 			RemoveChildrenRecursive(MoveTemp(ChildItem->Children.ChildIDs), CurveEditor);
 
-			Items.Remove(ChildID);
-			Selection.Remove(ChildID);
+			if (Items.Remove(ChildID) != 0)
+			{
+				++Events.OnItemsChanged.SerialNumber;
+			}
+			if (Selection.Remove(ChildID) != 0)
+			{
+				++Events.OnSelectionChanged.SerialNumber;
+			}
 		}
 	}
 }
 
-
-bool FCurveEditorTree::FilterSpecificItems(TArrayView<FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
+bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
 {
 	bool bAnyMatched = false;
 
 	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
 	{
+		// If it failed a previous pass, don't consider it for this pass
+		if (FilterStates.Get(ItemID) != ECurveEditorTreeFilterState::NoMatch)
+		{
+			TSharedPtr<ICurveEditorTreeItem> TreeItemImpl = GetItem(ItemID).GetItem();
+			if (TreeItemImpl)
+			{
+				const bool bMatchesFilter = Algo::AnyOf(FilterPtrs, [TreeItemImpl](const FCurveEditorTreeFilter* Filter){ return TreeItemImpl->PassesFilter(Filter); });
+				if (bMatchesFilter)
+				{
+					InheritedState = ECurveEditorTreeFilterState::NoMatch;
+					break;
+				}
+			}
+		}
+	}
+
+	for (FCurveEditorTreeItemID ItemID : ItemsToFilter)
+	{
+		// If it failed a previous pass, don't consider it for this pass
+		if (FilterStates.Get(ItemID) == ECurveEditorTreeFilterState::NoMatch)
+		{
+			continue;
+		}
+
 		const FCurveEditorTreeItem& TreeItem = GetItem(ItemID);
 
-		// Retrieve the existing filter state for this item. This may have been set by preceeding filters.
 		ECurveEditorTreeFilterState FilterState         = InheritedState;
 		ECurveEditorTreeFilterState ChildInheritedState = InheritedState;
 
-		// If this has already not been matched, run it through our filter
 		TSharedPtr<ICurveEditorTreeItem> TreeItemImpl = TreeItem.GetItem();
 		if (TreeItemImpl)
 		{
@@ -204,7 +269,7 @@ bool FCurveEditorTree::FilterSpecificItems(TArrayView<FCurveEditorTreeFilter* co
 		}
 
 		// Run the filter on all child nodes
-		const bool bMatchedChildren = FilterSpecificItems(FilterPtrs, TreeItem.GetChildren(), ChildInheritedState);
+		const bool bMatchedChildren = PerformFilterPass(FilterPtrs, TreeItem.GetChildren(), ChildInheritedState);
 
 		// If we matched children we become an implicit parent if not already matched
 		if (bMatchedChildren && FilterState != ECurveEditorTreeFilterState::Match)
@@ -213,10 +278,7 @@ bool FCurveEditorTree::FilterSpecificItems(TArrayView<FCurveEditorTreeFilter* co
 			FilterState = ECurveEditorTreeFilterState::ImplicitParent;
 		}
 
-		if (FilterState != ECurveEditorTreeFilterState::NoMatch)
-		{
-			FilterStates.SetFilterState(ItemID, FilterState);
-		}
+		FilterStates.SetFilterState(ItemID, FilterState);
 	}
 
 	return bAnyMatched;
@@ -224,49 +286,95 @@ bool FCurveEditorTree::FilterSpecificItems(TArrayView<FCurveEditorTreeFilter* co
 
 void FCurveEditorTree::RunFilters()
 {
-	checkf(!OnChangedEvent.IsBroadcastInProgress(), TEXT("Curve editor tree must not be manipulated in response to it changing"));
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
 
-	FScopedCurveEditorTreeUpdateGuard BroadcastChangeUpdate(this);
-
-	// Reset all the filter states back to the default
+	// Always reset filter states
 	FilterStates.Reset();
 
-	if (Filters.Num())
+	if (WeakFilters.Num() != 0)
 	{
-		FilterStates.Activate();
+		// Gather all valid filters into a map sorted by pass
+		TSortedMap<int32, TArray<const FCurveEditorTreeFilter*>> FiltersByPass;
 
-		TArray<FCurveEditorTreeFilter*> FilterPtrs;
-
-		for (int32 Index = Filters.Num() - 1; Index >= 0; --Index)
+		for (int32 Index = WeakFilters.Num() - 1; Index >= 0; --Index)
 		{
-			TSharedPtr<FCurveEditorTreeFilter> Filter = Filters[Index].Pin();
+			TSharedPtr<FCurveEditorTreeFilter> Filter = WeakFilters[Index].Pin();
 			if (!Filter)
 			{
 				// Remove invalid filters
-				Filters.RemoveAtSwap(Index, 1, false);
+				WeakFilters.RemoveAtSwap(Index, 1, false);
 			}
 			else
 			{
-				FilterPtrs.Add(Filter.Get());
+				FiltersByPass.FindOrAdd(Filter->GetFilterPass()).Add(Filter.Get());
 			}
 		}
 
-		FilterSpecificItems(FilterPtrs, RootItems.ChildIDs, ECurveEditorTreeFilterState::NoMatch);
+		// Deactivate the filter states for the first pass to ensure that _all_ items are considered for filtering in the very first pass
+		FilterStates.Deactivate();
+
+		for (const TTuple<int32, TArray<const FCurveEditorTreeFilter*>>& Pair : FiltersByPass)
+		{
+			PerformFilterPass(Pair.Value, RootItems.ChildIDs, ECurveEditorTreeFilterState::NoMatch);
+
+			// Activate the filters after the first pass so that subsequent passes only consider items that have previously matched in some way.
+			// This ensures that each pass works as a boolean AND.
+			FilterStates.Activate();
+		}
 	}
 	else
 	{
 		FilterStates.Deactivate();
 	}
+
+	++Events.OnItemsChanged.SerialNumber;
+	++Events.OnFiltersChanged.SerialNumber;
 }
 
 void FCurveEditorTree::AddFilter(TWeakPtr<FCurveEditorTreeFilter> NewFilter)
 {
-	Filters.AddUnique(NewFilter);
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
+
+	WeakFilters.AddUnique(NewFilter);
+
+	// Always broadcast the filter change even if the filter already existed since calling AddFilter indicates a clear intent to have the tree re-filtered
+	++Events.OnFiltersChanged.SerialNumber;
 }
 
 void FCurveEditorTree::RemoveFilter(TWeakPtr<FCurveEditorTreeFilter> FilterToRemove)
 {
-	Filters.Remove(FilterToRemove);
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
+
+	WeakFilters.Remove(FilterToRemove);
+	// Always broadcast the filter change even if the filter already existed since calling RemoveFilter indicates a clear intent to have the tree re-filtered
+	++Events.OnFiltersChanged.SerialNumber;
+}
+
+const FCurveEditorTreeFilter* FCurveEditorTree::FindFilterByType(ECurveEditorTreeFilterType Type) const
+{
+	for (const TWeakPtr<FCurveEditorTreeFilter>& WeakFilter : WeakFilters)
+	{
+		TSharedPtr<FCurveEditorTreeFilter> Pinned = WeakFilter.Pin();
+		if (Pinned && Pinned->GetType() == Type)
+		{
+			return Pinned.Get();
+		}
+	}
+
+	return nullptr;
+}
+
+TArrayView<const TWeakPtr<FCurveEditorTreeFilter>> FCurveEditorTree::GetFilters() const
+{
+	return WeakFilters;
+}
+
+void FCurveEditorTree::ClearFilters()
+{
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
+
+	WeakFilters.Empty();
+	++Events.OnFiltersChanged.SerialNumber;
 }
 
 const FCurveEditorFilterStates& FCurveEditorTree::GetFilterStates() const
@@ -279,8 +387,11 @@ ECurveEditorTreeFilterState FCurveEditorTree::GetFilterState(FCurveEditorTreeIte
 	return FilterStates.Get(InTreeItemID);
 }
 
-void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems)
+void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems, FCurveEditor* InCurveEditor)
 {
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
+
+	TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> PreviousSelection = MoveTemp(Selection);
 	Selection.Reset();
 
 	// Recursively add child items
@@ -300,8 +411,34 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 
 		for (FCurveEditorTreeItemID ChildID : Items.FindChecked(ItemID).GetChildren())
 		{
-			TreeItems.Add(ChildID);
+			if (FilterStates.Get(ChildID) != ECurveEditorTreeFilterState::NoMatch)
+			{
+				TreeItems.Add(ChildID);
+			}
 		}
+	}
+
+	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> OldItem : PreviousSelection)
+	{
+		const ECurveEditorTreeSelectionState* NewState = Selection.Find(OldItem.Key);
+		if (!NewState || *NewState == ECurveEditorTreeSelectionState::None)
+		{
+			GetItem(OldItem.Key).DestroyUnpinnedCurves(InCurveEditor);
+		}
+	}
+
+	// Ensure the new selection has valid curve models
+	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> NewItem : Selection)
+	{
+		if (NewItem.Value != ECurveEditorTreeSelectionState::None)
+		{
+			GetItem(NewItem.Key).GetOrCreateCurves(InCurveEditor);
+		}
+	}
+
+	if (!PreviousSelection.OrderIndependentCompareEqual(Selection))
+	{
+		++Events.OnSelectionChanged.SerialNumber;
 	}
 }
 
