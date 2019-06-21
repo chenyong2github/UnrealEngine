@@ -1320,9 +1320,9 @@ bool FGenericPlatformMisc::RequestDeviceCheckToken(TFunction<void(const TArray<u
 	return false;
 }
 
-TArray<FChunkTagID> FGenericPlatformMisc::GetOnDemandChunkTagIDs()
+TArray<FCustomChunk> FGenericPlatformMisc::GetAllOnDemandChunks()
 {
-	return TArray<FChunkTagID>();
+	return TArray<FCustomChunk>();
 }
 
 FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)
