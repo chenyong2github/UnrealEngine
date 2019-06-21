@@ -9,6 +9,13 @@
 #include "Widgets/Accessibility/SlateAccessibleWidgets.h"
 #endif
 
+SEditableTextBox::SEditableTextBox()
+{
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+#endif
+}
+
 /**
  * Construct this widget
  *
@@ -86,11 +93,11 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 
 #if WITH_ACCESSIBILITY
 	// These functions need to be called again because SWidget::Construct is called before SEditableText is created.
-	if (!InArgs._AccessibleParams.AccessibleText.IsSet())
+	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
 	{
 		SetDefaultAccessibleText(EAccessibleType::Main);
 	}
-	if (!InArgs._AccessibleParams.AccessibleSummaryText.IsSet())
+	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
 	{
 		SetDefaultAccessibleText(EAccessibleType::Summary);
 	}

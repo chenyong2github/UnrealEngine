@@ -168,7 +168,7 @@ void SWidget::Construct(
 	const bool InForceVolatile,
 	const EWidgetClipping InClipping,
 	const EFlowDirectionPreference InFlowPreference,
-	const FAccessibleWidgetData& InAccessibleData,
+	const TOptional<FAccessibleWidgetData>& InAccessibleData,
 	const TArray<TSharedRef<ISlateMetaData>>& InMetaData
 )
 {
@@ -201,24 +201,27 @@ void SWidget::Construct(
 	MetaData = InMetaData;
 
 #if WITH_ACCESSIBILITY
-	AccessibleData.bCanChildrenBeAccessible = InAccessibleData.bCanChildrenBeAccessible;
-	// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
-	if (!InAccessibleData.AccessibleText.IsSet())
+	if (InAccessibleData.IsSet())
+	{
+		SetCanChildrenBeAccessible(InAccessibleData->bCanChildrenBeAccessible);
+		// If custom text is provided, force behavior to custom. Otherwise, use the passed-in behavior and set their default text.
+		SetAccessibleBehavior(InAccessibleData->AccessibleText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleBehavior, InAccessibleData->AccessibleText, EAccessibleType::Main);
+		SetAccessibleBehavior(InAccessibleData->AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData->AccessibleSummaryBehavior, InAccessibleData->AccessibleSummaryText, EAccessibleType::Summary);
+	}
+	if (AccessibleData.AccessibleBehavior != EAccessibleBehavior::Custom)
 	{
 		SetDefaultAccessibleText(EAccessibleType::Main);
 	}
-	if (!InAccessibleData.AccessibleSummaryText.IsSet())
+	if (AccessibleData.AccessibleSummaryBehavior != EAccessibleBehavior::Custom)
 	{
 		SetDefaultAccessibleText(EAccessibleType::Summary);
 	}
-	SetAccessibleBehavior(InAccessibleData.AccessibleText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData.AccessibleBehavior, InAccessibleData.AccessibleText, EAccessibleType::Main);
-	SetAccessibleBehavior(InAccessibleData.AccessibleSummaryText.IsSet() ? EAccessibleBehavior::Custom : InAccessibleData.AccessibleSummaryBehavior, InAccessibleData.AccessibleSummaryText, EAccessibleType::Summary);
 #endif
 }
 
 void SWidget::SWidgetConstruct(const TAttribute<FText>& InToolTipText, const TSharedPtr<IToolTip>& InToolTip, const TAttribute< TOptional<EMouseCursor::Type> >& InCursor, const TAttribute<bool>& InEnabledState,
 							   const TAttribute<EVisibility>& InVisibility, const float InRenderOpacity, const TAttribute<TOptional<FSlateRenderTransform>>& InTransform, const TAttribute<FVector2D>& InTransformPivot,
-							   const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const FAccessibleWidgetData& InAccessibleData,
+							   const FName& InTag, const bool InForceVolatile, const EWidgetClipping InClipping, const EFlowDirectionPreference InFlowPreference, const TOptional<FAccessibleWidgetData>& InAccessibleData,
 							   const TArray<TSharedRef<ISlateMetaData>>& InMetaData)
 {
 	Construct(InToolTipText, InToolTip, InCursor, InEnabledState, InVisibility, InRenderOpacity, InTransform, InTransformPivot, InTag, InForceVolatile, InClipping, InFlowPreference, InAccessibleData, InMetaData);
