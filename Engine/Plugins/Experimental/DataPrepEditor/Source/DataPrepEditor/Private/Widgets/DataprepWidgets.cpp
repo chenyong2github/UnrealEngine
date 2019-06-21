@@ -222,6 +222,7 @@ TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWi
 		.OnSlotResized( SSplitter::FOnSlotResized::CreateSP( this, &SDataprepDetailsView::OnLeftColumnResized ) )
 		[
 			SNew(SHorizontalBox)
+			.Clipping(EWidgetClipping::OnDemand)
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
@@ -235,6 +236,7 @@ TSharedRef< SWidget > SDataprepDetailsView::CreateDefaultWidget( TSharedPtr< SWi
 		.OnSlotResized(ColumnSizeData.OnWidthChanged)
 		[
 			SNew(SHorizontalBox)
+			.Clipping(EWidgetClipping::OnDemand)
 			+ SHorizontalBox::Slot()
 			.Padding( 5.0f, 2.5f, 2.0f, 2.5f )
 			.HAlign( HAlign )
