@@ -2226,7 +2226,7 @@ private:
 
 	void ProcessVolumetricLightmapBrickTask(class FVolumetricLightmapBrickTaskDescription* Task);
 
-	void ProcessVolumetricLightmapTaskIfAvailable();
+	bool ProcessVolumetricLightmapTaskIfAvailable();
 
 	void GenerateVoxelTestPositions(TArray<FVector>& VoxelTestPositions) const;
 
