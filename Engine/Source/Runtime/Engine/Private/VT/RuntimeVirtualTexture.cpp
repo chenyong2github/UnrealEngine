@@ -175,19 +175,36 @@ URuntimeVirtualTexture::~URuntimeVirtualTexture()
 	delete Resource;
 }
 
-void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc) const
+void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutDesc, FTransform const& VolumeToWorld) const
 {
 	OutDesc.Name = GetFName();
 	OutDesc.Dimensions = 2;
 	OutDesc.TileSize = GetTileSize();
 	OutDesc.TileBorderSize = GetTileBorderSize();
-	OutDesc.BlockWidthInTiles = GetWidth() / GetTileSize();
-	OutDesc.BlockHeightInTiles = GetHeight() / GetTileSize();
-	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - RemoveLowMips, 1);
 	OutDesc.DepthInTiles = 1;
 	OutDesc.WidthInBlocks = 1;
 	OutDesc.HeightInBlocks = 1;
 
+	// Set width and height to best match the aspect ratio
+	const FVector VolumeSize = VolumeToWorld.GetScale3D();
+	const float AspectRatio = VolumeSize.X / VolumeSize.Y;
+	int32 Width, Height;
+	if (AspectRatio >= 1.f)
+	{
+		Width = GetSize();
+		Height = FMath::Max((int32)FMath::RoundUpToPowerOfTwo(Width / AspectRatio), GetTileSize());
+	}
+	else
+	{
+		Height = GetSize();
+		Width = FMath::Max((int32)FMath::RoundUpToPowerOfTwo(Height * AspectRatio), GetTileSize());
+	}
+
+	OutDesc.BlockWidthInTiles = Width / GetTileSize();
+	OutDesc.BlockHeightInTiles = Height / GetTileSize();
+	OutDesc.MaxLevel = FMath::Max((int32)FMath::CeilLogTwo(FMath::Max(OutDesc.BlockWidthInTiles, OutDesc.BlockHeightInTiles)) - RemoveLowMips, 1);
+
+	// Set layer description based on material type
 	switch (MaterialType)
 	{
 	case ERuntimeVirtualTextureMaterialType::BaseColor:
@@ -258,14 +275,14 @@ FVector4 URuntimeVirtualTexture::GetUniformParameter(int32 Index)
 	return WorldToUVTransformParameters[Index];
 }
 
-void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform const& BoxToWorld)
+void URuntimeVirtualTexture::Initialize(IVirtualTexture* InProducer, FTransform const& VolumeToWorld)
 {
 	//todo[vt]: possible issues with precision in large worlds here it might be better to calculate/upload camera space relative transform per frame?
-	WorldToUVTransformParameters[0] = BoxToWorld.GetTranslation();
-	WorldToUVTransformParameters[1] = BoxToWorld.GetUnitAxis(EAxis::X) * 1.f / BoxToWorld.GetScale3D().X;
-	WorldToUVTransformParameters[2] = BoxToWorld.GetUnitAxis(EAxis::Y) * 1.f / BoxToWorld.GetScale3D().Y;
+	WorldToUVTransformParameters[0] = VolumeToWorld.GetTranslation();
+	WorldToUVTransformParameters[1] = VolumeToWorld.GetUnitAxis(EAxis::X) * 1.f / VolumeToWorld.GetScale3D().X;
+	WorldToUVTransformParameters[2] = VolumeToWorld.GetUnitAxis(EAxis::Y) * 1.f / VolumeToWorld.GetScale3D().Y;
 
-	InitResource(InProducer);
+	InitResource(InProducer, VolumeToWorld);
 }
 
 void URuntimeVirtualTexture::Release()
@@ -273,10 +290,10 @@ void URuntimeVirtualTexture::Release()
 	InitNullResource();
 }
 
-void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer)
+void URuntimeVirtualTexture::InitResource(IVirtualTexture* InProducer, FTransform const& VolumeToWorld)
 {
 	FVTProducerDescription Desc;
-	GetProducerDescription(Desc);
+	GetProducerDescription(Desc, VolumeToWorld);
 	Resource->Init(Desc, InProducer);
 }
 
@@ -292,8 +309,7 @@ void URuntimeVirtualTexture::GetAssetRegistryTags(TArray<FAssetRegistryTag>& Out
 {
 	Super::GetAssetRegistryTags(OutTags);
 
-	OutTags.Add(FAssetRegistryTag("Width", FString::FromInt(GetWidth()), FAssetRegistryTag::TT_Numerical));
-	OutTags.Add(FAssetRegistryTag("Height", FString::FromInt(GetHeight()), FAssetRegistryTag::TT_Numerical));
+	OutTags.Add(FAssetRegistryTag("Size", FString::FromInt(GetSize()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("TileSize", FString::FromInt(GetTileSize()), FAssetRegistryTag::TT_Numerical));
 	OutTags.Add(FAssetRegistryTag("TileBorderSize", FString::FromInt(GetTileBorderSize()), FAssetRegistryTag::TT_Numerical));
 }
