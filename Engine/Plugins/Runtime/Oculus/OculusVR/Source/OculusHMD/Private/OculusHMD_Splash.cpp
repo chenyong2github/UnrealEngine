@@ -207,7 +207,7 @@ void FSplash::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
 	}
 
 	ovrpResult Result;
-	if ( ovrp_GetInitialized() )
+	if ( ovrp_GetInitialized() && OculusHMD->WaitFrameNumber != Frame->FrameNumber)
 	{ 
 		UE_LOG(LogHMD, Verbose, TEXT("Splash ovrp_WaitToBeginFrame %u"), XFrame->FrameNumber);
 		if (OVRP_FAILURE(Result = ovrp_WaitToBeginFrame(XFrame->FrameNumber)))
