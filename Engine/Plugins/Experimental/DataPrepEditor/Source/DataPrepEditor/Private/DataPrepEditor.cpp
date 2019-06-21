@@ -481,14 +481,6 @@ void FDataprepEditor::OnBuildWorld()
 
 	CleanPreviewWorld();
 
-	if(UEdGraph* PipelineGraph = GetPipelineGraph())
-	{
-		PipelineView->ClearSelectionSet();
-		PipelineView->SetNodeSelection( StartNode, true );
-		FSlateApplication::Get().PumpMessages();
-		FSlateApplication::Get().Tick();
-	}
-
 	UPackage* TransientPackage = NewObject< UPackage >( nullptr, *GetTransientContentFolder(), RF_Transient );
 	TransientPackage->FullyLoad();
 
@@ -672,12 +664,6 @@ void FDataprepEditor::OnExecutePipeline()
 						}
 					}
 
-					// Highlight action being executed
-					PipelineView->ClearSelectionSet();
-					PipelineView->SetNodeSelection( ActionNode, true );
-					FSlateApplication::Get().PumpMessages();
-					FSlateApplication::Get().Tick();
-
 					// Execute action
 					ActionNode->GetDataprepAction()->Execute( Objects );
 					ActionNodesExecuted.Add( ActionNode );
@@ -699,8 +685,6 @@ void FDataprepEditor::OnExecutePipeline()
 
 					// World may have changed, update asset preview and scene outliner
 					UpdatePreviewPanels();
-					FSlateApplication::Get().PumpMessages();
-					FSlateApplication::Get().Tick();
 				}
 
 				UEdGraphPin* NextNodeOutPin = NextNode->FindPin( UEdGraphSchema_K2::PN_Then, EGPD_Output );
@@ -746,10 +730,6 @@ void FDataprepEditor::OnCommitWorld()
 	{
 		// #ueent_todo: Inform consumer failed
 	}
-
-	PipelineView->ClearSelectionSet();
-	FSlateApplication::Get().PumpMessages();
-	FSlateApplication::Get().Tick();
 
 	ResetBuildWorld();
 }
