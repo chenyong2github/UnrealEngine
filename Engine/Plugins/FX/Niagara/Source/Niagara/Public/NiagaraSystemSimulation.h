@@ -184,6 +184,9 @@ protected:
 	TArray<TArray<FNiagaraParameterStoreToDataSetBinding>> DataSetToEmitterEventParameters;
 
 	/** Direct bindings for Engine variables in System Spawn and Update scripts. */
+	FNiagaraParameterDirectBinding<float> SpawnTimeParam;
+	FNiagaraParameterDirectBinding<float> UpdateTimeParam;
+
 	FNiagaraParameterDirectBinding<float> SpawnDeltaTimeParam;
 	FNiagaraParameterDirectBinding<float> UpdateDeltaTimeParam;
 

@@ -171,6 +171,8 @@ bool FNiagaraSystemSimulation::Init(UNiagaraSystem* InSystem, UWorld* InWorld, b
 			}
 		}
 
+		SpawnTimeParam.Init(SpawnExecContext.Parameters, SYS_PARAM_ENGINE_TIME);
+		UpdateTimeParam.Init(UpdateExecContext.Parameters, SYS_PARAM_ENGINE_TIME);
 		SpawnDeltaTimeParam.Init(SpawnExecContext.Parameters, SYS_PARAM_ENGINE_DELTA_TIME);
 		UpdateDeltaTimeParam.Init(UpdateExecContext.Parameters, SYS_PARAM_ENGINE_DELTA_TIME);
 		SpawnInvDeltaTimeParam.Init(SpawnExecContext.Parameters, SYS_PARAM_ENGINE_INV_DELTA_TIME);
@@ -282,6 +284,11 @@ bool FNiagaraSystemSimulation::Tick(float DeltaSeconds)
 	if (System == nullptr || bCanExecute == false)
 	{
 		// TODO: evaluate whether or not we should have removed this from the world manager instead?
+		return false;
+	}
+	else if (World == nullptr)
+	{
+		ensureMsgf(false, TEXT("World was null while ticking System Simulation!"));
 		return false;
 	}
 
@@ -444,6 +451,9 @@ bool FNiagaraSystemSimulation::Tick(float DeltaSeconds)
 			float InvDt = 1.0f / DeltaSeconds;
 			float GlobalSpawnCountScale = INiagaraModule::GetGlobalSpawnCountScale();
 			float GlobalSystemCountScale = INiagaraModule::GetGlobalSystemCountScale();
+
+			SpawnTimeParam.SetValue(World->TimeSeconds);
+			UpdateTimeParam.SetValue(World->TimeSeconds);
 			SpawnDeltaTimeParam.SetValue(DeltaSeconds);
 			UpdateDeltaTimeParam.SetValue(DeltaSeconds);
 			SpawnInvDeltaTimeParam.SetValue(InvDt);
