@@ -705,7 +705,7 @@ void FHoloLensTargetSettingsCustomization::LoadAndValidateSigningCertificate()
 			switch (FailureReason)
 			{
 			case ERROR_INVALID_PASSWORD:
-				SigningCertificateError->SetError(LOCTEXT("CertificatePasswordProtected", "SigningCertificate.pfx file is password protected"));
+				SigningCertificateError->SetError(LOCTEXT("CertificateFilePasswordProtected", "SigningCertificate.pfx file is password protected"));
 				break;
 
 			default:

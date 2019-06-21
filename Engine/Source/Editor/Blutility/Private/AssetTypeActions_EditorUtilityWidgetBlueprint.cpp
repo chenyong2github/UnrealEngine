@@ -98,12 +98,12 @@ void FAssetTypeActions_EditorUtilityWidgetBlueprint::PerformAssetDiff(UObject* A
 	// times we're comparing two completely separate assets altogether)
 	bool bIsSingleAsset = (NewBlueprint->GetName() == OldBlueprint->GetName());
 
-	FText WindowTitle = LOCTEXT("NamelessWidgetBlueprintDiff", "Editor Utility Widget Blueprint Diff");
+	FText WindowTitle = LOCTEXT("NamelessEditorUtilityWidgetBlueprintDiff", "Editor Utility Widget Blueprint Diff");
 	// if we're diffing one asset against itself 
 	if (bIsSingleAsset)
 	{
 		// identify the assumed single asset in the window's title
-		WindowTitle = FText::Format(LOCTEXT("WidgetBlueprintDiff", "{0} - Editor Utility Widget Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
+		WindowTitle = FText::Format(LOCTEXT("EditorUtilityWidgetBlueprintDiff", "{0} - Editor Utility Widget Blueprint Diff"), FText::FromString(NewBlueprint->GetName()));
 	}
 
 	SBlueprintDiff::CreateDiffWindow(WindowTitle, OldBlueprint, NewBlueprint, OldRevision, NewRevision);
