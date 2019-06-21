@@ -24,27 +24,32 @@
 		{
 			"Name": "LiveLink",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "LiveLinkComponents",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "LiveLinkEditor",
 			"Type": "Editor",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkGraphNode",
+			"Type": "Developer",
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "LiveLinkMovieScene",
 			"Type": "Runtime",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "LiveLinkSequencer",
 			"Type": "Developer",
-			"LoadingPhase": "PreDefault"
+			"LoadingPhase": "Default"
 		}
 	]
 }
