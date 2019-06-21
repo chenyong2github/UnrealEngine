@@ -896,7 +896,7 @@ public:
 	// Internal physics engine data.
 	
 	/** Physics scene information for this component, holds a single rigid body with multiple shapes. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Collision, meta=(ShowOnlyInnerProperties))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Collision, meta=(ShowOnlyInnerProperties, SkipUCSModifiedProperties))
 	FBodyInstance BodyInstance;
 
 	/** 

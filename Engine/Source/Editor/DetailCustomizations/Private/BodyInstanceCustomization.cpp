@@ -1017,7 +1017,7 @@ bool FBodyInstanceCustomization::IsCollisionEnabled() const
 	bool bEnabled = false;
 	if(BodyInstanceHandle.IsValid())
 	{
-		bEnabled = !BodyInstanceHandle->IsEditConst() && FSlateApplication::Get().GetNormalExecutionAttribute().Get();
+		bEnabled = BodyInstanceHandle->IsEditable() && FSlateApplication::Get().GetNormalExecutionAttribute().Get();
 	}
 
 	return bEnabled;
