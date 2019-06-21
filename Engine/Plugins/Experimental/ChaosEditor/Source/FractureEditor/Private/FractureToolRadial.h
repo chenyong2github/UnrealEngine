@@ -38,23 +38,23 @@ public:
 	FVector Normal;
 
 	/** Pattern radius */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radius", UIMin = "0.0", ClampMin = "0.0"))
 	float Radius;
 
 	/** Number of angular steps */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angular Steps", UIMin = "1", ClampMin = "1"))
 	int AngularSteps;
 
 	/** Number of radial steps */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radial Steps", UIMin = "1", ClampMin = "1"))
 	int RadialSteps;
 
 	/** Angle offset at each radial step */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angle Offset", UIMin = "0.0", ClampMin = "0.0"))
 	float AngleOffset;
 
 	/** Randomness of sites distribution */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi)
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Variability", UIMin = "0.0", ClampMin = "0.0"))
 	float Variability;
 
 	UPROPERTY()

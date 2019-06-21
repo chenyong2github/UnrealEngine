@@ -369,7 +369,7 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 				{
 					const FVector& Offset = ExplodedVectors[Idx];
 					const FBox& Bounds = BoundingBox[TransformToGeometryIndex[Idx]];
-					BoundsToBone.Add(TransformToGeometryIndex[Idx], Bounds.ShiftBy(Offset).TransformBy(Transforms[Idx]));
+					BoundsToBone.Add(Idx, Bounds.ShiftBy(Offset).TransformBy(Transforms[Idx]));
 				}
 			}
 		}
@@ -379,7 +379,7 @@ void FFractureEditorMode::GetActorGlobalBounds(TArrayView<UGeometryCollectionCom
 			{
 				if (TransformToGeometryIndex[Idx] > -1)
 				{
-					BoundsToBone.Add(TransformToGeometryIndex[Idx], BoundingBox[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
+					BoundsToBone.Add(Idx, BoundingBox[TransformToGeometryIndex[Idx]].TransformBy(Transforms[Idx]));
 				}
 			}
 		}
