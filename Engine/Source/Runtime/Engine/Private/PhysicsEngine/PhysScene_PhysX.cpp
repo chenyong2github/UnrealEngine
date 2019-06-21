@@ -1105,14 +1105,6 @@ void FPhysScene_PhysX::TickPhysScene(FGraphEventRef& InOutCompletionEvent)
 	}
 #endif
 
-	// Replicate physics
-#if WITH_PHYSX
-	if (bSimulateScene && PhysicsReplication)
-	{
-		PhysicsReplication->Tick(AveragedFrameTime);
-	}
-#endif
-
 	float PreTickTime = IsSubstepping() ? UseDelta : AveragedFrameTime;
 
 	// Broadcast 'pre tick' delegate
