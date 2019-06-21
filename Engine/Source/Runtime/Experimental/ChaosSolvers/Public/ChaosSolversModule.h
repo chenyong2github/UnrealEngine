@@ -35,7 +35,6 @@ public:
 
 #include "Framework/Dispatcher.h"
 #include "Framework/PersistentTask.h"
-#include "Chaos/Framework/DebugSubstep.h"
 
 namespace Chaos
 {
@@ -268,12 +267,6 @@ public:
 	 */
 	bool ShouldStepSolver(int32& InOutSingleStepCounter) const;
 #endif  // #if WITH_EDITOR
-#if WITH_EDITOR && CHAOS_DEBUG_SUBSTEP
-	/**
-	 * Preempt deletion of objects and of solvers. Called from editor handles.
-	 */
-	void PreEndSolvers();
-#endif  // #if WITH_EDITOR && CHAOS_DEBUG_SUBSTEP
 
 	void RegisterSolverActorClassProvider(IChaosSolverActorClassProvider* Provider)
 	{

@@ -42,32 +42,42 @@ namespace Chaos
 		/** Enable/disable substep pause points. */
 		void Enable(bool bEnable);
 
-		/** Allow progress to the next substep (works only after this object is enabled). */
+		/** Allow progress to the next substep (only works once this object is enabled). */
 		void ProgressToSubstep();
 
-		/** Allow progress to the next step (works only after this object is enabled). */
+		/** Allow progress to the next step (only works once this object is enabled). */
 		void ProgressToStep();
-
-		/*
-		 * Disable and wait for the completion of the debug thread.
-		 * Not thread safe. Must be either called from within the physics thread 
-		 * or within the game thread with the physics thread locked.
-		 */
-		void Shutdown();
 
 	private:
 		FDebugSubstep(const FDebugSubstep&) = delete;
 		FDebugSubstep& operator=(const FDebugSubstep&) = delete;
 
-		/**
-		 * Control substepping progress.
-		 * Start substepping, wait until the next substep is reached, or return straightaway if debugging is disabled.
-		 * @return Whether the debug thread needs running.
+		/** Initialize sync events. */
+		void Initialize();
+
+		/** Shutdown and release sync events. Once released the debug thread cannot be restarted unless Initialize is called first. */
+		void Release();
+
+		/** Return true when initialized. */
+		FORCEINLINE bool IsInitialized() const { return !!ProgressEvent && !!SubstepEvent; }
+
+		/*
+		 * Disable and wait for the completion of the debug thread.
+		 * Not thread safe. Must be called from within the physics thread or with the physics thread locked.
+		 * Once shutdown, the debug thread can still be restarted when SyncAdvance is called.
 		 */
-		bool SyncAdvance();
+		void Shutdown();
 
 		/** Set the id of the thread the debug substepping will be running in. */
 		void AssumeThisThread();
+
+		/**
+		 * Control substepping progress.
+		 * Start substepping, wait until the next substep is reached, or return straightaway if debugging is disabled.
+		 * @param bIsSolverEnabled The state of the solver. The substepping will stop when the solver is disabled and delay starting again until re-enabled.
+		 * @return Whether the debug thread needs running.
+		 */
+		bool SyncAdvance(bool bIsSolverEnabled);
 
 		/**
 		 * Add a new step or substep.
@@ -76,6 +86,15 @@ namespace Chaos
 		 */
 		void Add(bool bInStep, const TCHAR* Label) const;
 
+		/** Set sync events to start the substepping process. */
+		void Start();
+
+		/** Trigger/wait for sync events to stop the substepping process. */
+		void Stop();
+
+		/** Trigger/wait for sync events to step/substep. */
+		void Substep(bool bShouldStep);
+
 	private:
 		enum class ECommand { Enable, Disable, ProgressToSubstep, ProgressToStep };
 
@@ -83,8 +102,9 @@ namespace Chaos
 		TQueue<ECommand, EQueueMode::Mpsc> CommandQueue;  // Command queue, thread safe, Multiple-producers single-consumer (MPSC) model.
 		FEvent* ProgressEvent;         // Progress synchronization event.
 		FEvent* SubstepEvent;          // Substep synchronization event.
-		mutable bool bWaitForStep;     // Boolean used to flag the completion of a step. Set within the a const function, hence the mutable.
 		uint32 ThreadId;               // Thread id used to check that the debug substep code is still running within the debug thread.
+		mutable bool bWaitForStep;     // Boolean used to flag the completion of a step. Set within the a const function, hence the mutable.
+		bool bShouldEnable;            // Whether an enable command has been requested. The debugging thread might not be ready yet (e.g. disabled solver), this will ensure it still enable the debug substepping once it is ready.
 	};
 }
 
@@ -108,7 +128,9 @@ namespace Chaos
 		void Add(const TCHAR* /*Label*/ = nullptr) {}
 
 		void Enable(bool /*bEnable*/) {}
-		void Progress() {}
+
+		void ProgressToSubstep() {}
+		void ProgressToStep() {}
 
 	private:
 		FDebugSubstep(const FDebugSubstep&) = delete;

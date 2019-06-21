@@ -58,6 +58,14 @@ namespace Chaos
 		FChaosSolversModule& ChaosModule = FModuleManager::Get().GetModuleChecked<FChaosSolversModule>("ChaosSolvers");
 		Solvers = ChaosModule.GetSolvers();
 
+#if CHAOS_DEBUG_SUBSTEP
+		// Prepare the debug substepping tasks for all existing solvers
+		for (FPBDRigidsSolver* Solver : Solvers)
+		{
+			DebugSolverTasks.Add(Solver);
+		}
+#endif
+
 		bRunning = true;
 		ShutdownEvent->Reset();
 
