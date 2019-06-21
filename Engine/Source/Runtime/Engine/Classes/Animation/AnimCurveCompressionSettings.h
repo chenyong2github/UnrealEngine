@@ -38,6 +38,6 @@ class ENGINE_API UAnimCurveCompressionSettings : public UObject
 	bool Compress(const FCompressibleAnimData& AnimSeq, FCompressedAnimSequence& OutCompressedData) const;
 
 	/** Generates a DDC key that takes into account the current settings and selected codec. */
-	FString MakeDDCKey() const;
+	void PopulateDDCKey(FArchive& Ar) const;
 #endif
 };
