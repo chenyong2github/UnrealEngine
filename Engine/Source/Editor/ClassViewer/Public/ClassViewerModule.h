@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "AssetData.h"
 #include "Modules/ModuleInterface.h"
 
 class IClassViewerFilter;
