@@ -138,9 +138,12 @@ bool FLandscapeEditorDetailCustomization_TargetLayers::ShouldShowVisibilityTip()
 		if (LandscapeEdMode->CurrentToolTarget.TargetType == ELandscapeToolTargetType::Visibility)
 		{
 			ALandscapeProxy* Proxy = LandscapeEdMode->CurrentToolTarget.LandscapeInfo->GetLandscapeProxy();
-			UMaterialInterface* HoleMaterial = Proxy->GetLandscapeMaterial();
-
-			if (HoleMaterial && !HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>())
+			UMaterialInterface* HoleMaterial = Proxy->GetLandscapeHoleMaterial();
+			if (!HoleMaterial)
+			{
+				HoleMaterial = Proxy->GetLandscapeMaterial();
+			}
+			if (!HoleMaterial->GetMaterial()->HasAnyExpressionsInMaterialAndFunctionsOfType<UMaterialExpressionLandscapeVisibilityMask>())
 			{
 				return true;
 			}

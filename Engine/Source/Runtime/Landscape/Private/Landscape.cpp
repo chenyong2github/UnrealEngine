@@ -60,7 +60,6 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "LandscapeDataAccess.h"
-#include "UObject/EditorObjectVersion.h"
 
 /** Landscape stats */
 
@@ -441,24 +440,7 @@ void ULandscapeComponent::Serialize(FArchive& Ar)
 		LegacyComponentData.Data.Emplace(MapBuildDataId, LegacyMapBuildData);
 		GComponentsWithLegacyLightmaps.AddAnnotation(this, LegacyComponentData);
 	}
-	
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::RemoveLandscapeHoleMaterial)
-	{
-		if (OverrideHoleMaterial_DEPRECATED != nullptr)
-		{
-			if (OverrideMaterial == nullptr)
-			{
-				OverrideMaterial = OverrideHoleMaterial_DEPRECATED;
-			}
-			else
-			{
-				if (OverrideMaterial->GetBlendMode() != EBlendMode::BLEND_Masked)
-				{
-					UE_LOG(LogLandscape, Warning, TEXT("OverrideHoleMaterial was deprecated, your OverrideMaterial is not currently setup correctly to support visibility painting, please correct your material, otherwise your landscape component \"%s\" won't render as before."), *GetFullName());
-				}
-			}
-		}
-	}
+
 	if (Ar.IsLoading() && Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::NewLandscapeMaterialPerLOD)
 	{
 		if (MobileMaterialInterface_DEPRECATED != nullptr)
@@ -588,6 +570,20 @@ UMaterialInterface* ULandscapeComponent::GetLandscapeMaterial(int8 InLODIndex) c
 	}
 	
 	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+UMaterialInterface* ULandscapeComponent::GetLandscapeHoleMaterial() const
+{
+	if (OverrideHoleMaterial)
+	{
+		return OverrideHoleMaterial;
+	}
+	ALandscapeProxy* Proxy = GetLandscapeProxy();
+	if (Proxy)
+	{
+		return Proxy->GetLandscapeHoleMaterial();
+	}
+	return nullptr;
 }
 
 bool ULandscapeComponent::ComponentHasVisibilityPainted() const
@@ -1969,24 +1965,6 @@ void ALandscapeProxy::Serialize(FArchive& Ar)
 			}
 		}
 	}
-	
-	if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::RemoveLandscapeHoleMaterial)
-	{
-		if (LandscapeHoleMaterial_DEPRECATED != nullptr)
-		{
-			if (LandscapeMaterial == nullptr)
-			{
-				LandscapeMaterial = LandscapeHoleMaterial_DEPRECATED;
-			}
-			else
-			{
-				if (LandscapeMaterial->GetBlendMode() != EBlendMode::BLEND_Masked)
-				{
-					UE_LOG(LogLandscape, Warning, TEXT("LandscapeHoleMaterial was deprecated, your landscape material is not currently setup correctly to support visibility painting, please correct your material, otherwise your landscape \"%s\" won't render as before."), *GetFullName());
-				}
-			}
-		}
-	}
 }
 
 void ALandscapeProxy::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -2414,6 +2392,10 @@ void ALandscapeProxy::GetSharedProperties(ALandscapeProxy* Landscape)
 			LandscapeMaterial = Landscape->LandscapeMaterial;
 			LandscapeMaterialsOverride = Landscape->LandscapeMaterialsOverride;
 		}
+		if (!LandscapeHoleMaterial)
+		{
+			LandscapeHoleMaterial = Landscape->LandscapeHoleMaterial;
+		}
 		if (LandscapeMaterial == Landscape->LandscapeMaterial)
 		{
 			EditorLayerSettings = Landscape->EditorLayerSettings;
@@ -2608,6 +2590,15 @@ UMaterialInterface* ALandscapeProxy::GetLandscapeMaterial(int8 InLODIndex) const
 	return LandscapeMaterial != nullptr ? LandscapeMaterial : UMaterial::GetDefaultMaterial(MD_Surface);
 }
 
+UMaterialInterface* ALandscapeProxy::GetLandscapeHoleMaterial() const
+{
+	if (LandscapeHoleMaterial)
+	{
+		return LandscapeHoleMaterial;
+	}
+	return nullptr;
+}
+
 UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODIndex) const
 {
 	if (InLODIndex != INDEX_NONE)
@@ -2642,6 +2633,19 @@ UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeMaterial(int8 InLODInd
 	}
 
 	return UMaterial::GetDefaultMaterial(MD_Surface);
+}
+
+UMaterialInterface* ALandscapeStreamingProxy::GetLandscapeHoleMaterial() const
+{
+	if (LandscapeHoleMaterial)
+	{
+		return LandscapeHoleMaterial;
+	}
+	else if (ALandscape* Landscape = LandscapeActor.Get())
+	{
+		return Landscape->GetLandscapeHoleMaterial();
+	}
+	return nullptr;
 }
 
 void ALandscape::PreSave(const class ITargetPlatform* TargetPlatform)

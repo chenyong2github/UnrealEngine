@@ -33,6 +33,7 @@ public:
 	virtual const ALandscape* GetLandscapeActor() const override;
 #if WITH_EDITOR
 	virtual UMaterialInterface* GetLandscapeMaterial(int8 InLODIndex = INDEX_NONE) const override;
+	virtual UMaterialInterface* GetLandscapeHoleMaterial() const override;
 #endif
 	//~ End ALandscapeBase Interface
 

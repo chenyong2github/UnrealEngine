@@ -4164,6 +4164,7 @@ ALandscape* FEdModeLandscape::ChangeComponentSetting(int32 NumComponentsX, int32
 			NewLandscape->PositiveZBoundsExtension = OldLandscape->PositiveZBoundsExtension;
 			NewLandscape->DefaultPhysMaterial = OldLandscape->DefaultPhysMaterial;
 			NewLandscape->StreamingDistanceMultiplier = OldLandscape->StreamingDistanceMultiplier;
+			NewLandscape->LandscapeHoleMaterial = OldLandscape->LandscapeHoleMaterial;
 			NewLandscape->StaticLightingResolution = OldLandscape->StaticLightingResolution;
 			NewLandscape->bCastStaticShadow = OldLandscape->bCastStaticShadow;
 			NewLandscape->bCastShadowAsTwoSided = OldLandscape->bCastShadowAsTwoSided;
