@@ -56,6 +56,24 @@ static FAutoConsoleVariableRef CVarNiagaraGPUSortingFrameCountBeforeBufferShrink
 	ECVF_Default
 );
 
+class FNiagaraSortingDummyUAV : public FRenderResource
+{
+public:
+	FRWBuffer Buffer;
+
+	virtual void InitRHI() override
+	{
+		Buffer.Initialize(sizeof(int32), 1, EPixelFormat::PF_R32_SINT, BUF_Static, TEXT("FNiagaraSortingDummyUAV"));
+	}
+
+	virtual void ReleaseRHI() override
+	{
+		Buffer.Release();
+	}
+}; 
+static TGlobalResource<FNiagaraSortingDummyUAV> NiagaraSortingDummyUAV[NIAGARA_COPY_BUFFER_BUFFER_COUNT];
+
+
 IMPLEMENT_GLOBAL_SHADER(FNiagaraSortKeyGenCS, "/Plugin/FX/Niagara/Private/NiagaraSortKeyGen.usf", "GenerateParticleSortKeys", SF_Compute);
 
 void FNiagaraSortKeyGenCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -206,10 +224,9 @@ void FNiagaraCopyIntBufferRegionCS::SetParameters(
 		CopyParamsValue[Index + 1] = InUsedIndexCounts[Index];
 	}
 
-	// Workaround for Vulkan driver crashes: replicate the last UAV over
 	for (int32 Index = DestCount; Index < NIAGARA_COPY_BUFFER_BUFFER_COUNT; ++Index)
 	{
-		RHICmdList.SetUAVParameter(ComputeShaderRHI, DestData[Index].GetBaseIndex(), InDestDatas[DestCount - 1]);
+		RHICmdList.SetUAVParameter(ComputeShaderRHI, DestData[Index].GetBaseIndex(), NiagaraSortingDummyUAV[Index].Buffer.UAV);
 	}
 
 	RHICmdList.SetShaderParameter(ComputeShaderRHI, CopyParams.GetBufferIndex(), CopyParams.GetBaseIndex(), CopyParams.GetNumBytes(), &CopyParamsValue);
