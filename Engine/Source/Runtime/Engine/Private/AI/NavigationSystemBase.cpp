@@ -306,52 +306,8 @@ void FNavigationLockContext::UnlockUpdates()
 }
 
 //----------------------------------------------------------------------//
-// 
+// UNavigationSystemBase
 //----------------------------------------------------------------------//
-UNavigationSystem::UNavigationSystem(const FObjectInitializer& ObjectInitializer)
-{
-#if !UE_BUILD_SHIPPING
-	if (HasAnyFlags(RF_ClassDefaultObject) && GetClass() == UNavigationSystem::StaticClass())
-	{
-		struct FIniChecker
-		{
-			FIniChecker()
-			{
-				const TCHAR EngineTemplage[] = TEXT("/Script/Engine.%s");
-				const TCHAR MessageTemplate[] = TEXT("[/Script/Engine.%s] found in the DefaultEngine.ini file. This class has been moved. Please rename that section to [/Script/NavigationSystem.%s]");
-				const TArray<FString> MovedIniClasses = {
-					TEXT("RecastNavMesh")
-					, TEXT("NavArea")
-					, TEXT("NavAreaMeta")
-					, TEXT("NavArea_Default")
-					, TEXT("NavArea_LowHeight")
-					, TEXT("NavArea_Null")
-					, TEXT("NavArea_Obstacle")
-					, TEXT("NavAreaMeta_SwitchByAgent")
-					, TEXT("AbstractNavData")
-					, TEXT("NavCollision")
-					, TEXT("NavigationData")
-					, TEXT("NavigationGraph")
-					, TEXT("NavigationGraphNode")
-					, TEXT("NavigationGraphNodeComponent")
-				};
-
-				// NavigationSystem changed name, treat tit separately
-				UE_CLOG(GConfig->DoesSectionExist(*FString::Printf(EngineTemplage, TEXT("NavigationSystem")), GEngineIni)
-					, LogNavigation, Error, MessageTemplate, TEXT("NavigationSystem"), TEXT("NavigationSystemV1"));
-
-				for (auto ClassName : MovedIniClasses)
-				{
-					UE_CLOG(GConfig->DoesSectionExist(*FString::Printf(EngineTemplage, *ClassName), GEngineIni)
-						, LogNavigation, Error, MessageTemplate, *ClassName, *ClassName);
-				}
-			}
-		};
-		static FIniChecker IniChecker;
-	}
-#endif // !UE_BUILD_SHIPPING
-}
-
 void UNavigationSystemBase::SetCoordTransformTo(const ENavigationCoordSystem::Type CoordType, const FTransform& Transform)
 {
 	SetCoordTransform(ENavigationCoordSystem::Unreal, CoordType, Transform);

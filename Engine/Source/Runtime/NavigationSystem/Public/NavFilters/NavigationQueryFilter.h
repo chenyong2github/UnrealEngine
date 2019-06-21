@@ -47,7 +47,7 @@ struct NAVIGATIONSYSTEM_API FNavigationFilterArea
 };
 
 // 
-// Use UNavigationSystem.DescribeFilterFlags() to setup user friendly names of flags
+// Use UNavigationSystemV1.DescribeFilterFlags() to setup user friendly names of flags
 // 
 USTRUCT()
 struct NAVIGATIONSYSTEM_API FNavigationFilterFlags

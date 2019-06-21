@@ -35,10 +35,10 @@ typedef uint64 NavNodeRef;
 
 namespace FNavigationSystem
 {
-	/** used as a fallback value for navigation agent radius, when none specified via UNavigationSystem::SupportedAgents */
+	/** used as a fallback value for navigation agent radius, when none specified via UNavigationSystemV1::SupportedAgents */
 	extern ENGINE_API const float FallbackAgentRadius;
 
-	/** used as a fallback value for navigation agent height, when none specified via UNavigationSystem::SupportedAgents */
+	/** used as a fallback value for navigation agent height, when none specified via UNavigationSystemV1::SupportedAgents */
 	extern ENGINE_API const float FallbackAgentHeight;
 
 	static const FBox InvalidBoundingBox(ForceInit);
