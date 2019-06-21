@@ -1011,15 +1011,31 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 
 		// We update sub instances first incase we're using either root motion or non-threaded update.
 		// This ensures that we go through the pre update process and initialize the proxies correctly.
+
+		// Accumulate whether or not any of the sub-instances wanted to do an immediate Animation Update
+		bool bWantsImmediateUpdate = false;
 		for(UAnimInstance* SubInstance : SubInstances)
 		{
-			SubInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false);
+			// Sub anim instances are always forced to do a parallel update 
+			bWantsImmediateUpdate |= SubInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
 		}
 
 		if (AnimScriptInstance != nullptr)
 		{
+			// In case any of the sub-instances required an immediate animation update, make sure we immediately do so for the main anim instance
+			const UAnimInstance::EUpdateAnimationFlag UpdateFlag = bWantsImmediateUpdate ? UAnimInstance::EUpdateAnimationFlag::ForceImmediateUpdate : UAnimInstance::EUpdateAnimationFlag::Default;
+
 			// Tick the animation
-			AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion);
+			bWantsImmediateUpdate |= AnimScriptInstance->UpdateAnimation(DeltaTime * GlobalAnimRateScale, bNeedsValidRootMotion, UpdateFlag);
+		}
+
+		// Make sure PostUpdateAnimation is called on the subinstances if they, or the main instance did an immediate Animation Update
+		if (bWantsImmediateUpdate)
+		{
+			for (UAnimInstance* SubInstance : SubInstances)
+			{
+				SubInstance->PostUpdateAnimation();
+			}
 		}
 
 		if(ShouldUpdatePostProcessInstance())
