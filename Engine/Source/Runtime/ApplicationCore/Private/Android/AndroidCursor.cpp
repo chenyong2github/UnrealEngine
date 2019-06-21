@@ -17,7 +17,7 @@ void FAndroidCursor::ComputeUIScaleFactor()
 {
 	FPlatformRect ScreenRect = FAndroidWindow::GetScreenRect();
 	int32_t ScreenWidth, ScreenHeight;
-	FAndroidWindow::CalculateSurfaceSize(FAndroidWindow::GetHardwareWindow(), ScreenWidth, ScreenHeight);
+	FAndroidWindow::CalculateSurfaceSize(ScreenWidth, ScreenHeight);
 
 	if (ScreenWidth > ScreenHeight)
 	{
