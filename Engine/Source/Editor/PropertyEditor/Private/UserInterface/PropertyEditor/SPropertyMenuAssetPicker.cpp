@@ -20,6 +20,7 @@
 void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 {
 	CurrentObject = InArgs._InitialObject;
+	PropertyHandle = InArgs._PropertyHandle;
 	bAllowClear = InArgs._AllowClear;
 	bAllowCopyPaste = InArgs._AllowCopyPaste;
 	AllowedClasses = InArgs._AllowedClasses;
@@ -143,6 +144,8 @@ void SPropertyMenuAssetPicker::Construct( const FArguments& InArgs )
 		AssetPickerConfig.bAllowDragging = false;
 		// Save the settings into a special section for asset pickers for properties
 		AssetPickerConfig.SaveSettingsName = TEXT("AssetPropertyPicker");
+		// Populate the referencing assets via property handle
+		AssetPickerConfig.PropertyHandle = PropertyHandle;
 
 		MenuContent =
 			SNew(SBox)
