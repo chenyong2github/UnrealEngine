@@ -1354,34 +1354,33 @@ void USkeletalMesh::ReallocateRetargetBasePose()
 	// if you're adding other things here, please note that this function is called during postLoad
 	// fix up retarget base pose if VB has changed
 	// if we have virtual joints, we make sure Retarget Base Pose matches
+	const int32 RawNum = RefSkeleton.GetRawBoneNum();
 	const int32 VBNum = RefSkeleton.GetVirtualBoneRefData().Num();
-	if (VBNum > 0)
+	const int32 BoneNum = RefSkeleton.GetNum();
+	check(RawNum + VBNum == BoneNum);
+
+	const int32 OldRetargetBasePoseNum = RetargetBasePose.Num();
+	// we want to make sure retarget base pose contains raw numbers PREVIOUSLY
+	// otherwise, we may override wrong transform
+	if (OldRetargetBasePoseNum >= RawNum)
 	{
-		if (ensure(RefSkeleton.GetRawBoneNum() + VBNum == RefSkeleton.GetNum()))
+		// we have to do this in case buffer size changes (shrink for example)
+		RetargetBasePose.SetNum(BoneNum);
+
+		// if we have VB, we should override them
+		// they're not editable, so it's fine to override them from raw bones
+		if (VBNum > 0)
 		{
-			// we're expecting current RetargetBasePose matches raw bone count
-			if (ensure(RetargetBasePose.Num() == RefSkeleton.GetRawBoneNum()))
-			{
-				// attach VB transform, we don't want to destroy the current retarget base pose
-				RetargetBasePose.AddUninitialized(VBNum);
-				const int32 RawBoneNum = RefSkeleton.GetRawBoneNum();
-				const TArray<FTransform>& RawBonePose = RefSkeleton.GetRefBonePose();
-				check(RetargetBasePose.GetTypeSize() == RawBonePose.GetTypeSize());
-				const int32 ElementSize = RetargetBasePose.GetTypeSize();
-				FMemory::Memcpy(RetargetBasePose.GetData() + RawBoneNum, RawBonePose.GetData() + RawBoneNum, ElementSize*VBNum);
-			}
-			else
-			{
-				// we override current RetargetBasePose
-				ensureMsgf(false, TEXT("The retarget base pose size doesn't match as expected with virtual bone. This will be overriden."));
-				RetargetBasePose = RefSkeleton.GetRefBonePose();
-			}
+			const TArray<FTransform>& BonePose = RefSkeleton.GetRefBonePose();
+			check(RetargetBasePose.GetTypeSize() == BonePose.GetTypeSize());
+			const int32 ElementSize = RetargetBasePose.GetTypeSize();
+			FMemory::Memcpy(RetargetBasePose.GetData() + RawNum, BonePose.GetData() + RawNum, ElementSize*VBNum);
 		}
-		else // this is odd, this shouldn't happen
-		{
-			ensureMsgf(false, TEXT("The retarget base pose size doesn't match as expected with virtual bone. This will be overriden."));
-			RetargetBasePose = RefSkeleton.GetRefBonePose();
-		}
+	}
+	else
+	{
+		// else we think, something has changed, we just override retarget base pose to current pose
+		RetargetBasePose = RefSkeleton.GetRefBonePose();
 	}
 }
 
