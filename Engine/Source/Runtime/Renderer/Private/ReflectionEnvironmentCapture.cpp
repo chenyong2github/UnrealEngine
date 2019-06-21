@@ -460,11 +460,10 @@ void FilterReflectionEnvironment(FRHICommandListImmediate& RHICmdList, ERHIFeatu
 					*VertexShader);
 
 				RHICmdList.EndRenderPass();
-				RHICmdList.CopyToResolveTarget(FilteredCube.TargetableTexture, FilteredCube.ShaderResourceTexture, FResolveParams());
 			}
 		}
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, FilteredCube.TargetableTexture);
+		RHICmdList.CopyToResolveTarget(FilteredCube.TargetableTexture, FilteredCube.ShaderResourceTexture, FResolveParams());
 	}
 }
 
@@ -1636,6 +1635,8 @@ void CopyToSkyTexture(FRHICommandList& RHICmdList, FScene* Scene, FTexture* Proc
 		CopyInfo.Size = FilteredCube.ShaderResourceTexture->GetSizeXYZ();
 		CopyInfo.NumSlices = 6;
 		CopyInfo.NumMips = NumMips;
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, ProcessedTexture->TextureRHI);
 
 		RHICmdList.CopyTexture(FilteredCube.ShaderResourceTexture, ProcessedTexture->TextureRHI, CopyInfo);
 
