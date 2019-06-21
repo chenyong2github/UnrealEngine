@@ -16,7 +16,7 @@ class MEDIAIOCORE_API UFileMediaCapture : public UMediaCapture
 	GENERATED_BODY()
 
 protected:
-	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData> InUserData, void* InBuffer, int32 Width, int32 Height) override;
+	virtual void OnFrameCaptured_RenderingThread(const FCaptureBaseData& InBaseData, TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData, void* InBuffer, int32 Width, int32 Height) override;
 	virtual bool CaptureSceneViewportImpl(TSharedPtr<FSceneViewport>& InSceneViewport) override;
 	virtual bool CaptureRenderTargetImpl(UTextureRenderTarget2D* InRenderTarget) override;
 
