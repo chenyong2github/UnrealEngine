@@ -1898,6 +1898,10 @@ void ALandscape::PostLoad()
 	{
 		// For now, only Layer reserved for Landscape Spline uses AlphaBlend
 		Layer.BlendMode = (Layer.Guid == LandscapeSplinesTargetLayerGuid) ? LSBM_AlphaBlend : LSBM_AdditiveBlend;
+		for (FLandscapeLayerBrush& Brush : Layer.Brushes)
+		{
+			Brush.SetOwner(this);
+		}
 	}
 #endif
 

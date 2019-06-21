@@ -15,7 +15,7 @@ class LANDSCAPE_API ALandscapeBlueprintBrushBase : public AActor
 
 protected:
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(DuplicateTransient)
+	UPROPERTY(Transient)
 	class ALandscape* OwningLandscape;
 
 	UPROPERTY(Category = "Settings", EditAnywhere)
