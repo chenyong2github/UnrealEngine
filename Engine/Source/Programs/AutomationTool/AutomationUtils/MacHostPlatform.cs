@@ -118,8 +118,8 @@ namespace AutomationTool
 				else
 				{
 					// It's a C# app, so run it with Mono
-					CommandLine = " -c 'mono \"" + AppName + "\" " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine.Replace("\\", "\\\\").Replace(";", "\\\\;")) + "'";
-					AppName = "sh";
+					CommandLine = "\"" + AppName + "\" " + (String.IsNullOrEmpty(CommandLine) ? "" : CommandLine);
+					AppName = "mono";
 					Options &= ~CommandUtils.ERunOptions.AppMustExist;
 				}
 			}
