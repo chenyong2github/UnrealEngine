@@ -159,6 +159,9 @@ void UDataprepAsset::PostInitProperties()
 		DataprepRecipeBP = FKismetEditorUtilities::CreateBlueprint( UDataprepRecipe::StaticClass(), this, BlueprintName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass() );
 		check( DataprepRecipeBP );
 
+		// This blueprint is not the asset of the package
+		DataprepRecipeBP->ClearFlags( RF_Standalone );
+
 		FAssetRegistryModule::AssetCreated( DataprepRecipeBP );
 
 		DataprepRecipeBP->MarkPackageDirty();

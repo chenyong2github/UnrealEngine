@@ -212,12 +212,12 @@ FName FDataprepEditor::GetToolkitFName() const
 
 FText FDataprepEditor::GetBaseToolkitName() const
 {
-	return LOCTEXT("AppLabel", "StaticMesh Editor");
+	return LOCTEXT("AppLabel", "Dataprep Editor");
 }
 
 FString FDataprepEditor::GetWorldCentricTabPrefix() const
 {
-	return LOCTEXT("WorldCentricTabPrefix", "StaticMesh ").ToString();
+	return LOCTEXT("WorldCentricTabPrefix", "Dataprep").ToString();
 }
 
 FLinearColor FDataprepEditor::GetWorldCentricTabColorScale() const
@@ -294,8 +294,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	UEdGraph* PipelineGraph = FBlueprintEditorUtils::FindEventGraph(DataprepRecipeBPPtr.Get());
 	check( PipelineGraph );
 
-	TArray< class UK2Node_DataprepAction* > ActionNodes;
-
 	for( UEdGraphNode* GraphNode : PipelineGraph->Nodes )
 	{
 		if( GraphNode->IsA<UK2Node_DataprepProducer>() )
@@ -307,8 +305,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 			break;
 		}
 	}
-
-	FDataprepEditorStyle::Initialize();
 
 	// This should normally happen only with a brand new Dataprep asset
 	if( StartNode == nullptr )
@@ -399,7 +395,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
-	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, DataprepEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultToolbar, bCreateDefaultStandaloneMenu, DataprepAssetPtr.Get());
+	FAssetEditorToolkit::InitAssetEditor( Mode, InitToolkitHost, DataprepEditorAppIdentifier, StandaloneDefaultLayout, bCreateDefaultToolbar, bCreateDefaultStandaloneMenu, InDataprepAsset );
 
 	ExtendMenu();
 	ExtendToolBar();
@@ -473,13 +469,6 @@ void FDataprepEditor::OnBuildWorld()
 	{
 		return;
 	}
-
-	// Temp code for the nodes development
-	UDataprepRecipe* DataprepRecipePtr = CastChecked<UDataprepRecipe>(DataprepRecipeBPPtr->GeneratedClass->GetDefaultObject());
-
-	DataprepRecipePtr->SetTargetWorld(nullptr);
-	DataprepRecipePtr->ResetAssets();
-	// end of temp code for nodes development
 
 	if (DataprepAsset->GetProducersCount() == 0)
 	{
@@ -628,17 +617,6 @@ void FDataprepEditor::OnExecutePipeline()
 	{
 		RestoreFromSnapshot();
 	}
-
-	// Temp code for the nodes development
-	UDataprepRecipe* DataprepRecipePtr = CastChecked<UDataprepRecipe>( DataprepRecipeBPPtr->GeneratedClass->GetDefaultObject() );
-
-	// Set the world to pull actors from when executing pipeline
-	DataprepRecipePtr->SetTargetWorld(PreviewWorld.Get());
-
-	// Set array of assets to be processed when executing pipeline
-	DataprepRecipePtr->SetAssets(Assets);
-
-	// end of temp code for nodes development
 
 	TSharedPtr< IDataprepProgressReporter > ProgressReporter( new FDataprepProgressReporter( LOCTEXT("Dataprep_ExecutePipeline", "Executing pipeline ...") ) );
 
