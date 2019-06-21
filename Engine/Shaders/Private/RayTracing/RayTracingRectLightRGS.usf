@@ -267,7 +267,8 @@ void RectLightRGS()
 			| RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 			| RAY_FLAG_FORCE_OPAQUE; // #dxr_todo: UE-72563 generate a special shader permutation for occlusion ray tracing that includes any-hit shaders for masked geometry
 
-		FDefaultPayload Payload = (FDefaultPayload)0;
+		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
+		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
 
 		TraceRay(
 			TLAS,      // AccelerationStructure

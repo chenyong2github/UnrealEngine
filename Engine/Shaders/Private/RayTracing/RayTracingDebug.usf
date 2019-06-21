@@ -96,7 +96,7 @@ void RayTracingDebugMainRGS()
 			Result = float4(Payload.WorldPos, 1.0f);
 			break;
 		case RAY_TRACING_DEBUG_VIZ_HITKIND:
-			Result = float4(Payload.HitKind, Payload.HitKind, Payload.HitKind, 1.0f);
+			Result = Payload.IsFrontFace() ? float4(0.0, 1.0, 0.0, 1.0f) : float4(1.0, 0.0, 0.0, 1.0f);
 			break;
 		}
 	}
