@@ -2445,24 +2445,6 @@ public:
 			UAVs);
 	}
 
-	UE_DEPRECATED(4.22, "SetRenderTargets API is deprecated; please use RHIBegin/EndRenderPass instead.")
-	FORCEINLINE_DEBUGGABLE void SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
-	{
-		check(IsOutsideRenderPass());
-		CacheActiveRenderTargets(
-			RenderTargetsInfo.NumColorRenderTargets, 
-			RenderTargetsInfo.ColorRenderTarget, 
-			&RenderTargetsInfo.DepthStencilRenderTarget
-			);
-
-		if (Bypass())
-		{
-			GetContext().RHISetRenderTargetsAndClear(RenderTargetsInfo);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandSetRenderTargetsAndClear)(RenderTargetsInfo);
-	}	
-
 	FORCEINLINE_DEBUGGABLE void BindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
 	{
 		//check(IsOutsideRenderPass());
