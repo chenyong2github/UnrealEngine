@@ -47,7 +47,7 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	 * Creates a new render target and initializes it to the specified dimensions
 	 */
 	UFUNCTION(BlueprintCallable, Category="Rendering", meta=(WorldContext="WorldContextObject"))
-	static ENGINE_API UTextureRenderTarget2D* CreateRenderTarget2D(UObject* WorldContextObject, int32 Width = 256, int32 Height = 256, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black);
+	static ENGINE_API UTextureRenderTarget2D* CreateRenderTarget2D(UObject* WorldContextObject, int32 Width = 256, int32 Height = 256, ETextureRenderTargetFormat Format = RTF_RGBA16f, FLinearColor ClearColor = FLinearColor::Black, bool bAutoGenerateMipMaps = false);
 	
 	/**
 	 * Manually releases GPU resources of a render target. This is useful for blueprint creating a lot of render target that would

@@ -60,7 +60,7 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 	}
 }
 
-UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* WorldContextObject, int32 Width, int32 Height, ETextureRenderTargetFormat Format, FLinearColor ClearColor)
+UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* WorldContextObject, int32 Width, int32 Height, ETextureRenderTargetFormat Format, FLinearColor ClearColor, bool bAutoGenerateMipMaps)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
@@ -70,7 +70,8 @@ UTextureRenderTarget2D* UKismetRenderingLibrary::CreateRenderTarget2D(UObject* W
 		check(NewRenderTarget2D);
 		NewRenderTarget2D->RenderTargetFormat = Format;
 		NewRenderTarget2D->ClearColor = ClearColor;
-		NewRenderTarget2D->InitAutoFormat(Width, Height);		
+		NewRenderTarget2D->bAutoGenerateMips = bAutoGenerateMipMaps;
+		NewRenderTarget2D->InitAutoFormat(Width, Height);	
 		NewRenderTarget2D->UpdateResourceImmediate(true);
 
 		return NewRenderTarget2D; 
