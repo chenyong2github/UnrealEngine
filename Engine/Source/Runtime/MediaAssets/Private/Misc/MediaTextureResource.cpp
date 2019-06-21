@@ -79,6 +79,9 @@ namespace MediaTextureResource
 		case EMediaTextureSampleFormat::YUVv210:
 			return PF_R32G32B32A32_UINT;
 
+		case EMediaTextureSampleFormat::Y416:
+			return PF_A16B16G16R16;
+
 		default:
 			return PF_Unknown;
 		}
@@ -92,7 +95,8 @@ namespace MediaTextureResource
 		case EMediaTextureSampleFormat::CharBGR10A2:
 		case EMediaTextureSampleFormat::YUVv210:
 			return PF_A2B10G10R10;
-
+		case EMediaTextureSampleFormat::Y416:
+			return PF_B8G8R8A8;
 		default:
 			return PF_B8G8R8A8;
 		}
