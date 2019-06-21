@@ -53,7 +53,6 @@ public:
 		, _VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnFocusByPointer)
 		, _VirtualKeyboardDismissAction(EVirtualKeyboardDismissAction::TextChangeOnDismiss)
 		{
-			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
 		}
 
 		/** The styling of the textbox */
@@ -150,6 +149,8 @@ public:
 		SLATE_ARGUMENT(TOptional<ETextFlowDirection>, TextFlowDirection)
 
 	SLATE_END_ARGS()
+
+	SEditableTextBox();
 	
 	/**
 	 * Construct this widget

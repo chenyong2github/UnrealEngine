@@ -65,7 +65,6 @@ public:
 		, _SimpleTextMode(false)
 		{
 			_Clipping = EWidgetClipping::OnDemand;
-			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
 		}
 
 		/** The text displayed in this text block */
