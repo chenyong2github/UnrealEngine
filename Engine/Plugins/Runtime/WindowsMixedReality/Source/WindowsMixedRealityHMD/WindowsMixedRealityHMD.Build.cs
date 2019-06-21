@@ -30,25 +30,22 @@ namespace UnrealBuildTool.Rules
                 DllSubpath = "Win64";
             }
 
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+            // Set a macro allowing us to switch between debuggame/development configuration
+            if (Target.Configuration == UnrealTargetConfiguration.Debug)
             {
-				// Set a macro allowing us to switch between debuggame/development configuration
-				if (Target.Configuration == UnrealTargetConfiguration.Debug)
-				{
-					PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=1");
-				}
-				else
-				{
-					PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=0");
-				}
+                PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=1");
+            }
+            else
+            {
+                PrivateDefinitions.Add("WINDOWS_MIXED_REALITY_DEBUG_DLL=0");
+            }
 
-				if(Target.Platform != UnrealTargetPlatform.Win32)
-                {
-					PublicDelayLoadDLLs.Add("HolographicAppRemoting.dll");
-					PublicDelayLoadDLLs.Add("PerceptionDevice.dll");
-					RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/{0}/HolographicAppRemoting.dll", DllSubpath));
-					RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/HoloLens/{0}/PerceptionDevice.dll", DllSubpath));
-                }
+			if(Target.Platform != UnrealTargetPlatform.Win32)
+            {
+				PublicDelayLoadDLLs.Add("HolographicAppRemoting.dll");
+                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/HolographicAppRemoting.dll", DllSubpath));
+				PublicDelayLoadDLLs.Add("PerceptionDevice.dll");
+                RuntimeDependencies.Add(String.Format("$(EngineDir)/Binaries/ThirdParty/Windows/x64/PerceptionDevice.dll", DllSubpath));
             }
 
             PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");
@@ -129,6 +126,30 @@ namespace UnrealBuildTool.Rules
 
 				PCHUsage = PCHUsageMode.NoSharedPCHs;
 				PrivatePCHHeaderFile = "Private/WindowsMixedRealityPrecompiled.h";
+			}
+
+            if (Target.Platform == UnrealTargetPlatform.Win64)
+            {
+                PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
+                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.dll"));
+            }
+            if (Target.Platform == UnrealTargetPlatform.HoloLens)
+            {
+                PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
+                RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.dll"));
+            }
+
+            // Add a dependency to SceneUnderstanding.dll if present
+            string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
+			if (File.Exists(SceneUnderstandingPath))
+			{
+				PublicDelayLoadDLLs.Add("SceneUnderstanding.dll");
+				RuntimeDependencies.Add(SceneUnderstandingPath);
+				PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+			}
+			else
+			{
+				PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
 			}
 		}
 	}
