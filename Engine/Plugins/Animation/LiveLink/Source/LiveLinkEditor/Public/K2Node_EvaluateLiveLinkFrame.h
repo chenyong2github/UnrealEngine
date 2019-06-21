@@ -12,21 +12,24 @@
 #include "K2Node_EvaluateLiveLinkFrame.generated.h"
 
 class FBlueprintActionDatabaseRegistrar;
+class FKismetCompilerContext;
 class UDataTable;
 class UEdGraph;
+class UK2Node_CallFunction;
 
 
 UCLASS()
 class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrame : public UK2Node
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
+public:
 	//~ Begin UEdGraphNode Interface.
 	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual FText GetTooltipText() const override;
-	virtual void ExpandNode(class FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
+	virtual void ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph) override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual void PostReconstructNode() override;
 	//~ End UEdGraphNode Interface.
@@ -43,13 +46,16 @@ class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrame : public UK2Node
 	//~ End UK2Node Interface
 
 	/** Get the return types of our struct */
-	UScriptStruct* GetReturnTypeForOutputDataStruct();
+	UScriptStruct* GetReturnTypeForOutputDataStruct() const;
 
 	/** Get the then output pin */
 	UEdGraphPin* GetThenPin() const;
 
-	/** Get the Live Link Subject Representation input pin */
-	UEdGraphPin* GetLiveLinkSubjectPin(const TArray<UEdGraphPin*>* InPinsToSearch = nullptr) const;
+	/** Get the Live Link Role input pin */
+	UEdGraphPin* GetLiveLinkRolePin() const;
+
+	/** Get the Live Link Subject input pin */
+	UEdGraphPin* GetLiveLinkSubjectPin() const;
 
 	/** Get the exec output pin for when no frame is available for the desired role */
 	UEdGraphPin* GetFrameNotAvailablePin() const;
@@ -61,7 +67,11 @@ class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrame : public UK2Node
 	UScriptStruct* GetLiveLinkRoleOutputStructType() const;
 	UScriptStruct* GetLiveLinkRoleOutputFrameStructType() const;
 
-private:
+
+	virtual FName GetEvaluateFunctionName() const;
+	virtual void AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) {}
+
+protected:
 
 	/**
 	 * Takes the specified "MutatablePin" and sets its 'PinToolTip' field (according
@@ -78,5 +88,31 @@ private:
 	/** Queries for the authoritative return type, then modifies the return pin to match */
 	void RefreshDataOutputPinType();
 
-	FLiveLinkSubjectRepresentation GetDefaultSubjectPinValue() const;
+	TSubclassOf<ULiveLinkRole> GetDefaultRolePinValue() const;
+};
+
+UCLASS()
+class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrameAtWorldTime : public UK2Node_EvaluateLiveLinkFrame
+{
+	GENERATED_BODY()
+
+public:
+	virtual void AllocateDefaultPins() override;
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+
+	virtual FName GetEvaluateFunctionName() const override;
+	virtual void AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) override;
+};
+
+UCLASS()
+class LIVELINKEDITOR_API UK2Node_EvaluateLiveLinkFrameAtSceneTime : public UK2Node_EvaluateLiveLinkFrame
+{
+	GENERATED_BODY()
+
+public:
+	virtual void AllocateDefaultPins() override;
+	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+
+	virtual FName GetEvaluateFunctionName() const override;
+	virtual void AddOtherPin(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* EvaluateLiveLinkFrameFunction) override;
 };

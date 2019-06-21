@@ -7,6 +7,7 @@
 #include "ILiveLinkClient.h"
 #include "IPersonaPreviewScene.h"
 #include "LiveLinkClientReference.h"
+#include "LiveLinkCustomVersion.h"
 #include "LiveLinkInstance.h"
 #include "LiveLinkRemapAsset.h"
 #include "Roles/LiveLinkCameraRole.h"
@@ -55,7 +56,7 @@ void ULiveLinkPreviewController::InitializeView(UPersonaPreviewSceneDescription*
 
 	if (ULiveLinkInstance* LiveLinkInstance = Cast<ULiveLinkInstance>(PreviewScene->GetPreviewMeshComponent()->GetAnimInstance()))
 	{
-		LiveLinkInstance->SetSubject(SubjectName);
+		LiveLinkInstance->SetSubject(LiveLinkSubjectName);
 		LiveLinkInstance->SetRetargetAsset(RetargetAsset);
 	}
 	if (bEnableCameraSync)
@@ -68,4 +69,25 @@ void ULiveLinkPreviewController::UninitializeView(UPersonaPreviewSceneDescriptio
 {
 	PreviewScene->GetPreviewMeshComponent()->SetAnimInstanceClass(nullptr);
 	PreviewScene->SetCameraOverride(nullptr);
+}
+
+void ULiveLinkPreviewController::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+#if WITH_EDITORONLY_DATA
+	Ar.UsingCustomVersion(FLiveLinkCustomVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		const int32 LiveLinkVersion = Ar.CustomVer(FLiveLinkCustomVersion::GUID);
+
+		if (LiveLinkVersion < FLiveLinkCustomVersion::NewLiveLinkRoleSystem)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			LiveLinkSubjectName.Name = SubjectName_DEPRECATED;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+	}
+#endif //WITH_EDITORONLY_DATA
 }

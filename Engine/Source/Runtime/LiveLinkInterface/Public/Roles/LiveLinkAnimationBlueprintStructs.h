@@ -58,6 +58,12 @@ struct FCachedSubjectFrame
 
 	int32 GetRootIndex();
 
+	FLiveLinkSkeletonStaticData& GetSourceSkeletonData() { return SourceSkeletonData; }
+	const FLiveLinkSkeletonStaticData& GetSourceSkeletonData() const { return SourceSkeletonData; }
+
+	FLiveLinkAnimationFrameData& GetSourceAnimationFrameData() { return SourceAnimationFrameData; }
+	const FLiveLinkAnimationFrameData& GetSourceAnimationFrameData() const { return SourceAnimationFrameData; }
+
 private:
 	FLiveLinkSkeletonStaticData SourceSkeletonData;
 	FLiveLinkAnimationFrameData SourceAnimationFrameData;
@@ -130,6 +136,10 @@ struct LIVELINKINTERFACE_API FSubjectFrameHandle : public FLiveLinkBaseBlueprint
 	void GetTransformByName(FName InTransformName, FLiveLinkTransform& OutLiveLinkTransform);
 
 	void SetCachedFrame(TSharedPtr<FCachedSubjectFrame> InCachedFrame);
+
+	FLiveLinkSkeletonStaticData* GetSourceSkeletonStaticData();
+
+	FLiveLinkAnimationFrameData* GetSourceAnimationFrameData();
 
 private:
 	TSharedPtr<FCachedSubjectFrame> CachedFrame;

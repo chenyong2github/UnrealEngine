@@ -9,6 +9,7 @@
 #include "SGraphPin.h"
 
 #include "LiveLinkRole.h"
+#include "SLiveLinkSubjectNameGraphPin.h"
 #include "SLiveLinkSubjectRepresentationGraphPin.h"
 
 
@@ -20,9 +21,13 @@ class FLiveLinkGraphPanelPinFactory : public FGraphPanelPinFactory
 		{
 			if (UScriptStruct* PinStructType = Cast<UScriptStruct>(InPin->PinType.PinSubCategoryObject.Get()))
 			{
-				if (PinStructType->IsChildOf(FLiveLinkSubjectRepresentation::StaticStruct()))
+				if (PinStructType == FLiveLinkSubjectRepresentation::StaticStruct())
 				{
 					return SNew(SLiveLinkSubjectRepresentationGraphPin, InPin);
+				}
+				else if (PinStructType == FLiveLinkSubjectName::StaticStruct())
+				{
+					return SNew(SLiveLinkSubjectNameGraphPin, InPin);
 				}
 			}
 		}
