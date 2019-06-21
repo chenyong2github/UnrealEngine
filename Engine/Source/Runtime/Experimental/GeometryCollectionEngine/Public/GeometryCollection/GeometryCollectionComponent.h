@@ -141,6 +141,27 @@ struct FGeomComponentCacheParameters
 	float TrailingMinVolumeThreshold;
 };
 
+namespace GeometryCollection
+{
+	/** Type of updates used at the end of an edit operation. */
+	enum class EEditUpdate : uint8
+	{
+		/** No update. */
+		None = 0,
+		/** Mark the rest collection as changed. */
+		Rest = 1,
+		/** Recreate the physics state (proxy). */
+		Physics = 2,
+		/** Reset the dynamic collection. */
+		Dynamic = 4,
+		/** Mark the rest collection as changed, and recreate the physics state (proxy). */
+		RestPhysics = Rest | Physics,
+		/** Reset dynamic collection, mark the rest collection as changed, and recreate the physics state (proxy). */
+		RestPhysicsDynamic = Rest | Physics | Dynamic,
+	};
+	ENUM_CLASS_FLAGS(EEditUpdate);
+}
+
 /**
 *	FGeometryCollectionEdit
 *     Structured RestCollection access where the scope
@@ -149,18 +170,19 @@ struct FGeomComponentCacheParameters
 *
 *	This will force any simulating geometry collection out of the
 *	solver so it can be edited and afterwards will recreate the proxy
+*	The update can also be specified to reset the dynamic collection
 */
 class GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionEdit
 {
 public:
-	FGeometryCollectionEdit(UGeometryCollectionComponent * InComponent, bool InUpdate = true);
+	FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics);
 	~FGeometryCollectionEdit();
 
 	UGeometryCollection* GetRestCollection();
 
 private:
 	UGeometryCollectionComponent* Component;
-	const bool bUpdate;
+	const GeometryCollection::EEditUpdate EditUpdate;
 	bool bHadPhysicsState;
 };
 
@@ -290,7 +312,7 @@ public:
 	/** RestCollection */
 	void SetRestCollection(const UGeometryCollection * RestCollectionIn);
 	FORCEINLINE const UGeometryCollection* GetRestCollection() const { return RestCollection; }
-	FORCEINLINE FGeometryCollectionEdit EditRestCollection(bool Update = true) { return FGeometryCollectionEdit(this, Update); }
+	FORCEINLINE FGeometryCollectionEdit EditRestCollection(GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics) { return FGeometryCollectionEdit(this, EditUpdate); }
 #if WITH_EDITOR
 	FORCEINLINE FScopedColorEdit EditBoneSelection() { return FScopedColorEdit(this); }
 #endif
