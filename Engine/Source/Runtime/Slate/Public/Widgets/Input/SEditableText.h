@@ -65,7 +65,6 @@ public:
 		, _TextFlowDirection()
 		{
 			_Clipping = EWidgetClipping::ClipToBounds;
-			_AccessibleParams = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
 		}
 
 		/** Sets the text content for this editable text widget */

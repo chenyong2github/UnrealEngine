@@ -11,6 +11,9 @@
 
 SEditableText::SEditableText()
 {
+#if WITH_ACCESSIBILITY
+	AccessibleData = FAccessibleWidgetData(EAccessibleBehavior::Auto, EAccessibleBehavior::Auto, false);
+#endif
 }
 
 SEditableText::~SEditableText()
