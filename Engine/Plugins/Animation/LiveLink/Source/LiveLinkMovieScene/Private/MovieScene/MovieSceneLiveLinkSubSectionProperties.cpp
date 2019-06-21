@@ -65,7 +65,7 @@ int32 UMovieSceneLiveLinkSubSectionProperties::CreateChannelProxy(int32 InChanne
 	{
 		if(UProperty* PropertyPtr = FindField<UProperty>(SubjectRole.GetDefaultObject()->GetFrameDataStruct(), Data.PropertyName))
 		{
-			const FText PropertyName = FText::Format(LOCTEXT("LinkLinkFormat", "{0}"), FText::FromName(Data.PropertyName));
+			const FText PropertyName = FText::FromName(Data.PropertyName);
  			if (PropertyPtr->IsA(UFloatProperty::StaticClass()))
 			{
 #if WITH_EDITOR

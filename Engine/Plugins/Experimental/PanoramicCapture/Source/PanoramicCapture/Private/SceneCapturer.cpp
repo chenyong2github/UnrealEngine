@@ -649,7 +649,7 @@ void USceneCapturer::ValidateParameters()
 		if (!FPaths::DirectoryExists(Drive))
 		{
 			ErrorFound = true;
-			FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Error, LOCTEXT("ValidationError1", "The output directory's drive doesn't exists. Plese set SP.OutputDir with a valid path. Skipping renders..."));
+			FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Error, LOCTEXT("ValidationError_MissingOutputDirectory", "The output directory's drive doesn't exists. Plese set SP.OutputDir with a valid path. Skipping renders..."));
 		}
 	}
 
@@ -657,85 +657,85 @@ void USceneCapturer::ValidateParameters()
 	if (MaterialBlendableAO == NULL || MaterialBlendableBaseColor == NULL || MaterialBlendableMetallic == NULL || MaterialBlendableRoughness == NULL || MaterialBlendableWorldNormal == NULL)
 	{
 		ErrorFound = true;
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Error, LOCTEXT("ValidationError2", "Missing blendable materials. Skipping renders..."));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Error, LOCTEXT("ValidationError_MissingBlendableMaterials", "Missing blendable materials. Skipping renders..."));
 	}
 
 	// Angular increment needs to be a factor of 360 to avoid seams i.e. 360 / angular increment needs to be a whole number
 	if ((int32)(NumberOfHorizontalSteps * hAngIncrement) != 360)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning1", "Horizontal angular step {hAngIncrement} is not a factor of 360! This will lead to a seam between the start and end points"), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidHorizonalAngularStep", "Horizontal angular step {hAngIncrement} is not a factor of 360! This will lead to a seam between the start and end points"), Args));
 	}
 
 	if ((int32)((NumberOfVerticalSteps - 1) * vAngIncrement) != 180)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning2", "Vertical angular step {vAngIncrement} is not a factor of 180! This will lead to a seam between the start and end points"), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidVerticalAngularStep", "Vertical angular step {vAngIncrement} is not a factor of 180! This will lead to a seam between the start and end points"), Args));
 	}
 
 	TotalSteps = NumberOfHorizontalSteps * NumberOfVerticalSteps;
 	if ((SphericalAtlasWidth & 1) != 0)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning3", "The Atlas Width {SphericalAtlasWidth} must be even! Otherwise the Atlas height will not divide evenly."), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidAtlasWidth", "The Atlas Width {SphericalAtlasWidth} must be even! Otherwise the Atlas height will not divide evenly."), Args));
 	}
 
 	// The strip width needs to be an even number and a factor of the number of steps
 	if ((StripWidth & 1) != 0)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning4", "Strip width {StripWidth} needs to be even to avoid bad offsets"), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidStripWidth", "Strip width {StripWidth} needs to be even to avoid bad offsets"), Args));
 	}
 
 	if ((StripHeight & 1) != 0)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning5", "Strip height {StripHeight} needs to be even to avoid bad offsets"), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidStripHeight", "Strip height {StripHeight} needs to be even to avoid bad offsets"), Args));
 	}
 
 	// Validate capturewidth & captureheight. Need to be even
 	if (CaptureWidth % 2 != 0)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning6", "The {CaptureWidth} needs to be an even number"), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidCaptureWidth", "The {CaptureWidth} needs to be an even number"), Args));
 	}
 
 	if (CaptureHeight % 2 != 0)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning7", "The {CaptureHeight} needs to be an even number"), Args));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidCaptureHeight", "The {CaptureHeight} needs to be an even number"), Args));
 
 	}
 
 	// Unnecessary warning
 	//if (StripWidth * NumberOfHorizontalSteps != SphericalAtlasWidth)
 	//{
-		//FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning5", "The number of horizontal steps {NumberOfHorizontalSteps} needs to be a factor of the atlas width {SphericalAtlasWidth}"), Args));
+		//FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidNumHorizonalSteps", "The number of horizontal steps {NumberOfHorizontalSteps} needs to be a factor of the atlas width {SphericalAtlasWidth}"), Args));
 	//}
 
 	// Unnecessary warning
 	//if (StripHeight * (NumberOfVerticalSteps - 1) != SphericalAtlasHeight)
 	//{
-		//FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning7", "The number of vertical steps {NumberOfVerticalSteps} needs to be a factor of the atlas height {SphericalAtlasHeight}"), Args));
+		//FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, FText::Format(LOCTEXT("ValidationWarning_InvalidNumVerticalSteps", "The number of vertical steps {NumberOfVerticalSteps} needs to be a factor of the atlas height {SphericalAtlasHeight}"), Args));
 	//}
 
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("ValidationInfo0", "Panoramic screenshot parameters"));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("ValidationInfo_PanoramicScreenshotParams", "Panoramic screenshot parameters"));
 
 	if (bMonoscopicMode)
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("ValidationInfo1", " ... In Monoscopic mode"));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("ValidationInfo_MonoscopicMode", " ... In Monoscopic mode"));
 	}
 	else
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("ValidationInfo1", " ... In Stereoscopic mode"));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("ValidationInfo_StereoscopicMode", " ... In Stereoscopic mode"));
 	}
 
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo2", " ... capture size: {CaptureWidth} x {CaptureHeight}"), Args));
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo3", " ... spherical atlas size: {SphericalAtlasWidth} x {SphericalAtlasHeight}"), Args));
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo4", " ... intermediate atlas size: {UnprojectedAtlasWidth} x {UnprojectedAtlasHeight}"), Args));
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo5", " ... strip size: {StripWidth} x {StripHeight}"), Args));
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo6", " ... horizontal steps: {NumberOfHorizontalSteps} at {hAngIncrement} degrees"), Args));
-	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo7", " ... vertical steps: {NumberOfVerticalSteps} at {vAngIncrement} degrees"), Args));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo_CaptureSize", " ... capture size: {CaptureWidth} x {CaptureHeight}"), Args));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo_SphericalAtlasSize", " ... spherical atlas size: {SphericalAtlasWidth} x {SphericalAtlasHeight}"), Args));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo_IntermediateAtlasSize", " ... intermediate atlas size: {UnprojectedAtlasWidth} x {UnprojectedAtlasHeight}"), Args));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo_StripSize", " ... strip size: {StripWidth} x {StripHeight}"), Args));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo_NumHorizonalSteps", " ... horizontal steps: {NumberOfHorizontalSteps} at {hAngIncrement} degrees"), Args));
+	FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, FText::Format(LOCTEXT("ValidationInfo_NumVerticalSteps", " ... vertical steps: {NumberOfVerticalSteps} at {vAngIncrement} degrees"), Args));
 }
 
 void USceneCapturer::SetInitialState( int32 InStartFrame, int32 InEndFrame, FStereoCaptureDoneDelegate& InStereoCaptureDoneDelegate )
 {
 	if( bIsTicking )
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, LOCTEXT("InitialStateWarning1", "Already capturing a scene; concurrent captures are not allowed"));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, LOCTEXT("InitialStateWarning_AlreadyCapturing", "Already capturing a scene; concurrent captures are not allowed"));
 		return;
 	}
 
@@ -744,7 +744,7 @@ void USceneCapturer::SetInitialState( int32 InStartFrame, int32 InEndFrame, FSte
 
 	if( CaptureGameMode == NULL || CapturePlayerController == NULL )
 	{
-		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, LOCTEXT("InitialStateWarning2", "Missing GameMode or PlayerController"));
+		FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Warning, LOCTEXT("InitialStateWarning_MissingGameModeOrPC", "Missing GameMode or PlayerController"));
 		return;
 	}
 
@@ -1268,7 +1268,7 @@ void USceneCapturer::Tick( float DeltaTime )
 				const TArray<uint8> ImageData = ImageWrapper->GetCompressed(100);
 				FFileHelper::SaveArrayToFile(ImageData, *AtlasName);
 				ImageWrapper.Reset();
-				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done8bit", "Done!"));
+				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done", "Done!"));
 			}			
 			else
 			{
@@ -1284,7 +1284,7 @@ void USceneCapturer::Tick( float DeltaTime )
 				const TArray<uint8> ImageData = ImageWrapper->GetCompressed((int32)EImageCompressionQuality::Default);
 				FFileHelper::SaveArrayToFile(ImageData, *AtlasName);
 				ImageWrapper.Reset();
-				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done32bit", "Done!"));
+				FMessageLog(StereoPanoramaLogName).Message(EMessageSeverity::Info, LOCTEXT("Done", "Done!"));
 			}
 
 		}

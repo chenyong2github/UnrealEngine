@@ -220,7 +220,7 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContinuouslyRespawn", "Continuously Respawn"),
-				LOCTEXT("ContinuouslyRespawn", "When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally"),
+				LOCTEXT("ContinuouslyRespawnTooltip", "When enabled, this spawnable will always be respawned if it gets destroyed externally. When disabled, this object will only ever be spawned once for each spawn key even if it is destroyed externally"),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateLambda(ToggleContinuouslyRespawn), FCanExecuteAction(), FGetActionCheckState::CreateLambda(ContinuouslyRespawnCheckState)),
 				NAME_None,
@@ -241,7 +241,7 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 				FFormatNamedArguments Args;
 
 				MenuBuilder.AddSubMenu(
-					FText::Format(LOCTEXT("Assign Actor", "Assign Actor"), Args),
+					FText::Format(LOCTEXT("AssignActor", "Assign Actor"), Args),
 					FText::Format(LOCTEXT("AssignActorTooltip", "Assign an actor to this track"), Args),
 					FNewMenuDelegate::CreateSP(this, &FSequencerObjectBindingNode::AddAssignActorMenu));
 			}
@@ -252,7 +252,7 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		MenuBuilder.BeginSection("Import/Export", LOCTEXT("ImportExportMenuSectionName", "Import/Export"));
 		
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Import FBX", "Import..."),
+			LOCTEXT("ImportFBX", "Import..."),
 			LOCTEXT("ImportFBXTooltip", "Import FBX animation to this object"),
 			FSlateIcon(),
 			FUIAction(
@@ -260,7 +260,7 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			));
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Export FBX", "Export..."),
+			LOCTEXT("ExportFBX", "Export..."),
 			LOCTEXT("ExportFBXTooltip", "Export FBX animation from this object"),
 			FSlateIcon(),
 			FUIAction(
@@ -268,7 +268,7 @@ void FSequencerObjectBindingNode::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			));
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("Export to Camera Anim", "Export to Camera Anim..."),
+			LOCTEXT("ExportToCameraAnim", "Export to Camera Anim..."),
 			LOCTEXT("ExportToCameraAnimTooltip", "Exports the animation to a camera anim asset"),
 			FSlateIcon(),
 			FUIAction(

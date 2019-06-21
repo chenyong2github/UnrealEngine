@@ -49,17 +49,8 @@ FSlateIcon UFractureToolRadial::GetToolIcon() const
 
 void UFractureToolRadial::RegisterUICommand( FFractureEditorCommands* BindingContext ) 
 {
-	UI_COMMAND_EXT( BindingContext, 
-					UICommandInfo,
-					"Radial", 
-					"Radial",
-					"Radial Voronoi Fracture",
-					EUserInterfaceActionType::ToggleButton, 
-					FInputChord() 
-	);
-
+	UI_COMMAND_EXT( BindingContext, UICommandInfo, "Radial", "Radial", "Radial Voronoi Fracture", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	BindingContext->Radial = UICommandInfo;
-
 }
 
 TArray<UObject*> UFractureToolRadial::GetSettingsObjects() const 
