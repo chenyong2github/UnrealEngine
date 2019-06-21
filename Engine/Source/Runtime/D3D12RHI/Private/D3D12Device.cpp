@@ -279,10 +279,10 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	OcclusionQueryHeap.Init();
 	TimestampQueryHeap.Init();
 
-	CommandListManager->Create(L"3D Queue");
+	CommandListManager->Create(*FString::Printf(TEXT("3D Queue %d"), GetGPUIndex()));
 	gD3D12CommandQueue = CommandListManager->GetD3DCommandQueue();
-	CopyCommandListManager->Create(L"Copy Queue");
-	AsyncCommandListManager->Create(L"Async Compute Queue", 0, AsyncComputePriority_Default);
+	CopyCommandListManager->Create(*FString::Printf(TEXT("Copy Queue %d"), GetGPUIndex()));
+	AsyncCommandListManager->Create(*FString::Printf(TEXT("Compute Queue %d"), GetGPUIndex()), 0, AsyncComputePriority_Default);
 
 	// Needs to be called before creating command contexts
 	UpdateConstantBufferPageProperties();
