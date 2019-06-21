@@ -135,7 +135,7 @@ bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Obj
 
 	if (GeometryCollectionComponent)
 	{
-		FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection(false);
+		FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		if (UGeometryCollection* GeometryCollection = GeometryCollectionEdit.GetRestCollection())
 		{
 			Objects.Add(GeometryCollection);
