@@ -16,9 +16,6 @@ class FRDGBuffer;
 class FRDGBufferSRV;
 class FRDGBufferUAV;
 
-struct FPooledRDGBuffer;
-struct FRayTracingShaderBindingsWriter;
-
 /** Defines the RDG resource references for user code not forgetting the const every time. */
 using FRDGResourceRef = FRDGResource*;
 using FRDGTrackedResourceRef = FRDGTrackedResource*;
@@ -29,20 +26,56 @@ using FRDGBufferRef = FRDGBuffer*;
 using FRDGBufferSRVRef = FRDGBufferSRV*;
 using FRDGBufferUAVRef = FRDGBufferUAV*;
 
-/** The hardware pipeline for pass scheduling. */
-enum class ERDGPassPipeline : uint8
+/** Used for tracking resource state during execution. */
+struct FRDGResourceState
 {
-	Graphics,
-	Compute,
-	MAX
-};
+	// The hardware pipeline the resource state is compatible with.
+	enum class EPipeline : uint8
+	{
+		Graphics,
+		Compute,
+		MAX
+	};
 
-/** Describes how a pass accesses a resource. */
-enum class ERDGPassAccess : uint8
-{
-	Read,
-	Write,
-	MAX
+	// The access permissions the resource state is compatible with.
+	enum class EAccess : uint8
+	{
+		Read,
+		Write,
+		Unknown,
+		MAX = Unknown
+	};
+
+	/** Constructs a read / write state suitable for the provided pass. */
+	static FRDGResourceState CreateRead(const FRDGPass* Pass);
+	static FRDGResourceState CreateWrite(const FRDGPass* Pass);
+
+	FRDGResourceState() = default;
+
+	FRDGResourceState(const FRDGPass* InPass, EPipeline InPipeline, EAccess InAccess)
+		: Pass(InPass)
+		, Pipeline(InPipeline)
+		, Access(InAccess)
+	{}
+
+	bool operator==(const FRDGResourceState& Other) const
+	{
+		return Pass == Other.Pass && Pipeline == Other.Pipeline && Access == Other.Access;
+	}
+
+	bool operator!=(const FRDGResourceState& Other) const
+	{
+		return !(*this == Other);
+	}
+
+	// The last pass the resource was used.
+	const FRDGPass* Pass = nullptr;
+
+	// The last used pass hardware pipeline.
+	EPipeline Pipeline = EPipeline::Graphics;
+
+	// The last used access on the pass.
+	EAccess Access = EAccess::Unknown;
 };
 
 /** Render graph specific flags for resources. */
@@ -157,11 +190,17 @@ private:
 	{
 		checkf(!FirstProducer, TEXT("Resource %s with producer pass marked as external."), Name);
 		bHasBeenProduced = true;
+		bIsExternal = true;
 	}
 
 	bool HasBeenProduced() const
 	{
 		return bHasBeenProduced;
+	}
+
+	bool IsExternal() const
+	{
+		return bIsExternal;
 	}
 
 	/** Pointer towards the pass that is the first to produce it, for even more convenient error message. */
@@ -172,13 +211,15 @@ private:
 
 	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
 	bool bHasBeenProduced = false;
+
+	/** Tracks whether this resource is an externally imported resource. */
+	bool bIsExternal = false;
 #endif
 
-	/** Used for tracking resource state during execution. */
-	ERDGPassAccess PassAccess = ERDGPassAccess::Read;
-	ERDGPassPipeline PassPipeline = ERDGPassPipeline::Graphics;
+	FRDGResourceState State;
 
 	friend class FRDGBuilder;
+	friend class FRDGBarrierBatcher;
 };
 
 /** Descriptor of a graph tracked texture. */
@@ -232,6 +273,7 @@ private:
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	friend class FRDGBuilder;
+	friend class FRDGBarrierBatcher;
 };
 
 /** Render graph tracked SRV. */

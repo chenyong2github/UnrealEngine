@@ -194,19 +194,9 @@ private:
 
 	void AllocateRHITextureIfNeeded(FRDGTexture* Texture);
 	void AllocateRHITextureUAVIfNeeded(FRDGTextureUAV* UAV);
+	void AllocateRHIBufferIfNeeded(FRDGBuffer* Buffer);
 	void AllocateRHIBufferSRVIfNeeded(FRDGBufferSRV* SRV);
 	void AllocateRHIBufferUAVIfNeeded(FRDGBufferUAV* UAV);
-
-	void TransitionTexture(
-		FRDGTexture* Texture,
-		ERDGPassAccess PassAccess,
-		ERDGPassPipeline PassPipeline) const;
-
-	void TransitionUAV(
-		FRHIUnorderedAccessView* UAV,
-		FRDGTrackedResource* UnderlyingResource,
-		ERDGPassAccess PassAccess,
-		ERDGPassPipeline PassPipeline) const;
 
 	void ExecutePass(const FRDGPass* Pass);
 	void PrepareResourcesForExecute(const FRDGPass* Pass, struct FRHIRenderPassInfo* OutRPInfo, bool* bOutHasRenderTargets);
