@@ -8,6 +8,7 @@
 #include "IConcertClient.h"
 #include "IConcertSession.h"
 #include "IConcertSyncClient.h"
+#include "ConcertFrontendStyle.h"
 
 #include "Misc/Paths.h"
 #include "Misc/CoreDelegates.h"
@@ -45,6 +46,9 @@ public:
 
 		// Wait for init to finish before starting the Disaster Recovery service
 		FCoreDelegates::OnFEngineLoopInitComplete.AddRaw(this, &FDisasterRecoveryClientModule::OnEngineInitComplete);
+
+		// Initialize Style
+		FConcertFrontendStyle::Initialize();
 
 		// Register the Disaster Recovery Settings panel.
 		RegisterSettings();
