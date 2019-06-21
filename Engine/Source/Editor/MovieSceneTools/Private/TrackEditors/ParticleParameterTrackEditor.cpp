@@ -53,7 +53,7 @@ void FParticleParameterTrackEditor::BuildObjectBindingTrackMenu( FMenuBuilder& M
 		const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT( "AddParticleParameterTrack", "Particle Parameter Track" ),
+			LOCTEXT( "AddParticleParameterTrackLabel", "Particle Parameter Track" ),
 			LOCTEXT( "AddParticleParameterTrackTooltip", "Adds a track for controlling particle parameter values." ),
 			FSlateIcon(),
 			FUIAction

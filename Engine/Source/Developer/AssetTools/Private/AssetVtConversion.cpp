@@ -477,7 +477,7 @@ void FVTConversionWorker::FindAllTexturesAndMaterials(TArray<UMaterial *> &OutAf
 
 void FVTConversionWorker::FilterList(int32 SizeThreshold)
 {
-	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ConvertToVT_Progress_ConvertToVt", "Finding textures to convert..."));
+	FScopedSlowTask SlowTask(1.0f, LOCTEXT("ConvertToVT_Progress_FindingTextures", "Finding textures to convert..."));
 	SlowTask.MakeDialog();
 
 	Textures.Empty();
@@ -520,7 +520,7 @@ void FVTConversionWorker::DoConvert(bool backwards)
 {
 	const bool bVirtualTextureEnable = !backwards;
 
-	FScopedSlowTask SlowTask(2.0f, LOCTEXT("ConvertToVT_Progress_ConvertToVt", "Converting textures and materials..."));
+	FScopedSlowTask SlowTask(2.0f, LOCTEXT("ConvertToVT_Progress_ConvertingTexturesAndMaterials", "Converting textures and materials..."));
 	SlowTask.MakeDialog();
 
 	TMap<UTexture2D*, UTexture2D*> EngineTextureToCopyMap;

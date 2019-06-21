@@ -759,7 +759,7 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 					}
 					else
 					{
-						PinnedWatchText += FText::Format(LOCTEXT("WatchingAndValidFmt", "Invalid Property {0}"), FText::FromString(PinName)).ToString();//@TODO: Print out object being debugged name?
+						PinnedWatchText += FText::Format(LOCTEXT("InvalidPropertyFmt", "Invalid Property {0}"), FText::FromString(PinName)).ToString();//@TODO: Print out object being debugged name?
 					}
 
 					ValidWatchCount++;

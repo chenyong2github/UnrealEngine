@@ -1086,7 +1086,7 @@ FText SStartPageWindow::GetRecorderStatusText() const
 	}
 	else
 	{
-		return FText(LOCTEXT("RecorderServerRunning", "Stopped"));
+		return FText(LOCTEXT("RecorderServerStopped", "Stopped"));
 	}
 }
 

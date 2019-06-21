@@ -2284,7 +2284,7 @@ TSharedRef<SWidget> SConcertSessionBrowser::MakeButtonBar()
 			// Launch server.
 			+SUniformGridPanel::Slot(0, 0)
 			[
-				ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton.Info"), FEditorFontGlyphs::Server, LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on this computer if one is not already running"),
+				ConcertBrowserUtils::MakeIconButton(TEXT("FlatButton.Info"), FEditorFontGlyphs::Server, LOCTEXT("LaunchServerTooltip", "Launch a Multi-User server on your computer unless one is already running"),
 					TAttribute<bool>(this, &SConcertSessionBrowser::IsLaunchServerButtonEnabled),
 					FOnClicked::CreateSP(this, &SConcertSessionBrowser::OnLaunchServerButtonClicked),
 					EVisibility::Visible,

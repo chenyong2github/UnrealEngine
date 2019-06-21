@@ -9,5 +9,3 @@ DEFINE_LOG_CATEGORY(LogLiveLinkMovieScene);
 
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, LiveLinkMovieScene);
-
-#undef LOCTEXT_NAMESPACE

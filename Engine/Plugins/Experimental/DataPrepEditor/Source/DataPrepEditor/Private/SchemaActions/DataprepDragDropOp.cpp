@@ -134,7 +134,7 @@ bool FDataprepDragDropOp::DoDropOnDataprepActionContext(const FDataprepSchemaAct
 {
 	if ( DataprepGraphOperation.IsBound() )
 	{
-		FScopedTransaction Transaction( LOCTEXT("AddNode", "Add a Step to a Dataprep Action") );
+		FScopedTransaction Transaction( LOCTEXT("AddStep", "Add a Step to a Dataprep Action") );
 		bool bDidModification = DataprepGraphOperation.Execute( Context );
 		if ( !bDidModification )
 		{

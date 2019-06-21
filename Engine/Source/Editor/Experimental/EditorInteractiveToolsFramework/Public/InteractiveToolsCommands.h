@@ -286,15 +286,7 @@ void TInteractiveToolCommands<CommandContextType>::RegisterUIToolCommand(const F
 	FString TooltipString = ToolAction.ActionName + FString("_ToolTip");
 	FString DotString = FString(".") + ToolAction.ActionName;
 
-	UI_COMMAND_Function(this,
-		UICommandInfo,
-		GetNamespaceString(),
-		*ToolAction.ActionName,
-		*TooltipString,
-		TCHAR_TO_ANSI(*DotString),
-		*ToolAction.ShortName, *ToolAction.Description,
-		EUserInterfaceActionType::Button,
-		FInputChord(ToolAction.DefaultModifiers, ToolAction.DefaultKey));
+	UI_COMMAND_Function(this, UICommandInfo, GetNamespaceString(), *ToolAction.ActionName, *TooltipString, TCHAR_TO_ANSI(*DotString), *ToolAction.ShortName, *ToolAction.Description, EUserInterfaceActionType::Button, FInputChord(ToolAction.DefaultModifiers, ToolAction.DefaultKey));
 }
 
 

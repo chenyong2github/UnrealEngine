@@ -318,8 +318,8 @@ void FDataprepSetLOGGroupDetails::CustomizeDetails(IDetailLayoutBuilder & Detail
 	CustomAssetImportRow.NameContent()
 	[
 		SNew(STextBlock)
-		.Text(LOCTEXT("DatasmithMeshOperations", "LODGroupName"))
-		.ToolTipText(LOCTEXT("DatasmithMeshOperations", "List of predefined LODGroup"))
+		.Text(LOCTEXT("DatasmithMeshOperationsLabel", "LODGroupName"))
+		.ToolTipText(LOCTEXT("DatasmithMeshOperationsTooltip", "List of predefined LODGroup"))
 		.Font( DetailBuilder.GetDetailFont() )
 	];
 

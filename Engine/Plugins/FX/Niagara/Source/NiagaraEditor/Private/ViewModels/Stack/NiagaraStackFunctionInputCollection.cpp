@@ -329,7 +329,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 				Fixes.Add(ConvertInputOverrideFix);
 
 				// second possible fix: remove the override completely
-				Fixes.Add(GetNodeRemovalFix(OverridePin, LOCTEXT("RemoveInvalidInputTransaction", "Remove input override (WARNING: this could result in different behavior!)")));
+				Fixes.Add(GetNodeRemovalFix(OverridePin, LOCTEXT("RemoveInvalidInputTransactionExt", "Remove input override (WARNING: this could result in different behavior!)")));
 
 				FStackIssue DeprecatedInputOverrideError(
 					EStackIssueSeverity::Error,

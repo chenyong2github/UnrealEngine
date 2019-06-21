@@ -39,22 +39,22 @@ void SPropertyMenuComponentPicker::Construct(const FArguments& InArgs)
 		if (InitialComponent)
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("EditAsset", "Edit"),
-				LOCTEXT("EditAsset_Tooltip", "Edit this component"),
+				LOCTEXT("EditComponent", "Edit"),
+				LOCTEXT("EditComponent_Tooltip", "Edit this component"),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SPropertyMenuComponentPicker::OnEdit)));
 		}
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("CopyAsset", "Copy"),
-			LOCTEXT("CopyAsset_Tooltip", "Copies the component to the clipboard"),
+			LOCTEXT("CopyComponent", "Copy"),
+			LOCTEXT("CopyComponent_Tooltip", "Copies the component to the clipboard"),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &SPropertyMenuComponentPicker::OnCopy))
 			);
 
 		MenuBuilder.AddMenuEntry(
-			LOCTEXT("PasteAsset", "Paste"),
-			LOCTEXT("PasteAsset_Tooltip", "Pastes an component from the clipboard to this field"),
+			LOCTEXT("PasteComponent", "Paste"),
+			LOCTEXT("PasteComponent_Tooltip", "Pastes an component from the clipboard to this field"),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateSP(this, &SPropertyMenuComponentPicker::OnPaste),
@@ -64,8 +64,8 @@ void SPropertyMenuComponentPicker::Construct(const FArguments& InArgs)
 		if (bAllowClear)
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("ClearAsset", "Clear"),
-				LOCTEXT("ClearAsset_ToolTip", "Clears the component set on this field"),
+				LOCTEXT("ClearComponent", "Clear"),
+				LOCTEXT("ClearComponent_ToolTip", "Clears the component set on this field"),
 				FSlateIcon(),
 				FUIAction(FExecuteAction::CreateSP(this, &SPropertyMenuComponentPicker::OnClear))
 			);

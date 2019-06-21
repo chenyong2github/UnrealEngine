@@ -678,7 +678,7 @@ UObject* UPackFactory::FactoryCreateBinary
 					ILiveCodingModule* LiveCoding = FModuleManager::GetModulePtr<ILiveCodingModule>(LIVE_CODING_MODULE_NAME);
 					if (LiveCoding != nullptr && LiveCoding->IsEnabledForSession())
 					{
-						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "FailedToCompileNewGameModule", "Unable to compile source code while Live Coding is enabled. Please close the editor and build from your IDE."));
+						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("PackFactory", "CannotCompileWithLiveCoding", "Unable to compile source code while Live Coding is enabled. Please close the editor and build from your IDE."));
 						bCompileSource = false;
 					}
 				}
