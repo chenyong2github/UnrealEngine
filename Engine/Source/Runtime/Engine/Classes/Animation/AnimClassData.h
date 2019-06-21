@@ -71,11 +71,6 @@ public:
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
-	
-	void InitGraphExposedInputs(UObject* ForObj)
-	{
-		FExposedValueHandler::Initialize(EvaluateGraphExposedInputs, ForObj);
-	}
 
 #if WITH_EDITOR
 	void CopyFrom(IAnimClassInterface* AnimClass)
