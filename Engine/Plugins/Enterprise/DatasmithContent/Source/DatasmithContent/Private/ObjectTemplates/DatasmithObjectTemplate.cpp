@@ -117,6 +117,7 @@ void FDatasmithObjectTemplateUtils::SetObjectTemplate(UObject* Outer, UDatasmith
 	{
 		TMap< TSubclassOf< UDatasmithObjectTemplate >, UDatasmithObjectTemplate* >& ObjectTemplatesMap = UserData->ObjectTemplates;
 		ObjectTemplatesMap.FindOrAdd(ObjectTemplate->GetClass()) = ObjectTemplate;
+		ObjectTemplate->SetFlags(RF_Public);
 
 		if (ObjectTemplate->GetOuter() != UserData)
 		{
