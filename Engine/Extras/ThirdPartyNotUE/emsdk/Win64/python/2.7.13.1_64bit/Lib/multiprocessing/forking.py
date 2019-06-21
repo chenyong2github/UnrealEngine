@@ -310,14 +310,14 @@ else:
             if self.returncode is None:
                 try:
                     _subprocess.TerminateProcess(int(self._handle), TERMINATE)
+# EPIC EDIT start -- nick.shin 2019-06-13 -- UE-76260
                 except WindowsError,e:
                     if self.wait(timeout=0.1) is None:
                         # ERROR_ACCESS_DENIED (winerror 5) is received when the
                         # process already died.
                         if e.winerror != 5:
                             raise
-                        else:
-                            print >> sys.stderr, "NICKNICK GOTCHA 1"
+# EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76260
 
     #
     #
