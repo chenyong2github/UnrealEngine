@@ -641,7 +641,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		Context.DynamicRayTracingGeometriesToUpdate.Add(
 			FRayTracingDynamicGeometryUpdateParams
 			{
-				MeshBatch,
+				RayTracingInstance.Materials,
 				MeshBatch.Elements[0].NumPrimitives == 0,
 				6 *  SourceParticleData->GetNumInstances(),
 				6 *  SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),

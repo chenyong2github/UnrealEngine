@@ -3130,6 +3130,8 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 			BatchElement.IndexBuffer = SharedBuffers->ZeroOffsetIndexBuffers[CurrentLOD];
 			BatchElement.FirstIndex = 0;
 			BatchElement.NumPrimitives = NumPrimitives;
+			BatchElement.MinVertexIndex = 0;
+			BatchElement.MaxVertexIndex = 0;
 
 			MeshBatch.Elements.Add(BatchElement);
 
@@ -3207,12 +3209,19 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 				}
 			}
 
+			FRayTracingInstance RayTracingInstance;
+			RayTracingInstance.Geometry = &SectionRayTracingStates[SubSectionIdx].Geometry;
+			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
+			RayTracingInstance.Materials.Add(MeshBatch);
+			RayTracingInstance.BuildInstanceMaskAndFlags();
+			OutRayTracingInstances.Add(RayTracingInstance);
+
 			if (bNeedsRayTracingGeometryUpdate)
 			{
 				Context.DynamicRayTracingGeometriesToUpdate.Add(
 					FRayTracingDynamicGeometryUpdateParams
 					{
-						MeshBatch,
+						RayTracingInstance.Materials,
 						false,
 						(uint32)FMath::Square(LodSubsectionSizeVerts),
 						FMath::Square(LodSubsectionSizeVerts) * (uint32)sizeof(FVector),
@@ -3222,13 +3231,6 @@ void FLandscapeComponentSceneProxy::GetDynamicRayTracingInstances(FRayTracingMat
 					}
 				);
 			}
-
-			FRayTracingInstance RayTracingInstance;
-			RayTracingInstance.Geometry = &SectionRayTracingStates[SubSectionIdx].Geometry;
-			RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
-			RayTracingInstance.Materials.Add(MeshBatch);
-			RayTracingInstance.BuildInstanceMaskAndFlags();
-			OutRayTracingInstances.Add(RayTracingInstance);
 		}
 	}
 }
