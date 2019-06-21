@@ -116,7 +116,7 @@ UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(con
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bTickEvenWhenPaused = true;
-	SetComponentTickEnabled(false);
+	PrimaryComponentTick.bStartWithTickEnabled = false;
 #else  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 	PrimaryComponentTick.bCanEverTick = false;
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW #else
@@ -127,8 +127,8 @@ void UGeometryCollectionDebugDrawComponent::BeginPlay()
 	Super::BeginPlay();
 
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
-	// Start with ticking disabled
-	SetComponentTickEnabled(false);
+	// Should always start with ticking disabled
+	check(!PrimaryComponentTick.IsTickFunctionEnabled());
 
 	if (GeometryCollectionComponent)
 	{
@@ -145,6 +145,9 @@ void UGeometryCollectionDebugDrawComponent::BeginPlay()
 			// It is required to clear up the persistent lines before drawing a new frame
 			AddTickPrerequisiteActor(GeometryCollectionDebugDrawActor);
 		}
+
+		// Update the visibility and tick status depending on the debug draw properties currently selected
+		OnDebugDrawPropertiesChanged(true);
 
 #if INCLUDE_CHAOS
 		// Find or create level set renderer
