@@ -72,6 +72,7 @@ bool FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(cons
 	static TArray<FName> TonemappedRayTracingDebugVisualizationModes;
 	if (TonemappedRayTracingDebugVisualizationModes.Num() == 0)
 	{
+		// World normal is tonemapped to match raster buffer visualization mode
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("World Normal", "World Normal").ToString());
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("BaseColor", "BaseColor").ToString());
 		TonemappedRayTracingDebugVisualizationModes.Add(*LOCTEXT("DiffuseColor", "DiffuseColor").ToString());
