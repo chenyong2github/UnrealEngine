@@ -689,7 +689,7 @@ public:
 	uint8 bHiddenEd:1;
 
 	/** True if this actor is the preview actor dragged out of the content browser */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	uint8 bIsEditorPreviewActor:1;
 
 	/** Whether this actor is hidden by the layer browser. */
