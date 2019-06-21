@@ -218,6 +218,9 @@ private:
 	void PushSubjectStaticData_Internal(FPendingSubjectStatic&& SubjectStaticData);
 	void PushSubjectFrameData_Internal(FPendingSubjectFrame&& SubjectFrameData);
 
+	/** Remove all sources. */
+	void Shutdown();
+
 private:
 	/** The current collection used. */
 	TUniquePtr<FLiveLinkSourceCollection> Collection;

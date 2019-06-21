@@ -56,41 +56,48 @@ void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick Tic
 #if WITH_EDITOR
 void ULiveLinkComponentController::PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULiveLinkComponentController, SubjectRepresentation))
+	if (PropertyChangedEvent.PropertyChain.Num() > 0)
 	{
-		bool bCreateAnewController = false;
-		if (SubjectRepresentation.Role.Get() == nullptr)
+		UProperty* MemberProperty = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue();
+		if (MemberProperty != NULL)
 		{
-			Controller = nullptr;
-		}
-		else if (Controller)
-		{
-			if (!Controller->IsRoleSupported(SubjectRepresentation.Role))
+			if (MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(ULiveLinkComponentController, SubjectRepresentation))
 			{
-				Controller = nullptr;
-				bCreateAnewController = true;
-			}
-		}
-		else
-		{
-			bCreateAnewController = true;
-		}
+				bool bCreateAnewController = false;
+				if (SubjectRepresentation.Role.Get() == nullptr)
+				{
+					Controller = nullptr;
+				}
+				else if (Controller)
+				{
+					if (!Controller->IsRoleSupported(SubjectRepresentation.Role))
+					{
+						Controller = nullptr;
+						bCreateAnewController = true;
+					}
+				}
+				else
+				{
+					bCreateAnewController = true;
+				}
 
-		if (bCreateAnewController)
-		{
-			TSubclassOf<ULiveLinkControllerBase> NewControllerClass = ULiveLinkControllerBase::GetControllerForRole(SubjectRepresentation.Role);
-			if (NewControllerClass.Get())
-			{
-				const EObjectFlags ControllerObjectFlags = GetMaskedFlags(RF_Public | RF_Transactional | RF_ArchetypeObject);
-				Controller = NewObject<ULiveLinkControllerBase>(this, NewControllerClass.Get(), NAME_None, ControllerObjectFlags);
-				Controller->InitializeInEditor();
-			}
-			else
-			{
-				UE_LOG(LogLiveLinkComponents, Warning, TEXT("No role was found for role '%s'."), *SubjectRepresentation.Role->GetName());
-				FNotificationInfo NotificationInfo(LOCTEXT("NoFoundController", "No controller was found for the role."));
-				NotificationInfo.ExpireDuration = 2.0f;
-				FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+				if (bCreateAnewController)
+				{
+					TSubclassOf<ULiveLinkControllerBase> NewControllerClass = ULiveLinkControllerBase::GetControllerForRole(SubjectRepresentation.Role);
+					if (NewControllerClass.Get())
+					{
+						const EObjectFlags ControllerObjectFlags = GetMaskedFlags(RF_Public | RF_Transactional | RF_ArchetypeObject);
+						Controller = NewObject<ULiveLinkControllerBase>(this, NewControllerClass.Get(), NAME_None, ControllerObjectFlags);
+						Controller->InitializeInEditor();
+					}
+					else
+					{
+						UE_LOG(LogLiveLinkComponents, Warning, TEXT("No controller was found for role '%s'."), *SubjectRepresentation.Role->GetName());
+						FNotificationInfo NotificationInfo(LOCTEXT("NoFoundController", "No controller was found for the role."));
+						NotificationInfo.ExpireDuration = 2.0f;
+						FSlateNotificationManager::Get().AddNotification(NotificationInfo);
+					}
+				}
 			}
 		}
 	}

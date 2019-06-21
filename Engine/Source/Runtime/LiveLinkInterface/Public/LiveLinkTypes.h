@@ -11,6 +11,7 @@
 #include "UObject/StructOnScope.h"
 #include "Serialization/Archive.h"
 #include "Templates/HasGetTypeHash.h"
+#include "UObject/PropertyPortFlags.h"
 
 #include "LiveLinkTypes.generated.h"
 
@@ -26,7 +27,7 @@ public:
 	FLiveLinkSubjectName(EName InName) : Name(InName) {}
 
 	// Name of the subject
-	UPROPERTY(EditAnywhere, Category="Live Link")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Live Link")
 	FName Name;
 
 	bool IsNone() const { return Name.IsNone(); }
@@ -38,22 +39,28 @@ public:
 
 	bool operator==(const FLiveLinkSubjectName& Other) const { return Name == Other.Name; }
 	bool operator==(const FName Other) const { return Name == Other; }
+
+	friend FArchive& operator<<(FArchive& Ar, FLiveLinkSubjectName& InSubjectName)
+	{
+		Ar << InSubjectName.Name;
+		return Ar;
+	}
 };
 template <> struct TModels<CGetTypeHashable, FLiveLinkSubjectName> { enum { Value = TModels<CGetTypeHashable, FName>::Value }; };
 
 
 // Structure that identifies an individual subject
-USTRUCT()
+USTRUCT(BlueprintType)
 struct LIVELINKINTERFACE_API FLiveLinkSubjectKey
 {
 	GENERATED_BODY()
 
 	// The guid for this subjects source
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category="LiveLink")
 	FGuid Source;
 
 	// The Name of this subject
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category="LiveLink")
 	FLiveLinkSubjectName SubjectName;
 
 	FLiveLinkSubjectKey() = default;
@@ -61,6 +68,13 @@ struct LIVELINKINTERFACE_API FLiveLinkSubjectKey
 	FLiveLinkSubjectKey(const FLiveLinkSubjectKey& Rhs) : Source(Rhs.Source), SubjectName(Rhs.SubjectName) {}
 
 	bool operator== (const FLiveLinkSubjectKey& Other) const { return SubjectName == Other.SubjectName && Source == Other.Source; }
+
+	friend FArchive& operator<<(FArchive& Ar, FLiveLinkSubjectKey& InSubjectKey)
+	{
+		Ar << InSubjectKey.Source;
+		Ar << InSubjectKey.SubjectName;
+		return Ar;
+	}
 };
 
 
@@ -295,6 +309,19 @@ public:
 	{
 		WrappedStruct = MoveTemp(InOther.WrappedStruct);
 		return *this;
+	}
+
+	bool operator==(const FLiveLinkBaseDataStruct& Other) const
+	{
+		if (Other.GetStruct() == GetStruct())
+		{
+			if (GetBaseData())
+			{
+				return GetStruct()->CompareScriptStruct(GetBaseData(), Other.GetBaseData(), PPF_None);
+			}
+			return Other.GetBaseData() == nullptr; // same struct and both uninitialized
+		}
+		return false;
 	}
 
 	friend FArchive& operator<<(FArchive& Ar, FLiveLinkBaseDataStruct& InStruct)

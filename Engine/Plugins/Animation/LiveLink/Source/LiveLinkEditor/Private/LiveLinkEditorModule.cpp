@@ -33,8 +33,12 @@
 #include "LiveLinkVirtualSubjectDetailCustomization.h"
 
 /**
- * Implements the Messaging module.
+ * Implements the LiveLinkEditor module.
  */
+
+
+DEFINE_LOG_CATEGORY(LogLiveLinkEditor);
+
 
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
 
