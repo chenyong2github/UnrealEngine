@@ -29,7 +29,7 @@
 //------------------------------------------------------------------------
 /*
 	FramePro
-	Version:	1.5.15.0
+	Version:	1.5.20.0
 */
 //------------------------------------------------------------------------
 #ifndef FRAMEPRO_H_INCLUDED
@@ -1481,6 +1481,8 @@ namespace FramePro
 			ThreadMain p_thread_main,
 			void* p_context,
 			Allocator* p_allocator);
+
+		void DestroyThread(void* p_os_thread_mem);
 
 		void SetThreadPriority(void* p_os_thread_mem, int priority);
 
