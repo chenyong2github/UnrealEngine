@@ -29,6 +29,7 @@
 #elif QUALITY == 3
 	#define CONFIG_RAY_STEPS 8
 	#define CONFIG_RAY_COUNT 16
+	#define CONFIG_BACKFACE_MODULATION 1
 
 	#define TILE_PIXEL_SIZE_X 4
 	#define TILE_PIXEL_SIZE_X_LOG 2
@@ -39,6 +40,7 @@
 #elif QUALITY == 4
 	#define CONFIG_RAY_STEPS 12
 	#define CONFIG_RAY_COUNT 32
+	#define CONFIG_BACKFACE_MODULATION 1
 
 	#define TILE_PIXEL_SIZE_X 4
 	#define TILE_PIXEL_SIZE_X_LOG 2
@@ -49,6 +51,11 @@
 #else
 	#error Unknown Quality.
 
+#endif
+
+
+#ifndef CONFIG_BACKFACE_MODULATION
+	#define CONFIG_BACKFACE_MODULATION 0
 #endif
 
 #define TILE_PIXEL_COUNT (TILE_PIXEL_SIZE_X * TILE_PIXEL_SIZE_Y)
@@ -69,7 +76,6 @@
 #endif
 
 Texture2D HZBTexture;
-Texture2D VelocityTexture;
 Texture2D ColorTexture;
 
 float4 HZBUvFactorAndInvFactor;
@@ -371,7 +377,7 @@ void MainCS(
 	
             bool bDebugPrint = all(PixelPosition == uint2(View.ViewSizeAndInvSize.xy) / 2);
 
-			float Level = 0; // TODO: remove
+			float Level;
 			float3 HitUVz;
 			bool bHit = RayCast(
 				HZBTexture, GlobalPointClampedSampler,
@@ -394,15 +400,12 @@ void MainCS(
 			//BRANCH // TODO
 			if (bHit)
 			{
-				float2 SampleUV;
-				float Vignette;
-				ReprojectHit(PrevScreenPositionScaleBias, VelocityTexture, GlobalPointClampedSampler, HitUVz, SampleUV, Vignette);
-
-				float4 SampleColor = SampleScreenColor(ColorTexture, GlobalBilinearClampedSampler, SampleUV);
-
+				float4 SampleColor = ColorTexture.SampleLevel(GlobalBilinearClampedSampler, HitUVz, Level);
+				
 				float SampleColorWeight = 1.0;
 
 				// Backface modulation of hit surface
+				#if CONFIG_BACKFACE_MODULATION
 				{
 					float3 SampleNormal = GetGBufferDataFromSceneTextures(HitUVz.xy).WorldNormal;
 					
@@ -417,13 +420,14 @@ void MainCS(
 		
 					SampleColorWeight *= saturate( 1 - dot( SampleNormal, L ) );
 				}
+				#endif
 
 				#if CONFIG_RAY_COUNT > 1
 					SampleColorWeight *= rcp( 1 + Luminance(SampleColor.rgb) );
 				#endif
-			
+				
 				float3 DiffuseColor = SampleColor.rgb * SampleColorWeight;
-				float AmbientOcclusion = SampleColor.a;
+				float AmbientOcclusion = 1.0;
 				
 				CompressedColor.x = asuint(f32tof16(DiffuseColor.r) << 16 | f32tof16(DiffuseColor.g));
 				CompressedColor.y = asuint(f32tof16(DiffuseColor.b) << 16 | f32tof16(AmbientOcclusion));

@@ -1,0 +1,142 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "SSRTRayCast.ush"
+#include "../SceneTextureParameters.ush"
+
+
+#define GROUP_TILE_SIZE 8
+#define GROUP_PIXEL_COUNT GROUP_TILE_SIZE * GROUP_TILE_SIZE
+
+
+uint bIsTemporalAAHistory;
+Texture2D PrevTemporalAAHistory;
+
+float4 PrevScreenPositionScaleBias;
+float  PrevSceneColorPreExposureCorrection;
+
+RWTexture2D<float4>	ReducedSceneColorOutput_0;
+RWTexture2D<float4>	ReducedSceneColorOutput_1;
+RWTexture2D<float4>	ReducedSceneColorOutput_2;
+
+groupshared uint SharedMemory[GROUP_PIXEL_COUNT * 2];
+
+
+[numthreads(GROUP_TILE_SIZE, GROUP_TILE_SIZE, 1)]
+void MainCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID,
+	uint GroupThreadIndex : SV_GroupIndex)
+{
+	float2 BufferUV = (float2(DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
+	float2 ViewportUV = (float2(DispatchThreadId) + 0.5f) * View.ViewSizeAndInvSize.zw;
+    float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
+	
+	float2 PrevFrameUV;
+	float2 PrevScreen;
+
+	BRANCH
+	if (bIsTemporalAAHistory)
+    {
+		float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
+
+		// Camera motion for pixel (in ScreenPos space).
+		float4 ThisClip = float4(ScreenPosition, DeviceZ, 1);
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+		PrevScreen = PrevClip.xy / PrevClip.w;
+
+		float2 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, BufferUV, 0).xy;
+		if (EncodedVelocity.x > 0.0)
+		{
+			PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity);
+		}
+
+		PrevFrameUV = PrevScreen.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
+    }
+	else
+    {
+		PrevFrameUV = BufferUV;
+		PrevScreen = ScreenPosition;
+    }
+
+	// Fetch color.
+	float4 PrevSceneColor = float4(
+		PrevTemporalAAHistory.SampleLevel(GlobalBilinearClampedSampler, PrevFrameUV, 0).rgb * PrevSceneColorPreExposureCorrection, 1.0);
+
+	// Apply vignette to the color.
+	{
+		float Vignette = min(ComputeHitVignetteFromScreenPos(ScreenPosition), ComputeHitVignetteFromScreenPos(PrevScreen));
+		PrevSceneColor *= Vignette;
+	}
+
+	// Output mip 0
+	ReducedSceneColorOutput_0[DispatchThreadId] = PrevSceneColor;
+	
+	// Reduce lower mip levels.
+	{
+		// Store to LDS
+		{
+			SharedMemory[GROUP_PIXEL_COUNT * 0 | GroupThreadIndex] = (f32tof16(PrevSceneColor.r) << 0) | (f32tof16(PrevSceneColor.g) << 16);
+			SharedMemory[GROUP_PIXEL_COUNT * 1 | GroupThreadIndex] = (f32tof16(PrevSceneColor.b) << 0) | (f32tof16(PrevSceneColor.a) << 16);
+		}
+	
+		GroupMemoryBarrierWithGroupSync();
+
+		// Reduce lower mip levels.
+		UNROLL
+		for (uint MipLevel = 1; MipLevel < 3; MipLevel++)
+		{
+			float4 PrevSceneColor = 0;
+			
+			const uint ReductionAmount = 1 << MipLevel;
+			const uint NumberPixelInMip = GROUP_PIXEL_COUNT / (ReductionAmount * ReductionAmount);
+			
+			if (GroupThreadIndex < NumberPixelInMip)
+            {
+                uint2 OutputCoord = uint2(
+					GroupThreadIndex % (GROUP_TILE_SIZE / ReductionAmount),
+					GroupThreadIndex / (GROUP_TILE_SIZE / ReductionAmount));
+
+				float4 ReducedColor = 0;
+
+				UNROLL
+				for (uint x = 0; x < 2; x++)
+                {
+					UNROLL
+					for (uint y = 0; y < 2; y++)
+					{
+						uint2 Coord = OutputCoord * 2 + uint2(x, y);
+						uint LDSIndex = Coord.x + Coord.y * ((2 * GROUP_TILE_SIZE) / ReductionAmount);
+
+						uint Raw0 = SharedMemory[GROUP_PIXEL_COUNT * 0 | LDSIndex];
+						uint Raw1 = SharedMemory[GROUP_PIXEL_COUNT * 1 | LDSIndex];
+
+						float4 Color;
+						Color.r = f16tof32(Raw0 >> 0);
+						Color.g = f16tof32(Raw0 >> 16);
+						Color.b = f16tof32(Raw1 >> 0);
+						Color.a = f16tof32(Raw1 >> 16);
+
+						ReducedColor += Color;
+					}
+                }
+
+				ReducedColor *= rcp(4.0);
+
+				uint2 OutputPosition = GroupId * (GROUP_TILE_SIZE / ReductionAmount) + OutputCoord;
+
+				if (MipLevel == 1)
+                {
+					ReducedSceneColorOutput_1[OutputPosition] = ReducedColor;
+                }
+				else if (MipLevel == 2)
+                {
+					ReducedSceneColorOutput_2[OutputPosition] = ReducedColor;
+                }
+				
+				SharedMemory[GROUP_PIXEL_COUNT * 0 | GroupThreadIndex] = (f32tof16(ReducedColor.r) << 0) | (f32tof16(ReducedColor.g) << 16);
+				SharedMemory[GROUP_PIXEL_COUNT * 1 | GroupThreadIndex] = (f32tof16(ReducedColor.b) << 0) | (f32tof16(ReducedColor.a) << 16);
+            } // if (GroupThreadIndex < NumberPixelInMip)
+        } // for (uint MipLevel = 1; MipLevel < 3; MipLevel++)
+    }
+} // MainCS()
