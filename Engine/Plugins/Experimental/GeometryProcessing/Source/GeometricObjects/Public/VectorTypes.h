@@ -546,6 +546,23 @@ struct FVector2
 		return (T)acos(ClampedDot);
 	}
 
+	// Angle in Radians
+	T SignedAngleR(const FVector2<T>& V2) const
+	{
+		T DotVal = Dot(V2);
+		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+		T Direction = Cross(V2);
+		if (Direction*Direction < TMathUtil<T>::ZeroTolerance)
+		{
+			return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;
+		}
+		else
+		{
+			T Sign = Direction < 0 ? (T)-1 : (T)1;
+			return Sign * TMathUtil<T>::ACos(ClampedDot);
+		}
+	}
+
 	T Normalize(const T Epsilon = 0)
 	{
 		T length = Length();

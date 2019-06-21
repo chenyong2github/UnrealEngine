@@ -60,6 +60,7 @@ public:
 	static inline RealType Atan2(const RealType ValueY, const RealType ValueX);
 	static inline RealType Sin(const RealType Value);
 	static inline RealType Cos(const RealType Value);
+	static inline RealType ACos(const RealType Value);
 
 
 
@@ -161,6 +162,12 @@ template<typename RealType>
 RealType TMathUtil<RealType>::Cos(const RealType Value)
 {
 	return cos(Value);
+}
+
+template<typename RealType>
+RealType TMathUtil<RealType>::ACos(const RealType Value)
+{
+	return acos(Value);
 }
 
 
