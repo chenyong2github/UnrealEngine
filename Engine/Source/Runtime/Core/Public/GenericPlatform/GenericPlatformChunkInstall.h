@@ -78,13 +78,20 @@ DECLARE_DELEGATE_OneParam(FPlatformChunkInstallCompleteDelegate, uint32);
 DECLARE_DELEGATE_TwoParams(FPlatformChunkInstallDelegate, uint32, bool);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FPlatformChunkInstallMultiDelegate, uint32, bool);
 
-struct FChunkTagID
+enum class ECustomChunkType : uint8
+{
+	OnDemandChunk,
+	LanguageChunk
+};
+
+struct FCustomChunk
 {
 	FString ChunkTag;
 	uint32	ChunkID;
+	ECustomChunkType ChunkType;
 
-	FChunkTagID(FString InTag, uint32 InID) :
-		ChunkTag(InTag), ChunkID(InID)
+	FCustomChunk(FString InTag, uint32 InID, ECustomChunkType InChunkType) :
+		ChunkTag(InTag), ChunkID(InID), ChunkType(InChunkType)
 	{}
 };
 
@@ -185,19 +192,19 @@ public:
 	* Check whether installation of chunks are pending
 	* @return				whether installation task has been kicked
 	*/
-	virtual bool IsChunkInstallationPending(const TArray<FChunkTagID> ChunkTagsID) = 0;
+	virtual bool IsChunkInstallationPending(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
 	/**
 	* Install chunks with Intelligent Delivery API
 	* @return				whether installation task has been kicked
 	*/
-	virtual bool InstallChunks(const TArray<FChunkTagID> ChunkTagsID) = 0;
+	virtual bool InstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 
 	/**
 	* Uninstall chunks with Intelligent Delivery API
 	* @return				whether uninstallation task has been kicked
 	*/
-	virtual bool UninstallChunks(const TArray<FChunkTagID> ChunkTagsID) = 0;
+	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) = 0;
 };
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -281,17 +288,17 @@ public:
 		return false;
 	}
 
-	virtual bool IsChunkInstallationPending(const TArray<FChunkTagID> ChunkTags) override
+	virtual bool IsChunkInstallationPending(const TArray<FCustomChunk>& ChunkTags) override
 	{
 		return false;
 	}
 
-	virtual bool InstallChunks(const TArray<FChunkTagID> ChunkTagIDs) override
+	virtual bool InstallChunks(const TArray<FCustomChunk>& ChunkTagIDs) override
 	{
 		return false;
 	}
 
-	virtual bool UninstallChunks(const TArray<FChunkTagID> ChunkTagsID) override
+	virtual bool UninstallChunks(const TArray<FCustomChunk>& ChunkTagsID) override
 	{
 		return false;
 	}
