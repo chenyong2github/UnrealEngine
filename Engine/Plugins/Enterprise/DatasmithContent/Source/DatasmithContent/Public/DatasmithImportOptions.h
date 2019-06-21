@@ -275,7 +275,7 @@ public:
 	}
 };
 
-UCLASS(config = Editor, Transient)
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, Transient)
 class DATASMITHCONTENT_API UDatasmithCommonTessellationOptions : public UObject
 {
 	GENERATED_BODY()
