@@ -1325,6 +1325,23 @@ TArray<FCustomChunk> FGenericPlatformMisc::GetAllOnDemandChunks()
 	return TArray<FCustomChunk>();
 }
 
+TArray<FCustomChunk> FGenericPlatformMisc::GetAllLanguageChunks()
+{
+	return TArray<FCustomChunk>();
+}
+
+TArray<FCustomChunk> FGenericPlatformMisc::GetCustomChunksByType(ECustomChunkType DesiredChunkType)
+{
+	if (DesiredChunkType == ECustomChunkType::OnDemandChunk)
+	{
+		return GetAllOnDemandChunks();
+	}
+	else
+	{
+		return GetAllLanguageChunks();
+	}
+}
+
 FString FGenericPlatformMisc::LoadTextFileFromPlatformPackage(const FString& RelativePath)
 {
 	FString Path = RootDir() / RelativePath;
