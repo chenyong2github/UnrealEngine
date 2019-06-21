@@ -429,7 +429,14 @@ void SimulateMainComputeCS(
 	*/
 
 	uint InstanceID = UpdateStartInstance + DispatchThreadId.x;
-	GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()
+	if (ReadInstanceCountOffset == 0xFFFFFFFF)
+	{
+		GSpawnStartInstance = 0;
+	}
+	else
+	{
+		GSpawnStartInstance = RWInstanceCounts[ReadInstanceCountOffset];				// needed by ExecIndex()
+	}
 	int MaxInstances = GSpawnStartInstance + SpawnedInstances;
 
 	if(InstanceID < UpdateStartInstance + MaxInstances )
