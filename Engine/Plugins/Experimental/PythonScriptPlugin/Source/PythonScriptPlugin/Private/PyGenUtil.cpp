@@ -12,6 +12,7 @@
 #include "Misc/ScopeExit.h"
 #include "Misc/FileHelper.h"
 #include "UObject/Class.h"
+#include "UObject/Stack.h"
 #include "UObject/Package.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/TextProperty.h"
