@@ -80,13 +80,41 @@ struct FStructSerializerBooleanTestStruct
 	bool BoolTrue;
 
 	UPROPERTY()
-	uint32 Bitfield;
+	uint8 Bitfield0 : 1;
+
+	UPROPERTY()
+	uint8 Bitfield1 : 1;
+
+	UPROPERTY()
+	uint8 Bitfield2Set : 1;
+
+	UPROPERTY()
+	uint8 Bitfield3 : 1;
+
+	UPROPERTY()
+	uint8 Bitfield4Set : 1;
+
+	UPROPERTY()
+	uint8 Bitfield5Set : 1;
+
+	UPROPERTY()
+	uint8 Bitfield6 : 1;
+
+	UPROPERTY()
+	uint8 Bitfield7Set : 1;
 
 	/** Default constructor. */
 	FStructSerializerBooleanTestStruct()
 		: BoolFalse(false)
 		, BoolTrue(true)
-		, Bitfield(1)
+		, Bitfield0(0)
+		, Bitfield1(0)
+		, Bitfield2Set(1)
+		, Bitfield3(0)
+		, Bitfield4Set(1)
+		, Bitfield5Set(1)
+		, Bitfield6(0)
+		, Bitfield7Set(1)
 	{ }
 
 	/** Creates an uninitialized instance. */
