@@ -689,6 +689,8 @@ void UChildActorComponent::BeginPlay()
 
 	if (ChildActor && !ChildActor->HasActorBegunPlay())
 	{
-		ChildActor->DispatchBeginPlay();
+		const AActor* Owner = GetOwner();
+		const bool bFromLevelStreaming = Owner ? Owner->IsActorBeginningPlayFromLevelStreaming() : false;
+		ChildActor->DispatchBeginPlay(bFromLevelStreaming);
 	}
 }
