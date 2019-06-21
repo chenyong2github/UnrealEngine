@@ -137,7 +137,6 @@ void ULandscapeComponent::UpdateNavigationRelevance()
 	if (CollisionComponent && Proxy)
 	{
 		CollisionComponent->SetCanEverAffectNavigation(Proxy->bUsedForNavigation);
-		// UNavigationSystem::UpdateNavOctree(CollisionComponent.Get());
 	}
 }
 

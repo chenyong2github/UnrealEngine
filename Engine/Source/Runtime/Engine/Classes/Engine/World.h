@@ -49,7 +49,7 @@ class ULocalPlayer;
 class UMaterialParameterCollection;
 class UMaterialParameterCollectionInstance;
 class UModel;
-class UNavigationSystem;
+class UNavigationSystemBase;
 class UNetConnection;
 class UNetDriver;
 class UPrimitiveComponent;

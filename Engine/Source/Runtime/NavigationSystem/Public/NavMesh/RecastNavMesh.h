@@ -41,7 +41,6 @@ class FRecastQueryFilter;
 class INavLinkCustomInterface;
 class UCanvas;
 class UNavArea;
-class UNavigationSystem;
 class UPrimitiveComponent;
 class URecastNavMeshDataChunk;
 struct FRecastAreaNavModifierElement;
@@ -915,9 +914,6 @@ protected:
 	
 	/** Invalidates active paths that go through changed tiles  */
 	void InvalidateAffectedPaths(const TArray<uint32>& ChangedTiles);
-
-	/** Spawns an ARecastNavMesh instance, and configures it if AgentProps != NULL */
-	static ARecastNavMesh* SpawnInstance(UNavigationSystem* NavSys, const FNavDataConfig* AgentProps = NULL);
 
 	/** created a new FRecastNavMeshGenerator instance. Overrider to supply your
 	 *	own extentions. Note: needs to derive from FRecastNavMeshGenerator */
