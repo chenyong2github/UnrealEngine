@@ -51,7 +51,7 @@ void FFoliageActor::Initialize(AInstancedFoliageActor* IFA, const UFoliageType* 
 {
 	check(!IsInitialized());
 	const UFoliageType_Actor* FoliageType_Actor = Cast<UFoliageType_Actor>(FoliageType);
-	ActorClass = FoliageType_Actor->ActorClass ? *FoliageType_Actor->ActorClass : AActor::StaticClass();
+	ActorClass = FoliageType_Actor->ActorClass ? FoliageType_Actor->ActorClass.Get() : AActor::StaticClass();
 }
 
 void FFoliageActor::Uninitialize()
