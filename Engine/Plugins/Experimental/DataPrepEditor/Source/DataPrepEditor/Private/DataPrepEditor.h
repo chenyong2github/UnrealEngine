@@ -24,7 +24,6 @@ class SDockableTab;
 class SGraphNodeDetailsWidget;
 class SInspectorView;
 class SWidget;
-class UDataprepRecipe;
 class UWorld;
 class UEdGraphNode;
 
@@ -75,12 +74,6 @@ public:
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
-
-	/** @return the documentation location for this editor */
-	virtual FString GetDocumentationLink() const override
-	{
-		return FString(TEXT("Engine/Content/Types/StaticMeshes/Editor"));
-	}
 
 	/** @return Returns the color and opacity to use for the color that appears behind the tab text for this toolkit's tab in world-centric mode. */
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
