@@ -1723,6 +1723,32 @@ void FVulkanDynamicRHI::DumpMemory()
 }
 #endif
 
+void FVulkanDynamicRHI::DestroySwapChain()
+{
+	if (IsInGameThread())
+	{
+		FlushRenderingCommands();
+	}
+
+	FVulkanDynamicRHI* RHI = (FVulkanDynamicRHI*)GDynamicRHI;
+	TArray<FVulkanViewport*> Viewports = RHI->Viewports;
+	ENQUEUE_RENDER_COMMAND(VulkanDestroySwapChain)(
+		[Viewports](FRHICommandListImmediate& RHICmdList)
+	{
+		UE_LOG(LogVulkanRHI, Log, TEXT("Destroy swapchain ... "));
+		
+		for (auto& Viewport : Viewports)
+		{
+			Viewport->DestroySwapchain();
+		}
+	});
+
+	if (IsInGameThread())
+	{
+		FlushRenderingCommands();
+	}
+}
+
 void FVulkanDynamicRHI::RecreateSwapChain(void* NewNativeWindow)
 {
 	if (NewNativeWindow)
@@ -1736,6 +1762,8 @@ void FVulkanDynamicRHI::RecreateSwapChain(void* NewNativeWindow)
 		ENQUEUE_RENDER_COMMAND(VulkanRecreateSwapChain)(
 			[Viewports, NewNativeWindow](FRHICommandListImmediate& RHICmdList)
 		{
+			UE_LOG(LogVulkanRHI, Log, TEXT("Recreate swapchain ... "));
+			
 			for (auto& Viewport : Viewports)
 			{
 				Viewport->RecreateSwapchain(NewNativeWindow);
