@@ -60,7 +60,6 @@ private:
 	int32 WidthDataOffset;
 	int32 TwistDataOffset;
 	int32 FacingDataOffset;
-	int32 SideVectorDataOffset;
 	int32 ColorDataOffset;
 	int32 NormalizedAgeDataOffset;
 	int32 MaterialRandomDataOffset;
