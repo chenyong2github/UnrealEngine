@@ -248,6 +248,7 @@ void UMediaCapture::CacheMediaOutput(EMediaCaptureSourceType InSourceType)
 {
 	check(MediaOutput);
 	DesiredSize = MediaOutput->GetRequestedSize();
+	bUseRequestedTargetSize = DesiredSize == UMediaOutput::RequestCaptureSourceSize;
 	DesiredPixelFormat = MediaOutput->GetRequestedPixelFormat();
 	ConversionOperation = MediaOutput->GetConversionOperation(InSourceType);
 }
@@ -269,6 +270,8 @@ FIntPoint UMediaCapture::GetOutputSize(const FIntPoint & InSize, const EMediaCap
 	case EMediaCaptureConversionOperation::RGB10_TO_YUVv210_10BIT:
 		// Padding aligned on 48 (16 and 6 at the same time)
 		return FIntPoint((((InSize.X + 47) / 48) * 48) / 6, InSize.Y);
+	case EMediaCaptureConversionOperation::CUSTOM:
+		return GetCustomOutputSize(InSize);
 	case EMediaCaptureConversionOperation::NONE:
 	default:
 		return InSize;
@@ -283,6 +286,8 @@ EPixelFormat UMediaCapture::GetOutputPixelFormat(const EPixelFormat & InPixelFor
 		return EPixelFormat::PF_B8G8R8A8;
 	case EMediaCaptureConversionOperation::RGB10_TO_YUVv210_10BIT:
 		return EPixelFormat::PF_R32G32B32A32_UINT;
+	case EMediaCaptureConversionOperation::CUSTOM:
+		return GetCustomOutputPixelFormat(InPixelFormat);
 	case EMediaCaptureConversionOperation::NONE:
 	default:
 		return InPixelFormat;
@@ -529,6 +534,10 @@ void UMediaCapture::InitializeResolveTarget(int32 InNumberOfBuffers)
 				This->bResolvedTargetInitialized = true;
 			});
 	}
+	else
+	{
+		bResolvedTargetInitialized = true;
+	}
 }
 
 bool UMediaCapture::ValidateMediaOutput() const
@@ -571,11 +580,16 @@ void UMediaCapture::OnEndFrame_GameThread()
 		return;
 	}
 
-	int32 ReadyFrameIndex = (CurrentResolvedTargetIndex) % NumberOfCaptureFrame; // Next one in the buffer queue
 	CurrentResolvedTargetIndex = (CurrentResolvedTargetIndex + 1) % NumberOfCaptureFrame;
+	int32 ReadyFrameIndex = (CurrentResolvedTargetIndex + 1) % NumberOfCaptureFrame; // Next one in the buffer queue
 
+	// Frame that should be on the system ram and we want to send to the user
 	FCaptureFrame* ReadyFrame = (CaptureFrames[ReadyFrameIndex].bResolvedTargetRequested) ? &CaptureFrames[ReadyFrameIndex] : nullptr;
+	// Frame that we want to transfer to system ram
 	FCaptureFrame* CapturingFrame = (GetState() != EMediaCaptureState::StopRequested) ? &CaptureFrames[CurrentResolvedTargetIndex] : nullptr;
+
+	UE_LOG(LogMediaIOCore, VeryVerbose, TEXT("MediaOutput: '%s'. ReadyFrameIndex: '%d' '%s'. CurrentResolvedTargetIndex: '%d'.")
+		, *MediaOutputName, ReadyFrameIndex, (CaptureFrames[ReadyFrameIndex].bResolvedTargetRequested) ? TEXT("Y"): TEXT("N"), CurrentResolvedTargetIndex);
 
 	if (ReadyFrame == nullptr && GetState() == EMediaCaptureState::StopRequested)
 	{
@@ -766,6 +780,11 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				// Asynchronously copy target from GPU to GPU
 				RHICmdList.CopyToResolveTarget(SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams);
 			}
+			else if (InMediaCapture->ConversionOperation == EMediaCaptureConversionOperation::CUSTOM)
+			{
+				InMediaCapture->OnCustomCapture_RenderingThread(RHICmdList, CapturingFrame->CaptureBaseData, CapturingFrame->UserData
+					, SourceTexture, DestRenderTarget.TargetableTexture, ResolveParams, {ULeft, URight}, {VTop, VBottom});
+			}
 			else
 			{
 				// convert the source with a draw call
@@ -850,16 +869,6 @@ void UMediaCapture::Capture_RenderThread(FRHICommandListImmediate& RHICmdList,
 				RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, CapturingFrame->ReadbackTexture, FResolveParams());
 				CapturingFrame->bResolvedTargetRequested = true;
 			}
-		}
-
-		if (InMediaCapture->bShouldCaptureRHITexture)
-		{
-			SCOPE_CYCLE_COUNTER(STAT_MediaCapture_RenderThread_Callback);
-			InMediaCapture->OnRHITextureCaptured_RenderingThread(CapturingFrame->CaptureBaseData, CapturingFrame->UserData, DestRenderTarget.TargetableTexture);
-			CapturingFrame->bResolvedTargetRequested = false;
-		}
-		else
-		{
 		}
 	}
 
