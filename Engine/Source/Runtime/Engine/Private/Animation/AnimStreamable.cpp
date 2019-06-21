@@ -23,7 +23,7 @@ DECLARE_CYCLE_STAT(TEXT("AnimStreamable GetAnimationPose"), STAT_AnimStreamable_
 // This is a version string for the streaming anim chunk logic
 // If you want to bump this version, generate a new guid using VS->Tools->Create GUID and
 // set it here
-const TCHAR* StreamingAnimChunkVersion = TEXT("1F1656B9E10142729AB16650D9821B1Fuf");
+const TCHAR* StreamingAnimChunkVersion = TEXT("1F1656B9E10142729AB16650D9821B1F");
 
 const float MINIMUM_CHUNK_SIZE = 2.0f;
 
@@ -328,6 +328,11 @@ void UAnimStreamable::PostLoad()
 		NonConstSeq->ConditionalPostLoad();
 	}
 
+	if (SourceSequence)
+	{
+		CompressionScheme = SourceSequence->CompressionScheme;
+	}
+
 	if (SourceSequence && (GenerateGuidFromRawAnimData(SourceSequence->GetRawAnimationData(), SourceSequence->RawCurveData) != RawDataGuid))
 	{
 		InitFrom(SourceSequence);
@@ -336,8 +341,6 @@ void UAnimStreamable::PostLoad()
 	{
 		RequestCompressedData(); // Grab compressed data for current platform
 	}
-
-	RequestCompressedData(); // Grab compressed data for current platform
 #else
 	IStreamingManager::Get().GetAnimationStreamingManager().AddStreamingAnim(this); // This will be handled by RequestCompressedData in editor builds
 
@@ -374,11 +377,17 @@ int32 UAnimStreamable::GetChunkIndexForTime(const TArray<FAnimStreamableChunk>& 
 }
 
 #if WITH_EDITOR
+float UAnimStreamable::GetAltCompressionErrorThreshold() const
+{
+	return SourceSequence ? SourceSequence->GetAltCompressionErrorThreshold() : FAnimationUtils::GetAlternativeCompressionThreshold();
+}
+
 void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 {
 	Modify();
 	SetSkeleton(InSourceSequence->GetSkeleton());
 	SourceSequence = InSourceSequence;
+	CompressionScheme = InSourceSequence->CompressionScheme;
 
 	RawAnimationData = InSourceSequence->GetRawAnimationData();
 	RawCurveData = InSourceSequence->RawCurveData;
@@ -405,16 +414,11 @@ void UAnimStreamable::InitFrom(const UAnimSequence* InSourceSequence)
 	UpdateRawData();
 }
 
-FString GetChunkDDCKey(const FString& BaseKey, uint32 ChunkIndex, uint32 NumChunks)
+FString GetChunkDDCKey(const FString& BaseKey, uint32 ChunkIndex)
 {
-	FArcToHexString HexStringBuilder;
-
-	HexStringBuilder.Ar << ChunkIndex;
-	HexStringBuilder.Ar << NumChunks;
-
-	return FString::Printf(TEXT("%s%s"),
+	return FString::Printf(TEXT("%s%u"),
 		*BaseKey,
-		*HexStringBuilder.MakeString()
+		ChunkIndex
 	);
 }
 
@@ -495,7 +499,7 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 
 	PlatformData.Chunks.AddDefaulted(NumChunks);
 
-	const FString BaseDDCKey = GetBaseDDCKey();
+	const FString BaseDDCKey = GetBaseDDCKey(NumChunks, GetAltCompressionErrorThreshold());
 
 	const bool bInAllowAlternateCompressor = false;
 	const bool bInOutput				   = false;
@@ -504,13 +508,13 @@ void UAnimStreamable::RequestCompressedData(const ITargetPlatform* Platform)
 
 	for (uint32 ChunkIndex = 0; ChunkIndex < NumChunks; ++ChunkIndex)
 	{
-		FString ChunkDDCKey = GetChunkDDCKey(BaseDDCKey, ChunkIndex, NumChunks);
+		FString ChunkDDCKey = GetChunkDDCKey(BaseDDCKey, ChunkIndex);
 
 		const bool bLastChunk = (ChunkIndex == (NumChunks - 1));
 		const uint32 FrameStart = ChunkIndex * FramesPerChunk;
 		const uint32 FrameEnd = bLastChunk ? NumFramesToChunk : (ChunkIndex + 1) * FramesPerChunk;
 
-		RequestCompressedDataForChunk(ChunkDDCKey, PlatformData.Chunks[ChunkIndex], FrameStart, FrameEnd, CompressContext);
+		RequestCompressedDataForChunk(ChunkDDCKey, PlatformData.Chunks[ChunkIndex], ChunkIndex, FrameStart, FrameEnd, CompressContext);
 	}
 
 	if (bIsRunningPlatform)
@@ -555,7 +559,7 @@ void MakeKeyChunk(const TArray<KeyType>& SrcKeys, TArray<KeyType>& DestKeys, int
 	}
 }
 
-void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext)
+void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, FAnimStreamableChunk& Chunk, const int32 ChunkIndex, const uint32 FrameStart, const uint32 FrameEnd, TSharedRef<FAnimCompressContext> CompressContext)
 {
 	// Need to unify with Anim Sequence!
 
@@ -576,7 +580,7 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 
 		if (bSkipDDC || !GetDerivedDataCacheRef().GetSynchronous(*FinalDDCKey, OutData))
 		{
-			TSharedRef<FCompressibleAnimData> CompressibleData = MakeShared<FCompressibleAnimData>(CompressionScheme, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1);
+			TSharedRef<FCompressibleAnimData> CompressibleData = MakeShared<FCompressibleAnimData>(CompressionScheme, CurveCompressionSettings, GetSkeleton(), Interpolation, Chunk.SequenceLength, ChunkNumFrames+1, GetAltCompressionErrorThreshold());
 
 			CompressibleData->RawAnimationData.AddDefaulted(RawAnimationData.Num());
 
@@ -598,6 +602,19 @@ void UAnimStreamable::RequestCompressedDataForChunk(const FString& ChunkDDCKey, 
 				//Crop curve logic broken, for the moment store curve data in always loaded chunk 0
 				CompressibleData->RawCurveData = RawCurveData;
 			}
+
+			/*if (SourceSequence && ChunkIndex == 7)
+			{
+				UAnimSequence* Seq = const_cast<UAnimSequence*>(SourceSequence); //Stop update loop
+				SourceSequence = nullptr;
+				Seq->RawAnimationData = CompressibleData->RawAnimationData;
+				Seq->SequenceLength = CompressibleData->SequenceLength;
+				Seq->NumFrames = CompressibleData->NumFrames;
+				Seq->MarkRawDataAsModified(false);
+				Seq->OnRawDataChanged();
+
+				SourceSequence = Seq;
+			}*/
 
 			CompressibleData->TrackToSkeletonMapTable = TrackToSkeletonMapTable;
 			AnimCompressor->SetCompressibleData(CompressibleData);
@@ -638,7 +655,7 @@ void UAnimStreamable::UpdateRawData()
 	RequestCompressedData();
 }
 
-FString UAnimStreamable::GetBaseDDCKey() const
+FString UAnimStreamable::GetBaseDDCKey(uint32 NumChunks, float AltCompressionErrorThreshold) const
 {
 	//Make up our content key consisting of:
 	//  * Streaming Anim Chunk logic version
@@ -648,13 +665,19 @@ FString UAnimStreamable::GetBaseDDCKey() const
 	//	* Compression Settings
 	//	* Curve compression settings
 
-	FString Ret = FString::Printf(TEXT("%s%s%s%s_%s_%s"),
+	FArcToHexString ArcToHexString;
+
+	ArcToHexString.Ar << NumChunks;
+	ArcToHexString.Ar << AltCompressionErrorThreshold;
+	CompressionScheme->PopulateDDCKeyArchive(ArcToHexString.Ar);
+	CurveCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
+
+	FString Ret = FString::Printf(TEXT("%s%s%s%s_%s"),
 		StreamingAnimChunkVersion,
 		*RawDataGuid.ToString(),
 		*GetSkeleton()->GetGuid().ToString(),
 		*GetSkeleton()->GetVirtualBoneGuid().ToString(),
-		*CompressionScheme->MakeDDCKey(),
-		*CurveCompressionSettings->MakeDDCKey()
+		*ArcToHexString.MakeString()
 	);
 
 	return Ret;

@@ -789,9 +789,6 @@ void FAnimationUtils::CompressAnimSequence(const FCompressibleAnimData& Compress
 {
 	if (FPlatformProperties::HasEditorOnlyData())
 	{
-		// get the master tolerance we will use to guide recompression
-		float MasterTolerance = GetAlternativeCompressionThreshold(); 
-
 		bool bOnlyCheckForMissingSkeletalMeshes = UAnimationSettings::Get()->bOnlyCheckForMissingSkeletalMeshes;
 		if (!bOnlyCheckForMissingSkeletalMeshes)
 		{
@@ -834,7 +831,7 @@ void FAnimationUtils::CompressAnimSequence(const FCompressibleAnimData& Compress
 					CompressibleAnimData,
 					OutCompressedData,
 					CompressContext,
-					CompressContext.bAllowAlternateCompressor ? MasterTolerance : 0.0f,
+					CompressibleAnimData.AltCompressionErrorThreshold,
 					bFirstRecompressUsingCurrentOrDefault,
 					bForceBelowThreshold,
 					bRaiseMaxErrorToExisting,
@@ -943,14 +940,15 @@ void FAnimationUtils::CompressAnimSequenceExplicit(
 	// we must have raw data to continue
 	if(NumRawDataTracks > 0 )
 	{
-		// If compression Scheme is automatic, then we definitely want to 'TryAlternateCompressor'.
-		if (CompressibleAnimData.RequestedCompressionScheme && CompressibleAnimData.RequestedCompressionScheme->IsA(UAnimCompress_Automatic::StaticClass()))
-		{
-			MasterTolerance = GetAlternativeCompressionThreshold();
-		}
-
 		// See if we're trying alternate compressors
-		const bool bTryAlternateCompressor = MasterTolerance > 0.0f;
+		// If compression Scheme is automatic, then we definitely want to 'TryAlternateCompressor'.
+		const bool bIsAutomatic = CompressibleAnimData.RequestedCompressionScheme && CompressibleAnimData.RequestedCompressionScheme->IsA(UAnimCompress_Automatic::StaticClass());
+		const bool bTryAlternateCompressor = bIsAutomatic || CompressContext.bAllowAlternateCompressor;
+
+		// We shouldn't override as this value can come from automatic compression sequences
+		// but that was broken by CL 3489273
+		// Preserving override behaviour till issue can be properly addressed
+		MasterTolerance = CompressibleAnimData.AltCompressionErrorThreshold;
 
 		AnimationErrorStats TrueOriginalErrorStats;
 		FAnimationUtils::ComputeCompressionError(CompressibleAnimData, OutCompressedData, TrueOriginalErrorStats);

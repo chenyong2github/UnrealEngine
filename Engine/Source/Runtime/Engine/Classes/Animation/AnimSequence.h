@@ -310,6 +310,14 @@ public:
 	UPROPERTY(Category = Compression, EditAnywhere)
 	bool bAllowFrameStripping;
 
+	/**
+	 * Set a scale for error threshold on compression. This is useful if the animation will 
+	 * be played back at a different scale (e.g. if you know the animation will be played
+	 * on an actor/component that is scaled up by a factor of 10, set this value to 10)
+	 */
+	UPROPERTY(Category = Compression, EditAnywhere)
+	float CompressionErrorThresholdScale;
+
 #endif
 
 	/** The curve compression settings used to compress curves in this sequence. */
@@ -497,6 +505,9 @@ public:
 	
 	// Adds a new track (if no track of the supplied name is found) to the raw animation data, optionally setting it to TrackData.
 	int32 AddNewRawTrack(FName TrackName, FRawAnimSequenceTrack* TrackData = nullptr);
+
+	// Get the Alternate compression error threshold 
+	float GetAltCompressionErrorThreshold() const;
 #endif
 
 	const TArray<FTrackToSkeletonMap>& GetRawTrackToSkeletonMapTable() const { return TrackToSkeletonMapTable; }
