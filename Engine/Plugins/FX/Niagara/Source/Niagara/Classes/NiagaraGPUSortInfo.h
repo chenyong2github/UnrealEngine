@@ -19,9 +19,9 @@ enum class ENiagaraSortMode : uint8
 	ViewDepth,
 	/** Sort by distance to the camera's origin.*/
 	ViewDistance,
-	/** Custom sorting according to a per particle attribute. Lower values are rendered before higher values. */
+	/** Custom sorting according to a per particle attribute. Which attribute is defined by the renderer's CustomSortingBinding which defaults to Particles.NormalizedAge. Lower values are rendered before higher values. */
 	CustomAscending,
-	/** Custom sorting according to a per particle attribute. Higher values are rendered before lower values. */
+	/** Custom sorting according to a per particle attribute. Which attribute is defined by the renderer's CustomSortingBinding which defaults to Particles.NormalizedAge. Higher values are rendered before lower values. */
 	CustomDecending,
 };
 
