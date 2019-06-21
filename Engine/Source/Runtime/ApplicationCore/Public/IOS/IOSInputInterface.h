@@ -109,15 +109,8 @@ private:
 	void CalibrateMotion(uint32 PlayerIndex);
 
 private:
-	void ProcessTouchesAndKeys(uint32 ControllerId);
-
-
-	static TArray<TouchInput> TouchInputStack;
-	static TArray<int32> KeyInputStack;
-
-	// protects the input stack used on 2 threads
-	static FCriticalSection CriticalSection;
-
+	void ProcessTouchesAndKeys(uint32 ControllerId, const TArray<TouchInput>& InTouchInputStack, const TArray<int32>& InKeyInputStack);
+	   
 	TSharedRef< FGenericApplicationMessageHandler > MessageHandler;
 
 
