@@ -66,7 +66,7 @@ void UFractureToolRadial::GenerateVoronoiSites(const FFractureContext &Context, 
 
 	float RadialStep = FractureSettings->Radius / FractureSettings->RadialSteps;
 
-	const FVector Center(Context.Bounds.GetCenter());
+	const FVector Center(Context.Bounds.GetCenter() + FractureSettings->Center);
 
 	FRandomStream RandStream(Context.RandomSeed);
 
