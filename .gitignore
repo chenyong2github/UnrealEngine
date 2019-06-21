@@ -48,6 +48,10 @@
 !*.aspx
 !*.resx
 
+# ISPC source files
+!*.ispc
+!*.isph
+
 # Shader formats
 !*.usf
 !*.ush
