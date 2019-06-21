@@ -125,6 +125,9 @@ void ULiveLinkAnimationFrameInterpolateProcessor::FLiveLinkAnimationFrameInterpo
 		{
 			OutLastFrameIndexUsed = FrameDataIndexA;
 
+			//Initialize the output frame for animation. It will be filled during blended values copied
+			OutBlendedFrame.FrameData.InitializeWith(FLiveLinkAnimationFrameData::StaticStruct(), nullptr);
+
 			const FLiveLinkFrameDataStruct& FrameDataA = InSourceFrames[FrameDataIndexA];
 			const FLiveLinkFrameDataStruct& FrameDataB = InSourceFrames[FrameDataIndexB];
 
