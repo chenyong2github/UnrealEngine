@@ -87,14 +87,13 @@ auto GetData(T&& Container) -> decltype(Container.GetData())
 	return Container.GetData();
 }
 
-template <typename T, SIZE_T N>
-CONSTEXPR T* GetData(T (&Container)[N])
-{
-	return Container;
-}
+template <typename T, SIZE_T N> CONSTEXPR       T* GetData(      T (& Container)[N]) { return Container; }
+template <typename T, SIZE_T N> CONSTEXPR       T* GetData(      T (&&Container)[N]) { return Container; }
+template <typename T, SIZE_T N> CONSTEXPR const T* GetData(const T (& Container)[N]) { return Container; }
+template <typename T, SIZE_T N> CONSTEXPR const T* GetData(const T (&&Container)[N]) { return Container; }
 
 template <typename T>
-CONSTEXPR T* GetData(std::initializer_list<T> List)
+CONSTEXPR const T* GetData(std::initializer_list<T> List)
 {
 	return List.begin();
 }
@@ -108,11 +107,10 @@ SIZE_T GetNum(T&& Container)
 	return (SIZE_T)Container.Num();
 }
 
-template <typename T, SIZE_T N>
-CONSTEXPR SIZE_T GetNum(T (&Container)[N])
-{
-	return N;
-}
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (& Container)[N]) { return N; }
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(      T (&&Container)[N]) { return N; }
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (& Container)[N]) { return N; }
+template <typename T, SIZE_T N> CONSTEXPR SIZE_T GetNum(const T (&&Container)[N]) { return N; }
 
 template <typename T>
 CONSTEXPR SIZE_T GetNum(std::initializer_list<T> List)

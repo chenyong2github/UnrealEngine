@@ -8,15 +8,17 @@
 #include "Delegates/IntegerSequence.h"
 
 /** An array with a static number of elements. */
-template<typename TElement, uint32 NumElements, uint32 Alignment = alignof(TElement)>
+template <typename InElementType, uint32 NumElements, uint32 Alignment = alignof(InElementType)>
 class alignas(Alignment) TStaticArray
 {
 public:
+	using ElementType = InElementType;
+
 	TStaticArray() 
 		: Storage()
 	{}
 
-	explicit TStaticArray(const TElement& DefaultElement) 
+	explicit TStaticArray(const InElementType& DefaultElement)
 		: Storage(TMakeIntegerSequence<uint32, NumElements>(), DefaultElement)
 	{}
 
@@ -36,13 +38,13 @@ public:
 	}
 
 	// Accessors.
-	FORCEINLINE_DEBUGGABLE TElement& operator[](uint32 Index)
+	FORCEINLINE_DEBUGGABLE InElementType& operator[](uint32 Index)
 	{
 		checkSlow(Index < NumElements);
 		return Storage.Elements[Index].Element;
 	}
 
-	FORCEINLINE_DEBUGGABLE const TElement& operator[](uint32 Index) const
+	FORCEINLINE_DEBUGGABLE const InElementType& operator[](uint32 Index) const
 	{
 		checkSlow(Index < NumElements);
 		return Storage.Elements[Index].Element;
@@ -75,7 +77,11 @@ public:
 
 	/** The number of elements in the array. */
 	FORCEINLINE_DEBUGGABLE int32 Num() const { return NumElements; }
-	
+
+	/** A pointer to the first element of the array */
+	FORCEINLINE_DEBUGGABLE       InElementType* GetData()       { return Storage.Elements; }
+	FORCEINLINE_DEBUGGABLE const InElementType* GetData() const { return Storage.Elements; }
+
 	/** Hash function. */
 	friend uint32 GetTypeHash(const TStaticArray& Array)
 	{
@@ -92,12 +98,12 @@ private:
 	struct alignas(Alignment) TArrayStorageElementAligned
 	{
 		TArrayStorageElementAligned() {}
-		TArrayStorageElementAligned(const TElement& InElement)
+		TArrayStorageElementAligned(const InElementType& InElement)
 			: Element(InElement)
 		{
 		}
 
-		TElement Element;
+		InElementType Element;
 	};
 
 	struct TArrayStorage
@@ -108,7 +114,7 @@ private:
 		}
 
 		template<uint32... Indices>
-		TArrayStorage(TIntegerSequence<uint32, Indices...>, const TElement& DefaultElement)
+		TArrayStorage(TIntegerSequence<uint32, Indices...>, const InElementType& DefaultElement)
 			: Elements { ((void)Indices, DefaultElement)... } //Integer Sequence pack expansion duplicates DefaultElement NumElements times and the comma operator throws away the index
 		{
 		}
@@ -120,10 +126,10 @@ private:
 };
 
 /** Creates a static array filled with the specified value. */
-template<typename TElement,uint32 NumElements>
-TStaticArray<TElement,NumElements> MakeUniformStaticArray(typename TCallTraits<TElement>::ParamType InValue)
+template <typename InElementType, uint32 NumElements>
+TStaticArray<InElementType,NumElements> MakeUniformStaticArray(typename TCallTraits<InElementType>::ParamType InValue)
 {
-	TStaticArray<TElement,NumElements> Result;
+	TStaticArray<InElementType,NumElements> Result;
 	for(uint32 ElementIndex = 0;ElementIndex < NumElements;++ElementIndex)
 	{
 		Result[ElementIndex] = InValue;
@@ -131,3 +137,8 @@ TStaticArray<TElement,NumElements> MakeUniformStaticArray(typename TCallTraits<T
 	return Result;
 }
 
+template <typename ElementType, uint32 NumElements, uint32 Alignment>
+struct TIsContiguousContainer<TStaticArray<ElementType, NumElements, Alignment>>
+{
+	enum { Value = true };
+};

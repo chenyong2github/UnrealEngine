@@ -197,7 +197,7 @@ bool FFractureEditorMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 
 				TMap<int32, FBox> BoundsToBone;
 			
-				GetActorGlobalBounds(MakeArrayView<UGeometryCollectionComponent*>(GeometryComponents), BoundsToBone);
+				GetActorGlobalBounds(MakeArrayView(GeometryComponents), BoundsToBone);
 
 				TArray<int32> SelectedBonesArray;
 
