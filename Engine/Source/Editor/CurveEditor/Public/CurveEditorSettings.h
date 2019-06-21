@@ -37,8 +37,6 @@ class CURVEEDITOR_API UCurveEditorSettings : public UObject
 public:
 	GENERATED_BODY()
 
-	DECLARE_MULTICAST_DELEGATE(FOnCurveEditorCurveVisibilityChanged);
-
 	UCurveEditorSettings();
 
 	/** Gets whether or not the curve editor auto frames the selected curves. */
@@ -73,7 +71,4 @@ protected:
 
 	UPROPERTY( config, EditAnywhere, Category="Curve Editor")
 	ECurveEditorZoomPosition ZoomPosition;
-
-	/** Callback for when the Curve Editor Visibility setting changes. */
-	FOnCurveEditorCurveVisibilityChanged OnCurveEditorCurveVisibilityChanged;
 };

@@ -5,6 +5,7 @@
 #include "Templates/SharedPointer.h"
 #include "Misc/EnumClassFlags.h"
 #include "Containers/UnrealString.h"
+#include "Internationalization/Text.h"
 
 class FCurveEditorTree;
 struct FCurveEditorTreeItem;
@@ -24,12 +25,16 @@ enum class ECurveEditorTreeFilterType : uint32
 	First = Text,
 };
 
-
-
+/**
+ * Base class for all filters that can be applied to a curve editor tree.
+ * Filters are identifyable through their type (see GetType()), which is a pre-registered static value retrieved through RegisterFilterType(). Client types can inspect this for supported types, and static_cast<> for implementation details.
+ * Filters also contain a pass, which is used to separate filters into separate passes. Filters applied within the same pass are matched as a boolean OR, filters in different passes are matched as a boolean AND.
+ */
 struct CURVEEDITOR_API FCurveEditorTreeFilter
 {
-	explicit FCurveEditorTreeFilter(ECurveEditorTreeFilterType InFilterType)
+	FCurveEditorTreeFilter(ECurveEditorTreeFilterType InFilterType, int32 InFilterPass)
 		: FilterType(InFilterType)
+		, FilterPass(InFilterPass)
 	{}
 
 	virtual ~FCurveEditorTreeFilter() {}
@@ -40,6 +45,14 @@ struct CURVEEDITOR_API FCurveEditorTreeFilter
 	ECurveEditorTreeFilterType GetType() const
 	{
 		return FilterType;
+	}
+
+	/**
+	 * @return The pass index that should be used when applying this filter
+	 */
+	int32 GetFilterPass() const
+	{
+		return FilterPass;
 	}
 
 public:
@@ -56,32 +69,71 @@ protected:
 
 	/** The static type of this filter as retrieved by RegisterFilterType */
 	ECurveEditorTreeFilterType FilterType;
+
+	/** Defines which pass this filter should be applied in */
+	int32 FilterPass;
+};
+
+/** A specific text token (containing neither spaces nor .) */
+struct FCurveEditorTreeTextFilterToken
+{
+	FString Token;
+
+	/** Match this token against a string */
+	bool Match(const TCHAR* InString) const
+	{
+		return FCString::Stristr(InString, *Token) != nullptr;
+	}
+};
+
+/** A text filter term containing >= 1 sparate tokens ordered from child to parent */
+struct FCurveEditorTreeTextFilterTerm
+{
+	TArray<FCurveEditorTreeTextFilterToken, TInlineAllocator<1>> ChildToParentTokens;
 };
 
 /**
  * Built-in text filter of type ECurveEditorTreeFilterType::Text. Filter terms are applied as a case-insensitive boolean OR substring match.
  */
-struct FCurveEditorTreeTextFilter : FCurveEditorTreeFilter
+struct CURVEEDITOR_API FCurveEditorTreeTextFilter : FCurveEditorTreeFilter
 {
-	/** Array of case-insensitive terms to find within tree items. */
-	TArray<FString> FilterTerms;
+	/** Original input filter text. */
+	FText InputText;
 
+	/** Default pass for text filters. */
+	static const int32 DefaultPass = 1000;
+
+	/** Default constructor */
 	FCurveEditorTreeTextFilter()
-		: FCurveEditorTreeFilter(ECurveEditorTreeFilterType::Text)
+		: FCurveEditorTreeFilter(ECurveEditorTreeFilterType::Text, DefaultPass)
 	{}
 
 	/**
-	 * Check whether the supplied string matches any of the terms
+	 * Assign a new filter string to this filter, resetting any previous filter terms
+	 *
+	 * @param FilterString   The new filter string that should be parsed into this filter
 	 */
-	bool Match(const TCHAR* InString) const
+	void AssignFromText(const FString& FilterString);
+
+	/**
+	 * Check whether this filter is empty (ie, has no filter terms)
+	 */
+	bool IsEmpty() const
 	{
-		for (const FString& Term : FilterTerms)
-		{
-			if (FCString::Stristr(InString, *Term) != nullptr)
-			{
-				return true;
-			}
-		}
-		return false;
+		return ChildToParentFilterTerms.Num() == 0;
 	}
+
+	/**
+	 * Access all the filter terms contained within this filter. Each term comprises an array of text tokens that must match from child to parent.
+	 * Valid to call if IsEmpty() == true, but the resulting array view will be empty.
+	 */
+	TArrayView<const FCurveEditorTreeTextFilterTerm> GetTerms() const
+	{
+		return ChildToParentFilterTerms;
+	}
+
+private:
+
+	/** Arrays of case-insensitive terms to find within tree items. Each term is an array of strings that must be matched from child to parent. */
+	TArray<FCurveEditorTreeTextFilterTerm, TInlineAllocator<4>> ChildToParentFilterTerms;
 };

@@ -72,7 +72,9 @@
 #include "Camera/CameraActor.h"
 #include "SCurveEditorPanel.h"
 #include "Tree/SCurveEditorTree.h"
+#include "Tree/CurveEditorTreeFilter.h"
 #include "Tree/SCurveEditorTreeTextFilter.h"
+#include "Tree/SCurveEditorTreeFilterStatusBar.h"
 #include "SCurveKeyDetailPanel.h"
 #include "MovieSceneTimeHelpers.h"
 #include "FrameNumberNumericInterface.h"
@@ -414,6 +416,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	// Some areas that use Sequencer don't use our curve editor. In this case no button is shown on the UI.
 	if (InSequencer->GetToolkitHost().IsValid())
 	{
+		CurveEditorTree = SNew(SCurveEditorTree, InSequencer->GetCurveEditor());
 		TSharedRef<SCurveEditorPanel> CurveEditorWidget = SNew(SCurveEditorPanel, InSequencer->GetCurveEditor().ToSharedRef())
 			// Grid lines match the color specified in FSequencerTimeSliderController::OnPaintViewArea
 			.GridLineTint(FLinearColor(0.f, 0.f, 0.f, 0.3f))
@@ -432,7 +435,16 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 				+ SVerticalBox::Slot()
 				[
-					SNew(SCurveEditorTree, InSequencer->GetCurveEditor())
+					SNew(SScrollBorder, CurveEditorTree.ToSharedRef())
+					[
+						CurveEditorTree.ToSharedRef()
+					]
+				]
+
+				+ SVerticalBox::Slot()
+				.AutoHeight()
+				[
+					SNew(SCurveEditorTreeFilterStatusBar, InSequencer->GetCurveEditor())
 				]
 
 				+ SVerticalBox::Slot()
@@ -443,13 +455,13 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 				]
 			];
 
-			// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.
-			CurveEditorWidget->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, SequencerPtr));
-			TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SSequencer::GetIsCurveEditorEnabled));
+		// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.
+		CurveEditorWidget->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, SequencerPtr));
+		TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SSequencer::GetIsCurveEditorEnabled));
 	
-			CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget);
-			CurveEditorPanel->SetEnabled(IsEnabledAttribute);
-			CurveEditorWidget->SetEnabled(IsEnabledAttribute);
+		CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget);
+		CurveEditorPanel->SetEnabled(IsEnabledAttribute);
+		CurveEditorWidget->SetEnabled(IsEnabledAttribute);
 
 		// Check to see if the tab is already opened due to the saved window layout.
 		TSharedPtr<SDockTab> ExistingCurveEditorTab = InSequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(FTabId(SSequencer::CurveEditorTabName));
@@ -832,6 +844,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	InSequencer->GetSelection().GetOnKeySelectionChanged().AddSP(this, &SSequencer::HandleKeySelectionChanged);
 	InSequencer->GetSelection().GetOnSectionSelectionChanged().AddSP(this, &SSequencer::HandleSectionSelectionChanged);
+	InSequencer->GetSelection().GetOnOutlinerNodeSelectionChanged().AddSP(this, &SSequencer::HandleOutlinerNodeSelectionChanged);
 
 	ResetBreadcrumbs();
 }
@@ -976,6 +989,51 @@ EVisibility SSequencer::HandleLabelBrowserVisibility() const
 
 void SSequencer::HandleSectionSelectionChanged()
 {
+}
+
+
+void SSequencer::HandleOutlinerNodeSelectionChanged()
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	if (!Sequencer.IsValid())
+	{
+		return;
+	}
+
+	const TSet<TSharedRef<FSequencerDisplayNode>>& SelectedDisplayNodes = Sequencer->GetSelection().GetSelectedOutlinerNodes();
+
+	// If we're isolating to the selection and there is one, add the filter
+	if (Settings->ShouldIsolateToCurveEditorSelection() && SelectedDisplayNodes.Num() != 0)
+	{
+		if (!SequencerSelectionCurveEditorFilter)
+		{
+			static const int32 FilterPass = -1000;
+			SequencerSelectionCurveEditorFilter = MakeShared<FCurveEditorTreeFilter>(ISequencerModule::GetSequencerSelectionFilterType(), FilterPass);
+		}
+		Sequencer->GetCurveEditor()->GetTree()->AddFilter(SequencerSelectionCurveEditorFilter);
+	}
+	// If we're not isolating to the selection (or there is no selection) remove the filter
+	else if (SequencerSelectionCurveEditorFilter)
+	{
+		Sequencer->GetCurveEditor()->GetTree()->RemoveFilter(SequencerSelectionCurveEditorFilter);
+		SequencerSelectionCurveEditorFilter = nullptr;
+	}
+
+	if (Settings->ShouldSyncCurveEditorSelection())
+	{
+		TSharedRef<FSequencerNodeTree> NodeTree = Sequencer->GetNodeTree();
+
+		// Clear the tree selection
+		CurveEditorTree->ClearSelection();
+		for (TSharedRef<FSequencerDisplayNode> Node : SelectedDisplayNodes)
+		{
+			FCurveEditorTreeItemID CurveEditorTreeItem = NodeTree->FindCurveEditorTreeItem(Node);
+			if (CurveEditorTreeItem != FCurveEditorTreeItemID::Invalid())
+			{
+				CurveEditorTree->SetItemSelection(CurveEditorTreeItem, true);
+			}
+		}
+	}
 }
 
 TSharedRef<SWidget> SSequencer::MakeAddButton()

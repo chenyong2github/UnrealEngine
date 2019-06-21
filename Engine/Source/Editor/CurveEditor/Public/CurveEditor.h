@@ -294,11 +294,6 @@ public:
 	void RemoveTreeItem(FCurveEditorTreeItemID ItemID);
 
 	/**
-	 * Set the current tree selection
-	 */
-	void SetDirectTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
-
-	/**
 	 * Check whether this tree item is selected
 	 */
 	ECurveEditorTreeSelectionState GetTreeSelectionState(FCurveEditorTreeItemID TreeItemID) const;
@@ -312,6 +307,14 @@ public:
 	 * Access the curve editor tree.
 	 */
 	FCurveEditorTree* GetTree()
+	{
+		return &Tree;
+	}
+
+	/**
+	 * Access the curve editor tree.
+	 */
+	const FCurveEditorTree* GetTree() const
 	{
 		return &Tree;
 	}

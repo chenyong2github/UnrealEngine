@@ -213,31 +213,6 @@ ECurveEditorTreeSelectionState FCurveEditor::GetTreeSelectionState(FCurveEditorT
 	return Tree.GetSelectionState(InTreeItemID);
 }
 
-void FCurveEditor::SetDirectTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems)
-{
-	TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> PreviousSelection = Tree.GetSelection();
-	Tree.SetDirectSelection(MoveTemp(TreeItems));
-
-	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& NewSelection = Tree.GetSelection();
-	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> CachedItem : PreviousSelection)
-	{
-		const ECurveEditorTreeSelectionState* NewState = NewSelection.Find(CachedItem.Key);
-		if (!NewState || *NewState == ECurveEditorTreeSelectionState::None)
-		{
-			GetTreeItem(CachedItem.Key).DestroyUnpinnedCurves(this);
-		}
-	}
-
-	// Ensure the new selection has valid curve models
-	for (TTuple<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState> CachedItem : Tree.GetSelection())
-	{
-		if (CachedItem.Value != ECurveEditorTreeSelectionState::None)
-		{
-			GetTreeItem(CachedItem.Key).GetOrCreateCurves(this);
-		}
-	}
-}
-
 const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& FCurveEditor::GetTreeSelection() const
 {
 	return Tree.GetSelection();

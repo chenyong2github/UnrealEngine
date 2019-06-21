@@ -21,6 +21,8 @@ class IToolkitHost;
 class UMovieSceneSequence;
 struct FSequencerInitParams;
 
+enum class ECurveEditorTreeFilterType : uint32;
+
 /** Forward declaration for the default templated channel interface. Include SequencerChannelInterface.h for full definition. */
 template<typename> struct TSequencerChannelInterface;
 
@@ -256,6 +258,12 @@ public:
 	 * Find a sequencer channel for the specified channel type name
 	 */
 	ISequencerChannelInterface* FindChannelEditorInterface(FName ChannelTypeName) const;
+
+
+	/**
+	 * Retrieve the unique identifer for the sequencer selection curve editor filter
+	 */
+	static ECurveEditorTreeFilterType GetSequencerSelectionFilterType();
 
 public:
 

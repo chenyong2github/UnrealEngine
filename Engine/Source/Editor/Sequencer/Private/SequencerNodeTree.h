@@ -139,6 +139,14 @@ public:
 	/** Sorts all nodes and their descendants by category then alphabetically.*/
 	void SortAllNodesAndDescendants();
 
+	/**
+	 * Attempt to find a curve editor tree item ID for the specified display node
+	 *
+	 * @param DisplayNode The node to find a curve editor tree item for
+	 * @return The ID of the tree item for this display node in the curve editor, or FCurveEditorTreeItemID::Invalid() if one was not found.
+	 */
+	FCurveEditorTreeItemID FindCurveEditorTreeItem(TSharedRef<FSequencerDisplayNode> DisplayNode) const;
+
 public:
 
 	/**

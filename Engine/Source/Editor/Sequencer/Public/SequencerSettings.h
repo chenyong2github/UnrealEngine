@@ -224,6 +224,16 @@ public:
 	/** Sets whether or not to link the curve editor time range. */
 	void SetLinkCurveEditorTimeRange(bool InbLinkCurveEditorTimeRange);
 
+	/** Return true if we are to synchronize the curve editor and sequencer trees */
+	bool ShouldSyncCurveEditorSelection() const { return bSynchronizeCurveEditorSelection; }
+	/** Assign whether we are to synchronize the curve editor and sequencer trees */
+	void SyncCurveEditorSelection(bool bInSynchronizeCurveEditorSelection);
+
+	/** Return true if we should filter the curve editor tree to only nodes that are relevant to the current sequencer selection */
+	bool ShouldIsolateToCurveEditorSelection() const { return bIsolateCurveEditorToSelection; }
+	/** Assign whether we should filter the curve editor tree to only nodes that are relevant to the current sequencer selection */
+	void IsolateCurveEditorToSelection(bool bInIsolateCurveEditorToSelection);
+
 	/** Gets the loop mode. */
 	ESequencerLoopMode GetLoopMode() const;
 	/** Sets the loop mode. */
@@ -421,6 +431,14 @@ protected:
 	/** Enable or disable linking the curve editor time range to the sequencer timeline's time range. */
 	UPROPERTY( config, EditAnywhere, Category=CurveEditor )
 	bool bLinkCurveEditorTimeRange;
+
+	/** When enabled, changing the sequencer tree selection will also select the relevant nodes in the curve editor tree if possible. */
+	UPROPERTY( config, EditAnywhere, Category=CurveEditor )
+	bool bSynchronizeCurveEditorSelection;
+
+	/** When enabled, changing the sequencer tree selection will isolate (auto-filter) the selected nodes in the curve editor. */
+	UPROPERTY( config, EditAnywhere, Category=CurveEditor )
+	bool bIsolateCurveEditorToSelection;
 
 	/** The loop mode of the playback in timeline. */
 	UPROPERTY( config )

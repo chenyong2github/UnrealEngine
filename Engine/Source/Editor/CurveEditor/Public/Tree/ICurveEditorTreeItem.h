@@ -13,8 +13,10 @@ struct FCurveEditorTreeFilter;
 
 class FName;
 class SWidget;
+class ITableRow;
 class FCurveModel;
 class FCurveEditor;
+
 
 /**
  * Optional implementation interface for any tree item to be shown on the curve editor tree.
@@ -29,9 +31,10 @@ struct CURVEEDITOR_API ICurveEditorTreeItem
 	 * @param InColumnName     The name of the column to generate widget content for. See FColumnNames for valid names.
 	 * @param InCurveEditor    Weak pointer to the curve editor instance. Persistent TSharedPtrs should not be held to this pointer.
 	 * @param InTreeItemID     The ID of the tree item that this interface is assigned to
+	 * @param InTableRow       The table row that will house the widget content
 	 * @return (Optional) Widget content for this column, or nullptr if none is necessary for this column.
 	 */
-	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID) = 0;
+	virtual TSharedPtr<SWidget> GenerateCurveEditorTreeWidget(const FName& InColumnName, TWeakPtr<FCurveEditor> InCurveEditor, FCurveEditorTreeItemID InTreeItemID, const TSharedRef<ITableRow>& InTableRow) = 0;
 
 	/**
 	 * Populate the specified array with curve models that are represented by this tree item

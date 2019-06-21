@@ -12,12 +12,30 @@ void SCurveEditorTreeTextFilter::Construct(const FArguments& InArgs, TSharedPtr<
 {
 	WeakCurveEditor = CurveEditor;
 
+	CreateSearchBox();
+	CurveEditor->GetTree()->Events.OnFiltersChanged.AddSP(this, &SCurveEditorTreeTextFilter::OnTreeFilterListChanged);
+}
+
+void SCurveEditorTreeTextFilter::CreateSearchBox()
+{
 	ChildSlot
 	[
-		SNew(SSearchBox)
+		SAssignNew(SearchBox, SSearchBox)
 		.HintText(NSLOCTEXT("CurveEditor", "TextFilterHint", "Filter"))
 		.OnTextChanged(this, &SCurveEditorTreeTextFilter::OnFilterTextChanged)
 	];
+}
+
+void SCurveEditorTreeTextFilter::OnTreeFilterListChanged()
+{
+	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
+	if (CurveEditor && CurveEditor->GetTree()->FindFilterByType(ECurveEditorTreeFilterType::Text) == nullptr)
+	{
+		// If our filter has been removed externally, recreate the search box widget - this saves us having to manage a potentially
+		// recursive loop setting the search text and responding to the filter list being changed etc
+		Filter = nullptr;
+		CreateSearchBox();
+	}
 }
 
 void SCurveEditorTreeTextFilter::OnFilterTextChanged( const FText& FilterText )
@@ -25,18 +43,19 @@ void SCurveEditorTreeTextFilter::OnFilterTextChanged( const FText& FilterText )
 	TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 	if (CurveEditor)
 	{
+		// Remove our binding to the OnFiltersChanged event since we know this will be broadcast
+		CurveEditor->GetTree()->Events.OnFiltersChanged.RemoveAll(this);
+
 		if (!Filter)
 		{
 			Filter = MakeShared<FCurveEditorTreeTextFilter>();
 		}
 
-		Filter->FilterTerms.Reset();
+		Filter->AssignFromText(FilterText.ToString());
 
-		static const bool bCullEmpty = true;
-		FilterText.ToString().ParseIntoArray(Filter->FilterTerms, TEXT(" "), bCullEmpty);
-
-		if (Filter->FilterTerms.Num() > 0)
+		if (!Filter->IsEmpty())
 		{
+			Filter->InputText = FilterText;
 			CurveEditor->GetTree()->AddFilter(Filter);
 		}
 		else
@@ -44,6 +63,8 @@ void SCurveEditorTreeTextFilter::OnFilterTextChanged( const FText& FilterText )
 			CurveEditor->GetTree()->RemoveFilter(Filter);
 		}
 
-		CurveEditor->GetTree()->RunFilters();
+		// Re-add our binding to the OnFiltersChanged now that we know it has been broadcast
+		CurveEditor->GetTree()->Events.OnFiltersChanged.AddSP(this, &SCurveEditorTreeTextFilter::OnTreeFilterListChanged);
 	}
 }
+
