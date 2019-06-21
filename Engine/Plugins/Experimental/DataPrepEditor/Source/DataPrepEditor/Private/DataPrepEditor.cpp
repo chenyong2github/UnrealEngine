@@ -913,7 +913,7 @@ void FDataprepEditor::UpdatePreviewPanels()
 	//				   that new assets have been generated.
 	AssetPreviewView->ClearAssetList();
 	FString SubstitutePath = DataprepAssetPtr->GetOutermost()->GetName();
-	if(!DataprepAssetPtr->GetConsumer()->GetTargetContentFolder().IsEmpty())
+	if(DataprepAssetPtr->GetConsumer() != nullptr && !DataprepAssetPtr->GetConsumer()->GetTargetContentFolder().IsEmpty())
 	{
 		SubstitutePath = DataprepAssetPtr->GetConsumer()->GetTargetContentFolder();
 	}

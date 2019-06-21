@@ -325,11 +325,8 @@ void SProducerStackEntryTreeView::BuildProducerEntries()
 
 		for( int32 Index = 0; Index < ProducersCount; ++Index )
 		{
-			if(DataprepAsset->GetProducer( Index ) != nullptr)
-			{
-				TSharedRef<FProducerStackEntry> ProducerStackEntry = MakeShareable( new FProducerStackEntry( Index, DataprepAsset ) );
-				RootNodes.Add( ProducerStackEntry );
-			}
+			TSharedRef<FProducerStackEntry> ProducerStackEntry = MakeShareable( new FProducerStackEntry( Index, DataprepAsset ) );
+			RootNodes.Add( ProducerStackEntry );
 		}
 	}
 }
@@ -367,7 +364,7 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 {
 	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
 
-	if ( !ProducerStackEntry.IsValid() || !ProducerStackEntry->HasValidData() )
+	if ( !ProducerStackEntry.IsValid() )
 	{
 		return SNullWidget::NullWidget;
 	}
@@ -391,7 +388,6 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
-	.BorderBackgroundColor( ProducerStackEntry->bIsSuperseded ? FLinearColor::White : FLinearColor::Red )
 	.Padding(5.0f)
 	[
 		SNew(SHorizontalBox)
@@ -421,6 +417,7 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 		[
 			SNew( SDataprepDetailsView )
 			.Object( ProducerStackEntry->GetProducer() )
+			.Class( UDataprepContentProducer::StaticClass() )
 		]
 		// Delete button
 		+ SHorizontalBox::Slot()
@@ -445,7 +442,7 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 	];
 
 	// Disable check box if associated producer is superseeded
-	CheckBox->SetEnabled( !ProducerStackEntry->bIsSuperseded );
+	CheckBox->SetEnabled( ProducerStackEntry->WillBeRun() );
 
 	return Widget.ToSharedRef();
 }

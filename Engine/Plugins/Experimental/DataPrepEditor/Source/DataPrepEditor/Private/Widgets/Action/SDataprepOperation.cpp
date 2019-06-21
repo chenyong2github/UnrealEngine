@@ -23,12 +23,7 @@ FText SDataprepOperation::GetBlockTitle() const
 
 TSharedRef<SWidget> SDataprepOperation::GetContentWidget() const
 {
-	if ( Operation )
-	{
-		return SNew( SDataprepDetailsView ).Object( Operation );
-	}
-
-	return SNullWidget::NullWidget;
+	return SNew( SDataprepDetailsView ).Object( Operation ).Class( UDataprepOperation::StaticClass() );
 }
 
 void SDataprepOperation::AddReferencedObjects(FReferenceCollector& Collector)

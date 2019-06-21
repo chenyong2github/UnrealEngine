@@ -53,7 +53,7 @@ void SDataprepConsumerWidget::OnBrowseContentFolder()
 	{
 		TSharedRef<SDlgPickPath> PickContentPathDlg =
 			SNew(SDlgPickPath)
-			.Title(LOCTEXT("ChooseImportRootContentPath", "Choose Location for importing the Datasmith content"))
+			.Title(LOCTEXT("DataprepSlateHelper_ChooseImportRootContentPath", "Choose Location for importing the Datasmith content"))
 			.DefaultPath(FText::FromString(Path));
 
 		if ( PickContentPathDlg->ShowModal() == EAppReturnType::Ok )
@@ -81,84 +81,119 @@ void SDataprepConsumerWidget::Construct(const FArguments& InArgs)
 {
 	DataprepConsumer = InArgs._DataprepConsumer;
 
-	TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton( FSimpleDelegate::CreateSP( this, &SDataprepConsumerWidget::OnBrowseContentFolder ) );
-
 	ChildSlot
 	[
-		SNew(SBorder)
-		.BorderImage( FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder") )
+		BuildWidget()
+	];
+}
+
+TSharedRef<SWidget> SDataprepConsumerWidget::BuildWidget()
+{
+	if(DataprepConsumer == nullptr)
+	{
+		return BuildNullWidget();
+	}
+
+	TSharedRef<SWidget> BrowseButton = PropertyCustomizationHelpers::MakeBrowseButton( FSimpleDelegate::CreateSP( this, &SDataprepConsumerWidget::OnBrowseContentFolder ) );
+
+	return SNew(SBorder)
+	.BorderImage( FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder") )
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.Padding(5.0f)
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.Padding(5.0f)
+			SNew(SGridPanel)
+			.FillColumn(0, 0.25f)
+			.FillColumn(1, 0.75f)
+			+ SGridPanel::Slot(0, 0)
 			[
-				SNew(SGridPanel)
-				.FillColumn(0, 0.25f)
-				.FillColumn(1, 0.75f)
-				+ SGridPanel::Slot(0, 0)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
+				[
+					SNew(STextBlock)
+					.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Content Folder"))
+					.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+				]
+			]
+			+ SGridPanel::Slot(1, 0)
+			.Padding(0.0f, 5.0f)
+			[
+				SNew(SBox)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
 					.FillWidth(1.0f)
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Content Folder"))
-						.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+						SAssignNew(ContentFolderTextBox, SEditableTextBox)
+						.Text( FText::FromString( DataprepConsumer->GetTargetContentFolder() ) )
+						.HintText( LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in") )
+						.IsReadOnly( true )
 					]
-				]
-				+ SGridPanel::Slot(1, 0)
-				.Padding(0.0f, 5.0f)
-				[
-					SNew(SBox)
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.FillWidth(1.0f)
-						[
-							SAssignNew(ContentFolderTextBox, SEditableTextBox)
-							.Text( FText::FromString( DataprepConsumer->GetTargetContentFolder() ) )
-							.HintText( LOCTEXT("DataprepSlateHelper_ContentFolderHintText", "Set the content folder to save in") )
-							.IsReadOnly( true )
-						]
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.HAlign(HAlign_Center)
-						[
-							BrowseButton
-						]
-					]			
-				]
-				+ SGridPanel::Slot(0, 1)
-				[
-					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
 					.VAlign(VAlign_Center)
-					.FillWidth(1.0f)
+					.HAlign(HAlign_Center)
 					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Level"))
-						.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+						BrowseButton
 					]
-				]
-				+ SGridPanel::Slot(1, 1)
-				.Padding(0.0f, 5.0f)
+				]			
+			]
+			+ SGridPanel::Slot(0, 1)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
 				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.FillWidth(1.0f)
-					[
-						SAssignNew(LevelTextBox, SEditableTextBox)
-						.Text( FText::FromString( DataprepConsumer->GetLevelName() ) )
-						.HintText( LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used") )
-						.OnTextCommitted(  this, &SDataprepConsumerWidget::OnLevelNameChanged  )
-					]
+					SNew(STextBlock)
+					.Text(LOCTEXT("DataprepSlateHelper_LevelNameLabel", "Level"))
+					.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
 				]
+			]
+			+ SGridPanel::Slot(1, 1)
+			.Padding(0.0f, 5.0f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
+				[
+					SAssignNew(LevelTextBox, SEditableTextBox)
+					.Text( FText::FromString( DataprepConsumer->GetLevelName() ) )
+					.HintText( LOCTEXT("DataprepSlateHelper_LevelNameHintText", "Current will be used") )
+					.OnTextCommitted(  this, &SDataprepConsumerWidget::OnLevelNameChanged  )
+				]
+			]
+		]
+	];
+}
+
+TSharedRef<SWidget> SDataprepConsumerWidget::BuildNullWidget()
+{
+	return SNew(SBorder)
+	.BorderImage( FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder") )
+	[
+		SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.Padding(5.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.FillWidth(1.0f)
+			[
+				SNew(STextBlock)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+				.Text(LOCTEXT("DataprepSlateHelper_ContentFolderLabel", "Error: Not a valid consumer"))
+				.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+				.ColorAndOpacity( FLinearColor(1,0,0,1) )
 			]
 		]
 	];
@@ -404,9 +439,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 
 void SDataprepDetailsView::Construct(const FArguments& InArgs)
 {
-	DetailedObject = InArgs._Object.Get();
 	ObjectAttribute =  InArgs._Object;
-
 	if( !ObjectAttribute.IsSet() )
 	{
 		ChildSlot
@@ -417,6 +450,9 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 		return;
 	}
 
+	DetailedObject = InArgs._Object.Get();
+	DetailedClass = InArgs._Class.Get();
+
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	FPropertyRowGeneratorArgs Args;
@@ -424,9 +460,12 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 
 	OnPropertyChangedHandle = Generator->OnFinishedChangingProperties().AddSP( this, &SDataprepDetailsView::OnPropertyChanged );
 
-	TArray< UObject* > Objects;
-	Objects.Add( DetailedObject );
-	Generator->SetObjects( Objects );
+	if( DetailedObject != nullptr )
+	{
+		TArray< UObject* > Objects;
+		Objects.Add( DetailedObject );
+		Generator->SetObjects( Objects );
+	}
 
 	ColumnWidth = 0.7f;
 	ColumnSizeData.LeftColumnWidth = TAttribute<float>( this, &SDataprepDetailsView::OnGetLeftColumnWidth );
@@ -459,10 +498,28 @@ void SDataprepDetailsView::Construct()
 	}
 	else
 	{
+		FText ErrorText = FText::Format( LOCTEXT( "DataprepSlateHelper_InvalidDetailedObject", "Error: Not a valid {0}" ), FText::FromString( DetailedClass ? DetailedClass->GetName() : UObject::StaticClass()->GetName() ) );
+
 		ChildSlot
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.Padding(5.0f)
 			[
-				SNullWidget::NullWidget
-			];
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.FillWidth(1.0f)
+				[
+					SNew(STextBlock)
+					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
+					.Text( ErrorText )
+					.Margin(FMargin( 5.0f, 5.0f, 0.0f, 0.0f ) )
+					.ColorAndOpacity( FLinearColor(1,0,0,1) )
+				]
+			]
+		];
 	}
 }
 
