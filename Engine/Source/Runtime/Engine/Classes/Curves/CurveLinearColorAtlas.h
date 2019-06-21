@@ -34,7 +34,7 @@ class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
 	// How many slots are available per texture
 	FORCEINLINE uint32 MaxSlotsPerTexture()
 	{
-		return TextureSize / GradientPixelSize;
+		return TextureSize;
 	}
 
 	// Immediately render a new material to the specified slot index(SlotIndex must be within this section's range)
@@ -62,9 +62,6 @@ class ENGINE_API UCurveLinearColorAtlas : public UTexture2D
 #endif
 	UPROPERTY(EditAnywhere, Category = "Curves")
 	uint32	TextureSize;						// Size of the lookup textures
-
-	UPROPERTY(VisibleAnywhere, Category = "Curves")
-	uint32	GradientPixelSize;					// How many pixels tall is any gradient slot
 
 	UPROPERTY(EditAnywhere, Category = "Curves")
 	TArray<UCurveLinearColor*> GradientCurves;

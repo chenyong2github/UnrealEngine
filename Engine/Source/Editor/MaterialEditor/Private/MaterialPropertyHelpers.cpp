@@ -1222,7 +1222,7 @@ void FMaterialPropertyHelpers::SetPositionFromCurveAsset(const FAssetData& Asset
 		return;
 	}
 
-	float NewValue = ((float)Index * Atlas->GradientPixelSize) / Atlas->TextureSize + (0.5f * Atlas->GradientPixelSize) / Atlas->TextureSize;
+	float NewValue = (float)Index;
 
 	// If changed, propagate the update
 	if (InParameter->ParameterValue != NewValue)
