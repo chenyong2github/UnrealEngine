@@ -48,7 +48,7 @@ void RayTracingBarycentricsMainRGS()
 	{
 		Result = float4(Payload.Barycentrics, 1.0f - Payload.Barycentrics.x - Payload.Barycentrics.y, 1.0f);
 	}
-	Output[PixelCoord] = Result * View.PreExposure;
+	Output[PixelCoord] = Result;
 }
 
 [shader("closesthit")]
