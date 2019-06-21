@@ -462,7 +462,7 @@ namespace UnrealBuildTool
 				using(Timeline.ScopeEvent("UEBuildTarget.Build()"))
 				{
 					const bool bIsAssemblingBuild = true;
-					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild);
+					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SingleFileToCompile);
 				}
 
 				// Save the pre-build scripts onto the makefile
