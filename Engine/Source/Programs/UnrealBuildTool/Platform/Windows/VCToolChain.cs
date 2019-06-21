@@ -1416,7 +1416,7 @@ namespace UnrealBuildTool
 				}
 
 				// Add the target architectures
-				Arguments.Add("--target=avx2,avx,sse4,sse2");
+				Arguments.Add("--target=avx512skx-i32x8,avx2,avx,sse4,sse2");
 
 				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
 				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
@@ -1454,7 +1454,7 @@ namespace UnrealBuildTool
 		{
 			CPPOutput Result = new CPPOutput();
 
-			string[] ISATargets = { "avx2", "avx", "sse4", "sse2" };
+			string[] ISATargets = { "avx512skx-i32x8", "avx2", "avx", "sse4", "sse2" };
 			List<string> CompileTargets = new List<string>(ISATargets);	
 
 			foreach (FileItem ISPCFile in InputFiles)
@@ -1485,6 +1485,16 @@ namespace UnrealBuildTool
 							)
 						);
 
+					if (Target == "avx512skx-i32x8")
+					{
+						CompiledISPCObjFile = FileItem.GetItemByFileReference(
+						FileReference.Combine(
+							OutputDir,
+							Path.GetFileName(ISPCFile.AbsolutePath) + "_" + "avx512skx" + ".obj"
+							)
+						);
+					}
+
 					CompiledISPCObjFiles.Add(CompiledISPCObjFile);
 				}
 
@@ -1512,7 +1522,7 @@ namespace UnrealBuildTool
 				}
 
 				// Add the target architectures
-				Arguments.Add("--target=avx2,avx,sse4,sse2 -O2");
+				Arguments.Add("--target=avx512skx-i32x8,avx2,avx,sse4,sse2 -O2");
 
 				// Include paths. Don't use AddIncludePath() here, since it uses the full path and exceeds the max command line length.
 				foreach (DirectoryReference IncludePath in CompileEnvironment.UserIncludePaths)
