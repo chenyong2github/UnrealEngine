@@ -16,9 +16,9 @@ void DirectionalLight_GenerateLightRay(
 )
 {
 	OutLightRay.Origin = Ray.Origin;
-	OutLightRay.TMin = 0.001;
+	OutLightRay.TMin = 0.1;
 	OutLightRay.Direction = normalize(LightUV);
-	OutLightRay.TMax = 1e6;
+	OutLightRay.TMax = 1.0e27;
 }
 
 void DirectionalLight_PdfLight(
