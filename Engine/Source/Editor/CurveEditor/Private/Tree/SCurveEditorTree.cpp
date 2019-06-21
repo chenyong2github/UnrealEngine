@@ -7,63 +7,8 @@
 #include "CurveEditor.h"
 
 #include "Widgets/Views/STableRow.h"
-#include "Widgets/Views/STreeView.h"
 #include "Widgets/Views/SExpanderArrow.h"
 
-template <> struct TListTypeTraits<FCurveEditorTreeItemID>
-{
-public:
-	struct NullableType : FCurveEditorTreeItemID
-	{
-		NullableType(TYPE_OF_NULLPTR){}
-		NullableType(FCurveEditorTreeItemID Other) : FCurveEditorTreeItemID(Other) {}
-	};
-
-	using MapKeyFuncs = TDefaultMapHashableKeyFuncs<FCurveEditorTreeItemID, TSharedRef<ITableRow>, false>;
-	using MapKeyFuncsSparse = TDefaultMapHashableKeyFuncs<FCurveEditorTreeItemID, FSparseItemInfo, false>;
-	using SetKeyFuncs = DefaultKeyFuncs<FCurveEditorTreeItemID>;
-
-	template<typename U>
-	static void AddReferencedObjects(FReferenceCollector&, TArray<FCurveEditorTreeItemID>&, TSet<FCurveEditorTreeItemID>&, TMap< const U*, FCurveEditorTreeItemID >&) {}
-
-	static bool IsPtrValid(NullableType InPtr)
-	{
-		return InPtr.IsValid();
-	}
-
-	static void ResetPtr(NullableType& InPtr)
-	{
-		InPtr = nullptr;
-	}
-
-	static NullableType MakeNullPtr()
-	{
-		return nullptr;
-	}
-
-	static FCurveEditorTreeItemID NullableItemTypeConvertToItemType(NullableType InPtr)
-	{
-		return InPtr;
-	}
-
-	static FString DebugDump(FCurveEditorTreeItemID InPtr)
-	{
-		return FString::Printf(TEXT("%d"), InPtr.GetValue());
-	}
-
-	class SerializerType{};
-};
-template <>
-struct TIsValidListItem<FCurveEditorTreeItemID>
-{
-	enum
-	{
-		Value = true
-	};
-};
-
-class SCurveEditorTreeView : public STreeView<FCurveEditorTreeItemID>
-{};
 
 struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 {
@@ -93,10 +38,12 @@ struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 		TSharedPtr<FCurveEditor> CurveEditor = WeakCurveEditor.Pin();
 		TSharedPtr<ICurveEditorTreeItem> TreeItem = CurveEditor ? CurveEditor->GetTreeItem(TreeItemID).GetItem() : nullptr;
 
+		TSharedRef<ITableRow> TableRow = SharedThis(this);
+
 		TSharedPtr<SWidget> Widget;
 		if (TreeItem.IsValid())
 		{
-			Widget = TreeItem->GenerateCurveEditorTreeWidget(InColumnName, WeakCurveEditor, TreeItemID);
+			Widget = TreeItem->GenerateCurveEditorTreeWidget(InColumnName, WeakCurveEditor, TreeItemID, TableRow);
 		}
 
 		if (!Widget.IsValid())
@@ -125,6 +72,7 @@ struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 	}
 };
 
+
 void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor)
 {
 	bFilterWasActive = false;
@@ -138,9 +86,8 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 
 	CurveEditor = InCurveEditor;
 
-	ChildSlot
-	[
-		SAssignNew(TreeView, SCurveEditorTreeView)
+	STreeView<FCurveEditorTreeItemID>::Construct(
+		STreeView<FCurveEditorTreeItemID>::FArguments()
 		.SelectionMode(ESelectionMode::Multi)
 		.HeaderRow(HeaderRow)
 		.HighlightParentNodesForSelection(true)
@@ -154,9 +101,9 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 				this->OnTreeSelectionChanged(InItemID, Type);
 			}
 		)
-	];
+	);
 
-	CurveEditor->GetTree()->Bind_OnChanged(FSimpleDelegate::CreateSP(this, &SCurveEditorTree::RefreshTree));
+	CurveEditor->GetTree()->Events.OnItemsChanged.AddSP(this, &SCurveEditorTree::RefreshTree);
 }
 
 void SCurveEditorTree::RefreshTree()
@@ -171,15 +118,27 @@ void SCurveEditorTree::RefreshTree()
 	{
 		// Save expansion states
 		PreFilterExpandedItems.Reset();
-		TreeView->GetExpandedItems(PreFilterExpandedItems);
+		GetExpandedItems(PreFilterExpandedItems);
 	}
 	else if (!FilterStates.IsActive() && bFilterWasActive)
 	{
+		// Add any currently selected items' parents to the expanded items array.
+		// This ensures that items that were selected during a filter operation remain expanded and selected when finished
+		for (FCurveEditorTreeItemID SelectedItem : GetSelectedItems())
+		{
+			FCurveEditorTreeItemID ItemToExpand = CurveEditorTree->GetItem(SelectedItem).GetParentID();
+			while (ItemToExpand != FCurveEditorTreeItemID::Invalid())
+			{
+				PreFilterExpandedItems.Add(ItemToExpand);
+				ItemToExpand = CurveEditorTree->GetItem(ItemToExpand).GetParentID();
+			}
+		}
+
 		// Restore expansion states
-		TreeView->ClearExpandedItems();
+		ClearExpandedItems();
 		for (FCurveEditorTreeItemID ExpandedItem : PreFilterExpandedItems)
 		{
-			TreeView->SetItemExpansion(ExpandedItem, true);
+			SetItemExpansion(ExpandedItem, true);
 		}
 		PreFilterExpandedItems.Reset();
 	}
@@ -194,12 +153,12 @@ void SCurveEditorTree::RefreshTree()
 	}
 
 	RootItems.Shrink();
-	TreeView->RequestTreeRefresh();
+	RequestTreeRefresh();
 
 	if (FilterStates.IsActive())
 	{
 		// If a filter is active, all matched items and their parents are expanded
-		TreeView->ClearExpandedItems();
+		ClearExpandedItems();
 		for (const TTuple<FCurveEditorTreeItemID, FCurveEditorTreeItem>& Pair : CurveEditorTree->GetAllItems())
 		{
 			ECurveEditorTreeFilterState FilterState = FilterStates.Get(Pair.Key);
@@ -207,7 +166,7 @@ void SCurveEditorTree::RefreshTree()
 			// Expand any matched items or parents of matched items
 			if (FilterState == ECurveEditorTreeFilterState::Match || FilterState == ECurveEditorTreeFilterState::ImplicitParent)
 			{
-				TreeView->SetItemExpansion(Pair.Key, true);
+				SetItemExpansion(Pair.Key, true);
 			}
 		}
 	}
@@ -219,7 +178,7 @@ FReply SCurveEditorTree::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent&
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
-		TreeView->ClearSelection();
+		ClearSelection();
 		return FReply::Handled();
 	}
 
@@ -246,14 +205,14 @@ void SCurveEditorTree::GetTreeItemChildren(FCurveEditorTreeItemID Parent, TArray
 
 void SCurveEditorTree::OnTreeSelectionChanged(FCurveEditorTreeItemID, ESelectInfo::Type)
 {
-	CurveEditor->SetDirectTreeSelection(TreeView->GetSelectedItems());
+	CurveEditor->GetTree()->SetDirectSelection(GetSelectedItems(), CurveEditor.Get());
 }
 
 void SCurveEditorTree::SetItemExpansionRecursive(FCurveEditorTreeItemID Model, bool bInExpansionState)
 {
 	if (Model.IsValid())
 	{
-		TreeView->SetItemExpansion(Model, bInExpansionState);
+		SetItemExpansion(Model, bInExpansionState);
 
 		TArray<FCurveEditorTreeItemID> Children;
 		GetTreeItemChildren(Model, Children);
