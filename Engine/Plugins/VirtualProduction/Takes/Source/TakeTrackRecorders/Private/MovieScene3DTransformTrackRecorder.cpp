@@ -449,8 +449,6 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 	UMovieSceneAnimationTrackRecorderSettings* AnimSettings = CastChecked<UMovieSceneAnimationTrackRecorderSettings>(AnimTrackRecorder->GetTrackRecorderSettings());
 	if (AnimSettings->bRemoveRootAnimation)
 	{
-		// Override the interpolation mode to use linear interpolation to avoid foot sliding
-		InterpolationMode = RCIM_Linear;
 		//Get All Animation Keys
 		FBufferedTransformKeys  AnimationKeys;
 
