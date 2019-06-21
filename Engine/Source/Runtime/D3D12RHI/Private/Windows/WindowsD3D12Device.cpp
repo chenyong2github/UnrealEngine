@@ -752,7 +752,8 @@ void FD3D12Device::Initialize()
 #if ENABLE_RESIDENCY_MANAGEMENT
 	IDXGIAdapter3* DxgiAdapter3 = nullptr;
 	VERIFYD3D12RESULT(GetParentAdapter()->GetAdapter()->QueryInterface(IID_PPV_ARGS(&DxgiAdapter3)));
-	D3DX12Residency::InitializeResidencyManager(ResidencyManager, GetDevice(), GetGPUIndex(), DxgiAdapter3, RESIDENCY_PIPELINE_DEPTH);
+	const uint32 GPUIndex = GVirtualMGPU ? 0 : GetGPUIndex(); // GPU node index is used by residency manager to query budget
+	D3DX12Residency::InitializeResidencyManager(ResidencyManager, GetDevice(), GPUIndex, DxgiAdapter3, RESIDENCY_PIPELINE_DEPTH);
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 
 	SetupAfterDeviceCreation();
