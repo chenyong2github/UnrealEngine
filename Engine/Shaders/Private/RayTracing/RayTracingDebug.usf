@@ -106,7 +106,7 @@ void RayTracingDebugMainRGS()
 		}
 	}
 
-	Output[PixelCoord] = Result * View.PreExposure;
+	Output[PixelCoord] = Result;
 }
 
 [shader("closesthit")]
