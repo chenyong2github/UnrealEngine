@@ -214,9 +214,9 @@ void RayTracingReflectionsRGS()
 			float3 PathThroughput = float3(1.0f, 1.0f, 1.0f);
 			
 			// Initialize path states according to GBuffer
-			float3 CameraOrigin = View.WorldCameraOrigin;
-			float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-			float3 CameraDirection = normalize(WorldPosition - CameraOrigin);
+			float3 WorldPosition;
+			float3 CameraDirection;
+			ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);
 			float3 IncidentDirection = CameraDirection;
 
 			uint ShadingModelID = GBufferData.ShadingModelID;
@@ -283,7 +283,7 @@ void RayTracingReflectionsRGS()
 				TopLayerRay.TMax = LocalMaxRayDistance;
 
 				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
-				ApplyPositionBias(TopLayerRay, TopLayerWorldNormal, ReflectionMaxNormalBias);
+				ApplyCameraRelativeDepthBias(TopLayerRay, PixelCoord, DeviceZ, TopLayerWorldNormal, ReflectionMaxNormalBias);
 				if (BounceIndex == 0)
 				{
 					// This fixes black reflexions due to R pointing into the surface.
@@ -641,8 +641,9 @@ void RayTracingReflectionsRGS()
 		// Imaginary depth computation for Nvidia's denoiser.
 		// TODO: shader permutation?
 		{
-			float3 OriginalWorldPos = ReconstructWorldPositionFromDepth(UV, Depth);
-			float3 CameraToPixel = normalize(OriginalWorldPos - View.WorldCameraOrigin.xyz);
+			float3 OriginalWorldPos;
+			float3 CameraToPixel;
+			ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, OriginalWorldPos, CameraToPixel);
 
 			float4 ImaginaryWorldPos = float4(OriginalWorldPos + CameraToPixel * HitDistance, 1.0f);
 			float4 ImaginaryClipPos = mul(ImaginaryWorldPos, View.WorldToClip);
