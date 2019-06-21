@@ -42,6 +42,14 @@ void UGatherTextCommandletBase::Initialize( const TSharedRef< FLocTextHelper >& 
 	}
 }
 
+void UGatherTextCommandletBase::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	GatherManifestHelper.Reset();
+	SourceControlInfo.Reset();
+}
+
 void UGatherTextCommandletBase::CreateCustomEngine(const FString& Params)
 {
 	GEngine = GEditor = NULL;//Force a basic default engine. 
