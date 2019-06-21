@@ -44,24 +44,22 @@ void FFoliageActor::DestroyActors(bool bOnLoad)
 #if WITH_EDITOR
 bool FFoliageActor::IsInitialized() const
 {
-	return bInitialized;
+	return ActorClass != nullptr;;
 }
 
 void FFoliageActor::Initialize(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType)
 {
-	check(!bInitialized);
+	check(!IsInitialized());
 	const UFoliageType_Actor* FoliageType_Actor = Cast<UFoliageType_Actor>(FoliageType);
-	ActorClass = FoliageType_Actor->ActorClass;
-	bInitialized = true;
+	ActorClass = FoliageType_Actor->ActorClass ? FoliageType_Actor->ActorClass : AActor::StaticClass();
 }
 
 void FFoliageActor::Uninitialize()
 {
-	check(bInitialized);
+	check(IsInitialized());
 	DestroyActors(false);
 	ActorInstances.Empty();
 	ActorClass = nullptr;
-	bInitialized = false;
 }
 
 AActor* FFoliageActor::Spawn(AInstancedFoliageActor* IFA, const FFoliageInstance& Instance)
