@@ -173,7 +173,7 @@ public:
 	double GetEstimatedCaptureDurationSeconds() const { return 0.0; }
 
 
-	virtual FFrameRate GetCaptureFrameRate() const { return Settings.FrameRate; }
+	virtual FFrameRate GetCaptureFrameRate() const { return Settings.GetFrameRate(); }
 	virtual const ICaptureStrategy& GetCaptureStrategy() const { return *CaptureStrategy; }
 	// ~ICaptureProtocolHost interface
 
