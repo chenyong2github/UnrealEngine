@@ -752,11 +752,7 @@ static FTAAPassParameters MakeTAAPassParametersForView( const FViewInfo& View )
 	Parameters.Pass = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale
 		? ETAAPassConfig::MainUpsampling
 		: ETAAPassConfig::Main;
-
-	Parameters.bIsComputePass = Parameters.Pass == ETAAPassConfig::MainUpsampling
-		? true // TAAU is always a compute shader
-		: ShouldDoComputePostProcessing(View);
-
+	
 	Parameters.SetupViewRect(View);
 
 	{
@@ -1219,7 +1215,6 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				TAAParameters.bDownsample = (CVarTemporalAAAllowDownsampling.GetValueOnRenderThread() != 0)
 					&& !IsMotionBlurEnabled(View)
 					&& !bVisualizeMotionBlur
-					&& TAAParameters.bIsComputePass
 					&& (DownsampleQuality == 0)
 					&& TAAParameters.bUseFast;
 
@@ -1239,7 +1234,6 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					TAAParameters.Pass = ETAAPassConfig::MainSuperSampling;
 					TAAParameters.bDownsample = false;
 					TAAParameters.bUseFast = false;
-					TAAParameters.bIsComputePass = true;
 
 					TAAParameters.OutputViewRect.Min.X = 0;
 					TAAParameters.OutputViewRect.Min.Y = 0;

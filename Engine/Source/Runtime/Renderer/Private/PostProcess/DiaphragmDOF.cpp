@@ -1351,7 +1351,6 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	FTAAPassParameters TAAParameters(View);
 	{
 		TAAParameters.Pass = ETAAPassConfig::DiaphragmDOF;
-		TAAParameters.bIsComputePass = true;
 
 		// When using dynamic resolution, the blur introduce by TAA's history resolution changes is quite noticeable on DOF.
 		// Therefore we switch for a temporal upsampling technic to maintain the same history resolution.

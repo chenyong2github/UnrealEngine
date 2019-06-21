@@ -81,11 +81,7 @@ struct FTAAPassParameters
 	// Whether to use the faster shader permutation.
 	bool bUseFast = false;
 
-	// Whether to do compute or not.
-	bool bIsComputePass = false;
-
 	// Whether downsampled (box filtered, half resolution) frame should be written out.
-	// Only used when bIsComputePass is true.
 	bool bDownsample = false;
 	EPixelFormat DownsampleOverrideFormat = PF_Unknown;
 
