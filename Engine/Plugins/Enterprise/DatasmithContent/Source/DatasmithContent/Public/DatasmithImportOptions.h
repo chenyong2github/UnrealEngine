@@ -329,9 +329,6 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "Options", meta = (ShowOnlyInnerProperties))
 	FDatasmithImportBaseOptions BaseOptions;
 
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "NotVisible", meta = (ShowOnlyInnerProperties))
-	FDatasmithTessellationOptions TessellationOptions;
-
 	/** Options specific to the reimport process */
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category = "NotVisible", meta = (ShowOnlyInnerProperties))
 	FDatasmithReimportOptions ReimportOptions;
