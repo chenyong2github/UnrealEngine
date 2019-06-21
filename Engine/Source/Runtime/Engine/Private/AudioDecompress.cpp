@@ -8,12 +8,13 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "ADPCMAudioInfo.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 IStreamedCompressedInfo::IStreamedCompressedInfo()
 	: bIsStreaming(false)
-	,SrcBufferData(nullptr)
-	, SrcBufferDataSize(0)
 	, SrcBufferOffset(0)
 	, AudioDataOffset(0)
+	, AudioDataOffsetChunkIndex(0)
 	, SampleRate(0)
 	, TrueSampleCount(0)
 	, CurrentSampleCount(0)
@@ -26,15 +27,27 @@ IStreamedCompressedInfo::IStreamedCompressedInfo()
 	, CurrentChunkIndex(0)
 	, bPrintChunkFailMessage(true)
 	, SrcBufferPadding(0)
+	, NonStreamingAudio(nullptr)
+	, NonStreamingAudioSize(0)
 {
 }
 
 uint32 IStreamedCompressedInfo::Read(void *OutBuffer, uint32 DataSize)
 {
-	uint32 BytesToRead = FMath::Min(DataSize, SrcBufferDataSize - SrcBufferOffset);
+	const uint8* SrcBufferPtr = nullptr;
+	uint32 SrcBufferSize = 0;
+
+	GetChunkPtr(SrcBufferPtr, SrcBufferSize);
+
+	uint32 BytesToRead = 0;
+	if (SrcBufferOffset < SrcBufferSize)
+	{
+		BytesToRead = FMath::Min(DataSize, SrcBufferSize - SrcBufferOffset);
+	}
+
 	if (BytesToRead > 0)
 	{
-		FMemory::Memcpy(OutBuffer, SrcBufferData + SrcBufferOffset, BytesToRead);
+		FMemory::Memcpy(OutBuffer, SrcBufferPtr + SrcBufferOffset, BytesToRead);
 		SrcBufferOffset += BytesToRead;
 	}
 	return BytesToRead;
@@ -42,18 +55,27 @@ uint32 IStreamedCompressedInfo::Read(void *OutBuffer, uint32 DataSize)
 
 bool IStreamedCompressedInfo::ReadCompressedInfo(const uint8* InSrcBufferData, uint32 InSrcBufferDataSize, FSoundQualityInfo* QualityInfo)
 {
-	check(!SrcBufferData);
+	check(!SrcBufferHandle.IsValid());
 
 	SCOPE_CYCLE_COUNTER(STAT_AudioStreamedDecompressTime);
 
+	// ReadCompressedInfo is called from StreamCompressedInfo(), in which case bIsStreaming will be true.
+	if (!bIsStreaming)
+	{
+		NonStreamingAudio = InSrcBufferData;
+		NonStreamingAudioSize = InSrcBufferDataSize;
+	}
+
+	const uint8* SrcBufferPtr = nullptr;
+	uint32 SrcBufferSize = 0;
+
+	GetChunkPtr(SrcBufferPtr, SrcBufferSize);
+
 	// Parse the format header, this is done different for each format
-	if (!ParseHeader(InSrcBufferData, InSrcBufferDataSize, QualityInfo))
+	if (!ParseHeader(SrcBufferPtr, SrcBufferSize, QualityInfo))
 	{
 		return false;
 	}
-
-	// After parsing the header, the SrcBufferData should be none-null
-	check(SrcBufferData != nullptr);
 
 	// Sample Stride is 
 	SampleStride = NumChannels * sizeof(int16);
@@ -75,10 +97,15 @@ bool IStreamedCompressedInfo::ReadCompressedData(uint8* Destination, bool bLoopi
 	bool bFinished = false;
 	uint32 TotalBytesDecoded = 0;
 
+	const uint8* SrcBufferPtr = nullptr;
+	uint32 SrcBufferSize = 0;
+
+	GetChunkPtr(SrcBufferPtr, SrcBufferSize);
+
 	while (TotalBytesDecoded < BufferSize)
 	{
-		const uint8* EncodedSrcPtr = SrcBufferData + SrcBufferOffset;
-		const uint32 RemainingEncodedSrcSize = SrcBufferDataSize - SrcBufferOffset;
+		const uint8* EncodedSrcPtr = SrcBufferPtr + SrcBufferOffset;
+		const uint32 RemainingEncodedSrcSize = SrcBufferSize - SrcBufferOffset;
 
 		const FDecodeResult DecodeResult = Decode(EncodedSrcPtr, RemainingEncodedSrcSize, Destination, BufferSize - TotalBytesDecoded);
 		if (!DecodeResult.NumPcmBytesProduced)
@@ -147,13 +174,36 @@ bool IStreamedCompressedInfo::StreamCompressedInfoInternal(USoundWave* Wave, str
 
 	// Get the first chunk of audio data (should always be loaded)
 	CurrentChunkIndex = 0;
-	const uint8* FirstChunk = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex);
-
 	bIsStreaming = true;
-	if (FirstChunk)
+
+	const uint8* SrcBufferPtr = nullptr;
+	uint32 SrcBufferSize = 0;
+
+	GetChunkPtr(SrcBufferPtr, SrcBufferSize);
+
+	if (ReadCompressedInfo(SrcBufferPtr, SrcBufferSize, QualityInfo))
 	{
-		return ReadCompressedInfo(FirstChunk, Wave->RunningPlatformData->Chunks[0].AudioDataSize, QualityInfo);
+		while (AudioDataOffset >= SrcBufferSize)
+		{
+			// scrub through chunks until we find the beginning of the audio data.
+			CurrentChunkIndex++;
+			
+			AudioDataOffset = AudioDataOffset - SrcBufferSize;
+			SrcBufferSize = Wave->GetSizeOfChunk(CurrentChunkIndex);
+			// Setting SrcBufferData to null will ensure that we try to load this chunk on the next iteration.
+			SrcBufferHandle = FAudioChunkHandle();
+		}
+
+		AudioDataOffsetChunkIndex = CurrentChunkIndex;
+		SrcBufferOffset = AudioDataOffset;
+		
+		return true;
 	}
+	else
+	{
+		UE_LOG(LogAudio, Log, TEXT("Read Compressed Info failed for SoundWave'%s'"), *StreamingSoundWave->GetName());
+	}
+	
 
 	return false;
 }
@@ -165,32 +215,28 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 	SCOPE_CYCLE_COUNTER(STAT_AudioStreamedDecompressTime);
 
-	UE_LOG(LogAudio, Log, TEXT("Streaming compressed data from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetName(), CurrentChunkIndex, SrcBufferOffset);
+	UE_LOG(LogAudio, Verbose, TEXT("Streaming compressed data from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetName(), CurrentChunkIndex, SrcBufferOffset);
 
 	// Write out any PCM data that was decoded during the last request
 	uint32 RawPCMOffset = WriteFromDecodedPCM(Destination, BufferSize);
 
+	const uint8* ChunkPtr = nullptr;
+	uint32 ChunkSize = 0;
+
+	GetChunkPtr(ChunkPtr, ChunkSize);
+
 	// If next chunk wasn't loaded when last one finished reading, try to get it again now
-	if (SrcBufferData == NULL)
+	if (!ChunkPtr)
 	{
-		SrcBufferData = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex);
-		if (SrcBufferData)
+		// Still not loaded, zero remainder of current buffer
+		if (bPrintChunkFailMessage)
 		{
-			bPrintChunkFailMessage = true;
-			SrcBufferDataSize = StreamingSoundWave->RunningPlatformData->Chunks[CurrentChunkIndex].AudioDataSize;
-			SrcBufferOffset = CurrentChunkIndex == 0 ? AudioDataOffset : 0;
+			UE_LOG(LogAudio, Verbose, TEXT("Chunk %d not loaded from streaming manager for SoundWave '%s'. Likely due to stall on game thread or Disc IO issue."), CurrentChunkIndex, *StreamingSoundWave->GetName());
+			bPrintChunkFailMessage = false;
 		}
-		else
-		{
-			// Still not loaded, zero remainder of current buffer
-			if (bPrintChunkFailMessage)
-			{
-				UE_LOG(LogAudio, Verbose, TEXT("Chunk %d not loaded from streaming manager for SoundWave '%s'. Likely due to stall on game thread."), CurrentChunkIndex, *StreamingSoundWave->GetName());
-				bPrintChunkFailMessage = false;
-			}
-			ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
-			return false;
-		}
+
+		ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
+		return false;
 	}
 
 	bool bLooped = false;
@@ -204,6 +250,19 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 	while (RawPCMOffset < BufferSize)
 	{
+		GetChunkPtr(ChunkPtr, ChunkSize);
+
+		if (ChunkPtr)
+		{
+			UE_LOG(LogAudio, Verbose, TEXT("Incremented current chunk from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetName(), CurrentChunkIndex, SrcBufferOffset);
+		}
+		else
+		{
+			// Zero the rest of the buffer and break when we fail to load the chunk.
+			RawPCMOffset += ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
+			break;
+		}
+
 		// Get the platform-dependent size of the current "frame" of encoded audio (note: frame is used here differently than audio frame/sample)
 		uint16 FrameSize = GetFrameSize();
 
@@ -223,10 +282,10 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 			RawPCMOffset += WriteFromDecodedPCM(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
 
 			// Have we reached the end of buffer?
-			if (SrcBufferOffset >= SrcBufferDataSize - SrcBufferPadding)
+			if (SrcBufferOffset >= (ChunkSize - SrcBufferPadding))
 			{
 				// Special case for the last chunk of audio
-				if (CurrentChunkIndex == StreamingSoundWave->RunningPlatformData->NumChunks - 1)
+				if (CurrentChunkIndex == StreamingSoundWave->GetNumChunks() - 1)
 				{
 					// check whether all decoded PCM was written
 					if (LastPCMByteSize == 0)
@@ -240,7 +299,7 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 					if (bLooping)
 					{
-						CurrentChunkIndex = 0;
+						CurrentChunkIndex = AudioDataOffsetChunkIndex;
 						SrcBufferOffset = AudioDataOffset;
 						CurrentSampleCount = 0;
 
@@ -257,18 +316,6 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 					CurrentChunkIndex++;
 					SrcBufferOffset = 0;
 				}
-
-				SrcBufferData = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex);
-				if (SrcBufferData)
-				{
-					UE_LOG(LogAudio, Log, TEXT("Incremented current chunk from SoundWave'%s' - Chunk %d, Offset %d"), *StreamingSoundWave->GetName(), CurrentChunkIndex, SrcBufferOffset);
-					SrcBufferDataSize = StreamingSoundWave->RunningPlatformData->Chunks[CurrentChunkIndex].AudioDataSize;
-				}
-				else
-				{
-					SrcBufferDataSize = 0;
-					RawPCMOffset += ZeroBuffer(Destination + RawPCMOffset, BufferSize - RawPCMOffset);
-				}
 			}
 		}
 	}
@@ -278,13 +325,32 @@ bool IStreamedCompressedInfo::StreamCompressedData(uint8* Destination, bool bLoo
 
 int32 IStreamedCompressedInfo::DecompressToPCMBuffer(uint16 FrameSize)
 {
-	if (SrcBufferOffset + FrameSize > SrcBufferDataSize)
+
+	const uint8* ChunkPtr = nullptr;
+	uint32 ChunkSize = 0;
+
+	GetChunkPtr(ChunkPtr, ChunkSize);
+
+	if (ChunkSize == 0)
+	{
+		// We hit an underrun.
+		return 0;
+	}
+	else if (SrcBufferOffset == ChunkSize)
+	{
+		// We reached the end of the buffer.
+		return 0;
+	}
+	else if (SrcBufferOffset + FrameSize > ChunkSize)
 	{
 		// if frame size is too large, something has gone wrong
+		check(false);
 		return -1;
 	}
 
-	const uint8* SrcPtr = SrcBufferData + SrcBufferOffset;
+	check(ChunkPtr && SrcBufferOffset < ChunkSize);
+
+	const uint8* SrcPtr = ChunkPtr + SrcBufferOffset;
 	SrcBufferOffset += FrameSize;
 	LastPCMOffset = 0;
 	
@@ -350,6 +416,27 @@ uint32 IStreamedCompressedInfo::ZeroBuffer(uint8* Destination, uint32 BufferSize
 	return 0;
 }
 
+
+void IStreamedCompressedInfo::GetChunkPtr(const uint8*& OutPtr, uint32& OutSize)
+{
+	if (!bIsStreaming)
+	{
+		OutPtr = NonStreamingAudio;
+		OutSize = NonStreamingAudioSize;
+	}
+	else if (CurrentChunkIndex == 0)
+	{
+		TArrayView<const uint8> ZerothChunk = StreamingSoundWave->GetZerothChunk();
+		OutPtr = ZerothChunk.GetData();
+		OutSize = ZerothChunk.Num();
+	}
+	else
+	{
+		SrcBufferHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentChunkIndex);
+		OutPtr = SrcBufferHandle.GetData();
+		OutSize = SrcBufferHandle.Num();
+	}
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Copied from IOS - probably want to split and share
@@ -718,5 +805,5 @@ bool ShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask()
 	return !!CVarShouldUseBackgroundPoolFor_FAsyncRealtimeAudioTask.GetValueOnAnyThread();
 }
 
-
+PRAGMA_ENABLE_OPTIMIZATION
 // end

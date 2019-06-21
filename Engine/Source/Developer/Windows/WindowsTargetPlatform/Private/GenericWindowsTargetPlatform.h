@@ -17,6 +17,120 @@
 
 #define LOCTEXT_NAMESPACE "TGenericWindowsTargetPlatform"
 
+namespace Windows
+{
+	void CachePlatformAudioCookOverrides(FPlatformAudioCookOverrides& OutOverrides)
+	{
+		const TCHAR* CategoryName = TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings");
+
+		GConfig->GetBool(CategoryName, TEXT("bUseAudioStreamCaching"), OutOverrides.bUseStreamCaching, GEngineIni);
+
+		/** Memory Load On Demand Settings */
+		if (OutOverrides.bUseStreamCaching)
+		{
+			// Cache size:
+			int32 RetrievedCacheSize = 32 * 1024;
+			GConfig->GetInt(CategoryName, TEXT("CacheSizeKB"), RetrievedCacheSize, GEngineIni);
+			OutOverrides.StreamCachingSettings.CacheSizeKB = RetrievedCacheSize;
+		}
+
+		GConfig->GetBool(CategoryName, TEXT("bResampleForDevice"), OutOverrides.bResampleForDevice, GEngineIni);
+
+		GConfig->GetFloat(CategoryName, TEXT("CompressionQualityModifier"), OutOverrides.CompressionQualityModifier, GEngineIni);
+
+		GConfig->GetFloat(CategoryName, TEXT("AutoStreamingThreshold"), OutOverrides.AutoStreamingThreshold, GEngineIni);
+
+		//Cache sample rate map:
+		float RetrievedSampleRate = -1.0f;
+
+		GConfig->GetFloat(CategoryName, TEXT("MaxSampleRate"), RetrievedSampleRate, GEngineIni);
+		float* FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Max);
+
+		if (FoundSampleRate)
+		{
+			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+			{
+				*FoundSampleRate = RetrievedSampleRate;
+			}
+
+		}
+		else
+		{
+			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Max, RetrievedSampleRate);
+		}
+
+		RetrievedSampleRate = -1.0f;
+
+		GConfig->GetFloat(CategoryName, TEXT("HighSampleRate"), RetrievedSampleRate, GEngineIni);
+		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::High);
+
+		if (FoundSampleRate)
+		{
+			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+			{
+				*FoundSampleRate = RetrievedSampleRate;
+			}
+
+		}
+		else
+		{
+			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::High, RetrievedSampleRate);
+		}
+
+
+		RetrievedSampleRate = -1.0f;
+
+		GConfig->GetFloat(CategoryName, TEXT("MedSampleRate"), RetrievedSampleRate, GEngineIni);
+		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Medium);
+
+		if (FoundSampleRate)
+		{
+			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+			{
+				*FoundSampleRate = RetrievedSampleRate;
+			}
+		}
+		else
+		{
+			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Medium, RetrievedSampleRate);
+		}
+
+		RetrievedSampleRate = -1.0f;
+
+		GConfig->GetFloat(CategoryName, TEXT("LowSampleRate"), RetrievedSampleRate, GEngineIni);
+		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Low);
+
+		if (FoundSampleRate)
+		{
+			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+			{
+				*FoundSampleRate = RetrievedSampleRate;
+			}
+		}
+		else
+		{
+			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Low, RetrievedSampleRate);
+		}
+
+		RetrievedSampleRate = -1.0f;
+
+		GConfig->GetFloat(CategoryName, TEXT("MinSampleRate"), RetrievedSampleRate, GEngineIni);
+		FoundSampleRate = OutOverrides.PlatformSampleRates.Find(ESoundwaveSampleRateSettings::Min);
+
+		if (FoundSampleRate)
+		{
+			if (!FMath::IsNearlyEqual(*FoundSampleRate, RetrievedSampleRate))
+			{
+				*FoundSampleRate = RetrievedSampleRate;
+			}
+		}
+		else
+		{
+			OutOverrides.PlatformSampleRates.Add(ESoundwaveSampleRateSettings::Min, RetrievedSampleRate);
+		}
+	}
+}
+
 /**
  * Template for Windows target platforms
  */
@@ -438,7 +552,21 @@ public:
 
 	virtual FPlatformAudioCookOverrides* GetAudioCompressionSettings() const override
 	{
-		return nullptr;
+		static FPlatformAudioCookOverrides Settings;
+
+#if !WITH_EDITOR
+		static bool bCachedPlatformSettings = false;
+
+		if (!bCachedPlatformSettings)
+		{
+			Windows::CachePlatformAudioCookOverrides(Settings);
+			bCachedPlatformSettings = true;
+		}
+#else
+		Windows::CachePlatformAudioCookOverrides(Settings);
+#endif
+
+		return &Settings;
 	}
 
 #endif //WITH_ENGINE
