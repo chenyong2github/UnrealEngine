@@ -310,6 +310,7 @@ void SkyLightRGS()
 		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 #endif
 		FPackedMaterialClosestHitPayload Payload = (FPackedMaterialClosestHitPayload)0;
+		Payload.SetMinimalPayloadMode(); // Only HitT will be filled by closest hit shader, skipping full material evaluation.
 
 		TraceRay(
 			TLAS,      // AccelerationStructure

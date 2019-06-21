@@ -241,6 +241,15 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 [shader("closesthit")]
 void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefaultAttributes Attributes)
 {
+	if (PackedPayload.IsMinimalPayloadMode())
+	{
+		// Minimal payload mode only fills FMinimalPayload::HitT, skipping actual material evaluation.
+		// This mode is used when tracing shadow rays against masked geometry.
+		// Dynamic branch is used to avoid compiling an extra shader permutation.
+		PackedPayload.HitT = RayTCurrent();
+		return;
+	}
+
 	ResolvedView = ResolveView();
 
 	FVertexFactoryInterpolantsVSToPS Interpolants;
@@ -326,9 +335,12 @@ void MaterialCHS(inout FPackedMaterialClosestHitPayload PackedPayload, in FDefau
 
 	Payload.HitT = RayTCurrent();
 #if !MATERIAL_TWOSIDED
-    Payload.HitKind = HitKind();
+	if (HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE)
+	{
+		Payload.SetFrontFace();
+	}
 #else
-    Payload.HitKind = HIT_KIND_TRIANGLE_FRONT_FACE;
+	Payload.SetFrontFace();
 #endif
 
 	float3 DiffuseIndirectLighting = 0;
