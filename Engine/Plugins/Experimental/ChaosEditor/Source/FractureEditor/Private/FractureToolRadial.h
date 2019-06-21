@@ -42,11 +42,11 @@ public:
 	float Radius;
 
 	/** Number of angular steps */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angular Steps", UIMin = "1", ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Angular Steps", UIMin = "1", UIMax = "50", ClampMin = "1"))
 	int AngularSteps;
 
 	/** Number of radial steps */
-	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radial Steps", UIMin = "1", ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = RadialVoronoi, meta = (DisplayName = "Radial Steps", UIMin = "1", UIMax = "50", ClampMin = "1"))
 	int RadialSteps;
 
 	/** Angle offset at each radial step */
