@@ -36,7 +36,7 @@ void UEditableGeometryCollectionAdapter::InitEditableGeometryCollection( UEditab
 	GeometryCollectionComponent = Cast<UGeometryCollectionComponent>( &Component );
 	if( GeometryCollectionComponent != nullptr )
 	{
-		FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection(false);
+		FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 		if( UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection() )
 		{
 			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();

@@ -1461,12 +1461,12 @@ void UGeometryCollectionComponent::SetRestCollection(const UGeometryCollection* 
 	}
 }
 
-FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, bool InUpdate /*= true*/)
+FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* InComponent, GeometryCollection::EEditUpdate InEditUpdate)
 	: Component(InComponent)
-	, bUpdate(InUpdate)
+	, EditUpdate(InEditUpdate)
 {
 	bHadPhysicsState = Component->HasValidPhysicsState();
-	if(bUpdate && bHadPhysicsState)
+	if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
 	{
 		Component->DestroyPhysicsState();
 	}
@@ -1475,15 +1475,19 @@ FGeometryCollectionEdit::FGeometryCollectionEdit(UGeometryCollectionComponent* I
 FGeometryCollectionEdit::~FGeometryCollectionEdit()
 {
 #if WITH_EDITOR
-	if (bUpdate)
+	if (!!EditUpdate)
 	{
-		//Component->ResetDynamicCollection();
-		if (GetRestCollection())
+		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Dynamic))
+		{
+			Component->ResetDynamicCollection();
+		}
+
+		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Rest) && GetRestCollection())
 		{
 			GetRestCollection()->Modify();
 		}
 
-		if(bHadPhysicsState)
+		if (EnumHasAnyFlags(EditUpdate, GeometryCollection::EEditUpdate::Physics) && bHadPhysicsState)
 		{
 			Component->RecreatePhysicsState();
 		}
