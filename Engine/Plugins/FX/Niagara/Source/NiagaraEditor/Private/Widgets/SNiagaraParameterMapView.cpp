@@ -437,27 +437,25 @@ void SNiagaraParameterMapView::OnActionSelected(const TArray< TSharedPtr<FEdGrap
 {
 	if (!IsScriptToolkit())
 	{
+		// Don't accept any input for SystemToolkits, as there's no parameters panel there
 		return;
 	}
 	
 	// TODO: Can there be multiple actions and graphs? 
-	if (InActions.Num() == 1 && InActions[0].IsValid() && Graphs[0].IsValid()) 
+	if (InActions.Num() == 1 && InActions[0].IsValid() && Graphs.Num() > 0 && Graphs[0].IsValid()) 
 	{
-		FNiagaraParameterAction* Action = (FNiagaraParameterAction*)InActions[0].Get();
-		if (Action && (Action->Parameter.IsInNameSpace(TEXT("Module")) || IsStaticSwitchParameter(Action->Parameter, Graphs)))
+		if (FNiagaraParameterAction* Action = (FNiagaraParameterAction*)InActions[0].Get())
 		{
-			// Ignore any non-Module variables, as they don't persist, i.e. they get
-			// purged when any variable is renamed due to not being in ParameterToReferencesMap
-			TMap<FNiagaraVariable, UNiagaraScriptVariable*>& AllMetaData = Graphs[0]->GetAllMetaData();
-			if (UNiagaraScriptVariable** FoundScriptVariable = AllMetaData.Find(Action->Parameter))
+			if (UNiagaraScriptVariable* Variable = Graphs[0]->GetScriptVariable(Action->Parameter))
 			{
-				SelectedVariableObjects->SetSelectedObject(*FoundScriptVariable);
+				SelectedVariableObjects->SetSelectedObject(Variable);
 				return;
 			}
 		}
 	} 
 	
 	// If a variable wasn't selected just clear the current selection
+	// TODO: Get proper clearing to work. Current there's no way to clear while clicking on an empty location in the graph area
 	SelectedVariableObjects->ClearSelectedObjects();
 }
 
