@@ -4230,6 +4230,9 @@ void FKismetCompilerContext::CompileFunctions(EInternalCompilerFlags InternalFla
 			}
 
 			PropagateValuesToCDO(NewCDO, OldCDO);
+
+			// Perform any fixup or caching based on the new CDO.
+			PostCDOCompiled();
 		}
 
 		// Note: The old->new CDO copy is deferred when regenerating, so we skip this step in that case.
