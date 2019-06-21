@@ -798,7 +798,7 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 				{
 					DepthAttachment.SetLoadAction(mtlpp::LoadAction::Clear);
 					
-					if (bSupportsMSAADepthResolve && Surface.MSAATexture)
+					if (bSupportsMSAADepthResolve && Surface.MSAATexture && DepthStoreAction == ERenderTargetStoreAction::EMultisampleResolve)
 					{
 						HighLevelStoreAction = ERenderTargetStoreAction::EMultisampleResolve;
 					}
@@ -807,6 +807,10 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 						HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 					}
 				}
+                else
+                {
+                	HighLevelStoreAction = DepthStoreAction;
+                }
 #endif
                 //needed to quiet the metal validation that runs when you end renderpass. (it requires some kind of 'resolve' for an msaa target)
 				//But with deferredstore we don't set the real one until submit time.
@@ -815,7 +819,7 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 				DepthAttachment.SetClearDepth(DepthClearValue);
 				check(SampleCount > 0);
 
-				if (Surface.MSAATexture && bSupportsMSAADepthResolve)
+				if (Surface.MSAATexture && bSupportsMSAADepthResolve && DepthAttachment.GetStoreAction() != mtlpp::StoreAction::DontCare)
 				{
                     if (!bDepthStencilSampleCountMismatchFixup)
                     {
@@ -865,13 +869,17 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 					HighLevelStoreAction = ERenderTargetStoreAction::EStore;
 				}
 				
-					bool bStencilMemoryless = false;
+				bool bStencilMemoryless = false;
 #if PLATFORM_IOS
 				if (StencilTexture.GetStorageMode() == mtlpp::StorageMode::Memoryless)
 				{
-						bStencilMemoryless = true;
+					bStencilMemoryless = true;
 					HighLevelStoreAction = ERenderTargetStoreAction::ENoAction;
 					StencilAttachment.SetLoadAction(mtlpp::LoadAction::Clear);
+				}
+				else
+				{
+					HighLevelStoreAction = StencilStoreAction;
 				}
 #endif
 				
