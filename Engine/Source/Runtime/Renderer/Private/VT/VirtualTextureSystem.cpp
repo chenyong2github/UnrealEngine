@@ -1654,10 +1654,12 @@ void FVirtualTextureSystem::SubmitRequests(FRHICommandListImmediate& RHICmdList,
 						else
 						{
 							// Fill in pAddress for layers that are already resident
-							FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = Producer.GetPhysicalSpace(LocalLayerIndex);
-							FTexturePagePool& RESTRICT PagePool = PhysicalSpace->GetPagePool();
+							const FVirtualTexturePhysicalSpace* RESTRICT PhysicalSpace = Producer.GetPhysicalSpace(LocalLayerIndex);
+							const FTexturePagePool& RESTRICT PagePool = PhysicalSpace->GetPagePool();
 							const uint32 pAddress = PagePool.FindPageAddress(ProducerHandle, LocalLayerIndex, TileToLoad.Local_vAddress, TileToLoad.Local_vLevel);
-							check(pAddress != ~0u);
+							checkf(pAddress != ~0u,
+								TEXT("%s missing tile: LayerMask: %X, Layer %d, vAddress %06X, vLevel %d"),
+								*Producer.GetName().ToString(), LocalLayerMask, LocalLayerIndex, TileToLoad.Local_vAddress, TileToLoad.Local_vLevel);
 							ProduceTarget[LocalLayerIndex].TextureRHI = PhysicalSpace->GetPhysicalTexture();
 							ProduceTarget[LocalLayerIndex].pPageLocation = PhysicalSpace->GetPhysicalLocation(pAddress);
 						}
