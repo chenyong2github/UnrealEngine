@@ -42,13 +42,22 @@ void FSelectedRigidBodyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.Padding(2.f, 0.f, 0.f, 0.f)
 			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+				SAssignNew(CheckBoxPick, SCheckBox)
+				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
 				.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_ToolTip", "Pick a Rigid Body."))
 				.ForegroundColor(FSlateColor::UseForeground())
-				.ContentPadding(6.0f)
-				.OnClicked(this, &FSelectedRigidBodyCustomization::OnPick, PropertyHandleId)
+				.Padding(6.0f)
+				.IsChecked_Lambda([]()
+				{
+					return FGeometryCollectionSelectRigidBodyEdMode::IsModeActive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})
+				.IsEnabled_Lambda([]()
+				{
+					return FGeometryCollectionSelectRigidBodyEdMode::CanActivateMode();
+				})
+				.OnCheckStateChanged(this, &FSelectedRigidBodyCustomization::OnPick, PropertyHandleId)
 				[ 
 					SNew(SImage)
 					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_PickActorInteractive"))
@@ -289,15 +298,40 @@ int32 FSelectedRigidBodyCustomization::GetNextClusteredSiblingRigidBodyId(TShare
 	return INDEX_NONE;
 }
 
-FReply FSelectedRigidBodyCustomization::OnPick(TSharedRef<IPropertyHandle> PropertyHandleId) const
+void FSelectedRigidBodyCustomization::OnPick(ECheckBoxState InCheckState, TSharedRef<IPropertyHandle> PropertyHandleId) const
 {
-	if (FGeometryCollectionSelectRigidBodyEdMode::IsModeActive())
+	// Set unchecked by default (enter mode is required to set checked)
+	if (CheckBoxPick)
 	{
-		FGeometryCollectionSelectRigidBodyEdMode::DeactivateMode();
+		CheckBoxPick->SetIsChecked(ECheckBoxState::Unchecked);
+	}
+
+	if (InCheckState == ECheckBoxState::Unchecked)
+	{
+		if (FGeometryCollectionSelectRigidBodyEdMode::IsModeActive())
+		{
+			FGeometryCollectionSelectRigidBodyEdMode::DeactivateMode();
+		}
 	}
 	else
 	{
-		FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(PropertyHandleId);
+		const TWeakPtr<SCheckBox> CheckBoxPickWeakPtr = CheckBoxPick;
+		const TFunction<void()> OnEnterMode = [CheckBoxPickWeakPtr]()
+		{
+			if (const TSharedPtr<SCheckBox> CheckBoxPickPin = CheckBoxPickWeakPtr.Pin())
+			{
+				CheckBoxPickPin->SetToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "CancelPick_ToolTip", "Cancel Picking."));
+				CheckBoxPickPin->SetIsChecked(ECheckBoxState::Checked);
+			}
+		};
+		const TFunction<void()> OnExitMode = [CheckBoxPickWeakPtr]()
+		{
+			if (const TSharedPtr<SCheckBox> CheckBoxPickPin = CheckBoxPickWeakPtr.Pin())
+			{
+				CheckBoxPickPin->SetToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_ToolTip", "Pick a Rigid Body."));
+				CheckBoxPickPin->SetIsChecked(ECheckBoxState::Unchecked);
+			}
+		};
+		FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(PropertyHandleId, OnEnterMode, OnExitMode);
 	}
-	return FReply::Handled();
 }
