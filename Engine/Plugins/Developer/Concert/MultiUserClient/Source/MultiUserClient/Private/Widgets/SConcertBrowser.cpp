@@ -99,7 +99,7 @@ TSharedRef<SButton> MakeIconButton(const FName& ButtonStyle, const TAttribute<co
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		[
-			SNew(SImage).Image(Icon).ColorAndOpacity(FConcertFrontendStyle::Get()->GetColor("Concert.Color.ToolbarButtonIcon"))
+			SNew(SImage).Image(Icon)
 		];
 }
 
@@ -1705,7 +1705,7 @@ public:
 						.VAlign(VAlign_Center)
 						.Padding(0, 0, 3, 0)
 						[
-							SNew(SImage).Image(InArgs._ButtonIcon).ColorAndOpacity(FConcertFrontendStyle::Get()->GetColor("Concert.Color.ToolbarButtonIcon"))
+							SNew(SImage).Image(InArgs._ButtonIcon)
 						]
 						+SHorizontalBox::Slot()
 						.AutoWidth()
