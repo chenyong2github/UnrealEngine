@@ -156,7 +156,7 @@ private:
 		{
 			ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
 			ISourceControlProvider& SourceControlProvider = SourceControlModule.GetProvider();
-			if (ensure(SourceControlModule.IsEnabled() && SourceControlProvider.IsAvailable()))
+			if (ensure(SourceControlProvider.IsEnabled() && SourceControlProvider.IsAvailable()))
 			{
 				bool bHasLocalChanges = false;
 				for (const FString& ContentPath : InSharedState->ContentPaths)
