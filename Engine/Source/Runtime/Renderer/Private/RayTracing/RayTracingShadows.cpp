@@ -158,8 +158,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 	if (LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
 	{
 		// Account for scissor being defined on the whole frame viewport while the trace is only on the view subrect
-		ScissorRect.Min = ScissorRect.Min;
-		ScissorRect.Max = ScissorRect.Max;
+		// ScissorRect.Min = ScissorRect.Min;
+		// ScissorRect.Max = ScissorRect.Max;
 	}
 	else
 	{
