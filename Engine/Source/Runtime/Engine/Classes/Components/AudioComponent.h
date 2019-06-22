@@ -36,7 +36,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioPlaybackPercent, const clas
 /** shadow delegate declaration for above */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioPlaybackPercentNative, const class UAudioComponent*, const class USoundWave*, const float);
 
-/** 
+/**
 * Called while a sound plays and returns the sound's envelope value (using an envelope follower in the audio renderer).
 * This only works in the audio mixer.
 */
@@ -74,7 +74,7 @@ struct FAudioComponentParam
 	// Value of the parameter when used as a boolean
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
 	bool BoolParam;
-	
+
 	// Value of the parameter when used as an integer
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
 	int32 IntParam;
@@ -379,11 +379,15 @@ public:
 
 	/** Start a sound playing on an audio component */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual void Play(float StartTime = 0.f);
+	virtual void Play(float StartTime = 0.0f);
 
-	/** Stop an audio component playing its sound cue, issue any delegates if needed */
+	/** Stop an audio component's sound, issue any delegates if needed */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Stop();
+
+	/** Cues request to stop sound after the provided delay, stopping immediately if delay is zero or negative */
+	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
+	void StopDelayed(float DelayTime);
 
 	/** Pause an audio component playing its sound cue, issue any delegates if needed */
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
@@ -408,7 +412,7 @@ public:
 	/** Set a boolean instance parameter for use in sound cues played by this audio component */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DisplayName="Set Boolean Parameter"))
 	void SetBoolParameter(FName InName, bool InBool);
-	
+
 	/** Set an integer instance parameter for use in sound cues played by this audio component */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DisplayName="Set Integer Parameter"))
 	void SetIntParameter(FName InName, int32 InInt);
@@ -459,26 +463,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool HasCookedAmplitudeEnvelopeData() const;
 
-	/** 
-	* Retrieves the current-time cooked spectral data of the sounds playing on the audio component. 
-	* Spectral data is averaged and interpolated for all playing sounds on this audio component. 
-	* Returns true if there is data and the audio component is playing. 
+	/**
+	* Retrieves the current-time cooked spectral data of the sounds playing on the audio component.
+	* Spectral data is averaged and interpolated for all playing sounds on this audio component.
+	* Returns true if there is data and the audio component is playing.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool GetCookedFFTData(const TArray<float>& FrequenciesToGet, TArray<FSoundWaveSpectralData>& OutSoundWaveSpectralData);
 
-	/** 
-	* Retrieves the current-time cooked spectral data of the sounds playing audio component. 
+	/**
+	* Retrieves the current-time cooked spectral data of the sounds playing audio component.
 	* Spectral data is not averaged or interpolated. Instead an array of data with all playing sound waves with cooked data is returned.
-	* Returns true if there is data and the audio component is playing. 
+	* Returns true if there is data and the audio component is playing.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool GetCookedFFTDataForAllPlayingSounds(TArray<FSoundWaveSpectralDataPerSound>& OutSoundWaveSpectralData);
 
-	/** 
-	* Retrieves the current-time cooked envelope data of the playing audio component. 
+	/**
+	* Retrieves the current-time cooked envelope data of the playing audio component.
 	* Cooked data is interpolated and averaged across all playing sound waves.
-	* Returns true if there is data and the audio component is playing. 
+	* Returns true if there is data and the audio component is playing.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	bool GetCookedEnvelopeData(float& OutEnvelopeData);
@@ -615,9 +619,6 @@ private:
 protected:
 	/** Utility function called by Play and FadeIn to start a sound playing. */
 	void PlayInternal(const float StartTime = 0.f, const float FadeInDuration = 0.f, const float FadeVolumeLevel = 1.f);
-
-private:
-	void StopInternal();
 
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */
