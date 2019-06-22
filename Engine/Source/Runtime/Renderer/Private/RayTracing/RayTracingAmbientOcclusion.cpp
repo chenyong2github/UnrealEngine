@@ -116,9 +116,6 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingAmbientOcclusion(const FVie
 
 void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(FRHICommandListImmediate& RHICmdList, TRefCountPtr<IPooledRenderTarget>& AmbientOcclusionRT)
 {
-	SCOPED_DRAW_EVENT(RHICmdList, RayTracingAmbientOcclusion);
-	SCOPED_GPU_STAT(RHICmdList, RayTracingAmbientOcclusion);
-
 	bool bAnyViewWithRTAO = false;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
