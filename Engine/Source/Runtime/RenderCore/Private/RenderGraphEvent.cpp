@@ -7,7 +7,8 @@ extern bool GetEmitRDGEvents();
 
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
 
-FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
+FRDGEventName::FRDGEventName(const TCHAR* InEventFormat, ...)
+	: EventFormat(InEventFormat)
 {
 	if (GetEmitRDGEvents())
 	{
@@ -18,12 +19,7 @@ FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
 		FCString::GetVarArgs(TempStr, ARRAY_COUNT(TempStr), EventFormat, VAList);
 		va_end(VAList);
 
-		EventNameStorage = TempStr;
-		EventName = *EventNameStorage;
-	}
-	else
-	{
-		EventName = TEXT("!!!Unavailable RDG event name: try r.RDG.EmitWarnings=1 or -rdgdebug!!!");
+		FormatedEventName = TempStr;
 	}
 }
 

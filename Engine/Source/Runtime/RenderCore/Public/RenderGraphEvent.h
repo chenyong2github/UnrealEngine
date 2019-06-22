@@ -95,9 +95,12 @@ public:
 
 private:
 #if RDG_EVENTS == RDG_EVENTS_STRING_REF || RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	const TCHAR* EventName;
+	// Event format kept arround to still have a clue what error might be causing the problem in error messages.
+	const TCHAR* EventFormat;
+
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
-	FString EventNameStorage;
+	// Formated event name if GetEmitRDGEvents() == true.
+	FString FormatedEventName;
 #endif
 #endif
 };
