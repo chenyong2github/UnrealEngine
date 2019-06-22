@@ -233,6 +233,9 @@ private:
 
 	/** Get the correct show/hide text for the given endpoint */
 	FText GetShowHidePresenceText(FGuid InEndpointId) const;
+	
+	/** Get the correct show/hide icon style for the given endpoint */
+	FName GetShowHidePresenceIconStyle(FGuid InEndpointId) const;
 
 	/** Get the correct show/hide tooltip for the given endpoint */
 	FText GetShowHidePresenceToolTip(FGuid InEndpointId) const;
