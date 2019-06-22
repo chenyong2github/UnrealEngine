@@ -94,7 +94,6 @@ namespace ConcertFrontendUtils
 			[
 				SNew(SImage)
 				.Image(TAttribute<const FSlateBrush*>::Create([IconStyleAttr = InDef.IconStyle]() { return FConcertFrontendStyle::Get()->GetBrush(IconStyleAttr.Get()); }))
-				.ColorAndOpacity(FConcertFrontendStyle::Get()->GetColor("Concert.Color.ToolbarButtonIcon"))
 			];
 	}
 
