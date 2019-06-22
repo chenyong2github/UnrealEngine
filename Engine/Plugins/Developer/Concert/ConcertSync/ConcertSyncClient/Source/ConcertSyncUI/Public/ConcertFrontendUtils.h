@@ -12,6 +12,7 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/SBoxPanel.h"
 #include "EditorFontGlyphs.h"
+#include "ConcertFrontendStyle.h"
 
 #define LOCTEXT_NAMESPACE "ConcertFrontendUtils"
 
@@ -46,7 +47,7 @@ namespace ConcertFrontendUtils
 			];
 	}
 
-	inline TSharedRef<SButton> CreateButton(const FConcertActionDefinition& InDef)
+	inline TSharedRef<SButton> CreateTextButton(const FConcertActionDefinition& InDef)
 	{
 		const FButtonStyle* ButtonStyle = &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>(ButtonStyleNames[(int32)InDef.Type]);
 		check(ButtonStyle);
@@ -74,6 +75,28 @@ namespace ConcertFrontendUtils
 			];
 	}
 
+	inline TSharedRef<SButton> CreateIconButton(const FConcertActionDefinition& InDef)
+	{
+		const FButtonStyle* ButtonStyle = &FEditorStyle::Get().GetWidgetStyle<FButtonStyle>(ButtonStyleNames[(int32)InDef.Type]);
+		check(ButtonStyle);
+
+		return SNew(SButton)
+			.ButtonStyle(ButtonStyle)
+			.ForegroundColor(FSlateColor::UseForeground())
+			.ToolTipText(InDef.ToolTipText)
+			.ContentPadding(FMargin(0, 0))
+			.IsEnabled(InDef.IsEnabled)
+			.Visibility_Lambda([IsVisible = InDef.IsVisible]() { return IsVisible.Get() ? EVisibility::Visible : EVisibility::Collapsed; })
+			.OnClicked_Lambda([OnExecute = InDef.OnExecute]() { OnExecute.ExecuteIfBound(); return FReply::Handled(); })
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SImage)
+				.Image(TAttribute<const FSlateBrush*>::Create([IconStyleAttr = InDef.IconStyle]() { return FConcertFrontendStyle::Get()->GetBrush(IconStyleAttr.Get()); }))
+				.ColorAndOpacity(FConcertFrontendStyle::Get()->GetColor("Concert.Color.ToolbarButtonIcon"))
+			];
+	}
+
 	inline void AppendButtons(TSharedRef<SHorizontalBox> InHorizBox, TArrayView<const FConcertActionDefinition> InDefs)
 	{
 		for (const FConcertActionDefinition& Def : InDefs)
@@ -83,7 +106,7 @@ namespace ConcertFrontendUtils
 				.VAlign(VAlign_Center)
 				.Padding(FMargin(1.0f))
 				[
-					CreateButton(Def)
+					Def.IconStyle.IsSet() ? CreateIconButton(Def) : CreateTextButton(Def)
 				];
 		}
 	}
