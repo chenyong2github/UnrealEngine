@@ -253,7 +253,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	static float[] current_gravity = new float[]{0, 0, 0};
 	static float[] current_acceleration = new float[]{0, 0, 0};
 
-	public static Logger Log = new Logger("UE4");
+	public static Logger Log = new Logger("UE4", "GameActivity");
 
 	// From cpufeatures.h AndroidCpuFamily enum
 	private static final int ANDROID_CPU_FAMILY_UNKNOWN = 0;
