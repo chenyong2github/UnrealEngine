@@ -18,7 +18,8 @@ DEFINE_LOG_CATEGORY(MovieSceneSerialization);
 
 
 const FGuid FTempCustomVersion::GUID(0xCB8AB0CD, 0xE78C4BDE, 0xA8621393, 0x14E9EF62);
-FCustomVersionRegistration GRegisterLiveLinkCustomVersion(FTempCustomVersion::GUID, FTempCustomVersion::LatestVersion, TEXT("LiveLinkCustomVersion"));
+FCustomVersionRegistration GRegisterLiveLinkMovieSectionCustomVersion(FTempCustomVersion::GUID, FTempCustomVersion::LatestVersion, TEXT("LiveLinkCustomVersion"));
+
 const int64 MovieSceneSerializationNamespace::InvalidOffset = -1;
 const float MovieSceneSerializationNamespace::SerializerSleepTime = 0.2f;
 bool MovieSceneSerializationNamespace::bAutoSerialize = false;
