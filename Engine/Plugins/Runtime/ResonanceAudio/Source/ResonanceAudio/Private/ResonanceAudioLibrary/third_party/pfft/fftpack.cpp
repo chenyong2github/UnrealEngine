@@ -51,6 +51,11 @@
    2011/10/02: this is my first release of this file.
 */
 
+#if defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable:4244) /* 'initializing': conversion from '<type>' to '<type>', possible loss of data */
+#endif
+
 #include "fftpack.h"
 #include <math.h>
 
@@ -3127,4 +3132,8 @@ int main(void)
 
 #ifdef DEFINED_M_LN2
 #undef M_LN2
+#endif
+
+#if defined(_MSC_VER)
+#pragma warning(pop)
 #endif

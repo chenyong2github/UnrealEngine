@@ -73,6 +73,7 @@ _Pragma("clang diagnostic ignored \"-Wshadow\"")
 #pragma warning(disable:6011) /* Dereferencing NULL pointer '<ptr>' */
 #pragma warning(disable:6385) /* Reading invalid data from '<array>': the readable size is '<array size>' bytes, but '<read size>' bytes may be read */
 #pragma warning(disable:6386) /* Buffer overrun while writing to '<array>': the writable size is '<array size>' bytes, but '<write size>' bytes might be written */
+#pragma warning(disable:4244) /* 'initializing': conversion from '<type>' to '<type>', possible loss of data */
 #endif
 
 
