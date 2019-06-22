@@ -181,7 +181,7 @@ FConcertSyncObjectReader::FConcertSyncObjectReader(const FConcertLocalIdentifier
 		FCustomVersionContainer EngineCustomVersions;
 		for (const FConcertCustomVersionInfo& CustomVersion : InVersionInfo->CustomVersions)
 		{
-			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, NAME_None);
+			EngineCustomVersions.SetVersion(CustomVersion.Key, CustomVersion.Version, CustomVersion.FriendlyName);
 		}
 		SetCustomVersions(EngineCustomVersions);
 	}
