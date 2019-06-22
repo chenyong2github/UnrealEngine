@@ -567,7 +567,7 @@ public:
 
 		FTabSpawnerEntry& BrowserSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(ConcertBrowserTabName,
 			FOnSpawnTab::CreateRaw(this, &FMultiUserClientModule::SpawnConcertBrowserTab))
-			.SetIcon(FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), TEXT("Concert.Stateless")))
+			.SetIcon(FSlateIcon(FConcertFrontendStyle::GetStyleSetName(), TEXT("Concert.MultiUser")))
 			.SetDisplayName(LOCTEXT("BrowserTabTitle", "Multi-User Browser"))
 			.SetTooltipText(LOCTEXT("BrowserTooltipText", "Open the Multi-User session browser"))
 			.SetMenuType(ETabSpawnerMenuType::Enabled);
