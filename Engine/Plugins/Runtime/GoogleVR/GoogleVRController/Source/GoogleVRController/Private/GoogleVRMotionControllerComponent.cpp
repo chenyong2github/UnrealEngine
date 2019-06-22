@@ -19,8 +19,6 @@
 #include "Engine/StaticMesh.h"
 #include "Modules/ModuleManager.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogGoogleVRMotionController, Log, All);
-
 const FVector UGoogleVRMotionControllerComponent::TOUCHPAD_POINT_DIMENSIONS = FVector(0.01f, 0.01f, 0.0004f);
 const FVector UGoogleVRMotionControllerComponent::BATTERY_INDICATOR_TRANSLATION = FVector(-3.0f, 0.0f, 0.001f);
 const FVector UGoogleVRMotionControllerComponent::BATTERY_INDICATOR_SCALE = FVector(0.032f, 0.015f, 1.0f);
