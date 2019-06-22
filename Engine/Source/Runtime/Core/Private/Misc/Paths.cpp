@@ -377,6 +377,12 @@ FString FPaths::ProjectLogDir()
 	{
 		return FPlatformProcess::UserLogsDir();
 	}
+#elif PLATFORM_ANDROID && USE_ANDROID_FILE
+	const FString* OverrideDir = IAndroidPlatformFile::GetOverrideLogDirectory();
+	if (OverrideDir != nullptr)
+	{
+		return *OverrideDir;
+	}
 #endif
 
 	return FPaths::ProjectSavedDir() + TEXT("Logs/");

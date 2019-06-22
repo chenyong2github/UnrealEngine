@@ -20,6 +20,14 @@ class CORE_API IAndroidPlatformFile : public IPhysicalPlatformFile
 public:
 	static IAndroidPlatformFile & GetPlatformPhysical();
 
+#if USE_ANDROID_FILE
+	/**
+	 * Get the directory path to write log files to.
+	 * This is /temp0 in shipping, or a path inside /data for other configs.
+	 */
+	static const FString* GetOverrideLogDirectory();
+#endif
+
 #if USE_ANDROID_JNI
 	// Get the android.content.res.AssetManager that Java code
 	// should use to open APK assets.
