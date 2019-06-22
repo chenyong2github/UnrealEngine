@@ -269,7 +269,7 @@ namespace RuntimeVirtualTexture
 
 
 	/** Collect meshes and draw. */
-	void DrawMeshes(FRHICommandListImmediate& RHICmdList, FScene const* Scene, FViewInfo const* View, ERuntimeVirtualTextureMaterialType MaterialType, uint32 RuntimeVirtualTextureMask)
+	void DrawMeshes(FRHICommandListImmediate& RHICmdList, FScene const* Scene, FViewInfo const* View, ERuntimeVirtualTextureMaterialType MaterialType, uint32 RuntimeVirtualTextureMask, uint8 vLevel, uint8 MaxLevel)
 	{
 		// Cached draw command collectors
 		const FCachedPassMeshDrawList& SceneDrawList = Scene->CachedDrawLists[EMeshPass::VirtualTexture];
@@ -282,57 +282,94 @@ namespace RuntimeVirtualTexture
 		FDynamicPassMeshDrawListContext DynamicMeshPassContext(MeshDrawCommandStorage, AllocatedCommands, GraphicsMinimalPipelineStateSet);
 		FRuntimeVirtualTextureMeshProcessor MeshProcessor(Scene, View, &DynamicMeshPassContext);
 
+		// Pre-calculate view factors used for culling
+		const float RcpWorldSize = 1.f / (View->ViewMatrices.GetInvProjectionMatrix().M[0][0]);
+		const float WorldToPixel = View->ViewRect.Width() * RcpWorldSize;
+
 		// Iterate over scene and collect visible virtual texture draw commands for this view
 		//todo: Consider a broad phase (quad tree etc?) here. (But only if running over PrimitiveVirtualTextureFlags shows up as a bottleneck.)
 		for (int32 PrimitiveIndex = 0; PrimitiveIndex < Scene->Primitives.Num(); ++PrimitiveIndex)
 		{
-			if (Scene->PrimitiveVirtualTextureFlags[PrimitiveIndex].RuntimeVirtualTextureMask & RuntimeVirtualTextureMask)
+			const FPrimitiveVirtualTextureFlags Flags = Scene->PrimitiveVirtualTextureFlags[PrimitiveIndex];
+			if (!Flags.bRenderToVirtualTexture)
 			{
-				//todo[vt]: Use quicker/more accurate 2d test here since we can pre-calculate 2d bounds in VT space.
-				FBoxSphereBounds const& Bounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
-				if (View->ViewFrustum.IntersectSphere(Bounds.GetSphere().Center, Bounds.GetSphere().W))
+				continue;
+			}
+			if ((Flags.RuntimeVirtualTextureMask & RuntimeVirtualTextureMask) == 0)
+			{
+				continue;
+			}
+
+			//todo[vt]: In our case we know that frustum is an oriented box so investigate cheaper test for intersecting that
+			const FSphere SphereBounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds.GetSphere();
+			if (!View->ViewFrustum.IntersectSphere(SphereBounds.Center, SphereBounds.W))
+			{
+				continue;
+			}
+
+			// Cull primitives according to mip level or pixel coverage
+			const FPrimitiveVirtualTextureLodInfo LodInfo = Scene->PrimitiveVirtualTextureLod[PrimitiveIndex];
+			if (LodInfo.CullMethod == 0)
+			{
+				if (MaxLevel - vLevel < LodInfo.CullValue)
 				{
-					FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveIndex];
-					for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshes.Num(); ++MeshIndex)
+					continue;
+				}
+			}
+			else
+			{
+				// Note that we use 2^MinPixelCoverage as that scales linearly with mip extents
+				int32 PixelCoverage = FMath::FloorToInt(2.f * SphereBounds.W * WorldToPixel);
+				if (PixelCoverage < (1 << LodInfo.CullValue))
+				{
+					continue;
+				}
+			}
+
+			// Calculate Lod for current mip
+			const float AreaRatio = 2.f * SphereBounds.W * RcpWorldSize;
+			const int32 LodIndex = FMath::Clamp<int32>((int32)LodInfo.LodBias - FMath::FloorToInt(FMath::Log2(AreaRatio)), LodInfo.MinLod, LodInfo.MaxLod);
+
+			// Process meshes
+			FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveIndex];
+			for (int32 MeshIndex = 0; MeshIndex < PrimitiveSceneInfo->StaticMeshes.Num(); ++MeshIndex)
+			{
+				FStaticMeshBatchRelevance const& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
+				if (StaticMeshRelevance.bRenderToVirtualTexture && StaticMeshRelevance.LODIndex == LodIndex && StaticMeshRelevance.RuntimeVirtualTextureMaterialType == (uint32)MaterialType)
+				{
+					bool bCachedDraw = false;
+					if (StaticMeshRelevance.bSupportsCachingMeshDrawCommands)
 					{
-						FStaticMeshBatchRelevance const& StaticMeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
-						if (StaticMeshRelevance.bRenderToVirtualTexture && StaticMeshRelevance.RuntimeVirtualTextureMaterialType == (uint32)MaterialType)
+						// Use cached draw command
+						const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::VirtualTexture);
+						if (StaticMeshCommandInfoIndex >= 0)
 						{
-							bool bCachedDraw = false;
-							if (StaticMeshRelevance.bSupportsCachingMeshDrawCommands)
-							{
-								// Use cached draw command
-								const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::VirtualTexture);
-								if (StaticMeshCommandInfoIndex >= 0)
-								{
-									FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
+							FCachedMeshDrawCommandInfo& CachedMeshDrawCommand = PrimitiveSceneInfo->StaticMeshCommandInfos[StaticMeshCommandInfoIndex];
 
-									const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
-										? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
-										: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
+							const FMeshDrawCommand* MeshDrawCommand = CachedMeshDrawCommand.StateBucketId >= 0
+								? &Scene->CachedMeshDrawCommandStateBuckets[FSetElementId::FromInteger(CachedMeshDrawCommand.StateBucketId)].MeshDrawCommand
+								: &SceneDrawList.MeshDrawCommands[CachedMeshDrawCommand.CommandIndex];
 
-									FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
-									NewVisibleMeshDrawCommand.Setup(
-										MeshDrawCommand,
-										PrimitiveIndex,
-										PrimitiveIndex,
-										CachedMeshDrawCommand.StateBucketId,
-										CachedMeshDrawCommand.MeshFillMode,
-										CachedMeshDrawCommand.MeshCullMode,
-										CachedMeshDrawCommand.SortKey);
+							FVisibleMeshDrawCommand NewVisibleMeshDrawCommand;
+							NewVisibleMeshDrawCommand.Setup(
+								MeshDrawCommand,
+								PrimitiveIndex,
+								PrimitiveIndex,
+								CachedMeshDrawCommand.StateBucketId,
+								CachedMeshDrawCommand.MeshFillMode,
+								CachedMeshDrawCommand.MeshCullMode,
+								CachedMeshDrawCommand.SortKey);
 
-									CachedDrawCommands.Add(NewVisibleMeshDrawCommand);
-									bCachedDraw = true;
-								}
-							}
-
-							if (!bCachedDraw)
-							{
-								// No cached draw command was available. Process the mesh batch.
-								uint64 BatchElementMask = ~0ull;
-								MeshProcessor.AddMeshBatch(PrimitiveSceneInfo->StaticMeshes[MeshIndex], BatchElementMask, Scene->PrimitiveSceneProxies[PrimitiveIndex]);
-							}
+							CachedDrawCommands.Add(NewVisibleMeshDrawCommand);
+							bCachedDraw = true;
 						}
+					}
+
+					if (!bCachedDraw)
+					{
+						// No cached draw command was available. Process the mesh batch.
+						uint64 BatchElementMask = ~0ull;
+						MeshProcessor.AddMeshBatch(PrimitiveSceneInfo->StaticMeshes[MeshIndex], BatchElementMask, Scene->PrimitiveSceneProxies[PrimitiveIndex]);
 					}
 				}
 			}
@@ -550,7 +587,8 @@ namespace RuntimeVirtualTexture
 		FBox2D const& DestBox1,
 		FTransform const& UVToWorld,
 		FBox2D const& UVRange,
-		uint8 vLevel)
+		uint8 vLevel,
+		uint8 MaxLevel)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, VirtualTextureDynamicCache);
 
@@ -600,7 +638,7 @@ namespace RuntimeVirtualTexture
 		View->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 		View->SetupUniformBufferParameters(SceneContext, nullptr, 0, *View->CachedViewUniformShaderParameters);
 		View->CachedViewUniformShaderParameters->WorldToVirtualTexture = WorldToUVRotate.ToMatrixNoScale();
-		View->CachedViewUniformShaderParameters->VirtualTextureParams = FVector4((float)vLevel, 0.f, OrthoWidth/(float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
+		View->CachedViewUniformShaderParameters->VirtualTextureParams = FVector4((float)vLevel, (float)MaxLevel, OrthoWidth/(float)TextureSize.X, OrthoHeight / (float)TextureSize.Y);
 		View->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 		UploadDynamicPrimitiveShaderDataForView(RHICmdList, *(const_cast<FScene*>(Scene)), *View);
 		Scene->UniformBuffers.VirtualTextureViewUniformBuffer.UpdateUniformBufferImmediate(*View->CachedViewUniformShaderParameters);
@@ -621,9 +659,9 @@ namespace RuntimeVirtualTexture
 				RDG_EVENT_NAME("VirtualTextureDraw"),
 				PassParameters,
 				ERenderGraphPassFlags::None,
-				[Scene, View, MaterialType, RuntimeVirtualTextureMask](FRHICommandListImmediate& RHICmdListImmediate)
+				[Scene, View, MaterialType, RuntimeVirtualTextureMask, vLevel, MaxLevel](FRHICommandListImmediate& RHICmdListImmediate)
 			{
-				DrawMeshes(RHICmdListImmediate, Scene, View, MaterialType, RuntimeVirtualTextureMask);
+				DrawMeshes(RHICmdListImmediate, Scene, View, MaterialType, RuntimeVirtualTextureMask, vLevel, MaxLevel);
 			});
 		}
 
