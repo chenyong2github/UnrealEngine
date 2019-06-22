@@ -68,32 +68,6 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabDetails(const FSpawnTabArgs & Args
 void FDataprepEditor::CreateDetailsViews()
 {
 	DetailsView = SNew( SGraphNodeDetailsWidget );
-	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetPtr.Get(), PipelineEditorCommands );
-}
-
-void FDataprepEditor::OnShowSettings()
-{
-	if ( !DetailsTabPtr.IsValid() )
-	{
-		TryInvokingDetailsTab( false );
-	}
-
-	if ( DetailsTabPtr.IsValid() && DetailsTabPtr.Pin()->GetContent() != DataprepAssetView )
-	{
-		DetailsTabPtr.Pin()->SetContent( DataprepAssetView.ToSharedRef() );
-	}
-
-	TryInvokingDetailsTab( true );
-}
-
-bool FDataprepEditor::IsShowingSettings() const
-{
-	if ( DetailsTabPtr.IsValid() )
-	{
-		return DetailsTabPtr.Pin()->GetContent() == DataprepAssetView;
-	}
-
-	return false;
 }
 
 void FDataprepEditor::OnPipelineEditorSelectionChanged(const TSet<UObject*>& SelectedNodes)

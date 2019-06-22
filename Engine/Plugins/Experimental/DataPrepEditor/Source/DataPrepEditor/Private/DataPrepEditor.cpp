@@ -13,8 +13,9 @@
 #include "DataprepActionAsset.h"
 #include "DataprepEditorLogCategory.h"
 #include "SchemaActions/DataprepOperationMenuActionCollector.h"
-#include "Widgets/SAssetsPreviewWidget.h"
+#include "Widgets/DataprepAssetView.h"
 #include "Widgets/SDataprepPalette.h"
+#include "Widgets/SAssetsPreviewWidget.h"
 
 #include "ActorEditorUtils.h"
 #include "AssetDeleteModel.h"
@@ -68,6 +69,8 @@ const FName FDataprepEditor::ScenePreviewTabId(TEXT("DataprepEditor_ScenePreview
 const FName FDataprepEditor::AssetPreviewTabId(TEXT("DataprepEditor_AssetPreview"));
 const FName FDataprepEditor::PaletteTabId(TEXT("DataprepEditor_Palette"));
 const FName FDataprepEditor::DetailsTabId(TEXT("DataprepEditor_Details"));
+const FName FDataprepEditor::DataprepAssetTabId(TEXT("DataprepEditor_Dataprep"));
+
 
 namespace DataprepEditorUtil
 {
@@ -253,6 +256,11 @@ void FDataprepEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& I
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
+	InTabManager->RegisterTabSpawner(DataprepAssetTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabDataprep))
+		.SetDisplayName(LOCTEXT("DataprepAssetTab", "Dataprep"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
+
 	// Temp code for the nodes development
 	InTabManager->RegisterTabSpawner(PipelineGraphTabId, FOnSpawnTab::CreateSP(this, &FDataprepEditor::SpawnTabPipelineGraph))
 		.SetDisplayName(LOCTEXT("PipelineGraphTab", "Pipeline Graph"))
@@ -328,7 +336,7 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 
 	CreateTabs();
 
-	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.2")
+	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_DataprepEditor_Layout_v0.3")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -386,9 +394,20 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 				)
 				->Split
 				(
-					FTabManager::NewStack()
+					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
 					->SetSizeCoefficient(0.25f)
-					->AddTab(DetailsTabId, ETabState::OpenedTab)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.25f)
+						->AddTab(DataprepAssetTabId, ETabState::OpenedTab)
+					)
+					->Split
+					(
+						FTabManager::NewStack()
+						->SetSizeCoefficient(0.75f)
+						->AddTab(DetailsTabId, ETabState::OpenedTab)
+					)
 				)
 			)
 		);
@@ -400,9 +419,6 @@ void FDataprepEditor::InitDataprepEditor(const EToolkitMode::Type Mode, const TS
 	ExtendMenu();
 	ExtendToolBar();
 	RegenerateMenusAndToolbars();
-
-	// Set the details panel to inspect consumer and producers
-	OnShowSettings();
 }
 
 void FDataprepEditor::BindCommands()
@@ -430,12 +446,6 @@ void FDataprepEditor::BindCommands()
 	UICommandList->MapAction(
 		Commands.SaveScene,
 		FExecuteAction::CreateSP(this, &FDataprepEditor::OnSaveScene));
-
-	UICommandList->MapAction(
-		Commands.ShowDataprepSettings,
-		FExecuteAction::CreateSP(this, &FDataprepEditor::OnShowSettings),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FDataprepEditor::IsShowingSettings));
 
 	UICommandList->MapAction(
 		Commands.BuildWorld,
@@ -746,12 +756,6 @@ void FDataprepEditor::ExtendToolBar()
 	{
 		static void FillToolbar(FToolBarBuilder& ToolbarBuilder, FDataprepEditor* ThisEditor)
 		{
-			ToolbarBuilder.BeginSection("Settings");
-			{
-				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().ShowDataprepSettings);
-			}
-			ToolbarBuilder.EndSection();
-
 			ToolbarBuilder.BeginSection("Run");
 			{
 				ToolbarBuilder.AddToolBarButton(FDataprepEditorCommands::Get().BuildWorld);
@@ -788,6 +792,8 @@ void FDataprepEditor::CreateTabs()
 			SetDetailsObjects(MoveTemp(Selection), false);
 		}
 	);
+
+	DataprepAssetView = SNew( SDataprepAssetView, DataprepAssetPtr.Get(), PipelineEditorCommands );
 
 	CreateScenePreviewTab();
 
@@ -885,6 +891,22 @@ TSharedRef<SDockTab> FDataprepEditor::SpawnTabPalette(const FSpawnTabArgs & Args
 		[
 			SNew(SDataprepPalette)
 		];
+}
+
+TSharedRef<SDockTab> FDataprepEditor::SpawnTabDataprep(const FSpawnTabArgs & Args)
+{
+	check(Args.GetTabId() == DataprepAssetTabId);
+
+	return SNew(SDockTab)
+	.Label(LOCTEXT("DataprepEditor_DataprepTab_Title", "Dataprep"))
+	[
+		SNew(SBorder)
+		.Padding(2.f)
+		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+		[
+			DataprepAssetView.ToSharedRef()
+		]
+	];
 }
 
 void FDataprepEditor::UpdatePreviewPanels()

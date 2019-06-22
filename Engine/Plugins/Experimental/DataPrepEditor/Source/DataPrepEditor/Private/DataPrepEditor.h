@@ -89,8 +89,6 @@ public:
 private:
 	void BindCommands();
 	void OnSaveScene();
-	void OnShowSettings();
-	bool IsShowingSettings() const;
 	void OnBuildWorld();
 	void ResetBuildWorld();
 	void CleanPreviewWorld();
@@ -108,6 +106,7 @@ private:
 	TSharedRef<SDockTab> SpawnTabScenePreview(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabPalette(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTabDetails(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTabDataprep(const FSpawnTabArgs& Args);
 
 	void TryInvokingDetailsTab(bool bFlash);
 
@@ -209,6 +208,7 @@ private:
 	static const FName AssetPreviewTabId;
 	static const FName PaletteTabId;
 	static const FName DetailsTabId;
+	static const FName DataprepAssetTabId;
 
 //Temp Code to allow us to work on the nodes while we don't have our own graph.
 public:
