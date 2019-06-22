@@ -354,9 +354,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIllumination(
 
 	FRDGBuilder GraphBuilder(RHICmdList);
 
-	RDG_GPU_STAT_SCOPE(GraphBuilder, RayTracingGlobalIllumination);
-	RDG_EVENT_SCOPE(GraphBuilder, "Ray Tracing Global Illumination");
-
 	FRDGTextureRef GlobalIlluminationTexture;
 	{
 		FRDGTextureDesc Desc = SceneContext.GetSceneColor()->GetDesc();
