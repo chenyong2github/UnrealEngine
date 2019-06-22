@@ -62,6 +62,7 @@ class FOcclusionRGS : public FGlobalShader
 		SHADER_PARAMETER(float, NormalBias)
 		SHADER_PARAMETER(uint32, LightingChannelMask)
 		SHADER_PARAMETER(FIntRect, LightScissor)
+		SHADER_PARAMETER(FIntPoint, PixelOffset)
 
 		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -148,17 +149,26 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		RayDistanceTexture = GraphBuilder.CreateTexture(Desc, TEXT("RayTracingOcclusionDistance"));
 	}
 
-	FIntRect ScissorRect = { {0,0}, View.ViewRect.Size() };
+	FIntRect ScissorRect = View.ViewRect;
+	FIntPoint PixelOffset = { 0, 0 };
+
+	// whether to clip the dispatch to a subrect, requires that denoising doesn't need the whole buffer
+	const bool bClipDispatch = DenoiserRequirements == IScreenSpaceDenoiser::EShadowRequirements::Bailout;
 
 	if (LightSceneProxy->GetScissorRect(ScissorRect, View, View.ViewRect))
 	{
 		// Account for scissor being defined on the whole frame viewport while the trace is only on the view subrect
-		ScissorRect.Min = ScissorRect.Min - View.ViewRect.Min;
-		ScissorRect.Max = ScissorRect.Max - View.ViewRect.Min;
+		ScissorRect.Min = ScissorRect.Min;
+		ScissorRect.Max = ScissorRect.Max;
 	}
 	else
 	{
-		ScissorRect = { {0,0}, View.ViewRect.Size() };
+		ScissorRect = View.ViewRect;
+	}
+
+	if (bClipDispatch)
+	{
+		PixelOffset = ScissorRect.Min;
 	}
 
 	// Ray generation pass for shadow occlusion.
@@ -174,6 +184,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->SceneTextures = SceneTextures;
 		PassParameters->LightScissor = ScissorRect;
+		PassParameters->PixelOffset = PixelOffset;
 		
 		FOcclusionRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FOcclusionRGS::FLightTypeDim>(LightSceneProxy->GetLightType());
@@ -202,8 +213,13 @@ void FDeferredShadingSceneRenderer::RenderRayTracingShadows(
 
 		FIntPoint Resolution(View.ViewRect.Width(), View.ViewRect.Height());
 
+		if (bClipDispatch)
+		{
+			Resolution = ScissorRect.Size();
+		}
+
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("RayTracedShadow (spp=%d) %dx%d", RayTracingConfig.RayCountPerPixel, View.ViewRect.Width(), View.ViewRect.Height()),
+			RDG_EVENT_NAME("RayTracedShadow (spp=%d) %dx%d", RayTracingConfig.RayCountPerPixel, Resolution.X, Resolution.Y),
 			PassParameters,
 			ERenderGraphPassFlags::Compute,
 			[this, &View, RayGenerationShader, PassParameters, Resolution](FRHICommandList& RHICmdList)
