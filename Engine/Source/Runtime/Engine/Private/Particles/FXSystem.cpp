@@ -387,9 +387,9 @@ DECLARE_CYCLE_STAT(TEXT("FXPreRender_SimulateCDF"), STAT_CLM_FXPreRender_Simulat
 DECLARE_CYCLE_STAT(TEXT("FXPreRender_FinalizeCDF"), STAT_CLM_FXPreRender_FinalizeCDF, STATGROUP_CommandListMarkers);
 
 
-void FFXSystem::PreRender(FRHICommandListImmediate& RHICmdList, const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData)
+void FFXSystem::PreRender(FRHICommandListImmediate& RHICmdList, const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
 {
-	if (RHISupportsGPUParticles())
+	if (RHISupportsGPUParticles() && bAllowGPUParticleSceneUpdate)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, GPUParticles_PreRender);
 		UpdateMultiGPUResources(RHICmdList);
