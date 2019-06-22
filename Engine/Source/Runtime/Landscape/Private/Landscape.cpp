@@ -184,6 +184,9 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 
 	// We don't want to load this on the server, this component is for graphical purposes only
 	AlwaysLoadOnServer = false;
+
+	// Default sort priority of landscape to -1 so that it will default to the first thing rendered in any runtime virtual texture
+	TranslucencySortPriority = -1;
 }
 
 int32 ULandscapeComponent::GetMaterialInstanceCount(bool InDynamic) const

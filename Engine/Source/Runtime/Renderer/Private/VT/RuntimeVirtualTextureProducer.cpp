@@ -77,7 +77,8 @@ void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdL
 			DestinationBox1,
 			UVToWorld,
 			UVRange, 
-			Entry.vLevel);
+			Entry.vLevel,
+			Desc.MaxLevel);
 	}
 
 	Tiles.SetNumUnsafeInternal(0);

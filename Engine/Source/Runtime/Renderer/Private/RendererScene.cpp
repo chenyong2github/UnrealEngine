@@ -563,6 +563,7 @@ void FScene::CheckPrimitiveArrays()
 	check(Primitives.Num() == PrimitiveOcclusionFlags.Num());
 	check(Primitives.Num() == PrimitiveComponentIds.Num());
 	check(Primitives.Num() == PrimitiveVirtualTextureFlags.Num());
+	check(Primitives.Num() == PrimitiveVirtualTextureLod.Num());
 	check(Primitives.Num() == PrimitiveOcclusionBounds.Num());
 	check(Primitives.Num() == PrimitivesNeedingStaticMeshUpdate.Num());
 }
@@ -788,6 +789,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 	PrimitiveOcclusionFlags.AddUninitialized();
 	PrimitiveComponentIds.AddUninitialized();
 	PrimitiveVirtualTextureFlags.AddUninitialized();
+	PrimitiveVirtualTextureLod.AddUninitialized();
 	PrimitiveOcclusionBounds.AddUninitialized();
 	PrimitivesNeedingStaticMeshUpdate.Add(false);
 	
@@ -857,6 +859,7 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureLod, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 
@@ -1584,6 +1587,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 				TArraySwapElements(PrimitiveOcclusionFlags, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveComponentIds, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveVirtualTextureFlags, DestIndex, SourceIndex);
+				TArraySwapElements(PrimitiveVirtualTextureLod, DestIndex, SourceIndex);
 				TArraySwapElements(PrimitiveOcclusionBounds, DestIndex, SourceIndex);
 				TBitArraySwapElements(PrimitivesNeedingStaticMeshUpdate, DestIndex, SourceIndex);
 				SourceIndex = DestIndex;
@@ -1616,6 +1620,7 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 		PrimitiveOcclusionFlags.Pop();
 		PrimitiveComponentIds.Pop();
 		PrimitiveVirtualTextureFlags.Pop();
+		PrimitiveVirtualTextureLod.Pop();
 		PrimitiveOcclusionBounds.Pop();
 		PrimitivesNeedingStaticMeshUpdate.RemoveAt(PrimitivesNeedingStaticMeshUpdate.Num()-1);
 	}
