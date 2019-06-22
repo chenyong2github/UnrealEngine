@@ -643,7 +643,13 @@ class Popen(object):
                 # a subclass of OSError.  FIXME: We should really
                 # translate errno using _sys_errlist (or similar), but
                 # how can this be done from Python?
-                raise WindowsError(*e.args)
+# EPIC EDIT start -- nick.shin 2019-06-21 -- UE-76599
+#                raise WindowsError(*e.args)
+                # ERROR_ACCESS_DENIED (winerror 5) is received when the
+                # process already died.
+                if e.winerror != 5:
+                    raise WindowsError(*e.args)
+# EPIC EDIT end -- nick.shin 2019-06-21 -- UE-76599
             finally:
                 # Child is launched. Close the parent's copy of those pipe
                 # handles that only the child should have open.  You need
