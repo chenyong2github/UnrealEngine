@@ -16,6 +16,7 @@
 #include "K2Node_AddComponent.h"
 #include "PropertyEditorModule.h"
 
+#include "DetailLayoutBuilder.h"
 #include "EditorFontGlyphs.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Colors/SColorBlock.h"
@@ -26,6 +27,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SGridPanel.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
@@ -34,7 +36,14 @@
 #define LOCTEXT_NAMESPACE "DataprepAssetView"
 
 const float IndentSize = 12;
-const char* DataprepTabsFontName = "FontAwesome.11";
+
+namespace DataprepEditorUtils
+{
+	FSlateFontInfo GetGlyphFont()
+	{
+		return FEditorStyle::Get().GetFontStyle( "FontAwesome.11" );
+	}
+}
 
 // Inspired from SKismetInspector::Construct
 void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
@@ -369,14 +378,6 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 		return SNullWidget::NullWidget;
 	}
 
-	auto ToggleEntry = [this, ProducerStackEntry]()
-	{
-		ProducerStackEntry->ToggleProducer();
-		CheckBox->SetText( ProducerStackEntry->WillBeRun() ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square );
-
-		return FReply::Handled();
-	};
-
 	auto DeleteEntry = [ProducerStackEntry]()
 	{
 		ProducerStackEntry->RemoveProducer();
@@ -385,6 +386,8 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 
 	// Padding for check and delete buttons to center them on the first line of the detail view
 	const FMargin ButtonPadding( 0.0f, 10.0f, 0.0f, 0.0f );
+
+	TSharedPtr<STextBlock> StatusText;
 
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 	.BorderImage(FEditorStyle::GetBrush("NoBrush"))
@@ -397,19 +400,10 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 		.Padding( ButtonPadding )
 		.AutoWidth()
 		[
-			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("CheckToolTip", "Include or exclude this producer to the creation of the world "))
-			.IsFocusable(false)
-			.OnClicked_Lambda( ToggleEntry )
-			.VAlign( VAlign_Top )
-			.Content()
-			[
-				SAssignNew(CheckBox, STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
-				.ColorAndOpacity( FLinearColor::White )
-				.Text( ProducerStackEntry->WillBeRun() ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square )
-			]
+			SAssignNew(StatusText, STextBlock)
+			.Font( DataprepEditorUtils::GetGlyphFont() )
+			.ColorAndOpacity( this, &SProducerStackEntryTableRow::GetStatusColorAndOpacity )
+			.Text( FEditorFontGlyphs::Exclamation_Triangle )
 		]
 		// Input entry label
 		+ SHorizontalBox::Slot()
@@ -427,24 +421,40 @@ TSharedRef<SWidget> SProducerStackEntryTableRow::GetInputMainWidget()
 		[
 			SNew(SButton)
 			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("DeleteToolTip", "Delete this producer"))
+			.ToolTipText(LOCTEXT("ProducerStackEntryTableRow_DeleteToolTip", "Delete this producer"))
 			.IsFocusable(false)
 			.OnClicked_Lambda( DeleteEntry )
 			.VAlign( VAlign_Top )
 			.Content()
 			[
 				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
+				.Font( DataprepEditorUtils::GetGlyphFont() )
 				.ColorAndOpacity( FLinearColor::White )
 				.Text( FEditorFontGlyphs::Trash )
 			]
 		]
 	];
 
-	// Disable check box if associated producer is superseeded
-	CheckBox->SetEnabled( ProducerStackEntry->WillBeRun() );
+	StatusText->SetToolTipText( TAttribute<FText>( this, &SProducerStackEntryTableRow::GetStatusTooltipText ) );
 
 	return Widget.ToSharedRef();
+}
+
+FSlateColor SProducerStackEntryTableRow::GetStatusColorAndOpacity() const
+{
+	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
+	return  ( ProducerStackEntry.IsValid() && ProducerStackEntry->WillBeRun() ) ? FLinearColor::Transparent : FLinearColor::Red;
+}
+
+FText SProducerStackEntryTableRow::GetStatusTooltipText() const
+{
+	FProducerStackEntryPtr ProducerStackEntry = Node.Pin();
+	if( !ProducerStackEntry.IsValid() )
+	{
+		return LOCTEXT( "ProducerStackEntryTableRow_StatusTextTooltip_Invalid", "The producer is not valid");
+	}
+
+	return  ProducerStackEntry->WillBeRun() ? FText() : LOCTEXT( "ProducerStackEntryTableRow_StatusTextTooltip_Superseded", "This producer is superseded by another one and will be skipped when run.");
 }
 
 void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* InDataprepAssetPtr, TSharedPtr<FUICommandList>& CommandList )
@@ -489,26 +499,6 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 		SelectedConsumerDescription = MakeShared<FString>( FString() );
 	}
 
-	auto CheckEntry = [ this ]()
-	{
-		for(int32 Index = 0; Index < DataprepAssetPtr->GetProducersCount(); ++Index)
-		{
-			DataprepAssetPtr->EnableProducer( Index, !bIsChecked );
-		}
-
-
-		if( DataprepAssetPtr->EnableAllProducers( !bIsChecked ) )
-		{
-			bIsChecked = !bIsChecked;
-		}
-
-		CheckBox->SetText( bIsChecked ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square );
-
-		TreeView->Refresh();
-
-		return FReply::Handled();
-	};
-
 	TSharedPtr<SWidget> AddNewMenu = SNew(SComboButton)
 	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
 	.ForegroundColor(FLinearColor::White)
@@ -524,13 +514,14 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 		.HAlign(HAlign_Center)
 		[
 			SAssignNew(CheckBox, STextBlock)
-			.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
+			.Font( DataprepEditorUtils::GetGlyphFont() )
 			.ColorAndOpacity( FLinearColor::White )
-			.Text(FText::FromString(FString( TEXT( "\xf055" ) ) ) )
+			.Text( FEditorFontGlyphs::Plus_Circle )
 		]
 	];
 
 	TreeView = SNew(SProducerStackEntryTreeView, this, DataprepAssetPtr.Get() );
+	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar);
 
 	// #ueent_todo: Look at changing the border brushes to add color to this stuff
 	ChildSlot
@@ -539,138 +530,125 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAsset* In
 		.Padding(4.0f)
 		.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot()
-			.AutoHeight()
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.FillWidth(1)
 			[
-				SNew(SSpacer)
-				.Size( FVector2D( 200, 100 ) )		
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding( 0, 10, 0, 0 )
-				.HAlign( EHorizontalAlignment::HAlign_Center )
-				[
-					// #ueent_todo: make color block's width vary with parent widget
-					SNew(SColorBlock)
-					.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
-					.Size( FVector2D( 3000, 1 ) )
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(EHorizontalAlignment::HAlign_Left)
-				.VAlign(VAlign_Center)
-				.Padding( 5.0f )
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
-					.MinDesiredWidth( 200 )
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(EHorizontalAlignment::HAlign_Left)
-				.VAlign(VAlign_Center)
-				[
-					SAssignNew( ProducerSelector, STextComboBox )
-					.OptionsSource( &ConsumerDescriptionList )
-					.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
-					.InitiallySelectedItem( SelectedConsumerDescription )
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew( ConsumerWidget, SDataprepConsumerWidget )
-				.DataprepConsumer( DataprepAssetPtr->GetConsumer() )
-			]
-			// Section for producers
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				[
-					SNew(SSpacer)
-					.Size( FVector2D( 200, 20 ) )		
-				]
-			]
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding( 0, 10, 0, 0 )
-				.HAlign( EHorizontalAlignment::HAlign_Center )
-				[
-					SNew(SColorBlock)
-					.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
-					.Size( FVector2D( 2000, 1 ) )
-				]
-			]
-			+ SVerticalBox::Slot()
-			.Padding( 5.0f )
-			.AutoHeight()
-			[
-				SNew(SHorizontalBox)
-				// Check button
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-					.ToolTipText(LOCTEXT("CheckToolTip", "Include or exclude this producer to the creation of the world "))
-					.IsFocusable(false)
-					.OnClicked_Lambda( CheckEntry )
-					.VAlign(VAlign_Center)
-					.Content()
-					[
-						SAssignNew(CheckBox, STextBlock)
-						.Font(FEditorStyle::Get().GetFontStyle(DataprepTabsFontName))
-						.ColorAndOpacity( FLinearColor::White )
-						.Text( bIsChecked ? FEditorFontGlyphs::Check_Square : FEditorFontGlyphs::Square )
-					]
-				]
-				+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.HAlign(EHorizontalAlignment::HAlign_Left)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("DataprepAssetView_Producers_label", "Inputs"))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(EHorizontalAlignment::HAlign_Right)
-				.Padding(0, 0, 2, 0)
-				[
-					AddNewMenu.ToSharedRef()
-				]
-			]
-			+ SVerticalBox::Slot()
-			.Padding( 5.0f )
-			.AutoHeight()
-			[
+
 				SNew(SScrollBox)
+				.ExternalScrollbar(ScrollBar)
 				+ SScrollBox::Slot()
-				.Padding(0, 3, 0, 3)
 				[
-					TreeView.ToSharedRef()
+
+					SNew(SVerticalBox)
+					// Section for producers
+					+ SVerticalBox::Slot()
+					.Padding( 5.0f )
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding( FMargin( 10, 0, 0, 0 ) )
+						[
+							SNew(STextBlock)
+							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+							.Text(LOCTEXT("DataprepAssetView_Producers_label", "Inputs"))
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(EHorizontalAlignment::HAlign_Right)
+						.Padding(0, 0, 2, 0)
+						[
+							AddNewMenu.ToSharedRef()
+						]
+					]
+					+ SVerticalBox::Slot()
+					.Padding( 5.0f )
+					.AutoHeight()
+					[
+						TreeView.ToSharedRef()
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.Padding( 0, 10, 0, 0 )
+						.HAlign( EHorizontalAlignment::HAlign_Center )
+						[
+							// #ueent_todo: make color block's width vary with parent widget
+							SNew(SColorBlock)
+							.Color( FLinearColor( 0.9f, 0.9f, 0.9f ) )
+							.Size( FVector2D( 3000, 1 ) )
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SSpacer)
+							.Size( FVector2D( 200, 10 ) )		
+						]
+					]
+					// Section for consumer
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						.FillWidth(1.0f)
+						.HAlign(EHorizontalAlignment::HAlign_Left)
+						.VAlign(VAlign_Center)
+						.Padding( FMargin( 10, 0, 0, 0 ) )
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("DataprepAssetView_Consumer_label", "Output"))
+							.MinDesiredWidth( 200 )
+							.Font( IDetailLayoutBuilder::GetDetailFontBold() )
+						]
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(EHorizontalAlignment::HAlign_Right)
+						.Padding(0, 0, 2, 0)
+						[
+							SAssignNew( ProducerSelector, STextComboBox )
+							.OptionsSource( &ConsumerDescriptionList )
+							.OnSelectionChanged( this, &SDataprepAssetView::OnNewConsumerSelected )
+							.InitiallySelectedItem( SelectedConsumerDescription )
+						]
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew( ConsumerWidget, SDataprepConsumerWidget )
+						.DataprepConsumer( DataprepAssetPtr->GetConsumer() )
+					]
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
+						+ SHorizontalBox::Slot()
+						[
+							SNew(SSpacer)
+							.Size( FVector2D( 200, 10 ) )		
+						]
+					]
+					// Section for consumer
+				]
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew( SBox )
+				.WidthOverride( FOptionalSize( 16 ) )
+				[
+					ScrollBar
 				]
 			]
 		]
