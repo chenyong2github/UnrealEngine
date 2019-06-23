@@ -96,19 +96,28 @@ void ULandscapeComponent::Init(int32 InBaseX, int32 InBaseY, int32 InComponentSi
 	ULandscapeInfo* Info = GetLandscapeInfo();
 }
 
-void ULandscapeComponent::UpdateCachedBounds()
+void ULandscapeComponent::UpdateCachedBounds(bool bInApproximateBounds)
 {
-	const int32 MipLevel = 0;
-	const bool bWorkOnEditingLayer = false; // We never want to compute bounds based on anything else that final landscape layer's height data
-	FLandscapeComponentDataInterface CDI(this, MipLevel, bWorkOnEditingLayer);
-
 	// Update local-space bounding box
 	CachedLocalBox.Init();
-	for (int32 y = 0; y < ComponentSizeQuads + 1; y++)
+	if (bInApproximateBounds && GetLandscapeProxy()->HasLayersContent())
 	{
-		for (int32 x = 0; x < ComponentSizeQuads + 1; x++)
+		FVector MinBox(0, 0, LandscapeDataAccess::GetLocalHeight(0));
+		FVector MaxBox(ComponentSizeQuads + 1, ComponentSizeQuads + 1, LandscapeDataAccess::GetLocalHeight(UINT16_MAX));
+		CachedLocalBox = FBox(MinBox, MaxBox);
+	}
+	else
+	{
+		const int32 MipLevel = 0;
+		const bool bWorkOnEditingLayer = false; // We never want to compute bounds based on anything else that final landscape layer's height data
+		FLandscapeComponentDataInterface CDI(this, MipLevel, bWorkOnEditingLayer);
+
+		for (int32 y = 0; y < ComponentSizeQuads + 1; y++)
 		{
-			CachedLocalBox += CDI.GetLocalVertex(x, y);
+			for (int32 x = 0; x < ComponentSizeQuads + 1; x++)
+			{
+				CachedLocalBox += CDI.GetLocalVertex(x, y);
+			}
 		}
 	}
 	if (CachedLocalBox.GetExtent().Z == 0)
