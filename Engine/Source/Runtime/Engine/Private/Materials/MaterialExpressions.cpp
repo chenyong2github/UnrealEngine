@@ -15733,6 +15733,10 @@ int32 UMaterialExpressionCurveAtlasRowParameter::Compile(class FMaterialCompiler
 {
 	if (Atlas && Curve)
 	{
+		// Retrieve the curve index directly from the atlas rather than relying on the scalar parameter defaults
+		int32 CurveIndex = 0;
+		Atlas->GetCurveIndex(Curve, CurveIndex);
+		DefaultValue = (float)CurveIndex;
 		int32 Slot = Compiler->ScalarParameter(ParameterName, DefaultValue);
 
 		// Get Atlas texture object and texture size
