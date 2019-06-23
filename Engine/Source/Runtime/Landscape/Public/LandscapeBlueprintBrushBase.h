@@ -29,6 +29,8 @@ protected:
 
 	UPROPERTY(Transient)
 	bool bIsVisible;
+
+	uint32 LastRequestLayersContentUpdateFrameNumber;
 #endif
 
 public:
