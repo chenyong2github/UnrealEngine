@@ -50,8 +50,8 @@ FSSDSignalAccumulator CreateSignalAccumulator()
 	Accumulator.Moment1 = CreateSignalSampleFromScalarValue(0.0);
 	Accumulator.Moment2 = CreateSignalSampleFromScalarValue(0.0);
 		
-	Accumulator.Min = CreateSignalSampleFromScalarValue(1.#INF);
-	Accumulator.Max = CreateSignalSampleFromScalarValue(0.0); // TODO: -1.#INF? otherwise there is a risk to color clamp with YCoCg.
+	Accumulator.Min = CreateSignalSampleFromScalarValue(INFINITE_FLOAT);
+	Accumulator.Max = CreateSignalSampleFromScalarValue(0.0); // TODO: -INFINITE_FLOAT? otherwise there is a risk to color clamp with YCoCg.
 
 	Accumulator.MinInvFrequency = WORLD_RADIUS_MISS;
 

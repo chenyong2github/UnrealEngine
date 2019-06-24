@@ -690,3 +690,9 @@ float UnpackByte3(uint v) { return float(v >> 24); }
 	#define UNORM unorm
 #endif
 #endif
+
+#if COMPILER_HLSLCC || PS4_PROFILE
+	#define INFINITE_FLOAT 3.402823e+38
+#else
+	#define INFINITE_FLOAT 1.#INF
+#endif

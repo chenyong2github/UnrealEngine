@@ -27,12 +27,6 @@ SamplerState SceneColorSampler;
 Texture2D HZB;
 SamplerState HZBSampler;
 
-#if COMPILER_HLSLCC || PS4_PROFILE
-#define INFINITE_WORKAROUND		3.402823e+38
-#else
-#define INFINITE_WORKAROUND		1.#INF
-#endif
-
 
 float GetRoughness(const in FGBufferData GBuffer)
 {
@@ -137,7 +131,7 @@ void ScreenSpaceReflectionsPS(
 	float NoV = saturate( dot( N, V ) );
 	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
 
-	float ClosestHitDistanceSqr = INFINITE_WORKAROUND;
+	float ClosestHitDistanceSqr = INFINITE_FLOAT;
 
 #if SSR_QUALITY == 1
 	uint NumSteps = 8;
@@ -284,7 +278,7 @@ void ScreenSpaceReflectionsPS(
 		OutColor /= max( NumRays, 0.0001 );
 		OutColor.rgb *= rcp( 1 - Luminance(OutColor.rgb) );
 
-		if (ClosestHitDistanceSqr == INFINITE_WORKAROUND)
+		if (ClosestHitDistanceSqr == INFINITE_FLOAT)
 		{
 			ClosestHitDistanceSqr = DENOISER_MISS_HIT_DISTANCE;
 		}
