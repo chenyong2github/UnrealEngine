@@ -480,6 +480,14 @@ namespace Tools.DotNETCommon
 		}
 
 		/// <summary>
+		/// Writes a null object reference to the output.
+		/// </summary>
+		public void WriteNullObjectReference()
+		{
+			WriteInt(-1);
+		}
+
+		/// <summary>
 		/// Writes an object to the output. If the specific instance has already been written, preserves the reference to that.
 		/// </summary>
 		/// <typeparam name="T">Type of the object to serialize</typeparam>
