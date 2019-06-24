@@ -40,6 +40,8 @@ import gc
 import signal
 import errno
 
+from pprint import pprint # TEMP: CIS BUGHUNT
+
 # Exception classes used by this module.
 class CalledProcessError(Exception):
     """This exception is raised when a process run by check_call() or
@@ -648,6 +650,7 @@ class Popen(object):
                 # ERROR_ACCESS_DENIED (winerror 5) is received when the
                 # process already died.
                 if e.winerror != 5:
+                    pprint(vars(e)) # TEMP CIS BUGHUNT
                     raise WindowsError(*e.args)
 # EPIC EDIT end -- nick.shin 2019-06-21 -- UE-76599
             finally:
