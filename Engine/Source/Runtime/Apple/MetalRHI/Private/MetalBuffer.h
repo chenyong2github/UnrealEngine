@@ -13,11 +13,12 @@ struct FMetalPooledBufferArgs
 {
     FMetalPooledBufferArgs() : Device(nil), Size(0), Flags(0), Storage(mtlpp::StorageMode::Shared) {}
 	
-    FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, uint32 InFlags, mtlpp::StorageMode InStorage)
+    FMetalPooledBufferArgs(mtlpp::Device InDevice, uint32 InSize, uint32 InFlags, mtlpp::StorageMode InStorage, mtlpp::CpuCacheMode InCpuCacheMode = mtlpp::CpuCacheMode::DefaultCache)
 	: Device(InDevice)
 	, Size(InSize)
     , Flags(InFlags)
 	, Storage(InStorage)
+	, CpuCacheMode(InCpuCacheMode)
 	{
 	}
 	
@@ -25,6 +26,7 @@ struct FMetalPooledBufferArgs
 	uint32 Size;
     uint32 Flags;
 	mtlpp::StorageMode Storage;
+	mtlpp::CpuCacheMode CpuCacheMode;
 };
 
 class FMetalSubBufferHeap

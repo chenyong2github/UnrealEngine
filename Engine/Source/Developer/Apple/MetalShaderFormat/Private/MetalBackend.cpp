@@ -1945,7 +1945,14 @@ protected:
 				}
 				break;
 			case ir_txs:
-				ralloc_asprintf_append(buffer, "int2((int)");
+				if(tex->sampler->type->sampler_array)
+				{
+					ralloc_asprintf_append(buffer, "int3((int)");
+				}
+				else
+				{
+					ralloc_asprintf_append(buffer, "int2((int)");
+				}
 				break;
 			default:
 				break;
@@ -2237,8 +2244,58 @@ protected:
 			{
 				tex->sampler->accept(this);
 				ralloc_asprintf_append(buffer, ".read(");
-				tex->coordinate->accept(this);
 				
+				if (tex->sampler->type->sampler_array)
+				{
+					// Need to split the coordinate
+					char const* CoordSwizzle = "";
+					char const* IndexSwizzle = "y";
+					switch(tex->sampler->type->sampler_dimensionality)
+					{
+						case GLSL_SAMPLER_DIM_1D:
+						{
+							break;
+						}
+						case GLSL_SAMPLER_DIM_2D:
+						case GLSL_SAMPLER_DIM_RECT:
+						{
+							CoordSwizzle = "y";
+							IndexSwizzle = "z";
+							break;
+						}
+						case GLSL_SAMPLER_DIM_3D:
+						{
+							CoordSwizzle = "yz";
+							IndexSwizzle = "w";
+							break;
+						}
+						case GLSL_SAMPLER_DIM_CUBE:
+						{
+							CoordSwizzle = "yz";
+							IndexSwizzle = "w";
+							break;
+						}
+						case GLSL_SAMPLER_DIM_BUF:
+						case GLSL_SAMPLER_DIM_EXTERNAL:
+						default:
+						{
+							check(0);
+							break;
+						}
+					}
+					
+					ralloc_asprintf_append(buffer, "(");
+					tex->coordinate->accept(this);
+					
+					ralloc_asprintf_append(buffer, ").x%s, (uint)(", CoordSwizzle);
+					tex->coordinate->accept(this);
+					ralloc_asprintf_append(buffer, ").%s", IndexSwizzle);
+				}
+				else
+				{
+					tex->coordinate->accept(this);
+				}
+
 				if (tex->sampler->type->sampler_ms)
 				{
 					ralloc_asprintf_append(buffer, ",");
@@ -2429,6 +2486,13 @@ protected:
 				tex->lod_info.lod->accept(this);
 			}
 			ralloc_asprintf_append(buffer, ")");
+			
+			if(tex->sampler->type->sampler_array)
+			{
+				ralloc_asprintf_append(buffer, ", (int)");
+				tex->sampler->accept(this);
+				ralloc_asprintf_append(buffer, ".get_array_size()");
+			}
 		}
 			break;
 
