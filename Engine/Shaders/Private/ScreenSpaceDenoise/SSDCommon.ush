@@ -36,6 +36,9 @@
 	// Indirect diffuse requires really large spatial kernel to clean the noise.
 	#define TARGETED_SAMPLE_COUNT 4096
 
+#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC
+	#define TARGETED_SAMPLE_COUNT 128
+
 #else
 	#error Unconfigured TARGETED_SAMPLE_COUNT
 

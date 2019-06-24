@@ -363,7 +363,7 @@ void DecodeMultiplexedSignals(
 	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_UNINITIALIZED)
 	{
 		// trash out the output sample to identify quickly a miss configured buffer layout.
-		OutSamples = CreateSignalArrayFromScalarValue(-1.#INF);
+		OutSamples = CreateSignalArrayFromScalarValue(-INFINITE_FLOAT);
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INPUT_1SPP)
 	{
@@ -598,6 +598,27 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
 	}
 	#endif
+	#if CONFIG_SIGNAL_COLOR_SH
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
+	{
+		float SampleCount;
+		if (bNormalizeSample)
+		{
+			SampleCount = 1.0;
+			OutSamples.Array[0].SampleCount = RawSample[3].x > 0.0 ? 1.0 : 0.0;
+		}
+		else
+		{
+			SampleCount = RawSample[3].x;
+			OutSamples.Array[0].SampleCount = SampleCount;
+		}
+
+		OutSamples.Array[0].MissCount = RawSample[3].y * SampleCount;
+		OutSamples.Array[0].ColorSH.R.V = RawSample[0] * SampleCount;
+		OutSamples.Array[0].ColorSH.G.V = RawSample[1] * SampleCount;
+		OutSamples.Array[0].ColorSH.B.V = RawSample[2] * SampleCount;
+	}
+	#endif
 } // DecodeMultiplexedSignals()
 
 /** Encode output signal sample. */
@@ -787,6 +808,19 @@ void EncodeMultiplexedSignals(
 			OutRawSample[1].g = Sample[1].SceneColor.x * NormalizationFactor;
 			OutRawSample[1].b = Sample[2].SceneColor.x * NormalizationFactor;
 		}
+	}
+	#endif
+	#if CONFIG_SIGNAL_COLOR_SH
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
+	{
+		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
+
+		OutRawSample[3].x = Sample[0].SampleCount;
+		OutRawSample[3].y = Sample[0].MissCount * NormalizationFactor;
+		OutRawSample[0] = Sample[0].ColorSH.R.V * NormalizationFactor;
+		OutRawSample[1] = Sample[0].ColorSH.G.V * NormalizationFactor;
+		OutRawSample[2] = Sample[0].ColorSH.B.V * NormalizationFactor;
+		OutBufferCount = 4;
 	}
 	#endif
 } // EncodeMultiplexedSignals()

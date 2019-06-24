@@ -47,7 +47,7 @@
 
 // World bluring radius for a miss.
 #define WORLD_RADIUS_INVALID -1
-#define WORLD_RADIUS_MISS 1.#INF
+#define WORLD_RADIUS_MISS (INFINITE_FLOAT)
 
 // Mip level for sample that are invalid or missed.
 #define MIP_LEVEL_INVALID -1
@@ -124,6 +124,10 @@
 	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY 0xD102
 
 
+	/** Buffer layout given by the ray generation shader for diffuse indirect  illumination. */
+	#define SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC 0xD200
+
+
 /** Defines how the signal is being processed. Matches C++'s ESignalProcessing. */
 	/** Shadow penumbra denoising. */
 	#define SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA 0
@@ -134,8 +138,11 @@
 	/** Ambient occlusion denoising. */
 	#define SIGNAL_PROCESSING_AO 2
 
-	/** Global illumination denoising. */
+	/** Diffuse indirect and ambient occlusion. */
 	#define SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO 3
+
+	/** Diffuse indirect using spherical harmonic. */
+	#define SIGNAL_PROCESSING_DIFFUSE_SPHERICAL_HARMONIC 4
 
 
 

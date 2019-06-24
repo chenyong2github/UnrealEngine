@@ -147,6 +147,9 @@ enum class ESignalProcessing
 	// Denoise first bounce diffuse and ambient occlusion.
 	DiffuseAndAmbientOcclusion,
 
+	// Denoise first bounce diffuse as sperical harmonic
+	DiffuseSphericalHarmonic,
+
 	MAX,
 };
 
@@ -165,7 +168,8 @@ static bool UsesConstantPixelDensityPassLayout(ESignalProcessing SignalProcessin
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion);
+		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
+		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic);
 }
 
 /** Returns whether a signal processing uses an injestion pass. */
@@ -191,6 +195,16 @@ static bool SignalUsesRejectionPreConvolution(ESignalProcessing SignalProcessing
 		SignalProcessing == ESignalProcessing::AmbientOcclusion);
 }
 
+/** Returns whether a signal processing uses a convolution pass after temporal accumulation pass. */
+static bool SignalUsesPostConvolution(ESignalProcessing SignalProcessing)
+{
+	return (
+		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
+		SignalProcessing == ESignalProcessing::Reflections ||
+		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
+		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion);
+}
+
 /** Returns whether a signal processing uses a history rejection pre convolution pass. */
 static bool SignalUsesFinalConvolution(ESignalProcessing SignalProcessing)
 {
@@ -207,7 +221,8 @@ static int32 SignalMaxBatchSize(ESignalProcessing SignalProcessing)
 	else if (
 		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion)
+		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
+		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic)
 	{
 		return 1;
 	}
@@ -231,7 +246,8 @@ static bool SignalSupportMultiSPP(ESignalProcessing SignalProcessing)
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
 		SignalProcessing == ESignalProcessing::Reflections ||
 		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
-		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion);
+		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion ||
+		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic);
 }
 
 
@@ -271,6 +287,12 @@ const TCHAR* const kInjestResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// DiffuseSphericalHarmonic
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
 };
 
 const TCHAR* const kReconstructionResourceNames[] = {
@@ -297,6 +319,12 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	TEXT("DiffuseIndirectReconstruction1"),
 	nullptr,
 	nullptr,
+
+	// DiffuseSphericalHarmonic
+	TEXT("DiffuseHarmonicReconstruction0"),
+	TEXT("DiffuseHarmonicReconstruction1"),
+	TEXT("DiffuseHarmonicReconstruction2"),
+	TEXT("DiffuseHarmonicReconstruction3"),
 };
 
 const TCHAR* const kPreConvolutionResourceNames[] = {
@@ -323,6 +351,12 @@ const TCHAR* const kPreConvolutionResourceNames[] = {
 	TEXT("DiffuseIndirectPreConvolution1"),
 	nullptr,
 	nullptr,
+
+	// DiffuseSphericalHarmonic
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
 };
 
 const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
@@ -345,6 +379,12 @@ const TCHAR* const kRejectionPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// DiffuseIndirect
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+
+	// DiffuseSphericalHarmonic
 	nullptr,
 	nullptr,
 	nullptr,
@@ -375,6 +415,12 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	TEXT("DiffuseIndirectTemporalAccumulation1"),
 	nullptr,
 	nullptr,
+
+	// DiffuseSphericalHarmonic
+	TEXT("DiffuseHarmonicTemporalAccumulation0"),
+	TEXT("DiffuseHarmonicTemporalAccumulation1"),
+	TEXT("DiffuseHarmonicTemporalAccumulation2"),
+	TEXT("DiffuseHarmonicTemporalAccumulation3"),
 };
 
 const TCHAR* const kHistoryConvolutionResourceNames[] = {
@@ -399,6 +445,12 @@ const TCHAR* const kHistoryConvolutionResourceNames[] = {
 	// DiffuseIndirect
 	TEXT("DiffuseIndirectHistoryConvolution0"),
 	TEXT("DiffuseIndirectHistoryConvolution1"),
+	nullptr,
+	nullptr,
+
+	// DiffuseSphericalHarmonic
+	nullptr,
+	nullptr,
 	nullptr,
 	nullptr,
 };
@@ -427,6 +479,12 @@ const TCHAR* const kDenoiserOutputResourceNames[] = {
 	nullptr,
 	nullptr,
 	nullptr,
+
+	// DiffuseSphericalHarmonic
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
 };
 
 static_assert(ARRAY_COUNT(kReconstructionResourceNames) == int32(ESignalProcessing::MAX) * kMaxBufferProcessingCount, "You forgot me!");
@@ -439,10 +497,11 @@ static_assert(ARRAY_COUNT(kDenoiserOutputResourceNames) == int32(ESignalProcessi
 /** Returns whether should compole pipeline for a given shader platform.*/
 bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlatform Platform)
 {
-	if (SignalProcessing == ESignalProcessing::Reflections)
+	if (SignalProcessing == ESignalProcessing::Reflections ||
+		SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic)
 	{
 		// Ray traced reflection and SSR.
-		return Platform == SP_PCD3D_SM5 || Platform == SP_XBOXONE_D3D12;
+		return Platform == SP_PCD3D_SM5 || Platform == SP_XBOXONE_D3D12 || Platform == SP_PS4;
 	}
 	else if (
 		SignalProcessing == ESignalProcessing::MonochromaticPenumbra ||
@@ -624,6 +683,13 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 		// Only compile rejection pre convolution for signal that uses it.
 		if (!SignalUsesRejectionPreConvolution(SignalProcessing) &&
 			PermutationVector.Get<FStageDim>() == EStage::RejectionPreConvolution)
+		{
+			return false;
+		}
+
+		// Only compile post convolution for signal that uses it.
+		if (!SignalUsesPostConvolution(SignalProcessing) &&
+			PermutationVector.Get<FStageDim>() == EStage::PostFiltering)
 		{
 			return false;
 		}
@@ -871,6 +937,21 @@ static void DenoiseSignalAtConstantPixelDensity(
 			HistoryDescs[0].Format = PF_FloatRGBA;
 			HistoryDescs[1].Format = PF_R16F; //PF_FloatRGB;
 			HistoryTextureCountPerSignal = 2;
+			bHasReconstructionLayoutDifferentFromHistory = false;
+		}
+		else if (Settings.SignalProcessing == ESignalProcessing::DiffuseSphericalHarmonic)
+		{
+			for (int32 i = 0; i < 3; i++)
+			{
+				ReconstructionDescs[i].Format = PF_FloatRGBA;
+				HistoryDescs[i].Format = PF_FloatRGBA;
+			}
+
+			ReconstructionDescs[3].Format = PF_G16R16F;
+			HistoryDescs[3].Format = PF_G16R16F;
+
+			ReconstructionTextureCount = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount;
+			HistoryTextureCountPerSignal = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; // TODO: only 3 textures for history
 			bHasReconstructionLayoutDifferentFromHistory = false;
 		}
 		else
@@ -1591,6 +1672,45 @@ public:
 		return GlobalIlluminationOutputs;
 	}
 
+	FDiffuseIndirectHarmonic DenoiseDiffuseIndirectHarmonic(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FDiffuseIndirectHarmonic& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const override
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
+		FSSDSignalTextures InputSignal;
+		for (int32 i = 0; i < IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; i++)
+			InputSignal.Textures[i] = Inputs.SphericalHarmonic[i];
+
+		FSSDConstantPixelDensitySettings Settings;
+		Settings.SignalProcessing = ESignalProcessing::DiffuseSphericalHarmonic;
+		Settings.InputResolutionFraction = Config.ResolutionFraction;
+		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
+		Settings.bUseTemporalAccumulation = CVarGITemporalAccumulation.GetValueOnRenderThread() != 0;
+		Settings.MaxInputSPP = Config.RayCountPerPixel;
+
+		TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+		TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+		PrevHistories[0] = &PreviousViewInfos->DiffuseIndirectHistory;
+		NewHistories[0] = View.ViewState ? &View.ViewState->PrevFrameViewInfo.DiffuseIndirectHistory : nullptr;
+
+		FSSDSignalTextures SignalOutput;
+		DenoiseSignalAtConstantPixelDensity(
+			GraphBuilder, View, SceneTextures,
+			InputSignal, Settings,
+			PrevHistories,
+			NewHistories,
+			&SignalOutput);
+
+		FDiffuseIndirectHarmonic GlobalIlluminationOutputs;
+		for (int32 i = 0; i < IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; i++)
+			GlobalIlluminationOutputs.SphericalHarmonic[i] = SignalOutput.Textures[i];
+		return GlobalIlluminationOutputs;
+	}
 }; // class FDefaultScreenSpaceDenoiser
 
 

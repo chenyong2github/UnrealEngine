@@ -177,7 +177,7 @@ public:
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, AmbientOcclusionMask)
 	END_SHADER_PARAMETER_STRUCT()
 
-	/** Entry point to denoise reflections. */
+	/** Entry point to denoise diffuse indirect and AO. */
 	virtual FDiffuseIndirectOutputs DenoiseDiffuseIndirect(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
@@ -186,7 +186,7 @@ public:
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
-	/** Entry point to denoise SkyLight. */
+	/** Entry point to denoise SkyLight diffuse indirect. */
 	virtual FDiffuseIndirectOutputs DenoiseSkyLight(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
@@ -195,9 +195,28 @@ public:
 		const FDiffuseIndirectInputs& Inputs,
 		const FAmbientOcclusionRayTracingConfig Config) const = 0;
 
+	// Number of texture to store spherical harmonics.
+	static constexpr int32 kSphericalHarmonicTextureCount = 4;
+
+	/** All the inputs and outputs for spherical harmonic denoising. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FDiffuseIndirectHarmonic, )
+		// FloatR11G11B10
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, SphericalHarmonic, [kSphericalHarmonicTextureCount])
+	END_SHADER_PARAMETER_STRUCT()
+
+	/** Entry point to denoise spherical harmonic for diffuse indirect. */
+	virtual FDiffuseIndirectHarmonic DenoiseDiffuseIndirectHarmonic(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FDiffuseIndirectHarmonic& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const = 0;
+
+
 	/** Returns the interface of the default denoiser of the renderer. */
 	static const IScreenSpaceDenoiser* GetDefaultDenoiser();
-}; // class FScreenSpaceDenoisingInterface
+}; // class IScreenSpaceDenoiser
 
 
 // The interface for the renderer to denoise what it needs, Plugins can come and point this to custom interface.
