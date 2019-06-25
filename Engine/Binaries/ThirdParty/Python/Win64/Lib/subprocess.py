@@ -649,8 +649,8 @@ class Popen(object):
 #                raise WindowsError(*e.args)
                 # ERROR_ACCESS_DENIED (winerror 5) is received when the
                 # process already died.
+                pprint(vars(e)) # TEMP CIS BUGHUNT
                 if e.winerror != 5:
-                    pprint(vars(e)) # TEMP CIS BUGHUNT
                     raise WindowsError(*e.args)
 # EPIC EDIT end -- nick.shin 2019-06-21 -- UE-76599
             finally:
