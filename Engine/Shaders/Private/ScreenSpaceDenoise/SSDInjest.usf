@@ -33,6 +33,7 @@
 
 #include "SSDSignalFramework.ush"
 #include "SSDSignalArray.ush"
+#include "SSDSignalBufferEncoding.ush"
 
 
 //------------------------------------------------------- PARAMETERS
