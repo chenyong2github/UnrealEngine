@@ -617,6 +617,8 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[0].ColorSH.R.V = RawSample[0] * SampleCount;
 		OutSamples.Array[0].ColorSH.G.V = RawSample[1] * SampleCount;
 		OutSamples.Array[0].ColorSH.B.V = RawSample[2] * SampleCount;
+
+		// TODO: SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
 	}
 	#endif
 } // DecodeMultiplexedSignals()

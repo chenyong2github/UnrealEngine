@@ -192,7 +192,7 @@
 #define CONFIG_NORMAL_ANISOTROPY 0
 
 /** Whether should enable VGPR optimizations. */
-#define CONFIG_VGPR_OPTIMIZATION 0
+#define CONFIG_VGPR_OPTIMIZATION 1
 
 /** Whether should do VALU optimizations. */
 #define CONFIG_VALU_OPTIMIZATIONS 1

@@ -926,6 +926,7 @@ void ConvolveStackowiakKernel(
 	}
 	else // if (!KernelConfig.bDescOrder)
 	{
+		// TODO: kSamplingBatchSize for lattency hidding
 		LOOP
 		for (uint SampleId = (KernelConfig.bSampleKernelCenter ? 0 : 1); SampleId < KernelConfig.SampleCount; SampleId++)
 		{

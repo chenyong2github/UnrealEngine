@@ -537,6 +537,12 @@ float ComputeBilateralWeight(
 	}
 	#elif CONFIG_VIEW_POSITION_BASED_BILATERAL == 2
 	{
+		// TODO: save 2 VGPR by encoding RefSceneMetadata.WorldNormal
+
+		// TODO: save 2 VGPR by using SceneDepth instead of RefSceneMetadata.TranslatedWorldPosition (not sure it can work in math yet).
+		// float2 ClipPosition = ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f);
+		// Infos.TranslatedWorldPosition = mul(float4(ClipPosition, WorldDepth, 1), ScreenToTranslatedWorld).xyz;
+
 		float DistFromRefPlane = abs(dot(RefSceneMetadata.WorldNormal, RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition));
 
 		PositionBilateralWeight = saturate(1 - DistFromRefPlane * rcp(MaxWorldBluringDistance));

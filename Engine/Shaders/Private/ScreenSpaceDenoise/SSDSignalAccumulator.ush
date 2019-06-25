@@ -253,6 +253,8 @@ void AccumulateSample(
 	inout FSSDSignalAccumulator Accumulator,
 	FSSDSampleAccumulationInfos SampleInfos)
 {
+	// TODO: Decompress and recompress the accumulator to reduce VGPR pressure.
+
 	AccumulateSampleInOneBin(/* inout */ Accumulator, SampleInfos);
 	AccumulateSampleInDomainBoundaries(/* inout */ Accumulator, SampleInfos);
 	AccumulateSampleInDRB(/* inout */ Accumulator, SampleInfos);
