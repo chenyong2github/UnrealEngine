@@ -3,6 +3,12 @@
 #pragma once
 
 #include "SSDSignalCore.ush"
+#include "SSDSignalCompression.ush"
+
+
+#ifndef CONFIG_SIGNAL_VGPR_COMPRESSION
+	#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DISABLED
+#endif
 
 
 //------------------------------------------------------- SIGNAL ACCUMULATOR
@@ -15,6 +21,10 @@ struct FSSDSignalAccumulator
 	// Sums of moment.
 	FSSDSignalSample Moment1;
 	FSSDSignalSample Moment2;
+
+	// Compressed form of moment signals.
+	FSSDCompressedSignalSample CompressedMoment1;
+	FSSDCompressedSignalSample CompressedMoment2;
 
 	// Per component min and max values.
 	FSSDSignalSample Min;
@@ -50,6 +60,9 @@ FSSDSignalAccumulator CreateSignalAccumulator()
 	Accumulator.Moment1 = CreateSignalSampleFromScalarValue(0.0);
 	Accumulator.Moment2 = CreateSignalSampleFromScalarValue(0.0);
 		
+	Accumulator.CompressedMoment1 = CreateCompressedSignalSampleFromScalarValue(0.0, CONFIG_SIGNAL_VGPR_COMPRESSION);
+	Accumulator.CompressedMoment2 = CreateCompressedSignalSampleFromScalarValue(0.0, CONFIG_SIGNAL_VGPR_COMPRESSION);
+
 	Accumulator.Min = CreateSignalSampleFromScalarValue(INFINITE_FLOAT);
 	Accumulator.Max = CreateSignalSampleFromScalarValue(0.0); // TODO: -INFINITE_FLOAT? otherwise there is a risk to color clamp with YCoCg.
 
@@ -237,6 +250,21 @@ void DijestSampleClusterInDRB(
 }
 
 
+//------------------------------------------------------- COMPRESSION & DECOMPRESSION
+
+void CompressSignalAccumulator(inout FSSDSignalAccumulator Accumulator)
+{
+	CompressSignalSample(Accumulator.Moment1, CONFIG_SIGNAL_VGPR_COMPRESSION, /* out */ Accumulator.CompressedMoment1);
+	CompressSignalSample(Accumulator.Moment2, CONFIG_SIGNAL_VGPR_COMPRESSION, /* out */ Accumulator.CompressedMoment2);
+}
+
+void UncompressSignalAccumulator(inout FSSDSignalAccumulator Accumulator)
+{
+	UncompressSignalSample(Accumulator.CompressedMoment1, CONFIG_SIGNAL_VGPR_COMPRESSION, /* inout */ Accumulator.Moment1);
+	UncompressSignalSample(Accumulator.CompressedMoment2, CONFIG_SIGNAL_VGPR_COMPRESSION, /* inout */ Accumulator.Moment2);
+}
+
+
 //------------------------------------------------------- SPATIAL KERNEL ENTRY POINT.
 
 /** Start accumulating a cluster of samples. */
@@ -253,11 +281,13 @@ void AccumulateSample(
 	inout FSSDSignalAccumulator Accumulator,
 	FSSDSampleAccumulationInfos SampleInfos)
 {
-	// TODO: Decompress and recompress the accumulator to reduce VGPR pressure.
+	UncompressSignalAccumulator(/* inout */ Accumulator);
 
 	AccumulateSampleInOneBin(/* inout */ Accumulator, SampleInfos);
 	AccumulateSampleInDomainBoundaries(/* inout */ Accumulator, SampleInfos);
 	AccumulateSampleInDRB(/* inout */ Accumulator, SampleInfos);
+
+	CompressSignalAccumulator(/* inout */ Accumulator);
 }
 
 /** Digest the accumulated cluster of samples. */

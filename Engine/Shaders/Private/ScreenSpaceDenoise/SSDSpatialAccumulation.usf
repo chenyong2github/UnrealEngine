@@ -286,6 +286,10 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
 	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
 
+	// Spherical harmonics are a lot of data, need to shrink VGPR pressure to improve lattency hidding when fetching the buffer.
+	// TODO: some shader compiler completly falls apparts with the current implementation of this and actually drops in occupency.
+	#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC
+
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
 
@@ -764,10 +768,13 @@ void MainCS(
 	}
 
 	// Color processing of the signal to reduce highlight flickering.
+	#if CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE || CONFIG_REJECT_HIGHEST_COLOR
 	{
 		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
+			UncompressSignalAccumulator(/* inout */ SignalAccumulators.Array[MultiplexId]);
+
 			#if CONFIG_REJECT_HIGHEST_COLOR
 			{
 				#if !CONFIG_SIGNAL_COLOR
@@ -782,19 +789,26 @@ void MainCS(
 						(SignalAccumulators.Array[MultiplexId].Moment1.SampleCount / (SignalAccumulators.Array[MultiplexId].Moment1.SampleCount - MaxNeighborWeight));
 				}
 			}
-			#endif
+			#endif // CONFIG_REJECT_HIGHEST_COLOR
 
-			SignalAccumulators.Array[MultiplexId].Moment1 = TransformSignal(
-				SignalAccumulators.Array[MultiplexId].Moment1, 
-				/* SrcBasis  = */ CONFIG_ACCUMULATION_COLOR_SPACE, 
-				/* DestBasis = */ CONFIG_OUTPUT_COLOR_SPACE);
+			#if CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE
+				SignalAccumulators.Array[MultiplexId].Moment1 = TransformSignal(
+					SignalAccumulators.Array[MultiplexId].Moment1, 
+					/* SrcBasis  = */ CONFIG_ACCUMULATION_COLOR_SPACE, 
+					/* DestBasis = */ CONFIG_OUTPUT_COLOR_SPACE);
 
-			SignalAccumulators.Array[MultiplexId].Moment2 = TransformSignal(
-				SignalAccumulators.Array[MultiplexId].Moment2, 
-				/* SrcBasis  = */ CONFIG_ACCUMULATION_COLOR_SPACE, 
-				/* DestBasis = */ CONFIG_OUTPUT_COLOR_SPACE);
+				SignalAccumulators.Array[MultiplexId].Moment2 = TransformSignal(
+					SignalAccumulators.Array[MultiplexId].Moment2, 
+					/* SrcBasis  = */ CONFIG_ACCUMULATION_COLOR_SPACE, 
+					/* DestBasis = */ CONFIG_OUTPUT_COLOR_SPACE);
+			#endif // CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE
+
+			// TODO: it might be better to just uncompress before this for loop and remain uncompressed,
+			// so the color operation get done in practice during the output sample transcoding.
+			CompressSignalAccumulator(/* inout */ SignalAccumulators.Array[MultiplexId]);
 		}
 	}
+	#endif // CONFIG_ACCUMULATION_COLOR_SPACE != CONFIG_OUTPUT_COLOR_SPACE || CONFIG_REJECT_HIGHEST_COLOR
 
 	// Transcode the spatial accumulation into multiplexed signal according to different modes.
 	uint MultiplexCount = 1;
@@ -807,6 +821,8 @@ void MainCS(
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 			{
+				UncompressSignalAccumulator(/* inout */ SignalAccumulators.Array[MultiplexId]);
+
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Moment1;
 				
 				// Output the minimal inverse frequency as new world bluring radius for subsequent passes.
@@ -822,6 +838,8 @@ void MainCS(
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
 			{
+				UncompressSignalAccumulator(/* inout */ SignalAccumulators.Array[BatchedSignalId * CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN + 0]);
+
 				OutputSamples.Array[BatchedSignalId * 2 + 0] = SignalAccumulators.Array[BatchedSignalId * CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN + 0].Moment1;
 				OutputSamples.Array[BatchedSignalId * 2 + 1] = SignalAccumulators.Array[BatchedSignalId * CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN + 0].Moment2;
 			}
@@ -833,6 +851,8 @@ void MainCS(
 			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 			for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 			{
+				UncompressSignalAccumulator(/* inout */ SignalAccumulators.Array[MultiplexId]);
+
 				OutputSamples.Array[MultiplexId] = SignalAccumulators.Array[MultiplexId].Previous;
 
 				// Output the minimal inverse frequency as new world bluring radius for subsequent passes.
