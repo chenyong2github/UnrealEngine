@@ -17,6 +17,7 @@
 #include "UObject/ConstructorHelpers.h"
 #include "Components/BillboardComponent.h"
 #include "GenericPlatform/GenericPlatformMath.h"
+#include "HAL/IConsoleManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
@@ -36,6 +37,7 @@ namespace GeometryCollectionDebugDrawActorConstants
 	});
 
 	// Defaults
+	static const FString SelectedRigidBodySolverDefault = FName(NAME_None).ToString();
 	static const int32 SelectedRigidBodyIdDefault = INDEX_NONE;
 	static const int32 DebugDrawWholeCollectionDefault = 0;
 	static const int32 DebugDrawHierarchyDefault = 0;
@@ -78,43 +80,49 @@ namespace GeometryCollectionDebugDrawActorConstants
 namespace GeometryCollectionDebugDrawActorCVars
 {
 	// Console variables, also exposed as settings in this actor
-	static TAutoConsoleVariable<int32> SelectedRigidBodyId     (TEXT("p.gc.SelectedRigidBodyId"     ), GeometryCollectionDebugDrawActorConstants::SelectedRigidBodyIdDefault     , TEXT("Geometry Collection debug draw, visualize debug informations for the selected rigid body ids.\nDefault = -1"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> DebugDrawWholeCollection(TEXT("p.gc.DebugDrawWholeCollection"), GeometryCollectionDebugDrawActorConstants::DebugDrawWholeCollectionDefault, TEXT("Geometry Collection debug draw, show debug visualization for the rest of the geometry collection related to the current rigid body id selection.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> DebugDrawHierarchy      (TEXT("p.gc.DebugDrawHierarchy"      ), GeometryCollectionDebugDrawActorConstants::DebugDrawHierarchyDefault      , TEXT("Geometry Collection debug draw, show debug visualization for the top level node rather than the bottom leaf nodes of a cluster's hierarchy..\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> DebugDrawClustering     (TEXT("p.gc.DebugDrawClustering"     ), GeometryCollectionDebugDrawActorConstants::DebugDrawClusteringDefault     , TEXT("Geometry Collection debug draw, show debug visualization for all clustered children associated to the current rigid body id selection.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> HideGeometry            (TEXT("p.gc.HideGeometry"            ), GeometryCollectionDebugDrawActorConstants::HideGeometryDefault            , TEXT("Geometry Collection debug draw, geometry visibility setting, select the part of the geometry to hide in order to better visualize the debug information.\n0: Do not hide any geometries.\n1: Hide the geometry associated to the rigid bodies selected for collision display.\n2: Hide the geometry associated to the selected rigid bodies.\n3: Hide the entire geometry collection associated to the selected rigid bodies.\n4: Hide all geometry collections.\nDefault = 1"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyId         (TEXT("p.gc.ShowRigidBodyId"         ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyIdDefault         , TEXT("Geometry Collection debug draw, show the rigid body id(s).\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyCollision  (TEXT("p.gc.ShowRigidBodyCollision"  ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyCollisionDefault  , TEXT("Geometry Collection debug draw, show the selected's rigid body's collision volume.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> CollisionAtOrigin       (TEXT("p.gc.CollisionAtOrigin"       ), GeometryCollectionDebugDrawActorConstants::CollisionAtOriginDefault       , TEXT("Geometry Collection debug draw, show any collision volume at the origin, in local space.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyTransform  (TEXT("p.gc.ShowRigidBodyTransform"  ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyTransformDefault  , TEXT("Geometry Collection debug draw, show the selected's rigid body's transform.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyInertia    (TEXT("p.gc.ShowRigidBodyInertia"    ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyInertiaDefault    , TEXT("Geometry Collection debug draw, show the selected's rigid body's inertia tensor box.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyVelocity   (TEXT("p.gc.ShowRigidBodyVelocity"   ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyVelocityDefault   , TEXT("Geometry Collection debug draw, show the selected's rigid body's linear and angular velocities.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyForce      (TEXT("p.gc.ShowRigidBodyForce"      ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyForceDefault      , TEXT("Geometry Collection debug draw, show the selected's rigid body's applied force and torque.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowRigidBodyInfos      (TEXT("p.gc.ShowRigidBodyInfos"      ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyInfosDefault      , TEXT("Geometry Collection debug draw, show the selected's rigid body's information.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowTransformIndex      (TEXT("p.gc.ShowTransformIndex"      ), GeometryCollectionDebugDrawActorConstants::ShowTransformIndexDefault      , TEXT("Geometry Collection debug draw, show the transform index for the selected rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowTransform           (TEXT("p.gc.ShowTransform"           ), GeometryCollectionDebugDrawActorConstants::ShowTransformDefault           , TEXT("Geometry Collection debug draw, show the transform for the selected rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowParent              (TEXT("p.gc.ShowParent"              ), GeometryCollectionDebugDrawActorConstants::ShowParentDefault              , TEXT("Geometry Collection debug draw, show a link from the selected rigid body's associated cluster nodes to their parent's nodes.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowLevel               (TEXT("p.gc.ShowLevel"               ), GeometryCollectionDebugDrawActorConstants::ShowLevelDefault               , TEXT("Geometry Collection debug draw, show the hierarchical level for the selected rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowConnectivityEdges   (TEXT("p.gc.ShowConnectivityEdges"   ), GeometryCollectionDebugDrawActorConstants::ShowConnectivityEdgesDefault   , TEXT("Geometry Collection debug draw, show the connectivity edges for the rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowGeometryIndex       (TEXT("p.gc.ShowGeometryIndex"       ), GeometryCollectionDebugDrawActorConstants::ShowGeometryIndexDefault       , TEXT("Geometry Collection debug draw, show the geometry index for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowGeometryTransform   (TEXT("p.gc.ShowGeometryTransform"   ), GeometryCollectionDebugDrawActorConstants::ShowGeometryTransformDefault   , TEXT("Geometry Collection debug draw, show the geometry transform for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowBoundingBox         (TEXT("p.gc.ShowBoundingBox"         ), GeometryCollectionDebugDrawActorConstants::ShowBoundingBoxDefault         , TEXT("Geometry Collection debug draw, show the bounding box for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowFaces               (TEXT("p.gc.ShowFaces"               ), GeometryCollectionDebugDrawActorConstants::ShowFacesDefault               , TEXT("Geometry Collection debug draw, show the faces for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowFaceIndices         (TEXT("p.gc.ShowFaceIndices"         ), GeometryCollectionDebugDrawActorConstants::ShowFaceIndicesDefault         , TEXT("Geometry Collection debug draw, show the face indices for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowFaceNormals         (TEXT("p.gc.ShowFaceNormals"         ), GeometryCollectionDebugDrawActorConstants::ShowFaceNormalsDefault         , TEXT("Geometry Collection debug draw, show the face normals for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowSingleFace          (TEXT("p.gc.ShowSingleFace"          ), GeometryCollectionDebugDrawActorConstants::ShowSingleFaceDefault          , TEXT("Geometry Collection debug draw, enable single face visualization for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> SingleFaceIndex         (TEXT("p.gc.SingleFaceIndex"         ), GeometryCollectionDebugDrawActorConstants::SingleFaceIndexDefault         , TEXT("Geometry Collection debug draw, the index of the single face to visualize.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowVertices            (TEXT("p.gc.ShowVertices"            ), GeometryCollectionDebugDrawActorConstants::ShowVerticesDefault            , TEXT("Geometry Collection debug draw, show the vertices for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowVertexIndices       (TEXT("p.gc.ShowVertexIndices"       ), GeometryCollectionDebugDrawActorConstants::ShowVertexIndicesDefault       , TEXT("Geometry Collection debug draw, show the vertex index for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> ShowVertexNormals       (TEXT("p.gc.ShowVertexNormals"       ), GeometryCollectionDebugDrawActorConstants::ShowVertexNormalsDefault       , TEXT("Geometry Collection debug draw, show the vertex normals for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> UseActiveVisualization  (TEXT("p.gc.UseActiveVisualization"  ), GeometryCollectionDebugDrawActorConstants::UseActiveVisualizationDefault  , TEXT("Geometry Collection debug draw, adapt visualization depending of the cluster nodes' hierarchical level..\nDefault = 1."), ECVF_Cheat);
-	static TAutoConsoleVariable<float> PointThickness          (TEXT("p.gc.PointThickness"          ), GeometryCollectionDebugDrawActorConstants::PointThicknessDefault          , TEXT("Geometry Collection debug draw, point thickness.\nDefault = 6."), ECVF_Cheat);
-	static TAutoConsoleVariable<float> LineThickness           (TEXT("p.gc.LineThickness"           ), GeometryCollectionDebugDrawActorConstants::LineThicknessDefault           , TEXT("Geometry Collection debug draw, line thickness.\nDefault = 1."), ECVF_Cheat);
-	static TAutoConsoleVariable<int32> TextShadow              (TEXT("p.gc.TextShadow"              ), GeometryCollectionDebugDrawActorConstants::TextShadowDefault              , TEXT("Geometry Collection debug draw, text shadow under indices for better readability.\nDefault = 1."), ECVF_Cheat);
-	static TAutoConsoleVariable<float> TextScale               (TEXT("p.gc.TextScale"               ), GeometryCollectionDebugDrawActorConstants::TextScaleDefault               , TEXT("Geometry Collection debug draw, text scale.\nDefault = 1."), ECVF_Cheat);
-	static TAutoConsoleVariable<float> NormalScale             (TEXT("p.gc.NormalScale"             ), GeometryCollectionDebugDrawActorConstants::NormalScaleDefault             , TEXT("Geometry Collection debug draw, normal size.\nDefault = 10."), ECVF_Cheat);
-	static TAutoConsoleVariable<float> TransformScale          (TEXT("p.gc.TransformScale"          ), GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          , TEXT("Geometry Collection debug draw, transform size.\nDefault = 20."), ECVF_Cheat);
-	static TAutoConsoleVariable<float> ArrowScale              (TEXT("p.gc.ArrowScale"              ), GeometryCollectionDebugDrawActorConstants::ArrowScaleDefault              , TEXT("Geometry Collection debug draw, arrow size for normals.\nDefault = 2.5."), ECVF_Cheat);
+	static TAutoConsoleVariable<FString> SelectedRigidBodySolver (TEXT("p.gc.SelectedRigidBodySolver" ), GeometryCollectionDebugDrawActorConstants::SelectedRigidBodySolverDefault , TEXT("Geometry Collection debug draw, visualize debug informations for the selected rigid body solver.\nDefault = None"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > SelectedRigidBodyId     (TEXT("p.gc.SelectedRigidBodyId"     ), GeometryCollectionDebugDrawActorConstants::SelectedRigidBodyIdDefault     , TEXT("Geometry Collection debug draw, visualize debug informations for the selected rigid body ids.\nDefault = -1"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > DebugDrawWholeCollection(TEXT("p.gc.DebugDrawWholeCollection"), GeometryCollectionDebugDrawActorConstants::DebugDrawWholeCollectionDefault, TEXT("Geometry Collection debug draw, show debug visualization for the rest of the geometry collection related to the current rigid body id selection.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > DebugDrawHierarchy      (TEXT("p.gc.DebugDrawHierarchy"      ), GeometryCollectionDebugDrawActorConstants::DebugDrawHierarchyDefault      , TEXT("Geometry Collection debug draw, show debug visualization for the top level node rather than the bottom leaf nodes of a cluster's hierarchy..\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > DebugDrawClustering     (TEXT("p.gc.DebugDrawClustering"     ), GeometryCollectionDebugDrawActorConstants::DebugDrawClusteringDefault     , TEXT("Geometry Collection debug draw, show debug visualization for all clustered children associated to the current rigid body id selection.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > HideGeometry            (TEXT("p.gc.HideGeometry"            ), GeometryCollectionDebugDrawActorConstants::HideGeometryDefault            , TEXT("Geometry Collection debug draw, geometry visibility setting, select the part of the geometry to hide in order to better visualize the debug information.\n0: Do not hide any geometries.\n1: Hide the geometry associated to the rigid bodies selected for collision display.\n2: Hide the geometry associated to the selected rigid bodies.\n3: Hide the entire geometry collection associated to the selected rigid bodies.\n4: Hide all geometry collections.\nDefault = 1"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyId         (TEXT("p.gc.ShowRigidBodyId"         ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyIdDefault         , TEXT("Geometry Collection debug draw, show the rigid body id(s).\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyCollision  (TEXT("p.gc.ShowRigidBodyCollision"  ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyCollisionDefault  , TEXT("Geometry Collection debug draw, show the selected's rigid body's collision volume.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > CollisionAtOrigin       (TEXT("p.gc.CollisionAtOrigin"       ), GeometryCollectionDebugDrawActorConstants::CollisionAtOriginDefault       , TEXT("Geometry Collection debug draw, show any collision volume at the origin, in local space.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyTransform  (TEXT("p.gc.ShowRigidBodyTransform"  ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyTransformDefault  , TEXT("Geometry Collection debug draw, show the selected's rigid body's transform.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyInertia    (TEXT("p.gc.ShowRigidBodyInertia"    ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyInertiaDefault    , TEXT("Geometry Collection debug draw, show the selected's rigid body's inertia tensor box.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyVelocity   (TEXT("p.gc.ShowRigidBodyVelocity"   ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyVelocityDefault   , TEXT("Geometry Collection debug draw, show the selected's rigid body's linear and angular velocities.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyForce      (TEXT("p.gc.ShowRigidBodyForce"      ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyForceDefault      , TEXT("Geometry Collection debug draw, show the selected's rigid body's applied force and torque.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowRigidBodyInfos      (TEXT("p.gc.ShowRigidBodyInfos"      ), GeometryCollectionDebugDrawActorConstants::ShowRigidBodyInfosDefault      , TEXT("Geometry Collection debug draw, show the selected's rigid body's information.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowTransformIndex      (TEXT("p.gc.ShowTransformIndex"      ), GeometryCollectionDebugDrawActorConstants::ShowTransformIndexDefault      , TEXT("Geometry Collection debug draw, show the transform index for the selected rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowTransform           (TEXT("p.gc.ShowTransform"           ), GeometryCollectionDebugDrawActorConstants::ShowTransformDefault           , TEXT("Geometry Collection debug draw, show the transform for the selected rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowParent              (TEXT("p.gc.ShowParent"              ), GeometryCollectionDebugDrawActorConstants::ShowParentDefault              , TEXT("Geometry Collection debug draw, show a link from the selected rigid body's associated cluster nodes to their parent's nodes.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowLevel               (TEXT("p.gc.ShowLevel"               ), GeometryCollectionDebugDrawActorConstants::ShowLevelDefault               , TEXT("Geometry Collection debug draw, show the hierarchical level for the selected rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowConnectivityEdges   (TEXT("p.gc.ShowConnectivityEdges"   ), GeometryCollectionDebugDrawActorConstants::ShowConnectivityEdgesDefault   , TEXT("Geometry Collection debug draw, show the connectivity edges for the rigid body's associated cluster nodes.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowGeometryIndex       (TEXT("p.gc.ShowGeometryIndex"       ), GeometryCollectionDebugDrawActorConstants::ShowGeometryIndexDefault       , TEXT("Geometry Collection debug draw, show the geometry index for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowGeometryTransform   (TEXT("p.gc.ShowGeometryTransform"   ), GeometryCollectionDebugDrawActorConstants::ShowGeometryTransformDefault   , TEXT("Geometry Collection debug draw, show the geometry transform for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowBoundingBox         (TEXT("p.gc.ShowBoundingBox"         ), GeometryCollectionDebugDrawActorConstants::ShowBoundingBoxDefault         , TEXT("Geometry Collection debug draw, show the bounding box for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowFaces               (TEXT("p.gc.ShowFaces"               ), GeometryCollectionDebugDrawActorConstants::ShowFacesDefault               , TEXT("Geometry Collection debug draw, show the faces for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowFaceIndices         (TEXT("p.gc.ShowFaceIndices"         ), GeometryCollectionDebugDrawActorConstants::ShowFaceIndicesDefault         , TEXT("Geometry Collection debug draw, show the face indices for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowFaceNormals         (TEXT("p.gc.ShowFaceNormals"         ), GeometryCollectionDebugDrawActorConstants::ShowFaceNormalsDefault         , TEXT("Geometry Collection debug draw, show the face normals for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowSingleFace          (TEXT("p.gc.ShowSingleFace"          ), GeometryCollectionDebugDrawActorConstants::ShowSingleFaceDefault          , TEXT("Geometry Collection debug draw, enable single face visualization for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > SingleFaceIndex         (TEXT("p.gc.SingleFaceIndex"         ), GeometryCollectionDebugDrawActorConstants::SingleFaceIndexDefault         , TEXT("Geometry Collection debug draw, the index of the single face to visualize.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowVertices            (TEXT("p.gc.ShowVertices"            ), GeometryCollectionDebugDrawActorConstants::ShowVerticesDefault            , TEXT("Geometry Collection debug draw, show the vertices for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowVertexIndices       (TEXT("p.gc.ShowVertexIndices"       ), GeometryCollectionDebugDrawActorConstants::ShowVertexIndicesDefault       , TEXT("Geometry Collection debug draw, show the vertex index for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > ShowVertexNormals       (TEXT("p.gc.ShowVertexNormals"       ), GeometryCollectionDebugDrawActorConstants::ShowVertexNormalsDefault       , TEXT("Geometry Collection debug draw, show the vertex normals for the selected rigid body's associated geometries.\nDefault = 0"), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > UseActiveVisualization  (TEXT("p.gc.UseActiveVisualization"  ), GeometryCollectionDebugDrawActorConstants::UseActiveVisualizationDefault  , TEXT("Geometry Collection debug draw, adapt visualization depending of the cluster nodes' hierarchical level..\nDefault = 1."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > PointThickness          (TEXT("p.gc.PointThickness"          ), GeometryCollectionDebugDrawActorConstants::PointThicknessDefault          , TEXT("Geometry Collection debug draw, point thickness.\nDefault = 6."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > LineThickness           (TEXT("p.gc.LineThickness"           ), GeometryCollectionDebugDrawActorConstants::LineThicknessDefault           , TEXT("Geometry Collection debug draw, line thickness.\nDefault = 1."), ECVF_Cheat);
+	static TAutoConsoleVariable<int32  > TextShadow              (TEXT("p.gc.TextShadow"              ), GeometryCollectionDebugDrawActorConstants::TextShadowDefault              , TEXT("Geometry Collection debug draw, text shadow under indices for better readability.\nDefault = 1."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > TextScale               (TEXT("p.gc.TextScale"               ), GeometryCollectionDebugDrawActorConstants::TextScaleDefault               , TEXT("Geometry Collection debug draw, text scale.\nDefault = 1."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > NormalScale             (TEXT("p.gc.NormalScale"             ), GeometryCollectionDebugDrawActorConstants::NormalScaleDefault             , TEXT("Geometry Collection debug draw, normal size.\nDefault = 10."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > TransformScale          (TEXT("p.gc.TransformScale"          ), GeometryCollectionDebugDrawActorConstants::TransformScaleDefault          , TEXT("Geometry Collection debug draw, transform size.\nDefault = 20."), ECVF_Cheat);
+	static TAutoConsoleVariable<float  > ArrowScale              (TEXT("p.gc.ArrowScale"              ), GeometryCollectionDebugDrawActorConstants::ArrowScaleDefault              , TEXT("Geometry Collection debug draw, arrow size for normals.\nDefault = 2.5."), ECVF_Cheat);
+}
+
+FString FGeometryCollectionDebugDrawActorSelectedRigidBody::GetSolverName() const
+{
+	return !Solver ? FName(NAME_None).ToString() : Solver->GetName();
 }
 
 AGeometryCollectionDebugDrawActor* AGeometryCollectionDebugDrawActor::FindOrCreate(UWorld* World)
@@ -292,41 +300,42 @@ void AGeometryCollectionDebugDrawActor::PostLoad()
 {
 	static const EConsoleVariableFlags SetBy = ECVF_SetByConsole;  // Can't use the default ECVF_SetByCode as otherwise it won't update the global console variable.
 
-	GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set(      SelectedRigidBody.Id      , SetBy);
-	GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection), SetBy);
-	GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy      ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::DebugDrawClustering     ->Set(int32(bDebugDrawClustering     ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::HideGeometry            ->Set(int32(HideGeometry             ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyId         ->Set(int32(bShowRigidBodyId         ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyCollision  ->Set(int32(bShowRigidBodyCollision  ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::CollisionAtOrigin       ->Set(int32(bCollisionAtOrigin       ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyTransform  ->Set(int32(bShowRigidBodyTransform  ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInertia    ->Set(int32(bShowRigidBodyInertia    ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyVelocity   ->Set(int32(bShowRigidBodyVelocity   ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyForce      ->Set(int32(bShowRigidBodyForce      ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInfos      ->Set(int32(bShowRigidBodyInfos      ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowTransformIndex      ->Set(int32(bShowTransformIndex      ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowTransform           ->Set(int32(bShowTransform           ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowParent              ->Set(int32(bShowParent              ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowLevel               ->Set(int32(bShowLevel               ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowConnectivityEdges   ->Set(int32(bShowConnectivityEdges   ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowGeometryIndex       ->Set(int32(bShowGeometryIndex       ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowGeometryTransform   ->Set(int32(bShowGeometryTransform   ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowBoundingBox         ->Set(int32(bShowBoundingBox         ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowFaces               ->Set(int32(bShowFaces               ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowFaceIndices         ->Set(int32(bShowFaceIndices         ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowFaceNormals         ->Set(int32(bShowFaceNormals         ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowVertices            ->Set(int32(bShowVertices            ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowVertexIndices       ->Set(int32(bShowVertexIndices       ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::ShowVertexNormals       ->Set(int32(bShowVertexNormals       ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::UseActiveVisualization  ->Set(int32(bUseActiveVisualization  ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::PointThickness          ->Set(      PointThickness            , SetBy);
-	GeometryCollectionDebugDrawActorCVars::LineThickness           ->Set(      LineThickness             , SetBy);
-	GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow              ), SetBy);
-	GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                 , SetBy);
-	GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale               , SetBy);
-	GeometryCollectionDebugDrawActorCVars::TransformScale          ->Set(      TransformScale            , SetBy);
-	GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                , SetBy);
+	GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy);
+	GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy);
+	GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection  ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy        ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::DebugDrawClustering     ->Set(int32(bDebugDrawClustering       ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::HideGeometry            ->Set(int32(HideGeometry               ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyId         ->Set(int32(bShowRigidBodyId           ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyCollision  ->Set(int32(bShowRigidBodyCollision    ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::CollisionAtOrigin       ->Set(int32(bCollisionAtOrigin         ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyTransform  ->Set(int32(bShowRigidBodyTransform    ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInertia    ->Set(int32(bShowRigidBodyInertia      ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyVelocity   ->Set(int32(bShowRigidBodyVelocity     ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyForce      ->Set(int32(bShowRigidBodyForce        ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInfos      ->Set(int32(bShowRigidBodyInfos        ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowTransformIndex      ->Set(int32(bShowTransformIndex        ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowTransform           ->Set(int32(bShowTransform             ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowParent              ->Set(int32(bShowParent                ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowLevel               ->Set(int32(bShowLevel                 ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowConnectivityEdges   ->Set(int32(bShowConnectivityEdges     ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowGeometryIndex       ->Set(int32(bShowGeometryIndex         ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowGeometryTransform   ->Set(int32(bShowGeometryTransform     ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowBoundingBox         ->Set(int32(bShowBoundingBox           ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowFaces               ->Set(int32(bShowFaces                 ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowFaceIndices         ->Set(int32(bShowFaceIndices           ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowFaceNormals         ->Set(int32(bShowFaceNormals           ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowVertices            ->Set(int32(bShowVertices              ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowVertexIndices       ->Set(int32(bShowVertexIndices         ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::ShowVertexNormals       ->Set(int32(bShowVertexNormals         ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::UseActiveVisualization  ->Set(int32(bUseActiveVisualization    ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::PointThickness          ->Set(      PointThickness              , SetBy);
+	GeometryCollectionDebugDrawActorCVars::LineThickness           ->Set(      LineThickness               , SetBy);
+	GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow                ), SetBy);
+	GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                   , SetBy);
+	GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale                 , SetBy);
+	GeometryCollectionDebugDrawActorCVars::TransformScale          ->Set(      TransformScale              , SetBy);
+	GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                  , SetBy);
 
 	Super::PostLoad();
 }
@@ -353,6 +362,10 @@ int32 AGeometryCollectionDebugDrawActor::GetLevel(int32 TransformIndex, const TM
 void AGeometryCollectionDebugDrawActor::OnPropertyChanged(bool bForceVisibilityUpdate)
 {
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
+	// Reset selected rigid body's actor
+	SelectedRigidBody.GeometryCollection = nullptr;
+
+	// Update component states
 	UWorld* const World = GetWorld();
 	if (!World || !World->HasBegunPlay() || !HasActorBegunPlay()) { return; }
 
@@ -365,7 +378,7 @@ void AGeometryCollectionDebugDrawActor::OnPropertyChanged(bool bForceVisibilityU
 			const bool bIsSelected = GeometryCollectionDebugDrawComponent->OnDebugDrawPropertiesChanged(bForceVisibilityUpdate);
 			if (bIsSelected)
 			{
-				SelectedRigidBody.GeometryCollectionActor = *ActorIterator;
+				SelectedRigidBody.GeometryCollection = *ActorIterator;
 			}
 		}
 	}
@@ -383,15 +396,41 @@ void AGeometryCollectionDebugDrawActor::UpdatePropertyValue(T1& PropertyValue, c
 	}
 }
 
+template<>
+void AGeometryCollectionDebugDrawActor::UpdatePropertyValue<AChaosSolverActor*, FString>(AChaosSolverActor*& PropertyValue, const TAutoConsoleVariable<FString>& ConsoleVariable, bool& bHasChanged)
+{
+	AChaosSolverActor* NewValue = nullptr;
+
+	if (UWorld* const World = GetWorld())
+	{
+		const FString SolverName = ConsoleVariable.GetValueOnGameThread();
+		for (TActorIterator<AChaosSolverActor> ActorIterator(World); ActorIterator; ++ActorIterator)
+		{
+			if (ActorIterator->GetName() == SolverName)
+			{
+				NewValue = *ActorIterator;
+				break;
+			}
+		}
+	}
+
+	if (PropertyValue != NewValue)
+	{
+		bHasChanged = true;
+		PropertyValue = NewValue;
+	}
+}
+
 void AGeometryCollectionDebugDrawActor::OnCVarsChanged()
 {
 	// Discard callback if this actor isn't in any world
-	UWorld* const World = GetWorld();
-	if (!World) { return; }
+	if (!GetWorld()) { return; }
 
 	// Update properties from cvars
 	bool bHavePropertiesChanged = false;
 	bool bHasDebugDrawClusteringChanged = false;
+
+	UpdatePropertyValue(SelectedRigidBody.Solver , GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver , bHavePropertiesChanged);
 	UpdatePropertyValue(SelectedRigidBody.Id     , GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     , bHavePropertiesChanged);
 	UpdatePropertyValue(bDebugDrawWholeCollection, GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection, bHavePropertiesChanged);
 	UpdatePropertyValue(bDebugDrawHierarchy      , GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      , bHavePropertiesChanged);
@@ -442,47 +481,48 @@ void AGeometryCollectionDebugDrawActor::PostEditChangeProperty(FPropertyChangedE
 {
 	// Synchronize the command variables to this Actor's properties if the property name matches.
 	static const EConsoleVariableFlags SetBy = ECVF_SetByConsole;  // Can't use the default ECVF_SetByCode as otherwise changing the UI won't update the global console variable.
-	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName(): NAME_None;
+	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
 	bool bForceVisibilityUpdate = false;
 
-	if      (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, SelectedRigidBody        )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set(      SelectedRigidBody.Id      , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawWholeCollection)) { GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawHierarchy      )) { GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy      ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawClustering     )) { GeometryCollectionDebugDrawActorCVars::DebugDrawClustering     ->Set(int32(bDebugDrawClustering     ), SetBy); bForceVisibilityUpdate = true; }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, HideGeometry             )) { GeometryCollectionDebugDrawActorCVars::HideGeometry            ->Set(int32(HideGeometry             ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyId         )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyId         ->Set(int32(bShowRigidBodyId         ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyCollision  )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyCollision  ->Set(int32(bShowRigidBodyCollision  ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bCollisionAtOrigin       )) { GeometryCollectionDebugDrawActorCVars::CollisionAtOrigin       ->Set(int32(bCollisionAtOrigin       ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyTransform  )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyTransform  ->Set(int32(bShowRigidBodyTransform  ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyInertia    )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInertia    ->Set(int32(bShowRigidBodyInertia    ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyVelocity   )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyVelocity   ->Set(int32(bShowRigidBodyVelocity   ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyForce      )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyForce      ->Set(int32(bShowRigidBodyForce      ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyInfos      )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInfos      ->Set(int32(bShowRigidBodyInfos      ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowTransformIndex      )) { GeometryCollectionDebugDrawActorCVars::ShowTransformIndex      ->Set(int32(bShowTransformIndex      ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowTransform           )) { GeometryCollectionDebugDrawActorCVars::ShowTransform           ->Set(int32(bShowTransform           ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowParent              )) { GeometryCollectionDebugDrawActorCVars::ShowParent              ->Set(int32(bShowParent              ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowLevel               )) { GeometryCollectionDebugDrawActorCVars::ShowLevel               ->Set(int32(bShowLevel               ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowConnectivityEdges   )) { GeometryCollectionDebugDrawActorCVars::ShowConnectivityEdges   ->Set(int32(bShowConnectivityEdges   ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowGeometryIndex       )) { GeometryCollectionDebugDrawActorCVars::ShowGeometryIndex       ->Set(int32(bShowGeometryIndex       ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowGeometryTransform   )) { GeometryCollectionDebugDrawActorCVars::ShowGeometryTransform   ->Set(int32(bShowGeometryTransform   ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowBoundingBox         )) { GeometryCollectionDebugDrawActorCVars::ShowBoundingBox         ->Set(int32(bShowBoundingBox         ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowFaces               )) { GeometryCollectionDebugDrawActorCVars::ShowFaces               ->Set(int32(bShowFaces               ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowFaceIndices         )) { GeometryCollectionDebugDrawActorCVars::ShowFaceIndices         ->Set(int32(bShowFaceIndices         ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowFaceNormals         )) { GeometryCollectionDebugDrawActorCVars::ShowFaceNormals         ->Set(int32(bShowFaceNormals         ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowSingleFace          )) { GeometryCollectionDebugDrawActorCVars::ShowSingleFace          ->Set(int32(bShowSingleFace          ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, SingleFaceIndex          )) { GeometryCollectionDebugDrawActorCVars::SingleFaceIndex         ->Set(      SingleFaceIndex           , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertices            )) { GeometryCollectionDebugDrawActorCVars::ShowVertices            ->Set(int32(bShowVertices            ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertexIndices       )) { GeometryCollectionDebugDrawActorCVars::ShowVertexIndices       ->Set(int32(bShowVertexIndices       ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertexNormals       )) { GeometryCollectionDebugDrawActorCVars::ShowVertexNormals       ->Set(int32(bShowVertexNormals       ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bUseActiveVisualization  )) { GeometryCollectionDebugDrawActorCVars::UseActiveVisualization  ->Set(int32(bUseActiveVisualization  ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, PointThickness           )) { GeometryCollectionDebugDrawActorCVars::PointThickness          ->Set(      PointThickness            , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, LineThickness            )) { GeometryCollectionDebugDrawActorCVars::LineThickness           ->Set(      LineThickness             , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bTextShadow              )) { GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow              ), SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TextScale                )) { GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                 , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, NormalScale              )) { GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale               , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TransformScale           )) { GeometryCollectionDebugDrawActorCVars::TransformScale          ->Set(      TransformScale            , SetBy); }
-	else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, ArrowScale               )) { GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                , SetBy); }
+	if      (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Solver  )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Id      )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawWholeCollection)) { GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection  ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawHierarchy      )) { GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy        ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawClustering     )) { GeometryCollectionDebugDrawActorCVars::DebugDrawClustering     ->Set(int32(bDebugDrawClustering       ), SetBy); bForceVisibilityUpdate = true; }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, HideGeometry             )) { GeometryCollectionDebugDrawActorCVars::HideGeometry            ->Set(int32(HideGeometry               ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyId         )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyId         ->Set(int32(bShowRigidBodyId           ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyCollision  )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyCollision  ->Set(int32(bShowRigidBodyCollision    ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bCollisionAtOrigin       )) { GeometryCollectionDebugDrawActorCVars::CollisionAtOrigin       ->Set(int32(bCollisionAtOrigin         ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyTransform  )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyTransform  ->Set(int32(bShowRigidBodyTransform    ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyInertia    )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInertia    ->Set(int32(bShowRigidBodyInertia      ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyVelocity   )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyVelocity   ->Set(int32(bShowRigidBodyVelocity     ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyForce      )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyForce      ->Set(int32(bShowRigidBodyForce        ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowRigidBodyInfos      )) { GeometryCollectionDebugDrawActorCVars::ShowRigidBodyInfos      ->Set(int32(bShowRigidBodyInfos        ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowTransformIndex      )) { GeometryCollectionDebugDrawActorCVars::ShowTransformIndex      ->Set(int32(bShowTransformIndex        ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowTransform           )) { GeometryCollectionDebugDrawActorCVars::ShowTransform           ->Set(int32(bShowTransform             ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowParent              )) { GeometryCollectionDebugDrawActorCVars::ShowParent              ->Set(int32(bShowParent                ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowLevel               )) { GeometryCollectionDebugDrawActorCVars::ShowLevel               ->Set(int32(bShowLevel                 ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowConnectivityEdges   )) { GeometryCollectionDebugDrawActorCVars::ShowConnectivityEdges   ->Set(int32(bShowConnectivityEdges     ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowGeometryIndex       )) { GeometryCollectionDebugDrawActorCVars::ShowGeometryIndex       ->Set(int32(bShowGeometryIndex         ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowGeometryTransform   )) { GeometryCollectionDebugDrawActorCVars::ShowGeometryTransform   ->Set(int32(bShowGeometryTransform     ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowBoundingBox         )) { GeometryCollectionDebugDrawActorCVars::ShowBoundingBox         ->Set(int32(bShowBoundingBox           ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowFaces               )) { GeometryCollectionDebugDrawActorCVars::ShowFaces               ->Set(int32(bShowFaces                 ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowFaceIndices         )) { GeometryCollectionDebugDrawActorCVars::ShowFaceIndices         ->Set(int32(bShowFaceIndices           ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowFaceNormals         )) { GeometryCollectionDebugDrawActorCVars::ShowFaceNormals         ->Set(int32(bShowFaceNormals           ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowSingleFace          )) { GeometryCollectionDebugDrawActorCVars::ShowSingleFace          ->Set(int32(bShowSingleFace            ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, SingleFaceIndex          )) { GeometryCollectionDebugDrawActorCVars::SingleFaceIndex         ->Set(      SingleFaceIndex             , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertices            )) { GeometryCollectionDebugDrawActorCVars::ShowVertices            ->Set(int32(bShowVertices              ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertexIndices       )) { GeometryCollectionDebugDrawActorCVars::ShowVertexIndices       ->Set(int32(bShowVertexIndices         ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bShowVertexNormals       )) { GeometryCollectionDebugDrawActorCVars::ShowVertexNormals       ->Set(int32(bShowVertexNormals         ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bUseActiveVisualization  )) { GeometryCollectionDebugDrawActorCVars::UseActiveVisualization  ->Set(int32(bUseActiveVisualization    ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, PointThickness           )) { GeometryCollectionDebugDrawActorCVars::PointThickness          ->Set(      PointThickness              , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, LineThickness            )) { GeometryCollectionDebugDrawActorCVars::LineThickness           ->Set(      LineThickness               , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bTextShadow              )) { GeometryCollectionDebugDrawActorCVars::TextShadow              ->Set(int32(bTextShadow                ), SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TextScale                )) { GeometryCollectionDebugDrawActorCVars::TextScale               ->Set(      TextScale                   , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, NormalScale              )) { GeometryCollectionDebugDrawActorCVars::NormalScale             ->Set(      NormalScale                 , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, TransformScale           )) { GeometryCollectionDebugDrawActorCVars::TransformScale          ->Set(      TransformScale              , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, ArrowScale               )) { GeometryCollectionDebugDrawActorCVars::ArrowScale              ->Set(      ArrowScale                  , SetBy); }
 	else
 	{
 		Super::PostEditChangeProperty(PropertyChangedEvent);

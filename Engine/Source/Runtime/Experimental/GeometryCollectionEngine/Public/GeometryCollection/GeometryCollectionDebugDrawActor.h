@@ -7,6 +7,8 @@
 
 #include "GeometryCollectionDebugDrawActor.generated.h"
 
+class AChaosSolverActor;
+class AGeometryCollectionActor;
 class UGeometryCollectionComponent;
 template<class InElementType> class TManagedArray;
 template<class T, int d> class TGeometryCollectionParticlesData;
@@ -41,14 +43,22 @@ struct FGeometryCollectionDebugDrawActorSelectedRigidBody
 {
 	GENERATED_USTRUCT_BODY()
 
-	explicit FGeometryCollectionDebugDrawActorSelectedRigidBody(int32 InId = -1) : Id(InId), GeometryCollectionActor(nullptr) {}
+	explicit FGeometryCollectionDebugDrawActorSelectedRigidBody(int32 InId = -1) : Id(InId), Solver(nullptr), GeometryCollection(nullptr) {}
 	
 	/** Id of the selected rigid body whose to visualize debug informations. Use -1 to visualize all Geometry Collections. */
-	UPROPERTY(EditAnywhere, Category = "Debug Draw", meta = (ClampMin="-1"))
+	UPROPERTY(EditAnywhere, Category = "Selected Rigid Body", meta = (ClampMin="-1"))
 	int32 Id;
 
-	UPROPERTY(EditAnywhere, Category = "Debug Draw")
-	AActor* GeometryCollectionActor;
+	/** Chaos RBD Solver. Will use the world's default solver actor if null. */
+	UPROPERTY(EditAnywhere, Category = "Selected Rigid Body")
+	AChaosSolverActor* Solver;
+
+	/** Currently selected geometry collection. */
+	UPROPERTY(VisibleAnywhere, Category = "Selected Rigid Body")
+	AGeometryCollectionActor* GeometryCollection;
+
+	/** Return the name of selected solver, or "None" if none is selected. */
+	FString GetSolverName() const;
 };
 
 /**
