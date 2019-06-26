@@ -256,6 +256,15 @@ void DecodeMultiplexedSignals(
 	#if CONFIG_SIGNAL_COLOR_SH
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
 	{
+		#if CONFIG_MANUAL_TEXEL_FORMATTING
+		{
+			 RawSample[0] = Uncompress4Floats(uint2(asuint(RawSample[0].x), asuint(RawSample[0].y)));
+			 RawSample[1] = Uncompress4Floats(uint2(asuint(RawSample[1].x), asuint(RawSample[1].y)));
+			 RawSample[2] = Uncompress4Floats(uint2(asuint(RawSample[2].x), asuint(RawSample[2].y)));
+			 RawSample[3].xy = Uncompress2Floats(asuint(RawSample[3].x));
+		}
+		#endif
+
 		float SampleCount;
 		if (bNormalizeSample)
 		{
@@ -478,6 +487,16 @@ void EncodeMultiplexedSignals(
 		OutRawSample[1] = Sample[0].ColorSH.G.V * NormalizationFactor;
 		OutRawSample[2] = Sample[0].ColorSH.B.V * NormalizationFactor;
 		OutBufferCount = 4;
+
+		#if CONFIG_MANUAL_TEXEL_FORMATTING
+		{
+			 OutRawSample[0] = float4(asfloat(Compress2Floats(OutRawSample[0].xy)), asfloat(Compress2Floats(OutRawSample[0].zw)), 0, 0);
+			 OutRawSample[1] = float4(asfloat(Compress2Floats(OutRawSample[1].xy)), asfloat(Compress2Floats(OutRawSample[1].zw)), 0, 0);
+			 OutRawSample[2] = float4(asfloat(Compress2Floats(OutRawSample[2].xy)), asfloat(Compress2Floats(OutRawSample[2].zw)), 0, 0);
+			 OutRawSample[3] = float4(asfloat(Compress2Floats(OutRawSample[3].xy)), 0, 0, 0);
+		}
+
+		#endif
 	}
 	#endif
 } // EncodeMultiplexedSignals()

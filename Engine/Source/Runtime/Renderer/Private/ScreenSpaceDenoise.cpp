@@ -865,6 +865,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 	TStaticArray<FRDGTextureDesc, kMaxBufferProcessingCount> HistoryDescs;
 	FRDGTextureDesc DebugDesc;
 	{
+		// Manually format texel in the shader to reduce VGPR pressure with overlapped texture fetched.
+		const bool bManualTexelFormatting = true;
+
 		static const EPixelFormat PixelFormatPerChannel[] = {
 			PF_Unknown,
 			PF_R16F,
@@ -943,12 +946,12 @@ static void DenoiseSignalAtConstantPixelDensity(
 		{
 			for (int32 i = 0; i < 3; i++)
 			{
-				ReconstructionDescs[i].Format = PF_FloatRGBA;
-				HistoryDescs[i].Format = PF_FloatRGBA;
+				ReconstructionDescs[i].Format = bManualTexelFormatting ? PF_G32R32F : PF_FloatRGBA;
+				HistoryDescs[i].Format = bManualTexelFormatting ? PF_G32R32F : PF_FloatRGBA;
 			}
 
-			ReconstructionDescs[3].Format = PF_G16R16F;
-			HistoryDescs[3].Format = PF_G16R16F;
+			ReconstructionDescs[3].Format = bManualTexelFormatting ? PF_R32_FLOAT : PF_G16R16F;
+			HistoryDescs[3].Format = bManualTexelFormatting ? PF_R32_FLOAT : PF_G16R16F;
 
 			ReconstructionTextureCount = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount;
 			HistoryTextureCountPerSignal = IScreenSpaceDenoiser::kSphericalHarmonicTextureCount; // TODO: only 3 textures for history

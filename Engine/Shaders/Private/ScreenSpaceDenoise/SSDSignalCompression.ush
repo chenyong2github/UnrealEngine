@@ -21,18 +21,6 @@ struct FSSDCompressedSignalSample
 };
 
 
-uint Compress2Floats(float2 v)
-{
-	// f32tof16() is full rate on GCN.
-	return f32tof16(v.x) | (f32tof16(v.y) << 16);
-}
-
-float2 Uncompress2Floats(uint v)
-{
-	// f16tof32() is full rate on GCN.
-	return float2(f16tof32(v), f16tof32(v >> 16));
-}
-
 /** Compress part of signal into smaller VGPR foorprint. */
 void CompressSignalSample(in FSSDSignalSample Sample, uint CompressionLayout, out FSSDCompressedSignalSample OutCompressedSample)
 {

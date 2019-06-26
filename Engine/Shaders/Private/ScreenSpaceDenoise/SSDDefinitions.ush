@@ -212,6 +212,9 @@
 // TODO: the shader compiler is not doing the right thing.
 #define CONFIG_SGPR_HINT_OPTIMIZATION 0
 
+/** Manually format texel in the shader to reduce VGPR pressure with overlapped texture fetched. */
+#define CONFIG_MANUAL_TEXEL_FORMATTING 1
+
 /** By default, the color space stored into intermediary buffer is linear premultiplied RGBA. */
 #define STANDARD_BUFFER_COLOR_SPACE COLOR_SPACE_RGB
 
