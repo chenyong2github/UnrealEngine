@@ -34,7 +34,7 @@ public:
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
 		// See FDebugViewModeMaterialProxy::GetFriendlyName()
-		return AllowDebugViewShaderMode(DVSM_OutputMaterialTextureScales, Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)) && Parameters.Material->GetFriendlyName().Contains(TEXT("MaterialTexCoordScale"));
+		return AllowDebugViewShaderMode(DVSM_OutputMaterialTextureScales, Parameters.Platform, Parameters.Material->GetFeatureLevel()) && Parameters.Material->GetFriendlyName().Contains(TEXT("MaterialTexCoordScale"));
 	}
 
 	FMaterialTexCoordScalePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
@@ -111,7 +111,7 @@ public:
 	{ 
 		return InMaterial->GetShader<FMaterialTexCoordScalePS>(VertexFactoryType); 
 	}
-	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState) const override;
+	virtual void SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const override;
 };
 
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
