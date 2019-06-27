@@ -2739,6 +2739,24 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 				continue;
 			}
 
+			if (ViewFamily.UseDebugViewPS() && ShadingPath == EShadingPath::Deferred)
+			{
+				switch (PassType)
+				{
+					case EMeshPass::DepthPass:
+					case EMeshPass::CustomDepth:
+					case EMeshPass::DebugViewMode:
+#if WITH_EDITOR
+					case EMeshPass::HitProxy:
+					case EMeshPass::HitProxyOpaqueOnly:
+					case EMeshPass::EditorSelection:
+#endif
+						break;
+					default:
+						continue;
+				}
+			}
+
 			PassProcessorCreateFunction CreateFunction = FPassProcessorManager::GetCreateFunction(ShadingPath, PassType);
 			FMeshPassProcessor* MeshPassProcessor = CreateFunction(Scene, &View, nullptr);
 
