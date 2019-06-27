@@ -17,6 +17,7 @@
 class AGeometryCollectionRenderLevelSetActor;
 class UGeometryCollectionComponent;
 class AGeometryCollectionDebugDrawActor;
+class AChaosSolverActor;
 
 #if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
 namespace Chaos { template<class T, int d> class TImplicitObject; }
@@ -290,5 +291,6 @@ private:
 	int32 SelectedRigidBodyId;
 	int32 SelectedTransformIndex;
 	int32 HiddenTransformIndex;
+	AChaosSolverActor* SelectedChaosSolver;
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 };
