@@ -11,19 +11,23 @@
 
 #include "ShaderParameterUtils.h"
 
+#include "HAL/IConsoleManager.h"
+
+
 // Select mpcdi stereo mode
- enum class EVarMPCDIShaderType : uint8
+enum class EVarMPCDIShaderType : uint8
 {
 	Default,
 	Passthrought,
 	ShowWarpTexture,
 	Disable,
 };
-static int CVarMPCDIShaderType_Value = (int)EVarMPCDIShaderType::Default;
-static FAutoConsoleVariableRef CVarMPCDIShaderType(
+
+static TAutoConsoleVariable<int32> CVarMPCDIShaderType(
 	TEXT("nDisplay.render.mpcdi.shader"),
-	CVarMPCDIShaderType_Value,
-	TEXT("Select shader for mpcdi:\n (0 = default warp shader)\n(1 = PassThrought shader)\n(2 = ShowWarpTexture shader)\n(3 = disable warp shader)\n")
+	(int)EVarMPCDIShaderType::Default,
+	TEXT("Select shader for mpcdi:\n0 = default warp shader\n1 = PassThrought shader\n2 = ShowWarpTexture shader\n3 = disable warp shader"),
+	ECVF_RenderThreadSafe
 );
 
 
@@ -208,17 +212,24 @@ bool FMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPCDI::
 		//Handle error
 		return false;
 	}
-		
-	switch (CVarMPCDIShaderType_Value) {
-	case (int)EVarMPCDIShaderType::Passthrought:
+
+
+	const EVarMPCDIShaderType ShaderType = (EVarMPCDIShaderType)CVarMPCDIShaderType.GetValueOnAnyThread();
+	switch (ShaderType)
+	{
+	case EVarMPCDIShaderType::Passthrought:
 		PixelShaderType = EMPCDIShader::PassThrought;
 		break;
-	case (int)EVarMPCDIShaderType::ShowWarpTexture:
+
+	case EVarMPCDIShaderType::ShowWarpTexture:
 		PixelShaderType = EMPCDIShader::ShowWarpTexture;
 		break;
-	case (int)EVarMPCDIShaderType::Disable:
+
+	case EVarMPCDIShaderType::Disable:
 		return false;
-		break;
+
+	default:
+		return false;
 	};
 	
 	{

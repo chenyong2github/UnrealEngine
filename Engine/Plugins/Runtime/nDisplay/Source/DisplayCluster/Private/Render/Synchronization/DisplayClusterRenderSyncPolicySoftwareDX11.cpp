@@ -29,53 +29,40 @@
 #include "NVIDIA/nvapi/nvapi.h"
 
 
-static int CVarAdvancedSyncEnabled_Value = 0;
-static FAutoConsoleVariableRef CVarAdvancedSyncEnabled(
+static TAutoConsoleVariable<int32> CVarAdvancedSyncEnabled(
 	TEXT("nDisplay.render.softsync.AdvancedSyncEnabled"),
-	CVarAdvancedSyncEnabled_Value,
+	0,
 	TEXT("Advanced DWM based render synchronization (0 = disabled)")
 );
 
-static float CVarVBlankThreshold_Value = 0.003f;
-static FAutoConsoleVariableRef CVarVBlankThreshold(
+static TAutoConsoleVariable<float> CVarVBlankThreshold(
 	TEXT("nDisplay.render.softsync.VBlankThreshold"),
-	CVarVBlankThreshold_Value,
+	0.003f,
 	TEXT("Changes the threshold used to determine whether or not nDisplay SoftSync can make the current frame presentation")
 );
 
-static float CVarVBlankThresholdSleepMultiplier_Value = 1.5f;
-static FAutoConsoleVariableRef CVarVBlankSleepThresholdSleepMultiplier(
+static TAutoConsoleVariable<float> CVarVBlankThresholdSleepMultiplier(
 	TEXT("nDisplay.render.softsync.VBlankThresholdSleepMultipler"),
-	CVarVBlankThresholdSleepMultiplier_Value,
+	1.5f,
 	TEXT("Multiplier applied to VBlankThreshold to compute sleep time to skip frame presentation on upcoming VBlank")
 );
 
-static int CVarVBlankBasisUpdate_Value = 1;
-static FAutoConsoleVariableRef  CVarVBlankBasisUpdate(
+static TAutoConsoleVariable<int32>  CVarVBlankBasisUpdate(
 	TEXT("nDisplay.render.softsync.VBlankBasisUpdate"),
-	CVarVBlankBasisUpdate_Value,
-	TEXT("Update VBlank basis periodically to avoid time drifting")
+	1,
+	TEXT("Update VBlank basis periodically to avoid time drifting (0 = disabled)")
 );
 
-static float CVarVBlankBasisUpdatePeriod_Value = 120.f;
-static FAutoConsoleVariableRef  CVarVBlankBasisUpdatePeriod(
+static TAutoConsoleVariable<float>  CVarVBlankBasisUpdatePeriod(
 	TEXT("nDisplay.render.softsync.VBlankBasisUpdatePeriod"),
-	CVarVBlankBasisUpdatePeriod_Value,
+	120.f,
 	TEXT("VBlank basis update period in seconds")
 );
 
-static int CVarLogDwmStats_Value = 0;
-static FAutoConsoleVariableRef  CVarLogDwmStats(
+static TAutoConsoleVariable<int32>  CVarLogDwmStats(
 	TEXT("nDisplay.render.softsync.LogDwmStats"),
-	CVarLogDwmStats_Value,
-	TEXT("Print DWM stats to log")
-);
-
-static int CVarObtainGpuData_Value = 0;
-static FAutoConsoleVariableRef  CVarObtainGpuData(
-	TEXT("nDisplay.render.softsync.GpuDataObtain"),
-	CVarObtainGpuData_Value,
-	TEXT("Obtain GPU data each frame")
+	0,
+	TEXT("Print DWM stats to log (0 = disabled)")
 );
 
 
@@ -97,7 +84,7 @@ FDisplayClusterRenderSyncPolicySoftwareDX11::FDisplayClusterRenderSyncPolicySoft
 {
 	// We check the console variable once at start. The advanced synchronization policy is not 
 	// supposed to be activated/deactivated at runtime. Use .ini settings to set desired value.
-	bUseAdvancedSynchronization = (CVarAdvancedSyncEnabled_Value != 0);
+	bUseAdvancedSynchronization = (CVarAdvancedSyncEnabled.GetValueOnGameThread() != 0);
 
 	if (bUseAdvancedSynchronization)
 	{
@@ -205,6 +192,11 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 		return true;
 	}
 
+	// Get dynamic values from console variables
+	const float VBlankThreshold = CVarVBlankThreshold.GetValueOnGameThread();
+	const float VBlankThresholdSleepMultiplier = CVarVBlankThresholdSleepMultiplier.GetValueOnGameThread();
+
+
 	if (!bTimersInitialized)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_Initialization);
@@ -214,9 +206,9 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: Refresh period:     %lf"), RefreshPeriod);
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank basis:       %lf"), VBlankBasis);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank threshold:   %lf"), CVarVBlankThreshold_Value);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank sleep mult:  %lf"), CVarVBlankThresholdSleepMultiplier_Value);
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank sleep:       %lf"), CVarVBlankThreshold_Value * CVarVBlankThresholdSleepMultiplier_Value);
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank threshold:   %lf"), VBlankThreshold);
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank sleep mult:  %lf"), VBlankThresholdSleepMultiplier);
+		UE_LOG(LogDisplayClusterRender, Log, TEXT("##SYNC_LOG: VBlank sleep:       %lf"), VBlankThreshold * VBlankThresholdSleepMultiplier);
 
 #ifdef UE_BUILD_DEBUG
 		const int SamplesCount = 25;
@@ -251,9 +243,9 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 
 		// Skip upcoming VBlank if we're in red zone
 		SB = FPlatformTime::Seconds();
-		if (LeftToVBlankTime < CVarVBlankThreshold_Value)
+		if (LeftToVBlankTime < VBlankThreshold)
 		{
-			const double SleepTime = CVarVBlankThreshold_Value * CVarVBlankThresholdSleepMultiplier_Value;
+			const double SleepTime = VBlankThreshold * VBlankThresholdSleepMultiplier;
 			UE_LOG(LogDisplayClusterRender, Warning, TEXT("FDisplayClusterNativePresentHandler::Present_SoftSwapSync - Skipped VBlank. Sleeping %f"), SleepTime);
 			FPlatformProcess::Sleep(SleepTime);
 		}
@@ -272,11 +264,15 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_nDisplayPresent_SoftSync_SwapChainPresent);
 
+		// Get dynamic values from console variables
+		const int32 VBlankBasisUpdate = CVarVBlankBasisUpdate.GetValueOnGameThread();
+		const float VBlankBasisUpdatePeriod = CVarVBlankBasisUpdatePeriod.GetValueOnGameThread();
+
 		// Regardless of where we are, it's safe to present a frame now. If we need to update the VBlank basis,
 		// we have to wait for a VBlank and store the time. We don't want to miss a frame presentation so we
 		// present it with swap interval 0 right after VBlank sygnal.
 		int SyncIntervalToUse = 1;
-		if ((CVarVBlankBasisUpdate_Value > 0) && (B2A - VBlankBasis) > CVarVBlankBasisUpdatePeriod_Value)
+		if ((VBlankBasisUpdate > 0) && (B2A - VBlankBasis) > VBlankBasisUpdatePeriod)
 		{
 			VBlankBasis = GetVBlankTimestamp(DXOutput);
 			SyncIntervalToUse = 0;
@@ -289,7 +285,8 @@ bool FDisplayClusterRenderSyncPolicySoftwareDX11::SynchronizeClusterRendering(in
 
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("##SYNC_LOG - %d:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf:%lf"), FrameCounter, B1B, B1A, TToB, SB, SA, B2B, B2A, PB, PA);
 
-	if (CVarLogDwmStats_Value > 0)
+	const bool LogDwmStats = (CVarLogDwmStats.GetValueOnGameThread() != 0);
+	if (LogDwmStats)
 	{
 		PrintDwmStats(FrameCounter);
 	}

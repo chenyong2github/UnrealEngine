@@ -20,11 +20,11 @@
 #include "Misc/Paths.h"
 
 
-static int CVarPicpShowFakeCamera_Value = 0;
-static FAutoConsoleVariableRef CVarPicpShowFakeCamera(
+static TAutoConsoleVariable<int32> CVarPicpShowFakeCamera(
 	TEXT("nDisplay.render.picp.ShowFakeCamera"),
-	CVarPicpShowFakeCamera_Value,
-	TEXT("Show fake debug camera\n(0 - Disable)\n")
+	0,
+	TEXT("Show fake debug camera (0 = disabled)"),
+	ECVF_RenderThreadSafe
 );
 
 
@@ -154,7 +154,7 @@ bool FPicpProjectionMPCDIPolicy::CalculateView(const uint32 ViewIdx, FVector& In
 
 		IPicpProjection::Get().SetViewport(GetViewportId(), InOutViewRotation, InOutViewLocation, OutPrjMatrix);
 
-		if (CVarPicpShowFakeCamera_Value == 1)
+		if (CVarPicpShowFakeCamera.GetValueOnAnyThread() != 0)
 		{
 			//Add debug content for overlay shaders test purpose:
 			FPicpProjectionOverlayFrameData::GenerateDebugContent(GetViewportId(), this);
