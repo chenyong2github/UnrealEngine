@@ -510,6 +510,11 @@
 #define StrongTypedBuffer Buffer
 #endif
 
+#ifndef ISOLATE
+#define ISOLATE
+#endif
+
+
 // ---------------------------------------------------- Interpolator attribute fallbacks
 
 #ifndef COMPRESSED_16_FLOAT

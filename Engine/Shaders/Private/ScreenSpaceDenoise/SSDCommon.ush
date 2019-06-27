@@ -195,7 +195,7 @@ FSSDSampleSceneInfos FetchPrevSceneInfos(float2 ScreenPosition, float2 BufferUV)
 	return OutMetadata;
 }
 
-// ISOLATE
+ISOLATE
 float3 GetWorldNormal(FSSDSampleSceneInfos SceneMetadata)
 #if CONFIG_COMPRESS_WORLD_NORMAL
 {
