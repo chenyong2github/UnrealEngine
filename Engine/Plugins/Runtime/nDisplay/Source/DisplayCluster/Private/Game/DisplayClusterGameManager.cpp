@@ -338,7 +338,7 @@ bool FDisplayClusterGameManager::InitializeDisplayClusterActor()
 	APlayerController* pController = UGameplayStatics::GetPlayerController(CurrentWorld, 0);
 	check(pController);
 	
-	VRRootActor = StaticCast<ADisplayClusterPawn*>(pController->GetPawn());
+	VRRootActor = Cast<ADisplayClusterPawn>(pController->GetPawn());
 	if (!VRRootActor)
 	{
 		// Seems the DisplayCluster features has been disabled
