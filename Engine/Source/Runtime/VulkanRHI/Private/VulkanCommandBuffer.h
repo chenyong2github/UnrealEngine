@@ -306,7 +306,7 @@ public:
 
 	void SubmitActiveCmdBuffer(VulkanRHI::FSemaphore* SignalSemaphore = nullptr);
 
-	void WaitForCmdBuffer(FVulkanCmdBuffer* CmdBuffer, float TimeInSecondsToWait = 1.0f);
+	void WaitForCmdBuffer(FVulkanCmdBuffer* CmdBuffer, float TimeInSecondsToWait = 10.0f);
 
 	// Update the fences of all cmd buffers except SkipCmdBuffer
 	void RefreshFenceStatus(FVulkanCmdBuffer* SkipCmdBuffer = nullptr)
