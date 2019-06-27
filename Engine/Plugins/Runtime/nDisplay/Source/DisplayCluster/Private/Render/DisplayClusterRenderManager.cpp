@@ -129,6 +129,14 @@ bool FDisplayClusterRenderManager::StartScene(UWorld* InWorld)
 
 void FDisplayClusterRenderManager::EndScene()
 {
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		// Since we can run multiple PIE sessions we have to clean device before the next one.
+		GEngine->StereoRenderingDevice.Reset();
+		RenderDevice.Reset();
+	}
+#endif
 }
 
 void FDisplayClusterRenderManager::PreTick(float DeltaSeconds)
