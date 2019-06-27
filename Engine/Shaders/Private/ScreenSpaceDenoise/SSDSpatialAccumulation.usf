@@ -384,7 +384,7 @@
 
 //------------------------------------------------------- LATE SETUP
 
-#if COMPILER_SUPPORTS_WAVE_ONCE || 1
+#if COMPILER_SUPPORTS_WAVE_ONCE
 	#if CONFIG_UPSCALE
 		#define CONFIG_VGPR_FREE_SAMPLE_TRACK_ID 2
 	#else
