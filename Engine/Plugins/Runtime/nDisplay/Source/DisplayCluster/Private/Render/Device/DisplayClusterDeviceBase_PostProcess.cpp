@@ -6,26 +6,29 @@
 #include "Misc/DisplayClusterHelpers.h"
 #include "DisplayClusterLog.h"
 
+#include "HAL/IConsoleManager.h"
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // Round 1: VIEW before warp&blend
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable/disable PP round 1
-static int CVarPostprocessViewBeforeWarpBlend_Value = 1;
-static FAutoConsoleVariableRef CVarPostprocessViewBeforeWarpBlend(
+static TAutoConsoleVariable<int32> CVarPostprocessViewBeforeWarpBlend(
 	TEXT("nDisplay.render.postprocess.ViewBeforeWarpBlend"),
-	CVarPostprocessViewBeforeWarpBlend_Value,
-	TEXT("Enable PP per view before warp&blend (0 = disabled)\n")
+	1,
+	TEXT("Enable PP per view before warp&blend (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW before WarpBlend: %d"), CVarPostprocessViewBeforeWarpBlend_Value != 0 ? 1 : 0);
+	const bool bEnabled = (CVarPostprocessViewBeforeWarpBlend.GetValueOnRenderThread() != 0);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW before WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (CVarPostprocessViewBeforeWarpBlend_Value != 0)
+	if (bEnabled)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
@@ -50,20 +53,21 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewBeforeWarpBlen
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable/disable PP round 2
-static int CVarPostprocessFrameBeforeWarpBlend_Value = 1;
-static FAutoConsoleVariableRef CVarPostprocessFrameBeforeWarpBlend(
+static TAutoConsoleVariable<int32> CVarPostprocessFrameBeforeWarpBlend(
 	TEXT("nDisplay.render.postprocess.FrameBeforeWarpBlend"),
-	CVarPostprocessFrameBeforeWarpBlend_Value,
-	TEXT("Enable PP per eye frame before warp&blend (0 = disabled)\n")
+	1,
+	TEXT("Enable PP per eye frame before warp&blend (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& ViewRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess FRAME before WarpBlend: %d"), CVarPostprocessFrameBeforeWarpBlend_Value != 0 ? 1 : 0);
+	const bool bEnabled = (CVarPostprocessFrameBeforeWarpBlend.GetValueOnRenderThread() != 0);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess FRAME before WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (CVarPostprocessFrameBeforeWarpBlend_Value != 0)
+	if (bEnabled != 0)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
@@ -88,20 +92,21 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameBeforeWarpBle
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable/disable PP round 3
-static int CVarPostprocessTargetBeforeWarpBlend_Value = 1;
-static FAutoConsoleVariableRef CVarPostprocessTargetBeforeWarpBlend(
+static TAutoConsoleVariable<int32> CVarPostprocessTargetBeforeWarpBlend(
 	TEXT("nDisplay.render.postprocess.TargetBeforeWarpBlend"),
-	CVarPostprocessTargetBeforeWarpBlend_Value,
-	TEXT("Enable PP for the whole render target before warp&blend (0 = disabled)\n")
+	1,
+	TEXT("Enable PP for the whole render target before warp&blend (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET before WarpBlend: %d"), CVarPostprocessTargetBeforeWarpBlend_Value != 0 ? 1 : 0);
+	const bool bEnabled = (CVarPostprocessTargetBeforeWarpBlend.GetValueOnRenderThread() != 0);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET before WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (CVarPostprocessTargetBeforeWarpBlend_Value != 0)
+	if (bEnabled != 0)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
@@ -126,20 +131,21 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetBefore
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable/disable PP round 4
-static int CVarPostprocessViewAfterWarpBlend_Value = 1;
-static FAutoConsoleVariableRef CVarPostprocessViewAfterWarpBlend(
+static TAutoConsoleVariable<int32> CVarPostprocessViewAfterWarpBlend(
 	TEXT("nDisplay.render.postprocess.ViewAfterWarpBlend"),
-	CVarPostprocessViewAfterWarpBlend_Value,
-	TEXT("Enable PP per view after warp&blend (0 = disabled)\n")
+	1,
+	TEXT("Enable PP per view after warp&blend (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), CVarPostprocessViewAfterWarpBlend_Value != 0 ? 1 : 0);
+	const bool bEnabled = (CVarPostprocessViewAfterWarpBlend.GetValueOnRenderThread() != 0);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (CVarPostprocessViewAfterWarpBlend_Value!= 0)
+	if (bEnabled != 0)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
@@ -164,20 +170,21 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessViewAfterWarpBlend
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable/disable PP round 5
-static int CVarPostprocessFrameAfterWarpBlend_Value = 1;
-static FAutoConsoleVariableRef CVarPostprocessFrameAfterWarpBlend(
+static TAutoConsoleVariable<int32> CVarPostprocessFrameAfterWarpBlend(
 	TEXT("nDisplay.render.postprocess.FrameAfterWarpBlend"),
-	CVarPostprocessFrameAfterWarpBlend_Value,
-	TEXT("Enable PP per eye frame after warp&blend (0 = disabled)\n")
+	1,
+	TEXT("Enable PP per eye frame after warp&blend (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const FIntRect& FrameRect) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), CVarPostprocessFrameAfterWarpBlend_Value != 0 ? 1 : 0);
+	const bool bEnabled = (CVarPostprocessFrameAfterWarpBlend.GetValueOnRenderThread() != 0);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess VIEW after WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (CVarPostprocessFrameAfterWarpBlend_Value != 0)
+	if (bEnabled != 0)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{
@@ -202,20 +209,21 @@ void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessFrameAfterWarpBlen
 //////////////////////////////////////////////////////////////////////////////////////////////
 
 // Enable/disable PP round 6
-static int CVarPostprocessTargetAfterWarpBlend_Value = 1;
-static FAutoConsoleVariableRef CVarPostprocessTargetAfterWarpBlend(
+static TAutoConsoleVariable<int32> CVarPostprocessTargetAfterWarpBlend(
 	TEXT("nDisplay.render.postprocess.TargetAfterWarpBlend"),
-	CVarPostprocessTargetAfterWarpBlend_Value,
-	TEXT("Enable PP for the whole render target after warp&blend (0 = disabled)\n")
+	1,
+	TEXT("Enable PP for the whole render target after warp&blend (0 = disabled)\n"),
+	ECVF_RenderThreadSafe
 );
 
 void FDisplayClusterDeviceBase_PostProcess::PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
 {
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET after WarpBlend: %d"), CVarPostprocessTargetAfterWarpBlend_Value != 0 ? 1 : 0);
+	const bool bEnabled = (CVarPostprocessTargetAfterWarpBlend.GetValueOnRenderThread() != 0);
+	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Postprocess TARGET after WarpBlend: %d"), bEnabled ? 1 : 0);
 
-	if (CVarPostprocessTargetAfterWarpBlend_Value != 0)
+	if (bEnabled != 0)
 	{
 		for (const IDisplayClusterRenderManager::FDisplayClusterPPInfo& CurPP : PPOperations)
 		{

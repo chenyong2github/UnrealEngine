@@ -16,11 +16,11 @@
 
 
 
-static int CVarPicpEnableSinglePassRender_Value = 1;
-static FAutoConsoleVariableRef CVarPicpEnableSinglePassRender(
+static TAutoConsoleVariable<int32> CVarPicpEnableSinglePassRender(
 	TEXT("nDisplay.render.picp.EnableSinglePassRender"),
-	CVarPicpEnableSinglePassRender_Value,
-	TEXT("Enable single pass render for picp\n(0 - Disable)\n")
+	1,
+	TEXT("Single render pass for PICP (0 = disabled)"),
+	ECVF_RenderThreadSafe
 );
 
 #define MPCDIShaderFileName TEXT("/Plugin/nDisplay/Private/MPCDIShaders.usf")
@@ -284,7 +284,7 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 				if (ViewportOverlayData)
 				{// Use overlay render tricks:					
 					// First pass render bg
-					bool bIsRenderSinglePass = ((CVarPicpEnableSinglePassRender_Value == 1) && ViewportOverlayData->Cameras.Num() == 1);
+					bool bIsRenderSinglePass = ((CVarPicpEnableSinglePassRender.GetValueOnAnyThread() != 0) && ViewportOverlayData->Cameras.Num() == 1);
 
 					if (bIsRenderSinglePass)
 					{

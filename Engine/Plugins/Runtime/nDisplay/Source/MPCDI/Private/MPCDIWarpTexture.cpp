@@ -29,11 +29,11 @@ enum EVarMPCDIFrustumMethod
 };
 
 
-static int CVarMPCDIFrustumMethod_Value = (int)EVarMPCDIFrustumMethod::PerfectCPU;
-static FAutoConsoleVariableRef CVarMPCDIFrustumMethod(
+static TAutoConsoleVariable<int32> CVarMPCDIFrustumMethod(
 	TEXT("nDisplay.render.mpcdi.Frustum"),
-	CVarMPCDIFrustumMethod_Value,
-	TEXT("Frustum calculation method: \n (0 = AABB based, fast, on CPU)\n(1 = Perfect, slow, on CPU)\n")
+	(int)EVarMPCDIFrustumMethod::PerfectCPU,
+	TEXT("Frustum computation method:\n0 = mesh AABB based, lower quality but fast\n1 = mesh vertices based, best quality but slow\n"),
+	ECVF_RenderThreadSafe
 );
 
 // Select mpcdi stereo mode
@@ -43,11 +43,11 @@ enum EVarMPCDIStereoMode
 	SymmetricAABB,
 };
 
-static int CVarMPCDIStereoMode_Value = (int)EVarMPCDIStereoMode::AsymmetricAABB;
-static FAutoConsoleVariableRef CVarMPCDIStereoMode(
+static TAutoConsoleVariable<int32> CVarMPCDIStereoMode(
 	TEXT("nDisplay.render.mpcdi.StereoMode"),
-	CVarMPCDIStereoMode_Value,
-	TEXT("Stereo mode:\n (0 = Asymmetric to AABB center\n(1 = Symmetric to AABB center)\n")
+	(int)EVarMPCDIStereoMode::AsymmetricAABB,
+	TEXT("Stereo mode:\n (0 = Asymmetric to AABB center\n(1 = Symmetric to AABB center)\n"),
+	ECVF_RenderThreadSafe
 );
 
 // Select mpcdi projection mode
@@ -57,11 +57,11 @@ enum EVarMPCDIProjectionMode
 	StaticAxisAligned,
 };
 
-static int CVarMPCDIProjectionMode_Value = (int)EVarMPCDIProjectionMode::Dynamic;
-static FAutoConsoleVariableRef CVarMPCDIProjectionMode(
+static TAutoConsoleVariable<int32> CVarMPCDIProjectionMode(
 	TEXT("nDisplay.render.mpcdi.Projection"),
-	CVarMPCDIProjectionMode_Value,
-	TEXT("Projection method:\n (0 = Dynamic, to view target\n(1 = Static, aligned to mpcdi origin space axis)\n")
+	(int)EVarMPCDIProjectionMode::Dynamic,
+	TEXT("Projection method:\n0 = Dynamic, to view target\n1 = Static, aligned to mpcdi origin space axis\n"),
+	ECVF_RenderThreadSafe
 );
 
 
@@ -176,7 +176,8 @@ namespace MPCDI
 
 	void FMPCDIWarpTexture::CalcViewProjection(const IMPCDI::FFrustum& Frustum, const FVector& ViewDirection, const FVector& ViewOrigin, const FVector& EyeOrigin, FMatrix& OutViewMatrix) const
 	{
-		switch (CVarMPCDIProjectionMode_Value)
+		const EVarMPCDIProjectionMode ProjMode = (EVarMPCDIProjectionMode)CVarMPCDIProjectionMode.GetValueOnAnyThread();
+		switch (ProjMode)
 		{
 			case EVarMPCDIProjectionMode::Dynamic:
 			{
@@ -228,7 +229,8 @@ namespace MPCDI
 
 		FMatrix Local2world = FMatrix::Identity;
 
-		switch (CVarMPCDIStereoMode_Value)
+		const EVarMPCDIStereoMode StereoMode = (EVarMPCDIStereoMode)CVarMPCDIStereoMode.GetValueOnAnyThread();
+		switch (StereoMode)
 		{
 			case EVarMPCDIStereoMode::AsymmetricAABB:
 			{
@@ -270,7 +272,8 @@ namespace MPCDI
 		float left = FLT_MAX;
 		float right = -FLT_MAX;
 
-		switch (CVarMPCDIFrustumMethod_Value)
+		const EVarMPCDIFrustumMethod FrustumComputeMethod = (EVarMPCDIFrustumMethod)CVarMPCDIFrustumMethod.GetValueOnAnyThread();
+		switch (FrustumComputeMethod)
 		{
 		case EVarMPCDIFrustumMethod::AABB:
 			CalcFrustum_simpleAABB(OutFrustum, World2local, top, bottom, left, right);
