@@ -508,7 +508,8 @@ bool IsInvalidSample(FSSDSignalSample Sample)
 float ComputeBilateralWeight(
 	float MaxWorldBluringDistance,
 	FSSDSampleSceneInfos RefSceneMetadata,
-	FSSDSampleSceneInfos NeighborSceneMetadata)
+	FSSDSampleSceneInfos NeighborSceneMetadata,
+	float3 NeighborToRefWorldVector)
 {
 	if (DEBUG_DISABLE_BILATERAL)
 	{
@@ -520,14 +521,12 @@ float ComputeBilateralWeight(
 	{
 		const float WorldRadius = MaxWorldBluringDistance;
 
-		float3 V = RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition;
-
 		float RefAnisotropyInvFactor = ComputeAnisotropyInvFactor(RefSceneMetadata);
 
 		float3 CameraToRef = View.ViewForward;
 
-		float Z = dot(CameraToRef, V);
-		float XY = length2(V - CameraToRef * Z * (1 - RefAnisotropyInvFactor));
+		float Z = dot(CameraToRef, NeighborToRefWorldVector);
+		float XY = length2(NeighborToRefWorldVector - CameraToRef * Z * (1 - RefAnisotropyInvFactor));
 
 		float DistSquare = XY;
 
@@ -537,48 +536,41 @@ float ComputeBilateralWeight(
 	}
 	#elif CONFIG_VIEW_POSITION_BASED_BILATERAL == 2
 	{
-		// TODO: save 2 VGPR by encoding RefSceneMetadata.WorldNormal
-
 		// TODO: save 2 VGPR by using SceneDepth instead of RefSceneMetadata.TranslatedWorldPosition (not sure it can work in math yet).
 		// float2 ClipPosition = ScreenPosition * (View.ViewToClip[3][3] < 1.0f ? WorldDepth : 1.0f);
 		// Infos.TranslatedWorldPosition = mul(float4(ClipPosition, WorldDepth, 1), ScreenToTranslatedWorld).xyz;
 
-		float DistFromRefPlane = abs(dot(RefSceneMetadata.WorldNormal, RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition));
+		float DistFromRefPlane = abs(dot(GetWorldNormal(RefSceneMetadata), NeighborToRefWorldVector));
 
 		PositionBilateralWeight = saturate(1 - DistFromRefPlane * rcp(MaxWorldBluringDistance));
 	}
 	#elif CONFIG_VIEW_POSITION_BASED_BILATERAL == 3
 	{
-		float3 V = RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition;
-
-		if (dot(V, V) > MaxWorldBluringDistance * MaxWorldBluringDistance)
+		if (dot(NeighborToRefWorldVector, NeighborToRefWorldVector) > MaxWorldBluringDistance * MaxWorldBluringDistance)
 		{
 			PositionBilateralWeight = 0;
 		}
 	}
 	#elif CONFIG_VIEW_POSITION_BASED_BILATERAL == 4
 	{
-		float3 V = RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition;
-
 		// TODO: extremely expensive with rcp()...
-		PositionBilateralWeight = saturate(1 - dot(V, V) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance));
+		PositionBilateralWeight = saturate(1 - dot(NeighborToRefWorldVector, NeighborToRefWorldVector) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance));
 	}
 	#elif CONFIG_VIEW_POSITION_BASED_BILATERAL == 5
 	{
-		float3 V = RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition;
-
-		float DistFromRefPlane = dot(RefSceneMetadata.WorldNormal, RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition);
+		float DistFromRefPlane = dot(GetWorldNormal(RefSceneMetadata), RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition);
 
 		// TODO: extremely expensive with rcp()...
 		PositionBilateralWeight = (
-			saturate(1 - dot(V, V) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance)) *
+			saturate(1 - dot(NeighborToRefWorldVector, NeighborToRefWorldVector) * rcp(MaxWorldBluringDistance * MaxWorldBluringDistance)) *
 			saturate(1 - 6 * abs(DistFromRefPlane) * rcp(MaxWorldBluringDistance)));
 	}
 	#endif
 
 	float NormalBilateralWeight = 1;
 	#if CONFIG_NORMAL_BASED_BILATERAL
-    {
+	{
+		// TODO: use GetWorldNormal() instead to reduce VGPR?
 		float NoN = max(dot(RefSceneMetadata.WorldNormal, NeighborSceneMetadata.WorldNormal), 0);
 
 		#if 1 // TODO
@@ -593,7 +585,7 @@ float ComputeBilateralWeight(
 
 			NormalBilateralWeight = exp(-x * x);
 		#endif
-    }
+	}
 	#endif
 	
 	// [ Tokoyashi 2015, "Specular Lobe-Aware Filtering and Upsampling for Interactive Indirect Illumination" ]
@@ -734,6 +726,7 @@ float GetRatioEstimatorWeight(
 
 	float a2 = Pow4(RefSceneMetadata.Roughness);
 
+	// TODO: Improve quantization in CONFIG_COMPRESS_WORLD_NORMAL and use it.
 	float3 N = RefSceneMetadata.WorldNormal;
 
 	float NoH;
@@ -797,7 +790,7 @@ FSSDSphericalHarmonicRGB ComputeSampleColorSH(FSSDSampleSceneInfos SampleSceneMe
 	float3 RandSample = QuasiRandom_Sample3(QuasiRandom);
 
 	float4 TangentDirection = CosineSampleHemisphere(RandSample.yz);
-	float3 WorldDirection = TangentToWorld(TangentDirection.xyz, SampleSceneMetadata.WorldNormal);
+	float3 WorldDirection = TangentToWorld(TangentDirection.xyz, SampleSceneMetadata.WorldNormal); // TODO: use GetWorldNormal()
 
 	#if SPHERICAL_HARMONIC_ORDER == 2
 		FSSDSphericalHarmonic SampleBasis = SHBasisFunction(WorldDirection);

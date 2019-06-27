@@ -287,8 +287,10 @@
 	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC
 
 	// Spherical harmonics are a lot of data, need to shrink VGPR pressure to improve lattency hidding when fetching the buffer.
-	// TODO: some shader compiler completly falls apparts with the current implementation of this and actually drops in occupency.
+	// TODO: some shader compiler completly falls apparts with the current implementation of
+	//       CONFIG_SIGNAL_VGPR_COMPRESSION and actually drops in occupency.
 	#define CONFIG_SIGNAL_VGPR_COMPRESSION SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC
+	#define CONFIG_NEIGHBOR_TO_REF_COMPUTATION NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
@@ -377,6 +379,17 @@
 /** Whether neighbor bilateral distance should be maxed with reference one. */
 #ifndef CONFIG_MAX_WITH_REF_DISTANCE
 	#define CONFIG_MAX_WITH_REF_DISTANCE 0
+#endif
+
+
+//------------------------------------------------------- LATE SETUP
+
+#if COMPILER_SUPPORTS_WAVE_ONCE || 1
+	#if CONFIG_UPSCALE
+		#define CONFIG_VGPR_FREE_SAMPLE_TRACK_ID 2
+	#else
+		#define CONFIG_VGPR_FREE_SAMPLE_TRACK_ID 1
+	#endif
 #endif
 
 
@@ -682,7 +695,7 @@ void MainCS(
 		{
 			KernelConfig.SampleCount = clamp(RequestedSampleCount * rcp(kStackowiakSampleSetCount), 1, MaxSampleCount);
 
-			if (CONFIG_UPSCALE)
+			#if CONFIG_UPSCALE
 			{
 				// TODO: could be optimised, but currently reusing same peace of code as reflection for maintainability.
 				uint2 RayDispatchThreadId = (DispatchThreadId - UpscaleFactor / 2) / UpscaleFactor;
@@ -701,7 +714,7 @@ void MainCS(
 				// To avoid precision problem when comparing potentially identicall 
 				KernelConfig.bForceKernelCenterAccumulation = RaySubPixelId == ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
 			}
-			else
+			#else
 			{
 				// Put the kernel center at the center of the quad. Half pixel shift is done in the sample offsets.
 				KernelConfig.BufferUV = (DispatchThreadId | 1) * View.BufferSizeAndInvSize.zw;
@@ -709,6 +722,7 @@ void MainCS(
 				// Id of the pixel in the quad. This is to match hard coded first samples of the sample set.
 				KernelConfig.SampleTrackId = ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
 			}
+			#endif
 
 			#if CONFIG_VGPR_OPTIMIZATION
 				// Keek sample SampleTrackId & SceneBufferUV arround for computation of pixel output coordinate.
@@ -887,19 +901,25 @@ void MainCS(
 	#endif // DIM_STAGE == STAGE_POST_FILTERING
 
 	// TODO:  LeaveRayCount = (LeaveRayCount - 1) * 9 / (9 - 2) post processing to reject when for history rejection
-	
+	uint2 OutputPixelPostion;
 	#if CONFIG_VGPR_OPTIMIZATION
+	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
 		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
+			#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+				SampleTrackId = GetSampleTrackIdFromLaneIndex();
+			#endif
+
 			#if CONFIG_UPSCALE
 				SampleTrackId ^= 0x3;
 			#endif
-			uint2 OutputPixelPostion = (uint2(KernelBufferUV * View.BufferSizeAndInvSize.xy) & ~0x1) | (uint2(SampleTrackId, SampleTrackId >> 1) & 0x1);
+			OutputPixelPostion = (uint2(KernelBufferUV * View.BufferSizeAndInvSize.xy) & ~0x1) | (uint2(SampleTrackId, SampleTrackId >> 1) & 0x1);
 		#else
-			uint2 OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
+			OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
 		#endif
+	}
 	#else
-		uint2 OutputPixelPostion = DispatchThreadId;
+		OutputPixelPostion = DispatchThreadId;
 	#endif 
 
 	// Output the multiplexed signal.

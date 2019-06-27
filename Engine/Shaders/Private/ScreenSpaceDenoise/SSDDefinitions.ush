@@ -196,6 +196,15 @@
 	#define SIGNAL_COMPRESSION_DIFFUSE_INDIRECT_HARMONIC 0xD200
 
 
+/** Technic used to compute the world vector betweem neighbor and reference. */
+	// Directly use FSSDKernelConfig::RefSceneMetadata.TranslatedWorldPosition. Cost 3 VGPR over entire kernel inner loop.
+	#define NEIGHBOR_TO_REF_CACHE_WORLD_POSITION 0
+
+	// Compute by deriving the information of the reference pixel last minute from kernel configuration, trading VALU to save VGPR.
+	// TODO: does not work with previous frame reprojection.
+	#define NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE 1
+
+
 //------------------------------------------------------- GLOBAL CONFIGURATION OF ALL DENOISER SHADERS
 
 /** Do normal based anysotropy. */
@@ -214,6 +223,9 @@
 
 /** Manually format texel in the shader to reduce VGPR pressure with overlapped texture fetched. */
 #define CONFIG_MANUAL_TEXEL_FORMATTING 1
+
+/** Configures whether the world normal should be compressed in FSSDSampleSceneInfos. */
+#define CONFIG_COMPRESS_WORLD_NORMAL 1
 
 /** By default, the color space stored into intermediary buffer is linear premultiplied RGBA. */
 #define STANDARD_BUFFER_COLOR_SPACE COLOR_SPACE_RGB

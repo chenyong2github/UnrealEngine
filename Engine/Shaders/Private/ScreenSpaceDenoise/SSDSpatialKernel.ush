@@ -24,6 +24,18 @@
 	#define SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS 4
 
 
+//------------------------------------------------------- CONFIG DISABLED DEFAULTS
+
+/** Selects how the computation of world vector between the reference and neighbor should be computed. */
+#ifndef CONFIG_NEIGHBOR_TO_REF_COMPUTATION
+	#define CONFIG_NEIGHBOR_TO_REF_COMPUTATION NEIGHBOR_TO_REF_CACHE_WORLD_POSITION
+#endif
+
+/** Compute FSSDKernelConfig::SampleTrackId directly based on lane id. */
+#ifndef CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+	#define CONFIG_VGPR_FREE_SAMPLE_TRACK_ID 0
+#endif
+
 
 //------------------------------------------------------- STRUCTURES
 
@@ -201,6 +213,87 @@ FSSDKernelConfig CreateKernelConfig()
 static const float kWaveletFilterWeights5x5[] = { 3.0 / 8.0, 1.0 / 4.0, 1.0 / 16.0 };
 
 
+//------------------------------------------------------- REDERIVE INFORMATION FOR LOWER VGPR OCCUPENCY
+
+#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+
+// ISOLATE
+uint GetSampleTrackIdFromLaneIndex()
+{
+	uint LaneId = WaveGetLaneIndex();
+
+	return ((LaneId & 0x1) | ((LaneId >> 2) & 0x2)) ^ (CONFIG_VGPR_FREE_SAMPLE_TRACK_ID == 2 ? 0x3 : 0x0);
+}
+
+#endif // CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+
+
+/** Deduce the buffer UV of the output pixel this kernel has been configured for. */
+float2 ComputeRefBufferUV(FSSDKernelConfig KernelConfig)
+{
+	if (KernelConfig.SampleSet == SAMPLE_SET_STACKOWIAK_4_SETS)
+	{
+		uint SampleTrackId = KernelConfig.SampleTrackId;
+
+		#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+			SampleTrackId = GetSampleTrackIdFromLaneIndex();
+		#endif
+
+		// Matches first line of kStackowiakSampleSet0
+		// TODO: could be optimised further by just setting sign bit on 0.5.
+		float2 SampleOffset = float2(
+			SampleTrackId & 0x1 ? 0.5 : -0.5,
+			SampleTrackId & 0x2 ? 0.5 : -0.5);
+
+		return KernelConfig.BufferUV + SampleOffset * KernelConfig.BufferSizeAndInvSize.xy;
+	}
+	else if (SAMPLE_SET_HEXAWEB)
+	{
+		return float2(0.0, 0.0); // Impossible because of random offset certainely needed using this..
+	}
+
+	return KernelConfig.BufferUV;
+}
+
+float2 ComputeRefScreenPos(FSSDKernelConfig KernelConfig)
+{
+	float2 RefBufferUV = ComputeRefBufferUV(KernelConfig);
+
+	// TODO: reduce VALU here.
+	float2 RefViewportUV = BufferUVToViewportUV(RefBufferUV);
+	float2 RefScreenPos = ViewportUVToScreenPos(RefViewportUV);
+
+	return RefScreenPos;
+}
+
+float3 ComputeWorldVectorFromNeighborToRef(
+	FSSDKernelConfig KernelConfig,
+	FSSDSampleSceneInfos NeighborSceneMetadata,
+	float2 NeighborBufferUV)
+#if CONFIG_NEIGHBOR_TO_REF_COMPUTATION == NEIGHBOR_TO_REF_CACHE_WORLD_POSITION
+{
+	float3 NeighborToRefWorldVector = KernelConfig.RefSceneMetadata.TranslatedWorldPosition - NeighborSceneMetadata.TranslatedWorldPosition;
+	return NeighborToRefWorldVector;
+}
+#elif CONFIG_NEIGHBOR_TO_REF_COMPUTATION == NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE
+{
+	float2 RefScreenPos = ComputeRefScreenPos(KernelConfig);
+	float3 RefClipPosition = float3(RefScreenPos * (View.ViewToClip[3][3] < 1.0f ? KernelConfig.RefSceneMetadata.WorldDepth : 1.0f), KernelConfig.RefSceneMetadata.WorldDepth);
+
+	// TODO: reduce VALU here.
+	float2 NeighborViewportUV = BufferUVToViewportUV(NeighborBufferUV);
+	float2 NeighborScreenPos = ViewportUVToScreenPos(NeighborViewportUV);
+
+	float3 NeighborClipPosition = float3(NeighborScreenPos * (View.ViewToClip[3][3] < 1.0f ? NeighborSceneMetadata.WorldDepth : 1.0f), NeighborSceneMetadata.WorldDepth);
+
+	float3 NeighborToRefWorldVector = mul(float4(RefClipPosition - NeighborClipPosition, 0), View.ScreenToTranslatedWorld).xyz;
+	return NeighborToRefWorldVector;
+}
+#else
+	#error Unknown settings
+#endif
+
+
 //------------------------------------------------------- SHARED SAMPLING
 
 FSSDSignalSample TransformSignalSampleForAccumulation(
@@ -352,10 +445,18 @@ void AccumulateSampledMultiplexedSignals(
 			FinalWorldBluringDistance = min(FinalWorldBluringDistance, KernelConfig.RefBilateralDistance[SignalMultiplexId]);
 		}
 	
+		// Compute the vector from neighbor to reference in the most optimal way.
+		float3 NeighborToRefWorldVector = ComputeWorldVectorFromNeighborToRef(
+			KernelConfig,
+			SampleSceneMetadata,
+			SampleBufferUV);
+
+		// Compute the weight to be applied to do bilateral rejection.
 		float BilateralWeight = ComputeBilateralWeight(
 			FinalWorldBluringDistance,
 			KernelConfig.RefSceneMetadata,
-			SampleSceneMetadata);
+			SampleSceneMetadata,
+			NeighborToRefWorldVector);
 		
 		float RatioEstimatorWeight = GetRatioEstimatorWeight(
 			KernelConfig.RefSceneMetadata, SampleSceneMetadata, Sample, NeighborPixelCoord);
@@ -870,10 +971,15 @@ void ConvolveStackowiakKernel(
 
 				const bool bIsKernelCenterSample = SampleId == 0 && (SampleBatchId == (kSamplingBatchSize - 1));
 				
-				float2 SampleOffset = kStackowiakSampleSet0[kStackowiakSampleSetCount * SampleId + KernelConfig.SampleTrackId];
+				uint SampleTrackId = KernelConfig.SampleTrackId;
+				#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+					SampleTrackId = GetSampleTrackIdFromLaneIndex();
+				#endif
+
+				float2 SampleOffset = kStackowiakSampleSet0[kStackowiakSampleSetCount * SampleId + SampleTrackId];
 				if (KernelConfig.SampleSubSetId == 1)
 				{
-					SampleOffset = kStackowiakSampleSet1[kStackowiakSampleSetCount * SampleId + KernelConfig.SampleTrackId];
+					SampleOffset = kStackowiakSampleSet1[kStackowiakSampleSetCount * SampleId + SampleTrackId];
 				}
 				
 				float2 SampleBufferUV = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
@@ -933,10 +1039,15 @@ void ConvolveStackowiakKernel(
 		{
 			const bool bIsKernelCenterSample = SampleId == 0;
 
-			float2 SampleOffset = kStackowiakSampleSet0[kStackowiakSampleSetCount * SampleId + KernelConfig.SampleTrackId];
+			uint SampleTrackId = KernelConfig.SampleTrackId;
+			#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+				SampleTrackId = GetSampleTrackIdFromLaneIndex();
+			#endif
+
+			float2 SampleOffset = kStackowiakSampleSet0[kStackowiakSampleSetCount * SampleId + SampleTrackId];
 			if (KernelConfig.SampleSubSetId == 1)
 			{
-				SampleOffset = kStackowiakSampleSet1[kStackowiakSampleSetCount * SampleId + KernelConfig.SampleTrackId];
+				SampleOffset = kStackowiakSampleSet1[kStackowiakSampleSetCount * SampleId + SampleTrackId];
 			}
 			
 			float2 SampleBufferUV = KernelConfig.BufferUV + (SampleOffset * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
