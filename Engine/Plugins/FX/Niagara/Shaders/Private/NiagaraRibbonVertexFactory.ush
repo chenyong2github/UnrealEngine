@@ -397,7 +397,6 @@ FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
 	}
 
 #if USE_PARTICLE_INTERPOLATION
-	ISOLATE
 	{
 		InterpVtxData.Alpha = (float)((Input.InterpVtxId / 2) % NiagaraRibbonVF.InterpCount) * NiagaraRibbonVF.OneOverInterpCount;
 	}
@@ -584,7 +583,6 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 		Intermediates.SideVector = Intermediates.Right;
 	}
 
-	ISOLATE
 	{
 		Intermediates.Up = cross(Intermediates.Right, Intermediates.Facing);
 	}
@@ -606,7 +604,6 @@ void GetNiagaraParticleTangents(in FInterpVtxData InterpVtxData, in out FVertexF
 
 float4 CalcWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	ISOLATE
 	{
 		// expand and align
 		int Sgn = (((int)Input.InterpVtxId & 0x1) * 2) - 1;

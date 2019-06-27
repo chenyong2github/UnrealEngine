@@ -62,7 +62,6 @@ MaterialFloat StoreTexSample(in out FTexCoordScalesParams Params, float4 C, int 
 		FDebugVSToPS Output;
 		
 		// Finally, transform position to clip-space
-		ISOLATE
 		{
 
 			Output.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
@@ -136,7 +135,6 @@ void Main(
 	// Isolate instructions used for world position offset
 	// As these cause the optimizer to generate different position calculating instructions in each pass, resulting in self-z-fighting.
 	// This is only necessary for shaders used in passes that have depth testing enabled.
-	ISOLATE
 	{
 		WorldPos.xyz += GetMaterialWorldPositionOffset(VertexParameters);
 	}
@@ -146,7 +144,6 @@ void Main(
 	Output.Position = WorldPos;
 	Output.FactoryInterpolants = VertexFactoryGetInterpolantsVSToDS(Input, VFIntermediates, VertexParameters);
 #else
-	ISOLATE
 	{
 		float4 RasterizedWorldPosition = VertexFactoryGetRasterizedWorldPosition(Input, VFIntermediates, WorldPos);
 		Output.Position = mul(RasterizedWorldPosition, ResolvedView.TranslatedWorldToClip);

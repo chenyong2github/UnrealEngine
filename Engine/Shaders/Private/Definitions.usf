@@ -140,7 +140,6 @@
 #define LIGHTMAP_VT_ENABLED								0
 #endif
 
-#define ISOLATE
 #define NOEXPRESSIONOPTIMIZATIONS						
 
 #ifndef HAS_INVERTED_Z_BUFFER

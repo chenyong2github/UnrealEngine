@@ -60,7 +60,6 @@ FBasePassVSToPS PassFinalizeTessellationOutput(FBasePassVSToDS Interpolants, flo
 	(FSharedBasePassInterpolants)O.BasePassInterpolants = (FSharedBasePassInterpolants)Interpolants.BasePassInterpolants;
 
 	// Transform position to clip-space
-	ISOLATE
 	{
 		O.Position = mul(WorldPosition, ResolvedView.TranslatedWorldToClip);
 #if WRITES_VELOCITY_TO_GBUFFER
