@@ -39,7 +39,7 @@ bool FGeometryCollectionSelectRigidBodyEdMode::CanActivateMode()
 		&& HasValidEditorLevelViewport(GEditor->GetWorldContexts(), GEditor->SlatePlayInEditorMap);  // Not running in new PIE window
 }
 
-void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId, TFunction<void()> OnEnterMode, TFunction<void()> OnExitMode)
+void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId, TSharedRef<IPropertyHandle> PropertyHandleSolver, TFunction<void()> OnEnterMode, TFunction<void()> OnExitMode)
 {
 	// Make sure we are playing in an editor window
 	if (CanActivateMode())
@@ -65,6 +65,7 @@ void FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(TSharedRef<IProperty
 			// Set pointers
 			FGeometryCollectionSelectRigidBodyEdMode* const GeometryCollectionSelectRigidBodyEdMode = static_cast<FGeometryCollectionSelectRigidBodyEdMode*>(EdMode);
 			GeometryCollectionSelectRigidBodyEdMode->PropertyHandleId = PropertyHandleId;
+			GeometryCollectionSelectRigidBodyEdMode->PropertyHandleSolver = PropertyHandleSolver;
 			GeometryCollectionSelectRigidBodyEdMode->OnExitMode = OnExitMode;
 
 			// Execute enter mode callback
@@ -166,6 +167,10 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 					if (const TSharedPtr<IPropertyHandle> PropertyHandleIdPin = PropertyHandleId.Pin())
 					{
 						PropertyHandleIdPin->SetValue(RigidBodyId);
+					}
+					if (const TSharedPtr<IPropertyHandle> PropertyHandleSolverPin = PropertyHandleSolver.Pin())
+					{
+						PropertyHandleSolverPin->SetValue(GeometryCollectionComponent->ChaosSolverActor);
 					}
 				}
 			}

@@ -4,7 +4,9 @@
 
 #include "PropertyHandle.h"
 #include "IPropertyTypeCustomization.h"
+#include "IDetailChildrenBuilder.h"
 #include "IPropertyUtilities.h"
+#include "IDetailPropertyRow.h"
 #include "DetailWidgetRow.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
@@ -22,8 +24,9 @@ TSharedRef<IPropertyTypeCustomization> FSelectedRigidBodyCustomization::MakeInst
 
 void FSelectedRigidBodyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& /*StructCustomizationUtils*/)
 {
-	const TSharedRef<IPropertyHandle> PropertyHandleActor = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, GeometryCollectionActor)).ToSharedRef();
 	const TSharedRef<IPropertyHandle> PropertyHandleId = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Id)).ToSharedRef();
+	const TSharedRef<IPropertyHandle> PropertyHandleSolver = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Solver)).ToSharedRef();
+	const TSharedRef<IPropertyHandle> PropertyHandleActor = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, GeometryCollection)).ToSharedRef();
 
 	// Add buttons
 	HeaderRow.NameContent()
@@ -33,152 +36,155 @@ void FSelectedRigidBodyCustomization::CustomizeHeader(TSharedRef<IPropertyHandle
 				NSLOCTEXT("ChaosSelectedRigidBody", "ChaosSelectedRigidBody_ToolTip", "Select a Rigid Body here by either entering its Id, or clicking on the Pick button."))
 		]
 	.ValueContent()
-		.MinDesiredWidth(360.f)
+	.MinDesiredWidth(140.f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(0.f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			[
-				PropertyHandleId->CreatePropertyValueWidget()
+			SAssignNew(CheckBoxPick, SCheckBox)
+			.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
+			.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_ToolTip", "Pick a Rigid Body."))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.Padding(6.0f)
+			.IsChecked_Lambda([]()
+			{
+				return FGeometryCollectionSelectRigidBodyEdMode::IsModeActive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+			})
+			.IsEnabled_Lambda([]()
+			{
+				return FGeometryCollectionSelectRigidBodyEdMode::CanActivateMode();
+			})
+			.OnCheckStateChanged(this, &FSelectedRigidBodyCustomization::OnPick, PropertyHandleId, PropertyHandleSolver)
+			[ 
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("PropertyWindow.Button_PickActorInteractive"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.f, 0.f, 0.f, 0.f)
-			[
-				SAssignNew(CheckBoxPick, SCheckBox)
-				.Style(FEditorStyle::Get(), "ToggleButtonCheckbox")
-				.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_ToolTip", "Pick a Rigid Body."))
-				.ForegroundColor(FSlateColor::UseForeground())
-				.Padding(6.0f)
-				.IsChecked_Lambda([]()
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(8.f, 0.f, 0.f, 0.f)
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_UpClusterLevel", "Go to parent cluster."))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				return GetParentClusterRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
+			})
+			.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				const int32 RigidBodyId = GetParentClusterRigidBodyId(PropertyHandleActor, PropertyHandleId);
+				if (RigidBodyId != INDEX_NONE)
 				{
-					return FGeometryCollectionSelectRigidBodyEdMode::IsModeActive() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				})
-				.IsEnabled_Lambda([]()
-				{
-					return FGeometryCollectionSelectRigidBodyEdMode::CanActivateMode();
-				})
-				.OnCheckStateChanged(this, &FSelectedRigidBodyCustomization::OnPick, PropertyHandleId)
-				[ 
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("PropertyWindow.Button_PickActorInteractive"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+					PropertyHandleId->SetValue(RigidBodyId);
+				}
+				return FReply::Handled();
+			})
+			[ 
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+				.Text(FEditorFontGlyphs::Caret_Square_O_Up)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(8.f, 0.f, 0.f, 0.f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_UpClusterLevel", "Go to parent cluster."))
-				.ForegroundColor(FSlateColor::UseForeground())
-				.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_DownClusterLevel", "Go to child cluster."))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				return GetChildClusterRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
+			})
+			.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				const int32 RigidBodyId = GetChildClusterRigidBodyId(PropertyHandleActor, PropertyHandleId);
+				if (RigidBodyId != INDEX_NONE)
 				{
-					return GetParentClusterRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
-				})
-				.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
-				{
-					const int32 RigidBodyId = GetParentClusterRigidBodyId(PropertyHandleActor, PropertyHandleId);
-					if (RigidBodyId != INDEX_NONE)
-					{
-						PropertyHandleId->SetValue(RigidBodyId);
-					}
-					return FReply::Handled();
-				})
-				[ 
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
-					.Text(FEditorFontGlyphs::Caret_Square_O_Up)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+					PropertyHandleId->SetValue(RigidBodyId);
+				}
+				return FReply::Handled();
+			})
+			[ 
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+				.Text(FEditorFontGlyphs::Caret_Square_O_Down)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_DownClusterLevel", "Go to child cluster."))
-				.ForegroundColor(FSlateColor::UseForeground())
-				.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(8.0f, 0.f, 0.f, 0.f)
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_PrevClusterSibling", "Go to previous clustered sibling."))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				return GetPreviousClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
+			})
+			.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				const int32 RigidBodyId = GetPreviousClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId);
+				if (RigidBodyId != INDEX_NONE)
 				{
-					return GetChildClusterRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
-				})
-				.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
-				{
-					const int32 RigidBodyId = GetChildClusterRigidBodyId(PropertyHandleActor, PropertyHandleId);
-					if (RigidBodyId != INDEX_NONE)
-					{
-						PropertyHandleId->SetValue(RigidBodyId);
-					}
-					return FReply::Handled();
-				})
-				[ 
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
-					.Text(FEditorFontGlyphs::Caret_Square_O_Down)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+					PropertyHandleId->SetValue(RigidBodyId);
+				}
+				return FReply::Handled();
+			})
+			[ 
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+				.Text(FEditorFontGlyphs::Caret_Square_O_Left)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(8.0f, 0.f, 0.f, 0.f)
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_PrevClusterSibling", "Go to previous clustered sibling."))
-				.ForegroundColor(FSlateColor::UseForeground())
-				.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+		]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_NextClusterSibling", "Go to next clustered sibling."))
+			.ForegroundColor(FSlateColor::UseForeground())
+			.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				return GetNextClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
+			})
+			.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
+			{
+				const int32 RigidBodyId = GetNextClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId);
+				if (RigidBodyId != INDEX_NONE)
 				{
-					return GetPreviousClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
-				})
-				.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
-				{
-					const int32 RigidBodyId = GetPreviousClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId);
-					if (RigidBodyId != INDEX_NONE)
-					{
-						PropertyHandleId->SetValue(RigidBodyId);
-					}
-					return FReply::Handled();
-				})
-				[ 
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
-					.Text(FEditorFontGlyphs::Caret_Square_O_Left)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
+					PropertyHandleId->SetValue(RigidBodyId);
+				}
+				return FReply::Handled();
+			})
+			[ 
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
+				.Text(FEditorFontGlyphs::Caret_Square_O_Right)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ToolTipText(NSLOCTEXT("ChaosSelectedRigidBody", "Pick_NextClusterSibling", "Go to next clustered sibling."))
-				.ForegroundColor(FSlateColor::UseForeground())
-				.IsEnabled_Lambda([PropertyHandleActor, PropertyHandleId]()
-				{
-					return GetNextClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId) != INDEX_NONE;
-				})
-				.OnClicked_Lambda([PropertyHandleActor, PropertyHandleId]()
-				{
-					const int32 RigidBodyId = GetNextClusteredSiblingRigidBodyId(PropertyHandleActor, PropertyHandleId);
-					if (RigidBodyId != INDEX_NONE)
-					{
-						PropertyHandleId->SetValue(RigidBodyId);
-					}
-					return FReply::Handled();
-				})
-				[ 
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.16"))
-					.Text(FEditorFontGlyphs::Caret_Square_O_Right)
-					.ColorAndOpacity(FSlateColor::UseForeground())
-				]
-			]
-		];
+		]
+	];
 }
 
-void FSelectedRigidBodyCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> /*StructPropertyHandle*/, class IDetailChildrenBuilder& /*ChildBuilder*/, IPropertyTypeCustomizationUtils& /*StructCustomizationUtils*/)
+void FSelectedRigidBodyCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& /*StructCustomizationUtils*/)
 {
+	const TSharedRef<IPropertyHandle> PropertyHandleId = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Id)).ToSharedRef();
+	const TSharedRef<IPropertyHandle> PropertyHandleSolver = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Solver)).ToSharedRef();
+	const TSharedRef<IPropertyHandle> PropertyHandleGeometryCollection = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, GeometryCollection)).ToSharedRef();
+
+	ChildBuilder.AddProperty(PropertyHandleId);
+	ChildBuilder.AddProperty(PropertyHandleSolver);
+	ChildBuilder.AddProperty(PropertyHandleGeometryCollection);
 }
 
 void FSelectedRigidBodyCustomization::GetSelectedGeometryCollectionCluster(TSharedRef<IPropertyHandle> PropertyHandleActor, TSharedRef<IPropertyHandle> PropertyHandleId, const UGeometryCollectionComponent*& OutGeometryCollectionComponent, int32& OutTransformIndex)
@@ -298,7 +304,7 @@ int32 FSelectedRigidBodyCustomization::GetNextClusteredSiblingRigidBodyId(TShare
 	return INDEX_NONE;
 }
 
-void FSelectedRigidBodyCustomization::OnPick(ECheckBoxState InCheckState, TSharedRef<IPropertyHandle> PropertyHandleId) const
+void FSelectedRigidBodyCustomization::OnPick(ECheckBoxState InCheckState, TSharedRef<IPropertyHandle> PropertyHandleId, TSharedRef<IPropertyHandle> PropertyHandleSolver) const
 {
 	// Set unchecked by default (enter mode is required to set checked)
 	if (CheckBoxPick)
@@ -332,6 +338,6 @@ void FSelectedRigidBodyCustomization::OnPick(ECheckBoxState InCheckState, TShare
 				CheckBoxPickPin->SetIsChecked(ECheckBoxState::Unchecked);
 			}
 		};
-		FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(PropertyHandleId, OnEnterMode, OnExitMode);
+		FGeometryCollectionSelectRigidBodyEdMode::ActivateMode(PropertyHandleId, PropertyHandleSolver, OnEnterMode, OnExitMode);
 	}
 }

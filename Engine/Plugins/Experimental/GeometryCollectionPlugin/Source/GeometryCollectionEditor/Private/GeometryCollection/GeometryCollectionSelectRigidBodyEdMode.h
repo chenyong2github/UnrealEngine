@@ -17,7 +17,7 @@ public:
 	static bool CanActivateMode();
 
 	/** Activate this editor mode. */
-	static void ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId, TFunction<void()> OnEnterMode, TFunction<void()> OnExitMode);
+	static void ActivateMode(TSharedRef<IPropertyHandle> PropertyHandleId, TSharedRef<IPropertyHandle> PropertyHandleSolver, TFunction<void()> OnEnterMode, TFunction<void()> OnExitMode);
 
 	/** Deactivate this editor mode. */
 	static void DeactivateMode();
@@ -51,6 +51,7 @@ private:
 private:
 	static const int32 MessageKey;
 	TWeakPtr<IPropertyHandle> PropertyHandleId;  // Handle of the property that will get updated with the selected rigid body id
+	TWeakPtr<IPropertyHandle> PropertyHandleSolver;  // Handle of the property that will get updated with the selected solver actor
 	TFunction<void()> OnExitMode;  // Callback function called when the edit mode is deactivated
 	bool bIsHoveringGeometryCollection;
 };
