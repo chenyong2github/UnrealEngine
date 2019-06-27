@@ -13,11 +13,12 @@
 
 #include "Engine/TextureRenderTarget2D.h"
 
-static int CVarPicpPostProcess_Value = 1;
-static FAutoConsoleVariableRef CVarPicpPostProcess(
+
+static TAutoConsoleVariable<int32> CVarPicpPostProcess(
 	TEXT("nDisplay.render.picp.EnablePostProcess"),
-	CVarPicpPostProcess_Value,
-	TEXT("Enable postprocess shaders for picp\n(0 - Disable)\n")
+	1,
+	TEXT("Enable postprocess shaders for picp (0 = disabled)"),
+	ECVF_RenderThreadSafe
 );
 
 #define PostProcessShaderFileName TEXT("/Plugin/nDisplay/Private/PicpPostProcessShaders.usf")
@@ -145,7 +146,7 @@ void FPicpBlurPostProcess::ApplyBlur_RenderThread(FRHICommandListImmediate& RHIC
 // BP gamethread api:
 void FPicpBlurPostProcess::ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, UTextureRenderTarget2D* TemporaryRenderTarget, int KernelRadius, float KernelScale, EPicpBlurPostProcessShaderType BlurType)
 {	
-	if (!InOutRenderTarget || !TemporaryRenderTarget || (CVarPicpPostProcess_Value == 0))
+	if (!InOutRenderTarget || !TemporaryRenderTarget || (CVarPicpPostProcess.GetValueOnAnyThread() == 0))
 	{
 		return;
 	}
@@ -173,16 +174,16 @@ void FPicpBlurPostProcess::ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, 
 
 void FPicpBlurPostProcess::ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result)
 {
-	if (!OutputRenderTarget || (CVarPicpPostProcess_Value == 0))
+	if (!OutputRenderTarget || (CVarPicpPostProcess.GetValueOnAnyThread() == 0))
 	{
 		return;
 	}
+
 	FTextureResource* OverlayTextureResource = InputTexture ? InputTexture->Resource : nullptr;
 	FTextureRenderTargetResource* TextureRenderTarget = OutputRenderTarget->GameThread_GetRenderTargetResource();
 	FTextureRenderTargetResource* TextureRenderResult = Result->GameThread_GetRenderTargetResource();
 
-	ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-		[OverlayTextureResource, TextureRenderTarget, TextureRenderResult](FRHICommandListImmediate& RHICmdList)
+	ENQUEUE_RENDER_COMMAND(CaptureCommand)([OverlayTextureResource, TextureRenderTarget, TextureRenderResult](FRHICommandListImmediate& RHICmdList)
 	{
 		FRHITexture2D* RTTexture = TextureRenderTarget ? TextureRenderTarget->GetRenderTargetTexture()->GetTexture2D(): nullptr;
 		FRHITexture2D* ResultTexture = TextureRenderResult ? TextureRenderResult->GetRenderTargetTexture()->GetTexture2D() : nullptr;
@@ -195,9 +196,7 @@ void FPicpBlurPostProcess::ApplyCompose(UTexture* InputTexture, UTextureRenderTa
 		}
 
 		ApplyCompose_RenderThread(RHICmdList, OverlayTexture, RTTexture, ResultTexture);
-
-	}
-	);
+	});
 }
 
 
