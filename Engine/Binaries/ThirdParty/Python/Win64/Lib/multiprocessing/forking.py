@@ -317,8 +317,8 @@ else:
                     if self.wait(timeout=0.1) is None:
                         # ERROR_ACCESS_DENIED (winerror 5) is received when the
                         # process already died.
+                        pprint(vars(e)) # TEMP CIS BUGHUNT
                         if e.winerror != 5:
-                            pprint(vars(e)) # TEMP CIS BUGHUNT
                             raise
 # EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76260
 
