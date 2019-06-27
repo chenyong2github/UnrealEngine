@@ -12,7 +12,7 @@ DebugViewModeInterface.cpp: Contains definitions for rendering debug viewmodes.
 
 FDebugViewModeInterface* FDebugViewModeInterface::Singletons[DVSM_MAX] = {}; // Init to null.
 
-void FDebugViewModeInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState) const
+void FDebugViewModeInterface::SetDrawRenderState(EBlendMode BlendMode, FRenderState& DrawRenderState, bool bHasDepthPrepassForMaskedMaterial) const
 {
 	if (IsTranslucentBlendMode(BlendMode))
 	{
