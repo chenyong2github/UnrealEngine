@@ -640,12 +640,13 @@ class Popen(object):
                                          env,
                                          cwd,
                                          startupinfo)
-            except pywintypes.error, e:
+# EPIC EDIT start -- nick.shin 2019-06-13 -- UE-76599
+#            except pywintypes.error, e:
+            except (OSError, pywintypes.error) as e:
                 # Translate pywintypes.error to WindowsError, which is
                 # a subclass of OSError.  FIXME: We should really
                 # translate errno using _sys_errlist (or similar), but
                 # how can this be done from Python?
-# EPIC EDIT start -- nick.shin 2019-06-13 -- UE-76599
 #                raise WindowsError(*e.args)
                 # ERROR_ACCESS_DENIED (winerror 5) is received when the
                 # process already died.
