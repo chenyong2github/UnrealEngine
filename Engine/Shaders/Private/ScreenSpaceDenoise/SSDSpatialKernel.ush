@@ -337,10 +337,10 @@ bool IsOutsideViewport(FSSDKernelConfig KernelConfig, float2 SampleBufferUV)
 /** Sample multiplexed samples and their metadata for kernel use. */
 void SampleMultiplexedSignals(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	float2 SampleBufferUV,
 	out FSSDSampleSceneInfos OutSampleSceneMetadata,
 	out FSSDSignalArray OutMultiplexedSamples)
@@ -488,10 +488,10 @@ void AccumulateSampledMultiplexedSignals(
  */
 void SampleAndAccumulateMultiplexedSignals(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators,
 	float2 SampleBufferUV,
 	float KernelSampleWeight,
@@ -526,10 +526,10 @@ void SampleAndAccumulateMultiplexedSignals(
 
 void SampleAndAccumulateMultiplexedSignalsPair(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators,
 	float2 SampleBufferUV[2],
 	float KernelSampleWeight)
@@ -617,10 +617,10 @@ void DijestAccumulatedClusterSamples(inout FSSDSignalAccumulatorArray Accumulato
 
 void SampleAndAccumulateCenterSampleAsItsOwnCluster(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators)
 {
 	const uint RingId = 0;
@@ -649,10 +649,10 @@ void SampleAndAccumulateCenterSampleAsItsOwnCluster(
 
 void AccumulateBilinear(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators)
 {
 	const float MipLevelPow2 = 1;
@@ -689,10 +689,10 @@ void AccumulateBilinear(
 
 void AccumulateSquareKernel(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators)
 {
 	int KernelRadius = 1;
@@ -918,10 +918,10 @@ static const uint kStackowiakSampleCountPerSet = 56;
 
 void ConvolveStackowiakKernel(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators)
 {
 	if (KernelConfig.bDescOrder)
@@ -1152,10 +1152,10 @@ float2 SampleConstFromBatchConst(const uint BatchSampleId, float2 BatchConst)
 // Gather a ring into the accumulator.
 void GatherRingSamples(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators,
 	const uint RingId)
 {
@@ -1233,10 +1233,10 @@ void GatherRingSamples(
 
 void ConvolveDiskKernel(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators)
 {
 	// Accumulate the center of the kernel.
@@ -1299,10 +1299,10 @@ void ConvolveDiskKernel(
 
 void AccumulateKernel(
 	FSSDKernelConfig KernelConfig,
-	Texture2D SignalBuffer0,
-	Texture2D SignalBuffer1,
-	Texture2D SignalBuffer2,
-	Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators)
 {
 	if (KernelConfig.SampleSet == SAMPLE_SET_1X1)

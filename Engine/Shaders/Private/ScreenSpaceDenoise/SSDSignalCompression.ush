@@ -3,6 +3,7 @@
 #pragma once
 
 #include "SSDSignalCore.ush"
+#include "SSDPublicBufferEncoding.ush"
 
 
 //------------------------------------------------------- STRUCTURE

@@ -3,6 +3,45 @@
 #pragma once
 
 #include "SSDSignalCore.ush"
+#include "SSDPublicBufferEncoding.ush"
+
+/** Whether the color should be clamped when encoding signal. */
+#define CONFIG_ENCODING_CLAMP_COLOR 1
+
+/** Selects the type that should be used when sampling a buffer */
+#ifndef CONFIG_SIGNAL_TEXTURE_TYPE
+	#define CONFIG_SIGNAL_TEXTURE_TYPE SIGNAL_TEXTURE_TYPE_FLOAT4
+#endif
+
+
+#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+	#define FSSDRawSample float4
+	#define FSSDTexture2D Texture2D
+	#define FSSDRWTexture2D RWTexture2D<float4>
+
+#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+	#define FSSDRawSample uint2
+	#define FSSDTexture2D Texture2D<uint2>
+	#define FSSDRWTexture2D RWTexture2D<uint2>
+
+#else
+	#error Unknown type for a signal texture.
+#endif
+
+
+
+float3 ClampColorForEncoding(float3 Color)
+{
+	#if CONFIG_ENCODING_CLAMP_COLOR
+		Color = min(Color, MaxHalfFloat);
+	#endif
+	return Color;
+}
+
+float4 ClampColorForEncoding(float4 Color)
+{
+	return float4(ClampColorForEncoding(Color.rgb), Color.a);
+}
 
 
 /** Decode input signal sample. */
@@ -10,8 +49,9 @@ void DecodeMultiplexedSignals(
 	const uint SignalBufferLayout,
 	const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
-	float4 RawSample[MAX_MULTIPLEXED_TEXTURES],
+	FSSDRawSample RawSample[MAX_MULTIPLEXED_TEXTURES],
 	out FSSDSignalArray OutSamples)
+#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 {
 	OutSamples = CreateSignalArrayFromScalarValue(0.0);
 
@@ -253,46 +293,36 @@ void DecodeMultiplexedSignals(
 		OutSamples.Array[2].SceneColor.x = OutSamples.Array[2].SampleCount * RawSample[1].b;
 	}
 	#endif
+} // DecodeMultiplexedSignals()
+#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+{
+	OutSamples = CreateSignalArrayFromScalarValue(0.0);
+
 	#if CONFIG_SIGNAL_COLOR_SH
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
+	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
 	{
-		#if CONFIG_MANUAL_TEXEL_FORMATTING
-		{
-			 RawSample[0] = Uncompress4Floats(uint2(asuint(RawSample[0].x), asuint(RawSample[0].y)));
-			 RawSample[1] = Uncompress4Floats(uint2(asuint(RawSample[1].x), asuint(RawSample[1].y)));
-			 RawSample[2] = Uncompress4Floats(uint2(asuint(RawSample[2].x), asuint(RawSample[2].y)));
-			 RawSample[3].xy = Uncompress2Floats(asuint(RawSample[3].x));
-		}
-		#endif
+		const uint DecodeOptions = bNormalizeSample ? SSD_DECODE_NORMALIZE : 0x0;
 
-		float SampleCount;
-		if (bNormalizeSample)
-		{
-			SampleCount = 1.0;
-			OutSamples.Array[0].SampleCount = RawSample[3].x > 0.0 ? 1.0 : 0.0;
-		}
-		else
-		{
-			SampleCount = RawSample[3].x;
-			OutSamples.Array[0].SampleCount = SampleCount;
-		}
-
-		OutSamples.Array[0].MissCount = RawSample[3].y * SampleCount;
-		OutSamples.Array[0].ColorSH.R.V = RawSample[0] * SampleCount;
-		OutSamples.Array[0].ColorSH.G.V = RawSample[1] * SampleCount;
-		OutSamples.Array[0].ColorSH.B.V = RawSample[2] * SampleCount;
+		DecodeDiffuseSphericalHarmonicTexel(
+			RawSample,
+			DecodeOptions,
+			/* out */ OutSamples.Array[0].SampleCount,
+			/* out */ OutSamples.Array[0].MissCount,
+			/* out */ OutSamples.Array[0].ColorSH);
 
 		// TODO: SRV on RG F32 and manually decode with f16tof32(), going to reduce VGPR pressure between fetch and result.
 	}
 	#endif
 } // DecodeMultiplexedSignals()
+#endif
 
 /** Encode output signal sample. */
 void EncodeMultiplexedSignals(
 	const uint SignalBufferLayout, const uint MultiplexCount,
 	FSSDSignalSample Sample[MAX_SIGNAL_MULTIPLEXING],
-	out float4 OutRawSample[MAX_MULTIPLEXED_TEXTURES],
+	out FSSDRawSample OutRawSample[MAX_MULTIPLEXED_TEXTURES],
 	out uint OutBufferCount)
+#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
 {
 	// Init all raw samples.
 	UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
@@ -406,13 +436,13 @@ void EncodeMultiplexedSignals(
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_REFLECTIONS_REJECTION)
 	{
 		// Outputs scene color to be compatible with a SSR output.
-		OutRawSample[0] = Sample[0].SceneColor * (Sample[0].SampleCount > 0 ? rcp(Sample[0].SampleCount) : 0);
+		OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * (Sample[0].SampleCount > 0 ? rcp(Sample[0].SampleCount) : 0));
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 
 		if (MultiplexCount == 2)
 		{
-			OutRawSample[2] = Sample[1].SceneColor * (Sample[1].SampleCount > 0 ? rcp(Sample[1].SampleCount) : 0);
+			OutRawSample[2] = ClampColorForEncoding(Sample[1].SceneColor * (Sample[1].SampleCount > 0 ? rcp(Sample[1].SampleCount) : 0));
 			OutRawSample[1].g = Sample[1].SampleCount;
 			OutBufferCount = 3;
 		}
@@ -422,7 +452,7 @@ void EncodeMultiplexedSignals(
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
 
 		// Outputs scene color to be compatible with a SSR output.
-		OutRawSample[0] = Sample[0].SceneColor * NormalizationFactor;
+		OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor);
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 
@@ -457,7 +487,7 @@ void EncodeMultiplexedSignals(
 	{
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
 
-		OutRawSample[0] = Sample[0].SceneColor * NormalizationFactor;
+		OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor);
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 	}
@@ -465,7 +495,7 @@ void EncodeMultiplexedSignals(
 	{
 		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
 
-		OutRawSample[0] = Sample[0].SceneColor * NormalizationFactor;
+		OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor);
 		OutRawSample[1].r = Sample[0].SampleCount;
 		OutBufferCount = 2;
 
@@ -476,44 +506,67 @@ void EncodeMultiplexedSignals(
 		}
 	}
 	#endif
+} // EncodeMultiplexedSignals()
+#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+{
+	// Init all raw samples.
+	UNROLL_N(MAX_MULTIPLEXED_TEXTURES)
+	for (uint i = 0; i < MAX_MULTIPLEXED_TEXTURES; i++)
+		OutRawSample[i] = 0;
+
+	// Number of buffer the signal get encoded onto <= MAX_MULTIPLEXED_TEXTURES.
+	OutBufferCount = 1;
+
 	#if CONFIG_SIGNAL_COLOR_SH
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
+	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_HARMONIC)
 	{
-		float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
+		const uint EncodeOptions = (CONFIG_ENCODING_CLAMP_COLOR ? SSD_ENCODE_CLAMP_COLOR : 0) | SSD_ENCODE_NORMALIZE;
 
-		OutRawSample[3].x = Sample[0].SampleCount;
-		OutRawSample[3].y = Sample[0].MissCount * NormalizationFactor;
-		OutRawSample[0] = Sample[0].ColorSH.R.V * NormalizationFactor;
-		OutRawSample[1] = Sample[0].ColorSH.G.V * NormalizationFactor;
-		OutRawSample[2] = Sample[0].ColorSH.B.V * NormalizationFactor;
+		EncodeDiffuseSphericalHarmonicTexel(
+			Sample[0].SampleCount,
+			Sample[0].MissCount,
+			Sample[0].ColorSH,
+			EncodeOptions,
+			/* out */ OutRawSample);
+
 		OutBufferCount = 4;
-
-		#if CONFIG_MANUAL_TEXEL_FORMATTING
-		{
-			 OutRawSample[0] = float4(asfloat(Compress2Floats(OutRawSample[0].xy)), asfloat(Compress2Floats(OutRawSample[0].zw)), 0, 0);
-			 OutRawSample[1] = float4(asfloat(Compress2Floats(OutRawSample[1].xy)), asfloat(Compress2Floats(OutRawSample[1].zw)), 0, 0);
-			 OutRawSample[2] = float4(asfloat(Compress2Floats(OutRawSample[2].xy)), asfloat(Compress2Floats(OutRawSample[2].zw)), 0, 0);
-			 OutRawSample[3] = float4(asfloat(Compress2Floats(OutRawSample[3].xy)), 0, 0, 0);
-		}
-
-		#endif
 	}
 	#endif
 } // EncodeMultiplexedSignals()
+#else
+	#error Unimplemented.
+#endif
+
 
 /** Sample multiple input signals that have been multiplexed. */
 FSSDSignalArray SampleMultiplexedSignals(
-	Texture2D SignalBuffer0, Texture2D SignalBuffer1, Texture2D SignalBuffer2, Texture2D SignalBuffer3,
+	FSSDTexture2D SignalBuffer0, FSSDTexture2D SignalBuffer1, FSSDTexture2D SignalBuffer2, FSSDTexture2D SignalBuffer3,
 	SamplerState Sampler,
 	const uint SignalBufferLayout, const uint MultiplexedSampleId,
 	const bool bNormalizeSample,
 	float2 UV, float Level = 0)
 {
-	float4 RawSample[MAX_MULTIPLEXED_TEXTURES];
-	RawSample[0] = SignalBuffer0.SampleLevel(Sampler, UV, Level);
-	RawSample[1] = SignalBuffer1.SampleLevel(Sampler, UV, Level);
-	RawSample[2] = SignalBuffer2.SampleLevel(Sampler, UV, Level);
-	RawSample[3] = SignalBuffer3.SampleLevel(Sampler, UV, Level);
+	FSSDRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
+
+	#if CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
+	{
+		RawSample[0] = SignalBuffer0.SampleLevel(Sampler, UV, Level);
+		RawSample[1] = SignalBuffer1.SampleLevel(Sampler, UV, Level);
+		RawSample[2] = SignalBuffer2.SampleLevel(Sampler, UV, Level);
+		RawSample[3] = SignalBuffer3.SampleLevel(Sampler, UV, Level);
+	}
+	#elif CONFIG_SIGNAL_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_UINT2
+	{
+		// TODO: UV * View.BufferSizeAndInvSize.xy could regress in VGPR in inner loops
+		int3 Coord = int3(int2(UV * View.BufferSizeAndInvSize.xy), int(Level));
+		RawSample[0] = SignalBuffer0.Load(Coord);
+		RawSample[1] = SignalBuffer1.Load(Coord);
+		RawSample[2] = SignalBuffer2.Load(Coord);
+		RawSample[3] = SignalBuffer3.Load(Coord);
+	}
+	#else
+		#error Unimplemented.
+	#endif
 
 	FSSDSignalArray MultiplexedSamples;
 	DecodeMultiplexedSignals(
@@ -529,15 +582,15 @@ FSSDSignalArray SampleMultiplexedSignals(
 
 /** Outputs multiplexed signal. */
 void OutputMultiplexedSignal(
-	RWTexture2D<float4> OutputSignalBuffer0,
-	RWTexture2D<float4> OutputSignalBuffer1,
-	RWTexture2D<float4> OutputSignalBuffer2,
-	RWTexture2D<float4> OutputSignalBuffer3,
+	FSSDRWTexture2D OutputSignalBuffer0,
+	FSSDRWTexture2D OutputSignalBuffer1,
+	FSSDRWTexture2D OutputSignalBuffer2,
+	FSSDRWTexture2D OutputSignalBuffer3,
 	const uint SignalBufferLayout, const uint MultiplexCount,
 	const uint2 PixelPosition, FSSDSignalSample MultiplexedSamples[MAX_SIGNAL_MULTIPLEXING])
 {
 	// Encode the output signal.
-	float4 RawSample[MAX_MULTIPLEXED_TEXTURES];
+	FSSDRawSample RawSample[MAX_MULTIPLEXED_TEXTURES];
 	uint BufferCount;
 	EncodeMultiplexedSignals(
 		SignalBufferLayout, MultiplexCount,
@@ -546,11 +599,11 @@ void OutputMultiplexedSignal(
 
 	// Output the raw encoded sample according to number of RT they requires.
 	if (BufferCount >= 1)
-		OutputSignalBuffer0[PixelPosition] = min(RawSample[0], MaxHalfFloat);
+		OutputSignalBuffer0[PixelPosition] = RawSample[0];
 	if (BufferCount >= 2)
-		OutputSignalBuffer1[PixelPosition] = min(RawSample[1], MaxHalfFloat);
+		OutputSignalBuffer1[PixelPosition] = RawSample[1];
 	if (BufferCount >= 3)
-		OutputSignalBuffer2[PixelPosition] = min(RawSample[2], MaxHalfFloat);
+		OutputSignalBuffer2[PixelPosition] = RawSample[2];
 	if (BufferCount >= 4)
-		OutputSignalBuffer3[PixelPosition] = min(RawSample[3], MaxHalfFloat);
+		OutputSignalBuffer3[PixelPosition] = RawSample[3];
 }

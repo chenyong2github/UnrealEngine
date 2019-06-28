@@ -208,6 +208,11 @@
 	#define NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE 1
 
 
+/** Type to use for texture sampling. */
+	#define SIGNAL_TEXTURE_TYPE_FLOAT4 0
+	#define SIGNAL_TEXTURE_TYPE_UINT2 1
+
+
 //------------------------------------------------------- GLOBAL CONFIGURATION OF ALL DENOISER SHADERS
 
 /** Do normal based anysotropy. */
@@ -223,9 +228,6 @@
 /** Whether should compile hint to the shader compiler to force shift some variable to SGPR. */
 // TODO: the shader compiler is not doing the right thing.
 #define CONFIG_SGPR_HINT_OPTIMIZATION 0
-
-/** Manually format texel in the shader to reduce VGPR pressure with overlapped texture fetched. */
-#define CONFIG_MANUAL_TEXEL_FORMATTING 1
 
 /** Configures whether the world normal should be compressed in FSSDSampleSceneInfos. */
 #define CONFIG_COMPRESS_WORLD_NORMAL 1

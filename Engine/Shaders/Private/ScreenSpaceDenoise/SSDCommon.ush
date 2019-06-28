@@ -62,28 +62,6 @@ float SafeRcp(float x)
 	return 0;
 }
 
-uint Compress2Floats(float2 v)
-{
-	// f32tof16() is full rate on GCN.
-	return f32tof16(v.x) | (f32tof16(v.y) << 16);
-}
-
-float2 Uncompress2Floats(uint v)
-{
-	// f16tof32() is full rate on GCN.
-	return float2(f16tof32(v), f16tof32(v >> 16));
-}
-
-uint2 Compress4Floats(float4 v)
-{
-	return uint2(Compress2Floats(v.xy), Compress2Floats(v.zw));
-}
-
-float4 Uncompress4Floats(uint2 v)
-{
-	return float4(Uncompress2Floats(v.x), Uncompress2Floats(v.y));
-}
-
 uint CompressN(float3 N)
 {
 	// matches 8bits GBuffer A to be lossless.
