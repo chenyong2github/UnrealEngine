@@ -157,7 +157,7 @@ bool FGeometryCollectionSelectRigidBodyEdMode::HandleClick(FEditorViewportClient
 
 				// Retrieve the rigid body id
 				const TManagedArray<int32>& RigidBodyIdArray = GeometryCollectionComponent->GetRigidBodyIdArray();
-				const int32 RigidBodyId = (TransformIndex != INDEX_NONE) ? RigidBodyIdArray[TransformIndex]: INDEX_NONE;
+				const int32 RigidBodyId = (TransformIndex != INDEX_NONE && ensure(TransformIndex < RigidBodyIdArray.Num())) ? RigidBodyIdArray[TransformIndex]: INDEX_NONE;
 
 				// Update the rigid body id property
 				if (RigidBodyId != INDEX_NONE)
