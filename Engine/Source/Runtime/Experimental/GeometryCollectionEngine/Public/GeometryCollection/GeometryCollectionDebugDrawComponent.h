@@ -242,6 +242,9 @@ public:
 	/** Update selection and visibility after a change in cluster. Only handled when the debug drawing is active (the component is ticking). */
 	void OnClusterChanged();
 
+	/** Return whether the geometry collection rigid body id array is not completely initialized. This can happen when running the physics multithreaded. */
+	FORCEINLINE bool HasIncompleteRigidBodyIdSync() const { return bHasIncompleteRigidBodyIdSync;  }
+
 private:
 	/** Recursively compute global cluster transforms. Only gives geometry transforms for the leaf nodes, mid-level transforms are those of the clusters. */
 	void ComputeClusterTransforms(int32 Index, TArray<bool>& IsComputed, TArray<FTransform>& InOutGlobalTransforms);
@@ -291,6 +294,7 @@ private:
 	int32 SelectedRigidBodyId;
 	int32 SelectedTransformIndex;
 	int32 HiddenTransformIndex;
+	bool bHasIncompleteRigidBodyIdSync;
 	AChaosSolverActor* SelectedChaosSolver;
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 };
