@@ -7,6 +7,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawActor.h"
+#include "GeometryCollection/GeometryCollection.h"
 #if INCLUDE_CHAOS
 #include "SolverObjects/GeometryCollectionPhysicsObject.h"
 #endif  // #if INCLUDE_CHAOS
@@ -109,6 +110,7 @@ UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(con
 	, SelectedRigidBodyId(INDEX_NONE)
 	, SelectedTransformIndex(INDEX_NONE)
 	, HiddenTransformIndex(INDEX_NONE)
+	, bHasIncompleteRigidBodyIdSync(false)
 	, SelectedChaosSolver(nullptr)
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 {
@@ -148,7 +150,7 @@ void UGeometryCollectionDebugDrawComponent::BeginPlay()
 		}
 
 		// Update the visibility and tick status depending on the debug draw properties currently selected
-		OnDebugDrawPropertiesChanged(true);
+		OnDebugDrawPropertiesChanged(false);
 
 #if INCLUDE_CHAOS
 		// Find or create level set renderer
@@ -540,6 +542,7 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawTick()
 void UGeometryCollectionDebugDrawComponent::UpdateSelectedTransformIndex()
 {
 	check(GeometryCollectionComponent);
+
 	// No actor, no selection
 	if (!GeometryCollectionDebugDrawActor)
 	{
@@ -548,7 +551,8 @@ void UGeometryCollectionDebugDrawComponent::UpdateSelectedTransformIndex()
 	}
 
 	// Check whether the selected rigid body id, or solver has changed
-	if (SelectedRigidBodyId == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id &&
+	if (!bHasIncompleteRigidBodyIdSync &&
+		SelectedRigidBodyId == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id &&
 		SelectedChaosSolver == GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver)
 	{
 		return;
@@ -569,32 +573,59 @@ void UGeometryCollectionDebugDrawComponent::UpdateSelectedTransformIndex()
 	// Check rigid body id sync
 	// Note that this test alone isn't enough to ensure that the rigid body ids are valid.
 	const TManagedArray<int32>& RigidBodyIds = GeometryCollectionComponent->RigidBodyIds;
-	if (RigidBodyIds.Num() == 0) { return; }
-
-	// Find the matching transform if any
-	bool bInvalidRigidBodyIdsFound = false;
-	for (int32 i = 0; i < RigidBodyIds.Num(); ++i)
+	if (RigidBodyIds.Num() == 0)
 	{
-		if (RigidBodyIds[i] == INDEX_NONE)
+		bHasIncompleteRigidBodyIdSync = !!GeometryCollectionComponent->GetTransformArray().Num();
+		UE_CLOG(bHasIncompleteRigidBodyIdSync && GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateSelectedTransformIndex(): Empty RigidBodyIds array for actor %s."), *GetOwner()->GetName());
+		return;
+	}
+
+	// Find the matching transform if any (and also check the sync completion status)
+	bHasIncompleteRigidBodyIdSync = false;
+
+	const TManagedArray<TSet<int32>>& ChildrenRest = GeometryCollectionComponent->GetChildrenArrayRest();
+	const TManagedArray<TSet<int32>>& Children = GeometryCollectionComponent->GetChildrenArray();
+
+	for (int32 TransformIndex = 0; TransformIndex < RigidBodyIds.Num(); ++TransformIndex)
+	{
+		// Is this the selected id?
+		if (RigidBodyIds[TransformIndex] == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id)
 		{
-			bInvalidRigidBodyIdsFound = true;
-		}
-		else if (RigidBodyIds[i] == GeometryCollectionDebugDrawActor->SelectedRigidBody.Id)
-		{
-			SelectedTransformIndex = i;
+			SelectedTransformIndex = TransformIndex;
+			bHasIncompleteRigidBodyIdSync = false;  // Found it, the wait for a sync can be canceled
 			break;
 		}
+		// Check the reason behind any invalid index
+		if (RigidBodyIds[TransformIndex] == INDEX_NONE)
+		{
+			// Look for detached clusters in order to differentiate un-synced vs empty cluster rigid body ids.
+			int32 ChildTransformIndex = TransformIndex;
+			while (const TSet<int32>::TConstIterator ChildTransformIterator = Children[ChildTransformIndex].CreateConstIterator())
+			{
+				// Go down to the cluster's leaf level through the first child
+				ChildTransformIndex = *ChildTransformIterator;
+			}
+
+			// If this is a leaf bone, it can not be a detached cluster so it should have a valid rigid body
+			// In which case the sync has yet to happen and it might be worth trying this again later
+			if (!ChildrenRest[ChildTransformIndex].Num())
+			{
+				bHasIncompleteRigidBodyIdSync = true;
+				UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, VeryVerbose, TEXT("UpdateSelectedTransformIndex(): Invalid rigid body id for actor %s, TransformIndex %d."), *GetOwner()->GetName(), TransformIndex);
+			}
+			else
+			{
+				// This should match the SimulationType == FST_CLUSTERED or IsClustered(int32 Element)
+				ensure(GeometryCollectionComponent->GetSimulationTypeArrayRest()[ChildTransformIndex] == FGeometryCollection::ESimulationTypes::FST_Clustered);
+				UE_CLOG(GetOwner(), LogGeometryCollectionDebugDraw, VeryVerbose, TEXT("UpdateSelectedTransformIndex(): Found empty cluster for actor %s, TransformIndex %d."), *GetOwner()->GetName(), TransformIndex);
+			}
+		}
 	}
+	UE_CLOG(bHasIncompleteRigidBodyIdSync && GetOwner(), LogGeometryCollectionDebugDraw, Verbose, TEXT("UpdateSelectedTransformIndex(): Invalid RigidBodyIds array elements for actor %s."), *GetOwner()->GetName());
 
 	// Update selected rigid body index and solver
-	// This needs to be done to mark the change of selection as already processed, and only when no bad ids have been found.
-	// Otherwise updating these would prevent finding the selected transform at the next call, once the remaining ids have fully synced.
-	// If a selection has been found, the update must be made, even if some invalid ids have been detected.
-	if (SelectedTransformIndex != INDEX_NONE || !bInvalidRigidBodyIdsFound)
-	{
-		SelectedRigidBodyId = GeometryCollectionDebugDrawActor->SelectedRigidBody.Id;
-		SelectedChaosSolver = GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver;
-	}
+	SelectedRigidBodyId = GeometryCollectionDebugDrawActor->SelectedRigidBody.Id;
+	SelectedChaosSolver = GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver;
 }
 
 int32 UGeometryCollectionDebugDrawComponent::CountFaces(int32 TransformIndex, bool bDebugDrawClustering) const

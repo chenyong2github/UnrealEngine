@@ -18,6 +18,10 @@
 #include "Components/BillboardComponent.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 #include "HAL/IConsoleManager.h"
+#if INCLUDE_CHAOS
+#include "PBDRigidsSolver.h"
+#endif  // #if INCLUDE_CHAOS
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
@@ -255,11 +259,11 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 	// Clear all persistent strings and debug lines.
 	Flush();
 
+	UWorld* const World = GetWorld();
 #if INCLUDE_CHAOS && WITH_EDITOR
 	// Check editor pause status and force a dynamic update on all components to catchup with the physics thread
 	// This can't be done in the GeometryCollectionDebugDrawComponent since it doesn't tick at every frame,
 	// and can't be done in GeometryCollectionComponent either since it doesn't usually tick while paused.
-	UWorld* const World = GetWorld();
 	const bool bIsEditorPaused = World && World->IsPlayInEditor() && World->bDebugPauseExecution;
 	if (bIsEditorPaused && !bWasEditorPaused)
 	{
@@ -277,12 +281,56 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 	}
 	bWasEditorPaused = bIsEditorPaused;
 #endif  // #if INCLUDE_CHAOS && WITH_EDITOR
+
+#if GEOMETRYCOLLECTION_DEBUG_DRAW
+	// Check badly synced collections in case it is still looking for an id match
+	if (World && SelectedRigidBody.Id != INDEX_NONE && !SelectedRigidBody.GeometryCollection)
+	{
+#if INCLUDE_CHAOS
+		// Check the id is within the selected solver range
+		const Chaos::FPBDRigidsSolver* const Solver = 
+			SelectedRigidBody.Solver ? SelectedRigidBody.Solver->GetSolver() :  // Selected solver
+			World->PhysicsScene_Chaos ? World->PhysicsScene_Chaos->GetSolver() :  // Default world solver
+			nullptr;  // No solver
+
+		const bool IsWithinRange = Solver ? (uint32(SelectedRigidBody.Id) < Solver->GetRigidParticles().Size()): false;
+		if (!IsWithinRange)
+		{
+			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection id is out of range."));
+		}
+		else  // Statement continues below...
+#endif  // #if INCLUDE_CHAOS
+		{
+			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection couldn't be found. The property update will run on all components still containing any invalid rigid body ids."));
+
+			// Check for delayed Rigid Body Id array initializations
+			for (TActorIterator<AGeometryCollectionActor> ActorIterator(World); ActorIterator; ++ActorIterator)
+			{
+				if (UGeometryCollectionDebugDrawComponent* const GeometryCollectionDebugDrawComponent = ActorIterator->GetGeometryCollectionDebugDrawComponent())
+				{
+					if (GeometryCollectionDebugDrawComponent->GeometryCollectionDebugDrawActor == this &&
+						GeometryCollectionDebugDrawComponent->HasIncompleteRigidBodyIdSync())
+					{
+						const bool bIsSelected = GeometryCollectionDebugDrawComponent->OnDebugDrawPropertiesChanged(false);
+						if (bIsSelected)
+						{
+							SelectedRigidBody.GeometryCollection = *ActorIterator;
+							UE_LOG(LogGeometryCollectionDebugDrawActor, Verbose, TEXT("Selection found. Stopping continuous property update."));
+							break;
+						}
+					}
+				}
+			}
+		}
+	}
+#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 }
 
 void AGeometryCollectionDebugDrawActor::BeginPlay()
 {
 	Super::BeginPlay();
 #if ENABLE_DRAW_DEBUG
+	// Initialize text renderer
 	const FDebugDrawDelegate DebugDrawTextDelegate = FDebugDrawDelegate::CreateUObject(this, &AGeometryCollectionDebugDrawActor::DebugDrawText);
 	DebugDrawTextDelegateHandle = UDebugDrawService::Register(TEXT("TextRender"), DebugDrawTextDelegate);  // TextRender is an engine show flag that works in both editor and game modes
 #endif  // #if ENABLE_DRAW_DEBUG
@@ -485,7 +533,9 @@ void AGeometryCollectionDebugDrawActor::PostEditChangeProperty(FPropertyChangedE
 
 	bool bForceVisibilityUpdate = false;
 
-	if      (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Solver  )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy); }
+	if      (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, SelectedRigidBody        )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy);
+																													  GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy); }
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Solver  )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodySolver ->Set(*SelectedRigidBody.GetSolverName(), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(FGeometryCollectionDebugDrawActorSelectedRigidBody, Id      )) { GeometryCollectionDebugDrawActorCVars::SelectedRigidBodyId     ->Set( SelectedRigidBody.Id             , SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawWholeCollection)) { GeometryCollectionDebugDrawActorCVars::DebugDrawWholeCollection->Set(int32(bDebugDrawWholeCollection  ), SetBy); }
 	else if (PropertyName == GET_MEMBER_NAME_CHECKED(AGeometryCollectionDebugDrawActor, bDebugDrawHierarchy      )) { GeometryCollectionDebugDrawActorCVars::DebugDrawHierarchy      ->Set(int32(bDebugDrawHierarchy        ), SetBy); }
