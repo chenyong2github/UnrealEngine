@@ -650,7 +650,11 @@ class Popen(object):
 #                raise WindowsError(*e.args)
                 # ERROR_ACCESS_DENIED (winerror 5) is received when the
                 # process already died.
+                print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP')
+                print(executable)
+                print(args)
                 pprint(vars(e)) # TEMP CIS BUGHUNT
+                print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
                 if e.winerror != 5:
                     raise WindowsError(*e.args)
 # EPIC EDIT end -- nick.shin 2019-06-21 -- UE-76599
