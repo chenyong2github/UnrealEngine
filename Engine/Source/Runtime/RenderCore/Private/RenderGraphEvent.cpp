@@ -3,7 +3,6 @@
 #include "RenderGraphEvent.h"
 #include "RenderGraphBuilder.h"
 
-extern bool GetEmitRDGEvents();
 
 #if RDG_EVENTS == RDG_EVENTS_STRING_COPY
 

@@ -164,8 +164,10 @@ void FVisualizeTexture::ReleaseDynamicRHI()
 	StencilSRV.SafeRelease();
 }
 
-void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, const FRDGTextureRef SrcTexture)
+void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, const FRDGTextureRef SrcTexture, int32 CaptureId)
 {
+	check(CaptureId >= 0);
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (!SrcTexture || !SrcTexture->Desc.IsValid())
 	{
@@ -183,7 +185,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 
 	FRDGTextureRef CopyTexture;
 	{
-		FIntPoint Size = SrcTexture->Desc.Extent;
+		FIntPoint Size = SrcDesc.Extent;
 
 		// clamp to reasonable value to prevent crash
 		Size.X = FMath::Max(Size.X, 1);
@@ -196,7 +198,7 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 		CopyTexture = GraphBuilder.CreateTexture(CopyDesc, TEXT("VisualizeTexture"));
 	}
 
-	FIntPoint RTExtent = SrcTexture->Desc.Extent;
+	FIntPoint RTExtent = SrcDesc.Extent;
 
 	uint32 LocalVisualizeTextureInputMapping = UVInputMapping;
 
@@ -257,8 +259,35 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 
 	TShaderMapRef<FVisualizeTexturePS> PixelShader(ShaderMap, PermutationVector);
 
+	FString ExtendedDrawEvent;
+	if (GetEmitRDGEvents())
+	{
+		// If this is a 3D texture or texture array, precise.
+		if (SrcDesc.Depth > 0)
+		{
+			if (SrcDesc.bIsArray)
+			{
+				ExtendedDrawEvent += FString::Printf(TEXT(" ArraySize=%d CapturedSlice=%d"), SrcDesc.Depth, ArrayIndex);
+			}
+			else
+			{
+				ExtendedDrawEvent += FString::Printf(TEXT("x%d CapturedSlice=%d"), SrcDesc.Depth, ArrayIndex);
+			}
+		}
+
+		// Precise the mip level being captured in the mip level when there is a mip chain.
+		if (SrcDesc.NumMips > 1)
+		{
+			ExtendedDrawEvent += FString::Printf(TEXT(" Mips=%d CapturedMip=%d"), SrcDesc.NumMips, CustomMip);
+		}
+	}
+
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("VisualizeTextureCapture(%s)", SrcTexture->Name),
+		RDG_EVENT_NAME("VisualizeTextureCapture(%s@%d %s %dx%d%s)",
+			SrcTexture->Name, CaptureId,
+			GPixelFormats[SrcDesc.Format].Name,
+			SrcDesc.Extent.X, SrcDesc.Extent.Y,
+			*ExtendedDrawEvent),
 		PassParameters,
 		ERenderGraphPassFlags::None,
 		[this, PassParameters, ShaderMap, PixelShader, RTExtent](FRHICommandList& RHICmdList)
@@ -376,10 +405,10 @@ void FVisualizeTexture::CreateContentCapturePass(FRDGBuilder& GraphBuilder, cons
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 }
 
-bool FVisualizeTexture::ShouldCapture(const TCHAR* DebugName)
+int32 FVisualizeTexture::ShouldCapture(const TCHAR* DebugName)
 {
 #if (UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	return false;
+	return FVisualizeTexture::kInvalidCaptureId;
 #else
 	if (!bEnabled)
 	{
@@ -399,16 +428,18 @@ bool FVisualizeTexture::ShouldCapture(const TCHAR* DebugName)
 	// First check if we need to find anything to avoid string the comparison
 	if (!ObservedDebugName.IsEmpty() && ObservedDebugName == DebugName)
 	{
+		uint32 CaptureId = *UsageCountPtr;
+
 		// if multiple times reused during the frame, is that the one we want to look at?
-		if (*UsageCountPtr == ObservedDebugNameReusedGoal || ObservedDebugNameReusedGoal == 0xffffffff)
+		if (CaptureId == ObservedDebugNameReusedGoal || ObservedDebugNameReusedGoal == 0xffffffff)
 		{
-			*UsageCountPtr = *UsageCountPtr + 1;
-			return true;
+			*UsageCountPtr = CaptureId + 1;
+			return int32(CaptureId);
 		}
 	}
 	// only needed for VisualizeTexture (todo: optimize out when possible)
 	*UsageCountPtr = *UsageCountPtr + 1;
-	return false;
+	return FVisualizeTexture::kInvalidCaptureId;
 #endif
 }
 
@@ -424,7 +455,8 @@ void FVisualizeTexture::SetCheckPoint(FRHICommandList& RHICmdList, const IPooled
 
 	const TCHAR* DebugName = PooledRenderTarget->GetDesc().DebugName;
 
-	if (!ShouldCapture(DebugName))
+	int32 CaptureId = ShouldCapture(DebugName);
+	if (CaptureId == FVisualizeTexture::kInvalidCaptureId)
 	{
 		return;
 	}
@@ -448,7 +480,7 @@ void FVisualizeTexture::SetCheckPoint(FRHICommandList& RHICmdList, const IPooled
 	TRefCountPtr<IPooledRenderTarget> PooledRenderTargetRef(const_cast<IPooledRenderTarget*>(PooledRenderTarget));
 	FRDGTextureRef TextureToCapture = GraphBuilder.RegisterExternalTexture(PooledRenderTargetRef, DebugName);
 
-	CreateContentCapturePass(GraphBuilder, TextureToCapture);
+	CreateContentCapturePass(GraphBuilder, TextureToCapture, CaptureId);
 	GraphBuilder.Execute();
 
 	if (&RHICmdList != &RHICmdListIm)

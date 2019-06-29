@@ -5,6 +5,11 @@
 #include "RenderGraphDefinitions.h"
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 
+
+/** Returns whether the current frame is emitting render graph events. */
+extern RENDERCORE_API bool GetEmitRDGEvents();
+
+
 /** A helper profiler class for tracking and evaluating hierarchical scopes in the context of render graph. */
 template <typename TScopeType>
 class FRDGScopeStack final

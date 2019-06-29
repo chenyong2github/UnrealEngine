@@ -47,6 +47,7 @@ const int32 GRDGDebug = 0;
 
 bool GetEmitRDGEvents()
 {
+	check(IsInRenderingThread());
 #if RDG_EVENTS != RDG_EVENTS_NONE
 	return GetEmitDrawEvents() || GRDGDebug;
 #else
@@ -481,12 +482,13 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 		{
 			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
 			{
-				if (FRDGTextureRef Texture = UAV->Desc.Texture)
+				FRDGTextureRef Texture = UAV->Desc.Texture;
+				check(Texture);
+
+				int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
+				if (CaptureId != FVisualizeTexture::kInvalidCaptureId && UAV->Desc.MipLevel == GVisualizeTexture.CustomMip)
 				{
-					if (GVisualizeTexture.ShouldCapture(Texture->Name))
-					{
-						GVisualizeTexture.CreateContentCapturePass(*this, Texture);
-					}
+					GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
 				}
 			}
 		}
@@ -501,9 +503,16 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 			{
 				const bool bHasStoreAction = DepthStencil.GetDepthStoreAction() != ERenderTargetStoreAction::ENoAction || DepthStencil.GetStencilStoreAction() != ERenderTargetStoreAction::ENoAction;
 
-				if (bHasStoreAction && GVisualizeTexture.ShouldCapture(Texture->Name))
+				if (bHasStoreAction)
 				{
-					GVisualizeTexture.CreateContentCapturePass(*this, Texture);
+					// Depth render target binding can only be done on mip level 0.
+					const int32 MipLevel = 0;
+
+					int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
+					if (CaptureId != FVisualizeTexture::kInvalidCaptureId && MipLevel == GVisualizeTexture.CustomMip)
+					{
+						GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
+					}
 				}
 			}
 
@@ -517,9 +526,14 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 				{
 					const bool bHasStoreAction = RenderTarget.GetStoreAction() != ERenderTargetStoreAction::ENoAction;
 
-					if (bHasStoreAction && GVisualizeTexture.ShouldCapture(Texture->Name))
+					if (bHasStoreAction)
 					{
-						GVisualizeTexture.CreateContentCapturePass(*this, Texture);
+						int32 CaptureId = GVisualizeTexture.ShouldCapture(Texture->Name);
+						
+						if (CaptureId != FVisualizeTexture::kInvalidCaptureId && RenderTarget.GetMipIndex() == GVisualizeTexture.CustomMip)
+						{
+							GVisualizeTexture.CreateContentCapturePass(*this, Texture, CaptureId);
+						}
 					}
 				}
 				else
