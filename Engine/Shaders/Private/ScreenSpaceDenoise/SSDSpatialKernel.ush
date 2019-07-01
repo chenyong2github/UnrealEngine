@@ -342,6 +342,7 @@ void SampleMultiplexedSignals(
 	FSSDTexture2D SignalBuffer2,
 	FSSDTexture2D SignalBuffer3,
 	float2 SampleBufferUV,
+	float MipLevel,
 	out FSSDSampleSceneInfos OutSampleSceneMetadata,
 	out FSSDSignalArray OutMultiplexedSamples)
 {
@@ -370,7 +371,7 @@ void SampleMultiplexedSignals(
 		/* MultiplexedSampleId = */ 0,
 		KernelConfig.bNormalizeSample,
 		SampleBufferUV,
-		KernelConfig.BufferMipLevel);
+		KernelConfig.BufferMipLevel + MipLevel);
 } // SampleMultiplexedSignals()
 
 /** Accumulate multiplexed samples and their metadata to an accumulator. */
@@ -494,6 +495,7 @@ void SampleAndAccumulateMultiplexedSignals(
 	FSSDTexture2D SignalBuffer3,
 	inout FSSDSignalAccumulatorArray Accumulators,
 	float2 SampleBufferUV,
+	float MipLevel,
 	float KernelSampleWeight,
 	const bool bForceSample)
 {
@@ -510,6 +512,7 @@ void SampleAndAccumulateMultiplexedSignals(
 		SignalBuffer2,
 		SignalBuffer3,
 		SampleBufferUV,
+		MipLevel,
 		/* out */ SampleSceneMetadata,
 		/* out */ MultiplexedSamples);
 
@@ -551,6 +554,7 @@ void SampleAndAccumulateMultiplexedSignalsPair(
 			SignalBuffer2,
 			SignalBuffer3,
 			SampleBufferUV[PairFetchId],
+			/* MipLevel = */ 0.0,
 			/* out */ SampleSceneMetadata[PairFetchId],
 			/* out */ MultiplexedSamples[PairFetchId]);
 	}
@@ -638,6 +642,7 @@ void SampleAndAccumulateCenterSampleAsItsOwnCluster(
 		SignalBuffer3,
 		/* inout */ Accumulators,
 		KernelConfig.BufferUV,
+		/* MipLevel = */ 0.0,
 		/* KernelSampleWeight = */ 1.0,
 		/* bForceSample = */ KernelConfig.bForceKernelCenterAccumulation);
 
@@ -682,6 +687,7 @@ void AccumulateBilinear(
 			SignalBuffer3,
 			/* inout */ Accumulators,
 			SampleBufferUV,
+			/* MipLevel = */ 0.0,
 			BilinearWeight,
 			/* bForceSample = */ false);
 	}
@@ -742,6 +748,7 @@ void AccumulateSquareKernel(
 				SignalBuffer3,
 				/* inout */ Accumulators,
 				SampleBufferUV,
+				/* MipLevel = */ 0.0,
 				KernelWeight,
 				/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
 		}
@@ -784,6 +791,7 @@ void AccumulateSquareKernel(
 				SignalBuffer3,
 				/* inout */ Accumulators,
 				SampleBufferUV,
+				/* MipLevel = */ 0.0,
 				KernelWeight,
 				/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
 		}
@@ -993,6 +1001,7 @@ void ConvolveStackowiakKernel(
 					SignalBuffer3,
 					/* inout */ Accumulators,
 					SampleBufferUV,
+					/* MipLevel = */ 0.0,
 					KernelWeight,
 					/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
 
@@ -1061,6 +1070,7 @@ void ConvolveStackowiakKernel(
 				SignalBuffer3,
 				/* inout */ Accumulators,
 				SampleBufferUV,
+				/* MipLevel = */ 0.0,
 				KernelWeight,
 				/* bForceSample = */ bIsKernelCenterSample && KernelConfig.bForceKernelCenterAccumulation);
 		}
@@ -1295,6 +1305,83 @@ void ConvolveDiskKernel(
 }
 
 
+//------------------------------------------------------- STOCASTIC HIERARCHY
+
+void ConvolveStocasticHierarchy(
+	FSSDKernelConfig KernelConfig,
+	FSSDTexture2D SignalBuffer0,
+	FSSDTexture2D SignalBuffer1,
+	FSSDTexture2D SignalBuffer2,
+	FSSDTexture2D SignalBuffer3,
+	inout FSSDSignalAccumulatorArray Accumulators)
+{
+	// Accumulate the center of the kernel.
+	if (KernelConfig.bSampleKernelCenter && !KernelConfig.bDescOrder)
+	{
+		SampleAndAccumulateCenterSampleAsItsOwnCluster(
+			KernelConfig,
+			SignalBuffer0,
+			SignalBuffer1,
+			SignalBuffer2,
+			SignalBuffer3,
+			/* inout */ Accumulators);
+	}
+
+	UNROLL_N(1)
+	for (uint MipLevel = 1; MipLevel < 2; MipLevel++)
+	{
+		uint SampleTrackId = KernelConfig.SampleTrackId;
+		#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
+			SampleTrackId = GetSampleTrackIdFromLaneIndex();
+		#endif
+
+		SampleTrackId ^= View.StateFrameIndex;
+
+		float2 BasisX;
+		BasisX.x = float((~SampleTrackId) & 0x1) * (SampleTrackId & 0x2 ? -1.0 : 1.0);
+		BasisX.y = float(SampleTrackId & 0x1) * (SampleTrackId & 0x2 ? -1.0 : 1.0);
+
+		float2 BasisY = float2(-BasisX.y, BasisX.x);
+
+		float2 SampleTexelOffset[2];
+		SampleTexelOffset[0] = BasisX;
+		SampleTexelOffset[1] = -BasisX + BasisY;
+		
+		float MipLevelSize = float(1 << MipLevel);
+
+		const uint SampleCount = 2;
+		UNROLL_N(2)
+		for (uint SampleId = 0; SampleId < SampleCount; SampleId++)
+		{
+			float2 SampleBufferUV = KernelConfig.BufferUV + (SampleTexelOffset[SampleId] * MipLevelSize * KernelConfig.KernelSpreadFactor) * KernelConfig.BufferSizeAndInvSize.zw;
+
+			SampleAndAccumulateMultiplexedSignals(
+				KernelConfig,
+				SignalBuffer0,
+				SignalBuffer1,
+				SignalBuffer2,
+				SignalBuffer3,
+				/* inout */ Accumulators,
+				SampleBufferUV,
+				/* MipLevel = */ float(MipLevel),
+				/* KernelSampleWeight = */ 1.0,
+				/* bForceSample = */ false);
+		}
+	}
+	
+	// Accumulate the center of the kernel.
+	if (KernelConfig.bSampleKernelCenter && KernelConfig.bDescOrder)
+	{
+		SampleAndAccumulateCenterSampleAsItsOwnCluster(
+			KernelConfig,
+			SignalBuffer0,
+			SignalBuffer1,
+			SignalBuffer2,
+			SignalBuffer3,
+			/* inout */ Accumulators);
+	}
+}
+
 //------------------------------------------------------- MAIN ENTRY POINTS
 
 void AccumulateKernel(
@@ -1357,6 +1444,16 @@ void AccumulateKernel(
 	else if (KernelConfig.SampleSet == SAMPLE_SET_HEXAWEB)
 	{
 		ConvolveDiskKernel(
+			KernelConfig,
+			SignalBuffer0,
+			SignalBuffer1,
+			SignalBuffer2,
+			SignalBuffer3,
+			/* inout */ Accumulators);
+	}
+	else if (KernelConfig.SampleSet == SAMPLE_SET_STOCASTIC_HIERARCHY)
+	{
+		ConvolveStocasticHierarchy(
 			KernelConfig,
 			SignalBuffer0,
 			SignalBuffer1,

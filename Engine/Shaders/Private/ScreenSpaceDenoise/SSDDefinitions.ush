@@ -190,6 +190,8 @@
 
 	#define SAMPLE_SET_HEXAWEB 11
 
+	#define SAMPLE_SET_STOCASTIC_HIERARCHY 12
+
 
 /** Compression of signal for VGPR occupency. */
 	/** The signal is not being compressed. */

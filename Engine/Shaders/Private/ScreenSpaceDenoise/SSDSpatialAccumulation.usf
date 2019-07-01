@@ -294,7 +294,8 @@
 	#define CONFIG_NEIGHBOR_TO_REF_COMPUTATION NEIGHBOR_TO_REF_LOWEST_VGPR_PRESSURE
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STOCASTIC_HIERARCHY
+		//#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
 
@@ -569,7 +570,7 @@ void MainCS(
 	#endif
 
 	// Register renaming of members of FSSDKernelConfig to survive until the output to UAV
-	#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS && CONFIG_VGPR_OPTIMIZATION
+	#if (CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS || CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY) && CONFIG_VGPR_OPTIMIZATION
 		float2 KernelBufferUV;
 		uint SampleTrackId;
 	#endif
@@ -733,7 +734,27 @@ void MainCS(
 				KernelBufferUV = KernelConfig.BufferUV;
 			#endif
 		}
-		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
+		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
+		{
+			#if CONFIG_UPSCALE
+				#error Unsupported.
+			#endif
+
+			// Put the kernel center at the center of the quad. Half pixel shift is done in the sample offsets.
+			KernelConfig.BufferUV = (DispatchThreadId | 1) * View.BufferSizeAndInvSize.zw;
+
+			// Id of the pixel in the quad. This is to match hard coded first samples of the sample set.
+			KernelConfig.SampleTrackId = ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
+
+			#if CONFIG_VGPR_OPTIMIZATION
+				// Keek sample SampleTrackId & SceneBufferUV arround for computation of pixel output coordinate.
+				// Should be VGPR free given it's curernt is being used in accumulation has well that is highest VGPR pressure of the shader.
+				// TODO: could save 1 VGPR by using 2 SGPR instead of SampleTrackId.
+				SampleTrackId = KernelConfig.SampleTrackId;
+				KernelBufferUV = KernelConfig.BufferUV;
+			#endif
+		}
+		#endif // CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
 
 		AccumulateKernel(
 			KernelConfig,
@@ -906,7 +927,7 @@ void MainCS(
 	#if CONFIG_VGPR_OPTIMIZATION
 	{
 		// No need to keep DispatchThreadId, can recompute the output pixel position based on information stored in VGPRs for spatial kernel.
-		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS
+		#if CONFIG_SAMPLE_SET == SAMPLE_SET_STACKOWIAK_4_SETS || CONFIG_SAMPLE_SET == SAMPLE_SET_STOCASTIC_HIERARCHY
 			#if CONFIG_VGPR_FREE_SAMPLE_TRACK_ID
 				SampleTrackId = GetSampleTrackIdFromLaneIndex();
 			#endif
