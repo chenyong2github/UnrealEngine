@@ -56,16 +56,21 @@ FString FHTML5HttpRequest::GetURLParameter(const FString& ParameterName) const
 
 	TArray<FString> StringElements;
 
-	int32 NumElems = URL.ParseIntoArray(StringElements, TEXT("&"), true);
-	check(NumElems == StringElements.Num());
-
-	FString ParamValDelimiter(TEXT("="));
-	for (int Idx = 0; Idx < NumElems; ++Idx )
+	//Parameters start after "?" in url
+	FString Path, Parameters;
+	if (URL.Split(TEXT("?"), &Path, &Parameters))
 	{
-		FString Param, Value;
-		if (StringElements[Idx].Split(ParamValDelimiter, &Param, &Value) && Param == ParameterName)
+		int32 NumElems = Parameters.ParseIntoArray(StringElements, TEXT("&"), true);
+		check(NumElems == StringElements.Num());
+
+		FString ParamValDelimiter(TEXT("="));
+		for (int Idx = 0; Idx < NumElems; ++Idx )
 		{
-			return Value;
+			FString Param, Value;
+			if (StringElements[Idx].Split(ParamValDelimiter, &Param, &Value) && Param == ParameterName)
+			{
+				return Value;
+			}
 		}
 	}
 
