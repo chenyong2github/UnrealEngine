@@ -44,6 +44,8 @@ public:
 		return LODs[Index];
 	}
 
+	class FDefaultAggregateMesh* VoxelizationMesh = nullptr;
+
 protected:
 	/** array of LODs (same number as FStaticMeshData.NumLODs) */
 	TArray<FStaticMeshLOD>		LODs;

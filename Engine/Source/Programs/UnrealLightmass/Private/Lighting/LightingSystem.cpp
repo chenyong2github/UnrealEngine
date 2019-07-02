@@ -153,6 +153,9 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 ,	SecondBouncePhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
 ,	IrradiancePhotonMap(FVector4(0,0,0), HALF_WORLD_MAX)
 ,	AggregateMesh(NULL)
+,	VoxelizationSurfaceAggregateMesh(NULL)
+,	VoxelizationVolumeAggregateMesh(NULL)
+,	LandscapeCullingVoxelizationAggregateMesh(NULL)
 ,	Scene(InScene)
 ,	NumTexelsCompleted(0)
 ,	NumOutstandingVolumeDataLayers(0)
@@ -163,7 +166,7 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 ,	Exporter(InExporter)
 {
 	const double SceneSetupStart = FPlatformTime::Seconds();
-	UE_LOG(LogLightmass, Log, TEXT("FStaticLightingSystem started using GKDOPMaxTrisPerLeaf: %d"), GKDOPMaxTrisPerLeaf );
+	UE_LOG(LogLightmass, Log, TEXT("FStaticLightingSystem started using GKDOPMaxTrisPerLeaf: %d"), DEFAULT_MAX_TRIS_PER_LEAF);
 
 	ValidateSettings(InScene);
 
@@ -363,25 +366,110 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 	// Add all meshes to the kDOP.
 	AggregateMesh->ReserveMemory(NumMeshes, NumVertices, NumTriangles);
 
+	if (Scene.GeneralSettings.bUseFastVoxelization)
+	{
+		VoxelizationSurfaceAggregateMesh = new FDefaultAggregateMesh(Scene);
+		VoxelizationVolumeAggregateMesh = new FDefaultAggregateMesh(Scene);
+		LandscapeCullingVoxelizationAggregateMesh = new FDefaultAggregateMesh(Scene);
+	}
+
 	for (int32 MappingIndex = 0; MappingIndex < InScene.FluidMappings.Num(); MappingIndex++)
 	{
 		FFluidSurfaceStaticLightingTextureMapping* Mapping = &InScene.FluidMappings[MappingIndex];
 		AggregateMesh->AddMesh(Mapping->Mesh, Mapping);
+
+		if (Scene.GeneralSettings.bUseFastVoxelization)
+		{
+			if (Mapping->GetVolumeMapping() == nullptr)
+			{
+				VoxelizationSurfaceAggregateMesh->AddMeshForVoxelization(Mapping->Mesh, Mapping);
+			}
+			else
+			{
+				VoxelizationVolumeAggregateMesh->AddMeshForVoxelization(Mapping->Mesh, Mapping);
+			}
+		}
 	}
 	for (int32 MappingIndex = 0; MappingIndex < InScene.LandscapeMappings.Num(); MappingIndex++)
 	{
 		FLandscapeStaticLightingTextureMapping* Mapping = &InScene.LandscapeMappings[MappingIndex];
 		AggregateMesh->AddMesh(Mapping->Mesh, Mapping);
+
+		if (Scene.GeneralSettings.bUseFastVoxelization)
+		{
+			if (Mapping->GetVolumeMapping() == nullptr)
+			{
+				VoxelizationSurfaceAggregateMesh->AddMeshForVoxelization(Mapping->Mesh, Mapping);
+			}
+			else
+			{
+				VoxelizationVolumeAggregateMesh->AddMeshForVoxelization(Mapping->Mesh, Mapping);
+			}
+
+			LandscapeCullingVoxelizationAggregateMesh->AddMeshForVoxelization(Mapping->Mesh, Mapping);
+		}
 	}
 	for( int32 MeshIdx=0; MeshIdx < InScene.BspMappings.Num(); ++MeshIdx )
 	{
 		FBSPSurfaceStaticLighting* BSPMapping = &InScene.BspMappings[MeshIdx];
 		AggregateMesh->AddMesh(BSPMapping, &BSPMapping->Mapping);
+
+		if (Scene.GeneralSettings.bUseFastVoxelization)
+		{
+			if (BSPMapping->Mapping.GetVolumeMapping() == nullptr)
+			{
+				VoxelizationSurfaceAggregateMesh->AddMeshForVoxelization(BSPMapping, &BSPMapping->Mapping);
+			}
+			else
+			{
+				VoxelizationVolumeAggregateMesh->AddMeshForVoxelization(BSPMapping, &BSPMapping->Mapping);
+			}
+		}
 	}
 	for (int32 MeshIndex = 0; MeshIndex < InScene.StaticMeshInstances.Num(); MeshIndex++)
 	{
 		FStaticMeshStaticLightingMesh* MeshInstance = &InScene.StaticMeshInstances[MeshIndex];
 		AggregateMesh->AddMesh(MeshInstance, MeshInstance->Mapping);
+
+		if (Scene.GeneralSettings.bUseFastVoxelization)
+		{
+			if (MeshInstance->GetInstanceableStaticMesh() != nullptr)
+			{
+				if (MeshInstance->StaticMesh->VoxelizationMesh == nullptr)
+				{
+					if (MeshInstance->LightingFlags & GI_INSTANCE_CASTSHADOW && MeshInstance->DoesMeshBelongToLOD0())
+					{
+						MeshInstance->StaticMesh->VoxelizationMesh = new FDefaultAggregateMesh(Scene);
+
+						{
+							auto LocalToWorld = MeshInstance->LocalToWorld;
+							auto LocalToWorldInverseTranspose = MeshInstance->LocalToWorldInverseTranspose;
+
+							MeshInstance->LocalToWorld = FMatrix::Identity;
+							MeshInstance->LocalToWorldInverseTranspose = FMatrix::Identity;
+
+							MeshInstance->StaticMesh->VoxelizationMesh->AddMeshForVoxelization(MeshInstance, MeshInstance->Mapping);
+							MeshInstance->StaticMesh->VoxelizationMesh->PrepareForRaytracing();
+
+							MeshInstance->LocalToWorld = LocalToWorld;
+							MeshInstance->LocalToWorldInverseTranspose = LocalToWorldInverseTranspose;
+						}
+					}
+				}
+			}
+			else
+			{
+				// For non-instanceable static meshes (splines), add them to the aggregate scene voxelization mesh
+				if (MeshInstance->Mapping->GetVolumeMapping() == nullptr)
+				{
+					VoxelizationSurfaceAggregateMesh->AddMeshForVoxelization(MeshInstance, MeshInstance->Mapping);
+				}
+				else
+				{
+					VoxelizationVolumeAggregateMesh->AddMeshForVoxelization(MeshInstance, MeshInstance->Mapping);
+				}
+			}
+		}
 	}
 
 	// Comparing mappings based on cost, descending.
@@ -477,6 +565,14 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 	AggregateMesh->PrepareForRaytracing();
 	AggregateMesh->DumpStats();
 
+	if (Scene.GeneralSettings.bUseFastVoxelization)
+	{
+		VoxelizationSurfaceAggregateMesh->PrepareForRaytracing();
+		VoxelizationVolumeAggregateMesh->PrepareForRaytracing();
+
+		LandscapeCullingVoxelizationAggregateMesh->PrepareForRaytracing();
+	}
+
 	NumCompletedRadiosityIterationMappings.Empty(GeneralSettings.NumSkyLightingBounces);
 	NumCompletedRadiosityIterationMappings.AddDefaulted(GeneralSettings.NumSkyLightingBounces);
 
@@ -491,6 +587,28 @@ FStaticLightingSystem::~FStaticLightingSystem()
 {
 	delete AggregateMesh;
 	AggregateMesh = NULL;
+
+	if (Scene.GeneralSettings.bUseFastVoxelization)
+	{
+		delete VoxelizationSurfaceAggregateMesh;
+		VoxelizationSurfaceAggregateMesh = NULL;
+
+		delete VoxelizationVolumeAggregateMesh;
+		VoxelizationVolumeAggregateMesh = NULL;
+
+		for (int32 MeshIndex = 0; MeshIndex < Scene.StaticMeshInstances.Num(); MeshIndex++)
+		{
+			const FStaticMeshStaticLightingMesh* MeshInstance = &Scene.StaticMeshInstances[MeshIndex];
+			if (MeshInstance->StaticMesh->VoxelizationMesh != nullptr)
+			{
+				delete MeshInstance->StaticMesh->VoxelizationMesh;
+				MeshInstance->StaticMesh->VoxelizationMesh = nullptr;
+			}
+		}
+
+		delete LandscapeCullingVoxelizationAggregateMesh;
+		LandscapeCullingVoxelizationAggregateMesh = NULL;
+	}
 }
 
 /**

@@ -152,6 +152,8 @@ public:
 	// Used to dump additional stats about intersect checks that where done
 	virtual void DumpCheckStats() const {}
 
+	virtual void DumpPostBuildStats() const {}
+
 	/**
 	 * Checks a light ray for intersection with the shadow mesh.
 	 * @param LightRay - The line segment to check for intersection.
@@ -228,11 +230,15 @@ public:
 
 	virtual void AddMesh(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping) override;
 
+	void AddMeshForVoxelization(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping);
+
 	virtual void ReserveMemory( int32 NumMeshes, int32 NumVertices, int32 NumTriangles ) override;
 
 	virtual void PrepareForRaytracing() override;
 
 	virtual void DumpStats() const override;
+
+	virtual void DumpPostBuildStats() const override;
 
 	virtual bool IntersectLightRay(
 		const FLightRay& LightRay,
@@ -241,6 +247,8 @@ public:
 		bool bDirectShadowingRay,
 		class FCoherentRayCache& CoherentRayCache,
 		FLightRayIntersection& Intersection) const override;
+
+	bool IntersectBox(const FBox Box) const;
 
 private:
 

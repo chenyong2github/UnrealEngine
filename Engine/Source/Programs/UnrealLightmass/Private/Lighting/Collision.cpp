@@ -7,25 +7,6 @@
 namespace Lightmass
 {
 
-// The default number of triangles to store in each leaf
-#define DEFAULT_MAX_TRIS_PER_LEAF 4
-
-/** Number of triangles in the aggregate mesh kDOP. */
-int32 GKDOPTriangles = 0;
-/** Number of internal nodes in the aggregate mesh kDOP. */
-int32 GKDOPNodes = 0;
-/** Number of leaf nodes in the aggregate mesh kDOP. */
-int32 GKDOPNumLeaves = 0;
-/** Maximum number of triangles per leaf node during the splitting process */
-int32 GKDOPMaxTrisPerLeaf = DEFAULT_MAX_TRIS_PER_LEAF;
-/** Total number of kDOP internal nodes traversed when tracing rays. */
-volatile uint64 GKDOPParentNodesTraversed = 0;
-/** Total number of kDOP leaf nodes traversed when tracing rays. */
-volatile uint64 GKDOPLeafNodesTraversed = 0;
-/** Total number of kDOP triangles tested when tracing rays. */
-volatile uint64 GKDOPTrianglesTraversed = 0;
-volatile uint64 GKDOPTrianglesTraversedReal = 0;
-
 FStaticLightingAggregateMesh::FStaticLightingAggregateMesh(const FScene& InScene):
 	Scene(InScene),
 	bHasShadowCastingPrimitives(false),
@@ -145,6 +126,83 @@ void FDefaultAggregateMesh::AddMesh(const FStaticLightingMesh* Mesh, const FStat
 	}
 }
 
+void FDefaultAggregateMesh::AddMeshForVoxelization(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping)
+{
+	if (Mesh->LightingFlags & GI_INSTANCE_CASTSHADOW && Mesh->DoesMeshBelongToLOD0())
+	{
+		SceneBounds = SceneBounds + Mesh->BoundingBox;
+
+		const FStaticLightingTextureMapping* TextureMapping = Mapping ? Mapping->GetTextureMapping() : NULL;
+		const int32 BaseVertexIndex = Vertices.Num();
+		MeshInfos.Add(new FStaticLightingMeshInfo(BaseVertexIndex, Mesh));
+		Vertices.AddUninitialized(Mesh->NumVertices);
+		UVs.AddZeroed(Mesh->NumVertices);
+		LightmapUVs.AddZeroed(Mesh->NumVertices);
+
+		const uint32 MeshLODIndices = Mesh->GetLODIndices();
+		const uint32 MeshHLODRange = Mesh->GetHLODRange();
+
+		for (int32 TriangleIndex = 0; TriangleIndex < Mesh->NumTriangles; TriangleIndex++)
+		{
+			// Read the triangle from the mesh.
+			FStaticLightingVertex V0;
+			FStaticLightingVertex V1;
+			FStaticLightingVertex V2;
+			int32 ElementIndex;
+			Mesh->GetTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+
+			if (Mesh->IsElementCastingShadow(ElementIndex) && !Mesh->IsTranslucent(ElementIndex))
+			{
+				int32 I0 = 0;
+				int32 I1 = 0;
+				int32 I2 = 0;
+				Mesh->GetTriangleIndices(TriangleIndex, I0, I1, I2);
+
+				check(I0 <= Mesh->NumVertices && I1 <= Mesh->NumVertices && I2 <= Mesh->NumVertices);
+
+				const bool bTwoSided = Mesh->IsTwoSided(ElementIndex) || Mesh->IsCastingShadowAsTwoSided();
+				const bool bStaticAndOpaque = !Mesh->IsMasked(ElementIndex) && !Mesh->IsTranslucent(ElementIndex) && !Mesh->bMovable;
+
+				Vertices[BaseVertexIndex + I0] = V0.WorldPosition;
+				Vertices[BaseVertexIndex + I1] = V1.WorldPosition;
+				Vertices[BaseVertexIndex + I2] = V2.WorldPosition;
+				UVs[BaseVertexIndex + I0] = V0.TextureCoordinates[Mesh->TextureCoordinateIndex];
+				UVs[BaseVertexIndex + I1] = V1.TextureCoordinates[Mesh->TextureCoordinateIndex];
+				UVs[BaseVertexIndex + I2] = V2.TextureCoordinates[Mesh->TextureCoordinateIndex];
+				if (TextureMapping)
+				{
+					LightmapUVs[BaseVertexIndex + I0] = V0.TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex];
+					LightmapUVs[BaseVertexIndex + I1] = V1.TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex];
+					LightmapUVs[BaseVertexIndex + I2] = V2.TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex];
+				}
+
+				// Compute the triangle's normal.
+				const FVector4 TriangleNormal = (V2.WorldPosition - V0.WorldPosition) ^ (V1.WorldPosition - V0.WorldPosition);
+
+				// Compute the triangle area.
+				const float TriangleArea = TriangleNormal.Size3() * 0.5f;
+
+				// Ignore zero area triangles.
+				if (TriangleArea > TRIANGLE_AREA_THRESHOLD)
+				{
+					const int32 PayloadIndex = TrianglePayloads.Add(
+						FTriangleSOAPayload(MeshInfos.Last(), Mapping, ElementIndex, BaseVertexIndex + I0, BaseVertexIndex + I1, BaseVertexIndex + I2));
+
+					new(kDOPTriangles) FkDOPBuildCollisionTriangle<uint32>(
+						PayloadIndex, // Use the triangle's material index as an index into TrianglePayloads.
+						V0.WorldPosition, V1.WorldPosition, V2.WorldPosition,
+						Mesh->MeshIndex,
+						MeshLODIndices,
+						MeshHLODRange,
+						bTwoSided,
+						bStaticAndOpaque
+						);
+				}
+			}
+		}
+	}
+}
+
 /**
  * Pre-allocates memory ahead of time, before calling AddMesh() a bunch of times.
  *
@@ -167,17 +225,19 @@ void FDefaultAggregateMesh::PrepareForRaytracing()
 {
 	// Build the kDOP for simple meshes.
 	kDopTree.Build(kDOPTriangles);
-
-	// Log information about the aggregate mesh.
-	UE_LOG(LogLightmass, Log, TEXT("Static lighting kDOP: %u nodes, %u leaves, %u triangles, %u vertices"), GKDOPNodes, GKDOPNumLeaves, GKDOPTriangles, Vertices.Num());
-	UE_LOG(LogLightmass, Log, TEXT("Static lighting kDOP: %.3f%% wasted space in leaves"), ((GKDOPTriangles - kDOPTriangles.Num()) / (float)GKDOPTriangles) * 100.0f);
-
 	kDOPTriangles.Empty();
 	TrianglePayloads.Shrink();
 }
 
 void FDefaultAggregateMesh::DumpStats() const
 {
+	UE_LOG(LogLightmass, Log, TEXT("Preallocated %.1fGb for kDOP nodes and triangles"), kDopTree.kDOPPreallocatedMemory / 1024.0f / 1024.0f / 1024.0f);
+	UE_LOG(LogLightmass, Log, TEXT("Building kDOP took %5.2f seconds."), kDopTree.kDOPBuildTime);
+
+	// Log information about the aggregate mesh.
+	UE_LOG(LogLightmass, Log, TEXT("Static lighting kDOP: %u nodes, %u leaves, %u triangles, %u vertices"), kDopTree.GKDOPNodes, kDopTree.GKDOPNumLeaves, kDopTree.GKDOPTriangles, Vertices.Num());
+	UE_LOG(LogLightmass, Log, TEXT("Static lighting kDOP: %.3f%% wasted space in leaves"), ((kDopTree.GKDOPTriangles - kDOPTriangles.Num()) / (float)kDopTree.GKDOPTriangles) * 100.0f);
+
 	const uint64 kDOPTreeBytes = kDopTree.Nodes.GetAllocatedSize() 
 		+ kDopTree.SOATriangles.GetAllocatedSize()
 		+ kDOPTriangles.GetAllocatedSize()
@@ -195,7 +255,18 @@ void FDefaultAggregateMesh::DumpStats() const
 	UE_LOG(LogLightmass, Log, TEXT("Vertices              : %7.1fMb"), Vertices.GetAllocatedSize() / 1048576.0f);
 	UE_LOG(LogLightmass, Log, TEXT("UVs                   : %7.1fMb"), UVs.GetAllocatedSize() / 1048576.0f);
 	UE_LOG(LogLightmass, Log, TEXT("LightmapUVs           : %7.1fMb"), LightmapUVs.GetAllocatedSize() / 1048576.0f);
-	UE_LOG(LogLightmass, Log, TEXT("Static lighting kDOP: %u nodes, %u leaves, %u triangles, %u vertices, %.1f Mb"), GKDOPNodes, GKDOPNumLeaves, GKDOPTriangles, Vertices.Num(), kDOPTreeBytes / 1048576.0f);
+	UE_LOG(LogLightmass, Log, TEXT("Static lighting kDOP: %u nodes, %u leaves, %u triangles, %u vertices, %.1f Mb"), kDopTree.GKDOPNodes, kDopTree.GKDOPNumLeaves, kDopTree.GKDOPTriangles, Vertices.Num(), kDOPTreeBytes / 1048576.0f);
+}
+
+void FDefaultAggregateMesh::DumpPostBuildStats() const
+{
+	double KDOPTrianglesTraversedRealPercent = (1.0 - ((kDopTree.GKDOPTrianglesTraversed - kDopTree.GKDOPTrianglesTraversedReal) / (kDopTree.GKDOPTrianglesTraversed * 100.0)));
+	UE_LOG(LogLightmass, Log, TEXT("kDOP traversals (in millions): %.3g parents, %.3g leaves, %.3g triangles (%.3g, %.3g%%, real triangles)."),
+		kDopTree.GKDOPParentNodesTraversed / 1000000.0,
+		kDopTree.GKDOPLeafNodesTraversed / 1000000.0,
+		kDopTree.GKDOPTrianglesTraversed / 1000000.0,
+		kDopTree.GKDOPTrianglesTraversedReal / 1000000.0,
+		KDOPTrianglesTraversedRealPercent);
 }
 
 class FStaticLightingAggregateMeshDataProvider
@@ -437,5 +508,14 @@ bool FDefaultAggregateMesh::IntersectLightRay(
 	return ClosestIntersection.bIntersects;
 }
 
+bool FDefaultAggregateMesh::IntersectBox(const FBox Box)  const
+{
+	FLightRay UnusedRay;
+	FStaticLightingAggregateMeshDataProvider kDOPDataProvider(this, UnusedRay);
+	TkDOPBoxCollisionCheck<const FStaticLightingAggregateMeshDataProvider, uint32> kDOPCheck(
+		Box,
+		kDOPDataProvider);
+	return kDopTree.BoxCheck(kDOPCheck);
+}
 
 } //namespace Lightmass

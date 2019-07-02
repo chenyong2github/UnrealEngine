@@ -18,22 +18,8 @@ namespace Lightmass
 #define SLOW_KDOP_STATS(...) 
 // Whether to cache Centroid, LocalNormal and such for build triangles. Peak memory vs. minor build time trade-off.
 #define CACHE_BUILD_TEMPORARIES 0
-
-/** Number of triangles in the aggregate mesh kDOP. */
-extern int32 GKDOPTriangles;
-/** Number of internal nodes in the aggregate mesh kDOP. */
-extern int32 GKDOPNodes;
-/** Number of leaf nodes in the aggregate mesh kDOP. */
-extern int32 GKDOPNumLeaves;
-/** Maximum number of triangles per leaf node during the splitting process */
-extern int32 GKDOPMaxTrisPerLeaf;
-/** Total number of kDOP internal nodes traversed when tracing rays. */
-extern volatile uint64 GKDOPParentNodesTraversed;
-/** Total number of kDOP leaf nodes traversed when tracing rays. */
-extern volatile uint64 GKDOPLeafNodesTraversed;
-/** Total number of kDOP triangles tested when tracing rays. */
-extern volatile uint64 GKDOPTrianglesTraversed;
-extern volatile uint64 GKDOPTrianglesTraversedReal;
+// The default number of triangles to store in each leaf
+#define DEFAULT_MAX_TRIS_PER_LEAF 4
 
 struct FHitResult
 {
@@ -501,6 +487,7 @@ public:
 template <typename COLL_DATA_PROVIDER,typename KDOP_IDX_TYPE> struct TkDOPNode;
 template <typename COLL_DATA_PROVIDER,typename KDOP_IDX_TYPE> struct TkDOPTree;
 template <typename COLL_DATA_PROVIDER,typename KDOP_IDX_TYPE> struct TkDOPLineCollisionCheck;
+template <typename COLL_DATA_PROVIDER,typename KDOP_IDX_TYPE> struct TkDOPBoxCollisionCheck;
 
 /**
  * Holds the min/max planes that make up a set of 4 bounding volumes.
@@ -554,6 +541,112 @@ struct FMultiBox
 #else
 	#define kDOPArray TChunkedArray
 #endif
+
+namespace BoxTriangleIntersectionInternal
+{
+
+struct FTriangle
+{
+	FVector Vertices[3];
+};
+
+struct FOverlapInterval
+{
+	float Min;
+	float Max;
+};
+
+FORCEINLINE FOverlapInterval GetInterval(const FTriangle& Triangle, const FVector& Vector)
+{
+	FOverlapInterval Result;
+	Result.Min = Result.Max = FVector::DotProduct(Vector, Triangle.Vertices[0]);
+
+	for (int32 i = 1; i < 3; ++i)
+	{
+		float Projection = FVector::DotProduct(Vector, Triangle.Vertices[i]);
+		Result.Min = FMath::Min(Result.Min, Projection);
+		Result.Max = FMath::Max(Result.Max, Projection);
+	}
+
+	return Result;
+}
+
+FORCEINLINE FOverlapInterval GetInterval(const FBox& Box, const FVector& Vector)
+{
+	FVector BoxVertices[8] =
+	{
+		FVector(Box.Min.X, Box.Max.Y, Box.Max.Z),
+		FVector(Box.Min.X, Box.Max.Y, Box.Min.Z),
+		FVector(Box.Min.X, Box.Min.Y, Box.Max.Z),
+		FVector(Box.Min.X, Box.Min.Y, Box.Min.Z),
+		FVector(Box.Max.X, Box.Max.Y, Box.Max.Z),
+		FVector(Box.Max.X, Box.Max.Y, Box.Min.Z),
+		FVector(Box.Max.X, Box.Min.Y, Box.Max.Z),
+		FVector(Box.Max.X, Box.Min.Y, Box.Min.Z)
+	};
+
+	FOverlapInterval Result;
+	Result.Min = Result.Max = FVector::DotProduct(Vector, BoxVertices[0]);
+
+	for (int32 i = 1; i < ARRAY_COUNT(BoxVertices); ++i)
+	{
+		float Projection = FVector::DotProduct(Vector, BoxVertices[i]);
+		Result.Min = FMath::Min(Result.Min, Projection);
+		Result.Max = FMath::Max(Result.Max, Projection);
+	}
+
+	return Result;
+}
+
+FORCEINLINE bool OverlapOnAxis(const FBox& Box, const FTriangle& Triangle, const FVector& Vector)
+{
+	FOverlapInterval A = GetInterval(Box, Vector);
+	FOverlapInterval B = GetInterval(Triangle, Vector);
+	return ((B.Min <= A.Max) && (A.Min <= B.Max));
+}
+
+FORCEINLINE bool IntersectTriangleAndAABB(const FTriangle& Triangle, const FBox& Box)
+{
+	FVector TriangleEdge0 = Triangle.Vertices[1] - Triangle.Vertices[0];
+	FVector TriangleEdge1 = Triangle.Vertices[2] - Triangle.Vertices[1];
+	FVector TriangleEdge2 = Triangle.Vertices[0] - Triangle.Vertices[2];
+
+	FVector BoxNormal0(1.0f, 0.0f, 0.0f);
+	FVector BoxNormal1(0.0f, 1.0f, 0.0f);
+	FVector BoxNormal2(0.0f, 0.0f, 1.0f);
+
+	FVector TestDirections[13] =
+	{
+		// Separating axes from the box normals
+		BoxNormal0,
+		BoxNormal1,
+		BoxNormal2,
+		// One separating axis for the triangle normal
+		FVector::CrossProduct(TriangleEdge0, TriangleEdge1),
+		// Separating axes for the triangle edges
+		FVector::CrossProduct(BoxNormal0, TriangleEdge0),
+		FVector::CrossProduct(BoxNormal0, TriangleEdge1),
+		FVector::CrossProduct(BoxNormal0, TriangleEdge2),
+		FVector::CrossProduct(BoxNormal1, TriangleEdge0),
+		FVector::CrossProduct(BoxNormal1, TriangleEdge1),
+		FVector::CrossProduct(BoxNormal1, TriangleEdge2),
+		FVector::CrossProduct(BoxNormal2, TriangleEdge0),
+		FVector::CrossProduct(BoxNormal2, TriangleEdge1),
+		FVector::CrossProduct(BoxNormal2, TriangleEdge2)
+	};
+
+	for (int i = 0; i < ARRAY_COUNT(TestDirections); ++i)
+	{
+		if (!OverlapOnAxis(Box, Triangle, TestDirections[i]))
+		{
+			// If we don't overlap on a single axis, the shapes do not intersect
+			return false;
+		}
+	}
+
+	return true;
+}
+}
 
 /**
  * A node in the kDOP tree. The node contains the kDOP volume that encompasses
@@ -891,6 +984,77 @@ struct TkDOPNode
 		}
 		return bHit;
 	}
+
+	bool BoxCheckTriangles(TkDOPBoxCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>& Check) const
+	{
+		for (KDOP_IDX_TYPE SOAIndex = t.StartIndex; SOAIndex < (t.StartIndex + t.NumTriangles); SOAIndex++)
+		{
+			const FTriangleSOA& TriangleSOA = Check.SOATriangles[SOAIndex];
+			for (int32 SubIndex = 0; SubIndex < 4; SubIndex++)
+			{
+				BoxTriangleIntersectionInternal::FTriangle Triangle;
+
+				Triangle.Vertices[0].X = LmVectorGetComponent(TriangleSOA.Positions[0].X, SubIndex);
+				Triangle.Vertices[0].Y = LmVectorGetComponent(TriangleSOA.Positions[0].Y, SubIndex);
+				Triangle.Vertices[0].Z = LmVectorGetComponent(TriangleSOA.Positions[0].Z, SubIndex);
+
+				Triangle.Vertices[1].X = LmVectorGetComponent(TriangleSOA.Positions[1].X, SubIndex);
+				Triangle.Vertices[1].Y = LmVectorGetComponent(TriangleSOA.Positions[1].Y, SubIndex);
+				Triangle.Vertices[1].Z = LmVectorGetComponent(TriangleSOA.Positions[1].Z, SubIndex);
+
+				Triangle.Vertices[2].X = LmVectorGetComponent(TriangleSOA.Positions[2].X, SubIndex);
+				Triangle.Vertices[2].Y = LmVectorGetComponent(TriangleSOA.Positions[2].Y, SubIndex);
+				Triangle.Vertices[2].Z = LmVectorGetComponent(TriangleSOA.Positions[2].Z, SubIndex);
+
+				if (BoxTriangleIntersectionInternal::IntersectTriangleAndAABB(Triangle, Check.Box))
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	void BoxCheckBounds(TkDOPBoxCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>& Check, bool NodeHit[2]) const
+	{
+		for (int32 BoxIndex = 0; BoxIndex < 2; BoxIndex++)
+		{
+			// 0: Create constants
+			FVector BoxMin(BoundingVolumes.Min[0][BoxIndex], BoundingVolumes.Min[1][BoxIndex], BoundingVolumes.Min[2][BoxIndex]);
+			FVector BoxMax(BoundingVolumes.Max[0][BoxIndex], BoundingVolumes.Max[1][BoxIndex], BoundingVolumes.Max[2][BoxIndex]);
+
+			FBox ChildBox(BoxMin, BoxMax);
+
+			NodeHit[BoxIndex] = Check.Box.Intersect(ChildBox);
+		}
+	}
+
+	bool BoxCheck(TkDOPBoxCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>& Check) const
+	{
+		if (bIsLeaf == 0)
+		{
+			// Check both left and right node at the same time.
+			bool NodeHit[2];
+			BoxCheckBounds(Check, NodeHit);
+
+			if (NodeHit[0])
+			{
+				if (Check.Nodes[n.LeftNode].BoxCheck(Check))
+					return true;
+			}
+
+			if (NodeHit[1])
+			{
+				if (Check.Nodes[n.RightNode].BoxCheck(Check))
+					return true;
+			}
+
+			return false;
+		}
+		else
+		{
+			return BoxCheckTriangles(Check);
+		}
+	}
 };
 
 /**
@@ -906,6 +1070,25 @@ struct TkDOPTree
 	/** Exposes node type to clients. */
 	typedef TkDOPNode<DataProviderType,KDOP_IDX_TYPE>	NodeType;
 
+	/** Statistics --------------------------------------*/
+	/** Number of triangles in the aggregate mesh kDOP. */
+	int32 GKDOPTriangles = 0;
+	/** Number of internal nodes in the aggregate mesh kDOP. */
+	int32 GKDOPNodes = 0;
+	/** Number of leaf nodes in the aggregate mesh kDOP. */
+	int32 GKDOPNumLeaves = 0;
+	/** Maximum number of triangles per leaf node during the splitting process */
+	int32 GKDOPMaxTrisPerLeaf = DEFAULT_MAX_TRIS_PER_LEAF;
+	/** Total number of kDOP internal nodes traversed when tracing rays. */
+	volatile uint64 GKDOPParentNodesTraversed = 0;
+	/** Total number of kDOP leaf nodes traversed when tracing rays. */
+	volatile uint64 GKDOPLeafNodesTraversed = 0;
+	/** Total number of kDOP triangles tested when tracing rays. */
+	volatile uint64 GKDOPTrianglesTraversed = 0;
+	volatile uint64 GKDOPTrianglesTraversedReal = 0;
+	size_t kDOPPreallocatedMemory = 0u;
+	float kDOPBuildTime = 0.0f;
+
 	/** The list of nodes contained within this tree. Node 0 is always the root node. */
 	kDOPArray<NodeType, FRangeChecklessHeapAllocator> Nodes;
 
@@ -920,7 +1103,7 @@ struct TkDOPTree
 	 */
 	void Build(TArray<FkDOPBuildCollisionTriangle<KDOP_IDX_TYPE> >& BuildTriangles)
 	{
-		float kDOPBuildTime = 0;
+		kDOPBuildTime = 0;
 		{
 			FScopedRDTSCTimer kDOPBuildTimer(kDOPBuildTime);
 
@@ -933,7 +1116,7 @@ struct TkDOPTree
 
 			size_t NodesSize = (size_t)Nodes.GetTypeSize() * (size_t)Nodes.Max();
 			size_t SOATrianglesSize = (size_t)SOATriangles.GetTypeSize() * (size_t)SOATriangles.Max();
-			UE_LOG(LogLightmass, Log, TEXT("Preallocated %.1fGb for kDOP nodes and triangles"), (NodesSize + SOATrianglesSize) / 1024.0f / 1024.0f / 1024.0f);
+			kDOPPreallocatedMemory = NodesSize + SOATrianglesSize;
 
 			// Add the root node
 			Nodes.AddZeroed();
@@ -945,7 +1128,6 @@ struct TkDOPTree
 			Nodes.Shrink();
 			SOATriangles.Shrink();
 		}
-		UE_LOG(LogLightmass, Log, TEXT("Building kDOP took %5.2f seconds."),kDOPBuildTime);
 	}
 
 	
@@ -1168,6 +1350,11 @@ struct TkDOPTree
 		return bHit;
 	}
 
+	bool BoxCheck(TkDOPBoxCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>& Check) const
+	{
+		return Nodes[0].BoxCheck(Check);
+	}
+
 	/**
 	 * Dumps the kDOPTree 
 	 */
@@ -1359,6 +1546,19 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPLineC
 		}
 		return Normal;
 	}
+};
+
+template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPBoxCollisionCheck :
+	public TkDOPCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>
+{
+	const FBox Box;
+
+	TkDOPBoxCollisionCheck(
+		const FBox& InBox,
+		const COLL_DATA_PROVIDER& InCollDataProvider) :
+		TkDOPCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>(InCollDataProvider),
+		Box(InBox)
+	{}
 };
 
 } // namespace

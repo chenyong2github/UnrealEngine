@@ -212,19 +212,9 @@ void BuildStaticLighting(const FGuid& SceneGuid, int32 NumThreads, bool bDumpTex
 
 	UE_LOG(LogLightmass, Log, TEXT("Lighting complete [Startup = %s, Lighting = %s]"), *FPlatformTime::PrettyTime(LightTimeStart - SetupTimeStart), *FPlatformTime::PrettyTime(EndTime - LightTimeStart));
 
-	if ( GReportDetailedStats )
+	if (GReportDetailedStats)
 	{
-		extern volatile uint64 GKDOPParentNodesTraversed;
-		extern volatile uint64 GKDOPLeafNodesTraversed;
-		extern volatile uint64 GKDOPTrianglesTraversed;
-		extern volatile uint64 GKDOPTrianglesTraversedReal;
-		double KDOPTrianglesTraversedRealPercent = (1.0 - ((GKDOPTrianglesTraversed - GKDOPTrianglesTraversedReal) / (GKDOPTrianglesTraversed * 100.0)));
-		UE_LOG(LogLightmass, Log, TEXT("kDOP traversals (in millions): %.3g parents, %.3g leaves, %.3g triangles (%.3g, %.3g%%, real triangles)."),
-			GKDOPParentNodesTraversed / 1000000.0,
-			GKDOPLeafNodesTraversed / 1000000.0,
-			GKDOPTrianglesTraversed / 1000000.0,
-			GKDOPTrianglesTraversedReal / 1000000.0,
-			KDOPTrianglesTraversedRealPercent );
+		LightingSystem.GetAggregateMesh().DumpPostBuildStats();
 	}
 
 	// Transfer back the log to the instigator.

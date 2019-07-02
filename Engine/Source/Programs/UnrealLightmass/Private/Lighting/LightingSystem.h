@@ -2690,7 +2690,11 @@ private:
 
 	/** The aggregate mesh used for raytracing. */
 	FStaticLightingAggregateMeshType* AggregateMesh;
-	
+
+	FDefaultAggregateMesh* VoxelizationSurfaceAggregateMesh;
+	FDefaultAggregateMesh* VoxelizationVolumeAggregateMesh;
+	FDefaultAggregateMesh* LandscapeCullingVoxelizationAggregateMesh;
+
 	/** The input scene describing geometry, materials and lights. */
 	const FScene& Scene; 
 

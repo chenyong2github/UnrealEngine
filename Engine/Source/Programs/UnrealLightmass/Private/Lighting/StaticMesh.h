@@ -19,6 +19,10 @@ namespace Lightmass
 
 		FStaticLightingMapping* Mapping;
 
+		virtual FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() override { return !bIsSplineMesh ? this : nullptr; }
+
+		virtual const FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() const override { return !bIsSplineMesh ? this : nullptr; }
+
 		// FStaticLightingMesh interface.
 		/**
 		 *	Returns the Guid for the object associated with this lighting mesh.
@@ -62,8 +66,6 @@ namespace Lightmass
 		virtual uint32 GetMeshHLODRangeEnd() const { return (EncodedHLODRange & 0xFFFF0000) >> 16; }
 
 		virtual void Import( class FLightmassImporter& Importer );
-
-	private:
 
 		/** The inverse transpose of the primitive's local to world transform. */
 		FMatrix LocalToWorldInverseTranspose;

@@ -127,77 +127,112 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 	const FBox ExpandedCellBoundsSurfaceGeometry = CellBounds.ExpandBy(CellBounds.GetSize() * VolumetricLightmapSettings.VoxelizationCellExpansionForSurfaceGeometry);
 	const FBox ExpandedCellBoundsVolumeGeometry = CellBounds.ExpandBy(CellBounds.GetSize() * VolumetricLightmapSettings.VoxelizationCellExpansionForVolumeGeometry);
 
-	for (int32 MappingIndex = 0; MappingIndex < AllMappings.Num(); MappingIndex++)
+	if (Scene.GeneralSettings.bUseFastVoxelization)
 	{
-		const FStaticLightingMapping* CurrentMapping = AllMappings[MappingIndex];
-		const FStaticLightingTextureMapping* TextureMapping = CurrentMapping->GetTextureMapping();
-		const FStaticLightingMesh* CurrentMesh = CurrentMapping->Mesh;
-		const FBox& ExpandedCellBounds = CurrentMapping->GetVolumeMapping() ? ExpandedCellBoundsVolumeGeometry : ExpandedCellBoundsSurfaceGeometry;
-
-		const bool bMeshBelongsToLOD0 = CurrentMesh->DoesMeshBelongToLOD0();
-
-		if ((CurrentMesh->LightingFlags & GI_INSTANCE_CASTSHADOW)
-			&& CurrentMesh->BoundingBox.Intersect(ExpandedCellBounds)
-			&& bMeshBelongsToLOD0)
+		if (VoxelizationSurfaceAggregateMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry) || VoxelizationVolumeAggregateMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry))
 		{
-			for (int32 TriangleIndex = 0; TriangleIndex < CurrentMesh->NumTriangles; TriangleIndex++)
+			return true;
+		}
+
+		for (int32 MeshIndex = 0; MeshIndex < Scene.StaticMeshInstances.Num(); MeshIndex++)
+		{
+			const FStaticMeshStaticLightingMesh* MeshInstance = &Scene.StaticMeshInstances[MeshIndex];
+
+			if (MeshInstance->StaticMesh->VoxelizationMesh != nullptr)
 			{
-				FStaticLightingVertex Vertices[3];
-				int32 ElementIndex;
-				CurrentMesh->GetTriangle(TriangleIndex, Vertices[0], Vertices[1], Vertices[2], ElementIndex);
-
-				if (CurrentMesh->IsElementCastingShadow(ElementIndex) 
-					// Lightmass doesn't handle bounced light from translucency
-					&& !CurrentMesh->IsTranslucent(ElementIndex))
+				if (MeshInstance->Mapping->GetVolumeMapping() == nullptr)
 				{
-					FTriangle Triangle;
-					Triangle.Vertices[0] = Vertices[0].WorldPosition;
-					Triangle.Vertices[1] = Vertices[1].WorldPosition;
-					Triangle.Vertices[2] = Vertices[2].WorldPosition;
-
-					FBox TriangleAABB(Triangle.Vertices, ARRAY_COUNT(Triangle.Vertices));
-
-					if (ExpandedCellBounds.Intersect(TriangleAABB))
+					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry.TransformBy(MeshInstance->LocalToWorldInverseTranspose.GetTransposed())))
 					{
-						const FVector4 TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
-						const float TriangleArea = 0.5f * TriangleNormal.Size3();
+						return true;
+					}
+				}
+				else
+				{
+					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry.TransformBy(MeshInstance->LocalToWorldInverseTranspose.GetTransposed())))
+					{
+						return true;
+					}
+				}
+			}
+		}
 
-						if (TriangleArea > DELTA)
+		return false;
+	}
+	else
+	{
+		for (int32 MappingIndex = 0; MappingIndex < AllMappings.Num(); MappingIndex++)
+		{
+			const FStaticLightingMapping* CurrentMapping = AllMappings[MappingIndex];
+			const FStaticLightingTextureMapping* TextureMapping = CurrentMapping->GetTextureMapping();
+			const FStaticLightingMesh* CurrentMesh = CurrentMapping->Mesh;
+			const FBox& ExpandedCellBounds = CurrentMapping->GetVolumeMapping() ? ExpandedCellBoundsVolumeGeometry : ExpandedCellBoundsSurfaceGeometry;
+
+			const bool bMeshBelongsToLOD0 = CurrentMesh->DoesMeshBelongToLOD0();
+
+			if ((CurrentMesh->LightingFlags & GI_INSTANCE_CASTSHADOW)
+				&& CurrentMesh->BoundingBox.Intersect(ExpandedCellBounds)
+				&& bMeshBelongsToLOD0)
+			{
+				for (int32 TriangleIndex = 0; TriangleIndex < CurrentMesh->NumTriangles; TriangleIndex++)
+				{
+					FStaticLightingVertex Vertices[3];
+					int32 ElementIndex;
+					CurrentMesh->GetTriangle(TriangleIndex, Vertices[0], Vertices[1], Vertices[2], ElementIndex);
+
+					if (CurrentMesh->IsElementCastingShadow(ElementIndex)
+						// Lightmass doesn't handle bounced light from translucency
+						&& !CurrentMesh->IsTranslucent(ElementIndex))
+					{
+						FTriangle Triangle;
+						Triangle.Vertices[0] = Vertices[0].WorldPosition;
+						Triangle.Vertices[1] = Vertices[1].WorldPosition;
+						Triangle.Vertices[2] = Vertices[2].WorldPosition;
+
+						FBox TriangleAABB(Triangle.Vertices, ARRAY_COUNT(Triangle.Vertices));
+
+						if (ExpandedCellBounds.Intersect(TriangleAABB))
 						{
-							if (TextureMapping)
+							const FVector4 TriangleNormal = (Vertices[2].WorldPosition - Vertices[0].WorldPosition) ^ (Vertices[1].WorldPosition - Vertices[0].WorldPosition);
+							const float TriangleArea = 0.5f * TriangleNormal.Size3();
+
+							if (TriangleArea > DELTA)
 							{
-								// Triangle vertices in lightmap UV space, scaled by the lightmap resolution
-								const FVector2D Vertex0 = Vertices[0].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
-								const FVector2D Vertex1 = Vertices[1].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
-								const FVector2D Vertex2 = Vertices[2].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
-
-								// Area in lightmap space, or the number of lightmap texels covered by this triangle
-								const float LightmapTriangleArea = FMath::Abs(
-									Vertex0.X * (Vertex1.Y - Vertex2.Y)
-									+ Vertex1.X * (Vertex2.Y - Vertex0.Y)
-									+ Vertex2.X * (Vertex0.Y - Vertex1.Y));
-
-								const float TexelDensity = LightmapTriangleArea / TriangleArea;
-								// Skip texture lightmapped triangles whose texel density is less than one texel per the area of a right triangle formed by the child voxel.
-								// If surface lighting is being calculated at a low resolution, it's unlikely that the volume near that surface needs to have detailed lighting.
-								if (TexelDensity < SurfaceLightmapDensityThreshold)
+								if (TextureMapping)
 								{
-									continue;
-								}
-							}
+									// Triangle vertices in lightmap UV space, scaled by the lightmap resolution
+									const FVector2D Vertex0 = Vertices[0].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
+									const FVector2D Vertex1 = Vertices[1].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
+									const FVector2D Vertex2 = Vertices[2].TextureCoordinates[TextureMapping->LightmapTextureCoordinateIndex] * FVector2D(TextureMapping->SizeX, TextureMapping->SizeY);
 
-							if (IntersectTriangleAndAABB(Triangle, ExpandedCellBounds))
-							{
-								return true;
+									// Area in lightmap space, or the number of lightmap texels covered by this triangle
+									const float LightmapTriangleArea = FMath::Abs(
+										Vertex0.X * (Vertex1.Y - Vertex2.Y)
+										+ Vertex1.X * (Vertex2.Y - Vertex0.Y)
+										+ Vertex2.X * (Vertex0.Y - Vertex1.Y));
+
+									const float TexelDensity = LightmapTriangleArea / TriangleArea;
+									// Skip texture lightmapped triangles whose texel density is less than one texel per the area of a right triangle formed by the child voxel.
+									// If surface lighting is being calculated at a low resolution, it's unlikely that the volume near that surface needs to have detailed lighting.
+									if (TexelDensity < SurfaceLightmapDensityThreshold)
+									{
+										continue;
+									}
+								}
+
+								if (IntersectTriangleAndAABB(Triangle, ExpandedCellBounds))
+								{
+									return true;
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-	}
 
-	return false;
+		return false;
+	}
 }
 
 bool FStaticLightingSystem::ShouldRefineVoxel(int32 TreeDepth, const FBox& CellBounds, const TArray<FVector>& VoxelTestPositions, bool bDebugThisVoxel) const
@@ -293,64 +328,76 @@ bool FStaticLightingSystem::ShouldRefineVoxel(int32 TreeDepth, const FBox& CellB
 		&& LandscapeMappings.Num() > 0
 		&& VolumetricLightmapSettings.bCullBricksBelowLandscape)
 	{
-		TArray<FVector, TInlineAllocator<100>> TestPositions;
-		TArray<bool, TInlineAllocator<100>> PositionUnderLandscape;
-
-		int32 TestResolution = 10;
-		TestPositions.Empty(TestResolution * TestResolution);
-		PositionUnderLandscape.Empty(TestResolution * TestResolution);
-		PositionUnderLandscape.AddZeroed(TestResolution * TestResolution);
-
-		for (int32 Y = 0; Y < TestResolution; Y++)
+		if (Scene.GeneralSettings.bUseFastVoxelization)
 		{
-			for (int32 X = 0; X < TestResolution; X++)
+			FBox StretchedCellBounds(CellBounds.Min, FVector(CellBounds.Max.X, CellBounds.Max.Y, LandscapeCullingVoxelizationAggregateMesh->GetBounds().Max.Z));
+
+			if (LandscapeCullingVoxelizationAggregateMesh->IntersectBox(StretchedCellBounds) && !LandscapeCullingVoxelizationAggregateMesh->IntersectBox(CellBounds))
 			{
-				const FVector TestPosition = CellBounds.Min + FVector(X / (float)TestResolution, Y / (float)TestResolution, 1.0f) * CellBounds.GetSize();
-				TestPositions.Add(TestPosition);
+				return false;
 			}
 		}
-
-		for (int32 MappingIndex = 0; MappingIndex < LandscapeMappings.Num(); MappingIndex++)
+		else
 		{
-			const FStaticLightingMapping* CurrentMapping = LandscapeMappings[MappingIndex];
-			const FStaticLightingMesh* CurrentMesh = CurrentMapping->Mesh;
+			TArray<FVector, TInlineAllocator<100>> TestPositions;
+			TArray<bool, TInlineAllocator<100>> PositionUnderLandscape;
 
-			if ((CurrentMesh->LightingFlags & GI_INSTANCE_CASTSHADOW)
-				&& CurrentMesh->BoundingBox.IntersectXY(CellBounds))
+			int32 TestResolution = 10;
+			TestPositions.Empty(TestResolution * TestResolution);
+			PositionUnderLandscape.Empty(TestResolution * TestResolution);
+			PositionUnderLandscape.AddZeroed(TestResolution * TestResolution);
+
+			for (int32 Y = 0; Y < TestResolution; Y++)
 			{
-				for (int32 TriangleIndex = 0; TriangleIndex < CurrentMesh->NumTriangles; TriangleIndex++)
+				for (int32 X = 0; X < TestResolution; X++)
 				{
-					FStaticLightingVertex Vertices[3];
-					int32 ElementIndex;
-					CurrentMesh->GetTriangle(TriangleIndex, Vertices[0], Vertices[1], Vertices[2], ElementIndex);
+					const FVector TestPosition = CellBounds.Min + FVector(X / (float)TestResolution, Y / (float)TestResolution, 1.0f) * CellBounds.GetSize();
+					TestPositions.Add(TestPosition);
+				}
+			}
 
-					if (CurrentMesh->IsElementCastingShadow(ElementIndex))
+			for (int32 MappingIndex = 0; MappingIndex < LandscapeMappings.Num(); MappingIndex++)
+			{
+				const FStaticLightingMapping* CurrentMapping = LandscapeMappings[MappingIndex];
+				const FStaticLightingMesh* CurrentMesh = CurrentMapping->Mesh;
+
+				if ((CurrentMesh->LightingFlags & GI_INSTANCE_CASTSHADOW)
+					&& CurrentMesh->BoundingBox.IntersectXY(CellBounds))
+				{
+					for (int32 TriangleIndex = 0; TriangleIndex < CurrentMesh->NumTriangles; TriangleIndex++)
 					{
-						FTriangle Triangle;
-						Triangle.Vertices[0] = Vertices[0].WorldPosition;
-						Triangle.Vertices[1] = Vertices[1].WorldPosition;
-						Triangle.Vertices[2] = Vertices[2].WorldPosition;
+						FStaticLightingVertex Vertices[3];
+						int32 ElementIndex;
+						CurrentMesh->GetTriangle(TriangleIndex, Vertices[0], Vertices[1], Vertices[2], ElementIndex);
 
-						for (int32 PointIndex = 0; PointIndex < PositionUnderLandscape.Num(); PointIndex++)
+						if (CurrentMesh->IsElementCastingShadow(ElementIndex))
 						{
-							if (PointUnderTriangle(TestPositions[PointIndex], Triangle))
+							FTriangle Triangle;
+							Triangle.Vertices[0] = Vertices[0].WorldPosition;
+							Triangle.Vertices[1] = Vertices[1].WorldPosition;
+							Triangle.Vertices[2] = Vertices[2].WorldPosition;
+
+							for (int32 PointIndex = 0; PointIndex < PositionUnderLandscape.Num(); PointIndex++)
 							{
-								PositionUnderLandscape[PointIndex] = true;
+								if (PointUnderTriangle(TestPositions[PointIndex], Triangle))
+								{
+									PositionUnderLandscape[PointIndex] = true;
+								}
 							}
 						}
 					}
 				}
 			}
+
+			bool bAllPointsUnderLandscape = true;
+
+			for (int32 PointIndex = 0; PointIndex < PositionUnderLandscape.Num(); PointIndex++)
+			{
+				bAllPointsUnderLandscape = bAllPointsUnderLandscape && PositionUnderLandscape[PointIndex];
+			}
+
+			return !bAllPointsUnderLandscape;
 		}
-
-		bool bAllPointsUnderLandscape = true;
-
-		for (int32 PointIndex = 0; PointIndex < PositionUnderLandscape.Num(); PointIndex++)
-		{
-			bAllPointsUnderLandscape = bAllPointsUnderLandscape && PositionUnderLandscape[PointIndex];
-		}
-
-		return !bAllPointsUnderLandscape;
 	}
 
 	return bVoxelIntersectsScene;
