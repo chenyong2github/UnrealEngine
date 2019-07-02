@@ -408,7 +408,7 @@ def get_clang_version():
 # EPIC EDIT start -- nick.shin 2019-06-20 -- UE-75306 UE-76260 UE-76599
 # python on windows is sometimes having a problem getting back to this when the call has already terminated
 #    proc = check_call([CLANG, '--version'], stdout=PIPE)
-    proc = check_call([CLANG, '--version'], stdout=PIPE, check=False)
+    proc = run_process([CLANG, '--version'], stdout=PIPE, check=False)
 # EPIC EDIT end -- nick.shin 2019-06-20 -- UE-75306 UE-76260 UE-76599
     m = re.search(r'[Vv]ersion\s+(\d+\.\d+)', proc.stdout)
     actual_clang_version = m and m.group(1)
