@@ -18,6 +18,7 @@ VolumetricFog.cpp
 #include "VolumeLighting.h"
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
+#include "Math/Halton.h"
 
 int32 GVolumetricFog = 1;
 FAutoConsoleVariableRef CVarVolumetricFog(
@@ -107,20 +108,6 @@ DECLARE_GPU_STAT(VolumetricFog);
 FVolumetricFogGlobalData::FVolumetricFogGlobalData()
 {}
 
-float TemporalHalton(int32 Index, int32 Base)
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while (Index > 0)
-	{
-		Result += (Index % Base) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
-
 FVector VolumetricFogTemporalRandom(uint32 FrameNumber)
 {
 	// Center of the voxel
@@ -128,7 +115,7 @@ FVector VolumetricFogTemporalRandom(uint32 FrameNumber)
 
 	if (GVolumetricFogJitter && GVolumetricFogTemporalReprojection)
 	{
-		RandomOffsetValue = FVector(TemporalHalton(FrameNumber & 1023, 2), TemporalHalton(FrameNumber & 1023, 3), TemporalHalton(FrameNumber & 1023, 5));
+		RandomOffsetValue = FVector(Halton(FrameNumber & 1023, 2), Halton(FrameNumber & 1023, 3), Halton(FrameNumber & 1023, 5));
 	}
 
 	return RandomOffsetValue;

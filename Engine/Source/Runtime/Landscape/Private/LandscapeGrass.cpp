@@ -55,6 +55,7 @@
 #include "InstancedStaticMesh.h"
 #include "MeshPassProcessor.h"
 #include "MeshPassProcessor.inl"
+#include "Math/Halton.h"
 
 #define LOCTEXT_NAMESPACE "Landscape"
 
@@ -1545,21 +1546,6 @@ private:
 	int32 Stride;
 };
 
-template<uint32 Base>
-static FORCEINLINE float Halton(uint32 Index)
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
-}
-
 struct FAsyncGrassBuilder : public FGrassBuilderBase
 {
 	FLandscapeComponentGrassAccess GrassData;
@@ -1783,8 +1769,8 @@ struct FAsyncGrassBuilder : public FGrassBuilderBase
 			FVector DivExtent(Extent * Div);
 			for (int32 InstanceIndex = 0; InstanceIndex < MaxNum; InstanceIndex++)
 			{
-				float HaltonX = Halton<2>(InstanceIndex + HaltonBaseIndex);
-				float HaltonY = Halton<3>(InstanceIndex + HaltonBaseIndex);
+				float HaltonX = Halton(InstanceIndex + HaltonBaseIndex, 2);
+				float HaltonY = Halton(InstanceIndex + HaltonBaseIndex, 3);
 				FVector Location(Origin.X + HaltonX * Extent.X, Origin.Y + HaltonY * Extent.Y, 0.0f);
 				FVector LocationWithHeight;
 				float Weight = GetLayerWeightAtLocationLocal(Location, &LocationWithHeight);

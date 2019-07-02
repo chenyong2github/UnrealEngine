@@ -37,6 +37,7 @@
 #include "TranslucentRendering.h"
 #include "Async/ParallelFor.h"
 #include "RectLightSceneProxy.h"
+#include "Math/Halton.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -2885,20 +2886,6 @@ static bool IsLargeCameraMovement(FSceneView& View, const FMatrix& PrevViewMatri
 		ViewUpAngle < RotationThreshold ||
 		ViewDirectionAngle < RotationThreshold ||
 		Distance.SizeSquared() > CameraTranslationThreshold * CameraTranslationThreshold;
-}
-
-float Halton( int32 Index, int32 Base )
-{
-	float Result = 0.0f;
-	float InvBase = 1.0f / Base;
-	float Fraction = InvBase;
-	while( Index > 0 )
-	{
-		Result += ( Index % Base ) * Fraction;
-		Index /= Base;
-		Fraction *= InvBase;
-	}
-	return Result;
 }
 
 void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdList)
