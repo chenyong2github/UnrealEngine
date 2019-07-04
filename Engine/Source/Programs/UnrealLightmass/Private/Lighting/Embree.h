@@ -164,7 +164,8 @@ namespace Lightmass
 			RTCScene EmbreeScene, 
 			const FBoxSphereBounds& ImportanceBounds,
 			const FStaticLightingMesh* InMesh,
-			const FStaticLightingMapping* InMapping
+			const FStaticLightingMapping* InMapping,
+			bool bUseForInstancing
 			);
 
 		const FStaticLightingMesh* Mesh;
@@ -179,6 +180,8 @@ namespace Lightmass
 		float SurfaceArea;
 		float SurfaceAreaWithinImportanceVolume;
 		bool bHasShadowCastingPrimitives;
+
+		class FEmbreeAggregateMesh* ParentAggregateMesh;
 	};
 
 	class FEmbreeAggregateMesh final : public FStaticLightingAggregateMesh
@@ -215,10 +218,19 @@ namespace Lightmass
 			FCoherentRayCache& CoherentRayCache,
 			FLightRayIntersection* ClosestIntersections) const override;
 
+		TArray<const FStaticLightingMapping*> StaticMeshInstancesToMappings;
+
 	private:
 
 		/** Information about the meshes used in the kDOP tree. */
 		TArray<const FEmbreeGeometry*> MeshInfos;
+
+		struct FEmbreeStaticMeshGeometry
+		{
+			RTCScene MeshScene;
+			FEmbreeGeometry* Geo;
+		};
+		TMap<const FStaticMeshLOD*, FEmbreeStaticMeshGeometry> StaticMeshGeometries;
 
 		/** Embree scene */
 		RTCDevice EmbreeDevice;
@@ -227,6 +239,8 @@ namespace Lightmass
 		/** Total number of triangles in the shadow mesh */
 		int32 TotalNumTriangles;
 
+		/** Total number of instanced triangles in the shadow mesh */
+		int32 TotalNumTrianglesInstanced;
 	};
 
 	class FEmbreeVerifyAggregateMesh final : public FStaticLightingAggregateMesh

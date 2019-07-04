@@ -230,7 +230,7 @@ public:
 
 	virtual void AddMesh(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping) override;
 
-	void AddMeshForVoxelization(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping);
+	void AddMeshForVoxelization(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping, bool bUseForInstancing = false);
 
 	virtual void ReserveMemory( int32 NumMeshes, int32 NumVertices, int32 NumTriangles ) override;
 

@@ -440,20 +440,8 @@ FStaticLightingSystem::FStaticLightingSystem(const FLightingBuildOptions& InOpti
 					if (MeshInstance->LightingFlags & GI_INSTANCE_CASTSHADOW && MeshInstance->DoesMeshBelongToLOD0())
 					{
 						MeshInstance->StaticMesh->VoxelizationMesh = new FDefaultAggregateMesh(Scene);
-
-						{
-							auto LocalToWorld = MeshInstance->LocalToWorld;
-							auto LocalToWorldInverseTranspose = MeshInstance->LocalToWorldInverseTranspose;
-
-							MeshInstance->LocalToWorld = FMatrix::Identity;
-							MeshInstance->LocalToWorldInverseTranspose = FMatrix::Identity;
-
-							MeshInstance->StaticMesh->VoxelizationMesh->AddMeshForVoxelization(MeshInstance, MeshInstance->Mapping);
-							MeshInstance->StaticMesh->VoxelizationMesh->PrepareForRaytracing();
-
-							MeshInstance->LocalToWorld = LocalToWorld;
-							MeshInstance->LocalToWorldInverseTranspose = LocalToWorldInverseTranspose;
-						}
+						MeshInstance->StaticMesh->VoxelizationMesh->AddMeshForVoxelization(MeshInstance, MeshInstance->Mapping, true);
+						MeshInstance->StaticMesh->VoxelizationMesh->PrepareForRaytracing();
 					}
 				}
 			}

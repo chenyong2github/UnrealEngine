@@ -72,8 +72,11 @@ public:
 	/** Whether to build Embree data structures for packet tracing. WIP feature - no lightmass algorithms emit packet tracing requests yet. */
 	bool bUseEmbreePacketTracing;
 
-	/** Whether to use kDOP trees & static mesh instancing to accelerate volumetric lightmap voxelization. Useful in scenes like large forest. */
+	/** Whether to use kDOP trees to accelerate volumetric lightmap voxelization. Useful in scenes like large forest. */
 	bool bUseFastVoxelization;
+
+	/** Whether to use static mesh instancing to reduce memory consumption in scenes like large forest. Might slow down small scenes. */
+	bool bUseEmbreeInstancing;
 
 	/** 
 	 * Direct lighting, skylight radiosity and irradiance photons are cached on mapping surfaces to accelerate final gathering.

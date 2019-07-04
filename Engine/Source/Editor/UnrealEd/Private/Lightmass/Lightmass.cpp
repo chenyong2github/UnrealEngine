@@ -2181,6 +2181,7 @@ void FLightmassExporter::WriteSceneSettings( Lightmass::FSceneFileHeader& Scene 
 		Scene.GeneralSettings.bVerifyEmbree = Scene.GeneralSettings.bUseEmbree && bConfigBool;
 		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseEmbreePacketTracing"), Scene.GeneralSettings.bUseEmbreePacketTracing, GLightmassIni));
 		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseFastVoxelization"), Scene.GeneralSettings.bUseFastVoxelization, GLightmassIni));
+		VERIFYLIGHTMASSINI(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseEmbreeInstancing"), Scene.GeneralSettings.bUseEmbreeInstancing, GLightmassIni));
 		VERIFYLIGHTMASSINI(GConfig->GetInt(TEXT("DevOptions.StaticLighting"), TEXT("MappingSurfaceCacheDownsampleFactor"), Scene.GeneralSettings.MappingSurfaceCacheDownsampleFactor, GLightmassIni));
 
 		int32 CheckQualityLevel;

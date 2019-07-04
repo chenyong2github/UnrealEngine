@@ -142,14 +142,14 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 			{
 				if (MeshInstance->Mapping->GetVolumeMapping() == nullptr)
 				{
-					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry.TransformBy(MeshInstance->LocalToWorldInverseTranspose.GetTransposed())))
+					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry.TransformBy(MeshInstance->WorldToLocal)))
 					{
 						return true;
 					}
 				}
 				else
 				{
-					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry.TransformBy(MeshInstance->LocalToWorldInverseTranspose.GetTransposed())))
+					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry.TransformBy(MeshInstance->WorldToLocal)))
 					{
 						return true;
 					}

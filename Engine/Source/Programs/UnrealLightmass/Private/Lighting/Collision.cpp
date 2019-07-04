@@ -126,8 +126,13 @@ void FDefaultAggregateMesh::AddMesh(const FStaticLightingMesh* Mesh, const FStat
 	}
 }
 
-void FDefaultAggregateMesh::AddMeshForVoxelization(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping)
+void FDefaultAggregateMesh::AddMeshForVoxelization(const FStaticLightingMesh* Mesh, const FStaticLightingMapping* Mapping, bool bUseForInstancing)
 {
+	if (bUseForInstancing)
+	{
+		check(Mesh->GetInstanceableStaticMesh());
+	}
+
 	if (Mesh->LightingFlags & GI_INSTANCE_CASTSHADOW && Mesh->DoesMeshBelongToLOD0())
 	{
 		SceneBounds = SceneBounds + Mesh->BoundingBox;
@@ -145,19 +150,26 @@ void FDefaultAggregateMesh::AddMeshForVoxelization(const FStaticLightingMesh* Me
 		for (int32 TriangleIndex = 0; TriangleIndex < Mesh->NumTriangles; TriangleIndex++)
 		{
 			// Read the triangle from the mesh.
+			int32 I0 = 0;
+			int32 I1 = 0;
+			int32 I2 = 0;
 			FStaticLightingVertex V0;
 			FStaticLightingVertex V1;
 			FStaticLightingVertex V2;
 			int32 ElementIndex;
-			Mesh->GetTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+			if (bUseForInstancing)
+			{
+				Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangleIndices(TriangleIndex, I0, I1, I2);
+				Mesh->GetInstanceableStaticMesh()->GetNonTransformedTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+			}
+			else
+			{
+				Mesh->GetTriangleIndices(TriangleIndex, I0, I1, I2);
+				Mesh->GetTriangle(TriangleIndex, V0, V1, V2, ElementIndex);
+			}
 
 			if (Mesh->IsElementCastingShadow(ElementIndex) && !Mesh->IsTranslucent(ElementIndex))
 			{
-				int32 I0 = 0;
-				int32 I1 = 0;
-				int32 I2 = 0;
-				Mesh->GetTriangleIndices(TriangleIndex, I0, I1, I2);
-
 				check(I0 <= Mesh->NumVertices && I1 <= Mesh->NumVertices && I2 <= Mesh->NumVertices);
 
 				const bool bTwoSided = Mesh->IsTwoSided(ElementIndex) || Mesh->IsCastingShadowAsTwoSided();

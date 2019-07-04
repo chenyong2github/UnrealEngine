@@ -19,6 +19,9 @@ namespace Lightmass
 
 		FStaticLightingMapping* Mapping;
 
+		/** World to local transform, for box intersection w/ instances. */
+		FMatrix WorldToLocal;
+
 		virtual FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() override { return !bIsSplineMesh ? this : nullptr; }
 
 		virtual const FStaticMeshStaticLightingMesh* GetInstanceableStaticMesh() const override { return !bIsSplineMesh ? this : nullptr; }
@@ -47,7 +50,9 @@ namespace Lightmass
 		}
 
 		virtual void GetTriangle(int32 TriangleIndex,FStaticLightingVertex& OutV0,FStaticLightingVertex& OutV1,FStaticLightingVertex& OutV2,int32& ElementIndex) const;
+		virtual void GetNonTransformedTriangle(int32 TriangleIndex,FStaticLightingVertex& OutV0,FStaticLightingVertex& OutV1,FStaticLightingVertex& OutV2,int32& ElementIndex) const;
 		virtual void GetTriangleIndices(int32 TriangleIndex,int32& OutI0,int32& OutI1,int32& OutI2) const;
+		virtual void GetNonTransformedTriangleIndices(int32 TriangleIndex,int32& OutI0,int32& OutI1,int32& OutI2) const;
 
 		virtual bool IsElementCastingShadow(int32 ElementIndex) const;
 
