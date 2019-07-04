@@ -531,16 +531,22 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 						{
 							const float DistanceSquared = (Intersections[CornerIndex].IntersectionVertex.WorldPosition - TexelCenterOffset).SizeSquared3();
 
-							if (ClosestIntersectionIndex == INDEX_NONE || DistanceSquared < ClosestIntersectionDistanceSq)
+							if (!bHitBackfaces[CornerIndex] && (ClosestIntersectionIndex == INDEX_NONE || DistanceSquared < ClosestIntersectionDistanceSq))
 							{
 								ClosestIntersectionDistanceSq = DistanceSquared;
 								ClosestIntersectionIndex = CornerIndex;
+
+								// Mark the texel as intersecting another surface so we can avoid filtering across it later
+								TexelToVertex.bIntersectingSurface = true;
 							}
 
 							if (bHitBackfaces[CornerIndex] && DistanceSquared < ClosestBackfacingIntersectionDistanceSq)
 							{
 								ClosestBackfacingIntersectionDistanceSq = DistanceSquared;
 								ClosestBackfacingIntersectionIndex = CornerIndex;
+
+								// Mark the texel as intersecting another surface so we can avoid filtering across it later
+								TexelToVertex.bIntersectingSurface = true;
 							}
 						}
 					}
@@ -548,9 +554,6 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 					if (ClosestIntersectionIndex != INDEX_NONE)
 					{
 						checkSlow(Intersections[ClosestIntersectionIndex].bIntersects);
-
-						// Mark the texel as intersecting another surface so we can avoid filtering across it later
-						TexelToVertex.bIntersectingSurface = true;
 
 						TexelToVertex.TexelRadius = FMath::Min(TexelToVertex.TexelRadius, FMath::Sqrt(ClosestIntersectionDistanceSq / 2.0f));
 					}
@@ -577,7 +580,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 						// Project back onto plane of texel to avoid incorrect self occlusion
 						TexelToVertex.WorldPosition = OffsetShadingPosition + TexelToVertex.TriangleNormal * Dot3(TexelToVertex.TriangleNormal, TexelToVertex.WorldPosition - OffsetShadingPosition);
 
-						TexelToVertex.TexelRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3();
+						TexelToVertex.TexelRadius = (OffsetShadingPosition - Intersections[IntersectionIndexForShadingPositionMovement].IntersectionVertex.WorldPosition).Size3() / FMath::Sqrt(2.0f);
 					}
 
 					TexelToVertex.TexelRadius = FMath::Max(TexelToVertex.TexelRadius, SceneConstants.SmallestTexelRadius);
