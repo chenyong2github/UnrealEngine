@@ -705,6 +705,15 @@ bool FStaticMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Secti
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
 				}
 			}
+			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			{
+				const int32 TextureIndex = TextureData.TextureIndex;
+				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)
+				{
+					OneOverScales[TextureIndex / 4][TextureIndex % 4] = 1.f;
+					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = 0;
+				}
+			}
 			return true;
 		}
 	}

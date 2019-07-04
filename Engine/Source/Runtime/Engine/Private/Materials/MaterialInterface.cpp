@@ -573,7 +573,18 @@ void UMaterialInterface::SortTextureStreamingData(bool bForceSort, bool bFinalSo
 		}
 
 		// Sort by name to be compatible with FindTextureStreamingDataIndexRange
-		TextureStreamingData.Sort([](const FMaterialTextureInfo& Lhs, const FMaterialTextureInfo& Rhs) { return Lhs.TextureName.LexicalLess(Rhs.TextureName); });
+		TextureStreamingData.Sort([](const FMaterialTextureInfo& Lhs, const FMaterialTextureInfo& Rhs) 
+		{ 
+#if WITH_EDITORONLY_DATA
+			// Sort by register indices when the name are the same, as when initially added in the streaming data.
+			if (Lhs.TextureName == Rhs.TextureName)
+			{
+				return Lhs.TextureIndex < Rhs.TextureIndex;
+
+			}
+#endif
+			return Lhs.TextureName.LexicalLess(Rhs.TextureName); 
+		});
 		bTextureStreamingDataSorted = true;
 	}
 #endif
@@ -615,7 +626,9 @@ void UMaterialInterface::SetTextureStreamingData(const TArray<FMaterialTextureIn
 {
 	TextureStreamingData = InTextureStreamingData;
 #if WITH_EDITORONLY_DATA
+	bTextureStreamingDataSorted = false;
 	TextureStreamingDataVersion = InTextureStreamingData.Num() ? MATERIAL_TEXTURE_STREAMING_DATA_VERSION : 0;
+	TextureStreamingDataMissingEntries.Empty();
 #endif
 	SortTextureStreamingData(true, false);
 }
