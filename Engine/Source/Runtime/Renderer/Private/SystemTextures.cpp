@@ -182,29 +182,13 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 				// 16x16 block starting at 0,0 = Sobol X,Y from bottom 4 bits of cell X,Y
 				for (int x = 0; x < 16; ++x, ++Dest)
 				{
-					Result  = (x & 0x001) ? 0xf68e : 0;
-					Result ^= (x & 0x002) ? 0x8e56 : 0;
-					Result ^= (x & 0x004) ? 0x1135 : 0;
-					Result ^= (x & 0x008) ? 0x220a : 0;
-					Result ^= (y & 0x001) ? 0x94c4 : 0;
-					Result ^= (y & 0x002) ? 0x4ac2 : 0;
-					Result ^= (y & 0x004) ? 0xfb57 : 0;
-					Result ^= (y & 0x008) ? 0x0454 : 0;
-					*Dest = Result;
+					*Dest = FSobol::ComputeGPUSpatialSeed(x, y, /* Index = */ 0);
 				}
 
 				// 16x16 block starting at 16,0 = Sobol X,Y from 2nd 4 bits of cell X,Y
 				for (int x = 0; x < 16; ++x, ++Dest)
 				{
-					Result =  (x & 0x001) ? 0x4414 : 0;
-					Result ^= (x & 0x002) ? 0x8828 : 0;
-					Result ^= (x & 0x004) ? 0xe69e : 0;
-					Result ^= (x & 0x008) ? 0xae76 : 0;
-					Result ^= (y & 0x001) ? 0xa28a : 0;
-					Result ^= (y & 0x002) ? 0x265e : 0;
-					Result ^= (y & 0x004) ? 0xe69e : 0;
-					Result ^= (y & 0x008) ? 0xae76 : 0;
-					*Dest = Result;
+					*Dest = FSobol::ComputeGPUSpatialSeed(x, y, /* Index = */ 1);
 				}
 			}
 			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SobolSampling->GetRenderTargetItem().ShaderResourceTexture, 0, false);
