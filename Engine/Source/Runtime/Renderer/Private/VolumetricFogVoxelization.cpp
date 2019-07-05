@@ -46,6 +46,7 @@ void SetupVoxelizeVolumePassUniformBuffer(FRHICommandListImmediate& RHICmdList,
 {
 	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
 	SetupSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, ESceneTextureSetupMode::None, Parameters.SceneTextures);
+	Parameters.SceneTextures.EyeAdaptation = GetEyeAdaptation(View);
 
 	Parameters.ViewToVolumeClip = View.ViewMatrices.ComputeProjectionNoAAMatrix();
 	Parameters.ViewToVolumeClip.M[2][0] += Jitter.X;
