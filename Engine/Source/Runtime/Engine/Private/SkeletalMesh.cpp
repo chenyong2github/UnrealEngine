@@ -4527,16 +4527,25 @@ bool FSkeletalMeshSceneProxy::GetMaterialTextureScales(int32 LODIndex, int32 Sec
 		{
 			// This is thread safe because material texture data is only updated while the renderthread is idle.
 			for (const FMaterialTextureInfo TextureData : Material->GetTextureStreamingData())
-	{
+			{
 				const int32 TextureIndex = TextureData.TextureIndex;
 				if (TextureData.IsValid(true))
-		{
+				{
 					OneOverScales[TextureIndex / 4][TextureIndex % 4] = 1.f / TextureData.SamplingScale;
 					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = TextureData.UVChannelIndex;
-		}
-	}
+				}
+			}
+			for (const FMaterialTextureInfo TextureData : Material->TextureStreamingDataMissingEntries)
+			{
+				const int32 TextureIndex = TextureData.TextureIndex;
+				if (TextureIndex >= 0 && TextureIndex < TEXSTREAM_MAX_NUM_TEXTURES_PER_MATERIAL)
+				{
+					OneOverScales[TextureIndex / 4][TextureIndex % 4] = 1.f;
+					UVChannelIndices[TextureIndex / 4][TextureIndex % 4] = 0;
+				}
+			}
 			return true;
-	}
+		}
 	}
 	return false;
 }
