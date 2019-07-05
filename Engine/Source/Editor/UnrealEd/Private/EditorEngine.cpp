@@ -7319,36 +7319,8 @@ bool UEditorEngine::IsOfflineShaderCompilerAvailable(UWorld* World)
 	return FMaterialStatsUtils::IsPlatformOfflineCompilerAvailable(RealPlatform);
 }
 
-void UEditorEngine::UpdateShaderComplexityMaterials(bool bForceUpdate)
-{
-	TSet<UWorld *> WorldSet;
-
-	for(FLevelEditorViewportClient* ViewportClient : LevelViewportClients)
-	{
-		auto ViewMode = ViewportClient->GetViewMode();
-		if (ViewMode == EViewModeIndex::VMI_ShaderComplexity || ViewMode == EViewModeIndex::VMI_ShaderComplexityWithQuadOverdraw)
-		{
-			WorldSet.Add(ViewportClient->GetWorld());
-		}
-	}
-
-	for (auto* SomeWorld : WorldSet)
-	{
-		bool bShadersEmulated = IsEditorShaderPlatformEmulated(SomeWorld);
-		if (bShadersEmulated || bForceUpdate)
-		{
-			bool bOfflineCompilerAvailable = IsOfflineShaderCompilerAvailable(SomeWorld);
-			if (bOfflineCompilerAvailable || bForceUpdate)
-			{
-				FEditorBuildUtils::CompileViewModeShaders(SomeWorld, VMI_ShaderComplexity);
-			}
-		}
-	}
-}
-
 void UEditorEngine::OnSceneMaterialsModified()
 {
-	UpdateShaderComplexityMaterials(false);
 }
 
 void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeatureLevel)
@@ -7387,14 +7359,6 @@ void UEditorEngine::SetMaterialsFeatureLevel(const ERHIFeatureLevel::Type InFeat
 	GShaderCompilingManager->ProcessAsyncResults(false, true);
 
 	PreviewFeatureLevelChanged.Broadcast(InFeatureLevel);
-
-	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
-	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
-	// opportunity to switch to the new feature level first.
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(nullptr);
-
-	UpdateShaderComplexityMaterials(true);
 }
 
 void UEditorEngine::SetFeatureLevelPreview(const ERHIFeatureLevel::Type InPreviewFeatureLevel)
@@ -7466,14 +7430,6 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	ERHIFeatureLevel::Type NewPreviewFeatureLevel = Settings->bIsFeatureLevelPreviewActive ? PreviewFeatureLevel : GMaxRHIFeatureLevel;
 
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
-	
-	// The feature level changed, so existing debug view materials are invalid and need to be rebuilt.
-	// This process must follow the PreviewFeatureLevelChanged event, because any listeners need
-	// opportunity to switch to the new feature level first.
-	void ClearDebugViewMaterials(UMaterialInterface*);
-	ClearDebugViewMaterials(nullptr);
-
-	UpdateShaderComplexityMaterials(true);
 
 	GEditor->RedrawAllViewports();
 	
