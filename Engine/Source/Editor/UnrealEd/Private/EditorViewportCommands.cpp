@@ -280,6 +280,18 @@ static void AppendTextureStreamingInfoToMenu(const UMaterialInterface* MaterialI
 			}
 		}
 	}
+
+	for (const FMaterialTextureInfo& MissingEntry : MaterialInterface->TextureStreamingDataMissingEntries)
+	{
+		if (bSingleMaterial)
+		{
+			DataPerTextureIndex.FindOrAdd(MissingEntry.TextureIndex).AddUnique(FString::Printf(TEXT("Missing : %s"), *MissingEntry.TextureName.ToString()));
+		}
+		else
+		{
+			DataPerTextureIndex.FindOrAdd(MissingEntry.TextureIndex).AddUnique(FString::Printf(TEXT("Missing : %s.%s"), *MaterialInterface->GetName(), *MissingEntry.TextureName.ToString()));
+		}
+	}
 }
 
 static void AppendMaterialInfoToMenu(const UMaterialInterface* MaterialInterface, ERHIFeatureLevel::Type FeatureLevel, const FString& MenuName, TMap<int32, TArray<FString> >& DataPerTextureIndex, TMap<FName, TArray<FString> >& DataPerTextureName)

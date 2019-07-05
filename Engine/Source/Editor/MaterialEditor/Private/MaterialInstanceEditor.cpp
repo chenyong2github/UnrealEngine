@@ -43,6 +43,7 @@
 #include "MaterialStats.h"
 #include "MaterialEditingLibrary.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "DebugViewModeHelpers.h"
 
 #define LOCTEXT_NAMESPACE "MaterialInstanceEditor"
 
@@ -614,6 +615,7 @@ FMaterialInstanceEditor::~FMaterialInstanceEditor()
 		UPackage* Package = MaterialEditorInstance->SourceInstance->GetOutermost();
 		if (Package && Package->IsDirty() && Package != GetTransientPackage())
 		{
+			ClearDebugViewMaterials(MaterialEditorInstance->SourceInstance);
 			FMaterialEditorUtilities::BuildTextureStreamingData(MaterialEditorInstance->SourceInstance);
 		}
 	}

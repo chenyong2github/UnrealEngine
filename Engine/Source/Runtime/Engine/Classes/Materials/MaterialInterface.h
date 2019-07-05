@@ -259,6 +259,10 @@ public:
 	//~ End IInterface_AssetUserData Interface
 
 #if WITH_EDITORONLY_DATA
+	/** List of all used but missing texture indices in TextureStreamingData. Used for visualization / debugging only. */
+	UPROPERTY(transient)
+	TArray<FMaterialTextureInfo> TextureStreamingDataMissingEntries;
+
 	/** The mesh used by the material editor to preview the material.*/
 	UPROPERTY(EditAnywhere, Category=Previewing, meta=(AllowedClasses="StaticMesh,SkeletalMesh", ExactClass="true"))
 	FSoftObjectPath PreviewMesh;
@@ -828,6 +832,10 @@ public:
 	FORCEINLINE bool HasTextureStreamingData() const { return TextureStreamingData.Num() != 0; }
 	/** Accessor to the data. */
 	FORCEINLINE const TArray<FMaterialTextureInfo>& GetTextureStreamingData() const { return TextureStreamingData; }
+	FORCEINLINE TArray<FMaterialTextureInfo>& GetTextureStreamingData() { return TextureStreamingData; }
+	/** Find entries within TextureStreamingData that match the given name. */
+	ENGINE_API bool FindTextureStreamingDataIndexRange(FName TextureName, int32& LowerIndex, int32& HigherIndex) const;
+
 	/** Set new texture streaming data. */
 	ENGINE_API void SetTextureStreamingData(const TArray<FMaterialTextureInfo>& InTextureStreamingData);
 
@@ -842,8 +850,6 @@ public:
 
 	ENGINE_API virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 
-protected:
-
 	/**
 	* Sort the texture streaming data by names to accelerate search. Only sorts if required.
 	*
@@ -852,13 +858,12 @@ protected:
 	*/
 	ENGINE_API void SortTextureStreamingData(bool bForceSort, bool bFinalSort);
 
+protected:
+
 	/** Returns a bitfield indicating which feature levels should be compiled for rendering. GMaxRHIFeatureLevel is always present */
 	ENGINE_API uint32 GetFeatureLevelsToCompileForRendering() const;
 
 	void UpdateMaterialRenderProxy(FMaterialRenderProxy& Proxy);
-
-	/** Find entries within TextureStreamingData that match the given name. */
-	bool FindTextureStreamingDataIndexRange(FName TextureName, int32& LowerIndex, int32& HigherIndex) const;
 
 private:
 	/**
