@@ -3086,17 +3086,6 @@ protected:
 	void LoadEditorFeatureLevel();
 	void SaveEditorFeatureLevel();
 
-	/** For some platforms (e.g. mobiles), when running in editor mode, we emulate the shaders functionality on available running GPU (e.g. DirectX),
-	 *  but when displaying the shader complexity we need to be able compile and extract statistics (instruction count) from the real shaders that
-	 *  will be compiled when the game will run on the specific platform. Thus (if compiler available) we perform an 'offline' shader compilation step,
-	 *  extract the needed statistics and transfer them to the emulated editor running shaders.
-	 *  This function will be called from OnSceneMaterialsModified()
-	 *
-	 * @param	bForceUpdate	When true, view mode shaders are always updated for worlds displaying shader complexity materials.
-	 *                          When false, view mode shaders are rebuilt only when emulating a shader platform.
-	 */
-	void UpdateShaderComplexityMaterials(bool bForceUpdate);
-
 	/** Utility function that can determine whether some input world is using materials who's shaders are emulated in the editor */
 	bool IsEditorShaderPlatformEmulated(UWorld* World);
 
