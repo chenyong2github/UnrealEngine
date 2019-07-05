@@ -87,6 +87,9 @@ public class LocalNotificationReceiver extends BroadcastReceiver
 		{
 			// show the notification
 			notificationManager.notify(notificationID, notification);
+			
+			// clear the stored notification details if they exist
+			GameActivity.LocalNotificationRemoveDetails(context, notificationID);
 		}
 	}
 
