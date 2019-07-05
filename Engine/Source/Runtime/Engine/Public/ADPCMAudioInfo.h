@@ -108,7 +108,6 @@ public:
 	virtual bool SupportsStreaming() const override {return true;}
 	virtual bool StreamCompressedInfoInternal(USoundWave* Wave, struct FSoundQualityInfo* QualityInfo) override;
 	virtual bool StreamCompressedData(uint8* Destination, bool bLooping, uint32 BufferSize) override;
-
 	virtual int32 GetCurrentChunkIndex() const override
 	{
 		return CurrentChunkIndex;
@@ -134,7 +133,11 @@ public:
 	}
 
 private:
-	void GetChunkPtr(const uint8* &CompressedChunkPtr, uint32 &CompressedChunkSize);
+
+	// Wrapper function that returns a pointer to the currently used compressed data.
+	// If a non-zero chunk is requested, this function also aquires a reference to that chunk
+	// until we move on to a different chunk.
+	const uint8* GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize);
 
 	FWaveModInfo WaveInfo;
 	const uint8*	SrcBufferData;
@@ -152,11 +155,13 @@ private:
 	uint32			CurrentUncompressedBlockSampleIndex;	// This is the sample index within the current uncompressed block data
 	uint32			CurrentChunkIndex;				// This is the index that is currently being used, needed by streaming engine to make sure it stays loaded and the next chunk gets preloaded
 	uint32			CurrentChunkBufferOffset;		// This is this byte offset within the current chunk, used by streaming engine to prioritize a load if more then half way through current chunk
+	uint32			CurrentChunkDataSize;			// The size of the current chunk, the first chunk is bigger to accommodate the header info
 	uint32			TotalSamplesStreamed;			// The number of samples streamed so far (per channel)
 	uint32			TotalSamplesPerChannel;			// Number of samples per channel, used to detect when an audio waveform has ended
 	uint32			SamplesPerBlock;				// The number of samples per block
 	uint32			FirstChunkSampleDataOffset;		// The size of the header in the first chunk, used to skip over it when looping or starting the sample over
-	FAudioChunkHandle	CurrentCompressedChunkData;			// A pointer to the current chunk of data
+	const uint8*	CurCompressedChunkData;			// A pointer to the current chunk of data
+	FAudioChunkHandle CurCompressedChunkHandle;     // Shared reference to the current chunk of data.
 
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
