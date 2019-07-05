@@ -169,6 +169,7 @@ SHeaderRow::FColumn::FArguments FActorInfoColumn::ConstructHeaderRowColumn()
 			[
 				SNew(SListView<TSharedPtr<ECustomColumnMode::Type>>)
 				.ListItemsSource(&ModeOptions)
+				.SelectionMode(ESelectionMode::Single)
 				.OnGenerateRow( this, &FActorInfoColumn::MakeComboButtonItemWidget )
 				.OnSelectionChanged( this, &FActorInfoColumn::OnModeChanged )
 			]
