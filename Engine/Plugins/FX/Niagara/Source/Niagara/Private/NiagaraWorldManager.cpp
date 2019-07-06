@@ -14,6 +14,7 @@
 #include "GameFramework/PlayerController.h"
 #include "EngineModule.h"
 #include "NiagaraStats.h"
+#include "NiagaraEmitterInstanceBatcher.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
@@ -180,6 +181,21 @@ void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstan
 	check(InPtr != nullptr);
 	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Emplace(MoveTemp(InPtr));
 }
+
+void FNiagaraWorldManager::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher)
+{
+	// Process the deferred deletion queue before deleting the batcher of this world.
+	// This is required because the batcher is accessed in FNiagaraEmitterInstance::~FNiagaraEmitterInstance
+	if (World && World->FXSystem && World->FXSystem->GetInterface(NiagaraEmitterInstanceBatcher::Name) == InBatcher)
+	{
+		for ( int32 i=0; i < NumDeferredQueues; ++i)
+		{
+			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+			DeferredDeletionQueue[i].Queue.Empty();
+		}
+	}
+}
+
 
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {

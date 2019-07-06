@@ -172,7 +172,11 @@ FParticleSystemThumbnailScene::FParticleSystemThumbnailScene()
 
 FParticleSystemThumbnailScene::~FParticleSystemThumbnailScene()
 {
-	FFXSystemInterface::Destroy( ThumbnailFXSystem );
+	if (ThumbnailFXSystem)
+	{
+		ThumbnailFXSystem->Destroy();
+		ThumbnailFXSystem = nullptr;
+	}
 }
 
 void FParticleSystemThumbnailScene::SetParticleSystem(UParticleSystem* ParticleSystem)
