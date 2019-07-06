@@ -316,6 +316,14 @@ FNiagaraWorldManager* INiagaraModule::GetWorldManager(UWorld* World)
 	return *OutWorld;
 }
 
+void INiagaraModule::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InBatcher)
+{
+	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
+	{
+		Pair.Value->OnBatcherDestroyed(InBatcher);
+	}
+}
+
 void INiagaraModule::DestroyAllSystemSimulations(class UNiagaraSystem* System)
 {
 	for (TPair<UWorld*, FNiagaraWorldManager*>& Pair : WorldManagers)
