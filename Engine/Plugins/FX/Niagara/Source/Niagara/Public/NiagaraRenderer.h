@@ -119,6 +119,8 @@ public:
 	static FRWBuffer& GetDummyIntBuffer();
 	static FRWBuffer& GetDummyUIntBuffer();
 	
+	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
+
 protected:
 
 	struct FNiagaraDynamicDataBase *DynamicDataRender;

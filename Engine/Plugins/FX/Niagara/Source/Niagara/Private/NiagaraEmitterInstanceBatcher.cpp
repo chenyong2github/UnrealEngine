@@ -588,6 +588,12 @@ void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdLi
 
 }
 
+void NiagaraEmitterInstanceBatcher::Destroy()
+{
+	INiagaraModule::OnBatcherDestroyed(this);
+	FFXSystemInterface::Destroy();
+}
+
 int32 NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(const FNiagaraGPUSortInfo& SortInfo)
 {
 	const int32 ResultOffset = SortedParticleCount;
