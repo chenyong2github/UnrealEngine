@@ -10,11 +10,13 @@ FFXSystemInterface* FFXSystemSet::GetInterface(const FName& InName)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
-		check(FXSystem);
-		FFXSystemInterface* Res = FXSystem->GetInterface(InName);
-		if (Res)
+		if (FXSystem) // Can be null when called from ::Destroy()
 		{
-			return Res;
+			FXSystem = FXSystem->GetInterface(InName);
+			if (FXSystem)
+			{
+				return FXSystem;
+			}
 		}
 	}
 	return nullptr;
@@ -136,12 +138,16 @@ void FFXSystemSet::PostRenderOpaque(
 	}
 }
 
-FFXSystemSet::~FFXSystemSet()
+void FFXSystemSet::Destroy()
 {
-	for (FFXSystemInterface* FXSystem : FXSystems)
+	for (FFXSystemInterface*& FXSystem : FXSystems)
 	{
+		// Here it is important that the FXSystem stays in the FXSystems array while destroy is being called.
+		// This is used to figure out from which world the destroyed FXSystem is owned (from UWorld::FXSystem->GetInterface())
 		check(FXSystem);
-		FFXSystemInterface::Destroy(FXSystem);
+		FXSystem->Destroy();
+		FXSystem = nullptr;
 	}
-	FXSystems.Empty();
+
+	FFXSystemInterface::Destroy();
 }
