@@ -4589,7 +4589,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				localNotificationLaunchActivationEvent = extrasBundle.get("localNotificationLaunchActivationEvent").toString();
 				int notificationID = extrasBundle.getInt("localNotificationID");
 
-				LocalNotificationRemoveID(notificationID);
+				LocalNotificationRemoveID(this, notificationID);
 
 				// TODO
 				localNotificationLaunchFireDate = 0; 
@@ -4678,9 +4678,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		return false;
 	}
 
-	private void LocalNotificationRemoveID(int notificationID)
+	public static void LocalNotificationRemoveID(Context context, int notificationID)
 	{
-		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		String notificationIDs = preferences.getString("notificationIDs", "");
 
@@ -4719,13 +4719,72 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		editor.putString("notificationIDs", newNotificationIDs);
 		editor.commit();
 	}
+	
+	public static void LocalNotificationRemoveDetails(Context context, int notificationID)
+	{
+		SharedPreferences preferences = context.getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+
+		try
+		{
+			JSONObject notificationDetails = new JSONObject(preferences.getString("notificationDetails", "{}"));
+			notificationDetails.remove(String.valueOf(notificationID));
+			editor.putString("notificationDetails", notificationDetails.toString());
+			editor.commit();
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace();
+		}
+	}
 
 	public int AndroidThunkJava_LocalNotificationScheduleAtTime(String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent) 
 	{
 		int notificationID = LocalNotificationGetID(this);
 
+		if (!LocalNotificationScheduleAtTime(this, notificationID, targetDateTime, localTime, title, body, action, activationEvent))
+		{
+			return -1;
+		}
+
+		// Store notification details
+		SharedPreferences preferences = getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
+		SharedPreferences.Editor editor = preferences.edit();
+		JSONObject notificationDetails;
+		try
+		{
+			notificationDetails = new JSONObject(preferences.getString("notificationDetails", "{}"));
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace(); 
+			notificationDetails = new JSONObject();
+		}
+		JSONObject details = new JSONObject();
+		try
+		{
+			details.put("local-notification-targetDateTime", targetDateTime);
+			details.put("local-notification-localTime", localTime);
+			details.put("local-notification-title", title);
+			details.put("local-notification-body", body);
+			details.put("local-notification-action", action);
+			details.put("local-notification-activationEvent", activationEvent);
+			notificationDetails.put(String.valueOf(notificationID), details);
+			editor.putString("notificationDetails", notificationDetails.toString());
+			editor.commit();
+		}
+		catch (JSONException e)
+		{
+			e.printStackTrace();
+		}
+
+		return notificationID;
+	}
+
+	public static boolean LocalNotificationScheduleAtTime(Context context, int notificationID, String targetDateTime, boolean localTime, String title, String body, String action, String activationEvent)
+	{
 		// Create callback for PendingIntent
-		Intent notificationIntent = new Intent(this, LocalNotificationReceiver.class); 
+		Intent notificationIntent = new Intent(context, LocalNotificationReceiver.class);
 
 		// Add user-provided data
 		notificationIntent.putExtra("local-notification-ID", notificationID);
@@ -4733,9 +4792,9 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		notificationIntent.putExtra("local-notification-body", body);
 		notificationIntent.putExtra("local-notification-action", action);
 		notificationIntent.putExtra("local-notification-activationEvent", activationEvent);
-		
+
 		// Designate the callback as a PendingIntent
-		PendingIntent pendingIntent = PendingIntent.getBroadcast(this, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+		PendingIntent pendingIntent = PendingIntent.getBroadcast(context, notificationID, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
 		TimeZone targetTimeZone = TimeZone.getTimeZone("UTC");
 
@@ -4757,8 +4816,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		catch (ParseException e) 
 		{
 			e.printStackTrace();
-			LocalNotificationRemoveID(notificationID);
-			return -1;
+			LocalNotificationRemoveID(context, notificationID);
+			return false;
 		}
 
 		Date currentDate = new Date();
@@ -4767,17 +4826,17 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 
 		if(msDiff < 0)
 		{
-			LocalNotificationRemoveID(notificationID);
-			return -1;
+			LocalNotificationRemoveID(context, notificationID);
+			return false;
 		}
 
 		long futureTimeInMillis = SystemClock.elapsedRealtime() + msDiff;//Calculate the time to run the callback
-		AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
+		AlarmManager alarmManager = (AlarmManager)context.getSystemService(Context.ALARM_SERVICE);
 
 		//Schedule the operation by using AlarmService
 		alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, futureTimeInMillis, pendingIntent);
 
-		return notificationID;
+		return true;
 	}
 
 	public class LaunchNotification {
@@ -4814,6 +4873,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		SharedPreferences preferences = getApplicationContext().getSharedPreferences("LocalNotificationPreferences", MODE_PRIVATE);
 		SharedPreferences.Editor editor = preferences.edit();
 		editor.putString("notificationIDs", "");
+		editor.putString("notificationDetails", "{}");
 		editor.commit();
 	}
 
@@ -4827,7 +4887,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 	{
 		if (AndroidThunkJava_LocalNotificationExists(notificationId))
 		{
-			LocalNotificationRemoveID(notificationId);
+			LocalNotificationRemoveID(this, notificationId);
+			LocalNotificationRemoveDetails(this, notificationId);
 
 			//Cancel the intent itself as well as from the alarm manager
 			AlarmManager alarmManager = (AlarmManager)getSystemService(Context.ALARM_SERVICE);
