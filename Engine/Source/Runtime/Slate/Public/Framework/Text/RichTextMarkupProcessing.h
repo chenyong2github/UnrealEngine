@@ -34,6 +34,7 @@ class SLATE_API FDefaultRichTextMarkupWriter : public IRichTextMarkupWriter
 {
 public:
 	static TSharedRef< FDefaultRichTextMarkupWriter > Create();
+	static TSharedRef< FDefaultRichTextMarkupWriter > GetStaticInstance();
 
 public:
 	virtual void Write(const TArray<FRichTextLine>& InLines, FString& Output) override;
