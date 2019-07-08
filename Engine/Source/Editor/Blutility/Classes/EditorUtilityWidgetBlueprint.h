@@ -16,6 +16,7 @@
 class UBlueprint;
 class UEditorUtilityWidget;
 enum class EAssetEditorCloseReason : uint8;
+enum class EMapChangeType : uint8;
 
 UCLASS()
 class UEditorUtilityWidgetBlueprint : public UWidgetBlueprint
@@ -59,7 +60,8 @@ public:
 protected:
 	virtual void LoadModulesRequiredForCompilation() override;
 #endif
-	
+	void ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType);
+
 private:
 	FName RegistrationName;
 
