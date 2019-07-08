@@ -94,7 +94,7 @@ struct PROJECTS_API FPluginDescriptor
 	/** Pre-build steps for each host platform */
 	FCustomBuildSteps PreBuildSteps;
 
-	/** Pre-build steps for each host platform */
+	/** Post-build steps for each host platform */
 	FCustomBuildSteps PostBuildSteps;
 
 	/** Dependent plugins */
