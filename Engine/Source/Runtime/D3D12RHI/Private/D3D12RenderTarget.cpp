@@ -12,6 +12,7 @@
 #include "SceneUtils.h"
 #include "PipelineStateCache.h"
 #include "Math/PackedVector.h"
+#include "RHISurfaceDataConversion.h"
 
 static inline DXGI_FORMAT ConvertTypelessToUnorm(DXGI_FORMAT Format)
 {
@@ -809,273 +810,55 @@ struct FD3DRGBA16
 	uint16 A;
 };
 
-// todo: this should be available for all RHI
-static void ConvertRAWSurfaceDataToFColor(DXGI_FORMAT Format, uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
+/** Convert D3D format type to general pixel format type*/
+static void ConvertDXGIToFColor(DXGI_FORMAT Format, uint32 Width, uint32 Height, uint8 *In, uint32 SrcPitch, FColor* Out, FReadSurfaceDataFlags InFlags)
 {
 	bool bLinearToGamma = InFlags.GetLinearToGamma();
-
-	if (Format == DXGI_FORMAT_R16_TYPELESS)
+	switch (Format)
 	{
-		// e.g. shadow maps
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			uint16* SrcPtr = (uint16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				uint16 Value16 = *SrcPtr;
-				float Value = Value16 / (float)(0xffff);
-
-				*DestPtr = FLinearColor(Value, Value, Value).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R8G8B8A8_TYPELESS || Format == DXGI_FORMAT_R8G8B8A8_UNORM)
-	{
-		// Read the data out of the buffer, converting it from ABGR to ARGB.
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for (uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FColor(SrcPtr->B, SrcPtr->G, SrcPtr->R, SrcPtr->A);
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_B8G8R8A8_TYPELESS || Format == DXGI_FORMAT_B8G8R8A8_UNORM || Format == DXGI_FORMAT_B8G8R8A8_UNORM_SRGB)
-	{
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FColor* SrcPtr = (FColor*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-
-			// Need to copy row wise since the Pitch might not match the Width.
-			FMemory::Memcpy(DestPtr, SrcPtr, sizeof(FColor) * Width);
-		}
-	}
-	else if (Format == DXGI_FORMAT_R10G10B10A2_UNORM)
-	{
-		// Read the data out of the buffer, converting it from R10G10B10A2 to FColor.
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FD3DR10G10B10A2* SrcPtr = (FD3DR10G10B10A2*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for (uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FLinearColor(
-					(float)SrcPtr->R / 1023.0f,
-					(float)SrcPtr->G / 1023.0f,
-					(float)SrcPtr->B / 1023.0f,
-					(float)SrcPtr->A / 3.0f
-					).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R16G16B16A16_FLOAT)
-	{
-		FPlane	MinValue(0.0f, 0.0f, 0.0f, 0.0f),
-			MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
-
-		check(sizeof(FFloat16) == sizeof(uint16));
-
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				MinValue.X = FMath::Min<float>(SrcPtr[0], MinValue.X);
-				MinValue.Y = FMath::Min<float>(SrcPtr[1], MinValue.Y);
-				MinValue.Z = FMath::Min<float>(SrcPtr[2], MinValue.Z);
-				MinValue.W = FMath::Min<float>(SrcPtr[3], MinValue.W);
-				MaxValue.X = FMath::Max<float>(SrcPtr[0], MaxValue.X);
-				MaxValue.Y = FMath::Max<float>(SrcPtr[1], MaxValue.Y);
-				MaxValue.Z = FMath::Max<float>(SrcPtr[2], MaxValue.Z);
-				MaxValue.W = FMath::Max<float>(SrcPtr[3], MaxValue.W);
-				SrcPtr += 4;
-			}
-		}
-
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FFloat16* SrcPtr = (FFloat16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				FColor NormalizedColor =
-					FLinearColor(
-						(SrcPtr[0] - MinValue.X) / (MaxValue.X - MinValue.X),
-						(SrcPtr[1] - MinValue.Y) / (MaxValue.Y - MinValue.Y),
-						(SrcPtr[2] - MinValue.Z) / (MaxValue.Z - MinValue.Z),
-						(SrcPtr[3] - MinValue.W) / (MaxValue.W - MinValue.W)
-						).ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-				SrcPtr += 4;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R11G11B10_FLOAT)
-	{
-		check(sizeof(FFloat3Packed) == sizeof(uint32));
-
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FFloat3Packed* SrcPtr = (FFloat3Packed*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				FLinearColor Value = (*SrcPtr).ToLinearColor();
-
-				FColor NormalizedColor = Value.ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-				++SrcPtr;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R32G32B32A32_FLOAT)
-	{
-		FPlane MinValue(0.0f, 0.0f, 0.0f, 0.0f);
-		FPlane MaxValue(1.0f, 1.0f, 1.0f, 1.0f);
-
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			float* SrcPtr = (float*)(In + Y * SrcPitch);
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				MinValue.X = FMath::Min<float>(SrcPtr[0], MinValue.X);
-				MinValue.Y = FMath::Min<float>(SrcPtr[1], MinValue.Y);
-				MinValue.Z = FMath::Min<float>(SrcPtr[2], MinValue.Z);
-				MinValue.W = FMath::Min<float>(SrcPtr[3], MinValue.W);
-				MaxValue.X = FMath::Max<float>(SrcPtr[0], MaxValue.X);
-				MaxValue.Y = FMath::Max<float>(SrcPtr[1], MaxValue.Y);
-				MaxValue.Z = FMath::Max<float>(SrcPtr[2], MaxValue.Z);
-				MaxValue.W = FMath::Max<float>(SrcPtr[3], MaxValue.W);
-				SrcPtr += 4;
-			}
-		}
-
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			float* SrcPtr = (float*)In;
-			FColor* DestPtr = Out + Y * Width;
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				FColor NormalizedColor =
-					FLinearColor(
-						(SrcPtr[0] - MinValue.X) / (MaxValue.X - MinValue.X),
-						(SrcPtr[1] - MinValue.Y) / (MaxValue.Y - MinValue.Y),
-						(SrcPtr[2] - MinValue.Z) / (MaxValue.Z - MinValue.Z),
-						(SrcPtr[3] - MinValue.W) / (MaxValue.W - MinValue.W)
-						).ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-				SrcPtr += 4;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R24G8_TYPELESS)
-	{
-		// Depth stencil
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			uint32* SrcPtr = (uint32*)In;
-			FColor* DestPtr = Out + Y * Width;
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				FColor NormalizedColor;
-				if (InFlags.GetOutputStencil())
-				{
-					uint8 DeviceStencil = (*SrcPtr & 0xFF000000) >> 24;
-					NormalizedColor = FColor(DeviceStencil, DeviceStencil, DeviceStencil, 0xFF);
-				}
-				else
-				{
-					float DeviceZ = (*SrcPtr & 0xffffff) / (float)(1 << 24);
-					float LinearValue = FMath::Min(InFlags.ComputeNormalizedDepth(DeviceZ), 1.0f);
-					NormalizedColor = FLinearColor(LinearValue, LinearValue, LinearValue, 0).ToFColor(bLinearToGamma);
-				}
-
-				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-				++SrcPtr;
-			}
-		}
-	}
-	// Changing Depth Buffers to 32 bit on Dingo as D24S8 is actually implemented as a 32 bit buffer in the hardware
-	else if (Format == DXGI_FORMAT_R32G8X24_TYPELESS)
-	{
-		// Depth stencil
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			float* SrcPtr = (float*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-
-			for (uint32 X = 0; X < Width; X++)
-			{
-				float DeviceZ = (*SrcPtr);
-
-				float LinearValue = FMath::Min(InFlags.ComputeNormalizedDepth(DeviceZ), 1.0f);
-
-				FColor NormalizedColor = FLinearColor(LinearValue, LinearValue, LinearValue, 0).ToFColor(bLinearToGamma);
-				FMemory::Memcpy(DestPtr++, &NormalizedColor, sizeof(FColor));
-				SrcPtr+=1; // todo: copies only depth, need to check how this format is read
-				UE_LOG(LogD3D12RHI, Warning, TEXT("CPU read of R32G8X24 is not tested and may not function."));
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R16G16B16A16_UNORM)
-	{
-		// Read the data out of the buffer, converting it to FColor.
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FD3DRGBA16* SrcPtr = (FD3DRGBA16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for (uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FLinearColor(
-					(float)SrcPtr->R / 65535.0f,
-					(float)SrcPtr->G / 65535.0f,
-					(float)SrcPtr->B / 65535.0f,
-					(float)SrcPtr->A / 65535.0f
-					).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
-	}
-	else if (Format == DXGI_FORMAT_R16G16_UNORM)
-	{
-		// Read the data out of the buffer, converting it to FColor.
-		for (uint32 Y = 0; Y < Height; Y++)
-		{
-			FD3DRG16* SrcPtr = (FD3DRG16*)(In + Y * SrcPitch);
-			FColor* DestPtr = Out + Y * Width;
-			for (uint32 X = 0; X < Width; X++)
-			{
-				*DestPtr = FLinearColor(
-					(float)SrcPtr->R / 65535.0f,
-					(float)SrcPtr->G / 65535.0f,
-					0).Quantize();
-				++SrcPtr;
-				++DestPtr;
-			}
-		}
-	}
-	else
-	{
-		// not supported yet
-		check(0);
+	case DXGI_FORMAT_R16_TYPELESS:
+		ConvertRawR16DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		ConvertRawR8G8B8A8DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+		ConvertRawB8G8R8A8DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	case DXGI_FORMAT_R10G10B10A2_UNORM:
+		ConvertRawR10G10B10A2DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	case DXGI_FORMAT_R16G16B16A16_FLOAT:
+		ConvertRawR16G16B16A16FDataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
+		break;
+	case DXGI_FORMAT_R11G11B10_FLOAT:
+		ConvertRawR11G11B10DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
+		break;
+	case DXGI_FORMAT_R32G32B32A32_FLOAT:
+		ConvertRawR32G32B32A32DataToFColor(Width, Height, In, SrcPitch, Out, bLinearToGamma);
+		break;
+	case DXGI_FORMAT_R24G8_TYPELESS:
+		ConvertRawR24G8DataToFColor(Width, Height, In, SrcPitch, Out, InFlags);
+		break;
+	case DXGI_FORMAT_R32G8X24_TYPELESS:
+		ConvertRawR32DataToFColor(Width, Height, In, SrcPitch, Out, InFlags);
+		break;
+	case DXGI_FORMAT_R16G16B16A16_UNORM:
+		ConvertRawR16G16B16A16DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	case DXGI_FORMAT_R16G16_UNORM:
+		ConvertRawR16G16DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	case DXGI_FORMAT_R8_UNORM:
+		ConvertRawR8DataToFColor(Width, Height, In, SrcPitch, Out);
+		break;
+	default:
+		checkf(0, TEXT("Unknown surface format!"));
+		break;
 	}
 }
 
@@ -1134,8 +917,8 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect InRe
 	FPixelFormatInfo FormatInfo = GPixelFormats[TextureRHI->GetFormat()];
 	uint32 BytesPerPixel = FormatInfo.BlockBytes;
 	uint32 SrcPitch = SizeX * BytesPerPixel;
-
-	ConvertRAWSurfaceDataToFColor((DXGI_FORMAT)FormatInfo.PlatformFormat, SizeX, SizeY, OutDataRaw.GetData(), SrcPitch, OutData.GetData(), InFlags);
+	
+	ConvertDXGIToFColor((DXGI_FORMAT)FormatInfo.PlatformFormat, SizeX, SizeY, OutDataRaw.GetData(), SrcPitch, OutData.GetData(), InFlags);
 }
 
 void FD3D12DynamicRHI::ReadSurfaceDataMSAARaw(FRHICommandList_RecursiveHazardous& RHICmdList, FRHITexture* TextureRHI, FIntRect InRect, TArray<uint8>& OutData, FReadSurfaceDataFlags InFlags)
