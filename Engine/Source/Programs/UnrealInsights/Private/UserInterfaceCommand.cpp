@@ -110,8 +110,13 @@ void FUserInterfaceCommand::Run()
 
 void FUserInterfaceCommand::InitializeSlateApplication(const FString& LayoutIni)
 {
+	//TODO: FSlateApplication::InitHighDPI(true);
+
 	// Crank up a normal Slate application using the platform's standalone renderer.
 	FSlateApplication::InitializeAsStandaloneApplication(GetStandardStandaloneRenderer());
+
+	// Menu anims aren't supported. See Runtime\Slate\Private\Framework\Application\MenuStack.cpp.
+	FSlateApplication::Get().EnableMenuAnimations(false);
 
 	// Set the application name.
 	FGlobalTabmanager::Get()->SetApplicationTitle(NSLOCTEXT("UnrealInsights", "AppTitle", "Unreal Insights"));
