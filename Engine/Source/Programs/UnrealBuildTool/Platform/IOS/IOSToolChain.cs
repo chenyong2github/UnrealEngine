@@ -1812,6 +1812,11 @@ namespace UnrealBuildTool
 						MobileProvision.TryGetTeamUniqueId(out TeamUUID);
 					}
 
+					if(MobileProvisionFile == null)
+					{
+						throw new BuildException("Unable to find valid certificate/mobile provision pair.");
+					}
+
 					string ConfigName = Target.Configuration.ToString();
 					if (Target.TargetType != TargetType.Game && Target.TargetType != TargetType.Program)
 					{
