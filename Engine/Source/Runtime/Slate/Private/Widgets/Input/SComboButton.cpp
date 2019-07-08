@@ -97,6 +97,15 @@ FReply SComboButton::OnButtonClicked()
 		TSharedPtr<SWidget> WidgetToFocus = WidgetToFocusPtr.Pin();
 		if (!WidgetToFocus.IsValid())
 		{
+			// no explicitly focused widget, try to focus the content that is a child of the border
+			if (WrappedContent.IsValid() && WrappedContent->GetChildren()->Num() == 1)
+			{
+				WidgetToFocus = WrappedContent->GetChildren()->GetChildAt(0);
+			}
+		}
+
+		if (!WidgetToFocus.IsValid())
+		{
 			// no explicitly focused widget, try to focus the content
 			WidgetToFocus = MenuContent;
 		}
