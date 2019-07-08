@@ -177,14 +177,6 @@ public:
 		return Ar << V.Expression;
 	}
 
-	virtual void GatherExpressionsForCustomInterpolators(TArray<UMaterialExpression*>& OutExpressions) const override
-	{
-		if(Expression.IsValid() && Expression->Material)
-		{
-			Expression->Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
-		}
-	}
-
 	float UnrelatedNodesOpacity;
 
 private:
