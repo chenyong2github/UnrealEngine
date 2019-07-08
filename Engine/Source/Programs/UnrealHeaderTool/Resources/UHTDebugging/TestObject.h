@@ -7,6 +7,7 @@
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
+DECLARE_DYNAMIC_DELEGATE(FSimpleClassDelegate);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FRegularDelegate, int32, SomeArgument);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FDelegateWithDelegateParam, FRegularDelegate const &, RegularDelegate);
 
@@ -88,6 +89,9 @@ public:
 	UPROPERTY()
 	UObject* const ConstPointerProperty;
 
+	UPROPERTY()
+	FSimpleClassDelegate DelegateProperty;
+
 	UFUNCTION()
 	void CodeGenTestForEnumClasses(ECppEnum Val);
 
@@ -136,5 +140,30 @@ public:
 
 	UEnum* SomeFunc() const;
 };
+
+/**
+ * A test objec to validate the DocumentationPolicy validation.
+ */
+UCLASS(meta = (DocumentationPolicy = "Strict"))
+class UDocumentedTestObject : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	/**
+	 * A float member on this class.
+	 */
+	UPROPERTY(meta = (UIMin = "0.0", UIMax = "1.0"))
+	float Member;
+
+	/**
+	 * Tests the documentation policy
+	 * @param bFlag If set to true, a flag is set to true
+	 * @param Range The range of the results.
+	 */
+	UFUNCTION()
+	void TestFunction(bool bFlag, float Range);
+}
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

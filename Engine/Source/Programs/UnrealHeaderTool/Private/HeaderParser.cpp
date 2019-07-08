@@ -2045,54 +2045,59 @@ FString FHeaderParser::FormatCommentForToolTip(const FString& Input)
 
 TMap<FName, FString> FHeaderParser::GetParameterToolTipsFromFunctionComment(const FString& Input)
 {
-	TMap<FName, FString> Map;
-	TArray<FString> Params;
+	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
 
+	TMap<FName, FString> Map;
+	if (Input.IsEmpty())
+	{
+		return Map;
+	}
+	
+	TArray<FString> Params;
+	static const TCHAR ParamTag[] = TEXT("@param");
+	static const TCHAR ReturnTag[] = TEXT("@return");
+	static const TCHAR ReturnParamPrefix[] = TEXT("ReturnValue ");
+
+	/**
+	 * Search for @param / @return followed by a section until a line break.
+	 * For example: "@param Test MyTest Variable" becomes "Test", "MyTest Variable"
+	 * These pairs are then later split and stored as the parameter tooltips.
+	 * Once we don't find either @param or @return we break from the loop.
+	 */
 	int32 Offset = 0;
-	int32 ParamStart = -1;
-	int32 ParamLength = 0;
-	FString ParamPrefix;
 	while (Offset < Input.Len())
 	{
-		if (ParamStart == -1)
+		const TCHAR* ParamPrefix = TEXT("");
+		int32 ParamStart = Input.Find(ParamTag, ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset);
+		if(ParamStart != INDEX_NONE)
 		{
-			if (Input.Find(TEXT("@param"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset) == Offset)
-			{
-				ParamStart = Offset + 6;
-				Offset += 6;
-				continue;
-			}
-			else if (Input.Find(TEXT("@return"), ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset) == Offset)
-			{
-				ParamStart = Offset + 7;
-				Offset += 7;
-				ParamPrefix = TEXT("ReturnValue ");
-				continue;
-			}
-			Offset++;
-			continue;
-		}
-
-		TCHAR CurrentChar = Input[Offset];
-		if ((CurrentChar == '\n') || (CurrentChar == '\r'))
-		{
-			if (ParamLength > 0)
-			{
-				Params.Add(ParamPrefix + Input.Mid(ParamStart, ParamLength));
-				ParamStart = -1;
-				ParamLength = 0;
-			}
-			ParamPrefix.Reset();
+			ParamStart = ParamStart + ARRAY_COUNT(ParamTag);
+			Offset = ParamStart;
 		}
 		else
 		{
-			ParamLength++;
+			ParamStart = Input.Find(ReturnTag, ESearchCase::CaseSensitive, ESearchDir::FromStart, Offset);
+			if (ParamStart != INDEX_NONE)
+			{
+				ParamStart = ParamStart + ARRAY_COUNT(ReturnTag);
+				Offset = ParamStart;
+				ParamPrefix = ReturnParamPrefix;
+			}
+			else
+			{
+				// no @param, no @return?
+				break;
+			}
 		}
-		Offset++;
-	}
-	if (ParamLength > 0)
-	{
-		Params.Add(ParamPrefix + Input.Mid(ParamStart, ParamLength));
+
+		int32 ParamEnd = Input.Find(TEXT("\n"), ESearchCase::CaseSensitive, ESearchDir::FromStart, ParamStart);
+		if (ParamEnd == INDEX_NONE)
+		{
+			ParamEnd = Input.Len();
+		}
+		Offset = ParamEnd;
+
+		Params.Add(ParamPrefix + Input.Mid(ParamStart, ParamEnd - ParamStart - 1));
 	}
 
 	for (FString Param : Params)
@@ -8149,6 +8154,8 @@ ECompilationResult::Type FHeaderParser::ParseAllHeadersInside(
 	TArray<IScriptGeneratorPluginInterface*>& ScriptPlugins
 	)
 {
+	SCOPE_SECONDS_COUNTER_UHT(ParseAllHeaders);
+
 	// Disable loading of objects outside of this package (or more exactly, objects which aren't UFields, CDO, or templates)
 	TGuardValue<bool> AutoRestoreVerifyObjectRefsFlag(GVerifyObjectReferencesOnly, true);
 	// Create the header parser and register it as the warning context.
@@ -9624,6 +9631,8 @@ FDocumentationPolicy FHeaderParser::GetDocumentationPolicyFromName(const FString
 
 FDocumentationPolicy FHeaderParser::GetDocumentationPolicyForStruct(UStruct* Struct)
 {
+	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
+
 	check(Struct!= nullptr);
 
 	FDocumentationPolicy DocumentationPolicy;
@@ -9637,6 +9646,8 @@ FDocumentationPolicy FHeaderParser::GetDocumentationPolicyForStruct(UStruct* Str
 
 void FHeaderParser::CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FName, FString>& MetaData, const TArray<TMap<FName, FString>>& Entries)
 {
+	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
+
 	check(Enum != nullptr);
 
 	const FString* DocumentationPolicyName = MetaData.Find(NAME_DocumentationPolicy);
@@ -9653,7 +9664,7 @@ void FHeaderParser::CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FNam
 		const FString* EnumToolTip = MetaData.Find(NAME_ToolTip);
 		if (EnumToolTip == nullptr)
 		{
-			FError::Throwf(TEXT("Enum '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Enum->GetName());
+			UE_LOG_ERROR_UHT(TEXT("Enum '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Enum->GetName());
 		}
 	}
 
@@ -9669,21 +9680,23 @@ void FHeaderParser::CheckDocumentationPolicyForEnum(UEnum* Enum, const TMap<FNam
 		const FString* ToolTip = Entry.Find(NAME_ToolTip);
 		if (ToolTip == nullptr)
 		{
-			FError::Throwf(TEXT("Enum entry '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Enum->GetName(), **EntryName);
+			UE_LOG_ERROR_UHT(TEXT("Enum entry '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Enum->GetName(), *(*EntryName));
+			continue;
 		}
 
 		const FString* ExistingEntry = ToolTipToEntry.Find(*ToolTip);
 		if (ExistingEntry != nullptr)
 		{
-			FError::Throwf(TEXT("Enum entries '%s::%s' and '%s::%s' have identical tooltips / comments (DocumentationPolicy)."), *Enum->GetName(), **ExistingEntry, *Enum->GetName(), **EntryName);
+			UE_LOG_ERROR_UHT(TEXT("Enum entries '%s::%s' and '%s::%s' have identical tooltips / comments (DocumentationPolicy)."), *Enum->GetName(), *(*ExistingEntry), *Enum->GetName(), *(*EntryName));
 		}
 		ToolTipToEntry.Add(*ToolTip, *EntryName);
 	}
-	
 }
 
 void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMap<FName, FString>& MetaData)
 {
+	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
+
 	check(Struct != nullptr);
 
 	FDocumentationPolicy DocumentationPolicy = GetDocumentationPolicyForStruct(Struct);
@@ -9692,7 +9705,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 		const FString* ClassTooltip = MetaData.Find(NAME_ToolTip);
 		if (ClassTooltip == nullptr)
 		{
-			FError::Throwf(TEXT("Struct '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName());
+			UE_LOG_ERROR_UHT(TEXT("Struct '%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName());
 		}
 	}
 
@@ -9704,12 +9717,13 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 			FString ToolTip = Property->GetToolTipText().ToString();
 			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetName()))
 			{
-				FError::Throwf(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+				continue;
 			}
 			const FName* ExistingPropertyName = ToolTipToPropertyName.Find(ToolTip);
 			if (ExistingPropertyName != nullptr)
 			{
-				FError::Throwf(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *Struct->GetName(), *ExistingPropertyName->ToString(), *Struct->GetName(), *Property->GetName());
+				UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' and '%s::%s' are using identical tooltips (DocumentationPolicy)."), *Struct->GetName(), *ExistingPropertyName->ToString(), *Struct->GetName(), *Property->GetName());
 			}
 			ToolTipToPropertyName.Add(ToolTip, Property->GetFName());
 		}
@@ -9723,9 +9737,10 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 			{
 				const FString& UIMin = Property->GetMetaData(TEXT("UIMin"));
 				const FString& UIMax = Property->GetMetaData(TEXT("UIMax"));
+
 				if(!CheckUIMinMaxRangeFromMetaData(UIMin, UIMax))
 				{
-					FError::Throwf(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
+					UE_LOG_ERROR_UHT(TEXT("Property '%s::%s' does not provide a valid UIMin / UIMax (DocumentationPolicy)."), *Struct->GetName(), *Property->GetName());
 				}
 			}
 		}
@@ -9746,12 +9761,13 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 					FString ToolTip = Func->GetToolTipText().ToString();
 					if (ToolTip.IsEmpty())
 					{
-						FError::Throwf(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+						UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+						continue;
 					}
 					const FString* ExistingFuncName = ToolTipToFunc.Find(ToolTip);
 					if (ExistingFuncName != nullptr)
 					{
-						FError::Throwf(TEXT("Functions '%s::%s' and '%s::%s' uses identical tooltips / comments (DocumentationPolicy)."), *Class->GetName(), **ExistingFuncName, *Class->GetName(), *Func->GetName());
+						UE_LOG_ERROR_UHT(TEXT("Functions '%s::%s' and '%s::%s' uses identical tooltips / comments (DocumentationPolicy)."), *Class->GetName(), *(*ExistingFuncName), *Class->GetName(), *Func->GetName());
 					}
 					ToolTipToFunc.Add(ToolTip, Func->GetName());
 				}
@@ -9762,12 +9778,14 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 
 bool FHeaderParser::DoesCPPTypeRequireDocumentation(const FString& CPPType)
 {
-	return PropertyCPPTypesRequiringUIRanges.Find(CPPType) != INDEX_NONE;
+	return PropertyCPPTypesRequiringUIRanges.Contains(CPPType);
 }
 
 // Validates the documentation for a given method
 void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Func, const TMap<FName, FString>& MetaData)
 {
+	SCOPE_SECONDS_COUNTER_UHT(DocumentationPolicy);
+
 	check(Class != nullptr);
 	check(Func != nullptr);
 
@@ -9777,7 +9795,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 		const FString* FunctionTooltip = MetaData.Find(NAME_ToolTip);
 		if (FunctionTooltip == nullptr)
 		{
-			FError::Throwf(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a tooltip / comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
 		}
 	}
 
@@ -9786,7 +9804,8 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 		const FString* FunctionComment = MetaData.Find(NAME_Comment);
 		if (FunctionComment == nullptr)
 		{
-			FError::Throwf(TEXT("Function '%s::%s' does not provide a comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+			UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' does not provide a comment (DocumentationPolicy)."), *Class->GetName(), *Func->GetName());
+			return;
 		}
 		
 		TMap<FName, FString> ParamToolTips = GetParameterToolTipsFromFunctionComment(*FunctionComment);
@@ -9815,7 +9834,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 				const FString* ParamToolTip = ParamToolTips.Find(ParamName);
 				if (ParamToolTip == nullptr)
 				{
-					FError::Throwf(TEXT("Function '%s::%s' doesn't provide a tooltip for parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *ParamName.ToString());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' doesn't provide a tooltip for parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *ParamName.ToString());
 				}
 				ExistingFields.Add(ParamName);
 			}
@@ -9830,7 +9849,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 				}
 				if (!ExistingFields.Contains(ParamName))
 				{
-					FError::Throwf(TEXT("Function '%s::%s' provides a tooltip for an unknown parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *Pair.Key.ToString());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' provides a tooltip for an unknown parameter '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *Pair.Key.ToString());
 				}
 			}
 
@@ -9846,7 +9865,7 @@ void FHeaderParser::CheckDocumentationPolicyForFunc(UClass* Class, UFunction* Fu
 				const FName* ExistingParam = ToolTipToParam.Find(Pair.Value);
 				if (ExistingParam != nullptr)
 				{
-					FError::Throwf(TEXT("Function '%s::%s' uses identical tooltips for parameters '%s' and '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *ExistingParam->ToString(), *Pair.Key.ToString());
+					UE_LOG_ERROR_UHT(TEXT("Function '%s::%s' uses identical tooltips for parameters '%s' and '%s' (DocumentationPolicy)."), *Class->GetName(), *Func->GetName(), *ExistingParam->ToString(), *Pair.Key.ToString());
 				}
 				ToolTipToParam.Add(Pair.Value, Pair.Key);
 			}

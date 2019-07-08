@@ -4,6 +4,8 @@
 
 #include "StructOnlyHeader.generated.h"
 
+DECLARE_DYNAMIC_DELEGATE(FSimpleStructDelegate);
+
 USTRUCT()
 struct FSomeStruct
 {
@@ -18,4 +20,7 @@ USTRUCT()
 struct alignas(8) FAlignedStruct
 {
 	GENERATED_BODY()
+
+	UPROPERTY()
+	FSimpleStructDelegate DelegateProp;
 };

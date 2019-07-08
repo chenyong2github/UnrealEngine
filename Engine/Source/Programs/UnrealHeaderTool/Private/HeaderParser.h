@@ -147,13 +147,17 @@ struct ClassDefinitionRange
 
 extern TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
 
+#ifndef UHT_DOCUMENTATION_POLICY_DEFAULT
+#define UHT_DOCUMENTATION_POLICY_DEFAULT false
+#endif
+
 struct FDocumentationPolicy
 {
-	bool bClassOrStructCommentRequired = false;
-	bool bFunctionToolTipsRequired = false;
-	bool bMemberToolTipsRequired = false;
-	bool bParameterToolTipsRequired = false;
-	bool bFloatRangesRequired = false;
+	bool bClassOrStructCommentRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bFunctionToolTipsRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bMemberToolTipsRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bParameterToolTipsRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
+	bool bFloatRangesRequired = UHT_DOCUMENTATION_POLICY_DEFAULT;
 };
 
 /////////////////////////////////////////////////////

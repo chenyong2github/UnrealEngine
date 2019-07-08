@@ -5471,15 +5471,18 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(const TCHAR* HeaderPath, c
 			check(i<10);
 			FString RefHeader;
 			FString Message;
-			if (!FFileHelper::LoadFileToString(RefHeader, *Ref))
 			{
-				Message = FString::Printf(TEXT("********************************* %s appears to be a new generated file."), *FPaths::GetCleanFilename(HeaderPath));
-			}
-			else
-			{
-				if (FCString::Strcmp(NewHeaderContents, *RefHeader) != 0)
+				SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+				if (!FFileHelper::LoadFileToString(RefHeader, *Ref))
 				{
-					Message = FString::Printf(TEXT("********************************* %s has changed."), *FPaths::GetCleanFilename(HeaderPath));
+					Message = FString::Printf(TEXT("********************************* %s appears to be a new generated file."), *FPaths::GetCleanFilename(HeaderPath));
+				}
+				else
+				{
+					if (FCString::Strcmp(NewHeaderContents, *RefHeader) != 0)
+					{
+						Message = FString::Printf(TEXT("********************************* %s has changed."), *FPaths::GetCleanFilename(HeaderPath));
+					}
 				}
 			}
 			if (Message.Len())
@@ -5492,7 +5495,10 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(const TCHAR* HeaderPath, c
 
 
 	FString OriginalHeaderLocal;
-	FFileHelper::LoadFileToString(OriginalHeaderLocal, HeaderPath);
+	{
+		SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+		FFileHelper::LoadFileToString(OriginalHeaderLocal, HeaderPath);
+	}
 
 	const bool bHasChanged = OriginalHeaderLocal.Len() == 0 || FCString::Strcmp(*OriginalHeaderLocal, NewHeaderContents);
 	if (bHasChanged)
@@ -5770,9 +5776,12 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 					const FString FullFilename = FPaths::ConvertRelativePathToFull(ModuleInfoPath, RawFilename);
 
 					FString HeaderFile;
-					if (!FFileHelper::LoadFileToString(HeaderFile, *FullFilename))
 					{
-						FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+						SCOPE_SECONDS_COUNTER_UHT(LoadHeaderContentFromFile);
+						if (!FFileHelper::LoadFileToString(HeaderFile, *FullFilename))
+						{
+							FError::Throwf(TEXT("UnrealHeaderTool was unable to load source file '%s'"), *FullFilename);
+						}
 					}
 
 					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerformInitialParseOnHeader(Package, *RawFilename, RF_Public | RF_Standalone, *HeaderFile);
@@ -6033,6 +6042,14 @@ ECompilationResult::Type UnrealHeaderTool_Main(const FString& ModuleInfoFilename
 	UE_LOG(LogCompile, Log, TEXT("Code generation took %.2f seconds"), GHeaderCodeGenTime);
 	UE_LOG(LogCompile, Log, TEXT("ScriptPlugin overhead was %.2f seconds"), GPluginOverheadTime);
 	UE_LOG(LogCompile, Log, TEXT("Macroize time was %.2f seconds"), GMacroizeTime);
+
+	FUnrealHeaderToolStats& Stats = FUnrealHeaderToolStats::Get();
+	for (const TPair<FName, double>& Pair : Stats.Counters)
+	{
+		FString CounterName = Pair.Key.ToString();
+		UE_LOG(LogCompile, Log, TEXT("%s timer was %.3f seconds"), *CounterName, Pair.Value);
+	}
+
 	UE_LOG(LogCompile, Log, TEXT("Total time was %.2f seconds"), MainTime);
 
 	if (bWriteContents)
