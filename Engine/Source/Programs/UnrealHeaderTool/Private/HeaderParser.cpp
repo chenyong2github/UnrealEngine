@@ -9712,7 +9712,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 	if (DocumentationPolicy.bMemberToolTipsRequired)
 	{
 		TMap<FString, FName> ToolTipToPropertyName;
-		for (UProperty* Property : TFieldRange<UProperty>(Struct))
+		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			FString ToolTip = Property->GetToolTipText().ToString();
 			if (ToolTip.IsEmpty() || ToolTip.Equals(Property->GetName()))
@@ -9731,7 +9731,7 @@ void FHeaderParser::CheckDocumentationPolicyForStruct(UStruct* Struct, const TMa
 
 	if (DocumentationPolicy.bFloatRangesRequired)
 	{
-		for (UProperty* Property : TFieldRange<UProperty>(Struct))
+		for (UProperty* Property : TFieldRange<UProperty>(Struct, EFieldIteratorFlags::ExcludeSuper))
 		{
 			if(DoesCPPTypeRequireDocumentation(Property->GetCPPType()))
 			{

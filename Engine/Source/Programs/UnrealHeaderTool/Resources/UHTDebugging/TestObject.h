@@ -141,11 +141,27 @@ public:
 	UEnum* SomeFunc() const;
 };
 
+UCLASS()
+class UDocumentedBaseObject : public UObject
+{
+	GENERATED_BODY()
+
+	virtual void UndocumentedMethod();
+
+	// Duplicate tooltip
+	UPROPERTY()
+	bool bFlagA;
+
+	// Duplicate tooltip
+	UPROPERTY()
+	bool bFlagB;
+};
+
 /**
- * A test objec to validate the DocumentationPolicy validation.
+ * A test object to validate the DocumentationPolicy validation.
  */
 UCLASS(meta = (DocumentationPolicy = "Strict"))
-class UDocumentedTestObject : public UObject
+class UDocumentedTestObject : public UDocumentedBaseObject
 {
 	GENERATED_BODY()
 
@@ -164,6 +180,6 @@ public:
 	 */
 	UFUNCTION()
 	void TestFunction(bool bFlag, float Range);
-}
+};
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
