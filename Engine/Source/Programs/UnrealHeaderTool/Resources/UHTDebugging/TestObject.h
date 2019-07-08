@@ -146,6 +146,9 @@ class UDocumentedBaseObject : public UObject
 {
 	GENERATED_BODY()
 
+public:
+
+	UFUNCTION()
 	virtual void UndocumentedMethod();
 
 	// Duplicate tooltip
@@ -180,6 +183,14 @@ public:
 	 */
 	UFUNCTION()
 	void TestFunction(bool bFlag, float Range);
+
+	/**
+	 * Tests the documentation policy (2)
+	 * @param bFlag If set to true, a flag is set to true
+	 * @param Range The range of the results.
+	 */
+	UFUNCTION()
+	void TestFunction2(bool bFlag, float Range);
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
