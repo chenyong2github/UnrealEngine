@@ -27,7 +27,7 @@ class DATAPREPCORE_API UDataprepStringFilter : public UDataprepFilter
 	GENERATED_BODY()
 
 public:
-	inline bool Filter(const FString& String) const;
+	bool Filter(const FString& String) const;
 
 	//~ Begin UDataprepFilter Interface
 	virtual TArray<UObject*> FilterObjects(const TArray<UObject*>& Objects) const override;
@@ -38,8 +38,8 @@ public:
 	virtual UDataprepFetcher* GetFetcher() const override;
 	//~ Begin UDataprepFilter Interface
 
-	inline EDataprepStringMatchType GetStringMatchingCriteria() const;
-	inline FString GetUserString() const;
+	EDataprepStringMatchType GetStringMatchingCriteria() const;
+	FString GetUserString() const;
 
 	void SetStringMatchingCriteria(EDataprepStringMatchType StringMatchingCriteria);
 	void SetUserString(FString UserString);
