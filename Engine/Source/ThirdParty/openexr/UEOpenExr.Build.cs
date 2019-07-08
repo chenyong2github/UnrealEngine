@@ -4,13 +4,30 @@ using UnrealBuildTool;
 
 public class UEOpenExr : ModuleRules
 {
+	private enum EXRVersion
+	{
+		EXR_1_7_1,
+		EXR_2_3_0,
+	}
     public UEOpenExr(ReadOnlyTargetRules Target) : base(Target)
     {
+		// Set which version to use.
+		EXRVersion Version = EXRVersion.EXR_2_3_0;
+		string DeployDir = "openexr/Deploy/";
+		if (Version == EXRVersion.EXR_1_7_1)
+		{
+			DeployDir += "OpenEXR-1.7.1";
+		}
+		else
+		{
+			DeployDir += "OpenEXR-2.3.0";
+		}
+
         Type = ModuleType.External;
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Mac || Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
         {
             bool bDebug = (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT);
-            string LibDir = Target.UEThirdPartySourceDirectory + "openexr/Deploy/lib/";
+            string LibDir = Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR//lib/";
 			string Platform = "";
 			if (Target.Platform == UnrealTargetPlatform.Win64)
             {
@@ -47,6 +64,16 @@ public class UEOpenExr : ModuleRules
 						"Imath.lib",
 					}
 				);
+
+				if (Version >= EXRVersion.EXR_2_3_0)
+				{
+					PublicAdditionalLibraries.AddRange(
+						new string[] {
+							"IexMath.lib",
+							"IlmImfUtil.lib",
+						}
+					);
+				}
 			}
 			else if (Target.Platform == UnrealTargetPlatform.Mac)
 			{
@@ -59,6 +86,15 @@ public class UEOpenExr : ModuleRules
 						LibDir + "/libImath.a",
 					}
 				);
+                if (Version >= EXRVersion.EXR_2_3_0)
+                {
+                    PublicAdditionalLibraries.AddRange(
+                        new string[] {
+                            LibDir + "/libIexMath.a",
+                            LibDir + "/libIlmImfUtil.a",
+                        }
+                    );
+                }
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64"))
 			{
@@ -72,12 +108,22 @@ public class UEOpenExr : ModuleRules
 						LibArchDir + "/libImath.a",
 					}
 				);
+				if (Version >= EXRVersion.EXR_2_3_0)
+				{
+				    PublicAdditionalLibraries.AddRange(
+				        new string[] {
+				            LibArchDir + "/libIexMath.a",
+				            LibArchDir + "/libIlmImfUtil.a",
+				        }
+				    );
+				}
 			}
 
             PublicSystemIncludePaths.AddRange(
                 new string[] {
-                    Target.UEThirdPartySourceDirectory + "openexr/Deploy/include",
-			    }
+                    Target.UEThirdPartySourceDirectory + DeployDir,
+					Target.UEThirdPartySourceDirectory + DeployDir + "/OpenEXR/include",
+				}
             );
         }
     }
