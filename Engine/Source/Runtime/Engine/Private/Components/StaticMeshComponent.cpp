@@ -1043,16 +1043,19 @@ void UStaticMeshComponent::SetMaterialPreview(int32 InMaterialIndexPreview)
 
 void UStaticMeshComponent::RemoveInstanceVertexColorsFromLOD( int32 LODToRemoveColorsFrom )
 {
-#if WITH_EDITORONLY_DATA
+
 	if (GetStaticMesh() && LODToRemoveColorsFrom < GetStaticMesh()->GetNumLODs() && LODToRemoveColorsFrom < LODData.Num())
 	{
 		FStaticMeshComponentLODInfo& CurrentLODInfo = LODData[LODToRemoveColorsFrom];
 
 		CurrentLODInfo.ReleaseOverrideVertexColorsAndBlock();
 		CurrentLODInfo.PaintedVertices.Empty();
+
+#if WITH_EDITORONLY_DATA
 		StaticMeshDerivedDataKey = GetStaticMesh()->RenderData->DerivedDataKey;
-	}
 #endif
+	}
+
 }
 
 void UStaticMeshComponent::RemoveInstanceVertexColors()
