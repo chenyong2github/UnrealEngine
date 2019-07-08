@@ -845,9 +845,6 @@ protected:
 	/** Called when global editor selection changes */
 	void OnEditorSelectionChanged(UObject* SelectionThatChanged);
 
-	/** Called when blueprint objects are replaced so that we can update the cached visualizer selection */
-	void ReplaceCachedVisualizerObjects(const TMap<UObject*, UObject*>& ReplacementMap);
-
 	EWriteDisallowedWarningState GetWarningStateForWritePermission(const FString& PackageName) const;
 	
 	/** The package auto-saver instance used by the editor */

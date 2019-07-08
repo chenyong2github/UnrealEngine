@@ -200,7 +200,7 @@ FSplinePointDetails::FSplinePointDetails(USplineComponent* InOwningSplineCompone
 	: SplineComp(nullptr)
 {
 
-	TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(USplineComponent::StaticClass());
+	TSharedPtr<FComponentVisualizer> Visualizer = GUnrealEd->FindComponentVisualizer(InOwningSplineComponent->GetClass());
 	SplineVisualizer = (FSplineComponentVisualizer*)Visualizer.Get();
 	check(SplineVisualizer);
 
@@ -433,7 +433,8 @@ void FSplinePointDetails::GenerateChildContent(IDetailChildrenBuilder& ChildrenB
 			if (ClassIterator->IsChildOf(USplineMetadataDetailsFactoryBase::StaticClass()) && !ClassIterator->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
 			{
 				USplineMetadataDetailsFactoryBase* Factory = ClassIterator->GetDefaultObject<USplineMetadataDetailsFactoryBase>();
-				if (Factory->GetMetadataClass() == SplineComp->GetSplinePointsMetadata()->GetClass())
+				USplineMetadata* SplineMetadata = SplineComp->GetSplinePointsMetadata();
+				if (SplineMetadata && SplineMetadata->GetClass() == Factory->GetMetadataClass())
 				{
 					SplineMetaDataDetails = Factory->Create();
 					IDetailGroup& Group = ChildrenBuilder.AddGroup(SplineMetaDataDetails->GetName(), SplineMetaDataDetails->GetDisplayName());
