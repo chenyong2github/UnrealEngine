@@ -27,10 +27,6 @@ struct FSoundQualityInfo;
 class ICompressedAudioInfo
 {
 public:
-	ICompressedAudioInfo()
-		: StreamingSoundWave(nullptr)
-	{}
-
 	/**
 	* Virtual destructor.
 	*/
