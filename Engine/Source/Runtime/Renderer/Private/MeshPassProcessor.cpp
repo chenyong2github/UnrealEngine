@@ -482,35 +482,7 @@ public:
 
 FMeshDrawShaderBindings::~FMeshDrawShaderBindings()
 {
-#if VALIDATE_UNIFORM_BUFFER_LIFETIME
-	uint8* ShaderBindingDataPtr = GetData();
-
-	for (int32 ShaderBindingsIndex = 0; ShaderBindingsIndex < ShaderLayouts.Num(); ShaderBindingsIndex++)
-	{
-		FMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[ShaderBindingsIndex], ShaderBindingDataPtr);
-
-		FRHIUniformBuffer** RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
-		const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
-
-		for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
-		{
-			FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
-
-			if (UniformBuffer)
-			{
-				UniformBuffer->NumMeshCommandReferencesForDebugging--;
-				check(UniformBuffer->NumMeshCommandReferencesForDebugging >= 0);
-			}
-		}
-
-		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
-	}
-#endif
-
-	if (Size > ARRAY_COUNT(InlineStorage))
-	{
-		delete[] HeapData;
-	}
+	Release();
 }
 
 void FMeshDrawShaderBindings::Initialize(FMeshProcessorShaders Shaders)
@@ -677,6 +649,8 @@ void FMeshDrawShaderBindings::Finalize(const FMeshProcessorShaders* ShadersForDe
 
 void FMeshDrawShaderBindings::CopyFrom(const FMeshDrawShaderBindings& Other)
 {
+	Release();
+
 	ShaderLayouts = Other.ShaderLayouts;
 
 	Allocate(Other.Size);
@@ -704,6 +678,40 @@ void FMeshDrawShaderBindings::CopyFrom(const FMeshDrawShaderBindings& Other)
 		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
 	}
 #endif
+}
+
+void FMeshDrawShaderBindings::Release()
+{
+#if VALIDATE_UNIFORM_BUFFER_LIFETIME
+	uint8* ShaderBindingDataPtr = GetData();
+
+	for (int32 ShaderBindingsIndex = 0; ShaderBindingsIndex < ShaderLayouts.Num(); ShaderBindingsIndex++)
+	{
+		FMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[ShaderBindingsIndex], ShaderBindingDataPtr);
+		FRHIUniformBuffer** RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
+		const int32 NumUniformBuffers = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
+
+		for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
+		{
+			FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
+
+			if (UniformBuffer)
+			{
+				UniformBuffer->NumMeshCommandReferencesForDebugging--;
+				check(UniformBuffer->NumMeshCommandReferencesForDebugging >= 0);
+			}
+		}
+
+		ShaderBindingDataPtr += ShaderLayouts[ShaderBindingsIndex].GetDataSizeBytes();
+	}
+#endif
+
+	if (Size > ARRAY_COUNT(InlineStorage))
+	{
+		delete[] HeapData;
+	}
+	Size = 0;
+	HeapData = nullptr;
 }
 
 void FMeshDrawCommand::SetShaders(FRHIVertexDeclaration* VertexDeclaration, const FMeshProcessorShaders& Shaders, FGraphicsMinimalPipelineStateInitializer& PipelineState)
