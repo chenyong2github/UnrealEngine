@@ -231,7 +231,7 @@ AActor* UUSDPrimResolver::SpawnActor(FUSDSceneImportContext& ImportContext, cons
 
 					TArray< pxr::UsdPrim > ParentPrims;
 
-					while ( ParentPrim != SpawnData.ActorPrim.Get() )
+					while ( ParentPrim && ParentPrim != SpawnData.ActorPrim.Get() )
 					{
 						ParentPrims.Add( ParentPrim );
 						ParentPrim = ParentPrim.GetParent();
