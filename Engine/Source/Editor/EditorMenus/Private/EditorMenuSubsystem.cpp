@@ -515,28 +515,28 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 
 			if (Block.Type == EMultiBlockType::MenuEntry)
 			{
-				if (Block.SubMenu.bIsSubMenu)
+				if (Block.IsSubMenu())
 				{
-					if (Block.SubMenu.Construct.NewMenuDelegate.IsBound())
+					if (Block.SubMenuData.ConstructMenu.NewMenuDelegate.IsBound())
 					{
 						MenuBuilder.AddSubMenu(
 							Block.Label,
 							Block.ToolTip,
-							Block.SubMenu.Construct.NewMenuDelegate,
-							Block.SubMenu.bOpenSubMenuOnClick,
+							Block.SubMenuData.ConstructMenu.NewMenuDelegate,
+							Block.SubMenuData.bOpenSubMenuOnClick,
 							Block.Icon.Get(),
 							Block.bShouldCloseWindowAfterMenuSelection,
 							Block.Name
 						);
 					}
-					else if (Block.SubMenu.Construct.NewEditorMenuDelegate.IsBound())
+					else if (Block.SubMenuData.ConstructMenu.NewEditorMenuDelegate.IsBound())
 					{
 						// SubMenu constructed each time it is opened
 						MenuBuilder.AddSubMenu(
 							Block.Label,
 							Block.ToolTip,
-							FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenuDynamic, Block.SubMenu.Construct.NewEditorMenuDelegate),
-							Block.SubMenu.bOpenSubMenuOnClick,
+							FNewMenuDelegate::CreateUObject(this, &UEditorMenuSubsystem::FillMenuDynamic, Block.SubMenuData.ConstructMenu.NewEditorMenuDelegate),
+							Block.SubMenuData.bOpenSubMenuOnClick,
 							Block.Icon.Get(),
 							Block.bShouldCloseWindowAfterMenuSelection,
 							Block.Name
@@ -557,7 +557,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 							}
 							else
 							{
-								MenuBuilder.AddSubMenu(Widget.ToSharedRef(), NewMenuDelegate, Block.SubMenu.bOpenSubMenuOnClick, Block.bShouldCloseWindowAfterMenuSelection);
+								MenuBuilder.AddSubMenu(Widget.ToSharedRef(), NewMenuDelegate, Block.SubMenuData.bOpenSubMenuOnClick, Block.bShouldCloseWindowAfterMenuSelection);
 							}
 						}
 						else
@@ -566,7 +566,7 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 								Block.Label,
 								Block.ToolTip,
 								NewMenuDelegate,
-								Block.SubMenu.bOpenSubMenuOnClick,
+								Block.SubMenuData.bOpenSubMenuOnClick,
 								Block.Icon.Get(),
 								Block.bShouldCloseWindowAfterMenuSelection,
 								Block.Name
@@ -602,6 +602,14 @@ void UEditorMenuSubsystem::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UEdito
 			{
 				MenuBuilder.AddMenuSeparator(Block.Name);
 			}
+			else if (Block.Type == EMultiBlockType::Widget)
+			{
+				MenuBuilder.AddWidget(Widget.ToSharedRef(), Block.Label.Get(), Block.WidgetData.bNoIndent, Block.WidgetData.bSearchable);
+			}
+			else
+			{
+				UE_LOG(LogEditorMenus, Warning, TEXT("Menu '%s', item '%s', type not currently supported: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
+			}
 		}
 
 		MenuBuilder.EndSection();
@@ -624,13 +632,20 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 
 		for (FEditorMenuEntry& Block : Section.Blocks)
 		{
-			if (Block.ToolBar.ConstructLegacy.IsBound())
+			if (Block.ToolBarData.ConstructLegacy.IsBound())
 			{
-				Block.ToolBar.ConstructLegacy.Execute(ToolBarBuilder, MenuData);
+				Block.ToolBarData.ConstructLegacy.Execute(ToolBarBuilder, MenuData);
 				continue;
 			}
 
 			FUIAction UIAction = ConvertUIAction(Block, MenuData->Context);
+
+			TSharedPtr<SWidget> Widget;
+			if (Block.MakeWidget.IsBound())
+			{
+				Widget = Block.MakeWidget.Execute(MenuData->Context);
+			}
+
 			if (Block.Type == EMultiBlockType::ToolBarButton)
 			{
 				if (Block.Command.IsValid())
@@ -649,25 +664,29 @@ void UEditorMenuSubsystem::PopulateToolBarBuilder(FToolBarBuilder& ToolBarBuilde
 			}
 			else if (Block.Type == EMultiBlockType::ToolBarComboButton)
 			{
-				FOnGetContent OnGetContent = ConvertWidgetChoice(Block.ToolBar.ComboButtonContextMenuGenerator, MenuData->Context);
+				FOnGetContent OnGetContent = ConvertWidgetChoice(Block.ToolBarData.ComboButtonContextMenuGenerator, MenuData->Context);
 				if (OnGetContent.IsBound())
 				{
-					ToolBarBuilder.AddComboButton(UIAction, OnGetContent, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBar.bSimpleComboBox, Block.TutorialHighlightName);
+					ToolBarBuilder.AddComboButton(UIAction, OnGetContent, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBarData.bSimpleComboBox, Block.TutorialHighlightName);
 				}
 				else
 				{
 					FName SubMenuFullName = JoinMenuPaths(MenuData->MenuName, Block.Name);
 					FOnGetContent Delegate = FOnGetContent::CreateUObject(this, &UEditorMenuSubsystem::GenerateToolbarComboButtonMenu, SubMenuFullName, MenuData->Context);
-					ToolBarBuilder.AddComboButton(UIAction, Delegate, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBar.bSimpleComboBox, Block.TutorialHighlightName);
+					ToolBarBuilder.AddComboButton(UIAction, Delegate, Block.Label, Block.ToolTip, Block.Icon, Block.ToolBarData.bSimpleComboBox, Block.TutorialHighlightName);
 				}
 			}
 			else if (Block.Type == EMultiBlockType::ToolBarSeparator)
 			{
 				ToolBarBuilder.AddSeparator(Block.Name);
 			}
+			else if (Block.Type == EMultiBlockType::Widget)
+			{
+				ToolBarBuilder.AddWidget(Widget.ToSharedRef(), Block.TutorialHighlightName, Block.WidgetData.bSearchable);
+			}
 			else
 			{
-				UE_LOG(LogEditorMenus, Warning, TEXT("Toolbar '%s', item '%s', has unknown type: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
+				UE_LOG(LogEditorMenus, Warning, TEXT("Toolbar '%s', item '%s', type not currently supported: %d"), *MenuData->MenuName.ToString(), *Block.Name.ToString(), Block.Type);
 			}
 		}
 

@@ -159,9 +159,8 @@ void UEditorMenu::AddMenuEntryObject(UEditorMenuEntryScript* InObject)
 
 UEditorMenu* UEditorMenu::AddSubMenu(const FEditorMenuOwner InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
 {
-	FEditorMenuEntry Args = FEditorMenuEntry::InitMenuEntry(InName, InLabel, InToolTip, FSlateIcon(), FUIAction());
+	FEditorMenuEntry Args = FEditorMenuEntry::InitSubMenu(MenuName, InName, InLabel, InToolTip, FNewEditorMenuChoice());
 	Args.Owner = InOwner;
-	Args.SubMenu.bIsSubMenu = true;
 	FindOrAddSection(NAME_None).AddEntry(Args);
 	return UEditorMenuSubsystem::Get()->ExtendMenu(*(MenuName.ToString() + TEXT(".") + InName.ToString()));
 }

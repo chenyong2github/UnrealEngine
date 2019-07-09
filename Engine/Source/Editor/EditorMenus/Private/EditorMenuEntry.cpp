@@ -26,7 +26,7 @@ FEditorMenuEntry::FEditorMenuEntry(const FEditorMenuOwner InOwner, const FName I
 	Owner(InOwner),
 	Type(InType),
 	UserInterfaceActionType(EUserInterfaceActionType::Button),
-	bShouldCloseWindowAfterMenuSelection(true)	,
+	bShouldCloseWindowAfterMenuSelection(true),
 	ScriptObject(nullptr)
 {
 }
@@ -74,9 +74,10 @@ FEditorMenuEntry FEditorMenuEntry::InitSubMenu(const FName InParentMenu, const F
 	Entry.Label = InLabel;
 	Entry.ToolTip = InToolTip;
 	Entry.Icon = InIcon;
-
-	Entry.SubMenu = FSubMenuEntryData(InMakeMenu, bInOpenSubMenuOnClick);
 	Entry.bShouldCloseWindowAfterMenuSelection = bInShouldCloseWindowAfterMenuSelection;
+	Entry.SubMenuData.bIsSubMenu = true;
+	Entry.SubMenuData.ConstructMenu = InMakeMenu;
+	Entry.SubMenuData.bOpenSubMenuOnClick = bInOpenSubMenuOnClick;
 	return Entry;
 }
 
@@ -108,9 +109,8 @@ FEditorMenuEntry FEditorMenuEntry::InitComboButton(const FName InName, const FEd
 	Entry.ToolTip = InToolTip;
 	Entry.Icon = InIcon;
 	Entry.Action = InAction;
-
-	Entry.ToolBar.ComboButtonContextMenuGenerator = InMenuContentGenerator;
-	Entry.ToolBar.bSimpleComboBox = bInSimpleComboBox;
+	Entry.ToolBarData.ComboButtonContextMenuGenerator = InMenuContentGenerator;
+	Entry.ToolBarData.bSimpleComboBox = bInSimpleComboBox;
 	return Entry;
 }
 
@@ -124,6 +124,16 @@ FEditorMenuEntry FEditorMenuEntry::InitToolBarSeparator(const FName InName)
 	return FEditorMenuEntry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::ToolBarSeparator);
 }
 
+FEditorMenuEntry FEditorMenuEntry::InitWidget(const FName InName, const TSharedRef<SWidget>& Widget, const FText& Label, bool bNoIndent, bool bSearchable)
+{
+	FEditorMenuEntry Entry(UEditorMenuSubsystem::Get()->CurrentOwner(), InName, EMultiBlockType::Widget);
+	Entry.Label = Label;
+	Entry.MakeWidget.BindLambda([Widget](const FEditorMenuContext&) { return Widget; });
+	Entry.WidgetData.bNoIndent = bNoIndent;
+	Entry.WidgetData.bSearchable = bSearchable;
+	return Entry;
+}
+
 void FEditorMenuEntry::ResetActions()
 {
 	Action = FEditorUIActionChoice();
@@ -132,4 +142,10 @@ void FEditorMenuEntry::ResetActions()
 	StringExecuteAction = FEditorMenuStringCommand();
 	// Note: Cannot reset ScriptObject as it would also remove label and other data
 	//ScriptObject = nullptr;
+}
+
+bool FEditorMenuEntry::IsScriptObjectDynamicConstruct() const
+{
+	static const FName ConstructMenuEntryName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, ConstructMenuEntry);
+	return ScriptObject && ScriptObject->GetClass()->IsFunctionImplementedInScript(ConstructMenuEntryName);
 }

@@ -4,8 +4,6 @@
 
 #include "CoreMinimal.h"
 
-#include "Kismet/BlueprintFunctionLibrary.h"
-
 #include "EditorMenuContext.generated.h"
 
 class FUICommandList;
@@ -41,9 +39,9 @@ public:
 	template <typename TContextType>
 	TContextType* Find() const
 	{
-		for (const TWeakObjectPtr<UObject>& WeakObject : ContextObjects)
+		for (UObject* Object : ContextObjects)
 		{
-			if (TContextType* Result = Cast<TContextType>(WeakObject.Get()))
+			if (TContextType* Result = Cast<TContextType>(Object))
 			{
 				return Result;
 			}
@@ -57,6 +55,8 @@ public:
 	void AppendCommandList(TSharedPtr<FUICommandList> InCommandList);
 	void AddExtender(const TSharedPtr<FExtender>& InExtender);
 	TSharedPtr<FExtender> GetAllExtenders();
+	void ReplaceExtenders(const TSharedPtr<FExtender>& InExtender);
+	void ResetExtenders();
 
 	void AppendObjects(const TArray<UObject*>& InObjects);
 	void AddObject(UObject* InObject);

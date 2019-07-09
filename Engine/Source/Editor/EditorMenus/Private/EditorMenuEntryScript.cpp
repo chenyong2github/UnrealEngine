@@ -128,12 +128,6 @@ void UEditorMenuEntryScript::ToMenuEntry(FEditorMenuEntry& Output)
 	Output.Owner = Data.OwnerName;
 }
 
-bool FEditorMenuEntry::IsScriptObjectDynamicConstruct() const
-{
-	static const FName ConstructMenuEntryName = GET_FUNCTION_NAME_CHECKED(UEditorMenuEntryScript, ConstructMenuEntry);
-	return ScriptObject && ScriptObject->GetClass()->IsFunctionImplementedInScript(ConstructMenuEntryName);
-}
-
 FEditorMenuEntryScriptDataAdvanced::FEditorMenuEntryScriptDataAdvanced() :
 	EntryType(EMultiBlockType::MenuEntry),
 	UserInterfaceActionType(EUserInterfaceActionType::Button),

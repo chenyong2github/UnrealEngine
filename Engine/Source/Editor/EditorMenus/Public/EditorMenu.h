@@ -110,11 +110,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	FEditorMenuOwner MenuOwner;
-
-private:
-
+	
 	UPROPERTY()
 	FEditorMenuContext Context;
+
+private:
 
 	UPROPERTY()
 	TArray<FEditorMenuSection> Sections;

@@ -87,6 +87,14 @@ TSharedPtr<FExtender> FEditorMenuContext::GetAllExtenders()
 	return TSharedPtr<FExtender>();
 }
 
+void FEditorMenuContext::ResetExtenders()
+{
+	if (ExtensibilityManager.IsValid())
+	{
+		ExtensibilityManager.Reset();
+	}
+}
+
 void FEditorMenuContext::AppendObjects(const TArray<UObject*>& InObjects)
 {
 	for (UObject* Object : InObjects)

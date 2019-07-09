@@ -17,45 +17,63 @@
 
 class UEditorMenuEntryScript;
 
-USTRUCT(BlueprintType)
-struct EDITORMENUS_API FSubMenuEntryData
+struct FEditorMenuEntrySubMenuData
 {
-	GENERATED_BODY()
-
-	FSubMenuEntryData() :
+public:
+	FEditorMenuEntrySubMenuData() :
 		bIsSubMenu(false),
 		bOpenSubMenuOnClick(false)
 	{
 	}
 
-	FSubMenuEntryData(const FNewEditorMenuChoice& InConstruct, bool bInOpenSubMenuOnClick = false) :
-		bIsSubMenu(true),
-		bOpenSubMenuOnClick(bInOpenSubMenuOnClick),
-		Construct(InConstruct)
+	bool bIsSubMenu;
+	bool bOpenSubMenuOnClick;
+	FNewEditorMenuChoice ConstructMenu;
+};
+
+struct FEditorMenuEntryToolBarData
+{
+public:
+	FEditorMenuEntryToolBarData() :
+		bSimpleComboBox(false),
+		bIsFocusable(false),
+		bForceSmallIcons(false)
 	{
 	}
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	bool bIsSubMenu;
+	TOptional< EVisibility > LabelVisibility;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	bool bOpenSubMenuOnClick;
-
-	FNewEditorMenuChoice Construct;
-};
-
-USTRUCT(BlueprintType)
-struct EDITORMENUS_API FToolBarData
-{
-	GENERATED_BODY()
-
-	FToolBarData() : bSimpleComboBox(false) {}
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
+	/** If true, the icon and label won't be displayed */
 	bool bSimpleComboBox;
 
+	/** Whether ToolBar will have Focusable buttons */
+	bool bIsFocusable;
+
+	/** Whether this toolbar should always use small icons, regardless of the current settings */
+	bool bForceSmallIcons;
+
+	/** Delegate that generates a widget for this combo button's menu content.  Called when the menu is summoned. */
 	FNewEditorMenuWidgetChoice ComboButtonContextMenuGenerator;
+
+	/** Legacy delegate that generates a widget for this combo button's menu content.  Called when the menu is summoned. */
 	FNewToolBarDelegateLegacy ConstructLegacy;
+};
+
+
+struct FEditorMenuEntryWidgetData
+{
+public:
+	FEditorMenuEntryWidgetData() :
+		bNoIndent(false),
+		bSearchable(false)
+	{
+	}
+
+	/** Remove the padding from the left of the widget that lines it up with other menu items */
+	bool bNoIndent;
+
+	/** If true, widget will be searchable */
+	bool bSearchable;
 };
 
 USTRUCT(BlueprintType)
@@ -77,6 +95,10 @@ struct EDITORMENUS_API FEditorMenuEntry
 
 	static FEditorMenuEntry InitMenuSeparator(const FName InName);
 	static FEditorMenuEntry InitToolBarSeparator(const FName InName);
+
+	static FEditorMenuEntry InitWidget(const FName InName, const TSharedRef<SWidget>& Widget, const FText& Label, bool bNoIndent = false, bool bSearchable = true);
+
+	bool IsSubMenu() const { return SubMenuData.bIsSubMenu; }
 
 	friend struct FEditorMenuSection;
 	friend class UEditorMenuEntryScript;
@@ -113,13 +135,13 @@ public:
 	bool bShouldCloseWindowAfterMenuSelection;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	FSubMenuEntryData SubMenu;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	FToolBarData ToolBar;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	UEditorMenuEntryScript* ScriptObject;
+
+	FEditorMenuEntrySubMenuData SubMenuData;
+
+	FEditorMenuEntryToolBarData ToolBarData;
+
+	FEditorMenuEntryWidgetData WidgetData;
 
 	/** Optional delegate that returns a widget to use as this menu entry */
 	FNewEditorMenuWidget MakeWidget;
