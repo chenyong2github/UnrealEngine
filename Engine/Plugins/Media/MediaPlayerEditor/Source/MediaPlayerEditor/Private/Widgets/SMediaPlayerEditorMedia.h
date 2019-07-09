@@ -34,7 +34,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs, UMediaPlayer& InMediaPlayer, const TSharedRef<ISlateStyle>& InStyle);
 
-protected:
+	/* Register menus associated with this widget */
+	static void RegisterMenus();
 
 	/**
 	 * Open an asset in the media player.
@@ -43,8 +44,9 @@ protected:
 	 */
 	void OpenMediaAsset(UObject* Asset);
 
+protected:
 	/** Show a message box for media opening failures. */
-	void ShowMediaOpenFailedMessage();
+	static void ShowMediaOpenFailedMessage();
 
 private:
 
@@ -64,4 +66,7 @@ private:
 
 	/** The widget style set to use. */
 	TSharedPtr<ISlateStyle> Style;
+
+	/** Name of the asset picker asset context menu */
+	static const FName AssetPickerAssetContextMenuName;
 };

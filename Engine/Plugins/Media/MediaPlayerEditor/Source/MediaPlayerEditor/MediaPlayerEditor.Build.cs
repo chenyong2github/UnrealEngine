@@ -53,6 +53,7 @@ public class MediaPlayerEditor : ModuleRules
 				"RHI",
 				"TextureEditor",
 				"UnrealEd",
+				"EditorMenus",
 			});
 
 		PrivateIncludePathModuleNames.AddRange(

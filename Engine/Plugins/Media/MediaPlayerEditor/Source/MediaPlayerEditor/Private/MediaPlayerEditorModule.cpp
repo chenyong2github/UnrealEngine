@@ -39,6 +39,8 @@
 #include "Models/MediaPlayerEditorCommands.h"
 #include "Shared/MediaPlayerEditorStyle.h"
 #include "Visualizers/MediaSoundComponentVisualizer.h"
+#include "EditorMenuSubsystem.h"
+#include "Widgets/SMediaPlayerEditorMedia.h"
 
 #include "MediaPlayerEditorLog.h"
 
@@ -89,6 +91,8 @@ public:
 		Style = MakeShareable(new FMediaPlayerEditorStyle());
 
 		FMediaPlayerEditorCommands::Register();
+
+		SMediaPlayerEditorMedia::RegisterMenus();
 
 		RegisterAssetTools();
 		RegisterCustomizations();
