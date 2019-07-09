@@ -1182,6 +1182,7 @@ void FMaterialEditor::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 				false
 			);
 		}
+		ToolbarBuilder.EndSection("Hierarchy");
 	}
 };
 
