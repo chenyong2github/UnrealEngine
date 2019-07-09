@@ -80,6 +80,19 @@ public:
 		return FString();
 	}
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnImgMediaSettingsChanged, const UImgMediaSettings*);
+
+	/** Gets a multicast delegate which is called whenever one of the parameters in this settings object changes. */
+	static FOnImgMediaSettingsChanged& OnSettingsChanged();
+
+protected:
+	static FOnImgMediaSettingsChanged SettingsChangedDelegate;
+#endif
+
 private:
 
 	/**
