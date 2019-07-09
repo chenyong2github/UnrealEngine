@@ -45,22 +45,23 @@ public:
 
 	virtual void ReserveMemoryForMeshes(int32 MeshNum)
 	{
-		PrimitiveSceneInfo->StaticMeshRelevances.Reserve(PrimitiveSceneInfo->StaticMeshRelevances.Max() + MeshNum);
-		PrimitiveSceneInfo->StaticMeshes.Reserve(PrimitiveSceneInfo->StaticMeshes.Max() + MeshNum);
+		if (PrimitiveSceneInfo->StaticMeshRelevances.GetSlack() < MeshNum)
+		{
+			PrimitiveSceneInfo->StaticMeshRelevances.Reserve(PrimitiveSceneInfo->StaticMeshRelevances.Max() + MeshNum);
+		}
+		if (PrimitiveSceneInfo->StaticMeshes.GetSlack() < MeshNum)
+		{
+			PrimitiveSceneInfo->StaticMeshes.Reserve(PrimitiveSceneInfo->StaticMeshes.Max() + MeshNum);
+		}
 	}
 
 	virtual void DrawMesh(const FMeshBatch& Mesh, float ScreenSize) final override
 	{
-		if (Mesh.GetNumPrimitives() > 0)
+		if (Mesh.HasAnyDrawCalls())
 		{
 			check(Mesh.VertexFactory);
 			check(Mesh.VertexFactory->IsInitialized());
 			checkSlow(IsInRenderingThread());
-
-			for (const FMeshBatchElement& BatchElement : Mesh.Elements)
-			{
-				check(!BatchElement.IndexBuffer || (BatchElement.IndexBuffer && BatchElement.IndexBuffer->IsInitialized() && BatchElement.IndexBuffer->IndexBufferRHI));
-			}
 
 			FPrimitiveSceneProxy* PrimitiveSceneProxy = PrimitiveSceneInfo->Proxy;
 			PrimitiveSceneProxy->VerifyUsedMaterial(Mesh.MaterialRenderProxy);
@@ -74,7 +75,7 @@ public:
 			const ERHIFeatureLevel::Type FeatureLevel = PrimitiveSceneInfo->Scene->GetFeatureLevel();
 			StaticMesh->PreparePrimitiveUniformBuffer(PrimitiveSceneProxy, FeatureLevel);
 
-			const bool bSupportsCachingMeshDrawCommands = SupportsCachingMeshDrawCommands(StaticMesh->VertexFactory, PrimitiveSceneProxy, Mesh.MaterialRenderProxy, FeatureLevel);
+			const bool bSupportsCachingMeshDrawCommands = SupportsCachingMeshDrawCommands(PrimitiveSceneProxy, *StaticMesh, FeatureLevel);
 
 			FStaticMeshBatchRelevance* StaticMeshRelevance = new(PrimitiveSceneInfo->StaticMeshRelevances) FStaticMeshBatchRelevance(
 				*StaticMesh, 
@@ -203,7 +204,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	for (int32 MeshIndex = 0; MeshIndex < StaticMeshes.Num(); MeshIndex++)
 	{
 		const FStaticMeshBatch& Mesh = StaticMeshes[MeshIndex];
-		if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy))
+		if (SupportsCachingMeshDrawCommands(Proxy, Mesh))
 		{
 			++MeshWithCachedCommandsNum;
 		}
@@ -250,7 +251,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 			check(MeshRelevance.CommandInfosMask.IsEmpty());
 			MeshRelevance.CommandInfosBase = StaticMeshCommandInfos.Num();
 
-			if (SupportsCachingMeshDrawCommands(Mesh.VertexFactory, Proxy))
+			if (SupportsCachingMeshDrawCommands(Proxy, Mesh))
 			{
 				for (int32 PassIndex = 0; PassIndex < EMeshPass::Num; PassIndex++)
 				{
