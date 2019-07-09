@@ -228,7 +228,7 @@ public:
 		inline TSegment2<T> operator*() const
 		{
 			check(polygon != nullptr && i < polygon->VertexCount());
-			return TSegment2<T>(polygon->Vertices[i], polygon->Vertices[i+1 % polygon->VertexCount()]);
+			return TSegment2<T>(polygon->Vertices[i], polygon->Vertices[(i+1) % polygon->VertexCount()]);
 		}
 		//inline TSegment2<T> & operator*();
 		inline SegmentIterator & operator++() 		// prefix
@@ -422,6 +422,46 @@ public:
 		return nWindingNumber != 0;
 	}
 
+	/**
+	 * Check for polygon overlap, aka solid intersection.  (In contrast, note that the "Intersects" method checks for edge intersection)
+	 *
+	 * @return true if the Polygon overlaps the OtherPolygon.
+	 */
+	bool Overlaps(const TPolygon2<T>& OtherPoly) const
+	{
+		if (!Bounds().Intersects(OtherPoly.Bounds()))
+		{
+			return false;
+		}
+
+		for (int i = 0, N = OtherPoly.VertexCount(); i < N; ++i) 
+		{
+			if (Contains(OtherPoly[i]))
+			{
+				return true;
+			}
+		}
+
+		for (int i = 0, N = VertexCount(); i < N; ++i) 
+		{
+			if (OtherPoly.Contains(Vertices[i]))
+			{
+				return true;
+			}
+		}
+
+		for (TSegment2<T> seg : Segments()) 
+		{
+			for (TSegment2<T> oseg : OtherPoly.Segments()) 
+			{
+				if (seg.Intersects(oseg))
+				{
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * @return true if the Polygon fully contains the OtherPolygon
