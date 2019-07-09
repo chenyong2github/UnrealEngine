@@ -510,14 +510,8 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 				const FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 				const FFrameNumber StartTime = MovieSceneSection->GetInclusiveStartFrame();
 
-				// we may need to offset the transform here if the animation was not recorded on the root component
 				FTransform InvComponentTransform = AnimTrackRecorder->GetComponentTransform().Inverse();
-				FTransform InitialRootTransform = AnimTrackRecorder->GetInitialRootTransform();
-				if (DefaultTransform.IsSet())
-				{
-					DefaultTransform = InitialRootTransform * DefaultTransform.GetValue();
 
-				}
 				const FRawAnimSequenceTrack& RawTrack = AnimSequence->GetRawAnimationData()[RootIndex];
 				const int32 KeyCount = FMath::Max(FMath::Max(RawTrack.PosKeys.Num(), RawTrack.RotKeys.Num()), RawTrack.ScaleKeys.Num());
 				for (int32 KeyIndex = 0; KeyIndex < KeyCount; KeyIndex++)
@@ -551,12 +545,12 @@ void UMovieScene3DTransformTrackRecorder::PostProcessAnimationData(UMovieSceneAn
 					}
 
 					FFrameNumber AnimationFrame = (AnimSequence->GetTimeAtFrame(KeyIndex) * TickResolution).FloorToFrame();
-					//TODO Fix this.
-					//this works for tests but not props
-					AnimationKeys.Add(InvComponentTransform * InitialRootTransform * Transform * Relative, StartTime + AnimationFrame);
-
-					//this works for props but not tests
-					//AnimationKeys.Add(InvComponentTransform * Transform * InitialRootTransform * Relative, StartTime + AnimationFrame);
+					FTransform Total = InvComponentTransform * Transform * Relative;
+					AnimationKeys.Add(Total, StartTime + AnimationFrame);
+					if (KeyIndex == 0)
+					{
+						DefaultTransform = Total;
+					}
 				}
 			}
 		}
