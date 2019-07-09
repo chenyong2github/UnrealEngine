@@ -110,4 +110,18 @@ UEdGraphNode* UControlRigCommentNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 	return nullptr;
 }
 
+bool UControlRigCommentNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
+{
+	for (UBlueprint* Blueprint : Filter.Context.Blueprints)
+	{
+		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+		if (RigBlueprint == nullptr)
+		{
+			return true;
+		}
+	}
+
+	return Super::IsTemplateNodeFilteredOut(Filter);
+}
+
 #undef LOCTEXT_NAMESPACE
