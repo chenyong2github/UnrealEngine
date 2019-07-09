@@ -24,6 +24,7 @@
 #include "UObject/AutomationObjectVersion.h"
 #include "UObject/NiagaraObjectVersion.h"
 #include "UObject/DestructionObjectVersion.h"
+#include "UObject/CineCameraObjectVersion.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDevObjectVersion, Log, All);
 
@@ -163,3 +164,9 @@ FDevVersionRegistration GRegisterNiagaraObjectVersion(FNiagaraObjectVersion::GUI
 const FGuid FDestructionObjectVersion::GUID(0x174F1F0B, 0xB4C645A5, 0xB13F2EE8, 0xD0FB917D);
 // Register Destruction custom version with Core
 FDevVersionRegistration GRegisterDestructionObjectVersion(FDestructionObjectVersion::GUID, FDestructionObjectVersion::LatestVersion, TEXT("Dev-Destruction"));
+
+// Unique CineCamera Object version id
+const FGuid FCineCameraObjectVersion::GUID(0xB2E18506, 0x4273CFC2, 0xA54EF4BB, 0x758BBA07);
+// Register CineCamera custom version with Core
+FDevVersionRegistration GRegisterCineCameraObjectVersion(FCineCameraObjectVersion::GUID, FCineCameraObjectVersion::LatestVersion, TEXT("Dev-CineCamera"));
+
