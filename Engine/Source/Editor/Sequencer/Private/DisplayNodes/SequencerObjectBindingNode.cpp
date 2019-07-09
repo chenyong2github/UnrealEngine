@@ -675,18 +675,32 @@ void FSequencerObjectBindingNode::SetDisplayName(const FText& NewDisplayName)
 
 		// Modify the movie scene so that it gets marked dirty and renames are saved consistently.
 		MovieScene->Modify();
-		MovieScene->SetObjectDisplayName(ObjectBinding, NewDisplayName);
 
 		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(GetObjectBinding());
+		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(GetObjectBinding());
+
 		if (Spawnable)
 		{
-			Spawnable->SetName(NewDisplayName.ToString());
+			TArrayView<TWeakObjectPtr<>> Objects = GetSequencer().FindObjectsInCurrentSequence(GetObjectBinding());
+			// If there is only one binding, set the name of the bound actor
+			if (Objects.Num() == 1)
+			{
+				AActor* Actor = Cast<AActor>(Objects[0].Get());
+				Actor->SetActorLabel(NewDisplayName.ToString());
+			}
+			else
+			{
+				// Otherwise set our display name
+				Spawnable->SetName(NewDisplayName.ToString());
+			}
 		}
-
-		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(GetObjectBinding());
-		if (Possessable)
+		else if (Possessable)
 		{
 			Possessable->SetName(NewDisplayName.ToString());
+		}
+		else
+		{
+			MovieScene->SetObjectDisplayName(ObjectBinding, NewDisplayName);
 		}
 	}
 }

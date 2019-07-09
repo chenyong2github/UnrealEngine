@@ -277,6 +277,7 @@ void RenameSpawnableRecursive(FSequencer* Sequencer, FMovieSceneSequenceIDRef Se
 				AActor* Actor = Cast<AActor>(WeakObject.Get());
 				if (Actor && Actor == ChangedActor)
 				{
+					MovieScene->Modify();
 					MovieScene->GetSpawnable(Index).SetName(ChangedActor->GetActorLabel());
 				}
 			}
