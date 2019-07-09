@@ -190,6 +190,4 @@ private:
 
 	/** Delegate broadcasted when the consumer or one of the producers has changed */
 	FOnDataprepAssetChanged OnChanged;
-
-	FDelegateHandle OnAssetDeletedHandle;
 };
