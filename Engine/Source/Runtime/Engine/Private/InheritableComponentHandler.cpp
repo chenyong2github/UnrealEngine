@@ -140,6 +140,8 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 		NewComponentTemplate->ClearPendingKill();
 		UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
 		CopyParams.bDoDelta = false;
+		// No good can come of replacing references to BestArchetype with references to NewComponentTemplate
+		CopyParams.bNotifyObjectReplacement = false;
 		UEngine::CopyPropertiesForUnrelatedObjects(BestArchetype, NewComponentTemplate, CopyParams);
 	}
 
@@ -154,6 +156,8 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 
 			UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;
 			CopyParams.bDoDelta = false;
+			// No good can come of replacing references to BestArchetype with references to NewComponentTemplate
+			CopyParams.bNotifyObjectReplacement = false;
 			UEngine::CopyPropertiesForUnrelatedObjects(BestArchetype, NewComponentTemplate, CopyParams);
 		}
 	}
