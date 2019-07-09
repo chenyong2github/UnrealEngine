@@ -10,7 +10,6 @@
 #include "SequenceRecorderSettings.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
-#include "Engine.h"
 #include "Engine/TimecodeProvider.h"
 DEFINE_LOG_CATEGORY(AnimationSerialization);
 
