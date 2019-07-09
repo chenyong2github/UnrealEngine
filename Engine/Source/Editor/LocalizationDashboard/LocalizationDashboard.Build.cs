@@ -34,6 +34,7 @@ public class LocalizationDashboard : ModuleRules
 				"LocalizationCommandletExecution",
 				"LocalizationService",
 				"InternationalizationSettings",
+				"EditorMenus",
 			}
 		);
 

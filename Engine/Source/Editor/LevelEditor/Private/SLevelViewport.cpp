@@ -391,18 +391,8 @@ TSharedRef<SWidget> SLevelViewport::GenerateLevelMenu() const
 	FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>("WorldBrowser");
 	// Get all menu extenders for this context menu from the level editor module
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
-	TArray<FLevelEditorModule::FLevelEditorMenuExtender> MenuExtenderDelegates = LevelEditorModule.GetAllLevelEditorLevelMenuExtenders();
-	TArray<TSharedPtr<FExtender>> Extenders;
-
-	TSharedPtr<FUICommandList> InCommandList = GetCommandList();
-	for (int32 i = 0; i < MenuExtenderDelegates.Num(); ++i)
-	{
-		if (MenuExtenderDelegates[i].IsBound())
-		{
-			Extenders.Add(MenuExtenderDelegates[i].Execute(InCommandList.ToSharedRef()));
-		}
-	}
-	TSharedPtr<FExtender> MenuExtender = FExtender::Combine(Extenders);
+	TSharedRef<FUICommandList> InCommandList = GetCommandList().ToSharedRef();
+	TSharedPtr<FExtender> MenuExtender = LevelEditorModule.AssembleExtenders(InCommandList, LevelEditorModule.GetAllLevelEditorLevelMenuExtenders());
 
 	// Create the menu
 	const bool bShouldCloseWindowAfterMenuSelection = true;

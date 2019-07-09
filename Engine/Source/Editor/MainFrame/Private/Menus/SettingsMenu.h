@@ -12,6 +12,7 @@
 #include "ISettingsContainer.h"
 #include "ISettingsSection.h"
 
+#include "EditorMenuSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "FSettingsMenu"
 
@@ -28,7 +29,7 @@ public:
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 * @param SettingsContainerName The name of the settings container to create the menu for.
 	 */
-	static void MakeMenu( FMenuBuilder& MenuBuilder, FName SettingsContainerName )
+	static void MakeMenu( UEditorMenu* MenuBuilder, FName SettingsContainerName )
 	{
 		ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 
@@ -58,7 +59,7 @@ public:
 
 			if (SettingsCategory->GetSections(SettingsSections) > 0)
 			{
-				MenuBuilder.BeginSection(SettingsCategory->GetName(), SettingsCategory->GetDisplayName());
+				FEditorMenuSection& Section = MenuBuilder->AddSection(SettingsCategory->GetName(), SettingsCategory->GetDisplayName());
 
 				SettingsSections.Sort(
 					[](const ISettingsSectionPtr& First, const ISettingsSectionPtr& Second)
@@ -70,15 +71,14 @@ public:
 				{
 					ISettingsSectionPtr SettingsSection = SettingsSections[SectionIndex];
 
-					MenuBuilder.AddMenuEntry(
+					Section.AddMenuEntry(
+						SettingsSection->GetName(),
 						SettingsSection->GetDisplayName(),
 						SettingsSection->GetDescription(),
 						FSlateIcon(),
 						FUIAction(FExecuteAction::CreateStatic(&FSettingsMenu::OpenSettings, SettingsContainerName, SettingsCategory->GetName(), SettingsSection->GetName()))
 					);
 				}
-
-				MenuBuilder.EndSection();
 			}
 		}
 	}

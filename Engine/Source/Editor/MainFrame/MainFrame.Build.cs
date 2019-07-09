@@ -40,6 +40,7 @@ public class MainFrame : ModuleRules
 				"DeviceProfileEditor",
 				"UndoHistory",
 				"Analytics",
+				"EditorMenus",
 			}
 		);
 

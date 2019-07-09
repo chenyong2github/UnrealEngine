@@ -85,6 +85,8 @@ public:
 private:
 	void OnTabClosed(TSharedRef<SDockTab> TabClosed) const;
 
+	FName GetMenuName() const;
+
 	/** Manages internal tab layout */
 	TSharedPtr<FTabManager> MyTabManager;
 

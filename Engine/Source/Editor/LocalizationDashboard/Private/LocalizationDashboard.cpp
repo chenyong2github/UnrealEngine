@@ -20,6 +20,7 @@
 #include "LocalizationSettings.h"
 #include "LocalizationDashboardSettings.h"
 #include "SSettingsEditorCheckoutNotice.h"
+#include "EditorMenuSubsystem.h"
 
 #define LOCTEXT_NAMESPACE "LocalizationDashboard"
 
@@ -144,9 +145,9 @@ void SLocalizationDashboard::Construct(const FArguments& InArgs, const TSharedPt
 
 	Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, Layout);
 
-	const TSharedRef<FExtender> MenuExtender = MakeShareable(new FExtender());
+	FEditorMenuContext EditorMenuContext;
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>( "MainFrame" );
-	const TSharedRef<SWidget> MenuWidget = MainFrameModule.MakeMainMenu( TabManager, MenuExtender );
+	const TSharedRef<SWidget> MenuWidget = MainFrameModule.MakeMainMenu( TabManager, "LocalizationDashboard.MainMenu", EditorMenuContext );
 
 	FString ConfigFilePath;
 	ConfigFilePath = GetDefault<ULocalizationSettings>()->GetDefaultConfigFilename();

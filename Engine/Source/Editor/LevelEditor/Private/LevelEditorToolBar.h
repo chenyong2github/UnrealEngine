@@ -8,6 +8,8 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Editor/LevelEditor/Private/SLevelEditor.h"
 
+class UEditorMenu;
+
 /**
  * Unreal level editor main toolbar
  */
@@ -23,6 +25,7 @@ public:
 	 */
 	static TSharedRef< SWidget > MakeLevelEditorToolBar( const TSharedRef<FUICommandList>& InCommandList, const TSharedRef<SLevelEditor> InLevelEditor );
 
+	static void RegisterLevelEditorToolBar( const TSharedRef<FUICommandList>& InCommandList, const TSharedRef<SLevelEditor> InLevelEditor );
 
 protected:
 
@@ -89,4 +92,9 @@ protected:
 	 * @param InLevel	The level to open the Blueprint of (creates if needed)
 	 */
 	static void OnOpenSubLevelBlueprint( ULevel* InLevel );
+
+private:
+
+	static void RegisterSourceControlMenu();
+	static void RegisterCinematicsMenu();
 };

@@ -11,6 +11,7 @@
 #include "ILocalizationDashboardModule.h"
 
 class FMenuBuilder;
+struct FEditorMenuContext;
 
 /**
  * Unreal editor main frame Slate widget
@@ -23,56 +24,58 @@ public:
 	 * Static: Creates a widget for the main menu bar.
 	 *
 	 * @param TabManager Create the workspace menu based on this tab manager.
-	 * @param Extender Extensibility support for the menu.
-	 * @return New widget
+	 * @param MenuName Identifier associated with the menu.
+	 * @return EditorMenuContext Context containing state.
 	 */
-	static TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef<FExtender> Extender );
+	static TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext );
 
 	/**
 	 * Static: Creates a widget for the main tab's menu bar.  This is just like the main menu bar, but also includes.
 	 * some "project level" menu items that we don't want propagated to most normal menus.
 	 *
 	 * @param TabManager Create the workspace menu based on this tab manager.
-	 * @param UserExtender Extensibility support for the menu.
-	 * @return New widget
+	 * @param MenuName Identifier associated with the menu.
+	 * @return EditorMenuContext Context containing state.
 	 */
-	static TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef<FExtender> UserExtender );
+	static TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext );
+
+	/**
+	 * Static: Registers main menu with menu system.
+	 */
+	static void RegisterMainMenu();
 
 protected:
 
 	/**
 	 * Called to fill the file menu's content.
 	 *
-	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
-	 * @param Extender Extensibility support for this menu.
 	 */
-	static void FillFileMenu( FMenuBuilder& MenuBuilder, const TSharedRef<FExtender> Extender );
+	static void RegisterFileMenu();
 
 	/**
 	 * Called to fill the edit menu's content.
-	 *
-	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
-	 * @param Extender Extensibility support for this menu.
-	 * @param TabManager A Tab Manager from which to populate tab spawner menu items.
 	 */
-	static void FillEditMenu( FMenuBuilder& MenuBuilder, const TSharedRef<FExtender> Extender, const TSharedPtr<FTabManager> TabManager );
+	static void RegisterEditMenu();
 
 	/**
 	 * Called to fill the app menu's content.
-	 *
-	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
-	 * @param Extender Extensibility support for this menu.
-	 * @param TabManager A Tab Manager from which to populate tab spawner menu items.
 	 */
-	static void FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef<FExtender> Extender, const TSharedPtr<FTabManager> TabManager );
+	static void RegisterWindowMenu();
 
 	/**
 	 * Called to fill the help menu's content.
-	 *
-	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
-	 * @param Extender Extensibility support for this menu.
 	 */
-	static void FillHelpMenu( FMenuBuilder& MenuBuilder, const TSharedRef<FExtender> Extender );
+	static void RegisterHelpMenu();
+
+	/**
+	 * Called to fill the file menu's content.
+	 */
+	static void RegisterFileProjectMenu();
+
+	/**
+	 * Called to fill the file menu's recent and exit content.
+	 */
+	static void RegisterRecentFileAndExitMenuItems();
 
 private:
 	/** 

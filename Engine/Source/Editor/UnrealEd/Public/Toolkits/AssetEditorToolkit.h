@@ -175,12 +175,19 @@ public:
 	{
 		return TabManager;
 	}
+
+	/** Registers default tool bar */
+	static void RegisterMenus();
 	
 	/** Makes a default asset editing toolbar */
 	void GenerateToolbar();
 	
 	/** Regenerates the menubar and toolbar widgets */
 	void RegenerateMenusAndToolbars();
+
+	/** Get name used by editor menu subsystem */
+	FName GetEditorMenuToolbarName() const;
+	FName GetEditorMenuAppName() const;
 
 	/** Called at the end of RegenerateMenusAndToolbars() */
 	virtual void PostRegenerateMenusAndToolbars() { }

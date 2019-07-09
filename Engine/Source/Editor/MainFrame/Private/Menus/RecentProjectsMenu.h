@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Misc/Paths.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "EditorMenuSubsystem.h"
 #include "Frame/MainFrameActions.h"
 #include "HAL/FileManager.h"
 
@@ -20,9 +20,9 @@ public:
 	/**
 	 * Creates the menu.
 	 *
-	 * @param MenuBuilder The builder for the menu that owns this menu.
+	 * @param Menu	The menu being populated.
 	 */
-	static void MakeMenu( FMenuBuilder& MenuBuilder )
+	static void MakeMenu( UEditorMenu* Menu )
 	{
 		for ( int32 ProjectIndex = 0; ProjectIndex < FMainFrameActionCallbacks::ProjectNames.Num() && ProjectIndex < FMainFrameCommands::Get().SwitchProjectCommands.Num(); ++ProjectIndex )
 		{
@@ -36,9 +36,10 @@ public:
 				continue;
 			}
 
+			FEditorMenuSection& Section = Menu->FindOrAddSection("Recent");
 			const FText DisplayName = FText::FromString( FPaths::GetBaseFilename(*ProjectName) );
 			const FText Tooltip = FText::FromString( IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectName) );
-			MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().SwitchProjectCommands[ ProjectIndex ], NAME_None, DisplayName, Tooltip );
+			Section.AddMenuEntry( FMainFrameCommands::Get().SwitchProjectCommands[ ProjectIndex ], DisplayName, Tooltip );
 		}
 	}
 };

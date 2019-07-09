@@ -12,6 +12,7 @@
 
 class FTabManager;
 class SWindow;
+struct FEditorMenuContext;
 
 /**
  * Data needed to display a Developer tools in the status bar.
@@ -52,7 +53,7 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
-	virtual TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender ) const = 0;
+	virtual TSharedRef<SWidget> MakeMainMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext ) const = 0;
 
 	/**
 	 * Generates a menu that's just like the "main menu" widget above, except it also includes some infrequently used commands
@@ -63,7 +64,7 @@ public:
 	 *
 	 * @return	The newly-created menu widget
 	 */
-	virtual TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender ) const = 0;
+	virtual TSharedRef<SWidget> MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext ) const = 0;
 
 	/**
 	 * Generates a menu for status and developer

@@ -23,6 +23,8 @@
 #include "Menus/SettingsMenu.h"
 #include "Menus/MainFrameTranslationEditorMenu.h"
 
+#include "EditorMenuSubsystem.h"
+
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "Features/EditorFeatures.h"
@@ -35,30 +37,38 @@
 #define LOCTEXT_NAMESPACE "MainFileMenu"
 
 
-void FMainMenu::FillFileMenu( FMenuBuilder& MenuBuilder, const TSharedRef<FExtender> Extender )
+void FMainMenu::RegisterFileMenu()
 {
-	MenuBuilder.BeginSection("FileLoadAndSave", LOCTEXT("LoadSandSaveHeading", "Load and Save"));
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	UEditorMenu* FileMenu = EditorMenus->RegisterMenu("MainFrame.MainMenu.File");
+
+	FEditorMenuSection& FileLoadAndSaveSection = FileMenu->AddSection("FileLoadAndSave", LOCTEXT("LoadSandSaveHeading", "Load and Save"));
 	{
 		// Open Asset...
-		MenuBuilder.AddMenuEntry( FGlobalEditorCommonCommands::Get().SummonOpenAssetDialog );
+		FileLoadAndSaveSection.AddMenuEntry(FGlobalEditorCommonCommands::Get().SummonOpenAssetDialog);
 
 		// Save All
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().SaveAll, "SaveAll");
+		FileLoadAndSaveSection.AddMenuEntry(FMainFrameCommands::Get().SaveAll);
 
 		// Choose specific files to save
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ChooseFilesToSave, "ChooseFilesToSave");
+		FileLoadAndSaveSection.AddMenuEntry(FMainFrameCommands::Get().ChooseFilesToSave);
 
-		if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
+		FileLoadAndSaveSection.AddDynamicEntry("SourceControl", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
 		{
-			// Choose specific files to submit
-			MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ChooseFilesToCheckIn, "ChooseFilesToCheckIn");
-		}
-		else
-		{
-			MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl, "ConnectToSourceControl");
-		}
+			if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
+			{
+				// Choose specific files to submit
+				InSection.AddMenuEntry(FMainFrameCommands::Get().ChooseFilesToCheckIn);
+			}
+			else
+			{
+				InSection.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl);
+			}
+		}));
 	}
-	MenuBuilder.EndSection();
+
+	RegisterFileProjectMenu();
+	RegisterRecentFileAndExitMenuItems();
 }
 
 #undef LOCTEXT_NAMESPACE
@@ -66,10 +76,11 @@ void FMainMenu::FillFileMenu( FMenuBuilder& MenuBuilder, const TSharedRef<FExten
 
 #define LOCTEXT_NAMESPACE "MainEditMenu"
 
-void FMainMenu::FillEditMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExtender > Extender, const TSharedPtr<FTabManager> TabManager )
+void FMainMenu::RegisterEditMenu()
 {
-	MenuBuilder.BeginSection("EditHistory", LOCTEXT("HistoryHeading", "History"));
+	UEditorMenu* EditMenu = UEditorMenuSubsystem::Get()->RegisterMenu("MainFrame.MainMenu.Edit");
 	{
+		FEditorMenuSection& Section = EditMenu->AddSection("EditHistory", LOCTEXT("HistoryHeading", "History"));
 		struct Local
 		{
 			/** @return Returns a dynamic text string for Undo that contains the name of the action */
@@ -88,25 +99,25 @@ void FMainMenu::FillEditMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExte
 		// Undo
 		TAttribute<FText> DynamicUndoLabel;
 		DynamicUndoLabel.BindStatic(&Local::GetUndoLabelText);
-		MenuBuilder.AddMenuEntry( FGenericCommands::Get().Undo, "Undo", DynamicUndoLabel); // TAttribute< FString >::Create( &Local::GetUndoLabelText ) );
+		Section.AddMenuEntry(FGenericCommands::Get().Undo, DynamicUndoLabel); // TAttribute< FString >::Create( &Local::GetUndoLabelText ) );
 
 		// Redo
 		TAttribute< FText > DynamicRedoLabel;
 		DynamicRedoLabel.BindStatic( &Local::GetRedoLabelText );
-		MenuBuilder.AddMenuEntry(FGenericCommands::Get().Redo, "Redo", DynamicRedoLabel); // TAttribute< FString >::Create( &Local::GetRedoLabelText ) );
+		Section.AddMenuEntry(FGenericCommands::Get().Redo, DynamicRedoLabel); // TAttribute< FString >::Create( &Local::GetRedoLabelText ) );
 
 		// Show undo history
-		MenuBuilder.AddMenuEntry(
+		Section.AddMenuEntry(
+			"UndoHistory",
 			LOCTEXT("UndoHistoryTabTitle", "Undo History"),
 			LOCTEXT("UndoHistoryTooltipText", "View the entire undo history."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "UndoHistory.TabIcon"),
 			FUIAction(FExecuteAction::CreateStatic(&FUndoHistoryModule::ExecuteOpenUndoHistory))
 			);
 	}
-	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection("EditLocalTabSpawners", LOCTEXT("ConfigurationHeading", "Configuration"));
 	{
+		FEditorMenuSection& Section = EditMenu->AddSection("EditLocalTabSpawners", LOCTEXT("ConfigurationHeading", "Configuration"));
 		if (GetDefault<UEditorExperimentalSettings>()->bToolbarCustomization)
 		{
 			FUIAction ToggleMultiBoxEditMode(
@@ -115,45 +126,56 @@ void FMainMenu::FillEditMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExte
 				FIsActionChecked::CreateStatic(&FMultiBoxSettings::IsInToolbarEditMode)
 			);
 		
-			MenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				"EditToolbars",
 				LOCTEXT("EditToolbarsLabel", "Edit Toolbars"),
 				LOCTEXT("EditToolbarsToolTip", "Allows customization of each toolbar"),
 				FSlateIcon(),
 				ToggleMultiBoxEditMode,
-				NAME_None,
 				EUserInterfaceActionType::ToggleButton
 			);
 
-			// Automatically populate tab spawners from TabManager
-			if (TabManager.IsValid())
+			Section.AddDynamicEntry("TabManager", FNewEditorMenuDelegateLegacy::CreateLambda([](FMenuBuilder& MenuBuilder, UEditorMenu* MenuData)
 			{
-				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-				TabManager->PopulateTabSpawnerMenu(MenuBuilder, MenuStructure.GetEditOptions());
-			}
+				if (USlateTabManagerContext* TabManagerContext = MenuData->FindContext<USlateTabManagerContext>())
+				{
+					if (TabManagerContext->TabManager.IsValid())
+					{
+						// Automatically populate tab spawners from TabManager
+						const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
+						TabManagerContext->TabManager.Pin()->PopulateTabSpawnerMenu(MenuBuilder, MenuStructure.GetEditOptions());
+					}
+				}
+			}));
 		}
 
 		if (GetDefault<UEditorStyleSettings>()->bExpandConfigurationMenus)
 		{
-			MenuBuilder.AddSubMenu(
+			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				EditMenu->GetMenuName(),
+				"EditorPreferencesSubMenu",
 				LOCTEXT("EditorPreferencesSubMenuLabel", "Editor Preferences"),
 				LOCTEXT("EditorPreferencesSubMenuToolTip", "Configure the behavior and features of this Editor"),
-				FNewMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Editor")),
+				FNewEditorMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Editor")),
 				false,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorPreferences.TabIcon")
-			);
+			));
 
-			MenuBuilder.AddSubMenu(
+			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				EditMenu->GetMenuName(),
+				"ProjectSettingsSubMenu",
 				LOCTEXT("ProjectSettingsSubMenuLabel", "Project Settings"),
 				LOCTEXT("ProjectSettingsSubMenuToolTip", "Change the settings of the currently loaded project"),
-				FNewMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Project")),
+				FNewEditorMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Project")),
 				false,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon")
-			);
+			));
 		}
 		else
 		{
 #if !PLATFORM_MAC // Handled by app's menu in menu bar
-			MenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				"EditorPreferencesMenu",
 				LOCTEXT("EditorPreferencesMenuLabel", "Editor Preferences..."),
 				LOCTEXT("EditorPreferencesMenuToolTip", "Configure the behavior and features of the Unreal Editor."),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorPreferences.TabIcon"),
@@ -161,7 +183,8 @@ void FMainMenu::FillEditMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExte
 			);
 #endif
 
-			MenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				"ProjectSettingsMenu",
 				LOCTEXT("ProjectSettingsMenuLabel", "Project Settings..."),
 				LOCTEXT("ProjectSettingsMenuToolTip", "Change the settings of the currently loaded project."),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon"),
@@ -169,42 +192,53 @@ void FMainMenu::FillEditMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExte
 			);
 		}
 
-		//@todo The tab system needs to be able to be extendable by plugins [9/3/2013 Justin.Sargent]
-		if (IModularFeatures::Get().IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
+		Section.AddDynamicEntry("PluginsEditor", FNewEditorMenuDelegateLegacy::CreateLambda([](FMenuBuilder& InBuilder, UEditorMenu* InData)
 		{
-			FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(MenuBuilder, "PluginsEditor");
-		}
+			//@todo The tab system needs to be able to be extendable by plugins [9/3/2013 Justin.Sargent]
+			if (IModularFeatures::Get().IsModularFeatureAvailable(EditorFeatures::PluginsEditor))
+			{
+				FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(InBuilder, "PluginsEditor");
+			}
+		}));
 	}
-	MenuBuilder.EndSection();
 }
 
 #undef LOCTEXT_NAMESPACE
 
 #define LOCTEXT_NAMESPACE "MainWindowMenu"
 
-void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExtender > Extender, const TSharedPtr<FTabManager> TabManager )
+void FMainMenu::RegisterWindowMenu()
 {
-	// Automatically populate tab spawners from TabManager
-	if (TabManager.IsValid())
-	{
-		// Local editor tabs
-		TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
-	
-		// General tabs
-		const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
-		TabManager->PopulateTabSpawnerMenu(MenuBuilder, MenuStructure.GetStructureRoot());
-	}
+	UEditorMenu* Menu = UEditorMenuSubsystem::Get()->RegisterMenu("MainFrame.MainMenu.Window");
 
-	MenuBuilder.BeginSection("WindowGlobalTabSpawners");
+	// Automatically populate tab spawners from TabManager
+	Menu->AddDynamicSection("TabManagerSection", FNewEditorMenuDelegateLegacy::CreateLambda([](FMenuBuilder& InBuilder, UEditorMenu* InData)
 	{
-		MenuBuilder.AddMenuEntry(
+		if (USlateTabManagerContext* TabManagerContext = InData->FindContext<USlateTabManagerContext>())
+		{
+			TSharedPtr<FTabManager> TabManager = TabManagerContext->TabManager.Pin();
+			if (TabManager.IsValid())
+			{
+				// Local editor tabs
+				TabManager->PopulateLocalTabSpawnerMenu(InBuilder);
+
+				// General tabs
+				const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
+				TabManager->PopulateTabSpawnerMenu(InBuilder, MenuStructure.GetStructureRoot());
+			}
+		}
+	}));
+
+	{
+		FEditorMenuSection& Section = Menu->AddSection("WindowGlobalTabSpawners");
+		Section.AddMenuEntry(
+			"ProjectLauncher",
 			LOCTEXT("ProjectLauncherLabel", "Project Launcher"),
 			LOCTEXT("ProjectLauncherToolTip", "The Project Launcher provides advanced workflows for packaging, deploying and launching your projects."),
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Launcher.TabIcon"),
 			FUIAction(FExecuteAction::CreateStatic(&FMainMenu::OpenProjectLauncher))
 			);
 	}
-	MenuBuilder.EndSection();
 
 	{
 		// This is a temporary home for the spawners of experimental features that must be explicitly enabled.
@@ -215,12 +249,13 @@ void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FEx
 		// Make sure at least one is enabled before creating the section
 		if (bLocalizationDashboard || bTranslationPicker)
 		{
-			MenuBuilder.BeginSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
+			FEditorMenuSection& Section = Menu->AddSection("ExperimentalTabSpawners", LOCTEXT("ExperimentalTabSpawnersHeading", "Experimental"));
 			{
 				// Localization Dashboard
 				if (bLocalizationDashboard)
 				{
-					MenuBuilder.AddMenuEntry(
+					Section.AddMenuEntry(
+						"LocalizationDashboard",
 						LOCTEXT("LocalizationDashboardLabel", "Localization Dashboard"),
 						LOCTEXT("LocalizationDashboardToolTip", "Open the Localization Dashboard for this Project."),
 						FSlateIcon(),
@@ -231,7 +266,8 @@ void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FEx
 				// Translation Picker
 				if (bTranslationPicker)
 				{
-					MenuBuilder.AddMenuEntry(
+					Section.AddMenuEntry(
+						"TranslationPicker",
 						LOCTEXT("TranslationPickerMenuItem", "Translation Picker"),
 						LOCTEXT("TranslationPickerMenuItemToolTip", "Launch the Translation Picker to Modify Editor Translations"),
 						FSlateIcon(),
@@ -239,115 +275,136 @@ void FMainMenu::FillWindowMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FEx
 						);
 				}
 			}
-			MenuBuilder.EndSection();
 		}
 	}
 
-	MenuBuilder.BeginSection("WindowLayout", NSLOCTEXT("MainAppMenu", "LayoutManagementHeader", "Layout"));
 	{
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ResetLayout);
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().SaveLayout);
+		FEditorMenuSection& Section = Menu->AddSection("WindowLayout", NSLOCTEXT("MainAppMenu", "LayoutManagementHeader", "Layout"));
+		Section.AddMenuEntry(FMainFrameCommands::Get().ResetLayout);
+		Section.AddMenuEntry(FMainFrameCommands::Get().SaveLayout);
 #if !PLATFORM_MAC && !PLATFORM_LINUX // On Mac/Linux windowed fullscreen mode in the editor is currently unavailable
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ToggleFullscreen);
+		Section.AddMenuEntry(FMainFrameCommands::Get().ToggleFullscreen);
 #endif
 	}
-	MenuBuilder.EndSection();
 }
 
 #undef LOCTEXT_NAMESPACE
 
 
-void FMainMenu::FillHelpMenu( FMenuBuilder& MenuBuilder, const TSharedRef< FExtender > Extender )
-{
-	MenuBuilder.BeginSection("BugReporting", NSLOCTEXT("MainHelpMenu", "BugsReporting", "Bugs"));
-	{
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().ReportABug);
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().OpenIssueTracker);
-	}
-	MenuBuilder.EndSection();
+#define LOCTEXT_NAMESPACE "MainHelpMenu"
 
-	MenuBuilder.BeginSection("HelpOnline", NSLOCTEXT("MainHelpMenu", "Online", "Help Online"));
+void FMainMenu::RegisterHelpMenu()
+{
+	UEditorMenu* Menu = UEditorMenuSubsystem::Get()->RegisterMenu("MainFrame.MainMenu.Help");
+	FEditorMenuSection& BugReportingSection = Menu->AddSection("BugReporting", NSLOCTEXT("MainHelpMenu", "BugsReporting", "Bugs"));
 	{
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().VisitSupportWebSite);
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().VisitWiki);
+		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().ReportABug);
+		BugReportingSection.AddMenuEntry(FMainFrameCommands::Get().OpenIssueTracker);
+	}
+
+	FEditorMenuSection& HelpOnlineSection = Menu->AddSection("HelpOnline", NSLOCTEXT("MainHelpMenu", "Online", "Help Online"));
+	{
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSupportWebSite);
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitForums);
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitSearchForAnswersPage);
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitWiki);
 
 
 		const FText SupportWebSiteLabel = NSLOCTEXT("MainHelpMenu", "VisitUnrealEngineSupportWebSite", "Unreal Engine Support Web Site...");
 
-		MenuBuilder.AddMenuSeparator("EpicGamesHelp");
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().VisitEpicGamesDotCom, "VisitEpicGamesDotCom");
+		HelpOnlineSection.AddMenuSeparator("EpicGamesHelp");
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().VisitEpicGamesDotCom);
 
-		MenuBuilder.AddMenuSeparator("Credits");
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().CreditsUnrealEd);
+		HelpOnlineSection.AddMenuSeparator("Credits");
+		HelpOnlineSection.AddMenuEntry(FMainFrameCommands::Get().CreditsUnrealEd);
 	}
-	MenuBuilder.EndSection();
 
 #if !PLATFORM_MAC // Handled by app's menu in menu bar
-	MenuBuilder.BeginSection("HelpApplication", NSLOCTEXT("MainHelpMenu", "Application", "Application"));
+	FEditorMenuSection& HelpApplicationSection = Menu->AddSection("HelpApplication", NSLOCTEXT("MainHelpMenu", "Application", "Application"));
 	{
 		const FText AboutWindowTitle = NSLOCTEXT("MainHelpMenu", "AboutUnrealEditor", "About Unreal Editor...");
 
-		MenuBuilder.AddMenuEntry(FMainFrameCommands::Get().AboutUnrealEd, "AboutUnrealEd", AboutWindowTitle);
+		HelpApplicationSection.AddMenuEntry(FMainFrameCommands::Get().AboutUnrealEd, AboutWindowTitle);
 	}
-	MenuBuilder.EndSection();
 #endif
 }
 
+#undef LOCTEXT_NAMESPACE
 
-TSharedRef<SWidget> FMainMenu::MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > Extender)
+TSharedRef<SWidget> FMainMenu::MakeMainMenu(const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext)
 {
-#define LOCTEXT_NAMESPACE "MainMenu"
-
 	// Cache all project names once
 	FMainFrameActionCallbacks::CacheProjectNames();
 
-	FMenuBarBuilder MenuBuilder(FMainFrameCommands::ActionList, Extender);
-	{
-		// File
-		MenuBuilder.AddPullDownMenu( 
-			LOCTEXT("FileMenu", "File"),
-			LOCTEXT("FileMenu_ToolTip", "Open the file menu"),
-			FNewMenuDelegate::CreateStatic(&FMainMenu::FillFileMenu, Extender),
-			"File",
-			FName(TEXT("FileMenu"))
-		);
+	FMainMenu::RegisterMainMenu();
 
-		// Edit
-		MenuBuilder.AddPullDownMenu( 
-			LOCTEXT("EditMenu", "Edit"),
-			LOCTEXT("EditMenu_ToolTip", "Open the edit menu"),
-			FNewMenuDelegate::CreateStatic(&FMainMenu::FillEditMenu, Extender, TabManager),
-			"Edit"
-			,
-			FName(TEXT("EditMenu"))
-		);
+	EditorMenuContext.AppendCommandList(FMainFrameCommands::ActionList);
 
-		// Window
-		MenuBuilder.AddPullDownMenu(
-			LOCTEXT("WindowMenu", "Window"),
-			LOCTEXT("WindowMenu_ToolTip", "Open new windows or tabs."),
-			FNewMenuDelegate::CreateStatic(&FMainMenu::FillWindowMenu, Extender, TabManager),
-			"Window"
-		);
-
-		// Help
-		MenuBuilder.AddPullDownMenu( 
-			LOCTEXT("HelpMenu", "Help"),
-			LOCTEXT("HelpMenu_ToolTip", "Open the help menu"),
-			FNewMenuDelegate::CreateStatic(&FMainMenu::FillHelpMenu, Extender),
-			"Help"
-		);
-	}
+	USlateTabManagerContext* ContextObject = NewObject<USlateTabManagerContext>();
+	ContextObject->TabManager = TabManager;
+	EditorMenuContext.AddObject(ContextObject);
 
 	// Create the menu bar!
-	TSharedRef<SWidget> MenuBarWidget = MenuBuilder.MakeWidget();
+	TSharedRef<SWidget> MenuBarWidget = UEditorMenuSubsystem::Get()->GenerateWidget(MenuName, EditorMenuContext);
+	if (MenuBarWidget != SNullWidget::NullWidget)
+	{
+		// Tell tab-manager about the multi-box for platforms with a global menu bar
+		TSharedRef<SMultiBoxWidget> MultiBoxWidget = StaticCastSharedRef<SMultiBoxWidget>(MenuBarWidget);
+		TabManager->SetMenuMultiBox(ConstCastSharedRef<FMultiBox>(MultiBoxWidget->GetMultiBox()));
+	}
 
-	// Tell tab-manager about the multi-box for platforms with a global menu bar
-	TabManager->SetMenuMultiBox(MenuBuilder.GetMultiBox());
-	
 	return MenuBarWidget;
+}
+
+void FMainMenu::RegisterMainMenu()
+{
+#define LOCTEXT_NAMESPACE "MainMenu"
+
+	static const FName MainMenuName("MainFrame.MainMenu");
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	if (EditorMenus->IsMenuRegistered(MainMenuName))
+	{
+		return;
+	}
+
+	RegisterFileMenu();
+	RegisterEditMenu();
+	RegisterWindowMenu();
+	RegisterHelpMenu();
+
+	UEditorMenu* MenuBar = EditorMenus->RegisterMenu(MainMenuName, NAME_None, EMultiBoxType::MenuBar);
+
+	MenuBar->AddSubMenu(
+		"MainMenu",
+		NAME_None,
+		"File",
+		LOCTEXT("FileMenu", "File"),
+		LOCTEXT("FileMenu_ToolTip", "Open the file menu")
+	);
+
+	MenuBar->AddSubMenu(
+		"MainMenu",
+		NAME_None,
+		"Edit",
+		LOCTEXT("EditMenu", "Edit"),
+		LOCTEXT("EditMenu_ToolTip", "Open the edit menu")
+		);
+
+	MenuBar->AddSubMenu(
+		"MainMenu",
+		NAME_None,
+		"Window",
+		LOCTEXT("WindowMenu", "Window"),
+		LOCTEXT("WindowMenu_ToolTip", "Open new windows or tabs.")
+		);
+
+	MenuBar->AddSubMenu(
+		"MainMenu",
+		NAME_None,
+		"Help",
+		LOCTEXT("HelpMenu", "Help"),
+		LOCTEXT("HelpMenu_ToolTip", "Open the help menu")
+	);
 }
 
 #undef LOCTEXT_NAMESPACE
@@ -355,142 +412,136 @@ TSharedRef<SWidget> FMainMenu::MakeMainMenu(const TSharedPtr<FTabManager>& TabMa
 
 #define LOCTEXT_NAMESPACE "MainTabMenu"
 
-TSharedRef< SWidget > FMainMenu::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const TSharedRef< FExtender > UserExtender )
-{	struct Local
+void FMainMenu::RegisterFileProjectMenu()
+{
+	if (!GetDefault<UEditorStyleSettings>()->bShowProjectMenus)
 	{
-		static void FillProjectMenuItems( FMenuBuilder& MenuBuilder )
+		return;
+	}
+
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	UEditorMenu* MainTabFileMenu = EditorMenus->ExtendMenu("MainFrame.MainTabMenu.File");
+	FEditorMenuSection& Section = MainTabFileMenu->AddSection("FileProject", LOCTEXT("ProjectHeading", "Project"), FEditorMenuInsert("FileLoadAndSave", EEditorMenuInsertType::After));
+
+	Section.AddMenuEntry( FMainFrameCommands::Get().NewProject );
+	Section.AddMenuEntry( FMainFrameCommands::Get().OpenProject );
+
+	FText ShortIDEName = FSourceCodeNavigation::GetSelectedSourceCodeIDE();
+
+	Section.AddMenuEntry( FMainFrameCommands::Get().AddCodeToProject,
+		TAttribute<FText>(),
+		FText::Format(LOCTEXT("AddCodeToProjectTooltip", "Adds C++ code to the project. The code can only be compiled if you have {0} installed."), ShortIDEName)
+	);
+
+	Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+		"MainFrame.MainTabMenu.File",
+		"PackageProject",
+		LOCTEXT("PackageProjectSubMenuLabel", "Package Project"),
+		LOCTEXT("PackageProjectSubMenuToolTip", "Compile, cook and package your project and its content for distribution."),
+		FNewMenuDelegate::CreateStatic( &FPackageProjectMenu::MakeMenu ), false, FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.PackageProject")
+	));
+
+	/*
+	MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().LocalizeProject,
+		NAME_None,
+		TAttribute<FText>(),
+		LOCTEXT("LocalizeProjectToolTip", "Gather text from your project and import/export translations.")
+		);
+		*/
+	/*
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("CookProjectSubMenuLabel", "Cook Project"),
+		LOCTEXT("CookProjectSubMenuToolTip", "Cook your project content for debugging"),
+		FNewMenuDelegate::CreateStatic( &FCookContentMenu::MakeMenu ), false, FSlateIcon()
+	);
+	*/
+
+	FString SolutionPath;
+	if (FSourceCodeNavigation::DoesModuleSolutionExist())
+	{
+		Section.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
+			FText::Format(LOCTEXT("RefreshCodeProjectLabel", "Refresh {0} Project"), ShortIDEName),
+			FText::Format(LOCTEXT("RefreshCodeProjectTooltip", "Refreshes your C++ code project in {0}."), ShortIDEName)
+		);
+
+		Section.AddMenuEntry( FMainFrameCommands::Get().OpenIDE,
+			FText::Format(LOCTEXT("OpenIDELabel", "Open {0}"), ShortIDEName),
+			FText::Format(LOCTEXT("OpenIDETooltip", "Opens your C++ code in {0}."), ShortIDEName)
+		);
+	}
+	else
+	{
+		Section.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
+			FText::Format(LOCTEXT("GenerateCodeProjectLabel", "Generate {0} Project"), ShortIDEName),
+			FText::Format(LOCTEXT("GenerateCodeProjectTooltip", "Generates your C++ code project in {0}."), ShortIDEName)
+		);
+	}
+
+	Section.AddDynamicEntry("CookContentForPlatform", FNewEditorMenuSectionDelegate::CreateLambda([](FEditorMenuSection& InSection)
+	{
+		// @hack GDC: this should be moved somewhere else and be less hacky
+		ITargetPlatform* RunningTargetPlatform = GetTargetPlatformManager()->GetRunningTargetPlatform();
+
+		if (RunningTargetPlatform != nullptr)
 		{
-			MenuBuilder.BeginSection( "FileProject", LOCTEXT("ProjectHeading", "Project") );
-			{
-				MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().NewProject );
-				MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().OpenProject );
+			const FName CookedPlatformName = *(RunningTargetPlatform->PlatformName() + TEXT("NoEditor"));
+			const FText CookedPlatformText = FText::FromString(RunningTargetPlatform->PlatformName());
 
-				FText ShortIDEName = FSourceCodeNavigation::GetSelectedSourceCodeIDE();
+			FUIAction Action(
+				FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContent, CookedPlatformName),
+				FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContentCanExecute, CookedPlatformName)
+			);
 
-				MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().AddCodeToProject,
-					NAME_None,
-					TAttribute<FText>(),
-					FText::Format(LOCTEXT("AddCodeToProjectTooltip", "Adds C++ code to the project. The code can only be compiled if you have {0} installed."), ShortIDEName)
-				);
-
-				MenuBuilder.AddSubMenu(
-					LOCTEXT("PackageProjectSubMenuLabel", "Package Project"),
-					LOCTEXT("PackageProjectSubMenuToolTip", "Compile, cook and package your project and its content for distribution."),
-					FNewMenuDelegate::CreateStatic( &FPackageProjectMenu::MakeMenu ), false, FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.PackageProject")
-				);
-				/*
-				MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().LocalizeProject,
-					NAME_None,
-					TAttribute<FText>(),
-					LOCTEXT("LocalizeProjectToolTip", "Gather text from your project and import/export translations.")
-					);
-					*/
-				/*
-				MenuBuilder.AddSubMenu(
-					LOCTEXT("CookProjectSubMenuLabel", "Cook Project"),
-					LOCTEXT("CookProjectSubMenuToolTip", "Cook your project content for debugging"),
-					FNewMenuDelegate::CreateStatic( &FCookContentMenu::MakeMenu ), false, FSlateIcon()
-				);
-				*/
-
-				FString SolutionPath;
-				if (FSourceCodeNavigation::DoesModuleSolutionExist())
-				{
-					MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
-						NAME_None,
-						FText::Format(LOCTEXT("RefreshCodeProjectLabel", "Refresh {0} Project"), ShortIDEName),
-						FText::Format(LOCTEXT("RefreshCodeProjectTooltip", "Refreshes your C++ code project in {0}."), ShortIDEName)
-					);
-
-					MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().OpenIDE,
-						NAME_None,
-						FText::Format(LOCTEXT("OpenIDELabel", "Open {0}"), ShortIDEName),
-						FText::Format(LOCTEXT("OpenIDETooltip", "Opens your C++ code in {0}."), ShortIDEName)
-					);
-				}
-				else
-				{
-					MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().RefreshCodeProject,
-						NAME_None,
-						FText::Format(LOCTEXT("GenerateCodeProjectLabel", "Generate {0} Project"), ShortIDEName),
-						FText::Format(LOCTEXT("GenerateCodeProjectTooltip", "Generates your C++ code project in {0}."), ShortIDEName)
-					);
-				}
-
-				// @hack GDC: this should be moved somewhere else and be less hacky
-				ITargetPlatform* RunningTargetPlatform = GetTargetPlatformManager()->GetRunningTargetPlatform();
-
-				if (RunningTargetPlatform != nullptr)
-				{
-					const FName CookedPlatformName = *(RunningTargetPlatform->PlatformName() + TEXT("NoEditor"));
-					const FText CookedPlatformText = FText::FromString(RunningTargetPlatform->PlatformName());
-
-					FUIAction Action(
-						FExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContent, CookedPlatformName),
-						FCanExecuteAction::CreateStatic(&FMainFrameActionCallbacks::CookContentCanExecute, CookedPlatformName)
-					);
-
-					MenuBuilder.AddMenuEntry(
-						FText::Format(LOCTEXT("CookContentForPlatform", "Cook Content for {0}"), CookedPlatformText),
-						FText::Format(LOCTEXT("CookContentForPlatformTooltip", "Cook your game content for debugging on the {0} platform"), CookedPlatformText),
-						FSlateIcon(),
-						Action
-					);
-				}
-			}
-			MenuBuilder.EndSection();
+			InSection.AddMenuEntry(
+				"CookContentForPlatform",
+				FText::Format(LOCTEXT("CookContentForPlatform", "Cook Content for {0}"), CookedPlatformText),
+				FText::Format(LOCTEXT("CookContentForPlatformTooltip", "Cook your game content for debugging on the {0} platform"), CookedPlatformText),
+				FSlateIcon(),
+				Action
+			);
 		}
+	}));
+}
 
-		static void FillRecentFileAndExitMenuItems( FMenuBuilder& MenuBuilder )
+void FMainMenu::RegisterRecentFileAndExitMenuItems()
+{
+	UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::Get();
+	UEditorMenu* MainTabFileMenu = EditorMenus->RegisterMenu("MainFrame.MainTabMenu.File", "MainFrame.MainMenu.File");
+
+	{
+		FEditorMenuSection& Section = MainTabFileMenu->AddSection("FileRecentFiles");
+		if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus && FMainFrameActionCallbacks::ProjectNames.Num() > 0)
 		{
-			MenuBuilder.BeginSection("FileRecentFiles");
-			{
-				if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus && FMainFrameActionCallbacks::ProjectNames.Num() > 0)
-				{
-					MenuBuilder.AddSubMenu(
-						LOCTEXT("SwitchProjectSubMenu", "Recent Projects"),
-						LOCTEXT("SwitchProjectSubMenu_ToolTip", "Select a project to switch to"),
-						FNewMenuDelegate::CreateStatic(&FRecentProjectsMenu::MakeMenu), false, FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentProjects")
-						);
-				}
-			}
-			MenuBuilder.EndSection();
+			Section.AddEntry(FEditorMenuEntry::InitSubMenu(
+				"MainFrame.MainTabMenu.File",
+				"RecentProjects",
+				LOCTEXT("SwitchProjectSubMenu", "Recent Projects"),
+				LOCTEXT("SwitchProjectSubMenu_ToolTip", "Select a project to switch to"),
+				FNewEditorMenuDelegate::CreateStatic(&FRecentProjectsMenu::MakeMenu),
+				false,
+				FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentProjects")
+			));
+		}
+	}
 
 #if !PLATFORM_MAC // Handled by app's menu in menu bar
-			MenuBuilder.AddMenuSeparator();
-			MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().Exit, "Exit" );
-#endif
-		}
-	};
-
-	FExtensibilityManager ExtensibilityManager;
-
-	ExtensibilityManager.AddExtender( UserExtender );
 	{
-		TSharedRef< FExtender > Extender( new FExtender() );
-	
+		FEditorMenuSection& Section = MainTabFileMenu->AddSection("Exit");
+		Section.AddMenuEntry( FMainFrameCommands::Get().Exit );
+	}
+#endif
+}
+
+TSharedRef< SWidget > FMainMenu::MakeMainTabMenu( const TSharedPtr<FTabManager>& TabManager, const FName MenuName, FEditorMenuContext& EditorMenuContext )
+{
+	if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus)
+	{
 		IMainFrameModule& MainFrameModule = FModuleManager::GetModuleChecked<IMainFrameModule>("MainFrame");
-
-		if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus)
-		{
-			Extender->AddMenuExtension(
-				"FileLoadAndSave",
-				EExtensionHook::After,
-				MainFrameModule.GetMainFrameCommandBindings(),
-				FMenuExtensionDelegate::CreateStatic(&Local::FillProjectMenuItems));
-		}
-
-		Extender->AddMenuExtension(
-			"FileLoadAndSave",
-			EExtensionHook::After,
-			MainFrameModule.GetMainFrameCommandBindings(),
-			FMenuExtensionDelegate::CreateStatic( &Local::FillRecentFileAndExitMenuItems ) );
-
-		ExtensibilityManager.AddExtender( Extender );
+		EditorMenuContext.AppendCommandList(MainFrameModule.GetMainFrameCommandBindings());
 	}
 
 
-	TSharedRef< SWidget > MenuBarWidget = FMainMenu::MakeMainMenu( TabManager, ExtensibilityManager.GetAllExtenders().ToSharedRef() );
+	TSharedRef< SWidget > MenuBarWidget = FMainMenu::MakeMainMenu( TabManager, MenuName, EditorMenuContext );
 
 	return MenuBarWidget;
 }

@@ -148,6 +148,9 @@ private:
 	 */
 	void BindCommands();
 
+	/** Registers menus associated with level editor */
+	void RegisterMenus();
+
 	/**
 	 * Fills the level editor with content, using the layout string, or the default if
 	 * no layout string is passed in

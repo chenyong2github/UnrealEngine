@@ -142,6 +142,12 @@ void SLevelEditor::BindCommands()
 		);
 }
 
+void SLevelEditor::RegisterMenus()
+{
+	FLevelEditorMenu::RegisterLevelEditorMenus();
+	FLevelEditorToolBar::RegisterLevelEditorToolBar(LevelEditorCommands.ToSharedRef(), SharedThis(this));
+}
+
 void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 {
 	// Important: We use raw bindings here because we are releasing our binding in our destructor (where a weak pointer would be invalid)
@@ -153,6 +159,8 @@ void SLevelEditor::Construct( const SLevelEditor::FArguments& InArgs)
 	GetMutableDefault<UEditorExperimentalSettings>()->OnSettingChanged().AddRaw(this, &SLevelEditor::HandleExperimentalSettingChanged);
 
 	BindCommands();
+
+	RegisterMenus();
 
 	// We need to register when modes list changes so that we can refresh the auto generated commands.
 	FEditorModeRegistry::Get().OnRegisteredModesChanged().AddRaw(this, &SLevelEditor::EditorModeCommandsChanged);
