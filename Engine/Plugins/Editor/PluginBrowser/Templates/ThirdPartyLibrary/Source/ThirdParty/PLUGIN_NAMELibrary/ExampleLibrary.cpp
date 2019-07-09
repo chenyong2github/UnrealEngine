@@ -13,8 +13,8 @@
 DLLEXPORT void ExampleLibraryFunction()
 {
 #if defined _WIN32 || defined _WIN64
-	MessageBox(NULL, TEXT("Hello world!"), NULL, MB_OK);
+	MessageBox(NULL, TEXT("Loaded ExampleLibrary.dll from Third Party Plugin sample."), TEXT("Third Party Plugin"), MB_OK);
 #else
-    printf("Hello World");
+    printf("Loaded ExampleLibrary from Third Party Plugin sample");
 #endif
 }
