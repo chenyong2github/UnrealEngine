@@ -34,8 +34,9 @@ public class DataValidation : ModuleRules
 				"BlueprintGraph",
 				"KismetCompiler",
 				"SandboxFile",
-                "Blutility"
-            }
+				"Blutility",
+				"EditorMenus",
+			}
 		);
 	}
 }
