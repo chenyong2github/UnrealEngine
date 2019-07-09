@@ -4677,7 +4677,7 @@ static inline int32 CDECL CompareFMiniFileEntry(const void* Left, const void* Ri
 	return 0;
 }
 
-bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep)
+bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep, bool bAllowRetries)
 {
 	// If the process has already been done, get out of here.
 	if (bAttemptedPakFilenameUnload || bFilenamesRemoved)
@@ -4694,7 +4694,7 @@ bool FPakFile::UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisio
 
 	// Variables for the filename hashing and collision detection.
 	int NumRetries = 0;
-	const int MAX_RETRIES = 10;
+	const int MAX_RETRIES = bAllowRetries ? 10 : 1;
 	bool bHasCollision;
 	FilenameStartHash = FCrc::StrCrc32(*GetFilename());
     
@@ -5116,6 +5116,10 @@ bool FPakFile::ShrinkPakEntriesMemoryUsage()
 	// Clear out the Files data. We compressed it, and we don't need the wasted
 	// space of the original anymore.
 	Files.Empty(0);
+
+	static uint64 Total = 0;
+	Total += TotalSizeOfCompressedEntries;
+	UE_LOG(LogPakFile, Display, TEXT("Compressed pak entries down to %d bytes [Total = %llu bytes]"), TotalSizeOfCompressedEntries, Total);
 
 	return true;
 }
