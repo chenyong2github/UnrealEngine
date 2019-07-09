@@ -105,7 +105,7 @@ public:
 	}
 };
 
-template<ESlateShader::Type ShaderType,bool bDrawDisabledEffect> 
+template<ESlateShader ShaderType,bool bDrawDisabledEffect> 
 class TSlateMaterialShaderPS : public FSlateMaterialShaderPS
 {
 public:

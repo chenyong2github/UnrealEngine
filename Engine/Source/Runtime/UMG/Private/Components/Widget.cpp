@@ -579,7 +579,7 @@ void UWidget::ForceLayoutPrepass()
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
 	if (SafeWidget.IsValid())
 	{
-		SafeWidget->SlatePrepass(SafeWidget->GetCachedGeometry().Scale);
+		SafeWidget->SlatePrepass(SafeWidget->GetTickSpaceGeometry().Scale);
 	}
 }
 
@@ -723,13 +723,29 @@ void UWidget::RemoveFromParent()
 
 const FGeometry& UWidget::GetCachedGeometry() const
 {
+	return GetTickSpaceGeometry();
+}
+
+const FGeometry& UWidget::GetTickSpaceGeometry() const
+{
 	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
 	if ( SafeWidget.IsValid() )
 	{
-		return SafeWidget->GetCachedGeometry();
+		return SafeWidget->GetTickSpaceGeometry();
 	}
 
-	return SNullWidget::NullWidget->GetCachedGeometry();
+	return SNullWidget::NullWidget->GetTickSpaceGeometry();
+}
+
+const FGeometry& UWidget::GetPaintSpaceGeometry() const
+{
+	TSharedPtr<SWidget> SafeWidget = GetCachedWidget();
+	if (SafeWidget.IsValid())
+	{
+		return SafeWidget->GetPaintSpaceGeometry();
+	}
+
+	return SNullWidget::NullWidget->GetPaintSpaceGeometry();
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -1174,10 +1190,6 @@ void UWidget::SynchronizeProperties()
 
 	SafeWidget->SetRenderOpacity(RenderOpacity);
 
-#if !UE_BUILD_SHIPPING
-	SafeWidget->SetTag(GetFName());
-#endif
-
 	UpdateRenderTransform();
 	SafeWidget->SetRenderTransformPivot(RenderTransformPivot);
 
@@ -1202,6 +1214,10 @@ void UWidget::SynchronizeProperties()
 	{
 		SafeWidget->SetToolTipText(PROPERTY_BINDING(FText, ToolTipText));
 	}
+
+#if WITH_SLATE_DEBUGGING
+	SafeWidget->AddMetadata<FReflectionMetaData>(MakeShared<FReflectionMetaData>(GetFName(), GetClass(), this, GetSourceAssetOrClass()));
+#endif
 
 #if WITH_ACCESSIBILITY
 	TSharedPtr<SWidget> AccessibleWidget = GetAccessibleWidget();

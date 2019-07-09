@@ -31,10 +31,10 @@
 #include "RenderTargetPool.h"
 #include "RendererUtils.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Rendering/RenderingCommon.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Rendering"), STAT_SlateRenderingRTTime, STATGROUP_Slate);
-DECLARE_CYCLE_STAT(TEXT("Slate RT: Create Batches"), STAT_SlateRTCreateBatches, STATGROUP_Slate);
-DECLARE_CYCLE_STAT(TEXT("Slate RT: Fill Vertex & Index Buffers"), STAT_SlateRTFillVertexIndexBuffers, STATGROUP_Slate);
+
 DECLARE_CYCLE_STAT(TEXT("Slate RT: Draw Batches"), STAT_SlateRTDrawBatches, STATGROUP_Slate);
 
 DECLARE_GPU_STAT_NAMED(SlateUI, TEXT("Slate UI"));
@@ -118,25 +118,20 @@ void FViewportInfo::ReleaseResource()
 
 void FViewportInfo::ConditionallyUpdateDepthBuffer(bool bInRequiresStencilTest, uint32 InWidth, uint32 InHeight)
 {
-	FViewportInfo* ViewportInfo = this;
-	ENQUEUE_RENDER_COMMAND(UpdateDepthBufferCommand)(
-		[ViewportInfo, bInRequiresStencilTest, InWidth, InHeight](FRHICommandListImmediate& RHICmdList)
+	check(IsInRenderingThread());
+
+	bool bDepthStencilStale =
+		bInRequiresStencilTest &&
+		(!bRequiresStencilTest ||
+		(DepthStencil.IsValid() && (DepthStencil->GetSizeX() != InWidth || DepthStencil->GetSizeY() != InHeight)));
+
+	bRequiresStencilTest = bInRequiresStencilTest;
+
+	// Allocate a stencil buffer if needed and not already allocated
+	if (bDepthStencilStale)
 	{
-		bool bDepthStencilStale =
-			bInRequiresStencilTest &&
-			(!ViewportInfo->bRequiresStencilTest ||
-			(ViewportInfo->DepthStencil.IsValid() && (ViewportInfo->DepthStencil->GetSizeX() != InWidth || ViewportInfo->DepthStencil->GetSizeY() != InHeight))
-				);
-
-		ViewportInfo->bRequiresStencilTest = bInRequiresStencilTest;
-
-		// Allocate a stencil buffer if needed and not already allocated
-		if (bDepthStencilStale)
-		{
-			ViewportInfo->RecreateDepthBuffer_RenderThread();
-		}
+		RecreateDepthBuffer_RenderThread();
 	}
-	);
 }
 
 void FViewportInfo::RecreateDepthBuffer_RenderThread()
@@ -201,7 +196,7 @@ bool FSlateRHIRenderer::Initialize()
 
 	RenderingPolicy = MakeShareable(new FSlateRHIRenderingPolicy(SlateFontServices.ToSharedRef(), ResourceManager.ToSharedRef()));
 
-	ElementBatcher = MakeShareable(new FSlateElementBatcher(RenderingPolicy.ToSharedRef()));
+	ElementBatcher = MakeUnique<FSlateElementBatcher>(RenderingPolicy.ToSharedRef());
 
 	CurrentSceneIndex = -1;
 	ActiveScenes.Empty();
@@ -223,7 +218,6 @@ void FSlateRHIRenderer::Destroy()
 	FlushRenderingCommands();
 
 
-	check(ElementBatcher.IsUnique());
 	ElementBatcher.Reset();
 	RenderingPolicy.Reset();
 	ResourceManager.Reset();
@@ -661,6 +655,8 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 {
 	LLM_SCOPE(ELLMTag::SceneRender);
 
+	FMemMark MemMark(FMemStack::Get());
+
 	static uint32 LastTimestamp = FPlatformTime::Cycles();
 	{
 		SCOPED_DRAW_EVENTF(RHICmdList, SlateUI, TEXT("SlateUI Title = %s"), DrawCommandParams.WindowTitle.IsEmpty() ? TEXT("<none>") : *DrawCommandParams.WindowTitle);
@@ -669,9 +665,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 		// Should only be called by the rendering thread
 		check(IsInRenderingThread());
-
-		// Any window that draws should be reporting referenced UObjects for the duration of the frame.
-		check(WindowElementList.ShouldReportUObjectReferences());
 
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 		GetRendererModule().InitializeSystemTextures(RHICmdList);
@@ -711,22 +704,12 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			SCOPE_CYCLE_COUNTER(STAT_SlateRenderingRTTime);
 
 			FSlateBatchData& BatchData = WindowElementList.GetBatchData();
-			FElementBatchMap& RootBatchMap = WindowElementList.GetRootDrawLayer().GetElementBatchMap();
 
-			WindowElementList.PreDraw_ParallelThread();
+			// Update the vertex and index buffer	
+			RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchData);
 
-			{
-				SCOPE_CYCLE_COUNTER(STAT_SlateRTCreateBatches);
-				// Update the vertex and index buffer	
-				BatchData.CreateRenderBatches(RootBatchMap);
-			}
-
-			RootBatchMap.UpdateResourceVersion(ResourceVersion);
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_SlateRTFillVertexIndexBuffers);
-				RenderingPolicy->UpdateVertexAndIndexBuffers(RHICmdList, BatchData);
-			}
+			// This must happen after rendering buffers are created
+			ViewportInfo.ConditionallyUpdateDepthBuffer(BatchData.IsStencilClippingRequired(), ViewportInfo.DesiredWidth, ViewportInfo.DesiredHeight);
 
 			// should have been created by the game thread
 			check(IsValidRef(ViewportInfo.ViewportRHI));
@@ -841,6 +824,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 							BackBufferTarget,
 							BackBuffer,
 							ViewportInfo.bRequiresStencilTest ? ViewportInfo.DepthStencil : EmptyTarget,
+							BatchData.GetFirstRenderBatchIndex(),
 							BatchData.GetRenderBatches(),
 							RenderParams
 						);
@@ -1050,9 +1034,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			GWorkingRHIThreadStallTime = 0;
 		});
 	}
-
-	// Any window that draws should be reporting referenced UObjects for the duration of the frame.
-	check(WindowElementList.ShouldReportUObjectReferences());
 }
 
 void FSlateRHIRenderer::DrawWindows(FSlateDrawBuffer& WindowDrawBuffer)
@@ -1116,7 +1097,6 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 				FontCache->UpdateCache();
 
 				bool bLockToVsync = ElementBatcher->RequiresVsync();
-				bool bRequiresStencilTest = ElementList.GetBatchData().IsStencilClippingRequired();
 
 				bool bForceVsyncFromCVar = false;
 				if (GIsEditor)
@@ -1143,13 +1123,6 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					// Resize the viewport if needed
 					ConditionalResizeViewport(ViewInfo, ViewInfo->DesiredWidth, ViewInfo->DesiredHeight, IsViewportFullscreen(*Window));
 				}
-
-				
-				if (bRequiresStencilTest || bRequiresStencilTest != ViewInfo->bRequiresStencilTest)
-				{
-					ViewInfo->ConditionallyUpdateDepthBuffer(bRequiresStencilTest, ViewInfo->DesiredWidth, ViewInfo->DesiredHeight);
-				}
-				
 
 				// Tell the rendering thread to draw the windows
 				{
@@ -1503,6 +1476,46 @@ void FSlateRHIRenderer::ClearScenes()
 	}
 }
 
+
+struct FClearCachedRenderingDataCommand final : public FRHICommand < FClearCachedRenderingDataCommand >
+{
+public:
+	FClearCachedRenderingDataCommand(FSlateCachedFastPathRenderingData* InCachedRenderingData)
+		: CachedRenderingData(InCachedRenderingData)
+	{
+		
+	}
+
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		delete CachedRenderingData;
+	}
+
+private:
+	FSlateCachedFastPathRenderingData* CachedRenderingData;
+};
+
+void FSlateRHIRenderer::DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* CachedRenderingData)
+{
+	check(CachedRenderingData);
+
+	// Cached data should be destroyed in a thread safe way.  If there is an rhi thread it could be reading from the data to copy it into a vertex buffer
+	// so delete it on the rhi thread if necessary, otherwise delete it on the render thread
+	ENQUEUE_RENDER_COMMAND(ClearCachedRenderingData)(
+		[CachedRenderingData](FRHICommandListImmediate& RHICmdList)
+	{
+		if (!RHICmdList.Bypass())
+		{
+			new (RHICmdList.AllocCommand<FClearCachedRenderingDataCommand>()) FClearCachedRenderingDataCommand(CachedRenderingData);
+		}
+		else
+		{
+			FClearCachedRenderingDataCommand Cmd(CachedRenderingData);
+			Cmd.Execute(RHICmdList);
+		}
+	});
+}
+
 bool FSlateRHIRenderer::AreShadersInitialized() const
 {
 #if WITH_EDITORONLY_DATA
@@ -1539,7 +1552,7 @@ void FSlateRHIRenderer::ReleaseAccessedResources(bool bImmediatelyFlush)
 		// This should NOT be done unless flushing
 		RenderingPolicy->FlushGeneratedResources();
 
-		FlushCommands();
+		//FlushCommands();
 	}
 }
 
@@ -1583,75 +1596,6 @@ void FSlateRHIRenderer::AddWidgetRendererUpdate(const struct FRenderThreadUpdate
 	}
 }
 
-
-TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe> FSlateRHIRenderer::CacheElementRenderData(const ILayoutCache* Cacher, FSlateWindowElementList& ElementList)
-{
-	TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe> RenderDataHandle = MakeShareable(new FSlateRenderDataHandle(Cacher, ResourceManager.Get()));
-
-	checkSlow(ElementList.GetChildDrawLayers().Num() == 0);
-
-	// Add all elements for this window to the element batcher
-	ElementBatcher->AddElements(ElementList);
-
-	// All elements for this window have been batched and rendering data updated
-	ElementBatcher->ResetBatches();
-
-	struct FCacheElementBatchesContext
-	{
-		FSlateRHIRenderingPolicy* RenderPolicy;
-		FSlateWindowElementList* SlateElementList;
-		TSharedRef<FSlateRenderDataHandle, ESPMode::ThreadSafe> RenderDataHandle;
-		uint32 ResourceVersion;
-	};
-	FCacheElementBatchesContext CacheElementBatchesContext =
-	{
-		RenderingPolicy.Get(),
-		&ElementList,
-		RenderDataHandle,
-		ResourceVersion
-	};
-
-	RenderDataHandle->BeginUsing();
-
-	ENQUEUE_RENDER_COMMAND(CacheElementBatches)(
-		[CacheElementBatchesContext](FRHICommandListImmediate& RHICmdList)
-	{
-		FSlateBatchData& BatchData = CacheElementBatchesContext.SlateElementList->GetBatchData();
-		FElementBatchMap& RootBatchMap = CacheElementBatchesContext.SlateElementList->GetRootDrawLayer().GetElementBatchMap();
-
-		BatchData.SetRenderDataHandle(CacheElementBatchesContext.RenderDataHandle);
-		BatchData.CreateRenderBatches(RootBatchMap);
-		CacheElementBatchesContext.RenderPolicy->UpdateVertexAndIndexBuffers(RHICmdList, BatchData, CacheElementBatchesContext.RenderDataHandle);
-
-		RootBatchMap.UpdateResourceVersion(CacheElementBatchesContext.ResourceVersion);
-
-		CacheElementBatchesContext.RenderDataHandle->EndUsing();
-	}
-	);
-
-	return RenderDataHandle;
-}
-
-void FSlateRHIRenderer::ReleaseCachingResourcesFor(const ILayoutCache* Cacher)
-{
-	struct FReleaseCachingResourcesForContext
-	{
-		FSlateRHIRenderingPolicy* RenderPolicy;
-		const ILayoutCache* Cacher;
-	};
-	FReleaseCachingResourcesForContext MarshalContext =
-	{
-		RenderingPolicy.Get(),
-		Cacher,
-	};
-	ENQUEUE_RENDER_COMMAND(ReleaseCachingResourcesFor)(
-		[MarshalContext](FRHICommandListImmediate& RHICmdList)
-	{
-		MarshalContext.RenderPolicy->ReleaseCachingResourcesFor(RHICmdList, MarshalContext.Cacher);
-	}
-	);
-}
-
 FSlateEndDrawingWindowsCommand::FSlateEndDrawingWindowsCommand(FSlateRHIRenderingPolicy& InPolicy, FSlateDrawBuffer* InDrawBuffer)
 	: Policy(InPolicy)
 	, DrawBuffer(InDrawBuffer)
@@ -1659,11 +1603,6 @@ FSlateEndDrawingWindowsCommand::FSlateEndDrawingWindowsCommand(FSlateRHIRenderin
 
 void FSlateEndDrawingWindowsCommand::Execute(FRHICommandListBase& CmdList)
 {
-	for (auto& ElementList : DrawBuffer->GetWindowElementLists())
-	{
-		ElementList->PostDraw_ParallelThread();
-	}
-
 	DrawBuffer->Unlock();
 	Policy.EndDrawingWindows();
 }

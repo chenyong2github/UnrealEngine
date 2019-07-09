@@ -97,7 +97,7 @@ int32 SWidgetSwitcher::RemoveSlot( TSharedRef<SWidget> WidgetToRemove )
 
 				if (SlotIndex == ActiveWidgetIndex)
 				{
-					Invalidate(EInvalidateWidget::LayoutAndVolatility);
+					Invalidate(EInvalidateWidget::ChildOrder);
 				}
 
 				if (ActiveWidgetIndex > 0 && ActiveWidgetIndex >= SlotIndex)
@@ -116,10 +116,21 @@ int32 SWidgetSwitcher::RemoveSlot( TSharedRef<SWidget> WidgetToRemove )
 
 void SWidgetSwitcher::SetActiveWidgetIndex( int32 Index )
 {
-	if(WidgetIndex.Get() != Index)
+	if (WidgetIndex.Get() != Index)
 	{
+		const FSlot* ActiveSlot = GetActiveSlot();
+
+		SWidget& OldActiveWidget = ActiveSlot->GetWidget().Get();
+
+		Invalidate(EInvalidateWidget::ChildOrder);
+
+		InvalidateChildRemovedFromTree(OldActiveWidget);
+
 		WidgetIndex = Index;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
+
+#if WITH_SLATE_DEBUGGING
+		UE_LOG(LogSlate, Log, TEXT("WidgetSwitcher ('%s') active index changed to %d"), *GetTag().ToString(), Index);
+#endif
 	}
 }
 
