@@ -2333,7 +2333,7 @@ void UNetReplicationGraphConnection::AddConnectionGraphNode(UReplicationGraphNod
 
 void UNetReplicationGraphConnection::RemoveConnectionGraphNode(UReplicationGraphNode* Node)
 {
-	ConnectionGraphNodes.Remove(Node);
+	ConnectionGraphNodes.RemoveSingleSwap(Node);
 }
 
 bool UNetReplicationGraphConnection::PrepareForReplication()
@@ -2567,15 +2567,43 @@ void UReplicationGraphNode::NotifyResetAllNetworkActors()
 	}
 }
 
-void UReplicationGraphNode::RemoveChildNode(UReplicationGraphNode* ChildNode)
+void UReplicationGraphNode::RemoveChildNode(UReplicationGraphNode* ChildNode, UReplicationGraphNode::NodeOrdering NodeOrder)
 {
 	ensure(ChildNode != nullptr);
 
-	int32 Removed = AllChildNodes.Remove(ChildNode);
+	int32 Removed(0);
+	
+	if (NodeOrder == NodeOrdering::IgnoreOrdering)
+	{
+		Removed = AllChildNodes.RemoveSingleSwap(ChildNode, false);
+	}
+	else
+	{
+		Removed = AllChildNodes.RemoveSingle(ChildNode);
+	}
+
 	if (Removed > 0)
 	{
 		ChildNode->TearDown();
 	}
+}
+
+void UReplicationGraphNode::CleanChildNodes(UReplicationGraphNode::NodeOrdering NodeOrder)
+{
+	auto RemoveFunc = [](UReplicationGraphNode* GridChildNode)
+	{
+		return (GridChildNode == nullptr) || GridChildNode->IsPendingKill();
+	};
+
+	if (NodeOrder == NodeOrdering::IgnoreOrdering)
+	{
+		AllChildNodes.RemoveAllSwap(RemoveFunc, false);
+	}
+	else
+	{
+		AllChildNodes.RemoveAll(RemoveFunc);
+	}
+
 }
 
 void UReplicationGraphNode::TearDown()
@@ -2584,6 +2612,8 @@ void UReplicationGraphNode::TearDown()
 	{
 		Node->TearDown();
 	}
+
+	AllChildNodes.Reset();
 
 	MarkPendingKill();
 }
@@ -4786,6 +4816,8 @@ void UReplicationGraphNode_GridSpatialization2D::PrepareForReplication()
 		{
 			GEngine->ForceGarbageCollection(true);
 		}
+
+		CleanChildNodes(NodeOrdering::IgnoreOrdering);
 		
 		for (auto& MapIt : DynamicSpatializedActors)
 		{
