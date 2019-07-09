@@ -1495,7 +1495,25 @@ private:
 	FSlateCachedFastPathRenderingData* CachedRenderingData;
 };
 
-void FSlateRHIRenderer::DestroyCachedFastPathRenderingData(struct FSlateCachedFastPathRenderingData* CachedRenderingData)
+struct FClearCachedElementDataCommand final : public FRHICommand < FClearCachedElementDataCommand >
+{
+public:
+	FClearCachedElementDataCommand(FSlateCachedElementData* InCachedElementData)
+		: CachedElementData(InCachedElementData)
+	{
+
+	}
+
+	void Execute(FRHICommandListBase& CmdList)
+	{
+		delete CachedElementData;
+	}
+
+private:
+	FSlateCachedElementData* CachedElementData;
+};
+
+void FSlateRHIRenderer::DestroyCachedFastPathRenderingData(FSlateCachedFastPathRenderingData* CachedRenderingData)
 {
 	check(CachedRenderingData);
 
@@ -1511,6 +1529,27 @@ void FSlateRHIRenderer::DestroyCachedFastPathRenderingData(struct FSlateCachedFa
 		else
 		{
 			FClearCachedRenderingDataCommand Cmd(CachedRenderingData);
+			Cmd.Execute(RHICmdList);
+		}
+	});
+}
+
+void FSlateRHIRenderer::DestroyCachedFastPathElementData(FSlateCachedElementData* CachedElementData)
+{
+	check(CachedElementData);
+
+	// Cached data should be destroyed in a thread safe way.  If there is an rhi thread it could be reading from the data to copy it into a vertex buffer
+	// so delete it on the rhi thread if necessary, otherwise delete it on the render thread
+	ENQUEUE_RENDER_COMMAND(ClearCachedElementData)(
+		[CachedElementData](FRHICommandListImmediate& RHICmdList)
+	{
+		if (!RHICmdList.Bypass())
+		{
+			new (RHICmdList.AllocCommand<FClearCachedElementDataCommand>()) FClearCachedElementDataCommand(CachedElementData);
+		}
+		else
+		{
+			FClearCachedElementDataCommand Cmd(CachedElementData);
 			Cmd.Execute(RHICmdList);
 		}
 	});
