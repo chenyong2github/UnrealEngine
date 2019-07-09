@@ -57,6 +57,9 @@ TSharedRef<SDockTab> UEditorUtilityWidgetBlueprint::SpawnEditorUITab(const FSpaw
 	CreatedTab = SpawnedTab;
 	
 	GEditor->OnBlueprintReinstanced().AddUObject(this, &UEditorUtilityWidgetBlueprint::RegenerateCreatedTab);
+	
+	FLevelEditorModule& LevelEditor = FModuleManager::LoadModuleChecked<FLevelEditorModule>("LevelEditor");
+	LevelEditor.OnMapChanged().AddUObject(this, &UEditorUtilityWidgetBlueprint::ChangeTabWorld);
 
 	return SpawnedTab;
 }
@@ -91,6 +94,23 @@ void UEditorUtilityWidgetBlueprint::RegenerateCreatedTab()
 	{
 		TSharedRef<SWidget> TabWidget = CreateUtilityWidget();
 		CreatedTab.Pin()->SetContent(TabWidget);
+	}
+}
+
+void UEditorUtilityWidgetBlueprint::ChangeTabWorld(UWorld* World, EMapChangeType MapChangeType)
+{
+	if (MapChangeType == EMapChangeType::TearDownWorld)
+	{
+		CreatedUMGWidget = nullptr;
+		if (CreatedTab.IsValid())
+		{
+			CreatedTab.Pin()->SetContent(SNullWidget::NullWidget);
+		}
+	}
+	else if (MapChangeType != EMapChangeType::SaveMap)
+	{
+		// Recreate the widget if we are loading a map or opening a new map
+		RegenerateCreatedTab();
 	}
 }
 
