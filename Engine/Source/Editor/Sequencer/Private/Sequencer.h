@@ -610,6 +610,9 @@ public:
 	/** Exports the animation to a camera anim asset. */
 	void ExportToCameraAnim();
 
+	/** */
+	void ShowReadOnlyError() const;
+
 public:
 	
 	/** Access the currently active track area edit tool */
