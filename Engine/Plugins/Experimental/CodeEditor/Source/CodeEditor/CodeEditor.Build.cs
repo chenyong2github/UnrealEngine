@@ -25,7 +25,8 @@ namespace UnrealBuildTool.Rules
 					"Kismet",  // for FWorkflowCentricApplication
 					"InputCore",
 					"DirectoryWatcher",
-					"LevelEditor"
+					"LevelEditor",
+					"EditorMenus",
 				}
 				);
 		}
