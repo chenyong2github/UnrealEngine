@@ -107,6 +107,11 @@ public:
 	virtual bool Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar) override;
 
 #if WITH_PYTHON
+
+#if WITH_EDITOR	
+	void OnPostEngineInit();
+#endif
+
 	/** Sync the remote execution environment to the current settings, starting or stopping it as required */
 	void SyncRemoteExecutionToSettings();
 

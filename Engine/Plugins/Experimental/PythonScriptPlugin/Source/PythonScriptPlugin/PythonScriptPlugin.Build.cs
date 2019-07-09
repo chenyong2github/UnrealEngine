@@ -31,6 +31,12 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.bBuildEditor == true)
 			{
+				PublicDependencyModuleNames.AddRange(
+					new string[] {
+						"EditorMenus"
+					}
+				);
+
 				PrivateDependencyModuleNames.AddRange(
 					new string[] {
 						"DesktopPlatform",
