@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/Map.h"
+#include "Delegates/IDelegateInstance.h"
 #include "Templates/SharedPointer.h"
 
 struct FImgMediaFrame;

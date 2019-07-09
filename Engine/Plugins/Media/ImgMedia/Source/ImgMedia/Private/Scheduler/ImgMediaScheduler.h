@@ -4,6 +4,7 @@
 
 #include "Containers/Array.h"
 #include "CoreTypes.h"
+#include "Delegates/IDelegateInstance.h"
 #include "HAL/CriticalSection.h"
 #include "IImgMediaScheduler.h"
 #include "IMediaClockSink.h"
