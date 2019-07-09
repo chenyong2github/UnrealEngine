@@ -105,34 +105,48 @@ protected:  // the below is not a public API!
 /** FProcHandle can be copied (and thus passed by value). */
 struct FProcHandle
 {
+	/** Child proc state set from CreateProc() call */
 	FProcState* 		ProcInfo;
 
+	/** Pid of external process opened with OpenProcess() call.
+	  * Added to FProcHandle so we don't have to special case FProcState with process
+	  * we can only check for running state, and even then the PID could be reused so
+	  * we don't ever want to terminate, etc.
+	  */
+	pid_t				OpenedPid;
+
 	FProcHandle()
-	:	ProcInfo(nullptr)
+	:	ProcInfo(nullptr), OpenedPid(-1)
 	{
 	}
 
 	FProcHandle(FProcState* InHandle)
-	:	ProcInfo(InHandle)
+	:	ProcInfo(InHandle), OpenedPid(-1)
+	{
+	}
+
+	FProcHandle(pid_t InProcPid)
+	:	ProcInfo(nullptr), OpenedPid(InProcPid)
 	{
 	}
 
 	/** Accessors. */
 	FORCEINLINE pid_t Get() const
 	{
-		return ProcInfo ? ProcInfo->GetProcessId() : -1;
+		return ProcInfo ? ProcInfo->GetProcessId() : OpenedPid;
 	}
 
 	/** Resets the handle to invalid */
 	FORCEINLINE void Reset()
 	{
 		ProcInfo = nullptr;
+		OpenedPid = -1;
 	}
 
 	/** Checks the validity of handle */
 	FORCEINLINE bool IsValid() const
 	{
-		return ProcInfo != nullptr;
+		return ProcInfo != nullptr || OpenedPid != -1;
 	}
 
 	// the below is not part of FProcHandle API and is specific to Unix implementation
@@ -264,6 +278,7 @@ struct CORE_API FUnixPlatformProcess : public FGenericPlatformProcess
 	static bool CanLaunchURL(const TCHAR* URL);
 	static void LaunchURL(const TCHAR* URL, const TCHAR* Parms, FString* Error);
 	static FProcHandle CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild = nullptr);
+	static FProcHandle OpenProcess(uint32 ProcessID);
 	static bool IsProcRunning( FProcHandle & ProcessHandle );
 	static void WaitForProc( FProcHandle & ProcessHandle );
 	static void CloseProc( FProcHandle & ProcessHandle );

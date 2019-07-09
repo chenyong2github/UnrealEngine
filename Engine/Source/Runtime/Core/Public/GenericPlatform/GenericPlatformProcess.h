@@ -332,7 +332,7 @@ struct CORE_API FGenericPlatformProcess
 	 * @param URL					executable name
 	 * @param Parms					command line arguments
 	 * @param bLaunchDetached		if true, the new process will have its own window
-	 * @param bLaunchHidded			if true, the new process will be minimized in the task bar
+	 * @param bLaunchHidden			if true, the new process will be minimized in the task bar
 	 * @param bLaunchReallyHidden	if true, the new process will not have a window or be in the task bar
 	 * @param OutProcessId			if non-NULL, this will be filled in with the ProcessId
 	 * @param PriorityModifier		-2 idle, -1 low, 0 normal, 1 high, 2 higher
