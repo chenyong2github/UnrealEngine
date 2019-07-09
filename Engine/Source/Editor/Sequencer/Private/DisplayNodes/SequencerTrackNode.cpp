@@ -163,8 +163,6 @@ void FSequencerTrackNode::UpdateInnerHierarchy()
 			// SetParent adds the track to our ChildNodes
 			NewSubTrack->SetParent(AsShared());
 
-			NewSubTrack->SetExpansionState(IsExpanded());
-
 			NewSubTrack->TreeSerialNumber = TreeSerialNumber;
 			NewSubTrack->UpdateSections();
 
