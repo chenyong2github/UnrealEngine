@@ -138,7 +138,6 @@ void SKeySelector::Construct(const FArguments& InArgs)
 				.Image(this, &SKeySelector::GetKeyIconImage)
 			]
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
