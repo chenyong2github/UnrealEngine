@@ -11,6 +11,8 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequence.h"
 #include "Engine/TimecodeProvider.h"
+#include "Engine/Engine.h"
+
 DEFINE_LOG_CATEGORY(AnimationSerialization);
 
 bool FMovieSceneAnimationTrackRecorderFactory::CanRecordObject(UObject* InObjectToRecord) const
