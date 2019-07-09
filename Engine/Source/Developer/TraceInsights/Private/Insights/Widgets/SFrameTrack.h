@@ -104,6 +104,18 @@ protected:
 
 	void ShowContextMenu(const FVector2D& ScreenSpacePosition);
 
+	void ContextMenu_ShowGameFrames_Execute();
+	bool ContextMenu_ShowGameFrames_CanExecute();
+	bool ContextMenu_ShowGameFrames_IsChecked();
+
+	void ContextMenu_ShowRenderingFrames_Execute();
+	bool ContextMenu_ShowRenderingFrames_CanExecute();
+	bool ContextMenu_ShowRenderingFrames_IsChecked();
+
+	void ContextMenu_AutoZoom_Execute();
+	bool ContextMenu_AutoZoom_CanExecute();
+	bool ContextMenu_AutoZoom_IsChecked();
+
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
 
@@ -139,6 +151,10 @@ protected:
 	TArray<int32> TimelinesOrder;
 
 	bool bIsStateDirty;
+
+	bool bShowGameFrames;
+	bool bShowRenderingFrames;
+	bool bIsAutoZoomEnabled;
 
 	uint64 AnalysisSyncNextTimestamp;
 
