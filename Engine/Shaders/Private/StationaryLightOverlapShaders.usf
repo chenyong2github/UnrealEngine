@@ -18,10 +18,11 @@ void OverlapDirectionalPixelMain(
 	)
 {
 	OutColor = 0;
-	FGBufferData GBuffer = GetGBufferData(InUV);
-
+#if !FORWARD_SHADING
+	FGBufferData GBuffer = GetGBufferData(InUV); 
 	// Only light pixels marked as using deferred shading
 	if( GBuffer.ShadingModelID > 0 )
+#endif
 	{
 		// Output minor complexity to visualize overlap
 		OutColor.rgb = .04f;
@@ -44,11 +45,12 @@ void OverlapRadialPixelMain(
 	float2 ScreenUV = SvPositionToBufferUV(SvPosition);
 	SvPosition.z = LookupDeviceZ(ScreenUV);
 	
+#if !FORWARD_SHADING
 	FGBufferData GBuffer = GetGBufferData(ScreenUV); 
-	
 	// Only light pixels marked as using deferred shading
 	BRANCH if( GBuffer.ShadingModelID > 0 )
-	{
+#endif
+{
 		float3 WorldPosition = SvPositionToWorld(SvPosition);
 
 		float3 ToLight = DeferredLightUniforms.Direction;
