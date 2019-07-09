@@ -957,8 +957,9 @@ public:
 	 *
 	 * @param CrossPakCollisionChecker A map of hash->fileentry records encountered during filename unloading on other pak files. Used to detect collisions with entries in other pak files.
 	 * @param DirectoryRootsToKeep An array of strings in wildcard format that specify whole directory structures of filenames to keep in memory for directory iteration to work.
+	 * @param bAllowRetries If a collision is encountered, change the intial seed and try again a fixed number of times before failing
 	 */
-	bool UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr);
+	bool UnloadPakEntryFilenames(TMap<uint64, FPakEntry>& CrossPakCollisionChecker, TArray<FString>* DirectoryRootsToKeep = nullptr, bool bAllowRetries = true);
 
 	/**
 	 * Lower memory usage by bit-encoding the pak file entry information.
