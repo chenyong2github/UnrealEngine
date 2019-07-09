@@ -561,7 +561,7 @@ namespace UnrealBuildTool
 				ProjectConfigAndTargetCombinations = new List<ProjectConfigAndTargetCombination>();
 				if (IsStubProject)
 				{
-					ProjectConfigAndTargetCombination StubCombination = new ProjectConfigAndTargetCombination(null, UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null);
+					ProjectConfigAndTargetCombination StubCombination = new ProjectConfigAndTargetCombination(UnrealTargetPlatform.Parse(StubProjectPlatformName), UnrealTargetConfiguration.Unknown, StubProjectPlatformName, StubProjectConfigurationName, null);
 					ProjectConfigAndTargetCombinations.Add(StubCombination);
 				}
 				else
