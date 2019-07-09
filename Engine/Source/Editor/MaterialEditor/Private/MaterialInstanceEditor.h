@@ -15,6 +15,7 @@
 #include "TickableEditorObject.h"
 
 class FCanvas;
+class UEditorMenu;
 class UMaterialEditorInstanceConstant;
 class UMaterialInterface;
 class UMaterialInstanceConstant;
@@ -153,11 +154,11 @@ private:
 	/** Updates the 3D and UI preview viewport visibility based on material domain */
 	void UpdatePreviewViewportsVisibility();
 
-	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+	void RegisterToolBar();
 	/** Builds the toolbar widget for the material editor */
 	void ExtendToolbar();
 
-	TSharedRef<SWidget> GenerateInheritanceMenu();
+	void GenerateInheritanceMenu(UEditorMenu* Menu);
 
 	/** If re-initializing for a material function instance re-generate the proxy materials */
 	void ReInitMaterialFunctionProxies();

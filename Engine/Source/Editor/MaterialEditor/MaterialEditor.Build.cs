@@ -42,7 +42,8 @@ public class MaterialEditor : ModuleRules
                 "AdvancedPreviewScene",
                 "Projects",
                 "AssetRegistry",
-            }
+				"EditorMenus",
+			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
