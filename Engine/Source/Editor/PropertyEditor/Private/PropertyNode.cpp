@@ -1576,7 +1576,8 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 		{
 			FScriptSetHelper SetHelper(OuterSetProperty, ValueTracker.GetPropertyDefaultBaseAddress());
 
-			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && !SetHelper.IsValidIndex(GetArrayIndex()) )
+			bool bIsValidIndex = ArrayIndex >= 0 && ArrayIndex < SetHelper.Num();
+			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && !bIsValidIndex)
 			{
 				bDiffersFromDefaultForObject = true;
 			}
@@ -1585,7 +1586,8 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 		{
 			FScriptMapHelper MapHelper(OuterMapProperty, ValueTracker.GetPropertyDefaultBaseAddress());
 
-			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && !MapHelper.IsValidIndex(GetArrayIndex()) )
+			bool bIsValidIndex = ArrayIndex >= 0 && ArrayIndex < MapHelper.Num();
+			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && !bIsValidIndex )
 			{
 				bDiffersFromDefaultForObject = true;
 			}
@@ -2572,7 +2574,7 @@ void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, c
 							check(false);	// Insert is not supported for sets
 							break;
 						case EPropertyArrayChangeType::Delete:
-							SetHelper.RemoveAt(ArrayIndex);
+							SetHelper.RemoveAt(SetHelper.FindInternalIndex(ArrayIndex));
 							SetHelper.Rehash();
 							break;
 						case EPropertyArrayChangeType::Duplicate:
@@ -2602,7 +2604,7 @@ void FPropertyNode::PropagateContainerPropertyChange( UObject* ModifiedObject, c
 							check(false);	// Insert is not supported for maps
 							break;
 						case EPropertyArrayChangeType::Delete:
-							MapHelper.RemoveAt(ArrayIndex);
+							MapHelper.RemoveAt(MapHelper.FindInternalIndex(ArrayIndex));
 							MapHelper.Rehash();
 							break;
 						case EPropertyArrayChangeType::Duplicate:
