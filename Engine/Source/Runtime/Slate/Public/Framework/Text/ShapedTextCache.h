@@ -26,7 +26,7 @@ public:
 		return TextRange == Other.TextRange
 			&& Scale == Other.Scale
 			&& TextContext == Other.TextContext
-			&& FontInfo.IsIdentialToForCaching(Other.FontInfo);
+			&& FontInfo.IsIdenticalTo(Other.FontInfo);
 	}
 
 	FORCEINLINE bool operator!=(const FCachedShapedTextKey& Other) const
