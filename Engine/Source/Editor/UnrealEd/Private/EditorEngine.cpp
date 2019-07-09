@@ -211,6 +211,7 @@
 #include "Materials/MaterialInstance.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderTargetPool.h"
+#include "RenderGraphBuilder.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -1895,6 +1896,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 					GRenderingRealtimeClock.Tick(DeltaTime);
 				}
 				GRenderTargetPool.TickPoolElements();
+				FRDGBuilder::TickPoolElements();
 			});
 	}
 
