@@ -8,6 +8,7 @@
 #include "EditorMenuEntry.h"
 #include "EditorMenuSection.h"
 #include "Misc/Attribute.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "EditorMenusBlueprintLibrary.generated.h"
 
@@ -51,7 +52,7 @@ public:
 	static void SetIcon(UPARAM(ref) FEditorMenuEntry& Target, const FName StyleSetName, const FName StyleName = NAME_None, const FName SmallStyleName = NAME_None);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor UI", meta = (ScriptMethod))
-	static void SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const FName TypeName, const FString& String);
+	static void SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const EEditorMenuStringCommandType Type, const FString& String, const FName CustomType = NAME_None);
 
 	UFUNCTION(BlueprintCallable, Category = "Editor UI")
 	static FEditorMenuEntry InitMenuEntry(const FName InOwner, const FName InName, const FText& InLabel, const FText& InToolTip, const FEditorMenuStringCommand& StringCommand);

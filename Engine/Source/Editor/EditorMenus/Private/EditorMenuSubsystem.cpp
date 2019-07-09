@@ -33,8 +33,8 @@ FName FEditorMenuStringCommand::GetTypeName() const
 		return CommandName;
 	case EEditorMenuStringCommandType::Python:
 		return PythonName;
-	case EEditorMenuStringCommandType::Other:
-		return TypeName;
+	case EEditorMenuStringCommandType::Custom:
+		return CustomType;
 	default:
 		break;
 	}

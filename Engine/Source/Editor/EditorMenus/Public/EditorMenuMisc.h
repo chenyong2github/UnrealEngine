@@ -14,7 +14,7 @@ enum class EEditorMenuStringCommandType : uint8
 {
 	Command,
 	Python,
-	Other
+	Custom
 };
 
 USTRUCT(BlueprintType)
@@ -22,12 +22,15 @@ struct EDITORMENUS_API FEditorMenuStringCommand
 {
 	GENERATED_BODY()
 
+	// Which command handler to use
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	EEditorMenuStringCommandType Type;
 
+	// Which command handler to use when type is custom
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
-	FName TypeName;
+	FName CustomType;
 
+	// String to pass to command handler
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	FString String;
 
@@ -59,9 +62,11 @@ struct FEditorMenuInsert
 	FEditorMenuInsert() : Position(EEditorMenuInsertType::Default) {}
 	FEditorMenuInsert(FName InName, EEditorMenuInsertType InPosition) : Name(InName), Position(InPosition) {}
 
+	// Where to insert
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	FName Name;
 
+	// How to insert
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Editor UI")
 	EEditorMenuInsertType Position;
 

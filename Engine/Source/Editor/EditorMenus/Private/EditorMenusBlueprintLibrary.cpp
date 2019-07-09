@@ -53,10 +53,11 @@ void UEditorMenuEntryExtensions::SetIcon(UPARAM(ref) FEditorMenuEntry& Target, c
 	Target.Icon = FSlateIcon(StyleSetName, StyleName, SmallStyleName);
 }
 
-void UEditorMenuEntryExtensions::SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const FName TypeName, const FString& String)
+void UEditorMenuEntryExtensions::SetStringCommand(UPARAM(ref) FEditorMenuEntry& Target, const EEditorMenuStringCommandType Type, const FString& String, const FName CustomType)
 {
 	Target.ResetActions();
-	Target.StringExecuteAction.TypeName = TypeName;
+	Target.StringExecuteAction.Type = Type;
+	Target.StringExecuteAction.CustomType = CustomType;
 	Target.StringExecuteAction.String = String;
 }
 
