@@ -21,7 +21,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The version number to write
 		/// </summary>
-		public const int CurrentVersion = 16;
+		public const int CurrentVersion = 17;
 
 		/// <summary>
 		/// The time at which the makefile was created
@@ -516,7 +516,7 @@ namespace UnrealBuildTool
 				}
 
 				// Check whether the list has changed
-				List<FileItem> PrevFilesWithMarkup = Makefile.UObjectModuleHeaders.SelectMany(x => x.HeaderFiles).ToList();
+				List<FileItem> PrevFilesWithMarkup = Makefile.UObjectModuleHeaders.Where(x => !x.bUsePrecompiled).SelectMany(x => x.HeaderFiles).ToList();
 				List<FileItem> NextFilesWithMarkup = NewFilesWithMarkupBag.ToList();
 				if (NextFilesWithMarkup.Count != PrevFilesWithMarkup.Count || NextFilesWithMarkup.Intersect(PrevFilesWithMarkup).Count() != PrevFilesWithMarkup.Count)
 				{
