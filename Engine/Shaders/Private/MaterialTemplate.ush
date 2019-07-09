@@ -22,6 +22,7 @@
 #define NUM_MATERIAL_TEXCOORDS %s
 #define NUM_CUSTOM_VERTEX_INTERPOLATORS %s
 #define NUM_TEX_COORD_INTERPOLATORS %s
+%s
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
 	#include "/Engine/Private/VirtualTextureCommon.ush"
