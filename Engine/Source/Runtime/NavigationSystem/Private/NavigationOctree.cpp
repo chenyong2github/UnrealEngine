@@ -4,6 +4,11 @@
 #include "AI/Navigation/NavRelevantInterface.h"
 #include "NavigationSystem.h"
 
+namespace
+{
+	FNavigationOctree DummyNavOctree(FVector(0), 0);
+}
+
 //----------------------------------------------------------------------//
 // FNavigationOctree
 //----------------------------------------------------------------------//
@@ -20,6 +25,8 @@ FNavigationOctree::~FNavigationOctree()
 {
 	DEC_DWORD_STAT_BY( STAT_NavigationMemory, sizeof(*this) );
 	DEC_MEMORY_STAT_BY(STAT_Navigation_CollisionTreeMemory, NodesMemory);
+	
+	ObjectToOctreeId.Empty();
 }
 
 void FNavigationOctree::SetDataGatheringMode(ENavDataGatheringModeConfig Mode)
@@ -195,6 +202,11 @@ const FNavigationRelevantData* FNavigationOctree::GetDataForID(const FOctreeElem
 	return &*OctreeElement.Data;
 }
 
+void FNavigationOctree::SetElementId(const UObject& Object, FOctreeElementId Id)
+{
+	ObjectToOctreeId.Add(HashObject(Object), Id);
+}
+
 //----------------------------------------------------------------------//
 // FNavigationOctreeSemantics
 //----------------------------------------------------------------------//
@@ -203,31 +215,21 @@ FORCENOINLINE
 #endif // NAVSYS_DEBUG
 void FNavigationOctreeSemantics::SetElementId(const FNavigationOctreeElement& Element, FOctreeElementId Id)
 {
-	UWorld* World = NULL;
 
 	const bool bEvenIfPendingKill = true;
 	UObject* ElementOwner = Element.GetOwner(bEvenIfPendingKill);
-	if (ElementOwner == nullptr)
+	if (ElementOwner)
 	{
-		return;
+		Element.GetOwnerOctree().SetElementId(*ElementOwner, Id);
 	}
+}
 
-	if (AActor* Actor = Cast<AActor>(ElementOwner))
-	{
-		World = Actor->GetWorld();
-	}
-	else if (UActorComponent* AC = Cast<UActorComponent>(ElementOwner))
-	{
-		World = AC->GetWorld();
-	}
-	else if (ULevel* Level = Cast<ULevel>(ElementOwner))
-	{
-		World = Level->OwningWorld;
-	}
+//----------------------------------------------------------------------//
+//  FNavigationOctreeElement
+//----------------------------------------------------------------------//
+FNavigationOctreeElement::FNavigationOctreeElement(UObject& SourceObject)
+	: Data(new FNavigationRelevantData(SourceObject))
+	, OwnerOctree(DummyNavOctree)
+{
 
-	UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
-	if (NavSys)
-	{
-		NavSys->SetObjectsNavOctreeId(*ElementOwner, Id);
-	}
 }
