@@ -425,6 +425,9 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	/** Loads the tag tables referenced in the GameplayTagSettings object */
 	void LoadGameplayTagTables(bool bAllowAsyncLoad = false);
 
+	/** Loads tag inis contained in the specified path */
+	void AddTagIniSearchPath(const FString& RootDir);
+
 	/** Helper function to construct the gameplay tag tree */
 	void ConstructGameplayTagTree();
 
@@ -658,6 +661,8 @@ private:
 
 	void AddChildrenTags(FGameplayTagContainer& TagContainer, TSharedPtr<FGameplayTagNode> GameplayTagNode, bool RecurseAll=true, bool OnlyIncludeDictionaryTags=false) const;
 
+	void AddTagsFromAdditionalLooseIniFiles(const TArray<FString>& IniFileList);
+
 	/**
 	 * Helper function for GameplayTagsMatch to get all parents when doing a parent match,
 	 * NOTE: Must never be made public as it uses the FNames which should never be exposed
@@ -691,6 +696,12 @@ private:
 
 	/** List of native tags to add when reconstructing tree */
 	TSet<FName> NativeTagsToAdd;
+
+	TSet<FName> RestrictedGameplayTagSourceNames;
+
+	TArray<FString> ExtraTagIniList;
+
+	bool bIsConstructingGameplayTagTree = false;
 
 	/** Cached runtime value for whether we are using fast replication or not. Initialized from config setting. */
 	bool bUseFastReplication;
