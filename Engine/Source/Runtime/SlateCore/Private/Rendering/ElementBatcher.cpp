@@ -311,7 +311,7 @@ void FSlateBatchData::MergeRenderBatches()
 			FSlateRenderBatch& CurBatch = RenderBatches[BatchIndexPair.Key];
 
 
-			if (CurBatch.bIsMerged || CurBatch.GetNumIndices() == 0 || CurBatch.GetNumVertices() == 0)
+			if (CurBatch.bIsMerged || !CurBatch.IsValidForRendering())
 			{
 				// skip already merged batches or batches with invalid data (e.g text with pure whitespace)
 				continue;
