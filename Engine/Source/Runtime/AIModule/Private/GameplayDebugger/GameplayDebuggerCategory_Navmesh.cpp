@@ -43,7 +43,7 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 		if (NavSys) 
 		{
 			const FNavAgentProperties& NavAgentProperties = DestPawn->GetNavAgentPropertiesRef();
-			NavData = Cast<const ARecastNavMesh>(NavSys->GetNavDataForProps(NavAgentProperties));
+			NavData = Cast<const ARecastNavMesh>(NavSys->GetNavDataForProps(NavAgentProperties, DestPawn->GetNavAgentLocation()));
 		}
 	}
 
