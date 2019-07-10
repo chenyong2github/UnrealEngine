@@ -117,6 +117,14 @@ public:
 		}
 	}
 
+	/**
+	 * Returns true if slate initialized and editor GUI is being used.
+	 * The application should have been initialized before this method is called.
+	 *
+	 * @return	True if slate initialized and editor GUI is being used.
+	 */
+	static bool IsRunningEditorUI();
+
 	// UEditorSubsystem implementation
 	virtual void Initialize(FSubsystemCollectionBase& Collection);
 	virtual void Deinitialize();

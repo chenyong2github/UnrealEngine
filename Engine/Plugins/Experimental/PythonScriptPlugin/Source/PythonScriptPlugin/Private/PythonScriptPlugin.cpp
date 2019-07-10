@@ -510,13 +510,16 @@ void FPythonScriptPlugin::StartupModule()
 #if WITH_EDITOR
 void FPythonScriptPlugin::OnPostEngineInit()
 {
-	check(CmdMenu == nullptr);
-	CmdMenu = new FPythonCommandMenuImpl();
-	CmdMenu->OnStartupMenu();
+	if (UEditorMenuSubsystem::IsRunningEditorUI())
+	{
+		check(CmdMenu == nullptr);
+		CmdMenu = new FPythonCommandMenuImpl();
+		CmdMenu->OnStartupMenu();
 
-	UEditorMenuSubsystem::Get()->RegisterStringCommandHandler("Python", FEditorMenuExecuteString::CreateLambda([this](const FString& InString, const FEditorMenuContext& InContext) {
-		ExecPythonCommand(*InString);
-	}));
+		UEditorMenuSubsystem::Get()->RegisterStringCommandHandler("Python", FEditorMenuExecuteString::CreateLambda([this](const FString& InString, const FEditorMenuContext& InContext) {
+			ExecPythonCommand(*InString);
+		}));
+	}
 }
 
 #endif // WITH_EDITOR
@@ -532,10 +535,12 @@ void FPythonScriptPlugin::ShutdownModule()
 #if WITH_EDITOR
 	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
 
-	check(CmdMenu);
-	CmdMenu->OnShutdownMenu();
-	delete CmdMenu;
-	CmdMenu = nullptr;
+	if (CmdMenu)
+	{
+		CmdMenu->OnShutdownMenu();
+		delete CmdMenu;
+		CmdMenu = nullptr;
+	}
 
 	if (UEditorMenuSubsystem* EditorMenus = UEditorMenuSubsystem::TryGet())
 	{

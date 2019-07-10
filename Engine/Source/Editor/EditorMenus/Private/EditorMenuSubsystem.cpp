@@ -73,6 +73,16 @@ UEditorMenuSubsystem::UEditorMenuSubsystem() :
 {
 }
 
+bool UEditorMenuSubsystem::IsRunningEditorUI()
+{
+	if (!FSlateApplication::IsInitialized())
+	{
+		return false;
+	}
+
+	return !IsRunningCommandlet() && !IsRunningGame() && !IsRunningDedicatedServer() && !IsRunningClientOnly();
+}
+
 void UEditorMenuSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 }
