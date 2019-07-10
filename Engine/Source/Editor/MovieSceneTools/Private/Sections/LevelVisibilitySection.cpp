@@ -77,7 +77,7 @@ FText FLevelVisibilitySection::GetVisibilityText() const
 	int32 NumRemaining = SectionObject.GetLevelNames().Num() - Count;
 	FString LevelsText = FString::Join( LevelNameStrings, TEXT( ", " ) );
 
-	if (LevelNameStrings.Num() == LevelVisibilitySection::MaxNumLevelsToShow )
+	if (SectionObject.GetLevelNames().Num() > LevelVisibilitySection::MaxNumLevelsToShow )
 	{
 		LevelsText.Append( FString::Format(TEXT(" (+{0} more)"), { FString::FormatAsNumber(NumRemaining) } ) );
 	}
